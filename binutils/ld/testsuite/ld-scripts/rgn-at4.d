@@ -1,0 +1,13 @@
+# name: rgn-at4
+# source: rgn-at.s
+# ld: -T rgn-at4.t
+# objdump: -w -h
+
+.*:     file format .*
+
+Sections:
+Idx +Name +Size +VMA +LMA +File off +Algn +Flags
+  0 .text +0+[0-9a-f][0-9a-f] +0+0010000 +0+0020000 +.*
+  1 .data +0+[0-9a-f][0-9a-f] +0+00100[0-9a-f]+ +0+00200[0-9a-f]+ +.*
+  2 .bss +0+[0-9a-f][0-9a-f] +0+00100[0-9a-f]+ +0+00200[0-9a-f]+ +.*
+  3 .trail +0+[0-9a-f][0-9a-f] +0+00100[0-9a-f]+ +0+00200[0-9a-f]+ +.*
