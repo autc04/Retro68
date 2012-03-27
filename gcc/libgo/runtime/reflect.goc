@@ -1,0 +1,27 @@
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package reflect
+#include "go-type.h"
+#include "interface.h"
+#include "runtime.h"
+#include "go-panic.h"
+
+func ifaceE2I(inter *Type, e Eface, ret *Iface) {
+	const Type *t;
+	Eface err;
+
+	if(((uintptr)e.__type_descriptor&reflectFlags) != 0)
+		runtime_throw("invalid interface value");
+	t = e.__type_descriptor;
+	if(t == nil) {
+		// explicit conversions require non-nil interface value.
+		runtime_newTypeAssertionError(
+			nil, nil, inter->__reflection,
+			nil, &err);
+		runtime_panic(err);
+	}
+	ret->__object = e.__object;
+	ret->__methods = __go_convert_interface(inter, t);
+}

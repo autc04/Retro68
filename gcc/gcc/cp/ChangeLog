@@ -1,0 +1,386 @@
+2012-03-22  Release Manager
+
+	* GCC 4.7.0 released.
+
+2012-03-20  Jason Merrill  <jason@redhat.com>
+
+	* mangle.c (write_type): Handle 'auto'.
+	* init.c (build_new): Don't do auto deduction where it might
+	affect template mangling.
+
+2012-03-07  Jason Merrill  <jason@redhat.com>
+
+	PR c++/52521
+	* mangle.c (write_literal_operator_name): The length comes after the
+	operator prefix.
+
+2012-02-29  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51930
+	* decl.c (check_tag_decl): Move warning for misplaced attributes here.
+	(shadow_tag): From here.
+	* parser.c (cp_parser_explicit_instantiation): Don't warn here.
+
+2012-02-21  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/52312
+	* typeck.c (check_literal_operator_args): Initialize *long_double_p
+	and *long_long_unsigned_p even if processing_template_decl.
+
+2012-02-16  Jason Merrill  <jason@redhat.com>
+
+	PR c++/52248
+	* decl.c (define_label): Use timevar_cond_start/stop.
+
+2012-02-16  Fabien Chêne  <fabien@gcc.gnu.org>
+
+	PR c++/52126
+	* decl.c (xref_basetypes): call dependent_scope_p instead of
+	dependent_type_p.
+
+2012-02-16  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51415
+	* error.c (dump_expr): Handle lambda closures specifically.
+
+2012-02-14  Jason Merrill  <jason@redhat.com>
+
+	* parser.c (cp_parser_explicit_instantiation): Give a warning
+	for ignored attributes on explicit class instantiation.
+
+2012-02-14  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/52247
+	* pt.c (tsubst_copy_asm_operands): For LABEL_DECL values call
+	lookup_label on label's name and set TREE_USED.
+
+2012-02-14  Jason Merrill  <jason@redhat.com>
+
+	PR c++/39055
+	* decl.c (local_variable_p_walkfn): Don't check DECL_ARTIFICIAL.
+
+2012-02-14  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c/52181
+	* decl.c (duplicate_decls): If olddecl has bigger DECL_ALIGN than
+	newdecl, copy DECL_ALIGN to newdecl and or DECL_USER_ALIGN bits.
+
+2012-02-07  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51675
+	* semantics.c (cx_check_missing_mem_inits): Handle unions.
+	Fix constexpr default constructor logic.
+
+	PR c++/52035
+	* pt.c (tsubst): Strip uninstantiated typedef.
+
+2012-02-06  Jason Merrill  <jason@redhat.com>
+
+	PR c++/52088
+	* cvt.c (build_expr_type_conversion): Check for template conversion.
+
+2012-01-31  Jason Merrill  <jason@redhat.com>
+
+	PR c++/52043
+	* cp-tree.h (PACK_EXPANSION_LOCAL_P): New.
+	* pt.c (make_pack_expansion, tsubst_initializer_list): Set it.
+	(tsubst_pack_expansion): Check it.
+
+2012-01-29  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51327
+	* class.c (explain_non_literal_class): Correctly handle implicitly
+	deleted constructors.
+
+2012-01-27  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/51852
+	* pt.c (tsubst_pack_expansion): Delete and restore
+	local_specialization whenever need_local_specialization, not just
+	when saved_local_specializations is non-NULL.
+
+2012-01-26  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51370
+	* error.c (dump_decl, [TEMPLATE_ID_EXPR]): Handle error_mark_node
+	as TREE_OPERAND (t, 1).
+
+2012-01-24  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51917
+	* decl.c (xref_basetypes): Check VEC_length instead of VEC_space.
+
+	PR c++/51973
+	* tree.c (called_fns_equal): Check template args.
+	(cp_tree_equal): Call it.
+
+2012-01-24  Aldy Hernandez  <aldyh@redhat.com>
+	    Patrick Marlier  <patrick.marlier@gmail.com>
+
+	PR c++/51928
+	* class.c (set_method_tm_attributes): Use TARGET_THUNK instead of
+	thunk for set_one_vmethod_tm_attributes.
+
+2012-01-24  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51223
+	* call.c (build_over_call): Check for error_mark_node as
+	TREE_VALUE when default arguments are processed.
+
+2012-01-23  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51930
+	* decl2.c (determine_visibility): Check for visibility attribute
+	on template specialization.
+
+2012-01-23  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51398
+	* pt.c (parameter_of_template_p): Skip error_mark_node parameters.
+
+2012-01-23  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51925
+	* class.c (add_method): Set OVL_USED for using-decls.
+	* tree.c (ovl_scope): New.
+	* cp-tree.h: Declare it.
+	* parser.c (cp_parser_template_name): Use it.
+	* semantics.c (baselink_for_fns): Likewise.
+	* name-lookup.c (set_inherited_value_binding_p): Likewise.
+
+2012-01-20  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51402
+	* pt.c (lookup_template_class_1): Check context returned by
+	tsubst for error_mark_node.
+
+2012-01-19  Kai Tietz  <ktietz@redhat.com>
+
+	PR c++/51344
+	* decl2.c (save_template_attributes): Use merge_attributes
+	instead of chaining up via TREE_CHAIN.
+
+2012-01-19  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51889
+	* class.c (finish_struct): Call add_method here for function usings.
+	* semantics.c (finish_member_declaration): Not here.
+
+2012-01-18  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51225
+	* typeck2.c (store_init_value): Within a template guard
+	cxx_constant_value with require_potential_constant_expression.
+	* pt.c (convert_nontype_argument): Likewise.
+
+2012-01-16  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/51854
+	* mangle.c (write_template_arg_literal): Handle complex.
+
+2012-01-16  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51827
+	* mangle.c (mangle_decl): Don't mangle uninstantiated templates.
+
+	PR c++/51868
+	* typeck.c (build_static_cast_1): Handle bit-fields properly.
+
+2012-01-13  Ian Lance Taylor  <iant@google.com>
+
+	PR c++/50012
+	* typeck.c (enum_cast_to_int): New static function.
+	(cp_build_binary_op): When handling warn_sign_compare, don't test
+	for TREE_NO_WARNING.  Do call enum_cast_to_int.
+	* call.c (avoid_sign_compare_warnings): Remove static function.
+	(build_new_op_1): Don't call avoid_sign_compare_warnings.
+
+2012-01-13  Steven Bosscher  <steven@gcc.gnu.org>
+
+	* decl2.c: Do not include tree-mudflap.h
+	* semantics.c: Likewise.
+
+2012-01-13  Jason Merrill  <jason@redhat.com>
+
+	PR c++/20681
+	* semantics.c (finish_break_stmt): Avoid adding an unreachable
+	BREAK_STMT.
+
+	PR c++/51813
+	* decl2.c (constrain_visibility): Clear DECL_VISIBILITY_SPECIFIED
+	when reducing the visibility.
+
+	PR c++/51620
+	* class.c (build_vtbl_initializer): Use __cxa_deleted_virtual.
+
+2012-01-12  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51714
+	* pt.c (value_dependent_expression_p): Treat STMT_EXPR as
+	value-dependent.
+
+2012-01-13  Dodji Seketeli  <dodji@redhat.com>
+
+	PR c++/51633
+	* semantics.c (cp_parser_ctor_initializer_opt_and_function_body):
+	Set the pointer to the last block of the constructor to the
+	current statement.
+	(build_constexpr_constructor_member_initializers): Get
+	build_data_member_initialization a chance to deal with more
+	statements before we choke.
+
+2012-01-12  Jason Merrill  <jason@redhat.com>
+
+	PR c++/48051
+	* mangle.c (write_expression): Mangle BASELINK scope if
+	BASELINK_QUALIFIED_P.
+	* search.c (adjust_result_of_qualified_name_lookup): Set
+	BASELINK_QUALIFIED_P.
+	* tree.c (cp_tree_equal) [BASELINK]: Compare BASELINK_QUALIFIED_P.
+	* parser.c (cp_parser_postfix_dot_deref_expression): Don't call
+	adjust_result_of_qualified_name_lookup for non-qualified names.
+
+	PR c++/51403
+	* pt.c (unify): Handle error_mark_node.
+
+2012-01-11  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51565
+	* call.c (standard_conversion): For ptrmemfuncs, compare the
+	static_fn_types.
+
+	PR c++/51818
+	* mangle.c (find_substitution): A type is only a substitution
+	match if we're looking for a type.
+	(write_nested_name): Use decl_mangling_context.
+
+	* decl.c (decls_match): Assert that the arguments are decls.
+
+	PR c++/51613
+	* pt.c (resolve_overloaded_unification): Compare types with
+	same_type_p, not decls_match.
+
+2012-01-10  Jason Merrill  <jason@redhat.com>
+
+	PR c++/51614
+	* class.c (build_base_path): Diagnose ambiguous base.
+
+	PR c++/51433
+	* semantics.c (cxx_eval_call_expression): Always retry previously
+	non-constant expressions.
+
+2012-01-06  Jason Merrill  <jason@redhat.com>
+
+	DR 686
+	PR c++/47450
+	* parser.c (cp_parser_new_expression): Set
+	type_definition_forbidden_message.
+
+	PR c++/6057
+	PR c++/48051
+	PR c++/50855
+	PR c++/51322
+	* mangle.c (write_expression): Support NEW_EXPR, DELETE_EXPR,
+	THROW_EXPR, CONSTRUCTOR, OVERLOAD.  Fix PREINCREMENT_EXPR and
+	PREDECREMENT_EXPR.
+	(write_template_arg): Fix mangling of class-scope functions and
+	argument packs.
+	(mangle_decl): Update suggested -fabi-version argument.
+	* operators.def: Add DOTSTAR_EXPR, REINTERPRET_CAST_EXPR,
+	DYNAMIC_CAST_EXPR; correct CONST_CAST_EXPR, STATIC_CAST_EXPR.
+	* tree.c (dependent_name): No longer static.
+	* cp-tree.h: Declare it.
+	* pt.c (unify): Defer handling of unconverted functions.
+
+	* mangle.c (mangle_decl): Don't generate mangling aliases
+	for maybe-in-charge [cd]tors.
+
+	* error.c (dump_expr): Print type of CONSTRUCTOR.
+
+2012-01-05  Dodji Seketeli  <dodji@redhat.com>
+
+	PR c++/51541
+	* parser.c (cp_parser_alias_declaration): Get out early upon
+    	errors in the identifier or the attributes.
+
+2012-01-04  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51064
+	* pt.c (tsubst_copy_and_build): Maybe set TREE_NO_WARNING on
+	the tree returned by build_x_binary_op.
+
+2012-01-03  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51738
+	* parser.c (cp_parser_postfix_open_square_expression): Handle
+	postfix-expression [ braced-init-list ].
+
+2012-01-03  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/29273
+	* rtti.c (build_dynamic_cast_1): In case of T a pointer type,
+	call decay_conversion on v.
+
+2012-01-03  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/15867
+	* decl.c (duplicate_decls): With -Wredundant-decls don't warn for
+	declaration followed by specialization.
+
+2012-01-03  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/51669
+	* semantics.c (finish_omp_clauses): Call fold_build_cleanup_point_expr
+	on OMP_CLAUSE_{IF,FINAL,NUM_THREADS,SCHEDULE_CHUNK}_EXPR.
+
+2012-01-02  Jason Merrill  <jason@redhat.com>
+
+	DR 1359
+	PR c++/51675
+	* method.c (walk_field_subobs): Don't check for uninitialized
+	fields in a union.
+	(synthesized_method_walk): Check here.
+
+	DR 325
+	PR c++/51666
+	* parser.c (cp_parser_cache_defarg): Split out...
+	(cp_parser_parameter_declaration): ...from here.
+	(cp_parser_save_nsdmi): Use it.
+	(cp_parser_cache_group): Remove CPP_COMMA support.
+
+2012-01-02  Dodji Seketeli  <dodji@redhat.com>
+
+	PR c++/51462
+	* semantics.c (cx_check_missing_mem_inits): Don't assert in case
+    	of error.
+
+2012-01-02  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/20140
+	* typeck2.c (digest_init_r): Use copy_init when initializing
+	an array of chars.
+
+2012-01-01  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/16603
+	* decl.c (build_enumerator): Don't call perform_integral_promotions
+	on the value.
+
+2012-01-01  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	PR c++/51379
+	* typeck.c (build_reinterpret_cast_1): Implement resolution of
+	DR 799.
+
+2012-01-01  Fabien Chêne  <fabien@gcc.gnu.org>
+
+	* parser.c (cp_parser_using_declaration): Add a warning about
+	deprecated access declarations when no errors were encountered
+	while parsing the access declaration. Save the first token in
+	order to emit the warning at the right place.
+
+Copyright (C) 2012 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.

@@ -1,0 +1,153 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file implements runtime support for signal handling.
+//
+// Most synchronization primitives are not available from
+// the signal handler (it cannot block and cannot use locks)
+// so the handler communicates with a processing goroutine
+// via struct sig, below.
+//
+// Ownership for sig.Note passes back and forth between
+// the signal handler and the signal goroutine in rounds.
+// The initial state is that sig.note is cleared (setup by signal_enable).
+// At the beginning of each round, mask == 0.
+// The round goes through three stages:
+//
+// (In parallel)
+// 1a) One or more signals arrive and are handled
+// by sigsend using cas to set bits in sig.mask.
+// The handler that changes sig.mask from zero to non-zero
+// calls notewakeup(&sig).
+// 1b) Sigrecv calls notesleep(&sig) to wait for the wakeup.
+//
+// 2) Having received the wakeup, sigrecv knows that sigsend
+// will not send another wakeup, so it can noteclear(&sig)
+// to prepare for the next round. (Sigsend may still be adding
+// signals to sig.mask at this point, which is fine.)
+//
+// 3) Sigrecv uses cas to grab the current sig.mask and zero it,
+// triggering the next round.
+//
+// The signal handler takes ownership of the note by atomically
+// changing mask from a zero to non-zero value. It gives up
+// ownership by calling notewakeup. The signal goroutine takes
+// ownership by returning from notesleep (caused by the notewakeup)
+// and gives up ownership by clearing mask.
+
+package signal
+#include "config.h"
+#include "runtime.h"
+#include "arch.h"
+#include "malloc.h"
+#include "defs.h"
+
+static struct {
+	Note;
+	uint32 mask[(NSIG+31)/32];
+	uint32 wanted[(NSIG+31)/32];
+	uint32 kick;
+	bool inuse;
+} sig;
+
+// Called from sighandler to send a signal back out of the signal handling thread.
+bool
+__go_sigsend(int32 s)
+{
+	uint32 bit, mask;
+
+	if(!sig.inuse || s < 0 || (size_t)s >= 32*nelem(sig.wanted) || !(sig.wanted[s/32]&(1U<<(s&31))))
+		return false;
+	bit = 1 << (s&31);
+	for(;;) {
+		mask = sig.mask[s/32];
+		if(mask & bit)
+			break;		// signal already in queue
+		if(runtime_cas(&sig.mask[s/32], mask, mask|bit)) {
+			// Added to queue.
+			// Only send a wakeup if the receiver needs a kick.
+			if(runtime_cas(&sig.kick, 1, 0))
+				runtime_notewakeup(&sig);
+			break;
+		}
+	}
+	return true;
+}
+
+// Called to receive the next queued signal.
+// Must only be called from a single goroutine at a time.
+func signal_recv() (m uint32) {
+	static uint32 recv[nelem(sig.mask)];
+	int32 i, more;
+	
+	for(;;) {
+		// Serve from local copy if there are bits left.
+		for(i=0; i<NSIG; i++) {
+			if(recv[i/32]&(1U<<(i&31))) {
+				recv[i/32] ^= 1U<<(i&31);
+				m = i;
+				goto done;
+			}
+		}
+
+		// Get a new local copy.
+		// Ask for a kick if more signals come in
+		// during or after our check (before the sleep).
+		if(sig.kick == 0) {
+			runtime_noteclear(&sig);
+			runtime_cas(&sig.kick, 0, 1);
+		}
+
+		more = 0;
+		for(i=0; (size_t)i<nelem(sig.mask); i++) {
+			for(;;) {
+				m = sig.mask[i];
+				if(runtime_cas(&sig.mask[i], m, 0))
+					break;
+			}
+			recv[i] = m;
+			if(m != 0)
+				more = 1;
+		}
+		if(more)
+			continue;
+
+		// Sleep waiting for more.
+		runtime_entersyscall();
+		runtime_notesleep(&sig);
+		runtime_exitsyscall();
+	}
+
+done:;
+	// goc requires that we fall off the end of functions
+	// that return values instead of using our own return
+	// statements.
+}
+
+// Must only be called from a single goroutine at a time.
+func signal_enable(s uint32) {
+	int32 i;
+
+	if(!sig.inuse) {
+		// The first call to signal_enable is for us
+		// to use for initialization.  It does not pass
+		// signal information in m.
+		sig.inuse = true;	// enable reception of signals; cannot disable
+		runtime_noteclear(&sig);
+		return;
+	}
+	
+	if(~s == 0) {
+		// Special case: want everything.
+		for(i=0; (size_t)i<nelem(sig.wanted); i++)
+			sig.wanted[i] = ~(uint32)0;
+		runtime_sigenable(s);
+		return;
+	}
+
+	if(s >= nelem(sig.wanted)*32)
+		return;
+	sig.wanted[s/32] |= 1U<<(s&31);
+	runtime_sigenable(s);
+}

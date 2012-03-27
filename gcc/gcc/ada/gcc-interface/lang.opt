@@ -1,0 +1,85 @@
+; Options for the Ada front end.
+; Copyright (C) 2003, 2007, 2008, 2010, 2011 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 3, or (at your option) any later
+; version.
+; 
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+; 
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING3.  If not see
+; <http://www.gnu.org/licenses/>.
+
+
+; See the GCC internals manual for a description of this file's format.
+
+; Please try to keep this file in ASCII collating order.
+
+Language
+Ada
+
+Language
+AdaWhy
+
+-all-warnings
+Ada AdaWhy Alias(Wall)
+
+-include-barrier
+Ada AdaWhy Alias(I, -)
+
+-include-directory
+Ada AdaWhy Separate Alias(I)
+
+-include-directory=
+Ada AdaWhy Joined Alias(I)
+
+-no-standard-includes
+Ada AdaWhy Alias(nostdinc)
+
+-no-standard-libraries
+Ada AdaWhy Alias(nostdlib)
+
+I
+Ada AdaWhy Joined Separate
+-I <dir>.	Add <dir> to the end of the main source path
+
+Wall
+Ada AdaWhy
+Enable most warning messages
+
+k8
+Driver
+Synonym of -gnatk8
+
+nostdinc
+Ada AdaWhy RejectNegative
+Do not look for source files in standard path
+
+nostdlib
+Ada AdaWhy
+Do not look for object files in standard path
+
+fRTS=
+Ada AdaWhy Joined RejectNegative
+Select the runtime
+
+gant
+Ada AdaWhy Joined Undocumented
+Catch typos
+
+gnatO
+Ada AdaWhy Separate
+Set name of output ALI file (internal switch)
+
+gnat
+Ada AdaWhy Joined
+-gnat<options>	Specify options to GNAT
+
+; This comment is to ensure we retain the blank line above.

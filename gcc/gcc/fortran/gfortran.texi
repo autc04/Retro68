@@ -1,0 +1,3136 @@
+\input texinfo  @c -*-texinfo-*-
+@c %**start of header
+@setfilename gfortran.info
+@set copyrights-gfortran 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
+
+@include gcc-common.texi
+
+@settitle The GNU Fortran Compiler
+
+@c Create a separate index for command line options
+@defcodeindex op
+@c Merge the standard indexes into a single one.
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex ky cp
+@syncodeindex pg cp
+@syncodeindex tp cp
+
+@c TODO: The following "Part" definitions are included here temporarily
+@c until they are incorporated into the official Texinfo distribution.
+@c They borrow heavily from Texinfo's \unnchapentry definitions.
+
+@tex
+\gdef\part#1#2{%
+  \pchapsepmacro
+  \gdef\thischapter{}
+  \begingroup
+    \vglue\titlepagetopglue
+    \titlefonts \rm
+    \leftline{Part #1:@* #2}
+    \vskip4pt \hrule height 4pt width \hsize \vskip4pt
+  \endgroup
+  \writetocentry{part}{#2}{#1}
+}
+\gdef\blankpart{%
+  \writetocentry{blankpart}{}{}
+}
+% Part TOC-entry definition for summary contents.
+\gdef\dosmallpartentry#1#2#3#4{%
+  \vskip .5\baselineskip plus.2\baselineskip
+  \begingroup
+    \let\rm=\bf \rm
+    \tocentry{Part #2: #1}{\doshortpageno\bgroup#4\egroup}
+  \endgroup
+}
+\gdef\dosmallblankpartentry#1#2#3#4{%
+  \vskip .5\baselineskip plus.2\baselineskip
+}
+% Part TOC-entry definition for regular contents.  This has to be
+% equated to an existing entry to not cause problems when the PDF
+% outline is created.
+\gdef\dopartentry#1#2#3#4{%
+  \unnchapentry{Part #2: #1}{}{#3}{#4}
+}
+\gdef\doblankpartentry#1#2#3#4{}
+@end tex
+
+@c %**end of header
+
+@c Use with @@smallbook.
+
+@c %** start of document
+
+@c Cause even numbered pages to be printed on the left hand side of
+@c the page and odd numbered pages to be printed on the right hand
+@c side of the page.  Using this, you can print on both sides of a
+@c sheet of paper and have the text on the same part of the sheet.
+
+@c The text on right hand pages is pushed towards the right hand
+@c margin and the text on left hand pages is pushed toward the left
+@c hand margin.
+@c (To provide the reverse effect, set bindingoffset to -0.75in.)
+
+@c @tex
+@c \global\bindingoffset=0.75in
+@c \global\normaloffset =0.75in
+@c @end tex
+
+@copying
+Copyright @copyright{} @value{copyrights-gfortran} Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Funding Free Software'', the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+
+@ifinfo
+@dircategory Software development
+@direntry
+* gfortran: (gfortran).                  The GNU Fortran Compiler.
+@end direntry
+This file documents the use and the internals of
+the GNU Fortran compiler, (@command{gfortran}).
+
+Published by the Free Software Foundation
+51 Franklin Street, Fifth Floor
+Boston, MA 02110-1301 USA
+
+@insertcopying
+@end ifinfo
+
+
+@setchapternewpage odd
+@titlepage
+@title Using GNU Fortran
+@versionsubtitle
+@author The @t{gfortran} team
+@page
+@vskip 0pt plus 1filll
+Published by the Free Software Foundation@*
+51 Franklin Street, Fifth Floor@*
+Boston, MA 02110-1301, USA@*
+@c Last printed ??ber, 19??.@*
+@c Printed copies are available for $? each.@*
+@c ISBN ???
+@sp 1
+@insertcopying
+@end titlepage
+
+@c TODO: The following "Part" definitions are included here temporarily
+@c until they are incorporated into the official Texinfo distribution.
+
+@tex
+\global\let\partentry=\dosmallpartentry
+\global\let\blankpartentry=\dosmallblankpartentry
+@end tex
+@summarycontents
+
+@tex
+\global\let\partentry=\dopartentry
+\global\let\blankpartentry=\doblankpartentry
+@end tex
+@contents
+
+@page
+
+@c ---------------------------------------------------------------------
+@c TexInfo table of contents.
+@c ---------------------------------------------------------------------
+
+@ifnottex
+@node Top
+@top Introduction
+@cindex Introduction
+
+This manual documents the use of @command{gfortran}, 
+the GNU Fortran compiler.  You can find in this manual how to invoke
+@command{gfortran}, as well as its features and incompatibilities.
+
+@ifset DEVELOPMENT
+@emph{Warning:} This document, and the compiler it describes, are still
+under development.  While efforts are made to keep it up-to-date, it might
+not accurately reflect the status of the most recent GNU Fortran compiler.
+@end ifset
+
+@comment
+@comment  When you add a new menu item, please keep the right hand
+@comment  aligned to the same column.  Do not use tabs.  This provides
+@comment  better formatting.
+@comment
+@menu
+* Introduction::
+
+Part I: Invoking GNU Fortran
+* Invoking GNU Fortran:: Command options supported by @command{gfortran}.
+* Runtime::              Influencing runtime behavior with environment variables.
+
+Part II: Language Reference
+* Fortran 2003 and 2008 status::  Fortran 2003 and 2008 features supported by GNU Fortran.
+* Compiler Characteristics::      User-visible implementation details.
+* Mixed-Language Programming::    Interoperability with C
+* Extensions::           Language extensions implemented by GNU Fortran.
+* Intrinsic Procedures:: Intrinsic procedures supported by GNU Fortran.
+* Intrinsic Modules::    Intrinsic modules supported by GNU Fortran.
+
+* Contributing::         How you can help.
+* Copying::              GNU General Public License says
+                         how you can copy and share GNU Fortran.
+* GNU Free Documentation License::
+                         How you can copy and share this manual.
+* Funding::              How to help assure continued work for free software.
+* Option Index::         Index of command line options
+* Keyword Index::        Index of concepts
+@end menu
+@end ifnottex
+
+@c ---------------------------------------------------------------------
+@c Introduction
+@c ---------------------------------------------------------------------
+
+@node Introduction
+@chapter Introduction
+
+@c The following duplicates the text on the TexInfo table of contents.
+@iftex
+This manual documents the use of @command{gfortran}, the GNU Fortran
+compiler.  You can find in this manual how to invoke @command{gfortran},
+as well as its features and incompatibilities.
+
+@ifset DEVELOPMENT
+@emph{Warning:} This document, and the compiler it describes, are still
+under development.  While efforts are made to keep it up-to-date, it
+might not accurately reflect the status of the most recent GNU Fortran
+compiler.
+@end ifset
+@end iftex
+
+The GNU Fortran compiler front end was
+designed initially as a free replacement for,
+or alternative to, the unix @command{f95} command;
+@command{gfortran} is the command you will use to invoke the compiler.
+
+@menu
+* About GNU Fortran::    What you should know about the GNU Fortran compiler.
+* GNU Fortran and GCC::  You can compile Fortran, C, or other programs.
+* Preprocessing and conditional compilation:: The Fortran preprocessor
+* GNU Fortran and G77::  Why we chose to start from scratch.
+* Project Status::       Status of GNU Fortran, roadmap, proposed extensions.
+* Standards::            Standards supported by GNU Fortran.
+@end menu
+
+
+@c ---------------------------------------------------------------------
+@c About GNU Fortran
+@c ---------------------------------------------------------------------
+
+@node About GNU Fortran
+@section About GNU Fortran
+
+The GNU Fortran compiler supports the Fortran 77, 90 and 95 standards
+completely, parts of the Fortran 2003 and Fortran 2008 standards, and
+several vendor extensions.  The development goal is to provide the
+following features:
+
+@itemize @bullet
+@item
+Read a user's program,
+stored in a file and containing instructions written
+in Fortran 77, Fortran 90, Fortran 95, Fortran 2003 or Fortran 2008.
+This file contains @dfn{source code}.
+
+@item
+Translate the user's program into instructions a computer
+can carry out more quickly than it takes to translate the
+instructions in the first
+place.  The result after compilation of a program is
+@dfn{machine code},
+code designed to be efficiently translated and processed
+by a machine such as your computer.
+Humans usually are not as good writing machine code
+as they are at writing Fortran (or C++, Ada, or Java),
+because it is easy to make tiny mistakes writing machine code.
+
+@item
+Provide the user with information about the reasons why
+the compiler is unable to create a binary from the source code.
+Usually this will be the case if the source code is flawed.
+The Fortran 90 standard requires that the compiler can point out
+mistakes to the user.
+An incorrect usage of the language causes an @dfn{error message}.
+
+The compiler will also attempt to diagnose cases where the
+user's program contains a correct usage of the language,
+but instructs the computer to do something questionable.
+This kind of diagnostics message is called a @dfn{warning message}.
+
+@item
+Provide optional information about the translation passes
+from the source code to machine code.
+This can help a user of the compiler to find the cause of
+certain bugs which may not be obvious in the source code,
+but may be more easily found at a lower level compiler output.
+It also helps developers to find bugs in the compiler itself.
+
+@item
+Provide information in the generated machine code that can
+make it easier to find bugs in the program (using a debugging tool,
+called a @dfn{debugger}, such as the GNU Debugger @command{gdb}). 
+
+@item
+Locate and gather machine code already generated to
+perform actions requested by statements in the user's program.
+This machine code is organized into @dfn{modules} and is located
+and @dfn{linked} to the user program. 
+@end itemize
+
+The GNU Fortran compiler consists of several components:
+
+@itemize @bullet
+@item
+A version of the @command{gcc} command
+(which also might be installed as the system's @command{cc} command)
+that also understands and accepts Fortran source code.
+The @command{gcc} command is the @dfn{driver} program for
+all the languages in the GNU Compiler Collection (GCC);
+With @command{gcc},
+you can compile the source code of any language for
+which a front end is available in GCC.
+
+@item
+The @command{gfortran} command itself,
+which also might be installed as the
+system's @command{f95} command.
+@command{gfortran} is just another driver program,
+but specifically for the Fortran compiler only.
+The difference with @command{gcc} is that @command{gfortran}
+will automatically link the correct libraries to your program.
+
+@item
+A collection of run-time libraries.
+These libraries contain the machine code needed to support
+capabilities of the Fortran language that are not directly
+provided by the machine code generated by the
+@command{gfortran} compilation phase,
+such as intrinsic functions and subroutines,
+and routines for interaction with files and the operating system.
+@c and mechanisms to spawn,
+@c unleash and pause threads in parallelized code.
+
+@item
+The Fortran compiler itself, (@command{f951}).
+This is the GNU Fortran parser and code generator,
+linked to and interfaced with the GCC backend library.
+@command{f951} ``translates'' the source code to
+assembler code.  You would typically not use this
+program directly;
+instead, the @command{gcc} or @command{gfortran} driver
+programs will call it for you.
+@end itemize
+
+
+@c ---------------------------------------------------------------------
+@c GNU Fortran and GCC
+@c ---------------------------------------------------------------------
+
+@node GNU Fortran and GCC
+@section GNU Fortran and GCC
+@cindex GNU Compiler Collection
+@cindex GCC
+
+GNU Fortran is a part of GCC, the @dfn{GNU Compiler Collection}.  GCC
+consists of a collection of front ends for various languages, which
+translate the source code into a language-independent form called
+@dfn{GENERIC}.  This is then processed by a common middle end which
+provides optimization, and then passed to one of a collection of back
+ends which generate code for different computer architectures and
+operating systems.
+
+Functionally, this is implemented with a driver program (@command{gcc})
+which provides the command-line interface for the compiler.  It calls
+the relevant compiler front-end program (e.g., @command{f951} for
+Fortran) for each file in the source code, and then calls the assembler
+and linker as appropriate to produce the compiled output.  In a copy of
+GCC which has been compiled with Fortran language support enabled,
+@command{gcc} will recognize files with @file{.f}, @file{.for}, @file{.ftn},
+@file{.f90}, @file{.f95}, @file{.f03} and @file{.f08} extensions as
+Fortran source code, and compile it accordingly.  A @command{gfortran}
+driver program is also provided, which is identical to @command{gcc}
+except that it automatically links the Fortran runtime libraries into the
+compiled program.
+
+Source files with @file{.f}, @file{.for}, @file{.fpp}, @file{.ftn}, @file{.F},
+@file{.FOR}, @file{.FPP}, and @file{.FTN} extensions are treated as fixed form.
+Source files with @file{.f90}, @file{.f95}, @file{.f03}, @file{.f08},
+@file{.F90}, @file{.F95}, @file{.F03} and @file{.F08} extensions are
+treated as free form.  The capitalized versions of either form are run
+through preprocessing.  Source files with the lower case @file{.fpp}
+extension are also run through preprocessing.
+
+This manual specifically documents the Fortran front end, which handles
+the programming language's syntax and semantics.  The aspects of GCC
+which relate to the optimization passes and the back-end code generation
+are documented in the GCC manual; see 
+@ref{Top,,Introduction,gcc,Using the GNU Compiler Collection (GCC)}.
+The two manuals together provide a complete reference for the GNU
+Fortran compiler.
+
+
+@c ---------------------------------------------------------------------
+@c Preprocessing and conditional compilation
+@c ---------------------------------------------------------------------
+
+@node Preprocessing and conditional compilation
+@section Preprocessing and conditional compilation
+@cindex CPP
+@cindex FPP
+@cindex Conditional compilation
+@cindex Preprocessing
+@cindex preprocessor, include file handling
+
+Many Fortran compilers including GNU Fortran allow passing the source code
+through a C preprocessor (CPP; sometimes also called the Fortran preprocessor,
+FPP) to allow for conditional compilation.  In the case of GNU Fortran,
+this is the GNU C Preprocessor in the traditional mode.  On systems with
+case-preserving file names, the preprocessor is automatically invoked if the
+filename extension is @file{.F}, @file{.FOR}, @file{.FTN}, @file{.fpp},
+@file{.FPP}, @file{.F90}, @file{.F95}, @file{.F03} or @file{.F08}.  To manually
+invoke the preprocessor on any file, use @option{-cpp}, to disable
+preprocessing on files where the preprocessor is run automatically, use
+@option{-nocpp}.
+
+If a preprocessed file includes another file with the Fortran @code{INCLUDE}
+statement, the included file is not preprocessed.  To preprocess included
+files, use the equivalent preprocessor statement @code{#include}.
+
+If GNU Fortran invokes the preprocessor, @code{__GFORTRAN__}
+is defined and @code{__GNUC__}, @code{__GNUC_MINOR__} and
+@code{__GNUC_PATCHLEVEL__} can be used to determine the version of the
+compiler.  See @ref{Top,,Overview,cpp,The C Preprocessor} for details.
+
+While CPP is the de-facto standard for preprocessing Fortran code,
+Part 3 of the Fortran 95 standard (ISO/IEC 1539-3:1998) defines
+Conditional Compilation, which is not widely used and not directly
+supported by the GNU Fortran compiler.  You can use the program coco
+to preprocess such files (@uref{http://www.daniellnagle.com/coco.html}).
+
+
+@c ---------------------------------------------------------------------
+@c GNU Fortran and G77
+@c ---------------------------------------------------------------------
+
+@node GNU Fortran and G77
+@section GNU Fortran and G77
+@cindex Fortran 77
+@cindex @command{g77}
+
+The GNU Fortran compiler is the successor to @command{g77}, the Fortran 
+77 front end included in GCC prior to version 4.  It is an entirely new 
+program that has been designed to provide Fortran 95 support and 
+extensibility for future Fortran language standards, as well as providing 
+backwards compatibility for Fortran 77 and nearly all of the GNU language 
+extensions supported by @command{g77}.
+
+
+@c ---------------------------------------------------------------------
+@c Project Status
+@c ---------------------------------------------------------------------
+
+@node Project Status
+@section Project Status
+
+@quotation
+As soon as @command{gfortran} can parse all of the statements correctly,
+it will be in the ``larva'' state.
+When we generate code, the ``puppa'' state.
+When @command{gfortran} is done,
+we'll see if it will be a beautiful butterfly,
+or just a big bug....
+
+--Andy Vaught, April 2000
+@end quotation
+
+The start of the GNU Fortran 95 project was announced on
+the GCC homepage in March 18, 2000
+(even though Andy had already been working on it for a while,
+of course).
+
+The GNU Fortran compiler is able to compile nearly all
+standard-compliant Fortran 95, Fortran 90, and Fortran 77 programs,
+including a number of standard and non-standard extensions, and can be
+used on real-world programs.  In particular, the supported extensions
+include OpenMP, Cray-style pointers, and several Fortran 2003 and Fortran
+2008 features, including TR 15581.  However, it is still under
+development and has a few remaining rough edges.
+
+At present, the GNU Fortran compiler passes the
+@uref{http://www.fortran-2000.com/ArnaudRecipes/fcvs21_f95.html, 
+NIST Fortran 77 Test Suite}, and produces acceptable results on the
+@uref{http://www.netlib.org/lapack/faq.html#1.21, LAPACK Test Suite}.
+It also provides respectable performance on 
+the @uref{http://www.polyhedron.com/pb05.html, Polyhedron Fortran
+compiler benchmarks} and the
+@uref{http://www.llnl.gov/asci_benchmarks/asci/limited/lfk/README.html,
+Livermore Fortran Kernels test}.  It has been used to compile a number of
+large real-world programs, including
+@uref{http://mysite.verizon.net/serveall/moene.pdf, the HIRLAM
+weather-forecasting code} and
+@uref{http://www.theochem.uwa.edu.au/tonto/, the Tonto quantum 
+chemistry package}; see @url{http://gcc.gnu.org/@/wiki/@/GfortranApps} for an
+extended list.
+
+Among other things, the GNU Fortran compiler is intended as a replacement
+for G77.  At this point, nearly all programs that could be compiled with
+G77 can be compiled with GNU Fortran, although there are a few minor known
+regressions.
+
+The primary work remaining to be done on GNU Fortran falls into three
+categories: bug fixing (primarily regarding the treatment of invalid code
+and providing useful error messages), improving the compiler optimizations
+and the performance of compiled code, and extending the compiler to support
+future standards---in particular, Fortran 2003 and Fortran 2008.
+
+
+@c ---------------------------------------------------------------------
+@c Standards
+@c ---------------------------------------------------------------------
+
+@node Standards
+@section Standards
+@cindex Standards
+
+@menu
+* Varying Length Character Strings::
+@end menu
+
+The GNU Fortran compiler implements
+ISO/IEC 1539:1997 (Fortran 95).  As such, it can also compile essentially all
+standard-compliant Fortran 90 and Fortran 77 programs.   It also supports
+the ISO/IEC TR-15581 enhancements to allocatable arrays.
+
+In the future, the GNU Fortran compiler will also support ISO/IEC
+1539-1:2004 (Fortran 2003), ISO/IEC 1539-1:2010 (Fortran 2008) and
+future Fortran standards.  Partial support of the Fortran 2003 and
+Fortran 2008 standard is already provided; the current status of the
+support is reported in the @ref{Fortran 2003 status} and
+@ref{Fortran 2008 status} sections of the documentation.
+
+Additionally, the GNU Fortran compilers supports the OpenMP specification
+(version 3.1, @url{http://openmp.org/@/wp/@/openmp-specifications/}).
+
+@node Varying Length Character Strings
+@subsection Varying Length Character Strings
+@cindex Varying length character strings
+@cindex Varying length strings
+@cindex strings, varying length
+
+The Fortran 95 standard specifies in Part 2 (ISO/IEC 1539-2:2000)
+varying length character strings.  While GNU Fortran currently does not
+support such strings directly, there exist two Fortran implementations
+for them, which work with GNU Fortran.  They can be found at
+@uref{http://www.fortran.com/@/iso_varying_string.f95} and at
+@uref{ftp://ftp.nag.co.uk/@/sc22wg5/@/ISO_VARYING_STRING/}.
+
+
+
+@c =====================================================================
+@c PART I: INVOCATION REFERENCE
+@c =====================================================================
+
+@tex
+\part{I}{Invoking GNU Fortran}
+@end tex
+
+@c ---------------------------------------------------------------------
+@c Compiler Options
+@c ---------------------------------------------------------------------
+
+@include invoke.texi
+
+
+@c ---------------------------------------------------------------------
+@c Runtime
+@c ---------------------------------------------------------------------
+
+@node Runtime
+@chapter Runtime:  Influencing runtime behavior with environment variables
+@cindex environment variable
+
+The behavior of the @command{gfortran} can be influenced by
+environment variables.
+
+Malformed environment variables are silently ignored.
+
+@menu
+* GFORTRAN_STDIN_UNIT:: Unit number for standard input
+* GFORTRAN_STDOUT_UNIT:: Unit number for standard output
+* GFORTRAN_STDERR_UNIT:: Unit number for standard error
+* GFORTRAN_TMPDIR:: Directory for scratch files
+* GFORTRAN_UNBUFFERED_ALL:: Do not buffer I/O for all units.
+* GFORTRAN_UNBUFFERED_PRECONNECTED:: Do not buffer I/O for preconnected units.
+* GFORTRAN_SHOW_LOCUS::  Show location for runtime errors
+* GFORTRAN_OPTIONAL_PLUS:: Print leading + where permitted
+* GFORTRAN_DEFAULT_RECL:: Default record length for new files
+* GFORTRAN_LIST_SEPARATOR::  Separator for list output
+* GFORTRAN_CONVERT_UNIT::  Set endianness for unformatted I/O
+* GFORTRAN_ERROR_BACKTRACE:: Show backtrace on run-time errors
+@end menu
+
+@node GFORTRAN_STDIN_UNIT
+@section @env{GFORTRAN_STDIN_UNIT}---Unit number for standard input
+
+This environment variable can be used to select the unit number
+preconnected to standard input.  This must be a positive integer.
+The default value is 5.
+
+@node GFORTRAN_STDOUT_UNIT
+@section @env{GFORTRAN_STDOUT_UNIT}---Unit number for standard output
+
+This environment variable can be used to select the unit number
+preconnected to standard output.  This must be a positive integer.
+The default value is 6.
+
+@node GFORTRAN_STDERR_UNIT
+@section @env{GFORTRAN_STDERR_UNIT}---Unit number for standard error
+
+This environment variable can be used to select the unit number
+preconnected to standard error.  This must be a positive integer.
+The default value is 0.
+
+@node GFORTRAN_TMPDIR
+@section @env{GFORTRAN_TMPDIR}---Directory for scratch files
+
+This environment variable controls where scratch files are
+created.  If this environment variable is missing,
+GNU Fortran searches for the environment variable @env{TMP}, then @env{TEMP}.
+If these are missing, the default is @file{/tmp}.
+
+@node GFORTRAN_UNBUFFERED_ALL
+@section @env{GFORTRAN_UNBUFFERED_ALL}---Do not buffer I/O on all units
+
+This environment variable controls whether all I/O is unbuffered.  If
+the first letter is @samp{y}, @samp{Y} or @samp{1}, all I/O is
+unbuffered.  This will slow down small sequential reads and writes.  If
+the first letter is @samp{n}, @samp{N} or @samp{0}, I/O is buffered.
+This is the default.
+
+@node GFORTRAN_UNBUFFERED_PRECONNECTED
+@section @env{GFORTRAN_UNBUFFERED_PRECONNECTED}---Do not buffer I/O on preconnected units
+
+The environment variable named @env{GFORTRAN_UNBUFFERED_PRECONNECTED} controls
+whether I/O on a preconnected unit (i.e.@: STDOUT or STDERR) is unbuffered.  If 
+the first letter is @samp{y}, @samp{Y} or @samp{1}, I/O is unbuffered.  This
+will slow down small sequential reads and writes.  If the first letter
+is @samp{n}, @samp{N} or @samp{0}, I/O is buffered.  This is the default.
+
+@node GFORTRAN_SHOW_LOCUS
+@section @env{GFORTRAN_SHOW_LOCUS}---Show location for runtime errors
+
+If the first letter is @samp{y}, @samp{Y} or @samp{1}, filename and
+line numbers for runtime errors are printed.  If the first letter is
+@samp{n}, @samp{N} or @samp{0}, do not print filename and line numbers
+for runtime errors.  The default is to print the location.
+
+@node GFORTRAN_OPTIONAL_PLUS
+@section @env{GFORTRAN_OPTIONAL_PLUS}---Print leading + where permitted
+
+If the first letter is @samp{y}, @samp{Y} or @samp{1},
+a plus sign is printed
+where permitted by the Fortran standard.  If the first letter
+is @samp{n}, @samp{N} or @samp{0}, a plus sign is not printed
+in most cases.  Default is not to print plus signs.
+
+@node GFORTRAN_DEFAULT_RECL
+@section @env{GFORTRAN_DEFAULT_RECL}---Default record length for new files
+
+This environment variable specifies the default record length, in
+bytes, for files which are opened without a @code{RECL} tag in the
+@code{OPEN} statement.  This must be a positive integer.  The
+default value is 1073741824 bytes (1 GB).
+
+@node GFORTRAN_LIST_SEPARATOR
+@section @env{GFORTRAN_LIST_SEPARATOR}---Separator for list output
+
+This environment variable specifies the separator when writing
+list-directed output.  It may contain any number of spaces and
+at most one comma.  If you specify this on the command line,
+be sure to quote spaces, as in
+@smallexample
+$ GFORTRAN_LIST_SEPARATOR='  ,  ' ./a.out
+@end smallexample
+when @command{a.out} is the compiled Fortran program that you want to run.
+Default is a single space.
+
+@node GFORTRAN_CONVERT_UNIT
+@section @env{GFORTRAN_CONVERT_UNIT}---Set endianness for unformatted I/O
+
+By setting the @env{GFORTRAN_CONVERT_UNIT} variable, it is possible
+to change the representation of data for unformatted files.
+The syntax for the @env{GFORTRAN_CONVERT_UNIT} variable is:
+@smallexample
+GFORTRAN_CONVERT_UNIT: mode | mode ';' exception | exception ;
+mode: 'native' | 'swap' | 'big_endian' | 'little_endian' ;
+exception: mode ':' unit_list | unit_list ;
+unit_list: unit_spec | unit_list unit_spec ;
+unit_spec: INTEGER | INTEGER '-' INTEGER ;
+@end smallexample
+The variable consists of an optional default mode, followed by
+a list of optional exceptions, which are separated by semicolons
+from the preceding default and each other.  Each exception consists
+of a format and a comma-separated list of units.  Valid values for
+the modes are the same as for the @code{CONVERT} specifier:
+
+@itemize @w{}
+@item @code{NATIVE} Use the native format.  This is the default.
+@item @code{SWAP} Swap between little- and big-endian.
+@item @code{LITTLE_ENDIAN} Use the little-endian format
+for unformatted files.
+@item @code{BIG_ENDIAN} Use the big-endian format for unformatted files.
+@end itemize
+A missing mode for an exception is taken to mean @code{BIG_ENDIAN}.
+Examples of values for @env{GFORTRAN_CONVERT_UNIT} are:
+@itemize @w{}
+@item @code{'big_endian'}  Do all unformatted I/O in big_endian mode.
+@item @code{'little_endian;native:10-20,25'}  Do all unformatted I/O 
+in little_endian mode, except for units 10 to 20 and 25, which are in
+native format.
+@item @code{'10-20'}  Units 10 to 20 are big-endian, the rest is native.
+@end itemize
+
+Setting the environment variables should be done on the command
+line or via the @command{export}
+command for @command{sh}-compatible shells and via @command{setenv}
+for @command{csh}-compatible shells.
+
+Example for @command{sh}:
+@smallexample
+$ gfortran foo.f90
+$ GFORTRAN_CONVERT_UNIT='big_endian;native:10-20' ./a.out
+@end smallexample
+
+Example code for @command{csh}:
+@smallexample
+% gfortran foo.f90
+% setenv GFORTRAN_CONVERT_UNIT 'big_endian;native:10-20'
+% ./a.out
+@end smallexample
+
+Using anything but the native representation for unformatted data
+carries a significant speed overhead.  If speed in this area matters
+to you, it is best if you use this only for data that needs to be
+portable.
+
+@xref{CONVERT specifier}, for an alternative way to specify the
+data representation for unformatted files.  @xref{Runtime Options}, for
+setting a default data representation for the whole program.  The
+@code{CONVERT} specifier overrides the @option{-fconvert} compile options.
+
+@emph{Note that the values specified via the GFORTRAN_CONVERT_UNIT
+environment variable will override the CONVERT specifier in the
+open statement}.  This is to give control over data formats to
+users who do not have the source code of their program available.
+
+@node GFORTRAN_ERROR_BACKTRACE
+@section @env{GFORTRAN_ERROR_BACKTRACE}---Show backtrace on run-time errors
+
+If the @env{GFORTRAN_ERROR_BACKTRACE} variable is set to @samp{y},
+@samp{Y} or @samp{1} (only the first letter is relevant) then a
+backtrace is printed when a serious run-time error occurs.  To disable
+the backtracing, set the variable to @samp{n}, @samp{N}, @samp{0}.
+Default is to print a backtrace unless the @option{-fno-backtrace}
+compile option was used.
+
+@c =====================================================================
+@c PART II: LANGUAGE REFERENCE
+@c =====================================================================
+
+@tex
+\part{II}{Language Reference}
+@end tex
+
+@c ---------------------------------------------------------------------
+@c Fortran 2003 and 2008 Status
+@c ---------------------------------------------------------------------
+
+@node Fortran 2003 and 2008 status
+@chapter Fortran 2003 and 2008 Status
+
+@menu
+* Fortran 2003 status::
+* Fortran 2008 status::
+* TS 29113 status::
+@end menu
+
+@node Fortran 2003 status
+@section Fortran 2003 status
+
+GNU Fortran supports several Fortran 2003 features; an incomplete
+list can be found below.  See also the
+@uref{http://gcc.gnu.org/wiki/Fortran2003, wiki page} about Fortran 2003.
+
+@itemize
+@item Procedure pointers including procedure-pointer components with
+@code{PASS} attribute.
+
+@item Procedures which are bound to a derived type (type-bound procedures)
+including @code{PASS}, @code{PROCEDURE} and @code{GENERIC}, and
+operators bound to a type.
+
+@item Abstract interfaces and type extension with the possibility to
+override type-bound procedures or to have deferred binding.
+
+@item Polymorphic entities (``@code{CLASS}'') for derived types -- including
+@code{SAME_TYPE_AS}, @code{EXTENDS_TYPE_OF} and @code{SELECT TYPE}.
+Note that unlimited polymorphism is currently not supported.
+
+@item Generic interface names, which have the same name as derived types,
+are now supported. This allows one to write constructor functions.  Note
+that Fortran does not support static constructor functions.  For static
+variables, only default initialization or structure-constructor
+initialization are available.
+
+@item The @code{ASSOCIATE} construct.
+
+@item Interoperability with C including enumerations, 
+
+@item In structure constructors the components with default values may be
+omitted.
+
+@item Extensions to the @code{ALLOCATE} statement, allowing for a
+type-specification with type parameter and for allocation and initialization
+from a @code{SOURCE=} expression; @code{ALLOCATE} and @code{DEALLOCATE}
+optionally return an error message string via @code{ERRMSG=}.
+
+@item Reallocation on assignment: If an intrinsic assignment is
+used, an allocatable variable on the left-hand side is automatically allocated
+(if unallocated) or reallocated (if the shape is different). Currently, scalar
+deferred character length left-hand sides are correctly handled but arrays
+are not yet fully implemented.
+
+@item Transferring of allocations via @code{MOVE_ALLOC}.
+
+@item The @code{PRIVATE} and @code{PUBLIC} attributes may be given individually
+to derived-type components.
+
+@item In pointer assignments, the lower bound may be specified and
+the remapping of elements is supported.
+
+@item For pointers an @code{INTENT} may be specified which affect the
+association status not the value of the pointer target.
+
+@item Intrinsics @code{command_argument_count}, @code{get_command},
+@code{get_command_argument}, and @code{get_environment_variable}.
+
+@item Support for Unicode characters (ISO 10646) and UTF-8, including
+the @code{SELECTED_CHAR_KIND} and @code{NEW_LINE} intrinsic functions.
+
+@item Support for binary, octal and hexadecimal (BOZ) constants in the
+intrinsic functions @code{INT}, @code{REAL}, @code{CMPLX} and @code{DBLE}.
+
+@item Support for namelist variables with allocatable and pointer
+attribute and nonconstant length type parameter.
+
+@item
+@cindex array, constructors
+@cindex @code{[...]}
+Array constructors using square brackets.  That is, @code{[...]} rather
+than @code{(/.../)}.  Type-specification for array constructors like
+@code{(/ some-type :: ... /)}.
+
+@item Extensions to the specification and initialization expressions,
+including the support for intrinsics with real and complex arguments.
+
+@item Support for the asynchronous input/output syntax; however, the
+data transfer is currently always synchronously performed. 
+
+@item
+@cindex @code{FLUSH} statement
+@cindex statement, @code{FLUSH}
+@code{FLUSH} statement.
+
+@item
+@cindex @code{IOMSG=} specifier
+@code{IOMSG=} specifier for I/O statements.
+
+@item
+@cindex @code{ENUM} statement
+@cindex @code{ENUMERATOR} statement
+@cindex statement, @code{ENUM}
+@cindex statement, @code{ENUMERATOR}
+@opindex @code{fshort-enums}
+Support for the declaration of enumeration constants via the
+@code{ENUM} and @code{ENUMERATOR} statements.  Interoperability with
+@command{gcc} is guaranteed also for the case where the
+@command{-fshort-enums} command line option is given.
+
+@item
+@cindex TR 15581
+TR 15581:
+@itemize
+@item
+@cindex @code{ALLOCATABLE} dummy arguments
+@code{ALLOCATABLE} dummy arguments.
+@item
+@cindex @code{ALLOCATABLE} function results
+@code{ALLOCATABLE} function results
+@item
+@cindex @code{ALLOCATABLE} components of derived types
+@code{ALLOCATABLE} components of derived types
+@end itemize
+
+@item
+@cindex @code{STREAM} I/O
+@cindex @code{ACCESS='STREAM'} I/O
+The @code{OPEN} statement supports the @code{ACCESS='STREAM'} specifier,
+allowing I/O without any record structure.
+
+@item
+Namelist input/output for internal files.
+
+@item Further I/O extensions: Rounding during formatted output, using of
+a decimal comma instead of a decimal point, setting whether a plus sign
+should appear for positive numbers.
+
+@item
+@cindex @code{PROTECTED} statement
+@cindex statement, @code{PROTECTED}
+The @code{PROTECTED} statement and attribute.
+
+@item
+@cindex @code{VALUE} statement
+@cindex statement, @code{VALUE}
+The @code{VALUE} statement and attribute.
+
+@item
+@cindex @code{VOLATILE} statement
+@cindex statement, @code{VOLATILE}
+The @code{VOLATILE} statement and attribute.
+
+@item
+@cindex @code{IMPORT} statement
+@cindex statement, @code{IMPORT}
+The @code{IMPORT} statement, allowing to import
+host-associated derived types.
+
+@item The intrinsic modules @code{ISO_FORTRAN_ENVIRONMENT} is supported,
+which contains parameters of the I/O units, storage sizes. Additionally,
+procedures for C interoperability are available in the @code{ISO_C_BINDING}
+module.
+
+@item
+@cindex @code{USE, INTRINSIC} statement
+@cindex statement, @code{USE, INTRINSIC}
+@cindex @code{ISO_FORTRAN_ENV} statement
+@cindex statement, @code{ISO_FORTRAN_ENV}
+@code{USE} statement with @code{INTRINSIC} and @code{NON_INTRINSIC}
+attribute; supported intrinsic modules: @code{ISO_FORTRAN_ENV},
+@code{ISO_C_BINDING}, @code{OMP_LIB} and @code{OMP_LIB_KINDS}.
+
+@item
+Renaming of operators in the @code{USE} statement.
+
+@end itemize
+
+
+@node Fortran 2008 status
+@section Fortran 2008 status
+
+The latest version of the Fortran standard is ISO/IEC 1539-1:2010, informally
+known as Fortran 2008.  The official version is available from International
+Organization for Standardization (ISO) or its national member organizations.
+The the final draft (FDIS) can be downloaded free of charge from
+@url{http://www.nag.co.uk/@/sc22wg5/@/links.html}.  Fortran is developed by the
+Working Group 5 of Sub-Committee 22 of the Joint Technical Committee 1 of the
+International Organization for Standardization and the International
+Electrotechnical Commission (IEC).  This group is known as
+@uref{http://www.nag.co.uk/sc22wg5/, WG5}.
+
+The GNU Fortran compiler supports several of the new features of Fortran 2008;
+the @uref{http://gcc.gnu.org/wiki/Fortran2008Status, wiki} has some information
+about the current Fortran 2008 implementation status.  In particular, the
+following is implemented.
+
+@itemize
+@item The @option{-std=f2008} option and support for the file extensions 
+@file{.f08} and @file{.F08}.
+
+@item The @code{OPEN} statement now supports the @code{NEWUNIT=} option,
+which returns a unique file unit, thus preventing inadvertent use of the
+same unit in different parts of the program.
+
+@item The @code{g0} format descriptor and unlimited format items.
+
+@item The mathematical intrinsics @code{ASINH}, @code{ACOSH}, @code{ATANH},
+@code{ERF}, @code{ERFC}, @code{GAMMA}, @code{LOG_GAMMA}, @code{BESSEL_J0},
+@code{BESSEL_J1}, @code{BESSEL_JN}, @code{BESSEL_Y0}, @code{BESSEL_Y1},
+@code{BESSEL_YN}, @code{HYPOT}, @code{NORM2}, and @code{ERFC_SCALED}.
+
+@item Using complex arguments with @code{TAN}, @code{SINH}, @code{COSH},
+@code{TANH}, @code{ASIN}, @code{ACOS}, and @code{ATAN} is now possible;
+@code{ATAN}(@var{Y},@var{X}) is now an alias for @code{ATAN2}(@var{Y},@var{X}).
+
+@item Support of the @code{PARITY} intrinsic functions.
+
+@item The following bit intrinsics: @code{LEADZ} and @code{TRAILZ} for
+counting the number of leading and trailing zero bits, @code{POPCNT} and
+@code{POPPAR} for counting the number of one bits and returning the parity;
+@code{BGE}, @code{BGT}, @code{BLE}, and @code{BLT} for bitwise comparisons;
+@code{DSHIFTL} and @code{DSHIFTR} for combined left and right shifts,
+@code{MASKL} and @code{MASKR} for simple left and right justified masks,
+@code{MERGE_BITS} for a bitwise merge using a mask, @code{SHIFTA},
+@code{SHIFTL} and @code{SHIFTR} for shift operations, and the
+transformational bit intrinsics @code{IALL}, @code{IANY} and @code{IPARITY}.
+
+@item Support of the @code{EXECUTE_COMMAND_LINE} intrinsic subroutine.
+
+@item Support for the @code{STORAGE_SIZE} intrinsic inquiry function.
+
+@item The @code{INT@{8,16,32@}} and @code{REAL@{32,64,128@}} kind type
+parameters and the array-valued named constants @code{INTEGER_KINDS},
+@code{LOGICAL_KINDS}, @code{REAL_KINDS} and @code{CHARACTER_KINDS} of
+the intrinsic module @code{ISO_FORTRAN_ENV}.
+
+@item The module procedures @code{C_SIZEOF} of the intrinsic module
+@code{ISO_C_BINDINGS} and @code{COMPILER_VERSION} and @code{COMPILER_OPTIONS}
+of @code{ISO_FORTRAN_ENV}.
+
+@item Coarray support for serial programs with @option{-fcoarray=single} flag
+and experimental support for multiple images with the @option{-fcoarray=lib}
+flag.
+
+@item The @code{DO CONCURRENT} construct is supported.
+
+@item The @code{BLOCK} construct is supported.
+
+@item The @code{STOP} and the new @code{ERROR STOP} statements now
+support all constant expressions.
+
+@item Support for the @code{CONTIGUOUS} attribute.
+
+@item Support for @code{ALLOCATE} with @code{MOLD}.
+
+@item Support for the @code{IMPURE} attribute for procedures, which
+allows for @code{ELEMENTAL} procedures without the restrictions of
+@code{PURE}.
+
+@item Null pointers (including @code{NULL()}) and not-allocated variables
+can be used as actual argument to optional non-pointer, non-allocatable
+dummy arguments, denoting an absent argument.
+
+@item Non-pointer variables with @code{TARGET} attribute can be used as
+actual argument to @code{POINTER} dummies with @code{INTENT(IN)}.
+
+@item Pointers including procedure pointers and those in a derived
+type (pointer components) can now be initialized by a target instead
+of only by @code{NULL}.
+
+@item The @code{EXIT} statement (with construct-name) can be now be
+used to leave not only the @code{DO} but also the @code{ASSOCIATE},
+@code{BLOCK}, @code{IF}, @code{SELECT CASE} and @code{SELECT TYPE}
+constructs.
+
+@item Internal procedures can now be used as actual argument.
+
+@item Minor features: obsolesce diagnostics for @code{ENTRY} with
+@option{-std=f2008}; a line may start with a semicolon; for internal
+and module procedures @code{END} can be used instead of
+@code{END SUBROUTINE} and @code{END FUNCTION}; @code{SELECTED_REAL_KIND}
+now also takes a @code{RADIX} argument; intrinsic types are supported
+for @code{TYPE}(@var{intrinsic-type-spec}); multiple type-bound procedures
+can be declared in a single @code{PROCEDURE} statement; implied-shape
+arrays are supported for named constants (@code{PARAMETER}).
+@end itemize
+
+
+
+@node TS 29113 status
+@section Technical Specification 29113 Status
+
+GNU Fortran supports some of the new features of the Technical
+Specification (TS) 29113 on Further Interoperability of Fortran with C.
+The @uref{http://gcc.gnu.org/wiki/TS29113Status, wiki} has some information
+about the current TS 29113 implementation status.  In particular, the
+following is implemented.
+
+@itemize
+@item The @option{-std=f2008ts} option.
+
+@item The @code{OPTIONAL} attribute is allowed for dummy arguments
+of @code{BIND(C) procedures.}
+
+@item The RANK intrinsic is supported.
+
+@item GNU Fortran's implementation for variables with @code{ASYNCHRONOUS}
+attribute is compatible with TS 29113.
+@end itemize
+
+
+
+@c ---------------------------------------------------------------------
+@c Compiler Characteristics
+@c ---------------------------------------------------------------------
+
+@node Compiler Characteristics
+@chapter Compiler Characteristics
+
+This chapter describes certain characteristics of the GNU Fortran
+compiler, that are not specified by the Fortran standard, but which
+might in some way or another become visible to the programmer.
+
+@menu
+* KIND Type Parameters::
+* Internal representation of LOGICAL variables::
+* Thread-safety of the runtime library::
+* Data consistency and durability::
+@end menu
+
+
+@node KIND Type Parameters
+@section KIND Type Parameters
+@cindex kind
+
+The @code{KIND} type parameters supported by GNU Fortran for the primitive
+data types are:
+
+@table @code
+
+@item INTEGER
+1, 2, 4, 8*, 16*, default: 4 (1)
+
+@item LOGICAL
+1, 2, 4, 8*, 16*, default: 4 (1)
+
+@item REAL
+4, 8, 10*, 16*, default: 4 (2)
+
+@item COMPLEX
+4, 8, 10*, 16*, default: 4 (2)
+
+@item CHARACTER
+1, 4, default: 1
+
+@end table
+
+@noindent
+* = not available on all systems @*
+(1) Unless -fdefault-integer-8 is used @*
+(2) Unless -fdefault-real-8 is used
+
+@noindent
+The @code{KIND} value matches the storage size in bytes, except for
+@code{COMPLEX} where the storage size is twice as much (or both real and
+imaginary part are a real value of the given size).  It is recommended to use
+the @code{SELECTED_CHAR_KIND}, @code{SELECTED_INT_KIND} and
+@code{SELECTED_REAL_KIND} intrinsics or the @code{INT8}, @code{INT16},
+@code{INT32}, @code{INT64}, @code{REAL32}, @code{REAL64}, and @code{REAL128}
+parameters of the @code{ISO_FORTRAN_ENV} module instead of the concrete values.
+The available kind parameters can be found in the constant arrays
+@code{CHARACTER_KINDS}, @code{INTEGER_KINDS}, @code{LOGICAL_KINDS} and
+@code{REAL_KINDS} in the @code{ISO_FORTRAN_ENV} module
+(see @ref{ISO_FORTRAN_ENV}).
+
+
+@node Internal representation of LOGICAL variables
+@section Internal representation of LOGICAL variables
+@cindex logical, variable representation
+
+The Fortran standard does not specify how variables of @code{LOGICAL}
+type are represented, beyond requiring that @code{LOGICAL} variables
+of default kind have the same storage size as default @code{INTEGER}
+and @code{REAL} variables.  The GNU Fortran internal representation is
+as follows.
+
+A @code{LOGICAL(KIND=N)} variable is represented as an
+@code{INTEGER(KIND=N)} variable, however, with only two permissible
+values: @code{1} for @code{.TRUE.} and @code{0} for
+@code{.FALSE.}.  Any other integer value results in undefined behavior.
+
+Note that for mixed-language programming using the
+@code{ISO_C_BINDING} feature, there is a @code{C_BOOL} kind that can
+be used to create @code{LOGICAL(KIND=C_BOOL)} variables which are
+interoperable with the C99 _Bool type.  The C99 _Bool type has an
+internal representation described in the C99 standard, which is
+identical to the above description, i.e. with 1 for true and 0 for
+false being the only permissible values.  Thus the internal
+representation of @code{LOGICAL} variables in GNU Fortran is identical
+to C99 _Bool, except for a possible difference in storage size
+depending on the kind.
+
+
+@node Thread-safety of the runtime library
+@section Thread-safety of the runtime library
+@cindex thread-safety, threads
+
+GNU Fortran can be used in programs with multiple threads, e.g.@: by
+using OpenMP, by calling OS thread handling functions via the
+@code{ISO_C_BINDING} facility, or by GNU Fortran compiled library code
+being called from a multi-threaded program.
+
+The GNU Fortran runtime library, (@code{libgfortran}), supports being
+called concurrently from multiple threads with the following
+exceptions. 
+
+During library initialization, the C @code{getenv} function is used,
+which need not be thread-safe.  Similarly, the @code{getenv}
+function is used to implement the @code{GET_ENVIRONMENT_VARIABLE} and
+@code{GETENV} intrinsics.  It is the responsibility of the user to
+ensure that the environment is not being updated concurrently when any
+of these actions are taking place.
+
+The @code{EXECUTE_COMMAND_LINE} and @code{SYSTEM} intrinsics are
+implemented with the @code{system} function, which need not be
+thread-safe.  It is the responsibility of the user to ensure that
+@code{system} is not called concurrently.
+
+Finally, for platforms not supporting thread-safe POSIX functions,
+further functionality might not be thread-safe.  For details, please
+consult the documentation for your operating system.
+
+
+@node Data consistency and durability
+@section Data consistency and durability
+@cindex consistency, durability
+
+This section contains a brief overview of data and metadata
+consistency and durability issues when doing I/O.
+
+With respect to durability, GNU Fortran makes no effort to ensure that
+data is committed to stable storage. If this is required, the GNU
+Fortran programmer can use the intrinsic @code{FNUM} to retrieve the
+low level file descriptor corresponding to an open Fortran unit. Then,
+using e.g. the @code{ISO_C_BINDING} feature, one can call the
+underlying system call to flush dirty data to stable storage, such as
+@code{fsync} on POSIX, @code{_commit} on MingW, or @code{fcntl(fd,
+F_FULLSYNC, 0)} on Mac OS X. The following example shows how to call
+fsync:
+
+@smallexample
+  ! Declare the interface for POSIX fsync function
+  interface
+    function fsync (fd) bind(c,name="fsync")
+    use iso_c_binding, only: c_int
+      integer(c_int), value :: fd
+      integer(c_int) :: fsync
+    end function fsync
+  end interface
+
+  ! Variable declaration
+  integer :: ret
+
+  ! Opening unit 10
+  open (10,file="foo")
+
+  ! ...
+  ! Perform I/O on unit 10
+  ! ...
+
+  ! Flush and sync
+  flush(10)
+  ret = fsync(fnum(10))
+
+  ! Handle possible error
+  if (ret /= 0) stop "Error calling FSYNC"
+@end smallexample
+
+With respect to consistency, for regular files GNU Fortran uses
+buffered I/O in order to improve performance. This buffer is flushed
+automatically when full and in some other situations, e.g. when
+closing a unit. It can also be explicitly flushed with the
+@code{FLUSH} statement. Also, the buffering can be turned off with the
+@code{GFORTRAN_UNBUFFERED_ALL} and
+@code{GFORTRAN_UNBUFFERED_PRECONNECTED} environment variables. Special
+files, such as terminals and pipes, are always unbuffered. Sometimes,
+however, further things may need to be done in order to allow other
+processes to see data that GNU Fortran has written, as follows.
+
+The Windows platform supports a relaxed metadata consistency model,
+where file metadata is written to the directory lazily. This means
+that, for instance, the @code{dir} command can show a stale size for a
+file. One can force a directory metadata update by closing the unit,
+or by calling @code{_commit} on the file descriptor. Note, though,
+that @code{_commit} will force all dirty data to stable storage, which
+is often a very slow operation.
+
+The Network File System (NFS) implements a relaxed consistency model
+called open-to-close consistency. Closing a file forces dirty data and
+metadata to be flushed to the server, and opening a file forces the
+client to contact the server in order to revalidate cached
+data. @code{fsync} will also force a flush of dirty data and metadata
+to the server. Similar to @code{open} and @code{close}, acquiring and
+releasing @code{fcntl} file locks, if the server supports them, will
+also force cache validation and flushing dirty data and metadata.
+
+
+@c ---------------------------------------------------------------------
+@c Extensions
+@c ---------------------------------------------------------------------
+
+@c Maybe this chapter should be merged with the 'Standards' section,
+@c whenever that is written :-)
+
+@node Extensions
+@chapter Extensions
+@cindex extensions
+
+The two sections below detail the extensions to standard Fortran that are
+implemented in GNU Fortran, as well as some of the popular or
+historically important extensions that are not (or not yet) implemented.
+For the latter case, we explain the alternatives available to GNU Fortran
+users, including replacement by standard-conforming code or GNU
+extensions.
+
+@menu
+* Extensions implemented in GNU Fortran::
+* Extensions not implemented in GNU Fortran::
+@end menu
+
+
+@node Extensions implemented in GNU Fortran
+@section Extensions implemented in GNU Fortran
+@cindex extensions, implemented
+
+GNU Fortran implements a number of extensions over standard
+Fortran.  This chapter contains information on their syntax and
+meaning.  There are currently two categories of GNU Fortran
+extensions, those that provide functionality beyond that provided
+by any standard, and those that are supported by GNU Fortran
+purely for backward compatibility with legacy compilers.  By default,
+@option{-std=gnu} allows the compiler to accept both types of
+extensions, but to warn about the use of the latter.  Specifying
+either @option{-std=f95}, @option{-std=f2003} or @option{-std=f2008}
+disables both types of extensions, and @option{-std=legacy} allows both
+without warning.
+
+@menu
+* Old-style kind specifications::
+* Old-style variable initialization::
+* Extensions to namelist::
+* X format descriptor without count field::
+* Commas in FORMAT specifications::
+* Missing period in FORMAT specifications::
+* I/O item lists::
+* BOZ literal constants::
+* @code{Q} exponent-letter::
+* Real array indices::
+* Unary operators::
+* Implicitly convert LOGICAL and INTEGER values::
+* Hollerith constants support::
+* Cray pointers::
+* CONVERT specifier::
+* OpenMP::
+* Argument list functions::
+@end menu
+
+@node Old-style kind specifications
+@subsection Old-style kind specifications
+@cindex kind, old-style
+
+GNU Fortran allows old-style kind specifications in declarations.  These
+look like:
+@smallexample
+      TYPESPEC*size x,y,z
+@end smallexample
+@noindent
+where @code{TYPESPEC} is a basic type (@code{INTEGER}, @code{REAL},
+etc.), and where @code{size} is a byte count corresponding to the
+storage size of a valid kind for that type.  (For @code{COMPLEX}
+variables, @code{size} is the total size of the real and imaginary
+parts.)  The statement then declares @code{x}, @code{y} and @code{z} to
+be of type @code{TYPESPEC} with the appropriate kind.  This is
+equivalent to the standard-conforming declaration
+@smallexample
+      TYPESPEC(k) x,y,z
+@end smallexample
+@noindent
+where @code{k} is the kind parameter suitable for the intended precision.  As
+kind parameters are implementation-dependent, use the @code{KIND},
+@code{SELECTED_INT_KIND} and @code{SELECTED_REAL_KIND} intrinsics to retrieve
+the correct value, for instance @code{REAL*8 x} can be replaced by:
+@smallexample
+INTEGER, PARAMETER :: dbl = KIND(1.0d0)
+REAL(KIND=dbl) :: x
+@end smallexample
+
+@node Old-style variable initialization
+@subsection Old-style variable initialization
+
+GNU Fortran allows old-style initialization of variables of the
+form:
+@smallexample
+      INTEGER i/1/,j/2/
+      REAL x(2,2) /3*0.,1./
+@end smallexample
+The syntax for the initializers is as for the @code{DATA} statement, but
+unlike in a @code{DATA} statement, an initializer only applies to the
+variable immediately preceding the initialization.  In other words,
+something like @code{INTEGER I,J/2,3/} is not valid.  This style of
+initialization is only allowed in declarations without double colons
+(@code{::}); the double colons were introduced in Fortran 90, which also
+introduced a standard syntax for initializing variables in type
+declarations.
+
+Examples of standard-conforming code equivalent to the above example
+are:
+@smallexample
+! Fortran 90
+      INTEGER :: i = 1, j = 2
+      REAL :: x(2,2) = RESHAPE((/0.,0.,0.,1./),SHAPE(x))
+! Fortran 77
+      INTEGER i, j
+      REAL x(2,2)
+      DATA i/1/, j/2/, x/3*0.,1./
+@end smallexample
+
+Note that variables which are explicitly initialized in declarations
+or in @code{DATA} statements automatically acquire the @code{SAVE}
+attribute.
+
+@node Extensions to namelist
+@subsection Extensions to namelist
+@cindex Namelist
+
+GNU Fortran fully supports the Fortran 95 standard for namelist I/O
+including array qualifiers, substrings and fully qualified derived types.
+The output from a namelist write is compatible with namelist read.  The
+output has all names in upper case and indentation to column 1 after the
+namelist name.  Two extensions are permitted:
+
+Old-style use of @samp{$} instead of @samp{&}
+@smallexample
+$MYNML
+ X(:)%Y(2) = 1.0 2.0 3.0
+ CH(1:4) = "abcd"
+$END
+@end smallexample
+
+It should be noted that the default terminator is @samp{/} rather than
+@samp{&END}.
+
+Querying of the namelist when inputting from stdin.  After at least
+one space, entering @samp{?} sends to stdout the namelist name and the names of
+the variables in the namelist:
+@smallexample
+ ?
+
+&mynml
+ x
+ x%y
+ ch
+&end
+@end smallexample
+
+Entering @samp{=?} outputs the namelist to stdout, as if
+@code{WRITE(*,NML = mynml)} had been called:
+@smallexample
+=?
+
+&MYNML
+ X(1)%Y=  0.000000    ,  1.000000    ,  0.000000    ,
+ X(2)%Y=  0.000000    ,  2.000000    ,  0.000000    ,
+ X(3)%Y=  0.000000    ,  3.000000    ,  0.000000    ,
+ CH=abcd,  /
+@end smallexample
+
+To aid this dialog, when input is from stdin, errors send their
+messages to stderr and execution continues, even if @code{IOSTAT} is set.
+
+@code{PRINT} namelist is permitted.  This causes an error if
+@option{-std=f95} is used.
+@smallexample
+PROGRAM test_print
+  REAL, dimension (4)  ::  x = (/1.0, 2.0, 3.0, 4.0/)
+  NAMELIST /mynml/ x
+  PRINT mynml
+END PROGRAM test_print
+@end smallexample
+
+Expanded namelist reads are permitted.  This causes an error if 
+@option{-std=f95} is used.  In the following example, the first element
+of the array will be given the value 0.00 and the two succeeding
+elements will be given the values 1.00 and 2.00.
+@smallexample
+&MYNML
+  X(1,1) = 0.00 , 1.00 , 2.00
+/
+@end smallexample
+
+@node X format descriptor without count field
+@subsection @code{X} format descriptor without count field
+
+To support legacy codes, GNU Fortran permits the count field of the
+@code{X} edit descriptor in @code{FORMAT} statements to be omitted.
+When omitted, the count is implicitly assumed to be one.
+
+@smallexample
+       PRINT 10, 2, 3
+10     FORMAT (I1, X, I1)
+@end smallexample
+
+@node Commas in FORMAT specifications
+@subsection Commas in @code{FORMAT} specifications
+
+To support legacy codes, GNU Fortran allows the comma separator
+to be omitted immediately before and after character string edit
+descriptors in @code{FORMAT} statements.
+
+@smallexample
+       PRINT 10, 2, 3
+10     FORMAT ('FOO='I1' BAR='I2)
+@end smallexample
+
+
+@node Missing period in FORMAT specifications
+@subsection Missing period in @code{FORMAT} specifications
+
+To support legacy codes, GNU Fortran allows missing periods in format
+specifications if and only if @option{-std=legacy} is given on the
+command line.  This is considered non-conforming code and is
+discouraged.
+
+@smallexample
+       REAL :: value
+       READ(*,10) value
+10     FORMAT ('F4')
+@end smallexample
+
+@node I/O item lists
+@subsection I/O item lists
+@cindex I/O item lists
+
+To support legacy codes, GNU Fortran allows the input item list
+of the @code{READ} statement, and the output item lists of the
+@code{WRITE} and @code{PRINT} statements, to start with a comma.
+
+@node @code{Q} exponent-letter
+@subsection @code{Q} exponent-letter
+@cindex @code{Q} exponent-letter
+
+GNU Fortran accepts real literal constants with an exponent-letter
+of @code{Q}, for example, @code{1.23Q45}.  The constant is interpreted
+as a @code{REAL(16)} entity on targets that support this type.  If
+the target does not support @code{REAL(16)} but has a @code{REAL(10)}
+type, then the real-literal-constant will be interpreted as a
+@code{REAL(10)} entity.  In the absence of @code{REAL(16)} and
+@code{REAL(10)}, an error will occur.
+
+@node BOZ literal constants
+@subsection BOZ literal constants
+@cindex BOZ literal constants
+
+Besides decimal constants, Fortran also supports binary (@code{b}),
+octal (@code{o}) and hexadecimal (@code{z}) integer constants.  The
+syntax is: @samp{prefix quote digits quote}, were the prefix is
+either @code{b}, @code{o} or @code{z}, quote is either @code{'} or
+@code{"} and the digits are for binary @code{0} or @code{1}, for
+octal between @code{0} and @code{7}, and for hexadecimal between
+@code{0} and @code{F}.  (Example: @code{b'01011101'}.)
+
+Up to Fortran 95, BOZ literals were only allowed to initialize
+integer variables in DATA statements.  Since Fortran 2003 BOZ literals
+are also allowed as argument of @code{REAL}, @code{DBLE}, @code{INT}
+and @code{CMPLX}; the result is the same as if the integer BOZ
+literal had been converted by @code{TRANSFER} to, respectively,
+@code{real}, @code{double precision}, @code{integer} or @code{complex}.
+As GNU Fortran extension the intrinsic procedures @code{FLOAT},
+@code{DFLOAT}, @code{COMPLEX} and @code{DCMPLX} are treated alike.
+
+As an extension, GNU Fortran allows hexadecimal BOZ literal constants to
+be specified using the @code{X} prefix, in addition to the standard
+@code{Z} prefix.  The BOZ literal can also be specified by adding a
+suffix to the string, for example, @code{Z'ABC'} and @code{'ABC'Z} are
+equivalent.
+
+Furthermore, GNU Fortran allows using BOZ literal constants outside
+DATA statements and the four intrinsic functions allowed by Fortran 2003.
+In DATA statements, in direct assignments, where the right-hand side
+only contains a BOZ literal constant, and for old-style initializers of
+the form @code{integer i /o'0173'/}, the constant is transferred
+as if @code{TRANSFER} had been used; for @code{COMPLEX} numbers, only
+the real part is initialized unless @code{CMPLX} is used.  In all other
+cases, the BOZ literal constant is converted to an @code{INTEGER} value with
+the largest decimal representation.  This value is then converted
+numerically to the type and kind of the variable in question.
+(For instance, @code{real :: r = b'0000001' + 1} initializes @code{r}
+with @code{2.0}.) As different compilers implement the extension
+differently, one should be careful when doing bitwise initialization
+of non-integer variables.
+
+Note that initializing an @code{INTEGER} variable with a statement such
+as @code{DATA i/Z'FFFFFFFF'/} will give an integer overflow error rather
+than the desired result of @math{-1} when @code{i} is a 32-bit integer
+on a system that supports 64-bit integers.  The @samp{-fno-range-check}
+option can be used as a workaround for legacy code that initializes
+integers in this manner.
+
+@node Real array indices
+@subsection Real array indices
+@cindex array, indices of type real
+
+As an extension, GNU Fortran allows the use of @code{REAL} expressions
+or variables as array indices.
+
+@node Unary operators
+@subsection Unary operators
+@cindex operators, unary
+
+As an extension, GNU Fortran allows unary plus and unary minus operators
+to appear as the second operand of binary arithmetic operators without
+the need for parenthesis.
+
+@smallexample
+       X = Y * -Z
+@end smallexample
+
+@node Implicitly convert LOGICAL and INTEGER values
+@subsection Implicitly convert @code{LOGICAL} and @code{INTEGER} values
+@cindex conversion, to integer
+@cindex conversion, to logical
+
+As an extension for backwards compatibility with other compilers, GNU
+Fortran allows the implicit conversion of @code{LOGICAL} values to
+@code{INTEGER} values and vice versa.  When converting from a
+@code{LOGICAL} to an @code{INTEGER}, @code{.FALSE.} is interpreted as
+zero, and @code{.TRUE.} is interpreted as one.  When converting from
+@code{INTEGER} to @code{LOGICAL}, the value zero is interpreted as
+@code{.FALSE.} and any nonzero value is interpreted as @code{.TRUE.}.
+
+@smallexample
+        LOGICAL :: l
+        l = 1
+@end smallexample
+@smallexample
+        INTEGER :: i
+        i = .TRUE.
+@end smallexample
+
+However, there is no implicit conversion of @code{INTEGER} values in
+@code{if}-statements, nor of @code{LOGICAL} or @code{INTEGER} values
+in I/O operations.
+
+@node Hollerith constants support
+@subsection Hollerith constants support
+@cindex Hollerith constants
+
+GNU Fortran supports Hollerith constants in assignments, function
+arguments, and @code{DATA} and @code{ASSIGN} statements.  A Hollerith
+constant is written as a string of characters preceded by an integer
+constant indicating the character count, and the letter @code{H} or
+@code{h}, and stored in bytewise fashion in a numeric (@code{INTEGER},
+@code{REAL}, or @code{complex}) or @code{LOGICAL} variable.  The
+constant will be padded or truncated to fit the size of the variable in
+which it is stored.
+
+Examples of valid uses of Hollerith constants:
+@smallexample
+      complex*16 x(2)
+      data x /16Habcdefghijklmnop, 16Hqrstuvwxyz012345/
+      x(1) = 16HABCDEFGHIJKLMNOP
+      call foo (4h abc)
+@end smallexample
+
+Invalid Hollerith constants examples:
+@smallexample
+      integer*4 a
+      a = 8H12345678 ! Valid, but the Hollerith constant will be truncated.
+      a = 0H         ! At least one character is needed.
+@end smallexample
+
+In general, Hollerith constants were used to provide a rudimentary
+facility for handling character strings in early Fortran compilers,
+prior to the introduction of @code{CHARACTER} variables in Fortran 77;
+in those cases, the standard-compliant equivalent is to convert the
+program to use proper character strings.  On occasion, there may be a
+case where the intent is specifically to initialize a numeric variable
+with a given byte sequence.  In these cases, the same result can be
+obtained by using the @code{TRANSFER} statement, as in this example.
+@smallexample
+      INTEGER(KIND=4) :: a
+      a = TRANSFER ("abcd", a)     ! equivalent to: a = 4Habcd
+@end smallexample
+
+
+@node Cray pointers
+@subsection Cray pointers
+@cindex pointer, Cray
+
+Cray pointers are part of a non-standard extension that provides a
+C-like pointer in Fortran.  This is accomplished through a pair of
+variables: an integer "pointer" that holds a memory address, and a
+"pointee" that is used to dereference the pointer.
+
+Pointer/pointee pairs are declared in statements of the form:
+@smallexample
+        pointer ( <pointer> , <pointee> )
+@end smallexample
+or,
+@smallexample
+        pointer ( <pointer1> , <pointee1> ), ( <pointer2> , <pointee2> ), ...
+@end smallexample
+The pointer is an integer that is intended to hold a memory address.
+The pointee may be an array or scalar.  A pointee can be an assumed
+size array---that is, the last dimension may be left unspecified by
+using a @code{*} in place of a value---but a pointee cannot be an
+assumed shape array.  No space is allocated for the pointee.
+
+The pointee may have its type declared before or after the pointer
+statement, and its array specification (if any) may be declared
+before, during, or after the pointer statement.  The pointer may be
+declared as an integer prior to the pointer statement.  However, some
+machines have default integer sizes that are different than the size
+of a pointer, and so the following code is not portable:
+@smallexample
+        integer ipt
+        pointer (ipt, iarr)
+@end smallexample
+If a pointer is declared with a kind that is too small, the compiler
+will issue a warning; the resulting binary will probably not work
+correctly, because the memory addresses stored in the pointers may be
+truncated.  It is safer to omit the first line of the above example;
+if explicit declaration of ipt's type is omitted, then the compiler
+will ensure that ipt is an integer variable large enough to hold a
+pointer.
+
+Pointer arithmetic is valid with Cray pointers, but it is not the same
+as C pointer arithmetic.  Cray pointers are just ordinary integers, so
+the user is responsible for determining how many bytes to add to a
+pointer in order to increment it.  Consider the following example:
+@smallexample
+        real target(10)
+        real pointee(10)
+        pointer (ipt, pointee)
+        ipt = loc (target)
+        ipt = ipt + 1       
+@end smallexample
+The last statement does not set @code{ipt} to the address of
+@code{target(1)}, as it would in C pointer arithmetic.  Adding @code{1}
+to @code{ipt} just adds one byte to the address stored in @code{ipt}.
+
+Any expression involving the pointee will be translated to use the
+value stored in the pointer as the base address.
+
+To get the address of elements, this extension provides an intrinsic
+function @code{LOC()}.  The @code{LOC()} function is equivalent to the
+@code{&} operator in C, except the address is cast to an integer type:
+@smallexample
+        real ar(10)
+        pointer(ipt, arpte(10))
+        real arpte
+        ipt = loc(ar)  ! Makes arpte is an alias for ar
+        arpte(1) = 1.0 ! Sets ar(1) to 1.0
+@end smallexample
+The pointer can also be set by a call to the @code{MALLOC} intrinsic
+(see @ref{MALLOC}).
+
+Cray pointees often are used to alias an existing variable.  For
+example:
+@smallexample
+        integer target(10)
+        integer iarr(10)
+        pointer (ipt, iarr)
+        ipt = loc(target)
+@end smallexample
+As long as @code{ipt} remains unchanged, @code{iarr} is now an alias for
+@code{target}.  The optimizer, however, will not detect this aliasing, so
+it is unsafe to use @code{iarr} and @code{target} simultaneously.  Using
+a pointee in any way that violates the Fortran aliasing rules or
+assumptions is illegal.  It is the user's responsibility to avoid doing
+this; the compiler works under the assumption that no such aliasing
+occurs.
+
+Cray pointers will work correctly when there is no aliasing (i.e., when
+they are used to access a dynamically allocated block of memory), and
+also in any routine where a pointee is used, but any variable with which
+it shares storage is not used.  Code that violates these rules may not
+run as the user intends.  This is not a bug in the optimizer; any code
+that violates the aliasing rules is illegal.  (Note that this is not
+unique to GNU Fortran; any Fortran compiler that supports Cray pointers
+will ``incorrectly'' optimize code with illegal aliasing.)
+
+There are a number of restrictions on the attributes that can be applied
+to Cray pointers and pointees.  Pointees may not have the
+@code{ALLOCATABLE}, @code{INTENT}, @code{OPTIONAL}, @code{DUMMY},
+@code{TARGET}, @code{INTRINSIC}, or @code{POINTER} attributes.  Pointers
+may not have the @code{DIMENSION}, @code{POINTER}, @code{TARGET},
+@code{ALLOCATABLE}, @code{EXTERNAL}, or @code{INTRINSIC} attributes, nor
+may they be function results.  Pointees may not occur in more than one
+pointer statement.  A pointee cannot be a pointer.  Pointees cannot occur
+in equivalence, common, or data statements.
+
+A Cray pointer may also point to a function or a subroutine.  For
+example, the following excerpt is valid:
+@smallexample
+  implicit none
+  external sub
+  pointer (subptr,subpte)
+  external subpte
+  subptr = loc(sub)
+  call subpte()
+  [...]
+  subroutine sub
+  [...]
+  end subroutine sub
+@end smallexample
+
+A pointer may be modified during the course of a program, and this
+will change the location to which the pointee refers.  However, when
+pointees are passed as arguments, they are treated as ordinary
+variables in the invoked function.  Subsequent changes to the pointer
+will not change the base address of the array that was passed.
+
+@node CONVERT specifier
+@subsection @code{CONVERT} specifier
+@cindex @code{CONVERT} specifier
+
+GNU Fortran allows the conversion of unformatted data between little-
+and big-endian representation to facilitate moving of data
+between different systems.  The conversion can be indicated with
+the @code{CONVERT} specifier on the @code{OPEN} statement.
+@xref{GFORTRAN_CONVERT_UNIT}, for an alternative way of specifying
+the data format via an environment variable.
+
+Valid values for @code{CONVERT} are:
+@itemize @w{}
+@item @code{CONVERT='NATIVE'} Use the native format.  This is the default.
+@item @code{CONVERT='SWAP'} Swap between little- and big-endian.
+@item @code{CONVERT='LITTLE_ENDIAN'} Use the little-endian representation
+for unformatted files.
+@item @code{CONVERT='BIG_ENDIAN'} Use the big-endian representation for
+unformatted files.
+@end itemize
+
+Using the option could look like this:
+@smallexample
+  open(file='big.dat',form='unformatted',access='sequential', &
+       convert='big_endian')
+@end smallexample
+
+The value of the conversion can be queried by using
+@code{INQUIRE(CONVERT=ch)}.  The values returned are
+@code{'BIG_ENDIAN'} and @code{'LITTLE_ENDIAN'}.
+
+@code{CONVERT} works between big- and little-endian for
+@code{INTEGER} values of all supported kinds and for @code{REAL}
+on IEEE systems of kinds 4 and 8.  Conversion between different
+``extended double'' types on different architectures such as
+m68k and x86_64, which GNU Fortran
+supports as @code{REAL(KIND=10)} and @code{REAL(KIND=16)}, will
+probably not work.
+
+@emph{Note that the values specified via the GFORTRAN_CONVERT_UNIT
+environment variable will override the CONVERT specifier in the
+open statement}.  This is to give control over data formats to
+users who do not have the source code of their program available.
+
+Using anything but the native representation for unformatted data
+carries a significant speed overhead.  If speed in this area matters
+to you, it is best if you use this only for data that needs to be
+portable.
+
+@node OpenMP
+@subsection OpenMP
+@cindex OpenMP
+
+OpenMP (Open Multi-Processing) is an application programming
+interface (API) that supports multi-platform shared memory 
+multiprocessing programming in C/C++ and Fortran on many 
+architectures, including Unix and Microsoft Windows platforms.
+It consists of a set of compiler directives, library routines,
+and environment variables that influence run-time behavior.
+
+GNU Fortran strives to be compatible to the 
+@uref{http://www.openmp.org/mp-documents/spec31.pdf,
+OpenMP Application Program Interface v3.1}.
+
+To enable the processing of the OpenMP directive @code{!$omp} in
+free-form source code; the @code{c$omp}, @code{*$omp} and @code{!$omp}
+directives in fixed form; the @code{!$} conditional compilation sentinels
+in free form; and the @code{c$}, @code{*$} and @code{!$} sentinels
+in fixed form, @command{gfortran} needs to be invoked with the
+@option{-fopenmp}.  This also arranges for automatic linking of the
+GNU OpenMP runtime library @ref{Top,,libgomp,libgomp,GNU OpenMP
+runtime library}.
+
+The OpenMP Fortran runtime library routines are provided both in a
+form of a Fortran 90 module named @code{omp_lib} and in a form of
+a Fortran @code{include} file named @file{omp_lib.h}.
+
+An example of a parallelized loop taken from Appendix A.1 of
+the OpenMP Application Program Interface v2.5:
+@smallexample
+SUBROUTINE A1(N, A, B)
+  INTEGER I, N
+  REAL B(N), A(N)
+!$OMP PARALLEL DO !I is private by default
+  DO I=2,N
+    B(I) = (A(I) + A(I-1)) / 2.0
+  ENDDO
+!$OMP END PARALLEL DO
+END SUBROUTINE A1
+@end smallexample
+
+Please note:
+@itemize
+@item
+@option{-fopenmp} implies @option{-frecursive}, i.e., all local arrays
+will be allocated on the stack.  When porting existing code to OpenMP,
+this may lead to surprising results, especially to segmentation faults
+if the stacksize is limited.
+
+@item
+On glibc-based systems, OpenMP enabled applications cannot be statically
+linked due to limitations of the underlying pthreads-implementation.  It
+might be possible to get a working solution if 
+@command{-Wl,--whole-archive -lpthread -Wl,--no-whole-archive} is added
+to the command line.  However, this is not supported by @command{gcc} and
+thus not recommended.
+@end itemize
+
+@node Argument list functions
+@subsection Argument list functions @code{%VAL}, @code{%REF} and @code{%LOC}
+@cindex argument list functions
+@cindex @code{%VAL}
+@cindex @code{%REF}
+@cindex @code{%LOC}
+
+GNU Fortran supports argument list functions @code{%VAL}, @code{%REF} 
+and @code{%LOC} statements, for backward compatibility with g77. 
+It is recommended that these should be used only for code that is 
+accessing facilities outside of GNU Fortran, such as operating system 
+or windowing facilities.  It is best to constrain such uses to isolated 
+portions of a program--portions that deal specifically and exclusively 
+with low-level, system-dependent facilities.  Such portions might well 
+provide a portable interface for use by the program as a whole, but are 
+themselves not portable, and should be thoroughly tested each time they 
+are rebuilt using a new compiler or version of a compiler.
+
+@code{%VAL} passes a scalar argument by value, @code{%REF} passes it by 
+reference and @code{%LOC} passes its memory location.  Since gfortran 
+already passes scalar arguments by reference, @code{%REF} is in effect 
+a do-nothing.  @code{%LOC} has the same effect as a Fortran pointer.
+
+An example of passing an argument by value to a C subroutine foo.:
+@smallexample
+C
+C prototype      void foo_ (float x);
+C
+      external foo
+      real*4 x
+      x = 3.14159
+      call foo (%VAL (x))
+      end
+@end smallexample
+
+For details refer to the g77 manual
+@uref{http://gcc.gnu.org/@/onlinedocs/@/gcc-3.4.6/@/g77/@/index.html#Top}.
+
+Also, @code{c_by_val.f} and its partner @code{c_by_val.c} of the
+GNU Fortran testsuite are worth a look.
+
+
+@node Extensions not implemented in GNU Fortran
+@section Extensions not implemented in GNU Fortran
+@cindex extensions, not implemented
+
+The long history of the Fortran language, its wide use and broad
+userbase, the large number of different compiler vendors and the lack of
+some features crucial to users in the first standards have lead to the
+existence of a number of important extensions to the language.  While
+some of the most useful or popular extensions are supported by the GNU
+Fortran compiler, not all existing extensions are supported.  This section
+aims at listing these extensions and offering advice on how best make
+code that uses them running with the GNU Fortran compiler.
+
+@c More can be found here:
+@c   -- http://gcc.gnu.org/onlinedocs/gcc-3.4.6/g77/Missing-Features.html
+@c   -- the list of Fortran and libgfortran bugs closed as WONTFIX:
+@c      http://tinyurl.com/2u4h5y
+
+@menu
+* STRUCTURE and RECORD::
+@c * UNION and MAP::
+* ENCODE and DECODE statements::
+* Variable FORMAT expressions::
+@c * Q edit descriptor::
+@c * AUTOMATIC statement::
+@c * TYPE and ACCEPT I/O Statements::
+@c * .XOR. operator::
+@c * CARRIAGECONTROL, DEFAULTFILE, DISPOSE and RECORDTYPE I/O specifiers::
+@c * Omitted arguments in procedure call::
+* Alternate complex function syntax::
+@end menu
+
+
+@node STRUCTURE and RECORD
+@subsection @code{STRUCTURE} and @code{RECORD}
+@cindex @code{STRUCTURE}
+@cindex @code{RECORD}
+
+Structures are user-defined aggregate data types; this functionality was
+standardized in Fortran 90 with an different syntax, under the name of
+``derived types''.  Here is an example of code using the non portable
+structure syntax:
+
+@example
+! Declaring a structure named ``item'' and containing three fields:
+! an integer ID, an description string and a floating-point price.
+STRUCTURE /item/
+  INTEGER id
+  CHARACTER(LEN=200) description
+  REAL price
+END STRUCTURE
+
+! Define two variables, an single record of type ``item''
+! named ``pear'', and an array of items named ``store_catalog''
+RECORD /item/ pear, store_catalog(100)
+
+! We can directly access the fields of both variables
+pear.id = 92316
+pear.description = "juicy D'Anjou pear"
+pear.price = 0.15
+store_catalog(7).id = 7831
+store_catalog(7).description = "milk bottle"
+store_catalog(7).price = 1.2
+
+! We can also manipulate the whole structure
+store_catalog(12) = pear
+print *, store_catalog(12)
+@end example
+
+@noindent
+This code can easily be rewritten in the Fortran 90 syntax as following:
+
+@example
+! ``STRUCTURE /name/ ... END STRUCTURE'' becomes
+! ``TYPE name ... END TYPE''
+TYPE item
+  INTEGER id
+  CHARACTER(LEN=200) description
+  REAL price
+END TYPE
+
+! ``RECORD /name/ variable'' becomes ``TYPE(name) variable''
+TYPE(item) pear, store_catalog(100)
+
+! Instead of using a dot (.) to access fields of a record, the
+! standard syntax uses a percent sign (%)
+pear%id = 92316
+pear%description = "juicy D'Anjou pear"
+pear%price = 0.15
+store_catalog(7)%id = 7831
+store_catalog(7)%description = "milk bottle"
+store_catalog(7)%price = 1.2
+
+! Assignments of a whole variable do not change
+store_catalog(12) = pear
+print *, store_catalog(12)
+@end example
+
+
+@c @node UNION and MAP
+@c @subsection @code{UNION} and @code{MAP}
+@c @cindex @code{UNION}
+@c @cindex @code{MAP}
+@c
+@c For help writing this one, see
+@c http://www.eng.umd.edu/~nsw/ench250/fortran1.htm#UNION and
+@c http://www.tacc.utexas.edu/services/userguides/pgi/pgiws_ug/pgi32u06.htm
+
+
+@node ENCODE and DECODE statements
+@subsection @code{ENCODE} and @code{DECODE} statements
+@cindex @code{ENCODE}
+@cindex @code{DECODE}
+
+GNU Fortran does not support the @code{ENCODE} and @code{DECODE}
+statements.  These statements are best replaced by @code{READ} and
+@code{WRITE} statements involving internal files (@code{CHARACTER}
+variables and arrays), which have been part of the Fortran standard since
+Fortran 77.  For example, replace a code fragment like
+
+@smallexample
+      INTEGER*1 LINE(80)
+      REAL A, B, C
+c     ... Code that sets LINE
+      DECODE (80, 9000, LINE) A, B, C
+ 9000 FORMAT (1X, 3(F10.5))
+@end smallexample
+
+@noindent
+with the following:
+
+@smallexample
+      CHARACTER(LEN=80) LINE
+      REAL A, B, C
+c     ... Code that sets LINE
+      READ (UNIT=LINE, FMT=9000) A, B, C
+ 9000 FORMAT (1X, 3(F10.5))
+@end smallexample
+
+Similarly, replace a code fragment like
+
+@smallexample
+      INTEGER*1 LINE(80)
+      REAL A, B, C
+c     ... Code that sets A, B and C
+      ENCODE (80, 9000, LINE) A, B, C
+ 9000 FORMAT (1X, 'OUTPUT IS ', 3(F10.5))
+@end smallexample
+
+@noindent
+with the following:
+
+@smallexample
+      CHARACTER(LEN=80) LINE
+      REAL A, B, C
+c     ... Code that sets A, B and C
+      WRITE (UNIT=LINE, FMT=9000) A, B, C
+ 9000 FORMAT (1X, 'OUTPUT IS ', 3(F10.5))
+@end smallexample
+
+
+@node Variable FORMAT expressions
+@subsection Variable @code{FORMAT} expressions
+@cindex @code{FORMAT}
+
+A variable @code{FORMAT} expression is format statement which includes
+angle brackets enclosing a Fortran expression: @code{FORMAT(I<N>)}.  GNU
+Fortran does not support this legacy extension.  The effect of variable
+format expressions can be reproduced by using the more powerful (and
+standard) combination of internal output and string formats.  For example,
+replace a code fragment like this:
+
+@smallexample
+      WRITE(6,20) INT1
+ 20   FORMAT(I<N+1>)
+@end smallexample
+
+@noindent
+with the following:
+
+@smallexample
+c     Variable declaration
+      CHARACTER(LEN=20) FMT
+c     
+c     Other code here...
+c
+      WRITE(FMT,'("(I", I0, ")")') N+1
+      WRITE(6,FMT) INT1
+@end smallexample
+
+@noindent
+or with:
+
+@smallexample
+c     Variable declaration
+      CHARACTER(LEN=20) FMT
+c     
+c     Other code here...
+c
+      WRITE(FMT,*) N+1
+      WRITE(6,"(I" // ADJUSTL(FMT) // ")") INT1
+@end smallexample
+
+
+@node Alternate complex function syntax
+@subsection Alternate complex function syntax
+@cindex Complex function
+
+Some Fortran compilers, including @command{g77}, let the user declare
+complex functions with the syntax @code{COMPLEX FUNCTION name*16()}, as
+well as @code{COMPLEX*16 FUNCTION name()}.  Both are non-standard, legacy
+extensions.  @command{gfortran} accepts the latter form, which is more
+common, but not the former.
+
+
+
+@c ---------------------------------------------------------------------
+@c Mixed-Language Programming
+@c ---------------------------------------------------------------------
+
+@node Mixed-Language Programming
+@chapter Mixed-Language Programming
+@cindex Interoperability
+@cindex Mixed-language programming
+
+@menu
+* Interoperability with C::
+* GNU Fortran Compiler Directives::
+* Non-Fortran Main Program::
+@end menu
+
+This chapter is about mixed-language interoperability, but also applies
+if one links Fortran code compiled by different compilers.  In most cases,
+use of the C Binding features of the Fortran 2003 standard is sufficient,
+and their use is highly recommended.
+
+
+@node Interoperability with C
+@section Interoperability with C
+
+@menu
+* Intrinsic Types::
+* Derived Types and struct::
+* Interoperable Global Variables::
+* Interoperable Subroutines and Functions::
+* Working with Pointers::
+* Further Interoperability of Fortran with C::
+@end menu
+
+Since Fortran 2003 (ISO/IEC 1539-1:2004(E)) there is a
+standardized way to generate procedure and derived-type
+declarations and global variables which are interoperable with C
+(ISO/IEC 9899:1999).  The @code{bind(C)} attribute has been added
+to inform the compiler that a symbol shall be interoperable with C;
+also, some constraints are added.  Note, however, that not
+all C features have a Fortran equivalent or vice versa.  For instance,
+neither C's unsigned integers nor C's functions with variable number
+of arguments have an equivalent in Fortran.
+
+Note that array dimensions are reversely ordered in C and that arrays in
+C always start with index 0 while in Fortran they start by default with
+1.  Thus, an array declaration @code{A(n,m)} in Fortran matches
+@code{A[m][n]} in C and accessing the element @code{A(i,j)} matches
+@code{A[j-1][i-1]}.  The element following @code{A(i,j)} (C: @code{A[j-1][i-1]};
+assuming @math{i < n}) in memory is @code{A(i+1,j)} (C: @code{A[j-1][i]}).
+
+@node Intrinsic Types
+@subsection Intrinsic Types
+
+In order to ensure that exactly the same variable type and kind is used
+in C and Fortran, the named constants shall be used which are defined in the
+@code{ISO_C_BINDING} intrinsic module.  That module contains named constants
+for kind parameters and character named constants for the escape sequences
+in C.  For a list of the constants, see @ref{ISO_C_BINDING}.
+
+@node Derived Types and struct
+@subsection Derived Types and struct
+
+For compatibility of derived types with @code{struct}, one needs to use
+the @code{BIND(C)} attribute in the type declaration.  For instance, the
+following type declaration
+
+@smallexample
+ USE ISO_C_BINDING
+ TYPE, BIND(C) :: myType
+   INTEGER(C_INT) :: i1, i2
+   INTEGER(C_SIGNED_CHAR) :: i3
+   REAL(C_DOUBLE) :: d1
+   COMPLEX(C_FLOAT_COMPLEX) :: c1
+   CHARACTER(KIND=C_CHAR) :: str(5)
+ END TYPE
+@end smallexample
+
+matches the following @code{struct} declaration in C
+
+@smallexample
+ struct @{
+   int i1, i2;
+   /* Note: "char" might be signed or unsigned.  */
+   signed char i3;
+   double d1;
+   float _Complex c1;
+   char str[5];
+ @} myType;
+@end smallexample
+
+Derived types with the C binding attribute shall not have the @code{sequence}
+attribute, type parameters, the @code{extends} attribute, nor type-bound
+procedures.  Every component must be of interoperable type and kind and may not
+have the @code{pointer} or @code{allocatable} attribute.  The names of the
+variables are irrelevant for interoperability.
+
+As there exist no direct Fortran equivalents, neither unions nor structs
+with bit field or variable-length array members are interoperable.
+
+@node Interoperable Global Variables
+@subsection Interoperable Global Variables
+
+Variables can be made accessible from C using the C binding attribute,
+optionally together with specifying a binding name.  Those variables
+have to be declared in the declaration part of a @code{MODULE},
+be of interoperable type, and have neither the @code{pointer} nor
+the @code{allocatable} attribute.
+
+@smallexample
+  MODULE m
+    USE myType_module
+    USE ISO_C_BINDING
+    integer(C_INT), bind(C, name="_MyProject_flags") :: global_flag
+    type(myType), bind(C) :: tp
+  END MODULE
+@end smallexample
+
+Here, @code{_MyProject_flags} is the case-sensitive name of the variable
+as seen from C programs while @code{global_flag} is the case-insensitive
+name as seen from Fortran.  If no binding name is specified, as for
+@var{tp}, the C binding name is the (lowercase) Fortran binding name.
+If a binding name is specified, only a single variable may be after the
+double colon.  Note of warning: You cannot use a global variable to
+access @var{errno} of the C library as the C standard allows it to be
+a macro.  Use the @code{IERRNO} intrinsic (GNU extension) instead.
+
+@node Interoperable Subroutines and Functions
+@subsection Interoperable Subroutines and Functions
+
+Subroutines and functions have to have the @code{BIND(C)} attribute to
+be compatible with C.  The dummy argument declaration is relatively
+straightforward.  However, one needs to be careful because C uses
+call-by-value by default while Fortran behaves usually similar to
+call-by-reference.  Furthermore, strings and pointers are handled
+differently.  Note that only explicit size and assumed-size arrays are
+supported but not assumed-shape or allocatable arrays.
+
+To pass a variable by value, use the @code{VALUE} attribute.
+Thus the following C prototype
+
+@smallexample
+@code{int func(int i, int *j)}
+@end smallexample
+
+matches the Fortran declaration
+
+@smallexample
+  integer(c_int) function func(i,j)
+    use iso_c_binding, only: c_int
+    integer(c_int), VALUE :: i
+    integer(c_int) :: j
+@end smallexample
+
+Note that pointer arguments also frequently need the @code{VALUE} attribute,
+see @ref{Working with Pointers}.
+
+Strings are handled quite differently in C and Fortran.  In C a string
+is a @code{NUL}-terminated array of characters while in Fortran each string
+has a length associated with it and is thus not terminated (by e.g.
+@code{NUL}).  For example, if one wants to use the following C function,
+
+@smallexample
+  #include <stdio.h>
+  void print_C(char *string) /* equivalent: char string[]  */
+  @{
+     printf("%s\n", string);
+  @}
+@end smallexample
+
+to print ``Hello World'' from Fortran, one can call it using
+
+@smallexample
+  use iso_c_binding, only: C_CHAR, C_NULL_CHAR
+  interface
+    subroutine print_c(string) bind(C, name="print_C")
+      use iso_c_binding, only: c_char
+      character(kind=c_char) :: string(*)
+    end subroutine print_c
+  end interface
+  call print_c(C_CHAR_"Hello World"//C_NULL_CHAR)
+@end smallexample
+
+As the example shows, one needs to ensure that the
+string is @code{NUL} terminated.  Additionally, the dummy argument
+@var{string} of @code{print_C} is a length-one assumed-size
+array; using @code{character(len=*)} is not allowed.  The example
+above uses @code{c_char_"Hello World"} to ensure the string
+literal has the right type; typically the default character
+kind and @code{c_char} are the same and thus @code{"Hello World"}
+is equivalent.  However, the standard does not guarantee this.
+
+The use of strings is now further illustrated using the C library
+function @code{strncpy}, whose prototype is
+
+@smallexample
+  char *strncpy(char *restrict s1, const char *restrict s2, size_t n);
+@end smallexample
+
+The function @code{strncpy} copies at most @var{n} characters from
+string @var{s2} to @var{s1} and returns @var{s1}.  In the following
+example, we ignore the return value:
+
+@smallexample
+  use iso_c_binding
+  implicit none
+  character(len=30) :: str,str2
+  interface
+    ! Ignore the return value of strncpy -> subroutine
+    ! "restrict" is always assumed if we do not pass a pointer
+    subroutine strncpy(dest, src, n) bind(C)
+      import
+      character(kind=c_char),  intent(out) :: dest(*)
+      character(kind=c_char),  intent(in)  :: src(*)
+      integer(c_size_t), value, intent(in) :: n
+    end subroutine strncpy
+  end interface
+  str = repeat('X',30) ! Initialize whole string with 'X'
+  call strncpy(str, c_char_"Hello World"//C_NULL_CHAR, &
+               len(c_char_"Hello World",kind=c_size_t))
+  print '(a)', str ! prints: "Hello WorldXXXXXXXXXXXXXXXXXXX"
+  end
+@end smallexample
+
+The intrinsic procedures are described in @ref{Intrinsic Procedures}.
+
+@node Working with Pointers
+@subsection Working with Pointers
+
+C pointers are represented in Fortran via the special opaque derived type
+@code{type(c_ptr)} (with private components).  Thus one needs to
+use intrinsic conversion procedures to convert from or to C pointers.
+For example,
+
+@smallexample
+  use iso_c_binding
+  type(c_ptr) :: cptr1, cptr2
+  integer, target :: array(7), scalar
+  integer, pointer :: pa(:), ps
+  cptr1 = c_loc(array(1)) ! The programmer needs to ensure that the
+                          ! array is contiguous if required by the C
+                          ! procedure
+  cptr2 = c_loc(scalar)
+  call c_f_pointer(cptr2, ps)
+  call c_f_pointer(cptr2, pa, shape=[7])
+@end smallexample
+
+When converting C to Fortran arrays, the one-dimensional @code{SHAPE} argument
+has to be passed.
+
+If a pointer is a dummy-argument of an interoperable procedure, it usually
+has to be declared using the @code{VALUE} attribute.  @code{void*}
+matches @code{TYPE(C_PTR), VALUE}, while @code{TYPE(C_PTR)} alone
+matches @code{void**}.
+
+Procedure pointers are handled analogously to pointers; the C type is
+@code{TYPE(C_FUNPTR)} and the intrinsic conversion procedures are
+@code{C_F_PROCPOINTER} and @code{C_FUNLOC}.
+
+Let us consider two examples of actually passing a procedure pointer from
+C to Fortran and vice versa.  Note that these examples are also very
+similar to passing ordinary pointers between both languages. First,
+consider this code in C:
+
+@smallexample
+/* Procedure implemented in Fortran.  */
+void get_values (void (*)(double));
+
+/* Call-back routine we want called from Fortran.  */
+void
+print_it (double x)
+@{
+  printf ("Number is %f.\n", x);
+@}
+
+/* Call Fortran routine and pass call-back to it.  */
+void
+foobar ()
+@{
+  get_values (&print_it);
+@}
+@end smallexample
+
+A matching implementation for @code{get_values} in Fortran, that correctly
+receives the procedure pointer from C and is able to call it, is given
+in the following @code{MODULE}:
+
+@smallexample
+MODULE m
+  IMPLICIT NONE
+
+  ! Define interface of call-back routine.
+  ABSTRACT INTERFACE
+    SUBROUTINE callback (x)
+      USE, INTRINSIC :: ISO_C_BINDING
+      REAL(KIND=C_DOUBLE), INTENT(IN), VALUE :: x
+    END SUBROUTINE callback
+  END INTERFACE
+
+CONTAINS
+
+  ! Define C-bound procedure.
+  SUBROUTINE get_values (cproc) BIND(C)
+    USE, INTRINSIC :: ISO_C_BINDING
+    TYPE(C_FUNPTR), INTENT(IN), VALUE :: cproc
+
+    PROCEDURE(callback), POINTER :: proc
+
+    ! Convert C to Fortran procedure pointer.
+    CALL C_F_PROCPOINTER (cproc, proc)
+
+    ! Call it.
+    CALL proc (1.0_C_DOUBLE)
+    CALL proc (-42.0_C_DOUBLE)
+    CALL proc (18.12_C_DOUBLE)
+  END SUBROUTINE get_values
+
+END MODULE m
+@end smallexample
+
+Next, we want to call a C routine that expects a procedure pointer argument
+and pass it a Fortran procedure (which clearly must be interoperable!).
+Again, the C function may be:
+
+@smallexample
+int
+call_it (int (*func)(int), int arg)
+@{
+  return func (arg);
+@}
+@end smallexample
+
+It can be used as in the following Fortran code:
+
+@smallexample
+MODULE m
+  USE, INTRINSIC :: ISO_C_BINDING
+  IMPLICIT NONE
+
+  ! Define interface of C function.
+  INTERFACE
+    INTEGER(KIND=C_INT) FUNCTION call_it (func, arg) BIND(C)
+      USE, INTRINSIC :: ISO_C_BINDING
+      TYPE(C_FUNPTR), INTENT(IN), VALUE :: func
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE :: arg
+    END FUNCTION call_it
+  END INTERFACE
+
+CONTAINS
+
+  ! Define procedure passed to C function.
+  ! It must be interoperable!
+  INTEGER(KIND=C_INT) FUNCTION double_it (arg) BIND(C)
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE :: arg
+    double_it = arg + arg
+  END FUNCTION double_it
+
+  ! Call C function.
+  SUBROUTINE foobar ()
+    TYPE(C_FUNPTR) :: cproc
+    INTEGER(KIND=C_INT) :: i
+
+    ! Get C procedure pointer.
+    cproc = C_FUNLOC (double_it)
+
+    ! Use it.
+    DO i = 1_C_INT, 10_C_INT
+      PRINT *, call_it (cproc, i)
+    END DO
+  END SUBROUTINE foobar
+
+END MODULE m
+@end smallexample
+
+@node Further Interoperability of Fortran with C
+@subsection Further Interoperability of Fortran with C
+
+Assumed-shape and allocatable arrays are passed using an array descriptor
+(dope vector).  The internal structure of the array descriptor used
+by GNU Fortran is not yet documented and will change.  There will also be
+a Technical Specification (TS 29113) which standardizes an interoperable
+array descriptor.  Until then, you can use the Chasm Language
+Interoperability Tools, @url{http://chasm-interop.sourceforge.net/},
+which provide an interface to GNU Fortran's array descriptor.
+
+GNU Fortran already supports the C-interoperable @code{OPTIONAL}
+attribute; for absent arguments, a @code{NULL} pointer is passed.
+
+
+
+@node GNU Fortran Compiler Directives
+@section GNU Fortran Compiler Directives
+
+The Fortran standard describes how a conforming program shall
+behave; however, the exact implementation is not standardized.  In order
+to allow the user to choose specific implementation details, compiler
+directives can be used to set attributes of variables and procedures
+which are not part of the standard.  Whether a given attribute is
+supported and its exact effects depend on both the operating system and
+on the processor; see
+@ref{Top,,C Extensions,gcc,Using the GNU Compiler Collection (GCC)}
+for details.
+
+For procedures and procedure pointers, the following attributes can
+be used to change the calling convention:
+
+@itemize
+@item @code{CDECL} -- standard C calling convention
+@item @code{STDCALL} -- convention where the called procedure pops the stack
+@item @code{FASTCALL} -- part of the arguments are passed via registers
+instead using the stack
+@end itemize
+
+Besides changing the calling convention, the attributes also influence
+the decoration of the symbol name, e.g., by a leading underscore or by
+a trailing at-sign followed by the number of bytes on the stack.  When
+assigning a procedure to a procedure pointer, both should use the same
+calling convention.
+
+On some systems, procedures and global variables (module variables and
+@code{COMMON} blocks) need special handling to be accessible when they
+are in a shared library.  The following attributes are available:
+
+@itemize
+@item @code{DLLEXPORT} -- provide a global pointer to a pointer in the DLL
+@item @code{DLLIMPORT} -- reference the function or variable using a global pointer 
+@end itemize
+
+The attributes are specified using the syntax
+
+@code{!GCC$ ATTRIBUTES} @var{attribute-list} @code{::} @var{variable-list}
+
+where in free-form source code only whitespace is allowed before @code{!GCC$}
+and in fixed-form source code @code{!GCC$}, @code{cGCC$} or @code{*GCC$} shall
+start in the first column.
+
+For procedures, the compiler directives shall be placed into the body
+of the procedure; for variables and procedure pointers, they shall be in
+the same declaration part as the variable or procedure pointer.
+
+
+
+@node Non-Fortran Main Program
+@section Non-Fortran Main Program
+
+@menu
+* _gfortran_set_args:: Save command-line arguments
+* _gfortran_set_options:: Set library option flags
+* _gfortran_set_convert:: Set endian conversion
+* _gfortran_set_record_marker:: Set length of record markers
+* _gfortran_set_max_subrecord_length:: Set subrecord length
+* _gfortran_set_fpe:: Set when a Floating Point Exception should be raised
+@end menu
+
+Even if you are doing mixed-language programming, it is very
+likely that you do not need to know or use the information in this
+section.  Since it is about the internal structure of GNU Fortran,
+it may also change in GCC minor releases.
+
+When you compile a @code{PROGRAM} with GNU Fortran, a function
+with the name @code{main} (in the symbol table of the object file)
+is generated, which initializes the libgfortran library and then
+calls the actual program which uses the name @code{MAIN__}, for
+historic reasons.  If you link GNU Fortran compiled procedures
+to, e.g., a C or C++ program or to a Fortran program compiled by
+a different compiler, the libgfortran library is not initialized
+and thus a few intrinsic procedures do not work properly, e.g.
+those for obtaining the command-line arguments.
+
+Therefore, if your @code{PROGRAM} is not compiled with
+GNU Fortran and the GNU Fortran compiled procedures require
+intrinsics relying on the library initialization, you need to
+initialize the library yourself.  Using the default options,
+gfortran calls @code{_gfortran_set_args} and
+@code{_gfortran_set_options}.  The initialization of the former
+is needed if the called procedures access the command line
+(and for backtracing); the latter sets some flags based on the
+standard chosen or to enable backtracing.  In typical programs,
+it is not necessary to call any initialization function.
+
+If your @code{PROGRAM} is compiled with GNU Fortran, you shall
+not call any of the following functions.  The libgfortran
+initialization functions are shown in C syntax but using C
+bindings they are also accessible from Fortran.
+
+
+@node _gfortran_set_args
+@subsection @code{_gfortran_set_args} --- Save command-line arguments
+@fnindex _gfortran_set_args
+@cindex libgfortran initialization, set_args
+
+@table @asis
+@item @emph{Description}:
+@code{_gfortran_set_args} saves the command-line arguments; this
+initialization is required if any of the command-line intrinsics
+is called.  Additionally, it shall be called if backtracing is
+enabled (see @code{_gfortran_set_options}).
+
+@item @emph{Syntax}:
+@code{void _gfortran_set_args (int argc, char *argv[])}
+
+@item @emph{Arguments}:
+@multitable @columnfractions .15 .70
+@item @var{argc} @tab number of command line argument strings
+@item @var{argv} @tab the command-line argument strings; argv[0]
+is the pathname of the executable itself.
+@end multitable
+
+@item @emph{Example}:
+@smallexample
+int main (int argc, char *argv[])
+@{
+  /* Initialize libgfortran.  */
+  _gfortran_set_args (argc, argv);
+  return 0;
+@}
+@end smallexample
+@end table
+
+
+@node _gfortran_set_options
+@subsection @code{_gfortran_set_options} --- Set library option flags
+@fnindex _gfortran_set_options
+@cindex libgfortran initialization, set_options
+
+@table @asis
+@item @emph{Description}:
+@code{_gfortran_set_options} sets several flags related to the Fortran
+standard to be used, whether backtracing should be enabled
+and whether range checks should be performed.  The syntax allows for
+upward compatibility since the number of passed flags is specified; for
+non-passed flags, the default value is used.  See also
+@pxref{Code Gen Options}.  Please note that not all flags are actually
+used.
+
+@item @emph{Syntax}:
+@code{void _gfortran_set_options (int num, int options[])}
+
+@item @emph{Arguments}:
+@multitable @columnfractions .15 .70
+@item @var{num} @tab number of options passed
+@item @var{argv} @tab The list of flag values
+@end multitable
+
+@item @emph{option flag list}:
+@multitable @columnfractions .15 .70
+@item @var{option}[0] @tab Allowed standard; can give run-time errors
+if e.g. an input-output edit descriptor is invalid in a given standard.
+Possible values are (bitwise or-ed) @code{GFC_STD_F77} (1),
+@code{GFC_STD_F95_OBS} (2), @code{GFC_STD_F95_DEL} (4), @code{GFC_STD_F95}
+(8), @code{GFC_STD_F2003} (16), @code{GFC_STD_GNU} (32),
+@code{GFC_STD_LEGACY} (64), @code{GFC_STD_F2008} (128), 
+@code{GFC_STD_F2008_OBS} (256) and GFC_STD_F2008_TS (512). Default:
+@code{GFC_STD_F95_OBS | GFC_STD_F95_DEL | GFC_STD_F95 | GFC_STD_F2003
+| GFC_STD_F2008 | GFC_STD_F2008_TS | GFC_STD_F2008_OBS | GFC_STD_F77
+| GFC_STD_GNU | GFC_STD_LEGACY}.
+@item @var{option}[1] @tab Standard-warning flag; prints a warning to
+standard error.  Default: @code{GFC_STD_F95_DEL | GFC_STD_LEGACY}.
+@item @var{option}[2] @tab If non zero, enable pedantic checking.
+Default: off.
+@item @var{option}[3] @tab Unused.
+@item @var{option}[4] @tab If non zero, enable backtracing on run-time
+errors.  Default: off.
+Note: Installs a signal handler and requires command-line
+initialization using @code{_gfortran_set_args}.
+@item @var{option}[5] @tab If non zero, supports signed zeros.
+Default: enabled.
+@item @var{option}[6] @tab Enables run-time checking.  Possible values
+are (bitwise or-ed): GFC_RTCHECK_BOUNDS (1), GFC_RTCHECK_ARRAY_TEMPS (2),
+GFC_RTCHECK_RECURSION (4), GFC_RTCHECK_DO (16), GFC_RTCHECK_POINTER (32).
+Default: disabled.
+@item @var{option}[7] @tab If non zero, range checking is enabled.
+Default: enabled.  See -frange-check (@pxref{Code Gen Options}).
+@end multitable
+
+@item @emph{Example}:
+@smallexample
+  /* Use gfortran 4.7 default options.  */
+  static int options[] = @{68, 511, 0, 0, 1, 1, 0, 1@};
+  _gfortran_set_options (8, &options);
+@end smallexample
+@end table
+
+
+@node _gfortran_set_convert
+@subsection @code{_gfortran_set_convert} --- Set endian conversion
+@fnindex _gfortran_set_convert
+@cindex libgfortran initialization, set_convert
+
+@table @asis
+@item @emph{Description}:
+@code{_gfortran_set_convert} set the representation of data for
+unformatted files.
+
+@item @emph{Syntax}:
+@code{void _gfortran_set_convert (int conv)}
+
+@item @emph{Arguments}:
+@multitable @columnfractions .15 .70
+@item @var{conv} @tab Endian conversion, possible values:
+GFC_CONVERT_NATIVE (0, default), GFC_CONVERT_SWAP (1),
+GFC_CONVERT_BIG (2), GFC_CONVERT_LITTLE (3).
+@end multitable
+
+@item @emph{Example}:
+@smallexample
+int main (int argc, char *argv[])
+@{
+  /* Initialize libgfortran.  */
+  _gfortran_set_args (argc, argv);
+  _gfortran_set_convert (1);
+  return 0;
+@}
+@end smallexample
+@end table
+
+
+@node _gfortran_set_record_marker
+@subsection @code{_gfortran_set_record_marker} --- Set length of record markers
+@fnindex _gfortran_set_record_marker
+@cindex libgfortran initialization, set_record_marker
+
+@table @asis
+@item @emph{Description}:
+@code{_gfortran_set_record_marker} sets the length of record markers
+for unformatted files.
+
+@item @emph{Syntax}:
+@code{void _gfortran_set_record_marker (int val)}
+
+@item @emph{Arguments}:
+@multitable @columnfractions .15 .70
+@item @var{val} @tab Length of the record marker; valid values
+are 4 and 8.  Default is 4.
+@end multitable
+
+@item @emph{Example}:
+@smallexample
+int main (int argc, char *argv[])
+@{
+  /* Initialize libgfortran.  */
+  _gfortran_set_args (argc, argv);
+  _gfortran_set_record_marker (8);
+  return 0;
+@}
+@end smallexample
+@end table
+
+
+@node _gfortran_set_fpe
+@subsection @code{_gfortran_set_fpe} --- Enable floating point exception traps
+@fnindex _gfortran_set_fpe
+@cindex libgfortran initialization, set_fpe
+
+@table @asis
+@item @emph{Description}:
+@code{_gfortran_set_fpe} enables floating point exception traps for
+the specified exceptions.  On most systems, this will result in a
+SIGFPE signal being sent and the program being aborted.
+
+@item @emph{Syntax}:
+@code{void _gfortran_set_fpe (int val)}
+
+@item @emph{Arguments}:
+@multitable @columnfractions .15 .70
+@item @var{option}[0] @tab IEEE exceptions.  Possible values are
+(bitwise or-ed) zero (0, default) no trapping,
+@code{GFC_FPE_INVALID} (1), @code{GFC_FPE_DENORMAL} (2),
+@code{GFC_FPE_ZERO} (4), @code{GFC_FPE_OVERFLOW} (8),
+@code{GFC_FPE_UNDERFLOW} (16), and @code{GFC_FPE_INEXACT} (32).
+@end multitable
+
+@item @emph{Example}:
+@smallexample
+int main (int argc, char *argv[])
+@{
+  /* Initialize libgfortran.  */
+  _gfortran_set_args (argc, argv);
+  /* FPE for invalid operations such as SQRT(-1.0).  */
+  _gfortran_set_fpe (1);
+  return 0;
+@}
+@end smallexample
+@end table
+
+
+@node _gfortran_set_max_subrecord_length
+@subsection @code{_gfortran_set_max_subrecord_length} --- Set subrecord length
+@fnindex _gfortran_set_max_subrecord_length
+@cindex libgfortran initialization, set_max_subrecord_length
+
+@table @asis
+@item @emph{Description}:
+@code{_gfortran_set_max_subrecord_length} set the maximum length
+for a subrecord.  This option only makes sense for testing and
+debugging of unformatted I/O.
+
+@item @emph{Syntax}:
+@code{void _gfortran_set_max_subrecord_length (int val)}
+
+@item @emph{Arguments}:
+@multitable @columnfractions .15 .70
+@item @var{val} @tab the maximum length for a subrecord;
+the maximum permitted value is 2147483639, which is also
+the default.
+@end multitable
+
+@item @emph{Example}:
+@smallexample
+int main (int argc, char *argv[])
+@{
+  /* Initialize libgfortran.  */
+  _gfortran_set_args (argc, argv);
+  _gfortran_set_max_subrecord_length (8);
+  return 0;
+@}
+@end smallexample
+@end table
+
+
+
+@c Intrinsic Procedures
+@c ---------------------------------------------------------------------
+
+@include intrinsic.texi
+
+
+@tex
+\blankpart
+@end tex
+
+@c ---------------------------------------------------------------------
+@c Contributing
+@c ---------------------------------------------------------------------
+
+@node Contributing
+@unnumbered Contributing
+@cindex Contributing
+
+Free software is only possible if people contribute to efforts
+to create it.
+We're always in need of more people helping out with ideas
+and comments, writing documentation and contributing code.
+
+If you want to contribute to GNU Fortran,
+have a look at the long lists of projects you can take on.
+Some of these projects are small,
+some of them are large;
+some are completely orthogonal to the rest of what is
+happening on GNU Fortran,
+but others are ``mainstream'' projects in need of enthusiastic hackers.
+All of these projects are important!
+We will eventually get around to the things here,
+but they are also things doable by someone who is willing and able.
+
+@menu
+* Contributors::
+* Projects::
+* Proposed Extensions::
+@end menu
+
+
+@node Contributors
+@section Contributors to GNU Fortran
+@cindex Contributors
+@cindex Credits
+@cindex Authors
+
+Most of the parser was hand-crafted by @emph{Andy Vaught}, who is
+also the initiator of the whole project.  Thanks Andy!
+Most of the interface with GCC was written by @emph{Paul Brook}.
+
+The following individuals have contributed code and/or
+ideas and significant help to the GNU Fortran project
+(in alphabetical order):
+
+@itemize @minus
+@item Janne Blomqvist
+@item Steven Bosscher
+@item Paul Brook
+@item Tobias Burnus
+@item Fran@,{c}ois-Xavier Coudert
+@item Bud Davis
+@item Jerry DeLisle
+@item Erik Edelmann
+@item Bernhard Fischer
+@item Daniel Franke
+@item Richard Guenther
+@item Richard Henderson
+@item Katherine Holcomb
+@item Jakub Jelinek
+@item Niels Kristian Bech Jensen
+@item Steven Johnson
+@item Steven G. Kargl
+@item Thomas Koenig
+@item Asher Langton
+@item H. J. Lu
+@item Toon Moene
+@item Brooks Moses
+@item Andrew Pinski
+@item Tim Prince
+@item Christopher D. Rickett
+@item Richard Sandiford
+@item Tobias Schl@"uter
+@item Roger Sayle
+@item Paul Thomas
+@item Andy Vaught
+@item Feng Wang
+@item Janus Weil
+@item Daniel Kraft
+@end itemize
+
+The following people have contributed bug reports,
+smaller or larger patches,
+and much needed feedback and encouragement for the
+GNU Fortran project: 
+
+@itemize @minus
+@item Bill Clodius
+@item Dominique d'Humi@`eres
+@item Kate Hedstrom
+@item Erik Schnetter
+@item Joost VandeVondele
+@end itemize
+
+Many other individuals have helped debug,
+test and improve the GNU Fortran compiler over the past few years,
+and we welcome you to do the same!
+If you already have done so,
+and you would like to see your name listed in the
+list above, please contact us.
+
+
+@node Projects
+@section Projects
+
+@table @emph
+
+@item Help build the test suite
+Solicit more code for donation to the test suite: the more extensive the
+testsuite, the smaller the risk of breaking things in the future! We can
+keep code private on request.
+
+@item Bug hunting/squishing
+Find bugs and write more test cases! Test cases are especially very
+welcome, because it allows us to concentrate on fixing bugs instead of
+isolating them.  Going through the bugzilla database at
+@url{http://gcc.gnu.org/@/bugzilla/} to reduce testcases posted there and
+add more information (for example, for which version does the testcase
+work, for which versions does it fail?) is also very helpful.
+
+@end table
+
+
+@node Proposed Extensions
+@section Proposed Extensions
+
+Here's a list of proposed extensions for the GNU Fortran compiler, in no particular
+order.  Most of these are necessary to be fully compatible with
+existing Fortran compilers, but they are not part of the official
+J3 Fortran 95 standard.
+
+@subsection Compiler extensions: 
+@itemize @bullet
+@item
+User-specified alignment rules for structures.
+
+@item
+Automatically extend single precision constants to double.
+
+@item
+Compile code that conserves memory by dynamically allocating common and
+module storage either on stack or heap.
+
+@item
+Compile flag to generate code for array conformance checking (suggest -CC).
+
+@item
+User control of symbol names (underscores, etc).
+
+@item
+Compile setting for maximum size of stack frame size before spilling
+parts to static or heap.
+
+@item
+Flag to force local variables into static space.
+
+@item
+Flag to force local variables onto stack.
+@end itemize
+
+
+@subsection Environment Options
+@itemize @bullet
+@item
+Pluggable library modules for random numbers, linear algebra.
+LA should use BLAS calling conventions.
+
+@item
+Environment variables controlling actions on arithmetic exceptions like
+overflow, underflow, precision loss---Generate NaN, abort, default.
+action.
+
+@item
+Set precision for fp units that support it (i387).
+
+@item
+Variable for setting fp rounding mode.
+
+@item
+Variable to fill uninitialized variables with a user-defined bit
+pattern.
+
+@item
+Environment variable controlling filename that is opened for that unit
+number.
+
+@item
+Environment variable to clear/trash memory being freed.
+
+@item
+Environment variable to control tracing of allocations and frees.
+
+@item
+Environment variable to display allocated memory at normal program end.
+
+@item
+Environment variable for filename for * IO-unit.
+
+@item
+Environment variable for temporary file directory.
+
+@item
+Environment variable forcing standard output to be line buffered (unix).
+
+@end itemize
+
+
+@c ---------------------------------------------------------------------
+@c GNU General Public License
+@c ---------------------------------------------------------------------
+
+@include gpl_v3.texi
+
+
+
+@c ---------------------------------------------------------------------
+@c GNU Free Documentation License
+@c ---------------------------------------------------------------------
+
+@include fdl.texi
+
+
+
+@c ---------------------------------------------------------------------
+@c Funding Free Software
+@c ---------------------------------------------------------------------
+
+@include funding.texi
+
+@c ---------------------------------------------------------------------
+@c Indices
+@c ---------------------------------------------------------------------
+
+@node Option Index
+@unnumbered Option Index
+@command{gfortran}'s command line options are indexed here without any
+initial @samp{-} or @samp{--}.  Where an option has both positive and
+negative forms (such as -foption and -fno-option), relevant entries in
+the manual are indexed under the most appropriate form; it may sometimes
+be useful to look up both forms.
+@printindex op
+
+@node Keyword Index
+@unnumbered Keyword Index
+@printindex cp
+
+@bye
