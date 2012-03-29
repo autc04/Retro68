@@ -222,7 +222,10 @@ processFile inputDir outputDir file
                 hPutStrLn outf $ unlines [
                         "#define TARGET_CPU_68K 1",
                         "#define TYPE_LONGLONG 1",
-                        "#define pascal"
+                        "#define pascal",
+                        "#ifdef __cplusplus",
+                        "#define TYPE_BOOL 1",
+                        "#endif"
                     ]
             hPutStr outf $ concatMap (outputItem typeMap) $ collectPragmas $ items
             hClose outf
