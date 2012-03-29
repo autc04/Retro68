@@ -7,6 +7,9 @@
 #include <vector>
 #include <map>
 #include <functional>
+#include <cstring>
+
+std::string commandPath;
 
 void wrapMacBinary(std::string macBinaryFile, std::string diskImagePath)
 {
@@ -19,8 +22,8 @@ void wrapMacBinary(std::string macBinaryFile, std::string diskImagePath)
 
    std::ofstream(diskImagePath, std::ios::binary | std::ios::trunc).seekp(size-1).put(0);
    
-   std::system(("hformat " + diskImagePath + " > /dev/null").c_str());
-   std::system(("hcopy -m " + macBinaryFile + " :").c_str());
+   std::system((commandPath + "hformat " + diskImagePath + " > /dev/null").c_str());
+   std::system((commandPath + "hcopy -m " + macBinaryFile + " :").c_str());
 }
 
 class Resource
@@ -283,6 +286,11 @@ int main(int argc, char *argv[])
 
    std::string curRType = "CODE";
    bool breakOnEntry = false;
+
+   if(char *lastSlash = std::strrchr(argv[0], '/'))
+   {
+      commandPath = std::string(argv[0], lastSlash + 1);
+   }
 
    for(int i = 1; i < argc;)
    {
