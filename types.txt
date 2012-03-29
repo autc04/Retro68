@@ -1,0 +1,10 @@
+L Size
+B Boolean
+P ConstStr255Param
+W CharParameter
+W OSErr
+W UInt16
+L UInt32
+P KeyMap
+W EventKind
+W EventMask
