@@ -1,0 +1,225 @@
+<html>
+<head>
+   <title>uClinux - BFLT Binary Flat Format</title>
+   <META name="description" content="Setting up a development system for uClinux from scratch is not hard. This article covers the uClinux Kernel 2.0.38, m68k-coff, m68k-pic-coff, m68k-pic32-coff and m68k-elf Tool Chains, coff2flt converter, uC-libc and uC-libm libraries, gdb and the new uClinux 2.4.0 kernel. All the sources are downloadable,with links provided.">
+   <META name="keywords" content="uClinux, m68k-pic-coff, m68k-coff, m68k-elf, coff2flt, elf2flt, arm-linux-elf, bFLT, Binary Flat, Relocations, GOT Global Offset Table">
+</head>
+
+<body leftmargin="0" topmargin="0" marginheight="0" marginwidth="0" background="/bgyellow.gif" BASEFONT FACE=ARIAL>
+<STYLE TYPE="text/css">
+#TITLEBLOCK { text-decoration: none; color:#FFFFFF }
+TD,P,FONT,A,LI,B {font-family : Arial}
+PRE,TT {color:#100080}
+</STYLE>
+
+<BR><CENTER>
+<TABLE BOARDER=0 WIDTH="95%"><TR>
+  <TD WIDTH="25%"><CENTER><a href="http://www.beyondlogic.org"><img src="/beyondsmall.gif" alt="Beyond Logic" border=0></a></CENTER></TD>
+  <TD WIDTH="50%"><CENTER>
+
+<script type="text/javascript"><!--
+google_ad_client = "pub-7725444460812017";
+google_ad_width = 468;
+google_ad_height = 60;
+google_ad_format = "468x60_as";
+google_ad_type = "text_image";
+google_ad_channel ="";
+google_color_border = "0033FF";
+google_color_bg = "FFFFFF";
+google_color_link = "0000FF";
+google_color_url = "008000";
+google_color_text = "000000";
+//--></script>
+<script type="text/javascript"
+  src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+  <NOSCRIPT><FONT COLOR=RED>This page is optimised with JavaScript 1.2. Currently your browser has JavaScript switched off.</NOSCRIPT>
+  </CENTER></TD>
+  <TD ALIGN=RIGHT VALIGN=CENTER><BR><FONT FACE=ARIAL>
+  <script language=javascript src="http://www.beyondlogic.org/menu/beyondmenu_plain.js"></script>
+<NOSCRIPT></TD></TR></TABLE></CENTER></noscript>
+
+<TABLE WIDTH="95%"><TR><TD>
+<BR>
+<CENTER><FONT COLOR=GREEN SIZE=5>uClinux - BFLT Binary Flat Format</FONT></CENTER>
+</CENTER>
+<UL>
+<P>
+uClinux uses a Binary Flat format commonly known as BFLT. It is a relatively simple
+and lightweight executable format based on the original a.out format. It has seen 
+two major revisions, version 2 and more recently version 4. Version 2 is used by the 
+m68k-coff compilers and is still in use with the ARM elf2flt converter while version 
+4 is used with the m68k elf2flt converter. Like many open source projects worked on 
+by many individuals, little features have creped into versions without the revision 
+field changing. As a consequence what we detail in each version may not strictly be 
+the case in all circumstances. Both the 2.0.x and 2.4.x kernels’ bFLT loaders in the 
+CVS support both formats. Earlier kernels may need to have binfmt_flat.c and flat.c 
+patched to support version 4, should version 4 binaries report the following message 
+when loading
+</P>
+<UL><PRE>
+bFLT:not found. 
+bad magic/rev(4,need 2)
+</PRE></UL>
+<TABLE>
+<TR><TD>
+<P>
+Each flat binary is preceded by a header of the structure shown below in listing 1. It starts 
+with 4 ASCII bytes, “bFLT” or 0x62, 0x46, 0x4C, 0x54 which identifies the binary 
+as conforming to the flat format. The next field designates the version number of 
+the flat header. As mentioned there are two major versions, version 2 and version 
+4. Each version differs by the supported flags and the format of the relocations. 
+</P>
+<P>
+The next group of fields in the header specify the starting address of each segment 
+relative to the start of the flat file. Most files start the .text segment at 0x40 
+(immediately after the end of the header). 
+The data_start, data_end and bss_end fields specify the start or finish of the 
+designated segments. With the absence of text_end and bss_start fields, it is 
+assumed that the text segment comes first, followed immediately by the data segment. 
+While the comments for the flat file header would suggest there is a bss segment 
+somewhere in the flat file, this is not true. bss_end is used to represent the 
+length of the bss segment, thus should be set to data_end + size of bss. 
+</P>
+</TD><TD>
+<CENTER><img src="bflt.gif" alt="bFLT File Format" border=0><BR><I>Figure 1 : Flat File Format</I></CENTER>
+</TD></TR>
+</TABLE>
+
+<UL><PRE>
+struct flat_hdr {
+	char magic[4];
+	unsigned long rev;          /* version */
+	unsigned long entry;        /* Offset of first executable instruction
+	                               with text segment from beginning of file */
+	unsigned long data_start;   /* Offset of data segment from beginning of
+	                               file */
+	unsigned long data_end;     /* Offset of end of data segment
+	                               from beginning of file */
+	unsigned long bss_end;      /* Offset of end of bss segment from beginning
+	                               of file */
+
+	/* (It is assumed that data_end through bss_end forms the bss segment.) */
+
+	unsigned long stack_size;   /* Size of stack, in bytes */
+	unsigned long reloc_start;  /* Offset of relocation records from
+	                               beginning of file */
+	unsigned long reloc_count;  /* Number of relocation records */
+	unsigned long flags;       
+	unsigned long filler[6];    /* Reserved, set to zero */
+};
+</PRE></UL>
+<P>
+<CENTER><I>Listing 1 : The bFLT header structure extracted from flat.h</I></CENTER>
+</P>
+<P>
+Following the segments’ start and end pointers comes the stack size field specified 
+in bytes. This is normally set to 4096 by the m68k bFLT converters and can be 
+changed by passing an argument (-s) to the elf2flt / coff2flt utility.
+</P>
+<P>
+The next two fields specify the details of the relocations. Each relocation is a 
+long (32 bits) with the relocation table following the data segment in the flat 
+binary file. The relocation entries are different per bFLT version.  
+</P>
+<P>
+Version 2 specified a 2 bit type and 30 bit offset per relocation. This causes a 
+headache with endianess problems. The 30 bit relocation is a pointer relative to 
+zero where an absolute address is used.  The type indicates whether the absolute 
+address points to .text, .data or .bss. 
+</P>
+<UL><PRE>
+#define FLAT_RELOC_TYPE_TEXT 0
+#define FLAT_RELOC_TYPE_DATA 1
+#define FLAT_RELOC_TYPE_BSS 2
+
+struct flat_reloc {
+#if defined(__BIG_ENDIAN_BITFIELD) /* bit fields, ugh ! */
+	unsigned long type : 2; 
+	signed long offset : 30;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	signed long offset : 30;
+	unsigned long type : 2; 
+#endif
+</PRE></UL>
+<P>
+<CENTER><I>Listing 2 : Version 2 relocation structures - Not for use in new code.</I></CENTER>
+</P>
+<P>
+This enables the flat loader to fix-up absolute addressing at runtime by jumping 
+to the absolute address specified by the relocation entry and adding the loaded 
+base address to the existing address. 
+</P>
+<P>
+Version 4 removed the need of specifying a relocation type. Each relocation entry 
+simply contains a pointer to an absolute address in need of fix-up. As the bFLT 
+loader can determine the length of the .text segment at runtime  (data_start - 
+entry) we can use this to determine what segment the relocation is for. If the 
+absolute address before fix-up is less that the text length, we can safety 
+assume the relocation is pointing to the text segment and this add the base address 
+of this segment to the absolute address.
+</P>
+<P>
+On the other hand if the absolute address before fix-up is greater than the text 
+length, then the absolute address must be pointing to .data or .bss. As .bss 
+always immediately follows the data segment there is no need to have a distinction, 
+we just add the base address of the data segment and subtract the length of the 
+text segment. We subtract the text segment as the absolute address in version 4 
+is relative to zero and not to the start of the data segment.
+</P>
+<P>
+Now you could say we may take it one step further. As every absolute address is 
+referenced to zero, we can simply add the base address of the text segment to 
+each address needing fix-up. This would be true if the data segment immediately 
+follows the text segment, but we now have complications of -msep-data where the 
+text segment can be in ROM and the data segment in another location in RAM. 
+Therefore we can no longer assume that the .data+.bss segment and text segment 
+will immediately follow each other.
+ </P>
+<P>
+The last defined field in the header is the flags. This appeared briefly in some 
+version 2 headers (Typically ARM) but was cemented in place with version 4.  The 
+flags are defined as follows
+</P>
+<UL><PRE>
+#define FLAT_FLAG_RAM    0x0001 /* load program entirely into RAM */
+#define FLAT_FLAG_GOTPIC 0x0002 /* program is PIC with GOT */
+#define FLAT_FLAG_GZIP   0x0004 /* all but the header is compressed */
+</PRE></UL>
+<P>
+<CENTER><I>Listing 3 : New flags defined in Version 4</I></CENTER>
+</P>
+<P>
+Early version 2 binaries saw both the .text and .data segments loaded into RAM 
+regardless. XIP (eXecute in Place) was later introduced allowing programs to 
+execute from ROM with only the data segment being copied into RAM. In version 
+4, it is now assumed that each binary is loaded from ROM if GOTPIC is true and 
+FLAT_FLAG_GZIP and FLAT_FLAG_RAM is false. A binary can be forced to load into 
+RAM by forcing the FLAT_FLAG_RAM flag.
+</P>
+<P>
+The FLAT_FLAG_GOTPIC informs the loader that a GOT (Global Offset Table) is 
+present at the start of the data segment. This table includes offsets that 
+need to be relocated at runtime and thus allows XIP to work. (Data is accessed 
+through the GOT, thus relocations need not be made to the .text residing in ROM.) The 
+GOT is terminated with a -1, followed immediately by the data segment. 
+</P>
+<P>
+The FLAT_FLAG_GZIP indicates the binary is compressed with the GZIP algorithm. 
+The header is left untouched, but the .text, .data and relocations are 
+compressed. Some bFLT loaders do not support GZIP and will report an error 
+at loading.
+</P>
+
+<P>
+<BR>
+<FONT SIZE=-1><I>Acknowledgments to Pauli from Lineo for pointing out some minor errors.</I></FONT>
+</P>
+
+</UL>
+</TD></TR></TABLE>
+<BR>
+<CENTER><FONT SIZE=2>Copyright 2001-2005 <A href="/about.htm">Craig Peacock </a> - 15th June 2005.</FONT></CENTER>
+<BR>
+</BODY>
+</HTML>
