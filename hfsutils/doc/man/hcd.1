@@ -1,0 +1,31 @@
+.TH HCD 1 13-Jan-1997 HFSUTILS
+.SH NAME
+hcd \- change working HFS directory
+.SH SYNOPSIS
+hcd
+.RI [ hfs-path ]
+.SH DESCRIPTION
+.B hcd
+is used to change the notion of the "current working directory" for the
+current HFS volume. All subsequent HFS commands will interpret filenames
+relative to this directory, unless absolute pathnames are used.
+.PP
+If the argument pathname is omitted,
+.B hcd
+will change to the root of the current volume.
+.SH SEE ALSO
+hfsutils(1), hpwd(1), hls(1)
+.SH FILES
+$HOME/.hcwd
+.SH BUGS
+Although absolute pathnames can be given to
+.BR hcd ,
+the full pathname must match the current volume; it cannot specify a path for
+a different volume. Use
+.B hvol
+or
+.B hmount
+to change the current volume. (Each volume has its own independent current
+working directory.)
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

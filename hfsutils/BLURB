@@ -1,0 +1,47 @@
+
+hfsutils - tools for reading and writing Macintosh HFS volumes
+Copyright (C) 1996-1998 Robert Leslie
+
+$Id: BLURB,v 1.1 1998/04/11 08:26:52 rob Exp $
+
+===============================================================================
+
+What is this?
+
+  HFS is the "Hierarchical File System" used on modern Macintosh computers.
+  With this package, you can read and write Macintosh-formatted media such as
+  floppy disks, CD-ROMs, and SCSI hard disks on most UNIX platforms. You can
+  also format raw media into an HFS volume.
+
+  This package contains a number of different tools:
+
+    * Several command-line programs (hmount, hls, hcopy, et al.)
+    * A Tk-based front-end for browsing and copying files through a
+        variety of transfer modes (MacBinary, BinHex, text, etc.)
+    * A Tcl package and interface for scriptable access to volumes
+    * A C library for low-level access to volumes
+
+How is this different from other HFS packages?
+
+  This package attempts to provide a portable, free implementation of
+  routines for accessing HFS volumes. It is implemented as a set of user-level
+  tools to provide maximum portability.
+
+  The command-line programs are intended to be used in the same vein as the
+  Mtools command-line programs used to access MS-DOS filesystems.
+
+  The graphical front-end provides point-and-click access to Macintosh
+  volumes, which is often more convenient than the command line.
+
+  The Tcl interface offers a scriptable HFS "shell" that is more efficient
+  than the external command-line programs and allows for greater
+  extensibility.
+
+  The C library can be linked with other programs wanting to manipulate
+  Macintosh files in their native format. For example, an implementation of
+  the Macintosh Resource Manager could be built on top of this library to
+  provide seamless access to data objects contained within the resource forks
+  of Macintosh files.
+
+===============================================================================
+

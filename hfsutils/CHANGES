@@ -1,0 +1,482 @@
+
+hfsutils - tools for reading and writing Macintosh HFS volumes
+Copyright (C) 1996-1998 Robert Leslie
+
+$Id: CHANGES,v 1.14 1998/11/02 22:08:20 rob Exp $
+
+===============================================================================
+
+Version 3.2.6
+
+  * Added casts and made other changes to satisfy fussy signed/unsigned
+    compilers.
+
+  * Fixed a problem in which volumes were not marked as "cleanly unmounted,"
+    causing unnecessary scavenging to occur when the volume is mounted again.
+
+  * Fixed a problem where scavenging failed to mark all extents from the final
+    B*-tree node.
+
+  * Added a simple next-CNID verification to scavenging.
+
+  * Introduced a flags parameter to hfs_format(); new HFS_OPT_2048 format
+    option ensures 2048-byte physical-block file boundaries, compatible with
+    hybrid ISO 9660 schemes.
+
+  * New HFS_OPT_NOCACHE mount option inhibits use of libhfs' internal block
+    cache, useful for RAM file systems or systems/circumstances where the
+    cache may decrease performance.
+
+  * New HFS_OPT_ZERO format/mount option forces all allocated blocks to be
+    zero-initialized before use, for systems/circumstances in which blocks
+    may otherwise contain random data. (This is primarily a security feature
+    with a performance cost.)
+
+Version 3.2.5
+
+  * Miscellaneous internal `const' and other minor changes.
+
+Version 3.2.4
+
+  * Fixed a problem with the handling of catalog and extents clump sizes
+    (again; first fixed in 1.15b but re-introduced in 3.0b1, alas.)
+
+  * Modified `configure' once again to search for tcl.h/tk.h header files.
+
+  * Changed the OS interface to operate on full block rather than byte
+    offsets.
+
+  * Moved the 800K size check from hfs_format() into v_geometry().
+
+Version 3.2.3
+
+  * Fixed a problem with the B*-tree node splitting code. This could have
+    caused the libhfs routines to crash under some rare circumstances.
+
+Version 3.2.2
+
+  * Added support for "blessing" the MacOS System Folder by means of a new
+    field in the hfsvolent struct. A new option to `hattrib' can be used to
+    set this field, as can a new "bless" Tcl volume command.
+
+  * Modified `configure' to use existing Tcl/Tk configuration information
+    rather than reconstruct it.
+
+Version 3.2.1
+
+  * Fixed a minor potential problem where BinHex translation might fail to
+    recognize the hqx header.
+
+Version 3.2
+
+  * Fixed a problem determining medium sizes under unusual conditions.
+
+  * Modified MDB `drVCSize', `drVBMCSize', and `drCtlCSize' to new
+    Sequoia-supporting `drEmbedSigWord' and `drEmbedExtent'.
+
+Version 3.1.1
+
+  * Fixed a problem related to partition locations on large media.
+
+  * Fixed a problem with suid.c on some systems.
+
+  * Fixed a problem with font selection in `xhfs'.
+
+  * Changed copyouts not to append `.txt' to text files if the filename
+    already contains a period.
+
+  * Fixed a few other minor problems.
+
+Version 3.1
+
+  * `hmount' and friends now properly handle relative pathnames, even if
+    the current directory changes.
+
+  * Enhanced API for managing partitions: hfs_zero() will create a new,
+    empty partition map on any medium. hfs_mkpart() will create a new HFS
+    partition (if space allows) in the map. hfs_nparts() will return the
+    number of HFS partitions currently existing on the medium.
+
+  * hfs_mount() and hfs_format() are now more strict with the partition
+    number passed to them; previously this number was ignored if the medium
+    was not partitioned. Now the partition _must_ exist, or else 0 can be
+    passed to ignore any partitions and select the entire medium.
+
+  * Changed the API for hfs_create(); this routine now returns an open file
+    reference upon successful creation.
+
+  * Added bad block sparing to hfs_format(). This routine now requires two
+    additional arguments specifying a list of block numbers which are
+    defective on the physical medium and should be mapped out of use.
+
+  * Character set translation is now performed as well as end-of-line
+    translation in the "text" transfer mode. The routines convert MacOS
+    Standard Roman to equivalent (or near-equivalent) Latin-1 (ISO 8859-1)
+    sequences and vice versa. It should be noted however that these
+    translations are NOT reversible for all characters.
+
+  * Fixed a bug in xhfs.tcl which failed to include the helper `ctime'
+    procedure (fixed in hfs.tcl) after it was removed from tclhfs.c.
+
+  * Further librsrc development.
+
+Version 3.0b2
+
+  * Changed the block cache mechanism so that consecutive blocks are read
+    and written in single chunks, significantly improving performance.
+
+  * Improved the efficiency of the internal routines for searching B*-trees
+    by reducing the number of times the record keys are unpacked from their
+    external format.
+
+Version 3.0b1
+
+  * Package is now configured automatically via GNU `configure' script.
+
+  * Numerous internal changes to support automatic configuration and improve
+    portability, as well as reduce code size.
+
+  * Bug fix: the alternate MDB was sometimes written to the wrong location
+    on non-partitioned media.
+
+  * Bug fix: the Extents Overflow file could become corrupted under some
+    circumstances in which a heavily fragmented file is removed.
+
+  * Bug fix: it was possible for the volume allocation routine to become
+    caught in an infinite loop.
+
+  * Significant librsrc development. The library can now read and return
+    resources to an application, but cannot create or modify them. The
+    library can be used with or without libhfs.
+
+  * hfs_mount() now honors the software volume lock bit and makes the volume
+    read-only accordingly.
+
+  * Added a new hfs_vsetattr() routine to allow some volume attributes to
+    be modified.
+
+  * Added support for partition data blocks that do not start at the
+    beginning of a partition.
+
+Version 2.1
+
+  * Further hfsck development.
+
+  * Physical blocks from the volume are now cached by the library. This
+    should dramatically improve performance of the programs on some systems.
+
+  * Modified the hfsvolent and hfsdirent structures to include several new
+    fields. The hfs_vstat(), hfs_stat(), and hfs_setattr() functions now
+    manipulate the new fields. Note that hfsdirent now includes a separate
+    union structure for files and directories.
+
+  * Fixed a problem on some systems with `xhfs' that caused it to terminate
+    with the message `Error: can't read "data": no such variable'. The
+    problem was caused by the inability to parse the system's `df' command
+    output.
+
+Version 2.0
+
+  * Renamed hfs_fork() to hfs_setfork(), and added hfs_getfork().
+
+  * Modified all programs to be setuid-aware. Setuid privileges are only
+    engaged when opening devices as HFS volumes; this can be useful to limit
+    access to and/or help protect the structural integrity of HFS volumes,
+    for example by installing the hfsutils programs setgid.  N.B. This
+    implementation may not be completely portable, and is isolated to the
+    new source file `./suid.c'.
+
+  * First non-beta release.
+
+Version 1.19b
+
+  * Fixed a problem which prevented large volumes from being properly
+    formatted by hfs_format(). This should also allow the library to
+    correctly manipulate large volumes in certain other cases.
+
+  * Adapted the code to work with Tcl 7.6 and Tk 4.2.
+
+  * Added an HFS globbing interface to Tcl, and extended the `hfs' shell
+    to use it.
+
+  * Modified globbing routine to ignore Finder-invisible files.
+
+  * Rewrote `hls' and `hdir'; many UNIX-like options are now available.
+
+  * Updated the general documentation.
+
+  * Continued development of `hfsck'.
+
+Version 1.18b
+
+  * Resolved many signed/unsigned argument passing conflicts throughout the
+    code. It should now compile cleanly even on very strict systems.
+
+  * Changed the interface for hfs_read() and hfs_write() to accept a void *
+    buffer pointer rather than demanding char *.
+
+  * Made volume file locking optional for systems that don't support it.
+
+  * Included a few other portability fixes for AIX and BeOS.
+
+Version 1.17b
+
+  * Completed the implementation for `hattrib'; HFS file attributes (type,
+    creator, invisible/locked) can now be changed from the command line.
+
+  * Fixed an off-by-one error in computing catalog record key lengths.
+
+  * Fixed a problem with backslash-quoted braces during globbing.
+
+  * Improved Makefile handling.
+
+  * Regularized the handling of the volume-unmounted flag.
+
+  * Streamlined the internal and external interface header files.
+
+  * Added a `parid' field to the hfsdirent structure.
+
+  * Updated libhfs documentation.
+
+  * Implemented a better error message reporting format involving pathnames.
+
+Version 1.16b
+
+  * Improved the robustness of the HFS path resolution routine.
+
+  * Fixed hfs_rename() to better detect the validity of destination paths.
+
+  * Changed mount-time scavenging only to mark bits in the volume bitmap,
+    not clear them. This reduces the risk of causing further damage to a
+    corrupt disk, leaving serious recovery to more advanced tools.
+
+  * Added file locking to hfs_mount() to prevent concurrent processes from
+    potentially creating inconsistencies in a volume.
+
+  * Added a new argument to hfs_mount() for specifying mount flags. This now
+    allows a volume to be explicitly mounted read-only, read-write, or don't
+    care (whichever is available).
+
+  * Improved detection and handling of multiple same-device mounts by a single
+    process.
+
+  * Improved error message reporting for all programs.
+
+  * Fixed a problem where hrenaming a volume caused it to become inaccessible
+    until it was hmounted again.
+
+Version 1.15b
+
+  * Increased buffer size for native HFS-to-HFS copies to increase
+    performance.
+
+  * Fixed a problem verifying the existence of directory threads.
+
+  * Fixed a problem with the handling of catalog and extents clump sizes.
+
+Version 1.14b
+
+  * The command-line programs now support filename globbing; see hfsutils(1)
+    for syntax details.
+
+  * File threads are now managed properly when the associated file is deleted,
+    moved, or renamed. However, there is no mechanism yet to explicitly create
+    or remove threads, or to use them in catalog searches.
+
+  * The volume bitmap is now reconstructed from the catalog and extents files
+    when a volume is mounted that was not previously cleanly unmounted.
+
+  * Directories may now be deleted recursively using `xhfs'.
+
+  * BinHex and MacBinary header fork size validation limitations have been
+    relaxed. (MacBinary spec suggested 0x007fffff ~= 8MB as maximum length?)
+
+  * Volumes are now flushed automatically by `xhfs' every 30 seconds to
+    reduce risk of accidental data loss.
+
+  * Begun work on `hfsck', a program to verify and correct HFS volume
+    consistency.
+
+  * Begun work on `librsrc', a library for manipulating the resource forks
+    of HFS files.
+
+Version 1.13b
+
+  * Fixed two bad extent record key sorting bugs; these could have caused
+    serious problems on certain fragmented volumes.
+
+  * Fixed a problem related to MacOS default file clump size semantics.
+
+  * Implemented recursive directory copies in `xhfs'.
+
+  * Files and directories may now be renamed with a mere change of case.
+
+  * Multiple files may now be moved with `hrename'.
+
+  * A UNIX pathname of "-" in `hcopy' may now be used to mean stdin or stdout
+    when used as the source or destination target, respectively.
+
+Version 1.12b
+
+  * Fix to allow mounting of some miscreant partitioned media.
+
+  * Increased copyin/copyout buffer sizes for better performance.
+
+  * Implemented -a for `hcopy' (automatic transfer mode selection.)
+
+  * HFS timestamps are now relative to the current time zone.
+
+Version 1.11b
+
+  * UNIX-to-HFS BinHex transfers have been implemented. All transfer modes
+    are now fully implemented.
+
+  * The overall BinHex implementation now uses the stdio library for
+    somewhat better performance.
+
+  * New libhfs routines: hfs_setattr(), hfs_fsetattr() for changing file
+    and directory attributes (timestamps, type/creator, flags).
+
+  * The copyin routines now update the relevant file information (timestamps,
+    flags) for MacBinary and BinHex transfers.
+
+  * The `hvol' command now provides better output.
+
+  * Modified the installation procedure; separate targets now build and
+    install the separate components of the package.
+
+  * Fixed a bug in HFS filename sorting which affects the search routines;
+    filenames are now sorted precisely according to MacOS idiosyncrasies.
+
+  * Begun work on (but still unimplemented): hattrib, filename globbing.
+
+Version 1.10b
+
+  * Fixed a serious bug in directory record updates; directories with names
+    longer than 21 characters could get corrupted.
+
+  * Implemented hfs_rename() and eliminated hfs_move(); functionality for
+    the latter has been included in the former.
+
+  * Added an `hrename' command. Minor changes to hcwd.c to cope with
+    volume name or cwd path changes.
+
+  * Minor changes to `xhfs'. Files can now be renamed with the interface.
+
+Version 1.9b
+
+  * Modularized the libhfs code.
+
+  * Resolved more portability issues. The code should now work regardless of
+    the size or endianness of the host's datatypes.
+
+Version 1.8.1b
+
+  * Fixed some portability bugs.
+
+Version 1.8b
+
+  * More UI enhancements to `xhfs'.
+
+  * UNIX-to-HFS MacBinary II transfers have been implemented; HFS-to-HFS
+    copies have been implemented. Only one transfer mode (UNIX-to-HFS BinHex)
+    remains unimplemented.
+
+  * Replaced `hcat' with a generic `hcopy'. All transfer modes are supported.
+    (But note: The -a option is not yet supported.)
+
+  * Fixed a bug in the MacBinary II encoding CRC algorithm.
+
+  * Tcl hash tables are now used to maintain open files and volumes.
+
+  * Cleaned up some of the Tcl/Tk interface to aid compatibility with
+    various versions.
+
+Version 1.7b
+
+  * Many more UI enhancements to `xhfs'.
+
+  * Files can now be copied from UNIX to HFS volumes with `xhfs' using either
+    Text or Raw mode translation.
+
+Version 1.6b
+
+  * Fixed a bug in the catalog manipulation routines which would allow files
+    and directories to be created at the same level as the root folder.
+
+  * Many UI enhancements to `xhfs'. Some minor enhancements to `hfs'.
+
+  * hfs_islocked() now returns 1 if a volume is locked (read-only).
+
+  * Extended file attributes to recognize invisible files.
+
+Version 1.5b
+
+  * All cases of B*-tree record insertion have been completed.
+
+  * B*-tree record deletion has been implemented. Files and folders may now
+    be created and deleted with no limitations (other than the size of the
+    volume.)
+
+  * New commands: hrmdir, hdel
+
+  * File writing and truncation have been implemented.
+
+  * The library now maintains its own concept of "current volume". The last
+    volume to be mounted is by default current; the new functions
+    hfs_getvol() and hfs_setvol() can be used to get and set the current
+    volume, respectively. All other functions will now accept a null volume
+    pointer to represent the current volume.
+
+  * Absolute pathnames may now refer to (mounted) volumes other than the one
+    specified in the call; in this event the specified volume is ignored.
+
+Version 1.4b
+
+  * Updated the installation procedure. The Tcl and Tk programs can now be
+    built and installed optionally.
+
+  * Fixed a minor bug which would cause the header node to be read just
+    before completing a directory read.
+
+  * Mounting the same volume more than once now returns a reference to the
+    same volume, and does the right thing when each reference is
+    independently unmounted.
+
+  * Cleaned up some of the Tcl interface to deal with multiply-referenced
+    volumes. `xhfs' can now deal with the same volume on both sides.
+
+  * Renamed hfs_cwdid() to hfs_getcwd(), and added hfs_setcwd().
+
+  * hfs_umount() now closes all open files and directories on the volume
+    before unmounting it. All external references to the volume and any
+    open files/directories will become invalid.
+
+  * Enabled hfs_umountall() which will effectively unmount all volumes,
+    invalidating all external volume and file references. This is a
+    catch-all that should be called before a program exits. N.B.: Errors
+    during volume flushing and unmounting are not reported.
+
+Version 1.3b
+
+  * Enhanced writability: B*-tree file growth has been implemented. New
+    directories can be created until the disk gets full. 
+
+  * Added an option to `xhfs' for creating new directories.
+
+Version 1.2b
+
+  * Enhanced writability: B*-tree node splitting has been implemented. New
+    directories can be created until the catalog file gets full.
+
+  * Fixed some minor bugs in version 1.1b.
+
+Version 1.1b
+
+  * Full read-only capability.
+
+  * Limited write capability: new directories can be created only until
+    a catalog node gets full.
+
+  * New volumes can be created with hfs_format().
+

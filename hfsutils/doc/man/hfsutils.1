@@ -1,0 +1,109 @@
+.TH HFSUTILS 1 08-Nov-1997 HFSUTILS
+.SH NAME
+hfsutils \- tools for reading and writing Macintosh HFS volumes
+.SH SYNOPSIS
+.nf
+\fBhattrib\fR \- change HFS file or directory attributes
+\fBhcd\fR \- change working HFS directory
+\fBhcopy\fR \- copy files from or to an HFS volume
+\fBhdel\fR \- delete both forks of an HFS file
+\fBhdir\fR \- display an HFS directory in long format
+\fBhformat\fR \- create a new HFS filesystem and make it current
+\fBhls\fR \- list files in an HFS directory
+\fBhmkdir\fR \- create a new HFS directory
+\fBhmount\fR \- introduce a new HFS volume and make it current
+\fBhpwd\fR \- print the full path to the current HFS working directory
+\fBhrename\fR \- rename or move an HFS file or directory
+\fBhrmdir\fR \- remove an empty HFS directory
+\fBhumount\fR \- remove an HFS volume from the list of known volumes
+\fBhvol\fR \- display or change the current HFS volume
+.fi
+.PP
+.nf
+\fBhfssh\fR \- Tcl interpreter with HFS extensions
+.fi
+.PP
+.nf
+\fBhfs\fR \- shell for manipulating HFS volumes
+\fBxhfs\fR \- graphical interface for manipulating HFS volumes
+.fi
+.SH DESCRIPTION
+.B hfsutils
+is a collection of tools and programs for accessing Macintosh HFS-formatted
+volumes. See the accompanying man page for each program above for more
+information.
+.SH NOTES
+These utilities can manipulate HFS volumes on nearly any medium. A UNIX path
+is initially specified to
+.B hmount
+or
+.B hformat
+which gives the location of the volume. This path can be a block device --
+corresponding to, for example, a floppy disk, CD-ROM, SCSI disk, or other
+device -- or it can be a regular file containing an image of any of the
+above.
+.PP
+The medium specified by the UNIX path may or may not contain an Apple
+partition map. If partitioned, it is possible for more than one HFS volume to
+be present on the medium. In this case, a partition number must also be given
+which selects the desired partition. This number refers to the
+.IR n th
+ordinal HFS partition on the volume. (Other, non-HFS partitions are ignored.)
+Partition number
+.B 0
+refers to the entire medium, disregarding the partition map, if any.
+.PP
+HFS pathnames consist of colon-separated components. Unlike UNIX pathnames, an
+HFS path which begins with a colon (e.g. :Foo:Bar) is a
+.I relative
+path, and one which does not (e.g. Foo:Bar) is an
+.I absolute
+path. As sole exception to this rule, a path not containing any colons is
+assumed to be relative.
+.PP
+Absolute pathnames always begin with the name of the volume itself. Any
+occurrence of two or more consecutive colons in a path causes resolution of
+the path to ascend into parent directories.
+.PP
+Most of the command-line programs support HFS filename globbing. The following
+forms of globbing are supported:
+.SP
+.TP
+.B *
+matches zero or more characters.
+.TP
+.B ?
+matches exactly one character.
+.TP
+.BR [ ... ]
+matches any single character enclosed within the brackets. A character range
+may be specified by using a hypen (-). Note that matches are not case
+sensitive.
+.TP
+.BR { ... , ... }
+expands into the Cartesian product of each specified substring.
+.TP
+.B \\\\
+causes the following character to be matched literally.
+.PP
+Note that since globbing is performed by each HFS command rather than by the
+UNIX shell (which knows nothing about HFS volumes), care should always be
+taken to protect pathnames from the shell by using an appropriate quoting
+technique. Typically it is best to surround HFS pathnames containing glob
+characters with single quotes (').
+.PP
+Time stamps on HFS volumes are interpreted as being relative to the current
+time zone. This means that modification dates on HFS volumes written in
+another time zone may appear to be off by some number of hours.
+.PP
+Hardware limitations prevent some systems from reading or writing native
+Macintosh 800K floppy disks; only high-density 1440K disks can be used on
+these systems.
+.PP
+The obsolete MFS volume format is not supported by this software.
+.SH SEE ALSO
+hattrib(1), hcd(1), hcopy(1), hdel(1), hdir(1), hformat(1), hls(1), hmkdir(1),
+hmount(1), hpwd(1), hrename(1), hrmdir(1), hvol(1),
+hfs(1), xhfs(1)
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

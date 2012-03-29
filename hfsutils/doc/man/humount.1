@@ -1,0 +1,24 @@
+.TH HUMOUNT 1 05-Apr-1996 HFSUTILS
+.SH NAME
+humount \- remove an HFS volume from the list of known volumes
+.SH SYNOPSIS
+humount
+.RI [ volume-name-or-path ]
+.SH DESCRIPTION
+.B humount
+is used to forget about an HFS volume previously mounted with
+.BR hmount .
+Either the volume's name or the UNIX path to the volume may be used to specify
+the volume. If no name or path is given, the current volume is assumed.
+.SH NOTES
+It is not strictly necessary to use this command. It does not affect any
+physical volumes; it only updates the file named
+.I .hcwd
+in the user's home directory used to keep track of the currently known HFS
+volumes.
+.SH SEE ALSO
+hfsutils(1), hmount(1)
+.SH FILES
+$HOME/.hcwd
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

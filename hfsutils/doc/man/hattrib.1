@@ -1,0 +1,46 @@
+.TH HATTRIB 1 30-Aug-1998 HFSUTILS
+.SH NAME
+hattrib \- change HFS file or directory attributes
+.SH SYNOPSIS
+hattrib
+[-t
+.IR TYPE ]
+[-c
+.IR CREA ]
+[-|+i] [-|+l]
+.I hfs-path
+[...]
+.PP
+hattrib -b
+.I hfs-path
+.SH DESCRIPTION
+.B hattrib
+permits the alteration of HFS file attributes. In the first form, the
+MacOS-defined
+.I type
+and
+.I creator
+attributes can be set using the -t and -c flags, respectively. A file's
+.I invisible
+flag can be set or cleared with +i and -i, respectively. Finally, a file's
+.I locked
+flag can be set or cleared with +l and -l.
+.PP
+All files mentioned on the command line will receive the specified attributes,
+regardless of the file's current attributes. Any attribute not mentioned in
+the command line is left unchanged.
+.PP
+In the second form, a single HFS pathname refering to a folder is given with
+the -b option, causing it to become "blessed" as the MacOS System Folder. For
+this to be useful, the folder should contain valid Macintosh System and Finder
+files.
+.PP
+Note that the
+.I locked
+and "blessed" attributes have little consequence to hfsutils.
+.SH SEE ALSO
+hfsutils(1), hls(1)
+.SH FILES
+$HOME/.hcwd
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

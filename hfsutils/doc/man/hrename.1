@@ -1,0 +1,27 @@
+.TH HRENAME 1 04-Jun-1996 HFSUTILS
+.SH NAME
+hrename \- rename or move an HFS file or directory
+.SH SYNOPSIS
+hrename
+.I hfs-src-path
+[...]
+.I hfs-target-path
+.SH DESCRIPTION
+.B hrename
+changes the name and/or location of one or more files or directories. If only
+one source path is specified and the target path is in the same directory as
+the source, only the name is changed. Otherwise the source object is moved as
+well as possibly being renamed.
+.PP
+If multiple source paths are specified, the target must be a directory, and
+all of the source objects will be moved into it (keeping the same names.)
+.PP
+If the source path refers to the root directory of a volume, the volume name
+will be changed. The root directory cannot be moved. Note that volume names
+can only have 1-27 characters, while all other names may have 1-31 characters.
+.SH SEE ALSO
+hfsutils(1)
+.SH FILES
+$HOME/.hcwd
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

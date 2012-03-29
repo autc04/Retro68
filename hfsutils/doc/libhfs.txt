@@ -1,0 +1,517 @@
+
+This file documents the libhfs.a library for accessing HFS volumes.
+Copyright (C) 1996-1998 Robert Leslie
+
+$Id: libhfs.txt,v 1.11 1998/11/02 22:08:47 rob Exp $
+
+===============================================================================
+
+Exported Data
+
+  const char *hfs_error;
+
+    This contains a pointer to a C string describing the last HFS error.
+    It is generally only valid after an HFS routine has returned an error
+    code (-1 or a NULL pointer).
+
+    This string is encoded using ISO 8859-1.
+
+    In all cases when an error occurs, the global variable `errno' is also
+    set to an appropriate value.
+
+  unsigned char hfs_charorder[];
+
+    This array contains the relative sorting order of characters in HFS
+    filenames according to the semantics of the Macintosh character set
+    and the MacOS string comparison routines as used by HFS. The array can
+    be indexed by unsigned character quantities; the resulting value can be
+    compared to other array values to determine the relative sorting order
+    of the corresponding character indices.
+
+Public Routines
+
+  ----- Volume Routines -----
+
+  hfsvol *hfs_mount(const char *path, int pnum, int flags);
+
+    This routine attempts to open an HFS volume from a source pathname. The
+    given `pnum' indicates which ordinal HFS partition is to be mounted,
+    or can be 0 to indicate the entire medium should be mounted (ignoring
+    any partition structure). If this value is not 0, the requested
+    partition must exist.
+
+    The `flags' argument specifies how the volume should be mounted.
+    HFS_MODE_RDONLY means the volume should be mounted read-only.
+    HFS_MODE_RDWR means the volume must be opened read/write. HFS_MODE_ANY
+    means the volume can be mounted either read-only or read/write, with
+    preference for the latter.
+
+    The `flags' argument may also specify volume options. HFS_OPT_NOCACHE
+    means not to perform any internal block caching, such as would be
+    unnecessary for a volume residing in RAM, or if the associated overhead
+    is not desired. HFS_OPT_ZERO means that newly-allocated blocks should be
+    zero-initialized before use, primarily as a security feature for systems
+    on which blocks may otherwise contain random data. Neither of these
+    options should normally be necessary, and both may affect performance.
+
+    If an error occurs, this function returns NULL. Otherwise a pointer to a
+    volume structure is returned. This pointer is used to access the volume
+    and must eventually be passed to hfs_umount() to flush and close the
+    volume and free all associated memory.
+
+  int hfs_flush(hfsvol *vol);
+
+    This routine causes all pending changes to be flushed to an HFS volume.
+    If a volume is kept open for a long period of time, it would be wise
+    to call this periodically to avoid corrupting the volume due to
+    unforeseen circumstances (power failure, floppy eject, etc.)
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  void hfs_flushall(void);
+
+    This routine is similar to hfs_flush() except that all mounted volumes
+    are flushed, and errors are not reported.
+
+  int hfs_umount(hfsvol *vol);
+
+    The specified HFS volume is unmounted; all open files and directories
+    on the volume are closed, all pending changes to the volume are
+    flushed, and all memory allocated for the volume is freed.
+
+    All volumes opened with hfs_mount() must eventually be closed with
+    hfs_umount(), or they will risk corruption.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+    In either case, the volume structure pointer will become invalid, as
+    will all pointers to open file or directory structures associated with
+    the volume.
+
+  void hfs_umountall(void);
+
+    This routine is similar to hfs_umount() except that all mounted volumes
+    are closed, and errors are not reported.
+
+    This routine may be useful to call just before a process terminates to
+    make sure any remaining open volumes are properly closed.
+
+  hfsvol *hfs_getvol(const char *name);
+
+    This routines searches all mounted volumes for one having the given
+    `name', and returns its volume structure pointer. If more than one
+    volume have the same name, the most recently mounted one is returned. If
+    no volume matches the given name, a NULL pointer is returned.
+
+    The given `name' is assumed to be encoded using MacOS Standard Roman.
+
+    If a NULL pointer is passed to this routine, the current volume is
+    returned, if any.
+
+  void hfs_setvol(hfsvol *vol);
+
+    The routine changes the "current" volume. Most HFS routines will accept
+    a NULL volume pointer to mean the current volume; by default, the
+    current volume is the last one which was mounted.
+
+  int hfs_vstat(hfsvol *vol, hfsvolent *ent);
+
+    This routine fills the volume entity structure `*ent' with information
+    about a mounted volume. The fields of the structure are defined in
+    the hfs.h header file.
+
+    This routine returns 0 unless a NULL pointer is passed for the volume
+    and no volume is current, in which case it returns -1.
+
+  int hfs_vsetattr(hfsvol *vol, hfsvolent *ent);
+
+    This routine allows some attributes of a volume to be changed. The
+    attributes which may be changed are: ent->clumpsz, ent->crdate,
+    ent->mddate, ent->bkdate, and ent->blessed. Note that the default file
+    clump size may only be changed to be a multiple of the volume's
+    allocation block size, and the "blessed" folder must either be 0 or a
+    valid folder CNID.
+
+    To change the volume's name, use hfs_rename().
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  ----- Directory Routines -----
+
+  int hfs_chdir(hfsvol *vol, const char *path);
+
+    The "current working directory" for the given volume is changed.
+    `path' can be either a relative or absolute HFS path.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  long hfs_getcwd(hfsvol *vol);
+
+    The internal directory ID of the current working directory for the
+    given volume is returned. This value is typically only useful for
+    passing to hfs_setcwd() or hfs_dirinfo().
+
+  int hfs_setcwd(hfsvol *vol, long id);
+
+    This routine changes the current working directory for the given
+    volume. A directory must exist with the given id.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int hfs_dirinfo(hfsvol *vol, long *id, char *name);
+
+    This function looks up the given directory ID `*id' and stores in its
+    place the directory ID of its parent. If `name' is not NULL, the name
+    of the (child) directory is also stored in the buffer pointed to by it,
+    which must be at least HFS_MAX_FLEN + 1 (32) bytes long.
+
+    The string `name' will be encoded using MacOS Standard Roman.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+    This function can be called repeatedly to construct a full pathname
+    to the current working directory. The root directory of a volume
+    always has a directory ID of HFS_CNID_ROOTDIR, and a pseudo-parent ID
+    of HFS_CNID_ROOTPAR.
+
+  hfsdir *hfs_opendir(hfsvol *vol, const char *path);
+
+    This function prepares to read the contents of a directory. `path'
+    must be either an absolute or relative pathname to the desired HFS
+    directory. As a special case, if `path' is an empty string, a
+    "meta-directory" will be opened containing the root directories from
+    all of the currently mounted volumes.
+
+    The string `path' is assumed to be encoded using MacOS Standard Roman.
+
+    This function returns a pointer which must be passed to the other
+    directory-related routines to read the directory.
+
+    If an error occurs, this function returns a NULL pointer.
+
+  int hfs_readdir(hfsdir *dir, hfsdirent *ent);
+
+    This routine fills the directory entity structure `*ent' with
+    information about the next item in the given open directory. The
+    fields of the structure are defined in the hfs.h header file.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+    When no more items occur in the directory, this function returns -1
+    and sets `errno' to ENOENT.
+
+  int hfs_closedir(hfsdir *dir);
+
+    This function closes an open directory and frees all associated
+    memory.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+    In either case, the directory structure pointer will no longer be valid.
+
+  ----- File Routines -----
+
+  hfsfile *hfs_create(hfsvol *vol, const char *path,
+                      const char *type, const char *creator);
+
+    This routine creates a new, empty file with the given path, type, and
+    creator. The type and creator must be strings of length 4, and have
+    particular meaning under MacOS.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    If the creation is successful, the file is opened and a pointer to a
+    file structure is returned, the same as if hfs_open() had been called.
+
+    If an error occurs, this function returns a NULL pointer.
+
+  hfsfile *hfs_open(hfsvol *vol, const char *path);
+
+    This function opens an HFS file in preparation for I/O. Both forks of
+    the file may be manipulated once the file is opened; hfs_setfork() is
+    used to select the current fork. By default, the data fork is current.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    A pointer to a file structure is returned. This pointer should be
+    passed to other routines to manipulate the file.
+
+    If an error occurs, this function returns a NULL pointer.
+
+  int hfs_setfork(hfsfile *file, int fork);
+
+    This routine selects the current fork in an open file for I/O. HFS
+    files have two forks, data and resource. Resource forks normally contain
+    structured data, although these HFS routines make no distinction
+    between forks when reading or writing. It is up to higher-level
+    applications to make sense of the information read or written from
+    either fork.
+
+    If 0 is passed to this routine, the data fork is selected. Otherwise
+    the resource fork is selected. The seek pointer for the file is
+    automatically reset to the beginning of the newly selected fork.
+
+    As a side effect, this routine causes any excess disk blocks allocated
+    for the fork which was current before the call to be freed; normally
+    extra blocks are allocated during file writes to promote contiguity.
+    This routine will return -1 if an error occurs in this process;
+    otherwise it will return 0. The current fork will have been changed
+    regardless.
+
+  int hfs_getfork(hfsfile *file);
+
+    This routine returns an indication of which fork is currently active
+    for I/O operations on the given file. If 0 is returned, the data fork
+    is selected. Otherwise the resource fork is selected.
+
+  long hfs_read(hfsfile *file, void *ptr, unsigned long len);
+
+    This routine reads up to `len' bytes from the current fork of an HFS
+    file and places them into the buffer pointed to by `ptr' (which must be
+    at least `len' bytes long.) The number of bytes actually read is
+    returned, and may be less than `len' if the end of the file is reached.
+
+    If this routine returns 0, there is no more data to be read from the
+    file. If an error occurs, this routine will return -1.
+
+    It is most efficient to read data in multiples of HFS_BLOCKSZ byte
+    blocks at a time.
+
+  long hfs_write(hfsfile *file, const void *ptr, unsigned long len);
+
+    This routine writes up to `len' bytes of data to the current fork of an
+    HFS file from the buffer pointed to by `ptr'. The number of bytes
+    actually written is returned. If an error occurs, this routine will
+    return -1.
+
+    If the end of the file is reached before all bytes have been written,
+    the file is automatically extended.
+
+    It is most efficient to write data in multiples of HFS_BLOCKSZ byte
+    blocks at a time.
+
+  int hfs_truncate(hfsfile *file, unsigned long len);
+
+    This routine causes the current fork of the specified open file to be
+    truncated to at most `len' bytes.
+
+    The disk blocks associated with the freed portion of the file are not
+    actually deallocated until either the current fork is changed or the
+    file is closed.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  long hfs_seek(hfsfile *file, long offset, int from);
+
+    This routine changes the current seek pointer for the specified open
+    file. This pointer determines where the next call to hfs_read() or
+    hfs_write() will read or write data within the current fork.
+
+    If `from' is HFS_SEEK_SET, the pointer is set to the absolute position
+    given by `offset'.
+
+    If `from' is HFS_SEEK_CUR, the pointer is offset from its current
+    position by the amount `offset'. Positive offsets seek forward; negative
+    offsets seek backward.
+
+    If `from' is HFS_SEEK_END, the pointer is offset from the end of the
+    file by the amount `offset', which ought not be positive.
+
+    It is not presently possible to set the seek pointer beyond the logical
+    end of the file.
+
+    The new absolute position of the seek pointer is returned, unless an
+    invalid argument was specified, in which case -1 is returned.
+
+  int hfs_close(hfsfile *file);
+
+    This routine causes all pending changes to the specified file to be
+    flushed, and all storage associated with the file structure to be
+    freed. Any excess disk blocks associated with the file are also
+    deallocated at this time.
+
+    If an error occurs, this routine returns -1. Otherwise it returns 0.
+    In either case, the file structure pointer will no longer be valid.
+
+  ----- Catalog Routines -----
+
+  int hfs_stat(hfsvol *vol, const char *path, hfsdirent *ent);
+
+    This routine fills the directory entity structure `*ent' with
+    information about the file or directory specified by `path' on the
+    given volume. The fields of the structure are defined in the hfs.h
+    header file.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    If there is no such path, or if another error occurs, this routine
+    returns -1. Otherwise it returns 0.
+
+  int hfs_fstat(hfsfile *file, hfsdirent *ent);
+
+    This routine is similar to hfs_stat() except it returns information
+    about a file that is already open.
+
+    If an error occurs, this routine returns -1. Otherwise it returns 0.
+
+  int hfs_setattr(hfsvol *vol, const char *path, const hfsdirent *ent);
+
+    This routine changes various attributes of an existing file or
+    directory. The attributes which may be changed are: ent->crdate,
+    ent->mddate, ent->bkdate, ent->fdflags, ent->fdlocation,
+    ent->u.file.type, ent->u.file.creator, and ent->u.dir.rect. Also, the
+    locked status of a file may be changed with ent->flags & HFS_ISLOCKED.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    If an error occurs, this routine returns -1. Otherwise it returns 0.
+
+  int hfs_fsetattr(hfsfile *file, const hfsdirent *ent);
+
+    This routine is similar to hfs_setattr() except it manipulates a file
+    that is already open.
+
+    If an error occurs, this routine returns -1. Otherwise it returns 0.
+
+  int hfs_mkdir(hfsvol *vol, const char *path);
+
+    This routine creates a new, empty directory with the given path.
+    All parent directories must already exist, but there must not already
+    be a file or directory with the complete given path.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int hfs_rmdir(hfsvol *vol, const char *path);
+
+    This routine deletes the directory with the given path. The directory
+    must be empty.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int hfs_delete(hfsvol *vol, const char *path);
+
+    This routine deletes both forks of the file with the given path.
+
+    The given `path' is assumed to be encoded using MacOS Standard Roman.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int hfs_rename(hfsvol *vol, const char *srcpath, const char *dstpath);
+
+    This routine moves and/or renames the given `srcpath' to `dstpath'.
+    The source must exist; the destination must not exist, unless it is a
+    directory, in which case an attempt will be made to move the source
+    into the destination directory without changing its name.
+
+    If both `srcpath' and `dstpath' refer to root directories, the volume
+    specified by `srcpath' will be renamed. Note that volume names may
+    only have 1-27 (HFS_MAX_VLEN) characters, while all other names may
+    have 1-31 (HFS_MAX_FLEN) characters.
+
+    The given `srcpath' and `dstpath' are assumed to be encoded using MacOS
+    Standard Roman.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  ----- Media Routines -----
+
+  int hfs_zero(const char *path, unsigned int maxparts,
+               unsigned long *blocks);
+
+    This routine initializes a medium with a new, empty driver descriptor
+    record and partition map. This is only necessary if it is desired to
+    partition the medium; the medium can be used as a whole without
+    partitions by specifying 0 to the routines which require a partition
+    number.
+
+    The partition map will be empty, with the exception of an entry for the
+    partition map itself, plus an entry for the rest of the medium as free
+    space. To be useful, one or more HFS partitions should be created with
+    hfs_mkpart().
+
+    The partition map will be created just large enough to allow `maxparts'
+    individual partitions to be created, not counting the partitions created
+    automatically by this routine. This number should be conservative, as
+    it may be impossible to create more than this many partitions for the
+    lifetime of the medium without re-initializing.
+
+    If `blocks' is not NULL, the total number of blocks available for
+    partitioning (after the partition map structures have been created) will
+    be stored at this location.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int hfs_mkpart(const char *path, unsigned long len);
+
+    This routine creates a new HFS partition having `len' blocks on the
+    given medium. Space for the partition will be taken from the available
+    free space as indicated in the existing partition map.
+
+    It may not be possible to create the requested partition if there are
+    not enough free contiguous blocks on the medium, or if there is only
+    one slot left in the partition map and the request does not specify
+    all the remaining blocks in the free space. (The partition map cannot
+    leave any blocks in the medium unaccounted for.)
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int hfs_nparts(const char *path);
+
+    This routine determines the number of HFS partitions present on the
+    given medium, if any. If the medium specified by `path' is not
+    partitioned, -1 will be returned. Otherwise, a number denoting the total
+    number of HFS partitions is returned, including (possibly) 0.
+
+    The number returned by this routine can help determine if a particular
+    medium is partitioned, and if so, the allowable range of partition
+    numbers which can be passed to the routines which require one. However,
+    passing 0 as a partition number always refers to the entire medium,
+    ignoring all partitions.
+
+    If an error occurs, this function returns -1.
+
+  int hfs_format(const char *path, int pnum, int mode, const char *vname,
+                 int nbadblocks, const unsigned long badblocks[]);
+
+    This routine writes a new HFS file system to the specified `path', which
+    should be a block device or a writable file. The size of the volume is
+    determined either by the maximum size of the device or size of the file,
+    or by the size of the indicated partition within the medium.
+
+    If `pnum' is > 0, it selects an ordinal HFS partition in the device
+    to receive the file system. The partition must already exist; an error
+    will result if it cannot be found. With `pnum' == 0, any partition
+    structure on the existing medium will be ignored, and the entire
+    device will be used for the new HFS volume.
+
+    Volume options may be specified in the `mode' argument. In addition to
+    the options accepted by hfs_mount(), HFS_OPT_2048 may be specified to
+    request that the volume allocation blocks be aligned on physical
+    2048-byte block boundaries. Such a constraint is necessary to support
+    some hybrid CD-ROM file system formats, but is otherwise unnecessary and
+    may result in fewer allocation blocks altogether.
+
+    The volume is given the name `vname', which must be between 1 and
+    HFS_MAX_VLEN (27) characters in length inclusively, and cannot contain
+    any colons (':'). This string is assumed to be encoded using MacOS
+    Standard Roman.
+
+    It is possible to map out or "spare" bad blocks on the device such that
+    the file system will be made aware of these blocks and will not attempt
+    to use them to store data. To perform this magic, hfs_format() may be
+    passed an array of block numbers to spare. These numbers must
+    correspond to logical 512-byte blocks on the device and should be
+    relative to the beginning of the volume's partition, if any. If no
+    blocks need to be spared, 0 should be passed for `nbadblocks', and
+    `badblocks' may be a NULL pointer. Note that an error can occur if a
+    bad block occurs in a critical disk structure, or if there are too
+    many bad blocks (more than 25%) in the volume.
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+===============================================================================
+

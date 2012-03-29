@@ -1,0 +1,79 @@
+
+hfsutils - tools for reading and writing Macintosh HFS volumes
+Copyright (C) 1996-1998 Robert Leslie
+
+$Id: TODO,v 1.14 1998/11/02 22:08:22 rob Exp $
+
+===============================================================================
+
+General to-do items (aka bugs):
+
+  libhfs
+
+  * support HFS+ (aka Sequoia, Extended Format)
+  * don't allow reads from spared blocks
+  * further improve efficiency of b*-tree searches?
+  * concurrency considerations: opening same file multiple times;
+      performing directory manipulations on open files
+  * b*-tree record balancing?
+  * smarter block allocation algorithm
+  * volume full: hfs_write() should return bytes written < len, return -1
+      on next call?
+  * seek beyond end of file?
+  * touch directory timestamps on file updates?
+  * improve efficiency of bitmap operations
+  * improve efficiency of search operations
+  * CNID wrapping?
+  * bad block sparing by physical block
+
+  librsrc
+
+  * determine resource sizes without reading them
+  * support writability
+
+  hfsck
+
+  * modify libhfs to support low-level grubbing
+
+  command-line tools
+
+  * preserve timestamps (-p) for hcopy
+  * recursive hcopy (-r)
+  * allow hformat to create files and/or set size?
+  * write Linux utilities mkfs.hfs, fsck.hfs
+  * eliminate ftruncate()
+  * more flags for hdel (-i, -r, -f)
+  * glob :*:foo correctly
+  * glob hcopy destination HFS path?
+  * formalize hdisk.pl into the distribution
+
+  xhfs
+
+  * open arbitrary partitions
+  * rename volumes
+  * change file type/creator
+  * more support for other platforms (correct device defaults; df output)
+  * graphical partition map editor?
+  * recursive copy: map illegal directory name chars
+
+  copyin/copyout
+
+  * finish/fix timestamp preservation
+  * revisit buffer sizes
+  * remember src/dst filenames (for preserve/delete)
+  * allow name mangling to be optional
+  * don't unconditionally clobber
+  * delete incomplete files after failed transfers
+  * AppleSingle, Netatalk-/CAP-style AppleDouble?
+
+Future wish-list:
+
+  * raw SCSI access for hideous platforms
+  * partitioning utility
+  * defragmenting utility
+
+Acknowledged limitations:
+
+  * null characters (ASCII 0x00) not supported in filenames
+  * partition maps not managed with A/UX support
+

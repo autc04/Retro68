@@ -1,0 +1,317 @@
+#
+# hfsutils - tools for reading and writing Macintosh HFS volumes
+# Copyright (C) 1996-1998 Robert Leslie
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+# $Id: Makefile.in,v 1.12 1998/08/31 18:40:14 rob Exp $
+#
+
+@SET_MAKE@
+src =		@srcdir@
+VPATH =		@srcdir@
+
+### USER CUSTOMIZATIONS FOLLOW ################################################
+
+prefix =	@prefix@
+exec_prefix =	@exec_prefix@
+
+BINDEST =	@bindir@
+MANDEST =	@mandir@
+
+LIBDEST =	@libdir@
+INCDEST =	@includedir@
+
+MANEXT =	1
+
+INSTALL =	@INSTALL@
+BININSTALL =	@INSTALL_PROGRAM@ -m 755
+LIBINSTALL =	@INSTALL_DATA@
+HARDLINK =	ln -f
+
+CC =		@CC@
+INCLUDES =	@CPPFLAGS@ -Ilibhfs @TCL_INCLUDES@ @TK_INCLUDES@
+DEFINES =	@DEFS@
+LIBOBJS =	@LIBOBJS@
+LIBS =		@LIBS@
+
+TCLLIBS =	@TCL_LIB_SPEC@ @TCL_LIBS@
+TKLIBS =	@TK_LIB_SPEC@ @TCL_LIB_SPEC@ @TK_LIBS@
+
+COPTS =		@CFLAGS@
+LDOPTS =	@LDFLAGS@ -Llibhfs
+
+### END OF USER CUSTOMIZATION #################################################
+
+CFLAGS =	$(COPTS) $(INCLUDES) $(DEFINES)
+LDFLAGS =	$(LDOPTS)
+
+###############################################################################
+
+TARGETS =	$(CLITARGETS) $(TCLTARGETS) $(TKTARGETS)
+
+CLITARGETS =	hattrib hcd hcopy hdel hdir hformat hls hmkdir hmount hpwd  \
+		hrename hrmdir humount hvol
+TCLTARGETS =	hfssh hfs
+TKTARGETS =	xhfs
+
+LIBHFS =	libhfs/libhfs.a
+INCHFS =	libhfs/hfs.h
+
+LIBRSRC =	librsrc/librsrc.a
+INCRSRC =	librsrc/rsrc.h
+
+HFSUTIL =	hfsutil
+HFSCK =		hfsck/hfsck
+LINUX =		linux/mkfs.hfs linux/fsck.hfs linux/kernel/hfs.o
+
+SUBDIRS =	hfsck linux test
+ACSUBDIRS =	@subdirs@
+
+GENERALDOCS =	hfsutils.1
+CLIDOCS =	hattrib.1 hcd.1 hcopy.1 hdel.1 hdir.1 hformat.1 hls.1  \
+		hmkdir.1 hmount.1 hpwd.1 hrename.1 hrmdir.1 humount.1 hvol.1
+TCLDOCS =	hfssh.1 hfs.1
+TKDOCS =	xhfs.1
+
+CLIOBJS =	hattrib.o hcd.o hcopy.o hdel.o hformat.o hls.o hmkdir.o  \
+		hmount.o hpwd.o hrename.o hrmdir.o humount.o hvol.o
+UTILOBJS =	crc.o binhex.o copyin.o copyout.o charset.o  \
+		darray.o dlist.o dstring.o glob.o suid.o version.o
+
+###############################################################################
+
+all  :: @MAKE_TARGETS@
+
+all_cli :: $(CLITARGETS)
+all_tcl :: $(TCLTARGETS)
+all_tk  :: $(TKTARGETS)
+all_lib :: $(LIBHFS) $(LIBRSRC)
+
+check :: all
+	@if [ -f hfs ]; then  \
+		cd test && $(MAKE) &&  \
+		echo "Self-tests passed.";  \
+	else  \
+		echo "Self-tests only available if configured --with-tcl.";  \
+	fi
+
+install :: @INSTALL_TARGETS@
+
+install_cli :: all_cli
+	$(BININSTALL) $(HFSUTIL) "$(BINDEST)/."
+
+	for file in $(CLITARGETS); do  \
+		$(HARDLINK) "$(BINDEST)/$(HFSUTIL)" "$(BINDEST)/$$file";  \
+	done
+
+	rm -f "$(BINDEST)/$(HFSUTIL)"
+
+	for file in $(GENERALDOCS) $(CLIDOCS); do  \
+		$(LIBINSTALL) doc/man/$$file  \
+		"$(MANDEST)/man$(MANEXT)/`basename $$file .1`.$(MANEXT)";  \
+	done
+
+install_tcl :: all_tcl
+	for file in $(TCLTARGETS); do  \
+		$(BININSTALL) $$file "$(BINDEST)/.";  \
+	done
+
+	if [ -f "$(BINDEST)/hfs" ]; then  \
+		sed -e '1d' "$(BINDEST)/hfs" > "$(BINDEST)/hfs.new";  \
+		$(BININSTALL) "$(BINDEST)/hfs.new" "$(BINDEST)/hfs";  \
+		rm -f "$(BINDEST)/hfs.new";  \
+	fi
+
+	for file in $(TCLDOCS); do  \
+		$(LIBINSTALL) doc/man/$$file  \
+		"$(MANDEST)/man$(MANEXT)/`basename $$file .1`.$(MANEXT)";  \
+	done
+
+install_tk :: all_tk
+	for file in $(TKTARGETS); do  \
+		$(BININSTALL) $$file "$(BINDEST)/.";  \
+	done
+
+	for file in $(TKDOCS); do  \
+		$(LIBINSTALL) doc/man/$$file  \
+		"$(MANDEST)/man$(MANEXT)/`basename $$file .1`.$(MANEXT)";  \
+	done
+
+install_lib :: all_lib
+	cd libhfs && $(MAKE) install
+	cd librsrc && $(MAKE) install
+
+again :: clean all
+
+depend ::
+	for dir in $(ACSUBDIRS) $(SUBDIRS); do  \
+		(cd $$dir && $(MAKE) depend);  \
+	done
+
+	( sed -n '1,/^### DEPEND/p' Makefile.in;  \
+	  echo;  \
+	  $(CC) -MM $(INCLUDES) $(DEFINES) *.c;  \
+	) > Makefile.in.new
+	mv -f Makefile.in.new Makefile.in
+
+clean ::
+	for dir in $(ACSUBDIRS) $(SUBDIRS); do  \
+		(cd $$dir && $(MAKE) clean);  \
+	done
+
+	rm -f $(TARGETS) *.o gmon.* core
+	rm -f $(HFSUTIL) xhfs.c
+
+distclean :: clean
+	for dir in $(ACSUBDIRS); do  \
+		(cd $$dir && $(MAKE) distclean);  \
+	done
+
+	rm -f config.status config.cache config.log config.h
+	rm -f hfsck/Makefile linux/Makefile Makefile
+
+maintainer-clean :: distclean
+	for dir in . $(ACSUBDIRS); do  \
+		rm -f $$dir/config.h.in $$dir/configure;  \
+	done
+
+dist ::
+	for dir in . $(ACSUBDIRS); do  \
+		(cd $$dir && $(MAKE) config.h.in configure);  \
+	done
+
+	$(MAKE) distclean
+
+###############################################################################
+
+Makefile: config.status
+	./config.status && touch .stamp/config.h
+
+.stamp/config.h: config.status
+	./config.status && touch .stamp/config.h
+
+config.status: .stamp/configure .stamp/config.h.in Makefile.in
+	./config.status --recheck
+
+.stamp/configure: configure.in
+	autoconf && touch .stamp/configure
+
+.stamp/config.h.in: configure.in acconfig.h
+	autoheader && touch .stamp/config.h.in
+
+###############################################################################
+
+$(LIBHFS) ::
+	cd libhfs && $(MAKE)
+
+$(LIBRSRC) ::
+	cd librsrc && $(MAKE)
+
+$(HFSCK) :: $(LIBHFS)
+	cd hfsck && $(MAKE)
+
+$(LINUX) :: $(LIBHFS)
+	cd linux && $(MAKE)
+
+$(HFSUTIL): $(LIBHFS) hfsutil.o hcwd.o $(CLIOBJS) $(UTILOBJS) $(LIBOBJS)
+	$(CC) $(LDFLAGS) hfsutil.o hcwd.o   \
+		$(CLIOBJS) $(UTILOBJS)  \
+		-lhfs $(LIBS) $(LIBOBJS) -o $@
+
+$(CLITARGETS): $(HFSUTIL)
+	-$(HARDLINK) $(HFSUTIL) $@
+
+hfssh: $(LIBHFS) hfssh.o tclhfs.o $(UTILOBJS) $(LIBOBJS)
+	$(CC) $(LDFLAGS) hfssh.o tclhfs.o $(UTILOBJS)  \
+		-lhfs $(LIBS) $(TCLLIBS) $(LIBOBJS) -o $@
+
+hfs: hfs.tcl hfssh
+	( echo "#!./hfssh";  \
+	  echo "#! /bin/sh";  \
+	  echo "# Start hfssh ... \\";  \
+	  echo 'exec hfssh "$$0" "$$@"';  \
+	  echo;  \
+	  cat hfs.tcl;  \
+	) > $@
+	chmod a+x $@
+
+xhfs.c: xhfs.tcl
+	( echo '# include "xhfs.h"';  \
+	  echo;  \
+	  echo "char xhfs[] =";  \
+	  sed -e 's|^[	 ]*||' -e 's|^#.*||' -e '/^$$/d'  \
+	      -e 's|		*| |g'  \
+	      -e 's|[\\"]|\\&|g' -e 's|.*|"&\\n"|' xhfs.tcl;  \
+	  echo ";";  \
+	) > $@
+
+xhfs: $(LIBHFS) hfswish.o xhfs.o tclhfs.o $(UTILOBJS) $(LIBOBJS)
+	$(CC) $(LDFLAGS) hfswish.o xhfs.o tclhfs.o $(UTILOBJS)  \
+		-lhfs $(LIBS) $(TKLIBS) $(LIBOBJS) -o $@
+
+### DEPENDENCIES FOLLOW #######################################################
+
+binhex.o: binhex.c config.h binhex.h crc.h
+charset.o: charset.c config.h charset.h
+copyin.o: copyin.c config.h libhfs/hfs.h libhfs/data.h copyin.h \
+ charset.h binhex.h crc.h
+copyout.o: copyout.c config.h libhfs/hfs.h libhfs/data.h copyout.h \
+ charset.h binhex.h crc.h
+crc.o: crc.c config.h crc.h
+darray.o: darray.c config.h darray.h
+dlist.o: dlist.c config.h dlist.h
+dstring.o: dstring.c config.h dstring.h
+glob.o: glob.c config.h dlist.h dstring.h libhfs/hfs.h glob.h
+hattrib.o: hattrib.c config.h libhfs/hfs.h hcwd.h hfsutil.h hattrib.h
+hcd.o: hcd.c config.h libhfs/hfs.h hcwd.h hfsutil.h hcd.h
+hcopy.o: hcopy.c config.h libhfs/hfs.h hcwd.h hfsutil.h hcopy.h \
+ copyin.h copyout.h
+hcwd.o: hcwd.c config.h libhfs/hfs.h hcwd.h
+hdel.o: hdel.c config.h libhfs/hfs.h hcwd.h hfsutil.h hdel.h
+hformat.o: hformat.c config.h libhfs/hfs.h hcwd.h hfsutil.h suid.h \
+ hformat.h
+hfssh.o: hfssh.c config.h tclhfs.h suid.h
+hfsutil.o: hfsutil.c config.h libhfs/hfs.h hcwd.h hfsutil.h suid.h \
+ glob.h version.h hattrib.h hcd.h hcopy.h hdel.h hformat.h hls.h \
+ hmkdir.h hmount.h hpwd.h hrename.h hrmdir.h humount.h hvol.h
+hfswish.o: hfswish.c config.h tclhfs.h xhfs.h suid.h images.h \
+ images/macdaemon.xbm images/macdaemon_mask.xbm images/stop.xbm \
+ images/caution.xbm images/note.xbm images/floppy.xbm \
+ images/harddisk.xbm images/cdrom.xbm images/floppy_mask.xbm \
+ images/harddisk_mask.xbm images/cdrom_mask.xbm images/sm_floppy.xbm \
+ images/sm_harddisk.xbm images/sm_cdrom.xbm images/folder.xbm \
+ images/document.xbm images/application.xbm images/folder_mask.xbm \
+ images/document_mask.xbm images/application_mask.xbm \
+ images/sm_folder.xbm images/sm_document.xbm images/sm_application.xbm \
+ images/help.xbm images/padlock.xbm
+hls.o: hls.c config.h libhfs/hfs.h hcwd.h hfsutil.h darray.h dlist.h \
+ dstring.h hls.h
+hmkdir.o: hmkdir.c config.h libhfs/hfs.h hcwd.h hfsutil.h hmkdir.h
+hmount.o: hmount.c config.h libhfs/hfs.h hcwd.h hfsutil.h suid.h \
+ hmount.h
+hpwd.o: hpwd.c config.h libhfs/hfs.h hcwd.h hfsutil.h hpwd.h
+hrename.o: hrename.c config.h libhfs/hfs.h hcwd.h hfsutil.h hrename.h
+hrmdir.o: hrmdir.c config.h libhfs/hfs.h hcwd.h hfsutil.h hrmdir.h
+humount.o: humount.c config.h libhfs/hfs.h hcwd.h hfsutil.h humount.h
+hvol.o: hvol.c config.h libhfs/hfs.h hcwd.h hfsutil.h hvol.h
+strdup.o: strdup.c config.h
+strerror.o: strerror.c config.h
+strstr.o: strstr.c config.h
+strtol.o: strtol.c config.h
+suid.o: suid.c config.h suid.h
+tclhfs.o: tclhfs.c config.h tclhfs.h libhfs/hfs.h glob.h copyin.h \
+ copyout.h charset.h suid.h version.h
+version.o: version.c version.h

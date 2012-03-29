@@ -1,0 +1,143 @@
+#
+# libhfs - library for reading and writing Macintosh HFS volumes
+# Copyright (C) 1996-1998 Robert Leslie
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+# $Id: Makefile.in,v 1.11 1998/11/02 22:08:51 rob Exp $
+#
+
+@SET_MAKE@
+src =		@srcdir@
+VPATH =		@srcdir@
+
+### USER CUSTOMIZATIONS FOLLOW ################################################
+
+prefix =	@prefix@
+exec_prefix =	@exec_prefix@
+
+MANDEST =	@mandir@
+
+INCDEST =	@includedir@
+LIBDEST =	@libdir@
+
+INSTALL =	@INSTALL@
+LIBINSTALL =	@INSTALL_DATA@
+SOFTLINK =	@LN_S@
+
+OS =		unix
+
+CC =		@CC@
+INCLUDES =	@CPPFLAGS@
+DEFINES =	@DEFS@
+LIBOBJS =	@LIBOBJS@
+LIBS =		@LIBS@
+
+COPTS =		@CFLAGS@
+LDOPTS =	@LDFLAGS@
+
+AR =		ar rc
+RANLIB =	@RANLIB@
+
+### END OF USER CUSTOMIZATION #################################################
+
+CFLAGS =	$(COPTS) $(INCLUDES) $(DEFINES)
+LDFLAGS =	$(LDOPTS)
+
+###############################################################################
+
+TARGETS =	$(HFSTARGET)
+
+HFSTARGET =	libhfs.a
+HFSOBJS =	os.o data.o block.o low.o medium.o file.o btree.o node.o  \
+			record.o volume.o hfs.o version.o $(LIBOBJS)
+
+###############################################################################
+
+all :: $(TARGETS)
+
+check :: all
+	@echo "No self-tests available."
+
+install ::
+	$(LIBINSTALL) libhfs.a "$(LIBDEST)/."
+	$(LIBINSTALL) hfs.h "$(INCDEST)/."
+
+again :: clean all
+
+depend ::
+	( sed -n '1,/^### DEPEND/p' Makefile.in;  \
+	  echo;  \
+	  $(CC) -MM $(INCLUDES) $(DEFINES) *.c;  \
+	) > Makefile.in.new
+	mv -f Makefile.in.new Makefile.in
+
+clean ::
+	rm -f $(TARGETS) *.o gmon.* core
+
+distclean :: clean
+	rm -f config.status config.cache config.log config.h Makefile
+
+maintainer-clean :: distclean
+	rm -f config.h.in configure
+
+###############################################################################
+
+Makefile: config.status
+	./config.status && touch .stamp/config.h
+
+.stamp/config.h: config.status
+	./config.status && touch .stamp/config.h
+
+config.status: .stamp/configure .stamp/config.h.in Makefile.in
+	./config.status --recheck
+
+.stamp/configure: configure.in
+	autoconf && touch .stamp/configure
+
+.stamp/config.h.in: configure.in acconfig.h
+	autoheader && touch .stamp/config.h.in
+
+###############################################################################
+
+$(HFSTARGET): $(HFSOBJS)
+	$(AR) $@ $(HFSOBJS)
+	$(RANLIB) $@
+
+os.c: os/$(OS).c
+	rm -f $@
+	$(SOFTLINK) os/$(OS).c $@
+
+### DEPENDENCIES FOLLOW #######################################################
+
+block.o: block.c config.h libhfs.h hfs.h apple.h volume.h block.h os.h
+btree.o: btree.c config.h libhfs.h hfs.h apple.h btree.h data.h file.h \
+ block.h node.h
+data.o: data.c config.h data.h
+file.o: file.c config.h libhfs.h hfs.h apple.h file.h btree.h record.h \
+ volume.h
+hfs.o: hfs.c config.h libhfs.h hfs.h apple.h data.h block.h medium.h \
+ file.h btree.h node.h record.h volume.h
+low.o: low.c config.h libhfs.h hfs.h apple.h low.h data.h block.h \
+ file.h
+medium.o: medium.c config.h libhfs.h hfs.h apple.h block.h low.h \
+ medium.h
+memcmp.o: memcmp.c config.h
+node.o: node.c config.h libhfs.h hfs.h apple.h node.h data.h btree.h
+os.o: os.c config.h libhfs.h hfs.h apple.h os.h
+record.o: record.c config.h libhfs.h hfs.h apple.h record.h data.h
+version.o: version.c version.h
+volume.o: volume.c config.h libhfs.h hfs.h apple.h volume.h data.h \
+ block.h low.h medium.h file.h btree.h record.h os.h

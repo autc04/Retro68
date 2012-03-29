@@ -1,0 +1,119 @@
+
+This file documents the librsrc.a library for accessing resource forks.
+Copyright (C) 1996-1998 Robert Leslie
+
+$Id: librsrc.txt,v 1.6 1998/09/19 05:06:32 rob Exp $
+
+===============================================================================
+
+Exported Data
+
+  const char *rsrc_error;
+
+    This contains a pointer to a C string describing the last resource
+    library error. It is generally only valid after a resource routine has
+    returned an error code (-1 or a NULL pointer).
+
+    In all cases when an error occurs, the global variable `errno' is also
+    set to an appropriate value.
+
+Public Routines
+
+  rsrcfile *rsrc_init(void *priv, const rsrcprocs *procs);
+
+    This routine prepares an open file access path to be treated as a
+    Macintosh resource fork. `priv' is treated as private file access data,
+    and is passed transparently as the first argument to each of:
+
+      procs->seek(priv, ...);
+      procs->read(priv, ...);
+      procs->write(priv, ...);
+
+    Normally when using this library with libhfs, `priv' will be the
+    `hfsfile *' returned from hfs_open(), and `procs' will point to a
+    structure containing { hfs_seek, hfs_read, hfs_write }.
+
+    However, any suitable routines may be substituted which accept
+    the appropriate arguments.
+
+    Note that the file access path must already exist, and must be ready
+    to read and/or write resource data. When using libhfs, this means
+    hfs_setfork(..., 1) must be called prior to rsrc_init().
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int rsrc_finish(rsrcfile *rfile);
+
+    Calling this routine causes the library to flush all changes to the
+    given resource file `rfile', and release all storage associated with it.
+
+    Note that this routine does not close the underlying file access path;
+    this must be done separately after calling rsrc_finish().
+
+    If an error occurs, this function returns -1. Otherwise it returns 0.
+
+  int rsrc_counttypes(rsrcfile *rfile);
+
+    This function returns the number of unique resource types in the given
+    resource file `rfile'.
+
+  int rsrc_count(rsrcfile *rfile, const char *type);
+
+    This function returns the number of actual resources in the given
+    resource file `rfile' of the given type `type', which must be a pointer
+    to a four-character string naming the type.
+
+  void rsrc_gettype(rsrcfile *rfile, int index, char *type);
+
+    This routine stores at `type' a four-character string (plus terminating
+    null) representing a resource type present in the given resource file
+    `rfile'. The ordinal `index' must be from 1 to the total number of
+    types present in the file, given by rsrc_counttypes().
+
+    If `index' is out of range, the effect of this function is undefined.
+
+  void *rsrc_get(rsrcfile *rfile, const char *type, int id);
+
+    This routine fetches an individual resource identified by the given
+    `type' and `id' from the resource file `rfile' and returns a pointer to
+    the beginning of a block containing the resource data.
+
+    The pointer returned by this function can be passed to other routines
+    in this library to manipulate the resource, and must finally be passed
+    to rsrc_release() when the resource is no longer needed.
+
+    If this function fails, a NULL pointer will be returned.
+
+  void *rsrc_getnamed(rsrcfile *rfile, const char *type, const char *name);
+
+    Like rsrc_get(), except the resource is identified by the given `name'
+    instead of by id.
+
+  void *rsrc_getind(rsrcfile *rfile, const char *type, int index);
+
+    Like rsrc_get(), except the resource is identified by the ordinal
+    `index' instead of by id. The `index' must be from 1 to the total number
+    of resources of type `type', given by rsrc_count().
+
+  unsigned long rsrc_size(void *rdata);
+
+    This function returns the size (in bytes) of the given resource `rdata'.
+
+  void *rsrc_resize(void *rdata, unsigned long len);
+
+    This routine changes the size of the resource data `rdata' to be `len'.
+    The resource data will be unchanged up to the lesser of the original
+    size and the new size; newly allocated space will be uninitialized.
+
+    If there is not enough memory to hold the new requested size, a NULL
+    pointer is returned and the original `rdata' pointer remains valid.
+    Otherwise, a new resource data pointer is returned and the original
+    becomes invalid.
+
+  void rsrc_release(void *rdata);
+
+    This function releases the resource data `rdata'. It should be called
+    once the data is no longer needed so the associated memory can be freed.
+
+===============================================================================
+

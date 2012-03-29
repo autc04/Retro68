@@ -1,0 +1,47 @@
+.TH XHFS 1 02-Apr-1996 HFSUTILS
+.SH NAME
+xhfs \- graphical interface for manipulating HFS volumes
+.SH SYNOPSIS
+xhfs
+.RI [ "left-path " [ right-path ]]
+.SH DESCRIPTION
+.B xhfs
+presents a graphical front-end for browsing and copying files on HFS-formatted
+volumes.
+.PP
+The display is divided into two parts, left and right, which can each
+independently view a directory on either an HFS volume or the host (UNIX)
+filesystem. Double-clicking the name of a directory in either view will open
+that directory. A pop-up menu at the top of each directory view can be used to
+navigate to any directory between the current and the beginning of the
+hierarchy.
+.PP
+Text files can be viewed by double-clicking them. Any file or set of files can
+be copied to the directory shown in the other view by selecting them and
+clicking the "Copy" button. Copying is performed according to the selected
+copy mode:
+.SP
+.TP
+.B "MacBinary II"
+The file(s) will be copied using the MacBinary II format. This is the
+recommended mode for transferring arbitrary Macintosh files.
+.TP
+.B BinHex
+The file(s) will be copied using the BinHex format. This mode should be used
+to encode Macintosh files into strict ASCII format.
+.TP
+.B Text
+In this mode, only the data fork(s) of the selected file(s) are copied.
+Furthermore, translation is performed on the data's end-of-line characters to
+conform to the standard for text files on the destination.
+.TP
+.B "Raw Data"
+In this mode, only the data fork(s) of the selected file(s) are copied.
+However, no translation is performed whatsoever on the data.
+.TP
+.B Automatic
+A copy mode will be selected automatically according to a set of heuristics.
+.SH SEE ALSO
+hfsutils(1), hfs(1)
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

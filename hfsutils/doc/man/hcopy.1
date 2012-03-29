@@ -1,0 +1,64 @@
+.TH HCOPY 1 13-Jan-1997 HFSUTILS
+.SH NAME
+hcopy \- copy files from or to an HFS volume
+.SH SYNOPSIS
+hcopy [-m|-b|-t|-r|-a]
+.I source-path
+[...]
+.I target-path
+.SH DESCRIPTION
+.B hcopy
+transfers files from an HFS volume to UNIX or vice versa. The named source
+files are copied to the named destination target, which must be a directory if
+multiple files are to be copied.
+.PP
+Copies are performed using a translation mode, which must be one of:
+.TP
+-m
+.BR "MacBinary II" :
+A popular format for binary file transfer. Both forks of the Macintosh file
+are preserved. This is the recommended mode for transferring arbitrary
+Macintosh files.
+.TP
+-b
+.BR BinHex :
+An alternative format for ASCII file transfer. Both forks of the Macintosh
+file are preserved.
+.TP
+-t
+.BR Text :
+Performs end-of-line translation. Only the data fork of the Macintosh file is
+copied.
+.TP
+-r
+.BR "Raw Data" :
+Performs no translation. Only the data fork of the Macintosh file is copied.
+.TP
+-a
+.BR Automatic :
+A mode will be chosen automatically for each file based on a set of predefined
+heuristics.
+.PP
+If no mode is specified, -a is assumed.
+.PP
+If a UNIX source pathname is specified as a single dash (-),
+.B hcopy
+will copy from standard input to the HFS destination. Likewise, a single dash
+used as a UNIX destination pathname will cause
+.B hcopy
+to copy the HFS source to standard output.
+.SH NOTES
+Copied files may have their filenames altered during translation. For example,
+an appropriate file extension may be added or removed, and certain other
+characters may also be transliterated.
+.PP
+The destination target must not be ambiguous; that is, it must be obvious
+whether the target is on the UNIX filesystem or on an HFS volume. As a rule,
+HFS targets must contain at least one colon (:), usually as the beginning of a
+relative pathname or by itself to represent the current working directory. To
+make a UNIX target unambiguous, either use an absolute pathname or precede a
+relative pathname with a dot and slash (./).
+.SH SEE ALSO
+hfsutils(1), hls(1), hattrib(1)
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

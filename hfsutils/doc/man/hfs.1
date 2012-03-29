@@ -1,0 +1,111 @@
+.TH HFS 1 15-Jan-1997 HFSUTILS
+.SH NAME
+hfs \- shell for manipulating HFS volumes
+.SH SYNOPSIS
+hfs
+.RI [ "hfs-path " [ partition-no ]]
+.SH DESCRIPTION
+.B hfs
+is an interactive command-oriented tool for manipulating HFS volumes.
+.B hfs
+is based on the Tcl interpreter, so basic Tcl constructs can be used in
+addition to the following commands:
+.SP
+.TP
+.BR mount " path [partition-no]"
+The specified UNIX path is opened as an HFS volume. If a partition number
+.I n
+is specified and the volume source is located on a partitioned medium, the
+.IR n th
+discovered HFS partition will be mounted. The default
+.I partition-no
+is 1.
+.TP
+.BR umount " [path]"
+The volume previously mounted from the specified path (or the current volume,
+if none specified) is unmounted.
+.TP
+.BR vol " path"
+The volume previously mounted from the specified path is made current.
+.TP
+.B info
+General information about the currently mounted volume is displayed. This
+information is also displayed automatically when the volume is mounted.
+.TP
+.B pwd
+The full path to the current working HFS directory is displayed.
+.TP
+.BR cd " [hfs-path]"
+The current working directory is changed to the given HFS path. If no path is
+given, the working directory is changed to the root of the volume.
+.TP
+.BR dir " [hfs-path]"
+A directory listing of the specified HFS directory is displayed. If no path is
+given, the contents of the current working directory are shown.
+.TP
+.BR mkdir " hfs-path"
+A new, empty directory is created with the specified path.
+.TP
+.BR rmdir " hfs-path"
+The specified directory is removed. It must be empty.
+.TP
+.BR create " hfs-path [type [creator]]"
+An empty file is created with the specified path. The Macintosh type and
+creator may be specified, or they will default to
+.B TEXT
+and
+.BR UNIX ,
+respectively.
+.TP
+.BR del " hfs-path"
+Both forks of the specified file are deleted.
+.TP
+.BR stat " hfs-path"
+Status information about the specified HFS path-identified entity is
+displayed.
+.TP
+.BR cat " hfs-path"
+The data fork of the specified HFS file is displayed.
+.TP
+.BR copyin " unix-path [hfs-path [mode]]"
+The specified UNIX file is copied to the named HFS destination path. Unless
+specified otherwise, the file will be copied into the current HFS working
+directory using a heuristically chosen mode. The
+.I mode
+may be one of:
+.B macb
+(MacBinary II),
+.B binh
+(BinHex),
+.BR text ,
+or
+.BR raw .
+.TP
+.BR copyout " hfs-path [unix-path [mode]]"
+The specified HFS file is copied into the named UNIX destination path. Unless
+specified otherwise, the file will be copied into the current UNIX working
+directory using a heuristically chosen mode. The modes are the same as for
+.BR copyin .
+.TP
+.BR format " path [partition-no [volume-name]]"
+The specified UNIX path is initialized as an empty HFS volume with the given
+name, and this volume is subsequently mounted. The default volume name is
+.BR Untitled .
+.PP
+The shell is scriptable, however it should be understood that the above
+commands are actually implemented by Tcl procedures prefixed with the
+character "h", e.g. hmount, hcd, etc., in order to avoid name collisions with
+other Tcl utilities. The "h" may be omitted in interactive use for
+convenience.
+.SH SEE ALSO
+hfsutils(1), xhfs(1)
+.SH BUGS
+.B cat
+can only display the data fork of a file. Text translations are performed
+unconditionally on the output. Furthermore, binary data cannot be handled
+properly from within Tcl scripts since the character with value 0 cannot be
+represented in Tcl strings. Use
+.B copyout
+to copy files without these limitations.
+.SH AUTHOR
+Robert Leslie <rob@mars.org>

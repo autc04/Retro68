@@ -1,0 +1,30 @@
+.TH HVOL 1 21-Apr-1996 HFSUTILS
+.SH NAME
+hvol \- display or change the current HFS volume
+.SH SYNOPSIS
+hvol
+.RI [ volume-or-path ]
+.SH DESCRIPTION
+With no arguments,
+.B hvol
+displays the name and path to the "current" HFS volume as well as the names
+and paths of all previously mounted ("known") volumes.
+.PP
+With an argument,
+.B hvol
+changes the current volume to be the one specified. Either the name of the
+volume or the path to its UNIX source can be specified. The volume must have
+been previously mounted using
+.BR hmount .
+.PP
+A separate "current working directory" is maintained for each mounted volume.
+This information is kept in a file named
+.I .hcwd
+in the user's home directory.
+.SH SEE ALSO
+hfsutils(1), hmount(1), humount(1)
+.SH FILES
+$HOME/.hcwd
+.SH AUTHOR
+Robert Leslie <rob@mars.org>
+
