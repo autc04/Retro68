@@ -349,7 +349,10 @@ int main(int argc, char *argv[])
       else if(arg == "-b")
          breakOnEntry = true;
       else
-         std::cout << "xxx\n";
+      {
+         std::cout << "unrecognized flag\n";
+         return 1;
+      }
    }
 
    {
