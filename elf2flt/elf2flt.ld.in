@@ -24,8 +24,12 @@ SECTIONS {
 		*(.glue_7t)
 		*(.glue_7)
 		*(.jcr)
+                @SYMBOL_PREFIX@__init_section = . ;
 		KEEP (*(.init))
+                @SYMBOL_PREFIX@__init_section_end = . ;
+                @SYMBOL_PREFIX@__fini_section = . ;
 		KEEP (*(.fini))
+                @SYMBOL_PREFIX@__fini_section_end = . ;
 
 W_RODAT		*(.rodata)
 W_RODAT		*(.rodata1)
