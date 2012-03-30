@@ -127,6 +127,9 @@ int main(int argc, char** argv)
       std::cout << "Hello, world: "  << i  << std::endl;
    std::cout << std::flush;
 
+   std::cout << "Say something: " << std::flush;
+   console.ReadLine();
+
    for(int i = 0; i < 5; i++)
    {
       std::cout << "Exception speed test: " << std::flush;

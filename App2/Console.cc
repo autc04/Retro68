@@ -1,16 +1,18 @@
 #include "Console.h"
+#include "MacUtils.h"
+#include "Events.h"
 
 Console *Console::currentInstance = NULL;
 
 Console::Console(GrafPtr port)
+   : consolePort(port)
 {  
+   PortSetter setport(consolePort);
+   
    Rect r = {2,2,340,510};
    bounds = r;
-   SetPort(port);
-   consolePort = port;
    TextFont(9);
    TextSize(9);
-   MoveTo(10,10);
 
    cellSizeY = 10;
    cellSizeX = CharWidth('M');
@@ -39,6 +41,7 @@ void Console::DrawCell(short x, short y)
 
 void Console::Draw()
 {
+   PortSetter setport(consolePort);
    //PashortRect(&r);
 
    for(short row = 0; row < rows; ++row)
@@ -63,6 +66,8 @@ void Console::ScrollUp(short n)
 
 void Console::putch(char c)
 {
+   PortSetter setport(consolePort);
+
    //Debugger();
    switch(c)
    {
@@ -82,5 +87,46 @@ void Console::putch(char c)
          if(cursorX >= cols)
             putch('\n');
    }
+}
+
+std::string Console::ReadLine()
+{
+   std::string buffer;
+   EventRecord event;
+   char c;
+
+   do
+   {
+      do
+      {
+         while(!GetOSEvent(everyEvent, &event))
+            ;
+      } while(event.what != keyDown && event.what != autoKey);
+
+      c = event.message & charCodeMask;
+
+      if(c == '\r')
+         c = '\n';
+
+      if(c == '\b')
+      {
+         cursorX--;
+         putch(' ');
+         cursorX--;
+
+         buffer.substr(0,buffer.size()-1);
+
+         continue;
+         //c = 'X';
+      }
+      if(c == 127)
+      {
+         c = 'Y';
+      }
+
+      putch(c);
+      buffer += std::string(1,c);
+   } while(c != '\n');
+   return buffer;
 }
 

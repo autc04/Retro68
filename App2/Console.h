@@ -1,5 +1,6 @@
 #include <Quickdraw.h>
 #include <vector>
+#include <string>
 
 class Console
 {
@@ -7,6 +8,7 @@ public:
    Console(GrafPtr port);
    void Draw();
    void putch(char c);
+   std::string ReadLine();
 
    static Console *currentInstance;
 private:
