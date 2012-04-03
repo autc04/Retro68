@@ -24,6 +24,7 @@ SECTIONS {
 		*(.glue_7t)
 		*(.glue_7)
 		*(.jcr)
+		. = ALIGN (4) ;
                 @SYMBOL_PREFIX@__init_section = . ;
 		KEEP (*(.init))
                 @SYMBOL_PREFIX@__init_section_end = . ;

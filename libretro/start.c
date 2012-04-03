@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include <Processes.h>
 #include <Sound.h>
 #include <Memory.h>
@@ -60,8 +62,17 @@ void _start()
 
    for(i = 0; i < n; i++)
    {
-      long *addr = (long*)(relocs[i] + displacement);
-      *addr += (*addr >= data_end ? bss_displacement : displacement);
+      uint8_t *addrPtr = (uint8_t*)(relocs[i] + displacement);
+      long addr;
+
+      addr = (addrPtr[0] << 24) | (addrPtr[1] << 16) | (addrPtr[2] << 8) | addrPtr[3];
+
+      addr += addr >= data_end ? bss_displacement : displacement;
+
+      addrPtr[0] = addr >> 24;
+      addrPtr[1] = addr >> 16;
+      addrPtr[2] = addr >> 8;
+      addrPtr[3] = addr;
    }
 
   /* {
