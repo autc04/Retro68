@@ -2,10 +2,10 @@ SRC=$(readlink -f `dirname $0`)
 mkdir -p binutils-build
 mkdir -p toolchain
 PREFIX=`pwd`/toolchain/
-
+set -e
 
 cd binutils-build
-export CFLAGS=-Wno-unused-but-set-variable
+export "CFLAGS=-Wno-unused-but-set-variable -Wno-unused-but-set-parameter"
 $SRC/binutils/configure --target=m68k-unknown-elf --prefix=$PREFIX
 make -j8
 make install
@@ -24,11 +24,13 @@ cd ..
 #cd newlib-build
 BINUTILS=$(readlink -f binutils-build)
 
+export "CFLAGS=-I../../Retro68/binutils/include"
 mkdir -p elf2flt-build
 cd elf2flt-build
 $SRC/elf2flt/configure --target=m68k-unknown-elf --prefix=$PREFIX --with-binutils-build-dir=$BINUTILS
 make -j8
 make install
+unset CFLAGS
 
 cd ..
 
