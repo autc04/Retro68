@@ -47,69 +47,25 @@ extern "C" ssize_t consolewrite(int fd, const void *buf, size_t count)
 
 int main(int argc, char** argv)
 {
-   Rect r;
-   unsigned char buf[256];
-   //foo = bar;
-   r.top = r.left = 0;
-   r.bottom = 342;
-   r.right = 512;
-   //= { 0, 0, 342, 512 };
-   //Debugger();
-   GrafPort port;
+   //GrafPort port;
+   WindowPtr win;
    InitGraf(&qd.thePort);
    InitFonts();
-   OpenPort(&port);
-   EraseRect(&r);
-#if 0
-   MoveTo(100,100);
-   /*buf[0] = 2;
-   buf[1] = 'H';
-   buf[2] = 'W';*/
-
-#if 0
-   sprintf((char*)&buf[1], "Hello, world: %d", 6*7);//6.0 * 7.0);
-   buf[0] = strlen((char*)&buf[1]);
-#else
-   std::ostringstream out;
-   out << "Hello, world: " << 6*7;
-   std::string str = out.str();
-   buf[0] = str.size();
-   std::copy(str.begin(), str.end(), &buf[1]);
-#endif
-   DrawString(buf);
-
-   /*try
-   {
-   foobar();
-   }
-   catch(...)
-   {
-      PaintRect(&r);
-   }*/
-   //SysBeep(20);
-#endif
-   /*try
-   {
-      FillRect(&r,&qd.gray);
-      foobar();
-      PaintRect(&r);
-   }
-   catch(...)
-   {
-      EraseRect(&r);
-   }*/
-   //
-   //if(!std::malloc(32))
-   //   PaintRect(&r);
+   InitWindows();
+   InitMenus();
+   
+   Rect r;
+   SetRect(&r, qd.screenBits.bounds.left + 5, qd.screenBits.bounds.top + 45, qd.screenBits.bounds.right - 5, qd.screenBits.bounds.bottom -5);
+   win = NewWindow(NULL, &r, (unsigned char*)"", true, 0, (WindowPtr)-1, false, 0);
+   
+   SetPort(win);
+   EraseRect(&win->portRect);
    new char[32];
-   Console console(&port);
+   Console console(win, win->portRect);
    __write_hook = &consolewrite;
-  // console.putch('a');
-  // console.putch('b'); 
    console.putch('x');
    console.putch('a');
    console.putch('b');
-   //new char[42];
    console.putch('c');
    console.putch('a');
    console.putch('a');
@@ -119,37 +75,42 @@ int main(int argc, char** argv)
    console.putch('\n');
 
    std::cout << "Hello, world.\n";
-   //printf("Hello, world.\n");
+   printf("Hello, world.\n");
    console.putch('a');
    Console::currentInstance->putch('Y');
-   std::cout << "X\n";
+   
+   /*std::cout << "X\n";
    for(int i = 1; i <= 100; i++)
       std::cout << "Hello, world: "  << i  << std::endl;
    std::cout << std::flush;
 
-   std::cout << "Say something: " << std::flush;
-   console.ReadLine();
+   std::cout << "Say something: " << std::flush;*/
+   printf("Say something: ");
+   fflush(stdout);
+   printf("You said: %s\n", console.ReadLine().c_str());
 
    for(int i = 0; i < 5; i++)
    {
-      std::cout << "Exception speed test: " << std::flush;
+      //std::cout << "Exception speed test: " << std::flush;
+      printf("Exception speed test: "); fflush(stdout);
       long start = TickCount();
       try { foobar(); } catch(...) {}
       long end = TickCount();
-      std::cout << (end-start)*1000 / 60.0 << " ms\n";
+      //std::cout << (end-start)*1000 / 60.0 << " ms\n";
+      printf("%g\n",(end-start)*1000 / 60.0); 
    }
-   std::cout << "Click mouse 10 times...\n";
-   //console.Draw();
-   for(int i = 0; i < 10; i++)
+   //std::cout << "Click mouse 10 times...\n";
+   const int n = 3;
+   printf("Click mouse %d times...\n", n);
+   for(int i = 0; i < n; i++)
    {
-      //InvertRect(&qd.screenBits.bounds);
       while(!Button())
          ;
       while(Button())
          ;
-      std::cout << "Click #" << i + 1 << std::endl;
-      //console.Draw();
+      //std::cout << "Click #" << i + 1 << std::endl;
+      printf("Click #%d\n", i+1);
    }
-  // something *= 7.0;
+   FlushEvents(everyEvent, 0);
    return 0;
 }

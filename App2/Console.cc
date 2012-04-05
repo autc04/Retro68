@@ -4,13 +4,12 @@
 
 Console *Console::currentInstance = NULL;
 
-Console::Console(GrafPtr port)
-   : consolePort(port)
+Console::Console(GrafPtr port, Rect r)
+    : consolePort(port), bounds(r)
 {  
    PortSetter setport(consolePort);
    
-   Rect r = {2,2,340,510};
-   bounds = r;
+   InsetRect(&bounds, 2,2);
    TextFont(9);
    TextSize(9);
 
@@ -42,7 +41,6 @@ void Console::DrawCell(short x, short y)
 void Console::Draw()
 {
    PortSetter setport(consolePort);
-   //PashortRect(&r);
 
    for(short row = 0; row < rows; ++row)
    {
@@ -88,6 +86,7 @@ void Console::putch(char c)
             putch('\n');
    }
 }
+
 
 std::string Console::ReadLine()
 {

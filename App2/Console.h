@@ -5,7 +5,7 @@
 class Console
 {
 public:
-   Console(GrafPtr port);
+   Console(GrafPtr port, Rect r);
    void Draw();
    void putch(char c);
    std::string ReadLine();
