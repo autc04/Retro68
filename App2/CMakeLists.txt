@@ -10,7 +10,15 @@ add_executable(Test
 
 target_link_libraries(Test retrocrt)
 add_custom_command(
-   OUTPUT Test.dsk
+   OUTPUT Test.dsk Test.bin
    COMMAND ${MAKE_APPL} -b -c Test
    DEPENDS Test)
 add_custom_target(TestAPPL ALL DEPENDS Test.dsk)
+
+set(UPLOAD_URL "" CACHE STRING "ftp url to upload to")
+if(UPLOAD_URL)
+add_custom_target(upload
+		DEPENDS Test.bin
+		COMMAND wput -u Test.bin ${UPLOAD_URL}
+	)
+endif()
