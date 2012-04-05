@@ -40,58 +40,58 @@ extern void __fini_section_end(void);
 
 void _start()
 {
-   char *argv[2] = { "./a.out", NULL };
-
-
-   long virtualstart, realstart;
-
-   __asm__( "move.l #_start, %0" : "=r"(virtualstart) );
-   __asm__( "lea (_start:w,%%pc), %0" : "=a"(realstart) );
-
-   long displacement = realstart - virtualstart; 
-
-   struct flat_hdr *header = (struct flat_hdr*) (displacement - 0x40);
-
-   Ptr bss = NewPtrClear(header->bss_end - header->data_end);
-
-   long n = header->reloc_count;
-   long *relocs = (long*)( (char*)header + header->reloc_start );
-   long i;
-   long data_end = header->data_end - 0x40;
-   long bss_displacement = (long)bss - data_end;
-
-   for(i = 0; i < n; i++)
-   {
-      uint8_t *addrPtr = (uint8_t*)(relocs[i] + displacement);
-      long addr;
-
-      addr = (addrPtr[0] << 24) | (addrPtr[1] << 16) | (addrPtr[2] << 8) | addrPtr[3];
-
-      addr += addr >= data_end ? bss_displacement : displacement;
-
-      addrPtr[0] = addr >> 24;
-      addrPtr[1] = addr >> 16;
-      addrPtr[2] = addr >> 8;
-      addrPtr[3] = addr;
-   }
-
-  /* {
-      voidFunction *p;
-      for(p = __init_array_start; p < __init_array_end; ++p)
-         (**p)();
-   }*/
-   //__init_section();
-   {
-      char *p = (char*)&__init_section;
-      char *e = (char*)&__init_section_end;
-      p += 2;
-      while( p < e )
-      {
-         (*(voidFunction)(*(long*)p))();
-         p += 6;
-      }
-   }
-
-   main(displacement, argv);
-   ExitToShell();
+	char *argv[2] = { "./a.out", NULL };
+	
+	
+	long virtualstart, realstart;
+	
+	__asm__( "move.l #_start, %0" : "=r"(virtualstart) );
+	__asm__( "lea (_start:w,%%pc), %0" : "=a"(realstart) );
+	
+	long displacement = realstart - virtualstart; 
+	
+	struct flat_hdr *header = (struct flat_hdr*) (displacement - 0x40);
+	
+	Ptr bss = NewPtrClear(header->bss_end - header->data_end);
+	
+	long n = header->reloc_count;
+	long *relocs = (long*)( (char*)header + header->reloc_start );
+	long i;
+	long data_end = header->data_end - 0x40;
+	long bss_displacement = (long)bss - data_end;
+	
+	for(i = 0; i < n; i++)
+	{
+		uint8_t *addrPtr = (uint8_t*)(relocs[i] + displacement);
+		long addr;
+		
+		addr = (addrPtr[0] << 24) | (addrPtr[1] << 16) | (addrPtr[2] << 8) | addrPtr[3];
+		
+		addr += addr >= data_end ? bss_displacement : displacement;
+		
+		addrPtr[0] = addr >> 24;
+		addrPtr[1] = addr >> 16;
+		addrPtr[2] = addr >> 8;
+		addrPtr[3] = addr;
+	}
+	
+	/* {
+	voidFunction *p;
+	for(p = __init_array_start; p < __init_array_end; ++p)
+	(**p)();
+	}*/
+	//__init_section();
+	{
+		char *p = (char*)&__init_section;
+		char *e = (char*)&__init_section_end;
+		p += 2;
+		while( p < e )
+		{
+			(*(voidFunction)(*(long*)p))();
+			p += 6;
+		}
+	}
+	
+	main(displacement, argv);
+	ExitToShell();
 }
