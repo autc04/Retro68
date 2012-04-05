@@ -3,6 +3,8 @@
 #include <Processes.h>
 #include <Sound.h>
 #include <Memory.h>
+#include <OSUtils.h>
+
 
 int main(int argc, char* argv[]);
 
@@ -29,19 +31,15 @@ struct flat_hdr {
 };
 
 typedef void (*voidFunction)(void);
-//extern voidFunction __init_array_start[];
-//extern voidFunction __init_array_end[];
+
 extern void __init_section(void);
 extern void __init_section_end(void);
 extern void __fini_section(void);
 extern void __fini_section_end(void);
 
 
-
 void _start()
 {
-	char *argv[2] = { "./a.out", NULL };
-	
 	
 	long virtualstart, realstart;
 	
@@ -52,8 +50,31 @@ void _start()
 	
 	struct flat_hdr *header = (struct flat_hdr*) (displacement - 0x40);
 	
-	Ptr bss = NewPtrClear(header->bss_end - header->data_end);
+	SysEnvRec env;
+	long bss_size;
+	Ptr bss;
 	
+	env.processor = 0;
+	__asm__ __volatile__ (
+            "move.w #2, %%d0\n\t"	// versionRequested
+            "lea %0, %%a0\n\t"		// &env
+            "dc.w 0xa090\n\t"		// _SysEnvirons
+        : 
+	    : "m"(env)
+        : "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
+    );
+	
+	bss_size = header->bss_end - header->data_end;
+	//Ptr bss = NewPtrClear(bss_size);
+	__asm__ __volatile__ (
+            "move.l %1, %%d0\n\t"
+            "dc.w 0xa31e\n\t"	// _NewPtrClear
+            "move.l %%a0 , %0\n\t"
+        : "=g"(bss)
+        : "g"(bss_size)
+        : "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
+    );
+
 	long n = header->reloc_count;
 	long *relocs = (long*)( (char*)header + header->reloc_start );
 	long i;
@@ -74,13 +95,10 @@ void _start()
 		addrPtr[2] = addr >> 8;
 		addrPtr[3] = addr;
 	}
-	
-	/* {
-	voidFunction *p;
-	for(p = __init_array_start; p < __init_array_end; ++p)
-	(**p)();
-	}*/
-	//__init_section();
+	if(env.processor >= env68040)
+	{
+		__asm__ __volatile__ ("dc.w 0xa0bd" : : : "%a0", "%a1", "%d0", "%d1", "%d2", "cc"); // FlushCache();
+	}
 	{
 		char *p = (char*)&__init_section;
 		char *e = (char*)&__init_section_end;
@@ -92,6 +110,9 @@ void _start()
 		}
 	}
 	
-	main(displacement, argv);
+	{
+		char *argv[2] = { "./a.out", NULL };
+		main(1, argv);
+	}
 	ExitToShell();
 }
