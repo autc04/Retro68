@@ -104,7 +104,7 @@ outputItem typeMap (FunctionItem rettype name arguments words mbParamRegs) =
                   PP.nest 4 (PP.vcat asmStatements) $+$
                   showConstraints outs $+$
                   showConstraints ins $+$
-                  PP.text ": \"%a0\", \"%a1\", \"%d0\", \"%d1\", \"%d2\""
+                  PP.text ": \"%a0\", \"%a1\", \"%d0\", \"%d1\", \"%d2\", \"memory\", \"cc\""
                   <> (if tooltrap then PP.text ", \"%a5\"" else PP.empty)
                )
                $+$ PP.text ");"
