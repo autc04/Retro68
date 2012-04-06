@@ -14,13 +14,13 @@ std::string commandPath;
 void wrapMacBinary(std::string macBinaryFile, std::string diskImagePath)
 {
    int size = static_cast<int>(
-         std::ifstream(macBinaryFile).seekg(0,std::ios::end).tellg()
+         std::ifstream(macBinaryFile.c_str()).seekg(0,std::ios::end).tellg()
       );
 
    size += 20 * 1024;
    size += 800*1024 - size % (800*1024);
 
-   std::ofstream(diskImagePath, std::ios::binary | std::ios::trunc).seekp(size-1).put(0);
+   std::ofstream(diskImagePath.c_str(), std::ios::binary | std::ios::trunc).seekp(size-1).put(0);
    
    std::system((commandPath + "hformat " + diskImagePath + " > /dev/null").c_str());
    std::system((commandPath + "hcopy -m " + macBinaryFile + " :").c_str());
@@ -80,9 +80,9 @@ void Resources::writeFork(std::ostream& out)
    longword(out,0);
    longword(out,0);
    out.seekp(start + std::streampos(0x100));
-   std::map<std::string, std::map<int, int>> resourceInfos;
+   std::map< std::string, std::map<int, int> > resourceInfos;
    std::streampos datastart = out.tellp();
-   for(auto p = resources.begin(); p != resources.end(); ++p)
+   for(std::vector<Resource>::iterator p = resources.begin(); p != resources.end(); ++p)
    {
       const std::string& data = p->getData();
       resourceInfos[ p->getType() ][ p->getID() ] = out.tellp() - datastart;
@@ -99,7 +99,8 @@ void Resources::writeFork(std::ostream& out)
    word(out,0);
    std::streampos typelist = out.tellp();
    word(out,resourceInfos.size() - 1);
-   for(auto p = resourceInfos.begin(); p != resourceInfos.end(); ++p)
+   for(std::map< std::string, std::map<int, int> >::iterator p = resourceInfos.begin();
+   		p != resourceInfos.end(); ++p)
    {
       if(p->second.size())
       {
@@ -109,7 +110,8 @@ void Resources::writeFork(std::ostream& out)
       }
    }
    int typeIndex = 0;
-   for(auto p = resourceInfos.begin(); p != resourceInfos.end(); ++p)
+   for(std::map< std::string, std::map<int, int> >::iterator p = resourceInfos.begin();
+   		p != resourceInfos.end(); ++p)
    {
       if(p->second.size())
       {
@@ -119,7 +121,7 @@ void Resources::writeFork(std::ostream& out)
          out.seekp(pos);
          typeIndex++;
 
-         for(auto q = p->second.begin(); q != p->second.end(); ++q)
+         for(std::map<int,int>::iterator q = p->second.begin(); q != p->second.end(); ++q)
          {
             word(out,q->first);
             word(out,-1);
@@ -139,9 +141,6 @@ void Resources::writeFork(std::ostream& out)
    longword(out, end - resmap);
    out.seekp(end);
 }
-
-typedef std::function<void (std::ostream&)> WriterFunction;
-
 
 // CRC 16 table lookup array
 static unsigned short CRC16Table[256] =
@@ -194,13 +193,14 @@ static unsigned short CalculateCRC(unsigned short CRC, const char* dataBlock, in
 
 void writeMacBinary(std::ostream& out, std::string filename, 
                     std::string type, std::string creator,
-                    WriterFunction rsrc, WriterFunction data)
+                    std::string rsrc, std::string data)
 {
    out.seekp(128);
-   data(out);
+   out.write(&data[0], data.size());
    std::streampos dataend = out.tellp();
    std::streampos rsrcstart = ((int)dataend + 0x7F) & ~0x7F;
-   rsrc(out);
+   out.write(&rsrc[0], rsrc.size());
+   
    std::streampos rsrcend = out.tellp();
    while((int)out.tellp() % 128)
       byte(out,0);
@@ -242,7 +242,7 @@ std::string fromhex(std::string hex)
    std::string bin;
    int nibble;
    bool haveNibble = false;
-   for(auto p = hex.begin(); p != hex.end(); ++p)
+   for(std::string::iterator p = hex.begin(); p != hex.end(); ++p)
    {
       if(std::isspace(*p))
          continue;
@@ -269,7 +269,7 @@ std::string fromhex(std::string hex)
 
 std::string readfile(std::string fn)
 {
-   std::ifstream in(fn, std::ios::in|std::ios::binary);
+   std::ifstream in(fn.c_str(), std::ios::in|std::ios::binary);
    return std::string(std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>());
 }
@@ -364,10 +364,14 @@ int main(int argc, char *argv[])
    }
 
    {
-      std::ofstream out(binFileName);
+      std::ofstream out(binFileName.c_str());
+      
+      std::ostringstream rsrcStream;
+      rsrc.writeFork(rsrcStream);
+      
       writeMacBinary(out, outFileName, "APPL", "????",
-               [&](std::ostream& out) { rsrc.writeFork(out); },
-               [](std::ostream& out) {});
+               rsrcStream.str(),
+               std::string());
    }
    wrapMacBinary(binFileName, dskFileName);
    return 0; 
