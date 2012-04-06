@@ -36,16 +36,23 @@ public:
    Resource(std::string type, int id, std::string data)
       : type(type), id(id), data(data) {}
 
-   const std::string& getData() { return data; }
-   inline std::string getType() { return type; }
-   inline int getID() { return id; }
+   const std::string& getData() const { return data; }
+   inline std::string getType() const { return type; }
+   inline int getID() const { return id; }
 };
 
-class Resources
+class Fork
+{
+public:
+    virtual void writeFork(std::ostream& out) const { }
+    virtual ~Fork() {}
+};
+
+class Resources : public Fork
 {
    std::vector<Resource> resources;
 public:
-   void writeFork(std::ostream& out);
+   void writeFork(std::ostream& out) const;
    void addResource(Resource res) { resources.push_back(res); }
 };
 
@@ -72,7 +79,7 @@ void longword(std::ostream& out, int longword)
 }
 
 
-void Resources::writeFork(std::ostream& out)
+void Resources::writeFork(std::ostream& out) const
 {
    std::streampos start = out.tellp();
    longword(out,0x100);
@@ -82,7 +89,7 @@ void Resources::writeFork(std::ostream& out)
    out.seekp(start + std::streampos(0x100));
    std::map< std::string, std::map<int, int> > resourceInfos;
    std::streampos datastart = out.tellp();
-   for(std::vector<Resource>::iterator p = resources.begin(); p != resources.end(); ++p)
+   for(std::vector<Resource>::const_iterator p = resources.begin(); p != resources.end(); ++p)
    {
       const std::string& data = p->getData();
       resourceInfos[ p->getType() ][ p->getID() ] = out.tellp() - datastart;
@@ -193,13 +200,13 @@ static unsigned short CalculateCRC(unsigned short CRC, const char* dataBlock, in
 
 void writeMacBinary(std::ostream& out, std::string filename, 
                     std::string type, std::string creator,
-                    std::string rsrc, std::string data)
+                    const Fork& rsrc, const Fork& data)
 {
    out.seekp(128);
-   out.write(&data[0], data.size());
+   data.writeFork(out);
    std::streampos dataend = out.tellp();
    std::streampos rsrcstart = ((int)dataend + 0x7F) & ~0x7F;
-   out.write(&rsrc[0], rsrc.size());
+   rsrc.writeFork(out);
    
    std::streampos rsrcend = out.tellp();
    while((int)out.tellp() % 128)
@@ -366,12 +373,8 @@ int main(int argc, char *argv[])
    {
       std::ofstream out(binFileName.c_str());
       
-      std::ostringstream rsrcStream;
-      rsrc.writeFork(rsrcStream);
-      
-      writeMacBinary(out, outFileName, "APPL", "????",
-               rsrcStream.str(),
-               std::string());
+     writeMacBinary(out, outFileName, "APPL", "????",
+                    rsrc, Fork());
    }
    wrapMacBinary(binFileName, dskFileName);
    return 0; 
