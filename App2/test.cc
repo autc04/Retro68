@@ -11,6 +11,7 @@
 #include <Events.h>
 #include <Fonts.h>
 
+#include "MacUtils.h"
 #include "Console.h"
 
 QDGlobals qd;
@@ -56,7 +57,7 @@ int main(int argc, char** argv)
    
    Rect r;
    SetRect(&r, qd.screenBits.bounds.left + 5, qd.screenBits.bounds.top + 45, qd.screenBits.bounds.right - 5, qd.screenBits.bounds.bottom -5);
-   win = NewWindow(NULL, &r, (unsigned char*)"", true, 0, (WindowPtr)-1, false, 0);
+   win = NewWindow(NULL, &r, PSTR("Retro68 Console"), true, 0, (WindowPtr)-1, false, 0);
    
    SetPort(win);
    EraseRect(&win->portRect);
