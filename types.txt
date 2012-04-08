@@ -1,6 +1,7 @@
 L Size
 B Boolean
 P ConstStr255Param
+P Str255 
 W CharParameter
 W OSErr
 W UInt16
