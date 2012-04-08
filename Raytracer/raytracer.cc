@@ -190,7 +190,7 @@ int main()
 				MoveTo(x,y);
 				Line(0,0);
 			}
-#elif 1
+#elif 0
 			accum += pixel;
 			accum += accumV[x];
 			if(accum >= 0.5f)
