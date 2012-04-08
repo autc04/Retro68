@@ -24,6 +24,9 @@ Console::Console(GrafPtr port, Rect r)
 	
 	currentInstance = this;
 }
+Console::~Console()
+{
+}
 
 Rect Console::CellRect(short x, short y)
 {
