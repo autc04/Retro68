@@ -12,9 +12,12 @@
 #include <Fonts.h>
 #include <NumberFormatting.h>
 
+#ifdef __GNUC__
 #include "MacUtils.h"
-
 QDGlobals qd;
+#else
+#define PSTR(x) ("\p" x)
+#endif
 
 #endif
 
@@ -24,6 +27,7 @@ QDGlobals qd;
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+
 
 bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float& t)
 {
