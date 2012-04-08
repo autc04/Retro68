@@ -28,13 +28,150 @@ QDGlobals qd;
 #include <cstring>
 #include <vector>
 
+using std::sqrt;
+using std::floor;
 
-bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float& t)
+class fixed
 {
-	const float xc = 0.0f, yc = 0.0f, zc = -6.0f, r = 1.0f;
-	float x0c = x0 - xc;
-	float y0c = y0 - yc;
-	float z0c = z0 - zc;
+	long val;
+	
+public:
+	class raw {};
+	fixed(long val, raw r) : val(val) {}	
+	
+	fixed() : val(0) {}
+	fixed(int x) : val((long)x << 16) {}
+	fixed(float f) : val(f * 65536) {}
+	
+	//operator int() { return val >> 16; }
+	
+	fixed operator+(fixed o) const { return fixed(val + o.val, raw()); }
+	fixed operator-(fixed o) const { return fixed(val - o.val, raw()); }	
+	fixed operator*(fixed o) const { return fixed((static_cast<long long>(val) * o.val) >> 16, raw()); }	
+	fixed operator/(fixed o) const { return fixed((static_cast<long long>(val) << 16) / o.val, raw()); }
+	
+	fixed operator-() const { return fixed(-val, raw()); }
+	
+	fixed& operator+=(fixed o) { val += o.val; return *this; }
+	fixed& operator-=(fixed o) { val -= o.val; return *this; }
+	fixed& operator*=(fixed o) { return (*this = *this * o); }
+	
+	bool operator== (fixed o) const { return val == o.val; }
+	bool operator!= (fixed o) const { return val != o.val; }
+	bool operator> (fixed o) const { return val > o.val; }
+	bool operator< (fixed o) const { return val < o.val; }
+	bool operator>= (fixed o) const { return val >= o.val; }
+	bool operator<= (fixed o) const { return val <= o.val; }
+	
+	friend fixed sqrt(fixed f);
+	friend fixed floor(fixed f);
+	friend fixed operator*(fixed f, int x);
+	friend fixed operator*(int x, fixed f);
+	friend int floor_to_int(fixed f);
+};
+
+fixed operator*(fixed f, int x) { return fixed(f.val * x, fixed::raw()); }
+fixed operator*(int x, fixed f) { return fixed(f.val * x, fixed::raw()); }
+
+fixed operator*(fixed f, float x) { return f*fixed(x); }
+fixed operator*(float x, fixed f) { return f*fixed(x); }
+
+
+fixed sqrt(fixed f)
+{
+#if 1
+	const int FRACBITS  = 16; /* Must be even! */
+	const int ITERS = 15 + (FRACBITS >> 1);
+	
+	unsigned long root, remHi, remLo, testDiv, count;
+	root = 0;			/* Clear root */
+	remHi = 0;			/* Clear high part of partial remainder */
+	remLo = f.val;			/* Get argument into low part of partial remainder */
+	count = ITERS;		/* Load loop counter */
+		
+	do {
+		remHi = (remHi << 2) | (remLo >> 30); remLo <<= 2; /* get 2 bits of arg */
+		root <<= 1; /* Get ready for the next bit in the root */
+		testDiv = (root << 1) + 1; /* Test radical */
+		if (remHi >= testDiv) {
+			remHi -= testDiv;
+			root += 1;
+		}
+	} while (count-- != 0);
+
+	return fixed(root, fixed::raw());
+#else
+	
+	fixed lower = 0;
+	fixed upper = 181;	// 181.019
+	while(lower != upper)
+	{
+		fixed mid(lower.val/2 + upper.val/2, fixed::raw());
+		fixed s = mid*mid;
+		if(s <= f)
+			lower = mid;
+		if(s >= f)
+			upper = mid;
+	}
+	return lower;
+#endif
+}
+
+fixed floor(fixed f)
+{
+	return fixed(f.val & 0xFFFF0000L, fixed::raw());
+}
+
+int floor_to_int(fixed f)
+{
+	return f.val >> 16;
+}
+
+int floor_to_int(float f)
+{
+	return static_cast<int>(std::floor(f));
+}
+
+template<class T>
+class vec3
+{
+public:
+	T x,y,z;
+	vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+	vec3() : x(0), y(0), z(0) {}
+	
+	vec3<T> operator+(const vec3<T>& other) const { return vec3(x + other.x, y + other.y, z + other.z); }
+	vec3<T> operator-(const vec3<T>& other) const { return vec3(x - other.x, y - other.y, z - other.z); }
+	vec3<T> operator*(T a) const { return vec3(x*a, y*a, z*a); }
+	
+	T length() const { return sqrt(x*x + y*y + z*z); }
+	T operator*(const vec3<T>& other) const { return x*other.x + y*other.y + z*other.z; }
+	
+#if 1
+	vec3<T> normalize() const { 
+		T l = length();
+		//if(l == 0)
+		//	return *this;
+		//else
+			return (*this) * (T(1) / length());
+	}
+#else
+	vec3<T> normalize() const { 
+		T l = length();
+		if(l == 0)
+			return *this;
+		else
+			return vec3<T>(x/l, y/l, z/l);
+	}
+#endif
+};
+
+template<class T>
+bool hitSphere(vec3<T> p0, vec3<T> dir, T& t)
+{
+	const vec3<T> center(0.0f, 0.0f, -6.0f);
+	const T r = 1.0f;
+	vec3<T> p0c(p0 - center);
 	
 	/*
 	(x-xc)^2 + (y-yc)^2 + (z-zc)^2 = r^2;
@@ -43,30 +180,31 @@ bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float
 	
 	(dx^2 + dy^2 + dz^2)*t^2 + (2*x0c*dx + 2*y0c&dy + 2*z0c*dz) * t + x0c^2+y0c^2+z0c^2-r^2
 	*/
-	float a = dx*dx + dy*dy + dz*dz;
-	float b = 2*(x0c*dx + y0c*dy + z0c*dz);
-	float c = x0c*x0c + y0c*y0c + z0c*z0c -r*r;
+	T a = dir*dir;
+	T b = 2*(p0c*dir);
+	T c = p0c*p0c - r*r;
 	
-	float D = b*b - 4 * a * c;
+	T D = b*b - 4 * a * c;
 	
 	if(D >= 0)
 	{
-		t = (-b - std::sqrt(D)) / (2*a);
+		t = (-b - sqrt(D)) / (2*a);
 		return t >= 0;
 	}
 	return false;
 }
-const float lx = -2, ly = 4, lz = 3;
-const float lenl = 1.0f / std::sqrt(lx*lx + ly*ly + lz*lz);
-const float lxn = lx*lenl, lyn = ly*lenl, lzn = lz*lenl;
 
-float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
+
+template<class T>
+T ray(int n, vec3<T> p0, vec3<T> dir)
 {
-	{
-		const float xc = 0.0f, yc = 0.0f, zc = -6.0f, r = 1.0f;
-		float x0c = x0 - xc;
-		float y0c = y0 - yc;
-		float z0c = z0 - zc;
+#if 1
+	static const vec3<T> light = vec3<T>(-2,4,3).normalize();
+	
+	if(1){
+		const vec3<T> center(0.0f, 0.0f, -6.0f);
+		const T r = 1.0f;
+		vec3<T> p0c(p0 - center);
 		
 		/*
 		(x-xc)^2 + (y-yc)^2 + (z-zc)^2 = r^2;
@@ -75,70 +213,84 @@ float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
 		
 		(dx^2 + dy^2 + dz^2)*t^2 + (2*x0c*dx + 2*y0c&dy + 2*z0c*dz) * t + x0c^2+y0c^2+z0c^2-r^2
 		*/
-		float a = dx*dx + dy*dy + dz*dz;
-		float b = 2*(x0c*dx + y0c*dy + z0c*dz);
-		float c = x0c*x0c + y0c*y0c + z0c*z0c -r*r;
+		T a = dir*dir;
+		T b = 2*(p0c*dir);
+		T c = p0c*p0c - r*r;
 		
-		float D = b*b - 4 * a * c;
+		T D = b*b - 4 * a * c;
 		
 		if(D >= 0)
 		{
-			float t = (-b -  std::sqrt(D)) / (2*a);
+			T t = (-b -  sqrt(D)) / (2*a);
 			if(t > 0)
 			{
-				float x = x0 + dx * t;
-				float y = y0 + dy * t;
-				float z = z0 + dz * t;
+				vec3<T> p = p0 + dir * t;
 				
-				float dx2 = x - xc;
-				float dy2 = y - yc;
-				float dz2 = z - zc;
+				vec3<T> dir2 = p - center;
 				
+				T l = dir2*dir;
 				
-				float l = dx2 * dx + dy2 * dy + dz2 * dz;
-				l *= 2;
-				
-				float reflected;
+				T reflected;
 				if(n)
-					reflected = ray(n-1, x,y,z, dx - l*dx2, dy - l*dy2, dz - l*dz2);
+					reflected = ray(n-1, p, dir - dir2*(l*2));
 				else
 					reflected = 0.0f;
 				
 				
-				float lambert = dx2 * lxn + dy2 * lyn + dz2 * lzn;
+				T lambert = dir2 * light;
 				
-				return 0.2f + 0.4f * std::max(0.0f,lambert) + 0.4f * reflected;
+				return T(0.2f) + T(0.4f) * std::max(T(0),lambert) + T(0.4f) * reflected;
 			}
 		}
 	}
 
-	if(dy < 0)
+	if(dir.y < 0)
 	{
-		float t = (-1.5f - y0) / dy;
-		float x = x0 + dx * t;
-		float z = z0 + dz * t;
+		T t = (T(-1.5f) - p0.y) / dir.y;
+		vec3<T> p = p0 + dir*t;
 		
-		float color;
-		if( (static_cast<int>( std::floor(x) )
-			+ static_cast<int>( std::floor(z) )) % 2 )
+		T color;
+		if( (floor_to_int(p.x)
+			+ floor_to_int(p.z)) % 2 )
 			color = 0.8f;
 		else
 			color = 0.1f;
 		
-		float ts;
-		if(hitSphere(x,-1.5f,z, lxn, lyn, lzn, ts))
-			color *= 0.2f;
+		T ts;
+		if(hitSphere(p, light, ts))
+			color *= T(0.2f);
 		
-		return std::min(1.0f, color + 0.5f * ray(n-1, x,-2.0f,z,dx,-dy,dz));
+		return std::min(T(1), color + T(0.5f) * ray(n-1, p,vec3<T>(dir.x, -dir.y, dir.z)));
 	}
-	
-	return std::max(0.0f, dy * 0.3f);
+#endif
+	return std::max(T(0), dir.y * T(0.3f));
 }
+
+typedef fixed numtype;
+
+
+template<class T>
+struct rand1
+{
+	static T get()
+	{
+		return T(std::rand()) / T(32767.0f * 65536.0f);
+	}
+};
+
+template<>
+struct rand1<fixed>
+{
+	static fixed get()
+	{
+		return fixed(std::rand() >> 15, fixed::raw());
+	}
+};
 
 int main()
 {
 	WindowPtr win;
-	
+	Debugger();
 #if !TARGET_API_MAC_CARBON
     InitGraf(&qd.thePort);
     InitFonts();
@@ -162,71 +314,48 @@ int main()
 	GetPortBounds(GetWindowPort(win), &r);
 #endif
     EraseRect(&r);
-	float accum = 0.0f;
+	numtype accum = 0.0f;
 	short cx = r.right /2;
 	short cy = r.bottom / 2;
 	
 	long startTime = TickCount();
-	std::vector<float> accumV(r.right);
+	std::vector<numtype> accumV(r.right);
+	BitMap line;
+	std::vector<unsigned char> bits(((r.right + 31) / 8) & ~0x3);
+	SetRect(&line.bounds, 0,0,r.right,1);
+	line.rowBytes = bits.size();
+	line.baseAddr = (char*)(&bits[0]);
+	
 	for(int y = 0; y < r.bottom; y++)
 	{
+		std::fill(bits.begin(),bits.end(), 0);
 		for(int x = 0; x < r.right; x++)
 		{
-			float pixel;
+			numtype pixel;
 			
 			// cam = (0,0,0)
 			// ray = t * (x-r.right/2, - (y-r.bottom/2), -1)
 			// plane: y = -2
+			pixel = ray(1,vec3<numtype>(),vec3<numtype>(numtype(x-cx)/numtype(cx),-numtype(y-cy)/numtype(cx),-1).normalize());
+
+			numtype thresh = rand1<numtype>::get();
 			
-			float dx = x - cx;
-			float dy = - (y - cy);
-			float dz = -cx;
-			float n1 = 1.0f / std::sqrt(dx*dx + dy*dy + dz*dz);
-			
-			pixel = ray(1,0,0,0,n1*dx,n1*dy,n1*dz);
-			
-#if 0
-			accum += pixel;
-			if(accum >= 0.5f)
-				accum -= 1.0f;
-			else
-			{
-				MoveTo(x,y);
-				Line(0,0);
-			}
-#elif 0
-			accum += pixel;
-			accum += accumV[x];
-			if(accum >= 0.5f)
-				accum -= 1.0f;
-			else
-			{
-				MoveTo(x,y);
-				Line(0,0);
-			}
-			accumV[x] = accum = accum / 2;
-#elif 0			
-			//if(pixel < Random() / 32767.0)
-			if(pixel < (float)std::rand() / (32767.0f * 65536.0f))
-			{
-				MoveTo(x,y);
-				Line(0,0);
-			}
-#else
-			float thresh = (float)std::rand() / (32767.0f * 65536.0f);
-			thresh = 0.5f + 0.4f * (thresh - 0.5f);
+			thresh = numtype(0.5f) + numtype(0.4f) * (thresh - numtype(0.5f));
 			accum += pixel;
 			accum += accumV[x];
 			if(accum >= thresh)
-				accum -= 1.0f;
+				accum -= 1;
 			else
 			{
-				MoveTo(x,y);
-				Line(0,0);
+				//MoveTo(x,y);
+				//Line(0,0);
+				bits[x / 8] |= (0x80 >> (x%8));
 			}
-			accumV[x] = accum = accum / 2;			
-#endif
+			accumV[x] = accum = accum / numtype(2);			
 		}
+		Rect r2;
+		SetRect(&r2,0,y,r.right,y+1);
+		CopyBits(&line, &win->portBits, &line.bounds, &r2, srcCopy, NULL);
 		if(Button())
 			return 0;
 #if TARGET_API_MAC_CARBON
@@ -237,7 +366,7 @@ int main()
 	
 	char buf[256];
 	unsigned char* pstr = (unsigned char*)buf;
-	std::sprintf(buf+1, "pps = %d", (int)( (float)r.right * r.bottom / (endTime - startTime) * 60.0f ));
+	std::sprintf(buf+1, "pps = %d", (int)( (long)r.right * r.bottom * 60 / (endTime - startTime) ));
 	buf[0] = std::strlen(buf+1);
 	
 	SetRect(&r, 10, 10, 10 + StringWidth(pstr) + 10, 30);
