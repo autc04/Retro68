@@ -129,7 +129,7 @@ float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
 		if(hitSphere(x,-1.5f,z, lxn, lyn, lzn, ts))
 			color *= 0.2f;
 		
-		return std::min(1.0f, color + 0.5f * ray(n-1, x,-2.0f,z,dx,-dy,dz));
+		return std::min(1.0f, color + 0.5f * ray(n-1, x,-1.5f,z,dx,-dy,dz));
 	}
 	
 	return std::max(0.0f, dy * 0.3f);
