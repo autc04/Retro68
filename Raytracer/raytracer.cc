@@ -47,7 +47,7 @@ bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float
 	
 	if(D >= 0)
 	{
-		float t = (-b - std::sqrt(D)) / (2*a);
+		t = (-b - std::sqrt(D)) / (2*a);
 		return t >= 0;
 	}
 	return false;
@@ -233,7 +233,7 @@ int main()
 	
 	char buf[256];
 	unsigned char* pstr = (unsigned char*)buf;
-	sprintf(buf+1, "pps = %g", (double)r.right * r.bottom / (endTime - startTime) * 60.0);
+	std::sprintf(buf+1, "pps = %d", (int)( (float)r.right * r.bottom / (endTime - startTime) * 60.0f ));
 	buf[0] = std::strlen(buf+1);
 	
 	SetRect(&r, 10, 10, 10 + StringWidth(pstr) + 10, 30);
