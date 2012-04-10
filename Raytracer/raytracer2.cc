@@ -21,6 +21,7 @@ QDGlobals qd;
 
 #endif
 
+#include "fixed.h"
 
 #include <cmath>
 #include <algorithm>
@@ -31,103 +32,9 @@ QDGlobals qd;
 using std::sqrt;
 using std::floor;
 
-class fixed
-{
-	long val;
-	
-public:
-	class raw {};
-	fixed(long val, raw r) : val(val) {}	
-	
-	fixed() : val(0) {}
-	fixed(int x) : val((long)x << 16) {}
-	fixed(float f) : val(f * 65536) {}
-	
-	//operator int() { return val >> 16; }
-	
-	fixed operator+(fixed o) const { return fixed(val + o.val, raw()); }
-	fixed operator-(fixed o) const { return fixed(val - o.val, raw()); }	
-	fixed operator*(fixed o) const { return fixed((static_cast<long long>(val) * o.val) >> 16, raw()); }	
-	fixed operator/(fixed o) const { return fixed((static_cast<long long>(val) << 16) / o.val, raw()); }
-	
-	fixed operator-() const { return fixed(-val, raw()); }
-	
-	fixed& operator+=(fixed o) { val += o.val; return *this; }
-	fixed& operator-=(fixed o) { val -= o.val; return *this; }
-	fixed& operator*=(fixed o) { return (*this = *this * o); }
-	
-	bool operator== (fixed o) const { return val == o.val; }
-	bool operator!= (fixed o) const { return val != o.val; }
-	bool operator> (fixed o) const { return val > o.val; }
-	bool operator< (fixed o) const { return val < o.val; }
-	bool operator>= (fixed o) const { return val >= o.val; }
-	bool operator<= (fixed o) const { return val <= o.val; }
-	
-	friend fixed sqrt(fixed f);
-	friend fixed floor(fixed f);
-	friend fixed operator*(fixed f, int x);
-	friend fixed operator*(int x, fixed f);
-	friend int floor_to_int(fixed f);
-};
-
-fixed operator*(fixed f, int x) { return fixed(f.val * x, fixed::raw()); }
-fixed operator*(int x, fixed f) { return fixed(f.val * x, fixed::raw()); }
-
-fixed operator*(fixed f, float x) { return f*fixed(x); }
-fixed operator*(float x, fixed f) { return f*fixed(x); }
 
 
-fixed sqrt(fixed f)
-{
-#if 1
-	const int FRACBITS  = 16; /* Must be even! */
-	const int ITERS = 15 + (FRACBITS >> 1);
-	
-	unsigned long root, remHi, remLo, testDiv, count;
-	root = 0;			/* Clear root */
-	remHi = 0;			/* Clear high part of partial remainder */
-	remLo = f.val;			/* Get argument into low part of partial remainder */
-	count = ITERS;		/* Load loop counter */
-		
-	do {
-		remHi = (remHi << 2) | (remLo >> 30); remLo <<= 2; /* get 2 bits of arg */
-		root <<= 1; /* Get ready for the next bit in the root */
-		testDiv = (root << 1) + 1; /* Test radical */
-		if (remHi >= testDiv) {
-			remHi -= testDiv;
-			root += 1;
-		}
-	} while (count-- != 0);
-
-	return fixed(root, fixed::raw());
-#else
-	
-	fixed lower = 0;
-	fixed upper = 181;	// 181.019
-	while(lower != upper)
-	{
-		fixed mid(lower.val/2 + upper.val/2, fixed::raw());
-		fixed s = mid*mid;
-		if(s <= f)
-			lower = mid;
-		if(s >= f)
-			upper = mid;
-	}
-	return lower;
-#endif
-}
-
-fixed floor(fixed f)
-{
-	return fixed(f.val & 0xFFFF0000L, fixed::raw());
-}
-
-int floor_to_int(fixed f)
-{
-	return f.val >> 16;
-}
-
-int floor_to_int(float f)
+inline int floor_to_int(float f)
 {
 	return static_cast<int>(std::floor(f));
 }
@@ -169,8 +76,8 @@ public:
 template<class T>
 bool hitSphere(vec3<T> p0, vec3<T> dir, T& t)
 {
-	const vec3<T> center(0.0f, 0.0f, -6.0f);
-	const T r = 1.0f;
+	const vec3<T> center(0.0f, 1.0f, -6.0f);
+	const T r = 2.0f;
 	vec3<T> p0c(p0 - center);
 	
 	/*
@@ -202,8 +109,8 @@ T ray(int n, vec3<T> p0, vec3<T> dir)
 	static const vec3<T> light = vec3<T>(-2,4,3).normalize();
 	
 	if(1){
-		const vec3<T> center(0.0f, 0.0f, -6.0f);
-		const T r = 1.0f;
+		const vec3<T> center(0.0f, 1.0f, -6.0f);
+		const T r = 2.0f;
 		vec3<T> p0c(p0 - center);
 		
 		/*
@@ -226,7 +133,7 @@ T ray(int n, vec3<T> p0, vec3<T> dir)
 			{
 				vec3<T> p = p0 + dir * t;
 				
-				vec3<T> dir2 = p - center;
+				vec3<T> dir2 = (p - center) * (T(1)/r);
 				
 				T l = dir2*dir;
 				
@@ -290,7 +197,6 @@ struct rand1<fixed>
 int main()
 {
 	WindowPtr win;
-	Debugger();
 #if !TARGET_API_MAC_CARBON
     InitGraf(&qd.thePort);
     InitFonts();
@@ -366,7 +272,8 @@ int main()
 	
 	char buf[256];
 	unsigned char* pstr = (unsigned char*)buf;
-	std::sprintf(buf+1, "pps = %d", (int)( (long)r.right * r.bottom * 60 / (endTime - startTime) ));
+	std::sprintf(buf+1, "pps = %d %ld %ld %ld %ld", (int)( (long)r.right * r.bottom * 60 / (endTime - startTime) ),
+	             fixed::nMul, fixed::nIMul, fixed::nDiv, fixed::nSqrt);
 	buf[0] = std::strlen(buf+1);
 	
 	SetRect(&r, 10, 10, 10 + StringWidth(pstr) + 10, 30);

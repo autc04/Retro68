@@ -9,7 +9,9 @@ add_executable(Raytracer MACOSX_BUNDLE
    raytracer.cc
    )
 add_executable(Raytracer2 MACOSX_BUNDLE
-   raytracer2.cc
+	raytracer2.cc
+	fixed.h
+	fixed.cc
    )
 
 
