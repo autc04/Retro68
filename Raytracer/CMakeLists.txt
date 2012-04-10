@@ -14,11 +14,18 @@ add_executable(Raytracer2 MACOSX_BUNDLE
 	fixed.cc
    )
 
-
 if(APPLE)
 target_link_libraries(Raytracer "-framework Carbon")
 target_link_libraries(Raytracer2 "-framework Carbon")
 else()
+add_executable(FixedBenchmark fixedbenchmark.cc ../App2/Console.cc ../App2/Console.h fixed.h fixed.cc)
+target_link_libraries(FixedBenchmark retrocrt)
+add_custom_command(
+   OUTPUT FixedBenchmark.bin
+   COMMAND ${MAKE_APPL} -c FixedBenchmark -o FixedBenchmark
+   DEPENDS FixedBenchmark)
+add_custom_target(FixedBenchmarkAPPL ALL DEPENDS FixedBenchmark.bin)
+
 target_link_libraries(Raytracer retrocrt)
 add_custom_command(
    OUTPUT Raytracer.bin
