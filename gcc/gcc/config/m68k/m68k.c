@@ -313,6 +313,10 @@ static const struct attribute_spec m68k_attribute_table[] =
        affects_type_identity } */
   { "interrupt", 0, 0, true,  false, false, m68k_handle_fndecl_attribute,
     false },
+  /* Stdcall attribute says callee is responsible for popping arguments
+     if they are not variable.  */
+  { "stdcall",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
+    true },  
   { "interrupt_handler", 0, 0, true,  false, false,
     m68k_handle_fndecl_attribute, false },
   { "interrupt_thread", 0, 0, true,  false, false,
@@ -720,6 +724,9 @@ m68k_handle_fndecl_attribute (tree *node, tree name,
 			      int flags ATTRIBUTE_UNUSED,
 			      bool *no_add_attrs)
 {
+  if (TREE_CODE (*node) != FUNCTION_TYPE && TREE_CODE (*node) != TYPE_DECL)
+  {
+
   if (TREE_CODE (*node) != FUNCTION_DECL)
     {
       warning (OPT_Wattributes, "%qE attribute only applies to functions",
@@ -740,6 +747,9 @@ m68k_handle_fndecl_attribute (tree *node, tree name,
       *no_add_attrs = true;
     }
 
+  return NULL_TREE;
+  }
+  else
   return NULL_TREE;
 }
 
@@ -6502,6 +6512,8 @@ m68k_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 static int
 m68k_return_pops_args (tree fundecl, tree funtype, int size)
 {
+if(lookup_attribute ("stdcall", TYPE_ATTRIBUTES (funtype)))
+   return size;
   return ((TARGET_RTD
 	   && (!fundecl
 	       || TREE_CODE (fundecl) != IDENTIFIER_NODE)
