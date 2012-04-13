@@ -248,8 +248,8 @@ static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
 #undef TARGET_ATTRIBUTE_TABLE
 #define TARGET_ATTRIBUTE_TABLE m68k_attribute_table
 
-#undef TARGET_PROMOTE_PROTOTYPES
-#define TARGET_PROMOTE_PROTOTYPES hook_bool_const_tree_true
+//#undef TARGET_PROMOTE_PROTOTYPES
+//#define TARGET_PROMOTE_PROTOTYPES hook_bool_const_tree_true
 
 #undef TARGET_STRUCT_VALUE_RTX
 #define TARGET_STRUCT_VALUE_RTX m68k_struct_value_rtx
@@ -1414,8 +1414,8 @@ m68k_function_arg_advance (cumulative_args_t cum_v, enum machine_mode mode,
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
   *cum += (mode != BLKmode
-	   ? (GET_MODE_SIZE (mode) + 3) & ~3
-	   : (int_size_in_bytes (type) + 3) & ~3);
+	   ? (GET_MODE_SIZE (mode) + 1) & ~1
+	   : (int_size_in_bytes (type) + 1) & ~1);
 }
 
 /* Convert X to a legitimate function call memory reference and return the
