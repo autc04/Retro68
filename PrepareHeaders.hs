@@ -78,8 +78,8 @@ reg = (reserved tp "__A0" >> return "%%a0")
 data TypeCategory = ByteType | WordType | LongType | PointerType | VoidType
    deriving(Show, Eq)
 classifyType tm t | "Ptr" `isSuffixOf` t = Just PointerType
-               | "*" `isSuffixOf` t = Just PointerType
-               | "Handle" `isSuffixOf` t = Just PointerType
+                  | "*" `isSuffixOf` t = Just PointerType
+                  | "Handle" `isSuffixOf` t = Just PointerType
 classifyType tm "unsigned char" = Just ByteType
 classifyType tm "signed char" = Just ByteType
 classifyType tm "char" = Just ByteType
