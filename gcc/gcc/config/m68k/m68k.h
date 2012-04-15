@@ -354,7 +354,7 @@ along with GCC; see the file COPYING3.  If not see
   0, 0, 0, 0, 0, 0, 0, 0,      \
                                \
   /* Address registers.  */    \
-  0, 0, 0, 0, 0, 0, 0, 1,      \
+  0, 0, 0, 0, 0, 1, 0, 1,      \
                                \
   /* Floating point registers  \
      (if available).  */       \
@@ -371,10 +371,10 @@ along with GCC; see the file COPYING3.  If not see
    Aside from that, you can include as many other registers as you like.  */
 #define CALL_USED_REGISTERS     \
  {/* Data registers.  */        \
-  1, 1, 0, 0, 0, 0, 0, 0,       \
+  1, 1, 1, 0, 0, 0, 0, 0,       \
                                 \
   /* Address registers.  */     \
-  1, 1, 0, 0, 0, 0, 0, 1,       \
+  1, 1, 0, 0, 0, 1, 0, 1,       \
                                 \
   /* Floating point registers   \
      (if available).  */        \

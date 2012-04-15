@@ -849,7 +849,7 @@ m68k_initial_elimination_offset (int from, int to)
 static bool
 m68k_save_reg (unsigned int regno, bool interrupt_handler)
 {
-  if (flag_pic && regno == PIC_REG)
+  if (!TARGET_SEP_DATA && flag_pic && regno == PIC_REG)
     {
       if (crtl->saves_all_registers)
 	return true;
