@@ -7,7 +7,7 @@ import System.Directory
 import System.FilePath
 import Control.Monad(guard)
 import Data.List(isSuffixOf)
-import qualified System.IO.Error(try)
+import qualified Control.Exception
 import System.IO
 import qualified Text.PrettyPrint.HughesPJ as PP
 import Text.PrettyPrint.HughesPJ((<+>),(<>),($$),($+$))
@@ -20,7 +20,7 @@ import System.Environment(getArgs)
 
 data Item = CharItem Char
           | IgnoredItem
-          | FunctionItem String String [String] [Integer] (Maybe ParameterRegs)
+          | FunctionItem String String [String] [String] [Integer] (Maybe ParameterRegs)
           | PragmaParameterItem String ParameterRegs
           deriving(Show)
 
@@ -55,7 +55,11 @@ externApiDeclaration = do
       guard ("WORDINLINE" `isSuffixOf` inlinekey)
       parens tp (commaSep tp hexword)
    semi tp
-   return $ FunctionItem rettype name (if arguments == ["void"] then [] else arguments) inlines Nothing
+   let arguments' | arguments == ["void"] = []
+                  | otherwise = arguments
+       argumentNames = map (trim . reverse . takeWhile isAlphaNum . reverse . trim) arguments'
+       argumentTypes = map (trim . reverse . dropWhile isAlphaNum . reverse . trim) arguments'
+   return $ FunctionItem rettype name argumentTypes argumentNames inlines Nothing
 
 pragmaParameter = do
    reservedOp tp "#"
@@ -90,11 +94,49 @@ classifyType tm t = Map.lookup t tm
 
 hexword = integer tp
 outputItem typeMap (CharItem c) = [c]
--- outputItem (FunctionItem rettype name arguments words) = "<fun>"
-outputItem typeMap (FunctionItem rettype name arguments words mbParamRegs) = 
+-- outputItem (FunctionItem rettype name argumentTypes argumentNames words) = "<fun>"
+
+outputItem typeMap (FunctionItem rettype name argumentTypes argumentNames words Nothing)
+   | True, not (null words), Just retcat <- classifyType typeMap rettype
+   = let
+      helper = PP.text "__magic_inline_" <> PP.text name
+      magic = PP.text "__magic_inline_" <> PP.hcat (PP.punctuate (PP.char '_') (map (PP.text . hexword) words'))
+      hexword w = replicate (4 - length s) '0' ++ s where s = showHex w ""
+      magicArgTypes = case retcat of
+         ByteType -> reverse $ "char" : argumentTypes
+         WordType -> reverse $ "short" : argumentTypes
+         LongType -> reverse $ "long" : argumentTypes
+         PointerType -> reverse $ "long" : argumentTypes                           
+         VoidType -> reverse argumentTypes
+      magicArgValues = case retcat of
+         VoidType -> reverse argumentNames
+         _ -> reverse $ "0" : argumentNames
+      words' = case retcat of
+         VoidType -> words
+         ByteType -> words ++ [ 0x101f ] -- move.b (a7)+,d0
+         WordType -> words ++ [ 0x301f ] -- move.w (a7)+,d0
+         LongType -> words ++ [ 0x201f ] -- move.l (a7)+,d0
+         PointerType -> words ++ [ 0x201f ] -- move.l (a7)+,d0   
+   in PP.render $
+      PP.text rettype <+> PP.text "__attribute__((stdcall))" <+> helper
+         <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ map PP.text magicArgTypes)
+         <+> PP.text("__asm__") <> PP.parens ( PP.doubleQuotes magic )
+         <> PP.semi
+      $+$
+      PP.text "static inline" <+> PP.text rettype <+> PP.text name
+         <+> PP.parens (PP.hsep $ PP.punctuate PP.comma $ zipWith (\t n -> PP.text t <+> PP.text n) argumentTypes argumentNames) $$
+         PP.text "{" $+$ (PP.nest 4 $
+            (if retcat == VoidType then PP.empty else PP.text "return") <+>
+            helper <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ map PP.text magicArgValues) <> PP.semi
+         ) $+$ PP.text "}\n\n"
+
+
+      
+
+outputItem typeMap (FunctionItem rettype name argumentTypes argumentNames words mbParamRegs) = 
    PP.render $
       linkage <+> PP.text rettype <+> PP.text name
-         <+> PP.parens (PP.hsep $ PP.punctuate PP.comma $ map PP.text arguments) $$
+         <+> PP.parens (PP.hsep $ PP.punctuate PP.comma $ zipWith (\t n -> PP.text t <+> PP.text n) argumentTypes argumentNames) $$
       if isJust mbCategories && not (null words)
          then
             PP.text "{" $+$ (PP.nest 4 $
@@ -119,8 +161,7 @@ outputItem typeMap (FunctionItem rettype name arguments words mbParamRegs) =
       tooltrap = True -- trapnum >= 0xA800
       linkage | null words = PP.text "extern"
               | otherwise = PP.text "static inline"
-      argumentNames = map (trim . reverse . takeWhile isAlphaNum . reverse . trim) arguments
-      argumentTypes = map (trim . reverse . dropWhile isAlphaNum . reverse . trim) arguments
+
 
       mbCategories = do
          retcat <- classifyType typeMap rettype
@@ -195,9 +236,9 @@ outputItem _ _ = ""
 collectPragmas xs = evalState (mapM doit xs) Map.empty
    where
       doit x@(PragmaParameterItem name params) = modify (Map.insert name params) >> return x
-      doit (FunctionItem rettype name arguments inlines _) = do
+      doit (FunctionItem rettype name argumentTypes argumentNames inlines _) = do
          m <- get
-         return $ FunctionItem rettype name arguments inlines (Map.lookup name m)
+         return $ FunctionItem rettype name argumentTypes argumentNames inlines (Map.lookup name m)
       doit x = return x
 
 parseTypeMap tm = Map.fromList $ map handleLine $ lines tm
@@ -236,6 +277,6 @@ processFile inputDir outputDir file
 main = do
    [inputDir,outputDir] <- getArgs
    files <- getDirectoryContents inputDir
-   System.IO.Error.try (createDirectory outputDir)
+   Control.Exception.try (createDirectory outputDir) :: IO (Either Control.Exception.IOException ())
    mapM (processFile inputDir outputDir) files
    return ()
