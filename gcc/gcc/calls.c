@@ -181,7 +181,21 @@ prepare_call_address (tree fndecl, rtx funexp, rtx static_chain_value,
   else if (! sibcallp)
     {
 #ifndef NO_FUNCTION_CSE
-      if (optimize && ! flag_no_function_cse)
+      int is_magic = 0;
+      tree decl = fndecl;//SYMBOL_REF_DECL(funexp);
+      if(decl)
+      {
+         if(DECL_NAME(decl))
+         {
+            if(!strncmp(IDENTIFIER_POINTER (DECL_NAME (decl)), "__magic_inline_", 15))
+            {
+               is_magic = 1;
+            }
+         }
+         fprintf(stderr, "CSE?: %s\n", IDENTIFIER_POINTER (DECL_NAME (decl)));
+      }
+
+      if (optimize && ! flag_no_function_cse && !is_magic)
 	funexp = force_reg (Pmode, funexp);
 #endif
     }

@@ -2437,6 +2437,21 @@ legitimize_pic_address (rtx orig, enum machine_mode mode ATTRIBUTE_UNUSED,
   /* First handle a simple SYMBOL_REF or LABEL_REF */
   if (GET_CODE (orig) == SYMBOL_REF || GET_CODE (orig) == LABEL_REF)
     {
+      if(GET_CODE (orig) == SYMBOL_REF)
+      {
+         tree decl = SYMBOL_REF_DECL(orig);
+         if(decl)
+         {
+            if(DECL_NAME(decl))
+            {
+               if(!strncmp(IDENTIFIER_POINTER (DECL_NAME (decl)), "__magic_inline_", 15))
+               {
+                  return orig;
+               }
+            }
+               //fprintf(stderr, "Hello: %s\n", IDENTIFIER_POINTER (DECL_NAME (decl)));
+         }
+      }
       gcc_assert (reg);
 
       pic_ref = m68k_wrap_symbol_into_got_ref (orig, RELOC_GOT, reg);
