@@ -192,7 +192,6 @@ prepare_call_address (tree fndecl, rtx funexp, rtx static_chain_value,
                is_magic = 1;
             }
          }
-         fprintf(stderr, "CSE?: %s\n", IDENTIFIER_POINTER (DECL_NAME (decl)));
       }
 
       if (optimize && ! flag_no_function_cse && !is_magic)
