@@ -293,6 +293,10 @@ int main(int argc, char *argv[])
 
    std::string curRType = "CODE";
    bool breakOnEntry = false;
+   
+   unsigned short sizeFlags = 0x80; // 32-bit clean
+   unsigned long minimumSize = 384 * 1024;
+   unsigned long preferredSize = 384 * 1024;
 
    if(char *lastSlash = std::strrchr(argv[0], '/'))
    {
@@ -360,9 +364,34 @@ int main(int argc, char *argv[])
          code1 << flt;
 
          rsrc.addResource(Resource("CODE", 1, code1.str()));
+		 
+		 if(code1.str().size() + 64*1024 > minimumSize)
+			 minimumSize = code1.str().size() + 64*1024;
+		 if(minimumSize > preferredSize)
+			 preferredSize = minimumSize;
       }
       else if(arg == "-b")
          breakOnEntry = true;
+	  else if(arg == "--minimum")
+	  {
+		  assert(i < argc);
+		  int k = atoi(argv[i++]);
+		  minimumSize = k*1024;
+		  if(preferredSize < minimumSize)
+			  preferredSize = minimumSize;
+	  }
+	  else if(arg == "--preferred")
+	  {
+		  assert(i < argc);
+		  int k = atoi(argv[i++]);
+		  preferredSize = k*1024;
+	  }
+	  else if(arg == "--flags")
+	  {
+		  assert(i < argc);
+		  std::istringstream in(argv[i++]);
+		  in >> std::hex >> sizeFlags;
+	  }
       else
       {
          std::cout << "unrecognized flag\n";
@@ -370,6 +399,14 @@ int main(int argc, char *argv[])
       }
    }
 
+   {
+      std::ostringstream size_1;
+	  word(size_1, sizeFlags);
+	  longword(size_1, minimumSize);
+	  longword(size_1, preferredSize);
+      rsrc.addResource(Resource("SIZE", -1, size_1.str()));
+   }
+   
    {
       std::ofstream out(binFileName.c_str());
       
