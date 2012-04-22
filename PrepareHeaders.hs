@@ -187,8 +187,8 @@ outputItem typeMap (FunctionItem rettype name argumentTypes argumentNames words 
 
       showConstraints constraints = PP.text ":" <+> PP.hsep (PP.punctuate PP.comma $ constraints)
       asmStatements = 
-         (if tooltrap then [-- PP.text "\"move.l %%a5, %%a4\\n\"",
-                            PP.text "\"move.l 0x904.w, %%a5\\n\""] else []) ++
+--         (if tooltrap then [-- PP.text "\"move.l %%a5, %%a4\\n\"",
+--                            PP.text "\"move.l 0x904.w, %%a5\\n\""] else []) ++
          subq ++
          pushes ++
          map (\trapnum -> PP.text "\"dc.w" <+> PP.text "0x" <> PP.text (showHex trapnum "") <> PP.text "\\n\\t\"") words
