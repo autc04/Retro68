@@ -45,15 +45,28 @@ balancedText stopAtComma = fmap (foldr ($) "") $
 trim = dropWhile isSpace . reverse . dropWhile isSpace . reverse
 cleanup = unwords . words . trim
 
+returnType = do
+   t <- identifier tp
+   ptrs <- many (reservedOp tp "*" >> return '*')
+   return $ t ++ ptrs
+
 externApiDeclaration = do  
-   reserved tp "EXTERN_API"
-   rettype <- fmap trim $ parens tp (balancedText False)
+   rettype <- (reserved tp "EXTERN_API" >> (fmap trim $ parens tp (balancedText False)))
+           <|> (reserved tp "pascal" >> returnType)
    name <- identifier tp
    arguments <- fmap (map cleanup) $ parens tp (commaSep tp $ balancedText True)
-   inlines <- option [] $ do
-      inlinekey <- identifier tp
-      guard ("WORDINLINE" `isSuffixOf` inlinekey)
-      parens tp (commaSep tp hexword)
+   
+   let hexwords = commaSep tp hexword
+       macroinline = do
+           inlinekey <- identifier tp
+           guard ("WORDINLINE" `isSuffixOf` inlinekey)
+           parens tp hexwords
+       plaininline = do
+           reservedOp tp "="
+           braces tp hexwords
+         
+   inlines <- macroinline <|> plaininline <|> return []
+   
    semi tp
    let arguments' | arguments == ["void"] = []
                   | otherwise = arguments
