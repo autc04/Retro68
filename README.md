@@ -6,8 +6,6 @@ Why? Because there is no decent C++11 Compiler targetting Apple's System 6.
 If that's not a sufficient reason for you, I'm sure you will find
 someting more useful elsewhere.
 
-
-
 Prerequisites
 -------------
 
@@ -152,4 +150,12 @@ fixed point arithmetic instead of floating point
 
 The binaries are in Retro68-build/build-target/Raytracer.
 Both MacBinary (.bin) and disk image (.dsk) formats are built.
+
+License
+-------
+
+The original parts of Retro68 are licensed under GPL3+, as are
+most other parts. Some parts are licensed GPL2+ or with more
+liberal licenses. Check the copyright notices in the individual
+files.
 
