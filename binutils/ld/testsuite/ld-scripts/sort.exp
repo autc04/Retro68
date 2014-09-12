@@ -25,6 +25,12 @@ if ![is_elf_format] {
     return
 }
 
+# The h8300 port issues a warning message for
+# new sections created without atrributes.
+if [istarget "h8300-*-*"] {
+  return
+}
+
 load_lib ld-lib.exp
 
 set sort_test_list [lsort [glob -nocomplain $srcdir/$subdir/sort*.d]]

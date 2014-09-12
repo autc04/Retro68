@@ -75,17 +75,17 @@ SECTIONS
   .text :
   {
     ${RELOCATING+. = ALIGN(2);}
-    *(.init)
-    *(.init0)  /* Start here after reset.  */
-    *(.init1)
-    *(.init2)
-    *(.init3)
-    *(.init4)
-    *(.init5)
-    *(.init6)  /* C++ constructors.  */
-    *(.init7)
-    *(.init8)
-    *(.init9)  /* Call main().  */
+    *(SORT_NONE(.init))
+    *(SORT_NONE(.init0))  /* Start here after reset.  */
+    *(SORT_NONE(.init1))
+    *(SORT_NONE(.init2))
+    *(SORT_NONE(.init3))
+    *(SORT_NONE(.init4))
+    *(SORT_NONE(.init5))
+    *(SORT_NONE(.init6)) /* C++ constructors.  */
+    *(SORT_NONE(.init7))
+    *(SORT_NONE(.init8))
+    *(SORT_NONE(.init9))  /* Call main().  */
 
     ${CONSTRUCTING+ __ctors_start = . ; }
     ${CONSTRUCTING+ *(.ctors) }
@@ -98,27 +98,38 @@ SECTIONS
     *(.text)
     ${RELOCATING+. = ALIGN(2);}
     *(.text.*)
+    ${RELOCATING+. = ALIGN(2);}
+    *(.text:*)
 
     ${RELOCATING+. = ALIGN(2);}
-    *(.fini9)
-    *(.fini8)
-    *(.fini7)
-    *(.fini6)  /* C++ destructors.  */
-    *(.fini5)
-    *(.fini4)
-    *(.fini3)
-    *(.fini2)
-    *(.fini1)
-    *(.fini0)  /* Infinite loop after program termination.  */
-    *(.fini)
+    *(SORT_NONE(.fini9))
+    *(SORT_NONE(.fini8))
+    *(SORT_NONE(.fini7))
+    *(SORT_NONE(.fini6))  /* C++ destructors.  */
+    *(SORT_NONE(.fini5))
+    *(SORT_NONE(.fini4))
+    *(SORT_NONE(.fini3))
+    *(SORT_NONE(.fini2))
+    *(SORT_NONE(.fini1))
+    *(SORT_NONE(.fini0))  /* Infinite loop after program termination.  */
+    *(SORT_NONE(.fini))
 
     ${RELOCATING+ _etext = . ; }
+  } ${RELOCATING+ > text}
+
+  .rodata :
+  {
+    *(.rodata .rodata.* .gnu.linkonce.r.*)
+    *(.const)
+    *(.const:*)
   } ${RELOCATING+ > text}
 
   .data ${RELOCATING-0} : ${RELOCATING+AT (ADDR (.text) + SIZEOF (.text))}
   {  
     ${RELOCATING+ PROVIDE (__data_start = .) ; }
+    ${RELOCATING+. = ALIGN(2);}
     *(.data)
+    *(.data.*)
     *(.gnu.linkonce.d*)
     ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ _edata = . ; }
@@ -126,6 +137,7 @@ SECTIONS
   
   .bss ${RELOCATING+ SIZEOF(.data) + ADDR(.data)} :
   {
+    ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ PROVIDE (__bss_start = .) ; }
     *(.bss)
     *(COMMON)
@@ -149,6 +161,13 @@ SECTIONS
     ${RELOCATING+ _vectors_end = . ; }
   } ${RELOCATING+ > vectors}
 
+  .MP430.attributes 0 :
+  {
+    KEEP (*(.MSP430.attributes))
+    KEEP (*(.gnu.attributes))
+    KEEP (*(__TI_build_attributes))
+  }
+
   /* Stabs debugging sections.  */
   .stab 0 : { *(.stab) } 
   .stabstr 0 : { *(.stabstr) }
@@ -158,31 +177,11 @@ SECTIONS
   .stab.indexstr 0 : { *(.stab.indexstr) }
   .comment 0 : { *(.comment) }
  
-  /* DWARF debug sections.
-     Symbols in the DWARF debugging sections are relative to the beginning
-     of the section so we begin them at 0.  */
+EOF
 
-  /* DWARF 1 */
-  .debug          0 : { *(.debug) }
-  .line           0 : { *(.line) }
+. $srcdir/scripttempl/DWARF.sc
 
-  /* GNU DWARF 1 extensions */
-  .debug_srcinfo  0 : { *(.debug_srcinfo) }
-  .debug_sfnames  0 : { *(.debug_sfnames) }
-
-  /* DWARF 1.1 and DWARF 2 */
-  .debug_aranges  0 : { *(.debug_aranges) }
-  .debug_pubnames 0 : { *(.debug_pubnames) }
-
-  /* DWARF 2 */
-  .debug_info     0 : { *(.debug_info) *(.gnu.linkonce.wi.*) }
-  .debug_abbrev   0 : { *(.debug_abbrev) }
-  .debug_line     0 : { *(.debug_line) }
-  .debug_frame    0 : { *(.debug_frame) }
-  .debug_str      0 : { *(.debug_str) }
-  .debug_loc      0 : { *(.debug_loc) }
-  .debug_macinfo  0 : { *(.debug_macinfo) }
-
+cat <<EOF
   PROVIDE (__stack = ${STACK}) ;
   PROVIDE (__data_start_rom = _etext) ;
   PROVIDE (__data_end_rom   = _etext + SIZEOF (.data)) ;

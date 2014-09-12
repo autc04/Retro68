@@ -10,7 +10,7 @@
      index	A unique number given to each element of the table.
 		Index numbers are sorted numerically.
 		The index number is printed next to every function name so
-		it is easier to look up where the function in the table.
+		it is easier to look up where the function is in the table.
 
      % time	This is the percentage of the `total' time that was spent
 		in this function and its children.  Note that due to
@@ -80,4 +80,9 @@
  were internal to the cycle, and the calls entry for each member shows,
  for that member, how many times it was called from other members of
  the cycle.
+
+Copyright (C) 2012 Free Software Foundation, Inc.
 
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.

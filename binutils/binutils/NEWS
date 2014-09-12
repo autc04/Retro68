@@ -1,5 +1,58 @@
 -*- text -*-
 
+Changes in 2.24:
+
+* Objcopy now supports wildcard characters in command line options that take
+  section names.
+
+* Add support for Altera Nios II.
+
+Changes in 2.23:
+
+* Add support for the VLE extension to the PowerPC architecture.
+
+* Add support for x64 Windows target of the delayed-load-library.
+
+* Add support for the Renesas RL78 architecture.
+
+Changes in 2.22:
+
+* Add support for displaying the contents of .debug.macro sections.
+
+* Add --preprocessor-arg option to windres to specify additional options
+  passed to preprocessor.
+
+* Add --dwarf-start and --dwarf-end to readelf and objdump.  These are used by
+  the new Emacs mode, see dwarf-mode.el.
+
+* Add support for the Tilera TILEPro and TILE-Gx architectures.
+
+changes in 2.21:
+
+* Add --interleave-width option to objcopy to allowing copying a range of
+  bytes from the input to the output with the --interleave option.
+
+* Add support for the TMS320C6000 (TI C6X) processor family.
+
+* Readelf can now display ARM unwind tables (.ARM.exidx / .ARM.extab) using
+  the -u / --unwind option.
+
+* Add --dyn-syms to readelf to dump dynamic symbol table.
+
+* A new tool - elfedit - has been added to directly manipulate ELF format
+  binaries.
+
+* Add to dlltool .def file feature of aliasing PE internal symbol name by
+  '== <ID>' option.
+
+* Add a new command line option -a / --addresses to addr2line to display the
+  address before function name or source filename.
+
+* Add a new command line option -p / --pretty-print to addr2line to have
+  a more human readable output.
+
+* The hppa/som targets can now be compiled on any host.
+
 Changes in 2.20:
 
 * Add support for delay importing to dlltool.  Use the --output-delaylib <file>
@@ -428,6 +481,12 @@ Changes in binutils 2.1:
   and/or local symbols only.  They now also support long options.
 
 
+Copyright (C) 2012 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
 Local variables:
 fill-column: 79
 End:

@@ -95,3 +95,7 @@ extern int s390_cie_data_alignment;
 #define DWARF2_LINE_MIN_INSN_LENGTH     1
 #define DWARF2_DEFAULT_RETURN_COLUMN    14
 #define DWARF2_CIE_DATA_ALIGNMENT       s390_cie_data_alignment
+
+extern void s390_elf_final_processing (void);
+
+#define elf_tc_final_processing s390_elf_final_processing

@@ -27,9 +27,6 @@ fragment <<EOF
 
 #include "ldctor.h"
 
-/* Flag for the emulation-specific "--no-relax" option.  */
-static bfd_boolean disable_relaxation = FALSE;
-
 static void check_sections (bfd *, asection *, void *);
 
 
@@ -90,7 +87,7 @@ cr16_elf_after_open (void)
 
 	  /* Double check that all other data sections are empty, as is
 	     required for embedded PIC code.  */
-	  bfd_map_over_sections (abfd, check_sections, datasec); 
+	  bfd_map_over_sections (abfd, check_sections, datasec);
 	}
     }
 }
@@ -173,33 +170,11 @@ cr16elf_before_allocation (void)
      specified.  This is done here instead of in the before_parse hook
      because there is a check in main() to prohibit use of --relax and
      -r together.  */
-
-  if (!disable_relaxation)
-    command_line.relax = TRUE;
+  if (RELAXATION_DISABLED_BY_DEFAULT)
+    ENABLE_RELAXATION;
 }
 
 EOF
-
-# Define some shell vars to insert bits of code into the standard elf
-# parse_args and list_options functions.
-#
-PARSE_AND_LIST_PROLOGUE='
-#define OPTION_NO_RELAX			301
-'
-
-PARSE_AND_LIST_LONGOPTS='
-  { "no-relax", no_argument, NULL, OPTION_NO_RELAX},
-'
-
-PARSE_AND_LIST_OPTIONS='
-  fprintf (file, _("  --no-relax                  Do not relax branches\n"));
-'
-
-PARSE_AND_LIST_ARGS_CASES='
-    case OPTION_NO_RELAX:
-      disable_relaxation = TRUE;
-      break;
-'
 
 # Put these extra cr16-elf routines in ld_${EMULATION_NAME}_emulation
 #

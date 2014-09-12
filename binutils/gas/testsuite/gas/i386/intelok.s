@@ -215,6 +215,5 @@ start:
 	jmp	5:[3]
 	call	dword ptr xtrn
 	jmp	word ptr xtrn
-
-	# Force a good alignment.
-	.p2align	4,0
+	call	[xtrn]
+	jmp	[xtrn]

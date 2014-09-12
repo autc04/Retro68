@@ -1,5 +1,5 @@
 /* tc-xstormy16.c -- Assembler for the Sanyo XSTORMY16.
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010
    Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
@@ -197,7 +197,6 @@ xstormy16_cons_fix_new (fragS *f,
 			expressionS *exp)
 {
   bfd_reloc_code_real_type code;
-  fixS *fix;
 
   if (exp->X_op == O_fptr_symbol)
     {
@@ -239,7 +238,7 @@ xstormy16_cons_fix_new (fragS *f,
       return;
     }
 
-  fix = fix_new_exp (f, where, nbytes, exp, 0, code);
+  fix_new_exp (f, where, nbytes, exp, 0, code);
 }
 
 /* Called while parsing an instruction to create a fixup.

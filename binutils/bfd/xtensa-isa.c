@@ -1,5 +1,5 @@
 /* Configurable Xtensa ISA support.
-   Copyright 2003, 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
+   Copyright 2003, 2004, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -180,7 +180,7 @@ xtensa_insnbuf_to_chars (xtensa_isa isa,
 /* Inward conversion from byte stream to xtensa_insnbuf.  See
    xtensa_insnbuf_to_chars for a discussion of why this is complicated
    by endianness.  */
-    
+
 void
 xtensa_insnbuf_from_chars (xtensa_isa isa,
 			   xtensa_insnbuf insn,
@@ -296,7 +296,7 @@ xtensa_isa_init (xtensa_isa_status *errno_p, char **error_msg_p)
     }
 
   /* Set up the interface lookup table.  */
-  isa->interface_lookup_table = 
+  isa->interface_lookup_table =
     bfd_malloc (isa->num_interfaces * sizeof (xtensa_lookup_entry));
   CHECK_ALLOC_FOR_INIT (isa->interface_lookup_table, NULL, errno_p,
 			error_msg_p);
@@ -309,7 +309,7 @@ xtensa_isa_init (xtensa_isa_status *errno_p, char **error_msg_p)
 	 sizeof (xtensa_lookup_entry), xtensa_isa_name_compare);
 
   /* Set up the funcUnit lookup table.  */
-  isa->funcUnit_lookup_table = 
+  isa->funcUnit_lookup_table =
     bfd_malloc (isa->num_funcUnits * sizeof (xtensa_lookup_entry));
   CHECK_ALLOC_FOR_INIT (isa->funcUnit_lookup_table, NULL, errno_p,
 			error_msg_p);
@@ -406,7 +406,7 @@ xtensa_isa_length_from_chars (xtensa_isa isa, const unsigned char *cp)
 
 
 int
-xtensa_isa_num_pipe_stages (xtensa_isa isa) 
+xtensa_isa_num_pipe_stages (xtensa_isa isa)
 {
   xtensa_opcode opcode;
   xtensa_funcUnit_use *use;
@@ -544,7 +544,7 @@ xtensa_format_lookup (xtensa_isa isa, const char *fmtname)
       if (strcasecmp (fmtname, intisa->formats[fmt].name) == 0)
 	return fmt;
     }
-  
+
   xtisa_errno = xtensa_isa_bad_format;
   sprintf (xtisa_error_msg, "format \"%s\" not recognized", fmtname);
   return XTENSA_UNDEFINED;
@@ -1028,15 +1028,14 @@ xtensa_operand_encode (xtensa_isa isa, xtensa_opcode opc, int opnd,
   uint32 test_val, orig_val;
 
   intop = get_operand (intisa, opc, opnd);
-  if (!intop) return -1;
+  if (!intop)
+    return -1;
 
   if (!intop->encode)
     {
       /* This is a default operand for a field.  How can we tell if the
 	 value fits in the field?  Write the value into the field,
 	 read it back, and then make sure we get the same value.  */
-
-      xtensa_isa_internal *intisa = (xtensa_isa_internal *) isa;
       static xtensa_insnbuf tmpbuf = 0;
       int slot_id;
 
@@ -1081,9 +1080,9 @@ xtensa_operand_encode (xtensa_isa isa, xtensa_opcode opc, int opnd,
      was successfully encoded is to decode it and check if it matches
      the original value.  */
   orig_val = *valp;
-  if ((*intop->encode) (valp) ||
-      (test_val = *valp, (*intop->decode) (&test_val)) ||
-      test_val != orig_val)
+  if ((*intop->encode) (valp)
+      || (test_val = *valp, (*intop->decode) (&test_val))
+      || test_val != orig_val)
     {
       xtisa_errno = xtensa_isa_bad_value;
       sprintf (xtisa_error_msg, "cannot encode operand value 0x%08x", *valp);
@@ -1365,7 +1364,7 @@ xtensa_regfile_lookup (xtensa_isa isa, const char *name)
   /* The expected number of regfiles is small; use a linear search.  */
   for (n = 0; n < intisa->num_regfiles; n++)
     {
-      if (!strcmp (intisa->regfiles[n].name, name))
+      if (!filename_cmp (intisa->regfiles[n].name, name))
 	return n;
     }
 
@@ -1395,7 +1394,7 @@ xtensa_regfile_lookup_shortname (xtensa_isa isa, const char *shortname)
 	 as their parents.  */
       if (intisa->regfiles[n].parent != n)
 	continue;
-      if (!strcmp (intisa->regfiles[n].shortname, shortname))
+      if (!filename_cmp (intisa->regfiles[n].shortname, shortname))
 	return n;
     }
 

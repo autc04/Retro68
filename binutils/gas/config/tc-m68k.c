@@ -1,6 +1,6 @@
 /* tc-m68k.c -- Assemble for the m68k family
    Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -186,7 +186,7 @@ static const enum m68k_register mcf51_ctrl[] = {
   0
 };
 static const enum m68k_register mcf5206_ctrl[] = {
-  CACR, ACR0, ACR1,  VBR, RAMBAR0, RAMBAR_ALT, MBAR,
+  CACR, ACR0, ACR1, VBR, RAMBAR0, RAMBAR_ALT, MBAR,
   0
 };
 static const enum m68k_register mcf5208_ctrl[] = {
@@ -210,7 +210,7 @@ static const enum m68k_register mcf5221x_ctrl[] = {
   0
 };
 static const enum m68k_register mcf52223_ctrl[] = {
-  VBR, CACR, ACR0, ACR1, FLASHBAR, RAMBAR, RAMBAR1,
+  VBR, FLASHBAR, RAMBAR, RAMBAR1,
   0
 };
 static const enum m68k_register mcf52235_ctrl[] = {
@@ -302,13 +302,22 @@ static const enum m68k_register mcf5407_ctrl[] = {
   MBAR1 /* MBAR */, RAMBAR /* RAMBAR1 */,
   0
 };
-static const enum m68k_register mcf54455_ctrl[] = {
-  CACR, ASID, ACR0, ACR1, ACR2, ACR3, MMUBAR,
-  VBR, PC, RAMBAR1, MBAR,
+static const enum m68k_register mcf54418_ctrl[] = {
+  CACR, ASID, ACR0, ACR1, ACR2, ACR3, ACR4, ACR5, ACR6, ACR7, MMUBAR, RGPIOBAR,
+  VBR, PC, RAMBAR1,
   /* Legacy names */
   TC /* ASID */, BUSCR /* MMUBAR */,
   ITT0 /* ACR0 */, ITT1 /* ACR1 */, DTT0 /* ACR2 */, DTT1 /* ACR3 */,
-  MBAR1 /* MBAR */,  RAMBAR /* RAMBAR1 */,
+  RAMBAR /* RAMBAR1 */,
+  0
+};
+static const enum m68k_register mcf54455_ctrl[] = {
+  CACR, ASID, ACR0, ACR1, ACR2, ACR3, MMUBAR,
+  VBR, PC, RAMBAR1,
+  /* Legacy names */
+  TC /* ASID */, BUSCR /* MMUBAR */,
+  ITT0 /* ACR0 */, ITT1 /* ACR1 */, DTT0 /* ACR2 */, DTT1 /* ACR3 */,
+  RAMBAR /* RAMBAR1 */,
   0
 };
 static const enum m68k_register mcf5475_ctrl[] = {
@@ -600,10 +609,16 @@ static const struct m68k_cpu m68k_cpus[] =
 
   {mcfisa_a|mcfisa_c|mcfusp,                    mcf51_ctrl, "51", 0},
   {mcfisa_a|mcfisa_c|mcfusp,                    mcf51_ctrl, "51ac", 1},
+  {mcfisa_a|mcfisa_c|mcfusp,                    mcf51_ctrl, "51ag", 1},
   {mcfisa_a|mcfisa_c|mcfusp,                    mcf51_ctrl, "51cn", 1},
   {mcfisa_a|mcfisa_c|mcfusp|mcfmac,  		mcf51_ctrl, "51em", 1},
+  {mcfisa_a|mcfisa_c|mcfusp|mcfmac,  		mcf51_ctrl, "51je", 1},
+  {mcfisa_a|mcfisa_c|mcfusp|mcfemac,            mcf51_ctrl, "51jf", 1},
+  {mcfisa_a|mcfisa_c|mcfusp|mcfemac,            mcf51_ctrl, "51jg", 1},
   {mcfisa_a|mcfisa_c|mcfusp,  			mcf51_ctrl, "51jm", 1},
+  {mcfisa_a|mcfisa_c|mcfusp|mcfmac,  		mcf51_ctrl, "51mm", 1},
   {mcfisa_a|mcfisa_c|mcfusp,                    mcf51_ctrl, "51qe", 1},
+  {mcfisa_a|mcfisa_c|mcfusp|mcfemac,            mcf51_ctrl, "51qm", 1},
 
   {mcfisa_a,					mcf_ctrl, "5200", 0},
   {mcfisa_a,					mcf_ctrl, "5202", 1},
@@ -692,6 +707,12 @@ static const struct m68k_cpu m68k_cpus[] =
   {mcfisa_a|mcfisa_aa|mcfhwdiv|mcfemac|mcfusp,	mcf5373_ctrl, "537x", 0},
   
   {mcfisa_a|mcfisa_b|mcfhwdiv|mcfmac,		mcf5407_ctrl, "5407",0},
+
+  {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54418_ctrl, "54410", -1},
+  {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54418_ctrl, "54415", -1},
+  {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54418_ctrl, "54416", -1},
+  {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54418_ctrl, "54417", -1},
+  {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54418_ctrl, "54418", 0},
 
   {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54455_ctrl, "54450", -1},
   {mcfisa_a|mcfisa_c|mcfhwdiv|mcfemac|mcfusp,   mcf54455_ctrl, "54451", -1},
@@ -1320,16 +1341,35 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
 #ifndef OBJ_ELF
-  if (fixp->fx_pcrel)
+  if (OUTPUT_FLAVOR == bfd_target_aout_flavour
+      && fixp->fx_addsy
+      && S_IS_WEAK (fixp->fx_addsy)
+      && ! bfd_is_und_section (S_GET_SEGMENT (fixp->fx_addsy)))
+    {
+      /* PR gas/3041 References to weak symbols must be treated as extern
+	 in order to be overridable by the linker, even if they are defined
+	 in the same object file. So the original addend must be written
+	 "as is" into the output section without further processing.
+	 The addend value must be hacked here in order to force
+	 bfd_install_relocation() to write the original value into the
+	 output section.
+	 1) MD_APPLY_SYM_VALUE() is set to 1 for m68k/a.out, so the symbol
+	 value has already been added to the addend in fixup_segment(). We
+	 have to remove it.
+	 2) bfd_install_relocation() will incorrectly treat this symbol as
+	 resolved, so it will write the symbol value plus its addend and
+	 section VMA. As a workaround we can tweak the addend value here in
+	 order to get the original value in the section after the call to
+	 bfd_install_relocation().  */
+      reloc->addend = fixp->fx_addnumber
+		      /* Fix because of MD_APPLY_SYM_VALUE() */
+		      - S_GET_VALUE (fixp->fx_addsy)
+		      /* Fix for bfd_install_relocation() */
+		      - (S_GET_VALUE (fixp->fx_addsy)
+			 + S_GET_SEGMENT (fixp->fx_addsy)->vma);
+    }
+  else if (fixp->fx_pcrel)
     reloc->addend = fixp->fx_addnumber;
-  else if (OUTPUT_FLAVOR == bfd_target_aout_flavour
-	   && fixp->fx_addsy
-	   && S_IS_WEAK (fixp->fx_addsy)
-	   && ! bfd_is_und_section (S_GET_SEGMENT (fixp->fx_addsy)))
-    /* PR gas/3041 Adjust addend in order to force bfd_install_relocation()
-       to put the symbol offset into frags referencing a weak symbol.  */
-    reloc->addend = fixp->fx_addnumber
-		    - (S_GET_VALUE (fixp->fx_addsy) * 2);
   else
     reloc->addend = 0;
 #else
@@ -1337,9 +1377,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
     reloc->addend = fixp->fx_addnumber;
   else
     reloc->addend = (section->vma
-		     /* Explicit sign extension in case char is
-			unsigned.  */
-		     + ((fixp->fx_pcrel_adjust & 0xff) ^ 0x80) - 0x80
+		     + fixp->fx_pcrel_adjust
 		     + fixp->fx_addnumber
 		     + md_pcrel_from (fixp));
 #endif
@@ -3311,6 +3349,15 @@ m68k_ip (char *instring)
 	    case MMUBAR:
 	      tmpreg = 0x008;
 	      break;
+	    case RGPIOBAR:
+	      tmpreg = 0x009;
+	      break;
+	    case ACR4:
+	    case ACR5:
+	    case ACR6:
+	    case ACR7:
+	      tmpreg = 0x00c + (opP->reg - ACR4);
+	      break;
 
 	    case USP:
 	      tmpreg = 0x800;
@@ -4106,6 +4153,10 @@ static const struct init_entry init_table[] =
   { "acr1", ACR1 },		/* Access Control Unit 1.  */
   { "acr2", ACR2 },		/* Access Control Unit 2.  */
   { "acr3", ACR3 },		/* Access Control Unit 3.  */
+  { "acr4", ACR4 },		/* Access Control Unit 4.  */
+  { "acr5", ACR5 },		/* Access Control Unit 5.  */
+  { "acr6", ACR6 },		/* Access Control Unit 6.  */
+  { "acr7", ACR7 },		/* Access Control Unit 7.  */
 
   { "tc", TC },			/* MMU Translation Control Register.  */
   { "tcr", TC },
@@ -4150,6 +4201,8 @@ static const struct init_entry init_table[] =
   { "rambar",   RAMBAR },  	/* mcf528x registers.  */
 
   { "mbar2",    MBAR2 },  	/* mcf5249 registers.  */
+
+  { "rgpiobar",	RGPIOBAR },	/* mcf54418 registers.  */
 
   { "cac",    CAC },  		/* fido registers.  */
   { "mbb",    MBO },  		/* fido registers (obsolete).  */
@@ -7664,7 +7717,6 @@ md_show_usage (FILE *stream)
 {
   const char *default_cpu = TARGET_CPU;
   int i;
-  unsigned int default_arch;
 
   /* Get the canonical name for the default target CPU.  */
   if (*default_cpu == 'm')
@@ -7673,7 +7725,6 @@ md_show_usage (FILE *stream)
     {
       if (strcasecmp (default_cpu, m68k_cpus[i].name) == 0)
 	{
-	  default_arch = m68k_cpus[i].arch;
 	  while (m68k_cpus[i].alias > 0)
 	    i--;
 	  while (m68k_cpus[i].alias < 0)
@@ -7858,9 +7909,7 @@ md_pcrel_from (fixS *fixP)
 {
   int adjust;
 
-  /* Because fx_pcrel_adjust is a char, and may be unsigned, we explicitly
-     sign extend the value here.  */
-  adjust = ((fixP->fx_pcrel_adjust & 0xff) ^ 0x80) - 0x80;
+  adjust = fixP->fx_pcrel_adjust;
   if (adjust == 64)
     adjust = -1;
   return fixP->fx_where + fixP->fx_frag->fr_address - adjust;
@@ -8084,3 +8133,17 @@ tc_m68k_frame_initial_instructions (void)
   cfi_add_CFA_def_cfa (sp_regno, -DWARF2_CIE_DATA_ALIGNMENT);
   cfi_add_CFA_offset (DWARF2_DEFAULT_RETURN_COLUMN, DWARF2_CIE_DATA_ALIGNMENT);
 }
+
+/* Check and emit error if broken-word handling has failed to fix up a
+   case-table.	This is called from write.c, after doing everything it
+   knows about how to handle broken words.  */
+
+void
+tc_m68k_check_adjusted_broken_word (offsetT new_offset, struct broken_word *brokwP)
+{
+  if (new_offset > 32767 || new_offset < -32768)
+    as_bad_where (brokwP->frag->fr_file, brokwP->frag->fr_line,
+		  _("Adjusted signed .word (%#lx) overflows: `switch'-statement too large."),
+		  (long) new_offset);
+}
+

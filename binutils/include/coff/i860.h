@@ -1,10 +1,10 @@
 /* COFF information for the Intel i860.
    
-   Copyright 2001, 2003 Free Software Foundation, Inc.
+   Copyright 2001, 2003, 2010, 2011 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
    
    This program is distributed in the hope that it will be useful,
@@ -14,7 +14,8 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* This file was hacked from i386.h   [dolan@ssd.intel.com] */
 
@@ -57,7 +58,7 @@ struct external_reloc
 #define RELSZ 10
 
 /* The relocation directory entry types.
-     PAIR   : The low half that follows relates to the preceeding HIGH[ADJ].
+     PAIR   : The low half that follows relates to the preceding HIGH[ADJ].
      HIGH   : The high half of a 32-bit constant.
      LOWn   : The low half, insn bits 15..(n-1), 2^n-byte aligned. 
      SPLITn : The low half, insn bits 20..16 and 10..(n-1), 2^n-byte aligned. 

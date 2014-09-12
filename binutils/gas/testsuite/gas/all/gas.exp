@@ -1,3 +1,20 @@
+# Copyright 2012
+# Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
+
 #
 # These tests should be valid on all targets.
 #
@@ -34,12 +51,18 @@ if { ![istarget cris-*-*] && ![istarget crisv32-*-*]
 
 # This test is meaningless for the PA; the difference of two undefined
 # symbols is something that is (and must be) supported on the PA.
+# The same is true for alpha-vms
 #
 # The MN10300 port supports link time relaxation which in turn allows
 # for link time resolution of the differneces of two symbols which are
 # undefined at assembly time.  Hence this test will not pass for the
-# MN10300.
-if { ![istarget hppa*-*-*] && ![istarget mn10300-*-*] && ![istarget am3*-*-*] } then {
+# MN10300.  The same thing is true for the RX port as well.
+if { ![istarget hppa*-*-*]
+     && ![istarget alpha*-*-*vms*]
+     && ![istarget rx-*-*]
+     && ![istarget mn10300-*-*]
+     && ![istarget msp430*-*-*]
+     && ![istarget am3*-*-*] } then {
     gas_test_error "diff1.s" "" "difference of two undefined symbols"
 }
 
@@ -76,10 +99,31 @@ case $target_triplet in {
     { mn10\[23\]00*-*-* } { }
     default {
 	# Some targets don't manage to resolve BFD_RELOC_8 for constants.
-	setup_xfail "alpha*-*-*" "avr-*-*" "*c30*-*-*" "*c4x*-*-*" \
-	    "d\[13\]0v*-*-*" "i860-*-*" "mips*-*-*" "msp430-*-*" \
-	    "pdp11-*-*" "sparc*-*-*" "xtensa*-*-*"
+	setup_xfail "alpha*-*-*" "*c30*-*-*" "*c4x*-*-*" \
+	    "d\[13\]0v*-*-*" "i860-*-*" "mips*-*-*" \
+	    "pdp11-*-*" "xtensa*-*-*"
 	run_dump_test forward
+    }
+}
+
+# aout relocs are often weird, so is mep. don't bother testing
+# som doesn't use a .text section
+# mmix doesn't like .L1:
+# ti addresses aren't octets.
+if { ![is_aout_format] } {
+    case $target_triplet in {
+	{ hppa*64*-*-* } {
+	    run_dump_test fwdexp
+	}
+	{ hppa*-*-hpux* } { }
+	{ mep-*-* } { }
+	{ mmix-*-* } { }
+	{ tic30*-*-* } { }
+	{ tic4x*-*-* } { }
+	{ tic54x*-*-* } { }
+	default {
+	    run_dump_test fwdexp
+	}
     }
 }
 
@@ -95,6 +139,7 @@ case $target_triplet in {
     { mips*-*-* } { }
     { mn10200-*-* } { }
     { mn10300-*-* } { }
+    { msp430*-*-* } { }
     { pdp11-*-* } { }
     { tic30*-*-* } { }
     { tic4x*-*-* } { }
@@ -103,18 +148,24 @@ case $target_triplet in {
     { z80-*-* } { }
     default {
 	run_dump_test redef
-	# The next two tests can fail if the target does not convert fixups
-	# against ordinary symbols into relocations against section symbols.
-	# This is usually revealed by the error message:
-	#  symbol `sym' required but not present
-	setup_xfail "*arm*-*-*aout*" "*arm*-*-*coff" \
-	    "*arm*-*-pe" "m68hc*-*-*" "maxq-*-*" \
-	    "vax*-*-*" "z8k-*-*"
+	# These targets fail redef2 because they disallow redefined
+	# symbols on relocs.
+	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*"
+	setup_xfail "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
 	run_dump_test redef2
-	setup_xfail "*-*-aix*" "*-*-coff" "*-*-cygwin" "*-*-mingw*" "*-*-pe*" \
-	    "bfin-*-*" "hppa*-*-hpux*" \
-	    "m68hc*-*-*" "maxq-*-*" "or32-*-*" \
-	    "vax*-*-*" "z8k-*-*"
+	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*"
+	setup_xfail "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
+	# rs6000-aix disallows redefinition via .comm.
+	setup_xfail "*-*-aix*"
+	# SOM uses a different syntax for .comm
+	setup_xfail "hppa*-*-hpux*"
+	# These targets fail redef3 because section contents for the
+	# word referencing the .comm sym is not zero and/or its reloc
+	# has a non-zero addend.  Relaxing the test would hide real
+	# failures such as or32-elf.
+	setup_xfail "bfin-*-*" "i\[3-7\]86-*-*coff" \
+	    "i\[3-7\]86-*-*pe" "i\[3-7\]86-*-go32*" \
+	    "i\[3-7\]86-*-cygwin*" "i\[3-7\]86-*-mingw*" "x86_64-*-mingw*"
 	run_dump_test redef3
 	gas_test_error "redef4.s" "" ".set for symbol already used as label"
 	gas_test_error "redef5.s" "" ".set for symbol already defined through .comm"
@@ -163,7 +214,7 @@ proc general_info_section {} {
     gas_start "comment.s" "-agn"
     while 1 {
 	expect {
-	    -re "^ \[^\n\]*\t: \-agn\[^\n\]*\n"                { set x1 1 }
+	    -re "^ \[^\n\]*\t: .*\-agn\[^\n\]*\n"                { set x1 1 }
 	    -re "^ \[^\n\]*\t: \[^\n\]*comment\.s\[^\n\]*\n"   { set x2 1 }
 	    -re "^ \[^\n\]*\t: a\.out\[^\n\]*\n"               { set x3 1 }
 	    -re "\[^\n\]*\n"     { }
@@ -216,7 +267,8 @@ if { ![istarget hppa*-*-*] &&
      ![istarget *c54x*-*-*] } then {
     # the vax fails because VMS can apparently actually handle this
     # case in relocs, so gas doesn't handle it itself.
-    setup_xfail "h8300*-*-elf*" "mn10200*-*-*" "mn10300*-*-*" "vax*-*-vms*"
+    # msp430 and mn10300 emit two relocs to handle the difference of two symbols.
+    setup_xfail "mn10300*-*-*" "msp430*-*-*" "vax*-*-vms*"
     do_930509a
 }
 
@@ -258,8 +310,8 @@ case $target_triplet in {
 # We omit the ARM toolchains because they define locals to
 #  start with '.', which eliminates .eos, .text etc from the output.
 # Omit c54x, since .tag and .def mean something different on that target
-if {   ([istarget *-*-coff*] && ![istarget *arm*-*-coff] && ![istarget thumb*-*-coff] && ![istarget xscale-*-coff] && ![istarget *c4x*-*-coff] && ![istarget *c54x*-*-coff]) \
-     ||([istarget *-*-pe*] && ![istarget arm*-*-pe*] && ![istarget thumb*-*-pe*]) \
+if {   ([istarget *-*-coff*] && ![istarget arm*-*-coff] && ![istarget *c4x*-*-coff] && ![istarget *c54x*-*-coff]) \
+     ||([istarget *-*-pe*] && ![istarget arm*-*-pe*]) \
      || [istarget i*86-*-aix*] \
      || [istarget i*86-*-sco*] \
      || [istarget i*86-*-isc*] \
@@ -300,6 +352,7 @@ case $target_triplet in {
     { hppa*-*-* } { }
     { *c4x*-*-* } { }
     { *c54x*-*-* } { }
+    { rx-*-* } { }
     default {
         test_cond
 	remote_download host "$srcdir/$subdir/incbin.dat"
@@ -317,6 +370,14 @@ if { ![istarget "bfin-*-*"] } then {
     run_dump_test assign
 }
 run_dump_test sleb128
+run_dump_test sleb128-2
+run_dump_test sleb128-3
+run_dump_test sleb128-4
+run_dump_test sleb128-5
+# .byte is not 8 bits on either tic4x or tic54x
+if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] } {
+    run_dump_test sleb128-7
+}
 
 # .byte is 32 bits on tic4x, and .p2align isn't supported on tic54x
 # .space is different on hppa*-hpux.
@@ -325,11 +386,26 @@ if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] && ![istarget "hppa*-
     run_dump_test relax
 }
 
+# powerpc and s390 allow a string argument to .byte
+if { ![istarget "powerpc*-*-*"] && ![istarget "rs6000*-*-*"] && ![istarget "s390*-*-*"] } {
+    run_dump_test byte
+}
+
 # .quad is 16 bytes on i960.
 if { ![istarget "i960-*-*"] } {
     run_dump_test quad
 }
 
+# som doesn't use .data section.
+case $target_triplet in {
+    { hppa*64*-*-* } {
+	run_dump_test octa
+    }
+    { hppa*-*-hpux* } { }
+    default {
+	run_dump_test octa
+    }
+}
 
 # .set works differently on some targets.
 case $target_triplet in {

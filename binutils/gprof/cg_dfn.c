@@ -92,7 +92,7 @@ find_cycle (Sym *child)
   Sym *head = 0;
   Sym *tail;
   int cycle_top;
-  int index;
+  int cycle_index;
 
   for (cycle_top = dfn_depth; cycle_top > 0; --cycle_top)
     {
@@ -169,9 +169,9 @@ find_cycle (Sym *child)
 	       print_name (head);
 	       printf ("\n"));
 	}
-      for (index = cycle_top + 1; index <= dfn_depth; ++index)
+      for (cycle_index = cycle_top + 1; cycle_index <= dfn_depth; ++cycle_index)
 	{
-	  child = dfn_stack[index].sym;
+	  child = dfn_stack[cycle_index].sym;
 	  if (child->cg.cyc.head == child)
 	    {
 	      /*

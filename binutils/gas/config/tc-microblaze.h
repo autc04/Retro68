@@ -23,8 +23,10 @@
 #define TC_MICROBLAZE 1
 
 #define TARGET_ARCH	bfd_arch_microblaze
+#ifndef TARGET_BYTES_BIG_ENDIAN
 /* Used to initialise target_big_endian.  */
 #define TARGET_BYTES_BIG_ENDIAN 1
+#endif
 
 #define IGNORE_NONSTANDARD_ESCAPES
 
@@ -75,7 +77,7 @@ extern const struct relax_type md_relax_table[];
 
 #ifdef OBJ_ELF
 
-#define TARGET_FORMAT (target_big_endian ? "elf32-microblaze" : "elf32-microblaze-little")
+#define TARGET_FORMAT (target_big_endian ? "elf32-microblaze" : "elf32-microblazeel")
 
 #define ELF_TC_SPECIAL_SECTIONS \
   { ".sdata",		SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE }, \

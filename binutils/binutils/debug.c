@@ -1,6 +1,6 @@
 /* debug.c -- Handle generic debugging information.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2005, 2007,
+   2009  Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -31,6 +31,7 @@
 #include <assert.h>
 #include "bfd.h"
 #include "libiberty.h"
+#include "filenames.h"
 #include "debug.h"
 
 /* Global information we keep for debugging.  A pointer to this
@@ -729,9 +730,7 @@ debug_start_source (void *handle, const char *name)
 
   for (f = info->current_unit->files; f != NULL; f = f->next)
     {
-      if (f->filename[0] == name[0]
-	  && f->filename[1] == name[1]
-	  && strcmp (f->filename, name) == 0)
+      if (filename_cmp (f->filename, name) == 0)
 	{
 	  info->current_file = f;
 	  return TRUE;

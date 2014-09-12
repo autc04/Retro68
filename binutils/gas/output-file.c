@@ -57,9 +57,12 @@ output_file_close (char *filename)
 
   if (stdoutput == NULL)
     return;
-    
+
   /* Close the bfd.  */
-  res = bfd_close (stdoutput);
+  if (had_errors ())
+    res = bfd_cache_close_all ();
+  else
+    res = bfd_close (stdoutput);
 
   /* Prevent an infinite loop - if the close failed we will call as_fatal
      which will call xexit() which may call this function again...  */

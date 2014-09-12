@@ -1,6 +1,6 @@
 /* tc-i960.c - All the i80960-specific stuff
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2009
+   1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -1069,7 +1069,7 @@ mem_fmt (char *args[],		/* args[0]->opcode mnemonic, args[1-3]->operands.  */
   char opdesc;			/* Operand descriptor byte.  */
   memS instr;			/* Description of binary to be output.  */
   char *outP;			/* Where the binary was output to.  */
-  expressionS expr;		/* Parsed expression.  */
+  expressionS exp;		/* Parsed expression.  */
   /* ->description of deferred address fixup.  */
   fixS *fixP;
 
@@ -1097,7 +1097,7 @@ mem_fmt (char *args[],		/* args[0]->opcode mnemonic, args[1-3]->operands.  */
 
   /* Parse the displacement; this must be done before emitting the
      opcode, in case it is an expression using `.'.  */
-  parse_expr (instr.e, &expr);
+  parse_expr (instr.e, &exp);
 
   /* Output opcode.  */
   outP = emit (instr.opcode);
@@ -1106,7 +1106,7 @@ mem_fmt (char *args[],		/* args[0]->opcode mnemonic, args[1-3]->operands.  */
     return;
 
   /* Process the displacement.  */
-  switch (expr.X_op)
+  switch (exp.X_op)
     {
     case O_illegal:
       as_bad (_("expression syntax error"));
@@ -1114,23 +1114,23 @@ mem_fmt (char *args[],		/* args[0]->opcode mnemonic, args[1-3]->operands.  */
 
     case O_constant:
       if (instr.disp == 32)
-	(void) emit (offs (expr));	/* Output displacement.  */
+	(void) emit (offs (exp));	/* Output displacement.  */
       else
 	{
 	  /* 12-bit displacement.  */
-	  if (offs (expr) & ~0xfff)
+	  if (offs (exp) & ~0xfff)
 	    {
 	      /* Won't fit in 12 bits: convert already-output
 	         instruction to MEMB format, output
 	         displacement.  */
 	      mema_to_memb (outP);
-	      (void) emit (offs (expr));
+	      (void) emit (offs (exp));
 	    }
 	  else
 	    {
 	      /* WILL fit in 12 bits:  OR into opcode and
 	         overwrite the binary we already put out.  */
-	      instr.opcode |= offs (expr);
+	      instr.opcode |= offs (exp);
 	      md_number_to_chars (outP, instr.opcode, 4);
 	    }
 	}
@@ -1148,7 +1148,7 @@ mem_fmt (char *args[],		/* args[0]->opcode mnemonic, args[1-3]->operands.  */
       outP = emit ((long) 0);
       fixP = fix_new_exp (frag_now,
 			  outP - frag_now->fr_literal,
-			  4, & expr, 0, NO_RELOC);
+			  4, &exp, 0, NO_RELOC);
       /* Steve's linker relaxing hack.  Mark this 32-bit relocation as
          being in the instruction stream, specifically as part of a callx
          instruction.  */
@@ -2100,8 +2100,6 @@ brtab_emit (void)
   char buf[20];
   /* Where the binary was output to.  */
   char *p;
-  /* Pointer to description of deferred address fixup.  */
-  fixS *fixP;
 
   if (!instrument_branches)
     return;
@@ -2117,9 +2115,9 @@ brtab_emit (void)
     {
       sprintf (buf, "%s%d", BR_LABEL_BASE, i);
       p = emit (0);
-      fixP = fix_new (frag_now,
-		      p - frag_now->fr_literal,
-		      4, symbol_find (buf), 0, 0, NO_RELOC);
+      fix_new (frag_now,
+	       p - frag_now->fr_literal,
+	       4, symbol_find (buf), 0, 0, NO_RELOC);
     }
 }
 

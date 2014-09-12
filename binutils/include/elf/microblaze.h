@@ -1,12 +1,12 @@
 /* Xilinx MicroBlaze support for BFD.
  
-   Copyright 2009 Free Software Foundation, Inc.
+   Copyright 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
    
    This program is distributed in the hope that it will be useful,
@@ -19,8 +19,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 
    02110-1301, USA.  */
 
-
 /* This file holds definitions specific to the MICROBLAZE ELF ABI.  */
+
 #ifndef _ELF_MICROBLAZE_H
 #define _ELF_MICROBLAZE_H
 
@@ -50,6 +50,14 @@ START_RELOC_NUMBERS (elf_microblaze_reloc_type)
   RELOC_NUMBER (R_MICROBLAZE_GOTOFF_64, 19) /* Offset relative to GOT.  */
   RELOC_NUMBER (R_MICROBLAZE_GOTOFF_32, 20) /* Offset relative to GOT.  */
   RELOC_NUMBER (R_MICROBLAZE_COPY, 21)      /* Runtime copy.  */
+  RELOC_NUMBER (R_MICROBLAZE_TLS, 22)           /* TLS Reloc */
+  RELOC_NUMBER (R_MICROBLAZE_TLSGD, 23)         /* TLS General Dynamic */
+  RELOC_NUMBER (R_MICROBLAZE_TLSLD, 24)         /* TLS Local Dynamic */
+  RELOC_NUMBER (R_MICROBLAZE_TLSDTPMOD32, 25)   /* TLS Module ID */
+  RELOC_NUMBER (R_MICROBLAZE_TLSDTPREL32, 26)   /* TLS Offset Within TLS Block */
+  RELOC_NUMBER (R_MICROBLAZE_TLSDTPREL64, 27)   /* TLS Offset Within TLS Block */
+  RELOC_NUMBER (R_MICROBLAZE_TLSGOTTPREL32, 28) /* TLS Offset From Thread Pointer */
+  RELOC_NUMBER (R_MICROBLAZE_TLSTPREL32, 29)    /* TLS Offset From Thread Pointer */
    
 END_RELOC_NUMBERS (R_MICROBLAZE_max)
 

@@ -1,6 +1,6 @@
 /* ELF core file support for BFD.
    Copyright 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2005, 2007,
-   2008 Free Software Foundation, Inc.
+   2008, 2010 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -22,13 +22,19 @@
 char*
 elf_core_file_failing_command (bfd *abfd)
 {
-  return elf_tdata (abfd)->core_command;
+  return elf_tdata (abfd)->core->command;
 }
 
 int
 elf_core_file_failing_signal (bfd *abfd)
 {
-  return elf_tdata (abfd)->core_signal;
+  return elf_tdata (abfd)->core->signal;
+}
+
+int
+elf_core_file_pid (bfd *abfd)
+{
+  return elf_tdata (abfd)->core->pid;
 }
 
 bfd_boolean
@@ -45,7 +51,7 @@ elf_core_file_matches_executable_p (bfd *core_bfd, bfd *exec_bfd)
     }
 
   /* See if the name in the corefile matches the executable name.  */
-  corename = elf_tdata (core_bfd)->core_program;
+  corename = elf_tdata (core_bfd)->core->program;
   if (corename != NULL)
     {
       const char* execname = strrchr (exec_bfd->filename, '/');
@@ -78,10 +84,7 @@ elf_core_file_p (bfd *abfd)
   Elf_Internal_Phdr *i_phdrp;	/* Elf program header, internal form.  */
   unsigned int phindex;
   const struct elf_backend_data *ebd;
-  struct bfd_preserve preserve;
   bfd_size_type amt;
-
-  preserve.marker = NULL;
 
   /* Read in the ELF header in external format.  */
   if (bfd_bread (&x_ehdr, sizeof (x_ehdr), abfd) != sizeof (x_ehdr))
@@ -117,13 +120,9 @@ elf_core_file_p (bfd *abfd)
       goto wrong;
     }
 
-  if (!bfd_preserve_save (abfd, &preserve))
-    goto fail;
-
   /* Give abfd an elf_obj_tdata.  */
   if (! (*abfd->xvec->_bfd_set_format[bfd_core]) (abfd))
     goto fail;
-  preserve.marker = elf_tdata (abfd);
 
   /* Swap in the rest of the header, now that we have the byte order.  */
   i_ehdrp = elf_elfheader (abfd);
@@ -184,6 +183,61 @@ elf_core_file_p (bfd *abfd)
   if (i_ehdrp->e_phentsize != sizeof (Elf_External_Phdr))
     goto wrong;
 
+  /* If the program header count is PN_XNUM(0xffff), the actual
+     count is in the first section header.  */
+  if (i_ehdrp->e_shoff != 0 && i_ehdrp->e_phnum == PN_XNUM)
+    {
+      Elf_External_Shdr x_shdr;
+      Elf_Internal_Shdr i_shdr;
+      bfd_signed_vma where = i_ehdrp->e_shoff;
+
+      if (where != (file_ptr) where)
+	goto wrong;
+
+      /* Seek to the section header table in the file.  */
+      if (bfd_seek (abfd, (file_ptr) where, SEEK_SET) != 0)
+	goto fail;
+
+      /* Read the first section header at index 0, and convert to internal
+	 form.  */
+      if (bfd_bread (&x_shdr, sizeof (x_shdr), abfd) != sizeof (x_shdr))
+	goto fail;
+      elf_swap_shdr_in (abfd, &x_shdr, &i_shdr);
+
+      if (i_shdr.sh_info != 0)
+	{
+	  i_ehdrp->e_phnum = i_shdr.sh_info;
+	  if (i_ehdrp->e_phnum != i_shdr.sh_info)
+	    goto wrong;
+	}
+    }
+
+  /* Sanity check that we can read all of the program headers.
+     It ought to be good enough to just read the last one.  */
+  if (i_ehdrp->e_phnum > 1)
+    {
+      Elf_External_Phdr x_phdr;
+      Elf_Internal_Phdr i_phdr;
+      bfd_signed_vma where;
+
+      /* Check that we don't have a totally silly number of
+	 program headers.  */
+      if (i_ehdrp->e_phnum > (unsigned int) -1 / sizeof (x_phdr)
+	  || i_ehdrp->e_phnum > (unsigned int) -1 / sizeof (i_phdr))
+	goto wrong;
+
+      where = i_ehdrp->e_phoff + (i_ehdrp->e_phnum - 1) * sizeof (x_phdr);
+      if (where != (file_ptr) where)
+	goto wrong;
+      if ((bfd_size_type) where <= i_ehdrp->e_phoff)
+	goto wrong;
+
+      if (bfd_seek (abfd, (file_ptr) where, SEEK_SET) != 0)
+	goto fail;
+      if (bfd_bread (&x_phdr, sizeof (x_phdr), abfd) != sizeof (x_phdr))
+	goto fail;
+    }
+
   /* Move to the start of the program headers.  */
   if (bfd_seek (abfd, (file_ptr) i_ehdrp->e_phoff, SEEK_SET) != 0)
     goto wrong;
@@ -233,7 +287,7 @@ elf_core_file_p (bfd *abfd)
   {
     bfd_size_type high = 0;
     struct stat statbuf;
-    for (phindex = 0; phindex < i_ehdrp->e_phnum; ++phindex) 
+    for (phindex = 0; phindex < i_ehdrp->e_phnum; ++phindex)
       {
 	Elf_Internal_Phdr *p = i_phdrp + phindex;
 	if (p->p_filesz)
@@ -254,27 +308,13 @@ elf_core_file_p (bfd *abfd)
 	  }
       }
   }
-  
+
   /* Save the entry point from the ELF header.  */
   bfd_get_start_address (abfd) = i_ehdrp->e_entry;
-
-  bfd_preserve_finish (abfd, &preserve);
   return abfd->xvec;
 
 wrong:
-  /* There is way too much undoing of half-known state here.  The caller,
-     bfd_check_format_matches, really shouldn't iterate on live bfd's to
-     check match/no-match like it does.  We have to rely on that a call to
-     bfd_default_set_arch_mach with the previously known mach, undoes what
-     was done by the first bfd_default_set_arch_mach (with mach 0) here.
-     For this to work, only elf-data and the mach may be changed by the
-     target-specific elf_backend_object_p function.  Note that saving the
-     whole bfd here and restoring it would be even worse; the first thing
-     you notice is that the cached bfd file position gets out of sync.  */
   bfd_set_error (bfd_error_wrong_format);
-
 fail:
-  if (preserve.marker != NULL)
-    bfd_preserve_restore (abfd, &preserve);
   return NULL;
 }

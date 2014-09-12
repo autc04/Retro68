@@ -1,11 +1,11 @@
 /* Generic relocation support for BFD.
-   Copyright 1998, 1999, 2000, 2003 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2003, 2010, 2011  Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -45,10 +45,10 @@
 
    Note: The value of the symbol defined in the END_RELOC_NUMBERS
    macro (R_foo_count in the case of the example above) will be
-   set to the value of the whichever *_RELOC macro preceeds it plus
+   set to the value of the whichever *_RELOC macro precedes it plus
    one.  Therefore if you intend to use the symbol as a sentinel for
    the highest valid macro value you should make sure that the
-   preceeding *_RELOC macro is the highest valid number.  ie a
+   preceding *_RELOC macro is the highest valid number.  ie a
    declaration like this:
 
    	START_RELOC_NUMBERS (foo)

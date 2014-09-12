@@ -22,6 +22,7 @@
 #ifndef LDMISC_H
 #define LDMISC_H
 
+extern void vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning);
 extern void einfo (const char *, ...);
 extern void minfo (const char *, ...);
 extern void info_msg (const char *, ...);

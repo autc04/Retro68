@@ -2,6 +2,9 @@
 # source: rgn-at.s
 # ld: -T rgn-at2.t
 # objdump: -w -h
+# xfail: rx-*-*
+#   FAILS on the RX because the linker has to set LMA == VMA for the
+#   Renesas loader.
 
 .*:     file format .*
 

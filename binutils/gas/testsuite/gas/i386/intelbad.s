@@ -167,6 +167,6 @@ start:
 	movzx	eax, byte ptr [gs:eax]
 	movzx	eax, byte gs:ptr [eax]
 	movzx	eax, byte ptr 1
-	movzx	eax, byte ptr [1]
+#XXX?	movzx	eax, byte ptr [1]
 
 	mov	eax, 3:5

@@ -12,13 +12,13 @@ Disassembly of section .text:
  .*:	03a0f021 	move	s8,sp
  .*:	afbc0000 	sw	gp,0\(sp\)
  .*:	8f998018 	lw	t9,-32744\(gp\)
- .*:	27848028 	addiu	a0,gp,-32728
+ .*:	27848020 	addiu	a0,gp,-32736
  .*:	0320f809 	jalr	t9
  .*:	00000000 	nop
  .*:	8fdc0000 	lw	gp,0\(s8\)
  .*:	00000000 	nop
  .*:	8f998018 	lw	t9,-32744\(gp\)
- .*:	27848020 	addiu	a0,gp,-32736
+ .*:	27848028 	addiu	a0,gp,-32728
  .*:	0320f809 	jalr	t9
  .*:	00000000 	nop
  .*:	8fdc0000 	lw	gp,0\(s8\)
@@ -35,9 +35,10 @@ Disassembly of section .text:
  .*:	03e00008 	jr	ra
  .*:	27bd0010 	addiu	sp,sp,16
 	...
+
 Disassembly of section .MIPS.stubs:
 
-.* <.MIPS.stubs>:
+.* <_MIPS_STUBS_>:
  .*:	8f998010 	lw	t9,-32752\(gp\)
  .*:	03e07821 	move	t7,ra
  .*:	0320f809 	jalr	t9

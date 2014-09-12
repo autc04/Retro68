@@ -58,7 +58,7 @@ if [is_elf64 "tmpdir/eh-group1size.o"] {
 
 set build_tests_ld [list			\
   [list "Build eh-group1.o"			\
-   "-r" "$as_options"				\
+   "-r" "" "$as_options"			\
    {eh-group1.s eh-group2.s} {} "eh-group.o"]	\
 ]
 

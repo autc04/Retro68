@@ -1,4 +1,4 @@
-@c Copyright (C) 1991, 1992, 1993, 1994, 1995, 2003, 2008
+@c Copyright (C) 1991, 1992, 1993, 1994, 1995, 2003, 2008, 2011
 @c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
@@ -25,11 +25,13 @@
 The Renesas H8/300 version of @code{@value{AS}} has one
 machine-dependent option:
 
-@table @code
+@c man begin OPTIONS
+@table @gcctabopt
 @item -h-tick-hex
 Support H'00 style hex constants in addition to 0x00 style.
 
 @end table
+@c man end
 
 @node H8/300 Syntax
 @section Syntax
@@ -158,12 +160,12 @@ for the H8/300 family.
 
 @item .h8300hn
 Recognize and emit additional instructions for the H8/300H variant in
-normal mode, and also make @code{.int} emit 32-bit numbers rather than 
+normal mode, and also make @code{.int} emit 32-bit numbers rather than
 the usual (16-bit) for the H8/300 family.
 
 @item .h8300sn
 Recognize and emit additional instructions for the H8S variant in
-normal mode, and also make @code{.int} emit 32-bit numbers rather than 
+normal mode, and also make @code{.int} emit 32-bit numbers rather than
 the usual (16-bit) for the H8/300 family.
 @end table
 

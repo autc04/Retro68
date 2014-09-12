@@ -65,6 +65,12 @@ if [istarget powerpc-ibm-aix*] then {
     run_dump_test "textalign-xcoff-002"
     run_dump_test "xcoff-branch-1-32"
     run_dump_test "xcoff-branch-1-64"
+    run_dump_test "xcoff-br16-1"
+    run_dump_test "xcoff-br16-2"
+    run_dump_test "xcoff-toc-1"
 
     run_list_test "xcoff-ref-1"
+
+    run_dump_test "xcoff-dwsect-1-32"
+    run_dump_test "xcoff-dwsect-1-64"
 }

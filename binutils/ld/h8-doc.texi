@@ -1,3 +1,7 @@
+@c Copyright 2012
+@c Free Software Foundation, Inc.
+@c For copying conditions, see the file ld.texinfo.
+
 @c ------------------------------ CONFIGURATION VARS:
 @c 1. Inclusiveness of this manual
 @clear GENERIC

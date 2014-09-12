@@ -1,5 +1,5 @@
 tmpdir/farcall-mixed-lib.so:     file format elf32-(little|big)arm
-architecture: arm, flags 0x00000150:
+architecture: armv5t, flags 0x00000150:
 HAS_SYMS, DYNAMIC, D_PAGED
 start address 0x.*
 
@@ -29,8 +29,8 @@ Disassembly of section .text:
 .* <lib_func1>:
  .*:	e1a0c00d 	mov	ip, sp
  .*:	e92dd800 	push	{fp, ip, lr, pc}
- .*:	ebfffff. 	bl	.* <lib_func1-0x..?>
- .*:	ebfffff. 	bl	.* <lib_func1-0x..?>
+ .*:	ebffff.. 	bl	.* <lib_func1-0x..?>
+ .*:	ebffff.. 	bl	.* <lib_func1-0x..?>
  .*:	ebfffff. 	bl	.* <lib_func1-0x..?>
  .*:	ebfffff. 	bl	.* <lib_func1-0x..?>
  .*:	e89d6800 	ldm	sp, {fp, sp, lr}
@@ -38,10 +38,10 @@ Disassembly of section .text:
 	...
 
 .* <lib_func2>:
- .*:	f000 e80e 	blx	1000350 <__app_func_from_thumb>
- .*:	f000 e81a 	blx	100036c <__app_func_weak_from_thumb>
- .*:	f000 e810 	blx	100035c <__lib_func3_veneer>
- .*:	f000 e81c 	blx	1000378 <__lib_func4_from_thumb>
+ .*:	f000 e820 	blx	1000344 <__app_func_from_thumb>
+ .*:	f000 e812 	blx	100032c <__app_func_weak_from_thumb>
+ .*:	f000 e80a 	blx	1000320 <__lib_func3_from_thumb>
+ .*:	f000 e814 	blx	1000338 <__lib_func4_from_thumb>
  .*:	4770      	bx	lr
  .*:	46c0      	nop			; \(mov r8, r8\)
  .*:	46c0      	nop			; \(mov r8, r8\)
@@ -51,43 +51,42 @@ Disassembly of section .text:
  .*:	46c0      	nop			; \(mov r8, r8\)
  .*:	46c0      	nop			; \(mov r8, r8\)
 
-.* <__app_func_from_thumb>:
- .*:	e59fc000 	ldr	ip, \[pc, #0\]	; 1000358 <__app_func_from_thumb\+0x8>
+.* <__lib_func3_from_thumb>:
+ .*:	e59fc000 	ldr	ip, \[pc\]	; 1000328 <__lib_func3_from_thumb\+0x8>
+ .*:	e08ff00c 	add	pc, pc, ip
+ .*:	feffff90 	.word	0xfeffff90
+
+.* <__app_func_weak_from_thumb>:
+ .*:	e59fc000 	ldr	ip, \[pc\]	; 1000334 <__app_func_weak_from_thumb\+0x8>
+ .*:	e08ff00c 	add	pc, pc, ip
+ .*:	feffff78 	.word	0xfeffff78
+
+.* <__lib_func4_from_thumb>:
+ .*:	e59fc000 	ldr	ip, \[pc\]	; 1000340 <__lib_func4_from_thumb\+0x8>
  .*:	e08ff00c 	add	pc, pc, ip
  .*:	feffff84 	.word	0xfeffff84
 
-.* <__lib_func3_veneer>:
- .*:	e59fc004 	ldr	ip, \[pc, #4\]	; 1000368 <__lib_func3_veneer\+0xc>
- .*:	e08fc00c 	add	ip, pc, ip
- .*:	e12fff1c 	bx	ip
- .*:	feffff91 	.word	0xfeffff91
-
-.* <__app_func_weak_from_thumb>:
- .*:	e59fc000 	ldr	ip, \[pc, #0\]	; 1000374 <__app_func_weak_from_thumb\+0x8>
+.* <__app_func_from_thumb>:
+ .*:	e59fc000 	ldr	ip, \[pc\]	; 100034c <__app_func_from_thumb\+0x8>
  .*:	e08ff00c 	add	pc, pc, ip
- .*:	feffff74 	.word	0xfeffff74
-
-.* <__lib_func4_from_thumb>:
- .*:	e59fc000 	ldr	ip, \[pc, #0\]	; 1000380 <__lib_func4_from_thumb\+0x8>
- .*:	e08ff00c 	add	pc, pc, ip
- .*:	feffff80 	.word	0xfeffff80
+ .*:	feffff54 	.word	0xfeffff54
 	...
 
 .* <lib_func3>:
- .*:	f000 e80c 	blx	20003ac <__app_func_from_thumb>
- .*:	f000 e804 	blx	20003a0 <__app_func_weak_from_thumb>
+ .*:	f000 e80c 	blx	200037c <__app_func_from_thumb>
+ .*:	f000 e804 	blx	2000370 <__app_func_weak_from_thumb>
  .*:	4770      	bx	lr
  .*:	46c0      	nop			; \(mov r8, r8\)
  .*:	46c0      	nop			; \(mov r8, r8\)
  .*:	46c0      	nop			; \(mov r8, r8\)
 
 .* <__app_func_weak_from_thumb>:
- .*:	e59fc000 	ldr	ip, \[pc, #0\]	; 20003a8 <__app_func_weak_from_thumb\+0x8>
+ .*:	e59fc000 	ldr	ip, \[pc\]	; 2000378 <__app_func_weak_from_thumb\+0x8>
  .*:	e08ff00c 	add	pc, pc, ip
- .*:	fdffff40 	.word	0xfdffff40
+ .*:	fdffff34 	.word	0xfdffff34
 
 .* <__app_func_from_thumb>:
- .*:	e59fc000 	ldr	ip, \[pc, #0\]	; 20003b4 <__app_func_from_thumb\+0x8>
+ .*:	e59fc000 	ldr	ip, \[pc\]	; 2000384 <__app_func_from_thumb\+0x8>
  .*:	e08ff00c 	add	pc, pc, ip
- .*:	fdffff28 	.word	0xfdffff28
+ .*:	fdffff1c 	.word	0xfdffff1c
 	...

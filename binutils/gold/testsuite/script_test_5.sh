@@ -39,5 +39,5 @@ check_count()
     fi
 }
 
-check_count script_test_5.stdout ".text " 1
-check_count script_test_5.stdout ".text.foo " 1
+check_count script_test_5.stdout " .text " 1
+check_count script_test_5.stdout " .text.foo " 1

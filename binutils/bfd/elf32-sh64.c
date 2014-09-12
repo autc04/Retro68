@@ -1,5 +1,5 @@
 /* SuperH SH64-specific support for 32-bit ELF
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -104,7 +104,8 @@ static void sh64_find_section_for_address
 /* This COFF-only function (only compiled with COFF support, making
    ELF-only chains problematic) returns TRUE early for SH4, so let's just
    define it TRUE here.  */
-#define _bfd_sh_align_load_span(a,b,c,d,e,f,g,h,i,j) TRUE
+#define _bfd_sh_align_load_span(a,b,c,d,e,f,g,h,i,j) \
+  ((void) f, (void) h, (void) i, TRUE)
 
 #define GOT_BIAS (-((long)-32768))
 #define INCLUDE_SHMEDIA

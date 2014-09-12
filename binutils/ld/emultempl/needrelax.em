@@ -34,6 +34,6 @@ need_relax_${EMULATION_NAME}_before_allocation (void)
 
   /* Force -relax on if not doing a relocatable link.  */
   if (! link_info.relocatable)
-    command_line.relax = TRUE;
+    ENABLE_RELAXATION;
 }
 EOF

@@ -22,7 +22,7 @@ FINI_START='_fini = .;
 FINI_END="KEEP (*(.fini\$99));
           PROVIDE (${SYMPREFIX}_etext = .);"
 
-OTHER_READONLY_SECTIONS=".tls_data ${RELOCATING-0} : {${RELOCATING+
+OTHER_READWRITE_SECTIONS=".tls_data ${RELOCATING-0} : {${RELOCATING+
     __wrs_rtp_tls_data_start = .;
     ___wrs_rtp_tls_data_start = .;}
     *(.tls_data${RELOCATING+ .tls_data.*})
@@ -30,9 +30,8 @@ OTHER_READONLY_SECTIONS=".tls_data ${RELOCATING-0} : {${RELOCATING+
   __wrs_rtp_tls_data_size = . - __wrs_rtp_tls_data_start;
   ___wrs_rtp_tls_data_size = . - __wrs_rtp_tls_data_start;
   __wrs_rtp_tls_data_align = ALIGNOF(.tls_data);
-  ___wrs_rtp_tls_data_align = ALIGNOF(.tls_data);}"
-
-OTHER_READWRITE_SECTIONS=".tls_vars ${RELOCATING-0} : {${RELOCATING+
+  ___wrs_rtp_tls_data_align = ALIGNOF(.tls_data);}
+  .tls_vars ${RELOCATING-0} : {${RELOCATING+
     __wrs_rtp_tls_vars_start = .;
     ___wrs_rtp_tls_vars_start = .;}
     *(.tls_vars${RELOCATING+ .tls_vars.*})

@@ -1,5 +1,5 @@
 /* tc-iq2000.c -- Assembler for the Sitera IQ2000.
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
+   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2010
    Free Software Foundation. Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -909,7 +909,6 @@ get_number (void)
 static void
 s_iq2000_ent (int aent)
 {
-  int number = 0;
   symbolS *symbolP;
   int maybe_text;
 
@@ -918,7 +917,7 @@ s_iq2000_ent (int aent)
     input_line_pointer++;
   SKIP_WHITESPACE ();
   if (ISDIGIT (*input_line_pointer) || *input_line_pointer == '-')
-    number = get_number ();
+    get_number ();
 
   if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
     maybe_text = 1;

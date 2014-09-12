@@ -31,8 +31,8 @@ TEXT_START_SYMBOLS='__Stext = ADDR (.startup);'
 # The __start dance is to get us through assumptions about entry
 # symbols, and to clear _start for normal use with sane programs.
 EXECUTABLE_SYMBOLS='
-__start = DEFINED(__start) ? __start : 
-  DEFINED(_start) ? _start : 
+__start = DEFINED(__start) ? __start :
+  DEFINED(_start) ? _start :
     DEFINED(start) ? start :
       DEFINED(.startup) ? .startup + 2 : 2;
 '
@@ -98,7 +98,7 @@ CTOR_END='
 # Also add the other symbols provided for rsim/xsim and elinux.
 OTHER_SYMBOLS='
   PROVIDE (__Eall = .);
-  PROVIDE (__Endmem = 0x10000000); 
+  PROVIDE (__Endmem = 0x10000000);
   PROVIDE (__Stacksize = 0);
 '
 NO_SMALL_DATA=yes

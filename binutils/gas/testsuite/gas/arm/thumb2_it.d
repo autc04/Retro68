@@ -45,7 +45,7 @@ Disassembly of section .text:
 0+062 <[^>]+> bf08      	it	eq
 0+064 <[^>]+> 4640      	moveq	r0, r8
 0+066 <[^>]+> 4608      	mov	r0, r1
-0+068 <[^>]+> 1c08      	adds	r0, r1, #0
+0+068 <[^>]+> 0008      	movs	r0, r1
 0+06a <[^>]+> ea5f 0008 	movs.w	r0, r8
 0+06e <[^>]+> bf01      	itttt	eq
 0+070 <[^>]+> 43c8      	mvneq	r0, r1

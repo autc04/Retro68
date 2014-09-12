@@ -22,6 +22,19 @@
 #include "bfd.h"
 #include "libbfd.h"
 
+/* Like bfd_default_scan but if the string is just "m32c" then
+   skip the m16c architecture.  */
+
+static bfd_boolean
+m32c_scan (const bfd_arch_info_type * info, const char * string)
+{
+  if (strcmp (string, "m32c") == 0
+      && info->mach == bfd_mach_m16c)
+    return FALSE;
+
+  return bfd_default_scan (info, string);
+}
+
 static const bfd_arch_info_type arch_info_struct[] =
 {
   {
@@ -35,7 +48,8 @@ static const bfd_arch_info_type arch_info_struct[] =
     3,				/* section align power */
     FALSE,			/* the default ? */
     bfd_default_compatible,	/* architecture comparison fn */
-    bfd_default_scan,		/* string to architecture convert fn */
+    m32c_scan,			/* string to architecture convert fn */
+    bfd_arch_default_fill,	/* Default fill.  */
     NULL			/* next in list */
   },
 };
@@ -52,6 +66,7 @@ const bfd_arch_info_type bfd_m32c_arch =
   4,				/* Section align power.  */
   TRUE,				/* The default ?  */
   bfd_default_compatible,	/* Architecture comparison fn.  */
-  bfd_default_scan,		/* String to architecture convert fn.  */
+  m32c_scan,			/* String to architecture convert fn.  */
+  bfd_arch_default_fill,	/* Default fill.  */
   &arch_info_struct[0],		/* Next in list.  */
 };

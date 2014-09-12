@@ -1,7 +1,7 @@
 /* expr.c -operands, expressions-
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
-   Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2011,
+   2012 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -45,7 +45,6 @@ static valueT generic_bignum_to_int64 (void);
 #endif
 static void integer_constant (int radix, expressionS * expressionP);
 static void mri_char_constant (expressionS *);
-static void current_location (expressionS *);
 static void clean_up_expression (expressionS * expressionP);
 static segT operand (expressionS *, enum expr_mode);
 static operatorT operatorf (int *);
@@ -91,6 +90,7 @@ make_expr_symbol (expressionS *expressionP)
       zero.X_op = O_constant;
       zero.X_add_number = 0;
       zero.X_unsigned = 0;
+      zero.X_extrabit = 0;
       clean_up_expression (&zero);
       expressionP = &zero;
     }
@@ -162,6 +162,7 @@ expr_build_uconstant (offsetT value)
   e.X_op = O_constant;
   e.X_add_number = value;
   e.X_unsigned = 1;
+  e.X_extrabit = 0;
   return make_expr_symbol (&e);
 }
 
@@ -173,7 +174,7 @@ expr_build_dot (void)
   expressionS e;
 
   current_location (&e);
-  return make_expr_symbol (&e);
+  return symbol_clone_if_forward_ref (make_expr_symbol (&e));
 }
 
 /* Build any floating-point literal here.
@@ -695,7 +696,7 @@ mri_char_constant (expressionS *expressionP)
 /* Return an expression representing the current location.  This
    handles the magic symbol `.'.  */
 
-static void
+void
 current_location (expressionS *expressionp)
 {
   if (now_seg == absolute_section)
@@ -706,7 +707,7 @@ current_location (expressionS *expressionp)
   else
     {
       expressionp->X_op = O_symbol;
-      expressionp->X_add_symbol = symbol_temp_new_now ();
+      expressionp->X_add_symbol = &dot_symbol;
       expressionp->X_add_number = 0;
     }
 }
@@ -733,6 +734,7 @@ operand (expressionS *expressionP, enum expr_mode mode)
      something like ``.quad 0x80000000'' is not sign extended even
      though it appears negative if valueT is 32 bits.  */
   expressionP->X_unsigned = 1;
+  expressionP->X_extrabit = 0;
 
   /* Digits, assume it is a bignum.  */
 
@@ -960,10 +962,7 @@ operand (expressionS *expressionP, enum expr_mode mode)
 #endif
     case '(':
       /* Didn't begin with digit & not a name.  */
-      if (mode != expr_defer)
-	segment = expression (expressionP);
-      else
-	segment = deferred_expression (expressionP);
+      segment = expr (0, expressionP, mode);
       /* expression () will pass trailing whitespace.  */
       if ((c == '(' && *input_line_pointer != ')')
 	  || (c == '[' && *input_line_pointer != ']'))
@@ -1030,6 +1029,8 @@ operand (expressionS *expressionP, enum expr_mode mode)
 		   This is compatible with other people's
 		   assemblers.  Sigh.  */
 		expressionP->X_unsigned = 0;
+		if (expressionP->X_add_number)
+		  expressionP->X_extrabit ^= 1;
 	      }
 	    else if (c == '~' || c == '"')
 	      expressionP->X_add_number = ~ expressionP->X_add_number;
@@ -1057,6 +1058,15 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      {
 		for (i = 0; i < expressionP->X_add_number; ++i)
 		  generic_bignum[i] = ~generic_bignum[i];
+
+		/* Extend the bignum to at least the size of .octa.  */
+		if (expressionP->X_add_number < SIZE_OF_LARGE_NUMBER)
+		  {
+		    expressionP->X_add_number = SIZE_OF_LARGE_NUMBER;
+		    for (; i < expressionP->X_add_number; ++i)
+		      generic_bignum[i] = ~(LITTLENUM_TYPE) 0;
+		  }
+
 		if (c == '-')
 		  for (i = 0; i < expressionP->X_add_number; ++i)
 		    {
@@ -1067,14 +1077,13 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      }
 	    else if (c == '!')
 	      {
-		int nonzero = 0;
 		for (i = 0; i < expressionP->X_add_number; ++i)
-		  {
-		    if (generic_bignum[i])
-		      nonzero = 1;
-		    generic_bignum[i] = 0;
-		  }
-		generic_bignum[0] = nonzero;
+		  if (generic_bignum[i] != 0)
+		    break;
+		expressionP->X_add_number = i >= expressionP->X_add_number;
+		expressionP->X_op = O_constant;
+		expressionP->X_unsigned = 1;
+		expressionP->X_extrabit = 0;
 	      }
 	  }
 	else if (expressionP->X_op != O_illegal
@@ -1319,7 +1328,9 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	  /* If we have an absolute symbol or a reg, then we know its
 	     value now.  */
 	  segment = S_GET_SEGMENT (symbolP);
-	  if (mode != expr_defer && segment == absolute_section)
+	  if (mode != expr_defer
+	      && segment == absolute_section
+	      && !S_FORCE_RELOC (symbolP, 0))
 	    {
 	      expressionP->X_op = O_constant;
 	      expressionP->X_add_number = S_GET_VALUE (symbolP);
@@ -1367,8 +1378,13 @@ operand (expressionS *expressionP, enum expr_mode mode)
   if (expressionP->X_add_symbol)
     symbol_mark_used (expressionP->X_add_symbol);
 
-  expressionP->X_add_symbol = symbol_clone_if_forward_ref (expressionP->X_add_symbol);
-  expressionP->X_op_symbol = symbol_clone_if_forward_ref (expressionP->X_op_symbol);
+  if (mode != expr_defer)
+    {
+      expressionP->X_add_symbol
+	= symbol_clone_if_forward_ref (expressionP->X_add_symbol);
+      expressionP->X_op_symbol
+	= symbol_clone_if_forward_ref (expressionP->X_op_symbol);
+    }
 
   switch (expressionP->X_op)
     {
@@ -1587,13 +1603,13 @@ operatorf (int *num_chars)
   if (is_name_beginner (c))
     {
       char *name = input_line_pointer;
-      char c = get_symbol_end ();
+      char ec = get_symbol_end ();
 
-      ret = md_operator (name, 2, &c);
+      ret = md_operator (name, 2, &ec);
       switch (ret)
 	{
 	case O_absent:
-	  *input_line_pointer = c;
+	  *input_line_pointer = ec;
 	  input_line_pointer = name;
 	  break;
 	case O_uminus:
@@ -1603,7 +1619,7 @@ operatorf (int *num_chars)
 	  ret = O_illegal;
 	  /* FALLTHROUGH */
 	default:
-	  *input_line_pointer = c;
+	  *input_line_pointer = ec;
 	  *num_chars = input_line_pointer - name;
 	  input_line_pointer = name;
 	  return ret;
@@ -1707,6 +1723,42 @@ operatorf (int *num_chars)
   /* NOTREACHED  */
 }
 
+/* Implement "word-size + 1 bit" addition for
+   {resultP->X_extrabit:resultP->X_add_number} + {rhs_highbit:amount}.  This
+   is used so that the full range of unsigned word values and the full range of
+   signed word values can be represented in an O_constant expression, which is
+   useful e.g. for .sleb128 directives.  */
+
+void
+add_to_result (expressionS *resultP, offsetT amount, int rhs_highbit)
+{
+  valueT ures = resultP->X_add_number;
+  valueT uamount = amount;
+
+  resultP->X_add_number += amount;
+
+  resultP->X_extrabit ^= rhs_highbit;
+
+  if (ures + uamount < ures)
+    resultP->X_extrabit ^= 1;
+}
+
+/* Similarly, for subtraction.  */
+
+void
+subtract_from_result (expressionS *resultP, offsetT amount, int rhs_highbit)
+{
+  valueT ures = resultP->X_add_number;
+  valueT uamount = amount;
+
+  resultP->X_add_number -= amount;
+
+  resultP->X_extrabit ^= rhs_highbit;
+
+  if (ures < uamount)
+    resultP->X_extrabit ^= 1;
+}
+
 /* Parse an expression.  */
 
 segT
@@ -1725,7 +1777,10 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 
   /* Save the value of dot for the fixup code.  */
   if (rank == 0)
-    dot_value = frag_now_fix ();
+    {
+      dot_value = frag_now_fix ();
+      dot_frag = frag_now;
+    }
 
   retval = operand (resultP, mode);
 
@@ -1736,10 +1791,11 @@ expr (int rankarg,		/* Larger # is higher rank.  */
   while (op_left != O_illegal && op_rank[(int) op_left] > rank)
     {
       segT rightseg;
-      bfd_vma frag_off;
+      offsetT frag_off;
 
       input_line_pointer += op_chars;	/* -> after operator.  */
 
+      right.X_md = 0;
       rightseg = expr (op_rank[(int) op_left], &right, mode);
       if (right.X_op == O_absent)
 	{
@@ -1818,7 +1874,7 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	  && (md_register_arithmetic || resultP->X_op != O_register))
 	{
 	  /* X + constant.  */
-	  resultP->X_add_number += right.X_add_number;
+	  add_to_result (resultP, right.X_add_number, right.X_extrabit);
 	}
       /* This case comes up in PIC code.  */
       else if (op_left == O_subtract
@@ -1828,16 +1884,19 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 #ifdef md_allow_local_subtract
 	       && md_allow_local_subtract (resultP, & right, rightseg)
 #endif
-	       && (SEG_NORMAL (rightseg)
+	       && ((SEG_NORMAL (rightseg)
+		    && !S_FORCE_RELOC (resultP->X_add_symbol, 0)
+		    && !S_FORCE_RELOC (right.X_add_symbol, 0))
 		   || right.X_add_symbol == resultP->X_add_symbol)
 	       && frag_offset_fixed_p (symbol_get_frag (resultP->X_add_symbol),
 				       symbol_get_frag (right.X_add_symbol),
 				       &frag_off))
 	{
-	  resultP->X_add_number -= right.X_add_number;
-	  resultP->X_add_number -= frag_off / OCTETS_PER_BYTE;
-	  resultP->X_add_number += (S_GET_VALUE (resultP->X_add_symbol)
-				    - S_GET_VALUE (right.X_add_symbol));
+	  offsetT symval_diff = S_GET_VALUE (resultP->X_add_symbol)
+				- S_GET_VALUE (right.X_add_symbol);
+	  subtract_from_result (resultP, right.X_add_number, right.X_extrabit);
+	  subtract_from_result (resultP, frag_off / OCTETS_PER_BYTE, 0);
+	  add_to_result (resultP, symval_diff, symval_diff < 0);
 	  resultP->X_op = O_constant;
 	  resultP->X_add_symbol = 0;
 	}
@@ -1845,7 +1904,7 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	       && (md_register_arithmetic || resultP->X_op != O_register))
 	{
 	  /* X - constant.  */
-	  resultP->X_add_number -= right.X_add_number;
+	  subtract_from_result (resultP, right.X_add_number, right.X_extrabit);
 	}
       else if (op_left == O_add && resultP->X_op == O_constant
 	       && (md_register_arithmetic || right.X_op != O_register))
@@ -1854,7 +1913,7 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	  resultP->X_op = right.X_op;
 	  resultP->X_add_symbol = right.X_add_symbol;
 	  resultP->X_op_symbol = right.X_op_symbol;
-	  resultP->X_add_number += right.X_add_number;
+	  add_to_result (resultP, right.X_add_number, right.X_extrabit);
 	  retval = rightseg;
 	}
       else if (resultP->X_op == O_constant && right.X_op == O_constant)
@@ -1894,7 +1953,9 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	      /* Constant + constant (O_add) is handled by the
 		 previous if statement for constant + X, so is omitted
 		 here.  */
-	    case O_subtract:		resultP->X_add_number -= v; break;
+	    case O_subtract:
+	      subtract_from_result (resultP, v, 0);
+	      break;
 	    case O_eq:
 	      resultP->X_add_number =
 		resultP->X_add_number == v ? ~ (offsetT) 0 : 0;
@@ -1938,11 +1999,15 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	  resultP->X_op = op_left;
 	  resultP->X_op_symbol = right.X_add_symbol;
 	  if (op_left == O_add)
-	    resultP->X_add_number += right.X_add_number;
+	    add_to_result (resultP, right.X_add_number, right.X_extrabit);
 	  else if (op_left == O_subtract)
 	    {
-	      resultP->X_add_number -= right.X_add_number;
-	      if (retval == rightseg && SEG_NORMAL (retval))
+	      subtract_from_result (resultP, right.X_add_number,
+				    right.X_extrabit);
+	      if (retval == rightseg
+		  && SEG_NORMAL (retval)
+		  && !S_FORCE_RELOC (resultP->X_add_symbol, 0)
+		  && !S_FORCE_RELOC (right.X_add_symbol, 0))
 		{
 		  retval = absolute_section;
 		  rightseg = absolute_section;
@@ -1958,20 +2023,32 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	  resultP->X_op = op_left;
 	  resultP->X_add_number = 0;
 	  resultP->X_unsigned = 1;
+	  resultP->X_extrabit = 0;
 	}
 
       if (retval != rightseg)
 	{
-	  if (! SEG_NORMAL (retval))
-	    {
-	      if (retval != undefined_section || SEG_NORMAL (rightseg))
-		retval = rightseg;
-	    }
-	  else if (SEG_NORMAL (rightseg)
+	  if (retval == undefined_section)
+	    ;
+	  else if (rightseg == undefined_section)
+	    retval = rightseg;
+	  else if (retval == expr_section)
+	    ;
+	  else if (rightseg == expr_section)
+	    retval = rightseg;
+	  else if (retval == reg_section)
+	    ;
+	  else if (rightseg == reg_section)
+	    retval = rightseg;
+	  else if (rightseg == absolute_section)
+	    ;
+	  else if (retval == absolute_section)
+	    retval = rightseg;
 #ifdef DIFF_EXPR_OK
-		   && op_left != O_subtract
+	  else if (op_left == O_subtract)
+	    ;
 #endif
-		   )
+	  else
 	    as_bad (_("operation combines symbols in different segments"));
 	}
 
@@ -2003,7 +2080,7 @@ resolve_expression (expressionS *expressionP)
   valueT left, right;
   segT seg_left, seg_right;
   fragS *frag_left, *frag_right;
-  bfd_vma frag_off;
+  offsetT frag_off;
 
   switch (op)
     {

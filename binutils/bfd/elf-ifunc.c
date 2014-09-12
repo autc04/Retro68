@@ -1,5 +1,5 @@
 /* ELF STT_GNU_IFUNC support.
-   Copyright 2009
+   Copyright 2009-2013
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -104,51 +104,6 @@ _bfd_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
   return TRUE;
 }
 
-/* For a STT_GNU_IFUNC symbol, create a dynamic reloc section, SRELOC,
-   for the input section, SEC, and append this reloc to HEAD.  */
-
-asection *
-_bfd_elf_create_ifunc_dyn_reloc (bfd *abfd, struct bfd_link_info *info,
-				 asection *sec, asection *sreloc,
-				 struct elf_dyn_relocs **head)
-{
-  struct elf_dyn_relocs *p;
-  struct elf_link_hash_table *htab = elf_hash_table (info);
-
-  if (sreloc == NULL)
-    {
-      const struct elf_backend_data *bed = get_elf_backend_data (abfd);
-
-      if (htab->dynobj == NULL)
-	htab->dynobj = abfd;
-
-      sreloc = _bfd_elf_make_dynamic_reloc_section (sec, htab->dynobj,
-						    bed->s->log_file_align,
-						    abfd,
-						    bed->rela_plts_and_copies_p); 
-      if (sreloc == NULL)
-	return NULL;
-    }
-		      
-  p = *head;
-  if (p == NULL || p->sec != sec)
-    {
-      bfd_size_type amt = sizeof *p;
-
-      p = ((struct elf_dyn_relocs *) bfd_alloc (htab->dynobj, amt));
-      if (p == NULL)
-	return NULL;
-      p->next = *head;
-      *head = p;
-      p->sec = sec;
-      p->count = 0;
-      p->pc_count = 0;
-    }
-  p->count += 1;
-
-  return sreloc;
-}
-
 /* Allocate space in .plt, .got and associated reloc sections for
    dynamic relocs against a STT_GNU_IFUNC symbol definition.  */
 
@@ -157,6 +112,7 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
 				    struct elf_link_hash_entry *h,
 				    struct elf_dyn_relocs **head,
 				    unsigned int plt_entry_size,
+				    unsigned int plt_header_size,
 				    unsigned int got_entry_size)
 {
   asection *plt, *gotplt, *relplt;
@@ -175,7 +131,7 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
 	  || info->export_dynamic)
       && h->pointer_equality_needed)
     {
-      info->callbacks->einfo 
+      info->callbacks->einfo
 	(_("%F%P: dynamic STT_GNU_IFUNC symbol `%s' with pointer "
 	   "equality in `%B' can not be used when making an "
 	   "executable; recompile with -fPIE and relink with -pie\n"),
@@ -186,6 +142,26 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
     }
 
   htab = elf_hash_table (info);
+
+  /* When building shared library, we need to handle the case where it is
+     marked with regular reference, but not non-GOT reference since the
+     non-GOT reference bit may not be set here.  */
+  if (info->shared && !h->non_got_ref && h->ref_regular)
+    for (p = *head; p != NULL; p = p->next)
+      if (p->count)
+	{
+	  h->non_got_ref = 1;
+	  goto keep;
+	}
+
+  /* Support garbage collection against STT_GNU_IFUNC symbols.  */
+  if (h->plt.refcount <= 0 && h->got.refcount <= 0)
+    {
+      h->got = htab->init_got_offset;
+      h->plt = htab->init_plt_offset;
+      *head = NULL;
+      return TRUE;
+    }
 
   /* Return and discard space for dynamic relocations against it if
      it is never referenced in a non-shared object.  */
@@ -200,6 +176,7 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
       return TRUE;
     }
 
+keep:
   bed = get_elf_backend_data (info->output_bfd);
   if (bed->rela_plts_and_copies_p)
     sizeof_reloc = bed->s->sizeof_rela;
@@ -217,7 +194,7 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
       /* If this is the first .plt entry, make room for the special
 	 first entry.  */
       if (plt->size == 0)
-	plt->size += plt_entry_size;
+	plt->size += plt_header_size;
     }
   else
     {
@@ -227,7 +204,7 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
     }
 
   /* Don't update value of STT_GNU_IFUNC symbol to PLT.  We need
-     the original value for R_*_IRELATIVE.  */  
+     the original value for R_*_IRELATIVE.  */
   h->plt.offset = plt->size;
 
   /* Make room for this entry in the .plt/.iplt section.  */
@@ -249,10 +226,20 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
     *head = NULL;
 
   /* Finally, allocate space.  */
-  for (p = *head; p != NULL; p = p->next)
-    htab->irelifunc->size += p->count * sizeof_reloc;
+  p = *head;
+  if (p != NULL)
+    {
+      bfd_size_type count = 0;
+      do
+	{
+	  count += p->count;
+	  p = p->next;
+	}
+      while (p != NULL);
+      htab->irelifunc->size += count * sizeof_reloc;
+    }
 
-  /* For STT_GNU_IFUNC symbol, .got.plt has the real function addres
+  /* For STT_GNU_IFUNC symbol, .got.plt has the real function address
      and .got has the PLT entry adddress.  We will load the GOT entry
      with the PLT entry in finish_dynamic_symbol if it is used.  For
      branch, it uses .got.plt.  For symbol value,
@@ -265,9 +252,10 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
      5. Otherwise use .got so that it can be shared among different
      objects at run-time.
      We only need to relocate .got entry in shared object.  */
-  if ((info->shared
-       && (h->dynindx == -1
-	   || h->forced_local))
+  if (h->got.refcount <= 0
+      || (info->shared
+	  && (h->dynindx == -1
+	      || h->forced_local))
       || (!info->shared
 	  && !h->pointer_equality_needed)
       || (info->executable && info->shared)

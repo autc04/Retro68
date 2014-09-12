@@ -33,6 +33,7 @@
 	.eabi_attribute Tag_nodefaults, 1
 	@ .eabi_attribute Tag_also_compatible_with,
 	.eabi_attribute Tag_T2EE_use, 1
-	.eabi_attribute Tag_conformance, "2.07"
+	.eabi_attribute Tag_conformance, "2.08"
 	.eabi_attribute Tag_Virtualization_use, 1
 	.eabi_attribute Tag_MPextension_use, 1
+	.eabi_attribute Tag_DIV_use, 1

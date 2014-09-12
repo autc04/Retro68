@@ -28,6 +28,7 @@
 
 %union {
   char *id;
+  const char *id_const;
   int number;
 };
 
@@ -35,11 +36,13 @@
 %token SECTIONS EXPORTS IMPORTS VERSIONK BASE CONSTANT
 %token READ WRITE EXECUTE SHARED NONSHARED NONAME PRIVATE
 %token SINGLE MULTIPLE INITINSTANCE INITGLOBAL TERMINSTANCE TERMGLOBAL
+%token EQUAL
 %token <id> ID
 %token <number> NUMBER
 %type  <number> opt_base opt_ordinal opt_NONAME opt_CONSTANT opt_DATA opt_PRIVATE
 %type  <number> attr attr_list opt_number
-%type  <id> opt_name opt_equal_name 
+%type  <id> opt_name opt_name2 opt_equal_name opt_import_name
+%type  <id_const> keyword_as_name
 
 %%
 
@@ -70,7 +73,8 @@ explist:
 
 expline:
 		ID opt_equal_name opt_ordinal opt_NONAME opt_CONSTANT opt_DATA opt_PRIVATE
-			{ def_exports ($1, $2, $3, $4, $5, $6, $7);}
+		opt_import_name
+			{ def_exports ($1, $2, $3, $4, $5, $6, $7, $8);}
 	;
 implist:	
 		implist impline
@@ -78,14 +82,22 @@ implist:
 	;
 
 impline:
-               ID '=' ID '.' ID '.' ID     { def_import ($1,$3,$5,$7, 0); }
-       |       ID '=' ID '.' ID '.' NUMBER { def_import ($1,$3,$5, 0,$7); }
-       |       ID '=' ID '.' ID            { def_import ($1,$3, 0,$5, 0); }
-       |       ID '=' ID '.' NUMBER        { def_import ($1,$3, 0, 0,$5); }
-       |       ID '.' ID '.' ID            { def_import ( 0,$1,$3,$5, 0); }
-       |       ID '.' ID '.' NUMBER        { def_import ( 0,$1,$3, 0,$5); }
-       |       ID '.' ID                   { def_import ( 0,$1, 0,$3, 0); }
-       |       ID '.' NUMBER               { def_import ( 0,$1, 0, 0,$3); }
+               ID '=' ID '.' ID '.' ID opt_import_name
+		 { def_import ($1,$3,$5,$7, 0, $8); }
+       |       ID '=' ID '.' ID '.' NUMBER opt_import_name
+		 { def_import ($1,$3,$5, 0,$7, $8); }
+       |       ID '=' ID '.' ID opt_import_name
+		 { def_import ($1,$3, 0,$5, 0, $6); }
+       |       ID '=' ID '.' NUMBER opt_import_name
+		 { def_import ($1,$3, 0, 0,$5, $6); }
+       |       ID '.' ID '.' ID opt_import_name
+		 { def_import ( 0,$1,$3,$5, 0, $6); }
+       |       ID '.' ID '.' NUMBER opt_import_name
+		 { def_import ( 0,$1,$3, 0,$5, $6); }
+       |       ID '.' ID opt_import_name
+		 { def_import ( 0,$1, 0,$3, 0, $4); }
+       |       ID '.' NUMBER opt_import_name
+		 { def_import ( 0,$1, 0, 0,$3, $4); }
 ;
 
 seclist:
@@ -140,13 +152,64 @@ opt_PRIVATE:
 	|		{ $$ = 0; }
 	;
 
-opt_name: ID		{ $$ =$1; }
-	| ID '.' ID	
+keyword_as_name: NAME { $$ = "NAME"; }
+/*  Disabled LIBRARY keyword for a quirk in libtool. It places LIBRARY
+    command after EXPORTS list, which is illegal by specification.
+    See PR binutils/13710
+	| LIBRARY { $$ = "LIBRARY"; } */
+	| DESCRIPTION { $$ = "DESCRIPTION"; }
+	| STACKSIZE { $$ = "STACKSIZE"; }
+	| HEAPSIZE { $$ = "HEAPSIZE"; }
+	| CODE { $$ = "CODE"; }
+	| DATA { $$ = "DATA"; }
+	| SECTIONS { $$ = "SECTIONS"; }
+	| EXPORTS { $$ = "EXPORTS"; }
+	| IMPORTS { $$ = "IMPORTS"; }
+	| VERSIONK { $$ = "VERSION"; }
+	| BASE { $$ = "BASE"; }
+	| CONSTANT { $$ = "CONSTANT"; }
+	| NONAME { $$ = "NONAME"; }
+	| PRIVATE { $$ = "PRIVATE"; }
+	| READ { $$ = "READ"; }
+	| WRITE { $$ = "WRITE"; }
+	| EXECUTE { $$ = "EXECUTE"; }
+	| SHARED { $$ = "SHARED"; }
+	| NONSHARED { $$ = "NONSHARED"; }
+	| SINGLE { $$ = "SINGLE"; }
+	| MULTIPLE { $$ = "MULTIPLE"; }
+	| INITINSTANCE { $$ = "INITINSTANCE"; }
+	| INITGLOBAL { $$ = "INITGLOBAL"; }
+	| TERMINSTANCE { $$ = "TERMINSTANCE"; }
+	| TERMGLOBAL { $$ = "TERMGLOBAL"; }
+	;
+
+opt_name2: ID { $$ = $1; }
+	| '.' keyword_as_name
+	  {
+	    char *name = xmalloc (strlen ($2) + 2);
+	    sprintf (name, ".%s", $2);
+	    $$ = name;
+	  }
+	| '.' opt_name2
+	  { 
+	    char *name = xmalloc (strlen ($2) + 2);
+	    sprintf (name, ".%s", $2);
+	    $$ = name;
+	  }
+	| keyword_as_name '.' opt_name2
 	  { 
 	    char *name = xmalloc (strlen ($1) + 1 + strlen ($3) + 1);
 	    sprintf (name, "%s.%s", $1, $3);
 	    $$ = name;
 	  }
+	| ID '.' opt_name2
+	  { 
+	    char *name = xmalloc (strlen ($1) + 1 + strlen ($3) + 1);
+	    sprintf (name, "%s.%s", $1, $3);
+	    $$ = name;
+	  }
+	;
+opt_name: opt_name2 { $$ =$1; }
 	|		{ $$=""; }
 	;
 
@@ -155,14 +218,13 @@ opt_ordinal:
 	|                { $$=-1;}
 	;
 
+opt_import_name:
+	  EQUAL opt_name2	{ $$ = $2; }
+	|		{ $$ = 0; }
+	;
+
 opt_equal_name:
-          '=' ID	{ $$ = $2; }
-	| '=' ID '.' ID	
-	  { 
-	    char *name = xmalloc (strlen ($2) + 1 + strlen ($4) + 1);
-	    sprintf (name, "%s.%s", $2, $4);
-	    $$ = name;
-	  }
+          '=' opt_name2	{ $$ = $2; }
         | 		{ $$ =  0; }			 
 	;
 

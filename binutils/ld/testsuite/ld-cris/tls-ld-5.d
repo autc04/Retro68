@@ -33,8 +33,8 @@ private flags = 0:
 
 SYMBOL TABLE:
 #...
-0+84 l       \.tdata	0+4 \.hidden x2
-0+80 l       \.tdata	0+4 \.hidden x1
+0+84 l       \.tdata	0+4 x2
+0+80 l       \.tdata	0+4 x1
 #...
 
 DYNAMIC RELOCATION RECORDS

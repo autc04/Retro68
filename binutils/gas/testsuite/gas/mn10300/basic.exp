@@ -1806,4 +1806,5 @@ if [istarget mn10300*-*-*] then {
 
     run_dump_test "am33-2"
     run_dump_test "relax"
+    run_dump_test "pr11973"
 }

@@ -1,6 +1,6 @@
 /* BFD back-end for raw ARM a.out binaries.
    Copyright 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005,
-   2007 Free Software Foundation, Inc.
+   2007, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -102,7 +102,7 @@ MY (reloc_howto) (bfd *abfd,
   unsigned int r_length;
   unsigned int r_pcrel_done;
   unsigned int r_neg;
-  int index;
+  int howto_index;
 
   *r_pcrel = 0;
   if (bfd_header_big_endian (abfd))
@@ -127,11 +127,11 @@ MY (reloc_howto) (bfd *abfd,
       r_length     = ((rel->r_type[0] & RELOC_STD_BITS_LENGTH_LITTLE)
 		      >> RELOC_STD_BITS_LENGTH_SH_LITTLE);
     }
-  index = r_length + 4 * r_pcrel_done + 8 * r_neg;
-  if (index == 3)
+  howto_index = r_length + 4 * r_pcrel_done + 8 * r_neg;
+  if (howto_index == 3)
     *r_pcrel = 1;
 
-  return MY (howto_table) + index;
+  return MY (howto_table) + howto_index;
 }
 
 #define MY_reloc_howto(BFD, REL, IN, EX, PC) \
@@ -247,7 +247,7 @@ MY (fix_pcrel_26) (bfd *abfd,
   bfd_reloc_status_type flag = bfd_reloc_ok;
 
   /* If this is an undefined symbol, return error.  */
-  if (symbol->section == &bfd_und_section
+  if (bfd_is_und_section (symbol->section)
       && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
 
@@ -296,7 +296,7 @@ MY (bfd_reloc_type_lookup) (bfd *abfd,
 #define ASTD(i,j)       case i: return & MY (howto_table)[j]
 
   if (code == BFD_RELOC_CTOR)
-    switch (bfd_get_arch_info (abfd)->bits_per_address)
+    switch (bfd_arch_bits_per_address (abfd))
       {
       case 32:
         code = BFD_RELOC_32;
@@ -409,10 +409,10 @@ MY_swap_std_reloc_out (bfd *abfd,
      check for that here.  */
 
   if (bfd_is_com_section (output_section)
-      || output_section == &bfd_abs_section
-      || output_section == &bfd_und_section)
+      || bfd_is_abs_section (output_section)
+      || bfd_is_und_section (output_section))
     {
-      if (bfd_abs_section.symbol == sym)
+      if (bfd_abs_section_ptr->symbol == sym)
 	{
 	  /* Whoops, looked like an abs symbol, but is really an offset
 	     from the abs section.  */
@@ -477,6 +477,7 @@ const bfd_target aout_arm_little_vec =
   MY_symbol_leading_char,
   AR_PAD_CHAR,                  /* AR_pad_char.  */
   15,                           /* AR_max_namelen.  */
+  0,				/* match priority.  */
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
   bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* Data.  */
@@ -516,8 +517,9 @@ const bfd_target aout_arm_big_vec =
    HAS_SYMS | HAS_LOCALS | DYNAMIC | WP_TEXT | D_PAGED),
   (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_CODE | SEC_DATA),
   MY_symbol_leading_char,
-  AR_PAD_CHAR,                  		/* AR_pad_char.  */
-  15,                           		/* AR_max_namelen.  */
+  AR_PAD_CHAR,			/* AR_pad_char.  */
+  15,				/* AR_max_namelen.  */
+  0,				/* match priority.  */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */

@@ -59,7 +59,7 @@ sh64_elf_${EMULATION_NAME}_before_allocation (void)
 
   if (cranges != NULL)
     {
-      if (command_line.relax)
+      if (RELAXATION_ENABLED)
 	{
 	  /* FIXME: Look through incoming sections with .cranges
 	     descriptors, build up some kind of descriptors that the
@@ -82,7 +82,7 @@ sh64_elf_${EMULATION_NAME}_before_allocation (void)
 	      }
 	  }
 
-	  command_line.relax = FALSE;
+	  DISABLE_RELAXATION;
 	}
 
       /* We wouldn't need to do anything when there's already a .cranges
@@ -91,13 +91,14 @@ sh64_elf_${EMULATION_NAME}_before_allocation (void)
 	 .cranges section.  */
     }
 
-  if (command_line.relax)
+  if (RELAXATION_ENABLED)
     {
       LANG_FOR_EACH_INPUT_STATEMENT (f)
 	{
 	  if (bfd_get_flavour (f->the_bfd) == bfd_target_elf_flavour)
 	    {
 	      asection *isec;
+
 	      for (isec = f->the_bfd->sections;
 		   isec != NULL;
 		   isec = isec->next)
@@ -107,7 +108,7 @@ sh64_elf_${EMULATION_NAME}_before_allocation (void)
 		    {
 		      einfo (_("%P: Sorry, turning off relaxing: SHmedia sections present.\n"));
 		      einfo ("  %I\n", f);
-		      command_line.relax = FALSE;
+		      DISABLE_RELAXATION;
 		      goto done_scanning_shmedia_sections;
 		    }
 		}
@@ -555,3 +556,6 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
   cranges->size = crangesp - cranges->contents;
   cranges->rawsize = cranges->size;
 }
+EOF
+
+

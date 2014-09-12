@@ -1,7 +1,5 @@
 /* as.h - global header file
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright 1987-2013 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -23,13 +21,13 @@
 #ifndef GAS
 #define GAS 1
 /* I think this stuff is largely out of date.  xoxorich.
- 
+
    CAPITALISED names are #defined.
    "lowercaseH" is #defined if "lowercase.h" has been #include-d.
    "lowercaseT" is a typedef of "lowercase" objects.
    "lowercaseP" is type "pointer to object of type 'lowercase'".
    "lowercaseS" is typedef struct ... lowercaseS.
-  
+
    #define DEBUG to enable all the "know" assertion tests.
    #define SUSPECT when debugging hash code.
    #define COMMON as "extern" for all modules except one, where you #define
@@ -38,23 +36,15 @@
 
 #include "alloca-conf.h"
 
-/* Prefer varargs for non-ANSI compiler, since some will barf if the
-   ellipsis definition is used with a no-arguments declaration.  */
-#if defined (HAVE_VARARGS_H) && !defined (__STDC__)
-#undef HAVE_STDARG_H
-#endif
-
-#if defined (HAVE_STDARG_H)
-#define USE_STDARG
-#endif
-#if !defined (USE_STDARG) && defined (HAVE_VARARGS_H)
-#define USE_VARARGS
-#endif
-
 /* Now, tend to the rest of the configuration.  */
 
 /* System include files first...  */
 #include <stdio.h>
+
+#ifdef STRING_WITH_STRINGS
+#include <string.h>
+#include <strings.h>
+#else
 #ifdef HAVE_STRING_H
 #include <string.h>
 #else
@@ -62,6 +52,8 @@
 #include <strings.h>
 #endif
 #endif
+#endif
+
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -77,22 +69,7 @@
 #include <errno.h>
 #endif
 
-#ifdef USE_STDARG
 #include <stdarg.h>
-#endif
-
-#ifdef USE_VARARGS
-#include <varargs.h>
-#endif
-
-#if !defined (USE_STDARG) && !defined (USE_VARARGS)
-/* Roll our own.  */
-#define va_alist REST
-#define va_dcl
-typedef int * va_list;
-#define va_start(ARGS)	ARGS = &REST
-#define va_end(ARGS)
-#endif
 
 #include "getopt.h"
 /* The first getopt value for machine-independent long options.
@@ -147,6 +124,10 @@ extern void *realloc ();
 #endif
 #ifdef NEED_DECLARATION_STRSTR
 extern char *strstr ();
+#endif
+
+#if !HAVE_DECL_MEMPCPY
+void *mempcpy(void *, const void *, size_t);
 #endif
 
 #if !HAVE_DECL_VSNPRINTF
@@ -389,6 +370,9 @@ COMMON int flag_strip_local_absolute;
 /* True if we should generate a traditional format object file.  */
 COMMON int flag_traditional_format;
 
+/* TRUE if debug sections should be compressed.  */
+COMMON int flag_compress_debug;
+
 /* TRUE if .note.GNU-stack section with SEC_CODE should be created */
 COMMON int flag_execstack;
 
@@ -431,6 +415,7 @@ enum debug_info_type
 
 extern enum debug_info_type debug_type;
 extern int use_gnu_debug_info_extensions;
+COMMON bfd_boolean flag_dwarf_sections;
 
 /* Maximum level of macro nesting.  */
 extern int max_macro_nest;
@@ -454,7 +439,6 @@ struct _pseudo_type
 
 typedef struct _pseudo_type pseudo_typeS;
 
-#ifdef USE_STDARG
 #if (__GNUC__ >= 2) && !defined(VMS)
 /* for use with -Wformat */
 
@@ -481,13 +465,6 @@ typedef struct _pseudo_type pseudo_typeS;
 
 #endif /* __GNUC__ < 2 || defined(VMS) */
 
-#else /* ! USE_STDARG */
-
-#define PRINTF_LIKE(FCN)	void FCN ()
-#define PRINTF_WHERE_LIKE(FCN)	void FCN ()
-
-#endif /* ! USE_STDARG */
-
 PRINTF_LIKE (as_bad);
 PRINTF_LIKE (as_fatal) ATTRIBUTE_NORETURN;
 PRINTF_LIKE (as_tsktsk);
@@ -512,7 +489,7 @@ void   input_scrub_insert_line (const char *);
 void   input_scrub_insert_file (char *);
 char * input_scrub_new_file (char *);
 char * input_scrub_next_buffer (char **bufp);
-int    do_scrub_chars (int (*get) (char *, int), char *, int);
+size_t do_scrub_chars (size_t (*get) (char *, size_t), char *, size_t);
 int    gen_to_words (LITTLENUM_TYPE *, int, long);
 int    had_err (void);
 int    ignore_input (void);
@@ -602,6 +579,16 @@ COMMON int flag_m68k_mri;
 COMMON int           warn_comment;
 COMMON unsigned int  found_comment;
 COMMON char *        found_comment_file;
+#endif
+
+#if defined OBJ_ELF || defined OBJ_MAYBE_ELF
+/* If .size directive failure should be error or warning.  */
+COMMON enum
+  {
+    size_check_error = 0,
+    size_check_warning
+  }
+flag_size_check;
 #endif
 
 #ifndef DOLLAR_AMBIGU

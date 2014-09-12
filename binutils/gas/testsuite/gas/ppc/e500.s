@@ -1,5 +1,5 @@
 # Motorola PowerPC e500 tests
-	.section ".text"
+	.text
 start:
 	isel	2, 3, 4, 23
 	dcblc	4, 5, 6
@@ -45,3 +45,12 @@ start:
 	efdctsf 5,4
 	efdctuf 5,4
 	efdcfs 5,4
+
+	# eieio handling
+	eieio
+	mbar
+	mbar 1
+
+	#sync and lwsync handling
+	sync
+	lwsync

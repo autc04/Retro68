@@ -1,6 +1,24 @@
+# Copyright 2012
+# Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
+
 # Blackfin assembler testsuite
 
 if [istarget bfin*-*-*] {
+	run_dump_test "allinsn16"
 	run_dump_test "arithmetic"
 	run_dump_test "arith_mode"
 	run_dump_test "bit"
@@ -24,6 +42,9 @@ if [istarget bfin*-*-*] {
 	run_dump_test "loop"
 	run_dump_test "loop2"
 	run_dump_test "loop3"
+	run_dump_test "loop_label"
+	run_dump_test "loop_label2"
+	run_dump_test "loop_temps"
 	run_dump_test "misc"
 	run_dump_test "move"
 	run_dump_test "move2"
@@ -31,6 +52,8 @@ if [istarget bfin*-*-*] {
 	run_dump_test "parallel2"
 	run_dump_test "parallel3"
 	run_dump_test "parallel4"
+	run_dump_test "parallel_illegal"
+	run_dump_test "pseudo"
 	run_dump_test "reloc"
 	run_list_test "resource_conflict" ""
 	run_dump_test "shift"

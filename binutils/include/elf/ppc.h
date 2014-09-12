@@ -1,26 +1,28 @@
 /* PPC ELF support for BFD.
    Copyright 1995, 1996, 1998, 2000, 2001, 2002, 2003, 2005, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   2009, 2010 Free Software Foundation, Inc.
 
-   By Michael Meissner, Cygnus Support, <meissner@cygnus.com>, from information
-   in the System V Application Binary Interface, PowerPC Processor Supplement
-   and the PowerPC Embedded Application Binary Interface (eabi).
+   By Michael Meissner, Cygnus Support, <meissner@cygnus.com>,
+   from information in the System V Application Binary Interface,
+   PowerPC Processor Supplement and the PowerPC Embedded Application
+   Binary Interface (eabi).
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* This file holds definitions specific to the PPC ELF ABI.  Note
    that most of this is not actually implemented by BFD.  */
@@ -129,6 +131,25 @@ START_RELOC_NUMBERS (elf_ppc_reloc_type)
   RELOC_NUMBER (R_PPC_EMB_BIT_FLD,	115)
   RELOC_NUMBER (R_PPC_EMB_RELSDA,	116)
 
+/* PowerPC VLE relocations.  */
+  RELOC_NUMBER (R_PPC_VLE_REL8,		216)
+  RELOC_NUMBER (R_PPC_VLE_REL15,	217)
+  RELOC_NUMBER (R_PPC_VLE_REL24,	218)
+  RELOC_NUMBER (R_PPC_VLE_LO16A,	219)
+  RELOC_NUMBER (R_PPC_VLE_LO16D,	220)
+  RELOC_NUMBER (R_PPC_VLE_HI16A,	221)
+  RELOC_NUMBER (R_PPC_VLE_HI16D,	222)
+  RELOC_NUMBER (R_PPC_VLE_HA16A,	223)
+  RELOC_NUMBER (R_PPC_VLE_HA16D,	224)
+  RELOC_NUMBER (R_PPC_VLE_SDA21,	225)
+  RELOC_NUMBER (R_PPC_VLE_SDA21_LO,	226)
+  RELOC_NUMBER (R_PPC_VLE_SDAREL_LO16A,	227)
+  RELOC_NUMBER (R_PPC_VLE_SDAREL_LO16D,	228)
+  RELOC_NUMBER (R_PPC_VLE_SDAREL_HI16A,	229)
+  RELOC_NUMBER (R_PPC_VLE_SDAREL_HI16D,	230)
+  RELOC_NUMBER (R_PPC_VLE_SDAREL_HA16A,	231)
+  RELOC_NUMBER (R_PPC_VLE_SDAREL_HA16D,	232)
+
 /* Support STT_GNU_IFUNC plt calls.  */
   RELOC_NUMBER (R_PPC_IRELATIVE,	248)
 
@@ -155,7 +176,8 @@ END_RELOC_NUMBERS (R_PPC_max)
 #define DT_PPC_GOT		(DT_LOPROC)
 
 /* Specify that tls descriptors should be optimized.  */
-#define DT_PPC_TLSOPT		(DT_LOPROC + 1)
+#define DT_PPC_OPT		(DT_LOPROC + 1)
+#define PPC_OPT_TLS		1
 
 /* Processor specific flags for the ELF header e_flags field.  */
 
@@ -164,6 +186,12 @@ END_RELOC_NUMBERS (R_PPC_max)
 #define	EF_PPC_RELOCATABLE	0x00010000	/* PowerPC -mrelocatable flag.  */
 #define	EF_PPC_RELOCATABLE_LIB	0x00008000	/* PowerPC -mrelocatable-lib flag.  */
 
+/* Processor specific program headers, p_flags field.  */
+#define PF_PPC_VLE		0x10000000	/* PowerPC VLE.  */
+
+/* Processor specific section headers, sh_flags field.  */
+#define SHF_PPC_VLE		0x10000000	/* PowerPC VLE text section.  */
+
 /* Processor specific section headers, sh_type field.  */
 
 #define SHT_ORDERED		SHT_HIPROC	/* Link editor is to sort the \
@@ -171,15 +199,6 @@ END_RELOC_NUMBERS (R_PPC_max)
 						   based on the address \
 						   specified in the associated \
 						   symbol table entry.  */
-
-/* Processor specific section flags, sh_flags field.  */
-
-#define SHF_EXCLUDE		0x80000000	/* Link editor is to exclude \
-						   this section from executable \
-						   and shared objects that it \
-						   builds when those objects \
-						   are not to be furhter \
-						   relocated.  */
 
 /* Object attribute tags.  */
 enum

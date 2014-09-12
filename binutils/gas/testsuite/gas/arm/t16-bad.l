@@ -181,7 +181,7 @@
 [^:]*:124: Error: lo register required -- `stmia r8!,{r1,r2}'
 [^:]*:125: Error: lo register required -- `stmia r7!,{r8}'
 [^:]*:126: Warning: this instruction will write back the base register
-[^:]*:127: Warning: value stored for r7 is UNPREDICTABLE
+[^:]*:127: Warning: value stored for r7 is UNKNOWN
 [^:]*:129: Error: invalid register list to push/pop instruction -- `push {r8,r9}'
 [^:]*:130: Error: invalid register list to push/pop instruction -- `pop {r8,r9}'
 [^:]*:133: Error: immediate value out of range -- `bkpt #257'

@@ -154,38 +154,46 @@ md_cgen_lookup_reloc (const CGEN_INSN *insn ATTRIBUTE_UNUSED,
   switch (operand->type)
     {
     case XC16X_OPERAND_REL:
+      /* ??? Adjust size?  */
       fixP->fx_where += 1;
       fixP->fx_pcrel = 1;
       return BFD_RELOC_8_PCREL;
 
     case XC16X_OPERAND_CADDR:
+      fixP->fx_size = 2;
       fixP->fx_where += 2;
       return BFD_RELOC_16;
 
     case XC16X_OPERAND_UIMM7:
+      /* ??? Adjust size?  */
       fixP->fx_where += 1;
       fixP->fx_pcrel = 1;
       return BFD_RELOC_8_PCREL;
 
     case XC16X_OPERAND_UIMM16:
     case XC16X_OPERAND_MEMORY:
+      fixP->fx_size = 2;
       fixP->fx_where += 2;
       return BFD_RELOC_16;
 
     case XC16X_OPERAND_UPOF16:
+      fixP->fx_size = 2;
       fixP->fx_where += 2;
       return BFD_RELOC_XC16X_POF;
 
     case XC16X_OPERAND_UPAG16:
+      fixP->fx_size = 2;
       fixP->fx_where += 2;
       return BFD_RELOC_XC16X_PAG;
 
     case XC16X_OPERAND_USEG8:
+      /* ??? This is an 8 bit field, why the 16 bit reloc?  */
       fixP->fx_where += 1;
       return BFD_RELOC_XC16X_SEG;
 
     case XC16X_OPERAND_USEG16:
     case  XC16X_OPERAND_USOF16:
+      fixP->fx_size = 2;
       fixP->fx_where += 2;
       return BFD_RELOC_XC16X_SOF;
 
@@ -193,8 +201,7 @@ md_cgen_lookup_reloc (const CGEN_INSN *insn ATTRIBUTE_UNUSED,
       break;
     }
 
-  fixP->fx_where += 2;
-  return BFD_RELOC_XC16X_SOF;
+  return BFD_RELOC_NONE;
 }
 
 /* Write a value out to the object file, using the appropriate endianness.  */

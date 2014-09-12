@@ -1,5 +1,6 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+#   Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012
+#   Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -42,7 +43,7 @@ static struct spu_elf_params params =
   1, 0, 16, 0, 0, 2000
 };
 
-static unsigned int no_overlays = 0;  
+static unsigned int no_overlays = 0;
 static unsigned int num_lines_set = 0;
 static unsigned int line_size_set = 0;
 static char *auto_overlay_file = 0;
@@ -150,7 +151,7 @@ spu_place_special_section (asection *s, asection *o, const char *output_name)
       lang_statement_list_type add;
 
       lang_list_init (&add);
-      lang_add_section (&add, s, os);
+      lang_add_section (&add, s, NULL, os);
       *add.tail = os->children.head;
       os->children.head = add.head;
     }
@@ -164,10 +165,10 @@ spu_place_special_section (asection *s, asection *o, const char *output_name)
 
 	  push_stat_ptr (&os->children);
 	  e_size = exp_intop (params.line_size - s->size);
-	  lang_add_assignment (exp_assop ('=', ".", e_size));
+	  lang_add_assignment (exp_assign (".", e_size, FALSE));
 	  pop_stat_ptr ();
 	}
-      lang_add_section (&os->children, s, os);
+      lang_add_section (&os->children, s, NULL, os);
     }
 
   s->output_section->size += s->size;
@@ -355,7 +356,7 @@ new_tmp_file (char **fname)
   *fname = mktemp (*fname);
   if (*fname == NULL)
     return -1;
-  fd = open (fname, O_RDWR | O_CREAT | O_EXCL, 0600);
+  fd = open (*fname, O_RDWR | O_CREAT | O_EXCL, 0600);
 #endif
   return fd;
 }
@@ -383,9 +384,13 @@ spu_elf_open_overlay_script (void)
   return script;
 }
 
+#include <errno.h>
+
 static void
 spu_elf_relink (void)
 {
+  const char *pex_return;
+  int status;
   char **argv = xmalloc ((my_argc + 4) * sizeof (*argv));
 
   memcpy (argv, my_argv, my_argc * sizeof (*argv));
@@ -396,9 +401,16 @@ spu_elf_relink (void)
   argv[my_argc++] = "-T";
   argv[my_argc++] = auto_overlay_file;
   argv[my_argc] = 0;
-  execvp (argv[0], (char *const *) argv);
-  perror (argv[0]);
-  _exit (127);
+
+  pex_return = pex_one (PEX_SEARCH | PEX_LAST, (const char *) argv[0],
+			(char * const *) argv, (const char *) argv[0],
+			NULL, NULL, & status, & errno);
+  if (pex_return != NULL)
+    {
+      perror (pex_return);
+      _exit (127);
+    }
+  exit (status);
 }
 
 /* Final emulation specific call.  */
@@ -523,7 +535,7 @@ embedded_spu_file (lang_input_statement_type *entry, const char *flags)
   cmd[3] = entry->the_bfd->filename;
   cmd[4] = oname;
   cmd[5] = NULL;
-  if (trace_file_tries)
+  if (verbose)
     {
       info_msg (_("running: %s \"%s\" \"%s\" \"%s\" \"%s\"\n"),
 		cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]);
@@ -539,7 +551,7 @@ embedded_spu_file (lang_input_statement_type *entry, const char *flags)
 	  pex_return = pex_one (PEX_SEARCH | PEX_LAST, cmd[0], (char *const *) cmd,
 				cmd[0], NULL, NULL, &status, &errno);
 	}
-      if (NULL != pex_return) {      
+      if (NULL != pex_return) {
 	perror (pex_return);
 	_exit (127);
       }
@@ -567,7 +579,7 @@ embedded_spu_file (lang_input_statement_type *entry, const char *flags)
 
   /* Ensure bfd sections are excluded from the output.  */
   bfd_section_list_clear (entry->the_bfd);
-  entry->loaded = TRUE;
+  entry->flags.loaded = TRUE;
   return TRUE;
 }
 

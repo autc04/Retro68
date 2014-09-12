@@ -42,7 +42,7 @@ mmix_before_allocation (void)
 
   /* Force -relax on (regardless of whether we're doing a relocatable
      link).  */
-  command_line.relax = TRUE;
+  ENABLE_RELAXATION;
 
   if (!_bfd_mmix_before_linker_allocation (link_info.output_bfd, &link_info))
     einfo ("%X%P: Internal problems setting up section %s",
