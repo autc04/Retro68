@@ -2,7 +2,7 @@
 # generated.  This could lead to duplicate mapping symbols at
 # the same address.
 
-	.section .fini_array,"aw",%fini_array
+	.section .fini_array
 	.thumb
 	.align	2
 	.type	__do_global_dtors_aux_fini_array_entry, %object

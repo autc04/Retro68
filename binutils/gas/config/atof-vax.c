@@ -295,7 +295,7 @@ flonum_gen2vax (int format_letter,	/* One of 'd' 'f' 'g' 'h'.  */
 	  /* Seek (and forget) 1st significant bit.  */
 	  for (exponent_skippage = 0;
 	       !next_bits (1);
-	       exponent_skippage++);;
+	       exponent_skippage++);
 
 	  exponent_1 = f->exponent + f->leader + 1 - f->low;
 	  /* Radix LITTLENUM_RADIX, point just higher than f->leader.  */

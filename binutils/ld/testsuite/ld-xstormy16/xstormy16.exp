@@ -30,7 +30,7 @@ if {!([istarget "xstormy16*-*-*"]) } {
 
 set xstormy16_tests {
     {   "xstormy16 pc-relative relocs linker test"
-	""
+	"" ""
 	""
 	{ "pcrel.s" "external.s" }
 	{ {objdump -Dz pcrel.d} }

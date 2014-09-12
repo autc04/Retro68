@@ -1,3 +1,18 @@
+/* Copyright 2012 Free Software Foundation, Inc.
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
 #include "config.h"
 
 /* This is a merge of code recommended in the autoconf-2.61 documentation
@@ -15,7 +30,8 @@
 #  if defined _AIX
 /* Indented so that pre-ansi C compilers will ignore it, rather than
    choke on it.  Some versions of AIX require this to be the first
-   thing in the file except for comments and preprocessor directives.  */
+   thing seen by the compiler except for comments and preprocessor
+   directives.  */
     #pragma alloca
 #  else
 #   if defined _MSC_VER && !defined C_ALLOCA

@@ -147,12 +147,6 @@ extern int reloc_callj (struct fix *);
 /* We store the bal information in the sy_tc field.  */
 #define TC_SYMFIELD_TYPE symbolS *
 
-#define TC_ADJUST_RELOC_COUNT(FIX,COUNT) \
-  { fixS *tcfixp = (FIX); \
-    for (;tcfixp;tcfixp=tcfixp->fx_next) \
-      if (tcfixp->fx_tcbit && tcfixp->fx_addsy != 0) \
-	++(COUNT); \
-  }
 #endif
 
 extern int i960_validate_fix (struct fix *, segT);

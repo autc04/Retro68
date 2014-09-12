@@ -1,6 +1,6 @@
 /* ldctor.c -- constructor support routines
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011
    Free Software Foundation, Inc.
    By Steve Chamberlain <sac@cygnus.com>
 
@@ -319,11 +319,13 @@ ldctor_build_sets (void)
 	  break;
 	}
 
-      lang_add_assignment (exp_assop ('=', ".",
-				      exp_unop (ALIGN_K,
-						exp_intop (reloc_size))));
-      lang_add_assignment (exp_assop ('=', p->h->root.string,
-				      exp_nameop (NAME, ".")));
+      lang_add_assignment (exp_assign (".",
+				       exp_unop (ALIGN_K,
+						 exp_intop (reloc_size)),
+				       FALSE));
+      lang_add_assignment (exp_assign (p->h->root.string,
+				       exp_nameop (NAME, "."),
+				       FALSE));
       lang_add_data (size, exp_intop (p->count));
 
       for (e = p->elements; e != NULL; e = e->next)

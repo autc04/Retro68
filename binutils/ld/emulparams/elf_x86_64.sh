@@ -1,3 +1,4 @@
+. ${srcdir}/emulparams/plt_unwind.sh
 SCRIPT_NAME=elf
 ELFSIZE=64
 OUTPUT_FORMAT="elf64-x86-64"
@@ -7,13 +8,13 @@ MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 ARCH="i386:x86-64"
 MACHINE=
-NOP=0x90909090
 TEMPLATE_NAME=elf32
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
 NO_SMALL_DATA=yes
 LARGE_SECTIONS=yes
-SEPARATE_GOTPLT=24
+LARGE_BSS_AFTER_BSS=
+SEPARATE_GOTPLT="SIZEOF (.got.plt) >= 24 ? 24 : 0"
 IREL_IN_PLT=
 
 if [ "x${host}" = "x${target}" ]; then
@@ -31,7 +32,7 @@ case "$target" in
       *64*) LIBPATH_SUFFIX=64 ;;
     esac
     ;;
-  *-*-solaris2*) 
+  *-*-solaris2*)
     LIBPATH_SUFFIX=/amd64
     ELF_INTERPRETER_NAME=\"/lib/amd64/ld.so.1\"
   ;;

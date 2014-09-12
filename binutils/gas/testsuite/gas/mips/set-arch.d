@@ -2,7 +2,7 @@
 #name: .set arch=FOO
 #stderr: set-arch.l
 
-dump\.o:     file format .*mips
+dump\.o:     file format .*
 
 Disassembly of section \.text:
 00000000 <[^>]*> bc010000 	cache	0x1,0\(zero\)
@@ -165,7 +165,7 @@ Disassembly of section \.text:
 00000274 <[^>]*> 7000003f 	sdbbp
 00000278 <[^>]*> 7000003f 	sdbbp
 0000027c <[^>]*> 7159e27f 	sdbbp	0x56789
-00000280 <[^>]*> 000000c0 	sll	zero,zero,0x3
+00000280 <[^>]*> 000000c0 	ehb
 00000284 <[^>]*> 7ca43980 	0x7ca43980
 00000288 <[^>]*> 7ca46984 	0x7ca46984
 0000028c <[^>]*> 0100fc09 	jalr.hb	t0

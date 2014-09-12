@@ -1,5 +1,6 @@
 /* ia64-opc.c -- Functions to access the compacted opcode table
-   Copyright 1999, 2000, 2001, 2003, 2005, 2007 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2003, 2005, 2007, 2009, 2012
+   Free Software Foundation, Inc.
    Written by Bob Manson of Cygnus Solutions, <manson@cygnus.com>
 
    This file is part of the GNU opcodes library.
@@ -19,7 +20,6 @@
    Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "ansidecl.h"
 #include "sysdep.h"
 #include "libiberty.h"
 #include "ia64-asmtab.h"
@@ -718,13 +718,13 @@ ia64_free_opcode (struct ia64_opcode *ent)
 }
 
 const struct ia64_dependency *
-ia64_find_dependency (int index)
+ia64_find_dependency (int dep_index)
 {
-  index = DEP(index);
+  dep_index = DEP(dep_index);
 
-  if (index < 0
-      || index >= (int)(sizeof(dependencies) / sizeof(dependencies[0])))
+  if (dep_index < 0
+      || dep_index >= (int) ARRAY_SIZE (dependencies))
     return NULL;
 
-  return &dependencies[index];
+  return &dependencies[dep_index];
 }

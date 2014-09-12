@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2009 Free Software Foundation, Inc.
+Copyright 1996-2010 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -31,11 +31,7 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
 /* Operand references.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define OP_ENT(op) LM32_OPERAND_##op
-#else
-#define OP_ENT(op) LM32_OPERAND_/**/op
-#endif
 #define INPUT CGEN_OPINST_INPUT
 #define OUTPUT CGEN_OPINST_OUTPUT
 #define END CGEN_OPINST_END
@@ -67,7 +63,7 @@ static const CGEN_OPINST sfmt_andi_ops[] ATTRIBUTE_UNUSED = {
 };
 
 static const CGEN_OPINST sfmt_andhii_ops[] ATTRIBUTE_UNUSED = {
-  { INPUT, "hi16", HW_H_UINT, CGEN_MODE_SI, OP_ENT (HI16), 0, 0 },
+  { INPUT, "hi16", HW_H_UINT, CGEN_MODE_UINT, OP_ENT (HI16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -120,7 +116,7 @@ static const CGEN_OPINST sfmt_divu_ops[] ATTRIBUTE_UNUSED = {
 };
 
 static const CGEN_OPINST sfmt_lb_ops[] ATTRIBUTE_UNUSED = {
-  { INPUT, "h_memory_QI_add__DFLT_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
+  { INPUT, "h_memory_QI_add__SI_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
   { INPUT, "imm", HW_H_SINT, CGEN_MODE_INT, OP_ENT (IMM), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
@@ -128,7 +124,7 @@ static const CGEN_OPINST sfmt_lb_ops[] ATTRIBUTE_UNUSED = {
 };
 
 static const CGEN_OPINST sfmt_lh_ops[] ATTRIBUTE_UNUSED = {
-  { INPUT, "h_memory_HI_add__DFLT_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
+  { INPUT, "h_memory_HI_add__SI_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
   { INPUT, "imm", HW_H_SINT, CGEN_MODE_INT, OP_ENT (IMM), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
@@ -136,7 +132,7 @@ static const CGEN_OPINST sfmt_lh_ops[] ATTRIBUTE_UNUSED = {
 };
 
 static const CGEN_OPINST sfmt_lw_ops[] ATTRIBUTE_UNUSED = {
-  { INPUT, "h_memory_SI_add__DFLT_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
+  { INPUT, "h_memory_SI_add__SI_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
   { INPUT, "imm", HW_H_SINT, CGEN_MODE_INT, OP_ENT (IMM), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
@@ -160,7 +156,7 @@ static const CGEN_OPINST sfmt_sb_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "imm", HW_H_SINT, CGEN_MODE_INT, OP_ENT (IMM), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_QI_add__DFLT_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
+  { OUTPUT, "h_memory_QI_add__SI_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
@@ -174,14 +170,7 @@ static const CGEN_OPINST sfmt_sh_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "imm", HW_H_SINT, CGEN_MODE_INT, OP_ENT (IMM), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_HI_add__DFLT_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
-  { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
-};
-
-static const CGEN_OPINST sfmt_sl_ops[] ATTRIBUTE_UNUSED = {
-  { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
-  { INPUT, "r1", HW_H_GR, CGEN_MODE_INT, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "r2", HW_H_GR, CGEN_MODE_SI, OP_ENT (R2), 0, 0 },
+  { OUTPUT, "h_memory_HI_add__SI_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
@@ -189,7 +178,7 @@ static const CGEN_OPINST sfmt_sw_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "imm", HW_H_SINT, CGEN_MODE_INT, OP_ENT (IMM), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_SI_add__DFLT_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
+  { OUTPUT, "h_memory_SI_add__SI_r0_ext__SI_trunc__HI_imm", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
@@ -219,8 +208,22 @@ static const CGEN_OPINST sfmt_bret_ops[] ATTRIBUTE_UNUSED = {
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
+static const CGEN_OPINST sfmt_mvi_ops[] ATTRIBUTE_UNUSED = {
+  { INPUT, "imm", HW_H_SINT, CGEN_MODE_INT, OP_ENT (IMM), 0, 0 },
+  { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
+  { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
+  { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
+};
+
 static const CGEN_OPINST sfmt_mvui_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "lo16", HW_H_UINT, CGEN_MODE_UINT, OP_ENT (LO16), 0, 0 },
+  { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
+  { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
+};
+
+static const CGEN_OPINST sfmt_mvhi_ops[] ATTRIBUTE_UNUSED = {
+  { INPUT, "hi16", HW_H_UINT, CGEN_MODE_UINT, OP_ENT (HI16), 0, 0 },
+  { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
@@ -240,7 +243,7 @@ static const CGEN_OPINST sfmt_nop_ops[] ATTRIBUTE_UNUSED = {
 
 static const CGEN_OPINST sfmt_lbgprel_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gp16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GP16), 0, 0 },
-  { INPUT, "h_memory_QI_add__DFLT_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
+  { INPUT, "h_memory_QI_add__SI_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -248,7 +251,7 @@ static const CGEN_OPINST sfmt_lbgprel_ops[] ATTRIBUTE_UNUSED = {
 
 static const CGEN_OPINST sfmt_lhgprel_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gp16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GP16), 0, 0 },
-  { INPUT, "h_memory_HI_add__DFLT_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
+  { INPUT, "h_memory_HI_add__SI_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -256,7 +259,7 @@ static const CGEN_OPINST sfmt_lhgprel_ops[] ATTRIBUTE_UNUSED = {
 
 static const CGEN_OPINST sfmt_lwgprel_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gp16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GP16), 0, 0 },
-  { INPUT, "h_memory_SI_add__DFLT_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
+  { INPUT, "h_memory_SI_add__SI_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -266,7 +269,7 @@ static const CGEN_OPINST sfmt_sbgprel_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gp16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GP16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_QI_add__DFLT_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
+  { OUTPUT, "h_memory_QI_add__SI_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
@@ -274,7 +277,7 @@ static const CGEN_OPINST sfmt_shgprel_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gp16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GP16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_HI_add__DFLT_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
+  { OUTPUT, "h_memory_HI_add__SI_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
@@ -282,20 +285,20 @@ static const CGEN_OPINST sfmt_swgprel_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gp16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GP16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_SI_add__DFLT_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
+  { OUTPUT, "h_memory_SI_add__SI_r0_ext__SI_trunc__HI_gp16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
 static const CGEN_OPINST sfmt_lwgotrel_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "got16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOT16), 0, 0 },
-  { INPUT, "h_memory_SI_add__DFLT_r0_ext__SI_trunc__HI_got16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
+  { INPUT, "h_memory_SI_add__SI_r0_ext__SI_trunc__HI_got16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
 static const CGEN_OPINST sfmt_orhigotoffi_ops[] ATTRIBUTE_UNUSED = {
-  { INPUT, "gotoffhi16", HW_H_SINT, CGEN_MODE_SI, OP_ENT (GOTOFFHI16), 0, 0 },
+  { INPUT, "gotoffhi16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOTOFFHI16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -312,13 +315,13 @@ static const CGEN_OPINST sfmt_swgotoff_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gotofflo16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOTOFFLO16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_SI_add__DFLT_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
+  { OUTPUT, "h_memory_SI_add__SI_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
 static const CGEN_OPINST sfmt_lwgotoff_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gotofflo16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOTOFFLO16), 0, 0 },
-  { INPUT, "h_memory_SI_add__DFLT_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
+  { INPUT, "h_memory_SI_add__SI_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_SI, 0, 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -328,13 +331,13 @@ static const CGEN_OPINST sfmt_shgotoff_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gotofflo16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOTOFFLO16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_HI_add__DFLT_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
+  { OUTPUT, "h_memory_HI_add__SI_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
 static const CGEN_OPINST sfmt_lhgotoff_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gotofflo16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOTOFFLO16), 0, 0 },
-  { INPUT, "h_memory_HI_add__DFLT_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
+  { INPUT, "h_memory_HI_add__SI_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_HI, 0, 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -344,13 +347,13 @@ static const CGEN_OPINST sfmt_sbgotoff_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gotofflo16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOTOFFLO16), 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { INPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
-  { OUTPUT, "h_memory_QI_add__DFLT_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
+  { OUTPUT, "h_memory_QI_add__SI_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
 };
 
 static const CGEN_OPINST sfmt_lbgotoff_ops[] ATTRIBUTE_UNUSED = {
   { INPUT, "gotofflo16", HW_H_SINT, CGEN_MODE_INT, OP_ENT (GOTOFFLO16), 0, 0 },
-  { INPUT, "h_memory_QI_add__DFLT_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
+  { INPUT, "h_memory_QI_add__SI_r0_ext__SI_trunc__HI_gotofflo16", HW_H_MEMORY, CGEN_MODE_QI, 0, 0, 0 },
   { INPUT, "r0", HW_H_GR, CGEN_MODE_SI, OP_ENT (R0), 0, 0 },
   { OUTPUT, "r1", HW_H_GR, CGEN_MODE_SI, OP_ENT (R1), 0, 0 },
   { END, (const char *)0, (enum cgen_hw_type)0, (enum cgen_mode)0, (enum cgen_operand_type)0, 0, 0 }
@@ -412,11 +415,11 @@ static const CGEN_OPINST *lm32_cgen_opinst_table[MAX_INSNS] = {
   & sfmt_sextb_ops[0],
   & sfmt_sextb_ops[0],
   & sfmt_sh_ops[0],
-  & sfmt_sl_ops[0],
+  & sfmt_add_ops[0],
   & sfmt_addi_ops[0],
-  & sfmt_sl_ops[0],
+  & sfmt_add_ops[0],
   & sfmt_addi_ops[0],
-  & sfmt_sl_ops[0],
+  & sfmt_add_ops[0],
   & sfmt_addi_ops[0],
   & sfmt_add_ops[0],
   & sfmt_sw_ops[0],
@@ -432,9 +435,9 @@ static const CGEN_OPINST *lm32_cgen_opinst_table[MAX_INSNS] = {
   & sfmt_bret_ops[0],
   & sfmt_bret_ops[0],
   & sfmt_sextb_ops[0],
-  & sfmt_addi_ops[0],
+  & sfmt_mvi_ops[0],
   & sfmt_mvui_ops[0],
-  & sfmt_andhii_ops[0],
+  & sfmt_mvhi_ops[0],
   & sfmt_mva_ops[0],
   & sfmt_sextb_ops[0],
   & sfmt_nop_ops[0],

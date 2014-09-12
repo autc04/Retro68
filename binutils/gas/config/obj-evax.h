@@ -1,5 +1,6 @@
 /* This file is obj-evax.h
-   Copyright 1996, 2000, 2005, 2007, 2009 Free Software Foundation, Inc.
+   Copyright 1996, 2000, 2005, 2007, 2009, 2010
+   Free Software Foundation, Inc.
    Contributed by Klaus Kämpf (kkaempf@progis.de) of
      proGIS Software, Aachen, Germany.
 
@@ -37,11 +38,18 @@
 
 struct fix;
 
+/* Simply linked list of .linkage.  */
 struct alpha_linkage_fixups
 {
+  /* Next entry.  */
   struct alpha_linkage_fixups *next;
+
+  /* Corresponding fixup.  */
   struct fix *fixp;
-  segT seg;
+
+  /* Label that designates this entry.
+     Note that a linkage entry can only be designated by one label.
+     Also, s_alpha_linkage force the creation of a label.  */
   symbolS *label;
 };
 
@@ -59,28 +67,13 @@ struct alpha_linkage_fixups
 
 /* #define SYMBOLS_NEED_PACKPOINTERS */
 
-/*  */
-typedef struct
-  {
-    void *nothing;
-  }
-obj_symbol_type;		/* should be the format's symbol structure */
-
-typedef void *object_headers;
-
 #define OBJ_EMIT_LINENO(a,b,c)	/* must be *something*.  This no-op's it out.  */
-
-/* This field keeps the symbols position in the link section.  */
-#define OBJ_SYMFIELD_TYPE valueT
 
 #define obj_symbol_new_hook(s)       evax_symbol_new_hook (s)
 #define obj_frob_symbol(s,p)         evax_frob_symbol (s, &p)
 #define obj_frob_file_before_adjust  evax_frob_file_before_adjust
 #define obj_frob_file_before_fix     evax_frob_file_before_fix
 
-#define S_SET_OTHER(S,V)
-#define S_SET_TYPE(S,T)
-#define S_SET_DESC(S,D)
 #define S_GET_OTHER(S)	0
 #define S_GET_TYPE(S)	0
 #define S_GET_DESC(S)	0

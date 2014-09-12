@@ -10,10 +10,10 @@ Disassembly of section .text:
     800c:	fb00000d 	blx	804a <t5>
     8010:	fa00000a 	blx	8040 <t1>
     8014:	fb000009 	blx	8042 <t2>
-    8018:	ea000012 	b	8068 <__t1_from_arm>
-    801c:	ea00000f 	b	8060 <__t2_from_arm>
-    8020:	1b000010 	blne	8068 <__t1_from_arm>
-    8024:	1b00000d 	blne	8060 <__t2_from_arm>
+    8018:	ea000010 	b	8060 <__t1_from_arm>
+    801c:	ea000011 	b	8068 <__t2_from_arm>
+    8020:	1b00000e 	blne	8060 <__t1_from_arm>
+    8024:	1b00000f 	blne	8068 <__t2_from_arm>
     8028:	1b000003 	blne	803c <arm>
     802c:	eb000002 	bl	803c <arm>
     8030:	faffffff 	blx	8034 <thumblocal>
@@ -46,13 +46,13 @@ Disassembly of section .text:
     8050:	f7ff fff1 	bl	8036 <t3>
     8054:	f7ff efd4 	blx	8000 <_start>
     8058:	f7ff efd2 	blx	8000 <_start>
-    805c:	0000      	lsls	r0, r0, #0
+    805c:	0000      	movs	r0, r0
 	...
 
-00008060 <__t2_from_arm>:
-    8060:	e51ff004 	ldr	pc, \[pc, #-4\]	; 8064 <__t2_from_arm\+0x4>
-    8064:	00008043 	.word	0x00008043
+00008060 <__t1_from_arm>:
+    8060:	e51ff004 	ldr	pc, \[pc, #-4\]	; 8064 <__t1_from_arm\+0x4>
+    8064:	00008041 	.word	0x00008041
 
-00008068 <__t1_from_arm>:
-    8068:	e51ff004 	ldr	pc, \[pc, #-4\]	; 806c <__t1_from_arm\+0x4>
-    806c:	00008041 	.word	0x00008041
+00008068 <__t2_from_arm>:
+    8068:	e51ff004 	ldr	pc, \[pc, #-4\]	; 806c <__t2_from_arm\+0x4>
+    806c:	00008043 	.word	0x00008043

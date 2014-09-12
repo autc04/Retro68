@@ -71,7 +71,7 @@
      COPYRIGHT = 260,
      CUSTOM = 261,
      DATE = 262,
-     DEBUG = 263,
+     DEBUG_K = 263,
      DESCRIPTION = 264,
      EXIT = 265,
      EXPORT = 266,
@@ -109,7 +109,7 @@
 #define COPYRIGHT 260
 #define CUSTOM 261
 #define DATE 262
-#define DEBUG 263
+#define DEBUG_K 263
 #define DESCRIPTION 264
 #define EXIT 265
 #define EXPORT 266
@@ -146,8 +146,8 @@
 /* Copy the first part of user declarations.  */
 #line 1 "nlmheader.y"
 /* nlmheader.y - parse NLM header specification keywords.
-     Copyright 1993, 1994, 1995, 1997, 1998, 2001, 2002, 2003, 2005, 2007
-     Free Software Foundation, Inc.
+     Copyright 1993, 1994, 1995, 1997, 1998, 2001, 2002, 2003, 2005, 2007,
+     2010 Free Software Foundation, Inc.
 
      This file is part of GNU Binutils.
 
@@ -613,7 +613,7 @@ static const yytype_uint16 yyrline[] =
 static const char *const yytname[] =
 {
   "$end", "error", "$undefined", "CHECK", "CODESTART", "COPYRIGHT",
-  "CUSTOM", "DATE", "DEBUG", "DESCRIPTION", "EXIT", "EXPORT", "FLAG_ON",
+  "CUSTOM", "DATE", "DEBUG_K", "DESCRIPTION", "EXIT", "EXPORT", "FLAG_ON",
   "FLAG_OFF", "FULLMAP", "HELP", "IMPORT", "INPUT", "MAP", "MESSAGES",
   "MODULE", "MULTIPLE", "OS_DOMAIN", "OUTPUT", "PSEUDOPREEMPTION",
   "REENTRANT", "SCREENNAME", "SHARELIB", "STACK", "START", "SYNCHRONIZE",
@@ -2330,7 +2330,7 @@ static struct keyword_tokens_struct keyword_tokens[] =
   { "COPYRIGHT", COPYRIGHT },
   { "CUSTOM", CUSTOM },
   { "DATE", DATE },
-  { "DEBUG", DEBUG },
+  { "DEBUG", DEBUG_K },
   { "DESCRIPTION", DESCRIPTION },
   { "EXIT", EXIT },
   { "EXPORT", EXPORT },

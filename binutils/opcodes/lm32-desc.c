@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2009 Free Software Foundation, Inc.
+Copyright 1996-2010 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -185,6 +185,7 @@ static CGEN_KEYWORD_ENTRY lm32_cgen_opval_h_csr_entries[] =
   { "EBA", 7, {0, {{{0, 0}}}}, 0, 0 },
   { "DC", 8, {0, {{{0, 0}}}}, 0, 0 },
   { "DEBA", 9, {0, {{{0, 0}}}}, 0, 0 },
+  { "CFG2", 10, {0, {{{0, 0}}}}, 0, 0 },
   { "JTX", 14, {0, {{{0, 0}}}}, 0, 0 },
   { "JRX", 15, {0, {{{0, 0}}}}, 0, 0 },
   { "BP0", 16, {0, {{{0, 0}}}}, 0, 0 },
@@ -194,24 +195,24 @@ static CGEN_KEYWORD_ENTRY lm32_cgen_opval_h_csr_entries[] =
   { "WP0", 24, {0, {{{0, 0}}}}, 0, 0 },
   { "WP1", 25, {0, {{{0, 0}}}}, 0, 0 },
   { "WP2", 26, {0, {{{0, 0}}}}, 0, 0 },
-  { "WP3", 27, {0, {{{0, 0}}}}, 0, 0 }
+  { "WP3", 27, {0, {{{0, 0}}}}, 0, 0 },
+  { "PSW", 29, {0, {{{0, 0}}}}, 0, 0 },
+  { "TLBVADDR", 30, {0, {{{0, 0}}}}, 0, 0 },
+  { "TLBPADDR", 31, {0, {{{0, 0}}}}, 0, 0 },
+  { "TLBBADVADDR", 31, {0, {{{0, 0}}}}, 0, 0 }
 };
 
 CGEN_KEYWORD lm32_cgen_opval_h_csr =
 {
   & lm32_cgen_opval_h_csr_entries[0],
-  20,
+  25,
   0, 0, 0, 0, ""
 };
 
 
 /* The hardware table.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_HW_##a)
-#else
-#define A(a) (1 << CGEN_HW_/**/a)
-#endif
 
 const CGEN_HW_ENTRY lm32_cgen_hw_table[] =
 {
@@ -231,11 +232,7 @@ const CGEN_HW_ENTRY lm32_cgen_hw_table[] =
 
 /* The instruction field table.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_IFLD_##a)
-#else
-#define A(a) (1 << CGEN_IFLD_/**/a)
-#endif
 
 const CGEN_IFLD lm32_cgen_ifld_table[] =
 {
@@ -270,16 +267,8 @@ const CGEN_IFLD lm32_cgen_ifld_table[] =
 
 /* The operand table.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_OPERAND_##a)
-#else
-#define A(a) (1 << CGEN_OPERAND_/**/a)
-#endif
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define OPERAND(op) LM32_OPERAND_##op
-#else
-#define OPERAND(op) LM32_OPERAND_/**/op
-#endif
 
 const CGEN_OPERAND lm32_cgen_operand_table[] =
 {
@@ -367,11 +356,7 @@ const CGEN_OPERAND lm32_cgen_operand_table[] =
 /* The instruction table.  */
 
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_INSN_##a)
-#else
-#define A(a) (1 << CGEN_INSN_/**/a)
-#endif
 
 static const CGEN_IBASE lm32_cgen_insn_table[MAX_INSNS] =
 {
@@ -1041,11 +1026,7 @@ lm32_cgen_rebuild_tables (CGEN_CPU_TABLE *cd)
    CGEN_CPU_OPEN_END:     terminates arguments
 
    ??? Simultaneous multiple isas might not make sense, but it's not (yet)
-   precluded.
-
-   ??? We only support ISO C stdargs here, not K&R.
-   Laziness, plus experiment to see if anything requires K&R - eventually
-   K&R will no longer be supported - e.g. GDB is currently trying this.  */
+   precluded.  */
 
 CGEN_CPU_DESC
 lm32_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)

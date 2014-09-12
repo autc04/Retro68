@@ -1,3 +1,8 @@
+@c Copyright 2012
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
 @clear ALL-ARCH
 @clear GENERIC
 @clear INTERNALS

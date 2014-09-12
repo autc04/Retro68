@@ -270,6 +270,20 @@ _start:
 	vtestps %ymm4,%ymm6
 	vtestps (%ecx),%ymm4
 
+# Tests for op ymm, ymm/mem256
+	vmovapd %ymm4,%ymm6
+	vmovapd %ymm4,(%ecx)
+	vmovaps %ymm4,%ymm6
+	vmovaps %ymm4,(%ecx)
+	vmovdqa %ymm4,%ymm6
+	vmovdqa %ymm4,(%ecx)
+	vmovdqu %ymm4,%ymm6
+	vmovdqu %ymm4,(%ecx)
+	vmovupd %ymm4,%ymm6
+	vmovupd %ymm4,(%ecx)
+	vmovups %ymm4,%ymm6
+	vmovups %ymm4,(%ecx)
+
 # Tests for op mem256, ymm
 	vlddqu (%ecx),%ymm4
 
@@ -1116,6 +1130,10 @@ _start:
 	vextractps $7,%xmm4,%ecx
 	vextractps $7,%xmm4,(%ecx)
 
+# Tests for op imm8, regl/mem32, xmm, xmm
+	vpinsrd $7,%ecx,%xmm4,%xmm6
+	vpinsrd $7,(%ecx),%xmm4,%xmm6
+
 # Tests for op regl/mem32, xmm, xmm
 	vcvtsi2sd %ecx,%xmm4,%xmm6
 	vcvtsi2sd (%ecx),%xmm4,%xmm6
@@ -1157,10 +1175,6 @@ _start:
 
 # Tests for op imm8, xmm, regq/mem8
 	vpextrb $7,%xmm4,(%ecx)
-
-# Tests for op imm8, regl/mem8, xmm, xmm
-	vpinsrb $7,%ecx,%xmm4,%xmm6
-	vpinsrb $7,(%ecx),%xmm4,%xmm6
 
 # Tests for op xmm, xmm
 	vmaskmovdqu %xmm4,%xmm6
@@ -1830,6 +1844,26 @@ _start:
 	vtestps ymm6,ymm4
 	vtestps ymm4,YMMWORD PTR [ecx]
 	vtestps ymm4,[ecx]
+
+# Tests for op ymm, ymm/mem256
+	vmovapd ymm6,ymm4
+	vmovapd YMMWORD PTR [ecx],ymm4
+	vmovapd [ecx],ymm4
+	vmovaps ymm6,ymm4
+	vmovaps YMMWORD PTR [ecx],ymm4
+	vmovaps [ecx],ymm4
+	vmovdqa ymm6,ymm4
+	vmovdqa YMMWORD PTR [ecx],ymm4
+	vmovdqa [ecx],ymm4
+	vmovdqu ymm6,ymm4
+	vmovdqu YMMWORD PTR [ecx],ymm4
+	vmovdqu [ecx],ymm4
+	vmovupd ymm6,ymm4
+	vmovupd YMMWORD PTR [ecx],ymm4
+	vmovupd [ecx],ymm4
+	vmovups ymm6,ymm4
+	vmovups YMMWORD PTR [ecx],ymm4
+	vmovups [ecx],ymm4
 
 # Tests for op mem256, ymm
 	vlddqu ymm4,YMMWORD PTR [ecx]
@@ -3076,6 +3110,11 @@ _start:
 	vextractps DWORD PTR [ecx],xmm4,7
 	vextractps [ecx],xmm4,7
 
+# Tests for op imm8, regl/mem32, xmm, xmm
+	vpinsrd xmm6,xmm4,ecx,7
+	vpinsrd xmm6,xmm4,DWORD PTR [ecx],7
+	vpinsrd xmm6,xmm4,[ecx],7
+
 # Tests for op regl/mem32, xmm, xmm
 	vcvtsi2sd xmm6,xmm4,ecx
 	vcvtsi2sd xmm6,xmm4,DWORD PTR [ecx]
@@ -3130,11 +3169,6 @@ _start:
 # Tests for op imm8, xmm, regq/mem8
 	vpextrb BYTE PTR [ecx],xmm4,7
 	vpextrb [ecx],xmm4,7
-
-# Tests for op imm8, regl/mem8, xmm, xmm
-	vpinsrb xmm6,xmm4,ecx,7
-	vpinsrb xmm6,xmm4,BYTE PTR [ecx],7
-	vpinsrb xmm6,xmm4,[ecx],7
 
 # Tests for op xmm, xmm
 	vmaskmovdqu xmm6,xmm4

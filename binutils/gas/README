@@ -162,3 +162,9 @@ gas with gcc.  They should not be reported just to gcc-bugs, since not
 all of the maintainers read that list.
 
 See ../binutils/README for what we need in a bug report.
+
+Copyright (C) 2012 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.

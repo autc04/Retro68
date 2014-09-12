@@ -22,67 +22,61 @@ Disassembly of section .text:
 0000002e <foo\+0x2e> f8dd d000 	ldr.w	sp, \[sp\]
 00000032 <foo\+0x32> f8dd f000 	ldr.w	pc, \[sp\]
 00000036 <foo\+0x36> f8df d000 	ldr.w	sp, \[pc\]	; 00000038 <foo\+0x38>
-0000003a <foo\+0x3a> f850 d00f 	ldr.w	sp, \[r0, pc\]
-0000003e <foo\+0x3e> 9000      	str	r0, \[sp, #0\]
-00000040 <foo\+0x40> f8cf 0000 	str.w	r0, \[pc\]	; 00000044 <foo\+0x44>
-00000044 <foo\+0x44> f8c0 f000 	str.w	pc, \[r0\]
-00000048 <foo\+0x48> f8c0 d000 	str.w	sp, \[r0\]
-0000004c <foo\+0x4c> f8cf f000 	str.w	pc, \[pc\]	; 00000050 <foo\+0x50>
-00000050 <foo\+0x50> f8cd d000 	str.w	sp, \[sp\]
-00000054 <foo\+0x54> f8cd f000 	str.w	pc, \[sp\]
-00000058 <foo\+0x58> f8cf d000 	str.w	sp, \[pc\]	; 0000005c <foo\+0x5c>
-0000005c <foo\+0x5c> f840 d00f 	str.w	sp, \[r0, pc\]
-00000060 <foo\+0x60> 4468      	add	r0, sp
-00000062 <foo\+0x62> eb1d 0000 	adds.w	r0, sp, r0
-00000066 <foo\+0x66> eb0d 0040 	add.w	r0, sp, r0, lsl #1
-0000006a <foo\+0x6a> eb1d 0040 	adds.w	r0, sp, r0, lsl #1
-0000006e <foo\+0x6e> f11d 0f00 	cmn.w	sp, #0
-00000072 <foo\+0x72> eb1d 0f00 	cmn.w	sp, r0
-00000076 <foo\+0x76> eb1d 0f40 	cmn.w	sp, r0, lsl #1
-0000007a <foo\+0x7a> f1bd 0f00 	cmp.w	sp, #0
-0000007e <foo\+0x7e> 4585      	cmp	sp, r0
-00000080 <foo\+0x80> ebbd 0f40 	cmp.w	sp, r0, lsl #1
-00000084 <foo\+0x84> b080      	sub	sp, #0
-00000086 <foo\+0x86> f1bd 0d00 	subs.w	sp, sp, #0
-0000008a <foo\+0x8a> f1ad 0000 	sub.w	r0, sp, #0
-0000008e <foo\+0x8e> f1bd 0000 	subs.w	r0, sp, #0
-00000092 <foo\+0x92> b001      	add	sp, #4
-00000094 <foo\+0x94> a801      	add	r0, sp, #4
-00000096 <foo\+0x96> f11d 0d04 	adds.w	sp, sp, #4
-0000009a <foo\+0x9a> f11d 0004 	adds.w	r0, sp, #4
-0000009e <foo\+0x9e> f20d 0004 	addw	r0, sp, #4
-000000a2 <foo\+0xa2> b001      	add	sp, #4
-000000a4 <foo\+0xa4> f11d 0d04 	adds.w	sp, sp, #4
-000000a8 <foo\+0xa8> f20d 0d04 	addw	sp, sp, #4
-000000ac <foo\+0xac> 4485      	add	sp, r0
-000000ae <foo\+0xae> 4468      	add	r0, sp
-000000b0 <foo\+0xb0> eb0d 0040 	add.w	r0, sp, r0, lsl #1
-000000b4 <foo\+0xb4> eb1d 0d00 	adds.w	sp, sp, r0
-000000b8 <foo\+0xb8> eb1d 0000 	adds.w	r0, sp, r0
-000000bc <foo\+0xbc> eb1d 0040 	adds.w	r0, sp, r0, lsl #1
-000000c0 <foo\+0xc0> 4485      	add	sp, r0
-000000c2 <foo\+0xc2> eb0d 0d40 	add.w	sp, sp, r0, lsl #1
-000000c6 <foo\+0xc6> eb1d 0d00 	adds.w	sp, sp, r0
-000000ca <foo\+0xca> eb1d 0d40 	adds.w	sp, sp, r0, lsl #1
-000000ce <foo\+0xce> 44ed      	add	sp, sp
-000000d0 <foo\+0xd0> f1ad 0000 	sub.w	r0, sp, #0
-000000d4 <foo\+0xd4> f1bd 0000 	subs.w	r0, sp, #0
-000000d8 <foo\+0xd8> f2ad 0000 	subw	r0, sp, #0
-000000dc <foo\+0xdc> b080      	sub	sp, #0
-000000de <foo\+0xde> f1bd 0d00 	subs.w	sp, sp, #0
-000000e2 <foo\+0xe2> f2ad 0d00 	subw	sp, sp, #0
-000000e6 <foo\+0xe6> b080      	sub	sp, #0
-000000e8 <foo\+0xe8> f1bd 0d00 	subs.w	sp, sp, #0
-000000ec <foo\+0xec> ebad 0040 	sub.w	r0, sp, r0, lsl #1
-000000f0 <foo\+0xf0> ebbd 0040 	subs.w	r0, sp, r0, lsl #1
-000000f4 <foo\+0xf4> ebad 0d40 	sub.w	sp, sp, r0, lsl #1
-000000f8 <foo\+0xf8> ebbd 0d40 	subs.w	sp, sp, r0, lsl #1
-000000fc <foo\+0xfc> a001      	add	r0, pc, #4	; \(adr r0, 00000104 <foo\+0x104>\)
-000000fe <foo\+0xfe> f2af 0004 	subw	r0, pc, #4
-00000102 <foo\+0x102> f20f 0004 	addw	r0, pc, #4
-00000106 <foo\+0x106> f2af 0004 	subw	r0, pc, #4
-0000010a <foo\+0x10a> f20f 0004 	addw	r0, pc, #4
-0000010e <foo\+0x10e> f2af 0004 	subw	r0, pc, #4
-00000112 <foo\+0x112> bf00[ 	]+nop
-00000114 <foo\+0x114> bf00[ 	]+nop
-00000116 <foo\+0x116> bf00[ 	]+nop
+0000003a <foo\+0x3a> 9000      	str	r0, \[sp, #0\]
+0000003c <foo\+0x3c> f8c0 d000 	str.w	sp, \[r0\]
+00000040 <foo\+0x40> f8cd d000 	str.w	sp, \[sp\]
+00000044 <foo\+0x44> 4468      	add	r0, sp
+00000046 <foo\+0x46> eb1d 0000 	adds.w	r0, sp, r0
+0000004a <foo\+0x4a> eb0d 0040 	add.w	r0, sp, r0, lsl #1
+0000004e <foo\+0x4e> eb1d 0040 	adds.w	r0, sp, r0, lsl #1
+00000052 <foo\+0x52> f11d 0f00 	cmn.w	sp, #0
+00000056 <foo\+0x56> eb1d 0f00 	cmn.w	sp, r0
+0000005a <foo\+0x5a> eb1d 0f40 	cmn.w	sp, r0, lsl #1
+0000005e <foo\+0x5e> f1bd 0f00 	cmp.w	sp, #0
+00000062 <foo\+0x62> 4585      	cmp	sp, r0
+00000064 <foo\+0x64> ebbd 0f40 	cmp.w	sp, r0, lsl #1
+00000068 <foo\+0x68> b080      	sub	sp, #0
+0000006a <foo\+0x6a> f1bd 0d00 	subs.w	sp, sp, #0
+0000006e <foo\+0x6e> f1ad 0000 	sub.w	r0, sp, #0
+00000072 <foo\+0x72> f1bd 0000 	subs.w	r0, sp, #0
+00000076 <foo\+0x76> b001      	add	sp, #4
+00000078 <foo\+0x78> a801      	add	r0, sp, #4
+0000007a <foo\+0x7a> f11d 0d04 	adds.w	sp, sp, #4
+0000007e <foo\+0x7e> f11d 0004 	adds.w	r0, sp, #4
+00000082 <foo\+0x82> f20d 0004 	addw	r0, sp, #4
+00000086 <foo\+0x86> b001      	add	sp, #4
+00000088 <foo\+0x88> f11d 0d04 	adds.w	sp, sp, #4
+0000008c <foo\+0x8c> f20d 0d04 	addw	sp, sp, #4
+00000090 <foo\+0x90> 4485      	add	sp, r0
+00000092 <foo\+0x92> 4468      	add	r0, sp
+00000094 <foo\+0x94> eb0d 0040 	add.w	r0, sp, r0, lsl #1
+00000098 <foo\+0x98> eb1d 0d00 	adds.w	sp, sp, r0
+0000009c <foo\+0x9c> eb1d 0000 	adds.w	r0, sp, r0
+000000a0 <foo\+0xa0> eb1d 0040 	adds.w	r0, sp, r0, lsl #1
+000000a4 <foo\+0xa4> 4485      	add	sp, r0
+000000a6 <foo\+0xa6> eb0d 0d40 	add.w	sp, sp, r0, lsl #1
+000000aa <foo\+0xaa> eb1d 0d00 	adds.w	sp, sp, r0
+000000ae <foo\+0xae> eb1d 0d40 	adds.w	sp, sp, r0, lsl #1
+000000b2 <foo\+0xb2> 44ed      	add	sp, sp
+000000b4 <foo\+0xb4> f1ad 0000 	sub.w	r0, sp, #0
+000000b8 <foo\+0xb8> f1bd 0000 	subs.w	r0, sp, #0
+000000bc <foo\+0xbc> f2ad 0000 	subw	r0, sp, #0
+000000c0 <foo\+0xc0> b080      	sub	sp, #0
+000000c2 <foo\+0xc2> f1bd 0d00 	subs.w	sp, sp, #0
+000000c6 <foo\+0xc6> f2ad 0d00 	subw	sp, sp, #0
+000000ca <foo\+0xca> b080      	sub	sp, #0
+000000cc <foo\+0xcc> f1bd 0d00 	subs.w	sp, sp, #0
+000000d0 <foo\+0xd0> ebad 0040 	sub.w	r0, sp, r0, lsl #1
+000000d4 <foo\+0xd4> ebbd 0040 	subs.w	r0, sp, r0, lsl #1
+000000d8 <foo\+0xd8> ebad 0d40 	sub.w	sp, sp, r0, lsl #1
+000000dc <foo\+0xdc> ebbd 0d40 	subs.w	sp, sp, r0, lsl #1
+000000e0 <foo\+0xe0> a001      	add	r0, pc, #4	; \(adr r0, 000000e8 <foo\+0xe8>\)
+000000e2 <foo\+0xe2> f2af 0004 	subw	r0, pc, #4
+000000e6 <foo\+0xe6> f20f 0004 	addw	r0, pc, #4
+000000ea <foo\+0xea> f2af 0004 	subw	r0, pc, #4
+000000ee <foo\+0xee> f20f 0004 	addw	r0, pc, #4
+000000f2 <foo\+0xf2> f2af 0004 	subw	r0, pc, #4
+000000f6 <foo\+0xf6> bf00      	nop
+000000f8 <foo\+0xf8> bf00      	nop
+000000fa <foo\+0xfa> bf00      	nop
+

@@ -1,7 +1,7 @@
 #name: MIPS eh-frame 2, n32
 #source: eh-frame1.s
 #source: eh-frame1.s
-#as: -EB -n32 --defsym alignment=2 --defsym fill=0
+#as: -march=from-abi -EB -n32 --defsym alignment=2 --defsym fill=0
 #readelf: --relocs -wf
 #ld: -shared -melf32btsmipn32 -Teh-frame1.ld
 #warning: fde encoding in.*prevents \.eh_frame_hdr table being created.
@@ -25,7 +25,7 @@ Contents of the \.eh_frame section:
   Code alignment factor: 1
   Data alignment factor: 4
   Return address column: 31
-  Augmentation data:     10
+  Augmentation data:     1b
 
   DW_CFA_nop
   DW_CFA_nop
@@ -65,7 +65,7 @@ Contents of the \.eh_frame section:
   Code alignment factor: 1
   Data alignment factor: 4
   Return address column: 31
-  Augmentation data:     10 00 00 00 00 00
+  Augmentation data:     1b 00 00 00 00 00
 
   DW_CFA_nop
 
@@ -104,7 +104,7 @@ Contents of the \.eh_frame section:
   Code alignment factor: 1
   Data alignment factor: 4
   Return address column: 31
-  Augmentation data:     00 00 00 00 00 10
+  Augmentation data:     00 00 00 00 00 1b
 
   DW_CFA_nop
 

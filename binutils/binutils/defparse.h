@@ -65,8 +65,9 @@
      INITGLOBAL = 281,
      TERMINSTANCE = 282,
      TERMGLOBAL = 283,
-     ID = 284,
-     NUMBER = 285
+     EQUAL = 284,
+     ID = 285,
+     NUMBER = 286
    };
 #endif
 /* Tokens.  */
@@ -96,8 +97,9 @@
 #define INITGLOBAL 281
 #define TERMINSTANCE 282
 #define TERMGLOBAL 283
-#define ID 284
-#define NUMBER 285
+#define EQUAL 284
+#define ID 285
+#define NUMBER 286
 
 
 
@@ -107,10 +109,11 @@ typedef union YYSTYPE
 #line 29 "defparse.y"
 {
   char *id;
+  const char *id_const;
   int number;
 }
 /* Line 1529 of yacc.c.  */
-#line 114 "defparse.h"
+#line 117 "defparse.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

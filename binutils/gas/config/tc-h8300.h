@@ -1,7 +1,5 @@
 /* This file is tc-h8300.h
-   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 2000, 2001, 2002, 2003, 2005, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright 1987-2013 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -51,14 +49,13 @@ struct internal_reloc;
 
 /* Minimum instruction is of 16 bits.  */
 #define DWARF2_LINE_MIN_INSN_LENGTH 2
+#define DWARF2_USE_FIXED_ADVANCE_PC 0
 
 #ifdef OBJ_ELF
 /* Provide mappings from the original H8 COFF relocation names to
    their corresponding BFD relocation names.  This allows us to use
    most of tc-h8300.c without modifications for both ELF and COFF
    ports.  */
-#define R_MOV24B1 BFD_RELOC_H8_DIR24A8
-#define R_MOVL1 BFD_RELOC_H8_DIR32A16
 #define R_MOV24B1 BFD_RELOC_H8_DIR24A8
 #define R_MOVL1 BFD_RELOC_H8_DIR32A16
 #define R_RELLONG BFD_RELOC_32

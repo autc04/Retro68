@@ -1,6 +1,6 @@
 // binary_unittest.cc -- test Binary_to_elf
 
-// Copyright 2008 Free Software Foundation, Inc.
+// Copyright 2008, 2012 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -33,9 +33,33 @@
 #include "options.h"
 #include "binary.h"
 #include "object.h"
+#include "descriptors.h"
 
 #include "test.h"
 #include "testfile.h"
+
+namespace
+{
+
+ssize_t
+read_all (int fd, unsigned char* buf, ssize_t size)
+{
+  ssize_t total_read = 0;
+  while (size > 0)
+    {
+      ssize_t nread = ::read(fd, buf, size);
+      if (nread < 0)
+	return nread;
+      if (nread == 0)
+	break;
+      buf += nread;
+      size -= nread;
+      total_read += nread;
+    }
+  return total_read;
+}
+
+} // End anonymous namespace.
 
 namespace gold_testsuite
 {
@@ -53,10 +77,10 @@ Sized_binary_test()
   // Use the executable itself as the binary data.
   struct stat st;
   CHECK(::stat(gold::program_name, &st) == 0);
-  int o = ::open(gold::program_name, O_RDONLY);
+  int o = open_descriptor(-1, gold::program_name, O_RDONLY);
   CHECK(o >= 0);
   unsigned char* filedata = new unsigned char[st.st_size];
-  CHECK(::read(o, filedata, st.st_size) == st.st_size);
+  CHECK(read_all(o, filedata, st.st_size) == static_cast<ssize_t>(st.st_size));
   CHECK(::close(o) == 0);
 
   Binary_to_elf binary(static_cast<elfcpp::EM>(0xffff), size, big_endian,
@@ -87,13 +111,17 @@ Sized_binary_test()
   Read_symbols_data sd;
   object->read_symbols(&sd);
   delete sd.section_headers;
+  sd.section_headers = NULL;
   delete sd.section_names;
+  sd.section_names = NULL;
   delete sd.symbols;
+  sd.symbols = NULL;
   delete sd.symbol_names;
+  sd.symbol_names = NULL;
 
-  Sized_relobj<size, big_endian>* relobj =
-    static_cast<Sized_relobj<size, big_endian>*>(object);
-  typename Sized_relobj<size, big_endian>::Address value;
+  Sized_relobj_file<size, big_endian>* relobj =
+    static_cast<Sized_relobj_file<size, big_endian>*>(object);
+  typename Sized_relobj_file<size, big_endian>::Address value;
   bool is_ordinary;
   CHECK(relobj->symbol_section_and_value(0, &value, &is_ordinary) == 0);
   CHECK(is_ordinary);

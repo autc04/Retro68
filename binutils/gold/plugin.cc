@@ -1,6 +1,6 @@
 // plugin.cc -- plugin manager for gold      -*- C++ -*-
 
-// Copyright 2008, 2009 Free Software Foundation, Inc.
+// Copyright 2008, 2009, 2010, 2011, 2012, 2013 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.
@@ -29,8 +29,38 @@
 #include <vector>
 
 #ifdef ENABLE_PLUGINS
+#ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
+#elif defined (HAVE_WINDOWS_H)
+#include <windows.h>
+#else
+#error Unknown how to handle dynamic-load-libraries.
 #endif
+
+#if !defined (HAVE_DLFCN_H) && defined (HAVE_WINDOWS_H)
+
+#define RTLD_NOW 0      /* Dummy value.  */
+static void *
+dlopen(const char *file, int mode ATTRIBUTE_UNUSED)
+{
+  return LoadLibrary(file);
+}
+
+static void *
+dlsym(void *handle, const char *name)
+{
+  return reinterpret_cast<void *>(
+     GetProcAddress(static_cast<HMODULE>(handle),name));
+}
+
+static const char *
+dlerror(void)
+{
+  return "unable to load dll";
+}
+
+#endif /* !defined (HAVE_DLFCN_H) && defined (HAVE_WINDOWS_H)  */
+#endif /* ENABLE_PLUGINS */
 
 #include "parameters.h"
 #include "errors.h"
@@ -41,6 +71,7 @@
 #include "target.h"
 #include "readsyms.h"
 #include "symtab.h"
+#include "descriptors.h"
 #include "elfcpp.h"
 
 namespace gold
@@ -69,20 +100,61 @@ static enum ld_plugin_status
 get_input_file(const void *handle, struct ld_plugin_input_file *file);
 
 static enum ld_plugin_status
+get_view(const void *handle, const void **viewp);
+
+static enum ld_plugin_status
 release_input_file(const void *handle);
 
 static enum ld_plugin_status
 get_symbols(const void *handle, int nsyms, struct ld_plugin_symbol *syms);
 
 static enum ld_plugin_status
-add_input_file(char *pathname);
+get_symbols_v2(const void *handle, int nsyms, struct ld_plugin_symbol *syms);
 
 static enum ld_plugin_status
-add_input_library(char *pathname);
+add_input_file(const char *pathname);
+
+static enum ld_plugin_status
+add_input_library(const char *pathname);
+
+static enum ld_plugin_status
+set_extra_library_path(const char *path);
 
 static enum ld_plugin_status
 message(int level, const char *format, ...);
 
+static enum ld_plugin_status
+get_input_section_count(const void* handle, unsigned int* count);
+
+static enum ld_plugin_status
+get_input_section_type(const struct ld_plugin_section section,
+                       unsigned int* type);
+
+static enum ld_plugin_status
+get_input_section_name(const struct ld_plugin_section section,
+                       char** section_name_ptr);
+
+static enum ld_plugin_status
+get_input_section_contents(const struct ld_plugin_section section,
+                           const unsigned char** section_contents,
+		           size_t* len);
+
+static enum ld_plugin_status
+update_section_order(const struct ld_plugin_section *section_list,
+		     unsigned int num_sections);
+
+static enum ld_plugin_status
+allow_section_ordering();
+
+static enum ld_plugin_status
+allow_unique_segment_for_sections();
+
+static enum ld_plugin_status
+unique_segment_for_sections(const char* segment_name,
+			    uint64_t flags,
+			    uint64_t align,
+			    const struct ld_plugin_section *section_list,
+			    unsigned int num_sections);
 };
 
 #endif // ENABLE_PLUGINS
@@ -103,20 +175,22 @@ Plugin::load()
   this->handle_ = dlopen(this->filename_.c_str(), RTLD_NOW);
   if (this->handle_ == NULL)
     {
-      gold_error(_("%s: could not load plugin library"),
-                 this->filename_.c_str());
+      gold_error(_("%s: could not load plugin library: %s"),
+                 this->filename_.c_str(), dlerror());
       return;
     }
 
   // Find the plugin's onload entry point.
-  ld_plugin_onload onload = reinterpret_cast<ld_plugin_onload>
-    (dlsym(this->handle_, "onload"));
-  if (onload == NULL)
+  void* ptr = dlsym(this->handle_, "onload");
+  if (ptr == NULL)
     {
       gold_error(_("%s: could not find onload entry point"),
                  this->filename_.c_str());
       return;
     }
+  ld_plugin_onload onload;
+  gold_assert(sizeof(onload) == sizeof(ptr));
+  memcpy(&onload, &ptr, sizeof(ptr));
 
   // Get the linker's version number.
   const char* ver = get_version_string();
@@ -125,9 +199,10 @@ Plugin::load()
   sscanf(ver, "%d.%d", &major, &minor);
 
   // Allocate and populate a transfer vector.
-  const int tv_fixed_size = 14;
+  const int tv_fixed_size = 26;
+
   int tv_size = this->args_.size() + tv_fixed_size;
-  ld_plugin_tv *tv = new ld_plugin_tv[tv_size];
+  ld_plugin_tv* tv = new ld_plugin_tv[tv_size];
 
   // Put LDPT_MESSAGE at the front of the list so the plugin can use it
   // while processing subsequent entries.
@@ -149,8 +224,14 @@ Plugin::load()
     tv[i].tv_u.tv_val = LDPO_REL;
   else if (parameters->options().shared())
     tv[i].tv_u.tv_val = LDPO_DYN;
+  else if (parameters->options().pie())
+    tv[i].tv_u.tv_val = LDPO_PIE;
   else
     tv[i].tv_u.tv_val = LDPO_EXEC;
+
+  ++i;
+  tv[i].tv_tag = LDPT_OUTPUT_NAME;
+  tv[i].tv_u.tv_string = parameters->options().output();
 
   for (unsigned int j = 0; j < this->args_.size(); ++j)
     {
@@ -180,6 +261,10 @@ Plugin::load()
   tv[i].tv_u.tv_get_input_file = get_input_file;
 
   ++i;
+  tv[i].tv_tag = LDPT_GET_VIEW;
+  tv[i].tv_u.tv_get_view = get_view;
+
+  ++i;
   tv[i].tv_tag = LDPT_RELEASE_INPUT_FILE;
   tv[i].tv_u.tv_release_input_file = release_input_file;
 
@@ -188,12 +273,53 @@ Plugin::load()
   tv[i].tv_u.tv_get_symbols = get_symbols;
 
   ++i;
+  tv[i].tv_tag = LDPT_GET_SYMBOLS_V2;
+  tv[i].tv_u.tv_get_symbols = get_symbols_v2;
+
+  ++i;
   tv[i].tv_tag = LDPT_ADD_INPUT_FILE;
   tv[i].tv_u.tv_add_input_file = add_input_file;
 
   ++i;
   tv[i].tv_tag = LDPT_ADD_INPUT_LIBRARY;
   tv[i].tv_u.tv_add_input_library = add_input_library;
+
+  ++i;
+  tv[i].tv_tag = LDPT_SET_EXTRA_LIBRARY_PATH;
+  tv[i].tv_u.tv_set_extra_library_path = set_extra_library_path;
+
+  ++i;
+  tv[i].tv_tag = LDPT_GET_INPUT_SECTION_COUNT;
+  tv[i].tv_u.tv_get_input_section_count = get_input_section_count;
+
+  ++i;
+  tv[i].tv_tag = LDPT_GET_INPUT_SECTION_TYPE;
+  tv[i].tv_u.tv_get_input_section_type = get_input_section_type;
+
+  ++i;
+  tv[i].tv_tag = LDPT_GET_INPUT_SECTION_NAME;
+  tv[i].tv_u.tv_get_input_section_name = get_input_section_name;
+
+  ++i;
+  tv[i].tv_tag = LDPT_GET_INPUT_SECTION_CONTENTS;
+  tv[i].tv_u.tv_get_input_section_contents = get_input_section_contents;
+
+  ++i;
+  tv[i].tv_tag = LDPT_UPDATE_SECTION_ORDER;
+  tv[i].tv_u.tv_update_section_order = update_section_order;
+
+  ++i;
+  tv[i].tv_tag = LDPT_ALLOW_SECTION_ORDERING;
+  tv[i].tv_u.tv_allow_section_ordering = allow_section_ordering;
+
+  ++i;
+  tv[i].tv_tag = LDPT_ALLOW_UNIQUE_SEGMENT_FOR_SECTIONS;
+  tv[i].tv_u.tv_allow_unique_segment_for_sections
+    = allow_unique_segment_for_sections;
+
+  ++i;
+  tv[i].tv_tag = LDPT_UNIQUE_SEGMENT_FOR_SECTIONS;
+  tv[i].tv_u.tv_unique_segment_for_sections = unique_segment_for_sections;
 
   ++i;
   tv[i].tv_tag = LDPT_NULL;
@@ -211,7 +337,7 @@ Plugin::load()
 // Call the plugin claim-file handler.
 
 inline bool
-Plugin::claim_file(struct ld_plugin_input_file *plugin_input_file)
+Plugin::claim_file(struct ld_plugin_input_file* plugin_input_file)
 {
   int claimed = 0;
 
@@ -238,9 +364,54 @@ Plugin::all_symbols_read()
 inline void
 Plugin::cleanup()
 {
-  if (this->cleanup_handler_ != NULL)
-    (*this->cleanup_handler_)();
+  if (this->cleanup_handler_ != NULL && !this->cleanup_done_)
+    {
+      // Set this flag before calling to prevent a recursive plunge
+      // in the event that a plugin's cleanup handler issues a
+      // fatal error.
+      this->cleanup_done_ = true;
+      (*this->cleanup_handler_)();
+    }
 }
+
+// This task is used to rescan archives as needed.
+
+class Plugin_rescan : public Task
+{
+ public:
+  Plugin_rescan(Task_token* this_blocker, Task_token* next_blocker)
+    : this_blocker_(this_blocker), next_blocker_(next_blocker)
+  { }
+
+  ~Plugin_rescan()
+  {
+    delete this->this_blocker_;
+  }
+
+  Task_token*
+  is_runnable()
+  {
+    if (this->this_blocker_->is_blocked())
+      return this->this_blocker_;
+    return NULL;
+  }
+
+  void
+  locks(Task_locker* tl)
+  { tl->add(this, this->next_blocker_); }
+
+  void
+  run(Workqueue*)
+  { parameters->options().plugins()->rescan(this); }
+
+  std::string
+  get_name() const
+  { return "Plugin_rescan"; }
+
+ private:
+  Task_token* this_blocker_;
+  Task_token* next_blocker_;
+};
 
 // Plugin_manager methods.
 
@@ -261,8 +432,9 @@ Plugin_manager::~Plugin_manager()
 // Load all plugin libraries.
 
 void
-Plugin_manager::load_plugins()
+Plugin_manager::load_plugins(Layout* layout)
 {
+  this->layout_ = layout;
   for (this->current_ = this->plugins_.begin();
        this->current_ != this->plugins_.end();
        ++this->current_)
@@ -273,7 +445,7 @@ Plugin_manager::load_plugins()
 
 Pluginobj*
 Plugin_manager::claim_file(Input_file* input_file, off_t offset,
-                           off_t filesize)
+                           off_t filesize, Object* elf_object)
 {
   if (this->in_replacement_phase_)
     return NULL;
@@ -285,6 +457,9 @@ Plugin_manager::claim_file(Input_file* input_file, off_t offset,
   this->plugin_input_file_.offset = offset;
   this->plugin_input_file_.filesize = filesize;
   this->plugin_input_file_.handle = reinterpret_cast<void*>(handle);
+  if (elf_object != NULL)
+    this->objects_.push_back(elf_object);
+  this->in_claim_file_handler_ = true;
 
   for (this->current_ = this->plugins_.begin();
        this->current_ != this->plugins_.end();
@@ -292,8 +467,12 @@ Plugin_manager::claim_file(Input_file* input_file, off_t offset,
     {
       if ((*this->current_)->claim_file(&this->plugin_input_file_))
         {
-          if (this->objects_.size() > handle)
-            return this->objects_[handle];
+	  this->any_claimed_ = true;
+	  this->in_claim_file_handler_ = false;
+
+          if (this->objects_.size() > handle
+              && this->objects_[handle]->pluginobj() != NULL)
+            return this->objects_[handle]->pluginobj();
 
           // If the plugin claimed the file but did not call the
           // add_symbols callback, we need to create the Pluginobj now.
@@ -302,7 +481,33 @@ Plugin_manager::claim_file(Input_file* input_file, off_t offset,
         }
     }
 
+  this->in_claim_file_handler_ = false;
   return NULL;
+}
+
+// Save an archive.  This is used so that a plugin can add a file
+// which refers to a symbol which was not previously referenced.  In
+// that case we want to pretend that the symbol was referenced before,
+// and pull in the archive object.
+
+void
+Plugin_manager::save_archive(Archive* archive)
+{
+  if (this->in_replacement_phase_ || !this->any_claimed_)
+    delete archive;
+  else
+    this->rescannable_.push_back(Rescannable(archive));
+}
+
+// Save an Input_group.  This is like save_archive.
+
+void
+Plugin_manager::save_input_group(Input_group* input_group)
+{
+  if (this->in_replacement_phase_ || !this->any_claimed_)
+    delete input_group;
+  else
+    this->rescannable_.push_back(Rescannable(input_group));
 }
 
 // Call the all-symbols-read handlers.
@@ -310,7 +515,7 @@ Plugin_manager::claim_file(Input_file* input_file, off_t offset,
 void
 Plugin_manager::all_symbols_read(Workqueue* workqueue, Task* task,
                                  Input_objects* input_objects,
-	                         Symbol_table* symtab, Layout* layout,
+	                         Symbol_table* symtab,
 	                         Dirsearch* dirpath, Mapfile* mapfile,
 	                         Task_token** last_blocker)
 {
@@ -319,7 +524,6 @@ Plugin_manager::all_symbols_read(Workqueue* workqueue, Task* task,
   this->task_ = task;
   this->input_objects_ = input_objects;
   this->symtab_ = symtab;
-  this->layout_ = layout;
   this->dirpath_ = dirpath;
   this->mapfile_ = mapfile;
   this->this_blocker_ = NULL;
@@ -329,7 +533,144 @@ Plugin_manager::all_symbols_read(Workqueue* workqueue, Task* task,
        ++this->current_)
     (*this->current_)->all_symbols_read();
 
+  if (this->any_added_)
+    {
+      Task_token* next_blocker = new Task_token(true);
+      next_blocker->add_blocker();
+      workqueue->queue(new Plugin_rescan(this->this_blocker_, next_blocker));
+      this->this_blocker_ = next_blocker;
+    }
+
   *last_blocker = this->this_blocker_;
+}
+
+// This is called when we see a new undefined symbol.  If we are in
+// the replacement phase, this means that we may need to rescan some
+// archives we have previously seen.
+
+void
+Plugin_manager::new_undefined_symbol(Symbol* sym)
+{
+  if (this->in_replacement_phase_)
+    this->undefined_symbols_.push_back(sym);
+}
+
+// Rescan archives as needed.  This handles the case where a new
+// object file added by a plugin has an undefined reference to some
+// symbol defined in an archive.
+
+void
+Plugin_manager::rescan(Task* task)
+{
+  size_t rescan_pos = 0;
+  size_t rescan_size = this->rescannable_.size();
+  while (!this->undefined_symbols_.empty())
+    {
+      if (rescan_pos >= rescan_size)
+	{
+	  this->undefined_symbols_.clear();
+	  return;
+	}
+
+      Undefined_symbol_list undefs;
+      undefs.reserve(this->undefined_symbols_.size());
+      this->undefined_symbols_.swap(undefs);
+
+      size_t min_rescan_pos = rescan_size;
+
+      for (Undefined_symbol_list::const_iterator p = undefs.begin();
+	   p != undefs.end();
+	   ++p)
+	{
+	  if (!(*p)->is_undefined())
+	    continue;
+
+	  this->undefined_symbols_.push_back(*p);
+
+	  // Find the first rescan archive which defines this symbol,
+	  // starting at the current rescan position.  The rescan position
+	  // exists so that given -la -lb -lc we don't look for undefined
+	  // symbols in -lb back in -la, but instead get the definition
+	  // from -lc.  Don't bother to look past the current minimum
+	  // rescan position.
+	  for (size_t i = rescan_pos; i < min_rescan_pos; ++i)
+	    {
+	      if (this->rescannable_defines(i, *p))
+		{
+		  min_rescan_pos = i;
+		  break;
+		}
+	    }
+	}
+
+      if (min_rescan_pos >= rescan_size)
+	{
+	  // We didn't find any rescannable archives which define any
+	  // undefined symbols.
+	  return;
+	}
+
+      const Rescannable& r(this->rescannable_[min_rescan_pos]);
+      if (r.is_archive)
+	{
+	  Task_lock_obj<Archive> tl(task, r.u.archive);
+	  r.u.archive->add_symbols(this->symtab_, this->layout_,
+				   this->input_objects_, this->mapfile_);
+	}
+      else
+	{
+	  size_t next_saw_undefined = this->symtab_->saw_undefined();
+	  size_t saw_undefined;
+	  do
+	    {
+	      saw_undefined = next_saw_undefined;
+
+	      for (Input_group::const_iterator p = r.u.input_group->begin();
+		   p != r.u.input_group->end();
+		   ++p)
+		{
+		  Task_lock_obj<Archive> tl(task, *p);
+
+		  (*p)->add_symbols(this->symtab_, this->layout_,
+				    this->input_objects_, this->mapfile_);
+		}
+
+	      next_saw_undefined = this->symtab_->saw_undefined();
+	    }
+	  while (saw_undefined != next_saw_undefined);
+	}
+
+      for (size_t i = rescan_pos; i < min_rescan_pos + 1; ++i)
+	{
+	  if (this->rescannable_[i].is_archive)
+	    delete this->rescannable_[i].u.archive;
+	  else
+	    delete this->rescannable_[i].u.input_group;
+	}
+
+      rescan_pos = min_rescan_pos + 1;
+    }
+}
+
+// Return whether the rescannable at index I defines SYM.
+
+bool
+Plugin_manager::rescannable_defines(size_t i, Symbol* sym)
+{
+  const Rescannable& r(this->rescannable_[i]);
+  if (r.is_archive)
+    return r.u.archive->defines_symbol(sym);
+  else
+    {
+      for (Input_group::const_iterator p = r.u.input_group->begin();
+	   p != r.u.input_group->end();
+	   ++p)
+	{
+	  if ((*p)->defines_symbol(sym))
+	    return true;
+	}
+      return false;
+    }
 }
 
 // Layout deferred objects.
@@ -342,7 +683,14 @@ Plugin_manager::layout_deferred_objects()
   for (obj = this->deferred_layout_objects_.begin();
        obj != this->deferred_layout_objects_.end();
        ++obj)
-    (*obj)->layout_deferred_sections(this->layout_);
+    {
+      // Lock the object so we can read from it.  This is only called
+      // single-threaded from queue_middle_tasks, so it is OK to lock.
+      // Unfortunately we have no way to pass in a Task token.
+      const Task* dummy_task = reinterpret_cast<const Task*>(-1);
+      Task_lock_obj<Object> tl(dummy_task, *obj);
+      (*obj)->layout_deferred_sections(this->layout_);
+    }
 }
 
 // Call the cleanup handlers.
@@ -350,13 +698,18 @@ Plugin_manager::layout_deferred_objects()
 void
 Plugin_manager::cleanup()
 {
-  if (this->cleanup_done_)
-    return;
+  if (this->any_added_)
+    {
+      // If any input files were added, close all the input files.
+      // This is because the plugin may want to remove them, and on
+      // Windows you are not allowed to remove an open file.
+      close_all_descriptors();
+    }
+
   for (this->current_ = this->plugins_.begin();
        this->current_ != this->plugins_.end();
        ++this->current_)
     (*this->current_)->cleanup();
-  this->cleanup_done_ = true;
 }
 
 // Make a new Pluginobj object.  This is called when the plugin calls
@@ -366,12 +719,20 @@ Pluginobj*
 Plugin_manager::make_plugin_object(unsigned int handle)
 {
   // Make sure we aren't asked to make an object for the same handle twice.
-  if (this->objects_.size() != handle)
+  if (this->objects_.size() != handle
+      && this->objects_[handle]->pluginobj() != NULL)
     return NULL;
 
   Pluginobj* obj = make_sized_plugin_object(this->input_file_,
                                             this->plugin_input_file_.offset,
                                             this->plugin_input_file_.filesize);
+
+
+  // If the elf object for this file was pushed into the objects_ vector, delete
+  // it to make room for the Pluginobj as this file is claimed.
+  if (this->objects_.size() != handle)
+    this->objects_.pop_back();
+
   this->objects_.push_back(obj);
   return obj;
 }
@@ -381,9 +742,9 @@ Plugin_manager::make_plugin_object(unsigned int handle)
 
 ld_plugin_status
 Plugin_manager::get_input_file(unsigned int handle,
-                               struct ld_plugin_input_file *file)
+                               struct ld_plugin_input_file* file)
 {
-  Pluginobj* obj = this->object(handle);
+  Pluginobj* obj = this->object(handle)->pluginobj();
   if (obj == NULL)
     return LDPS_BAD_HANDLE;
 
@@ -401,7 +762,11 @@ Plugin_manager::get_input_file(unsigned int handle,
 ld_plugin_status
 Plugin_manager::release_input_file(unsigned int handle)
 {
-  Pluginobj* obj = this->object(handle);
+  if (this->object(handle) == NULL)
+    return LDPS_BAD_HANDLE;
+
+  Pluginobj* obj = this->object(handle)->pluginobj();
+
   if (obj == NULL)
     return LDPS_BAD_HANDLE;
 
@@ -409,22 +774,83 @@ Plugin_manager::release_input_file(unsigned int handle)
   return LDPS_OK;
 }
 
+// Get the elf object corresponding to the handle. Return NULL if we
+// found a Pluginobj instead.
+
+Object*
+Plugin_manager::get_elf_object(const void* handle)
+{
+  Object* obj = this->object(
+      static_cast<unsigned int>(reinterpret_cast<intptr_t>(handle)));
+
+  // The object should not be a Pluginobj.
+  if (obj == NULL
+      || obj->pluginobj() != NULL)
+    return NULL;
+
+  return obj;
+}
+
+ld_plugin_status
+Plugin_manager::get_view(unsigned int handle, const void **viewp)
+{
+  off_t offset;
+  size_t filesize;
+  Input_file *input_file;
+  if (this->in_claim_file_handler_)
+    {
+      // We are being called from the claim_file hook.
+      const struct ld_plugin_input_file &f = this->plugin_input_file_;
+      offset = f.offset;
+      filesize = f.filesize;
+      input_file = this->input_file_;
+    }
+  else
+    {
+      // An already claimed file.
+      if (this->object(handle) == NULL)
+        return LDPS_BAD_HANDLE;
+      Pluginobj* obj = this->object(handle)->pluginobj();
+      if (obj == NULL)
+        return LDPS_BAD_HANDLE;
+      offset = obj->offset();
+      filesize = obj->filesize();
+      input_file = obj->input_file();
+    }
+  *viewp = (void*) input_file->file().get_view(offset, 0, filesize, false,
+                                               false);
+  return LDPS_OK;
+}
+
+// Add a new library path.
+
+ld_plugin_status
+Plugin_manager::set_extra_library_path(const char* path)
+{
+  this->extra_search_path_ = std::string(path);
+  return LDPS_OK;
+}
+
 // Add a new input file.
 
 ld_plugin_status
-Plugin_manager::add_input_file(char *pathname, bool is_lib)
+Plugin_manager::add_input_file(const char* pathname, bool is_lib)
 {
   Input_file_argument file(pathname,
                            (is_lib
                             ? Input_file_argument::INPUT_FILE_TYPE_LIBRARY
                             : Input_file_argument::INPUT_FILE_TYPE_FILE),
-                           "", false, this->options_);
+                           (is_lib
+                            ? this->extra_search_path_.c_str()
+                            : ""),
+                           false,
+                           this->options_);
   Input_argument* input_argument = new Input_argument(file);
   Task_token* next_blocker = new Task_token(true);
   next_blocker->add_blocker();
-  if (this->layout_->incremental_inputs())
-    gold_error(_("Input files added by plug-ins in --incremental mode not "
-		 "supported yet.\n"));
+  if (parameters->incremental())
+    gold_error(_("input files added by plug-ins in --incremental mode not "
+		 "supported yet"));
   this->workqueue_->queue_soon(new Read_symbols(this->input_objects_,
                                                 this->symtab_,
                                                 this->layout_,
@@ -433,9 +859,11 @@ Plugin_manager::add_input_file(char *pathname, bool is_lib)
                                                 this->mapfile_,
                                                 input_argument,
                                                 NULL,
+                                                NULL,
                                                 this->this_blocker_,
                                                 next_blocker));
   this->this_blocker_ = next_blocker;
+  this->any_added_ = true;
   return LDPS_OK;
 }
 
@@ -448,15 +876,30 @@ Pluginobj::Pluginobj(const std::string& name, Input_file* input_file,
 {
 }
 
-// Return TRUE if a defined symbol might be reachable from outside the
-// universe of claimed objects.
+// Return TRUE if a defined symbol is referenced from outside the
+// universe of claimed objects.  Only references from relocatable,
+// non-IR (unclaimed) objects count as a reference.  References from
+// dynamic objects count only as "visible".
 
 static inline bool
-is_visible_from_outside(Symbol* lsym)
+is_referenced_from_outside(Symbol* lsym)
 {
   if (lsym->in_real_elf())
     return true;
   if (parameters->options().relocatable())
+    return true;
+  if (parameters->options().is_undefined(lsym->name()))
+    return true;
+  return false;
+}
+
+// Return TRUE if a defined symbol might be reachable from outside the
+// load module.
+
+static inline bool
+is_visible_from_outside(Symbol* lsym)
+{
+  if (lsym->in_dyn())
     return true;
   if (parameters->options().export_dynamic() || parameters->options().shared())
     return lsym->is_externally_visible();
@@ -466,10 +909,31 @@ is_visible_from_outside(Symbol* lsym)
 // Get symbol resolution info.
 
 ld_plugin_status
-Pluginobj::get_symbol_resolution_info(int nsyms, ld_plugin_symbol* syms) const
+Pluginobj::get_symbol_resolution_info(int nsyms,
+				      ld_plugin_symbol* syms,
+				      int version) const
 {
+  // For version 1 of this interface, we cannot use
+  // LDPR_PREVAILING_DEF_IRONLY_EXP, so we return LDPR_PREVAILING_DEF
+  // instead.
+  const ld_plugin_symbol_resolution ldpr_prevailing_def_ironly_exp
+      = (version > 1
+	 ? LDPR_PREVAILING_DEF_IRONLY_EXP
+	 : LDPR_PREVAILING_DEF);
+
   if (nsyms > this->nsyms_)
     return LDPS_NO_SYMS;
+
+  if (static_cast<size_t>(nsyms) > this->symbols_.size())
+    {
+      // We never decided to include this object. We mark all symbols as
+      // preempted.
+      gold_assert(this->symbols_.size() == 0);
+      for (int i = 0; i < nsyms; i++)
+        syms[i].resolution = LDPR_PREEMPTED_REG;
+      return LDPS_OK;
+    }
+
   for (int i = 0; i < nsyms; i++)
     {
       ld_plugin_symbol* isym = &syms[i];
@@ -486,6 +950,15 @@ Pluginobj::get_symbol_resolution_info(int nsyms, ld_plugin_symbol* syms) const
           // The original symbol was undefined or common.
           if (lsym->source() != Symbol::FROM_OBJECT)
             res = LDPR_RESOLVED_EXEC;
+          else if (lsym->object()->pluginobj() == this)
+	    {
+	      if (is_referenced_from_outside(lsym))
+		res = LDPR_PREVAILING_DEF;
+	      else if (is_visible_from_outside(lsym))
+		res = ldpr_prevailing_def_ironly_exp;
+	      else
+		res = LDPR_PREVAILING_DEF_IRONLY;
+	    }
           else if (lsym->object()->pluginobj() != NULL)
             res = LDPR_RESOLVED_IR;
           else if (lsym->object()->is_dynamic())
@@ -499,9 +972,14 @@ Pluginobj::get_symbol_resolution_info(int nsyms, ld_plugin_symbol* syms) const
           if (lsym->source() != Symbol::FROM_OBJECT)
             res = LDPR_PREEMPTED_REG;
           else if (lsym->object() == static_cast<const Object*>(this))
-            res = (is_visible_from_outside(lsym)
-                   ? LDPR_PREVAILING_DEF
-                   : LDPR_PREVAILING_DEF_IRONLY);
+	    {
+	      if (is_referenced_from_outside(lsym))
+		res = LDPR_PREVAILING_DEF;
+	      else if (is_visible_from_outside(lsym))
+		res = ldpr_prevailing_def_ironly_exp;
+	      else
+		res = LDPR_PREVAILING_DEF_IRONLY;
+	    }
           else
             res = (lsym->object()->pluginobj() != NULL
                    ? LDPR_PREEMPTED_IR
@@ -581,7 +1059,7 @@ Sized_pluginobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
 
   for (int i = 0; i < this->nsyms_; ++i)
     {
-      const struct ld_plugin_symbol *isym = &this->syms_[i];
+      const struct ld_plugin_symbol* isym = &this->syms_[i];
       const char* name = isym->name;
       const char* ver = isym->version;
       elfcpp::Elf_Half shndx;
@@ -626,13 +1104,13 @@ Sized_pluginobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
       switch (isym->visibility)
         {
         case LDPV_PROTECTED:
-          vis = elfcpp::STV_DEFAULT;
+          vis = elfcpp::STV_PROTECTED;
           break;
         case LDPV_INTERNAL:
-          vis = elfcpp::STV_DEFAULT;
+          vis = elfcpp::STV_INTERNAL;
           break;
         case LDPV_HIDDEN:
-          vis = elfcpp::STV_DEFAULT;
+          vis = elfcpp::STV_HIDDEN;
           break;
         case LDPV_DEFAULT:
         default:
@@ -655,6 +1133,66 @@ Sized_pluginobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
       this->symbols_[i] =
         symtab->add_from_pluginobj<size, big_endian>(this, name, ver, &sym);
     }
+}
+
+template<int size, bool big_endian>
+Archive::Should_include
+Sized_pluginobj<size, big_endian>::do_should_include_member(
+    Symbol_table* symtab,
+    Layout* layout,
+    Read_symbols_data*,
+    std::string* why)
+{
+  char* tmpbuf = NULL;
+  size_t tmpbuflen = 0;
+
+  for (int i = 0; i < this->nsyms_; ++i)
+    {
+      const struct ld_plugin_symbol& sym = this->syms_[i];
+      const char* name = sym.name;
+      Symbol* symbol;
+      Archive::Should_include t = Archive::should_include_member(symtab,
+								 layout,
+								 name,
+								 &symbol, why,
+								 &tmpbuf,
+								 &tmpbuflen);
+      if (t == Archive::SHOULD_INCLUDE_YES)
+	{
+	  if (tmpbuf != NULL)
+	    free(tmpbuf);
+	  return t;
+	}
+    }
+  if (tmpbuf != NULL)
+    free(tmpbuf);
+  return Archive::SHOULD_INCLUDE_UNKNOWN;
+}
+
+// Iterate over global symbols, calling a visitor class V for each.
+
+template<int size, bool big_endian>
+void
+Sized_pluginobj<size, big_endian>::do_for_all_global_symbols(
+    Read_symbols_data*,
+    Library_base::Symbol_visitor_base* v)
+{
+  for (int i = 0; i < this->nsyms_; ++i)
+    {
+      const struct ld_plugin_symbol& sym = this->syms_[i];
+      if (sym.def != LDPK_UNDEF)
+	v->visit(sym.name);
+    }
+}
+
+// Iterate over local symbols, calling a visitor class V for each GOT offset
+// associated with a local symbol.
+template<int size, bool big_endian>
+void
+Sized_pluginobj<size, big_endian>::do_for_all_local_got_entries(
+    Got_offset_list::Visitor*) const
+{
+  gold_unreachable();
 }
 
 // Get the size of a section.  Not used for plugin objects.
@@ -680,13 +1218,14 @@ Sized_pluginobj<size, big_endian>::do_section_name(unsigned int)
 // Return a view of the contents of a section.  Not used for plugin objects.
 
 template<int size, bool big_endian>
-Object::Location
-Sized_pluginobj<size, big_endian>::do_section_contents(unsigned int)
+const unsigned char*
+Sized_pluginobj<size, big_endian>::do_section_contents(
+    unsigned int,
+    section_size_type*,
+    bool)
 {
-  Location loc(0, 0);
-
   gold_unreachable();
-  return loc;
+  return NULL;
 }
 
 // Return section flags.  Not used for plugin objects.
@@ -769,18 +1308,34 @@ Sized_pluginobj<size, big_endian>::do_initialize_xindex()
   return NULL;
 }
 
-// Get symbol counts.  Not used for plugin objects.
+// Get symbol counts.  Don't count plugin objects; the replacement
+// files will provide the counts.
 
 template<int size, bool big_endian>
 void
-Sized_pluginobj<size, big_endian>::do_get_global_symbol_counts(const Symbol_table*,
-                                                   size_t*, size_t*) const
+Sized_pluginobj<size, big_endian>::do_get_global_symbol_counts(
+    const Symbol_table*,
+    size_t* defined,
+    size_t* used) const
+{
+  *defined = 0;
+  *used = 0;
+}
+
+// Get symbols.  Not used for plugin objects.
+
+template<int size, bool big_endian>
+const Object::Symbols*
+Sized_pluginobj<size, big_endian>::do_get_global_symbols() const
 {
   gold_unreachable();
 }
 
 // Class Plugin_finish.  This task runs after all replacement files have
-// been added.  It calls each plugin's cleanup handler.
+// been added.  For now, it's a placeholder for a possible plugin API
+// to allow the plugin to release most of its resources.  The cleanup
+// handlers must be called later, because they can remove the temporary
+// object files that are needed until the end of the link.
 
 class Plugin_finish : public Task
 {
@@ -810,9 +1365,7 @@ class Plugin_finish : public Task
   void
   run(Workqueue*)
   {
-    Plugin_manager* plugins = parameters->options().plugins();
-    gold_assert(plugins != NULL);
-    plugins->cleanup();
+    // We could call early cleanup handlers here.
   }
 
   std::string
@@ -854,11 +1407,14 @@ void
 Plugin_hook::run(Workqueue* workqueue)
 {
   gold_assert(this->options_.has_plugins());
+  Symbol* start_sym = this->symtab_->lookup(parameters->entry());
+  if (start_sym != NULL)
+    start_sym->set_in_real_elf();
+
   this->options_.plugins()->all_symbols_read(workqueue,
                                              this,
                                              this->input_objects_,
                                              this->symtab_,
-                                             this->layout_,
                                              this->dirpath_,
                                              this->mapfile_,
                                              &this->this_blocker_);
@@ -903,7 +1459,7 @@ register_cleanup(ld_plugin_cleanup_handler handler)
 // Add symbols from a plugin-claimed input file.
 
 static enum ld_plugin_status
-add_symbols(void* handle, int nsyms, const ld_plugin_symbol *syms)
+add_symbols(void* handle, int nsyms, const ld_plugin_symbol* syms)
 {
   gold_assert(parameters->options().has_plugins());
   Pluginobj* obj = parameters->options().plugins()->make_plugin_object(
@@ -918,7 +1474,7 @@ add_symbols(void* handle, int nsyms, const ld_plugin_symbol *syms)
 // file descriptor.
 
 static enum ld_plugin_status
-get_input_file(const void *handle, struct ld_plugin_input_file *file)
+get_input_file(const void* handle, struct ld_plugin_input_file* file)
 {
   gold_assert(parameters->options().has_plugins());
   unsigned int obj_index =
@@ -929,7 +1485,7 @@ get_input_file(const void *handle, struct ld_plugin_input_file *file)
 // Release the input file.
 
 static enum ld_plugin_status
-release_input_file(const void *handle)
+release_input_file(const void* handle)
 {
   gold_assert(parameters->options().has_plugins());
   unsigned int obj_index =
@@ -937,23 +1493,52 @@ release_input_file(const void *handle)
   return parameters->options().plugins()->release_input_file(obj_index);
 }
 
+static enum ld_plugin_status
+get_view(const void *handle, const void **viewp)
+{
+  gold_assert(parameters->options().has_plugins());
+  unsigned int obj_index =
+      static_cast<unsigned int>(reinterpret_cast<intptr_t>(handle));
+  return parameters->options().plugins()->get_view(obj_index, viewp);
+}
+
 // Get the symbol resolution info for a plugin-claimed input file.
 
 static enum ld_plugin_status
-get_symbols(const void * handle, int nsyms, ld_plugin_symbol* syms)
+get_symbols(const void* handle, int nsyms, ld_plugin_symbol* syms)
 {
   gold_assert(parameters->options().has_plugins());
-  Pluginobj* obj = parameters->options().plugins()->object(
-      static_cast<unsigned int>(reinterpret_cast<intptr_t>(handle)));
+  Object* obj = parameters->options().plugins()->object(
+    static_cast<unsigned int>(reinterpret_cast<intptr_t>(handle)));
   if (obj == NULL)
     return LDPS_ERR;
-  return obj->get_symbol_resolution_info(nsyms, syms);
+  Pluginobj* plugin_obj = obj->pluginobj();
+  if (plugin_obj == NULL)
+    return LDPS_ERR;
+  return plugin_obj->get_symbol_resolution_info(nsyms, syms, 1);
+}
+
+// Version 2 of the above.  The only difference is that this version
+// is allowed to return the resolution code LDPR_PREVAILING_DEF_IRONLY_EXP.
+
+static enum ld_plugin_status
+get_symbols_v2(const void* handle, int nsyms, ld_plugin_symbol* syms)
+{
+  gold_assert(parameters->options().has_plugins());
+  Object* obj = parameters->options().plugins()->object(
+    static_cast<unsigned int>(reinterpret_cast<intptr_t>(handle)));
+  if (obj == NULL)
+    return LDPS_ERR;
+  Pluginobj* plugin_obj = obj->pluginobj();
+  if (plugin_obj == NULL)
+    return LDPS_ERR;
+  return plugin_obj->get_symbol_resolution_info(nsyms, syms, 2);
 }
 
 // Add a new (real) input file generated by a plugin.
 
 static enum ld_plugin_status
-add_input_file(char *pathname)
+add_input_file(const char* pathname)
 {
   gold_assert(parameters->options().has_plugins());
   return parameters->options().plugins()->add_input_file(pathname, false);
@@ -962,16 +1547,26 @@ add_input_file(char *pathname)
 // Add a new (real) library required by a plugin.
 
 static enum ld_plugin_status
-add_input_library(char *pathname)
+add_input_library(const char* pathname)
 {
   gold_assert(parameters->options().has_plugins());
   return parameters->options().plugins()->add_input_file(pathname, true);
 }
 
+// Set the extra library path to be used by libraries added via
+// add_input_library
+
+static enum ld_plugin_status
+set_extra_library_path(const char* path)
+{
+  gold_assert(parameters->options().has_plugins());
+  return parameters->options().plugins()->set_extra_library_path(path);
+}
+
 // Issue a diagnostic message from a plugin.
 
 static enum ld_plugin_status
-message(int level, const char * format, ...)
+message(int level, const char* format, ...)
 {
   va_list args;
   va_start(args, format);
@@ -994,6 +1589,214 @@ message(int level, const char * format, ...)
     }
 
   va_end(args);
+  return LDPS_OK;
+}
+
+// Get the section count of the object corresponding to the handle.  This
+// plugin interface can only be called in the claim_file handler of the plugin.
+
+static enum ld_plugin_status
+get_input_section_count(const void* handle, unsigned int* count)
+{
+  gold_assert(parameters->options().has_plugins());
+
+  if (!parameters->options().plugins()->in_claim_file_handler())
+    return LDPS_ERR;
+
+  Object* obj = parameters->options().plugins()->get_elf_object(handle);
+
+  if (obj == NULL)
+    return LDPS_ERR;
+
+  *count = obj->shnum();
+  return LDPS_OK;
+}
+
+// Get the type of the specified section in the object corresponding
+// to the handle.  This plugin interface can only be called in the
+// claim_file handler of the plugin.
+
+static enum ld_plugin_status
+get_input_section_type(const struct ld_plugin_section section,
+                       unsigned int* type)
+{
+  gold_assert(parameters->options().has_plugins());
+
+  if (!parameters->options().plugins()->in_claim_file_handler())
+    return LDPS_ERR;
+
+  Object* obj
+    = parameters->options().plugins()->get_elf_object(section.handle); 
+
+  if (obj == NULL)
+    return LDPS_BAD_HANDLE;
+
+  *type = obj->section_type(section.shndx);
+  return LDPS_OK;
+}
+
+// Get the name of the specified section in the object corresponding
+// to the handle.  This plugin interface can only be called in the
+// claim_file handler of the plugin.
+
+static enum ld_plugin_status
+get_input_section_name(const struct ld_plugin_section section,
+                       char** section_name_ptr)
+{
+  gold_assert(parameters->options().has_plugins());
+
+  if (!parameters->options().plugins()->in_claim_file_handler())
+    return LDPS_ERR;
+
+  Object* obj
+    = parameters->options().plugins()->get_elf_object(section.handle); 
+
+  if (obj == NULL)
+    return LDPS_BAD_HANDLE;
+
+  // Check if the object is locked before getting the section name.
+  gold_assert(obj->is_locked());
+
+  const std::string section_name = obj->section_name(section.shndx);
+  *section_name_ptr = static_cast<char*>(malloc(section_name.length() + 1));
+  memcpy(*section_name_ptr, section_name.c_str(), section_name.length() + 1);
+  return LDPS_OK;
+}
+
+// Get the contents of the specified section in the object corresponding
+// to the handle.  This plugin interface can only be called in the
+// claim_file handler of the plugin.
+
+static enum ld_plugin_status
+get_input_section_contents(const struct ld_plugin_section section,
+			   const unsigned char** section_contents_ptr,
+			   size_t* len)
+{
+  gold_assert(parameters->options().has_plugins());
+
+  if (!parameters->options().plugins()->in_claim_file_handler())
+    return LDPS_ERR;
+
+  Object* obj
+    = parameters->options().plugins()->get_elf_object(section.handle); 
+
+  if (obj == NULL)
+    return LDPS_BAD_HANDLE;
+
+  // Check if the object is locked before getting the section contents.
+  gold_assert(obj->is_locked());
+
+  section_size_type plen;
+  *section_contents_ptr
+      = obj->section_contents(section.shndx, &plen, false);
+  *len = plen;
+  return LDPS_OK;
+}
+
+// Specify the ordering of sections in the final layout. The sections are
+// specified as (handle,shndx) pairs in the two arrays in the order in
+// which they should appear in the final layout.
+
+static enum ld_plugin_status
+update_section_order(const struct ld_plugin_section* section_list,
+		     unsigned int num_sections)
+{
+  gold_assert(parameters->options().has_plugins());
+
+  if (num_sections == 0)
+    return LDPS_OK;
+
+  if (section_list == NULL)
+    return LDPS_ERR;
+
+  Layout* layout = parameters->options().plugins()->layout();
+  gold_assert (layout != NULL);
+
+  std::map<Section_id, unsigned int>* order_map
+    = layout->get_section_order_map();
+
+  /* Store the mapping from Section_id to section position in layout's
+     order_map to consult after output sections are added.  */
+  for (unsigned int i = 0; i < num_sections; ++i)
+    {
+      Object* obj = parameters->options().plugins()->get_elf_object(
+          section_list[i].handle);
+      if (obj == NULL)
+	return LDPS_BAD_HANDLE;
+      unsigned int shndx = section_list[i].shndx;
+      Section_id secn_id(obj, shndx);
+      (*order_map)[secn_id] = i + 1;
+    }
+
+  return LDPS_OK;
+}
+
+// Let the linker know that the sections could be reordered.
+
+static enum ld_plugin_status
+allow_section_ordering()
+{
+  gold_assert(parameters->options().has_plugins());
+  Layout* layout = parameters->options().plugins()->layout();
+  layout->set_section_ordering_specified();
+  return LDPS_OK;
+}
+
+// Let the linker know that a subset of sections could be mapped
+// to a unique segment.
+
+static enum ld_plugin_status
+allow_unique_segment_for_sections()
+{
+  gold_assert(parameters->options().has_plugins());
+  Layout* layout = parameters->options().plugins()->layout();
+  layout->set_unique_segment_for_sections_specified();
+  return LDPS_OK;
+}
+
+// This function should map the list of sections specified in the
+// SECTION_LIST to a unique segment.  ELF segments do not have names
+// and the NAME is used to identify Output Section which should contain
+// the list of sections.  This Output Section will then be mapped to
+// a unique segment.  FLAGS is used to specify if any additional segment
+// flags need to be set.  For instance, a specific segment flag can be
+// set to identify this segment.  Unsetting segment flags is not possible.
+// ALIGN specifies the alignment of the segment.
+
+static enum ld_plugin_status
+unique_segment_for_sections(const char* segment_name,
+			    uint64_t flags,
+			    uint64_t align,
+			    const struct ld_plugin_section* section_list,
+			    unsigned int num_sections)
+{
+  gold_assert(parameters->options().has_plugins());
+
+  if (num_sections == 0)
+    return LDPS_OK;
+
+  if (section_list == NULL)
+    return LDPS_ERR;
+
+  Layout* layout = parameters->options().plugins()->layout();
+  gold_assert (layout != NULL);
+
+  Layout::Unique_segment_info* s = new Layout::Unique_segment_info;
+  s->name = segment_name;
+  s->flags = flags;
+  s->align = align;
+
+  for (unsigned int i = 0; i < num_sections; ++i)
+    {
+      Object* obj = parameters->options().plugins()->get_elf_object(
+          section_list[i].handle);
+      if (obj == NULL)
+	return LDPS_BAD_HANDLE;
+      unsigned int shndx = section_list[i].shndx;
+      Const_section_id secn_id(obj, shndx);
+      layout->insert_section_segment_map(secn_id, s);
+    }
+
   return LDPS_OK;
 }
 

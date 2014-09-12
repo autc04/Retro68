@@ -1,6 +1,6 @@
 // descriptors.cc -- manage file descriptors for gold
 
-// Copyright 2008, 2009 Free Software Foundation, Inc.
+// Copyright 2008, 2009, 2010, 2011, 2012, 2013 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -34,15 +34,24 @@
 #include "descriptors.h"
 #include "binary-io.h"
 
+// O_CLOEXEC is only available on newer systems.
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+
 // Very old systems may not define FD_CLOEXEC.
 #ifndef FD_CLOEXEC
 #define FD_CLOEXEC 1
 #endif
 
-// O_CLOEXEC is only available on newer systems.
-#ifndef O_CLOEXEC
-#define O_CLOEXEC 0
+static inline void
+set_close_on_exec(int fd ATTRIBUTE_UNUSED)
+{
+// Mingw does not define F_SETFD.
+#ifdef F_SETFD
+  fcntl(fd, F_SETFD, FD_CLOEXEC);
 #endif
+}
 
 namespace gold
 {
@@ -113,8 +122,7 @@ Descriptors::open(int descriptor, const char* name, int flags, int mode)
 	      {
 		Hold_lock hl(*this->lock_);
 
-		gold_error(_("file %s was removed during the link"),
-			   this->open_descriptors_[descriptor].name);
+		gold_error(_("file %s was removed during the link"), name);
 	      }
 
 	      errno = ENOENT;
@@ -134,7 +142,7 @@ Descriptors::open(int descriptor, const char* name, int flags, int mode)
 	  if (O_CLOEXEC == 0
 	      && parameters->options_valid()
 	      && parameters->options().has_plugins())
-	    fcntl(new_descriptor, F_SETFD, FD_CLOEXEC);
+	    set_close_on_exec(new_descriptor);
 
 	  {
 	    Hold_optional_lock hl(this->lock_);
@@ -241,6 +249,28 @@ Descriptors::close_some_descriptor()
   // We couldn't find any descriptors to close.  This is weird but not
   // necessarily an error.
   return false;
+}
+
+// Close all the descriptors open for reading.
+
+void
+Descriptors::close_all()
+{
+  Hold_optional_lock hl(this->lock_);
+
+  for (size_t i = 0; i < this->open_descriptors_.size(); i++)
+    {
+      Open_descriptor* pod = &this->open_descriptors_[i];
+      if (pod->name != NULL && !pod->inuse && !pod->is_write)
+	{
+	  if (::close(i) < 0)
+	    gold_warning(_("while closing %s: %s"), pod->name, strerror(errno));
+	  pod->name = NULL;
+	  pod->stack_next = -1;
+	  pod->is_on_stack = false;
+	}
+    }
+  this->stack_top_ = -1;
 }
 
 // The single global variable which manages descriptors.

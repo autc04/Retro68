@@ -191,8 +191,8 @@ test:
 	mov r13, r0			@ OK
 	mov r15, r0			@ OK
 	mov.w r0, r13			@ OK
-	mov.w r0, r15			@ OK
-	mov.w r15, r0			@ OK
+	mov.w r0, r15
+	mov.w r15, r0
 	mov.w r13, r0			@ OK
 	movs.w r0, r13
 	movs.w r0, r15
@@ -202,6 +202,14 @@ test:
 	mov.w r15, r13
 	mov.w r13, r15
 	mov.w r15, r15
+	mov r13, r13			@ Deprecated
+	mov r15, r13			@ Deprecated
+	mov r13, r15			@ Deprecated
+	mov r15, r15			@ Deprecated
+	movs r13, r13
+	movs r15, r13
+	movs r13, r15
+	movs r15, r15
 	@ MOVT
 	movt r13, #1
 	movt r15, #1

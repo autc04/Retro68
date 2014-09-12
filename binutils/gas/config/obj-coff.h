@@ -107,11 +107,6 @@
 #define TARGET_FORMAT "coff-h8500"
 #endif
 
-#ifdef TC_MAXQ20
-#include "coff/maxq.h"
-#define TARGET_FORMAT "coff-maxq"
-#endif
-
 #ifdef TC_SH
 
 #ifdef TE_PE
@@ -186,7 +181,7 @@
 #endif
 
 #define OBJ_SYMFIELD_TYPE	unsigned long
-#define sy_obj			sy_flags
+#define sy_obj			sy_obj_flags
 
 /* We can't use the predefined section symbols in bfd/section.c, as
    COFF symbols have extra fields.  See bfd/libcoff.h:coff_symbol_type.  */

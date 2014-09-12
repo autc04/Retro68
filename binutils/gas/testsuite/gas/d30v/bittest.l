@@ -36,6 +36,7 @@ GAS LISTING .*
   17      80F00000 
   18              	        
   19 0038 047C0105 	        bset r1, r2, r3 || moddec r4, 5
+.*  Warning:Executing bset in IU may not work
 .*  Warning:Swapping instruction order
   19      02201083 
   20              	

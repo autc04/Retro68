@@ -1,5 +1,6 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2003, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+#   Copyright 2003, 2005, 2007, 2008, 2009, 2010, 2011, 2012
+#   Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,10 +27,11 @@ fragment <<EOF
 
 #include "libbfd.h"
 #include "elf32-ppc.h"
+#include "ldlex.h"
 
 #define is_ppc_elf(bfd) \
   (bfd_get_flavour (bfd) == bfd_target_elf_flavour \
-   && elf_object_id (bfd) == PPC32_ELF_TDATA)
+   && elf_object_id (bfd) == PPC32_ELF_DATA)
 
 /* Whether to run tls optimization.  */
 static int notlsopt = 0;
@@ -121,7 +123,7 @@ ppc_before_allocation (void)
 
   /* Turn on relaxation if executable sections have addresses that
      might make branches overflow.  */
-  if (!command_line.relax)
+  if (RELAXATION_DISABLED_BY_DEFAULT)
     {
       bfd_vma low = (bfd_vma) -1;
       bfd_vma high = 0;
@@ -148,7 +150,7 @@ ppc_before_allocation (void)
 	    high = o->vma + o->rawsize - 1;
 	}
       if (high > low && high - low > (1 << 25) - 1)
-	command_line.relax = TRUE;
+	ENABLE_RELAXATION;
     }
 }
 
@@ -176,8 +178,8 @@ fi
 # Define some shell vars to insert bits of code into the standard elf
 # parse_args and list_options functions.
 #
-PARSE_AND_LIST_PROLOGUE='
-#define OPTION_NO_TLS_OPT		301
+PARSE_AND_LIST_PROLOGUE=${PARSE_AND_LIST_PROLOGUE}'
+#define OPTION_NO_TLS_OPT		321
 #define OPTION_NO_TLS_GET_ADDR_OPT	(OPTION_NO_TLS_OPT + 1)
 #define OPTION_NEW_PLT			(OPTION_NO_TLS_GET_ADDR_OPT + 1)
 #define OPTION_OLD_PLT			(OPTION_NEW_PLT + 1)
@@ -186,7 +188,7 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_NO_STUBSYMS		(OPTION_STUBSYMS + 1)
 '
 
-PARSE_AND_LIST_LONGOPTS='
+PARSE_AND_LIST_LONGOPTS=${PARSE_AND_LIST_LONGOPTS}'
   { "emit-stub-syms", no_argument, NULL, OPTION_STUBSYMS },
   { "no-emit-stub-syms", no_argument, NULL, OPTION_NO_STUBSYMS },
   { "no-tls-optimize", no_argument, NULL, OPTION_NO_TLS_OPT },
@@ -196,7 +198,7 @@ PARSE_AND_LIST_LONGOPTS='
   { "sdata-got", no_argument, NULL, OPTION_OLD_GOT },
 '
 
-PARSE_AND_LIST_OPTIONS='
+PARSE_AND_LIST_OPTIONS=${PARSE_AND_LIST_OPTIONS}'
   fprintf (file, _("\
   --emit-stub-syms            Label linker stubs with a symbol.\n\
   --no-emit-stub-syms         Don'\''t label linker stubs with a symbol.\n\
@@ -208,7 +210,7 @@ PARSE_AND_LIST_OPTIONS='
 		   ));
 '
 
-PARSE_AND_LIST_ARGS_CASES='
+PARSE_AND_LIST_ARGS_CASES=${PARSE_AND_LIST_ARGS_CASES}'
     case OPTION_STUBSYMS:
       emit_stub_syms = 1;
       break;
@@ -236,6 +238,11 @@ PARSE_AND_LIST_ARGS_CASES='
     case OPTION_OLD_GOT:
       old_got = 1;
       break;
+
+    case OPTION_TRADITIONAL_FORMAT:
+      notlsopt = 1;
+      no_tls_get_addr_opt = 1;
+      return FALSE;
 '
 
 # Put these extra ppc32elf routines in ld_${EMULATION_NAME}_emulation

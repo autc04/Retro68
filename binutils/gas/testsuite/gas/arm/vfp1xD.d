@@ -249,5 +249,47 @@ Disassembly of section .text:
 0+3bc <[^>]*> eee70a10 	(vmsr|fmxr)	mvfr0, r0
 0+3c0 <[^>]*> eee60a10 	(vmsr|fmxr)	mvfr1, r0
 0+3c4 <[^>]*> eeec0a10 	(vmsr|fmxr)	<impl def 0xc>, r0
-0+3c8 <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
-0+3cc <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
+0+3c8 <[^>]*> eef10a10 	vmrs	r0, fpscr
+0+3cc <[^>]*> eef11a10 	vmrs	r1, fpscr
+0+3d0 <[^>]*> eef12a10 	vmrs	r2, fpscr
+0+3d4 <[^>]*> eef13a10 	vmrs	r3, fpscr
+0+3d8 <[^>]*> eef14a10 	vmrs	r4, fpscr
+0+3dc <[^>]*> eef15a10 	vmrs	r5, fpscr
+0+3e0 <[^>]*> eef16a10 	vmrs	r6, fpscr
+0+3e4 <[^>]*> eef17a10 	vmrs	r7, fpscr
+0+3e8 <[^>]*> eef18a10 	vmrs	r8, fpscr
+0+3ec <[^>]*> eef19a10 	vmrs	r9, fpscr
+0+3f0 <[^>]*> eef1aa10 	vmrs	sl, fpscr
+0+3f4 <[^>]*> eef1ba10 	vmrs	fp, fpscr
+0+3f8 <[^>]*> eef1ca10 	vmrs	ip, fpscr
+0+3fc <[^>]*> eef1ea10 	vmrs	lr, fpscr
+0+400 <[^>]*> eef1fa10 	vmrs	APSR_nzcv, fpscr
+0+404 <[^>]*> eee10a10 	vmsr	fpscr, r0
+0+408 <[^>]*> eee11a10 	vmsr	fpscr, r1
+0+40c <[^>]*> eee12a10 	vmsr	fpscr, r2
+0+410 <[^>]*> eee13a10 	vmsr	fpscr, r3
+0+414 <[^>]*> eee14a10 	vmsr	fpscr, r4
+0+418 <[^>]*> eee15a10 	vmsr	fpscr, r5
+0+41c <[^>]*> eee16a10 	vmsr	fpscr, r6
+0+420 <[^>]*> eee17a10 	vmsr	fpscr, r7
+0+424 <[^>]*> eee18a10 	vmsr	fpscr, r8
+0+428 <[^>]*> eee19a10 	vmsr	fpscr, r9
+0+42c <[^>]*> eee1aa10 	vmsr	fpscr, sl
+0+430 <[^>]*> eee1ba10 	vmsr	fpscr, fp
+0+434 <[^>]*> eee1ca10 	vmsr	fpscr, ip
+0+438 <[^>]*> eee1ea10 	vmsr	fpscr, lr
+0+43c <[^>]*> eee01a10 	vmsr	fpsid, r1
+0+440 <[^>]*> eee82a10 	vmsr	fpexc, r2
+0+444 <[^>]*> eee93a10 	vmsr	fpinst, r3	@ Impl def
+0+448 <[^>]*> eeea4a10 	vmsr	fpinst2, r4	@ Impl def
+0+44c <[^>]*> eeef5a10 	vmsr	(c15|<impl def 0xf>), r5
+0+450 <[^>]*> eef03a10 	vmrs	r3, fpsid
+0+454 <[^>]*> eef64a10 	vmrs	r4, mvfr1
+0+458 <[^>]*> eef75a10 	vmrs	r5, mvfr0
+0+45c <[^>]*> eef86a10 	vmrs	r6, fpexc
+0+460 <[^>]*> eef97a10 	vmrs	r7, fpinst	@ Impl def
+0+464 <[^>]*> eefa8a10 	vmrs	r8, fpinst2	@ Impl def
+0+468 <[^>]*> eeff9a10 	vmrs	r9, (c15|<impl def 0xf>)
+0+46c <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
+0+470 <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
+0+474 <[^>]*> e1a00000 	nop			; \(mov r0, r0\)

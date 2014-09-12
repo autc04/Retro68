@@ -1,6 +1,6 @@
 /* itbl-ops.c
    Copyright 1997, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007,
-   2009  Free Software Foundation, Inc.
+   2009, 2010  Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -300,7 +300,10 @@ append_insns_as_macros (void)
 {
   struct ITBL_OPCODE_STRUCT *new_opcodes, *o;
   struct itbl_entry *e, **es;
-  int n, id, size, new_size, new_num_opcodes;
+  int n, size, new_size, new_num_opcodes;
+#ifdef USE_MACROS
+  int id;
+#endif
 
   if (!itbl_have_entries)
     return;
@@ -335,7 +338,9 @@ append_insns_as_macros (void)
   /* FIXME! some NUMOPCODES are calculated expressions.
 		These need to be changed before itbls can be supported.  */
 
+#ifdef USE_MACROS
   id = ITBL_NUM_MACROS;		/* begin the next macro id after the last */
+#endif
   o = &new_opcodes[ITBL_NUM_OPCODES];	/* append macro to opcodes list */
   for (n = e_p0; n < e_nprocs; n++)
     {

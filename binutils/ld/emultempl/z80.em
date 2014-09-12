@@ -79,6 +79,8 @@ gldz80_after_open (void)
 {
   unsigned long mach_type;
 
+  after_open_default ();
+
   switch (result_mach_type)
     {
     case M_Z80STRICT:

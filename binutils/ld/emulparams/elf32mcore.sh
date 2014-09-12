@@ -49,11 +49,6 @@ PARSE_AND_LIST_ARGS_CASES='
     case OPTION_BASE_FILE:
       link_info.base_file = fopen (optarg, FOPEN_WB);
       if (link_info.base_file == NULL)
-	{
-	  /* xgettext:c-format */
-	  fprintf (stderr, _("%s: Cannot open base file %s\n"),
-		   program_name, optarg);
-	  xexit (1);
-	}
+	einfo (_("%F%P: cannot open base file %s\n"), optarg);
       break;
 '

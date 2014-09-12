@@ -35,6 +35,31 @@ MEMORY
 
 SECTIONS
 {
+  /* Bootloader.  */
+  .bootloader ${RELOCATING-0} :
+  {
+    ${RELOCATING+ PROVIDE (__boot_start = .) ; }
+    *(.bootloader)
+    ${RELOCATING+. = ALIGN(2);}
+    *(.bootloader.*)
+  } ${RELOCATING+ > bootloader}
+  
+  /* Information memory.  */
+  .infomem ${RELOCATING-0} :
+  {
+    *(.infomem)
+    ${RELOCATING+. = ALIGN(2);}
+    *(.infomem.*)
+  } ${RELOCATING+ > infomem}
+
+  /* Information memory (not loaded into MPU).  */
+  .infomemnobits ${RELOCATING-0} :
+  {
+    *(.infomemnobits)
+    ${RELOCATING+. = ALIGN(2);}
+    *(.infomemnobits.*)
+  } ${RELOCATING+ > infomemnobits}
+
   /* Read-only sections, merged into text segment.  */
   ${TEXT_DYNAMIC+${DYNAMIC}}
   .hash        ${RELOCATING-0} : { *(.hash)             }
@@ -99,17 +124,17 @@ SECTIONS
   .text :
   {
     ${RELOCATING+. = ALIGN(2);}
-    *(.init)
-    *(.init0)  /* Start here after reset.  */
-    *(.init1)
-    *(.init2)  /* Copy data loop  */
-    *(.init3)
-    *(.init4)  /* Clear bss  */
-    *(.init5)
-    *(.init6)  /* C++ constructors.  */
-    *(.init7)
-    *(.init8)
-    *(.init9)  /* Call main().  */
+    *(SORT_NONE(.init))
+    *(SORT_NONE(.init0))  /* Start here after reset.  */
+    *(SORT_NONE(.init1))
+    *(SORT_NONE(.init2))  /* Copy data loop  */
+    *(SORT_NONE(.init3))
+    *(SORT_NONE(.init4))  /* Clear bss  */
+    *(SORT_NONE(.init5))
+    *(SORT_NONE(.init6))  /* C++ constructors.  */
+    *(SORT_NONE(.init7))
+    *(SORT_NONE(.init8))
+    *(SORT_NONE(.init9))  /* Call main().  */
 
     ${CONSTRUCTING+ __ctors_start = . ; }
     ${CONSTRUCTING+ *(.ctors) }
@@ -122,61 +147,106 @@ SECTIONS
     *(.text)
     ${RELOCATING+. = ALIGN(2);}
     *(.text.*)
+    ${RELOCATING+. = ALIGN(2);}
+    *(.text:*)
 
     ${RELOCATING+. = ALIGN(2);}
-    *(.fini9)  /*   */
-    *(.fini8)
-    *(.fini7)
-    *(.fini6)  /* C++ destructors.  */
-    *(.fini5)
-    *(.fini4)
-    *(.fini3)
-    *(.fini2)
-    *(.fini1)
-    *(.fini0)  /* Infinite loop after program termination.  */
-    *(.fini)
+    *(SORT_NONE(.fini9))
+    *(SORT_NONE(.fini8))
+    *(SORT_NONE(.fini7))
+    *(SORT_NONE(.fini6))  /* C++ destructors.  */
+    *(SORT_NONE(.fini5))
+    *(SORT_NONE(.fini4))
+    *(SORT_NONE(.fini3))
+    *(SORT_NONE(.fini2))
+    *(SORT_NONE(.fini1))
+    *(SORT_NONE(.fini0))  /* Infinite loop after program termination.  */
+    *(SORT_NONE(.fini))
 
     _etext = .;
   } ${RELOCATING+ > text}
 
-  .data ${RELOCATING-0} : ${RELOCATING+AT (ADDR (.text) + SIZEOF (.text))}
+  .rodata :
+  {
+    . = ALIGN(2);
+    *(.plt)
+    *(.rodata .rodata.* .gnu.linkonce.r.* .const .const:*)
+    *(.rodata1)
+
+    *(.eh_frame_hdr)
+    KEEP (*(.eh_frame))
+
+    KEEP (*(.gcc_except_table)) *(.gcc_except_table.*)
+
+    PROVIDE (__preinit_array_start = .);
+    KEEP (*(.preinit_array))
+    PROVIDE (__preinit_array_end = .);
+
+    PROVIDE (__init_array_start = .);
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array))
+    PROVIDE (__init_array_end = .);
+
+    PROVIDE (__fini_array_start = .);
+    KEEP (*(.fini_array))
+    KEEP (*(SORT(.fini_array.*)))
+    PROVIDE (__fini_array_end = .);
+    LONG(0); /* Sentinel.  */
+
+    /* gcc uses crtbegin.o to find the start of the constructors, so
+       we make sure it is first.  Because this is a wildcard, it
+       doesn't matter if the user does not actually link against
+       crtbegin.o; the linker won't look for a file to match a
+       wildcard.  The wildcard also means that it doesn't matter which
+       directory crtbegin.o is in.  */
+    KEEP (*crtbegin*.o(.ctors))
+
+    /* We don't want to include the .ctor section from from the
+       crtend.o file until after the sorted ctors.  The .ctor section
+       from the crtend file contains the end of ctors marker and it
+       must be last */
+    KEEP (*(EXCLUDE_FILE (*crtend*.o ) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(.ctors))
+
+    KEEP (*crtbegin*.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend*.o ) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
+  } ${RELOCATING+ > text}
+
+  .vectors ${RELOCATING-0}:
+  {
+    ${RELOCATING+ PROVIDE (__vectors_start = .) ; }
+    *(.vectors*)
+    ${RELOCATING+ _vectors_end = . ; }
+  } ${RELOCATING+ > vectors}
+
+  .data ${RELOCATING-0} : ${RELOCATING+AT (ADDR (.text) + SIZEOF (.text) + SIZEOF (.rodata))}
   {  
     ${RELOCATING+ PROVIDE (__data_start = .) ; }
+    ${RELOCATING+ PROVIDE (__datastart = .) ; }
     ${RELOCATING+. = ALIGN(2);}
+
+    KEEP (*(.jcr))
+    *(.data.rel.ro.local) *(.data.rel.ro*)
+    *(.dynamic)
+
     *(.data)
-    ${RELOCATING+. = ALIGN(2);}
+    *(.data.*)
     *(.gnu.linkonce.d*)
+    KEEP (*(.gnu.linkonce.d.*personality*))
+    *(.data1)
+    *(.got.plt) *(.got)
+    ${RELOCATING+. = ALIGN(2);}
+    *(.sdata .sdata.* .gnu.linkonce.s.*)
     ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ _edata = . ; }
   } ${RELOCATING+ > data}
   
-  /* Bootloader.  */
-  .bootloader ${RELOCATING-0} :
-  {
-    ${RELOCATING+ PROVIDE (__boot_start = .) ; }
-    *(.bootloader)
-    ${RELOCATING+. = ALIGN(2);}
-    *(.bootloader.*)
-  } ${RELOCATING+ > bootloader}
-  
-  /* Information memory.  */
-  .infomem ${RELOCATING-0} :
-  {
-    *(.infomem)
-    ${RELOCATING+. = ALIGN(2);}
-    *(.infomem.*)
-  } ${RELOCATING+ > infomem}
-
-  /* Information memory (not loaded into MPU).  */
-  .infomemnobits ${RELOCATING-0} :
-  {
-    *(.infomemnobits)
-    ${RELOCATING+. = ALIGN(2);}
-    *(.infomemnobits.*)
-  } ${RELOCATING+ > infomemnobits}
-
   .bss ${RELOCATING+ SIZEOF(.data) + ADDR(.data)} :
   {
+    ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ PROVIDE (__bss_start = .) ; }
     *(.bss)
     *(COMMON)
@@ -193,13 +263,6 @@ SECTIONS
     ${RELOCATING+ _end = . ;  }
   } ${RELOCATING+ > data}
 
-  .vectors ${RELOCATING-0}:
-  {
-    ${RELOCATING+ PROVIDE (__vectors_start = .) ; }
-    *(.vectors*)
-    ${RELOCATING+ _vectors_end = . ; }
-  } ${RELOCATING+ > vectors}
-
   ${HEAP_SECTION_MSP430}
 
   /* Stabs for profiling information*/
@@ -213,31 +276,17 @@ SECTIONS
   .stab.index 0 : { *(.stab.index) }
   .stab.indexstr 0 : { *(.stab.indexstr) }
   .comment 0 : { *(.comment) }
- 
-  /* DWARF debug sections.
-     Symbols in the DWARF debugging sections are relative to the beginning
-     of the section so we begin them at 0.  */
+EOF
 
-  /* DWARF 1 */
-  .debug          0 : { *(.debug) }
-  .line           0 : { *(.line) }
+source $srcdir/scripttempl/DWARF.sc
 
-  /* GNU DWARF 1 extensions */
-  .debug_srcinfo  0 : { *(.debug_srcinfo) }
-  .debug_sfnames  0 : { *(.debug_sfnames) }
-
-  /* DWARF 1.1 and DWARF 2 */
-  .debug_aranges  0 : { *(.debug_aranges) }
-  .debug_pubnames 0 : { *(.debug_pubnames) }
-
-  /* DWARF 2 */
-  .debug_info     0 : { *(.debug_info) *(.gnu.linkonce.wi.*) }
-  .debug_abbrev   0 : { *(.debug_abbrev) }
-  .debug_line     0 : { *(.debug_line) }
-  .debug_frame    0 : { *(.debug_frame) }
-  .debug_str      0 : { *(.debug_str) }
-  .debug_loc      0 : { *(.debug_loc) }
-  .debug_macinfo  0 : { *(.debug_macinfo) }
+cat <<EOF
+  .MP430.attributes 0 :
+  {
+    KEEP (*(.MSP430.attributes))
+    KEEP (*(.gnu.attributes))
+    KEEP (*(__TI_build_attributes))
+  }
 
   PROVIDE (__stack = ${STACK}) ;
   PROVIDE (__data_start_rom = _etext) ;

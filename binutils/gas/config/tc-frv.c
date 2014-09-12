@@ -897,9 +897,7 @@ workaround_top:
 
   if (vliw1->insn_count == 2)
     {
-      struct vliw_insn_list *this_insn;
- 
-      /* check vliw1 for a label. */
+      /* Check vliw1 for a label. */
       for (this_insn = vliw1->insn_list; this_insn; this_insn = this_insn->next)
 	{
 	  if (this_insn->type == VLIW_LABEL_TYPE)
@@ -1041,9 +1039,9 @@ fr550_check_insn_acc_range (frv_insn *insn, int low, int hi)
 }
 
 static int
-fr550_check_acc_range (FRV_VLIW *vliw, frv_insn *insn)
+fr550_check_acc_range (FRV_VLIW *vlw, frv_insn *insn)
 {
-  switch ((*vliw->current_vliw)[vliw->next_slot - 1])
+  switch ((*vlw->current_vliw)[vlw->next_slot - 1])
     {
     case UNIT_FM0:
     case UNIT_FM2:

@@ -1,6 +1,6 @@
 
 tmpdir/mixed-app:     file format elf32-(little|big)arm
-architecture: arm, flags 0x00000112:
+architecture: armv4t, flags 0x00000112:
 EXEC_P, HAS_SYMS, D_PAGED
 start address 0x.*
 
@@ -8,7 +8,7 @@ Disassembly of section .plt:
 
 .* <.plt>:
  .*:	e52de004 	push	{lr}		; \(str lr, \[sp, #-4\]!\)
- .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <_start-0x2c>
+ .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <_start-0x28>
  .*:	e08fe00e 	add	lr, pc, lr
  .*:	e5bef008 	ldr	pc, \[lr, #8\]!
  .*:	.*

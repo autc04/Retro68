@@ -4,7 +4,7 @@
    internationalization features.)
 
    Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2005 Free Software Foundation, Inc.
+   2002, 2005, 2010, 2013 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -46,9 +46,11 @@
 
 # if defined STDC_HEADERS && !defined emacs
 #  include <stddef.h>
+#  define PTR_INT_TYPE ptrdiff_t
 # else
 /* We need this for `regex.h', and perhaps for the Emacs include files.  */
 #  include <sys/types.h>
+#  define PTR_INT_TYPE long
 # endif
 
 # define WIDE_CHAR_SUPPORT (HAVE_WCTYPE_H && HAVE_WCHAR_H && HAVE_BTOWC)
@@ -2045,7 +2047,7 @@ static reg_errcode_t byte_compile_range (unsigned int range_start,
     /* How many characters the new buffer can have?  */			\
     wchar_count = bufp->allocated / sizeof(UCHAR_T);			\
     if (wchar_count == 0) wchar_count = 1;				\
-    /* Truncate the buffer to CHAR_T align.  */			\
+    /* Truncate the buffer to CHAR_T align.  */				\
     bufp->allocated = wchar_count * sizeof(UCHAR_T);			\
     RETALLOC (COMPILED_BUFFER_VAR, wchar_count, UCHAR_T);		\
     bufp->buffer = (char*)COMPILED_BUFFER_VAR;				\
@@ -2054,7 +2056,7 @@ static reg_errcode_t byte_compile_range (unsigned int range_start,
     /* If the buffer moved, move all the pointers into it.  */		\
     if (old_buffer != COMPILED_BUFFER_VAR)				\
       {									\
-	int incr = COMPILED_BUFFER_VAR - old_buffer;			\
+	PTR_INT_TYPE incr = COMPILED_BUFFER_VAR - old_buffer;		\
 	MOVE_BUFFER_POINTER (b);					\
 	MOVE_BUFFER_POINTER (begalt);					\
 	if (fixup_alt_jump)						\
@@ -2082,7 +2084,7 @@ static reg_errcode_t byte_compile_range (unsigned int range_start,
     /* If the buffer moved, move all the pointers into it.  */		\
     if (old_buffer != COMPILED_BUFFER_VAR)				\
       {									\
-	int incr = COMPILED_BUFFER_VAR - old_buffer;			\
+	PTR_INT_TYPE incr = COMPILED_BUFFER_VAR - old_buffer;		\
 	MOVE_BUFFER_POINTER (b);					\
 	MOVE_BUFFER_POINTER (begalt);					\
 	if (fixup_alt_jump)						\
@@ -3394,7 +3396,7 @@ PREFIX(regex_compile) (const char *ARG_PREFIX(pattern),
 			       class.  */
 			    PATFETCH (c);
 
-			    /* Now we have to go throught the whole table
+			    /* Now we have to go through the whole table
 			       and find all characters which have the same
 			       first level weight.
 
@@ -4970,7 +4972,7 @@ weak_alias (__re_search_2, re_search_2)
 #ifdef MATCH_MAY_ALLOCATE
 # define FREE_VAR(var) if (var) REGEX_FREE (var); var = NULL
 #else
-# define FREE_VAR(var) if (var) free (var); var = NULL
+# define FREE_VAR(var) free (var); var = NULL
 #endif
 
 #ifdef WCHAR
@@ -5908,24 +5910,25 @@ byte_re_match_2_internal (struct re_pattern_buffer *bufp,
              longest match, try backtracking.  */
           if (d != end_match_2)
 	    {
+	      /* 1 if this match ends in the same string (string1 or string2)
+		 as the best previous match.  */
+	      boolean same_str_p;
+
 	      /* 1 if this match is the best seen so far.  */
 	      boolean best_match_p;
 
-              {
-                /* 1 if this match ends in the same string (string1 or string2)
-                   as the best previous match.  */
-                boolean same_str_p = (FIRST_STRING_P (match_end)
-                                      == MATCHING_IN_FIRST_STRING);
+              same_str_p = (FIRST_STRING_P (match_end)
+                            == MATCHING_IN_FIRST_STRING);
 
-                /* AIX compiler got confused when this was combined
-                   with the previous declaration.  */
-                if (same_str_p)
-                  best_match_p = d > match_end;
-                else
-                  best_match_p = !MATCHING_IN_FIRST_STRING;
+	      /* AIX compiler got confused when this was combined
+		 with the previous declaration.  */
+	      if (same_str_p)
+		best_match_p = d > match_end;
+	      else
+		best_match_p = !MATCHING_IN_FIRST_STRING;
 
-                DEBUG_PRINT1 ("backtracking.\n");
-              }
+              DEBUG_PRINT1 ("backtracking.\n");
+
               if (!FAIL_STACK_EMPTY ())
                 { /* More failure points to try.  */
 
@@ -7139,8 +7142,8 @@ byte_re_match_2_internal (struct re_pattern_buffer *bufp,
                register from the stack, since lowest will == highest in
                `pop_failure_point'.  */
             active_reg_t dummy_low_reg, dummy_high_reg;
-            UCHAR_T *pdummy = NULL;
-            const CHAR_T *sdummy = NULL;
+            UCHAR_T *pdummy ATTRIBUTE_UNUSED = NULL;
+            const CHAR_T *sdummy ATTRIBUTE_UNUSED = NULL;
 
             DEBUG_PRINT1 ("EXECUTING pop_failure_jump.\n");
             POP_FAILURE_POINT (sdummy, pdummy,
@@ -8110,20 +8113,17 @@ weak_alias (__regerror, regerror)
 void
 regfree (regex_t *preg)
 {
-  if (preg->buffer != NULL)
-    free (preg->buffer);
+  free (preg->buffer);
   preg->buffer = NULL;
 
   preg->allocated = 0;
   preg->used = 0;
 
-  if (preg->fastmap != NULL)
-    free (preg->fastmap);
+  free (preg->fastmap);
   preg->fastmap = NULL;
   preg->fastmap_accurate = 0;
 
-  if (preg->translate != NULL)
-    free (preg->translate);
+  free (preg->translate);
   preg->translate = NULL;
 }
 #ifdef _LIBC

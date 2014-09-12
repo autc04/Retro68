@@ -68,7 +68,7 @@ SECTIONS
      on fork.  This used to be named ".data$nocopy".  The linker used
      to include this between __data_start__ and __data_end__, but that
      breaks building the cygwin32 dll.  Instead, we name the section
-     ".data_cygwin_nocopy" and explictly include it after __data_end__. */
+     ".data_cygwin_nocopy" and explicitly include it after __data_end__. */
 
   .data ${RELOCATING+BLOCK(__section_alignment__)} : 
   {
@@ -160,35 +160,10 @@ SECTIONS
   {
     [ .stabstr ]
   }
-  /* DWARF debug sections.
-     Symbols in the DWARF debugging sections are relative to the beginning
-     of the section so we begin them at 0.  */
+EOF
 
-  /* DWARF 1 */
-  .debug          0 ${RELOCATING+(NOLOAD)} : { *(.debug) }
-  .line           0 ${RELOCATING+(NOLOAD)} : { *(.line) }
+. $srcdir/scripttempl/DWARF.sc
 
-  /* GNU DWARF 1 extensions */
-  .debug_srcinfo  0 ${RELOCATING+(NOLOAD)} : { *(.debug_srcinfo) }
-  .debug_sfnames  0 ${RELOCATING+(NOLOAD)} : { *(.debug_sfnames) }
-
-  /* DWARF 1.1 and DWARF 2 */
-  .debug_aranges  0 ${RELOCATING+(NOLOAD)} : { *(.debug_aranges) }
-  .debug_pubnames 0 ${RELOCATING+(NOLOAD)} : { *(.debug_pubnames) }
-
-  /* DWARF 2 */
-  .debug_info     0 ${RELOCATING+(NOLOAD)} : { *(.debug_info) *(.gnu.linkonce.wi.*) }
-  .debug_abbrev   0 ${RELOCATING+(NOLOAD)} : { *(.debug_abbrev) }
-  .debug_line     0 ${RELOCATING+(NOLOAD)} : { *(.debug_line) }
-  .debug_frame    0 ${RELOCATING+(NOLOAD)} : { *(.debug_frame) }
-  .debug_str      0 ${RELOCATING+(NOLOAD)} : { *(.debug_str) }
-  .debug_loc      0 ${RELOCATING+(NOLOAD)} : { *(.debug_loc) }
-  .debug_macinfo  0 ${RELOCATING+(NOLOAD)} : { *(.debug_macinfo) }
-
-  /* SGI/MIPS DWARF 2 extensions */
-  .debug_weaknames 0 ${RELOCATING+(NOLOAD)} : { *(.debug_weaknames) }
-  .debug_funcnames 0 ${RELOCATING+(NOLOAD)} : { *(.debug_funcnames) }
-  .debug_typenames 0 ${RELOCATING+(NOLOAD)} : { *(.debug_typenames) }
-  .debug_varnames  0 ${RELOCATING+(NOLOAD)} : { *(.debug_varnames) }
+cat <<EOF
 }
 EOF

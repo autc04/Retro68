@@ -132,7 +132,11 @@ Binary_to_elf::sized_convert(const Task* task)
     }
 
   section_size_type filesize = convert_to_section_size_type(f.filesize());
-  const unsigned char* fileview = f.get_view(0, 0, filesize, false, false);
+  const unsigned char* fileview;
+  if (filesize == 0)
+    fileview = NULL;
+  else
+    fileview = f.get_view(0, 0, filesize, false, false);
 
   unsigned int align;
   if (size == 32)
@@ -223,10 +227,13 @@ Binary_to_elf::sized_convert(const Task* task)
 					       shstrtab.get_strtab_size(),
 					       0, 0, 1, 0, &pout);
 
-  memcpy(pout, fileview, filesize);
-  pout += filesize;
-  memset(pout, 0, aligned_filesize - filesize);
-  pout += aligned_filesize - filesize;
+  if (filesize > 0)
+    {
+      memcpy(pout, fileview, filesize);
+      pout += filesize;
+      memset(pout, 0, aligned_filesize - filesize);
+      pout += aligned_filesize - filesize;
+    }
 
   this->write_symbol<size, big_endian>("", &strtab, 0, 0, &pout);
   this->write_symbol<size, big_endian>(start_symbol_name, &strtab, 0, 1,

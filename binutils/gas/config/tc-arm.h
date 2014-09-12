@@ -1,6 +1,6 @@
 /* This file is tc-arm.h
    Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009  Free Software Foundation, Inc.
+   2004, 2005, 2006, 2007, 2008, 2009, 2012  Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 	Modified by David Taylor (dtaylor@armltd.co.uk)
 
@@ -79,7 +79,16 @@ struct fix;
 # define TARGET_FORMAT	elf32_arm_target_format ()
 #endif
 
+/* We support double slash line-comments for compatibility with the ARM AArch64 Assembler.  */
+#define DOUBLESLASH_LINE_COMMENTS
+
+#define tc_symbol_chars arm_symbol_chars
+extern const char arm_symbol_chars[];
+
 #define TC_FORCE_RELOCATION(FIX) arm_force_relocation (FIX)
+
+extern unsigned int arm_frag_max_var (struct frag *);
+#define md_frag_max_var arm_frag_max_var
 
 #define md_relax_frag(segment, fragp, stretch) \
   arm_relax_frag (segment, fragp, stretch)
@@ -183,6 +192,7 @@ void arm_copy_symbol_attributes (symbolS *, symbolS *);
   (!(FIX)->fx_pcrel					\
    || (FIX)->fx_r_type == BFD_RELOC_ARM_GOT32		\
    || (FIX)->fx_r_type == BFD_RELOC_32			\
+   || ((FIX)->fx_addsy != NULL && S_IS_WEAK ((FIX)->fx_addsy))	\
    || TC_FORCE_RELOCATION (FIX))
 
 /* Force output of R_ARM_REL32 relocations against thumb function symbols.
@@ -190,6 +200,12 @@ void arm_copy_symbol_attributes (symbolS *, symbolS *);
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG)	\
   (THUMB_IS_FUNC ((FIX)->fx_addsy)		\
    || !SEG_NORMAL (SEG))
+
+#define TC_FORCE_RELOCATION_ABS(FIX)			\
+  (((FIX)->fx_pcrel					\
+    && (FIX)->fx_r_type != BFD_RELOC_32			\
+    && (FIX)->fx_r_type != BFD_RELOC_ARM_GOT32)		\
+   || TC_FORCE_RELOCATION(FIX))
 
 #define TC_CONS_FIX_NEW cons_fix_new_arm
 
@@ -244,6 +260,8 @@ struct current_it
   int block_length;
   char *insn;
   int state_handled;
+  int warn_deprecated;
+  int insn_cond;
 };
 
 #ifdef OBJ_ELF

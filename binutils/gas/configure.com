@@ -2,6 +2,22 @@ $! configure.com
 $! This file sets things up to build gas on a VMS system to generate object
 $! files for a VMS system.  We do not use the configure script, since we
 $! do not have /bin/sh to execute it.
+$!	
+$!   Copyright 2012 Free Software Foundation
+$!
+$! This file is free software; you can redistribute it and/or modify
+$! it under the terms of the GNU General Public License as published by
+$! the Free Software Foundation; either version 3 of the License, or
+$! (at your option) any later version.
+$! 
+$! This program is distributed in the hope that it will be useful,
+$! but WITHOUT ANY WARRANTY; without even the implied warranty of
+$! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+$! GNU General Public License for more details.
+$! 
+$! You should have received a copy of the GNU General Public License
+$! along with this program; see the file COPYING3.  If not see
+$! <http://www.gnu.org/licenses/>.
 $!
 $!
 $ arch=F$GETSYI("ARCH_NAME")
@@ -124,10 +140,10 @@ $  create config-vms.in
 #undef HAVE_SYS_STAT_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
-#undef HAVE_SYS_TYPES_H
+#define HAVE_SYS_TYPES_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#undef HAVE_UNISTD_H
+#define HAVE_UNISTD_H
 
 /* Define to 1 if you have the `unlink' function. */
 #undef HAVE_UNLINK

@@ -8,7 +8,7 @@ fragment <<EOF
    Free Software Foundation, Inc.
    Written by Michael Sokolov <msokolov@ivan.Harhan.ORG>, based on generic.em
    by Steve Chamberlain <steve@cygnus.com>, embedded relocs code based on
-   mipsecoff.em by Ian Lance Taylor <ian@cygnus.com>.
+   mipsecoff.em by Ian Lance Taylor <ian@cygnus.com> (now removed).
 
    This file is part of the GNU Binutils.
 
@@ -61,6 +61,8 @@ static void
 gld${EMULATION_NAME}_after_open (void)
 {
   bfd *abfd;
+
+  after_open_default ();
 
   if (! command_line.embedded_relocs
       || link_info.relocatable)

@@ -1,6 +1,6 @@
 /* Assorted BFD support routines, only used internally.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008
+   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -145,6 +145,16 @@ _bfd_nocore_core_file_failing_command (bfd *ignore_abfd ATTRIBUTE_UNUSED)
 
 int
 _bfd_nocore_core_file_failing_signal (bfd *ignore_abfd ATTRIBUTE_UNUSED)
+{
+  bfd_set_error (bfd_error_invalid_operation);
+  return 0;
+}
+
+/* Routine to handle the core_file_pid entry point for targets without
+   core file support.  */
+
+int
+_bfd_nocore_core_file_pid (bfd *ignore_abfd ATTRIBUTE_UNUSED)
 {
   bfd_set_error (bfd_error_invalid_operation);
   return 0;
@@ -421,9 +431,9 @@ DESCRIPTION
 .#define bfd_put_signed_8 \
 .  bfd_put_8
 .#define bfd_get_8(abfd, ptr) \
-.  (*(unsigned char *) (ptr) & 0xff)
+.  (*(const unsigned char *) (ptr) & 0xff)
 .#define bfd_get_signed_8(abfd, ptr) \
-.  (((*(unsigned char *) (ptr) & 0xff) ^ 0x80) - 0x80)
+.  (((*(const unsigned char *) (ptr) & 0xff) ^ 0x80) - 0x80)
 .
 .#define bfd_put_16(abfd, val, ptr) \
 .  BFD_SEND (abfd, bfd_putx16, ((val),(ptr)))
@@ -804,9 +814,9 @@ bfd_put_bits (bfd_uint64_t data, void *p, int bits, bfd_boolean big_p)
   bytes = bits / 8;
   for (i = 0; i < bytes; i++)
     {
-      int index = big_p ? bytes - i - 1 : i;
+      int addr_index = big_p ? bytes - i - 1 : i;
 
-      addr[index] = data & 0xff;
+      addr[addr_index] = data & 0xff;
       data >>= 8;
     }
 }
@@ -826,9 +836,9 @@ bfd_get_bits (const void *p, int bits, bfd_boolean big_p)
   bytes = bits / 8;
   for (i = 0; i < bytes; i++)
     {
-      int index = big_p ? i : bytes - i - 1;
+      int addr_index = big_p ? i : bytes - i - 1;
 
-      data = (data << 8) | addr[index];
+      data = (data << 8) | addr[addr_index];
     }
 
   return data;
@@ -847,7 +857,24 @@ _bfd_generic_get_section_contents (bfd *abfd,
   if (count == 0)
     return TRUE;
 
-  sz = section->rawsize ? section->rawsize : section->size;
+  if (section->compress_status != COMPRESS_SECTION_NONE)
+    {
+      (*_bfd_error_handler)
+	(_("%B: unable to get decompressed section %A"),
+	 abfd, section);
+      bfd_set_error (bfd_error_invalid_operation);
+      return FALSE;
+    }
+
+  /* We do allow reading of a section after bfd_final_link has
+     written the contents out to disk.  In that situation, rawsize is
+     just a stale version of size, so ignore it.  Otherwise we must be
+     reading an input section, where rawsize, if different to size,
+     is the on-disk size.  */
+  if (abfd->direction != write_direction && section->rawsize != 0)
+    sz = section->rawsize;
+  else
+    sz = section->size;
   if (offset + count < count
       || offset + count > sz)
     {
@@ -900,7 +927,10 @@ _bfd_generic_get_section_contents_in_window
       w->data = w->i->data;
       return bfd_get_section_contents (abfd, section, w->data, offset, count);
     }
-  sz = section->rawsize ? section->rawsize : section->size;
+  if (abfd->direction != write_direction && section->rawsize != 0)
+    sz = section->rawsize;
+  else
+    sz = section->size;
   if (offset + count > sz
       || ! bfd_get_file_window (abfd, section->filepos + offset, count, w,
 				TRUE))
@@ -949,8 +979,12 @@ bfd_log2 (bfd_vma x)
 {
   unsigned int result = 0;
 
-  while ((x = (x >> 1)) != 0)
+  if (x <= 1)
+    return result;
+  --x;
+  do
     ++result;
+  while ((x >>= 1) != 0);
   return result;
 }
 
@@ -1002,6 +1036,7 @@ warn_deprecated (const char *what,
 
   if (~(size_t) func & ~mask)
     {
+      fflush (stdout);
       /* Note: separate sentences in order to allow
 	 for translation into other languages.  */
       if (func)
@@ -1009,6 +1044,7 @@ warn_deprecated (const char *what,
 		 what, file, line, func);
       else
 	fprintf (stderr, _("Deprecated %s called\n"), what);
+      fflush (stderr);
       mask |= ~(size_t) func;
     }
 }
@@ -1077,6 +1113,19 @@ _bfd_generic_find_line (bfd *abfd ATTRIBUTE_UNUSED,
 		       asymbol *symbol ATTRIBUTE_UNUSED,
 		       const char **filename_ptr ATTRIBUTE_UNUSED,
 		       unsigned int *linenumber_ptr ATTRIBUTE_UNUSED)
+{
+  return FALSE;
+}
+
+bfd_boolean
+_bfd_generic_find_nearest_line_discriminator (bfd *abfd ATTRIBUTE_UNUSED,
+                                              asection *section ATTRIBUTE_UNUSED,
+                                              asymbol **symbols ATTRIBUTE_UNUSED,
+                                              bfd_vma offset ATTRIBUTE_UNUSED,
+                                              const char **filename_ptr ATTRIBUTE_UNUSED,
+                                              const char **functionname_ptr ATTRIBUTE_UNUSED,
+                                              unsigned int *line_ptr ATTRIBUTE_UNUSED,
+                                              unsigned int *discriminator_ptr ATTRIBUTE_UNUSED)
 {
   return FALSE;
 }

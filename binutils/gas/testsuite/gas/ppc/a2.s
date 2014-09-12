@@ -1,4 +1,4 @@
-	.section ".text"
+	.text
 start:
 	add.	4,5,6
 	add	4,5,6
@@ -103,7 +103,9 @@ start:
 	dcbtstls 1,10,11
 	dcbz	10,11
 	dcbzep	10,11
+	dccci
 	dci
+	dci	0
 	dci	10
 	divd.	20,21,22
 	divd	20,21,22
@@ -241,6 +243,9 @@ start:
 	icbt	7,10,11
 	icbtls	0,10,11
 	icbtls	7,10,11
+	iccci
+	ici
+	ici	0
 	ici	10
 	icswx.	10,11,12
 	icswx	10,11,12
@@ -292,7 +297,7 @@ start:
 	lhzx	10,11,12
 	lmw	20,16(10)
 	lswi	10,11,1
-	lswi	10,11,32
+	lswi	12,11,32
 	lswx	10,11,12
 	lwa	10,-4(11)
 	lwa	10,4(11)

@@ -1,12 +1,13 @@
 #source: eh3.s
 #source: eh3a.s
-#ld:
+#as: --64
+#ld: -melf_x86_64 -Ttext 0x400078
 #readelf: -wf
 #target: x86_64-*-*
 
 Contents of the .eh_frame section:
 
-00000000 00000014 00000000 CIE
+0+0000 0+0014 0+0000 CIE
   Version:               1
   Augmentation:          ""
   Code alignment factor: 1
@@ -22,12 +23,12 @@ Contents of the .eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-00000018 0000001c 0000001c FDE cie=00000000 pc=00400078..00400078
-  DW_CFA_advance_loc: 0 to 00400078
+0+0018 0+001c 0+001c FDE cie=0+0000 pc=0+400078..0+400078
+  DW_CFA_advance_loc: 0 to 0+400078
   DW_CFA_def_cfa_offset: 16
   DW_CFA_offset: r6 \(rbp\) at cfa-16
-  DW_CFA_advance_loc: 0 to 00400078
+  DW_CFA_advance_loc: 0 to 0+400078
   DW_CFA_def_cfa_register: r6 \(rbp\)
 
-00000038 ZERO terminator
+0+0038 ZERO terminator
 #pass

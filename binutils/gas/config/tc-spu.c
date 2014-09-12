@@ -101,8 +101,6 @@ const pseudo_typeS md_pseudo_table[] =
   /* Likewise for eqv.  */
   {"eqv", NULL, 0},
   {".eqv", s_set, -1},
-  {"file", (void (*) (int)) dwarf2_directive_file, 0 }, 
-  {"loc", dwarf2_directive_loc, 0}, 
   {0,0,0}
 };
 

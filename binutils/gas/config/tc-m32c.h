@@ -28,7 +28,7 @@
 
 #define TARGET_FORMAT "elf32-m32c"
 
-#define TARGET_BYTES_BIG_ENDIAN 1
+#define TARGET_BYTES_BIG_ENDIAN 0
 
 #define md_end  m32c_md_end
 extern void m32c_md_end (void);

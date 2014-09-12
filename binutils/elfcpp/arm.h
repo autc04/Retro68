@@ -1,6 +1,6 @@
 // arm.h -- ELF definitions specific to EM_ARM  -*- C++ -*-
 
-// Copyright 2009, Free Software Foundation, Inc.
+// Copyright 2009, 2012 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com>.
 
 // This file is part of elfcpp.
@@ -197,6 +197,154 @@ enum
   // 131 - 139			Unallocated
   // 140 - 159			Dynamic		Reserved for future allocation
   // 160 - 255			Unallocated
+};
+
+// e_flags values used for ARM.  We only support flags defined in AAELF.
+
+enum
+{
+  EF_ARM_BE8 = 0x00800000,
+
+  // Mask to extract EABI version, not really a flag value.
+  EF_ARM_EABIMASK = 0xFF000000,
+
+  EF_ARM_EABI_UNKNOWN = 0x00000000,
+  EF_ARM_EABI_VER1 = 0x01000000,
+  EF_ARM_EABI_VER2 = 0x02000000,
+  EF_ARM_EABI_VER3 = 0x03000000,
+  EF_ARM_EABI_VER4 = 0x04000000,
+  EF_ARM_EABI_VER5 = 0x05000000,
+};
+
+// Extract EABI version from flags.
+
+inline Elf_Word
+arm_eabi_version(Elf_Word flags)
+{ return flags & EF_ARM_EABIMASK; }
+
+// EABI_VER5 e_flags values for identifying soft- and hard-float ABI
+// choice.
+enum
+{
+  EF_ARM_ABI_FLOAT_SOFT = 0x200,
+  EF_ARM_ABI_FLOAT_HARD = 0x400,
+};
+
+// Values for the Tag_CPU_arch EABI attribute.
+enum
+{
+  TAG_CPU_ARCH_PRE_V4,
+  TAG_CPU_ARCH_V4,
+  TAG_CPU_ARCH_V4T,
+  TAG_CPU_ARCH_V5T,
+  TAG_CPU_ARCH_V5TE,
+  TAG_CPU_ARCH_V5TEJ,
+  TAG_CPU_ARCH_V6,
+  TAG_CPU_ARCH_V6KZ,
+  TAG_CPU_ARCH_V6T2,
+  TAG_CPU_ARCH_V6K,
+  TAG_CPU_ARCH_V7,
+  TAG_CPU_ARCH_V6_M,
+  TAG_CPU_ARCH_V6S_M,
+  TAG_CPU_ARCH_V7E_M,
+  MAX_TAG_CPU_ARCH = TAG_CPU_ARCH_V7E_M,
+  // Pseudo-architecture to allow objects to be compatible with the subset of
+  // armv4t and armv6-m.  This value should never be stored in object files.
+  TAG_CPU_ARCH_V4T_PLUS_V6_M = (MAX_TAG_CPU_ARCH + 1)
+};
+
+// EABI object attributes.
+enum
+{
+  // 0-3 are generic.
+  Tag_CPU_raw_name = 4,
+  Tag_CPU_name = 5,
+  Tag_CPU_arch = 6,
+  Tag_CPU_arch_profile = 7,
+  Tag_ARM_ISA_use = 8,
+  Tag_THUMB_ISA_use = 9,
+  Tag_FP_arch = 10,
+  Tag_WMMX_arch = 11,
+  Tag_Advanced_SIMD_arch = 12,
+  Tag_PCS_config = 13,
+  Tag_ABI_PCS_R9_use = 14,
+  Tag_ABI_PCS_RW_data = 15,
+  Tag_ABI_PCS_RO_data = 16,
+  Tag_ABI_PCS_GOT_use = 17,
+  Tag_ABI_PCS_wchar_t = 18,
+  Tag_ABI_FP_rounding = 19,
+  Tag_ABI_FP_denormal = 20,
+  Tag_ABI_FP_exceptions = 21,
+  Tag_ABI_FP_user_exceptions = 22,
+  Tag_ABI_FP_number_model = 23,
+  Tag_ABI_align_needed = 24,
+  Tag_ABI_align_preserved = 25,
+  Tag_ABI_enum_size = 26,
+  Tag_ABI_HardFP_use = 27,
+  Tag_ABI_VFP_args = 28,
+  Tag_ABI_WMMX_args = 29,
+  Tag_ABI_optimization_goals = 30,
+  Tag_ABI_FP_optimization_goals = 31,
+  // 32 is generic (Tag_compatibility).
+  Tag_undefined33 = 33,
+  Tag_CPU_unaligned_access = 34,
+  Tag_undefined35 = 35,
+  Tag_FP_HP_extension = 36,
+  Tag_undefined37 = 37,
+  Tag_ABI_FP_16bit_format = 38,
+  Tag_undefined39 = 39,
+  Tag_undefined40 = 40,
+  Tag_undefined41 = 41,
+  Tag_MPextension_use = 42,
+  Tag_undefined43 = 43,
+  Tag_DIV_use = 44,
+  Tag_nodefaults = 64,
+  Tag_also_compatible_with = 65,
+  Tag_T2EE_use = 66,
+  Tag_conformance = 67,
+  Tag_Virtualization_use = 68,
+  Tag_undefined69 = 69,
+  Tag_MPextension_use_legacy = 70,
+
+  // The following tags are legacy names for other tags.
+  Tag_VFP_arch = Tag_FP_arch,
+  Tag_ABI_align8_needed = Tag_ABI_align_needed,
+  Tag_ABI_align8_preserved = Tag_ABI_align_preserved,
+  Tag_VFP_HP_extension = Tag_FP_HP_extension
+};
+
+// Values for Tag_ABI_PCS_R9_use.
+enum
+{
+  AEABI_R9_V6 = 0,
+  AEABI_R9_SB = 1,
+  AEABI_R9_TLS = 2,
+  AEABI_R9_unused = 3
+};
+
+// Values for Tag_ABI_PCS_RW_data.
+enum
+{
+  AEABI_PCS_RW_data_absolute = 0,
+  AEABI_PCS_RW_data_PCrel = 1,
+  AEABI_PCS_RW_data_SBrel = 2,
+  AEABI_PCS_RW_data_unused = 3
+};
+
+// Values for Tag_ABI_enum_size.
+enum
+{
+  AEABI_enum_unused = 0,
+  AEABI_enum_short = 1,
+  AEABI_enum_wide = 2,
+  AEABI_enum_forced_wide = 3
+};
+
+// For Exception Index Table. (Exception handling ABI for the ARM
+// architectue, Section 5)
+enum
+{
+  EXIDX_CANTUNWIND = 1,
 };
 
 } // End namespace elfcpp.

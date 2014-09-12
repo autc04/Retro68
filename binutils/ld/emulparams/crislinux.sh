@@ -34,7 +34,7 @@ OTHER_BSS_END_SYMBOLS='PROVIDE (__Ebss = .);'
 # Also add the other symbols provided for rsim/xsim and elinux.
 OTHER_SYMBOLS='
   PROVIDE (__Eall = .);
-  PROVIDE (__Endmem = 0x10000000); 
+  PROVIDE (__Endmem = 0x10000000);
   PROVIDE (__Stacksize = 0);
 '
 NO_SMALL_DATA=yes

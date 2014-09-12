@@ -4,7 +4,7 @@
    - the resultant file is machine generated, cgen-ibld.in isn't
 
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005, 2006, 2007,
-   2008  Free Software Foundation, Inc.
+   2008, 2010  Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -33,6 +33,7 @@
 #include "symcat.h"
 #include "mep-desc.h"
 #include "mep-opc.h"
+#include "cgen/basic-modes.h"
 #include "opintl.h"
 #include "safe-ctype.h"
 
@@ -137,7 +138,7 @@ insert_normal (CGEN_CPU_DESC cd,
   if (length == 0)
     return NULL;
 
-  if (word_length > 32)
+  if (word_length > 8 * sizeof (CGEN_INSN_INT))
     abort ();
 
   /* For architectures with insns smaller than the base-insn-bitsize,
@@ -441,7 +442,7 @@ extract_normal (CGEN_CPU_DESC cd,
       return 1;
     }
 
-  if (word_length > 32)
+  if (word_length > 8 * sizeof (CGEN_INSN_INT))
     abort ();
 
   /* For architectures with insns smaller than the insn-base-bitsize,
@@ -468,7 +469,7 @@ extract_normal (CGEN_CPU_DESC cd,
     {
       unsigned char *bufp = ex_info->insn_bytes + word_offset / 8;
 
-      if (word_length > 32)
+      if (word_length > 8 * sizeof (CGEN_INSN_INT))
 	abort ();
 
       if (fill_cache (cd, ex_info, word_offset / 8, word_length / 8, pc) == 0)
@@ -568,8 +569,8 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_ADDR24A4 :
       {
 {
-  FLD (f_24u8a4n_hi) = ((unsigned int) (FLD (f_24u8a4n)) >> (8));
-  FLD (f_24u8a4n_lo) = ((unsigned int) (((FLD (f_24u8a4n)) & (252))) >> (2));
+  FLD (f_24u8a4n_hi) = ((UINT) (FLD (f_24u8a4n)) >> (8));
+  FLD (f_24u8a4n_lo) = ((UINT) (((FLD (f_24u8a4n)) & (252))) >> (2));
 }
         errmsg = insert_normal (cd, fields->f_24u8a4n_hi, 0, 0, 16, 16, 32, total_length, buffer);
         if (errmsg)
@@ -582,7 +583,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_C5RMUIMM20 :
       {
 {
-  FLD (f_c5_rm) = ((unsigned int) (FLD (f_c5_rmuimm20)) >> (16));
+  FLD (f_c5_rm) = ((UINT) (FLD (f_c5_rmuimm20)) >> (16));
   FLD (f_c5_16u16) = ((FLD (f_c5_rmuimm20)) & (65535));
 }
         errmsg = insert_normal (cd, fields->f_c5_rm, 0, 0, 8, 4, 32, total_length, buffer);
@@ -596,7 +597,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_C5RNMUIMM24 :
       {
 {
-  FLD (f_c5_rnm) = ((unsigned int) (FLD (f_c5_rnmuimm24)) >> (16));
+  FLD (f_c5_rnm) = ((UINT) (FLD (f_c5_rnmuimm24)) >> (16));
   FLD (f_c5_16u16) = ((FLD (f_c5_rnmuimm24)) & (65535));
 }
         errmsg = insert_normal (cd, fields->f_c5_rnm, 0, 0, 4, 8, 32, total_length, buffer);
@@ -610,9 +611,9 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_CALLNUM :
       {
 {
-  FLD (f_5) = ((((unsigned int) (FLD (f_callnum)) >> (3))) & (1));
-  FLD (f_6) = ((((unsigned int) (FLD (f_callnum)) >> (2))) & (1));
-  FLD (f_7) = ((((unsigned int) (FLD (f_callnum)) >> (1))) & (1));
+  FLD (f_5) = ((((UINT) (FLD (f_callnum)) >> (3))) & (1));
+  FLD (f_6) = ((((UINT) (FLD (f_callnum)) >> (2))) & (1));
+  FLD (f_7) = ((((UINT) (FLD (f_callnum)) >> (1))) & (1));
   FLD (f_11) = ((FLD (f_callnum)) & (1));
 }
         errmsg = insert_normal (cd, fields->f_5, 0, 0, 5, 1, 32, total_length, buffer);
@@ -635,7 +636,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_CCRN :
       {
 {
-  FLD (f_ccrn_hi) = ((((unsigned int) (FLD (f_ccrn)) >> (4))) & (3));
+  FLD (f_ccrn_hi) = ((((UINT) (FLD (f_ccrn)) >> (4))) & (3));
   FLD (f_ccrn_lo) = ((FLD (f_ccrn)) & (15));
 }
         errmsg = insert_normal (cd, fields->f_ccrn_hi, 0, 0, 28, 2, 32, total_length, buffer);
@@ -689,7 +690,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_CODE24 :
       {
 {
-  FLD (f_24u4n_hi) = ((unsigned int) (FLD (f_24u4n)) >> (16));
+  FLD (f_24u4n_hi) = ((UINT) (FLD (f_24u4n)) >> (16));
   FLD (f_24u4n_lo) = ((FLD (f_24u4n)) & (65535));
 }
         errmsg = insert_normal (cd, fields->f_24u4n_hi, 0, 0, 4, 8, 32, total_length, buffer);
@@ -712,7 +713,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
       {
 {
   FLD (f_crnx_lo) = ((FLD (f_crnx)) & (15));
-  FLD (f_crnx_hi) = ((unsigned int) (FLD (f_crnx)) >> (4));
+  FLD (f_crnx_hi) = ((UINT) (FLD (f_crnx)) >> (4));
 }
         errmsg = insert_normal (cd, fields->f_crnx_hi, 0, 0, 28, 1, 32, total_length, buffer);
         if (errmsg)
@@ -726,7 +727,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
       {
 {
   FLD (f_crnx_lo) = ((FLD (f_crnx)) & (15));
-  FLD (f_crnx_hi) = ((unsigned int) (FLD (f_crnx)) >> (4));
+  FLD (f_crnx_hi) = ((UINT) (FLD (f_crnx)) >> (4));
 }
         errmsg = insert_normal (cd, fields->f_crnx_hi, 0, 0, 28, 1, 32, total_length, buffer);
         if (errmsg)
@@ -758,7 +759,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
       {
 {
   FLD (f_csrn_lo) = ((FLD (f_csrn)) & (15));
-  FLD (f_csrn_hi) = ((unsigned int) (FLD (f_csrn)) >> (4));
+  FLD (f_csrn_hi) = ((UINT) (FLD (f_csrn)) >> (4));
 }
         errmsg = insert_normal (cd, fields->f_csrn_hi, 0, 0, 15, 1, 32, total_length, buffer);
         if (errmsg)
@@ -772,7 +773,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
       {
 {
   FLD (f_csrn_lo) = ((FLD (f_csrn)) & (15));
-  FLD (f_csrn_hi) = ((unsigned int) (FLD (f_csrn)) >> (4));
+  FLD (f_csrn_hi) = ((UINT) (FLD (f_csrn)) >> (4));
 }
         errmsg = insert_normal (cd, fields->f_csrn_hi, 0, 0, 15, 1, 32, total_length, buffer);
         if (errmsg)
@@ -795,7 +796,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_IMM16P0 :
       {
 {
-  FLD (f_ivc2_8u0) = ((((unsigned int) (FLD (f_ivc2_imm16p0)) >> (8))) & (255));
+  FLD (f_ivc2_8u0) = ((((UINT) (FLD (f_ivc2_imm16p0)) >> (8))) & (255));
   FLD (f_ivc2_8u20) = ((FLD (f_ivc2_imm16p0)) & (255));
 }
         errmsg = insert_normal (cd, fields->f_ivc2_8u0, 0, 0, 0, 8, 32, total_length, buffer);
@@ -927,7 +928,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_IVC2C3CCRN :
       {
 {
-  FLD (f_ivc2_ccrn_c3hi) = ((((unsigned int) (FLD (f_ivc2_ccrn_c3)) >> (4))) & (3));
+  FLD (f_ivc2_ccrn_c3hi) = ((((UINT) (FLD (f_ivc2_ccrn_c3)) >> (4))) & (3));
   FLD (f_ivc2_ccrn_c3lo) = ((FLD (f_ivc2_ccrn_c3)) & (15));
 }
         errmsg = insert_normal (cd, fields->f_ivc2_ccrn_c3hi, 0, 0, 28, 2, 32, total_length, buffer);
@@ -941,7 +942,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_IVC2CCRN :
       {
 {
-  FLD (f_ivc2_ccrn_h2) = ((((unsigned int) (FLD (f_ivc2_ccrn)) >> (4))) & (3));
+  FLD (f_ivc2_ccrn_h2) = ((((UINT) (FLD (f_ivc2_ccrn)) >> (4))) & (3));
   FLD (f_ivc2_ccrn_lo) = ((FLD (f_ivc2_ccrn)) & (15));
 }
         errmsg = insert_normal (cd, fields->f_ivc2_ccrn_h2, 0, 0, 20, 2, 32, total_length, buffer);
@@ -955,7 +956,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_IVC2CRN :
       {
 {
-  FLD (f_ivc2_ccrn_h1) = ((((unsigned int) (FLD (f_ivc2_crnx)) >> (4))) & (1));
+  FLD (f_ivc2_ccrn_h1) = ((((UINT) (FLD (f_ivc2_crnx)) >> (4))) & (1));
   FLD (f_ivc2_ccrn_lo) = ((FLD (f_ivc2_crnx)) & (15));
 }
         errmsg = insert_normal (cd, fields->f_ivc2_ccrn_h1, 0, 0, 20, 1, 32, total_length, buffer);
@@ -988,8 +989,8 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_PCABS24A2 :
       {
 {
-  FLD (f_24u5a2n_lo) = ((unsigned int) (((FLD (f_24u5a2n)) & (255))) >> (1));
-  FLD (f_24u5a2n_hi) = ((unsigned int) (FLD (f_24u5a2n)) >> (8));
+  FLD (f_24u5a2n_lo) = ((UINT) (((FLD (f_24u5a2n)) & (255))) >> (1));
+  FLD (f_24u5a2n_hi) = ((UINT) (FLD (f_24u5a2n)) >> (8));
 }
         errmsg = insert_normal (cd, fields->f_24u5a2n_hi, 0, 0, 16, 16, 32, total_length, buffer);
         if (errmsg)
@@ -1002,14 +1003,14 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_PCREL12A2 :
       {
         long value = fields->f_12s4a2;
-        value = ((int) (((value) - (pc))) >> (1));
+        value = ((SI) (((value) - (pc))) >> (1));
         errmsg = insert_normal (cd, value, 0|(1<<CGEN_IFLD_SIGNED)|(1<<CGEN_IFLD_PCREL_ADDR), 0, 4, 11, 32, total_length, buffer);
       }
       break;
     case MEP_OPERAND_PCREL17A2 :
       {
         long value = fields->f_17s16a2;
-        value = ((int) (((value) - (pc))) >> (1));
+        value = ((SI) (((value) - (pc))) >> (1));
         errmsg = insert_normal (cd, value, 0|(1<<CGEN_IFLD_SIGNED)|(1<<CGEN_IFLD_PCREL_ADDR), 0, 16, 16, 32, total_length, buffer);
       }
       break;
@@ -1017,8 +1018,8 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
       {
 {
   FLD (f_24s5a2n) = ((FLD (f_24s5a2n)) - (pc));
-  FLD (f_24s5a2n_lo) = ((unsigned int) (((FLD (f_24s5a2n)) & (254))) >> (1));
-  FLD (f_24s5a2n_hi) = ((int) (FLD (f_24s5a2n)) >> (8));
+  FLD (f_24s5a2n_lo) = ((UINT) (((FLD (f_24s5a2n)) & (254))) >> (1));
+  FLD (f_24s5a2n_hi) = ((INT) (FLD (f_24s5a2n)) >> (8));
 }
         errmsg = insert_normal (cd, fields->f_24s5a2n_hi, 0|(1<<CGEN_IFLD_SIGNED)|(1<<CGEN_IFLD_PCREL_ADDR), 0, 16, 16, 32, total_length, buffer);
         if (errmsg)
@@ -1031,7 +1032,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_PCREL8A2 :
       {
         long value = fields->f_8s8a2;
-        value = ((int) (((value) - (pc))) >> (1));
+        value = ((SI) (((value) - (pc))) >> (1));
         errmsg = insert_normal (cd, value, 0|(1<<CGEN_IFLD_SIGNED)|(1<<CGEN_IFLD_PCREL_ADDR), 0, 8, 7, 32, total_length, buffer);
       }
       break;
@@ -1106,7 +1107,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_SIMM16P0 :
       {
 {
-  FLD (f_ivc2_8u0) = ((((unsigned int) (FLD (f_ivc2_simm16p0)) >> (8))) & (255));
+  FLD (f_ivc2_8u0) = ((((UINT) (FLD (f_ivc2_simm16p0)) >> (8))) & (255));
   FLD (f_ivc2_8u20) = ((FLD (f_ivc2_simm16p0)) & (255));
 }
         errmsg = insert_normal (cd, fields->f_ivc2_8u0, 0, 0, 0, 8, 32, total_length, buffer);
@@ -1149,14 +1150,14 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_UDISP7A2 :
       {
         long value = fields->f_7u9a2;
-        value = ((unsigned int) (value) >> (1));
+        value = ((USI) (value) >> (1));
         errmsg = insert_normal (cd, value, 0, 0, 9, 6, 32, total_length, buffer);
       }
       break;
     case MEP_OPERAND_UDISP7A4 :
       {
         long value = fields->f_7u9a4;
-        value = ((unsigned int) (value) >> (2));
+        value = ((USI) (value) >> (2));
         errmsg = insert_normal (cd, value, 0, 0, 9, 5, 32, total_length, buffer);
       }
       break;
@@ -1169,7 +1170,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_UIMM24 :
       {
 {
-  FLD (f_24u8n_hi) = ((unsigned int) (FLD (f_24u8n)) >> (8));
+  FLD (f_24u8n_hi) = ((UINT) (FLD (f_24u8n)) >> (8));
   FLD (f_24u8n_lo) = ((FLD (f_24u8n)) & (255));
 }
         errmsg = insert_normal (cd, fields->f_24u8n_hi, 0, 0, 16, 16, 32, total_length, buffer);
@@ -1192,7 +1193,7 @@ mep_cgen_insert_operand (CGEN_CPU_DESC cd,
     case MEP_OPERAND_UIMM7A4 :
       {
         long value = fields->f_7u9a4;
-        value = ((unsigned int) (value) >> (2));
+        value = ((USI) (value) >> (2));
         errmsg = insert_normal (cd, value, 0, 0, 9, 5, 32, total_length, buffer);
       }
       break;

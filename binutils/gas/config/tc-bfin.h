@@ -28,11 +28,11 @@
 
 /*
  * Define the target format macro here.   The value for this should be
- * "elf32-bfin", not "elf32-little-bfin".  Since the BFD source file 
+ * "elf32-bfin", not "elf32-little-bfin".  Since the BFD source file
  * elf32-bfin.c defines TARGET_LITTLE_NAME to be "elf32-little-bfin",
  * we must use this value, until this is corrected and BFD is rebuilt.  */
 #ifdef OBJ_ELF
-#define TARGET_FORMAT		"elf32-bfin" 
+#define TARGET_FORMAT		"elf32-bfin"
 #endif
 
 #define LISTING_HEADER "BFIN GAS "
@@ -53,7 +53,7 @@ extern bfd_boolean bfin_eol_in_insn (char *);
 /* Almost all instructions of Blackfin contain an = character.  */
 #define TC_EQUAL_IN_INSN(C, NAME) 1
 
-#define NOP_OPCODE 0x0000 
+#define NOP_OPCODE 0x0000
 
 #define LOCAL_LABELS_FB 1
 

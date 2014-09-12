@@ -107,6 +107,38 @@ const char *test_data[] = {
   ARGV0,
   0,
 
+  /* Test 4 - Check for options beginning with an empty line.  */
+  "\na\nb",	/* Test 4 data */
+  ARGV0,
+  "@test-expandargv-4.lst",
+  0,
+  ARGV0,
+  "a",
+  "b",
+  0,
+
+  /* Test 5 - Check for options containing an empty argument.  */
+  "a\n''\nb",    /* Test 5 data */
+  ARGV0,
+  "@test-expandargv-5.lst",
+  0,
+  ARGV0,
+  "a",
+  "",
+  "b",
+  0,
+
+  /* Test 6 - Check for options containing a quoted newline.  */
+  "a\n'a\n\nb'\nb",    /* Test 6 data */
+  ARGV0,
+  "@test-expandargv-6.lst",
+  0,
+  ARGV0,
+  "a",
+  "a\n\nb",
+  "b",
+  0,
+
   0 /* Test done marker, don't remove. */
 };
 
@@ -157,7 +189,7 @@ writeout_test (int test, const char * test_data)
 {
   char filename[256];
   FILE *fd;
-  size_t len;
+  size_t len, sys_fwrite;
   char * parse;
 
   /* Unique filename per test */
@@ -172,11 +204,14 @@ writeout_test (int test, const char * test_data)
   if (parse == NULL)
     fatal_error (__LINE__, "Failed to malloc parse.", errno);
       
-  memcpy (parse, test_data, sizeof (char) * len);
+  memcpy (parse, test_data, sizeof (char) * (len + 1));
   /* Run all possible replaces */
   run_replaces (parse);
 
-  fwrite (parse, len, sizeof (char), fd);
+  sys_fwrite = fwrite (parse, sizeof (char), len, fd);
+  if (sys_fwrite != len)
+    fatal_error (__LINE__, "Failed to write to test file.", errno);
+
   free (parse);
   fclose (fd);
 }
@@ -246,7 +281,7 @@ run_tests (const char **test_data)
       /* Compare each of the argv's ... */
       else
         for (k = 0; k < argc_after; k++)
-          if (strncmp (argv_before[k], argv_after[k], strlen(argv_after[k])) != 0)
+          if (strcmp (argv_before[k], argv_after[k]) != 0)
             {
               printf ("FAIL: test-expandargv-%d. Arguments don't match.\n", i);
               failed++;

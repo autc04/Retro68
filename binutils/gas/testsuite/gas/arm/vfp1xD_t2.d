@@ -1,6 +1,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: Thumb-2 VFP Single-precision instructions
-#as: -mfpu=vfpxd
+#as: -mfpu=vfpxd -mcpu=arm1156t2f-s
 
 # Test the ARM VFP Single Precision instructions
 

@@ -1,4 +1,21 @@
 ## Process this file with automake to generate Makefile.in
+#
+#   Copyright 2012 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING3.  If not see
+# <http://www.gnu.org/licenses/>.
+#
 
 AUTOMAKE_OPTIONS = cygnus
 
@@ -27,6 +44,7 @@ man_MANS = \
 	size.1 \
 	strings.1 \
 	strip.1 \
+	elfedit.1 \
 	windres.1 \
 	windmc.1 \
 	$(DEMANGLER_NAME).1
@@ -123,6 +141,13 @@ strip.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
 	-($(POD2MAN) strip.pod | sed -e '/^.if n .na/d' > $@.T$$$$ && \
 		mv -f $@.T$$$$ $@) || (rm -f $@.T$$$$ && exit 1)
 	rm -f strip.pod
+
+elfedit.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
+	touch $@
+	-$(TEXI2POD) $(MANCONF) -Delfedit < $(binutils_TEXI) > elfedit.pod
+	-($(POD2MAN) elfedit.pod | sed -e '/^.if n .na/d' > $@.T$$$$ && \
+		mv -f $@.T$$$$ $@) || (rm -f $@.T$$$$ && exit 1)
+	rm -f elfedit.pod
 
 windres.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
 	touch $@

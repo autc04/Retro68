@@ -127,9 +127,11 @@ enum m68k_register
   PCR3U0, PCR3L0, PCR3U1, PCR3L1,/* mcfv4e added these.  */
   MBAR0, MBAR1,			/* mcfv4e added these.  */
   ACR0, ACR1, ACR2, ACR3,       /* mcf5200 added these.  */
+  ACR4, ACR5, ACR6, ACR7,	/* mcf54418 added these.  */
   FLASHBAR, RAMBAR,  		/* mcf528x added these.  */
   MBAR2,  		        /* mcf5249 added this.  */
   MBAR,
+  RGPIOBAR,			/* mcf54418 added this.  */
   ASID,				/* m5475.  */
   CAC,  		        /* fido added this.  */
   MBO,

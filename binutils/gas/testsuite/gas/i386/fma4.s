@@ -8,6 +8,8 @@ _start:
 	vfmaddpd (%ecx),%ymm6,%ymm2,%ymm7
 	vfmaddps %ymm4,%ymm6,%ymm2,%ymm7
 	vfmaddps (%ecx),%ymm6,%ymm2,%ymm7
+	vfmaddps %xmm3,0x01(%edx,%ebx,8),%xmm4,%xmm5
+	vfmaddps %xmm7,0x80(%ecx,%eax,4),%xmm6,%xmm1
 	vfmaddsubpd %ymm4,%ymm6,%ymm2,%ymm7
 	vfmaddsubpd (%ecx),%ymm6,%ymm2,%ymm7
 	vfmaddsubps %ymm4,%ymm6,%ymm2,%ymm7

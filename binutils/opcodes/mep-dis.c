@@ -5,7 +5,7 @@
    - the resultant file is machine generated, cgen-dis.in isn't
 
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007,
-   2008  Free Software Foundation, Inc.
+   2008, 2010  Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -534,14 +534,9 @@ mep_examine_ivc2_insns (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED, bfd_vma pc ATTRIBUTE_
 {
   int status;
   int buflength;
-  int cop2buflength;
   bfd_byte buf[8];
   bfd_byte insn[8];
   int e;
-
-  /* At this time we're not supporting internally parallel
-     coprocessors, so cop2buflength will always be 0.  */
-  cop2buflength = 0;
 
   /* Read in 64 bits.  */
   buflength = 8; /* VLIW insn spans 8 bytes.  */
@@ -1223,10 +1218,6 @@ print_normal (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 {
   disassemble_info *info = (disassemble_info *) dis_info;
 
-#ifdef CGEN_PRINT_NORMAL
-  CGEN_PRINT_NORMAL (cd, info, value, attrs, pc, length);
-#endif
-
   /* Print the operand as directed by the attributes.  */
   if (CGEN_BOOL_ATTR (attrs, CGEN_OPERAND_SEM_ONLY))
     ; /* nothing to do */
@@ -1247,10 +1238,6 @@ print_address (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 	       int length ATTRIBUTE_UNUSED)
 {
   disassemble_info *info = (disassemble_info *) dis_info;
-
-#ifdef CGEN_PRINT_ADDRESS
-  CGEN_PRINT_ADDRESS (cd, info, value, attrs, pc, length);
-#endif
 
   /* Print the operand as directed by the attributes.  */
   if (CGEN_BOOL_ATTR (attrs, CGEN_OPERAND_SEM_ONLY))

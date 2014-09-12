@@ -1,5 +1,5 @@
 # Expect script for various PIE tests.
-#   Copyright 2006, 2007, 2009 Free Software Foundation, Inc.
+#   Copyright 2006, 2007, 2009, 2010, 2012 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -22,8 +22,9 @@
 # This test can only be run if ld generates native executables.
 if ![isnative] then {return}
 
-# Run on Linux only.
-if { ![istarget *-*-linux*] } {
+if { ![istarget *-*-linux*]
+     && ![istarget *-*-nacl*]
+     && ![istarget *-*-gnu*] } {
     return
 }
 
