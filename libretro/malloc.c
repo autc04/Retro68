@@ -70,6 +70,8 @@ void *_realloc_r(struct _reent *reent_ptr, void *ptr, size_t sz)
             return NULL;
          }
       }
+      else
+         return ptr;
    }
 }
 
