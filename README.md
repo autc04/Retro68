@@ -17,26 +17,43 @@ Prerequisites
 - boost
 - Glasgow Haskell Compiler (GHC) 
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
-- Apple Universal Interfaces (tested with version 3.1)
+- Apple Universal Interfaces (tested with version 3.1 - see below)
 - An ancient Mac and/or an emulator.
-
-The Universal Headers used to be a free download from Apple. However,
-they have taken the site offline and the license agreement prohibits
-redistribution, so this might be a bit hard to find nowadays.
-You do need a version that still supports 68K Mac development, so
-version 3.4 will NOT work.
 
 For Ubuntu Linux, the following should help a bit:
 
     sudo apt-get install cmake ghc libboost-dev libgmp-dev libmpfr-dev libmpc-dev
 
+Apple Universal Interfaces
+--------------------------
+
+The Universal Interfaces used to be a free download from Apple. However,
+they have taken the site offline and the license agreement prohibits
+redistribution, so this might be a bit hard to find nowadays.
+
+You do need a version that still supports 68K Mac development, so
+version 3.4 will NOT work. Basically, look for something no later than 1999
+or so.
+
+The package might be somewhere in this huge snapshot of Apple's FTP site made
+by the Internet Archive:
+https://archive.org/details/ftpsites_developer.apple.com
+
+If you have a Mac or some other way to read DiskCopy images, grab the MPW 3.5
+image from:
+
+http://macintoshgarden.org/apps/macintosh-programmer%E2%80%99s-workshop
+
+and use the CIncludes directory from there.
+
+Put the C header files into a directory called "Universal Headers" at the top
+level of the Retro68 directory.
+
 Building
 --------
 
-Put the C headers from Apple's Universal Interfaces package into
-a directory called "Universal Headers" at the top level of the tree.
-
-From the top-level Retro68 directory:
+Once you have all the prerequisites, execute these commands from the top level
+of the Retro68 directory:
 
     cd ..
     mkdir Retro68-build
