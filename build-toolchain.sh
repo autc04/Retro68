@@ -23,7 +23,7 @@ set -e
 
 cd binutils-build
 export "CFLAGS=-Wno-error"
-$SRC/binutils/configure --target=m68k-unknown-elf --prefix=$PREFIX
+$SRC/binutils/configure --target=m68k-unknown-elf --prefix=$PREFIX --disable-doc
 make -j8
 make install
 
