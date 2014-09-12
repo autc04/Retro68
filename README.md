@@ -6,6 +6,9 @@ Why? Because there is no decent C++11 Compiler targetting Apple's System 6.
 If that's not a sufficient reason for you, I'm sure you will find
 someting more useful elsewhere.
 
+If you are crazy enough to try it out, please say hello at 
+wolfgang.thaller@gmx.net.
+
 Prerequisites
 -------------
 
@@ -13,13 +16,19 @@ Prerequisites
 - CMake 2.8
 - boost
 - Glasgow Haskell Compiler (GHC) 
+- GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - Apple Universal Interfaces (tested with version 3.1)
 - An ancient Mac and/or an emulator.
 
 The Universal Headers used to be a free download from Apple. However,
 they have taken the site offline and the license agreement prohibits
 redistribution, so this might be a bit hard to find nowadays.
+You do need a version that still supports 68K Mac development, so
+version 3.4 will NOT work.
 
+For Ubuntu Linux, the following should help a bit:
+
+    sudo apt-get install cmake ghc libboost-dev libgmp-dev libmpfr-dev libmpc-dev
 
 Building
 --------
