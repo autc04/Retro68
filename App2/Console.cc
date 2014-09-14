@@ -20,6 +20,7 @@
 #include "Console.h"
 #include "MacUtils.h"
 #include "Events.h"
+#include "Fonts.h"
 
 Console *Console::currentInstance = NULL;
 
@@ -29,10 +30,10 @@ Console::Console(GrafPtr port, Rect r)
 	PortSetter setport(consolePort);
 	
 	InsetRect(&bounds, 2,2);
-	TextFont(9);
+	TextFont(kFontIDMonaco);
 	TextSize(9);
 	
-	cellSizeY = 10;
+	cellSizeY = 12;
 	cellSizeX = CharWidth('M');
 	
 	rows = (bounds.bottom - bounds.top) / cellSizeY;
