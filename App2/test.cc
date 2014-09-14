@@ -65,6 +65,22 @@ extern "C" ssize_t consolewrite(int fd, const void *buf, size_t count)
    return count;
 }
 
+extern ssize_t (*__read_hook)(int fd, void*buf, size_t count);
+
+extern "C" ssize_t consoleread(int fd, void *buf, size_t count)
+{
+	static std::string consoleBuf;
+	if(consoleBuf.size() == 0)
+	{
+		consoleBuf = Console::currentInstance->ReadLine() + "\n";
+	}
+	if(count > consoleBuf.size())
+		count = consoleBuf.size();
+	memcpy(buf, consoleBuf.data(), count);
+	consoleBuf = consoleBuf.substr(count);
+   return count;
+}
+
 int main(int argc, char** argv)
 {
    //GrafPort port;
@@ -83,6 +99,8 @@ int main(int argc, char** argv)
    new char[32];
    Console console(win, win->portRect);
    __write_hook = &consolewrite;
+   __read_hook = &consoleread;
+
    console.putch('x');
    console.putch('a');
    console.putch('b');
@@ -108,6 +126,13 @@ int main(int argc, char** argv)
    printf("Say something: ");
    fflush(stdout);
    printf("You said: %s\n", console.ReadLine().c_str());
+
+   char buffer[100];
+   printf("Say something else: ");
+   fflush(stdout);
+   fgets(buffer, 100, stdin);
+   printf("You said: %s\n", buffer);
+
 
    for(int i = 0; i < 5; i++)
    {
