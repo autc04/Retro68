@@ -101,28 +101,9 @@ int main(int argc, char** argv)
    __write_hook = &consolewrite;
    __read_hook = &consoleread;
 
-   console.putch('x');
-   console.putch('a');
-   console.putch('b');
-   console.putch('c');
-   console.putch('a');
-   console.putch('a');
-   Console::currentInstance->putch('Y');
-   printf("Hello...\n");
-   console.putch('b');
-   console.putch('\n');
-
-   std::cout << "Hello, world.\n";
    printf("Hello, world.\n");
-   console.putch('a');
-   Console::currentInstance->putch('Y');
-   
-   /*std::cout << "X\n";
-   for(int i = 1; i <= 100; i++)
-      std::cout << "Hello, world: "  << i  << std::endl;
-   std::cout << std::flush;
+   std::cout << "Hello, world, again.\n";
 
-   std::cout << "Say something: " << std::flush;*/
    printf("Say something: ");
    fflush(stdout);
    printf("You said: %s\n", console.ReadLine().c_str());
@@ -136,15 +117,18 @@ int main(int argc, char** argv)
 
    for(int i = 0; i < 5; i++)
    {
-      //std::cout << "Exception speed test: " << std::flush;
-      printf("Exception speed test: "); fflush(stdout);
+	   int n = i == 0 ? 1 : 100;
+	  printf("Exception speed test (%3d iterations): ", n); fflush(stdout);
       long start = TickCount();
-      try { foobar(); } catch(...) {}
-      long end = TickCount();
-      //std::cout << (end-start)*1000 / 60.0 << " ms\n";
-      printf("%g\n",(end-start)*1000 / 60.0); 
+	  for(int j = 0; j < n; j++)
+	  {
+		  try { foobar(); } catch(...) {}
+	  }
+	  long end = TickCount();
+
+	  printf("%g ms per throw/catch\n",(end-start)*1000 / 60.0 / n);
    }
-   //std::cout << "Click mouse 10 times...\n";
+
    const int n = 3;
    printf("Click mouse %d times...\n", n);
    for(int i = 0; i < n; i++)
@@ -153,8 +137,7 @@ int main(int argc, char** argv)
          ;
       while(Button())
          ;
-      //std::cout << "Click #" << i + 1 << std::endl;
-      printf("Click #%d\n", i+1);
+	  printf("Click #%d\n", i+1);
    }
    FlushEvents(everyEvent, 0);
    return 0;

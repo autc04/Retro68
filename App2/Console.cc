@@ -79,7 +79,6 @@ void Console::ScrollUp(short n)
 	cursorY--;
 	std::copy(chars.begin() + cols, chars.end(), chars.begin());
 	std::fill(chars.end() - cols, chars.end(), ' ');
-	//Console::Draw();
 	RgnHandle rgn = NewRgn();
 	ScrollRect(&bounds, 0, -cellSizeY, rgn);
 	DisposeRgn(rgn);
@@ -89,7 +88,6 @@ void Console::putch(char c)
 {
 	PortSetter setport(consolePort);
 	
-	//Debugger();
 	switch(c)
 	{
 	case '\r':
@@ -132,22 +130,20 @@ std::string Console::ReadLine()
 		
 		if(c == '\b')
 		{
-			cursorX--;
-			putch(' ');
-			cursorX--;
-			
-			buffer.substr(0,buffer.size()-1);
-			
+			if(buffer.size())
+			{
+				cursorX--;
+				putch(' ');
+				cursorX--;
+
+				buffer.resize(buffer.size()-1);
+			}
+
 			continue;
-			//c = 'X';
-		}
-		if(c == 127)
-		{
-			c = 'Y';
 		}
 		
 		putch(c);
-		buffer += std::string(1,c);
+		buffer.append(1,c);
 	} while(c != '\n');
 	return buffer;
 }
