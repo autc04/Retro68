@@ -24,28 +24,28 @@
 class Console
 {
 public:
-   Console(GrafPtr port, Rect r);
-   ~Console();
-   void Draw();
-   void putch(char c);
-   std::string ReadLine();
+	Console(GrafPtr port, Rect r);
+	~Console();
+	void Draw();
+	void putch(char c);
+	std::string ReadLine();
 
-   static Console *currentInstance;
+	static Console *currentInstance;
 private:
-   GrafPtr consolePort;
-   Rect bounds;
+	GrafPtr consolePort;
+	Rect bounds;
 
-   std::vector<char> chars;
+	std::vector<char> chars;
 
-   short cellSizeX;
-   short cellSizeY;
- 
-   short rows, cols;
+	short cellSizeX;
+	short cellSizeY;
 
-   short cursorX, cursorY;
-   
-   Rect CellRect(short x, short y);
-   void DrawCell(short x, short y);
-   void ScrollUp(short n = 1);
+	short rows, cols;
+
+	short cursorX, cursorY;
+
+	Rect CellRect(short x, short y);
+	void DrawCell(short x, short y);
+	void ScrollUp(short n = 1);
 };
 

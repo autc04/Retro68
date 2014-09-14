@@ -24,25 +24,25 @@
 
 inline std::int32_t muls(std::int16_t x, std::int16_t y)
 {
-   return (std::int32_t)x*y;
+	return (std::int32_t)x*y;
 }
 
 inline std::uint32_t mulu(std::uint16_t x, std::uint16_t y)
 {
-   //return (std::uint32_t)x * y;
-   std::uint32_t res;
-   __asm("mulu %1, %0" : "=d"(res) : "d"(x), "0"(y));
-   return res;
+	//return (std::uint32_t)x * y;
+	std::uint32_t res;
+	__asm("mulu %1, %0" : "=d"(res) : "d"(x), "0"(y));
+	return res;
 }
 
 inline std::int32_t mulsu(std::int16_t x, std::uint16_t y)
 {
-   //return (std::int32_t)a * (std::uint32_t)b;
-   std::int32_t res;
-   __asm("mulu %1, %0" : "=d"(res) : "d"(x), "0"(y));
-   if(x < 0)
-      res -= ((std::uint32_t)y) << 16;
-   return res;
+	//return (std::int32_t)a * (std::uint32_t)b;
+	std::int32_t res;
+	__asm("mulu %1, %0" : "=d"(res) : "d"(x), "0"(y));
+	if(x < 0)
+		res -= ((std::uint32_t)y) << 16;
+	return res;
 }
 
 #define COUNT_OP(var) ++var
@@ -67,15 +67,14 @@ public:
 		COUNT_OP(nMul);
 		//return fixed((static_cast<long long>(val) * o.val) >> 16, raw());
 		int16_t a = val >> 16;
-	    int16_t c = o.val >> 16;
-	 
-	    uint16_t b = val;
-	    uint16_t d = o.val;
-	 
-	    return fixed(((a*c) << 16)
+		int16_t c = o.val >> 16;
+
+		uint16_t b = val;
+		uint16_t d = o.val;
+
+		return fixed(((a*c) << 16)
 					+ mulsu(a,d) + mulsu(c,b)
-		             + (mulu(b,d) >> 16),raw());
-	
+					+ (mulu(b,d) >> 16),raw());
 	}	
 	fixed operator/(fixed o) const { COUNT_OP(nDiv); return fixed((static_cast<long long>(val) << 16) / o.val, raw()); }
 	
@@ -109,11 +108,11 @@ fixed operator*(int x, fixed f) { return fixed(f.val * x, fixed::raw()); }*/
 inline fixed operator*(fixed f, int c)
 {
 	std::int16_t a = f.val >> 16;
- 
-    std::uint16_t b = f.val;
- 
+
+	std::uint16_t b = f.val;
+
 	COUNT_OP(fixed::nIMul);	
-    return fixed(((a*c) << 16)
+	return fixed(((a*c) << 16)
 				+ mulsu(c,b),fixed::raw());
 }
 inline fixed operator*(int x, fixed f) { return f*x; }

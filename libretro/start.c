@@ -1,20 +1,20 @@
 /*
-    Copyright 2012 Wolfgang Thaller.
+	Copyright 2012 Wolfgang Thaller.
 
-    This file is part of Retro68.
+	This file is part of Retro68.
 
-    Retro68 is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+	Retro68 is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
 
-    Retro68 is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	Retro68 is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdint.h>
@@ -31,19 +31,19 @@ struct flat_hdr {
 	char magic[4];
 	unsigned long rev;          /* version */
 	unsigned long entry;        /* Offset of first executable instruction
-	                               with text segment from beginning of file */
+								   with text segment from beginning of file */
 	unsigned long data_start;   /* Offset of data segment from beginning of
-	                               file */
+								   file */
 	unsigned long data_end;     /* Offset of end of data segment
-	                               from beginning of file */
+								   from beginning of file */
 	unsigned long bss_end;      /* Offset of end of bss segment from beginning
-	                               of file */
+								   of file */
 
 	/* (It is assumed that data_end through bss_end forms the bss segment.) */
 
 	unsigned long stack_size;   /* Size of stack, in bytes */
 	unsigned long reloc_start;  /* Offset of relocation records from
-	                               beginning of file */
+								   beginning of file */
 	unsigned long reloc_count;  /* Number of relocation records */
 	unsigned long flags;       
 	unsigned long filler[6];    /* Reserved, set to zero */
@@ -75,24 +75,24 @@ void _start()
 	
 	env.processor = 0;
 	__asm__ __volatile__ (
-            "move.w #2, %%d0\n\t"	// versionRequested
-            "lea %0, %%a0\n\t"		// &env
-            "dc.w 0xa090\n\t"		// _SysEnvirons
-        : 
-	    : "m"(env)
-        : "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
-    );
+			"move.w #2, %%d0\n\t"	// versionRequested
+			"lea %0, %%a0\n\t"		// &env
+			"dc.w 0xa090\n\t"		// _SysEnvirons
+		: 
+		: "m"(env)
+		: "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
+	);
 	
 	bss_size = header->bss_end - header->data_end;
 	//Ptr bss = NewPtrClear(bss_size);
 	__asm__ __volatile__ (
-            "move.l %1, %%d0\n\t"
-            "dc.w 0xa31e\n\t"	// _NewPtrClear
-            "move.l %%a0 , %0\n\t"
-        : "=g"(bss)
-        : "g"(bss_size)
-        : "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
-    );
+			"move.l %1, %%d0\n\t"
+			"dc.w 0xa31e\n\t"	// _NewPtrClear
+			"move.l %%a0 , %0\n\t"
+		: "=g"(bss)
+		: "g"(bss_size)
+		: "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
+	);
 
 	long n = header->reloc_count;
 	long *relocs = (long*)( (char*)header + header->reloc_start );
