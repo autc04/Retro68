@@ -18,9 +18,25 @@
 cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_CXX_FLAGS "--std=c++0x")
-find_package(Boost COMPONENTS regex)
+
+set(USE_BOOST_REGEX FALSE CACHE BOOL "Force use of boost for regular expressions")
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+	if(${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 4.9)
+		set(USE_BOOST_REGEX TRUE)
+		message(STATUS "forcing use of boost::regex")
+	endif()
+endif()
+
+if(USE_BOOST_REGEX)
+	add_definitions(-DUSE_BOOST_REGEX)
+	find_package(Boost COMPONENTS regex)
+endif()
 
 add_executable(asfilter asfilter.cc)
-target_link_libraries(asfilter ${Boost_LIBRARIES})
+
+if(USE_BOOST_REGEX)
+	target_link_libraries(asfilter ${Boost_LIBRARIES})
+endif()
 
 install(TARGETS asfilter RUNTIME DESTINATION bin)

@@ -25,9 +25,16 @@
 #include <functional>
 #include <errno.h>
 #include <fstream>
-#include <boost/regex.hpp>
 
 using namespace std::placeholders;
+
+#ifdef USE_BOOST_REGEX
+#include <boost/regex.hpp>
+namespace rx = boost;
+#else
+#include <regex>
+namespace rx = std;
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -50,7 +57,7 @@ int main(int argc, char *argv[])
 		{
 			inputFileName = p;
 			p = tempFileName;
-			std::cerr << "Temp file: " << tempFileName << std::endl;
+			//std::cerr << "Temp file: " << tempFileName << std::endl;
 		}
 	}
 	
@@ -59,11 +66,11 @@ int main(int argc, char *argv[])
 		std::ofstream out(tempFileName);
 		
 		std::string wordS = "[0-9a-f][0-9a-f][0-9a-f][0-9a-f]";
-		boost::regex jsr("\tjsr __magic_inline_(" + wordS + "(_" + wordS + ")*)");
-		boost::regex word(wordS);
-		//boost::regex size("\t\\.size\t([a-zA-Z0-9_]+), \\.-([a-zA-Z0-9_]+)");
-		boost::regex globl("\t\\.globl\t([a-zA-Z0-9_]+)");
-		boost::regex rts("\trts");
+		rx::regex jsr("\tjsr __magic_inline_(" + wordS + "(_" + wordS + ")*)");
+		rx::regex word(wordS);
+		//std::regex size("\t\\.size\t([a-zA-Z0-9_]+), \\.-([a-zA-Z0-9_]+)");
+		rx::regex globl("\t\\.globl\t([a-zA-Z0-9_]+)");
+		rx::regex rts("\trts");
 		
 		std::string function_name = "__unknown";
 		while(in)
@@ -73,30 +80,30 @@ int main(int argc, char *argv[])
 			if(!in)
 				break;
 			
-			boost::smatch match;
-			if(boost::regex_match(line, match, jsr))
+			rx::smatch match;
+			if(rx::regex_match(line, match, jsr))
 			{
-				const boost::sregex_token_iterator end;
-				for (boost::sregex_token_iterator p(line.cbegin(), line.cend(), word);
+				const rx::sregex_token_iterator end;
+				for (rx::sregex_token_iterator p(line.cbegin(), line.cend(), word);
 					p != end;
 					++p)
 				{
 					out << "\tdc.w 0x" << *p << std::endl;
 				}
 			}
-			/*else if(boost::regex_match(line, match, size) && match[1] == match[2])
+			/*else if(rx::regex_match(line, match, size) && match[1] == match[2])
 			{
 				out << "\tdc.b 0x8e\n";
 				out << "\t.string \"" << match[1] << "\"\n";
 				out << "\t.align 2\n";
 				out << line << std::endl;
 			}*/
-			else if(boost::regex_match(line, match, globl))
+			else if(rx::regex_match(line, match, globl))
 			{
 				out << line << std::endl;
 				function_name = match[1];
 			}
-			/*else if(boost::regex_match(line, rts))
+			/*else if(rx::regex_match(line, rts))
 			{
 				out << line << std::endl;
 				out << "\tdc.b 0x8e\n";

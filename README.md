@@ -13,8 +13,8 @@ Prerequisites
 -------------
 
 - Linux or Mac OS X
+- boost, if using gcc 4.8 or earlier to compile on Linux
 - CMake 2.8
-- boost
 - Glasgow Haskell Compiler (GHC) 
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - Apple Universal Interfaces (tested with version 3.1 - see below)
@@ -22,7 +22,7 @@ Prerequisites
 
 For Ubuntu Linux, the following should help a bit:
 
-    sudo apt-get install cmake ghc libboost-dev libgmp-dev libmpfr-dev libmpc-dev
+    sudo apt-get install cmake ghc libgmp-dev libmpfr-dev libmpc-dev
 
 On a Mac, get the homebrew package manager and:
 
