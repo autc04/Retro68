@@ -1,4 +1,4 @@
-#   Copyright 2012 Wolfgang Thaller.
+#   Copyright 2014 Wolfgang Thaller.
 #
 #   This file is part of Retro68.
 #
@@ -17,11 +17,22 @@
 
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "-std=c++11") # -fomit-frame-pointer")
+
+add_library(RetroConsole
+	Console.cc
+	Console.h
+	MacUtils.h
+    InitConsole.cc
+	)
+
 add_executable(Test
-   test.cc
-   Console.cc
-   Console.h
-   MacUtils.h
+	test.cc
+	Console.cc
+	Console.h
+	MacUtils.h
+   )
+add_executable(HelloWorld
+	hello.c
    )
 #target_link_libraries(Test :retrocrt.o)
 
@@ -31,6 +42,14 @@ add_custom_command(
    COMMAND ${MAKE_APPL} -c Test
    DEPENDS Test)
 add_custom_target(TestAPPL ALL DEPENDS Test.bin)
+
+target_link_libraries(HelloWorld RetroConsole retrocrt)
+add_custom_command(
+   OUTPUT HelloWorld.bin
+   COMMAND ${MAKE_APPL} -c HelloWorld -o HelloWorld
+   DEPENDS HelloWorld)
+add_custom_target(HelloWorldAPPL ALL DEPENDS HelloWorld.bin)
+
 
 set(UPLOAD_URL "" CACHE STRING "ftp url to upload to")
 if(UPLOAD_URL)

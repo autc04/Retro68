@@ -27,6 +27,6 @@ add_custom_command(
 	COMMAND ${CMAKE_LINKER} -r -o retrocrt.o
 							--whole-archive libretrocrt_multi.a
 	)
-add_library(retrocrt retrocrt.o glue.c)
+add_library(retrocrt retrocrt.o glue.c consolehooks.c)
 #add_custom_target(retrocrt_o ALL DEPENDS retrocrt.o)
 install(TARGETS retrocrt  DESTINATION lib)

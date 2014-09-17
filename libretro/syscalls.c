@@ -42,10 +42,15 @@ void _exit(int status)
 ssize_t (*__write_hook)(int fd, const void*buf, size_t count) = NULL;
 ssize_t (*__read_hook)(int fd, void*buf, size_t count) = NULL;
 
+ssize_t consolewrite(int fd, const void *buf, size_t count);
+ssize_t consoleread(int fd, void *buf, size_t count);
+
 ssize_t write(int fd, const void *buf, size_t count)
 {
 	if(__write_hook)
 		return (*__write_hook)(fd,buf,count);
+	else
+		return consolewrite(fd,buf,count);
 	return -1;
 }
 
@@ -53,6 +58,8 @@ ssize_t read(int fd, void *buf, size_t count)
 {
 	if(__read_hook)
 		return (*__read_hook)(fd,buf,count);
+	else
+		return consoleread(fd,buf,count);
 	return -1;
 }
 

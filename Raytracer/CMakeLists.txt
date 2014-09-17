@@ -1,4 +1,4 @@
-#	Copyright 2012 Wolfgang Thaller.
+#	Copyright 2014 Wolfgang Thaller.
 #
 #	This file is part of Retro68.
 #
@@ -35,8 +35,8 @@ if(APPLE)
 target_link_libraries(Raytracer "-framework Carbon")
 target_link_libraries(Raytracer2 "-framework Carbon")
 else()
-add_executable(FixedBenchmark fixedbenchmark.cc ../App2/Console.cc ../App2/Console.h fixed.h fixed.cc)
-target_link_libraries(FixedBenchmark retrocrt)
+add_executable(FixedBenchmark fixedbenchmark.cc fixed.h fixed.cc)
+target_link_libraries(FixedBenchmark RetroConsole retrocrt)
 add_custom_command(
 	OUTPUT FixedBenchmark.bin
 	COMMAND ${MAKE_APPL} -c FixedBenchmark -o FixedBenchmark
