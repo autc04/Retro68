@@ -23,7 +23,7 @@ endif()
 
 include_directories(../App2)
 add_executable(Raytracer MACOSX_BUNDLE
-	raytracer.cc
+	raytracer.c
 	)
 add_executable(Raytracer2 MACOSX_BUNDLE
 	raytracer2.cc
@@ -48,6 +48,7 @@ add_custom_command(
 	OUTPUT Raytracer.bin
 	COMMAND ${MAKE_APPL} -c Raytracer -o Raytracer
 	DEPENDS Raytracer)
+target_link_libraries(Raytracer "-lm")
 add_custom_target(RaytracerAPPL ALL DEPENDS Raytracer.bin)
 
 target_link_libraries(Raytracer2 retrocrt)

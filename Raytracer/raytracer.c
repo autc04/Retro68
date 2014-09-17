@@ -1,5 +1,5 @@
 /*
-    Copyright 2012 Wolfgang Thaller.
+	Copyright 2014 Wolfgang Thaller.
 
     This file is part of Retro68.
 
@@ -20,8 +20,6 @@
 #ifdef __APPLE__
 #include <Carbon/Carbon.h>
 #include <ApplicationServices/ApplicationServices.h>
-#define PSTR(x) ("\p" x)
-
 #else
 
 #include <Quickdraw.h>
@@ -32,23 +30,19 @@
 #include <NumberFormatting.h>
 
 #ifdef __GNUC__
-#include "MacUtils.h"
 QDGlobals qd;
-#else
-#define PSTR(x) ("\p" x)
 #endif
 
 #endif
 
 
-#include <cmath>
-#include <algorithm>
-#include <cstdlib>
-#include <cstring>
-#include <vector>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
 
-
-bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float& t)
+bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float *t)
 {
 	const float xc = 0.0f, yc = 0.0f, zc = -6.0f, r = 1.0f;
 	float x0c = x0 - xc;
@@ -70,14 +64,14 @@ bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float
 	
 	if(D >= 0)
 	{
-		t = (-b - std::sqrt(D)) / (2*a);
-		return t >= 0;
+		*t = (-b - sqrtf(D)) / (2*a);
+		return *t >= 0;
 	}
 	return false;
 }
 const float lx = -2, ly = 4, lz = 3;
-const float lenl = 1.0f / std::sqrt(lx*lx + ly*ly + lz*lz);
-const float lxn = lx*lenl, lyn = ly*lenl, lzn = lz*lenl;
+float lenl;
+float lxn, lyn, lzn;
 
 float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
 {
@@ -102,7 +96,7 @@ float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
 		
 		if(D >= 0)
 		{
-			float t = (-b -  std::sqrt(D)) / (2*a);
+			float t = (-b -  sqrtf(D)) / (2*a);
 			if(t > 0)
 			{
 				float x = x0 + dx * t;
@@ -125,8 +119,9 @@ float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
 				
 				
 				float lambert = dx2 * lxn + dy2 * lyn + dz2 * lzn;
-				
-				return 0.2f + 0.4f * std::max(0.0f,lambert) + 0.4f * reflected;
+				if(lambert < 0.0f)
+					lambert = 0.0f;
+				return 0.2f + 0.4f * lambert + 0.4f * reflected;
 			}
 		}
 	}
@@ -138,20 +133,28 @@ float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
 		float z = z0 + dz * t;
 		
 		float color;
-		if( (static_cast<int>( std::floor(x) )
-			+ static_cast<int>( std::floor(z) )) % 2 )
+		if( ((int)( floorf(x) )
+			+ (int)( floorf(z) )) % 2 )
 			color = 0.8f;
 		else
 			color = 0.1f;
 		
 		float ts;
-		if(hitSphere(x,-1.5f,z, lxn, lyn, lzn, ts))
+		if(hitSphere(x,-1.5f,z, lxn, lyn, lzn, &ts))
 			color *= 0.2f;
 		
-		return std::min(1.0f, color + 0.5f * ray(n-1, x,-1.5f,z,dx,-dy,dz));
+		float v = color + 0.5f * ray(n-1, x,-1.5f,z,dx,-dy,dz);
+		if(v > 1.0f)
+			return 1.0f;
+		else
+			return v;
 	}
 	
-	return std::max(0.0f, dy * 0.3f);
+	float v = dy * 0.3f;
+	if(v < 0.0f)
+		return 0.0f;
+	else
+		return v;
 }
 
 int main()
@@ -171,7 +174,7 @@ int main()
 	Rect r = bm.bounds;
 #endif    
     SetRect(&r, r.left + 5, r.top + 45, r.right - 5, r.bottom -5);
-    win = NewWindow(NULL, &r, PSTR("Raytracer"), true, 0, (WindowPtr)-1, false, 0);
+	win = NewWindow(NULL, &r, (ConstStr255Param)"\x09Raytracer", true, 0, (WindowPtr)-1, false, 0);
     
 #if !TARGET_API_MAC_CARBON	
 	SetPort(win);
@@ -184,12 +187,16 @@ int main()
 	float accum = 0.0f;
 	short cx = r.right /2;
 	short cy = r.bottom / 2;
-	
+	int x,y;
+
+	lenl = 1.0f / sqrtf(lx*lx + ly*ly + lz*lz);
+	lxn = lx*lenl, lyn = ly*lenl, lzn = lz*lenl;
+
 	long startTime = TickCount();
-	std::vector<float> accumV(r.right);
-	for(int y = 0; y < r.bottom; y++)
+	float *accumV = calloc(sizeof(float), r.right);
+	for(y = 0; y < r.bottom; y++)
 	{
-		for(int x = 0; x < r.right; x++)
+		for(x = 0; x < r.right; x++)
 		{
 			float pixel;
 			
@@ -200,7 +207,7 @@ int main()
 			float dx = x - cx;
 			float dy = - (y - cy);
 			float dz = -cx;
-			float n1 = 1.0f / std::sqrt(dx*dx + dy*dy + dz*dz);
+			float n1 = 1.0f / sqrtf(dx*dx + dy*dy + dz*dz);
 			
 			pixel = ray(1,0,0,0,n1*dx,n1*dy,n1*dz);
 			
@@ -232,7 +239,7 @@ int main()
 				Line(0,0);
 			}
 #else
-			float thresh = (float)std::rand() / (32767.0f * 65536.0f);
+			float thresh = (float)rand() / (32767.0f * 65536.0f);
 			thresh = 0.5f + 0.4f * (thresh - 0.5f);
 			accum += pixel;
 			accum += accumV[x];
@@ -256,8 +263,8 @@ int main()
 	
 	char buf[256];
 	unsigned char* pstr = (unsigned char*)buf;
-	std::sprintf(buf+1, "pps = %d", (int)( (float)r.right * r.bottom / (endTime - startTime) * 60.0f ));
-	buf[0] = std::strlen(buf+1);
+	sprintf(buf+1, "pps = %d", (int)( (float)r.right * r.bottom / (endTime - startTime) * 60.0f ));
+	buf[0] = strlen(buf+1);
 	
 	SetRect(&r, 10, 10, 10 + StringWidth(pstr) + 10, 30);
 	PaintRect(&r);

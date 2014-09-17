@@ -168,11 +168,10 @@ in MacBinary format and also on a disk image named Test.dsk.
 ### Sample Program: Raytracer
 
 Calculates a nice 3D image, pixel by pixel.
-There are two versions: raytracer.cc is a straightforward
-almost-plain-C implementation (a few C++ features have been used)
-using floating point arithmetic.
+There are two versions: raytracer.c is a straightforward
+plain C implementation using floating point arithmetic.
 
-Raytracer2 makes a bit more use of C++ features; it also uses
+Raytracer2 makes use of C++ features; it also uses
 fixed point arithmetic instead of floating point
 (operator overloading FTW).
 
