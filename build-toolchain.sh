@@ -59,7 +59,13 @@ make
 make install
 cd ..
 
-runhaskell ../Retro68/PrepareHeaders.hs ../Retro68/Universal\ Headers toolchain/m68k-unknown-elf/include
+for headerdir in "Universal\ Headers" "CIncludes"; do
+	if test -d "../Retro68/$headerdir"; then
+		HEADERDIR="../Retro68/$headerdir"
+	fi
+done
+
+runhaskell ../Retro68/PrepareHeaders.hs "$HEADERDIR" toolchain/m68k-unknown-elf/include
 
 mkdir -p build-host
 cd build-host

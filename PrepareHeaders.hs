@@ -35,9 +35,12 @@ import Control.Monad.State
 import qualified Data.Map as Map
 import System.Environment(getArgs)
 
+data CallingConvention = Pascal | CCall
+                       deriving(Show, Eq)
+
 data Item = CharItem Char
           | IgnoredItem
-          | FunctionItem String String [String] [String] [Integer] (Maybe ParameterRegs)
+          | FunctionItem CallingConvention String String [String] [String] [Integer] (Maybe ParameterRegs)
           | PragmaParameterItem String ParameterRegs
           deriving(Show)
 
@@ -58,6 +61,8 @@ balancedText stopAtComma = fmap (foldr ($) "") $
         many (fmap (++) paranthesized <|> fmap (:) (noneOf (if stopAtComma then "()," else "()")))
     where paranthesized = char '(' >> balancedText False >>= \xs -> char ')' >> return ('(' : xs ++ ")")
 
+isIDChar '_' = True
+isIDChar c = isAlphaNum c
 
 trim = dropWhile isSpace . reverse . dropWhile isSpace . reverse
 cleanup = unwords . words . trim
@@ -68,8 +73,10 @@ returnType = do
     return $ t ++ ptrs
 
 externApiDeclaration = do  
-    rettype <- (reserved tp "EXTERN_API" >> (fmap trim $ parens tp (balancedText False)))
-            <|> (reserved tp "pascal" >> returnType)
+    (cconv, rettype) <- 
+            (reserved tp "EXTERN_API" >> (fmap ((,) Pascal) $ fmap trim $ parens tp (balancedText False)))
+            <|> (reserved tp "EXTERN_API_C" >> (fmap ((,) CCall) $ fmap trim $ parens tp (balancedText False)))
+            <|> (reserved tp "pascal" >> fmap ((,) Pascal) returnType)
     name <- identifier tp
     arguments <- fmap (map cleanup) $ parens tp (commaSep tp $ balancedText True)
     
@@ -87,9 +94,9 @@ externApiDeclaration = do
     semi tp
     let arguments' | arguments == ["void"] = []
                    | otherwise = arguments
-        argumentNames = map (trim . reverse . takeWhile isAlphaNum . reverse . trim) arguments'
-        argumentTypes = map (trim . reverse . dropWhile isAlphaNum . reverse . trim) arguments'
-    return $ FunctionItem rettype name argumentTypes argumentNames inlines Nothing
+        argumentNames = map (trim . reverse . takeWhile isIDChar . reverse . trim) arguments'
+        argumentTypes = map (trim . reverse . dropWhile isIDChar . reverse . trim) arguments'
+    return $ FunctionItem cconv rettype name argumentTypes argumentNames inlines Nothing
 
 pragmaParameter = do
     reservedOp tp "#"
@@ -114,6 +121,8 @@ data TypeCategory = ByteType | WordType | LongType | PointerType | VoidType
 classifyType tm t | "Ptr" `isSuffixOf` t = Just PointerType
                   | "*" `isSuffixOf` t = Just PointerType
                   | "Handle" `isSuffixOf` t = Just PointerType
+                  | "UPP" `isSuffixOf` t = Just PointerType
+                  | "Ref" `isSuffixOf` t = Just PointerType
 classifyType tm "unsigned char" = Just ByteType
 classifyType tm "signed char" = Just ByteType
 classifyType tm "char" = Just ByteType
@@ -124,9 +133,9 @@ classifyType tm t = Map.lookup t tm
 
 hexword = integer tp
 outputItem typeMap (CharItem c) = [c]
--- outputItem (FunctionItem rettype name argumentTypes argumentNames words) = "<fun>"
+-- outputItem (FunctionItem cconv rettype name argumentTypes argumentNames words) = "<fun>"
 
-outputItem typeMap (FunctionItem rettype name argumentTypes argumentNames words Nothing)
+outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words Nothing)
     | True, not (null words), Just retcat <- classifyType typeMap rettype
     = let
         helper = PP.text "__magic_inline_" <> PP.text name
@@ -143,12 +152,16 @@ outputItem typeMap (FunctionItem rettype name argumentTypes argumentNames words 
             _ -> reverse $ "0" : argumentNames
         words' = case retcat of
             VoidType -> words
+            _ | cconv == CCall -> words
             ByteType -> words ++ [ 0x101f ] -- move.b (a7)+,d0
             WordType -> words ++ [ 0x301f ] -- move.w (a7)+,d0
             LongType -> words ++ [ 0x201f ] -- move.l (a7)+,d0
             PointerType -> words ++ [ 0x201f ] -- move.l (a7)+,d0   
+        cconvAttr = case cconv of
+            Pascal -> PP.text "__attribute__((stdcall))" 
+            CCall -> PP.empty
     in PP.render $
-       PP.text rettype <+> PP.text "__attribute__((stdcall))" <+> helper
+       PP.text rettype <+> cconvAttr <+> helper
             <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ map PP.text magicArgTypes)
             <+> PP.text("__asm__") <> PP.parens ( PP.doubleQuotes magic )
             <> PP.semi
@@ -163,7 +176,7 @@ outputItem typeMap (FunctionItem rettype name argumentTypes argumentNames words 
 
       
 
-outputItem typeMap (FunctionItem rettype name argumentTypes argumentNames words mbParamRegs) = 
+outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words mbParamRegs) = 
     PP.render $
         linkage <+> PP.text rettype <+> PP.text name
             <+> PP.parens (PP.hsep $ PP.punctuate PP.comma $ zipWith (\t n -> PP.text t <+> PP.text n) argumentTypes argumentNames) $$
@@ -264,9 +277,9 @@ outputItem _ _ = ""
 collectPragmas xs = evalState (mapM doit xs) Map.empty
     where
         doit x@(PragmaParameterItem name params) = modify (Map.insert name params) >> return x
-        doit (FunctionItem rettype name argumentTypes argumentNames inlines _) = do
+        doit (FunctionItem cconv rettype name argumentTypes argumentNames inlines _) = do
             m <- get
-            return $ FunctionItem rettype name argumentTypes argumentNames inlines (Map.lookup name m)
+            return $ FunctionItem cconv rettype name argumentTypes argumentNames inlines (Map.lookup name m)
         doit x = return x
 
 parseTypeMap tm = Map.fromList $ map handleLine $ lines tm
@@ -275,6 +288,7 @@ parseTypeMap tm = Map.fromList $ map handleLine $ lines tm
             (x : xs) -> (trim $ unwords xs, case x of
                             "B" -> ByteType ; "W" -> WordType ; "L" -> LongType ; "P" -> PointerType)
 processFile inputDir outputDir file
+    | isLower (head file) = putStrLn $ "Skipping " ++ file ++ " (standard library or MPW runtime)"
     | ".h" `isSuffixOf` file = do
         print $ (outputDir </> takeFileName file)
         -- readFile (inputDir </> file)
@@ -287,16 +301,30 @@ processFile inputDir outputDir file
             Right items -> do
                 outf <- openFile (outputDir </> file) WriteMode
                 hSetEncoding outf latin1
-                when (file == "ConditionalMacros.h") $ do
-                    hPutStrLn outf $ unlines [
-                            "#define TARGET_CPU_68K 1",
-                            "#define TYPE_LONGLONG 1",
-                            "#define pascal",
-                            "#ifdef __cplusplus",
-                            "#define TYPE_BOOL 1",
-                            "#endif"
-                        ]
-                hPutStr outf $ concatMap (outputItem typeMap) $ collectPragmas $ items
+
+                let processed = concatMap (outputItem typeMap) $ collectPragmas $ items
+                if (file == "ConditionalMacros.h")
+                    then do
+                        hPutStrLn outf $ unlines [
+                                "#define TARGET_CPU_68K 1",
+                                "#define TARGET_OS_MAC 1",
+                                "#define TARGET_RT_MAC_CFM 0",
+                                "#define TARGET_RT_MAC_MACHO 0",
+
+                                "#define TYPE_LONGLONG 1",
+                                "#define pascal",
+                                "#ifdef __cplusplus",
+                                "#define TYPE_BOOL 1",
+                                "#endif"
+                            ]
+                        
+                        hPutStr outf $ unlines $
+                            map (\line -> if line == "#elif defined(__GNUC__)"
+                                    then "#elif 0"
+                                    else line) $
+                            lines $ processed
+                    else
+                        hPutStr outf $ processed
                 hClose outf
             Left err -> putStrLn $ file ++ ": " ++ show err
     | otherwise = do

@@ -24,6 +24,10 @@ For Ubuntu Linux, the following should help a bit:
 
     sudo apt-get install cmake ghc libboost-dev libgmp-dev libmpfr-dev libmpc-dev
 
+On a Mac, get the homebrew package manager and:
+
+    brew install cmake gmp mpfr libmpc
+
 Apple Universal Interfaces
 --------------------------
 
@@ -31,9 +35,7 @@ The Universal Interfaces used to be a free download from Apple. However,
 they have taken the site offline and the license agreement prohibits
 redistribution, so this might be a bit hard to find nowadays.
 
-You do need a version that still supports 68K Mac development, so
-version 3.4 will NOT work. Basically, look for something no later than 1999
-or so.
+You do need a version that still supports 68K Mac development.
 
 The package might be somewhere in this huge snapshot of Apple's FTP site made
 by the Internet Archive:
@@ -46,7 +48,7 @@ http://macintoshgarden.org/apps/macintosh-programmer%E2%80%99s-workshop
 
 and use the CIncludes directory from there.
 
-Put the C header files into a directory called "Universal Headers" at the top
+Put the C header files into a directory called "CIncludes" at the top
 level of the Retro68 directory.
 
 Building
