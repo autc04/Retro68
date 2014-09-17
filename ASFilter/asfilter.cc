@@ -112,7 +112,9 @@ int main(int argc, char *argv[])
 	
 	close(fd);
 	
-	std::transform(argv2.begin(), argv2.end(), std::back_inserter(argv3), std::bind(&std::string::c_str, _1));
+	std::transform(argv2.begin(), argv2.end(), std::back_inserter(argv3), 
+		[](const std::string& str) { return str.c_str(); });
+
 	argv3.push_back(NULL);
 	
 	execvp(argv3[0], const_cast<char*const*>( argv3.data() ));
