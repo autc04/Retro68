@@ -34,6 +34,13 @@ add_executable(Test
 add_executable(HelloWorld
 	hello.c
    )
+
+enable_language(ASM)
+add_executable(AsmTest
+	AsmTest.s
+   )
+set_target_properties(AsmTest PROPERTIES LINKER_LANGUAGE C)
+
 #target_link_libraries(Test :retrocrt.o)
 
 target_link_libraries(Test retrocrt)
@@ -49,6 +56,14 @@ add_custom_command(
    COMMAND ${MAKE_APPL} -c HelloWorld -o HelloWorld
    DEPENDS HelloWorld)
 add_custom_target(HelloWorldAPPL ALL DEPENDS HelloWorld.bin)
+
+target_link_libraries(AsmTest retrocrt)
+add_custom_command(
+   OUTPUT AsmTest.bin
+   COMMAND ${MAKE_APPL} -c AsmTest -o AsmTest
+   DEPENDS AsmTest)
+add_custom_target(AsmTestAPPL ALL DEPENDS AsmTest.bin)
+
 
 
 set(UPLOAD_URL "" CACHE STRING "ftp url to upload to")
