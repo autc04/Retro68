@@ -6563,4 +6563,22 @@ m68k_init_sync_libfuncs (void)
   init_sync_libfuncs (UNITS_PER_WORD);
 }
 
+void
+m68k_write_macsbug_name(FILE *file, const char *name)
+{
+  int len = strlen(name);
+  if(len > 255)
+    len = 255;
+
+  fprintf(file, "# macsbug symbol\n");
+  fprintf(file, "\trts\n");
+  if(len < 32)
+    fprintf(file, "\t.byte %d\n", len | 0x80);
+  else
+    fprintf(file, "\t.byte 0x80\n\t.byte %d\n", len);
+
+  ASM_OUTPUT_ASCII(file, name, len);
+  fprintf(file, "\t.align 2,0\n\t.short 0\n", len);
+}
+
 #include "gt-m68k.h"

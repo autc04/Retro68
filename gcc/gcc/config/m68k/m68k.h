@@ -986,3 +986,13 @@ extern int m68k_sched_address_bypass_p (rtx, rtx);
 extern int m68k_sched_indexed_address_bypass_p (rtx, rtx);
 
 #define CPU_UNITS_QUERY 1
+
+#define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)		\
+  do								\
+    {								\
+	m68k_write_macsbug_name(FILE, FNAME);			\
+      if (!flag_inhibit_size_directive)				\
+	ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
+    }								\
+  while (0)
+

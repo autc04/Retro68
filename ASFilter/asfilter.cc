@@ -68,11 +68,12 @@ int main(int argc, char *argv[])
 		std::string wordS = "[0-9a-f][0-9a-f][0-9a-f][0-9a-f]";
 		rx::regex jsr("\tjsr __magic_inline_(" + wordS + "(_" + wordS + ")*)");
 		rx::regex word(wordS);
-		//std::regex size("\t\\.size\t([a-zA-Z0-9_]+), \\.-([a-zA-Z0-9_]+)");
-		rx::regex globl("\t\\.globl\t([a-zA-Z0-9_]+)");
 		rx::regex rts("\trts");
-		
-		std::string function_name = "__unknown";
+		rx::regex instruction("\t[a-z]+.*");
+		rx::regex macsbug("# macsbug symbol");
+
+		bool hadRts = false;
+		bool macsbugSymbol = false, macsbugSymbol1;
 		while(in)
 		{
 			std::string line;
@@ -80,40 +81,60 @@ int main(int argc, char *argv[])
 			if(!in)
 				break;
 			
+			macsbugSymbol1 = false;
+
 			rx::smatch match;
+			// ******* 1. __magic_inline hack for Toolbox calls
+			// 
+			// PrepareHeaders.hs converts calls to ONEWORDINLINE, TWOWORDINLINE etc. functions
+			// into "jsr __magic_inline_a123" or "jsr __magic_inline_1234_5678", etc.
+			// This is converted to a series of dc.w
 			if(rx::regex_match(line, match, jsr))
 			{
-				const rx::sregex_token_iterator end;
-				for (rx::sregex_token_iterator p(line.cbegin(), line.cend(), word);
+				const rx::sregex_iterator end;
+				for (rx::sregex_iterator p(line.cbegin(), line.cend(), word);
 					p != end;
 					++p)
 				{
 					out << "\tdc.w 0x" << *p << std::endl;
 				}
 			}
-			/*else if(rx::regex_match(line, match, size) && match[1] == match[2])
+
+			// ******* 2. strip unneeded extra rts from "# macsbug symbol" paragraphs
+			//
+			// GCC is patche to add something like this to the end of every function:
+			// # macsbug symbol
+			//     rts
+			//     .byte 132
+			//     .ascii	"main"
+			//     .align 2,0
+			//     .short 0
+			//     .size	main, .-main
+			//
+			// The rts is usually redundant as most functions already end in RTS.
+			// The following removes the RTS if there has already been an RTS immediately before.
+			else if(rx::regex_match(line, macsbug))
 			{
-				out << "\tdc.b 0x8e\n";
-				out << "\t.string \"" << match[1] << "\"\n";
-				out << "\t.align 2\n";
 				out << line << std::endl;
-			}*/
-			else if(rx::regex_match(line, match, globl))
-			{
-				out << line << std::endl;
-				function_name = match[1];
+				macsbugSymbol1 = true;
 			}
-			/*else if(rx::regex_match(line, rts))
+			else if(rx::regex_match(line, rts))
 			{
+				if(!macsbugSymbol || !hadRts)
+					out << line << std::endl;
+				hadRts = true;
+			}
+			else if(rx::regex_match(line, instruction))
+			{
+				hadRts = false;
 				out << line << std::endl;
-				out << "\tdc.b 0x8e\n";
-				out << "\t.string \"" << function_name << "\"\n";
-				out << "\tdc.b 0x00\n";
-				out << "\tdc.b 0x00\n";				
-				out << "\t.align 2\n";
-			}*/
+			}
+
+			// Pass through everything else.
 			else
 				out << line << std::endl;
+
+			macsbugSymbol = macsbugSymbol1;
 		}
 	}
 	
