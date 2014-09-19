@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 					p != end;
 					++p)
 				{
-					out << "\tdc.w 0x" << *p << std::endl;
+					out << "\tdc.w 0x" << p->str() << std::endl;
 				}
 			}
 
