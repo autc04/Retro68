@@ -82,9 +82,11 @@ cd ..
 
 make -C build-host install
 
-mv $PREFIX/bin/m68k-unknown-elf-as $PREFIX/bin/m68k-unknown-elf-as.real
-ln -s $PREFIX/bin/asfilter $PREFIX/bin/m68k-unknown-elf-as
-mv $PREFIX/m68k-unknown-elf/bin/as $PREFIX/m68k-unknown-elf/bin/as.real
-ln -s $PREFIX/bin/asfilter $PREFIX/m68k-unknown-elf/bin/as
+if test ! -e $PREFIX/bin/m68k-unknown-elf-as.real; then
+	mv $PREFIX/bin/m68k-unknown-elf-as $PREFIX/bin/m68k-unknown-elf-as.real
+	ln -s $PREFIX/bin/asfilter $PREFIX/bin/m68k-unknown-elf-as
+	mv $PREFIX/m68k-unknown-elf/bin/as $PREFIX/m68k-unknown-elf/bin/as.real
+	ln -s $PREFIX/bin/asfilter $PREFIX/m68k-unknown-elf/bin/as
+fi
 
 make -C build-target install
