@@ -3520,7 +3520,7 @@ cp_parser_string_literal (cp_parser *parser, bool translate, bool wide_ok)
       if (pascal_string)
         {
           /* put the real string length in */
-          ((unsigned char*)istr.text)[0] = (unsigned char) (istr.len - 1);
+          ((unsigned char*)istr.text)[0] = (unsigned char) (istr.len - 2);
         }
       value = build_string (istr.len, (const char *)istr.text);
       free (CONST_CAST (unsigned char *, istr.text));
