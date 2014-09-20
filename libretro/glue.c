@@ -18,6 +18,8 @@
 */
 
 #include <MacMemory.h>
+#include <Files.h>
+#include <string.h>
 
 Size GetPtrSize(Ptr ptr)
 {
@@ -31,4 +33,31 @@ Size GetPtrSize(Ptr ptr)
 		return (Size) tmp;
 	else
 		return 0;
+}
+
+OSErr SetVol (ConstStr63Param volName, short vRefNum)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.volumeParam.ioNamePtr = (StringPtr)volName;
+	pb.volumeParam.ioVRefNum = vRefNum;
+	return PBSetVolSync(&pb);
+}
+
+OSErr UnmountVol (ConstStr63Param volName, short vRefNum)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.volumeParam.ioNamePtr = (StringPtr)volName;
+	pb.volumeParam.ioVRefNum = vRefNum;
+	return PBUnmountVolImmed(&pb);
+}
+
+OSErr Eject (ConstStr63Param volName, short vRefNum)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.volumeParam.ioNamePtr = (StringPtr)volName;
+	pb.volumeParam.ioVRefNum = vRefNum;
+	return PBEject(&pb);
 }
