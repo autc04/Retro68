@@ -3393,6 +3393,7 @@ cp_parser_string_literal (cp_parser *parser, bool translate, bool wide_ok)
   tree string_tree;
   tree suffix_id = NULL_TREE;
   bool curr_tok_is_userdef_p = false;
+  bool pascal_string = false;
 
   tok = cp_lexer_peek_token (parser->lexer);
   if (!cp_parser_is_string_literal (tok))
@@ -3506,9 +3507,21 @@ cp_parser_string_literal (cp_parser *parser, bool translate, bool wide_ok)
       type = CPP_STRING;
     }
 
+  if (!strncmp((const char*)strs[0].text, "\"\\p", 3))
+    {
+       pascal_string = true;
+       /* replace \p by a valid escape sequence */
+       ((unsigned char*)strs[0].text)[2] = 'n';
+    }
+
   if ((translate ? cpp_interpret_string : cpp_interpret_string_notranslate)
       (parse_in, strs, count, &istr, type))
     {
+      if (pascal_string)
+        {
+          /* put the real string length in */
+          ((unsigned char*)istr.text)[0] = (unsigned char) (istr.len - 1);
+        }
       value = build_string (istr.len, (const char *)istr.text);
       free (CONST_CAST (unsigned char *, istr.text));
 
@@ -3517,7 +3530,14 @@ cp_parser_string_literal (cp_parser *parser, bool translate, bool wide_ok)
 	default:
 	case CPP_STRING:
 	case CPP_UTF8STRING:
-	  TREE_TYPE (value) = char_array_type_node;
+          if (pascal_string)
+            {
+              TREE_TYPE (value) = uchar_array_type_node;
+            }
+          else
+            {
+              TREE_TYPE (value) = char_array_type_node;
+            }
 	  break;
 	case CPP_STRING16:
 	  TREE_TYPE (value) = char16_array_type_node;

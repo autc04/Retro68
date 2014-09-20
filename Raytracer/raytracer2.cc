@@ -229,7 +229,7 @@ int main()
 	Rect r = bm.bounds;
 #endif    
     SetRect(&r, r.left + 5, r.top + 45, r.right - 5, r.bottom -5);
-    win = NewWindow(NULL, &r, PSTR("Raytracer"), true, 0, (WindowPtr)-1, false, 0);
+	win = NewWindow(NULL, &r, "\pRaytracer (C++ Version)", true, 0, (WindowPtr)-1, false, 0);
     
 #if !TARGET_API_MAC_CARBON	
 	SetPort(win);
