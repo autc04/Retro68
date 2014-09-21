@@ -109,6 +109,45 @@ i[[34567]]86 | x86_64)
   ;;
 esac])
 
+dnl Check if as supports RTM instructions.
+AC_DEFUN([LIBITM_CHECK_AS_RTM], [
+case "${target_cpu}" in
+i[[34567]]86 | x86_64)
+  AC_CACHE_CHECK([if the assembler supports RTM], libitm_cv_as_rtm, [
+    AC_TRY_COMPILE([], [asm("1: xbegin 1b; xend");],
+		   [libitm_cv_as_rtm=yes], [libitm_cv_as_rtm=no])
+  ])
+  if test x$libitm_cv_as_rtm = xyes; then
+    AC_DEFINE(HAVE_AS_RTM, 1, [Define to 1 if the assembler supports RTM.])
+  fi
+  ;;
+esac])
+
+dnl Check if as supports HTM instructions.
+AC_DEFUN([LIBITM_CHECK_AS_HTM], [
+case "${target_cpu}" in
+powerpc*)
+  AC_CACHE_CHECK([if the assembler supports HTM], libitm_cv_as_htm, [
+    AC_TRY_COMPILE([], [asm("tbegin. 0; tend. 0");],
+		   [libitm_cv_as_htm=yes], [libitm_cv_as_htm=no])
+  ])
+  if test x$libitm_cv_as_htm = xyes; then
+    AC_DEFINE(HAVE_AS_HTM, 1, [Define to 1 if the assembler supports HTM.])
+  fi
+  ;;
+s390*)
+  AC_CACHE_CHECK([if the assembler supports HTM], libitm_cv_as_htm, [
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -march=zEC12"
+    AC_TRY_COMPILE([], [asm("tbegin 0,0; tend");],
+		   [libitm_cv_as_htm=yes], [libitm_cv_as_htm=no])
+    CFLAGS="$save_CFLAGS"])
+  if test x$libitm_cv_as_htm = xyes; then
+    AC_DEFINE(HAVE_AS_HTM, 1, [Define to 1 if the assembler supports HTM.])
+  fi
+  ;;
+esac])
+
 sinclude(../libtool.m4)
 dnl The lines below arrange for aclocal not to bring an installed
 dnl libtool.m4 into aclocal.m4, while still arranging for automake to
@@ -262,10 +301,10 @@ AC_DEFUN([LIBITM_CHECK_LINKER_FEATURES], [
 
 dnl
 dnl Check if the linker used supports linker maps to clear hardware
-dnl capabilities.  This is only supported by Sun ld at the moment.
+dnl capabilities.  This is only supported on Solaris at the moment.
 dnl
 dnl Defines:
-dnl  HWCAP_LDFLAGS='-Wl,-M,clearcap.map' if possible
+dnl  HWCAP_LDFLAGS=-mclear-hwcap if possible
 dnl  LD (as a side effect of testing)
 dnl
 AC_DEFUN([LIBITM_CHECK_LINKER_HWCAP], [
@@ -273,12 +312,12 @@ AC_DEFUN([LIBITM_CHECK_LINKER_HWCAP], [
   AC_REQUIRE([AC_PROG_LD])
 
   ac_save_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LFLAGS -Wl,-M,$srcdir/clearcap.map"
+  LDFLAGS="$LFLAGS -mclear-hwcap"
 
-  AC_MSG_CHECKING([for ld that supports -Wl,-M,mapfile])
+  AC_MSG_CHECKING([for -mclear-hwcap])
   AC_TRY_LINK([], [return 0;], [ac_hwcap_ldflags=yes],[ac_hwcap_ldflags=no])
   if test "$ac_hwcap_ldflags" = "yes"; then
-    HWCAP_LDFLAGS="-Wl,-M,$srcdir/clearcap.map $HWCAP_LDFLAGS"
+    HWCAP_LDFLAGS="-mclear-hwcap $HWCAP_LDFLAGS"
   fi
   AC_MSG_RESULT($ac_hwcap_ldflags)
 

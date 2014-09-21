@@ -8,20 +8,21 @@ import (
 	. "bytes"
 	"io"
 	"math/rand"
+	"runtime"
 	"testing"
 	"unicode/utf8"
 )
 
-const N = 10000  // make this bigger for a larger (and slower) test
-var data string  // test data for write tests
-var bytes []byte // test data; same as data but as a slice.
+const N = 10000      // make this bigger for a larger (and slower) test
+var data string      // test data for write tests
+var testBytes []byte // test data; same as data but as a slice.
 
 func init() {
-	bytes = make([]byte, N)
+	testBytes = make([]byte, N)
 	for i := 0; i < N; i++ {
-		bytes[i] = 'a' + byte(i%26)
+		testBytes[i] = 'a' + byte(i%26)
 	}
-	data = string(bytes)
+	data = string(testBytes)
 }
 
 // Verify that contents of buf match the string s.
@@ -84,7 +85,7 @@ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub 
 }
 
 func TestNewBuffer(t *testing.T) {
-	buf := NewBuffer(bytes)
+	buf := NewBuffer(testBytes)
 	check(t, "NewBuffer", buf, data)
 }
 
@@ -187,7 +188,7 @@ func TestLargeByteWrites(t *testing.T) {
 		limit = 9
 	}
 	for i := 3; i < limit; i += 3 {
-		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, bytes)
+		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, testBytes)
 		empty(t, "TestLargeByteWrites (2)", &buf, s, make([]byte, len(data)/i))
 	}
 	check(t, "TestLargeByteWrites (3)", &buf, "")
@@ -205,7 +206,7 @@ func TestLargeStringReads(t *testing.T) {
 func TestLargeByteReads(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0:len(bytes)/i])
+		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)))
 	}
 	check(t, "TestLargeByteReads (3)", &buf, "")
@@ -219,7 +220,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
 		if i%2 == 0 {
 			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0:wlen])
 		} else {
-			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0:wlen])
+			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, testBytes[0:wlen])
 		}
 
 		rlen := rand.Intn(len(data))
@@ -240,7 +241,7 @@ func TestNil(t *testing.T) {
 func TestReadFrom(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i])
+		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		var b Buffer
 		b.ReadFrom(&buf)
 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)))
@@ -250,16 +251,16 @@ func TestReadFrom(t *testing.T) {
 func TestWriteTo(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i])
+		s := fillBytes(t, "TestWriteTo (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		var b Buffer
 		buf.WriteTo(&b)
-		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)))
+		empty(t, "TestWriteTo (2)", &b, s, make([]byte, len(data)))
 	}
 }
 
 func TestRuneIO(t *testing.T) {
 	const NRune = 1000
-	// Built a test array while we write the data
+	// Built a test slice while we write the data
 	b := make([]byte, utf8.UTFMax*NRune)
 	var buf Buffer
 	n := 0
@@ -374,6 +375,72 @@ func TestReadBytes(t *testing.T) {
 	}
 }
 
+func TestReadString(t *testing.T) {
+	for _, test := range readBytesTests {
+		buf := NewBufferString(test.buffer)
+		var err error
+		for _, expected := range test.expected {
+			var s string
+			s, err = buf.ReadString(test.delim)
+			if s != expected {
+				t.Errorf("expected %q, got %q", expected, s)
+			}
+			if err != nil {
+				break
+			}
+		}
+		if err != test.err {
+			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+	}
+}
+
+func BenchmarkReadString(b *testing.B) {
+	const n = 32 << 10
+
+	data := make([]byte, n)
+	data[n-1] = 'x'
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		buf := NewBuffer(data)
+		_, err := buf.ReadString('x')
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func TestGrow(t *testing.T) {
+	x := []byte{'x'}
+	y := []byte{'y'}
+	tmp := make([]byte, 72)
+	for _, startLen := range []int{0, 100, 1000, 10000, 100000} {
+		xBytes := Repeat(x, startLen)
+		for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
+			buf := NewBuffer(xBytes)
+			// If we read, this affects buf.off, which is good to test.
+			readBytes, _ := buf.Read(tmp)
+			buf.Grow(growLen)
+			yBytes := Repeat(y, growLen)
+			// Check no allocation occurs in write, as long as we're single-threaded.
+			var m1, m2 runtime.MemStats
+			runtime.ReadMemStats(&m1)
+			buf.Write(yBytes)
+			runtime.ReadMemStats(&m2)
+			if runtime.GOMAXPROCS(-1) == 1 && m1.Mallocs != m2.Mallocs {
+				t.Errorf("allocation occurred during write")
+			}
+			// Check that buffer has correct data.
+			if !Equal(buf.Bytes()[0:startLen-readBytes], xBytes[readBytes:]) {
+				t.Errorf("bad initial data at %d %d", startLen, growLen)
+			}
+			if !Equal(buf.Bytes()[startLen-readBytes:startLen-readBytes+growLen], yBytes) {
+				t.Errorf("bad written data at %d %d", startLen, growLen)
+			}
+		}
+	}
+}
+
 // Was a bug: used to give EOF reading empty slice at EOF.
 func TestReadEmptyAtEOF(t *testing.T) {
 	b := new(Buffer)
@@ -384,5 +451,77 @@ func TestReadEmptyAtEOF(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("wrong count; got %d want 0", n)
+	}
+}
+
+func TestUnreadByte(t *testing.T) {
+	b := new(Buffer)
+	b.WriteString("abcdefghijklmnopqrstuvwxyz")
+
+	_, err := b.ReadBytes('m')
+	if err != nil {
+		t.Fatalf("ReadBytes: %v", err)
+	}
+
+	err = b.UnreadByte()
+	if err != nil {
+		t.Fatalf("UnreadByte: %v", err)
+	}
+	c, err := b.ReadByte()
+	if err != nil {
+		t.Fatalf("ReadByte: %v", err)
+	}
+	if c != 'm' {
+		t.Errorf("ReadByte = %q; want %q", c, 'm')
+	}
+}
+
+// Tests that we occasionally compact. Issue 5154.
+func TestBufferGrowth(t *testing.T) {
+	var b Buffer
+	buf := make([]byte, 1024)
+	b.Write(buf[0:1])
+	var cap0 int
+	for i := 0; i < 5<<10; i++ {
+		b.Write(buf)
+		b.Read(buf)
+		if i == 0 {
+			cap0 = b.Cap()
+		}
+	}
+	cap1 := b.Cap()
+	// (*Buffer).grow allows for 2x capacity slop before sliding,
+	// so set our error threshold at 3x.
+	if cap1 > cap0*3 {
+		t.Errorf("buffer cap = %d; too big (grew from %d)", cap1, cap0)
+	}
+}
+
+// From Issue 5154.
+func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
+	buf := make([]byte, 1024)
+	for i := 0; i < b.N; i++ {
+		var b Buffer
+		b.Write(buf[0:1])
+		for i := 0; i < 5<<10; i++ {
+			b.Write(buf)
+			b.Read(buf)
+		}
+	}
+}
+
+// Check that we don't compact too often. From Issue 5154.
+func BenchmarkBufferFullSmallReads(b *testing.B) {
+	buf := make([]byte, 1024)
+	for i := 0; i < b.N; i++ {
+		var b Buffer
+		b.Write(buf)
+		for b.Len()+20 < b.Cap() {
+			b.Write(buf[:10])
+		}
+		for i := 0; i < 5<<10; i++ {
+			b.Read(buf[:1])
+			b.Write(buf[:1])
+		}
 	}
 }

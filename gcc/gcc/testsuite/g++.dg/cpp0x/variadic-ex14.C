@@ -1,4 +1,4 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 template<class T> class A { /* ... */ };
 template<class T, class U = T> class B { /* ... */ };
@@ -8,12 +8,12 @@ template<template<class> class P> class X { /* ... */ };
 template<template<class...> class Q> class Y { /* ... */ };
 
 X<A> xA; // okay
-X<B> xB; // { dg-error "mismatch" }
-// { dg-error "expected a template" "" { target *-*-* } 11 }
-// { dg-error "invalid type" "" { target *-*-* } 11 }
-X<C> xC; // { dg-error "mismatch" }
-// { dg-error "expected a template" "" { target *-*-* } 14 }
-// { dg-error "invalid type" "" { target *-*-* } 14 }
+X<B> xB; // { dg-error "mismatch" "mismatch" }
+// { dg-error "expected a template" "expected" { target *-*-* } 11 }
+// { dg-error "invalid type" "invalid" { target *-*-* } 11 }
+X<C> xC; // { dg-error "mismatch" "mismatch" }
+// { dg-error "expected a template" "expected" { target *-*-* } 14 }
+// { dg-error "invalid type" "invalid" { target *-*-* } 14 }
 Y<A> yA;
 Y<B> yB;
 Y<C> yC; // okay

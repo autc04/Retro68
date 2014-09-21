@@ -1,6 +1,5 @@
 ;; XSTORMY16 Machine description template
-;; Copyright (C) 1997, 1998, 1999, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-;; 2010 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2014 Free Software Foundation, Inc.
 ;; Contributed by Red Hat, Inc.
 
 ;; This file is part of GCC.
@@ -115,7 +114,7 @@
 ;; insns like this one are never generated.
 
 (define_insn "pushqi1"
-  [(set (mem:QI (post_inc (reg:HI 15)))
+  [(set (mem:QI (post_inc:HI (reg:HI 15)))
 	(match_operand:QI 0 "register_operand" "r"))]
   ""
   "push %0"
@@ -124,7 +123,7 @@
 
 (define_insn "popqi1"
   [(set (match_operand:QI 0 "register_operand" "=r")
-	(mem:QI (pre_dec (reg:HI 15))))]
+	(mem:QI (pre_dec:HI (reg:HI 15))))]
   ""
   "pop %0"
   [(set_attr "psw_operand" "nop")
@@ -169,7 +168,7 @@
    (set_attr "psw_operand" "0,0,0,0,nop,0,nop,0,0")])
 
 (define_insn "pushhi1"
-  [(set (mem:HI (post_inc (reg:HI 15)))
+  [(set (mem:HI (post_inc:HI (reg:HI 15)))
 	(match_operand:HI 0 "register_operand" "r"))]
   ""
   "push %0"
@@ -178,7 +177,7 @@
 
 (define_insn "pophi1"
   [(set (match_operand:HI 0 "register_operand" "=r")
-	(mem:HI (pre_dec (reg:HI 15))))]
+	(mem:HI (pre_dec:HI (reg:HI 15))))]
   ""
   "pop %0"
   [(set_attr "psw_operand" "nop")

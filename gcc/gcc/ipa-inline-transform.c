@@ -1,6 +1,5 @@
 /* Callgraph transformations to handle inlining
-   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -35,13 +34,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm.h"
 #include "tree.h"
 #include "langhooks.h"
-#include "cgraph.h"
-#include "timevar.h"
-#include "output.h"
 #include "intl.h"
 #include "coverage.h"
 #include "ggc.h"
-#include "tree-flow.h"
+#include "tree-cfg.h"
 #include "ipa-prop.h"
 #include "ipa-inline.h"
 #include "tree-inline.h"
@@ -49,6 +45,7 @@ along with GCC; see the file COPYING3.  If not see
 
 int ncalls_inlined;
 int nfunctions_inlined;
+bool speculation_removed;
 
 /* Scale frequency of NODE edges by FREQ_SCALE.  */
 
@@ -90,14 +87,13 @@ can_remove_node_now_p_1 (struct cgraph_node *node)
      the callgraph so references can point to it.  */
   return (!node->address_taken
 	  && !ipa_ref_has_aliases_p (&node->ref_list)
+	  && !node->used_as_abstract_origin
 	  && cgraph_can_remove_if_no_direct_calls_p (node)
 	  /* Inlining might enable more devirtualizing, so we want to remove
 	     those only after all devirtualizable virtual calls are processed.
 	     Lacking may edges in callgraph we just preserve them post
 	     inlining.  */
-	  && (!DECL_VIRTUAL_P (node->decl)
-	      || (!DECL_COMDAT (node->decl)
-		  && !DECL_EXTERNAL (node->decl)))
+	  && !DECL_VIRTUAL_P (node->decl)
 	  /* During early inlining some unanalyzed cgraph nodes might be in the
 	     callgraph and they might reffer the function in question.  */
 	  && !cgraph_new_nodes);
@@ -118,8 +114,8 @@ can_remove_node_now_p (struct cgraph_node *node, struct cgraph_edge *e)
      items can be removed.  */
   if (!node->same_comdat_group)
     return true;
-  for (next = node->same_comdat_group;
-       next != node; next = next->same_comdat_group)
+  for (next = cgraph (node->same_comdat_group);
+       next != node; next = cgraph (next->same_comdat_group))
     if ((next->callers && next->callers != e)
 	|| !can_remove_node_now_p_1 (next))
       return false;
@@ -131,12 +127,24 @@ can_remove_node_now_p (struct cgraph_node *node, struct cgraph_edge *e)
    the edge and redirect it to the new clone.
    DUPLICATE is used for bookkeeping on whether we are actually creating new
    clones or re-using node originally representing out-of-line function call.
-   */
+   By default the offline copy is removed, when it appears dead after inlining.
+   UPDATE_ORIGINAL prevents this transformation.
+   If OVERALL_SIZE is non-NULL, the size is updated to reflect the
+   transformation.
+   FREQ_SCALE specify the scaling of frequencies of call sites.  */
 
 void
 clone_inlined_nodes (struct cgraph_edge *e, bool duplicate,
-		     bool update_original, int *overall_size)
+		     bool update_original, int *overall_size, int freq_scale)
 {
+  struct cgraph_node *inlining_into;
+  struct cgraph_edge *next;
+
+  if (e->caller->global.inlined_to)
+    inlining_into = e->caller->global.inlined_to;
+  else
+    inlining_into = e->caller;
+
   if (duplicate)
     {
       /* We may eliminate the need for out-of-line copy to be output.
@@ -157,54 +165,78 @@ clone_inlined_nodes (struct cgraph_edge *e, bool duplicate,
 	     For now we keep the ohter functions in the group in program until
 	     cgraph_remove_unreachable_functions gets rid of them.  */
 	  gcc_assert (!e->callee->global.inlined_to);
-	  if (e->callee->analyzed && !DECL_EXTERNAL (e->callee->decl))
+          symtab_dissolve_same_comdat_group_list (e->callee);
+	  if (e->callee->definition && !DECL_EXTERNAL (e->callee->decl))
 	    {
 	      if (overall_size)
 	        *overall_size -= inline_summary (e->callee)->size;
 	      nfunctions_inlined++;
 	    }
 	  duplicate = false;
-	  e->callee->local.externally_visible = false;
+	  e->callee->externally_visible = false;
           update_noncloned_frequencies (e->callee, e->frequency);
 	}
       else
 	{
 	  struct cgraph_node *n;
+
+	  if (freq_scale == -1)
+	    freq_scale = e->frequency;
 	  n = cgraph_clone_node (e->callee, e->callee->decl,
-				 e->count, e->frequency,
-				 update_original, NULL, true);
+				 e->count, freq_scale, update_original,
+				 vNULL, true, inlining_into, NULL);
 	  cgraph_redirect_edge_callee (e, n);
 	}
     }
-
-  if (e->caller->global.inlined_to)
-    e->callee->global.inlined_to = e->caller->global.inlined_to;
   else
-    e->callee->global.inlined_to = e->caller;
+    symtab_dissolve_same_comdat_group_list (e->callee);
+
+  e->callee->global.inlined_to = inlining_into;
 
   /* Recursively clone all bodies.  */
-  for (e = e->callee->callees; e; e = e->next_callee)
-    if (!e->inline_failed)
-      clone_inlined_nodes (e, duplicate, update_original, overall_size);
+  for (e = e->callee->callees; e; e = next)
+    {
+      next = e->next_callee;
+      if (!e->inline_failed)
+        clone_inlined_nodes (e, duplicate, update_original, overall_size, freq_scale);
+      if (e->speculative && !speculation_useful_p (e, true))
+	{
+	  cgraph_resolve_speculation (e, NULL);
+	  speculation_removed = true;
+	}
+    }
 }
 
 
 /* Mark edge E as inlined and update callgraph accordingly.  UPDATE_ORIGINAL
    specify whether profile of original function should be updated.  If any new
    indirect edges are discovered in the process, add them to NEW_EDGES, unless
-   it is NULL.  Return true iff any new callgraph edges were discovered as a
+   it is NULL. If UPDATE_OVERALL_SUMMARY is false, do not bother to recompute overall
+   size of caller after inlining. Caller is required to eventually do it via
+   inline_update_overall_summary.
+   If callee_removed is non-NULL, set it to true if we removed callee node.
+
+   Return true iff any new callgraph edges were discovered as a
    result of inlining.  */
 
 bool
 inline_call (struct cgraph_edge *e, bool update_original,
-	     VEC (cgraph_edge_p, heap) **new_edges,
-	     int *overall_size)
+	     vec<cgraph_edge_p> *new_edges,
+	     int *overall_size, bool update_overall_summary,
+	     bool *callee_removed)
 {
   int old_size = 0, new_size = 0;
   struct cgraph_node *to = NULL;
   struct cgraph_edge *curr = e;
   struct cgraph_node *callee = cgraph_function_or_thunk_node (e->callee, NULL);
+  bool new_edges_found = false;
 
+#ifdef ENABLE_CHECKING
+  int estimated_growth = estimate_edge_growth (e);
+  bool predicated = inline_edge_summary (e)->predicate != NULL;
+#endif
+
+  speculation_removed = false;
   /* Don't inline inlined edges.  */
   gcc_assert (e->inline_failed);
   /* Don't even think of inlining inline clone.  */
@@ -228,8 +260,10 @@ inline_call (struct cgraph_edge *e, bool update_original,
 	  if (!alias->callers
 	      && can_remove_node_now_p (alias, e))
 	    {
-	      next_alias = cgraph_alias_aliased_node (alias);
+	      next_alias = cgraph_alias_target (alias);
 	      cgraph_remove_node (alias);
+	      if (callee_removed)
+		*callee_removed = true;
 	      alias = next_alias;
 	    }
 	  else
@@ -237,23 +271,51 @@ inline_call (struct cgraph_edge *e, bool update_original,
 	}
     }
 
-  clone_inlined_nodes (e, true, update_original, overall_size);
+  clone_inlined_nodes (e, true, update_original, overall_size, e->frequency);
 
   gcc_assert (curr->callee->global.inlined_to == to);
 
   old_size = inline_summary (to)->size;
   inline_merge_summary (e);
+  if (optimize)
+    new_edges_found = ipa_propagate_indirect_call_infos (curr, new_edges);
+  if (update_overall_summary)
+   inline_update_overall_summary (to);
   new_size = inline_summary (to)->size;
-  if (overall_size)
+
+  if (callee->calls_comdat_local)
+    to->calls_comdat_local = true;
+  else if (to->calls_comdat_local && symtab_comdat_local_p (callee))
+    {
+      struct cgraph_edge *se = to->callees;
+      for (; se; se = se->next_callee)
+	if (se->inline_failed && symtab_comdat_local_p (se->callee))
+	  break;
+      if (se == NULL)
+	to->calls_comdat_local = false;
+    }
+
+#ifdef ENABLE_CHECKING
+  /* Verify that estimated growth match real growth.  Allow off-by-one
+     error due to INLINE_SIZE_SCALE roudoff errors.  */
+  gcc_assert (!update_overall_summary || !overall_size || new_edges_found
+	      || abs (estimated_growth - (new_size - old_size)) <= 1
+	      || speculation_removed
+	      /* FIXME: a hack.  Edges with false predicate are accounted
+		 wrong, we should remove them from callgraph.  */
+	      || predicated);
+#endif
+
+  /* Account the change of overall unit size; external functions will be
+     removed and are thus not accounted.  */
+  if (overall_size
+      && !DECL_EXTERNAL (to->decl))
     *overall_size += new_size - old_size;
   ncalls_inlined++;
 
   /* This must happen after inline_merge_summary that rely on jump
      functions of callee to not be updated.  */
-  if (optimize)
-    return ipa_propagate_indirect_call_infos (curr, new_edges);
-  else
-    return false;
+  return new_edges_found;
 }
 
 
@@ -261,7 +323,7 @@ inline_call (struct cgraph_edge *e, bool update_original,
    This is done before inline plan is applied to NODE when there are
    still some inline clones if it.
 
-   This is neccesary because inline decisions are not really transitive
+   This is necessary because inline decisions are not really transitive
    and the other inline clones may have different bodies.  */
 
 static struct cgraph_node *
@@ -271,14 +333,14 @@ save_inline_function_body (struct cgraph_node *node)
 
   if (dump_file)
     fprintf (dump_file, "\nSaving body of %s for later reuse\n",
-	     cgraph_node_name (node));
+	     node->name ());
  
   gcc_assert (node == cgraph_get_node (node->decl));
 
   /* first_clone will be turned into real function.  */
   first_clone = node->clones;
   first_clone->decl = copy_node (node->decl);
-  cgraph_insert_node_to_hashtable (first_clone);
+  symtab_insert_node_to_hashtable (first_clone);
   gcc_assert (first_clone == cgraph_get_node (first_clone->decl));
 
   /* Now reshape the clone tree, so all other clones descends from
@@ -323,25 +385,47 @@ save_inline_function_body (struct cgraph_node *node)
       }
 
   /* Copy the OLD_VERSION_NODE function tree to the new version.  */
-  tree_function_versioning (node->decl, first_clone->decl, NULL, true, NULL,
-			    false, NULL, NULL);
+  tree_function_versioning (node->decl, first_clone->decl,
+			    NULL, true, NULL, false,
+			    NULL, NULL);
 
   /* The function will be short lived and removed after we inline all the clones,
      but make it internal so we won't confuse ourself.  */
   DECL_EXTERNAL (first_clone->decl) = 0;
-  DECL_COMDAT_GROUP (first_clone->decl) = NULL_TREE;
   TREE_PUBLIC (first_clone->decl) = 0;
   DECL_COMDAT (first_clone->decl) = 0;
-  VEC_free (ipa_opt_pass, heap,
-            first_clone->ipa_transforms_to_apply);
-  first_clone->ipa_transforms_to_apply = NULL;
+  first_clone->ipa_transforms_to_apply.release ();
 
+  /* When doing recursive inlining, the clone may become unnecessary.
+     This is possible i.e. in the case when the recursive function is proved to be
+     non-throwing and the recursion happens only in the EH landing pad.
+     We can not remove the clone until we are done with saving the body.
+     Remove it now.  */
+  if (!first_clone->callers)
+    {
+      cgraph_remove_node_and_inline_clones (first_clone, NULL);
+      first_clone = NULL;
+    }
 #ifdef ENABLE_CHECKING
-  verify_cgraph_node (first_clone);
+  else
+    verify_cgraph_node (first_clone);
 #endif
   return first_clone;
 }
 
+/* Return true when function body of DECL still needs to be kept around
+   for later re-use.  */
+static bool
+preserve_function_body_p (struct cgraph_node *node)
+{
+  gcc_assert (cgraph_global_info_ready);
+  gcc_assert (!node->alias && !node->thunk.thunk_p);
+
+  /* Look if there is any clone around.  */
+  if (node->clones)
+    return true;
+  return false;
+}
 
 /* Apply inline plan to function.  */
 
@@ -349,7 +433,7 @@ unsigned int
 inline_transform (struct cgraph_node *node)
 {
   unsigned int todo = 0;
-  struct cgraph_edge *e;
+  struct cgraph_edge *e, *next;
  
   /* FIXME: Currently the pass manager is adding inline transform more than
      once to some clones.  This needs revisiting after WPA cleanups.  */
@@ -358,14 +442,18 @@ inline_transform (struct cgraph_node *node)
 
   /* We might need the body of this function so that we can expand
      it inline somewhere else.  */
-  if (cgraph_preserve_function_body_p (node))
+  if (preserve_function_body_p (node))
     save_inline_function_body (node);
 
-  for (e = node->callees; e; e = e->next_callee)
-    cgraph_redirect_edge_call_stmt_to_callee (e);
+  for (e = node->callees; e; e = next)
+    {
+      next = e->next_callee;
+      cgraph_redirect_edge_call_stmt_to_callee (e);
+    }
+  ipa_remove_all_references (&node->ref_list);
 
   timevar_push (TV_INTEGRATION);
-  if (node->callees)
+  if (node->callees && optimize)
     todo = optimize_inline_calls (current_function_decl);
   timevar_pop (TV_INTEGRATION);
 

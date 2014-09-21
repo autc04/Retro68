@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---          Copyright (C) 1991-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1991-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -102,7 +102,9 @@ private
 
    type Private_Data is record
       Thread : aliased System.OS_Interface.pthread_t;
-      pragma Atomic (Thread);
+      --  pragma Atomic (Thread);
+      --  Unfortunately, the above fails because Thread is 64 bits.
+
       --  Thread field may be updated by two different threads of control.
       --  (See, Enter_Task and Create_Task in s-taprop.adb). They put the
       --  same value (thr_self value). We do not want to use lock on those

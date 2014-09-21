@@ -1,6 +1,5 @@
 /* Functions related to the Boehm garbage collector.
-   Copyright (C) 2000, 2003, 2004, 2006, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -108,7 +107,7 @@ mark_reference_fields (tree field,
 	     bits for all words in the record. This is conservative, but the 
 	     size_words != 1 case is impossible in regular java code. */
 	  for (i = 0; i < size_words; ++i)
-	    *mask = double_int_setbit (*mask, ubit - count - i - 1);
+	    *mask = (*mask).set_bit (ubit - count - i - 1);
 
 	  if (count >= ubit - 2)
 	    *pointer_after_end = 1;
@@ -200,7 +199,7 @@ get_boehm_type_descriptor (tree type)
       while (last_set_index)
 	{
 	  if ((last_set_index & 1))
-	    mask = double_int_setbit (mask, log2_size + count);
+	    mask = mask.set_bit (log2_size + count);
 	  last_set_index >>= 1;
 	  ++count;
 	}
@@ -209,7 +208,7 @@ get_boehm_type_descriptor (tree type)
   else if (! pointer_after_end)
     {
       /* Bottom two bits for bitmap mark type are 01.  */
-      mask = double_int_setbit (mask, 0);
+      mask = mask.set_bit (0);
       value = double_int_to_tree (value_type, mask);
     }
   else
@@ -233,6 +232,6 @@ uses_jv_markobj_p (tree dtable)
      this function is only used with flag_reduced_reflection.  No
      point in asserting unless we hit the bad case.  */
   gcc_assert (!flag_reduced_reflection || TARGET_VTABLE_USES_DESCRIPTORS == 0);
-  v = VEC_index (constructor_elt, CONSTRUCTOR_ELTS (dtable), 3)->value;
+  v = (*CONSTRUCTOR_ELTS (dtable))[3].value;
   return (PROCEDURE_OBJECT_DESCRIPTOR == TREE_INT_CST_LOW (v));
 }

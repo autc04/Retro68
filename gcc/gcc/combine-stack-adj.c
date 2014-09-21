@@ -1,7 +1,5 @@
 /* Combine stack adjustments.
-   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -48,7 +46,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm_p.h"
 #include "insn-config.h"
 #include "recog.h"
-#include "output.h"
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "flags.h"
@@ -58,7 +55,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "df.h"
 #include "except.h"
 #include "reload.h"
-#include "timevar.h"
 #include "tree-pass.h"
 
 
@@ -99,7 +95,7 @@ combine_stack_adjustments (void)
 {
   basic_block bb;
 
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     combine_stack_adjustments_for_block (bb);
 }
 
@@ -214,7 +210,8 @@ try_apply_stack_adjustment (rtx insn, struct csa_reflist *reflist,
 
   for (ml = reflist; ml ; ml = ml->next)
     {
-      rtx new_addr = plus_constant (stack_pointer_rtx, ml->sp_offset - delta);
+      rtx new_addr = plus_constant (Pmode, stack_pointer_rtx,
+				    ml->sp_offset - delta);
       rtx new_val;
 
       if (MEM_P (*ml->ref))
@@ -320,6 +317,108 @@ maybe_move_args_size_note (rtx last, rtx insn, bool after)
     add_reg_note (last, REG_ARGS_SIZE, XEXP (note, 0));
 }
 
+/* Return the next (or previous) active insn within BB.  */
+
+static rtx
+prev_active_insn_bb (basic_block bb, rtx insn)
+{
+  for (insn = PREV_INSN (insn);
+       insn != PREV_INSN (BB_HEAD (bb));
+       insn = PREV_INSN (insn))
+    if (active_insn_p (insn))
+      return insn;
+  return NULL_RTX;
+}
+
+static rtx
+next_active_insn_bb (basic_block bb, rtx insn)
+{
+  for (insn = NEXT_INSN (insn);
+       insn != NEXT_INSN (BB_END (bb));
+       insn = NEXT_INSN (insn))
+    if (active_insn_p (insn))
+      return insn;
+  return NULL_RTX;
+}
+
+/* If INSN has a REG_ARGS_SIZE note, if possible move it to PREV.  Otherwise
+   search for a nearby candidate within BB where we can stick the note.  */
+
+static void
+force_move_args_size_note (basic_block bb, rtx prev, rtx insn)
+{
+  rtx note, test, next_candidate, prev_candidate;
+
+  /* If PREV exists, tail-call to the logic in the other function.  */
+  if (prev)
+    {
+      maybe_move_args_size_note (prev, insn, false);
+      return;
+    }
+
+  /* First, make sure there's anything that needs doing.  */
+  note = find_reg_note (insn, REG_ARGS_SIZE, NULL_RTX);
+  if (note == NULL)
+    return;
+
+  /* We need to find a spot between the previous and next exception points
+     where we can place the note and "properly" deallocate the arguments.  */
+  next_candidate = prev_candidate = NULL;
+
+  /* It is often the case that we have insns in the order:
+	call
+	add sp (previous deallocation)
+	sub sp (align for next arglist)
+	push arg
+     and the add/sub cancel.  Therefore we begin by searching forward.  */
+
+  test = insn;
+  while ((test = next_active_insn_bb (bb, test)) != NULL)
+    {
+      /* Found an existing note: nothing to do.  */
+      if (find_reg_note (test, REG_ARGS_SIZE, NULL_RTX))
+        return;
+      /* Found something that affects unwinding.  Stop searching.  */
+      if (CALL_P (test) || !insn_nothrow_p (test))
+	break;
+      if (next_candidate == NULL)
+	next_candidate = test;
+    }
+
+  test = insn;
+  while ((test = prev_active_insn_bb (bb, test)) != NULL)
+    {
+      rtx tnote;
+      /* Found a place that seems logical to adjust the stack.  */
+      tnote = find_reg_note (test, REG_ARGS_SIZE, NULL_RTX);
+      if (tnote)
+	{
+	  XEXP (tnote, 0) = XEXP (note, 0);
+	  return;
+	}
+      if (prev_candidate == NULL)
+	prev_candidate = test;
+      /* Found something that affects unwinding.  Stop searching.  */
+      if (CALL_P (test) || !insn_nothrow_p (test))
+	break;
+    }
+
+  if (prev_candidate)
+    test = prev_candidate;
+  else if (next_candidate)
+    test = next_candidate;
+  else
+    {
+      /* ??? We *must* have a place, lest we ICE on the lost adjustment.
+	 Options are: dummy clobber insn, nop, or prevent the removal of
+	 the sp += 0 insn.  */
+      /* TODO: Find another way to indicate to the dwarf2 code that we
+	 have not in fact lost an adjustment.  */
+      test = emit_insn_before (gen_rtx_CLOBBER (VOIDmode, const0_rtx), insn);
+    }
+  add_reg_note (test, REG_ARGS_SIZE, XEXP (note, 0));
+}
+
 /* Subroutine of combine_stack_adjustments, called for each basic block.  */
 
 static void
@@ -327,6 +426,7 @@ combine_stack_adjustments_for_block (basic_block bb)
 {
   HOST_WIDE_INT last_sp_adjust = 0;
   rtx last_sp_set = NULL_RTX;
+  rtx last2_sp_set = NULL_RTX;
   struct csa_reflist *reflist = NULL;
   rtx insn, next, set;
   struct record_stack_refs_data data;
@@ -391,9 +491,8 @@ combine_stack_adjustments_for_block (basic_block bb)
 						  last_sp_adjust + this_adjust,
 						  this_adjust))
 		    {
-		      maybe_move_args_size_note (last_sp_set, insn, false);
-
 		      /* It worked!  */
+		      maybe_move_args_size_note (last_sp_set, insn, false);
 		      delete_insn (insn);
 		      last_sp_adjust += this_adjust;
 		      continue;
@@ -409,9 +508,8 @@ combine_stack_adjustments_for_block (basic_block bb)
 						  last_sp_adjust + this_adjust,
 						  -last_sp_adjust))
 		    {
-		      maybe_move_args_size_note (insn, last_sp_set, true);
-
 		      /* It worked!  */
+		      maybe_move_args_size_note (insn, last_sp_set, true);
 		      delete_insn (last_sp_set);
 		      last_sp_set = insn;
 		      last_sp_adjust += this_adjust;
@@ -424,8 +522,16 @@ combine_stack_adjustments_for_block (basic_block bb)
 	      /* Combination failed.  Restart processing from here.  If
 		 deallocation+allocation conspired to cancel, we can
 		 delete the old deallocation insn.  */
-	      if (last_sp_set && last_sp_adjust == 0)
-		delete_insn (last_sp_set);
+	      if (last_sp_set)
+		{
+		  if (last_sp_adjust == 0)
+		    {
+		      maybe_move_args_size_note (insn, last_sp_set, true);
+		      delete_insn (last_sp_set);
+		    }
+		  else
+		    last2_sp_set = last_sp_set;
+		}
 	      free_csa_reflist (reflist);
 	      reflist = NULL;
 	      last_sp_set = insn;
@@ -461,6 +567,10 @@ combine_stack_adjustments_for_block (basic_block bb)
 	      && try_apply_stack_adjustment (insn, reflist, 0,
 					     -last_sp_adjust))
 	    {
+	      if (last2_sp_set)
+		maybe_move_args_size_note (last2_sp_set, last_sp_set, false);
+	      else
+	        maybe_move_args_size_note (insn, last_sp_set, true);
 	      delete_insn (last_sp_set);
 	      free_csa_reflist (reflist);
 	      reflist = NULL;
@@ -487,16 +597,23 @@ combine_stack_adjustments_for_block (basic_block bb)
 	      || reg_mentioned_p (stack_pointer_rtx, PATTERN (insn))))
 	{
 	  if (last_sp_set && last_sp_adjust == 0)
-	    delete_insn (last_sp_set);
+	    {
+	      force_move_args_size_note (bb, last2_sp_set, last_sp_set);
+	      delete_insn (last_sp_set);
+	    }
 	  free_csa_reflist (reflist);
 	  reflist = NULL;
+	  last2_sp_set = NULL_RTX;
 	  last_sp_set = NULL_RTX;
 	  last_sp_adjust = 0;
 	}
     }
 
   if (last_sp_set && last_sp_adjust == 0)
-    delete_insn (last_sp_set);
+    {
+      force_move_args_size_note (bb, last2_sp_set, last_sp_set);
+      delete_insn (last_sp_set);
+    }
 
   if (reflist)
     free_csa_reflist (reflist);
@@ -506,45 +623,60 @@ combine_stack_adjustments_for_block (basic_block bb)
 static bool
 gate_handle_stack_adjustments (void)
 {
+  /* This is kind of a heuristic.  We need to run combine_stack_adjustments
+     even for machines with possibly nonzero TARGET_RETURN_POPS_ARGS
+     and ACCUMULATE_OUTGOING_ARGS.  We expect that only ports having
+     push instructions will have popping returns.  */
+#ifndef PUSH_ROUNDING
+  if (ACCUMULATE_OUTGOING_ARGS)
+    return false;
+#endif
   return flag_combine_stack_adjustments;
 }
 
 static unsigned int
 rest_of_handle_stack_adjustments (void)
 {
-  cleanup_cfg (flag_crossjumping ? CLEANUP_CROSSJUMP : 0);
-
-  /* This is kind of a heuristic.  We need to run combine_stack_adjustments
-     even for machines with possibly nonzero TARGET_RETURN_POPS_ARGS
-     and ACCUMULATE_OUTGOING_ARGS.  We expect that only ports having
-     push instructions will have popping returns.  */
-#ifndef PUSH_ROUNDING
-  if (!ACCUMULATE_OUTGOING_ARGS)
-#endif
-    {
-      df_note_add_problem ();
-      df_analyze ();
-      combine_stack_adjustments ();
-    }
+  df_note_add_problem ();
+  df_analyze ();
+  combine_stack_adjustments ();
   return 0;
 }
 
-struct rtl_opt_pass pass_stack_adjustments =
+namespace {
+
+const pass_data pass_data_stack_adjustments =
 {
- {
-  RTL_PASS,
-  "csa",                                /* name */
-  gate_handle_stack_adjustments,        /* gate */
-  rest_of_handle_stack_adjustments,     /* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_COMBINE_STACK_ADJUST,              /* tv_id */
-  0,                                    /* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  TODO_df_finish | TODO_verify_rtl_sharing |
-  TODO_ggc_collect,                     /* todo_flags_finish */
- }
+  RTL_PASS, /* type */
+  "csa", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_COMBINE_STACK_ADJUST, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_rtl_sharing ), /* todo_flags_finish */
 };
+
+class pass_stack_adjustments : public rtl_opt_pass
+{
+public:
+  pass_stack_adjustments (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_stack_adjustments, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_handle_stack_adjustments (); }
+  unsigned int execute () { return rest_of_handle_stack_adjustments (); }
+
+}; // class pass_stack_adjustments
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_stack_adjustments (gcc::context *ctxt)
+{
+  return new pass_stack_adjustments (ctxt);
+}

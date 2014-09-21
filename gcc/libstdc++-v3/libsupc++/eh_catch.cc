@@ -1,5 +1,5 @@
 // -*- C++ -*- Exception handling routines for catching.
-// Copyright (C) 2001, 2003, 2004, 2009, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2001-2014 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -80,6 +80,9 @@ __cxxabiv1::__cxa_begin_catch (void *exc_obj_in) _GLIBCXX_NOTHROW
     }
 
   objectp = __gxx_caught_object(exceptionObject);
+
+  PROBE2 (catch, objectp, header->exceptionType);
+
 #ifdef __ARM_EABI_UNWINDER__
   _Unwind_Complete(exceptionObject);
 #endif

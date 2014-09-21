@@ -179,7 +179,7 @@ const (
 	sb7 = -2.24409524465858183362e+01 // 0xC03670E242712D62
 )
 
-// Erf(x) returns the error function of x.
+// Erf returns the error function of x.
 //
 // Special cases are:
 //	Erf(+Inf) = 1
@@ -248,7 +248,7 @@ func Erf(x float64) float64 {
 		R = rb0 + s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))))
 		S = 1 + s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))))
 	}
-	z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precison x
+	z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
 	r := Exp(-z*z-0.5625) * Exp((z-x)*(z+x)+R/S)
 	if sign {
 		return r/x - 1
@@ -256,7 +256,7 @@ func Erf(x float64) float64 {
 	return 1 - r/x
 }
 
-// Erfc(x) returns the complementary error function of x.
+// Erfc returns the complementary error function of x.
 //
 // Special cases are:
 //	Erfc(+Inf) = 0
@@ -321,7 +321,7 @@ func Erfc(x float64) float64 {
 			R = rb0 + s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))))
 			S = 1 + s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))))
 		}
-		z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precison x
+		z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
 		r := Exp(-z*z-0.5625) * Exp((z-x)*(z+x)+R/S)
 		if sign {
 			return 2 - r/x

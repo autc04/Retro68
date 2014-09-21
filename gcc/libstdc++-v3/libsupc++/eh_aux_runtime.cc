@@ -1,6 +1,5 @@
 // -*- C++ -*- Common throw conditions.
-// Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2009, 2011
-// Free Software Foundation
+// Copyright (C) 1994-2014 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -25,27 +24,23 @@
 
 #include "typeinfo"
 #include "exception"
+#include "new"
 #include <cstdlib>
 #include "unwind-cxx.h"
 #include <bits/exception_defines.h>
 
 extern "C" void
 __cxxabiv1::__cxa_bad_cast ()
-{
-#ifdef __EXCEPTIONS  
-  throw std::bad_cast();
-#else
-  std::abort();
-#endif
-}
+{ _GLIBCXX_THROW_OR_ABORT(std::bad_cast()); }
 
 extern "C" void
 __cxxabiv1::__cxa_bad_typeid ()
-{
-#ifdef __EXCEPTIONS  
-  throw std::bad_typeid();
-#else
-  std::abort();
-#endif
-}
+{ _GLIBCXX_THROW_OR_ABORT(std::bad_typeid()); }
 
+extern "C" void
+__cxxabiv1::__cxa_throw_bad_array_new_length ()
+{ _GLIBCXX_THROW_OR_ABORT(std::bad_array_new_length()); }
+
+extern "C" void
+__cxxabiv1::__cxa_throw_bad_array_length ()
+{ _GLIBCXX_THROW_OR_ABORT(std::bad_array_length()); }

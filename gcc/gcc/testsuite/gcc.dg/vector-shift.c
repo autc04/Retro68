@@ -1,14 +1,13 @@
 /* { dg-do compile } */
-#define vector(elcount, type)  \
-__attribute__((vector_size((elcount)*sizeof(type)))) type
+/* { dg-options "-fdump-tree-original" } */
 
-int main (int argc, char *argv[]) {
-    vector(4,char) vchar = {1,2,3,4};
-    vector(4, int) vint  = {1,1,1,1};
-    
-    vint <<= vchar;  /* { dg-error "nvalid operands to binary <<" } */
-    vchar >>= vint;  /* { dg-error "nvalid operands to binary >>" } */
+typedef unsigned vec __attribute__ ((vector_size (4 * sizeof (int))));
 
-    return 0;
+void
+f (vec *x)
+{
+  *x = (*x << 4) << 3;
 }
 
+/* { dg-final { scan-tree-dump "<< 7" "original" } } */
+/* { dg-final { cleanup-tree-dump "original" } } */

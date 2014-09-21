@@ -8,8 +8,10 @@
 
 int main(void)
 {
-    uint8x8_t v1 = {1, 1, 1, 1, 1, 1, 1, 1};
-    uint8x8_t v2 = {2, 2, 2, 2, 2, 2, 2, 2};
+    uint8_t v1_init[8] = {1, 1, 1, 1, 1, 1, 1, 1};
+    uint8_t v2_init[8] = {2, 2, 2, 2, 2, 2, 2, 2};
+    uint8x8_t v1 = vld1_u8 (v1_init);
+    uint8x8_t v2 = vld1_u8 (v2_init);
     uint8x8x2_t vd1, vd2;
     union {uint8x8_t v; uint8_t buf[8];} d1, d2, d3, d4;
     int i;

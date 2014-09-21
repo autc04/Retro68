@@ -1,6 +1,4 @@
-/* Copyright (C) 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2009
-   Free Software Foundation, Inc.
+/* Copyright (C) 1994-2014 Free Software Foundation, Inc.
 
 This file is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -241,7 +239,7 @@ GLOBAL(ashiftrt_r4_0):
 ! Entry:
 !
 ! r4: Value to shift
-! r5: Shifts
+! r5: Shift count
 !
 ! Exit:
 !
@@ -249,7 +247,7 @@ GLOBAL(ashiftrt_r4_0):
 !
 ! Destroys:
 !
-! (none)
+! T bit, r5
 !
 
 	.global	GLOBAL(ashrsi3)
@@ -388,318 +386,353 @@ LOCAL(ashrsi3_0):
 
 !
 ! GLOBAL(ashlsi3)
+! (For compatibility with older binaries, not used by compiler)
 !
 ! Entry:
-!
-! r4: Value to shift
-! r5: Shifts
+!	r4: Value to shift
+!	r5: Shift count
 !
 ! Exit:
-!
-! r0: Result
+!	r0: Result
 !
 ! Destroys:
+!	T bit
 !
-! (none)
 !
+! GLOBAL(ashlsi3_r0)
+!
+! Entry:
+!	r4: Value to shift
+!	r0: Shift count
+!
+! Exit:
+!	r0: Result
+!
+! Destroys:
+!	T bit
+
 	.global	GLOBAL(ashlsi3)
+	.global GLOBAL(ashlsi3_r0)
 	HIDDEN_FUNC(GLOBAL(ashlsi3))
-	.align	2
+	HIDDEN_FUNC(GLOBAL(ashlsi3_r0))
 GLOBAL(ashlsi3):
-	mov	#31,r0
-	and	r0,r5
-	mova	LOCAL(ashlsi3_table),r0
-	mov.b	@(r0,r5),r5
-#ifdef __sh1__
-	add	r5,r0
-	jmp	@r0
-#else
-	braf	r5
-#endif
-	mov	r4,r0
-
+	mov	r5,r0
 	.align	2
+GLOBAL(ashlsi3_r0):
+
+#ifdef __sh1__
+	and	#31,r0
+	shll2	r0
+	mov.l	r4,@-r15
+	mov	r0,r4
+	mova	LOCAL(ashlsi3_table),r0
+	add	r4,r0
+	mov.l	@r15+,r4
+	jmp	@r0
+	mov	r4,r0
+	.align 2
+#else
+	and	#31,r0
+	shll2	r0
+	braf	r0
+	mov	r4,r0
+#endif
+
 LOCAL(ashlsi3_table):
-	.byte		LOCAL(ashlsi3_0)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_1)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_2)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_3)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_4)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_5)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_6)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_7)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_8)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_9)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_10)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_11)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_12)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_13)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_14)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_15)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_16)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_17)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_18)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_19)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_20)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_21)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_22)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_23)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_24)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_25)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_26)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_27)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_28)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_29)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_30)-LOCAL(ashlsi3_table)
-	.byte		LOCAL(ashlsi3_31)-LOCAL(ashlsi3_table)
-
-LOCAL(ashlsi3_6):
-	shll2	r0
-LOCAL(ashlsi3_4):
-	shll2	r0
-LOCAL(ashlsi3_2):
-	rts
-	shll2	r0
-
-LOCAL(ashlsi3_7):
-	shll2	r0
-LOCAL(ashlsi3_5):
-	shll2	r0
-LOCAL(ashlsi3_3):
-	shll2	r0
-LOCAL(ashlsi3_1):
-	rts
-	shll	r0
-
-LOCAL(ashlsi3_14):
-	shll2	r0
-LOCAL(ashlsi3_12):
-	shll2	r0
-LOCAL(ashlsi3_10):
-	shll2	r0
-LOCAL(ashlsi3_8):
-	rts
-	shll8	r0
-
-LOCAL(ashlsi3_15):
-	shll2	r0
-LOCAL(ashlsi3_13):
-	shll2	r0
-LOCAL(ashlsi3_11):
-	shll2	r0
-LOCAL(ashlsi3_9):
-	shll8	r0
-	rts
-	shll	r0
-
-LOCAL(ashlsi3_22):
-	shll2	r0
-LOCAL(ashlsi3_20):
-	shll2	r0
-LOCAL(ashlsi3_18):
-	shll2	r0
-LOCAL(ashlsi3_16):
-	rts
-	shll16	r0
-
-LOCAL(ashlsi3_23):
-	shll2	r0
-LOCAL(ashlsi3_21):
-	shll2	r0
-LOCAL(ashlsi3_19):
-	shll2	r0
-LOCAL(ashlsi3_17):
-	shll16	r0
-	rts
-	shll	r0
-
-LOCAL(ashlsi3_30):
-	shll2	r0
-LOCAL(ashlsi3_28):
-	shll2	r0
-LOCAL(ashlsi3_26):
-	shll2	r0
-LOCAL(ashlsi3_24):
-	shll16	r0
-	rts
-	shll8	r0
-
-LOCAL(ashlsi3_31):
-	shll2	r0
-LOCAL(ashlsi3_29):
-	shll2	r0
-LOCAL(ashlsi3_27):
-	shll2	r0
-LOCAL(ashlsi3_25):
-	shll16	r0
-	shll8	r0
-	rts
-	shll	r0
-
-LOCAL(ashlsi3_0):
-	rts
+	rts				// << 0
 	nop
+LOCAL(ashlsi_1):
+	rts				// << 1
+	shll	r0
+LOCAL(ashlsi_2):			// << 2
+	rts
+	shll2	r0
+	bra	LOCAL(ashlsi_1)		// << 3
+	shll2	r0
+	bra	LOCAL(ashlsi_2)		// << 4
+	shll2	r0
+	bra	LOCAL(ashlsi_5)		// << 5
+	shll	r0
+	bra	LOCAL(ashlsi_6)		// << 6
+	shll2	r0
+	bra	LOCAL(ashlsi_7)		// << 7
+	shll	r0
+LOCAL(ashlsi_8):			// << 8
+	rts
+	shll8	r0
+	bra	LOCAL(ashlsi_8)		// << 9
+	shll	r0
+	bra	LOCAL(ashlsi_8)		// << 10
+	shll2	r0
+	bra	LOCAL(ashlsi_11)	// << 11
+	shll	r0
+	bra	LOCAL(ashlsi_12)	// << 12
+	shll2	r0
+	bra	LOCAL(ashlsi_13)	// << 13
+	shll	r0
+	bra	LOCAL(ashlsi_14)	// << 14
+	shll8	r0
+	bra	LOCAL(ashlsi_15)	// << 15
+	shll8	r0
+LOCAL(ashlsi_16):			// << 16
+	rts
+	shll16	r0
+	bra	LOCAL(ashlsi_16)	// << 17
+	shll	r0
+	bra	LOCAL(ashlsi_16)	// << 18
+	shll2	r0
+	bra	LOCAL(ashlsi_19)	// << 19
+	shll	r0
+	bra	LOCAL(ashlsi_20)	// << 20
+	shll2	r0
+	bra	LOCAL(ashlsi_21)	// << 21
+	shll	r0
+	bra	LOCAL(ashlsi_22)	// << 22
+	shll16	r0
+	bra	LOCAL(ashlsi_23)	// << 23
+	shll16	r0
+	bra	LOCAL(ashlsi_16)	// << 24
+	shll8	r0
+	bra	LOCAL(ashlsi_25)	// << 25
+	shll	r0
+	bra	LOCAL(ashlsi_26)	// << 26
+	shll2	r0
+	bra	LOCAL(ashlsi_27)	// << 27
+	shll	r0
+	bra	LOCAL(ashlsi_28)	// << 28
+	shll2	r0
+	bra	LOCAL(ashlsi_29)	// << 29
+	shll16	r0
+	bra	LOCAL(ashlsi_30)	// << 30
+	shll16	r0
+	and	#1,r0			// << 31
+	rts
+	rotr	r0
+
+LOCAL(ashlsi_7):
+	shll2	r0
+LOCAL(ashlsi_5):
+LOCAL(ashlsi_6):
+	shll2	r0
+	rts
+LOCAL(ashlsi_13):
+	shll2	r0
+LOCAL(ashlsi_12):
+LOCAL(ashlsi_11):
+	shll8	r0
+	rts
+LOCAL(ashlsi_21):
+	shll2	r0
+LOCAL(ashlsi_20):
+LOCAL(ashlsi_19):
+	shll16	r0
+	rts
+LOCAL(ashlsi_28):
+LOCAL(ashlsi_27):
+	shll2	r0
+LOCAL(ashlsi_26):
+LOCAL(ashlsi_25):
+	shll16	r0
+	rts
+	shll8	r0
+
+LOCAL(ashlsi_22):
+LOCAL(ashlsi_14):
+	shlr2	r0
+	rts
+	shll8	r0
+
+LOCAL(ashlsi_23):
+LOCAL(ashlsi_15):
+	shlr	r0
+	rts
+	shll8	r0
+
+LOCAL(ashlsi_29):
+	shlr	r0
+LOCAL(ashlsi_30):
+	shlr2	r0
+	rts
+	shll16	r0	
 
 	ENDFUNC(GLOBAL(ashlsi3))
+	ENDFUNC(GLOBAL(ashlsi3_r0))
 #endif
 
 #ifdef L_lshiftrt
 
 !
 ! GLOBAL(lshrsi3)
+! (For compatibility with older binaries, not used by compiler)
 !
 ! Entry:
-!
-! r4: Value to shift
-! r5: Shifts
+!	r4: Value to shift
+!	r5: Shift count
 !
 ! Exit:
-!
-! r0: Result
+!	r0: Result
 !
 ! Destroys:
+!	T bit
 !
-! (none)
 !
+! GLOBAL(lshrsi3_r0)
+!
+! Entry:
+!	r4: Value to shift
+!	r0: Shift count
+!
+! Exit:
+!	r0: Result
+!
+! Destroys:
+!	T bit
+
 	.global	GLOBAL(lshrsi3)
+	.global	GLOBAL(lshrsi3_r0)
 	HIDDEN_FUNC(GLOBAL(lshrsi3))
-	.align	2
+	HIDDEN_FUNC(GLOBAL(lshrsi3_r0))
 GLOBAL(lshrsi3):
-	mov	#31,r0
-	and	r0,r5
-	mova	LOCAL(lshrsi3_table),r0
-	mov.b	@(r0,r5),r5
-#ifdef __sh1__
-	add	r5,r0
-	jmp	@r0
-#else
-	braf	r5
-#endif
-	mov	r4,r0
-
+	mov	r5,r0
 	.align	2
+GLOBAL(lshrsi3_r0):
+
+#ifdef __sh1__
+	and	#31,r0
+	shll2	r0
+	mov.l	r4,@-r15
+	mov	r0,r4
+	mova	LOCAL(lshrsi3_table),r0
+	add	r4,r0
+	mov.l	@r15+,r4
+	jmp	@r0
+	mov	r4,r0
+	.align 2
+#else
+	and	#31,r0
+	shll2	r0
+	braf	r0
+	mov	r4,r0
+#endif
 LOCAL(lshrsi3_table):
-	.byte		LOCAL(lshrsi3_0)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_1)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_2)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_3)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_4)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_5)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_6)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_7)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_8)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_9)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_10)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_11)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_12)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_13)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_14)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_15)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_16)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_17)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_18)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_19)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_20)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_21)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_22)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_23)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_24)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_25)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_26)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_27)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_28)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_29)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_30)-LOCAL(lshrsi3_table)
-	.byte		LOCAL(lshrsi3_31)-LOCAL(lshrsi3_table)
-
-LOCAL(lshrsi3_6):
-	shlr2	r0
-LOCAL(lshrsi3_4):
-	shlr2	r0
-LOCAL(lshrsi3_2):
-	rts
-	shlr2	r0
-
-LOCAL(lshrsi3_7):
-	shlr2	r0
-LOCAL(lshrsi3_5):
-	shlr2	r0
-LOCAL(lshrsi3_3):
-	shlr2	r0
-LOCAL(lshrsi3_1):
-	rts
-	shlr	r0
-
-LOCAL(lshrsi3_14):
-	shlr2	r0
-LOCAL(lshrsi3_12):
-	shlr2	r0
-LOCAL(lshrsi3_10):
-	shlr2	r0
-LOCAL(lshrsi3_8):
-	rts
-	shlr8	r0
-
-LOCAL(lshrsi3_15):
-	shlr2	r0
-LOCAL(lshrsi3_13):
-	shlr2	r0
-LOCAL(lshrsi3_11):
-	shlr2	r0
-LOCAL(lshrsi3_9):
-	shlr8	r0
-	rts
-	shlr	r0
-
-LOCAL(lshrsi3_22):
-	shlr2	r0
-LOCAL(lshrsi3_20):
-	shlr2	r0
-LOCAL(lshrsi3_18):
-	shlr2	r0
-LOCAL(lshrsi3_16):
-	rts
-	shlr16	r0
-
-LOCAL(lshrsi3_23):
-	shlr2	r0
-LOCAL(lshrsi3_21):
-	shlr2	r0
-LOCAL(lshrsi3_19):
-	shlr2	r0
-LOCAL(lshrsi3_17):
-	shlr16	r0
-	rts
-	shlr	r0
-
-LOCAL(lshrsi3_30):
-	shlr2	r0
-LOCAL(lshrsi3_28):
-	shlr2	r0
-LOCAL(lshrsi3_26):
-	shlr2	r0
-LOCAL(lshrsi3_24):
-	shlr16	r0
-	rts
-	shlr8	r0
-
-LOCAL(lshrsi3_31):
-	shlr2	r0
-LOCAL(lshrsi3_29):
-	shlr2	r0
-LOCAL(lshrsi3_27):
-	shlr2	r0
-LOCAL(lshrsi3_25):
-	shlr16	r0
-	shlr8	r0
-	rts
-	shlr	r0
-
-LOCAL(lshrsi3_0):
-	rts
+	rts				// >> 0
 	nop
+LOCAL(lshrsi_1):			// >> 1
+	rts
+	shlr	r0
+LOCAL(lshrsi_2):			// >> 2
+	rts
+	shlr2	r0
+	bra	LOCAL(lshrsi_1)		// >> 3
+	shlr2	r0
+	bra	LOCAL(lshrsi_2)		// >> 4
+	shlr2	r0
+	bra	LOCAL(lshrsi_5)		// >> 5
+	shlr	r0
+	bra	LOCAL(lshrsi_6)		// >> 6
+	shlr2	r0
+	bra	LOCAL(lshrsi_7)		// >> 7
+	shlr	r0
+LOCAL(lshrsi_8):			// >> 8
+	rts
+	shlr8	r0
+	bra	LOCAL(lshrsi_8)		// >> 9
+	shlr	r0
+	bra	LOCAL(lshrsi_8)		// >> 10
+	shlr2	r0
+	bra	LOCAL(lshrsi_11)	// >> 11
+	shlr	r0
+	bra	LOCAL(lshrsi_12)	// >> 12
+	shlr2	r0
+	bra	LOCAL(lshrsi_13)	// >> 13
+	shlr	r0
+	bra	LOCAL(lshrsi_14)	// >> 14
+	shlr8	r0
+	bra	LOCAL(lshrsi_15)	// >> 15
+	shlr8	r0
+LOCAL(lshrsi_16):			// >> 16
+	rts
+	shlr16	r0
+	bra	LOCAL(lshrsi_16)	// >> 17
+	shlr	r0
+	bra	LOCAL(lshrsi_16)	// >> 18
+	shlr2	r0
+	bra	LOCAL(lshrsi_19)	// >> 19
+	shlr	r0
+	bra	LOCAL(lshrsi_20)	// >> 20
+	shlr2	r0
+	bra	LOCAL(lshrsi_21)	// >> 21
+	shlr	r0
+	bra	LOCAL(lshrsi_22)	// >> 22
+	shlr16	r0
+	bra	LOCAL(lshrsi_23)	// >> 23
+	shlr16	r0
+	bra	LOCAL(lshrsi_16)	// >> 24
+	shlr8	r0
+	bra	LOCAL(lshrsi_25)	// >> 25
+	shlr	r0
+	bra	LOCAL(lshrsi_26)	// >> 26
+	shlr2	r0
+	bra	LOCAL(lshrsi_27)	// >> 27
+	shlr	r0
+	bra	LOCAL(lshrsi_28)	// >> 28
+	shlr2	r0
+	bra	LOCAL(lshrsi_29)	// >> 29
+	shlr16	r0
+	bra	LOCAL(lshrsi_30)	// >> 30
+	shlr16	r0
+	shll	r0			// >> 31
+	rts
+	movt	r0
+
+LOCAL(lshrsi_7):
+	shlr2	r0
+LOCAL(lshrsi_5):
+LOCAL(lshrsi_6):
+	shlr2	r0
+	rts
+LOCAL(lshrsi_13):
+	shlr2	r0
+LOCAL(lshrsi_12):
+LOCAL(lshrsi_11):
+	shlr8	r0
+	rts
+LOCAL(lshrsi_21):
+	shlr2	r0
+LOCAL(lshrsi_20):
+LOCAL(lshrsi_19):
+	shlr16	r0
+	rts
+LOCAL(lshrsi_28):
+LOCAL(lshrsi_27):
+	shlr2	r0
+LOCAL(lshrsi_26):
+LOCAL(lshrsi_25):
+	shlr16	r0
+	rts
+	shlr8	r0
+
+LOCAL(lshrsi_22):
+LOCAL(lshrsi_14):
+	shll2	r0
+	rts
+	shlr8	r0
+
+LOCAL(lshrsi_23):
+LOCAL(lshrsi_15):
+	shll	r0
+	rts
+	shlr8	r0
+
+LOCAL(lshrsi_29):
+	shll	r0
+LOCAL(lshrsi_30):
+	shll2	r0
+	rts
+	shlr16	r0	
 
 	ENDFUNC(GLOBAL(lshrsi3))
+	ENDFUNC(GLOBAL(lshrsi3_r0))
 #endif
 
 #ifdef L_movmem
@@ -970,11 +1003,17 @@ hiset:	sts	macl,r0		! r0 = bb*dd
 	ENDFUNC(GLOBAL(mulsi3))
 #endif
 #endif /* ! __SH5__ */
+
+/*------------------------------------------------------------------------------
+  32 bit signed integer division that uses FPU double precision division.  */
+
 #ifdef L_sdivsi3_i4
 	.title "SH DIVIDE"
-!! 4 byte integer Divide code for the Renesas SH
-#ifdef __SH4__
-!! args in r4 and r5, result in fpul, clobber dr0, dr2
+
+#if defined (__SH4__) || defined (__SH2A__)
+/* This variant is used when FPSCR.PR = 1 (double precision) is the default
+   setting.
+   Args in r4 and r5, result in fpul, clobber dr0, dr2.  */
 
 	.global	GLOBAL(sdivsi3_i4)
 	HIDDEN_FUNC(GLOBAL(sdivsi3_i4))
@@ -988,8 +1027,13 @@ GLOBAL(sdivsi3_i4):
 	ftrc dr0,fpul
 
 	ENDFUNC(GLOBAL(sdivsi3_i4))
-#elif defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__) || (defined (__SH5__) && ! defined __SH4_NOFPU__)
-!! args in r4 and r5, result in fpul, clobber r2, dr0, dr2
+
+#elif defined (__SH2A_SINGLE__) || defined (__SH2A_SINGLE_ONLY__) || defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__) || (defined (__SH5__) && ! defined __SH4_NOFPU__)
+/* This variant is used when FPSCR.PR = 0 (sigle precision) is the default
+   setting.
+   Args in r4 and r5, result in fpul, clobber r2, dr0, dr2.
+   For this to work, we must temporarily switch the FPU do double precision,
+   but we better do not touch FPSCR.FR.  See PR 6526.  */
 
 #if ! __SH5__ || __SH5__ == 32
 #if __SH5__
@@ -998,28 +1042,46 @@ GLOBAL(sdivsi3_i4):
 	.global	GLOBAL(sdivsi3_i4)
 	HIDDEN_FUNC(GLOBAL(sdivsi3_i4))
 GLOBAL(sdivsi3_i4):
-	sts.l fpscr,@-r15
-	mov #8,r2
-	swap.w r2,r2
-	lds r2,fpscr
-	lds r4,fpul
-	float fpul,dr0
-	lds r5,fpul
-	float fpul,dr2
-	fdiv dr2,dr0
-	ftrc dr0,fpul
+
+#ifndef __SH4A__
+	mov.l	r3,@-r15
+	sts	fpscr,r2
+	mov	#8,r3
+	swap.w	r3,r3		// r3 = 1 << 19 (FPSCR.PR bit)
+	or	r2,r3
+	lds	r3,fpscr	// Set FPSCR.PR = 1.
+	lds	r4,fpul
+	float	fpul,dr0
+	lds	r5,fpul
+	float	fpul,dr2
+	fdiv	dr2,dr0
+	ftrc	dr0,fpul
+	lds	r2,fpscr
 	rts
-	lds.l @r15+,fpscr
+	mov.l	@r15+,r3
+#else
+/* On SH4A we can use the fpchg instruction to flip the FPSCR.PR bit.  */
+	fpchg
+	lds	r4,fpul
+	float	fpul,dr0
+	lds	r5,fpul
+	float	fpul,dr2
+	fdiv	dr2,dr0
+	ftrc	dr0,fpul
+	rts
+	fpchg	
+
+#endif /* __SH4A__  */
 
 	ENDFUNC(GLOBAL(sdivsi3_i4))
 #endif /* ! __SH5__ || __SH5__ == 32 */
-#endif /* ! __SH4__ */
-#endif
+#endif /* ! __SH4__ || __SH2A__  */
+#endif /* L_sdivsi3_i4  */
 
+//------------------------------------------------------------------------------
 #ifdef L_sdivsi3
 /* __SH4_SINGLE_ONLY__ keeps this part for link compatibility with
    sh2e/sh3e code.  */
-#if (! defined(__SH4__) && ! defined (__SH4_SINGLE__)) || defined (__linux__)
 !!
 !! Steve Chamberlain
 !! sac@cygnus.com
@@ -1335,56 +1397,61 @@ div0:	rts
 	mov	#0,r0
 
 	ENDFUNC(GLOBAL(sdivsi3))
-#endif /* ! __SHMEDIA__ */
-#endif /* ! __SH4__ */
-#endif
-#ifdef L_udivsi3_i4
+#endif /* ! __SHMEDIA__  */
+#endif /* L_sdivsi3  */
 
+/*------------------------------------------------------------------------------
+  32 bit unsigned integer division that uses FPU double precision division.  */
+
+#ifdef L_udivsi3_i4
 	.title "SH DIVIDE"
-!! 4 byte integer Divide code for the Renesas SH
-#ifdef __SH4__
-!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4,
-!! and t bit
+
+#if defined (__SH4__) || defined (__SH2A__)
+/* This variant is used when FPSCR.PR = 1 (double precision) is the default
+   setting.
+   Args in r4 and r5, result in fpul,
+   clobber r0, r1, r4, r5, dr0, dr2, dr4, and t bit  */
 
 	.global	GLOBAL(udivsi3_i4)
 	HIDDEN_FUNC(GLOBAL(udivsi3_i4))
 GLOBAL(udivsi3_i4):
-	mov #1,r1
-	cmp/hi r1,r5
-	bf trivial
-	rotr r1
-	xor r1,r4
-	lds r4,fpul
-	mova L1,r0
+	mov	#1,r1
+	cmp/hi	r1,r5
+	bf/s	trivial
+	rotr	r1
+	xor	r1,r4
+	lds	r4,fpul
+	mova	L1,r0
 #ifdef FMOVD_WORKS
-	fmov.d @r0+,dr4
+	fmov.d	@r0+,dr4
 #else
-	fmov.s @r0+,DR40
-	fmov.s @r0,DR41
+	fmov.s	@r0+,DR40
+	fmov.s	@r0,DR41
 #endif
-	float fpul,dr0
-	xor r1,r5
-	lds r5,fpul
-	float fpul,dr2
-	fadd dr4,dr0
-	fadd dr4,dr2
-	fdiv dr2,dr0
+	float	fpul,dr0
+	xor	r1,r5
+	lds	r5,fpul
+	float	fpul,dr2
+	fadd	dr4,dr0
+	fadd	dr4,dr2
+	fdiv	dr2,dr0
 	rts
-	ftrc dr0,fpul
+	ftrc	dr0,fpul
 
 trivial:
 	rts
-	lds r4,fpul
+	lds	r4,fpul
 
 	.align 2
 #ifdef FMOVD_WORKS
-	.align 3	! make double below 8 byte aligned.
+	.align 3	// Make the double below 8 byte aligned.
 #endif
 L1:
 	.double 2147483648
 
 	ENDFUNC(GLOBAL(udivsi3_i4))
-#elif defined (__SH5__) && ! defined (__SH4_NOFPU__)
+
+#elif defined (__SH5__) && ! defined (__SH4_NOFPU__) && ! defined (__SH2A_NOFPU__)
 #if ! __SH5__ || __SH5__ == 32
 !! args in r4 and r5, result in fpul, clobber r20, r21, dr0, fr33
 	.mode	SHmedia
@@ -1405,62 +1472,110 @@ GLOBAL(udivsi3_i4):
 
 	ENDFUNC(GLOBAL(udivsi3_i4))
 #endif /* ! __SH5__ || __SH5__ == 32 */
-#elif defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__)
-!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4
+
+#elif defined (__SH2A_SINGLE__) || defined (__SH2A_SINGLE_ONLY__) || defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__)
+/* This variant is used when FPSCR.PR = 0 (sigle precision) is the default
+   setting.
+   Args in r4 and r5, result in fpul,
+   clobber r0, r1, r4, r5, dr0, dr2, dr4.
+   For this to work, we must temporarily switch the FPU do double precision,
+   but we better do not touch FPSCR.FR.  See PR 6526.  */
 
 	.global	GLOBAL(udivsi3_i4)
 	HIDDEN_FUNC(GLOBAL(udivsi3_i4))
 GLOBAL(udivsi3_i4):
-	mov #1,r1
-	cmp/hi r1,r5
-	bf trivial
-	sts.l fpscr,@-r15
-	mova L1,r0
-	lds.l @r0+,fpscr
-	rotr r1
-	xor r1,r4
-	lds r4,fpul
+
+#ifndef __SH4A__
+	mov	#1,r1
+	cmp/hi	r1,r5
+	bf/s	trivial
+	rotr	r1		// r1 = 1 << 31
+	sts.l	fpscr,@-r15
+	xor	r1,r4
+	mov.l	@(0,r15),r0
+	xor	r1,r5
+	mov.l	L2,r1
+	lds	r4,fpul
+	or	r0,r1
+	mova	L1,r0
+	lds	r1,fpscr
 #ifdef FMOVD_WORKS
-	fmov.d @r0+,dr4
+	fmov.d	@r0+,dr4
 #else
-	fmov.s @r0+,DR40
-	fmov.s @r0,DR41
+	fmov.s	@r0+,DR40
+	fmov.s	@r0,DR41
 #endif
-	float fpul,dr0
-	xor r1,r5
-	lds r5,fpul
-	float fpul,dr2
-	fadd dr4,dr0
-	fadd dr4,dr2
-	fdiv dr2,dr0
-	ftrc dr0,fpul
+	float	fpul,dr0
+	lds	r5,fpul
+	float	fpul,dr2
+	fadd	dr4,dr0
+	fadd	dr4,dr2
+	fdiv	dr2,dr0
+	ftrc	dr0,fpul
 	rts
-	lds.l @r15+,fpscr
+	lds.l	@r15+,fpscr
 
 #ifdef FMOVD_WORKS
-	.align 3	! make double below 8 byte aligned.
+	.align 3	// Make the double below 8 byte aligned.
 #endif
 trivial:
 	rts
-	lds r4,fpul
+	lds	r4,fpul
+
+	.align 2
+L2:
+#ifdef FMOVD_WORKS
+	.long 0x180000	// FPSCR.PR = 1, FPSCR.SZ = 1
+#else
+	.long 0x80000	// FPSCR.PR = 1
+#endif
+L1:
+	.double 2147483648
+
+#else
+/* On SH4A we can use the fpchg instruction to flip the FPSCR.PR bit.
+   Although on SH4A fmovd usually works, it would require either additional
+   two fschg instructions or an FPSCR push + pop.  It's not worth the effort
+   for loading only one double constant.  */
+	mov	#1,r1
+	cmp/hi	r1,r5
+	bf/s	trivial
+	rotr	r1		// r1 = 1 << 31
+	fpchg
+	mova	L1,r0
+	xor	r1,r4
+	fmov.s	@r0+,DR40
+	lds	r4,fpul
+	fmov.s	@r0,DR41
+	xor	r1,r5
+	float	fpul,dr0
+	lds	r5,fpul
+	float	fpul,dr2
+	fadd	dr4,dr0
+	fadd	dr4,dr2
+	fdiv	dr2,dr0
+	ftrc	dr0,fpul
+	rts
+	fpchg
+
+trivial:
+	rts
+	lds	r4,fpul
 
 	.align 2
 L1:
-#ifndef FMOVD_WORKS
-	.long 0x80000
-#else
-	.long 0x180000
-#endif
 	.double 2147483648
+
+#endif /* __SH4A__  */
+
 
 	ENDFUNC(GLOBAL(udivsi3_i4))
 #endif /* ! __SH4__ */
-#endif
+#endif /* L_udivsi3_i4  */
 
 #ifdef L_udivsi3
 /* __SH4_SINGLE_ONLY__ keeps this part for link compatibility with
    sh2e/sh3e code.  */
-#if (! defined(__SH4__) && ! defined (__SH4_SINGLE__)) || defined (__linux__)
 
 !! args in r4 and r5, result in r0, clobbers r4, pr, and t bit
 	.global	GLOBAL(udivsi3)
@@ -1655,7 +1770,6 @@ LOCAL(large_divisor):
 
 	ENDFUNC(GLOBAL(udivsi3))
 #endif /* ! __SHMEDIA__ */
-#endif /* __SH4__ */
 #endif /* L_udivsi3 */
 
 #ifdef L_udivdi3
@@ -3255,8 +3369,8 @@ GLOBAL(div_table):
 	.word	17136
 	.word	16639
 
-#elif defined (__SH3__) || defined (__SH3E__) || defined (__SH4__) || defined (__SH4_SINGLE__) || defined (__SH4_SINGLE_ONLY__) || defined (__SH4_NOFPU__)
-/* This code used shld, thus is not suitable for SH1 / SH2.  */
+#elif defined (__SH2A__) || defined (__SH3__) || defined (__SH3E__) || defined (__SH4__) || defined (__SH4_SINGLE__) || defined (__SH4_SINGLE_ONLY__) || defined (__SH4_NOFPU__)
+/* This code uses shld, thus is not suitable for SH1 / SH2.  */
 
 /* Signed / unsigned division without use of FPU, optimized for SH4.
    Uses a lookup table for divisors in the range -128 .. +128, and

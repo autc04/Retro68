@@ -1,6 +1,5 @@
 /* Definitions of target machine GNU compiler.  IA-64 version.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Steve Ellcey <sje@cup.hp.com> and
                   Reva Cuthbertson <reva@cup.hp.com>
 
@@ -93,7 +92,7 @@ do {							\
 #undef  LIB_SPEC
 #define LIB_SPEC \
   "%{!shared: \
-     %{mt|pthread:%{fopenmp:-lrt} -lpthread} \
+     %{mt|pthread:%{fopenmp|ftree-parallelize-loops=*:-lrt} -lpthread} \
      %{p:%{!mlp64:-L/usr/lib/hpux32/libp} \
 	 %{mlp64:-L/usr/lib/hpux64/libp} -lprof} \
      %{pg:%{!mlp64:-L/usr/lib/hpux32/libp} \
@@ -114,9 +113,6 @@ do {							\
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT \
   (MASK_DWARF2_ASM | MASK_BIG_ENDIAN | MASK_ILP32)
-
-/* ??? Might not be needed anymore.  */
-#define MEMBER_TYPE_FORCES_BLK(FIELD, MODE) ((MODE) == TFmode)
 
 /* ASM_OUTPUT_EXTERNAL_LIBCALL defaults to just a globalize_label call,
    but that doesn't put out the @function type information which causes
@@ -183,9 +179,10 @@ do {								\
 #undef  TARGET_ASM_RELOC_RW_MASK
 #define TARGET_ASM_RELOC_RW_MASK  ia64_hpux_reloc_rw_mask
 
-/* ia64 HPUX has the float and long double forms of math functions.  */
-#undef TARGET_C99_FUNCTIONS
-#define TARGET_C99_FUNCTIONS  1
+/* ia64 HPUX has the float and long double forms of math functions.
+   We redefine this hook so the version from elfos.h header won't be used.  */
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION default_libc_has_function
 
 #undef TARGET_INIT_LIBFUNCS
 #define TARGET_INIT_LIBFUNCS ia64_hpux_init_libfuncs
@@ -228,3 +225,10 @@ do {								\
 #define TARGET_ASM_FUNCTION_SECTION ia64_hpux_function_section
 
 #define TARGET_POSIX_IO
+
+/* Define this to be nonzero if static stack checking is supported.  */
+#define STACK_CHECK_STATIC_BUILTIN 1
+
+/* Minimum amount of stack required to recover from an anticipated stack
+   overflow detection.  */
+#define STACK_CHECK_PROTECT (24 * 1024)

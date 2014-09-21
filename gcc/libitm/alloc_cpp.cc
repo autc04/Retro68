@@ -1,4 +1,4 @@
-/* Copyright (C) 2009, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2014 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Transactional Memory Library (libitm).
@@ -60,7 +60,7 @@ extern void _ZdlPvRKSt9nothrow_t (void *, c_nothrow_p) __attribute__((weak));
 extern void *_ZnaXRKSt9nothrow_t (size_t, c_nothrow_p) __attribute__((weak));
 extern void _ZdaPvRKSt9nothrow_t (void *, c_nothrow_p) __attribute__((weak));
 
-#if !defined (HAVE_ELF_STYLE_WEAKREF) && !defined (__MACH__)
+#if !defined (HAVE_ELF_STYLE_WEAKREF) 
 void *_ZnwX (size_t) { return NULL; }
 void _ZdlPv (void *) { return; }
 void *_ZnaX (size_t) { return NULL; }

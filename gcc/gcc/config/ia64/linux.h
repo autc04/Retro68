@@ -1,7 +1,6 @@
 /* Definitions for ia64-linux target.
 
-Copyright (C) 2000, 2001, 2002, 2003, 2004, 2006,
-2009, 2010, 2011 Free Software Foundation, Inc.
+Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -86,3 +85,6 @@ do {						\
 
 #undef TARGET_INIT_LIBFUNCS
 #define TARGET_INIT_LIBFUNCS ia64_soft_fp_init_libfuncs
+
+/* Define this to be nonzero if static stack checking is supported.  */
+#define STACK_CHECK_STATIC_BUILTIN 1

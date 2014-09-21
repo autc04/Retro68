@@ -1,4 +1,4 @@
-# Copyright (C) 2011 Free Software Foundation, Inc.
+# Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,11 @@
 load_lib gcc-dg.exp
 load_lib gcc-simulate-thread.exp
 load_lib torture-options.exp
+
+if { [istarget "powerpc-ibm-aix*"] } {
+    set torture_execute_xfail "powerpc-ibm-aix*"
+    return
+}
 
 dg-init
 torture-init

@@ -7,12 +7,8 @@
   <indexterm><primary>Numerics</primary></indexterm>
 </title>
   <keywordset>
-    <keyword>
-      ISO C++
-    </keyword>
-    <keyword>
-      library
-    </keyword>
+    <keyword>ISO C++</keyword>
+    <keyword>library</keyword>
   </keywordset>
 </info>
 
@@ -44,6 +40,11 @@
       prints <code>(u,v)</code> and <code>op&gt;&gt;</code> can read <code>u</code>,
       <code>(u)</code>, and <code>(u,v)</code>.
    </para>
+   <para>As an extension to C++11 and for increased compatibility with C,
+      <code>&lt;complex.h&gt;</code> includes both <code>&lt;complex&gt;</code>
+      and the C99 <code>&lt;complex.h&gt;</code> (if the C library provides
+      it).
+   </para>
 
   </section>
 </section>
@@ -64,7 +65,7 @@
    <itemizedlist>
       <listitem><para><code>accumulate</code></para></listitem>
       <listitem><para><code>inner_product</code></para></listitem>
-      <listitem><para><code>chapterial_sum</code></para></listitem>
+      <listitem><para><code>partial_sum</code></para></listitem>
       <listitem><para><code>adjacent_difference</code></para></listitem>
    </itemizedlist>
    <para>Here is a simple example of the two forms of <code>accumulate</code>.

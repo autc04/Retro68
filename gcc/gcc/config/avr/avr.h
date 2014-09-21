@@ -1,8 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for ATMEL AVR at90s8515, ATmega103/103L, ATmega603/603L microcontrollers.
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 
-   2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by Denis Chertykov (chertykov@gmail.com)
 
 This file is part of GCC.
@@ -21,125 +19,6 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-/* Names to predefine in the preprocessor for this target machine.  */
-
-struct base_arch_s
-{
-  /* Assembler only.  */
-  int asm_only;
-
-  /* Core have 'MUL*' instructions.  */
-  int have_mul;
-
-  /* Core have 'CALL' and 'JMP' instructions.  */
-  int have_jmp_call;
-
-  /* Core have 'MOVW' and 'LPM Rx,Z' instructions.  */
-  int have_movw_lpmx;
-
-  /* Core have 'ELPM' instructions.  */
-  int have_elpm;
-
-  /* Core have 'ELPM Rx,Z' instructions.  */
-  int have_elpmx;
-
-  /* Core have 'EICALL' and 'EIJMP' instructions.  */
-  int have_eijmp_eicall;
-
-  /* This is an XMEGA core.  */
-  int xmega_p;
-
-  /* This core has the RAMPD special function register
-     and thus also the RAMPX, RAMPY and RAMPZ registers.  */
-  int have_rampd;
-  
-  /* Default start of data section address for architecture.  */
-  int default_data_section_start;
-
-  /* Offset between SFR address and RAM address:
-     SFR-address = RAM-address - sfr_offset  */
-  int sfr_offset;
-
-  /* Architecture id to built-in define __AVR_ARCH__ (NULL -> no macro) */
-  const char *const macro;
-  
-  /* Architecture name.  */
-  const char *const arch_name;  
-};
-
-/* These names are used as the index into the avr_arch_types[] table 
-   above.  */
-
-enum avr_arch
-{
-  ARCH_UNKNOWN,
-  ARCH_AVR1,
-  ARCH_AVR2,
-  ARCH_AVR25,
-  ARCH_AVR3,
-  ARCH_AVR31,
-  ARCH_AVR35,
-  ARCH_AVR4,
-  ARCH_AVR5,
-  ARCH_AVR51,
-  ARCH_AVR6,
-  ARCH_AVRXMEGA2,
-  ARCH_AVRXMEGA4,
-  ARCH_AVRXMEGA5,
-  ARCH_AVRXMEGA6,
-  ARCH_AVRXMEGA7
-};
-
-struct mcu_type_s {
-  /* Device name.  */
-  const char *const name;
-  
-  /* Index in avr_arch_types[].  */
-  int arch; 
-  
-  /* Must lie outside user's namespace.  NULL == no macro.  */
-  const char *const macro;
-  
-  /* Stack pointer have 8 bits width.  */
-  int short_sp;
-  
-  /* Some AVR devices have a core erratum when skipping a 2-word instruction.
-     Skip instructions are:  SBRC, SBRS, SBIC, SBIS, CPSE.
-     Problems will occur with return address is IRQ executes during the
-     skip sequence.
-
-     A support ticket from Atmel returned the following information:
-
-         Subject: (ATTicket:644469) On AVR skip-bug core Erratum
-         From: avr@atmel.com                    Date: 2011-07-27
-         (Please keep the subject when replying to this mail)
-
-         This errata exists only in AT90S8515 and ATmega103 devices.
-
-         For information please refer the following respective errata links
-            http://www.atmel.com/dyn/resources/prod_documents/doc2494.pdf
-            http://www.atmel.com/dyn/resources/prod_documents/doc1436.pdf  */
-
-  /* Core Erratum:  Must not skip 2-word instruction.  */
-  int errata_skip;
-  
-  /* Start of data section.  */
-  int data_section_start;
-  
-  /* Number of 64k segments in the flash.  */
-  int n_flash;
-
-  /* Name of device library.  */
-  const char *const library_name; 
-};
-
-/* Preprocessor macros to define depending on MCU type.  */
-extern const char *avr_extra_arch_macro;
-extern const struct base_arch_s *avr_current_arch;
-extern const struct mcu_type_s *avr_current_device;
-extern const struct mcu_type_s avr_mcu_types[];
-extern const struct base_arch_s avr_arch_types[];
-
 typedef struct
 {
   /* Id of the address space as used in c_register_addr_space */
@@ -156,6 +35,9 @@ typedef struct
 
   /* Segment (i.e. 64k memory chunk) number.  */
   int segment;
+
+  /* Section prefix, e.g. ".progmem1.data"  */
+  const char *section_name;
 } avr_addrspace_t;
 
 extern const avr_addrspace_t avr_addrspace[];
@@ -164,19 +46,21 @@ extern const avr_addrspace_t avr_addrspace[];
 
 enum
   {
-    ADDR_SPACE_RAM,
+    ADDR_SPACE_RAM, /* ADDR_SPACE_GENERIC */
     ADDR_SPACE_FLASH,
     ADDR_SPACE_FLASH1,
     ADDR_SPACE_FLASH2,
     ADDR_SPACE_FLASH3,
     ADDR_SPACE_FLASH4,
     ADDR_SPACE_FLASH5,
-    ADDR_SPACE_MEMX
+    ADDR_SPACE_MEMX,
+    /* Sentinel */
+    ADDR_SPACE_COUNT
   };
 
 #define TARGET_CPU_CPP_BUILTINS()	avr_cpu_cpp_builtins (pfile)
 
-#define AVR_HAVE_JMP_CALL (avr_current_arch->have_jmp_call && !TARGET_SHORT_CALLS)
+#define AVR_HAVE_JMP_CALL (avr_current_arch->have_jmp_call)
 #define AVR_HAVE_MUL (avr_current_arch->have_mul)
 #define AVR_HAVE_MOVW (avr_current_arch->have_movw_lpmx)
 #define AVR_HAVE_LPMX (avr_current_arch->have_movw_lpmx)
@@ -188,7 +72,27 @@ enum
 #define AVR_HAVE_RAMPZ (avr_current_arch->have_elpm             \
                         || avr_current_arch->have_rampd)
 #define AVR_HAVE_EIJMP_EICALL (avr_current_arch->have_eijmp_eicall)
-#define AVR_HAVE_8BIT_SP (avr_current_device->short_sp || TARGET_TINY_STACK)
+
+/* Handling of 8-bit SP versus 16-bit SP is as follows:
+
+   -msp8 is used internally to select the right multilib for targets with
+   8-bit SP.  -msp8 is set automatically by DRIVER_SELF_SPECS for devices
+   with 8-bit SP or by multilib generation machinery.  If a frame pointer is
+   needed and SP is only 8 bits wide, SP is zero-extended to get FP.
+
+   TARGET_TINY_STACK is triggered by -mtiny-stack which is a user option.
+   This option has no effect on multilib selection.  It serves to save some
+   bytes on 16-bit SP devices by only changing SP_L and leaving SP_H alone.
+
+   These two properties are reflected by built-in macros __AVR_SP8__ resp.
+   __AVR_HAVE_8BIT_SP__ and __AVR_HAVE_16BIT_SP__.  During multilib generation
+   there is always __AVR_SP8__ == __AVR_HAVE_8BIT_SP__.  */
+
+#define AVR_HAVE_8BIT_SP                                 \
+  ((avr_current_device->dev_attribute & AVR_SHORT_SP) || \
+   TARGET_TINY_STACK || avr_sp8)
+
+#define AVR_HAVE_SPH (!avr_sp8)
 
 #define AVR_2_BYTE_PC (!AVR_HAVE_EIJMP_EICALL)
 #define AVR_3_BYTE_PC (AVR_HAVE_EIJMP_EICALL)
@@ -234,6 +138,7 @@ enum
 #define FLOAT_TYPE_SIZE 32
 #define DOUBLE_TYPE_SIZE 32
 #define LONG_DOUBLE_TYPE_SIZE 32
+#define LONG_LONG_ACCUM_TYPE_SIZE 64
 
 #define DEFAULT_SIGNED_CHAR 1
 
@@ -297,10 +202,11 @@ enum
     32,33,34,35					\
     }
 
-#define ADJUST_REG_ALLOC_ORDER order_regs_for_local_alloc ()
+#define ADJUST_REG_ALLOC_ORDER avr_adjust_reg_alloc_order()
 
 
-#define HARD_REGNO_NREGS(REGNO, MODE) ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
+#define HARD_REGNO_NREGS(REGNO, MODE)                                   \
+  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
 
 #define HARD_REGNO_MODE_OK(REGNO, MODE) avr_hard_regno_mode_ok(REGNO, MODE)
 
@@ -345,18 +251,18 @@ enum reg_class {
 #define REG_CLASS_CONTENTS {						\
   {0x00000000,0x00000000},	/* NO_REGS */				\
   {0x00000001,0x00000000},	/* R0_REG */                            \
-  {3 << REG_X,0x00000000},      /* POINTER_X_REGS, r26 - r27 */		\
-  {3 << REG_Y,0x00000000},      /* POINTER_Y_REGS, r28 - r29 */		\
-  {3 << REG_Z,0x00000000},      /* POINTER_Z_REGS, r30 - r31 */		\
+  {3u << REG_X,0x00000000},     /* POINTER_X_REGS, r26 - r27 */		\
+  {3u << REG_Y,0x00000000},     /* POINTER_Y_REGS, r28 - r29 */		\
+  {3u << REG_Z,0x00000000},     /* POINTER_Z_REGS, r30 - r31 */		\
   {0x00000000,0x00000003},	/* STACK_REG, STACK */			\
-  {(3 << REG_Y) | (3 << REG_Z),						\
+  {(3u << REG_Y) | (3u << REG_Z),					\
      0x00000000},		/* BASE_POINTER_REGS, r28 - r31 */	\
-  {(3 << REG_X) | (3 << REG_Y) | (3 << REG_Z),				\
+  {(3u << REG_X) | (3u << REG_Y) | (3u << REG_Z),			\
      0x00000000},		/* POINTER_REGS, r26 - r31 */		\
-  {(3 << REG_X) | (3 << REG_Y) | (3 << REG_Z) | (3 << REG_W),		\
+  {(3u << REG_X) | (3u << REG_Y) | (3u << REG_Z) | (3u << REG_W),	\
      0x00000000},		/* ADDW_REGS, r24 - r31 */		\
   {0x00ff0000,0x00000000},	/* SIMPLE_LD_REGS r16 - r23 */          \
-  {(3 << REG_X)|(3 << REG_Y)|(3 << REG_Z)|(3 << REG_W)|(0xff << 16),	\
+  {(3u << REG_X)|(3u << REG_Y)|(3u << REG_Z)|(3u << REG_W)|(0xffu << 16),\
      0x00000000},	/* LD_REGS, r16 - r31 */			\
   {0x0000ffff,0x00000000},	/* NO_LD_REGS  r0 - r15 */              \
   {0xffffffff,0x00000000},	/* GENERAL_REGS, r0 - r31 */		\
@@ -374,6 +280,9 @@ enum reg_class {
   avr_regno_mode_code_ok_for_base_p (num, mode, as, outer_code, index_code)
 
 #define REGNO_OK_FOR_INDEX_P(NUM) 0
+
+#define HARD_REGNO_CALL_PART_CLOBBERED(REGNO, MODE)     \
+  avr_hard_regno_call_part_clobbered (REGNO, MODE)
 
 #define TARGET_SMALL_REGISTER_CLASSES_FOR_MODE_P hook_bool_mode_true
 
@@ -398,6 +307,7 @@ enum reg_class {
 #define STATIC_CHAIN_REGNUM 2
 
 #define ELIMINABLE_REGS {					\
+      {ARG_POINTER_REGNUM, STACK_POINTER_REGNUM},		\
       {ARG_POINTER_REGNUM, FRAME_POINTER_REGNUM},		\
 	{FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM}		\
        ,{FRAME_POINTER_REGNUM+1,STACK_POINTER_REGNUM+1}}
@@ -411,15 +321,19 @@ enum reg_class {
    for POST_DEC targets (PR27386).  */
 /*#define PUSH_ROUNDING(NPUSHED) (NPUSHED)*/
 
-typedef struct avr_args {
-  int nregs;			/* # registers available for passing */
-  int regno;			/* next available register number */
+typedef struct avr_args
+{
+  /* # Registers available for passing */
+  int nregs;
+
+  /* Next available register number */
+  int regno;
 } CUMULATIVE_ARGS;
 
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, FNDECL, N_NAMED_ARGS) \
-  init_cumulative_args (&(CUM), FNTYPE, LIBNAME, FNDECL)
+  avr_init_cumulative_args (&(CUM), FNTYPE, LIBNAME, FNDECL)
 
-#define FUNCTION_ARG_REGNO_P(r) function_arg_regno_p(r)
+#define FUNCTION_ARG_REGNO_P(r) avr_function_arg_regno_p(r)
 
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
@@ -508,7 +422,8 @@ typedef struct avr_args {
     "r24","r25","r26","r27","r28","r29","r30","r31",	\
     "__SP_L__","__SP_H__","argL","argH"}
 
-#define FINAL_PRESCAN_INSN(insn, operand, nop) final_prescan_insn (insn, operand,nop)
+#define FINAL_PRESCAN_INSN(insn, operand, nop)  \
+  avr_final_prescan_insn (insn, operand,nop)
 
 #define ASM_OUTPUT_REG_PUSH(STREAM, REGNO)	\
 {						\
@@ -522,13 +437,13 @@ typedef struct avr_args {
   fprintf (STREAM, "\tpop\tr%d", REGNO);	\
 }
 
-#define ASM_OUTPUT_ADDR_VEC_ELT(STREAM, VALUE)		\
-  avr_output_addr_vec_elt(STREAM, VALUE)
+#define ASM_OUTPUT_ADDR_VEC_ELT(STREAM, VALUE)  \
+  avr_output_addr_vec_elt (STREAM, VALUE)
 
-#define ASM_OUTPUT_ALIGN(STREAM, POWER)			\
-  do {							\
-      if ((POWER) > 1)					\
-          fprintf (STREAM, "\t.p2align\t%d\n", POWER);	\
+#define ASM_OUTPUT_ALIGN(STREAM, POWER)                 \
+  do {                                                  \
+    if ((POWER) > 0)                                    \
+      fprintf (STREAM, "\t.p2align\t%d\n", POWER);      \
   } while (0)
 
 #define CASE_VECTOR_MODE HImode
@@ -552,7 +467,7 @@ typedef struct avr_args {
    after execution of an instruction whose pattern is EXP.
    Do not alter them if the instruction would not alter the cc's.  */
 
-#define NOTICE_UPDATE_CC(EXP, INSN) notice_update_cc(EXP, INSN)
+#define NOTICE_UPDATE_CC(EXP, INSN) avr_notice_update_cc (EXP, INSN)
 
 /* The add insns don't set overflow in a usable way.  */
 #define CC_OVERFLOW_UNUSABLE 01000
@@ -570,20 +485,25 @@ typedef struct avr_args {
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
   fprintf (FILE, "/* profiler %d */", (LABELNO))
 
-#define ADJUST_INSN_LENGTH(INSN, LENGTH) (LENGTH =\
-					  adjust_insn_length (INSN, LENGTH))
+#define ADJUST_INSN_LENGTH(INSN, LENGTH)                \
+    (LENGTH = avr_adjust_insn_length (INSN, LENGTH))
 
-extern const char *avr_device_to_arch (int argc, const char **argv);
+extern const char *avr_device_to_as (int argc, const char **argv);
+extern const char *avr_device_to_ld (int argc, const char **argv);
 extern const char *avr_device_to_data_start (int argc, const char **argv);
 extern const char *avr_device_to_startfiles (int argc, const char **argv);
 extern const char *avr_device_to_devicelib (int argc, const char **argv);
+extern const char *avr_device_to_sp8 (int argc, const char **argv);
 
-#define EXTRA_SPEC_FUNCTIONS \
-  { "device_to_arch", avr_device_to_arch }, \
+#define EXTRA_SPEC_FUNCTIONS                            \
+  { "device_to_as", avr_device_to_as },                 \
+  { "device_to_ld", avr_device_to_ld },                 \
   { "device_to_data_start", avr_device_to_data_start }, \
-  { "device_to_startfile", avr_device_to_startfiles }, \
-  { "device_to_devicelib", avr_device_to_devicelib },
+  { "device_to_startfile", avr_device_to_startfiles },  \
+  { "device_to_devicelib", avr_device_to_devicelib },   \
+  { "device_to_sp8", avr_device_to_sp8 },
 
+#define DRIVER_SELF_SPECS " %:device_to_sp8(%{mmcu=*:%*}) "
 #define CPP_SPEC ""
 
 #define CC1_SPEC ""
@@ -591,14 +511,9 @@ extern const char *avr_device_to_devicelib (int argc, const char **argv);
 #define CC1PLUS_SPEC "%{!frtti:-fno-rtti} \
     %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
     %{!fexceptions:-fno-exceptions}"
-/* A C string constant that tells the GCC driver program options to
-   pass to `cc1plus'.  */
 
-#define ASM_SPEC "%{mmcu=avr25:-mmcu=avr2;mmcu=avr35:-mmcu=avr3;mmcu=avr31:-mmcu=avr3;mmcu=avr51:-mmcu=avr5;\
-mmcu=*:-mmcu=%*} \
-%{mmcu=*:%{!mmcu=avr2:%{!mmcu=at90s8515:%{!mmcu=avr31:%{!mmcu=atmega103:\
--mno-skip-bug}}}}}"
-
+#define ASM_SPEC "%:device_to_as(%{mmcu=*:%*}) "
+  
 #define LINK_SPEC "\
 %{mrelax:--relax\
          %{mpmem-wrap-around:%{mmcu=at90usb8*:--pmem-wrap-around=8k}\
@@ -608,8 +523,9 @@ mmcu=*:-mmcu=%*} \
                              %{mmcu=atmega64*|\
                                mmcu=at90can64*|\
                                mmcu=at90usb64*:--pmem-wrap-around=64k}}}\
-%:device_to_arch(%{mmcu=*:%*})\
-%:device_to_data_start(%{mmcu=*:%*})"
+%:device_to_ld(%{mmcu=*:%*})\
+%:device_to_data_start(%{mmcu=*:%*})\
+%{shared:%eshared is not supported}"
 
 #define LIB_SPEC \
   "%{!mmcu=at90s1*:%{!mmcu=attiny11:%{!mmcu=attiny12:%{!mmcu=attiny15:%{!mmcu=attiny28: -lc }}}}}"
@@ -672,9 +588,13 @@ struct GTY(()) machine_function
 
   /* 'true' if a callee might be tail called */
   int sibcall_fails;
+
+  /* 'true' if the above is_foo predicates are sanity-checked to avoid
+     multiple diagnose for the same function.  */
+  int attributes_checked_p;
 };
 
-/* AVR does not round pushes, but the existance of this macro is
+/* AVR does not round pushes, but the existence of this macro is
    required in order for pushes to be generated.  */
 #define PUSH_ROUNDING(X)	(X)
 

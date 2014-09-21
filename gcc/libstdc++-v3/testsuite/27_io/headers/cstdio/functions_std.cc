@@ -1,6 +1,6 @@
 // { dg-do compile }
 
-// Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,8 +24,10 @@ namespace gnu
   using std::clearerr; 
   using std::tmpfile; 
   using std::fgets; 
-  using std::fscanf; 
-  using std::gets; 
+  using std::fscanf;
+#if __cplusplus <= 201103L
+  using std::gets;
+#endif
   using std::rename;
   using std::fclose; 
   using std::fopen; 

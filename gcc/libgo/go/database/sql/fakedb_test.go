@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -31,20 +32,24 @@ var _ = log.Printf
 //   INSERT|<tablename>|col=val,col2=val2,col3=?
 //   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
 //
-// When opening a a fakeDriver's database, it starts empty with no
+// When opening a fakeDriver's database, it starts empty with no
 // tables.  All tables and data are stored in memory only.
 type fakeDriver struct {
-	mu        sync.Mutex
-	openCount int
-	dbs       map[string]*fakeDB
+	mu         sync.Mutex // guards 3 following fields
+	openCount  int        // conn opens
+	closeCount int        // conn closes
+	waitCh     chan struct{}
+	waitingCh  chan struct{}
+	dbs        map[string]*fakeDB
 }
 
 type fakeDB struct {
 	name string
 
-	mu     sync.Mutex
-	free   []*fakeConn
-	tables map[string]*table
+	mu      sync.Mutex
+	free    []*fakeConn
+	tables  map[string]*table
+	badConn bool
 }
 
 type table struct {
@@ -82,6 +87,8 @@ type fakeConn struct {
 	mu          sync.Mutex
 	stmtsMade   int
 	stmtsClosed int
+	numPrepare  int
+	bad         bool
 }
 
 func (c *fakeConn) incrStat(v *int) {
@@ -121,7 +128,9 @@ func init() {
 
 // Supports dsn forms:
 //    <dbname>
-//    <dbname>;<opts>  (no currently supported options)
+//    <dbname>;<opts>  (only currently supported option is `badConn`,
+//                      which causes driver.ErrBadConn to be returned on
+//                      every other conn.Begin())
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	parts := strings.Split(dsn, ";")
 	if len(parts) < 1 {
@@ -134,7 +143,18 @@ func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	d.mu.Lock()
 	d.openCount++
 	d.mu.Unlock()
-	return &fakeConn{db: db}, nil
+	conn := &fakeConn{db: db}
+
+	if len(parts) >= 2 && parts[1] == "badConn" {
+		conn.bad = true
+	}
+	if d.waitCh != nil {
+		d.waitingCh <- struct{}{}
+		<-d.waitCh
+		d.waitCh = nil
+		d.waitingCh = nil
+	}
+	return conn, nil
 }
 
 func (d *fakeDriver) getDB(name string) *fakeDB {
@@ -198,7 +218,20 @@ func (db *fakeDB) columnType(table, column string) (typ string, ok bool) {
 	return "", false
 }
 
+func (c *fakeConn) isBad() bool {
+	// if not simulating bad conn, do nothing
+	if !c.bad {
+		return false
+	}
+	// alternate between bad conn and not bad conn
+	c.db.badConn = !c.db.badConn
+	return c.db.badConn
+}
+
 func (c *fakeConn) Begin() (driver.Tx, error) {
+	if c.isBad() {
+		return nil, driver.ErrBadConn
+	}
 	if c.currTx != nil {
 		return nil, errors.New("already in a transaction")
 	}
@@ -206,12 +239,51 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 	return c.currTx, nil
 }
 
-func (c *fakeConn) Close() error {
+var hookPostCloseConn struct {
+	sync.Mutex
+	fn func(*fakeConn, error)
+}
+
+func setHookpostCloseConn(fn func(*fakeConn, error)) {
+	hookPostCloseConn.Lock()
+	defer hookPostCloseConn.Unlock()
+	hookPostCloseConn.fn = fn
+}
+
+var testStrictClose *testing.T
+
+// setStrictFakeConnClose sets the t to Errorf on when fakeConn.Close
+// fails to close. If nil, the check is disabled.
+func setStrictFakeConnClose(t *testing.T) {
+	testStrictClose = t
+}
+
+func (c *fakeConn) Close() (err error) {
+	drv := fdriver.(*fakeDriver)
+	defer func() {
+		if err != nil && testStrictClose != nil {
+			testStrictClose.Errorf("failed to close a test fakeConn: %v", err)
+		}
+		hookPostCloseConn.Lock()
+		fn := hookPostCloseConn.fn
+		hookPostCloseConn.Unlock()
+		if fn != nil {
+			fn(c, err)
+		}
+		if err == nil {
+			drv.mu.Lock()
+			drv.closeCount++
+			drv.mu.Unlock()
+		}
+	}()
 	if c.currTx != nil {
-		return errors.New("can't close; in a Transaction")
+		return errors.New("can't close fakeConn; in a Transaction")
 	}
 	if c.db == nil {
-		return errors.New("can't close; already closed")
+		return errors.New("can't close fakeConn; already closed")
+	}
+	if c.stmtsMade > c.stmtsClosed {
+		return errors.New("can't close; dangling statement(s)")
 	}
 	c.db = nil
 	return nil
@@ -230,7 +302,19 @@ func checkSubsetTypes(args []driver.Value) error {
 
 func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	// This is an optional interface, but it's implemented here
-	// just to check that all the args of of the proper types.
+	// just to check that all the args are of the proper types.
+	// ErrSkip is returned so the caller acts as if we didn't
+	// implement this at all.
+	err := checkSubsetTypes(args)
+	if err != nil {
+		return nil, err
+	}
+	return nil, driver.ErrSkip
+}
+
+func (c *fakeConn) Query(query string, args []driver.Value) (driver.Rows, error) {
+	// This is an optional interface, but it's implemented here
+	// just to check that all the args are of the proper types.
 	// ErrSkip is returned so the caller acts as if we didn't
 	// implement this at all.
 	err := checkSubsetTypes(args)
@@ -245,10 +329,11 @@ func errf(msg string, args ...interface{}) error {
 }
 
 // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
-// (note that where where columns must always contain ? marks,
+// (note that where columns must always contain ? marks,
 //  just a limitation for fakedb)
 func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
 	if len(parts) != 3 {
+		stmt.Close()
 		return nil, errf("invalid SELECT syntax with %d parts; want 3", len(parts))
 	}
 	stmt.table = parts[0]
@@ -259,14 +344,17 @@ func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, e
 		}
 		nameVal := strings.Split(colspec, "=")
 		if len(nameVal) != 2 {
+			stmt.Close()
 			return nil, errf("SELECT on table %q has invalid column spec of %q (index %d)", stmt.table, colspec, n)
 		}
 		column, value := nameVal[0], nameVal[1]
 		_, ok := c.db.columnType(stmt.table, column)
 		if !ok {
+			stmt.Close()
 			return nil, errf("SELECT on table %q references non-existent column %q", stmt.table, column)
 		}
 		if value != "?" {
+			stmt.Close()
 			return nil, errf("SELECT on table %q has pre-bound value for where column %q; need a question mark",
 				stmt.table, column)
 		}
@@ -279,12 +367,14 @@ func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, e
 // parts are table|col=type,col2=type2
 func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
 	if len(parts) != 2 {
+		stmt.Close()
 		return nil, errf("invalid CREATE syntax with %d parts; want 2", len(parts))
 	}
 	stmt.table = parts[0]
 	for n, colspec := range strings.Split(parts[1], ",") {
 		nameType := strings.Split(colspec, "=")
 		if len(nameType) != 2 {
+			stmt.Close()
 			return nil, errf("CREATE table %q has invalid column spec of %q (index %d)", stmt.table, colspec, n)
 		}
 		stmt.colName = append(stmt.colName, nameType[0])
@@ -296,17 +386,20 @@ func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (driver.Stmt, e
 // parts are table|col=?,col2=val
 func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
 	if len(parts) != 2 {
+		stmt.Close()
 		return nil, errf("invalid INSERT syntax with %d parts; want 2", len(parts))
 	}
 	stmt.table = parts[0]
 	for n, colspec := range strings.Split(parts[1], ",") {
 		nameVal := strings.Split(colspec, "=")
 		if len(nameVal) != 2 {
+			stmt.Close()
 			return nil, errf("INSERT table %q has invalid column spec of %q (index %d)", stmt.table, colspec, n)
 		}
 		column, value := nameVal[0], nameVal[1]
 		ctype, ok := c.db.columnType(stmt.table, column)
 		if !ok {
+			stmt.Close()
 			return nil, errf("INSERT table %q references non-existent column %q", stmt.table, column)
 		}
 		stmt.colName = append(stmt.colName, column)
@@ -322,10 +415,12 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 			case "int32":
 				i, err := strconv.Atoi(value)
 				if err != nil {
+					stmt.Close()
 					return nil, errf("invalid conversion to int32 from %q", value)
 				}
 				subsetVal = int64(i) // int64 is a subset type, but not int32
 			default:
+				stmt.Close()
 				return nil, errf("unsupported conversion for pre-bound parameter %q to type %q", value, ctype)
 			}
 			stmt.colValue = append(stmt.colValue, subsetVal)
@@ -339,6 +434,7 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 }
 
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
+	c.numPrepare++
 	if c.db == nil {
 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
 	}
@@ -359,17 +455,31 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 		return c.prepareCreate(stmt, parts)
 	case "INSERT":
 		return c.prepareInsert(stmt, parts)
+	case "NOSERT":
+		// Do all the prep-work like for an INSERT but don't actually insert the row.
+		// Used for some of the concurrent tests.
+		return c.prepareInsert(stmt, parts)
 	default:
+		stmt.Close()
 		return nil, errf("unsupported command type %q", cmd)
 	}
 	return stmt, nil
 }
 
 func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
+	if len(s.placeholderConverter) == 0 {
+		return driver.DefaultParameterConverter
+	}
 	return s.placeholderConverter[idx]
 }
 
 func (s *fakeStmt) Close() error {
+	if s.c == nil {
+		panic("nil conn in fakeStmt.Close")
+	}
+	if s.c.db == nil {
+		panic("in fakeStmt.Close, conn's db is nil (already closed)")
+	}
 	if !s.closed {
 		s.c.incrStat(&s.c.stmtsClosed)
 		s.closed = true
@@ -399,13 +509,20 @@ func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 		}
 		return driver.ResultNoRows, nil
 	case "INSERT":
-		return s.execInsert(args)
+		return s.execInsert(args, true)
+	case "NOSERT":
+		// Do all the prep-work like for an INSERT but don't actually insert the row.
+		// Used for some of the concurrent tests.
+		return s.execInsert(args, false)
 	}
 	fmt.Printf("EXEC statement, cmd=%q: %#v\n", s.cmd, s)
 	return nil, fmt.Errorf("unimplemented statement Exec command type of %q", s.cmd)
 }
 
-func (s *fakeStmt) execInsert(args []driver.Value) (driver.Result, error) {
+// When doInsert is true, add the row to the table.
+// When doInsert is false do prep-work and error checking, but don't
+// actually add the row to the table.
+func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result, error) {
 	db := s.c.db
 	if len(args) != s.placeholders {
 		panic("error in pkg db; should only get here if size is correct")
@@ -420,7 +537,10 @@ func (s *fakeStmt) execInsert(args []driver.Value) (driver.Result, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	cols := make([]interface{}, len(t.colname))
+	var cols []interface{}
+	if doInsert {
+		cols = make([]interface{}, len(t.colname))
+	}
 	argPos := 0
 	for n, colname := range s.colName {
 		colidx := t.columnIndex(colname)
@@ -434,10 +554,14 @@ func (s *fakeStmt) execInsert(args []driver.Value) (driver.Result, error) {
 		} else {
 			val = s.colValue[n]
 		}
-		cols[colidx] = val
+		if doInsert {
+			cols[colidx] = val
+		}
 	}
 
-	t.rows = append(t.rows, &row{cols: cols})
+	if doInsert {
+		t.rows = append(t.rows, &row{cols: cols})
+	}
 	return driver.RowsAffected(1), nil
 }
 
@@ -461,6 +585,15 @@ func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 	if !ok {
 		return nil, fmt.Errorf("fakedb: table %q doesn't exist", s.table)
 	}
+
+	if s.table == "magicquery" {
+		if len(s.whereCol) == 2 && s.whereCol[0] == "op" && s.whereCol[1] == "millis" {
+			if args[0] == "sleep" {
+				time.Sleep(time.Duration(args[1].(int64)) * time.Millisecond)
+			}
+		}
+	}
+
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -501,9 +634,10 @@ rows:
 	}
 
 	cursor := &rowsCursor{
-		pos:  -1,
-		rows: mrows,
-		cols: s.colName,
+		pos:    -1,
+		rows:   mrows,
+		cols:   s.colName,
+		errPos: -1,
 	}
 	return cursor, nil
 }
@@ -527,6 +661,10 @@ type rowsCursor struct {
 	pos    int
 	rows   []*row
 	closed bool
+
+	// errPos and err are for making Next return early with error.
+	errPos int
+	err    error
 
 	// a clone of slices to give out to clients, indexed by the
 	// the original slice's first byte address.  we clone them
@@ -553,6 +691,9 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 		return errors.New("fakedb: cursor is closed")
 	}
 	rc.pos++
+	if rc.pos == rc.errPos {
+		return rc.err
+	}
 	if rc.pos >= len(rc.rows) {
 		return io.EOF // per interface spec
 	}
@@ -581,6 +722,28 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 	return nil
 }
 
+// fakeDriverString is like driver.String, but indirects pointers like
+// DefaultValueConverter.
+//
+// This could be surprising behavior to retroactively apply to
+// driver.String now that Go1 is out, but this is convenient for
+// our TestPointerParamsAndScans.
+//
+type fakeDriverString struct{}
+
+func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
+	switch c := v.(type) {
+	case string, []byte:
+		return v, nil
+	case *string:
+		if c == nil {
+			return nil, nil
+		}
+		return *c, nil
+	}
+	return fmt.Sprintf("%v", v), nil
+}
+
 func converterForType(typ string) driver.ValueConverter {
 	switch typ {
 	case "bool":
@@ -590,9 +753,9 @@ func converterForType(typ string) driver.ValueConverter {
 	case "int32":
 		return driver.Int32
 	case "string":
-		return driver.NotNull{Converter: driver.String}
+		return driver.NotNull{Converter: fakeDriverString{}}
 	case "nullstring":
-		return driver.Null{Converter: driver.String}
+		return driver.Null{Converter: fakeDriverString{}}
 	case "int64":
 		// TODO(coopernurse): add type-specific converter
 		return driver.NotNull{Converter: driver.DefaultParameterConverter}

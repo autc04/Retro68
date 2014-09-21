@@ -10,27 +10,61 @@ import (
 	"unsafe"
 )
 
-func lookupFullName(domain, username, domainAndUser string) (string, error) {
-	// try domain controller first
-	name, e := syscall.TranslateAccountName(domainAndUser,
-		syscall.NameSamCompatible, syscall.NameDisplay, 50)
-	if e != nil {
-		// domain lookup failed, perhaps this pc is not part of domain
-		d := syscall.StringToUTF16Ptr(domain)
-		u := syscall.StringToUTF16Ptr(username)
-		var p *byte
-		e := syscall.NetUserGetInfo(d, u, 10, &p)
-		if e != nil {
-			return "", e
-		}
-		defer syscall.NetApiBufferFree(p)
-		i := (*syscall.UserInfo10)(unsafe.Pointer(p))
-		if i.FullName == nil {
-			return "", nil
-		}
-		name = syscall.UTF16ToString((*[1024]uint16)(unsafe.Pointer(i.FullName))[:])
+func isDomainJoined() (bool, error) {
+	var domain *uint16
+	var status uint32
+	err := syscall.NetGetJoinInformation(nil, &domain, &status)
+	if err != nil {
+		return false, err
 	}
+	syscall.NetApiBufferFree((*byte)(unsafe.Pointer(domain)))
+	return status == syscall.NetSetupDomainName, nil
+}
+
+func lookupFullNameDomain(domainAndUser string) (string, error) {
+	return syscall.TranslateAccountName(domainAndUser,
+		syscall.NameSamCompatible, syscall.NameDisplay, 50)
+}
+
+func lookupFullNameServer(servername, username string) (string, error) {
+	s, e := syscall.UTF16PtrFromString(servername)
+	if e != nil {
+		return "", e
+	}
+	u, e := syscall.UTF16PtrFromString(username)
+	if e != nil {
+		return "", e
+	}
+	var p *byte
+	e = syscall.NetUserGetInfo(s, u, 10, &p)
+	if e != nil {
+		return "", e
+	}
+	defer syscall.NetApiBufferFree(p)
+	i := (*syscall.UserInfo10)(unsafe.Pointer(p))
+	if i.FullName == nil {
+		return "", nil
+	}
+	name := syscall.UTF16ToString((*[1024]uint16)(unsafe.Pointer(i.FullName))[:])
 	return name, nil
+}
+
+func lookupFullName(domain, username, domainAndUser string) (string, error) {
+	joined, err := isDomainJoined()
+	if err == nil && joined {
+		name, err := lookupFullNameDomain(domainAndUser)
+		if err == nil {
+			return name, nil
+		}
+	}
+	name, err := lookupFullNameServer(domain, username)
+	if err == nil {
+		return name, nil
+	}
+	// domain worked neigher as a domain nor as a server
+	// could be domain server unavailable
+	// pretend username is fullname
+	return username, nil
 }
 
 func newUser(usid *syscall.SID, gid, dir string) (*User, error) {
@@ -60,12 +94,12 @@ func newUser(usid *syscall.SID, gid, dir string) (*User, error) {
 	return u, nil
 }
 
-// Current returns the current user.
-func Current() (*User, error) {
+func current() (*User, error) {
 	t, e := syscall.OpenCurrentProcessToken()
 	if e != nil {
 		return nil, e
 	}
+	defer t.Close()
 	u, e := t.GetTokenUser()
 	if e != nil {
 		return nil, e
@@ -95,8 +129,7 @@ func newUserFromSid(usid *syscall.SID) (*User, error) {
 	return newUser(usid, gid, dir)
 }
 
-// Lookup looks up a user by username.
-func Lookup(username string) (*User, error) {
+func lookup(username string) (*User, error) {
 	sid, _, t, e := syscall.LookupSID("", username)
 	if e != nil {
 		return nil, e
@@ -107,8 +140,7 @@ func Lookup(username string) (*User, error) {
 	return newUserFromSid(sid)
 }
 
-// LookupId looks up a user by userid.
-func LookupId(uid string) (*User, error) {
+func lookupId(uid string) (*User, error) {
 	sid, e := syscall.StringToSid(uid)
 	if e != nil {
 		return nil, e

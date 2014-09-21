@@ -14,6 +14,14 @@
 // To use pprof, link this package into your program:
 //	import _ "net/http/pprof"
 //
+// If your application is not already running an http server, you
+// need to start one.  Add "net/http" and "log" to your imports and
+// the following code to your main function:
+//
+// 	go func() {
+// 		log.Println(http.ListenAndServe("localhost:6060", nil))
+// 	}()
+//
 // Then use the pprof tool to look at the heap profile:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/heap
@@ -22,9 +30,12 @@
 //
 //	go tool pprof http://localhost:6060/debug/pprof/profile
 //
-// Or to view all available profiles:
+// Or to look at the goroutine blocking profile:
 //
-//	go tool pprof http://localhost:6060/debug/pprof/
+//	go tool pprof http://localhost:6060/debug/pprof/block
+//
+// To view all available profiles, open http://localhost:6060/debug/pprof/
+// in your browser.
 //
 // For a study of the facility in action, visit
 //
@@ -35,7 +46,6 @@ package pprof
 import (
 	"bufio"
 	"bytes"
-	_ "debug/elf"
 	"fmt"
 	"html/template"
 	"io"
@@ -162,7 +172,7 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // listing the available profiles.
 func Index(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
-		name := r.URL.Path[len("/debug/pprof/"):]
+		name := strings.TrimPrefix(r.URL.Path, "/debug/pprof/")
 		if name != "" {
 			handler(name).ServeHTTP(w, r)
 			return

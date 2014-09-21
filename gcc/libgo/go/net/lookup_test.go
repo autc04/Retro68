@@ -9,6 +9,7 @@ package net
 
 import (
 	"flag"
+	"strings"
 	"testing"
 )
 
@@ -16,8 +17,7 @@ var testExternal = flag.Bool("external", true, "allow use of external networks d
 
 func TestGoogleSRV(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 	_, addrs, err := LookupSRV("xmpp-server", "tcp", "google.com")
 	if err != nil {
@@ -39,8 +39,7 @@ func TestGoogleSRV(t *testing.T) {
 
 func TestGmailMX(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 	mx, err := LookupMX("gmail.com")
 	if err != nil {
@@ -51,10 +50,22 @@ func TestGmailMX(t *testing.T) {
 	}
 }
 
+func TestGmailNS(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+	ns, err := LookupNS("gmail.com")
+	if err != nil {
+		t.Errorf("failed: %s", err)
+	}
+	if len(ns) == 0 {
+		t.Errorf("no results")
+	}
+}
+
 func TestGmailTXT(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 	txt, err := LookupTXT("gmail.com")
 	if err != nil {
@@ -67,8 +78,7 @@ func TestGmailTXT(t *testing.T) {
 
 func TestGoogleDNSAddr(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 	names, err := LookupAddr("8.8.8.8")
 	if err != nil {
@@ -76,6 +86,16 @@ func TestGoogleDNSAddr(t *testing.T) {
 	}
 	if len(names) == 0 {
 		t.Errorf("no results")
+	}
+}
+
+func TestLookupIANACNAME(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+	cname, err := LookupCNAME("www.iana.org")
+	if !strings.HasSuffix(cname, ".icann.org.") || err != nil {
+		t.Errorf(`LookupCNAME("www.iana.org.") = %q, %v, want "*.icann.org.", nil`, cname, err)
 	}
 }
 

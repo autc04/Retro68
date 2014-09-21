@@ -1,6 +1,5 @@
 /* Part of CPP library.  (Precompiled header reading/writing.)
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -188,6 +187,16 @@ cpp_string_eq (const void *a_p, const void *b_p)
 	  && memcmp (a->text, b->text, a->len) == 0);
 }
 
+/* Free memory associated with cpp_string.  */
+
+static void
+cpp_string_free (void *a_p)
+{
+  struct cpp_string *a = (struct cpp_string *) a_p;
+  free ((void *) a->text);
+  free (a);
+}
+
 /* Save the current definitions of the cpp_reader for dependency
    checking purposes.  When writing a precompiled header, this should
    be called at the same point in the compilation as cpp_valid_state
@@ -199,7 +208,7 @@ cpp_save_state (cpp_reader *r, FILE *f)
   /* Save the list of non-void identifiers for the dependency checking.  */
   r->savedstate = XNEW (struct cpp_savedstate);
   r->savedstate->definedhash = htab_create (100, cpp_string_hash,
-					    cpp_string_eq, NULL);
+					    cpp_string_eq, cpp_string_free);
   cpp_forall_identifiers (r, save_idents, r->savedstate);
 
   /* Write out the list of defined identifiers.  */
@@ -337,6 +346,8 @@ cpp_write_pch_deps (cpp_reader *r, FILE *f)
       return -1;
     }
   free (ss->definedstrs);
+  free (ss->defs);
+  htab_delete (ss->definedhash);
 
   /* Free the saved state.  */
   free (ss);
@@ -710,7 +721,6 @@ cpp_valid_state (cpp_reader *r, const char *name, int fd)
 
  error:
   cpp_errno (r, CPP_DL_ERROR, "while reading precompiled header");
-  return -1;
 
  fail:
   free (namebuf);

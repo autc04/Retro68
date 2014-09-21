@@ -1,6 +1,6 @@
 // <array> -*- C++ -*-
 
-// Copyright (C) 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,7 +31,7 @@
 
 #pragma GCC system_header
 
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
 
@@ -41,7 +41,27 @@
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
-_GLIBCXX_BEGIN_NAMESPACE_VERSION
+_GLIBCXX_BEGIN_NAMESPACE_CONTAINER
+
+  template<typename _Tp, std::size_t _Nm>
+    struct __array_traits
+    {
+      typedef _Tp _Type[_Nm];
+
+      static constexpr _Tp&
+      _S_ref(const _Type& __t, std::size_t __n) noexcept
+      { return const_cast<_Tp&>(__t[__n]); }
+    };
+
+ template<typename _Tp>
+   struct __array_traits<_Tp, 0>
+   {
+     struct _Type { };
+
+     static constexpr _Tp&
+     _S_ref(const _Type&, std::size_t) noexcept
+     { return *static_cast<_Tp*>(nullptr); }
+   };
 
   /**
    *  @brief A standard container for storing a fixed size sequence of elements.
@@ -54,8 +74,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *
    *  Sets support random access iterators.
    *
-   *  @param  Tp  Type of element. Required to be a complete type.
-   *  @param  N  Number of elements.
+   *  @tparam  Tp  Type of element. Required to be a complete type.
+   *  @tparam  N  Number of elements.
   */
   template<typename _Tp, std::size_t _Nm>
     struct array
@@ -73,7 +93,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
 
       // Support for zero-sized arrays mandatory.
-      value_type _M_instance[_Nm ? _Nm : 1];
+      typedef _GLIBCXX_STD_C::__array_traits<_Tp, _Nm> _AT_Type;
+      typename _AT_Type::_Type                         _M_elems;
 
       // No explicit construct/copy/destroy for aggregate type.
 
@@ -122,11 +143,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       const_iterator
       cbegin() const noexcept
-      { return const_iterator(std::__addressof(_M_instance[0])); }
+      { return const_iterator(data()); }
 
       const_iterator
       cend() const noexcept
-      { return const_iterator(std::__addressof(_M_instance[_Nm])); }
+      { return const_iterator(data() + _Nm); }
 
       const_reverse_iterator 
       crbegin() const noexcept
@@ -148,60 +169,61 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       // Element access.
       reference
-      operator[](size_type __n)
-      { return _M_instance[__n]; }
+      operator[](size_type __n) noexcept
+      { return _AT_Type::_S_ref(_M_elems, __n); }
 
       constexpr const_reference
       operator[](size_type __n) const noexcept
-      { return _M_instance[__n]; }
+      { return _AT_Type::_S_ref(_M_elems, __n); }
 
       reference
       at(size_type __n)
       {
 	if (__n >= _Nm)
-	  std::__throw_out_of_range(__N("array::at"));
-	return _M_instance[__n];
+	  std::__throw_out_of_range_fmt(__N("array::at: __n (which is %zu) "
+					    ">= _Nm (which is %zu)"),
+					__n, _Nm);
+	return _AT_Type::_S_ref(_M_elems, __n);
       }
 
-#ifdef __EXCEPTIONS
       constexpr const_reference
       at(size_type __n) const
       {
-	return __n < _Nm ? 
-	       _M_instance[__n] : throw out_of_range(__N("array::at"));
+	// Result of conditional expression must be an lvalue so use
+	// boolean ? lvalue : (throw-expr, lvalue)
+	return __n < _Nm ? _AT_Type::_S_ref(_M_elems, __n)
+	  : (std::__throw_out_of_range_fmt(__N("array::at: __n (which is %zu) "
+					       ">= _Nm (which is %zu)"),
+					   __n, _Nm),
+	     _AT_Type::_S_ref(_M_elems, 0));
       }
-#else
-      const_reference
-      at(size_type __n) const
-      {
-	return __n < _Nm ?
-	       _M_instance[__n] : __throw_out_of_range(__N("array::at"));
-      }
-#endif
 
       reference 
-      front()
+      front() noexcept
       { return *begin(); }
 
-      const_reference 
-      front() const
-      { return *begin(); }
+      constexpr const_reference 
+      front() const noexcept
+      { return _AT_Type::_S_ref(_M_elems, 0); }
 
       reference 
-      back()
+      back() noexcept
       { return _Nm ? *(end() - 1) : *end(); }
 
-      const_reference 
-      back() const
-      { return _Nm ? *(end() - 1) : *end(); }
+      constexpr const_reference 
+      back() const noexcept
+      { 
+	return _Nm ? _AT_Type::_S_ref(_M_elems, _Nm - 1) 
+ 	           : _AT_Type::_S_ref(_M_elems, 0);
+      }
 
       pointer
       data() noexcept
-      { return std::__addressof(_M_instance[0]); }
+      { return std::__addressof(_AT_Type::_S_ref(_M_elems, 0)); }
 
       const_pointer
       data() const noexcept
-      { return std::__addressof(_M_instance[0]); }
+      { return std::__addressof(_AT_Type::_S_ref(_M_elems, 0)); }
     };
 
   // Array comparisons.
@@ -245,6 +267,39 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     noexcept(noexcept(__one.swap(__two)))
     { __one.swap(__two); }
 
+  template<std::size_t _Int, typename _Tp, std::size_t _Nm>
+    constexpr _Tp&
+    get(array<_Tp, _Nm>& __arr) noexcept
+    {
+      static_assert(_Int < _Nm, "index is out of bounds");
+      return _GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
+	_S_ref(__arr._M_elems, _Int);
+    }
+
+  template<std::size_t _Int, typename _Tp, std::size_t _Nm>
+    constexpr _Tp&&
+    get(array<_Tp, _Nm>&& __arr) noexcept
+    {
+      static_assert(_Int < _Nm, "index is out of bounds");
+      return std::move(get<_Int>(__arr));
+    }
+
+  template<std::size_t _Int, typename _Tp, std::size_t _Nm>
+    constexpr const _Tp&
+    get(const array<_Tp, _Nm>& __arr) noexcept
+    {
+      static_assert(_Int < _Nm, "index is out of bounds");
+      return _GLIBCXX_STD_C::__array_traits<_Tp, _Nm>::
+	_S_ref(__arr._M_elems, _Int);
+    }
+
+_GLIBCXX_END_NAMESPACE_CONTAINER
+} // namespace std
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
   // Tuple interface to class template array.
 
   /// tuple_size
@@ -252,7 +307,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     class tuple_size;
 
   template<typename _Tp, std::size_t _Nm>
-    struct tuple_size<array<_Tp, _Nm>>
+    struct tuple_size<_GLIBCXX_STD_C::array<_Tp, _Nm>>
     : public integral_constant<std::size_t, _Nm> { };
 
   /// tuple_element
@@ -260,27 +315,23 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     class tuple_element;
 
   template<std::size_t _Int, typename _Tp, std::size_t _Nm>
-    struct tuple_element<_Int, array<_Tp, _Nm> >
-    { typedef _Tp type; };
-
-  template<std::size_t _Int, typename _Tp, std::size_t _Nm>
-    constexpr _Tp&
-    get(array<_Tp, _Nm>& __arr) noexcept
-    { return __arr._M_instance[_Int]; }
-
-  template<std::size_t _Int, typename _Tp, std::size_t _Nm>
-    constexpr _Tp&&
-    get(array<_Tp, _Nm>&& __arr) noexcept
-    { return std::move(get<_Int>(__arr)); }
-
-  template<std::size_t _Int, typename _Tp, std::size_t _Nm>
-    constexpr const _Tp&
-    get(const array<_Tp, _Nm>& __arr) noexcept
-    { return __arr._M_instance[_Int]; }
+    struct tuple_element<_Int, _GLIBCXX_STD_C::array<_Tp, _Nm>>
+    {
+      static_assert(_Int < _Nm, "index is out of bounds");
+      typedef _Tp type;
+    };
 
 _GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
+} // namespace std
 
-#endif // __GXX_EXPERIMENTAL_CXX0X__
+#ifdef _GLIBCXX_DEBUG
+# include <debug/array>
+#endif
+
+#ifdef _GLIBCXX_PROFILE
+# include <profile/array>
+#endif
+
+#endif // C++11
 
 #endif // _GLIBCXX_ARRAY

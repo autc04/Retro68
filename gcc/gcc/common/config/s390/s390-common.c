@@ -1,6 +1,5 @@
 /* Common hooks for IBM S/390 and zSeries.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -41,7 +40,9 @@ EXPORTED_CONST int processor_flags_table[] =
     /* z10 */    PF_IEEE_FLOAT | PF_ZARCH | PF_LONG_DISPLACEMENT
                  | PF_EXTIMM | PF_DFP | PF_Z10,
     /* z196 */   PF_IEEE_FLOAT | PF_ZARCH | PF_LONG_DISPLACEMENT
-                 | PF_EXTIMM | PF_DFP | PF_Z10 | PF_Z196
+                 | PF_EXTIMM | PF_DFP | PF_Z10 | PF_Z196,
+    /* zEC12 */  PF_IEEE_FLOAT | PF_ZARCH | PF_LONG_DISPLACEMENT
+                 | PF_EXTIMM | PF_DFP | PF_Z10 | PF_Z196 | PF_ZEC12 | PF_TX
   };
 
 /* Change optimizations to be performed, depending on the
@@ -50,6 +51,9 @@ EXPORTED_CONST int processor_flags_table[] =
 static const struct default_options s390_option_optimization_table[] =
   {
     { OPT_LEVELS_1_PLUS, OPT_fomit_frame_pointer, NULL, 1 },
+
+    /* Enable -fsched-pressure by default when optimizing.  */
+    { OPT_LEVELS_1_PLUS, OPT_fsched_pressure, NULL, 1 },
 
     /* ??? There are apparently still problems with -fcaller-saves.  */
     { OPT_LEVELS_ALL, OPT_fcaller_saves, NULL, 0 },

@@ -1,6 +1,96 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-04-22  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/43620
+	* Makefile.am (AUTOMAKE_OPTIONS): Add no-dist.
+	* include/Makefile.am (AUTOMAKE_OPTIONS): Likewise.
+	* testsuite/Makefile.am (AUTOMAKE_OPTIONS): Likewise.
+	* Makefile.in: Regenerated.
+	* include/Makefile.in: Regenerated.
+	* testsuite/Makefile.in: Regenerated.
+
+2013-12-21  Andreas Tobler  <andreast@gcc.gnu.org>
+
+	* include/private/gcconfig.h: Add FreeBSD powerpc64 defines.
+
+2013-09-20  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
+2013-09-04  Matthias Klose  <doko@ubuntu.com>
+
+	* Makefile.am (libgcjgc_la_LIBADD): Add EXTRA_TEST_LIBS.
+	* Makefile.in: Regenerate.
+
+2013-03-16  Yvan Roux <yvan.roux@linaro.org>
+
+	* include/private/gcconfig.h (AARCH64): New macro (defined only if
+	__aarch64__).
+	(CPP_WORDSZ): Define for AArch64.
+	(MACH_TYPE): Likewise.
+	(ALIGNMENT): Likewise.
+	(HBLKSIZE): Likewise.
+	(OS_TYPE): Likewise.
+	(LINUX_STACKBOTTOM): Likewise.
+	(USE_GENERIC_PUSH_REGS): Likewise.
+	(DYNAMIC_LOADING): Likewise.
+	(DATASTART): Likewise.
+	(DATAEND): Likewise.
+	(STACKBOTTOM): Likewise.
+	(NOSYS): Likewise.
+	(mach_type_known): Define for AArch64 and comment update.
+
+2013-03-06  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* os_dep.c [SOLARIS_STACKBOTTOM] (GC_solaris_stack_base): New
+	function.
+	[!BEOS && !AMIGA && !MSWIN32 && !MSWINCE && !OS2 && !NOSYS &&
+	!ECOS] (GC_get_stack_base): Use it.
+	* include/private/gcconfig.h [SPARC && SUNOS5]
+	(SOLARIS_STACKBOTTOM): Define.
+	(STACKBOTTOM, HEURISTIC2): Remove.
+	[I386 && SUNOS5]
+	(SOLARIS_STACKBOTTOM): Define.
+	(STACKBOTTOM): Remove.
+
+2012-11-04  Samuel Thibault  <samuel.thibault@gnu.org>
+
+	* configure.ac: Add stanza for *-*-gnu* threads configuration.
+	* configure: Regenerate.
+	* include/gc_config.h.in: Likewise.
+	* dyn_load.c (_GNU_SOURCE): Define for __GNU__.
+	* include/gc_config_macros.h (_REENTRANT, GC_PTHREADS): Define for
+	GC_GNU_THREADS.
+	* include/private/gcconfig.h (DATASTART): Don't define for I386 &&
+	HURD.
+	(SIG_SUSPEND, SIG_THR_RESTART, SEARCH_FOR_DATA_START): Define for
+	I386 && HURD.
+	(UNIX_LIKE, REGISTER_LIBRARIES_EARLY): Define for HURD.
+	* os_dep.c (GC_init_linux_data_start): Handle for HURD.
+	* pthread_support.c (GC_thr_init): Add case for GC_GNU_THREADS.
+	* specific.c: Use for GC_GNU_THREADS.
+	* threadlibs.c: Add case for GC_GNU_THREADS.
+
+2012-09-14  David Edelsohn  <dje.gcc@gmail.com>
+
+	* configure: Regenerated.
+
+2012-05-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
+
+2012-05-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Merge upstream changes
+	* include/private/gcconfig.h: (ALIGNMENT): Set to 4 for x32.
+	(CPP_WORDSZ): Set to 32 for x32.
 
 2012-02-27  Jack Howarth  <howarth@bromo.med.uc.edu>
 	    Patrick Marlier  <patrick.marlier@gmail.com>
@@ -24,7 +114,7 @@
 	* include/gc_config_macros.h (GC_DLL): Define it for mingw-targets
 	only, if we are actual in boehm-gc's build and DLL_EXPORT
 	is defined.
-	
+
 2011-11-21  Andreas Tobler  <andreast@fgznet.ch>
 
 	* configure: Regenerate.
@@ -373,7 +463,7 @@
 	* configure: Regenerate.
 
 2008-09-26  Peter O'Gorman  <pogma@thewrittenword.com>
-            Steve Ellcey  <sje@cup.hp.com>
+	    Steve Ellcey  <sje@cup.hp.com>
 
 	* configure: Regenerate for new libtool.
 	* Makefile.in: Ditto.
@@ -1014,7 +1104,7 @@
 
 2004-04-25  Andreas Jaeger  <aj@suse.de>
 
-        * mark.c (GC_mark_from): Use pointer as prefetch argument.
+	* mark.c (GC_mark_from): Use pointer as prefetch argument.
 
 2004-04-06  H.J. Lu  <hongjiu.lu@intel.com>
 

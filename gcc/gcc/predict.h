@@ -1,6 +1,5 @@
 /* Definitions for branch prediction routines in the GNU compiler.
-   Copyright (C) 2001, 2003, 2004, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +20,16 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_PREDICT_H
 #define GCC_PREDICT_H
 
+/* Random guesstimation given names.
+   PROB_VERY_UNLIKELY should be small enough so basic block predicted
+   by it gets below HOT_BB_FREQUENCY_FRACTION.  */
+#define PROB_VERY_UNLIKELY	(REG_BR_PROB_BASE / 2000 - 1)
+#define PROB_EVEN		(REG_BR_PROB_BASE / 2)
+#define PROB_VERY_LIKELY	(REG_BR_PROB_BASE - PROB_VERY_UNLIKELY)
+#define PROB_ALWAYS		(REG_BR_PROB_BASE)
+#define PROB_UNLIKELY           (REG_BR_PROB_BASE / 5 - 1)
+#define PROB_LIKELY             (REG_BR_PROB_BASE - PROB_UNLIKELY)
+
 #define DEF_PREDICTOR(ENUM, NAME, HITRATE, FLAGS) ENUM,
 enum br_predictor
 {
@@ -38,7 +47,8 @@ enum prediction
 
 extern void predict_insn_def (rtx, enum br_predictor, enum prediction);
 extern int counts_to_freqs (void);
-extern void estimate_bb_frequencies (void);
+extern void handle_missing_profiles (void);
+extern void estimate_bb_frequencies (bool);
 extern const char *predictor_name (enum br_predictor);
 extern tree build_predict_expr (enum br_predictor, enum prediction);
 extern void tree_estimate_probability (void);

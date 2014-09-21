@@ -1,5 +1,4 @@
-/* Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 2006-2014 Free Software Foundation, Inc.
 
    This file is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free
@@ -29,13 +28,16 @@
 #include "recog.h"
 #include "obstack.h"
 #include "tree.h"
+#include "stringpool.h"
+#include "stor-layout.h"
+#include "calls.h"
+#include "varasm.h"
 #include "expr.h"
 #include "optabs.h"
 #include "except.h"
 #include "function.h"
 #include "output.h"
 #include "basic-block.h"
-#include "integrate.h"
 #include "diagnostic-core.h"
 #include "ggc.h"
 #include "hashtab.h"
@@ -44,16 +46,26 @@
 #include "target-def.h"
 #include "langhooks.h"
 #include "reload.h"
-#include "cfglayout.h"
 #include "sched-int.h"
 #include "params.h"
 #include "machmode.h"
+#include "pointer-set.h"
+#include "hash-table.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-fold.h"
+#include "tree-eh.h"
+#include "gimple-expr.h"
+#include "is-a.h"
 #include "gimple.h"
+#include "gimplify.h"
 #include "tm-constrs.h"
 #include "ddg.h"
 #include "sbitmap.h"
 #include "timevar.h"
 #include "df.h"
+#include "dumpfile.h"
+#include "cfgloop.h"
 
 /* Builtin types, data and prototypes. */
 
@@ -148,90 +160,11 @@ static struct spu_builtin_range spu_builtin_range[] = {
 char regs_ever_allocated[FIRST_PSEUDO_REGISTER];
 
 /*  Prototypes and external defs.  */
-static void spu_option_override (void);
-static void spu_init_builtins (void);
-static tree spu_builtin_decl (unsigned, bool);
-static bool spu_scalar_mode_supported_p (enum machine_mode mode);
-static bool spu_vector_mode_supported_p (enum machine_mode mode);
-static bool spu_legitimate_address_p (enum machine_mode, rtx, bool);
-static bool spu_addr_space_legitimate_address_p (enum machine_mode, rtx,
-						 bool, addr_space_t);
-static rtx adjust_operand (rtx op, HOST_WIDE_INT * start);
-static rtx get_pic_reg (void);
-static int need_to_save_reg (int regno, int saving);
-static rtx frame_emit_store (int regno, rtx addr, HOST_WIDE_INT offset);
-static rtx frame_emit_load (int regno, rtx addr, HOST_WIDE_INT offset);
-static rtx frame_emit_add_imm (rtx dst, rtx src, HOST_WIDE_INT imm,
-			       rtx scratch);
-static void emit_nop_for_insn (rtx insn);
-static bool insn_clobbers_hbr (rtx insn);
-static void spu_emit_branch_hint (rtx before, rtx branch, rtx target,
-				  int distance, sbitmap blocks);
-static rtx spu_emit_vector_compare (enum rtx_code rcode, rtx op0, rtx op1,
-	                            enum machine_mode dmode);
-static rtx get_branch_target (rtx branch);
-static void spu_machine_dependent_reorg (void);
-static int spu_sched_issue_rate (void);
-static int spu_sched_variable_issue (FILE * dump, int verbose, rtx insn,
-				     int can_issue_more);
 static int get_pipe (rtx insn);
-static int spu_sched_adjust_cost (rtx insn, rtx link, rtx dep_insn, int cost);
-static void spu_sched_init_global (FILE *, int, int);
-static void spu_sched_init (FILE *, int, int);
-static int spu_sched_reorder (FILE *, int, rtx *, int *, int);
-static tree spu_handle_fndecl_attribute (tree * node, tree name, tree args,
-					 int flags,
-					 bool *no_add_attrs);
-static tree spu_handle_vector_attribute (tree * node, tree name, tree args,
-					 int flags,
-					 bool *no_add_attrs);
 static int spu_naked_function_p (tree func);
-static bool spu_pass_by_reference (cumulative_args_t cum,
-				   enum machine_mode mode,
-				   const_tree type, bool named);
-static rtx spu_function_arg (cumulative_args_t cum, enum machine_mode mode,
-			     const_tree type, bool named);
-static void spu_function_arg_advance (cumulative_args_t cum,
-				      enum machine_mode mode,
-				      const_tree type, bool named);
-static tree spu_build_builtin_va_list (void);
-static void spu_va_start (tree, rtx);
-static tree spu_gimplify_va_arg_expr (tree valist, tree type,
-				      gimple_seq * pre_p, gimple_seq * post_p);
-static int store_with_one_insn_p (rtx mem);
 static int mem_is_padded_component_ref (rtx x);
-static int reg_aligned_for_addr (rtx x);
-static bool spu_assemble_integer (rtx x, unsigned int size, int aligned_p);
-static void spu_asm_globalize_label (FILE * file, const char *name);
-static bool spu_rtx_costs (rtx x, int code, int outer_code, int opno,
-			   int *total, bool speed);
-static bool spu_function_ok_for_sibcall (tree decl, tree exp);
-static void spu_init_libfuncs (void);
-static bool spu_return_in_memory (const_tree type, const_tree fntype);
 static void fix_range (const char *);
-static void spu_encode_section_info (tree, rtx, int);
-static rtx spu_legitimize_address (rtx, rtx, enum machine_mode);
-static rtx spu_addr_space_legitimize_address (rtx, rtx, enum machine_mode,
-					      addr_space_t);
-static tree spu_builtin_mul_widen_even (tree);
-static tree spu_builtin_mul_widen_odd (tree);
-static tree spu_builtin_mask_for_load (void);
-static int spu_builtin_vectorization_cost (enum vect_cost_for_stmt, tree, int);
-static bool spu_vector_alignment_reachable (const_tree, bool);
-static enum machine_mode spu_addr_space_pointer_mode (addr_space_t);
-static enum machine_mode spu_addr_space_address_mode (addr_space_t);
-static bool spu_addr_space_subset_p (addr_space_t, addr_space_t);
-static rtx spu_addr_space_convert (rtx, tree, tree);
-static int spu_sms_res_mii (struct ddg *g);
-static unsigned int spu_section_type_flags (tree, const char *, int);
-static section *spu_select_section (tree, int, unsigned HOST_WIDE_INT);
-static void spu_unique_section (tree, int);
 static rtx spu_expand_load (rtx, rtx, rtx, int);
-static void spu_trampoline_init (rtx, tree, rtx);
-static void spu_conditional_register_usage (void);
-static bool spu_ref_may_alias_errno (ao_ref *);
-static void spu_output_mi_thunk (FILE *, tree, HOST_WIDE_INT,
-				 HOST_WIDE_INT, tree);
 
 /* Which instruction set architecture to use.  */
 int spu_arch;
@@ -275,227 +208,10 @@ static int cpat_info(unsigned char *arr, int size, int *prun, int *pstart);
 static enum immediate_class classify_immediate (rtx op,
 						enum machine_mode mode);
 
-static enum machine_mode spu_unwind_word_mode (void);
-
-static enum machine_mode
-spu_libgcc_cmp_return_mode (void);
-
-static enum machine_mode
-spu_libgcc_shift_count_mode (void);
-
 /* Pointer mode for __ea references.  */
 #define EAmode (spu_ea_model != 32 ? DImode : SImode)
 
 
-/*  Table of machine attributes.  */
-static const struct attribute_spec spu_attribute_table[] =
-{
-  /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler,
-       affects_type_identity } */
-  { "naked",          0, 0, true,  false, false, spu_handle_fndecl_attribute,
-    false },
-  { "spu_vector",     0, 0, false, true,  false, spu_handle_vector_attribute,
-    false },
-  { NULL,             0, 0, false, false, false, NULL, false }
-};
-
-/*  TARGET overrides.  */
-
-#undef TARGET_ADDR_SPACE_POINTER_MODE
-#define TARGET_ADDR_SPACE_POINTER_MODE spu_addr_space_pointer_mode
-
-#undef TARGET_ADDR_SPACE_ADDRESS_MODE
-#define TARGET_ADDR_SPACE_ADDRESS_MODE spu_addr_space_address_mode
-
-#undef TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P
-#define TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P \
-  spu_addr_space_legitimate_address_p
-
-#undef TARGET_ADDR_SPACE_LEGITIMIZE_ADDRESS
-#define TARGET_ADDR_SPACE_LEGITIMIZE_ADDRESS spu_addr_space_legitimize_address
-
-#undef TARGET_ADDR_SPACE_SUBSET_P
-#define TARGET_ADDR_SPACE_SUBSET_P spu_addr_space_subset_p
-
-#undef TARGET_ADDR_SPACE_CONVERT
-#define TARGET_ADDR_SPACE_CONVERT spu_addr_space_convert
-
-#undef TARGET_INIT_BUILTINS
-#define TARGET_INIT_BUILTINS spu_init_builtins
-#undef TARGET_BUILTIN_DECL
-#define TARGET_BUILTIN_DECL spu_builtin_decl
-
-#undef TARGET_EXPAND_BUILTIN
-#define TARGET_EXPAND_BUILTIN spu_expand_builtin
-
-#undef TARGET_UNWIND_WORD_MODE
-#define TARGET_UNWIND_WORD_MODE spu_unwind_word_mode
-
-#undef TARGET_LEGITIMIZE_ADDRESS
-#define TARGET_LEGITIMIZE_ADDRESS spu_legitimize_address
-
-/* The current assembler doesn't like .4byte foo@ppu, so use the normal .long
-   and .quad for the debugger.  When it is known that the assembler is fixed,
-   these can be removed.  */
-#undef TARGET_ASM_UNALIGNED_SI_OP
-#define TARGET_ASM_UNALIGNED_SI_OP	"\t.long\t"
-
-#undef TARGET_ASM_ALIGNED_DI_OP
-#define TARGET_ASM_ALIGNED_DI_OP	"\t.quad\t"
-
-/* The .8byte directive doesn't seem to work well for a 32 bit
-   architecture. */
-#undef TARGET_ASM_UNALIGNED_DI_OP
-#define TARGET_ASM_UNALIGNED_DI_OP NULL
-
-#undef TARGET_RTX_COSTS
-#define TARGET_RTX_COSTS spu_rtx_costs
-
-#undef TARGET_ADDRESS_COST
-#define TARGET_ADDRESS_COST hook_int_rtx_bool_0
-
-#undef TARGET_SCHED_ISSUE_RATE
-#define TARGET_SCHED_ISSUE_RATE spu_sched_issue_rate
-
-#undef TARGET_SCHED_INIT_GLOBAL
-#define TARGET_SCHED_INIT_GLOBAL spu_sched_init_global
-
-#undef TARGET_SCHED_INIT
-#define TARGET_SCHED_INIT spu_sched_init
-
-#undef TARGET_SCHED_VARIABLE_ISSUE
-#define TARGET_SCHED_VARIABLE_ISSUE spu_sched_variable_issue
-
-#undef TARGET_SCHED_REORDER
-#define TARGET_SCHED_REORDER spu_sched_reorder
-
-#undef TARGET_SCHED_REORDER2
-#define TARGET_SCHED_REORDER2 spu_sched_reorder
-
-#undef TARGET_SCHED_ADJUST_COST
-#define TARGET_SCHED_ADJUST_COST spu_sched_adjust_cost
-
-#undef  TARGET_ATTRIBUTE_TABLE
-#define TARGET_ATTRIBUTE_TABLE spu_attribute_table
-
-#undef TARGET_ASM_INTEGER
-#define TARGET_ASM_INTEGER spu_assemble_integer
-
-#undef TARGET_SCALAR_MODE_SUPPORTED_P
-#define TARGET_SCALAR_MODE_SUPPORTED_P	spu_scalar_mode_supported_p
-
-#undef TARGET_VECTOR_MODE_SUPPORTED_P
-#define TARGET_VECTOR_MODE_SUPPORTED_P	spu_vector_mode_supported_p
-
-#undef TARGET_FUNCTION_OK_FOR_SIBCALL
-#define TARGET_FUNCTION_OK_FOR_SIBCALL spu_function_ok_for_sibcall
-
-#undef TARGET_ASM_GLOBALIZE_LABEL
-#define TARGET_ASM_GLOBALIZE_LABEL spu_asm_globalize_label
-
-#undef TARGET_PASS_BY_REFERENCE
-#define TARGET_PASS_BY_REFERENCE spu_pass_by_reference
-
-#undef TARGET_FUNCTION_ARG
-#define TARGET_FUNCTION_ARG spu_function_arg
-
-#undef TARGET_FUNCTION_ARG_ADVANCE
-#define TARGET_FUNCTION_ARG_ADVANCE spu_function_arg_advance
-
-#undef TARGET_MUST_PASS_IN_STACK
-#define TARGET_MUST_PASS_IN_STACK must_pass_in_stack_var_size
-
-#undef TARGET_BUILD_BUILTIN_VA_LIST
-#define TARGET_BUILD_BUILTIN_VA_LIST spu_build_builtin_va_list
-
-#undef TARGET_EXPAND_BUILTIN_VA_START
-#define TARGET_EXPAND_BUILTIN_VA_START spu_va_start
-
-static void spu_setup_incoming_varargs (cumulative_args_t cum,
-					enum machine_mode mode,
-					tree type, int *pretend_size,
-					int no_rtl);
-#undef TARGET_SETUP_INCOMING_VARARGS
-#define TARGET_SETUP_INCOMING_VARARGS spu_setup_incoming_varargs
-
-#undef TARGET_MACHINE_DEPENDENT_REORG
-#define TARGET_MACHINE_DEPENDENT_REORG spu_machine_dependent_reorg
-
-#undef TARGET_GIMPLIFY_VA_ARG_EXPR
-#define TARGET_GIMPLIFY_VA_ARG_EXPR spu_gimplify_va_arg_expr
-
-#undef TARGET_INIT_LIBFUNCS
-#define TARGET_INIT_LIBFUNCS spu_init_libfuncs
-
-#undef TARGET_RETURN_IN_MEMORY
-#define TARGET_RETURN_IN_MEMORY spu_return_in_memory
-
-#undef  TARGET_ENCODE_SECTION_INFO
-#define TARGET_ENCODE_SECTION_INFO spu_encode_section_info
-
-#undef TARGET_VECTORIZE_BUILTIN_MUL_WIDEN_EVEN
-#define TARGET_VECTORIZE_BUILTIN_MUL_WIDEN_EVEN spu_builtin_mul_widen_even
-
-#undef TARGET_VECTORIZE_BUILTIN_MUL_WIDEN_ODD
-#define TARGET_VECTORIZE_BUILTIN_MUL_WIDEN_ODD spu_builtin_mul_widen_odd
-
-#undef TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD
-#define TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD spu_builtin_mask_for_load
-
-#undef TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST
-#define TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST spu_builtin_vectorization_cost
-
-#undef TARGET_VECTORIZE_VECTOR_ALIGNMENT_REACHABLE
-#define TARGET_VECTORIZE_VECTOR_ALIGNMENT_REACHABLE spu_vector_alignment_reachable
-
-#undef TARGET_LIBGCC_CMP_RETURN_MODE
-#define TARGET_LIBGCC_CMP_RETURN_MODE spu_libgcc_cmp_return_mode
-
-#undef TARGET_LIBGCC_SHIFT_COUNT_MODE
-#define TARGET_LIBGCC_SHIFT_COUNT_MODE spu_libgcc_shift_count_mode
-
-#undef TARGET_SCHED_SMS_RES_MII
-#define TARGET_SCHED_SMS_RES_MII spu_sms_res_mii
-
-#undef TARGET_SECTION_TYPE_FLAGS
-#define TARGET_SECTION_TYPE_FLAGS spu_section_type_flags
-
-#undef TARGET_ASM_SELECT_SECTION
-#define TARGET_ASM_SELECT_SECTION  spu_select_section
-
-#undef TARGET_ASM_UNIQUE_SECTION
-#define TARGET_ASM_UNIQUE_SECTION  spu_unique_section
-
-#undef TARGET_LEGITIMATE_ADDRESS_P
-#define TARGET_LEGITIMATE_ADDRESS_P spu_legitimate_address_p
-
-#undef TARGET_LEGITIMATE_CONSTANT_P
-#define TARGET_LEGITIMATE_CONSTANT_P spu_legitimate_constant_p
-
-#undef TARGET_TRAMPOLINE_INIT
-#define TARGET_TRAMPOLINE_INIT spu_trampoline_init
-
-#undef TARGET_OPTION_OVERRIDE
-#define TARGET_OPTION_OVERRIDE spu_option_override
-
-#undef TARGET_CONDITIONAL_REGISTER_USAGE
-#define TARGET_CONDITIONAL_REGISTER_USAGE spu_conditional_register_usage
-
-#undef TARGET_REF_MAY_ALIAS_ERRNO
-#define TARGET_REF_MAY_ALIAS_ERRNO spu_ref_may_alias_errno
-
-#undef TARGET_ASM_OUTPUT_MI_THUNK
-#define TARGET_ASM_OUTPUT_MI_THUNK spu_output_mi_thunk
-#undef TARGET_ASM_CAN_OUTPUT_MI_THUNK
-#define TARGET_ASM_CAN_OUTPUT_MI_THUNK hook_bool_const_tree_hwi_hwi_const_tree_true
-
-/* Variable tracking should be run after all optimizations which
-   change order of insns.  It also needs a valid CFG.  */
-#undef TARGET_DELAY_VARTRACK
-#define TARGET_DELAY_VARTRACK true
-
-struct gcc_target targetm = TARGET_INITIALIZER;
-
 /* Define the structure for the machine field in struct function.  */
 struct GTY(()) machine_function
 {
@@ -858,7 +574,7 @@ spu_expand_insv (rtx ops[])
 	  rtx mask1 = gen_reg_rtx (TImode);
 	  rtx dst1 = gen_reg_rtx (TImode);
 	  rtx mem1;
-	  addr1 = plus_constant (addr, 16);
+	  addr1 = plus_constant (Pmode, addr, 16);
 	  addr1 = gen_rtx_AND (Pmode, addr1, GEN_INT (-16));
 	  emit_insn (gen_subsi3 (shl, GEN_INT (16), low));
 	  emit_insn (gen_shlqby_ti (mask1, mask, shl));
@@ -1763,7 +1479,7 @@ get_pic_reg (void)
      "switch back" to using pic_offset_table_rtx.  */
   if (!cfun->machine->pic_reg)
     {
-      if (current_function_is_leaf && !df_regs_ever_live_p (LAST_ARG_REGNUM))
+      if (crtl->is_leaf && !df_regs_ever_live_p (LAST_ARG_REGNUM))
 	cfun->machine->pic_reg = gen_rtx_REG (SImode, LAST_ARG_REGNUM);
       else
 	cfun->machine->pic_reg = pic_offset_table_rtx;
@@ -1965,7 +1681,7 @@ direct_return (void)
 	      + get_frame_size ()
 	      + crtl->outgoing_args_size
 	      + crtl->args.pretend_args_size == 0)
-	  && current_function_is_leaf)
+	  && crtl->is_leaf)
 	return 1;
     }
   return 0;
@@ -2025,13 +1741,13 @@ spu_expand_prologue (void)
     + crtl->outgoing_args_size
     + crtl->args.pretend_args_size;
 
-  if (!current_function_is_leaf
+  if (!crtl->is_leaf
       || cfun->calls_alloca || total_size > 0)
     total_size += STACK_POINTER_OFFSET;
 
   /* Save this first because code after this might use the link
      register as a scratch register. */
-  if (!current_function_is_leaf)
+  if (!crtl->is_leaf)
     {
       insn = frame_emit_store (LINK_REGISTER_REGNUM, sp_reg, 16);
       RTX_FRAME_RELATED_P (insn) = 1;
@@ -2138,7 +1854,7 @@ spu_expand_epilogue (bool sibcall_p)
     + crtl->outgoing_args_size
     + crtl->args.pretend_args_size;
 
-  if (!current_function_is_leaf
+  if (!crtl->is_leaf
       || cfun->calls_alloca || total_size > 0)
     total_size += STACK_POINTER_OFFSET;
 
@@ -2162,7 +1878,7 @@ spu_expand_epilogue (bool sibcall_p)
 	}
     }
 
-  if (!current_function_is_leaf)
+  if (!crtl->is_leaf)
     frame_emit_load (LINK_REGISTER_REGNUM, sp_reg, 16);
 
   if (!sibcall_p)
@@ -2259,7 +1975,7 @@ struct spu_bb_info
 static struct spu_bb_info *spu_bb_info;
 
 #define STOP_HINT_P(INSN) \
-		(GET_CODE(INSN) == CALL_INSN \
+		(CALL_P(INSN) \
 		 || INSN_CODE(INSN) == CODE_FOR_divmodsi4 \
 		 || INSN_CODE(INSN) == CODE_FOR_udivmodsi4)
 
@@ -2275,13 +1991,22 @@ static struct spu_bb_info *spu_bb_info;
 /* Emit a nop for INSN such that the two will dual issue.  This assumes
    INSN is 8-byte aligned.  When INSN is inline asm we emit an lnop.
    We check for TImode to handle a MULTI1 insn which has dual issued its
-   first instruction.  get_pipe returns -1 for MULTI0, inline asm, or
-   ADDR_VEC insns. */
+   first instruction.  get_pipe returns -1 for MULTI0 or inline asm.  */
 static void
 emit_nop_for_insn (rtx insn)
 {
   int p;
   rtx new_insn;
+
+  /* We need to handle JUMP_TABLE_DATA separately.  */
+  if (JUMP_TABLE_DATA_P (insn))
+    {
+      new_insn = emit_insn_after (gen_lnop(), insn);
+      recog_memoized (new_insn);
+      INSN_LOCATION (new_insn) = UNKNOWN_LOCATION;
+      return;
+    }
+
   p = get_pipe (insn);
   if ((CALL_P (insn) || JUMP_P (insn)) && SCHED_ON_EVEN_P (insn))
     new_insn = emit_insn_after (gen_lnop (), insn);
@@ -2294,7 +2019,7 @@ emit_nop_for_insn (rtx insn)
   else
     new_insn = emit_insn_after (gen_lnop (), insn);
   recog_memoized (new_insn);
-  INSN_LOCATOR (new_insn) = INSN_LOCATOR (insn);
+  INSN_LOCATION (new_insn) = INSN_LOCATION (insn);
 }
 
 /* Insert nops in basic blocks to meet dual issue alignment
@@ -2333,13 +2058,13 @@ pad_bb(void)
 		  prev_insn = emit_insn_before (gen_lnop (), insn);
 		  PUT_MODE (prev_insn, GET_MODE (insn));
 		  PUT_MODE (insn, TImode);
-		  INSN_LOCATOR (prev_insn) = INSN_LOCATOR (insn);
+		  INSN_LOCATION (prev_insn) = INSN_LOCATION (insn);
 		  length += 4;
 		}
 	    }
 	  hbr_insn = insn;
 	}
-      if (INSN_CODE (insn) == CODE_FOR_blockage)
+      if (INSN_CODE (insn) == CODE_FOR_blockage && next_insn)
 	{
 	  if (GET_MODE (insn) == TImode)
 	    PUT_MODE (next_insn, TImode);
@@ -2398,11 +2123,11 @@ spu_emit_branch_hint (rtx before, rtx branch, rtx target,
   LABEL_PRESERVE_P (branch_label) = 1;
   insn = emit_label_before (branch_label, branch);
   branch_label = gen_rtx_LABEL_REF (VOIDmode, branch_label);
-  SET_BIT (blocks, BLOCK_FOR_INSN (branch)->index);
+  bitmap_set_bit (blocks, BLOCK_FOR_INSN (branch)->index);
 
   hint = emit_insn_before (gen_hbr (branch_label, target), before);
   recog_memoized (hint);
-  INSN_LOCATOR (hint) = INSN_LOCATOR (branch);
+  INSN_LOCATION (hint) = INSN_LOCATION (branch);
   HINTED_P (branch) = 1;
 
   if (GET_CODE (target) == LABEL_REF)
@@ -2425,7 +2150,7 @@ spu_emit_branch_hint (rtx before, rtx branch, rtx target,
          which could make it too far for the branch offest to fit */
       insn = emit_insn_before (gen_blockage (), hint);
       recog_memoized (insn);
-      INSN_LOCATOR (insn) = INSN_LOCATOR (hint);
+      INSN_LOCATION (insn) = INSN_LOCATION (hint);
     }
   else if (distance <= 8 * 4)
     {
@@ -2437,20 +2162,20 @@ spu_emit_branch_hint (rtx before, rtx branch, rtx target,
 	  insn =
 	    emit_insn_after (gen_nopn_nv (gen_rtx_REG (SImode, 127)), hint);
 	  recog_memoized (insn);
-	  INSN_LOCATOR (insn) = INSN_LOCATOR (hint);
+	  INSN_LOCATION (insn) = INSN_LOCATION (hint);
 	}
 
       /* Make sure any nops inserted aren't scheduled before the hint. */
       insn = emit_insn_after (gen_blockage (), hint);
       recog_memoized (insn);
-      INSN_LOCATOR (insn) = INSN_LOCATOR (hint);
+      INSN_LOCATION (insn) = INSN_LOCATION (hint);
 
       /* Make sure any nops inserted aren't scheduled after the call. */
       if (CALL_P (branch) && distance < 8 * 4)
 	{
 	  insn = emit_insn_before (gen_blockage (), branch);
 	  recog_memoized (insn);
-	  INSN_LOCATOR (insn) = INSN_LOCATOR (branch);
+	  INSN_LOCATION (insn) = INSN_LOCATION (branch);
 	}
     }
 }
@@ -2460,18 +2185,13 @@ spu_emit_branch_hint (rtx before, rtx branch, rtx target,
 static rtx
 get_branch_target (rtx branch)
 {
-  if (GET_CODE (branch) == JUMP_INSN)
+  if (JUMP_P (branch))
     {
       rtx set, src;
 
       /* Return statements */
       if (GET_CODE (PATTERN (branch)) == RETURN)
 	return gen_rtx_REG (SImode, LINK_REGISTER_REGNUM);
-
-      /* jump table */
-      if (GET_CODE (PATTERN (branch)) == ADDR_VEC
-	  || GET_CODE (PATTERN (branch)) == ADDR_DIFF_VEC)
-	return 0;
 
      /* ASM GOTOs. */
      if (extract_asm_operands (PATTERN (branch)) != NULL)
@@ -2490,7 +2210,7 @@ get_branch_target (rtx branch)
 	    {
 	      /* If the more probable case is not a fall through, then
 	         try a branch hint.  */
-	      HOST_WIDE_INT prob = INTVAL (XEXP (note, 0));
+	      int prob = XINT (note, 0);
 	      if (prob > (REG_BR_PROB_BASE * 6 / 10)
 		  && GET_CODE (XEXP (src, 1)) != PC)
 		lab = XEXP (src, 1);
@@ -2509,7 +2229,7 @@ get_branch_target (rtx branch)
 
       return src;
     }
-  else if (GET_CODE (branch) == CALL_INSN)
+  else if (CALL_P (branch))
     {
       rtx call;
       /* All of our call patterns are in a PARALLEL and the CALL is
@@ -2636,7 +2356,7 @@ insert_hbrp_for_ilb_runout (rtx first)
 		insn =
 		  emit_insn_before (gen_iprefetch (GEN_INT (1)), before_4);
 		recog_memoized (insn);
-		INSN_LOCATOR (insn) = INSN_LOCATOR (before_4);
+		INSN_LOCATION (insn) = INSN_LOCATION (before_4);
 		INSN_ADDRESSES_NEW (insn,
 				    INSN_ADDRESSES (INSN_UID (before_4)));
 		PUT_MODE (insn, GET_MODE (before_4));
@@ -2645,7 +2365,7 @@ insert_hbrp_for_ilb_runout (rtx first)
 		  {
 		    insn = emit_insn_before (gen_lnop (), before_4);
 		    recog_memoized (insn);
-		    INSN_LOCATOR (insn) = INSN_LOCATOR (before_4);
+		    INSN_LOCATION (insn) = INSN_LOCATION (before_4);
 		    INSN_ADDRESSES_NEW (insn,
 					INSN_ADDRESSES (INSN_UID (before_4)));
 		    PUT_MODE (insn, TImode);
@@ -2657,7 +2377,7 @@ insert_hbrp_for_ilb_runout (rtx first)
 		insn =
 		  emit_insn_before (gen_iprefetch (GEN_INT (2)), before_16);
 		recog_memoized (insn);
-		INSN_LOCATOR (insn) = INSN_LOCATOR (before_16);
+		INSN_LOCATION (insn) = INSN_LOCATION (before_16);
 		INSN_ADDRESSES_NEW (insn,
 				    INSN_ADDRESSES (INSN_UID (before_16)));
 		PUT_MODE (insn, GET_MODE (before_16));
@@ -2666,7 +2386,7 @@ insert_hbrp_for_ilb_runout (rtx first)
 		  {
 		    insn = emit_insn_before (gen_lnop (), before_16);
 		    recog_memoized (insn);
-		    INSN_LOCATOR (insn) = INSN_LOCATOR (before_16);
+		    INSN_LOCATION (insn) = INSN_LOCATION (before_16);
 		    INSN_ADDRESSES_NEW (insn,
 					INSN_ADDRESSES (INSN_UID
 							(before_16)));
@@ -2749,24 +2469,28 @@ spu_machine_dependent_reorg (void)
       return;
     }
 
-  blocks = sbitmap_alloc (last_basic_block);
-  sbitmap_zero (blocks);
+  blocks = sbitmap_alloc (last_basic_block_for_fn (cfun));
+  bitmap_clear (blocks);
 
   in_spu_reorg = 1;
   compute_bb_for_insn ();
 
+  /* (Re-)discover loops so that bb->loop_father can be used
+     in the analysis below.  */
+  loop_optimizer_init (AVOID_CFG_MODIFICATIONS);
+
   compact_blocks ();
 
   spu_bb_info =
-    (struct spu_bb_info *) xcalloc (n_basic_blocks,
+    (struct spu_bb_info *) xcalloc (n_basic_blocks_for_fn (cfun),
 				    sizeof (struct spu_bb_info));
 
   /* We need exact insn addresses and lengths.  */
   shorten_branches (get_insns ());
 
-  for (i = n_basic_blocks - 1; i >= 0; i--)
+  for (i = n_basic_blocks_for_fn (cfun) - 1; i >= 0; i--)
     {
-      bb = BASIC_BLOCK (i);
+      bb = BASIC_BLOCK_FOR_FN (cfun, i);
       branch = 0;
       if (spu_bb_info[i].prop_jump)
 	{
@@ -2859,23 +2583,22 @@ spu_machine_dependent_reorg (void)
 	     fallthru block. This catches the cases when it is a simple
 	     loop or when there is an initial branch into the loop. */
 	  if (prev && (loop_exit || simple_loop)
-	      && prev->loop_depth <= bb->loop_depth)
+	      && bb_loop_depth (prev) <= bb_loop_depth (bb))
 	    prop = prev;
 
 	  /* If there is only one adjacent predecessor.  Don't propagate
-	     outside this loop.  This loop_depth test isn't perfect, but
-	     I'm not sure the loop_father member is valid at this point.  */
+	     outside this loop.  */
 	  else if (prev && single_pred_p (bb)
-		   && prev->loop_depth == bb->loop_depth)
+		   && prev->loop_father == bb->loop_father)
 	    prop = prev;
 
 	  /* If this is the JOIN block of a simple IF-THEN then
-	     propogate the hint to the HEADER block. */
+	     propagate the hint to the HEADER block. */
 	  else if (prev && prev2
 		   && EDGE_COUNT (bb->preds) == 2
 		   && EDGE_COUNT (prev->preds) == 1
 		   && EDGE_PRED (prev, 0)->src == prev2
-		   && prev2->loop_depth == bb->loop_depth
+		   && prev2->loop_father == bb->loop_father
 		   && GET_CODE (branch_target) != REG)
 	    prop = prev;
 
@@ -2897,7 +2620,7 @@ spu_machine_dependent_reorg (void)
 	      if (dump_file)
 		fprintf (dump_file, "propagate from %i to %i (loop depth %i) "
 			 "for %i (loop_exit %i simple_loop %i dist %i)\n",
-			 bb->index, prop->index, bb->loop_depth,
+			 bb->index, prop->index, bb_loop_depth (bb),
 			 INSN_UID (branch), loop_exit, simple_loop,
 			 branch_addr - INSN_ADDRESSES (INSN_UID (bbend)));
 
@@ -2918,11 +2641,11 @@ spu_machine_dependent_reorg (void)
     }
   free (spu_bb_info);
 
-  if (!sbitmap_empty_p (blocks))
+  if (!bitmap_empty_p (blocks))
     find_many_sub_basic_blocks (blocks);
 
   /* We have to schedule to make sure alignment is ok. */
-  FOR_EACH_BB (bb) bb->flags &= ~BB_DISABLE_SCHEDULE;
+  FOR_EACH_BB_FN (bb, cfun) bb->flags &= ~BB_DISABLE_SCHEDULE;
 
   /* The hints need to be scheduled, so call it again. */
   schedule_insns ();
@@ -2949,10 +2672,12 @@ spu_machine_dependent_reorg (void)
 	  if (NONJUMP_INSN_P (branch))
 	    offset += get_attr_length (branch);
 	if (offset > 0)
-	  XVECEXP (unspec, 0, 0) = plus_constant (label_ref, offset);
+	  XVECEXP (unspec, 0, 0) = plus_constant (Pmode, label_ref, offset);
       }
 
   spu_var_tracking ();
+
+  loop_optimizer_finalize ();
 
   free_bb_for_insn ();
 
@@ -3124,7 +2849,7 @@ spu_sched_variable_issue (FILE *file ATTRIBUTE_UNUSED,
 	prev_priority = INSN_PRIORITY (insn);
     }
 
-  /* Always try issueing more insns.  spu_sched_reorder will decide 
+  /* Always try issuing more insns.  spu_sched_reorder will decide 
      when the cycle should be advanced. */
   return 1;
 }
@@ -3231,7 +2956,7 @@ spu_sched_reorder (FILE *file ATTRIBUTE_UNUSED, int verbose ATTRIBUTE_UNUSED,
      used to effect it. */
   if (in_spu_reorg && spu_dual_nops < 10)
     {
-      /* When we are at an even address and we are not issueing nops to
+      /* When we are at an even address and we are not issuing nops to
          improve scheduling then we need to advance the cycle.  */
       if ((spu_sched_length & 7) == 0 && prev_clock_var == clock
 	  && (spu_dual_nops == 0
@@ -3885,7 +3610,7 @@ spu_addr_space_legitimate_address_p (enum machine_mode mode, rtx x,
 
 /* When the address is reg + const_int, force the const_int into a
    register.  */
-rtx
+static rtx
 spu_legitimize_address (rtx x, rtx oldx ATTRIBUTE_UNUSED,
 			enum machine_mode mode ATTRIBUTE_UNUSED)
 {
@@ -4057,7 +3782,7 @@ spu_initial_elimination_offset (int from, int to)
 {
   int saved_regs_size = spu_saved_regs_size ();
   int sp_offset = 0;
-  if (!current_function_is_leaf || crtl->outgoing_args_size
+  if (!crtl->is_leaf || crtl->outgoing_args_size
       || get_frame_size () || saved_regs_size)
     sp_offset = STACK_POINTER_OFFSET;
   if (from == FRAME_POINTER_REGNUM && to == STACK_POINTER_REGNUM)
@@ -4379,7 +4104,7 @@ spu_setup_incoming_varargs (cumulative_args_t cum, enum machine_mode mode,
       for (regno = ncum; regno < MAX_REGISTER_ARGS; regno++)
 	{
 	  tmp = gen_frame_mem (V4SImode,
-			       plus_constant (virtual_incoming_args_rtx,
+			       plus_constant (Pmode, virtual_incoming_args_rtx,
 					      offset));
 	  emit_move_insn (tmp,
 			  gen_rtx_REG (V4SImode, FIRST_ARG_REGNUM + regno));
@@ -4556,7 +4281,7 @@ ea_load_store_inline (rtx mem, bool is_store, rtx ea_addr, rtx data_addr)
       tag_equal_hi = gen_reg_rtx (V4SImode);
     }
 
-  emit_move_insn (index_mask, plus_constant (tag_size_sym, -128));
+  emit_move_insn (index_mask, plus_constant (Pmode, tag_size_sym, -128));
   emit_move_insn (tag_arr, tag_arr_sym);
   v = 0x0001020300010203LL;
   emit_move_insn (splat_mask, immed_double_const (v, v, TImode));
@@ -4583,14 +4308,16 @@ ea_load_store_inline (rtx mem, bool is_store, rtx ea_addr, rtx data_addr)
   emit_move_insn (cache_tag, gen_rtx_MEM (V4SImode, tag_addr));
   if (spu_ea_model != 32)
     emit_move_insn (cache_tag_hi, gen_rtx_MEM (V4SImode,
-					       plus_constant (tag_addr, 16)));
+					       plus_constant (Pmode,
+							      tag_addr, 16)));
 
   /* tag = ea_addr & -128  */
   emit_insn (gen_andv4si3 (tag, splat, spu_const (V4SImode, -128)));
 
   /* Read all four cache data pointers.  */
   emit_move_insn (cache_ptrs, gen_rtx_MEM (TImode,
-					   plus_constant (tag_addr, 32)));
+					   plus_constant (Pmode,
+							  tag_addr, 32)));
 
   /* Compare tags.  */
   emit_insn (gen_ceq_v4si (tag_equal, tag, cache_tag));
@@ -4628,7 +4355,7 @@ ea_load_store_inline (rtx mem, bool is_store, rtx ea_addr, rtx data_addr)
 							    hit_ref, pc_rtx)));
   /* Say that this branch is very likely to happen.  */
   v = REG_BR_PROB_BASE - REG_BR_PROB_BASE / 100 - 1;
-  add_reg_note (insn, REG_BR_PROB, GEN_INT (v));
+  add_int_reg_note (insn, REG_BR_PROB, v);
 
   ea_load_store (mem, is_store, ea_addr, data_addr);
   cont_label = gen_label_rtx ();
@@ -4941,7 +4668,7 @@ spu_expand_load (rtx dst0, rtx dst1, rtx src, int extra_rotby)
 
   if (dst1)
     {
-      addr1 = plus_constant (copy_rtx (addr), 16);
+      addr1 = plus_constant (SImode, copy_rtx (addr), 16);
       addr1 = gen_rtx_AND (SImode, addr1, GEN_INT (-16));
       emit_insn (gen__movti (dst1, change_address (src, TImode, addr1)));
     }
@@ -6176,6 +5903,14 @@ spu_trampoline_init (rtx m_tramp, tree fndecl, rtx cxt)
   emit_insn (gen_sync ());
 }
 
+static bool
+spu_warn_func_return (tree decl)
+{
+  /* Naked functions are implemented entirely in assembly, including the
+     return sequence, so suppress warnings about this.  */
+  return !spu_naked_function_p (decl);
+}
+
 void
 spu_expand_sign_extend (rtx ops[])
 {
@@ -6863,40 +6598,6 @@ spu_expand_builtin (tree exp,
   abort ();
 }
 
-/* Implement targetm.vectorize.builtin_mul_widen_even.  */
-static tree
-spu_builtin_mul_widen_even (tree type)
-{
-  switch (TYPE_MODE (type))
-    {
-    case V8HImode:
-      if (TYPE_UNSIGNED (type))
-	return spu_builtin_decls[SPU_MULE_0];
-      else
-	return spu_builtin_decls[SPU_MULE_1];
-      break;
-    default:
-      return NULL_TREE;
-    }
-}
-
-/* Implement targetm.vectorize.builtin_mul_widen_odd.  */
-static tree
-spu_builtin_mul_widen_odd (tree type)
-{
-  switch (TYPE_MODE (type))
-    {
-    case V8HImode:
-      if (TYPE_UNSIGNED (type))
-	return spu_builtin_decls[SPU_MULO_1];
-      else
-	return spu_builtin_decls[SPU_MULO_0]; 
-      break;
-    default:
-      return NULL_TREE;
-    }
-}
-
 /* Implement targetm.vectorize.builtin_mask_for_load.  */
 static tree
 spu_builtin_mask_for_load (void)
@@ -6907,9 +6608,11 @@ spu_builtin_mask_for_load (void)
 /* Implement targetm.vectorize.builtin_vectorization_cost.  */
 static int 
 spu_builtin_vectorization_cost (enum vect_cost_for_stmt type_of_cost,
-                                tree vectype ATTRIBUTE_UNUSED,
+                                tree vectype,
                                 int misalign ATTRIBUTE_UNUSED)
 {
+  unsigned elements;
+
   switch (type_of_cost)
     {
       case scalar_stmt:
@@ -6936,9 +6639,71 @@ spu_builtin_vectorization_cost (enum vect_cost_for_stmt type_of_cost,
       case cond_branch_taken:
         return 6;
 
+      case vec_construct:
+	elements = TYPE_VECTOR_SUBPARTS (vectype);
+	return elements / 2 + 1;
+
       default:
         gcc_unreachable ();
     }
+}
+
+/* Implement targetm.vectorize.init_cost.  */
+
+static void *
+spu_init_cost (struct loop *loop_info ATTRIBUTE_UNUSED)
+{
+  unsigned *cost = XNEWVEC (unsigned, 3);
+  cost[vect_prologue] = cost[vect_body] = cost[vect_epilogue] = 0;
+  return cost;
+}
+
+/* Implement targetm.vectorize.add_stmt_cost.  */
+
+static unsigned
+spu_add_stmt_cost (void *data, int count, enum vect_cost_for_stmt kind,
+		   struct _stmt_vec_info *stmt_info, int misalign,
+		   enum vect_cost_model_location where)
+{
+  unsigned *cost = (unsigned *) data;
+  unsigned retval = 0;
+
+  if (flag_vect_cost_model)
+    {
+      tree vectype = stmt_info ? stmt_vectype (stmt_info) : NULL_TREE;
+      int stmt_cost = spu_builtin_vectorization_cost (kind, vectype, misalign);
+
+      /* Statements in an inner loop relative to the loop being
+	 vectorized are weighted more heavily.  The value here is
+	 arbitrary and could potentially be improved with analysis.  */
+      if (where == vect_body && stmt_info && stmt_in_inner_loop_p (stmt_info))
+	count *= 50;  /* FIXME.  */
+
+      retval = (unsigned) (count * stmt_cost);
+      cost[where] += retval;
+    }
+
+  return retval;
+}
+
+/* Implement targetm.vectorize.finish_cost.  */
+
+static void
+spu_finish_cost (void *data, unsigned *prologue_cost,
+		 unsigned *body_cost, unsigned *epilogue_cost)
+{
+  unsigned *cost = (unsigned *) data;
+  *prologue_cost = cost[vect_prologue];
+  *body_cost     = cost[vect_body];
+  *epilogue_cost = cost[vect_epilogue];
+}
+
+/* Implement targetm.vectorize.destroy_cost_data.  */
+
+static void
+spu_destroy_cost_data (void *data)
+{
+  free (data);
 }
 
 /* Return true iff, data reference of TYPE can reach vector alignment (16)
@@ -7345,5 +7110,240 @@ spu_output_mi_thunk (FILE *file, tree thunk ATTRIBUTE_UNUSED,
 
   final_end_function ();
 }
+
+/* Canonicalize a comparison from one we don't have to one we do have.  */
+static void
+spu_canonicalize_comparison (int *code, rtx *op0, rtx *op1,
+			     bool op0_preserve_value)
+{
+  if (!op0_preserve_value
+      && (*code == LE || *code == LT || *code == LEU || *code == LTU))
+    {
+      rtx tem = *op0;
+      *op0 = *op1;
+      *op1 = tem;
+      *code = (int)swap_condition ((enum rtx_code)*code);
+    }
+}
+
+/*  Table of machine attributes.  */
+static const struct attribute_spec spu_attribute_table[] =
+{
+  /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler,
+       affects_type_identity } */
+  { "naked",          0, 0, true,  false, false, spu_handle_fndecl_attribute,
+    false },
+  { "spu_vector",     0, 0, false, true,  false, spu_handle_vector_attribute,
+    false },
+  { NULL,             0, 0, false, false, false, NULL, false }
+};
+
+/*  TARGET overrides.  */
+
+#undef TARGET_ADDR_SPACE_POINTER_MODE
+#define TARGET_ADDR_SPACE_POINTER_MODE spu_addr_space_pointer_mode
+
+#undef TARGET_ADDR_SPACE_ADDRESS_MODE
+#define TARGET_ADDR_SPACE_ADDRESS_MODE spu_addr_space_address_mode
+
+#undef TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P
+#define TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P \
+  spu_addr_space_legitimate_address_p
+
+#undef TARGET_ADDR_SPACE_LEGITIMIZE_ADDRESS
+#define TARGET_ADDR_SPACE_LEGITIMIZE_ADDRESS spu_addr_space_legitimize_address
+
+#undef TARGET_ADDR_SPACE_SUBSET_P
+#define TARGET_ADDR_SPACE_SUBSET_P spu_addr_space_subset_p
+
+#undef TARGET_ADDR_SPACE_CONVERT
+#define TARGET_ADDR_SPACE_CONVERT spu_addr_space_convert
+
+#undef TARGET_INIT_BUILTINS
+#define TARGET_INIT_BUILTINS spu_init_builtins
+#undef TARGET_BUILTIN_DECL
+#define TARGET_BUILTIN_DECL spu_builtin_decl
+
+#undef TARGET_EXPAND_BUILTIN
+#define TARGET_EXPAND_BUILTIN spu_expand_builtin
+
+#undef TARGET_UNWIND_WORD_MODE
+#define TARGET_UNWIND_WORD_MODE spu_unwind_word_mode
+
+#undef TARGET_LEGITIMIZE_ADDRESS
+#define TARGET_LEGITIMIZE_ADDRESS spu_legitimize_address
+
+/* The current assembler doesn't like .4byte foo@ppu, so use the normal .long
+   and .quad for the debugger.  When it is known that the assembler is fixed,
+   these can be removed.  */
+#undef TARGET_ASM_UNALIGNED_SI_OP
+#define TARGET_ASM_UNALIGNED_SI_OP	"\t.long\t"
+
+#undef TARGET_ASM_ALIGNED_DI_OP
+#define TARGET_ASM_ALIGNED_DI_OP	"\t.quad\t"
+
+/* The .8byte directive doesn't seem to work well for a 32 bit
+   architecture. */
+#undef TARGET_ASM_UNALIGNED_DI_OP
+#define TARGET_ASM_UNALIGNED_DI_OP NULL
+
+#undef TARGET_RTX_COSTS
+#define TARGET_RTX_COSTS spu_rtx_costs
+
+#undef TARGET_ADDRESS_COST
+#define TARGET_ADDRESS_COST hook_int_rtx_mode_as_bool_0
+
+#undef TARGET_SCHED_ISSUE_RATE
+#define TARGET_SCHED_ISSUE_RATE spu_sched_issue_rate
+
+#undef TARGET_SCHED_INIT_GLOBAL
+#define TARGET_SCHED_INIT_GLOBAL spu_sched_init_global
+
+#undef TARGET_SCHED_INIT
+#define TARGET_SCHED_INIT spu_sched_init
+
+#undef TARGET_SCHED_VARIABLE_ISSUE
+#define TARGET_SCHED_VARIABLE_ISSUE spu_sched_variable_issue
+
+#undef TARGET_SCHED_REORDER
+#define TARGET_SCHED_REORDER spu_sched_reorder
+
+#undef TARGET_SCHED_REORDER2
+#define TARGET_SCHED_REORDER2 spu_sched_reorder
+
+#undef TARGET_SCHED_ADJUST_COST
+#define TARGET_SCHED_ADJUST_COST spu_sched_adjust_cost
+
+#undef  TARGET_ATTRIBUTE_TABLE
+#define TARGET_ATTRIBUTE_TABLE spu_attribute_table
+
+#undef TARGET_ASM_INTEGER
+#define TARGET_ASM_INTEGER spu_assemble_integer
+
+#undef TARGET_SCALAR_MODE_SUPPORTED_P
+#define TARGET_SCALAR_MODE_SUPPORTED_P	spu_scalar_mode_supported_p
+
+#undef TARGET_VECTOR_MODE_SUPPORTED_P
+#define TARGET_VECTOR_MODE_SUPPORTED_P	spu_vector_mode_supported_p
+
+#undef TARGET_FUNCTION_OK_FOR_SIBCALL
+#define TARGET_FUNCTION_OK_FOR_SIBCALL spu_function_ok_for_sibcall
+
+#undef TARGET_ASM_GLOBALIZE_LABEL
+#define TARGET_ASM_GLOBALIZE_LABEL spu_asm_globalize_label
+
+#undef TARGET_PASS_BY_REFERENCE
+#define TARGET_PASS_BY_REFERENCE spu_pass_by_reference
+
+#undef TARGET_FUNCTION_ARG
+#define TARGET_FUNCTION_ARG spu_function_arg
+
+#undef TARGET_FUNCTION_ARG_ADVANCE
+#define TARGET_FUNCTION_ARG_ADVANCE spu_function_arg_advance
+
+#undef TARGET_MUST_PASS_IN_STACK
+#define TARGET_MUST_PASS_IN_STACK must_pass_in_stack_var_size
+
+#undef TARGET_BUILD_BUILTIN_VA_LIST
+#define TARGET_BUILD_BUILTIN_VA_LIST spu_build_builtin_va_list
+
+#undef TARGET_EXPAND_BUILTIN_VA_START
+#define TARGET_EXPAND_BUILTIN_VA_START spu_va_start
+
+#undef TARGET_SETUP_INCOMING_VARARGS
+#define TARGET_SETUP_INCOMING_VARARGS spu_setup_incoming_varargs
+
+#undef TARGET_MACHINE_DEPENDENT_REORG
+#define TARGET_MACHINE_DEPENDENT_REORG spu_machine_dependent_reorg
+
+#undef TARGET_GIMPLIFY_VA_ARG_EXPR
+#define TARGET_GIMPLIFY_VA_ARG_EXPR spu_gimplify_va_arg_expr
+
+#undef TARGET_INIT_LIBFUNCS
+#define TARGET_INIT_LIBFUNCS spu_init_libfuncs
+
+#undef TARGET_RETURN_IN_MEMORY
+#define TARGET_RETURN_IN_MEMORY spu_return_in_memory
+
+#undef  TARGET_ENCODE_SECTION_INFO
+#define TARGET_ENCODE_SECTION_INFO spu_encode_section_info
+
+#undef TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD
+#define TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD spu_builtin_mask_for_load
+
+#undef TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST
+#define TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST spu_builtin_vectorization_cost
+
+#undef TARGET_VECTORIZE_INIT_COST
+#define TARGET_VECTORIZE_INIT_COST spu_init_cost
+
+#undef TARGET_VECTORIZE_ADD_STMT_COST
+#define TARGET_VECTORIZE_ADD_STMT_COST spu_add_stmt_cost
+
+#undef TARGET_VECTORIZE_FINISH_COST
+#define TARGET_VECTORIZE_FINISH_COST spu_finish_cost
+
+#undef TARGET_VECTORIZE_DESTROY_COST_DATA
+#define TARGET_VECTORIZE_DESTROY_COST_DATA spu_destroy_cost_data
+
+#undef TARGET_VECTORIZE_VECTOR_ALIGNMENT_REACHABLE
+#define TARGET_VECTORIZE_VECTOR_ALIGNMENT_REACHABLE spu_vector_alignment_reachable
+
+#undef TARGET_LIBGCC_CMP_RETURN_MODE
+#define TARGET_LIBGCC_CMP_RETURN_MODE spu_libgcc_cmp_return_mode
+
+#undef TARGET_LIBGCC_SHIFT_COUNT_MODE
+#define TARGET_LIBGCC_SHIFT_COUNT_MODE spu_libgcc_shift_count_mode
+
+#undef TARGET_SCHED_SMS_RES_MII
+#define TARGET_SCHED_SMS_RES_MII spu_sms_res_mii
+
+#undef TARGET_SECTION_TYPE_FLAGS
+#define TARGET_SECTION_TYPE_FLAGS spu_section_type_flags
+
+#undef TARGET_ASM_SELECT_SECTION
+#define TARGET_ASM_SELECT_SECTION  spu_select_section
+
+#undef TARGET_ASM_UNIQUE_SECTION
+#define TARGET_ASM_UNIQUE_SECTION  spu_unique_section
+
+#undef TARGET_LEGITIMATE_ADDRESS_P
+#define TARGET_LEGITIMATE_ADDRESS_P spu_legitimate_address_p
+
+#undef TARGET_LEGITIMATE_CONSTANT_P
+#define TARGET_LEGITIMATE_CONSTANT_P spu_legitimate_constant_p
+
+#undef TARGET_TRAMPOLINE_INIT
+#define TARGET_TRAMPOLINE_INIT spu_trampoline_init
+
+#undef TARGET_WARN_FUNC_RETURN
+#define TARGET_WARN_FUNC_RETURN spu_warn_func_return
+
+#undef TARGET_OPTION_OVERRIDE
+#define TARGET_OPTION_OVERRIDE spu_option_override
+
+#undef TARGET_CONDITIONAL_REGISTER_USAGE
+#define TARGET_CONDITIONAL_REGISTER_USAGE spu_conditional_register_usage
+
+#undef TARGET_REF_MAY_ALIAS_ERRNO
+#define TARGET_REF_MAY_ALIAS_ERRNO spu_ref_may_alias_errno
+
+#undef TARGET_ASM_OUTPUT_MI_THUNK
+#define TARGET_ASM_OUTPUT_MI_THUNK spu_output_mi_thunk
+#undef TARGET_ASM_CAN_OUTPUT_MI_THUNK
+#define TARGET_ASM_CAN_OUTPUT_MI_THUNK hook_bool_const_tree_hwi_hwi_const_tree_true
+
+/* Variable tracking should be run after all optimizations which
+   change order of insns.  It also needs a valid CFG.  */
+#undef TARGET_DELAY_VARTRACK
+#define TARGET_DELAY_VARTRACK true
+
+#undef TARGET_CANONICALIZE_COMPARISON
+#define TARGET_CANONICALIZE_COMPARISON spu_canonicalize_comparison
+
+#undef TARGET_CAN_USE_DOLOOP_P
+#define TARGET_CAN_USE_DOLOOP_P can_use_doloop_if_innermost
+
+struct gcc_target targetm = TARGET_INITIALIZER;
 
 #include "gt-spu.h"

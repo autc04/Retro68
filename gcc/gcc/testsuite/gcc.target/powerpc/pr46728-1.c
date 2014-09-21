@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -ffast-math -fno-inline -fno-unroll-loops -lm -mpowerpc-gpopt" } */
+/* { dg-options "-O2 -ffast-math -fno-inline -fno-unroll-loops -lm -mpowerpc-gpopt -fno-ident" } */
 
 #include <math.h>
 
@@ -27,5 +27,5 @@ main (int argc, char *argv[])
 }
 
 
-/* { dg-final { scan-assembler-times "fsqrt" 2 { target powerpc*-*-* } } } */
-/* { dg-final { scan-assembler-not "pow" { target powerpc*-*-* } } } */
+/* { dg-final { scan-assembler-times "fsqrt|xssqrtdp" 2 { target powerpc*-*-* } } } */
+/* { dg-final { scan-assembler-not "bl\[\\. \]+pow" { target powerpc*-*-* } } } */

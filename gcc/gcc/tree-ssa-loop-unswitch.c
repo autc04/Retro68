@@ -1,5 +1,5 @@
 /* Loop unswitching.
-   Copyright (C) 2004, 2005, 2007, 2008, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,10 +24,19 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree.h"
 #include "tm_p.h"
 #include "basic-block.h"
-#include "output.h"
-#include "tree-flow.h"
-#include "tree-dump.h"
-#include "timevar.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-expr.h"
+#include "is-a.h"
+#include "gimple.h"
+#include "gimplify.h"
+#include "gimple-ssa.h"
+#include "tree-cfg.h"
+#include "tree-phinodes.h"
+#include "ssa-iterators.h"
+#include "tree-ssa-loop-niter.h"
+#include "tree-ssa-loop.h"
+#include "tree-into-ssa.h"
 #include "cfgloop.h"
 #include "params.h"
 #include "tree-pass.h"
@@ -78,12 +87,12 @@ static tree tree_may_unswitch_on (basic_block, struct loop *);
 unsigned int
 tree_ssa_unswitch_loops (void)
 {
-  loop_iterator li;
   struct loop *loop;
   bool changed = false;
+  HOST_WIDE_INT iterations;
 
   /* Go through inner loops (only original ones).  */
-  FOR_EACH_LOOP (li, loop, LI_ONLY_INNERMOST)
+  FOR_EACH_LOOP (loop, LI_ONLY_INNERMOST)
     {
       if (dump_file && (dump_flags & TDF_DETAILS))
         fprintf (dump_file, ";; Considering loop %d\n", loop->num);
@@ -104,6 +113,16 @@ tree_ssa_unswitch_loops (void)
             fprintf (dump_file, ";; Not unswitching, loop too big\n");
           continue;
         }
+
+      /* If the loop is not expected to iterate, there is no need
+	 for unswitching.  */
+      iterations = estimated_loop_iterations_int (loop);
+      if (iterations >= 0 && iterations <= 1)
+	{
+          if (dump_file && (dump_flags & TDF_DETAILS))
+            fprintf (dump_file, ";; Not unswitching, loop is not expected to iterate\n");
+          continue;
+	}
 
       changed |= tree_unswitch_single_loop (loop, 0);
     }
@@ -179,7 +198,7 @@ simplify_using_entry_checks (struct loop *loop, tree cond)
 	return cond;
 
       e = single_pred_edge (e->src);
-      if (e->src == ENTRY_BLOCK_PTR)
+      if (e->src == ENTRY_BLOCK_PTR_FOR_FN (cfun))
 	return cond;
     }
 }
@@ -380,3 +399,60 @@ tree_unswitch_loop (struct loop *loop,
 		       NULL, prob_true, prob_true,
 		       REG_BR_PROB_BASE - prob_true, false);
 }
+
+/* Loop unswitching pass.  */
+
+static unsigned int
+tree_ssa_loop_unswitch (void)
+{
+  if (number_of_loops (cfun) <= 1)
+    return 0;
+
+  return tree_ssa_unswitch_loops ();
+}
+
+static bool
+gate_tree_ssa_loop_unswitch (void)
+{
+  return flag_unswitch_loops != 0;
+}
+
+namespace {
+
+const pass_data pass_data_tree_unswitch =
+{
+  GIMPLE_PASS, /* type */
+  "unswitch", /* name */
+  OPTGROUP_LOOP, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_TREE_LOOP_UNSWITCH, /* tv_id */
+  PROP_cfg, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  0, /* todo_flags_finish */
+};
+
+class pass_tree_unswitch : public gimple_opt_pass
+{
+public:
+  pass_tree_unswitch (gcc::context *ctxt)
+    : gimple_opt_pass (pass_data_tree_unswitch, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_tree_ssa_loop_unswitch (); }
+  unsigned int execute () { return tree_ssa_loop_unswitch (); }
+
+}; // class pass_tree_unswitch
+
+} // anon namespace
+
+gimple_opt_pass *
+make_pass_tree_unswitch (gcc::context *ctxt)
+{
+  return new pass_tree_unswitch (ctxt);
+}
+
+

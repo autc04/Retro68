@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,25 +38,11 @@ package Err_Vars is
    --  been initialized, so we initialize some variables to avoid exceptions
    --  from invalid values in such cases.
 
-   ------------------
-   -- Error Counts --
-   ------------------
-
-   Serious_Errors_Detected : Nat := 0;
-   --  This is a count of errors that are serious enough to stop expansion,
-   --  and hence to prevent generation of an object file even if the
-   --  switch -gnatQ is set. Initialized to zero at the start of compilation.
-   --  Initialized for -gnatVa use, see comment above.
-
-   Total_Errors_Detected : Nat := 0;
-   --  Number of errors detected so far. Includes count of serious errors and
-   --  non-serious errors, so this value is always greater than or equal to the
-   --  Serious_Errors_Detected value. Initialized to zero at the start of
-   --  compilation. Initialized for -gnatVa use, see comment above.
-
-   Warnings_Detected : Nat := 0;
-   --  Number of warnings detected. Initialized to zero at the start of
-   --  compilation. Initialized for -gnatVa use, see comment above.
+   --  Note on error counts (Serious_Errors_Detected, Total_Errors_Detected,
+   --  Warnings_Detected). These counts might more logically appear in this
+   --  unit, but we place them in atree.ads, because of licensing issues. We
+   --  need to be able to access these counts from units that have the more
+   --  general licensing conditions.
 
    ----------------------------------
    -- Error Message Mode Variables --
@@ -68,7 +54,7 @@ package Err_Vars is
    --  variables are not reset by calls to the error message routines, so the
    --  caller is responsible for resetting the default behavior after use.
 
-   Error_Msg_Qual_Level : Int;
+   Error_Msg_Qual_Level : Int := 0;
    --  Number of levels of qualification required for type name (see the
    --  description of the } insertion character. Note that this value does
    --  note get reset by any Error_Msg call, so the caller is responsible
@@ -101,6 +87,13 @@ package Err_Vars is
    --  other than the main unit. However, if the main unit has a pragma
    --  Source_Reference line, then this is initialized to No_Source_File,
    --  to force an initial reference to the real source file name.
+
+   Warning_Doc_Switch : Boolean := False;
+   --  If this is set True, then the ??/?x?/?x? sequences in error messages
+   --  are active (see errout.ads for details). If this switch is False, then
+   --  these sequences are ignored (i.e. simply equivalent to a single ?). The
+   --  -gnatw.d switch sets this flag True, -gnatw.D sets this flag False.
+   --  Note: always ignored on VMS, where we do not provide this capability.
 
    ----------------------------------------
    -- Error Message Insertion Parameters --
@@ -147,7 +140,9 @@ package Err_Vars is
    --  before any call to Error_Msg_xxx with a < insertion character present.
    --  Setting is irrelevant if no < insertion character is present. Note
    --  that it is not necessary to reset this after using it, since the proper
-   --  procedure is always to set it before issuing such a message.
+   --  procedure is always to set it before issuing such a message. Note that
+   --  the warning documentation tag is always [enabled by default] in the
+   --  case where this flag is True.
 
    Error_Msg_String : String (1 .. 4096);
    Error_Msg_Strlen : Natural;

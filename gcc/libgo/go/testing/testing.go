@@ -10,10 +10,23 @@
 // [a-z]) and serves to identify the test routine.
 // These TestXxx routines should be declared within the package they are testing.
 //
+// Tests and benchmarks may be skipped if not applicable like this:
+//     func TestTimeConsuming(t *testing.T) {
+//         if testing.Short() {
+//             t.Skip("skipping test in short mode.")
+//         }
+//         ...
+//     }
+//
+// Benchmarks
+//
 // Functions of the form
 //     func BenchmarkXxx(*testing.B)
 // are considered benchmarks, and are executed by the "go test" command when
-// the -test.bench flag is provided.
+// its -bench flag is provided. Benchmarks are run sequentially.
+//
+// For a description of the testing flags, see
+// http://golang.org/cmd/go/#hdr-Description_of_testing_flags.
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
@@ -22,26 +35,28 @@
 //         }
 //     }
 //
+// The benchmark function must run the target code b.N times.
 // The benchmark package will vary b.N until the benchmark function lasts
 // long enough to be timed reliably.  The output
-//     testing.BenchmarkHello    10000000    282 ns/op
+//     BenchmarkHello    10000000    282 ns/op
 // means that the loop ran 10000000 times at a speed of 282 ns per loop.
 //
 // If a benchmark needs some expensive setup before running, the timer
-// may be stopped:
+// may be reset:
 //     func BenchmarkBigLen(b *testing.B) {
-//         b.StopTimer()
 //         big := NewBig()
-//         b.StartTimer()
+//         b.ResetTimer()
 //         for i := 0; i < b.N; i++ {
 //             big.Len()
 //         }
 //     }
 //
+// Examples
+//
 // The package also runs and verifies example code. Example functions may
-// include a concluding comment that begins with "Output:" and is compared with
-// the standard output of the function when the tests are run, as in these
-// examples of an example:
+// include a concluding line comment that begins with "Output:" and is compared with
+// the standard output of the function when the tests are run. (The comparison
+// ignores leading and trailing space.) These are examples of an example:
 //
 //     func ExampleHello() {
 //             fmt.Println("hello")
@@ -58,17 +73,19 @@
 //
 // Example functions without output comments are compiled but not executed.
 //
-// The naming convention to declare examples for a function F, a type T and
+// The naming convention to declare examples for the package, a function F, a type T and
 // method M on type T are:
 //
+//     func Example() { ... }
 //     func ExampleF() { ... }
 //     func ExampleT() { ... }
 //     func ExampleT_M() { ... }
 //
-// Multiple example functions for a type/function/method may be provided by
+// Multiple example functions for a package/type/function/method may be provided by
 // appending a distinct suffix to the name. The suffix must start with a
 // lower-case letter.
 //
+//     func Example_suffix() { ... }
 //     func ExampleF_suffix() { ... }
 //     func ExampleT_suffix() { ... }
 //     func ExampleT_M_suffix() { ... }
@@ -79,7 +96,7 @@
 package testing
 
 import (
-	_ "debug/elf"
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -87,6 +104,7 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -98,15 +116,26 @@ var (
 	// full test of the package.
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
 
+	// The directory in which to create profile files and the like. When run from
+	// "go test", the binary always runs in the source directory for the package;
+	// this flag lets "go test" tell the binary to write the files in the directory where
+	// the "go test" command is run.
+	outputDir = flag.String("test.outputdir", "", "directory in which to write profiles")
+
 	// Report as tests are run; default is silent for success.
-	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
-	match          = flag.String("test.run", "", "regular expression to select tests and examples to run")
-	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
-	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
-	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
-	timeout        = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
-	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
-	parallel       = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
+	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to the named file after execution")
+	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
+	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+	memProfileRate   = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
+	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
+	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
+	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+
+	haveExamples bool // are there examples?
 
 	cpuList []int
 )
@@ -114,8 +143,11 @@ var (
 // common holds the elements common between T and B and
 // captures common methods such as Errorf.
 type common struct {
-	output   []byte    // Output generated by test or benchmark.
-	failed   bool      // Test or benchmark has failed.
+	mu      sync.RWMutex // guards output and failed
+	output  []byte       // Output generated by test or benchmark.
+	failed  bool         // Test or benchmark has failed.
+	skipped bool         // Test of benchmark has been skipped.
+
 	start    time.Time // Time test or benchmark started
 	duration time.Duration
 	self     interface{}      // To be sent on signal channel when done.
@@ -127,38 +159,69 @@ func Short() bool {
 	return *short
 }
 
-// decorate inserts the final newline if needed and indentation tabs for formatting.
-// If addFileLine is true, it also prefixes the string with the file and line of the call site.
-func decorate(s string, addFileLine bool) string {
-	if addFileLine {
-		_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
-		if ok {
-			// Truncate file name at last file name separator.
-			if index := strings.LastIndex(file, "/"); index >= 0 {
-				file = file[index+1:]
-			} else if index = strings.LastIndex(file, "\\"); index >= 0 {
-				file = file[index+1:]
-			}
-		} else {
-			file = "???"
-			line = 1
-		}
-		s = fmt.Sprintf("%s:%d: %s", file, line, s)
-	}
-	s = "\t" + s // Every line is indented at least one tab.
-	n := len(s)
-	if n > 0 && s[n-1] != '\n' {
-		s += "\n"
-		n++
-	}
-	for i := 0; i < n-1; i++ { // -1 to avoid final newline
-		if s[i] == '\n' {
-			// Second and subsequent lines are indented an extra tab.
-			return s[0:i+1] + "\t" + decorate(s[i+1:n], false)
-		}
-	}
-	return s
+// Verbose reports whether the -test.v flag is set.
+func Verbose() bool {
+	return *chatty
 }
+
+// decorate prefixes the string with the file and line of the call site
+// and inserts the final newline if needed and indentation tabs for formatting.
+func decorate(s string) string {
+	_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
+	if ok {
+		// Truncate file name at last file name separator.
+		if index := strings.LastIndex(file, "/"); index >= 0 {
+			file = file[index+1:]
+		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
+			file = file[index+1:]
+		}
+	} else {
+		file = "???"
+		line = 1
+	}
+	buf := new(bytes.Buffer)
+	// Every line is indented at least one tab.
+	buf.WriteByte('\t')
+	fmt.Fprintf(buf, "%s:%d: ", file, line)
+	lines := strings.Split(s, "\n")
+	if l := len(lines); l > 1 && lines[l-1] == "" {
+		lines = lines[:l-1]
+	}
+	for i, line := range lines {
+		if i > 0 {
+			// Second and subsequent lines are indented an extra tab.
+			buf.WriteString("\n\t\t")
+		}
+		buf.WriteString(line)
+	}
+	buf.WriteByte('\n')
+	return buf.String()
+}
+
+// TB is the interface common to T and B.
+type TB interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Fail()
+	FailNow()
+	Failed() bool
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+	Skip(args ...interface{})
+	SkipNow()
+	Skipf(format string, args ...interface{})
+	Skipped() bool
+
+	// A private method to prevent users implementing the
+	// interface and so future additions to it will not
+	// violate Go 1 compatibility.
+	private()
+}
+
+var _ TB = (*T)(nil)
+var _ TB = (*B)(nil)
 
 // T is a type passed to Test functions to manage test state and support formatted test logs.
 // Logs are accumulated during execution and dumped to standard error when done.
@@ -168,14 +231,28 @@ type T struct {
 	startParallel chan bool // Parallel tests will wait on this.
 }
 
-// Fail marks the function as having failed but continues execution.
-func (c *common) Fail() { c.failed = true }
+func (c *common) private() {}
 
-// Failed returns whether the function has failed.
-func (c *common) Failed() bool { return c.failed }
+// Fail marks the function as having failed but continues execution.
+func (c *common) Fail() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.failed = true
+}
+
+// Failed reports whether the function has failed.
+func (c *common) Failed() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.failed
+}
 
 // FailNow marks the function as having failed and stops its execution.
 // Execution will continue at the next test or benchmark.
+// FailNow must be called from the goroutine running the
+// test or benchmark function, not from other goroutines
+// created during the test. Calling FailNow does not stop
+// those other goroutines.
 func (c *common) FailNow() {
 	c.Fail()
 
@@ -203,46 +280,88 @@ func (c *common) FailNow() {
 
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
-	c.output = append(c.output, decorate(s, true)...)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.output = append(c.output, decorate(s)...)
 }
 
-// Log formats its arguments using default formatting, analogous to Println(),
-// and records the text in the error log.
+// Log formats its arguments using default formatting, analogous to Println,
+// and records the text in the error log. The text will be printed only if
+// the test fails or the -test.v flag is set.
 func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
 
-// Logf formats its arguments according to the format, analogous to Printf(),
-// and records the text in the error log.
+// Logf formats its arguments according to the format, analogous to Printf,
+// and records the text in the error log. The text will be printed only if
+// the test fails or the -test.v flag is set.
 func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
 
-// Error is equivalent to Log() followed by Fail().
+// Error is equivalent to Log followed by Fail.
 func (c *common) Error(args ...interface{}) {
 	c.log(fmt.Sprintln(args...))
 	c.Fail()
 }
 
-// Errorf is equivalent to Logf() followed by Fail().
+// Errorf is equivalent to Logf followed by Fail.
 func (c *common) Errorf(format string, args ...interface{}) {
 	c.log(fmt.Sprintf(format, args...))
 	c.Fail()
 }
 
-// Fatal is equivalent to Log() followed by FailNow().
+// Fatal is equivalent to Log followed by FailNow.
 func (c *common) Fatal(args ...interface{}) {
 	c.log(fmt.Sprintln(args...))
 	c.FailNow()
 }
 
-// Fatalf is equivalent to Logf() followed by FailNow().
+// Fatalf is equivalent to Logf followed by FailNow.
 func (c *common) Fatalf(format string, args ...interface{}) {
 	c.log(fmt.Sprintf(format, args...))
 	c.FailNow()
 }
 
-// Parallel signals that this test is to be run in parallel with (and only with) 
-// other parallel tests in this CPU group.
+// Skip is equivalent to Log followed by SkipNow.
+func (c *common) Skip(args ...interface{}) {
+	c.log(fmt.Sprintln(args...))
+	c.SkipNow()
+}
+
+// Skipf is equivalent to Logf followed by SkipNow.
+func (c *common) Skipf(format string, args ...interface{}) {
+	c.log(fmt.Sprintf(format, args...))
+	c.SkipNow()
+}
+
+// SkipNow marks the test as having been skipped and stops its execution.
+// Execution will continue at the next test or benchmark. See also FailNow.
+// SkipNow must be called from the goroutine running the test, not from
+// other goroutines created during the test. Calling SkipNow does not stop
+// those other goroutines.
+func (c *common) SkipNow() {
+	c.skip()
+	runtime.Goexit()
+}
+
+func (c *common) skip() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.skipped = true
+}
+
+// Skipped reports whether the test was skipped.
+func (c *common) Skipped() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.skipped
+}
+
+// Parallel signals that this test is to be run in parallel with (and only with)
+// other parallel tests.
 func (t *T) Parallel() {
 	t.signal <- (*T)(nil) // Release main testing loop
 	<-t.startParallel     // Wait for serial tests to finish
+	// Assuming Parallel is the first thing a test does, which is reasonable,
+	// reinitialize the test's start time because it's actually starting now.
+	t.start = time.Now()
 }
 
 // An internal type but exported because it is cross-package; part of the implementation
@@ -253,22 +372,22 @@ type InternalTest struct {
 }
 
 func tRunner(t *T, test *InternalTest) {
-	t.start = time.Now()
-
 	// When this goroutine is done, either because test.F(t)
-	// returned normally or because a test failure triggered 
+	// returned normally or because a test failure triggered
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
 		t.duration = time.Now().Sub(t.start)
 		// If the test panicked, print any test output before dying.
 		if err := recover(); err != nil {
+			t.Fail()
 			t.report()
 			panic(err)
 		}
 		t.signal <- t
 	}()
 
+	t.start = time.Now()
 	test.F(t)
 }
 
@@ -280,14 +399,15 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
 
 	before()
 	startAlarm()
+	haveExamples = len(examples) > 0
 	testOk := RunTests(matchString, tests)
 	exampleOk := RunExamples(matchString, examples)
+	stopAlarm()
 	if !testOk || !exampleOk {
 		fmt.Println("FAIL")
 		os.Exit(1)
 	}
 	fmt.Println("PASS")
-	stopAlarm()
 	RunBenchmarks(matchString, benchmarks)
 	after()
 }
@@ -295,16 +415,20 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
 func (t *T) report() {
 	tstr := fmt.Sprintf("(%.2f seconds)", t.duration.Seconds())
 	format := "--- %s: %s %s\n%s"
-	if t.failed {
+	if t.Failed() {
 		fmt.Printf(format, "FAIL", t.name, tstr, t.output)
 	} else if *chatty {
-		fmt.Printf(format, "PASS", t.name, tstr, t.output)
+		if t.Skipped() {
+			fmt.Printf(format, "SKIP", t.name, tstr, t.output)
+		} else {
+			fmt.Printf(format, "PASS", t.name, tstr, t.output)
+		}
 	}
 }
 
 func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
 	ok = true
-	if len(tests) == 0 {
+	if len(tests) == 0 && !haveExamples {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 		return
 	}
@@ -354,7 +478,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				continue
 			}
 			t.report()
-			ok = ok && !out.failed
+			ok = ok && !out.Failed()
 		}
 
 		running := 0
@@ -367,7 +491,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			}
 			t := (<-collector).(*T)
 			t.report()
-			ok = ok && !t.failed
+			ok = ok && !t.Failed()
 			running--
 		}
 	}
@@ -380,7 +504,7 @@ func before() {
 		runtime.MemProfileRate = *memProfileRate
 	}
 	if *cpuProfile != "" {
-		f, err := os.Create(*cpuProfile)
+		f, err := os.Create(toOutputDir(*cpuProfile))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testing: %s", err)
 			return
@@ -392,7 +516,13 @@ func before() {
 		}
 		// Could save f so after can call f.Close; not worth the effort.
 	}
-
+	if *blockProfile != "" && *blockProfileRate >= 0 {
+		runtime.SetBlockProfileRate(*blockProfileRate)
+	}
+	if *coverProfile != "" && cover.Mode == "" {
+		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
+		os.Exit(2)
+	}
 }
 
 // after runs after all testing.
@@ -401,16 +531,60 @@ func after() {
 		pprof.StopCPUProfile() // flushes profile to disk
 	}
 	if *memProfile != "" {
-		f, err := os.Create(*memProfile)
+		f, err := os.Create(toOutputDir(*memProfile))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: %s", err)
-			return
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+			os.Exit(2)
 		}
 		if err = pprof.WriteHeapProfile(f); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
+			os.Exit(2)
 		}
 		f.Close()
 	}
+	if *blockProfile != "" && *blockProfileRate >= 0 {
+		f, err := os.Create(toOutputDir(*blockProfile))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+			os.Exit(2)
+		}
+		if err = pprof.Lookup("block").WriteTo(f, 0); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+			os.Exit(2)
+		}
+		f.Close()
+	}
+	if cover.Mode != "" {
+		coverReport()
+	}
+}
+
+// toOutputDir returns the file name relocated, if required, to outputDir.
+// Simple implementation to avoid pulling in path/filepath.
+func toOutputDir(path string) string {
+	if *outputDir == "" || path == "" {
+		return path
+	}
+	if runtime.GOOS == "windows" {
+		// On Windows, it's clumsy, but we can be almost always correct
+		// by just looking for a drive letter and a colon.
+		// Absolute paths always have a drive letter (ignoring UNC).
+		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
+		// what to do, but even then path/filepath doesn't help.
+		// TODO: Worth doing better? Probably not, because we're here only
+		// under the management of go test.
+		if len(path) >= 2 {
+			letter, colon := path[0], path[1]
+			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
+				// If path starts with a drive letter we're stuck with it regardless.
+				return path
+			}
+		}
+	}
+	if os.IsPathSeparator(path[0]) {
+		return path
+	}
+	return fmt.Sprintf("%s%c%s", *outputDir, os.PathSeparator, path)
 }
 
 var timer *time.Timer
@@ -418,7 +592,9 @@ var timer *time.Timer
 // startAlarm starts an alarm if requested.
 func startAlarm() {
 	if *timeout > 0 {
-		timer = time.AfterFunc(*timeout, alarm)
+		timer = time.AfterFunc(*timeout, func() {
+			panic(fmt.Sprintf("test timed out after %v", *timeout))
+		})
 	}
 }
 
@@ -429,22 +605,20 @@ func stopAlarm() {
 	}
 }
 
-// alarm is called if the timeout expires.
-func alarm() {
-	panic("test timed out")
-}
-
 func parseCpuList() {
-	if len(*cpuListStr) == 0 {
-		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
-	} else {
-		for _, val := range strings.Split(*cpuListStr, ",") {
-			cpu, err := strconv.Atoi(val)
-			if err != nil || cpu <= 0 {
-				fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu", val)
-				os.Exit(1)
-			}
-			cpuList = append(cpuList, cpu)
+	for _, val := range strings.Split(*cpuListStr, ",") {
+		val = strings.TrimSpace(val)
+		if val == "" {
+			continue
 		}
+		cpu, err := strconv.Atoi(val)
+		if err != nil || cpu <= 0 {
+			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
+			os.Exit(1)
+		}
+		cpuList = append(cpuList, cpu)
+	}
+	if cpuList == nil {
+		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
 	}
 }

@@ -1,7 +1,5 @@
 /* Frv prototypes.
-   Copyright (C) 1999, 2000, 2001, 2003, 2004, 2005, 2007, 2008, 2009, 2010,
-   2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
 This file is part of GCC.
@@ -26,6 +24,7 @@ extern void frv_expand_epilogue			(bool);
 extern frv_stack_t *frv_stack_info		(void);
 extern void frv_debug_stack			(frv_stack_t *);
 extern int frv_initial_elimination_offset	(int, int);
+extern void frv_ifcvt_machdep_init		(void *);
 
 #ifdef RTX_CODE
 extern int frv_legitimate_address_p_1		(enum machine_mode, rtx,
@@ -63,14 +62,14 @@ extern rtx frv_split_abs		(rtx *);
 extern void frv_split_double_load	(rtx, rtx);
 extern void frv_split_double_store	(rtx, rtx);
 #ifdef BB_HEAD
-extern void frv_ifcvt_init_extra_fields	(ce_if_block_t *);
-extern void frv_ifcvt_modify_tests	(ce_if_block_t *, rtx *, rtx *);
+extern void frv_ifcvt_init_extra_fields	(ce_if_block *);
+extern void frv_ifcvt_modify_tests	(ce_if_block *, rtx *, rtx *);
 extern void frv_ifcvt_modify_multiple_tests
-					(ce_if_block_t *, basic_block,
+					(ce_if_block *, basic_block,
 					 rtx *, rtx *);
-extern rtx frv_ifcvt_modify_insn	(ce_if_block_t *, rtx, rtx);
-extern void frv_ifcvt_modify_final	(ce_if_block_t *);
-extern void frv_ifcvt_modify_cancel	(ce_if_block_t *);
+extern rtx frv_ifcvt_modify_insn	(ce_if_block *, rtx, rtx);
+extern void frv_ifcvt_modify_final	(ce_if_block *);
+extern void frv_ifcvt_modify_cancel	(ce_if_block *);
 #endif
 extern enum reg_class frv_secondary_reload_class
 					(enum reg_class,

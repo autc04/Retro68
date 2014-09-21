@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2011, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2014, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -627,8 +627,6 @@ package body System.Task_Primitives.Operations is
    function Monotonic_Clock return Duration is
       use Interfaces;
 
-      type timeval is array (1 .. 2) of C.long;
-
       procedure timeval_to_duration
         (T    : not null access timeval;
          sec  : not null access C.long;
@@ -766,6 +764,23 @@ package body System.Task_Primitives.Operations is
 
       Self_ID.Common.LL.Thread := pthread_self;
       Self_ID.Common.LL.LWP := lwp_self;
+
+      if Self_ID.Common.Task_Image_Len > 0 then
+         declare
+            Task_Name : String (1 .. Parameters.Max_Task_Image_Length + 1);
+            Result    : int;
+
+         begin
+            --  Set thread name to ease debugging
+
+            Task_Name (1 .. Self_ID.Common.Task_Image_Len) :=
+              Self_ID.Common.Task_Image (1 .. Self_ID.Common.Task_Image_Len);
+            Task_Name (Self_ID.Common.Task_Image_Len + 1) := ASCII.NUL;
+
+            Result := prctl (PR_SET_NAME, unsigned_long (Task_Name'Address));
+            pragma Assert (Result = 0);
+         end;
+      end if;
 
       Specific.Set (Self_ID);
 
@@ -1061,13 +1076,16 @@ package body System.Task_Primitives.Operations is
 
    procedure Abort_Task (T : Task_Id) is
       Result : Interfaces.C.int;
+      ESRCH  : constant := 3; -- No such process
+      --  It can happen that T has already vanished, in which case pthread_kill
+      --  returns ESRCH, so we don't consider that to be an error.
    begin
       if Abort_Handler_Installed then
          Result :=
            pthread_kill
              (T.Common.LL.Thread,
               Signal (System.Interrupt_Management.Abort_Task_Interrupt));
-         pragma Assert (Result = 0);
+         pragma Assert (Result = 0 or else Result = ESRCH);
       end if;
    end Abort_Task;
 

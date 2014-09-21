@@ -1,8 +1,7 @@
 /* Implementation of W32-specific threads compatibility routines for
    libgcc2.  */
 
-/* Copyright (C) 1999, 2000, 2002, 2004, 2008, 2009, 2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Mumit Khan <khan@xraylith.wisc.edu>.
    Modified and moved to separate file by Danny Smith
    <dannysmith@users.sourceforge.net>.
@@ -148,7 +147,7 @@ void
 __gthr_win32_mutex_init_function (__gthread_mutex_t *mutex)
 {
   mutex->counter = -1;
-  mutex->sema = CreateSemaphore (NULL, 0, 65535, NULL);
+  mutex->sema = CreateSemaphoreW (NULL, 0, 65535, NULL);
 }
 
 void
@@ -196,7 +195,7 @@ __gthr_win32_recursive_mutex_init_function (__gthread_recursive_mutex_t *mutex)
   mutex->counter = -1;
   mutex->depth = 0;
   mutex->owner = 0;
-  mutex->sema = CreateSemaphore (NULL, 0, 65535, NULL);
+  mutex->sema = CreateSemaphoreW (NULL, 0, 65535, NULL);
 }
 
 int
@@ -257,5 +256,12 @@ __gthr_win32_recursive_mutex_unlock (__gthread_recursive_mutex_t *mutex)
 	return ReleaseSemaphore (mutex->sema, 1, NULL) ? 0 : 1;
     }
 
+  return 0;
+}
+
+int
+__gthr_win32_recursive_mutex_destroy (__gthread_recursive_mutex_t *mutex)
+{
+  CloseHandle ((HANDLE) mutex->sema);
   return 0;
 }

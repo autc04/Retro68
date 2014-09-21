@@ -13,6 +13,7 @@ package smtp
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"io"
 	"net"
 	"net/textproto"
@@ -33,16 +34,20 @@ type Client struct {
 	// map of supported extensions
 	ext map[string]string
 	// supported auth mechanisms
-	auth []string
+	auth       []string
+	localName  string // the name to use in HELO/EHLO
+	didHello   bool   // whether we've said HELO/EHLO
+	helloError error  // the error from the hello
 }
 
 // Dial returns a new Client connected to an SMTP server at addr.
+// The addr must include a port number.
 func Dial(addr string) (*Client, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	host := addr[:strings.Index(addr, ":")]
+	host, _, _ := net.SplitHostPort(addr)
 	return NewClient(conn, host)
 }
 
@@ -55,12 +60,38 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 		text.Close()
 		return nil, err
 	}
-	c := &Client{Text: text, conn: conn, serverName: host}
-	err = c.ehlo()
-	if err != nil {
-		err = c.helo()
+	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
+	return c, nil
+}
+
+// Close closes the connection.
+func (c *Client) Close() error {
+	return c.Text.Close()
+}
+
+// hello runs a hello exchange if needed.
+func (c *Client) hello() error {
+	if !c.didHello {
+		c.didHello = true
+		err := c.ehlo()
+		if err != nil {
+			c.helloError = c.helo()
+		}
 	}
-	return c, err
+	return c.helloError
+}
+
+// Hello sends a HELO or EHLO to the server as the given host name.
+// Calling this method is only necessary if the client needs control
+// over the host name used.  The client will introduce itself as "localhost"
+// automatically otherwise.  If Hello is called, it must be called before
+// any of the other methods.
+func (c *Client) Hello(localName string) error {
+	if c.didHello {
+		return errors.New("smtp: Hello called after other methods")
+	}
+	c.localName = localName
+	return c.hello()
 }
 
 // cmd is a convenience function that sends a command and returns the response
@@ -79,14 +110,14 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 // server does not support ehlo.
 func (c *Client) helo() error {
 	c.ext = nil
-	_, _, err := c.cmd(250, "HELO localhost")
+	_, _, err := c.cmd(250, "HELO %s", c.localName)
 	return err
 }
 
 // ehlo sends the EHLO (extended hello) greeting to the server. It
 // should be the preferred greeting for servers that support it.
 func (c *Client) ehlo() error {
-	_, msg, err := c.cmd(250, "EHLO localhost")
+	_, msg, err := c.cmd(250, "EHLO %s", c.localName)
 	if err != nil {
 		return err
 	}
@@ -113,6 +144,9 @@ func (c *Client) ehlo() error {
 // StartTLS sends the STARTTLS command and encrypts all further communication.
 // Only servers that advertise the STARTTLS extension support this function.
 func (c *Client) StartTLS(config *tls.Config) error {
+	if err := c.hello(); err != nil {
+		return err
+	}
 	_, _, err := c.cmd(220, "STARTTLS")
 	if err != nil {
 		return err
@@ -128,6 +162,9 @@ func (c *Client) StartTLS(config *tls.Config) error {
 // does not necessarily indicate an invalid address. Many servers
 // will not verify addresses for security reasons.
 func (c *Client) Verify(addr string) error {
+	if err := c.hello(); err != nil {
+		return err
+	}
 	_, _, err := c.cmd(250, "VRFY %s", addr)
 	return err
 }
@@ -136,6 +173,9 @@ func (c *Client) Verify(addr string) error {
 // A failed authentication closes the connection.
 // Only servers that advertise the AUTH extension support this function.
 func (c *Client) Auth(a Auth) error {
+	if err := c.hello(); err != nil {
+		return err
+	}
 	encoding := base64.StdEncoding
 	mech, resp, err := a.Start(&ServerInfo{c.serverName, c.tls, c.auth})
 	if err != nil {
@@ -156,7 +196,9 @@ func (c *Client) Auth(a Auth) error {
 		default:
 			err = &textproto.Error{Code: code, Msg: msg64}
 		}
-		resp, err = a.Next(msg, code == 334)
+		if err == nil {
+			resp, err = a.Next(msg, code == 334)
+		}
 		if err != nil {
 			// abort the AUTH
 			c.cmd(501, "*")
@@ -178,6 +220,9 @@ func (c *Client) Auth(a Auth) error {
 // parameter.
 // This initiates a mail transaction and is followed by one or more Rcpt calls.
 func (c *Client) Mail(from string) error {
+	if err := c.hello(); err != nil {
+		return err
+	}
 	cmdStr := "MAIL FROM:<%s>"
 	if c.ext != nil {
 		if _, ok := c.ext["8BITMIME"]; ok {
@@ -219,12 +264,17 @@ func (c *Client) Data() (io.WriteCloser, error) {
 	return &dataCloser{c, c.Text.DotWriter()}, nil
 }
 
-// SendMail connects to the server at addr, switches to TLS if possible,
-// authenticates with mechanism a if possible, and then sends an email from
-// address from, to addresses to, with message msg.
+// SendMail connects to the server at addr, switches to TLS if
+// possible, authenticates with the optional mechanism a if possible,
+// and then sends an email from address from, to addresses to, with
+// message msg.
 func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 	c, err := Dial(addr)
 	if err != nil {
+		return err
+	}
+	defer c.Close()
+	if err = c.hello(); err != nil {
 		return err
 	}
 	if ok, _ := c.Extension("STARTTLS"); ok {
@@ -267,6 +317,9 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 // Extension also returns a string that contains any parameters the
 // server specifies for the extension.
 func (c *Client) Extension(ext string) (bool, string) {
+	if err := c.hello(); err != nil {
+		return false, ""
+	}
 	if c.ext == nil {
 		return false, ""
 	}
@@ -278,12 +331,18 @@ func (c *Client) Extension(ext string) (bool, string) {
 // Reset sends the RSET command to the server, aborting the current mail
 // transaction.
 func (c *Client) Reset() error {
+	if err := c.hello(); err != nil {
+		return err
+	}
 	_, _, err := c.cmd(250, "RSET")
 	return err
 }
 
 // Quit sends the QUIT command and closes the connection to the server.
 func (c *Client) Quit() error {
+	if err := c.hello(); err != nil {
+		return err
+	}
 	_, _, err := c.cmd(221, "QUIT")
 	if err != nil {
 		return err

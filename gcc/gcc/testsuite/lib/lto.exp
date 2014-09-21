@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+# Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -413,7 +413,8 @@ proc lto-execute { src1 sid } {
     global dg-suppress-ld-options
     global LTO_OPTIONS
     global dg-final-code
-
+    global testname_with_flags
+    
     # Get extra flags for this test from the primary source file, and
     # process other dg-* options that this suite supports.  Warn about
     # unsupported flags.
@@ -499,7 +500,10 @@ proc lto-execute { src1 sid } {
 	verbose "$testcase not supported on this target, skipping it" 3
 	return
     }
-
+    # Should be safe for non-fortran too but be paranoid..
+    if {$sid eq "f_lto"} {
+	list-module-names $src_list
+    }
     regsub "_0.*" $testcase "" testcase
 
     # Set up the base name of executable files so they'll be unique.
@@ -556,11 +560,11 @@ proc lto-execute { src1 sid } {
 	    verbose "Running dg-final tests." 3
 	    verbose "dg-final-proc:\n[info body dg-final-proc]" 4
 	    if [catch "dg-final-proc $src1" errmsg] {
-		perror "$name: error executing dg-final: $errmsg"
+		perror "$src1: error executing dg-final: $errmsg"
 		# ??? The call to unresolved here is necessary to clear
 		# `errcnt'.  What we really need is a proc like perror that
 		# doesn't set errcnt.  It should also set exit_status to 1.
-		unresolved "$name: error executing dg-final: $errmsg"
+		unresolved "$src1: error executing dg-final: $errmsg"
 	    }
 	}
 
@@ -574,9 +578,29 @@ proc lto-execute { src1 sid } {
 	    }
 	}
 
+	# Clean up after -save-temps.  The LTO tests don't use dg-test, so
+	# testname-for-summary needs to be defined explicitly for each
+	# file that needs to be removed.
+	set testname_with_flags $execname
+
+	eval "cleanup-saved-temps"
+
+	for {set i 0} {$i < $num_srcs} {incr i} {
+	    set testname_with_flags "${base}_${i}"
+	    eval "cleanup-saved-temps"
+	    set testname_with_flags "${sid}_${base}_${i}"
+	    eval "cleanup-saved-temps"
+	}
+	
+	unset testname_with_flags
+	
 	if { ![string compare "run" $compile_type] \
 	     || ![string compare "link" $compile_type] } {
 	    file_on_host delete $execname
+	}
+	# Should be safe for non-fortran too but be paranoid..
+	if {$sid eq "f_lto"} {
+	    cleanup-modules ""
 	}
     }
 }

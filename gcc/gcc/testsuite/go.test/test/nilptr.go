@@ -1,8 +1,11 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test that the implementation catches nil ptr indirection
+// in a large address space.
 
 package main
 
@@ -35,6 +38,12 @@ func main() {
 	shouldPanic(p8)
 	shouldPanic(p9)
 	shouldPanic(p10)
+	shouldPanic(p11)
+	shouldPanic(p12)
+	shouldPanic(p13)
+	shouldPanic(p14)
+	shouldPanic(p15)
+	shouldPanic(p16)
 }
 
 func shouldPanic(f func()) {
@@ -126,4 +135,48 @@ func p10() {
 	// Struct field access with large offset.
 	var t *T
 	println(t.i) // should crash
+}
+
+type T1 struct {
+	T
+}
+
+type T2 struct {
+	*T1
+}
+
+func p11() {
+	t := &T2{}
+	p := &t.i
+	println(*p)
+}
+
+// ADDR(DOT(IND(p))) needs a check also
+func p12() {
+	var p *T = nil
+	println(*(&((*p).i)))
+}
+
+// Tests suggested in golang.org/issue/6080.
+
+func p13() {
+	var x *[10]int
+	y := x[:]
+	_ = y
+}
+
+func p14() {
+	println((*[1]int)(nil)[:])
+}
+
+func p15() {
+	for i := range (*[1]int)(nil)[:] {
+		_ = i
+	}
+}
+
+func p16() {
+	for i, v := range (*[1]int)(nil)[:] {
+		_ = i + v
+	}
 }

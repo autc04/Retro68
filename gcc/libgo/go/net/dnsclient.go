@@ -5,8 +5,6 @@
 package net
 
 import (
-	"bytes"
-	"fmt"
 	"math/rand"
 	"sort"
 )
@@ -45,20 +43,22 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", ip[15], ip[14], ip[13], ip[12]), nil
+		return itoa(int(ip[15])) + "." + itoa(int(ip[14])) + "." + itoa(int(ip[13])) + "." +
+			itoa(int(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
-	var buf bytes.Buffer
+	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
 	// Add it, in reverse, to the buffer
 	for i := len(ip) - 1; i >= 0; i-- {
-		s := fmt.Sprintf("%02x", ip[i])
-		buf.WriteByte(s[1])
-		buf.WriteByte('.')
-		buf.WriteByte(s[0])
-		buf.WriteByte('.')
+		v := ip[i]
+		buf = append(buf, hexDigit[v&0xF])
+		buf = append(buf, '.')
+		buf = append(buf, hexDigit[v>>4])
+		buf = append(buf, '.')
 	}
 	// Append "ip6.arpa." and return (buf already has the final .)
-	return buf.String() + "ip6.arpa.", nil
+	buf = append(buf, "ip6.arpa."...)
+	return string(buf), nil
 }
 
 // Find answer for name in dns message.
@@ -122,12 +122,9 @@ func isDomainName(s string) bool {
 	if len(s) > 255 {
 		return false
 	}
-	if s[len(s)-1] != '.' { // simplify checking loop: make name end in dot
-		s += "."
-	}
 
 	last := byte('.')
-	ok := false // ok once we've seen a letter
+	ok := false // Ok once we've seen a letter.
 	partlen := 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -141,13 +138,13 @@ func isDomainName(s string) bool {
 			// fine
 			partlen++
 		case c == '-':
-			// byte before dash cannot be dot
+			// Byte before dash cannot be dot.
 			if last == '.' {
 				return false
 			}
 			partlen++
 		case c == '.':
-			// byte before dot cannot be dot, dash
+			// Byte before dot cannot be dot, dash.
 			if last == '.' || last == '-' {
 				return false
 			}
@@ -157,6 +154,9 @@ func isDomainName(s string) bool {
 			partlen = 0
 		}
 		last = c
+	}
+	if last == '-' || partlen > 63 {
+		return false
 	}
 
 	return ok
@@ -183,7 +183,7 @@ func (s byPriorityWeight) Less(i, j int) bool {
 }
 
 // shuffleByWeight shuffles SRV records by weight using the algorithm
-// described in RFC 2782.  
+// described in RFC 2782.
 func (addrs byPriorityWeight) shuffleByWeight() {
 	sum := 0
 	for _, addr := range addrs {
@@ -243,4 +243,9 @@ func (s byPref) sort() {
 		s[i], s[j] = s[j], s[i]
 	}
 	sort.Sort(s)
+}
+
+// An NS represents a single DNS NS record.
+type NS struct {
+	Host string
 }

@@ -1,8 +1,6 @@
-// String support -*- C++ -*-
+// <string> Forward declarations -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-// 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,13 +37,11 @@
 #pragma GCC system_header
 
 #include <bits/c++config.h>
+#include <bits/memoryfwd.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-  template<typename _Alloc>
-    class allocator;
 
   /**
    *  @defgroup strings Strings
@@ -62,27 +58,32 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<> struct char_traits<char>;
 
-  typedef basic_string<char>    string;   /// A string of @c char
+  /// A string of @c char
+  typedef basic_string<char>    string;   
 
 #ifdef _GLIBCXX_USE_WCHAR_T
   template<> struct char_traits<wchar_t>;
 
-  typedef basic_string<wchar_t> wstring;   /// A string of @c wchar_t
+  /// A string of @c wchar_t
+  typedef basic_string<wchar_t> wstring;   
 #endif
 
-#if (defined(__GXX_EXPERIMENTAL_CXX0X__) \
+#if ((__cplusplus >= 201103L) \
      && defined(_GLIBCXX_USE_C99_STDINT_TR1))
 
   template<> struct char_traits<char16_t>;
   template<> struct char_traits<char32_t>;
 
-  typedef basic_string<char16_t> u16string; /// A string of @c char16_t
-  typedef basic_string<char32_t> u32string; /// A string of @c char32_t
+  /// A string of @c char16_t
+  typedef basic_string<char16_t> u16string; 
+
+  /// A string of @c char32_t
+  typedef basic_string<char32_t> u32string; 
 
 #endif
   /** @}  */
 
 _GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
+} // namespace std
 
 #endif	// _STRINGFWD_H

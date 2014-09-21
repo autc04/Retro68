@@ -1,6 +1,6 @@
 /*  Special support for trampolines
  *
- *   Copyright (C) 1996, 1997, 2000, 2007, 2008, 2009 Free Software Foundation, Inc.
+ *   Copyright (C) 1996-2014 Free Software Foundation, Inc.
  *   Written By Michael Meissner
  * 
  * This file is free software; you can redistribute it and/or modify it
@@ -95,6 +95,16 @@ FUNC_START(__trampoline_setup)
 	blr
 
 .Labort:
+/* Use a longcall sequence in the non PIC case on VxWorks, to prevent
+   possible relocation errors if this is module-loaded very far away from
+   the 'abort' entry point.  */
+#if defined (__VXWORKS__) && ! (defined __PIC__ || defined __pic__)
+        lis   r11,JUMP_TARGET(abort)@ha
+        addic r11,r11,JUMP_TARGET(abort)@l
+        mtlr  r11
+        blrl
+#else
+
 #if (defined __PIC__ || defined __pic__) && defined HAVE_AS_REL16
 	bcl	20,31,1f
 1:	mflr	r30
@@ -102,6 +112,74 @@ FUNC_START(__trampoline_setup)
 	addi	r30,r30,_GLOBAL_OFFSET_TABLE_-1b@l
 #endif
 	bl	JUMP_TARGET(abort)
+FUNC_END(__trampoline_setup)
+
+#endif
+
+#elif _CALL_ELF == 2
+	.type	trampoline_initial,@object
+	.align	3
+trampoline_initial:
+	ld	r11,.Lchain(r12)
+	ld	r12,.Lfunc(r12)
+	mtctr	r12
+	bctr
+.Lfunc = .-trampoline_initial
+	.quad	0			/* will be replaced with function address */
+.Lchain = .-trampoline_initial
+	.quad	0			/* will be replaced with static chain */
+
+trampoline_size = .-trampoline_initial
+	.size	trampoline_initial,trampoline_size
+
+
+/* R3 = stack address to store trampoline */
+/* R4 = length of trampoline area */
+/* R5 = function address */
+/* R6 = static chain */
+
+	.pushsection ".toc","aw"
+.LC0:
+	.quad	trampoline_initial-8
+	.popsection
+
+FUNC_START(__trampoline_setup)
+	addis 7,2,.LC0@toc@ha
+	ld 7,.LC0@toc@l(7)	/* trampoline address -8 */
+
+	li	r8,trampoline_size	/* verify that the trampoline is big enough */
+	cmpw	cr1,r8,r4
+	srwi	r4,r4,3		/* # doublewords to move */
+	addi	r9,r3,-8	/* adjust pointer for stdu */
+	mtctr	r4
+	blt	cr1,.Labort
+
+	/* Copy the instructions to the stack */
+.Lmove:
+	ldu	r10,8(r7)
+	stdu	r10,8(r9)
+	bdnz	.Lmove
+
+	/* Store correct function and static chain */
+	std	r5,.Lfunc(r3)
+	std	r6,.Lchain(r3)
+
+	/* Now flush both caches */
+	mtctr	r4
+.Lcache:
+	icbi	0,r3
+	dcbf	0,r3
+	addi	r3,r3,8
+	bdnz	.Lcache
+
+	/* Finally synchronize things & return */
+	sync
+	isync
+	blr
+
+.Labort:
+	bl	JUMP_TARGET(abort)
+	nop
 FUNC_END(__trampoline_setup)
 
 #endif

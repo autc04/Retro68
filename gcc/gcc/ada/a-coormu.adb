@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,26 +41,6 @@ pragma Elaborate_All (Ada.Containers.Red_Black_Trees.Generic_Set_Operations);
 with System; use type System.Address;
 
 package body Ada.Containers.Ordered_Multisets is
-
-   type Iterator is new Limited_Controlled and
-     Set_Iterator_Interfaces.Reversible_Iterator with
-   record
-      Container : Set_Access;
-      Node      : Node_Access;
-   end record;
-
-   overriding procedure Finalize (Object : in out Iterator);
-
-   overriding function First (Object : Iterator) return Cursor;
-   overriding function Last  (Object : Iterator) return Cursor;
-
-   overriding function Next
-     (Object   : Iterator;
-      Position : Cursor) return Cursor;
-
-   overriding function Previous
-     (Object   : Iterator;
-      Position : Cursor) return Cursor;
 
    -----------------------------
    -- Node Access Subprograms --
@@ -308,7 +288,7 @@ package body Ada.Containers.Ordered_Multisets is
 
    function Ceiling (Container : Set; Item : Element_Type) return Cursor is
       Node : constant Node_Access :=
-               Element_Keys.Ceiling (Container.Tree, Item);
+        Element_Keys.Ceiling (Container.Tree, Item);
 
    begin
       if Node = null then
@@ -365,11 +345,11 @@ package body Ada.Containers.Ordered_Multisets is
 
    function Copy_Node (Source : Node_Access) return Node_Access is
       Target : constant Node_Access :=
-                 new Node_Type'(Parent  => null,
-                                Left    => null,
-                                Right   => null,
-                                Color   => Source.Color,
-                                Element => Source.Element);
+        new Node_Type'(Parent  => null,
+                       Left    => null,
+                       Right   => null,
+                       Color   => Source.Color,
+                       Element => Source.Element);
    begin
       return Target;
    end Copy_Node;
@@ -464,7 +444,7 @@ package body Ada.Containers.Ordered_Multisets is
 
    function Difference (Left, Right : Set) return Set is
       Tree : constant Tree_Type :=
-               Set_Ops.Difference (Left.Tree, Right.Tree);
+        Set_Ops.Difference (Left.Tree, Right.Tree);
    begin
       return Set'(Controlled with Tree);
    end Difference;
@@ -568,7 +548,7 @@ package body Ada.Containers.Ordered_Multisets is
 
    function Find (Container : Set; Item : Element_Type) return Cursor is
       Node : constant Node_Access :=
-               Element_Keys.Find (Container.Tree, Item);
+        Element_Keys.Find (Container.Tree, Item);
 
    begin
       if Node = null then
@@ -632,7 +612,7 @@ package body Ada.Containers.Ordered_Multisets is
 
    function Floor (Container : Set; Item : Element_Type) return Cursor is
       Node : constant Node_Access :=
-               Element_Keys.Floor (Container.Tree, Item);
+        Element_Keys.Floor (Container.Tree, Item);
 
    begin
       if Node = null then
@@ -697,7 +677,7 @@ package body Ada.Containers.Ordered_Multisets is
 
       function Ceiling (Container : Set; Key : Key_Type) return Cursor is
          Node : constant Node_Access :=
-                  Key_Keys.Ceiling (Container.Tree, Key);
+           Key_Keys.Ceiling (Container.Tree, Key);
 
       begin
          if Node = null then
@@ -746,8 +726,7 @@ package body Ada.Containers.Ordered_Multisets is
       -------------
 
       function Element (Container : Set; Key : Key_Type) return Element_Type is
-         Node : constant Node_Access :=
-                  Key_Keys.Find (Container.Tree, Key);
+         Node : constant Node_Access := Key_Keys.Find (Container.Tree, Key);
       begin
          if Node = null then
             raise Constraint_Error with "key not in set";
@@ -795,8 +774,7 @@ package body Ada.Containers.Ordered_Multisets is
       ----------
 
       function Find (Container : Set; Key : Key_Type) return Cursor is
-         Node : constant Node_Access :=
-                  Key_Keys.Find (Container.Tree, Key);
+         Node : constant Node_Access := Key_Keys.Find (Container.Tree, Key);
 
       begin
          if Node = null then
@@ -811,8 +789,7 @@ package body Ada.Containers.Ordered_Multisets is
       -----------
 
       function Floor (Container : Set; Key : Key_Type) return Cursor is
-         Node : constant Node_Access :=
-                  Key_Keys.Floor (Container.Tree, Key);
+         Node : constant Node_Access := Key_Keys.Floor (Container.Tree, Key);
 
       begin
          if Node = null then
@@ -1099,11 +1076,11 @@ package body Ada.Containers.Ordered_Multisets is
 
       function New_Node return Node_Access is
          Node : constant Node_Access :=
-                  new Node_Type'(Parent  => null,
-                                 Left    => null,
-                                 Right   => null,
-                                 Color   => Red_Black_Trees.Red,
-                                 Element => New_Item);
+           new Node_Type'(Parent  => null,
+                          Left    => null,
+                          Right   => null,
+                          Color   => Red_Black_Trees.Red,
+                          Element => New_Item);
       begin
          return Node;
       end New_Node;
@@ -1144,11 +1121,11 @@ package body Ada.Containers.Ordered_Multisets is
 
       function New_Node return Node_Access is
          Node : constant Node_Access :=
-                  new Node_Type'(Parent  => null,
-                                 Left    => null,
-                                 Right   => null,
-                                 Color   => Red,
-                                 Element => Src_Node.Element);
+           new Node_Type'(Parent  => null,
+                          Left    => null,
+                          Right   => null,
+                          Color   => Red,
+                          Element => Src_Node.Element);
       begin
          return Node;
       end New_Node;
@@ -1174,7 +1151,7 @@ package body Ada.Containers.Ordered_Multisets is
 
    function Intersection (Left, Right : Set) return Set is
       Tree : constant Tree_Type :=
-               Set_Ops.Intersection (Left.Tree, Right.Tree);
+        Set_Ops.Intersection (Left.Tree, Right.Tree);
    begin
       return Set'(Controlled with Tree);
    end Intersection;
@@ -1385,7 +1362,7 @@ package body Ada.Containers.Ordered_Multisets is
       --  a forward or reverse iteration.
 
       return It : constant Iterator :=
-                    (Limited_Controlled with S, Start.Node)
+        (Limited_Controlled with S, Start.Node)
       do
          B := B + 1;
       end return;
@@ -1489,8 +1466,7 @@ package body Ada.Containers.Ordered_Multisets is
                      "bad cursor in Next");
 
       declare
-         Node : constant Node_Access :=
-                  Tree_Operations.Next (Position.Node);
+         Node : constant Node_Access := Tree_Operations.Next (Position.Node);
       begin
          if Node = null then
             return No_Element;
@@ -1553,7 +1529,7 @@ package body Ada.Containers.Ordered_Multisets is
 
       declare
          Node : constant Node_Access :=
-                  Tree_Operations.Previous (Position.Node);
+           Tree_Operations.Previous (Position.Node);
       begin
          return (if Node = null then No_Element
                  else Cursor'(Position.Container, Node));
@@ -1884,7 +1860,7 @@ package body Ada.Containers.Ordered_Multisets is
 
    function Symmetric_Difference (Left, Right : Set) return Set is
       Tree : constant Tree_Type :=
-               Set_Ops.Symmetric_Difference (Left.Tree, Right.Tree);
+        Set_Ops.Symmetric_Difference (Left.Tree, Right.Tree);
    begin
       return Set'(Controlled with Tree);
    end Symmetric_Difference;
@@ -1912,8 +1888,7 @@ package body Ada.Containers.Ordered_Multisets is
    end Union;
 
    function Union (Left, Right : Set) return Set is
-      Tree : constant Tree_Type :=
-               Set_Ops.Union (Left.Tree, Right.Tree);
+      Tree : constant Tree_Type := Set_Ops.Union (Left.Tree, Right.Tree);
    begin
       return Set'(Controlled with Tree);
    end Union;

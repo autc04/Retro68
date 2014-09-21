@@ -1,4 +1,4 @@
-@c Copyright (c) 2008, 2009, 2010 Free Software Foundation, Inc.
+@c Copyright (C) 2008-2014 Free Software Foundation, Inc.
 @c Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
@@ -711,6 +711,10 @@ Return true if g is a @code{GIMPLE_DEBUG} that binds the value of an
 expression to a variable.
 @end deftypefn
 
+@deftypefn {GIMPLE function} bool is_gimple_omp (gimple g)
+Return true if g is any of the OpenMP codes.
+@end deftypefn
+
 @node Manipulating GIMPLE statements
 @section Manipulating GIMPLE statements
 @cindex Manipulating GIMPLE statements
@@ -988,10 +992,6 @@ Return true if @code{G} is an asm statement marked volatile.
 
 @deftypefn {GIMPLE function} void gimple_asm_set_volatile (gimple g)
 Mark asm statement @code{G} as volatile.
-@end deftypefn
-
-@deftypefn {GIMPLE function} void gimple_asm_clear_volatile (gimple g)
-Remove volatile marker from asm statement @code{G}.
 @end deftypefn
 
 @node @code{GIMPLE_ASSIGN}
@@ -1846,11 +1846,6 @@ Return a pointer to the data argument for @code{OMP_PARALLEL} @code{G}.
 Set @code{DATA_ARG} to be the data argument for @code{OMP_PARALLEL} @code{G}.
 @end deftypefn
 
-@deftypefn {GIMPLE function} bool is_gimple_omp (gimple stmt)
-Returns true when the gimple statement @code{STMT} is any of the OpenMP
-types.
-@end deftypefn
-
 
 @node @code{GIMPLE_OMP_RETURN}
 @subsection @code{GIMPLE_OMP_RETURN}
@@ -2034,21 +2029,12 @@ Set @code{RETVAL} to be the return value for @code{GIMPLE_RETURN} @code{G}.
 @subsection @code{GIMPLE_SWITCH}
 @cindex @code{GIMPLE_SWITCH}
 
-@deftypefn {GIMPLE function} gimple gimple_build_switch (unsigned nlabels, @
-tree index, tree default_label, ...)
-Build a @code{GIMPLE_SWITCH} statement.  @code{NLABELS} are the number of
-labels excluding the default label.  The default label is passed
-in @code{DEFAULT_LABEL}.  The rest of the arguments are trees
-representing the labels.  Each label is a tree of code
-@code{CASE_LABEL_EXPR}.
-@end deftypefn
-
-@deftypefn {GIMPLE function} gimple gimple_build_switch_vec (tree index, tree @
+@deftypefn {GIMPLE function} gimple gimple_build_switch (tree index, tree @
 default_label, @code{VEC}(tree,heap) *args)
-This function is an alternate way of building @code{GIMPLE_SWITCH}
-statements.  @code{INDEX} and @code{DEFAULT_LABEL} are as in
-gimple_build_switch.  @code{ARGS} is a vector of @code{CASE_LABEL_EXPR} trees
-that contain the labels.
+Build a @code{GIMPLE_SWITCH} statement.  @code{INDEX} is the index variable
+to switch on, and @code{DEFAULT_LABEL} represents the default label.
+@code{ARGS} is a vector of @code{CASE_LABEL_EXPR} trees that contain the
+non-default case labels.  Each label is a tree of code @code{CASE_LABEL_EXPR}.
 @end deftypefn
 
 @deftypefn {GIMPLE function} unsigned gimple_switch_num_labels (gimple g)

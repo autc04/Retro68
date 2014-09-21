@@ -73,7 +73,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
 }
 
 func main() {
-	st := &runtime.MemStats
+	st := new(runtime.MemStats)
 	packages = append(packages, packages...)
 	packages = append(packages, packages...)
 	n := flag.Int("n", 4, "iterations")
@@ -83,14 +83,17 @@ func main() {
 
 	var lastParsed []map[string]*ast.Package
 	var t0 time.Time
+	var numGC uint32
+	var pauseTotalNs uint64
 	pkgroot := runtime.GOROOT() + "/src/pkg/"
 	for pass := 0; pass < 2; pass++ {
 		// Once the heap is grown to full size, reset counters.
 		// This hides the start-up pauses, which are much smaller
 		// than the normal pauses and would otherwise make
 		// the average look much better than it actually is.
-		st.NumGC = 0
-		st.PauseTotalNs = 0
+		runtime.ReadMemStats(st)
+		numGC = st.NumGC
+		pauseTotalNs = st.PauseTotalNs
 		t0 = time.Now()
 
 		for i := 0; i < *n; i++ {
@@ -107,6 +110,9 @@ func main() {
 	}
 	t1 := time.Now()
 
+	runtime.ReadMemStats(st)
+	st.NumGC -= numGC
+	st.PauseTotalNs -= pauseTotalNs
 	fmt.Printf("Alloc=%d/%d Heap=%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
 		st.Alloc, st.TotalAlloc,
 		st.Sys,
@@ -128,23 +134,32 @@ func main() {
 	}
 }
 
+// find . -type d -not -path "./exp" -not -path "./exp/*" -printf "\t\"%p\",\n" | sort | sed "s/\.\///" | grep -v testdata
 var packages = []string{
+	"archive",
 	"archive/tar",
-	"encoding/asn1",
-	"math/big",
+	"archive/zip",
 	"bufio",
+	"builtin",
 	"bytes",
-	"math/cmplx",
+	"compress",
+	"compress/bzip2",
 	"compress/flate",
 	"compress/gzip",
+	"compress/lzw",
 	"compress/zlib",
+	"container",
 	"container/heap",
 	"container/list",
 	"container/ring",
+	"crypto",
 	"crypto/aes",
-	"crypto/blowfish",
+	"crypto/cipher",
+	"crypto/des",
+	"crypto/dsa",
+	"crypto/ecdsa",
+	"crypto/elliptic",
 	"crypto/hmac",
-	"crypto/md4",
 	"crypto/md5",
 	"crypto/rand",
 	"crypto/rc4",
@@ -155,70 +170,111 @@ var packages = []string{
 	"crypto/subtle",
 	"crypto/tls",
 	"crypto/x509",
-	"crypto/xtea",
+	"crypto/x509/pkix",
+	"database",
+	"database/sql",
+	"database/sql/driver",
+	"debug",
 	"debug/dwarf",
-	"debug/macho",
 	"debug/elf",
 	"debug/gosym",
-	"exp/ebnf",
+	"debug/macho",
+	"debug/pe",
+	"encoding",
 	"encoding/ascii85",
+	"encoding/asn1",
+	"encoding/base32",
 	"encoding/base64",
 	"encoding/binary",
-	"encoding/git85",
+	"encoding/csv",
+	"encoding/gob",
 	"encoding/hex",
+	"encoding/json",
 	"encoding/pem",
-	"os/exec",
+	"encoding/xml",
+	"errors",
+	"expvar",
 	"flag",
 	"fmt",
+	"go",
 	"go/ast",
+	"go/build",
 	"go/doc",
+	"go/format",
 	"go/parser",
 	"go/printer",
 	"go/scanner",
 	"go/token",
-	"encoding/gob",
 	"hash",
 	"hash/adler32",
 	"hash/crc32",
 	"hash/crc64",
-	"net/http",
+	"hash/fnv",
+	"html",
+	"html/template",
 	"image",
+	"image/color",
+	"image/draw",
+	"image/gif",
 	"image/jpeg",
 	"image/png",
+	"index",
+	"index/suffixarray",
 	"io",
 	"io/ioutil",
-	"encoding/json",
 	"log",
+	"log/syslog",
 	"math",
-	"mime",
-	"net",
-	"os",
-	"os/signal",
-	"patch",
-	"path",
+	"math/big",
+	"math/cmplx",
 	"math/rand",
+	"mime",
+	"mime/multipart",
+	"net",
+	"net/http",
+	"net/http/cgi",
+	"net/http/cookiejar",
+	"net/http/fcgi",
+	"net/http/httptest",
+	"net/http/httputil",
+	"net/http/pprof",
+	"net/mail",
+	"net/rpc",
+	"net/rpc/jsonrpc",
+	"net/smtp",
+	"net/textproto",
+	"net/url",
+	"os",
+	"os/exec",
+	"os/signal",
+	"os/user",
+	"path",
+	"path/filepath",
 	"reflect",
 	"regexp",
-	"net/rpc",
+	"regexp/syntax",
 	"runtime",
-	"text/scanner",
+	"runtime/cgo",
+	"runtime/debug",
+	"runtime/pprof",
+	"runtime/race",
 	"sort",
-	"net/smtp",
 	"strconv",
 	"strings",
 	"sync",
+	"sync/atomic",
 	"syscall",
-	"log/syslog",
-	"text/tabwriter",
-	"text/template",
 	"testing",
 	"testing/iotest",
 	"testing/quick",
-	"testing/script",
+	"text",
+	"text/scanner",
+	"text/tabwriter",
+	"text/template",
+	"text/template/parse",
 	"time",
 	"unicode",
-	"unicode/utf8",
 	"unicode/utf16",
-	"websocket",
-	"encoding/xml",
+	"unicode/utf8",
+	"unsafe",
 }

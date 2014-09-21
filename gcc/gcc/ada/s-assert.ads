@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,12 +29,14 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This package provides support for the GNAT assert pragma
+--  This package provides support for assertions (including pragma Assert,
+--  pragma Debug, and Precondition/Postcondition/Predicate/Invariant aspects
+--  and their corresponding pragmas).
 
 --  This unit may be used directly from an application program by providing
 --  an appropriate WITH, and the interface can be expected to remain stable.
 
-pragma Compiler_Unit;
+pragma Compiler_Unit_Warning;
 
 package System.Assertions is
 

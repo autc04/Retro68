@@ -57,7 +57,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
 			t.Errorf("#%d error decrypting", i)
 		}
 		want := []byte(test.out)
-		if bytes.Compare(out, want) != 0 {
+		if !bytes.Equal(out, want) {
 			t.Errorf("#%d got:%#v want:%#v", i, out, want)
 		}
 	}
@@ -90,7 +90,7 @@ func TestEncryptPKCS1v15(t *testing.T) {
 			return false
 		}
 
-		if bytes.Compare(plaintext, in) != 0 {
+		if !bytes.Equal(plaintext, in) {
 			t.Errorf("output mismatch: %#v %#v", plaintext, in)
 			return false
 		}
@@ -132,7 +132,7 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 			t.Errorf("#%d error decrypting", i)
 		}
 		want := []byte(test.out)
-		if bytes.Compare(key, want) != 0 {
+		if !bytes.Equal(key, want) {
 			t.Errorf("#%d got:%#v want:%#v", i, key, want)
 		}
 	}
@@ -176,7 +176,7 @@ func TestSignPKCS1v15(t *testing.T) {
 		}
 
 		expected, _ := hex.DecodeString(test.out)
-		if bytes.Compare(s, expected) != 0 {
+		if !bytes.Equal(s, expected) {
 			t.Errorf("#%d got: %x want: %x", i, s, expected)
 		}
 	}
@@ -194,6 +194,14 @@ func TestVerifyPKCS1v15(t *testing.T) {
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
+	}
+}
+
+func TestOverlongMessagePKCS1v15(t *testing.T) {
+	ciphertext := decodeBase64("fjOVdirUzFoLlukv80dBllMLjXythIf22feqPrNo0YoIjzyzyoMFiLjAc/Y4krkeZ11XFThIrEvw\nkRiZcCq5ng==")
+	_, err := DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+	if err == nil {
+		t.Error("RSA decrypted a message that was too long.")
 	}
 }
 

@@ -1,5 +1,5 @@
 /* Implementation of the MAXVAL intrinsic
-   Copyright 2002, 2007, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -79,7 +79,7 @@ maxval_r10 (gfc_array_r10 * const restrict retarray,
 	extent[n] = 0;
     }
 
-  if (retarray->data == NULL)
+  if (retarray->base_addr == NULL)
     {
       size_t alloc_size, str;
 
@@ -100,7 +100,7 @@ maxval_r10 (gfc_array_r10 * const restrict retarray,
       alloc_size = sizeof (GFC_REAL_10) * GFC_DESCRIPTOR_STRIDE(retarray,rank-1)
     		   * extent[rank-1];
 
-      retarray->data = internal_malloc_size (alloc_size);
+      retarray->base_addr = xmalloc (alloc_size);
       if (alloc_size == 0)
 	{
 	  /* Make sure we have a zero-sized array.  */
@@ -130,8 +130,8 @@ maxval_r10 (gfc_array_r10 * const restrict retarray,
 	return;
     }
 
-  base = array->data;
-  dest = retarray->data;
+  base = array->base_addr;
+  dest = retarray->base_addr;
 
   continue_loop = 1;
   while (continue_loop)
@@ -235,7 +235,7 @@ mmaxval_r10 (gfc_array_r10 * const restrict retarray,
   if (len <= 0)
     return;
 
-  mbase = mask->data;
+  mbase = mask->base_addr;
 
   mask_kind = GFC_DESCRIPTOR_SIZE (mask);
 
@@ -271,7 +271,7 @@ mmaxval_r10 (gfc_array_r10 * const restrict retarray,
 	extent[n] = 0;
     }
 
-  if (retarray->data == NULL)
+  if (retarray->base_addr == NULL)
     {
       size_t alloc_size, str;
 
@@ -299,7 +299,7 @@ mmaxval_r10 (gfc_array_r10 * const restrict retarray,
 	  return;
 	}
       else
-	retarray->data = internal_malloc_size (alloc_size);
+	retarray->base_addr = xmalloc (alloc_size);
 
     }
   else
@@ -324,8 +324,8 @@ mmaxval_r10 (gfc_array_r10 * const restrict retarray,
 	return;
     }
 
-  dest = retarray->data;
-  base = array->data;
+  dest = retarray->base_addr;
+  base = array->base_addr;
 
   while (base)
     {
@@ -344,12 +344,8 @@ mmaxval_r10 (gfc_array_r10 * const restrict retarray,
 #if defined (GFC_REAL_10_QUIET_NAN)
 	int non_empty_p = 0;
 #endif
-	if (len <= 0)
-	  *dest = -GFC_REAL_10_HUGE;
-	else
+	for (n = 0; n < len; n++, src += delta, msrc += mdelta)
 	  {
-	    for (n = 0; n < len; n++, src += delta, msrc += mdelta)
-	      {
 
 #if defined (GFC_REAL_10_INFINITY) || defined (GFC_REAL_10_QUIET_NAN)
 		if (*msrc)
@@ -374,9 +370,8 @@ mmaxval_r10 (gfc_array_r10 * const restrict retarray,
 #endif
 		if (*msrc && *src > result)
 		  result = *src;
-	      }
-	    *dest = result;
 	  }
+	*dest = result;
       }
       /* Advance to the next element.  */
       count[0]++;
@@ -459,7 +454,7 @@ smaxval_r10 (gfc_array_r10 * const restrict retarray,
 	extent[n] = 0;
     }
 
-  if (retarray->data == NULL)
+  if (retarray->base_addr == NULL)
     {
       size_t alloc_size, str;
 
@@ -487,7 +482,7 @@ smaxval_r10 (gfc_array_r10 * const restrict retarray,
 	  return;
 	}
       else
-	retarray->data = internal_malloc_size (alloc_size);
+	retarray->base_addr = xmalloc (alloc_size);
     }
   else
     {
@@ -519,7 +514,7 @@ smaxval_r10 (gfc_array_r10 * const restrict retarray,
       dstride[n] = GFC_DESCRIPTOR_STRIDE(retarray,n);
     }
 
-  dest = retarray->data;
+  dest = retarray->base_addr;
 
   while(1)
     {

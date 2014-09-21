@@ -11,12 +11,14 @@
 
   which does not get recognized as a valid bbit pattern.  The
   middle-end should be able to simplify this further.  */
-/* { dg-options "-O2 -march=octeon -meb" } */
+/* { dg-options "-march=octeon -meb" } */
+/* { dg-skip-if "code quality test" { *-*-* } { "-O0" } { "" } } */
 
-/* { dg-final { scan-assembler-times "\tbbit\[01\]\t|\tbgez\t" 2 } } */
+/* { dg-final { scan-assembler-times "\tbbit\[01\]\t|\tbgez\t|\tbltz\t" 2 } } */
 /* { dg-final { scan-assembler-not "ext\t" } } */
 
 void abort (void);
+void abort1 (void);
 void exit (int);
 
 typedef unsigned long long ulong64;
@@ -38,7 +40,7 @@ f ()
   if (bar.a != 0x1)
     abort ();
   else if (!bar.c)
-    abort ();
+    abort1 ();
   else
     exit (0);
 }

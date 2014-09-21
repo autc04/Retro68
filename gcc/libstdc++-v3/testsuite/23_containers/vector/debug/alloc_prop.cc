@@ -1,4 +1,4 @@
-// Copyright (C) 2011 Free Software Foundation, Inc.
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -67,8 +67,8 @@ struct X
   ~X() { }
   X(const X&) { }
   X(X&&) { }
-  X& operator=(const X&) { }
-  X& operator=(X&&) { }
+  X& operator=(const X&) { return *this; }
+  X& operator=(X&&) { return *this; }
 };
 
 int main()

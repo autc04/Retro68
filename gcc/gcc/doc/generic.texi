@@ -1,5 +1,4 @@
-@c Copyright (c) 2004, 2005, 2007, 2008, 2010 Free Software Foundation, Inc.
-@c Free Software Foundation, Inc.
+@c Copyright (C) 2004-2014 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -14,7 +13,7 @@
 The purpose of GENERIC is simply to provide a
 language-independent way of representing an entire function in
 trees.  To this end, it was necessary to add a few new tree codes
-to the back end, but most everything was already there.  If you
+to the back end, but almost everything was already there.  If you
 can express it with the codes in @code{gcc/tree.def}, it's
 GENERIC@.
 
@@ -204,7 +203,7 @@ operands, each of which is also a tree.
 @tindex IDENTIFIER_NODE
 
 An @code{IDENTIFIER_NODE} represents a slightly more general concept
-that the standard C or C++ concept of identifier.  In particular, an
+than the standard C or C++ concept of identifier.  In particular, an
 @code{IDENTIFIER_NODE} may contain a @samp{$}, or other extraordinary
 characters.
 
@@ -925,6 +924,11 @@ structures, something like the following should be used
    (BASE_STRUCT_CHECK(NODE)->base_struct.fieldname
 @end smallexample
 
+Reading them from the generated @file{all-tree.def} file (which in
+turn includes all the @file{tree.def} files), @file{gencheck.c} is
+used during GCC's build to generate the @code{*_CHECK} macros for all
+tree codes.
+
 @end table
 
 
@@ -1235,6 +1239,7 @@ the byte offset of the field, but should not be used directly; call
 @tindex PLUS_EXPR
 @tindex MINUS_EXPR
 @tindex MULT_EXPR
+@tindex MULT_HIGHPART_EXPR
 @tindex RDIV_EXPR
 @tindex TRUNC_DIV_EXPR
 @tindex FLOOR_DIV_EXPR
@@ -1274,6 +1279,7 @@ the byte offset of the field, but should not be used directly; call
 @tindex SAVE_EXPR
 @tindex TARGET_EXPR
 @tindex VA_ARG_EXPR
+@tindex ANNOTATE_EXPR
 
 @table @code
 @item NEGATE_EXPR
@@ -1387,7 +1393,8 @@ shift.  Right shift should be treated as arithmetic, i.e., the
 high-order bits should be zero-filled when the expression has unsigned
 type and filled with the sign bit when the expression has signed type.
 Note that the result is undefined if the second operand is larger
-than or equal to the first operand's type size.
+than or equal to the first operand's type size. Unlike most nodes, these
+can have a vector as first operand and a scalar as second operand.
 
 
 @item BIT_IOR_EXPR
@@ -1415,13 +1422,13 @@ generate these expressions anyhow, if it can tell that strictness does
 not matter.  The type of the operands and that of the result are
 always of @code{BOOLEAN_TYPE} or @code{INTEGER_TYPE}.
 
-@itemx POINTER_PLUS_EXPR
+@item POINTER_PLUS_EXPR
 This node represents pointer arithmetic.  The first operand is always
 a pointer/reference type.  The second operand is always an unsigned
 integer type compatible with sizetype.  This is the only binary
 arithmetic operand that can operate on pointer types.
 
-@itemx PLUS_EXPR
+@item PLUS_EXPR
 @itemx MINUS_EXPR
 @itemx MULT_EXPR
 These nodes represent various binary arithmetic operations.
@@ -1432,6 +1439,11 @@ one operand is of floating type and the other is of integral type.
 
 The behavior of these operations on signed arithmetic overflow is
 controlled by the @code{flag_wrapv} and @code{flag_trapv} variables.
+
+@item MULT_HIGHPART_EXPR
+This node represents the ``high-part'' of a widening multiplication.
+For an integral type with @var{b} bits of precision, the result is
+the most significant @var{b} bits of the full @math{2@var{b}} product.
 
 @item RDIV_EXPR
 This node represents a floating point division operation.
@@ -1476,11 +1488,12 @@ allows the backend to choose between the faster of @code{TRUNC_DIV_EXPR},
 @itemx NE_EXPR
 These nodes represent the less than, less than or equal to, greater
 than, greater than or equal to, equal, and not equal comparison
-operators.  The first and second operand with either be both of integral
-type or both of floating type.  The result type of these expressions
-will always be of integral or boolean type.  These operations return
-the result type's zero value for false, and the result type's one value
-for true.
+operators.  The first and second operands will either be both of integral
+type, both of floating type or both of vector type.  The result type of
+these expressions will always be of integral, boolean or signed integral
+vector type.  These operations return the result type's zero value for
+false, the result type's one value for true, and a vector whose elements
+are zero (false) or minus one (true) for vectors.
 
 For floating point comparisons, if we honor IEEE NaNs and either operand
 is NaN, then @code{NE_EXPR} always returns true and the remaining operators
@@ -1603,29 +1616,31 @@ of temporaries during the evaluation of that expression should be
 performed immediately after the expression is evaluated.
 
 @item CONSTRUCTOR
-These nodes represent the brace-enclosed initializers for a structure or
-array.  The first operand is reserved for use by the back end.  The
-second operand is a @code{TREE_LIST}.  If the @code{TREE_TYPE} of the
-@code{CONSTRUCTOR} is a @code{RECORD_TYPE} or @code{UNION_TYPE}, then
-the @code{TREE_PURPOSE} of each node in the @code{TREE_LIST} will be a
-@code{FIELD_DECL} and the @code{TREE_VALUE} of each node will be the
-expression used to initialize that field.
+These nodes represent the brace-enclosed initializers for a structure or an
+array.  They contain a sequence of component values made out of a vector of
+constructor_elt, which is a (@code{INDEX}, @code{VALUE}) pair.
 
-If the @code{TREE_TYPE} of the @code{CONSTRUCTOR} is an
-@code{ARRAY_TYPE}, then the @code{TREE_PURPOSE} of each element in the
-@code{TREE_LIST} will be an @code{INTEGER_CST} or a @code{RANGE_EXPR} of
-two @code{INTEGER_CST}s.  A single @code{INTEGER_CST} indicates which
-element of the array (indexed from zero) is being assigned to.  A
-@code{RANGE_EXPR} indicates an inclusive range of elements to
-initialize.  In both cases the @code{TREE_VALUE} is the corresponding
+If the @code{TREE_TYPE} of the @code{CONSTRUCTOR} is a @code{RECORD_TYPE},
+@code{UNION_TYPE} or @code{QUAL_UNION_TYPE} then the @code{INDEX} of each
+node in the sequence will be a @code{FIELD_DECL} and the @code{VALUE} will
+be the expression used to initialize that field.
+
+If the @code{TREE_TYPE} of the @code{CONSTRUCTOR} is an @code{ARRAY_TYPE},
+then the @code{INDEX} of each node in the sequence will be an
+@code{INTEGER_CST} or a @code{RANGE_EXPR} of two @code{INTEGER_CST}s.
+A single @code{INTEGER_CST} indicates which element of the array is being
+assigned to.  A @code{RANGE_EXPR} indicates an inclusive range of elements
+to initialize.  In both cases the @code{VALUE} is the corresponding
 initializer.  It is re-evaluated for each element of a
-@code{RANGE_EXPR}.  If the @code{TREE_PURPOSE} is @code{NULL_TREE}, then
+@code{RANGE_EXPR}.  If the @code{INDEX} is @code{NULL_TREE}, then
 the initializer is for the next available array element.
 
 In the front end, you should not depend on the fields appearing in any
 particular order.  However, in the middle end, fields must appear in
 declaration order.  You should not assume that all fields will be
-represented.  Unrepresented fields will be set to zero.
+represented.  Unrepresented fields will be cleared (zeroed), unless the
+CONSTRUCTOR_NO_CLEARING flag is set, in which case their value becomes
+undefined.
 
 @item COMPOUND_LITERAL_EXPR
 @findex COMPOUND_LITERAL_EXPR_DECL_EXPR
@@ -1680,7 +1695,12 @@ mechanism.  It represents expressions like @code{va_arg (ap, type)}.
 Its @code{TREE_TYPE} yields the tree representation for @code{type} and
 its sole argument yields the representation for @code{ap}.
 
+@item ANNOTATE_EXPR
+This node is used to attach markers to an expression. The first operand
+is the annotated expression, the second is an @code{INTEGER_CST} with
+a value from @code{enum annot_expr_kind}.
 @end table
+
 
 @node Vectors
 @subsection Vectors
@@ -1763,6 +1783,18 @@ of elements of a floating point type.  The result is a vector that contains
 twice as many elements of an integral type whose size is half as wide.  The
 elements of the two vectors are merged (concatenated) to form the output
 vector.
+
+@item VEC_COND_EXPR
+These nodes represent @code{?:} expressions.  The three operands must be
+vectors of the same size and number of elements.  The second and third
+operands must have the same type as the entire expression.  The first
+operand is of signed integral vector type.  If an element of the first
+operand evaluates to a zero value, the corresponding element of the
+result is taken from the third operand. If it evaluates to a minus one
+value, it is taken from the second operand. It should never evaluate to
+any other value currently, but optimizations should not rely on that
+property. In contrast with a @code{COND_EXPR}, all operands are always
+evaluated.
 @end table
 
 
@@ -2180,7 +2212,7 @@ regular critical section around the expression is used.
 @item OMP_CLAUSE
 
 Represents clauses associated with one of the @code{OMP_} directives.
-Clauses are represented by separate sub-codes defined in
+Clauses are represented by separate subcodes defined in
 @file{tree.h}.  Clauses codes can be one of:
 @code{OMP_CLAUSE_PRIVATE}, @code{OMP_CLAUSE_SHARED},
 @code{OMP_CLAUSE_FIRSTPRIVATE},
@@ -2494,7 +2526,7 @@ should submit your patches for inclusion in GCC@.
 @findex TYPE_PRECISION
 @findex TYPE_ARG_TYPES
 @findex TYPE_METHOD_BASETYPE
-@findex TYPE_PTRMEM_P
+@findex TYPE_PTRDATAMEM_P
 @findex TYPE_OFFSET_BASETYPE
 @findex TREE_TYPE
 @findex TYPE_CONTEXT
@@ -2571,7 +2603,7 @@ This predicate holds for a class-type.
 @item TYPE_BUILT_IN
 This predicate holds for a built-in type.
 
-@item TYPE_PTRMEM_P
+@item TYPE_PTRDATAMEM_P
 This predicate holds if the type is a pointer to data member.
 
 @item TYPE_PTR_P
@@ -2597,7 +2629,7 @@ language-dependent info about GENERIC types.
 @item POINTER_TYPE
 Used to represent pointer types, and pointer to data member types.  If
 @code{TREE_TYPE}
-is a pointer to data member type, then @code{TYPE_PTRMEM_P} will hold.
+is a pointer to data member type, then @code{TYPE_PTRDATAMEM_P} will hold.
 For a pointer to data member type of the form @samp{T X::*},
 @code{TYPE_PTRMEM_CLASS_TYPE} will be the type @code{X}, while
 @code{TYPE_PTRMEM_POINTED_TO_TYPE} will be the type @code{T}.
@@ -3135,6 +3167,30 @@ several statements chained together.
 
 Used to represent a @code{break} statement.  There are no additional
 fields.
+
+@item CILK_SPAWN_STMT
+
+Used to represent a spawning function in the Cilk Plus language extension.  
+This tree has one field that holds the name of the spawning function.
+@code{_Cilk_spawn} can be written in C in the following way:
+
+@smallexample
+@code{_Cilk_spawn} <function_name> (<parameters>);
+@end smallexample
+
+Detailed description for usage and functionality of @code{_Cilk_spawn} can be 
+found at http://www.cilkplus.org
+
+@item CILK_SYNC_STMT
+
+This statement is part of the Cilk Plus language extension.  It indicates that
+the current function cannot continue in parallel with its spawned children.  
+There are no additional fields.  @code{_Cilk_sync} can be written in C in the 
+following way:
+
+@smallexample
+@code{_Cilk_sync};
+@end smallexample
 
 @item CLEANUP_STMT
 

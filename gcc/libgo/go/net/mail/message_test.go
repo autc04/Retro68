@@ -95,6 +95,11 @@ func TestDateParsing(t *testing.T) {
 			"21 Nov 97 09:55:06 GMT",
 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("GMT", 0)),
 		},
+		// Commonly found format not specified by RFC 5322.
+		{
+			"Fri, 21 Nov 1997 09:55:06 -0600 (MDT)",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+		},
 	}
 	for _, test := range tests {
 		hdr := Header{
@@ -220,15 +225,36 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// Custom example with "." in name. For issue 4938
+		{
+			`Asem H. <noreply@example.com>`,
+			[]*Address{
+				{
+					Name:    `Asem H.`,
+					Address: "noreply@example.com",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
-		addrs, err := newAddrParser(test.addrsStr).parseAddressList()
+		if len(test.exp) == 1 {
+			addr, err := ParseAddress(test.addrsStr)
+			if err != nil {
+				t.Errorf("Failed parsing (single) %q: %v", test.addrsStr, err)
+				continue
+			}
+			if !reflect.DeepEqual([]*Address{addr}, test.exp) {
+				t.Errorf("Parse (single) of %q: got %+v, want %+v", test.addrsStr, addr, test.exp)
+			}
+		}
+
+		addrs, err := ParseAddressList(test.addrsStr)
 		if err != nil {
-			t.Errorf("Failed parsing %q: %v", test.addrsStr, err)
+			t.Errorf("Failed parsing (list) %q: %v", test.addrsStr, err)
 			continue
 		}
 		if !reflect.DeepEqual(addrs, test.exp) {
-			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
+			t.Errorf("Parse (list) of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
 		}
 	}
 }

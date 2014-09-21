@@ -1,6 +1,5 @@
 /* Subroutines used for code generation on Vitesse IQ2000 processors
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,6 +22,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "stor-layout.h"
+#include "calls.h"
+#include "varasm.h"
 #include "rtl.h"
 #include "regs.h"
 #include "hard-reg-set.h"
@@ -152,7 +154,8 @@ static void iq2000_setup_incoming_varargs (cumulative_args_t,
 					   enum machine_mode, tree, int *,
 					   int);
 static bool iq2000_rtx_costs          (rtx, int, int, int, int *, bool);
-static int  iq2000_address_cost       (rtx, bool);
+static int  iq2000_address_cost       (rtx, enum machine_mode, addr_space_t,
+				       bool);
 static section *iq2000_select_section (tree, int, unsigned HOST_WIDE_INT);
 static rtx  iq2000_legitimize_address (rtx, rtx, enum machine_mode);
 static bool iq2000_pass_by_reference  (cumulative_args_t, enum machine_mode,
@@ -381,8 +384,7 @@ iq2000_fill_delay_slot (const char *ret, enum delay_type type, rtx operands[],
   /* Make sure that we don't put nop's after labels.  */
   next_insn = NEXT_INSN (cur_insn);
   while (next_insn != 0
-	 && (GET_CODE (next_insn) == NOTE
-	     || GET_CODE (next_insn) == CODE_LABEL))
+	 && (NOTE_P (next_insn) || LABEL_P (next_insn)))
     next_insn = NEXT_INSN (next_insn);
 
   dslots_load_total += num_nops;
@@ -391,7 +393,7 @@ iq2000_fill_delay_slot (const char *ret, enum delay_type type, rtx operands[],
       || operands == 0
       || cur_insn == 0
       || next_insn == 0
-      || GET_CODE (next_insn) == CODE_LABEL
+      || LABEL_P (next_insn)
       || (set_reg = operands[0]) == 0)
     {
       dslots_number_nops = 0;
@@ -779,7 +781,8 @@ iq2000_move_1word (rtx operands[], rtx insn, int unsignedp)
 /* Provide the costs of an addressing mode that contains ADDR.  */
 
 static int
-iq2000_address_cost (rtx addr, bool speed)
+iq2000_address_cost (rtx addr, enum machine_mode mode, addr_space_t as,
+		     bool speed)
 {
   switch (GET_CODE (addr))
     {
@@ -830,7 +833,7 @@ iq2000_address_cost (rtx addr, bool speed)
 	  case LABEL_REF:
 	  case HIGH:
 	  case LO_SUM:
-	    return iq2000_address_cost (plus1, speed) + 1;
+	    return iq2000_address_cost (plus1, mode, as, speed) + 1;
 
 	  default:
 	    break;
@@ -1076,7 +1079,7 @@ gen_conditional_branch (rtx operands[], enum machine_mode mode)
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
 			       gen_rtx_IF_THEN_ELSE (VOIDmode,
 						     gen_rtx_fmt_ee (test_code,
-								     mode,
+								     VOIDmode,
 								     cmp0, cmp1),
 						     label1, label2)));
 }
@@ -1104,8 +1107,8 @@ init_cumulative_args (CUMULATIVE_ARGS *cum, tree fntype,
 	  tree ret_type = TREE_TYPE (fntype);
 
 	  fprintf (stderr, ", fntype code = %s, ret code = %s\n",
-		   tree_code_name[(int)TREE_CODE (fntype)],
-		   tree_code_name[(int)TREE_CODE (ret_type)]);
+		   get_tree_code_name (TREE_CODE (fntype)),
+		   get_tree_code_name (TREE_CODE (ret_type)));
 	}
     }
 
@@ -1140,7 +1143,7 @@ iq2000_function_arg_advance (cumulative_args_t cum_v, enum machine_mode mode,
 	       "function_adv({gp reg found = %d, arg # = %2d, words = %2d}, %4s, ",
 	       cum->gp_reg_found, cum->arg_number, cum->arg_words,
 	       GET_MODE_NAME (mode));
-      fprintf (stderr, "%p", CONST_CAST2 (void *, const_tree,  type));
+      fprintf (stderr, "%p", (const void *) type);
       fprintf (stderr, ", %d )\n\n", named);
     }
 
@@ -1279,7 +1282,7 @@ iq2000_function_arg (cumulative_args_t cum_v, enum machine_mode mode,
 
       if (! type || TREE_CODE (type) != RECORD_TYPE
 	  || ! named  || ! TYPE_SIZE_UNIT (type)
-	  || ! host_integerp (TYPE_SIZE_UNIT (type), 1))
+	  || ! tree_fits_uhwi_p (TYPE_SIZE_UNIT (type)))
 	ret = gen_rtx_REG (mode, regbase + *arg_words + bias);
       else
 	{
@@ -1289,7 +1292,7 @@ iq2000_function_arg (cumulative_args_t cum_v, enum machine_mode mode,
 	    if (TREE_CODE (field) == FIELD_DECL
 		&& TREE_CODE (TREE_TYPE (field)) == REAL_TYPE
 		&& TYPE_PRECISION (TREE_TYPE (field)) == BITS_PER_WORD
-		&& host_integerp (bit_position (field), 0)
+		&& tree_fits_shwi_p (bit_position (field))
 		&& int_bit_position (field) % BITS_PER_WORD == 0)
 	      break;
 
@@ -1307,7 +1310,7 @@ iq2000_function_arg (cumulative_args_t cum_v, enum machine_mode mode,
 	      /* ??? If this is a packed structure, then the last hunk won't
 		 be 64 bits.  */
 	      chunks
-		= tree_low_cst (TYPE_SIZE_UNIT (type), 1) / UNITS_PER_WORD;
+		= tree_to_uhwi (TYPE_SIZE_UNIT (type)) / UNITS_PER_WORD;
 	      if (chunks + *arg_words + bias > (unsigned) MAX_ARGS_IN_REGISTERS)
 		chunks = MAX_ARGS_IN_REGISTERS - *arg_words - bias;
 
@@ -1412,7 +1415,7 @@ iq2000_va_start (tree valist, rtx nextarg)
 
   /* Everything is in the GPR save area, or in the overflow
      area which is contiguous with it.  */
-  nextarg = plus_constant (nextarg, - gpr_save_area_size);
+  nextarg = plus_constant (Pmode, nextarg, - gpr_save_area_size);
   std_expand_builtin_va_start (valist, nextarg);
 }
 
@@ -1532,8 +1535,8 @@ final_prescan_insn (rtx insn, rtx opvec[] ATTRIBUTE_UNUSED,
       iq2000_load_reg4 = 0;
     }
 
-  if (   (GET_CODE (insn) == JUMP_INSN
-       || GET_CODE (insn) == CALL_INSN
+  if (   (JUMP_P (insn)
+       || CALL_P (insn)
        || (GET_CODE (PATTERN (insn)) == RETURN))
 	   && NEXT_INSN (PREV_INSN (insn)) == insn)
     {
@@ -1543,7 +1546,7 @@ final_prescan_insn (rtx insn, rtx opvec[] ATTRIBUTE_UNUSED,
     }
   
   if (TARGET_STATS
-      && (GET_CODE (insn) == JUMP_INSN || GET_CODE (insn) == CALL_INSN))
+      && (JUMP_P (insn) || CALL_P (insn)))
     dslots_jump_total ++;
 }
 
@@ -1783,7 +1786,7 @@ iq2000_annotate_frame_insn (rtx insn, rtx dwarf_pattern)
 static void
 iq2000_emit_frame_related_store (rtx mem, rtx reg, HOST_WIDE_INT offset)
 {
-  rtx dwarf_address = plus_constant (stack_pointer_rtx, offset);
+  rtx dwarf_address = plus_constant (Pmode, stack_pointer_rtx, offset);
   rtx dwarf_mem = gen_rtx_MEM (GET_MODE (reg), dwarf_address);
 
   iq2000_annotate_frame_insn (emit_move_insn (mem, reg),
@@ -2031,7 +2034,8 @@ iq2000_expand_prologue (void)
 				    adjustment_rtx));
 
       dwarf_pattern = gen_rtx_SET (Pmode, stack_pointer_rtx,
-				   plus_constant (stack_pointer_rtx, -tsize));
+				   plus_constant (Pmode, stack_pointer_rtx,
+						  -tsize));
 
       iq2000_annotate_frame_insn (insn, dwarf_pattern);
 
@@ -2120,7 +2124,7 @@ iq2000_expand_eh_return (rtx address)
   HOST_WIDE_INT gp_offset = cfun->machine->gp_sp_offset;
   rtx scratch;
 
-  scratch = plus_constant (stack_pointer_rtx, gp_offset);
+  scratch = plus_constant (Pmode, stack_pointer_rtx, gp_offset);
   emit_move_insn (gen_rtx_MEM (GET_MODE (address), scratch), address);
 }
 
@@ -2283,8 +2287,8 @@ iq2000_adjust_insn_length (rtx insn, int length)
   /* A unconditional jump has an unfilled delay slot if it is not part
      of a sequence.  A conditional jump normally has a delay slot.  */
   if (simplejump_p (insn)
-      || (   (GET_CODE (insn) == JUMP_INSN
-	   || GET_CODE (insn) == CALL_INSN)))
+      || (   (JUMP_P (insn)
+	   || CALL_P (insn))))
     length += 4;
 
   return length;
@@ -2873,9 +2877,9 @@ iq2000_setup_incoming_varargs (cumulative_args_t cum_v,
 	  if (cum->arg_words < MAX_ARGS_IN_REGISTERS - iq2000_off) 
 	    {
 	      rtx ptr, mem; 
-	      ptr = plus_constant (virtual_incoming_args_rtx, 
-				   - (iq2000_save_gp_regs 
-				      * UNITS_PER_WORD)); 
+	      ptr = plus_constant (Pmode, virtual_incoming_args_rtx,
+				   - (iq2000_save_gp_regs
+				      * UNITS_PER_WORD));
 	      mem = gen_rtx_MEM (BLKmode, ptr); 
 	      move_block_from_reg 
 		(cum->arg_words + GP_ARG_FIRST + iq2000_off, 
@@ -3165,7 +3169,7 @@ iq2000_print_operand (FILE *file, rtx op, int letter)
   else if (code == MEM)
     {
       if (letter == 'D')
-	output_address (plus_constant (XEXP (op, 0), 4));
+	output_address (plus_constant (Pmode, XEXP (op, 0), 4));
       else
 	output_address (XEXP (op, 0));
     }
@@ -3273,7 +3277,7 @@ iq2000_legitimize_address (rtx xinsn, rtx old_x ATTRIBUTE_UNUSED,
                                   ptr_reg,
                                   gen_rtx_PLUS (Pmode, xplus0, int_reg)));
 
-          return plus_constant (ptr_reg, INTVAL (xplus1) & 0x7fff);
+          return plus_constant (Pmode, ptr_reg, INTVAL (xplus1) & 0x7fff);
         }
     }
 

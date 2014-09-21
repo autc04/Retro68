@@ -1,7 +1,6 @@
 // Allocator that wraps operator new -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,6 +33,9 @@
 #include <new>
 #include <bits/functexcept.h>
 #include <bits/move.h>
+#if __cplusplus >= 201103L
+#include <type_traits>
+#endif
 
 namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
 {
@@ -49,6 +51,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  This is precisely the allocator defined in the C++ Standard. 
    *    - all allocation calls operator new
    *    - all deallocation calls operator delete
+   *
+   *  @tparam  _Tp  Type of allocated object.
    */
   template<typename _Tp>
     class new_allocator
@@ -65,6 +69,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       template<typename _Tp1>
         struct rebind
         { typedef new_allocator<_Tp1> other; };
+
+#if __cplusplus >= 201103L
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 2103. propagate_on_container_move_assignment
+      typedef std::true_type propagate_on_container_move_assignment;
+#endif
 
       new_allocator() _GLIBCXX_USE_NOEXCEPT { }
 
@@ -103,7 +113,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       max_size() const _GLIBCXX_USE_NOEXCEPT
       { return size_t(-1) / sizeof(_Tp); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       template<typename _Up, typename... _Args>
         void
         construct(_Up* __p, _Args&&... __args)

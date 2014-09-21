@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -81,7 +81,8 @@ package body Styleg is
 
    function Is_White_Space (C : Character) return Boolean;
    pragma Inline (Is_White_Space);
-   --  Returns True for space, HT, VT or FF, False otherwise
+   --  Returns True for space or HT, False otherwise
+   --  What about VT and FF, should they return True ???
 
    procedure Require_Following_Space;
    pragma Inline (Require_Following_Space);
@@ -97,12 +98,12 @@ package body Styleg is
    -- Check_Abs_Or_Not --
    ----------------------
 
-   --  In check tokens mode (-gnatyt), ABS/NOT must be followed by a space
+   --  In check token mode (-gnatyt), ABS/NOT must be followed by a space
 
    procedure Check_Abs_Not is
    begin
       if Style_Check_Tokens then
-         if Source (Scan_Ptr) > ' ' then
+         if Source (Scan_Ptr) > ' ' then -- ???
             Error_Space_Required (Scan_Ptr);
          end if;
       end if;
@@ -112,7 +113,7 @@ package body Styleg is
    -- Check_Apostrophe --
    ----------------------
 
-   --  Do not allow space before or after apostrophe
+   --  Do not allow space before or after apostrophe -- OR AFTER???
 
    procedure Check_Apostrophe is
    begin
@@ -350,7 +351,9 @@ package body Styleg is
    --    6. In addition, the comment must be properly indented if comment
    --       indentation checking is active (Style_Check_Indentation non-zero).
    --       Either the start column must be a multiple of this indentation,
-   --       or the indentation must match that of the next non-blank line.
+   --       or the indentation must match that of the next non-blank line,
+   --       or must match the indentation of the immediately preciding line
+   --       if it is non-blank.
 
    procedure Check_Comment is
       S : Source_Ptr;
@@ -367,6 +370,12 @@ package body Styleg is
       --  Called for a full line comment. If the indentation of this comment
       --  matches that of the next non-blank line in the source, then True is
       --  returned, otherwise False.
+
+      function Same_Column_As_Previous_Line return Boolean;
+      --  Called for a full line comment. If the previous line is blank, then
+      --  returns False. Otherwise, if the indentation of this comment matches
+      --  that of the previous line in the source, then True is returned,
+      --  otherwise False.
 
       --------------------
       -- Is_Box_Comment --
@@ -428,6 +437,39 @@ package body Styleg is
          return Get_Column_Number (Scan_Ptr) = Get_Column_Number (P);
       end Same_Column_As_Next_Non_Blank_Line;
 
+      ----------------------------------
+      -- Same_Column_As_Previous_Line --
+      ----------------------------------
+
+      function Same_Column_As_Previous_Line return Boolean is
+         S, P : Source_Ptr;
+
+      begin
+         --  Point S to start of this line, and P to start of previous line
+
+         S := Line_Start (Scan_Ptr);
+         P := S;
+         Backup_Line (P);
+
+         --  Step P to first non-blank character on line
+
+         loop
+            --  If we get back to start of current line, then the previous line
+            --  was blank, and we always return False in that situation.
+
+            if P = S then
+               return False;
+            end if;
+
+            exit when Source (P) /= ' ' and then Source (P) /= ASCII.HT;
+            P := P + 1;
+         end loop;
+
+         --  Compare columns
+
+         return Get_Column_Number (Scan_Ptr) = Get_Column_Number (P);
+      end Same_Column_As_Previous_Line;
+
    --  Start of processing for Check_Comment
 
    begin
@@ -465,7 +507,9 @@ package body Styleg is
 
          if Style_Check_Indentation /= 0 then
             if Start_Column rem Style_Check_Indentation /= 0 then
-               if not Same_Column_As_Next_Non_Blank_Line then
+               if not Same_Column_As_Next_Non_Blank_Line
+                 and then not Same_Column_As_Previous_Line
+               then
                   Error_Msg_S -- CODEFIX
                     ("(style) bad column");
                end if;
@@ -546,7 +590,7 @@ package body Styleg is
    -- Check_Dot_Dot --
    -------------------
 
-   --  In check token mode (-gnatyt), colon must be surrounded by spaces
+   --  In check token mode (-gnatyt), ".." must be surrounded by spaces
 
    procedure Check_Dot_Dot is
    begin
@@ -610,7 +654,7 @@ package body Styleg is
    -- Check_Indentation --
    -----------------------
 
-   --  In check indentation mode (-gnatyn for n a digit), a new statement or
+   --  In check indentation mode (-gnaty? for ? a digit), a new statement or
    --  declaration is required to start in a column that is a multiple of the
    --  indentation amount.
 
@@ -630,9 +674,9 @@ package body Styleg is
    -- Check_Left_Paren --
    ----------------------
 
-   --  In tone check mode (-gnatyt), left paren must not be preceded by an
-   --  identifier character or digit (a separating space is required) and
-   --  may never be followed by a space.
+   --  In check token mode (-gnatyt), left paren must not be preceded by an
+   --  identifier character or digit (a separating space is required) and may
+   --  never be followed by a space.
 
    procedure Check_Left_Paren is
    begin
@@ -707,9 +751,9 @@ package body Styleg is
 
       if Style_Check_DOS_Line_Terminator then
 
-      --  Ignore EOF, since we only get called with an EOF if it is the last
-      --  character in the buffer (and was therefore not in the source file),
-      --  since the terminating EOF is added to stop the scan.
+         --  Ignore EOF, since we only get called with an EOF if it is the last
+         --  character in the buffer (and was therefore not in the source
+         --  file), since the terminating EOF is added to stop the scan.
 
          if Source (Scan_Ptr) = EOF then
             null;
@@ -763,6 +807,24 @@ package body Styleg is
          Blank_Lines := 0;
       end if;
    end Check_Line_Terminator;
+
+   ------------------
+   -- Check_Not_In --
+   ------------------
+
+   --  In check tokens mode, only one space between NOT and IN
+
+   procedure Check_Not_In is
+   begin
+      if Style_Check_Tokens then
+         if Source (Token_Ptr - 1) /= ' '
+           or else Token_Ptr - Prev_Token_Ptr /= 4
+         then -- CODEFIX?
+            Error_Msg
+              ("(style) single space must separate NOT and IN", Token_Ptr - 1);
+         end if;
+      end if;
+   end Check_Not_In;
 
    --------------------------
    -- Check_No_Space_After --
@@ -828,7 +890,7 @@ package body Styleg is
    -- Check_Right_Paren --
    -----------------------
 
-   --  In check tokens mode (-gnatyt), right paren must not be immediately
+   --  In check token mode (-gnatyt), right paren must not be immediately
    --  followed by an identifier character, and must never be preceded by
    --  a space unless it is the initial non-blank character on the line.
 
@@ -847,7 +909,7 @@ package body Styleg is
    -- Check_Semicolon --
    ---------------------
 
-   --  In check tokens mode (-gnatyt), semicolon does not permit a preceding
+   --  In check token mode (-gnatyt), semicolon does not permit a preceding
    --  space and a following space is required.
 
    procedure Check_Semicolon is
@@ -943,17 +1005,23 @@ package body Styleg is
 
    --  In check if then layout mode (-gnatyi), we expect a THEN keyword
    --  to appear either on the same line as the IF, or on a separate line
-   --  after multiple conditions. In any case, it may not appear on the
-   --  line immediately following the line with the IF.
+   --  if the IF statement extends for more than one line.
 
    procedure Check_Then (If_Loc : Source_Ptr) is
    begin
       if Style_Check_If_Then_Layout then
-         if Get_Physical_Line_Number (Token_Ptr) =
-            Get_Physical_Line_Number (If_Loc) + 1
-         then
-            Error_Msg_SC ("(style) misplaced THEN");
-         end if;
+         declare
+            If_Line   : constant Physical_Line_Number :=
+              Get_Physical_Line_Number (If_Loc);
+            Then_Line : constant Physical_Line_Number :=
+              Get_Physical_Line_Number (Token_Ptr);
+         begin
+            if If_Line = Then_Line then
+               null;
+            elsif Token_Ptr /= First_Non_Blank_Location then
+               Error_Msg_SC ("(style) misplaced THEN");
+            end if;
+         end;
       end if;
    end Check_Then;
 

@@ -1,6 +1,6 @@
 /* Code to analyze doloop loops in order for targets to perform late
    optimizations converting doloops to other forms of hardware loops.
-   Copyright (C) 2011 Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -30,12 +30,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "basic-block.h"
 #include "tm_p.h"
 #include "df.h"
-#include "cfglayout.h"
 #include "cfgloop.h"
-#include "output.h"
 #include "recog.h"
 #include "target.h"
 #include "hw-doloop.h"
+#include "dumpfile.h"
 
 #ifdef HAVE_doloop_end
 
@@ -59,12 +58,12 @@ dump_hwloops (hwloop_info loops)
 	       loop->depth, REGNO (loop->iter_reg));
 
       fprintf (dump_file, " blocks: [ ");
-      for (ix = 0; VEC_iterate (basic_block, loop->blocks, ix, b); ix++)
+      for (ix = 0; loop->blocks.iterate (ix, &b); ix++)
 	fprintf (dump_file, "%d ", b->index);
       fprintf (dump_file, "] ");
 
       fprintf (dump_file, " inner loops: [ ");
-      for (ix = 0; VEC_iterate (hwloop_info, loop->loops, ix, i); ix++)
+      for (ix = 0; loop->loops.iterate (ix, &i); ix++)
 	fprintf (dump_file, "%d ", i->loop_no);
       fprintf (dump_file, "]\n");
     }
@@ -93,7 +92,7 @@ scan_loop (hwloop_info loop)
 		       REGNO (loop->iter_reg)))
     loop->iter_reg_used_outside = true;
 
-  for (ix = 0; VEC_iterate (basic_block, loop->blocks, ix, bb); ix++)
+  for (ix = 0; loop->blocks.iterate (ix, &bb); ix++)
     {
       rtx insn;
       edge e;
@@ -212,11 +211,11 @@ add_forwarder_blocks (hwloop_info loop)
 	    fprintf (dump_file,
 		     ";; Adding forwarder block %d to loop %d and retrying\n",
 		     e->src->index, loop->loop_no);
-	  VEC_safe_push (basic_block, heap, loop->blocks, e->src);
+	  loop->blocks.safe_push (e->src);
 	  bitmap_set_bit (loop->block_bitmap, e->src->index);
 	  FOR_EACH_EDGE (e2, ei2, e->src->preds)
-	    VEC_safe_push (edge, gc, loop->incoming, e2);
-	  VEC_unordered_remove (edge, loop->incoming, ei.index);
+	    vec_safe_push (loop->incoming, e2);
+	  loop->incoming->unordered_remove (ei.index);
 	  return true;
 	}
     }
@@ -238,12 +237,11 @@ discover_loop (hwloop_info loop, basic_block tail_bb, rtx tail_insn, rtx reg)
   bool found_tail;
   unsigned dwork = 0;
   basic_block bb;
-  VEC (basic_block,heap) *works;
 
   loop->tail = tail_bb;
   loop->loop_end = tail_insn;
   loop->iter_reg = reg;
-  loop->incoming = VEC_alloc (edge, gc, 2);
+  vec_alloc (loop->incoming, 2);
   loop->start_label = JUMP_LABEL (tail_insn);
 
   if (EDGE_COUNT (tail_bb->succs) != 2)
@@ -254,15 +252,15 @@ discover_loop (hwloop_info loop, basic_block tail_bb, rtx tail_insn, rtx reg)
   loop->head = BRANCH_EDGE (tail_bb)->dest;
   loop->successor = FALLTHRU_EDGE (tail_bb)->dest;
 
-  works = VEC_alloc (basic_block, heap, 20);
-  VEC_safe_push (basic_block, heap, works, loop->head);
+  auto_vec<basic_block, 20> works;
+  works.safe_push (loop->head);
 
   found_tail = false;
-  for (dwork = 0; VEC_iterate (basic_block, works, dwork, bb); dwork++)
+  for (dwork = 0; works.iterate (dwork, &bb); dwork++)
     {
       edge e;
       edge_iterator ei;
-      if (bb == EXIT_BLOCK_PTR)
+      if (bb == EXIT_BLOCK_PTR_FOR_FN (cfun))
 	{
 	  /* We've reached the exit block.  The loop must be bad. */
 	  if (dump_file)
@@ -278,7 +276,7 @@ discover_loop (hwloop_info loop, basic_block tail_bb, rtx tail_insn, rtx reg)
       /* We've not seen this block before.  Add it to the loop's
 	 list and then add each successor to the work list.  */
 
-      VEC_safe_push (basic_block, heap, loop->blocks, bb);
+      loop->blocks.safe_push (bb);
       bitmap_set_bit (loop->block_bitmap, bb->index);
 
       if (bb == tail_bb)
@@ -290,7 +288,7 @@ discover_loop (hwloop_info loop, basic_block tail_bb, rtx tail_insn, rtx reg)
 	      basic_block succ = EDGE_SUCC (bb, ei.index)->dest;
 	      if (REGNO_REG_SET_P (df_get_live_in (succ),
 				   REGNO (loop->iter_reg)))
-		VEC_safe_push (basic_block, heap, works, succ);
+		works.safe_push (succ);
 	    }
 	}
     }
@@ -301,7 +299,7 @@ discover_loop (hwloop_info loop, basic_block tail_bb, rtx tail_insn, rtx reg)
   /* Find the predecessor, and make sure nothing else jumps into this loop.  */
   if (!loop->bad)
     {
-      FOR_EACH_VEC_ELT (basic_block, loop->blocks, dwork, bb)
+      FOR_EACH_VEC_ELT (loop->blocks, dwork, bb)
 	{
 	  edge e;
 	  edge_iterator ei;
@@ -315,7 +313,7 @@ discover_loop (hwloop_info loop, basic_block tail_bb, rtx tail_insn, rtx reg)
 		    fprintf (dump_file, ";; Loop %d: incoming edge %d -> %d\n",
 			     loop->loop_no, pred->index,
 			     e->dest->index);
-		  VEC_safe_push (edge, gc, loop->incoming, e);
+		  vec_safe_push (loop->incoming, e);
 		}
 	    }
 	}
@@ -341,17 +339,15 @@ discover_loop (hwloop_info loop, basic_block tail_bb, rtx tail_insn, rtx reg)
 	    }
 	}
     }
-
-  VEC_free (basic_block, heap, works);
 }
 
 /* Analyze the structure of the loops in the current function.  Use
-   STACK for bitmap allocations.  Returns all the valid candidates for
+   LOOP_STACK for bitmap allocations.  Returns all the valid candidates for
    hardware loops found in this function.  HOOKS is the argument
    passed to reorg_loops, used here to find the iteration registers
    from a loop_end pattern.  */
 static hwloop_info
-discover_loops (bitmap_obstack *stack, struct hw_doloop_hooks *hooks)
+discover_loops (bitmap_obstack *loop_stack, struct hw_doloop_hooks *hooks)
 {
   hwloop_info loops = NULL;
   hwloop_info loop;
@@ -361,12 +357,12 @@ discover_loops (bitmap_obstack *stack, struct hw_doloop_hooks *hooks)
   /* Find all the possible loop tails.  This means searching for every
      loop_end instruction.  For each one found, create a hwloop_info
      structure and add the head block to the work list. */
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       rtx tail = BB_END (bb);
       rtx insn, reg;
 
-      while (tail && GET_CODE (tail) == NOTE && tail != BB_HEAD (bb))
+      while (tail && NOTE_P (tail) && tail != BB_HEAD (bb))
 	tail = PREV_INSN (tail);
 
       if (tail == NULL_RTX)
@@ -406,8 +402,8 @@ discover_loops (bitmap_obstack *stack, struct hw_doloop_hooks *hooks)
       loop->next = loops;
       loops = loop;
       loop->loop_no = nloops++;
-      loop->blocks = VEC_alloc (basic_block, heap, 20);
-      loop->block_bitmap = BITMAP_ALLOC (stack);
+      loop->blocks.create (20);
+      loop->block_bitmap = BITMAP_ALLOC (loop_stack);
 
       if (dump_file)
 	{
@@ -438,10 +434,10 @@ discover_loops (bitmap_obstack *stack, struct hw_doloop_hooks *hooks)
 	    continue;
 	  if (!bitmap_intersect_compl_p (other->block_bitmap,
 					 loop->block_bitmap))
-	    VEC_safe_push (hwloop_info, heap, loop->loops, other);
+	    loop->loops.safe_push (other);
 	  else if (!bitmap_intersect_compl_p (loop->block_bitmap,
 					      other->block_bitmap))
-	    VEC_safe_push (hwloop_info, heap, other->loops, loop);
+	    other->loops.safe_push (loop);
 	  else
 	    {
 	      if (dump_file)
@@ -467,8 +463,8 @@ free_loops (hwloop_info loops)
     {
       hwloop_info loop = loops;
       loops = loop->next;
-      VEC_free (hwloop_info, heap, loop->loops);
-      VEC_free (basic_block, heap, loop->blocks);
+      loop->loops.release ();
+      loop->blocks.release ();
       BITMAP_FREE (loop->block_bitmap);
       XDELETE (loop);
     }
@@ -484,7 +480,7 @@ set_bb_indices (void)
   intptr_t index;
 
   index = 0;
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     bb->aux = (void *) index++;
 }
 
@@ -541,9 +537,9 @@ reorder_loops (hwloop_info loops)
       loops = loops->next;
     }
   
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
-      if (bb->next_bb != EXIT_BLOCK_PTR)
+      if (bb->next_bb != EXIT_BLOCK_PTR_FOR_FN (cfun))
 	bb->aux = bb->next_bb;
       else
 	bb->aux = NULL;
@@ -581,7 +577,7 @@ optimize_loop (hwloop_info loop, struct hw_doloop_hooks *hooks)
      a depth-first search here and never visit a loop more than once.
      Recursion depth is effectively limited by the number of available
      hardware registers.  */
-  for (ix = 0; VEC_iterate (hwloop_info, loop->loops, ix, inner); ix++)
+  for (ix = 0; loop->loops.iterate (ix, &inner); ix++)
     {
       optimize_loop (inner, hooks);
 
@@ -627,18 +623,18 @@ reorg_loops (bool do_reorder, struct hw_doloop_hooks *hooks)
 {
   hwloop_info loops = NULL;
   hwloop_info loop;
-  bitmap_obstack stack;
+  bitmap_obstack loop_stack;
 
   df_live_add_problem ();
   df_live_set_all_dirty ();
   df_analyze ();
 
-  bitmap_obstack_initialize (&stack);
+  bitmap_obstack_initialize (&loop_stack);
 
   if (dump_file)
     fprintf (dump_file, ";; Find loops, first pass\n\n");
 
-  loops = discover_loops (&stack, hooks);
+  loops = discover_loops (&loop_stack, hooks);
 
   if (do_reorder)
     {
@@ -648,7 +644,7 @@ reorg_loops (bool do_reorder, struct hw_doloop_hooks *hooks)
       if (dump_file)
 	fprintf (dump_file, ";; Find loops, second pass\n\n");
 
-      loops = discover_loops (&stack, hooks);
+      loops = discover_loops (&loop_stack, hooks);
     }
 
   for (loop = loops; loop; loop = loop->next)
@@ -665,6 +661,7 @@ reorg_loops (bool do_reorder, struct hw_doloop_hooks *hooks)
     }
 
   free_loops (loops);
+  bitmap_obstack_release (&loop_stack);
 
   if (dump_file)
     print_rtl (dump_file, get_insns ());

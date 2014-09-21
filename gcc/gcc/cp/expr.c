@@ -1,7 +1,6 @@
 /* Convert language-specific tree expression to rtl instructions,
    for GNU compiler.
-   Copyright (C) 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   2000, 2001, 2002, 2003, 2004, 2007, 2010 Free Software Foundation, Inc.
+   Copyright (C) 1988-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -43,6 +42,10 @@ cplus_expand_constant (tree cst)
 
 	/* Find the member.  */
 	member = PTRMEM_CST_MEMBER (cst);
+
+	/* We can't lower this until the class is complete.  */
+	if (!COMPLETE_TYPE_P (DECL_CONTEXT (member)))
+	  return cst;
 
 	if (TREE_CODE (member) == FIELD_DECL)
 	  {
@@ -131,6 +134,7 @@ mark_exp_read (tree exp)
     CASE_CONVERT:
     case ADDR_EXPR:
     case INDIRECT_REF:
+    case FLOAT_EXPR:
       mark_exp_read (TREE_OPERAND (exp, 0));
       break;
     case COMPOUND_EXPR:

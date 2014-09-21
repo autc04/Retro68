@@ -442,7 +442,8 @@ Token::print(FILE* file) const
 Lex::Lex(const char* input_file_name, FILE* input_file, Linemap* linemap)
   : input_file_name_(input_file_name), input_file_(input_file),
     linemap_(linemap), linebuf_(NULL), linebufsize_(120), linesize_(0),
-    lineoff_(0), lineno_(0), add_semi_at_eol_(false), extern_()
+    lineoff_(0), lineno_(0), add_semi_at_eol_(false), saw_nointerface_(false),
+    extern_()
 {
   this->linebuf_ = new char[this->linebufsize_];
   this->linemap_->start_file(input_file_name, 0);
@@ -597,7 +598,7 @@ Lex::next_token()
 		}
 	      else if (p[1] == '*')
 		{
-		  this->lineoff_ = p - this->linebuf_;
+		  this->lineoff_ = p + 2 - this->linebuf_;
 		  Location location = this->location();
 		  if (!this->skip_c_comment())
 		    return Token::make_invalid_token(location);
@@ -722,7 +723,16 @@ Lex::next_token()
 		unsigned int ci;
 		bool issued_error;
 		this->lineoff_ = p - this->linebuf_;
-		this->advance_one_utf8_char(p, &ci, &issued_error);
+		const char *pnext = this->advance_one_utf8_char(p, &ci,
+								&issued_error);
+
+		// Ignore byte order mark at start of file.
+		if (ci == 0xfeff)
+		  {
+		    p = pnext;
+		    break;
+		  }
+
 		if (Lex::is_unicode_letter(ci))
 		  return this->gather_identifier();
 
@@ -831,6 +841,14 @@ Lex::advance_one_utf8_char(const char* p, unsigned int* value,
       *issued_error = true;
       return p + 1;
     }
+
+  // Warn about byte order mark, except at start of file.
+  if (*value == 0xfeff && (this->lineno_ != 1 || this->lineoff_ != 0))
+    {
+      error_at(this->location(), "Unicode (UTF-8) BOM in middle of file");
+      *issued_error = true;
+    }
+
   return p + adv;
 }
 
@@ -855,7 +873,28 @@ Lex::gather_identifier()
 	      && (cc < 'a' || cc > 'z')
 	      && cc != '_'
 	      && (cc < '0' || cc > '9'))
-	    break;
+	    {
+	      // Check for an invalid character here, as we get better
+	      // error behaviour if we swallow them as part of the
+	      // identifier we are building.
+	      if ((cc >= ' ' && cc < 0x7f)
+		  || cc == '\t'
+		  || cc == '\r'
+		  || cc == '\n')
+		break;
+
+	      this->lineoff_ = p - this->linebuf_;
+	      error_at(this->location(),
+		       "invalid character 0x%x in identifier",
+		       cc);
+	      if (!has_non_ascii_char)
+		{
+		  buf.assign(pstart, p - pstart);
+		  has_non_ascii_char = true;
+		}
+	      if (!Lex::is_invalid_identifier(buf))
+		buf.append("$INVALID$");
+	    }
 	  ++p;
 	  if (is_first)
 	    {
@@ -897,12 +936,8 @@ Lex::gather_identifier()
 	    }
 	  if (is_invalid && !Lex::is_invalid_identifier(buf))
 	    buf.append("$INVALID$");
+	  buf.append(p, pnext - p);
 	  p = pnext;
-	  char ubuf[50];
-	  // This assumes that all assemblers can handle an identifier
-	  // with a '$' character.
-	  snprintf(ubuf, sizeof ubuf, "$U%x$", ci);
-	  buf.append(ubuf);
 	}
     }
   Location location = this->location();
@@ -1012,7 +1047,9 @@ Lex::gather_number()
 	    }
 	}
 
-      if (*p != '.' && *p != 'i' && !Lex::could_be_exponent(p, pend))
+      // A partial token that looks like an octal literal might actually be the
+      // beginning of a floating-point or imaginary literal.
+      if (base == 16 || (*p != '.' && *p != 'i' && !Lex::could_be_exponent(p, pend)))
 	{
 	  std::string s(pnum, p - pnum);
 	  mpz_t val;
@@ -1291,6 +1328,12 @@ Lex::append_char(unsigned int v, bool is_character, std::string* str,
 	  warning_at(location, 0,
 		     "unicode code point 0x%x out of range in string", v);
 	  // Turn it into the "replacement character".
+	  v = 0xfffd;
+	}
+      if (v >= 0xd800 && v < 0xe000)
+	{
+	  warning_at(location, 0,
+		     "unicode code point 0x%x is invalid surrogate pair", v);
 	  v = 0xfffd;
 	}
       if (v <= 0xffff)
@@ -1679,6 +1722,12 @@ Lex::skip_cpp_comment()
 	this->extern_ = std::string(p, plend - p);
     }
 
+  // For field tracking analysis: a //go:nointerface comment means
+  // that the next interface method should not be stored in the type
+  // descriptor.  This permits it to be discarded if it is not needed.
+  if (this->lineoff_ == 2 && memcmp(p, "go:nointerface", 14) == 0)
+    this->saw_nointerface_ = true;
+
   while (p < pend)
     {
       this->lineoff_ = p - this->linebuf_;
@@ -1701,6 +1750,27 @@ struct Unicode_range
   // The stride.  This entries represents low, low + stride, low + 2 *
   // stride, etc., up to high.
   unsigned int stride;
+};
+
+// A table of whitespace characters--Unicode code points classified as
+// "Space", "C" locale whitespace characters, the "next line" control
+// character (0085), the line separator (2028), the paragraph
+// separator (2029), and the "zero-width non-break space" (feff).
+
+static const Unicode_range unicode_space[] =
+{
+  { 0x0009, 0x000d, 1 },
+  { 0x0020, 0x0020, 1 },
+  { 0x0085, 0x0085, 1 },
+  { 0x00a0, 0x00a0, 1 },
+  { 0x1680, 0x1680, 1 },
+  { 0x180e, 0x180e, 1 },
+  { 0x2000, 0x200a, 1 },
+  { 0x2028, 0x2029, 1 },
+  { 0x202f, 0x202f, 1 },
+  { 0x205f, 0x205f, 1 },
+  { 0x3000, 0x3000, 1 },
+  { 0xfeff, 0xfeff, 1 },
 };
 
 // A table of Unicode digits--Unicode code points classified as
@@ -2290,6 +2360,15 @@ Lex::is_in_unicode_range(unsigned int c, const Unicode_range* ranges,
 	}
       return false;
     }
+}
+
+// Return whether C is a space character.
+
+bool
+Lex::is_unicode_space(unsigned int c)
+{
+  return Lex::is_in_unicode_range(c, unicode_space,
+				  ARRAY_SIZE(unicode_space));
 }
 
 // Return whether C is a Unicode digit--a Unicode code point

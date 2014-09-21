@@ -1,7 +1,5 @@
 /* Output VMS debug format symbol table information from GCC.
-   Copyright (C) 1987, 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
    Contributed by Douglas B. Rupp (rupp@gnat.com).
    Updated by Bernard W. Giroud (bgiroud@users.sourceforge.net).
 
@@ -28,6 +26,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifdef VMS_DEBUGGING_INFO
 #include "tree.h"
+#include "varasm.h"
 #include "version.h"
 #include "flags.h"
 #include "rtl.h"
@@ -101,11 +100,9 @@ static unsigned int file_info_table_in_use;
 #define FILE_TABLE_INCREMENT 64
 
 typedef char *char_p;
-DEF_VEC_P(char_p);
-DEF_VEC_ALLOC_P(char_p,heap);
 
-static VEC(char_p,heap) *funcnam_table;
-static VEC(unsigned,heap) *funcnum_table;
+static vec<char_p> funcnam_table;
+static vec<unsigned> funcnum_table;
 #define FUNC_TABLE_INITIAL 256
 
 /* Local pointer to the name of the main input file.  Initialized in
@@ -206,33 +203,13 @@ const struct gcc_debug_hooks vmsdbg_debug_hooks
 };
 
 /* Definitions of defaults for assembler-dependent names of various
-   pseudo-ops and section names.
-   Theses may be overridden in the tm.h file (if necessary) for a particular
-   assembler.  */
-#ifdef UNALIGNED_SHORT_ASM_OP
-#undef UNALIGNED_SHORT_ASM_OP
-#endif
-#define UNALIGNED_SHORT_ASM_OP	".word"
+   pseudo-ops and section names.  */
+#define VMS_UNALIGNED_SHORT_ASM_OP	".word"
+#define VMS_UNALIGNED_INT_ASM_OP	".long"
+#define VMS_UNALIGNED_LONG_ASM_OP	".long"
+#define VMS_UNALIGNED_DOUBLE_INT_ASM_OP	".quad"
 
-#ifdef UNALIGNED_INT_ASM_OP
-#undef UNALIGNED_INT_ASM_OP
-#endif
-#define UNALIGNED_INT_ASM_OP	".long"
-
-#ifdef UNALIGNED_LONG_ASM_OP
-#undef UNALIGNED_LONG_ASM_OP
-#endif
-#define UNALIGNED_LONG_ASM_OP	".long"
-
-#ifdef UNALIGNED_DOUBLE_INT_ASM_OP
-#undef UNALIGNED_DOUBLE_INT_ASM_OP
-#endif
-#define UNALIGNED_DOUBLE_INT_ASM_OP	".quad"
-
-#ifdef ASM_BYTE_OP
-#undef ASM_BYTE_OP
-#endif
-#define ASM_BYTE_OP	".byte"
+#define VMS_ASM_BYTE_OP	".byte"
 
 #define NUMBYTES(I) ((I) < 256 ? 1 : (I) < 65536 ? 2 : 4)
 
@@ -240,14 +217,14 @@ const struct gcc_debug_hooks vmsdbg_debug_hooks
 
 #ifndef UNALIGNED_PTR_ASM_OP
 #define UNALIGNED_PTR_ASM_OP \
-  (PTR_SIZE == 8 ? UNALIGNED_DOUBLE_INT_ASM_OP : UNALIGNED_INT_ASM_OP)
+  (PTR_SIZE == 8 ? VMS_UNALIGNED_DOUBLE_INT_ASM_OP : VMS_UNALIGNED_INT_ASM_OP)
 #endif
 
 #ifndef UNALIGNED_OFFSET_ASM_OP
 #define UNALIGNED_OFFSET_ASM_OP(OFFSET) \
-  (NUMBYTES(OFFSET) == 4 \
-   ? UNALIGNED_LONG_ASM_OP \
-   : (NUMBYTES(OFFSET) == 2 ? UNALIGNED_SHORT_ASM_OP : ASM_BYTE_OP))
+  (NUMBYTES (OFFSET) == 4 \
+   ? VMS_UNALIGNED_LONG_ASM_OP \
+   : (NUMBYTES (OFFSET) == 2 ? VMS_UNALIGNED_SHORT_ASM_OP : VMS_ASM_BYTE_OP))
 #endif
 
 /* Definitions of defaults for formats and names of various special
@@ -287,7 +264,7 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
 #define ASM_OUTPUT_DEBUG_DELTA2(FILE,LABEL1,LABEL2)			 \
   do									 \
     {									 \
-      fprintf ((FILE), "\t%s\t", UNALIGNED_SHORT_ASM_OP);		 \
+      fprintf ((FILE), "\t%s\t", VMS_UNALIGNED_SHORT_ASM_OP);		 \
       assemble_name (FILE, LABEL1);					 \
       fprintf (FILE, "-");						 \
       assemble_name (FILE, LABEL2);					 \
@@ -299,7 +276,7 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
 #define ASM_OUTPUT_DEBUG_DELTA4(FILE,LABEL1,LABEL2)			 \
   do									 \
     {									 \
-      fprintf ((FILE), "\t%s\t", UNALIGNED_INT_ASM_OP);			 \
+      fprintf ((FILE), "\t%s\t", VMS_UNALIGNED_INT_ASM_OP);		 \
       assemble_name (FILE, LABEL1);					 \
       fprintf (FILE, "-");						 \
       assemble_name (FILE, LABEL2);					 \
@@ -336,23 +313,24 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
 
 #ifndef ASM_OUTPUT_DEBUG_DATA1
 #define ASM_OUTPUT_DEBUG_DATA1(FILE,VALUE) \
-  fprintf ((FILE), "\t%s\t%#x", ASM_BYTE_OP, (unsigned char) VALUE)
+  fprintf ((FILE), "\t%s\t%#x", VMS_ASM_BYTE_OP, (unsigned char) VALUE)
 #endif
 
 #ifndef ASM_OUTPUT_DEBUG_DATA2
 #define ASM_OUTPUT_DEBUG_DATA2(FILE,VALUE) \
-  fprintf ((FILE), "\t%s\t%#x", UNALIGNED_SHORT_ASM_OP, \
+  fprintf ((FILE), "\t%s\t%#x", VMS_UNALIGNED_SHORT_ASM_OP, \
 	   (unsigned short) VALUE)
 #endif
 
 #ifndef ASM_OUTPUT_DEBUG_DATA4
 #define ASM_OUTPUT_DEBUG_DATA4(FILE,VALUE) \
-  fprintf ((FILE), "\t%s\t%#lx", UNALIGNED_INT_ASM_OP, (unsigned long) VALUE)
+  fprintf ((FILE), "\t%s\t%#lx", VMS_UNALIGNED_INT_ASM_OP, \
+	   (unsigned long) VALUE)
 #endif
 
 #ifndef ASM_OUTPUT_DEBUG_DATA
 #define ASM_OUTPUT_DEBUG_DATA(FILE,VALUE) \
-  fprintf ((FILE), "\t%s\t%#lx", UNALIGNED_OFFSET_ASM_OP(VALUE), VALUE)
+  fprintf ((FILE), "\t%s\t%#lx", UNALIGNED_OFFSET_ASM_OP (VALUE), VALUE)
 #endif
 
 #ifndef ASM_OUTPUT_DEBUG_ADDR_DATA
@@ -363,7 +341,7 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
 
 #ifndef ASM_OUTPUT_DEBUG_DATA8
 #define ASM_OUTPUT_DEBUG_DATA8(FILE,VALUE) \
-  fprintf ((FILE), "\t%s\t%#llx", UNALIGNED_DOUBLE_INT_ASM_OP, \
+  fprintf ((FILE), "\t%s\t%#llx", VMS_UNALIGNED_DOUBLE_INT_ASM_OP, \
                                  (unsigned long long) VALUE)
 #endif
 
@@ -374,7 +352,7 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
 #define ASM_OUTPUT_DEBUG_STRING(FILE,P)		\
   do						\
     {						\
-      register int slen = strlen(P);		\
+      register int slen = strlen (P);		\
       register const char *p = (P);		\
       register int i;				\
       fprintf (FILE, "\t.ascii \"");		\
@@ -660,7 +638,7 @@ write_rtnbeg (int rtnnum, int dosizeonly)
   DST_ROUTINE_BEGIN rtnbeg;
   DST_PROLOG prolog;
 
-  rtnname = VEC_index (char_p, funcnam_table, rtnnum);
+  rtnname = funcnam_table[rtnnum];
   rtnnamelen = strlen (rtnname);
   rtnentryname = concat (rtnname, "..en", NULL);
 
@@ -733,7 +711,7 @@ write_rtnbeg (int rtnnum, int dosizeonly)
 
       ASM_GENERATE_INTERNAL_LABEL
         (label, FUNC_PROLOG_LABEL,
-	 VEC_index (unsigned, funcnum_table, rtnnum));
+	 funcnum_table[rtnnum]);
       totsize += write_debug_addr (label, "prolog breakpoint addr",
 				   dosizeonly);
     }
@@ -767,10 +745,10 @@ write_rtnend (int rtnnum, int dosizeonly)
 
   ASM_GENERATE_INTERNAL_LABEL
    (label1, FUNC_BEGIN_LABEL,
-    VEC_index (unsigned, funcnum_table, rtnnum));
+    funcnum_table[rtnnum]);
   ASM_GENERATE_INTERNAL_LABEL
    (label2, FUNC_END_LABEL,
-    VEC_index (unsigned, funcnum_table, rtnnum));
+    funcnum_table[rtnnum]);
   totsize += write_debug_delta4 (label2, label1, "routine size", dosizeonly);
 
   return totsize;
@@ -1283,9 +1261,8 @@ vmsdbgout_begin_function (tree decl)
     (*dwarf2_debug_hooks.begin_function) (decl);
 
   /* Add the new entry to the end of the function name table.  */
-  VEC_safe_push (char_p, heap, funcnam_table, xstrdup (name));
-  VEC_safe_push (unsigned, heap, funcnum_table,
-		 current_function_funcdef_no);
+  funcnam_table.safe_push (xstrdup (name));
+  funcnum_table.safe_push (current_function_funcdef_no);
 }
 
 static char fullname_buff [4096];
@@ -1390,7 +1367,7 @@ lookup_filename (const char *file_name)
 
 static void
 vmsdbgout_write_source_line (unsigned line, const char *filename,
-                             int discriminator, bool is_stmt)
+                             int /* discriminator */, bool /* is_stmt */)
 {
   dst_line_info_ref line_info;
 
@@ -1466,8 +1443,8 @@ vmsdbgout_init (const char *filename)
   /* Skip the first entry - file numbers begin at 1.  */
   file_info_table_in_use = 1;
 
-  funcnam_table = VEC_alloc (char_p, heap, FUNC_TABLE_INITIAL);
-  funcnum_table = VEC_alloc (unsigned, heap, FUNC_TABLE_INITIAL);
+  funcnam_table.create (FUNC_TABLE_INITIAL);
+  funcnum_table.create (FUNC_TABLE_INITIAL);
 
   /* Allocate the initial hunk of the line_info_table.  */
   line_info_table = XCNEWVEC (dst_line_info_entry, LINE_INFO_TABLE_INCREMENT);
@@ -1583,7 +1560,7 @@ vmsdbgout_finish (const char *filename ATTRIBUTE_UNUSED)
   ASM_OUTPUT_ALIGN (asm_out_file, 0);
 
   totsize = write_modbeg (1);
-  FOR_EACH_VEC_ELT (unsigned, funcnum_table, i, ifunc)
+  FOR_EACH_VEC_ELT (funcnum_table, i, ifunc)
     {
       totsize += write_rtnbeg (i, 1);
       totsize += write_rtnend (i, 1);
@@ -1591,7 +1568,7 @@ vmsdbgout_finish (const char *filename ATTRIBUTE_UNUSED)
   totsize += write_pclines (1);
 
   write_modbeg (0);
-  FOR_EACH_VEC_ELT (unsigned, funcnum_table, i, ifunc)
+  FOR_EACH_VEC_ELT (funcnum_table, i, ifunc)
     {
       write_rtnbeg (i, 0);
       write_rtnend (i, 0);
@@ -1676,7 +1653,7 @@ to_vms_file_spec (char *filespec)
 }
 
 #else
-#define VMS_EPOCH_OFFSET 35067168000000000
+#define VMS_EPOCH_OFFSET 35067168000000000LL
 #define VMS_GRANULARITY_FACTOR 10000000
 #endif
 

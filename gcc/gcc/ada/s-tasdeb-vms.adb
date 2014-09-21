@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---          Copyright (C) 2008-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 2008-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -556,7 +556,7 @@ package body System.Tasking.Debug is
       Item_Req  : Unsigned_Word;
       Out_Buff  : Unsigned_Longword;
       Buff_Siz  : Unsigned_Word);
-   pragma Interface (External, Debug_Get);
+   pragma Import (External, Debug_Get);
 
    pragma Import_Procedure (Debug_Get, "CMA$DEBUG_GET",
      (OSI.Thread_Id, Unsigned_Word, System.Address, Unsigned_Word),
@@ -572,7 +572,7 @@ package body System.Tasking.Debug is
       Outlen : out Unsigned_Word;
       Outbuf : out String;
       Prmlst : Unsigned_Longword_Array);
-   pragma Interface (External, FAOL);
+   pragma Import (External, FAOL);
 
    pragma Import_Valued_Procedure (FAOL, "SYS$FAOL",
      (Cond_Value_Type, String, Unsigned_Word, String, Unsigned_Longword_Array),
@@ -583,7 +583,7 @@ package body System.Tasking.Debug is
      Message_String : String);
 
    procedure Put_Output (Message_String : String);
-   pragma Interface (External, Put_Output);
+   pragma Import (External, Put_Output);
 
    pragma Import_Valued_Procedure (Put_Output, "LIB$PUT_OUTPUT",
      (Cond_Value_Type, String),
@@ -598,7 +598,7 @@ package body System.Tasking.Debug is
       Number_Of_Arguments : Integer := Integer'Null_Parameter;
       FAO_Argument_1      : Unsigned_Longword :=
                               Unsigned_Longword'Null_Parameter);
-   pragma Interface (External, Signal);
+   pragma Import (External, Signal);
 
    pragma Import_Procedure (Signal, "LIB$SIGNAL",
       (Cond_Value_Type, Integer, Unsigned_Longword),
@@ -1248,10 +1248,10 @@ package body System.Tasking.Debug is
    is
       Task_Value : Task_Id;
       Task_Index : constant Integer := Integer (Event_Value) - 1;
-   begin
 
+   begin
       --  At least one event enabled, any and all events will cause a
-      --  condition to be raised and checked. Major tasking slowdown!
+      --  condition to be raised and checked. Major tasking slowdown.
 
       Global_Task_Debug_Event_Set := True;
       Events_Enabled_Count := Events_Enabled_Count + 1;
@@ -1284,8 +1284,8 @@ package body System.Tasking.Debug is
        Event_Entry : out Unsigned_Longword;
        Status      : out Cond_Value_Type)
    is
-      K_SUCCESS        : constant := 1;
-      K_NO_SUCH_EVENT  : constant := 9;
+      K_SUCCESS       : constant := 1;
+      K_NO_SUCH_EVENT : constant := 9;
 
    begin
       Trace_Output ("Looking for Event: ");
@@ -1313,8 +1313,8 @@ package body System.Tasking.Debug is
        Event_Entry : out Unsigned_Longword;
        Status      : out Cond_Value_Type)
    is
-      K_SUCCESS        : constant := 1;
-      K_NO_SUCH_EVENT  : constant := 9;
+      K_SUCCESS       : constant := 1;
+      K_NO_SUCH_EVENT : constant := 9;
 
       Event_Name_Cstr : constant ASCIC := To_AASCIC (Event_Name).all;
    begin
@@ -1384,7 +1384,7 @@ package body System.Tasking.Debug is
                   Task_Image : ASCIC :=
                    (Entry_Call.Self.Common.Task_Image_Len,
                     Entry_Call.Self.Common.Task_Image
-                     (1 .. Entry_Call.Self.Common.Task_Image_Len));
+                      (1 .. Entry_Call.Self.Common.Task_Image_Len));
                begin
                   Print_Routine (Print_FAO, Print_Newline,
                     To_UL (DoAC ("              %TASK !UI, type: !AC")),

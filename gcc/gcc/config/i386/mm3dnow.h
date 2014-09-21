@@ -1,4 +1,4 @@
-/* Copyright (C) 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -27,9 +27,14 @@
 #ifndef _MM3DNOW_H_INCLUDED
 #define _MM3DNOW_H_INCLUDED
 
-#ifdef __3dNOW__
-
 #include <mmintrin.h>
+#include <prfchwintrin.h>
+
+#ifndef __3dNOW__
+#pragma GCC push_options
+#pragma GCC target("3dnow")
+#define __DISABLE_3dNOW__
+#endif /* __3dNOW__ */
 
 extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 _m_femms (void)
@@ -157,12 +162,6 @@ _m_prefetch (void *__P)
   __builtin_prefetch (__P, 0, 3 /* _MM_HINT_T0 */);
 }
 
-extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
-_m_prefetchw (void *__P)
-{
-  __builtin_prefetch (__P, 1, 3 /* _MM_HINT_T0 */);
-}
-
 extern __inline __m64 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 _m_from_float (float __A)
 {
@@ -210,6 +209,10 @@ _m_pswapd (__m64 __A)
 }
 
 #endif /* __3dNOW_A__ */
-#endif /* __3dNOW__ */
+
+#ifdef __DISABLE_3dNOW__
+#undef __DISABLE_3dNOW__
+#pragma GCC pop_options
+#endif /* __DISABLE_3dNOW__ */
 
 #endif /* _MM3DNOW_H_INCLUDED */

@@ -1,6 +1,5 @@
 /* Utility to update paths from internal to external forms.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007, 2011  Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -157,12 +156,12 @@ lookup_key (char *key)
     }
 
   size = 32;
-  dst = xmalloc (size);
+  dst = XNEWVEC (char, size);
 
   res = RegQueryValueExA (reg_key, key, 0, &type, (LPBYTE) dst, &size);
   if (res == ERROR_MORE_DATA && type == REG_SZ)
     {
-      dst = xrealloc (dst, size);
+      dst = XRESIZEVEC (char, dst, size);
       res = RegQueryValueExA (reg_key, key, 0, &type, (LPBYTE) dst, &size);
     }
 
@@ -251,7 +250,7 @@ update_path (const char *path, const char *key)
   const int len = strlen (std_prefix);
 
   if (! filename_ncmp (path, std_prefix, len)
-      && (IS_DIR_SEPARATOR(path[len])
+      && (IS_DIR_SEPARATOR (path[len])
           || path[len] == '\0')
       && key != 0)
     {

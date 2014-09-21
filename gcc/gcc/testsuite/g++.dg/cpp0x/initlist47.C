@@ -1,6 +1,6 @@
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 
-struct A { ~A() = delete; };	// { dg-error "declared" }
+struct A { ~A() = delete; };	// { dg-message "declared" }
 
 int main()
 {

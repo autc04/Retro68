@@ -1,6 +1,5 @@
 // PR c++/39056
-// { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 #include <complex>
 

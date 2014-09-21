@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -78,15 +78,19 @@ package body Ch13 is
       --  are in Ada 2012 mode, Strict is False, and we consider that we have
       --  an aspect specification if the identifier is an aspect name (even if
       --  not followed by =>) or the identifier is not an aspect name but is
-      --  followed by =>. P_Aspect_Specifications will generate messages if the
-      --  aspect specification is ill-formed.
+      --  followed by =>, by a comma, or by a semicolon. The last two cases
+      --  correspond to (misspelled) Boolean aspects with a defaulted value of
+      --  True. P_Aspect_Specifications will generate messages if the aspect
+      --  specification is ill-formed.
 
       elsif not Strict then
          if Get_Aspect_Id (Token_Name) /= No_Aspect then
             Result := True;
          else
             Scan; -- past identifier
-            Result := Token = Tok_Arrow;
+            Result := Token = Tok_Arrow or else
+                      Token = Tok_Comma or else
+                      Token = Tok_Semicolon;
          end if;
 
       --  If earlier than Ada 2012, check for valid aspect identifier (possibly
@@ -105,6 +109,13 @@ package body Ch13 is
             if Token = Tok_Arrow then
                Result := True;
 
+            --  The identifier may be the name of a boolean aspect with a
+            --  defaulted True value. Further checks when analyzing aspect
+            --  specification, which may include further aspects.
+
+            elsif Token = Tok_Comma or else Token = Tok_Semicolon then
+               Result := True;
+
             elsif Token = Tok_Apostrophe then
                Scan; -- past apostrophe
 
@@ -121,8 +132,7 @@ package body Ch13 is
 
             if Result then
                Restore_Scan_State (Scan_State);
-               Error_Msg_SC ("|aspect specification is an Ada 2012 feature");
-               Error_Msg_SC ("\|unit must be compiled with -gnat2012 switch");
+               Error_Msg_Ada_2012_Feature ("|aspect specification", Token_Ptr);
                return True;
             end if;
          end if;
@@ -131,6 +141,378 @@ package body Ch13 is
       Restore_Scan_State (Scan_State);
       return Result;
    end Aspect_Specifications_Present;
+
+   -------------------------------
+   -- Get_Aspect_Specifications --
+   -------------------------------
+
+   function Get_Aspect_Specifications
+     (Semicolon : Boolean := True) return List_Id
+   is
+      A_Id    : Aspect_Id;
+      Aspect  : Node_Id;
+      Aspects : List_Id;
+      OK      : Boolean;
+
+   begin
+      Aspects := Empty_List;
+
+      --  Check if aspect specification present
+
+      if not Aspect_Specifications_Present then
+         if Semicolon then
+            TF_Semicolon;
+         end if;
+
+         return Aspects;
+      end if;
+
+      Scan; -- past WITH
+      Aspects := Empty_List;
+
+      loop
+         OK := True;
+
+         --  The aspect mark is not an identifier
+
+         if Token /= Tok_Identifier then
+            Error_Msg_SC ("aspect identifier expected");
+
+            --  Skip the whole aspect specification list
+
+            if Semicolon then
+               Resync_Past_Semicolon;
+            end if;
+
+            return Aspects;
+         end if;
+
+         A_Id := Get_Aspect_Id (Token_Name);
+         Aspect :=
+           Make_Aspect_Specification (Token_Ptr,
+             Identifier => Token_Node);
+
+         --  The aspect mark is not recognized
+
+         if A_Id = No_Aspect then
+            Error_Msg_SC ("aspect identifier expected");
+            OK := False;
+
+            --  Check bad spelling
+
+            for J in Aspect_Id_Exclude_No_Aspect loop
+               if Is_Bad_Spelling_Of (Token_Name, Aspect_Names (J)) then
+                  Error_Msg_Name_1 := Aspect_Names (J);
+                  Error_Msg_SC -- CODEFIX
+                    ("\possible misspelling of%");
+                  exit;
+               end if;
+            end loop;
+
+            Scan; -- past incorrect identifier
+
+            if Token = Tok_Apostrophe then
+               Scan; -- past apostrophe
+               Scan; -- past presumably CLASS
+            end if;
+
+            --  Attempt to parse the aspect definition by assuming it is an
+            --  expression.
+
+            if Token = Tok_Arrow then
+               Scan; -- past arrow
+               Set_Expression (Aspect, P_Expression);
+
+            --  The aspect may behave as a boolean aspect
+
+            elsif Token = Tok_Comma then
+               null;
+
+            --  Otherwise the aspect contains a junk definition
+
+            else
+               if Semicolon then
+                  Resync_Past_Semicolon;
+               end if;
+
+               return Aspects;
+            end if;
+
+         --  Aspect mark is OK
+
+         else
+            Scan; -- past identifier
+
+            --  Check for 'Class present
+
+            if Token = Tok_Apostrophe then
+               if Class_Aspect_OK (A_Id) then
+                  Scan; -- past apostrophe
+
+                  if Token = Tok_Identifier
+                    and then Token_Name = Name_Class
+                  then
+                     Scan; -- past CLASS
+                     Set_Class_Present (Aspect);
+                  else
+                     Error_Msg_SC ("Class attribute expected here");
+                     OK := False;
+
+                     if Token = Tok_Identifier then
+                        Scan; -- past identifier not CLASS
+                     end if;
+                  end if;
+
+               --  The aspect does not allow 'Class
+
+               else
+                  Error_Msg_Node_1 := Identifier (Aspect);
+                  Error_Msg_SC ("aspect& does not permit attribute here");
+                  OK := False;
+
+                  Scan; -- past apostrophe
+                  Scan; -- past presumably CLASS
+               end if;
+            end if;
+
+            --  Check for a missing aspect definition. Aspects with optional
+            --  definitions are not considered.
+
+            if Token = Tok_Comma or else Token = Tok_Semicolon then
+               if Aspect_Argument (A_Id) /= Optional_Expression
+                 and then Aspect_Argument (A_Id) /= Optional_Name
+               then
+                  Error_Msg_Node_1 := Identifier (Aspect);
+                  Error_Msg_AP ("aspect& requires an aspect definition");
+                  OK := False;
+               end if;
+
+            --  Check for a missing arrow when the aspect has a definition
+
+            elsif not Semicolon and then Token /= Tok_Arrow then
+               if Aspect_Argument (A_Id) /= Optional_Expression
+                 and then Aspect_Argument (A_Id) /= Optional_Name
+               then
+                  T_Arrow;
+                  Resync_To_Semicolon;
+               end if;
+
+            --  Otherwise we have an aspect definition
+
+            else
+               if Token = Tok_Arrow then
+                  Scan; -- past arrow
+               else
+                  T_Arrow;
+                  OK := False;
+               end if;
+
+               --  Detect a common error where the non-null definition of
+               --  aspect Depends, Global, Refined_Depends or Refined_Global
+               --  must be enclosed in parentheses.
+
+               if Token /= Tok_Left_Paren and then Token /= Tok_Null then
+
+                  --  [Refined_]Depends
+
+                  if A_Id = Aspect_Depends
+                       or else
+                     A_Id = Aspect_Refined_Depends
+                  then
+                     Error_Msg_SC -- CODEFIX
+                       ("missing ""(""");
+                     Resync_Past_Malformed_Aspect;
+
+                     --  Return when the current aspect is the last in the list
+                     --  of specifications and the list applies to a body.
+
+                     if Token = Tok_Is then
+                        return Aspects;
+                     end if;
+
+                  --  [Refined_]Global
+
+                  elsif A_Id = Aspect_Global
+                          or else
+                        A_Id = Aspect_Refined_Global
+                  then
+                     declare
+                        Scan_State : Saved_Scan_State;
+
+                     begin
+                        Save_Scan_State (Scan_State);
+                        Scan; -- past item or mode_selector
+
+                        --  Emit an error when the aspect has a mode_selector
+                        --  as the moded_global_list must be parenthesized:
+                        --    with Global => Output => Item
+
+                        if Token = Tok_Arrow then
+                           Restore_Scan_State (Scan_State);
+                           Error_Msg_SC -- CODEFIX
+                             ("missing ""(""");
+                           Resync_Past_Malformed_Aspect;
+
+                           --  Return when the current aspect is the last in
+                           --  the list of specifications and the list applies
+                           --  to a body.
+
+                           if Token = Tok_Is then
+                              return Aspects;
+                           end if;
+
+                        elsif Token = Tok_Comma then
+                           Scan; -- past comma
+
+                           --  An item followed by a comma does not need to
+                           --  be parenthesized if the next token is a valid
+                           --  aspect name:
+                           --    with Global => Item,
+                           --         Aspect => ...
+
+                           if Token = Tok_Identifier
+                             and then Get_Aspect_Id (Token_Name) /= No_Aspect
+                           then
+                              Restore_Scan_State (Scan_State);
+
+                           --  Otherwise this is a list of items in which case
+                           --  the list must be parenthesized.
+
+                           else
+                              Restore_Scan_State (Scan_State);
+                              Error_Msg_SC -- CODEFIX
+                                ("missing ""(""");
+                              Resync_Past_Malformed_Aspect;
+
+                              --  Return when the current aspect is the last
+                              --  in the list of specifications and the list
+                              --  applies to a body.
+
+                              if Token = Tok_Is then
+                                 return Aspects;
+                              end if;
+                           end if;
+
+                        --  The definition of [Refined_]Global does not need to
+                        --  be parenthesized.
+
+                        else
+                           Restore_Scan_State (Scan_State);
+                        end if;
+                     end;
+                  end if;
+               end if;
+
+               --  Parse the aspect definition depening on the expected
+               --  argument kind.
+
+               if Aspect_Argument (A_Id) = Name
+                 or else Aspect_Argument (A_Id) = Optional_Name
+               then
+                  Set_Expression (Aspect, P_Name);
+
+               else
+                  pragma Assert
+                    (Aspect_Argument (A_Id) = Expression
+                       or else
+                     Aspect_Argument (A_Id) = Optional_Expression);
+                  Set_Expression (Aspect, P_Expression);
+               end if;
+            end if;
+
+            --  Add the aspect to the resulting list only when it was properly
+            --  parsed.
+
+            if OK then
+               Append (Aspect, Aspects);
+            end if;
+
+            --  The aspect specification list contains more than one aspect
+
+            if Token = Tok_Comma then
+               Scan; -- past comma
+               goto Continue;
+
+            --  Check for a missing comma between two aspects. Emit an error
+            --  and proceed to the next aspect.
+
+            elsif Token = Tok_Identifier
+              and then Get_Aspect_Id (Token_Name) /= No_Aspect
+            then
+               declare
+                  Scan_State : Saved_Scan_State;
+
+               begin
+                  Save_Scan_State (Scan_State);
+                  Scan; -- past identifier
+
+                  --  Attempt to detect ' or => following a potential aspect
+                  --  mark.
+
+                  if Token = Tok_Apostrophe or else Token = Tok_Arrow then
+                     Restore_Scan_State (Scan_State);
+                     Error_Msg_AP -- CODEFIX
+                       ("|missing "",""");
+                     goto Continue;
+
+                  --  The construct following the current aspect is not an
+                  --  aspect.
+
+                  else
+                     Restore_Scan_State (Scan_State);
+                  end if;
+               end;
+
+            --  Check for a mistyped semicolon in place of a comma between two
+            --  aspects. Emit an error and proceed to the next aspect.
+
+            elsif Token = Tok_Semicolon then
+               declare
+                  Scan_State : Saved_Scan_State;
+
+               begin
+                  Save_Scan_State (Scan_State);
+                  Scan; -- past semicolon
+
+                  if Token = Tok_Identifier
+                    and then Get_Aspect_Id (Token_Name) /= No_Aspect
+                  then
+                     Scan; -- past identifier
+
+                     --  Attempt to detect ' or => following a potential aspect
+                     --  mark.
+
+                     if Token = Tok_Apostrophe or else Token = Tok_Arrow then
+                        Restore_Scan_State (Scan_State);
+                        Error_Msg_SC -- CODEFIX
+                          ("|"";"" should be "",""");
+                        Scan; -- past semicolon
+                        goto Continue;
+                     end if;
+                  end if;
+
+                  --  The construct following the current aspect is not an
+                  --  aspect.
+
+                  Restore_Scan_State (Scan_State);
+               end;
+            end if;
+
+            --  Must be terminator character
+
+            if Semicolon then
+               T_Semicolon;
+            end if;
+
+            exit;
+
+         <<Continue>>
+            null;
+         end if;
+      end loop;
+
+      return Aspects;
+   end Get_Aspect_Specifications;
 
    --------------------------------------------
    -- 13.1  Representation Clause (also I.7) --
@@ -186,7 +568,7 @@ package body Ch13 is
       Scan; -- past FOR
 
       --  Note that the name in a representation clause is always a simple
-      --  name, even in the attribute case, see AI-300 which made this so!
+      --  name, even in the attribute case, see AI-300 which made this so.
 
       Identifier_Node := P_Identifier (C_Use);
 
@@ -221,7 +603,14 @@ package body Ch13 is
             if Token = Tok_Identifier then
                Attr_Name := Token_Name;
 
-               if not Is_Attribute_Name (Attr_Name) then
+               --  Note that the parser must complain in case of an internal
+               --  attribute name that comes from source since internal names
+               --  are meant to be used only by the compiler.
+
+               if not Is_Attribute_Name (Attr_Name)
+                 and then (not Is_Internal_Attribute_Name (Attr_Name)
+                            or else Comes_From_Source (Token_Node))
+               then
                   Signal_Bad_Attribute;
                end if;
 
@@ -390,244 +779,18 @@ package body Ch13 is
       Semicolon : Boolean := True)
    is
       Aspects : List_Id;
-      Aspect  : Node_Id;
-      A_Id    : Aspect_Id;
-      OK      : Boolean;
       Ptr     : Source_Ptr;
 
    begin
-      --  Check if aspect specification present
-
-      if not Aspect_Specifications_Present then
-         if Semicolon then
-            TF_Semicolon;
-         end if;
-
-         return;
-      end if;
-
       --  Aspect Specification is present
 
       Ptr := Token_Ptr;
-      Scan; -- past WITH
 
       --  Here we have an aspect specification to scan, note that we don't
       --  set the flag till later, because it may turn out that we have no
       --  valid aspects in the list.
 
-      Aspects := Empty_List;
-      loop
-         OK := True;
-
-         if Token /= Tok_Identifier then
-            Error_Msg_SC ("aspect identifier expected");
-
-            if Semicolon then
-               Resync_Past_Semicolon;
-            end if;
-
-            return;
-         end if;
-
-         --  We have an identifier (which should be an aspect identifier)
-
-         A_Id := Get_Aspect_Id (Token_Name);
-         Aspect :=
-           Make_Aspect_Specification (Token_Ptr,
-             Identifier => Token_Node);
-
-         --  No valid aspect identifier present
-
-         if A_Id = No_Aspect then
-            Error_Msg_SC ("aspect identifier expected");
-
-            --  Check bad spelling
-
-            for J in Aspect_Id loop
-               if Is_Bad_Spelling_Of (Token_Name, Aspect_Names (J)) then
-                  Error_Msg_Name_1 := Aspect_Names (J);
-                  Error_Msg_SC -- CODEFIX
-                    ("\possible misspelling of%");
-                  exit;
-               end if;
-            end loop;
-
-            Scan; -- past incorrect identifier
-
-            if Token = Tok_Apostrophe then
-               Scan; -- past '
-               Scan; -- past presumably CLASS
-            end if;
-
-            if Token = Tok_Arrow then
-               Scan; -- Past arrow
-               Set_Expression (Aspect, P_Expression);
-               OK := False;
-
-            elsif Token = Tok_Comma then
-               OK := False;
-
-            else
-               if Semicolon then
-                  Resync_Past_Semicolon;
-               end if;
-
-               return;
-            end if;
-
-         --  OK aspect scanned
-
-         else
-            Scan; -- past identifier
-
-            --  Check for 'Class present
-
-            if Token = Tok_Apostrophe then
-               if not Class_Aspect_OK (A_Id) then
-                  Error_Msg_Node_1 := Identifier (Aspect);
-                  Error_Msg_SC ("aspect& does not permit attribute here");
-                  Scan; -- past apostrophe
-                  Scan; -- past presumed CLASS
-                  OK := False;
-
-               else
-                  Scan; -- past apostrophe
-
-                  if Token /= Tok_Identifier
-                    or else Token_Name /= Name_Class
-                  then
-                     Error_Msg_SC ("Class attribute expected here");
-                     OK := False;
-
-                     if Token = Tok_Identifier then
-                        Scan; -- past identifier not CLASS
-                     end if;
-
-                  else
-                     Scan; -- past CLASS
-                     Set_Class_Present (Aspect);
-                  end if;
-               end if;
-            end if;
-
-            --  Test case of missing aspect definition
-
-            if Token = Tok_Comma
-              or else Token = Tok_Semicolon
-            then
-               if Aspect_Argument (A_Id) /= Optional then
-                  Error_Msg_Node_1 := Identifier (Aspect);
-                  Error_Msg_AP ("aspect& requires an aspect definition");
-                  OK := False;
-               end if;
-
-            elsif not Semicolon and then Token /= Tok_Arrow then
-               if Aspect_Argument (A_Id) /= Optional then
-
-                  --  The name or expression may be there, but the arrow is
-                  --  missing. Skip to the end of the declaration.
-
-                  T_Arrow;
-                  Resync_To_Semicolon;
-               end if;
-
-            --  Here we have an aspect definition
-
-            else
-               if Token = Tok_Arrow then
-                  Scan; -- past arrow
-               else
-                  T_Arrow;
-                  OK := False;
-               end if;
-
-               if Aspect_Argument (A_Id) = Name then
-                  Set_Expression (Aspect, P_Name);
-               else
-                  Set_Expression (Aspect, P_Expression);
-               end if;
-            end if;
-
-            --  If OK clause scanned, add it to the list
-
-            if OK then
-               Append (Aspect, Aspects);
-            end if;
-
-            if Token = Tok_Comma then
-               Scan; -- past comma
-               goto Continue;
-
-            --  Recognize the case where a comma is missing between two
-            --  aspects, issue an error and proceed with next aspect.
-
-            elsif Token = Tok_Identifier
-              and then Get_Aspect_Id (Token_Name) /= No_Aspect
-            then
-               declare
-                  Scan_State : Saved_Scan_State;
-
-               begin
-                  Save_Scan_State (Scan_State);
-                  Scan; -- past identifier
-
-                  if Token = Tok_Arrow then
-                     Restore_Scan_State (Scan_State);
-                     Error_Msg_AP -- CODEFIX
-                       ("|missing "",""");
-                     goto Continue;
-
-                  else
-                     Restore_Scan_State (Scan_State);
-                  end if;
-               end;
-
-            --  Recognize the case where a semicolon was mistyped for a comma
-            --  between two aspects, issue an error and proceed with next
-            --  aspect.
-
-            elsif Token = Tok_Semicolon then
-               declare
-                  Scan_State : Saved_Scan_State;
-
-               begin
-                  Save_Scan_State (Scan_State);
-                  Scan; -- past semicolon
-
-                  if Token = Tok_Identifier
-                    and then Get_Aspect_Id (Token_Name) /= No_Aspect
-                  then
-                     Scan; -- past identifier
-
-                     if Token = Tok_Arrow then
-                        Restore_Scan_State (Scan_State);
-                        Error_Msg_SC -- CODEFIX
-                          ("|"";"" should be "",""");
-                        Scan; -- past semicolon
-                        goto Continue;
-
-                     else
-                        Restore_Scan_State (Scan_State);
-                     end if;
-
-                  else
-                     Restore_Scan_State (Scan_State);
-                  end if;
-               end;
-            end if;
-
-            --  Must be terminator character
-
-            if Semicolon then
-               T_Semicolon;
-            end if;
-
-            exit;
-
-         <<Continue>>
-            null;
-         end if;
-      end loop;
+      Aspects := Get_Aspect_Specifications (Semicolon);
 
       --  Here if aspects present
 
@@ -807,11 +970,10 @@ package body Ch13 is
       --  Otherwise we have an illegal range attribute. Note that P_Name
       --  ensures that Token = Tok_Range is the only possibility left here.
 
-      else -- Token = Tok_Range
+      else
          Error_Msg_SC ("RANGE attribute illegal here!");
          raise Error_Resync;
       end if;
-
    end P_Code_Statement;
 
 end Ch13;

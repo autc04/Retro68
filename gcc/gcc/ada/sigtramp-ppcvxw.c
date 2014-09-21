@@ -6,7 +6,7 @@
  *                                                                          *
  *                         Asm Implementation File                          *
  *                                                                          *
- *         Copyright (C) 2011-2012, Free Software Foundation, Inc.          *
+ *         Copyright (C) 2011-2013, Free Software Foundation, Inc.          *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -34,6 +34,7 @@
  **********************************************************/
 
 #include "sigtramp.h"
+/* See sigtramp.h for a general explanation of functionality.  */
 
 #include <vxWorks.h>
 #include <arch/../regs.h>
@@ -131,7 +132,7 @@ void __gnat_sigtramp (int signo, void *si, void *sc,
 
 #define REGNO_PC  67  /* ARG_POINTER_REGNUM  */
 
-/* asm string contruction helpers.  */
+/* asm string construction helpers.  */
 
 #define STR(TEXT) #TEXT
 /* stringify expanded TEXT, surrounding it with double quotes.  */
@@ -185,6 +186,7 @@ CR(".cfi_def_cfa " S(CFA_REG) ", 0")
 
 #define CFI_COMMON_REGS \
 CR("# CFI for common registers\n") \
+TCR(COMMON_CFI(GR(0)))  \
 TCR(COMMON_CFI(GR(1)))  \
 TCR(COMMON_CFI(GR(2)))  \
 TCR(COMMON_CFI(GR(3)))  \

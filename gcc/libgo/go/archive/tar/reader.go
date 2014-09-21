@@ -14,31 +14,20 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 var (
-	ErrHeader = errors.New("invalid tar header")
+	ErrHeader = errors.New("archive/tar: invalid tar header")
 )
+
+const maxNanoSecondIntSize = 9
 
 // A Reader provides sequential access to the contents of a tar archive.
 // A tar archive consists of a sequence of files.
 // The Next method advances to the next file in the archive (including the first),
 // and then it can be treated as an io.Reader to access the file's data.
-//
-// Example:
-//	tr := tar.NewReader(r)
-//	for {
-//		hdr, err := tr.Next()
-//		if err == io.EOF {
-//			// end of tar archive
-//			break
-//		}
-//		if err != nil {
-//			// handle error
-//		}
-//		io.Copy(data, tr)
-//	}
 type Reader struct {
 	r   io.Reader
 	err error
@@ -55,13 +44,183 @@ func (tr *Reader) Next() (*Header, error) {
 	if tr.err == nil {
 		tr.skipUnread()
 	}
-	if tr.err == nil {
+	if tr.err != nil {
+		return hdr, tr.err
+	}
+	hdr = tr.readHeader()
+	if hdr == nil {
+		return hdr, tr.err
+	}
+	// Check for PAX/GNU header.
+	switch hdr.Typeflag {
+	case TypeXHeader:
+		//  PAX extended header
+		headers, err := parsePAX(tr)
+		if err != nil {
+			return nil, err
+		}
+		// We actually read the whole file,
+		// but this skips alignment padding
+		tr.skipUnread()
 		hdr = tr.readHeader()
+		mergePAX(hdr, headers)
+		return hdr, nil
+	case TypeGNULongName:
+		// We have a GNU long name header. Its contents are the real file name.
+		realname, err := ioutil.ReadAll(tr)
+		if err != nil {
+			return nil, err
+		}
+		hdr, err := tr.Next()
+		hdr.Name = cString(realname)
+		return hdr, err
+	case TypeGNULongLink:
+		// We have a GNU long link header.
+		realname, err := ioutil.ReadAll(tr)
+		if err != nil {
+			return nil, err
+		}
+		hdr, err := tr.Next()
+		hdr.Linkname = cString(realname)
+		return hdr, err
 	}
 	return hdr, tr.err
 }
 
-// Parse bytes as a NUL-terminated C-style string.
+// mergePAX merges well known headers according to PAX standard.
+// In general headers with the same name as those found
+// in the header struct overwrite those found in the header
+// struct with higher precision or longer values. Esp. useful
+// for name and linkname fields.
+func mergePAX(hdr *Header, headers map[string]string) error {
+	for k, v := range headers {
+		switch k {
+		case paxPath:
+			hdr.Name = v
+		case paxLinkpath:
+			hdr.Linkname = v
+		case paxGname:
+			hdr.Gname = v
+		case paxUname:
+			hdr.Uname = v
+		case paxUid:
+			uid, err := strconv.ParseInt(v, 10, 0)
+			if err != nil {
+				return err
+			}
+			hdr.Uid = int(uid)
+		case paxGid:
+			gid, err := strconv.ParseInt(v, 10, 0)
+			if err != nil {
+				return err
+			}
+			hdr.Gid = int(gid)
+		case paxAtime:
+			t, err := parsePAXTime(v)
+			if err != nil {
+				return err
+			}
+			hdr.AccessTime = t
+		case paxMtime:
+			t, err := parsePAXTime(v)
+			if err != nil {
+				return err
+			}
+			hdr.ModTime = t
+		case paxCtime:
+			t, err := parsePAXTime(v)
+			if err != nil {
+				return err
+			}
+			hdr.ChangeTime = t
+		case paxSize:
+			size, err := strconv.ParseInt(v, 10, 0)
+			if err != nil {
+				return err
+			}
+			hdr.Size = int64(size)
+		}
+
+	}
+	return nil
+}
+
+// parsePAXTime takes a string of the form %d.%d as described in
+// the PAX specification.
+func parsePAXTime(t string) (time.Time, error) {
+	buf := []byte(t)
+	pos := bytes.IndexByte(buf, '.')
+	var seconds, nanoseconds int64
+	var err error
+	if pos == -1 {
+		seconds, err = strconv.ParseInt(t, 10, 0)
+		if err != nil {
+			return time.Time{}, err
+		}
+	} else {
+		seconds, err = strconv.ParseInt(string(buf[:pos]), 10, 0)
+		if err != nil {
+			return time.Time{}, err
+		}
+		nano_buf := string(buf[pos+1:])
+		// Pad as needed before converting to a decimal.
+		// For example .030 -> .030000000 -> 30000000 nanoseconds
+		if len(nano_buf) < maxNanoSecondIntSize {
+			// Right pad
+			nano_buf += strings.Repeat("0", maxNanoSecondIntSize-len(nano_buf))
+		} else if len(nano_buf) > maxNanoSecondIntSize {
+			// Right truncate
+			nano_buf = nano_buf[:maxNanoSecondIntSize]
+		}
+		nanoseconds, err = strconv.ParseInt(string(nano_buf), 10, 0)
+		if err != nil {
+			return time.Time{}, err
+		}
+	}
+	ts := time.Unix(seconds, nanoseconds)
+	return ts, nil
+}
+
+// parsePAX parses PAX headers.
+// If an extended header (type 'x') is invalid, ErrHeader is returned
+func parsePAX(r io.Reader) (map[string]string, error) {
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	headers := make(map[string]string)
+	// Each record is constructed as
+	//     "%d %s=%s\n", length, keyword, value
+	for len(buf) > 0 {
+		// or the header was empty to start with.
+		var sp int
+		// The size field ends at the first space.
+		sp = bytes.IndexByte(buf, ' ')
+		if sp == -1 {
+			return nil, ErrHeader
+		}
+		// Parse the first token as a decimal integer.
+		n, err := strconv.ParseInt(string(buf[:sp]), 10, 0)
+		if err != nil {
+			return nil, ErrHeader
+		}
+		// Extract everything between the decimal and the n -1 on the
+		// beginning to to eat the ' ', -1 on the end to skip the newline.
+		var record []byte
+		record, buf = buf[sp+1:n-1], buf[n:]
+		// The first equals is guaranteed to mark the end of the key.
+		// Everything else is value.
+		eq := bytes.IndexByte(record, '=')
+		if eq == -1 {
+			return nil, ErrHeader
+		}
+		key, value := record[:eq], record[eq+1:]
+		headers[string(key)] = string(value)
+	}
+	return headers, nil
+}
+
+// cString parses bytes as a NUL-terminated C-style string.
 // If a NUL byte is not found then the whole slice is returned as a string.
 func cString(b []byte) string {
 	n := 0
@@ -72,13 +231,27 @@ func cString(b []byte) string {
 }
 
 func (tr *Reader) octal(b []byte) int64 {
-	// Removing leading spaces.
-	for len(b) > 0 && b[0] == ' ' {
-		b = b[1:]
+	// Check for binary format first.
+	if len(b) > 0 && b[0]&0x80 != 0 {
+		var x int64
+		for i, c := range b {
+			if i == 0 {
+				c &= 0x7f // ignore signal bit in first byte
+			}
+			x = x<<8 | int64(c)
+		}
+		return x
 	}
-	// Removing trailing NULs and spaces.
-	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
-		b = b[0 : len(b)-1]
+
+	// Because unused fields are filled with NULs, we need
+	// to skip leading NULs. Fields may also be padded with
+	// spaces or NULs.
+	// So we remove leading and trailing NULs and spaces to
+	// be sure.
+	b = bytes.Trim(b, " \x00")
+
+	if len(b) == 0 {
+		return 0
 	}
 	x, err := strconv.ParseUint(cString(b), 8, 64)
 	if err != nil {
@@ -87,7 +260,7 @@ func (tr *Reader) octal(b []byte) int64 {
 	return int64(x)
 }
 
-// Skip any unread bytes in the existing file entry, as well as any alignment padding.
+// skipUnread skips any unread bytes in the existing file entry, as well as any alignment padding.
 func (tr *Reader) skipUnread() {
 	nr := tr.nb + tr.pad // number of bytes to skip
 	tr.nb, tr.pad = 0, 0

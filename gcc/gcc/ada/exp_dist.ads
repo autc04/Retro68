@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -35,7 +35,7 @@ package Exp_Dist is
    PCS_Version_Number : constant array (PCS_Names) of Int :=
                           (Name_No_DSA      => 1,
                            Name_GARLIC_DSA  => 1,
-                           Name_PolyORB_DSA => 5);
+                           Name_PolyORB_DSA => 6);
    --  PCS interface version. This is used to check for consistency between the
    --  compiler used to generate distribution stubs and the PCS implementation.
    --  It must be incremented whenever a change is made to the generated code
@@ -95,15 +95,17 @@ package Exp_Dist is
    --  Build a literal representing the remote subprogram identifier of E
 
    function Copy_Specification
-     (Loc         : Source_Ptr;
-      Spec        : Node_Id;
-      Ctrl_Type   : Entity_Id := Empty;
-      New_Name    : Name_Id   := No_Name) return Node_Id;
+     (Loc       : Source_Ptr;
+      Spec      : Node_Id;
+      Ctrl_Type : Entity_Id := Empty;
+      New_Name  : Name_Id   := No_Name) return Node_Id;
    --  Build a subprogram specification from another one, or from an
    --  access-to-subprogram definition. If Ctrl_Type is not Empty, and any
    --  controlling formal of an anonymous access type is found, then it is
    --  replaced by an access to Ctrl_Type. If New_Name is given, then it will
    --  be used as the name for the newly created spec.
+   --
+   --  Possibly factor this wrt Exp_Ch9.Build_Private_Protected_Declaration???
 
    function Corresponding_Stub_Type (RACW_Type : Entity_Id) return Entity_Id;
    --  Return the stub type associated with the given RACW type
@@ -144,13 +146,14 @@ package Exp_Dist is
    --  declaration is appended to Decls.
 
    function Build_To_Any_Call
-     (N     : Node_Id;
+     (Loc   : Source_Ptr;
+      N     : Node_Id;
       Decls : List_Id) return Node_Id;
    --  Build call to To_Any attribute function with expression as actual
-   --  parameter. Decls is the declarations list for an appropriate
-   --  enclosing scope of the point where the call will be inserted; if
-   --  the To_Any attribute for Typ needs to be generated at this point,
-   --  its declaration is appended to Decls.
+   --  parameter. Loc is the reference location for generated nodes, Decls is
+   --  the declarations list for an appropriate enclosing scope of the point
+   --  where the call will be inserted; if the To_Any attribute for Typ needs
+   --  to be generated at this point, its declaration is appended to Decls.
 
    function Build_TypeCode_Call
      (Loc   : Source_Ptr;

@@ -1,4 +1,4 @@
-// $G $D/$F.go $D/cmplxdivide1.go && $L $D/$F.$A && ./$A.out
+// run cmplxdivide1.go
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -44,5 +44,8 @@ func main() {
 			}
 			fmt.Printf("%v/%v: expected %v error; got %v\n", t.f, t.g, t.out, x)
 		}
+	}
+	if bad {
+		panic("cmplxdivide failed.")
 	}
 }

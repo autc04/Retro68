@@ -1,6 +1,6 @@
 // Profiling set implementation -*- C++ -*-
 
-// Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,6 +43,10 @@ namespace __profile
     {
       typedef _GLIBCXX_STD_C::set<_Key, _Compare, _Allocator> _Base;
 
+#if __cplusplus >= 201103L
+      typedef __gnu_cxx::__alloc_traits<_Allocator> _Alloc_traits;
+#endif
+
     public:
       // types:
       typedef _Key				    key_type;
@@ -64,59 +68,81 @@ namespace __profile
       typedef typename _Base::const_pointer         const_pointer;
 
       // 23.3.3.1 construct/copy/destroy:
-      explicit set(const _Compare& __comp = _Compare(),
+
+      set()
+      : _Base() { }
+
+      explicit set(const _Compare& __comp,
 		   const _Allocator& __a = _Allocator())
       : _Base(__comp, __a) { }
 
+#if __cplusplus >= 201103L
+      template<typename _InputIterator,
+	       typename = std::_RequireInputIter<_InputIterator>>
+#else
       template<typename _InputIterator>
+#endif
         set(_InputIterator __first, _InputIterator __last,
 	    const _Compare& __comp = _Compare(),
 	    const _Allocator& __a = _Allocator())
 	: _Base(__first, __last, __comp, __a) { }
 
+#if __cplusplus < 201103L
       set(const set& __x)
       : _Base(__x) { }
-
-      set(const _Base& __x)
-      : _Base(__x) { }
-
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
-      set(set&& __x)
-      noexcept(is_nothrow_copy_constructible<_Compare>::value)
-      : _Base(std::move(__x))
-      { }
+#else
+      set(const set&) = default;
+      set(set&&) = default;
 
       set(initializer_list<value_type> __l,
 	  const _Compare& __comp = _Compare(),
 	  const allocator_type& __a = allocator_type())
       : _Base(__l, __comp, __a) { }
+
+      explicit
+      set(const allocator_type& __a)
+	: _Base(__a) { }
+
+      set(const set& __x, const allocator_type& __a)
+      : _Base(__x, __a) { }
+
+      set(set&& __x, const allocator_type& __a)
+      noexcept(is_nothrow_copy_constructible<_Compare>::value
+	       && _Alloc_traits::_S_always_equal())
+      : _Base(std::move(__x), __a) { }
+
+      set(initializer_list<value_type> __l, const allocator_type& __a)
+      : _Base(__l, __a) { }
+
+      template<typename _InputIterator>
+        set(_InputIterator __first, _InputIterator __last,
+	    const allocator_type& __a)
+	  : _Base(__first, __last, __a) { }
 #endif
+
+      set(const _Base& __x)
+      : _Base(__x) { }
 
       ~set() _GLIBCXX_NOEXCEPT { }
 
+#if __cplusplus < 201103L
       set&
       operator=(const set& __x)
       {
-	*static_cast<_Base*>(this) = __x;
+	_M_base() = __x;
 	return *this;
       }
-
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#else
       set&
-      operator=(set&& __x)
-      {
-	// NB: DR 1204.
-	// NB: DR 675.
-	this->clear();
-	this->swap(__x);
-	return *this;
-      }
+      operator=(const set&) = default;
+
+      set&
+      operator=(set&&) = default;
 
       set&
       operator=(initializer_list<value_type> __l)
       {
-	this->clear();
-	this->insert(__l);
+	_M_base() = __l;
 	return *this;
       }
 #endif
@@ -156,7 +182,7 @@ namespace __profile
       rend() const _GLIBCXX_NOEXCEPT
       { return const_reverse_iterator(begin()); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       const_iterator
       cbegin() const noexcept
       { return const_iterator(_Base::begin()); }
@@ -180,6 +206,25 @@ namespace __profile
       using _Base::max_size;
 
       // modifiers:
+#if __cplusplus >= 201103L
+      template<typename... _Args>
+	std::pair<iterator, bool>
+	emplace(_Args&&... __args)
+	{
+	  auto __res = _Base::emplace(std::forward<_Args>(__args)...);
+	  return std::pair<iterator, bool>(iterator(__res.first),
+					   __res.second);
+	}
+
+      template<typename... _Args>
+	iterator
+	emplace_hint(const_iterator __pos, _Args&&... __args)
+	{
+	  return iterator(_Base::emplace_hint(__pos,
+					      std::forward<_Args>(__args)...));
+	}
+#endif
+
       std::pair<iterator, bool>
       insert(const value_type& __x)
       {
@@ -189,7 +234,7 @@ namespace __profile
 					 __res.second);
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       std::pair<iterator, bool>
       insert(value_type&& __x)
       {
@@ -205,24 +250,29 @@ namespace __profile
       insert(const_iterator __position, const value_type& __x)
       { return iterator(_Base::insert(__position, __x)); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       insert(const_iterator __position, value_type&& __x)
       { return iterator(_Base::insert(__position, std::move(__x))); }
 #endif
 
-      template <typename _InputIterator>
+#if __cplusplus >= 201103L
+      template<typename _InputIterator,
+	       typename = std::_RequireInputIter<_InputIterator>>
+#else
+      template<typename _InputIterator>
+#endif
         void
         insert(_InputIterator __first, _InputIterator __last)
         { _Base::insert(__first, __last); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       void
       insert(initializer_list<value_type> __l)
       { _Base::insert(__l); }
 #endif
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __position)
       { return iterator(_Base::erase(__position)); }
@@ -245,7 +295,7 @@ namespace __profile
         }
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __first, const_iterator __last)
       { return iterator(_Base::erase(__first, __last)); }
@@ -257,6 +307,9 @@ namespace __profile
 
       void
       swap(set& __x)
+#if __cplusplus >= 201103L
+      noexcept(_Alloc_traits::_S_nothrow_swap())
+#endif
       { _Base::swap(__x); }
 
       void

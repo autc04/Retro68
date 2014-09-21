@@ -7,16 +7,23 @@
 
 program bsp
   implicit none   
-
+  intrinsic :: isign, iabs
   abstract interface
     subroutine up()
     end subroutine up
+    ! As intrinsics but not elemental
+    pure integer function isign_interf(a, b)
+       integer, intent(in) :: a, b
+    end function isign_interf
+    pure integer function iabs_interf(x)
+       integer, intent(in) :: x
+    end function iabs_interf
   end interface
 
   procedure( up ) , pointer :: pptr
-  procedure(isign), pointer :: q
+  procedure(isign_interf), pointer :: q
 
-  procedure(iabs),pointer :: p1
+  procedure(iabs_interf),pointer :: p1
   procedure(f), pointer :: p2
 
   pointer :: p3
@@ -40,21 +47,21 @@ program bsp
   p2 => p1
   p1 => p2
 
-  p1 => abs   ! { dg-error "Type/rank mismatch in return value" }
-  p2 => abs   ! { dg-error "Type/rank mismatch in return value" }
+  p1 => abs   ! { dg-error "Type mismatch in function result" }
+  p2 => abs   ! { dg-error "Type mismatch in function result" }
 
   p3 => dsin
-  p3 => sin   ! { dg-error "Type/rank mismatch in return value" }
+  p3 => sin   ! { dg-error "Type mismatch in function result" }
 
   contains
 
-    function add( a, b )
+    pure function add( a, b )
       integer               :: add
       integer, intent( in ) :: a, b
       add = a + b
     end function add
 
-    integer function f(x)
+    pure integer function f(x)
       integer,intent(in) :: x
       f = 317 + x
     end function

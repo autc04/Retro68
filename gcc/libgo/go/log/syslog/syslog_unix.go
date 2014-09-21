@@ -17,15 +17,13 @@ import (
 func unixSyslog() (conn serverConn, err error) {
 	logTypes := []string{"unixgram", "unix"}
 	logPaths := []string{"/dev/log", "/var/run/syslog"}
-	var raddr string
 	for _, network := range logTypes {
 		for _, path := range logPaths {
-			raddr = path
-			conn, err := net.Dial(network, raddr)
+			conn, err := net.Dial(network, path)
 			if err != nil {
 				continue
 			} else {
-				return netConn{conn}, nil
+				return &netConn{conn: conn, local: true}, nil
 			}
 		}
 	}

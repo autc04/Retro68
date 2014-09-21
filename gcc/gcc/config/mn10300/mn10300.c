@@ -1,6 +1,5 @@
 /* Subroutines for insn-output.c for Matsushita MN10300 series
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
    Contributed by Jeff Law (law@cygnus.com).
 
    This file is part of GCC.
@@ -25,6 +24,9 @@
 #include "tm.h"
 #include "rtl.h"
 #include "tree.h"
+#include "stor-layout.h"
+#include "varasm.h"
+#include "calls.h"
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "insn-config.h"
@@ -46,6 +48,7 @@
 #include "df.h"
 #include "opts.h"
 #include "cfgloop.h"
+#include "dumpfile.h"
 
 /* This is used in the am33_2.0-linux-gnu port, in which global symbol
    names are not prefixed by underscores, to tell whether to prefix a
@@ -56,18 +59,6 @@ int mn10300_protect_label;
 /* Selected processor type for tuning.  */
 enum processor_type mn10300_tune_cpu = PROCESSOR_DEFAULT;
 
-/* The size of the callee register save area.  Right now we save everything
-   on entry since it costs us nothing in code size.  It does cost us from a
-   speed standpoint, so we want to optimize this sooner or later.  */
-#define REG_SAVE_BYTES (4 * df_regs_ever_live_p (2)		\
-			+ 4 * df_regs_ever_live_p (3)		\
-		        + 4 * df_regs_ever_live_p (6)		\
-			+ 4 * df_regs_ever_live_p (7)		\
-			+ 16 * (df_regs_ever_live_p (14)	\
-				|| df_regs_ever_live_p (15)	\
-				|| df_regs_ever_live_p (16)	\
-				|| df_regs_ever_live_p (17)))
-
 #define CC_FLAG_Z	1
 #define CC_FLAG_N	2
 #define CC_FLAG_C	4
@@ -77,7 +68,6 @@ static int cc_flags_for_mode(enum machine_mode);
 static int cc_flags_for_code(enum rtx_code);
 
 /* Implement TARGET_OPTION_OVERRIDE.  */
-
 static void
 mn10300_option_override (void)
 {
@@ -634,20 +624,36 @@ mn10300_can_use_rets_insn (void)
 
 /* Returns the set of live, callee-saved registers as a bitmask.  The
    callee-saved extended registers cannot be stored individually, so
-   all of them will be included in the mask if any one of them is used.  */
+   all of them will be included in the mask if any one of them is used.
+   Also returns the number of bytes in the registers in the mask if
+   BYTES_SAVED is not NULL.  */
 
-int
-mn10300_get_live_callee_saved_regs (void)
+unsigned int
+mn10300_get_live_callee_saved_regs (unsigned int * bytes_saved)
 {
   int mask;
   int i;
+  unsigned int count;
 
-  mask = 0;
+  count = mask = 0;
   for (i = 0; i <= LAST_EXTENDED_REGNUM; i++)
     if (df_regs_ever_live_p (i) && ! call_really_used_regs[i])
-      mask |= (1 << i);
+      {
+	mask |= (1 << i);
+	++ count;
+      }
+
   if ((mask & 0x3c000) != 0)
-    mask |= 0x3c000;
+    {
+      for (i = 0x04000; i < 0x40000; i <<= 1)
+	if ((mask & i) == 0)
+	  ++ count;
+      
+      mask |= 0x3c000;
+    }
+
+  if (bytes_saved)
+    * bytes_saved = count * UNITS_PER_WORD;
 
   return mask;
 }
@@ -711,7 +717,7 @@ mn10300_gen_multiple_store (unsigned int mask)
 	continue;
 
       ++count;
-      x = plus_constant (stack_pointer_rtx, count * -4);
+      x = plus_constant (Pmode, stack_pointer_rtx, count * -4);
       x = gen_frame_mem (SImode, x);
       x = gen_rtx_SET (VOIDmode, x, gen_rtx_REG (SImode, regno));
       elts[count] = F(x);
@@ -725,7 +731,7 @@ mn10300_gen_multiple_store (unsigned int mask)
   gcc_assert (mask == 0);
 
   /* Create the instruction that updates the stack pointer.  */
-  x = plus_constant (stack_pointer_rtx, count * -4);
+  x = plus_constant (Pmode, stack_pointer_rtx, count * -4);
   x = gen_rtx_SET (VOIDmode, stack_pointer_rtx, x);
   elts[0] = F(x);
 
@@ -735,13 +741,31 @@ mn10300_gen_multiple_store (unsigned int mask)
   F (emit_insn (x));
 }
 
+static inline unsigned int
+popcount (unsigned int mask)
+{
+  unsigned int count = 0;
+  
+  while (mask)
+    {
+      ++ count;
+      mask &= ~ (mask & - mask);
+    }
+  return count;
+}
+
 void
 mn10300_expand_prologue (void)
 {
   HOST_WIDE_INT size = mn10300_frame_size ();
+  unsigned int mask;
 
+  mask = mn10300_get_live_callee_saved_regs (NULL);
   /* If we use any of the callee-saved registers, save them now.  */
-  mn10300_gen_multiple_store (mn10300_get_live_callee_saved_regs ());
+  mn10300_gen_multiple_store (mask);
+
+  if (flag_stack_usage_info)
+    current_function_static_stack_size = size + popcount (mask) * 4;
 
   if (TARGET_AM33_2 && fp_regs_to_save ())
     {
@@ -757,6 +781,9 @@ mn10300_expand_prologue (void)
       } strategy;
       unsigned int strategy_size = (unsigned)-1, this_strategy_size;
       rtx reg;
+
+      if (flag_stack_usage_info)
+	current_function_static_stack_size += num_regs_to_save * 4;
 
       /* We have several different strategies to save FP registers.
 	 We can store them using SP offsets, which is beneficial if
@@ -998,8 +1025,10 @@ void
 mn10300_expand_epilogue (void)
 {
   HOST_WIDE_INT size = mn10300_frame_size ();
-  int reg_save_bytes = REG_SAVE_BYTES;
-  
+  unsigned int reg_save_bytes;
+
+  mn10300_get_live_callee_saved_regs (& reg_save_bytes);
+
   if (TARGET_AM33_2 && fp_regs_to_save ())
     {
       int num_regs_to_save = fp_regs_to_save (), i;
@@ -1069,7 +1098,7 @@ mn10300_expand_epilogue (void)
 	      /* Insn: add size + 4 * num_regs_to_save
 				+ reg_save_bytes - 252,sp.  */
 	      this_strategy_size = SIZE_ADD_SP (size + 4 * num_regs_to_save
-						+ reg_save_bytes - 252);
+						+ (int) reg_save_bytes - 252);
 	      /* Insn: fmov (##,sp),fs#, fo each fs# to be restored.  */
 	      this_strategy_size += SIZE_FMOV_SP (252 - reg_save_bytes
 						  - 4 * num_regs_to_save,
@@ -1219,7 +1248,7 @@ mn10300_expand_epilogue (void)
   if (mn10300_can_use_rets_insn ())
     emit_jump_insn (ret_rtx);
   else
-    emit_jump_insn (gen_return_ret (GEN_INT (size + REG_SAVE_BYTES)));
+    emit_jump_insn (gen_return_ret (GEN_INT (size + reg_save_bytes)));
 }
 
 /* Recognize the PARALLEL rtx generated by mn10300_gen_multiple_store().
@@ -1227,9 +1256,8 @@ mn10300_expand_epilogue (void)
    parallel.  If OP is a multiple store, return a mask indicating which
    registers it saves.  Return 0 otherwise.  */
 
-int
-mn10300_store_multiple_operation (rtx op,
-				  enum machine_mode mode ATTRIBUTE_UNUSED)
+unsigned int
+mn10300_store_multiple_regs (rtx op)
 {
   int count;
   int mask;
@@ -1402,7 +1430,6 @@ mn10300_secondary_reload (bool in_p, rtx x, reg_class_t rclass_i,
       if (addr && CONSTANT_ADDRESS_P (addr))
 	return GENERAL_REGS;
     }
-
   /* Otherwise assume no secondary reloads are needed.  */
   return NO_REGS;
 }
@@ -1434,7 +1461,10 @@ mn10300_initial_offset (int from, int to)
      is the size of the callee register save area.  */
   if (from == ARG_POINTER_REGNUM)
     {
-      diff += REG_SAVE_BYTES;
+      unsigned int reg_save_bytes;
+
+      mn10300_get_live_callee_saved_regs (& reg_save_bytes);
+      diff += reg_save_bytes;
       diff += 4 * fp_regs_to_save ();
     }
 
@@ -1464,7 +1494,7 @@ mn10300_builtin_saveregs (void)
   alias_set_type set = get_varargs_alias_set ();
 
   if (argadj)
-    offset = plus_constant (crtl->args.arg_offset_rtx, argadj);
+    offset = plus_constant (Pmode, crtl->args.arg_offset_rtx, argadj);
   else
     offset = crtl->args.arg_offset_rtx;
 
@@ -1473,7 +1503,8 @@ mn10300_builtin_saveregs (void)
   emit_move_insn (mem, gen_rtx_REG (SImode, 0));
 
   mem = gen_rtx_MEM (SImode,
-		     plus_constant (crtl->args.internal_arg_pointer, 4));
+		     plus_constant (Pmode,
+				    crtl->args.internal_arg_pointer, 4));
   set_mem_alias_set (mem, set);
   emit_move_insn (mem, gen_rtx_REG (SImode, 1));
 
@@ -2129,7 +2160,8 @@ mn10300_delegitimize_address (rtx orig_x)
    with an address register.  */
 
 static int
-mn10300_address_cost (rtx x, bool speed)
+mn10300_address_cost (rtx x, enum machine_mode mode ATTRIBUTE_UNUSED,
+		      addr_space_t as ATTRIBUTE_UNUSED, bool speed)
 {
   HOST_WIDE_INT i;
   rtx base, index;
@@ -2444,7 +2476,8 @@ mn10300_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
       break;
 
     case MEM:
-      total = mn10300_address_cost (XEXP (x, 0), speed);
+      total = mn10300_address_cost (XEXP (x, 0), GET_MODE (x),
+				    MEM_ADDR_SPACE (x), speed);
       if (speed)
 	total = COSTS_N_INSNS (2 + total);
       goto alldone;
@@ -2467,12 +2500,15 @@ mn10300_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
    may access it using GOTOFF instead of GOT.  */
 
 static void
-mn10300_encode_section_info (tree decl, rtx rtl, int first ATTRIBUTE_UNUSED)
+mn10300_encode_section_info (tree decl, rtx rtl, int first)
 {
   rtx symbol;
 
+  default_encode_section_info (decl, rtl, first);
+
   if (! MEM_P (rtl))
     return;
+
   symbol = XEXP (rtl, 0);
   if (GET_CODE (symbol) != SYMBOL_REF)
     return;
@@ -2516,7 +2552,7 @@ mn10300_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
      clobber the flags but do not affect the contents of D0 or D1.  */
 
   disp = expand_binop (SImode, sub_optab, fnaddr,
-		       plus_constant (XEXP (m_tramp, 0), 11),
+		       plus_constant (Pmode, XEXP (m_tramp, 0), 11),
 		       NULL_RTX, 1, OPTAB_DIRECT);
 
   mem = adjust_address (m_tramp, SImode, 0);
@@ -2594,7 +2630,10 @@ mn10300_hard_regno_mode_ok (unsigned int regno, enum machine_mode mode)
       || REGNO_REG_CLASS (regno) == FP_ACC_REGS)
     /* Do not store integer values in FP registers.  */
     return GET_MODE_CLASS (mode) == MODE_FLOAT && ((regno & 1) == 0);
-  
+
+  if (! TARGET_AM33 && REGNO_REG_CLASS (regno) == EXTENDED_REGS)
+    return false;
+
   if (((regno) & 1) == 0 || GET_MODE_SIZE (mode) == 4)
     return true;
 
@@ -2761,7 +2800,7 @@ mn10300_adjust_sched_cost (rtx insn, rtx link, rtx dep, int cost)
       Chapter 3 of the MN103E Series Instruction Manual
       where it says:
 
-        "When the preceeding instruction is a CPU load or
+        "When the preceding instruction is a CPU load or
 	 store instruction, a following FPU instruction
 	 cannot be executed until the CPU completes the
 	 latency period even though there are no register
@@ -2787,7 +2826,7 @@ mn10300_adjust_sched_cost (rtx insn, rtx link, rtx dep, int cost)
     return cost;
 
   /* XXX: Verify: The text of 1-7-4 implies that the restriction
-     only applies when an INTEGER load/store preceeds an FPU
+     only applies when an INTEGER load/store precedes an FPU
      instruction, but is this true ?  For now we assume that it is.  */
   if (GET_MODE_CLASS (GET_MODE (SET_SRC (PATTERN (insn)))) != MODE_INT)
     return cost;
@@ -3174,7 +3213,7 @@ mn10300_insert_setlb_lcc (rtx label, rtx branch)
 }
 
 static bool
-mn10300_block_contains_call (struct basic_block_def * block)
+mn10300_block_contains_call (basic_block block)
 {
   rtx insn;
 
@@ -3208,8 +3247,6 @@ mn10300_loop_contains_call_insn (loop_p loop)
 static void
 mn10300_scan_for_setlb_lcc (void)
 {
-  struct loops loops;
-  loop_iterator liter;
   loop_p loop;
 
   DUMP ("Looking for loops that can use the SETLB insn", NULL_RTX);
@@ -3218,15 +3255,13 @@ mn10300_scan_for_setlb_lcc (void)
   compute_bb_for_insn ();
 
   /* Find the loops.  */
-  if (flow_loops_find (& loops) < 1)
-    DUMP ("No loops found", NULL_RTX);
-  current_loops = & loops;
+  loop_optimizer_init (AVOID_CFG_MODIFICATIONS);
 
   /* FIXME: For now we only investigate innermost loops.  In practice however
      if an inner loop is not suitable for use with the SETLB/Lcc insns, it may
      be the case that its parent loop is suitable.  Thus we should check all
      loops, but work from the innermost outwards.  */
-  FOR_EACH_LOOP (liter, loop, LI_ONLY_INNERMOST)
+  FOR_EACH_LOOP (loop, LI_ONLY_INNERMOST)
     {
       const char * reason = NULL;
 
@@ -3270,15 +3305,7 @@ mn10300_scan_for_setlb_lcc (void)
 		 reason);
     }
 
-#if 0 /* FIXME: We should free the storage we allocated, but
-	 for some unknown reason this leads to seg-faults.  */
-  FOR_EACH_LOOP (liter, loop, 0)
-    free_simple_loop_desc (loop);
-
-  flow_loops_free (current_loops);
-#endif
-
-  current_loops = NULL;
+  loop_optimizer_finalize ();
 
   df_finish_pass (false);  
 

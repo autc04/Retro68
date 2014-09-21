@@ -1,12 +1,12 @@
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* alpha*-*-osf* mips-sgi-irix6* powerpc-ibm-aix* } }
-// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* alpha*-*-osf* mips-sgi-irix6* powerpc-ibm-aix* } }
+// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* powerpc-ibm-aix* } }
+// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* powerpc-ibm-aix* } }
 // { dg-options " -std=gnu++0x -pthreads" { target *-*-solaris* } }
 // { dg-options " -std=gnu++0x " { target *-*-cygwin *-*-darwin* } }
 // { dg-require-cstdint "" }
 // { dg-require-gthreads "" }
 // { dg-require-atomic-builtins "" }
 
-// Copyright (C) 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ void test01()
   bool test __attribute__((unused)) = true;
 
   std::promise<int> p1;
-  std::shared_future<int> f1(p1.get_future());
+  const std::shared_future<int> f1(p1.get_future());
   std::shared_future<int> f2(f1);
 
   p1.set_value(value);
@@ -47,7 +47,7 @@ void test02()
   bool test __attribute__((unused)) = true;
 
   std::promise<int&> p1;
-  std::shared_future<int&> f1(p1.get_future());
+  const std::shared_future<int&> f1(p1.get_future());
   std::shared_future<int&> f2(f1);
 
   p1.set_value(value);
@@ -60,7 +60,7 @@ void test03()
   bool test __attribute__((unused)) = true;
 
   std::promise<void> p1;
-  std::shared_future<void> f1(p1.get_future());
+  const std::shared_future<void> f1(p1.get_future());
   std::shared_future<void> f2(f1);
 
   p1.set_value();

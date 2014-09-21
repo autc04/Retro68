@@ -1,7 +1,5 @@
 /* Target macros for the FRV port of GCC.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009,
-   2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Red Hat Inc.
 
    This file is part of GCC.
@@ -1519,9 +1517,6 @@ __asm__("\n"								\
 #define REVERSIBLE_CC_MODE(MODE) \
   ((MODE) == CCmode || (MODE) == CC_UNSmode || (MODE) == CC_NZmode)
 
-/* Frv CCR_MODE's are not reversible.  */
-#define REVERSE_CONDEXEC_PREDICATES_P(x,y)      0
-
 
 /* Describing Relative Costs of Operations.  */
 
@@ -1825,8 +1820,8 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
 /* Define this macro to 0 if your target supports DWARF 2 frame unwind
    information, but it does not yet work with exception handling.  Otherwise,
    if your target supports this information (if it defines
-   `INCOMING_RETURN_ADDR_RTX' and either `UNALIGNED_INT_ASM_OP' or
-   `OBJECT_FORMAT_ELF'), GCC will provide a default definition of 1.
+   `INCOMING_RETURN_ADDR_RTX' and `OBJECT_FORMAT_ELF'), GCC will provide
+   a default definition of 1.
 
    If this macro is defined to 1, the DWARF 2 unwinder will be the default
    exception handling mechanism; otherwise, setjmp/longjmp will be used by
@@ -1978,8 +1973,8 @@ frv_ifcvt_modify_multiple_tests (CE_INFO, BB, &TRUE_EXPR, &FALSE_EXPR)
    information CE_INFO.  */
 #define IFCVT_MODIFY_CANCEL(CE_INFO) frv_ifcvt_modify_cancel (CE_INFO)
 
-/* Initialize the extra fields provided by IFCVT_EXTRA_FIELDS.  */
-#define IFCVT_INIT_EXTRA_FIELDS(CE_INFO) frv_ifcvt_init_extra_fields (CE_INFO)
+/* Initialize the machine-specific static data for if-conversion.  */
+#define IFCVT_MACHDEP_INIT(CE_INFO) frv_ifcvt_machdep_init (CE_INFO)
 
 /* The definition of the following macro results in that the 2nd jump
    optimization (after the 2nd insn scheduling) is minimal.  It is

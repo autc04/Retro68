@@ -1,7 +1,5 @@
 /* Structure for saving state for a nested function.
-   Copyright (C) 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,11 +20,12 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_FUNCTION_H
 #define GCC_FUNCTION_H
 
-#include "tree.h"
 #include "hashtab.h"
-#include "vecprim.h"
-#include "tm.h"		/* For CUMULATIVE_ARGS.  */
-#include "hard-reg-set.h"
+#include "vec.h"
+#include "machmode.h"
+#include "tm.h"			/* For CUMULATIVE_ARGS.  */
+#include "hard-reg-set.h"	/* For HARD_REG_SET in struct rtl_data. */
+#include "input.h"		/* For location_t.  */
 
 /* Stack of pending (incomplete) sequences saved by `start_sequence'.
    Each element describes one pending sequence.
@@ -69,10 +68,6 @@ struct GTY(()) emit_status {
   /* INSN_UID for next debug insn emitted.  Only used if
      --param min-nondebug-insn-uid=<value> is given with nonzero value.  */
   int x_cur_debug_insn_uid;
-
-  /* Location the last line-number NOTE emitted.
-     This is used to avoid generating duplicates.  */
-  location_t x_last_location;
 
   /* The length of the regno_pointer_align, regno_decl, and x_regno_reg_rtx
      vectors.  Since these vectors are needed during the expansion phase when
@@ -144,8 +139,6 @@ struct GTY(()) expr_status {
 };
 
 typedef struct call_site_record_d *call_site_record;
-DEF_VEC_P(call_site_record);
-DEF_VEC_ALLOC_P(call_site_record, gc);
 
 /* RTL representation of exception handling.  */
 struct GTY(()) rtl_eh {
@@ -156,9 +149,9 @@ struct GTY(()) rtl_eh {
   rtx sjlj_fc;
   rtx sjlj_exit_after;
 
-  VEC(uchar,gc) *action_record_data;
+  vec<uchar, va_gc> *action_record_data;
 
-  VEC(call_site_record,gc) *call_site_record[2];
+  vec<call_site_record, va_gc> *call_site_record_v[2];
 };
 
 #define pending_stack_adjust (crtl->expr.x_pending_stack_adjust)
@@ -172,15 +165,11 @@ struct gimple_df;
 struct temp_slot;
 typedef struct temp_slot *temp_slot_p;
 struct call_site_record_d;
-struct dw_fde_struct;
+struct dw_fde_node;
 
-DEF_VEC_P(temp_slot_p);
-DEF_VEC_ALLOC_P(temp_slot_p,gc);
-struct ipa_opt_pass_d;
-typedef struct ipa_opt_pass_d *ipa_opt_pass;
+class ipa_opt_pass_d;
+typedef ipa_opt_pass_d *ipa_opt_pass;
 
-DEF_VEC_P(ipa_opt_pass);
-DEF_VEC_ALLOC_P(ipa_opt_pass,heap);
 
 struct GTY(()) varasm_status {
   /* If we're using a per-function constant pool, this is it.  */
@@ -264,8 +253,11 @@ struct GTY(()) rtl_data {
      the hard register containing the result.  */
   rtx return_rtx;
 
-  /* Opaque pointer used by get_hard_reg_initial_val and
-     has_hard_reg_initial_val (see integrate.[hc]).  */
+  /* Vector of initial-value pairs.  Each pair consists of a pseudo
+     register of approprite mode that stores the initial value a hard
+     register REGNO, and that hard register itself.  */
+  /* ??? This could be a VEC but there is currently no way to define an
+	 opaque VEC type.  */
   struct initial_value_struct *hard_reg_initial_vals;
 
   /* A variable living at the top of the frame that holds a known value.
@@ -314,7 +306,7 @@ struct GTY(()) rtl_data {
   rtx x_parm_birth_insn;
 
   /* List of all used temporaries allocated, by level.  */
-  VEC(temp_slot_p,gc) *x_used_temp_slots;
+  vec<temp_slot_p, va_gc> *x_used_temp_slots;
 
   /* List of available temp slots.  */
   struct temp_slot *x_avail_temp_slots;
@@ -346,10 +338,6 @@ struct GTY(()) rtl_data {
   unsigned int stack_alignment_estimated;
 
   /* For reorg.  */
-
-  /* If some insns can be deferred to the delay slots of the epilogue, the
-     delay list for them is recorded here.  */
-  rtx epilogue_delay_list;
 
   /* Nonzero if function being compiled called builtin_return_addr or
      builtin_frame_address with nonzero count.  */
@@ -399,7 +387,8 @@ struct GTY(()) rtl_data {
   bool arg_pointer_save_area_init;
 
   /* Nonzero if current function must be given a frame pointer.
-     Set in global.c if anything is allocated on the stack there.  */
+     Set in reload1.c or lra-eliminations.c if anything is allocated
+     on the stack there.  */
   bool frame_pointer_needed;
 
   /* When set, expand should optimize for speed.  */
@@ -440,6 +429,31 @@ struct GTY(()) rtl_data {
 
   /* True if we performed shrink-wrapping for the current function.  */
   bool shrink_wrapped;
+
+  /* Nonzero if function being compiled doesn't modify the stack pointer
+     (ignoring the prologue and epilogue).  This is only valid after
+     pass_stack_ptr_mod has run.  */
+  bool sp_is_unchanging;
+
+  /* Nonzero if function being compiled doesn't contain any calls
+     (ignoring the prologue and epilogue).  This is set prior to
+     local register allocation and is valid for the remaining
+     compiler passes.  */
+  bool is_leaf;
+
+  /* Nonzero if the function being compiled is a leaf function which only
+     uses leaf registers.  This is valid after reload (specifically after
+     sched2) and is useful only if the port defines LEAF_REGISTERS.  */
+  bool uses_only_leaf_regs;
+
+  /* Nonzero if the function being compiled has undergone hot/cold partitioning
+     (under flag_reorder_blocks_and_partition) and has at least one cold
+     block.  */
+  bool has_bb_partition;
+
+  /* Nonzero if the function being compiled has completed the bb reordering
+     pass.  */
+  bool bb_reorder_complete;
 
   /* Like regs_ever_live, but 1 if a reg is set or clobbered from an
      asm.  Unlike regs_ever_live, elements of this array corresponding
@@ -507,7 +521,7 @@ struct GTY(()) function {
   struct control_flow_graph *cfg;
 
   /* GIMPLE body for this function.  */
-  struct gimple_seq_d *gimple_body;
+  gimple_seq gimple_body;
 
   /* SSA and dataflow information.  */
   struct gimple_df *gimple_df;
@@ -536,7 +550,10 @@ struct GTY(()) function {
   tree nonlocal_goto_save_area;
 
   /* Vector of function local variables, functions, types and constants.  */
-  VEC(tree,gc) *local_decls;
+  vec<tree, va_gc> *local_decls;
+
+  /* In a Cilk function, the VAR_DECL for the frame descriptor. */
+  tree cilk_frame_decl;
 
   /* For md files.  */
 
@@ -552,7 +569,7 @@ struct GTY(()) function {
   /* Dwarf2 Frame Description Entry, containing the Call Frame Instructions
      used for unwinding.  Only set when either dwarf2 unwinding or dwarf2
      debugging is enabled.  */
-  struct dw_fde_struct *fde;
+  struct dw_fde_node *fde;
 
   /* Last statement uid.  */
   int last_stmt_uid;
@@ -593,6 +610,12 @@ struct GTY(()) function {
      either as a subroutine or builtin.  */
   unsigned int calls_alloca : 1;
 
+  /* This will indicate whether a function is a cilk function */
+  unsigned int is_cilk_function : 1;
+
+  /* Nonzero if this is a Cilk function that spawns. */
+  unsigned int calls_cilk_spawn : 1;
+  
   /* Nonzero if function being compiled receives nonlocal gotos
      from nested functions.  */
   unsigned int has_nonlocal_label : 1;
@@ -612,6 +635,10 @@ struct GTY(()) function {
      exceptions.  */
   unsigned int can_throw_non_call_exceptions : 1;
 
+  /* Nonzero if instructions that may throw exceptions but don't otherwise
+     contribute to the execution of the program can be deleted.  */
+  unsigned int can_delete_dead_exceptions : 1;
+
   /* Fields below this point are not set for abstract functions; see
      allocate_struct_function.  */
 
@@ -623,9 +650,6 @@ struct GTY(()) function {
      return the address of where it has put a structure value.  */
   unsigned int returns_pcc_struct : 1;
 
-  /* Nonzero if pass_tree_profile was run on this function.  */
-  unsigned int after_tree_profile : 1;
-
   /* Nonzero if this function has local DECL_HARD_REGISTER variables.
      In this case code motion has to be done more carefully.  */
   unsigned int has_local_explicit_reg_vars : 1;
@@ -635,6 +659,17 @@ struct GTY(()) function {
      adjusts one of its arguments and forwards to another
      function.  */
   unsigned int is_thunk : 1;
+
+  /* Nonzero if the current function contains any loops with
+     loop->force_vect set.  */
+  unsigned int has_force_vect_loops : 1;
+
+  /* Nonzero if the current function contains any loops with
+     nonzero value in loop->simduid.  */
+  unsigned int has_simduid_loops : 1;
+
+  /* Set when the tail call has been identified.  */
+  unsigned int tail_call_marked : 1;
 };
 
 /* Add the decl D to the local_decls list of FUN.  */
@@ -642,11 +677,11 @@ struct GTY(()) function {
 static inline void
 add_local_decl (struct function *fun, tree d)
 {
-  VEC_safe_push (tree, gc, fun->local_decls, d);
+  vec_safe_push (fun->local_decls, d);
 }
 
 #define FOR_EACH_LOCAL_DECL(FUN, I, D)		\
-  FOR_EACH_VEC_ELT_REVERSE (tree, (FUN)->local_decls, I, D)
+  FOR_EACH_VEC_SAFE_ELT_REVERSE ((FUN)->local_decls, I, D)
 
 /* If va_list_[gf]pr_size is set to this, it means we don't know how
    many units need to be saved.  */
@@ -686,14 +721,30 @@ void types_used_by_var_decl_insert (tree type, tree var_decl);
 
 /* During parsing of a global variable, this vector contains the types
    referenced by the global variable.  */
-extern GTY(()) VEC(tree,gc) *types_used_by_cur_var_decl;
-
+extern GTY(()) vec<tree, va_gc> *types_used_by_cur_var_decl;
 
 /* cfun shouldn't be set directly; use one of these functions instead.  */
 extern void set_cfun (struct function *new_cfun);
 extern void push_cfun (struct function *new_cfun);
 extern void pop_cfun (void);
 extern void instantiate_decl_rtl (rtx x);
+
+/* Return the loop tree of FN.  */
+
+inline struct loops *
+loops_for_fn (struct function *fn)
+{
+  return fn->x_current_loops;
+}
+
+/* Set the loop tree of FN to LOOPS.  */
+
+inline void
+set_loops_for_fn (struct function *fn, struct loops *loops)
+{
+  gcc_checking_assert (fn->x_current_loops == NULL || loops == NULL);
+  fn->x_current_loops = loops;
+}
 
 /* For backward compatibility... eventually these should all go away.  */
 #define current_function_funcdef_no (cfun->funcdef_no)
@@ -742,6 +793,8 @@ extern void clobber_return_register (void);
 extern rtx get_arg_pointer_save_area (void);
 
 /* Returns the name of the current function.  */
+extern const char *fndecl_name (tree);
+extern const char *function_name (struct function *);
 extern const char *current_function_name (void);
 
 extern void do_warn_unused_parameter (tree);
@@ -760,8 +813,37 @@ extern int get_last_funcdef_no (void);
 extern bool requires_stack_frame_p (rtx, HARD_REG_SET, HARD_REG_SET);
 #endif                        
 
+extern rtx get_hard_reg_initial_val (enum machine_mode, unsigned int);
+extern rtx has_hard_reg_initial_val (enum machine_mode, unsigned int);
+extern rtx get_hard_reg_initial_reg (rtx);
+extern bool initial_value_entry (int i, rtx *, rtx *);
+
+/* Called from gimple_expand_cfg.  */
+extern unsigned int emit_initial_value_sets (void);
+
 /* In predict.c */
 extern bool optimize_function_for_size_p (struct function *);
 extern bool optimize_function_for_speed_p (struct function *);
+
+/* In function.c */
+extern void expand_function_end (void);
+extern void expand_function_start (tree);
+extern void stack_protect_epilogue (void);
+extern void init_dummy_function_start (void);
+extern void expand_dummy_function_end (void);
+extern void allocate_struct_function (tree, bool);
+extern void push_struct_function (tree fndecl);
+extern void init_function_start (tree);
+extern bool use_register_for_decl (const_tree);
+extern void generate_setjmp_warnings (void);
+extern void init_temp_slots (void);
+extern void free_temp_slots (void);
+extern void pop_temp_slots (void);
+extern void push_temp_slots (void);
+extern void preserve_temp_slots (rtx);
+extern int aggregate_value_p (const_tree, const_tree);
+extern void push_function_context (void);
+extern void pop_function_context (void);
+extern gimple_seq gimplify_parameters (void);
 
 #endif  /* GCC_FUNCTION_H */

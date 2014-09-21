@@ -1,5 +1,5 @@
 /* DWARF2 EH unwinding support for Alpha Linux.
-   Copyright (C) 2004, 2005, 2009, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,6 +22,7 @@ a copy of the GCC Runtime Library Exception along with this program;
 see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
+#ifndef inhibit_libc
 /* Do code reading to identify a signal frame, and set the frame
    state data appropriately.  See unwind-dw2.c for the structs.  */
 
@@ -49,7 +50,7 @@ alpha_fallback_frame_state (struct _Unwind_Context *context,
   else if (pc[1] == 0x201f015f)		/* lda $0,NR_rt_sigreturn */
     {
       struct rt_sigframe {
-	struct siginfo info;
+	siginfo_t info;
 	struct ucontext uc;
       } *rt_ = context->cfa;
       sc = &rt_->uc.uc_mcontext;
@@ -97,3 +98,4 @@ alpha_frob_update_context (struct _Unwind_Context *context,
 	  || pc[1] == 0x201f015f))	/* lda $0,NR_rt_sigreturn */
     _Unwind_SetSignalFrame (context, 1);
 }
+#endif

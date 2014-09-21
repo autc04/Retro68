@@ -24,6 +24,8 @@ srcdir = @srcdir@
 libdir = @libdir@
 build = @build@
 target = @target@
+host = @host@
+host_alias = @host_alias@
 prefix = @prefix@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -63,9 +65,16 @@ INCLUDES_FOR_SUBDIR = -I. -I.. -I../.. -I$(fsrcdir)/ada -I$(fsrcdir)/config \
 	-I$(fsrcdir)/../include -I$(fsrcdir)
 ADA_INCLUDES_FOR_SUBDIR = -I. -I$(fsrcdir)/ada
 
+CXX_LFLAGS = \
+ -B../../../$(target_noncanonical)/libstdc++-v3/src/.libs \
+ -B../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs \
+ -L../../../$(target_noncanonical)/libstdc++-v3/src/.libs \
+ -L../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs
+
 # Variables for gnattools, native
 TOOLS_FLAGS_TO_PASS_NATIVE= \
 	"CC=../../xgcc -B../../" \
+	"CXX=../../xg++ -B../../ $(CXX_LFLAGS)" \
 	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS)" \
 	"LDFLAGS=$(LDFLAGS)" \
 	"ADAFLAGS=$(ADAFLAGS)" \
@@ -83,7 +92,9 @@ TOOLS_FLAGS_TO_PASS_NATIVE= \
 # Variables for regnattools
 TOOLS_FLAGS_TO_PASS_RE= \
 	"CC=../../xgcc -B../../" \
+	"CXX=../../xg++ -B../../ $(CXX_LFLAGS)" \
 	"CFLAGS=$(CFLAGS)" \
+	"LDFLAGS=$(LDFLAGS)" \
 	"ADAFLAGS=$(ADAFLAGS)" \
 	"ADA_CFLAGS=$(ADA_CFLAGS)" \
 	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
@@ -97,20 +108,37 @@ TOOLS_FLAGS_TO_PASS_RE= \
 	"TOOLSCASE=cross"
 
 # Variables for gnattools, cross
+ifeq ($(build), $(host))
+  GNATMAKE_FOR_HOST=gnatmake
+  GNATLINK_FOR_HOST=gnatlink
+  GNATBIND_FOR_HOST=gnatbind
+  GNATLS_FOR_HOST=gnatls
+else
+  GNATMAKE_FOR_HOST=$(host_alias)-gnatmake
+  GNATLINK_FOR_HOST=$(host_alias)-gnatlink
+  GNATBIND_FOR_HOST=$(host_alias)-gnatbind
+  GNATLS_FOR_HOST=$(host_alias)-gnatls
+endif
+
+# Put the host RTS dir first in the PATH to hide the default runtime
+# files that are among the sources
+RTS_DIR:=$(strip $(subst \,/,$(shell $(GNATLS_FOR_HOST) -v | grep adalib )))
+
 TOOLS_FLAGS_TO_PASS_CROSS= \
 	"CC=$(CC)" \
+	"CXX=$(CXX)" \
 	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS)" \
 	"LDFLAGS=$(LDFLAGS)" \
 	"ADAFLAGS=$(ADAFLAGS)"	\
 	"ADA_CFLAGS=$(ADA_CFLAGS)" \
 	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
-	"ADA_INCLUDES=-I$(RTS_DIR)../adainclude -I$(RTS_DIR) $(ADA_INCLUDES_FOR_SUBDIR)" \
+	"ADA_INCLUDES=-I$(RTS_DIR)/../adainclude -I$(RTS_DIR) $(ADA_INCLUDES_FOR_SUBDIR)" \
 	"exeext=$(exeext)" \
 	"fsrcdir=$(fsrcdir)" \
 	"srcdir=$(fsrcdir)" \
-	"GNATMAKE=gnatmake" \
-	"GNATLINK=gnatlink" \
-	"GNATBIND=gnatbind" \
+	"GNATMAKE=$(GNATMAKE_FOR_HOST)" \
+	"GNATLINK=$(GNATLINK_FOR_HOST)" \
+	"GNATBIND=$(GNATBIND_FOR_HOST)" \
 	"TOOLSCASE=cross" \
 	"LIBGNAT="
 
@@ -179,11 +207,6 @@ regnattools: $(GCC_DIR)/stamp-gnatlib-rts
 	$(MAKE) -C $(GCC_DIR)/ada/tools -f ../Makefile \
 	  $(TOOLS_FLAGS_TO_PASS_NATIVE) common-tools
 
-# For cross builds of gnattools,
-# put the host RTS dir first in the PATH to hide the default runtime
-# files that are among the sources
-# FIXME: This should be done in configure.
-RTS_DIR:=$(strip $(subst \,/,$(shell gnatls -v | grep adalib )))
 gnattools-cross: $(GCC_DIR)/stamp-tools
 	# gnattools1-re
 	$(MAKE) -C $(GCC_DIR)/ada/tools -f ../Makefile \

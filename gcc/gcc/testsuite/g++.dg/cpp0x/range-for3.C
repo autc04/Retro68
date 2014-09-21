@@ -2,8 +2,7 @@
 // Test the loop with a custom iterator
 // with begin/end in std
 
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 struct iterator
 {
@@ -36,7 +35,7 @@ namespace std
 int main()
 {
     container c(1,4);
-    for (int it : c)
+    for (int it : c)    // { dg-error "was not declared" }
     {
     }
 }

@@ -1,6 +1,5 @@
 /* SSA Jump Threading
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Jeff Law  <law@redhat.com>
 
 This file is part of GCC.
@@ -28,15 +27,27 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm_p.h"
 #include "basic-block.h"
 #include "cfgloop.h"
-#include "output.h"
 #include "function.h"
 #include "timevar.h"
-#include "tree-dump.h"
-#include "tree-flow.h"
-#include "tree-pass.h"
+#include "dumpfile.h"
+#include "pointer-set.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-expr.h"
+#include "is-a.h"
+#include "gimple.h"
+#include "gimple-iterator.h"
+#include "gimple-ssa.h"
+#include "tree-cfg.h"
+#include "tree-phinodes.h"
+#include "ssa-iterators.h"
+#include "stringpool.h"
+#include "tree-ssanames.h"
 #include "tree-ssa-propagate.h"
+#include "tree-ssa-threadupdate.h"
 #include "langhooks.h"
 #include "params.h"
+#include "tree-ssa-threadedge.h"
 
 /* To avoid code explosion due to jump threading, we limit the
    number of statements we are going to copy.  This variable
@@ -45,32 +56,33 @@ along with GCC; see the file COPYING3.  If not see
 static int stmt_count;
 
 /* Array to record value-handles per SSA_NAME.  */
-VEC(tree,heap) *ssa_name_values;
+vec<tree> ssa_name_values;
 
 /* Set the value for the SSA name NAME to VALUE.  */
 
 void
 set_ssa_name_value (tree name, tree value)
 {
-  if (SSA_NAME_VERSION (name) >= VEC_length (tree, ssa_name_values))
-    VEC_safe_grow_cleared (tree, heap, ssa_name_values,
-			   SSA_NAME_VERSION (name) + 1);
-  VEC_replace (tree, ssa_name_values, SSA_NAME_VERSION (name), value);
+  if (SSA_NAME_VERSION (name) >= ssa_name_values.length ())
+    ssa_name_values.safe_grow_cleared (SSA_NAME_VERSION (name) + 1);
+  if (value && TREE_OVERFLOW_P (value))
+    value = drop_tree_overflow (value);
+  ssa_name_values[SSA_NAME_VERSION (name)] = value;
 }
 
 /* Initialize the per SSA_NAME value-handles array.  Returns it.  */
 void
 threadedge_initialize_values (void)
 {
-  gcc_assert (ssa_name_values == NULL);
-  ssa_name_values = VEC_alloc(tree, heap, num_ssa_names);
+  gcc_assert (!ssa_name_values.exists ());
+  ssa_name_values.create (num_ssa_names);
 }
 
 /* Free the per SSA_NAME value-handle array.  */
 void
 threadedge_finalize_values (void)
 {
-  VEC_free(tree, heap, ssa_name_values);
+  ssa_name_values.release ();
 }
 
 /* Return TRUE if we may be able to thread an incoming edge into
@@ -136,20 +148,20 @@ lhs_of_dominating_assert (tree op, basic_block bb, gimple stmt)
    structures.  */
 
 static void
-remove_temporary_equivalences (VEC(tree, heap) **stack)
+remove_temporary_equivalences (vec<tree> *stack)
 {
-  while (VEC_length (tree, *stack) > 0)
+  while (stack->length () > 0)
     {
       tree prev_value, dest;
 
-      dest = VEC_pop (tree, *stack);
+      dest = stack->pop ();
 
       /* A NULL value indicates we should stop unwinding, otherwise
 	 pop off the next entry as they're recorded in pairs.  */
       if (dest == NULL)
 	break;
 
-      prev_value = VEC_pop (tree, *stack);
+      prev_value = stack->pop ();
       set_ssa_name_value (dest, prev_value);
     }
 }
@@ -159,30 +171,35 @@ remove_temporary_equivalences (VEC(tree, heap) **stack)
    done processing the current edge.  */
 
 static void
-record_temporary_equivalence (tree x, tree y, VEC(tree, heap) **stack)
+record_temporary_equivalence (tree x, tree y, vec<tree> *stack)
 {
   tree prev_x = SSA_NAME_VALUE (x);
 
-  if (TREE_CODE (y) == SSA_NAME)
+  /* Y may be NULL if we are invalidating entries in the table.  */
+  if (y && TREE_CODE (y) == SSA_NAME)
     {
       tree tmp = SSA_NAME_VALUE (y);
       y = tmp ? tmp : y;
     }
 
   set_ssa_name_value (x, y);
-  VEC_reserve (tree, heap, *stack, 2);
-  VEC_quick_push (tree, *stack, prev_x);
-  VEC_quick_push (tree, *stack, x);
+  stack->reserve (2);
+  stack->quick_push (prev_x);
+  stack->quick_push (x);
 }
 
 /* Record temporary equivalences created by PHIs at the target of the
    edge E.  Record unwind information for the equivalences onto STACK.
 
    If a PHI which prevents threading is encountered, then return FALSE
-   indicating we should not thread this edge, else return TRUE.  */
+   indicating we should not thread this edge, else return TRUE. 
+
+   If SRC_MAP/DST_MAP exist, then mark the source and destination SSA_NAMEs
+   of any equivalences recorded.  We use this to make invalidation after
+   traversing back edges less painful.  */
 
 static bool
-record_temporary_equivalences_from_phis (edge e, VEC(tree, heap) **stack)
+record_temporary_equivalences_from_phis (edge e, vec<tree> *stack)
 {
   gimple_stmt_iterator gsi;
 
@@ -206,7 +223,7 @@ record_temporary_equivalences_from_phis (edge e, VEC(tree, heap) **stack)
 
       /* We consider any non-virtual PHI as a statement since it
 	 count result in a constant assignment or copy operation.  */
-      if (is_gimple_reg (dst))
+      if (!virtual_operand_p (dst))
 	stmt_count++;
 
       record_temporary_equivalence (dst, src, stack);
@@ -264,6 +281,20 @@ fold_assignment_stmt (gimple stmt)
     }
 }
 
+/* A new value has been assigned to LHS.  If necessary, invalidate any
+   equivalences that are no longer valid.  */
+static void
+invalidate_equivalences (tree lhs, vec<tree> *stack)
+{
+
+  for (unsigned int i = 1; i < num_ssa_names; i++)
+    if (ssa_name (i) && SSA_NAME_VALUE (ssa_name (i)) == lhs)
+      record_temporary_equivalence (ssa_name (i), NULL_TREE, stack);
+
+  if (SSA_NAME_VALUE (lhs))
+    record_temporary_equivalence (lhs, NULL_TREE, stack);
+}
+
 /* Try to simplify each statement in E->dest, ultimately leading to
    a simplification of the COND_EXPR at the end of E->dest.
 
@@ -283,9 +314,10 @@ fold_assignment_stmt (gimple stmt)
 
 static gimple
 record_temporary_equivalences_from_stmts_at_dest (edge e,
-						  VEC(tree, heap) **stack,
+						  vec<tree> *stack,
 						  tree (*simplify) (gimple,
-								    gimple))
+								    gimple),
+						  bool backedge_seen)
 {
   gimple stmt = NULL;
   gimple_stmt_iterator gsi;
@@ -329,7 +361,22 @@ record_temporary_equivalences_from_stmts_at_dest (edge e,
           && (gimple_code (stmt) != GIMPLE_CALL
               || gimple_call_lhs (stmt) == NULL_TREE
               || TREE_CODE (gimple_call_lhs (stmt)) != SSA_NAME))
-	continue;
+	{
+	  /* STMT might still have DEFS and we need to invalidate any known
+	     equivalences for them.
+
+	     Consider if STMT is a GIMPLE_ASM with one or more outputs that
+	     feeds a conditional inside a loop.  We might derive an equivalence
+	     due to the conditional.  */
+	  tree op;
+	  ssa_op_iter iter;
+
+	  if (backedge_seen)
+	    FOR_EACH_SSA_TREE_OPERAND (op, stmt, iter, SSA_OP_DEF)
+	      invalidate_equivalences (op, stack);
+
+	  continue;
+	}
 
       /* The result of __builtin_object_size depends on all the arguments
 	 of a phi node. Temporarily using only one edge produces invalid
@@ -362,7 +409,14 @@ record_temporary_equivalences_from_stmts_at_dest (edge e,
 	  if (fndecl
 	      && (DECL_FUNCTION_CODE (fndecl) == BUILT_IN_OBJECT_SIZE
 		  || DECL_FUNCTION_CODE (fndecl) == BUILT_IN_CONSTANT_P))
-	    continue;
+	    {
+	      if (backedge_seen)
+		{
+		  tree lhs = gimple_get_lhs (stmt);
+		  invalidate_equivalences (lhs, stack);
+		}
+	      continue;
+	    }
 	}
 
       /* At this point we have a statement which assigns an RHS to an
@@ -426,13 +480,30 @@ record_temporary_equivalences_from_stmts_at_dest (edge e,
 	}
 
       /* Record the context sensitive equivalence if we were able
-	 to simplify this statement.  */
+	 to simplify this statement. 
+
+	 If we have traversed a backedge at some point during threading,
+	 then always enter something here.  Either a real equivalence, 
+	 or a NULL_TREE equivalence which is effectively invalidation of
+	 prior equivalences.  */
       if (cached_lhs
 	  && (TREE_CODE (cached_lhs) == SSA_NAME
 	      || is_gimple_min_invariant (cached_lhs)))
 	record_temporary_equivalence (gimple_get_lhs (stmt), cached_lhs, stack);
+      else if (backedge_seen)
+	invalidate_equivalences (gimple_get_lhs (stmt), stack);
     }
   return stmt;
+}
+
+/* Once we have passed a backedge in the CFG when threading, we do not want to
+   utilize edge equivalences for simplification purpose.  They are no longer
+   necessarily valid.  We use this callback rather than the ones provided by
+   DOM/VRP to achieve that effect.  */
+static tree
+dummy_simplify (gimple stmt1 ATTRIBUTE_UNUSED, gimple stmt2 ATTRIBUTE_UNUSED)
+{
+  return NULL_TREE;
 }
 
 /* Simplify the control statement at the end of the block E->dest.
@@ -574,54 +645,222 @@ simplify_control_stmt_condition (edge e,
   return cached_lhs;
 }
 
-/* TAKEN_EDGE represents the an edge taken as a result of jump threading.
-   See if we can thread around TAKEN_EDGE->dest as well.  If so, return
-   the edge out of TAKEN_EDGE->dest that we can statically compute will be
-   traversed.
+/* Copy debug stmts from DEST's chain of single predecessors up to
+   SRC, so that we don't lose the bindings as PHI nodes are introduced
+   when DEST gains new predecessors.  */
+void
+propagate_threaded_block_debug_into (basic_block dest, basic_block src)
+{
+  if (!MAY_HAVE_DEBUG_STMTS)
+    return;
 
-   We are much more restrictive as to the contents of TAKEN_EDGE->dest
-   as the path isolation code in tree-ssa-threadupdate.c isn't prepared
-   to handle copying intermediate blocks on a threaded path. 
+  if (!single_pred_p (dest))
+    return;
 
-   Long term a more consistent and structured approach to path isolation
-   would be a huge help.   */
-static edge
-thread_around_empty_block (edge taken_edge,
-			   gimple dummy_cond,
-			   bool handle_dominating_asserts,
-			   tree (*simplify) (gimple, gimple),
-			   bitmap visited)
+  gcc_checking_assert (dest != src);
+
+  gimple_stmt_iterator gsi = gsi_after_labels (dest);
+  int i = 0;
+  const int alloc_count = 16; // ?? Should this be a PARAM?
+
+  /* Estimate the number of debug vars overridden in the beginning of
+     DEST, to tell how many we're going to need to begin with.  */
+  for (gimple_stmt_iterator si = gsi;
+       i * 4 <= alloc_count * 3 && !gsi_end_p (si); gsi_next (&si))
+    {
+      gimple stmt = gsi_stmt (si);
+      if (!is_gimple_debug (stmt))
+	break;
+      i++;
+    }
+
+  auto_vec<tree, alloc_count> fewvars;
+  pointer_set_t *vars = NULL;
+
+  /* If we're already starting with 3/4 of alloc_count, go for a
+     pointer_set, otherwise start with an unordered stack-allocated
+     VEC.  */
+  if (i * 4 > alloc_count * 3)
+    vars = pointer_set_create ();
+
+  /* Now go through the initial debug stmts in DEST again, this time
+     actually inserting in VARS or FEWVARS.  Don't bother checking for
+     duplicates in FEWVARS.  */
+  for (gimple_stmt_iterator si = gsi; !gsi_end_p (si); gsi_next (&si))
+    {
+      gimple stmt = gsi_stmt (si);
+      if (!is_gimple_debug (stmt))
+	break;
+
+      tree var;
+
+      if (gimple_debug_bind_p (stmt))
+	var = gimple_debug_bind_get_var (stmt);
+      else if (gimple_debug_source_bind_p (stmt))
+	var = gimple_debug_source_bind_get_var (stmt);
+      else
+	gcc_unreachable ();
+
+      if (vars)
+	pointer_set_insert (vars, var);
+      else
+	fewvars.quick_push (var);
+    }
+
+  basic_block bb = dest;
+
+  do
+    {
+      bb = single_pred (bb);
+      for (gimple_stmt_iterator si = gsi_last_bb (bb);
+	   !gsi_end_p (si); gsi_prev (&si))
+	{
+	  gimple stmt = gsi_stmt (si);
+	  if (!is_gimple_debug (stmt))
+	    continue;
+
+	  tree var;
+
+	  if (gimple_debug_bind_p (stmt))
+	    var = gimple_debug_bind_get_var (stmt);
+	  else if (gimple_debug_source_bind_p (stmt))
+	    var = gimple_debug_source_bind_get_var (stmt);
+	  else
+	    gcc_unreachable ();
+
+	  /* Discard debug bind overlaps.  ??? Unlike stmts from src,
+	     copied into a new block that will precede BB, debug bind
+	     stmts in bypassed BBs may actually be discarded if
+	     they're overwritten by subsequent debug bind stmts, which
+	     might be a problem once we introduce stmt frontier notes
+	     or somesuch.  Adding `&& bb == src' to the condition
+	     below will preserve all potentially relevant debug
+	     notes.  */
+	  if (vars && pointer_set_insert (vars, var))
+	    continue;
+	  else if (!vars)
+	    {
+	      int i = fewvars.length ();
+	      while (i--)
+		if (fewvars[i] == var)
+		  break;
+	      if (i >= 0)
+		continue;
+
+	      if (fewvars.length () < (unsigned) alloc_count)
+		fewvars.quick_push (var);
+	      else
+		{
+		  vars = pointer_set_create ();
+		  for (i = 0; i < alloc_count; i++)
+		    pointer_set_insert (vars, fewvars[i]);
+		  fewvars.release ();
+		  pointer_set_insert (vars, var);
+		}
+	    }
+
+	  stmt = gimple_copy (stmt);
+	  /* ??? Should we drop the location of the copy to denote
+	     they're artificial bindings?  */
+	  gsi_insert_before (&gsi, stmt, GSI_NEW_STMT);
+	}
+    }
+  while (bb != src && single_pred_p (bb));
+
+  if (vars)
+    pointer_set_destroy (vars);
+  else if (fewvars.exists ())
+    fewvars.release ();
+}
+
+/* See if TAKEN_EDGE->dest is a threadable block with no side effecs (ie, it
+   need not be duplicated as part of the CFG/SSA updating process).
+
+   If it is threadable, add it to PATH and VISITED and recurse, ultimately
+   returning TRUE from the toplevel call.   Otherwise do nothing and
+   return false.
+
+   DUMMY_COND, HANDLE_DOMINATING_ASSERTS and SIMPLIFY are used to
+   try and simplify the condition at the end of TAKEN_EDGE->dest.  */
+static bool
+thread_around_empty_blocks (edge taken_edge,
+			    gimple dummy_cond,
+			    bool handle_dominating_asserts,
+			    tree (*simplify) (gimple, gimple),
+			    bitmap visited,
+			    vec<jump_thread_edge *> *path,
+			    bool *backedge_seen_p)
 {
   basic_block bb = taken_edge->dest;
   gimple_stmt_iterator gsi;
   gimple stmt;
   tree cond;
 
-  /* This block must have a single predecessor (E->dest).  */
-  if (!single_pred_p (bb))
-    return NULL;
-
-  /* This block must have more than one successor.  */
-  if (single_succ_p (bb))
-    return NULL;
-
-  /* This block can have no PHI nodes.  This is overly conservative.  */
+  /* The key property of these blocks is that they need not be duplicated
+     when threading.  Thus they can not have visible side effects such
+     as PHI nodes.  */
   if (!gsi_end_p (gsi_start_phis (bb)))
-    return NULL;
+    return false;
 
   /* Skip over DEBUG statements at the start of the block.  */
   gsi = gsi_start_nondebug_bb (bb);
 
-  if (gsi_end_p (gsi))
-    return NULL;
+  /* If the block has no statements, but does have a single successor, then
+     it's just a forwarding block and we can thread through it trivially.
 
-  /* This block can have no statements other than its control altering
-     statement.  This is overly conservative.  */
+     However, note that just threading through empty blocks with single
+     successors is not inherently profitable.  For the jump thread to
+     be profitable, we must avoid a runtime conditional.
+
+     By taking the return value from the recursive call, we get the
+     desired effect of returning TRUE when we found a profitable jump
+     threading opportunity and FALSE otherwise.
+
+     This is particularly important when this routine is called after
+     processing a joiner block.  Returning TRUE too aggressively in
+     that case results in pointless duplication of the joiner block.  */
+  if (gsi_end_p (gsi))
+    {
+      if (single_succ_p (bb))
+	{
+	  taken_edge = single_succ_edge (bb);
+	  if (!bitmap_bit_p (visited, taken_edge->dest->index))
+	    {
+	      jump_thread_edge *x
+		= new jump_thread_edge (taken_edge, EDGE_NO_COPY_SRC_BLOCK);
+	      path->safe_push (x);
+	      bitmap_set_bit (visited, taken_edge->dest->index);
+	      *backedge_seen_p |= ((taken_edge->flags & EDGE_DFS_BACK) != 0);
+	      if (*backedge_seen_p)
+		simplify = dummy_simplify;
+	      return thread_around_empty_blocks (taken_edge,
+						 dummy_cond,
+						 handle_dominating_asserts,
+						 simplify,
+						 visited,
+						 path,
+						 backedge_seen_p);
+	    }
+	}
+
+      /* We have a block with no statements, but multiple successors?  */
+      return false;
+    }
+
+  /* The only real statements this block can have are a control
+     flow altering statement.  Anything else stops the thread.  */
   stmt = gsi_stmt (gsi);
   if (gimple_code (stmt) != GIMPLE_COND
       && gimple_code (stmt) != GIMPLE_GOTO
       && gimple_code (stmt) != GIMPLE_SWITCH)
-    return NULL;
+    return false;
+
+  /* If we have traversed a backedge, then we do not want to look
+     at certain expressions in the table that can not be relied upon.
+     Luckily the only code that looked at those expressions is the
+     SIMPLIFY callback, which we replace if we can no longer use it.  */
+  if (*backedge_seen_p)
+    simplify = dummy_simplify;
 
   /* Extract and simplify the condition.  */
   cond = simplify_control_stmt_condition (taken_edge, stmt, dummy_cond,
@@ -632,37 +871,165 @@ thread_around_empty_block (edge taken_edge,
      path.  */
   if (cond && is_gimple_min_invariant (cond))
     {
-      edge taken_edge = find_taken_edge (bb, cond);
+      taken_edge = find_taken_edge (bb, cond);
 
       if (bitmap_bit_p (visited, taken_edge->dest->index))
-	return NULL;
-      bitmap_set_bit (visited, taken_edge->dest->index);
-      return taken_edge;
-    }
- 
-  return NULL;
-}
-      
-/* E1 and E2 are edges into the same basic block.  Return TRUE if the
-   PHI arguments associated with those edges are equal or there are no
-   PHI arguments, otherwise return FALSE.  */
-
-static bool
-phi_args_equal_on_edges (edge e1, edge e2)
-{
-  gimple_stmt_iterator gsi;
-  int indx1 = e1->dest_idx;
-  int indx2 = e2->dest_idx;
-
-  for (gsi = gsi_start_phis (e1->dest); !gsi_end_p (gsi); gsi_next (&gsi))
-    {
-      gimple phi = gsi_stmt (gsi);
-
-      if (!operand_equal_p (gimple_phi_arg_def (phi, indx1),
-			    gimple_phi_arg_def (phi, indx2), 0))
 	return false;
+      bitmap_set_bit (visited, taken_edge->dest->index);
+
+      jump_thread_edge *x
+	= new jump_thread_edge (taken_edge, EDGE_NO_COPY_SRC_BLOCK);
+      path->safe_push (x);
+      *backedge_seen_p |= ((taken_edge->flags & EDGE_DFS_BACK) != 0);
+      if (*backedge_seen_p)
+	simplify = dummy_simplify;
+
+      thread_around_empty_blocks (taken_edge,
+				  dummy_cond,
+				  handle_dominating_asserts,
+				  simplify,
+				  visited,
+				  path,
+				  backedge_seen_p);
+      return true;
     }
-  return true;
+
+  return false;
+}
+
+/* We are exiting E->src, see if E->dest ends with a conditional
+   jump which has a known value when reached via E.
+
+   E->dest can have arbitrary side effects which, if threading is
+   successful, will be maintained.
+
+   Special care is necessary if E is a back edge in the CFG as we
+   may have already recorded equivalences for E->dest into our
+   various tables, including the result of the conditional at
+   the end of E->dest.  Threading opportunities are severely
+   limited in that case to avoid short-circuiting the loop
+   incorrectly.
+
+   DUMMY_COND is a shared cond_expr used by condition simplification as scratch,
+   to avoid allocating memory.
+
+   HANDLE_DOMINATING_ASSERTS is true if we should try to replace operands of
+   the simplified condition with left-hand sides of ASSERT_EXPRs they are
+   used in.
+
+   STACK is used to undo temporary equivalences created during the walk of
+   E->dest.
+
+   SIMPLIFY is a pass-specific function used to simplify statements.
+
+   Our caller is responsible for restoring the state of the expression
+   and const_and_copies stacks.
+
+   Positive return value is success.  Zero return value is failure, but
+   the block can still be duplicated as a joiner in a jump thread path,
+   negative indicates the block should not be duplicated and thus is not
+   suitable for a joiner in a jump threading path.  */
+
+static int
+thread_through_normal_block (edge e,
+			     gimple dummy_cond,
+			     bool handle_dominating_asserts,
+			     vec<tree> *stack,
+			     tree (*simplify) (gimple, gimple),
+			     vec<jump_thread_edge *> *path,
+			     bitmap visited,
+			     bool *backedge_seen_p)
+{
+  /* If we have traversed a backedge, then we do not want to look
+     at certain expressions in the table that can not be relied upon.
+     Luckily the only code that looked at those expressions is the
+     SIMPLIFY callback, which we replace if we can no longer use it.  */
+  if (*backedge_seen_p)
+    simplify = dummy_simplify;
+
+  /* PHIs create temporary equivalences.
+     Note that if we found a PHI that made the block non-threadable, then
+     we need to bubble that up to our caller in the same manner we do
+     when we prematurely stop processing statements below.  */
+  if (!record_temporary_equivalences_from_phis (e, stack))
+    return -1;
+
+  /* Now walk each statement recording any context sensitive
+     temporary equivalences we can detect.  */
+  gimple stmt
+    = record_temporary_equivalences_from_stmts_at_dest (e, stack, simplify,
+							*backedge_seen_p);
+
+  /* If we didn't look at all the statements, the most likely reason is
+     there were too many and thus duplicating this block is not profitable.
+
+     Also note if we do not look at all the statements, then we may not
+     have invalidated equivalences that are no longer valid if we threaded
+     around a loop.  Thus we must signal to our caller that this block
+     is not suitable for use as a joiner in a threading path.  */
+  if (!stmt)
+    return -1;
+
+  /* If we stopped at a COND_EXPR or SWITCH_EXPR, see if we know which arm
+     will be taken.  */
+  if (gimple_code (stmt) == GIMPLE_COND
+      || gimple_code (stmt) == GIMPLE_GOTO
+      || gimple_code (stmt) == GIMPLE_SWITCH)
+    {
+      tree cond;
+
+      /* Extract and simplify the condition.  */
+      cond = simplify_control_stmt_condition (e, stmt, dummy_cond, simplify,
+					      handle_dominating_asserts);
+
+      if (cond && is_gimple_min_invariant (cond))
+	{
+	  edge taken_edge = find_taken_edge (e->dest, cond);
+	  basic_block dest = (taken_edge ? taken_edge->dest : NULL);
+
+	  /* DEST could be NULL for a computed jump to an absolute
+	     address.  */
+	  if (dest == NULL
+	      || dest == e->dest
+	      || bitmap_bit_p (visited, dest->index))
+	    return 0;
+
+	  /* Only push the EDGE_START_JUMP_THREAD marker if this is
+	     first edge on the path.  */
+	  if (path->length () == 0)
+	    {
+              jump_thread_edge *x
+	        = new jump_thread_edge (e, EDGE_START_JUMP_THREAD);
+	      path->safe_push (x);
+	      *backedge_seen_p |= ((e->flags & EDGE_DFS_BACK) != 0);
+	    }
+
+	  jump_thread_edge *x
+	    = new jump_thread_edge (taken_edge, EDGE_COPY_SRC_BLOCK);
+	  path->safe_push (x);
+	  *backedge_seen_p |= ((taken_edge->flags & EDGE_DFS_BACK) != 0);
+	  if (*backedge_seen_p)
+	    simplify = dummy_simplify;
+
+	  /* See if we can thread through DEST as well, this helps capture
+	     secondary effects of threading without having to re-run DOM or
+	     VRP. 
+
+	     We don't want to thread back to a block we have already
+ 	     visited.  This may be overly conservative.  */
+	  bitmap_set_bit (visited, dest->index);
+	  bitmap_set_bit (visited, e->dest->index);
+	  thread_around_empty_blocks (taken_edge,
+				      dummy_cond,
+				      handle_dominating_asserts,
+				      simplify,
+				      visited,
+				      path,
+				      backedge_seen_p);
+	  return 1;
+	}
+    }
+  return 0;
 }
 
 /* We are exiting E->src, see if E->dest ends with a conditional
@@ -696,93 +1063,54 @@ void
 thread_across_edge (gimple dummy_cond,
 		    edge e,
 		    bool handle_dominating_asserts,
-		    VEC(tree, heap) **stack,
+		    vec<tree> *stack,
 		    tree (*simplify) (gimple, gimple))
 {
-  gimple stmt;
-
-  /* If E is a backedge, then we want to verify that the COND_EXPR,
-     SWITCH_EXPR or GOTO_EXPR at the end of e->dest is not affected
-     by any statements in e->dest.  If it is affected, then it is not
-     safe to thread this edge.  */
-  if (e->flags & EDGE_DFS_BACK)
-    {
-      ssa_op_iter iter;
-      use_operand_p use_p;
-      gimple last = gsi_stmt (gsi_last_bb (e->dest));
-
-      FOR_EACH_SSA_USE_OPERAND (use_p, last, iter, SSA_OP_USE | SSA_OP_VUSE)
-	{
-	  tree use = USE_FROM_PTR (use_p);
-
-          if (TREE_CODE (use) == SSA_NAME
-	      && gimple_code (SSA_NAME_DEF_STMT (use)) != GIMPLE_PHI
-	      && gimple_bb (SSA_NAME_DEF_STMT (use)) == e->dest)
-	    goto fail;
-	}
-    }
+  bitmap visited = BITMAP_ALLOC (NULL);
+  bool backedge_seen;
 
   stmt_count = 0;
 
-  /* PHIs create temporary equivalences.  */
-  if (!record_temporary_equivalences_from_phis (e, stack))
-    goto fail;
+  vec<jump_thread_edge *> *path = new vec<jump_thread_edge *> ();
+  bitmap_clear (visited);
+  bitmap_set_bit (visited, e->src->index);
+  bitmap_set_bit (visited, e->dest->index);
+  backedge_seen = ((e->flags & EDGE_DFS_BACK) != 0);
+  if (backedge_seen)
+    simplify = dummy_simplify;
 
-  /* Now walk each statement recording any context sensitive
-     temporary equivalences we can detect.  */
-  stmt = record_temporary_equivalences_from_stmts_at_dest (e, stack, simplify);
-  if (!stmt)
-    goto fail;
-
-  /* If we stopped at a COND_EXPR or SWITCH_EXPR, see if we know which arm
-     will be taken.  */
-  if (gimple_code (stmt) == GIMPLE_COND
-      || gimple_code (stmt) == GIMPLE_GOTO
-      || gimple_code (stmt) == GIMPLE_SWITCH)
+  int threaded = thread_through_normal_block (e, dummy_cond,
+					      handle_dominating_asserts,
+					      stack, simplify, path,
+					      visited, &backedge_seen);
+  if (threaded > 0)
     {
-      tree cond;
+      propagate_threaded_block_debug_into (path->last ()->e->dest,
+					   e->dest);
+      remove_temporary_equivalences (stack);
+      BITMAP_FREE (visited);
+      register_jump_thread (path);
+      return;
+    }
+  else
+    {
+      /* Negative and zero return values indicate no threading was possible,
+	 thus there should be no edges on the thread path and no need to walk
+	 through the vector entries.  */
+      gcc_assert (path->length () == 0);
+      path->release ();
 
-      /* Extract and simplify the condition.  */
-      cond = simplify_control_stmt_condition (e, stmt, dummy_cond, simplify,
-					      handle_dominating_asserts);
+      /* A negative status indicates the target block was deemed too big to
+	 duplicate.  Just quit now rather than trying to use the block as
+	 a joiner in a jump threading path.
 
-      if (cond && is_gimple_min_invariant (cond))
+	 This prevents unnecessary code growth, but more importantly if we
+	 do not look at all the statements in the block, then we may have
+	 missed some invalidations if we had traversed a backedge!  */
+      if (threaded < 0)
 	{
-	  edge taken_edge = find_taken_edge (e->dest, cond);
-	  basic_block dest = (taken_edge ? taken_edge->dest : NULL);
-	  bitmap visited;
-	  edge e2;
-
-	  if (dest == e->dest)
-	    goto fail;
-
-	  /* DEST could be null for a computed jump to an absolute
-	     address.  If DEST is not null, then see if we can thread
-	     through it as well, this helps capture secondary effects
-	     of threading without having to re-run DOM or VRP.  */
-	  if (dest)
-	    {
-	      /* We don't want to thread back to a block we have already
- 		 visited.  This may be overly conservative.  */
-	      visited = BITMAP_ALLOC (NULL);
-	      bitmap_set_bit (visited, dest->index);
-	      bitmap_set_bit (visited, e->dest->index);
-	      do
-		{
-		  e2 = thread_around_empty_block (taken_edge,
-						  dummy_cond,
-						  handle_dominating_asserts,
-						  simplify,
-						  visited);
-		  if (e2)
-		    taken_edge = e2;
-		}
-	      while (e2);
-	      BITMAP_FREE (visited);
-	    }
-
+	  BITMAP_FREE (visited);
 	  remove_temporary_equivalences (stack);
-	  register_jump_thread (e, taken_edge, NULL);
 	  return;
 	}
     }
@@ -799,56 +1127,81 @@ thread_across_edge (gimple dummy_cond,
     This is a stopgap until we have a more structured approach to path
     isolation.  */
   {
-    edge e2, e3, taken_edge;
+    edge taken_edge;
     edge_iterator ei;
-    bool found = false;
-    bitmap visited = BITMAP_ALLOC (NULL);
+    bool found;
+
+    /* If E->dest has abnormal outgoing edges, then there's no guarantee
+       we can safely redirect any of the edges.  Just punt those cases.  */
+    FOR_EACH_EDGE (taken_edge, ei, e->dest->succs)
+      if (taken_edge->flags & EDGE_ABNORMAL)
+	{
+	  remove_temporary_equivalences (stack);
+	  BITMAP_FREE (visited);
+	  return;
+	}
 
     /* Look at each successor of E->dest to see if we can thread through it.  */
     FOR_EACH_EDGE (taken_edge, ei, e->dest->succs)
       {
+	/* Push a fresh marker so we can unwind the equivalences created
+	   for each of E->dest's successors.  */
+	stack->safe_push (NULL_TREE);
+     
 	/* Avoid threading to any block we have already visited.  */
 	bitmap_clear (visited);
-	bitmap_set_bit (visited, taken_edge->dest->index);
+	bitmap_set_bit (visited, e->src->index);
 	bitmap_set_bit (visited, e->dest->index);
+	bitmap_set_bit (visited, taken_edge->dest->index);
+        vec<jump_thread_edge *> *path = new vec<jump_thread_edge *> ();
 
 	/* Record whether or not we were able to thread through a successor
 	   of E->dest.  */
+        jump_thread_edge *x = new jump_thread_edge (e, EDGE_START_JUMP_THREAD);
+	path->safe_push (x);
+
+        x = new jump_thread_edge (taken_edge, EDGE_COPY_SRC_JOINER_BLOCK);
+	path->safe_push (x);
 	found = false;
-	e3 = taken_edge;
-	do
-	  {
-	    e2 = thread_around_empty_block (e3,
-				            dummy_cond,
-				            handle_dominating_asserts,
-				            simplify,
-				            visited);
-	    if (e2)
-	      {
-	        e3 = e2;
-		found = true;
-	      }
-	  }
-        while (e2);
+	backedge_seen = ((e->flags & EDGE_DFS_BACK) != 0);
+	backedge_seen |= ((taken_edge->flags & EDGE_DFS_BACK) != 0);
+	if (backedge_seen)
+	  simplify = dummy_simplify;
+	found = thread_around_empty_blocks (taken_edge,
+					    dummy_cond,
+					    handle_dominating_asserts,
+					    simplify,
+					    visited,
+					    path,
+					    &backedge_seen);
+
+	if (backedge_seen)
+	  simplify = dummy_simplify;
+
+	if (!found)
+	  found = thread_through_normal_block (path->last ()->e, dummy_cond,
+					       handle_dominating_asserts,
+					       stack, simplify, path, visited,
+					       &backedge_seen) > 0;
 
 	/* If we were able to thread through a successor of E->dest, then
 	   record the jump threading opportunity.  */
 	if (found)
 	  {
-	    edge tmp;
-	    /* If there is already an edge from the block to be duplicated
-	       (E2->src) to the final target (E3->dest), then make sure that
-	       the PHI args associated with the edges E2 and E3 are the
-	       same.  */
-	    tmp = find_edge (taken_edge->src, e3->dest);
-	    if (!tmp || phi_args_equal_on_edges (tmp, e3))
-	      register_jump_thread (e, taken_edge, e3);
+	    propagate_threaded_block_debug_into (path->last ()->e->dest,
+						 taken_edge->dest);
+	    register_jump_thread (path);
+	  }
+	else
+	  {
+	    delete_jump_thread_path (path);
 	  }
 
+	/* And unwind the equivalence table.  */
+	remove_temporary_equivalences (stack);
       }
     BITMAP_FREE (visited);
   }
 
- fail:
   remove_temporary_equivalences (stack);
 }

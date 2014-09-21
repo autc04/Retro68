@@ -7,12 +7,27 @@
 
 package http
 
-import "time"
+import (
+	"net"
+	"time"
+)
+
+func NewLoggingConn(baseName string, c net.Conn) net.Conn {
+	return newLoggingConn(baseName, c)
+}
+
+var ExportAppendTime = appendTime
+
+func (t *Transport) NumPendingRequestsForTesting() int {
+	t.reqMu.Lock()
+	defer t.reqMu.Unlock()
+	return len(t.reqConn)
+}
 
 func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	keys = make([]string, 0)
-	t.lk.Lock()
-	defer t.lk.Unlock()
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
 	if t.idleConn == nil {
 		return
 	}
@@ -23,8 +38,8 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 }
 
 func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
-	t.lk.Lock()
-	defer t.lk.Unlock()
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
 	if t.idleConn == nil {
 		return 0
 	}
@@ -35,9 +50,17 @@ func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
 	return len(conns)
 }
 
+func (t *Transport) IdleConnChMapSizeForTesting() int {
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	return len(t.idleConnCh)
+}
+
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	f := func() <-chan time.Time {
 		return ch
 	}
 	return &timeoutHandler{handler, f, ""}
 }
+
+var DefaultUserAgent = defaultUserAgent

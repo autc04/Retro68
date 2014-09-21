@@ -1,4 +1,4 @@
-// Copyright (C) 2005, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,6 +28,8 @@ typedef test_container<int, input_iterator_wrapper> Container;
 int array1[] = {0, 1};
 int array2[] = {1, 0};
 int array3[] = {1, 0, 1};
+
+bool __attribute__((unused)) test = false;
 
 void test1a()
 {

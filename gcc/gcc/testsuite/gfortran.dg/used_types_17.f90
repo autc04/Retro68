@@ -1,4 +1,4 @@
-! { dg do-compile }
+! { dg-do compile }
 ! Tests the fix for PR31630, in which the association of the argument
 ! of 'cmp' did not work.
 !
@@ -46,5 +46,3 @@ contains
   end subroutine boxarray_sort
 
 end module boxarray_module
-
-! { dg-final { cleanup-modules "box_module sort_box_module boxarray_module" } }

@@ -16,6 +16,59 @@ import (
 // If an IPv6 tunnel is running, we can try dialing a real IPv6 address.
 var testIPv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
+func TestResolveGoogle(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+
+	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
+		addr, err := ResolveTCPAddr(network, "www.google.com:http")
+		if err != nil {
+			if (network == "tcp" || network == "tcp4") && !supportsIPv4 {
+				t.Logf("ipv4 is not supported: %v", err)
+			} else if network == "tcp6" && !supportsIPv6 {
+				t.Logf("ipv6 is not supported: %v", err)
+			} else {
+				t.Errorf("ResolveTCPAddr failed: %v", err)
+			}
+			continue
+		}
+		if (network == "tcp" || network == "tcp4") && addr.IP.To4() == nil {
+			t.Errorf("got %v; expected an IPv4 address on %v", addr, network)
+		} else if network == "tcp6" && (addr.IP.To16() == nil || addr.IP.To4() != nil) {
+			t.Errorf("got %v; expected an IPv6 address on %v", addr, network)
+		}
+	}
+}
+
+func TestDialGoogle(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+
+	d := &Dialer{DualStack: true}
+	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
+		if network == "tcp" && !supportsIPv4 && !supportsIPv6 {
+			t.Logf("skipping test; both ipv4 and ipv6 are not supported")
+			continue
+		} else if network == "tcp4" && !supportsIPv4 {
+			t.Logf("skipping test; ipv4 is not supported")
+			continue
+		} else if network == "tcp6" && !supportsIPv6 {
+			t.Logf("skipping test; ipv6 is not supported")
+			continue
+		} else if network == "tcp6" && !*testIPv6 {
+			t.Logf("test disabled; use -ipv6 to enable")
+			continue
+		}
+		if c, err := d.Dial(network, "www.google.com:http"); err != nil {
+			t.Errorf("Dial failed: %v", err)
+		} else {
+			c.Close()
+		}
+	}
+}
+
 // fd is already connected to the destination, port 80.
 // Run an HTTP request to fetch the appropriate page.
 func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
@@ -41,17 +94,6 @@ func doDial(t *testing.T, network, addr string) {
 	fd.Close()
 }
 
-func TestLookupCNAME(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
-	}
-	cname, err := LookupCNAME("www.google.com")
-	if !strings.HasSuffix(cname, ".l.google.com.") || err != nil {
-		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "*.l.google.com.", nil`, cname, err)
-	}
-}
-
 var googleaddrsipv4 = []string{
 	"%d.%d.%d.%d:80",
 	"www.google.com:80",
@@ -65,10 +107,33 @@ var googleaddrsipv4 = []string{
 	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
 }
 
+func TestDNSThreadLimit(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+
+	const N = 10000
+	c := make(chan int, N)
+	for i := 0; i < N; i++ {
+		go func(i int) {
+			LookupIP(fmt.Sprintf("%d.net-test.golang.org", i))
+			c <- 1
+		}(i)
+	}
+	// Don't bother waiting for the stragglers; stop at 0.9 N.
+	for i := 0; i < N*9/10; i++ {
+		if i%100 == 0 {
+			//println("TestDNSThreadLimit:", i)
+		}
+		<-c
+	}
+
+	// If we're still here, it worked.
+}
+
 func TestDialGoogleIPv4(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 
 	// Insert an actual IPv4 address for google.com
@@ -123,12 +188,14 @@ var googleaddrsipv6 = []string{
 
 func TestDialGoogleIPv6(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 	// Only run tcp6 if the kernel will take it.
-	if !*testIPv6 || !supportsIPv6 {
-		return
+	if !supportsIPv6 {
+		t.Skip("skipping test; ipv6 is not supported")
+	}
+	if !*testIPv6 {
+		t.Skip("test disabled; use -ipv6 to enable")
 	}
 
 	// Insert an actual IPv6 address for ipv6.google.com

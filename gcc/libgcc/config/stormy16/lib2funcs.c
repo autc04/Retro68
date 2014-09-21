@@ -4,7 +4,7 @@
    files.  On this glorious day maybe this code can be integrated into
    it too.  */
 
-/* Copyright (C) 2005, 2008, 2009, 2010, 2011  Free Software Foundation, Inc.
+/* Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -308,6 +308,22 @@ __ffshi2 (UHWtype u)
     return 0;
 
   return 16 - __builtin_clz (u & - u);
+}
+#endif
+
+#ifdef XSTORMY16_CLRSBHI2
+/* Returns the number of leading redundant sign bits in X.
+   I.e. the number of bits following the most significant bit which are
+   identical to it.  There are no special cases for 0 or other values.  */
+
+int
+__clrsbhi2 (HWtype x)
+{
+  if (x < 0)
+    x = ~x;
+  if (x == 0)
+    return 15;
+  return __builtin_clz (x) - 1;
 }
 #endif
 

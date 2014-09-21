@@ -1,7 +1,5 @@
 /* Implement classes and message passing for Objective C.
-   Copyright (C) 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
    Contributed by Steve Naroff.
 
 This file is part of GCC.
@@ -25,12 +23,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "stringpool.h"
+#include "stor-layout.h"
+#include "attribs.h"
 
 #ifdef OBJCPLUS
-#include "cp-tree.h"
+#include "cp/cp-tree.h"
 #else
-#include "c-tree.h"
-#include "c-lang.h"
+#include "c/c-tree.h"
+#include "c/c-lang.h"
 #endif
 
 #include "c-family/c-common.h"
@@ -43,16 +44,14 @@ along with GCC; see the file COPYING3.  If not see
 #include "objc-map.h"
 #include "input.h"
 #include "function.h"
-#include "output.h"
 #include "toplev.h"
-#include "ggc.h"
 #include "debug.h"
 #include "c-family/c-target.h"
 #include "diagnostic-core.h"
 #include "intl.h"
 #include "cgraph.h"
 #include "tree-iterator.h"
-#include "hashtab.h"
+#include "hash-table.h"
 #include "langhooks-def.h"
 /* Different initialization, code gen and meta data generation for each
    runtime.  */
@@ -63,7 +62,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-pretty-print.h"
 
 /* For enum gimplify_status */
-#include "gimple.h"
+#include "gimple-expr.h"
+#include "gimplify.h"
 
 /* For encode_method_prototype().  */
 #include "objc-encoding.h"
@@ -247,7 +247,7 @@ static char *errbuf;	/* Buffer for error diagnostics */
 
 /* An array of all the local variables in the current function that
    need to be marked as volatile.  */
-VEC(tree,gc) *local_variables_to_volatilize = NULL;
+vec<tree, va_gc> *local_variables_to_volatilize = NULL;
 
 /* Store all constructed constant strings in a hash table so that
    they get uniqued properly.  */
@@ -1404,7 +1404,7 @@ objc_maybe_build_component_ref (tree object, tree property_ident)
 		     object.component dot-syntax without a declared
 		     property (this is valid for classes too).  Look
 		     for getter/setter methods and internally declare
-		     an artifical property based on them if found.  */
+		     an artificial property based on them if found.  */
 		  x = maybe_make_artificial_property_decl (NULL_TREE,
 							   NULL_TREE,
 							   rprotos,
@@ -2068,7 +2068,7 @@ objc_build_struct (tree klass, tree fields, tree super_name)
   tree s = objc_start_struct (name);
   tree super = (super_name ? xref_tag (RECORD_TYPE, super_name) : NULL_TREE);
   tree t;
-  VEC(tree,heap) *objc_info = NULL;
+  vec<tree> objc_info = vNULL;
   int i;
 
   if (super)
@@ -2128,7 +2128,7 @@ objc_build_struct (tree klass, tree fields, tree super_name)
   for (t = TYPE_MAIN_VARIANT (s); t; t = TYPE_NEXT_VARIANT (t))
     {
       INIT_TYPE_OBJC_INFO (t);
-      VEC_safe_push (tree, heap, objc_info, TYPE_OBJC_INFO (t));
+      objc_info.safe_push (TYPE_OBJC_INFO (t));
     }
 
   s = objc_finish_struct (s, fields);
@@ -2159,12 +2159,12 @@ objc_build_struct (tree klass, tree fields, tree super_name)
       /* Replace TYPE_OBJC_INFO with the saved one.  This restores any
 	 protocol information that may have been associated with the
 	 type.  */
-      TYPE_OBJC_INFO (t) = VEC_index (tree, objc_info, i);
+      TYPE_OBJC_INFO (t) = objc_info[i];
       /* Replace the IDENTIFIER_NODE with an actual @interface now
 	 that we have it.  */
       TYPE_OBJC_INTERFACE (t) = klass;
     }
-  VEC_free (tree, heap, objc_info);
+  objc_info.release ();
 
   /* Use TYPE_BINFO structures to point at the super class, if any.  */
   objc_xref_basetypes (s, super);
@@ -2188,9 +2188,9 @@ objc_volatilize_decl (tree decl)
 	  || TREE_CODE (decl) == PARM_DECL))
     {
       if (local_variables_to_volatilize == NULL)
-	local_variables_to_volatilize = VEC_alloc (tree, gc, 8);
+	vec_alloc (local_variables_to_volatilize, 8);
 
-      VEC_safe_push (tree, gc, local_variables_to_volatilize, decl);
+      vec_safe_push (local_variables_to_volatilize, decl);
     }
 }
 
@@ -2209,7 +2209,7 @@ objc_finish_function (void)
     {
       int i;
       tree decl;
-      FOR_EACH_VEC_ELT (tree, local_variables_to_volatilize, i, decl)
+      FOR_EACH_VEC_ELT (*local_variables_to_volatilize, i, decl)
 	{
 	  tree t = TREE_TYPE (decl);
 
@@ -2224,7 +2224,7 @@ objc_finish_function (void)
 	}
 
       /* Now we delete the vector.  This sets it to NULL as well.  */
-      VEC_free (tree, gc, local_variables_to_volatilize);
+      vec_free (local_variables_to_volatilize);
     }
 }
 
@@ -2689,7 +2689,7 @@ objc_xref_basetypes (tree ref, tree basetype)
       tree base_binfo = objc_copy_binfo (TYPE_BINFO (basetype));
 
       BINFO_INHERITANCE_CHAIN (base_binfo) = binfo;
-      BINFO_BASE_ACCESSES (binfo) = VEC_alloc (tree, gc, 1);
+      vec_alloc (BINFO_BASE_ACCESSES (binfo), 1);
       BINFO_BASE_APPEND (binfo, base_binfo);
       BINFO_BASE_ACCESS_APPEND (binfo, access_public_node);
     }
@@ -3199,7 +3199,7 @@ objc_build_string_object (tree string)
    with type TYPE and elements ELTS.  */
 
 tree
-objc_build_constructor (tree type, VEC(constructor_elt,gc) *elts)
+objc_build_constructor (tree type, vec<constructor_elt, va_gc> *elts)
 {
   tree constructor = build_constructor (type, elts);
 
@@ -3210,7 +3210,7 @@ objc_build_constructor (tree type, VEC(constructor_elt,gc) *elts)
 #ifdef OBJCPLUS
   /* Adjust for impedance mismatch.  We should figure out how to build
      CONSTRUCTORs that consistently please both the C and C++ gods.  */
-  if (!VEC_index (constructor_elt, elts, 0)->index)
+  if (!(*elts)[0].index)
     TREE_TYPE (constructor) = init_list_type_node;
 #endif
 
@@ -3293,7 +3293,7 @@ objc_get_class_reference (tree ident)
 #ifdef OBJCPLUS
   if (processing_template_decl)
     /* Must wait until template instantiation time.  */
-    return build_min_nt (CLASS_REFERENCE_EXPR, ident);
+    return build_min_nt_loc (UNKNOWN_LOCATION, CLASS_REFERENCE_EXPR, ident);
 #endif
 
   if (TREE_CODE (ident) == TYPE_DECL)
@@ -3553,7 +3553,6 @@ objc_build_ivar_assignment (tree outervar, tree lhs, tree rhs)
 		tree_cons (NULL_TREE, offs,
 		    NULL_TREE)));
 
-  assemble_external (func);
   return build_function_call (input_location, func, func_params);
 }
 
@@ -3566,7 +3565,6 @@ objc_build_global_assignment (tree lhs, tree rhs)
 		      build_unary_op (input_location, ADDR_EXPR, lhs, 0)),
 		    NULL_TREE));
 
-  assemble_external (objc_assign_global_decl);
   return build_function_call (input_location,
 			      objc_assign_global_decl, func_params);
 }
@@ -3580,7 +3578,6 @@ objc_build_strong_cast_assignment (tree lhs, tree rhs)
 		      build_unary_op (input_location, ADDR_EXPR, lhs, 0)),
 		    NULL_TREE));
 
-  assemble_external (objc_assign_strong_cast_decl);
   return build_function_call (input_location,
 			      objc_assign_strong_cast_decl, func_params);
 }
@@ -3828,18 +3825,24 @@ objc_get_class_ivars (tree class_name)
    allows us to store keys in the hashtable, without values (it looks
    more like a set).  So, we store the DECLs, but define equality as
    DECLs having the same name, and hash as the hash of the name.  */
-static hashval_t
-hash_instance_variable (const PTR p)
+
+struct decl_name_hash : typed_noop_remove <tree_node>
 {
-  const_tree q = (const_tree)p;
+  typedef tree_node value_type;
+  typedef tree_node compare_type;
+  static inline hashval_t hash (const value_type *);
+  static inline bool equal (const value_type *, const compare_type *);
+};
+
+inline hashval_t
+decl_name_hash::hash (const value_type *q)
+{
   return (hashval_t) ((intptr_t)(DECL_NAME (q)) >> 3);
 }
 
-static int
-eq_instance_variable (const PTR p1, const PTR p2)
+inline bool
+decl_name_hash::equal (const value_type *a, const compare_type *b)
 {
-  const_tree a = (const_tree)p1;
-  const_tree b = (const_tree)p2;
   return DECL_NAME (a) == DECL_NAME (b);
 }
 
@@ -3920,8 +3923,8 @@ objc_detect_field_duplicates (bool check_superclasses_only)
 	  {
 	    /* First, build the hashtable by putting all the instance
 	       variables of superclasses in it.  */
-	    htab_t htab = htab_create (37, hash_instance_variable,
-				       eq_instance_variable, NULL);
+	    hash_table <decl_name_hash> htab;
+	    htab.create (37);
 	    tree interface;
 	    for (interface = lookup_interface (CLASS_SUPER_NAME
 					       (objc_interface_context));
@@ -3934,7 +3937,7 @@ objc_detect_field_duplicates (bool check_superclasses_only)
 		  {
 		    if (DECL_NAME (ivar) != NULL_TREE)
 		      {
-			void **slot = htab_find_slot (htab, ivar, INSERT);
+			tree_node **slot = htab.find_slot (ivar, INSERT);
 			/* Do not check for duplicate instance
 			   variables in superclasses.  Errors have
 			   already been generated.  */
@@ -3954,7 +3957,7 @@ objc_detect_field_duplicates (bool check_superclasses_only)
 		  {
 		    if (DECL_NAME (ivar) != NULL_TREE)
 		      {
-			tree duplicate_ivar = (tree)(htab_find (htab, ivar));
+			tree duplicate_ivar = htab.find (ivar);
 			if (duplicate_ivar != HTAB_EMPTY_ENTRY)
 			  {
 			    error_at (DECL_SOURCE_LOCATION (ivar),
@@ -3981,7 +3984,7 @@ objc_detect_field_duplicates (bool check_superclasses_only)
 		  {
 		    if (DECL_NAME (ivar) != NULL_TREE)
 		      {
-			void **slot = htab_find_slot (htab, ivar, INSERT);
+			tree_node **slot = htab.find_slot (ivar, INSERT);
 			if (*slot)
 			  {
 			    tree duplicate_ivar = (tree)(*slot);
@@ -3998,7 +4001,7 @@ objc_detect_field_duplicates (bool check_superclasses_only)
 		      }
 		  }
 	      }
-	    htab_delete (htab);
+	    htab.dispose ();
 	    return true;
 	  }
       }
@@ -4628,7 +4631,7 @@ mark_referenced_methods (void)
       chain = CLASS_CLS_METHODS (impent->imp_context);
       while (chain)
 	{
-	  cgraph_mark_needed_node (
+	  cgraph_mark_force_output_node (
 			   cgraph_get_create_node (METHOD_DEFINITION (chain)));
 	  chain = DECL_CHAIN (chain);
 	}
@@ -4636,7 +4639,7 @@ mark_referenced_methods (void)
       chain = CLASS_NST_METHODS (impent->imp_context);
       while (chain)
 	{
-	  cgraph_mark_needed_node (
+	  cgraph_mark_force_output_node (
 			   cgraph_get_create_node (METHOD_DEFINITION (chain)));
 	  chain = DECL_CHAIN (chain);
 	}
@@ -4993,7 +4996,7 @@ tree
 build_function_type_for_method (tree return_type, tree method,
 				int context, bool super_flag)
 {
-  VEC(tree,gc) *argtypes = make_tree_vector ();
+  vec<tree, va_gc> *argtypes = make_tree_vector ();
   tree t, ftype;
   bool is_varargs = false;
 
@@ -5014,7 +5017,7 @@ build_function_type_for_method (tree return_type, tree method,
          appropriate.  */
       arg_type = objc_decay_parm_type (arg_type);
 
-      VEC_safe_push (tree, gc, argtypes, arg_type);
+      vec_safe_push (argtypes, arg_type);
     }
 
   if (METHOD_ADD_ARGS (method))
@@ -5026,7 +5029,7 @@ build_function_type_for_method (tree return_type, tree method,
 
 	  arg_type = objc_decay_parm_type (arg_type);
 
-	  VEC_safe_push (tree, gc, argtypes, arg_type);
+	  vec_safe_push (argtypes, arg_type);
 	}
 
       if (METHOD_ADD_ARGS_ELLIPSIS_P (method))
@@ -5275,8 +5278,8 @@ objc_build_message_expr (tree receiver, tree message_args)
 #ifdef OBJCPLUS
   if (processing_template_decl)
     /* Must wait until template instantiation time.  */
-    return build_min_nt (MESSAGE_SEND_EXPR, receiver, sel_name,
-			 method_params);
+    return build_min_nt_loc (UNKNOWN_LOCATION, MESSAGE_SEND_EXPR, receiver,
+			     sel_name, method_params);
 #endif
 
   return objc_finish_message_expr (receiver, sel_name, method_params, NULL);
@@ -7270,6 +7273,7 @@ objc_synthesize_getter (tree klass, tree class_methods ATTRIBUTE_UNUSED, tree pr
 	     the same type, there is no need to lookup the ivar.  */
 	  size_of = c_sizeof_or_alignof_type (location, TREE_TYPE (property),
 					      true /* is_sizeof */,
+					      false /* min_alignof */,
 					      false /* complain */);
 
 	  if (PROPERTY_NONATOMIC (property))
@@ -7471,6 +7475,7 @@ objc_synthesize_setter (tree klass, tree class_methods ATTRIBUTE_UNUSED, tree pr
 	     the same type, there is no need to lookup the ivar.  */
 	  size_of = c_sizeof_or_alignof_type (location, TREE_TYPE (property),
 					      true /* is_sizeof */,
+					      false /* min_alignof */,
 					      false /* complain */);
 
 	  if (PROPERTY_NONATOMIC (property))
@@ -8244,6 +8249,7 @@ objc_push_parm (tree parm)
   c_apply_type_quals_to_decl
   ((TYPE_READONLY (TREE_TYPE (parm)) ? TYPE_QUAL_CONST : 0)
    | (TYPE_RESTRICT (TREE_TYPE (parm)) ? TYPE_QUAL_RESTRICT : 0)
+   | (TYPE_ATOMIC (TREE_TYPE (parm)) ? TYPE_QUAL_ATOMIC : 0)
    | (TYPE_VOLATILE (TREE_TYPE (parm)) ? TYPE_QUAL_VOLATILE : 0), parm);
 
   objc_parmlist = chainon (objc_parmlist, parm);

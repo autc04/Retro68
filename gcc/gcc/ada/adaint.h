@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2011, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2013, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -51,7 +51,7 @@ extern "C" {
    determine at compile time what support the system offers for large files.
    For now we just list the platforms we have manually tested. */
 
-#if defined (__GLIBC__) || defined (sun)  || (defined (__sgi) && defined(_LFAPI))
+#if defined (__GLIBC__) || defined (sun)
 #define GNAT_FOPEN fopen64
 #define GNAT_STAT stat64
 #define GNAT_FSTAT fstat64
@@ -78,6 +78,11 @@ typedef long OS_Time;
 */
 
 struct file_attributes {
+  int           error;
+  /* Errno value returned by stat()/fstat(). If non-zero, other fields should
+   * be considered as invalid.
+   */
+
   unsigned char exists;
 
   unsigned char writable;
@@ -120,7 +125,7 @@ extern int    __gnat_symlink                       (char *, char *);
 extern int    __gnat_try_lock                      (char *, char *);
 extern int    __gnat_open_new                      (char *, int);
 extern int    __gnat_open_new_temp		   (char *, int);
-extern int    __gnat_mkdir			   (char *);
+extern int    __gnat_mkdir			   (char *, int);
 extern int    __gnat_stat			   (char *,
 						    GNAT_STRUCT_STAT *);
 extern int    __gnat_unlink                        (char *);
@@ -128,9 +133,10 @@ extern int    __gnat_rename                        (char *, char *);
 extern int    __gnat_chdir                         (char *);
 extern int    __gnat_rmdir                         (char *);
 
-extern FILE  *__gnat_fopen			   (char *, char *, int);
+extern FILE  *__gnat_fopen			   (char *, char *, int,
+						    char *);
 extern FILE  *__gnat_freopen			   (char *, char *, FILE *,
-				                    int);
+				                    int, char *);
 extern int    __gnat_open_read                     (char *, int);
 extern int    __gnat_open_rw                       (char *, int);
 extern int    __gnat_open_create                   (char *, int);
@@ -162,7 +168,8 @@ extern int    __gnat_is_writable_file		   (char *);
 extern int    __gnat_is_readable_file		   (char *name);
 extern int    __gnat_is_executable_file      (char *name);
 
-extern void __gnat_reset_attributes (struct file_attributes* attr);
+extern void   __gnat_reset_attributes (struct file_attributes *);
+extern int    __gnat_error_attributes (struct file_attributes *);
 extern long   __gnat_file_length_attr        (int, char *, struct file_attributes *);
 extern OS_Time __gnat_file_time_name_attr    (char *, struct file_attributes *);
 extern OS_Time __gnat_file_time_fd_attr      (int,    struct file_attributes *);
@@ -250,7 +257,11 @@ extern char * __gnat_locate_executable_file        (char *, char *);
 extern char * __gnat_locate_file_with_predicate    (char *, char *,
 						    int (*)(char*));
 
-#if defined (linux)
+#if defined (__ANDROID__)
+#undef linux
+extern void   *__gnat_lwp_self                     (void);
+
+#elif defined (linux)
 extern void   *__gnat_lwp_self			   (void);
 
 /* Routines for interface to required CPU set primitives */
@@ -281,6 +292,8 @@ extern int    get_gcc_version                      (void);
 
 extern int    __gnat_binder_supports_auto_init     (void);
 extern int    __gnat_sals_init_using_constructors  (void);
+
+extern const void * __gnat_get_executable_load_address  (void);
 
 #ifdef __cplusplus
 }

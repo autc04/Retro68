@@ -130,7 +130,7 @@ type T struct {
 // Fail marks the function as having failed but continues execution.
 func (c *common) Fail() { c.failed = true }
 
-// Failed returns whether the function has failed.
+// Failed reports whether the function has failed.
 func (c *common) Failed() bool { return c.failed }
 
 // FailNow marks the function as having failed and stops its execution.
@@ -197,7 +197,7 @@ func (c *common) Fatalf(format string, args ...interface{}) {
 	c.FailNow()
 }
 
-// Parallel signals that this test is to be run in parallel with (and only with) 
+// Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests in this CPU group.
 func (t *T) Parallel() {
 	t.signal <- (*T)(nil) // Release main testing loop
@@ -215,7 +215,7 @@ func tRunner(t *T, test *InternalTest) {
 	t.start = time.Now()
 
 	// When this goroutine is done, either because test.F(t)
-	// returned normally or because a test failure triggered 
+	// returned normally or because a test failure triggered
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {

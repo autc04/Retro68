@@ -1,4 +1,4 @@
-/* Copyright (C) 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -28,11 +28,13 @@
 #ifndef _XOPMMINTRIN_H_INCLUDED
 #define _XOPMMINTRIN_H_INCLUDED
 
-#ifndef __XOP__
-# error "XOP instruction set not enabled"
-#else
-
 #include <fma4intrin.h>
+
+#ifndef __XOP__
+#pragma GCC push_options
+#pragma GCC target("xop")
+#define __DISABLE_XOP__
+#endif /* __XOP__ */
 
 /* Integer multiply/add intructions. */
 extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
@@ -745,13 +747,17 @@ _mm_frcz_pd (__m128d __A)
 extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 _mm_frcz_ss (__m128 __A, __m128 __B)
 {
-  return (__m128) __builtin_ia32_vfrczss ((__v4sf)__A, (__v4sf)__B);
+  return (__m128) __builtin_ia32_movss ((__v4sf)__A,
+					(__v4sf)
+					__builtin_ia32_vfrczss ((__v4sf)__B));
 }
 
 extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 _mm_frcz_sd (__m128d __A, __m128d __B)
 {
-  return (__m128d) __builtin_ia32_vfrczsd ((__v2df)__A, (__v2df)__B);
+  return (__m128d) __builtin_ia32_movsd ((__v2df)__A,
+					 (__v2df)
+					 __builtin_ia32_vfrczsd ((__v2df)__B));
 }
 
 extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
@@ -830,6 +836,9 @@ _mm256_permute2_ps (__m256 __X, __m256 __Y, __m256i __C, const int __I)
  					  (int)(I)))
 #endif /* __OPTIMIZE__ */
 
-#endif /* __XOP__ */
+#ifdef __DISABLE_XOP__
+#undef __DISABLE_XOP__
+#pragma GCC pop_options
+#endif /* __DISABLE_XOP__ */
 
 #endif /* _XOPMMINTRIN_H_INCLUDED */

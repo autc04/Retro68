@@ -2,8 +2,7 @@
    by the C-based front ends.  The structure of gimplified, or
    language-independent, trees is dictated by the grammar described in this
    file.
-   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Lowering of expressions contributed by Sebastian Pop <s.pop@laposte.net>
    Re-written to support lowering of whole function trees, documentation
    and miscellaneous cleanups by Diego Novillo <dnovillo@redhat.com>
@@ -30,17 +29,22 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm.h"
 #include "tree.h"
 #include "c-common.h"
-#include "gimple.h"
 #include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-expr.h"
+#include "is-a.h"
+#include "gimple.h"
+#include "gimplify.h"
 #include "tree-inline.h"
 #include "diagnostic-core.h"
 #include "langhooks.h"
 #include "langhooks-def.h"
 #include "flags.h"
-#include "tree-dump.h"
+#include "dumpfile.h"
 #include "c-pretty-print.h"
 #include "cgraph.h"
-
+#include "cilk.h"
 
 /*  The gimplification pass converts the language-dependent trees
     (ld-trees) emitted by the parser into language-independent trees
@@ -109,9 +113,9 @@ add_block_to_enclosing (tree block)
   unsigned i;
   tree enclosing;
   gimple bind;
-  VEC(gimple, heap) *stack = gimple_bind_expr_stack ();
+  vec<gimple> stack = gimple_bind_expr_stack ();
 
-  FOR_EACH_VEC_ELT (gimple, stack, i, bind)
+  FOR_EACH_VEC_ELT (stack, i, bind)
     if (gimple_bind_block (bind))
       break;
 
@@ -173,16 +177,59 @@ c_gimplify_expr (tree *expr_p, gimple_seq *pre_p ATTRIBUTE_UNUSED,
 {
   enum tree_code code = TREE_CODE (*expr_p);
 
-  /* This is handled mostly by gimplify.c, but we have to deal with
-     not warning about int x = x; as it is a GCC extension to turn off
-     this warning but only if warn_init_self is zero.  */
-  if (code == DECL_EXPR
-      && TREE_CODE (DECL_EXPR_DECL (*expr_p)) == VAR_DECL
-      && !DECL_EXTERNAL (DECL_EXPR_DECL (*expr_p))
-      && !TREE_STATIC (DECL_EXPR_DECL (*expr_p))
-      && (DECL_INITIAL (DECL_EXPR_DECL (*expr_p)) == DECL_EXPR_DECL (*expr_p))
-      && !warn_init_self)
-    TREE_NO_WARNING (DECL_EXPR_DECL (*expr_p)) = 1;
+  switch (code)
+    {
+    case DECL_EXPR:
+      /* This is handled mostly by gimplify.c, but we have to deal with
+	 not warning about int x = x; as it is a GCC extension to turn off
+	 this warning but only if warn_init_self is zero.  */
+      if (TREE_CODE (DECL_EXPR_DECL (*expr_p)) == VAR_DECL
+	  && !DECL_EXTERNAL (DECL_EXPR_DECL (*expr_p))
+	  && !TREE_STATIC (DECL_EXPR_DECL (*expr_p))
+	  && (DECL_INITIAL (DECL_EXPR_DECL (*expr_p)) == DECL_EXPR_DECL (*expr_p))
+	  && !warn_init_self)
+	TREE_NO_WARNING (DECL_EXPR_DECL (*expr_p)) = 1;
+      break;
+
+    case PREINCREMENT_EXPR:
+    case PREDECREMENT_EXPR:
+    case POSTINCREMENT_EXPR:
+    case POSTDECREMENT_EXPR:
+      {
+	tree type = TREE_TYPE (TREE_OPERAND (*expr_p, 0));
+	if (INTEGRAL_TYPE_P (type) && c_promoting_integer_type_p (type))
+	  {
+	    if (TYPE_OVERFLOW_UNDEFINED (type)
+		|| ((flag_sanitize & SANITIZE_SI_OVERFLOW)
+		    && !TYPE_OVERFLOW_WRAPS (type)))
+	      type = unsigned_type_for (type);
+	    return gimplify_self_mod_expr (expr_p, pre_p, post_p, 1, type);
+	  }
+	break;
+      }
+      
+    case CILK_SPAWN_STMT:
+      gcc_assert 
+	(fn_contains_cilk_spawn_p (cfun) 
+	 && cilk_detect_spawn_and_unwrap (expr_p));
+      
+      /* If errors are seen, then just process it as a CALL_EXPR.  */
+      if (!seen_error ())
+	return (enum gimplify_status) gimplify_cilk_spawn (expr_p);
+      
+    case MODIFY_EXPR:
+    case INIT_EXPR:
+    case CALL_EXPR:
+      if (fn_contains_cilk_spawn_p (cfun)
+	  && cilk_detect_spawn_and_unwrap (expr_p)
+	  /* If an error is found, the spawn wrapper is removed and the
+	     original expression (MODIFY/INIT/CALL_EXPR) is processes as
+	     it is supposed to be.  */
+	  && !seen_error ())
+	return (enum gimplify_status) gimplify_cilk_spawn (expr_p);
+
+    default:;
+    }
 
   return GS_UNHANDLED;
 }

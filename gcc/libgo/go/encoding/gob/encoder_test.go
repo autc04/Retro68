@@ -131,7 +131,7 @@ func TestBadData(t *testing.T) {
 	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
 }
 
-// Types not supported by the Encoder.
+// Types not supported at top level by the Encoder.
 var unsupportedValues = []interface{}{
 	make(chan int),
 	func(a int) bool { return true },
@@ -662,19 +662,35 @@ func TestSequentialDecoder(t *testing.T) {
 	}
 }
 
-// Should be able to have unrepresentable fields (chan, func) as long as they
-// are unexported.
+// Should be able to have unrepresentable fields (chan, func, *chan etc.); we just ignore them.
 type Bug2 struct {
-	A int
-	b chan int
+	A   int
+	C   chan int
+	CP  *chan int
+	F   func()
+	FPP **func()
 }
 
-func TestUnexportedChan(t *testing.T) {
-	b := Bug2{23, make(chan int)}
-	var stream bytes.Buffer
-	enc := NewEncoder(&stream)
-	if err := enc.Encode(b); err != nil {
-		t.Fatalf("error encoding unexported channel: %s", err)
+func TestChanFuncIgnored(t *testing.T) {
+	c := make(chan int)
+	f := func() {}
+	fp := &f
+	b0 := Bug2{23, c, &c, f, &fp}
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.Encode(b0); err != nil {
+		t.Fatal("error encoding:", err)
+	}
+	var b1 Bug2
+	err := NewDecoder(&buf).Decode(&b1)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if b1.A != b0.A {
+		t.Fatalf("got %d want %d", b1.A, b0.A)
+	}
+	if b1.C != nil || b1.CP != nil || b1.F != nil || b1.FPP != nil {
+		t.Fatal("unexpected value for chan or func")
 	}
 }
 
@@ -694,8 +710,8 @@ type Bug3 struct {
 
 func TestGobPtrSlices(t *testing.T) {
 	in := []*Bug3{
-		&Bug3{1, nil},
-		&Bug3{2, nil},
+		{1, nil},
+		{2, nil},
 	}
 	b := new(bytes.Buffer)
 	err := NewEncoder(b).Encode(&in)
@@ -734,5 +750,111 @@ func TestPtrToMapOfMap(t *testing.T) {
 	}
 	if !reflect.DeepEqual(data, newData) {
 		t.Fatalf("expected %v got %v", data, newData)
+	}
+}
+
+// A top-level nil pointer generates a panic with a helpful string-valued message.
+func TestTopLevelNilPointer(t *testing.T) {
+	errMsg := topLevelNilPanic(t)
+	if errMsg == "" {
+		t.Fatal("top-level nil pointer did not panic")
+	}
+	if !strings.Contains(errMsg, "nil pointer") {
+		t.Fatal("expected nil pointer error, got:", errMsg)
+	}
+}
+
+func topLevelNilPanic(t *testing.T) (panicErr string) {
+	defer func() {
+		e := recover()
+		if err, ok := e.(string); ok {
+			panicErr = err
+		}
+	}()
+	var ip *int
+	buf := new(bytes.Buffer)
+	if err := NewEncoder(buf).Encode(ip); err != nil {
+		t.Fatal("error in encode:", err)
+	}
+	return
+}
+
+func TestNilPointerInsideInterface(t *testing.T) {
+	var ip *int
+	si := struct {
+		I interface{}
+	}{
+		I: ip,
+	}
+	buf := new(bytes.Buffer)
+	err := NewEncoder(buf).Encode(si)
+	if err == nil {
+		t.Fatal("expected error, got none")
+	}
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "nil pointer") || !strings.Contains(errMsg, "interface") {
+		t.Fatal("expected error about nil pointer and interface, got:", errMsg)
+	}
+}
+
+type Bug4Public struct {
+	Name   string
+	Secret Bug4Secret
+}
+
+type Bug4Secret struct {
+	a int // error: no exported fields.
+}
+
+// Test that a failed compilation doesn't leave around an executable encoder.
+// Issue 3273.
+func TestMutipleEncodingsOfBadType(t *testing.T) {
+	x := Bug4Public{
+		Name:   "name",
+		Secret: Bug4Secret{1},
+	}
+	buf := new(bytes.Buffer)
+	enc := NewEncoder(buf)
+	err := enc.Encode(x)
+	if err == nil {
+		t.Fatal("first encoding: expected error")
+	}
+	buf.Reset()
+	enc = NewEncoder(buf)
+	err = enc.Encode(x)
+	if err == nil {
+		t.Fatal("second encoding: expected error")
+	}
+	if !strings.Contains(err.Error(), "no exported fields") {
+		t.Errorf("expected error about no exported fields; got %v", err)
+	}
+}
+
+// There was an error check comparing the length of the input with the
+// length of the slice being decoded. It was wrong because the next
+// thing in the input might be a type definition, which would lead to
+// an incorrect length check.  This test reproduces the corner case.
+
+type Z struct {
+}
+
+func Test29ElementSlice(t *testing.T) {
+	Register(Z{})
+	src := make([]interface{}, 100) // Size needs to be bigger than size of type definition.
+	for i := range src {
+		src[i] = Z{}
+	}
+	buf := new(bytes.Buffer)
+	err := NewEncoder(buf).Encode(src)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+		return
+	}
+
+	var dst []interface{}
+	err = NewDecoder(buf).Decode(&dst)
+	if err != nil {
+		t.Errorf("decode: %v", err)
+		return
 	}
 }

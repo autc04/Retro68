@@ -1,7 +1,5 @@
 /* Functions dealing with attribute handling, used by most front ends.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,6 +22,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "stringpool.h"
+#include "attribs.h"
+#include "stor-layout.h"
 #include "flags.h"
 #include "diagnostic-core.h"
 #include "ggc.h"
@@ -31,15 +32,12 @@ along with GCC; see the file COPYING3.  If not see
 #include "cpplib.h"
 #include "target.h"
 #include "langhooks.h"
-#include "hashtab.h"
+#include "hash-table.h"
 #include "plugin.h"
 
 /* Table of the tables of attributes (common, language, format, machine)
    searched.  */
 static const struct attribute_spec *attribute_tables[4];
-
-/* Hashtable mapping names (represented as substrings) to attribute specs. */
-static htab_t attribute_hash;
 
 /* Substring representation.  */
 
@@ -48,6 +46,54 @@ struct substring
   const char *str;
   int length;
 };
+
+/* Simple hash function to avoid need to scan whole string.  */
+
+static inline hashval_t
+substring_hash (const char *str, int l)
+{
+  return str[0] + str[l - 1] * 256 + l * 65536;
+}
+
+/* Used for attribute_hash.  */
+
+struct attribute_hasher : typed_noop_remove <attribute_spec>
+{
+  typedef attribute_spec value_type;
+  typedef substring compare_type;
+  static inline hashval_t hash (const value_type *);
+  static inline bool equal (const value_type *, const compare_type *);
+};
+
+inline hashval_t
+attribute_hasher::hash (const value_type *spec)
+{
+  const int l = strlen (spec->name);
+  return substring_hash (spec->name, l);
+}
+
+inline bool
+attribute_hasher::equal (const value_type *spec, const compare_type *str)
+{
+  return (strncmp (spec->name, str->str, str->length) == 0
+	  && !spec->name[str->length]);
+}
+
+/* Scoped attribute name representation.  */
+
+struct scoped_attributes
+{
+  const char *ns;
+  vec<attribute_spec> attributes;
+  hash_table <attribute_hasher> attribute_hash;
+};
+
+/* The table of scope attributes.  */
+static vec<scoped_attributes> attributes_table;
+
+static scoped_attributes* find_attribute_namespace (const char*);
+static void register_scoped_attribute (const struct attribute_spec *,
+				       scoped_attributes *);
 
 static bool attributes_initialized = false;
 
@@ -72,34 +118,62 @@ extract_attribute_substring (struct substring *str)
     }
 }
 
-/* Simple hash function to avoid need to scan whole string.  */
+/* Insert an array of attributes ATTRIBUTES into a namespace.  This
+   array must be NULL terminated.  NS is the name of attribute
+   namespace.  The function returns the namespace into which the
+   attributes have been registered.  */
 
-static inline hashval_t
-substring_hash (const char *str, int l)
+scoped_attributes*
+register_scoped_attributes (const struct attribute_spec * attributes,
+			    const char* ns)
 {
-  return str[0] + str[l - 1] * 256 + l * 65536;
+  scoped_attributes *result = NULL;
+
+  /* See if we already have attributes in the namespace NS.  */
+  result = find_attribute_namespace (ns);
+
+  if (result == NULL)
+    {
+      /* We don't have any namespace NS yet.  Create one.  */
+      scoped_attributes sa;
+
+      if (!attributes_table.is_empty ())
+	attributes_table.create (64);
+
+      memset (&sa, 0, sizeof (sa));
+      sa.ns = ns;
+      sa.attributes.create (64);
+      result = attributes_table.safe_push (sa);
+      result->attribute_hash.create (200);
+    }
+
+  /* Really add the attributes to their namespace now.  */
+  for (unsigned i = 0; attributes[i].name != NULL; ++i)
+    {
+      result->attributes.safe_push (attributes[i]);
+      register_scoped_attribute (&attributes[i], result);
+    }
+
+  gcc_assert (result != NULL);
+
+  return result;
 }
 
-/* Used for attribute_hash.  */
+/* Return the namespace which name is NS, NULL if none exist.  */
 
-static hashval_t
-hash_attr (const void *p)
+static scoped_attributes*
+find_attribute_namespace (const char* ns)
 {
-  const struct attribute_spec *const spec = (const struct attribute_spec *) p;
-  const int l = strlen (spec->name);
+  unsigned ix;
+  scoped_attributes *iter;
 
-  return substring_hash (spec->name, l);
-}
-
-/* Used for attribute_hash.  */
-
-static int
-eq_attr (const void *p, const void *q)
-{
-  const struct attribute_spec *const spec = (const struct attribute_spec *) p;
-  const struct substring *const str = (const struct substring *) q;
-
-  return (!strncmp (spec->name, str->str, str->length) && !spec->name[str->length]);
+  FOR_EACH_VEC_ELT (attributes_table, ix, iter)
+    if (ns == iter->ns
+	|| (iter->ns != NULL
+	    && ns != NULL
+	    && !strcmp (iter->ns, ns)))
+      return iter;
+  return NULL;
 }
 
 /* Initialize attribute tables, and make some sanity checks
@@ -109,7 +183,6 @@ void
 init_attributes (void)
 {
   size_t i;
-  int k;
 
   if (attributes_initialized)
     return;
@@ -181,12 +254,10 @@ init_attributes (void)
     }
 #endif
 
-  attribute_hash = htab_create (200, hash_attr, eq_attr, NULL);
-  for (i = 0; i < ARRAY_SIZE (attribute_tables); i++)
-    for (k = 0; attribute_tables[i][k].name != NULL; k++)
-      {
-        register_attribute (&attribute_tables[i][k]);
-      }
+  for (i = 0; i < ARRAY_SIZE (attribute_tables); ++i)
+    /* Put all the GNU attributes into the "gnu" namespace.  */
+    register_scoped_attributes (attribute_tables[i], "gnu");
+
   invoke_plugin_callbacks (PLUGIN_ATTRIBUTES, NULL);
   attributes_initialized = true;
 }
@@ -196,8 +267,21 @@ init_attributes (void)
 void
 register_attribute (const struct attribute_spec *attr)
 {
+  register_scoped_attribute (attr, find_attribute_namespace ("gnu"));
+}
+
+/* Insert a single attribute ATTR into a namespace of attributes.  */
+
+static void
+register_scoped_attribute (const struct attribute_spec *attr,
+			   scoped_attributes *name_space)
+{
   struct substring str;
-  void **slot;
+  attribute_spec **slot;
+
+  gcc_assert (attr != NULL && name_space != NULL);
+
+  gcc_assert (name_space->attribute_hash.is_created ());
 
   str.str = attr->name;
   str.length = strlen (str.str);
@@ -206,28 +290,70 @@ register_attribute (const struct attribute_spec *attr)
      in the form '__text__'.  */
   gcc_assert (str.length > 0 && str.str[0] != '_');
 
-  slot = htab_find_slot_with_hash (attribute_hash, &str,
-				   substring_hash (str.str, str.length),
-				   INSERT);
+  slot = name_space->attribute_hash
+	 .find_slot_with_hash (&str, substring_hash (str.str, str.length),
+			       INSERT);
   gcc_assert (!*slot || attr->name[0] == '*');
-  *slot = (void *) CONST_CAST (struct attribute_spec *, attr);
+  *slot = CONST_CAST (struct attribute_spec *, attr);
 }
 
-/* Return the spec for the attribute named NAME.  */
+/* Return the spec for the scoped attribute with namespace NS and
+   name NAME.   */
 
-const struct attribute_spec *
-lookup_attribute_spec (const_tree name)
+static const struct attribute_spec *
+lookup_scoped_attribute_spec (const_tree ns, const_tree name)
 {
   struct substring attr;
+  scoped_attributes *attrs;
+
+  const char *ns_str = (ns != NULL_TREE) ? IDENTIFIER_POINTER (ns): NULL;
+
+  attrs = find_attribute_namespace (ns_str);
+
+  if (attrs == NULL)
+    return NULL;
 
   attr.str = IDENTIFIER_POINTER (name);
   attr.length = IDENTIFIER_LENGTH (name);
   extract_attribute_substring (&attr);
-  return (const struct attribute_spec *)
-    htab_find_with_hash (attribute_hash, &attr,
+  return attrs->attribute_hash.find_with_hash (&attr,
 			 substring_hash (attr.str, attr.length));
 }
-
+
+/* Return the spec for the attribute named NAME.  If NAME is a TREE_LIST,
+   it also specifies the attribute namespace.  */
+
+const struct attribute_spec *
+lookup_attribute_spec (const_tree name)
+{
+  tree ns;
+  if (TREE_CODE (name) == TREE_LIST)
+    {
+      ns = TREE_PURPOSE (name);
+      name = TREE_VALUE (name);
+    }
+  else
+    ns = get_identifier ("gnu");
+  return lookup_scoped_attribute_spec (ns, name);
+}
+
+
+/* Return the namespace of the attribute ATTR.  This accessor works on
+   GNU and C++11 (scoped) attributes.  On GNU attributes,
+   it returns an identifier tree for the string "gnu".
+
+   Please read the comments of cxx11_attribute_p to understand the
+   format of attributes.  */
+
+static tree
+get_attribute_namespace (const_tree attr)
+{
+  if (cxx11_attribute_p (attr))
+    return TREE_PURPOSE (TREE_PURPOSE (attr));
+  return get_identifier ("gnu");
+}
+
+
 /* Process the attributes listed in ATTRIBUTES and install them in *NODE,
    which is either a DECL (including a TYPE_DECL) or a TYPE.  If a DECL,
    it should be modified in place; if a TYPE, a copy should be created
@@ -243,7 +369,7 @@ decl_attributes (tree *node, tree attributes, int flags)
   tree a;
   tree returned_attrs = NULL_TREE;
 
-  if (TREE_TYPE (*node) == error_mark_node)
+  if (TREE_TYPE (*node) == error_mark_node || attributes == error_mark_node)
     return NULL_TREE;
 
   if (!attributes_initialized)
@@ -302,18 +428,28 @@ decl_attributes (tree *node, tree attributes, int flags)
 
   for (a = attributes; a; a = TREE_CHAIN (a))
     {
-      tree name = TREE_PURPOSE (a);
+      tree ns = get_attribute_namespace (a);
+      tree name = get_attribute_name (a);
       tree args = TREE_VALUE (a);
       tree *anode = node;
-      const struct attribute_spec *spec = lookup_attribute_spec (name);
+      const struct attribute_spec *spec =
+	lookup_scoped_attribute_spec (ns, name);
       bool no_add_attrs = 0;
       int fn_ptr_quals = 0;
       tree fn_ptr_tmp = NULL_TREE;
 
       if (spec == NULL)
 	{
-	  warning (OPT_Wattributes, "%qE attribute directive ignored",
-		   name);
+	  if (!(flags & (int) ATTR_FLAG_BUILT_IN))
+	    {
+	      if (ns == NULL_TREE || !cxx11_attribute_p (a))
+		warning (OPT_Wattributes, "%qE attribute directive ignored",
+			 name);
+	      else
+		warning (OPT_Wattributes,
+			 "%<%E::%E%> scoped attribute directive ignored",
+			 ns, name);
+	    }
 	  continue;
 	}
       else if (list_length (args) < spec->min_length
@@ -325,6 +461,20 @@ decl_attributes (tree *node, tree attributes, int flags)
 	  continue;
 	}
       gcc_assert (is_attribute_p (spec->name, name));
+
+      if (TYPE_P (*node)
+	  && cxx11_attribute_p (a)
+	  && !(flags & ATTR_FLAG_TYPE_IN_PLACE))
+	{
+	  /* This is a c++11 attribute that appertains to a
+	     type-specifier, outside of the definition of, a class
+	     type.  Ignore it.  */
+	  warning (OPT_Wattributes, "attribute ignored");
+	  inform (input_location,
+		  "an attribute that appertains to a type-specifier "
+		  "is ignored");
+	  continue;
+	}
 
       if (spec->decl_required && !DECL_P (*anode))
 	{
@@ -405,9 +555,15 @@ decl_attributes (tree *node, tree attributes, int flags)
 	}
 
       if (spec->handler != NULL)
-	returned_attrs = chainon ((*spec->handler) (anode, name, args,
-						    flags, &no_add_attrs),
-				  returned_attrs);
+	{
+	  int cxx11_flag =
+	    cxx11_attribute_p (a) ? ATTR_FLAG_CXX11 : 0;
+
+	  returned_attrs = chainon ((*spec->handler) (anode, name, args,
+						      flags|cxx11_flag,
+						      &no_add_attrs),
+				    returned_attrs);
+	}
 
       /* Layout the decl in case anything changed.  */
       if (spec->type_required && DECL_P (*node)
@@ -485,6 +641,41 @@ decl_attributes (tree *node, tree attributes, int flags)
     }
 
   return returned_attrs;
+}
+
+/* Return TRUE iff ATTR has been parsed by the front-end as a C++-11
+   attribute.
+
+   When G++ parses a C++11 attribute, it is represented as
+   a TREE_LIST which TREE_PURPOSE is itself a TREE_LIST.  TREE_PURPOSE
+   (TREE_PURPOSE (ATTR)) is the namespace of the attribute, and the
+   TREE_VALUE (TREE_PURPOSE (ATTR)) is its non-qualified name.  Please
+   use get_attribute_namespace and get_attribute_name to retrieve the
+   namespace and name of the attribute, as these accessors work with
+   GNU attributes as well.  */
+
+bool
+cxx11_attribute_p (const_tree attr)
+{
+  if (attr == NULL_TREE
+      || TREE_CODE (attr) != TREE_LIST)
+    return false;
+
+  return (TREE_CODE (TREE_PURPOSE (attr)) == TREE_LIST);
+}
+
+/* Return the name of the attribute ATTR.  This accessor works on GNU
+   and C++11 (scoped) attributes.
+
+   Please read the comments of cxx11_attribute_p to understand the
+   format of attributes.  */
+
+tree
+get_attribute_name (const_tree attr)
+{
+  if (cxx11_attribute_p (attr))
+    return TREE_VALUE (TREE_PURPOSE (attr));
+  return TREE_PURPOSE (attr);
 }
 
 /* Subroutine of set_method_tm_attributes.  Apply TM attribute ATTR

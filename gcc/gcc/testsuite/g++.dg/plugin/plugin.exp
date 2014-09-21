@@ -1,4 +1,4 @@
-#   Copyright (C) 2009 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ if { ![info exists TESTING_IN_BUILD_TREE] || ![info exists ENABLE_PLUGIN] } {
 # If a testcase doesn't have special options, use these.
 global DEFAULT_CXXFLAGS
 if ![info exists DEFAULT_CXXFLAGS] then {
-    set DEFAULT_CXXFLAGS " -ansi -pedantic-errors -Wno-long-long"
+    set DEFAULT_CXXFLAGS " -pedantic-errors -Wno-long-long"
 }
 
 # The procedures in plugin-support.exp need these parameters.

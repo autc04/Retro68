@@ -1,8 +1,7 @@
 /* Various declarations for language-independent diagnostics
    subroutines that are only for use in the compilers proper and not
    the driver or other programs.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   2010, Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -49,9 +48,10 @@ along with GCC; see the file COPYING3.  If not see
        ? diagnostic_abstract_origin (DI)		\
        : current_function_decl)
 
-void default_tree_diagnostic_starter (diagnostic_context *, diagnostic_info *);
-extern void diagnostic_report_current_function (diagnostic_context *,
-						diagnostic_info *);
+void diagnostic_report_current_function (diagnostic_context *,
+					 diagnostic_info *);
 void virt_loc_aware_diagnostic_finalizer (diagnostic_context *,
 					  diagnostic_info *);
+
+void tree_diagnostics_defaults (diagnostic_context *context);
 #endif /* ! GCC_TREE_DIAGNOSTIC_H */

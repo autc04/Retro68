@@ -1,8 +1,10 @@
-// $G $F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test literal syntax for basic types.
 
 package main
 
@@ -21,7 +23,6 @@ func assert(cond bool, msg string) {
 func equal(a, b float32) bool {
 	return a == b
 }
-
 
 func main() {
 	// bool
@@ -223,6 +224,6 @@ func main() {
 	assert(sj0 == sj3, "sj3")
 
 	if nbad > 0 {
-		println()
+		panic("literal failed")
 	}
 }

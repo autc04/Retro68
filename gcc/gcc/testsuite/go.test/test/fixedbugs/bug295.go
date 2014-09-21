@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,7 +6,9 @@
 
 package main
 
-import . "testing"  // defines top-level T
+import . "testing"  // defines file-level T
+
+type _ B // make use of package "testing" (but don't refer to T)
 
 type S struct {
 	T int

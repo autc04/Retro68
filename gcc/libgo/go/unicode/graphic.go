@@ -6,15 +6,17 @@ package unicode
 
 // Bit masks for each code point under U+0100, for fast lookup.
 const (
-	pC  = 1 << iota // a control character.
-	pP              // a punctuation character.
-	pN              // a numeral.
-	pS              // a symbolic character.
-	pZ              // a spacing character.
-	pLu             // an upper-case letter.
-	pLl             // a lower-case letter.
-	pp              // a printable character according to Go's definition.
-	pg  = pp | pZ   // a graphical character according to the Unicode definition.
+	pC     = 1 << iota // a control character.
+	pP                 // a punctuation character.
+	pN                 // a numeral.
+	pS                 // a symbolic character.
+	pZ                 // a spacing character.
+	pLu                // an upper-case letter.
+	pLl                // a lower-case letter.
+	pp                 // a printable character according to Go's definition.
+	pg     = pp | pZ   // a graphical character according to the Unicode definition.
+	pLo    = pLl | pLu // a letter that is neither upper nor lower case.
+	pLmask = pLo
 )
 
 // GraphicRanges defines the set of graphic characters according to Unicode.
@@ -37,7 +39,7 @@ func IsGraphic(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pg != 0
 	}
-	return IsOneOf(GraphicRanges, r)
+	return In(r, GraphicRanges...)
 }
 
 // IsPrint reports whether the rune is defined as printable by Go. Such
@@ -49,12 +51,23 @@ func IsPrint(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pp != 0
 	}
-	return IsOneOf(PrintRanges, r)
+	return In(r, PrintRanges...)
 }
 
 // IsOneOf reports whether the rune is a member of one of the ranges.
-func IsOneOf(set []*RangeTable, r rune) bool {
-	for _, inside := range set {
+// The function "In" provides a nicer signature and should be used in preference to IsOneOf.
+func IsOneOf(ranges []*RangeTable, r rune) bool {
+	for _, inside := range ranges {
+		if Is(inside, r) {
+			return true
+		}
+	}
+	return false
+}
+
+// In reports whether the rune is a member of one of the ranges.
+func In(r rune, ranges ...*RangeTable) bool {
+	for _, inside := range ranges {
 		if Is(inside, r) {
 			return true
 		}
@@ -76,15 +89,15 @@ func IsControl(r rune) bool {
 // IsLetter reports whether the rune is a letter (category L).
 func IsLetter(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
-		return properties[uint8(r)]&(pLu|pLl) != 0
+		return properties[uint8(r)]&(pLmask) != 0
 	}
-	return Is(Letter, r)
+	return isExcludingLatin(Letter, r)
 }
 
 // IsMark reports whether the rune is a mark character (category M).
 func IsMark(r rune) bool {
 	// There are no mark characters in Latin-1.
-	return Is(Mark, r)
+	return isExcludingLatin(Mark, r)
 }
 
 // IsNumber reports whether the rune is a number (category N).
@@ -92,7 +105,7 @@ func IsNumber(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pN != 0
 	}
-	return Is(Number, r)
+	return isExcludingLatin(Number, r)
 }
 
 // IsPunct reports whether the rune is a Unicode punctuation character
@@ -119,7 +132,7 @@ func IsSpace(r rune) bool {
 		}
 		return false
 	}
-	return Is(White_Space, r)
+	return isExcludingLatin(White_Space, r)
 }
 
 // IsSymbol reports whether the rune is a symbolic character.
@@ -127,5 +140,5 @@ func IsSymbol(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pS != 0
 	}
-	return Is(Symbol, r)
+	return isExcludingLatin(Symbol, r)
 }

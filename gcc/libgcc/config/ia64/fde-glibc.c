@@ -1,4 +1,4 @@
-/* Copyright (C) 2000, 2001, 2003, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@cygnus.com>.
 
    This file is part of GCC.
@@ -144,8 +144,7 @@ _Unwind_IteratePhdrCallback (struct dl_phdr_info *info, size_t size, void *ptr)
    containing PC.  */
 
 struct unw_table_entry *
-_Unwind_FindTableEntry (void *pc, unsigned long *segment_base,
-                        unsigned long *gp,
+_Unwind_FindTableEntry (void *pc, unw_word *segment_base, unw_word *gp,
                         struct unw_table_entry *ent ATTRIBUTE_UNUSED)
 {
   struct unw_ia64_callback_data data;

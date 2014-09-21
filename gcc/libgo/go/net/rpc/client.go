@@ -36,7 +36,8 @@ type Call struct {
 
 // Client represents an RPC Client.
 // There may be multiple outstanding Calls associated
-// with a single Client.
+// with a single Client, and a Client may be used by
+// multiple goroutines simultaneously.
 type Client struct {
 	mutex    sync.Mutex // protects pending, seq, request
 	sending  sync.Mutex
@@ -57,6 +58,7 @@ type Client struct {
 // argument to force the body of the response to be read and then
 // discarded.
 type ClientCodec interface {
+	// WriteRequest must be safe for concurrent use by multiple goroutines.
 	WriteRequest(*Request, interface{}) error
 	ReadResponseHeader(*Response) error
 	ReadResponseBody(interface{}) error
@@ -70,7 +72,7 @@ func (client *Client) send(call *Call) {
 
 	// Register this call.
 	client.mutex.Lock()
-	if client.shutdown {
+	if client.shutdown || client.closing {
 		call.Error = ErrShutdown
 		client.mutex.Unlock()
 		call.done()
@@ -87,10 +89,13 @@ func (client *Client) send(call *Call) {
 	err := client.codec.WriteRequest(&client.request, call.Args)
 	if err != nil {
 		client.mutex.Lock()
+		call = client.pending[seq]
 		delete(client.pending, seq)
 		client.mutex.Unlock()
-		call.Error = err
-		call.done()
+		if call != nil {
+			call.Error = err
+			call.done()
+		}
 	}
 }
 
@@ -101,9 +106,6 @@ func (client *Client) input() {
 		response = Response{}
 		err = client.codec.ReadResponseHeader(&response)
 		if err != nil {
-			if err == io.EOF && !client.closing {
-				err = io.ErrUnexpectedEOF
-			}
 			break
 		}
 		seq := response.Seq
@@ -112,12 +114,18 @@ func (client *Client) input() {
 		delete(client.pending, seq)
 		client.mutex.Unlock()
 
-		if response.Error == "" {
-			err = client.codec.ReadResponseBody(call.Reply)
+		switch {
+		case call == nil:
+			// We've got no pending call. That usually means that
+			// WriteRequest partially failed, and call was already
+			// removed; response is a server telling us about an
+			// error reading request body. We should still attempt
+			// to read error body, but there's no one to give it to.
+			err = client.codec.ReadResponseBody(nil)
 			if err != nil {
-				call.Error = errors.New("reading body " + err.Error())
+				err = errors.New("reading error body: " + err.Error())
 			}
-		} else {
+		case response.Error != "":
 			// We've got an error response. Give this to the request;
 			// any subsequent requests will get the ReadResponseBody
 			// error if there is one.
@@ -126,21 +134,34 @@ func (client *Client) input() {
 			if err != nil {
 				err = errors.New("reading error body: " + err.Error())
 			}
+			call.done()
+		default:
+			err = client.codec.ReadResponseBody(call.Reply)
+			if err != nil {
+				call.Error = errors.New("reading body " + err.Error())
+			}
+			call.done()
 		}
-		call.done()
 	}
 	// Terminate pending calls.
 	client.sending.Lock()
 	client.mutex.Lock()
 	client.shutdown = true
 	closing := client.closing
+	if err == io.EOF {
+		if closing {
+			err = ErrShutdown
+		} else {
+			err = io.ErrUnexpectedEOF
+		}
+	}
 	for _, call := range client.pending {
 		call.Error = err
 		call.done()
 	}
 	client.mutex.Unlock()
 	client.sending.Unlock()
-	if err != io.EOF && !closing {
+	if debugLog && err != io.EOF && !closing {
 		log.Println("rpc: client protocol error:", err)
 	}
 }
@@ -152,7 +173,9 @@ func (call *Call) done() {
 	default:
 		// We don't want to block here.  It is the caller's responsibility to make
 		// sure the channel has enough buffer space. See comment in Go().
-		log.Println("rpc: discarding Call reply due to insufficient Done chan capacity")
+		if debugLog {
+			log.Println("rpc: discarding Call reply due to insufficient Done chan capacity")
+		}
 	}
 }
 
@@ -212,7 +235,7 @@ func DialHTTP(network, address string) (*Client, error) {
 	return DialHTTPPath(network, address, DefaultRPCPath)
 }
 
-// DialHTTPPath connects to an HTTP RPC server 
+// DialHTTPPath connects to an HTTP RPC server
 // at the specified network address and path.
 func DialHTTPPath(network, address, path string) (*Client, error) {
 	var err error

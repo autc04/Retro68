@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++0x" }
 // { dg-do compile }
 
-// Copyright (C) 2011 Free Software Foundation, Inc.
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,7 +22,7 @@
 #include <initializer_list>
 #include <testsuite_tr1.h>
 
-using namespace __gnu_test::construct_destruct;
+using namespace __gnu_test::construct;
 
 static_assert(std::is_constructible<int, int>::value, "Error");
 static_assert(std::is_constructible<std::nullptr_t, std::nullptr_t>::value,
@@ -73,7 +73,7 @@ static_assert(!std::is_constructible<DelEllipsis, OpE>::value, "Error");
 static_assert(!std::is_constructible<DelEllipsis, OpSE>::value, "Error");
 static_assert(!std::is_constructible<DelEllipsis, void()>::value, "Error");
 static_assert(!std::is_constructible<DelEllipsis, void() const>::value,
-	      "Error");
+ 	      "Error");
 static_assert(!std::is_constructible<DelEllipsis, int[1]>::value, "Error");
 static_assert(!std::is_constructible<DelEllipsis, int[]>::value, "Error");
 static_assert(!std::is_constructible<DelEllipsis, int*>::value, "Error");
@@ -462,11 +462,11 @@ static_assert(!std::is_constructible<int[], void()>::value, "Error");
 static_assert(!std::is_constructible<int[1], void()>::value, "Error");
 
 static_assert(!std::is_constructible<void(int) const,
-	      void() const>::value, "Error");
+      void() const>::value, "Error");
 static_assert(!std::is_constructible<int, void() const>::value, "Error");
 static_assert(!std::is_constructible<Abstract, void() const>::value, "Error");
 static_assert(!std::is_constructible<std::nullptr_t, void() const>::value,
-	      "Error");
+      "Error");
 static_assert(!std::is_constructible<Empty, void() const>::value, "Error");
 static_assert(!std::is_constructible<U, void() const>::value, "Error");
 static_assert(!std::is_constructible<E, void() const>::value, "Error");
@@ -657,7 +657,7 @@ static_assert(!std::is_constructible<void() const, void, void>::value, "Error");
 static_assert(!std::is_constructible<void() const, void() volatile,
 	      int>::value, "Error");
 static_assert(!std::is_constructible<void() const, void() volatile const,
-	      void() const>::value, "Error");
+ 	      void() const>::value, "Error");
 
 static_assert(!std::is_constructible<FromArgs<int>, int, int>::value, "Error");
 static_assert(!std::is_constructible<const FromArgs<int>, int, int>::value,
@@ -753,7 +753,7 @@ static_assert(!std::is_constructible<FromArgs<std::initializer_list<int>&,
 
 static_assert(!std::is_constructible<FromArgs<std::initializer_list<int>>,
 	      int, int>::value, "Error");
-static_assert(!std::is_constructible<const 
+static_assert(!std::is_constructible<const
 	      FromArgs<std::initializer_list<int>>, int, int>::value, "Error");
 static_assert(!std::is_constructible<B[2], B, B>::value, "Error");
 static_assert(!std::is_constructible<const B[2], B, B>::value, "Error");

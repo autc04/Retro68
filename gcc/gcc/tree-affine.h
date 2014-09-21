@@ -1,5 +1,5 @@
 /* Operations with affine combinations of trees.
-   Copyright (C) 2005, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -33,7 +33,7 @@ struct aff_comb_elt
   double_int coef;
 };
 
-typedef struct affine_tree_combination
+struct aff_tree
 {
   /* Type of the result of the combination.  */
   tree type;
@@ -56,7 +56,7 @@ typedef struct affine_tree_combination
      than MAX_AFF_ELTS elements.  Type of REST will be either sizetype for
      TYPE of POINTER_TYPEs or TYPE.  */
   tree rest;
-} aff_tree;
+};
 
 double_int double_int_ext_for_comb (double_int, aff_tree *);
 void aff_combination_const (aff_tree *, tree, double_int);
@@ -74,10 +74,22 @@ bool aff_combination_constant_multiple_p (aff_tree *, aff_tree *, double_int *);
 void aff_combination_expand (aff_tree *, struct pointer_map_t **);
 void tree_to_aff_combination_expand (tree, tree, aff_tree *,
 				     struct pointer_map_t **);
-void get_inner_reference_aff (tree, aff_tree *, double_int *);
+tree get_inner_reference_aff (tree, aff_tree *, double_int *);
 void free_affine_expand_cache (struct pointer_map_t **);
 bool aff_comb_cannot_overlap_p (aff_tree *, double_int, double_int);
 
 /* Debugging functions.  */
-void print_aff (FILE *, aff_tree *);
 void debug_aff (aff_tree *);
+
+/* Return true if AFF is actually ZERO.  */
+static inline bool
+aff_combination_zero_p (aff_tree *aff)
+{
+  if (!aff)
+    return true;
+
+  if (aff->n == 0 && aff->offset.is_zero ())
+    return true;
+
+  return false;
+}

@@ -1,10 +1,9 @@
-// { dg-do compile }
 // { dg-options "-std=c++0x" }
 
 //
 // 2010-06-09  Stephen M. Webb <stephen.webb@bregmasoft.ca>
 //
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,9 +26,7 @@
 #include <string>
 #include <testsuite_hooks.h>
 
-
-void
-test01()
+int main()
 {
   bool test __attribute__((unused)) = true;
 
@@ -39,8 +36,8 @@ test01()
   value_type test_data[] = L"cabbage";
 
 	sub_match_type sm;
-	sm.first = test_data + 0;
-	sm.second  = test_data + sizeof(test_data)/sizeof(value_type);
+	sm.first = std::begin(test_data);
+	sm.second  = std::end(test_data) - 1;
 	sm.matched = true;
 
 	string_type sm_string = sm;

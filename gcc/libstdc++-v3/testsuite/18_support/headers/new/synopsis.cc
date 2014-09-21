@@ -1,6 +1,7 @@
 // { dg-do compile }
+// { dg-options "-std=gnu++11" }
 
-// Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,6 +26,7 @@ namespace std {
   extern const nothrow_t nothrow;
   typedef void (*new_handler)();
   new_handler set_new_handler(new_handler new_p) throw();
+  new_handler get_new_handler() noexcept;
 }
 
 void* operator new(std::size_t size) throw(std::bad_alloc);

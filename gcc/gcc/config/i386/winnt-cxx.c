@@ -1,6 +1,6 @@
 /* Target support for C++ classes on Windows.
    Contributed by Danny Smith (dannysmith@users.sourceforge.net)
-   Copyright (C) 2005, 2007, 2009, 2010  Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,6 +23,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "stringpool.h"
+#include "attribs.h"
 #include "cp/cp-tree.h" /* This is why we're a separate module.  */
 #include "flags.h"
 #include "tm_p.h"
@@ -65,6 +67,13 @@ i386_pe_type_dllexport_p (tree decl)
   if (TREE_CODE (TREE_TYPE (decl)) == METHOD_TYPE
       && DECL_ARTIFICIAL (decl) && !DECL_THUNK_P (decl))
     return false;
+  if (TREE_CODE (decl) == FUNCTION_DECL
+      && DECL_DECLARED_INLINE_P (decl))
+    {
+      if (DECL_REALLY_EXTERN (decl)
+	  || !flag_keep_inline_dllexport)
+	return false;
+    }
   return true;
 }
 

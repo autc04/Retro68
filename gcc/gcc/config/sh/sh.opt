@@ -1,7 +1,6 @@
 ; Options for the SH port of the compiler.
 
-; Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
-; Free Software Foundation, Inc.
+; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -22,8 +21,12 @@
 ;; Used for various architecture options.
 Mask(SH_E)
 
-;; Set if the default precision of th FPU is single.
+;; Set if the default precision of the FPU is single.
 Mask(FPU_SINGLE)
+
+;; Set if the a double-precision FPU is present but is restricted to
+;; single precision usage only.
+Mask(FPU_SINGLE_ONLY)
 
 ;; Set if we should generate code using type 2A insns.
 Mask(HARD_SH2A)
@@ -202,12 +205,12 @@ Target RejectNegative Condition(SUPPORT_SH5_32MEDIA_NOFPU)
 Generate FPU-less SHcompact code
 
 maccumulate-outgoing-args
-Target Report Mask(ACCUMULATE_OUTGOING_ARGS)
+Target Report Var(TARGET_ACCUMULATE_OUTGOING_ARGS) Init(1)
 Reserve space for outgoing arguments in the function prologue
 
 madjust-unroll
-Target Report Mask(ADJUST_UNROLL) Condition(SUPPORT_ANY_SH5)
-Throttle unrolling to avoid thrashing target registers unless the unroll benefit outweighs this
+Target Ignore
+Does nothing.  Preserved for backward compatibility.
 
 mb
 Target Report RejectNegative InverseMask(LITTLE_ENDIAN)
@@ -225,12 +228,16 @@ mbranch-cost=
 Target RejectNegative Joined UInteger Var(sh_branch_cost) Init(-1)
 Cost to assume for a branch insn
 
+mzdcbranch
+Target Var(TARGET_ZDCBRANCH)
+Assume that zero displacement conditional branches are fast
+
 mcbranchdi
-Target Var(TARGET_CBRANCHDI4)
+Target Undocumented Var(TARGET_CBRANCHDI4) Warn(%qs is deprecated and has no effect)
 Enable cbranchdi4 pattern
 
 mcmpeqdi
-Target Var(TARGET_CMPEQDI_T)
+Target Undocumented Var(TARGET_CMPEQDI_T) Warn(%qs is deprecated and has no effect)
 Emit cmpeqdi_t pattern even when -mcbranchdi is in effect.
 
 mcut2-workaround
@@ -257,10 +264,6 @@ mfixed-range=
 Target RejectNegative Joined Var(sh_fixed_range_str)
 Specify range of registers to make fixed
 
-mfused-madd
-Target Var(TARGET_FMAC)
-Enable the use of the fused floating point multiply-accumulate operation
-
 mgettrcost=
 Target RejectNegative Joined UInteger Var(sh_gettrcost) Init(-1)
 Cost to assume for gettr insn
@@ -270,8 +273,8 @@ Target Report RejectNegative Mask(HITACHI)
 Follow Renesas (formerly Hitachi) / SuperH calling conventions
 
 mieee
-Target Report Mask(IEEE)
-Increase the IEEE compliance for floating-point code
+Target Var(TARGET_IEEE)
+Increase the IEEE compliance for floating-point comparisons
 
 mindexed-addressing
 Target Report Mask(ALLOW_INDEXED_ADDRESS) Condition(SUPPORT_ANY_SH5_32MEDIA)
@@ -316,12 +319,20 @@ Target Report RejectNegative Mask(RELAX)
 Shorten address references during linking
 
 mrenesas
-Target Mask(HITACHI) MaskExists
+Target Mask(HITACHI)
 Follow Renesas (formerly Hitachi) / SuperH calling conventions
 
 msoft-atomic
-Target Report Mask(SOFT_ATOMIC)
-Use software atomic sequences supported by kernel
+Target Undocumented Alias(matomic-model=, soft-gusa, none)
+Deprecated.  Use -matomic= instead to select the atomic model
+
+matomic-model=
+Target Report RejectNegative Joined Var(sh_atomic_model_str)
+Specify the model for atomic operations
+
+mtas
+Target Report RejectNegative Var(TARGET_ENABLE_TAS)
+Use tas.b instruction for __atomic_test_and_set
 
 mspace
 Target RejectNegative Alias(Os)
@@ -332,7 +343,7 @@ Target RejectNegative Joined UInteger Var(sh_multcost) Init(-1)
 Cost to assume for a multiply insn
 
 musermode
-Target Report RejectNegative Mask(USERMODE)
+Target Report RejectNegative Var(TARGET_USERMODE)
 Don't generate privileged-mode only code; implies -mno-inline-ic_invalidate if the inline code would not work in user mode.
 
 ;; We might want to enable this by default for TARGET_HARD_SH4, because
@@ -340,3 +351,12 @@ Don't generate privileged-mode only code; implies -mno-inline-ic_invalidate if t
 mpretend-cmove
 Target Var(TARGET_PRETEND_CMOVE)
 Pretend a branch-around-a-move is a conditional move.
+
+mfsca
+Target Var(TARGET_FSCA)
+Enable the use of the fsca instruction
+
+mfsrra
+Target Var(TARGET_FSRRA)
+Enable the use of the fsrra instruction
+

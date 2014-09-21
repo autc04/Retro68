@@ -1,6 +1,6 @@
 /* Definitions of Toshiba Media Processor
-   Copyright (C) 2001, 2002, 2003, 2005, 2006, 2007, 2009, 2010 Free
-   Software Foundation, Inc.  Contributed by Red Hat, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+   Contributed by Red Hat, Inc.
 
 This file is part of GCC.
 
@@ -27,7 +27,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "c-family/c-pragma.h"
 #include "cpplib.h"
 #include "hard-reg-set.h"
-#include "output.h"
+#include "output.h" /* for decode_reg_name */
 #include "mep-protos.h"
 #include "function.h"
 #define MAX_RECOG_OPERANDS 10
@@ -232,9 +232,9 @@ mep_pragma_coprocessor_width (void)
   switch (type)
     {
     case CPP_NUMBER:
-      if (! host_integerp (val, 1))
+      if (! tree_fits_uhwi_p (val))
 	break;
-      i = tree_low_cst (val, 1);
+      i = tree_to_uhwi (val);
       /* This pragma no longer has any effect.  */
 #if 0
       if (i == 32)
@@ -273,7 +273,7 @@ mep_pragma_coprocessor_subclass (void)
   type = mep_pragma_lex (&val);
   if (type != CPP_CHAR)
     goto syntax_error;
-  class_letter = tree_low_cst (val, 1);
+  class_letter = tree_to_uhwi (val);
   if (class_letter >= 'A' && class_letter <= 'D')
     switch (class_letter)
       {

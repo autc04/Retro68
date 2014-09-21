@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd
 
 package os
 
@@ -24,7 +24,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		return nil, NewSyscallError("wait", e)
 	}
 	if pid1 != 0 {
-		p.done = true
+		p.setDone()
 	}
 	ps = &ProcessState{
 		pid:    pid1,
@@ -35,7 +35,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 }
 
 func (p *Process) signal(sig Signal) error {
-	if p.done {
+	if p.done() {
 		return errors.New("os: process already finished")
 	}
 	s, ok := sig.(syscall.Signal)

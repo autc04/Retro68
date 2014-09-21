@@ -1,6 +1,6 @@
 # Functional and regression tests in C++ for libstdc++.
 
-# Copyright (C) 2001, 2002, 2003, 2004, 2009, 2010 Free Software Foundation, Inc.
+# Copyright (C) 2001-2014 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ if {[info exists tests_file] && [file exists $tests_file]} {
     lappend subdirs "$srcdir/tr1"
     lappend subdirs "$srcdir/tr2"
     lappend subdirs "$srcdir/decimal"
+    lappend subdirs "$srcdir/experimental"
     verbose "subdirs are $subdirs"
 
     # Find all the tests.

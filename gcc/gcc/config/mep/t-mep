@@ -1,7 +1,6 @@
 # -*- makefile -*-
 # GCC makefile fragment for MeP
-# Copyright (C) 2001, 2002, 2003, 2005, 2007, 2009, 2010, 2011
-# Free Software Foundation, Inc.
+# Copyright (C) 2001-2014 Free Software Foundation, Inc.
 # Contributed by Red Hat Inc
 #
 # This file is part of GCC.
@@ -30,7 +29,7 @@ mep-pragma.o: $(srcdir)/config/mep/mep-pragma.c $(CONFIG_H) $(SYSTEM_H) \
 	coretypes.h $(TM_H) $(TREE_H) $(RTL_H) $(C_PRAGMA_H) \
 	$(CPPLIB_H) hard-reg-set.h output.h $(srcdir)/config/mep/mep-protos.h \
 	function.h insn-config.h reload.h $(TARGET_H)
-	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<
 
 MULTILIB_OPTIONS = mel mall-opts mfar
 MULTILIB_DIRNAMES = el allopt far
@@ -40,7 +39,7 @@ MD_INCLUDES = \
 	$(srcdir)/config/mep/predicates.md \
 	$(srcdir)/config/mep/constraints.md
 
-mep.o : $(srcdir)/config/mep/mep-intrin.h
+mep.o : $(srcdir)/config/mep/mep-intrin.h dumpfile.h
 
 # begin-isas
 MEP_CORE = ext_core1

@@ -7,7 +7,6 @@
 #ifndef GO_LEX_H
 #define GO_LEX_H
 
-#include <gmp.h>
 #include <mpfr.h>
 
 #include "operator.h"
@@ -349,6 +348,16 @@ class Lex
   extern_name() const
   { return this->extern_; }
 
+  // Return whether we have seen a //go:nointerface comment, clearing
+  // the flag.
+  bool
+  get_and_clear_nointerface()
+  {
+    bool ret = this->saw_nointerface_;
+    this->saw_nointerface_ = false;
+    return ret;
+  }
+
   // Return whether the identifier NAME should be exported.  NAME is a
   // mangled name which includes only ASCII characters.
   static bool
@@ -374,6 +383,10 @@ class Lex
   // if STR does not point to a valid UTF-8 character.
   static int
   fetch_char(const char* str, unsigned int *value);
+
+  // Return whether C is a Unicode or "C" locale space character.
+  static bool
+  is_unicode_space(unsigned int c);
 
  private:
   ssize_t
@@ -479,6 +492,8 @@ class Lex
   size_t lineno_;
   // Whether to add a semicolon if we see a newline now.
   bool add_semi_at_eol_;
+  // Whether we just saw a magic go:nointerface comment.
+  bool saw_nointerface_;
   // The external name to use for a function declaration, from a magic
   // //extern comment.
   std::string extern_;

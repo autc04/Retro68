@@ -1,7 +1,5 @@
 /* Intrinsic function resolution.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -32,6 +30,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
+#include "stringpool.h"
 #include "gfortran.h"
 #include "intrinsic.h"
 #include "constructor.h"
@@ -134,12 +133,15 @@ resolve_bound (gfc_expr *f, gfc_expr *array, gfc_expr *dim, gfc_expr *kind,
   if (dim == NULL)
     {
       f->rank = 1;
-      f->shape = gfc_get_shape (1);
-      mpz_init_set_ui (f->shape[0], coarray ? gfc_get_corank (array)
-					    : array->rank);
+      if (array->rank != -1)
+	{
+	  f->shape = gfc_get_shape (1);
+	  mpz_init_set_ui (f->shape[0], coarray ? gfc_get_corank (array)
+						: array->rank);
+	}
     }
 
-  f->value.function.name = xstrdup (name);
+  f->value.function.name = gfc_get_string (name);
 }
 
 
@@ -496,6 +498,20 @@ gfc_resolve_btest (gfc_expr *f, gfc_expr *i, gfc_expr *pos)
   f->ts.kind = gfc_default_logical_kind;
   f->value.function.name
     = gfc_get_string ("__btest_%d_%d", i->ts.kind, pos->ts.kind);
+}
+
+
+void
+gfc_resolve_c_loc (gfc_expr *f, gfc_expr *x ATTRIBUTE_UNUSED)
+{
+  f->ts = f->value.function.isym->ts;
+}
+
+
+void
+gfc_resolve_c_funloc (gfc_expr *f, gfc_expr *x ATTRIBUTE_UNUSED)
+{
+  f->ts = f->value.function.isym->ts;
 }
 
 
@@ -2006,6 +2022,15 @@ gfc_resolve_product (gfc_expr *f, gfc_expr *array, gfc_expr *dim,
 
 
 void
+gfc_resolve_rank (gfc_expr *f, gfc_expr *array ATTRIBUTE_UNUSED)
+{
+  f->ts.type = BT_INTEGER;
+  f->ts.kind = gfc_default_integer_kind;
+  f->value.function.name = gfc_get_string ("__rank");
+}
+
+
+void
 gfc_resolve_real (gfc_expr *f, gfc_expr *a, gfc_expr *kind)
 {
   f->ts.type = BT_REAL;
@@ -2130,10 +2155,7 @@ gfc_resolve_reshape (gfc_expr *f, gfc_expr *source, gfc_expr *shape,
       break;
     }
 
-  /* TODO: Make this work with a constant ORDER parameter.  */
-  if (shape->expr_type == EXPR_ARRAY
-      && gfc_is_constant_expr (shape)
-      && order == NULL)
+  if (shape->expr_type == EXPR_ARRAY && gfc_is_constant_expr (shape))
     {
       gfc_constructor *c;
       f->shape = gfc_get_shape (f->rank);
@@ -2216,8 +2238,12 @@ gfc_resolve_shape (gfc_expr *f, gfc_expr *array, gfc_expr *kind)
     f->ts.kind = gfc_default_integer_kind;
 
   f->rank = 1;
-  f->shape = gfc_get_shape (1);
-  mpz_init_set_ui (f->shape[0], array->rank);
+  if (array->rank != -1)
+    {
+      f->shape = gfc_get_shape (1);
+      mpz_init_set_ui (f->shape[0], array->rank);
+    }
+
   f->value.function.name = gfc_get_string (PREFIX ("shape_%d"), f->ts.kind);
 }
 
@@ -2294,6 +2320,15 @@ gfc_resolve_size (gfc_expr *f, gfc_expr *array ATTRIBUTE_UNUSED,
     f->ts.kind = mpz_get_si (kind->value.integer);
   else
     f->ts.kind = gfc_default_integer_kind;
+}
+
+
+void
+gfc_resolve_stride (gfc_expr *f, gfc_expr *array ATTRIBUTE_UNUSED,
+		  gfc_expr *dim ATTRIBUTE_UNUSED)
+{
+  f->ts.type = BT_INTEGER;
+  f->ts.kind = gfc_index_integer_kind;
 }
 
 
@@ -2471,7 +2506,7 @@ gfc_resolve_ftell (gfc_expr *f, gfc_expr *u)
   gfc_clear_ts (&ts);
 
   f->ts.type = BT_INTEGER;
-  f->ts.kind = gfc_index_integer_kind;
+  f->ts.kind = gfc_intio_kind;
   if (u->ts.kind != gfc_c_int_kind)
     {
       ts.type = BT_INTEGER;
@@ -2481,7 +2516,7 @@ gfc_resolve_ftell (gfc_expr *f, gfc_expr *u)
       gfc_convert_type (u, &ts, 2);
     }
 
-  f->value.function.name = gfc_get_string (PREFIX ("ftell"));
+  f->value.function.name = gfc_get_string (PREFIX ("ftell2"));
 }
 
 

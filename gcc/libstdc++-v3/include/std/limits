@@ -1,7 +1,6 @@
 // The template and inlines for the numeric_limits classes. -*- C++ -*-
 
-// Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-// 2008, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 1999-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -203,7 +202,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     /** The number of base 10 digits that can be represented without change. */
     static _GLIBCXX_USE_CONSTEXPR int digits10 = 0;
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     /** The number of base 10 digits required to ensure that values which
 	differ are always differentiated.  */
     static constexpr int max_digits10 = 0;
@@ -212,14 +211,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     /** True if the type is signed.  */
     static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
 
-    /** True if the type is integer.
-     *  Is this supposed to be <em>if the type is integral?</em>  */
+    /** True if the type is integer.  */
     static _GLIBCXX_USE_CONSTEXPR bool is_integer = false;
 
-    /** True if the type uses an exact representation. <em>All integer types are
+    /** True if the type uses an exact representation. All integer types are
 	exact, but not all exact types are integer.  For example, rational and
-	fixed-exponent representations are exact but not integer.</em>
-	[18.2.1.2]/15  */
+	fixed-exponent representations are exact but not integer. */
     static _GLIBCXX_USE_CONSTEXPR bool is_exact = false;
 
     /** For integer types, specifies the base of the representation.  For
@@ -247,33 +244,36 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     static _GLIBCXX_USE_CONSTEXPR bool has_infinity = false;
 
     /** True if the type has a representation for a quiet (non-signaling)
-	<em>Not a Number</em>.  */
+	Not a Number.  */
     static _GLIBCXX_USE_CONSTEXPR bool has_quiet_NaN = false;
 
     /** True if the type has a representation for a signaling
-	<em>Not a Number</em>.  */
+	Not a Number.  */
     static _GLIBCXX_USE_CONSTEXPR bool has_signaling_NaN = false;
 
     /** See std::float_denorm_style for more information.  */
     static _GLIBCXX_USE_CONSTEXPR float_denorm_style has_denorm = denorm_absent;
 
-    /** <em>True if loss of accuracy is detected as a denormalization loss,
-	rather than as an inexact result.</em> [18.2.1.2]/42  */
+    /** True if loss of accuracy is detected as a denormalization loss,
+	rather than as an inexact result. */
     static _GLIBCXX_USE_CONSTEXPR bool has_denorm_loss = false;
 
     /** True if-and-only-if the type adheres to the IEC 559 standard, also
 	known as IEEE 754.  (Only makes sense for floating point types.)  */
     static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
 
-    /** <em>True if the set of values representable by the type is
+    /** True if the set of values representable by the type is
 	finite.  All built-in types are bounded, this member would be
-	false for arbitrary precision types.</em> [18.2.1.2]/54  */
+	false for arbitrary precision types. */
     static _GLIBCXX_USE_CONSTEXPR bool is_bounded = false;
 
-    /** True if the type is @e modulo, that is, if it is possible to add two
-	positive numbers and have a result that wraps around to a third number
-	that is less.  Typically false for floating types, true for unsigned
-	integers, and true for signed integers.  */
+    /** True if the type is @e modulo. A type is modulo if, for any
+	operation involving +, -, or * on values of that type whose
+	result would fall outside the range [min(),max()], the value
+	returned differs from the true value by an integer multiple of
+	max() - min() + 1. On most machines, this is false for floating
+	types, true for unsigned integers, and true for signed integers.
+	See PR22200 about signed integers.  */
     static _GLIBCXX_USE_CONSTEXPR bool is_modulo = false;
 
     /** True if trapping is implemented for this type.  */
@@ -306,50 +306,50 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       /** The minimum finite value, or for floating types with
 	  denormalization, the minimum positive normalized value.  */
       static _GLIBCXX_CONSTEXPR _Tp
-      min() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      min() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
 
       /** The maximum finite value.  */
       static _GLIBCXX_CONSTEXPR _Tp
-      max() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      max() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       /** A finite value x such that there is no other finite value y
        *  where y < x.  */
       static constexpr _Tp
-      lowest() noexcept { return static_cast<_Tp>(0); }
+      lowest() noexcept { return _Tp(); }
 #endif
 
       /** The @e machine @e epsilon:  the difference between 1 and the least
 	  value greater than 1 that is representable.  */
       static _GLIBCXX_CONSTEXPR _Tp
-      epsilon() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      epsilon() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
 
       /** The maximum rounding error measurement (see LIA-1).  */
       static _GLIBCXX_CONSTEXPR _Tp
-      round_error() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      round_error() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
 
       /** The representation of positive infinity, if @c has_infinity.  */
       static _GLIBCXX_CONSTEXPR _Tp
-      infinity() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      infinity() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
 
-      /** The representation of a quiet <em>Not a Number</em>,
+      /** The representation of a quiet Not a Number,
 	  if @c has_quiet_NaN. */
       static _GLIBCXX_CONSTEXPR _Tp
-      quiet_NaN() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      quiet_NaN() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
 
-      /** The representation of a signaling <em>Not a Number</em>, if
+      /** The representation of a signaling Not a Number, if
 	  @c has_signaling_NaN. */
       static _GLIBCXX_CONSTEXPR _Tp
-      signaling_NaN() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      signaling_NaN() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
 
       /** The minimum positive denormalized value.  For types where
 	  @c has_denorm is false, this is the minimum positive normalized
 	  value.  */
       static _GLIBCXX_CONSTEXPR _Tp
-      denorm_min() _GLIBCXX_USE_NOEXCEPT { return static_cast<_Tp>(0); }
+      denorm_min() _GLIBCXX_USE_NOEXCEPT { return _Tp(); }
     };
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<typename _Tp>
     struct numeric_limits<const _Tp>
     : public numeric_limits<_Tp> { };
@@ -378,13 +378,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR bool 
       max() _GLIBCXX_USE_NOEXCEPT { return true; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr bool
       lowest() noexcept { return min(); }
 #endif
       static _GLIBCXX_USE_CONSTEXPR int digits = 1;
       static _GLIBCXX_USE_CONSTEXPR int digits10 = 0;
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
@@ -447,14 +447,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR char 
       max() _GLIBCXX_USE_NOEXCEPT { return __glibcxx_max(char); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr char 
       lowest() noexcept { return min(); }
 #endif
 
       static _GLIBCXX_USE_CONSTEXPR int digits = __glibcxx_digits (char);
       static _GLIBCXX_USE_CONSTEXPR int digits10 = __glibcxx_digits10 (char);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = __glibcxx_signed (char);
@@ -494,7 +494,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = !is_signed;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps = __glibcxx_integral_traps;
       static _GLIBCXX_USE_CONSTEXPR bool tinyness_before = false;
@@ -514,7 +514,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR signed char 
       max() _GLIBCXX_USE_NOEXCEPT { return __SCHAR_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr signed char 
       lowest() noexcept { return min(); }
 #endif
@@ -522,7 +522,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_USE_CONSTEXPR int digits = __glibcxx_digits (signed char);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (signed char);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = true;
@@ -564,7 +564,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = false;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps = __glibcxx_integral_traps;
       static _GLIBCXX_USE_CONSTEXPR bool tinyness_before = false;
@@ -584,7 +584,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR unsigned char 
       max() _GLIBCXX_USE_NOEXCEPT { return __SCHAR_MAX__ * 2U + 1; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr unsigned char 
       lowest() noexcept { return min(); }
 #endif
@@ -593,7 +593,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (unsigned char);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (unsigned char);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
@@ -657,7 +657,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR wchar_t 
       max() _GLIBCXX_USE_NOEXCEPT { return __glibcxx_max (wchar_t); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr wchar_t
       lowest() noexcept { return min(); }
 #endif
@@ -665,7 +665,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_USE_CONSTEXPR int digits = __glibcxx_digits (wchar_t);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (wchar_t);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = __glibcxx_signed (wchar_t);
@@ -705,7 +705,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = !is_signed;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps = __glibcxx_integral_traps;
       static _GLIBCXX_USE_CONSTEXPR bool tinyness_before = false;
@@ -713,7 +713,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = round_toward_zero;
     };
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   /// numeric_limits<char16_t> specialization.
   template<>
     struct numeric_limits<char16_t>
@@ -768,7 +768,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static constexpr bool is_iec559 = false;
       static constexpr bool is_bounded = true;
-      static constexpr bool is_modulo = true;
+      static constexpr bool is_modulo = !is_signed;
 
       static constexpr bool traps = __glibcxx_integral_traps;
       static constexpr bool tinyness_before = false;
@@ -829,7 +829,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static constexpr bool is_iec559 = false;
       static constexpr bool is_bounded = true;
-      static constexpr bool is_modulo = true;
+      static constexpr bool is_modulo = !is_signed;
 
       static constexpr bool traps = __glibcxx_integral_traps;
       static constexpr bool tinyness_before = false;
@@ -849,14 +849,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR short 
       max() _GLIBCXX_USE_NOEXCEPT { return __SHRT_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr short 
       lowest() noexcept { return min(); }
 #endif
 
       static _GLIBCXX_USE_CONSTEXPR int digits = __glibcxx_digits (short);
       static _GLIBCXX_USE_CONSTEXPR int digits10 = __glibcxx_digits10 (short);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = true;
@@ -896,7 +896,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = false;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps = __glibcxx_integral_traps;
       static _GLIBCXX_USE_CONSTEXPR bool tinyness_before = false;
@@ -916,7 +916,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR unsigned short 
       max() _GLIBCXX_USE_NOEXCEPT { return __SHRT_MAX__ * 2U + 1; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr unsigned short 
       lowest() noexcept { return min(); }
 #endif
@@ -925,7 +925,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (unsigned short);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (unsigned short);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
@@ -989,14 +989,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR int 
       max() _GLIBCXX_USE_NOEXCEPT { return __INT_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int 
       lowest() noexcept { return min(); }
 #endif
 
       static _GLIBCXX_USE_CONSTEXPR int digits = __glibcxx_digits (int);
       static _GLIBCXX_USE_CONSTEXPR int digits10 = __glibcxx_digits10 (int);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = true;
@@ -1036,7 +1036,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = false;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps = __glibcxx_integral_traps;
       static _GLIBCXX_USE_CONSTEXPR bool tinyness_before = false;
@@ -1056,7 +1056,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR unsigned int 
       max() _GLIBCXX_USE_NOEXCEPT { return __INT_MAX__ * 2U + 1; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr unsigned int 
       lowest() noexcept { return min(); }
 #endif
@@ -1065,7 +1065,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (unsigned int);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (unsigned int);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
@@ -1128,14 +1128,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR long 
       max() _GLIBCXX_USE_NOEXCEPT { return __LONG_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr long 
       lowest() noexcept { return min(); }
 #endif
 
       static _GLIBCXX_USE_CONSTEXPR int digits = __glibcxx_digits (long);
       static _GLIBCXX_USE_CONSTEXPR int digits10 = __glibcxx_digits10 (long);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = true;
@@ -1175,7 +1175,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = false;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps = __glibcxx_integral_traps;
       static _GLIBCXX_USE_CONSTEXPR bool tinyness_before = false;
@@ -1195,7 +1195,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR unsigned long 
       max() _GLIBCXX_USE_NOEXCEPT { return __LONG_MAX__ * 2UL + 1; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr unsigned long 
       lowest() noexcept { return min(); }
 #endif
@@ -1204,7 +1204,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (unsigned long);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (unsigned long);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
@@ -1268,7 +1268,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR long long 
       max() _GLIBCXX_USE_NOEXCEPT { return __LONG_LONG_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr long long 
       lowest() noexcept { return min(); }
 #endif
@@ -1277,7 +1277,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (long long);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (long long);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = true;
@@ -1318,7 +1318,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = false;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps = __glibcxx_integral_traps;
       static _GLIBCXX_USE_CONSTEXPR bool tinyness_before = false;
@@ -1338,7 +1338,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR unsigned long long 
       max() _GLIBCXX_USE_NOEXCEPT { return __LONG_LONG_MAX__ * 2ULL + 1; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr unsigned long long 
       lowest() noexcept { return min(); }
 #endif
@@ -1347,7 +1347,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (unsigned long long);
       static _GLIBCXX_USE_CONSTEXPR int digits10 
        = __glibcxx_digits10 (unsigned long long);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
@@ -1412,7 +1412,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR __int128
       max() _GLIBCXX_USE_NOEXCEPT { return __glibcxx_max (__int128); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr __int128
       lowest() noexcept { return min(); }
 #endif
@@ -1421,7 +1421,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (__int128);
       static _GLIBCXX_USE_CONSTEXPR int digits10
        = __glibcxx_digits10 (__int128);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = true;
@@ -1465,7 +1465,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX_USE_CONSTEXPR bool is_iec559 = false;
       static _GLIBCXX_USE_CONSTEXPR bool is_bounded = true;
-      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = true;
+      static _GLIBCXX_USE_CONSTEXPR bool is_modulo = false;
 
       static _GLIBCXX_USE_CONSTEXPR bool traps
        = __glibcxx_integral_traps;
@@ -1486,7 +1486,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR unsigned __int128
       max() _GLIBCXX_USE_NOEXCEPT { return __glibcxx_max (unsigned __int128); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr unsigned __int128
       lowest() noexcept { return min(); }
 #endif
@@ -1495,7 +1495,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        = __glibcxx_digits (unsigned __int128);
       static _GLIBCXX_USE_CONSTEXPR int digits10
        = __glibcxx_digits10 (unsigned __int128);
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10 = 0;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = false;
@@ -1560,14 +1560,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR float 
       max() _GLIBCXX_USE_NOEXCEPT { return __FLT_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr float 
       lowest() noexcept { return -__FLT_MAX__; }
 #endif
 
       static _GLIBCXX_USE_CONSTEXPR int digits = __FLT_MANT_DIG__;
       static _GLIBCXX_USE_CONSTEXPR int digits10 = __FLT_DIG__;
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10
 	 = __glibcxx_max_digits10 (__FLT_MANT_DIG__);
 #endif
@@ -1635,14 +1635,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR double 
       max() _GLIBCXX_USE_NOEXCEPT { return __DBL_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr double 
       lowest() noexcept { return -__DBL_MAX__; }
 #endif
 
       static _GLIBCXX_USE_CONSTEXPR int digits = __DBL_MANT_DIG__;
       static _GLIBCXX_USE_CONSTEXPR int digits10 = __DBL_DIG__;
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr int max_digits10
 	 = __glibcxx_max_digits10 (__DBL_MANT_DIG__);
 #endif
@@ -1710,14 +1710,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR long double 
       max() _GLIBCXX_USE_NOEXCEPT { return __LDBL_MAX__; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static constexpr long double 
       lowest() noexcept { return -__LDBL_MAX__; }
 #endif
 
       static _GLIBCXX_USE_CONSTEXPR int digits = __LDBL_MANT_DIG__;
       static _GLIBCXX_USE_CONSTEXPR int digits10 = __LDBL_DIG__;
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       static _GLIBCXX_USE_CONSTEXPR int max_digits10
 	 = __glibcxx_max_digits10 (__LDBL_MANT_DIG__);
 #endif

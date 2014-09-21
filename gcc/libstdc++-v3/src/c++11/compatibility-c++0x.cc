@@ -1,6 +1,6 @@
 // Compatibility symbols for previous versions, C++0x bits -*- C++ -*-
 
-// Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -26,9 +26,11 @@
 #include <string>
 #include <system_error>
 
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
 # error "compatibility-c++0x.cc must be compiled with -std=gnu++0x"
 #endif
+
+#ifdef _GLIBCXX_SHARED
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -117,5 +119,10 @@ namespace std _GLIBCXX_VISIBILITY(default)
     };
     constexpr bool system_clock::is_monotonic;
   } // namespace chrono
+
+  // gcc-4.9.0
+  // LWG 2145 changes this constructor to constexpr i.e. inline
+  error_category::error_category() noexcept = default;
 }
 
+#endif

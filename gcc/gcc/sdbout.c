@@ -1,7 +1,5 @@
 /* Output sdb-format symbol table information from GNU compiler.
-   Copyright (C) 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1988-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -47,6 +45,8 @@ AT&T C compiler.  From the example below I would conclude the following:
 #include "tm.h"
 #include "debug.h"
 #include "tree.h"
+#include "varasm.h"
+#include "stor-layout.h"
 #include "ggc.h"
 #include "vec.h"
 
@@ -58,7 +58,7 @@ static GTY(()) int unnamed_struct_number;
 
 /* Declarations whose debug info was deferred till end of compilation.  */
 
-static GTY(()) VEC(tree,gc) *deferred_global_decls;
+static GTY(()) vec<tree, va_gc> *deferred_global_decls;
 
 /* The C front end may call sdbout_symbol before sdbout_init runs.
    We save all such decls in this list and output them when we get
@@ -120,9 +120,7 @@ static void sdbout_end_block		(unsigned int, unsigned int);
 static void sdbout_source_line		(unsigned int, const char *, int, bool);
 static void sdbout_end_epilogue		(unsigned int, const char *);
 static void sdbout_global_decl		(tree);
-#ifndef MIPS_DEBUGGING_INFO
 static void sdbout_begin_prologue	(unsigned int, const char *);
-#endif
 static void sdbout_end_prologue		(unsigned int, const char *);
 static void sdbout_begin_function	(tree);
 static void sdbout_end_function		(unsigned int);
@@ -159,7 +157,7 @@ static void sdbout_global_decl		(tree);
 #endif
 
 #ifndef PUT_SDB_SCL
-#define PUT_SDB_SCL(a) fprintf(asm_out_file, "\t.scl\t%d%s", (a), SDB_DELIM)
+#define PUT_SDB_SCL(a) fprintf (asm_out_file, "\t.scl\t%d%s", (a), SDB_DELIM)
 #endif
 
 #ifndef PUT_SDB_INT_VAL
@@ -186,15 +184,16 @@ do { fprintf (asm_out_file, "\t.def\t");	\
 #endif
 
 #ifndef PUT_SDB_PLAIN_DEF
-#define PUT_SDB_PLAIN_DEF(a) fprintf(asm_out_file,"\t.def\t.%s%s",a, SDB_DELIM)
+#define PUT_SDB_PLAIN_DEF(a) \
+  fprintf (asm_out_file, "\t.def\t.%s%s", a, SDB_DELIM)
 #endif
 
 #ifndef PUT_SDB_ENDEF
-#define PUT_SDB_ENDEF fputs("\t.endef\n", asm_out_file)
+#define PUT_SDB_ENDEF fputs ("\t.endef\n", asm_out_file)
 #endif
 
 #ifndef PUT_SDB_TYPE
-#define PUT_SDB_TYPE(a) fprintf(asm_out_file, "\t.type\t0%o%s", a, SDB_DELIM)
+#define PUT_SDB_TYPE(a) fprintf (asm_out_file, "\t.type\t0%o%s", a, SDB_DELIM)
 #endif
 
 #ifndef PUT_SDB_SIZE
@@ -202,19 +201,19 @@ do { fprintf (asm_out_file, "\t.def\t");	\
  do {									\
    fprintf (asm_out_file, "\t.size\t" HOST_WIDE_INT_PRINT_DEC "%s",	\
 	    (HOST_WIDE_INT) (a), SDB_DELIM);				\
- } while(0)
+ } while (0)
 #endif
 
 #ifndef PUT_SDB_START_DIM
-#define PUT_SDB_START_DIM fprintf(asm_out_file, "\t.dim\t")
+#define PUT_SDB_START_DIM fprintf (asm_out_file, "\t.dim\t")
 #endif
 
 #ifndef PUT_SDB_NEXT_DIM
-#define PUT_SDB_NEXT_DIM(a) fprintf(asm_out_file, "%d,", a)
+#define PUT_SDB_NEXT_DIM(a) fprintf (asm_out_file, "%d,", a)
 #endif
 
 #ifndef PUT_SDB_LAST_DIM
-#define PUT_SDB_LAST_DIM(a) fprintf(asm_out_file, "%d%s", a, SDB_DELIM)
+#define PUT_SDB_LAST_DIM(a) fprintf (asm_out_file, "%d%s", a, SDB_DELIM)
 #endif
 
 #ifndef PUT_SDB_TAG
@@ -275,33 +274,6 @@ do { fprintf (asm_out_file, "\t.tag\t");	\
   if ((int) line <= sdb_begin_function_line) \
     line = sdb_begin_function_line + 1
 
-/* Perform linker optimization of merging header file definitions together
-   for targets with MIPS_DEBUGGING_INFO defined.  This won't work without a
-   post 960826 version of GAS.  Nothing breaks with earlier versions of GAS,
-   the optimization just won't be done.  The native assembler already has the
-   necessary support.  */
-
-#ifdef MIPS_DEBUGGING_INFO
-
-/* ECOFF linkers have an optimization that does the same kind of thing as
-   N_BINCL/E_INCL in stabs: eliminate duplicate debug information in the
-   executable.  To achieve this, GCC must output a .file for each file
-   name change.  */
-
-/* This is a stack of input files.  */
-
-struct sdb_file
-{
-  struct sdb_file *next;
-  const char *name;
-};
-
-/* This is the top of the stack.  */
-
-static struct sdb_file *current_file;
-
-#endif /* MIPS_DEBUGGING_INFO */
-
 /* The debug hooks structure.  */
 const struct gcc_debug_hooks sdb_debug_hooks =
 {
@@ -316,15 +288,8 @@ const struct gcc_debug_hooks sdb_debug_hooks =
   sdbout_end_block,		         /* end_block */
   debug_true_const_tree,	         /* ignore_block */
   sdbout_source_line,		         /* source_line */
-#ifdef MIPS_DEBUGGING_INFO
-  /* Defer on MIPS systems so that parameter descriptions follow
-     function entry.  */
-  debug_nothing_int_charstar,	         /* begin_prologue */
-  sdbout_end_prologue,		         /* end_prologue */
-#else
   sdbout_begin_prologue,	         /* begin_prologue */
   debug_nothing_int_charstar,	         /* end_prologue */
-#endif
   debug_nothing_int_charstar,	         /* begin_epilogue */
   sdbout_end_epilogue,		         /* end_epilogue */
   sdbout_begin_function,	         /* begin_function */
@@ -572,10 +537,10 @@ plain_type_1 (tree type, int level)
 	    = (TYPE_DOMAIN (type)
 	       && TYPE_MIN_VALUE (TYPE_DOMAIN (type)) != 0
 	       && TYPE_MAX_VALUE (TYPE_DOMAIN (type)) != 0
-	       && host_integerp (TYPE_MAX_VALUE (TYPE_DOMAIN (type)), 0)
-	       && host_integerp (TYPE_MIN_VALUE (TYPE_DOMAIN (type)), 0)
-	       ? (tree_low_cst (TYPE_MAX_VALUE (TYPE_DOMAIN (type)), 0)
-		  - tree_low_cst (TYPE_MIN_VALUE (TYPE_DOMAIN (type)), 0) + 1)
+	       && tree_fits_shwi_p (TYPE_MAX_VALUE (TYPE_DOMAIN (type)))
+	       && tree_fits_shwi_p (TYPE_MIN_VALUE (TYPE_DOMAIN (type)))
+	       ? (tree_to_shwi (TYPE_MAX_VALUE (TYPE_DOMAIN (type)))
+		  - tree_to_shwi (TYPE_MIN_VALUE (TYPE_DOMAIN (type))) + 1)
 	       : 0);
 
 	return PUSH_DERIVED_LEVEL (DT_ARY, m);
@@ -777,7 +742,7 @@ sdbout_symbol (tree decl, int local)
       SET_DECL_RTL (decl,
 		    eliminate_regs (DECL_RTL (decl), VOIDmode, NULL_RTX));
 #ifdef LEAF_REG_REMAP
-      if (current_function_uses_only_leaf_regs)
+      if (crtl->uses_only_leaf_regs)
 	leaf_renumber_regs_insn (DECL_RTL (decl));
 #endif
       value = DECL_RTL (decl);
@@ -803,7 +768,7 @@ sdbout_symbol (tree decl, int local)
 	      if (REGNO (value) >= FIRST_PSEUDO_REGISTER)
 		return;
 	    }
-	  regno = REGNO (alter_subreg (&value));
+	  regno = REGNO (alter_subreg (&value, true));
 	  SET_DECL_RTL (decl, value);
 	}
       /* Don't output anything if an auto variable
@@ -1031,8 +996,8 @@ sdbout_field_types (tree type)
     if (TREE_CODE (tail) == FIELD_DECL
 	&& DECL_NAME (tail)
 	&& DECL_SIZE (tail)
-	&& host_integerp (DECL_SIZE (tail), 1)
-	&& host_integerp (bit_position (tail), 0))
+	&& tree_fits_uhwi_p (DECL_SIZE (tail))
+	&& tree_fits_shwi_p (bit_position (tail)))
       {
 	if (POINTER_TYPE_P (TREE_TYPE (tail)))
 	  sdbout_one_type (TREE_TYPE (TREE_TYPE (tail)));
@@ -1055,7 +1020,7 @@ sdbout_one_type (tree type)
       && DECL_SECTION_NAME (current_function_decl) != NULL_TREE)
     ; /* Don't change section amid function.  */
   else
-    switch_to_section (text_section);
+    switch_to_section (current_function_section ());
 
   switch (TREE_CODE (type))
     {
@@ -1171,7 +1136,7 @@ sdbout_one_type (tree type)
 		  continue;
 
 		PUT_SDB_DEF (IDENTIFIER_POINTER (child_type_name));
-		PUT_SDB_INT_VAL (tree_low_cst (BINFO_OFFSET (child), 0));
+		PUT_SDB_INT_VAL (tree_to_shwi (BINFO_OFFSET (child)));
 		PUT_SDB_SCL (member_scl);
 		sdbout_type (BINFO_TYPE (child));
 		PUT_SDB_ENDEF;
@@ -1189,10 +1154,10 @@ sdbout_one_type (tree type)
 	        if (TREE_CODE (value) == CONST_DECL)
 	          value = DECL_INITIAL (value);
 
-	        if (host_integerp (value, 0))
+	        if (tree_fits_shwi_p (value))
 		  {
 		    PUT_SDB_DEF (IDENTIFIER_POINTER (TREE_PURPOSE (tem)));
-		    PUT_SDB_INT_VAL (tree_low_cst (value, 0));
+		    PUT_SDB_INT_VAL (tree_to_shwi (value));
 		    PUT_SDB_SCL (C_MOE);
 		    PUT_SDB_TYPE (T_MOE);
 		    PUT_SDB_ENDEF;
@@ -1210,8 +1175,8 @@ sdbout_one_type (tree type)
 	    if (TREE_CODE (tem) == FIELD_DECL
 		&& DECL_NAME (tem)
 		&& DECL_SIZE (tem)
-		&& host_integerp (DECL_SIZE (tem), 1)
-		&& host_integerp (bit_position (tem), 0))
+		&& tree_fits_uhwi_p (DECL_SIZE (tem))
+		&& tree_fits_shwi_p (bit_position (tem)))
 	      {
 		const char *name;
 
@@ -1222,7 +1187,7 @@ sdbout_one_type (tree type)
 		    PUT_SDB_INT_VAL (int_bit_position (tem));
 		    PUT_SDB_SCL (C_FIELD);
 		    sdbout_type (DECL_BIT_FIELD_TYPE (tem));
-		    PUT_SDB_SIZE (tree_low_cst (DECL_SIZE (tem), 1));
+		    PUT_SDB_SIZE (tree_to_uhwi (DECL_SIZE (tem)));
 		  }
 		else
 		  {
@@ -1264,7 +1229,10 @@ static void
 sdbout_parms (tree parms)
 {
   for (; parms; parms = TREE_CHAIN (parms))
-    if (DECL_NAME (parms))
+    if (DECL_NAME (parms)
+	&& TREE_TYPE (parms) != error_mark_node
+	&& DECL_RTL_SET_P (parms)
+	&& DECL_INCOMING_RTL (parms))
       {
 	int current_sym_value = 0;
 	const char *name = IDENTIFIER_POINTER (DECL_NAME (parms));
@@ -1396,7 +1364,10 @@ static void
 sdbout_reg_parms (tree parms)
 {
   for (; parms; parms = TREE_CHAIN (parms))
-    if (DECL_NAME (parms))
+    if (DECL_NAME (parms)
+        && TREE_TYPE (parms) != error_mark_node
+        && DECL_RTL_SET_P (parms)
+        && DECL_INCOMING_RTL (parms))
       {
 	const char *name = IDENTIFIER_POINTER (DECL_NAME (parms));
 
@@ -1463,7 +1434,7 @@ sdbout_global_decl (tree decl)
       if (!DECL_INITIAL (decl) || !TREE_PUBLIC (decl))
 	sdbout_symbol (decl, 0);
       else
-	VEC_safe_push (tree, gc, deferred_global_decls, decl);
+	vec_safe_push (deferred_global_decls, decl);
 
       /* Output COFF information for non-global file-scope initialized
 	 variables.  */
@@ -1481,7 +1452,7 @@ sdbout_finish (const char *main_filename ATTRIBUTE_UNUSED)
   size_t i;
   tree decl;
 
-  FOR_EACH_VEC_ELT (tree, deferred_global_decls, i, decl)
+  FOR_EACH_VEC_SAFE_ELT (deferred_global_decls, i, decl)
     sdbout_symbol (decl, 0);
 }
 
@@ -1500,12 +1471,8 @@ sdbout_begin_block (unsigned int line, unsigned int n)
   MAKE_LINE_SAFE (line);
 
   /* The SCO compiler does not emit a separate block for the function level
-     scope, so we avoid it here also.  However, mips ECOFF compilers do emit
-     a separate block, so we retain it when MIPS_DEBUGGING_INFO is defined.  */
-#ifndef MIPS_DEBUGGING_INFO
-  if (n != 1)
-#endif
-    PUT_SDB_BLOCK_START (line - sdb_begin_function_line);
+     scope, so we avoid it here also.  */
+  PUT_SDB_BLOCK_START (line - sdb_begin_function_line);
 
   if (n == 1)
     {
@@ -1534,12 +1501,9 @@ sdbout_end_block (unsigned int line, unsigned int n ATTRIBUTE_UNUSED)
   MAKE_LINE_SAFE (line);
 
   /* The SCO compiler does not emit a separate block for the function level
-     scope, so we avoid it here also.  However, mips ECOFF compilers do emit
-     a separate block, so we retain it when MIPS_DEBUGGING_INFO is defined.  */
-#ifndef MIPS_DEBUGGING_INFO
+     scope, so we avoid it here also.  */
   if (n != 1)
-#endif
-  PUT_SDB_BLOCK_END (line - sdb_begin_function_line);
+    PUT_SDB_BLOCK_END (line - sdb_begin_function_line);
 }
 
 /* Output a line number symbol entry for source file FILENAME and line
@@ -1572,19 +1536,16 @@ sdbout_begin_function (tree decl ATTRIBUTE_UNUSED)
   sdbout_symbol (current_function_decl, 0);
 }
 
-/* Called at beginning of function body (before or after prologue,
-   depending on MIPS_DEBUGGING_INFO).  Record the function's starting
-   line number, so we can output relative line numbers for the other
-   lines.  Describe beginning of outermost block.  Also describe the
-   parameter list.  */
+/* Called at beginning of function body after prologue.  Record the
+   function's starting line number, so we can output relative line numbers
+   for the other lines.  Describe beginning of outermost block.  Also
+   describe the parameter list.  */
 
-#ifndef MIPS_DEBUGGING_INFO
 static void
 sdbout_begin_prologue (unsigned int line, const char *file ATTRIBUTE_UNUSED)
 {
   sdbout_end_prologue (line, file);
 }
-#endif
 
 static void
 sdbout_end_prologue (unsigned int line, const char *file ATTRIBUTE_UNUSED)
@@ -1651,14 +1612,6 @@ static void
 sdbout_start_source_file (unsigned int line ATTRIBUTE_UNUSED,
 			  const char *filename ATTRIBUTE_UNUSED)
 {
-#ifdef MIPS_DEBUGGING_INFO
-  struct sdb_file *n = XNEW (struct sdb_file);
-
-  n->next = current_file;
-  n->name = filename;
-  current_file = n;
-  output_file_directive (asm_out_file, filename);
-#endif
 }
 
 /* Revert to reading a previous source file.  */
@@ -1666,14 +1619,6 @@ sdbout_start_source_file (unsigned int line ATTRIBUTE_UNUSED,
 static void
 sdbout_end_source_file (unsigned int line ATTRIBUTE_UNUSED)
 {
-#ifdef MIPS_DEBUGGING_INFO
-  struct sdb_file *next;
-
-  next = current_file->next;
-  free (current_file);
-  current_file = next;
-  output_file_directive (asm_out_file, current_file->name);
-#endif
 }
 
 /* Set up for SDB output at the start of compilation.  */
@@ -1683,13 +1628,7 @@ sdbout_init (const char *input_file_name ATTRIBUTE_UNUSED)
 {
   tree t;
 
-#ifdef MIPS_DEBUGGING_INFO
-  current_file = XNEW (struct sdb_file);
-  current_file->next = NULL;
-  current_file->name = input_file_name;
-#endif
-
-  deferred_global_decls = VEC_alloc (tree, gc, 12);
+  vec_alloc (deferred_global_decls, 12);
 
   /* Emit debug information which was queued by sdbout_symbol before
      we got here.  */

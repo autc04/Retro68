@@ -1,5 +1,5 @@
 /* General Solaris system support.
-   Copyright (C) 2004, 2005 , 2007, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
    Contributed by CodeSourcery, LLC.
 
 This file is part of GCC.
@@ -22,6 +22,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
+#include "stringpool.h"
+#include "varasm.h"
 #include "output.h"
 #include "tm.h"
 #include "rtl.h"
@@ -29,7 +31,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm_p.h"
 #include "diagnostic-core.h"
 #include "ggc.h"
-#include "hashtab.h"
+#include "hash-table.h"
 
 tree solaris_pending_aligns, solaris_pending_inits, solaris_pending_finis;
 
@@ -124,8 +126,7 @@ solaris_output_init_fini (FILE *file, tree decl)
    the visibility type VIS, which must not be VISIBILITY_DEFAULT.  */
 
 void
-solaris_assemble_visibility (tree decl ATTRIBUTE_UNUSED,
-			     int vis ATTRIBUTE_UNUSED)
+solaris_assemble_visibility (tree decl, int vis ATTRIBUTE_UNUSED)
 {
 #ifdef HAVE_GAS_HIDDEN
   /* Sun as uses .symbolic for STV_PROTECTED.  STV_INTERNAL is marked as
@@ -152,14 +153,11 @@ solaris_assemble_visibility (tree decl ATTRIBUTE_UNUSED,
   assemble_name (asm_out_file, name);
   fprintf (asm_out_file, "\n");
 #else
-  warning (OPT_Wattributes, "visibility attribute not supported "
-	   "in this configuration; ignored");
+  if (!DECL_ARTIFICIAL (decl))
+    warning (OPT_Wattributes, "visibility attribute not supported "
+			      "in this configuration; ignored");
 #endif
 }
-
-/* Hash table of group signature symbols.  */
-
-static htab_t solaris_comdat_htab;
 
 /* Group section information entry stored in solaris_comdat_htab.  */
 
@@ -171,24 +169,33 @@ typedef struct comdat_entry
   const char *sig;
 } comdat_entry;
 
-/* Helper routines for maintaining solaris_comdat_htab.  */
+/* Helpers for maintaining solaris_comdat_htab.  */
 
-static hashval_t
-comdat_hash (const void *p)
+struct comdat_entry_hasher : typed_noop_remove <comdat_entry>
 {
-  const comdat_entry *entry = (const comdat_entry *) p;
+  typedef comdat_entry value_type;
+  typedef comdat_entry compare_type;
+  static inline hashval_t hash (const value_type *);
+  static inline bool equal (const value_type *, const compare_type *);
+  static inline void remove (value_type *);
+};
 
+inline hashval_t
+comdat_entry_hasher::hash (const value_type *entry)
+{
   return htab_hash_string (entry->sig);
 }
 
-static int
-comdat_eq (const void *p1, const void *p2)
+inline bool
+comdat_entry_hasher::equal (const value_type *entry1,
+			    const compare_type *entry2)
 {
-  const comdat_entry *entry1 = (const comdat_entry *) p1;
-  const comdat_entry *entry2 = (const comdat_entry *) p2;
-
   return strcmp (entry1->sig, entry2->sig) == 0;
 }
+
+/* Hash table of group signature symbols.  */
+
+static hash_table <comdat_entry_hasher> solaris_comdat_htab;
 
 /* Output assembly to switch to COMDAT group section NAME with attributes
    FLAGS and group signature symbol DECL, using Sun as syntax.  */
@@ -229,12 +236,11 @@ solaris_elf_asm_comdat_section (const char *name, unsigned int flags, tree decl)
      identify the missing ones without changing the affected frontents,
      remember the signature symbols and emit those not marked
      TREE_SYMBOL_REFERENCED in solaris_file_end.  */
-  if (solaris_comdat_htab == NULL)
-    solaris_comdat_htab = htab_create_alloc (37, comdat_hash, comdat_eq, NULL,
-					     xcalloc, free);
+  if (!solaris_comdat_htab.is_created ())
+    solaris_comdat_htab.create (37);
 
   entry.sig = signature;
-  slot = (comdat_entry **) htab_find_slot (solaris_comdat_htab, &entry, INSERT);
+  slot = solaris_comdat_htab.find_slot (&entry, INSERT);
 
   if (*slot == NULL)
     {
@@ -250,10 +256,11 @@ solaris_elf_asm_comdat_section (const char *name, unsigned int flags, tree decl)
 
 /* Define unreferenced COMDAT group signature symbol corresponding to SLOT.  */
 
-static int
-solaris_define_comdat_signature (void **slot, void *aux ATTRIBUTE_UNUSED)
+int
+solaris_define_comdat_signature (comdat_entry **slot,
+				 void *aux ATTRIBUTE_UNUSED)
 {
-  comdat_entry *entry = *(comdat_entry **) slot;
+  comdat_entry *entry = *slot;
   tree decl = entry->decl;
 
   if (TREE_CODE (decl) != IDENTIFIER_NODE)
@@ -277,8 +284,17 @@ solaris_define_comdat_signature (void **slot, void *aux ATTRIBUTE_UNUSED)
 void
 solaris_file_end (void)
 {
-  if (solaris_comdat_htab == NULL)
+  if (!solaris_comdat_htab.is_created ())
     return;
 
-  htab_traverse (solaris_comdat_htab, solaris_define_comdat_signature, NULL);
+  solaris_comdat_htab.traverse <void *, solaris_define_comdat_signature> (NULL);
+}
+
+void
+solaris_override_options (void)
+{
+  /* Older versions of Solaris ld cannot handle CIE version 3 in .eh_frame.
+     Don't emit DWARF3/4 unless specifically selected if so.  */
+  if (!HAVE_LD_EH_FRAME_CIEV3 && !global_options_set.x_dwarf_version)
+    dwarf_version = 2;
 }

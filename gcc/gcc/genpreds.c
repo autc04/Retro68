@@ -2,8 +2,7 @@
    - prototype declarations for operand predicates (tm-preds.h)
    - function definitions of operand predicates, if defined new-style
      (insn-preds.c)
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -530,7 +529,7 @@ write_match_code_switch (rtx exp)
 	  putchar (TOUPPER (*code));
 	  code++;
 	}
-      fputs(":\n", stdout);
+      fputs (":\n", stdout);
     }
 }
 
@@ -597,9 +596,9 @@ write_predicate_stmts (rtx exp)
       break;
     }
 
-  fputs("  return ",stdout);
+  fputs ("  return ",stdout);
   write_predicate_expr (exp);
-  fputs(";\n", stdout);
+  fputs (";\n", stdout);
 }
 
 /* Given a predicate, write out a complete C function to compute it.  */
@@ -933,7 +932,7 @@ write_lookup_constraint (void)
 	"  switch (str[0])\n"
 	"    {");
 
-  for (i = 0; i < ARRAY_SIZE(constraints_by_letter_table); i++)
+  for (i = 0; i < ARRAY_SIZE (constraints_by_letter_table); i++)
     {
       struct constraint_data *c = constraints_by_letter_table[i];
       if (!c)
@@ -946,9 +945,10 @@ write_lookup_constraint (void)
 	{
 	  do
 	    {
-	      printf ("      if (!strncmp (str, \"%s\", %lu))\n"
+	      printf ("      if (!strncmp (str + 1, \"%s\", %lu))\n"
 		      "        return CONSTRAINT_%s;\n",
-		      c->name, (unsigned long int) c->namelen, c->c_name);
+		      c->name + 1, (unsigned long int) c->namelen - 1,
+		      c->c_name);
 	      c = c->next_this_letter;
 	    }
 	  while (c);
@@ -975,7 +975,7 @@ write_insn_constraint_len (void)
 	"  switch (fc)\n"
 	"    {");
 
-  for (i = 0; i < ARRAY_SIZE(constraints_by_letter_table); i++)
+  for (i = 0; i < ARRAY_SIZE (constraints_by_letter_table); i++)
     {
       struct constraint_data *c = constraints_by_letter_table[i];
 
@@ -1302,6 +1302,9 @@ write_insn_preds_c (void)
 #include \"tm.h\"\n\
 #include \"rtl.h\"\n\
 #include \"tree.h\"\n\
+#include \"varasm.h\"\n\
+#include \"stor-layout.h\"\n\
+#include \"calls.h\"\n\
 #include \"tm_p.h\"\n\
 #include \"function.h\"\n\
 #include \"insn-config.h\"\n\

@@ -1,5 +1,5 @@
 /* Implementation of the CHMOD intrinsic.
-   Copyright (C) 2006, 2007, 2009, 2012 Free Software Foundation, Inc.
+   Copyright (C) 2006-2014 Free Software Foundation, Inc.
    Contributed by François-Xavier Coudert <coudert@clipper.ens.fr>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -27,7 +27,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #if defined(HAVE_SYS_STAT_H)
 
-#include <stdbool.h>
 #include <string.h>	/* For memcpy. */
 #include <sys/stat.h>	/* For stat, chmod and umask.  */
 
@@ -74,7 +73,10 @@ chmod_func (char *name, char *mode, gfc_charlen_type name_len,
   bool ugo[3];
   bool rwxXstugo[9];
   int set_mode, part;
-  bool is_dir, honor_umask, continue_clause = false;
+  bool honor_umask, continue_clause = false;
+#ifndef __MINGW32__
+  bool is_dir;
+#endif
   mode_t mode_mask, file_mode, new_mode;
   struct stat stat_buf;
 
@@ -93,10 +95,10 @@ chmod_func (char *name, char *mode, gfc_charlen_type name_len,
   if (mode[0] >= '0' && mode[0] <= '9')
     {
 #ifdef __MINGW32__
-      unsigned mode;
-      if (sscanf (mode, "%o", &mode) != 1)
+      unsigned fmode;
+      if (sscanf (mode, "%o", &fmode) != 1)
 	return 1;
-      file_mode = (mode_t) mode;
+      file_mode = (mode_t) fmode;
 #else
       if (sscanf (mode, "%o", &file_mode) != 1)
 	return 1;
@@ -109,7 +111,9 @@ chmod_func (char *name, char *mode, gfc_charlen_type name_len,
     return 1;
 
   file_mode = stat_buf.st_mode & ~S_IFMT;
+#ifndef __MINGW32__
   is_dir = stat_buf.st_mode & S_IFDIR;
+#endif
 
 #ifdef HAVE_UMASK
   /* Obtain the umask without distroying the setting.  */
@@ -141,7 +145,6 @@ chmod_func (char *name, char *mode, gfc_charlen_type name_len,
       rwxXstugo[6] = false;
       rwxXstugo[7] = false;
       rwxXstugo[8] = false;
-      rwxXstugo[9] = false;
       part = 0;
       set_mode = -1;
       for (; i < mode_len; i++)
@@ -460,17 +463,19 @@ clause_done:
 	if ((ugo[2] || honor_umask) && !rwxXstugo[8])
 	  file_mode = (file_mode & ~(S_IROTH | S_IWOTH | S_IXOTH))
 		      | (new_mode & (S_IROTH | S_IWOTH | S_IXOTH));
+#ifndef __VXWORKS__
 	if (is_dir && rwxXstugo[5])
 	  file_mode |= S_ISVTX;
 	else if (!is_dir)
 	  file_mode &= ~S_ISVTX;
+#endif
 #endif
       }
     else if (set_mode == 2)
       {
 	/* Clear '-'.  */
 	file_mode &= ~new_mode;
-#ifndef __MINGW32__
+#if !defined( __MINGW32__) && !defined (__VXWORKS__)
 	if (rwxXstugo[5] || !is_dir)
 	  file_mode &= ~S_ISVTX;
 #endif
@@ -478,7 +483,7 @@ clause_done:
     else if (set_mode == 3)
       {
 	file_mode |= new_mode;
-#ifndef __MINGW32__
+#if !defined (__MINGW32__) && !defined (__VXWORKS__)
 	if (rwxXstugo[5] && is_dir)
 	  file_mode |= S_ISVTX;
 	else if (!is_dir)

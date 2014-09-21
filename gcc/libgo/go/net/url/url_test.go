@@ -7,6 +7,7 @@ package url
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -121,14 +122,14 @@ var urltests = []URLTest{
 		},
 		"http:%2f%2fwww.google.com/?q=go+language",
 	},
-	// non-authority
+	// non-authority with path
 	{
 		"mailto:/webmaster@golang.org",
 		&URL{
 			Scheme: "mailto",
 			Path:   "/webmaster@golang.org",
 		},
-		"",
+		"mailto:///webmaster@golang.org", // unfortunate compromise
 	},
 	// non-authority
 	{
@@ -188,6 +189,37 @@ var urltests = []URLTest{
 		},
 		"http://user:password@google.com",
 	},
+	// unescaped @ in username should not confuse host
+	{
+		"http://j@ne:password@google.com",
+		&URL{
+			Scheme: "http",
+			User:   UserPassword("j@ne", "password"),
+			Host:   "google.com",
+		},
+		"http://j%40ne:password@google.com",
+	},
+	// unescaped @ in password should not confuse host
+	{
+		"http://jane:p@ssword@google.com",
+		&URL{
+			Scheme: "http",
+			User:   UserPassword("jane", "p@ssword"),
+			Host:   "google.com",
+		},
+		"http://jane:p%40ssword@google.com",
+	},
+	{
+		"http://j@ne:password@google.com/p@th?q=@go",
+		&URL{
+			Scheme:   "http",
+			User:     UserPassword("j@ne", "password"),
+			Host:     "google.com",
+			Path:     "/p@th",
+			RawQuery: "q=@go",
+		},
+		"http://j%40ne:password@google.com/p@th?q=@go",
+	},
 	{
 		"http://www.google.com/?q=go+language#foo",
 		&URL{
@@ -209,6 +241,32 @@ var urltests = []URLTest{
 			Fragment: "foo&bar",
 		},
 		"http://www.google.com/?q=go+language#foo&bar",
+	},
+	{
+		"file:///home/adg/rabbits",
+		&URL{
+			Scheme: "file",
+			Host:   "",
+			Path:   "/home/adg/rabbits",
+		},
+		"file:///home/adg/rabbits",
+	},
+	// case-insensitive scheme
+	{
+		"MaIlTo:webmaster@golang.org",
+		&URL{
+			Scheme: "mailto",
+			Opaque: "webmaster@golang.org",
+		},
+		"mailto:webmaster@golang.org",
+	},
+	// Relative path
+	{
+		"a/b/c",
+		&URL{
+			Path: "a/b/c",
+		},
+		"a/b/c",
 	},
 }
 
@@ -239,13 +297,37 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
 	}
 }
 
+func BenchmarkString(b *testing.B) {
+	b.StopTimer()
+	b.ReportAllocs()
+	for _, tt := range urltests {
+		u, err := Parse(tt.in)
+		if err != nil {
+			b.Errorf("Parse(%q) returned error %s", tt.in, err)
+			continue
+		}
+		if tt.roundtrip == "" {
+			continue
+		}
+		b.StartTimer()
+		var g string
+		for i := 0; i < b.N; i++ {
+			g = u.String()
+		}
+		b.StopTimer()
+		if w := tt.roundtrip; g != w {
+			b.Errorf("Parse(%q).String() == %q, want %q", tt.in, g, w)
+		}
+	}
+}
+
 func TestParse(t *testing.T) {
 	DoTest(t, Parse, "Parse", urltests)
 }
 
 const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
 
-var parseRequestUrlTests = []struct {
+var parseRequestURLTests = []struct {
 	url           string
 	expectedValid bool
 }{
@@ -257,10 +339,11 @@ var parseRequestUrlTests = []struct {
 	{"//not.a.user@%66%6f%6f.com/just/a/path/also", true},
 	{"foo.html", false},
 	{"../dir/", false},
+	{"*", true},
 }
 
 func TestParseRequestURI(t *testing.T) {
-	for _, test := range parseRequestUrlTests {
+	for _, test := range parseRequestURLTests {
 		_, err := ParseRequestURI(test.url)
 		valid := err == nil
 		if valid != test.expectedValid {
@@ -297,6 +380,22 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
 
 func TestURLString(t *testing.T) {
 	DoTestString(t, Parse, "Parse", urltests)
+
+	// no leading slash on path should prepend
+	// slash on String() call
+	noslash := URLTest{
+		"http://www.google.com/search",
+		&URL{
+			Scheme: "http",
+			Host:   "www.google.com",
+			Path:   "search",
+		},
+		"",
+	}
+	s := noslash.out.String()
+	if s != noslash.in {
+		t.Errorf("Expected %s; go %s", noslash.in, s)
+	}
 }
 
 type EscapeTest struct {
@@ -394,8 +493,8 @@ var escapeTests = []EscapeTest{
 		nil,
 	},
 	{
-		" ?&=#+%!<>#\"{}|\\^[]`☺\t",
-		"+%3F%26%3D%23%2B%25!%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09",
+		" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+		"+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B",
 		nil,
 	},
 }
@@ -422,20 +521,24 @@ func TestEscape(t *testing.T) {
 //}
 
 type EncodeQueryTest struct {
-	m         Values
-	expected  string
-	expected1 string
+	m        Values
+	expected string
 }
 
 var encodeQueryTests = []EncodeQueryTest{
-	{nil, "", ""},
-	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8", "oe=utf8&q=puppies"},
-	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7", "q=dogs&q=%26&q=7"},
+	{nil, ""},
+	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
+	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
+	{Values{
+		"a": {"a1", "a2", "a3"},
+		"b": {"b1", "b2", "b3"},
+		"c": {"c1", "c2", "c3"},
+	}, "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"},
 }
 
 func TestEncodeQuery(t *testing.T) {
 	for _, tt := range encodeQueryTests {
-		if q := tt.m.Encode(); q != tt.expected && q != tt.expected1 {
+		if q := tt.m.Encode(); q != tt.expected {
 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
 		}
 	}
@@ -444,18 +547,18 @@ func TestEncodeQuery(t *testing.T) {
 var resolvePathTests = []struct {
 	base, ref, expected string
 }{
-	{"a/b", ".", "a/"},
-	{"a/b", "c", "a/c"},
-	{"a/b", "..", ""},
-	{"a/", "..", ""},
-	{"a/", "../..", ""},
-	{"a/b/c", "..", "a/"},
-	{"a/b/c", "../d", "a/d"},
-	{"a/b/c", ".././d", "a/d"},
-	{"a/b", "./..", ""},
-	{"a/./b", ".", "a/./"},
-	{"a/../", ".", "a/../"},
-	{"a/.././b", "c", "a/.././c"},
+	{"a/b", ".", "/a/"},
+	{"a/b", "c", "/a/c"},
+	{"a/b", "..", "/"},
+	{"a/", "..", "/"},
+	{"a/", "../..", "/"},
+	{"a/b/c", "..", "/a/"},
+	{"a/b/c", "../d", "/a/d"},
+	{"a/b/c", ".././d", "/a/d"},
+	{"a/b", "./..", "/"},
+	{"a/./b", ".", "/a/"},
+	{"a/../", ".", "/"},
+	{"a/.././b", "c", "/c"},
 }
 
 func TestResolvePath(t *testing.T) {
@@ -500,15 +603,79 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/bar/baz", "../../../../../quux", "http://foo.com/quux"},
 	{"http://foo.com/bar", "..", "http://foo.com/"},
 	{"http://foo.com/bar/baz", "./..", "http://foo.com/"},
+	// ".." in the middle (issue 3560)
+	{"http://foo.com/bar/baz", "quux/dotdot/../tail", "http://foo.com/bar/quux/tail"},
+	{"http://foo.com/bar/baz", "quux/./dotdot/../tail", "http://foo.com/bar/quux/tail"},
+	{"http://foo.com/bar/baz", "quux/./dotdot/.././tail", "http://foo.com/bar/quux/tail"},
+	{"http://foo.com/bar/baz", "quux/./dotdot/./../tail", "http://foo.com/bar/quux/tail"},
+	{"http://foo.com/bar/baz", "quux/./dotdot/dotdot/././../../tail", "http://foo.com/bar/quux/tail"},
+	{"http://foo.com/bar/baz", "quux/./dotdot/dotdot/./.././../tail", "http://foo.com/bar/quux/tail"},
+	{"http://foo.com/bar/baz", "quux/./dotdot/dotdot/dotdot/./../../.././././tail", "http://foo.com/bar/quux/tail"},
+	{"http://foo.com/bar/baz", "quux/./dotdot/../dotdot/../dot/./tail/..", "http://foo.com/bar/quux/dot/"},
 
-	// "." and ".." in the base aren't special
-	{"http://foo.com/dot/./dotdot/../foo/bar", "../baz", "http://foo.com/dot/./dotdot/../baz"},
+	// Remove any dot-segments prior to forming the target URI.
+	// http://tools.ietf.org/html/rfc3986#section-5.2.4
+	{"http://foo.com/dot/./dotdot/../foo/bar", "../baz", "http://foo.com/dot/baz"},
 
 	// Triple dot isn't special
 	{"http://foo.com/bar", "...", "http://foo.com/..."},
 
 	// Fragment
 	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
+
+	// RFC 3986: Normal Examples
+	// http://tools.ietf.org/html/rfc3986#section-5.4.1
+	{"http://a/b/c/d;p?q", "g:h", "g:h"},
+	{"http://a/b/c/d;p?q", "g", "http://a/b/c/g"},
+	{"http://a/b/c/d;p?q", "./g", "http://a/b/c/g"},
+	{"http://a/b/c/d;p?q", "g/", "http://a/b/c/g/"},
+	{"http://a/b/c/d;p?q", "/g", "http://a/g"},
+	{"http://a/b/c/d;p?q", "//g", "http://g"},
+	{"http://a/b/c/d;p?q", "?y", "http://a/b/c/d;p?y"},
+	{"http://a/b/c/d;p?q", "g?y", "http://a/b/c/g?y"},
+	{"http://a/b/c/d;p?q", "#s", "http://a/b/c/d;p?q#s"},
+	{"http://a/b/c/d;p?q", "g#s", "http://a/b/c/g#s"},
+	{"http://a/b/c/d;p?q", "g?y#s", "http://a/b/c/g?y#s"},
+	{"http://a/b/c/d;p?q", ";x", "http://a/b/c/;x"},
+	{"http://a/b/c/d;p?q", "g;x", "http://a/b/c/g;x"},
+	{"http://a/b/c/d;p?q", "g;x?y#s", "http://a/b/c/g;x?y#s"},
+	{"http://a/b/c/d;p?q", "", "http://a/b/c/d;p?q"},
+	{"http://a/b/c/d;p?q", ".", "http://a/b/c/"},
+	{"http://a/b/c/d;p?q", "./", "http://a/b/c/"},
+	{"http://a/b/c/d;p?q", "..", "http://a/b/"},
+	{"http://a/b/c/d;p?q", "../", "http://a/b/"},
+	{"http://a/b/c/d;p?q", "../g", "http://a/b/g"},
+	{"http://a/b/c/d;p?q", "../..", "http://a/"},
+	{"http://a/b/c/d;p?q", "../../", "http://a/"},
+	{"http://a/b/c/d;p?q", "../../g", "http://a/g"},
+
+	// RFC 3986: Abnormal Examples
+	// http://tools.ietf.org/html/rfc3986#section-5.4.2
+	{"http://a/b/c/d;p?q", "../../../g", "http://a/g"},
+	{"http://a/b/c/d;p?q", "../../../../g", "http://a/g"},
+	{"http://a/b/c/d;p?q", "/./g", "http://a/g"},
+	{"http://a/b/c/d;p?q", "/../g", "http://a/g"},
+	{"http://a/b/c/d;p?q", "g.", "http://a/b/c/g."},
+	{"http://a/b/c/d;p?q", ".g", "http://a/b/c/.g"},
+	{"http://a/b/c/d;p?q", "g..", "http://a/b/c/g.."},
+	{"http://a/b/c/d;p?q", "..g", "http://a/b/c/..g"},
+	{"http://a/b/c/d;p?q", "./../g", "http://a/b/g"},
+	{"http://a/b/c/d;p?q", "./g/.", "http://a/b/c/g/"},
+	{"http://a/b/c/d;p?q", "g/./h", "http://a/b/c/g/h"},
+	{"http://a/b/c/d;p?q", "g/../h", "http://a/b/c/h"},
+	{"http://a/b/c/d;p?q", "g;x=1/./y", "http://a/b/c/g;x=1/y"},
+	{"http://a/b/c/d;p?q", "g;x=1/../y", "http://a/b/c/y"},
+	{"http://a/b/c/d;p?q", "g?y/./x", "http://a/b/c/g?y/./x"},
+	{"http://a/b/c/d;p?q", "g?y/../x", "http://a/b/c/g?y/../x"},
+	{"http://a/b/c/d;p?q", "g#s/./x", "http://a/b/c/g#s/./x"},
+	{"http://a/b/c/d;p?q", "g#s/../x", "http://a/b/c/g#s/../x"},
+
+	// Extras.
+	{"https://a/b/c/d;p?q", "//g?q", "https://g?q"},
+	{"https://a/b/c/d;p?q", "//g#s", "https://g#s"},
+	{"https://a/b/c/d;p?q", "//g/d/e/f?y#s", "https://g/d/e/f?y#s"},
+	{"https://a/b/c/d;p#s", "?y", "https://a/b/c/d;p?y"},
+	{"https://a/b/c/d;p?q#s", "?y", "https://a/b/c/d;p?y"},
 }
 
 func TestResolveReference(t *testing.T) {
@@ -519,91 +686,44 @@ func TestResolveReference(t *testing.T) {
 		}
 		return u
 	}
+	opaque := &URL{Scheme: "scheme", Opaque: "opaque"}
 	for _, test := range resolveReferenceTests {
 		base := mustParse(test.base)
 		rel := mustParse(test.rel)
 		url := base.ResolveReference(rel)
-		urlStr := url.String()
-		if urlStr != test.expected {
-			t.Errorf("Resolving %q + %q != %q; got %q", test.base, test.rel, test.expected, urlStr)
+		if url.String() != test.expected {
+			t.Errorf("URL(%q).ResolveReference(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
 		}
-	}
-
-	// Test that new instances are returned.
-	base := mustParse("http://foo.com/")
-	abs := base.ResolveReference(mustParse("."))
-	if base == abs {
-		t.Errorf("Expected no-op reference to return new URL instance.")
-	}
-	barRef := mustParse("http://bar.com/")
-	abs = base.ResolveReference(barRef)
-	if abs == barRef {
-		t.Errorf("Expected resolution of absolute reference to return new URL instance.")
-	}
-
-	// Test the convenience wrapper too
-	base = mustParse("http://foo.com/path/one/")
-	abs, _ = base.Parse("../two")
-	expected := "http://foo.com/path/two"
-	if abs.String() != expected {
-		t.Errorf("Parse wrapper got %q; expected %q", abs.String(), expected)
-	}
-	_, err := base.Parse("")
-	if err == nil {
-		t.Errorf("Expected an error from Parse wrapper parsing an empty string.")
-	}
-
-	// Ensure Opaque resets the URL.
-	base = mustParse("scheme://user@foo.com/bar")
-	abs = base.ResolveReference(&URL{Opaque: "opaque"})
-	want := mustParse("scheme:opaque")
-	if *abs != *want {
-		t.Errorf("ResolveReference failed to resolve opaque URL: want %#v, got %#v", abs, want)
-	}
-}
-
-func TestResolveReferenceOpaque(t *testing.T) {
-	mustParse := func(url string) *URL {
-		u, err := Parse(url)
+		// Ensure that new instances are returned.
+		if base == url {
+			t.Errorf("Expected URL.ResolveReference to return new URL instance.")
+		}
+		// Test the convenience wrapper too.
+		url, err := base.Parse(test.rel)
 		if err != nil {
-			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+			t.Errorf("URL(%q).Parse(%q) failed: %v", test.base, test.rel, err)
+		} else if url.String() != test.expected {
+			t.Errorf("URL(%q).Parse(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
+		} else if base == url {
+			// Ensure that new instances are returned for the wrapper too.
+			t.Errorf("Expected URL.Parse to return new URL instance.")
 		}
-		return u
-	}
-	for _, test := range resolveReferenceTests {
-		base := mustParse(test.base)
-		rel := mustParse(test.rel)
-		url := base.ResolveReference(rel)
-		urlStr := url.String()
-		if urlStr != test.expected {
-			t.Errorf("Resolving %q + %q != %q; got %q", test.base, test.rel, test.expected, urlStr)
+		// Ensure Opaque resets the URL.
+		url = base.ResolveReference(opaque)
+		if *url != *opaque {
+			t.Errorf("ResolveReference failed to resolve opaque URL: want %#v, got %#v", url, opaque)
+		}
+		// Test the convenience wrapper with an opaque URL too.
+		url, err = base.Parse("scheme:opaque")
+		if err != nil {
+			t.Errorf(`URL(%q).Parse("scheme:opaque") failed: %v`, test.base, err)
+		} else if *url != *opaque {
+			t.Errorf("Parse failed to resolve opaque URL: want %#v, got %#v", url, opaque)
+		} else if base == url {
+			// Ensure that new instances are returned, again.
+			t.Errorf("Expected URL.Parse to return new URL instance.")
 		}
 	}
-
-	// Test that new instances are returned.
-	base := mustParse("http://foo.com/")
-	abs := base.ResolveReference(mustParse("."))
-	if base == abs {
-		t.Errorf("Expected no-op reference to return new URL instance.")
-	}
-	barRef := mustParse("http://bar.com/")
-	abs = base.ResolveReference(barRef)
-	if abs == barRef {
-		t.Errorf("Expected resolution of absolute reference to return new URL instance.")
-	}
-
-	// Test the convenience wrapper too
-	base = mustParse("http://foo.com/path/one/")
-	abs, _ = base.Parse("../two")
-	expected := "http://foo.com/path/two"
-	if abs.String() != expected {
-		t.Errorf("Parse wrapper got %q; expected %q", abs.String(), expected)
-	}
-	_, err := base.Parse("")
-	if err == nil {
-		t.Errorf("Expected an error from Parse wrapper parsing an empty string.")
-	}
-
 }
 
 func TestQueryValues(t *testing.T) {
@@ -710,6 +830,24 @@ var requritests = []RequestURITest{
 		},
 		"/a%20b",
 	},
+	// golang.org/issue/4860 variant 1
+	{
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Opaque: "/%2F/%2F/",
+		},
+		"/%2F/%2F/",
+	},
+	// golang.org/issue/4860 variant 2
+	{
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Opaque: "//other.example.com/%2F/%2F/",
+		},
+		"http://other.example.com/%2F/%2F/",
+	},
 	{
 		&URL{
 			Scheme:   "http",
@@ -742,5 +880,15 @@ func TestRequestURI(t *testing.T) {
 		if s != tt.out {
 			t.Errorf("%#v.RequestURI() == %q (expected %q)", tt.url, s, tt.out)
 		}
+	}
+}
+
+func TestParseFailure(t *testing.T) {
+	// Test that the first parse error is returned.
+	const url = "%gh&%ij"
+	_, err := ParseQuery(url)
+	errStr := fmt.Sprint(err)
+	if !strings.Contains(errStr, "%gh") {
+		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
 	}
 }

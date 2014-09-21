@@ -98,13 +98,6 @@ type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -200,10 +193,19 @@ func (d *decoder) parsePLTE(length uint32) error {
 	d.crc.Write(d.tmp[:n])
 	switch d.cb {
 	case cbP1, cbP2, cbP4, cbP8:
-		d.palette = color.Palette(make([]color.Color, np))
+		d.palette = make(color.Palette, 256)
 		for i := 0; i < np; i++ {
 			d.palette[i] = color.RGBA{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
 		}
+		for i := np; i < 256; i++ {
+			// Initialize the rest of the palette to opaque black. The spec (section
+			// 11.2.3) says that "any out-of-range pixel value found in the image data
+			// is an error", but some real-world PNG files have out-of-range pixel
+			// values. We fall back to opaque black, the same as libpng 1.5.13;
+			// ImageMagick 6.5.7 returns an error.
+			d.palette[i] = color.RGBA{0x00, 0x00, 0x00, 0xff}
+		}
+		d.palette = d.palette[:np]
 	case cbTC8, cbTCA8, cbTC16, cbTCA16:
 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
 		// ignorable) for the ctTrueColor and ctTrueColorAlpha color types (section 4.1.2).
@@ -228,31 +230,17 @@ func (d *decoder) parsetRNS(length uint32) error {
 	case cbTC8, cbTC16:
 		return UnsupportedError("truecolor transparency")
 	case cbP1, cbP2, cbP4, cbP8:
-		if n > len(d.palette) {
-			return FormatError("bad tRNS length")
+		if len(d.palette) < n {
+			d.palette = d.palette[:n]
 		}
 		for i := 0; i < n; i++ {
 			rgba := d.palette[i].(color.RGBA)
-			d.palette[i] = color.RGBA{rgba.R, rgba.G, rgba.B, d.tmp[i]}
+			d.palette[i] = color.NRGBA{rgba.R, rgba.G, rgba.B, d.tmp[i]}
 		}
 	case cbGA8, cbGA16, cbTCA8, cbTCA16:
 		return FormatError("tRNS, color type mismatch")
 	}
 	return d.verifyChecksum()
-}
-
-// The Paeth filter function, as per the PNG specification.
-func paeth(a, b, c uint8) uint8 {
-	p := int(a) + int(b) - int(c)
-	pa := abs(p - int(a))
-	pb := abs(p - int(b))
-	pc := abs(p - int(c))
-	if pa <= pb && pa <= pc {
-		return a
-	} else if pb <= pc {
-		return b
-	}
-	return c
 }
 
 // Read presents one or more IDAT chunks as one continuous stream (minus the
@@ -300,7 +288,7 @@ func (d *decoder) decode() (image.Image, error) {
 	}
 	defer r.Close()
 	bitsPerPixel := 0
-	maxPalette := uint8(0)
+	pixOffset := 0
 	var (
 		gray     *image.Gray
 		rgba     *image.RGBA
@@ -328,7 +316,6 @@ func (d *decoder) decode() (image.Image, error) {
 		bitsPerPixel = d.depth
 		paletted = image.NewPaletted(image.Rect(0, 0, d.width, d.height), d.palette)
 		img = paletted
-		maxPalette = uint8(len(d.palette) - 1)
 	case cbTCA8:
 		bitsPerPixel = 32
 		nrgba = image.NewNRGBA(image.Rect(0, 0, d.width, d.height))
@@ -375,8 +362,8 @@ func (d *decoder) decode() (image.Image, error) {
 				cdat[i] += cdat[i-bytesPerPixel]
 			}
 		case ftUp:
-			for i := 0; i < len(cdat); i++ {
-				cdat[i] += pdat[i]
+			for i, p := range pdat {
+				cdat[i] += p
 			}
 		case ftAverage:
 			for i := 0; i < bytesPerPixel; i++ {
@@ -386,12 +373,7 @@ func (d *decoder) decode() (image.Image, error) {
 				cdat[i] += uint8((int(cdat[i-bytesPerPixel]) + int(pdat[i])) / 2)
 			}
 		case ftPaeth:
-			for i := 0; i < bytesPerPixel; i++ {
-				cdat[i] += paeth(0, pdat[i], 0)
-			}
-			for i := bytesPerPixel; i < len(cdat); i++ {
-				cdat[i] += paeth(cdat[i-bytesPerPixel], pdat[i], pdat[i-bytesPerPixel])
-			}
+			filterPaeth(cdat, pdat, bytesPerPixel)
 		default:
 			return nil, FormatError("bad filter type")
 		}
@@ -423,25 +405,31 @@ func (d *decoder) decode() (image.Image, error) {
 				}
 			}
 		case cbG8:
-			for x := 0; x < d.width; x++ {
-				gray.SetGray(x, y, color.Gray{cdat[x]})
-			}
+			copy(gray.Pix[pixOffset:], cdat)
+			pixOffset += gray.Stride
 		case cbGA8:
 			for x := 0; x < d.width; x++ {
 				ycol := cdat[2*x+0]
 				nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, cdat[2*x+1]})
 			}
 		case cbTC8:
+			pix, i, j := rgba.Pix, pixOffset, 0
 			for x := 0; x < d.width; x++ {
-				rgba.SetRGBA(x, y, color.RGBA{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+				pix[i+0] = cdat[j+0]
+				pix[i+1] = cdat[j+1]
+				pix[i+2] = cdat[j+2]
+				pix[i+3] = 0xff
+				i += 4
+				j += 3
 			}
+			pixOffset += rgba.Stride
 		case cbP1:
 			for x := 0; x < d.width; x += 8 {
 				b := cdat[x/8]
 				for x2 := 0; x2 < 8 && x+x2 < d.width; x2++ {
 					idx := b >> 7
-					if idx > maxPalette {
-						return nil, FormatError("palette index out of range")
+					if len(paletted.Palette) <= int(idx) {
+						paletted.Palette = paletted.Palette[:int(idx)+1]
 					}
 					paletted.SetColorIndex(x+x2, y, idx)
 					b <<= 1
@@ -452,8 +440,8 @@ func (d *decoder) decode() (image.Image, error) {
 				b := cdat[x/4]
 				for x2 := 0; x2 < 4 && x+x2 < d.width; x2++ {
 					idx := b >> 6
-					if idx > maxPalette {
-						return nil, FormatError("palette index out of range")
+					if len(paletted.Palette) <= int(idx) {
+						paletted.Palette = paletted.Palette[:int(idx)+1]
 					}
 					paletted.SetColorIndex(x+x2, y, idx)
 					b <<= 2
@@ -464,24 +452,26 @@ func (d *decoder) decode() (image.Image, error) {
 				b := cdat[x/2]
 				for x2 := 0; x2 < 2 && x+x2 < d.width; x2++ {
 					idx := b >> 4
-					if idx > maxPalette {
-						return nil, FormatError("palette index out of range")
+					if len(paletted.Palette) <= int(idx) {
+						paletted.Palette = paletted.Palette[:int(idx)+1]
 					}
 					paletted.SetColorIndex(x+x2, y, idx)
 					b <<= 4
 				}
 			}
 		case cbP8:
-			for x := 0; x < d.width; x++ {
-				if cdat[x] > maxPalette {
-					return nil, FormatError("palette index out of range")
+			if len(paletted.Palette) != 255 {
+				for x := 0; x < d.width; x++ {
+					if len(paletted.Palette) <= int(cdat[x]) {
+						paletted.Palette = paletted.Palette[:int(cdat[x])+1]
+					}
 				}
-				paletted.SetColorIndex(x, y, cdat[x])
 			}
+			copy(paletted.Pix[pixOffset:], cdat)
+			pixOffset += paletted.Stride
 		case cbTCA8:
-			for x := 0; x < d.width; x++ {
-				nrgba.SetNRGBA(x, y, color.NRGBA{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
-			}
+			copy(nrgba.Pix[pixOffset:], cdat)
+			pixOffset += nrgba.Stride
 		case cbG16:
 			for x := 0; x < d.width; x++ {
 				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
@@ -662,10 +652,11 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 			}
 			return image.Config{}, err
 		}
-		if d.stage == dsSeenIHDR && d.cb != cbP8 {
+		paletted := d.cb == cbP8 || d.cb == cbP4 || d.cb == cbP2 || d.cb == cbP1
+		if d.stage == dsSeenIHDR && !paletted {
 			break
 		}
-		if d.stage == dsSeenPLTE && d.cb == cbP8 {
+		if d.stage == dsSeenPLTE && paletted {
 			break
 		}
 	}

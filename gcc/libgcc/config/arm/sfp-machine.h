@@ -19,16 +19,19 @@ typedef int __gcc_CMPtype __attribute__ ((mode (__libgcc_cmp_return__)));
 #define _FP_DIV_MEAT_D(R,X,Y)	_FP_DIV_MEAT_2_udiv(D,R,X,Y)
 #define _FP_DIV_MEAT_Q(R,X,Y)	_FP_DIV_MEAT_4_udiv(Q,R,X,Y)
 
-#define _FP_NANFRAC_H		((_FP_QNANBIT_H << 1) - 1)
-#define _FP_NANFRAC_S		((_FP_QNANBIT_S << 1) - 1)
-#define _FP_NANFRAC_D		((_FP_QNANBIT_D << 1) - 1), -1
-#define _FP_NANFRAC_Q		((_FP_QNANBIT_Q << 1) - 1), -1, -1, -1
+/* According to RTABI, QNAN is only with the most significant bit of the
+   significand set, and all other significand bits zero.  */
+#define _FP_NANFRAC_H		_FP_QNANBIT_H
+#define _FP_NANFRAC_S		_FP_QNANBIT_S
+#define _FP_NANFRAC_D		_FP_QNANBIT_D, 0
+#define _FP_NANFRAC_Q		_FP_QNANBIT_Q, 0, 0, 0
 #define _FP_NANSIGN_H		0
 #define _FP_NANSIGN_S		0
 #define _FP_NANSIGN_D		0
 #define _FP_NANSIGN_Q		0
 
 #define _FP_KEEPNANFRACP 1
+#define _FP_QNANNEGATEDP 0
 
 /* Someone please check this.  */
 #define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)			\
@@ -46,6 +49,8 @@ typedef int __gcc_CMPtype __attribute__ ((mode (__libgcc_cmp_return__)));
       }								\
     R##_c = FP_CLS_NAN;						\
   } while (0)
+
+#define _FP_TININESS_AFTER_ROUNDING 0
 
 #define	__LITTLE_ENDIAN	1234
 #define	__BIG_ENDIAN	4321

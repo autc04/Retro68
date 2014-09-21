@@ -28,7 +28,7 @@ void foo()
   *adr = save;
 }
 
-/* This must not be inlined becuase main() requires the frame pointer
+/* This must not be inlined because main() requires the frame pointer
    for stack alignment.  */
 void test(void) __attribute__((noinline));
 void test(void)
@@ -45,7 +45,17 @@ void test(void)
   exit(0);
 }
 
-int main()
+/* main usually performs dynamic realignment of the stack in case
+   _start would fail to properly align the stack, but for dynamic
+   stack realignment we need frame pointer which is incompatible
+   with -ffixed-ebp and the global register var.  So, cheat here
+   and hide from the compiler that main is really main.  */
+#define ASMNAME(cname)  ASMNAME2 (__USER_LABEL_PREFIX__, cname)
+#define ASMNAME2(prefix, cname) STRING (prefix) cname
+#define STRING(x)    #x
+int real_main() __asm (ASMNAME ("main"));
+
+int real_main()
 {
   test();
   return 0;

@@ -1,6 +1,5 @@
 /* Target definitions for GCC for Intel 80386 using ELF
-   Copyright (C) 1988, 1991, 1995, 2000, 2001, 2002, 2007, 2008, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1988-2014 Free Software Foundation, Inc.
 
    Derived from sysv4.h written by Ron Guilmette (rfg@netcom.com).
 
@@ -73,7 +72,7 @@ along with GCC; see the file COPYING3.  If not see
 		  fputc ('\n', (FILE));					\
 		  bytes_in_chunk = 0;					\
 		}							\
-	      ASM_OUTPUT_LIMITED_STRING ((FILE), _ascii_bytes);		\
+	      ASM_OUTPUT_LIMITED_STRING ((FILE), (const char *) _ascii_bytes); \
 	      _ascii_bytes = p;						\
 	    }								\
 	  else								\

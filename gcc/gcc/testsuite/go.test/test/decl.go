@@ -1,10 +1,10 @@
-// $G $F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Correct short declarations and redeclarations.
+// Test correct short declarations and redeclarations.
 
 package main
 
@@ -33,8 +33,9 @@ func main() {
 		m, h, s := f3()
 		_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h
 	}
-	if x() != "3" {
-		println("x() failed")
+	if y := x(); y != "3" {
+		println("x() failed", y)
+		panic("fail")
 	}
 	_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h
 }

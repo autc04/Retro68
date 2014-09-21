@@ -1,6 +1,5 @@
 /* Parser header
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by Steven Bosscher
 
 This file is part of GCC.
@@ -61,7 +60,7 @@ extern gfc_state_data *gfc_state_stack;
 #define gfc_current_state() (gfc_state_stack->state)
 
 int gfc_check_do_variable (gfc_symtree *);
-gfc_try gfc_find_state (gfc_compile_state);
+bool gfc_find_state (gfc_compile_state);
 gfc_state_data *gfc_enclosing_unit (gfc_compile_state *);
 const char *gfc_ascii_statement (gfc_statement);
 match gfc_match_enum (void);

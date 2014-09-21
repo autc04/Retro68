@@ -1,5 +1,4 @@
-/* Copyright (C) 2009, 2010
-   Free Software Foundation, Inc.
+/* Copyright (C) 2009-2014 Free Software Foundation, Inc.
    Contributed by Anatoly Sokolov (aesok@post.ru)
 
    This file is part of GCC.
@@ -27,9 +26,226 @@
 #include "tm_p.h"
 #include "cpplib.h"
 #include "tree.h"
+#include "stor-layout.h"
+#include "target.h"
 #include "c-family/c-common.h"
 #include "langhooks.h"
 
+
+/* IDs for all the AVR builtins.  */
+
+enum avr_builtin_id
+  {
+#define DEF_BUILTIN(NAME, N_ARGS, TYPE, CODE, LIBNAME)  \
+    AVR_BUILTIN_ ## NAME,
+#include "builtins.def"
+#undef DEF_BUILTIN
+
+    AVR_BUILTIN_COUNT
+  };
+
+
+/* Implement `TARGET_RESOLVE_OVERLOADED_PLUGIN'.  */
+
+static tree
+avr_resolve_overloaded_builtin (unsigned int iloc, tree fndecl, void *vargs)
+{
+  tree type0, type1, fold = NULL_TREE;
+  enum avr_builtin_id id = AVR_BUILTIN_COUNT;
+  location_t loc = (location_t) iloc;
+  vec<tree, va_gc> &args = * (vec<tree, va_gc>*) vargs;
+
+  switch (DECL_FUNCTION_CODE (fndecl))
+    {
+    default:
+      break;
+
+    case AVR_BUILTIN_ABSFX:
+      if (args.length() != 1)
+        {
+          error_at (loc, "%qs expects 1 argument but %d given",
+                    "absfx", (int) args.length());
+
+          fold = error_mark_node;
+          break;
+        }
+
+      type0 = TREE_TYPE (args[0]);
+
+      if (!FIXED_POINT_TYPE_P (type0))
+        {
+          error_at (loc, "%qs expects a fixed-point value as argument",
+                    "absfx");
+
+          fold = error_mark_node;
+        }
+
+      switch (TYPE_MODE (type0))
+        {
+        case QQmode: id = AVR_BUILTIN_ABSHR; break;
+        case HQmode: id = AVR_BUILTIN_ABSR; break;
+        case SQmode: id = AVR_BUILTIN_ABSLR; break;
+        case DQmode: id = AVR_BUILTIN_ABSLLR; break;
+
+        case HAmode: id = AVR_BUILTIN_ABSHK; break;
+        case SAmode: id = AVR_BUILTIN_ABSK; break;
+        case DAmode: id = AVR_BUILTIN_ABSLK; break;
+        case TAmode: id = AVR_BUILTIN_ABSLLK; break;
+
+        case UQQmode:
+        case UHQmode:
+        case USQmode:
+        case UDQmode:
+        case UHAmode:
+        case USAmode:
+        case UDAmode:
+        case UTAmode:
+          warning_at (loc, 0, "using %qs with unsigned type has no effect",
+                      "absfx");
+          return args[0];
+
+        default:
+          error_at (loc, "no matching fixed-point overload found for %qs",
+                    "absfx");
+
+          fold = error_mark_node;
+          break;
+        }
+
+      fold = targetm.builtin_decl (id, true);
+
+      if (fold != error_mark_node)
+        fold = build_function_call_vec (loc, vNULL, fold, &args, NULL);
+
+      break; // absfx
+
+    case AVR_BUILTIN_ROUNDFX:
+      if (args.length() != 2)
+        {
+          error_at (loc, "%qs expects 2 arguments but %d given",
+                    "roundfx", (int) args.length());
+
+          fold = error_mark_node;
+          break;
+        }
+
+      type0 = TREE_TYPE (args[0]);
+      type1 = TREE_TYPE (args[1]);
+
+      if (!FIXED_POINT_TYPE_P (type0))
+        {
+          error_at (loc, "%qs expects a fixed-point value as first argument",
+                    "roundfx");
+
+          fold = error_mark_node;
+        }
+
+      if (!INTEGRAL_TYPE_P (type1))
+        {
+          error_at (loc, "%qs expects an integer value as second argument",
+                    "roundfx");
+
+          fold = error_mark_node;
+        }
+
+      switch (TYPE_MODE (type0))
+        {
+        case QQmode: id = AVR_BUILTIN_ROUNDHR; break;
+        case HQmode: id = AVR_BUILTIN_ROUNDR; break;
+        case SQmode: id = AVR_BUILTIN_ROUNDLR; break;
+        case DQmode: id = AVR_BUILTIN_ROUNDLLR; break;
+
+        case UQQmode: id = AVR_BUILTIN_ROUNDUHR; break;
+        case UHQmode: id = AVR_BUILTIN_ROUNDUR; break;
+        case USQmode: id = AVR_BUILTIN_ROUNDULR; break;
+        case UDQmode: id = AVR_BUILTIN_ROUNDULLR; break;
+
+        case HAmode: id = AVR_BUILTIN_ROUNDHK; break;
+        case SAmode: id = AVR_BUILTIN_ROUNDK; break;
+        case DAmode: id = AVR_BUILTIN_ROUNDLK; break;
+        case TAmode: id = AVR_BUILTIN_ROUNDLLK; break;
+
+        case UHAmode: id = AVR_BUILTIN_ROUNDUHK; break;
+        case USAmode: id = AVR_BUILTIN_ROUNDUK; break;
+        case UDAmode: id = AVR_BUILTIN_ROUNDULK; break;
+        case UTAmode: id = AVR_BUILTIN_ROUNDULLK; break;
+
+        default:
+          error_at (loc, "no matching fixed-point overload found for %qs",
+                    "roundfx");
+
+          fold = error_mark_node;
+          break;
+        }
+
+      fold = targetm.builtin_decl (id, true);
+
+      if (fold != error_mark_node)
+        fold = build_function_call_vec (loc, vNULL, fold, &args, NULL);
+
+      break; // roundfx
+
+    case AVR_BUILTIN_COUNTLSFX:
+      if (args.length() != 1)
+        {
+          error_at (loc, "%qs expects 1 argument but %d given",
+                    "countlsfx", (int) args.length());
+
+          fold = error_mark_node;
+          break;
+        }
+
+      type0 = TREE_TYPE (args[0]);
+
+      if (!FIXED_POINT_TYPE_P (type0))
+        {
+          error_at (loc, "%qs expects a fixed-point value as first argument",
+                    "countlsfx");
+
+          fold = error_mark_node;
+        }
+
+      switch (TYPE_MODE (type0))
+        {
+        case QQmode: id = AVR_BUILTIN_COUNTLSHR; break;
+        case HQmode: id = AVR_BUILTIN_COUNTLSR; break;
+        case SQmode: id = AVR_BUILTIN_COUNTLSLR; break;
+        case DQmode: id = AVR_BUILTIN_COUNTLSLLR; break;
+
+        case UQQmode: id = AVR_BUILTIN_COUNTLSUHR; break;
+        case UHQmode: id = AVR_BUILTIN_COUNTLSUR; break;
+        case USQmode: id = AVR_BUILTIN_COUNTLSULR; break;
+        case UDQmode: id = AVR_BUILTIN_COUNTLSULLR; break;
+
+        case HAmode: id = AVR_BUILTIN_COUNTLSHK; break;
+        case SAmode: id = AVR_BUILTIN_COUNTLSK; break;
+        case DAmode: id = AVR_BUILTIN_COUNTLSLK; break;
+        case TAmode: id = AVR_BUILTIN_COUNTLSLLK; break;
+
+        case UHAmode: id = AVR_BUILTIN_COUNTLSUHK; break;
+        case USAmode: id = AVR_BUILTIN_COUNTLSUK; break;
+        case UDAmode: id = AVR_BUILTIN_COUNTLSULK; break;
+        case UTAmode: id = AVR_BUILTIN_COUNTLSULLK; break;
+
+        default:
+          error_at (loc, "no matching fixed-point overload found for %qs",
+                    "countlsfx");
+
+          fold = error_mark_node;
+          break;
+        }
+
+      fold = targetm.builtin_decl (id, true);
+
+      if (fold != error_mark_node)
+        fold = build_function_call_vec (loc, vNULL, fold, &args, NULL);
+
+      break; // countlsfx
+    }
+
+  return fold;
+}
+  
 
 /* Implement `REGISTER_TARGET_PRAGMAS'.  */
 
@@ -41,26 +257,28 @@ avr_register_target_pragmas (void)
   gcc_assert (ADDR_SPACE_GENERIC == ADDR_SPACE_RAM);
 
   /* Register address spaces.  The order must be the same as in the respective
-     enum from avr.h (or designated initialized must be used in avr.c).  */
+     enum from avr.h (or designated initializers must be used in avr.c).  */
 
-  for (i = 0; avr_addrspace[i].name; i++)
+  for (i = 0; i < ADDR_SPACE_COUNT; i++)
     {
       gcc_assert (i == avr_addrspace[i].id);
 
       if (!ADDR_SPACE_GENERIC_P (i))
         c_register_addr_space (avr_addrspace[i].name, avr_addrspace[i].id);
     }
+
+  targetm.resolve_overloaded_builtin = avr_resolve_overloaded_builtin;
 }
 
 
-/* Transorm LO into uppercase and write the result to UP.
+/* Transform LO into uppercase and write the result to UP.
    You must provide enough space for UP.  Return UP.  */
 
 static char*
 avr_toupper (char *up, const char *lo)
 {
   char *up0 = up;
-  
+
   for (; *lo; lo++, up++)
     *up = TOUPPER (*lo);
 
@@ -68,28 +286,20 @@ avr_toupper (char *up, const char *lo)
 
   return up0;
 }
-             
-/* Worker function for TARGET_CPU_CPP_BUILTINS.  */
 
-static const char *const avr_builtin_name[] =
-  {
-#define DEF_BUILTIN(NAME, N_ARGS, ID, TYPE, CODE) NAME,
-#include "builtins.def"
-#undef DEF_BUILTIN
-    NULL
-  };
+/* Worker function for TARGET_CPU_CPP_BUILTINS.  */
 
 void
 avr_cpu_cpp_builtins (struct cpp_reader *pfile)
 {
   int i;
-  
+
   builtin_define_std ("AVR");
 
   if (avr_current_arch->macro)
     cpp_define_formatted (pfile, "__AVR_ARCH__=%s", avr_current_arch->macro);
-  if (avr_extra_arch_macro)
-    cpp_define (pfile, avr_extra_arch_macro);
+  if (avr_current_device->macro)
+    cpp_define (pfile, avr_current_device->macro);
   if (AVR_HAVE_RAMPD)    cpp_define (pfile, "__AVR_HAVE_RAMPD__");
   if (AVR_HAVE_RAMPX)    cpp_define (pfile, "__AVR_HAVE_RAMPX__");
   if (AVR_HAVE_RAMPY)    cpp_define (pfile, "__AVR_HAVE_RAMPY__");
@@ -128,29 +338,42 @@ avr_cpu_cpp_builtins (struct cpp_reader *pfile)
   else
     cpp_define (pfile, "__AVR_HAVE_16BIT_SP__");
 
+  if (avr_sp8)
+    cpp_define (pfile, "__AVR_SP8__");
+
+  if (AVR_HAVE_SPH)
+    cpp_define (pfile, "__AVR_HAVE_SPH__");
+
   if (TARGET_NO_INTERRUPTS)
     cpp_define (pfile, "__NO_INTERRUPTS__");
 
-  if (avr_current_device->errata_skip)
+  if (avr_current_device->dev_attribute & AVR_ERRATA_SKIP)
     {
       cpp_define (pfile, "__AVR_ERRATA_SKIP__");
-      
+
       if (avr_current_arch->have_jmp_call)
         cpp_define (pfile, "__AVR_ERRATA_SKIP_JMP_CALL__");
     }
 
+  if (avr_current_device->dev_attribute & AVR_ISA_RMW)
+    cpp_define (pfile, "__AVR_ISA_RMW__");
+
   cpp_define_formatted (pfile, "__AVR_SFR_OFFSET__=0x%x",
                         avr_current_arch->sfr_offset);
-    
-  /* Define builtin macros so that the user can easily query if or if not
-     non-generic address spaces (and which) are supported.
+
+#ifdef WITH_AVRLIBC
+  cpp_define (pfile, "__WITH_AVRLIBC__");
+#endif /* WITH_AVRLIBC */
+
+  /* Define builtin macros so that the user can easily query whether
+     non-generic address spaces (and which) are supported or not.
      This is only supported for C.  For C++, a language extension is needed
      (as mentioned in ISO/IEC DTR 18037; Annex F.2) which is not
      implemented in GCC up to now.  */
-  
+
   if (!strcmp (lang_hooks.name, "GNU C"))
     {
-      for (i = 0; avr_addrspace[i].name; i++)
+      for (i = 0; i < ADDR_SPACE_COUNT; i++)
         if (!ADDR_SPACE_GENERIC_P (i)
             /* Only supply __FLASH<n> macro if the address space is reasonable
                for this target.  The address space qualifier itself is still
@@ -160,25 +383,23 @@ avr_cpu_cpp_builtins (struct cpp_reader *pfile)
             const char *name = avr_addrspace[i].name;
             char *Name = (char*) alloca (1 + strlen (name));
 
-            cpp_define_formatted (pfile, "%s=%s",
-                                  avr_toupper (Name, name), name);
+            cpp_define (pfile, avr_toupper (Name, name));
           }
     }
 
-  /* Define builtin macros so that the user can easily query if or
-     if not a specific builtin is available. */
+  /* Define builtin macros so that the user can easily query whether or
+     not a specific builtin is available. */
 
-  for (i = 0; avr_builtin_name[i]; i++)
-    {
-      const char *name = avr_builtin_name[i];
-      char *Name = (char*) alloca (1 + strlen (name));
-
-      cpp_define (pfile, avr_toupper (Name, name));
-    }
+#define DEF_BUILTIN(NAME, N_ARGS, TYPE, CODE, LIBNAME)  \
+  cpp_define (pfile, "__BUILTIN_AVR_" #NAME);
+#include "builtins.def"
+#undef DEF_BUILTIN
 
   /* Builtin macros for the __int24 and __uint24 type.  */
 
-  cpp_define (pfile, "__INT24_MAX__=8388607L");
+  cpp_define_formatted (pfile, "__INT24_MAX__=8388607%s",
+                        INT_TYPE_SIZE == 8 ? "LL" : "L");
   cpp_define (pfile, "__INT24_MIN__=(-__INT24_MAX__-1)");
-  cpp_define (pfile, "__UINT24_MAX__=16777215UL");
+  cpp_define_formatted (pfile, "__UINT24_MAX__=16777215%s",
+                        INT_TYPE_SIZE == 8 ? "ULL" : "UL");
 }

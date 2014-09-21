@@ -1,5 +1,5 @@
 ;; Constraint definitions for V850.
-;; Copyright (C) 2011 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -76,7 +76,7 @@
        (match_test "0")))
 
 ;;; Extra constraints.
-(define_constraint "Q"
+(define_memory_constraint "Q"
   "A memory address that does not contain a symbol address."
   (and (match_code "mem")
        (match_test "ep_memory_operand (op, mode, FALSE)")))

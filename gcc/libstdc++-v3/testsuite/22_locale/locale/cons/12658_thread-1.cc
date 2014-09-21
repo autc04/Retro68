@@ -1,10 +1,10 @@
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* alpha*-*-osf* mips-sgi-irix6* } }
-// { dg-options "-pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* alpha*-*-osf* mips-sgi-irix6* } }
+// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* } }
+// { dg-options "-pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* } }
 // { dg-options "-pthreads" { target *-*-solaris* } }
 // { dg-require-namedlocale "en_US" }
 // { dg-require-namedlocale "fr_FR" }
 
-// Copyright (C) 2004, 2005, 2007, 2009, 2010 Free Software Foundation
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

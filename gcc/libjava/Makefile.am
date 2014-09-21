@@ -6,6 +6,7 @@ ACLOCAL_AMFLAGS = -I . -I .. -I ../config -I libltdl
 
 # May be used by various substitution variables.
 gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
+export gcc_version
 
 SUBDIRS = $(DIRLTDL) gcj include classpath
 if TESTSUBDIR
@@ -212,7 +213,8 @@ LIBJAVA_CORE_EXTRA =
 endif
 
 if USE_LIBGCJ_BC
-toolexeclib_LTLIBRARIES += libgcj_bc.la
+toolexeclib_LTLIBRARIES += install/libgcj_bc.la
+noinst_LTLIBRARIES = libgcj_bc.la
 endif
 
 if XLIB_AWT
@@ -221,7 +223,7 @@ endif
 
 dbexec_LTLIBRARIES = libjvm.la
 
-pkgconfigdir = $(libdir)/pkgconfig
+pkgconfigdir = $(toolexeclibdir)/pkgconfig
 
 jardir = $(datadir)/java
 jar_DATA = libgcj-$(gcc_version).jar libgcj-tools-$(gcc_version).jar
@@ -590,14 +592,11 @@ lib_gnu_awt_xlib_la_DEPENDENCIES = libgcj-$(gcc_version).jar \
 if BUILD_SUBLIBS
 lib_gnu_awt_xlib_la_DEPENDENCIES += libgcj-noncore.la
 endif
-## We require libstdc++-v3 to be in the same build tree.
 lib_gnu_awt_xlib_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-I../libstdc++-v3/include \
-	-I../libstdc++-v3/include/$(target_noncanonical) \
-	-I$(srcdir)/../libstdc++-v3/libsupc++
+	$(LIBSTDCXX_RAW_CXX_CXXFLAGS)
 ## The mysterious backslash in the grep pattern is consumed by make.
-lib_gnu_awt_xlib_la_LDFLAGS = ../libstdc++-v3/src/libstdc++.la \
+lib_gnu_awt_xlib_la_LDFLAGS = $(LIBSTDCXX_RAW_CXX_LDFLAGS) \
 	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ \
         -rpath $(toolexeclibdir) $(LIBJAVA_LDFLAGS_NOUNDEF) \
         -version-info `grep -v '^\#' $(srcdir)/libtool-version` $(LIBGCJ_LD_SYMBOLIC)
@@ -609,6 +608,7 @@ lib_gnu_awt_xlib_la_LINK = $(LIBLINK) $(lib_gnu_awt_xlib_la_LDFLAGS) \
 ## This lets us have one soname in BC objects and another in C++ ABI objects.
 ## This library is not linked against libgcj.
 libgcj_bc_la_SOURCES = libgcj_bc.c
+install_libgcj_bc_la_SOURCES = $(libgcj_bc_la_SOURCES)
 libgcj_bc_la_LDFLAGS = -rpath $(toolexeclibdir) -no-static -version-info 1:0:0 \
 	$(LIBGCJ_LD_SYMBOLIC_FUNCTIONS) $(LIBJAVA_LDFLAGS_NOUNDEF)
 libgcj_bc_la_DEPENDENCIES = libgcj.la $(libgcj_bc_la_version_dep)
@@ -630,6 +630,11 @@ libgcj_bc.la: $(libgcj_bc_la_OBJECTS) $(libgcj_bc_la_DEPENDENCIES)
 	-o .libs/libgcj_bc.so.1.0.0 -lgcj || exit; \
 	rm .libs/libgcj_bc.so.1; \
 	$(LN_S) libgcj_bc.so.1.0.0 .libs/libgcj_bc.so.1
+
+## This rule creates the libgcj_bc library that is actually installed.
+install/libgcj_bc.la: $(libgcj_bc_la_OBJECTS) $(libgcj_bc_la_DEPENDENCIES) install/$(am__dirstamp)
+	$(libgcj_bc_la_LINK) $(am_libgcj_bc_la_rpath) $(libgcj_bc_la_LDFLAGS) \
+	$(libgcj_bc_la_OBJECTS) $(libgcj_bc_la_LIBADD) $(LIBS)
 
 ## Note that property_files is defined in sources.am.
 propertyo_files = $(patsubst classpath/resource/%,%,$(addsuffix .lo,$(property_files)))
@@ -1360,6 +1365,7 @@ gnu/java/nio/natVMChannel.cc \
 gnu/java/nio/channels/natFileChannelImpl.cc \
 gnu/java/security/jce/prng/natVMSecureRandom.cc \
 java/io/natFile.cc \
+java/io/natVMConsole.cc \
 java/io/natVMObjectInputStream.cc \
 java/io/natVMObjectStreamClass.cc \
 java/lang/natCharacter.cc \

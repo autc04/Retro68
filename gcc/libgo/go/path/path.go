@@ -10,6 +10,43 @@ import (
 	"strings"
 )
 
+// A lazybuf is a lazily constructed path buffer.
+// It supports append, reading previously appended bytes,
+// and retrieving the final string. It does not allocate a buffer
+// to hold the output until that output diverges from s.
+type lazybuf struct {
+	s   string
+	buf []byte
+	w   int
+}
+
+func (b *lazybuf) index(i int) byte {
+	if b.buf != nil {
+		return b.buf[i]
+	}
+	return b.s[i]
+}
+
+func (b *lazybuf) append(c byte) {
+	if b.buf == nil {
+		if b.w < len(b.s) && b.s[b.w] == c {
+			b.w++
+			return
+		}
+		b.buf = make([]byte, len(b.s))
+		copy(b.buf, b.s[:b.w])
+	}
+	b.buf[b.w] = c
+	b.w++
+}
+
+func (b *lazybuf) string() string {
+	if b.buf == nil {
+		return b.s[:b.w]
+	}
+	return string(b.buf[:b.w])
+}
+
 // Clean returns the shortest path name equivalent to path
 // by purely lexical processing.  It applies the following rules
 // iteratively until no further processing can be done:
@@ -20,6 +57,8 @@ import (
 //	   along with the non-.. element that precedes it.
 //	4. Eliminate .. elements that begin a rooted path:
 //	   that is, replace "/.." by "/" at the beginning of a path.
+//
+// The returned path ends in a slash only if it is the root "/".
 //
 // If the result of this process is an empty string, Clean
 // returns the string ".".
@@ -40,10 +79,11 @@ func Clean(path string) string {
 	//	writing to buf; w is index of next byte to write.
 	//	dotdot is index in buf where .. must stop, either because
 	//		it is the leading slash or it is a leading ../../.. prefix.
-	buf := []byte(path)
-	r, w, dotdot := 0, 0, 0
+	out := lazybuf{s: path}
+	r, dotdot := 0, 0
 	if rooted {
-		r, w, dotdot = 1, 1, 1
+		out.append('/')
+		r, dotdot = 1, 1
 	}
 
 	for r < n {
@@ -58,46 +98,40 @@ func Clean(path string) string {
 			// .. element: remove to last /
 			r += 2
 			switch {
-			case w > dotdot:
+			case out.w > dotdot:
 				// can backtrack
-				w--
-				for w > dotdot && buf[w] != '/' {
-					w--
+				out.w--
+				for out.w > dotdot && out.index(out.w) != '/' {
+					out.w--
 				}
 			case !rooted:
 				// cannot backtrack, but not rooted, so append .. element.
-				if w > 0 {
-					buf[w] = '/'
-					w++
+				if out.w > 0 {
+					out.append('/')
 				}
-				buf[w] = '.'
-				w++
-				buf[w] = '.'
-				w++
-				dotdot = w
+				out.append('.')
+				out.append('.')
+				dotdot = out.w
 			}
 		default:
 			// real path element.
 			// add slash if needed
-			if rooted && w != 1 || !rooted && w != 0 {
-				buf[w] = '/'
-				w++
+			if rooted && out.w != 1 || !rooted && out.w != 0 {
+				out.append('/')
 			}
 			// copy element
 			for ; r < n && path[r] != '/'; r++ {
-				buf[w] = path[r]
-				w++
+				out.append(path[r])
 			}
 		}
 	}
 
 	// Turn empty string into "."
-	if w == 0 {
-		buf[w] = '.'
-		w++
+	if out.w == 0 {
+		return "."
 	}
 
-	return string(buf[0:w])
+	return out.string()
 }
 
 // Split splits path immediately following the final slash.
@@ -164,7 +198,8 @@ func IsAbs(path string) bool {
 }
 
 // Dir returns all but the last element of path, typically the path's directory.
-// The path is Cleaned and trailing slashes are removed before processing.
+// After dropping the final element using Split, the path is Cleaned and trailing
+// slashes are removed.
 // If the path is empty, Dir returns ".".
 // If the path consists entirely of slashes followed by non-slash bytes, Dir
 // returns a single slash. In any other case, the returned path does not end in a

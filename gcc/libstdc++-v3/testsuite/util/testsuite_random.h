@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2011 Free Software Foundation, Inc.
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -175,6 +175,25 @@ namespace __gnu_test
     else
       return 1.0 / (b - a + 1.0);
   }
+
+#ifdef _GLIBCXX_USE_C99_MATH_TR1
+  inline double
+  lbincoef(int n, int k)
+  {
+    return std::lgamma(double(1 + n))
+         - std::lgamma(double(1 + k))
+         - std::lgamma(double(1 + n - k));
+  }
+
+  inline double
+  hypergeometric_pdf(int k, int N, int K, int n)
+  {
+    if (k < 0 || k < std::max(0, n - (N - K)) || k > std::min(K, n))
+      return 0.0;
+    else
+      return lbincoef(K, k) + lbincoef(N - K, n - k) - lbincoef(N, n);
+  }
+#endif
 
 } // namespace __gnu_test
 

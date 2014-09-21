@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"io/ioutil"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -90,7 +91,7 @@ func TestRemoveAll(t *testing.T) {
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q (first): %s", path, err)
 	}
-	if _, err := Lstat(path); err == nil {
+	if _, err = Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", path)
 	}
 
@@ -152,7 +153,7 @@ func TestRemoveAll(t *testing.T) {
 		Chmod(dpath, 0777)
 
 		for _, s := range []string{fpath, path + "/zzz"} {
-			if _, err := Lstat(s); err == nil {
+			if _, err = Lstat(s); err == nil {
 				t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
 			}
 		}
@@ -160,31 +161,33 @@ func TestRemoveAll(t *testing.T) {
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err)
 	}
-	if _, err := Lstat(path); err == nil {
+	if _, err = Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path)
 	}
 }
 
 func TestMkdirAllWithSymlink(t *testing.T) {
 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Log("Skipping test: symlinks don't exist under Windows/Plan 9")
-		return
+		t.Skip("Skipping test: symlinks don't exist under Windows/Plan 9")
 	}
 
-	tmpDir := TempDir()
+	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tmpDir)
+
 	dir := tmpDir + "/dir"
-	err := Mkdir(dir, 0755)
+	err = Mkdir(dir, 0755)
 	if err != nil {
 		t.Fatalf("Mkdir %s: %s", dir, err)
 	}
-	defer RemoveAll(dir)
 
 	link := tmpDir + "/link"
 	err = Symlink("dir", link)
 	if err != nil {
 		t.Fatalf("Symlink %s: %s", link, err)
 	}
-	defer RemoveAll(link)
 
 	path := link + "/foo"
 	err = MkdirAll(path, 0755)

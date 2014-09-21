@@ -21,7 +21,11 @@ import (
 type Server struct {
 	URL      string // base URL of form http://ipaddr:port with no trailing slash
 	Listener net.Listener
-	TLS      *tls.Config // nil if not using using TLS
+
+	// TLS is the optional TLS configuration, populated with a new config
+	// after TLS is started. If set on an unstarted server before StartTLS
+	// is called, existing fields are copied into the new config.
+	TLS *tls.Config
 
 	// Config may be changed after calling NewUnstartedServer and
 	// before Start or StartTLS.
@@ -36,13 +40,16 @@ type Server struct {
 // accepted.
 type historyListener struct {
 	net.Listener
-	history []net.Conn
+	sync.Mutex // protects history
+	history    []net.Conn
 }
 
 func (hs *historyListener) Accept() (c net.Conn, err error) {
 	c, err = hs.Listener.Accept()
 	if err == nil {
+		hs.Lock()
 		hs.history = append(hs.history, c)
+		hs.Unlock()
 	}
 	return
 }
@@ -96,7 +103,7 @@ func (s *Server) Start() {
 	if s.URL != "" {
 		panic("Server already started")
 	}
-	s.Listener = &historyListener{s.Listener, make([]net.Conn, 0)}
+	s.Listener = &historyListener{Listener: s.Listener}
 	s.URL = "http://" + s.Listener.Addr().String()
 	s.wrapHandler()
 	go s.Config.Serve(s.Listener)
@@ -116,13 +123,20 @@ func (s *Server) StartTLS() {
 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
 	}
 
-	s.TLS = &tls.Config{
-		NextProtos:   []string{"http/1.1"},
-		Certificates: []tls.Certificate{cert},
+	existingConfig := s.TLS
+	s.TLS = new(tls.Config)
+	if existingConfig != nil {
+		*s.TLS = *existingConfig
+	}
+	if s.TLS.NextProtos == nil {
+		s.TLS.NextProtos = []string{"http/1.1"}
+	}
+	if len(s.TLS.Certificates) == 0 {
+		s.TLS.Certificates = []tls.Certificate{cert}
 	}
 	tlsListener := tls.NewListener(s.Listener, s.TLS)
 
-	s.Listener = &historyListener{tlsListener, make([]net.Conn, 0)}
+	s.Listener = &historyListener{Listener: tlsListener}
 	s.URL = "https://" + s.Listener.Addr().String()
 	s.wrapHandler()
 	go s.Config.Serve(s.Listener)
@@ -152,6 +166,10 @@ func NewTLSServer(handler http.Handler) *Server {
 func (s *Server) Close() {
 	s.Listener.Close()
 	s.wg.Wait()
+	s.CloseClientConnections()
+	if t, ok := http.DefaultTransport.(*http.Transport); ok {
+		t.CloseIdleConnections()
+	}
 }
 
 // CloseClientConnections closes any currently open HTTP connections
@@ -161,9 +179,11 @@ func (s *Server) CloseClientConnections() {
 	if !ok {
 		return
 	}
+	hl.Lock()
 	for _, conn := range hl.history {
 		conn.Close()
 	}
+	hl.Unlock()
 }
 
 // waitGroupHandler wraps a handler, incrementing and decrementing a
@@ -180,28 +200,29 @@ func (h *waitGroupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.h.ServeHTTP(w, r)
 }
 
-// localhostCert is a PEM-encoded TLS cert with SAN DNS names
+// localhostCert is a PEM-encoded TLS cert with SAN IPs
 // "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
 // of ASN.1 time).
+// generated from src/pkg/crypto/tls:
+// go run generate_cert.go  --rsa-bits 512 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
-MIIBOTCB5qADAgECAgEAMAsGCSqGSIb3DQEBBTAAMB4XDTcwMDEwMTAwMDAwMFoX
-DTQ5MTIzMTIzNTk1OVowADBaMAsGCSqGSIb3DQEBAQNLADBIAkEAsuA5mAFMj6Q7
-qoBzcvKzIq4kzuT5epSp2AkcQfyBHm7K13Ws7u+0b5Vb9gqTf5cAiIKcrtrXVqkL
-8i1UQF6AzwIDAQABo08wTTAOBgNVHQ8BAf8EBAMCACQwDQYDVR0OBAYEBAECAwQw
-DwYDVR0jBAgwBoAEAQIDBDAbBgNVHREEFDASggkxMjcuMC4wLjGCBVs6OjFdMAsG
-CSqGSIb3DQEBBQNBAJH30zjLWRztrWpOCgJL8RQWLaKzhK79pVhAx6q/3NrF16C7
-+l1BRZstTwIGdoGId8BRpErK1TXkniFb95ZMynM=
------END CERTIFICATE-----
-`)
+MIIBdzCCASOgAwIBAgIBADALBgkqhkiG9w0BAQUwEjEQMA4GA1UEChMHQWNtZSBD
+bzAeFw03MDAxMDEwMDAwMDBaFw00OTEyMzEyMzU5NTlaMBIxEDAOBgNVBAoTB0Fj
+bWUgQ28wWjALBgkqhkiG9w0BAQEDSwAwSAJBAN55NcYKZeInyTuhcCwFMhDHCmwa
+IUSdtXdcbItRB/yfXGBhiex00IaLXQnSU+QZPRZWYqeTEbFSgihqi1PUDy8CAwEA
+AaNoMGYwDgYDVR0PAQH/BAQDAgCkMBMGA1UdJQQMMAoGCCsGAQUFBwMBMA8GA1Ud
+EwEB/wQFMAMBAf8wLgYDVR0RBCcwJYILZXhhbXBsZS5jb22HBH8AAAGHEAAAAAAA
+AAAAAAAAAAAAAAEwCwYJKoZIhvcNAQEFA0EAAoQn/ytgqpiLcZu9XKbCJsJcvkgk
+Se6AbGXgSlq+ZCEVo0qIwSgeBqmsJxUu7NCSOwVJLYNEBO2DtIxoYVk+MA==
+-----END CERTIFICATE-----`)
 
 // localhostKey is the private key for localhostCert.
 var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIBPQIBAAJBALLgOZgBTI+kO6qAc3LysyKuJM7k+XqUqdgJHEH8gR5uytd1rO7v
-tG+VW/YKk3+XAIiCnK7a11apC/ItVEBegM8CAwEAAQJBAI5sxq7naeR9ahyqRkJi
-SIv2iMxLuPEHaezf5CYOPWjSjBPyVhyRevkhtqEjF/WkgL7C2nWpYHsUcBDBQVF0
-3KECIQDtEGB2ulnkZAahl3WuJziXGLB+p8Wgx7wzSM6bHu1c6QIhAMEp++CaS+SJ
-/TrU0zwY/fW4SvQeb49BPZUF3oqR8Xz3AiEA1rAJHBzBgdOQKdE3ksMUPcnvNJSN
-poCcELmz2clVXtkCIQCLytuLV38XHToTipR4yMl6O+6arzAjZ56uq7m7ZRV0TwIh
-AM65XAOw8Dsg9Kq78aYXiOEDc5DL0sbFUu/SlmRcCg93
------END RSA PRIVATE KEY-----
-`)
+MIIBPAIBAAJBAN55NcYKZeInyTuhcCwFMhDHCmwaIUSdtXdcbItRB/yfXGBhiex0
+0IaLXQnSU+QZPRZWYqeTEbFSgihqi1PUDy8CAwEAAQJBAQdUx66rfh8sYsgfdcvV
+NoafYpnEcB5s4m/vSVe6SU7dCK6eYec9f9wpT353ljhDUHq3EbmE4foNzJngh35d
+AekCIQDhRQG5Li0Wj8TM4obOnnXUXf1jRv0UkzE9AHWLG5q3AwIhAPzSjpYUDjVW
+MCUXgckTpKCuGwbJk7424Nb8bLzf3kllAiA5mUBgjfr/WtFSJdWcPQ4Zt9KTMNKD
+EUO0ukpTwEIl6wIhAMbGqZK3zAAFdq8DD2jPx+UJXnh0rnOkZBzDtJ6/iN69AiEA
+1Aq8MJgTaYsDQWyU/hDq5YkDJc9e9DSCvUIzqxQWMQE=
+-----END RSA PRIVATE KEY-----`)

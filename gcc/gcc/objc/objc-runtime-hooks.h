@@ -1,5 +1,5 @@
 /* Hooks to abstract the runtime meta-data generation for Objective C.
-   Copyright (C) 2011 Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Iain Sandoe
 
 This file is part of GCC.
@@ -75,7 +75,7 @@ typedef struct _objc_runtime_hooks_r
   /* Receiver is class Object, check runtime-specific.  */
   tree (*receiver_is_class_object) (tree);
   /* Get the start of a method argument type list (receiver, _cmd).  */
-  void (*get_arg_type_list_base) (VEC(tree,gc) **, tree, int, int);
+  void (*get_arg_type_list_base) (vec<tree, va_gc> **, tree, int, int);
   /* Build method call.  */
   tree (*build_objc_method_call) (location_t, tree, tree, tree, tree, tree, int);
 

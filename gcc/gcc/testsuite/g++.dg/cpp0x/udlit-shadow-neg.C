@@ -1,4 +1,4 @@
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 
 //  Test that the standard suffixes shadow any user-defined suffixes of the same name.
 long double
@@ -39,11 +39,11 @@ operator"" ull(unsigned long long int k)  // { dg-warning "integer suffix|shadow
 
 }
 
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 5 }
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 9 }
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 13 }
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 17 }
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 25 }
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 29 }
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 33 }
-// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "" { target *-*-* } 37 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 5 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 9 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 13 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 17 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 25 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 29 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 33 }
+// { dg-warning "literal operator suffixes not preceded by|are reserved for future standardization" "reserved" { target *-*-* } 37 }

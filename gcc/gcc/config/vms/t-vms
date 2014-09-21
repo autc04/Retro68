@@ -1,5 +1,4 @@
-# Copyright (C) 2009, 2010, 2011
-# Free Software Foundation, Inc.
+# Copyright (C) 2009-2014 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -17,12 +16,7 @@
 # along with GCC; see the file COPYING3.  If not see
 # <http://www.gnu.org/licenses/>.
 
-STMP_FIXPROTO =
-STMP_FIXINC =
 LIMITS_H_TEST = false
-
-# Under VMS, directory names cannot contain dots.
-version:=$(shell echo $(BASEVER_c) | sed -e 's/\./_/g')
 
 vms-crtlmap.h: $(srcdir)/config/vms/vms-crtlmap.map  \
   $(srcdir)/config/vms/make-crtlmap.awk
@@ -37,5 +31,10 @@ vms.o: $(srcdir)/config/vms/vms.c $(TREE_H) $(CONFIG_H) $(SYSTEM_H) \
 vms-c.o: $(srcdir)/config/vms/vms-c.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
   $(TM_H) $(CPPLIB_H) $(TREE_H) c-family/c-pragma.h toplev.h $(GGC_H) \
   $(TM_P_H)
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+          $(PREPROCESSOR_DEFINES) $< -o $@
+
+vms-f.o: $(srcdir)/config/vms/vms-f.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H)
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
           $(PREPROCESSOR_DEFINES) $< -o $@

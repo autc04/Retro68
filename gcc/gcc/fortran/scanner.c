@@ -1,6 +1,5 @@
 /* Character scanner.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -43,23 +42,16 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "gfortran.h"
 #include "toplev.h"	/* For set_src_pwd.  */
 #include "debug.h"
 #include "flags.h"
 #include "cpp.h"
-
-/* Structure for holding module and include file search path.  */
-typedef struct gfc_directorylist
-{
-  char *path;
-  bool use_for_modules;
-  struct gfc_directorylist *next;
-}
-gfc_directorylist;
+#include "scanner.h"
 
 /* List of include file search directories.  */
-static gfc_directorylist *include_dirs, *intrinsic_modules_dirs;
+gfc_directorylist *include_dirs, *intrinsic_modules_dirs;
 
 static gfc_file *file_head, *current_file;
 
@@ -306,15 +298,47 @@ gfc_scanner_done_1 (void)
 
 static void
 add_path_to_list (gfc_directorylist **list, const char *path,
-		  bool use_for_modules, bool head)
+		  bool use_for_modules, bool head, bool warn)
 {
   gfc_directorylist *dir;
   const char *p;
-
+  char *q;
+  struct stat st;
+  size_t len;
+  int i;
+  
   p = path;
   while (*p == ' ' || *p == '\t')  /* someone might do "-I include" */
     if (*p++ == '\0')
       return;
+
+  /* Strip trailing directory separators from the path, as this
+     will confuse Windows systems.  */
+  len = strlen (p);
+  q = (char *) alloca (len + 1);
+  memcpy (q, p, len + 1);
+  i = len - 1;
+  while (i >=0 && IS_DIR_SEPARATOR (q[i]))
+    q[i--] = '\0';
+
+  if (stat (q, &st))
+    {
+      if (errno != ENOENT)
+	gfc_warning_now ("Include directory \"%s\": %s", path,
+			 xstrerror(errno));
+      else
+	{
+	  /* FIXME:  Also support -Wmissing-include-dirs.  */
+	  if (warn)
+	    gfc_warning_now ("Nonexistent include directory \"%s\"", path);
+	}
+      return;
+    }
+  else if (!S_ISDIR (st.st_mode))
+    {
+      gfc_warning_now ("\"%s\" is not a directory", path);
+      return;
+    }
 
   if (head || *list == NULL)
     {
@@ -343,9 +367,10 @@ add_path_to_list (gfc_directorylist **list, const char *path,
 
 
 void
-gfc_add_include_path (const char *path, bool use_for_modules, bool file_dir)
+gfc_add_include_path (const char *path, bool use_for_modules, bool file_dir,
+		      bool warn)
 {
-  add_path_to_list (&include_dirs, path, use_for_modules, file_dir);
+  add_path_to_list (&include_dirs, path, use_for_modules, file_dir, warn);
 
   /* For '#include "..."' these directories are automatically searched.  */
   if (!file_dir)
@@ -356,7 +381,7 @@ gfc_add_include_path (const char *path, bool use_for_modules, bool file_dir)
 void
 gfc_add_intrinsic_modules_path (const char *path)
 {
-  add_path_to_list (&intrinsic_modules_dirs, path, true, false);
+  add_path_to_list (&intrinsic_modules_dirs, path, true, false, false);
 }
 
 
@@ -436,24 +461,6 @@ gfc_open_included_file (const char *name, bool include_cwd, bool module)
 
   if (!f)
     f = open_included_file (name, include_dirs, module, false);
-
-  return f;
-}
-
-FILE *
-gfc_open_intrinsic_module (const char *name)
-{
-  FILE *f = NULL;
-
-  if (IS_ABSOLUTE_PATH (name))
-    {
-      f = gfc_open_file (name);
-      if (f && gfc_cpp_makedep ())
-	gfc_cpp_add_dep (name, true);
-    }
-
-  if (!f)
-    f = open_included_file (name, intrinsic_modules_dirs, true, true);
 
   return f;
 }
@@ -745,7 +752,8 @@ skip_free_comments (void)
 	     2) handle OpenMP conditional compilation, where
 		!$ should be treated as 2 spaces (for initial lines
 		only if followed by space).  */
-	  if (gfc_option.gfc_flag_openmp && at_bol)
+	  if ((gfc_option.gfc_flag_openmp
+	       || gfc_option.gfc_flag_openmp_simd) && at_bol)
 	    {
 	      locus old_loc = gfc_current_locus;
 	      if (next_char () == '$')
@@ -871,7 +879,7 @@ skip_fixed_comments (void)
 	      && continue_line < gfc_linebuf_linenum (gfc_current_locus.lb))
 	    continue_line = gfc_linebuf_linenum (gfc_current_locus.lb);
 
-	  if (gfc_option.gfc_flag_openmp)
+	  if (gfc_option.gfc_flag_openmp || gfc_option.gfc_flag_openmp_simd)
 	    {
 	      if (next_char () == '$')
 		{
@@ -1047,10 +1055,12 @@ restart:
 	  && gfc_current_locus.lb->truncated)
 	{
 	  int maxlen = gfc_option.free_line_length;
+	  gfc_char_t *current_nextc = gfc_current_locus.nextc;
+
 	  gfc_current_locus.lb->truncated = 0;
-	  gfc_current_locus.nextc += maxlen;
+	  gfc_current_locus.nextc =  gfc_current_locus.lb->line + maxlen;
 	  gfc_warning_now ("Line truncated at %L", &gfc_current_locus);
-	  gfc_current_locus.nextc -= maxlen;
+	  gfc_current_locus.nextc = current_nextc;
 	}
 
       if (c != '&')
@@ -1088,7 +1098,7 @@ restart:
       else
 	gfc_advance_line ();
       
-      if (gfc_at_eof())
+      if (gfc_at_eof ())
 	goto not_continuation;
 
       /* We've got a continuation line.  If we are on the very next line after
@@ -1796,7 +1806,7 @@ preprocessor_line (gfc_char_t *c)
 }
 
 
-static gfc_try load_file (const char *, const char *, bool);
+static bool load_file (const char *, const char *, bool);
 
 /* include_line()-- Checks a line buffer to see if it is an include
    line.  If so, we call load_file() recursively to load the included
@@ -1812,7 +1822,7 @@ include_line (gfc_char_t *line)
 
   c = line;
 
-  if (gfc_option.gfc_flag_openmp)
+  if (gfc_option.gfc_flag_openmp || gfc_option.gfc_flag_openmp_simd)
     {
       if (gfc_current_form == FORM_FREE)
 	{
@@ -1867,7 +1877,7 @@ include_line (gfc_char_t *line)
 		   read by anything else.  */
 
   filename = gfc_widechar_to_char (begin, -1);
-  if (load_file (filename, NULL, false) == FAILURE)
+  if (!load_file (filename, NULL, false))
     exit (FATAL_EXIT_CODE);
 
   free (filename);
@@ -1877,7 +1887,7 @@ include_line (gfc_char_t *line)
 
 /* Load a file into memory by calling load_line until the file ends.  */
 
-static gfc_try
+static bool
 load_file (const char *realfilename, const char *displayedname, bool initial)
 {
   gfc_char_t *line;
@@ -1901,7 +1911,7 @@ load_file (const char *realfilename, const char *displayedname, bool initial)
 	fprintf (stderr, "%s:%d: Error: File '%s' is being included "
 		 "recursively\n", current_file->filename, current_file->line,
 		 filename);
-	return FAILURE;
+	return false;
       }
 
   if (initial)
@@ -1916,7 +1926,7 @@ load_file (const char *realfilename, const char *displayedname, bool initial)
       if (input == NULL)
 	{
 	  gfc_error_now ("Can't open file '%s'", filename);
-	  return FAILURE;
+	  return false;
 	}
     }
   else
@@ -1926,7 +1936,7 @@ load_file (const char *realfilename, const char *displayedname, bool initial)
 	{
 	  fprintf (stderr, "%s:%d: Error: Can't open included file '%s'\n",
 		   current_file->filename, current_file->line, filename);
-	  return FAILURE;
+	  return false;
 	}
     }
 
@@ -2061,19 +2071,19 @@ load_file (const char *realfilename, const char *displayedname, bool initial)
     add_file_change (NULL, current_file->inclusion_line + 1);
   current_file = current_file->up;
   linemap_add (line_table, LC_LEAVE, 0, NULL, 0);
-  return SUCCESS;
+  return true;
 }
 
 
-/* Open a new file and start scanning from that file. Returns SUCCESS
-   if everything went OK, FAILURE otherwise.  If form == FORM_UNKNOWN
+/* Open a new file and start scanning from that file. Returns true
+   if everything went OK, false otherwise.  If form == FORM_UNKNOWN
    it tries to determine the source form from the filename, defaulting
    to free form.  */
 
-gfc_try
+bool
 gfc_new_file (void)
 {
-  gfc_try result;
+  bool result;
 
   if (gfc_cpp_enabled ())
     {

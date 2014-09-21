@@ -1,7 +1,5 @@
 /* Definitions for option handling for MIPS.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,6 +25,13 @@ enum mips_code_readable_setting {
   CODE_READABLE_NO,
   CODE_READABLE_PCREL,
   CODE_READABLE_YES
+};
+
+/* Enumerates the setting of the -mabs and -mnan options.  */
+enum mips_ieee_754_setting {
+  MIPS_IEEE_754_DEFAULT,
+  MIPS_IEEE_754_LEGACY,
+  MIPS_IEEE_754_2008
 };
 
 /* Enumerates the setting of the -mr10k-cache-barrier option.  */

@@ -5,8 +5,18 @@
 package os
 
 import (
+	"sync"
 	"syscall"
 )
+
+var getwdCache struct {
+	sync.Mutex
+	dir string
+}
+
+// useSyscallwd determines whether to use the return value of
+// syscall.Getwd based on its error.
+var useSyscallwd = func(error) bool { return true }
 
 // Getwd returns a rooted path name corresponding to the
 // current directory.  If the current directory can be
@@ -16,7 +26,9 @@ func Getwd() (pwd string, err error) {
 	// If the operating system provides a Getwd call, use it.
 	if syscall.ImplementsGetwd {
 		s, e := syscall.Getwd()
-		return s, NewSyscallError("getwd", e)
+		if useSyscallwd(e) {
+			return s, NewSyscallError("getwd", e)
+		}
 	}
 
 	// Otherwise, we're trying to find our way back to ".".
@@ -29,6 +41,17 @@ func Getwd() (pwd string, err error) {
 	// if $PWD is set and matches ".", use it.
 	pwd = Getenv("PWD")
 	if len(pwd) > 0 && pwd[0] == '/' {
+		d, err := Stat(pwd)
+		if err == nil && SameFile(dot, d) {
+			return pwd, nil
+		}
+	}
+
+	// Apply same kludge but to cached dir instead of $PWD.
+	getwdCache.Lock()
+	pwd = getwdCache.dir
+	getwdCache.Unlock()
+	if len(pwd) > 0 {
 		d, err := Stat(pwd)
 		if err == nil && SameFile(dot, d) {
 			return pwd, nil
@@ -73,8 +96,6 @@ func Getwd() (pwd string, err error) {
 				}
 			}
 		}
-		fd.Close()
-		return "", ErrNotExist
 
 	Found:
 		pd, err := fd.Stat()
@@ -88,5 +109,11 @@ func Getwd() (pwd string, err error) {
 		// Set up for next round.
 		dot = pd
 	}
+
+	// Save answer as hint to avoid the expensive path next time.
+	getwdCache.Lock()
+	getwdCache.dir = pwd
+	getwdCache.Unlock()
+
 	return pwd, nil
 }

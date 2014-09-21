@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -544,6 +544,16 @@ package body VMS_Conv is
             Unixsws  => null,
             Switches => Stub_Switches'Access,
             Params   => new Parameter_Array'(1 => File, 2 => Optional_File),
+            Defext   => "   "),
+
+         Test =>
+           (Cname    => new S'("TEST"),
+            Usage    => new S'("GNAT TEST file(s) /qualifiers"),
+            VMS_Only => False,
+            Unixcmd  => new S'("gnattest"),
+            Unixsws  => null,
+            Switches => Make_Switches'Access,
+            Params   => new Parameter_Array'(1 => Unlimited_Files),
             Defext   => "   "),
 
          Xref =>
@@ -1727,7 +1737,7 @@ package body VMS_Conv is
                   Sw   : Item_Ptr;
                   SwP  : Natural;
                   P2   : Natural;
-                  Endp : Natural := 0; -- avoid warning!
+                  Endp : Natural := 0; -- avoid warning
                   Opt  : Item_Ptr;
 
                begin
@@ -1774,7 +1784,9 @@ package body VMS_Conv is
                      --  so process the compiler switch.
 
                   elsif Command.Name.all = "MAKE"
-                    or else Command.Name.all = "CHOP" then
+                          or else
+                        Command.Name.all = "CHOP"
+                  then
                      Sw :=
                        Matching_Name
                          (Arg (Arg'First .. SwP),

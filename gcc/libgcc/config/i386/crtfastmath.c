@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007, 2009, 2011 Free Software Foundation, Inc.
+ * Copyright (C) 2005-2014 Free Software Foundation, Inc.
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +21,7 @@
  * <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _SOFT_FLOAT
 #define MXCSR_DAZ (1 << 6)	/* Enable denormals are zero mode */
 #define MXCSR_FTZ (1 << 15)	/* Enable flush to zero mode */
 
@@ -91,36 +92,41 @@ set_fast_math (void)
 	return;
 #endif /* __sun__ && __svr4__ */
 
-      mxcsr = __builtin_ia32_stmxcsr () | MXCSR_FTZ;
-
       if (edx & bit_FXSAVE)
 	{
 	  /* Check if DAZ is available.  */
 	  struct
 	    {
-	      unsigned short int cwd;
-	      unsigned short int swd;
-	      unsigned short int twd;
-	      unsigned short int fop;
-	      long int fip;
-	      long int fcs;
-	      long int foo;
-	      long int fos;
-	      long int mxcsr;
-	      long int mxcsr_mask;
-	      long int st_space[32];
-	      long int xmm_space[32];
-	      long int padding[56];
+	      unsigned short cwd;
+	      unsigned short swd;
+	      unsigned short twd;
+	      unsigned short fop;
+	      unsigned int fip;
+	      unsigned int fcs;
+	      unsigned int foo;
+	      unsigned int fos;
+	      unsigned int mxcsr;
+	      unsigned int mxcsr_mask;
+	      unsigned int st_space[32];
+	      unsigned int xmm_space[32];
+	      unsigned int padding[56];
 	    } __attribute__ ((aligned (16))) fxsave;
 
-	  __builtin_memset (&fxsave, 0, sizeof (fxsave));
+	  /* This is necessary since some implementations of FXSAVE
+	     do not modify reserved areas within the image.  */
+	  fxsave.mxcsr_mask = 0;
 
-	  asm volatile ("fxsave %0" : "=m" (fxsave) : "m" (fxsave));
+	  __builtin_ia32_fxsave (&fxsave);
+
+	  mxcsr = fxsave.mxcsr;
 
 	  if (fxsave.mxcsr_mask & MXCSR_DAZ)
 	    mxcsr |= MXCSR_DAZ;
 	}
+      else
+	mxcsr = __builtin_ia32_stmxcsr ();
 
+      mxcsr |= MXCSR_FTZ;
       __builtin_ia32_ldmxcsr (mxcsr);
     }
 #else
@@ -129,3 +135,4 @@ set_fast_math (void)
   __builtin_ia32_ldmxcsr (mxcsr);
 #endif
 }
+#endif

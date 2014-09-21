@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007, 2008, 2010 Free Software Foundation, Inc.
+# Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -221,7 +221,7 @@ proc obj-c++_init { args } {
 	    if { [is_remote host] || ! [info exists TESTING_IN_BUILD_TREE] } {
 		set OBJCXX_UNDER_TEST [transform c++]
 	    } else {
-		set OBJCXX_UNDER_TEST [findfile $base_dir/../../g++ "$base_dir/../../g++ -B$base_dir/../../" [findfile $base_dir/g++ "$base_dir/g++ -B$base_dir/" [transform c++]]]
+		set OBJCXX_UNDER_TEST [findfile $base_dir/../../xg++ "$base_dir/../../xg++ -B$base_dir/../../" [findfile $base_dir/xg++ "$base_dir/xg++ -B$base_dir/" [transform c++]]]
 	    }
 	}
     }

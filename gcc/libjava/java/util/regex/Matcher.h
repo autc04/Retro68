@@ -31,6 +31,7 @@ class java::util::regex::Matcher : public ::java::lang::Object
 public: // actually package-private
   Matcher(::java::util::regex::Pattern *, ::java::lang::CharSequence *);
 public:
+  ::java::util::regex::Matcher * usePattern(::java::util::regex::Pattern *);
   ::java::util::regex::Matcher * appendReplacement(::java::lang::StringBuffer *, ::java::lang::String *);
   ::java::lang::StringBuffer * appendTail(::java::lang::StringBuffer *);
   jint end();
@@ -62,6 +63,7 @@ public:
   jboolean hasAnchoringBounds();
   ::java::util::regex::Matcher * useAnchoringBounds(jboolean);
   ::java::util::regex::MatchResult * toMatchResult();
+  static ::java::lang::String * quoteReplacement(::java::lang::String *);
 private:
   ::java::util::regex::Pattern * __attribute__((aligned(__alignof__( ::java::lang::Object)))) pattern__;
   ::java::lang::CharSequence * input;

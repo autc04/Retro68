@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2010-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2010-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -226,13 +226,17 @@ package body Ada.Containers.Formal_Hashed_Sets is
       Capacity : Count_Type := 0) return Set
    is
       C      : constant Count_Type :=
-                 Count_Type'Max (Capacity, Source.Capacity);
+        Count_Type'Max (Capacity, Source.Capacity);
       H      : Hash_Type;
       N      : Count_Type;
       Target : Set (C, Source.Modulus);
       Cu     : Cursor;
 
    begin
+      if 0 < Capacity and then Capacity < Source.Capacity then
+         raise Capacity_Error;
+      end if;
+
       Target.Length := Source.Length;
       Target.Free := Source.Free;
 
@@ -256,6 +260,35 @@ package body Ada.Containers.Formal_Hashed_Sets is
 
       return Target;
    end Copy;
+
+   ---------------------
+   -- Current_To_Last --
+   ---------------------
+
+   function Current_To_Last (Container : Set; Current : Cursor) return Set is
+      Curs : Cursor := First (Container);
+      C    : Set (Container.Capacity, Container.Modulus) :=
+               Copy (Container, Container.Capacity);
+      Node : Count_Type;
+
+   begin
+      if Curs = No_Element then
+         Clear (C);
+         return C;
+
+      elsif Current /= No_Element and not Has_Element (Container, Current) then
+         raise Constraint_Error;
+
+      else
+         while Curs.Node /= Current.Node loop
+            Node := Curs.Node;
+            Delete (C, Curs);
+            Curs := Next (Container, (Node => Node));
+         end loop;
+
+         return C;
+      end if;
+   end Current_To_Last;
 
    ---------------------
    -- Default_Modulus --
@@ -295,11 +328,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
          raise Constraint_Error with "Position cursor has no element";
       end if;
 
-      if Container.Busy > 0 then
-         raise Program_Error with
-           "attempt to tamper with elements (set is busy)";
-      end if;
-
       pragma Assert (Vet (Container, Position), "bad cursor in Delete");
 
       HT_Ops.Delete_Node_Sans_Free (Container, Position.Node);
@@ -331,11 +359,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
 
       if Src_Length = 0 then
          return;
-      end if;
-
-      if Target.Busy > 0 then
-         raise Program_Error with
-           "attempt to tamper with elements (set is busy)";
       end if;
 
       if Src_Length >= Target.Length then
@@ -470,7 +493,7 @@ package body Ada.Containers.Formal_Hashed_Sets is
          L_Node : Node_Type) return Boolean
       is
          R_Index : constant Hash_Type :=
-                     Element_Keys.Index (R_HT, L_Node.Element);
+           Element_Keys.Index (R_HT, L_Node.Element);
          R_Node  : Count_Type := R_HT.Buckets (R_Index);
          RN      : Nodes_Type renames R_HT.Nodes;
 
@@ -480,8 +503,9 @@ package body Ada.Containers.Formal_Hashed_Sets is
                return False;
             end if;
 
-            if Equivalent_Elements (L_Node.Element,
-                                    RN (R_Node).Element) then
+            if Equivalent_Elements
+                 (L_Node.Element, RN (R_Node).Element)
+            then
                return True;
             end if;
 
@@ -572,9 +596,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       end;
    end Equivalent_Elements;
 
-   --  What does the following comment signify???
-   --  NOT MODIFIED
-
    ---------------------
    -- Equivalent_Keys --
    ---------------------
@@ -633,6 +654,37 @@ package body Ada.Containers.Formal_Hashed_Sets is
 
       return (Node => Node);
    end First;
+
+   -----------------------
+   -- First_To_Previous --
+   -----------------------
+
+   function First_To_Previous
+     (Container : Set;
+      Current   : Cursor) return Set
+   is
+      Curs : Cursor := Current;
+      C    : Set (Container.Capacity, Container.Modulus) :=
+               Copy (Container, Container.Capacity);
+      Node : Count_Type;
+
+   begin
+      if Curs = No_Element then
+         return C;
+
+      elsif not Has_Element (Container, Curs) then
+         raise Constraint_Error;
+
+      else
+         while Curs.Node /= 0 loop
+            Node := Curs.Node;
+            Delete (C, Curs);
+            Curs := Next (Container, (Node => Node));
+         end loop;
+
+         return C;
+      end if;
+   end First_To_Previous;
 
    ----------
    -- Free --
@@ -700,11 +752,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       Insert (Container, New_Item, Position, Inserted);
 
       if not Inserted then
-         if Container.Lock > 0 then
-            raise Program_Error with
-              "attempt to tamper with cursors (set is locked)";
-         end if;
-
          Container.Nodes (Position.Node).Element := New_Item;
       end if;
    end Include;
@@ -802,11 +849,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       if Source.Length = 0 then
          Clear (Target);
          return;
-      end if;
-
-      if Target.Busy > 0 then
-         raise Program_Error with
-           "attempt to tamper with elements (set is busy)";
       end if;
 
       Tgt_Node := HT_Ops.First (Target);
@@ -930,76 +972,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       return True;
    end Is_Subset;
 
-   -------------
-   -- Iterate --
-   -------------
-
-   procedure Iterate
-     (Container : Set;
-      Process   :
-      not null access procedure (Container : Set; Position : Cursor))
-   is
-      procedure Process_Node (Node : Count_Type);
-      pragma Inline (Process_Node);
-
-      procedure Iterate is
-        new HT_Ops.Generic_Iteration (Process_Node);
-
-      ------------------
-      -- Process_Node --
-      ------------------
-
-      procedure Process_Node (Node : Count_Type) is
-      begin
-         Process (Container, (Node => Node));
-      end Process_Node;
-
-      B : Natural renames Container'Unrestricted_Access.Busy;
-
-   --  Start of processing for Iterate
-
-   begin
-      B := B + 1;
-
-      begin
-         Iterate (Container);
-      exception
-         when others =>
-            B := B - 1;
-            raise;
-      end;
-
-      B := B - 1;
-   end Iterate;
-
-   ----------
-   -- Left --
-   ----------
-
-   function Left (Container : Set; Position : Cursor) return Set is
-      Curs : Cursor := Position;
-      C    : Set (Container.Capacity, Container.Modulus) :=
-               Copy (Container, Container.Capacity);
-      Node : Count_Type;
-
-   begin
-      if Curs = No_Element then
-         return C;
-      end if;
-
-      if not Has_Element (Container, Curs) then
-         raise Constraint_Error;
-      end if;
-
-      while Curs.Node /= 0 loop
-         Node := Curs.Node;
-         Delete (C, Curs);
-         Curs := Next (Container, (Node => Node));
-      end loop;
-
-      return C;
-   end Left;
-
    ------------
    -- Length --
    ------------
@@ -1027,11 +999,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       if Target.Capacity < Length (Source) then
          raise Constraint_Error with  -- ???
            "Source length exceeds Target capacity";
-      end if;
-
-      if Source.Busy > 0 then
-         raise Program_Error with
-           "attempt to tamper with cursors of Source (list is busy)";
       end if;
 
       Clear (Target);
@@ -1117,103 +1084,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       return False;
    end Overlap;
 
-   -------------------
-   -- Query_Element --
-   -------------------
-
-   procedure Query_Element
-     (Container : in out Set;
-      Position  : Cursor;
-      Process   : not null access procedure (Element : Element_Type))
-   is
-   begin
-      if not Has_Element (Container, Position) then
-         raise Constraint_Error with
-           "Position cursor of Query_Element has no element";
-      end if;
-
-      pragma Assert (Vet (Container, Position), "bad cursor in Query_Element");
-
-      declare
-         B : Natural renames Container.Busy;
-         L : Natural renames Container.Lock;
-
-      begin
-         B := B + 1;
-         L := L + 1;
-
-         begin
-            Process (Container.Nodes (Position.Node).Element);
-         exception
-            when others =>
-               L := L - 1;
-               B := B - 1;
-               raise;
-         end;
-
-         L := L - 1;
-         B := B - 1;
-      end;
-   end Query_Element;
-
-   ----------
-   -- Read --
-   ----------
-
-   procedure Read
-     (Stream    : not null access Root_Stream_Type'Class;
-      Container : out Set)
-   is
-      function Read_Node (Stream : not null access Root_Stream_Type'Class)
-                          return Count_Type;
-
-      procedure Read_Nodes is
-        new HT_Ops.Generic_Read (Read_Node);
-
-      ---------------
-      -- Read_Node --
-      ---------------
-
-      function Read_Node (Stream : not null access Root_Stream_Type'Class)
-                          return Count_Type
-      is
-         procedure Read_Element (Node : in out Node_Type);
-         pragma Inline (Read_Element);
-
-         procedure Allocate is new Generic_Allocate (Read_Element);
-
-         ------------------
-         -- Read_Element --
-         ------------------
-
-         procedure Read_Element (Node : in out Node_Type) is
-         begin
-            Element_Type'Read (Stream, Node.Element);
-         end Read_Element;
-
-         Node : Count_Type;
-
-      --  Start of processing for Read_Node
-
-      begin
-         Allocate (Container, Node);
-         return Node;
-      end Read_Node;
-
-   --  Start of processing for Read
-
-   begin
-      Read_Nodes (Stream, Container);
-   end Read;
-
-   procedure Read
-     (Stream : not null access Root_Stream_Type'Class;
-      Item   : out Cursor)
-   is
-   begin
-      raise Program_Error with "attempt to stream set cursor";
-   end Read;
-
    -------------
    -- Replace --
    -------------
@@ -1228,11 +1098,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       if Node = 0 then
          raise Constraint_Error with
            "attempt to replace element not in set";
-      end if;
-
-      if Container.Lock > 0 then
-         raise Program_Error with
-           "attempt to tamper with cursors (set is locked)";
       end if;
 
       Container.Nodes (Node).Element := New_Item;
@@ -1272,35 +1137,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
          raise Constraint_Error with "requested capacity is too large";
       end if;
    end Reserve_Capacity;
-
-   -----------
-   -- Right --
-   -----------
-
-   function Right (Container : Set; Position : Cursor) return Set is
-      Curs : Cursor := First (Container);
-      C    : Set (Container.Capacity, Container.Modulus) :=
-               Copy (Container, Container.Capacity);
-      Node : Count_Type;
-
-   begin
-      if Curs = No_Element then
-         Clear (C);
-         return C;
-      end if;
-
-      if Position /= No_Element and not Has_Element (Container, Position) then
-         raise Constraint_Error;
-      end if;
-
-      while Curs.Node /= Position.Node loop
-         Node := Curs.Node;
-         Delete (C, Curs);
-         Curs := Next (Container, (Node => Node));
-      end loop;
-
-      return C;
-   end Right;
 
    ------------------
    --  Set_Element --
@@ -1391,11 +1227,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
          return;
       end if;
 
-      if Target.Busy > 0 then
-         raise Program_Error with
-           "attempt to tamper with elements (set is busy)";
-      end if;
-
       Iterate (Source);
    end Symmetric_Difference;
 
@@ -1475,10 +1306,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
          return;
       end if;
 
-      if Target.Busy > 0 then
-         raise Program_Error with
-           "attempt to tamper with elements (set is busy)";
-      end if;
       Iterate (Source);
    end Union;
 
@@ -1557,47 +1384,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
       end;
    end Vet;
 
-   -----------
-   -- Write --
-   -----------
-
-   procedure Write
-     (Stream    : not null access Root_Stream_Type'Class;
-      Container : Set)
-   is
-      procedure Write_Node
-        (Stream : not null access Root_Stream_Type'Class;
-         Node   : Node_Type);
-      pragma Inline (Write_Node);
-
-      procedure Write_Nodes is
-        new HT_Ops.Generic_Write (Write_Node);
-
-      ----------------
-      -- Write_Node --
-      ----------------
-
-      procedure Write_Node
-        (Stream : not null access Root_Stream_Type'Class;
-         Node   : Node_Type)
-      is
-      begin
-         Element_Type'Write (Stream, Node.Element);
-      end Write_Node;
-
-      --  Start of processing for Write
-
-   begin
-      Write_Nodes (Stream, Container);
-   end Write;
-
-   procedure Write
-     (Stream : not null access Root_Stream_Type'Class;
-      Item   : Cursor)
-   is
-   begin
-      raise Program_Error with "attempt to stream set cursor";
-   end Write;
    package body Generic_Keys is
 
       -----------------------
@@ -1751,90 +1537,6 @@ package body Ada.Containers.Formal_Hashed_Sets is
 
          Replace_Element (Container, Node, New_Item);
       end Replace;
-
-      -----------------------------------
-      -- Update_Element_Preserving_Key --
-      -----------------------------------
-
-      procedure Update_Element_Preserving_Key
-        (Container : in out Set;
-         Position  : Cursor;
-         Process   : not null access
-                       procedure (Element : in out Element_Type))
-      is
-         Indx : Hash_Type;
-         N    : Nodes_Type renames Container.Nodes;
-
-      begin
-         if Position.Node = 0 then
-            raise Constraint_Error with
-              "Position cursor equals No_Element";
-         end if;
-
-         pragma Assert
-           (Vet (Container, Position),
-            "bad cursor in Update_Element_Preserving_Key");
-
-      --  Record bucket now, in case key is changed
-
-         Indx := HT_Ops.Index (Container.Buckets, N (Position.Node));
-
-         declare
-            E : Element_Type renames N (Position.Node).Element;
-            K : constant Key_Type := Key (E);
-            B : Natural renames Container.Busy;
-            L : Natural renames Container.Lock;
-
-         begin
-            B := B + 1;
-            L := L + 1;
-
-            begin
-               Process (E);
-            exception
-               when others =>
-                  L := L - 1;
-                  B := B - 1;
-                  raise;
-            end;
-
-            L := L - 1;
-            B := B - 1;
-
-            if Equivalent_Keys (K, Key (E)) then
-               pragma Assert (Hash (K) = Hash (E));
-               return;
-            end if;
-         end;
-
-         --  Key was modified, so remove this node from set
-
-         if Container.Buckets (Indx) = Position.Node then
-            Container.Buckets (Indx) := N (Position.Node).Next;
-
-         else
-            declare
-               Prev : Count_Type := Container.Buckets (Indx);
-
-            begin
-               while N (Prev).Next /= Position.Node loop
-                  Prev := N (Prev).Next;
-
-                  if Prev = 0 then
-                     raise Program_Error with
-                       "Position cursor is bad (node not found)";
-                  end if;
-               end loop;
-
-               N (Prev).Next := N (Position.Node).Next;
-            end;
-         end if;
-
-         Container.Length := Container.Length - 1;
-         Free (Container, Position.Node);
-
-         raise Program_Error with "key was modified";
-      end Update_Element_Preserving_Key;
 
    end Generic_Keys;
 

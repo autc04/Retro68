@@ -1,4 +1,4 @@
-/* Copyright (C) 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Uros Bizjak <ubizjak@gmail.com>
 
    This file is part of the GNU OpenMP Library (libgomp).
@@ -28,7 +28,10 @@
 #include <sched.h>
 
 #ifdef HAVE_PTHREAD_AFFINITY_NP
-extern unsigned long gomp_cpuset_popcount (cpu_set_t *);
+extern unsigned long gomp_cpuset_size attribute_hidden;
+extern cpu_set_t *gomp_cpusetp attribute_hidden;
+extern unsigned long gomp_cpuset_popcount (unsigned long, cpu_set_t *)
+     attribute_hidden;
 #endif
 
 #endif /* GOMP_PROC_H */

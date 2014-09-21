@@ -1,5 +1,4 @@
-# Copyright (C) 2000, 2002, 2003, 2007, 2008, 2010, 2011, 2012
-# Free Software Foundation, Inc.
+# Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -78,33 +77,24 @@ proc dg-scan { name positive testcase output_file orig_args } {
 # dg-scan for details.
 
 proc scan-assembler { args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set output_file "[file rootname [file tail $testcase]].s"
-
     dg-scan "scan-assembler" 1 $testcase $output_file $args
 }
 
-proc scan-assembler_required_options { args } {
-    global gcc_force_conventional_output
-    return $gcc_force_conventional_output
-}
+force_conventional_output_for scan-assembler
 
 # Check that a pattern is not present in the .s file produced by the
 # compiler.  See dg-scan for details.
 
 proc scan-assembler-not { args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set output_file "[file rootname [file tail $testcase]].s"
 
     dg-scan "scan-assembler-not" 0 $testcase $output_file $args
 }
 
-proc scan-assembler-not_required_options { args } {
-    global gcc_force_conventional_output
-    return $gcc_force_conventional_output
-}
+force_conventional_output_for scan-assembler-not
 
 # Return the scan for the assembly for hidden visibility. 
 
@@ -125,8 +115,7 @@ proc hidden-scan-for { symbol } {
 # produced by the compiler.
 
 proc scan-hidden { args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set output_file "[file rootname [file tail $testcase]].s"
 
     set symbol [lindex $args 0]
@@ -142,8 +131,7 @@ proc scan-hidden { args } {
 # produced by the compiler.
 
 proc scan-not-hidden { args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set output_file "[file rootname [file tail $testcase]].s"
 
     set symbol [lindex $args 0]
@@ -157,8 +145,7 @@ proc scan-not-hidden { args } {
 # Look for a pattern in OUTPUT_FILE.  See dg-scan for details.
 
 proc scan-file { output_file args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     dg-scan "scan-file" 1 $testcase $output_file $args
 }
 
@@ -166,8 +153,7 @@ proc scan-file { output_file args } {
 # for details.
 
 proc scan-file-not { output_file args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     dg-scan "scan-file-not" 0 $testcase $output_file $args
 }
 
@@ -175,8 +161,7 @@ proc scan-file-not { output_file args } {
 # dg-scan for details.
 
 proc scan-stack-usage { args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set output_file "[file rootname [file tail $testcase]].su"
 
     dg-scan "scan-file" 1 $testcase $output_file $args
@@ -186,9 +171,40 @@ proc scan-stack-usage { args } {
 # compiler.  See dg-scan for details.
 
 proc scan-stack-usage-not { args } {
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set output_file "[file rootname [file tail $testcase]].su"
+
+    dg-scan "scan-file-not" 0 $testcase $output_file $args
+}
+
+# Return the filename of the Ada spec corresponding to the argument.
+
+proc get_ada_spec_filename { testcase } {
+    # The name might include a list of options; extract the file name.
+    set filename  [lindex $testcase 0]
+    set tailname  [file tail $filename]
+    set extension [string trimleft [file extension $tailname] {.}]
+    regsub -all {\-} [file rootname $tailname] {_} rootname
+
+    return [string tolower "${rootname}_${extension}.ads"]
+}
+
+# Look for a pattern in the .ads file produced by the compiler.  See
+# dg-scan for details.
+
+proc scan-ada-spec { args } {
+    set testcase  [testname-for-summary]
+    set output_file "[get_ada_spec_filename $testcase]"
+
+    dg-scan "scan-file" 1 $testcase $output_file $args
+}
+
+# Check that a pattern is not present in the .ads file produced by the
+# compiler.  See dg-scan for details.
+
+proc scan-ada-spec-not { args } {
+    set testcase  [testname-for-summary]
+    set output_file "[get_ada_spec_filename $testcase]"
 
     dg-scan "scan-file-not" 0 $testcase $output_file $args
 }
@@ -212,12 +228,7 @@ proc scan-assembler-times { args } {
 	}
     }
 
-    # This assumes that we are two frames down from dg-test, and that
-    # it still stores the filename of the testcase in a local variable "name".
-    # A cleaner solution would require a new dejagnu release.
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
-
+    set testcase [testname-for-summary]
     set pattern [lindex $args 0]
     set pp_pattern [make_pattern_printable $pattern]
 
@@ -241,6 +252,8 @@ proc scan-assembler-times { args } {
 	fail "$testcase scan-assembler-times $pp_pattern [lindex $args 1]"
     }
 }
+
+force_conventional_output_for scan-assembler-times
 
 # Utility for scanning demangled compiler result, invoked via dg-final.
 # Call pass if pattern is present, otherwise fail.
@@ -275,8 +288,7 @@ proc scan-assembler-dem { args } {
 	verbose -log "c++filt is $cxxfilt"
     }
 
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set pattern [lindex $args 0]
     set pp_pattern [make_pattern_printable $pattern]
     set output_file "[file rootname [file tail $testcase]].s"
@@ -330,8 +342,7 @@ proc scan-assembler-dem-not { args } {
 	verbose -log "c++filt is $cxxfilt"
     }
 
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
+    set testcase [testname-for-summary]
     set pattern [lindex $args 0]
     set pp_pattern [make_pattern_printable $pattern]
     set output_file "[file rootname [file tail $testcase]].s"
@@ -386,9 +397,7 @@ proc object-size { args } {
 	verbose -log "size is $size"
     }
 
-    upvar 2 name testcase
-    set testcase [lindex $testcase 0]
-
+    set testcase [testname-for-summary]
     set what [lindex $args 0]
     set where [lsearch { text data bss total } $what]
     if { $where == -1 } {
@@ -475,7 +484,7 @@ proc dg-function-on-line { args } {
 	set pattern [format {\t;[^:]+:%d\n(\t[^\t]+\n)+%s:\n\t.PROC} \
                      $line $symbol]
     } elseif { [istarget mips*-*-*] } {
-	set pattern [format {\t\.loc [0-9]+ %d 0( [^\n]*)?\n(\t.cfi_startproc[^\t]*\n)*\t\.set\t(no)?mips16\n\t\.ent\t%s\n\t\.type\t%s, @function\n%s:\n} \
+	set pattern [format {\t\.loc [0-9]+ %d 0( [^\n]*)?\n(\t.cfi_startproc[^\t]*\n)*\t\.set\t(no)?mips16\n\t(\.set\t(no)?micromips\n\t)?\.ent\t%s\n\t\.type\t%s, @function\n%s:\n} \
 		     $line $symbol $symbol $symbol]
     } else {
 	set pattern [format {%s:[^\t]*(\t.(fnstart|frame|mask|file)[^\t]*)*\t[^:]+:%d\n} \

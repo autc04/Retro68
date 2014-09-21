@@ -53,10 +53,13 @@ func ReadFile(filename string) ([]byte, error) {
 	defer f.Close()
 	// It's a good but not certain bet that FileInfo will tell us exactly how much to
 	// read, so let's try it but be prepared for the answer to be wrong.
-	fi, err := f.Stat()
 	var n int64
-	if size := fi.Size(); err == nil && size < 2e9 { // Don't preallocate a huge buffer, just in case.
-		n = size
+
+	if fi, err := f.Stat(); err == nil {
+		// Don't preallocate a huge buffer, just in case.
+		if size := fi.Size(); size < 1e9 {
+			n = size
+		}
 	}
 	// As initial capacity for readAll, use n + a little extra in case Size is zero,
 	// and to avoid another allocation after Read has filled the buffer.  The readAll
@@ -75,9 +78,11 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	n, err := f.Write(data)
-	f.Close()
 	if err == nil && n < len(data) {
 		err = io.ErrShortWrite
+	}
+	if err1 := f.Close(); err == nil {
+		err = err1
 	}
 	return err
 }
@@ -127,12 +132,16 @@ func (devNull) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-var blackHole = make([]byte, 8192)
+func (devNull) WriteString(s string) (int, error) {
+	return len(s), nil
+}
 
 func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
+	buf := blackHole()
+	defer blackHolePut(buf)
 	readSize := 0
 	for {
-		readSize, err = r.Read(blackHole)
+		readSize, err = r.Read(buf)
 		n += int64(readSize)
 		if err != nil {
 			if err == io.EOF {
@@ -141,7 +150,6 @@ func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 	}
-	panic("unreachable")
 }
 
 // Discard is an io.Writer on which all Write calls succeed

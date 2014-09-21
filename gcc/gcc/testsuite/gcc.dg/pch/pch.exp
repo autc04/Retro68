@@ -1,5 +1,4 @@
-#   Copyright (C) 1997, 2002, 2003, 2007, 2009, 2010
-#   Free Software Foundation, Inc.
+#   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,6 +26,7 @@ load_lib torture-options.exp
 dg-init
 torture-init
 set-torture-options $DG_TORTURE_OPTIONS
+pch-init
 
 set old_dg_do_what_default "${dg-do-what-default}"
 
@@ -60,5 +60,6 @@ file delete $testh
 set dg-do-what-default "$old_dg_do_what_default"
 
 # All done.
+pch-finish
 torture-finish
 dg-finish

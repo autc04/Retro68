@@ -1,5 +1,5 @@
 // Origin: PR c++/48320
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 
 template<class... T>
 struct tuple

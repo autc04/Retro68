@@ -1,5 +1,5 @@
 /* Prototypes for exported functions defined in cr16.c
-   Copyright (C) 2012 Free Software Foundation, Inc.
+   Copyright (C) 2012-2014 Free Software Foundation, Inc.
    Contributed by KPIT Cummins Infosystems Limited.
 
    This file is part of GCC.
@@ -20,8 +20,6 @@
 
 #ifndef GCC_CR16_PROTOS_H
 #define GCC_CR16_PROTOS_H
-
-#include "target.h"
 
 /* Register usage.  */
 extern enum reg_class cr16_regno_reg_class (int);
@@ -70,7 +68,7 @@ enum cr16_addrtype
   CR16_ABSOLUTE
 };
 
-extern void notice_update_cc PARAMS ((rtx));
+extern void notice_update_cc (rtx);
 extern int cr16_operand_bit_pos (int val, int bitval);
 extern void cr16_decompose_const (rtx x, int *code,
 				  enum data_model_type *data,
@@ -83,8 +81,6 @@ extern int cr16_const_double_ok (rtx op);
 extern int legitimate_pic_operand_p (rtx);
 extern rtx legitimize_pic_address (rtx, enum machine_mode, rtx);
 
-#endif /* RTX_CODE.  */
-
 
 /* Prologue/Epilogue functions.  */
 extern int cr16_initial_elimination_offset (int, int);
@@ -93,6 +89,8 @@ extern void cr16_expand_prologue (void);
 extern void cr16_expand_epilogue (void);
 extern const char *cr16_emit_add_sub_di (rtx *, enum rtx_code);
 extern const char *cr16_emit_logical_di (rtx *, enum rtx_code);
+
+#endif /* RTX_CODE.  */
 
 /* Handling the "interrupt" attribute.  */
 extern int cr16_interrupt_function_p (void);

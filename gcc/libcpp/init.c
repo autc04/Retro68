@@ -1,7 +1,5 @@
 /* CPP Library.
-   Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
    Contributed by Per Bothner, 1994-95.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -27,6 +25,10 @@ along with this program; see the file COPYING3.  If not see
 #include "mkdeps.h"
 #include "localedir.h"
 #include "filenames.h"
+
+#ifndef ENABLE_CANONICAL_SYSTEM_HEADERS
+#define ENABLE_CANONICAL_SYSTEM_HEADERS 0
+#endif
 
 static void init_library (void);
 static void mark_named_operators (cpp_reader *, int);
@@ -75,32 +77,37 @@ struct lang_flags
   char cplusplus;
   char extended_numbers;
   char extended_identifiers;
+  char c11_identifiers;
   char std;
   char cplusplus_comments;
   char digraphs;
   char uliterals;
   char rliterals;
   char user_literals;
+  char binary_constants;
+  char digit_separators;
 };
 
 static const struct lang_flags lang_defaults[] =
-{ /*              c99 c++ xnum xid std  //   digr ulit rlit user_literals */
-  /* GNUC89   */  { 0,  0,  1,   0,  0,   1,   1,   0,   0,    0 },
-  /* GNUC99   */  { 1,  0,  1,   0,  0,   1,   1,   1,   1,    0 },
-  /* GNUC11   */  { 1,  0,  1,   0,  0,   1,   1,   1,   1,    0 },
-  /* STDC89   */  { 0,  0,  0,   0,  1,   0,   0,   0,   0,    0 },
-  /* STDC94   */  { 0,  0,  0,   0,  1,   0,   1,   0,   0,    0 },
-  /* STDC99   */  { 1,  0,  1,   0,  1,   1,   1,   0,   0,    0 },
-  /* STDC11   */  { 1,  0,  1,   0,  1,   1,   1,   1,   0,    0 },
-  /* GNUCXX   */  { 0,  1,  1,   0,  0,   1,   1,   0,   0,    0 },
-  /* CXX98    */  { 0,  1,  1,   0,  1,   1,   1,   0,   0,    0 },
-  /* GNUCXX11 */  { 1,  1,  1,   0,  0,   1,   1,   1,   1,    1 },
-  /* CXX11    */  { 1,  1,  1,   0,  1,   1,   1,   1,   1,    1 },
-  /* ASM      */  { 0,  0,  1,   0,  0,   1,   0,   0,   0,    0 }
-  /* xid should be 1 for GNUC99, STDC99, GNUCXX, CXX98, GNUCXX11, and
-     CXX11 when no longer experimental (when all uses of identifiers
-     in the compiler have been audited for correct handling of
-     extended identifiers).  */
+{ /*              c99 c++ xnum xid c11 std  //   digr ulit rlit udlit bin_cst dig_sep */
+  /* GNUC89   */  { 0,  0,  1,   0,  0,  0,   1,   1,   0,   0,   0,    0,      0 },
+  /* GNUC99   */  { 1,  0,  1,   0,  0,  0,   1,   1,   1,   1,   0,    0,      0 },
+  /* GNUC11   */  { 1,  0,  1,   0,  1,  0,   1,   1,   1,   1,   0,    0,      0 },
+  /* STDC89   */  { 0,  0,  0,   0,  0,  1,   0,   0,   0,   0,   0,    0,      0 },
+  /* STDC94   */  { 0,  0,  0,   0,  0,  1,   0,   1,   0,   0,   0,    0,      0 },
+  /* STDC99   */  { 1,  0,  1,   0,  0,  1,   1,   1,   0,   0,   0,    0,      0 },
+  /* STDC11   */  { 1,  0,  1,   0,  1,  1,   1,   1,   1,   0,   0,    0,      0 },
+  /* GNUCXX   */  { 0,  1,  1,   0,  0,  0,   1,   1,   0,   0,   0,    0,      0 },
+  /* CXX98    */  { 0,  1,  1,   0,  0,  1,   1,   1,   0,   0,   0,    0,      0 },
+  /* GNUCXX11 */  { 1,  1,  1,   0,  1,  0,   1,   1,   1,   1,   1,    0,      0 },
+  /* CXX11    */  { 1,  1,  1,   0,  1,  1,   1,   1,   1,   1,   1,    0,      0 },
+  /* GNUCXX1Y */  { 1,  1,  1,   0,  1,  0,   1,   1,   1,   1,   1,    1,      1 },
+  /* CXX1Y    */  { 1,  1,  1,   0,  1,  1,   1,   1,   1,   1,   1,    1,      1 },
+  /* ASM      */  { 0,  0,  1,   0,  0,  0,   1,   0,   0,   0,   0,    0,      0 }
+  /* xid should be 1 for GNUC99, STDC99, GNUCXX, CXX98, GNUCXX11, CXX11,
+     GNUCXX1Y, and CXX1Y when no longer experimental (when all uses of
+     identifiers in the compiler have been audited for correct handling
+     of extended identifiers).  */
 };
 
 /* Sets internal flags correctly for a given language.  */
@@ -115,6 +122,7 @@ cpp_set_lang (cpp_reader *pfile, enum c_lang lang)
   CPP_OPTION (pfile, cplusplus)			 = l->cplusplus;
   CPP_OPTION (pfile, extended_numbers)		 = l->extended_numbers;
   CPP_OPTION (pfile, extended_identifiers)	 = l->extended_identifiers;
+  CPP_OPTION (pfile, c11_identifiers)		 = l->c11_identifiers;
   CPP_OPTION (pfile, std)			 = l->std;
   CPP_OPTION (pfile, trigraphs)			 = l->std;
   CPP_OPTION (pfile, cplusplus_comments)	 = l->cplusplus_comments;
@@ -122,6 +130,8 @@ cpp_set_lang (cpp_reader *pfile, enum c_lang lang)
   CPP_OPTION (pfile, uliterals)			 = l->uliterals;
   CPP_OPTION (pfile, rliterals)			 = l->rliterals;
   CPP_OPTION (pfile, user_literals)		 = l->user_literals;
+  CPP_OPTION (pfile, binary_constants)		 = l->binary_constants;
+  CPP_OPTION (pfile, digit_separators)		 = l->digit_separators;
 }
 
 /* Initialize library global state.  */
@@ -149,7 +159,7 @@ init_library (void)
 
 /* Initialize a cpp_reader structure.  */
 cpp_reader *
-cpp_create_reader (enum c_lang lang, hash_table *table,
+cpp_create_reader (enum c_lang lang, cpp_hash_table *table,
 		   struct line_maps *line_table)
 {
   cpp_reader *pfile;
@@ -174,7 +184,18 @@ cpp_create_reader (enum c_lang lang, hash_table *table,
   CPP_OPTION (pfile, warn_dollars) = 1;
   CPP_OPTION (pfile, warn_variadic_macros) = 1;
   CPP_OPTION (pfile, warn_builtin_macro_redefined) = 1;
+  /* By default, track locations of tokens resulting from macro
+     expansion.  The '2' means, track the locations with the highest
+     accuracy.  Read the comments for struct
+     cpp_options::track_macro_expansion to learn about the other
+     values.  */
+  CPP_OPTION (pfile, track_macro_expansion) = 2;
   CPP_OPTION (pfile, warn_normalize) = normalized_C;
+  CPP_OPTION (pfile, warn_literal_suffix) = 1;
+  CPP_OPTION (pfile, canonical_system_headers)
+      = ENABLE_CANONICAL_SYSTEM_HEADERS;
+  CPP_OPTION (pfile, ext_numeric_literals) = 1;
+  CPP_OPTION (pfile, warn_date_time) = 0;
 
   /* Default CPP arithmetic to something sensible for the host for the
      benefit of dumb users like fix-header.  */
@@ -464,8 +485,11 @@ cpp_init_builtins (cpp_reader *pfile, int hosted)
 
   if (CPP_OPTION (pfile, cplusplus))
     {
-      if (CPP_OPTION (pfile, lang) == CLK_CXX11
-	   || CPP_OPTION (pfile, lang) == CLK_GNUCXX11)
+      if (CPP_OPTION (pfile, lang) == CLK_CXX1Y
+	  || CPP_OPTION (pfile, lang) == CLK_GNUCXX1Y)
+	_cpp_define_builtin (pfile, "__cplusplus 201300L");
+      else if (CPP_OPTION (pfile, lang) == CLK_CXX11
+	       || CPP_OPTION (pfile, lang) == CLK_GNUCXX11)
 	_cpp_define_builtin (pfile, "__cplusplus 201103L");
       else
 	_cpp_define_builtin (pfile, "__cplusplus 199711L");
@@ -586,7 +610,7 @@ cpp_read_main_file (cpp_reader *pfile, const char *fname)
     }
 
   pfile->main_file
-    = _cpp_find_file (pfile, fname, &pfile->no_search_path, false, 0);
+    = _cpp_find_file (pfile, fname, &pfile->no_search_path, false, 0, false);
   if (_cpp_find_failed (pfile->main_file))
     return NULL;
 

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -243,6 +243,13 @@ package body Ch3 is
 
       if Ident_Node /= Error then
          Change_Identifier_To_Defining_Identifier (Ident_Node);
+
+         --  Warn if standard redefinition, except that we never warn on a
+         --  record field definition (since this is always a harmless case).
+
+         if not Inside_Record_Definition then
+            Warn_If_Standard_Redefinition (Ident_Node);
+         end if;
       end if;
 
       return Ident_Node;
@@ -268,13 +275,14 @@ package body Ch3 is
 
    --  PRIVATE_TYPE_DECLARATION ::=
    --    type DEFINING_IDENTIFIER [DISCRIMINANT_PART]
-   --      is [abstract] [tagged] [limited] private;
+   --      is [abstract] [tagged] [limited] private
+   --        [ASPECT_SPECIFICATIONS];
 
    --  PRIVATE_EXTENSION_DECLARATION ::=
    --    type DEFINING_IDENTIFIER [DISCRIMINANT_PART] is
    --      [abstract] [limited | synchronized]
    --        new ancestor_SUBTYPE_INDICATION [and INTERFACE_LIST]
-   --          with private;
+   --          with private [ASPECT_SPECIFICATIONS];
 
    --  TYPE_DEFINITION ::=
    --    ENUMERATION_TYPE_DEFINITION  | INTEGER_TYPE_DEFINITION
@@ -693,7 +701,7 @@ package body Ch3 is
                else
                   Decl_Node := New_Node (N_Private_Type_Declaration, Type_Loc);
                   Set_Limited_Present (Decl_Node, True);
-                  T_Private; -- past PRIVATE (or complain if not there!)
+                  T_Private; -- past PRIVATE (or complain if not there)
                end if;
 
                exit;
@@ -928,7 +936,7 @@ package body Ch3 is
 
    --  SUBTYPE_DECLARATION ::=
    --    subtype DEFINING_IDENTIFIER is [NULL_EXCLUSION] SUBTYPE_INDICATION
-   --    {ASPECT_SPECIFICATIONS];
+   --      [ASPECT_SPECIFICATIONS];
 
    --  The caller has checked that the initial token is SUBTYPE
 
@@ -1270,12 +1278,15 @@ package body Ch3 is
 
    --  OBJECT_RENAMING_DECLARATION ::=
    --    DEFINING_IDENTIFIER :
-   --      [NULL_EXCLUSION] SUBTYPE_MARK renames object_NAME;
+   --      [NULL_EXCLUSION] SUBTYPE_MARK renames object_NAME
+   --        [ASPECT_SPECIFICATIONS];
    --  | DEFINING_IDENTIFIER :
-   --      ACCESS_DEFINITION renames object_NAME;
+   --      ACCESS_DEFINITION renames object_NAME
+   --        [ASPECT_SPECIFICATIONS];
 
    --  EXCEPTION_RENAMING_DECLARATION ::=
-   --    DEFINING_IDENTIFIER : exception renames exception_NAME;
+   --    DEFINING_IDENTIFIER : exception renames exception_NAME
+   --      [ASPECT_SPECIFICATIONS];
 
    --  EXCEPTION_DECLARATION ::=
    --    DEFINING_IDENTIFIER_LIST : exception
@@ -1662,15 +1673,19 @@ package body Ch3 is
 
             --  OBJECT_DECLARATION ::=
             --    DEFINING_IDENTIFIER_LIST : [aliased] [constant]
-            --      [NULL_EXCLUSION] SUBTYPE_INDICATION [:= EXPRESSION];
+            --      [NULL_EXCLUSION] SUBTYPE_INDICATION [:= EXPRESSION]
+            --        [ASPECT_SPECIFICATIONS];
             --  | DEFINING_IDENTIFIER_LIST : [aliased] [constant]
-            --      ACCESS_DEFINITION [:= EXPRESSION];
+            --      ACCESS_DEFINITION [:= EXPRESSION]
+            --        [ASPECT_SPECIFICATIONS];
 
             --  OBJECT_RENAMING_DECLARATION ::=
             --    DEFINING_IDENTIFIER :
-            --      [NULL_EXCLUSION] SUBTYPE_MARK renames object_NAME;
+            --      [NULL_EXCLUSION] SUBTYPE_MARK renames object_NAME
+            --        [ASPECT_SPECIFICATIONS];
             --  | DEFINING_IDENTIFIER :
-            --      ACCESS_DEFINITION renames object_NAME;
+            --      ACCESS_DEFINITION renames object_NAME
+            --        [ASPECT_SPECIFICATIONS];
 
             Not_Null_Present := P_Null_Exclusion;  --  Ada 2005 (AI-231/423)
 
@@ -1886,7 +1901,7 @@ package body Ch3 is
    --     type DEFINING_IDENTIFIER [DISCRIMINANT_PART] is
    --       [abstract] [limited | synchronized]
    --          new ancestor_SUBTYPE_INDICATION [and INTERFACE_LIST]
-   --            with private;
+   --            with private [ASPECT_SPECIFICATIONS];
 
    --  RECORD_EXTENSION_PART ::= with RECORD_DEFINITION
 
@@ -3191,6 +3206,7 @@ package body Ch3 is
       Rec_Node : Node_Id;
 
    begin
+      Inside_Record_Definition := True;
       Rec_Node := New_Node (N_Record_Definition, Token_Ptr);
 
       --  Null record case
@@ -3235,6 +3251,7 @@ package body Ch3 is
          end loop;
       end if;
 
+      Inside_Record_Definition := False;
       return Rec_Node;
    end P_Record_Definition;
 
@@ -3253,87 +3270,100 @@ package body Ch3 is
       Component_List_Node : Node_Id;
       Decls_List          : List_Id;
       Scan_State          : Saved_Scan_State;
+      Null_Loc            : Source_Ptr;
 
    begin
       Component_List_Node := New_Node (N_Component_List, Token_Ptr);
       Decls_List := New_List;
 
+      --  Handle null
+
       if Token = Tok_Null then
+         Null_Loc := Token_Ptr;
          Scan; -- past NULL
          TF_Semicolon;
          P_Pragmas_Opt (Decls_List);
-         Set_Null_Present (Component_List_Node, True);
-         return Component_List_Node;
 
-      else
-         P_Pragmas_Opt (Decls_List);
+         --  If we have an END or WHEN now, everything is fine, otherwise we
+         --  complain about the null, ignore it, and scan for more components.
 
-         if Token /= Tok_Case then
-            Component_Scan_Loop : loop
-               P_Component_Items (Decls_List);
-               P_Pragmas_Opt (Decls_List);
+         if Token = Tok_End or else Token = Tok_When then
+            Set_Null_Present (Component_List_Node, True);
+            return Component_List_Node;
+         else
+            Error_Msg ("NULL component only allowed in null record", Null_Loc);
+         end if;
+      end if;
 
-               exit Component_Scan_Loop when Token = Tok_End
-                 or else Token = Tok_Case
-                 or else Token = Tok_When;
+      --  Scan components for non-null record
 
-               --  We are done if we do not have an identifier. However, if
-               --  we have a misspelled reserved identifier that is in a column
-               --  to the right of the record definition, we will treat it as
-               --  an identifier. It turns out to be too dangerous in practice
-               --  to accept such a mis-spelled identifier which does not have
-               --  this additional clue that confirms the incorrect spelling.
+      P_Pragmas_Opt (Decls_List);
 
-               if Token /= Tok_Identifier then
-                  if Start_Column > Scope.Table (Scope.Last).Ecol
-                    and then Is_Reserved_Identifier
-                  then
-                     Save_Scan_State (Scan_State); -- at reserved id
-                     Scan; -- possible reserved id
+      if Token /= Tok_Case then
+         Component_Scan_Loop : loop
+            P_Component_Items (Decls_List);
+            P_Pragmas_Opt (Decls_List);
 
-                     if Token = Tok_Comma or else Token = Tok_Colon then
-                        Restore_Scan_State (Scan_State);
-                        Scan_Reserved_Identifier (Force_Msg => True);
+            exit Component_Scan_Loop when Token = Tok_End
+              or else Token = Tok_Case
+              or else Token = Tok_When;
 
-                     --  Note reserved identifier used as field name after
-                     --  all because not followed by colon or comma
+            --  We are done if we do not have an identifier. However, if we
+            --  have a misspelled reserved identifier that is in a column to
+            --  the right of the record definition, we will treat it as an
+            --  identifier. It turns out to be too dangerous in practice to
+            --  accept such a mis-spelled identifier which does not have this
+            --  additional clue that confirms the incorrect spelling.
 
-                     else
-                        Restore_Scan_State (Scan_State);
-                        exit Component_Scan_Loop;
-                     end if;
+            if Token /= Tok_Identifier then
+               if Start_Column > Scope.Table (Scope.Last).Ecol
+                 and then Is_Reserved_Identifier
+               then
+                  Save_Scan_State (Scan_State); -- at reserved id
+                  Scan; -- possible reserved id
+
+                  if Token = Tok_Comma or else Token = Tok_Colon then
+                     Restore_Scan_State (Scan_State);
+                     Scan_Reserved_Identifier (Force_Msg => True);
+
+                     --  Note reserved identifier used as field name after all
+                     --  because not followed by colon or comma.
+
+                  else
+                     Restore_Scan_State (Scan_State);
+                     exit Component_Scan_Loop;
+                  end if;
 
                   --  Non-identifier that definitely was not reserved id
 
-                  else
-                     exit Component_Scan_Loop;
-                  end if;
-               end if;
-            end loop Component_Scan_Loop;
-         end if;
-
-         if Token = Tok_Case then
-            Set_Variant_Part (Component_List_Node, P_Variant_Part);
-
-            --  Check for junk after variant part
-
-            if Token = Tok_Identifier then
-               Save_Scan_State (Scan_State);
-               Scan; -- past identifier
-
-               if Token = Tok_Colon then
-                  Restore_Scan_State (Scan_State);
-                  Error_Msg_SC ("component may not follow variant part");
-                  Discard_Junk_Node (P_Component_List);
-
-               elsif Token = Tok_Case then
-                  Restore_Scan_State (Scan_State);
-                  Error_Msg_SC ("only one variant part allowed in a record");
-                  Discard_Junk_Node (P_Component_List);
-
                else
-                  Restore_Scan_State (Scan_State);
+                  exit Component_Scan_Loop;
                end if;
+            end if;
+         end loop Component_Scan_Loop;
+      end if;
+
+      if Token = Tok_Case then
+         Set_Variant_Part (Component_List_Node, P_Variant_Part);
+
+         --  Check for junk after variant part
+
+         if Token = Tok_Identifier then
+            Save_Scan_State (Scan_State);
+            Scan; -- past identifier
+
+            if Token = Tok_Colon then
+               Restore_Scan_State (Scan_State);
+               Error_Msg_SC ("component may not follow variant part");
+               Discard_Junk_Node (P_Component_List);
+
+            elsif Token = Tok_Case then
+               Restore_Scan_State (Scan_State);
+               Error_Msg_SC ("only one variant part allowed in a record");
+               Discard_Junk_Node (P_Component_List);
+
+            else
+               Restore_Scan_State (Scan_State);
             end if;
          end if;
       end if;
@@ -4489,7 +4519,7 @@ package body Ch3 is
                Scan; -- past PRIVATE
             end if;
 
-         --  An end of file definitely terminates the declarations!
+         --  An end of file definitely terminates the declarations
 
          when Tok_EOF =>
             Done := True;
@@ -4590,11 +4620,22 @@ package body Ch3 is
          --  Test for body scanned, not acceptable as basic decl item
 
          if Kind = N_Subprogram_Body or else
-            Kind = N_Package_Body or else
-            Kind = N_Task_Body or else
+            Kind = N_Package_Body    or else
+            Kind = N_Task_Body       or else
             Kind = N_Protected_Body
          then
             Error_Msg ("proper body not allowed in package spec", Sloc (Decl));
+
+            --  Complete declaration of mangled subprogram body, for better
+            --  recovery if analysis is attempted.
+
+            if Nkind_In (Decl, N_Subprogram_Body, N_Package_Body, N_Task_Body)
+              and then No (Handled_Statement_Sequence (Decl))
+            then
+               Set_Handled_Statement_Sequence (Decl,
+                 Make_Handled_Sequence_Of_Statements (Sloc (Decl),
+                   Statements => New_List));
+            end if;
 
          --  Test for body stub scanned, not acceptable as basic decl item
 
@@ -4713,7 +4754,7 @@ package body Ch3 is
       --  declaration sequence on a second error, we scan out the statement
       --  and append it to the list of declarations (note that the semantics
       --  can handle statements in a declaration list so if we proceed to
-      --  call the semantic phase, all will be (reasonably) well!
+      --  call the semantic phase, all will be (reasonably) well.
 
       Append_List_To (Decls, P_Sequence_Of_Statements (SS_Unco));
 

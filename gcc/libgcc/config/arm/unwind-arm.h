@@ -1,6 +1,5 @@
 /* Header file for the ARM EABI unwinder
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
    This file is free software; you can redistribute it and/or modify it
@@ -39,7 +38,8 @@ extern "C" {
 #endif
   /* Decode an R_ARM_TARGET2 relocation.  */
   static inline _Unwind_Word
-  _Unwind_decode_typeinfo_ptr (_Unwind_Word base, _Unwind_Word ptr)
+  _Unwind_decode_typeinfo_ptr (_Unwind_Word base __attribute__ ((unused)),
+                               _Unwind_Word ptr)
     {
       _Unwind_Word tmp;
 
@@ -65,7 +65,9 @@ extern "C" {
     }
 
   static inline _Unwind_Reason_Code
-  __gnu_unwind_24bit (_Unwind_Context * context, _uw data, int compact)
+  __gnu_unwind_24bit (_Unwind_Context * context __attribute__ ((unused)),
+                      _uw data __attribute__ ((unused)),
+                      int compact __attribute__ ((unused)))
     {
       return _URC_FAILURE;
     }

@@ -1,5 +1,4 @@
-@c Copyright (c) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-@c 2010, Free Software Foundation, Inc.
+@c Copyright (C) 1999-2014 Free Software Foundation, Inc.
 @c This is part of the CPP and GCC manuals.
 @c For copying conditions, see the file gcc.texi.
 
@@ -564,6 +563,10 @@ Accept universal character names in identifiers.  This option is
 experimental; in a future version of GCC, it will be enabled by
 default for C99 and C++.
 
+@item -fno-canonical-system-headers
+@opindex fno-canonical-system-headers
+When preprocessing, do not shorten system header paths with canonicalization.
+
 @item -fpreprocessed
 @opindex fpreprocessed
 Indicate to the preprocessor that the input file has already been
@@ -616,6 +619,8 @@ function-like macro have the same location. Value @samp{2} tracks
 tokens locations completely. This value is the most memory hungry.
 When this option is given no argument, the default parameter value is
 @samp{2}.
+
+Note that -ftrack-macro-expansion=2 is activated by default.
 
 @item -fexec-charset=@var{charset}
 @opindex fexec-charset
@@ -803,7 +808,7 @@ Replacement:      [    ]    @{    @}    #    \    ^    |    ~
 Enable special code to work around file systems which only permit very
 short file names, such as MS-DOS@.
 
-@itemx --help
+@item --help
 @itemx --target-help
 @opindex help
 @opindex target-help

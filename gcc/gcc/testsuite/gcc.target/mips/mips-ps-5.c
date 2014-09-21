@@ -1,7 +1,10 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -mpaired-single -mgp64 -ftree-vectorize" } */
+/* { dg-options "-mpaired-single -mgp64 -ftree-vectorize" } */
+/* { dg-skip-if "requires vectorization" { *-*-* } { "-O0" "-Os" } { "" } } */
 
-extern float a[], b[], c[];
+extern float a[] __attribute__ ((aligned (8)));
+extern float b[] __attribute__ ((aligned (8)));
+extern float c[] __attribute__ ((aligned (8)));
 
 NOMIPS16 void
 foo (void)
@@ -11,6 +14,6 @@ foo (void)
     a[i] = b[i] == c[i] + 1 ? b[i] : c[i];
 }
 
-/* { dg-final { scan-assembler "add\\.ps" } } */
-/* { dg-final { scan-assembler "c\\.eq\\.ps" } } */
-/* { dg-final { scan-assembler "mov\[tf\]\\.ps" } } */
+/* { dg-final { scan-assembler "\tadd\\.ps\t" } } */
+/* { dg-final { scan-assembler "\tc\\.eq\\.ps\t" } } */
+/* { dg-final { scan-assembler "\tmov\[tf\]\\.ps\t" } } */

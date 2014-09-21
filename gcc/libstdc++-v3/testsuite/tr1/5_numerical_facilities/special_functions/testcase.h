@@ -1,6 +1,6 @@
 // 2007-02-04  Edward Smith-Rowland <3dw4rd@verizon.net>
 //
-// Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,7 +21,7 @@
 
 //
 //  These are little PODs for special function inputs and
-//  expexted results for the testsuite.
+//  expected results for the testsuite.
 //
 
 //  5.2.1.1  Associated Laguerre polynomials.

@@ -35,11 +35,7 @@ type component struct {
 	tq uint8 // Quantization table destination selector.
 }
 
-type block [blockSize]int
-
 const (
-	blockSize = 64 // A DCT block is 8x8.
-
 	dcTable = 0
 	acTable = 1
 	maxTc   = 1
@@ -51,7 +47,7 @@ const (
 	// A color JPEG image has Y, Cb and Cr components.
 	nColorComponent = 3
 
-	// We only support 4:4:4, 4:2:2 and 4:2:0 downsampling, and therefore the
+	// We only support 4:4:4, 4:4:0, 4:2:2 and 4:2:0 downsampling, and therefore the
 	// number of luma samples per chroma sample is at most 2 in the horizontal
 	// and 2 in the vertical direction.
 	maxH = 2
@@ -74,7 +70,9 @@ const (
 	comMarker   = 0xfe // COMment.
 )
 
-// Maps from the zig-zag ordering to the natural ordering.
+// unzig maps from the zig-zag ordering to the natural ordering. For example,
+// unzig[3] is the column and row of the fourth element in zig-zag order. The
+// value is 16, which means first column (16%8 == 0) and third row (16/8 == 2).
 var unzig = [blockSize]int{
 	0, 1, 8, 16, 9, 2, 3, 10,
 	17, 24, 32, 25, 18, 11, 4, 5,
@@ -94,15 +92,18 @@ type Reader interface {
 
 type decoder struct {
 	r             Reader
+	b             bits
 	width, height int
 	img1          *image.Gray
 	img3          *image.YCbCr
 	ri            int // Restart Interval.
 	nComp         int
+	progressive   bool
+	eobRun        uint16 // End-of-Band run, specified in section G.1.2.2.
 	comp          [nColorComponent]component
+	progCoeffs    [nColorComponent][]block // Saved state between progressive-mode scans.
 	huff          [maxTc + 1][maxTh + 1]huffman
-	quant         [maxTq + 1]block
-	b             bits
+	quant         [maxTq + 1]block // Quantization tables, in zig-zag order.
 	tmp           [1024]byte
 }
 
@@ -146,24 +147,37 @@ func (d *decoder) processSOF(n int) error {
 		return UnsupportedError("SOF has wrong number of image components")
 	}
 	for i := 0; i < d.nComp; i++ {
-		hv := d.tmp[7+3*i]
-		d.comp[i].h = int(hv >> 4)
-		d.comp[i].v = int(hv & 0x0f)
 		d.comp[i].c = d.tmp[6+3*i]
 		d.comp[i].tq = d.tmp[8+3*i]
 		if d.nComp == nGrayComponent {
+			// If a JPEG image has only one component, section A.2 says "this data
+			// is non-interleaved by definition" and section A.2.2 says "[in this
+			// case...] the order of data units within a scan shall be left-to-right
+			// and top-to-bottom... regardless of the values of H_1 and V_1". Section
+			// 4.8.2 also says "[for non-interleaved data], the MCU is defined to be
+			// one data unit". Similarly, section A.1.1 explains that it is the ratio
+			// of H_i to max_j(H_j) that matters, and similarly for V. For grayscale
+			// images, H_1 is the maximum H_j for all components j, so that ratio is
+			// always 1. The component's (h, v) is effectively always (1, 1): even if
+			// the nominal (h, v) is (2, 1), a 20x5 image is encoded in three 8x8
+			// MCUs, not two 16x8 MCUs.
+			d.comp[i].h = 1
+			d.comp[i].v = 1
 			continue
 		}
-		// For color images, we only support 4:4:4, 4:2:2 or 4:2:0 chroma
+		hv := d.tmp[7+3*i]
+		d.comp[i].h = int(hv >> 4)
+		d.comp[i].v = int(hv & 0x0f)
+		// For color images, we only support 4:4:4, 4:4:0, 4:2:2 or 4:2:0 chroma
 		// downsampling ratios. This implies that the (h, v) values for the Y
-		// component are either (1, 1), (2, 1) or (2, 2), and the (h, v)
+		// component are either (1, 1), (1, 2), (2, 1) or (2, 2), and the (h, v)
 		// values for the Cr and Cb components must be (1, 1).
 		if i == 0 {
-			if hv != 0x11 && hv != 0x21 && hv != 0x22 {
-				return UnsupportedError("luma downsample ratio")
+			if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 {
+				return UnsupportedError("luma/chroma downsample ratio")
 			}
 		} else if hv != 0x11 {
-			return UnsupportedError("chroma downsample ratio")
+			return UnsupportedError("luma/chroma downsample ratio")
 		}
 	}
 	return nil
@@ -186,167 +200,12 @@ func (d *decoder) processDQT(n int) error {
 			return FormatError("bad Tq value")
 		}
 		for i := range d.quant[tq] {
-			d.quant[tq][i] = int(d.tmp[i+1])
+			d.quant[tq][i] = int32(d.tmp[i+1])
 		}
 	}
 	if n != 0 {
 		return FormatError("DQT has wrong length")
 	}
-	return nil
-}
-
-// makeImg allocates and initializes the destination image.
-func (d *decoder) makeImg(h0, v0, mxx, myy int) {
-	if d.nComp == nGrayComponent {
-		m := image.NewGray(image.Rect(0, 0, 8*mxx, 8*myy))
-		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
-		return
-	}
-	var subsampleRatio image.YCbCrSubsampleRatio
-	switch h0 * v0 {
-	case 1:
-		subsampleRatio = image.YCbCrSubsampleRatio444
-	case 2:
-		subsampleRatio = image.YCbCrSubsampleRatio422
-	case 4:
-		subsampleRatio = image.YCbCrSubsampleRatio420
-	default:
-		panic("unreachable")
-	}
-	m := image.NewYCbCr(image.Rect(0, 0, 8*h0*mxx, 8*v0*myy), subsampleRatio)
-	d.img3 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.YCbCr)
-}
-
-// Specified in section B.2.3.
-func (d *decoder) processSOS(n int) error {
-	if d.nComp == 0 {
-		return FormatError("missing SOF marker")
-	}
-	if n != 4+2*d.nComp {
-		return UnsupportedError("SOS has wrong length")
-	}
-	_, err := io.ReadFull(d.r, d.tmp[0:4+2*d.nComp])
-	if err != nil {
-		return err
-	}
-	if int(d.tmp[0]) != d.nComp {
-		return UnsupportedError("SOS has wrong number of image components")
-	}
-	var scan [nColorComponent]struct {
-		td uint8 // DC table selector.
-		ta uint8 // AC table selector.
-	}
-	for i := 0; i < d.nComp; i++ {
-		cs := d.tmp[1+2*i] // Component selector.
-		if cs != d.comp[i].c {
-			return UnsupportedError("scan components out of order")
-		}
-		scan[i].td = d.tmp[2+2*i] >> 4
-		scan[i].ta = d.tmp[2+2*i] & 0x0f
-	}
-	// mxx and myy are the number of MCUs (Minimum Coded Units) in the image.
-	h0, v0 := d.comp[0].h, d.comp[0].v // The h and v values from the Y components.
-	mxx := (d.width + 8*h0 - 1) / (8 * h0)
-	myy := (d.height + 8*v0 - 1) / (8 * v0)
-	if d.img1 == nil && d.img3 == nil {
-		d.makeImg(h0, v0, mxx, myy)
-	}
-
-	mcu, expectedRST := 0, uint8(rst0Marker)
-	var (
-		b  block
-		dc [nColorComponent]int
-	)
-	for my := 0; my < myy; my++ {
-		for mx := 0; mx < mxx; mx++ {
-			for i := 0; i < d.nComp; i++ {
-				qt := &d.quant[d.comp[i].tq]
-				for j := 0; j < d.comp[i].h*d.comp[i].v; j++ {
-					// TODO(nigeltao): make this a "var b block" once the compiler's escape
-					// analysis is good enough to allocate it on the stack, not the heap.
-					b = block{}
-
-					// Decode the DC coefficient, as specified in section F.2.2.1.
-					value, err := d.decodeHuffman(&d.huff[dcTable][scan[i].td])
-					if err != nil {
-						return err
-					}
-					if value > 16 {
-						return UnsupportedError("excessive DC component")
-					}
-					dcDelta, err := d.receiveExtend(value)
-					if err != nil {
-						return err
-					}
-					dc[i] += dcDelta
-					b[0] = dc[i] * qt[0]
-
-					// Decode the AC coefficients, as specified in section F.2.2.2.
-					for k := 1; k < blockSize; k++ {
-						value, err := d.decodeHuffman(&d.huff[acTable][scan[i].ta])
-						if err != nil {
-							return err
-						}
-						val0 := value >> 4
-						val1 := value & 0x0f
-						if val1 != 0 {
-							k += int(val0)
-							if k > blockSize {
-								return FormatError("bad DCT index")
-							}
-							ac, err := d.receiveExtend(val1)
-							if err != nil {
-								return err
-							}
-							b[unzig[k]] = ac * qt[k]
-						} else {
-							if val0 != 0x0f {
-								break
-							}
-							k += 0x0f
-						}
-					}
-
-					// Perform the inverse DCT and store the MCU component to the image.
-					if d.nComp == nGrayComponent {
-						idct(d.img1.Pix[8*(my*d.img1.Stride+mx):], d.img1.Stride, &b)
-					} else {
-						switch i {
-						case 0:
-							mx0 := h0*mx + (j % 2)
-							my0 := v0*my + (j / 2)
-							idct(d.img3.Y[8*(my0*d.img3.YStride+mx0):], d.img3.YStride, &b)
-						case 1:
-							idct(d.img3.Cb[8*(my*d.img3.CStride+mx):], d.img3.CStride, &b)
-						case 2:
-							idct(d.img3.Cr[8*(my*d.img3.CStride+mx):], d.img3.CStride, &b)
-						}
-					}
-				} // for j
-			} // for i
-			mcu++
-			if d.ri > 0 && mcu%d.ri == 0 && mcu < mxx*myy {
-				// A more sophisticated decoder could use RST[0-7] markers to resynchronize from corrupt input,
-				// but this one assumes well-formed input, and hence the restart marker follows immediately.
-				_, err := io.ReadFull(d.r, d.tmp[0:2])
-				if err != nil {
-					return err
-				}
-				if d.tmp[0] != 0xff || d.tmp[1] != expectedRST {
-					return FormatError("bad RST marker")
-				}
-				expectedRST++
-				if expectedRST == rst7Marker+1 {
-					expectedRST = rst0Marker
-				}
-				// Reset the Huffman decoder.
-				d.b = bits{}
-				// Reset the DC components, as per section F.2.1.3.1.
-				dc = [nColorComponent]int{}
-			}
-		} // for mx
-	} // for my
-
 	return nil
 }
 
@@ -386,12 +245,57 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		if err != nil {
 			return nil, err
 		}
-		if d.tmp[0] != 0xff {
-			return nil, FormatError("missing 0xff marker start")
+		for d.tmp[0] != 0xff {
+			// Strictly speaking, this is a format error. However, libjpeg is
+			// liberal in what it accepts. As of version 9, next_marker in
+			// jdmarker.c treats this as a warning (JWRN_EXTRANEOUS_DATA) and
+			// continues to decode the stream. Even before next_marker sees
+			// extraneous data, jpeg_fill_bit_buffer in jdhuff.c reads as many
+			// bytes as it can, possibly past the end of a scan's data. It
+			// effectively puts back any markers that it overscanned (e.g. an
+			// "\xff\xd9" EOI marker), but it does not put back non-marker data,
+			// and thus it can silently ignore a small number of extraneous
+			// non-marker bytes before next_marker has a chance to see them (and
+			// print a warning).
+			//
+			// We are therefore also liberal in what we accept. Extraneous data
+			// is silently ignored.
+			//
+			// This is similar to, but not exactly the same as, the restart
+			// mechanism within a scan (the RST[0-7] markers).
+			//
+			// Note that extraneous 0xff bytes in e.g. SOS data are escaped as
+			// "\xff\x00", and so are detected a little further down below.
+			d.tmp[0] = d.tmp[1]
+			d.tmp[1], err = d.r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
 		}
 		marker := d.tmp[1]
+		if marker == 0 {
+			// Treat "\xff\x00" as extraneous data.
+			continue
+		}
+		for marker == 0xff {
+			// Section B.1.1.2 says, "Any marker may optionally be preceded by any
+			// number of fill bytes, which are bytes assigned code X'FF'".
+			marker, err = d.r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+		}
 		if marker == eoiMarker { // End Of Image.
 			break
+		}
+		if rst0Marker <= marker && marker <= rst7Marker {
+			// Figures B.2 and B.16 of the specification suggest that restart markers should
+			// only occur between Entropy Coded Segments and not after the final ECS.
+			// However, some encoders may generate incorrect JPEGs with a final restart
+			// marker. That restart marker will be seen here instead of inside the processSOS
+			// method, and is ignored as a harmless error. Restart markers have no extra data,
+			// so we check for this before we read the 16-bit length of the segment.
+			continue
 		}
 
 		// Read the 16-bit length of the segment. The value includes the 2 bytes for the
@@ -406,13 +310,12 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		}
 
 		switch {
-		case marker == sof0Marker: // Start Of Frame (Baseline).
+		case marker == sof0Marker || marker == sof2Marker: // Start Of Frame.
+			d.progressive = marker == sof2Marker
 			err = d.processSOF(n)
 			if configOnly {
 				return nil, err
 			}
-		case marker == sof2Marker: // Start Of Frame (Progressive).
-			err = UnsupportedError("progressive mode")
 		case marker == dhtMarker: // Define Huffman Table.
 			err = d.processDHT(n)
 		case marker == dqtMarker: // Define Quantization Table.
@@ -421,7 +324,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 			err = d.processSOS(n)
 		case marker == driMarker: // Define Restart Interval.
 			err = d.processDRI(n)
-		case marker >= app0Marker && marker <= app15Marker || marker == comMarker: // APPlication specific, or COMment.
+		case app0Marker <= marker && marker <= app15Marker || marker == comMarker: // APPlication specific, or COMment.
 			err = d.ignore(n)
 		default:
 			err = UnsupportedError("unknown marker")

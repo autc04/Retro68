@@ -11,7 +11,12 @@
 
 == dwarf/
 
+== safe/
+
 == fixedbugs/
+
+=========== fixedbugs/bug429.go
+fatal error: all goroutines are asleep - deadlock!
 
 == bugs/
 

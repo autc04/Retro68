@@ -1,8 +1,7 @@
 // Test for errors in range-based for loops
 // with member begin/end
 
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 //These should not be used
 template<typename T> int *begin(T &t)

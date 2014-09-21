@@ -1,4 +1,4 @@
-/* Copyright (C) 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Torvald Riegel <triegel@redhat.com>.
 
    This file is part of the GNU Transactional Memory Library (libitm).
@@ -39,6 +39,11 @@ struct gtm_thread;
 //
 // In this implementation, writers are given highest priority access but
 // read-to-write upgrades do not have a higher priority than writers.
+//
+// Do not change the layout of this class; it must remain a POD type with
+// standard layout, and the WRITERS field must be first (i.e., so the
+// assembler code can assume that its address is equal to the address of the
+// respective instance of the class).
 
 class gtm_rwlock
 {
@@ -58,6 +63,14 @@ class gtm_rwlock
 
   bool write_upgrade (gtm_thread *tx);
   void write_upgrade_finish (gtm_thread *tx);
+
+  // Returns true iff there is a concurrent active or waiting writer.
+  // This is primarily useful for simple HyTM approaches, and the value being
+  // checked is loaded with memory_order_relaxed.
+  bool is_write_locked()
+  {
+    return writers.load (memory_order_relaxed) != 0;
+  }
 
  protected:
   bool write_lock_generic (gtm_thread *tx);

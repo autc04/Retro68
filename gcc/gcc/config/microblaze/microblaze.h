@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler for Xilinx MicroBlaze.
-   Copyright 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    Contributed by Michael Eager <eager@eagercon.com>.
 
@@ -42,12 +42,31 @@ extern int microblaze_section_threshold;
 extern int microblaze_dbx_regno[];
 
 extern int microblaze_no_unsafe_delay;
+extern int microblaze_has_clz;
 extern enum pipeline_type microblaze_pipe;
 
 #define OBJECT_FORMAT_ELF
 
+#if TARGET_BIG_ENDIAN_DEFAULT
+#define TARGET_ENDIAN_DEFAULT    0
+#define TARGET_ENDIAN_OPTION     "mbig-endian"
+#else
+#define TARGET_ENDIAN_DEFAULT    MASK_LITTLE_ENDIAN
+#define TARGET_ENDIAN_OPTION     "mlittle-endian"
+#endif
+
 /* Default target_flags if no switches are specified  */
-#define TARGET_DEFAULT      (MASK_SOFT_MUL | MASK_SOFT_DIV | MASK_SOFT_FLOAT)
+#define TARGET_DEFAULT      (MASK_SOFT_MUL | MASK_SOFT_DIV | MASK_SOFT_FLOAT \
+                             | TARGET_ENDIAN_DEFAULT)
+
+/* Do we have CLZ?  */
+#define TARGET_HAS_CLZ      (TARGET_PATTERN_COMPARE && microblaze_has_clz)
+
+/* The default is to support PIC.  */
+#define TARGET_SUPPORTS_PIC 1
+
+/* The default is to not need GOT for TLS.  */
+#define TLS_NEEDS_GOT 0
 
 /* What is the default setting for -mcpu= . We set it to v4.00.a even though 
    we are actually ahead. This is safest version that has generate code 
@@ -62,6 +81,7 @@ extern enum pipeline_type microblaze_pipe;
 	"%{mno-xl-barrel-shift:%<mxl-barrel-shift}", 	\
 	"%{mno-xl-pattern-compare:%<mxl-pattern-compare}", \
 	"%{mxl-soft-div:%<mno-xl-soft-div}", 		\
+	"%{mxl-reorder:%<mno-xl-reorder}", 		\
 	"%{msoft-float:%<mhard-float}"
 
 /* Tell collect what flags to pass to nm.  */
@@ -77,12 +97,16 @@ extern enum pipeline_type microblaze_pipe;
 #define TARGET_ASM_SPEC ""
 
 #define ASM_SPEC "\
-%(target_asm_spec)"
+%(target_asm_spec) \
+%{mbig-endian:-EB} \
+%{mlittle-endian:-EL}"
 
 /* Extra switches sometimes passed to the linker.  */
 /* -xl-mode-xmdstub translated to -Zxl-mode-xmdstub -- deprecated.  */
 
 #define LINK_SPEC "%{shared:-shared} -N -relax \
+  %{mbig-endian:-EB --oformat=elf32-microblaze} \
+  %{mlittle-endian:-EL --oformat=elf32-microblazeel} \
   %{Zxl-mode-xmdstub:-defsym _TEXT_START_ADDR=0x800} \
   %{mxl-mode-xmdstub:-defsym _TEXT_START_ADDR=0x800} \
   %{mxl-gp-opt:%{G*}} %{!mxl-gp-opt: -G 0} \
@@ -167,9 +191,8 @@ extern enum pipeline_type microblaze_pipe;
 /* Target machine storage layout */
 
 #define BITS_BIG_ENDIAN 0
-#define BYTES_BIG_ENDIAN 1
-#define WORDS_BIG_ENDIAN 1
-#define BITS_PER_UNIT           8
+#define BYTES_BIG_ENDIAN (TARGET_LITTLE_ENDIAN == 0)
+#define WORDS_BIG_ENDIAN (BYTES_BIG_ENDIAN)
 #define BITS_PER_WORD           32
 #define UNITS_PER_WORD          4
 #define MIN_UNITS_PER_WORD      4
@@ -188,6 +211,12 @@ extern enum pipeline_type microblaze_pipe;
 #define BIGGEST_ALIGNMENT       32
 #define STRICT_ALIGNMENT        1
 #define PCC_BITFIELD_TYPE_MATTERS 1
+
+#undef SIZE_TYPE
+#define SIZE_TYPE "unsigned int"
+
+#undef PTRDIFF_TYPE
+#define PTRDIFF_TYPE "int"
 
 #define CONSTANT_ALIGNMENT(EXP, ALIGN)					\
   ((TREE_CODE (EXP) == STRING_CST  || TREE_CODE (EXP) == CONSTRUCTOR)	\
@@ -305,9 +334,7 @@ extern char microblaze_hard_regno_mode_ok[][FIRST_PSEUDO_REGISTER];
 
 #define NO_FUNCTION_CSE                 1
 
-#define PIC_OFFSET_TABLE_REGNUM         \
-        (flag_pic ? (GP_REG_FIRST + MB_ABI_PIC_ADDR_REGNUM) : \
-        INVALID_REGNUM)
+#define PIC_OFFSET_TABLE_REGNUM   (GP_REG_FIRST + MB_ABI_PIC_ADDR_REGNUM)
 
 enum reg_class
 {
@@ -384,9 +411,6 @@ extern enum reg_class microblaze_regno_to_class[];
       : ((GET_MODE_CLASS (GET_MODE (X)) == MODE_INT			\
 	  || GET_MODE (X) == VOIDmode)					\
 	 ? (GR_REGS) : (CLASS))))
-
-#define SECONDARY_MEMORY_NEEDED(CLASS1, CLASS2, MODE)			\
-  (GET_MODE_CLASS (MODE) == MODE_INT)
 
 /* Stack layout; function entry, exit and calling.  */
 
@@ -486,7 +510,8 @@ typedef struct microblaze_args
 
 #define EXIT_IGNORE_STACK			1
 
-#define TRAMPOLINE_SIZE				(32 + 8)
+/* 4 insns + 2 words of data.  */
+#define TRAMPOLINE_SIZE				(6 * 4)
 
 #define TRAMPOLINE_ALIGNMENT			32
 
@@ -519,7 +544,7 @@ typedef struct microblaze_args
 
 /* Define this, so that when PIC, reload won't try to reload invalid
    addresses which require two reload registers.  */
-#define LEGITIMATE_PIC_OPERAND_P(X)  (!pic_address_needs_scratch (X))
+#define LEGITIMATE_PIC_OPERAND_P(X)  microblaze_legitimate_pic_operand (X)
 
 #define CASE_VECTOR_MODE			(SImode)
 
@@ -546,7 +571,7 @@ typedef struct microblaze_args
 
 #define FUNCTION_MODE   SImode
 
-/* Mode should alwasy be SImode */
+/* Mode should always be SImode */
 #define REGISTER_MOVE_COST(MODE, FROM, TO)			\
   ( GR_REG_CLASS_P (FROM) && GR_REG_CLASS_P (TO) ? 2 		\
    : (FROM) == ST_REGS && GR_REG_CLASS_P (TO) ? 4		\
@@ -696,8 +721,8 @@ do {									\
 #define ASCII_DATA_ASM_OP		"\t.ascii\t"
 #define STRING_ASM_OP			"\t.asciz\t"
 
-#define ASM_OUTPUT_IDENT(FILE, STRING)					\
-  microblaze_asm_output_ident (FILE, STRING)
+#undef TARGET_ASM_OUTPUT_IDENT
+#define TARGET_ASM_OUTPUT_IDENT microblaze_asm_output_ident
 
 /* Default to -G 8 */
 #ifndef MICROBLAZE_DEFAULT_GVALUE
@@ -734,16 +759,11 @@ do {									\
 
 /* Handle interrupt attribute.  */
 extern int interrupt_handler;
+extern int fast_interrupt;
 extern int save_volatiles;
 
 #define INTERRUPT_HANDLER_NAME "_interrupt_handler"
-
-/* These #define added for C++.  */
-#define UNALIGNED_SHORT_ASM_OP          ".data16"
-#define UNALIGNED_INT_ASM_OP            ".data32"
-#define UNALIGNED_DOUBLE_INT_ASM_OP     ".data8"
-
-#define ASM_BYTE_OP                     ".data8"
+#define FAST_INTERRUPT_NAME "_fast_interrupt"
 
 /* The following #defines are used in the headers files. Always retain these.  */
 
@@ -873,6 +893,10 @@ do {									 \
 "%{!nostdlib: \
 %{pg:-start-group -lxilprofile -lgloss -lxil -lc -lm -end-group } \
 %{!pg:-start-group -lgloss -lxil -lc -lm -end-group }} "
+
+/* microblaze-unknown-elf target has no support of C99 runtime */
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function
 
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC "crtend.o%s crtn.o%s"

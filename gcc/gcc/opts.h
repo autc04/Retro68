@@ -1,6 +1,5 @@
 /* Command line option handling.
-   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,6 +22,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "input.h"
 #include "vec.h"
+#include "obstack.h"
 
 /* Specifies how a switch's VAR_VALUE relates to its FLAG_VAR.  */
 enum cl_var_type {
@@ -145,6 +145,8 @@ extern const unsigned int cl_lang_count;
 #define CL_JOINED		(1U << 22) /* If takes joined argument.  */
 #define CL_SEPARATE		(1U << 23) /* If takes a separate argument.  */
 #define CL_UNDOCUMENTED		(1U << 24) /* Do not output with --help.  */
+#define CL_NO_DWARF_RECORD	(1U << 25) /* Do not add to producer string.  */
+#define CL_PCH_IGNORE		(1U << 26) /* Do compare state for pch.  */
 
 /* Flags for an enumerated option argument.  */
 #define CL_ENUM_CANONICAL	(1 << 0) /* Canonical for this value.  */
@@ -248,16 +250,14 @@ struct cl_decoded_option
 /* Structure describing an option deferred for handling after the main
    option handlers.  */
 
-typedef struct
+struct cl_deferred_option
 {
   /* Elements from struct cl_decoded_option used for deferred
      options.  */
   size_t opt_index;
   const char *arg;
   int value;
-} cl_deferred_option;
-DEF_VEC_O(cl_deferred_option);
-DEF_VEC_ALLOC_O(cl_deferred_option,heap);
+};
 
 /* Structure describing a single option-handling callback.  */
 
@@ -305,6 +305,12 @@ extern const char **in_fnames;
 /* The count of input filenames.  */
 
 extern unsigned num_in_fnames;
+
+extern char *opts_concat (const char *first, ...);
+
+/* Obstack for option strings.  */
+
+extern struct obstack opts_obstack;
 
 size_t find_opt (const char *input, unsigned int lang_mask);
 extern int integral_argument (const char *arg);

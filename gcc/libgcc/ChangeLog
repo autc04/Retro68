@@ -1,6 +1,2305 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-05-27  Georg-Johann Lay  <avr@gjlay.de>
+
+	Backport from 2014-05-27 mainline r210322.
+
+	PR libgcc/61152
+	* config/arm/bpabi-lib.h (License): Add GCC Runtime Library Exception.
+
+2014-05-22  Nick Clifton  <nickc@redhat.com>
+
+	* config/msp430/t-msp430 (HOST_LIBGCC2_CFLAGS): Add
+	-mhwmult=none.
+
+2014-05-21  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	Backport from mainline
+	2014-05-21  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	PR libgcc/60166
+	* config/arm/sfp-machine.h (_FP_NANFRAC_H, _FP_NANFRAC_S)
+	(_FP_NANFRAC_D, _FP_NANSIGN_Q): Set the quiet bit.
+
+2014-05-15  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	Backport from mainline
+	2014-05-08  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR libgcc/61097
+	* config/t-slibgcc-sld: Only build and install libgcc-unwind.map
+	if --enable-shared.
+
+2014-04-30  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	Work around for current cygwin32 build problems.
+	* config/i386/cygming-crtbegin.c (__register_frame_info,
+	__deregister_frame_info, _Jv_RegisterClasses): Compile weak default
+	functions only for 64-bit systems.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-03-27  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* config.host: Append t-floattodi to tmake_file depending on
+	host_address.
+
+2014-03-20  Joel Sherrill  <joel.sherrill@oarcorp.com>
+
+	* config.host (v850*-*-*): Add to tmake_file instead of resetting it.
+
+2014-03-10  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR libgcc/60472
+	* crtstuff.c (frame_dummy): Use void **jcr_list temporary
+	variable to avoid array subscript is above array bounds warnings.
+	Use __builtin_expect when checking *jcr_list for NULL.
+
+2014-03-06  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR libgcc/59339
+	* config.host (*-*-linux*, frv-*-*linux*, *-*-kfreebsd*-gnu)
+	(*-*-knetbsd*-gnu, *-*-gnu*, *-*-kopensolaris*-gnu): Only add
+	vtv_*.o to extra_parts if enable_vtable_verify.
+
+2014-03-06  Nick Clifton  <nickc@redhat.com>
+
+	* config/msp430/t-msp430 (LIB2ADD): Add lib2hw_mul.S
+	* config/msp430/lib2hw_mul.S: New: Hardware multiply routines.
+
+2014-02-28  Joey Ye  <joey.ye@arm.com>
+
+	PR libgcc/60166
+	* config/arm/sfp-machine.h (_FP_NANFRAC_H,
+	_FP_NANFRAC_S, _FP_NANFRAC_D, _FP_NANFRAC_Q):
+	Set to zero.
+
+2014-02-24  Walter Lee  <walt@tilera.com>
+
+	* config.host: Support "tilegx*" and "tilepro*" triplets.
+	* config/tilegx/sfp-machine32.h (__BYTE_ORDER): Handle big endian.
+	* config/tilegx/sfp-machine64.h (__BYTE_ORDER): Handle big endian.
+
+2014-02-20  Sandra Loosemore  <sandra@codesourcery.com>
+	    Chung-Lin Tang  <cltang@codesourcery.com>
+
+	* config/nios2/t-nios2 (CRTSTUFF_T_CFLAGS): Add -mno-gpopt.
+	* config/nios2/crti.S: Remove .file directive.
+	* config/nios2/crtn.S: Likewise.
+
+2014-02-18  Kai Tietz  <ktietz@redhat.com>
+	Jonathan Schleifer  <js@webkeks.org>
+
+	PR objc/56870
+	* unwind-seh.c (_GCC_specific_handler): Pass proper
+	value to unwind-handler.
+
+2014-02-12  Joseph Myers  <joseph@codesourcery.com>
+
+	* soft-fp/adddf3.c: Update from glibc.
+	* soft-fp/addsf3.c: Likewise.
+	* soft-fp/addtf3.c: Likewise.
+	* soft-fp/divdf3.c: Likewise.
+	* soft-fp/divsf3.c: Likewise.
+	* soft-fp/divtf3.c: Likewise.
+	* soft-fp/double.h: Likewise.
+	* soft-fp/eqdf2.c: Likewise.
+	* soft-fp/eqsf2.c: Likewise.
+	* soft-fp/eqtf2.c: Likewise.
+	* soft-fp/extenddftf2.c: Likewise.
+	* soft-fp/extended.h: Likewise.
+	* soft-fp/extendsfdf2.c: Likewise.
+	* soft-fp/extendsftf2.c: Likewise.
+	* soft-fp/extendxftf2.c: Likewise.
+	* soft-fp/fixdfdi.c: Likewise.
+	* soft-fp/fixdfsi.c: Likewise.
+	* soft-fp/fixdfti.c: Likewise.
+	* soft-fp/fixsfdi.c: Likewise.
+	* soft-fp/fixsfsi.c: Likewise.
+	* soft-fp/fixsfti.c: Likewise.
+	* soft-fp/fixtfdi.c: Likewise.
+	* soft-fp/fixtfsi.c: Likewise.
+	* soft-fp/fixtfti.c: Likewise.
+	* soft-fp/fixunsdfdi.c: Likewise.
+	* soft-fp/fixunsdfsi.c: Likewise.
+	* soft-fp/fixunsdfti.c: Likewise.
+	* soft-fp/fixunssfdi.c: Likewise.
+	* soft-fp/fixunssfsi.c: Likewise.
+	* soft-fp/fixunssfti.c: Likewise.
+	* soft-fp/fixunstfdi.c: Likewise.
+	* soft-fp/fixunstfsi.c: Likewise.
+	* soft-fp/fixunstfti.c: Likewise.
+	* soft-fp/floatdidf.c: Likewise.
+	* soft-fp/floatdisf.c: Likewise.
+	* soft-fp/floatditf.c: Likewise.
+	* soft-fp/floatsidf.c: Likewise.
+	* soft-fp/floatsisf.c: Likewise.
+	* soft-fp/floatsitf.c: Likewise.
+	* soft-fp/floattidf.c: Likewise.
+	* soft-fp/floattisf.c: Likewise.
+	* soft-fp/floattitf.c: Likewise.
+	* soft-fp/floatundidf.c: Likewise.
+	* soft-fp/floatundisf.c: Likewise.
+	* soft-fp/floatunditf.c: Likewise.
+	* soft-fp/floatunsidf.c: Likewise.
+	* soft-fp/floatunsisf.c: Likewise.
+	* soft-fp/floatunsitf.c: Likewise.
+	* soft-fp/floatuntidf.c: Likewise.
+	* soft-fp/floatuntisf.c: Likewise.
+	* soft-fp/floatuntitf.c: Likewise.
+	* soft-fp/gedf2.c: Likewise.
+	* soft-fp/gesf2.c: Likewise.
+	* soft-fp/getf2.c: Likewise.
+	* soft-fp/ledf2.c: Likewise.
+	* soft-fp/lesf2.c: Likewise.
+	* soft-fp/letf2.c: Likewise.
+	* soft-fp/muldf3.c: Likewise.
+	* soft-fp/mulsf3.c: Likewise.
+	* soft-fp/multf3.c: Likewise.
+	* soft-fp/negdf2.c: Likewise.
+	* soft-fp/negsf2.c: Likewise.
+	* soft-fp/negtf2.c: Likewise.
+	* soft-fp/op-1.h: Likewise.
+	* soft-fp/op-2.h: Likewise.
+	* soft-fp/op-4.h: Likewise.
+	* soft-fp/op-8.h: Likewise.
+	* soft-fp/op-common.h: Likewise.
+	* soft-fp/quad.h: Likewise.
+	* soft-fp/single.h: Likewise.
+	* soft-fp/soft-fp.h: Likewise.
+	* soft-fp/subdf3.c: Likewise.
+	* soft-fp/subsf3.c: Likewise.
+	* soft-fp/subtf3.c: Likewise.
+	* soft-fp/truncdfsf2.c: Likewise.
+	* soft-fp/trunctfdf2.c: Likewise.
+	* soft-fp/trunctfsf2.c: Likewise.
+	* soft-fp/trunctfxf2.c: Likewise.
+	* soft-fp/unorddf2.c: Likewise.
+	* soft-fp/unordsf2.c: Likewise.
+	* soft-fp/unordtf2.c: Likewise.
+	* config/aarch64/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING): New
+	macro.
+	* config/arm/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/c6x/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/cris/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/i386/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/ia64/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/lm32/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/mips/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/moxie/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/nds32/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/nios2/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/rs6000/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/score/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/tilegx/sfp-machine32.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/tilegx/sfp-machine64.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+	* config/tilepro/sfp-machine.h (_FP_TININESS_AFTER_ROUNDING):
+	Likewise.
+
+2014-02-07  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* config/s390/32/_fixdfdi.c: Throw invalid exception if number
+	cannot be represented.
+	* config/s390/32/_fixsfdi.c: Likewise.
+	* config/s390/32/_fixtfdi.c: Likewise.
+	* config/s390/32/_fixunsdfdi.c: Likewise.
+	* config/s390/32/_fixunssfdi.c: Likewise.
+	* config/s390/32/_fixunstfdi.c: Likewise.
+
+2014-02-07  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* configure.ac (libgcc_cv_mips_hard_float): New.
+	* configure: Regenerate.
+	* config.host (mips*-*-*): Use t-hardfp-sfdf rather than
+	t-softfp-sfdf for hard-float targets.
+	* config/mips/t-mips (LIB2_SIDITI_CONV_FUNCS): Reinstate.
+	(softfp_float_modes, softfp_int_modes, softfp_extensions)
+	(softfp_truncations, softfp_exclude_libgcc2): New.
+	* config/t-hardfp: New file.
+	* config/t-hardfp-sfdf: Likewise.
+	* config/hardfp.c: Likewise.
+
+2014-02-05  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* config.host: Include t-floattodi also for s390x.
+	* config/s390/32/_fixdfdi.c: Omit in 64 bit mode.
+	* config/s390/32/_fixsfdi.c: Likewise.
+	* config/s390/32/_fixtfdi.c: Likewise.
+	* config/s390/32/_fixunsdfdi.c: Likewise.
+	* config/s390/32/_fixunssfdi.c: Likewise.
+	* config/s390/32/_fixunstfdi.c: Likewise.
+
+2014-02-04  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR target/59788
+	* config/t-slibgcc-sld (libgcc-unwind.map): New target.
+	(install-libgcc-unwind-map-forbuild): New target.
+	(all): Depend on install-libgcc-unwind-map-forbuild.
+	(install-libgcc-unwind-map): New target.
+	(install): Depend on install-libgcc-unwind-map.
+
+2014-02-02  Sandra Loosemore  <sandra@codesourcery.com>
+
+	* config/nios2/crti.S (_init): Initialize GOT pointer from
+	_gp_got instead of _GLOBAL_OFFSET_TABLE_.
+
+2014-02-02  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* configure.ac: Check __mips64 when setting host_address.
+	* configure: Regenerate.
+	* config.host (mips*-*-*): Add t-softfp-sfdf, mips/t-softfp-tf,
+	mips/t-mips64 and t-softfp.
+	(mips*-*-linux*): Don't add mips/t-tpbit.
+	* config/mips/t-mips (LIB2_SIDITI_CONV_FUNCS, FPBIT, FPBIT_CFLAGS)
+	(DPBIT, DPBIT_CFLAGS): Delete.
+	* config/mips/sfp-machine.h: New file.
+	* config/mips/t-mips64: Likewise.
+	* config/mips/t-softfp-tf: Likewise.
+	* config/mips/t-tpbit: Delete.
+
+2014-01-29  Marcus Shawcroft  <marcus.shawcroft@arm.com>
+
+	* config/aarch64/sfp-machine.h (_FP_I_TYPE): Define
+	as long long.
+
+2014-01-25  Walter Lee  <walt@tilera.com>
+
+	* config/tilepro/atomic.c: Include tconfig.h.  Don't include
+	config.h or system.h.
+	(bool) Define.
+
+2014-01-25  Walter Lee  <walt@tilera.com>
+
+	* config/tilepro/atomic.c (pre_atomic_barrier): Mark inline.
+	(post_atomic_barrier): Ditto.
+	(__fetch_and_do): New macro.
+	(__atomic_fetch_and_do): Use __fetch_and_do.
+	(__sync_fetch_and_do): New macro.
+	(__sync_fetch_and_add_4): New function.
+	(__sync_fetch_and_sub_4): New function.
+	(__sync_fetch_and_or_4): New function.
+	(__sync_fetch_and_and_4): New function.
+	(__sync_fetch_and_xor_4): New function.
+	(__sync_fetch_and_nand_4): New function.
+	(__sync_fetch_and_add_8): New function.
+	(__sync_fetch_and_sub_8): New function.
+	(__sync_fetch_and_or_8): New function.
+	(__sync_fetch_and_and_8): New function.
+	(__sync_fetch_and_xor_8): New function.
+	(__sync_fetch_and_nand_8): New function.
+	(__do_and_fetch): New macro.
+	(__atomic_do_and_fetch): Use __do_and_fetch.
+	(__sync_do_and_fetch): New macro.
+	(__sync_add_and_fetch_4): New function.
+	(__sync_sub_and_fetch_4): New function.
+	(__sync_or_and_fetch_4): New function.
+	(__sync_and_and_fetch_4): New function.
+	(__sync_xor_and_fetch_4): New function.
+	(__sync_nand_and_fetch_4): New function.
+	(__sync_add_and_fetch_8): New function.
+	(__sync_sub_and_fetch_8): New function.
+	(__sync_or_and_fetch_8): New function.
+	(__sync_and_and_fetch_8): New function.
+	(__sync_xor_and_fetch_8): New function.
+	(__sync_nand_and_fetch_8): New function.
+	(__sync_exchange_methods): New macro.
+	(__sync_val_compare_and_swap_4): New function.
+	(__sync_bool_compare_and_swap_4): New function.
+	(__sync_lock_test_and_test_4): New function.
+	(__sync_val_compare_and_swap_8): New function.
+	(__sync_bool_compare_and_swap_8): New function.
+	(__sync_lock_test_and_test_8): New function.
+	(__subword_cmpxchg_body): New macro.
+	(__atomic_compare_exchange_1): Use __subword_cmpxchg_body.
+	(__atomic_compare_exchange_2): Ditto.
+	(__sync_subword_cmpxchg): New macro.
+	(__sync_val_compare_and_swap_1): New function.
+	(__sync_bool_compare_and_swap_1): New function.
+	(__sync_val_compare_and_swap_2): New function.
+	(__sync_bool_compare_and_swap_2): New function.
+	(__atomic_subword): Rename to ...
+	(__subword): ... New name.
+	(__atomic_subword_fetch): Use __subword.
+	(__sync_subword_fetch): New macro.
+	(__sync_fetch_and_add_1): New function.
+	(__sync_fetch_and_sub_1): New function.
+	(__sync_fetch_and_or_1): New function.
+	(__sync_fetch_and_and_1): New function.
+	(__sync_fetch_and_xor_1): New function.
+	(__sync_fetch_and_nand_1): New function.
+	(__sync_fetch_and_add_2): New function.
+	(__sync_fetch_and_sub_2): New function.
+	(__sync_fetch_and_or_2): New function.
+	(__sync_fetch_and_and_2): New function.
+	(__sync_fetch_and_xor_2): New function.
+	(__sync_fetch_and_nand_2): New function.
+	(__sync_add_and_fetch_1): New function.
+	(__sync_sub_and_fetch_1): New function.
+	(__sync_or_and_fetch_1): New function.
+	(__sync_and_and_fetch_1): New function.
+	(__sync_xor_and_fetch_1): New function.
+	(__sync_nand_and_fetch_1): New function.
+	(__sync_add_and_fetch_2): New function.
+	(__sync_sub_and_fetch_2): New function.
+	(__sync_or_and_fetch_2): New function.
+	(__sync_and_and_fetch_2): New function.
+	(__sync_xor_and_fetch_2): New function.
+	(__sync_nand_and_fetch_2): New function.
+	(__atomic_subword_lock): Use __subword.
+	(__sync_subword_lock): New macro.
+	(__sync_lock_test_and_set_1): New function.
+	(__sync_lock_test_and_set_2): New function.
+
+2014-01-25  Walter Lee  <walt@tilera.com>
+
+	* config/tilepro/atomic.c (BIT_OFFSET): Define.
+	(__atomic_subword_cmpxchg): Use BIT_OFFSET.
+	(__atomic_subword): Ditto.
+
+2014-01-25  Walter Lee  <walt@tilera.com>
+
+	* config/tilepro/atomic.c (__atomic_do_and_fetch): Add
+	a prefix op argument.
+	(__atomic_nand_fetch_4): Add prefix op.
+	(__atomic_nand_fetch_8): Ditto.
+
+2014-01-21  Baruch Siach <barch@tkos.co.il>
+
+	* config.host (tmake_file): add t-slibgcc-libgcc for xtensa*-*-linux*.
+
+2014-01-09  Rong Xu  <xur@google.com>
+
+	* libgcov-driver.c (this_prg): make it local to save
+	bss space.
+	(gcov_exit_compute_summary): Ditto.
+	(gcov_exit_merge_gcda): Ditto.
+	(gcov_exit_merge_summary): Ditto.
+	(gcov_exit_dump_gcov): Ditto.
+
+2014-01-08  Rong Xu  <xur@google.com> 
+
+	* libgcov-driver.c: Use libgcov.h.
+	(buffer_fn_data): Use xmalloc instead of malloc.
+	(gcov_exit_merge_gcda): Ditto.
+	* libgcov-driver-system.c (allocate_filename_struct): Ditto.
+	* libgcov.h: New common header files for libgcov-*.h.
+	* libgcov-interface.c: Use libgcov.h
+	* libgcov-merge.c: Ditto.
+	* libgcov-profiler.c: Ditto.
+	* Makefile.in: Add dependence to libgcov.h
+
+2014-01-02  Joseph Myers  <joseph@codesourcery.com>
+
+	* config/rs6000/ibm-ldouble.c (__gcc_qdiv): Scale up arguments in
+	case of small numerator and finite nonzero result.
+
+2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years
+
+2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* config/arc/asm.h, config/arc/crtg.S, config/arc/crtgend.S,
+	config/arc/crti.S, config/arc/crtn.S, config/arc/divtab-arc700.c,
+	config/arc/dp-hack.h, config/arc/fp-hack.h,
+	config/arc/ieee-754/adddf3.S, config/arc/ieee-754/addsf3.S,
+	config/arc/ieee-754/arc600-dsp/divdf3.S,
+	config/arc/ieee-754/arc600-dsp/divsf3.S,
+	config/arc/ieee-754/arc600-dsp/muldf3.S,
+	config/arc/ieee-754/arc600-dsp/mulsf3.S,
+	config/arc/ieee-754/arc600-mul64/divdf3.S,
+	config/arc/ieee-754/arc600-mul64/divsf3.S,
+	config/arc/ieee-754/arc600-mul64/muldf3.S,
+	config/arc/ieee-754/arc600-mul64/mulsf3.S,
+	config/arc/ieee-754/arc600/divsf3.S,
+	config/arc/ieee-754/arc600/mulsf3.S,
+	config/arc/ieee-754/divdf3.S, config/arc/ieee-754/divsf3-stdmul.S,
+	config/arc/ieee-754/divsf3.S, config/arc/ieee-754/divtab-arc-df.c,
+	config/arc/ieee-754/divtab-arc-sf.c, config/arc/ieee-754/eqdf2.S,
+	config/arc/ieee-754/eqsf2.S, config/arc/ieee-754/extendsfdf2.S,
+	config/arc/ieee-754/fixdfsi.S, config/arc/ieee-754/fixsfsi.S,
+	config/arc/ieee-754/fixunsdfsi.S, config/arc/ieee-754/floatsidf.S,
+	config/arc/ieee-754/floatsisf.S, config/arc/ieee-754/floatunsidf.S,
+	config/arc/ieee-754/gedf2.S, config/arc/ieee-754/gesf2.S,
+	config/arc/ieee-754/gtdf2.S, config/arc/ieee-754/gtsf2.S,
+	config/arc/ieee-754/muldf3.S, config/arc/ieee-754/mulsf3.S,
+	config/arc/ieee-754/orddf2.S, config/arc/ieee-754/ordsf2.S,
+	config/arc/ieee-754/truncdfsf2.S, config/arc/ieee-754/uneqdf2.S,
+	config/arc/ieee-754/uneqsf2.S, config/arc/initfini.c,
+	config/arc/lib1funcs.S, config/arc/t-arc, config/arc/t-arc-newlib,
+	config/cris/umulsidi3.S, config/msp430/cmpsi2.S,
+	config/msp430/epilogue.S, config/msp430/lib2bitcountHI.c,
+	config/msp430/lib2divHI.c, config/msp430/lib2divQI.c,
+	config/msp430/lib2divSI.c, config/msp430/lib2mul.c,
+	config/msp430/msp430-divmod.h, config/msp430/msp430-mul.h,
+	config/msp430/slli.S, config/msp430/srai.S, config/msp430/srli.S,
+	config/rl78/divmodhi.S, config/rl78/divmodqi.S, config/rl78/divmodsi.S,
+	config/rl78/signbit.S, vtv_end.c, vtv_end_preinit.c, vtv_start.c,
+	vtv_start_preinit.c: Use the standard form for the copyright notice.
+
+2013-12-31  Sandra Loosemore  <sandra@codesourcery.com>
+	    Chung-Lin Tang  <cltang@codesourcery.com>
+	    Based on patches from Altera Corporation
+
+	* config.host (nios2-*-*,nios2-*-linux*): Add nios2 host cases.
+	* config/nios2/lib2-nios2.h: New file.
+	* config/nios2/lib2-divmod-hi.c: New file.
+	* config/nios2/linux-unwind.h: New file.
+	* config/nios2/lib2-divmod.c: New file.
+	* config/nios2/linux-atomic.c: New file.
+	* config/nios2/t-nios2: New file.
+	* config/nios2/crti.asm: New file.
+	* config/nios2/t-linux: New file.
+	* config/nios2/lib2-divtable.c: New file.
+	* config/nios2/lib2-mul.c: New file.
+	* config/nios2/tramp.c: New file.
+	* config/nios2/crtn.asm: New file.
+
+2013-12-26  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/cpuinfo.c (enum vendor_signatures): Remove.
+	(__cpu_indicator_init): Use signature_INTEL_ebx and signature_AMD_ebx
+	from cpuid.h to check vendor signatures.
+
+2013-12-26  Ganesh Gopalasubramanian  <Ganesh.Gopalasubramanian@amd.com>
+
+	* config/i386/cpuinfo.c (processor_types): Rename AMD cpu names
+	AMD_BOBCAT to AMD_BTVER1 and AMD_JAGUAR to AMD_BTVER2.
+	(get_amd_cpu): Likewise.
+
+2013-12-25   H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/cpuinfo.c (get_intel_cpu): Remove model 0x3f from
+	Haswell.
+
+2013-12-25  Allan Sandfeld Jensen  <sandfeld@kde.org>
+	    H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR target/59422
+	* config/i386/cpuinfo.c (enum processor_types):  Add AMD_BOBCAT
+	and AMD_JAGUAR.
+	(enum processor_subtypes): Add AMDFAM15H_BDVER3, AMDFAM15H_BDVER4,
+	INTEL_COREI7_IVYBRIDGE and INTEL_COREI7_HASWELL.
+	(enum processor_features): Add  FEATURE_SSE4_A, FEATURE_FMA4,
+	FEATURE_XOP and FEATURE_FMA.
+	(get_amd_cpu): Handle AMD_BOBCAT, AMD_JAGUAR, AMDFAM15H_BDVER2 and
+	AMDFAM15H_BDVER3.
+	(get_intel_cpu): Handle INTEL_COREI7 and INTEL_COREI7_HASWELL.
+	(get_available_features): Handle FEATURE_FMA, FEATURE_SSE4_A,
+	FEATURE_FMA4 and FEATURE_XOP.
+
+2013-12-23   H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/cpuinfo.c (processor_subtypes): Replace INTEL_ATOM,
+	INTEL_SLM with INTEL_BONNELL, INTEL_SILVERMONT.
+	(get_intel_cpu): Updated.
+
+2013-12-12  Zhenqiang Chen  <zhenqiang.chen@arm.com>
+
+	* config.host (arm*-*-uclinux*): Move t-arm before t-bpabi.
+
+2013-12-09  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/sfp-exceptions.c (__sfp_handle_exceptions): Emit SSE
+	instructions when __SSE_MATH__ is defined.
+
+2013-12-06  Ralf Corsépius  <ralf.corsepius@rtems.org>
+
+	* config.host (microblaze-*-rtems*): New.
+
+2013-12-04  Kugan Vivekanandarajah  <kuganv@linaro.org>
+
+	* config/arm/bpapi-lib.h (TARGET_HAS_NO_HW_DIVIDE): Define for
+	architectures that do not have hardware divide instruction.
+	i.e. architectures that do not define __ARM_ARCH_EXT_IDIV__.
+
+2013-12-04  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* longlong.h: Delete (moved to include/).
+
+2013-12-03  Adhemerval Zanella  <azanella@linux.vnet.ibm.com>
+
+	* config/rs6000/ibm-ldouble.c (__gcc_qadd): Fix add
+	of normal number and qNaN to not raise an inexact exception.
+
+2013-11-28  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/32/sfp-machine.h (__FP_FRAC_ADDI_4): New macro.
+
+2013-11-28  Matthew Leach  <matthew.leach@arm.com>
+
+	* config/aarch64/linux-unwind.h (aarch64_fallback_frame_state):	Check
+	for correct opcodes on BE.
+
+2013-11-27  Uros Bizjak  <ubizjak@gmail.com>
+
+	* soft-fp/op-4.h: Update from glibc.
+
+2013-11-27  Kugan Vivekanandarajah  <kuganv@linaro.org>
+
+	* libgcc2.c (__udivmoddi4): Define new implementation when
+	TARGET_HAS_NO_HW_DIVIDE is defined, for processors without any
+	divide instructions.
+
+2013-11-25  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	* config/sh/crt1.S (start): Don't do VBR_SETUP for SH2E.
+
+2013-11-25  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* config/t-softfp (soft-fp-objects-base): New variable.
+	(soft-fp-objects): Use it.
+
+2013-11-23  David Edelson  <dje.gcc@gmail.com>
+	    Andrew Dixie  <andrewd@gentrack.com>
+
+	PR target/33704
+	* config/rs6000/aixinitfini.c: New file.
+	* config/rs6000/t-aix-cxa (LIB2ADD_ST): Add aixinitfini.c.
+	* config/rs6000/libgcc-aix-cxa.ver (GCC_4.9): Add libgcc initfini
+	symbols.
+
+2013-11-22  Yuri Rumyantsev  <ysrumyan@gmail.com>
+
+	* config/i386/cpuinfo.c (get_intel_cpu): Add Silvermont cases.
+
+2013-11-18  Jan Hubicka  <jh@suse.cz>
+
+	* libgcov-driver.c (run_accounted): Make global level static.
+	(gcov_exit_merge_summary): Silence warning; do not clear
+	run_accounted here.
+	(gcov_exit): Clear it here.
+
+	* libgcov-driver.c (gcov_exit_merge_summary): Fix setting
+	run_accounted.
+
+	* libgcov-driver.c (get_gcov_dump_complete): Update comments.
+	(all_prg, crc32): Remove static vars.
+	(gcov_exit_compute_summary): Rewrite to return crc32; do not clear
+	all_prg.
+	(gcov_exit_merge_gcda): Add crc32 parameter.
+	(gcov_exit_merge_summary): Add crc32 and all_prg parameter;
+	do not account run if it was already accounted.
+	(gcov_exit_dump_gcov): Add crc32 and all_prg parameters.
+	(gcov_exit): Initialize all_prg; update.
+
+2013-11-15  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* configure: Regenerate.
+
+2013-11-14  Ulrich Weigand  <Ulrich.Weigand@de.ibm.com>
+	    Alan Modra  <amodra@gmail.com>
+
+	* config/rs6000/linux-unwind.h (TOC_SAVE_SLOT): Define.
+	(frob_update_context): Use it.
+
+2013-11-14  Ulrich Weigand  <Ulrich.Weigand@de.ibm.com>
+	    Alan Modra  <amodra@gmail.com>
+
+	* config/rs6000/tramp.S [__powerpc64__ && _CALL_ELF == 2]:
+	(trampoline_initial): Provide ELFv2 variant.
+	(__trampoline_setup): Likewise.
+
+	* config/rs6000/linux-unwind.h (frob_update_context): Do not
+	check for AIX indirect function call sequence if _CALL_ELF == 2.
+
+2013-11-14  Ulrich Weigand  <Ulrich.Weigand@de.ibm.com>
+	    Alan Modra  <amodra@gmail.com>
+
+	* config/rs6000/linux-unwind.h (get_regs): Do not support
+	old kernel versions if _CALL_ELF == 2.
+	(frob_update_context): Do not support PLT stub variants only
+	generated by old linkers if _CALL_ELF == 2.
+
+2013-11-14  Ulrich Weigand  <Ulrich.Weigand@de.ibm.com>
+	    Alan Modra  <amodra@gmail.com>
+
+	* config/rs6000/linux-unwind.h (ppc_fallback_frame_state): Correct
+	location of CR save area for 64-bit little-endian systems.
+
+2013-11-11  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* config.host (arm-wrs-vxworks): Replace arm/t-vxworks with arm/t-elf
+	in tmake_file.
+	* config/arm/t-vxworks: Delete.
+
+2013-11-10  Kai Tietz  <ktietz@redhat.com>
+
+	* config/i386/cygming-crtbegin.c (__gcc_register_frame):
+	Increment load-count on use of LIBGCC_SONAME DLL.
+	(hmod_libgcc): New static variable to hold handle of
+	LIBGCC_SONAME DLL.
+	(__gcc_deregister_frame): Decrement load-count of
+	LIBGCC_SONAME DLL.
+
+2013-11-08  Bernhard Reutner-Fischer  <aldot@gcc.gnu.org>
+
+	* configure.ac (libgcc_cv_dfp): Extend check to probe fenv.h
+	availability.
+	* configure: Regenerate
+
+2013-11-07  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/sfp-exceptions.c (__sfp_handle_exceptions): Handle
+	FP_EX_DENORM.  Store result to volatile location after SSE division
+	to close interrupt window.  Remove unneeded fwait after x87
+	division since interrupt window will be closed by emitted fstp.
+	Rewrite FP_EX_INEXACT handling.
+
+2013-11-06  Joseph Myers  <joseph@codesourcery.com>
+
+	* soft-fp/README: Update.
+	* soft-fp/adddf3.c: Update from glibc.
+	* soft-fp/addsf3.c: Likewise.
+	* soft-fp/addtf3.c: Likewise.
+	* soft-fp/divdf3.c: Likewise.
+	* soft-fp/divsf3.c: Likewise.
+	* soft-fp/divtf3.c: Likewise.
+	* soft-fp/double.h: Likewise.
+	* soft-fp/eqdf2.c: Likewise.
+	* soft-fp/eqsf2.c: Likewise.
+	* soft-fp/eqtf2.c: Likewise.
+	* soft-fp/extenddftf2.c: Likewise.
+	* soft-fp/extended.h: Likewise.
+	* soft-fp/extendsfdf2.c: Likewise.
+	* soft-fp/extendsftf2.c: Likewise.
+	* soft-fp/extendxftf2.c: Likewise.
+	* soft-fp/fixdfdi.c: Likewise.
+	* soft-fp/fixdfsi.c: Likewise.
+	* soft-fp/fixdfti.c: Likewise.
+	* soft-fp/fixsfdi.c: Likewise.
+	* soft-fp/fixsfsi.c: Likewise.
+	* soft-fp/fixsfti.c: Likewise.
+	* soft-fp/fixtfdi.c: Likewise.
+	* soft-fp/fixtfsi.c: Likewise.
+	* soft-fp/fixtfti.c: Likewise.
+	* soft-fp/fixunsdfdi.c: Likewise.
+	* soft-fp/fixunsdfsi.c: Likewise.
+	* soft-fp/fixunsdfti.c: Likewise.
+	* soft-fp/fixunssfdi.c: Likewise.
+	* soft-fp/fixunssfsi.c: Likewise.
+	* soft-fp/fixunssfti.c: Likewise.
+	* soft-fp/fixunstfdi.c: Likewise.
+	* soft-fp/fixunstfsi.c: Likewise.
+	* soft-fp/fixunstfti.c: Likewise.
+	* soft-fp/floatdidf.c: Likewise.
+	* soft-fp/floatdisf.c: Likewise.
+	* soft-fp/floatditf.c: Likewise.
+	* soft-fp/floatsidf.c: Likewise.
+	* soft-fp/floatsisf.c: Likewise.
+	* soft-fp/floatsitf.c: Likewise.
+	* soft-fp/floattidf.c: Likewise.
+	* soft-fp/floattisf.c: Likewise.
+	* soft-fp/floattitf.c: Likewise.
+	* soft-fp/floatundidf.c: Likewise.
+	* soft-fp/floatundisf.c: Likewise.
+	* soft-fp/floatunditf.c: Likewise.
+	* soft-fp/floatunsidf.c: Likewise.
+	* soft-fp/floatunsisf.c: Likewise.
+	* soft-fp/floatunsitf.c: Likewise.
+	* soft-fp/floatuntidf.c: Likewise.
+	* soft-fp/floatuntisf.c: Likewise.
+	* soft-fp/floatuntitf.c: Likewise.
+	* soft-fp/gedf2.c: Likewise.
+	* soft-fp/gesf2.c: Likewise.
+	* soft-fp/getf2.c: Likewise.
+	* soft-fp/ledf2.c: Likewise.
+	* soft-fp/lesf2.c: Likewise.
+	* soft-fp/letf2.c: Likewise.
+	* soft-fp/muldf3.c: Likewise.
+	* soft-fp/mulsf3.c: Likewise.
+	* soft-fp/multf3.c: Likewise.
+	* soft-fp/negdf2.c: Likewise.
+	* soft-fp/negsf2.c: Likewise.
+	* soft-fp/negtf2.c: Likewise.
+	* soft-fp/op-1.h: Likewise.
+	* soft-fp/op-2.h: Likewise.
+	* soft-fp/op-4.h: Likewise.
+	* soft-fp/op-8.h: Likewise.
+	* soft-fp/op-common.h: Likewise.
+	* soft-fp/quad.h: Likewise.
+	* soft-fp/single.h: Likewise.
+	* soft-fp/soft-fp.h: Likewise.
+	* soft-fp/subdf3.c: Likewise.
+	* soft-fp/subsf3.c: Likewise.
+	* soft-fp/subtf3.c: Likewise.
+	* soft-fp/truncdfsf2.c: Likewise.
+	* soft-fp/trunctfdf2.c: Likewise.
+	* soft-fp/trunctfsf2.c: Likewise.
+	* soft-fp/trunctfxf2.c: Likewise.
+	* soft-fp/unorddf2.c: Likewise.
+	* soft-fp/unordsf2.c: Likewise.
+	* soft-fp/unordtf2.c: Likewise.
+
+2013-11-05  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/32/sfp-machine.h (_FP_MUL_MEAT_S): Define.
+	(_FP_MUL_MEAT_D): Ditto.
+	(_FP_DIV_MEAT_S): Ditto.
+	(_FP_DIV_MEAT_D): Ditto.
+	* config.host (i[34567]86-*-rtems*): Remove i386/t-softfp, add
+	t-softfp-sfdf and t-softfp to tmake_file.
+
+2013-11-03  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/crtfastmath.c: Compile only for !_SOFT_FLOAT.
+	* config/i386/crtprec.c: Ditto.
+
+2013-10-31  Chung-Ju Wu  <jasonwucj@gmail.com>
+	    Shiva Chen  <shiva0217@gmail.com>
+
+	* config.host (nds32*-elf*): Add nds32 target.
+	* config/nds32 : New directory and files.
+
+2013-10-16  Hans-Peter Nilsson  <hp@axis.com>
+
+	For CRIS ports, switch to soft-fp.  Improve arit.c and longlong.h.
+	* config.host (cpu_type) <Setting default>: Add entry for
+	crisv32-*-*.
+	(tmake_file) <crisv32-*-elf, cris-*-elf, cris-*-linux*>
+	<crisv32-*-linux*>: Adjust.
+	* longlong.h: Wrap the whole CRIS section in a single
+	defined(__CRIS__) conditional.  Add comment about add_ssaaaa
+	and sub_ddmmss.
+	(COUNT_LEADING_ZEROS_0): Define when count_leading_zeros is
+	defined.
+	[__CRIS__] (__umulsidi3): Define.
+	[__CRIS__] (umul_ppmm): Define in terms of __umulsidi3.
+	* config/cris/sfp-machine.h: New file.
+	* config/cris/umulsidi3.S: New file.
+	* config/cris/t-elfmulti (LIB2ADD_ST): Add umulsidi3.S.
+	* config/cris/arit.c (SIGNMULT): New macro.
+	(__Div, __Mod): Use SIGNMULT instead of naked multiplication.
+	* config/cris/mulsi3.S: Tweak to avoid redundant register-copying;
+	saving 3 out of originally 33 cycles from the fastest
+	path, 3 out of 54 from the medium path and one from the longest
+	path.  Improve comments.
+
+2013-10-15  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* sync.c: Remove static aliases and define each function directly
+	under its real name.
+
+2013-10-02  John David Anglin  <danglin@gcc.gnu.org>
+
+	* config.host (hppa*64*-*-linux*): Define extra_parts.
+	(hppa*-*-linux*): Likewise.
+
+2013-10-02  Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* config/arc/crtgend.S: Add 2013 to Copyright years.
+	* config/arc/gmon/atomic.h: Likewise.
+	* config/arc/gmon/auxreg.h: Likewise.
+	* config/arc/gmon/sys/gmon_out.h: Likewise.
+	* config/arc/gmon/sys/gmon.h: Likewise.
+	* config/arc/gmon/prof-freq.c: Likewise.
+	* config/arc/gmon/mcount.c: Likewise.
+	* config/arc/gmon/prof-freq-stub.S: Likewise.
+	* config/arc/gmon/gmon.c: Likewise.
+	* config/arc/gmon/machine-gmon.h: Likewise.
+	* config/arc/gmon/profil.S: Likewise.
+	* config/arc/gmon/dcache_linesz.S: Likewise.
+	* config/arc/crtg.S: Likewise.
+	* config/arc/ieee-754/arc600-mul64/divsf3.S: Likewise.
+	* config/arc/ieee-754/arc600-mul64/divdf3.S: Likewise.
+	* config/arc/ieee-754/adddf3.S: Likewise.
+	* config/arc/ieee-754/truncdfsf2.S: Likewise.
+	* config/arc/ieee-754/fixsfsi.S: Likewise.
+	* config/arc/ieee-754/gtsf2.S: Likewise.
+	* config/arc/ieee-754/floatsisf.S: Likewise.
+	* config/arc/ieee-754/arc600-dsp/divsf3.S: Likewise.
+	* config/arc/ieee-754/arc600-dsp/divdf3.S: Likewise.
+	* config/arc/ieee-754/arc600-dsp/mulsf3.S: Likewise.
+	* config/arc/ieee-754/fixdfsi.S: Likewise.
+	* config/arc/ieee-754/addsf3.S: Likewise.
+	* config/arc/ieee-754/gesf2.S: Likewise.
+	* config/arc/ieee-754/floatsidf.S: Likewise.
+	* config/arc/ieee-754/extendsfdf2.S: Likewise.
+	* config/arc/ieee-754/divtab-arc-df.c: Likewise.
+	* config/arc/ieee-754/gtdf2.S: Likewise.
+	* config/arc/ieee-754/fixunsdfsi.S: Likewise.
+	* config/arc/ieee-754/uneqdf2.S: Likewise.
+	* config/arc/ieee-754/divsf3-stdmul.S: Likewise.
+	* config/arc/ieee-754/uneqsf2.S: Likewise.
+	* config/arc/ieee-754/arc-ieee-754.h: Likewise.
+	* config/arc/ieee-754/divtab-arc-sf.c: Likewise.
+	* config/arc/ieee-754/eqdf2.S: Likewise.
+	* config/arc/ieee-754/ordsf2.S: Likewise.
+	* config/arc/ieee-754/divsf3.S: Likewise.
+	* config/arc/ieee-754/divdf3.S: Likewise.
+	* config/arc/ieee-754/floatunsidf.S: Likewise.
+	* config/arc/ieee-754/orddf2.S: Likewise.
+	* config/arc/ieee-754/eqsf2.S: Likewise.
+	* config/arc/ieee-754/gedf2.S: Likewise.
+	* config/arc/crtn.S: Likewise.
+	* config/arc/crti.S: Likewise.
+	* config/arc/t-arc700-uClibc: Likewise.
+	* config/arc/asm.h: Likewise.
+	* config/arc/libgcc-excl.ver: Likewise.
+	* config/arc/t-arc-newlib: Likewise.
+	* config/arc/divtab-arc700.c: Likewise.
+	* config/arc/initfini.c: Likewise.
+	* config/arc/fp-hack.h: Likewise.
+
+2013-10-01  Joern Rennecke  <joern.rennecke@embecosm.com>
+	    Diego Novillo  <dnovillo@google.com>
+
+	* config/arc/gmon/mcount.c (_MCOUNT_DECL): Comment typo fix.
+	* config/arc/ieee-754/arc600-dsp/muldf3.S (.Linf_denorm): Likewise.
+	* config/arc/ieee-754/arc600-mul64/muldf3.S (.Linf_denorm): Likewise.
+	* config/arc/ieee-754/muldf3.S (.Linf_denorm): Likewise.
+
+2013-10-01  Joern Rennecke  <joern.rennecke@embecosm.com>
+	    Brendan Kehoe  <brendan@zen.org>
+	    Simon Cook  <simon.cook@embecosm.com>
+
+	* config.host (arc*-*-elf*, arc*-*-linux-uclibc*): New configurations.
+	* config/arc: New directory.
+	* longlong.h [__arc__] (umul_ppmm): Remove.
+	[__arc__] (__umulsidi3): Define.
+	[__arc__ && __ARC_NORM__] (count_leading_zeroes): Define.
+	[__arc__ && __ARC_NORM__] (COUNT_LEADING_ZEROS_0): Likewise.
+
+2013-09-17  Jacek Caban  <jacek@codeweavers.com>
+
+	* config/i386/gthr-win32.c: CreateSemaphoreW instead of
+	CreateSemaphoreA.
+	* config/i386/gthr-win32.h: Likewise.
+
+2013-09-16  DJ Delorie  <dj@redhat.com>
+
+	* config/rl78/vregs.h: Add G10 register definitions.
+	* config/rl78/lib2mul.c: Enable for RL78/G10.
+	* config/rl78/lib2div.c: Likewise.
+	* config/rl78/lshrsi3.S: Use vregs.h.
+	* config/rl78/cmpsi2.S: Likewise.
+	* config/rl78/trampoline.S: Likewise.
+	* config/rl78/mulsi2.S: Likewise.  Disable for RL78/G10.
+
+2013-09-14  DJ Delorie  <dj@redhat.com>
+	    Nick Clifton  <nickc@redhat.com>
+
+	* config/rl78/mulsi3.S: Remove a few unneeded moves and branches.
+	* config/rl78/vregs.h: New.
+	* config/rl78/signbit.S: New file.  Implements signbit function.
+	* config/rl78/divmodsi.S: New.
+	* config/rl78/divmodhi.S: New.
+	* config/rl78/divmodqi.S: New.
+	* config/rl78/t-rl78: Build them here...
+	* config/rl78/lib2div.c: ...but not here.
+
+2013-09-12  DJ Delorie  <dj@redhat.com>
+
+	* config.host (msp*-*-elf): New.
+	* config/msp430/: New port.
+
+2013-08-18  Iain Sandoe  <iain@codesourcery.com>
+
+	PR gcov-profile/58127
+	* libgcov.c (__gcov_indirect_call_callee): Don't make this a
+	__thread var for emulated TLS.
+	(__gcov_indirect_call_counters): Likewise.
+
+2013-08-16  Maciej W. Rozycki  <macro@codesourcery.com>
+	    Catherine Moore  <clm@codesourcery.com>
+	    Richard Sandiford <rdsandiford@googlemail.com>
+
+	* config/mips/mips16.S (CE_STARTFN, CE_ENDFN): New macros.
+	(RET_FUNCTION): Use them in place of STARTFN and ENDFN.
+	(CALL_STUB_NO_RET): Likewise.
+	(CALL_STUB_RET): Likewise.
+	* config/mips/libgcc-mips16.ver: Remove __mips16_call_stub and
+	__mips16_ret call/return stub symbols.
+	* config.host <mips*-*-linux>: For non-R5900 add t-slibgcc-libgcc
+	to tmake_file.
+
+2013-08-13  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* config.host <mips*-*-linux*>: Remove a stray comment.
+
+2013-08-10  Jan Hubicka  <jh@suse.cz>
+
+	Work around binutils PR14342
+	* Makefile.in: Add _gcov_indirect_call_profiler_v2 symbol.
+	* libgcov.c (L_gcov_indirect_call_profiler): Restore original API.
+	(L_gcov_indirect_call_profiler_v2): New.
+
+2013-08-06  Jan Hubicka  <jh@suse.cz>
+
+	* libgcov.c (__gcov_indirect_call_callee,
+	__gcov_indirect_call_counters): New global vars.
+	(__gcov_indirect_call_profiler): replace by ...
+	(__gcov_indirect_call_profiler_v2) ... this one.
+
+2013-08-06  Caroline Tice  <cmtice@google.com>
+
+	* config.host (extra_parts): Add vtv_start.o, vtv_end.o
+	vtv_start_preinit.o and vtv_end_preinit.o.
+	* configure.ac: Add code to check/set enable_vtable_verify.
+	* Makefile.in: Add rules to build vtv_*.o, if enable_vtable_verify is
+	true.
+	* vtv_start_preinit.c: New file.
+	* vtv_end_preinit.c: New file.
+	* vtv_start.c: New file.
+	* vtv_end.c: New file.
+	* configure: Regenerated.
+
+2013-08-01  Maxim Kuvyrkov  <maxim@kugelworks.com>
+
+	* config/aarch64/sfp-machine.h, config/aarch64/sync-cache.c,
+	* config/i386/cpuinfo.c, config/ia64/unwind-ia64.h,
+	* config/mips/vr4120-div.S: Fix license from GPL-3.0+ to
+	GPL-3.0-with-GCC-exception.
+
+2013-07-30  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* config/mips/mips16.S (DELAYf): Alias to DELAYt for the MIPS IV
+	ISA and up.
+
+2013-07-23  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* config/s390/linux-unwind.h: Use the proper dwarf to hard reg
+	mapping for FPRs when creating the fallback framestate.
+
+2013-07-19  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/57516
+	* config/avr/lib1funcs-fixed.S (__roundqq3, __rounduqq3)
+	(__round_s2_const, __round_u2_const)
+	(__round_s4_const, __round_u4_const, __round_x8):
+	Saturate result if addition result cannot be represented.
+
+2013-07-15  Matthias Klose  <doko@ubuntu.com>
+
+	* libgcc2.c: Don't include <limits.h>.
+
+2013-07-09  Janis Johnson  <janisjo@codesourcery.com>
+
+	* config.host (powerpc-*-eabispe*): Add t-fdpbit to tmake_file.
+
+2013-07-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR target/29776
+	* libgcc2.c (__floattisf): Avoid undefined signed overflow.
+
+2013-06-28  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/36041
+	* libgcc2.c (POPCOUNTCST2, POPCOUNTCST4, POPCOUNTCST8, POPCOUNTCST):
+	Define.
+	(__popcountSI2): For __SIZEOF_INT__ > 2 targets use arithmetics
+	instead of table lookups.
+	(__popcountDI2): Likewise.
+
+2013-06-25  Chung-Ju Wu  <jasonwucj@gmail.com>
+
+	* Makefile.in (clean, distclean): Remove auto-target.h and stamp-h
+	correctly.
+
+2013-06-21  Joseph Myers  <joseph@codesourcery.com>
+
+	PR other/53317
+	* soft-fp/adddf3.c: Update from glibc.
+	* soft-fp/addsf3.c: Likewise.
+	* soft-fp/addtf3.c: Likewise.
+	* soft-fp/divdf3.c: Likewise.
+	* soft-fp/divsf3.c: Likewise.
+	* soft-fp/divtf3.c: Likewise.
+	* soft-fp/double.h: Likewise.
+	* soft-fp/eqdf2.c: Likewise.
+	* soft-fp/eqsf2.c: Likewise.
+	* soft-fp/eqtf2.c: Likewise.
+	* soft-fp/extenddftf2.c: Likewise.
+	* soft-fp/extended.h: Likewise.
+	* soft-fp/extendsfdf2.c: Likewise.
+	* soft-fp/extendsftf2.c: Likewise.
+	* soft-fp/fixdfdi.c: Likewise.
+	* soft-fp/fixdfsi.c: Likewise.
+	* soft-fp/fixsfdi.c: Likewise.
+	* soft-fp/fixsfsi.c: Likewise.
+	* soft-fp/fixtfdi.c: Likewise.
+	* soft-fp/fixtfsi.c: Likewise.
+	* soft-fp/fixunsdfdi.c: Likewise.
+	* soft-fp/fixunsdfsi.c: Likewise.
+	* soft-fp/fixunssfdi.c: Likewise.
+	* soft-fp/fixunssfsi.c: Likewise.
+	* soft-fp/fixunstfdi.c: Likewise.
+	* soft-fp/fixunstfsi.c: Likewise.
+	* soft-fp/floatdidf.c: Likewise.
+	* soft-fp/floatdisf.c: Likewise.
+	* soft-fp/floatditf.c: Likewise.
+	* soft-fp/floatsidf.c: Likewise.
+	* soft-fp/floatsisf.c: Likewise.
+	* soft-fp/floatsitf.c: Likewise.
+	* soft-fp/floatundidf.c: Likewise.
+	* soft-fp/floatundisf.c: Likewise.
+	* soft-fp/floatunditf.c: Likewise.
+	* soft-fp/floatunsidf.c: Likewise.
+	* soft-fp/floatunsisf.c: Likewise.
+	* soft-fp/floatunsitf.c: Likewise.
+	* soft-fp/gedf2.c: Likewise.
+	* soft-fp/gesf2.c: Likewise.
+	* soft-fp/getf2.c: Likewise.
+	* soft-fp/ledf2.c: Likewise.
+	* soft-fp/lesf2.c: Likewise.
+	* soft-fp/letf2.c: Likewise.
+	* soft-fp/muldf3.c: Likewise.
+	* soft-fp/mulsf3.c: Likewise.
+	* soft-fp/multf3.c: Likewise.
+	* soft-fp/negdf2.c: Likewise.
+	* soft-fp/negsf2.c: Likewise.
+	* soft-fp/negtf2.c: Likewise.
+	* soft-fp/op-1.h: Likewise.
+	* soft-fp/op-2.h: Likewise.
+	* soft-fp/op-4.h: Likewise.
+	* soft-fp/op-8.h: Likewise.
+	* soft-fp/op-common.h: Likewise.
+	* soft-fp/quad.h: Likewise.
+	* soft-fp/single.h: Likewise.
+	* soft-fp/soft-fp.h: Likewise.
+	* soft-fp/subdf3.c: Likewise.
+	* soft-fp/subsf3.c: Likewise.
+	* soft-fp/subtf3.c: Likewise.
+	* soft-fp/truncdfsf2.c: Likewise.
+	* soft-fp/trunctfdf2.c: Likewise.
+	* soft-fp/trunctfsf2.c: Likewise.
+	* soft-fp/unorddf2.c: Likewise.
+	* soft-fp/unordsf2.c: Likewise.
+	* soft-fp/unordtf2.c: Likewise.
+	* config/aarch64/sfp-machine.h (_FP_QNANNEGATEDP): Define to 0.
+	* config/arm/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/c6x/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/i386/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/ia64/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/lm32/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/moxie/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/rs6000/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/score/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+	* config/tilegx/sfp-machine32.h (_FP_QNANNEGATEDP): Likewise.
+	* config/tilegx/sfp-machine64.h (_FP_QNANNEGATEDP): Likewise.
+	* config/tilepro/sfp-machine.h (_FP_QNANNEGATEDP): Likewise.
+
+2013-06-16  Jürgen Urban  <JuergenUrban@gmx.de>
+
+	* config/mips/lib2funcs.c: New file.
+	* config/mips/t-mips (LIB2ADD_ST): Add it.
+
+2013-06-09  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	PR target/6526
+	* config/sh/lib1funcs.S (sdivsi3_i4, udivsi3_i4): Do not change bits
+	other than FPSCR.PR and FPSCR.SZ.  Add SH4A implementation.
+
+2013-06-08  Walter Lee  <walt@tilera.com>
+
+	* config/tilepro/atomic.h: Don't include stdint.h or features.h.
+	Replace int64_t with long long.  Add __extension__ where
+	appropriate.
+	* config/tilepro/atomic.c: Include config.h.
+
+2013-06-06  Douglas B Rupp  <rupp@adacore.com>
+
+	* config.host (arm-wrs-vxworks): Configure with other soft float.
+
+2013-06-04  Jürgen Urban  <JuergenUrban@gmx.de>
+
+	* config.host (mipsr5900-*-elf*, mipsr5900el-*-elf*, mips64r5900-*-elf*)
+	(mips64r5900el-*-elf*): New configurations.
+
+2013-06-04  Alan Modra  <amodra@gmail.com>
+
+	* config/rs6000/ibm-ldouble.c: Enable for little-endian.
+
+2013-06-03  Yuri Rumyantsev  <yuri.s.rumyantsev@intel.com>
+
+	* config/i386/cpuinfo.c (INTEL_SLM): New enum value.
+
+2013-05-28  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* config/sparc/sol2-unwind.h (MD_FALLBACK_FRAME_STATE_FOR): Do not set
+	fs->signal_frame for SIGFPE raised for IEEE-754 exceptions.
+	* config/i386/sol2-unwind.h (x86_fallback_frame_state): Likewise.
+
+2013-05-22  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* config.host (powerpc-*-elf*): Add rs6000/t-savresfgpr to tmake_file.
+	(powerpc-wrs-vxworks): Likewise.
+
+2013-05-22  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* config/sparc/sol2-unwind.h (sparc64_frob_update_context): Do it for
+	signal frames as well.
+	(MD_FALLBACK_FRAME_STATE_FOR): Do minor cleanups throughout and add the
+	STACK_BIAS to the CFA offset.
+
+2013-05-17  Richard Henderson  <rth@redhat.com>
+
+	PR target/49146
+	* unwind-dw2.c (UNWIND_COLUMN_IN_RANGE): New macro.
+	(execute_cfa_program): Use it when storing to fs->regs.
+
+2013-05-08  Kai Tietz  <ktietz@redhat.com>
+
+	* config/i386/cygming-crtbegin.c (__register_frame_info): Make weak.
+	(__deregister_frame_info): Likewise.
+
+2013-05-06  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* fp-bit.c (unpack_d, pack_d): Properly preserve and restore a
+	NaN's payload.
+
+	* fp-bit.h [FLOAT] (QUIET_NAN): Correct value.
+
+2013-04-25  Alan Modra  <amodra@gmail.com>
+
+	* config.host: Match little-endian powerpc-linux.
+
+2013-04-19  Yufeng Zhang  <yufeng.zhang@arm.com>
+
+	* config/aarch64/sfp-machine.h (_FP_W_TYPE): Change to define
+	as 'unsigned long long' instead of 'unsigned long'.
+	(_FP_WS_TYPE): Change to define as 'signed long long' instead of
+	'signed long'.
+
+2013-04-10  Julian Brown  <julian@codesourcery.com>
+
+	* config/arm/linux-atomic.c (SUBWORD_SYNC_OP, SUBWORD_VAL_CAS)
+	(SUBWORD_TEST_AND_SET): Use signed char/short types instead of
+	unsigned char/unsigned short.
+	(__sync_val_compare_and_swap_{1,2}): Handle signed argument.
+
+2013-04-06  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR other/55274
+	* config/t-slibgcc-hpux (SHLIB_MAPFILES): Define.
+
+2013-04-04  Meador Inge  <meadori@codesourcery.com>
+
+	* config/arm/bpabi.S (aeabi_ldivmod): Add DWARF information for
+	computing the location of the link register.
+	(aeabi_uldivmod): Ditto.
+
+2013-03-27  Kai Tietz  <ktietz@redhat.com>
+
+	* config.host: Add support for cygwin x64 target.
+	* configure: Regenerated.
+
+2013-03-26  Walter Lee  <walt@tilera.com>
+
+	* config/tilegx/t-crtstuff: Add -fno-asynchronous-unwind-tables
+	-mcmodel=large to CRTSTUFF_T_CFLAGS_S variable.
+
+2013-03-25  Kai Tietz  <ktietz@redhat.com>
+
+	* config/i386/cygwin.S: Replace use of _WIN64 by __x86_64__.
+
+2013-03-20  Robert Mason  <rbmj@verizon.net>
+
+	* config/vxlib-tls.c (__gthread_get_tsd_data,)
+	(__gthread_set_tsd_data, __gthread_enter_tsd_dtor_context,)
+	(__gthread_leave_tsd_dtor_context): Add prototypes.
+	(tls_delete_hook): Update.
+
+2013-03-20  Catherine Moore  <clm@codesourcery.com>
+	    Joseph Myers  <joseph@codesourcery.com>
+	    Chao-ying Fu  <fu@mips.com>
+
+	* config/mips/mips16.S:  Don't build for microMIPS.
+	* config/mips/linux-unwind.h: Handle microMIPS frame.
+	* config/mips/crtn.S (fini, init): New labels.
+
+2013-03-14  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/53265
+	* unwind-dw2.c (execute_cfa_program): Avoid
+	-Waggressive-array-optimizations warnings for DW_CFA_GNU_window_save
+	on targets with DWARF_FRAME_REGISTERS < 32.
+
+2013-03-13  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	PR target/49880
+	* config/sh/lib1funcs.S (sdivsi3_i4, udivsi3_i4): Enable for SH2A.
+	(sdivsi3, udivsi3): Remove SH4 check and always compile these functions.
+
+2013-03-07  Sriraman Tallam  <tmsriram@google.com>
+
+	* config/i386/cpuinfo.c (get_intel_cpu): Fix cpuid codes for
+	sandybridge processors.
+
+2013-03-06  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	PR target/56529
+	* config/sh/lib1funcs.S (udivsi3_i4i, sdivsi3_i4i): Add __SH2A__ to
+	inclusion list.
+
+2013-03-04  Edgar E. Iglesias  <edgar.iglesias@gmail.com>
+
+	* config/microblaze/crti.S: Setup stack protection at entry
+
+2013-03-04  Georg-Johann Lay  <avr@gjlay.de>
+
+	* config/avr/lib1funcs.S (__ashrdi3, __lshrdi3, __ashldi3)
+	(__rotldi3): Shift bytewise if applicable.
+
+2013-03-01  James Greenhalgh  <james.greenhalgh@arm.com>
+
+	* config/aarch64/sync-cache.c
+	(__aarch64_sync_cache_range): Silence warnings.
+
+2013-02-25  Catherine Moore  <clm@codesourcery.com>
+
+	Revert:
+	2013-02-24  Catherine Moore  <clm@codesourcery.com>
+	    Joseph Myers  <joseph@codesourcery.com>
+	    Chao-ying Fu  <fu@mips.com>
+
+	* config/mips/mips16.S:  Don't build for microMIPS.
+	* config/mips/linux-unwind.h: Handle microMIPS frame.
+	* config/mips/crtn.S (fini, init): New labels.
+
+2013-02-24  Catherine Moore  <clm@codesourcery.com>
+	    Joseph Myers  <joseph@codesourcery.com>
+	    Chao-ying Fu  <fu@mips.com>
+
+	* config/mips/mips16.S:  Don't build for microMIPS.
+	* config/mips/linux-unwind.h: Handle microMIPS frame.
+	* config/mips/crtn.S (fini, init): New labels.
+
+2012-02-19  Edgar E. Iglesias  <edgar.iglesias@gmail.com>
+	* config/microblaze/modsi3.S (modsi3): Fix case with 0x80000000 
+	as dividend.
+
+2013-02-16  Alan Modra  <amodra@gmail.com>
+
+	PR target/55431
+	* config/rs6000/linux-unwind.h (ppc_linux_aux_vector): Delete.
+	(ppc_fallback_frame_state): Always set up save locations for fp
+	and altivec.  Don't bother with non-callee-saved regs, r0-r13
+	except for r2 on ppc64, fr0-fr13, v0-v19, vscr.
+
+2013-02-12  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/54222
+	* config/avr/t-avr (LIB2FUNCS_EXCLUDE): Add: _usmulUHA, _usmulUSA,
+	_ssmulHA, _ssmulSA.
+	(LIB1ASMFUNCS): Add: _muldi3_6, _mulsidi3, _umulsidi3, _usmuluha3,
+	_ssmulha3, _usmulusa3, _ssmulsa3.
+	* config/avr/lib1funcs.S (__muldi3_6): Break out of __muldi3.
+	(__muldi3): XCALL __muldi3_6 instead of rcall.
+	(__umulsidi3, __mulsidi3): New functions.
+	(do_prologue_saves, do_epilogue_restores): New .macros.
+	(__divdi3_moddi3): Use them.
+	* config/avr/lib1funcs-fixed.S (__usmuluha3, __ssmulha3)
+	(__usmulusa3, __ssmulsa3): New functions.
+
+2013-02-11  Iain Sandoe  <iain@codesourcery.com>
+	    Jack Howarth  <howarth@bromo.med.uc.edu>
+	    Patrick Marlier  <patrick.marlier@gmail.com>
+
+	PR libitm/55693
+	* config/darwin-crt-tm.c: Remove dummy functions hack.
+
+2013-02-08  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/54222
+	* config/avr/lib2funcs.c: New C sources for modules for libgcc.a.
+	* config/avr/lib2-object.mk: New iterator to build objects from it.
+	* config/avr/t-avr: Iterate lib2-object.mk to build objects from
+	lib2funcs.c.
+	(LIB2FUNCS_EXCLUDE): Add _clrsbdi2.
+	(LIB1ASMFUNCS): Add: _ssabs_1, _mask1, _ret, _roundqq3, _rounduqq3,
+	_round_s2, _round_u2, _round_2_const, _addmask_2, _round_s4,
+	_round_u4, _round_4_const, _addmask_4, _round_x8, _rounddq3
+	_roundudq3, _roundda3 _rounduda3, _roundta3 _rounduta3.
+	* config/avr/lib1funcs-fixed.S: Implement them.
+
+2013-02-04  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years.
+
+2013-02-01  David Edelsohn  <dje.gcc@gmail.com>
+
+	PR target/54601
+	* config.host (powerpc-ibm-aix[56789]): Add t-aix-cxa to tmake_file.
+	Add crtcxa to extra_parts.
+	* config/rs6000/exit.h: New file.
+	* config/rs6000/cxa_atexit.c: New file.
+	* config/rs6000/cxa_finalize.c: New file.
+	* config/rs6000/crtcxa.c: New file.
+	* config/rs6000/t-aix-cxa: New file.
+	* config/rs6000/libgcc-aix-cxa.ver: New file.
+
+2013-01-31  Nick Clifton  <nickc@redhat.com>
+
+	* config/v850/lib1funcs.S: Add support for e3v5 architecture
+	variant.
+
+2013-01-29  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/54222
+	* config/avr/t-avr (LIB2FUNCS_EXCLUDE): Add:
+	_mulQQ,  _mulHQ,  _mulHA,  _mulSA,
+	_mulUQQ, _mulUHQ, _mulUHA, _mulUSA,
+	_divQQ,  _divHQ,  _divHA,  _divSA,
+	_divUQQ, _divUHQ, _divUHA, _divUSA.
+
+2013-01-26  David Holsgrove  <david.holsgrove@xilinx.com>
+
+	* config.host(microblaze*-linux*): tmake_file: Remove
+	t-slibgcc-nolc-override, add t-slibgcc-libgcc.
+	* config/microblaze/t-microblaze: Set LIB2FUNCS_EXCLUDE
+	to exclude functions from being built with libgcc.c and use
+	the microblaze assembly.
+
+2013-01-26  Edgar E. Iglesias  <edgar.iglesias@gmail.com>
+
+	* config.host (microblaze*-*-*): Rename microblaze*-*-elf, update
+	extra_parts.
+
+2013-01-17  Yufeng Zhang  <yufeng.zhang@arm.com>
+
+	* config/aarch64/sync-cache.c (__aarch64_sync_cache_range): Cast the
+	results of (dcache_lsize - 1) and (icache_lsize - 1) to the type
+	__UINTPTR_TYPE__; also cast 'base' to the same type before the
+	alignment operation.
+
+2013-01-15  Sofiane Naci  <sofiane.naci@arm.com>
+
+	* config/aarch64/sync-cache.c (__aarch64_sync_cache_range): Update
+	loop start address for cache clearing.
+
+2013-01-14  Georg-Johann Lay  <avr@gjlay.de>
+
+	* config/avr/lib1funcs.S: Remove trailing blanks.
+	* config/avr/lib1funcs-fixed.S: Ditto.
+
+2013-01-14  Georg-Johann Lay  <avr@gjlay.de>
+
+	* config/avr/avr-lib.h: Add GPL copyright notice.
+
+2013-01-14  Georg-Johann Lay  <avr@gjlay.de>
+
+	* fixed-bit.c (SATFRACT) <FROM_TYPE=1, TO_TYPE=4>: Only
+	declare / set min_low, min_high if TO_MODE_UNSIGNED == 0.
+	(SATFRACT) <FROM_TYPE=TO_TYPE=4>: Only declare / set min_low,
+	min_high if FROM_MODE_UNSIGNED == 0 and TO_MODE_UNSIGNED == 0.
+
+2013-01-07  Mark Kettenis  <kettenis@openbsd.org>
+
+	* config.host (i[34567]86-*-openbsd* and x86_64-*-openbsd*):
+	Add to lists of i[34567]86-*-* and x86_64-*-* soft-fp targets.
+
+2013-01-04  Nick Clifton  <nickc@redhat.com>
+
+	* config/v850/lib1funcs.S: Only provide CALLT support functions if
+	the CALLT instruction is supported.
+
+2012-12-20  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* gthr.h (__gthread_cond_timedwait_recursive): Do not require.
+	* gthr-posix.h (__gthread_cond_timedwait_recursive): Remove.
+
+2012-12-13  John Tytgat  <John@bass-software.com>
+
+	* config/arm/fp16.c (__gnu_f2h_internal): Fix inaccuracy when aexp
+	is 25.
+
+2012-12-12  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgcc/55451
+	* fixed-bit.c (FIXED_SSADD, FIXED_SSSUB, FIXED_SSNEG): Avoid
+	undefined signed overflows.
+
+2012-12-09  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR target/55344
+	* config/alpha/linux-unwind.h: Disable when inhibit_libc is defined.
+
+2012-12-06  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/sfp-machine.h (FP_EX_ALL): Define.
+	(FP_TRAPPING_EXCEPTIONS): Define.
+	* config/i386/32/sfp-machine.h (FP_EX_SHIFT): Define.
+	* config/i386/64/sfp-machine.h (FP_EX_SHIFT): Ditto.
+
+2012-12-04  Richard Henderson  <rth@redhat.com>
+
+	PR bootstrap/55571
+	* Makefile.in (libgcc_s.so): Depend on and link with libgcc.a.
+
+2012-12-04  Marcus Shawcroft <marcus.shawcroft@arm.com>
+
+	* config/aarch64/sfp-machine.h (FP_EX_ALL): Define.
+	(FP_EX_SHIFT): Define.
+	(FP_TRAPPING_EXCEPTIONS): Define.
+
+2012-12-04  Marcus Shawcroft <marcus.shawcroft@arm.com>
+
+	* config/aarch64/sfp-machine.h (FP_RND_MASK): Define.
+	(FP_ROUNDMODE): Use FP_RND_MASK.
+	* config/aarch64/sfp-exceptions.c: New.
+	* config/aarch64/sfp-machine.h (FP_HANDLE_EXCEPTIONS):
+	Use __sfp_handle_exceptions.
+
+2012-12-04  Richard Earnshaw  <rearnsha@arm.com>
+
+	* config.host: (arm*-*-freebsd*): Remove.
+	(arm*-*-linux*, arm*-*-uclinux*): Simplify logic.
+	(arm*-*-elf*): Remove.
+	(arm*-*-wince-pe*): Remove.
+	* arm/unwind-arm.c (struct fpa_reg): Delete.
+	(struct fpa_regs): Delete.
+	(phase1_vrs): Remove fpa element.
+	(_Unwind_VRS_Get): Remove _UVRSC_FPA.
+	(_Unwind_VRS_Set, _Unwind_VRS_Pop): Likewise.
+	* arm/pr-support.c (__gnu_unwind_execute): Remove FPA support.
+	* ieee754-sf.S (floatundisf): Remove FPA support.
+	(floatdisf): Likewise.
+	* ieee75f-df.S (floatundidf): Likewise.
+	(floatdidf): Likewise.
+
+2012-11-29  Kai Tietz  <ktietz@redhat.com>
+
+	PR target/55445
+	* unwind-c.c (__SEH__): Make sure SjLj isn't active.
+	* unwind-generic.h: Likewise.
+	* unwind-seh.c: Likewise.
+
+2012-11-28  Richard Henderson  <rth@redhat.com>
+
+	PR libgcc/48076
+	* emutls.c (__emutls_get_address): Avoid race condition between
+	obj->loc.offset read and emutls_key initialization.
+
+2012-11-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	Adjust decimal point of signed accum mode to GCC default.
+
+	PR target/54222
+	* config/avr/t-avr (LIB1ASMFUNCS): Add _fractsfsq _fractsfusq,
+	_divqq_helper.
+	* config/avr/lib1funcs-fixed.S (__fractqqsf, __fracthqsf)
+	(__fractsasf, __fractsfha, __fractusqsf, __fractsfsa)
+	(__mulha3, __mulsa3)
+	(__divqq3, __divha3, __divsa3): Adjust to new position of
+	decimal point of signed accum types.
+
+	(__mulusa3_round): New function.
+	(__mulusa3): Use it.
+	(__divqq_helper): New function.
+	(__udivuqq3): Use it.
+
+2012-11-20  Jakub Jelinek  <jakub@redhat.com>
+
+	PR bootstrap/55370
+	* libgcc-std.ver.in: Add GCC_4.8.0 and %inherit for it.
+
+2012-11-18  Teresa Johnson  <tejohnson@google.com>
+
+	PR bootstrap/55051
+	* libgcov.c (gcov_exit): Remove merged program summary
+	comparison unless !GCOV_LOCKED.
+
+2012-11-15  Marcus Shawcroft <marcus.shawcroft@arm.com>
+
+	* soft-fp: Updated from glibc upstream.
+
+2012-11-06  Ian Lance Taylor  <iant@google.com>
+
+	* generic-morestack.c (__generic_morestack): Align the returned
+	stack pointer to a 32 byte boundary.
+	* config/i386/morestack.S (__morestack_non_split) [32-bit]: Don't
+	increment the return address until we have decided that we don't
+	have a varargs function.
+	(__morestack) [32-bit]: Align stack correctly when calling C
+	functions.
+	(__morestack) [64-bit]: Likewise.
+
+2012-11-04  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* configure: Regenerate.
+
+2012-11-02  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR target/55175
+	* config/i386/sfp-exceptions.c: Guard with _SOFT_FLOAT.
+	* config/i386/sfp-machine.h: Guard exception handling
+	code with _SOFT_FLOAT.
+	* config/i386/32/sfp-machine.h: Guard rounding handling
+	code with _SOFT_FLOAT.
+	* config/i386/64/sfp-machine.h: Ditto.
+
+2012-10-31  Joel Sherrill  <joel.sherrill@oarcorp.com>
+
+	* config.host (m32r-*-rtems*): Include crtinit.o and crtfinit.o
+	as extra_parts.
+
+2012-10-26  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/crtfastmath.c (set_fast_math): Use __builtin_ia32_fxsave.
+	Clear only fxsave.mxcsr_mask.  Use saved mxcsr from fxsave structure
+	when appropriate.  Correct structure element types.
+	* config/i386/t-crtfm (crtfastmath.o): Compile with -mfxsr, remove
+	-minline-all-stringops from compile flags.
+
+2012-10-25  Ralf Corsépius <ralf.corsepius@rtems.org>
+
+	* config.host (sparc64-*-rtems*): Remove sparc/t-elf.
+
+2012-10-25  Ralf Corsépius <ralf.corsepius@rtems.org>
+
+	* config.host (sh*-*-rtems*): Add sh*-*-elf*'s extra_parts.
+
+2012-10-25  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+
+	* config.host (powerpc-*-rtems*): Add rs6000/t-savresfgpr to
+	tmake_file.
+
+2012-10-23  Ian Bolton  <ian.bolton@arm.com>
+	    Jim MacArthur  <jim.macarthur@arm.com>
+	    Marcus Shawcroft  <marcus.shawcroft@arm.com>
+	    Nigel Stephens  <nigel.stephens@arm.com>
+	    Ramana Radhakrishnan  <ramana.radhakrishnan@arm.com>
+	    Richard Earnshaw  <rearnsha@arm.com>
+	    Sofiane Naci  <sofiane.naci@arm.com>
+	    Stephen Thomas  <stephen.thomas@arm.com>
+	    Tejas Belagod  <tejas.belagod@arm.com>
+	    Yufeng Zhang  <yufeng.zhang@arm.com>
+
+	* config.host (aarch64*-*-elf, aarch64*-*-linux*): New.
+	* config/aarch64/crti.S: New file.
+	* config/aarch64/crtn.S: New file.
+	* config/aarch64/linux-unwind.h: New file.
+	* config/aarch64/sfp-machine.h: New file.
+	* config/aarch64/sync-cache.c: New file.
+	* config/aarch64/t-aarch64: New file.
+	* config/aarch64/t-softfp: New file.
+
+2012-10-21  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* config/mmix/crti.S: Mark program and data addresses using PRELD.
+	Remove typo'd and unnecessary alignment-LOC for .data.  Remove
+	no-longer-needed LDBU insns.
+
+2012-10-18  Sebastian Huber <sebastian.huber@embedded-brains.de>
+
+	* config.host
+	(arm*-*-eabi* | arm*-*-symbianelf* | arm*-*-rtemseabi*): Rename
+	"arm*-*-rtemseabi*" to "arm*-*-rtems*".
+
+2012-10-17  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
+
+	* config/arm/lib1funcs.S (__ARM_ARCH__): Define for ARMv8-A.
+
+2012-10-15  Matthias Klose  <doko@ubuntu.com>
+
+	* config.host: Match arm*-*-linux-* for ARM Linux/GNU.
+
+2012-10-15  Pavel Chupin  <pavel.v.chupin@intel.com>
+
+	* configure: Regenerate.
+	* configure.ac: Replace code with GCC_AC_THREAD_HEADER use.
+
+2012-10-10  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/sfp-exceptions.c (__sfp_handle_exceptions): Emit SSE
+	instructions for 64bit targets only.
+
+2012-10-10  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/sfp-machine.h (FP_RND_NEAREST, FP_RND_ZERO, FP_RND_PINF,
+	FP_RND_MINF, FP_RND_MASK, FP_INIT_ROUNDMODE, _FP_DECL_EX): Move to ...
+	* config/i386/32/sfp-machine.h: ... here.
+	* config/i386/64/sfp-machine.h (FP_RND_NEAREST, FP_RND_ZERO,
+	FP_RND_PINF, FP_RND_MINF, FP_RND_MASK, FP_INIT_ROUNDMODE, _FP_DECL_EX):
+	New defines.
+
+2012-10-07  Matthias Klose  <doko@ubuntu.com>
+
+	* config/arm/unwind-arm.h (__gnu_unwind_24bit): Mark parameters
+	as unused.
+	(_Unwind_decode_typeinfo_ptr): Mark base as unused.
+
+2012-10-06  Mark Kettenis  <kettenis@openbsd.org>
+
+	* config.host (*-*-openbsd*): Add t-eh-dw2-dip to tmake_file.
+	* unwind-dw2-fde-dip.c: Don't include <elf.h> on OpenBSD.
+	(USE_PT_GNU_EH_FRAME): Define for OpenBSD.
+	(ElfW): Likewise.
+
+2012-10-05  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	PR other/53889
+	* config/i386/gthr-win32.h (__gthread_recursive_mutex_destroy):
+	Fix parameter names.
+
+2012-10-04  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	PR target/33135
+	* config/sh/t-sh (HOST_LIBGCC2_CFLAGS): Delete.
+	* config/sh/t-netbsd (HOST_LIBGCC2_CFLAGS): Delete.
+	* config/sh/t-linux (HOST_LIBGCC2_CFLAGS): Remove mieee option.
+
+2012-10-03  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	PR target/50457
+	* config/sh/linux-atomic.S: Delete.
+	* config/sh/linux-atomic.c: New.
+	* config/sh/t-linux (LIB2ADD): Replace linux-atomic.S with
+	linux-atomic.c.  Add cflags to disable warnings.
+
+2012-10-02  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	PR other/53889
+	* gthr.h (__gthread_recursive_mutex_destroy): Document new required
+	function.
+	* gthr-posix.h (__gthread_recursive_mutex_destroy): Define.
+	* gthr-single.h (__gthread_recursive_mutex_destroy): Likewise.
+	* config/gthr-rtems.h (__gthread_recursive_mutex_destroy): Likewise.
+	* config/gthr-vxworks.h (__gthread_recursive_mutex_destroy): Likewise.
+	* config/i386/gthr-win32.c (__gthread_win32_recursive_mutex_destroy):
+	Likewise.
+	* config/i386/gthr-win32.h (__gthread_recursive_mutex_destroy):
+	Likewise.
+	* config/mips/gthr-mipssde.h (__gthread_recursive_mutex_destroy):
+	Likewise.
+	* config/pa/gthr-dce.h (__gthread_recursive_mutex_destroy): Likewise.
+	* config/s390/gthr-tpf.h (__gthread_recursive_mutex_destroy): Likewise.
+
+2012-09-19  Mark Kettenis  <kettenis@openbsd.org>
+
+	* config.host (hppa-*-openbsd*): New target.
+	* config/pa/t-openbsd: New file.
+
+2012-09-15  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/54222
+	* config/avr/lib1funcs-fixed.S (__ssneg_2, __ssabs_2, __ssneg_4,
+	__ssabs_4, __clr_8, __ssneg_8, __ssabs_8,
+	__usadd_8, __ussub_8, __ssadd_8, __sssub_8): New functions.
+	(__divsa3): Use __negsi2 to negate r_quoL.
+	* config/avr/lib1funcs.S (FALIAS): New macro.
+	(__divmodsi4): Break out and use __divmodsi4_neg1 as...
+	(__negsi2): ...this new function.
+	* config/avr/t-avr (LIB1ASMFUNCS): Add _negsi2, _clr_8,
+	_ssneg_2, _ssneg_4, _ssneg_8, _ssabs_2, _ssabs_4,
+	_ssabs_8, _ssadd_8, _sssub_8, _usadd_8, _ussub_8.
+	(LIB2FUNCS_EXCLUDE): Fix typo for _add _sub.
+	Add: _ssadd*, _sssub*, _ssneg*, _ssabs* for signed fixed modes.
+	Add: _usadd*, _ussub*, _usneg* for unsigned fixed modes.
+
+2012-09-10  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	PR target/54089
+	* config/sh/lib1funcs.S (ashlsi3): Reimplement as ashlsi3_r0.
+	(lshrsi3): Reimplement as lshrsi3_r0.
+
+2012-09-10  Andreas Schwab  <schwab@linux-m68k.org>
+
+	PR target/46191
+	* config/t-slibgcc-libgcc (SHLIB_MAKE_SOLINK): Use -lgcc instead
+	of libgcc.a.
+
+2012-09-07  Teresa Johnson  <tejohnson@google.com>
+
+	PR gcov-profile/54487
+	* libgcc/libgcov.c (gcov_exit): Avoid warning on histogram
+	differences.
+
+2012-09-05  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/54461
+	* config.host (tmake_file,host=avr-*-*): Add avr/t-avrlibc if
+	not configured --with-avrlibc=no.
+	* config/avr/t-avrlibc: New file.
+	* Makefile.in (FPBIT_FUNCS): filter-out LIB2FUNCS_EXCLUDE.
+	(DPBIT_FUNCS): Ditto.
+	(TPBIT_FUNCS): Ditto.
+
+2012-09-04  Teresa Johnson  <tejohnson@google.com>
+
+	* libgcov.c (struct gcov_summary_buffer): New structure.
+	(gcov_histogram_insert): New function.
+	(gcov_compute_histogram): Ditto.
+	(gcov_exit): Invoke gcov_compute_histogram, and perform merging of
+	histograms during summary merging.
+
+2012-09-01  Mark Kettenis  <kettenis@openbsd.org>
+
+	* config.host (x86_64-*-openbsd*): New target.
+
+2012-08-29  Chung-Lin Tang  <cltang@codesourcery.com>
+
+	* config/mips/crtfastmath.c (set_fast_math): Add 'nomips16'
+	attribute.
+
+2012-08-24  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/54222
+	* config/avr/t-avr (conv_X): Rename to func_X.
+
+2012-08-24  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/54222
+	* config/avr/lib1funcs-fixed.S: New file.
+	* config/avr/lib1funcs.S: Include it.  Undefine some divmodsi
+	after they are used.
+	(neg2, neg4): New macros.
+	(__mulqihi3,__umulqihi3,__mulhi3): Rewrite non-MUL variants.
+	(__mulhisi3,__umulhisi3,__mulsi3): Rewrite non-MUL variants.
+	(__umulhisi3): Speed up MUL variant if there is enough flash.
+	* config/avr/avr-lib.h (TA, UTA): Adjust according to gcc's
+	avr-modes.def.
+	* config/avr/t-avr (LIB1ASMFUNCS): Add: _fractqqsf, _fractuqqsf,
+	_fracthqsf, _fractuhqsf, _fracthasf, _fractuhasf, _fractsasf,
+	_fractusasf, _fractsfqq, _fractsfuqq, _fractsfhq, _fractsfuhq,
+	_fractsfha, _fractsfsa, _mulqq3, _muluqq3, _mulhq3, _muluhq3,
+	_mulha3, _muluha3, _mulsa3, _mulusa3, _divqq3, _udivuqq3, _divhq3,
+	_udivuhq3, _divha3, _udivuha3, _divsa3, _udivusa3.
+	(LIB2FUNCS_EXCLUDE): Add supported functions.
+
+2012-08-22  Georg-Johann Lay  <avr@gjlay.de>
+
+	* Makefile.in (fixed-funcs,fixed-conv-funcs): filter-out
+	LIB2FUNCS_EXCLUDE before adding them to libgcc-objects,
+	libgcc-s-objects.
+	* fixed-obj.mk: Only expand dependency if $o is not in
+	LIB2FUNCS_EXCLUDE.
+
+2012-08-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/t-linux (HOST_LIBGCC2_CFLAGS): New.
+
+2012-08-22  Joseph Myers  <joseph@codesourcery.com>
+
+	* Makefile.in (vis_hide, gen-hide-list): Do not make definitions
+	depend on --enable-shared.
+	($(lib1asmfuncs-o)): Use %.vis files independent of
+	--enable-shared.
+	* static-object.mk ($(base)$(objext), $(base).vis)
+	($(base)_s$(objext)): Use same rules for visibility handling as in
+	shared-object.mk.
+
+2012-08-21  Ian Lance Taylor  <iant@google.com>
+
+	* config/i386/morestack.S (__morestack_non_split): Increase amount
+	of space allocated for non-split code stack.
+
+2012-08-19  Joseph Myers  <joseph@codesourcery.com>
+
+	* crtstuff.c (USE_PT_GNU_EH_FRAME): Define for systems using glibc
+	even if inhibit_libc.
+
+2012-08-17  Julian Brown  <julian@codesourcery.com>
+
+	* Makefile.in (LIB2_DIVMOD_EXCEPTION_FLAGS): Default to
+	-fexceptions -fnon-call-exceptions if not defined.
+	($(lib2-divmod-o), $(lib2-divmod-s-o)): Use above.
+	* config/arm/t-bpabi (LIB2_DIVMOD_EXCEPTION_FLAGS): Define.
+
+2012-08-17  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* config/m68k/linux-atomic.c (__sync_lock_test_and_set_1): Fix
+	type.
+
+2012-08-16  David Edelsohn  <dje.gcc@gmail.com>
+
+	* config.host (*-*-aix*): Move rs6000/t-ibm-ldouble after
+	rs6000/t-slibgcc-aix.
+
+2012-08-15  Segher Boessenkool  <segher@kernel.crashing.org>
+
+	* longlong.h: (powerpc): Delete _ARCH_PWR and _ARCH_COM handling.
+
+2012-08-15  Segher Boessenkool  <segher@kernel.crashing.org>
+
+	* longlong.h: (whole file, powerpc): Adjust to single assembler syntax.
+
+2012-08-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR driver/54171
+	* Makefile.in (version): Replace top_srcdir with srcdir.
+
+2012-08-03  Jonathan Yong  <jon_y@users.sourceforge.net>
+
+	* Makefile.in (version): set to BASE-VER file from gcc directory.
+
+2012-08-01  Nick Clifton  <nickc@redhat.com>
+
+	* config/m32c/lib2funcs.c (__clrsbhi2): New function.
+	Implements __clrsb for an HImode argument.
+
+2012-07-31  Nick Clifton  <nickc@redhat.com>
+
+	* config/stormy16/lib2funcs.c (__clrsbhi2): New function.
+	Implements __clrsb for an HImode argument.
+	* config/stormy16/clrsbhi2.c: New file:
+	* config/stormy16/t-stormy16 (LIB2ADD): Add clrsbhi2.c.
+
+2012-07-22  Steven Bosscher  <steven@gcc.gnu.org>
+
+	* libgcov.c (__gcov_ior_profiler): Benign comment fix.
+
+2012-07-19  Tristan Gingold  <gingold@adacore.com>
+	    Richard Henderson  <rth@redhat.com>
+
+	* unwind-seh.c: New file.
+	* unwind-generic.h: Include windows.h for SEH.
+	(_Unwind_Exception): Use 6 private fields for SEH.
+	(_GCC_specific_handler): Declare.
+	* unwind-c.c (__gcc_personality_seh0): New function.
+	Adjust for SEH.
+	* config/i386/libgcc-cygming.ver: New file.
+	* config/i386/t-seh-eh: New file.
+	* config.host (x86_64-*-mingw*): Default to seh.
+
+2012-07-14  Steven Bosscher  <steven@gcc.gnu.org>
+
+	* config/t-darwin (crt3.0): Remove work-around for fixed PR26840.
+
+2012-06-17  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/sfp-machine.h (FP_HANDLE_EXCEPTIONS): Use
+	__builtin_expect when checking for exceptions.
+	* config/ia64/sfp-machine.h (FP_HANDLE_EXCEPTIONS): Ditto.
+
+2012-06-13  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/ia64/sfp-machine.h (__sfp_handle_exceptions): New
+	function declaration.
+	(FP_HANDLE_EXCEPTIONS): Use __sfp_handle_exceptions.
+	(FP_RND_MASK): New.
+	* config/ia64/sfp-exceptions.c: New.
+	* config/ia64/t-softfp (LIB2ADD): Add sfp-exceptions.c.
+
+2012-06-13  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/32/sfp-machine.h (_FP_NANSIGN_S, _FP_NANSIGN_D,
+	_FP_NANSIGN_E, _FP_NANSIGN_Q): Move ...
+	* config/i386/64/sfp-machine: ... (delete here) ...
+	* config/i386/sfp-machine.h: ... to here.
+	(FP_EX_MASK): Remove.
+	(FP_RND_MASK): New.
+	(FP_INIT_ROUNDMODE): Declare asm as volatile.
+
+2012-06-11  Sriraman Tallam  <tmsriram@google.com>
+
+	* config/i386/libgcc-bsd.ver: Version symbol __cpu_indicator_init.
+	* config/i386/libgcc-sol2.ver: Ditto.
+	* config/i386/libgcc-glibc.ver: Ditto.
+
+2012-06-11  Roland McGrath  <mcgrathr@google.com>
+
+	* gthr-posix.h [neither FreeBSD nor Solaris] (__gthread_active_p):
+	If __GLIBC__ is defined, refer to __pthread_key_create instead of
+	pthread_cancel.
+
+2012-06-09  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/32/sfp-machine.h (__gcc_CMPtype, CMPtype,
+	_FP_KEEPNANFRACP, _FP_CHOOSENAN, FP_EX_INVALID, FP_EX_DENORM,
+	FP_EX_DIVZERO, FP_EX_OVERFLOW, FP_EX_UNDERFLOW, FP_EX_INEXACT,
+	FP_HANDLE_EXCEPTIONS, FP_RND_NEAREST, FP_RND_ZERO, FP_RND_PINF,
+	FP_RND_MINF, _FP_DEXL_EX, FP_INIT_ROUNDMODE, FP_ROUNDMODE,
+	__LITTLE_ENDIAN, __BIG_ENDIAN, strong_alias): Move ...
+	* config/i386/64/sfp-machine: ... (delete here) ...
+	* config/i386/sfp-machine.h: ... to here.
+	(FP_EX_MASK): New.
+	(__sfp_handle_exceptions): New function declaration.
+	(FP_HANDLE_EXCEPTIONS): Use __sfp_handle_exceptions.
+	* config/i386/sfp-exceptions.c: New.
+	* config/i386/t-softfp: New.
+	* config.host (i[34567]86-*-* and x86_64-*-* soft-fp targets): Add
+	i386/t-softfp to tmake_file.
+
+2012-06-03  David S. Miller  <davem@davemloft.net>
+
+	* longlong.h [SPARC] (sub_ddmmss): Fix thinko in previous 64-bit
+	change.
+
+2012-05-31  David S. Miller  <davem@davemloft.net>
+
+	* longlong.h [SPARC] (umul_ppmm, udiv_qrnnd): Use hardware integer
+	multiply and divide instructions on 32-bit when V9.
+	(add_ssaaaa, sub_ddmmss): Convert to branchless code on 64-bit.
+
+2012-05-29  Joseph Myers  <joseph@codesourcery.com>
+
+	* config/arm/ieee754-df.S: Fix typos.
+	* config/arm/ieee754-sf.S: Fix typos.
+	* config/c6x/libunwind.S: Fix typos.
+	* config/epiphany/udivsi3-float.c: Fix typos.
+	* config/microblaze/muldi3_hard.S: Fix typos.
+	* config/picochip/adddi3.S: Fix typos.
+	* config/picochip/ashlsi3.S: Fix typos.
+	* config/picochip/ashrsi3.S: Fix typos.
+	* config/picochip/clzsi2.S: Fix typos.
+	* config/picochip/cmpsi2.S: Fix typos.
+	* config/picochip/divmod15.S: Fix typos.
+	* config/picochip/divmodhi4.S: Fix typos.
+	* config/picochip/divmodsi4.S: Fix typos.
+	* config/picochip/longjmp.S: Fix typos.
+	* config/picochip/lshrsi3.S: Fix typos.
+	* config/picochip/parityhi2.S: Fix typos.
+	* config/picochip/popcounthi2.S: Fix typos.
+	* config/picochip/setjmp.S: Fix typos.
+	* config/picochip/subdi3.S: Fix typos.
+	* config/picochip/ucmpsi2.S: Fix typos.
+	* config/picochip/udivmodhi4.S: Fix typos.
+	* config/picochip/udivmodsi4.S: Fix typos.
+	* config/spu/divv2df3.c: Fix typos.
+	* config/spu/mfc_multi_tag_release.c: Fix typos.
+	* config/spu/mfc_tag_release.c: Fix typos.
+	* configure.ac: Fix typos.
+	* configure: Regenerate.
+
+2012-05-25  Ian Lance Taylor  <iant@google.com>
+
+	* config/i386/morestack.S (__morestack_non_split): Check whether
+	caller is varargs and needs %bp to hold the stack frame on return.
+
+2012-05-25  Olivier Hainque  <hainque@adacore.com>
+
+	* config/rs6000/vxworks/tramp.S (trampoline_setup): Use a longcall
+	sequence in the non pic case on VxWorks.
+
+2012-05-24  Olivier Hainque  <hainque@adacore.com>
+
+	* Makefile.in: Move dependency on install-unwind_h from
+	"install-leaf" to "install".
+
+2012-05-24  Olivier Hainque  <hainque@adacore.com>
+
+	* Makefile.in (clean): Remove libgcc_tm.stamp as well.
+	Use a separate command for stamp removals.
+
+2012-05-21  Andrew Pinski  <apinski@cavium.com>
+
+	PR bootstrap/53183
+	* configure.ac: Define the default includes to being none.
+	* configure: Regenerate.
+
+2012-05-16  Olivier Hainque  <hainque@adacore.com>
+
+	* Makefile.in (install-unwind_h): Rename into ...
+	(install-unwind_h-forbuild): New target.
+	(all): Use it instead of the former install-unwind_h.
+	(install-unwind_h): Reinstate, copy to user install destination
+	for include files, not to the internal gcc object directory one.
+	(install-leaf): Depend on it.
+
+2012-05-15  Olivier Hainque  <hainque@adacore.com>
+
+	* config/rs6000/aix-unwind.h (*_REGNO): New, set of useful
+	register numbers. LR_REGNO replaces R_LR.
+	(ucontext_for): New, helper for ...
+	(ppc_aix_fallback_frame_state): New, implementation for aix 5.2
+	and 5.3 of ...
+	(MD_FALLBACK_FRAME_STATE_FOR): Define for 32bit configurations.
+
+2012-05-10  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* config.host (i[34567]86-*-linux*, x86_64-*-linux*)
+	(i[34567]86-*-kfreebsd*-gnu, x86_64-*-kfreebsd*-gnu)
+	(i[34567]86-*-knetbsd*-gnu, i[34567]86-*-gnu*): Move
+	i386/t-cpuinfo ...
+	(i[34567]86-*-*, x86_64-*-*): ... here.
+
+	* config/i386/libgcc-bsd.ver (GCC_4.8.0): New version.
+	* config/i386/libgcc-sol2.ver (GCC_4.8.0): New version.
+
+	* config/i386/i386-cpuinfo.c: Rename to ...
+	* config/i386/cpuinfo.c: ... this.
+	* config/i386/t-cpuinfo (LIB2ADD): Reflect this.
+
+	* configure.ac (AC_CONFIG_HEADER): Call for auto-target.h.
+	(libgcc_cv_init_priority): New test.
+	* configure: Regenerate.
+	* config.in: New file.
+	* Makefile.in (clean): Rename config.h to auto-target.h.
+	(config.h): Likewise.
+	(stamp-h): Likewise.
+
+	* config/i386/cpuinfo.c (auto-target.h): Include.
+	(CONSTRUCTOR_PRIORITY): Define.
+	(__cpu_indicator_init): Use it.
+
+2012-05-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* longlong.h: Use a URL instead of an FSF postal address.
+	Replace spaces with tab.
+
+2012-05-08  Teresa Johnson  <tejohnson@google.com>
+
+	* libgcov.c (gcov_clear, __gcov_reset): New functions.
+	(__gcov_dump): Ditto.
+	(gcov_dump_complete): New global variable.
+	(gcov_exit): Export hidden to enable use in L_gcov_dump.
+	(__gcov_flush): Outline functionality now in gcov_clear.
+	* Makefile.in (L_gcov_reset, L_gcov_dump): Define.
+
+2012-04-28  Aurelien Jarno  <aurelien@aurel32.net>
+
+	* config.host (mips64*-*-linux*, mipsisa64*-*-linux*): Remove.
+	(mips*-*-linux*): Include mips/t-tpbit when long double is
+	16 bytes long.
+
+2012-04-25  Sriraman Tallam  <tmsriram@google.com>
+
+	* config/i386/i386-cpuinfo.c (FEATURE_AVX2): New enum value.
+	(get_available_features): New argument. Check for AVX2.
+	(__cpu_indicator_init): Modify call to get_available_features.
+
+2012-04-25  Alan Modra  <amodra@gmail.com>
+
+	* config/rs6000/crtsavevr.S: New file.
+	* config/rs6000/crtrestvr.S: New file.
+	* config/rs6000/t-savresfgpr: Build the above.
+	* config/rs6000/t-netbsd: Likewise.
+
+2012-04-24  Sriraman Tallam  <tmsriram@google.com>
+
+	* libgcc/config/i386/i386-cpuinfo.c: Set __cpu_vendor always.
+
+2012-04-24  Sriraman Tallam  <tmsriram@google.com>
+
+	* libgcc/config/i386/i386-cpuinfo.c: New file.
+	* libgcc/config/i386/t-cpuinfo: New file.
+	* libgcc/config.host: Include t-cpuinfo.
+	* libgcc/config/i386/libgcc-glibc.ver: Version symbol __cpu_model.
+
+2012-04-24  Chao-ying Fu  <fu@mips.com>
+
+	* unwind-dw2-fde-dip.c: Define USE_PT_GNU_EH_FRAME for BIONIC.
+
+2012-04-20  Thomas Schwinge  <thomas@codesourcery.com>
+
+	struct siginfo vs. siginfo_t
+
+	* config/alpha/linux-unwind.h (alpha_fallback_frame_state): Use
+	siginfo_t instead of struct siginfo.
+	* config/bfin/linux-unwind.h (bfin_fallback_frame_state): Likewise.
+	* config/i386/linux-unwind.h (x86_fallback_frame_state): Likewise.
+	* config/ia64/linux-unwind.h (ia64_fallback_frame_state)
+	(ia64_handle_unwabi): Likewise.
+	* config/mips/linux-unwind.h (mips_fallback_frame_state): Likewise.
+	* config/pa/linux-unwind.h (pa32_fallback_frame_state): Likewise.
+	* config/sh/linux-unwind.h (shmedia_fallback_frame_state)
+	(sh_fallback_frame_state): Likewise.
+	* config/tilepro/linux-unwind.h (tile_fallback_frame_state): Likewise.
+	* config/xtensa/linux-unwind.h (xtensa_fallback_frame_state): Likewise.
+
+2012-04-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/linux-unwind.h (RT_SIGRETURN_SYSCALL): Update x32
+	system call number.
+
+2012-03-31  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* config/ia64/unwind-ia64.c (uw_install_context): Manually save LC
+	if it hasn't been previously saved.
+
+2012-03-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/linux-unwind.h (x86_64_fallback_frame_state): Define
+	only for glibc.
+
+2012-03-28  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/52737
+	* config/avr/lib1funcs.S: Use __AVR_HAVE_SPH__ for SP_H checks
+	instead of __AVR_HAVE_8BIT_SP__.
+
+2012-03-26  Tristan Gingold  <gingold@adacore.com>
+
+	* config/ia64/unwind-ia64.h: Declare unw_word and unw_sword.
+	(unw_table_entry): Use unw_word instead of unsigned long.
+	(_Unwind_FindTableEntry): Likewise.
+	* config/ia64/fde-glibc.c (_Unwind_FindTableEntry): Likewise.
+	* config/ia64/fde-vms.c (vms_unwtable_entry): Likewise.
+	(_Unwind_FindTableEntry): Likewise.
+	* config/ia64/unwind-ia64.c (unw_reg_info, unw_reg_state)
+	(unw_labeled_state, unw_state_record, unw_stack, _Uwind_Context)
+	(set_reg, alloc_spill_area, finish_prologue, ia64_rse_slot_num)
+	(ia64_rse_is_rnat_slot, ia64_rse_rnat_addr, ia64_rse_num_regs)
+	(ia64_rse_skip_regs, ia64_copy_rbs, unw_access_gr)
+	(uw_frame_state_for, uw_update_reg_address, uw_update_context)
+	(uw_init_context_1, uw_install_context): Likewise.
+	(unw_word): Move to unwind-ia64.h
+
+2012-03-26  Tristan Gingold  <gingold@adacore.com>
+
+	* config/vms/vms-ucrt0.c: Update copyright years.
+	Add a sanity check.
+	(___gcc_main_flags): Declare.
+	(__main): Check flags to remap argv and exit code.
+	* config.host (*-*-*vms*): Adjust extra_parts.
+	* config/vms/t-vms (vcrt0.o, pcrt0.o): Remove.
+	(crt0.o): Add.
+
+2012-03-22  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm/lib1funcs.asm (ctzsi2): New function.
+	* arm/t-elf (LIB1ASMFUNCS): Add _ctzsi2.
+	* arm/t-linux (LIB1ASMFUNCS): Likewise.
+	* arm/t-strongarm-elf (LIB1ASMFUNCS): Likewise.
+	* arm/t-symbian (LIB1ASMFUNCS): Likewise.
+	* arm/t-vxworks (LIB1ASMFUNCS): Likewise.
+	* arm/t-wince-pe (LIB1ASMFUNCS): Likewise.
+
+2012-03-21  Andreas Tobler  <andreast@fgznet.ch>
+
+	* config.host: Add bits to support powerpc64-*-freebsd*.
+	* config/rs6000/freebsd-unwind.h: New file.
+	* config/rs6000/t-freebsd64: New file.
+
+2012-03-20  Richard Guenther  <rguenther@suse.de>
+
+	PR gcov-profile/52627
+	* libgcov.c (init_mx): Fix mutex name.
+
+2012-03-16  Tristan Gingold  <gingold@adacore.com>
+
+	* config/ia64/vms-unwind.h: Remove ulong (and replace
+	it by unw_reg where used).  Define unw_reg with __int64.
+
+2012-03-14  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* config/i386/sol2-unwind.h (x86_fallback_frame_state): Remove
+	Solaris 8 handling.
+	* config/sparc/sol2-unwind.h (sparc64_is_sighandler): Remove
+	Solaris 8 handling.
+	(sparc_is_sighandler): Likewise.
+
+2012-03-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* unwind-dw2.c (_Unwind_SetGRValue): Assert DWARF register size
+	<= saved reg size.
+
+2012-03-13  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* config/arm/crtn.S: Fix typo.
+
+2012-03-13  Richard Guenther  <rguenther@suse.de>
+
+	* libgcov.c: Remove stdio.h include and NULL un-define.
+
+2012-03-13  Richard Guenther  <rguenther@suse.de>
+
+	PR target/52569
+	* unwind-dw2-fde.c: Make avoid-include-gthr.h hacks work again.
+
+2012-03-13  Richard Guenther  <rguenther@suse.de>
+
+	* gthr-single.h (__GTHREAD_MUTEX_INIT_FUNCTION): Fix definition.
+
+2012-03-13  Richard Guenther  <rguenther@suse.de>
+
+	* gthr-posix.h: Remove duplicate __GTHREAD_MUTEX_INIT_FUNCTION
+	and __gthread_mutex_init_function definitions.
+
+2012-03-12  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* config.host (mips*-*-openbsd*): Remove.
+
+2012-03-12  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* config.host: Remove alpha*-dec-osf5.1* handling.
+	* config/alpha/gthr-posix.c: Remove.
+	* config/alpha/libgcc-osf5.ver: Remove.
+	* config/alpha/osf5-unwind.h: Remove.
+	* config/alpha/t-osf-pthread: Remove.
+	* config/alpha/t-slibgcc-osf: Remove.
+	* config/t-crtfm (crtfastmath.o): Remove -frandom-seed.
+	* gthr-posix.h [!_REENTRANT && __osf__] (_REENTRANT): Don't define.
+	[__osf__ && _PTHREAD_USE_MANGLED_NAMES_]: Remove.
+	* mkmap-flat.awk: Remove osf_export handling.
+
+2012-03-12  Richard Guenther  <rguenther@suse.de>
+
+	* gthr.h (__GTHREAD_MUTEX_INIT_FUNCTION): Adjust specification.
+	* gthr-posix.h (__GTHREAD_MUTEX_INIT_FUNCTION): Define.
+	(__gthread_mutex_init_function): New function.
+	* gthr-single.h (__GTHREAD_MUTEX_INIT_FUNCTION): Define.
+
+	PR gcov/49484
+	* libgcov.c: Include gthr.h.
+	(__gcov_flush_mx): New global variable.
+	(init_mx, init_mx_once): New functions.
+	(__gcov_flush): Protect self with a mutex.
+	(__gcov_fork): Re-initialize mutex after forking.
+	* unwind-dw2-fde.c: Change condition under which to use
+	__GTHREAD_MUTEX_INIT_FUNCTION.
+
+2012-03-12  Tristan Gingold  <gingold@adacore.com>
+
+	* config/alpha/t-vms: Define HOST_LIBGCC2_CFLAGS.
+	* config/ia64/t-vms: Likewise.
+
+2012-03-11  Michael Hope  <michael.hope@linaro.org>
+
+	* longlong.h [ARM] (add_ssaaaa, sub_ddmmss, umul_ppmm): Enable
+	for Thumb-2.
+
+2012-03-07  Walter Lee  <walt@tilera.com>
+
+	* config/tilepro/atomic.c: Rename "atomic_" prefix to
+	"arch_atomic_".
+	(atomic_xor): Rename and move definition to
+	config/tilepro/atomic.h.
+	(atomic_nand): Ditto.
+	* config/tilepro/atomic.h: Rename "atomic_" prefix to
+	"arch_atomic_".
+	(arch_atomic_xor): Move from config/tilepro/atomic.c.
+	(arch_atomic_nand): Ditto.
+
+2012-03-07  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/52507
+	* config/avr/lib1funcs.S (__movmemx_hi): Fix loop label in RAM-part.
+
+2012-03-07  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/52505
+	* config/avr/lib1funcs.S (__xload_1): Don't read unintentionally
+	from RAM.
+
+2012-03-07  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/52461
+	PR target/52508
+	* config/avr/lib1funcs.S (__do_copy_data): Clear RAMPZ after usage
+	if RAMPZ affects reading from RAM.
+	(__tablejump_elpm__): Ditto.
+	(.xload): Ditto.
+	(__movmemx_hi): Ditto.
+	(__do_global_ctors): Right condition for RAMPZ usage is "have ELPM".
+	(__do_global_dtors): Ditto.
+	(__xload_1, __xload_2, __xload_3, __xload_4): Ditto.
+	(__movmemx_hi): Ditto.
+
+2012-03-05  Richard Henderson  <rth@redhat.com>
+
+	* longlong.h [ARM] (umul_ppmm): Use umull for arm3m and later.
+	[ARM] (count_trailing_zeros): Use the builtin.
 
 2012-03-01  Kai Tietz  <ktietz@redhat.com>
 

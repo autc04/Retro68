@@ -12,7 +12,7 @@
 @include gcc-common.texi
 
 @c Copyright years for this manual.
-@set copyrights-go 2010
+@set copyrights-go 2010-2014
 
 @copying
 @c man begin COPYRIGHT
@@ -157,14 +157,38 @@ compile time.
 When linking, specify a library search directory, as with
 @command{gcc}.
 
+@item -fgo-pkgpath=@var{string}
+@cindex @option{-fgo-pkgpath}
+Set the package path to use.  This sets the value returned by the
+PkgPath method of reflect.Type objects.  It is also used for the names
+of globally visible symbols.  The argument to this option should
+normally be the string that will be used to import this package after
+it has been installed; in other words, a pathname within the
+directories specified by the @option{-I} option.
+
 @item -fgo-prefix=@var{string}
 @cindex @option{-fgo-prefix}
+An alternative to @option{-fgo-pkgpath}.  The argument will be
+combined with the package name from the source file to produce the
+package path.  If @option{-fgo-pkgpath} is used, @option{-fgo-prefix}
+will be ignored.
+
 Go permits a single program to include more than one package with the
-same name.  This option is required to make this work with
-@command{gccgo}.  The argument to this option may be any string.  Each
-package with the same name must use a distinct @option{-fgo-prefix}
-option.  The argument is typically the full path under which the
-package will be installed, as that must obviously be unique.
+same name in the @code{package} clause in the source file, though
+obviously the two packages must be imported using different pathnames.
+In order for this to work with @command{gccgo}, either
+@option{-fgo-pkgpath} or @option{-fgo-prefix} must be specified when
+compiling a package.
+
+Using either @option{-fgo-pkgpath} or @option{-fgo-prefix} disables
+the special treatment of the @code{main} package and permits that
+package to be imported like any other.
+
+@item -fgo-relative-import-path=@var{dir}
+@cindex @option{-fgo-relative-import-path}
+A relative import is an import that starts with @file{./} or
+@file{../}.  If this option is used, @command{gccgo} will use
+@var{dir} as a prefix for the relative import when searching for it.
 
 @item -frequire-return-statement
 @itemx -fno-require-return-statement
@@ -174,6 +198,31 @@ By default @command{gccgo} will warn about functions which have one or
 more return parameters but lack an explicit @code{return} statement.
 This warning may be disabled using
 @option{-fno-require-return-statement}.
+
+@item -fgo-check-divide-zero
+@cindex @option{-fgo-check-divide-zero}
+@cindex @option{-fno-go-check-divide-zero}
+Add explicit checks for division by zero.  In Go a division (or
+modulos) by zero causes a panic.  On Unix systems this is detected in
+the runtime by catching the @code{SIGFPE} signal.  Some processors,
+such as PowerPC, do not generate a SIGFPE on division by zero.  Some
+runtimes do not generate a signal that can be caught.  On those
+systems, this option may be used.  Or the checks may be removed via
+@option{-fno-go-check-divide-zero}.  This option is currently on by
+default, but in the future may be off by default on systems that do
+not require it.
+
+@item -fgo-check-divide-overflow
+@cindex @option{-fgo-check-divide-overflow}
+@cindex @option{-fno-go-check-divide-overflow}
+Add explicit checks for division overflow.  For example, division
+overflow occurs when computing @code{INT_MIN / -1}.  In Go this should
+be wrapped, to produce @code{INT_MIN}.  Some processors, such as x86,
+generate a trap on division overflow.  On those systems, this option
+may be used.  Or the checks may be removed via
+@option{-fno-go-check-divide-overflow}.  This option is currently on
+by default, but in the future may be off by default on systems that do
+not require it.
 @end table
 
 @c man end

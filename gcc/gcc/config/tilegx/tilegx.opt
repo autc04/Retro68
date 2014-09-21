@@ -1,6 +1,5 @@
 ; Options for the TILE-Gx port of the compiler.
-; Copyright (C) 2011, 2012
-; Free Software Foundation, Inc.
+; Copyright (C) 2011-2014 Free Software Foundation, Inc.
 ; Contributed by Walter Lee (walt@tilera.com)
 ;
 ; This file is part of GCC.
@@ -18,6 +17,9 @@
 ; You should have received a copy of the GNU General Public License
 ; along with GCC; see the file COPYING3.  If not see
 ; <http://www.gnu.org/licenses/>.
+
+HeaderInclude
+config/tilegx/tilegx-opts.h
 
 mcpu=
 Target RejectNegative Joined Enum(tilegx_cpu) Var(tilegx_cpu) Init(0)
@@ -38,3 +40,24 @@ m64
 Target Report RejectNegative Negative(m32) InverseMask(32BIT, 64BIT)
 Compile with 64 bit longs and pointers.
 
+mbig-endian
+Target Report RejectNegative Mask(BIG_ENDIAN)
+Use big-endian byte order.
+
+mlittle-endian
+Target Report RejectNegative InverseMask(BIG_ENDIAN)
+Use little-endian byte order.
+
+mcmodel=
+Target RejectNegative Joined Enum(cmodel) Var(tilegx_cmodel) Init(CM_SMALL)
+Use given TILE-Gx code model
+
+Enum
+Name(cmodel) Type(enum cmodel)
+Known code models (for use with the -mcmodel= option):
+
+EnumValue
+Enum(cmodel) String(small) Value(CM_SMALL)
+
+EnumValue
+Enum(cmodel) String(large) Value(CM_LARGE)

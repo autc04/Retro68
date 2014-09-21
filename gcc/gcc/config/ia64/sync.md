@@ -1,6 +1,5 @@
 ;; GCC machine description for IA-64 synchronization instructions.
-;; Copyright (C) 2005, 2007, 2008, 2009, 2010
-;; Free Software Foundation, Inc.
+;; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -28,7 +27,7 @@
 
 (define_code_iterator FETCHOP [plus minus ior xor and])
 (define_code_attr fetchop_name
-  [(plus "add") (minus "sub") (ior "ior") (xor "xor") (and "and")])
+  [(plus "add") (minus "sub") (ior "or") (xor "xor") (and "and")])
 
 (define_expand "mem_thread_fence"
   [(match_operand:SI 0 "const_int_operand" "")]		;; model

@@ -124,12 +124,12 @@ integer function p2(x)
 end function
 
 subroutine p3(x)
-  real,intent(inout):: x
+  real :: x
   x=x+1.0
 end subroutine
 
 subroutine p4(x)
-  real,intent(inout):: x
+  real :: x
   x=x-1.5
 end subroutine
 
@@ -137,7 +137,7 @@ subroutine p5()
 end subroutine
 
 subroutine p6(x)
-  real,intent(inout):: x
+  real :: x
   x=x*2.
 end subroutine
 
@@ -146,5 +146,3 @@ function p7(x)
  integer :: x, p7
  p7 = x*(-2)
 end function
-
-! { dg-final { cleanup-modules "m" } }

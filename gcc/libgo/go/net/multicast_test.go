@@ -5,222 +5,180 @@
 package net
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"runtime"
-	"syscall"
 	"testing"
 )
 
-var multicastListenerTests = []struct {
+var ipv4MulticastListenerTests = []struct {
 	net   string
-	gaddr *UDPAddr
-	flags Flags
-	ipv6  bool // test with underlying AF_INET6 socket
+	gaddr *UDPAddr // see RFC 4727
 }{
-	// cf. RFC 4727: Experimental Values in IPv4, IPv6, ICMPv4, ICMPv6, UDP, and TCP Headers
+	{"udp", &UDPAddr{IP: IPv4(224, 0, 0, 254), Port: 12345}},
 
-	{"udp", &UDPAddr{IPv4(224, 0, 0, 254), 12345}, FlagUp | FlagLoopback, false},
-	{"udp", &UDPAddr{IPv4(224, 0, 0, 254), 12345}, 0, false},
-	{"udp", &UDPAddr{ParseIP("ff0e::114"), 12345}, FlagUp | FlagLoopback, true},
-	{"udp", &UDPAddr{ParseIP("ff0e::114"), 12345}, 0, true},
-
-	{"udp4", &UDPAddr{IPv4(224, 0, 0, 254), 12345}, FlagUp | FlagLoopback, false},
-	{"udp4", &UDPAddr{IPv4(224, 0, 0, 254), 12345}, 0, false},
-
-	{"udp6", &UDPAddr{ParseIP("ff01::114"), 12345}, FlagUp | FlagLoopback, true},
-	{"udp6", &UDPAddr{ParseIP("ff01::114"), 12345}, 0, true},
-	{"udp6", &UDPAddr{ParseIP("ff02::114"), 12345}, FlagUp | FlagLoopback, true},
-	{"udp6", &UDPAddr{ParseIP("ff02::114"), 12345}, 0, true},
-	{"udp6", &UDPAddr{ParseIP("ff04::114"), 12345}, FlagUp | FlagLoopback, true},
-	{"udp6", &UDPAddr{ParseIP("ff04::114"), 12345}, 0, true},
-	{"udp6", &UDPAddr{ParseIP("ff05::114"), 12345}, FlagUp | FlagLoopback, true},
-	{"udp6", &UDPAddr{ParseIP("ff05::114"), 12345}, 0, true},
-	{"udp6", &UDPAddr{ParseIP("ff08::114"), 12345}, FlagUp | FlagLoopback, true},
-	{"udp6", &UDPAddr{ParseIP("ff08::114"), 12345}, 0, true},
-	{"udp6", &UDPAddr{ParseIP("ff0e::114"), 12345}, FlagUp | FlagLoopback, true},
-	{"udp6", &UDPAddr{ParseIP("ff0e::114"), 12345}, 0, true},
+	{"udp4", &UDPAddr{IP: IPv4(224, 0, 0, 254), Port: 12345}},
 }
 
-// TestMulticastListener tests both single and double listen to a test
-// listener with same address family, same group address and same port.
-func TestMulticastListener(t *testing.T) {
-	switch runtime.GOOS {
-	case "netbsd", "openbsd", "plan9", "windows":
-		return
-	case "linux":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
-			return
-		}
-	}
-
-	for _, tt := range multicastListenerTests {
-		if tt.ipv6 && (!supportsIPv6 || os.Getuid() != 0) {
-			continue
-		}
-		ifi, err := availMulticastInterface(t, tt.flags)
-		if err != nil {
-			continue
-		}
-		c1, err := ListenMulticastUDP(tt.net, ifi, tt.gaddr)
-		if err != nil {
-			t.Fatalf("First ListenMulticastUDP failed: %v", err)
-		}
-		checkMulticastListener(t, err, c1, tt.gaddr)
-		c2, err := ListenMulticastUDP(tt.net, ifi, tt.gaddr)
-		if err != nil {
-			t.Fatalf("Second ListenMulticastUDP failed: %v", err)
-		}
-		checkMulticastListener(t, err, c2, tt.gaddr)
-		c2.Close()
-		switch c1.fd.family {
-		case syscall.AF_INET:
-			testIPv4MulticastSocketOptions(t, c1.fd, ifi)
-		case syscall.AF_INET6:
-			testIPv6MulticastSocketOptions(t, c1.fd, ifi)
-		}
-		c1.Close()
-	}
-}
-
-func TestSimpleMulticastListener(t *testing.T) {
+// TestIPv4MulticastListener tests both single and double listen to a
+// test listener with same address family, same group address and same
+// port.
+func TestIPv4MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
-	for _, tt := range multicastListenerTests {
-		if tt.ipv6 {
-			continue
-		}
-		tt.flags = FlagUp | FlagMulticast // for windows testing
-		ifi, err := availMulticastInterface(t, tt.flags)
-		if err != nil {
-			continue
-		}
-		c1, err := ListenMulticastUDP(tt.net, ifi, tt.gaddr)
-		if err != nil {
-			t.Fatalf("First ListenMulticastUDP failed: %v", err)
-		}
-		checkSimpleMulticastListener(t, err, c1, tt.gaddr)
-		c2, err := ListenMulticastUDP(tt.net, ifi, tt.gaddr)
-		if err != nil {
-			t.Fatalf("Second ListenMulticastUDP failed: %v", err)
-		}
-		checkSimpleMulticastListener(t, err, c2, tt.gaddr)
-		c2.Close()
-		c1.Close()
-	}
-}
-
-func checkMulticastListener(t *testing.T, err error, c *UDPConn, gaddr *UDPAddr) {
-	if !multicastRIBContains(t, gaddr.IP) {
-		t.Fatalf("%q not found in RIB", gaddr.String())
-	}
-	if c.LocalAddr().String() != gaddr.String() {
-		t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), gaddr.String())
-	}
-}
-
-func checkSimpleMulticastListener(t *testing.T, err error, c *UDPConn, gaddr *UDPAddr) {
-	if c.LocalAddr().String() != gaddr.String() {
-		t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), gaddr.String())
-	}
-}
-
-func availMulticastInterface(t *testing.T, flags Flags) (*Interface, error) {
-	var ifi *Interface
-	if flags != Flags(0) {
-		ift, err := Interfaces()
-		if err != nil {
-			t.Fatalf("Interfaces failed: %v", err)
-		}
-		for _, x := range ift {
-			if x.Flags&flags == flags {
-				ifi = &x
-				break
+	closer := func(cs []*UDPConn) {
+		for _, c := range cs {
+			if c != nil {
+				c.Close()
 			}
 		}
-		if ifi == nil {
-			return nil, errors.New("an appropriate multicast interface not found")
+	}
+
+	for _, ifi := range []*Interface{loopbackInterface(), nil} {
+		// Note that multicast interface assignment by system
+		// is not recommended because it usually relies on
+		// routing stuff for finding out an appropriate
+		// nexthop containing both network and link layer
+		// adjacencies.
+		if ifi == nil && !*testExternal {
+			continue
+		}
+		for _, tt := range ipv4MulticastListenerTests {
+			var err error
+			cs := make([]*UDPConn, 2)
+			if cs[0], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
+				t.Fatalf("First ListenMulticastUDP on %v failed: %v", ifi, err)
+			}
+			if err := checkMulticastListener(cs[0], tt.gaddr.IP); err != nil {
+				closer(cs)
+				t.Fatal(err)
+			}
+			if cs[1], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
+				closer(cs)
+				t.Fatalf("Second ListenMulticastUDP on %v failed: %v", ifi, err)
+			}
+			if err := checkMulticastListener(cs[1], tt.gaddr.IP); err != nil {
+				closer(cs)
+				t.Fatal(err)
+			}
+			closer(cs)
 		}
 	}
-	return ifi, nil
 }
 
-func multicastRIBContains(t *testing.T, ip IP) bool {
+var ipv6MulticastListenerTests = []struct {
+	net   string
+	gaddr *UDPAddr // see RFC 4727
+}{
+	{"udp", &UDPAddr{IP: ParseIP("ff01::114"), Port: 12345}},
+	{"udp", &UDPAddr{IP: ParseIP("ff02::114"), Port: 12345}},
+	{"udp", &UDPAddr{IP: ParseIP("ff04::114"), Port: 12345}},
+	{"udp", &UDPAddr{IP: ParseIP("ff05::114"), Port: 12345}},
+	{"udp", &UDPAddr{IP: ParseIP("ff08::114"), Port: 12345}},
+	{"udp", &UDPAddr{IP: ParseIP("ff0e::114"), Port: 12345}},
+
+	{"udp6", &UDPAddr{IP: ParseIP("ff01::114"), Port: 12345}},
+	{"udp6", &UDPAddr{IP: ParseIP("ff02::114"), Port: 12345}},
+	{"udp6", &UDPAddr{IP: ParseIP("ff04::114"), Port: 12345}},
+	{"udp6", &UDPAddr{IP: ParseIP("ff05::114"), Port: 12345}},
+	{"udp6", &UDPAddr{IP: ParseIP("ff08::114"), Port: 12345}},
+	{"udp6", &UDPAddr{IP: ParseIP("ff0e::114"), Port: 12345}},
+}
+
+// TestIPv6MulticastListener tests both single and double listen to a
+// test listener with same address family, same group address and same
+// port.
+func TestIPv6MulticastListener(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "solaris":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+	if !supportsIPv6 {
+		t.Skip("ipv6 is not supported")
+	}
+	if os.Getuid() != 0 {
+		t.Skip("skipping test; must be root")
+	}
+
+	closer := func(cs []*UDPConn) {
+		for _, c := range cs {
+			if c != nil {
+				c.Close()
+			}
+		}
+	}
+
+	for _, ifi := range []*Interface{loopbackInterface(), nil} {
+		// Note that multicast interface assignment by system
+		// is not recommended because it usually relies on
+		// routing stuff for finding out an appropriate
+		// nexthop containing both network and link layer
+		// adjacencies.
+		if ifi == nil && (!*testExternal || !*testIPv6) {
+			continue
+		}
+		for _, tt := range ipv6MulticastListenerTests {
+			var err error
+			cs := make([]*UDPConn, 2)
+			if cs[0], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
+				t.Fatalf("First ListenMulticastUDP on %v failed: %v", ifi, err)
+			}
+			if err := checkMulticastListener(cs[0], tt.gaddr.IP); err != nil {
+				closer(cs)
+				t.Fatal(err)
+			}
+			if cs[1], err = ListenMulticastUDP(tt.net, ifi, tt.gaddr); err != nil {
+				closer(cs)
+				t.Fatalf("Second ListenMulticastUDP on %v failed: %v", ifi, err)
+			}
+			if err := checkMulticastListener(cs[1], tt.gaddr.IP); err != nil {
+				closer(cs)
+				t.Fatal(err)
+			}
+			closer(cs)
+		}
+	}
+}
+
+func checkMulticastListener(c *UDPConn, ip IP) error {
+	if ok, err := multicastRIBContains(ip); err != nil {
+		return err
+	} else if !ok {
+		return fmt.Errorf("%q not found in multicast RIB", ip.String())
+	}
+	la := c.LocalAddr()
+	if la, ok := la.(*UDPAddr); !ok || la.Port == 0 {
+		return fmt.Errorf("got %v; expected a proper address with non-zero port number", la)
+	}
+	return nil
+}
+
+func multicastRIBContains(ip IP) (bool, error) {
+	switch runtime.GOOS {
+	case "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "windows":
+		return true, nil // not implemented yet
+	case "linux":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
+			return true, nil // not implemented yet
+		}
+	}
 	ift, err := Interfaces()
 	if err != nil {
-		t.Fatalf("Interfaces failed: %v", err)
+		return false, err
 	}
 	for _, ifi := range ift {
 		ifmat, err := ifi.MulticastAddrs()
 		if err != nil {
-			t.Fatalf("MulticastAddrs failed: %v", err)
+			return false, err
 		}
 		for _, ifma := range ifmat {
 			if ifma.(*IPAddr).IP.Equal(ip) {
-				return true
+				return true, nil
 			}
 		}
 	}
-	return false
-}
-
-func testIPv4MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
-	_, err := ipv4MulticastInterface(fd)
-	if err != nil {
-		t.Fatalf("ipv4MulticastInterface failed: %v", err)
-	}
-	if ifi != nil {
-		err = setIPv4MulticastInterface(fd, ifi)
-		if err != nil {
-			t.Fatalf("setIPv4MulticastInterface failed: %v", err)
-		}
-	}
-	_, err = ipv4MulticastTTL(fd)
-	if err != nil {
-		t.Fatalf("ipv4MulticastTTL failed: %v", err)
-	}
-	err = setIPv4MulticastTTL(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv4MulticastTTL failed: %v", err)
-	}
-	_, err = ipv4MulticastLoopback(fd)
-	if err != nil {
-		t.Fatalf("ipv4MulticastLoopback failed: %v", err)
-	}
-	err = setIPv4MulticastLoopback(fd, false)
-	if err != nil {
-		t.Fatalf("setIPv4MulticastLoopback failed: %v", err)
-	}
-}
-
-func testIPv6MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
-	_, err := ipv6MulticastInterface(fd)
-	if err != nil {
-		t.Fatalf("ipv6MulticastInterface failed: %v", err)
-	}
-	if ifi != nil {
-		err = setIPv6MulticastInterface(fd, ifi)
-		if err != nil {
-			t.Fatalf("setIPv6MulticastInterface failed: %v", err)
-		}
-	}
-	_, err = ipv6MulticastHopLimit(fd)
-	if err != nil {
-		t.Fatalf("ipv6MulticastHopLimit failed: %v", err)
-	}
-	err = setIPv6MulticastHopLimit(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv6MulticastHopLimit failed: %v", err)
-	}
-	_, err = ipv6MulticastLoopback(fd)
-	if err != nil {
-		t.Fatalf("ipv6MulticastLoopback failed: %v", err)
-	}
-	err = setIPv6MulticastLoopback(fd, false)
-	if err != nil {
-		t.Fatalf("setIPv6MulticastLoopback failed: %v", err)
-	}
+	return false, nil
 }

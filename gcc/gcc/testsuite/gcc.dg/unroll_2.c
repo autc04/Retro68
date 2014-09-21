@@ -1,5 +1,5 @@
-/* { dg-do compile  { target i?86-*-linux* x86_64-*-linux* } } */
-/* { dg-options "-O2 -fdump-rtl-loop2_unroll -fno-peel-loops -fdisable-tree-cunroll=foo -fdisable-tree-cunrolli=foo -fenable-rtl-loop2_unroll" } */
+/* { dg-do compile } */
+/* { dg-options "-O2 -fdump-rtl-loop2_unroll -fno-peel-loops -fno-tree-vrp -fdisable-tree-cunroll=foo -fdisable-tree-cunrolli=foo -fenable-rtl-loop2_unroll" } */
 
 unsigned a[100], b[100];
 inline void bar()
@@ -28,6 +28,5 @@ int foo2(void)
   return 1;
 }
 
-/* { dg-final { scan-rtl-dump-times "Decided to peel loop completely" 1 "loop2_unroll" } } */
+/* { dg-final { scan-rtl-dump-times "loop turned into non-loop; it never loops" 1 "loop2_unroll" } } */
 /* { dg-final { cleanup-rtl-dump "loop2_unroll" } } */
-/* { dg-excess-errors "extra notes" } */

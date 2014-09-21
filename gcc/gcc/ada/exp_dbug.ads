@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1996-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -411,20 +411,13 @@ package Exp_Dbug is
    -- Conversion between Entities and External Names --
    ----------------------------------------------------
 
-   No_Dollar_In_Label : constant Boolean := True;
-   --  True iff the target does not allow dollar signs ("$") in external names
-   --  ??? We want to migrate all platforms to use the same convention. As a
-   --  first step, we force this constant to always be True. This constant will
-   --  eventually be deleted after we have verified that the migration does not
-   --  cause any unforeseen adverse impact. We chose "__" because it is
-   --  supported on all platforms, which is not the case of "$".
-
    procedure Get_External_Name
      (Entity     : Entity_Id;
-      Has_Suffix : Boolean);
-   --  Set Name_Buffer and Name_Len to the external name of entity E. The
+      Has_Suffix : Boolean := False;
+      Suffix     : String := "");
+   --  Set Name_Buffer and Name_Len to the external name of the entity. The
    --  external name is the Interface_Name, if specified, unless the entity
-   --  has an address clause or a suffix.
+   --  has an address clause or Has_Suffix is true.
    --
    --  If the Interface is not present, or not used, the external name is the
    --  concatenation of:
@@ -436,26 +429,11 @@ package Exp_Dbug is
    --    - the string "$" (or "__" if target does not allow "$"), followed
    --        by homonym suffix, if the entity is an overloaded subprogram
    --        or is defined within an overloaded subprogram.
-
-   procedure Get_External_Name_With_Suffix
-     (Entity : Entity_Id;
-      Suffix : String);
-   --  Set Name_Buffer and Name_Len to the external name of entity E. If
-   --  Suffix is the empty string the external name is as above, otherwise
-   --  the external name is the concatenation of:
-   --
-   --    - the string "_ada_", if the entity is a library subprogram,
-   --    - the names of any enclosing scopes, each followed by "__",
-   --        or "X_" if the next entity is a subunit)
-   --    - the name of the entity
-   --    - the string "$" (or "__" if target does not allow "$"), followed
-   --        by homonym suffix, if the entity is an overloaded subprogram
-   --        or is defined within an overloaded subprogram.
-   --    - the string "___" followed by Suffix
+   --    - the string "___" followed by Suffix if Has_Suffix is true.
    --
    --  Note that a call to this procedure has no effect if we are not
    --  generating code, since the necessary information for computing the
-   --  proper encoded name is not available in this case.
+   --  proper external name is not available in this case.
 
    --------------------------------------------
    -- Subprograms for Handling Qualification --
@@ -1449,6 +1427,23 @@ package Exp_Dbug is
    --  The debugger should simply ignore structs with names of the form
    --  corresponding to variants, and consider the fields inside as belonging
    --  to the containing record.
+
+   -----------------------------------------------
+   --  Extra renamings for subprogram instances --
+   -----------------------------------------------
+
+   procedure Build_Subprogram_Instance_Renamings
+     (N       : Node_Id;
+      Wrapper : Entity_Id);
+   --  The debugger has difficulties in recovering the value of actuals of an
+   --  elementary type, from within the body of a subprogram instantiation.
+   --  This is because such actuals generate an object declaration that is
+   --  placed within the wrapper package of the instance, and the entity in
+   --  these declarations is encoded in a complex way that GDB does not handle
+   --  well. These new renaming declarations appear within the body of the
+   --  subprogram, and are redundant from a visibility point of view, but They
+   --  should have no measurable performance impact, and require no special
+   --  decoding in the debugger.
 
    -------------------------------------------
    -- Character literals in Character Types --

@@ -1,8 +1,7 @@
 // -*- C++ -*-
 // Testing utilities for the tr1 testsuite.
 //
-// Copyright (C) 2004, 2005, 2006, 2007, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,66 +28,68 @@ namespace __gnu_test
 {
   // For tr1/type_traits.
   template<template<typename> class Category, typename Type>
+#if __cplusplus >= 201103L
+    constexpr
+#endif
     bool
     test_category(bool value)
     {
-      bool ret = true;
-      ret &= Category<Type>::value == value;
-      ret &= Category<const Type>::value == value;
-      ret &= Category<volatile Type>::value == value;
-      ret &= Category<const volatile Type>::value == value;
-      ret &= Category<Type>::type::value == value;
-      ret &= Category<const Type>::type::value == value;
-      ret &= Category<volatile Type>::type::value == value;
-      ret &= Category<const volatile Type>::type::value == value;
-      return ret;
+      return (Category<Type>::value == value
+	      && Category<const Type>::value == value
+	      && Category<volatile Type>::value == value
+	      && Category<const volatile Type>::value == value
+	      && Category<Type>::type::value == value
+	      && Category<const Type>::type::value == value
+	      && Category<volatile Type>::type::value == value
+	      && Category<const volatile Type>::type::value == value);
     }
 
   template<template<typename> class Property, typename Type>
+#if __cplusplus >= 201103L
+    constexpr
+#endif
     bool
     test_property(typename Property<Type>::value_type value)
     {
-      bool ret = true;
-      ret &= Property<Type>::value == value;
-      ret &= Property<Type>::type::value == value;
-      return ret;
+      return (Property<Type>::value == value
+	      && Property<Type>::type::value == value);
     }
 
   // For testing tr1/type_traits/extent, which has a second template
   // parameter.
   template<template<typename, unsigned> class Property,
 	   typename Type, unsigned Uint>
+#if __cplusplus >= 201103L
+    constexpr
+#endif
     bool
     test_property(typename Property<Type, Uint>::value_type value)
     {
-      bool ret = true;
-      ret &= Property<Type, Uint>::value == value;
-      ret &= Property<Type, Uint>::type::value == value;
-      return ret;
+      return (Property<Type, Uint>::value == value
+	      && Property<Type, Uint>::type::value == value);
     }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<template<typename...> class Property,
 	   typename Type1, typename... Types>
-    bool
+    constexpr bool
     test_property(typename Property<Type1, Types...>::value_type value)
     {
-      bool ret = true;
-      ret &= Property<Type1, Types...>::value == value;
-      ret &= Property<Type1, Types...>::type::value == value;
-      return ret;
+      return (Property<Type1, Types...>::value == value
+	      && Property<Type1, Types...>::type::value == value);
     }
 #endif
 
   template<template<typename, typename> class Relationship,
 	   typename Type1, typename Type2>
+#if __cplusplus >= 201103L
+    constexpr
+#endif
     bool
     test_relationship(bool value)
     {
-      bool ret = true;
-      ret &= Relationship<Type1, Type2>::value == value;
-      ret &= Relationship<Type1, Type2>::type::value == value;
-      return ret;
+      return (Relationship<Type1, Type2>::value == value
+	      && Relationship<Type1, Type2>::type::value == value);
     }
 
   // Test types.
@@ -156,7 +157,7 @@ namespace __gnu_test
     ThrowCopyConsClass(const ThrowCopyConsClass&) throw(int);
   };
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   struct ThrowMoveConsClass
   {
     ThrowMoveConsClass(ThrowMoveConsClass&&) throw(int);
@@ -308,7 +309,7 @@ namespace __gnu_test
     int j;
   };
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   struct LType // literal type
   {
     int _M_i;
@@ -403,8 +404,8 @@ namespace __gnu_test
     check_ret_type(T)
     { return true; }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
-  namespace construct_destruct
+#if __cplusplus >= 201103L
+  namespace construct
   {
     struct Empty {};
 
@@ -526,6 +527,155 @@ namespace __gnu_test
     };
   }
 
+  namespace destruct
+  {
+    struct E
+    {};
+    
+    struct NTD1
+    {
+      ~NTD1() = default;
+    };
+    
+    struct NTD2
+    {
+      ~NTD2();
+    };
+    
+    struct NTD3
+    {
+      ~NTD3() throw();
+    };
+    
+    struct TD1
+    {
+      ~TD1() noexcept(false);
+    };
+    
+    struct TD2
+    {
+      ~TD2() throw(int);
+    };
+    
+    struct Aggr
+    {
+      int i;
+      bool b;
+      E e;
+    };
+    
+    struct Aggr2
+    {
+      int i;
+      bool b;
+      TD1 r;
+    };
+    
+    struct Del
+    {
+      ~Del() = delete;
+    };
+    
+    struct Del2
+    {
+      ~Del2() noexcept = delete;
+    };
+    
+    struct Del3
+    {
+      ~Del3() noexcept(false) = delete;
+    };
+    
+    struct Der : Aggr
+    {};
+    
+    struct Der2 : Aggr2
+    {};
+    
+    union U1
+    {
+      int i;
+      double d;
+      void* p;
+      TD1* pt;
+    };
+    
+    union Ut
+    {
+      int i;
+      double d;
+      void* p;
+      TD1 pt;
+    };
+    
+    enum class En { a, b, c, d };
+    enum En2 { En2a, En2b, En2c, En2d };
+
+    enum OpE : int;
+    enum class OpSE : bool;
+
+    struct Abstract1
+    {
+      virtual ~Abstract1() = 0;
+    };
+    
+    struct AbstractDelDtor
+    {
+      ~AbstractDelDtor() = delete;
+      virtual void foo() = 0;
+    };
+
+    struct Abstract2
+    {
+      virtual ~Abstract2() noexcept(false) = 0;
+    };
+    
+    struct Abstract3
+    {
+      ~Abstract3() noexcept(false);
+      virtual void foo() noexcept = 0;
+    };
+
+    struct Nontrivial
+    {
+      Nontrivial();
+      Nontrivial(const Nontrivial&);
+      Nontrivial& operator=(const Nontrivial&);
+      ~Nontrivial();
+    };
+
+    union NontrivialUnion
+    {
+      int i;
+      Nontrivial n;
+    };
+
+    struct UnusualCopy
+    {
+      UnusualCopy(UnusualCopy&);
+    };
+
+    struct Ellipsis
+    {
+      Ellipsis(...){}
+    };
+
+    struct DelEllipsis
+    {
+      DelEllipsis(...) = delete;
+    };
+
+    struct DelDef
+    {
+      DelDef() = delete;
+    };
+
+    struct DelCopy
+    {
+      DelCopy(const DelCopy&) = delete;
+    };
+  }
+  
   namespace assign
   {
     struct Empty {};

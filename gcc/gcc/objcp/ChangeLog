@@ -1,6 +1,33 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years
+
+2013-09-25  Tom Tromey  <tromey@redhat.com>
+
+	* Make-lang.in (START_HDRS, cc1objplus-checksum.o)
+	(objcp/objcp-lang.o, objcp/objcp-decl.o
+	(objcp/objc-runtime-shared-support.o)
+	(objcp/objc-gnu-runtime-abi-01.o objcp/objc-next-runtime-abi-01.o)
+	(objcp/objc-next-runtime-abi-02.o, objcp/objcp-act.o)
+	(objcp/objc-encoding.o, objcp/objc-map.o): Use COMPILE and
+	POSTCOMPILE.  Remove explicit dependencies.
+
+2013-05-16  Jason Merrill  <jason@redhat.com>
+
+	* Make-lang.in (cc1objplus$(exeext)): Use link mutex.
+
+2012-06-02  Jason Merrill  <jason@redhat.com>
+
+	* objcp-decl.c (objcp_start_struct): Adjust for change in
+	begin_class_definition prototype.
 
 2011-10-14  Nicola Pero  <nicola.pero@meta-innovation.com>
 
@@ -435,7 +462,7 @@
 	* objcp-lang.c: Likewise.
 
 
-Copyright (C) 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
+Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

@@ -1,7 +1,6 @@
 // TR1 cmath -*- C++ -*-
 
-// Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -563,12 +562,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // Note: we deal with fabs in a special way, because an using std::fabs
   // would bring in also the overloads for complex types, which in C++0x
   // mode have a different return type.
-  // With __CORRECT_ISO_CPP_MATH_H_PROTO1, math.h imports std::fabs in the
+  // With __CORRECT_ISO_CPP_MATH_H_PROTO, math.h imports std::fabs in the
   // global namespace after the declarations of the float / double / long
   // double overloads but before the std::complex overloads.
   using ::fabs;
 
-#ifndef __CORRECT_ISO_CPP_MATH_H_PROTO1
+#ifndef __CORRECT_ISO_CPP_MATH_H_PROTO
   inline float
   fabs(float __x)
   { return __builtin_fabsf(__x); }
@@ -847,10 +846,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     nexttoward(_Tp __x, long double __y)
     { return __builtin_nexttoward(__x, __y); }
 
-  // DR 550. What should the return type of pow(float,int) be?
-  // NB: C++0x and TR1 != C++03.
-  //   using std::pow;
-
   inline float
   remainder(float __x, float __y)
   { return __builtin_remainderf(__x, __y); }
@@ -986,9 +981,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   // DR 550. What should the return type of pow(float,int) be?
   // NB: C++0x and TR1 != C++03.
-  inline double
-  pow(double __x, double __y)
-  { return std::pow(__x, __y); }
+
+  // The std::tr1::pow(double, double) overload cannot be provided
+  // here, because it would clash with ::pow(double,double) declared
+  // in <math.h>, if <tr1/math.h> is included at the same time (raised
+  // by the fix of PR c++/54537). It is not possible either to use the
+  // using-declaration 'using ::pow;' here, because if the user code
+  // has a 'using std::pow;', it would bring the pow(*,int) averloads
+  // in the tr1 namespace, which is undesirable. Consequently, the
+  // solution is to forward std::tr1::pow(double,double) to
+  // std::pow(double,double) via the templatized version below. See
+  // the discussion about this issue here:
+  // http://gcc.gnu.org/ml/gcc-patches/2012-09/msg01278.html
 
   inline float
   pow(float __x, float __y)

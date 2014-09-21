@@ -84,6 +84,7 @@ func listenTCP() (net.Listener, string) {
 
 func startServer() {
 	Register(new(Arith))
+	RegisterName("net.rpc.Arith", new(Arith))
 
 	var l net.Listener
 	l, serverAddr = listenTCP()
@@ -97,11 +98,13 @@ func startServer() {
 func startNewServer() {
 	newServer = NewServer()
 	newServer.Register(new(Arith))
+	newServer.RegisterName("net.rpc.Arith", new(Arith))
+	newServer.RegisterName("newServer.Arith", new(Arith))
 
 	var l net.Listener
 	l, newServerAddr = listenTCP()
 	log.Println("NewServer test RPC server listening on", newServerAddr)
-	go Accept(l)
+	go newServer.Accept(l)
 
 	newServer.HandleHTTP(newHttpPath, "/bar")
 	httpOnce.Do(startHttpServer)
@@ -118,6 +121,7 @@ func TestRPC(t *testing.T) {
 	testRPC(t, serverAddr)
 	newOnce.Do(startNewServer)
 	testRPC(t, newServerAddr)
+	testNewServerRPC(t, newServerAddr)
 }
 
 func testRPC(t *testing.T, addr string) {
@@ -125,6 +129,7 @@ func testRPC(t *testing.T, addr string) {
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
+	defer client.Close()
 
 	// Synchronous calls
 	args := &Args{7, 8}
@@ -233,6 +238,36 @@ func testRPC(t *testing.T, addr string) {
 	if reply.C != args.A*args.B {
 		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
 	}
+
+	// ServiceName contain "." character
+	args = &Args{7, 8}
+	reply = new(Reply)
+	err = client.Call("net.rpc.Arith.Add", args, reply)
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.Error())
+	}
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+	}
+}
+
+func testNewServerRPC(t *testing.T, addr string) {
+	client, err := Dial("tcp", addr)
+	if err != nil {
+		t.Fatal("dialing", err)
+	}
+	defer client.Close()
+
+	// Synchronous calls
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err = client.Call("newServer.Arith.Add", args, reply)
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.Error())
+	}
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+	}
 }
 
 func TestHTTP(t *testing.T) {
@@ -253,6 +288,7 @@ func testHTTPRPC(t *testing.T, path string) {
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
+	defer client.Close()
 
 	// Synchronous calls
 	args := &Args{7, 8}
@@ -329,6 +365,7 @@ func TestServeRequest(t *testing.T) {
 
 func testServeRequest(t *testing.T, server *Server) {
 	client := CodecEmulator{server: server}
+	defer client.Close()
 
 	args := &Args{7, 8}
 	reply := new(Reply)
@@ -349,6 +386,7 @@ func testServeRequest(t *testing.T, server *Server) {
 type ReplyNotPointer int
 type ArgNotPublic int
 type ReplyNotPublic int
+type NeedsPtrType int
 type local struct{}
 
 func (t *ReplyNotPointer) ReplyNotPointer(args *Args, reply Reply) error {
@@ -363,19 +401,29 @@ func (t *ReplyNotPublic) ReplyNotPublic(args *Args, reply *local) error {
 	return nil
 }
 
+func (t *NeedsPtrType) NeedsPtrType(args *Args, reply *Reply) error {
+	return nil
+}
+
 // Check that registration handles lots of bad methods and a type with no suitable methods.
 func TestRegistrationError(t *testing.T) {
 	err := Register(new(ReplyNotPointer))
 	if err == nil {
-		t.Errorf("expected error registering ReplyNotPointer")
+		t.Error("expected error registering ReplyNotPointer")
 	}
 	err = Register(new(ArgNotPublic))
 	if err == nil {
-		t.Errorf("expected error registering ArgNotPublic")
+		t.Error("expected error registering ArgNotPublic")
 	}
 	err = Register(new(ReplyNotPublic))
 	if err == nil {
-		t.Errorf("expected error registering ReplyNotPublic")
+		t.Error("expected error registering ReplyNotPublic")
+	}
+	err = Register(NeedsPtrType(0))
+	if err == nil {
+		t.Error("expected error registering NeedsPtrType")
+	} else if !strings.Contains(err.Error(), "pointer") {
+		t.Error("expected hint when registering NeedsPtrType")
 	}
 }
 
@@ -388,12 +436,10 @@ func (WriteFailCodec) WriteRequest(*Request, interface{}) error {
 
 func (WriteFailCodec) ReadResponseHeader(*Response) error {
 	select {}
-	panic("unreachable")
 }
 
 func (WriteFailCodec) ReadResponseBody(interface{}) error {
 	select {}
-	panic("unreachable")
 }
 
 func (WriteFailCodec) Close() error {
@@ -402,6 +448,7 @@ func (WriteFailCodec) Close() error {
 
 func TestSendDeadlock(t *testing.T) {
 	client := NewClientWithCodec(WriteFailCodec(0))
+	defer client.Close()
 
 	done := make(chan bool)
 	go func() {
@@ -434,19 +481,17 @@ func dialHTTP() (*Client, error) {
 	return DialHTTP("tcp", httpServerAddr)
 }
 
-func countMallocs(dial func() (*Client, error), t *testing.T) uint64 {
+func countMallocs(dial func() (*Client, error), t *testing.T) float64 {
 	once.Do(startServer)
 	client, err := dial()
 	if err != nil {
 		t.Fatal("error dialing", err)
 	}
+	defer client.Close()
+
 	args := &Args{7, 8}
 	reply := new(Reply)
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	mallocs := 0 - memstats.Mallocs
-	const count = 100
-	for i := 0; i < count; i++ {
+	return testing.AllocsPerRun(100, func() {
 		err := client.Call("Arith.Add", args, reply)
 		if err != nil {
 			t.Errorf("Add: expected no error but got string %q", err.Error())
@@ -454,18 +499,27 @@ func countMallocs(dial func() (*Client, error), t *testing.T) uint64 {
 		if reply.C != args.A+args.B {
 			t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 		}
-	}
-	runtime.ReadMemStats(memstats)
-	mallocs += memstats.Mallocs
-	return mallocs / count
+	})
 }
 
 func TestCountMallocs(t *testing.T) {
-	fmt.Printf("mallocs per rpc round trip: %d\n", countMallocs(dialDirect, t))
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
+	fmt.Printf("mallocs per rpc round trip: %v\n", countMallocs(dialDirect, t))
 }
 
 func TestCountMallocsOverHTTP(t *testing.T) {
-	fmt.Printf("mallocs per HTTP rpc round trip: %d\n", countMallocs(dialHTTP, t))
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
+	fmt.Printf("mallocs per HTTP rpc round trip: %v\n", countMallocs(dialHTTP, t))
 }
 
 type writeCrasher struct {
@@ -488,6 +542,8 @@ func (writeCrasher) Write(p []byte) (int, error) {
 func TestClientWriteError(t *testing.T) {
 	w := &writeCrasher{done: make(chan bool)}
 	c := NewClient(w)
+	defer c.Close()
+
 	res := false
 	err := c.Call("foo", 1, &res)
 	if err == nil {
@@ -499,6 +555,44 @@ func TestClientWriteError(t *testing.T) {
 	w.done <- true
 }
 
+func TestTCPClose(t *testing.T) {
+	once.Do(startServer)
+
+	client, err := dialHTTP()
+	if err != nil {
+		t.Fatalf("dialing: %v", err)
+	}
+	defer client.Close()
+
+	args := Args{17, 8}
+	var reply Reply
+	err = client.Call("Arith.Mul", args, &reply)
+	if err != nil {
+		t.Fatal("arith error:", err)
+	}
+	t.Logf("Arith: %d*%d=%d\n", args.A, args.B, reply)
+	if reply.C != args.A*args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A*args.B)
+	}
+}
+
+func TestErrorAfterClientClose(t *testing.T) {
+	once.Do(startServer)
+
+	client, err := dialHTTP()
+	if err != nil {
+		t.Fatalf("dialing: %v", err)
+	}
+	err = client.Close()
+	if err != nil {
+		t.Fatal("close error:", err)
+	}
+	err = client.Call("Arith.Add", &Args{7, 9}, new(Reply))
+	if err != ErrShutdown {
+		t.Errorf("Forever: expected ErrShutdown got %v", err)
+	}
+}
+
 func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 	b.StopTimer()
 	once.Do(startServer)
@@ -506,6 +600,7 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 	if err != nil {
 		b.Fatal("error dialing:", err)
 	}
+	defer client.Close()
 
 	// Synchronous calls
 	args := &Args{7, 8}
@@ -541,6 +636,7 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
 	if err != nil {
 		b.Fatal("error dialing:", err)
 	}
+	defer client.Close()
 
 	// Asynchronous calls
 	args := &Args{7, 8}

@@ -1,6 +1,5 @@
 /* Definitions of target machine for GNU compiler for TILE-Gx.
-   Copyright (C) 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Walter Lee (walt@tilera.com)
 
    This file is part of GCC.
@@ -19,6 +18,23 @@
    along with GCC; see the file COPYING3.  If not see
    <http://www.gnu.org/licenses/>.  */
 
+/* Default target_flags if no switches are specified  */
+#ifndef TARGET_DEFAULT
+#define TARGET_DEFAULT 0
+#endif
+
+#ifndef TARGET_BIG_ENDIAN_DEFAULT
+#define TARGET_BIG_ENDIAN_DEFAULT 0
+#endif
+
+#ifndef TARGET_ENDIAN_DEFAULT
+#if TARGET_BIG_ENDIAN_DEFAULT
+#define TARGET_ENDIAN_DEFAULT MASK_BIG_ENDIAN
+#else
+#define TARGET_ENDIAN_DEFAULT 0
+#endif
+#endif
+
 /* This is used by tilegx_cpu_cpp_builtins to indicate the byte order
    we're compiling for.  */
 #define TILEGX_CPU_CPP_ENDIAN_BUILTINS()	\
@@ -30,6 +46,8 @@
 	builtin_define ("__LITTLE_ENDIAN__");	\
     }						\
   while (0)
+
+#include "config/tilegx/tilegx-opts.h"
 
 
 /* Target CPU builtins.  */
@@ -51,16 +69,16 @@
 
 /* Target machine storage layout */
 
-#define TARGET_BIG_ENDIAN 0
 #define BITS_BIG_ENDIAN 0
-#define BYTES_BIG_ENDIAN TARGET_BIG_ENDIAN
-#define WORDS_BIG_ENDIAN TARGET_BIG_ENDIAN
+#define BYTES_BIG_ENDIAN (TARGET_BIG_ENDIAN != 0)
+#define WORDS_BIG_ENDIAN (TARGET_BIG_ENDIAN != 0)
+#define FLOAT_WORDS_BIG_ENDIAN (TARGET_BIG_ENDIAN != 0)
 
 #define UNITS_PER_WORD 8
 #define PARM_BOUNDARY BITS_PER_WORD
-#define STACK_BOUNDARY 64
+#define STACK_BOUNDARY 128
 #define FUNCTION_BOUNDARY 64
-#define BIGGEST_ALIGNMENT 64
+#define BIGGEST_ALIGNMENT 128
 #define STRICT_ALIGNMENT 1
 
 #define INT_TYPE_SIZE         32
@@ -73,7 +91,7 @@
 
 #define PCC_BITFIELD_TYPE_MATTERS 1
 #define FASTEST_ALIGNMENT 64
-#define BIGGEST_FIELD_ALIGNMENT 64
+#define BIGGEST_FIELD_ALIGNMENT 128
 #define WIDEST_HARDWARE_FP_SIZE 64
 
 /* Unaligned moves trap and are very slow.  */
@@ -243,7 +261,8 @@ enum reg_class
 #define FRAME_GROWS_DOWNWARD 1
 #define STARTING_FRAME_OFFSET 0
 
-#define DYNAMIC_CHAIN_ADDRESS(FRAME) plus_constant ((FRAME), UNITS_PER_WORD)
+#define DYNAMIC_CHAIN_ADDRESS(FRAME) \
+  plus_constant (Pmode, (FRAME), UNITS_PER_WORD)
 
 #define FIRST_PARM_OFFSET(FNDECL) 0
 
@@ -284,6 +303,8 @@ enum reg_class
 
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET) \
   ((OFFSET) = tilegx_initial_elimination_offset((FROM),(TO)))
+
+#define PROFILE_BEFORE_PROLOGUE 1
 
 #define FUNCTION_PROFILER(FILE, LABELNO) \
   tilegx_function_profiler (FILE, LABELNO)
@@ -444,7 +465,7 @@ enum reg_class
     {								\
       char label[256];						\
       ASM_GENERATE_INTERNAL_LABEL (label, "L", (VALUE));	\
-      fprintf (FILE, "\t%s ",					\
+      fprintf (FILE, "%s ",					\
                integer_asm_op (GET_MODE_SIZE (Pmode), TRUE));	\
       assemble_name (FILE, label);				\
       fprintf (FILE, "\n");					\
@@ -456,7 +477,7 @@ enum reg_class
     {								\
       char label[256];						\
       ASM_GENERATE_INTERNAL_LABEL (label, "L", (VALUE));	\
-      fprintf (FILE, "\t%s ", 					\
+      fprintf (FILE, "%s ", 					\
                integer_asm_op (GET_MODE_SIZE (Pmode), TRUE));	\
       assemble_name (FILE, label);				\
       ASM_GENERATE_INTERNAL_LABEL (label, "L", (REL));		\
@@ -478,6 +499,19 @@ enum reg_class
   ( fputs (".lcomm ", (FILE)),				\
     assemble_name ((FILE), (NAME)),			\
     fprintf ((FILE), ",%u\n", (unsigned int)(ROUNDED)))
+
+#define CRT_CALL_STATIC_FUNCTION(SECTION_OP, FUNC)		\
+static void __attribute__((__used__))				\
+call_ ## FUNC (void)						\
+{								\
+  asm (SECTION_OP);						\
+  asm ("{ moveli r0, hw2_last(" #FUNC " - . - 8); lnk r1 }\n");	\
+  asm ("shl16insli r0, r0, hw1(" #FUNC " - .)\n");		\
+  asm ("shl16insli r0, r0, hw0(" #FUNC " - . + 8)\n");		\
+  asm ("add r0, r1, r0\n");					\
+  asm ("jalr r0\n");						\
+  asm (TEXT_SECTION_ASM_OP);					\
+}
 
 
 
@@ -503,3 +537,20 @@ typedef struct GTY(()) machine_function
 #ifndef HAVE_AS_TLS
 #define HAVE_AS_TLS 0
 #endif
+
+#ifndef ENDIAN_SPEC
+#if TARGET_BIG_ENDIAN_DEFAULT
+#define ENDIAN_SPEC \
+  "%{!mlittle-endian:-EB} \
+   %{mlittle-endian:%{mbig-endian: \
+     %e-mbig-endian and -mlittle-endian may not be used together}-EL}"
+#else
+#define ENDIAN_SPEC \
+  "%{!mbig-endian:-EL} \
+   %{mbig-endian:%{mlittle-endian: \
+    %e-mbig-endian and -mlittle-endian may not be used together}-EB}"
+#endif
+#endif
+
+#define EXTRA_SPECS		\
+  { "endian_spec", ENDIAN_SPEC }

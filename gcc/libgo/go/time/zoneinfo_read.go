@@ -11,10 +11,6 @@ package time
 
 import "errors"
 
-const (
-	headerSize = 4 + 16 + 4*7
-)
-
 // Simple I/O interface to binary blob of data.
 type data struct {
 	p     []byte
@@ -141,7 +137,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 		if n, ok = zonedata.big4(); !ok {
 			return nil, badData
 		}
-		zone[i].offset = int(n)
+		zone[i].offset = int(int32(n))
 		var b byte
 		if b, ok = zonedata.byte(); !ok {
 			return nil, badData
@@ -174,7 +170,13 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 		}
 	}
 
-	// Commited to succeed.
+	if len(tx) == 0 {
+		// Build fake transition to cover all time.
+		// This happens in fixed locations like "Etc/GMT0".
+		tx = append(tx, zoneTrans{when: -1 << 63, index: 0})
+	}
+
+	// Committed to succeed.
 	l = &Location{zone: zone, tx: tx}
 
 	// Fill in the cache with information about right now,
@@ -284,7 +286,7 @@ func loadZoneZip(zipfile, name string) (l *Location, err error) {
 		//	42	off[4]
 		//	46	name[namelen]
 		//	46+namelen+xlen+fclen - next header
-		//		
+		//
 		if get4(buf) != zcheader {
 			break
 		}

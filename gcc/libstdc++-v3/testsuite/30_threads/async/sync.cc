@@ -1,12 +1,12 @@
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* alpha*-*-osf* mips-sgi-irix6* powerpc-ibm-aix* } }
-// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* alpha*-*-osf* mips-sgi-irix6* powerpc-ibm-aix* } }
+// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* powerpc-ibm-aix* } }
+// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* powerpc-ibm-aix* } }
 // { dg-options " -std=gnu++0x -pthreads" { target *-*-solaris* } }
 // { dg-options " -std=gnu++0x " { target *-*-cygwin *-*-darwin* } }
 // { dg-require-cstdint "" }
 // { dg-require-gthreads "" }
 // { dg-require-atomic-builtins "" }
 
-// Copyright (C) 2010, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2010-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,12 +39,32 @@ void test01()
   using namespace std;
 
   int a = 1;
-  int b = 10;
-  int c = 100;
+  int b = 1;
+  int c = 1;
   future<int> f1 = async(launch::deferred, sum(), a, ref(b), cref(c));
+  a = 0;
+  b = 10;
+  c = 100;
+
+  const std::chrono::seconds delay(10);
+  const auto then = std::chrono::system_clock::now() + delay;
 
   VERIFY( f1.valid() );
+  // timed waiting functions should return 'deferred' immediately
+  VERIFY( f1.wait_until(then) == std::future_status::deferred );
+  VERIFY( f1.wait_for(delay) == std::future_status::deferred );
+  VERIFY( std::chrono::system_clock::now() < then );
+
+  f1.wait();
+
+  VERIFY( f1.valid() );
+  // timed waiting functions should return 'ready' immediately
+  VERIFY( f1.wait_until(then) == std::future_status::ready );
+  VERIFY( f1.wait_for(delay) == std::future_status::ready );
+  VERIFY( std::chrono::system_clock::now() < then );
+
   VERIFY( f1.get() == 111 );
+  VERIFY( !f1.valid() );
 }
 
 int main()

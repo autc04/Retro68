@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tls partially implements the TLS 1.1 protocol, as specified in RFC
-// 4346.
+// Package tls partially implements TLS 1.2, as specified in RFC 5246.
 package tls
 
 import (
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -98,7 +99,9 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
 	if config == nil {
 		config = defaultConfig()
 	}
-	if config.ServerName != "" {
+	// If no ServerName is set, infer the ServerName
+	// from the hostname we're connecting to.
+	if config.ServerName == "" {
 		// Make a copy to avoid polluting argument or default.
 		c := *config
 		c.ServerName = hostname
@@ -145,30 +148,22 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err error)
 		return
 	}
 
-	keyDERBlock, _ := pem.Decode(keyPEMBlock)
-	if keyDERBlock == nil {
-		err = errors.New("crypto/tls: failed to parse key PEM data")
+	var keyDERBlock *pem.Block
+	for {
+		keyDERBlock, keyPEMBlock = pem.Decode(keyPEMBlock)
+		if keyDERBlock == nil {
+			err = errors.New("crypto/tls: failed to parse key PEM data")
+			return
+		}
+		if keyDERBlock.Type == "PRIVATE KEY" || strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
+			break
+		}
+	}
+
+	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
+	if err != nil {
 		return
 	}
-
-	// OpenSSL 0.9.8 generates PKCS#1 private keys by default, while
-	// OpenSSL 1.0.0 generates PKCS#8 keys. We try both.
-	var key *rsa.PrivateKey
-	if key, err = x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes); err != nil {
-		var privKey interface{}
-		if privKey, err = x509.ParsePKCS8PrivateKey(keyDERBlock.Bytes); err != nil {
-			err = errors.New("crypto/tls: failed to parse key: " + err.Error())
-			return
-		}
-
-		var ok bool
-		if key, ok = privKey.(*rsa.PrivateKey); !ok {
-			err = errors.New("crypto/tls: found non-RSA private key in PKCS#8 wrapping")
-			return
-		}
-	}
-
-	cert.PrivateKey = key
 
 	// We don't need to parse the public key for TLS, but we so do anyway
 	// to check that it looks sane and matches the private key.
@@ -177,10 +172,54 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err error)
 		return
 	}
 
-	if x509Cert.PublicKeyAlgorithm != x509.RSA || x509Cert.PublicKey.(*rsa.PublicKey).N.Cmp(key.PublicKey.N) != 0 {
-		err = errors.New("crypto/tls: private key does not match public key")
+	switch pub := x509Cert.PublicKey.(type) {
+	case *rsa.PublicKey:
+		priv, ok := cert.PrivateKey.(*rsa.PrivateKey)
+		if !ok {
+			err = errors.New("crypto/tls: private key type does not match public key type")
+			return
+		}
+		if pub.N.Cmp(priv.N) != 0 {
+			err = errors.New("crypto/tls: private key does not match public key")
+			return
+		}
+	case *ecdsa.PublicKey:
+		priv, ok := cert.PrivateKey.(*ecdsa.PrivateKey)
+		if !ok {
+			err = errors.New("crypto/tls: private key type does not match public key type")
+			return
+
+		}
+		if pub.X.Cmp(priv.X) != 0 || pub.Y.Cmp(priv.Y) != 0 {
+			err = errors.New("crypto/tls: private key does not match public key")
+			return
+		}
+	default:
+		err = errors.New("crypto/tls: unknown public key algorithm")
 		return
 	}
 
 	return
+}
+
+// Attempt to parse the given private key DER block. OpenSSL 0.9.8 generates
+// PKCS#1 private keys by default, while OpenSSL 1.0.0 generates PKCS#8 keys.
+// OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
+func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
+	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
+		return key, nil
+	}
+	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
+		switch key := key.(type) {
+		case *rsa.PrivateKey, *ecdsa.PrivateKey:
+			return key, nil
+		default:
+			return nil, errors.New("crypto/tls: found unknown private key type in PKCS#8 wrapping")
+		}
+	}
+	if key, err := x509.ParseECPrivateKey(der); err == nil {
+		return key, nil
+	}
+
+	return nil, errors.New("crypto/tls: failed to parse private key")
 }

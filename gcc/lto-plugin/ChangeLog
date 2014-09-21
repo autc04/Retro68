@@ -1,6 +1,50 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-05-15  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR lto/60981
+	* configure.ac: Check for -static-libgcc.
+	* configure: Regenerate.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-04-02  Richard Biener  <rguenther@suse.de>
+
+	* lto-plugin.c (onload): Fail to load if -fno-use-linker-plugin
+	is set in COLLECT_GCC_OPTIONS.
+
+2014-03-28  Richard Biener  <rguenther@suse.de>
+
+	* lto-plugin.c (process_symtab): Handle EINTR and short reads.
+
+2014-03-17  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure.ac (ac_lto_plugin_ldflags): Set to -Wc,-static-libgcc
+	for gcc.
+	* configure: Regenerate.
+	* Makefile.am (AM_LDFLAGS): New variable.
+	(liblto_plugin_la_LDFLAGS): Add it.
+	* Makefile.in: Regenerate.
+
+2013-09-20  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
+2012-09-14  David Edelsohn  <dje.gcc@gmail.com>
+
+	* configure: Regenerated.
+
+2012-05-29  Joseph Myers  <joseph@codesourcery.com>
+
+	* lto-plugin.c: Fix typo.
+
+2012-05-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
 
 2012-02-22  Kai Tietz  <ktietz@redhat.com>
 
@@ -322,7 +366,7 @@
 	(claim_file_handler): Add n variable. Check return value of
 	process_symtab. Call resolve_conflicts.
 
-2010-07-27  Andi Kleen <ak@linux.intel.com>
+2010-07-27  Andi Kleen  <ak@linux.intel.com>
 
 	* lto-plugin.c (translate): Remove debug fprintf.
 
@@ -331,7 +375,7 @@
 	PR bootstrap/45042
 	* lto-plugin.c (translate): Cast to unsigned long.
 
-2010-07-23   Andi Kleen <ak@linux.intel.com>
+2010-07-23   Andi Kleen  <ak@linux.intel.com>
 
 	PR lto/44992
 	* lto-plugin.c (sym_aux): Add.

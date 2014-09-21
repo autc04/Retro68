@@ -1,6 +1,5 @@
 /* Java(TM) language-specific gimplification routines.
-   Copyright (C) 2003, 2004, 2006, 2007, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,8 +26,14 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "coretypes.h"
 #include "tree.h"
 #include "java-tree.h"
-#include "tree-dump.h"
+#include "dumpfile.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-expr.h"
+#include "is-a.h"
 #include "gimple.h"
+#include "gimplify.h"
 
 static tree java_gimplify_block (tree);
 static enum gimplify_status java_gimplify_modify_expr (tree *);

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -37,6 +37,7 @@ with Atree;    use Atree;
 with Csets;    use Csets;
 with Einfo;    use Einfo;
 with Fname;    use Fname;
+with Nlists;   use Nlists;
 with Output;   use Output;
 with Sinfo;    use Sinfo;
 with Sinput;   use Sinput;
@@ -717,7 +718,7 @@ package body Lib is
    is
    begin
       if Sloc (N) = Standard_Location then
-         return True;
+         return False;
 
       elsif Sloc (N) = No_Location then
          return False;
@@ -749,7 +750,7 @@ package body Lib is
    function In_Extended_Main_Code_Unit (Loc : Source_Ptr) return Boolean is
    begin
       if Loc = Standard_Location then
-         return True;
+         return False;
 
       elsif Loc = No_Location then
          return False;
@@ -786,7 +787,7 @@ package body Lib is
       --  Special value cases
 
       elsif Nloc = Standard_Location then
-         return True;
+         return False;
 
       elsif Nloc = No_Location then
          return False;
@@ -825,7 +826,7 @@ package body Lib is
       --  Special value cases
 
       elsif Loc = Standard_Location then
-         return True;
+         return False;
 
       elsif Loc = No_Location then
          return False;
@@ -1154,5 +1155,83 @@ package body Lib is
    begin
       Version_Ref.Append (S);
    end Version_Referenced;
+
+   ---------------------
+   -- Write_Unit_Info --
+   ---------------------
+
+   procedure Write_Unit_Info
+     (Unit_Num : Unit_Number_Type;
+      Item     : Node_Id;
+      Prefix   : String := "";
+      Withs    : Boolean := False)
+   is
+   begin
+      Write_Str (Prefix);
+      Write_Unit_Name (Unit_Name (Unit_Num));
+      Write_Str (", unit ");
+      Write_Int (Int (Unit_Num));
+      Write_Str (", ");
+      Write_Int (Int (Item));
+      Write_Str ("=");
+      Write_Str (Node_Kind'Image (Nkind (Item)));
+
+      if Item /= Original_Node (Item) then
+         Write_Str (", orig = ");
+         Write_Int (Int (Original_Node (Item)));
+         Write_Str ("=");
+         Write_Str (Node_Kind'Image (Nkind (Original_Node (Item))));
+      end if;
+
+      Write_Eol;
+
+      --  Skip the rest if we're not supposed to print the withs
+
+      if not Withs then
+         return;
+      end if;
+
+      declare
+         Context_Item : Node_Id;
+
+      begin
+         Context_Item := First (Context_Items (Cunit (Unit_Num)));
+         while Present (Context_Item)
+           and then (Nkind (Context_Item) /= N_With_Clause
+                      or else Limited_Present (Context_Item))
+         loop
+            Context_Item := Next (Context_Item);
+         end loop;
+
+         if Present (Context_Item) then
+            Indent;
+            Write_Line ("withs:");
+            Indent;
+
+            while Present (Context_Item) loop
+               if Nkind (Context_Item) = N_With_Clause
+                 and then not Limited_Present (Context_Item)
+               then
+                  pragma Assert (Present (Library_Unit (Context_Item)));
+                  Write_Unit_Name
+                    (Unit_Name
+                       (Get_Cunit_Unit_Number (Library_Unit (Context_Item))));
+
+                  if Implicit_With (Context_Item) then
+                     Write_Str (" -- implicit");
+                  end if;
+
+                  Write_Eol;
+               end if;
+
+               Context_Item := Next (Context_Item);
+            end loop;
+
+            Outdent;
+            Write_Line ("end withs");
+            Outdent;
+         end if;
+      end;
+   end Write_Unit_Info;
 
 end Lib;

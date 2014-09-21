@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2011, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2013, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -29,17 +29,20 @@
  *                                                                          *
  ****************************************************************************/
 
-/* This file contains definitions to access front-end functions and
-   variables used by gigi.  */
+/* This file contains declarations to access front-end functions and variables
+   used by gigi.
+
+   WARNING: functions taking String_Pointer parameters must abide by the rule
+   documented alongside the definition of String_Pointer in types.h.  */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* comperr:  */
+/* comperr: */
 
 #define Compiler_Abort comperr__compiler_abort
-extern int Compiler_Abort (Fat_Pointer, int, Fat_Pointer) ATTRIBUTE_NORETURN;
+extern int Compiler_Abort (String_Pointer, String_Pointer, Boolean) ATTRIBUTE_NORETURN;
 
 /* csets: */
 
@@ -72,13 +75,15 @@ extern void Set_Mechanism		(Entity_Id, Mechanism_Type);
 extern void Set_RM_Size			(Entity_Id, Uint);
 extern void Set_Present_Expr		(Node_Id, Uint);
 
-/* Test if the node N is the name of an entity (i.e. is an identifier,
-   expanded name, or an attribute reference that returns an entity).  */
 #define Is_Entity_Name einfo__is_entity_name
 extern Boolean Is_Entity_Name		(Node_Id);
 
 #define Get_Attribute_Definition_Clause einfo__get_attribute_definition_clause
 extern Node_Id Get_Attribute_Definition_Clause (Entity_Id, char);
+
+/* atree: */
+
+#define Serious_Errors_Detected atree__serious_errors_detected
 
 /* errout: */
 
@@ -86,8 +91,8 @@ extern Node_Id Get_Attribute_Definition_Clause (Entity_Id, char);
 #define Error_Msg_NE              errout__error_msg_ne
 #define Set_Identifier_Casing     errout__set_identifier_casing
 
-extern void Error_Msg_N	          (Fat_Pointer, Node_Id);
-extern void Error_Msg_NE          (Fat_Pointer, Node_Id, Entity_Id);
+extern void Error_Msg_N	          (String_Pointer, Node_Id);
+extern void Error_Msg_NE          (String_Pointer, Node_Id, Entity_Id);
 extern void Set_Identifier_Casing (Char *, const Char *);
 
 /* err_vars: */
@@ -95,7 +100,6 @@ extern void Set_Identifier_Casing (Char *, const Char *);
 #define Error_Msg_Node_2        err_vars__error_msg_node_2
 #define Error_Msg_Uint_1        err_vars__error_msg_uint_1
 #define Error_Msg_Uint_2        err_vars__error_msg_uint_2
-#define Serious_Errors_Detected err_vars__serious_errors_detected
 
 extern Entity_Id Error_Msg_Node_2;
 extern Uint      Error_Msg_Uint_1;
@@ -106,9 +110,11 @@ extern Nat       Serious_Errors_Detected;
 
 #define Get_Local_Raise_Call_Entity exp_ch11__get_local_raise_call_entity
 #define Get_RT_Exception_Entity exp_ch11__get_rt_exception_entity
+#define Get_RT_Exception_Name exp_ch11__get_rt_exception_name
 
 extern Entity_Id Get_Local_Raise_Call_Entity (void);
 extern Entity_Id Get_RT_Exception_Entity (int);
+extern void Get_RT_Exception_Name (int);
 
 /* exp_code:  */
 
@@ -142,17 +148,20 @@ extern void Setup_Asm_Outputs		(Node_Id);
 
 #define Get_Encoded_Name exp_dbug__get_encoded_name
 #define Get_External_Name exp_dbug__get_external_name
-#define Get_External_Name_With_Suffix exp_dbug__get_external_name_with_suffix
 
-extern void Get_Encoded_Name			(Entity_Id);
-extern void Get_External_Name			(Entity_Id, Boolean);
-extern void Get_External_Name_With_Suffix	(Entity_Id, Fat_Pointer);
+extern void Get_Encoded_Name	(Entity_Id);
+extern void Get_External_Name	(Entity_Id, Boolean, String_Pointer);
 
 /* exp_util: */
 
 #define Is_Fully_Repped_Tagged_Type exp_util__is_fully_repped_tagged_type
 
 extern Boolean Is_Fully_Repped_Tagged_Type      (Entity_Id);
+
+/* exp_vfpt: */
+
+#define Get_Vax_Real_Literal_As_Signed exp_vfpt__get_vax_real_literal_as_signed
+extern Ureal Get_Vax_Real_Literal_As_Signed (Node_Id);
 
 /* lib: */
 
@@ -168,19 +177,23 @@ extern Boolean In_Same_Source_Unit              (Node_Id, Node_Id);
 
 /* opt: */
 
-#define Global_Discard_Names           opt__global_discard_names
+#define Back_Annotate_Rep_Info         opt__back_annotate_rep_info
 #define Exception_Extra_Info           opt__exception_extra_info
 #define Exception_Locations_Suppressed opt__exception_locations_suppressed
 #define Exception_Mechanism            opt__exception_mechanism
-#define Back_Annotate_Rep_Info         opt__back_annotate_rep_info
+#define Generate_SCO_Instance_Table    opt__generate_sco_instance_table
+#define Global_Discard_Names           opt__global_discard_names
+#define Float_Format                   opt__float_format
 
 typedef enum {Setjmp_Longjmp, Back_End_Exceptions} Exception_Mechanism_Type;
 
-extern Boolean Global_Discard_Names;
+extern Boolean Back_Annotate_Rep_Info;
 extern Boolean Exception_Extra_Info;
 extern Boolean Exception_Locations_Suppressed;
 extern Exception_Mechanism_Type Exception_Mechanism;
-extern Boolean Back_Annotate_Rep_Info;
+extern Boolean Generate_SCO_Instance_Table;
+extern Boolean Global_Discard_Names;
+extern Char Float_Format;
 
 /* restrict: */
 
@@ -251,10 +264,14 @@ extern void Set_Has_No_Elaboration_Code	(Node_Id, Boolean);
 /* targparm: */
 
 #define Backend_Overflow_Checks_On_Target targparm__backend_overflow_checks_on_target
+#define Machine_Overflows_On_Target targparm__machine_overflows_on_target
+#define Signed_Zeros_On_Target targparm__signed_zeros_on_target
 #define Stack_Check_Probes_On_Target targparm__stack_check_probes_on_target
 #define Stack_Check_Limits_On_Target targparm__stack_check_limits_on_target
 
 extern Boolean Backend_Overflow_Checks_On_Target;
+extern Boolean Machine_Overflows_On_Target;
+extern Boolean Signed_Zeros_On_Target;
 extern Boolean Stack_Check_Probes_On_Target;
 extern Boolean Stack_Check_Limits_On_Target;
 

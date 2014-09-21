@@ -1,7 +1,7 @@
 /* Subroutines used for code generation on the Lattice Mico32 architecture.
    Contributed by Jon Beniston <jon@beniston.com>
 
-   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -35,6 +35,7 @@
 #include "recog.h"
 #include "output.h"
 #include "tree.h"
+#include "calls.h"
 #include "expr.h"
 #include "flags.h"
 #include "reload.h"
@@ -81,12 +82,11 @@ static rtx lm32_function_arg (cumulative_args_t cum,
 static void lm32_function_arg_advance (cumulative_args_t cum,
 				       enum machine_mode mode,
 				       const_tree type, bool named);
-static bool lm32_legitimate_constant_p (enum machine_mode, rtx);
 
 #undef TARGET_OPTION_OVERRIDE
 #define TARGET_OPTION_OVERRIDE lm32_option_override
 #undef TARGET_ADDRESS_COST
-#define TARGET_ADDRESS_COST hook_int_rtx_bool_0
+#define TARGET_ADDRESS_COST hook_int_rtx_mode_as_bool_0
 #undef TARGET_RTX_COSTS
 #define TARGET_RTX_COSTS lm32_rtx_costs
 #undef TARGET_IN_SMALL_DATA_P
@@ -109,8 +109,6 @@ static bool lm32_legitimate_constant_p (enum machine_mode, rtx);
 #define TARGET_CAN_ELIMINATE lm32_can_eliminate
 #undef TARGET_LEGITIMATE_ADDRESS_P
 #define TARGET_LEGITIMATE_ADDRESS_P lm32_legitimate_address_p
-#undef TARGET_LEGITIMATE_CONSTANT_P
-#define TARGET_LEGITIMATE_CONSTANT_P lm32_legitimate_constant_p
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -168,9 +166,6 @@ gen_int_relational (enum rtx_code code,
 {
   enum machine_mode mode;
   int branch_p;
-  rtx temp;
-  rtx cond;
-  rtx label;
 
   mode = GET_MODE (cmp0);
   if (mode == VOIDmode)
@@ -460,7 +455,7 @@ lm32_compute_frame_size (int size)
 	  callee_size += UNITS_PER_WORD;
 	}
     }
-  if (df_regs_ever_live_p (RA_REGNUM) || !current_function_is_leaf
+  if (df_regs_ever_live_p (RA_REGNUM) || ! crtl->is_leaf
       || !optimize)
     {
       reg_save_mask |= 1 << RA_REGNUM;
@@ -715,7 +710,7 @@ lm32_setup_incoming_varargs (cumulative_args_t cum_v, enum machine_mode mode,
       rtx regblock;
 
       regblock = gen_rtx_MEM (BLKmode,
-			      plus_constant (arg_pointer_rtx,
+			      plus_constant (Pmode, arg_pointer_rtx,
 					     FIRST_PARM_OFFSET (0)));
       move_block_from_reg (first_reg_offset, regblock, size);
 
@@ -1228,17 +1223,5 @@ bool
 lm32_move_ok (enum machine_mode mode, rtx operands[2]) {
   if (memory_operand (operands[0], mode))
     return register_or_zero_operand (operands[1], mode);
-  return true;
-}
-
-/* Implement TARGET_LEGITIMATE_CONSTANT_P.  */
-
-static bool
-lm32_legitimate_constant_p (enum machine_mode mode, rtx x)
-{
-  /* 32-bit addresses require multiple instructions.  */  
-  if (!flag_pic && reloc_operand (x, mode))
-    return false; 
-  
   return true;
 }

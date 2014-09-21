@@ -1,7 +1,6 @@
 // Short-string-optimized versatile string base -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2005-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -183,7 +182,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       __sso_string_base(const __sso_string_base& __rcs);
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       __sso_string_base(__sso_string_base&& __rcs);
 #endif
 
@@ -344,7 +343,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     : _M_dataplus(__rcs._M_get_allocator(), _M_local_data)
     { _M_construct(__rcs._M_data(), __rcs._M_data() + __rcs._M_length()); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<typename _CharT, typename _Traits, typename _Alloc>
     __sso_string_base<_CharT, _Traits, _Alloc>::
     __sso_string_base(__sso_string_base&& __rcs)
@@ -362,9 +361,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  _M_capacity(__rcs._M_allocated_capacity);
 	}
 
-      _M_length(__rcs._M_length());
-      __rcs._M_length(0);
+      _M_set_length(__rcs._M_length());
       __rcs._M_data(__rcs._M_local_data);
+      __rcs._M_set_length(0);
     }
 #endif
 

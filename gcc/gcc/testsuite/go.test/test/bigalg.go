@@ -1,8 +1,10 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test the internal "algorithms" for objects larger than a word: hashing, equality etc.
 
 package main
 
@@ -13,18 +15,21 @@ type T struct {
 	d byte
 }
 
-var a = []int{ 1, 2, 3 }
+var a = []int{1, 2, 3}
 var NIL []int
 
 func arraycmptest() {
 	if NIL != nil {
 		println("fail1:", NIL, "!= nil")
+		panic("bigalg")
 	}
 	if nil != NIL {
 		println("fail2: nil !=", NIL)
+		panic("bigalg")
 	}
 	if a == nil || nil == a {
 		println("fail3:", a, "== nil")
+		panic("bigalg")
 	}
 }
 
@@ -47,12 +52,14 @@ func maptest() {
 	t1 := mt[0]
 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
 		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d)
+		panic("bigalg")
 	}
 
 	ma[1] = a
 	a1 := ma[1]
 	if !SameArray(a, a1) {
 		println("fail: map val array", a, a1)
+		panic("bigalg")
 	}
 }
 
@@ -70,15 +77,18 @@ func chantest() {
 	t1 := <-ct
 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
 		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d)
+		panic("bigalg")
 	}
 
 	a1 := <-ca
 	if !SameArray(a, a1) {
 		println("fail: map val array", a, a1)
+		panic("bigalg")
 	}
 }
 
-type E struct { }
+type E struct{}
+
 var e E
 
 func interfacetest() {
@@ -88,6 +98,7 @@ func interfacetest() {
 	a1 := i.([]int)
 	if !SameArray(a, a1) {
 		println("interface <-> []int", a, a1)
+		panic("bigalg")
 	}
 	pa := new([]int)
 	*pa = a
@@ -95,12 +106,14 @@ func interfacetest() {
 	a1 = *i.(*[]int)
 	if !SameArray(a, a1) {
 		println("interface <-> *[]int", a, a1)
+		panic("bigalg")
 	}
 
 	i = t
 	t1 := i.(T)
 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
 		println("interface <-> struct", t1.a, t1.b, t1.c, t1.d)
+		panic("bigalg")
 	}
 
 	i = e

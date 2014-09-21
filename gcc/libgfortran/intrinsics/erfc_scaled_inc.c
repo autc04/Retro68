@@ -1,5 +1,5 @@
 /* Implementation of the ERFC_SCALED intrinsic, to be included by erfc_scaled.c
-   Copyright (c) 2008, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
 This file is part of the GNU Fortran runtime library (libgfortran).
 
@@ -39,7 +39,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 # define EXP(x) exp(x)
 # define TRUNC(x) trunc(x)
 
-#elif (KIND == 10) || (KIND == 16 && defined(GFC_REAL_16_IS_LONG_DOUBLE))
+#elif (KIND == 10)
 
 # ifdef HAVE_EXPL
 #  define EXP(x) expl(x)
@@ -47,11 +47,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 # ifdef HAVE_TRUNCL
 #  define TRUNC(x) truncl(x)
 # endif
-
-#elif (KIND == 16 && defined(GFC_REAL_16_IS_FLOAT128))
-
-#  define EXP(x) expq(x)
-#  define TRUNC(x) truncq(x)
 
 #else
 

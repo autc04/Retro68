@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,6 +33,8 @@ with System; use System;
 with Types;  use Types;
 
 package Stringt is
+   pragma Elaborate_Body;
+   --  This is to make sure Null_String_Id is properly initialized
 
 --  This package contains routines for handling the strings table which is
 --  used to store string constants encountered in the source, and also those
@@ -48,6 +50,9 @@ package Stringt is
 --  value for two identical strings stored separately and also cannot count on
 --  the two Id values being different.
 
+   Null_String_Id : String_Id;
+   --  Gets set to a null string with length zero
+
    --------------------------------------
    -- String Table Access Subprograms --
    --------------------------------------
@@ -61,6 +66,15 @@ package Stringt is
 
    procedure Unlock;
    --  Unlock internal tables, in case back end needs to modify them
+
+   procedure Mark;
+   --  Take a snapshot of the internal tables. Used in conjunction with Release
+   --  when computing temporary string values that need not be preserved.
+
+   procedure Release;
+   --  Restore the internal tables to the situation when Mark was last called.
+   --  If Release is called with no prior call to Mark, the entire string table
+   --  is cleared to its initial (empty) setting.
 
    procedure Start_String;
    --  Sets up for storing a new string in the table. To store a string, a

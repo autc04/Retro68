@@ -1,6 +1,5 @@
 /* Subroutines used for code generation on the Tilera TILEPro.
-   Copyright (C) 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Walter Lee (walt@tilera.com)
 
    This file is part of GCC.
@@ -38,10 +37,27 @@
 #include "tm-constrs.h"
 #include "target.h"
 #include "target-def.h"
-#include "integrate.h"
+#include "function.h"
 #include "dwarf2.h"
 #include "timevar.h"
+#include "tree.h"
+#include "pointer-set.h"
+#include "hash-table.h"
+#include "vec.h"
+#include "ggc.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-fold.h"
+#include "tree-eh.h"
+#include "gimple-expr.h"
+#include "is-a.h"
 #include "gimple.h"
+#include "stringpool.h"
+#include "stor-layout.h"
+#include "varasm.h"
+#include "calls.h"
+#include "gimplify.h"
 #include "cfgloop.h"
 #include "tilepro-builtins.h"
 #include "tilepro-multiply.h"
@@ -356,7 +372,8 @@ tilepro_setup_incoming_varargs (cumulative_args_t cum,
 	{
 	  alias_set_type set = get_varargs_alias_set ();
 	  rtx tmp =
-	    gen_rtx_MEM (BLKmode, plus_constant (virtual_incoming_args_rtx,
+	    gen_rtx_MEM (BLKmode, plus_constant (Pmode, \
+						 virtual_incoming_args_rtx,
 						 -STACK_POINTER_OFFSET -
 						 UNITS_PER_WORD *
 						 (TILEPRO_NUM_ARG_REGS -
@@ -1640,7 +1657,7 @@ tilepro_expand_unaligned_load (rtx dest_reg, rtx mem, HOST_WIDE_INT bitsize,
      implicitly alias surrounding code.  Ideally we'd have some alias
      set that covered all types except those with alignment 8 or
      higher.  */
-  addr_lo = force_reg (Pmode, plus_constant (mema, byte_offset));
+  addr_lo = force_reg (Pmode, plus_constant (Pmode, mema, byte_offset));
   mem_lo = change_address (mem, mode,
 			   gen_rtx_AND (Pmode, addr_lo, GEN_INT (-4)));
   set_mem_alias_set (mem_lo, 0);
@@ -1648,7 +1665,7 @@ tilepro_expand_unaligned_load (rtx dest_reg, rtx mem, HOST_WIDE_INT bitsize,
   /* Load the high word at an address that will not fault if the low
      address is aligned and at the very end of a page.  */
   last_byte_offset = (bit_offset + bitsize - 1) / BITS_PER_UNIT;
-  addr_hi = force_reg (Pmode, plus_constant (mema, last_byte_offset));
+  addr_hi = force_reg (Pmode, plus_constant (Pmode, mema, last_byte_offset));
   mem_hi = change_address (mem, mode,
 			   gen_rtx_AND (Pmode, addr_hi, GEN_INT (-4)));
   set_mem_alias_set (mem_hi, 0);
@@ -1676,7 +1693,7 @@ tilepro_expand_unaligned_load (rtx dest_reg, rtx mem, HOST_WIDE_INT bitsize,
       rtx extracted =
 	extract_bit_field (gen_lowpart (SImode, wide_result),
 			   bitsize, bit_offset % BITS_PER_UNIT,
-			   !sign, false, gen_lowpart (SImode, dest_reg),
+			   !sign, gen_lowpart (SImode, dest_reg),
 			   SImode, SImode);
 
       if (extracted != dest_reg)
@@ -2411,7 +2428,7 @@ cbranch_predicted_p (rtx insn)
 
   if (x)
     {
-      int pred_val = INTVAL (XEXP (x, 0));
+      int pred_val = XINT (x, 0);
 
       return pred_val >= REG_BR_PROB_BASE / 2;
     }
@@ -3167,6 +3184,12 @@ tilepro_expand_builtin (tree exp,
     }
   if (!pat)
     return NULL_RTX;
+
+  /* If we are generating a prefetch, tell the scheduler not to move
+     it around.  */
+  if (GET_CODE (pat) == PREFETCH)
+    PREFETCH_SCHEDULE_BARRIER_P (pat) = true;
+
   emit_insn (pat);
 
   if (nonvoid)
@@ -3376,7 +3399,7 @@ emit_sp_adjust (int offset, int *next_scratch_regno, bool frame_related,
 static bool
 tilepro_current_function_is_leaf (void)
 {
-  return current_function_is_leaf && !cfun->machine->calls_tls_get_addr;
+  return crtl->is_leaf && !cfun->machine->calls_tls_get_addr;
 }
 
 
@@ -3556,9 +3579,8 @@ tilepro_expand_prologue (void)
     {
       /* Copy the old stack pointer aside so we can save it later.  */
       sp_copy_regno = next_scratch_regno--;
-      insn = FRP (emit_move_insn (gen_rtx_REG (Pmode, sp_copy_regno),
-				  stack_pointer_rtx));
-      add_reg_note (insn, REG_CFA_REGISTER, NULL_RTX);
+      emit_move_insn (gen_rtx_REG (Pmode, sp_copy_regno),
+		      stack_pointer_rtx);
     }
 
   if (tilepro_current_function_is_leaf ())
@@ -3574,8 +3596,6 @@ tilepro_expand_prologue (void)
          address.  */
       rtx chain_addr = gen_rtx_REG (Pmode, next_scratch_regno--);
       rtx size_rtx = gen_int_si (-(total_size - UNITS_PER_WORD));
-      int cfa_offset =
-	frame_pointer_needed ? UNITS_PER_WORD - total_size : UNITS_PER_WORD;
 
       if (add_operand (size_rtx, Pmode))
 	{
@@ -3600,8 +3620,8 @@ tilepro_expand_prologue (void)
 	}
 
       /* Save our frame pointer for backtrace chaining.  */
-      FRP (frame_emit_store (sp_copy_regno, STACK_POINTER_REGNUM,
-			     chain_addr, cfa, cfa_offset));
+      emit_insn (gen_movsi (gen_frame_mem (SImode, chain_addr),
+			    gen_rtx_REG (SImode, sp_copy_regno)));
     }
 
   /* Compute where to start storing registers we need to save.  */
@@ -3742,16 +3762,7 @@ tilepro_expand_epilogue (bool sibcall_p)
 
   emit_insn (gen_blockage ());
 
-  if (crtl->calls_eh_return)
-    {
-      rtx r = compute_frame_addr (-total_size + UNITS_PER_WORD,
-				  &next_scratch_regno);
-      insn = emit_move_insn (gen_rtx_REG (Pmode, STACK_POINTER_REGNUM),
-			     gen_frame_mem (Pmode, r));
-      RTX_FRAME_RELATED_P (insn) = 1;
-      REG_NOTES (insn) = cfa_restores;
-    }
-  else if (frame_pointer_needed)
+  if (frame_pointer_needed)
     {
       /* Restore the old stack pointer by copying from the frame
          pointer.  */
@@ -3766,6 +3777,10 @@ tilepro_expand_epilogue (bool sibcall_p)
       insn = emit_sp_adjust (total_size, &next_scratch_regno, true,
 			     cfa_restores);
     }
+
+  if (crtl->calls_eh_return)
+    emit_insn (gen_sp_adjust (stack_pointer_rtx, stack_pointer_rtx,
+			      EH_RETURN_STACKADJ_RTX));
 
   /* Restore the old frame pointer.  */
   if (frame_pointer_needed)
@@ -3979,7 +3994,7 @@ static void
 tilepro_gen_bundles (void)
 {
   basic_block bb;
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
   {
     rtx insn, next;
     rtx end = NEXT_INSN (BB_END (bb));
@@ -4250,7 +4265,7 @@ static void
 reorder_var_tracking_notes (void)
 {
   basic_block bb;
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
   {
     rtx insn, next;
     rtx queue = NULL_RTX;
@@ -4346,10 +4361,7 @@ tilepro_reorg (void)
 int
 tilepro_asm_preferred_eh_data_format (int code ATTRIBUTE_UNUSED, int global)
 {
-  if (flag_pic)
-    return (global ? DW_EH_PE_indirect : 0) | DW_EH_PE_pcrel | DW_EH_PE_sdata4;
-  else
-    return DW_EH_PE_absptr;
+  return (global ? DW_EH_PE_indirect : 0) | DW_EH_PE_pcrel | DW_EH_PE_sdata4;
 }
 
 
@@ -4412,7 +4424,6 @@ tilepro_asm_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
      serial except for the tail call, so we're only wasting one cycle.
    */
   insn = get_insns ();
-  insn_locators_alloc ();
   shorten_branches (insn);
   final_start_function (insn, file, 1);
   final (insn, file, 1);
@@ -4461,7 +4472,7 @@ tilepro_trampoline_init (rtx m_tramp, tree fndecl, rtx static_chain)
 
   /* Get pointers to the beginning and end of the code block.  */
   begin_addr = force_reg (Pmode, XEXP (m_tramp, 0));
-  end_addr = force_reg (Pmode, plus_constant (XEXP (m_tramp, 0),
+  end_addr = force_reg (Pmode, plus_constant (Pmode, XEXP (m_tramp, 0),
 					      TRAMPOLINE_SIZE));
 
   emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "__clear_cache"),
@@ -4919,7 +4930,7 @@ tilepro_function_profiler (FILE *file, int labelno ATTRIBUTE_UNUSED)
       fprintf (file,
 	       "\t{\n"
 	       "\tmove\tr10, lr\n"
-	       "\tjal\t%s@plt\n"
+	       "\tjal\tplt(%s)\n"
 	       "\t}\n", MCOUNT_NAME);
     }
   else
@@ -5078,6 +5089,8 @@ tilepro_file_end (void)
 #undef  TARGET_ASM_FILE_END
 #define TARGET_ASM_FILE_END tilepro_file_end
 
+#undef  TARGET_CAN_USE_DOLOOP_P
+#define TARGET_CAN_USE_DOLOOP_P can_use_doloop_if_innermost
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 

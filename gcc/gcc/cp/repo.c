@@ -1,6 +1,5 @@
 /* Code to maintain a C++ template repository.
-   Copyright (C) 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2008, 2009, 2010  Free Software Foundation, Inc.
+   Copyright (C) 1995-2014 Free Software Foundation, Inc.
    Contributed by Jason Merrill (jason@cygnus.com)
 
 This file is part of GCC.
@@ -30,6 +29,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "stringpool.h"
 #include "cp-tree.h"
 #include "input.h"
 #include "obstack.h"
@@ -43,7 +43,7 @@ static FILE *open_repo_file (const char *);
 static char *afgets (FILE *);
 static FILE *reopen_repo_file_for_write (void);
 
-static GTY(()) VEC(tree,gc) *pending_repo;
+static GTY(()) vec<tree, va_gc> *pending_repo;
 static char *repo_name;
 
 static const char *old_args, *old_dir, *old_main;
@@ -268,7 +268,7 @@ finish_repo (void)
       fprintf (repo_file, "\n");
     }
 
-  FOR_EACH_VEC_ELT_REVERSE (tree, pending_repo, ix, val)
+  FOR_EACH_VEC_SAFE_ELT_REVERSE (pending_repo, ix, val)
     {
       tree name = DECL_ASSEMBLER_NAME (val);
       char type = IDENTIFIER_REPO_CHOSEN (name) ? 'C' : 'O';
@@ -292,8 +292,7 @@ repo_emit_p (tree decl)
 {
   int ret = 0;
   gcc_assert (TREE_PUBLIC (decl));
-  gcc_assert (TREE_CODE (decl) == FUNCTION_DECL
-	      || TREE_CODE (decl) == VAR_DECL);
+  gcc_assert (VAR_OR_FUNCTION_DECL_P (decl));
   gcc_assert (!DECL_REALLY_EXTERN (decl));
 
   /* When not using the repository, emit everything.  */
@@ -304,7 +303,7 @@ repo_emit_p (tree decl)
      is an artificial restriction; the code in the prelinker and here
      will work fine if all entities with vague linkage are managed by
      the repository.  */
-  if (TREE_CODE (decl) == VAR_DECL)
+  if (VAR_P (decl))
     {
       tree type = NULL_TREE;
       if (DECL_VTABLE_OR_VTT_P (decl))
@@ -353,7 +352,7 @@ repo_emit_p (tree decl)
   if (!DECL_REPO_AVAILABLE_P (decl))
     {
       DECL_REPO_AVAILABLE_P (decl) = 1;
-      VEC_safe_push (tree, gc, pending_repo, decl);
+      vec_safe_push (pending_repo, decl);
     }
 
   return IDENTIFIER_REPO_CHOSEN (DECL_ASSEMBLER_NAME (decl)) ? 1 : ret;

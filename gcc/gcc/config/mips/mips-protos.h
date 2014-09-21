@@ -1,7 +1,5 @@
 /* Prototypes of target machine for GNU compiler.  MIPS version.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
    Contributed by A. Lichnewsky (lich@inria.inria.fr).
    Changed by Michael Meissner	(meissner@osf.org).
    64-bit r4000 support by Ian Lance Taylor (ian@cygnus.com) and
@@ -173,6 +171,25 @@ enum mips_call_type {
   MIPS_CALL_EPILOGUE
 };
 
+/* Controls the conditions under which certain instructions are split.
+
+   SPLIT_IF_NECESSARY
+	Only perform splits that are necessary for correctness
+	(because no unsplit version exists).
+
+   SPLIT_FOR_SPEED
+	Perform splits that are necessary for correctness or
+	beneficial for code speed.
+
+   SPLIT_FOR_SIZE
+	Perform splits that are necessary for correctness or
+	beneficial for code size.  */
+enum mips_split_type {
+  SPLIT_IF_NECESSARY,
+  SPLIT_FOR_SPEED,
+  SPLIT_FOR_SIZE
+};
+
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_context,
 				      enum mips_symbol_type *);
 extern int mips_regno_mode_ok_for_base_p (int, enum machine_mode, bool);
@@ -190,29 +207,15 @@ extern rtx mips_pic_base_register (rtx);
 extern rtx mips_got_load (rtx, rtx, enum mips_symbol_type);
 extern bool mips_split_symbol (rtx, rtx, enum machine_mode, rtx *);
 extern rtx mips_unspec_address (rtx, enum mips_symbol_type);
+extern rtx mips_strip_unspec_address (rtx);
 extern void mips_move_integer (rtx, rtx, unsigned HOST_WIDE_INT);
 extern bool mips_legitimize_move (enum machine_mode, rtx, rtx);
 
-extern int m16_uimm3_b (rtx, enum machine_mode);
-extern int m16_simm4_1 (rtx, enum machine_mode);
-extern int m16_nsimm4_1 (rtx, enum machine_mode);
-extern int m16_simm5_1 (rtx, enum machine_mode);
-extern int m16_nsimm5_1 (rtx, enum machine_mode);
-extern int m16_uimm5_4 (rtx, enum machine_mode);
-extern int m16_nuimm5_4 (rtx, enum machine_mode);
-extern int m16_simm8_1 (rtx, enum machine_mode);
-extern int m16_nsimm8_1 (rtx, enum machine_mode);
-extern int m16_uimm8_1 (rtx, enum machine_mode);
-extern int m16_nuimm8_1 (rtx, enum machine_mode);
-extern int m16_uimm8_m1_1 (rtx, enum machine_mode);
-extern int m16_uimm8_4 (rtx, enum machine_mode);
-extern int m16_nuimm8_4 (rtx, enum machine_mode);
-extern int m16_simm8_8 (rtx, enum machine_mode);
-extern int m16_nsimm8_8 (rtx, enum machine_mode);
-
 extern rtx mips_subword (rtx, bool);
-extern bool mips_split_64bit_move_p (rtx, rtx);
-extern void mips_split_doubleword_move (rtx, rtx);
+extern bool mips_split_move_p (rtx, rtx, enum mips_split_type);
+extern void mips_split_move (rtx, rtx, enum mips_split_type);
+extern bool mips_split_move_insn_p (rtx, rtx, rtx);
+extern void mips_split_move_insn (rtx, rtx, rtx);
 extern const char *mips_output_move (rtx, rtx);
 extern bool mips_cfun_has_cprestore_slot_p (void);
 extern bool mips_cprestore_address_p (rtx, bool);
@@ -241,7 +244,7 @@ extern bool mips_pad_arg_upward (enum machine_mode, const_tree);
 extern bool mips_pad_reg_upward (enum machine_mode, tree);
 
 extern bool mips_expand_ext_as_unaligned_load (rtx, rtx, HOST_WIDE_INT,
-					       HOST_WIDE_INT);
+					       HOST_WIDE_INT, bool);
 extern bool mips_expand_ins_as_unaligned_store (rtx, rtx, HOST_WIDE_INT,
 						HOST_WIDE_INT);
 extern bool mips_mem_fits_mode_p (enum machine_mode mode, rtx x);
@@ -294,12 +297,13 @@ extern const char *mips_output_sync (void);
 extern const char *mips_output_sync_loop (rtx, rtx *);
 extern unsigned int mips_sync_loop_insns (rtx, rtx *);
 extern const char *mips_output_division (const char *, rtx *);
+extern const char *mips_output_probe_stack_range (rtx, rtx);
 extern unsigned int mips_hard_regno_nregs (int, enum machine_mode);
 extern bool mips_linked_madd_p (rtx, rtx);
 extern bool mips_store_data_bypass_p (rtx, rtx);
+extern int mips_dspalu_bypass_p (rtx, rtx);
 extern rtx mips_prefetch_cookie (rtx, rtx);
 
-extern void irix_asm_output_align (FILE *, unsigned);
 extern const char *current_section_name (void);
 extern unsigned int current_section_flags (void);
 extern bool mips_use_ins_ext_p (rtx, HOST_WIDE_INT, HOST_WIDE_INT);
@@ -328,6 +332,21 @@ extern void mips_expand_vec_unpack (rtx op[2], bool, bool);
 extern void mips_expand_vec_reduc (rtx, rtx, rtx (*)(rtx, rtx, rtx));
 extern void mips_expand_vec_minmax (rtx, rtx, rtx,
 				    rtx (*) (rtx, rtx, rtx), bool);
+
+extern bool mips_signed_immediate_p (unsigned HOST_WIDE_INT, int, int);
+extern bool mips_unsigned_immediate_p (unsigned HOST_WIDE_INT, int, int);
+extern const char *umips_output_save_restore (bool, rtx);
+extern bool umips_save_restore_pattern_p (bool, rtx);
+extern bool umips_load_store_pair_p (bool, rtx *);
+extern void umips_output_load_store_pair (bool, rtx *);
+extern bool umips_movep_target_p (rtx, rtx);
+extern bool umips_12bit_offset_address_p (rtx, enum machine_mode);
+extern bool lwsp_swsp_address_p (rtx, enum machine_mode);
+extern bool m16_based_address_p (rtx, enum machine_mode,
+			         int (*)(rtx_def*, machine_mode)); 
+extern rtx mips_expand_thread_pointer (rtx);
+extern void mips16_expand_get_fcsr (rtx);
+extern void mips16_expand_set_fcsr (rtx);
 
 extern bool mips_eh_uses (unsigned int);
 extern bool mips_epilogue_uses (unsigned int);

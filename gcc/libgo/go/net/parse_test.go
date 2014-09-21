@@ -13,8 +13,9 @@ import (
 
 func TestReadLine(t *testing.T) {
 	// /etc/services file does not exist on windows and Plan 9.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 	filename := "/etc/services" // a nice big file
 
@@ -22,12 +23,14 @@ func TestReadLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open %s: %v", filename, err)
 	}
+	defer fd.Close()
 	br := bufio.NewReader(fd)
 
 	file, err := open(filename)
 	if file == nil {
 		t.Fatalf("net.open(%s) = nil", filename)
 	}
+	defer file.close()
 
 	lineno := 1
 	byteno := 0

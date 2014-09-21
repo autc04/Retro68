@@ -2,7 +2,7 @@
 
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2005-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -38,7 +38,7 @@
 
 /**
  * This example shows the case where a hash-based container object is
- * resized to a value which it cannot accomodate at runtime. Illegal
+ * resized to a value which it cannot accommodate at runtime. Illegal
  * runtime resizes cause an exception.
  */
 

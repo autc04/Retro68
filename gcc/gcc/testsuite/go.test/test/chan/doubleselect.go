@@ -1,11 +1,12 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This test is designed to flush out the case where two cases of a select can
+// Test the situation in which two cases of a select can
 // both end up running. See http://codereview.appspot.com/180068.
+
 package main
 
 import (
@@ -35,7 +36,7 @@ func sender(n int, c1, c2, c3, c4 chan<- int) {
 }
 
 // mux receives the values from sender and forwards them onto another channel.
-// It would be simplier to just have sender's four cases all be the same
+// It would be simpler to just have sender's four cases all be the same
 // channel, but this doesn't actually trigger the bug.
 func mux(out chan<- int, in <-chan int, done chan<- bool) {
 	for v := range in {

@@ -2,6 +2,9 @@
 # This script automatically test the given tool with the tool's test cases,
 # reporting anything of interest.
 
+# Written by Mike Stump <mrs@cygnus.com>
+# Subdir comparison added by Quentin Neill <quentin.neill@amd.com>
+
 usage()
 {
 	if [ -n "$1" ] ; then
@@ -29,8 +32,7 @@ EOUSAGE
 	exit 2
 }
 
-# Written by Mike Stump <mrs@cygnus.com>
-# Subdir comparison added by Quentin Neill <quentin.neill@amd.com>
+export LC_ALL=C
 
 tool=gxx
 
@@ -55,8 +57,8 @@ trap "rm -f $tmps" 0 1 2 3 5 9 13 15
 exit_status=0
 
 if [ -d "$1" -a -d "$2" ] ; then
-	find "$1" -name '*.sum' >$lst1
-	find "$2" -name '*.sum' >$lst2
+	find "$1/" -name '*.sum' >$lst1
+	find "$2/" -name '*.sum' >$lst2
 	echo "# Comparing directories"
 	echo "## Dir1=$1: `cat $lst1 | wc -l` sum files"
 	echo "## Dir2=$2: `cat $lst2 | wc -l` sum files"
@@ -105,8 +107,8 @@ elif [ -d "$1" -o -d "$2" ] ; then
 	usage "Must specify either two directories or two files"
 fi
 
-sed 's/^XFAIL/FAIL/; s/^XPASS/PASS/' < "$1" | awk '/^Running target / {target = $3} { if (target != "unix") { sub(/: /, "&"target": " ); }; print $0; }' >$tmp1
-sed 's/^XFAIL/FAIL/; s/^XPASS/PASS/' < "$2" | awk '/^Running target / {target = $3} { if (target != "unix") { sub(/: /, "&"target": " ); }; print $0; }' >$tmp2
+sed 's/^XFAIL/FAIL/; s/^XPASS/PASS/' < "$1" | awk '/^Running target / {target = $3} { if (target != "unix") { sub(/: /, "&"target": " ); }; print $0; }' | cut -c1-2000 >$tmp1
+sed 's/^XFAIL/FAIL/; s/^XPASS/PASS/' < "$2" | awk '/^Running target / {target = $3} { if (target != "unix") { sub(/: /, "&"target": " ); }; print $0; }' | cut -c1-2000 >$tmp2
 
 before=$tmp1
 now=$tmp2

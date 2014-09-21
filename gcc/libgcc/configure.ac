@@ -9,10 +9,16 @@ sinclude(../config/override.m4)
 sinclude(../config/picflag.m4)
 sinclude(../config/dfp.m4)
 sinclude(../config/unwind_ipinfo.m4)
+sinclude(../config/gthr.m4)
 
 AC_PREREQ(2.64)
 AC_INIT([GNU C Runtime Library], 1.0,,[libgcc])
 AC_CONFIG_SRCDIR([static-object.mk])
+
+# The libgcc should not depend on any header files
+AC_DEFUN([_AC_INCLUDES_DEFAULT_REQUIREMENTS],
+  [m4_divert_text([DEFAULTS],
+    [ac_includes_default='/* none */'])])
 
 AC_ARG_WITH(target-subdir,
 [  --with-target-subdir=SUBDIR      Configuring in a subdirectory for target])
@@ -39,6 +45,7 @@ else
 fi
 AC_SUBST(libgcc_topdir)
 AC_CONFIG_AUX_DIR($libgcc_topdir)
+AC_CONFIG_HEADER(auto-target.h:config.in)
 
 AC_ARG_ENABLE(shared,
 [  --disable-shared        don't provide a shared libgcc],
@@ -58,6 +65,16 @@ AC_ARG_ENABLE(shared,
   esac
 ], [enable_shared=yes])
 AC_SUBST(enable_shared)
+
+AC_ARG_ENABLE(vtable-verify,
+[  --enable-vtable-verify    Enable vtable verification feature ],
+[case "$enableval" in
+ yes) enable_vtable_verify=yes ;;
+ no)  enable_vtable_verify=no ;;
+ *)   enable_vtable_verify=no;;
+ esac],
+[enable_vtable_verify=no])
+AC_SUBST(enable_vtable_verify)
 
 GCC_PICFLAG
 AC_SUBST(PICFLAG)
@@ -165,7 +182,14 @@ AC_SUBST(long_double_type_size)
 
 # Check for decimal float support.
 AC_CACHE_CHECK([whether decimal floating point is supported], [libgcc_cv_dfp],
-	       [AC_COMPILE_IFELSE([_Decimal32 x;], [libgcc_cv_dfp=yes],
+	       [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <fenv.h>
+]], [[
+_Decimal32 x;
+int fe_except =
+  FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT;
+]])],
+				  [libgcc_cv_dfp=yes],
 				  [libgcc_cv_dfp=no])])
 decimal_float=$libgcc_cv_dfp
 AC_SUBST(decimal_float)
@@ -255,9 +279,11 @@ AC_CACHE_CHECK([whether assembler supports CFI directives], [libgcc_cv_cfi],
   [libgcc_cv_cfi=yes],
   [libgcc_cv_cfi=no])])
 
-# Check 32bit or 64bit
+# Check 32bit or 64bit.  In the case of MIPS, this really determines the
+# word size rather than the address size.
 cat > conftest.c <<EOF
-#if defined(__x86_64__) || (!defined(__i386__) && defined(__LP64__))
+#if defined(__x86_64__) || (!defined(__i386__) && defined(__LP64__)) \
+    || defined(__mips64)
 host_address=64
 #else
 host_address=32
@@ -265,6 +291,18 @@ host_address=32
 EOF
 eval `${CC-cc} -E conftest.c | grep host_address=`
 rm -f conftest.c
+
+case ${host} in
+mips*-*-*)
+  AC_CACHE_CHECK([whether the target is hard-float],
+		 [libgcc_cv_mips_hard_float],
+		 [AC_COMPILE_IFELSE(
+    [#ifndef __mips_hard_float
+     #error FOO
+     #endif],
+    [libgcc_cv_mips_hard_float=yes],
+    [libgcc_cv_mips_hard_float=no])])
+esac
 
 # Collect host-machine-specific information.
 . ${srcdir}/config.host
@@ -309,7 +347,7 @@ fi
 AC_SUBST(vis_hide)
 
 # See if we have thread-local storage.  We can only test assembler
-# sicne link-time and run-time tests require the newly built
+# since link-time and run-time tests require the newly built
 # gcc, which can't be used to build executable due to that libgcc
 # is yet to be built here.
 GCC_CHECK_CC_TLS
@@ -326,6 +364,15 @@ if test "$enable_tls $gcc_cv_use_emutls" = "yes yes"; then
   set_use_emutls="-DUSE_EMUTLS"
 fi
 AC_SUBST(set_use_emutls)
+
+AC_CACHE_CHECK(for init priority support, libgcc_cv_init_priority, [
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(,
+  [[void ip (void) __attribute__ ((constructor (1)));]])],
+  [libgcc_cv_init_priority=yes],[libgcc_cv_init_priority=no])])
+if test $libgcc_cv_init_priority = yes; then
+  AC_DEFINE(HAVE_INIT_PRIORITY, 1,
+  [Define if the compiler supports init priority.])
+fi
 
 # Conditionalize the sfp-machine.h header for this target machine.
 if test -z "${sfp_machine_header}"; then
@@ -361,18 +408,7 @@ AC_SUBST(tm_file)
 AC_SUBST(tm_defines)
 
 # Map from thread model to thread header.
-case $target_thread_file in
-    aix)	thread_header=config/rs6000/gthr-aix.h ;;
-    dce)	thread_header=config/pa/gthr-dce.h ;;
-    lynx)	thread_header=config/gthr-lynx.h ;;
-    mipssde)	thread_header=config/mips/gthr-mipssde.h ;;
-    posix)	thread_header=gthr-posix.h ;;
-    rtems)	thread_header=config/gthr-rtems.h ;;
-    single)	thread_header=gthr-single.h ;;
-    tpf)	thread_header=config/s390/gthr-tpf.h ;;
-    vxworks)	thread_header=config/gthr-vxworks.h ;;
-    win32)	thread_header=config/i386/gthr-win32.h ;;
-esac
+GCC_AC_THREAD_HEADER([$target_thread_file])
 
 # Substitute configuration variables
 AC_SUBST(cpu_type)

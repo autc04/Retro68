@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,10 +36,11 @@
 --  Frontend, and thus are not mutually recursive.
 
 with Alloc;
-with Opt;   use Opt;
-with Sem;   use Sem;
+with Opt;    use Opt;
+with Sem;    use Sem;
 with Table;
-with Types; use Types;
+with Types;  use Types;
+with Warnsw; use Warnsw;
 
 package Inline is
 
@@ -70,7 +71,7 @@ package Inline is
       --  be restored when compiling the body, to insure that internal enti-
       --  ties use the same counter and are unique over spec and body.
 
-      Scope_Suppress           : Suppress_Array;
+      Scope_Suppress           : Suppress_Record;
       Local_Suppress_Stack_Top : Suppress_Stack_Entry_Ptr;
       --  Save suppress information at the point of instantiation. Used to
       --  properly inherit check status active at this point (see RM 11.5
@@ -89,6 +90,17 @@ package Inline is
       --  The body must be compiled with the same language version as the
       --  spec. The version may be set by a configuration pragma in a separate
       --  file or in the current file, and may differ from body to body.
+
+      Version_Pragma : Node_Id;
+      --  This is linked with the Version value
+
+      Warnings : Warning_Record;
+      --  Capture values of warning flags
+
+      SPARK_Mode        : SPARK_Mode_Type;
+      SPARK_Mode_Pragma : Node_Id;
+      --  SPARK_Mode for an instance is the one applicable at the point of
+      --  instantiation. SPARK_Mode_Pragma is the related active pragma.
    end record;
 
    package Pending_Instantiations is new Table.Table (
@@ -109,11 +121,6 @@ package Inline is
      Table_Initial        => Alloc.Pending_Instantiations_Initial,
      Table_Increment      => Alloc.Pending_Instantiations_Increment,
      Table_Name           => "Pending_Descriptor");
-
-   Analyzing_Inlined_Bodies : Boolean;
-   --  This flag is set False by the call to Initialize, and then is set
-   --  True by the call to Analyze_Inlined_Bodies. It is used to suppress
-   --  generation of subprogram descriptors for inlined bodies.
 
    -----------------
    -- Subprograms --

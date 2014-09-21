@@ -1,7 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    ARM Linux-based GNU systems version.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2004, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Contributed by Russell King  <rmk92@ecs.soton.ac.uk>.
 
    This file is part of GCC.
@@ -16,8 +15,13 @@
    or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
    License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with GCC; see the file COPYING3.  If not see
+   Under Section 7 of GPL version 3, you are granted additional
+   permissions described in the GCC Runtime Library Exception, version
+   3.1, as published by the Free Software Foundation.
+
+   You should have received a copy of the GNU General Public License and
+   a copy of the GCC Runtime Library Exception along with this program;
+   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
 /* This is how we tell the assembler that a symbol is weak.

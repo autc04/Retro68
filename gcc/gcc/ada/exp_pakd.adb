@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -509,7 +509,7 @@ package body Exp_Pakd is
       Shift  : out Node_Id);
    --  This procedure performs common processing on the N_Indexed_Component
    --  parameter given as N, whose prefix is a reference to a packed array.
-   --  This is used for the get and set when the component size is 1,2,4
+   --  This is used for the get and set when the component size is 1, 2, 4,
    --  or for other component sizes when the packed array type is a modular
    --  type (i.e. the cases that are handled with inline code).
    --
@@ -542,6 +542,80 @@ package body Exp_Pakd is
    --  (for handling multi-use references and the generation of the packed
    --  array type on the fly). Such actions are inserted into the tree
    --  directly using Insert_Action.
+
+   function Byte_Swap
+     (N             : Node_Id;
+      Left_Justify  : Boolean := False;
+      Right_Justify : Boolean := False) return Node_Id;
+   --  Wrap N in a call to a byte swapping function, with appropriate type
+   --  conversions. If Left_Justify is set True, the value is left justified
+   --  before swapping. If Right_Justify is set True, the value is right
+   --  justified after swapping. The Etype of the returned node is an
+   --  integer type of an appropriate power-of-2 size.
+
+   ---------------
+   -- Byte_Swap --
+   ---------------
+
+   function Byte_Swap
+     (N             : Node_Id;
+      Left_Justify  : Boolean := False;
+      Right_Justify : Boolean := False) return Node_Id
+   is
+      Loc     : constant Source_Ptr := Sloc (N);
+      T       : constant Entity_Id := Etype (N);
+      T_Size  : constant Uint := RM_Size (T);
+
+      Swap_RE : RE_Id;
+      Swap_F  : Entity_Id;
+      Swap_T  : Entity_Id;
+      --  Swapping function
+
+      Arg     : Node_Id;
+      Swapped : Node_Id;
+      Shift   : Uint;
+
+   begin
+      pragma Assert (T_Size > 8);
+
+      if T_Size <= 16 then
+         Swap_RE := RE_Bswap_16;
+
+      elsif T_Size <= 32 then
+         Swap_RE := RE_Bswap_32;
+
+      else pragma Assert (T_Size <= 64);
+         Swap_RE := RE_Bswap_64;
+      end if;
+
+      Swap_F := RTE (Swap_RE);
+      Swap_T := Etype (Swap_F);
+      Shift := Esize (Swap_T) - T_Size;
+
+      Arg := RJ_Unchecked_Convert_To (Swap_T, N);
+
+      if Left_Justify and then Shift > Uint_0 then
+         Arg :=
+           Make_Op_Shift_Left (Loc,
+             Left_Opnd  => Arg,
+             Right_Opnd => Make_Integer_Literal (Loc, Shift));
+      end if;
+
+      Swapped :=
+        Make_Function_Call (Loc,
+          Name                   => New_Occurrence_Of (Swap_F, Loc),
+          Parameter_Associations => New_List (Arg));
+
+      if Right_Justify and then Shift > Uint_0 then
+         Swapped :=
+           Make_Op_Shift_Right (Loc,
+             Left_Opnd  => Swapped,
+             Right_Opnd => Make_Integer_Literal (Loc, Shift));
+      end if;
+
+      Set_Etype (Swapped, Swap_T);
+      return Swapped;
+   end Byte_Swap;
 
    ------------------------------
    -- Compute_Linear_Subscript --
@@ -1053,7 +1127,7 @@ package body Exp_Pakd is
 
       --  The name of the packed array subtype is
 
-      --    ttt___Xsss
+      --    ttt___XPsss
 
       --  where sss is the component size in bits and ttt is the name of
       --  the parent packed type.
@@ -1280,19 +1354,19 @@ package body Exp_Pakd is
       --  Initially Rhs is the right hand side value, it will be replaced
       --  later by an appropriate unchecked conversion for the assignment.
 
-      Obj    : Node_Id;
-      Atyp   : Entity_Id;
-      PAT    : Entity_Id;
-      Ctyp   : Entity_Id;
-      Csiz   : Int;
-      Cmask  : Uint;
+      Obj   : Node_Id;
+      Atyp  : Entity_Id;
+      PAT   : Entity_Id;
+      Ctyp  : Entity_Id;
+      Csiz  : Int;
+      Cmask : Uint;
 
       Shift : Node_Id;
       --  The expression for the shift value that is required
 
       Shift_Used : Boolean := False;
-      --  Set True if Shift has been used in the generated code at least
-      --  once, so that it must be duplicated if used again
+      --  Set True if Shift has been used in the generated code at least once,
+      --  so that it must be duplicated if used again.
 
       New_Lhs : Node_Id;
       New_Rhs : Node_Id;
@@ -1415,6 +1489,11 @@ package body Exp_Pakd is
 
          --    Obj := atyp!((Obj and Mask1) or (shift_left (rhs, Shift)))
 
+         --  or in the case of a freestanding Reverse_Storage_Order object,
+
+         --    Obj := Swap (atyp!((Swap (Obj) and Mask1)
+         --                         or (shift_left (rhs, Shift))))
+
          --      where Mask1 is obtained by shifting Cmask left Shift bits
          --      and then complementing the result.
 
@@ -1433,9 +1512,9 @@ package body Exp_Pakd is
             Rhs_Val       := Expr_Rep_Value (Rhs);
             Rhs_Val_Known := True;
 
-         --  The following test catches the case of an unchecked conversion
-         --  of an integer literal. This results from optimizing aggregates
-         --  of packed types.
+         --  The following test catches the case of an unchecked conversion of
+         --  an integer literal. This results from optimizing aggregates of
+         --  packed types.
 
          elsif Nkind (Rhs) = N_Unchecked_Type_Conversion
            and then Compile_Time_Known_Value (Expression (Rhs))
@@ -1472,20 +1551,13 @@ package body Exp_Pakd is
             end if;
          end if;
 
-         --  Now create copies removing side effects. Note that in some
-         --  complex cases, this may cause the fact that we have already
-         --  set a packed array type on Obj to get lost. So we save the
-         --  type of Obj, and make sure it is reset properly.
+         --  Now create copies removing side effects. Note that in some complex
+         --  cases, this may cause the fact that we have already set a packed
+         --  array type on Obj to get lost. So we save the type of Obj, and
+         --  make sure it is reset properly.
 
-         declare
-            T : constant Entity_Id := Etype (Obj);
-         begin
-            New_Lhs := Duplicate_Subexpr (Obj, True);
-            New_Rhs := Duplicate_Subexpr_No_Checks (Obj);
-            Set_Etype (Obj, T);
-            Set_Etype (New_Lhs, T);
-            Set_Etype (New_Rhs, T);
-         end;
+         New_Lhs := Duplicate_Subexpr (Obj, Name_Req => True);
+         New_Rhs := Duplicate_Subexpr_No_Checks (Obj);
 
          --  First we deal with the "and"
 
@@ -1556,7 +1628,6 @@ package body Exp_Pakd is
                   --  not a left justified conversion.
 
                   Rhs := RJ_Unchecked_Convert_To (Etype (Obj), Rhs);
-
                end Fixup_Rhs;
 
             begin
@@ -1593,8 +1664,7 @@ package body Exp_Pakd is
                      --  Note that Rhs_Val has already been normalized to
                      --  be an unsigned value with the proper number of bits.
 
-                     Rhs :=
-                       Make_Integer_Literal (Loc, Rhs_Val);
+                     Rhs := Make_Integer_Literal (Loc, Rhs_Val);
 
                   --  Otherwise we need an unchecked conversion
 
@@ -1607,6 +1677,7 @@ package body Exp_Pakd is
 
                if Nkind (New_Rhs) = N_Op_And then
                   Set_Paren_Count (New_Rhs, 1);
+                  Set_Etype (New_Rhs, Etype (Left_Opnd (New_Rhs)));
                end if;
 
                New_Rhs :=
@@ -1934,6 +2005,19 @@ package body Exp_Pakd is
       Arg   : Node_Id;
 
    begin
+      --  If the node is an actual in a call, the prefix has not been fully
+      --  expanded, to account for the additional expansion for in-out actuals
+      --  (see expand_actuals for details). If the prefix itself is a packed
+      --  reference as well, we have to recurse to complete the transformation
+      --  of the prefix.
+
+      if Nkind (Prefix (N)) = N_Indexed_Component
+        and then not Analyzed (Prefix (N))
+        and then Is_Bit_Packed_Array (Etype (Prefix (Prefix (N))))
+      then
+         Expand_Packed_Element_Reference (Prefix (N));
+      end if;
+
       --  If not bit packed, we have the enumeration case, which is easily
       --  dealt with (just adjust the subscripts of the indexed component)
 
@@ -1992,6 +2076,25 @@ package body Exp_Pakd is
            Make_Op_And (Loc,
              Left_Opnd  => Make_Shift_Right (Obj, Shift),
              Right_Opnd => Lit);
+         Set_Etype (Arg, Ctyp);
+
+         --  Component extraction is performed on a native endianness scalar
+         --  value: if Atyp has reverse storage order, then it has been byte
+         --  swapped, and if the component being extracted is itself of a
+         --  composite type with reverse storage order, then we need to swap
+         --  it back to its expected endianness after extraction.
+
+         if Reverse_Storage_Order (Atyp)
+           and then Esize (Atyp) > 8
+           and then (Is_Record_Type (Ctyp) or else Is_Array_Type (Ctyp))
+           and then Reverse_Storage_Order (Ctyp)
+         then
+            Arg :=
+              Byte_Swap
+                (Arg,
+                 Left_Justify  => not Bytes_Big_Endian,
+                 Right_Justify => False);
+         end if;
 
          --  We needed to analyze this before we do the unchecked convert
          --  below, but we need it temporarily attached to the tree for
@@ -2515,6 +2618,18 @@ package body Exp_Pakd is
       Source_Siz := UI_To_Int (RM_Size (Source_Typ));
       Target_Siz := UI_To_Int (RM_Size (Target_Typ));
 
+      --  For a little-endian target type stored byte-swapped on a
+      --  big-endian machine, do not mask to Target_Siz bits.
+
+      if Bytes_Big_Endian
+           and then (Is_Record_Type (Target_Typ)
+                       or else
+                     Is_Array_Type (Target_Typ))
+           and then Reverse_Storage_Order (Target_Typ)
+      then
+         Source_Siz := Target_Siz;
+      end if;
+
       --  First step, if the source type is not a discrete type, then we first
       --  convert to a modular type of the source length, since otherwise, on
       --  a big-endian machine, we get left-justification. We do it for little-
@@ -2619,11 +2734,11 @@ package body Exp_Pakd is
       Cmask  : out Uint;
       Shift  : out Node_Id)
    is
-      Loc    : constant Source_Ptr := Sloc (N);
-      PAT    : Entity_Id;
-      Otyp   : Entity_Id;
-      Csiz   : Uint;
-      Osiz   : Uint;
+      Loc  : constant Source_Ptr := Sloc (N);
+      PAT  : Entity_Id;
+      Otyp : Entity_Id;
+      Csiz : Uint;
+      Osiz : Uint;
 
    begin
       Csiz := Component_Size (Atyp);
@@ -2658,7 +2773,7 @@ package body Exp_Pakd is
       if Csiz /= 1 then
          Shift :=
            Make_Op_Multiply (Loc,
-             Left_Opnd => Make_Integer_Literal (Loc, Csiz),
+             Left_Opnd  => Make_Integer_Literal (Loc, Csiz),
              Right_Opnd => Shift);
       end if;
 
@@ -2693,7 +2808,7 @@ package body Exp_Pakd is
                 Prefix => Obj,
                 Expressions => New_List (
                   Make_Op_Divide (Loc,
-                    Left_Opnd => Duplicate_Subexpr (Shift),
+                    Left_Opnd  => Duplicate_Subexpr (Shift),
                     Right_Opnd => Make_Integer_Literal (Loc, Osiz))));
 
             Shift := New_Shift;
@@ -2725,7 +2840,9 @@ package body Exp_Pakd is
       --  the array used to implement the packed array, F is the number of bits
       --  in a source array element, and Shift is the count so far computed.
 
-      if Bytes_Big_Endian then
+      --  We also have to adjust if the storage order is reversed
+
+      if Bytes_Big_Endian xor Reverse_Storage_Order (Base_Type (Atyp)) then
          Shift :=
            Make_Op_Subtract (Loc,
              Left_Opnd  => Make_Integer_Literal (Loc, Osiz - Csiz),

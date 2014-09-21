@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,16 +39,19 @@ package body Ch6 is
    function P_Return_Object_Declaration  return Node_Id;
 
    procedure P_Return_Subtype_Indication (Decl_Node : Node_Id);
-   --  Decl_Node is a N_Object_Declaration.
-   --  Set the Null_Exclusion_Present and Object_Definition fields of
-   --  Decl_Node.
+   --  Decl_Node is a N_Object_Declaration. Set the Null_Exclusion_Present and
+   --  Object_Definition fields of Decl_Node.
 
    procedure Check_Junk_Semicolon_Before_Return;
-
    --  Check for common error of junk semicolon before RETURN keyword of
-   --  function specification. If present, skip over it with appropriate
-   --  error message, leaving Scan_Ptr pointing to the RETURN after. This
-   --  routine also deals with a possibly misspelled version of Return.
+   --  function specification. If present, skip over it with appropriate error
+   --  message, leaving Scan_Ptr pointing to the RETURN after. This routine
+   --  also deals with a possibly misspelled version of Return.
+
+   procedure No_Constraint_Maybe_Expr_Func;
+   --  Called after scanning return subtype to check for missing constraint,
+   --  taking into account the possibility of an occurrence of an expression
+   --  function where the IS has been forgotten.
 
    ----------------------------------------
    -- Check_Junk_Semicolon_Before_Return --
@@ -70,11 +73,54 @@ package body Ch6 is
          else
             Restore_Scan_State (Scan_State);
          end if;
-
-      elsif Bad_Spelling_Of (Tok_Return) then
-         null;
       end if;
    end Check_Junk_Semicolon_Before_Return;
+
+   -----------------------------------
+   -- No_Constraint_Maybe_Expr_Func --
+   -----------------------------------
+
+   procedure No_Constraint_Maybe_Expr_Func is
+   begin
+      --  If we have a left paren at the start of the line, then assume this is
+      --  the case of an expression function with missing IS. We do not have to
+      --  diagnose the missing IS, that is done elsewhere. We do this game in
+      --  Ada 2012 mode where expression functions are legal.
+
+      if Token = Tok_Left_Paren
+        and Ada_Version >= Ada_2012
+        and Token_Is_At_Start_Of_Line
+      then
+         --  One exception if we have "(token .." then this is a constraint
+
+         declare
+            Scan_State : Saved_Scan_State;
+
+         begin
+            Save_Scan_State (Scan_State);
+            Scan; -- past left paren
+            Scan; -- past following token
+
+            --  If we have "(token .." then restore scan state and treat as
+            --  unexpected constraint.
+
+            if Token = Tok_Dot_Dot then
+               Restore_Scan_State (Scan_State);
+               No_Constraint;
+
+            --  Otherwise we treat this as an expression function
+
+            else
+               Restore_Scan_State (Scan_State);
+            end if;
+         end;
+
+      --  Otherwise use standard routine to check for no constraint present
+
+      else
+         No_Constraint;
+      end if;
+   end No_Constraint_Maybe_Expr_Func;
 
    -----------------------------------------------------
    -- 6.1  Subprogram (Also 6.3, 8.5.4, 10.1.3, 12.3) --
@@ -101,7 +147,7 @@ package body Ch6 is
    --  PARAMETER_AND_RESULT_PROFILE ::= [FORMAL_PART] return SUBTYPE_MARK
 
    --  SUBPROGRAM_BODY ::=
-   --    SUBPROGRAM_SPECIFICATION is
+   --    SUBPROGRAM_SPECIFICATION [ASPECT_SPECIFICATIONS] is
    --      DECLARATIVE_PART
    --    begin
    --      HANDLED_SEQUENCE_OF_STATEMENTS
@@ -112,13 +158,16 @@ package body Ch6 is
    --      [ASPECT_SPECIFICATIONS];
 
    --  SUBPROGRAM_BODY_STUB ::=
-   --    SUBPROGRAM_SPECIFICATION is separate;
+   --    SUBPROGRAM_SPECIFICATION is separate
+   --      [ASPECT_SPECIFICATIONS];
 
    --  GENERIC_INSTANTIATION ::=
    --    procedure DEFINING_PROGRAM_UNIT_NAME is
-   --      new generic_procedure_NAME [GENERIC_ACTUAL_PART];
+   --      new generic_procedure_NAME [GENERIC_ACTUAL_PART]
+   --        [ASPECT_SPECIFICATIONS];
    --  | function DEFINING_DESIGNATOR is
-   --      new generic_function_NAME [GENERIC_ACTUAL_PART];
+   --      new generic_function_NAME [GENERIC_ACTUAL_PART]
+   --        [ASPECT_SPECIFICATIONS];
 
    --  NULL_PROCEDURE_DECLARATION ::=
    --    SUBPROGRAM_SPECIFICATION is null;
@@ -128,7 +177,8 @@ package body Ch6 is
    --  other subprogram constructs.
 
    --  EXPRESSION_FUNCTION ::=
-   --    FUNCTION SPECIFICATION IS (EXPRESSION);
+   --    FUNCTION SPECIFICATION IS (EXPRESSION)
+   --      [ASPECT_SPECIFICATIONS];
 
    --  The value in Pf_Flags indicates which of these possible declarations
    --  is acceptable to the caller:
@@ -153,6 +203,7 @@ package body Ch6 is
    function P_Subprogram (Pf_Flags : Pf_Rec) return Node_Id is
       Specification_Node : Node_Id;
       Name_Node          : Node_Id;
+      Aspects            : List_Id;
       Fpart_List         : List_Id;
       Fpart_Sloc         : Source_Ptr;
       Result_Not_Null    : Boolean := False;
@@ -184,6 +235,8 @@ package body Ch6 is
       Scope.Table (Scope.Last).Etyp := E_Name;
       Scope.Table (Scope.Last).Ecol := Start_Column;
       Scope.Table (Scope.Last).Lreq := False;
+
+      Aspects := Empty_List;
 
       --  Ada 2005: Scan leading NOT OVERRIDING indicator
 
@@ -341,8 +394,8 @@ package body Ch6 is
       if Token = Tok_Identifier
         and then not Token_Is_At_Start_Of_Line
       then
-            T_Left_Paren; -- to generate message
-            Fpart_List := P_Formal_Part;
+         T_Left_Paren; -- to generate message
+         Fpart_List := P_Formal_Part;
 
       --  Otherwise scan out an optional formal part in the usual manner
 
@@ -381,7 +434,7 @@ package body Ch6 is
 
          else
             Result_Node := P_Subtype_Mark;
-            No_Constraint;
+            No_Constraint_Maybe_Expr_Func;
          end if;
 
       else
@@ -588,15 +641,26 @@ package body Ch6 is
          elsif Aspect_Specifications_Present then
             goto Subprogram_Declaration;
 
-         --  Here we have a missing IS or missing semicolon, we always guess
-         --  a missing semicolon, since we are pretty good at fixing up a
-         --  semicolon which should really be an IS
+         --  Here we have a missing IS or missing semicolon
 
          else
-            Error_Msg_AP -- CODEFIX
-              ("|missing "";""");
-            SIS_Missing_Semicolon_Message := Get_Msg_Id;
-            goto Subprogram_Declaration;
+            --  If the next token is a left paren at the start of a line, then
+            --  this is almost certainly the start of the expression for an
+            --  expression function, so in this case guess a missing IS.
+
+            if Token = Tok_Left_Paren and then Token_Is_At_Start_Of_Line then
+               Error_Msg_AP -- CODEFIX
+                 ("missing IS");
+
+            --  In all other cases, we guess a missing semicolon, since we are
+            --  good at fixing up a semicolon which should really be an IS.
+
+            else
+               Error_Msg_AP -- CODEFIX
+                 ("|missing "";""");
+               SIS_Missing_Semicolon_Message := Get_Msg_Id;
+               goto Subprogram_Declaration;
+            end if;
          end if;
       end if;
 
@@ -617,12 +681,21 @@ package body Ch6 is
                   Sloc (Name_Node));
             end if;
 
+            Scan; -- past SEPARATE
+
             Stub_Node :=
               New_Node (N_Subprogram_Body_Stub, Sloc (Specification_Node));
             Set_Specification (Stub_Node, Specification_Node);
-            Scan; -- past SEPARATE
-            Pop_Scope_Stack;
+
+            if Is_Non_Empty_List (Aspects) then
+               Error_Msg
+                 ("aspect specifications must come after SEPARATE",
+                  Sloc (First (Aspects)));
+            end if;
+
+            P_Aspect_Specifications (Stub_Node, Semicolon => False);
             TF_Semicolon;
+            Pop_Scope_Stack;
             return Stub_Node;
 
          --  Subprogram body or expression function case
@@ -758,11 +831,23 @@ package body Ch6 is
 
                   --  Check we are in Ada 2012 mode
 
-                  if Ada_Version < Ada_2012 then
-                     Error_Msg_SC
-                       ("expression function is an Ada 2012 feature!");
-                     Error_Msg_SC
-                       ("\unit must be compiled with -gnat2012 switch!");
+                  Error_Msg_Ada_2012_Feature
+                    ("!expression function", Token_Ptr);
+
+                  --  Catch an illegal placement of the aspect specification
+                  --  list:
+
+                  --    function_specification
+                  --      [aspect_specification] is (expression);
+
+                  --  This case is correctly processed by the parser because
+                  --  the expression function first appears as a subprogram
+                  --  declaration to the parser.
+
+                  if Is_Non_Empty_List (Aspects) then
+                     Error_Msg
+                       ("aspect specifications must come after parenthesized "
+                        & "expression", Sloc (First (Aspects)));
                   end if;
 
                   --  Parse out expression and build expression function
@@ -809,6 +894,16 @@ package body Ch6 is
                     New_Node (N_Subprogram_Body, Sloc (Specification_Node));
                   Set_Specification (Body_Node, Specification_Node);
 
+                  --  If aspects are present, the specification is parsed as
+                  --  a subprogram declaration, and we jump here after seeing
+                  --  the keyword IS. Attach asspects previously collected to
+                  --  the body.
+
+                  if Is_Non_Empty_List (Aspects) then
+                     Set_Parent (Aspects, Body_Node);
+                     Set_Aspect_Specifications (Body_Node, Aspects);
+                  end if;
+
                   --  In SPARK, a HIDE directive can be placed at the beginning
                   --  of a subprogram implementation, thus hiding the
                   --  subprogram body from SPARK tool-set. No violation of the
@@ -840,7 +935,24 @@ package body Ch6 is
          Decl_Node :=
            New_Node (N_Subprogram_Declaration, Sloc (Specification_Node));
          Set_Specification (Decl_Node, Specification_Node);
-         P_Aspect_Specifications (Decl_Node);
+         Aspects := Get_Aspect_Specifications (Semicolon => False);
+
+         --  Aspects may be present on a subprogram body. The source parsed
+         --  so far is that of its specification, go parse the body and attach
+         --  the collected aspects, if any, to the body.
+
+         if Token = Tok_Is then
+            Scan;
+            goto Subprogram_Body;
+
+         else
+            if Is_Non_Empty_List (Aspects) then
+               Set_Parent (Aspects, Decl_Node);
+               Set_Aspect_Specifications (Decl_Node, Aspects);
+            end if;
+
+            TF_Semicolon;
+         end if;
 
          --  If this is a context in which a subprogram body is permitted,
          --  set active SIS entry in case (see section titled "Handling
@@ -923,7 +1035,7 @@ package body Ch6 is
 
          else
             Result_Node := P_Subtype_Mark;
-            No_Constraint;
+            No_Constraint_Maybe_Expr_Func;
          end if;
 
          Set_Null_Exclusion_Present (Specification_Node, Result_Not_Null);
@@ -1034,7 +1146,7 @@ package body Ch6 is
 
          --  On exit from the loop, Ident_Node is the last identifier scanned,
          --  i.e. the defining identifier, and Prefix_Node is a node for the
-         --  entire name, structured (incorrectly!) as a selected component.
+         --  entire name, structured (incorrectly) as a selected component.
 
          Name_Node := Prefix (Prefix_Node);
          Change_Node (Prefix_Node, N_Designator);
@@ -1108,6 +1220,7 @@ package body Ch6 is
 
       if Token /= Tok_Dot then
          Change_Identifier_To_Defining_Identifier (Ident_Node);
+         Warn_If_Standard_Redefinition (Ident_Node);
          return Ident_Node;
 
       --  Child library unit name case
@@ -1139,12 +1252,13 @@ package body Ch6 is
 
          --  On exit from the loop, Ident_Node is the last identifier scanned,
          --  i.e. the defining identifier, and Prefix_Node is a node for the
-         --  entire name, structured (incorrectly!) as a selected component.
+         --  entire name, structured (incorrectly) as a selected component.
 
          Name_Node := Prefix (Prefix_Node);
          Change_Node (Prefix_Node, N_Defining_Program_Unit_Name);
          Set_Name (Prefix_Node, Name_Node);
          Change_Identifier_To_Defining_Identifier (Ident_Node);
+         Warn_If_Standard_Redefinition (Ident_Node);
          Set_Defining_Identifier (Prefix_Node, Ident_Node);
 
          --  All set with unit name parsed
@@ -1285,7 +1399,7 @@ package body Ch6 is
 
                      --  If we run into a semicolon, then assume that a
                      --  colon was missing, e.g.  Parms (X Y; ...). Also
-                     --  assume missing colon on EOF (a real disaster!)
+                     --  assume missing colon on EOF (a real disaster)
                      --  and on a right paren, e.g. Parms (X Y), and also
                      --  on an assignment symbol, e.g. Parms (X Y := ..)
 
@@ -1346,7 +1460,8 @@ package body Ch6 is
 
                if Token = Tok_Aliased then
                   if Ada_Version < Ada_2012 then
-                     Error_Msg_SC ("ALIASED parameter is an Ada 2012 feature");
+                     Error_Msg_Ada_2012_Feature
+                       ("ALIASED parameter", Token_Ptr);
                   else
                      Set_Aliased_Present (Specification_Node);
                   end if;
@@ -1531,7 +1646,12 @@ package body Ch6 is
               ("(style) IN should be omitted");
          end if;
 
-         if Token = Tok_Access then
+         --  Since Ada 2005, formal objects can have an anonymous access type,
+         --  and of course carry a mode indicator.
+
+         if Token = Tok_Access
+           and then Nkind (Node) /= N_Formal_Object_Declaration
+         then
             Error_Msg_SP ("IN not allowed together with ACCESS");
             Scan; -- past ACCESS
          end if;
@@ -1631,6 +1751,7 @@ package body Ch6 is
    begin
       Return_Obj := Token_Node;
       Change_Identifier_To_Defining_Identifier (Return_Obj);
+      Warn_If_Standard_Redefinition (Return_Obj);
       Decl_Node := New_Node (N_Object_Declaration, Token_Ptr);
       Set_Defining_Identifier (Decl_Node, Return_Obj);
 
@@ -1682,13 +1803,8 @@ package body Ch6 is
          Scan; -- past ALIASED
          Set_Aliased_Present (Decl_Node);
 
-         if Ada_Version < Ada_2012 then
-            Error_Msg_SC -- CODEFIX
-              ("ALIASED not allowed in extended return in Ada 2012?");
-         else
-            Error_Msg_SC -- CODEFIX
-              ("ALIASED not allowed in extended return");
-         end if;
+         --  The restrictions on the use of aliased in an extended return
+         --  are semantic, not syntactic.
 
          if Token = Tok_Constant then
             Scan; -- past CONSTANT
@@ -1712,9 +1828,9 @@ package body Ch6 is
       --  The caller has checked that the initial token is RETURN
 
       function Is_Simple return Boolean;
-      --  Scan state is just after RETURN (and is left that way).
-      --  Determine whether this is a simple or extended return statement
-      --  by looking ahead for "identifier :", which implies extended.
+      --  Scan state is just after RETURN (and is left that way). Determine
+      --  whether this is a simple or extended return statement by looking
+      --  ahead for "identifier :", which implies extended.
 
       ---------------
       -- Is_Simple --
@@ -1739,8 +1855,9 @@ package body Ch6 is
          return Result;
       end Is_Simple;
 
-      Return_Sloc : constant Source_Ptr := Token_Ptr;
-      Return_Node : Node_Id;
+      Ret_Sloc : constant Source_Ptr := Token_Ptr;
+      Ret_Strt : constant Column_Number := Start_Column;
+      Ret_Node : Node_Id;
 
    --  Start of processing for P_Return_Statement
 
@@ -1752,7 +1869,7 @@ package body Ch6 is
 
       if Token = Tok_Semicolon then
          Scan; -- past ;
-         Return_Node := New_Node (N_Simple_Return_Statement, Return_Sloc);
+         Ret_Node := New_Node (N_Simple_Return_Statement, Ret_Sloc);
 
       --  Non-trivial case
 
@@ -1764,10 +1881,10 @@ package body Ch6 is
          --  message is probably that we have a missing semicolon.
 
          if Is_Simple then
-            Return_Node := New_Node (N_Simple_Return_Statement, Return_Sloc);
+            Ret_Node := New_Node (N_Simple_Return_Statement, Ret_Sloc);
 
             if Token not in Token_Class_Eterm then
-               Set_Expression (Return_Node, P_Expression_No_Right_Paren);
+               Set_Expression (Ret_Node, P_Expression_No_Right_Paren);
             end if;
 
          --  Extended_return_statement (Ada 2005 only -- AI-318):
@@ -1779,19 +1896,19 @@ package body Ch6 is
                Error_Msg_SP ("\unit must be compiled with -gnat05 switch");
             end if;
 
-            Return_Node := New_Node (N_Extended_Return_Statement, Return_Sloc);
+            Ret_Node := New_Node (N_Extended_Return_Statement, Ret_Sloc);
             Set_Return_Object_Declarations
-              (Return_Node, New_List (P_Return_Object_Declaration));
+              (Ret_Node, New_List (P_Return_Object_Declaration));
 
             if Token = Tok_Do then
                Push_Scope_Stack;
                Scope.Table (Scope.Last).Etyp := E_Return;
-               Scope.Table (Scope.Last).Ecol := Start_Column;
-               Scope.Table (Scope.Last).Sloc := Return_Sloc;
+               Scope.Table (Scope.Last).Ecol := Ret_Strt;
+               Scope.Table (Scope.Last).Sloc := Ret_Sloc;
 
                Scan; -- past DO
                Set_Handled_Statement_Sequence
-                 (Return_Node, P_Handled_Sequence_Of_Statements);
+                 (Ret_Node, P_Handled_Sequence_Of_Statements);
                End_Statements;
 
                --  Do we need to handle Error_Resync here???
@@ -1801,7 +1918,7 @@ package body Ch6 is
          TF_Semicolon;
       end if;
 
-      return Return_Node;
+      return Ret_Node;
    end P_Return_Statement;
 
 end Ch6;

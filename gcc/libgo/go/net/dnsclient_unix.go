@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd
 
 // DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
@@ -17,6 +17,7 @@
 package net
 
 import (
+	"io"
 	"math/rand"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 // Send a request on the connection and hope for a reply.
 // Up to cfg.attempts attempts.
 func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error) {
+	_, useTCP := c.(*TCPConn)
 	if len(name) >= 256 {
 		return nil, &DNSError{Err: "name too long", Name: name}
 	}
@@ -38,7 +40,10 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 	if !ok {
 		return nil, &DNSError{Err: "internal error - cannot pack message", Name: name}
 	}
-
+	if useTCP {
+		mlen := uint16(len(msg))
+		msg = append([]byte{byte(mlen >> 8), byte(mlen)}, msg...)
+	}
 	for attempt := 0; attempt < cfg.attempts; attempt++ {
 		n, err := c.Write(msg)
 		if err != nil {
@@ -46,20 +51,33 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 		}
 
 		if cfg.timeout == 0 {
-			c.SetReadDeadline(time.Time{})
+			c.SetReadDeadline(noDeadline)
 		} else {
 			c.SetReadDeadline(time.Now().Add(time.Duration(cfg.timeout) * time.Second))
 		}
-
-		buf := make([]byte, 2000) // More than enough.
-		n, err = c.Read(buf)
+		buf := make([]byte, 2000)
+		if useTCP {
+			n, err = io.ReadFull(c, buf[:2])
+			if err != nil {
+				if e, ok := err.(Error); ok && e.Timeout() {
+					continue
+				}
+			}
+			mlen := int(buf[0])<<8 | int(buf[1])
+			if mlen > len(buf) {
+				buf = make([]byte, mlen)
+			}
+			n, err = io.ReadFull(c, buf[:mlen])
+		} else {
+			n, err = c.Read(buf)
+		}
 		if err != nil {
 			if e, ok := err.(Error); ok && e.Timeout() {
 				continue
 			}
 			return nil, err
 		}
-		buf = buf[0:n]
+		buf = buf[:n]
 		in := new(dnsMsg)
 		if !in.Unpack(buf) || in.id != out.id {
 			continue
@@ -97,6 +115,19 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs 
 		if merr != nil {
 			err = merr
 			continue
+		}
+		if msg.truncated { // see RFC 5966
+			c, cerr = Dial("tcp", server)
+			if cerr != nil {
+				err = cerr
+				continue
+			}
+			msg, merr = exchange(cfg, c, name, qtype)
+			c.Close()
+			if merr != nil {
+				err = merr
+				continue
+			}
 		}
 		cname, addrs, err = answer(name, server, msg, qtype)
 		if err == nil || err.(*DNSError).Err == noSuchHost {
@@ -180,6 +211,12 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error) 
 	if err == nil {
 		return
 	}
+	if e, ok := err.(*DNSError); ok {
+		// Show original name passed to lookup, not suffixed one.
+		// In general we might have tried many suffixes; showing
+		// just one is misleading. See also golang.org/issue/6324.
+		e.Name = name
+	}
 	return
 }
 
@@ -237,24 +274,30 @@ func goLookupIP(name string) (addrs []IP, err error) {
 	}
 	var records []dnsRR
 	var cname string
-	cname, records, err = lookup(name, dnsTypeA)
-	if err != nil {
-		return
-	}
+	var err4, err6 error
+	cname, records, err4 = lookup(name, dnsTypeA)
 	addrs = convertRR_A(records)
 	if cname != "" {
 		name = cname
 	}
-	_, records, err = lookup(name, dnsTypeAAAA)
-	if err != nil && len(addrs) > 0 {
-		// Ignore error because A lookup succeeded.
-		err = nil
+	_, records, err6 = lookup(name, dnsTypeAAAA)
+	if err4 != nil && err6 == nil {
+		// Ignore A error because AAAA lookup succeeded.
+		err4 = nil
 	}
-	if err != nil {
-		return
+	if err6 != nil && len(addrs) > 0 {
+		// Ignore AAAA error because A lookup succeeded.
+		err6 = nil
 	}
+	if err4 != nil {
+		return nil, err4
+	}
+	if err6 != nil {
+		return nil, err6
+	}
+
 	addrs = append(addrs, convertRR_AAAA(records)...)
-	return
+	return addrs, nil
 }
 
 // goLookupCNAME is the native Go implementation of LookupCNAME.

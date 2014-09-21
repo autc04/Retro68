@@ -1,7 +1,6 @@
 // Boilerplate support routines for -*- C++ -*- dynamic memory management.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2004, 2007, 2009, 2010, 2011
-// Free Software Foundation
+// Copyright (C) 1997-2014 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -44,6 +43,5 @@ _GLIBCXX_END_NAMESPACE_VERSION
 _GLIBCXX_WEAK_DEFINITION void
 operator delete(void* ptr) _GLIBCXX_USE_NOEXCEPT
 {
-  if (ptr)
-    std::free(ptr);
+  std::free(ptr);
 }

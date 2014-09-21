@@ -1189,6 +1189,12 @@ GFORTRAN_1.4 {
     _gfortran_eoshift2_16_char4;
 } GFORTRAN_1.3; 
 
+GFORTRAN_1.5 {
+  global:
+    _gfortran_ftell2;
+    _gfortran_backtrace;
+} GFORTRAN_1.4; 
+
 F2C_1.0 {
   global:
     _gfortran_f2c_specific__abs_c4;

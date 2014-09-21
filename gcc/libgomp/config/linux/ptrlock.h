@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Contributed by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of the GNU OpenMP Library (libgomp).
@@ -48,8 +48,9 @@ static inline void *gomp_ptrlock_get (gomp_ptrlock_t *ptrlock)
 {
   uintptr_t oldval;
 
-  if ((uintptr_t) *ptrlock > 2)
-    return *ptrlock;
+  uintptr_t v = (uintptr_t) __atomic_load_n (ptrlock, MEMMODEL_ACQUIRE);
+  if (v > 2)
+    return (void *) v;
 
   oldval = 0;
   if (__atomic_compare_exchange_n (ptrlock, &oldval, 1, false,

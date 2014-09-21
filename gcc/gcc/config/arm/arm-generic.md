@@ -1,5 +1,5 @@
 ;; Generic ARM Pipeline Description
-;; Copyright (C) 2003, 2007, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2014 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -38,19 +38,11 @@
 ;
 ; The write_blockage unit models (partially), the fact that reads will stall
 ; until the write buffer empties.
-; The f_mem_r and r_mem_f could also block, but they are to the stack,
-; so we don't model them here
 (define_cpu_unit "write_blockage" "arm")
 
 ;; Core
 ;
 (define_cpu_unit "core" "arm")
-
-(define_insn_reservation "r_mem_f_wbuf" 5
-  (and (eq_attr "generic_sched" "yes")
-       (and (eq_attr "model_wbuf" "yes")
-	    (eq_attr "type" "r_mem_f")))
-  "core+write_buf*3")
 
 (define_insn_reservation "store_wbuf" 5
   (and (eq_attr "generic_sched" "yes")
@@ -122,7 +114,9 @@
 
 (define_insn_reservation "mult" 16
   (and (eq_attr "generic_sched" "yes")
-       (and (eq_attr "ldsched" "no") (eq_attr "type" "mult")))
+       (and (eq_attr "ldsched" "no")
+	    (ior (eq_attr "mul32" "yes")
+		 (eq_attr "mul64" "yes"))))
   "core*16")
 
 (define_insn_reservation "mult_ldsched_strongarm" 3
@@ -130,7 +124,8 @@
        (and (eq_attr "ldsched" "yes") 
 	    (and (eq_attr "tune"
 		  "strongarm,strongarm110,strongarm1100,strongarm1110")
-	         (eq_attr "type" "mult"))))
+		 (ior (eq_attr "mul32" "yes")
+		      (eq_attr "mul64" "yes")))))
   "core*2")
 
 (define_insn_reservation "mult_ldsched" 4
@@ -138,13 +133,17 @@
        (and (eq_attr "ldsched" "yes") 
 	    (and (eq_attr "tune"
 		  "!strongarm,strongarm110,strongarm1100,strongarm1110")
-	         (eq_attr "type" "mult"))))
+	         (ior (eq_attr "mul32" "yes")
+		      (eq_attr "mul64" "yes")))))
   "core*4")
 
 (define_insn_reservation "multi_cycle" 32
   (and (eq_attr "generic_sched" "yes")
        (and (eq_attr "core_cycles" "multi")
-            (eq_attr "type" "!mult,load_byte,load1,load2,load3,load4,store1,store2,store3,store4")))
+            (and (eq_attr "type" "!load_byte,load1,load2,load3,load4,\
+                                  store1,store2,store3,store4")
+		 (not (ior (eq_attr "mul32" "yes")
+			   (eq_attr "mul64" "yes"))))))
   "core*32")
 
 (define_insn_reservation "single_cycle" 1

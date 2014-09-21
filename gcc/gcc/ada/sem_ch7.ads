@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2008, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,6 +32,20 @@ package Sem_Ch7 is
    procedure Analyze_Package_Specification              (N : Node_Id);
    procedure Analyze_Private_Type_Declaration           (N : Node_Id);
 
+   procedure Analyze_Package_Body_Contract (Body_Id : Entity_Id);
+   --  Analyze all delayed aspects chained on the contract of package body
+   --  Body_Id as if they appeared at the end of a declarative region. The
+   --  aspects that are considered are:
+   --    Refined_State
+
+   procedure Analyze_Package_Contract (Pack_Id : Entity_Id);
+   --  Analyze all delayed aspects chained on the contract of package Pack_Id
+   --  as if they appeared at the end of a declarative region. The aspects
+   --  that are considered are:
+   --    Initial_Condition
+   --    Initializes
+   --    Part_Of
+
    procedure End_Package_Scope (P : Entity_Id);
    --  Calls Uninstall_Declarations, and then pops the scope stack
 
@@ -45,16 +59,25 @@ package Sem_Ch7 is
 
    --  On entrance to a package body, make declarations in package spec
    --  immediately visible.
-
+   --
    --  When compiling the body of a package,  both routines are called in
    --  succession. When compiling the body of a child package, the call
    --  to Install_Private_Declaration is immediate for private children,
    --  but is deferred until the compilation of the  private part of the
    --  child for public child packages.
 
-   function Unit_Requires_Body (P : Entity_Id) return Boolean;
-   --  Check if a unit requires a body. A specification requires a body
-   --  if it contains declarations that require completion in a body.
+   function Unit_Requires_Body
+     (P                     : Entity_Id;
+      Ignore_Abstract_State : Boolean := False) return Boolean;
+   --  Check if a unit requires a body. A specification requires a body if it
+   --  contains declarations that require completion in a body. If the flag
+   --  Ignore_Abstract_State is set True, then the test for a non-null abstract
+   --  state (which normally requires a body) is not carried out. This allows
+   --  the use of this routine to tell if there is some other reason that a
+   --  body is required (as is required for analyzing Abstract_State). This
+   --  is not currently used, but may be useful in future if we implement a
+   --  compatibility mode which warns about possible incompatibilities if a
+   --  SPARK 2014 program is compiled with a SPARK-unaware compiler.
 
    procedure May_Need_Implicit_Body (E : Entity_Id);
    --  If a package declaration contains tasks or RACWs and does not require
@@ -63,17 +86,16 @@ package Sem_Ch7 is
    --  calling stubs.
 
    procedure New_Private_Type (N : Node_Id; Id : Entity_Id; Def : Node_Id);
-   --  Common processing for private type declarations and for formal
-   --  private type declarations. For private types, N and Def are the type
-   --  declaration node; for formal private types, Def is the formal type
-   --  definition.
+   --  Common processing for private type declarations and for formal private
+   --  type declarations. For private types, N and Def are the type declaration
+   --  node; for formal private types, Def is the formal type definition.
 
    procedure Uninstall_Declarations (P : Entity_Id);
-   --  At the end of a package declaration or body, declarations in the
-   --  visible part are no longer immediately visible, and declarations in
-   --  the private part are not visible at all. For inner packages, place
-   --  visible entities at the end of their homonym chains. For compilation
-   --  units, make all entities invisible. In both cases, exchange private
-   --  and visible declarations to restore order of elaboration.
+   --  At the end of a package declaration or body, declarations in the visible
+   --  part are no longer immediately visible, and declarations in the private
+   --  part are not visible at all. For inner packages, place visible entities
+   --  at the end of their homonym chains. For compilation units, make
+   --  all entities invisible. In both cases, exchange private and visible
+   --  declarations to restore order of elaboration.
 
 end Sem_Ch7;

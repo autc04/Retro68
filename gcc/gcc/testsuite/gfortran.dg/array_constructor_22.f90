@@ -1,4 +1,5 @@
 ! { dg-do compile }
+! { dg-options "-Wzerotrip" }
 ! PR34990 ICE in gfc_typenode_for_spec, at fortran/trans-types.c:842
 ! Test case that of the reporters.
 module test 
@@ -25,4 +26,3 @@ program len_test
 
    write(*,*) my_string(x) 
 end program len_test
-! { dg-final { cleanup-modules "test" } }

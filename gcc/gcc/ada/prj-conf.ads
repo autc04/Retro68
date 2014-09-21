@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---            Copyright (C) 2006-2011, Free Software Foundation, Inc.       --
+--            Copyright (C) 2006-2013, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,6 +26,7 @@
 --  The following package manipulates the configuration files
 
 with Prj.Tree;
+with Prj.Proc;
 
 package Prj.Conf is
 
@@ -40,22 +41,30 @@ package Prj.Conf is
    --  is set to Empty_Node when this procedure is called. You can then decide
    --  to create a new config file if you need.
 
+   No_Configuration_File : constant String := "/";
+   --  When specified as a parameter Config_File_Name in the procedures below,
+   --  no existing configuration project file is parsed. This is used by
+   --  gnatmake, gnatclean and the GNAT driver to avoid parsing an existing
+   --  default configuration project file.
+
    procedure Parse_Project_And_Apply_Config
      (Main_Project               : out Prj.Project_Id;
       User_Project_Node          : out Prj.Tree.Project_Node_Id;
-      Config_File_Name           : String := "";
+      Config_File_Name           : String                        := "";
       Autoconf_Specified         : Boolean;
       Project_File_Name          : String;
       Project_Tree               : Prj.Project_Tree_Ref;
       Project_Node_Tree          : Prj.Tree.Project_Node_Tree_Ref;
       Env                        : in out Prj.Tree.Environment;
       Packages_To_Check          : String_List_Access;
-      Allow_Automatic_Generation : Boolean := True;
+      Allow_Automatic_Generation : Boolean                       := True;
       Automatically_Generated    : out Boolean;
       Config_File_Path           : out String_Access;
-      Target_Name                : String := "";
+      Target_Name                : String                        := "";
       Normalized_Hostname        : String;
-      On_Load_Config             : Config_File_Hook := null);
+      On_Load_Config             : Config_File_Hook              := null;
+      Implicit_Project           : Boolean                       := False;
+      On_New_Tree_Loaded         : Prj.Proc.Tree_Loaded_Callback := null);
    --  Find the main configuration project and parse the project tree rooted at
    --  this configuration project.
    --
@@ -66,6 +75,10 @@ package Prj.Conf is
    --  If the processing fails, Main_Project is set to No_Project. If the error
    --  happened while parsing the project itself (i.e. creating the tree),
    --  User_Project_Node is also set to Empty_Node.
+   --
+   --  If Config_File_Name is No_Configuration_File, then no configuration
+   --  project file is parsed. Normally, in this case On_Load_Config is not
+   --  null, and it is used to create a configuration project file in memory.
    --
    --  Autoconf_Specified indicates whether the user has specified --autoconf.
    --  If this is the case, the config file might be (re)generated, as
@@ -85,23 +98,34 @@ package Prj.Conf is
    --  Any error in generating or parsing the config file is reported via the
    --  Invalid_Config exception, with an appropriate message. Any error while
    --  parsing the project file results in No_Project.
+   --
+   --  If Implicit_Project is True, the main project file being parsed is
+   --  deemed to be in the current working directory, even if it is not the
+   --  case. Implicit_Project is set to True when a tool such as gprbuild is
+   --  invoked without a project file and is using an implicit project file
+   --  that is virtually in the current working directory, but is physically
+   --  in another directory.
+   --
+   --  If specified, On_New_Tree_Loaded is called after each aggregated project
+   --  has been processed succesfully.
 
    procedure Process_Project_And_Apply_Config
      (Main_Project               : out Prj.Project_Id;
       User_Project_Node          : Prj.Tree.Project_Node_Id;
-      Config_File_Name           : String := "";
+      Config_File_Name           : String                       := "";
       Autoconf_Specified         : Boolean;
       Project_Tree               : Prj.Project_Tree_Ref;
       Project_Node_Tree          : Prj.Tree.Project_Node_Tree_Ref;
       Env                        : in out Prj.Tree.Environment;
       Packages_To_Check          : String_List_Access;
-      Allow_Automatic_Generation : Boolean := True;
+      Allow_Automatic_Generation : Boolean                      := True;
       Automatically_Generated    : out Boolean;
       Config_File_Path           : out String_Access;
-      Target_Name                : String := "";
+      Target_Name                : String                       := "";
       Normalized_Hostname        : String;
-      On_Load_Config             : Config_File_Hook := null;
-      Reset_Tree                 : Boolean := True);
+      On_Load_Config             : Config_File_Hook             := null;
+      Reset_Tree                 : Boolean                      := True;
+      On_New_Tree_Loaded         : Prj.Proc.Tree_Loaded_Callback := null);
    --  Same as above, except the project must already have been parsed through
    --  Prj.Part.Parse, and only the processing of the project and the
    --  configuration is done at this level.
@@ -119,22 +143,25 @@ package Prj.Conf is
 
    procedure Get_Or_Create_Configuration_File
      (Project                    : Prj.Project_Id;
+      Conf_Project               : Project_Id;
       Project_Tree               : Prj.Project_Tree_Ref;
       Project_Node_Tree          : Prj.Tree.Project_Node_Tree_Ref;
       Env                        : in out Prj.Tree.Environment;
       Allow_Automatic_Generation : Boolean;
-      Config_File_Name           : String := "";
+      Config_File_Name           : String             := "";
       Autoconf_Specified         : Boolean;
-      Target_Name                : String := "";
+      Target_Name                : String             := "";
       Normalized_Hostname        : String;
       Packages_To_Check          : String_List_Access := null;
       Config                     : out Prj.Project_Id;
       Config_File_Path           : out String_Access;
       Automatically_Generated    : out Boolean;
-      On_Load_Config             : Config_File_Hook := null);
+      On_Load_Config             : Config_File_Hook   := null);
    --  Compute the name of the configuration file that should be used. If no
    --  default configuration file is found, a new one will be automatically
-   --  generated if Allow_Automatic_Generation is true.
+   --  generated if Allow_Automatic_Generation is true. This configuration
+   --  project file will be generated in the object directory of project
+   --  Conf_Project.
    --
    --  Any error in generating or parsing the config file is reported via the
    --  Invalid_Config exception, with an appropriate message.
@@ -160,7 +187,7 @@ package Prj.Conf is
    --
    --  If a project file could be found, it is automatically parsed and
    --  processed (and Packages_To_Check is used to indicate which packages
-   --  should be processed)
+   --  should be processed).
 
    procedure Add_Default_GNAT_Naming_Scheme
      (Config_File  : in out Prj.Tree.Project_Node_Id;
@@ -188,5 +215,13 @@ package Prj.Conf is
 
    function Runtime_Name_Set_For (Language : Name_Id) return Boolean;
    --  Returns True only if Set_Runtime_For has been called for the Language
+
+   procedure Locate_Runtime
+     (Language     : Name_Id;
+      Project_Tree : Prj.Project_Tree_Ref);
+   --  If RTS_Name is a base name (a name without path separator), then
+   --  do nothing. Otherwise, convert it to an absolute path (possibly by
+   --  searching it in the project path) and call Set_Runtime_For with the
+   --  absolute path. Fail the program if the path does not exist.
 
 end Prj.Conf;

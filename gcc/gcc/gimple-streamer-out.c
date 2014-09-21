@@ -1,6 +1,6 @@
 /* Routines for emitting GIMPLE to a file stream.
 
-   Copyright 2011 Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@google.com>
 
 This file is part of GCC.
@@ -23,11 +23,20 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
-#include "tree-flow.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "tree-eh.h"
+#include "gimple-expr.h"
+#include "is-a.h"
+#include "gimple.h"
+#include "gimple-iterator.h"
+#include "gimple-ssa.h"
 #include "data-streamer.h"
 #include "gimple-streamer.h"
 #include "lto-streamer.h"
 #include "tree-streamer.h"
+#include "value-prof.h"
 
 /* Output PHI function PHI to the main stream in OB.  */
 
@@ -43,7 +52,9 @@ output_phi (struct output_block *ob, gimple phi)
     {
       stream_write_tree (ob, gimple_phi_arg_def (phi, i), true);
       streamer_write_uhwi (ob, gimple_phi_arg_edge (phi, i)->src->index);
-      lto_output_location (ob, gimple_phi_arg_location (phi, i));
+      bitpack_d bp = bitpack_create (ob->main_stream);
+      stream_output_location (ob, &bp, gimple_phi_arg_location (phi, i));
+      streamer_write_bitpack (&bp);
     }
 }
 
@@ -57,6 +68,7 @@ output_gimple_stmt (struct output_block *ob, gimple stmt)
   enum gimple_code code;
   enum LTO_tags tag;
   struct bitpack_d bp;
+  histogram_value hist;
 
   /* Emit identifying tag.  */
   code = gimple_code (stmt);
@@ -70,11 +82,13 @@ output_gimple_stmt (struct output_block *ob, gimple stmt)
   if (is_gimple_assign (stmt))
     bp_pack_value (&bp, gimple_assign_nontemporal_move_p (stmt), 1);
   bp_pack_value (&bp, gimple_has_volatile_ops (stmt), 1);
-  bp_pack_var_len_unsigned (&bp, stmt->gsbase.subcode);
-  streamer_write_bitpack (&bp);
+  hist = gimple_histogram_value (cfun, stmt);
+  bp_pack_value (&bp, hist != NULL, 1);
+  bp_pack_var_len_unsigned (&bp, stmt->subcode);
 
   /* Emit location information for the statement.  */
-  lto_output_location (ob, gimple_location (stmt));
+  stream_output_location (ob, &bp, LOCATION_LOCUS (gimple_location (stmt)));
+  streamer_write_bitpack (&bp);
 
   /* Emit the lexical block holding STMT.  */
   stream_write_tree (ob, gimple_block (stmt), true);
@@ -114,13 +128,16 @@ output_gimple_stmt (struct output_block *ob, gimple stmt)
       for (i = 0; i < gimple_num_ops (stmt); i++)
 	{
 	  tree op = gimple_op (stmt, i);
+	  tree *basep = NULL;
 	  /* Wrap all uses of non-automatic variables inside MEM_REFs
 	     so that we do not have to deal with type mismatches on
 	     merged symbols during IL read in.  The first operand
 	     of GIMPLE_DEBUG must be a decl, not MEM_REF, though.  */
 	  if (op && (i || !is_gimple_debug (stmt)))
 	    {
-	      tree *basep = &op;
+	      basep = &op;
+	      if (TREE_CODE (*basep) == ADDR_EXPR)
+		basep = &TREE_OPERAND (*basep, 0);
 	      while (handled_component_p (*basep))
 		basep = &TREE_OPERAND (*basep, 0);
 	      if (TREE_CODE (*basep) == VAR_DECL
@@ -128,14 +145,19 @@ output_gimple_stmt (struct output_block *ob, gimple stmt)
 		  && !DECL_REGISTER (*basep))
 		{
 		  bool volatilep = TREE_THIS_VOLATILE (*basep);
+		  tree ptrtype = build_pointer_type (TREE_TYPE (*basep));
 		  *basep = build2 (MEM_REF, TREE_TYPE (*basep),
-				   build_fold_addr_expr (*basep),
-				   build_int_cst (build_pointer_type
-						  (TREE_TYPE (*basep)), 0));
+				   build1 (ADDR_EXPR, ptrtype, *basep),
+				   build_int_cst (ptrtype, 0));
 		  TREE_THIS_VOLATILE (*basep) = volatilep;
 		}
+	      else
+		basep = NULL;
 	    }
 	  stream_write_tree (ob, op, true);
+	  /* Restore the original base if we wrapped it inside a MEM_REF.  */
+	  if (basep)
+	    *basep = TREE_OPERAND (TREE_OPERAND (*basep, 0), 0);
 	}
       if (is_gimple_call (stmt))
 	{
@@ -159,6 +181,8 @@ output_gimple_stmt (struct output_block *ob, gimple stmt)
     default:
       gcc_unreachable ();
     }
+  if (hist)
+    stream_out_histogram_value (ob, hist);
 }
 
 
@@ -175,8 +199,7 @@ output_bb (struct output_block *ob, basic_block bb, struct function *fn)
 				: LTO_bb0);
 
   streamer_write_uhwi (ob, bb->index);
-  streamer_write_hwi (ob, bb->count);
-  streamer_write_hwi (ob, bb->loop_depth);
+  streamer_write_gcov_count (ob, bb->count);
   streamer_write_hwi (ob, bb->frequency);
   streamer_write_hwi (ob, bb->flags);
 
@@ -211,7 +234,7 @@ output_bb (struct output_block *ob, basic_block bb, struct function *fn)
 	  /* Only emit PHIs for gimple registers.  PHI nodes for .MEM
 	     will be filled in on reading when the SSA form is
 	     updated.  */
-	  if (is_gimple_reg (gimple_phi_result (phi)))
+	  if (!virtual_operand_p (gimple_phi_result (phi)))
 	    output_phi (ob, phi);
 	}
 

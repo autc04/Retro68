@@ -11,53 +11,75 @@ package runtime
 #include "malloc.h"
 #include "defs.h"
 #include "go-type.h"
+#include "go-string.h"
 
 // NOTE(rsc): Everything here could use cas if contention became an issue.
 static Lock proflock;
 
-// Per-call-stack allocation information.
+// All memory allocations are local and do not escape outside of the profiler.
+// The profiler is forbidden from referring to garbage-collected memory.
+
+enum { MProf, BProf };  // profile types
+
+// Per-call-stack profiling information.
 // Lookup by hashing call stack into a linked-list hash table.
 typedef struct Bucket Bucket;
 struct Bucket
 {
 	Bucket	*next;	// next in hash list
-	Bucket	*allnext;	// next in list of all buckets
-	uintptr	allocs;
-	uintptr	frees;
-	uintptr	alloc_bytes;
-	uintptr	free_bytes;
-	uintptr	recent_allocs;  // since last gc
-	uintptr	recent_frees;
-	uintptr	recent_alloc_bytes;
-	uintptr	recent_free_bytes;
+	Bucket	*allnext;	// next in list of all mbuckets/bbuckets
+	int32	typ;
+	// Generally unions can break precise GC,
+	// this one is fine because it does not contain pointers.
+	union
+	{
+		struct  // typ == MProf
+		{
+			uintptr	allocs;
+			uintptr	frees;
+			uintptr	alloc_bytes;
+			uintptr	free_bytes;
+			uintptr	recent_allocs;  // since last gc
+			uintptr	recent_frees;
+			uintptr	recent_alloc_bytes;
+			uintptr	recent_free_bytes;
+		};
+		struct  // typ == BProf
+		{
+			int64	count;
+			int64	cycles;
+		};
+	};
 	uintptr	hash;
 	uintptr	nstk;
-	uintptr	stk[1];
+	Location stk[1];
 };
 enum {
 	BuckHashSize = 179999,
 };
 static Bucket **buckhash;
-static Bucket *buckets;
+static Bucket *mbuckets;  // memory profile buckets
+static Bucket *bbuckets;  // blocking profile buckets
 static uintptr bucketmem;
 
 // Return the bucket for stk[0:nstk], allocating new bucket if needed.
 static Bucket*
-stkbucket(uintptr *stk, int32 nstk, bool alloc)
+stkbucket(int32 typ, Location *stk, int32 nstk, bool alloc)
 {
-	int32 i;
+	int32 i, j;
 	uintptr h;
 	Bucket *b;
 
 	if(buckhash == nil) {
-		buckhash = runtime_SysAlloc(BuckHashSize*sizeof buckhash[0]);
-		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
+		buckhash = runtime_SysAlloc(BuckHashSize*sizeof buckhash[0], &mstats.buckhash_sys);
+		if(buckhash == nil)
+			runtime_throw("runtime: cannot allocate memory");
 	}
 
 	// Hash stack.
 	h = 0;
 	for(i=0; i<nstk; i++) {
-		h += stk[i];
+		h += stk[i].pc;
 		h += h<<10;
 		h ^= h>>6;
 	}
@@ -65,34 +87,46 @@ stkbucket(uintptr *stk, int32 nstk, bool alloc)
 	h ^= h>>11;
 
 	i = h%BuckHashSize;
-	for(b = buckhash[i]; b; b=b->next)
-		if(b->hash == h && b->nstk == (uintptr)nstk &&
-		   runtime_mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
-			return b;
+	for(b = buckhash[i]; b; b=b->next) {
+		if(b->typ == typ && b->hash == h && b->nstk == (uintptr)nstk) {
+			for(j = 0; j < nstk; j++) {
+				if(b->stk[j].pc != stk[j].pc ||
+				   b->stk[j].lineno != stk[j].lineno ||
+				   !__go_strings_equal(b->stk[j].filename, stk[j].filename))
+					break;
+			}
+			if (j == nstk)
+				return b;
+		}
+	}
 
 	if(!alloc)
 		return nil;
 
-	b = runtime_mallocgc(sizeof *b + nstk*sizeof stk[0], FlagNoProfiling, 0, 1);
+	b = runtime_persistentalloc(sizeof *b + nstk*sizeof stk[0], 0, &mstats.buckhash_sys);
 	bucketmem += sizeof *b + nstk*sizeof stk[0];
 	runtime_memmove(b->stk, stk, nstk*sizeof stk[0]);
+	b->typ = typ;
 	b->hash = h;
 	b->nstk = nstk;
 	b->next = buckhash[i];
 	buckhash[i] = b;
-	b->allnext = buckets;
-	buckets = b;
+	if(typ == MProf) {
+		b->allnext = mbuckets;
+		mbuckets = b;
+	} else {
+		b->allnext = bbuckets;
+		bbuckets = b;
+	}
 	return b;
 }
 
-// Record that a gc just happened: all the 'recent' statistics are now real.
-void
-runtime_MProf_GC(void)
+static void
+MProf_GC(void)
 {
 	Bucket *b;
-	
-	runtime_lock(&proflock);
-	for(b=buckets; b; b=b->allnext) {
+
+	for(b=mbuckets; b; b=b->allnext) {
 		b->allocs += b->recent_allocs;
 		b->frees += b->recent_frees;
 		b->alloc_bytes += b->recent_alloc_bytes;
@@ -102,25 +136,39 @@ runtime_MProf_GC(void)
 		b->recent_alloc_bytes = 0;
 		b->recent_free_bytes = 0;
 	}
+}
+
+// Record that a gc just happened: all the 'recent' statistics are now real.
+void
+runtime_MProf_GC(void)
+{
+	runtime_lock(&proflock);
+	MProf_GC();
 	runtime_unlock(&proflock);
 }
 
 // Map from pointer to Bucket* that allocated it.
 // Three levels:
-//	Linked-list hash table for top N-20 bits.
-//	Array index for next 13 bits.
-//	Linked list for next 7 bits.
+//	Linked-list hash table for top N-AddrHashShift bits.
+//	Array index for next AddrDenseBits bits.
+//	Linked list for next AddrHashShift-AddrDenseBits bits.
 // This is more efficient than using a general map,
 // because of the typical clustering of the pointer keys.
 
 typedef struct AddrHash AddrHash;
 typedef struct AddrEntry AddrEntry;
 
+enum {
+	AddrHashBits = 12,	// good for 4GB of used address space
+	AddrHashShift = 20,	// each AddrHash knows about 1MB of address space
+	AddrDenseBits = 8,	// good for a profiling rate of 4096 bytes
+};
+
 struct AddrHash
 {
 	AddrHash *next;	// next in top-level hash table linked list
 	uintptr addr;	// addr>>20
-	AddrEntry *dense[1<<13];
+	AddrEntry *dense[1<<AddrDenseBits];
 };
 
 struct AddrEntry
@@ -130,10 +178,7 @@ struct AddrEntry
 	Bucket *b;
 };
 
-enum {
-	AddrHashBits = 12	// 1MB per entry, so good for 4GB of used address space
-};
-static AddrHash *addrhash[1<<AddrHashBits];
+static AddrHash **addrhash;	// points to (AddrHash*)[1<<AddrHashBits]
 static AddrEntry *addrfree;
 static uintptr addrmem;
 
@@ -155,29 +200,29 @@ setaddrbucket(uintptr addr, Bucket *b)
 	AddrHash *ah;
 	AddrEntry *e;
 
-	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
+	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
 	for(ah=addrhash[h]; ah; ah=ah->next)
-		if(ah->addr == (addr>>20))
+		if(ah->addr == (addr>>AddrHashShift))
 			goto found;
 
-	ah = runtime_mallocgc(sizeof *ah, FlagNoProfiling, 0, 1);
+	ah = runtime_persistentalloc(sizeof *ah, 0, &mstats.buckhash_sys);
 	addrmem += sizeof *ah;
 	ah->next = addrhash[h];
-	ah->addr = addr>>20;
+	ah->addr = addr>>AddrHashShift;
 	addrhash[h] = ah;
 
 found:
 	if((e = addrfree) == nil) {
-		e = runtime_mallocgc(64*sizeof *e, FlagNoProfiling, 0, 0);
+		e = runtime_persistentalloc(64*sizeof *e, 0, &mstats.buckhash_sys);
 		addrmem += 64*sizeof *e;
 		for(i=0; i+1<64; i++)
 			e[i].next = &e[i+1];
 		e[63].next = nil;
 	}
 	addrfree = e->next;
-	e->addr = (uint32)~(addr & ((1<<20)-1));
+	e->addr = (uint32)~(addr & ((1<<AddrHashShift)-1));
 	e->b = b;
-	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
+	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
 	e->next = ah->dense[h];
 	ah->dense[h] = e;
 }
@@ -191,16 +236,16 @@ getaddrbucket(uintptr addr)
 	AddrEntry *e, **l;
 	Bucket *b;
 
-	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
+	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
 	for(ah=addrhash[h]; ah; ah=ah->next)
-		if(ah->addr == (addr>>20))
+		if(ah->addr == (addr>>AddrHashShift))
 			goto found;
 	return nil;
 
 found:
-	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
+	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
 	for(l=&ah->dense[h]; (e=*l) != nil; l=&e->next) {
-		if(e->addr == (uint32)~(addr & ((1<<20)-1))) {
+		if(e->addr == (uint32)~(addr & ((1<<AddrHashShift)-1))) {
 			*l = e->next;
 			b = e->b;
 			e->next = addrfree;
@@ -215,39 +260,25 @@ found:
 void
 runtime_MProf_Malloc(void *p, uintptr size)
 {
-	M *m;
 	int32 nstk;
-	uintptr stk[32];
+	Location stk[32];
 	Bucket *b;
 
-	m = runtime_m();
-	if(m->nomemprof > 0)
-		return;
-
-	m->nomemprof++;
 	nstk = runtime_callers(1, stk, 32);
 	runtime_lock(&proflock);
-	b = stkbucket(stk, nstk, true);
+	b = stkbucket(MProf, stk, nstk, true);
 	b->recent_allocs++;
 	b->recent_alloc_bytes += size;
 	setaddrbucket((uintptr)p, b);
 	runtime_unlock(&proflock);
-	m = runtime_m();
-	m->nomemprof--;
 }
 
 // Called when freeing a profiled block.
 void
 runtime_MProf_Free(void *p, uintptr size)
 {
-	M *m;
 	Bucket *b;
 
-	m = runtime_m();
-	if(m->nomemprof > 0)
-		return;
-
-	m->nomemprof++;
 	runtime_lock(&proflock);
 	b = getaddrbucket((uintptr)p);
 	if(b != nil) {
@@ -255,13 +286,51 @@ runtime_MProf_Free(void *p, uintptr size)
 		b->recent_free_bytes += size;
 	}
 	runtime_unlock(&proflock);
-	m = runtime_m();
-	m->nomemprof--;
 }
 
+int64 runtime_blockprofilerate;  // in CPU ticks
 
-// Go interface to profile data.  (Declared in extern.go)
-// Assumes Go sizeof(int) == sizeof(int32)
+void runtime_SetBlockProfileRate(intgo) __asm__ (GOSYM_PREFIX "runtime.SetBlockProfileRate");
+
+void
+runtime_SetBlockProfileRate(intgo rate)
+{
+	int64 r;
+
+	if(rate <= 0)
+		r = 0;  // disable profiling
+	else {
+		// convert ns to cycles, use float64 to prevent overflow during multiplication
+		r = (float64)rate*runtime_tickspersecond()/(1000*1000*1000);
+		if(r == 0)
+			r = 1;
+	}
+	runtime_atomicstore64((uint64*)&runtime_blockprofilerate, r);
+}
+
+void
+runtime_blockevent(int64 cycles, int32 skip)
+{
+	int32 nstk;
+	int64 rate;
+	Location stk[32];
+	Bucket *b;
+
+	if(cycles <= 0)
+		return;
+	rate = runtime_atomicload64((uint64*)&runtime_blockprofilerate);
+	if(rate <= 0 || (rate > cycles && runtime_fastrand1()%rate > cycles))
+		return;
+
+	nstk = runtime_callers(skip, stk, 32);
+	runtime_lock(&proflock);
+	b = stkbucket(BProf, stk, nstk, true);
+	b->count++;
+	b->cycles += cycles;
+	runtime_unlock(&proflock);
+}
+
+// Go interface to profile data.  (Declared in debug.go)
 
 // Must match MemProfileRecord in debug.go.
 typedef struct Record Record;
@@ -282,25 +351,41 @@ record(Record *r, Bucket *b)
 	r->alloc_objects = b->allocs;
 	r->free_objects = b->frees;
 	for(i=0; i<b->nstk && i<nelem(r->stk); i++)
-		r->stk[i] = b->stk[i];
+		r->stk[i] = b->stk[i].pc;
 	for(; i<nelem(r->stk); i++)
 		r->stk[i] = 0;
 }
 
-func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
+func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 	Bucket *b;
 	Record *r;
+	bool clear;
 
 	runtime_lock(&proflock);
 	n = 0;
-	for(b=buckets; b; b=b->allnext)
+	clear = true;
+	for(b=mbuckets; b; b=b->allnext) {
 		if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
 			n++;
+		if(b->allocs != 0 || b->frees != 0)
+			clear = false;
+	}
+	if(clear) {
+		// Absolutely no data, suggesting that a garbage collection
+		// has not yet happened. In order to allow profiling when
+		// garbage collection is disabled from the beginning of execution,
+		// accumulate stats as if a GC just happened, and recount buckets.
+		MProf_GC();
+		n = 0;
+		for(b=mbuckets; b; b=b->allnext)
+			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+				n++;
+	}
 	ok = false;
 	if(n <= p.__count) {
 		ok = true;
 		r = (Record*)p.__values;
-		for(b=buckets; b; b=b->allnext)
+		for(b=mbuckets; b; b=b->allnext)
 			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
 				record(r++, b);
 	}
@@ -308,12 +393,46 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
 }
 
 void
-runtime_MProf_Mark(void (*scan)(byte *, int64))
+runtime_MProf_Mark(void (*addroot)(Obj))
 {
 	// buckhash is not allocated via mallocgc.
-	scan((byte*)&buckets, sizeof buckets);
-	scan((byte*)&addrhash, sizeof addrhash);
-	scan((byte*)&addrfree, sizeof addrfree);
+	addroot((Obj){(byte*)&mbuckets, sizeof mbuckets, 0});
+	addroot((Obj){(byte*)&bbuckets, sizeof bbuckets, 0});
+	addroot((Obj){(byte*)&addrhash, sizeof addrhash, 0});
+	addroot((Obj){(byte*)&addrfree, sizeof addrfree, 0});
+}
+
+// Must match BlockProfileRecord in debug.go.
+typedef struct BRecord BRecord;
+struct BRecord {
+	int64 count;
+	int64 cycles;
+	uintptr stk[32];
+};
+
+func BlockProfile(p Slice) (n int, ok bool) {
+	Bucket *b;
+	BRecord *r;
+	int32 i;
+
+	runtime_lock(&proflock);
+	n = 0;
+	for(b=bbuckets; b; b=b->allnext)
+		n++;
+	ok = false;
+	if(n <= p.__count) {
+		ok = true;
+		r = (BRecord*)p.__values;
+		for(b=bbuckets; b; b=b->allnext, r++) {
+			r->count = b->count;
+			r->cycles = b->cycles;
+			for(i=0; (uintptr)i<b->nstk && (uintptr)i<nelem(r->stk); i++)
+				r->stk[i] = b->stk[i].pc;
+			for(; (uintptr)i<nelem(r->stk); i++)
+				r->stk[i] = 0;			
+		}
+	}
+	runtime_unlock(&proflock);
 }
 
 // Must match StackRecord in debug.go.
@@ -322,35 +441,41 @@ struct TRecord {
 	uintptr stk[32];
 };
 
-func ThreadCreateProfile(p Slice) (n int32, ok bool) {
+func ThreadCreateProfile(p Slice) (n int, ok bool) {
 	TRecord *r;
-	M *first, *m;
+	M *first, *mp;
+	int32 i;
 	
 	first = runtime_atomicloadp(&runtime_allm);
 	n = 0;
-	for(m=first; m; m=m->alllink)
+	for(mp=first; mp; mp=mp->alllink)
 		n++;
 	ok = false;
 	if(n <= p.__count) {
 		ok = true;
 		r = (TRecord*)p.__values;
-		for(m=first; m; m=m->alllink) {
-			runtime_memmove(r->stk, m->createstack, sizeof r->stk);
+		for(mp=first; mp; mp=mp->alllink) {
+			for(i = 0; (uintptr)i < nelem(r->stk); i++) {
+				r->stk[i] = mp->createstack[i].pc;
+			}
 			r++;
 		}
 	}
 }
 
-func Stack(b Slice, all bool) (n int32) {
+func Stack(b Slice, all bool) (n int) {
 	byte *pc, *sp;
+	bool enablegc;
 	
 	sp = runtime_getcallersp(&b);
-	pc = runtime_getcallerpc(&b);
+	pc = (byte*)(uintptr)runtime_getcallerpc(&b);
 
 	if(all) {
-		runtime_semacquire(&runtime_worldsema);
+		runtime_semacquire(&runtime_worldsema, false);
 		runtime_m()->gcing = 1;
 		runtime_stoptheworld();
+		enablegc = mstats.enablegc;
+		mstats.enablegc = false;
 	}
 
 	if(b.__count == 0)
@@ -361,10 +486,11 @@ func Stack(b Slice, all bool) (n int32) {
 		g->writenbuf = b.__count;
 		USED(pc);
 		USED(sp);
-		// runtime_goroutineheader(g);
-		// runtime_traceback(pc, sp, 0, g);
-		// if(all)
-		//	runtime_tracebackothers(g);
+		runtime_goroutineheader(g);
+		runtime_traceback();
+		runtime_printcreatedby(g);
+		if(all)
+			runtime_tracebackothers(g);
 		n = b.__count - g->writenbuf;
 		g->writebuf = nil;
 		g->writenbuf = 0;
@@ -372,37 +498,39 @@ func Stack(b Slice, all bool) (n int32) {
 	
 	if(all) {
 		runtime_m()->gcing = 0;
+		mstats.enablegc = enablegc;
 		runtime_semrelease(&runtime_worldsema);
-		runtime_starttheworld(false);
+		runtime_starttheworld();
 	}
 }
 
 static void
-saveg(byte *pc, byte *sp, G *g, TRecord *r)
+saveg(G *gp, TRecord *r)
 {
-	int32 n;
+	int32 n, i;
+	Location locstk[nelem(r->stk)];
 
-	USED(pc);
-	USED(sp);
-	USED(g);
-	// n = runtime_gentraceback(pc, sp, 0, g, 0, r->stk, nelem(r->stk));
-	n = 0;
+	if(gp == runtime_g()) {
+		n = runtime_callers(0, locstk, nelem(r->stk));
+		for(i = 0; i < n; i++)
+			r->stk[i] = locstk[i].pc;
+	}
+	else {
+		// FIXME: Not implemented.
+		n = 0;
+	}
 	if((size_t)n < nelem(r->stk))
 		r->stk[n] = 0;
 }
 
-func GoroutineProfile(b Slice) (n int32, ok bool) {
-	byte *pc, *sp;
+func GoroutineProfile(b Slice) (n int, ok bool) {
 	TRecord *r;
 	G *gp;
-	
-	sp = runtime_getcallersp(&b);
-	pc = runtime_getcallerpc(&b);
 	
 	ok = false;
 	n = runtime_gcount();
 	if(n <= b.__count) {
-		runtime_semacquire(&runtime_worldsema);
+		runtime_semacquire(&runtime_worldsema, false);
 		runtime_m()->gcing = 1;
 		runtime_stoptheworld();
 
@@ -411,18 +539,22 @@ func GoroutineProfile(b Slice) (n int32, ok bool) {
 			G* g = runtime_g();
 			ok = true;
 			r = (TRecord*)b.__values;
-			saveg(pc, sp, g, r++);
+			saveg(g, r++);
 			for(gp = runtime_allg; gp != nil; gp = gp->alllink) {
 				if(gp == g || gp->status == Gdead)
 					continue;
-				//saveg(gp->sched.pc, gp->sched.sp, gp, r++);
-				r++;
+				saveg(gp, r++);
 			}
 		}
 	
 		runtime_m()->gcing = 0;
 		runtime_semrelease(&runtime_worldsema);
-		runtime_starttheworld(false);
+		runtime_starttheworld();
 	}
 }
 
+void
+runtime_mprofinit(void)
+{
+	addrhash = runtime_persistentalloc((1<<AddrHashBits)*sizeof *addrhash, 0, &mstats.buckhash_sys);
+}

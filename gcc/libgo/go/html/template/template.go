@@ -14,14 +14,16 @@ import (
 	"text/template/parse"
 )
 
-// Template is a specialized template.Template that produces a safe HTML
-// document fragment.
+// Template is a specialized Template from "text/template" that produces a safe
+// HTML document fragment.
 type Template struct {
 	escaped bool
 	// We could embed the text/template field, but it's safer not to because
 	// we need to keep our version of the name space and the underlying
 	// template's in sync.
-	text       *template.Template
+	text *template.Template
+	// The underlying template's parse tree, updated to be HTML-safe.
+	Tree       *parse.Tree
 	*nameSpace // common to all associated templates
 }
 
@@ -31,18 +33,38 @@ type nameSpace struct {
 	set map[string]*Template
 }
 
+// Templates returns a slice of the templates associated with t, including t
+// itself.
+func (t *Template) Templates() []*Template {
+	ns := t.nameSpace
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
+	// Return a slice so we don't expose the map.
+	m := make([]*Template, 0, len(ns.set))
+	for _, v := range ns.set {
+		m = append(m, v)
+	}
+	return m
+}
+
+// escape escapes all associated templates.
+func (t *Template) escape() error {
+	t.nameSpace.mu.Lock()
+	defer t.nameSpace.mu.Unlock()
+	if !t.escaped {
+		if err := escapeTemplates(t, t.Name()); err != nil {
+			return err
+		}
+		t.escaped = true
+	}
+	return nil
+}
+
 // Execute applies a parsed template to the specified data object,
 // writing the output to wr.
-func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
-	t.nameSpace.mu.Lock()
-	if !t.escaped {
-		if err = escapeTemplates(t, t.Name()); err != nil {
-			t.escaped = true
-		}
-	}
-	t.nameSpace.mu.Unlock()
-	if err != nil {
-		return
+func (t *Template) Execute(wr io.Writer, data interface{}) error {
+	if err := t.escape(); err != nil {
+		return err
 	}
 	return t.text.Execute(wr, data)
 }
@@ -64,7 +86,13 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	tmpl = t.set[name]
-	if (tmpl == nil) != (t.text.Lookup(name) == nil) {
+	if tmpl == nil {
+		return nil, fmt.Errorf("html/template: %q is undefined", name)
+	}
+	if tmpl.text.Tree == nil || tmpl.text.Root == nil {
+		return nil, fmt.Errorf("html/template: %q is an incomplete template", name)
+	}
+	if t.text.Lookup(name) == nil {
 		panic("html/template internal error: template escaping out of sync")
 	}
 	if tmpl != nil && !tmpl.escaped {
@@ -100,8 +128,10 @@ func (t *Template) Parse(src string) (*Template, error) {
 		if tmpl == nil {
 			tmpl = t.new(name)
 		}
+		// Restore our record of this text/template to its unescaped original state.
 		tmpl.escaped = false
 		tmpl.text = v
+		tmpl.Tree = v.Tree
 	}
 	return t, nil
 }
@@ -123,6 +153,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 	ret := &Template{
 		false,
 		text,
+		text.Tree,
 		t.nameSpace,
 	}
 	t.set[name] = ret
@@ -150,6 +181,7 @@ func (t *Template) Clone() (*Template, error) {
 	ret := &Template{
 		false,
 		textClone,
+		textClone.Tree,
 		&nameSpace{
 			set: make(map[string]*Template),
 		},
@@ -160,13 +192,11 @@ func (t *Template) Clone() (*Template, error) {
 		if src == nil || src.escaped {
 			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
 		}
-		x.Tree = &parse.Tree{
-			Name: x.Tree.Name,
-			Root: x.Tree.Root.CopyList(),
-		}
+		x.Tree = x.Tree.Copy()
 		ret.set[name] = &Template{
 			false,
 			x,
+			x.Tree,
 			ret.nameSpace,
 		}
 	}
@@ -178,6 +208,7 @@ func New(name string) *Template {
 	tmpl := &Template{
 		false,
 		template.New(name),
+		nil,
 		&nameSpace{
 			set: make(map[string]*Template),
 		},
@@ -200,6 +231,7 @@ func (t *Template) new(name string) *Template {
 	tmpl := &Template{
 		false,
 		t.text.New(name),
+		nil,
 		t.nameSpace,
 	}
 	tmpl.set[name] = tmpl
@@ -216,7 +248,8 @@ func (t *Template) Name() string {
 // return values of which the second has type error. In that case, if the
 // second (error) argument evaluates to non-nil during execution, execution
 // terminates and Execute returns that error. FuncMap has the same base type
-// as template.FuncMap, copied here so clients need not import "text/template".
+// as FuncMap in "text/template", copied here so clients need not import
+// "text/template".
 type FuncMap map[string]interface{}
 
 // Funcs adds the elements of the argument map to the template's function map.
@@ -246,7 +279,10 @@ func (t *Template) Lookup(name string) *Template {
 	return t.set[name]
 }
 
-// Must panics if err is non-nil in the same way as template.Must.
+// Must is a helper that wraps a call to a function returning (*Template, error)
+// and panics if the error is non-nil. It is intended for use in variable initializations
+// such as
+//	var t = template.Must(template.New("name").Parse("html"))
 func Must(t *Template, err error) *Template {
 	if err != nil {
 		panic(err)
@@ -274,7 +310,7 @@ func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 func parseFiles(t *Template, filenames ...string) (*Template, error) {
 	if len(filenames) == 0 {
 		// Not really a problem, but be consistent.
-		return nil, fmt.Errorf("template: no files named in call to ParseFiles")
+		return nil, fmt.Errorf("html/template: no files named in call to ParseFiles")
 	}
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
@@ -331,7 +367,7 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 		return nil, err
 	}
 	if len(filenames) == 0 {
-		return nil, fmt.Errorf("template: pattern matches no files: %#q", pattern)
+		return nil, fmt.Errorf("html/template: pattern matches no files: %#q", pattern)
 	}
 	return parseFiles(t, filenames...)
 }

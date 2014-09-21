@@ -1,6 +1,5 @@
 ;;  Machine description the Motorola MCore
-;;  Copyright (C) 1993, 1999, 2000, 2004, 2005, 2007, 2009, 2010
-;;  Free Software Foundation, Inc.
+;;  Copyright (C) 1993-2014 Free Software Foundation, Inc.
 ;;  Contributed by Motorola.
 
 ;; This file is part of GCC.
@@ -464,33 +463,6 @@
 		(match_operand:SI 2 "mcore_arith_reg_operand" "r")))]
   ""
   "xor	%0,%2")
-
-; these patterns give better code then gcc invents if
-; left to its own devices
-
-(define_insn "anddi3"
-  [(set (match_operand:DI 0 "mcore_arith_reg_operand" "=r")
-	(and:DI (match_operand:DI 1 "mcore_arith_reg_operand" "%0")
-		(match_operand:DI 2 "mcore_arith_reg_operand" "r")))]
-  ""
-  "and	%0,%2\;and	%R0,%R2"
-  [(set_attr "length" "4")])
-
-(define_insn "iordi3"
-  [(set (match_operand:DI 0 "mcore_arith_reg_operand" "=r")
-	(ior:DI (match_operand:DI 1 "mcore_arith_reg_operand" "%0")
-		(match_operand:DI 2 "mcore_arith_reg_operand" "r")))]
-  ""
-  "or	%0,%2\;or	%R0,%R2"
-  [(set_attr "length" "4")])
-
-(define_insn "xordi3"
-  [(set (match_operand:DI 0 "mcore_arith_reg_operand" "=r")
-	(xor:DI (match_operand:DI 1 "mcore_arith_reg_operand" "%0")
-		(match_operand:DI 2 "mcore_arith_reg_operand" "r")))]
-  ""
-  "xor	%0,%2\;xor	%R0,%R2"
-  [(set_attr "length" "4")])
 
 ;; -------------------------------------------------------------------------
 ;; Shifts and rotates
@@ -1316,7 +1288,7 @@
 }")
 
 (define_insn "movdi_i"
-  [(set (match_operand:DI 0 "general_operand" "=r,r,r,r,a,r,m")
+  [(set (match_operand:DI 0 "nonimmediate_operand" "=r,r,r,r,a,r,m")
 	(match_operand:DI 1 "mcore_general_movsrc_operand" "I,M,N,r,R,m,r"))]
   ""
   "* return mcore_output_movedouble (operands, DImode);"
@@ -1335,7 +1307,7 @@
 }")
 
 (define_insn "movsf_i"
-  [(set (match_operand:SF 0 "general_operand" "=r,r,m")
+  [(set (match_operand:SF 0 "nonimmediate_operand" "=r,r,m")
 	(match_operand:SF 1 "general_operand"  "r,m,r"))]
   ""
   "@
@@ -1357,7 +1329,7 @@
 }")
 
 (define_insn "movdf_k"
-  [(set (match_operand:DF 0 "general_operand" "=r,r,m")
+  [(set (match_operand:DF 0 "nonimmediate_operand" "=r,r,m")
 	(match_operand:DF 1 "general_operand" "r,m,r"))]
   ""
   "* return mcore_output_movedouble (operands, DFmode);"
@@ -1408,8 +1380,8 @@
     XVECEXP (operands[3], 0, i)
       = gen_rtx_SET (VOIDmode,
 		 gen_rtx_REG (SImode, regno + i),
-		 gen_rtx_MEM (SImode, plus_constant (stack_pointer_rtx,
-						      i * 4)));
+		 gen_rtx_MEM (SImode, plus_constant (Pmode, stack_pointer_rtx,
+						     i * 4)));
 }")
 
 (define_insn ""
@@ -1446,8 +1418,8 @@
   for (i = 0; i < count; i++)
     XVECEXP (operands[3], 0, i)
       = gen_rtx_SET (VOIDmode,
-		 gen_rtx_MEM (SImode, plus_constant (stack_pointer_rtx,
-						      i * 4)),
+		 gen_rtx_MEM (SImode, plus_constant (Pmode, stack_pointer_rtx,
+						     i * 4)),
 		 gen_rtx_REG (SImode, regno + i));
 }")
 
@@ -1502,7 +1474,7 @@
 
 (define_expand "cbranchsi4"
   [(set (pc)
-	(if_then_else (match_operator:SI 0 "ordered_comparison_operator"
+	(if_then_else (match_operator 0 "ordered_comparison_operator"
 		       [(match_operand:SI 1 "mcore_compare_operand")
 			(match_operand:SI 2 "nonmemory_operand")])
 		      (label_ref (match_operand 3 ""))

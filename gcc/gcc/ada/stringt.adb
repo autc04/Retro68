@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -70,6 +70,12 @@ package body Stringt is
    --  when Start_String is called with a parameter that is the last string
    --  currently allocated in the table.
 
+   Strings_Last      : String_Id := First_String_Id;
+   String_Chars_Last : Int := 0;
+   --  Strings_Last and String_Chars_Last are used by procedure Mark and
+   --  Release to get a snapshot of the tables and to restore them to their
+   --  previous situation.
+
    -------------------------------
    -- Add_String_To_Name_Buffer --
    -------------------------------
@@ -115,6 +121,11 @@ package body Stringt is
    begin
       String_Chars.Init;
       Strings.Init;
+
+      --  Set up the null string
+
+      Start_String;
+      Null_String_Id := End_String;
    end Initialize;
 
    ----------
@@ -128,6 +139,26 @@ package body Stringt is
       String_Chars.Release;
       Strings.Release;
    end Lock;
+
+   ----------
+   -- Mark --
+   ----------
+
+   procedure Mark is
+   begin
+      Strings_Last := Strings.Last;
+      String_Chars_Last := String_Chars.Last;
+   end Mark;
+
+   -------------
+   -- Release --
+   -------------
+
+   procedure Release is
+   begin
+      Strings.Set_Last (Strings_Last);
+      String_Chars.Set_Last (String_Chars_Last);
+   end Release;
 
    ------------------
    -- Start_String --

@@ -1,6 +1,247 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-01-02  Tobias Burnus  <burnus@net-b.de>
+
+	* libquadmath.texi: Bump @copying's copyright year.
+
+2013-12-04  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* Makefile.am (AM_CPPFLAGS): Define.
+	* Makefile.in: Regenerate.
+	* printf/gmp-impl.h: Remove path from longlong.h include.
+
+2013-09-20  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
+2013-03-06  Shakthi Kannan  <shakthimaan@gmail.com>
+
+	PR libquadmath/55473
+	* quadmath.h: Add 'extern "C"' block for C++ use.
+
+2013-02-19  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libquadmath/56379
+	* strtod/strtod_l.c (mpn_lshift_1): Rewritten as function-like
+	macro.
+
+2013-02-17  Tobias Burnus  <burnus@net-b.de>
+
+	* math/cacoshq.c (cacoshq): Call signbitq instead of signbit.
+
+2013-02-06  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Revert previous patch.
+
+2013-02-03  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years.
+
+2013-01-22  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libquadmath/56072
+	* libquadmath.texi (M_PI_2q, M_PI_4q): Fix up description.
+
+2012-12-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* math/cbrtq.c (cbrtq): Use Q suffixed floating point constants
+	instead of L suffixed ones.
+	* math/fmaq.c (fmaq): Likewise.
+	* math/rintq.c (TWO112): Likewise.
+
+2012-12-03  Tobias Burnus  <burnus@net-b.de>
+
+	* strtod/strtod_l.c (___STRTOF_INTERNAL): Fix exponent
+	reading.
+
+2012-11-25  Tobias Burnus  <burnus@net-b.de>
+
+	PR libquadmath/55462
+	* strtod/strtod_l.c (round_and_return): Use HAVE_FENV_H
+	instead of nonexisting HAVE_GET_ROUNDING_MODE.
+
+2012-11-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/55455
+	* quadmath-rounding-mode.h (get_rounding_mode): Don't pass
+	void to fegetround.
+
+2012-11-23  Tobias Burnus  <burnus@net-b.de>
+	    Joseph Myers  <joseph@codesourcery.com>
+
+	* quadmath-rounding-mode.h: New.
+	* printf/fpioconst.c: Update from GLIBC. Fix strtod rounding.
+	* printf/fpioconst.h: Ditto.
+	* printf/printf_fp.c (__quadmath_printf_fp): Update from GLIBC.
+	Make printf respect the rounding mode for decimal output.
+	* printf/printf_fphex.c (__quadmath_printf_fphex): Update from
+	GLIBC.  Make printf respect the rounding mode for hex output.
+	* strtod/strtod_l.c: Update from GLIBC. Make strtod respect the
+	rounding mode. Fix strtod handling of underflow.
+
+2012-11-22  David S. Miller  <davem@davemloft.net>
+	    Tobias Burnus  <burnus@net-b.de>
+	    Joseph Myers  <joseph@codesourcery.com>
+
+	* math/atanq.c (atanq): Update from GLIBC. Handle tiny and
+	very large arguments properly.
+	* math/j0q.c (y0q): Update from GLIBC. Avoid arithmetic
+	underflow when 'x' is very small.
+	* math/j1q.c (y1q): Ditto.
+	* math/log1pq.c (log1pq): Update from GLIBC. Saturate
+	nonzero exponents with absolute value below 0x1p-128 to
+	+/- 0x1p-128.
+	* math/powq.c (powq): Update from GLIBC. If xm1 is
+	smaller than LDBL_EPSILON/2.0L, just return xm1.
+
+2012-11-21  Tobias Burnus  <burnus@net-b.de>
+
+	PR libquadmath/55225
+	* math/lgammaq.c (lgammaq): Use local variable if
+	math.h does not provide signgam.
+	* acinclude.m4 (LIBQUAD_CHECK_MATH_H_SIGNGAM): New check.
+	* configure.ac: Use it.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+
+2012-11-15  Tobias Burnus  <burnus@net-b.de>
+	    Joseph Myers  <joseph@codesourcery.com>
+
+	* math/fmaq.c (fmaq): Merge from GLIBC. Fix fma
+	underflows with small x * y; Fix overflow results
+	outside round-to-nearest mode; make use of Dekker
+	and Knuth algorithms use round-to-nearest.
+
+2012-11-01  Tobias Burnus  <burnus@net-b.de>
+
+	* math/fmaq.c (fmaq): Fix build.
+
+2012-11-01  Tobias Burnus  <burnus@net-b.de>
+	    Joseph Myers  <joseph@codesourcery.com>
+
+	* math/fmaq.c (fmaq): Merge from GLIBC. Handle cases
+	with small x * y using scaling, not as x * y + z.
+	* math/lgammaq.c (lgammaq): Fix signgam handling.
+
+2012-11-01  Tobias Burnus  <burnus@net-b.de>
+
+	* Makefile.am (libquadmath_la_SOURCES): Add new math/* files.
+	* Makefile.in: Regenerated.
+	* math/acoshq.c: Update comment.
+	* math/acosq.c: Ditto.
+	* math/asinhq.c: Ditto.
+	* math/asinq.c: Ditto.
+	* math/atan2q.c: Ditto.
+	* math/atanhq.c: Ditto.
+	* math/ceilq.c: Ditto.
+	* math/copysignq.c: Ditto.
+	* math/cosq.c: Ditto.
+	* math/coshq.c: Ditto.
+	* math/erfq.c: Ditto.
+	* math/fabsq.c: Ditto.
+	* math/finiteq.c: Ditto.
+	* math/floorq.c: Ditto.
+	* math/fmodq.c: Ditto.
+	* math/frexpq.c: Ditto.
+	* math/isnanq.c: Ditto.
+	* math/j0q.c: Ditto.
+	* math/j1q.c: Ditto.
+	* math/ldexpq.c: Ditto.
+	* math/llroundq.c: Ditto.
+	* math/log10q.c: Ditto.
+	* math/log1pq.c: Ditto.
+	* math/log2q.c: Ditto.
+	* math/logq.c: Ditto.
+	* math/lroundq.c: Ditto.
+	* math/modfq.c: Ditto.
+	* math/nextafterq.c: Ditto.
+	* math/powq.c: Ditto.
+	* math/rem_pio2q.c: Ditto.
+	* math/remainderq.c: Ditto.
+	* math/rintq.c: Ditto.
+	* math/roundq.c: Ditto.
+	* math/scalblnq.c: Ditto.
+	* math/scalbnq.c: Ditto.
+	* math/sincosq_kernel.c: Ditto.
+	* math/sinq.c: Ditto.
+	* math/tanq.c: Ditto.
+	* math/expq.c: Ditto.
+	(__expq_table, expq): Renamed local array from __expl_table.
+	* math/cosq_kernel.c (__quadmath_kernel_cosq): Fix sign handling.
+	* math/cacoshq.c: Changes from GLIBC; fix returned sign.
+	* math/casinhq.c: Changes from GLIBC to fix special-case.
+	* math/cbrtq.c: Use modified GLIBC version.
+	* math/complex.c (ccoshd, cexpq, clog10q, clogq, csinhq, csinq,
+	ctanhq, ctanq): Moved to separates files.
+	(mult_c128, div_c128): Removed no longer needed functions.
+	(cexpiq): Call sincosq instead of sinq and cosq.
+	(cosq): Call cosh(-re,im) instead of cosq/sinq/sinh/cosh.
+	* math/ccoshq.c (ccoshq): New file, moved from complex.c and
+	modified based on GLIBC.
+	* math/cexpq.c (cexp): Ditto.
+	* math/clog10q.c (clog10q): Ditto.
+	* math/clogq.c (clogq): Ditto.
+	* math/csinhq.c: Ditto.
+	* math/csinq.c: Ditto.
+	* math/csqrtq.c: Ditto.
+	* math/ctanhq.c: Ditto.
+	* math/ctanq.c: Ditto.
+	* math/fmaq.c (fmaq): Port TININESS_AFTER_ROUNDING handling
+	from GLIBC.
+	* math/ilogbq.c (ilogbq): Add errno = EDOM handling.
+	* math/isinf_nsq.c (__quadmath_isinf_nsq): New file, ported
+	from GLIBC.
+	* math/lgammaq.c (lgammaq): Add signgam handling.
+	* math/sinhq.c (sinhq): Fix sign handling.
+	* math/sinq_kernel.c (__quadmath_kernel_sinq): Ditto.
+	* math/tgammaq.c (tgammaq): Ditto.
+	* math/x2y2m1q.c: New file.
+	* quadmath-imp.h (TININESS_AFTER_ROUNDING): New define.
+	(__quadmath_x2y2m1q, __quadmath_isinf_nsq): New prototypes.
+
+2012-10-31  Tobias Burnus  <burnus@net-b.de>
+	    Joseph Myers <joseph@codesourcery.com>
+	    David S. Miller <davem@davemloft.net>
+	    Ulrich Drepper <drepper@redhat.com>
+	    Marek Polacek <polacek@redhat.com>:
+	    Petr Baudis <pasky@suse.cz>
+
+	* math/complex.c (csqrtq): NaN and INF fixes. 
+	* math/sqrtq.c (sqrt): NaN, INF and < 0 fixes.
+	* math/expm1q.c (expm1q): Changes from GLIBC. Use expq for
+	large parameters. Fix errno for boundary conditions.
+	* math/finiteq.c (finiteq): Add comment.
+	* math/fmaq.c (fmaq): Changes from GLIBC. Fix missing underflows
+	and bad results for some subnormal results. Fix sign of inexact
+	zero return. Fix sign of exact zero return. 
+	Ensure additions are not scheduled after fetestexcept.
+	* math/jnq.c (jnq): Changes from GLIBC. Set up errno properly
+	for ynq. Fix jnq precision.
+	* math/nearbyintq.c (nearbyintq): Changes from GLIBC. Do not
+	manipulate bits before adding and subtracting TWO112[sx].
+	* math/rintq.c (rintq): Ditto.
+	* math/scalbnq.c (scalbnq): Changes from GLIBC. Fix integer
+	overflow.
+
+2012-09-14  David Edelsohn  <dje.gcc@gmail.com>
+
+	* configure: Regenerated.
+
+2012-05-29  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/51007
+	* configure.ac: Allow gnu, gnu* variants for --enable-symvers argument.
+	* configure: Regenerated.
+
+2012-05-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
 
 2011-11-21  Andreas Tobler  <andreast@fgznet.ch>
 

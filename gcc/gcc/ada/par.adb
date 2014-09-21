@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -59,7 +59,7 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
 
    Num_Library_Units : Natural := 0;
    --  Count number of units parsed (relevant only in syntax check only mode,
-   --  since in semantics check mode only a single unit is permitted anyway)
+   --  since in semantics check mode only a single unit is permitted anyway).
 
    Save_Config_Switches : Config_Switches_Type;
    --  Variable used to save values of config switches while we parse the
@@ -67,7 +67,11 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
 
    Loop_Block_Count : Nat := 0;
    --  Counter used for constructing loop/block names (see the routine
-   --  Par.Ch5.Get_Loop_Block_Name)
+   --  Par.Ch5.Get_Loop_Block_Name).
+
+   Inside_Record_Definition : Boolean := False;
+   --  Flag set True within a record definition. Used to control warning
+   --  for redefinition of standard entities (not issued for field names).
 
    --------------------
    -- Error Recovery --
@@ -356,7 +360,7 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       Pbod : Boolean;                  -- True if proper body OK
       Rnam : Boolean;                  -- True if renaming declaration OK
       Stub : Boolean;                  -- True if body stub OK
-      Pexp : Boolean;                  -- True if parametrized expression OK
+      Pexp : Boolean;                  -- True if parameterized expression OK
       Fil2 : Boolean;                  -- Filler to fill to 8 bits
    end record;
    pragma Pack (Pf_Rec);
@@ -463,7 +467,7 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  expected column of the end assuming normal Ada indentation usage. If
       --  the RM_Column_Check mode is set, this value is used for generating
       --  error messages about indentation. Otherwise it is used only to
-      --  control heuristic error recovery actions.
+      --  control heuristic error recovery actions. This value is zero origin.
 
       Labl : Node_Id;
       --  This field is used to provide the name of the construct being parsed
@@ -530,6 +534,66 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
      Table_Initial        => 50,
      Table_Increment      => 100,
      Table_Name           => "Scope");
+
+   ------------------------------------------
+   -- Table for Handling Suspicious Labels --
+   ------------------------------------------
+
+   --  This is a special data structure which is used to deal very spefifically
+   --  with the following error case
+
+   --     label;
+   --     loop
+   --       ...
+   --     end loop label;
+
+   --  Similar cases apply to FOR, WHILE, DECLARE, or BEGIN
+
+   --  In each case the opening line looks like a procedure call because of
+   --  the semicolon. And the end line looks illegal because of an unexpected
+   --  label. If we did nothing special, we would just diagnose the label on
+   --  the end as unexpected. But that does not help point to the real error
+   --  which is that the semicolon after label should be a colon.
+
+   --  To deal with this, we build an entry in the Suspicious_Labels table
+   --  whenever we encounter an identifier followed by a semicolon, followed
+   --  by one of LOOP, FOR, WHILE, DECLARE, BEGIN. Then this entry is used to
+   --  issue the right message when we hit the END that confirms that this was
+   --  a bad label.
+
+   type Suspicious_Label_Entry is record
+      Proc_Call : Node_Id;
+      --  Node for the procedure call statement built for the label; construct
+
+      Semicolon_Loc : Source_Ptr;
+      --  Location of the possibly wrong semicolon
+
+      Start_Token : Source_Ptr;
+      --  Source location of the LOOP, FOR, WHILE, DECLARE, BEGIN token
+   end record;
+
+   package Suspicious_Labels is new Table.Table (
+     Table_Component_Type => Suspicious_Label_Entry,
+     Table_Index_Type     => Int,
+     Table_Low_Bound      => 1,
+     Table_Initial        => 50,
+     Table_Increment      => 100,
+     Table_Name           => "Suspicious_Labels");
+
+   --  Now when we are about to issue a message complaining about an END label
+   --  that should not be there because it appears to end a construct that has
+   --  no label, we first search the suspicious labels table entry, using the
+   --  source location stored in the scope table as a key. If we find a match,
+   --  then we check that the label on the end matches the name in the call,
+   --  and if so, we issue a message saying the semicolon should be a colon.
+
+   --  Quite a bit of work, but really helpful in the case where it helps, and
+   --  the need for this is based on actual experience with tracking down this
+   --  kind of error (the eye often easily mistakes semicolon for colon).
+
+   --  Note: we actually have enough information to patch up the tree, but
+   --  this may not be worth the effort. Also we could deal with the same
+   --  situation for EXIT with a label, but for now don't bother with that.
 
    ---------------------------------
    -- Parsing Routines by Chapter --
@@ -694,17 +758,12 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  keyword, and returns pointing to the terminating right parent,
       --  semicolon, or comma, but does not consume this terminating token.
 
-      function P_Conditional_Expression return Node_Id;
-      --  Scans out a conditional expression. Called with Token pointing to
-      --  the IF keyword, and returns pointing to the terminating right paren,
-      --  semicolon or comma, but does not consume this terminating token.
-
       function P_Expression_If_OK return Node_Id;
       --  Scans out an expression allowing an unparenthesized case expression,
-      --  conditional expression, or quantified expression to appear without
-      --  enclosing parentheses. However, if such an expression is not preceded
-      --  by a left paren, and followed by a right paren, an error message will
-      --  be output noting that parenthesization is required.
+      --  if expression, or quantified expression to appear without enclosing
+      --  parentheses. However, if such an expression is not preceded by a left
+      --  paren, and followed by a right paren, an error message will be output
+      --  noting that parenthesization is required.
 
       function P_Expression_No_Right_Paren return Node_Id;
       --  Scans out an expression in contexts where the expression cannot be
@@ -717,6 +776,11 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  However, if such an expression is not preceded by a left paren, and
       --  followed by a right paren, an error message will be output noting
       --  that parenthesization is required.
+
+      function P_If_Expression return Node_Id;
+      --  Scans out an if expression. Called with Token pointing to the
+      --  IF keyword, and returns pointing to the terminating right paren,
+      --  semicolon or comma, but does not consume this terminating token.
 
       function P_Qualified_Expression (Subtype_Mark : Node_Id) return Node_Id;
       --  This routine scans out a qualified expression when the caller has
@@ -733,7 +797,13 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
 
    package Ch5 is
       function P_Condition return Node_Id;
-      --  Scan out and return a condition
+      --  Scan out and return a condition. Note that an error is given if
+      --  the condition is followed by a right parenthesis.
+
+      function P_Condition (Cond : Node_Id) return Node_Id;
+      --  Similar to the above, but the caller has already scanned out the
+      --  conditional expression and passes it as an argument. This form of
+      --  the call does not check for a following right parenthesis.
 
       function P_Loop_Parameter_Specification return Node_Id;
       --  Used in loop constructs and quantified expressions.
@@ -834,6 +904,7 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
 
    package Ch11 is
       function P_Handled_Sequence_Of_Statements       return Node_Id;
+      function P_Raise_Expression                     return Node_Id;
       function P_Raise_Statement                      return Node_Id;
 
       function Parse_Exception_Handlers               return List_Id;
@@ -875,6 +946,12 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  permitted). Note: this routine never checks the terminator token
       --  for aspects so it does not matter whether the aspect specifications
       --  are terminated by semicolon or some other character.
+
+      function Get_Aspect_Specifications
+        (Semicolon : Boolean := True) return List_Id;
+      --  Parse a list of aspects but do not attach them to a declaration node.
+      --  Subsidiary to the following procedure. Used when parsing a subprogram
+      --  specification that may be a declaration or a body.
 
       procedure P_Aspect_Specifications
         (Decl      : Node_Id;
@@ -1002,6 +1079,10 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  advanced to the next vertical bar, arrow, or semicolon, whichever
       --  comes first. We also quit if we encounter an end of file.
 
+      procedure Resync_Cunit;
+      --  Synchronize to next token which could be the start of a compilation
+      --  unit, or to the end of file token.
+
       procedure Resync_Expression;
       --  Used if an error is detected during the parsing of an expression.
       --  It skips past tokens until either a token which cannot be part of
@@ -1010,6 +1091,11 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  current parenthesis level (a parenthesis level counter is maintained
       --  to carry out this test).
 
+      procedure Resync_Past_Malformed_Aspect;
+      --  Used when parsing aspect specifications to skip a malformed aspect.
+      --  The scan pointer is positioned next to a comma, a semicolon or "is"
+      --  when the aspect applies to a body.
+
       procedure Resync_Past_Semicolon;
       --  Used if an error occurs while scanning a sequence of declarations.
       --  The scan pointer is positioned past the next semicolon and the scan
@@ -1017,20 +1103,10 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  starts a declaration (but we make sure to skip at least one token
       --  in this case, to avoid getting stuck in a loop).
 
-      procedure Resync_To_Semicolon;
-      --  Similar to Resync_Past_Semicolon, except that the scan pointer is
-      --  left pointing to the semicolon rather than past it.
-
       procedure Resync_Past_Semicolon_Or_To_Loop_Or_Then;
       --  Used if an error occurs while scanning a sequence of statements. The
       --  scan pointer is positioned past the next semicolon, or to the next
       --  occurrence of either then or loop, and the scan resumes.
-
-      procedure Resync_To_When;
-      --  Used when an error occurs scanning an entry index specification. The
-      --  scan pointer is positioned to the next WHEN (or to IS or semicolon if
-      --  either of these appear before WHEN, indicating another error has
-      --  occurred).
 
       procedure Resync_Semicolon_List;
       --  Used if an error occurs while scanning a parenthesized list of items
@@ -1038,9 +1114,15 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  semicolon or right parenthesis at the outer parenthesis level, or
       --  to the next is or RETURN keyword occurrence, whichever comes first.
 
-      procedure Resync_Cunit;
-      --  Synchronize to next token which could be the start of a compilation
-      --  unit, or to the end of file token.
+      procedure Resync_To_Semicolon;
+      --  Similar to Resync_Past_Semicolon, except that the scan pointer is
+      --  left pointing to the semicolon rather than past it.
+
+      procedure Resync_To_When;
+      --  Used when an error occurs scanning an entry index specification. The
+      --  scan pointer is positioned to the next WHEN (or to IS or semicolon if
+      --  either of these appear before WHEN, indicating another error has
+      --  occurred).
    end Sync;
 
    --------------
@@ -1257,6 +1339,11 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
 
       function Token_Is_At_End_Of_Line return Boolean;
       --  Determines if the current token is the last token on the line
+
+      procedure Warn_If_Standard_Redefinition (N : Node_Id);
+      --  Issues a warning if Warn_On_Standard_Redefinition is set True, and
+      --  the Node N (which is a Defining_Identifier node with the Chars field
+      --  set) is a renaming of an entity in package Standard.
 
    end Util;
 

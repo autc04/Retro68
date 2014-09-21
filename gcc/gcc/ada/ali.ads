@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -153,6 +153,12 @@ package ALI is
       Locking_Policy : Character;
       --  Indicates locking policy for units in this file. Space means tasking
       --  was not used, or that no Locking_Policy pragma was present or that
+      --  this is a language defined unit. Otherwise set to first character
+      --  (upper case) of policy name. Not set if 'P' appears in Ignore_Lines.
+
+      Partition_Elaboration_Policy : Character;
+      --  Indicates partition elaboration policy for units in this file. Space
+      --  means that no Partition_Elaboration_Policy pragma was present or that
       --  this is a language defined unit. Otherwise set to first character
       --  (upper case) of policy name. Not set if 'P' appears in Ignore_Lines.
 
@@ -485,6 +491,11 @@ package ALI is
    --  Set to False by Initialize_ALI. Set to True if an ali file indicates
    --  that the file was compiled in Normalize_Scalars mode.
 
+   Partition_Elaboration_Policy_Specified : Character := ' ';
+   --  Set to blank by Initialize_ALI. Set to the appropriate partition
+   --  elaboration policy character if an ali file contains a P line setting
+   --  the policy.
+
    Queuing_Policy_Specified : Character := ' ';
    --  Set to blank by Initialize_ALI. Set to the appropriate queuing policy
    --  character if an ali file contains a P line setting the queuing policy.
@@ -558,6 +569,9 @@ package ALI is
 
       Limited_With : Boolean := False;
       --  True if unit is named in a limited_with_clause
+
+      Implicit_With_From_Instantiation : Boolean := False;
+      --  True if this is an implicit with from a generic instantiation
    end record;
 
    package Withs is new Table.Table (

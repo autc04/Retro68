@@ -1,5 +1,4 @@
-/* Copyright (C) 1997, 1998, 1999, 2000, 2001, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011  Free Software Foundation, Inc.
+/* Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
 This file is part of GCC.
@@ -24,6 +23,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm.h"
 #include "rtl.h"
 #include "tree.h"
+#include "varasm.h"
+#include "stor-layout.h"
+#include "stringpool.h"
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "insn-config.h"
@@ -46,9 +48,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "target.h"
 #include "target-def.h"
 #include "targhooks.h"
-#include "integrate.h"
 #include "langhooks.h"
 #include "df.h"
+#include "dumpfile.h"
 
 #ifndef FRV_INLINE
 #define FRV_INLINE inline
@@ -1409,10 +1411,7 @@ frv_function_contains_far_jump (void)
 {
   rtx insn = get_insns ();
   while (insn != NULL
-	 && !(GET_CODE (insn) == JUMP_INSN
-	      /* Ignore tablejump patterns.  */
-	      && GET_CODE (PATTERN (insn)) != ADDR_VEC
-	      && GET_CODE (PATTERN (insn)) != ADDR_DIFF_VEC
+	 && !(JUMP_P (insn)
 	      && get_attr_far_jump (insn) == FAR_JUMP_YES))
     insn = NEXT_INSN (insn);
   return (insn != NULL);
@@ -1447,7 +1446,7 @@ frv_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
 	 simply emit a different assembly directive because bralr and jmpl
 	 execute in different units.  */
       for (insn = get_insns(); insn != NULL; insn = NEXT_INSN (insn))
-	if (GET_CODE (insn) == JUMP_INSN)
+	if (JUMP_P (insn))
 	  {
 	    rtx pattern = PATTERN (insn);
 	    if (GET_CODE (pattern) == PARALLEL
@@ -1586,7 +1585,7 @@ frv_dwarf_store (rtx reg, int offset)
 {
   rtx set = gen_rtx_SET (VOIDmode,
 			 gen_rtx_MEM (GET_MODE (reg),
-				      plus_constant (stack_pointer_rtx,
+				      plus_constant (Pmode, stack_pointer_rtx,
 						     offset)),
 			 reg);
   RTX_FRAME_RELATED_P (set) = 1;
@@ -1761,6 +1760,9 @@ frv_expand_prologue (void)
   if (TARGET_DEBUG_STACK)
     frv_debug_stack (info);
 
+  if (flag_stack_usage_info)
+    current_function_static_stack_size = info->total_size;
+
   if (info->total_size == 0)
     return;
 
@@ -1821,9 +1823,9 @@ frv_expand_prologue (void)
       /* ASM_SRC and DWARF_SRC both point to the frame header.  ASM_SRC is
 	 based on ACCESSOR.BASE but DWARF_SRC is always based on the stack
 	 pointer.  */
-      rtx asm_src = plus_constant (accessor.base,
+      rtx asm_src = plus_constant (Pmode, accessor.base,
 				   fp_offset - accessor.base_offset);
-      rtx dwarf_src = plus_constant (sp, fp_offset);
+      rtx dwarf_src = plus_constant (Pmode, sp, fp_offset);
 
       /* Store the old frame pointer at (sp + FP_OFFSET).  */
       frv_frame_access (&accessor, fp, fp_offset);
@@ -1896,7 +1898,7 @@ frv_expand_epilogue (bool emit_return)
 
   /* Restore the stack pointer to its original value if alloca or the like
      is used.  */
-  if (! current_function_sp_is_unchanging)
+  if (! crtl->sp_is_unchanging)
     emit_insn (gen_addsi3 (sp, fp, frv_frame_offset_rtx (-fp_offset)));
 
   /* Restore the callee-saved registers that were used in this function.  */
@@ -2065,9 +2067,9 @@ frv_frame_pointer_required (void)
   /* If we forgoing the usual linkage requirements, we only need
      a frame pointer if the stack pointer might change.  */
   if (!TARGET_LINKED_FP)
-    return !current_function_sp_is_unchanging;
+    return !crtl->sp_is_unchanging;
 
-  if (! current_function_is_leaf)
+  if (! crtl->is_leaf)
     return true;
 
   if (get_frame_size () != 0)
@@ -2076,7 +2078,7 @@ frv_frame_pointer_required (void)
   if (cfun->stdarg)
     return true;
 
-  if (!current_function_sp_is_unchanging)
+  if (!crtl->sp_is_unchanging)
     return true;
 
   if (!TARGET_FDPIC && flag_pic && crtl->uses_pic_offset_table)
@@ -2272,8 +2274,8 @@ frv_expand_block_move (rtx operands[])
 	}
       else
 	{
-	  src_addr = plus_constant (src_reg, offset);
-	  dest_addr = plus_constant (dest_reg, offset);
+	  src_addr = plus_constant (Pmode, src_reg, offset);
+	  dest_addr = plus_constant (Pmode, dest_reg, offset);
 	}
 
       /* Generate the appropriate load and store, saving the stores
@@ -2357,7 +2359,7 @@ frv_expand_block_clear (rtx operands[])
       /* Calculate the correct offset for src/dest.  */
       dest_addr = ((offset == 0)
 		   ? dest_reg
-		   : plus_constant (dest_reg, offset));
+		   : plus_constant (Pmode, dest_reg, offset));
 
       /* Generate the appropriate store of gr0.  */
       if (bytes >= 4 && align >= 4)
@@ -2471,7 +2473,7 @@ frv_return_addr_rtx (int count, rtx frame)
   if (count != 0)
     return const0_rtx;
   cfun->machine->frame_needed = 1;
-  return gen_rtx_MEM (Pmode, plus_constant (frame, 8));
+  return gen_rtx_MEM (Pmode, plus_constant (Pmode, frame, 8));
 }
 
 /* Given a memory reference MEMREF, interpret the referenced memory as
@@ -2489,7 +2491,8 @@ frv_index_memory (rtx memref, enum machine_mode mode, int index)
   if (GET_CODE (base) == PRE_MODIFY)
     base = XEXP (base, 0);
   return change_address (memref, mode,
-			 plus_constant (base, index * GET_MODE_SIZE (mode)));
+			 plus_constant (Pmode, base,
+					index * GET_MODE_SIZE (mode)));
 }
 
 
@@ -2643,10 +2646,10 @@ frv_print_operand_jump_hint (rtx insn)
   rtx note;
   rtx labelref;
   int ret;
-  HOST_WIDE_INT prob = -1;
+  int prob = -1;
   enum { UNKNOWN, BACKWARD, FORWARD } jump_type = UNKNOWN;
 
-  gcc_assert (GET_CODE (insn) == JUMP_INSN);
+  gcc_assert (JUMP_P (insn));
 
   /* Assume any non-conditional jump is likely.  */
   if (! any_condjump_p (insn))
@@ -2669,7 +2672,7 @@ frv_print_operand_jump_hint (rtx insn)
 
       else
 	{
-	  prob = INTVAL (XEXP (note, 0));
+	  prob = XINT (note, 0);
 	  ret = ((prob >= (REG_BR_PROB_BASE / 2))
 		 ? FRV_JUMP_LIKELY
 		 : FRV_JUMP_NOT_LIKELY);
@@ -2690,10 +2693,10 @@ frv_print_operand_jump_hint (rtx insn)
 	}
 
       fprintf (stderr,
-	       "%s: uid %ld, %s, probability = %ld, max prob. = %ld, hint = %d\n",
+	       "%s: uid %ld, %s, probability = %d, max prob. = %d, hint = %d\n",
 	       IDENTIFIER_POINTER (DECL_NAME (current_function_decl)),
-	       (long)INSN_UID (insn), direction, (long)prob,
-	       (long)REG_BR_PROB_BASE, ret);
+	       (long)INSN_UID (insn), direction, prob,
+	       REG_BR_PROB_BASE, ret);
     }
 #endif
 
@@ -3094,7 +3097,7 @@ frv_init_cumulative_args (CUMULATIVE_ARGS *cum,
 	{
 	  tree ret_type = TREE_TYPE (fntype);
 	  fprintf (stderr, " return=%s,",
-		   tree_code_name[ (int)TREE_CODE (ret_type) ]);
+		   get_tree_code_name (TREE_CODE (ret_type)));
 	}
 
       if (libname && GET_CODE (libname) == SYMBOL_REF)
@@ -3741,7 +3744,8 @@ static void
 frv_output_const_unspec (FILE *stream, const struct frv_unspec *unspec)
 {
   fprintf (stream, "#%s(", unspec_got_name (unspec->reloc));
-  output_addr_const (stream, plus_constant (unspec->symbol, unspec->offset));
+  output_addr_const (stream, plus_constant (Pmode, unspec->symbol,
+					    unspec->offset));
   fputs (")", stream);
 }
 
@@ -3756,7 +3760,7 @@ frv_find_base_term (rtx x)
 
   if (frv_const_unspec_p (x, &unspec)
       && frv_small_data_reloc_p (unspec.symbol, unspec.reloc))
-    return plus_constant (unspec.symbol, unspec.offset);
+    return plus_constant (Pmode, unspec.symbol, unspec.offset);
 
   return x;
 }
@@ -5220,12 +5224,11 @@ frv_clear_registers_used (rtx *ptr, void *data)
 }
 
 
-/* Initialize the extra fields provided by IFCVT_EXTRA_FIELDS.  */
-
-/* On the FR-V, we don't have any extra fields per se, but it is useful hook to
+/* Initialize machine-specific if-conversion data.
+   On the FR-V, we don't have any extra fields per se, but it is useful hook to
    initialize the static storage.  */
 void
-frv_ifcvt_init_extra_fields (ce_if_block_t *ce_info ATTRIBUTE_UNUSED)
+frv_ifcvt_machdep_init (void *ce_info ATTRIBUTE_UNUSED)
 {
   frv_ifcvt.added_insns_list = NULL_RTX;
   frv_ifcvt.cur_scratch_regs = 0;
@@ -5269,7 +5272,7 @@ frv_ifcvt_add_insn (rtx pattern, rtx insn, int before_p)
    tests cannot be converted.  */
 
 void
-frv_ifcvt_modify_tests (ce_if_block_t *ce_info, rtx *p_true, rtx *p_false)
+frv_ifcvt_modify_tests (ce_if_block *ce_info, rtx *p_true, rtx *p_false)
 {
   basic_block test_bb = ce_info->test_bb;	/* test basic block */
   basic_block then_bb = ce_info->then_bb;	/* THEN */
@@ -5626,7 +5629,7 @@ frv_ifcvt_modify_tests (ce_if_block_t *ce_info, rtx *p_true, rtx *p_false)
 		    (const_int 0))) */
 
 void
-frv_ifcvt_modify_multiple_tests (ce_if_block_t *ce_info,
+frv_ifcvt_modify_multiple_tests (ce_if_block *ce_info,
                                  basic_block bb,
                                  rtx *p_true,
                                  rtx *p_false)
@@ -5920,7 +5923,7 @@ single_set_pattern (rtx pattern)
    insn cannot be converted to be executed conditionally.  */
 
 rtx
-frv_ifcvt_modify_insn (ce_if_block_t *ce_info,
+frv_ifcvt_modify_insn (ce_if_block *ce_info,
                        rtx pattern,
                        rtx insn)
 {
@@ -6185,7 +6188,7 @@ frv_ifcvt_modify_insn (ce_if_block_t *ce_info,
    conditional if information CE_INFO.  */
 
 void
-frv_ifcvt_modify_final (ce_if_block_t *ce_info ATTRIBUTE_UNUSED)
+frv_ifcvt_modify_final (ce_if_block *ce_info ATTRIBUTE_UNUSED)
 {
   rtx existing_insn;
   rtx check_insn;
@@ -6240,7 +6243,7 @@ frv_ifcvt_modify_final (ce_if_block_t *ce_info ATTRIBUTE_UNUSED)
    information CE_INFO.  */
 
 void
-frv_ifcvt_modify_cancel (ce_if_block_t *ce_info ATTRIBUTE_UNUSED)
+frv_ifcvt_modify_cancel (ce_if_block *ce_info ATTRIBUTE_UNUSED)
 {
   int i;
   rtx p = frv_ifcvt.added_insns_list;
@@ -7384,7 +7387,7 @@ frv_pack_insn_p (rtx insn)
        - There's no point putting a call in its own packet unless
 	 we have to.  */
   if (frv_packet.num_insns > 0
-      && GET_CODE (insn) == INSN
+      && NONJUMP_INSN_P (insn)
       && GET_MODE (insn) == TImode
       && GET_CODE (PATTERN (insn)) != COND_EXEC)
     return false;
@@ -7427,7 +7430,7 @@ frv_insert_nop_in_packet (rtx insn)
 
   packet_group = &frv_packet.groups[frv_unit_groups[frv_insn_unit (insn)]];
   last = frv_packet.insns[frv_packet.num_insns - 1];
-  if (GET_CODE (last) != INSN)
+  if (! NONJUMP_INSN_P (last))
     {
       insn = emit_insn_before (PATTERN (insn), last);
       frv_packet.insns[frv_packet.num_insns - 1] = insn;
@@ -7483,13 +7486,11 @@ frv_for_each_packet (void (*handle_packet) (void))
 	  {
 	  case USE:
 	  case CLOBBER:
-	  case ADDR_VEC:
-	  case ADDR_DIFF_VEC:
 	    break;
 
 	  default:
 	    /* Calls mustn't be packed on a TOMCAT.  */
-	    if (GET_CODE (insn) == CALL_INSN && frv_cpu_type == FRV_CPU_TOMCAT)
+	    if (CALL_P (insn) && frv_cpu_type == FRV_CPU_TOMCAT)
 	      frv_finish_packet (handle_packet);
 
 	    /* Since the last instruction in a packet determines the EH
@@ -7910,7 +7911,7 @@ frv_optimize_membar_local (basic_block bb, struct frv_io *next_io,
   CLEAR_HARD_REG_SET (used_regs);
 
   for (insn = BB_END (bb); insn != BB_HEAD (bb); insn = PREV_INSN (insn))
-    if (GET_CODE (insn) == CALL_INSN)
+    if (CALL_P (insn))
       {
 	/* We can't predict what a call will do to volatile memory.  */
 	memset (next_io, 0, sizeof (struct frv_io));
@@ -8026,7 +8027,7 @@ frv_optimize_membar_global (basic_block bb, struct frv_io *first_io,
   /* We need to keep the membar if there is an edge to the exit block.  */
   FOR_EACH_EDGE (succ, ei, bb->succs)
   /* for (succ = bb->succ; succ != 0; succ = succ->succ_next) */
-    if (succ->dest == EXIT_BLOCK_PTR)
+    if (succ->dest == EXIT_BLOCK_PTR_FOR_FN (cfun))
       return;
 
   /* Work out the union of all successor blocks.  */
@@ -8066,14 +8067,14 @@ frv_optimize_membar (void)
   rtx *last_membar;
 
   compute_bb_for_insn ();
-  first_io = XCNEWVEC (struct frv_io, last_basic_block);
-  last_membar = XCNEWVEC (rtx, last_basic_block);
+  first_io = XCNEWVEC (struct frv_io, last_basic_block_for_fn (cfun));
+  last_membar = XCNEWVEC (rtx, last_basic_block_for_fn (cfun));
 
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     frv_optimize_membar_local (bb, &first_io[bb->index],
 			       &last_membar[bb->index]);
 
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     if (last_membar[bb->index] != 0)
       frv_optimize_membar_global (bb, first_io, last_membar[bb->index]);
 
@@ -8434,7 +8435,7 @@ frv_init_builtins (void)
   build_function_type_list (RET, T1, T2, T3, NULL_TREE)
 
 #define QUAD(RET, T1, T2, T3, T4) \
-  build_function_type_list (RET, T1, T2, T3, NULL_TREE)
+  build_function_type_list (RET, T1, T2, T3, T4, NULL_TREE)
 
   tree void_ftype_void = build_function_type_list (voidt, NULL_TREE);
 
@@ -9647,7 +9648,7 @@ frv_output_dwarf_dtprel (FILE *file, int size, rtx x)
   fputs ("\t.picptr\ttlsmoff(", file);
   /* We want the unbiased TLS offset, so add the bias to the
      expression, such that the implicit biasing cancels out.  */
-  output_addr_const (file, plus_constant (x, TLS_BIAS));
+  output_addr_const (file, plus_constant (Pmode, x, TLS_BIAS));
   fputs (")", file);
 }
 

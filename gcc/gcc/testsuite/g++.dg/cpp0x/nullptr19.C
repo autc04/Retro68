@@ -1,12 +1,12 @@
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
+
 
 // Test overload of pointer versus nullptr_t when applied on a literal 0/__null
 
 typedef decltype(nullptr) nullptr_t;
 
-char* k( char* );	/* { dg-message "note" } { dg-message "note" } */
-nullptr_t k( nullptr_t ); /* { dg-message "note" } { dg-message "note" } */
+char* k( char* );	/* { dg-message "note" } */
+nullptr_t k( nullptr_t ); /* { dg-message "note" } */
 
 void test_k()
 {

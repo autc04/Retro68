@@ -1,5 +1,4 @@
-// Copyright (C) 2002, 2004, 2006, 2008, 2009, 2010, 2011, 2012
-// Free Software Foundation, Inc.
+// Copyright (C) 2002-2014 Free Software Foundation, Inc.
 //  
 // This file is part of GCC.
 //
@@ -244,16 +243,16 @@ namespace __cxxabiv1
     if (__gthread_active_p ())
       {
 	int *gi = (int *) (void *) g;
-	int expected(0);
 	const int guard_bit = _GLIBCXX_GUARD_BIT;
 	const int pending_bit = _GLIBCXX_GUARD_PENDING_BIT;
 	const int waiting_bit = _GLIBCXX_GUARD_WAITING_BIT;
 
 	while (1)
 	  {
+	    int expected(0);
 	    if (__atomic_compare_exchange_n(gi, &expected, pending_bit, false,
 					    __ATOMIC_ACQ_REL,
-					    __ATOMIC_RELAXED))
+					    __ATOMIC_ACQUIRE))
 	      {
 		// This thread should do the initialization.
 		return 1;
@@ -264,13 +263,26 @@ namespace __cxxabiv1
 		// Already initialized.
 		return 0;	
 	      }
+
 	     if (expected == pending_bit)
 	       {
+		 // Use acquire here.
 		 int newv = expected | waiting_bit;
 		 if (!__atomic_compare_exchange_n(gi, &expected, newv, false,
 						  __ATOMIC_ACQ_REL, 
-						  __ATOMIC_RELAXED))
-		   continue;
+						  __ATOMIC_ACQUIRE))
+		   {
+		     if (expected == guard_bit)
+		       {
+			 // Make a thread that failed to set the
+			 // waiting bit exit the function earlier,
+			 // if it detects that another thread has
+			 // successfully finished initialising.
+			 return 0;
+		       }
+		     if (expected == 0)
+		       continue;
+		   }
 		 
 		 expected = newv;
 	       }

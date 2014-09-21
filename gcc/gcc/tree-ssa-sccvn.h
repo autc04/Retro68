@@ -1,5 +1,5 @@
 /* Tree SCC value numbering
-   Copyright (C) 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2007-2014 Free Software Foundation, Inc.
    Contributed by Daniel Berlin <dberlin@dberlin.org>
 
    This file is part of GCC.
@@ -51,7 +51,7 @@ typedef const struct vn_nary_op_s *const_vn_nary_op_t;
 static inline size_t
 sizeof_vn_nary_op (unsigned int length)
 {
-  return sizeof (struct vn_nary_op_s) + sizeof (tree) * (length - 1);
+  return sizeof (struct vn_nary_op_s) + sizeof (tree) * length - sizeof (tree);
 }
 
 /* Phi nodes in the hashtable consist of their non-VN_TOP phi
@@ -65,8 +65,9 @@ typedef struct vn_phi_s
   /* Unique identifier that all expressions with the same value have. */
   unsigned int value_id;
   hashval_t hashcode;
-  VEC (tree, heap) *phiargs;
+  vec<tree> phiargs;
   basic_block block;
+  tree type;
   tree result;
 } *vn_phi_t;
 typedef const struct vn_phi_s *const_vn_phi_t;
@@ -90,8 +91,6 @@ typedef struct vn_reference_op_struct
 typedef vn_reference_op_s *vn_reference_op_t;
 typedef const vn_reference_op_s *const_vn_reference_op_t;
 
-DEF_VEC_O(vn_reference_op_s);
-DEF_VEC_ALLOC_O(vn_reference_op_s, heap);
 
 /* A reference operation in the hashtable is representation as
    the vuse, representing the memory state at the time of
@@ -108,8 +107,9 @@ typedef struct vn_reference_s
   tree vuse;
   alias_set_type set;
   tree type;
-  VEC (vn_reference_op_s, heap) *operands;
+  vec<vn_reference_op_s> operands;
   tree result;
+  tree result_vdef;
 } *vn_reference_t;
 typedef const struct vn_reference_s *const_vn_reference_t;
 
@@ -120,17 +120,28 @@ typedef struct vn_constant_s
   tree constant;
 } *vn_constant_t;
 
+enum vn_kind { VN_NONE, VN_CONSTANT, VN_NARY, VN_REFERENCE, VN_PHI };
+enum vn_kind vn_get_stmt_kind (gimple);
+
+/* Hash the type TYPE using bits that distinguishes it in the
+   types_compatible_p sense.  */
+
+static inline hashval_t
+vn_hash_type (tree type)
+{
+  return (INTEGRAL_TYPE_P (type)
+	  + (INTEGRAL_TYPE_P (type)
+	     ? TYPE_PRECISION (type) + TYPE_UNSIGNED (type) : 0));
+}
+
 /* Hash the constant CONSTANT with distinguishing type incompatible
    constants in the types_compatible_p sense.  */
 
 static inline hashval_t
 vn_hash_constant_with_type (tree constant)
 {
-  tree type = TREE_TYPE (constant);
   return (iterative_hash_expr (constant, 0)
-	  + INTEGRAL_TYPE_P (type)
-	  + (INTEGRAL_TYPE_P (type)
-	     ? TYPE_PRECISION (type) + TYPE_UNSIGNED (type) : 0));
+	  + vn_hash_type (TREE_TYPE (constant)));
 }
 
 /* Compare the constants C1 and C2 with distinguishing type incompatible
@@ -189,26 +200,27 @@ vn_nary_op_t vn_nary_op_insert (tree, tree);
 vn_nary_op_t vn_nary_op_insert_stmt (gimple, tree);
 vn_nary_op_t vn_nary_op_insert_pieces (unsigned int, enum tree_code,
 				       tree, tree *, tree, unsigned int);
-void vn_reference_fold_indirect (VEC (vn_reference_op_s, heap) **,
+void vn_reference_fold_indirect (vec<vn_reference_op_s> *,
 				 unsigned int *);
-void copy_reference_ops_from_ref (tree, VEC(vn_reference_op_s, heap) **);
-void copy_reference_ops_from_call (gimple, VEC(vn_reference_op_s, heap) **);
+void copy_reference_ops_from_ref (tree, vec<vn_reference_op_s> *);
+void copy_reference_ops_from_call (gimple, vec<vn_reference_op_s> *);
 bool ao_ref_init_from_vn_reference (ao_ref *, alias_set_type, tree,
-				    VEC (vn_reference_op_s, heap) *);
+				    vec<vn_reference_op_s> );
 tree vn_reference_lookup_pieces (tree, alias_set_type, tree,
-				 VEC (vn_reference_op_s, heap) *,
+				 vec<vn_reference_op_s> ,
 				 vn_reference_t *, vn_lookup_kind);
 tree vn_reference_lookup (tree, tree, vn_lookup_kind, vn_reference_t *);
-vn_reference_t vn_reference_insert (tree, tree, tree);
+vn_reference_t vn_reference_insert (tree, tree, tree, tree);
 vn_reference_t vn_reference_insert_pieces (tree, alias_set_type, tree,
-					   VEC (vn_reference_op_s, heap) *,
+					   vec<vn_reference_op_s> ,
 					   tree, unsigned int);
 
 hashval_t vn_nary_op_compute_hash (const vn_nary_op_t);
-int vn_nary_op_eq (const void *, const void *);
+bool vn_nary_op_eq (const_vn_nary_op_t const vno1,
+		    const_vn_nary_op_t const vno2);
 bool vn_nary_may_trap (vn_nary_op_t);
 hashval_t vn_reference_compute_hash (const vn_reference_t);
-int vn_reference_eq (const void *, const void *);
+bool vn_reference_eq (const_vn_reference_t const, const_vn_reference_t const);
 unsigned int get_max_value_id (void);
 unsigned int get_next_value_id (void);
 unsigned int get_constant_value_id (tree);

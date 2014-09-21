@@ -1,10 +1,9 @@
-// $G $D/$F.dir/pkg.go && $G $D/$F.go || echo "Bug 382"
+// compiledir
 
-// Issue 2529
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file
 
-package main
-import "./pkg"
+// Issue 2529.
 
-var x = pkg.E
-
-var fo = struct {F pkg.T}{F: x}
+package ignored

@@ -1,5 +1,5 @@
 // go-gcc.cc -- Go frontend to gcc IR.
-// Copyright (C) 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 // Contributed by Ian Lance Taylor, Google.
 
 // This file is part of GCC.
@@ -24,19 +24,17 @@
 // include it here before tree.h includes it later.
 #include <gmp.h>
 
-#ifndef ENABLE_BUILD_WITH_CXX
-extern "C"
-{
-#endif
-
 #include "tree.h"
+#include "stringpool.h"
+#include "stor-layout.h"
+#include "varasm.h"
 #include "tree-iterator.h"
-#include "gimple.h"
+#include "basic-block.h"
+#include "gimple-expr.h"
 #include "toplev.h"
-
-#ifndef ENABLE_BUILD_WITH_CXX
-}
-#endif
+#include "output.h"
+#include "real.h"
+#include "realmpfr.h"
 
 #include "go-c.h"
 
@@ -160,6 +158,7 @@ class Gcc_backend : public Backend
   function_type(const Btyped_identifier&,
 		const std::vector<Btyped_identifier>&,
 		const std::vector<Btyped_identifier>&,
+		Btype*,
 		const Location);
 
   Btype*
@@ -216,6 +215,50 @@ class Gcc_backend : public Backend
   Bexpression*
   zero_expression(Btype*);
 
+  Bexpression*
+  error_expression()
+  { return this->make_expression(error_mark_node); }
+
+  Bexpression*
+  var_expression(Bvariable* var, Location);
+
+  Bexpression*
+  indirect_expression(Bexpression* expr, bool known_valid, Location);
+
+  Bexpression*
+  integer_constant_expression(Btype* btype, mpz_t val);
+
+  Bexpression*
+  float_constant_expression(Btype* btype, mpfr_t val);
+
+  Bexpression*
+  complex_constant_expression(Btype* btype, mpfr_t real, mpfr_t imag);
+
+  Bexpression*
+  convert_expression(Btype* type, Bexpression* expr, Location);
+
+  Bexpression*
+  function_code_expression(Bfunction*, Location);
+
+  Bexpression*
+  address_expression(Bexpression*, Location);
+
+  Bexpression*
+  struct_field_expression(Bexpression*, size_t, Location);
+
+  Bexpression*
+  compound_expression(Bstatement*, Bexpression*, Location);
+
+  Bexpression*
+  conditional_expression(Btype*, Bexpression*, Bexpression*, Bexpression*,
+                         Location);
+
+  Bexpression*
+  unary_expression(Operator, Bexpression*, Location);
+
+  Bexpression*
+  binary_expression(Operator, Bexpression*, Bexpression*, Location);
+
   // Statements.
 
   Bstatement*
@@ -271,11 +314,12 @@ class Gcc_backend : public Backend
 
   Bvariable*
   global_variable(const std::string& package_name,
-		  const std::string& unique_prefix,
+		  const std::string& pkgpath,
 		  const std::string& name,
 		  Btype* btype,
 		  bool is_external,
 		  bool is_hidden,
+		  bool in_unique_section,
 		  Location location);
 
   void
@@ -294,10 +338,10 @@ class Gcc_backend : public Backend
 		     Location, Bstatement**);
 
   Bvariable*
-  immutable_struct(const std::string&, bool, Btype*, Location);
+  immutable_struct(const std::string&, bool, bool, Btype*, Location);
 
   void
-  immutable_struct_set_init(Bvariable*, const std::string&, bool, Btype*,
+  immutable_struct_set_init(Bvariable*, const std::string&, bool, bool, Btype*,
 			    Location, Bexpression*);
 
   Bvariable*
@@ -317,6 +361,17 @@ class Gcc_backend : public Backend
   Bexpression*
   label_address(Blabel*, Location);
 
+  // Functions.
+
+  Bfunction*
+  error_function()
+  { return this->make_function(error_mark_node); }
+
+  Bfunction*
+  function(Btype* fntype, const std::string& name, const std::string& asm_name,
+           bool is_visible, bool is_declaration, bool is_inlinable,
+           bool disable_split_stack, bool in_unique_section, Location);
+
  private:
   // Make a Bexpression from a tree.
   Bexpression*
@@ -332,6 +387,10 @@ class Gcc_backend : public Backend
   Btype*
   make_type(tree t)
   { return new Btype(t); }
+
+  Bfunction*
+  make_function(tree t)
+  { return new Bfunction(t); }
 
   Btype*
   fill_in_struct(Btype*, const std::vector<Btyped_identifier>&);
@@ -451,7 +510,8 @@ Btype*
 Gcc_backend::function_type(const Btyped_identifier& receiver,
 			   const std::vector<Btyped_identifier>& parameters,
 			   const std::vector<Btyped_identifier>& results,
-			   Location location)
+			   Btype* result_struct,
+			   Location)
 {
   tree args = NULL_TREE;
   tree* pp = &args;
@@ -486,29 +546,8 @@ Gcc_backend::function_type(const Btyped_identifier& receiver,
     result = results.front().btype->get_tree();
   else
     {
-      result = make_node(RECORD_TYPE);
-      tree field_trees = NULL_TREE;
-      pp = &field_trees;
-      for (std::vector<Btyped_identifier>::const_iterator p = results.begin();
-	   p != results.end();
-	   ++p)
-	{
-	  const std::string name = (p->name.empty()
-				    ? "UNNAMED"
-				    : p->name);
-	  tree name_tree = get_identifier_from_string(name);
-	  tree field_type_tree = p->btype->get_tree();
-	  if (field_type_tree == error_mark_node)
-	    return this->error_type();
-	  gcc_assert(TYPE_SIZE(field_type_tree) != NULL_TREE);
-	  tree field = build_decl(location.gcc_location(), FIELD_DECL,
-                                  name_tree, field_type_tree);
-	  DECL_CONTEXT(field) = result;
-	  *pp = field;
-	  pp = &DECL_CHAIN(field);
-	}
-      TYPE_FIELDS(result) = field_trees;
-      layout_type(result);
+      gcc_assert(result_struct != NULL);
+      result = result_struct->get_tree();
     }
   if (result == error_mark_node)
     return this->error_type();
@@ -855,6 +894,355 @@ Gcc_backend::zero_expression(Btype* btype)
   return tree_to_expr(ret);
 }
 
+// An expression that references a variable.
+
+Bexpression*
+Gcc_backend::var_expression(Bvariable* var, Location)
+{
+  tree ret = var->get_tree();
+  if (ret == error_mark_node)
+    return this->error_expression();
+  return tree_to_expr(ret);
+}
+
+// An expression that indirectly references an expression.
+
+Bexpression*
+Gcc_backend::indirect_expression(Bexpression* expr, bool known_valid,
+                                 Location location)
+{
+  tree ret = build_fold_indirect_ref_loc(location.gcc_location(),
+                                         expr->get_tree());
+  if (known_valid)
+    TREE_THIS_NOTRAP(ret) = 1;
+  return tree_to_expr(ret);
+}
+
+// Return a typed value as a constant integer.
+
+Bexpression*
+Gcc_backend::integer_constant_expression(Btype* btype, mpz_t val)
+{
+  tree t = btype->get_tree();
+  if (t == error_mark_node)
+    return this->error_expression();
+
+  tree ret = double_int_to_tree(t, mpz_get_double_int(t, val, true));
+  return tree_to_expr(ret);
+}
+
+// Return a typed value as a constant floating-point number.
+
+Bexpression*
+Gcc_backend::float_constant_expression(Btype* btype, mpfr_t val)
+{
+  tree t = btype->get_tree();
+  tree ret;
+  if (t == error_mark_node)
+    return this->error_expression();
+
+  REAL_VALUE_TYPE r1;
+  real_from_mpfr(&r1, val, t, GMP_RNDN);
+  REAL_VALUE_TYPE r2;
+  real_convert(&r2, TYPE_MODE(t), &r1);
+  ret = build_real(t, r2);
+  return tree_to_expr(ret);
+}
+
+// Return a typed real and imaginary value as a constant complex number.
+
+Bexpression*
+Gcc_backend::complex_constant_expression(Btype* btype, mpfr_t real, mpfr_t imag)
+{
+  tree t = btype->get_tree();
+  tree ret;
+  if (t == error_mark_node)
+    return this->error_expression();
+
+  REAL_VALUE_TYPE r1;
+  real_from_mpfr(&r1, real, TREE_TYPE(t), GMP_RNDN);
+  REAL_VALUE_TYPE r2;
+  real_convert(&r2, TYPE_MODE(TREE_TYPE(t)), &r1);
+
+  REAL_VALUE_TYPE r3;
+  real_from_mpfr(&r3, imag, TREE_TYPE(t), GMP_RNDN);
+  REAL_VALUE_TYPE r4;
+  real_convert(&r4, TYPE_MODE(TREE_TYPE(t)), &r3);
+
+  ret = build_complex(t, build_real(TREE_TYPE(t), r2),
+                      build_real(TREE_TYPE(t), r4));
+  return tree_to_expr(ret);
+}
+
+// An expression that converts an expression to a different type.
+
+Bexpression*
+Gcc_backend::convert_expression(Btype* type, Bexpression* expr, Location)
+{
+  tree type_tree = type->get_tree();
+  tree expr_tree = expr->get_tree();
+  if (type_tree == error_mark_node || expr_tree == error_mark_node)
+    return this->error_expression();
+
+  tree ret = fold_convert(type_tree, expr_tree);
+  return tree_to_expr(ret);
+}
+
+// Get the address of a function.
+
+Bexpression*
+Gcc_backend::function_code_expression(Bfunction* bfunc, Location location)
+{
+  tree func = bfunc->get_tree();
+  if (func == error_mark_node)
+    return this->error_expression();
+
+  tree ret = build_fold_addr_expr_loc(location.gcc_location(), func);
+  return this->make_expression(ret);
+}
+
+// Get the address of an expression.
+
+Bexpression*
+Gcc_backend::address_expression(Bexpression* bexpr, Location location)
+{
+  tree expr = bexpr->get_tree();
+  if (expr == error_mark_node)
+    return this->error_expression();
+
+  tree ret = build_fold_addr_expr_loc(location.gcc_location(), expr);
+  return this->make_expression(ret);
+}
+
+// Return an expression for the field at INDEX in BSTRUCT.
+
+Bexpression*
+Gcc_backend::struct_field_expression(Bexpression* bstruct, size_t index,
+                                     Location location)
+{
+  tree struct_tree = bstruct->get_tree();
+  if (struct_tree == error_mark_node
+      || TREE_TYPE(struct_tree) == error_mark_node)
+    return this->error_expression();
+  gcc_assert(TREE_CODE(TREE_TYPE(struct_tree)) == RECORD_TYPE);
+  tree field = TYPE_FIELDS(TREE_TYPE(struct_tree));
+  if (field == NULL_TREE)
+  {
+    // This can happen for a type which refers to itself indirectly
+    // and then turns out to be erroneous.
+    return this->error_expression();
+  }
+  for (unsigned int i = index; i > 0; --i)
+  {
+    field = DECL_CHAIN(field);
+    gcc_assert(field != NULL_TREE);
+  }
+  if (TREE_TYPE(field) == error_mark_node)
+    return this->error_expression();
+  tree ret = fold_build3_loc(location.gcc_location(), COMPONENT_REF,
+                             TREE_TYPE(field), struct_tree, field,
+                             NULL_TREE);
+  if (TREE_CONSTANT(struct_tree))
+    TREE_CONSTANT(ret) = 1;
+  return tree_to_expr(ret);
+}
+
+// Return an expression that executes BSTAT before BEXPR.
+
+Bexpression*
+Gcc_backend::compound_expression(Bstatement* bstat, Bexpression* bexpr,
+                                 Location location)
+{
+  tree stat = bstat->get_tree();
+  tree expr = bexpr->get_tree();
+  if (stat == error_mark_node || expr == error_mark_node)
+    return this->error_expression();
+  tree ret = fold_build2_loc(location.gcc_location(), COMPOUND_EXPR,
+                             TREE_TYPE(expr), stat, expr);
+  return this->make_expression(ret);
+}
+
+// Return an expression that executes THEN_EXPR if CONDITION is true, or
+// ELSE_EXPR otherwise.
+
+Bexpression*
+Gcc_backend::conditional_expression(Btype* btype, Bexpression* condition,
+                                    Bexpression* then_expr,
+                                    Bexpression* else_expr, Location location)
+{
+  tree type_tree = btype == NULL ? void_type_node : btype->get_tree();
+  tree cond_tree = condition->get_tree();
+  tree then_tree = then_expr->get_tree();
+  tree else_tree = else_expr == NULL ? NULL_TREE : else_expr->get_tree();
+  if (type_tree == error_mark_node
+      || cond_tree == error_mark_node
+      || then_tree == error_mark_node
+      || else_tree == error_mark_node)
+    return this->error_expression();
+  tree ret = build3_loc(location.gcc_location(), COND_EXPR, type_tree,
+                        cond_tree, then_tree, else_tree);
+  return this->make_expression(ret);
+}
+
+// Return an expression for the unary operation OP EXPR.
+
+Bexpression*
+Gcc_backend::unary_expression(Operator op, Bexpression* expr, Location location)
+{
+  tree expr_tree = expr->get_tree();
+  if (expr_tree == error_mark_node
+      || TREE_TYPE(expr_tree) == error_mark_node)
+    return this->error_expression();
+
+  tree type_tree = TREE_TYPE(expr_tree);
+  enum tree_code code;
+  switch (op)
+    {
+    case OPERATOR_MINUS:
+      {
+        tree computed_type = excess_precision_type(type_tree);
+        if (computed_type != NULL_TREE)
+          {
+            expr_tree = convert(computed_type, expr_tree);
+            type_tree = computed_type;
+          }
+        code = NEGATE_EXPR;
+        break;
+      }
+    case OPERATOR_NOT:
+      code = TRUTH_NOT_EXPR;
+      break;
+    case OPERATOR_XOR:
+      code = BIT_NOT_EXPR;
+      break;
+    default:
+      gcc_unreachable();
+      break;
+    }
+
+  tree ret = fold_build1_loc(location.gcc_location(), code, type_tree,
+                             expr_tree);
+  return this->make_expression(ret);
+}
+
+// Convert a gofrontend operator to an equivalent tree_code.
+
+static enum tree_code
+operator_to_tree_code(Operator op, tree type)
+{
+  enum tree_code code;
+  switch (op)
+    {
+    case OPERATOR_EQEQ:
+      code = EQ_EXPR;
+      break;
+    case OPERATOR_NOTEQ:
+      code = NE_EXPR;
+      break;
+    case OPERATOR_LT:
+      code = LT_EXPR;
+      break;
+    case OPERATOR_LE:
+      code = LE_EXPR;
+      break;
+    case OPERATOR_GT:
+      code = GT_EXPR;
+      break;
+    case OPERATOR_GE:
+      code = GE_EXPR;
+      break;
+    case OPERATOR_OROR:
+      code = TRUTH_ORIF_EXPR;
+      break;
+    case OPERATOR_ANDAND:
+      code = TRUTH_ANDIF_EXPR;
+      break;
+    case OPERATOR_PLUS:
+      code = PLUS_EXPR;
+      break;
+    case OPERATOR_MINUS:
+      code = MINUS_EXPR;
+      break;
+    case OPERATOR_OR:
+      code = BIT_IOR_EXPR;
+      break;
+    case OPERATOR_XOR:
+      code = BIT_XOR_EXPR;
+      break;
+    case OPERATOR_MULT:
+      code = MULT_EXPR;
+      break;
+    case OPERATOR_DIV:
+      if (TREE_CODE(type) == REAL_TYPE || TREE_CODE(type) == COMPLEX_TYPE)
+	code = RDIV_EXPR;
+      else
+	code = TRUNC_DIV_EXPR;
+      break;
+    case OPERATOR_MOD:
+      code = TRUNC_MOD_EXPR;
+      break;
+    case OPERATOR_LSHIFT:
+      code = LSHIFT_EXPR;
+      break;
+    case OPERATOR_RSHIFT:
+      code = RSHIFT_EXPR;
+      break;
+    case OPERATOR_AND:
+      code = BIT_AND_EXPR;
+      break;
+    case OPERATOR_BITCLEAR:
+      code = BIT_AND_EXPR;
+      break;
+    default:
+      gcc_unreachable();
+    }
+
+  return code;
+}
+
+// Return an expression for the binary operation LEFT OP RIGHT.
+
+Bexpression*
+Gcc_backend::binary_expression(Operator op, Bexpression* left,
+                               Bexpression* right, Location location)
+{
+  tree left_tree = left->get_tree();
+  tree right_tree = right->get_tree();
+  if (left_tree == error_mark_node
+      || right_tree == error_mark_node)
+    return this->error_expression();
+  enum tree_code code = operator_to_tree_code(op, TREE_TYPE(left_tree));
+
+  bool use_left_type = op != OPERATOR_OROR && op != OPERATOR_ANDAND;
+  tree type_tree = use_left_type ? TREE_TYPE(left_tree) : TREE_TYPE(right_tree);
+  tree computed_type = excess_precision_type(type_tree);
+  if (computed_type != NULL_TREE)
+    {
+      left_tree = convert(computed_type, left_tree);
+      right_tree = convert(computed_type, right_tree);
+      type_tree = computed_type;
+    }
+
+  // For comparison operators, the resulting type should be boolean.
+  switch (op)
+    {
+    case OPERATOR_EQEQ:
+    case OPERATOR_NOTEQ:
+    case OPERATOR_LT:
+    case OPERATOR_LE:
+    case OPERATOR_GT:
+    case OPERATOR_GE:
+      type_tree = boolean_type_node;
+      break;
+    default:
+      break;
+    }
+
+  tree ret = fold_build2_loc(location.gcc_location(), code, type_tree,
+                             left_tree, right_tree);
+  return this->make_expression(ret);
+}
+
 // An expression as a statement.
 
 Bstatement*
@@ -1087,7 +1475,7 @@ Gcc_backend::switch_statement(
   if (tv == error_mark_node)
     return this->error_statement();
   tree t = build3_loc(switch_location.gcc_location(), SWITCH_EXPR,
-                      void_type_node, tv, stmt_list, NULL_TREE);
+                      NULL_TREE, tv, stmt_list, NULL_TREE);
   return this->make_statement(t);
 }
 
@@ -1249,20 +1637,41 @@ Gcc_backend::non_zero_size_type(tree type)
   switch (TREE_CODE(type))
     {
     case RECORD_TYPE:
-      {
-	if (go_non_zero_struct == NULL_TREE)
-	  {
-	    type = make_node(RECORD_TYPE);
-	    tree field = build_decl(UNKNOWN_LOCATION, FIELD_DECL,
-				    get_identifier("dummy"),
-				    boolean_type_node);
-	    DECL_CONTEXT(field) = type;
-	    TYPE_FIELDS(type) = field;
-	    layout_type(type);
-	    go_non_zero_struct = type;
-	  }
-	return go_non_zero_struct;
-      }
+      if (TYPE_FIELDS(type) != NULL_TREE)
+	{
+	  tree ns = make_node(RECORD_TYPE);
+	  tree field_trees = NULL_TREE;
+	  tree *pp = &field_trees;
+	  for (tree field = TYPE_FIELDS(type);
+	       field != NULL_TREE;
+	       field = DECL_CHAIN(field))
+	    {
+	      tree ft = TREE_TYPE(field);
+	      if (field == TYPE_FIELDS(type))
+		ft = non_zero_size_type(ft);
+	      tree f = build_decl(DECL_SOURCE_LOCATION(field), FIELD_DECL,
+				  DECL_NAME(field), ft);
+	      DECL_CONTEXT(f) = ns;
+	      *pp = f;
+	      pp = &DECL_CHAIN(f);
+	    }
+	  TYPE_FIELDS(ns) = field_trees;
+	  layout_type(ns);
+	  return ns;
+	}
+
+      if (go_non_zero_struct == NULL_TREE)
+	{
+	  type = make_node(RECORD_TYPE);
+	  tree field = build_decl(UNKNOWN_LOCATION, FIELD_DECL,
+				  get_identifier("dummy"),
+				  boolean_type_node);
+	  DECL_CONTEXT(field) = type;
+	  TYPE_FIELDS(type) = field;
+	  layout_type(type);
+	  go_non_zero_struct = type;
+	}
+      return go_non_zero_struct;
 
     case ARRAY_TYPE:
       {
@@ -1281,11 +1690,12 @@ Gcc_backend::non_zero_size_type(tree type)
 
 Bvariable*
 Gcc_backend::global_variable(const std::string& package_name,
-			     const std::string& unique_prefix,
+			     const std::string& pkgpath,
 			     const std::string& name,
 			     Btype* btype,
 			     bool is_external,
 			     bool is_hidden,
+			     bool in_unique_section,
 			     Location location)
 {
   tree type_tree = btype->get_tree();
@@ -1310,12 +1720,15 @@ Gcc_backend::global_variable(const std::string& package_name,
     {
       TREE_PUBLIC(decl) = 1;
 
-      std::string asm_name(unique_prefix);
+      std::string asm_name(pkgpath);
       asm_name.push_back('.');
-      asm_name.append(var_name);
+      asm_name.append(name);
       SET_DECL_ASSEMBLER_NAME(decl, get_identifier_from_string(asm_name));
     }
   TREE_USED(decl) = 1;
+
+  if (in_unique_section)
+    resolve_unique_section (decl, 0, 1);
 
   go_preserve_from_gc(decl);
 
@@ -1335,6 +1748,16 @@ Gcc_backend::global_variable_set_init(Bvariable* var, Bexpression* expr)
   if (var_decl == error_mark_node)
     return;
   DECL_INITIAL(var_decl) = expr_tree;
+
+  // If this variable goes in a unique section, it may need to go into
+  // a different one now that DECL_INITIAL is set.
+  if (DECL_HAS_IMPLICIT_SECTION_NAME_P (var_decl))
+    {
+      DECL_SECTION_NAME (var_decl) = NULL_TREE;
+      resolve_unique_section (var_decl,
+			      compute_reloc_for_constant (expr_tree),
+			      1);
+    }
 }
 
 // Make a local variable.
@@ -1447,8 +1870,8 @@ Gcc_backend::temporary_variable(Bfunction* function, Bblock* bblock,
 // Create a named immutable initialized data structure.
 
 Bvariable*
-Gcc_backend::immutable_struct(const std::string& name, bool, Btype* btype,
-			      Location location)
+Gcc_backend::immutable_struct(const std::string& name, bool is_hidden,
+			      bool is_common, Btype* btype, Location location)
 {
   tree type_tree = btype->get_tree();
   if (type_tree == error_mark_node)
@@ -1462,6 +1885,23 @@ Gcc_backend::immutable_struct(const std::string& name, bool, Btype* btype,
   TREE_CONSTANT(decl) = 1;
   TREE_USED(decl) = 1;
   DECL_ARTIFICIAL(decl) = 1;
+  if (!is_hidden)
+    TREE_PUBLIC(decl) = 1;
+
+  // When the initializer for one immutable_struct refers to another,
+  // it needs to know the visibility of the referenced struct so that
+  // compute_reloc_for_constant will return the right value.  On many
+  // systems calling make_decl_one_only will mark the decl as weak,
+  // which will change the return value of compute_reloc_for_constant.
+  // We can't reliably call make_decl_one_only yet, because we don't
+  // yet know the initializer.  This issue doesn't arise in C because
+  // Go initializers, unlike C initializers, can be indirectly
+  // recursive.  To ensure that compute_reloc_for_constant computes
+  // the right value if some other initializer refers to this one, we
+  // mark this symbol as weak here.  We undo that below in
+  // immutable_struct_set_init before calling mark_decl_one_only.
+  if (is_common)
+    DECL_WEAK(decl) = 1;
 
   // We don't call rest_of_decl_compilation until we have the
   // initializer.
@@ -1475,8 +1915,7 @@ Gcc_backend::immutable_struct(const std::string& name, bool, Btype* btype,
 
 void
 Gcc_backend::immutable_struct_set_init(Bvariable* var, const std::string&,
-				       bool is_common, Btype*,
-				       Location,
+				       bool, bool is_common, Btype*, Location,
 				       Bexpression* initializer)
 {
   tree decl = var->get_tree();
@@ -1486,14 +1925,19 @@ Gcc_backend::immutable_struct_set_init(Bvariable* var, const std::string&,
 
   DECL_INITIAL(decl) = init_tree;
 
-  // We can't call make_decl_one_only until we set DECL_INITIAL.
-  if (!is_common)
-    TREE_PUBLIC(decl) = 1;
-  else
+  // Now that DECL_INITIAL is set, we can't call make_decl_one_only.
+  // See the comment where DECL_WEAK is set in immutable_struct.
+  if (is_common)
     {
+      DECL_WEAK(decl) = 0;
       make_decl_one_only(decl, DECL_ASSEMBLER_NAME(decl));
-      resolve_unique_section(decl, 1, 0);
     }
+
+  // These variables are often unneeded in the final program, so put
+  // them in their own section so that linker GC can discard them.
+  resolve_unique_section(decl,
+			 compute_reloc_for_constant (init_tree),
+			 1);
 
   rest_of_decl_compilation(decl, 1, 0);
 }
@@ -1576,6 +2020,56 @@ Gcc_backend::label_address(Blabel* label, Location location)
   return this->make_expression(ret);
 }
 
+// Declare or define a new function.
+
+Bfunction*
+Gcc_backend::function(Btype* fntype, const std::string& name,
+                      const std::string& asm_name, bool is_visible,
+                      bool is_declaration, bool is_inlinable,
+                      bool disable_split_stack, bool in_unique_section,
+                      Location location)
+{
+  tree functype = fntype->get_tree();
+  if (functype != error_mark_node)
+    {
+      gcc_assert(FUNCTION_POINTER_TYPE_P(functype));
+      functype = TREE_TYPE(functype);
+    }
+  tree id = get_identifier_from_string(name);
+  if (functype == error_mark_node || id == error_mark_node)
+    return this->error_function();
+
+  tree decl = build_decl(location.gcc_location(), FUNCTION_DECL, id, functype);
+  if (!asm_name.empty())
+    SET_DECL_ASSEMBLER_NAME(decl, get_identifier_from_string(asm_name));
+  if (is_visible)
+    TREE_PUBLIC(decl) = 1;
+  if (is_declaration)
+    DECL_EXTERNAL(decl) = 1;
+  else
+    {
+      tree restype = TREE_TYPE(functype);
+      tree resdecl =
+          build_decl(location.gcc_location(), RESULT_DECL, NULL_TREE, restype);
+      DECL_ARTIFICIAL(resdecl) = 1;
+      DECL_IGNORED_P(resdecl) = 1;
+      DECL_CONTEXT(resdecl) = decl;
+      DECL_RESULT(decl) = resdecl;
+    }
+  if (!is_inlinable)
+    DECL_UNINLINABLE(decl) = 1;
+  if (disable_split_stack)
+    {
+      tree attr = get_identifier("__no_split_stack__");
+      DECL_ATTRIBUTES(decl) = tree_cons(attr, NULL_TREE, NULL_TREE);
+    }
+  if (in_unique_section)
+    resolve_unique_section(decl, 0, 1);
+
+  go_preserve_from_gc(decl);
+  return new Bfunction(decl);
+}
+
 // The single backend.
 
 static Gcc_backend gcc_backend;
@@ -1650,4 +2144,10 @@ tree
 var_to_tree(Bvariable* bv)
 {
   return bv->get_tree();
+}
+
+tree
+function_to_tree(Bfunction* bf)
+{
+  return bf->get_tree();
 }

@@ -1,6 +1,5 @@
 /* Sets (bit vectors) of hard registers, and operations on them.
-   Copyright (C) 1987, 1992, 1994, 2000, 2003, 2004, 2005, 2007, 2008, 2009,
-   2010, 2012 Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC
 
@@ -489,7 +488,7 @@ hard_reg_set_empty_p (const HARD_REG_SET x)
 
 /* Iterator for hard register sets.  */
 
-typedef struct
+struct hard_reg_set_iterator
 {
   /* Pointer to the current element.  */
   HARD_REG_ELT_TYPE *pelt;
@@ -504,7 +503,7 @@ typedef struct
      it is shifted right, so that the actual bit is always the least
      significant bit of ACTUAL.  */
   HARD_REG_ELT_TYPE bits;
-} hard_reg_set_iterator;
+};
 
 #define HARD_REG_ELT_BITS UHOST_BITS_PER_WIDE_INT
 

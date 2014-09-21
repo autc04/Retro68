@@ -4,25 +4,37 @@
 
 package os
 
-// IsExist returns whether the error is known to report that a file already exists.
-func IsExist(err error) bool {
-	if pe, ok := err.(*PathError); ok {
+func isExist(err error) bool {
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *PathError:
+		err = pe.Err
+	case *LinkError:
 		err = pe.Err
 	}
 	return contains(err.Error(), " exists")
 }
 
-// IsNotExist returns whether the error is known to report that a file does not exist.
-func IsNotExist(err error) bool {
-	if pe, ok := err.(*PathError); ok {
+func isNotExist(err error) bool {
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *PathError:
+		err = pe.Err
+	case *LinkError:
 		err = pe.Err
 	}
 	return contains(err.Error(), "does not exist")
 }
 
-// IsPermission returns whether the error is known to report that permission is denied.
-func IsPermission(err error) bool {
-	if pe, ok := err.(*PathError); ok {
+func isPermission(err error) bool {
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *PathError:
+		err = pe.Err
+	case *LinkError:
 		err = pe.Err
 	}
 	return contains(err.Error(), "permission denied")

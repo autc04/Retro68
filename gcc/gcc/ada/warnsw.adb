@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,9 +23,207 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Opt; use Opt;
+with Err_Vars; use Err_Vars;
+with Opt;      use Opt;
+with Output;   use Output;
 
 package body Warnsw is
+
+   ----------------------
+   -- Restore_Warnings --
+   ----------------------
+
+   procedure Restore_Warnings (W : Warning_Record) is
+   begin
+      Address_Clause_Overlay_Warnings     :=
+        W.Address_Clause_Overlay_Warnings;
+      Check_Unreferenced                  :=
+        W.Check_Unreferenced;
+      Check_Unreferenced_Formals          :=
+        W.Check_Unreferenced_Formals;
+      Check_Withs                         :=
+        W.Check_Withs;
+      Constant_Condition_Warnings         :=
+        W.Constant_Condition_Warnings;
+      Elab_Warnings                       :=
+        W.Elab_Warnings;
+      Elab_Info_Messages                  :=
+        W.Elab_Info_Messages;
+      Implementation_Unit_Warnings        :=
+        W.Implementation_Unit_Warnings;
+      Ineffective_Inline_Warnings         :=
+        W.Ineffective_Inline_Warnings;
+      List_Body_Required_Info             :=
+        W.List_Body_Required_Info;
+      List_Inherited_Aspects              :=
+        W.List_Inherited_Aspects;
+      Warning_Doc_Switch                  :=
+        W.Warning_Doc_Switch;
+      Warn_On_Ada_2005_Compatibility      :=
+        W.Warn_On_Ada_2005_Compatibility;
+      Warn_On_Ada_2012_Compatibility      :=
+        W.Warn_On_Ada_2012_Compatibility;
+      Warn_On_All_Unread_Out_Parameters   :=
+        W.Warn_On_All_Unread_Out_Parameters;
+      Warn_On_Assertion_Failure           :=
+        W.Warn_On_Assertion_Failure;
+      Warn_On_Assumed_Low_Bound           :=
+        W.Warn_On_Assumed_Low_Bound;
+      Warn_On_Atomic_Synchronization      :=
+        W.Warn_On_Atomic_Synchronization;
+      Warn_On_Bad_Fixed_Value             :=
+        W.Warn_On_Bad_Fixed_Value;
+      Warn_On_Biased_Representation       :=
+        W.Warn_On_Biased_Representation;
+      Warn_On_Constant                    :=
+        W.Warn_On_Constant;
+      Warn_On_Deleted_Code                :=
+        W.Warn_On_Deleted_Code;
+      Warn_On_Dereference                 :=
+        W.Warn_On_Dereference;
+      Warn_On_Export_Import               :=
+        W.Warn_On_Export_Import;
+      Warn_On_Hiding                      :=
+        W.Warn_On_Hiding;
+      Warn_On_Modified_Unread             :=
+        W.Warn_On_Modified_Unread;
+      Warn_On_No_Value_Assigned           :=
+        W.Warn_On_No_Value_Assigned;
+      Warn_On_Non_Local_Exception         :=
+        W.Warn_On_Non_Local_Exception;
+      Warn_On_Object_Renames_Function     :=
+        W.Warn_On_Object_Renames_Function;
+      Warn_On_Obsolescent_Feature         :=
+        W.Warn_On_Obsolescent_Feature;
+      Warn_On_Overlap                     :=
+        W.Warn_On_Overlap;
+      Warn_On_Overridden_Size             :=
+        W.Warn_On_Overridden_Size;
+      Warn_On_Parameter_Order             :=
+        W.Warn_On_Parameter_Order;
+      Warn_On_Questionable_Missing_Parens :=
+        W.Warn_On_Questionable_Missing_Parens;
+      Warn_On_Record_Holes                :=
+        W.Warn_On_Record_Holes;
+      Warn_On_Redundant_Constructs        :=
+        W.Warn_On_Redundant_Constructs;
+      Warn_On_Reverse_Bit_Order           :=
+        W.Warn_On_Reverse_Bit_Order;
+      Warn_On_Standard_Redefinition       :=
+        W.Warn_On_Standard_Redefinition;
+      Warn_On_Suspicious_Contract         :=
+        W.Warn_On_Suspicious_Contract;
+      Warn_On_Unchecked_Conversion        :=
+        W.Warn_On_Unchecked_Conversion;
+      Warn_On_Unordered_Enumeration_Type  :=
+        W.Warn_On_Unordered_Enumeration_Type;
+      Warn_On_Unrecognized_Pragma         :=
+        W.Warn_On_Unrecognized_Pragma;
+      Warn_On_Unrepped_Components         :=
+        W.Warn_On_Unrepped_Components;
+      Warn_On_Warnings_Off                :=
+        W.Warn_On_Warnings_Off;
+   end Restore_Warnings;
+
+   -------------------
+   -- Save_Warnings --
+   -------------------
+
+   function Save_Warnings return Warning_Record is
+      W : Warning_Record;
+
+   begin
+      W.Address_Clause_Overlay_Warnings     :=
+        Address_Clause_Overlay_Warnings;
+      W.Check_Unreferenced                  :=
+        Check_Unreferenced;
+      W.Check_Unreferenced_Formals          :=
+        Check_Unreferenced_Formals;
+      W.Check_Withs                         :=
+        Check_Withs;
+      W.Constant_Condition_Warnings         :=
+        Constant_Condition_Warnings;
+      W.Elab_Info_Messages                  :=
+        Elab_Info_Messages;
+      W.Elab_Warnings                       :=
+        Elab_Warnings;
+      W.Implementation_Unit_Warnings        :=
+        Implementation_Unit_Warnings;
+      W.Ineffective_Inline_Warnings         :=
+        Ineffective_Inline_Warnings;
+      W.List_Body_Required_Info             :=
+        List_Body_Required_Info;
+      W.List_Inherited_Aspects              :=
+        List_Inherited_Aspects;
+      W.Warning_Doc_Switch                  :=
+        Warning_Doc_Switch;
+      W.Warn_On_Ada_2005_Compatibility      :=
+        Warn_On_Ada_2005_Compatibility;
+      W.Warn_On_Ada_2012_Compatibility      :=
+        Warn_On_Ada_2012_Compatibility;
+      W.Warn_On_All_Unread_Out_Parameters   :=
+        Warn_On_All_Unread_Out_Parameters;
+      W.Warn_On_Assertion_Failure           :=
+        Warn_On_Assertion_Failure;
+      W.Warn_On_Assumed_Low_Bound           :=
+        Warn_On_Assumed_Low_Bound;
+      W.Warn_On_Atomic_Synchronization      :=
+        Warn_On_Atomic_Synchronization;
+      W.Warn_On_Bad_Fixed_Value             :=
+        Warn_On_Bad_Fixed_Value;
+      W.Warn_On_Biased_Representation       :=
+        Warn_On_Biased_Representation;
+      W.Warn_On_Constant                    :=
+        Warn_On_Constant;
+      W.Warn_On_Deleted_Code                :=
+        Warn_On_Deleted_Code;
+      W.Warn_On_Dereference                 :=
+        Warn_On_Dereference;
+      W.Warn_On_Export_Import               :=
+        Warn_On_Export_Import;
+      W.Warn_On_Hiding                      :=
+        Warn_On_Hiding;
+      W.Warn_On_Modified_Unread             :=
+        Warn_On_Modified_Unread;
+      W.Warn_On_No_Value_Assigned           :=
+        Warn_On_No_Value_Assigned;
+      W.Warn_On_Non_Local_Exception         :=
+        Warn_On_Non_Local_Exception;
+      W.Warn_On_Object_Renames_Function     :=
+        Warn_On_Object_Renames_Function;
+      W.Warn_On_Obsolescent_Feature         :=
+        Warn_On_Obsolescent_Feature;
+      W.Warn_On_Overlap                     :=
+        Warn_On_Overlap;
+      W.Warn_On_Overridden_Size             :=
+        Warn_On_Overridden_Size;
+      W.Warn_On_Parameter_Order             :=
+        Warn_On_Parameter_Order;
+      W.Warn_On_Questionable_Missing_Parens :=
+        Warn_On_Questionable_Missing_Parens;
+      W.Warn_On_Record_Holes                :=
+        Warn_On_Record_Holes;
+      W.Warn_On_Redundant_Constructs        :=
+        Warn_On_Redundant_Constructs;
+      W.Warn_On_Reverse_Bit_Order           :=
+        Warn_On_Reverse_Bit_Order;
+      W.Warn_On_Standard_Redefinition       :=
+        Warn_On_Standard_Redefinition;
+      W.Warn_On_Suspicious_Contract         :=
+        Warn_On_Suspicious_Contract;
+      W.Warn_On_Unchecked_Conversion        :=
+        Warn_On_Unchecked_Conversion;
+      W.Warn_On_Unordered_Enumeration_Type  :=
+        Warn_On_Unordered_Enumeration_Type;
+      W.Warn_On_Unrecognized_Pragma         :=
+        Warn_On_Unrecognized_Pragma;
+      W.Warn_On_Unrepped_Components         :=
+        Warn_On_Unrepped_Components;
+      W.Warn_On_Warnings_Off                :=
+        Warn_On_Warnings_Off;
+
+      return W;
+   end Save_Warnings;
 
    ----------------------------
    -- Set_Dot_Warning_Switch --
@@ -52,6 +250,12 @@ package body Warnsw is
          when 'C' =>
             Warn_On_Unrepped_Components         := False;
 
+         when 'd' =>
+            Warning_Doc_Switch                  := True;
+
+         when 'D' =>
+            Warning_Doc_Switch                  := False;
+
          when 'e' =>
             Address_Clause_Overlay_Warnings     := True;
             Check_Unreferenced                  := True;
@@ -61,6 +265,7 @@ package body Warnsw is
             Elab_Warnings                       := True;
             Implementation_Unit_Warnings        := True;
             Ineffective_Inline_Warnings         := True;
+            List_Body_Required_Info             := True;
             List_Inherited_Aspects              := True;
             Warn_On_Ada_2005_Compatibility      := True;
             Warn_On_Ada_2012_Compatibility      := True;
@@ -87,6 +292,7 @@ package body Warnsw is
             Warn_On_Record_Holes                := True;
             Warn_On_Redundant_Constructs        := True;
             Warn_On_Reverse_Bit_Order           := True;
+            Warn_On_Standard_Redefinition       := True;
             Warn_On_Suspicious_Contract         := True;
             Warn_On_Unchecked_Conversion        := True;
             Warn_On_Unordered_Enumeration_Type  := True;
@@ -108,6 +314,12 @@ package body Warnsw is
 
          when 'I' =>
             Warn_On_Overlap                     := False;
+
+         when 'k' =>
+            Warn_On_Standard_Redefinition       := True;
+
+         when 'K' =>
+            Warn_On_Standard_Redefinition       := False;
 
          when 'l' =>
             List_Inherited_Aspects              := True;
@@ -182,8 +394,18 @@ package body Warnsw is
             Warn_On_Non_Local_Exception         := False;
             No_Warn_On_Non_Local_Exception      := True;
 
+         when 'y' =>
+            List_Body_Required_Info             := True;
+
+         when 'Y' =>
+            List_Body_Required_Info             := False;
+
          when others =>
-            return False;
+            if Ignore_Unrecognized_VWY_Switches then
+               Write_Line ("unrecognized switch -gnatw." & C & " ignored");
+            else
+               return False;
+            end if;
       end case;
 
       return True;
@@ -203,7 +425,9 @@ package body Warnsw is
       Elab_Warnings                       := False;
       Implementation_Unit_Warnings        := False;
       Ineffective_Inline_Warnings         := True;
+      List_Body_Required_Info             := False;
       List_Inherited_Aspects              := False;
+      Warning_Doc_Switch                  := False;
       Warn_On_Ada_2005_Compatibility      := True;
       Warn_On_Ada_2012_Compatibility      := True;
       Warn_On_All_Unread_Out_Parameters   := False;
@@ -264,6 +488,7 @@ package body Warnsw is
             Warn_On_Non_Local_Exception         := True;
             Warn_On_Object_Renames_Function     := True;
             Warn_On_Obsolescent_Feature         := True;
+            Warn_On_Overlap                     := True;
             Warn_On_Parameter_Order             := True;
             Warn_On_Questionable_Missing_Parens := True;
             Warn_On_Redundant_Constructs        := True;
@@ -282,7 +507,9 @@ package body Warnsw is
             Elab_Warnings                       := False;
             Implementation_Unit_Warnings        := False;
             Ineffective_Inline_Warnings         := False;
+            List_Body_Required_Info             := False;
             List_Inherited_Aspects              := False;
+            Warning_Doc_Switch                  := False;
             Warn_On_Ada_2005_Compatibility      := False;
             Warn_On_Ada_2012_Compatibility      := False;
             Warn_On_All_Unread_Out_Parameters   := False;
@@ -307,6 +534,7 @@ package body Warnsw is
             Warn_On_Questionable_Missing_Parens := False;
             Warn_On_Redundant_Constructs        := False;
             Warn_On_Reverse_Bit_Order           := False;
+            Warn_On_Standard_Redefinition       := False;
             Warn_On_Suspicious_Contract         := False;
             Warn_On_Suspicious_Modulus_Value    := False;
             Warn_On_Unchecked_Conversion        := False;
@@ -465,6 +693,11 @@ package body Warnsw is
             Warn_On_Unchecked_Conversion        := False;
 
          when others =>
+            if Ignore_Unrecognized_VWY_Switches then
+               Write_Line ("unrecognized switch -gnatw" & C & " ignored");
+            else
+               return False;
+            end if;
             return False;
       end case;
 

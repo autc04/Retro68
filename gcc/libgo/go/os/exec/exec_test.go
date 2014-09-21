@@ -14,17 +14,23 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func helperCommand(s ...string) *Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
 	cmd := Command(os.Args[0], cs...)
-	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	path := os.Getenv("LD_LIBRARY_PATH")
+	if path != "" {
+		cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH="+path)
+	}
 	return cmd
 }
 
@@ -83,10 +89,16 @@ func TestNoExistBinary(t *testing.T) {
 
 func TestExitStatus(t *testing.T) {
 	// Test that exit values are returned correctly
-	err := helperCommand("exit", "42").Run()
+	cmd := helperCommand("exit", "42")
+	err := cmd.Run()
+	want := "exit status 42"
+	switch runtime.GOOS {
+	case "plan9":
+		want = fmt.Sprintf("exit status: '%s %d: 42'", filepath.Base(cmd.Path), cmd.ProcessState.Pid())
+	}
 	if werr, ok := err.(*ExitError); ok {
-		if s, e := werr.Error(), "exit status 42"; s != e {
-			t.Errorf("from exit 42 got exit %q, want %q", s, e)
+		if s := werr.Error(); s != want {
+			t.Errorf("from exit 42 got exit %q, want %q", s, want)
 		}
 	} else {
 		t.Fatalf("expected *ExitError from exit 42; got %T: %v", err, err)
@@ -144,19 +156,200 @@ func TestPipes(t *testing.T) {
 	check("Wait", err)
 }
 
+const stdinCloseTestString = "Some test string."
+
+// Issue 6270.
+func TestStdinClose(t *testing.T) {
+	check := func(what string, err error) {
+		if err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+	}
+	cmd := helperCommand("stdinClose")
+	stdin, err := cmd.StdinPipe()
+	check("StdinPipe", err)
+	// Check that we can access methods of the underlying os.File.`
+	if _, ok := stdin.(interface {
+		Fd() uintptr
+	}); !ok {
+		t.Error("can't access methods of underlying *os.File")
+	}
+	check("Start", cmd.Start())
+	go func() {
+		_, err := io.Copy(stdin, strings.NewReader(stdinCloseTestString))
+		check("Copy", err)
+		// Before the fix, this next line would race with cmd.Wait.
+		check("Close", stdin.Close())
+	}()
+	check("Wait", cmd.Wait())
+}
+
+// Issue 5071
+func TestPipeLookPathLeak(t *testing.T) {
+	fd0 := numOpenFDS(t)
+	for i := 0; i < 4; i++ {
+		cmd := Command("something-that-does-not-exist-binary")
+		cmd.StdoutPipe()
+		cmd.StderrPipe()
+		cmd.StdinPipe()
+		if err := cmd.Run(); err == nil {
+			t.Fatal("unexpected success")
+		}
+	}
+	fdGrowth := numOpenFDS(t) - fd0
+	if fdGrowth > 2 {
+		t.Errorf("leaked %d fds; want ~0", fdGrowth)
+	}
+}
+
+func numOpenFDS(t *testing.T) int {
+	lsof, err := Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+	if err != nil {
+		t.Skip("skipping test; error finding or running lsof")
+		return 0
+	}
+	return bytes.Count(lsof, []byte("\n"))
+}
+
+var testedAlreadyLeaked = false
+
+// basefds returns the number of expected file descriptors
+// to be present in a process at start.
+func basefds() uintptr {
+	n := os.Stderr.Fd() + 1
+
+	// Go runtime for 32-bit Plan 9 requires that /dev/bintime
+	// be kept open.
+	// See ../../runtime/time_plan9_386.c:/^runtime·nanotime
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "386" {
+		n++
+	}
+	return n
+}
+
+func closeUnexpectedFds(t *testing.T, m string) {
+	for fd := basefds(); fd <= 101; fd++ {
+		err := os.NewFile(fd, "").Close()
+		if err == nil {
+			t.Logf("%s: Something already leaked - closed fd %d", m, fd)
+		}
+	}
+}
+
+func TestExtraFilesFDShuffle(t *testing.T) {
+	t.Skip("flaky test; see http://golang.org/issue/5780")
+	switch runtime.GOOS {
+	case "darwin":
+		// TODO(cnicolaou): http://golang.org/issue/2603
+		// leads to leaked file descriptors in this test when it's
+		// run from a builder.
+		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
+	case "netbsd":
+		// http://golang.org/issue/3955
+		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
+	case "windows":
+		t.Skip("no operating system support; skipping")
+	}
+
+	// syscall.StartProcess maps all the FDs passed to it in
+	// ProcAttr.Files (the concatenation of stdin,stdout,stderr and
+	// ExtraFiles) into consecutive FDs in the child, that is:
+	// Files{11, 12, 6, 7, 9, 3} should result in the file
+	// represented by FD 11 in the parent being made available as 0
+	// in the child, 12 as 1, etc.
+	//
+	// We want to test that FDs in the child do not get overwritten
+	// by one another as this shuffle occurs. The original implementation
+	// was buggy in that in some data dependent cases it would ovewrite
+	// stderr in the child with one of the ExtraFile members.
+	// Testing for this case is difficult because it relies on using
+	// the same FD values as that case. In particular, an FD of 3
+	// must be at an index of 4 or higher in ProcAttr.Files and
+	// the FD of the write end of the Stderr pipe (as obtained by
+	// StderrPipe()) must be the same as the size of ProcAttr.Files;
+	// therefore we test that the read end of this pipe (which is what
+	// is returned to the parent by StderrPipe() being one less than
+	// the size of ProcAttr.Files, i.e. 3+len(cmd.ExtraFiles).
+	//
+	// Moving this test case around within the overall tests may
+	// affect the FDs obtained and hence the checks to catch these cases.
+	npipes := 2
+	c := helperCommand("extraFilesAndPipes", strconv.Itoa(npipes+1))
+	rd, wr, _ := os.Pipe()
+	defer rd.Close()
+	if rd.Fd() != 3 {
+		t.Errorf("bad test value for test pipe: fd %d", rd.Fd())
+	}
+	stderr, _ := c.StderrPipe()
+	wr.WriteString("_LAST")
+	wr.Close()
+
+	pipes := make([]struct {
+		r, w *os.File
+	}, npipes)
+	data := []string{"a", "b"}
+
+	for i := 0; i < npipes; i++ {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("unexpected error creating pipe: %s", err)
+		}
+		pipes[i].r = r
+		pipes[i].w = w
+		w.WriteString(data[i])
+		c.ExtraFiles = append(c.ExtraFiles, pipes[i].r)
+		defer func() {
+			r.Close()
+			w.Close()
+		}()
+	}
+	// Put fd 3 at the end.
+	c.ExtraFiles = append(c.ExtraFiles, rd)
+
+	stderrFd := int(stderr.(*os.File).Fd())
+	if stderrFd != ((len(c.ExtraFiles) + 3) - 1) {
+		t.Errorf("bad test value for stderr pipe")
+	}
+
+	expected := "child: " + strings.Join(data, "") + "_LAST"
+
+	err := c.Start()
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	ch := make(chan string, 1)
+	go func(ch chan string) {
+		buf := make([]byte, 512)
+		n, err := stderr.Read(buf)
+		if err != nil {
+			t.Fatalf("Read: %s", err)
+			ch <- err.Error()
+		} else {
+			ch <- string(buf[:n])
+		}
+		close(ch)
+	}(ch)
+	select {
+	case m := <-ch:
+		if m != expected {
+			t.Errorf("Read: '%s' not '%s'", m, expected)
+		}
+	case <-time.After(5 * time.Second):
+		t.Errorf("Read timedout")
+	}
+	c.Wait()
+}
+
 func TestExtraFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Logf("no operating system support; skipping")
-		return
+		t.Skip("no operating system support; skipping")
 	}
 
 	// Ensure that file descriptors have not already been leaked into
 	// our environment.
-	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
-		err := os.NewFile(fd, "").Close()
-		if err == nil {
-			t.Logf("Something already leaked - closed fd %d", fd)
-		}
+	if !testedAlreadyLeaked {
+		testedAlreadyLeaked = true
+		closeUnexpectedFds(t, "TestExtraFiles")
 	}
 
 	// Force network usage, to verify the epoll (or whatever) fd
@@ -166,6 +359,18 @@ func TestExtraFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ln.Close()
+
+	// Make sure duplicated fds don't leak to the child.
+	f, err := ln.(*net.TCPListener).File()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	ln2, err := net.FileListener(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln2.Close()
 
 	// Force TLS root certs to be loaded (which might involve
 	// cgo), to make sure none of that potential C code leaks fds.
@@ -193,13 +398,72 @@ func TestExtraFiles(t *testing.T) {
 	}
 
 	c := helperCommand("read3")
+	var stdout, stderr bytes.Buffer
+	c.Stdout = &stdout
+	c.Stderr = &stderr
 	c.ExtraFiles = []*os.File{tf}
-	bs, err := c.CombinedOutput()
+	err = c.Run()
 	if err != nil {
-		t.Fatalf("CombinedOutput: %v; output %q", err, bs)
+		t.Fatalf("Run: %v; stdout %q, stderr %q", err, stdout.Bytes(), stderr.Bytes())
 	}
-	if string(bs) != text {
-		t.Errorf("got %q; want %q", string(bs), text)
+	if stdout.String() != text {
+		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
+	}
+}
+
+func TestExtraFilesRace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no operating system support; skipping")
+	}
+	listen := func() net.Listener {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ln
+	}
+	listenerFile := func(ln net.Listener) *os.File {
+		f, err := ln.(*net.TCPListener).File()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	runCommand := func(c *Cmd, out chan<- string) {
+		bout, err := c.CombinedOutput()
+		if err != nil {
+			out <- "ERROR:" + err.Error()
+		} else {
+			out <- string(bout)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		la := listen()
+		ca := helperCommand("describefiles")
+		ca.ExtraFiles = []*os.File{listenerFile(la)}
+		lb := listen()
+		cb := helperCommand("describefiles")
+		cb.ExtraFiles = []*os.File{listenerFile(lb)}
+		ares := make(chan string)
+		bres := make(chan string)
+		go runCommand(ca, ares)
+		go runCommand(cb, bres)
+		if got, want := <-ares, fmt.Sprintf("fd3: listener %s\n", la.Addr()); got != want {
+			t.Errorf("iteration %d, process A got:\n%s\nwant:\n%s\n", i, got, want)
+		}
+		if got, want := <-bres, fmt.Sprintf("fd3: listener %s\n", lb.Addr()); got != want {
+			t.Errorf("iteration %d, process B got:\n%s\nwant:\n%s\n", i, got, want)
+		}
+		la.Close()
+		lb.Close()
+		for _, f := range ca.ExtraFiles {
+			f.Close()
+		}
+		for _, f := range cb.ExtraFiles {
+			f.Close()
+		}
+
 	}
 }
 
@@ -214,7 +478,7 @@ func TestHelperProcess(*testing.T) {
 	// Determine which command to use to display open files.
 	ofcmd := "lsof"
 	switch runtime.GOOS {
-	case "freebsd", "netbsd", "openbsd":
+	case "dragonfly", "freebsd", "netbsd", "openbsd":
 		ofcmd = "fstat"
 	}
 
@@ -275,6 +539,17 @@ func TestHelperProcess(*testing.T) {
 				os.Exit(1)
 			}
 		}
+	case "stdinClose":
+		b, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		if s := string(b); s != stdinCloseTestString {
+			fmt.Fprintf(os.Stderr, "Error: Read %q, want %q", s, stdinCloseTestString)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	case "read3": // read fd 3
 		fd3 := os.NewFile(3, "fd3")
 		bs, err := ioutil.ReadAll(fd3)
@@ -283,14 +558,22 @@ func TestHelperProcess(*testing.T) {
 			os.Exit(1)
 		}
 		switch runtime.GOOS {
+		case "dragonfly":
+			// TODO(jsing): Determine why DragonFly is leaking
+			// file descriptors...
 		case "darwin":
 			// TODO(bradfitz): broken? Sometimes.
 			// http://golang.org/issue/2603
 			// Skip this additional part of the test for now.
+		case "netbsd":
+			// TODO(jsing): This currently fails on NetBSD due to
+			// the cloned file descriptors that result from opening
+			// /dev/urandom.
+			// http://golang.org/issue/3955
 		default:
 			// Now verify that there are no other open fds.
 			var files []*os.File
-			for wantfd := os.Stderr.Fd() + 2; wantfd <= 100; wantfd++ {
+			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
 				f, err := os.Open(os.Args[0])
 				if err != nil {
 					fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
@@ -314,10 +597,47 @@ func TestHelperProcess(*testing.T) {
 		// what we do with fd3 as long as we refer to it;
 		// closing it is the easy choice.
 		fd3.Close()
-		os.Stderr.Write(bs)
+		os.Stdout.Write(bs)
 	case "exit":
 		n, _ := strconv.Atoi(args[0])
 		os.Exit(n)
+	case "describefiles":
+		f := os.NewFile(3, fmt.Sprintf("fd3"))
+		ln, err := net.FileListener(f)
+		if err == nil {
+			fmt.Printf("fd3: listener %s\n", ln.Addr())
+			ln.Close()
+		}
+		os.Exit(0)
+	case "extraFilesAndPipes":
+		n, _ := strconv.Atoi(args[0])
+		pipes := make([]*os.File, n)
+		for i := 0; i < n; i++ {
+			pipes[i] = os.NewFile(uintptr(3+i), strconv.Itoa(i))
+		}
+		response := ""
+		for i, r := range pipes {
+			ch := make(chan string, 1)
+			go func(c chan string) {
+				buf := make([]byte, 10)
+				n, err := r.Read(buf)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
+					os.Exit(1)
+				}
+				c <- string(buf[:n])
+				close(c)
+			}(ch)
+			select {
+			case m := <-ch:
+				response = response + m
+			case <-time.After(5 * time.Second):
+				fmt.Fprintf(os.Stderr, "Child: Timeout reading from pipe: %d\n", i)
+				os.Exit(1)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "child: %s", response)
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)

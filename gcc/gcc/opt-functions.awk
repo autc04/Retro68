@@ -1,5 +1,4 @@
-#  Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010, 2011
-#  Free Software Foundation, Inc.
+#  Copyright (C) 2003-2014 Free Software Foundation, Inc.
 #  Contributed by Kelley Cook, June 2004.
 #  Original code from Neil Booth, May 2003.
 #
@@ -30,7 +29,9 @@ BEGIN {
 # Return nonzero if FLAGS contains a flag matching REGEX.
 function flag_set_p(regex, flags)
 {
-	return (" " flags " ") ~ (" " regex " ")
+    # Ignore the arguments of flags with arguments.
+    gsub ("\\([^)]+\\)", "", flags);
+    return (" " flags " ") ~ (" " regex " ")
 }
 
 # Return STRING if FLAGS contains a flag matching regexp REGEX,
@@ -96,11 +97,13 @@ function switch_flags (flags)
 	result = result \
 	  test_flag("Common", flags, " | CL_COMMON") \
 	  test_flag("Target", flags, " | CL_TARGET") \
+	  test_flag("PchIgnore", flags, " | CL_PCH_IGNORE") \
 	  test_flag("Driver", flags, " | CL_DRIVER") \
 	  test_flag("Joined", flags, " | CL_JOINED") \
 	  test_flag("JoinedOrMissing", flags, " | CL_JOINED") \
 	  test_flag("Separate", flags, " | CL_SEPARATE") \
 	  test_flag("Undocumented", flags,  " | CL_UNDOCUMENTED") \
+	  test_flag("NoDWARFRecord", flags,  " | CL_NO_DWARF_RECORD") \
 	  test_flag("Warning", flags,  " | CL_WARNING") \
 	  test_flag("Optimization", flags,  " | CL_OPTIMIZATION")
 	sub( "^0 \\| ", "", result )
@@ -287,3 +290,58 @@ function opt_enum(name)
 {
 	return "OPT_" opt_sanitized_name(name)
 }
+
+# Given the language called NAME return a sanitized version of its name.
+function lang_sanitized_name(name)
+{
+    gsub( "[^" alnum "_]", "X", name )
+    return name
+}
+
+# Search for a valid var_name among all OPTS equal to option NAME.
+# If not found, return "".
+function search_var_name(name, opt_numbers, opts, flags, n_opts)
+{
+    opt_var_name = var_name(flags[opt_numbers[name]]);
+    if (opt_var_name != "") {
+        return opt_var_name;
+    }
+    for (k = 0; k < n_opts; k++) {
+        if (opts[k] == name && var_name(flags[k]) != "") {
+            return var_name(flags[k]);
+        }
+    }
+    return ""
+}
+
+# Handle LangEnabledBy(ENABLED_BY_LANGS, ENABLEDBY_NAME, ENABLEDBY_POSARG,
+# ENABLEDBY_NEGARG). This function does not return anything.
+function lang_enabled_by(enabledby_langs, enabledby_name, enabledby_posarg, enabledby_negarg)
+{
+    n_enabledby_arg_langs = split(enabledby_langs, enabledby_arg_langs, " ");
+    enabledby_index = opt_numbers[enabledby_name];
+    if (enabledby_index == "") {
+        print "#error LangEnabledby: " enabledby_name 
+    } else {
+        if (enabledby_posarg != "" && enabledby_negarg != "") {
+            with_args = "," enabledby_posarg "," enabledby_negarg
+        } else if (enabledby_posarg == "" && enabledby_negarg == "") {
+            with_args = ""
+        } else {
+            print "#error LangEnabledBy("enabledby_langs","enabledby_name", " \
+                enabledby_posarg", " enabledby_negargs                  \
+                ") with three arguments, it should have either 2 or 4"
+        }
+        
+        for (j = 1; j <= n_enabledby_arg_langs; j++) {
+            lang_name = lang_sanitized_name(enabledby_arg_langs[j]);
+            lang_index = lang_numbers[enabledby_arg_langs[j]];
+            if (enables[lang_name,enabledby_name] == "") {
+                enabledby[lang_name,n_enabledby_lang[lang_index]] = enabledby_name;
+                n_enabledby_lang[lang_index]++;
+            }
+            enables[lang_name,enabledby_name] = enables[lang_name,enabledby_name] opts[i] with_args ";";
+        }
+    }
+}
+

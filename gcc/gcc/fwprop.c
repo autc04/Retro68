@@ -1,6 +1,5 @@
 /* RTL-based forward propagation pass for GNU compiler.
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Paolo Bonzini and Steven Bosscher.
 
 This file is part of GCC.
@@ -26,7 +25,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic-core.h"
 
 #include "sparseset.h"
-#include "timevar.h"
 #include "rtl.h"
 #include "tm_p.h"
 #include "insn-config.h"
@@ -34,7 +32,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "flags.h"
 #include "obstack.h"
 #include "basic-block.h"
-#include "output.h"
 #include "df.h"
 #include "target.h"
 #include "cfgloop.h"
@@ -118,11 +115,9 @@ along with GCC; see the file COPYING3.  If not see
 
 static int num_changes;
 
-DEF_VEC_P(df_ref);
-DEF_VEC_ALLOC_P(df_ref,heap);
-static VEC(df_ref,heap) *use_def_ref;
-static VEC(df_ref,heap) *reg_defs;
-static VEC(df_ref,heap) *reg_defs_stack;
+static vec<df_ref> use_def_ref;
+static vec<df_ref> reg_defs;
+static vec<df_ref> reg_defs_stack;
 
 /* The MD bitmaps are trimmed to include only live registers to cut
    memory usage on testcases like insn-recog.c.  Track live registers
@@ -137,7 +132,7 @@ static bitmap local_lr;
 static inline df_ref
 get_def_for_use (df_ref use)
 {
-  return VEC_index (df_ref, use_def_ref, DF_REF_ID (use));
+  return use_def_ref[DF_REF_ID (use)];
 }
 
 
@@ -156,7 +151,7 @@ process_defs (df_ref *def_rec, int top_flag)
   df_ref def;
   while ((def = *def_rec++) != NULL)
     {
-      df_ref curr_def = VEC_index (df_ref, reg_defs, DF_REF_REGNO (def));
+      df_ref curr_def = reg_defs[DF_REF_REGNO (def)];
       unsigned int dregno;
 
       if ((DF_REF_FLAGS (def) & DF_REF_AT_TOP) != top_flag)
@@ -164,7 +159,7 @@ process_defs (df_ref *def_rec, int top_flag)
 
       dregno = DF_REF_REGNO (def);
       if (curr_def)
-	VEC_safe_push (df_ref, heap, reg_defs_stack, curr_def);
+	reg_defs_stack.safe_push (curr_def);
       else
 	{
 	  /* Do not store anything if "transitioning" from NULL to NULL.  But
@@ -173,18 +168,18 @@ process_defs (df_ref *def_rec, int top_flag)
 	  if (DF_REF_FLAGS (def) & DF_MD_GEN_FLAGS)
 	    ;
 	  else
-	    VEC_safe_push (df_ref, heap, reg_defs_stack, def);
+	    reg_defs_stack.safe_push (def);
 	}
 
       if (DF_REF_FLAGS (def) & DF_MD_GEN_FLAGS)
 	{
 	  bitmap_set_bit (local_md, dregno);
-	  VEC_replace (df_ref, reg_defs, dregno, NULL);
+	  reg_defs[dregno] = NULL;
 	}
       else
 	{
 	  bitmap_clear_bit (local_md, dregno);
-	  VEC_replace (df_ref, reg_defs, dregno, def);
+	  reg_defs[dregno] = def;
 	}
     }
 }
@@ -203,18 +198,24 @@ process_uses (df_ref *use_rec, int top_flag)
     if ((DF_REF_FLAGS (use) & DF_REF_AT_TOP) == top_flag)
       {
         unsigned int uregno = DF_REF_REGNO (use);
-        if (VEC_index (df_ref, reg_defs, uregno)
+        if (reg_defs[uregno]
 	    && !bitmap_bit_p (local_md, uregno)
 	    && bitmap_bit_p (local_lr, uregno))
-	  VEC_replace (df_ref, use_def_ref, DF_REF_ID (use),
-		       VEC_index (df_ref, reg_defs, uregno));
+	  use_def_ref[DF_REF_ID (use)] = reg_defs[uregno];
       }
 }
 
+class single_def_use_dom_walker : public dom_walker
+{
+public:
+  single_def_use_dom_walker (cdi_direction direction)
+    : dom_walker (direction) {}
+  virtual void before_dom_children (basic_block);
+  virtual void after_dom_children (basic_block);
+};
 
-static void
-single_def_use_enter_block (struct dom_walk_data *walk_data ATTRIBUTE_UNUSED,
-			    basic_block bb)
+void
+single_def_use_dom_walker::before_dom_children (basic_block bb)
 {
   int bb_index = bb->index;
   struct df_md_bb_info *md_bb_info = df_md_get_bb_info (bb_index);
@@ -225,7 +226,7 @@ single_def_use_enter_block (struct dom_walk_data *walk_data ATTRIBUTE_UNUSED,
   bitmap_copy (local_lr, &lr_bb_info->in);
 
   /* Push a marker for the leave_block callback.  */
-  VEC_safe_push (df_ref, heap, reg_defs_stack, NULL);
+  reg_defs_stack.safe_push (NULL);
 
   process_uses (df_get_artificial_uses (bb_index), DF_REF_AT_TOP);
   process_defs (df_get_artificial_defs (bb_index), DF_REF_AT_TOP);
@@ -251,20 +252,19 @@ single_def_use_enter_block (struct dom_walk_data *walk_data ATTRIBUTE_UNUSED,
 /* Pop the definitions created in this basic block when leaving its
    dominated parts.  */
 
-static void
-single_def_use_leave_block (struct dom_walk_data *walk_data ATTRIBUTE_UNUSED,
-			    basic_block bb ATTRIBUTE_UNUSED)
+void
+single_def_use_dom_walker::after_dom_children (basic_block bb ATTRIBUTE_UNUSED)
 {
   df_ref saved_def;
-  while ((saved_def = VEC_pop (df_ref, reg_defs_stack)) != NULL)
+  while ((saved_def = reg_defs_stack.pop ()) != NULL)
     {
       unsigned int dregno = DF_REF_REGNO (saved_def);
 
       /* See also process_defs.  */
-      if (saved_def == VEC_index (df_ref, reg_defs, dregno))
-	VEC_replace (df_ref, reg_defs, dregno, NULL);
+      if (saved_def == reg_defs[dregno])
+	reg_defs[dregno] = NULL;
       else
-	VEC_replace (df_ref, reg_defs, dregno, saved_def);
+	reg_defs[dregno] = saved_def;
     }
 }
 
@@ -275,8 +275,6 @@ single_def_use_leave_block (struct dom_walk_data *walk_data ATTRIBUTE_UNUSED,
 static void
 build_single_def_use_links (void)
 {
-  struct dom_walk_data walk_data;
-
   /* We use the multiple definitions problem to compute our restricted
      use-def chains.  */
   df_set_flags (DF_EQ_NOTES);
@@ -285,31 +283,25 @@ build_single_def_use_links (void)
   df_analyze ();
   df_maybe_reorganize_use_refs (DF_REF_ORDER_BY_INSN_WITH_NOTES);
 
-  use_def_ref = VEC_alloc (df_ref, heap, DF_USES_TABLE_SIZE ());
-  VEC_safe_grow_cleared (df_ref, heap, use_def_ref, DF_USES_TABLE_SIZE ());
+  use_def_ref.create (DF_USES_TABLE_SIZE ());
+  use_def_ref.safe_grow_cleared (DF_USES_TABLE_SIZE ());
 
-  reg_defs = VEC_alloc (df_ref, heap, max_reg_num ());
-  VEC_safe_grow_cleared (df_ref, heap, reg_defs, max_reg_num ());
+  reg_defs.create (max_reg_num ());
+  reg_defs.safe_grow_cleared (max_reg_num ());
 
-  reg_defs_stack = VEC_alloc (df_ref, heap, n_basic_blocks * 10);
+  reg_defs_stack.create (n_basic_blocks_for_fn (cfun) * 10);
   local_md = BITMAP_ALLOC (NULL);
   local_lr = BITMAP_ALLOC (NULL);
 
   /* Walk the dominator tree looking for single reaching definitions
      dominating the uses.  This is similar to how SSA form is built.  */
-  walk_data.dom_direction = CDI_DOMINATORS;
-  walk_data.initialize_block_local_data = NULL;
-  walk_data.before_dom_children = single_def_use_enter_block;
-  walk_data.after_dom_children = single_def_use_leave_block;
-
-  init_walk_dominator_tree (&walk_data);
-  walk_dominator_tree (&walk_data, ENTRY_BLOCK_PTR);
-  fini_walk_dominator_tree (&walk_data);
+  single_def_use_dom_walker (CDI_DOMINATORS)
+    .walk (cfun->cfg->x_entry_block_ptr);
 
   BITMAP_FREE (local_lr);
   BITMAP_FREE (local_md);
-  VEC_free (df_ref, heap, reg_defs);
-  VEC_free (df_ref, heap, reg_defs_stack);
+  reg_defs.release ();
+  reg_defs_stack.release ();
 }
 
 
@@ -664,7 +656,12 @@ propagate_rtx (rtx x, enum machine_mode mode, rtx old_rtx, rtx new_rtx,
     return NULL_RTX;
 
   flags = 0;
-  if (REG_P (new_rtx) || CONSTANT_P (new_rtx))
+  if (REG_P (new_rtx)
+      || CONSTANT_P (new_rtx)
+      || (GET_CODE (new_rtx) == SUBREG
+	  && REG_P (SUBREG_REG (new_rtx))
+	  && (GET_MODE_SIZE (mode)
+	      <= GET_MODE_SIZE (GET_MODE (SUBREG_REG (new_rtx))))))
     flags |= PR_CAN_APPEAR;
   if (!for_each_rtx (&new_rtx, varying_mem_p, NULL))
     flags |= PR_HANDLE_MEM;
@@ -796,13 +793,17 @@ all_uses_available_at (rtx def_insn, rtx target_insn)
   df_ref *use_rec;
   struct df_insn_info *insn_info = DF_INSN_INFO_GET (def_insn);
   rtx def_set = single_set (def_insn);
+  rtx next;
 
   gcc_assert (def_set);
 
   /* If target_insn comes right after def_insn, which is very common
-     for addresses, we can use a quicker test.  */
-  if (NEXT_INSN (def_insn) == target_insn
-      && REG_P (SET_DEST (def_set)))
+     for addresses, we can use a quicker test.  Ignore debug insns
+     other than target insns for this.  */
+  next = NEXT_INSN (def_insn);
+  while (next && next != target_insn && DEBUG_INSN_P (next))
+    next = NEXT_INSN (next);
+  if (next == target_insn && REG_P (SET_DEST (def_set)))
     {
       rtx def_reg = SET_DEST (def_set);
 
@@ -905,14 +906,13 @@ update_uses (df_ref *use_rec)
       int regno = DF_REF_REGNO (use);
 
       /* Set up the use-def chain.  */
-      if (DF_REF_ID (use) >= (int) VEC_length (df_ref, use_def_ref))
-        VEC_safe_grow_cleared (df_ref, heap, use_def_ref,
-                               DF_REF_ID (use) + 1);
+      if (DF_REF_ID (use) >= (int) use_def_ref.length ())
+        use_def_ref.safe_grow_cleared (DF_REF_ID (use) + 1);
 
 #ifdef ENABLE_CHECKING
       gcc_assert (sparseset_bit_p (active_defs_check, regno));
 #endif
-      VEC_replace (df_ref, use_def_ref, DF_REF_ID (use), active_defs[regno]);
+      use_def_ref[DF_REF_ID (use)] = active_defs[regno];
     }
 }
 
@@ -1312,9 +1312,18 @@ forward_propagate_and_simplify (df_ref use, rtx def_insn, rtx def_set)
       /* Do not replace an existing REG_EQUAL note if the insn is not
 	 recognized.  Either we're already replacing in the note, or we'll
 	 separately try plugging the definition in the note and simplifying.
-	 And only install a REQ_EQUAL note when the destination is a REG,
-	 as the note would be invalid otherwise.  */
-      set_reg_equal = (note == NULL_RTX && REG_P (SET_DEST (use_set)));
+	 And only install a REQ_EQUAL note when the destination is a REG
+	 that isn't mentioned in USE_SET, as the note would be invalid
+	 otherwise.  We also don't want to install a note if we are merely
+	 propagating a pseudo since verifying that this pseudo isn't dead
+	 is a pain; moreover such a note won't help anything.  */
+      set_reg_equal = (note == NULL_RTX
+		       && REG_P (SET_DEST (use_set))
+		       && !REG_P (src)
+		       && !(GET_CODE (src) == SUBREG
+			    && REG_P (SUBREG_REG (src)))
+		       && !reg_mentioned_p (SET_DEST (use_set),
+					    SET_SRC (use_set)));
     }
 
   if (GET_MODE (*loc) == VOIDmode)
@@ -1399,10 +1408,10 @@ fwprop_init (void)
   calculate_dominance_info (CDI_DOMINATORS);
 
   /* We do not always want to propagate into loops, so we have to find
-     loops and be careful about them.  But we have to call flow_loops_find
-     before df_analyze, because flow_loops_find may introduce new jump
-     insns (sadly) if we are not working in cfglayout mode.  */
-  loop_optimizer_init (0);
+     loops and be careful about them.  Avoid CFG modifications so that
+     we don't have to update dominance information afterwards for
+     build_single_def_use_links.  */
+  loop_optimizer_init (AVOID_CFG_MODIFICATIONS);
 
   build_single_def_use_links ();
   df_set_flags (DF_DEFER_INSN_RESCAN);
@@ -1418,7 +1427,7 @@ fwprop_done (void)
 {
   loop_optimizer_finalize ();
 
-  VEC_free (df_ref, heap, use_def_ref);
+  use_def_ref.release ();
   free (active_defs);
 #ifdef ENABLE_CHECKING
   sparseset_free (active_defs_check);
@@ -1474,26 +1483,44 @@ fwprop (void)
   return 0;
 }
 
-struct rtl_opt_pass pass_rtl_fwprop =
+namespace {
+
+const pass_data pass_data_rtl_fwprop =
 {
- {
-  RTL_PASS,
-  "fwprop1",                            /* name */
-  gate_fwprop,				/* gate */
-  fwprop,				/* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_FWPROP,                            /* tv_id */
-  0,                                    /* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  TODO_df_finish
-    | TODO_verify_flow
-    | TODO_verify_rtl_sharing           /* todo_flags_finish */
- }
+  RTL_PASS, /* type */
+  "fwprop1", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_FWPROP, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_flow
+    | TODO_verify_rtl_sharing ), /* todo_flags_finish */
 };
+
+class pass_rtl_fwprop : public rtl_opt_pass
+{
+public:
+  pass_rtl_fwprop (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_rtl_fwprop, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_fwprop (); }
+  unsigned int execute () { return fwprop (); }
+
+}; // class pass_rtl_fwprop
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_rtl_fwprop (gcc::context *ctxt)
+{
+  return new pass_rtl_fwprop (ctxt);
+}
 
 static unsigned int
 fwprop_addr (void)
@@ -1523,21 +1550,40 @@ fwprop_addr (void)
   return 0;
 }
 
-struct rtl_opt_pass pass_rtl_fwprop_addr =
+namespace {
+
+const pass_data pass_data_rtl_fwprop_addr =
 {
- {
-  RTL_PASS,
-  "fwprop2",                            /* name */
-  gate_fwprop,				/* gate */
-  fwprop_addr,				/* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_FWPROP,                            /* tv_id */
-  0,                                    /* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  TODO_df_finish | TODO_verify_rtl_sharing  /* todo_flags_finish */
- }
+  RTL_PASS, /* type */
+  "fwprop2", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_FWPROP, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_rtl_sharing ), /* todo_flags_finish */
 };
+
+class pass_rtl_fwprop_addr : public rtl_opt_pass
+{
+public:
+  pass_rtl_fwprop_addr (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_rtl_fwprop_addr, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_fwprop (); }
+  unsigned int execute () { return fwprop_addr (); }
+
+}; // class pass_rtl_fwprop_addr
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_rtl_fwprop_addr (gcc::context *ctxt)
+{
+  return new pass_rtl_fwprop_addr (ctxt);
+}

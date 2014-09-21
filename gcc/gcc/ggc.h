@@ -1,7 +1,6 @@
 /* Garbage collection for the GNU compiler.
 
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007,
-   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,9 +31,6 @@ extern const char empty_string[];	/* empty string */
 /* Internal functions and data structures used by the GTY
    machinery, including the generated gt*.[hc] files.  */
 
-/* The first parameter is a pointer to a pointer, the second a cookie.  */
-typedef void (*gt_pointer_operator) (void *, void *);
-
 #include "gtype-desc.h"
 
 /* One of these applies its third parameter (with cookie in the fourth
@@ -52,8 +48,7 @@ typedef void (*gt_handle_reorder) (void *, void *, gt_pointer_operator,
 				   void *);
 
 /* Used by the gt_pch_n_* routines.  Register an object in the hash table.  */
-extern int gt_pch_note_object (void *, void *, gt_note_pointers,
-			       enum gt_types_enum);
+extern int gt_pch_note_object (void *, void *, gt_note_pointers);
 
 /* Used by the gt_pch_n_* routines.  Register that an object has a reorder
    function.  */
@@ -122,8 +117,6 @@ extern void gt_ggc_m_S (const void *);
 
 /* End of GTY machinery API.  */
 
-struct alloc_zone;
-
 /* Initialize the string pool.  */
 extern void init_stringpool (void);
 
@@ -143,29 +136,23 @@ extern void gt_pch_save (FILE *f);
 /* Allocation.  */
 
 /* The internal primitive.  */
-extern void *ggc_internal_alloc_stat (size_t MEM_STAT_DECL);
+extern void *ggc_internal_alloc_stat (size_t MEM_STAT_DECL)
+  ATTRIBUTE_MALLOC;
 
 extern size_t ggc_round_alloc_size (size_t requested_size);
 
 #define ggc_internal_alloc(s) ggc_internal_alloc_stat (s MEM_STAT_INFO)
 
-/* Allocate an object of the specified type and size.  */
-extern void *ggc_alloc_typed_stat (enum gt_types_enum, size_t MEM_STAT_DECL);
-
-#define ggc_alloc_typed(s, z) ggc_alloc_typed_stat (s, z MEM_STAT_INFO)
-
 /* Allocates cleared memory.  */
-extern void *ggc_internal_cleared_alloc_stat (size_t MEM_STAT_DECL);
+extern void *ggc_internal_cleared_alloc_stat (size_t MEM_STAT_DECL)
+  ATTRIBUTE_MALLOC;
+#define ggc_internal_cleared_alloc(s) ggc_internal_cleared_alloc_stat (s MEM_STAT_INFO)
 
 /* Resize a block.  */
 extern void *ggc_realloc_stat (void *, size_t MEM_STAT_DECL);
 
 /* Free a block.  To be used when known for certain it's not reachable.  */
 extern void ggc_free (void *);
-
-extern void ggc_record_overhead (size_t, size_t, void * MEM_STAT_DECL);
-extern void ggc_free_overhead (void *);
-extern void ggc_prune_overhead_list (void);
 
 extern void dump_ggc_loc_statistics (bool);
 
@@ -202,9 +189,11 @@ ggc_alloc_atomic_stat (size_t s MEM_STAT_DECL)
 #define ggc_alloc_cleared_atomic(S)             \
     (ggc_internal_cleared_alloc_stat ((S) MEM_STAT_INFO))
 
-extern void * ggc_cleared_alloc_htab_ignore_args (size_t, size_t);
+extern void *ggc_cleared_alloc_htab_ignore_args (size_t, size_t)
+  ATTRIBUTE_MALLOC;
 
-extern void * ggc_cleared_alloc_ptr_array_two_args (size_t, size_t);
+extern void *ggc_cleared_alloc_ptr_array_two_args (size_t, size_t)
+  ATTRIBUTE_MALLOC;
 
 #define htab_create_ggc(SIZE, HASH, EQ, DEL) \
   htab_create_typed_alloc (SIZE, HASH, EQ, DEL,	\
@@ -216,7 +205,8 @@ extern void * ggc_cleared_alloc_ptr_array_two_args (size_t, size_t);
   splay_tree_new_typed_alloc (COMPARE, NULL, NULL, &ALLOC_TREE, &ALLOC_NODE, \
 			      &ggc_splay_dont_free, NULL)
 
-extern void *ggc_splay_alloc (enum gt_types_enum, int, void *);
+extern void *ggc_splay_alloc (int, void *)
+  ATTRIBUTE_MALLOC;
 
 extern void ggc_splay_dont_free (void *, void *);
 
@@ -256,103 +246,41 @@ extern void stringpool_statistics (void);
 /* Heuristics.  */
 extern void init_ggc_heuristics (void);
 
-/* Zone collection.  */
-
-/* For regular rtl allocations.  */
-extern struct alloc_zone rtl_zone;
-
-/* For regular tree allocations.  */
-extern struct alloc_zone tree_zone;
-
-/* For IDENTIFIER_NODE allocations.  */
-extern struct alloc_zone tree_id_zone;
-
-#define ggc_alloc_rtvec_sized(NELT)                                     \
-  ggc_alloc_zone_rtvec_def (sizeof (struct rtvec_def)			\
-			    + ((NELT) - 1) * sizeof (rtx),		\
-			    &rtl_zone)
-
-#if defined (GGC_ZONE) && !defined (GENERATOR_FILE)
-
-/* Allocate an object into the specified allocation zone.  */
-extern void *ggc_internal_alloc_zone_stat (size_t,
-					  struct alloc_zone * MEM_STAT_DECL);
-
-extern void *ggc_internal_cleared_alloc_zone_stat (size_t,
-					  struct alloc_zone * MEM_STAT_DECL);
-
-static inline void *
-ggc_internal_zone_alloc_stat (struct alloc_zone * z, size_t s MEM_STAT_DECL)
-{
-    return ggc_internal_alloc_zone_stat (s, z PASS_MEM_STAT);
-}
-
-static inline void *
-ggc_internal_zone_cleared_alloc_stat (struct alloc_zone * z, size_t s
-                                      MEM_STAT_DECL)
-{
-    return ggc_internal_cleared_alloc_zone_stat (s, z PASS_MEM_STAT);
-}
-
-static inline void *
-ggc_internal_zone_vec_alloc_stat (struct alloc_zone * z, size_t s, size_t n
-                                  MEM_STAT_DECL)
-{
-    return ggc_internal_alloc_zone_stat (s * n, z PASS_MEM_STAT);
-}
-
-
-#else
-
-static inline void *
-ggc_internal_zone_alloc_stat (struct alloc_zone * z ATTRIBUTE_UNUSED,
-                              size_t s MEM_STAT_DECL)
-{
-    return ggc_internal_alloc_stat (s PASS_MEM_STAT);
-}
-
-static inline void *
-ggc_internal_zone_cleared_alloc_stat (struct alloc_zone * z ATTRIBUTE_UNUSED,
-                                      size_t s MEM_STAT_DECL)
-{
-    return ggc_internal_cleared_alloc_stat (s PASS_MEM_STAT);
-}
-
-static inline void *
-ggc_internal_zone_vec_alloc_stat (struct alloc_zone * z ATTRIBUTE_UNUSED,
-                                  size_t s, size_t n MEM_STAT_DECL)
-{
-    return ggc_internal_vec_alloc_stat (s, n PASS_MEM_STAT);
-}
-
-#endif
+#define ggc_alloc_rtvec_sized(NELT)				\
+  ggc_alloc_rtvec_def (sizeof (struct rtvec_def)		\
+		       + ((NELT) - 1) * sizeof (rtx))		\
 
 /* Memory statistics passing versions of some allocators.  Too few of them to
    make gengtype produce them, so just define the needed ones here.  */
 static inline struct rtx_def *
-ggc_alloc_zone_rtx_def_stat (struct alloc_zone * z, size_t s MEM_STAT_DECL)
+ggc_alloc_rtx_def_stat (size_t s MEM_STAT_DECL)
 {
-  return (struct rtx_def *) ggc_internal_zone_alloc_stat (z, s PASS_MEM_STAT);
+  return (struct rtx_def *) ggc_internal_alloc_stat (s PASS_MEM_STAT);
 }
 
 static inline union tree_node *
-ggc_alloc_zone_tree_node_stat (struct alloc_zone * z, size_t s MEM_STAT_DECL)
+ggc_alloc_tree_node_stat (size_t s MEM_STAT_DECL)
 {
-  return (union tree_node *) ggc_internal_zone_alloc_stat (z, s PASS_MEM_STAT);
+  return (union tree_node *) ggc_internal_alloc_stat (s PASS_MEM_STAT);
 }
 
 static inline union tree_node *
-ggc_alloc_zone_cleared_tree_node_stat (struct alloc_zone * z, size_t s
-                                       MEM_STAT_DECL)
+ggc_alloc_cleared_tree_node_stat (size_t s MEM_STAT_DECL)
 {
-  return (union tree_node *)
-    ggc_internal_zone_cleared_alloc_stat (z, s PASS_MEM_STAT);
+  return (union tree_node *) ggc_internal_cleared_alloc_stat (s PASS_MEM_STAT);
 }
 
-static inline union gimple_statement_d *
-ggc_alloc_cleared_gimple_statement_d_stat (size_t s MEM_STAT_DECL)
+static inline struct gimple_statement_base *
+ggc_alloc_cleared_gimple_statement_stat (size_t s MEM_STAT_DECL)
 {
-  return (union gimple_statement_d *)
+  return (struct gimple_statement_base *)
+    ggc_internal_cleared_alloc_stat (s PASS_MEM_STAT);
+}
+
+static inline struct simd_clone *
+ggc_alloc_cleared_simd_clone_stat (size_t s MEM_STAT_DECL)
+{
+  return (struct simd_clone *)
     ggc_internal_cleared_alloc_stat (s PASS_MEM_STAT);
 }
 

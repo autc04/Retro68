@@ -1,6 +1,5 @@
 // -*- C++ -*- Exception handling and frame unwind runtime interface routines.
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-// 2011  Free Software Foundation, Inc.
+// Copyright (C) 2001-2014 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -38,6 +37,19 @@
 #include <bits/atomic_word.h>
 #include <cxxabi.h>
 
+#ifdef _GLIBCXX_HAVE_SYS_SDT_H
+#include <sys/sdt.h>
+/* We only want to use stap probes starting with v3.  Earlier versions
+   added too much startup cost.  */
+#if defined (STAP_PROBE2) && _SDT_NOTE_TYPE >= 3
+#define PROBE2(name, arg1, arg2) STAP_PROBE2 (libstdcxx, name, arg1, arg2)
+#endif
+#endif
+
+#ifndef PROBE2
+#define PROBE2(name, arg1, arg2)
+#endif
+
 #pragma GCC visibility push(default)
 
 namespace __cxxabiv1
@@ -69,7 +81,7 @@ struct __cxa_exception
   // Stack of exceptions in cleanups.
   __cxa_exception* nextPropagatingException;
 
-  // The nuber of active cleanup handlers for this exception.
+  // The number of active cleanup handlers for this exception.
   int propagationCount;
 #else
   // Cache parsed handler data from the personality routine Phase 1
@@ -102,6 +114,11 @@ struct __cxa_dependent_exception
   // The primary exception this thing depends on.
   void *primaryException;
 
+  // Unused member to get similar layout to __cxa_exception, otherwise the
+  // alignment requirements of _Unwind_Exception would require padding bytes
+  // before the unwindHeader member.
+  void (_GLIBCXX_CDTOR_CALLABI *__padding)(void *);
+
   // The C++ standard has entertaining rules wrt calling set_terminate
   // and set_unexpected in the middle of the exception cleanup process.
   std::unexpected_handler unexpectedHandler;
@@ -118,7 +135,7 @@ struct __cxa_dependent_exception
   // Stack of exceptions in cleanups.
   __cxa_exception* nextPropagatingException;
 
-  // The nuber of active cleanup handlers for this exception.
+  // The number of active cleanup handlers for this exception.
   int propagationCount;
 #else
   // Cache parsed handler data from the personality routine Phase 1

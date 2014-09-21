@@ -1,10 +1,10 @@
-// { dg-do run { xfail *-*-* } }
+// { dg-do run }
 // { dg-options "-std=c++0x" }
 
 //
 // 2010-06-23  Stephen M. Webb <stephen.webb@bregmasoft.ca>
 //
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,12 +35,9 @@ test01()
   typedef char CharT;
   typedef std::regex_traits<CharT> traits;
 
-	char name[] = "ll";
-	traits t;
-
-	traits::string_type sname = t.lookup_collatename(name, name+sizeof(name)-1);
-
-  VERIFY( !sname.empty() );
+  traits t;
+  CharT name[] = "tilde";
+  VERIFY(t.lookup_collatename(name, name+sizeof(name)-1) == "~");
 }
 
 int main()

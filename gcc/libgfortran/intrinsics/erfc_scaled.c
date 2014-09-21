@@ -1,5 +1,5 @@
 /* Implementation of the ERFC_SCALED intrinsic.
-   Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
 This file is part of the GNU Fortran runtime library (libgfortran).
 
@@ -46,7 +46,81 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #endif
 
 #ifdef HAVE_GFC_REAL_16
-#undef KIND
-#define KIND 16
-#include "erfc_scaled_inc.c"
+
+/* For quadruple-precision, netlib's implementation is
+   not accurate enough.  We provide another one.  */
+
+#ifdef GFC_REAL_16_IS_FLOAT128
+
+# define _THRESH -106.566990228185312813205074546585730Q
+# define _M_2_SQRTPI M_2_SQRTPIq
+# define _INF __builtin_infq()
+# define _ERFC(x) erfcq(x)
+# define _EXP(x) expq(x)
+
+#else
+
+# define _THRESH -106.566990228185312813205074546585730L
+# ifndef M_2_SQRTPIl
+#  define M_2_SQRTPIl 1.128379167095512573896158903121545172L
+# endif
+# define _M_2_SQRTPI M_2_SQRTPIl
+# define _INF __builtin_infl()
+# ifdef HAVE_ERFCL
+#  define _ERFC(x) erfcl(x)
+# endif
+# ifdef HAVE_EXPL
+#  define _EXP(x) expl(x)
+# endif
+
+#endif
+
+#if defined(_ERFC) && defined(_EXP)
+
+extern GFC_REAL_16 erfc_scaled_r16 (GFC_REAL_16);
+export_proto(erfc_scaled_r16);
+
+GFC_REAL_16
+erfc_scaled_r16 (GFC_REAL_16 x)
+{
+  if (x < _THRESH)
+    {
+      return _INF;
+    }
+  if (x < 12)
+    {
+      /* Compute directly as ERFC_SCALED(x) = ERFC(x) * EXP(X**2).
+	 This is not perfect, but much better than netlib.  */
+      return _ERFC(x) * _EXP(x * x);
+    }
+  else
+    {
+      /* Calculate ERFC_SCALED(x) using a power series in 1/x:
+	 ERFC_SCALED(x) = 1 / (x * sqrt(pi))
+			 * (1 + Sum_n (-1)**n * (1 * 3 * 5 * ... * (2n-1))
+					      / (2 * x**2)**n)
+       */
+      GFC_REAL_16 sum = 0, oldsum;
+      GFC_REAL_16 inv2x2 = 1 / (2 * x * x);
+      GFC_REAL_16 fac = 1;
+      int n = 1;
+
+      while (n < 200)
+	{
+	  fac *= - (2*n - 1) * inv2x2;
+	  oldsum = sum;
+	  sum += fac;
+
+	  if (sum == oldsum)
+	    break;
+
+	  n++;
+	}
+
+      return (1 + sum) / x * (_M_2_SQRTPI / 2);
+    }
+}
+
+#endif
+
 #endif

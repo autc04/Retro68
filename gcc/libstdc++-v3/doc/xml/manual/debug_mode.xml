@@ -4,15 +4,9 @@
 
 <info><title>Debug Mode</title>
   <keywordset>
-    <keyword>
-      C++
-    </keyword>
-    <keyword>
-      library
-    </keyword>
-    <keyword>
-      debug
-    </keyword>
+    <keyword>C++</keyword>
+    <keyword>library</keyword>
+    <keyword>debug</keyword>
   </keywordset>
 </info>
 
@@ -64,6 +58,7 @@
 </section>
 
 <section xml:id="manual.ext.debug_mode.semantics" xreflabel="Semantics"><info><title>Semantics</title></info>
+  <?dbhtml filename="debug_mode_semantics.html"?>
   
   <para>
   </para>
@@ -145,6 +140,7 @@ which always works correctly.
 </section>
 
 <section xml:id="manual.ext.debug_mode.using" xreflabel="Using"><info><title>Using</title></info>
+  <?dbhtml filename="debug_mode_using.html"?>
   
   <para>
   </para>
@@ -320,6 +316,7 @@ containers have additional debug capability.
 </section>
 
 <section xml:id="manual.ext.debug_mode.design" xreflabel="Design"><info><title>Design</title></info>
+  <?dbhtml filename="debug_mode_design.html"?>
   
   <para>
   </para>
@@ -859,7 +856,7 @@ test02()
   supports debugging for programs using libstdc++. The existing
   implementations include:</para>
 <itemizedlist>
-  <listitem><para><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.mathcs.sjsu.edu/faculty/horstman/safestl.html">SafeSTL</link>:
+  <listitem><para><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.cs.sjsu.edu/faculty/horstman/safestl.html">SafeSTL</link>:
   SafeSTL was the original debugging version of the Standard Template
   Library (STL), implemented by Cay S. Horstmann on top of the
   Hewlett-Packard STL. Though it inspired much work in this area, it

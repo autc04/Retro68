@@ -1,5 +1,4 @@
-/* Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -28,15 +27,42 @@
 #ifndef _XMMINTRIN_H_INCLUDED
 #define _XMMINTRIN_H_INCLUDED
 
-#ifndef __SSE__
-# error "SSE instruction set not enabled"
-#else
-
 /* We need type definitions from the MMX header file.  */
 #include <mmintrin.h>
 
 /* Get _mm_malloc () and _mm_free ().  */
 #include <mm_malloc.h>
+
+/* Constants for use with _mm_prefetch.  */
+enum _mm_hint
+{
+  /* _MM_HINT_ET is _MM_HINT_T with set 3rd bit.  */
+  _MM_HINT_ET0 = 7,
+  _MM_HINT_ET1 = 6,
+  _MM_HINT_T0 = 3,
+  _MM_HINT_T1 = 2,
+  _MM_HINT_T2 = 1,
+  _MM_HINT_NTA = 0
+};
+
+/* Loads one cache line from address P to a location "closer" to the
+   processor.  The selector I specifies the type of prefetch operation.  */
+#ifdef __OPTIMIZE__
+extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_prefetch (const void *__P, enum _mm_hint __I)
+{
+  __builtin_prefetch (__P, (__I & 0x4) >> 2, __I & 0x3);
+}
+#else
+#define _mm_prefetch(P, I) \
+  __builtin_prefetch ((P), ((I & 0x4) >> 2), (I & 0x3))
+#endif
+
+#ifndef __SSE__
+#pragma GCC push_options
+#pragma GCC target("sse")
+#define __DISABLE_SSE__
+#endif /* __SSE__ */
 
 /* The Intel API is flexible enough that we must allow aliasing with other
    vector types, and their scalar components.  */
@@ -48,15 +74,6 @@ typedef float __v4sf __attribute__ ((__vector_size__ (16)));
 /* Create a selector for use with the SHUFPS instruction.  */
 #define _MM_SHUFFLE(fp3,fp2,fp1,fp0) \
  (((fp3) << 6) | ((fp2) << 4) | ((fp1) << 2) | (fp0))
-
-/* Constants for use with _mm_prefetch.  */
-enum _mm_hint
-{
-  _MM_HINT_T0 = 3,
-  _MM_HINT_T1 = 2,
-  _MM_HINT_T2 = 1,
-  _MM_HINT_NTA = 0
-};
 
 /* Bits in the MXCSR.  */
 #define _MM_EXCEPT_MASK       0x003f
@@ -84,6 +101,14 @@ enum _mm_hint
 #define _MM_FLUSH_ZERO_MASK   0x8000
 #define _MM_FLUSH_ZERO_ON     0x8000
 #define _MM_FLUSH_ZERO_OFF    0x0000
+
+/* Create an undefined vector.  */
+extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_undefined_ps (void)
+{
+  __m128 __Y = __Y;
+  return __Y;
+}
 
 /* Create a vector of zeros.  */
 extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
@@ -1184,19 +1209,6 @@ _m_psadbw (__m64 __A, __m64 __B)
   return _mm_sad_pu8 (__A, __B);
 }
 
-/* Loads one cache line from address P to a location "closer" to the
-   processor.  The selector I specifies the type of prefetch operation.  */
-#ifdef __OPTIMIZE__
-extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
-_mm_prefetch (const void *__P, enum _mm_hint __I)
-{
-  __builtin_prefetch (__P, 0, __I);
-}
-#else
-#define _mm_prefetch(P, I) \
-  __builtin_prefetch ((P), 0, (I))
-#endif
-
 /* Stores the data in A to the address P without polluting the caches.  */
 extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 _mm_stream_pi (__m64 *__P, __m64 __A)
@@ -1225,7 +1237,7 @@ _mm_sfence (void)
 extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 _mm_pause (void)
 {
-  __asm__ __volatile__ ("rep; nop" : : );
+  __builtin_ia32_pause ();
 }
 
 /* Transpose the 4x4 matrix composed of row[0-3].  */
@@ -1243,9 +1255,11 @@ do {									\
 } while (0)
 
 /* For backward source compatibility.  */
-#ifdef __SSE2__
 # include <emmintrin.h>
-#endif
 
-#endif /* __SSE__ */
+#ifdef __DISABLE_SSE__
+#undef __DISABLE_SSE__
+#pragma GCC pop_options
+#endif /* __DISABLE_SSE__ */
+
 #endif /* _XMMINTRIN_H_INCLUDED */

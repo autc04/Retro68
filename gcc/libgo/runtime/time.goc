@@ -10,10 +10,15 @@ package time
 #include "defs.h"
 #include "arch.h"
 #include "malloc.h"
+#include "race.h"
+
+enum {
+	debug = 0,
+};
 
 static Timers timers;
 static void addtimer(Timer*);
-static bool deltimer(Timer*);
+static void dumptimers(const char*);
 
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
@@ -22,23 +27,20 @@ static bool deltimer(Timer*);
 
 // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
 func Sleep(ns int64) {
-	G *g;
-
-	g = runtime_g();
-	g->status = Gwaiting;
-	g->waitreason = "sleep";
-	runtime_tsleep(ns);
+	runtime_tsleep(ns, "sleep");
 }
 
 // startTimer adds t to the timer heap.
 func startTimer(t *Timer) {
-	addtimer(t);
+	if(raceenabled)
+		runtime_racerelease(t);
+	runtime_addtimer(t);
 }
 
 // stopTimer removes t from the timer heap if it is there.
 // It returns true if t was removed, false if t wasn't even there.
 func stopTimer(t *Timer) (stopped bool) {
-	stopped = deltimer(t);
+	stopped = runtime_deltimer(t);
 }
 
 // C runtime.
@@ -56,22 +58,35 @@ ready(int64 now, Eface e)
 	runtime_ready(e.__object);
 }
 
+static FuncVal readyv = {(void(*)(void))ready};
+
 // Put the current goroutine to sleep for ns nanoseconds.
-// The caller must have set g->status and g->waitreason.
 void
-runtime_tsleep(int64 ns)
+runtime_tsleep(int64 ns, const char *reason)
 {
+	G* g;
 	Timer t;
+
+	g = runtime_g();
 
 	if(ns <= 0)
 		return;
 
 	t.when = runtime_nanotime() + ns;
 	t.period = 0;
-	t.f = ready;
-	t.arg.__object = runtime_g();
+	t.fv = &readyv;
+	t.arg.__object = g;
+	runtime_lock(&timers);
 	addtimer(&t);
-	runtime_gosched();
+	runtime_park(runtime_unlock, &timers, reason);
+}
+
+void
+runtime_addtimer(Timer *t)
+{
+	runtime_lock(&timers);
+	addtimer(t);
+	runtime_unlock(&timers);
 }
 
 // Add a timer to the heap and start or kick the timer proc
@@ -82,7 +97,11 @@ addtimer(Timer *t)
 	int32 n;
 	Timer **nt;
 
-	runtime_lock(&timers);
+	// when must never be negative; otherwise timerproc will overflow
+	// during its delta calculation and never expire other timers.
+	if(t->when < 0)
+		t->when = (int64)((1ULL<<63)-1);
+
 	if(timers.len >= timers.cap) {
 		// Grow slice.
 		n = 16;
@@ -108,18 +127,29 @@ addtimer(Timer *t)
 			runtime_ready(timers.timerproc);
 		}
 	}
-	if(timers.timerproc == nil)
+	if(timers.timerproc == nil) {
 		timers.timerproc = __go_go(timerproc, nil);
-	runtime_unlock(&timers);
+		timers.timerproc->issystem = true;
+	}
+	if(debug)
+		dumptimers("addtimer");
 }
+
+// Used to force a dereference before the lock is acquired.
+static int32 gi;
 
 // Delete timer t from the heap.
 // Do not need to update the timerproc:
 // if it wakes up early, no big deal.
-static bool
-deltimer(Timer *t)
+bool
+runtime_deltimer(Timer *t)
 {
 	int32 i;
+
+	// Dereference t so that any panic happens before the lock is held.
+	// Discard result, because t might be moving in the heap.
+	i = t->i;
+	gi = i;
 
 	runtime_lock(&timers);
 
@@ -142,6 +172,8 @@ deltimer(Timer *t)
 		siftup(i);
 		siftdown(i);
 	}
+	if(debug)
+		dumptimers("deltimer");
 	runtime_unlock(&timers);
 	return true;
 }
@@ -153,15 +185,14 @@ deltimer(Timer *t)
 static void
 timerproc(void* dummy __attribute__ ((unused)))
 {
-	G *g;
 	int64 delta, now;
 	Timer *t;
 	void (*f)(int64, Eface);
 	Eface arg;
 
-	g = runtime_g();
 	for(;;) {
 		runtime_lock(&timers);
+		timers.sleeping = false;
 		now = runtime_nanotime();
 		for(;;) {
 			if(timers.len == 0) {
@@ -183,28 +214,26 @@ timerproc(void* dummy __attribute__ ((unused)))
 				siftdown(0);
 				t->i = -1;  // mark as removed
 			}
-			f = t->f;
+			f = (void*)t->fv->fn;
 			arg = t->arg;
 			runtime_unlock(&timers);
+			if(raceenabled)
+				runtime_raceacquire(t);
+			__go_set_closure(t->fv);
 			f(now, arg);
 			runtime_lock(&timers);
 		}
 		if(delta < 0) {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true;
-			g->status = Gwaiting;
-			g->waitreason = "timer goroutine (idle)";
-			runtime_unlock(&timers);
-			runtime_gosched();
+			runtime_park(runtime_unlock, &timers, "timer goroutine (idle)");
 			continue;
 		}
 		// At least one timer pending.  Sleep until then.
 		timers.sleeping = true;
 		runtime_noteclear(&timers.waitnote);
 		runtime_unlock(&timers);
-		runtime_entersyscall();
-		runtime_notetsleep(&timers.waitnote, delta);
-		runtime_exitsyscall();
+		runtime_notetsleepg(&timers.waitnote, delta);
 	}
 }
 
@@ -214,18 +243,20 @@ static void
 siftup(int32 i)
 {
 	int32 p;
+	int64 when;
 	Timer **t, *tmp;
 
 	t = timers.t;
+	when = t[i]->when;
+	tmp = t[i];
 	while(i > 0) {
-		p = (i-1)/2;  // parent
-		if(t[i]->when >= t[p]->when)
+		p = (i-1)/4;  // parent
+		if(when >= t[p]->when)
 			break;
-		tmp = t[i];
 		t[i] = t[p];
-		t[p] = tmp;
 		t[i]->i = i;
-		t[p]->i = p;
+		t[p] = tmp;
+		tmp->i = p;
 		i = p;
 	}
 }
@@ -233,31 +264,63 @@ siftup(int32 i)
 static void
 siftdown(int32 i)
 {
-	int32 c, len;
+	int32 c, c3, len;
+	int64 when, w, w3;
 	Timer **t, *tmp;
 
 	t = timers.t;
 	len = timers.len;
+	when = t[i]->when;
+	tmp = t[i];
 	for(;;) {
-		c = i*2 + 1;  // left child
+		c = i*4 + 1;  // left child
+		c3 = c + 2;  // mid child
 		if(c >= len) {
 			break;
 		}
-		if(c+1 < len && t[c+1]->when < t[c]->when)
+		w = t[c]->when;
+		if(c+1 < len && t[c+1]->when < w) {
+			w = t[c+1]->when;
 			c++;
-		if(t[c]->when >= t[i]->when)
+		}
+		if(c3 < len) {
+			w3 = t[c3]->when;
+			if(c3+1 < len && t[c3+1]->when < w3) {
+				w3 = t[c3+1]->when;
+				c3++;
+			}
+			if(w3 < w) {
+				w = w3;
+				c = c3;
+			}
+		}
+		if(w >= when)
 			break;
-		tmp = t[i];
 		t[i] = t[c];
-		t[c] = tmp;
 		t[i]->i = i;
-		t[c]->i = c;
+		t[c] = tmp;
+		tmp->i = c;
 		i = c;
 	}
 }
 
-void
-runtime_time_scan(void (*scan)(byte*, int64))
+static void
+dumptimers(const char *msg)
 {
-	scan((byte*)&timers, sizeof timers);
+	Timer *t;
+	int32 i;
+
+	runtime_printf("timers: %s\n", msg);
+	for(i = 0; i < timers.len; i++) {
+		t = timers.t[i];
+		runtime_printf("\t%d\t%p:\ti %d when %D period %D fn %p\n",
+				i, t, t->i, t->when, t->period, t->fv->fn);
+	}
+	runtime_printf("\n");
+}
+
+void
+runtime_time_scan(void (*addroot)(Obj))
+{
+	addroot((Obj){(byte*)&timers, sizeof timers, 0});
 }

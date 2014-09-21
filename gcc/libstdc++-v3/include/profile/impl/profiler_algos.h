@@ -1,6 +1,6 @@
 // -*- C++ -*-
 //
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,7 +24,7 @@
 /** @file profile/impl/profiler_algos.h
  *  @brief Algorithms used by the profile extension.
  *
- *  This file is needed to avoid including <algorithm> or <bits/stl_algo.h>.
+ *  This file is needed to avoid including \<algorithm\> or \<bits/stl_algo.h\>.
  *  Including those files would result in recursive includes.
  *  These implementations are oversimplified.  In general, efficiency may be
  *  sacrificed to minimize maintenance overhead.

@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler for picoChip
-   Copyright (C) 2001, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    Contributed by Picochip Ltd. (http://www.picochip.com)
    Maintained by Daniel Towner (daniel.towner@picochip.com) and
@@ -92,8 +92,6 @@ extern enum picochip_dfa_type picochip_schedule_type;
 #define BYTES_BIG_ENDIAN 0
 #define WORDS_BIG_ENDIAN 0
 
-#define BITS_PER_UNIT 8
-
 #define BITS_PER_WORD 16
 #define UNITS_PER_WORD (BITS_PER_WORD / BITS_PER_UNIT)
 
@@ -117,7 +115,7 @@ extern enum picochip_dfa_type picochip_schedule_type;
 #define FUNCTION_BOUNDARY 8
 
 /* This is the biggest alignment that can be allowed on this machine.
-   Since the STANs have only 256 byte memory, it doesnt make sense
+   Since the STANs have only 256 byte memory, it doesn't make sense
    to have alignments greater than 32 bytes. Hence the value */
 #define MAX_OFILE_ALIGNMENT 32*8
 
@@ -221,7 +219,7 @@ extern enum picochip_dfa_type picochip_schedule_type;
 #define CALL_USED_REGISTERS {1,1,1,1,1,1,0,0, 0,0,0,0,1,1,0,1, 1,1,1,1}
 #define CALL_REALLY_USED_REGISTERS {1,1,1,1,1,1,0,0, 0,0,0,0,1,1,0,0, 0,1,0,0}
 
-/* Define the number of the picoChip link and condition psuedo registers. */
+/* Define the number of the picoChip link and condition pseudo registers. */
 #define LINK_REGNUM 12
 #define CC_REGNUM 17
 #define ACC_REGNUM 16
@@ -243,7 +241,7 @@ extern enum picochip_dfa_type picochip_schedule_type;
    encoding.
    Also r12 is put towards the end for leaf functions. Since leaf functions
    do not have any calls, the prologue/epilogue for them wouldnt save up/
-   restore its value. So, it doesnt make sense for us to use it in the middle,
+   restore its value. So, it doesn't make sense for us to use it in the middle,
    if we can avoid it. */
 #define REG_ALLOC_ORDER {5,4,3,2,1,0,12,6,7,8,9,10,11,14,16,0,0,0,0,0}
 #define LEAF_REG_ALLOC_ORDER {5,4,3,2,1,0,6,7,8,9,10,11,14,12,16,0,0,0,0,0}
@@ -488,7 +486,8 @@ do {                                                                         \
 #define ASM_APP_ON "// High-level ASM start\n"
 #define ASM_APP_OFF "// High-level ASM end\n"
 
-#define ASM_OUTPUT_IDENT(STREAM,STRING) fprintf(STREAM, ".ident %s\n", STRING)
+#undef TARGET_ASM_OUTPUT_IDENT
+#define TARGET_ASM_OUTPUT_IDENT default_asm_output_ident_directive
 
 /* Output of Data  */
 
@@ -654,5 +653,9 @@ enum picochip_builtins
 /* The assembler does support LEB128, despite the auto-configure test
    not detecting this. */
 #define HAVE_AS_LEB128 1
+
+/* picochip-unknown-none target has no support of C99 runtime */
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function
 
 /* The End */

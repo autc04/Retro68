@@ -4,12 +4,8 @@
 
 <info><title>messages</title>
   <keywordset>
-    <keyword>
-      ISO C++
-    </keyword>
-    <keyword>
-      messages
-    </keyword>
+    <keyword>ISO C++</keyword>
+    <keyword>messages</keyword>
   </keywordset>
 </info>
 
@@ -492,7 +488,7 @@ void test01()
   <biblioentry>
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="http://www.opengroup.org/austin">
+	      xlink:href="http://www.opengroup.org/austin/">
       System Interface Definitions, Issue 7 (IEEE Std. 1003.1-2008)
 	</link>
       </title>
@@ -545,7 +541,7 @@ void test01()
   <biblioentry>
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="http://java.sun.com/reference/api/index.html">
+	      xlink:href="http://www.oracle.com/technetwork/java/api/index.html">
 	API Specifications, Java Platform
 	</link>
       </title>
@@ -559,7 +555,7 @@ java.util.Locale, java.util.ResourceBundle
   <biblioentry>
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="http://www.gnu.org/software/gettext">
+	      xlink:href="https://www.gnu.org/software/gettext/">
       GNU gettext tools, version 0.10.38, Native Language Support
       Library and Tools.
 	</link>

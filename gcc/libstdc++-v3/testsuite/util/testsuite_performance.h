@@ -1,8 +1,7 @@
 // -*- C++ -*-
 // Testing performance utilities for the C++ library testsuite.
 //
-// Copyright (C) 2003, 2004, 2005, 2007, 2008, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2003-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,7 +35,7 @@
 #include <cxxabi.h>
 #include <testsuite_common_types.h>
 
-#ifdef __linux__
+#if defined (__linux__) || defined (__GLIBC__)
 #include <malloc.h>
 #elif defined (__FreeBSD__)
 extern "C"

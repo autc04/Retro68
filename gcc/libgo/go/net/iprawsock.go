@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// (Raw) IP sockets
-
 package net
 
-// IPAddr represents the address of a IP end point.
+// IPAddr represents the address of an IP end point.
 type IPAddr struct {
-	IP IP
+	IP   IP
+	Zone string // IPv6 scoped addressing zone
 }
 
 // Network returns the address's network name, "ip".
@@ -18,48 +17,38 @@ func (a *IPAddr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
+	if a.Zone != "" {
+		return a.IP.String() + "%" + a.Zone
+	}
 	return a.IP.String()
 }
 
-// ResolveIPAddr parses addr as a IP address and resolves domain
-// names to numeric addresses on the network net, which must be
-// "ip", "ip4" or "ip6".  A literal IPv6 host address must be
-// enclosed in square brackets, as in "[::]".
+func (a *IPAddr) toAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
+}
+
+// ResolveIPAddr parses addr as an IP address of the form "host" or
+// "ipv6-host%zone" and resolves the domain name on the network net,
+// which must be "ip", "ip4" or "ip6".
 func ResolveIPAddr(net, addr string) (*IPAddr, error) {
-	ip, err := hostToIP(net, addr)
+	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
+		net = "ip"
+	}
+	afnet, _, err := parseNetwork(net)
 	if err != nil {
 		return nil, err
 	}
-	return &IPAddr{ip}, nil
-}
-
-// Convert "host" into IP address.
-func hostToIP(net, host string) (ip IP, err error) {
-	var addr IP
-	// Try as an IP address.
-	addr = ParseIP(host)
-	if addr == nil {
-		filter := anyaddr
-		if net != "" && net[len(net)-1] == '4' {
-			filter = ipv4only
-		}
-		if net != "" && net[len(net)-1] == '6' {
-			filter = ipv6only
-		}
-		// Not an IP address.  Try as a DNS name.
-		addrs, err1 := LookupHost(host)
-		if err1 != nil {
-			err = err1
-			goto Error
-		}
-		addr = firstFavoriteAddr(filter, addrs)
-		if addr == nil {
-			// should not happen
-			err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
-			goto Error
-		}
+	switch afnet {
+	case "ip", "ip4", "ip6":
+	default:
+		return nil, UnknownNetworkError(net)
 	}
-	return addr, nil
-Error:
-	return nil, err
+	a, err := resolveInternetAddr(afnet, addr, noDeadline)
+	if err != nil {
+		return nil, err
+	}
+	return a.toAddr().(*IPAddr), nil
 }

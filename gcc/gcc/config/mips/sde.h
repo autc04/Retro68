@@ -1,7 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    MIPS SDE version.
-   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -67,9 +66,6 @@ along with GCC; see the file COPYING3.  If not see
 #undef DEFAULT_SIGNED_CHAR
 #define DEFAULT_SIGNED_CHAR 0
 
-/* SDE-MIPS won't ever support SDB debugging info.  */
-#undef SDB_DEBUGGING_INFO
-
 /* Describe how we implement __builtin_eh_return.  */
 
 /* At the moment, nothing appears to use more than 2 EH data registers.
@@ -92,34 +88,6 @@ along with GCC; see the file COPYING3.  If not see
 #define SIZE_TYPE "long unsigned int"
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "long int"
-
-/* Use standard ELF-style local labels (not '$' as on early Irix).  */
-#undef LOCAL_LABEL_PREFIX
-#define LOCAL_LABEL_PREFIX "."
-
-/* Use periods rather than dollar signs in special g++ assembler names.  */
-#define NO_DOLLAR_IN_LABEL
-
-/* Attach a special .ident directive to the end of the file to identify
-   the version of GCC which compiled this code.  */
-#undef IDENT_ASM_OP
-#define IDENT_ASM_OP "\t.ident\t"
-
-/* Output #ident string into the ELF .comment section, so it doesn't
-   form part of the load image, and so that it can be stripped.  */
-#undef ASM_OUTPUT_IDENT
-#define ASM_OUTPUT_IDENT(STREAM, STRING) \
-  fprintf (STREAM, "%s\"%s\"\n", IDENT_ASM_OP, STRING);
-
-/* Currently we don't support 128bit long doubles, so for now we force
-   n32 to be 64bit.  */
-#undef LONG_DOUBLE_TYPE_SIZE
-#define LONG_DOUBLE_TYPE_SIZE 64
-
-#ifdef IN_LIBGCC2
-#undef LIBGCC2_LONG_DOUBLE_TYPE_SIZE
-#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64
-#endif
 
 /* Force all .init and .fini entries to be 32-bit, not mips16, so that
    in a mixed environment they are all the same mode. The crti.asm and

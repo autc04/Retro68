@@ -1,6 +1,5 @@
 /* FR30 specific functions.
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004, 2005, 2007, 2008, 2009,
-   2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
    This file is part of GCC.
@@ -34,6 +33,8 @@
 #include "flags.h"
 #include "recog.h"
 #include "tree.h"
+#include "stor-layout.h"
+#include "varasm.h"
 #include "output.h"
 #include "expr.h"
 #include "obstack.h"
@@ -936,7 +937,8 @@ fr30_move_double (rtx * operands)
 	  emit_insn (gen_rtx_SET (VOIDmode, dest0,
 				  adjust_address (src, SImode, 0)));
 	  emit_insn (gen_rtx_SET (SImode, dest1,
-				  plus_constant (dest1, UNITS_PER_WORD)));
+				  plus_constant (SImode, dest1,
+						 UNITS_PER_WORD)));
 
 	  new_mem = gen_rtx_MEM (SImode, dest1);
 	  MEM_COPY_ATTRIBUTES (new_mem, src);

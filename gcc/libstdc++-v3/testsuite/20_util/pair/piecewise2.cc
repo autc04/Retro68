@@ -1,7 +1,7 @@
 // { dg-do compile }
 // { dg-options "-std=gnu++0x" }
 
-// Copyright (C) 2011 Free Software Foundation, Inc.
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -51,7 +51,8 @@ struct Default
 void test01(std::tuple<NoCon&, NoCon&&> t1,
             std::tuple<NoCon&, NoCon&&, NoCon&> t2)
 {
-  std::pair<RefCheck1, RefCheck2>(std::piecewise_construct, t1, t2);
+  std::pair<RefCheck1, RefCheck2>(std::piecewise_construct,
+				  std::move(t1), std::move(t2));
 }
 
 void test02(std::tuple<> t1, std::tuple<int> t2)

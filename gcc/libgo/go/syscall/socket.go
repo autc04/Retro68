@@ -22,10 +22,10 @@ type Sockaddr interface {
 
 type RawSockaddrAny struct {
 	Addr RawSockaddr
-	Pad  [12]int8
+	Pad  [96]int8
 }
 
-const SizeofSockaddrAny = 0x1c
+const SizeofSockaddrAny = 0x6c
 
 type SockaddrInet4 struct {
 	Port int
@@ -79,7 +79,7 @@ type SockaddrUnix struct {
 func (sa *SockaddrUnix) sockaddr() (*RawSockaddrAny, Socklen_t, error) {
 	name := sa.Name
 	n := len(name)
-	if n >= len(sa.raw.Path) || n == 0 {
+	if n >= len(sa.raw.Path) {
 		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_UNIX
@@ -87,12 +87,15 @@ func (sa *SockaddrUnix) sockaddr() (*RawSockaddrAny, Socklen_t, error) {
 	for i := 0; i < n; i++ {
 		sa.raw.Path[i] = int8(name[i])
 	}
-	if sa.raw.Path[0] == '@' {
-		sa.raw.Path[0] = 0
+	// length is family (uint16), name, NUL.
+	sl := Socklen_t(2)
+	if n > 0 {
+		sl += Socklen_t(n) + 1
 	}
+	sl = sa.raw.adjustAbstract(sl)
 
 	// length is family (uint16), name, NUL.
-	return (*RawSockaddrAny)(unsafe.Pointer(&sa.raw)), 2 + Socklen_t(n) + 1, nil
+	return (*RawSockaddrAny)(unsafe.Pointer(&sa.raw)), sl, nil
 }
 
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
@@ -132,7 +135,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 }
 
 //sys	accept(fd int, sa *RawSockaddrAny, len *Socklen_t) (nfd int, err error)
-//accept(fd int, sa *RawSockaddrAny, len *Socklen_t) int
+//accept(fd _C_int, sa *RawSockaddrAny, len *Socklen_t) _C_int
 
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
@@ -150,7 +153,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 }
 
 //sysnb	getsockname(fd int, sa *RawSockaddrAny, len *Socklen_t) (err error)
-//getsockname(fd int, sa *RawSockaddrAny, len *Socklen_t) int
+//getsockname(fd _C_int, sa *RawSockaddrAny, len *Socklen_t) _C_int
 
 func Getsockname(fd int) (sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
@@ -162,7 +165,7 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 }
 
 //sysnb getpeername(fd int, sa *RawSockaddrAny, len *Socklen_t) (err error)
-//getpeername(fd int, sa *RawSockaddrAny, len *Socklen_t) int
+//getpeername(fd _C_int, sa *RawSockaddrAny, len *Socklen_t) _C_int
 
 func Getpeername(fd int) (sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
@@ -173,9 +176,6 @@ func Getpeername(fd int) (sa Sockaddr, err error) {
 	return anyToSockaddr(&rsa)
 }
 
-//sys	bind(fd int, sa *RawSockaddrAny, len Socklen_t) (err error)
-//bind(fd int, sa *RawSockaddrAny, len Socklen_t) int
-
 func Bind(fd int, sa Sockaddr) (err error) {
 	ptr, n, err := sa.sockaddr()
 	if err != nil {
@@ -183,9 +183,6 @@ func Bind(fd int, sa Sockaddr) (err error) {
 	}
 	return bind(fd, ptr, n)
 }
-
-//sys	connect(s int, addr *RawSockaddrAny, addrlen Socklen_t) (err error)
-//connect(s int, addr *RawSockaddrAny, addrlen Socklen_t) int
 
 func Connect(fd int, sa Sockaddr) (err error) {
 	ptr, n, err := sa.sockaddr()
@@ -195,9 +192,6 @@ func Connect(fd int, sa Sockaddr) (err error) {
 	return connect(fd, ptr, n)
 }
 
-//sysnb	socket(domain int, typ int, proto int) (fd int, err error)
-//socket(domain int, typ int, protocol int) int
-
 func Socket(domain, typ, proto int) (fd int, err error) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
 		return -1, EAFNOSUPPORT
@@ -206,16 +200,15 @@ func Socket(domain, typ, proto int) (fd int, err error) {
 	return
 }
 
-//sysnb	socketpair(domain int, typ int, proto int, fd *[2]int) (err error)
-//socketpair(domain int, typ int, protocol int, fd *[2]int) int
-
 func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
-	err = socketpair(domain, typ, proto, &fd)
+	var fdx [2]_C_int
+	err = socketpair(domain, typ, proto, &fdx)
+	if err == nil {
+		fd[0] = int(fdx[0])
+		fd[1] = int(fdx[1])
+	}
 	return
 }
-
-//sys	getsockopt(s int, level int, name int, val uintptr, vallen *Socklen_t) (err error)
-//getsockopt(s int, level int, name int, val *byte, vallen *Socklen_t) int
 
 func GetsockoptByte(fd, level, opt int) (value byte, err error) {
 	var n byte
@@ -259,7 +252,7 @@ func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) {
 }
 
 //sys	setsockopt(s int, level int, name int, val *byte, vallen Socklen_t) (err error)
-//setsockopt(s int, level int, optname int, val *byte, vallen Socklen_t) int
+//setsockopt(s _C_int, level _C_int, optname _C_int, val *byte, vallen Socklen_t) _C_int
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {
 	var n = byte(value)
@@ -277,6 +270,10 @@ func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (err error) {
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
 	return setsockopt(fd, level, opt, (*byte)(unsafe.Pointer(tv)), Socklen_t(unsafe.Sizeof(*tv)))
+}
+
+func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
+	return setsockopt(fd, level, opt, (*byte)(unsafe.Pointer(filter)), SizeofICMPv6Filter)
 }
 
 type Linger struct {
@@ -305,7 +302,7 @@ func SetsockoptString(fd, level, opt int, s string) (err error) {
 }
 
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *Socklen_t) (n int, err error)
-//recvfrom(fd int, buf *byte, len Size_t, flags int, from *RawSockaddrAny, fromlen *Socklen_t) Ssize_t
+//recvfrom(fd _C_int, buf *byte, len Size_t, flags _C_int, from *RawSockaddrAny, fromlen *Socklen_t) Ssize_t
 
 func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	var rsa RawSockaddrAny
@@ -313,12 +310,11 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	if n, err = recvfrom(fd, p, flags, &rsa, &len); err != nil {
 		return
 	}
-	from, err = anyToSockaddr(&rsa)
+	if rsa.Addr.Family != AF_UNSPEC {
+		from, err = anyToSockaddr(&rsa)
+	}
 	return
 }
-
-//sys	sendto(s int, buf []byte, flags int, to *RawSockaddrAny, tolen Socklen_t) (err error)
-//sendto(s int, buf *byte, len Size_t, flags int, to *RawSockaddrAny, tolen Socklen_t) Ssize_t
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
 	ptr, n, err := to.sockaddr()
@@ -327,9 +323,6 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
 	}
 	return sendto(fd, p, flags, ptr, n)
 }
-
-//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
-//recvmsg(s int, msg *Msghdr, flags int) Ssize_t
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
 	var msg Msghdr
@@ -364,9 +357,6 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	}
 	return
 }
-
-//sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
-//sendmsg(s int, msg *Msghdr, flags int) Ssize_t
 
 func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
 	var ptr *RawSockaddrAny
@@ -405,10 +395,10 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
 }
 
 //sys	Listen(fd int, n int) (err error)
-//listen(fd int, n int) int
+//listen(fd _C_int, n _C_int) _C_int
 
 //sys	Shutdown(fd int, how int) (err error)
-//shutdown(fd int, how int) int
+//shutdown(fd _C_int, how _C_int) _C_int
 
 func (iov *Iovec) SetLen(length int) {
 	iov.Len = Iovec_len_t(length)

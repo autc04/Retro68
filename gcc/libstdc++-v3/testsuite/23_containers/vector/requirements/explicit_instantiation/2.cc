@@ -1,4 +1,4 @@
-// Copyright (C) 2004, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,6 +25,6 @@
 
 // N.B. In C++0x mode we cannot instantiate with T == NonDefaultConstructible
 // because of 23.4.1.1.4
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
 template class std::vector<__gnu_test::NonDefaultConstructible>;
 #endif

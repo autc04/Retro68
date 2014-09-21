@@ -1,7 +1,6 @@
 // Debug-mode error formatting implementation -*- C++ -*-
 
-// Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2003-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,7 +38,7 @@ namespace __gnu_debug
   using std::type_info;
 
   template<typename _Iterator>
-    bool __check_singular(_Iterator&);
+    bool __check_singular(const _Iterator&);
 
   class _Safe_sequence_base;
 
@@ -107,9 +106,17 @@ namespace __gnu_debug
     __msg_insert_after_end,
     __msg_erase_after_bad,
     __msg_valid_range2,
-    // unordered sequence local iterators
+    // unordered container local iterators
     __msg_local_iter_compare_bad,
-    __msg_non_empty_range
+    __msg_non_empty_range,
+    // self move assign
+    __msg_self_move_assign,
+    // unordered container buckets
+    __msg_bucket_index_oob,
+    __msg_valid_load_factor,
+    // others
+    __msg_equal_allocs,
+    __msg_insert_range_from_self
   };
 
   class _Error_formatter

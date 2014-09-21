@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2011, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2012, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -45,6 +45,31 @@ package body System.Task_Primitives.Operations is
 
    pragma Warnings (Off);
    --  Turn off warnings since so many unreferenced parameters
+
+   --------------
+   -- Specific --
+   --------------
+
+   --  Package Specific contains target specific routines, and the body of
+   --  this package is target specific.
+
+   package Specific is
+      procedure Set (Self_Id : Task_Id);
+      pragma Inline (Set);
+      --  Set the self id for the current task
+   end Specific;
+
+   package body Specific is
+
+      ---------
+      -- Set --
+      ---------
+
+      procedure Set (Self_Id : Task_Id) is
+      begin
+         null;
+      end Set;
+   end Specific;
 
    ----------------------------------
    -- ATCB allocation/deallocation --

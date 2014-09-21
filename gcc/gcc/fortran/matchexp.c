@@ -1,6 +1,5 @@
 /* Expression parser.
-   Copyright (C) 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -21,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "gfortran.h"
 #include "arith.h"
 #include "match.h"
@@ -542,7 +542,7 @@ match_level_2 (gfc_expr **result)
 static match
 match_level_3 (gfc_expr **result)
 {
-  gfc_expr *all, *e, *total;
+  gfc_expr *all, *e, *total = NULL;
   locus where;
   match m;
 
@@ -559,12 +559,12 @@ match_level_3 (gfc_expr **result)
 
       m = match_level_2 (&e);
       if (m == MATCH_NO)
-	{
-	  gfc_error (expression_syntax);
-	  gfc_free_expr (all);
-	}
+	gfc_error (expression_syntax);
       if (m != MATCH_YES)
-	return MATCH_ERROR;
+	{
+	  gfc_free_expr (all);
+	  return MATCH_ERROR;
+	}
 
       total = gfc_concat (all, e);
       if (total == NULL)

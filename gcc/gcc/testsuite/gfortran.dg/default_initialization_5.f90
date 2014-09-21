@@ -1,4 +1,4 @@
-! { dg-do  run }
+! { dg-do run }
 ! { dg-options "-fdump-tree-original" }
 !
 ! PR fortran/51435
@@ -63,4 +63,3 @@ end program
 ! { dg-final { scan-tree-dump-times "my_data.head = 0B" 1 "original" } }
 ! { dg-final { scan-tree-dump-times "my_data.head = &tgt" 1 "original" } }
 ! { dg-final { cleanup-tree-dump "original" } }
-! { dg-final { cleanup-modules "arr_m list_m worker_mod" } }

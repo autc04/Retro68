@@ -1,7 +1,5 @@
 /* Common block and equivalence list handling
-   Copyright (C) 2000, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Canqun Yang <canqun@nudt.edu.cn>
 
 This file is part of GCC.
@@ -86,7 +84,7 @@ along with GCC; see the file COPYING3.  If not see
    Each segment is described by a chain of segment_info structures.  Each
    segment_info structure describes the extents of a single variable within
    the segment.  This list is maintained in the order the elements are
-   positioned withing the segment.  If two elements have the same starting
+   positioned within the segment.  If two elements have the same starting
    offset the smaller will come first.  If they also have the same size their
    ordering is undefined. 
    
@@ -94,12 +92,15 @@ along with GCC; see the file COPYING3.  If not see
    is examined for still-unused equivalence conditions.  We create a
    block for each merged equivalence list.  */
 
+#include <map>
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
-#include "output.h"	/* For decl_default_tls_model.  */
+#include "stringpool.h"
+#include "stor-layout.h"
+#include "varasm.h"
 #include "gfortran.h"
 #include "trans.h"
 #include "trans-types.h"
@@ -119,7 +120,10 @@ typedef struct segment_info
 } segment_info;
 
 static segment_info * current_segment;
-static gfc_namespace *gfc_common_ns = NULL;
+
+/* Store decl of all common blocks in this translation unit; the first
+   tree is the identifier.  */
+static std::map<tree, tree> gfc_map_of_all_commons;
 
 
 /* Make a segment_info based on a symbol.  */
@@ -377,15 +381,11 @@ build_equiv_decl (tree union_type, bool is_init, bool is_saved)
 static tree
 build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 {
-  gfc_symbol *common_sym;
-  tree decl;
+  tree decl, identifier;
 
-  /* Create a namespace to store symbols for common blocks.  */
-  if (gfc_common_ns == NULL)
-    gfc_common_ns = gfc_get_namespace (NULL, 0);
-
-  gfc_get_symbol (com->name, gfc_common_ns, &common_sym);
-  decl = common_sym->backend_decl;
+  identifier = gfc_sym_mangled_common_id (com);
+  decl = gfc_map_of_all_commons.count(identifier)
+	 ? gfc_map_of_all_commons[identifier] : NULL_TREE;
 
   /* Update the size of this common block as needed.  */
   if (decl != NULL_TREE)
@@ -422,9 +422,15 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
   /* If there is no backend_decl for the common block, build it.  */
   if (decl == NULL_TREE)
     {
-      decl = build_decl (input_location,
-			 VAR_DECL, get_identifier (com->name), union_type);
-      gfc_set_decl_assembler_name (decl, gfc_sym_mangled_common_id (com));
+      if (com->is_bind_c == 1 && com->binding_label)
+	decl = build_decl (input_location, VAR_DECL, identifier, union_type);
+      else
+	{
+	  decl = build_decl (input_location, VAR_DECL, get_identifier (com->name),
+			     union_type);
+	  gfc_set_decl_assembler_name (decl, identifier);
+	}
+
       TREE_PUBLIC (decl) = 1;
       TREE_STATIC (decl) = 1;
       DECL_IGNORED_P (decl) = 1;
@@ -450,9 +456,14 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
       if (com->threadprivate)
 	DECL_TLS_MODEL (decl) = decl_default_tls_model (decl);
 
+      if (com->omp_declare_target)
+	DECL_ATTRIBUTES (decl)
+	  = tree_cons (get_identifier ("omp declare target"),
+		       NULL_TREE, DECL_ATTRIBUTES (decl));
+
       /* Place the back end declaration for this common block in
          GLOBAL_BINDING_LEVEL.  */
-      common_sym->backend_decl = pushdecl_top_level (decl);
+      gfc_map_of_all_commons[identifier] = pushdecl_top_level (decl);
     }
 
   /* Has no initial values.  */
@@ -488,7 +499,7 @@ get_init_field (segment_info *head, tree union_type, tree *field_init,
   tree tmp, field;
   tree init;
   unsigned char *data, *chk;
-  VEC(constructor_elt,gc) *v = NULL;
+  vec<constructor_elt, va_gc> *v = NULL;
 
   tree type = unsigned_char_type_node;
   int i;
@@ -645,7 +656,7 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
   if (is_init)
     {
       tree ctor, tmp;
-      VEC(constructor_elt,gc) *v = NULL;
+      vec<constructor_elt, va_gc> *v = NULL;
 
       if (field != NULL_TREE && field_init != NULL_TREE)
 	CONSTRUCTOR_APPEND_ELT (v, field, field_init);
@@ -665,7 +676,7 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
 	      }
 	  }
 
-      gcc_assert (!VEC_empty (constructor_elt, v));
+      gcc_assert (!v->is_empty ());
       ctor = build_constructor (union_type, v);
       TREE_CONSTANT (ctor) = 1;
       TREE_STATIC (ctor) = 1;
@@ -697,10 +708,9 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
 	DECL_IGNORED_P (var_decl) = 1;
       if (s->sym->attr.target)
 	TREE_ADDRESSABLE (var_decl) = 1;
-      /* This is a fake variable just for debugging purposes.  */
-      TREE_ASM_WRITTEN (var_decl) = 1;
       /* Fake variables are not visible from other translation units. */
       TREE_PUBLIC (var_decl) = 0;
+      gfc_finish_decl_attrs (var_decl, &s->sym->attr);
 
       /* To preserve identifier names in COMMON, chain to procedure
          scope unless at top level in a module definition.  */

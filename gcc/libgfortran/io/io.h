@@ -1,10 +1,8 @@
-/* Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -72,7 +70,7 @@ typedef struct array_loop_spec
 }
 array_loop_spec;
 
-/* A stucture to build a hash table for format data.  */
+/* A structure to build a hash table for format data.  */
 
 #define FORMAT_HASH_SIZE 16
 
@@ -188,8 +186,14 @@ typedef enum
 unit_encoding;
 
 typedef enum
-{ ROUND_UP, ROUND_DOWN, ROUND_ZERO, ROUND_NEAREST, ROUND_COMPATIBLE,
-  ROUND_PROCDEFINED, ROUND_UNSPECIFIED }
+{ ROUND_UP = GFC_FPE_UPWARD,
+  ROUND_DOWN = GFC_FPE_DOWNWARD,
+  ROUND_ZERO = GFC_FPE_TOWARDZERO,
+  ROUND_NEAREST = GFC_FPE_TONEAREST,
+  ROUND_COMPATIBLE = 10, /* round away from zero.  */
+  ROUND_PROCDEFINED, /* Here as ROUND_NEAREST. */
+  ROUND_UNSPECIFIED /* Should never occur. */
+}
 unit_round;
 
 /* NOTE: unit_sign must correspond with the sign_status enumerator in
@@ -293,6 +297,7 @@ st_parameter_filepos;
 #define IOPARM_INQUIRE_HAS_PENDING	(1 << 5)
 #define IOPARM_INQUIRE_HAS_SIZE		(1 << 6)
 #define IOPARM_INQUIRE_HAS_ID		(1 << 7)
+#define IOPARM_INQUIRE_HAS_IQSTREAM	(1 << 8)
 
 typedef struct
 {
@@ -326,6 +331,7 @@ typedef struct
   GFC_INTEGER_4 *pending;
   GFC_IO_INT *size;
   GFC_INTEGER_4 *id;
+  CHARACTER1 (iqstream);
 }
 st_parameter_inquire;
 
@@ -400,7 +406,7 @@ typedef struct st_parameter_dt
 	  unsigned at_eol : 1;
 	  unsigned comma_flag : 1;
 	  /* A namelist specific flag used in the list directed library
-	     to flag that calls are being made from namelist read (eg. to
+	     to flag that calls are being made from namelist read (e.g. to
 	     ignore comments or to treat '/' as a terminator)  */
 	  unsigned namelist_mode : 1;
 	  /* A namelist specific flag used in the list directed library
@@ -424,7 +430,10 @@ typedef struct st_parameter_dt
 	  unsigned g0_no_blanks : 1;
 	  /* Used to signal use of free_format_data.  */
 	  unsigned format_not_saved : 1;
-	  /* 14 unused bits.  */
+	  /* A flag used to identify when a non-standard expanded namelist read
+	     has occurred.  */
+	  unsigned expanded_read : 1;
+	  /* 13 unused bits.  */
 
 	  /* Used for ungetc() style functionality. Possible values
 	     are an unsigned char, EOF, or EOF - 1 used to mark the
@@ -441,9 +450,8 @@ typedef struct st_parameter_dt
 	  char *line_buffer;
 	  struct format_data *fmt;
 	  namelist_info *ionml;
-	  /* A flag used to identify when a non-standard expanded namelist read
-	     has occurred.  */
-	  int expanded_read;
+	  /* Current position within the look-ahead line buffer.  */
+	  int line_buffer_pos;
 	  /* Storage area for values except for strings.  Must be
 	     large enough to hold a complex value (two reals) of the
 	     largest kind.  */
@@ -647,9 +655,6 @@ internal_proto(init_loop_spec);
 extern void next_record (st_parameter_dt *, int);
 internal_proto(next_record);
 
-extern void reverse_memcpy (void *, const void *, size_t);
-internal_proto (reverse_memcpy);
-
 extern void st_wait (st_parameter_wait *);
 export_proto(st_wait);
 
@@ -661,8 +666,8 @@ internal_proto(hit_eof);
 extern void set_integer (void *, GFC_INTEGER_LARGEST, int);
 internal_proto(set_integer);
 
-extern GFC_UINTEGER_LARGEST max_value (int, int);
-internal_proto(max_value);
+extern GFC_UINTEGER_LARGEST si_max (int);
+internal_proto(si_max);
 
 extern int convert_real (st_parameter_dt *, void *, const char *, int);
 internal_proto(convert_real);

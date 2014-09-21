@@ -1,7 +1,5 @@
 /* Prototypes for pa.c functions used in the md file & elsewhere.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2010, 2011
-   Free Software Foundation,
-   Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -69,6 +67,8 @@ extern int pa_fpstore_bypass_p (rtx, rtx);
 extern int pa_attr_length_millicode_call (rtx);
 extern int pa_attr_length_call (rtx, int);
 extern int pa_attr_length_indirect_call (rtx);
+extern rtx pa_legitimize_reload_address (rtx, enum machine_mode,
+					 int, int, int);
 
 /* Declare functions defined in pa.c and used in templates.  */
 

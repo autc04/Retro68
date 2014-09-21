@@ -1,6 +1,6 @@
 // Custom pointer adapter and sample storage policies
 
-// Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -42,7 +42,8 @@
 #include <bits/stl_iterator_base_types.h>
 #include <ext/cast.h>
 #include <ext/type_traits.h>
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
+# include <bits/move.h>
 # include <bits/ptr_traits.h>
 #endif
 
@@ -562,7 +563,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -579,7 +580,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       template<typename _Up>
         using rebind = typename __gnu_cxx::_Pointer_adapter<
-	typename pointer_traits<_Storage_policy>::rebind<_Up>>;
+	typename pointer_traits<_Storage_policy>::template rebind<_Up>>;
 
       static pointer pointer_to(typename pointer::reference __r) noexcept
       { return pointer(std::addressof(__r)); }

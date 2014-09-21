@@ -57,7 +57,8 @@ am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
 	$(top_srcdir)/../lt~obsolete.m4 $(top_srcdir)/crossconfig.m4 \
 	$(top_srcdir)/linkage.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/../config/gc++filt.m4 \
-	$(top_srcdir)/../config/tls.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/../config/tls.m4 $(top_srcdir)/../config/gthr.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 CONFIG_HEADER = $(top_builddir)/config.h
@@ -97,6 +98,8 @@ CNUMERIC_CC = @CNUMERIC_CC@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPU_DEFINES_SRCDIR = @CPU_DEFINES_SRCDIR@
+CPU_OPT_BITS_RANDOM = @CPU_OPT_BITS_RANDOM@
+CPU_OPT_EXT_RANDOM = @CPU_OPT_EXT_RANDOM@
 CSTDIO_H = @CSTDIO_H@
 CTIME_CC = @CTIME_CC@
 CTIME_H = @CTIME_H@
@@ -124,6 +127,7 @@ FGREP = @FGREP@
 GLIBCXX_INCLUDES = @GLIBCXX_INCLUDES@
 GLIBCXX_LIBS = @GLIBCXX_LIBS@
 GREP = @GREP@
+HWCAP_FLAGS = @HWCAP_FLAGS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -160,7 +164,6 @@ PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PDFLATEX = @PDFLATEX@
-PIC_CXXFLAGS = @PIC_CXXFLAGS@
 RANLIB = @RANLIB@
 SECTION_FLAGS = @SECTION_FLAGS@
 SECTION_LDFLAGS = @SECTION_LDFLAGS@
@@ -172,6 +175,9 @@ SYMVER_FILE = @SYMVER_FILE@
 TOPLEVEL_INCLUDES = @TOPLEVEL_INCLUDES@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
+VTV_CXXFLAGS = @VTV_CXXFLAGS@
+VTV_CXXLINKFLAGS = @VTV_CXXLINKFLAGS@
+VTV_PCH_CXXFLAGS = @VTV_PCH_CXXFLAGS@
 WARN_FLAGS = @WARN_FLAGS@
 WERROR = @WERROR@
 
@@ -210,7 +216,10 @@ glibcxx_MOFILES = @glibcxx_MOFILES@
 glibcxx_PCHFLAGS = @glibcxx_PCHFLAGS@
 glibcxx_POFILES = @glibcxx_POFILES@
 glibcxx_builddir = @glibcxx_builddir@
+glibcxx_compiler_pic_flag = @glibcxx_compiler_pic_flag@
+glibcxx_compiler_shared_flag = @glibcxx_compiler_shared_flag@
 glibcxx_localedir = @glibcxx_localedir@
+glibcxx_lt_pic_flag = @glibcxx_lt_pic_flag@
 glibcxx_prefixdir = @glibcxx_prefixdir@
 glibcxx_srcdir = @glibcxx_srcdir@
 glibcxx_toolexecdir = @glibcxx_toolexecdir@
@@ -258,6 +267,7 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
+thread_header = @thread_header@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
@@ -274,11 +284,13 @@ toolexecdir = $(glibcxx_toolexecdir)
 toolexeclibdir = $(glibcxx_toolexeclibdir)
 @ENABLE_WERROR_FALSE@WERROR_FLAG = 
 @ENABLE_WERROR_TRUE@WERROR_FLAG = $(WERROR)
+@ENABLE_EXTERN_TEMPLATE_FALSE@XTEMPLATE_FLAGS = 
+@ENABLE_EXTERN_TEMPLATE_TRUE@XTEMPLATE_FLAGS = -fno-implicit-templates
 
 # These bits are all figured out from configure.  Look in acinclude.m4
 # or configure.ac to see how they are set.  See GLIBCXX_EXPORT_FLAGS.
 CONFIG_CXXFLAGS = \
-	$(SECTION_FLAGS) $(EXTRA_CXX_FLAGS) -frandom-seed=$@
+	$(SECTION_FLAGS) $(HWCAP_FLAGS) -frandom-seed=$@
 
 WARN_CXXFLAGS = \
 	$(WARN_FLAGS) $(WERROR_FLAG) -fdiagnostics-show-location=once 
@@ -335,7 +347,7 @@ epubdir = "$(DESTDIR)@docdir@"
 # Assumes doxygen, graphviz (with dot), pdflatex installed
 doxygen_script = ${top_srcdir}/scripts/run_doxygen
 doxygen_outdir = ${glibcxx_builddir}/doc/doxygen
-api_xml = ${doxygen_outdir}/xml/libstdc++-api-single.xml
+api_xml = ${doxygen_outdir}/xml/libstdc++-api.xml
 doxygen_pdf = ${doxygen_outdir}/latex/refman.pdf
 api_pdf = ${doxygen_outdir}/pdf/libstdc++-api.pdf
 
@@ -386,6 +398,7 @@ xml_sources_manual = \
 	${xml_dir}/manual/numerics.xml \
 	${xml_dir}/manual/parallel_mode.xml \
 	${xml_dir}/manual/policy_data_structures.xml \
+	${xml_dir}/manual/policy_data_structures_biblio.xml \
 	${xml_dir}/manual/prerequisites.xml \
 	${xml_dir}/manual/profile_mode.xml \
 	${xml_dir}/manual/shared_ptr.xml \
@@ -517,27 +530,30 @@ XSLT_PARAM = --param toc.section.depth 4
 #XSL_STYLE_DIR = /usr/share/xml/docbook/stylesheet/docbook-xsl-ns
 #XSL_STYLE_DIR = /usr/share/sgml/docbook/xsl-ns-stylesheets
 XSL_FO_STYLE = $(XSL_STYLE_DIR)/fo/docbook.xsl
-XSL_HTML_STYLE = $(XSL_STYLE_DIR)/xhtml-1_1/chunk.xsl
-XSL_HTML_SINGLE_STYLE = $(XSL_STYLE_DIR)/xhtml-1_1/docbook.xsl
+XSL_HTML_STYLE = $(XSL_STYLE_DIR)/xhtml/chunk.xsl
+XSL_HTML_SINGLE_STYLE = $(XSL_STYLE_DIR)/html/docbook.xsl
 XSL_EPUB_STYLE = $(XSL_STYLE_DIR)/epub3/chunk.xsl
-LINT_FLAGS = --debug --xinclude --noent --noblanks --noout
-SCHEMA_FLAGS = http://www.docbook.org/xml/5.0/dtd/docbook.dtd
-#SCHEMA_FLAGS = --nonet /usr/share/xml/docbook5/schema/dtd/5.0/docbook.dtd
-XMLLINT_VALID_FLAGS = $(LINT_FLAGS) --dtdvalid $(SCHEMA_FLAGS)
-XMLLINT_FLAGS = --xinclude --nsclean --c14n --noent --noblanks --nocdata
+XSL_LOCAL_STYLE = ${glibcxx_builddir}/doc/xsl/customization.xsl
 
 # XML, all one page
 # Some info on canonicalization
 # http://www.mail-archive.com/help-texinfo@gnu.org/msg00864.html
-manual_xml = ${docbook_outdir}/xml/libstdc++-manual-single.xml
-set_xml = ${docbook_outdir}/xml/libstdc++-set-single.xml
+manual_xml = ${docbook_outdir}/xml/libstdc++-manual.xml
+set_xml = ${docbook_outdir}/xml/libstdc++-set.xml
+LINT_FLAGS = --debug --xinclude --noent --noblanks --noout
+SCHEMA_FLAGS = --dtdvalid http://www.docbook.org/xml/5.0/dtd/docbook.dtd
+SCHEMA_RNG_FLAGS = --relaxng http://www.docbook.org/xml/5.0/rng/docbook.rng
+#SCHEMA_FLAGS = --nonet --dtdvalid /usr/share/xxx/dtd/5.0/docbook.dtd
+XMLLINT_VALID_FLAGS = $(LINT_FLAGS) $(SCHEMA_FLAGS)
+XMLLINT_FLAGS = --xinclude --nsclean --c14n --noent --noblanks --nocdata
 
 # HTML, all one page
+# NB: Have to generate customization XSL for UTF-8 output.
 manual_html = ${docbook_outdir}/html/libstdc++-manual-single.html
 
 # PDF, via dblatex
 manual_pdf = ${docbook_outdir}/pdf/libstdc++-manual.pdf
-DBLATEX_FLAGS = --dump --verbose --pdf
+DBLATEX_FLAGS = --verbose --pdf --dump --debug --tmpdir=${docbook_outdir}/latex
 
 # TEXINFO, via docbook2X
 # NB: Both experimental and tempermental
@@ -887,14 +903,14 @@ ${docbook_outdir}/html:
 ${docbook_outdir}/pdf:
 	mkdir -p ${docbook_outdir}/pdf
 
+${docbook_outdir}/latex:
+	mkdir -p ${docbook_outdir}/latex
+
 ${docbook_outdir}/texinfo:
 	mkdir -p ${docbook_outdir}/texinfo
 
 ${docbook_outdir}/xml:
 	mkdir -p ${docbook_outdir}/xml
-doc-xml-validate-docbook: $(xml_sources) $(xml_images)
-	@echo "Generating XML validation log..."
-	$(XMLLINT) $(XMLLINT_VALID_FLAGS) ${top_srcdir}/doc/xml/spine.xml
 stamp-xml-single-docbook: $(xml_sources) ${docbook_outdir}/xml
 	@echo "Generating XML single..."
 	$(XMLLINT) $(XMLLINT_FLAGS) \
@@ -904,6 +920,15 @@ stamp-xml-single-docbook: $(xml_sources) ${docbook_outdir}/xml
 	$(STAMP) stamp-xml-single-docbook
 
 doc-xml-single-docbook: stamp-xml-single-docbook
+doc-xml-validate-docbook: doc-xml-validate-dtd-db
+
+doc-xml-validate-dtd-db: $(xml_sources) $(xml_images)
+	@echo "Generating XML validation log..."
+	$(XMLLINT) $(XMLLINT_VALID_FLAGS) ${top_srcdir}/doc/xml/spine.xml
+
+doc-xml-validate-rng-db: $(xml_sources) $(xml_images) doc-xml-single-docbook
+	@echo "Generating XML RelaxNG validation log..."
+	$(XMLLINT) $(LINT_FLAGS) $(SCHEMA_RNG_FLAGS) ${set_xml}
 
 # HTML support files
 stamp-html-docbook-images: stamp-html-docbook $(xml_images)
@@ -917,18 +942,21 @@ stamp-html-docbook-lwg: stamp-html-docbook $(xml_extra)
 stamp-html-docbook-data: stamp-html-docbook-images stamp-html-docbook-lwg
 	$(STAMP) stamp-html-docbook-data
 
-# HTML, index plus chapters
+# HTML, "chunked" into index plus chapters as separate pages
 stamp-html-docbook: $(xml_sources) ${docbook_outdir}/html
 	@echo "Generating html files..."
 	$(XSLTPROC) $(XSLT_PARAM) $(XSLT_FLAGS) -o ${docbook_outdir}/html/ \
-	$(XSL_HTML_STYLE) ${top_srcdir}/doc/xml/spine.xml
+	 --stringparam chunker.output.encoding UTF-8 \
+	$(XSL_HTML_STYLE) \
+	${top_srcdir}/doc/xml/spine.xml
 	$(STAMP) stamp-html-docbook
 
 doc-html-docbook: stamp-html-docbook-data
 stamp-html-single-docbook: $(xml_sources) ${docbook_outdir}/html
 	@echo "Generating html single file..."
 	$(XSLTPROC) $(XSLT_PARAM) $(XSLT_FLAGS) -o ${manual_html} \
-	$(XSL_HTML_SINGLE_STYLE) ${top_srcdir}/doc/xml/spine.xml
+	${XSL_LOCAL_STYLE} \
+	${top_srcdir}/doc/xml/spine.xml
 	$(STAMP) stamp-html-single-docbook
 
 doc-html-single-docbook: stamp-html-single-docbook
@@ -941,10 +969,15 @@ stamp-fo-docbook: $(xml_sources) ${docbook_outdir}/fo
 	$(STAMP) stamp-fo-docbook
 
 doc-fo-docbook: stamp-fo-docbook
-stamp-pdf-docbook: $(xml_sources) ${docbook_outdir}/pdf
+
+doc-pdf-docbook-dirs: ${docbook_outdir}/pdf ${docbook_outdir}/latex
+
+doc-pdf-docbook-pre: $(xml_sources) doc-pdf-docbook-dirs
+
+stamp-pdf-docbook: doc-pdf-docbook-pre doc-xml-single-docbook
 	@echo "Generating pdf dblatex files..."
-	dblatex $(DBLATEX_FLAGS) \
-	-o ${manual_pdf} ${top_srcdir}/doc/xml/spine.xml
+	dblatex $(DBLATEX_FLAGS) -o ${manual_pdf} \
+	${top_srcdir}/doc/xml/spine.xml
 	$(STAMP) stamp-pdf-docbook
 
 doc-pdf-docbook: stamp-pdf-docbook

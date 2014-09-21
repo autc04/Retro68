@@ -1,6 +1,5 @@
 /* Definitions of target machine for GNU compiler, for MMIX.
-   Copyright (C) 2000, 2001, 2002, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Hans-Peter Nilsson (hp@bitrange.com)
 
 This file is part of GCC.
@@ -71,12 +70,6 @@ along with GCC; see the file COPYING3.  If not see
 /* This chosen as "a call-clobbered hard register that is otherwise
    untouched by the epilogue".  */
 #define MMIX_EH_RETURN_STACKADJ_REGNUM MMIX_STATIC_CHAIN_REGNUM
-
-#ifdef REG_OK_STRICT
-# define MMIX_REG_OK_STRICT 1
-#else
-# define MMIX_REG_OK_STRICT 0
-#endif
 
 #define MMIX_FUNCTION_ARG_SIZE(MODE, TYPE) \
  ((MODE) != BLKmode ? GET_MODE_SIZE (MODE) : int_size_in_bytes (TYPE))
@@ -171,7 +164,7 @@ struct GTY(()) machine_function
 /* Copied from elfos.h.  */
 #define MAX_OFILE_ALIGNMENT (32768 * 8)
 
-#define DATA_ALIGNMENT(TYPE, BASIC_ALIGN) \
+#define DATA_ABI_ALIGNMENT(TYPE, BASIC_ALIGN) \
  mmix_data_alignment (TYPE, BASIC_ALIGN)
 
 #define CONSTANT_ALIGNMENT(CONSTANT, BASIC_ALIGN) \
@@ -439,11 +432,6 @@ enum reg_class
 
 #define INDEX_REG_CLASS GENERAL_REGS
 
-#define REG_CLASS_FROM_LETTER(CHAR)		\
- ((CHAR) == 'x' ? SYSTEM_REGS			\
-  : (CHAR) == 'y' ? REMAINDER_REG		\
-  : (CHAR) == 'z' ? HIMULT_REG : NO_REGS)
-
 #define REGNO_OK_FOR_BASE_P(REGNO)				\
  ((REGNO) <= MMIX_LAST_GENERAL_REGISTER				\
   || (REGNO) == MMIX_ARG_POINTER_REGNUM				\
@@ -459,16 +447,6 @@ enum reg_class
  mmix_secondary_reload_class (CLASS, MODE, X, 0)
 
 #define CLASS_MAX_NREGS(CLASS, MODE) HARD_REGNO_NREGS (CLASS, MODE)
-
-#define CONST_OK_FOR_LETTER_P(VALUE, C)	\
- mmix_const_ok_for_letter_p (VALUE, C)
-
-#define EXTRA_CONSTRAINT(VALUE, C)	\
- mmix_extra_constraint (VALUE, C, MMIX_REG_OK_STRICT)
-
-/* Do we need anything serious here?  Yes, any FLOT constant.  */
-#define CONST_DOUBLE_OK_FOR_LETTER_P(VALUE, C)			\
- mmix_const_double_ok_for_letter_p (VALUE, C)
 
 
 /* Node: Frame Layout */
@@ -834,6 +812,10 @@ typedef struct { int regs; int lib; } CUMULATIVE_ARGS;
 #define FUNCTION_MODE QImode
 
 #define NO_IMPLICIT_EXTERN_C
+
+/* mmix-knuth-mmixware target has no support of C99 runtime */
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function
 
 /* These are checked.  */
 #define DOLLARS_IN_IDENTIFIERS 0

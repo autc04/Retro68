@@ -1,7 +1,5 @@
 /* Instruction scheduling pass.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com) Enhanced by,
    and currently maintained by, Jim Wilson (wilson@cygnus.com)
 
@@ -22,7 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 /* Instruction scheduling pass.  This file, along with sched-deps.c,
-   contains the generic parts.  The actual entry point is found for
+   contains the generic parts.  The actual entry point for
    the normal instruction scheduling pass is found in sched-rgn.c.
 
    We compute insn priorities based on data dependencies.  Flow
@@ -79,12 +77,12 @@ along with GCC; see the file COPYING3.  If not see
 
    Before reload, an extended analysis of interblock data dependences
    is required for interblock scheduling.  This is performed in
-   compute_block_backward_dependences ().
+   compute_block_dependences ().
 
    Dependencies set up by memory references are treated in exactly the
    same way as other dependencies, by using insn backward dependences
    INSN_BACK_DEPS.  INSN_BACK_DEPS are translated into forward dependences
-   INSN_FORW_DEPS the purpose of forward list scheduling.
+   INSN_FORW_DEPS for the purpose of forward list scheduling.
 
    Having optimized the critical path, we may have also unduly
    extended the lifetimes of some registers.  If an operation requires
@@ -142,16 +140,33 @@ along with GCC; see the file COPYING3.  If not see
 #include "sched-int.h"
 #include "target.h"
 #include "common/common-target.h"
-#include "output.h"
 #include "params.h"
-#include "vecprim.h"
 #include "dbgcnt.h"
 #include "cfgloop.h"
 #include "ira.h"
 #include "emit-rtl.h"  /* FIXME: Can go away once crtl is moved to rtl.h.  */
-#include "hashtab.h"
+#include "hash-table.h"
+#include "dumpfile.h"
 
 #ifdef INSN_SCHEDULING
+
+/* True if we do register pressure relief through live-range
+   shrinkage.  */
+static bool live_range_shrinkage_p;
+
+/* Switch on live range shrinkage.  */
+void
+initialize_live_range_shrinkage (void)
+{
+  live_range_shrinkage_p = true;
+}
+
+/* Switch off live range shrinkage.  */
+void
+finish_live_range_shrinkage (void)
+{
+  live_range_shrinkage_p = false;
+}
 
 /* issue_rate is the number of insns that can be scheduled in the same
    machine cycle.  It can be defined in the config/mach/mach.h file,
@@ -214,6 +229,9 @@ struct common_sched_info_def *common_sched_info;
 #define FEEDS_BACKTRACK_INSN(INSN) (HID (INSN)->feeds_backtrack_insn)
 #define SHADOW_P(INSN) (HID (INSN)->shadow_p)
 #define MUST_RECOMPUTE_SPEC_P(INSN) (HID (INSN)->must_recompute_spec)
+/* Cached cost of the instruction.  Use insn_cost to get cost of the
+   insn.  -1 here means that the field is not initialized.  */
+#define INSN_COST(INSN)	(HID (INSN)->cost)
 
 /* If INSN_TICK of an instruction is equal to INVALID_TICK,
    then it should be recalculated from scratch.  */
@@ -352,7 +370,7 @@ int cycle_issued_insns;
 
 /* This records the actual schedule.  It is built up during the main phase
    of schedule_block, and afterwards used to reorder the insns in the RTL.  */
-static VEC(rtx, heap) *scheduled_insns;
+static vec<rtx> scheduled_insns;
 
 static int may_trap_exp (const_rtx, int);
 
@@ -381,13 +399,13 @@ const struct common_sched_info_def haifa_common_sched_info =
   };
 
 /* Mapping from instruction UID to its Logical UID.  */
-VEC (int, heap) *sched_luids = NULL;
+vec<int> sched_luids = vNULL;
 
 /* Next LUID to assign to an instruction.  */
 int sched_max_luid = 1;
 
 /* Haifa Instruction Data.  */
-VEC (haifa_insn_data_def, heap) *h_i_d = NULL;
+vec<haifa_insn_data_def> h_i_d = vNULL;
 
 void (* sched_init_only_bb) (basic_block, basic_block);
 
@@ -397,6 +415,14 @@ basic_block (* sched_split_block) (basic_block, rtx);
 
 /* Create empty basic block after the specified block.  */
 basic_block (* sched_create_empty_bb) (basic_block);
+
+/* Return the number of cycles until INSN is expected to be ready.
+   Return zero if it already is.  */
+static int
+insn_delay (rtx insn)
+{
+  return MAX (INSN_TICK (insn) - clock_var, 0);
+}
 
 static int
 may_trap_exp (const_rtx x, int is_store)
@@ -573,22 +599,72 @@ struct delay_pair
   int stages;
 };
 
+/* Helpers for delay hashing.  */
+
+struct delay_i1_hasher : typed_noop_remove <delay_pair>
+{
+  typedef delay_pair value_type;
+  typedef void compare_type;
+  static inline hashval_t hash (const value_type *);
+  static inline bool equal (const value_type *, const compare_type *);
+};
+
+/* Returns a hash value for X, based on hashing just I1.  */
+
+inline hashval_t
+delay_i1_hasher::hash (const value_type *x)
+{
+  return htab_hash_pointer (x->i1);
+}
+
+/* Return true if I1 of pair X is the same as that of pair Y.  */
+
+inline bool
+delay_i1_hasher::equal (const value_type *x, const compare_type *y)
+{
+  return x->i1 == y;
+}
+
+struct delay_i2_hasher : typed_free_remove <delay_pair>
+{
+  typedef delay_pair value_type;
+  typedef void compare_type;
+  static inline hashval_t hash (const value_type *);
+  static inline bool equal (const value_type *, const compare_type *);
+};
+
+/* Returns a hash value for X, based on hashing just I2.  */
+
+inline hashval_t
+delay_i2_hasher::hash (const value_type *x)
+{
+  return htab_hash_pointer (x->i2);
+}
+
+/* Return true if I2 of pair X is the same as that of pair Y.  */
+
+inline bool
+delay_i2_hasher::equal (const value_type *x, const compare_type *y)
+{
+  return x->i2 == y;
+}
+
 /* Two hash tables to record delay_pairs, one indexed by I1 and the other
    indexed by I2.  */
-static htab_t delay_htab;
-static htab_t delay_htab_i2;
+static hash_table <delay_i1_hasher> delay_htab;
+static hash_table <delay_i2_hasher> delay_htab_i2;
 
 /* Called through htab_traverse.  Walk the hashtable using I2 as
    index, and delete all elements involving an UID higher than
    that pointed to by *DATA.  */
-static int
-htab_i2_traverse (void **slot, void *data)
+int
+haifa_htab_i2_traverse (delay_pair **slot, int *data)
 {
-  int maxuid = *(int *)data;
-  struct delay_pair *p = *(struct delay_pair **)slot;
+  int maxuid = *data;
+  struct delay_pair *p = *slot;
   if (INSN_UID (p->i2) >= maxuid || INSN_UID (p->i1) >= maxuid)
     {
-      htab_clear_slot (delay_htab_i2, slot);
+      delay_htab_i2.clear_slot (slot);
     }
   return 1;
 }
@@ -596,16 +672,15 @@ htab_i2_traverse (void **slot, void *data)
 /* Called through htab_traverse.  Walk the hashtable using I2 as
    index, and delete all elements involving an UID higher than
    that pointed to by *DATA.  */
-static int
-htab_i1_traverse (void **slot, void *data)
+int
+haifa_htab_i1_traverse (delay_pair **pslot, int *data)
 {
-  int maxuid = *(int *)data;
-  struct delay_pair **pslot = (struct delay_pair **)slot;
+  int maxuid = *data;
   struct delay_pair *p, *first, **pprev;
 
   if (INSN_UID ((*pslot)->i1) >= maxuid)
     {
-      htab_clear_slot (delay_htab, slot);
+      delay_htab.clear_slot (pslot);
       return 1;
     }
   pprev = &first;
@@ -619,7 +694,7 @@ htab_i1_traverse (void **slot, void *data)
     }
   *pprev = NULL;
   if (first == NULL)
-    htab_clear_slot (delay_htab, slot);
+    delay_htab.clear_slot (pslot);
   else
     *pslot = first;
   return 1;
@@ -630,38 +705,8 @@ htab_i1_traverse (void **slot, void *data)
 void
 discard_delay_pairs_above (int max_uid)
 {
-  htab_traverse (delay_htab, htab_i1_traverse, &max_uid);
-  htab_traverse (delay_htab_i2, htab_i2_traverse, &max_uid);
-}
-
-/* Returns a hash value for X (which really is a delay_pair), based on
-   hashing just I1.  */
-static hashval_t
-delay_hash_i1 (const void *x)
-{
-  return htab_hash_pointer (((const struct delay_pair *) x)->i1);
-}
-
-/* Returns a hash value for X (which really is a delay_pair), based on
-   hashing just I2.  */
-static hashval_t
-delay_hash_i2 (const void *x)
-{
-  return htab_hash_pointer (((const struct delay_pair *) x)->i2);
-}
-
-/* Return nonzero if I1 of pair X is the same as that of pair Y.  */
-static int
-delay_i1_eq (const void *x, const void *y)
-{
-  return ((const struct delay_pair *) x)->i1 == y;
-}
-
-/* Return nonzero if I2 of pair X is the same as that of pair Y.  */
-static int
-delay_i2_eq (const void *x, const void *y)
-{
-  return ((const struct delay_pair *) x)->i2 == y;
+  delay_htab.traverse <int *, haifa_htab_i1_traverse> (&max_uid);
+  delay_htab_i2.traverse <int *, haifa_htab_i2_traverse> (&max_uid);
 }
 
 /* This function can be called by a port just before it starts the final
@@ -691,19 +736,15 @@ record_delay_slot_pair (rtx i1, rtx i2, int cycles, int stages)
   p->cycles = cycles;
   p->stages = stages;
 
-  if (!delay_htab)
+  if (!delay_htab.is_created ())
     {
-      delay_htab = htab_create (10, delay_hash_i1, delay_i1_eq, NULL);
-      delay_htab_i2 = htab_create (10, delay_hash_i2, delay_i2_eq, free);
+      delay_htab.create (10);
+      delay_htab_i2.create (10);
     }
-  slot = ((struct delay_pair **)
-	  htab_find_slot_with_hash (delay_htab, i1, htab_hash_pointer (i1),
-				    INSERT));
+  slot = delay_htab.find_slot_with_hash (i1, htab_hash_pointer (i1), INSERT);
   p->next_same_i1 = *slot;
   *slot = p;
-  slot = ((struct delay_pair **)
-	  htab_find_slot_with_hash (delay_htab_i2, i2, htab_hash_pointer (i2),
-				    INSERT));
+  slot = delay_htab_i2.find_slot_with_hash (i2, htab_hash_pointer (i2), INSERT);
   *slot = p;
 }
 
@@ -714,12 +755,10 @@ real_insn_for_shadow (rtx insn)
 {
   struct delay_pair *pair;
 
-  if (delay_htab == NULL)
+  if (!delay_htab.is_created ())
     return NULL_RTX;
 
-  pair
-    = (struct delay_pair *)htab_find_with_hash (delay_htab_i2, insn,
-						htab_hash_pointer (insn));
+  pair = delay_htab_i2.find_with_hash (insn, htab_hash_pointer (insn));
   if (!pair || pair->stages > 0)
     return NULL_RTX;
   return pair->i1;
@@ -747,12 +786,10 @@ add_delay_dependencies (rtx insn)
   sd_iterator_def sd_it;
   dep_t dep;
 
-  if (!delay_htab)
+  if (!delay_htab.is_created ())
     return;
 
-  pair
-    = (struct delay_pair *)htab_find_with_hash (delay_htab_i2, insn,
-						htab_hash_pointer (insn));
+  pair = delay_htab_i2.find_with_hash (insn, htab_hash_pointer (insn));
   if (!pair)
     return;
   add_dependence (insn, pair->i1, REG_DEP_ANTI);
@@ -763,8 +800,7 @@ add_delay_dependencies (rtx insn)
     {
       rtx pro = DEP_PRO (dep);
       struct delay_pair *other_pair
-	= (struct delay_pair *)htab_find_with_hash (delay_htab_i2, pro,
-						    htab_hash_pointer (pro));
+	= delay_htab_i2.find_with_hash (pro, htab_hash_pointer (pro));
       if (!other_pair || other_pair->stages)
 	continue;
       if (pair_delay (other_pair) >= pair_delay (pair))
@@ -852,7 +888,7 @@ static void dump_new_block_header (int, basic_block, rtx, rtx);
 static void restore_bb_notes (basic_block);
 static void fix_jump_move (rtx);
 static void move_block_after_check (rtx);
-static void move_succs (VEC(edge,gc) **, basic_block);
+static void move_succs (vec<edge, va_gc> **, basic_block);
 static void sched_remove_insn (rtx);
 static void clear_priorities (rtx, rtx_vec_t *);
 static void calc_priorities (rtx_vec_t);
@@ -872,10 +908,10 @@ schedule_insns (void)
 
 /* Do register pressure sensitive insn scheduling if the flag is set
    up.  */
-bool sched_pressure_p;
+enum sched_pressure_algorithm sched_pressure;
 
 /* Map regno -> its pressure class.  The map defined only when
-   SCHED_PRESSURE_P is true.  */
+   SCHED_PRESSURE != SCHED_PRESSURE_NONE.  */
 enum reg_class *sched_regno_pressure_class;
 
 /* The current register pressure.  Only elements corresponding pressure
@@ -903,10 +939,12 @@ sched_init_region_reg_pressure_info (void)
   bitmap_clear (region_ref_regs);
 }
 
-/* Update current register pressure related info after birth (if
-   BIRTH_P) or death of register REGNO.  */
-static void
-mark_regno_birth_or_death (int regno, bool birth_p)
+/* PRESSURE[CL] describes the pressure on register class CL.  Update it
+   for the birth (if BIRTH_P) or death (if !BIRTH_P) of register REGNO.
+   LIVE tracks the set of live registers; if it is null, assume that
+   every birth or death is genuine.  */
+static inline void
+mark_regno_birth_or_death (bitmap live, int *pressure, int regno, bool birth_p)
 {
   enum reg_class pressure_class;
 
@@ -917,17 +955,17 @@ mark_regno_birth_or_death (int regno, bool birth_p)
 	{
 	  if (birth_p)
 	    {
-	      bitmap_set_bit (curr_reg_live, regno);
-	      curr_reg_pressure[pressure_class]
-		+= (ira_reg_class_max_nregs
-		    [pressure_class][PSEUDO_REGNO_MODE (regno)]);
+	      if (!live || bitmap_set_bit (live, regno))
+		pressure[pressure_class]
+		  += (ira_reg_class_max_nregs
+		      [pressure_class][PSEUDO_REGNO_MODE (regno)]);
 	    }
 	  else
 	    {
-	      bitmap_clear_bit (curr_reg_live, regno);
-	      curr_reg_pressure[pressure_class]
-		-= (ira_reg_class_max_nregs
-		    [pressure_class][PSEUDO_REGNO_MODE (regno)]);
+	      if (!live || bitmap_clear_bit (live, regno))
+		pressure[pressure_class]
+		  -= (ira_reg_class_max_nregs
+		      [pressure_class][PSEUDO_REGNO_MODE (regno)]);
 	    }
 	}
     }
@@ -936,13 +974,13 @@ mark_regno_birth_or_death (int regno, bool birth_p)
     {
       if (birth_p)
 	{
-	  bitmap_set_bit (curr_reg_live, regno);
-	  curr_reg_pressure[pressure_class]++;
+	  if (!live || bitmap_set_bit (live, regno))
+	    pressure[pressure_class]++;
 	}
       else
 	{
-	  bitmap_clear_bit (curr_reg_live, regno);
-	  curr_reg_pressure[pressure_class]--;
+	  if (!live || bitmap_clear_bit (live, regno))
+	    pressure[pressure_class]--;
 	}
     }
 }
@@ -960,8 +998,10 @@ initiate_reg_pressure_info (bitmap live)
     curr_reg_pressure[ira_pressure_classes[i]] = 0;
   bitmap_clear (curr_reg_live);
   EXECUTE_IF_SET_IN_BITMAP (live, 0, j, bi)
-    if (current_nr_blocks == 1 || bitmap_bit_p (region_ref_regs, j))
-      mark_regno_birth_or_death (j, true);
+    if (sched_pressure == SCHED_PRESSURE_MODEL
+	|| current_nr_blocks == 1
+	|| bitmap_bit_p (region_ref_regs, j))
+      mark_regno_birth_or_death (curr_reg_live, curr_reg_pressure, j, true);
 }
 
 /* Mark registers in X as mentioned in the current region.  */
@@ -1015,7 +1055,8 @@ initiate_bb_reg_pressure_info (basic_block bb)
 	if (regno == INVALID_REGNUM)
 	  break;
 	if (! bitmap_bit_p (df_get_live_in (bb), regno))
-	  mark_regno_birth_or_death (regno, true);
+	  mark_regno_birth_or_death (curr_reg_live, curr_reg_pressure,
+				     regno, true);
       }
 #endif
 }
@@ -1072,7 +1113,7 @@ print_curr_reg_pressure (void)
       gcc_assert (curr_reg_pressure[cl] >= 0);
       fprintf (sched_dump, "  %s:%d(%d)", reg_class_names[cl],
 	       curr_reg_pressure[cl],
-	       curr_reg_pressure[cl] - ira_available_class_regs[cl]);
+	       curr_reg_pressure[cl] - ira_class_hard_regs_num[cl]);
     }
   fprintf (sched_dump, "\n");
 }
@@ -1102,18 +1143,57 @@ cond_clobbered_p (rtx insn, HARD_REG_SET set_regs)
   return false;
 }
 
+/* This function should be called after modifying the pattern of INSN,
+   to update scheduler data structures as needed.  */
+static void
+update_insn_after_change (rtx insn)
+{
+  sd_iterator_def sd_it;
+  dep_t dep;
+
+  dfa_clear_single_insn_cache (insn);
+
+  sd_it = sd_iterator_start (insn,
+			     SD_LIST_FORW | SD_LIST_BACK | SD_LIST_RES_BACK);
+  while (sd_iterator_cond (&sd_it, &dep))
+    {
+      DEP_COST (dep) = UNKNOWN_DEP_COST;
+      sd_iterator_next (&sd_it);
+    }
+
+  /* Invalidate INSN_COST, so it'll be recalculated.  */
+  INSN_COST (insn) = -1;
+  /* Invalidate INSN_TICK, so it'll be recalculated.  */
+  INSN_TICK (insn) = INVALID_TICK;
+}
+
+
+/* Two VECs, one to hold dependencies for which pattern replacements
+   need to be applied or restored at the start of the next cycle, and
+   another to hold an integer that is either one, to apply the
+   corresponding replacement, or zero to restore it.  */
+static vec<dep_t> next_cycle_replace_deps;
+static vec<int> next_cycle_apply;
+
+static void apply_replacement (dep_t, bool);
+static void restore_pattern (dep_t, bool);
+
 /* Look at the remaining dependencies for insn NEXT, and compute and return
    the TODO_SPEC value we should use for it.  This is called after one of
-   NEXT's dependencies has been resolved.  */
+   NEXT's dependencies has been resolved.
+   We also perform pattern replacements for predication, and for broken
+   replacement dependencies.  The latter is only done if FOR_BACKTRACK is
+   false.  */
 
 static ds_t
-recompute_todo_spec (rtx next)
+recompute_todo_spec (rtx next, bool for_backtrack)
 {
   ds_t new_ds;
   sd_iterator_def sd_it;
-  dep_t dep, control_dep = NULL;
+  dep_t dep, modify_dep = NULL;
   int n_spec = 0;
   int n_control = 0;
+  int n_replace = 0;
   bool first_p = true;
 
   if (sd_lists_empty_p (next, SD_LIST_BACK))
@@ -1130,9 +1210,10 @@ recompute_todo_spec (rtx next)
 
   FOR_EACH_DEP (next, SD_LIST_BACK, sd_it, dep)
     {
+      rtx pro = DEP_PRO (dep);
       ds_t ds = DEP_STATUS (dep) & SPECULATIVE;
 
-      if (DEBUG_INSN_P (DEP_PRO (dep)) && !DEBUG_INSN_P (next))
+      if (DEBUG_INSN_P (pro) && !DEBUG_INSN_P (next))
 	continue;
 
       if (ds)
@@ -1147,15 +1228,47 @@ recompute_todo_spec (rtx next)
 	  else
 	    new_ds = ds_merge (new_ds, ds);
 	}
-      if (DEP_TYPE (dep) == REG_DEP_CONTROL)
+      else if (DEP_TYPE (dep) == REG_DEP_CONTROL)
 	{
-	  n_control++;
-	  control_dep = dep;
+	  if (QUEUE_INDEX (pro) != QUEUE_SCHEDULED)
+	    {
+	      n_control++;
+	      modify_dep = dep;
+	    }
+	  DEP_STATUS (dep) &= ~DEP_CANCELLED;
+	}
+      else if (DEP_REPLACE (dep) != NULL)
+	{
+	  if (QUEUE_INDEX (pro) != QUEUE_SCHEDULED)
+	    {
+	      n_replace++;
+	      modify_dep = dep;
+	    }
 	  DEP_STATUS (dep) &= ~DEP_CANCELLED;
 	}
     }
 
-  if (n_control == 1 && n_spec == 0)
+  if (n_replace > 0 && n_control == 0 && n_spec == 0)
+    {
+      if (!dbg_cnt (sched_breakdep))
+	return HARD_DEP;
+      FOR_EACH_DEP (next, SD_LIST_BACK, sd_it, dep)
+	{
+	  struct dep_replacement *desc = DEP_REPLACE (dep);
+	  if (desc != NULL)
+	    {
+	      if (desc->insn == next && !for_backtrack)
+		{
+		  gcc_assert (n_replace == 1);
+		  apply_replacement (dep, true);
+		}
+	      DEP_STATUS (dep) |= DEP_CANCELLED;
+	    }
+	}
+      return 0;
+    }
+  
+  else if (n_control == 1 && n_replace == 0 && n_spec == 0)
     {
       rtx pro, other, new_pat;
       rtx cond = NULL_RTX;
@@ -1169,7 +1282,7 @@ recompute_todo_spec (rtx next)
 	      && PREDICATED_PAT (next) == NULL_RTX))
 	return HARD_DEP;
 
-      pro = DEP_PRO (control_dep);
+      pro = DEP_PRO (modify_dep);
       other = real_insn_for_shadow (pro);
       if (other != NULL_RTX)
 	pro = other;
@@ -1182,7 +1295,7 @@ recompute_todo_spec (rtx next)
 	 REG_DEP_CONTROL; if the condition register isn't modified after it,
 	 we know that it still has the right value.  */
       if (QUEUE_INDEX (pro) == QUEUE_SCHEDULED)
-	FOR_EACH_VEC_ELT_REVERSE (rtx, scheduled_insns, i, prev)
+	FOR_EACH_VEC_ELT_REVERSE (scheduled_insns, i, prev)
 	  {
 	    HARD_REG_SET t;
 
@@ -1208,7 +1321,7 @@ recompute_todo_spec (rtx next)
 					       PREDICATED_PAT (next));
 	  gcc_assert (success);
 	}
-      DEP_STATUS (control_dep) |= DEP_CANCELLED;
+      DEP_STATUS (modify_dep) |= DEP_CANCELLED;
       return DEP_CONTROL;
     }
 
@@ -1225,11 +1338,12 @@ recompute_todo_spec (rtx next)
      dependencies, so we return HARD_DEP in such a case.  Also fail if
      we have speculative dependencies with not enough points, or more than
      one control dependency.  */
-  if ((n_spec > 0 && n_control > 0)
+  if ((n_spec > 0 && (n_control > 0 || n_replace > 0))
       || (n_spec > 0
 	  /* Too few points?  */
 	  && ds_weak (new_ds) < spec_info->data_weakness_cutoff)
-      || (n_control > 1))
+      || n_control > 0
+      || n_replace > 0)
     return HARD_DEP;
 
   return new_ds;
@@ -1248,10 +1362,6 @@ static rtx last_nondebug_scheduled_insn;
    have a dbg_cnt enabled.  It always points at an insn prior to the
    first unscheduled one.  */
 static rtx nonscheduled_insns_begin;
-
-/* Cached cost of the instruction.  Use below function to get cost of the
-   insn.  -1 here means that the field is not initialized.  */
-#define INSN_COST(INSN)	(HID (INSN)->cost)
 
 /* Compute cost of executing INSN.
    This is the number of cycles between instruction issue and
@@ -1313,12 +1423,11 @@ dep_cost_1 (dep_t link, dw_t dw)
   if (DEP_COST (link) != UNKNOWN_DEP_COST)
     return DEP_COST (link);
 
-  if (delay_htab)
+  if (delay_htab.is_created ())
     {
       struct delay_pair *delay_entry;
       delay_entry
-	= (struct delay_pair *)htab_find_with_hash (delay_htab_i2, used,
-						    htab_hash_pointer (used));
+	= delay_htab_i2.find_with_hash (used, htab_hash_pointer (used));
       if (delay_entry)
 	{
 	  if (delay_entry->i1 == insn)
@@ -1431,6 +1540,9 @@ contributes_to_priority_p (dep_t dep)
 						    DEP_PRO (dep)))
     return false;
 
+  if (DEP_REPLACE (dep) != NULL)
+    return false;
+
   /* If flag COUNT_SPEC_IN_CRITICAL_PATH is set,
      then speculative instructions will less likely be
      scheduled.  That is because the priority of
@@ -1445,19 +1557,19 @@ contributes_to_priority_p (dep_t dep)
   return true;
 }
 
-/* Compute the number of nondebug forward deps of an insn.  */
+/* Compute the number of nondebug deps in list LIST for INSN.  */
 
 static int
-dep_list_size (rtx insn)
+dep_list_size (rtx insn, sd_list_types_def list)
 {
   sd_iterator_def sd_it;
   dep_t dep;
   int dbgcount = 0, nodbgcount = 0;
 
   if (!MAY_HAVE_DEBUG_INSNS)
-    return sd_lists_size (insn, SD_LIST_FORW);
+    return sd_lists_size (insn, list);
 
-  FOR_EACH_DEP (insn, SD_LIST_FORW, sd_it, dep)
+  FOR_EACH_DEP (insn, list, sd_it, dep)
     {
       if (DEBUG_INSN_P (DEP_CON (dep)))
 	dbgcount++;
@@ -1465,7 +1577,7 @@ dep_list_size (rtx insn)
 	nodbgcount++;
     }
 
-  gcc_assert (dbgcount + nodbgcount == sd_lists_size (insn, SD_LIST_FORW));
+  gcc_assert (dbgcount + nodbgcount == sd_lists_size (insn, list));
 
   return nodbgcount;
 }
@@ -1484,7 +1596,7 @@ priority (rtx insn)
     {
       int this_priority = -1;
 
-      if (dep_list_size (insn) == 0)
+      if (dep_list_size (insn, SD_LIST_FORW) == 0)
 	/* ??? We should set INSN_PRIORITY to insn_cost when and insn has
 	   some forward deps but all of them are ignored by
 	   contributes_to_priority hook.  At the moment we set priority of
@@ -1503,7 +1615,7 @@ priority (rtx insn)
 
           /* Selective scheduling does not define RECOVERY_BLOCK macro.  */
 	  rec = sel_sched_p () ? NULL : RECOVERY_BLOCK (insn);
-	  if (!rec || rec == EXIT_BLOCK_PTR)
+	  if (!rec || rec == EXIT_BLOCK_PTR_FOR_FN (cfun))
 	    {
 	      prev_first = PREV_INSN (insn);
 	      twin = insn;
@@ -1580,6 +1692,22 @@ do { if ((N_READY) == 2)				             \
          qsort (READY, N_READY, sizeof (rtx), rank_for_schedule); }  \
 while (0)
 
+/* For each pressure class CL, set DEATH[CL] to the number of registers
+   in that class that die in INSN.  */
+
+static void
+calculate_reg_deaths (rtx insn, int *death)
+{
+  int i;
+  struct reg_use_data *use;
+
+  for (i = 0; i < ira_pressure_classes_num; i++)
+    death[ira_pressure_classes[i]] = 0;
+  for (use = INSN_REG_USE_LIST (insn); use != NULL; use = use->next_insn_use)
+    if (dying_use_p (use))
+      mark_regno_birth_or_death (0, death, use->regno, true);
+}
+
 /* Setup info about the current register pressure impact of scheduling
    INSN at the current scheduling point.  */
 static void
@@ -1591,24 +1719,12 @@ setup_insn_reg_pressure_info (rtx insn)
   enum reg_class cl;
   struct reg_pressure_data *pressure_info;
   int *max_reg_pressure;
-  struct reg_use_data *use;
   static int death[N_REG_CLASSES];
 
   gcc_checking_assert (!DEBUG_INSN_P (insn));
 
   excess_cost_change = 0;
-  for (i = 0; i < ira_pressure_classes_num; i++)
-    death[ira_pressure_classes[i]] = 0;
-  for (use = INSN_REG_USE_LIST (insn); use != NULL; use = use->next_insn_use)
-    if (dying_use_p (use))
-      {
-	cl = sched_regno_pressure_class[use->regno];
-	if (use->regno < FIRST_PSEUDO_REGISTER)
-	  death[cl]++;
-	else
-	  death[cl]
-	    += ira_reg_class_max_nregs[cl][PSEUDO_REGNO_MODE (use->regno)];
-      }
+  calculate_reg_deaths (insn, death);
   pressure_info = INSN_REG_PRESSURE (insn);
   max_reg_pressure = INSN_MAX_REG_PRESSURE (insn);
   gcc_assert (pressure_info != NULL && max_reg_pressure != NULL);
@@ -1617,9 +1733,9 @@ setup_insn_reg_pressure_info (rtx insn)
       cl = ira_pressure_classes[i];
       gcc_assert (curr_reg_pressure[cl] >= 0);
       change = (int) pressure_info[i].set_increase - death[cl];
-      before = MAX (0, max_reg_pressure[i] - ira_available_class_regs[cl]);
+      before = MAX (0, max_reg_pressure[i] - ira_class_hard_regs_num[cl]);
       after = MAX (0, max_reg_pressure[i] + change
-		   - ira_available_class_regs[cl]);
+		   - ira_class_hard_regs_num[cl]);
       hard_regno = ira_class_hard_regs[cl][0];
       gcc_assert (hard_regno >= 0);
       mode = reg_raw_mode[hard_regno];
@@ -1629,7 +1745,788 @@ setup_insn_reg_pressure_info (rtx insn)
     }
   INSN_REG_PRESSURE_EXCESS_COST_CHANGE (insn) = excess_cost_change;
 }
+
+/* This is the first page of code related to SCHED_PRESSURE_MODEL.
+   It tries to make the scheduler take register pressure into account
+   without introducing too many unnecessary stalls.  It hooks into the
+   main scheduling algorithm at several points:
 
+    - Before scheduling starts, model_start_schedule constructs a
+      "model schedule" for the current block.  This model schedule is
+      chosen solely to keep register pressure down.  It does not take the
+      target's pipeline or the original instruction order into account,
+      except as a tie-breaker.  It also doesn't work to a particular
+      pressure limit.
+
+      This model schedule gives us an idea of what pressure can be
+      achieved for the block and gives us an example of a schedule that
+      keeps to that pressure.  It also makes the final schedule less
+      dependent on the original instruction order.  This is important
+      because the original order can either be "wide" (many values live
+      at once, such as in user-scheduled code) or "narrow" (few values
+      live at once, such as after loop unrolling, where several
+      iterations are executed sequentially).
+
+      We do not apply this model schedule to the rtx stream.  We simply
+      record it in model_schedule.  We also compute the maximum pressure,
+      MP, that was seen during this schedule.
+
+    - Instructions are added to the ready queue even if they require
+      a stall.  The length of the stall is instead computed as:
+
+	 MAX (INSN_TICK (INSN) - clock_var, 0)
+
+      (= insn_delay).  This allows rank_for_schedule to choose between
+      introducing a deliberate stall or increasing pressure.
+
+    - Before sorting the ready queue, model_set_excess_costs assigns
+      a pressure-based cost to each ready instruction in the queue.
+      This is the instruction's INSN_REG_PRESSURE_EXCESS_COST_CHANGE
+      (ECC for short) and is effectively measured in cycles.
+
+    - rank_for_schedule ranks instructions based on:
+
+	ECC (insn) + insn_delay (insn)
+
+      then as:
+
+	insn_delay (insn)
+
+      So, for example, an instruction X1 with an ECC of 1 that can issue
+      now will win over an instruction X0 with an ECC of zero that would
+      introduce a stall of one cycle.  However, an instruction X2 with an
+      ECC of 2 that can issue now will lose to both X0 and X1.
+
+    - When an instruction is scheduled, model_recompute updates the model
+      schedule with the new pressures (some of which might now exceed the
+      original maximum pressure MP).  model_update_limit_points then searches
+      for the new point of maximum pressure, if not already known.  */
+
+/* Used to separate high-verbosity debug information for SCHED_PRESSURE_MODEL
+   from surrounding debug information.  */
+#define MODEL_BAR \
+  ";;\t\t+------------------------------------------------------\n"
+
+/* Information about the pressure on a particular register class at a
+   particular point of the model schedule.  */
+struct model_pressure_data {
+  /* The pressure at this point of the model schedule, or -1 if the
+     point is associated with an instruction that has already been
+     scheduled.  */
+  int ref_pressure;
+
+  /* The maximum pressure during or after this point of the model schedule.  */
+  int max_pressure;
+};
+
+/* Per-instruction information that is used while building the model
+   schedule.  Here, "schedule" refers to the model schedule rather
+   than the main schedule.  */
+struct model_insn_info {
+  /* The instruction itself.  */
+  rtx insn;
+
+  /* If this instruction is in model_worklist, these fields link to the
+     previous (higher-priority) and next (lower-priority) instructions
+     in the list.  */
+  struct model_insn_info *prev;
+  struct model_insn_info *next;
+
+  /* While constructing the schedule, QUEUE_INDEX describes whether an
+     instruction has already been added to the schedule (QUEUE_SCHEDULED),
+     is in model_worklist (QUEUE_READY), or neither (QUEUE_NOWHERE).
+     old_queue records the value that QUEUE_INDEX had before scheduling
+     started, so that we can restore it once the schedule is complete.  */
+  int old_queue;
+
+  /* The relative importance of an unscheduled instruction.  Higher
+     values indicate greater importance.  */
+  unsigned int model_priority;
+
+  /* The length of the longest path of satisfied true dependencies
+     that leads to this instruction.  */
+  unsigned int depth;
+
+  /* The length of the longest path of dependencies of any kind
+     that leads from this instruction.  */
+  unsigned int alap;
+
+  /* The number of predecessor nodes that must still be scheduled.  */
+  int unscheduled_preds;
+};
+
+/* Information about the pressure limit for a particular register class.
+   This structure is used when applying a model schedule to the main
+   schedule.  */
+struct model_pressure_limit {
+  /* The maximum register pressure seen in the original model schedule.  */
+  int orig_pressure;
+
+  /* The maximum register pressure seen in the current model schedule
+     (which excludes instructions that have already been scheduled).  */
+  int pressure;
+
+  /* The point of the current model schedule at which PRESSURE is first
+     reached.  It is set to -1 if the value needs to be recomputed.  */
+  int point;
+};
+
+/* Describes a particular way of measuring register pressure.  */
+struct model_pressure_group {
+  /* Index PCI describes the maximum pressure on ira_pressure_classes[PCI].  */
+  struct model_pressure_limit limits[N_REG_CLASSES];
+
+  /* Index (POINT * ira_num_pressure_classes + PCI) describes the pressure
+     on register class ira_pressure_classes[PCI] at point POINT of the
+     current model schedule.  A POINT of model_num_insns describes the
+     pressure at the end of the schedule.  */
+  struct model_pressure_data *model;
+};
+
+/* Index POINT gives the instruction at point POINT of the model schedule.
+   This array doesn't change during main scheduling.  */
+static vec<rtx> model_schedule;
+
+/* The list of instructions in the model worklist, sorted in order of
+   decreasing priority.  */
+static struct model_insn_info *model_worklist;
+
+/* Index I describes the instruction with INSN_LUID I.  */
+static struct model_insn_info *model_insns;
+
+/* The number of instructions in the model schedule.  */
+static int model_num_insns;
+
+/* The index of the first instruction in model_schedule that hasn't yet been
+   added to the main schedule, or model_num_insns if all of them have.  */
+static int model_curr_point;
+
+/* Describes the pressure before each instruction in the model schedule.  */
+static struct model_pressure_group model_before_pressure;
+
+/* The first unused model_priority value (as used in model_insn_info).  */
+static unsigned int model_next_priority;
+
+
+/* The model_pressure_data for ira_pressure_classes[PCI] in GROUP
+   at point POINT of the model schedule.  */
+#define MODEL_PRESSURE_DATA(GROUP, POINT, PCI) \
+  (&(GROUP)->model[(POINT) * ira_pressure_classes_num + (PCI)])
+
+/* The maximum pressure on ira_pressure_classes[PCI] in GROUP at or
+   after point POINT of the model schedule.  */
+#define MODEL_MAX_PRESSURE(GROUP, POINT, PCI) \
+  (MODEL_PRESSURE_DATA (GROUP, POINT, PCI)->max_pressure)
+
+/* The pressure on ira_pressure_classes[PCI] in GROUP at point POINT
+   of the model schedule.  */
+#define MODEL_REF_PRESSURE(GROUP, POINT, PCI) \
+  (MODEL_PRESSURE_DATA (GROUP, POINT, PCI)->ref_pressure)
+
+/* Information about INSN that is used when creating the model schedule.  */
+#define MODEL_INSN_INFO(INSN) \
+  (&model_insns[INSN_LUID (INSN)])
+
+/* The instruction at point POINT of the model schedule.  */
+#define MODEL_INSN(POINT) \
+  (model_schedule[POINT])
+
+
+/* Return INSN's index in the model schedule, or model_num_insns if it
+   doesn't belong to that schedule.  */
+
+static int
+model_index (rtx insn)
+{
+  if (INSN_MODEL_INDEX (insn) == 0)
+    return model_num_insns;
+  return INSN_MODEL_INDEX (insn) - 1;
+}
+
+/* Make sure that GROUP->limits is up-to-date for the current point
+   of the model schedule.  */
+
+static void
+model_update_limit_points_in_group (struct model_pressure_group *group)
+{
+  int pci, max_pressure, point;
+
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      /* We may have passed the final point at which the pressure in
+	 group->limits[pci].pressure was reached.  Update the limit if so.  */
+      max_pressure = MODEL_MAX_PRESSURE (group, model_curr_point, pci);
+      group->limits[pci].pressure = max_pressure;
+
+      /* Find the point at which MAX_PRESSURE is first reached.  We need
+	 to search in three cases:
+
+	 - We've already moved past the previous pressure point.
+	   In this case we search forward from model_curr_point.
+
+	 - We scheduled the previous point of maximum pressure ahead of
+	   its position in the model schedule, but doing so didn't bring
+	   the pressure point earlier.  In this case we search forward
+	   from that previous pressure point.
+
+	 - Scheduling an instruction early caused the maximum pressure
+	   to decrease.  In this case we will have set the pressure
+	   point to -1, and we search forward from model_curr_point.  */
+      point = MAX (group->limits[pci].point, model_curr_point);
+      while (point < model_num_insns
+	     && MODEL_REF_PRESSURE (group, point, pci) < max_pressure)
+	point++;
+      group->limits[pci].point = point;
+
+      gcc_assert (MODEL_REF_PRESSURE (group, point, pci) == max_pressure);
+      gcc_assert (MODEL_MAX_PRESSURE (group, point, pci) == max_pressure);
+    }
+}
+
+/* Make sure that all register-pressure limits are up-to-date for the
+   current position in the model schedule.  */
+
+static void
+model_update_limit_points (void)
+{
+  model_update_limit_points_in_group (&model_before_pressure);
+}
+
+/* Return the model_index of the last unscheduled use in chain USE
+   outside of USE's instruction.  Return -1 if there are no other uses,
+   or model_num_insns if the register is live at the end of the block.  */
+
+static int
+model_last_use_except (struct reg_use_data *use)
+{
+  struct reg_use_data *next;
+  int last, index;
+
+  last = -1;
+  for (next = use->next_regno_use; next != use; next = next->next_regno_use)
+    if (NONDEBUG_INSN_P (next->insn)
+	&& QUEUE_INDEX (next->insn) != QUEUE_SCHEDULED)
+      {
+	index = model_index (next->insn);
+	if (index == model_num_insns)
+	  return model_num_insns;
+	if (last < index)
+	  last = index;
+      }
+  return last;
+}
+
+/* An instruction with model_index POINT has just been scheduled, and it
+   adds DELTA to the pressure on ira_pressure_classes[PCI] after POINT - 1.
+   Update MODEL_REF_PRESSURE (GROUP, POINT, PCI) and
+   MODEL_MAX_PRESSURE (GROUP, POINT, PCI) accordingly.  */
+
+static void
+model_start_update_pressure (struct model_pressure_group *group,
+			     int point, int pci, int delta)
+{
+  int next_max_pressure;
+
+  if (point == model_num_insns)
+    {
+      /* The instruction wasn't part of the model schedule; it was moved
+	 from a different block.  Update the pressure for the end of
+	 the model schedule.  */
+      MODEL_REF_PRESSURE (group, point, pci) += delta;
+      MODEL_MAX_PRESSURE (group, point, pci) += delta;
+    }
+  else
+    {
+      /* Record that this instruction has been scheduled.  Nothing now
+	 changes between POINT and POINT + 1, so get the maximum pressure
+	 from the latter.  If the maximum pressure decreases, the new
+	 pressure point may be before POINT.  */
+      MODEL_REF_PRESSURE (group, point, pci) = -1;
+      next_max_pressure = MODEL_MAX_PRESSURE (group, point + 1, pci);
+      if (MODEL_MAX_PRESSURE (group, point, pci) > next_max_pressure)
+	{
+	  MODEL_MAX_PRESSURE (group, point, pci) = next_max_pressure;
+	  if (group->limits[pci].point == point)
+	    group->limits[pci].point = -1;
+	}
+    }
+}
+
+/* Record that scheduling a later instruction has changed the pressure
+   at point POINT of the model schedule by DELTA (which might be 0).
+   Update GROUP accordingly.  Return nonzero if these changes might
+   trigger changes to previous points as well.  */
+
+static int
+model_update_pressure (struct model_pressure_group *group,
+		       int point, int pci, int delta)
+{
+  int ref_pressure, max_pressure, next_max_pressure;
+
+  /* If POINT hasn't yet been scheduled, update its pressure.  */
+  ref_pressure = MODEL_REF_PRESSURE (group, point, pci);
+  if (ref_pressure >= 0 && delta != 0)
+    {
+      ref_pressure += delta;
+      MODEL_REF_PRESSURE (group, point, pci) = ref_pressure;
+
+      /* Check whether the maximum pressure in the overall schedule
+	 has increased.  (This means that the MODEL_MAX_PRESSURE of
+	 every point <= POINT will need to increae too; see below.)  */
+      if (group->limits[pci].pressure < ref_pressure)
+	group->limits[pci].pressure = ref_pressure;
+
+      /* If we are at maximum pressure, and the maximum pressure
+	 point was previously unknown or later than POINT,
+	 bring it forward.  */
+      if (group->limits[pci].pressure == ref_pressure
+	  && !IN_RANGE (group->limits[pci].point, 0, point))
+	group->limits[pci].point = point;
+
+      /* If POINT used to be the point of maximum pressure, but isn't
+	 any longer, we need to recalculate it using a forward walk.  */
+      if (group->limits[pci].pressure > ref_pressure
+	  && group->limits[pci].point == point)
+	group->limits[pci].point = -1;
+    }
+
+  /* Update the maximum pressure at POINT.  Changes here might also
+     affect the maximum pressure at POINT - 1.  */
+  next_max_pressure = MODEL_MAX_PRESSURE (group, point + 1, pci);
+  max_pressure = MAX (ref_pressure, next_max_pressure);
+  if (MODEL_MAX_PRESSURE (group, point, pci) != max_pressure)
+    {
+      MODEL_MAX_PRESSURE (group, point, pci) = max_pressure;
+      return 1;
+    }
+  return 0;
+}
+
+/* INSN has just been scheduled.  Update the model schedule accordingly.  */
+
+static void
+model_recompute (rtx insn)
+{
+  struct {
+    int last_use;
+    int regno;
+  } uses[FIRST_PSEUDO_REGISTER + MAX_RECOG_OPERANDS];
+  struct reg_use_data *use;
+  struct reg_pressure_data *reg_pressure;
+  int delta[N_REG_CLASSES];
+  int pci, point, mix, new_last, cl, ref_pressure, queue;
+  unsigned int i, num_uses, num_pending_births;
+  bool print_p;
+
+  /* The destinations of INSN were previously live from POINT onwards, but are
+     now live from model_curr_point onwards.  Set up DELTA accordingly.  */
+  point = model_index (insn);
+  reg_pressure = INSN_REG_PRESSURE (insn);
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      delta[cl] = reg_pressure[pci].set_increase;
+    }
+
+  /* Record which registers previously died at POINT, but which now die
+     before POINT.  Adjust DELTA so that it represents the effect of
+     this change after POINT - 1.  Set NUM_PENDING_BIRTHS to the number of
+     registers that will be born in the range [model_curr_point, POINT).  */
+  num_uses = 0;
+  num_pending_births = 0;
+  for (use = INSN_REG_USE_LIST (insn); use != NULL; use = use->next_insn_use)
+    {
+      new_last = model_last_use_except (use);
+      if (new_last < point)
+	{
+	  gcc_assert (num_uses < ARRAY_SIZE (uses));
+	  uses[num_uses].last_use = new_last;
+	  uses[num_uses].regno = use->regno;
+	  /* This register is no longer live after POINT - 1.  */
+	  mark_regno_birth_or_death (NULL, delta, use->regno, false);
+	  num_uses++;
+	  if (new_last >= 0)
+	    num_pending_births++;
+	}
+    }
+
+  /* Update the MODEL_REF_PRESSURE and MODEL_MAX_PRESSURE for POINT.
+     Also set each group pressure limit for POINT.  */
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      model_start_update_pressure (&model_before_pressure,
+				   point, pci, delta[cl]);
+    }
+
+  /* Walk the model schedule backwards, starting immediately before POINT.  */
+  print_p = false;
+  if (point != model_curr_point)
+    do
+      {
+	point--;
+	insn = MODEL_INSN (point);
+	queue = QUEUE_INDEX (insn);
+
+	if (queue != QUEUE_SCHEDULED)
+	  {
+	    /* DELTA describes the effect of the move on the register pressure
+	       after POINT.  Make it describe the effect on the pressure
+	       before POINT.  */
+	    i = 0;
+	    while (i < num_uses)
+	      {
+		if (uses[i].last_use == point)
+		  {
+		    /* This register is now live again.  */
+		    mark_regno_birth_or_death (NULL, delta,
+					       uses[i].regno, true);
+
+		    /* Remove this use from the array.  */
+		    uses[i] = uses[num_uses - 1];
+		    num_uses--;
+		    num_pending_births--;
+		  }
+		else
+		  i++;
+	      }
+
+	    if (sched_verbose >= 5)
+	      {
+		if (!print_p)
+		  {
+		    fprintf (sched_dump, MODEL_BAR);
+		    fprintf (sched_dump, ";;\t\t| New pressure for model"
+			     " schedule\n");
+		    fprintf (sched_dump, MODEL_BAR);
+		    print_p = true;
+		  }
+
+		fprintf (sched_dump, ";;\t\t| %3d %4d %-30s ",
+			 point, INSN_UID (insn),
+			 str_pattern_slim (PATTERN (insn)));
+		for (pci = 0; pci < ira_pressure_classes_num; pci++)
+		  {
+		    cl = ira_pressure_classes[pci];
+		    ref_pressure = MODEL_REF_PRESSURE (&model_before_pressure,
+						       point, pci);
+		    fprintf (sched_dump, " %s:[%d->%d]",
+			     reg_class_names[ira_pressure_classes[pci]],
+			     ref_pressure, ref_pressure + delta[cl]);
+		  }
+		fprintf (sched_dump, "\n");
+	      }
+	  }
+
+	/* Adjust the pressure at POINT.  Set MIX to nonzero if POINT - 1
+	   might have changed as well.  */
+	mix = num_pending_births;
+	for (pci = 0; pci < ira_pressure_classes_num; pci++)
+	  {
+	    cl = ira_pressure_classes[pci];
+	    mix |= delta[cl];
+	    mix |= model_update_pressure (&model_before_pressure,
+					  point, pci, delta[cl]);
+	  }
+      }
+    while (mix && point > model_curr_point);
+
+  if (print_p)
+    fprintf (sched_dump, MODEL_BAR);
+}
+
+/* After DEP, which was cancelled, has been resolved for insn NEXT,
+   check whether the insn's pattern needs restoring.  */
+static bool
+must_restore_pattern_p (rtx next, dep_t dep)
+{
+  if (QUEUE_INDEX (next) == QUEUE_SCHEDULED)
+    return false;
+
+  if (DEP_TYPE (dep) == REG_DEP_CONTROL)
+    {
+      gcc_assert (ORIG_PAT (next) != NULL_RTX);
+      gcc_assert (next == DEP_CON (dep));
+    }
+  else
+    {
+      struct dep_replacement *desc = DEP_REPLACE (dep);
+      if (desc->insn != next)
+	{
+	  gcc_assert (*desc->loc == desc->orig);
+	  return false;
+	}
+    }
+  return true;
+}
+
+/* model_spill_cost (CL, P, P') returns the cost of increasing the
+   pressure on CL from P to P'.  We use this to calculate a "base ECC",
+   baseECC (CL, X), for each pressure class CL and each instruction X.
+   Supposing X changes the pressure on CL from P to P', and that the
+   maximum pressure on CL in the current model schedule is MP', then:
+
+   * if X occurs before or at the next point of maximum pressure in
+     the model schedule and P' > MP', then:
+
+       baseECC (CL, X) = model_spill_cost (CL, MP, P')
+
+     The idea is that the pressure after scheduling a fixed set of
+     instructions -- in this case, the set up to and including the
+     next maximum pressure point -- is going to be the same regardless
+     of the order; we simply want to keep the intermediate pressure
+     under control.  Thus X has a cost of zero unless scheduling it
+     now would exceed MP'.
+
+     If all increases in the set are by the same amount, no zero-cost
+     instruction will ever cause the pressure to exceed MP'.  However,
+     if X is instead moved past an instruction X' with pressure in the
+     range (MP' - (P' - P), MP'), the pressure at X' will increase
+     beyond MP'.  Since baseECC is very much a heuristic anyway,
+     it doesn't seem worth the overhead of tracking cases like these.
+
+     The cost of exceeding MP' is always based on the original maximum
+     pressure MP.  This is so that going 2 registers over the original
+     limit has the same cost regardless of whether it comes from two
+     separate +1 deltas or from a single +2 delta.
+
+   * if X occurs after the next point of maximum pressure in the model
+     schedule and P' > P, then:
+
+       baseECC (CL, X) = model_spill_cost (CL, MP, MP' + (P' - P))
+
+     That is, if we move X forward across a point of maximum pressure,
+     and if X increases the pressure by P' - P, then we conservatively
+     assume that scheduling X next would increase the maximum pressure
+     by P' - P.  Again, the cost of doing this is based on the original
+     maximum pressure MP, for the same reason as above.
+
+   * if P' < P, P > MP, and X occurs at or after the next point of
+     maximum pressure, then:
+
+       baseECC (CL, X) = -model_spill_cost (CL, MAX (MP, P'), P)
+
+     That is, if we have already exceeded the original maximum pressure MP,
+     and if X might reduce the maximum pressure again -- or at least push
+     it further back, and thus allow more scheduling freedom -- it is given
+     a negative cost to reflect the improvement.
+
+   * otherwise,
+
+       baseECC (CL, X) = 0
+
+     In this case, X is not expected to affect the maximum pressure MP',
+     so it has zero cost.
+
+   We then create a combined value baseECC (X) that is the sum of
+   baseECC (CL, X) for each pressure class CL.
+
+   baseECC (X) could itself be used as the ECC value described above.
+   However, this is often too conservative, in the sense that it
+   tends to make high-priority instructions that increase pressure
+   wait too long in cases where introducing a spill would be better.
+   For this reason the final ECC is a priority-adjusted form of
+   baseECC (X).  Specifically, we calculate:
+
+     P (X) = INSN_PRIORITY (X) - insn_delay (X) - baseECC (X)
+     baseP = MAX { P (X) | baseECC (X) <= 0 }
+
+   Then:
+
+     ECC (X) = MAX (MIN (baseP - P (X), baseECC (X)), 0)
+
+   Thus an instruction's effect on pressure is ignored if it has a high
+   enough priority relative to the ones that don't increase pressure.
+   Negative values of baseECC (X) do not increase the priority of X
+   itself, but they do make it harder for other instructions to
+   increase the pressure further.
+
+   This pressure cost is deliberately timid.  The intention has been
+   to choose a heuristic that rarely interferes with the normal list
+   scheduler in cases where that scheduler would produce good code.
+   We simply want to curb some of its worst excesses.  */
+
+/* Return the cost of increasing the pressure in class CL from FROM to TO.
+
+   Here we use the very simplistic cost model that every register above
+   ira_class_hard_regs_num[CL] has a spill cost of 1.  We could use other
+   measures instead, such as one based on MEMORY_MOVE_COST.  However:
+
+      (1) In order for an instruction to be scheduled, the higher cost
+	  would need to be justified in a single saving of that many stalls.
+	  This is overly pessimistic, because the benefit of spilling is
+	  often to avoid a sequence of several short stalls rather than
+	  a single long one.
+
+      (2) The cost is still arbitrary.  Because we are not allocating
+	  registers during scheduling, we have no way of knowing for
+	  sure how many memory accesses will be required by each spill,
+	  where the spills will be placed within the block, or even
+	  which block(s) will contain the spills.
+
+   So a higher cost than 1 is often too conservative in practice,
+   forcing blocks to contain unnecessary stalls instead of spill code.
+   The simple cost below seems to be the best compromise.  It reduces
+   the interference with the normal list scheduler, which helps make
+   it more suitable for a default-on option.  */
+
+static int
+model_spill_cost (int cl, int from, int to)
+{
+  from = MAX (from, ira_class_hard_regs_num[cl]);
+  return MAX (to, from) - from;
+}
+
+/* Return baseECC (ira_pressure_classes[PCI], POINT), given that
+   P = curr_reg_pressure[ira_pressure_classes[PCI]] and that
+   P' = P + DELTA.  */
+
+static int
+model_excess_group_cost (struct model_pressure_group *group,
+			 int point, int pci, int delta)
+{
+  int pressure, cl;
+
+  cl = ira_pressure_classes[pci];
+  if (delta < 0 && point >= group->limits[pci].point)
+    {
+      pressure = MAX (group->limits[pci].orig_pressure,
+		      curr_reg_pressure[cl] + delta);
+      return -model_spill_cost (cl, pressure, curr_reg_pressure[cl]);
+    }
+
+  if (delta > 0)
+    {
+      if (point > group->limits[pci].point)
+	pressure = group->limits[pci].pressure + delta;
+      else
+	pressure = curr_reg_pressure[cl] + delta;
+
+      if (pressure > group->limits[pci].pressure)
+	return model_spill_cost (cl, group->limits[pci].orig_pressure,
+				 pressure);
+    }
+
+  return 0;
+}
+
+/* Return baseECC (MODEL_INSN (INSN)).  Dump the costs to sched_dump
+   if PRINT_P.  */
+
+static int
+model_excess_cost (rtx insn, bool print_p)
+{
+  int point, pci, cl, cost, this_cost, delta;
+  struct reg_pressure_data *insn_reg_pressure;
+  int insn_death[N_REG_CLASSES];
+
+  calculate_reg_deaths (insn, insn_death);
+  point = model_index (insn);
+  insn_reg_pressure = INSN_REG_PRESSURE (insn);
+  cost = 0;
+
+  if (print_p)
+    fprintf (sched_dump, ";;\t\t| %3d %4d | %4d %+3d |", point,
+	     INSN_UID (insn), INSN_PRIORITY (insn), insn_delay (insn));
+
+  /* Sum up the individual costs for each register class.  */
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      delta = insn_reg_pressure[pci].set_increase - insn_death[cl];
+      this_cost = model_excess_group_cost (&model_before_pressure,
+					   point, pci, delta);
+      cost += this_cost;
+      if (print_p)
+	fprintf (sched_dump, " %s:[%d base cost %d]",
+		 reg_class_names[cl], delta, this_cost);
+    }
+
+  if (print_p)
+    fprintf (sched_dump, "\n");
+
+  return cost;
+}
+
+/* Dump the next points of maximum pressure for GROUP.  */
+
+static void
+model_dump_pressure_points (struct model_pressure_group *group)
+{
+  int pci, cl;
+
+  fprintf (sched_dump, ";;\t\t|  pressure points");
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      fprintf (sched_dump, " %s:[%d->%d at ", reg_class_names[cl],
+	       curr_reg_pressure[cl], group->limits[pci].pressure);
+      if (group->limits[pci].point < model_num_insns)
+	fprintf (sched_dump, "%d:%d]", group->limits[pci].point,
+		 INSN_UID (MODEL_INSN (group->limits[pci].point)));
+      else
+	fprintf (sched_dump, "end]");
+    }
+  fprintf (sched_dump, "\n");
+}
+
+/* Set INSN_REG_PRESSURE_EXCESS_COST_CHANGE for INSNS[0...COUNT-1].  */
+
+static void
+model_set_excess_costs (rtx *insns, int count)
+{
+  int i, cost, priority_base, priority;
+  bool print_p;
+
+  /* Record the baseECC value for each instruction in the model schedule,
+     except that negative costs are converted to zero ones now rather thatn
+     later.  Do not assign a cost to debug instructions, since they must
+     not change code-generation decisions.  Experiments suggest we also
+     get better results by not assigning a cost to instructions from
+     a different block.
+
+     Set PRIORITY_BASE to baseP in the block comment above.  This is the
+     maximum priority of the "cheap" instructions, which should always
+     include the next model instruction.  */
+  priority_base = 0;
+  print_p = false;
+  for (i = 0; i < count; i++)
+    if (INSN_MODEL_INDEX (insns[i]))
+      {
+	if (sched_verbose >= 6 && !print_p)
+	  {
+	    fprintf (sched_dump, MODEL_BAR);
+	    fprintf (sched_dump, ";;\t\t| Pressure costs for ready queue\n");
+	    model_dump_pressure_points (&model_before_pressure);
+	    fprintf (sched_dump, MODEL_BAR);
+	    print_p = true;
+	  }
+	cost = model_excess_cost (insns[i], print_p);
+	if (cost <= 0)
+	  {
+	    priority = INSN_PRIORITY (insns[i]) - insn_delay (insns[i]) - cost;
+	    priority_base = MAX (priority_base, priority);
+	    cost = 0;
+	  }
+	INSN_REG_PRESSURE_EXCESS_COST_CHANGE (insns[i]) = cost;
+      }
+  if (print_p)
+    fprintf (sched_dump, MODEL_BAR);
+
+  /* Use MAX (baseECC, 0) and baseP to calculcate ECC for each
+     instruction.  */
+  for (i = 0; i < count; i++)
+    {
+      cost = INSN_REG_PRESSURE_EXCESS_COST_CHANGE (insns[i]);
+      priority = INSN_PRIORITY (insns[i]) - insn_delay (insns[i]);
+      if (cost > 0 && priority > priority_base)
+	{
+	  cost += priority_base - priority;
+	  INSN_REG_PRESSURE_EXCESS_COST_CHANGE (insns[i]) = MAX (cost, 0);
+	}
+    }
+}
+
 /* Returns a positive value if x is preferred; returns a negative value if
    y is preferred.  Should never return 0, since that will make the sort
    unstable.  */
@@ -1640,7 +2537,7 @@ rank_for_schedule (const void *x, const void *y)
   rtx tmp = *(const rtx *) y;
   rtx tmp2 = *(const rtx *) x;
   int tmp_class, tmp2_class;
-  int val, priority_val, info_val;
+  int val, priority_val, info_val, diff;
 
   if (MAY_HAVE_DEBUG_INSNS)
     {
@@ -1653,6 +2550,22 @@ rank_for_schedule (const void *x, const void *y)
 	return INSN_LUID (tmp) - INSN_LUID (tmp2);
     }
 
+  if (live_range_shrinkage_p)
+    {
+      /* Don't use SCHED_PRESSURE_MODEL -- it results in much worse
+	 code.  */
+      gcc_assert (sched_pressure == SCHED_PRESSURE_WEIGHTED);
+      if ((INSN_REG_PRESSURE_EXCESS_COST_CHANGE (tmp) < 0
+	   || INSN_REG_PRESSURE_EXCESS_COST_CHANGE (tmp2) < 0)
+	  && (diff = (INSN_REG_PRESSURE_EXCESS_COST_CHANGE (tmp)
+		      - INSN_REG_PRESSURE_EXCESS_COST_CHANGE (tmp2))) != 0)
+	return diff;
+      /* Sort by INSN_LUID (original insn order), so that we make the
+	 sort stable.  This minimizes instruction movement, thus
+	 minimizing sched's effect on debugging and cross-jumping.  */
+      return INSN_LUID (tmp) - INSN_LUID (tmp2);
+    }
+
   /* The insn in a schedule group should be issued the first.  */
   if (flag_sched_group_heuristic &&
       SCHED_GROUP_P (tmp) != SCHED_GROUP_P (tmp2))
@@ -1661,23 +2574,18 @@ rank_for_schedule (const void *x, const void *y)
   /* Make sure that priority of TMP and TMP2 are initialized.  */
   gcc_assert (INSN_PRIORITY_KNOWN (tmp) && INSN_PRIORITY_KNOWN (tmp2));
 
-  if (sched_pressure_p)
+  if (sched_pressure != SCHED_PRESSURE_NONE)
     {
-      int diff;
-
       /* Prefer insn whose scheduling results in the smallest register
 	 pressure excess.  */
       if ((diff = (INSN_REG_PRESSURE_EXCESS_COST_CHANGE (tmp)
-		   + (INSN_TICK (tmp) > clock_var
-		      ? INSN_TICK (tmp) - clock_var : 0)
+		   + insn_delay (tmp)
 		   - INSN_REG_PRESSURE_EXCESS_COST_CHANGE (tmp2)
-		   - (INSN_TICK (tmp2) > clock_var
-		      ? INSN_TICK (tmp2) - clock_var : 0))) != 0)
+		   - insn_delay (tmp2))))
 	return diff;
     }
 
-
-  if (sched_pressure_p
+  if (sched_pressure != SCHED_PRESSURE_NONE
       && (INSN_TICK (tmp2) > clock_var || INSN_TICK (tmp) > clock_var))
     {
       if (INSN_TICK (tmp) <= clock_var)
@@ -1729,7 +2637,7 @@ rank_for_schedule (const void *x, const void *y)
     }
 
   info_val = (*current_sched_info->rank) (tmp, tmp2);
-  if(flag_sched_rank_heuristic && info_val)
+  if (flag_sched_rank_heuristic && info_val)
     return info_val;
 
   /* Compare insns based on their relation to the last scheduled
@@ -1769,11 +2677,22 @@ rank_for_schedule (const void *x, const void *y)
 	return val;
     }
 
+  /* Prefer instructions that occur earlier in the model schedule.  */
+  if (sched_pressure == SCHED_PRESSURE_MODEL)
+    {
+      int diff;
+
+      diff = model_index (tmp) - model_index (tmp2);
+      if (diff != 0)
+	return diff;
+    }
+
   /* Prefer the insn which has more later insns that depend on it.
      This gives the scheduler more freedom when scheduling later
      instructions at the expense of added register pressure.  */
 
-  val = (dep_list_size (tmp2) - dep_list_size (tmp));
+  val = (dep_list_size (tmp2, SD_LIST_FORW)
+	 - dep_list_size (tmp, SD_LIST_FORW));
 
   if (flag_sched_dep_count_heuristic && val != 0)
     return val;
@@ -1995,12 +2914,15 @@ ready_sort (struct ready_list *ready)
   int i;
   rtx *first = ready_lastpos (ready);
 
-  if (sched_pressure_p)
+  if (sched_pressure == SCHED_PRESSURE_WEIGHTED)
     {
       for (i = 0; i < ready->n_ready; i++)
 	if (!DEBUG_INSN_P (first[i]))
 	  setup_insn_reg_pressure_info (first[i]);
     }
+  if (sched_pressure == SCHED_PRESSURE_MODEL
+      && model_curr_point < model_num_insns)
+    model_set_excess_costs (first, ready->n_ready);
   SCHED_SORT (first, ready->n_ready);
 }
 
@@ -2063,10 +2985,12 @@ update_register_pressure (rtx insn)
   gcc_checking_assert (!DEBUG_INSN_P (insn));
 
   for (use = INSN_REG_USE_LIST (insn); use != NULL; use = use->next_insn_use)
-    if (dying_use_p (use) && bitmap_bit_p (curr_reg_live, use->regno))
-      mark_regno_birth_or_death (use->regno, false);
+    if (dying_use_p (use))
+      mark_regno_birth_or_death (curr_reg_live, curr_reg_pressure,
+				 use->regno, false);
   for (set = INSN_REG_SET_LIST (insn); set != NULL; set = set->next_insn_set)
-    mark_regno_birth_or_death (set->regno, true);
+    mark_regno_birth_or_death (curr_reg_live, curr_reg_pressure,
+			       set->regno, true);
 }
 
 /* Set up or update (if UPDATE_P) max register pressure (see its
@@ -2138,7 +3062,7 @@ update_reg_and_insn_max_reg_pressure (rtx insn)
 void
 sched_setup_bb_reg_pressure_info (basic_block bb, rtx after)
 {
-  gcc_assert (sched_pressure_p);
+  gcc_assert (sched_pressure == SCHED_PRESSURE_WEIGHTED);
   initiate_bb_reg_pressure_info (bb);
   setup_insn_max_reg_pressure (after, false);
 }
@@ -2188,6 +3112,611 @@ check_clobbered_conditions (rtx insn)
     }
 }
 
+/* Return (in order):
+
+   - positive if INSN adversely affects the pressure on one
+     register class
+
+   - negative if INSN reduces the pressure on one register class
+
+   - 0 if INSN doesn't affect the pressure on any register class.  */
+
+static int
+model_classify_pressure (struct model_insn_info *insn)
+{
+  struct reg_pressure_data *reg_pressure;
+  int death[N_REG_CLASSES];
+  int pci, cl, sum;
+
+  calculate_reg_deaths (insn->insn, death);
+  reg_pressure = INSN_REG_PRESSURE (insn->insn);
+  sum = 0;
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      if (death[cl] < reg_pressure[pci].set_increase)
+	return 1;
+      sum += reg_pressure[pci].set_increase - death[cl];
+    }
+  return sum;
+}
+
+/* Return true if INSN1 should come before INSN2 in the model schedule.  */
+
+static int
+model_order_p (struct model_insn_info *insn1, struct model_insn_info *insn2)
+{
+  unsigned int height1, height2;
+  unsigned int priority1, priority2;
+
+  /* Prefer instructions with a higher model priority.  */
+  if (insn1->model_priority != insn2->model_priority)
+    return insn1->model_priority > insn2->model_priority;
+
+  /* Combine the length of the longest path of satisfied true dependencies
+     that leads to each instruction (depth) with the length of the longest
+     path of any dependencies that leads from the instruction (alap).
+     Prefer instructions with the greatest combined length.  If the combined
+     lengths are equal, prefer instructions with the greatest depth.
+
+     The idea is that, if we have a set S of "equal" instructions that each
+     have ALAP value X, and we pick one such instruction I, any true-dependent
+     successors of I that have ALAP value X - 1 should be preferred over S.
+     This encourages the schedule to be "narrow" rather than "wide".
+     However, if I is a low-priority instruction that we decided to
+     schedule because of its model_classify_pressure, and if there
+     is a set of higher-priority instructions T, the aforementioned
+     successors of I should not have the edge over T.  */
+  height1 = insn1->depth + insn1->alap;
+  height2 = insn2->depth + insn2->alap;
+  if (height1 != height2)
+    return height1 > height2;
+  if (insn1->depth != insn2->depth)
+    return insn1->depth > insn2->depth;
+
+  /* We have no real preference between INSN1 an INSN2 as far as attempts
+     to reduce pressure go.  Prefer instructions with higher priorities.  */
+  priority1 = INSN_PRIORITY (insn1->insn);
+  priority2 = INSN_PRIORITY (insn2->insn);
+  if (priority1 != priority2)
+    return priority1 > priority2;
+
+  /* Use the original rtl sequence as a tie-breaker.  */
+  return insn1 < insn2;
+}
+
+/* Add INSN to the model worklist immediately after PREV.  Add it to the
+   beginning of the list if PREV is null.  */
+
+static void
+model_add_to_worklist_at (struct model_insn_info *insn,
+			  struct model_insn_info *prev)
+{
+  gcc_assert (QUEUE_INDEX (insn->insn) == QUEUE_NOWHERE);
+  QUEUE_INDEX (insn->insn) = QUEUE_READY;
+
+  insn->prev = prev;
+  if (prev)
+    {
+      insn->next = prev->next;
+      prev->next = insn;
+    }
+  else
+    {
+      insn->next = model_worklist;
+      model_worklist = insn;
+    }
+  if (insn->next)
+    insn->next->prev = insn;
+}
+
+/* Remove INSN from the model worklist.  */
+
+static void
+model_remove_from_worklist (struct model_insn_info *insn)
+{
+  gcc_assert (QUEUE_INDEX (insn->insn) == QUEUE_READY);
+  QUEUE_INDEX (insn->insn) = QUEUE_NOWHERE;
+
+  if (insn->prev)
+    insn->prev->next = insn->next;
+  else
+    model_worklist = insn->next;
+  if (insn->next)
+    insn->next->prev = insn->prev;
+}
+
+/* Add INSN to the model worklist.  Start looking for a suitable position
+   between neighbors PREV and NEXT, testing at most MAX_SCHED_READY_INSNS
+   insns either side.  A null PREV indicates the beginning of the list and
+   a null NEXT indicates the end.  */
+
+static void
+model_add_to_worklist (struct model_insn_info *insn,
+		       struct model_insn_info *prev,
+		       struct model_insn_info *next)
+{
+  int count;
+
+  count = MAX_SCHED_READY_INSNS;
+  if (count > 0 && prev && model_order_p (insn, prev))
+    do
+      {
+	count--;
+	prev = prev->prev;
+      }
+    while (count > 0 && prev && model_order_p (insn, prev));
+  else
+    while (count > 0 && next && model_order_p (next, insn))
+      {
+	count--;
+	prev = next;
+	next = next->next;
+      }
+  model_add_to_worklist_at (insn, prev);
+}
+
+/* INSN may now have a higher priority (in the model_order_p sense)
+   than before.  Move it up the worklist if necessary.  */
+
+static void
+model_promote_insn (struct model_insn_info *insn)
+{
+  struct model_insn_info *prev;
+  int count;
+
+  prev = insn->prev;
+  count = MAX_SCHED_READY_INSNS;
+  while (count > 0 && prev && model_order_p (insn, prev))
+    {
+      count--;
+      prev = prev->prev;
+    }
+  if (prev != insn->prev)
+    {
+      model_remove_from_worklist (insn);
+      model_add_to_worklist_at (insn, prev);
+    }
+}
+
+/* Add INSN to the end of the model schedule.  */
+
+static void
+model_add_to_schedule (rtx insn)
+{
+  unsigned int point;
+
+  gcc_assert (QUEUE_INDEX (insn) == QUEUE_NOWHERE);
+  QUEUE_INDEX (insn) = QUEUE_SCHEDULED;
+
+  point = model_schedule.length ();
+  model_schedule.quick_push (insn);
+  INSN_MODEL_INDEX (insn) = point + 1;
+}
+
+/* Analyze the instructions that are to be scheduled, setting up
+   MODEL_INSN_INFO (...) and model_num_insns accordingly.  Add ready
+   instructions to model_worklist.  */
+
+static void
+model_analyze_insns (void)
+{
+  rtx start, end, iter;
+  sd_iterator_def sd_it;
+  dep_t dep;
+  struct model_insn_info *insn, *con;
+
+  model_num_insns = 0;
+  start = PREV_INSN (current_sched_info->next_tail);
+  end = current_sched_info->prev_head;
+  for (iter = start; iter != end; iter = PREV_INSN (iter))
+    if (NONDEBUG_INSN_P (iter))
+      {
+	insn = MODEL_INSN_INFO (iter);
+	insn->insn = iter;
+	FOR_EACH_DEP (iter, SD_LIST_FORW, sd_it, dep)
+	  {
+	    con = MODEL_INSN_INFO (DEP_CON (dep));
+	    if (con->insn && insn->alap < con->alap + 1)
+	      insn->alap = con->alap + 1;
+	  }
+
+	insn->old_queue = QUEUE_INDEX (iter);
+	QUEUE_INDEX (iter) = QUEUE_NOWHERE;
+
+	insn->unscheduled_preds = dep_list_size (iter, SD_LIST_HARD_BACK);
+	if (insn->unscheduled_preds == 0)
+	  model_add_to_worklist (insn, NULL, model_worklist);
+
+	model_num_insns++;
+      }
+}
+
+/* The global state describes the register pressure at the start of the
+   model schedule.  Initialize GROUP accordingly.  */
+
+static void
+model_init_pressure_group (struct model_pressure_group *group)
+{
+  int pci, cl;
+
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      group->limits[pci].pressure = curr_reg_pressure[cl];
+      group->limits[pci].point = 0;
+    }
+  /* Use index model_num_insns to record the state after the last
+     instruction in the model schedule.  */
+  group->model = XNEWVEC (struct model_pressure_data,
+			  (model_num_insns + 1) * ira_pressure_classes_num);
+}
+
+/* Record that MODEL_REF_PRESSURE (GROUP, POINT, PCI) is PRESSURE.
+   Update the maximum pressure for the whole schedule.  */
+
+static void
+model_record_pressure (struct model_pressure_group *group,
+		       int point, int pci, int pressure)
+{
+  MODEL_REF_PRESSURE (group, point, pci) = pressure;
+  if (group->limits[pci].pressure < pressure)
+    {
+      group->limits[pci].pressure = pressure;
+      group->limits[pci].point = point;
+    }
+}
+
+/* INSN has just been added to the end of the model schedule.  Record its
+   register-pressure information.  */
+
+static void
+model_record_pressures (struct model_insn_info *insn)
+{
+  struct reg_pressure_data *reg_pressure;
+  int point, pci, cl, delta;
+  int death[N_REG_CLASSES];
+
+  point = model_index (insn->insn);
+  if (sched_verbose >= 2)
+    {
+      if (point == 0)
+	{
+	  fprintf (sched_dump, "\n;;\tModel schedule:\n;;\n");
+	  fprintf (sched_dump, ";;\t| idx insn | mpri hght dpth prio |\n");
+	}
+      fprintf (sched_dump, ";;\t| %3d %4d | %4d %4d %4d %4d | %-30s ",
+	       point, INSN_UID (insn->insn), insn->model_priority,
+	       insn->depth + insn->alap, insn->depth,
+	       INSN_PRIORITY (insn->insn),
+	       str_pattern_slim (PATTERN (insn->insn)));
+    }
+  calculate_reg_deaths (insn->insn, death);
+  reg_pressure = INSN_REG_PRESSURE (insn->insn);
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      delta = reg_pressure[pci].set_increase - death[cl];
+      if (sched_verbose >= 2)
+	fprintf (sched_dump, " %s:[%d,%+d]", reg_class_names[cl],
+		 curr_reg_pressure[cl], delta);
+      model_record_pressure (&model_before_pressure, point, pci,
+			     curr_reg_pressure[cl]);
+    }
+  if (sched_verbose >= 2)
+    fprintf (sched_dump, "\n");
+}
+
+/* All instructions have been added to the model schedule.  Record the
+   final register pressure in GROUP and set up all MODEL_MAX_PRESSUREs.  */
+
+static void
+model_record_final_pressures (struct model_pressure_group *group)
+{
+  int point, pci, max_pressure, ref_pressure, cl;
+
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      /* Record the final pressure for this class.  */
+      cl = ira_pressure_classes[pci];
+      point = model_num_insns;
+      ref_pressure = curr_reg_pressure[cl];
+      model_record_pressure (group, point, pci, ref_pressure);
+
+      /* Record the original maximum pressure.  */
+      group->limits[pci].orig_pressure = group->limits[pci].pressure;
+
+      /* Update the MODEL_MAX_PRESSURE for every point of the schedule.  */
+      max_pressure = ref_pressure;
+      MODEL_MAX_PRESSURE (group, point, pci) = max_pressure;
+      while (point > 0)
+	{
+	  point--;
+	  ref_pressure = MODEL_REF_PRESSURE (group, point, pci);
+	  max_pressure = MAX (max_pressure, ref_pressure);
+	  MODEL_MAX_PRESSURE (group, point, pci) = max_pressure;
+	}
+    }
+}
+
+/* Update all successors of INSN, given that INSN has just been scheduled.  */
+
+static void
+model_add_successors_to_worklist (struct model_insn_info *insn)
+{
+  sd_iterator_def sd_it;
+  struct model_insn_info *con;
+  dep_t dep;
+
+  FOR_EACH_DEP (insn->insn, SD_LIST_FORW, sd_it, dep)
+    {
+      con = MODEL_INSN_INFO (DEP_CON (dep));
+      /* Ignore debug instructions, and instructions from other blocks.  */
+      if (con->insn)
+	{
+	  con->unscheduled_preds--;
+
+	  /* Update the depth field of each true-dependent successor.
+	     Increasing the depth gives them a higher priority than
+	     before.  */
+	  if (DEP_TYPE (dep) == REG_DEP_TRUE && con->depth < insn->depth + 1)
+	    {
+	      con->depth = insn->depth + 1;
+	      if (QUEUE_INDEX (con->insn) == QUEUE_READY)
+		model_promote_insn (con);
+	    }
+
+	  /* If this is a true dependency, or if there are no remaining
+	     dependencies for CON (meaning that CON only had non-true
+	     dependencies), make sure that CON is on the worklist.
+	     We don't bother otherwise because it would tend to fill the
+	     worklist with a lot of low-priority instructions that are not
+	     yet ready to issue.  */
+	  if ((con->depth > 0 || con->unscheduled_preds == 0)
+	      && QUEUE_INDEX (con->insn) == QUEUE_NOWHERE)
+	    model_add_to_worklist (con, insn, insn->next);
+	}
+    }
+}
+
+/* Give INSN a higher priority than any current instruction, then give
+   unscheduled predecessors of INSN a higher priority still.  If any of
+   those predecessors are not on the model worklist, do the same for its
+   predecessors, and so on.  */
+
+static void
+model_promote_predecessors (struct model_insn_info *insn)
+{
+  struct model_insn_info *pro, *first;
+  sd_iterator_def sd_it;
+  dep_t dep;
+
+  if (sched_verbose >= 7)
+    fprintf (sched_dump, ";;\t+--- priority of %d = %d, priority of",
+	     INSN_UID (insn->insn), model_next_priority);
+  insn->model_priority = model_next_priority++;
+  model_remove_from_worklist (insn);
+  model_add_to_worklist_at (insn, NULL);
+
+  first = NULL;
+  for (;;)
+    {
+      FOR_EACH_DEP (insn->insn, SD_LIST_HARD_BACK, sd_it, dep)
+	{
+	  pro = MODEL_INSN_INFO (DEP_PRO (dep));
+	  /* The first test is to ignore debug instructions, and instructions
+	     from other blocks.  */
+	  if (pro->insn
+	      && pro->model_priority != model_next_priority
+	      && QUEUE_INDEX (pro->insn) != QUEUE_SCHEDULED)
+	    {
+	      pro->model_priority = model_next_priority;
+	      if (sched_verbose >= 7)
+		fprintf (sched_dump, " %d", INSN_UID (pro->insn));
+	      if (QUEUE_INDEX (pro->insn) == QUEUE_READY)
+		{
+		  /* PRO is already in the worklist, but it now has
+		     a higher priority than before.  Move it at the
+		     appropriate place.  */
+		  model_remove_from_worklist (pro);
+		  model_add_to_worklist (pro, NULL, model_worklist);
+		}
+	      else
+		{
+		  /* PRO isn't in the worklist.  Recursively process
+		     its predecessors until we find one that is.  */
+		  pro->next = first;
+		  first = pro;
+		}
+	    }
+	}
+      if (!first)
+	break;
+      insn = first;
+      first = insn->next;
+    }
+  if (sched_verbose >= 7)
+    fprintf (sched_dump, " = %d\n", model_next_priority);
+  model_next_priority++;
+}
+
+/* Pick one instruction from model_worklist and process it.  */
+
+static void
+model_choose_insn (void)
+{
+  struct model_insn_info *insn, *fallback;
+  int count;
+
+  if (sched_verbose >= 7)
+    {
+      fprintf (sched_dump, ";;\t+--- worklist:\n");
+      insn = model_worklist;
+      count = MAX_SCHED_READY_INSNS;
+      while (count > 0 && insn)
+	{
+	  fprintf (sched_dump, ";;\t+---   %d [%d, %d, %d, %d]\n",
+		   INSN_UID (insn->insn), insn->model_priority,
+		   insn->depth + insn->alap, insn->depth,
+		   INSN_PRIORITY (insn->insn));
+	  count--;
+	  insn = insn->next;
+	}
+    }
+
+  /* Look for a ready instruction whose model_classify_priority is zero
+     or negative, picking the highest-priority one.  Adding such an
+     instruction to the schedule now should do no harm, and may actually
+     do some good.
+
+     Failing that, see whether there is an instruction with the highest
+     extant model_priority that is not yet ready, but which would reduce
+     pressure if it became ready.  This is designed to catch cases like:
+
+       (set (mem (reg R1)) (reg R2))
+
+     where the instruction is the last remaining use of R1 and where the
+     value of R2 is not yet available (or vice versa).  The death of R1
+     means that this instruction already reduces pressure.  It is of
+     course possible that the computation of R2 involves other registers
+     that are hard to kill, but such cases are rare enough for this
+     heuristic to be a win in general.
+
+     Failing that, just pick the highest-priority instruction in the
+     worklist.  */
+  count = MAX_SCHED_READY_INSNS;
+  insn = model_worklist;
+  fallback = 0;
+  for (;;)
+    {
+      if (count == 0 || !insn)
+	{
+	  insn = fallback ? fallback : model_worklist;
+	  break;
+	}
+      if (insn->unscheduled_preds)
+	{
+	  if (model_worklist->model_priority == insn->model_priority
+	      && !fallback
+	      && model_classify_pressure (insn) < 0)
+	    fallback = insn;
+	}
+      else
+	{
+	  if (model_classify_pressure (insn) <= 0)
+	    break;
+	}
+      count--;
+      insn = insn->next;
+    }
+
+  if (sched_verbose >= 7 && insn != model_worklist)
+    {
+      if (insn->unscheduled_preds)
+	fprintf (sched_dump, ";;\t+--- promoting insn %d, with dependencies\n",
+		 INSN_UID (insn->insn));
+      else
+	fprintf (sched_dump, ";;\t+--- promoting insn %d, which is ready\n",
+		 INSN_UID (insn->insn));
+    }
+  if (insn->unscheduled_preds)
+    /* INSN isn't yet ready to issue.  Give all its predecessors the
+       highest priority.  */
+    model_promote_predecessors (insn);
+  else
+    {
+      /* INSN is ready.  Add it to the end of model_schedule and
+	 process its successors.  */
+      model_add_successors_to_worklist (insn);
+      model_remove_from_worklist (insn);
+      model_add_to_schedule (insn->insn);
+      model_record_pressures (insn);
+      update_register_pressure (insn->insn);
+    }
+}
+
+/* Restore all QUEUE_INDEXs to the values that they had before
+   model_start_schedule was called.  */
+
+static void
+model_reset_queue_indices (void)
+{
+  unsigned int i;
+  rtx insn;
+
+  FOR_EACH_VEC_ELT (model_schedule, i, insn)
+    QUEUE_INDEX (insn) = MODEL_INSN_INFO (insn)->old_queue;
+}
+
+/* We have calculated the model schedule and spill costs.  Print a summary
+   to sched_dump.  */
+
+static void
+model_dump_pressure_summary (void)
+{
+  int pci, cl;
+
+  fprintf (sched_dump, ";; Pressure summary:");
+  for (pci = 0; pci < ira_pressure_classes_num; pci++)
+    {
+      cl = ira_pressure_classes[pci];
+      fprintf (sched_dump, " %s:%d", reg_class_names[cl],
+	       model_before_pressure.limits[pci].pressure);
+    }
+  fprintf (sched_dump, "\n\n");
+}
+
+/* Initialize the SCHED_PRESSURE_MODEL information for the current
+   scheduling region.  */
+
+static void
+model_start_schedule (void)
+{
+  basic_block bb;
+
+  model_next_priority = 1;
+  model_schedule.create (sched_max_luid);
+  model_insns = XCNEWVEC (struct model_insn_info, sched_max_luid);
+
+  bb = BLOCK_FOR_INSN (NEXT_INSN (current_sched_info->prev_head));
+  initiate_reg_pressure_info (df_get_live_in (bb));
+
+  model_analyze_insns ();
+  model_init_pressure_group (&model_before_pressure);
+  while (model_worklist)
+    model_choose_insn ();
+  gcc_assert (model_num_insns == (int) model_schedule.length ());
+  if (sched_verbose >= 2)
+    fprintf (sched_dump, "\n");
+
+  model_record_final_pressures (&model_before_pressure);
+  model_reset_queue_indices ();
+
+  XDELETEVEC (model_insns);
+
+  model_curr_point = 0;
+  initiate_reg_pressure_info (df_get_live_in (bb));
+  if (sched_verbose >= 1)
+    model_dump_pressure_summary ();
+}
+
+/* Free the information associated with GROUP.  */
+
+static void
+model_finalize_pressure_group (struct model_pressure_group *group)
+{
+  XDELETEVEC (group->model);
+}
+
+/* Free the information created by model_start_schedule.  */
+
+static void
+model_end_schedule (void)
+{
+  model_finalize_pressure_group (&model_before_pressure);
+  model_schedule.release ();
+}
+
 /* A structure that holds local state for the loop in schedule_block.  */
 struct sched_block_state
 {
@@ -2221,11 +3750,9 @@ schedule_insn (rtx insn)
   if (sched_verbose >= 1)
     {
       struct reg_pressure_data *pressure_info;
-      char buf[2048];
-
-      print_insn (buf, insn, 0);
-      buf[40] = 0;
-      fprintf (sched_dump, ";;\t%3i--> %-40s:", clock_var, buf);
+      fprintf (sched_dump, ";;\t%3i--> %s%-40s:",
+	       clock_var, (*current_sched_info->print_insn) (insn, 1),
+	       str_pattern_slim (PATTERN (insn)));
 
       if (recog_memoized (insn) < 0)
 	fprintf (sched_dump, "nothing");
@@ -2236,14 +3763,21 @@ schedule_insn (rtx insn)
 	{
 	  fputc (':', sched_dump);
 	  for (i = 0; i < ira_pressure_classes_num; i++)
-	    fprintf (sched_dump, "%s%+d(%d)",
+	    fprintf (sched_dump, "%s%s%+d(%d)",
+		     scheduled_insns.length () > 1
+		     && INSN_LUID (insn)
+		     < INSN_LUID (scheduled_insns[scheduled_insns.length () - 2]) ? "@" : "",
 		     reg_class_names[ira_pressure_classes[i]],
 		     pressure_info[i].set_increase, pressure_info[i].change);
 	}
+      if (sched_pressure == SCHED_PRESSURE_MODEL
+	  && model_curr_point < model_num_insns
+	  && model_index (insn) == model_curr_point)
+	fprintf (sched_dump, ":model %d", model_curr_point);
       fputc ('\n', sched_dump);
     }
 
-  if (sched_pressure_p && !DEBUG_INSN_P (insn))
+  if (sched_pressure == SCHED_PRESSURE_WEIGHTED && !DEBUG_INSN_P (insn))
     update_reg_and_insn_max_reg_pressure (insn);
 
   /* Scheduling instruction should have all its dependencies resolved and
@@ -2307,6 +3841,24 @@ schedule_insn (rtx insn)
   gcc_assert (QUEUE_INDEX (insn) == QUEUE_NOWHERE);
   QUEUE_INDEX (insn) = QUEUE_SCHEDULED;
 
+  if (sched_pressure == SCHED_PRESSURE_MODEL
+      && model_curr_point < model_num_insns
+      && NONDEBUG_INSN_P (insn))
+    {
+      if (model_index (insn) == model_curr_point)
+	do
+	  model_curr_point++;
+	while (model_curr_point < model_num_insns
+	       && (QUEUE_INDEX (MODEL_INSN (model_curr_point))
+		   == QUEUE_SCHEDULED));
+      else
+	model_recompute (insn);
+      model_update_limit_points ();
+      update_register_pressure (insn);
+      if (sched_verbose >= 2)
+	print_curr_reg_pressure ();
+    }
+
   gcc_assert (INSN_TICK (insn) >= MIN_TICK);
   if (INSN_TICK (insn) > clock_var)
     /* INSN has been prematurely moved from the queue to the ready list.
@@ -2319,7 +3871,20 @@ schedule_insn (rtx insn)
 
   check_clobbered_conditions (insn);
 
-  /* Update dependent instructions.  */
+  /* Update dependent instructions.  First, see if by scheduling this insn
+     now we broke a dependence in a way that requires us to change another
+     insn.  */
+  for (sd_it = sd_iterator_start (insn, SD_LIST_SPEC_BACK);
+       sd_iterator_cond (&sd_it, &dep); sd_iterator_next (&sd_it))
+    {
+      struct dep_replacement *desc = DEP_REPLACE (dep);
+      rtx pro = DEP_PRO (dep);
+      if (QUEUE_INDEX (pro) != QUEUE_SCHEDULED
+	  && desc != NULL && desc->insn == pro)
+	apply_replacement (dep, false);
+    }
+
+  /* Go through and resolve forward dependencies.  */
   for (sd_it = sd_iterator_start (insn, SD_LIST_FORW);
        sd_iterator_cond (&sd_it, &dep);)
     {
@@ -2333,17 +3898,8 @@ schedule_insn (rtx insn)
 
       if (cancelled)
 	{
-	  if (QUEUE_INDEX (next) != QUEUE_SCHEDULED)
-	    {
-	      int tick = INSN_TICK (next);
-	      gcc_assert (ORIG_PAT (next) != NULL_RTX);
-	      haifa_change_pattern (next, ORIG_PAT (next));
-	      INSN_TICK (next) = tick;
-	      if (sd_lists_empty_p (next, SD_LIST_BACK))
-		TODO_SPEC (next) = 0;
-	      else if (!sd_lists_empty_p (next, SD_LIST_HARD_BACK))
-		TODO_SPEC (next) = HARD_DEP;
-	    }
+	  if (must_restore_pattern_p (next, dep))
+	    restore_pattern (dep, false);
 	  continue;
 	}
 
@@ -2501,6 +4057,16 @@ struct haifa_saved_data
      to 0 when restoring.  */
   int q_size;
   rtx *insn_queue;
+
+  /* Describe pattern replacements that occurred since this backtrack point
+     was queued.  */
+  vec<dep_t> replacement_deps;
+  vec<int> replace_apply;
+
+  /* A copy of the next-cycle replacement vectors at the time of the backtrack
+     point.  */
+  vec<dep_t> next_cycle_deps;
+  vec<int> next_cycle_apply;
 };
 
 /* A record, in reverse order, of all scheduled insns which have delay slots
@@ -2556,6 +4122,11 @@ save_backtrack_point (struct delay_pair *pair,
   save->last_nondebug_scheduled_insn = last_nondebug_scheduled_insn;
 
   save->sched_block = sched_block;
+
+  save->replacement_deps.create (0);
+  save->replace_apply.create (0);
+  save->next_cycle_deps = next_cycle_replace_deps.copy ();
+  save->next_cycle_apply = next_cycle_apply.copy ();
 
   if (current_sched_info->save_state)
     save->fe_saved_data = (*current_sched_info->save_state) ();
@@ -2626,6 +4197,25 @@ toggle_cancelled_flags (bool set)
     }
 }
 
+/* Undo the replacements that have occurred after backtrack point SAVE
+   was placed.  */
+static void
+undo_replacements_for_backtrack (struct haifa_saved_data *save)
+{
+  while (!save->replacement_deps.is_empty ())
+    {
+      dep_t dep = save->replacement_deps.pop ();
+      int apply_p = save->replace_apply.pop ();
+
+      if (apply_p)
+	restore_pattern (dep, true);
+      else
+	apply_replacement (dep, true);
+    }
+  save->replacement_deps.release ();
+  save->replace_apply.release ();
+}
+
 /* Pop entries from the SCHEDULED_INSNS vector up to and including INSN.
    Restore their dependencies to an unresolved state, and mark them as
    queued nowhere.  */
@@ -2633,9 +4223,7 @@ toggle_cancelled_flags (bool set)
 static void
 unschedule_insns_until (rtx insn)
 {
-  VEC (rtx, heap) *recompute_vec;
-
-  recompute_vec = VEC_alloc (rtx, heap, 0);
+  auto_vec<rtx> recompute_vec;
 
   /* Make two passes over the insns to be unscheduled.  First, we clear out
      dependencies and other trivial bookkeeping.  */
@@ -2645,7 +4233,7 @@ unschedule_insns_until (rtx insn)
       sd_iterator_def sd_it;
       dep_t dep;
 
-      last = VEC_pop (rtx, scheduled_insns);
+      last = scheduled_insns.pop ();
 
       /* This will be changed by restore_backtrack_point if the insn is in
 	 any queue.  */
@@ -2664,7 +4252,7 @@ unschedule_insns_until (rtx insn)
 	  if (!MUST_RECOMPUTE_SPEC_P (con))
 	    {
 	      MUST_RECOMPUTE_SPEC_P (con) = 1;
-	      VEC_safe_push (rtx, heap, recompute_vec, con);
+	      recompute_vec.safe_push (con);
 	    }
 	}
 
@@ -2677,11 +4265,11 @@ unschedule_insns_until (rtx insn)
      popped the scheduled_insns vector up to the point where we
      restart scheduling, as recompute_todo_spec requires it to be
      up-to-date.  */
-  while (!VEC_empty (rtx, recompute_vec))
+  while (!recompute_vec.is_empty ())
     {
       rtx con;
 
-      con = VEC_pop (rtx, recompute_vec);
+      con = recompute_vec.pop ();
       MUST_RECOMPUTE_SPEC_P (con) = 0;
       if (!sd_lists_empty_p (con, SD_LIST_HARD_BACK))
 	{
@@ -2691,9 +4279,8 @@ unschedule_insns_until (rtx insn)
 	    haifa_change_pattern (con, ORIG_PAT (con));
 	}
       else if (QUEUE_INDEX (con) != QUEUE_SCHEDULED)
-	TODO_SPEC (con) = recompute_todo_spec (con);
+	TODO_SPEC (con) = recompute_todo_spec (con, true);
     }
-  VEC_free (rtx, heap, recompute_vec);
 }
 
 /* Restore scheduler state from the topmost entry on the backtracking queue.
@@ -2718,6 +4305,10 @@ restore_last_backtrack_point (struct sched_block_state *psched_block)
       targetm.sched.set_sched_context (save->be_saved_data);
       targetm.sched.free_sched_context (save->be_saved_data);
     }
+
+  /* Do this first since it clobbers INSN_TICK of the involved
+     instructions.  */
+  undo_replacements_for_backtrack (save);
 
   /* Clear the QUEUE_INDEX of everything in the ready list or one
      of the queues.  */
@@ -2754,7 +4345,7 @@ restore_last_backtrack_point (struct sched_block_state *psched_block)
 	{
 	  rtx insn = first[i];
 	  QUEUE_INDEX (insn) = QUEUE_READY;
-	  TODO_SPEC (insn) = recompute_todo_spec (insn);
+	  TODO_SPEC (insn) = recompute_todo_spec (insn, true);
 	  INSN_TICK (insn) = save->clock_var;
 	}
     }
@@ -2771,7 +4362,7 @@ restore_last_backtrack_point (struct sched_block_state *psched_block)
 	{
 	  rtx x = XEXP (link, 0);
 	  QUEUE_INDEX (x) = i;
-	  TODO_SPEC (x) = recompute_todo_spec (x);
+	  TODO_SPEC (x) = recompute_todo_spec (x, true);
 	  INSN_TICK (x) = save->clock_var + i;
 	}
     }
@@ -2791,6 +4382,10 @@ restore_last_backtrack_point (struct sched_block_state *psched_block)
   free (save->curr_state);
 
   mark_backtrack_feeds (save->delay_pair->i2, 0);
+
+  gcc_assert (next_cycle_replace_deps.is_empty ());
+  next_cycle_replace_deps = save->next_cycle_deps.copy ();
+  next_cycle_apply = save->next_cycle_apply.copy ();
 
   free (save);
 
@@ -2821,7 +4416,14 @@ free_topmost_backtrack_point (bool reset_tick)
 	  INSN_EXACT_TICK (pair->i2) = INVALID_TICK;
 	  pair = pair->next_same_i1;
 	}
+      undo_replacements_for_backtrack (save);
     }
+  else
+    {
+      save->replacement_deps.release ();
+      save->replace_apply.release ();
+    }
+
   if (targetm.sched.free_sched_context)
     targetm.sched.free_sched_context (save->be_saved_data);
   if (current_sched_info->restore_state)
@@ -2840,6 +4442,124 @@ free_backtrack_queue (void)
 {
   while (backtrack_queue)
     free_topmost_backtrack_point (false);
+}
+
+/* Apply a replacement described by DESC.  If IMMEDIATELY is false, we
+   may have to postpone the replacement until the start of the next cycle,
+   at which point we will be called again with IMMEDIATELY true.  This is
+   only done for machines which have instruction packets with explicit
+   parallelism however.  */
+static void
+apply_replacement (dep_t dep, bool immediately)
+{
+  struct dep_replacement *desc = DEP_REPLACE (dep);
+  if (!immediately && targetm.sched.exposed_pipeline && reload_completed)
+    {
+      next_cycle_replace_deps.safe_push (dep);
+      next_cycle_apply.safe_push (1);
+    }
+  else
+    {
+      bool success;
+
+      if (QUEUE_INDEX (desc->insn) == QUEUE_SCHEDULED)
+	return;
+
+      if (sched_verbose >= 5)
+	fprintf (sched_dump, "applying replacement for insn %d\n",
+		 INSN_UID (desc->insn));
+
+      success = validate_change (desc->insn, desc->loc, desc->newval, 0);
+      gcc_assert (success);
+
+      update_insn_after_change (desc->insn);
+      if ((TODO_SPEC (desc->insn) & (HARD_DEP | DEP_POSTPONED)) == 0)
+	fix_tick_ready (desc->insn);
+
+      if (backtrack_queue != NULL)
+	{
+	  backtrack_queue->replacement_deps.safe_push (dep);
+	  backtrack_queue->replace_apply.safe_push (1);
+	}
+    }
+}
+
+/* We have determined that a pattern involved in DEP must be restored.
+   If IMMEDIATELY is false, we may have to postpone the replacement
+   until the start of the next cycle, at which point we will be called
+   again with IMMEDIATELY true.  */
+static void
+restore_pattern (dep_t dep, bool immediately)
+{
+  rtx next = DEP_CON (dep);
+  int tick = INSN_TICK (next);
+
+  /* If we already scheduled the insn, the modified version is
+     correct.  */
+  if (QUEUE_INDEX (next) == QUEUE_SCHEDULED)
+    return;
+
+  if (!immediately && targetm.sched.exposed_pipeline && reload_completed)
+    {
+      next_cycle_replace_deps.safe_push (dep);
+      next_cycle_apply.safe_push (0);
+      return;
+    }
+
+
+  if (DEP_TYPE (dep) == REG_DEP_CONTROL)
+    {
+      if (sched_verbose >= 5)
+	fprintf (sched_dump, "restoring pattern for insn %d\n",
+		 INSN_UID (next));
+      haifa_change_pattern (next, ORIG_PAT (next));
+    }
+  else
+    {
+      struct dep_replacement *desc = DEP_REPLACE (dep);
+      bool success;
+
+      if (sched_verbose >= 5)
+	fprintf (sched_dump, "restoring pattern for insn %d\n",
+		 INSN_UID (desc->insn));
+      tick = INSN_TICK (desc->insn);
+
+      success = validate_change (desc->insn, desc->loc, desc->orig, 0);
+      gcc_assert (success);
+      update_insn_after_change (desc->insn);
+      if (backtrack_queue != NULL)
+	{
+	  backtrack_queue->replacement_deps.safe_push (dep);
+	  backtrack_queue->replace_apply.safe_push (0);
+	}
+    }
+  INSN_TICK (next) = tick;
+  if (TODO_SPEC (next) == DEP_POSTPONED)
+    return;
+
+  if (sd_lists_empty_p (next, SD_LIST_BACK))
+    TODO_SPEC (next) = 0;
+  else if (!sd_lists_empty_p (next, SD_LIST_HARD_BACK))
+    TODO_SPEC (next) = HARD_DEP;
+}
+
+/* Perform pattern replacements that were queued up until the next
+   cycle.  */
+static void
+perform_replacements_new_cycle (void)
+{
+  int i;
+  dep_t dep;
+  FOR_EACH_VEC_ELT (next_cycle_replace_deps, i, dep)
+    {
+      int apply_p = next_cycle_apply[i];
+      if (apply_p)
+	apply_replacement (dep, true);
+      else
+	restore_pattern (dep, true);
+    }
+  next_cycle_replace_deps.truncate (0);
+  next_cycle_apply.truncate (0);
 }
 
 /* Compute INSN_TICK_ESTIMATE for INSN.  PROCESSED is a bitmap of
@@ -2927,7 +4647,7 @@ resolve_dependencies (rtx insn)
   if (QUEUE_INDEX (insn) >= 0)
     queue_remove (insn);
 
-  VEC_safe_push (rtx, heap, scheduled_insns, insn);
+  scheduled_insns.safe_push (insn);
 
   /* Update dependent instructions.  */
   for (sd_it = sd_iterator_start (insn, SD_LIST_FORW);
@@ -3099,6 +4819,30 @@ restore_other_notes (rtx head, basic_block head_bb)
   return head;
 }
 
+/* When we know we are going to discard the schedule due to a failed attempt
+   at modulo scheduling, undo all replacements.  */
+static void
+undo_all_replacements (void)
+{
+  rtx insn;
+  int i;
+
+  FOR_EACH_VEC_ELT (scheduled_insns, i, insn)
+    {
+      sd_iterator_def sd_it;
+      dep_t dep;
+
+      /* See if we must undo a replacement.  */
+      for (sd_it = sd_iterator_start (insn, SD_LIST_RES_FORW);
+	   sd_iterator_cond (&sd_it, &dep); sd_iterator_next (&sd_it))
+	{
+	  struct dep_replacement *desc = DEP_REPLACE (dep);
+	  if (desc != NULL)
+	    validate_change (desc->insn, desc->loc, desc->orig, 0);
+	}
+    }
+}
+
 /* Move insns that became ready to fire from queue to ready list.  */
 
 static void
@@ -3138,7 +4882,16 @@ queue_to_ready (struct ready_list *ready)
       /* If the ready list is full, delay the insn for 1 cycle.
 	 See the comment in schedule_block for the rationale.  */
       if (!reload_completed
-	  && ready->n_ready - ready->n_debug > MAX_SCHED_READY_INSNS
+	  && (ready->n_ready - ready->n_debug > MAX_SCHED_READY_INSNS
+	      || (sched_pressure == SCHED_PRESSURE_MODEL
+		  /* Limit pressure recalculations to MAX_SCHED_READY_INSNS
+		     instructions too.  */
+		  && model_index (insn) > (model_curr_point
+					   + MAX_SCHED_READY_INSNS)))
+	  && !(sched_pressure == SCHED_PRESSURE_MODEL
+	       && model_curr_point < model_num_insns
+	       /* Always allow the next model instruction to issue.  */
+	       && model_index (insn) == model_curr_point)
 	  && !SCHED_GROUP_P (insn)
 	  && insn != skip_insn)
 	queue_insn (insn, 1, "ready full");
@@ -3207,14 +4960,14 @@ ok_for_early_queue_removal (rtx insn)
     {
       rtx prev_insn;
       int n_cycles;
-      int i = VEC_length (rtx, scheduled_insns);
+      int i = scheduled_insns.length ();
       for (n_cycles = flag_sched_stalled_insns_dep; n_cycles; n_cycles--)
 	{
 	  while (i-- > 0)
 	    {
 	      int cost;
 
-	      prev_insn = VEC_index (rtx, scheduled_insns, i);
+	      prev_insn = scheduled_insns[i];
 
 	      if (!NOTE_P (prev_insn))
 		{
@@ -3366,12 +5119,12 @@ debug_ready_list (struct ready_list *ready)
       fprintf (sched_dump, "  %s:%d",
 	       (*current_sched_info->print_insn) (p[i], 0),
 	       INSN_LUID (p[i]));
-      if (sched_pressure_p)
+      if (sched_pressure != SCHED_PRESSURE_NONE)
 	fprintf (sched_dump, "(cost=%d",
 		 INSN_REG_PRESSURE_EXCESS_COST_CHANGE (p[i]));
       if (INSN_TICK (p[i]) > clock_var)
 	fprintf (sched_dump, ":delay=%d", INSN_TICK (p[i]) - clock_var);
-      if (sched_pressure_p)
+      if (sched_pressure != SCHED_PRESSURE_NONE)
 	fprintf (sched_dump, ")");
     }
   fprintf (sched_dump, "\n");
@@ -3900,7 +5653,7 @@ commit_schedule (rtx prev_head, rtx tail, basic_block *target_bb)
 
   last_scheduled_insn = prev_head;
   for (i = 0;
-       VEC_iterate (rtx, scheduled_insns, i, insn);
+       scheduled_insns.iterate (i, &insn);
        i++)
     {
       if (control_flow_insn_p (last_scheduled_insn)
@@ -3929,7 +5682,7 @@ commit_schedule (rtx prev_head, rtx tail, basic_block *target_bb)
       last_scheduled_insn = insn;
     }
 
-  VEC_truncate (rtx, scheduled_insns, 0);
+  scheduled_insns.truncate (0);
 }
 
 /* Examine all insns on the ready list and queue those which can't be
@@ -3946,88 +5699,115 @@ static void
 prune_ready_list (state_t temp_state, bool first_cycle_insn_p,
 		  bool shadows_only_p, bool modulo_epilogue_p)
 {
-  int i;
+  int i, pass;
   bool sched_group_found = false;
+  int min_cost_group = 1;
 
- restart:
   for (i = 0; i < ready.n_ready; i++)
     {
       rtx insn = ready_element (&ready, i);
-      int cost = 0;
-      const char *reason = "resource conflict";
-
-      if (DEBUG_INSN_P (insn))
-	continue;
-
-      if (SCHED_GROUP_P (insn) && !sched_group_found)
+      if (SCHED_GROUP_P (insn))
 	{
 	  sched_group_found = true;
-	  if (i > 0)
-	    goto restart;
+	  break;
 	}
+    }
 
-      if (sched_group_found && !SCHED_GROUP_P (insn))
+  /* Make two passes if there's a SCHED_GROUP_P insn; make sure to handle
+     such an insn first and note its cost, then schedule all other insns
+     for one cycle later.  */
+  for (pass = sched_group_found ? 0 : 1; pass < 2; )
+    {
+      int n = ready.n_ready;
+      for (i = 0; i < n; i++)
 	{
-	  cost = 1;
-	  reason = "not in sched group";
-	}
-      else if (modulo_epilogue_p && INSN_EXACT_TICK (insn) == INVALID_TICK)
-	{
-	  cost = max_insn_queue_index;
-	  reason = "not an epilogue insn";
-	}
-      else if (shadows_only_p && !SHADOW_P (insn))
-	{
-	  cost = 1;
-	  reason = "not a shadow";
-	}
-      else if (recog_memoized (insn) < 0)
-	{
-	  if (!first_cycle_insn_p
-	      && (GET_CODE (PATTERN (insn)) == ASM_INPUT
-		  || asm_noperands (PATTERN (insn)) >= 0))
-	    cost = 1;
-	  reason = "asm";
-	}
-      else if (sched_pressure_p)
-	cost = 0;
-      else
-	{
-	  int delay_cost = 0;
+	  rtx insn = ready_element (&ready, i);
+	  int cost = 0;
+	  const char *reason = "resource conflict";
 
-	  if (delay_htab)
+	  if (DEBUG_INSN_P (insn))
+	    continue;
+
+	  if (sched_group_found && !SCHED_GROUP_P (insn))
 	    {
-	      struct delay_pair *delay_entry;
-	      delay_entry
-		= (struct delay_pair *)htab_find_with_hash (delay_htab, insn,
-							    htab_hash_pointer (insn));
-	      while (delay_entry && delay_cost == 0)
+	      if (pass == 0)
+		continue;
+	      cost = min_cost_group;
+	      reason = "not in sched group";
+	    }
+	  else if (modulo_epilogue_p
+		   && INSN_EXACT_TICK (insn) == INVALID_TICK)
+	    {
+	      cost = max_insn_queue_index;
+	      reason = "not an epilogue insn";
+	    }
+	  else if (shadows_only_p && !SHADOW_P (insn))
+	    {
+	      cost = 1;
+	      reason = "not a shadow";
+	    }
+	  else if (recog_memoized (insn) < 0)
+	    {
+	      if (!first_cycle_insn_p
+		  && (GET_CODE (PATTERN (insn)) == ASM_INPUT
+		      || asm_noperands (PATTERN (insn)) >= 0))
+		cost = 1;
+	      reason = "asm";
+	    }
+	  else if (sched_pressure != SCHED_PRESSURE_NONE)
+	    {
+	      if (sched_pressure == SCHED_PRESSURE_MODEL
+		  && INSN_TICK (insn) <= clock_var)
 		{
-		  delay_cost = estimate_shadow_tick (delay_entry);
-		  if (delay_cost > max_insn_queue_index)
-		    delay_cost = max_insn_queue_index;
-		  delay_entry = delay_entry->next_same_i1;
+		  memcpy (temp_state, curr_state, dfa_state_size);
+		  if (state_transition (temp_state, insn) >= 0)
+		    INSN_TICK (insn) = clock_var + 1;
+		}
+	      cost = 0;
+	    }
+	  else
+	    {
+	      int delay_cost = 0;
+
+	      if (delay_htab.is_created ())
+		{
+		  struct delay_pair *delay_entry;
+		  delay_entry
+		    = delay_htab.find_with_hash (insn,
+						 htab_hash_pointer (insn));
+		  while (delay_entry && delay_cost == 0)
+		    {
+		      delay_cost = estimate_shadow_tick (delay_entry);
+		      if (delay_cost > max_insn_queue_index)
+			delay_cost = max_insn_queue_index;
+		      delay_entry = delay_entry->next_same_i1;
+		    }
+		}
+
+	      memcpy (temp_state, curr_state, dfa_state_size);
+	      cost = state_transition (temp_state, insn);
+	      if (cost < 0)
+		cost = 0;
+	      else if (cost == 0)
+		cost = 1;
+	      if (cost < delay_cost)
+		{
+		  cost = delay_cost;
+		  reason = "shadow tick";
 		}
 	    }
-
-	  memcpy (temp_state, curr_state, dfa_state_size);
-	  cost = state_transition (temp_state, insn);
-	  if (cost < 0)
-	    cost = 0;
-	  else if (cost == 0)
-	    cost = 1;
-	  if (cost < delay_cost)
+	  if (cost >= 1)
 	    {
-	      cost = delay_cost;
-	      reason = "shadow tick";
+	      if (SCHED_GROUP_P (insn) && cost > min_cost_group)
+		min_cost_group = cost;
+	      ready_remove (&ready, i);
+	      queue_insn (insn, cost, reason);
+	      if (i + 1 < n)
+		break;
 	    }
 	}
-      if (cost >= 1)
-	{
-	  ready_remove (&ready, i);
-	  queue_insn (insn, cost, reason);
-	  goto restart;
-	}
+      if (i == n)
+	pass++;
     }
 }
 
@@ -4090,7 +5870,7 @@ verify_shadows (void)
    region.  */
 
 bool
-schedule_block (basic_block *target_bb)
+schedule_block (basic_block *target_bb, state_t init_state)
 {
   int i;
   bool success = modulo_ii == 0;
@@ -4103,6 +5883,10 @@ schedule_block (basic_block *target_bb)
   rtx next_tail = current_sched_info->next_tail;
   rtx head = NEXT_INSN (prev_head);
   rtx tail = PREV_INSN (next_tail);
+
+  if ((current_sched_info->flags & DONT_BREAK_DEPENDENCIES) == 0
+      && sched_pressure != SCHED_PRESSURE_MODEL)
+    find_modifiable_mems (head, tail);
 
   /* We used to have code to avoid getting parameters moved from hard
      argument registers into pseudos.
@@ -4121,7 +5905,10 @@ schedule_block (basic_block *target_bb)
   if (sched_verbose)
     dump_new_block_header (0, *target_bb, head, tail);
 
-  state_reset (curr_state);
+  if (init_state == NULL)
+    state_reset (curr_state);
+  else
+    memcpy (curr_state, init_state, dfa_state_size);
 
   /* Clear the ready list.  */
   ready.first = ready.veclen - 1;
@@ -4156,6 +5943,9 @@ schedule_block (basic_block *target_bb)
   /* We need queue and ready lists and clock_var be initialized
      in try_ready () (which is called through init_ready_list ()).  */
   (*current_sched_info->init_ready_list) ();
+
+  if (sched_pressure == SCHED_PRESSURE_MODEL)
+    model_start_schedule ();
 
   /* The algorithm is O(n^2) in the number of ready insns at any given
      time in the worst case.  Before reload we are more likely to have
@@ -4211,7 +6001,7 @@ schedule_block (basic_block *target_bb)
 
   advance = 0;
 
-  gcc_assert (VEC_length (rtx, scheduled_insns) == 0);
+  gcc_assert (scheduled_insns.length () == 0);
   sort_p = TRUE;
   must_backtrack = false;
   modulo_insns_scheduled = 0;
@@ -4221,6 +6011,7 @@ schedule_block (basic_block *target_bb)
   /* Loop until all the insns in BB are scheduled.  */
   while ((*current_sched_info->schedule_more_p) ())
     {
+      perform_replacements_new_cycle ();
       do
 	{
 	  start_clock_var = clock_var;
@@ -4321,7 +6112,7 @@ schedule_block (basic_block *target_bb)
 		  rtx insn = ready_remove_first (&ready);
 		  gcc_assert (DEBUG_INSN_P (insn));
 		  (*current_sched_info->begin_schedule_ready) (insn);
-		  VEC_safe_push (rtx, heap, scheduled_insns, insn);
+		  scheduled_insns.safe_push (insn);
 		  last_scheduled_insn = insn;
 		  advance = schedule_insn (insn);
 		  gcc_assert (advance == 0);
@@ -4359,7 +6150,7 @@ schedule_block (basic_block *target_bb)
 	      fprintf (sched_dump, ";;\tReady list (t = %3d):  ",
 		       clock_var);
 	      debug_ready_list (&ready);
-	      if (sched_pressure_p)
+	      if (sched_pressure == SCHED_PRESSURE_WEIGHTED)
 		print_curr_reg_pressure ();
 	    }
 
@@ -4402,7 +6193,8 @@ schedule_block (basic_block *target_bb)
 	  else
 	    insn = ready_remove_first (&ready);
 
-	  if (sched_pressure_p && INSN_TICK (insn) > clock_var)
+	  if (sched_pressure != SCHED_PRESSURE_NONE
+	      && INSN_TICK (insn) > clock_var)
 	    {
 	      ready_add (&ready, insn, true);
 	      advance = 1;
@@ -4436,18 +6228,17 @@ schedule_block (basic_block *target_bb)
 	    /* We normally get here only if we don't want to move
 	       insn from the split block.  */
 	    {
-	      TODO_SPEC (insn) = HARD_DEP;
+	      TODO_SPEC (insn) = DEP_POSTPONED;
 	      goto restart_choose_ready;
 	    }
 
-	  if (delay_htab)
+	  if (delay_htab.is_created ())
 	    {
 	      /* If this insn is the first part of a delay-slot pair, record a
 		 backtrack point.  */
 	      struct delay_pair *delay_entry;
 	      delay_entry
-		= (struct delay_pair *)htab_find_with_hash (delay_htab, insn,
-							    htab_hash_pointer (insn));
+		= delay_htab.find_with_hash (insn, htab_hash_pointer (insn));
 	      if (delay_entry)
 		{
 		  save_backtrack_point (delay_entry, ls);
@@ -4471,7 +6262,7 @@ schedule_block (basic_block *target_bb)
 
 	  /* Update counters, etc in the scheduler's front end.  */
 	  (*current_sched_info->begin_schedule_ready) (insn);
-	  VEC_safe_push (rtx, heap, scheduled_insns, insn);
+	  scheduled_insns.safe_push (insn);
 	  gcc_assert (NONDEBUG_INSN_P (insn));
 	  last_nondebug_scheduled_insn = last_scheduled_insn = insn;
 
@@ -4479,7 +6270,7 @@ schedule_block (basic_block *target_bb)
 	    {
 	      memcpy (temp_state, curr_state, dfa_state_size);
 	      cost = state_transition (curr_state, insn);
-	      if (!sched_pressure_p)
+	      if (sched_pressure != SCHED_PRESSURE_WEIGHTED)
 		gcc_assert (cost < 0);
 	      if (memcmp (temp_state, curr_state, dfa_state_size) != 0)
 		cycle_issued_insns++;
@@ -4547,6 +6338,8 @@ schedule_block (basic_block *target_bb)
 	  gcc_assert (failed);
 
 	  failed_insn = failed->delay_pair->i1;
+	  /* Clear these queues.  */
+	  perform_replacements_new_cycle ();
 	  toggle_cancelled_flags (false);
 	  unschedule_insns_until (failed_insn);
 	  while (failed != backtrack_queue)
@@ -4574,6 +6367,8 @@ schedule_block (basic_block *target_bb)
   if (ls.modulo_epilogue)
     success = true;
  end_schedule:
+  advance_one_cycle ();
+  perform_replacements_new_cycle ();
   if (modulo_ii > 0)
     {
       /* Once again, debug insn suckiness: they can be on the ready list
@@ -4612,6 +6407,9 @@ schedule_block (basic_block *target_bb)
 	    }
 	}
     }
+
+  if (!success)
+    undo_all_replacements ();
 
   /* Debug info.  */
   if (sched_verbose)
@@ -4652,6 +6450,9 @@ schedule_block (basic_block *target_bb)
 	  }
     }
 
+  if (sched_pressure == SCHED_PRESSURE_MODEL)
+    model_end_schedule ();
+
   if (success)
     {
       commit_schedule (prev_head, tail, target_bb);
@@ -4661,7 +6462,7 @@ schedule_block (basic_block *target_bb)
   else
     last_scheduled_insn = tail;
 
-  VEC_truncate (rtx, scheduled_insns, 0);
+  scheduled_insns.truncate (0);
 
   if (!current_sched_info->queue_must_finish_empty
       || haifa_recovery_bb_recently_added_p)
@@ -4752,6 +6553,54 @@ setup_sched_dump (void)
 		? stderr : dump_file);
 }
 
+/* Allocate data for register pressure sensitive scheduling.  */
+static void
+alloc_global_sched_pressure_data (void)
+{
+  if (sched_pressure != SCHED_PRESSURE_NONE)
+    {
+      int i, max_regno = max_reg_num ();
+
+      if (sched_dump != NULL)
+	/* We need info about pseudos for rtl dumps about pseudo
+	   classes and costs.  */
+	regstat_init_n_sets_and_refs ();
+      ira_set_pseudo_classes (true, sched_verbose ? sched_dump : NULL);
+      sched_regno_pressure_class
+	= (enum reg_class *) xmalloc (max_regno * sizeof (enum reg_class));
+      for (i = 0; i < max_regno; i++)
+	sched_regno_pressure_class[i]
+	  = (i < FIRST_PSEUDO_REGISTER
+	     ? ira_pressure_class_translate[REGNO_REG_CLASS (i)]
+	     : ira_pressure_class_translate[reg_allocno_class (i)]);
+      curr_reg_live = BITMAP_ALLOC (NULL);
+      if (sched_pressure == SCHED_PRESSURE_WEIGHTED)
+	{
+	  saved_reg_live = BITMAP_ALLOC (NULL);
+	  region_ref_regs = BITMAP_ALLOC (NULL);
+	}
+    }
+}
+
+/*  Free data for register pressure sensitive scheduling.  Also called
+    from schedule_region when stopping sched-pressure early.  */
+void
+free_global_sched_pressure_data (void)
+{
+  if (sched_pressure != SCHED_PRESSURE_NONE)
+    {
+      if (regstat_n_sets_and_refs != NULL)
+	regstat_free_n_sets_and_refs ();
+      if (sched_pressure == SCHED_PRESSURE_WEIGHTED)
+	{
+	  BITMAP_FREE (region_ref_regs);
+	  BITMAP_FREE (saved_reg_live);
+	}
+      BITMAP_FREE (curr_reg_live);
+      free (sched_regno_pressure_class);
+    }
+}
+
 /* Initialize some global state for the scheduler.  This function works
    with the common data shared between all the schedulers.  It is called
    from the scheduler specific initialization routine.  */
@@ -4767,10 +6616,17 @@ sched_init (void)
   if (targetm.sched.dispatch (NULL_RTX, IS_DISPATCH_ON))
     targetm.sched.dispatch_do (NULL_RTX, DISPATCH_INIT);
 
-  sched_pressure_p = (flag_sched_pressure && ! reload_completed
-		      && common_sched_info->sched_pass_id == SCHED_RGN_PASS);
+  if (live_range_shrinkage_p)
+    sched_pressure = SCHED_PRESSURE_WEIGHTED;
+  else if (flag_sched_pressure
+	   && !reload_completed
+	   && common_sched_info->sched_pass_id == SCHED_RGN_PASS)
+    sched_pressure = ((enum sched_pressure_algorithm)
+		      PARAM_VALUE (PARAM_SCHED_PRESSURE_ALGORITHM));
+  else
+    sched_pressure = SCHED_PRESSURE_NONE;
 
-  if (sched_pressure_p)
+  if (sched_pressure != SCHED_PRESSURE_NONE)
     ira_setup_eliminable_regset ();
 
   /* Initialize SPEC_INFO.  */
@@ -4848,26 +6704,7 @@ sched_init (void)
   if (targetm.sched.init_global)
     targetm.sched.init_global (sched_dump, sched_verbose, get_max_uid () + 1);
 
-  if (sched_pressure_p)
-    {
-      int i, max_regno = max_reg_num ();
-
-      if (sched_dump != NULL)
-	/* We need info about pseudos for rtl dumps about pseudo
-	   classes and costs.  */
-	regstat_init_n_sets_and_refs ();
-      ira_set_pseudo_classes (sched_verbose ? sched_dump : NULL);
-      sched_regno_pressure_class
-	= (enum reg_class *) xmalloc (max_regno * sizeof (enum reg_class));
-      for (i = 0; i < max_regno; i++)
-	sched_regno_pressure_class[i]
-	  = (i < FIRST_PSEUDO_REGISTER
-	     ? ira_pressure_class_translate[REGNO_REG_CLASS (i)]
-	     : ira_pressure_class_translate[reg_allocno_class (i)]);
-      curr_reg_live = BITMAP_ALLOC (NULL);
-      saved_reg_live = BITMAP_ALLOC (NULL);
-      region_ref_regs = BITMAP_ALLOC (NULL);
-    }
+  alloc_global_sched_pressure_data ();
 
   curr_state = xmalloc (dfa_state_size);
 }
@@ -4881,7 +6718,7 @@ haifa_sched_init (void)
   setup_sched_dump ();
   sched_init ();
 
-  scheduled_insns = VEC_alloc (rtx, heap, 0);
+  scheduled_insns.create (0);
 
   if (spec_info != NULL)
     {
@@ -4892,19 +6729,20 @@ haifa_sched_init (void)
   /* Initialize luids, dependency caches, target and h_i_d for the
      whole function.  */
   {
-    bb_vec_t bbs = VEC_alloc (basic_block, heap, n_basic_blocks);
+    bb_vec_t bbs;
+    bbs.create (n_basic_blocks_for_fn (cfun));
     basic_block bb;
 
     sched_init_bbs ();
 
-    FOR_EACH_BB (bb)
-      VEC_quick_push (basic_block, bbs, bb);
+    FOR_EACH_BB_FN (bb, cfun)
+      bbs.quick_push (bb);
     sched_init_luids (bbs);
     sched_deps_init (true);
     sched_extend_target ();
     haifa_init_h_i_d (bbs);
 
-    VEC_free (basic_block, heap, bbs);
+    bbs.release ();
   }
 
   sched_init_only_bb = haifa_init_only_bb;
@@ -4948,7 +6786,7 @@ haifa_sched_finish (void)
                c, nr_be_in_control);
     }
 
-  VEC_free (rtx, heap, scheduled_insns);
+  scheduled_insns.release ();
 
   /* Finalize h_i_d, dependency caches, and luids for the whole
      function.  Target will be finalized in md_global_finish ().  */
@@ -4965,15 +6803,7 @@ void
 sched_finish (void)
 {
   haifa_finish_h_i_d ();
-  if (sched_pressure_p)
-    {
-      if (regstat_n_sets_and_refs != NULL)
-	regstat_free_n_sets_and_refs ();
-      free (sched_regno_pressure_class);
-      BITMAP_FREE (region_ref_regs);
-      BITMAP_FREE (saved_reg_live);
-      BITMAP_FREE (curr_reg_live);
-    }
+  free_global_sched_pressure_data ();
   free (curr_state);
 
   if (targetm.sched.finish_global)
@@ -4990,10 +6820,10 @@ sched_finish (void)
 void
 free_delay_pairs (void)
 {
-  if (delay_htab)
+  if (delay_htab.is_created ())
     {
-      htab_empty (delay_htab);
-      htab_empty (delay_htab_i2);
+      delay_htab.empty ();
+      delay_htab_i2.empty ();
     }
 }
 
@@ -5037,6 +6867,9 @@ fix_inter_tick (rtx head, rtx tail)
 
 	      INSN_TICK (head) = tick;
 	    }
+
+	  if (DEBUG_INSN_P (head))
+	    continue;
 
 	  FOR_EACH_DEP (head, SD_LIST_RES_FORW, sd_it, dep)
 	    {
@@ -5082,14 +6915,15 @@ try_ready (rtx next)
 
   old_ts = TODO_SPEC (next);
 
-  gcc_assert (!(old_ts & ~(SPECULATIVE | HARD_DEP | DEP_CONTROL))
-	      && ((old_ts & HARD_DEP)
+  gcc_assert (!(old_ts & ~(SPECULATIVE | HARD_DEP | DEP_CONTROL | DEP_POSTPONED))
+	      && (old_ts == HARD_DEP
+		  || old_ts == DEP_POSTPONED
 		  || (old_ts & SPECULATIVE)
-		  || (old_ts & DEP_CONTROL)));
+		  || old_ts == DEP_CONTROL));
 
-  new_ts = recompute_todo_spec (next);
+  new_ts = recompute_todo_spec (next, false);
 
-  if (new_ts & HARD_DEP)
+  if (new_ts & (HARD_DEP | DEP_POSTPONED))
     gcc_assert (new_ts == old_ts
 		&& QUEUE_INDEX (next) == QUEUE_NOWHERE);
   else if (current_sched_info->new_ready)
@@ -5157,7 +6991,7 @@ try_ready (rtx next)
 
   TODO_SPEC (next) = new_ts;
 
-  if (new_ts & HARD_DEP)
+  if (new_ts & (HARD_DEP | DEP_POSTPONED))
     {
       /* We can't assert (QUEUE_INDEX (next) == QUEUE_NOWHERE) here because
 	 control-speculative NEXT could have been discarded by sched-rgn.c
@@ -5244,7 +7078,7 @@ fix_tick_ready (rtx next)
   INSN_TICK (next) = tick;
 
   delay = tick - clock_var;
-  if (delay <= 0 || sched_pressure_p)
+  if (delay <= 0 || sched_pressure != SCHED_PRESSURE_NONE)
     delay = QUEUE_READY;
 
   change_queue_index (next, delay);
@@ -5309,7 +7143,7 @@ sched_extend_ready_list (int new_sched_ready_n_insns)
     {
       i = 0;
       sched_ready_n_insns = 0;
-      VEC_reserve (rtx, heap, scheduled_insns, new_sched_ready_n_insns);
+      scheduled_insns.reserve (new_sched_ready_n_insns);
     }
   else
     i = sched_ready_n_insns + 1;
@@ -5506,7 +7340,7 @@ add_to_speculative_block (rtx insn)
 	sd_iterator_next (&sd_it);
     }
 
-  priorities_roots = NULL;
+  priorities_roots.create (0);
   clear_priorities (insn, &priorities_roots);
 
   while (1)
@@ -5600,7 +7434,7 @@ add_to_speculative_block (rtx insn)
     }
 
   calc_priorities (priorities_roots);
-  VEC_free (rtx, heap, priorities_roots);
+  priorities_roots.release ();
 }
 
 /* Extends and fills with zeros (only the new part) array pointed to by P.  */
@@ -5652,20 +7486,19 @@ find_fallthru_edge_from (basic_block pred)
 static void
 sched_extend_bb (void)
 {
-  rtx insn;
-
   /* The following is done to keep current_sched_info->next_tail non null.  */
-  insn = BB_END (EXIT_BLOCK_PTR->prev_bb);
-  if (NEXT_INSN (insn) == 0
+  rtx end = BB_END (EXIT_BLOCK_PTR_FOR_FN (cfun)->prev_bb);
+  rtx insn = DEBUG_INSN_P (end) ? prev_nondebug_insn (end) : end;
+  if (NEXT_INSN (end) == 0
       || (!NOTE_P (insn)
 	  && !LABEL_P (insn)
 	  /* Don't emit a NOTE if it would end up before a BARRIER.  */
-	  && !BARRIER_P (NEXT_INSN (insn))))
+	  && !BARRIER_P (NEXT_INSN (end))))
     {
-      rtx note = emit_note_after (NOTE_INSN_DELETED, insn);
-      /* Make insn appear outside BB.  */
+      rtx note = emit_note_after (NOTE_INSN_DELETED, end);
+      /* Make note appear outside BB.  */
       set_block_for_insn (note, NULL);
-      BB_END (EXIT_BLOCK_PTR->prev_bb) = insn;
+      BB_END (EXIT_BLOCK_PTR_FOR_FN (cfun)->prev_bb) = end;
     }
 }
 
@@ -5683,7 +7516,7 @@ init_before_recovery (basic_block *before_recovery_ptr)
   basic_block last;
   edge e;
 
-  last = EXIT_BLOCK_PTR->prev_bb;
+  last = EXIT_BLOCK_PTR_FOR_FN (cfun)->prev_bb;
   e = find_fallthru_edge_from (last);
 
   if (e)
@@ -5710,8 +7543,8 @@ init_before_recovery (basic_block *before_recovery_ptr)
       /* Add new blocks to the root loop.  */
       if (current_loops != NULL)
 	{
-	  add_bb_to_loop (single, VEC_index (loop_p, current_loops->larray, 0));
-	  add_bb_to_loop (empty, VEC_index (loop_p, current_loops->larray, 0));
+	  add_bb_to_loop (single, (*current_loops->larray)[0]);
+	  add_bb_to_loop (empty, (*current_loops->larray)[0]);
 	}
 
       single->count = last->count;
@@ -5723,8 +7556,8 @@ init_before_recovery (basic_block *before_recovery_ptr)
 
       redirect_edge_succ (e, single);
       make_single_succ_edge (single, empty, 0);
-      make_single_succ_edge (empty, EXIT_BLOCK_PTR,
-			     EDGE_FALLTHRU | EDGE_CAN_FALLTHRU);
+      make_single_succ_edge (empty, EXIT_BLOCK_PTR_FOR_FN (cfun),
+			     EDGE_FALLTHRU);
 
       label = block_label (empty);
       x = emit_jump_insn_after (gen_jump (label), BB_END (single));
@@ -5867,14 +7700,14 @@ create_check_block_twin (rtx insn, bool mutate_p)
     }
   else
     {
-      rec = EXIT_BLOCK_PTR;
+      rec = EXIT_BLOCK_PTR_FOR_FN (cfun);
       label = NULL_RTX;
     }
 
   /* Emit CHECK.  */
   check = targetm.sched.gen_spec_check (insn, label, todo_spec);
 
-  if (rec != EXIT_BLOCK_PTR)
+  if (rec != EXIT_BLOCK_PTR_FOR_FN (cfun))
     {
       /* To have mem_reg alive at the beginning of second_bb,
 	 we emit check BEFORE insn, so insn after splitting
@@ -5907,7 +7740,7 @@ create_check_block_twin (rtx insn, bool mutate_p)
 
   /* Initialize TWIN (twin is a duplicate of original instruction
      in the recovery block).  */
-  if (rec != EXIT_BLOCK_PTR)
+  if (rec != EXIT_BLOCK_PTR_FOR_FN (cfun))
     {
       sd_iterator_def sd_it;
       dep_t dep;
@@ -5944,7 +7777,7 @@ create_check_block_twin (rtx insn, bool mutate_p)
      provide correct value for INSN_TICK (TWIN).  */
   sd_copy_back_deps (twin, insn, true);
 
-  if (rec != EXIT_BLOCK_PTR)
+  if (rec != EXIT_BLOCK_PTR_FOR_FN (cfun))
     /* In case of branchy check, fix CFG.  */
     {
       basic_block first_bb, second_bb;
@@ -5956,7 +7789,7 @@ create_check_block_twin (rtx insn, bool mutate_p)
       sched_create_recovery_edges (first_bb, rec, second_bb);
 
       sched_init_only_bb (second_bb, first_bb);
-      sched_init_only_bb (rec, EXIT_BLOCK_PTR);
+      sched_init_only_bb (rec, EXIT_BLOCK_PTR_FOR_FN (cfun));
 
       jump = BB_END (rec);
       haifa_init_insn (jump);
@@ -5997,7 +7830,7 @@ create_check_block_twin (rtx insn, bool mutate_p)
       init_dep_1 (new_dep, pro, check, DEP_TYPE (dep), ds);
       sd_add_dep (new_dep, false);
 
-      if (rec != EXIT_BLOCK_PTR)
+      if (rec != EXIT_BLOCK_PTR_FOR_FN (cfun))
 	{
 	  DEP_CON (new_dep) = twin;
 	  sd_add_dep (new_dep, false);
@@ -6046,7 +7879,7 @@ create_check_block_twin (rtx insn, bool mutate_p)
   /* Future speculations: call the helper.  */
   process_insn_forw_deps_be_in_spec (insn, twin, fs);
 
-  if (rec != EXIT_BLOCK_PTR)
+  if (rec != EXIT_BLOCK_PTR_FOR_FN (cfun))
     {
       /* Which types of dependencies should we use here is,
 	 generally, machine-dependent question...  But, for now,
@@ -6098,11 +7931,11 @@ create_check_block_twin (rtx insn, bool mutate_p)
     /* Fix priorities.  If MUTATE_P is nonzero, this is not necessary,
        because it'll be done later in add_to_speculative_block.  */
     {
-      rtx_vec_t priorities_roots = NULL;
+      rtx_vec_t priorities_roots = rtx_vec_t ();
 
       clear_priorities (twin, &priorities_roots);
       calc_priorities (priorities_roots);
-      VEC_free (rtx, heap, priorities_roots);
+      priorities_roots.release ();
     }
 }
 
@@ -6177,27 +8010,13 @@ fix_recovery_deps (basic_block rec)
 static bool
 haifa_change_pattern (rtx insn, rtx new_pat)
 {
-  sd_iterator_def sd_it;
-  dep_t dep;
   int t;
 
   t = validate_change (insn, &PATTERN (insn), new_pat, 0);
   if (!t)
     return false;
-  dfa_clear_single_insn_cache (insn);
 
-  sd_it = sd_iterator_start (insn,
-			     SD_LIST_FORW | SD_LIST_BACK | SD_LIST_RES_BACK);
-  while (sd_iterator_cond (&sd_it, &dep))
-    {
-      DEP_COST (dep) = UNKNOWN_DEP_COST;
-      sd_iterator_next (&sd_it);
-    }
-
-  /* Invalidate INSN_COST, so it'll be recalculated.  */
-  INSN_COST (insn) = -1;
-  /* Invalidate INSN_TICK, so it'll be recalculated.  */
-  INSN_TICK (insn) = INVALID_TICK;
+  update_insn_after_change (insn);
   return true;
 }
 
@@ -6271,10 +8090,10 @@ unlink_bb_notes (basic_block first, basic_block last)
   if (first == last)
     return;
 
-  bb_header = XNEWVEC (rtx, last_basic_block);
+  bb_header = XNEWVEC (rtx, last_basic_block_for_fn (cfun));
 
   /* Make a sentinel.  */
-  if (last->next_bb != EXIT_BLOCK_PTR)
+  if (last->next_bb != EXIT_BLOCK_PTR_FOR_FN (cfun))
     bb_header[last->next_bb->index] = 0;
 
   first = first->next_bb;
@@ -6318,7 +8137,7 @@ restore_bb_notes (basic_block first)
   first = first->next_bb;
   /* Remember: FIRST is actually a second basic block in the ebb.  */
 
-  while (first != EXIT_BLOCK_PTR
+  while (first != EXIT_BLOCK_PTR_FOR_FN (cfun)
 	 && bb_header[first->index])
     {
       rtx prev, label, note, next;
@@ -6384,7 +8203,7 @@ static void
 move_block_after_check (rtx jump)
 {
   basic_block bb, jump_bb, jump_bb_next;
-  VEC(edge,gc) *t;
+  vec<edge, va_gc> *t;
 
   bb = BLOCK_FOR_INSN (PREV_INSN (jump));
   jump_bb = BLOCK_FOR_INSN (jump);
@@ -6414,7 +8233,7 @@ move_block_after_check (rtx jump)
    This functions attaches edge vector pointed to by SUCCSP to
    block TO.  */
 static void
-move_succs (VEC(edge,gc) **succsp, basic_block to)
+move_succs (vec<edge, va_gc> **succsp, basic_block to)
 {
   edge e;
   edge_iterator ei;
@@ -6438,7 +8257,7 @@ sched_remove_insn (rtx insn)
 
   change_queue_index (insn, QUEUE_NOWHERE);
   current_sched_info->add_remove_insn (insn, 1);
-  remove_insn (insn);
+  delete_insn (insn);
 }
 
 /* Clear priorities of all instructions, that are forward dependent on INSN.
@@ -6471,7 +8290,7 @@ clear_priorities (rtx insn, rtx_vec_t *roots_ptr)
     }
 
   if (insn_is_root_p)
-    VEC_safe_push (rtx, heap, *roots_ptr, insn);
+    roots_ptr->safe_push (insn);
 }
 
 /* Recompute priorities of instructions, whose priorities might have been
@@ -6483,7 +8302,7 @@ calc_priorities (rtx_vec_t roots)
   int i;
   rtx insn;
 
-  FOR_EACH_VEC_ELT (rtx, roots, i, insn)
+  FOR_EACH_VEC_ELT (roots, i, insn)
     priority (insn);
 }
 
@@ -6499,7 +8318,7 @@ add_jump_dependencies (rtx insn, rtx jump)
       if (insn == jump)
 	break;
 
-      if (dep_list_size (insn) == 0)
+      if (dep_list_size (insn, SD_LIST_FORW) == 0)
 	{
 	  dep_def _new_dep, *new_dep = &_new_dep;
 
@@ -6518,7 +8337,7 @@ sched_extend_luids (void)
 {
   int new_luids_max_uid = get_max_uid () + 1;
 
-  VEC_safe_grow_cleared (int, heap, sched_luids, new_luids_max_uid);
+  sched_luids.safe_grow_cleared (new_luids_max_uid);
 }
 
 /* Initialize LUID for INSN.  */
@@ -6549,7 +8368,7 @@ sched_init_luids (bb_vec_t bbs)
   basic_block bb;
 
   sched_extend_luids ();
-  FOR_EACH_VEC_ELT (basic_block, bbs, i, bb)
+  FOR_EACH_VEC_ELT (bbs, i, bb)
     {
       rtx insn;
 
@@ -6562,7 +8381,7 @@ sched_init_luids (bb_vec_t bbs)
 void
 sched_finish_luids (void)
 {
-  VEC_free (int, heap, sched_luids);
+  sched_luids.release ();
   sched_max_luid = 1;
 }
 
@@ -6586,13 +8405,11 @@ sched_extend_target (void)
 static void
 extend_h_i_d (void)
 {
-  int reserve = (get_max_uid () + 1
-                 - VEC_length (haifa_insn_data_def, h_i_d));
+  int reserve = (get_max_uid () + 1 - h_i_d.length ());
   if (reserve > 0
-      && ! VEC_space (haifa_insn_data_def, h_i_d, reserve))
+      && ! h_i_d.space (reserve))
     {
-      VEC_safe_grow_cleared (haifa_insn_data_def, heap, h_i_d,
-                             3 * get_max_uid () / 2);
+      h_i_d.safe_grow_cleared (3 * get_max_uid () / 2);
       sched_extend_target ();
     }
 }
@@ -6621,7 +8438,7 @@ haifa_init_h_i_d (bb_vec_t bbs)
   basic_block bb;
 
   extend_h_i_d ();
-  FOR_EACH_VEC_ELT (basic_block, bbs, i, bb)
+  FOR_EACH_VEC_ELT (bbs, i, bb)
     {
       rtx insn;
 
@@ -6638,8 +8455,9 @@ haifa_finish_h_i_d (void)
   haifa_insn_data_t data;
   struct reg_use_data *use, *next;
 
-  FOR_EACH_VEC_ELT (haifa_insn_data_def, h_i_d, i, data)
+  FOR_EACH_VEC_ELT (h_i_d, i, data)
     {
+      free (data->max_reg_pressure);
       free (data->reg_pressure);
       for (use = data->reg_use_list; use != NULL; use = next)
 	{
@@ -6647,7 +8465,7 @@ haifa_finish_h_i_d (void)
 	  free (use);
 	}
     }
-  VEC_free (haifa_insn_data_def, heap, h_i_d);
+  h_i_d.release ();
 }
 
 /* Init data for the new insn INSN.  */
@@ -6670,7 +8488,7 @@ haifa_init_insn (rtx insn)
       /* Extend dependency caches by one element.  */
       extend_dependency_caches (1, false);
     }
-  if (sched_pressure_p)
+  if (sched_pressure != SCHED_PRESSURE_NONE)
     init_insn_reg_pressure_info (insn);
 }
 
@@ -6721,7 +8539,7 @@ sched_emit_insn (rtx pat)
     current_sched_info->add_remove_insn (insn, 0);
 
   (*current_sched_info->begin_schedule_ready) (insn);
-  VEC_safe_push (rtx, heap, scheduled_insns, insn);
+  scheduled_insns.safe_push (insn);
 
   last_scheduled_insn = insn;
   return insn;
@@ -6737,8 +8555,8 @@ ready_remove_first_dispatch (struct ready_list *ready)
   rtx insn = ready_element (ready, 0);
 
   if (ready->n_ready == 1
-      || INSN_CODE (insn) < 0
       || !INSN_P (insn)
+      || INSN_CODE (insn) < 0
       || !active_insn_p (insn)
       || targetm.sched.dispatch (insn, FITS_DISPATCH_WINDOW))
     return ready_remove_first (ready);
@@ -6747,8 +8565,8 @@ ready_remove_first_dispatch (struct ready_list *ready)
     {
       insn = ready_element (ready, i);
 
-      if (INSN_CODE (insn) < 0
-	  || !INSN_P (insn)
+      if (!INSN_P (insn)
+	  || INSN_CODE (insn) < 0
 	  || !active_insn_p (insn))
 	continue;
 
@@ -6767,8 +8585,8 @@ ready_remove_first_dispatch (struct ready_list *ready)
     {
       insn = ready_element (ready, i);
 
-      if (INSN_CODE (insn) < 0
-	  || !INSN_P (insn)
+      if (!INSN_P (insn)
+	  || INSN_CODE (insn) < 0
 	  || !active_insn_p (insn))
 	continue;
 

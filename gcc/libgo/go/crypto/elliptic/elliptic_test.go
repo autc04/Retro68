@@ -322,6 +322,90 @@ func TestGenericBaseMult(t *testing.T) {
 	}
 }
 
+func TestP256BaseMult(t *testing.T) {
+	p256 := P256()
+	p256Generic := p256.Params()
+
+	scalars := make([]*big.Int, 0, len(p224BaseMultTests)+1)
+	for _, e := range p224BaseMultTests {
+		k, _ := new(big.Int).SetString(e.k, 10)
+		scalars = append(scalars, k)
+	}
+	k := new(big.Int).SetInt64(1)
+	k.Lsh(k, 500)
+	scalars = append(scalars, k)
+
+	for i, k := range scalars {
+		x, y := p256.ScalarBaseMult(k.Bytes())
+		x2, y2 := p256Generic.ScalarBaseMult(k.Bytes())
+		if x.Cmp(x2) != 0 || y.Cmp(y2) != 0 {
+			t.Errorf("#%d: got (%x, %x), want (%x, %x)", i, x, y, x2, y2)
+		}
+
+		if testing.Short() && i > 5 {
+			break
+		}
+	}
+}
+
+func TestP256Mult(t *testing.T) {
+	p256 := P256()
+	p256Generic := p256.Params()
+
+	for i, e := range p224BaseMultTests {
+		x, _ := new(big.Int).SetString(e.x, 16)
+		y, _ := new(big.Int).SetString(e.y, 16)
+		k, _ := new(big.Int).SetString(e.k, 10)
+
+		xx, yy := p256.ScalarMult(x, y, k.Bytes())
+		xx2, yy2 := p256Generic.ScalarMult(x, y, k.Bytes())
+		if xx.Cmp(xx2) != 0 || yy.Cmp(yy2) != 0 {
+			t.Errorf("#%d: got (%x, %x), want (%x, %x)", i, xx, yy, xx2, yy2)
+		}
+		if testing.Short() && i > 5 {
+			break
+		}
+	}
+}
+
+func TestInfinity(t *testing.T) {
+	tests := []struct {
+		name  string
+		curve Curve
+	}{
+		{"p224", P224()},
+		{"p256", P256()},
+	}
+
+	for _, test := range tests {
+		curve := test.curve
+		x, y := curve.ScalarBaseMult(nil)
+		if x.Sign() != 0 || y.Sign() != 0 {
+			t.Errorf("%s: x^0 != ∞", test.name)
+		}
+		x.SetInt64(0)
+		y.SetInt64(0)
+
+		x2, y2 := curve.Double(x, y)
+		if x2.Sign() != 0 || y2.Sign() != 0 {
+			t.Errorf("%s: 2∞ != ∞", test.name)
+		}
+
+		baseX := curve.Params().Gx
+		baseY := curve.Params().Gy
+
+		x3, y3 := curve.Add(baseX, baseY, x, y)
+		if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
+			t.Errorf("%s: x+∞ != x", test.name)
+		}
+
+		x4, y4 := curve.Add(x, y, baseX, baseY)
+		if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
+			t.Errorf("%s: ∞+x != x", test.name)
+		}
+	}
+}
+
 func BenchmarkBaseMult(b *testing.B) {
 	b.ResetTimer()
 	p224 := P224()
@@ -330,6 +414,17 @@ func BenchmarkBaseMult(b *testing.B) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		p224.ScalarBaseMult(k.Bytes())
+	}
+}
+
+func BenchmarkBaseMultP256(b *testing.B) {
+	b.ResetTimer()
+	p256 := P256()
+	e := p224BaseMultTests[25]
+	k, _ := new(big.Int).SetString(e.k, 10)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		p256.ScalarBaseMult(k.Bytes())
 	}
 }
 

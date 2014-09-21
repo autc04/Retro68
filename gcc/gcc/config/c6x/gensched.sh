@@ -2,7 +2,7 @@
 # Generate c6x-sched.md from c6x-sched.md.in
 # The input file is passed as an argument.
 
-# Copyright 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
 #This file is part of GCC.
 

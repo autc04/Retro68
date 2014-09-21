@@ -7,35 +7,38 @@
 package go1
 
 import (
+	"bytes"
 	"compress/bzip2"
 	"encoding/base64"
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"strings"
 	"testing"
 )
 
 var (
-	jsonbytes []byte
-	jsondata  JSONResponse
+	jsonbytes = makeJsonBytes()
+	jsondata  = makeJsonData()
 )
 
-func init() {
+func makeJsonBytes() []byte {
 	var r io.Reader
-	r = strings.NewReader(jsonbz2_base64)
+	r = bytes.NewReader(bytes.Replace(jsonbz2_base64, []byte{'\n'}, nil, -1))
 	r = base64.NewDecoder(base64.StdEncoding, r)
 	r = bzip2.NewReader(r)
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		panic(err)
 	}
-	jsonbytes = b
+	return b
+}
 
-	if err := json.Unmarshal(jsonbytes, &jsondata); err != nil {
+func makeJsonData() JSONResponse {
+	var v JSONResponse
+	if err := json.Unmarshal(jsonbytes, &v); err != nil {
 		panic(err)
 	}
-	gobinit()
+	return v
 }
 
 type JSONResponse struct {

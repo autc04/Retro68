@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -36,7 +36,7 @@
 
 /**
  * This example shows how to externally manipulate the size of a hash-based
- * container object throught its resize-policy object.
+ * container object through its resize-policy object.
  **/
 
 #include <functional>

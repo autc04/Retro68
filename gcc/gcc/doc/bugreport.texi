@@ -1,5 +1,4 @@
-@c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-@c 1999, 2000, 2001, 2003, 2004, 2007 Free Software Foundation, Inc.
+@c Copyright (C) 1988-2014 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -17,11 +16,9 @@ report the problem.
 @menu
 * Criteria:  Bug Criteria.   Have you really found a bug?
 * Reporting: Bug Reporting.  How to report a bug effectively.
-* Known: Trouble.            Known problems.
-* Help: Service.             Where to ask for help.
 @end menu
 
-@node Bug Criteria,Bug Reporting,,Bugs
+@node Bug Criteria
 @section Have You Found a Bug?
 @cindex bug criteria
 
@@ -84,7 +81,7 @@ If you are an experienced user of one of the languages GCC supports, your
 suggestions for improvement of GCC are welcome in any case.
 @end itemize
 
-@node Bug Reporting,,Bug Criteria,Bugs
+@node Bug Reporting
 @section How and where to Report Bugs
 @cindex compiler bugs, reporting
 

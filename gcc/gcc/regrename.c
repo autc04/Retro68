@@ -1,6 +1,5 @@
 /* Register renaming for the GNU compiler.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -35,7 +34,6 @@
 #include "recog.h"
 #include "flags.h"
 #include "obstack.h"
-#include "timevar.h"
 #include "tree-pass.h"
 #include "df.h"
 #include "target.h"
@@ -107,7 +105,7 @@ static struct obstack rename_obstack;
 
 /* If nonnull, the code calling into the register renamer requested
    information about insn operands, and we store it here.  */
-VEC(insn_rr_info, heap) *insn_rr;
+vec<insn_rr_info> insn_rr;
 
 static void scan_rtx (rtx, rtx *, enum reg_class, enum scan_actions,
 		      enum op_type);
@@ -117,7 +115,7 @@ static bool build_def_use (basic_block);
 static unsigned current_id;
 
 /* A mapping of unique id numbers to chains.  */
-static VEC(du_head_p, heap) *id_to_chain;
+static vec<du_head_p> id_to_chain;
 
 /* List of currently open chains.  */
 static struct du_head *open_chains;
@@ -143,12 +141,12 @@ static operand_rr_info *cur_operand;
 du_head_p
 regrename_chain_from_id (unsigned int id)
 {
-  du_head_p first_chain = VEC_index (du_head_p, id_to_chain, id);
+  du_head_p first_chain = id_to_chain[id];
   du_head_p chain = first_chain;
   while (chain->id != id)
     {
       id = chain->id;
-      chain = VEC_index (du_head_p, id_to_chain, id);
+      chain = id_to_chain[id];
     }
   first_chain->id = id;
   return chain;
@@ -161,7 +159,7 @@ dump_def_use_chain (int from)
 {
   du_head_p head;
   int i;
-  FOR_EACH_VEC_ELT_FROM (du_head_p, id_to_chain, i, head, from)
+  FOR_EACH_VEC_ELT_FROM (id_to_chain, i, head, from)
     {
       struct du_chain *this_du = head->first;
 
@@ -183,10 +181,10 @@ free_chain_data (void)
 {
   int i;
   du_head_p ptr;
-  for (i = 0; VEC_iterate(du_head_p, id_to_chain, i, ptr); i++)
+  for (i = 0; id_to_chain.iterate (i, &ptr); i++)
     bitmap_clear (&ptr->conflicts);
 
-  VEC_free (du_head_p, heap, id_to_chain);
+  id_to_chain.release ();
 }
 
 /* Walk all chains starting with CHAINS and record that they conflict with
@@ -233,7 +231,7 @@ create_new_chain (unsigned this_regno, unsigned this_nregs, rtx *loc,
   head->need_caller_save_reg = 0;
   head->cannot_rename = 0;
 
-  VEC_safe_push (du_head_p, heap, id_to_chain, head);
+  id_to_chain.safe_push (head);
   head->id = current_id++;
 
   bitmap_initialize (&head->conflicts, &bitmap_default_obstack);
@@ -323,7 +321,7 @@ check_new_reg_p (int reg ATTRIBUTE_UNUSED, int new_reg,
 #ifdef LEAF_REGISTERS
 	/* We can't use a non-leaf register if we're in a
 	   leaf function.  */
-	|| (current_function_is_leaf
+	|| (crtl->is_leaf
 	    && !LEAF_REGISTERS[new_reg + i])
 #endif
 #ifdef HARD_REGNO_RENAME_OK
@@ -430,7 +428,7 @@ rename_chains (void)
 #endif
     }
 
-  FOR_EACH_VEC_ELT (du_head_p, id_to_chain, i, this_head)
+  FOR_EACH_VEC_ELT (id_to_chain, i, this_head)
     {
       int best_new_reg;
       int n_uses;
@@ -670,13 +668,13 @@ regrename_analyze (bitmap bb_mask)
   int n_bbs;
   int *inverse_postorder;
 
-  inverse_postorder = XNEWVEC (int, last_basic_block);
+  inverse_postorder = XNEWVEC (int, last_basic_block_for_fn (cfun));
   n_bbs = pre_and_rev_post_order_compute (NULL, inverse_postorder, false);
 
   /* Gather some information about the blocks in this function.  */
-  rename_info = XCNEWVEC (struct bb_rename_info, n_basic_blocks);
+  rename_info = XCNEWVEC (struct bb_rename_info, n_basic_blocks_for_fn (cfun));
   i = 0;
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       struct bb_rename_info *ri = rename_info + i;
       ri->bb = bb;
@@ -688,7 +686,7 @@ regrename_analyze (bitmap bb_mask)
     }
 
   current_id = 0;
-  id_to_chain = VEC_alloc (du_head_p, heap, 0);
+  id_to_chain.create (0);
   bitmap_initialize (&open_chains_set, &bitmap_default_obstack);
 
   /* The order in which we visit blocks ensures that whenever
@@ -698,12 +696,12 @@ regrename_analyze (bitmap bb_mask)
 
   for (i = 0; i < n_bbs; i++)
     {
-      basic_block bb1 = BASIC_BLOCK (inverse_postorder[i]);
+      basic_block bb1 = BASIC_BLOCK_FOR_FN (cfun, inverse_postorder[i]);
       struct bb_rename_info *this_info;
       bool success;
       edge e;
       edge_iterator ei;
-      int old_length = VEC_length (du_head_p, id_to_chain);
+      int old_length = id_to_chain.length ();
 
       this_info = (struct bb_rename_info *) bb1->aux;
       if (this_info == NULL)
@@ -720,17 +718,16 @@ regrename_analyze (bitmap bb_mask)
 	  if (dump_file)
 	    fprintf (dump_file, "failed\n");
 	  bb1->aux = NULL;
-	  VEC_truncate (du_head_p, id_to_chain, old_length);
+	  id_to_chain.truncate (old_length);
 	  current_id = old_length;
 	  bitmap_clear (&this_info->incoming_open_chains_set);
 	  open_chains = NULL;
-	  if (insn_rr != NULL)
+	  if (insn_rr.exists ())
 	    {
 	      rtx insn;
 	      FOR_BB_INSNS (bb1, insn)
 		{
-		  insn_rr_info *p = VEC_index (insn_rr_info, insn_rr,
-					       INSN_UID (insn));
+		  insn_rr_info *p = &insn_rr[INSN_UID (insn)];
 		  p->op_info = NULL;
 		}
 	    }
@@ -781,7 +778,7 @@ regrename_analyze (bitmap bb_mask)
      We perform the analysis for both incoming and outgoing edges, but we
      only need to merge once (in the second part, after verifying outgoing
      edges).  */
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       struct bb_rename_info *bb_ri = (struct bb_rename_info *) bb->aux;
       unsigned j;
@@ -846,7 +843,7 @@ regrename_analyze (bitmap bb_mask)
 	    }
 	}
     }
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       struct bb_rename_info *bb_ri = (struct bb_rename_info *) bb->aux;
       unsigned j;
@@ -923,7 +920,7 @@ regrename_analyze (bitmap bb_mask)
 
   free (rename_info);
 
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     bb->aux = NULL;
 }
 
@@ -1343,10 +1340,7 @@ scan_rtx (rtx insn, rtx *loc, enum reg_class cl, enum scan_actions action,
   switch (code)
     {
     case CONST:
-    case CONST_INT:
-    case CONST_DOUBLE:
-    case CONST_FIXED:
-    case CONST_VECTOR:
+    CASE_CONST_ANY:
     case SYMBOL_REF:
     case LABEL_REF:
     case CC0:
@@ -1582,9 +1576,9 @@ build_def_use (basic_block bb)
 	  n_ops = recog_data.n_operands;
 	  untracked_operands = 0;
 
-	  if (insn_rr != NULL)
+	  if (insn_rr.exists ())
 	    {
-	      insn_info = VEC_index (insn_rr_info, insn_rr, INSN_UID (insn));
+	      insn_info = &insn_rr[INSN_UID (insn)];
 	      insn_info->op_info = XOBNEWVEC (&rename_obstack, operand_rr_info,
 					      recog_data.n_operands);
 	      memset (insn_info->op_info, 0,
@@ -1716,9 +1710,16 @@ build_def_use (basic_block bb)
 	      scan_rtx (insn, &XEXP (note, 0), ALL_REGS, mark_read,
 			OP_INOUT);
 
-	  /* Step 4: Close chains for registers that die here.  */
+	  /* Step 4: Close chains for registers that die here, unless
+	     the register is mentioned in a REG_UNUSED note.  In that
+	     case we keep the chain open until step #7 below to ensure
+	     it conflicts with other output operands of this insn.
+	     See PR 52573.  Arguably the insn should not have both
+	     notes; it has proven difficult to fix that without
+	     other undesirable side effects.  */
 	  for (note = REG_NOTES (insn); note; note = XEXP (note, 1))
-	    if (REG_NOTE_KIND (note) == REG_DEAD)
+	    if (REG_NOTE_KIND (note) == REG_DEAD
+		&& !find_regno_note (insn, REG_UNUSED, REGNO (XEXP (note, 0))))
 	      {
 		remove_from_hard_reg_set (&live_hard_regs,
 					  GET_MODE (XEXP (note, 0)),
@@ -1800,16 +1801,16 @@ void
 regrename_init (bool insn_info)
 {
   gcc_obstack_init (&rename_obstack);
-  insn_rr = NULL;
+  insn_rr.create (0);
   if (insn_info)
-    VEC_safe_grow_cleared (insn_rr_info, heap, insn_rr, get_max_uid ());
+    insn_rr.safe_grow_cleared (get_max_uid ());
 }
 
 /* Free all global data used by the register renamer.  */
 void
 regrename_finish (void)
 {
-  VEC_free (insn_rr_info, heap, insn_rr);
+  insn_rr.release ();
   free_chain_data ();
   obstack_free (&rename_obstack, NULL);
 }
@@ -1841,22 +1842,40 @@ gate_handle_regrename (void)
   return (optimize > 0 && (flag_rename_registers));
 }
 
-struct rtl_opt_pass pass_regrename =
+namespace {
+
+const pass_data pass_data_regrename =
 {
- {
-  RTL_PASS,
-  "rnreg",                              /* name */
-  gate_handle_regrename,                /* gate */
-  regrename_optimize,                   /* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_RENAME_REGISTERS,                  /* tv_id */
-  0,                                    /* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  TODO_df_finish | TODO_verify_rtl_sharing |
-  0                                     /* todo_flags_finish */
- }
+  RTL_PASS, /* type */
+  "rnreg", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_RENAME_REGISTERS, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_rtl_sharing | 0 ), /* todo_flags_finish */
 };
+
+class pass_regrename : public rtl_opt_pass
+{
+public:
+  pass_regrename (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_regrename, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_handle_regrename (); }
+  unsigned int execute () { return regrename_optimize (); }
+
+}; // class pass_regrename
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_regrename (gcc::context *ctxt)
+{
+  return new pass_regrename (ctxt);
+}

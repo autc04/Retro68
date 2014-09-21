@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -55,8 +55,9 @@ package body ALI is
       'X'    => True,   -- xref
       'S'    => True,   -- specific dispatching
       'Y'    => True,   -- limited_with
+      'Z'    => True,   -- implicit with from instantiation
       'C'    => True,   -- SCO information
-      'F'    => True,   -- Alfa information
+      'F'    => True,   -- SPARK cross-reference information
       others => False);
 
    --------------------
@@ -106,17 +107,18 @@ package body ALI is
       --  Initialize global variables recording cumulative options in all
       --  ALI files that are read for a given processing run in gnatbind.
 
-      Dynamic_Elaboration_Checks_Specified := False;
-      Float_Format_Specified               := ' ';
-      Locking_Policy_Specified             := ' ';
-      No_Normalize_Scalars_Specified       := False;
-      No_Object_Specified                  := False;
-      Normalize_Scalars_Specified          := False;
-      Queuing_Policy_Specified             := ' ';
-      Static_Elaboration_Model_Used        := False;
-      Task_Dispatching_Policy_Specified    := ' ';
-      Unreserve_All_Interrupts_Specified   := False;
-      Zero_Cost_Exceptions_Specified       := False;
+      Dynamic_Elaboration_Checks_Specified   := False;
+      Float_Format_Specified                 := ' ';
+      Locking_Policy_Specified               := ' ';
+      No_Normalize_Scalars_Specified         := False;
+      No_Object_Specified                    := False;
+      Normalize_Scalars_Specified            := False;
+      Partition_Elaboration_Policy_Specified := ' ';
+      Queuing_Policy_Specified               := ' ';
+      Static_Elaboration_Model_Used          := False;
+      Task_Dispatching_Policy_Specified      := ' ';
+      Unreserve_All_Interrupts_Specified     := False;
+      Zero_Cost_Exceptions_Specified         := False;
    end Initialize_ALI;
 
    --------------
@@ -134,7 +136,7 @@ package body ALI is
       Ignore_Errors    : Boolean := False;
       Directly_Scanned : Boolean := False) return ALI_Id
    is
-      P         : Text_Ptr := T'First;
+      P         : Text_Ptr            := T'First;
       Line      : Logical_Line_Number := 1;
       Id        : ALI_Id;
       C         : Character;
@@ -184,9 +186,13 @@ package body ALI is
       function Getc return Character;
       --  Get next character, bumping P past the character obtained
 
-      function Get_File_Name (Lower : Boolean := False) return File_Name_Type;
+      function Get_File_Name
+        (Lower         : Boolean := False;
+         May_Be_Quoted : Boolean := False) return File_Name_Type;
       --  Skip blanks, then scan out a file name (name is left in Name_Buffer
       --  with length in Name_Len, as well as returning a File_Name_Type value.
+      --  If May_Be_Quoted is True and the first non blank character is '"',
+      --  then remove starting and ending quotes and undoubled internal quotes.
       --  If lower is false, the case is unchanged, if Lower is True then the
       --  result is forced to all lower case for systems where file names are
       --  not case sensitive. This ensures that gnatbind works correctly
@@ -196,7 +202,8 @@ package body ALI is
 
       function Get_Name
         (Ignore_Spaces  : Boolean := False;
-         Ignore_Special : Boolean := False) return Name_Id;
+         Ignore_Special : Boolean := False;
+         May_Be_Quoted  : Boolean := False) return Name_Id;
       --  Skip blanks, then scan out a name (name is left in Name_Buffer with
       --  length in Name_Len, as well as being returned in Name_Id form).
       --  If Lower is set to True then the Name_Buffer will be converted to
@@ -212,6 +219,10 @@ package body ALI is
       --    a typeref bracket or an equal sign except for the special case of
       --    an operator name starting with a double quote which is terminated
       --    by another double quote.
+      --
+      --    If May_Be_Quoted is True and the first non blank character is '"'
+      --    the name is 'unquoted'. In this case Ignore_Special is ignored and
+      --    assumed to be True.
       --
       --  It is an error to set both Ignore_Spaces and Ignore_Special to True.
       --  This function handles wide characters properly.
@@ -448,12 +459,14 @@ package body ALI is
       -------------------
 
       function Get_File_Name
-        (Lower : Boolean := False) return File_Name_Type
+        (Lower         : Boolean := False;
+         May_Be_Quoted : Boolean := False) return File_Name_Type
       is
          F : Name_Id;
 
       begin
-         F := Get_Name (Ignore_Special => True);
+         F := Get_Name (Ignore_Special => True,
+                        May_Be_Quoted  => May_Be_Quoted);
 
          --  Convert file name to all lower case if file names are not case
          --  sensitive. This ensures that we handle names in the canonical
@@ -473,8 +486,11 @@ package body ALI is
 
       function Get_Name
         (Ignore_Spaces  : Boolean := False;
-         Ignore_Special : Boolean := False) return Name_Id
+         Ignore_Special : Boolean := False;
+         May_Be_Quoted  : Boolean := False) return Name_Id
       is
+         Char : Character;
+
       begin
          Name_Len := 0;
          Skip_Space;
@@ -487,38 +503,79 @@ package body ALI is
             end if;
          end if;
 
-         loop
-            Add_Char_To_Name_Buffer (Getc);
+         Char := Getc;
 
-            exit when At_End_Of_Field and then not Ignore_Spaces;
+         --  Deal with quoted characters
 
-            if not Ignore_Special then
-               if Name_Buffer (1) = '"' then
-                  exit when Name_Len > 1 and then Name_Buffer (Name_Len) = '"';
-
-               else
-                  --  Terminate on parens or angle brackets or equal sign
-
-                  exit when Nextc = '(' or else Nextc = ')'
-                    or else Nextc = '{' or else Nextc = '}'
-                    or else Nextc = '<' or else Nextc = '>'
-                    or else Nextc = '=';
-
-                  --  Terminate on comma
-
-                  exit when Nextc = ',';
-
-                  --  Terminate if left bracket not part of wide char sequence
-                  --  Note that we only recognize brackets notation so far ???
-
-                  exit when Nextc = '[' and then T (P + 1) /= '"';
-
-                  --  Terminate if right bracket not part of wide char sequence
-
-                  exit when Nextc = ']' and then T (P - 1) /= '"';
+         if May_Be_Quoted and then Char = '"' then
+            loop
+               if At_Eol then
+                  if Ignore_Errors then
+                     return Error_Name;
+                  else
+                     Fatal_Error;
+                  end if;
                end if;
-            end if;
-         end loop;
+
+               Char := Getc;
+
+               if Char = '"' then
+                  if At_Eol then
+                     exit;
+
+                  else
+                     Char := Getc;
+
+                     if Char /= '"' then
+                        P := P - 1;
+                        exit;
+                     end if;
+                  end if;
+               end if;
+
+               Add_Char_To_Name_Buffer (Char);
+            end loop;
+
+         --  Other than case of quoted character
+
+         else
+            P := P - 1;
+            loop
+               Add_Char_To_Name_Buffer (Getc);
+
+               exit when At_End_Of_Field and then not Ignore_Spaces;
+
+               if not Ignore_Special then
+                  if Name_Buffer (1) = '"' then
+                     exit when Name_Len > 1
+                               and then Name_Buffer (Name_Len) = '"';
+
+                  else
+                     --  Terminate on parens or angle brackets or equal sign
+
+                     exit when Nextc = '(' or else Nextc = ')'
+                       or else Nextc = '{' or else Nextc = '}'
+                       or else Nextc = '<' or else Nextc = '>'
+                       or else Nextc = '=';
+
+                     --  Terminate on comma
+
+                     exit when Nextc = ',';
+
+                     --  Terminate if left bracket not part of wide char
+                     --  sequence Note that we only recognize brackets
+                     --  notation so far ???
+
+                     exit when Nextc = '[' and then T (P + 1) /= '"';
+
+                     --  Terminate if right bracket not part of wide char
+                     --  sequence.
+
+                     exit when Nextc = ']' and then T (P - 1) /= '"';
+                  end if;
+               end if;
+            end loop;
+         end if;
 
          return Name_Find;
       end Get_Name;
@@ -782,7 +839,8 @@ package body ALI is
       --  Acquire lines to be ignored
 
       if Read_Xref then
-         Ignore := ('U' | 'W' | 'Y' | 'D' | 'X' => False, others => True);
+         Ignore :=
+           ('U' | 'W' | 'Y' | 'Z' | 'D' | 'X' => False, others => True);
 
       --  Read_Lines parameter given
 
@@ -811,36 +869,37 @@ package body ALI is
       Set_Name_Table_Info (F, Int (Id));
 
       ALIs.Table (Id) := (
-        Afile                      => F,
-        Compile_Errors             => False,
-        First_Interrupt_State      => Interrupt_States.Last + 1,
-        First_Sdep                 => No_Sdep_Id,
-        First_Specific_Dispatching => Specific_Dispatching.Last + 1,
-        First_Unit                 => No_Unit_Id,
-        Float_Format               => 'I',
-        Last_Interrupt_State       => Interrupt_States.Last,
-        Last_Sdep                  => No_Sdep_Id,
-        Last_Specific_Dispatching  => Specific_Dispatching.Last,
-        Last_Unit                  => No_Unit_Id,
-        Locking_Policy             => ' ',
-        Main_Priority              => -1,
-        Main_CPU                   => -1,
-        Main_Program               => None,
-        No_Object                  => False,
-        Normalize_Scalars          => False,
-        Ofile_Full_Name            => Full_Object_File_Name,
-        Queuing_Policy             => ' ',
-        Restrictions               => No_Restrictions,
-        SAL_Interface              => False,
-        Sfile                      => No_File,
-        Task_Dispatching_Policy    => ' ',
-        Time_Slice_Value           => -1,
-        Allocator_In_Body          => False,
-        WC_Encoding                => 'b',
-        Unit_Exception_Table       => False,
-        Ver                        => (others => ' '),
-        Ver_Len                    => 0,
-        Zero_Cost_Exceptions       => False);
+        Afile                        => F,
+        Compile_Errors               => False,
+        First_Interrupt_State        => Interrupt_States.Last + 1,
+        First_Sdep                   => No_Sdep_Id,
+        First_Specific_Dispatching   => Specific_Dispatching.Last + 1,
+        First_Unit                   => No_Unit_Id,
+        Float_Format                 => 'I',
+        Last_Interrupt_State         => Interrupt_States.Last,
+        Last_Sdep                    => No_Sdep_Id,
+        Last_Specific_Dispatching    => Specific_Dispatching.Last,
+        Last_Unit                    => No_Unit_Id,
+        Locking_Policy               => ' ',
+        Main_Priority                => -1,
+        Main_CPU                     => -1,
+        Main_Program                 => None,
+        No_Object                    => False,
+        Normalize_Scalars            => False,
+        Ofile_Full_Name              => Full_Object_File_Name,
+        Partition_Elaboration_Policy => ' ',
+        Queuing_Policy               => ' ',
+        Restrictions                 => No_Restrictions,
+        SAL_Interface                => False,
+        Sfile                        => No_File,
+        Task_Dispatching_Policy      => ' ',
+        Time_Slice_Value             => -1,
+        Allocator_In_Body            => False,
+        WC_Encoding                  => 'b',
+        Unit_Exception_Table         => False,
+        Ver                          => (others => ' '),
+        Ver_Len                      => 0,
+        Zero_Cost_Exceptions         => False);
 
       --  Now we acquire the input lines from the ALI file. Note that the
       --  convention in the following code is that as we enter each section,
@@ -966,9 +1025,16 @@ package body ALI is
                Add_Char_To_Name_Buffer (Getc);
             end loop;
 
-            --  If -fstack-check, record that it occurred
+            --  If -fstack-check, record that it occurred. Note that an
+            --  additional string parameter can be specified, in the form of
+            --  -fstack-check={no|generic|specific}. "no" means no checking,
+            --  "generic" means force the use of old-style checking, and
+            --  "specific" means use the best checking method.
 
-            if Name_Buffer (1 .. Name_Len) = "-fstack-check" then
+            if Name_Len >= 13
+              and then Name_Buffer (1 .. 13) = "-fstack-check"
+              and then Name_Buffer (1 .. Name_Len) /= "-fstack-check=no"
+            then
                Stack_Check_Switch_Set := True;
             end if;
 
@@ -1024,6 +1090,13 @@ package body ALI is
             elsif C = 'D' then
                Checkc ('B');
                Detect_Blocking := True;
+
+            --  Processing for Ex
+
+            elsif C = 'E' then
+               Partition_Elaboration_Policy_Specified := Getc;
+               ALIs.Table (Id).Partition_Elaboration_Policy :=
+                 Partition_Elaboration_Policy_Specified;
 
             --  Processing for FD/FG/FI
 
@@ -1152,7 +1225,7 @@ package body ALI is
       C := Getc;
       Check_Unknown_Line;
 
-      --  Acquire first restrictions line
+      --  Loop to skip to first restrictions line
 
       while C /= 'R' loop
          if Ignore_Errors then
@@ -1167,10 +1240,15 @@ package body ALI is
          end if;
       end loop;
 
-      if Ignore ('R') then
-         Skip_Line;
+      --  Ignore all 'R' lines if that is required
 
-      --  Process restrictions line
+      if Ignore ('R') then
+         while C = 'R' loop
+            Skip_Line;
+            C := Getc;
+         end loop;
+
+      --  Here we process the restrictions lines (other than unit name cases)
 
       else
          Scan_Restrictions : declare
@@ -1180,16 +1258,191 @@ package body ALI is
             Bad_R_Line : exception;
             --  Signal bad restrictions line (raised on unexpected character)
 
+            Typ : Character;
+            R   : Restriction_Id;
+            N   : Natural;
+
          begin
-            Checkc (' ');
-            Skip_Space;
+            --  Named restriction case
 
-            --  Acquire information for boolean restrictions
-
-            for R in All_Boolean_Restrictions loop
+            if Nextc = 'N' then
+               Skip_Line;
                C := Getc;
 
-               case C is
+               --  Loop through RR and RV lines
+
+               while C = 'R' and then Nextc /= ' ' loop
+                  Typ := Getc;
+                  Checkc (' ');
+
+                  --  Acquire restriction name
+
+                  Name_Len := 0;
+                  while not At_Eol and then Nextc /= '=' loop
+                     Name_Len := Name_Len + 1;
+                     Name_Buffer (Name_Len) := Getc;
+                  end loop;
+
+                  --  Now search list of restrictions to find match
+
+                  declare
+                     RN : String renames Name_Buffer (1 .. Name_Len);
+
+                  begin
+                     R := Restriction_Id'First;
+                     while R /= Not_A_Restriction_Id loop
+                        if Restriction_Id'Image (R) = RN then
+                           goto R_Found;
+                        end if;
+
+                        R := Restriction_Id'Succ (R);
+                     end loop;
+
+                     --  We don't recognize the restriction. This might be
+                     --  thought of as an error, and it really is, but we
+                     --  want to allow building with inconsistent versions
+                     --  of the binder and ali files (see comments at the
+                     --  start of package System.Rident), so we just ignore
+                     --  this situation.
+
+                     goto Done_With_Restriction_Line;
+                  end;
+
+                  <<R_Found>>
+
+                  case R is
+
+                     --  Boolean restriction case
+
+                     when All_Boolean_Restrictions =>
+                        case Typ is
+                           when 'V' =>
+                              ALIs.Table (Id).Restrictions.Violated (R) :=
+                                True;
+                              Cumulative_Restrictions.Violated (R) := True;
+
+                           when 'R' =>
+                              ALIs.Table (Id).Restrictions.Set (R) := True;
+                              Cumulative_Restrictions.Set (R) := True;
+
+                           when others =>
+                              raise Bad_R_Line;
+                        end case;
+
+                     --  Parameter restriction case
+
+                     when All_Parameter_Restrictions =>
+                        if At_Eol or else Nextc /= '=' then
+                           raise Bad_R_Line;
+                        else
+                           Skipc;
+                        end if;
+
+                        N := Natural (Get_Nat);
+
+                        case Typ is
+
+                           --  Restriction set
+
+                           when 'R' =>
+                              ALIs.Table (Id).Restrictions.Set (R) := True;
+                              ALIs.Table (Id).Restrictions.Value (R) := N;
+
+                              if Cumulative_Restrictions.Set (R) then
+                                 Cumulative_Restrictions.Value (R) :=
+                                   Integer'Min
+                                     (Cumulative_Restrictions.Value (R), N);
+                              else
+                                 Cumulative_Restrictions.Set (R) := True;
+                                 Cumulative_Restrictions.Value (R) := N;
+                              end if;
+
+                           --  Restriction violated
+
+                           when 'V' =>
+                              ALIs.Table (Id).Restrictions.Violated (R) :=
+                                True;
+                              Cumulative_Restrictions.Violated (R) := True;
+                              ALIs.Table (Id).Restrictions.Count (R) := N;
+
+                              --  Checked Max_Parameter case
+
+                              if R in Checked_Max_Parameter_Restrictions then
+                                 Cumulative_Restrictions.Count (R) :=
+                                   Integer'Max
+                                     (Cumulative_Restrictions.Count (R), N);
+
+                              --  Other checked parameter cases
+
+                              else
+                                 declare
+                                    pragma Unsuppress (Overflow_Check);
+
+                                 begin
+                                    Cumulative_Restrictions.Count (R) :=
+                                      Cumulative_Restrictions.Count (R) + N;
+
+                                 exception
+                                    when Constraint_Error =>
+
+                                       --  A constraint error comes from the
+                                       --  addition. We reset to the maximum
+                                       --  and indicate that the real value
+                                       --  is now unknown.
+
+                                       Cumulative_Restrictions.Value (R) :=
+                                         Integer'Last;
+                                       Cumulative_Restrictions.Unknown (R) :=
+                                         True;
+                                 end;
+                              end if;
+
+                              --  Deal with + case
+
+                              if Nextc = '+' then
+                                 Skipc;
+                                 ALIs.Table (Id).Restrictions.Unknown (R) :=
+                                   True;
+                                 Cumulative_Restrictions.Unknown (R) := True;
+                              end if;
+
+                           --  Other than 'R' or 'V'
+
+                           when others =>
+                              raise Bad_R_Line;
+                        end case;
+
+                        if not At_Eol then
+                           raise Bad_R_Line;
+                        end if;
+
+                     --  Bizarre error case NOT_A_RESTRICTION
+
+                     when Not_A_Restriction_Id =>
+                        raise Bad_R_Line;
+                  end case;
+
+                  if not At_Eol then
+                     raise Bad_R_Line;
+                  end if;
+
+               <<Done_With_Restriction_Line>>
+                  Skip_Line;
+                  C := Getc;
+               end loop;
+
+            --  Positional restriction case
+
+            else
+               Checkc (' ');
+               Skip_Space;
+
+               --  Acquire information for boolean restrictions
+
+               for R in All_Boolean_Restrictions loop
+                  C := Getc;
+
+                  case C is
                   when 'v' =>
                      ALIs.Table (Id).Restrictions.Violated (R) := True;
                      Cumulative_Restrictions.Violated (R) := True;
@@ -1203,44 +1456,42 @@ package body ALI is
 
                   when others =>
                      raise Bad_R_Line;
-               end case;
-            end loop;
+                  end case;
+               end loop;
 
-            --  Acquire information for parameter restrictions
+               --  Acquire information for parameter restrictions
 
-            for RP in All_Parameter_Restrictions loop
+               for RP in All_Parameter_Restrictions loop
+                  case Getc is
+                     when 'n' =>
+                        null;
 
-               --  Acquire restrictions pragma information
+                     when 'r' =>
+                        ALIs.Table (Id).Restrictions.Set (RP) := True;
 
-               case Getc is
-                  when 'n' =>
-                     null;
+                        declare
+                           N : constant Integer := Integer (Get_Nat);
+                        begin
+                           ALIs.Table (Id).Restrictions.Value (RP) := N;
 
-                  when 'r' =>
-                     ALIs.Table (Id).Restrictions.Set (RP) := True;
+                           if Cumulative_Restrictions.Set (RP) then
+                              Cumulative_Restrictions.Value (RP) :=
+                                Integer'Min
+                                  (Cumulative_Restrictions.Value (RP), N);
+                           else
+                              Cumulative_Restrictions.Set (RP) := True;
+                              Cumulative_Restrictions.Value (RP) := N;
+                           end if;
+                        end;
 
-                     declare
-                        N : constant Integer := Integer (Get_Nat);
-                     begin
-                        ALIs.Table (Id).Restrictions.Value (RP) := N;
+                     when others =>
+                        raise Bad_R_Line;
+                  end case;
 
-                        if Cumulative_Restrictions.Set (RP) then
-                           Cumulative_Restrictions.Value (RP) :=
-                             Integer'Min
-                               (Cumulative_Restrictions.Value (RP), N);
-                        else
-                           Cumulative_Restrictions.Set (RP) := True;
-                           Cumulative_Restrictions.Value (RP) := N;
-                        end if;
-                     end;
+                  --  Acquire restrictions violations information
 
-                  when others =>
-                     raise Bad_R_Line;
-               end case;
+                  case Getc is
 
-               --  Acquire restrictions violations information
-
-               case Getc is
                   when 'n' =>
                      null;
 
@@ -1250,7 +1501,6 @@ package body ALI is
 
                      declare
                         N : constant Integer := Integer (Get_Nat);
-                        pragma Unsuppress (Overflow_Check);
 
                      begin
                         ALIs.Table (Id).Restrictions.Count (RP) := N;
@@ -1259,34 +1509,47 @@ package body ALI is
                            Cumulative_Restrictions.Count (RP) :=
                              Integer'Max
                                (Cumulative_Restrictions.Count (RP), N);
+
                         else
-                           Cumulative_Restrictions.Count (RP) :=
-                             Cumulative_Restrictions.Count (RP) + N;
+                           declare
+                              pragma Unsuppress (Overflow_Check);
+
+                           begin
+                              Cumulative_Restrictions.Count (RP) :=
+                                Cumulative_Restrictions.Count (RP) + N;
+
+                           exception
+                              when Constraint_Error =>
+
+                                 --  A constraint error comes from the add. We
+                                 --  reset to the maximum and indicate that the
+                                 --  real value is now unknown.
+
+                                 Cumulative_Restrictions.Value (RP) :=
+                                   Integer'Last;
+                                 Cumulative_Restrictions.Unknown (RP) := True;
+                           end;
                         end if;
 
-                     exception
-                        when Constraint_Error =>
-
-                           --  A constraint error comes from the addition in
-                           --  the else branch. We reset to the maximum and
-                           --  indicate that the real value is now unknown.
-
-                           Cumulative_Restrictions.Value (RP) := Integer'Last;
+                        if Nextc = '+' then
+                           Skipc;
+                           ALIs.Table (Id).Restrictions.Unknown (RP) := True;
                            Cumulative_Restrictions.Unknown (RP) := True;
+                        end if;
                      end;
-
-                     if Nextc = '+' then
-                        Skipc;
-                        ALIs.Table (Id).Restrictions.Unknown (RP) := True;
-                        Cumulative_Restrictions.Unknown (RP) := True;
-                     end if;
 
                   when others =>
                      raise Bad_R_Line;
-               end case;
-            end loop;
+                  end case;
+               end loop;
 
-            Skip_Eol;
+               if not At_Eol then
+                  raise Bad_R_Line;
+               else
+                  Skip_Line;
+                  C := Getc;
+               end if;
+            end if;
 
          --  Here if error during scanning of restrictions line
 
@@ -1294,25 +1557,29 @@ package body ALI is
             when Bad_R_Line =>
 
                --  In Ignore_Errors mode, undo any changes to restrictions
-               --  from this unit, and continue on.
+               --  from this unit, and continue on, skipping remaining R
+               --  lines for this unit.
 
                if Ignore_Errors then
                   Cumulative_Restrictions := Save_R;
                   ALIs.Table (Id).Restrictions := No_Restrictions;
-                  Skip_Eol;
+
+                  loop
+                     Skip_Eol;
+                     C := Getc;
+                     exit when C /= 'R';
+                  end loop;
 
                --  In normal mode, this is a fatal error
 
                else
                   Fatal_Error;
                end if;
-
          end Scan_Restrictions;
       end if;
 
       --  Acquire additional restrictions (No_Dependence) lines if present
 
-      C := Getc;
       while C = 'R' loop
          if Ignore ('R') then
             Skip_Line;
@@ -1717,7 +1984,7 @@ package body ALI is
 
          With_Loop : loop
             Check_Unknown_Line;
-            exit With_Loop when C /= 'W' and then C /= 'Y';
+            exit With_Loop when C /= 'W' and then C /= 'Y' and then C /= 'Z';
 
             if Ignore ('W') then
                Skip_Line;
@@ -1733,6 +2000,8 @@ package body ALI is
                Withs.Table (Withs.Last).Elab_All_Desirable := False;
                Withs.Table (Withs.Last).SAL_Interface      := False;
                Withs.Table (Withs.Last).Limited_With       := (C = 'Y');
+               Withs.Table (Withs.Last).Implicit_With_From_Instantiation
+                                                           := (C = 'Z');
 
                --  Generic case with no object file available
 
@@ -1947,7 +2216,7 @@ package body ALI is
       else
          --  Deal with body only and spec only cases, note that the reason we
          --  do our own checking of the name (rather than using Is_Body_Name)
-         --  is that Uname drags in far too much compiler junk!
+         --  is that Uname drags in far too much compiler junk.
 
          Get_Name_String (Units.Table (Units.Last).Uname);
 
@@ -2010,7 +2279,10 @@ package body ALI is
             --  In the following call, Lower is not set to True, this is either
             --  a bug, or it deserves a special comment as to why this is so???
 
-            Sdep.Table (Sdep.Last).Sfile := Get_File_Name;
+            --  The file/path name may be quoted
+
+            Sdep.Table (Sdep.Last).Sfile :=
+              Get_File_Name (May_Be_Quoted =>  True);
 
             Sdep.Table (Sdep.Last).Stamp := Get_Stamp;
             Sdep.Table (Sdep.Last).Dummy_Entry :=
@@ -2456,7 +2728,7 @@ package body ALI is
       --  Here after dealing with xref sections
 
       --  Ignore remaining lines, which belong to an additional section of the
-      --  ALI file not considered here (like SCO or Alfa).
+      --  ALI file not considered here (like SCO or SPARK information).
 
       Check_Unknown_Line;
 

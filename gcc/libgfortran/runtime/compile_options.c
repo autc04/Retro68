@@ -1,6 +1,5 @@
 /* Handling of compile-time options that influence the library.
-   Copyright (C) 2005, 2007, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
 This file is part of the GNU Fortran runtime library (libgfortran).
 
@@ -126,7 +125,8 @@ backtrace_handler (int signum)
   fatal_error_in_progress = 1;
 
   show_signal (signum);
-  show_backtrace();
+  estr_write ("\nBacktrace for this error:\n");
+  backtrace ();
 
   /* Now reraise the signal.  We reactivate the signal's
      default handling, which is to terminate the process.
@@ -169,8 +169,12 @@ set_options (int num, int options[])
     compile_options.sign_zero = options[5];
   if (num >= 7)
     compile_options.bounds_check = options[6];
-  if (num >= 8)
-    compile_options.range_check = options[7];
+  /* options[7] is the -frange-check option, which no longer affects
+     the library behavior; range checking is now always done when
+     parsing integers. It's place in the options array is retained due
+     to ABI compatibility. Remove when bumping the library ABI.  */
+  if (num >= 9)
+    compile_options.fpe_summary = options[8];
 
   /* If backtrace is required, we set signal handlers on the POSIX
      2001 signals with core action.  */
@@ -223,7 +227,7 @@ init_compile_options (void)
   compile_options.pedantic = 0;
   compile_options.backtrace = 0;
   compile_options.sign_zero = 1;
-  compile_options.range_check = 1;
+  compile_options.fpe_summary = 0;
 }
 
 /* Function called by the front-end to tell us the

@@ -1,7 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows32, using GNU tools and the Windows32 API Library.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -121,15 +120,24 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Include in the mingw32 libraries with libgcc */
 #ifdef ENABLE_SHARED_LIBGCC
-#define SHARED_LIBGCC_SPEC "%{shared-libgcc:-lgcc_s} %{!shared-libgcc:-lgcc_eh}"
+#define SHARED_LIBGCC_SPEC " \
+ %{static|static-libgcc:-lgcc -lgcc_eh} \
+ %{!static: \
+   %{!static-libgcc: \
+     %{!shared: \
+       %{!shared-libgcc:-lgcc -lgcc_eh} \
+       %{shared-libgcc:-lgcc_s -lgcc} \
+      } \
+     %{shared:-lgcc_s -lgcc} \
+    } \
+  } "
 #else
-#define SHARED_LIBGCC_SPEC /*empty*/
+#define SHARED_LIBGCC_SPEC " -lgcc "
 #endif
 #undef REAL_LIBGCC_SPEC
 #define REAL_LIBGCC_SPEC \
   "%{mthreads:-lmingwthrd} -lmingw32 \
    "SHARED_LIBGCC_SPEC" \
-   -lgcc \
    -lmoldname -lmingwex -lmsvcrt"
 
 #undef STARTFILE_SPEC
@@ -140,6 +148,7 @@ along with GCC; see the file COPYING3.  If not see
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC \
   "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
+   %{!shared:%:if-exists(default-manifest.o%s)}\
   crtend.o%s"
 
 /* Override startfile prefix defaults.  */
@@ -149,6 +158,11 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef STANDARD_STARTFILE_PREFIX_2
 #define STANDARD_STARTFILE_PREFIX_2 ""
 #endif
+
+/* For native mingw-version we need to take care that NATIVE_SYSTEM_HEADER_DIR
+   macro contains POSIX-style path.  See bug 52947.  */
+#undef NATIVE_SYSTEM_HEADER_DIR
+#define NATIVE_SYSTEM_HEADER_DIR "/mingw/include"
 
 /* Output STRING, a string representing a filename, to FILE.
    We canonicalize it to be in Unix format (backslashes are replaced

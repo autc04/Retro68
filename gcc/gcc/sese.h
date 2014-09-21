@@ -1,6 +1,5 @@
 /* Single entry single exit control flow regions.
-   Copyright (C) 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Contributed by Jan Sjodin <jan.sjodin@amd.com> and
    Sebastian Pop <sebastian.pop@amd.com>.
 
@@ -31,11 +30,11 @@ typedef struct sese_s
   edge entry, exit;
 
   /* Parameters used within the SCOP.  */
-  VEC (tree, heap) *params;
+  vec<tree> params;
 
   /* Loops completely contained in the SCOP.  */
   bitmap loops;
-  VEC (loop_p, heap) *loop_nest;
+  vec<loop_p> loop_nest;
 
   /* Are we allowed to add more params?  This is for debugging purpose.  We
      can only add new params before generating the bb domains, otherwise they
@@ -57,10 +56,8 @@ extern void free_sese (sese);
 extern void sese_insert_phis_for_liveouts (sese, basic_block, edge, edge);
 extern void build_sese_loop_nests (sese);
 extern edge copy_bb_and_scalar_dependences (basic_block, sese, edge,
-					    VEC (tree, heap) *, bool *);
+					    vec<tree> , bool *);
 extern struct loop *outermost_loop_in_sese (sese, basic_block);
-extern void insert_loop_close_phis (htab_t, loop_p);
-extern void insert_guard_phis (basic_block, edge, edge, htab_t, htab_t);
 extern tree scalar_evolution_in_region (sese, loop_p, tree);
 
 /* Check that SESE contains LOOP.  */
@@ -76,7 +73,7 @@ sese_contains_loop (sese sese, struct loop *loop)
 static inline unsigned
 sese_nb_params (sese region)
 {
-  return VEC_length (tree, SESE_PARAMS (region));
+  return SESE_PARAMS (region).length ();
 }
 
 /* Checks whether BB is contained in the region delimited by ENTRY and
@@ -259,10 +256,7 @@ typedef struct rename_map_elt_s
   tree old_name, expr;
 } *rename_map_elt;
 
-DEF_VEC_P(rename_map_elt);
-DEF_VEC_ALLOC_P (rename_map_elt, heap);
 
-extern void debug_rename_map (htab_t);
 extern hashval_t rename_map_elt_info (const void *);
 extern int eq_rename_map_elts (const void *, const void *);
 
@@ -276,32 +270,6 @@ new_rename_map_elt (tree old_name, tree expr)
   res = XNEW (struct rename_map_elt_s);
   res->old_name = old_name;
   res->expr = expr;
-
-  return res;
-}
-
-/* Structure containing the mapping between the CLooG's induction
-   variable and the type of the old induction variable.  */
-typedef struct ivtype_map_elt_s
-{
-  tree type;
-  const char *cloog_iv;
-} *ivtype_map_elt;
-
-extern void debug_ivtype_map (htab_t);
-extern hashval_t ivtype_map_elt_info (const void *);
-extern int eq_ivtype_map_elts (const void *, const void *);
-
-/* Constructs a new SCEV_INFO_STR structure for VAR and INSTANTIATED_BELOW.  */
-
-static inline ivtype_map_elt
-new_ivtype_map_elt (const char *cloog_iv, tree type)
-{
-  ivtype_map_elt res;
-
-  res = XNEW (struct ivtype_map_elt_s);
-  res->cloog_iv = cloog_iv;
-  res->type = type;
 
   return res;
 }
@@ -341,9 +309,9 @@ typedef struct gimple_bb
      corresponding element in CONDITION_CASES is not NULL_TREE.  For a
      SWITCH_EXPR the corresponding element in CONDITION_CASES is a
      CASE_LABEL_EXPR.  */
-  VEC (gimple, heap) *conditions;
-  VEC (gimple, heap) *condition_cases;
-  VEC (data_reference_p, heap) *data_refs;
+  vec<gimple> conditions;
+  vec<gimple> condition_cases;
+  vec<data_reference_p> data_refs;
 } *gimple_bb_p;
 
 #define GBB_BB(GBB) (GBB)->bb

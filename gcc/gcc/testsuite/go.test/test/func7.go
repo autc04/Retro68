@@ -1,8 +1,10 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test evaluation order in if condition.
 
 package main
 
@@ -15,7 +17,7 @@ func f() int {
 
 func g() int {
 	if !calledf {
-		println("BUG: func7 - called g before f")
+		panic("BUG: func7 - called g before f")
 	}
 	return 0
 }
@@ -26,4 +28,3 @@ func main() {
 		panic("wrong answer")
 	}
 }
-

@@ -1,4 +1,4 @@
-// errchk $G -e $D/$F.go
+// errorcheck
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	switch x; y	// ERROR "unexpected semicolon or newline before .?{.?|undefined"
+	switch x; y	// ERROR "missing .*{.* after switch clause|undefined"
 	{
 		z
 

@@ -67,12 +67,22 @@ func (d *Data) readUnitLine(i int, u *unit) error {
 		switch e.Tag {
 		case TagCompileUnit, TagSubprogram, TagEntryPoint, TagInlinedSubroutine:
 			low, lowok := e.Val(AttrLowpc).(uint64)
-			high, highok := e.Val(AttrHighpc).(uint64)
+			var high uint64
+			var highok bool
+			switch v := e.Val(AttrHighpc).(type) {
+			case uint64:
+				high = v
+				highok = true
+			case int64:
+				high = low + uint64(v)
+				highok = true
+			}
 			if lowok && highok {
 				u.pc = append(u.pc, addrRange{low, high})
-			} else if f, ok := e.Val(AttrRanges).(Offset); ok {
-				// TODO: Handle AttrRanges and .debug_ranges.
-				_ = f
+			} else if off, ok := e.Val(AttrRanges).(Offset); ok {
+				if err := d.readAddressRanges(off, low, u); err != nil {
+					return err
+				}
 			}
 			val := e.Val(AttrStmtList)
 			if val != nil {
@@ -96,6 +106,38 @@ func (d *Data) readUnitLine(i int, u *unit) error {
 		u.lineoff--
 	}
 	return nil
+}
+
+// readAddressRanges adds address ranges to a unit.
+func (d *Data) readAddressRanges(off Offset, base uint64, u *unit) error {
+	b := makeBuf(d, u, "ranges", off, d.ranges[off:])
+	var highest uint64
+	switch u.addrsize() {
+	case 1:
+		highest = 0xff
+	case 2:
+		highest = 0xffff
+	case 4:
+		highest = 0xffffffff
+	case 8:
+		highest = 0xffffffffffffffff
+	default:
+		return errors.New("unknown address size")
+	}
+	for {
+		if b.err != nil {
+			return b.err
+		}
+		low := b.addr()
+		high := b.addr()
+		if low == 0 && high == 0 {
+			return b.err
+		} else if low == highest {
+			base = high
+		} else {
+			u.pc = append(u.pc, addrRange{low + base, high + base})
+		}
+	}
 }
 
 // findLine finds the line information for a PC value, given the unit
@@ -359,7 +401,7 @@ func (d *Data) parseLineProgram(u *unit, b *buf, hdr lineHdr, end Offset) {
 					b.error("DWARF file number out of range")
 					return
 				}
-				lineInfo.Filename = hdr.files[i]
+				lineInfo.Filename = hdr.files[i-1]
 				newLineInfo = true
 			case LineSetColumn:
 				lineInfo.Column = int(b.uint())
@@ -415,6 +457,10 @@ func (d *Data) addLine(lines []mapLineInfo, lineInfo Line, address uint64, line 
 	if newLineInfo {
 		if len(lines) > 0 {
 			sort.Sort(lines[len(lines)-1].addrs)
+			p := &lines[len(lines)-1]
+			if len(p.addrs) > 0 && address > p.addrs[len(p.addrs)-1].pc {
+				p.addrs = append(p.addrs, oneLineInfo{address, p.addrs[len(p.addrs)-1].line})
+			}
 		}
 		lines = append(lines, mapLineInfo{line: lineInfo})
 	}

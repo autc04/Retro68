@@ -1,7 +1,5 @@
 /* MD reader for GCC.
-   Copyright (C) 1987, 1988, 1991, 1994, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -167,14 +165,21 @@ copy_md_ptr_loc (const void *new_ptr, const void *old_ptr)
 }
 
 /* If PTR is associated with a known file position, print a #line
-   directive for it.  */
+   directive for it to OUTF.  */
 
 void
-print_md_ptr_loc (const void *ptr)
+fprint_md_ptr_loc (FILE *outf, const void *ptr)
 {
   const struct ptr_loc *loc = get_md_ptr_loc (ptr);
   if (loc != 0)
-    printf ("#line %d \"%s\"\n", loc->lineno, loc->filename);
+    fprintf (outf, "#line %d \"%s\"\n", loc->lineno, loc->filename);
+}
+
+/* Special fprint_md_ptr_loc for writing to STDOUT.  */
+void
+print_md_ptr_loc (const void *ptr)
+{
+  fprint_md_ptr_loc (stdout, ptr);
 }
 
 /* Return a condition that satisfies both COND1 and COND2.  Either string
@@ -204,29 +209,37 @@ join_c_conditions (const char *cond1, const char *cond2)
   return result;
 }
 
-/* Print condition COND, wrapped in brackets.  If COND was created by
-   join_c_conditions, recursively invoke this function for the original
+/* Print condition COND to OUTF, wrapped in brackets.  If COND was created
+   by join_c_conditions, recursively invoke this function for the original
    conditions and join the result with "&&".  Otherwise print a #line
    directive for COND if its original file position is known.  */
 
 void
-print_c_condition (const char *cond)
+fprint_c_condition (FILE *outf, const char *cond)
 {
   const char **halves = (const char **) htab_find (joined_conditions, &cond);
   if (halves != 0)
     {
-      printf ("(");
-      print_c_condition (halves[1]);
-      printf (" && ");
-      print_c_condition (halves[2]);
-      printf (")");
+      fprintf (outf, "(");
+      fprint_c_condition (outf, halves[1]);
+      fprintf (outf, " && ");
+      fprint_c_condition (outf, halves[2]);
+      fprintf (outf, ")");
     }
   else
     {
-      putc ('\n', stdout);
-      print_md_ptr_loc (cond);
-      printf ("(%s)", cond);
+      fputc ('\n', outf);
+      fprint_md_ptr_loc (outf, cond);
+      fprintf (outf, "(%s)", cond);
     }
+}
+
+/* Special fprint_c_condition for writing to STDOUT.  */
+
+void
+print_c_condition (const char *cond)
+{
+  fprint_c_condition (stdout, cond);
 }
 
 /* A vfprintf-like function for reporting an error against line LINENO
@@ -659,7 +672,7 @@ scan_comma_elt (const char **pstr)
 
   if (*p == ',')
     p++;
-  while (ISSPACE(*p))
+  while (ISSPACE (*p))
     p++;
 
   if (*p == '\0')
@@ -868,7 +881,7 @@ traverse_enum_types (htab_trav callback, void *info)
 /* Process an "include" directive, starting with the optional space
    after the "include".  Read in the file and use HANDLE_DIRECTIVE
    to process each unknown directive.  LINENO is the line number on
-   which the "include" occured.  */
+   which the "include" occurred.  */
 
 static void
 handle_include (int lineno, directive_handler_t handle_directive)
@@ -1014,7 +1027,7 @@ parse_include (const char *arg)
 }
 
 /* The main routine for reading .md files.  Try to process all the .md
-   files specified on the command line and return true if no error occured.
+   files specified on the command line and return true if no error occurred.
 
    ARGC and ARGV are the arguments to main.
 

@@ -1,5 +1,5 @@
 ;; Code and mode itertator and attribute definitions for the ARM backend
-;; Copyright (C) 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2014 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 ;;
 ;; This file is part of GCC.
@@ -36,14 +36,19 @@
 ;; A list of integer modes that are less than a word
 (define_mode_iterator NARROW [QI HI])
 
-;; A list of all the integer modes upto 64bit
+;; A list of all the integer modes up to 64bit
 (define_mode_iterator QHSD [QI HI SI DI])
 
 ;; A list of the 32bit and 64bit integer modes
 (define_mode_iterator SIDI [SI DI])
 
+;; A list of modes which the VFP unit can handle
+(define_mode_iterator SDF [(SF "TARGET_VFP") (DF "TARGET_VFP_DOUBLE")])
+
 ;; Integer element sizes implemented by IWMMXT.
 (define_mode_iterator VMMX [V2SI V4HI V8QI])
+
+(define_mode_iterator VMMX2 [V4HI V2SI])
 
 ;; Integer element sizes for shifts.
 (define_mode_iterator VSHFT [V4HI V2SI DI])
@@ -183,6 +188,33 @@
 ;; A list of widening operators
 (define_code_iterator SE [sign_extend zero_extend])
 
+;; Right shifts
+(define_code_iterator rshifts [ashiftrt lshiftrt])
+
+;;----------------------------------------------------------------------------
+;; Int iterators
+;;----------------------------------------------------------------------------
+
+(define_int_iterator VRINT [UNSPEC_VRINTZ UNSPEC_VRINTP UNSPEC_VRINTM
+                            UNSPEC_VRINTR UNSPEC_VRINTX UNSPEC_VRINTA])
+
+(define_int_iterator NEON_VRINT [UNSPEC_NVRINTP UNSPEC_NVRINTZ UNSPEC_NVRINTM
+                              UNSPEC_NVRINTX UNSPEC_NVRINTA UNSPEC_NVRINTN])
+
+(define_int_iterator CRC [UNSPEC_CRC32B UNSPEC_CRC32H UNSPEC_CRC32W
+                          UNSPEC_CRC32CB UNSPEC_CRC32CH UNSPEC_CRC32CW])
+
+(define_int_iterator CRYPTO_UNARY [UNSPEC_AESMC UNSPEC_AESIMC])
+
+(define_int_iterator CRYPTO_BINARY [UNSPEC_AESD UNSPEC_AESE
+                                    UNSPEC_SHA1SU1 UNSPEC_SHA256SU0])
+
+(define_int_iterator CRYPTO_TERNARY [UNSPEC_SHA1SU0 UNSPEC_SHA256H
+                                     UNSPEC_SHA256H2 UNSPEC_SHA256SU1])
+
+(define_int_iterator CRYPTO_SELECTING [UNSPEC_SHA1C UNSPEC_SHA1M
+                                       UNSPEC_SHA1P])
+
 ;;----------------------------------------------------------------------------
 ;; Mode attributes
 ;;----------------------------------------------------------------------------
@@ -243,7 +275,8 @@
                          (V4HI "P") (V8HI  "q")
                          (V2SI "P") (V4SI  "q")
                          (V2SF "P") (V4SF  "q")
-                         (DI   "P") (V2DI  "q")])
+                         (DI   "P") (V2DI  "q")
+                         (SF   "")  (DF    "P")])
 
 ;; Wider modes with the same number of elements.
 (define_mode_attr V_widen [(V8QI "V8HI") (V4HI "V4SI") (V2SI "V2DI")])
@@ -295,13 +328,20 @@
                                 (V2SF "V2SI") (V4SF  "V4SI")
                                 (DI   "DI")   (V2DI  "V2DI")])
 
+(define_mode_attr v_cmp_result [(V8QI "v8qi") (V16QI "v16qi")
+				(V4HI "v4hi") (V8HI  "v8hi")
+				(V2SI "v2si") (V4SI  "v4si")
+				(DI   "di")   (V2DI  "v2di")
+				(V2SF "v2si") (V4SF  "v4si")])
+
 ;; Get element type from double-width mode, for operations where we 
 ;; don't care about signedness.
 (define_mode_attr V_if_elem [(V8QI "i8")  (V16QI "i8")
                  (V4HI "i16") (V8HI  "i16")
                              (V2SI "i32") (V4SI  "i32")
                              (DI   "i64") (V2DI  "i64")
-                 (V2SF "f32") (V4SF  "f32")])
+                 (V2SF "f32") (V4SF  "f32")
+                 (SF "f32") (DF "f64")])
 
 ;; Same, but for operations which work on signed values.
 (define_mode_attr V_s_elem [(V8QI "s8")  (V16QI "s8")
@@ -328,6 +368,12 @@
                              (V2SI "32") (V4SI  "32")
                              (DI   "64") (V2DI  "64")
                  (V2SF "32") (V4SF  "32")])
+
+(define_mode_attr V_elem_ch [(V8QI "b")  (V16QI "b")
+                             (V4HI "h") (V8HI  "h")
+                             (V2SI "s") (V4SI  "s")
+                             (DI   "d") (V2DI  "d")
+                             (V2SF "s") (V4SF  "s")])
 
 ;; Element sizes for duplicating ARM registers to all elements of a vector.
 (define_mode_attr VD_dup [(V8QI "8") (V4HI "16") (V2SI "32") (V2SF "32")])
@@ -365,7 +411,7 @@
 (define_mode_attr scalar_mul_constraint [(V4HI "x") (V2SI "t") (V2SF "t")
                                          (V8HI "x") (V4SI "t") (V4SF "t")])
 
-;; Predicates used for setting neon_type
+;; Predicates used for setting type for neon instructions
 
 (define_mode_attr Is_float_mode [(V8QI "false") (V16QI "false")
                  (V4HI "false") (V8HI "false")
@@ -409,8 +455,8 @@
 (define_mode_attr qhs_extenddi_op [(SI "s_register_operand")
 				   (HI "nonimmediate_operand")
 				   (QI "arm_reg_or_extendqisi_mem_op")])
-(define_mode_attr qhs_extenddi_cstr [(SI "r") (HI "rm") (QI "rUq")])
-(define_mode_attr qhs_zextenddi_cstr [(SI "r") (HI "rm") (QI "rm")])
+(define_mode_attr qhs_extenddi_cstr [(SI "r,0,r,r,r") (HI "r,0,rm,rm,r") (QI "r,0,rUq,rm,r")])
+(define_mode_attr qhs_zextenddi_cstr [(SI "r,0,r,r") (HI "r,0,rm,r") (QI "r,0,rm,r")])
 
 ;; Mode attributes used for fixed-point support.
 (define_mode_attr qaddsub_suf [(V4UQQ "8") (V2UHQ "16") (UQQ "8") (UHQ "16")
@@ -421,6 +467,19 @@
 ;; Mode attribute for vshll.
 (define_mode_attr V_innermode [(V8QI "QI") (V4HI "HI") (V2SI "SI")])
 
+;; Mode attributes used for VFP support.
+(define_mode_attr F_constraint [(SF "t") (DF "w")])
+(define_mode_attr vfp_type [(SF "s") (DF "d")])
+(define_mode_attr vfp_double_cond [(SF "") (DF "&& TARGET_VFP_DOUBLE")])
+
+;; Mode attribute used to build the "type" attribute.
+(define_mode_attr q [(V8QI "") (V16QI "_q")
+                     (V4HI "") (V8HI "_q")
+                     (V2SI "") (V4SI "_q")
+                     (V2SF "") (V4SF "_q")
+                     (DI "")   (V2DI "_q")
+                     (DF "")   (V2DF "_q")])
+
 ;;----------------------------------------------------------------------------
 ;; Code attributes
 ;;----------------------------------------------------------------------------
@@ -428,6 +487,10 @@
 ;; Assembler mnemonics for vqh_ops and vqhs_ops iterators.
 (define_code_attr VQH_mnem [(plus "vadd") (smin "vmin") (smax "vmax")
                 (umin "vmin") (umax "vmax")])
+
+;; Type attributes for vqh_ops and vqhs_ops iterators.
+(define_code_attr VQH_type [(plus "add") (smin "minmax") (smax "minmax")
+                (umin "minmax") (umax "minmax")])
 
 ;; Signs of above, where relevant.
 (define_code_attr VQH_sign [(plus "i") (smin "s") (smax "s") (umin "u")
@@ -438,3 +501,85 @@
 
 ;; Assembler mnemonics for signedness of widening operations.
 (define_code_attr US [(sign_extend "s") (zero_extend "u")])
+
+;; Right shifts
+(define_code_attr shift [(ashiftrt "ashr") (lshiftrt "lshr")])
+(define_code_attr shifttype [(ashiftrt "signed") (lshiftrt "unsigned")])
+
+;;----------------------------------------------------------------------------
+;; Int attributes
+;;----------------------------------------------------------------------------
+
+;; Standard names for floating point to integral rounding instructions.
+(define_int_attr vrint_pattern [(UNSPEC_VRINTZ "btrunc") (UNSPEC_VRINTP "ceil")
+                         (UNSPEC_VRINTA "round") (UNSPEC_VRINTM "floor")
+                         (UNSPEC_VRINTR "nearbyint") (UNSPEC_VRINTX "rint")])
+
+;; Suffixes for vrint instructions specifying rounding modes.
+(define_int_attr vrint_variant [(UNSPEC_VRINTZ "z") (UNSPEC_VRINTP "p")
+                               (UNSPEC_VRINTA "a") (UNSPEC_VRINTM "m")
+                               (UNSPEC_VRINTR "r") (UNSPEC_VRINTX "x")])
+
+;; Some of the vrint instuctions are predicable.
+(define_int_attr vrint_predicable [(UNSPEC_VRINTZ "yes") (UNSPEC_VRINTP "no")
+                                  (UNSPEC_VRINTA "no") (UNSPEC_VRINTM "no")
+                                  (UNSPEC_VRINTR "yes") (UNSPEC_VRINTX "yes")])
+
+(define_int_attr vrint_conds [(UNSPEC_VRINTZ "nocond") (UNSPEC_VRINTP "unconditional")
+                              (UNSPEC_VRINTA "unconditional") (UNSPEC_VRINTM "unconditional")
+                              (UNSPEC_VRINTR "nocond") (UNSPEC_VRINTX "nocond")])
+
+(define_int_attr nvrint_variant [(UNSPEC_NVRINTZ "z") (UNSPEC_NVRINTP "p")
+                                (UNSPEC_NVRINTA "a") (UNSPEC_NVRINTM "m")
+                                (UNSPEC_NVRINTX "x") (UNSPEC_NVRINTN "n")])
+
+(define_int_attr crc_variant [(UNSPEC_CRC32B "crc32b") (UNSPEC_CRC32H "crc32h")
+                        (UNSPEC_CRC32W "crc32w") (UNSPEC_CRC32CB "crc32cb")
+                        (UNSPEC_CRC32CH "crc32ch") (UNSPEC_CRC32CW "crc32cw")])
+
+(define_int_attr crc_mode [(UNSPEC_CRC32B "QI") (UNSPEC_CRC32H "HI")
+                        (UNSPEC_CRC32W "SI") (UNSPEC_CRC32CB "QI")
+                        (UNSPEC_CRC32CH "HI") (UNSPEC_CRC32CW "SI")])
+
+(define_int_attr crypto_pattern [(UNSPEC_SHA1H "sha1h") (UNSPEC_AESMC "aesmc")
+                          (UNSPEC_AESIMC "aesimc") (UNSPEC_AESD "aesd")
+                          (UNSPEC_AESE "aese") (UNSPEC_SHA1SU1 "sha1su1")
+                          (UNSPEC_SHA256SU0 "sha256su0") (UNSPEC_SHA1C "sha1c")
+                          (UNSPEC_SHA1M "sha1m") (UNSPEC_SHA1P "sha1p")
+                          (UNSPEC_SHA1SU0 "sha1su0") (UNSPEC_SHA256H "sha256h")
+                          (UNSPEC_SHA256H2 "sha256h2")
+                          (UNSPEC_SHA256SU1 "sha256su1")])
+
+(define_int_attr crypto_type
+ [(UNSPEC_AESE "crypto_aese") (UNSPEC_AESD "crypto_aese")
+ (UNSPEC_AESMC "crypto_aesmc") (UNSPEC_AESIMC "crypto_aesmc")
+ (UNSPEC_SHA1C "crypto_sha1_slow") (UNSPEC_SHA1P "crypto_sha1_slow")
+ (UNSPEC_SHA1M "crypto_sha1_slow") (UNSPEC_SHA1SU1 "crypto_sha1_fast")
+ (UNSPEC_SHA1SU0 "crypto_sha1_xor") (UNSPEC_SHA256H "crypto_sha256_slow")
+ (UNSPEC_SHA256H2 "crypto_sha256_slow") (UNSPEC_SHA256SU0 "crypto_sha256_fast")
+ (UNSPEC_SHA256SU1 "crypto_sha256_slow")])
+
+(define_int_attr crypto_size_sfx [(UNSPEC_SHA1H "32") (UNSPEC_AESMC "8")
+                          (UNSPEC_AESIMC "8") (UNSPEC_AESD "8")
+                          (UNSPEC_AESE "8") (UNSPEC_SHA1SU1 "32")
+                          (UNSPEC_SHA256SU0 "32") (UNSPEC_SHA1C "32")
+                          (UNSPEC_SHA1M "32") (UNSPEC_SHA1P "32")
+                          (UNSPEC_SHA1SU0 "32") (UNSPEC_SHA256H "32")
+                          (UNSPEC_SHA256H2 "32") (UNSPEC_SHA256SU1 "32")])
+
+(define_int_attr crypto_mode [(UNSPEC_SHA1H "V4SI") (UNSPEC_AESMC "V16QI")
+                          (UNSPEC_AESIMC "V16QI") (UNSPEC_AESD "V16QI")
+                          (UNSPEC_AESE "V16QI") (UNSPEC_SHA1SU1 "V4SI")
+                          (UNSPEC_SHA256SU0 "V4SI") (UNSPEC_SHA1C "V4SI")
+                          (UNSPEC_SHA1M "V4SI") (UNSPEC_SHA1P "V4SI")
+                          (UNSPEC_SHA1SU0 "V4SI") (UNSPEC_SHA256H "V4SI")
+                          (UNSPEC_SHA256H2 "V4SI") (UNSPEC_SHA256SU1 "V4SI")])
+
+;; Both kinds of return insn.
+(define_code_iterator returns [return simple_return])
+(define_code_attr return_str [(return "") (simple_return "simple_")])
+(define_code_attr return_simple_p [(return "false") (simple_return "true")])
+(define_code_attr return_cond_false [(return " && USE_RETURN_INSN (FALSE)")
+                               (simple_return " && use_simple_return_p ()")])
+(define_code_attr return_cond_true [(return " && USE_RETURN_INSN (TRUE)")
+                               (simple_return " && use_simple_return_p ()")])

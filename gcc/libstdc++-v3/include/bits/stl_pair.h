@@ -1,8 +1,6 @@
 // Pair implementation -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-// 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -60,7 +58,7 @@
 
 #include <bits/move.h> // for std::move / std::forward, and std::swap
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
 #include <type_traits> // for std::__decay_and_strip too
 #endif
 
@@ -68,7 +66,12 @@ namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  /**
+   *  @addtogroup utilities
+   *  @{
+   */
+
+#if __cplusplus >= 201103L
   /// piecewise_construct_t
   struct piecewise_construct_t { };
 
@@ -83,7 +86,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct _Index_tuple;
 #endif
 
-  /// Struct holding two objects of arbitrary type.
+ /**
+   *  @brief Struct holding two objects of arbitrary type.
+   *
+   *  @tparam _T1  Type of first object.
+   *  @tparam _T2  Type of second object.
+   */
   template<class _T1, class _T2>
     struct pair
     {
@@ -105,7 +113,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       : first(__a), second(__b) { }
 
       /** There is also a templated copy ctor for the @c pair class itself.  */
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
       template<class _U1, class _U2>
 	pair(const pair<_U1, _U2>& __p)
 	: first(__p.first), second(__p.second) { }
@@ -117,13 +125,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	: first(__p.first), second(__p.second) { }
 
       constexpr pair(const pair&) = default;
-
-      // XXX Defaulted?!? Breaks std::map!!!
-      pair(pair&& __p)
-      noexcept(__and_<is_nothrow_move_constructible<_T1>,
-	              is_nothrow_move_constructible<_T2>>::value)
-      : first(std::forward<first_type>(__p.first)),
-	second(std::forward<second_type>(__p.second)) { }
+      constexpr pair(pair&&) = default;
 
       // DR 811.
       template<class _U1, class = typename
@@ -243,7 +245,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     operator>=(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
     { return !(__x < __y); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   /// See std::pair::swap().
   // Note:  no std::swap overloads in C++03 mode, this has performance
   //        implications, see, eg, libstdc++/38466.
@@ -266,7 +268,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    */
   // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // 181.  make_pair() unintended behavior
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   // NB: DR 706.
   template<class _T1, class _T2>
     constexpr pair<typename __decay_and_strip<_T1>::__type,
@@ -285,7 +287,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { return pair<_T1, _T2>(__x, __y); }
 #endif
 
+  /// @}
+
 _GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
+} // namespace std
 
 #endif /* _STL_PAIR_H */

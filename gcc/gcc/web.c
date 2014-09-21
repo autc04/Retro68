@@ -1,7 +1,6 @@
 /* Web construction code for GNU compiler.
    Contributed by Jan Hubicka.
-   Copyright (C) 2001, 2002, 2004, 2006, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -45,12 +44,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "flags.h"
 #include "obstack.h"
 #include "basic-block.h"
-#include "output.h"
 #include "df.h"
 #include "function.h"
 #include "insn-config.h"
 #include "recog.h"
-#include "timevar.h"
 #include "tree-pass.h"
 
 
@@ -98,6 +95,7 @@ union_match_dups (rtx insn, struct web_entry *def_entry,
   struct df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
   df_ref *use_link = DF_INSN_INFO_USES (insn_info);
   df_ref *def_link = DF_INSN_INFO_DEFS (insn_info);
+  struct web_entry *dup_entry;
   int i;
 
   extract_insn (insn);
@@ -109,10 +107,24 @@ union_match_dups (rtx insn, struct web_entry *def_entry,
       df_ref *ref, *dupref;
       struct web_entry *entry;
 
-      for (dupref = use_link; *dupref; dupref++)
+      for (dup_entry = use_entry, dupref = use_link; *dupref; dupref++)
 	if (DF_REF_LOC (*dupref) == recog_data.dup_loc[i])
 	  break;
 
+      if (*dupref == NULL && type == OP_INOUT)
+	{
+
+	  for (dup_entry = def_entry, dupref = def_link; *dupref; dupref++)
+	    if (DF_REF_LOC (*dupref) == recog_data.dup_loc[i])
+	      break;
+	}
+      /* ??? *DUPREF can still be zero, because when an operand matches
+	 a memory, DF_REF_LOC (use_link[n]) points to the register part
+	 of the address, whereas recog_data.dup_loc[m] points to the
+	 entire memory ref, thus we fail to find the duplicate entry,
+         even though it is there.
+         Example: i686-pc-linux-gnu gcc.c-torture/compile/950607-1.c
+		  -O3 -fomit-frame-pointer -funroll-loops  */
       if (*dupref == NULL
 	  || DF_REF_REGNO (*dupref) < FIRST_PSEUDO_REGISTER)
 	continue;
@@ -120,10 +132,28 @@ union_match_dups (rtx insn, struct web_entry *def_entry,
       ref = type == OP_IN ? use_link : def_link;
       entry = type == OP_IN ? use_entry : def_entry;
       for (; *ref; ref++)
-	if (DF_REF_LOC (*ref) == recog_data.operand_loc[op])
-	  break;
+	{
+	  rtx *l = DF_REF_LOC (*ref);
+	  if (l == recog_data.operand_loc[op])
+	    break;
+	  if (l && DF_REF_REAL_LOC (*ref) == recog_data.operand_loc[op])
+	    break;
+	}
 
-      (*fun) (use_entry + DF_REF_ID (*dupref), entry + DF_REF_ID (*ref));
+      if (!*ref && type == OP_INOUT)
+	{
+	  for (ref = use_link, entry = use_entry; *ref; ref++)
+	    {
+	      rtx *l = DF_REF_LOC (*ref);
+	      if (l == recog_data.operand_loc[op])
+		break;
+	      if (l && DF_REF_REAL_LOC (*ref) == recog_data.operand_loc[op])
+		break;
+	    }
+	}
+
+      gcc_assert (*ref);
+      (*fun) (dup_entry + DF_REF_ID (*dupref), entry + DF_REF_ID (*ref));
     }
 }
 
@@ -315,12 +345,13 @@ web_main (void)
   rtx insn;
 
   df_set_flags (DF_NO_HARD_REGS + DF_EQ_NOTES);
+  df_set_flags (DF_RD_PRUNE_DEAD_DEFS);
   df_chain_add_problem (DF_UD_CHAIN);
   df_analyze ();
   df_set_flags (DF_DEFER_INSN_RESCAN);
 
   /* Assign ids to the uses.  */
-  FOR_ALL_BB (bb)
+  FOR_ALL_BB_FN (bb, cfun)
     FOR_BB_INSNS (bb, insn)
     {
       unsigned int uid = INSN_UID (insn);
@@ -343,12 +374,12 @@ web_main (void)
     }
 
   /* Record the number of uses and defs at the beginning of the optimization.  */
-  def_entry = XCNEWVEC (struct web_entry, DF_DEFS_TABLE_SIZE());
+  def_entry = XCNEWVEC (struct web_entry, DF_DEFS_TABLE_SIZE ());
   used = XCNEWVEC (unsigned, max);
   use_entry = XCNEWVEC (struct web_entry, uses_num);
 
   /* Produce the web.  */
-  FOR_ALL_BB (bb)
+  FOR_ALL_BB_FN (bb, cfun)
     FOR_BB_INSNS (bb, insn)
     {
       unsigned int uid = INSN_UID (insn);
@@ -373,7 +404,7 @@ web_main (void)
 
   /* Update the instruction stream, allocating new registers for split pseudos
      in progress.  */
-  FOR_ALL_BB (bb)
+  FOR_ALL_BB_FN (bb, cfun)
     FOR_BB_INSNS (bb, insn)
     {
       unsigned int uid = INSN_UID (insn);
@@ -418,21 +449,40 @@ web_main (void)
   return 0;
 }
 
-struct rtl_opt_pass pass_web =
+namespace {
+
+const pass_data pass_data_web =
 {
- {
-  RTL_PASS,
-  "web",                                /* name */
-  gate_handle_web,                      /* gate */
-  web_main,		                /* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_WEB,                               /* tv_id */
-  0,                                    /* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  TODO_df_finish | TODO_verify_rtl_sharing  /* todo_flags_finish */
- }
+  RTL_PASS, /* type */
+  "web", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_WEB, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_rtl_sharing ), /* todo_flags_finish */
 };
+
+class pass_web : public rtl_opt_pass
+{
+public:
+  pass_web (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_web, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_handle_web (); }
+  unsigned int execute () { return web_main (); }
+
+}; // class pass_web
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_web (gcc::context *ctxt)
+{
+  return new pass_web (ctxt);
+}

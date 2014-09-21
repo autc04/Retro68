@@ -55,6 +55,18 @@ func _f() {
 	return T{
 			1,
 			2,
+		}, nil
+	return T{
+			1,
+			2,
+		},
+		T{
+			x: 3,
+			y: 4,
+		}, nil
+	return T{
+			1,
+			2,
 		},
 		nil
 	return T{
@@ -82,6 +94,37 @@ func _f() {
 			1, 2,
 		}
 	}
+}
+
+// Formatting of multi-line returns: test cases from issue 1207.
+func F() (*T, os.Error) {
+       return &T{
+               X: 1,
+               Y: 2,
+       },
+               nil
+}
+
+func G() (*T, *T, os.Error) {
+       return &T{
+               X: 1,
+               Y: 2,
+       },
+               &T{
+                       X: 3,
+                       Y: 4,
+               },
+               nil
+}
+
+func _() interface{} {
+	return &fileStat{
+			name:    basename(file.name),
+			size:    mkSize(d.FileSizeHigh, d.FileSizeLow),
+			modTime: mkModTime(d.LastWriteTime),
+			mode:    mkMode(d.FileAttributes),
+			sys:     mkSysFromFI(&d),
+		}, nil
 }
 
 // Formatting of if-statement headers.
@@ -180,7 +223,7 @@ func _() {
 }
 
 
-// Formatting of for-statement headers.
+// Formatting of for-statement headers for single-line for-loops.
 func _() {
 	for{}
 	for expr {}
@@ -192,11 +235,67 @@ func _() {
 	for; ; expr = false {}
 	for x :=expr; expr; {use(x)}
 	for x := expr;; expr=false {use(x)}
-	for;expr;expr =false {
-	}
+	for;expr;expr =false {}
 	for x := expr;expr;expr = false { use(x) }
 	for x := range []int{} { use(x) }
 	for x := range (([]int{})) { use(x) }  // no parens printed
+}
+
+
+// Formatting of for-statement headers for multi-line for-loops.
+func _() {
+	for{
+	}
+	for expr {
+	}
+	for (expr) {
+	}  // no parens printed
+	for;;{
+	}  // no semicolons printed
+	for x :=expr;; {use( x)
+	}
+	for; expr;{
+	}  // no semicolons printed
+	for; ((expr));{
+	}  // no semicolons and parens printed
+	for; ; expr = false {
+	}
+	for x :=expr; expr; {use(x)
+	}
+	for x := expr;; expr=false {use(x)
+	}
+	for;expr;expr =false {
+	}
+	for x := expr;expr;expr = false {
+	use(x)
+	}
+	for x := range []int{} {
+	use(x) }
+	for x := range (([]int{})) {
+	use(x) }  // no parens printed
+}
+
+
+// Formatting of selected short single- and multi-line statements.
+func _() {
+	if cond {}
+	if cond {
+	} // multiple lines
+	if cond {} else {} // else clause always requires multiple lines
+
+	for {}
+	for i := 0; i < len(a); 1++ {}
+	for i := 0; i < len(a); 1++ { a[i] = i }
+	for i := 0; i < len(a); 1++ { a[i] = i
+	} // multiple lines
+
+	for i := range a {}
+	for i := range a { a[i] = i }
+	for i := range a { a[i] = i
+	} // multiple lines
+
+	go func() { for { a <- <-b } }()
+	defer func() { if x := recover(); x != nil { err = fmt.Sprintf("error: %s", x.msg) } }()
 }
 
 
@@ -424,4 +523,28 @@ AVeryLongLabelThatShouldNotAffectFormatting:
 
 	// There should be a single empty line before this comment.
 	MoreCode()
+}
+
+
+// Formatting of empty statements.
+func _() {
+	;;;;;;;;;;;;;;;;;;;;;;;;;
+}
+
+func _() {;;;;;;;;;;;;;;;;;;;;;;;;;
+}
+
+func _() {;;;;;;;;;;;;;;;;;;;;;;;;;}
+
+func _() {
+f();;;;;;;;;;;;;;;;;;;;;;;;;
+}
+
+func _() {
+L:;;;;;;;;;;;;
+}
+
+func _() {
+L:;;;;;;;;;;;;
+	f()
 }

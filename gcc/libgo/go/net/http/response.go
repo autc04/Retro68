@@ -32,7 +32,7 @@ type Response struct {
 	ProtoMinor int    // e.g. 0
 
 	// Header maps header keys to values.  If the response had multiple
-	// headers with the same key, they will be concatenated, with comma
+	// headers with the same key, they may be concatenated, with comma
 	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
 	// be semantically equivalent to a comma-delimited sequence.) Values
 	// duplicated by other fields in this struct (e.g., ContentLength) are
@@ -46,10 +46,13 @@ type Response struct {
 	// The http Client and Transport guarantee that Body is always
 	// non-nil, even on responses without a body or responses with
 	// a zero-lengthed body.
+	//
+	// The Body is automatically dechunked if the server replied
+	// with a "chunked" Transfer-Encoding.
 	Body io.ReadCloser
 
 	// ContentLength records the length of the associated content.  The
-	// value -1 indicates that the length is unknown.  Unless RequestMethod
+	// value -1 indicates that the length is unknown.  Unless Request.Method
 	// is "HEAD", values >= 0 indicate that the given number of bytes may
 	// be read from Body.
 	ContentLength int64
@@ -95,19 +98,17 @@ func (r *Response) Location() (*url.URL, error) {
 	return url.Parse(lv)
 }
 
-// ReadResponse reads and returns an HTTP response from r.  The
-// req parameter specifies the Request that corresponds to
-// this Response.  Clients must call resp.Body.Close when finished
-// reading resp.Body.  After that call, clients can inspect
-// resp.Trailer to find key/value pairs included in the response
-// trailer.
-func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err error) {
-
+// ReadResponse reads and returns an HTTP response from r.
+// The req parameter optionally specifies the Request that corresponds
+// to this Response. If nil, a GET request is assumed.
+// Clients must call resp.Body.Close when finished reading resp.Body.
+// After that call, clients can inspect resp.Trailer to find key/value
+// pairs included in the response trailer.
+func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	tp := textproto.NewReader(r)
-	resp = new(Response)
-
-	resp.Request = req
-	resp.Request.Method = strings.ToUpper(resp.Request.Method)
+	resp := &Response{
+		Request: req,
+	}
 
 	// Parse the first line of the response.
 	line, err := tp.ReadLine()
@@ -166,7 +167,7 @@ func fixPragmaCacheControl(header Header) {
 	}
 }
 
-// ProtoAtLeast returns whether the HTTP protocol used
+// ProtoAtLeast reports whether the HTTP protocol used
 // in the response is at least major.minor.
 func (r *Response) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||
@@ -179,7 +180,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //  StatusCode
 //  ProtoMajor
 //  ProtoMinor
-//  RequestMethod
+//  Request.Method
 //  TransferEncoding
 //  Trailer
 //  Body
@@ -187,11 +188,6 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //  Header, values for non-canonical keys will have unpredictable behavior
 //
 func (r *Response) Write(w io.Writer) error {
-
-	// RequestMethod should be upper-case
-	if r.Request != nil {
-		r.Request.Method = strings.ToUpper(r.Request.Method)
-	}
 
 	// Status line
 	text := r.Status
@@ -202,9 +198,10 @@ func (r *Response) Write(w io.Writer) error {
 			text = "status code " + strconv.Itoa(r.StatusCode)
 		}
 	}
-	io.WriteString(w, "HTTP/"+strconv.Itoa(r.ProtoMajor)+".")
-	io.WriteString(w, strconv.Itoa(r.ProtoMinor)+" ")
-	io.WriteString(w, strconv.Itoa(r.StatusCode)+" "+text+"\r\n")
+	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
+	statusCode := strconv.Itoa(r.StatusCode) + " "
+	text = strings.TrimPrefix(text, statusCode)
+	io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n")
 
 	// Process Body,ContentLength,Close,Trailer
 	tw, err := newTransferWriter(r)

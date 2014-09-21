@@ -1,7 +1,4 @@
-// [ "$GORUN" == "" ] || exit 0  # Android runner gets confused by the NUL output 
-// $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
-// errchk $G -e tmp.go
-// rm -f tmp.go
+// errorcheckoutput
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

@@ -4,12 +4,8 @@
 
 <info><title>C++ 2011</title>
   <keywordset>
-    <keyword>
-      ISO C++
-    </keyword>
-    <keyword>
-      2011
-    </keyword>
+    <keyword>ISO C++</keyword>
+    <keyword>2011</keyword>
   </keywordset>
 </info>
 
@@ -26,7 +22,7 @@ In this implementation <literal>-std=gnu++11</literal> or
 and library
 features. See <link linkend="manual.intro.using.flags">dialect</link>
 options. The pre-defined symbol
-<constant>__GXX_EXPERIMENTAL_CXX0X__</constant> is used to check for the
+<constant>__cplusplus</constant> is used to check for the
 presence of the required flag.
 </para>
 
@@ -83,7 +79,7 @@ particular release.
       <entry>18.2</entry>
       <entry>Types</entry>
       <entry>Partial</entry>
-      <entry>Missing offsetof, max_align_t</entry>
+      <entry>Missing offsetof</entry>
     </row>
     <row>
       <entry>18.3</entry>
@@ -274,10 +270,11 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>19.2</entry>
       <entry>Exception classes</entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Missing <code>const char*</code> constructors.</entry>
     </row>
     <row>
       <entry>19.3</entry>
@@ -322,10 +319,11 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>19.5.5</entry>
       <entry>Class <code>system_error</code></entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Missing <code>const char*</code> constructors.</entry>
     </row>
     <row>
       <entry>
@@ -740,11 +738,10 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>20.8.10</entry>
       <entry>Function template <code>mem_fn</code></entry>
-      <entry>Partial</entry>
-      <entry>Missing overloads for reference-qualified member functions</entry>
+      <entry>Y</entry>
+      <entry/>
     </row>
     <row>
       <entry>20.8.11</entry>
@@ -819,15 +816,10 @@ particular release.
       <entry>Type properties</entry>
       <entry>Partial</entry>
       <entry>Missing is_trivially_copyable,
-      is_assignable, is_copy_assignable, is_move_assignable,
       is_trivially_constructible, is_trivially_default_constructible,
       is_trivially_copy_constructible, is_trivially_move_constructible,
       is_trivially_assignable, is_trivially_default_assignable,
-      is_trivially_copy_assignable, is_trivially_move_assignable,
-      is_trivially_destructible,
-      is_nothrow_assignable,
-      is_nothrow_copy_assignable, is_nothrow_move_assignable,
-      is_nothrow_destructible
+      is_trivially_copy_assignable, is_trivially_move_assignable
       </entry>
     </row>
     <row>
@@ -879,10 +871,11 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>20.9.7.6</entry>
       <entry>Other transformations</entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Missing <code>aligned_union</code>.</entry>
     </row>
     <row>
       <entry>20.10</entry>
@@ -1006,10 +999,9 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>20.12</entry>
       <entry>Scoped allocator adaptor</entry>
-      <entry>Partial</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
@@ -1035,7 +1027,7 @@ particular release.
       <entry>20.12.4</entry>
       <entry>Scoped allocator adaptor members</entry>
       <entry>Partial</entry>
-      <entry/>
+      <entry>OUTERMOST is not recursive.</entry>
     </row>
     <row>
       <entry>20.12.5</entry>
@@ -1120,10 +1112,11 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>21.4</entry>
       <entry>Class template <code>basic_string</code></entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Non-conforming Copy-On-Write implementation</entry>
     </row>
     <row>
       <entry>21.5</entry>
@@ -1229,10 +1222,12 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>22.4.1</entry>
       <entry>The <code>ctype</code> category</entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Missing <code>codecvt&lt;char16_t></code> and
+             <code>codecvt&lt;char32_t></code></entry>
     </row>
     <row>
       <entry>22.4.2</entry>
@@ -1271,16 +1266,18 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>22.4.5.1</entry>
       <entry>Class template <code>time_get</code></entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Missing <code>get</code> and <code>do_get</code></entry>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>22.4.5.2</entry>
       <entry>Class template <code>time_get_byname</code></entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Likewise</entry>
     </row>
     <row>
       <entry>22.4.5.3</entry>
@@ -1374,7 +1371,8 @@ particular release.
       <entry>23.2.1</entry>
       <entry>General container requirements</entry>
       <entry>Partial</entry>
-      <entry>Only <code>vector</code> meets the requirements
+      <entry><code>deque</code> and <code>list</code> do not
+             meet the requirements
              relating to allocator use and propagation.</entry>
     </row>
     <row>
@@ -1390,11 +1388,10 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>23.2.4</entry>
       <entry>Associative containers</entry>
-      <entry>Partial</entry>
-      <entry>Missing emplace members</entry>
+      <entry>Y</entry>
+      <entry/>
     </row>
     <row>
       <entry>23.2.5</entry>
@@ -1415,10 +1412,11 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>23.3.3</entry>
       <entry>Class template <code>deque</code></entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Incomplete allocator support.</entry>
     </row>
     <row>
       <entry>23.3.4</entry>
@@ -1427,10 +1425,11 @@ particular release.
       <entry/>
     </row>
     <row>
+      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>23.3.5</entry>
       <entry>Class template <code>list</code></entry>
-      <entry>Y</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Incomplete allocator support.</entry>
     </row>
     <row>
       <entry>23.3.6</entry>
@@ -2134,6 +2133,7 @@ particular release.
         Missing move and swap operations on <code>basic_ios</code>.
         Missing <code>io_errc</code> and <code>iostream_category</code>.
         <code>ios_base::failure</code> is not derived from <code>system_error</code>.
+	Missing <code>ios_base::hexfloat</code>.
       </entry>
     </row>
     <row>
@@ -2147,7 +2147,10 @@ particular release.
       <entry>27.7</entry>
       <entry>Formatting and manipulators</entry>
       <entry>Partial</entry>
-      <entry>Missing move and swap operations</entry>
+      <entry>
+        Missing move and swap operations
+        Missing <code>get_time</code> and <code>put_time</code> manipulators.
+      </entry>
     </row>
     <row>
       <?dbhtml bgcolor="#B0B0B0" ?>
@@ -2172,31 +2175,27 @@ particular release.
       </entry>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>28.1</entry>
       <entry>General</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>28.2</entry>
       <entry>Definitions</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>28.3</entry>
       <entry>Requirements</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>28.4</entry>
       <entry>Header <code>&lt;regex&gt;</code> synopsis</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
@@ -2216,48 +2215,43 @@ particular release.
       <entry>28.7</entry>
       <entry>Class template <code>regex_traits</code></entry>
       <entry>Partial</entry>
+      <entry><code>transform_primary</code> is not correctly implemented</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>28.8</entry>
       <entry>Class template <code>basic_regex</code></entry>
-      <entry>Partial</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>28.9</entry>
       <entry>Class template <code>sub_match</code></entry>
-      <entry>Partial</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>28.10</entry>
       <entry>Class template <code>match_results</code></entry>
-      <entry>Partial</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>28.11</entry>
       <entry>Regular expression algorithms</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>28.12</entry>
       <entry>Regular expression Iterators</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>28.13</entry>
       <entry>Modified ECMAScript regular expression grammar</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
@@ -2312,10 +2306,9 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>29.8</entry>
       <entry>Fences</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
@@ -2511,18 +2504,16 @@ particular release.
       <entry>Missing set_*_at_thread_exit</entry>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>30.6.6</entry>
       <entry>Class template <code>future</code></entry>
-      <entry>Partial</entry>
-      <entry>Timed waiting functions do not return future_status::deferred</entry>
+      <entry>Y</entry>
+      <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>30.6.7</entry>
       <entry>Class template <code>shared_future</code></entry>
-      <entry>Partial</entry>
-      <entry>Timed waiting functions do not return future_status::deferred</entry>
+      <entry>Y</entry>
+      <entry/>
     </row>
     <row>
       <entry>30.6.8</entry>
@@ -2628,6 +2619,15 @@ particular release.
       <emphasis>20.8.9.1.3 [func.bind.place]/1</emphasis> There are 29
       placeholders defined and the placeholder types are
       <literal>CopyAssignable</literal>.
+   </para>
+
+   <para>
+      <emphasis>23.5.4.2 [unord.map.cnstr]</emphasis>,
+      <emphasis>23.5.5.2 [unord.multimap.cnstr]</emphasis>,
+      <emphasis>23.5.6.2 [unord.set.cnstr]</emphasis>,
+      <emphasis>23.5.7.2 [unord.multiset.cnstr]</emphasis>
+      The default bucket count is 10 for the default constructors
+      and 0 for the range constructors and initializer-list constructors.
    </para>
 
    <para>

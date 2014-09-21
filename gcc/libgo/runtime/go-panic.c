@@ -13,7 +13,6 @@
 #include "go-alloc.h"
 #include "go-defer.h"
 #include "go-panic.h"
-#include "go-string.h"
 #include "interface.h"
 
 /* Print the panic stack.  This is used when there is no recover.  */
@@ -24,13 +23,13 @@ __printpanics (struct __go_panic_stack *p)
   if (p->__next != NULL)
     {
       __printpanics (p->__next);
-      fprintf (stderr, "\t");
+      runtime_printf ("\t");
     }
-  fprintf (stderr, "panic: ");
+  runtime_printf ("panic: ");
   runtime_printany (p->__arg);
   if (p->__was_recovered)
-    fprintf (stderr, " [recovered]");
-  fputc ('\n', stderr);
+    runtime_printf (" [recovered]");
+  runtime_printf ("\n");
 }
 
 /* This implements __go_panic which is used for the panic
@@ -55,6 +54,7 @@ __go_panic (struct __go_empty_interface arg)
     {
       struct __go_defer_stack *d;
       void (*pfn) (void *);
+      M *m;
 
       d = g->defer;
       if (d == NULL)
@@ -96,7 +96,14 @@ __go_panic (struct __go_empty_interface arg)
 	}
 
       g->defer = d->__next;
-      __go_free (d);
+
+      /* This may be called by a cgo callback routine to defer the
+	 call to syscall.CgocallBackDone, in which case we will not
+	 have a memory context.  Don't try to free anything in that
+	 case--the GC will release it later.  */
+      m = runtime_m ();
+      if (m != NULL && m->mcache != NULL && d->__free)
+	__go_free (d);
     }
 
   /* The panic was not recovered.  */

@@ -1,8 +1,10 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test recovering from runtime errors.
 
 package main
 
@@ -62,13 +64,18 @@ func main() {
 
 	i = 99999
 	var sl []int
-	check("array-bounds", func() { println(p[i]) }, "index out of range")
+	p1 := new([10]int)
+	check("array-bounds", func() { println(p1[i]) }, "index out of range")
 	check("slice-bounds", func() { println(sl[i]) }, "index out of range")
 
 	var inter interface{}
 	inter = 1
 	check("type-concrete", func() { println(inter.(string)) }, "int, not string")
 	check("type-interface", func() { println(inter.(m)) }, "missing method m")
+
+	if didbug {
+		panic("recover3")
+	}
 }
 
 type m interface {

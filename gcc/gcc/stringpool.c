@@ -1,6 +1,5 @@
 /* String pool for GCC.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -49,7 +48,7 @@ static const char digit_vector[] = {
 
 struct ht *ident_hash;
 
-static hashnode alloc_node (hash_table *);
+static hashnode alloc_node (cpp_hash_table *);
 static int mark_ident (struct cpp_reader *, hashnode, const void *);
 
 static void *
@@ -70,7 +69,7 @@ init_stringpool (void)
 
 /* Allocate a hash node.  */
 static hashnode
-alloc_node (hash_table *table ATTRIBUTE_UNUSED)
+alloc_node (cpp_hash_table *table ATTRIBUTE_UNUSED)
 {
   return GCC_IDENT_TO_HT_IDENT (make_node (IDENTIFIER_NODE));
 }
@@ -208,7 +207,33 @@ void
 gt_pch_n_S (const void *x)
 {
   gt_pch_note_object (CONST_CAST (void *, x), CONST_CAST (void *, x),
-		      &gt_pch_p_S, gt_types_enum_last);
+		      &gt_pch_p_S);
+}
+
+
+/* User-callable entry point for marking string X.  */
+
+void
+gt_pch_nx (const char *& x)
+{
+  gt_pch_n_S (x);
+}
+
+void
+gt_pch_nx (unsigned char *& x)
+{
+  gt_pch_n_S (x);
+}
+
+void
+gt_pch_nx (unsigned char& x ATTRIBUTE_UNUSED)
+{
+}
+
+void
+gt_pch_nx (unsigned char *x, gt_pointer_operator op, void *cookie)
+{
+  op (x, cookie);
 }
 
 /* Handle saving and restoring the string pool for PCH.  */

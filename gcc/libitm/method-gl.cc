@@ -1,4 +1,4 @@
-/* Copyright (C) 2011, 2012 Free Software Foundation, Inc.
+/* Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Torvald Riegel <triegel@redhat.com>.
 
    This file is part of the GNU Transactional Memory Library (libitm).
@@ -341,7 +341,7 @@ public:
   CREATE_DISPATCH_METHODS(virtual, )
   CREATE_DISPATCH_METHODS_MEM()
 
-  gl_wt_dispatch() : abi_dispatch(false, true, false, false, &o_gl_mg)
+  gl_wt_dispatch() : abi_dispatch(false, true, false, false, 0, &o_gl_mg)
   { }
 };
 

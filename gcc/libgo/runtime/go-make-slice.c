@@ -6,48 +6,64 @@
 
 #include <stdint.h>
 
+#include "runtime.h"
 #include "go-alloc.h"
 #include "go-assert.h"
 #include "go-panic.h"
 #include "go-type.h"
 #include "array.h"
-#include "runtime.h"
 #include "arch.h"
 #include "malloc.h"
+
+/* Dummy word to use as base pointer for make([]T, 0).
+   Since you cannot take the address of such a slice,
+   you can't tell that they all have the same base pointer.  */
+uintptr runtime_zerobase;
 
 struct __go_open_array
 __go_make_slice2 (const struct __go_type_descriptor *td, uintptr_t len,
 		  uintptr_t cap)
 {
   const struct __go_slice_type* std;
-  int ilen;
-  int icap;
+  intgo ilen;
+  intgo icap;
   uintptr_t size;
   struct __go_open_array ret;
-  unsigned int flag;
 
   __go_assert (td->__code == GO_SLICE);
   std = (const struct __go_slice_type *) td;
 
-  ilen = (int) len;
-  if (ilen < 0 || (uintptr_t) ilen != len)
+  ilen = (intgo) len;
+  if (ilen < 0
+      || (uintptr_t) ilen != len
+      || (std->__element_type->__size > 0
+	  && len > MaxMem / std->__element_type->__size))
     runtime_panicstring ("makeslice: len out of range");
 
-  icap = (int) cap;
+  icap = (intgo) cap;
   if (cap < len
       || (uintptr_t) icap != cap
       || (std->__element_type->__size > 0
-	  && cap > (uintptr_t) -1U / std->__element_type->__size))
+	  && cap > MaxMem / std->__element_type->__size))
     runtime_panicstring ("makeslice: cap out of range");
 
   ret.__count = ilen;
   ret.__capacity = icap;
 
   size = cap * std->__element_type->__size;
-  flag = ((std->__element_type->__code & GO_NO_POINTERS) != 0
-	  ? FlagNoPointers
-	  : 0);
-  ret.__values = runtime_mallocgc (size, flag, 1, 1);
+
+  if (size == 0)
+    ret.__values = &runtime_zerobase;
+  else if ((std->__element_type->__code & GO_NO_POINTERS) != 0)
+    ret.__values =
+      runtime_mallocgc (size,
+			(uintptr) std->__element_type | TypeInfo_Array,
+			FlagNoScan);
+  else
+    ret.__values =
+      runtime_mallocgc (size,
+			(uintptr) std->__element_type | TypeInfo_Array,
+			0);
 
   return ret;
 }

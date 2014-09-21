@@ -1,4 +1,4 @@
-/* Copyright (C) 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Transactional Memory Library (libitm).
@@ -31,9 +31,13 @@
 
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <errno.h>
 
 static inline long
 sys_futex0 (std::atomic<int> *addr, long op, long val)
 {
-  return syscall (SYS_futex, (int*) addr, op, val, 0);
+  long res = syscall (SYS_futex, (int*) addr, op, val, 0);
+  if (__builtin_expect (res == -1, 0))
+    return -errno;
+  return res;
 }

@@ -3,7 +3,7 @@
 //
 // 2008-11-24  Edward M. Smith-Rowland <3dw4rd@verizon.net>
 //
-// Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ test01()
   std::student_t_distribution<> u(1.5);
   VERIFY( u.n() == 1.5 );
   typedef std::student_t_distribution<>::result_type result_type;
-  VERIFY( u.min() == std::numeric_limits<result_type>::min() );
+  VERIFY( u.min() == std::numeric_limits<result_type>::lowest() );
   VERIFY( u.max() == std::numeric_limits<result_type>::max() );
 }
 

@@ -1,5 +1,4 @@
-/* Copyright (C) 2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Georg-Johann Lay (avr@gjlay.de)
 
    This file is part of GCC.
@@ -32,15 +31,10 @@
 #undef STRING_LIMIT
 #define STRING_LIMIT ((unsigned) 64)
 
-/* Take care of `signal' and `interrupt' attributes.  */
-#undef ASM_DECLARE_FUNCTION_NAME
-#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)     \
-  avr_asm_declare_function_name ((FILE), (NAME), (DECL))
-
 /* Output alignment 2**1 for jump tables.  */
 #undef ASM_OUTPUT_BEFORE_CASE_LABEL
 #define ASM_OUTPUT_BEFORE_CASE_LABEL(FILE, PREFIX, NUM, TABLE) \
-  fprintf (FILE, "\t.p2align\t1\n");
+  ASM_OUTPUT_ALIGN (FILE, 1);
 
 /* Be conservative in crtstuff.c.  */
 #undef INIT_SECTION_ASM_OP

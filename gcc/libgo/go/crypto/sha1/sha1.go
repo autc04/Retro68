@@ -21,28 +21,28 @@ const Size = 20
 const BlockSize = 64
 
 const (
-	_Chunk = 64
-	_Init0 = 0x67452301
-	_Init1 = 0xEFCDAB89
-	_Init2 = 0x98BADCFE
-	_Init3 = 0x10325476
-	_Init4 = 0xC3D2E1F0
+	chunk = 64
+	init0 = 0x67452301
+	init1 = 0xEFCDAB89
+	init2 = 0x98BADCFE
+	init3 = 0x10325476
+	init4 = 0xC3D2E1F0
 )
 
 // digest represents the partial evaluation of a checksum.
 type digest struct {
 	h   [5]uint32
-	x   [_Chunk]byte
+	x   [chunk]byte
 	nx  int
 	len uint64
 }
 
 func (d *digest) Reset() {
-	d.h[0] = _Init0
-	d.h[1] = _Init1
-	d.h[2] = _Init2
-	d.h[3] = _Init3
-	d.h[4] = _Init4
+	d.h[0] = init0
+	d.h[1] = init1
+	d.h[2] = init2
+	d.h[3] = init3
+	d.h[4] = init4
 	d.nx = 0
 	d.len = 0
 }
@@ -63,21 +63,24 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	d.len += uint64(nn)
 	if d.nx > 0 {
 		n := len(p)
-		if n > _Chunk-d.nx {
-			n = _Chunk - d.nx
+		if n > chunk-d.nx {
+			n = chunk - d.nx
 		}
 		for i := 0; i < n; i++ {
 			d.x[d.nx+i] = p[i]
 		}
 		d.nx += n
-		if d.nx == _Chunk {
-			_Block(d, d.x[0:])
+		if d.nx == chunk {
+			block(d, d.x[0:])
 			d.nx = 0
 		}
 		p = p[n:]
 	}
-	n := _Block(d, p)
-	p = p[n:]
+	if len(p) >= chunk {
+		n := len(p) &^ (chunk - 1)
+		block(d, p[:n])
+		p = p[n:]
+	}
 	if len(p) > 0 {
 		d.nx = copy(d.x[:], p)
 	}
@@ -87,9 +90,13 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 func (d0 *digest) Sum(in []byte) []byte {
 	// Make a copy of d0 so that caller can keep writing and summing.
 	d := *d0
+	hash := d.checkSum()
+	return append(in, hash[:]...)
+}
 
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+func (d *digest) checkSum() [Size]byte {
 	len := d.len
+	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
 	var tmp [64]byte
 	tmp[0] = 0x80
 	if len%64 < 56 {
@@ -117,5 +124,13 @@ func (d0 *digest) Sum(in []byte) []byte {
 		digest[i*4+3] = byte(s)
 	}
 
-	return append(in, digest[:]...)
+	return digest
+}
+
+// Sum returns the SHA1 checksum of the data.
+func Sum(data []byte) [Size]byte {
+	var d digest
+	d.Reset()
+	d.Write(data)
+	return d.checkSum()
 }

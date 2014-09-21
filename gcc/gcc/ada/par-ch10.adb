@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -314,8 +314,9 @@ package body Ch10 is
                --  Do not complain if there is a pragma No_Body
 
                if not No_Body then
-                  Error_Msg_SC ("?file contains no compilation units");
+                  Error_Msg_SC ("??file contains no compilation units");
                end if;
+
             else
                Error_Msg_SC ("compilation unit expected");
                Cunit_Error_Flag := True;
@@ -359,7 +360,7 @@ package body Ch10 is
                (File_Name (Current_Source_File)) = Expect_Body
          then
             Error_Msg_BC -- CODEFIX
-              ("keyword BODY expected here [see file name]");
+              ("keyword BODY expected here '[see file name']");
             Restore_Scan_State (Scan_State);
             Set_Unit (Comp_Unit_Node, P_Package (Pf_Pbod_Pexp));
          else
@@ -513,7 +514,7 @@ package body Ch10 is
          return Error;
       end if;
 
-      --  Only try this if we got an OK unit!
+      --  Only try this if we got an OK unit
 
       if Unit_Node /= Error then
          if Nkind (Unit_Node) = N_Subunit then
@@ -576,7 +577,7 @@ package body Ch10 is
          Set_Sloc (Comp_Unit_Node, Sloc (Name_Node));
          Set_Sloc (Aux_Decls_Node (Comp_Unit_Node), Sloc (Name_Node));
 
-         --  Set Entity field in file table. Easier now that we have name!
+         --  Set Entity field in file table. Easier now that we have name.
          --  Note that this is also skipped if we had a bad unit
 
          if Nkind (Name_Node) = N_Defining_Program_Unit_Name then
@@ -600,7 +601,7 @@ package body Ch10 is
 
       --  Clear away any missing semicolon indication, we are done with that
       --  unit, so what's done is done, and we don't want anything hanging
-      --  around from the attempt to parse it!
+      --  around from the attempt to parse it.
 
       SIS_Entry_Active := False;
 

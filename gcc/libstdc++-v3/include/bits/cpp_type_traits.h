@@ -1,7 +1,6 @@
 // The  -*- C++ -*- type traits classes for internal use in libstdc++
 
-// Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2000-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -180,7 +179,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     };
 # endif
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<>
     struct __is_integer<char16_t>
     {
@@ -328,14 +327,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { };
 
   //
-  // A fundamental type is `void' or and arithmetic type
-  //
-  template<typename _Tp>
-    struct __is_fundamental
-    : public __traitor<__is_void<_Tp>, __is_arithmetic<_Tp> >
-    { };
-
-  //
   // A scalar type is an arithmetic type or a pointer type
   // 
   template<typename _Tp>
@@ -407,7 +398,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef __false_type __type;
     };
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<typename _Iterator>
     class move_iterator;
 

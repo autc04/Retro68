@@ -1,6 +1,5 @@
 /* DDG - Data Dependence Graph implementation.
-   Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
    Contributed by Ayal Zaks and Mustafa Hagog <zaks,mustafa@il.ibm.com>
 
 This file is part of GCC.
@@ -37,7 +36,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "recog.h"
 #include "sched-int.h"
 #include "target.h"
-#include "cfglayout.h"
 #include "cfgloop.h"
 #include "sbitmap.h"
 #include "expr.h"
@@ -419,7 +417,7 @@ walk_mems_1 (rtx *x, rtx *pat)
 {
   if (MEM_P (*x))
     {
-      /* Visit all MEMs in *PAT and check indepedence.  */
+      /* Visit all MEMs in *PAT and check independence.  */
       if (for_each_rtx (pat, (rtx_function) walk_mems_2, *x))
         /* Indicate that dependence was determined and stop traversal.  */
         return 1;
@@ -532,7 +530,15 @@ build_intra_loop_deps (ddg_ptr g)
 
       FOR_EACH_DEP (dest_node->insn, SD_LIST_BACK, sd_it, dep)
 	{
-	  ddg_node_ptr src_node = get_node_of_insn (g, DEP_PRO (dep));
+	  rtx src_insn = DEP_PRO (dep);
+	  ddg_node_ptr src_node;
+
+	  /* Don't add dependencies on debug insns to non-debug insns
+	     to avoid codegen differences between -g and -g0.  */
+	  if (DEBUG_INSN_P (src_insn) && !DEBUG_INSN_P (dest_node->insn))
+	    continue;
+
+	  src_node = get_node_of_insn (g, src_insn);
 
 	  if (!src_node)
 	    continue;
@@ -555,7 +561,7 @@ build_intra_loop_deps (ddg_ptr g)
 		{
 		  /* Don't bother calculating inter-loop dep if an intra-loop dep
 		     already exists.  */
-	      	  if (! TEST_BIT (dest_node->successors, j))
+	      	  if (! bitmap_bit_p (dest_node->successors, j))
 		    add_inter_loop_mem_dep (g, dest_node, j_node);
 		  /* If -fmodulo-sched-allow-regmoves
 		     is set certain anti-dep edges are not created.
@@ -565,7 +571,7 @@ build_intra_loop_deps (ddg_ptr g)
 		     memory dependencies.  Thus we add intra edges between
 		     every two memory instructions in this case.  */
 		  if (flag_modulo_sched_allow_regmoves
-		      && !TEST_BIT (dest_node->predecessors, j))
+		      && !bitmap_bit_p (dest_node->predecessors, j))
 		    add_intra_loop_mem_dep (g, j_node, dest_node);
 		}
             }
@@ -653,9 +659,9 @@ create_ddg (basic_block bb, int closing_branch_deps)
 
       g->nodes[i].cuid = i;
       g->nodes[i].successors = sbitmap_alloc (num_nodes);
-      sbitmap_zero (g->nodes[i].successors);
+      bitmap_clear (g->nodes[i].successors);
       g->nodes[i].predecessors = sbitmap_alloc (num_nodes);
-      sbitmap_zero (g->nodes[i].predecessors);
+      bitmap_clear (g->nodes[i].predecessors);
       g->nodes[i].first_note = (first_note ? first_note : insn);
       g->nodes[i++].insn = insn;
       first_note = NULL_RTX;
@@ -746,7 +752,7 @@ print_ddg (FILE *file, ddg_ptr g)
 }
 
 /* Print the given DDG in VCG format.  */
-void
+DEBUG_FUNCTION void
 vcg_print_ddg (FILE *file, ddg_ptr g)
 {
   int src_cuid;
@@ -794,7 +800,7 @@ print_sccs (FILE *file, ddg_all_sccs_ptr sccs, ddg_ptr g)
   for (i = 0; i < sccs->num_sccs; i++)
     {
       fprintf (file, "SCC number: %d\n", i);
-      EXECUTE_IF_SET_IN_SBITMAP (sccs->sccs[i]->nodes, 0, u, sbi)
+      EXECUTE_IF_SET_IN_BITMAP (sccs->sccs[i]->nodes, 0, u, sbi)
       {
         fprintf (file, "insn num %d\n", u);
         print_rtl_single (file, g->nodes[u].insn);
@@ -831,8 +837,8 @@ add_edge_to_ddg (ddg_ptr g ATTRIBUTE_UNUSED, ddg_edge_ptr e)
   /* Should have allocated the sbitmaps.  */
   gcc_assert (src->successors && dest->predecessors);
 
-  SET_BIT (src->successors, dest->cuid);
-  SET_BIT (dest->predecessors, src->cuid);
+  bitmap_set_bit (src->successors, dest->cuid);
+  bitmap_set_bit (dest->predecessors, src->cuid);
   e->next_in = dest->in;
   dest->in = e;
   e->next_out = src->out;
@@ -883,16 +889,16 @@ create_scc (ddg_ptr g, sbitmap nodes)
   scc->backarcs = NULL;
   scc->num_backarcs = 0;
   scc->nodes = sbitmap_alloc (g->num_nodes);
-  sbitmap_copy (scc->nodes, nodes);
+  bitmap_copy (scc->nodes, nodes);
 
   /* Mark the backarcs that belong to this SCC.  */
-  EXECUTE_IF_SET_IN_SBITMAP (nodes, 0, u, sbi)
+  EXECUTE_IF_SET_IN_BITMAP (nodes, 0, u, sbi)
     {
       ddg_edge_ptr e;
       ddg_node_ptr n = &g->nodes[u];
 
       for (e = n->out; e; e = e->next_out)
-	if (TEST_BIT (nodes, e->dest->cuid))
+	if (bitmap_bit_p (nodes, e->dest->cuid))
 	  {
 	    e->aux.count = IN_SCC;
 	    if (e->distance > 0)
@@ -970,14 +976,14 @@ find_successors (sbitmap succ, ddg_ptr g, sbitmap ops)
   unsigned int i = 0;
   sbitmap_iterator sbi;
 
-  EXECUTE_IF_SET_IN_SBITMAP (ops, 0, i, sbi)
+  EXECUTE_IF_SET_IN_BITMAP (ops, 0, i, sbi)
     {
       const sbitmap node_succ = NODE_SUCCESSORS (&g->nodes[i]);
-      sbitmap_a_or_b (succ, succ, node_succ);
+      bitmap_ior (succ, succ, node_succ);
     };
 
   /* We want those that are not in ops.  */
-  sbitmap_difference (succ, succ, ops);
+  bitmap_and_compl (succ, succ, ops);
 }
 
 /* Given a set OPS of nodes in the DDG, find the set of their predecessors
@@ -989,14 +995,14 @@ find_predecessors (sbitmap preds, ddg_ptr g, sbitmap ops)
   unsigned int i = 0;
   sbitmap_iterator sbi;
 
-  EXECUTE_IF_SET_IN_SBITMAP (ops, 0, i, sbi)
+  EXECUTE_IF_SET_IN_BITMAP (ops, 0, i, sbi)
     {
       const sbitmap node_preds = NODE_PREDECESSORS (&g->nodes[i]);
-      sbitmap_a_or_b (preds, preds, node_preds);
+      bitmap_ior (preds, preds, node_preds);
     };
 
   /* We want those that are not in ops.  */
-  sbitmap_difference (preds, preds, ops);
+  bitmap_and_compl (preds, preds, ops);
 }
 
 
@@ -1028,14 +1034,14 @@ check_sccs (ddg_all_sccs_ptr sccs, int num_nodes)
   int i = 0;
   sbitmap tmp = sbitmap_alloc (num_nodes);
 
-  sbitmap_zero (tmp);
+  bitmap_clear (tmp);
   for (i = 0; i < sccs->num_sccs; i++)
     {
-      gcc_assert (!sbitmap_empty_p (sccs->sccs[i]->nodes));
+      gcc_assert (!bitmap_empty_p (sccs->sccs[i]->nodes));
       /* Verify that every node in sccs is in exactly one strongly
          connected component.  */
-      gcc_assert (!sbitmap_any_common_bits (tmp, sccs->sccs[i]->nodes));
-      sbitmap_a_or_b (tmp, tmp, sccs->sccs[i]->nodes);
+      gcc_assert (!bitmap_intersect_p (tmp, sccs->sccs[i]->nodes));
+      bitmap_ior (tmp, tmp, sccs->sccs[i]->nodes);
     }
   sbitmap_free (tmp);
 }
@@ -1069,11 +1075,11 @@ create_ddg_all_sccs (ddg_ptr g)
       if (backarc->aux.count == IN_SCC)
 	continue;
 
-      sbitmap_zero (scc_nodes);
-      sbitmap_zero (from);
-      sbitmap_zero (to);
-      SET_BIT (from, dest->cuid);
-      SET_BIT (to, src->cuid);
+      bitmap_clear (scc_nodes);
+      bitmap_clear (from);
+      bitmap_clear (to);
+      bitmap_set_bit (from, dest->cuid);
+      bitmap_set_bit (to, src->cuid);
 
       if (find_nodes_on_paths (scc_nodes, g, from, to))
 	{
@@ -1125,16 +1131,16 @@ find_nodes_on_paths (sbitmap result, ddg_ptr g, sbitmap from, sbitmap to)
   sbitmap reach_to = sbitmap_alloc (num_nodes);
   sbitmap tmp = sbitmap_alloc (num_nodes);
 
-  sbitmap_copy (reachable_from, from);
-  sbitmap_copy (tmp, from);
+  bitmap_copy (reachable_from, from);
+  bitmap_copy (tmp, from);
 
   change = 1;
   while (change)
     {
       change = 0;
-      sbitmap_copy (workset, tmp);
-      sbitmap_zero (tmp);
-      EXECUTE_IF_SET_IN_SBITMAP (workset, 0, u, sbi)
+      bitmap_copy (workset, tmp);
+      bitmap_clear (tmp);
+      EXECUTE_IF_SET_IN_BITMAP (workset, 0, u, sbi)
 	{
 	  ddg_edge_ptr e;
 	  ddg_node_ptr u_node = &g->nodes[u];
@@ -1144,26 +1150,26 @@ find_nodes_on_paths (sbitmap result, ddg_ptr g, sbitmap from, sbitmap to)
 	      ddg_node_ptr v_node = e->dest;
 	      int v = v_node->cuid;
 
-	      if (!TEST_BIT (reachable_from, v))
+	      if (!bitmap_bit_p (reachable_from, v))
 		{
-		  SET_BIT (reachable_from, v);
-		  SET_BIT (tmp, v);
+		  bitmap_set_bit (reachable_from, v);
+		  bitmap_set_bit (tmp, v);
 		  change = 1;
 		}
 	    }
 	}
     }
 
-  sbitmap_copy (reach_to, to);
-  sbitmap_copy (tmp, to);
+  bitmap_copy (reach_to, to);
+  bitmap_copy (tmp, to);
 
   change = 1;
   while (change)
     {
       change = 0;
-      sbitmap_copy (workset, tmp);
-      sbitmap_zero (tmp);
-      EXECUTE_IF_SET_IN_SBITMAP (workset, 0, u, sbi)
+      bitmap_copy (workset, tmp);
+      bitmap_clear (tmp);
+      EXECUTE_IF_SET_IN_BITMAP (workset, 0, u, sbi)
 	{
 	  ddg_edge_ptr e;
 	  ddg_node_ptr u_node = &g->nodes[u];
@@ -1173,17 +1179,17 @@ find_nodes_on_paths (sbitmap result, ddg_ptr g, sbitmap from, sbitmap to)
 	      ddg_node_ptr v_node = e->src;
 	      int v = v_node->cuid;
 
-	      if (!TEST_BIT (reach_to, v))
+	      if (!bitmap_bit_p (reach_to, v))
 		{
-		  SET_BIT (reach_to, v);
-		  SET_BIT (tmp, v);
+		  bitmap_set_bit (reach_to, v);
+		  bitmap_set_bit (tmp, v);
 		  change = 1;
 		}
 	    }
 	}
     }
 
-  answer = sbitmap_a_and_b_cg (result, reachable_from, reach_to);
+  answer = bitmap_and (result, reachable_from, reach_to);
   sbitmap_free (workset);
   sbitmap_free (reachable_from);
   sbitmap_free (reach_to);
@@ -1207,12 +1213,12 @@ update_dist_to_successors (ddg_node_ptr u_node, sbitmap nodes, sbitmap tmp)
       ddg_node_ptr v_node = e->dest;
       int v = v_node->cuid;
 
-      if (TEST_BIT (nodes, v)
+      if (bitmap_bit_p (nodes, v)
 	  && (e->distance == 0)
 	  && (v_node->aux.count < u_node->aux.count + e->latency))
 	{
 	  v_node->aux.count = u_node->aux.count + e->latency;
-	  SET_BIT (tmp, v);
+	  bitmap_set_bit (tmp, v);
 	  result = 1;
 	}
     }
@@ -1240,17 +1246,17 @@ longest_simple_path (struct ddg * g, int src, int dest, sbitmap nodes)
     g->nodes[i].aux.count = -1;
   g->nodes[src].aux.count = 0;
 
-  sbitmap_zero (tmp);
-  SET_BIT (tmp, src);
+  bitmap_clear (tmp);
+  bitmap_set_bit (tmp, src);
 
   while (change)
     {
       sbitmap_iterator sbi;
 
       change = 0;
-      sbitmap_copy (workset, tmp);
-      sbitmap_zero (tmp);
-      EXECUTE_IF_SET_IN_SBITMAP (workset, 0, u, sbi)
+      bitmap_copy (workset, tmp);
+      bitmap_clear (tmp);
+      EXECUTE_IF_SET_IN_BITMAP (workset, 0, u, sbi)
 	{
 	  ddg_node_ptr u_node = &g->nodes[u];
 

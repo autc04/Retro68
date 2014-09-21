@@ -1,6 +1,5 @@
 /* Prototypes for exported functions defined in mmix.c
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2007, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Hans-Peter Nilsson (hp@bitrange.com)
 
 This file is part of GCC.
@@ -40,6 +39,7 @@ extern void mmix_asm_output_reg_push (FILE *, int);
 extern void mmix_asm_output_reg_pop (FILE *, int);
 extern void mmix_asm_output_skip (FILE *, int);
 extern void mmix_asm_output_align (FILE *, int);
+extern HOST_WIDEST_INT mmix_intval (const_rtx);
 extern int mmix_shiftable_wyde_value (unsigned HOST_WIDEST_INT);
 extern void mmix_output_register_setting (FILE *, int, HOST_WIDEST_INT, int);
 extern int mmix_opposite_regno (int, int);
@@ -59,9 +59,6 @@ extern void mmix_asm_output_addr_diff_elt (FILE *, rtx, int, int);
 extern void mmix_asm_output_addr_vec_elt (FILE *, int);
 extern enum reg_class mmix_secondary_reload_class
   (enum reg_class, enum machine_mode, rtx, int);
-extern int mmix_const_ok_for_letter_p (HOST_WIDE_INT, int);
-extern int mmix_const_double_ok_for_letter_p (rtx, int);
-extern int mmix_extra_constraint (rtx, int, int);
 extern rtx mmix_dynamic_chain_address (rtx);
 extern rtx mmix_return_addr_rtx (int, rtx);
 extern rtx mmix_eh_return_stackadj_rtx (void);

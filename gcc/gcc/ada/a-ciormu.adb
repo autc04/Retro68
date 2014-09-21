@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,26 +41,6 @@ pragma Elaborate_All (Ada.Containers.Red_Black_Trees.Generic_Set_Operations);
 with System; use type System.Address;
 
 package body Ada.Containers.Indefinite_Ordered_Multisets is
-
-   type Iterator is new Limited_Controlled and
-     Set_Iterator_Interfaces.Reversible_Iterator with
-   record
-      Container : Set_Access;
-      Node      : Node_Access;
-   end record;
-
-   overriding procedure Finalize (Object : in out Iterator);
-
-   overriding function First (Object : Iterator) return Cursor;
-   overriding function Last  (Object : Iterator) return Cursor;
-
-   overriding function Next
-     (Object   : Iterator;
-      Position : Cursor) return Cursor;
-
-   overriding function Previous
-     (Object   : Iterator;
-      Position : Cursor) return Cursor;
 
    -----------------------------
    -- Node Access Subprograms --
@@ -340,7 +320,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
 
    function Ceiling (Container : Set; Item : Element_Type) return Cursor is
       Node : constant Node_Access :=
-               Element_Keys.Ceiling (Container.Tree, Item);
+        Element_Keys.Ceiling (Container.Tree, Item);
 
    begin
       if Node = null then
@@ -503,8 +483,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
    end Difference;
 
    function Difference (Left, Right : Set) return Set is
-      Tree : constant Tree_Type :=
-               Set_Ops.Difference (Left.Tree, Right.Tree);
+      Tree : constant Tree_Type := Set_Ops.Difference (Left.Tree, Right.Tree);
    begin
       return Set'(Controlled with Tree);
    end Difference;
@@ -601,8 +580,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
    ----------
 
    function Find (Container : Set; Item : Element_Type) return Cursor is
-      Node : constant Node_Access :=
-               Element_Keys.Find (Container.Tree, Item);
+      Node : constant Node_Access := Element_Keys.Find (Container.Tree, Item);
 
    begin
       if Node = null then
@@ -677,8 +655,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
    -----------
 
    function Floor (Container : Set; Item : Element_Type) return Cursor is
-      Node : constant Node_Access :=
-               Element_Keys.Floor (Container.Tree, Item);
+      Node : constant Node_Access := Element_Keys.Floor (Container.Tree, Item);
 
    begin
       if Node = null then
@@ -753,8 +730,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
       -------------
 
       function Ceiling (Container : Set; Key : Key_Type) return Cursor is
-         Node : constant Node_Access :=
-                  Key_Keys.Ceiling (Container.Tree, Key);
+         Node : constant Node_Access := Key_Keys.Ceiling (Container.Tree, Key);
 
       begin
          if Node = null then
@@ -803,8 +779,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
       -------------
 
       function Element (Container : Set; Key : Key_Type) return Element_Type is
-         Node : constant Node_Access :=
-                  Key_Keys.Find (Container.Tree, Key);
+         Node : constant Node_Access := Key_Keys.Find (Container.Tree, Key);
 
       begin
          if Node = null then
@@ -1167,6 +1142,12 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
       --------------
 
       function New_Node return Node_Access is
+         --  The element allocator may need an accessibility check in the case
+         --  the actual type is class-wide or has access discriminants (see
+         --  RM 4.8(10.1) and AI12-0035).
+
+         pragma Unsuppress (Accessibility_Check);
+
          Element : Element_Access := new Element_Type'(New_Item);
 
       begin
@@ -1175,6 +1156,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
                                Right   => null,
                                Color   => Red_Black_Trees.Red,
                                Element => Element);
+
       exception
          when others =>
             Free_Element (Element);
@@ -1252,7 +1234,7 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
 
    function Intersection (Left, Right : Set) return Set is
       Tree : constant Tree_Type :=
-               Set_Ops.Intersection (Left.Tree, Right.Tree);
+        Set_Ops.Intersection (Left.Tree, Right.Tree);
    begin
       return Set'(Controlled with Tree);
    end Intersection;
@@ -1768,6 +1750,13 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
 
          declare
             X : Element_Access := Node.Element;
+
+            --  The element allocator may need an accessibility check in the
+            --  case the actual type is class-wide or has access discriminants
+            --  (see RM 4.8(10.1) and AI12-0035).
+
+            pragma Unsuppress (Accessibility_Check);
+
          begin
             Node.Element := new Element_Type'(Item);
             Free_Element (X);
@@ -1793,6 +1782,13 @@ package body Ada.Containers.Indefinite_Ordered_Multisets is
          --------------
 
          function New_Node return Node_Access is
+
+            --  The element allocator may need an accessibility check in the
+            --  case the actual type is class-wide or has access discriminants
+            --  (see RM 4.8(10.1) and AI12-0035).
+
+            pragma Unsuppress (Accessibility_Check);
+
          begin
             Node.Element := new Element_Type'(Item);  -- OK if fails
             Node.Color := Red_Black_Trees.Red;

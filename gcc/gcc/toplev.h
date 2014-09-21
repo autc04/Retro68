@@ -1,7 +1,5 @@
 /* toplev.h - Various declarations for functions found in toplev.c
-   Copyright (C) 1998, 1999, 2000, 2001, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,9 +27,7 @@ extern unsigned int save_decoded_options_count;
 extern int toplev_main (int, char **);
 extern void rest_of_decl_compilation (tree, int, int);
 extern void rest_of_type_compilation (tree, int);
-extern void tree_rest_of_compilation (tree);
 extern void init_optimization_passes (void);
-extern void finish_optimization_passes (void);
 extern bool enable_rtl_dump_file (void);
 
 /* In except.c.  Initialize exception handling.  This is used by the Ada
@@ -50,6 +46,7 @@ extern void emit_debug_global_declarations (tree *, int);
 extern void write_global_declarations (void);
 
 extern void dump_memory_report (bool);
+extern void dump_profile_report (void);
 
 extern void target_reinit (void);
 

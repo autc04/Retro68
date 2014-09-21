@@ -1,8 +1,6 @@
 // nonstandard construct and destroy functions -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-// 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -70,7 +68,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * Constructs an object in existing memory by invoking an allocated
    * object's constructor with an initializer.
    */
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<typename _T1, typename... _Args>
     inline void
     _Construct(_T1* __p, _Args&&... __args)
@@ -135,8 +133,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * destroy() even if _Tp has a trivial destructor.
    */
 
-  template <typename _Tp> class allocator;
-
   template<typename _ForwardIterator, typename _Allocator>
     void
     _Destroy(_ForwardIterator __first, _ForwardIterator __last,
@@ -156,7 +152,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
 _GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
+} // namespace std
 
 #endif /* _STL_CONSTRUCT_H */
 

@@ -1,7 +1,7 @@
 /* Garbage collection for the GNU compiler.  Internal definitions
    for ggc-*.c and stringpool.c.
 
-   Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -55,8 +55,7 @@ extern struct ggc_pch_data *init_ggc_pch (void);
    of an object.  Update the ggc_pch_data structure with as much of
    that information as is necessary. The bool argument should be true
    if the object is a string.  */
-extern void ggc_pch_count_object (struct ggc_pch_data *, void *, size_t, bool,
-				  enum gt_types_enum);
+extern void ggc_pch_count_object (struct ggc_pch_data *, void *, size_t, bool);
 
 /* Return the total size of the data to be written to hold all
    the objects previously passed to ggc_pch_count_object.  */
@@ -69,8 +68,7 @@ extern void ggc_pch_this_base (struct ggc_pch_data *, void *);
 /* Assuming that the objects really do end up at the address
    passed to ggc_pch_this_base, return the address of this object.
    The bool argument should be true if the object is a string.  */
-extern char *ggc_pch_alloc_object (struct ggc_pch_data *, void *, size_t, bool,
-				   enum gt_types_enum);
+extern char *ggc_pch_alloc_object (struct ggc_pch_data *, void *, size_t, bool);
 
 /* Write out any initial information required.  */
 extern void ggc_pch_prepare_write (struct ggc_pch_data *, FILE *);
@@ -94,7 +92,7 @@ extern void ggc_pch_read (FILE *, void *);
 /* When set, ggc_collect will do collection.  */
 extern bool ggc_force_collect;
 
-extern void ggc_record_overhead (size_t, size_t, void * MEM_STAT_DECL);
+extern void ggc_record_overhead (size_t, size_t, void * FINAL_MEM_STAT_DECL);
 
 extern void ggc_free_overhead (void *);
 
@@ -108,11 +106,11 @@ extern size_t ggc_get_size (const void *);
 
 /* This structure contains the statistics common to all collectors.
    Particular collectors can extend this structure.  */
-typedef struct ggc_statistics
+struct ggc_statistics
 {
   /* At present, we don't really gather any interesting statistics.  */
   int unused;
-} ggc_statistics;
+};
 
 /* Used by the various collectors to gather and print statistics that
    do not depend on the collector in use.  */

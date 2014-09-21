@@ -1,5 +1,4 @@
-// { dg-options "--std=c++0x" }
-// { dg-do link }
+// { dg-do link { target c++11 } }
 
 template<typename _Tp>
 inline _Tp&&

@@ -1,6 +1,6 @@
 # Pretty-printers for libstc++.
 
-# Copyright (C) 2008, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+# Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +25,15 @@ try:
     import gdb.printing
 except ImportError:
     _use_gdb_pp = False
+
+# Try to install type-printers.
+_use_type_printing = False
+try:
+    import gdb.types
+    if hasattr(gdb.types, 'TypePrinter'):
+        _use_type_printing = True
+except ImportError:
+    pass
 
 # Starting with the type ORIG, search for the member type NAME.  This
 # handles searching upward through superclasses.  This is needed to
@@ -71,7 +80,9 @@ class UniquePointerPrinter:
         self.val = val
 
     def to_string (self):
-        return self.val['_M_t']
+        v = self.val['_M_t']['_M_head_impl']
+        return ('std::unique_ptr<%s> containing %s' % (str(v.type.target()),
+                                                       str(v)))
 
 class StdListPrinter:
     "Print a std::list"
@@ -364,6 +375,22 @@ class RbtreeIterator:
             self.node = node
         return result
 
+def get_value_from_Rb_tree_node(node):
+    """Returns the value held in an _Rb_tree_node<_Val>"""
+    try:
+        member = node.type.fields()[1].name
+        if member == '_M_value_field':
+            # C++03 implementation, node contains the value as a member
+            return node['_M_value_field']
+        elif member == '_M_storage':
+            # C++11 implementation, node stores value in __aligned_buffer
+            p = node['_M_storage']['_M_storage'].address
+            p = p.cast(node.type.template_argument(0).pointer())
+            return p.dereference()
+    except:
+        pass
+    raise ValueError, "Unsupported implementation for %s" % str(node.type)
+
 # This is a pretty printer for std::_Rb_tree_iterator (which is
 # std::map::iterator), and has nothing to do with the RbtreeIterator
 # class above.
@@ -376,7 +403,8 @@ class StdRbtreeIteratorPrinter:
     def to_string (self):
         typename = str(self.val.type.strip_typedefs()) + '::_Link_type'
         nodetype = gdb.lookup_type(typename).strip_typedefs()
-        return self.val.cast(nodetype).dereference()['_M_value_field']
+        node = self.val.cast(nodetype).dereference()
+        return get_value_from_Rb_tree_node(node)
 
 class StdDebugIteratorPrinter:
     "Print a debug enabled version of an iterator"
@@ -406,7 +434,8 @@ class StdMapPrinter:
         def next(self):
             if self.count % 2 == 0:
                 n = self.rbiter.next()
-                n = n.cast(self.type).dereference()['_M_value_field']
+                n = n.cast(self.type).dereference()
+                n = get_value_from_Rb_tree_node(n)
                 self.pair = n
                 item = n['first']
             else:
@@ -447,7 +476,8 @@ class StdSetPrinter:
 
         def next(self):
             item = self.rbiter.next()
-            item = item.cast(self.type).dereference()['_M_value_field']
+            item = item.cast(self.type).dereference()
+            item = get_value_from_Rb_tree_node(item)
             # FIXME: this is weird ... what to do?
             # Maybe a 'set' display hint?
             result = ('[%d]' % self.count, item)
@@ -610,8 +640,16 @@ class StdStringPrinter:
 
 class Tr1HashtableIterator:
     def __init__ (self, hash):
-        self.node = hash['_M_before_begin']['_M_nxt']
+        self.buckets = hash['_M_buckets']
+        self.bucket = 0
+        self.bucket_count = hash['_M_bucket_count']
         self.node_type = find_type(hash.type, '_Node').pointer()
+        self.node = 0
+        while self.bucket != self.bucket_count:
+            self.node = self.buckets[self.bucket]
+            if self.node:
+                break
+            self.bucket = self.bucket + 1        
 
     def __iter__ (self):
         return self
@@ -621,8 +659,32 @@ class Tr1HashtableIterator:
             raise StopIteration
         node = self.node.cast(self.node_type)
         result = node.dereference()['_M_v']
-        self.node = node.dereference()['_M_nxt']
+        self.node = node.dereference()['_M_next'];
+        if self.node == 0:
+            self.bucket = self.bucket + 1
+            while self.bucket != self.bucket_count:
+                self.node = self.buckets[self.bucket]
+                if self.node:
+                    break
+                self.bucket = self.bucket + 1
         return result
+
+class StdHashtableIterator:
+    def __init__(self, hash):
+        self.node = hash['_M_before_begin']['_M_nxt']
+        self.node_type = find_type(hash.type, '__node_type').pointer()
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self.node == 0:
+            raise StopIteration
+        elt = self.node.cast(self.node_type).dereference()
+        self.node = elt['_M_nxt']
+        valptr = elt['_M_storage'].address
+        valptr = valptr.cast(elt.type.template_argument(0).pointer())
+        return valptr.dereference()
 
 class Tr1UnorderedSetPrinter:
     "Print a tr1::unordered_set"
@@ -631,8 +693,13 @@ class Tr1UnorderedSetPrinter:
         self.typename = typename
         self.val = val
 
+    def hashtable (self):
+        if self.typename.startswith('std::tr1'):
+            return self.val
+        return self.val['_M_h']
+
     def to_string (self):
-        return '%s with %d elements' % (self.typename, self.val['_M_element_count'])
+        return '%s with %d elements' % (self.typename, self.hashtable()['_M_element_count'])
 
     @staticmethod
     def format_count (i):
@@ -640,7 +707,9 @@ class Tr1UnorderedSetPrinter:
 
     def children (self):
         counter = itertools.imap (self.format_count, itertools.count())
-        return itertools.izip (counter, Tr1HashtableIterator (self.val))
+        if self.typename.startswith('std::tr1'):
+            return itertools.izip (counter, Tr1HashtableIterator (self.hashtable()))
+        return itertools.izip (counter, StdHashtableIterator (self.hashtable()))
 
 class Tr1UnorderedMapPrinter:
     "Print a tr1::unordered_map"
@@ -649,8 +718,13 @@ class Tr1UnorderedMapPrinter:
         self.typename = typename
         self.val = val
 
+    def hashtable (self):
+        if self.typename.startswith('std::tr1'):
+            return self.val
+        return self.val['_M_h']
+
     def to_string (self):
-        return '%s with %d elements' % (self.typename, self.val['_M_element_count'])
+        return '%s with %d elements' % (self.typename, self.hashtable()['_M_element_count'])
 
     @staticmethod
     def flatten (list):
@@ -669,9 +743,14 @@ class Tr1UnorderedMapPrinter:
     def children (self):
         counter = itertools.imap (self.format_count, itertools.count())
         # Map over the hash table and flatten the result.
-        data = self.flatten (itertools.imap (self.format_one, Tr1HashtableIterator (self.val)))
+        if self.typename.startswith('std::tr1'):
+            data = self.flatten (itertools.imap (self.format_one, Tr1HashtableIterator (self.hashtable())))
+            # Zip the two iterators together.
+            return itertools.izip (counter, data)
+        data = self.flatten (itertools.imap (self.format_one, StdHashtableIterator (self.hashtable())))
         # Zip the two iterators together.
         return itertools.izip (counter, data)
+        
 
     def display_hint (self):
         return 'map'
@@ -695,7 +774,9 @@ class StdForwardListPrinter:
             self.base = elt['_M_next']
             count = self.count
             self.count = self.count + 1
-            return ('[%d]' % count, elt['_M_value'])
+            valptr = elt['_M_storage'].address
+            valptr = valptr.cast(elt.type.template_argument(0).pointer())
+            return ('[%d]' % count, valptr.dereference())
 
     def __init__(self, typename, val):
         self.val = val
@@ -724,6 +805,11 @@ class RxPrinter(object):
     def invoke(self, value):
         if not self.enabled:
             return None
+
+        if value.type.code == gdb.TYPE_CODE_REF:
+            if hasattr(gdb.Value,"referenced_value"):
+                value = value.referenced_value()
+
         return self.function(self.name, value)
 
 # A pretty-printer that conforms to the "PrettyPrinter" protocol from
@@ -779,6 +865,11 @@ class Printer(object):
             return None
 
         basename = match.group(1)
+
+        if val.type.code == gdb.TYPE_CODE_REF:
+            if hasattr(gdb.Value,"referenced_value"):
+                val = val.referenced_value()
+
         if basename in self.lookup:
             return self.lookup[basename].invoke(val)
 
@@ -786,6 +877,97 @@ class Printer(object):
         return None
 
 libstdcxx_printer = None
+
+class FilteringTypePrinter(object):
+    def __init__(self, match, name):
+        self.match = match
+        self.name = name
+        self.enabled = True
+
+    class _recognizer(object):
+        def __init__(self, match, name):
+            self.match = match
+            self.name = name
+            self.type_obj = None
+
+        def recognize(self, type_obj):
+            if type_obj.tag is None:
+                return None
+
+            if self.type_obj is None:
+                if not self.match in type_obj.tag:
+                    # Filter didn't match.
+                    return None
+                try:
+                    self.type_obj = gdb.lookup_type(self.name).strip_typedefs()
+                except:
+                    pass
+            if self.type_obj == type_obj:
+                return self.name
+            return None
+
+    def instantiate(self):
+        return self._recognizer(self.match, self.name)
+
+def add_one_type_printer(obj, match, name):
+    printer = FilteringTypePrinter(match, 'std::' + name)
+    gdb.types.register_type_printer(obj, printer)
+
+def register_type_printers(obj):
+    global _use_type_printing
+
+    if not _use_type_printing:
+        return
+
+    for pfx in ('', 'w'):
+        add_one_type_printer(obj, 'basic_string', pfx + 'string')
+        add_one_type_printer(obj, 'basic_ios', pfx + 'ios')
+        add_one_type_printer(obj, 'basic_streambuf', pfx + 'streambuf')
+        add_one_type_printer(obj, 'basic_istream', pfx + 'istream')
+        add_one_type_printer(obj, 'basic_ostream', pfx + 'ostream')
+        add_one_type_printer(obj, 'basic_iostream', pfx + 'iostream')
+        add_one_type_printer(obj, 'basic_stringbuf', pfx + 'stringbuf')
+        add_one_type_printer(obj, 'basic_istringstream',
+                                 pfx + 'istringstream')
+        add_one_type_printer(obj, 'basic_ostringstream',
+                                 pfx + 'ostringstream')
+        add_one_type_printer(obj, 'basic_stringstream',
+                                 pfx + 'stringstream')
+        add_one_type_printer(obj, 'basic_filebuf', pfx + 'filebuf')
+        add_one_type_printer(obj, 'basic_ifstream', pfx + 'ifstream')
+        add_one_type_printer(obj, 'basic_ofstream', pfx + 'ofstream')
+        add_one_type_printer(obj, 'basic_fstream', pfx + 'fstream')
+        add_one_type_printer(obj, 'basic_regex', pfx + 'regex')
+        add_one_type_printer(obj, 'sub_match', pfx + 'csub_match')
+        add_one_type_printer(obj, 'sub_match', pfx + 'ssub_match')
+        add_one_type_printer(obj, 'match_results', pfx + 'cmatch')
+        add_one_type_printer(obj, 'match_results', pfx + 'smatch')
+        add_one_type_printer(obj, 'regex_iterator', pfx + 'cregex_iterator')
+        add_one_type_printer(obj, 'regex_iterator', pfx + 'sregex_iterator')
+        add_one_type_printer(obj, 'regex_token_iterator',
+                                 pfx + 'cregex_token_iterator')
+        add_one_type_printer(obj, 'regex_token_iterator',
+                                 pfx + 'sregex_token_iterator')
+
+    # Note that we can't have a printer for std::wstreampos, because
+    # it shares the same underlying type as std::streampos.
+    add_one_type_printer(obj, 'fpos', 'streampos')
+    add_one_type_printer(obj, 'basic_string', 'u16string')
+    add_one_type_printer(obj, 'basic_string', 'u32string')
+
+    for dur in ('nanoseconds', 'microseconds', 'milliseconds',
+                'seconds', 'minutes', 'hours'):
+        add_one_type_printer(obj, 'duration', dur)
+
+    add_one_type_printer(obj, 'linear_congruential_engine', 'minstd_rand0')
+    add_one_type_printer(obj, 'linear_congruential_engine', 'minstd_rand')
+    add_one_type_printer(obj, 'mersenne_twister_engine', 'mt19937')
+    add_one_type_printer(obj, 'mersenne_twister_engine', 'mt19937_64')
+    add_one_type_printer(obj, 'subtract_with_carry_engine', 'ranlux24_base')
+    add_one_type_printer(obj, 'subtract_with_carry_engine', 'ranlux48_base')
+    add_one_type_printer(obj, 'discard_block_engine', 'ranlux24')
+    add_one_type_printer(obj, 'discard_block_engine', 'ranlux48')
+    add_one_type_printer(obj, 'shuffle_order_engine', 'knuth_b')
 
 def register_libstdcxx_printers (obj):
     "Register libstdc++ pretty-printers with objfile Obj."
@@ -799,6 +981,8 @@ def register_libstdcxx_printers (obj):
         if obj is None:
             obj = gdb
         obj.pretty_printers.append(libstdcxx_printer)
+
+    register_type_printers(obj)
 
 def build_libstdcxx_dictionary ():
     global libstdcxx_printer

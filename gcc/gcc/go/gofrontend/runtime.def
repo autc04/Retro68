@@ -29,7 +29,7 @@
 // result types.
 
 // The standard C memcmp function, used for struct comparisons.
-DEF_GO_RUNTIME(MEMCMP, "memcmp", P3(POINTER, POINTER, UINTPTR), R1(INT))
+DEF_GO_RUNTIME(MEMCMP, "__go_memcmp", P3(POINTER, POINTER, UINTPTR), R1(INT))
 
 // Range over a string, returning the next index.
 DEF_GO_RUNTIME(STRINGITER, "runtime.stringiter", P2(STRING, INT), R1(INT))
@@ -67,6 +67,12 @@ DEF_GO_RUNTIME(STRING_TO_BYTE_ARRAY, "__go_string_to_byte_array",
 DEF_GO_RUNTIME(STRING_TO_INT_ARRAY, "__go_string_to_int_array",
 	       P1(STRING), R1(SLICE))
 
+
+// Complex division.
+DEF_GO_RUNTIME(COMPLEX64_DIV, "__go_complex64_div",
+	       P2(COMPLEX64, COMPLEX64), R1(COMPLEX64))
+DEF_GO_RUNTIME(COMPLEX128_DIV, "__go_complex128_div",
+	       P2(COMPLEX128, COMPLEX128), R1(COMPLEX128))
 
 // Make a slice.
 DEF_GO_RUNTIME(MAKESLICE1, "__go_make_slice1", P2(TYPE, UINTPTR), R1(SLICE))
@@ -148,27 +154,28 @@ DEF_GO_RUNTIME(CHANRECV2, "runtime.chanrecv2", P3(TYPE, CHAN, POINTER),
 
 
 // Start building a select statement.
-DEF_GO_RUNTIME(NEWSELECT, "runtime.newselect", P1(INT), R1(POINTER))
+DEF_GO_RUNTIME(NEWSELECT, "runtime.newselect", P1(INT32), R1(POINTER))
 
 // Add a default clause to a select statement.
-DEF_GO_RUNTIME(SELECTDEFAULT, "runtime.selectdefault", P2(POINTER, INT), R0())
+DEF_GO_RUNTIME(SELECTDEFAULT, "runtime.selectdefault",
+	       P2(POINTER, INT32), R0())
 
 // Add a send clause to a select statement.
 DEF_GO_RUNTIME(SELECTSEND, "runtime.selectsend",
-	       P4(POINTER, CHAN, POINTER, INT), R0())
+	       P4(POINTER, CHAN, POINTER, INT32), R0())
 
 // Add a receive clause to a select statement, for a clause which does
 // not check whether the channel is closed.
 DEF_GO_RUNTIME(SELECTRECV, "runtime.selectrecv",
-	       P4(POINTER, CHAN, POINTER, INT), R0())
+	       P4(POINTER, CHAN, POINTER, INT32), R0())
 
 // Add a receive clause to a select statement, for a clause which does
 // check whether the channel is closed.
 DEF_GO_RUNTIME(SELECTRECV2, "runtime.selectrecv2",
-	       P5(POINTER, CHAN, POINTER, BOOLPTR, INT), R0())
+	       P5(POINTER, CHAN, POINTER, BOOLPTR, INT32), R0())
 
 // Run a select, returning the index of the selected clause.
-DEF_GO_RUNTIME(SELECTGO, "runtime.selectgo", P1(POINTER), R1(INT))
+DEF_GO_RUNTIME(SELECTGO, "runtime.selectgo", P1(POINTER), R1(INT32))
 
 
 // Panic.
@@ -197,7 +204,7 @@ DEF_GO_RUNTIME(CHECK_DEFER, "__go_check_defer", P1(BOOLPTR), R0())
 DEF_GO_RUNTIME(UNDEFER, "__go_undefer", P1(BOOLPTR), R0())
 
 // Panic with a runtime error.
-DEF_GO_RUNTIME(RUNTIME_ERROR, "__go_runtime_error", P1(INT), R0())
+DEF_GO_RUNTIME(RUNTIME_ERROR, "__go_runtime_error", P1(INT32), R0())
 
 
 // Close.
@@ -221,11 +228,6 @@ DEF_GO_RUNTIME(NEW, "__go_new", P1(UINTPTR), R1(POINTER))
 
 // Allocate memory which can not contain pointers.
 DEF_GO_RUNTIME(NEW_NOPOINTERS, "__go_new_nopointers", P1(UINTPTR), R1(POINTER))
-
-
-// Allocate a trampoline for a function literal.
-DEF_GO_RUNTIME(ALLOCATE_GO_TRAMPOLINE, "__go_allocate_trampoline",
-	       P2(UINTPTR, POINTER), R1(POINTER))
 
 
 // Start a new goroutine.
@@ -351,6 +353,10 @@ DEF_GO_RUNTIME(PRINT_SPACE, "__go_print_space", P0(), R0())
 
 // Print a newline (for println).
 DEF_GO_RUNTIME(PRINT_NL, "__go_print_nl", P0(), R0())
+
+
+// Used for field tracking for data analysis.
+DEF_GO_RUNTIME(FIELDTRACK, "__go_fieldtrack", P1(POINTER), R0())
 
 
 // Remove helper macros.

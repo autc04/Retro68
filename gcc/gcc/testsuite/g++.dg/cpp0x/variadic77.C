@@ -1,6 +1,5 @@
 // PR c++/33496
-// { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 template<int M, int N> struct pair
 {
@@ -12,7 +11,7 @@ template<int... M> struct S
 {
   template<int... N> static int foo ()
   {
-    return sizeof... (pair<M, N>);	// { dg-error "mismatched argument pack lengths" }
+    return sizeof... (pair<M, N>);	// { dg-error "" }
   }
 };
 

@@ -11,7 +11,7 @@ AC_INIT(package-unused, version-unused,, libgo)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CONFIG_HEADER(config.h)
 
-libtool_VERSION=1:0:0
+libtool_VERSION=5:0:0
 AC_SUBST(libtool_VERSION)
 
 AM_ENABLE_MULTILIB(, ..)
@@ -19,7 +19,7 @@ AM_ENABLE_MULTILIB(, ..)
 AC_CANONICAL_SYSTEM
 target_alias=${target_alias-$host_alias}
 
-AM_INIT_AUTOMAKE([1.9.3 no-define foreign -Wall])
+AM_INIT_AUTOMAKE([1.9.3 no-define foreign no-dist -Wall -Wno-portability])
 AH_TEMPLATE(PACKAGE, [Name of package])
 AH_TEMPLATE(VERSION, [Version number of package])
 
@@ -50,8 +50,11 @@ AC_PROG_AWK
 WARN_FLAGS='-Wall -Wextra -Wwrite-strings -Wcast-qual'
 AC_SUBST(WARN_FLAGS)
 
-dnl FIXME: This should be controlled by --enable-maintainer-mode.
-WERROR="-Werror"
+AC_ARG_ENABLE(werror, [AS_HELP_STRING([--enable-werror],
+                                      [turns on -Werror @<:@default=yes@:>@])])
+if test "x$enable_werror" != "xno"; then
+  WERROR="-Werror"
+fi
 AC_SUBST(WERROR)
 
 glibgo_toolexecdir=no
@@ -129,6 +132,8 @@ is_freebsd=no
 is_irix=no
 is_linux=no
 is_netbsd=no
+is_openbsd=no
+is_dragonfly=no
 is_rtems=no
 is_solaris=no
 GOOS=unknown
@@ -138,6 +143,8 @@ case ${host} in
   *-*-irix6*)    is_irix=yes;    GOOS=irix ;;
   *-*-linux*)    is_linux=yes;   GOOS=linux ;;
   *-*-netbsd*)	 is_netbsd=yes;  GOOS=netbsd ;;
+  *-*-openbsd*)  is_openbsd=yes; GOOS=openbsd ;;
+  *-*-dragonfly*) is_dragonfly=yes; GOOS=dragonfly ;;
   *-*-rtems*)    is_rtems=yes;   GOOS=rtems ;;
   *-*-solaris2*) is_solaris=yes; GOOS=solaris ;;
 esac
@@ -146,14 +153,28 @@ AM_CONDITIONAL(LIBGO_IS_FREEBSD, test $is_freebsd = yes)
 AM_CONDITIONAL(LIBGO_IS_IRIX, test $is_irix = yes)
 AM_CONDITIONAL(LIBGO_IS_LINUX, test $is_linux = yes)
 AM_CONDITIONAL(LIBGO_IS_NETBSD, test $is_netbsd = yes)
+AM_CONDITIONAL(LIBGO_IS_OPENBSD, test $is_openbsd = yes)
+AM_CONDITIONAL(LIBGO_IS_DRAGONFLY, test $is_dragonfly = yes)
 AM_CONDITIONAL(LIBGO_IS_RTEMS, test $is_rtems = yes)
 AM_CONDITIONAL(LIBGO_IS_SOLARIS, test $is_solaris = yes)
 AC_SUBST(GOOS)
+
+dnl Test whether we need to use DejaGNU or whether we can use the
+dnl simpler gotest approach.  We can only use gotest for a native
+dnl build.
+USE_DEJAGNU=no
+case ${host} in
+  *-*-rtems*) USE_DEJAGNU=yes ;;
+  ${build}) ;;
+  *) USE_DEJAGNU=yes ;;
+esac
+AC_SUBST(USE_DEJAGNU)
 
 dnl N.B. Keep in sync with gcc/testsuite/go.test/go-test.exp (go-set-goarch).
 is_386=no
 is_alpha=no
 is_arm=no
+is_arm64=no
 is_m68k=no
 mips_abi=unknown
 is_ppc=no
@@ -166,6 +187,10 @@ case ${host} in
   alpha*-*-*)
     is_alpha=yes
     GOARCH=alpha
+    ;;
+  aarch64-*-*)
+    is_arm64=yes
+    GOARCH=arm64
     ;;
   arm*-*-* | strongarm*-*-* | ep9312*-*-* | xscale-*-*)
     is_arm=yes
@@ -247,6 +272,7 @@ esac
 AM_CONDITIONAL(LIBGO_IS_386, test $is_386 = yes)
 AM_CONDITIONAL(LIBGO_IS_ALPHA, test $is_alpha = yes)
 AM_CONDITIONAL(LIBGO_IS_ARM, test $is_arm = yes)
+AM_CONDITIONAL(LIBGO_IS_ARM64, test $is_arm64 = yes)
 AM_CONDITIONAL(LIBGO_IS_M68K, test $is_m68k = yes)
 AM_CONDITIONAL(LIBGO_IS_MIPS, test $mips_abi != unknown)
 AM_CONDITIONAL(LIBGO_IS_MIPSO32, test $mips_abi = o32)
@@ -331,10 +357,10 @@ dnl possible for the linker to support this for some targets but not
 dnl others.
 AC_CACHE_CHECK([whether linker supports split stack],
 [libgo_cv_c_linker_supports_split_stack],
-libgo_cv_c_linker_supports_split_stack=no
-if $LD --help 2>/dev/null | grep split-stack-adjust-size >/dev/null 2>&1; then
+[libgo_cv_c_linker_supports_split_stack=no
+if $GOC -Wl,--help 2>/dev/null | grep split-stack-adjust-size >/dev/null 2>&1; then
   libgo_cv_c_linker_supports_split_stack=yes
-fi)
+fi])
 if test "$libgo_cv_c_linker_supports_split_stack" = yes; then
   AC_DEFINE(LINKER_SUPPORTS_SPLIT_STACK, 1,
 	    [Define if the linker support split stack adjustments])
@@ -396,8 +422,9 @@ PTHREAD_LIBS=
 AC_CHECK_LIB([pthread], [pthread_create], PTHREAD_LIBS=-lpthread)
 AC_SUBST(PTHREAD_LIBS)
 
-dnl Test if -lrt is required for sched_yield.
+dnl Test if -lrt is required for sched_yield and/or nanosleep.
 AC_SEARCH_LIBS([sched_yield], [rt])
+AC_SEARCH_LIBS([nanosleep], [rt])
 
 AC_C_BIGENDIAN
 
@@ -453,9 +480,9 @@ no)
   ;;
 esac
 
-AC_CHECK_HEADERS(sys/mman.h syscall.h sys/epoll.h sys/ptrace.h sys/syscall.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/if.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/reboot.h)
+AC_CHECK_HEADERS(sched.h sys/file.h sys/mman.h syscall.h sys/epoll.h sys/inotify.h sys/ptrace.h sys/syscall.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/if.h net/if_arp.h net/route.h netpacket/packet.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/ether.h linux/fs.h linux/reboot.h netinet/icmp6.h netinet/in_syst.h netinet/ip.h netinet/ip_mroute.h netinet/if_ether.h)
 
-AC_CHECK_HEADERS([linux/filter.h linux/netlink.h linux/rtnetlink.h], [], [],
+AC_CHECK_HEADERS([linux/filter.h linux/if_addr.h linux/if_ether.h linux/if_tun.h linux/netlink.h linux/rtnetlink.h], [], [],
 [#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -481,13 +508,18 @@ fi
 
 AM_CONDITIONAL(HAVE_SYS_MMAN_H, test "$ac_cv_header_sys_mman_h" = yes)
 
-AC_CHECK_FUNCS(strerror_r strsignal wait4 mincore setenv)
+AC_CHECK_FUNCS(strerror_r strsignal wait4 mincore setenv dl_iterate_phdr)
 AM_CONDITIONAL(HAVE_STRERROR_R, test "$ac_cv_func_strerror_r" = yes)
 AM_CONDITIONAL(HAVE_WAIT4, test "$ac_cv_func_wait4" = yes)
 
-AC_CHECK_FUNCS(epoll_create1 faccessat fallocate fchmodat fchownat futimesat inotify_add_watch inotify_init inotify_init1 inotify_rm_watch mkdirat mknodat openat renameat sync_file_range splice tee unlinkat unshare)
+AC_CHECK_FUNCS(accept4 dup3 epoll_create1 faccessat fallocate fchmodat fchownat futimesat getxattr inotify_add_watch inotify_init inotify_init1 inotify_rm_watch listxattr mkdirat mknodat open64 openat pipe2 removexattr renameat setxattr sync_file_range splice tee unlinkat unshare utimensat)
 AC_TYPE_OFF_T
 AC_CHECK_TYPES([loff_t])
+
+LIBS_hold="$LIBS"
+LIBS="$LIBS -lm"
+AC_CHECK_FUNCS(cosl expl logl sinl tanl acosl asinl atanl atan2l expm1l ldexpl log10l log1pl)
+LIBS="$LIBS_hold"
 
 CFLAGS_hold="$CFLAGS"
 CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
@@ -588,6 +620,8 @@ CFLAGS=$CFLAGS_hold])
 MATH_FLAG=
 if test "$libgo_cv_c_fancymath" = yes; then
   MATH_FLAG="-mfancy-math-387 -funsafe-math-optimizations"
+else
+  MATH_FLAG="-ffp-contract=off"
 fi
 AC_SUBST(MATH_FLAG)
 
@@ -732,6 +766,68 @@ LIBS="$LIBS_hold"
 if test "$libgo_cv_lib_setcontext_clobbers_tls" = "yes"; then
   AC_DEFINE(SETCONTEXT_CLOBBERS_TLS, 1,
 	    [Define if setcontext clobbers TLS variables])
+fi
+
+AC_CACHE_CHECK([whether .eh_frame section should be read-only],
+libgo_cv_ro_eh_frame, [
+libgo_cv_ro_eh_frame=no
+echo 'extern void foo (void); void bar (void) { foo (); foo (); }' > conftest.c
+if $CC $CFLAGS -S -fpic -fexceptions -o conftest.s conftest.c > /dev/null 2>&1; then
+  if grep '.section.*eh_frame.*"a"' conftest.s > /dev/null; then
+    libgo_cv_ro_eh_frame=yes
+  elif grep '.section.*eh_frame.*#alloc' conftest.c \
+       | grep -v '#write' > /dev/null; then
+    libgo_cv_ro_eh_frame=yes
+  fi
+fi
+rm -f conftest.*
+])
+if test "x$libgo_cv_ro_eh_frame" = xyes; then
+  AC_DEFINE(EH_FRAME_FLAGS, "a",
+	    [Define to the flags needed for the .section .eh_frame directive.])
+else
+  AC_DEFINE(EH_FRAME_FLAGS, "aw",
+	    [Define to the flags needed for the .section .eh_frame directive.])
+fi
+
+AC_CACHE_CHECK([if assembler supports GNU comdat group syntax],
+libgo_cv_as_comdat_gnu, [
+echo '.section .text,"axG",@progbits,.foo,comdat' > conftest.s
+if $CC $CFLAGS -c conftest.s > /dev/null 2>&1; then
+  libgo_cv_as_comdat_gnu=yes
+else
+  libgo_cv_as_comdat_gnu=no
+fi
+])
+if test "x$libgo_cv_as_comdat_gnu" = xyes; then
+  AC_DEFINE(HAVE_AS_COMDAT_GAS, 1,
+	    [Define if your assembler supports GNU comdat group syntax.])
+fi
+
+AC_CACHE_CHECK([assembler supports pc related relocs],
+libgo_cv_as_x86_pcrel, [
+libgo_cv_as_x86_pcrel=yes
+echo '.text; foo: nop; .data; .long foo-.; .text' > conftest.s
+if $CC $CFLAGS -c conftest.s 2>&1 | $EGREP -i 'illegal|warning' > /dev/null; then
+    libgo_cv_as_x86_pcrel=no
+fi
+])
+if test "x$libgo_cv_as_x86_pcrel" = xyes; then
+  AC_DEFINE(HAVE_AS_X86_PCREL, 1,
+	    [Define if your assembler supports PC relative relocs.])
+fi
+
+AC_CACHE_CHECK([assembler supports unwind section type],
+libgo_cv_as_x86_64_unwind_section_type, [
+libgo_cv_as_x86_64_unwind_section_type=yes
+echo '.section .eh_frame,"a",@unwind' > conftest.s
+if $CC $CFLAGS -c conftest.s 2>&1 | grep -i warning > /dev/null; then
+    libgo_cv_as_x86_64_unwind_section_type=no
+fi
+])
+if test "x$libgo_cv_as_x86_64_unwind_section_type" = xyes; then
+  AC_DEFINE(HAVE_AS_X86_64_UNWIND_SECTION_TYPE, 1,
+	    [Define if your assembler supports unwind section type.])
 fi
 
 AC_CACHE_SAVE

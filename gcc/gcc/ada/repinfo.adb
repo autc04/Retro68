@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,22 +29,25 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Alloc;  use Alloc;
-with Atree;  use Atree;
-with Casing; use Casing;
-with Debug;  use Debug;
-with Einfo;  use Einfo;
-with Lib;    use Lib;
-with Namet;  use Namet;
-with Opt;    use Opt;
-with Output; use Output;
-with Sinfo;  use Sinfo;
-with Sinput; use Sinput;
-with Snames; use Snames;
-with Stand;  use Stand;
-with Table;  use Table;
-with Uname;  use Uname;
-with Urealp; use Urealp;
+with Alloc;   use Alloc;
+with Atree;   use Atree;
+with Casing;  use Casing;
+with Debug;   use Debug;
+with Einfo;   use Einfo;
+with Lib;     use Lib;
+with Namet;   use Namet;
+with Nlists;  use Nlists;
+with Opt;     use Opt;
+with Output;  use Output;
+with Sem_Aux; use Sem_Aux;
+with Sinfo;   use Sinfo;
+with Sinput;  use Sinput;
+with Snames;  use Snames;
+with Stand;   use Stand;
+with Stringt; use Stringt;
+with Table;   use Table;
+with Uname;   use Uname;
+with Urealp;  use Urealp;
 
 with Ada.Unchecked_Conversion;
 
@@ -113,7 +116,8 @@ package body Repinfo is
       Table_Name           => "FE_Rep_Table");
 
    Unit_Casing : Casing_Type;
-   --  Identifier casing for current unit
+   --  Identifier casing for current unit. This is set by List_Rep_Info for
+   --  each unit, before calling subprograms which may read it.
 
    Need_Blank_Line : Boolean;
    --  Set True if a blank line is needed before outputting any information for
@@ -133,7 +137,7 @@ package body Repinfo is
    --  Called before outputting anything for an entity. Ensures that
    --  a blank line precedes the output for a particular entity.
 
-   procedure List_Entities (Ent : Entity_Id);
+   procedure List_Entities (Ent : Entity_Id; Bytes_Big_Endian : Boolean);
    --  This procedure lists the entities associated with the entity E, starting
    --  with the First_Entity and using the Next_Entity link. If a nested
    --  package is found, entities within the package are recursively processed.
@@ -142,8 +146,12 @@ package body Repinfo is
    --  List name of entity Ent in appropriate case. The name is listed with
    --  full qualification up to but not including the compilation unit name.
 
-   procedure List_Array_Info (Ent : Entity_Id);
+   procedure List_Array_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean);
    --  List representation info for array type Ent
+
+   procedure List_Linker_Section (Ent : Entity_Id);
+   --  List linker section for Ent (caller has checked that Ent is an entity
+   --  for which the Linker_Section_Pragma field is defined).
 
    procedure List_Mechanisms (Ent : Entity_Id);
    --  List mechanism information for parameters of Ent, which is subprogram,
@@ -152,8 +160,13 @@ package body Repinfo is
    procedure List_Object_Info (Ent : Entity_Id);
    --  List representation info for object Ent
 
-   procedure List_Record_Info (Ent : Entity_Id);
+   procedure List_Record_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean);
    --  List representation info for record type Ent
+
+   procedure List_Scalar_Storage_Order
+     (Ent              : Entity_Id;
+      Bytes_Big_Endian : Boolean);
+   --  List scalar storage order information for record or array type Ent
 
    procedure List_Type_Info (Ent : Entity_Id);
    --  List type info for type Ent
@@ -286,7 +299,7 @@ package body Repinfo is
    -- List_Array_Info --
    ----------------------
 
-   procedure List_Array_Info (Ent : Entity_Id) is
+   procedure List_Array_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean) is
    begin
       List_Type_Info (Ent);
       Write_Str ("for ");
@@ -294,13 +307,15 @@ package body Repinfo is
       Write_Str ("'Component_Size use ");
       Write_Val (Component_Size (Ent));
       Write_Line (";");
+
+      List_Scalar_Storage_Order (Ent, Bytes_Big_Endian);
    end List_Array_Info;
 
    -------------------
    -- List_Entities --
    -------------------
 
-   procedure List_Entities (Ent : Entity_Id) is
+   procedure List_Entities (Ent : Entity_Id; Bytes_Big_Endian : Boolean) is
       Body_E : Entity_Id;
       E      : Entity_Id;
 
@@ -343,8 +358,8 @@ package body Repinfo is
 
          if List_Representation_Info_Mechanisms
            and then (Is_Subprogram (Ent)
-                       or else Ekind (Ent) = E_Entry
-                       or else Ekind (Ent) = E_Entry_Family)
+                      or else Ekind (Ent) = E_Entry
+                      or else Ekind (Ent) = E_Entry_Family)
          then
             Need_Blank_Line := True;
             List_Mechanisms (Ent);
@@ -365,13 +380,16 @@ package body Repinfo is
                               and then Present (Full_View (E))))
               or else Debug_Flag_AA
             then
-               if Is_Subprogram (E)
-                       or else
-                     Ekind (E) = E_Entry
-                       or else
-                     Ekind (E) = E_Entry_Family
-                       or else
-                     Ekind (E) = E_Subprogram_Type
+               if Is_Subprogram (E) then
+                  List_Linker_Section (E);
+
+                  if List_Representation_Info_Mechanisms then
+                     List_Mechanisms (E);
+                  end if;
+
+               elsif Ekind_In (E, E_Entry,
+                                  E_Entry_Family,
+                                  E_Subprogram_Type)
                then
                   if List_Representation_Info_Mechanisms then
                      List_Mechanisms (E);
@@ -379,27 +397,31 @@ package body Repinfo is
 
                elsif Is_Record_Type (E) then
                   if List_Representation_Info >= 1 then
-                     List_Record_Info (E);
+                     List_Record_Info (E, Bytes_Big_Endian);
                   end if;
+
+                  List_Linker_Section (E);
 
                elsif Is_Array_Type (E) then
                   if List_Representation_Info >= 1 then
-                     List_Array_Info (E);
+                     List_Array_Info (E, Bytes_Big_Endian);
                   end if;
+
+                  List_Linker_Section (E);
 
                elsif Is_Type (E) then
                   if List_Representation_Info >= 2 then
                      List_Type_Info (E);
+                     List_Linker_Section (E);
                   end if;
 
-               elsif Ekind (E) = E_Variable
-                       or else
-                     Ekind (E) = E_Constant
-                       or else
-                     Ekind (E) = E_Loop_Parameter
-                       or else
-                     Is_Formal (E)
-               then
+               elsif Ekind_In (E, E_Variable, E_Constant) then
+                  if List_Representation_Info >= 2 then
+                     List_Object_Info (E);
+                     List_Linker_Section (E);
+                  end if;
+
+               elsif Ekind (E) = E_Loop_Parameter or else Is_Formal (E) then
                   if List_Representation_Info >= 2 then
                      List_Object_Info (E);
                   end if;
@@ -411,29 +433,24 @@ package body Repinfo is
 
                if Ekind (E) = E_Package then
                   if No (Renamed_Object (E)) then
-                     List_Entities (E);
+                     List_Entities (E, Bytes_Big_Endian);
                   end if;
 
                --  Recurse into bodies
 
-               elsif Ekind (E) = E_Protected_Type
-                       or else
-                     Ekind (E) = E_Task_Type
-                       or else
-                     Ekind (E) = E_Subprogram_Body
-                       or else
-                     Ekind (E) = E_Package_Body
-                       or else
-                     Ekind (E) = E_Task_Body
-                       or else
-                     Ekind (E) = E_Protected_Body
+               elsif Ekind_In (E, E_Protected_Type,
+                                  E_Task_Type,
+                                  E_Subprogram_Body,
+                                  E_Package_Body,
+                                  E_Task_Body,
+                                  E_Protected_Body)
                then
-                  List_Entities (E);
+                  List_Entities (E, Bytes_Big_Endian);
 
                --  Recurse into blocks
 
                elsif Ekind (E) = E_Block then
-                  List_Entities (E);
+                  List_Entities (E, Bytes_Big_Endian);
                end if;
             end if;
 
@@ -449,7 +466,6 @@ package body Repinfo is
            and then Present (Corresponding_Spec (Find_Declaration (Ent)))
          then
             E := First_Entity (Corresponding_Spec (Find_Declaration (Ent)));
-
             while Present (E) loop
                if Is_Subprogram (E)
                  and then
@@ -461,7 +477,7 @@ package body Repinfo is
                     and then
                       Nkind (Parent (Find_Declaration (Body_E))) /= N_Subunit
                   then
-                     List_Entities (Body_E);
+                     List_Entities (Body_E, Bytes_Big_Endian);
                   end if;
                end if;
 
@@ -625,6 +641,34 @@ package body Repinfo is
       end if;
    end List_GCC_Expression;
 
+   -------------------------
+   -- List_Linker_Section --
+   -------------------------
+
+   procedure List_Linker_Section (Ent : Entity_Id) is
+      Arg : Node_Id;
+
+   begin
+      if Present (Linker_Section_Pragma (Ent)) then
+         Write_Str ("pragma Linker_Section (");
+         List_Name (Ent);
+         Write_Str (", """);
+
+         Arg :=
+           Last (Pragma_Argument_Associations (Linker_Section_Pragma (Ent)));
+
+         if Nkind (Arg) = N_Pragma_Argument_Association then
+            Arg := Expression (Arg);
+         end if;
+
+         pragma Assert (Nkind (Arg) = N_String_Literal);
+         String_To_Name_Buffer (Strval (Arg));
+         Write_Str (Name_Buffer (1 .. Name_Len));
+         Write_Str (""");");
+         Write_Eol;
+      end if;
+   end List_Linker_Section;
+
    ---------------------
    -- List_Mechanisms --
    ---------------------
@@ -675,6 +719,8 @@ package body Repinfo is
             Write_Line ("Intrinsic");
          when Convention_Entry                 =>
             Write_Line ("Entry");
+         when Convention_Ghost                 =>
+            Write_Line ("Ghost");
          when Convention_Protected             =>
             Write_Line ("Protected");
          when Convention_Assembler             =>
@@ -716,7 +762,6 @@ package body Repinfo is
       Form := First_Formal (Ent);
       while Present (Form) loop
          Get_Unqualified_Decoded_Name_String (Chars (Form));
-
          while Name_Len <= Plen loop
             Name_Len := Name_Len + 1;
             Name_Buffer (Name_Len) := ' ';
@@ -779,7 +824,7 @@ package body Repinfo is
    -- List_Record_Info --
    ----------------------
 
-   procedure List_Record_Info (Ent : Entity_Id) is
+   procedure List_Record_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean) is
       Comp  : Entity_Id;
       Cfbit : Uint;
       Sunit : Uint;
@@ -884,7 +929,7 @@ package body Repinfo is
 
             else
                --  For the packed case, we don't know the bit positions if we
-               --  don't know the starting position!
+               --  don't know the starting position.
 
                if Is_Packed (Ent) then
                   Write_Line ("?? range  ? .. ??;");
@@ -963,13 +1008,15 @@ package body Repinfo is
       end loop;
 
       Write_Line ("end record;");
+
+      List_Scalar_Storage_Order (Ent, Bytes_Big_Endian);
    end List_Record_Info;
 
    -------------------
    -- List_Rep_Info --
    -------------------
 
-   procedure List_Rep_Info is
+   procedure List_Rep_Info (Bytes_Big_Endian : Boolean) is
       Col : Nat;
 
    begin
@@ -978,11 +1025,11 @@ package body Repinfo is
       then
          for U in Main_Unit .. Last_Unit loop
             if In_Extended_Main_Source_Unit (Cunit_Entity (U)) then
+               Unit_Casing := Identifier_Casing (Source_Index (U));
 
                --  Normal case, list to standard output
 
                if not List_Representation_Info_To_File then
-                  Unit_Casing := Identifier_Casing (Source_Index (U));
                   Write_Eol;
                   Write_Str ("Representation information for unit ");
                   Write_Unit_Name (Unit_Name (U));
@@ -994,7 +1041,7 @@ package body Repinfo is
                   end loop;
 
                   Write_Eol;
-                  List_Entities (Cunit_Entity (U));
+                  List_Entities (Cunit_Entity (U), Bytes_Big_Endian);
 
                --  List representation information to file
 
@@ -1002,7 +1049,7 @@ package body Repinfo is
                   Create_Repinfo_File_Access.all
                     (Get_Name_String (File_Name (Source_Index (U))));
                   Set_Special_Output (Write_Info_Line'Access);
-                  List_Entities (Cunit_Entity (U));
+                  List_Entities (Cunit_Entity (U), Bytes_Big_Endian);
                   Set_Special_Output (null);
                   Close_Repinfo_File_Access.all;
                end if;
@@ -1010,6 +1057,52 @@ package body Repinfo is
          end loop;
       end if;
    end List_Rep_Info;
+
+   -------------------------------
+   -- List_Scalar_Storage_Order --
+   -------------------------------
+
+   procedure List_Scalar_Storage_Order
+     (Ent              : Entity_Id;
+      Bytes_Big_Endian : Boolean)
+   is
+      procedure List_Attr (Attr_Name : String);
+      --  Show attribute definition clause for Attr_Name
+
+      ---------------
+      -- List_Attr --
+      ---------------
+
+      procedure List_Attr (Attr_Name : String) is
+      begin
+         Write_Str ("for ");
+         List_Name (Ent);
+         Write_Str ("'" & Attr_Name & " use System.");
+
+         if Bytes_Big_Endian xor Reverse_Storage_Order (Ent) then
+            Write_Str ("High");
+         else
+            Write_Str ("Low");
+         end if;
+
+         Write_Line ("_Order_First;");
+      end List_Attr;
+
+   --  Start of processing for List_Scalar_Storage_Order
+
+   begin
+      if Has_Rep_Item (Ent, Name_Scalar_Storage_Order) then
+
+         --  For a record type with explicitly specified scalar storage order,
+         --  also display explicit Bit_Order.
+
+         if Is_Record_Type (Ent) then
+            List_Attr ("Bit_Order");
+         end if;
+
+         List_Attr ("Scalar_Storage_Order");
+      end if;
+   end List_Scalar_Storage_Order;
 
    --------------------
    -- List_Type_Info --
@@ -1287,7 +1380,6 @@ package body Repinfo is
                   when Discrim_Val =>
                      declare
                         Sub : constant Int := UI_To_Int (Node.Op1);
-
                      begin
                         pragma Assert (Sub in D'Range);
                         return D (Sub);

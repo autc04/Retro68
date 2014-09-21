@@ -1,5 +1,5 @@
-// { dg-do compile }
-// { dg-options "-std=c++0x -Wall -Wformat=2 -Wstrict-null-sentinel" }
+// { dg-do compile { target c++11 } }
+// { dg-options "-Wall -Wformat=2 -Wstrict-null-sentinel" }
 
 // Test various warnings
 

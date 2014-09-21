@@ -6,7 +6,7 @@
  *
  * SYNOPSIS:
  *
- * long double x, y, j0l();
+ * __float128 x, y, j0l();
  *
  * y = j0l( x );
  *
@@ -52,7 +52,7 @@
  *
  * SYNOPSIS:
  *
- * double x, y, y0l();
+ * __float128 x, y, y0l();
  *
  * y = y0l( x );
  *
@@ -807,6 +807,7 @@ static __float128 Y0_2D[NY0_2D + 1] = {
  /* 1.000000000000000000000000000000000000000E0 */
 };
 
+static const long double U0 = -7.3804295108687225274343927948483016310862e-02Q;
 
 /* Bessel function of the second kind, order zero.  */
 
@@ -829,6 +830,8 @@ y0q (__float128 x)
       return -HUGE_VALQ + x;
     }
   xx = fabsq (x);
+  if (xx <= 0x1p-57)
+    return U0 + TWOOPI * logq (x);
   if (xx <= 2.0Q)
     {
       /* 0 <= x <= 2 */

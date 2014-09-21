@@ -1,5 +1,5 @@
 /* Combining of if-expressions on trees.
-   Copyright (C) 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2007-2014 Free Software Foundation, Inc.
    Contributed by Richard Guenther <rguenther@suse.de>
 
 This file is part of GCC.
@@ -22,13 +22,33 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+/* rtl is needed only because arm back-end requires it for
+   BRANCH_COST.  */
+#include "rtl.h"
+#include "tm_p.h"
 #include "tree.h"
+#include "stor-layout.h"
 #include "basic-block.h"
-#include "timevar.h"
 #include "tree-pretty-print.h"
-#include "tree-flow.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-fold.h"
+#include "gimple-expr.h"
+#include "is-a.h"
+#include "gimple.h"
+#include "gimple-iterator.h"
+#include "gimplify-me.h"
+#include "gimple-ssa.h"
+#include "tree-cfg.h"
+#include "tree-phinodes.h"
+#include "ssa-iterators.h"
 #include "tree-pass.h"
-#include "tree-dump.h"
+
+#ifndef LOGICAL_OP_NON_SHORT_CIRCUIT
+#define LOGICAL_OP_NON_SHORT_CIRCUIT \
+  (BRANCH_COST (optimize_function_for_speed_p (cfun), \
+                false) >= 2)
+#endif
 
 /* This pass combines COND_EXPRs to simplify control flow.  It
    currently recognizes bit tests and comparisons in chains that
@@ -107,12 +127,26 @@ bb_no_side_effects_p (basic_block bb)
     {
       gimple stmt = gsi_stmt (gsi);
 
+      if (is_gimple_debug (stmt))
+	continue;
+
       if (gimple_has_side_effects (stmt)
+	  || gimple_could_trap_p (stmt)
 	  || gimple_vuse (stmt))
 	return false;
     }
 
   return true;
+}
+
+/* Return true if BB is an empty forwarder block to TO_BB.  */
+
+static bool
+forwarder_block_to (basic_block bb, basic_block to_bb)
+{
+  return empty_block_p (bb)
+	 && single_succ_p (bb)
+	 && single_succ (bb) == to_bb;
 }
 
 /* Verify if all PHI node arguments in DEST for edges from BB1 or
@@ -168,12 +202,12 @@ get_name_for_bit_test (tree candidate)
    Returns true if the pattern matched, false otherwise.  */
 
 static bool
-recognize_single_bit_test (gimple cond, tree *name, tree *bit)
+recognize_single_bit_test (gimple cond, tree *name, tree *bit, bool inv)
 {
   gimple stmt;
 
   /* Get at the definition of the result of the bit test.  */
-  if (gimple_cond_code (cond) != NE_EXPR
+  if (gimple_cond_code (cond) != (inv ? EQ_EXPR : NE_EXPR)
       || TREE_CODE (gimple_cond_lhs (cond)) != SSA_NAME
       || !integer_zerop (gimple_cond_rhs (cond)))
     return false;
@@ -199,7 +233,8 @@ recognize_single_bit_test (gimple cond, tree *name, tree *bit)
       while (is_gimple_assign (stmt)
 	     && ((CONVERT_EXPR_CODE_P (gimple_assign_rhs_code (stmt))
 		  && (TYPE_PRECISION (TREE_TYPE (gimple_assign_lhs (stmt)))
-		      <= TYPE_PRECISION (TREE_TYPE (gimple_assign_rhs1 (stmt)))))
+		      <= TYPE_PRECISION (TREE_TYPE (gimple_assign_rhs1 (stmt))))
+		  && TREE_CODE (gimple_assign_rhs1 (stmt)) == SSA_NAME)
 		 || gimple_assign_ssa_name_copy_p (stmt)))
 	stmt = SSA_NAME_DEF_STMT (gimple_assign_rhs1 (stmt));
 
@@ -276,12 +311,12 @@ recognize_single_bit_test (gimple cond, tree *name, tree *bit)
    Returns true if the pattern matched, false otherwise.  */
 
 static bool
-recognize_bits_test (gimple cond, tree *name, tree *bits)
+recognize_bits_test (gimple cond, tree *name, tree *bits, bool inv)
 {
   gimple stmt;
 
   /* Get at the definition of the result of the bit test.  */
-  if (gimple_cond_code (cond) != NE_EXPR
+  if (gimple_cond_code (cond) != (inv ? EQ_EXPR : NE_EXPR)
       || TREE_CODE (gimple_cond_lhs (cond)) != SSA_NAME
       || !integer_zerop (gimple_cond_rhs (cond)))
     return false;
@@ -298,14 +333,17 @@ recognize_bits_test (gimple cond, tree *name, tree *bits)
 
 /* If-convert on a and pattern with a common else block.  The inner
    if is specified by its INNER_COND_BB, the outer by OUTER_COND_BB.
+   inner_inv, outer_inv and result_inv indicate whether the conditions
+   are inverted.
    Returns true if the edges to the common else basic-block were merged.  */
 
 static bool
-ifcombine_ifandif (basic_block inner_cond_bb, basic_block outer_cond_bb)
+ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
+		   basic_block outer_cond_bb, bool outer_inv, bool result_inv)
 {
   gimple_stmt_iterator gsi;
   gimple inner_cond, outer_cond;
-  tree name1, name2, bit1, bit2;
+  tree name1, name2, bit1, bit2, bits1, bits2;
 
   inner_cond = last_stmt (inner_cond_bb);
   if (!inner_cond
@@ -321,8 +359,8 @@ ifcombine_ifandif (basic_block inner_cond_bb, basic_block outer_cond_bb)
      that case remove the outer test, merging both else edges,
      and change the inner one to test for
      name & (bit1 | bit2) == (bit1 | bit2).  */
-  if (recognize_single_bit_test (inner_cond, &name1, &bit1)
-      && recognize_single_bit_test (outer_cond, &name2, &bit2)
+  if (recognize_single_bit_test (inner_cond, &name1, &bit1, inner_inv)
+      && recognize_single_bit_test (outer_cond, &name2, &bit2, outer_inv)
       && name1 == name2)
     {
       tree t, t2;
@@ -339,7 +377,8 @@ ifcombine_ifandif (basic_block inner_cond_bb, basic_block outer_cond_bb)
       t2 = fold_build2 (BIT_AND_EXPR, TREE_TYPE (name1), name1, t);
       t2 = force_gimple_operand_gsi (&gsi, t2, true, NULL_TREE,
 				     true, GSI_SAME_STMT);
-      t = fold_build2 (EQ_EXPR, boolean_type_node, t2, t);
+      t = fold_build2 (result_inv ? NE_EXPR : EQ_EXPR,
+		       boolean_type_node, t2, t);
       t = canonicalize_cond_expr_cond (t);
       if (!t)
 	return false;
@@ -347,7 +386,8 @@ ifcombine_ifandif (basic_block inner_cond_bb, basic_block outer_cond_bb)
       update_stmt (inner_cond);
 
       /* Leave CFG optimization to cfg_cleanup.  */
-      gimple_cond_set_condition_from_tree (outer_cond, boolean_true_node);
+      gimple_cond_set_condition_from_tree (outer_cond,
+	outer_inv ? boolean_false_node : boolean_true_node);
       update_stmt (outer_cond);
 
       if (dump_file)
@@ -364,68 +404,11 @@ ifcombine_ifandif (basic_block inner_cond_bb, basic_block outer_cond_bb)
       return true;
     }
 
-  /* See if we have two comparisons that we can merge into one.  */
-  else if (TREE_CODE_CLASS (gimple_cond_code (inner_cond)) == tcc_comparison
-	   && TREE_CODE_CLASS (gimple_cond_code (outer_cond)) == tcc_comparison)
-    {
-      tree t;
-
-      if (!(t = maybe_fold_and_comparisons (gimple_cond_code (inner_cond),
-					    gimple_cond_lhs (inner_cond),
-					    gimple_cond_rhs (inner_cond),
-					    gimple_cond_code (outer_cond),
-					    gimple_cond_lhs (outer_cond),
-					    gimple_cond_rhs (outer_cond))))
-	return false;
-      t = canonicalize_cond_expr_cond (t);
-      if (!t)
-	return false;
-      gimple_cond_set_condition_from_tree (inner_cond, t);
-      update_stmt (inner_cond);
-
-      /* Leave CFG optimization to cfg_cleanup.  */
-      gimple_cond_set_condition_from_tree (outer_cond, boolean_true_node);
-      update_stmt (outer_cond);
-
-      if (dump_file)
-	{
-	  fprintf (dump_file, "optimizing two comparisons to ");
-	  print_generic_expr (dump_file, t, 0);
-	  fprintf (dump_file, "\n");
-	}
-
-      return true;
-    }
-
-  return false;
-}
-
-/* If-convert on a or pattern with a common then block.  The inner
-   if is specified by its INNER_COND_BB, the outer by OUTER_COND_BB.
-   Returns true, if the edges leading to the common then basic-block
-   were merged.  */
-
-static bool
-ifcombine_iforif (basic_block inner_cond_bb, basic_block outer_cond_bb)
-{
-  gimple inner_cond, outer_cond;
-  tree name1, name2, bits1, bits2;
-
-  inner_cond = last_stmt (inner_cond_bb);
-  if (!inner_cond
-      || gimple_code (inner_cond) != GIMPLE_COND)
-    return false;
-
-  outer_cond = last_stmt (outer_cond_bb);
-  if (!outer_cond
-      || gimple_code (outer_cond) != GIMPLE_COND)
-    return false;
-
   /* See if we have two bit tests of the same name in both tests.
      In that case remove the outer test and change the inner one to
      test for name & (bits1 | bits2) != 0.  */
-  if (recognize_bits_test (inner_cond, &name1, &bits1)
-      && recognize_bits_test (outer_cond, &name2, &bits2))
+  else if (recognize_bits_test (inner_cond, &name1, &bits1, !inner_inv)
+      && recognize_bits_test (outer_cond, &name2, &bits2, !outer_inv))
     {
       gimple_stmt_iterator gsi;
       tree t;
@@ -484,7 +467,7 @@ ifcombine_iforif (basic_block inner_cond_bb, basic_block outer_cond_bb)
       t = fold_build2 (BIT_AND_EXPR, TREE_TYPE (name1), name1, t);
       t = force_gimple_operand_gsi (&gsi, t, true, NULL_TREE,
 				    true, GSI_SAME_STMT);
-      t = fold_build2 (NE_EXPR, boolean_type_node, t,
+      t = fold_build2 (result_inv ? NE_EXPR : EQ_EXPR, boolean_type_node, t,
 		       build_int_cst (TREE_TYPE (t), 0));
       t = canonicalize_cond_expr_cond (t);
       if (!t)
@@ -493,7 +476,8 @@ ifcombine_iforif (basic_block inner_cond_bb, basic_block outer_cond_bb)
       update_stmt (inner_cond);
 
       /* Leave CFG optimization to cfg_cleanup.  */
-      gimple_cond_set_condition_from_tree (outer_cond, boolean_false_node);
+      gimple_cond_set_condition_from_tree (outer_cond,
+	outer_inv ? boolean_false_node : boolean_true_node);
       update_stmt (outer_cond);
 
       if (dump_file)
@@ -510,21 +494,64 @@ ifcombine_iforif (basic_block inner_cond_bb, basic_block outer_cond_bb)
       return true;
     }
 
-  /* See if we have two comparisons that we can merge into one.
-     This happens for C++ operator overloading where for example
-     GE_EXPR is implemented as GT_EXPR || EQ_EXPR.  */
-    else if (TREE_CODE_CLASS (gimple_cond_code (inner_cond)) == tcc_comparison
+  /* See if we have two comparisons that we can merge into one.  */
+  else if (TREE_CODE_CLASS (gimple_cond_code (inner_cond)) == tcc_comparison
 	   && TREE_CODE_CLASS (gimple_cond_code (outer_cond)) == tcc_comparison)
     {
       tree t;
+      enum tree_code inner_cond_code = gimple_cond_code (inner_cond);
+      enum tree_code outer_cond_code = gimple_cond_code (outer_cond);
 
-      if (!(t = maybe_fold_or_comparisons (gimple_cond_code (inner_cond),
-					   gimple_cond_lhs (inner_cond),
-					   gimple_cond_rhs (inner_cond),
-					   gimple_cond_code (outer_cond),
-					   gimple_cond_lhs (outer_cond),
-					   gimple_cond_rhs (outer_cond))))
+      /* Invert comparisons if necessary (and possible).  */
+      if (inner_inv)
+	inner_cond_code = invert_tree_comparison (inner_cond_code,
+	  HONOR_NANS (TYPE_MODE (TREE_TYPE (gimple_cond_lhs (inner_cond)))));
+      if (inner_cond_code == ERROR_MARK)
 	return false;
+      if (outer_inv)
+	outer_cond_code = invert_tree_comparison (outer_cond_code,
+	  HONOR_NANS (TYPE_MODE (TREE_TYPE (gimple_cond_lhs (outer_cond)))));
+      if (outer_cond_code == ERROR_MARK)
+	return false;
+      /* Don't return false so fast, try maybe_fold_or_comparisons?  */
+
+      if (!(t = maybe_fold_and_comparisons (inner_cond_code,
+					    gimple_cond_lhs (inner_cond),
+					    gimple_cond_rhs (inner_cond),
+					    outer_cond_code,
+					    gimple_cond_lhs (outer_cond),
+					    gimple_cond_rhs (outer_cond))))
+	{
+	  tree t1, t2;
+	  gimple_stmt_iterator gsi;
+	  if (!LOGICAL_OP_NON_SHORT_CIRCUIT)
+	    return false;
+	  /* Only do this optimization if the inner bb contains only the conditional. */
+	  if (!gsi_one_before_end_p (gsi_start_nondebug_after_labels_bb (inner_cond_bb)))
+	    return false;
+	  t1 = fold_build2_loc (gimple_location (inner_cond),
+				inner_cond_code,
+				boolean_type_node,
+				gimple_cond_lhs (inner_cond),
+				gimple_cond_rhs (inner_cond));
+	  t2 = fold_build2_loc (gimple_location (outer_cond),
+				outer_cond_code,
+				boolean_type_node,
+				gimple_cond_lhs (outer_cond),
+				gimple_cond_rhs (outer_cond));
+	  t = fold_build2_loc (gimple_location (inner_cond), 
+			       TRUTH_AND_EXPR, boolean_type_node, t1, t2);
+	  if (result_inv)
+	    {
+	      t = fold_build1 (TRUTH_NOT_EXPR, TREE_TYPE (t), t);
+	      result_inv = false;
+	    }
+	  gsi = gsi_for_stmt (inner_cond);
+	  t = force_gimple_operand_gsi_1 (&gsi, t, is_gimple_condexpr, NULL, true,
+					  GSI_SAME_STMT);
+        }
+      if (result_inv)
+	t = fold_build1 (TRUTH_NOT_EXPR, TREE_TYPE (t), t);
       t = canonicalize_cond_expr_cond (t);
       if (!t)
 	return false;
@@ -532,7 +559,8 @@ ifcombine_iforif (basic_block inner_cond_bb, basic_block outer_cond_bb)
       update_stmt (inner_cond);
 
       /* Leave CFG optimization to cfg_cleanup.  */
-      gimple_cond_set_condition_from_tree (outer_cond, boolean_false_node);
+      gimple_cond_set_condition_from_tree (outer_cond,
+	outer_inv ? boolean_false_node : boolean_true_node);
       update_stmt (outer_cond);
 
       if (dump_file)
@@ -543,6 +571,99 @@ ifcombine_iforif (basic_block inner_cond_bb, basic_block outer_cond_bb)
 	}
 
       return true;
+    }
+
+  return false;
+}
+
+/* Helper function for tree_ssa_ifcombine_bb.  Recognize a CFG pattern and
+   dispatch to the appropriate if-conversion helper for a particular
+   set of INNER_COND_BB, OUTER_COND_BB, THEN_BB and ELSE_BB.
+   PHI_PRED_BB should be one of INNER_COND_BB, THEN_BB or ELSE_BB.  */
+
+static bool
+tree_ssa_ifcombine_bb_1 (basic_block inner_cond_bb, basic_block outer_cond_bb,
+			 basic_block then_bb, basic_block else_bb,
+			 basic_block phi_pred_bb)
+{
+  /* The && form is characterized by a common else_bb with
+     the two edges leading to it mergable.  The latter is
+     guaranteed by matching PHI arguments in the else_bb and
+     the inner cond_bb having no side-effects.  */
+  if (phi_pred_bb != else_bb
+      && recognize_if_then_else (outer_cond_bb, &inner_cond_bb, &else_bb)
+      && same_phi_args_p (outer_cond_bb, phi_pred_bb, else_bb)
+      && bb_no_side_effects_p (inner_cond_bb))
+    {
+      /* We have
+	   <outer_cond_bb>
+	     if (q) goto inner_cond_bb; else goto else_bb;
+	   <inner_cond_bb>
+	     if (p) goto ...; else goto else_bb;
+	     ...
+	   <else_bb>
+	     ...
+       */
+      return ifcombine_ifandif (inner_cond_bb, false, outer_cond_bb, false,
+				false);
+    }
+
+  /* And a version where the outer condition is negated.  */
+  if (phi_pred_bb != else_bb
+      && recognize_if_then_else (outer_cond_bb, &else_bb, &inner_cond_bb)
+      && same_phi_args_p (outer_cond_bb, phi_pred_bb, else_bb)
+      && bb_no_side_effects_p (inner_cond_bb))
+    {
+      /* We have
+	   <outer_cond_bb>
+	     if (q) goto else_bb; else goto inner_cond_bb;
+	   <inner_cond_bb>
+	     if (p) goto ...; else goto else_bb;
+	     ...
+	   <else_bb>
+	     ...
+       */
+      return ifcombine_ifandif (inner_cond_bb, false, outer_cond_bb, true,
+				false);
+    }
+
+  /* The || form is characterized by a common then_bb with the
+     two edges leading to it mergable.  The latter is guaranteed
+     by matching PHI arguments in the then_bb and the inner cond_bb
+     having no side-effects.  */
+  if (phi_pred_bb != then_bb
+      && recognize_if_then_else (outer_cond_bb, &then_bb, &inner_cond_bb)
+      && same_phi_args_p (outer_cond_bb, phi_pred_bb, then_bb)
+      && bb_no_side_effects_p (inner_cond_bb))
+    {
+      /* We have
+	   <outer_cond_bb>
+	     if (q) goto then_bb; else goto inner_cond_bb;
+	   <inner_cond_bb>
+	     if (q) goto then_bb; else goto ...;
+	   <then_bb>
+	     ...
+       */
+      return ifcombine_ifandif (inner_cond_bb, true, outer_cond_bb, true,
+				true);
+    }
+
+  /* And a version where the outer condition is negated.  */
+  if (phi_pred_bb != then_bb
+      && recognize_if_then_else (outer_cond_bb, &inner_cond_bb, &then_bb)
+      && same_phi_args_p (outer_cond_bb, phi_pred_bb, then_bb)
+      && bb_no_side_effects_p (inner_cond_bb))
+    {
+      /* We have
+	   <outer_cond_bb>
+	     if (q) goto inner_cond_bb; else goto then_bb;
+	   <inner_cond_bb>
+	     if (q) goto then_bb; else goto ...;
+	   <then_bb>
+	     ...
+       */
+      return ifcombine_ifandif (inner_cond_bb, true, outer_cond_bb, false,
+				true);
     }
 
   return false;
@@ -572,43 +693,33 @@ tree_ssa_ifcombine_bb (basic_block inner_cond_bb)
     {
       basic_block outer_cond_bb = single_pred (inner_cond_bb);
 
-      /* The && form is characterized by a common else_bb with
-	 the two edges leading to it mergable.  The latter is
-	 guaranteed by matching PHI arguments in the else_bb and
-	 the inner cond_bb having no side-effects.  */
-      if (recognize_if_then_else (outer_cond_bb, &inner_cond_bb, &else_bb)
-	  && same_phi_args_p (outer_cond_bb, inner_cond_bb, else_bb)
-	  && bb_no_side_effects_p (inner_cond_bb))
-	{
-	  /* We have
-	       <outer_cond_bb>
-		 if (q) goto inner_cond_bb; else goto else_bb;
-	       <inner_cond_bb>
-		 if (p) goto ...; else goto else_bb;
-		 ...
-	       <else_bb>
-		 ...
-	   */
-	  return ifcombine_ifandif (inner_cond_bb, outer_cond_bb);
-	}
+      if (tree_ssa_ifcombine_bb_1 (inner_cond_bb, outer_cond_bb,
+				   then_bb, else_bb, inner_cond_bb))
+	return true;
 
-      /* The || form is characterized by a common then_bb with the
-	 two edges leading to it mergable.  The latter is guaranteed
-         by matching PHI arguments in the then_bb and the inner cond_bb
-	 having no side-effects.  */
-      if (recognize_if_then_else (outer_cond_bb, &then_bb, &inner_cond_bb)
-	  && same_phi_args_p (outer_cond_bb, inner_cond_bb, then_bb)
-	  && bb_no_side_effects_p (inner_cond_bb))
+      if (forwarder_block_to (else_bb, then_bb))
 	{
-	  /* We have
-	       <outer_cond_bb>
-		 if (q) goto then_bb; else goto inner_cond_bb;
-	       <inner_cond_bb>
-		 if (q) goto then_bb; else goto ...;
-	       <then_bb>
-		 ...
-	   */
-	  return ifcombine_iforif (inner_cond_bb, outer_cond_bb);
+	  /* Other possibilities for the && form, if else_bb is
+	     empty forwarder block to then_bb.  Compared to the above simpler
+	     forms this can be treated as if then_bb and else_bb were swapped,
+	     and the corresponding inner_cond_bb not inverted because of that.
+	     For same_phi_args_p we look at equality of arguments between
+	     edge from outer_cond_bb and the forwarder block.  */
+	  if (tree_ssa_ifcombine_bb_1 (inner_cond_bb, outer_cond_bb, else_bb,
+				       then_bb, else_bb))
+	    return true;
+	}
+      else if (forwarder_block_to (then_bb, else_bb))
+	{
+	  /* Other possibilities for the || form, if then_bb is
+	     empty forwarder block to else_bb.  Compared to the above simpler
+	     forms this can be treated as if then_bb and else_bb were swapped,
+	     and the corresponding inner_cond_bb not inverted because of that.
+	     For same_phi_args_p we look at equality of arguments between
+	     edge from outer_cond_bb and the forwarder block.  */
+	  if (tree_ssa_ifcombine_bb_1 (inner_cond_bb, outer_cond_bb, else_bb,
+				       then_bb, then_bb))
+	    return true;
 	}
     }
 
@@ -624,10 +735,18 @@ tree_ssa_ifcombine (void)
   bool cfg_changed = false;
   int i;
 
-  bbs = blocks_in_phiopt_order ();
+  bbs = single_pred_before_succ_order ();
   calculate_dominance_info (CDI_DOMINATORS);
 
-  for (i = 0; i < n_basic_blocks - NUM_FIXED_BLOCKS; ++i)
+  /* Search every basic block for COND_EXPR we may be able to optimize.
+
+     We walk the blocks in order that guarantees that a block with
+     a single predecessor is processed after the predecessor.
+     This ensures that we collapse outter ifs before visiting the
+     inner ones, and also that we do not try to visit a removed
+     block.  This is opposite of PHI-OPT, because we cascade the
+     combining rather than cascading PHIs. */
+  for (i = n_basic_blocks_for_fn (cfun) - NUM_FIXED_BLOCKS - 1; i >= 0; i--)
     {
       basic_block bb = bbs[i];
       gimple stmt = last_stmt (bb);
@@ -648,23 +767,40 @@ gate_ifcombine (void)
   return 1;
 }
 
-struct gimple_opt_pass pass_tree_ifcombine =
+namespace {
+
+const pass_data pass_data_tree_ifcombine =
 {
- {
-  GIMPLE_PASS,
-  "ifcombine",			/* name */
-  gate_ifcombine,		/* gate */
-  tree_ssa_ifcombine,		/* execute */
-  NULL,				/* sub */
-  NULL,				/* next */
-  0,				/* static_pass_number */
-  TV_TREE_IFCOMBINE,		/* tv_id */
-  PROP_cfg | PROP_ssa,		/* properties_required */
-  0,				/* properties_provided */
-  0,				/* properties_destroyed */
-  0,				/* todo_flags_start */
-  TODO_ggc_collect
-  | TODO_update_ssa
-  | TODO_verify_ssa		/* todo_flags_finish */
- }
+  GIMPLE_PASS, /* type */
+  "ifcombine", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_TREE_IFCOMBINE, /* tv_id */
+  ( PROP_cfg | PROP_ssa ), /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_update_ssa | TODO_verify_ssa ), /* todo_flags_finish */
 };
+
+class pass_tree_ifcombine : public gimple_opt_pass
+{
+public:
+  pass_tree_ifcombine (gcc::context *ctxt)
+    : gimple_opt_pass (pass_data_tree_ifcombine, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_ifcombine (); }
+  unsigned int execute () { return tree_ssa_ifcombine (); }
+
+}; // class pass_tree_ifcombine
+
+} // anon namespace
+
+gimple_opt_pass *
+make_pass_tree_ifcombine (gcc::context *ctxt)
+{
+  return new pass_tree_ifcombine (ctxt);
+}

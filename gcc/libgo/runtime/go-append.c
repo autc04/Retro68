@@ -4,10 +4,10 @@
    Use of this source code is governed by a BSD-style
    license that can be found in the LICENSE file.  */
 
-#include "go-type.h"
-#include "go-panic.h"
-#include "array.h"
 #include "runtime.h"
+#include "go-panic.h"
+#include "go-type.h"
+#include "array.h"
 #include "arch.h"
 #include "malloc.h"
 
@@ -24,24 +24,24 @@ __go_append (struct __go_open_array a, void *bvalues, uintptr_t bcount,
 	     uintptr_t element_size)
 {
   uintptr_t ucount;
-  int count;
+  intgo count;
 
   if (bvalues == NULL || bcount == 0)
     return a;
 
   ucount = (uintptr_t) a.__count + bcount;
-  count = (int) ucount;
+  count = (intgo) ucount;
   if ((uintptr_t) count != ucount || count <= a.__count)
     runtime_panicstring ("append: slice overflow");
 
   if (count > a.__capacity)
     {
-      int m;
+      intgo m;
       void *n;
 
       m = a.__capacity;
-      if (m == 0)
-	m = (int) bcount;
+      if (m + m < count)
+	m = count;
       else
 	{
 	  do
@@ -53,6 +53,9 @@ __go_append (struct __go_open_array a, void *bvalues, uintptr_t bcount,
 	    }
 	  while (m < count);
 	}
+
+      if (element_size > 0 && (uintptr) m > MaxMem / element_size)
+	runtime_panicstring ("growslice: cap out of range");
 
       n = __go_alloc (m * element_size);
       __builtin_memcpy (n, a.__values, a.__count * element_size);

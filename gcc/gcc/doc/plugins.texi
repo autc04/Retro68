@@ -1,4 +1,4 @@
-@c Copyright (c) 2009, 2010 Free Software Foundation, Inc.
+@c Copyright (C) 2009-2014 Free Software Foundation, Inc.
 @c Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
@@ -7,6 +7,30 @@
 @chapter Plugins
 @cindex Plugins
 
+GCC plugin is a loadable module that provides extra
+features to the compiler, which they can further pass
+around as a shareable module.
+
+GCC plugins provide developers with a rich subset of
+the GCC API to allow them to extend GCC as they see fit.
+Whether it is writing an additional optimization pass,
+transforming code, or analyzing information, plugins
+can be quite useful.
+
+@menu
+* Plugins loading::      How can we load plugins.
+* Plugin API::           The APIs for plugins.
+* Plugins pass::         How a plugin interact with the pass manager.
+* Plugins GC::           How a plugin Interact with GCC Garbage Collector.
+* Plugins description::  Giving information about a plugin itself.
+* Plugins attr::         Registering custom attributes or pragmas.
+* Plugins recording::    Recording information about pass execution.
+* Plugins gate::         Controlling which passes are being run.
+* Plugins tracking::     Keeping track of available passes.
+* Plugins building::     How can we build a plugin.
+@end menu
+
+@node Plugins loading
 @section Loading Plugins
 
 Plugins are supported on platforms that support @option{-ldl
@@ -28,6 +52,7 @@ loaded from the @file{plugin} directory, so @option{-fplugin=@var{name}} is
 the same as @option{-fplugin=`gcc -print-file-name=plugin`/@var{name}.so},
 using backquote shell syntax to query the @file{plugin} directory.
 
+@node Plugin API
 @section Plugin API
 
 Plugins are activated by the compiler at specific events as defined in
@@ -184,6 +209,10 @@ enum plugin_event
   PLUGIN_EARLY_GIMPLE_PASSES_END,
   /* Called when a pass is first instantiated.  */
   PLUGIN_NEW_PASS,
+/* Called when a file is #include-d or given via the #line directive.
+   This could happen many times.  The event data is the included file path,
+   as a const char* pointer.  */
+  PLUGIN_INCLUDE_FILE,
 
   PLUGIN_EVENT_FIRST_DYNAMIC    /* Dummy event used for indexing callback
                                    array.  */
@@ -204,15 +233,28 @@ the arguments:
 @item @code{void *user_data}: Pointer to plugin-specific data.
 @end itemize
 
-For the PLUGIN_PASS_MANAGER_SETUP, PLUGIN_INFO, PLUGIN_REGISTER_GGC_ROOTS
-and PLUGIN_REGISTER_GGC_CACHES pseudo-events the @code{callback} should be
-null, and the @code{user_data} is specific.
+For the @i{PLUGIN_PASS_MANAGER_SETUP}, @i{PLUGIN_INFO},
+@i{PLUGIN_REGISTER_GGC_ROOTS} and @i{PLUGIN_REGISTER_GGC_CACHES}
+pseudo-events the @code{callback} should be null, and the
+@code{user_data} is specific.
 
-When the PLUGIN_PRAGMAS event is triggered (with a null
-pointer as data from GCC), plugins may register their own pragmas
-using functions like @code{c_register_pragma} or
-@code{c_register_pragma_with_expansion}.
+When the @i{PLUGIN_PRAGMAS} event is triggered (with a null pointer as
+data from GCC), plugins may register their own pragmas.  Notice that
+pragmas are not available from @file{lto1}, so plugins used with
+@code{-flto} option to GCC during link-time optimization cannot use
+pragmas and do not even see functions like @code{c_register_pragma} or
+@code{pragma_lex}.
 
+The @i{PLUGIN_INCLUDE_FILE} event, with a @code{const char*} file path as
+GCC data, is triggered for processing of @code{#include} or
+@code{#line} directives.
+
+The @i{PLUGIN_FINISH} event is the last time that plugins can call GCC
+functions, notably emit diagnostics with @code{warning}, @code{error}
+etc.
+
+
+@node Plugins pass
 @section Interacting with the pass manager
 
 There needs to be a way to add/reorder/remove passes dynamically. This
@@ -265,6 +307,7 @@ plugin_init (struct plugin_name_args *plugin_info,
 @end smallexample
 
 
+@node Plugins GC
 @section Interacting with the GCC Garbage Collector
 
 Some plugins may want to be informed when GGC (the GCC Garbage
@@ -276,7 +319,7 @@ the start or end of the GCC garbage collection.
 Some plugins may need to have GGC mark additional data. This can be
 done by registering a callback (called with a null @code{gcc_data})
 for the @code{PLUGIN_GGC_MARKING} event. Such callbacks can call the
-@code{ggc_set_mark} routine, preferably thru the @code{ggc_mark} macro
+@code{ggc_set_mark} routine, preferably through the @code{ggc_mark} macro
 (and conversely, these routines should usually not be used in plugins
 outside of the @code{PLUGIN_GGC_MARKING} event).
 
@@ -295,6 +338,7 @@ before using @code{PLUGIN_GGC_MARKING}, @code{PLUGIN_REGISTER_GGC_ROOTS}
 or @code{PLUGIN_REGISTER_GGC_CACHES}.
 
 
+@node Plugins description
 @section Giving information about a plugin
 
 A plugin should give some information to the user about itself. This
@@ -312,6 +356,7 @@ Such a structure is passed as the @code{user_data} by the plugin's
 init routine using @code{register_callback} with the
 @code{PLUGIN_INFO} pseudo-event and a null callback.
 
+@node Plugins attr
 @section Registering custom attributes or pragmas
 
 For analysis (or other) purposes it is useful to be able to add custom
@@ -347,10 +392,13 @@ register_attributes (void *event_data, void *data)
 @end smallexample
 
 
-The @code{PLUGIN_PRAGMAS} callback is called during pragmas
-registration. Use the @code{c_register_pragma} or
-@code{c_register_pragma_with_expansion} functions to register custom
-pragmas.
+The @i{PLUGIN_PRAGMAS} callback is called once during pragmas
+registration. Use the @code{c_register_pragma},
+@code{c_register_pragma_with_data},
+@code{c_register_pragma_with_expansion},
+@code{c_register_pragma_with_expansion_and_data} functions to register
+custom pragmas and their handlers (which often want to call
+@code{pragma_lex}) from @file{c-family/c-pragma.h}.
 
 @smallexample
 /* Plugin callback called during pragmas registration. Registered with
@@ -368,7 +416,16 @@ register_my_pragma (void *event_data, void *data)
 It is suggested to pass @code{"GCCPLUGIN"} (or a short name identifying
 your plugin) as the ``space'' argument of your pragma.
 
+Pragmas registered with @code{c_register_pragma_with_expansion} or
+@code{c_register_pragma_with_expansion_and_data} support
+preprocessor expansions. For example:
 
+@smallexample
+#define NUMBER 10
+#pragma GCCPLUGIN foothreshold (NUMBER)
+@end smallexample
+
+@node Plugins recording
 @section Recording information about pass execution
 
 The event PLUGIN_PASS_EXECUTION passes the pointer to the executed pass
@@ -383,6 +440,7 @@ and/or @code{PLUGIN_EARLY_GIMPLE_PASSES_END} to manipulate global state
 in your plugin(s) in order to get context for the pass execution.
 
 
+@node Plugins gate
 @section Controlling which passes are being run
 
 After the original gate function for a pass is called, its result
@@ -393,6 +451,7 @@ A nonzero value of the gate status means that the pass is to be executed.
 You can both read and write the gate status via the passed pointer.
 
 
+@node Plugins tracking
 @section Keeping track of available passes
 
 When your plugin is loaded, you can inspect the various
@@ -404,6 +463,7 @@ When a pass is first added to one of the pass lists, the event
 @code{gcc_data} pointing to the new pass.
 
 
+@node Plugins building
 @section Building GCC plugins
 
 If plugins are enabled, GCC installs the headers needed to build a
@@ -432,18 +492,18 @@ integer numbers, so a plugin could ensure it is built for GCC 4.7 with
 The following GNU Makefile excerpt shows how to build a simple plugin:
 
 @smallexample
-GCC=gcc
-PLUGIN_SOURCE_FILES= plugin1.c plugin2.c
-PLUGIN_OBJECT_FILES= $(patsubst %.c,%.o,$(PLUGIN_SOURCE_FILES))
-GCCPLUGINS_DIR:= $(shell $(GCC) -print-file-name=plugin)
-CFLAGS+= -I$(GCCPLUGINS_DIR)/include -fPIC -O2
+HOST_GCC=g++
+TARGET_GCC=gcc
+PLUGIN_SOURCE_FILES= plugin1.c plugin2.cc
+GCCPLUGINS_DIR:= $(shell $(TARGET_GCC) -print-file-name=plugin)
+CXXFLAGS+= -I$(GCCPLUGINS_DIR)/include -fPIC -fno-rtti -O2
 
-plugin.so: $(PLUGIN_OBJECT_FILES)
-   $(GCC) -shared $^ -o $@@
+plugin.so: $(PLUGIN_SOURCE_FILES)
+   $(HOST_GCC) -shared $(CXXFLAGS) $^ -o $@@
 @end smallexample
 
-A single source file plugin may be built with @code{gcc -I`gcc
--print-file-name=plugin`/include -fPIC -shared -O2 plugin.c -o
+A single source file plugin may be built with @code{g++ -I`gcc
+-print-file-name=plugin`/include -fPIC -shared -fno-rtti -O2 plugin.c -o
 plugin.so}, using backquote shell syntax to query the @file{plugin}
 directory.
 

@@ -8,62 +8,149 @@
 
 #include <stdint.h>
 
+#include "backtrace.h"
+
 #include "runtime.h"
-#include "go-string.h"
 
 /* Get the function name, file name, and line number for a PC value.
-   We use the DWARF debug information to get this.  Rather than write
-   a whole new library in C, we use the existing Go library.
-   Unfortunately, the Go library is only available if the debug/elf
-   package is imported (we use debug/elf for both ELF and Mach-O, in
-   this case).  We arrange for the debug/elf package to register
-   itself, and tweak the various packages that need this information
-   to import debug/elf where possible.  */
+   We use the backtrace library to get this.  */
 
-/* The function that returns function/file/line information.  */
+/* Data structure to gather file/line information.  */
 
-typedef _Bool (*infofn_type) (uintptr_t, struct __go_string *,
-			      struct __go_string *, int *);
-static infofn_type infofn;
-
-/* The function that returns the value of a symbol, used to get the
-   entry address of a function.  */
-
-typedef _Bool (*symvalfn_type) (struct __go_string, uintptr_t *);
-static symvalfn_type symvalfn;
-
-/* This is called by debug/elf to register the function that returns
-   function/file/line information.  */
-
-void RegisterDebugLookup (infofn_type, symvalfn_type)
-  __asm__ ("libgo_runtime.runtime.RegisterDebugLookup");
-
-void
-RegisterDebugLookup (infofn_type pi, symvalfn_type ps)
+struct caller
 {
-  infofn = pi;
-  symvalfn = ps;
+  String fn;
+  String file;
+  intgo line;
+};
+
+/* Collect file/line information for a PC value.  If this is called
+   more than once, due to inlined functions, we use the last call, as
+   that is usually the most useful one.  */
+
+static int
+callback (void *data, uintptr_t pc __attribute__ ((unused)),
+	  const char *filename, int lineno, const char *function)
+{
+  struct caller *c = (struct caller *) data;
+
+  if (function == NULL)
+    {
+      c->fn.str = NULL;
+      c->fn.len = 0;
+    }
+  else
+    {
+      byte *s;
+
+      c->fn.len = __builtin_strlen (function);
+      s = runtime_malloc (c->fn.len);
+      __builtin_memcpy (s, function, c->fn.len);
+      c->fn.str = s;
+    }
+
+  if (filename == NULL)
+    {
+      c->file.str = NULL;
+      c->file.len = 0;
+    }
+  else
+    {
+      byte *s;
+
+      c->file.len = __builtin_strlen (filename);
+      s = runtime_malloc (c->file.len);
+      __builtin_memcpy (s, filename, c->file.len);
+      c->file.str = s;
+    }
+
+  c->line = lineno;
+
+  return 0;
+}
+
+/* The error callback for backtrace_pcinfo and backtrace_syminfo.  */
+
+static void
+error_callback (void *data __attribute__ ((unused)),
+		const char *msg, int errnum)
+{
+  if (errnum == -1)
+    return;
+  if (errnum > 0)
+    runtime_printf ("%s errno %d\n", msg, errnum);
+  runtime_throw (msg);
+}
+
+/* The backtrace library state.  */
+
+static void *back_state;
+
+/* A lock to control creating back_state.  */
+
+static Lock back_state_lock;
+
+/* Fetch back_state, creating it if necessary.  */
+
+struct backtrace_state *
+__go_get_backtrace_state ()
+{
+  runtime_lock (&back_state_lock);
+  if (back_state == NULL)
+    {
+      const char *filename;
+
+      filename = (const char *) runtime_progname ();
+
+      /* If there is no '/' in FILENAME, it was found on PATH, and
+	 might not be the same as the file with the same name in the
+	 current directory.  */
+      if (__builtin_strchr (filename, '/') == NULL)
+	filename = NULL;
+
+      back_state = backtrace_create_state (filename, 1, error_callback, NULL);
+    }
+  runtime_unlock (&back_state_lock);
+  return back_state;
 }
 
 /* Return function/file/line information for PC.  */
 
 _Bool
-__go_file_line (uintptr_t pc, struct __go_string *fn, struct __go_string *file,
-		int *line)
+__go_file_line (uintptr pc, String *fn, String *file, intgo *line)
 {
-  if (infofn == NULL)
-    return 0;
-  return infofn (pc, fn, file, line);
+  struct caller c;
+
+  runtime_memclr (&c, sizeof c);
+  backtrace_pcinfo (__go_get_backtrace_state (), pc, callback,
+		    error_callback, &c);
+  *fn = c.fn;
+  *file = c.file;
+  *line = c.line;
+  return c.file.len > 0;
 }
 
-/* Return the value of a symbol.  */
+/* Collect symbol information.  */
 
-_Bool
-__go_symbol_value (struct __go_string sym, uintptr_t *val)
+static void
+syminfo_callback (void *data, uintptr_t pc __attribute__ ((unused)),
+		  const char *symname __attribute__ ((unused)),
+		  uintptr_t address, uintptr_t size __attribute__ ((unused)))
 {
-  if (symvalfn == NULL)
-    return 0;
-  return symvalfn (sym, val);
+  uintptr_t *pval = (uintptr_t *) data;
+
+  *pval = address;
+}
+
+/* Set *VAL to the value of the symbol for PC.  */
+
+static _Bool
+__go_symbol_value (uintptr_t pc, uintptr_t *val)
+{
+  *val = 0;
+  backtrace_syminfo (__go_get_backtrace_state (), pc, syminfo_callback,
+		     error_callback, val);
+  return *val != 0;
 }
 
 /* The values returned by runtime.Caller.  */
@@ -71,14 +158,14 @@ __go_symbol_value (struct __go_string sym, uintptr_t *val)
 struct caller_ret
 {
   uintptr_t pc;
-  struct __go_string file;
-  int line;
+  String file;
+  intgo line;
   _Bool ok;
 };
 
-struct caller_ret Caller (int n) asm ("libgo_runtime.runtime.Caller");
+struct caller_ret Caller (int n) __asm__ (GOSYM_PREFIX "runtime.Caller");
 
-Func *FuncForPC (uintptr_t) asm ("libgo_runtime.runtime.FuncForPC");
+Func *FuncForPC (uintptr_t) __asm__ (GOSYM_PREFIX "runtime.FuncForPC");
 
 /* Implement runtime.Caller.  */
 
@@ -86,16 +173,17 @@ struct caller_ret
 Caller (int skip)
 {
   struct caller_ret ret;
-  uintptr pc;
+  Location loc;
   int32 n;
-  struct __go_string fn;
 
   runtime_memclr (&ret, sizeof ret);
-  n = runtime_callers (skip + 1, &pc, 1);
+  n = runtime_callers (skip + 1, &loc, 1);
   if (n < 1)
     return ret;
-  ret.pc = pc;
-  ret.ok = __go_file_line (pc, &fn, &ret.file, &ret.line);
+  ret.pc = loc.pc;
+  ret.file = loc.filename;
+  ret.line = loc.lineno;
+  ret.ok = 1;
   return ret;
 }
 
@@ -105,19 +193,22 @@ Func *
 FuncForPC (uintptr_t pc)
 {
   Func *ret;
-  struct __go_string fn;
-  struct __go_string file;
-  int line;
+  String fn;
+  String file;
+  intgo line;
   uintptr_t val;
 
   if (!__go_file_line (pc, &fn, &file, &line))
     return NULL;
-  if (!__go_symbol_value (fn, &val))
-    return NULL;
 
   ret = (Func *) runtime_malloc (sizeof (*ret));
   ret->name = fn;
-  ret->entry = val;
+
+  if (__go_symbol_value (pc, &val))
+    ret->entry = val;
+  else
+    ret->entry = 0;
+
   return ret;
 }
 
@@ -126,21 +217,41 @@ FuncForPC (uintptr_t pc)
 
 struct funcline_go_return
 {
-  struct __go_string retfile;
-  int retline;
+  String retfile;
+  intgo retline;
 };
 
 struct funcline_go_return
 runtime_funcline_go (Func *f, uintptr targetpc)
-  __asm__ ("libgo_runtime.runtime.funcline_go");
+  __asm__ (GOSYM_PREFIX "runtime.funcline_go");
 
 struct funcline_go_return
 runtime_funcline_go (Func *f __attribute__((unused)), uintptr targetpc)
 {
   struct funcline_go_return ret;
-  struct __go_string fn;
+  String fn;
 
   if (!__go_file_line (targetpc, &fn, &ret.retfile,  &ret.retline))
     runtime_memclr (&ret, sizeof ret);
   return ret;
+}
+
+/* Return the name of a function.  */
+String runtime_funcname_go (Func *f)
+  __asm__ (GOSYM_PREFIX "runtime.funcname_go");
+
+String
+runtime_funcname_go (Func *f)
+{
+  return f->name;
+}
+
+/* Return the entry point of a function.  */
+uintptr runtime_funcentry_go(Func *f)
+  __asm__ (GOSYM_PREFIX "runtime.funcentry_go");
+
+uintptr
+runtime_funcentry_go (Func *f)
+{
+  return f->entry;
 }

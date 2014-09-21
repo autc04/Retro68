@@ -1,6 +1,6 @@
 /* Input functions for reading LTO sections.
 
-   Copyright 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
 
 This file is part of GCC.
@@ -24,24 +24,23 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-expr.h"
+#include "is-a.h"
+#include "gimple.h"
 #include "expr.h"
 #include "flags.h"
 #include "params.h"
 #include "input.h"
 #include "hashtab.h"
-#include "basic-block.h"
-#include "tree-flow.h"
-#include "cgraph.h"
 #include "function.h"
-#include "ggc.h"
 #include "diagnostic-core.h"
 #include "except.h"
-#include "vec.h"
 #include "timevar.h"
-#include "output.h"
 #include "lto-streamer.h"
 #include "lto-compress.h"
-#include "ggc.h"
 
 /* Section names.  These must correspond to the values of
    enum lto_section_type.  */
@@ -50,17 +49,18 @@ const char *lto_section_name[LTO_N_SECTION_TYPES] =
   "decls",
   "function_body",
   "statics",
-  "cgraph",
-  "vars",
+  "symtab",
   "refs",
   "asm",
   "jmpfuncs",
   "pureconst",
   "reference",
-  "symtab",
+  "profile",
+  "symbol_nodes",
   "opts",
   "cgraphopt",
-  "inline"
+  "inline",
+  "ipcp_trans"
 };
 
 
@@ -153,26 +153,30 @@ lto_get_section_data (struct lto_file_decl_data *file_data,
 
   /* FIXME lto: WPA mode does not write compressed sections, so for now
      suppress uncompression if flag_ltrans.  */
-  if (flag_ltrans)
-    return data;
+  if (!flag_ltrans)
+    {
+      /* Create a mapping header containing the underlying data and length,
+	 and prepend this to the uncompression buffer.  The uncompressed data
+	 then follows, and a pointer to the start of the uncompressed data is
+	 returned.  */
+      header = (struct lto_data_header *) xmalloc (header_length);
+      header->data = data;
+      header->len = *len;
 
-  /* Create a mapping header containing the underlying data and length,
-     and prepend this to the uncompression buffer.  The uncompressed data
-     then follows, and a pointer to the start of the uncompressed data is
-     returned.  */
-  header = (struct lto_data_header *) xmalloc (header_length);
-  header->data = data;
-  header->len = *len;
+      buffer.data = (char *) header;
+      buffer.length = header_length;
 
-  buffer.data = (char *) header;
-  buffer.length = header_length;
+      stream = lto_start_uncompression (lto_append_data, &buffer);
+      lto_uncompress_block (stream, data, *len);
+      lto_end_uncompression (stream);
 
-  stream = lto_start_uncompression (lto_append_data, &buffer);
-  lto_uncompress_block (stream, data, *len);
-  lto_end_uncompression (stream);
+      *len = buffer.length - header_length;
+      data = buffer.data + header_length;
+    }
 
-  *len = buffer.length - header_length;
-  return buffer.data + header_length;
+  lto_check_version (((const lto_header *)data)->major_version,
+		     ((const lto_header *)data)->minor_version);
+  return data;
 }
 
 
@@ -412,6 +416,41 @@ lto_get_function_in_decl_state (struct lto_file_decl_data *file_data,
   temp.fn_decl = func;
   slot = htab_find_slot (file_data->function_decl_states, &temp, NO_INSERT);
   return slot? ((struct lto_in_decl_state*) *slot) : NULL;
+}
+
+/* Free decl_states.  */
+
+void
+lto_free_function_in_decl_state (struct lto_in_decl_state *state)
+{
+  int i;
+  for (i = 0; i < LTO_N_DECL_STREAMS; i++)
+    ggc_free (state->streams[i].trees);
+  ggc_free (state);
+}
+
+/* Free decl_states associated with NODE.  This makes it possible to furhter
+   release trees needed by the NODE's body.  */
+
+void
+lto_free_function_in_decl_state_for_node (symtab_node *node)
+{
+  struct lto_in_decl_state temp;
+  void **slot;
+
+  if (!node->lto_file_data)
+    return;
+
+  temp.fn_decl = node->decl;
+  slot = htab_find_slot (node->lto_file_data->function_decl_states,
+			 &temp, NO_INSERT);
+  if (slot && *slot)
+    {
+      lto_free_function_in_decl_state ((struct lto_in_decl_state*) *slot);
+      htab_clear_slot (node->lto_file_data->function_decl_states,
+		       slot);
+    }
+  node->lto_file_data = NULL;
 }
 
 

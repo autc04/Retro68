@@ -1,5 +1,5 @@
 ;; Predicate definitions for HP PA-RISC.
-;; Copyright (C) 2005, 2007, 2010, 2011 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -30,6 +30,13 @@
 (define_predicate "uint5_operand"
   (and (match_code "const_int")
        (match_test "INT_U5_BITS (op)")))
+
+;; Return truth value of whether OP is an integer which fits the range
+;; constraining 6-bit unsigned immediate operands in three-address insns.
+
+(define_predicate "uint6_operand"
+  (and (match_code "const_int")
+       (match_test "INT_U6_BITS (op)")))
 
 ;; Return truth value of whether OP is an integer which fits the range
 ;; constraining 11-bit signed immediate operands in three-address insns.
@@ -125,6 +132,20 @@
   (ior (match_operand 0 "register_operand")
        (match_code "const_int")))
 
+;; Return truth value of whether OP can be used as a shift operand in
+;; a shift insn that accepts registers of mode MODE or 5-bit shift amounts.
+
+(define_predicate "shift5_operand"
+  (ior (match_operand 0 "register_operand")
+       (match_operand 0 "uint5_operand")))
+
+;; Return truth value of whether OP can be used as a shift operand in
+;; a shift insn that accepts registers of mode MODE or 6-bit shift amounts.
+
+(define_predicate "shift6_operand"
+  (ior (match_operand 0 "register_operand")
+       (match_operand 0 "uint6_operand")))
+
 ;; True iff OP can be used as an operand in an adddi3 insn.
 
 (define_predicate "adddi3_operand"
@@ -213,24 +234,125 @@
   return IS_INDEX_ADDR_P (op) && memory_address_p (mode, op);
 })
 
+;; True iff OP is a register plus base memory operand.
+
+(define_predicate "reg_plus_base_memory_operand"
+  (match_code "subreg,mem")
+{
+  if (GET_MODE (op) != mode)
+    return false;
+
+  /* Before reload, a (SUBREG (MEM...)) forces reloading into a register.  */
+  if (reload_completed && GET_CODE (op) == SUBREG)
+    op = SUBREG_REG (op);
+
+  if (! MEM_P (op))
+    return false;
+
+  op = XEXP (op, 0);
+  if (GET_CODE (op) != PLUS)
+    return false;
+
+  if (REG_P (XEXP (op, 0)) && REG_OK_FOR_BASE_P (XEXP (op, 0)))
+    return GET_CODE (XEXP (op, 1)) == CONST_INT;
+
+  return false;
+})
+
+;; True iff OP is a base14 operand.
+
+(define_predicate "base14_operand"
+  (match_code "const_int")
+{
+  if (!INT_14_BITS (op))
+    return false;
+
+  /* Although this may not be necessary, we require that the
+     base value is correctly aligned for its mode as this is
+     assumed in the instruction encoding.  */
+  switch (mode)
+    {
+    case BLKmode:
+    case QImode:
+    case HImode:
+      return true;
+
+    default:
+      return (INTVAL (op) % GET_MODE_SIZE (mode)) == 0;
+    }
+
+  return false;
+})
+
 ;; True iff the operand OP can be used as the destination operand of
 ;; an integer store.  This also implies the operand could be used as
-;; the source operand of an integer load.  Symbolic, lo_sum and indexed
+;; the source operand of an integer load.  LO_SUM DLT and indexed
 ;; memory operands are not allowed.  We accept reloading pseudos and
 ;; other memory operands.
 
 (define_predicate "integer_store_memory_operand"
   (match_code "reg,mem")
 {
-  return ((reload_in_progress
-           && REG_P (op)
-           && REGNO (op) >= FIRST_PSEUDO_REGISTER
-           && reg_renumber [REGNO (op)] < 0)
-          || (MEM_P (op)
-              && (reload_in_progress || memory_address_p (mode, XEXP (op, 0)))
-              && !symbolic_memory_operand (op, VOIDmode)
-              && !IS_LO_SUM_DLT_ADDR_P (XEXP (op, 0))
-              && !IS_INDEX_ADDR_P (XEXP (op, 0))));
+  if (reload_in_progress
+      && REG_P (op)
+      && REGNO (op) >= FIRST_PSEUDO_REGISTER
+      && reg_renumber [REGNO (op)] < 0)
+    return true;
+
+  if (reg_plus_base_memory_operand (op, mode))
+    {
+      /* Extract CONST_INT operand.  */
+      if (GET_CODE (op) == SUBREG)
+	op = SUBREG_REG (op);
+      op = XEXP (op, 0);
+      op = REG_P (XEXP (op, 0)) ? XEXP (op, 1) : XEXP (op, 0);
+      return base14_operand (op, mode) || INT_5_BITS (op);
+    }
+
+  if (!MEM_P (op))
+    return false;
+
+  return ((reload_in_progress || memory_address_p (mode, XEXP (op, 0)))
+	  && !IS_LO_SUM_DLT_ADDR_P (XEXP (op, 0))
+	  && !IS_INDEX_ADDR_P (XEXP (op, 0)));
+})
+
+;; True iff the operand OP can be used as the destination operand of
+;; a floating point store.  This also implies the operand could be used as
+;; the source operand of a floating point load.  LO_SUM DLT and indexed
+;; memory operands are not allowed.  Symbolic operands are accepted if
+;; INT14_OK_STRICT is true.  We accept reloading pseudos and other memory
+;; operands.
+
+(define_predicate "floating_point_store_memory_operand"
+  (match_code "reg,mem")
+{
+  if (reload_in_progress
+      && REG_P (op)
+      && REGNO (op) >= FIRST_PSEUDO_REGISTER
+      && reg_renumber [REGNO (op)] < 0)
+    return true;
+
+  if (reg_plus_base_memory_operand (op, mode))
+    {
+      /* Extract CONST_INT operand.  */
+      if (GET_CODE (op) == SUBREG)
+	op = SUBREG_REG (op);
+      op = XEXP (op, 0);
+      op = REG_P (XEXP (op, 0)) ? XEXP (op, 1) : XEXP (op, 0);
+      return ((TARGET_PA_20
+	       && !TARGET_ELF32
+	       && base14_operand (op, mode))
+	      || INT_5_BITS (op));
+    }
+
+  if (!MEM_P (op))
+    return false;
+
+  return ((reload_in_progress || memory_address_p (mode, XEXP (op, 0)))
+	  && (INT14_OK_STRICT || !symbolic_memory_operand (op, VOIDmode))
+	  && !IS_LO_SUM_DLT_ADDR_P (XEXP (op, 0))
+	  && !IS_INDEX_ADDR_P (XEXP (op, 0)));
 })
 
 ;; Return true iff OP is an integer register.
@@ -281,7 +403,7 @@
   if (GET_CODE (op) == SUBREG)
     op = SUBREG_REG (op);
 
-  if (GET_CODE (op) != MEM || symbolic_memory_operand (op, mode))
+  if (! MEM_P (op))
     return false;
 
   op = XEXP (op, 0);
@@ -463,7 +585,10 @@
     op = SUBREG_REG (op);
   if (!MEM_P (op))
     return false;
-  return pa_symbolic_expression_p (XEXP (op, 0));
+  op = XEXP (op, 0);
+  if (GET_CODE (op) == LO_SUM)
+    op = XEXP (op, 1);
+  return pa_symbolic_expression_p (op);
 })
 
 ;; True iff OP is a symbolic operand.
@@ -486,9 +611,9 @@
 		  || GET_CODE (XEXP (op, 0)) == LABEL_REF)
 	      && GET_CODE (XEXP (op, 1)) == CONST_INT);
     default:
-      gcc_unreachable ();
+      break;
     }
-  return true;
+  return false;
 })
 
 ;; Return true if OP is a symbolic operand for the TLS Global Dynamic model.

@@ -1,6 +1,5 @@
 /* Definitions for SPARC running Linux-based GNU systems with ELF.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
    Contributed by Eddie C. Dost (ecd@skynet.be)
 
 This file is part of GCC.
@@ -87,7 +86,7 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
 #define GLIBC_DYNAMIC_LINKER "/lib/ld-linux.so.2"
 
 #undef  LINK_SPEC
-#define LINK_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
+#define LINK_SPEC "-m elf32_sparc %{shared:-shared} \
   %{!mno-relax:%{!r:-relax}} \
   %{!shared: \
     %{!static: \

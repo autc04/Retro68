@@ -51,6 +51,13 @@ func (z *Int) SetInt64(x int64) *Int {
 	return z
 }
 
+// SetUint64 sets z to x and returns z.
+func (z *Int) SetUint64(x uint64) *Int {
+	z.abs = z.abs.setUint64(x)
+	z.neg = false
+	return z
+}
+
 // NewInt allocates and returns a new Int set to x.
 func NewInt(x int64) *Int {
 	return new(Int).SetInt64(x)
@@ -412,7 +419,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
 	if precisionSet {
 		switch {
 		case len(digits) < precision:
-			zeroes = precision - len(digits) // count of zero padding 
+			zeroes = precision - len(digits) // count of zero padding
 		case digits == "0" && precision == 0:
 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
 		}
@@ -506,15 +513,22 @@ func (z *Int) Scan(s fmt.ScanState, ch rune) error {
 // Int64 returns the int64 representation of x.
 // If x cannot be represented in an int64, the result is undefined.
 func (x *Int) Int64() int64 {
+	v := int64(x.Uint64())
+	if x.neg {
+		v = -v
+	}
+	return v
+}
+
+// Uint64 returns the uint64 representation of x.
+// If x cannot be represented in a uint64, the result is undefined.
+func (x *Int) Uint64() uint64 {
 	if len(x.abs) == 0 {
 		return 0
 	}
-	v := int64(x.abs[0])
+	v := uint64(x.abs[0])
 	if _W == 32 && len(x.abs) > 1 {
-		v |= int64(x.abs[1]) << 32
-	}
-	if x.neg {
-		v = -v
+		v |= uint64(x.abs[1]) << 32
 	}
 	return v
 }
@@ -549,31 +563,30 @@ func (z *Int) SetBytes(buf []byte) *Int {
 	return z
 }
 
-// Bytes returns the absolute value of z as a big-endian byte slice.
+// Bytes returns the absolute value of x as a big-endian byte slice.
 func (x *Int) Bytes() []byte {
 	buf := make([]byte, len(x.abs)*_S)
 	return buf[x.abs.bytes(buf):]
 }
 
-// BitLen returns the length of the absolute value of z in bits.
+// BitLen returns the length of the absolute value of x in bits.
 // The bit length of 0 is 0.
 func (x *Int) BitLen() int {
 	return x.abs.bitLen()
 }
 
-// Exp sets z = x**y mod m and returns z. If m is nil, z = x**y.
+// Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
+// If y <= 0, the result is 1; if m == nil or m == 0, z = x**y.
 // See Knuth, volume 2, section 4.6.3.
 func (z *Int) Exp(x, y, m *Int) *Int {
 	if y.neg || len(y.abs) == 0 {
-		neg := x.neg
-		z.SetInt64(1)
-		z.neg = neg
-		return z
+		return z.SetInt64(1)
 	}
+	// y > 0
 
 	var mWords nat
 	if m != nil {
-		mWords = m.abs
+		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
 	z.abs = z.abs.expNN(x.abs, y.abs, mWords)
@@ -581,12 +594,12 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 	return z
 }
 
-// GCD sets z to the greatest common divisor of a and b, which must be
-// positive numbers, and returns z.
+// GCD sets z to the greatest common divisor of a and b, which both must
+// be > 0, and returns z.
 // If x and y are not nil, GCD sets x and y such that z = a*x + b*y.
-// If either a or b is not positive, GCD sets z = x = y = 0.
+// If either a or b is <= 0, GCD sets z = x = y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
-	if a.neg || b.neg {
+	if a.Sign() <= 0 || b.Sign() <= 0 {
 		z.SetInt64(0)
 		if x != nil {
 			x.SetInt64(0)
@@ -595,6 +608,9 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 			y.SetInt64(0)
 		}
 		return z
+	}
+	if x == nil && y == nil {
+		return z.binaryGCD(a, b)
 	}
 
 	A := new(Int).Set(a)
@@ -638,6 +654,64 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 
 	*z = *A
 	return z
+}
+
+// binaryGCD sets z to the greatest common divisor of a and b, which both must
+// be > 0, and returns z.
+// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm B.
+func (z *Int) binaryGCD(a, b *Int) *Int {
+	u := z
+	v := new(Int)
+
+	// use one Euclidean iteration to ensure that u and v are approx. the same size
+	switch {
+	case len(a.abs) > len(b.abs):
+		u.Set(b)
+		v.Rem(a, b)
+	case len(a.abs) < len(b.abs):
+		u.Set(a)
+		v.Rem(b, a)
+	default:
+		u.Set(a)
+		v.Set(b)
+	}
+
+	// v might be 0 now
+	if len(v.abs) == 0 {
+		return u
+	}
+	// u > 0 && v > 0
+
+	// determine largest k such that u = u' << k, v = v' << k
+	k := u.abs.trailingZeroBits()
+	if vk := v.abs.trailingZeroBits(); vk < k {
+		k = vk
+	}
+	u.Rsh(u, k)
+	v.Rsh(v, k)
+
+	// determine t (we know that u > 0)
+	t := new(Int)
+	if u.abs[0]&1 != 0 {
+		// u is odd
+		t.Neg(v)
+	} else {
+		t.Set(u)
+	}
+
+	for len(t.abs) > 0 {
+		// reduce t
+		t.Rsh(t, t.abs.trailingZeroBits())
+		if t.neg {
+			v, t = t, v
+			v.neg = len(v.abs) > 0 && !v.neg // 0 has no sign
+		} else {
+			u, t = t, u
+		}
+		t.Sub(u, v)
+	}
+
+	return z.Lsh(u, k)
 }
 
 // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
@@ -697,6 +771,13 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 // Bit returns the value of the i'th bit of x. That is, it
 // returns (x>>i)&1. The bit index i must be >= 0.
 func (x *Int) Bit(i int) uint {
+	if i == 0 {
+		// optimization for common case: odd/even test of x
+		if len(x.abs) > 0 {
+			return uint(x.abs[0] & 1) // bit 0 is same for -x
+		}
+		return 0
+	}
 	if i < 0 {
 		panic("negative bit index")
 	}
@@ -709,8 +790,8 @@ func (x *Int) Bit(i int) uint {
 }
 
 // SetBit sets z to x, with x's i'th bit set to b (0 or 1).
-// That is, if bit is 1 SetBit sets z = x | (1 << i);
-// if bit is 0 it sets z = x &^ (1 << i). If bit is not 0 or 1,
+// That is, if b is 1 SetBit sets z = x | (1 << i);
+// if b is 0 SetBit sets z = x &^ (1 << i). If b is not 0 or 1,
 // SetBit will panic.
 func (z *Int) SetBit(x *Int, i int, b uint) *Int {
 	if i < 0 {
@@ -871,6 +952,9 @@ const intGobVersion byte = 1
 
 // GobEncode implements the gob.GobEncoder interface.
 func (x *Int) GobEncode() ([]byte, error) {
+	if x == nil {
+		return nil, nil
+	}
 	buf := make([]byte, 1+len(x.abs)*_S) // extra byte for version and sign bit
 	i := x.abs.bytes(buf) - 1            // i >= 0
 	b := intGobVersion << 1              // make space for sign bit
@@ -884,7 +968,9 @@ func (x *Int) GobEncode() ([]byte, error) {
 // GobDecode implements the gob.GobDecoder interface.
 func (z *Int) GobDecode(buf []byte) error {
 	if len(buf) == 0 {
-		return errors.New("Int.GobDecode: no data")
+		// Other side sent a nil or default value.
+		*z = Int{}
+		return nil
 	}
 	b := buf[0]
 	if b>>1 != intGobVersion {
@@ -892,5 +978,21 @@ func (z *Int) GobDecode(buf []byte) error {
 	}
 	z.neg = b&1 != 0
 	z.abs = z.abs.setBytes(buf[1:])
+	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (x *Int) MarshalJSON() ([]byte, error) {
+	// TODO(gri): get rid of the []byte/string conversions
+	return []byte(x.String()), nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (z *Int) UnmarshalJSON(x []byte) error {
+	// TODO(gri): get rid of the []byte/string conversions
+	_, ok := z.SetString(string(x), 0)
+	if !ok {
+		return fmt.Errorf("math/big: cannot unmarshal %s into a *big.Int", x)
+	}
 	return nil
 }

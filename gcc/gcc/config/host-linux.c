@@ -1,5 +1,5 @@
 /* Linux host-specific hook definitions.
-   Copyright (C) 2004, 2005, 2007, 2008, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -68,8 +68,10 @@
 # define TRY_EMPTY_VM_SPACE	0x10000000000
 #elif defined(__ia64)
 # define TRY_EMPTY_VM_SPACE	0x2000000100000000
-#elif defined(__x86_64)
+#elif defined(__x86_64) && defined(__LP64__)
 # define TRY_EMPTY_VM_SPACE	0x1000000000
+#elif defined(__x86_64)
+# define TRY_EMPTY_VM_SPACE	0x60000000
 #elif defined(__i386)
 # define TRY_EMPTY_VM_SPACE	0x60000000
 #elif defined(__powerpc__)
@@ -84,6 +86,8 @@
 # define TRY_EMPTY_VM_SPACE	0x60000000
 #elif defined(__mc68000__)
 # define TRY_EMPTY_VM_SPACE	0x40000000
+#elif defined(__aarch64__)
+# define TRY_EMPTY_VM_SPACE	0x1000000000
 #elif defined(__ARM_EABI__)
 # define TRY_EMPTY_VM_SPACE     0x60000000
 #elif defined(__mips__) && defined(__LP64__)
@@ -210,7 +214,7 @@ linux_gt_pch_use_address (void *base, size_t size, int fd, size_t offset)
     {
       ssize_t nbytes;
 
-      nbytes = read (fd, base, MIN (size, SSIZE_MAX));
+      nbytes = read (fd, base, MIN (size, (size_t)-1 >> 1));
       if (nbytes <= 0)
         return -1;
       base = (char *) base + nbytes;

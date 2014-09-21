@@ -1,5 +1,5 @@
 // PR c++/51150
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 struct Clock {
   double Now();

@@ -1,8 +1,10 @@
-// $G $F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test nil.
 
 package main
 
@@ -113,7 +115,7 @@ func chantest() {
 	})
 	shouldBlock(func() {
 		x, ok := <-ch
-		println(x, ok)
+		println(x, ok) // unreachable
 	})
 
 	if len(ch) != 0 {
@@ -145,12 +147,12 @@ func maptest() {
 		panic(v)
 	}
 
+	// can delete (non-existent) entries
+	delete(m, 2)
+
 	// but cannot be written to
 	shouldPanic(func() {
 		m[2] = 3
-	})
-	shouldPanic(func() {
-		delete(m, 2)
 	})
 }
 

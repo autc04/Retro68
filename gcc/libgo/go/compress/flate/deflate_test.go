@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"reflect"
 	"sync"
 	"testing"
 )
@@ -94,6 +95,49 @@ func TestDeflate(t *testing.T) {
 	}
 }
 
+// A sparseReader returns a stream consisting of 0s followed by 1<<16 1s.
+// This tests missing hash references in a very large input.
+type sparseReader struct {
+	l   int64
+	cur int64
+}
+
+func (r *sparseReader) Read(b []byte) (n int, err error) {
+	if r.cur >= r.l {
+		return 0, io.EOF
+	}
+	n = len(b)
+	cur := r.cur + int64(n)
+	if cur > r.l {
+		n -= int(cur - r.l)
+		cur = r.l
+	}
+	for i := range b[0:n] {
+		if r.cur+int64(i) >= r.l-1<<16 {
+			b[i] = 1
+		} else {
+			b[i] = 0
+		}
+	}
+	r.cur = cur
+	return
+}
+
+func TestVeryLongSparseChunk(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping sparse chunk during short test")
+	}
+	w, err := NewWriter(ioutil.Discard, 1)
+	if err != nil {
+		t.Errorf("NewWriter: %v", err)
+		return
+	}
+	if _, err = io.Copy(w, &sparseReader{l: 23E8}); err != nil {
+		t.Errorf("Compress failed: %v", err)
+		return
+	}
+}
+
 type syncBuffer struct {
 	buf    bytes.Buffer
 	mu     sync.RWMutex
@@ -115,7 +159,6 @@ func (b *syncBuffer) Read(p []byte) (n int, err error) {
 		}
 		<-b.ready
 	}
-	panic("unreachable")
 }
 
 func (b *syncBuffer) signal() {
@@ -290,7 +333,7 @@ var deflateInflateStringTests = []deflateInflateStringTest{
 	{
 		"../testdata/e.txt",
 		"2.718281828...",
-		[...]int{10013, 5065, 5096, 5115, 5093, 5079, 5079, 5079, 5079, 5079},
+		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790},
 	},
 	{
 		"../testdata/Mark.Twain-Tom.Sawyer.txt",
@@ -381,4 +424,67 @@ func TestRegression2508(t *testing.T) {
 		}
 	}
 	w.Close()
+}
+
+func TestWriterReset(t *testing.T) {
+	for level := 0; level <= 9; level++ {
+		if testing.Short() && level > 1 {
+			break
+		}
+		w, err := NewWriter(ioutil.Discard, level)
+		if err != nil {
+			t.Fatalf("NewWriter: %v", err)
+		}
+		buf := []byte("hello world")
+		for i := 0; i < 1024; i++ {
+			w.Write(buf)
+		}
+		w.Reset(ioutil.Discard)
+
+		wref, err := NewWriter(ioutil.Discard, level)
+		if err != nil {
+			t.Fatalf("NewWriter: %v", err)
+		}
+
+		// DeepEqual doesn't compare functions.
+		w.d.fill, wref.d.fill = nil, nil
+		w.d.step, wref.d.step = nil, nil
+		if !reflect.DeepEqual(w, wref) {
+			t.Errorf("level %d Writer not reset after Reset", level)
+		}
+	}
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, NoCompression) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, DefaultCompression) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, BestCompression) })
+	dict := []byte("we are the world")
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, NoCompression, dict) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, DefaultCompression, dict) })
+	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, BestCompression, dict) })
+}
+
+func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error)) {
+	buf := new(bytes.Buffer)
+	w, err := newWriter(buf)
+	if err != nil {
+		t.Fatalf("NewWriter: %v", err)
+	}
+	b := []byte("hello world")
+	for i := 0; i < 1024; i++ {
+		w.Write(b)
+	}
+	w.Close()
+	out1 := buf.String()
+
+	buf2 := new(bytes.Buffer)
+	w.Reset(buf2)
+	for i := 0; i < 1024; i++ {
+		w.Write(b)
+	}
+	w.Close()
+	out2 := buf2.String()
+
+	if out1 != out2 {
+		t.Errorf("got %q, expected %q", out2, out1)
+	}
+	t.Logf("got %d bytes", len(out1))
 }

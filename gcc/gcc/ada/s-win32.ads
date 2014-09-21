@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---         Copyright (C) 2008-2009, Free Software Foundation, Inc.          --
+--          Copyright (C) 2008-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,7 +32,7 @@
 --  This package plus its child provide the low level interface to the Win32
 --  API. The core part of the Win32 API (common to RTX and Win32) is in this
 --  package, and an additional part of the Win32 API which is not supported by
---  RTX is in package System.Win33.Ext.
+--  RTX is in package System.Win32.Ext.
 
 with Interfaces.C;
 
@@ -46,7 +46,7 @@ package System.Win32 is
    --  The LARGE_INTEGER type is actually a fixed point type
    --  that only can represent integers. The reason for this is
    --  easier conversion to Duration or other fixed point types.
-   --  (See Operations.Clock)
+   --  (See System.OS_Primitives.Clock, mingw and rtx versions.)
 
    type LARGE_INTEGER is delta 1.0 range -2.0**63 .. 2.0**63 - 1.0;
 
@@ -73,8 +73,13 @@ package System.Win32 is
    for Bits2'Size  use 2;
    for Bits17'Size use 17;
 
+   --  Note that the following clashes with standard names are to stay
+   --  compatible with the historical choice of following the C names.
+
+   pragma Warnings (Off);
    FALSE : constant := 0;
    TRUE  : constant := 1;
+   pragma Warnings (On);
 
    function GetLastError return DWORD;
    pragma Import (Stdcall, GetLastError, "GetLastError");
@@ -148,6 +153,8 @@ package System.Win32 is
    FILE_ATTRIBUTE_ENCRYPTED           : constant := 16#00004000#;
    FILE_ATTRIBUTE_VALID_FLAGS         : constant := 16#00007fb7#;
    FILE_ATTRIBUTE_VALID_SET_FLAGS     : constant := 16#000031a7#;
+
+   GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS : constant := 16#00000004#;
 
    type OVERLAPPED is record
       Internal     : DWORD;
@@ -312,5 +319,24 @@ package System.Win32 is
      (lpPerformanceCount : access LARGE_INTEGER) return BOOL;
    pragma Import
      (Stdcall, QueryPerformanceCounter, "QueryPerformanceCounter");
+
+   ------------
+   -- Module --
+   ------------
+
+   function GetModuleHandleEx
+     (dwFlags      : DWORD;
+      lpModuleName : Address;
+      phModule     : access HANDLE) return BOOL;
+   pragma Import (Stdcall, GetModuleHandleEx, "GetModuleHandleExA");
+
+   function GetModuleFileName
+     (hModule    : HANDLE;
+      lpFilename : Address;
+      nSize      : DWORD) return DWORD;
+   pragma Import (Stdcall, GetModuleFileName, "GetModuleFileNameA");
+
+   function FreeLibrary (hModule : HANDLE) return BOOL;
+   pragma Import (Stdcall, FreeLibrary, "FreeLibrary");
 
 end System.Win32;
