@@ -316,7 +316,7 @@ static const struct attribute_spec m68k_attribute_table[] =
     false },
   /* Stdcall attribute says callee is responsible for popping arguments
      if they are not variable.  */
-  { "stdcall",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
+  { "pascal",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
     true },  
   { "interrupt_handler", 0, 0, true,  false, false,
     m68k_handle_fndecl_attribute, false },
@@ -6508,7 +6508,7 @@ m68k_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 static int
 m68k_return_pops_args (tree fundecl, tree funtype, int size)
 {
-if(lookup_attribute ("stdcall", TYPE_ATTRIBUTES (funtype)))
+if(lookup_attribute ("pascal", TYPE_ATTRIBUTES (funtype)))
    return size;
   return ((TARGET_RTD
 	   && (!fundecl
