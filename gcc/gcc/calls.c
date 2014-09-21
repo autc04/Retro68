@@ -131,7 +131,9 @@ static int stack_arg_under_construction;
 
 static void emit_call_1 (rtx, tree, tree, tree, HOST_WIDE_INT, HOST_WIDE_INT,
 			 HOST_WIDE_INT, rtx, rtx, int, rtx, int,
-			 cumulative_args_t);
+			 cumulative_args_t,
+                         int is_pascal,
+                         enum machine_mode pascal_return_mode);
 static void precompute_register_parameters (int, struct arg_data *, int *);
 static int store_one_arg (struct arg_data *, rtx, int, int, int);
 static void store_unaligned_arguments_into_pseudos (struct arg_data *, int);
@@ -144,7 +146,7 @@ static void initialize_argument_information (int, struct arg_data *,
 					     tree, tree,
 					     tree, tree, cumulative_args_t, int,
 					     rtx *, int *, int *, int *,
-					     bool *, bool);
+					     bool *, bool, bool);
 static void compute_argument_addresses (struct arg_data *, rtx, int);
 static rtx rtx_for_function_call (tree, tree);
 static void load_register_parameters (struct arg_data *, int, rtx *, int,
@@ -271,7 +273,10 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
 	     HOST_WIDE_INT struct_value_size ATTRIBUTE_UNUSED,
 	     rtx next_arg_reg ATTRIBUTE_UNUSED, rtx valreg,
 	     int old_inhibit_defer_pop, rtx call_fusage, int ecf_flags,
-	     cumulative_args_t args_so_far ATTRIBUTE_UNUSED)
+	     cumulative_args_t args_so_far ATTRIBUTE_UNUSED,
+
+             int is_pascal,
+             enum machine_mode pascal_return_mode)
 {
   rtx rounded_stack_size_rtx = GEN_INT (rounded_stack_size);
   rtx call_insn, call, funmem;
@@ -464,6 +469,25 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
      args sizes.  */
   else if (!ACCUMULATE_OUTGOING_ARGS && (ecf_flags & ECF_NORETURN) != 0)
     add_reg_note (call_insn, REG_ARGS_SIZE, GEN_INT (stack_pointer_delta));
+
+
+  if (is_pascal)
+    {
+      if (valreg) 
+        emit_move_insn(valreg,
+                       gen_rtx_MEM( GET_MODE (valreg),
+#ifdef HAVE_POST_INCREMENT
+                               gen_rtx_POST_INC( Pmode,
+                                        stack_pointer_rtx)
+#else
+                               gen_rtx_PLUS( Pmode,
+                                        gen_rtx_CONST_INT( Pmode, 1),
+                                        stack_pointer_rtx)
+#endif
+                               ));
+    }
+
+
 
   if (!ACCUMULATE_OUTGOING_ARGS)
     {
@@ -1113,7 +1137,8 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 				 int reg_parm_stack_space,
 				 rtx *old_stack_level, int *old_pending_adj,
 				 int *must_preallocate, int *ecf_flags,
-				 bool *may_tailcall, bool call_from_thunk_p)
+				 bool *may_tailcall, bool call_from_thunk_p,
+                                 bool reverse_args)
 {
   CUMULATIVE_ARGS *args_so_far_pnt = get_cumulative_args (args_so_far);
   location_t loc = EXPR_LOCATION (exp);
@@ -1132,7 +1157,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
      We fill up ARGS from the front or from the back if necessary
      so that in any case the first arg to be pushed ends up at the front.  */
 
-  if (PUSH_ARGS_REVERSED)
+  if (PUSH_ARGS_REVERSED != reverse_args)
     {
       i = num_actuals - 1, inc = -1;
       /* In this case, must reverse order of args
@@ -2332,6 +2357,13 @@ expand_call (tree exp, rtx target, int ignore)
   unsigned HOST_WIDE_INT preferred_unit_stack_boundary;
   /* The static chain value to use for this call.  */
   rtx static_chain_value;
+
+  /* Nonzero if this is a call to a pascal-declared function. */
+  int is_pascal = 0 /* ### */;
+  /* The mode of the value being returned by a pascal-declared function. */
+  enum machine_mode pascal_return_mode = VOIDmode;
+
+
   /* See if this is "nothrow" function call.  */
   if (TREE_NOTHROW (exp))
     flags |= ECF_NOTHROW;
@@ -2353,6 +2385,10 @@ expand_call (tree exp, rtx target, int ignore)
   rettype = TREE_TYPE (exp);
 
   struct_value = targetm.calls.struct_value_rtx (fntype, 0);
+
+  if(lookup_attribute ("pascal", TYPE_ATTRIBUTES (fntype)))
+        is_pascal = 1;
+
 
   /* Warn if this value is an aggregate type,
      regardless of which calling convention we are using for it.  */
@@ -2492,6 +2528,19 @@ expand_call (tree exp, rtx target, int ignore)
       structure_value_addr_parm = 1;
     }
 
+  if (is_pascal)
+  { /* ### */
+    int modesize;
+    
+
+    pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
+    modesize = GET_MODE_SIZE (pascal_return_mode);
+#ifdef PUSH_ROUNDING
+    modesize = PUSH_ROUNDING (modesize);
+#endif
+    push_block (GEN_INT (modesize), 0, 0);
+  }
+
   /* Count the arguments and set NUM_ACTUALS.  */
   num_actuals =
     call_expr_nargs (exp) + num_complex_actuals + structure_value_addr_parm;
@@ -2558,7 +2607,8 @@ expand_call (tree exp, rtx target, int ignore)
 				   args_so_far, reg_parm_stack_space,
 				   &old_stack_level, &old_pending_adj,
 				   &must_preallocate, &flags,
-				   &try_tail_call, CALL_FROM_THUNK_P (exp));
+				   &try_tail_call, CALL_FROM_THUNK_P (exp),
+                                   is_pascal);
 
   if (args_size.var)
     must_preallocate = 1;
@@ -3189,7 +3239,7 @@ expand_call (tree exp, rtx target, int ignore)
       emit_call_1 (funexp, exp, fndecl, funtype, unadjusted_args_size,
 		   adjusted_args_size.constant, struct_value_size,
 		   next_arg_reg, valreg, old_inhibit_defer_pop, call_fusage,
-		   flags, args_so_far);
+		   flags, args_so_far, is_pascal, pascal_return_mode);
 
       /* If the call setup or the call itself overlaps with anything
 	 of the argument setup we probably clobbered our call address.
@@ -4216,7 +4266,8 @@ emit_library_call_value_1 (int retval, rtx orgfun, rtx value,
 	       targetm.calls.function_arg (args_so_far,
 					   VOIDmode, void_type_node, true),
 	       valreg,
-	       old_inhibit_defer_pop + 1, call_fusage, flags, args_so_far);
+	       old_inhibit_defer_pop + 1, call_fusage, flags, args_so_far,
+               0, VOIDmode /*is_pascal, pascal_return_mode*/);
 
   /* Right-shift returned value if necessary.  */
   if (!pcc_struct_value
