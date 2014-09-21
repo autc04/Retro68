@@ -22,10 +22,12 @@
 #include "Events.h"
 #include "Fonts.h"
 
+#include <algorithm>
+
 Console *Console::currentInstance = NULL;
 
 Console::Console(GrafPtr port, Rect r)
-    : consolePort(port), bounds(r)
+	: consolePort(port), bounds(r), dirtyRect()
 {  
 	PortSetter setport(consolePort);
 	
@@ -39,7 +41,8 @@ Console::Console(GrafPtr port, Rect r)
 	rows = (bounds.bottom - bounds.top) / cellSizeY;
 	cols = (bounds.right - bounds.left) / cellSizeX;
 	chars = std::vector<char>(rows*cols, ' ');
-	
+	onscreen = chars;
+
 	cursorX = cursorY = 0;
 	
 	currentInstance = this;
@@ -53,12 +56,23 @@ Rect Console::CellRect(short x, short y)
 	return { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + x * cellSizeX),
 			 (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + (x+1) * cellSizeX) };
 }
-void Console::DrawCell(short x, short y)
+void Console::DrawCell(short x, short y, bool erase)
 {
 	Rect r = CellRect(x,y);
-	EraseRect(&r);
+	if(erase)
+		EraseRect(&r);
 	MoveTo(r.left, r.bottom - 2);
 	DrawChar(chars[y * cols + x]);
+}
+
+void Console::DrawCells(short x1, short x2, short y, bool erase)
+{
+	Rect r = { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + x1 * cellSizeX),
+			   (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + x2 * cellSizeX) };
+	if(erase)
+		EraseRect(&r);
+	MoveTo(r.left, r.bottom - 2);
+	DrawText(&chars[y * cols + x1], 0, x2 - x1);
 }
 
 void Console::Draw()
@@ -72,6 +86,7 @@ void Console::Draw()
 			DrawCell(col, row);
 		}
 	}
+	onscreen = chars;
 }
 
 void Console::ScrollUp(short n)
@@ -79,15 +94,18 @@ void Console::ScrollUp(short n)
 	cursorY--;
 	std::copy(chars.begin() + cols, chars.end(), chars.begin());
 	std::fill(chars.end() - cols, chars.end(), ' ');
+	std::copy(onscreen.begin() + cols, onscreen.end(), onscreen.begin());
+	std::fill(onscreen.end() - cols, onscreen.end(), ' ');
 	RgnHandle rgn = NewRgn();
 	ScrollRect(&bounds, 0, -cellSizeY, rgn);
 	DisposeRgn(rgn);
+	dirtyRect.top = dirtyRect.top > 0 ? dirtyRect.top - 1 : 0;
+	dirtyRect.bottom = dirtyRect.bottom > 0 ? dirtyRect.bottom - 1 : 0;
 }
 
-void Console::putch(char c)
+
+void Console::PutCharNoUpdate(char c)
 {
-	PortSetter setport(consolePort);
-	
 	switch(c)
 	{
 	case '\r':
@@ -101,11 +119,69 @@ void Console::putch(char c)
 		break;
 	default:
 		chars[cursorY * cols + cursorX] = c;
-		DrawCell(cursorX, cursorY);
+		if(dirtyRect.right == 0)
+		{
+			dirtyRect.right = (dirtyRect.left = cursorX) + 1;
+			dirtyRect.bottom = (dirtyRect.top = cursorY) + 1;
+		}
+		else
+		{
+			dirtyRect.left = std::min(dirtyRect.left, cursorX);
+			dirtyRect.top = std::min(dirtyRect.top, cursorY);
+			dirtyRect.right = std::max(dirtyRect.right, short(cursorX + 1));
+			dirtyRect.bottom = std::max(dirtyRect.bottom, short(cursorY + 1));
+		}
+
 		cursorX++;
 		if(cursorX >= cols)
-			putch('\n');
+			PutCharNoUpdate('\n');
 	}
+}
+
+void Console::Update()
+{
+	PortSetter setport(consolePort);
+
+	for(short row = dirtyRect.top; row < dirtyRect.bottom; ++row)
+	{
+		short start = -1;
+		bool needclear = false;
+		for(short col = dirtyRect.left; col < dirtyRect.right; ++col)
+		{
+			char old = onscreen[row * cols + col];
+			if(chars[row * cols + col] != old)
+			{
+				if(start == -1)
+					start = col;
+				if(old != ' ')
+					needclear = true;
+				onscreen[row * cols + col] = chars[row * cols + col];
+			}
+			else
+			{
+				if(start != -1)
+					DrawCells(start, col, row, needclear);
+				start = -1;
+				needclear = false;
+			}
+		}
+		if(start != -1)
+			DrawCells(start, dirtyRect.right, row, needclear);
+	}
+	dirtyRect = Rect();
+}
+
+void Console::putch(char c)
+{
+	PutCharNoUpdate(c);
+	Update();
+}
+
+void Console::write(const char *p, int n)
+{
+	for(int i = 0; i < n; i++)
+		Console::currentInstance->PutCharNoUpdate(*p++);
+	Update();
 }
 
 

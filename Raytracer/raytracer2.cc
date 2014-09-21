@@ -47,6 +47,7 @@ QDGlobals qd;
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <cstdio>
 
 using std::sqrt;
 using std::floor;
@@ -251,6 +252,15 @@ int main()
 	line.rowBytes = bits.size();
 	line.baseAddr = (char*)(&bits[0]);
 	
+	numtype preRandoms[29*31];
+	for(int i = 0; i < 29*31; i++)
+	{
+		numtype thresh = rand1<numtype>::get();
+		thresh = numtype(0.5f) + numtype(0.4f) * (thresh - numtype(0.5f));
+		preRandoms[i] = thresh;
+	}
+	int randIdx = 0;
+
 	for(int y = 0; y < r.bottom; y++)
 	{
 		std::fill(bits.begin(),bits.end(), 0);
@@ -263,9 +273,10 @@ int main()
 			// plane: y = -2
 			pixel = ray(1,vec3<numtype>(),vec3<numtype>(numtype(x-cx)/numtype(cx),-numtype(y-cy)/numtype(cx),-1).normalize());
 
-			numtype thresh = rand1<numtype>::get();
+			numtype thresh = preRandoms[randIdx++];
+			if(randIdx == 29*31)
+				randIdx = 0;
 			
-			thresh = numtype(0.5f) + numtype(0.4f) * (thresh - numtype(0.5f));
 			accum += pixel;
 			accum += accumV[x];
 			if(accum >= thresh)

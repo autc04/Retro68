@@ -46,7 +46,7 @@ void InitConsole()
 	
 	Rect r;
 	SetRect(&r, qd.screenBits.bounds.left + 5, qd.screenBits.bounds.top + 45, qd.screenBits.bounds.right - 5, qd.screenBits.bounds.bottom -5);
-	win = NewWindow(NULL, &r, PSTR("Retro68 Console"), true, 0, (WindowPtr)-1, false, 0);
+	win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, false, 0);
 	
 	SetPort(win);
 	EraseRect(&win->portRect);
@@ -59,9 +59,7 @@ extern "C" ssize_t consolewrite(int fd, const void *buf, size_t count)
 	if(!Console::currentInstance)
 		InitConsole();
 
-	const char *p = (const char*)buf;
-	for(int i = 0; i < count; i++)
-		Console::currentInstance->putch(*p++);
+	Console::currentInstance->write((const char*)buf, count);
 	return count;
 }
 

@@ -28,6 +28,8 @@ public:
 	~Console();
 	void Draw();
 	void putch(char c);
+
+	void write(const char *s, int n);
 	std::string ReadLine();
 
 	static Console *currentInstance;
@@ -35,7 +37,7 @@ private:
 	GrafPtr consolePort;
 	Rect bounds;
 
-	std::vector<char> chars;
+	std::vector<char> chars, onscreen;
 
 	short cellSizeX;
 	short cellSizeY;
@@ -44,8 +46,14 @@ private:
 
 	short cursorX, cursorY;
 
+	Rect dirtyRect;
+
+	void PutCharNoUpdate(char c);
+	void Update();
+
 	Rect CellRect(short x, short y);
-	void DrawCell(short x, short y);
+	void DrawCell(short x, short y, bool erase = true);
+	void DrawCells(short x1, short x2, short y, bool erase = true);
 	void ScrollUp(short n = 1);
 };
 
