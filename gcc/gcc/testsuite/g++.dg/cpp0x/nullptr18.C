@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 // Test overload of pointer versus bool when applied on a nullptr_t
 

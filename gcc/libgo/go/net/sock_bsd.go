@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd netbsd openbsd
-
-// Sockets for BSD variants
+// +build darwin dragonfly freebsd netbsd openbsd
 
 package net
 
@@ -29,34 +27,11 @@ func maxListenerBacklog() int {
 	if n == 0 || err != nil {
 		return syscall.SOMAXCONN
 	}
+	// FreeBSD stores the backlog in a uint16, as does Linux.
+	// Assume the other BSDs do too. Truncate number to avoid wrapping.
+	// See issue 5030.
+	if n > 1<<16-1 {
+		n = 1<<16 - 1
+	}
 	return int(n)
-}
-
-func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
-	a := toAddr(la)
-	if a == nil {
-		return la, nil
-	}
-	switch v := a.(type) {
-	case *TCPAddr, *UnixAddr:
-		err := setDefaultListenerSockopts(s)
-		if err != nil {
-			return nil, err
-		}
-	case *UDPAddr:
-		if v.IP.IsMulticast() {
-			err := setDefaultMulticastSockopts(s)
-			if err != nil {
-				return nil, err
-			}
-			switch f {
-			case syscall.AF_INET:
-				v.IP = IPv4zero
-			case syscall.AF_INET6:
-				v.IP = IPv6unspecified
-			}
-			return v.sockaddr(f)
-		}
-	}
-	return la, nil
 }

@@ -1,7 +1,6 @@
 /* This is a software floating point library which can be used
    for targets without hardware floating point. 
-   Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2003,
-   2004, 2005, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -214,11 +213,18 @@ pack_d (const fp_number_type *src)
   else if (isnan (src))
     {
       exp = EXPMAX;
+      /* Restore the NaN's payload.  */
+      fraction >>= NGARDS;
+      fraction &= QUIET_NAN - 1;
       if (src->class == CLASS_QNAN || 1)
 	{
 #ifdef QUIET_NAN_NEGATED
-	  fraction |= QUIET_NAN - 1;
+	  /* The quiet/signaling bit remains unset.  */
+	  /* Make sure the fraction has a non-zero value.  */
+	  if (fraction == 0)
+	    fraction |= QUIET_NAN - 1;
 #else
+	  /* Set the quiet/signaling bit.  */
 	  fraction |= QUIET_NAN;
 #endif
 	}
@@ -574,8 +580,10 @@ unpack_d (FLO_union_type * src, fp_number_type * dst)
 	    {
 	      dst->class = CLASS_SNAN;
 	    }
-	  /* Keep the fraction part as the nan number */
-	  dst->fraction.ll = fraction;
+	  /* Now that we know which kind of NaN we got, discard the
+	     quiet/signaling bit, but do preserve the NaN payload.  */
+	  fraction &= ~QUIET_NAN;
+	  dst->fraction.ll = fraction << NGARDS;
 	}
     }
   else

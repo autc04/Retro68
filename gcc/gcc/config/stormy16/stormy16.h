@@ -1,6 +1,5 @@
 /* Xstormy16 cpu description.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007,
-   2008, 2009, 2010, 2011  Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
    This file is part of GCC.
@@ -458,9 +457,6 @@ enum reg_class
 #define DWARF2_UNWIND_INFO 		0
 #define DWARF_CIE_DATA_ALIGNMENT	1
 
-#undef  DONT_USE_BUILTIN_SETJMP
-#define JMP_BUF_SIZE  8
-
 /* Assembler Commands for Alignment.  */
 
 #define ASM_OUTPUT_ALIGN(STREAM, POWER) \

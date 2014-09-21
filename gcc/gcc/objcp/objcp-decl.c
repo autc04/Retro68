@@ -1,6 +1,6 @@
 /* Process the ObjC-specific declarations and variables for 
    the Objective-C++ compiler.
-   Copyright (C) 2005, 2007, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -49,7 +49,7 @@ objcp_start_struct (location_t loc ATTRIBUTE_UNUSED,
   CLASSTYPE_DECLARED_CLASS (s) = 0;  /* this is a 'struct', not a 'class'.  */
   xref_basetypes (s, NULL_TREE);     /* no base classes here!  */
 
-  return begin_class_definition (s, NULL_TREE);
+  return begin_class_definition (s);
 }
 
 tree 

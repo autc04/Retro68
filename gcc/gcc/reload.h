@@ -1,7 +1,5 @@
 /* Communication between reload.c, reload1.c and the rest of compiler.
-   Copyright (C) 1987, 1991, 1992, 1993, 1994, 1995, 1997, 1998, 1999,
-   2000, 2001, 2003, 2004, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -205,7 +203,7 @@ extern struct target_reload *this_target_reload;
   (this_target_reload->x_caller_save_initialized_p)
 
 /* Register equivalences.  Indexed by register number.  */
-typedef struct reg_equivs
+struct reg_equivs_t
 {
   /* The constant value to which pseudo reg N is equivalent,
      or zero if pseudo reg N is not equivalent to a constant.
@@ -240,26 +238,24 @@ typedef struct reg_equivs
   /* The list of insns that initialized reg N from its equivalent
      constant or memory slot.  */
   rtx init;
-} reg_equivs_t;
+};
 
 #define reg_equiv_constant(ELT) \
-  VEC_index (reg_equivs_t, reg_equivs, (ELT))->constant
+  (*reg_equivs)[(ELT)].constant
 #define reg_equiv_invariant(ELT) \
-  VEC_index (reg_equivs_t, reg_equivs, (ELT))->invariant
+  (*reg_equivs)[(ELT)].invariant
 #define reg_equiv_memory_loc(ELT) \
-  VEC_index (reg_equivs_t, reg_equivs, (ELT))->memory_loc
+  (*reg_equivs)[(ELT)].memory_loc
 #define reg_equiv_address(ELT) \
-  VEC_index (reg_equivs_t, reg_equivs, (ELT))->address
+  (*reg_equivs)[(ELT)].address
 #define reg_equiv_mem(ELT) \
-  VEC_index (reg_equivs_t, reg_equivs, (ELT))->mem
+  (*reg_equivs)[(ELT)].mem
 #define reg_equiv_alt_mem_list(ELT) \
-  VEC_index (reg_equivs_t, reg_equivs, (ELT))->alt_mem_list
+  (*reg_equivs)[(ELT)].alt_mem_list
 #define reg_equiv_init(ELT) \
-  VEC_index (reg_equivs_t, reg_equivs, (ELT))->init
+  (*reg_equivs)[(ELT)].init
 
-DEF_VEC_O(reg_equivs_t);
-DEF_VEC_ALLOC_O(reg_equivs_t, gc);
-extern VEC(reg_equivs_t,gc) *reg_equivs;
+extern vec<reg_equivs_t, va_gc> *reg_equivs;
 
 /* All the "earlyclobber" operands of the current insn
    are recorded here.  */
@@ -411,9 +407,6 @@ extern int push_reload (rtx, rtx, rtx *, rtx *, enum reg_class,
 			enum machine_mode, enum machine_mode,
 			int, int, int, enum reload_type);
 
-/* Functions in postreload.c:  */
-extern void reload_cse_regs (rtx);
-
 /* Functions in reload1.c:  */
 
 /* Initialize the reload pass once per compilation.  */
@@ -462,10 +455,6 @@ extern void debug_reload (void);
 /* Compute the actual register we should reload to, in case we're
    reloading to/from a register that is wider than a word.  */
 extern rtx reload_adjust_reg_for_mode (rtx, enum machine_mode);
-
-/* Ideally this function would be in ira.c or reload, but due to dependencies
-   on integrate.h, it's part of integrate.c.  */
-extern void allocate_initial_values (VEC (reg_equivs_t, gc) *);
 
 /* Allocate or grow the reg_equiv tables, initializing new entries to 0.  */
 extern void grow_reg_equivs (void);

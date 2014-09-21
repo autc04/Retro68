@@ -1,6 +1,5 @@
 /* Target definitions for x86 running Darwin.
-   Copyright (C) 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
 This file is part of GCC.
@@ -27,7 +26,9 @@ along with GCC; see the file COPYING3.  If not see
 #define DARWIN_X86 1
 
 #undef  TARGET_64BIT
-#define TARGET_64BIT OPTION_ISA_64BIT
+#undef	TARGET_64BIT_P
+#define TARGET_64BIT TARGET_ISA_64BIT
+#define	TARGET_64BIT_P(x) TARGET_ISA_64BIT_P(x)
 
 #ifdef IN_LIBGCC2
 #undef TARGET_64BIT
@@ -132,8 +133,7 @@ extern int darwin_emit_branch_islands;
   "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
    %{mpc32:crtprec32.o%s} \
    %{mpc64:crtprec64.o%s} \
-   %{mpc80:crtprec80.o%s} \
-   %{fgnu-tm: -lcrttme.o}"
+   %{mpc80:crtprec80.o%s}" TM_DESTRUCTOR
 
 #undef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS                                   \

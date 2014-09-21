@@ -9,11 +9,19 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 )
 
 var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
-var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
+var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+
+// Global lock to ensure only one benchmark runs at a time.
+var benchmarkLock sync.Mutex
+
+// Used for every benchmark for measuring memory.
+var memStats runtime.MemStats
 
 // An internal type but exported because it is cross-package; part of the implementation
 // of the "go test" command.
@@ -26,11 +34,18 @@ type InternalBenchmark struct {
 // timing and to specify the number of iterations to run.
 type B struct {
 	common
-	N         int
-	benchmark InternalBenchmark
-	bytes     int64
-	timerOn   bool
-	result    BenchmarkResult
+	N               int
+	benchmark       InternalBenchmark
+	bytes           int64
+	timerOn         bool
+	showAllocResult bool
+	result          BenchmarkResult
+	// The initial states of memStats.Mallocs and memStats.TotalAlloc.
+	startAllocs uint64
+	startBytes  uint64
+	// The net total of this test after being run.
+	netAllocs uint64
+	netBytes  uint64
 }
 
 // StartTimer starts timing a test.  This function is called automatically
@@ -38,6 +53,9 @@ type B struct {
 // a call to StopTimer.
 func (b *B) StartTimer() {
 	if !b.timerOn {
+		runtime.ReadMemStats(&memStats)
+		b.startAllocs = memStats.Mallocs
+		b.startBytes = memStats.TotalAlloc
 		b.start = time.Now()
 		b.timerOn = true
 	}
@@ -49,6 +67,9 @@ func (b *B) StartTimer() {
 func (b *B) StopTimer() {
 	if b.timerOn {
 		b.duration += time.Now().Sub(b.start)
+		runtime.ReadMemStats(&memStats)
+		b.netAllocs += memStats.Mallocs - b.startAllocs
+		b.netBytes += memStats.TotalAlloc - b.startBytes
 		b.timerOn = false
 	}
 }
@@ -57,14 +78,26 @@ func (b *B) StopTimer() {
 // It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
 	if b.timerOn {
+		runtime.ReadMemStats(&memStats)
+		b.startAllocs = memStats.Mallocs
+		b.startBytes = memStats.TotalAlloc
 		b.start = time.Now()
 	}
 	b.duration = 0
+	b.netAllocs = 0
+	b.netBytes = 0
 }
 
 // SetBytes records the number of bytes processed in a single operation.
 // If this is called, the benchmark will report ns/op and MB/s.
 func (b *B) SetBytes(n int64) { b.bytes = n }
+
+// ReportAllocs enables malloc statistics for this benchmark.
+// It is equivalent to setting -test.benchmem, but it only affects the
+// benchmark function that calls ReportAllocs.
+func (b *B) ReportAllocs() {
+	b.showAllocResult = true
+}
 
 func (b *B) nsPerOp() int64 {
 	if b.N <= 0 {
@@ -75,6 +108,8 @@ func (b *B) nsPerOp() int64 {
 
 // runN runs a single benchmark for the specified number of iterations.
 func (b *B) runN(n int) {
+	benchmarkLock.Lock()
+	defer benchmarkLock.Unlock()
 	// Try to get a comparable environment for each run
 	// by clearing garbage from previous runs.
 	runtime.GC()
@@ -103,7 +138,7 @@ func max(x, y int) int {
 func roundDown10(n int) int {
 	var tens = 0
 	// tens = floor(log_10(n))
-	for n > 10 {
+	for n >= 10 {
 		n = n / 10
 		tens++
 	}
@@ -118,13 +153,16 @@ func roundDown10(n int) int {
 // roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
 func roundUp(n int) int {
 	base := roundDown10(n)
-	if n < (2 * base) {
+	switch {
+	case n <= base:
+		return base
+	case n <= (2 * base):
 		return 2 * base
-	}
-	if n < (5 * base) {
+	case n <= (5 * base):
 		return 5 * base
+	default:
+		return 10 * base
 	}
-	return 10 * base
 }
 
 // run times the benchmark function in a separate goroutine.
@@ -151,7 +189,7 @@ func (b *B) launch() {
 
 	b.runN(n)
 	// Run the benchmark for at least the specified amount of time.
-	d := time.Duration(*benchTime * float64(time.Second))
+	d := *benchTime
 	for !b.failed && b.duration < d && n < 1e9 {
 		last := n
 		// Predict iterations/sec.
@@ -168,14 +206,16 @@ func (b *B) launch() {
 		n = roundUp(n)
 		b.runN(n)
 	}
-	b.result = BenchmarkResult{b.N, b.duration, b.bytes}
+	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes}
 }
 
 // The results of a benchmark run.
 type BenchmarkResult struct {
-	N     int           // The number of iterations.
-	T     time.Duration // The total time taken.
-	Bytes int64         // Bytes processed in one iteration.
+	N         int           // The number of iterations.
+	T         time.Duration // The total time taken.
+	Bytes     int64         // Bytes processed in one iteration.
+	MemAllocs uint64        // The total number of memory allocations.
+	MemBytes  uint64        // The total number of bytes allocated.
 }
 
 func (r BenchmarkResult) NsPerOp() int64 {
@@ -190,6 +230,20 @@ func (r BenchmarkResult) mbPerSec() float64 {
 		return 0
 	}
 	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
+}
+
+func (r BenchmarkResult) AllocsPerOp() int64 {
+	if r.N <= 0 {
+		return 0
+	}
+	return int64(r.MemAllocs) / int64(r.N)
+}
+
+func (r BenchmarkResult) AllocedBytesPerOp() int64 {
+	if r.N <= 0 {
+		return 0
+	}
+	return int64(r.MemBytes) / int64(r.N)
 }
 
 func (r BenchmarkResult) String() string {
@@ -210,6 +264,11 @@ func (r BenchmarkResult) String() string {
 		}
 	}
 	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
+}
+
+func (r BenchmarkResult) MemString() string {
+	return fmt.Sprintf("%8d B/op\t%8d allocs/op",
+		r.AllocedBytesPerOp(), r.AllocsPerOp())
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
@@ -249,7 +308,11 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 				fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
 				continue
 			}
-			fmt.Printf("%v\n", r)
+			results := r.String()
+			if *benchmarkMemory || b.showAllocResult {
+				results += "\t" + r.MemString()
+			}
+			fmt.Println(results)
 			// Unlike with tests, we ignore the -chatty flag and always print output for
 			// benchmarks since the output generation time will skew the results.
 			if len(b.output) > 0 {

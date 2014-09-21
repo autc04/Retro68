@@ -1,6 +1,5 @@
 /* Handle the constant pool of the Java(TM) Virtual Machine.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2003, 2004, 2005, 2006,
-   2007, 2008, 2010, 2011  Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,6 +26,8 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "tm.h"
 #include "jcf.h"
 #include "tree.h"
+#include "stringpool.h"
+#include "stor-layout.h"
 #include "java-tree.h"
 #include "diagnostic-core.h"
 #include "toplev.h"
@@ -502,20 +503,20 @@ build_constants_constructor (void)
   CPool *outgoing_cpool = cpool_for_class (current_class);
   tree tags_value, data_value;
   tree cons;
-  VEC(constructor_elt,gc) *v = NULL;
+  vec<constructor_elt, va_gc> *v = NULL;
   int i;
-  VEC(constructor_elt,gc) *tags = NULL;
-  VEC(constructor_elt,gc) *data = NULL;
+  vec<constructor_elt, va_gc> *tags = NULL;
+  vec<constructor_elt, va_gc> *data = NULL;
   constructor_elt *t = NULL;
   constructor_elt *d = NULL;
 
   if (outgoing_cpool->count > 0)
     {
       int c = outgoing_cpool->count;
-      VEC_safe_grow_cleared (constructor_elt, gc, tags, c);
-      VEC_safe_grow_cleared (constructor_elt, gc, data, c);
-      t = VEC_index (constructor_elt, tags, c-1);
-      d = VEC_index (constructor_elt, data, c-1);
+      vec_safe_grow_cleared (tags, c);
+      vec_safe_grow_cleared (data, c);
+      t = &(*tags)[c-1];
+      d = &(*data)[c-1];
     }
 
 #define CONSTRUCTOR_PREPEND_VALUE(E, V) E->value = V, E--
@@ -569,8 +570,8 @@ build_constants_constructor (void)
       tree tem;
 
       /* Add dummy 0'th element of constant pool. */
-      gcc_assert (t == VEC_address (constructor_elt, tags));
-      gcc_assert (d == VEC_address (constructor_elt, data));
+      gcc_assert (t == tags->address ());
+      gcc_assert (d == data->address ());
       t->value = get_tag_node (0);
       d->value = null_pointer_node;
   

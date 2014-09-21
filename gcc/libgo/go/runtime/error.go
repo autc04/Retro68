@@ -57,7 +57,39 @@ func NewTypeAssertionError(ps1, ps2, ps3 *string, pmeth *string, ret *interface{
 	if pmeth != nil {
 		meth = *pmeth
 	}
+
+	// For gccgo, strip out quoted strings.
+	s1 = unquote(s1)
+	s2 = unquote(s2)
+	s3 = unquote(s3)
+
 	*ret = &TypeAssertionError{s1, s2, s3, meth}
+}
+
+// Remove quoted strings from gccgo reflection strings.
+func unquote(s string) string {
+	ls := len(s)
+	var i int
+	for i = 0; i < ls; i++ {
+		if s[i] == '\t' {
+			break
+		}
+	}
+	if i == ls {
+		return s
+	}
+	var q bool
+	r := make([]byte, len(s))
+	j := 0
+	for i = 0; i < ls; i++ {
+		if s[i] == '\t' {
+			q = !q
+		} else if !q {
+			r[j] = s[i]
+			j++
+		}
+	}
+	return string(r[:j])
 }
 
 // An errorString represents a runtime error described by a single string.
@@ -72,6 +104,22 @@ func (e errorString) Error() string {
 // For calling from C.
 func NewErrorString(s string, ret *interface{}) {
 	*ret = errorString(s)
+}
+
+// An errorCString represents a runtime error described by a single C string.
+type errorCString uintptr
+
+func (e errorCString) RuntimeError() {}
+
+func cstringToGo(uintptr) string
+
+func (e errorCString) Error() string {
+	return "runtime error: " + cstringToGo(uintptr(e))
+}
+
+// For calling from C.
+func NewErrorCString(s uintptr, ret *interface{}) {
+	*ret = errorCString(s)
 }
 
 type stringer interface {

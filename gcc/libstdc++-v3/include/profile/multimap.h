@@ -1,6 +1,6 @@
 // Profiling multimap implementation -*- C++ -*-
 
-// Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,6 +43,10 @@ namespace __profile
     {
       typedef _GLIBCXX_STD_C::multimap<_Key, _Tp, _Compare, _Allocator> _Base;
 
+#if __cplusplus >= 201103L
+      typedef __gnu_cxx::__alloc_traits<_Allocator> _Alloc_traits;
+#endif
+
     public:
       // types:
       typedef _Key				     key_type;
@@ -64,59 +68,81 @@ namespace __profile
       typedef typename _Base::const_pointer          const_pointer;
 
       // 23.3.1.1 construct/copy/destroy:
-      explicit multimap(const _Compare& __comp = _Compare(),
+
+      multimap()
+      : _Base() { }
+
+      explicit multimap(const _Compare& __comp,
 			const _Allocator& __a = _Allocator())
       : _Base(__comp, __a) { }
 
+#if __cplusplus >= 201103L
+      template<typename _InputIterator,
+	       typename = std::_RequireInputIter<_InputIterator>>
+#else
       template<typename _InputIterator>
+#endif
       multimap(_InputIterator __first, _InputIterator __last,
 	       const _Compare& __comp = _Compare(),
 	       const _Allocator& __a = _Allocator())
       : _Base(__first, __last, __comp, __a) { }
 
+#if __cplusplus < 201103L
       multimap(const multimap& __x)
       : _Base(__x) { }
-
-      multimap(const _Base& __x)
-      : _Base(__x) { }
-
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
-      multimap(multimap&& __x)
-      noexcept(is_nothrow_copy_constructible<_Compare>::value)
-      : _Base(std::move(__x))
-      { }
+#else
+      multimap(const multimap&) = default;
+      multimap(multimap&&) = default;
 
       multimap(initializer_list<value_type> __l,
 	       const _Compare& __c = _Compare(),
 	       const allocator_type& __a = allocator_type())
       : _Base(__l, __c, __a) { }
+
+      explicit
+      multimap(const allocator_type& __a)
+	: _Base(__a) { }
+
+      multimap(const multimap& __x, const allocator_type& __a)
+      : _Base(__x, __a) { }
+
+      multimap(multimap&& __x, const allocator_type& __a)
+      noexcept(is_nothrow_copy_constructible<_Compare>::value
+	       && _Alloc_traits::_S_always_equal())
+      : _Base(std::move(__x), __a) { }
+
+      multimap(initializer_list<value_type> __l, const allocator_type& __a)
+      : _Base(__l, __a) { }
+
+      template<typename _InputIterator>
+        multimap(_InputIterator __first, _InputIterator __last,
+	    const allocator_type& __a)
+	  : _Base(__first, __last, __a) { }
 #endif
+
+      multimap(const _Base& __x)
+      : _Base(__x) { }
 
       ~multimap() _GLIBCXX_NOEXCEPT { }
 
+#if __cplusplus < 201103L
       multimap&
       operator=(const multimap& __x)
       {
-	*static_cast<_Base*>(this) = __x;
+	_M_base() = __x;
 	return *this;
       }
-
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#else
       multimap&
-      operator=(multimap&& __x)
-      {
-	// NB: DR 1204.
-	// NB: DR 675.
-	this->clear();
-	this->swap(__x);
-	return *this;
-      }
+      operator=(const multimap&) = default;
+
+      multimap&
+      operator=(multimap&&) = default;
 
       multimap&
       operator=(initializer_list<value_type> __l)
       {
-	this->clear();
-	this->insert(__l);
+	_M_base() = __l;
 	return *this;
       }
 #endif
@@ -156,7 +182,7 @@ namespace __profile
       rend() const _GLIBCXX_NOEXCEPT
       { return const_reverse_iterator(begin()); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       const_iterator
       cbegin() const noexcept
       { return const_iterator(_Base::begin()); }
@@ -180,49 +206,71 @@ namespace __profile
       using _Base::max_size;
 
       // modifiers:
+#if __cplusplus >= 201103L
+      template<typename... _Args>
+	iterator
+	emplace(_Args&&... __args)
+	{
+	  return iterator(_Base::emplace(std::forward<_Args>(__args)...));
+	}
+
+      template<typename... _Args>
+	iterator
+	emplace_hint(const_iterator __pos, _Args&&... __args)
+	{
+	  return iterator(_Base::emplace_hint(__pos,
+					      std::forward<_Args>(__args)...));
+	}
+#endif
+      
       iterator
       insert(const value_type& __x)
       { return iterator(_Base::insert(__x)); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       template<typename _Pair, typename = typename
-	       std::enable_if<std::is_convertible<_Pair,
-						  value_type>::value>::type>
+	       std::enable_if<std::is_constructible<value_type,
+						    _Pair&&>::value>::type>
         iterator
         insert(_Pair&& __x)
         { return iterator(_Base::insert(std::forward<_Pair>(__x))); }
 #endif
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       void
       insert(std::initializer_list<value_type> __list)
       { _Base::insert(__list); }
 #endif
 
       iterator
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       insert(const_iterator __position, const value_type& __x)
 #else
       insert(iterator __position, const value_type& __x)
 #endif
       { return iterator(_Base::insert(__position, __x)); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       template<typename _Pair, typename = typename
-	       std::enable_if<std::is_convertible<_Pair,
-						  value_type>::value>::type>
+	       std::enable_if<std::is_constructible<value_type,
+						    _Pair&&>::value>::type>
         iterator
         insert(const_iterator __position, _Pair&& __x)
         { return iterator(_Base::insert(__position,
 					std::forward<_Pair>(__x))); }
 #endif
 
+#if __cplusplus >= 201103L
+      template<typename _InputIterator,
+	       typename = std::_RequireInputIter<_InputIterator>>
+#else
       template<typename _InputIterator>
+#endif
         void
         insert(_InputIterator __first, _InputIterator __last)
         { _Base::insert(__first, __last); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __position)
       { return iterator(_Base::erase(__position)); }
@@ -250,7 +298,7 @@ namespace __profile
 	return __count;
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __first, const_iterator __last)
       { return iterator(_Base::erase(__first, __last)); }
@@ -262,6 +310,9 @@ namespace __profile
 
       void
       swap(multimap& __x)
+#if __cplusplus >= 201103L
+      noexcept(_Alloc_traits::_S_nothrow_swap())
+#endif
       { _Base::swap(__x); }
 
       void

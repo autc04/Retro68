@@ -1,7 +1,5 @@
 /* Common subexpression elimination for GNU compiler.
-   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,7 +18,7 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 /* Describe a value.  */
-typedef struct cselib_val_struct {
+struct cselib_val {
   /* The hash value.  */
   unsigned int hash;
 
@@ -38,8 +36,8 @@ typedef struct cselib_val_struct {
      use it as an address in a MEM.  */
   struct elt_list *addr_list;
 
-  struct cselib_val_struct *next_containing_mem;
-} cselib_val;
+  struct cselib_val *next_containing_mem;
+};
 
 /* A list of rtl expressions that hold the same value.  */
 struct elt_loc_list {
@@ -78,6 +76,7 @@ extern void cselib_init (int);
 extern void cselib_clear_table (void);
 extern void cselib_finish (void);
 extern void cselib_process_insn (rtx);
+extern bool fp_setter_insn (rtx);
 extern enum machine_mode cselib_reg_set_mode (const_rtx);
 extern int rtx_equal_for_cselib_p (rtx, rtx);
 extern int references_value_p (const_rtx, int);
@@ -99,6 +98,8 @@ extern void cselib_preserve_only_values (void);
 extern void cselib_preserve_cfa_base_value (cselib_val *, unsigned int);
 extern void cselib_add_permanent_equiv (cselib_val *, rtx, rtx);
 extern bool cselib_have_permanent_equivalences (void);
+extern void cselib_set_value_sp_based (cselib_val *);
+extern bool cselib_sp_based_value_p (cselib_val *);
 
 extern void dump_cselib_table (FILE *);
 

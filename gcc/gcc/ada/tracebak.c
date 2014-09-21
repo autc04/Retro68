@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2000-2011, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2000-2012, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -35,6 +35,7 @@
    PowerPC/AiX
    PowerPC/Darwin
    PowerPC/VxWorks
+   PowerPC/LynxOS-178
    SPARC/Solaris
    i386/GNU/Linux
    i386/Solaris
@@ -106,6 +107,76 @@ extern void (*Unlock_Task) (void);
 
 #include "tb-ivms.c"
 
+#elif defined (_WIN64) && defined (__SEH__)
+
+#include <windows.h>
+
+int
+__gnat_backtrace (void **array,
+                  int size,
+                  void *exclude_min,
+                  void *exclude_max,
+                  int skip_frames)
+{
+  CONTEXT context;
+  UNWIND_HISTORY_TABLE history;
+  int i;
+
+  /* Get the context.  */
+  RtlCaptureContext (&context);
+
+  /* Setup unwind history table (a cached to speed-up unwinding).  */
+  memset (&history, 0, sizeof (history));
+
+  i = 0;
+  while (1)
+    {
+      PRUNTIME_FUNCTION RuntimeFunction;
+      KNONVOLATILE_CONTEXT_POINTERS NvContext;
+      ULONG64 ImageBase;
+      VOID *HandlerData;
+      ULONG64 EstablisherFrame;
+
+      /* Get function metadata.  */
+      RuntimeFunction = RtlLookupFunctionEntry
+	(context.Rip, &ImageBase, &history);
+
+      if (!RuntimeFunction)
+	{
+	  /* In case of failure, assume this is a leaf function.  */
+	  context.Rip = *(ULONG64 *) context.Rsp;
+	  context.Rsp += 8;
+	}
+      else
+	{
+	  /* Unwind.  */
+	  memset (&NvContext, 0, sizeof (KNONVOLATILE_CONTEXT_POINTERS));
+	  RtlVirtualUnwind (0, ImageBase, context.Rip, RuntimeFunction,
+			    &context, &HandlerData, &EstablisherFrame,
+			    &NvContext);
+	}
+
+      /* 0 means bottom of the stack.  */
+      if (context.Rip == 0)
+	break;
+
+      /* Skip frames.  */
+      if (skip_frames > 1)
+	{
+	  skip_frames--;
+	  continue;
+	}
+      /* Excluded frames.  */
+      if ((void *)context.Rip >= exclude_min
+	  && (void *)context.Rip <= exclude_max)
+	continue;
+
+      array[i++] = (void *)(context.Rip - 2);
+      if (i >= size)
+	break;
+    }
+  return i;
+}
 #else
 
 /* No target specific implementation.  */
@@ -217,9 +288,10 @@ extern void (*Unlock_Task) (void);
 #error Unhandled darwin architecture.
 #endif
 
-/*------------------------ PPC AIX/Older Darwin -------------------------*/
+/*---------------------- PPC AIX/PPC Lynx 178/Older Darwin ------------------*/
 #elif ((defined (_POWER) && defined (_AIX)) || \
-(defined (__ppc__) && defined (__APPLE__)))
+       (defined (__powerpc__) && defined (__Lynx__) && !defined(__ELF__)) || \
+       (defined (__ppc__) && defined (__APPLE__)))
 
 #define USE_GENERIC_UNWINDER
 
@@ -237,9 +309,26 @@ struct layout
    should to feature a null backchain, AIX might expose a null return
    address instead.  */
 
+/* Then LynxOS-178 features yet another variation, with return_address
+   == &<entrypoint>, with two possible entry points (one for the main
+   process and one for threads). Beware that &bla returns the address
+   of a descriptor when "bla" is a function.  Getting the code address
+   requires an extra dereference.  */
+
+#if defined (__Lynx__)
+extern void __start();  /* process entry point.  */
+extern void __runnit(); /* thread entry point.  */
+#define EXTRA_STOP_CONDITION(CURRENT)                 \
+  ((CURRENT)->return_address == *(void**)&__start     \
+   || (CURRENT)->return_address == *(void**)&__runnit)
+#else
+#define EXTRA_STOP_CONDITION(CURRENT) (0)
+#endif
+
 #define STOP_FRAME(CURRENT, TOP_STACK) \
   (((void *) (CURRENT) < (TOP_STACK)) \
-   || (CURRENT)->return_address == NULL)
+   || (CURRENT)->return_address == NULL \
+   || EXTRA_STOP_CONDITION(CURRENT))
 
 /* The PPC ABI has an interesting specificity: the return address saved by a
    function is located in it's caller's frame, and the save operation only
@@ -326,7 +415,7 @@ struct layout
 
 #if defined (__WIN32)
 #include <windows.h>
-#define IS_BAD_PTR(ptr) (IsBadCodePtr((void *)ptr))
+#define IS_BAD_PTR(ptr) (IsBadCodePtr((FARPROC)ptr))
 #elif defined (sun)
 #define IS_BAD_PTR(ptr) ((unsigned long)ptr == -1UL)
 #else

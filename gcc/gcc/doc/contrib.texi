@@ -1,6 +1,4 @@
-@c Copyright (C) 1988,1989,1992,1993,1994,1995,1996,1997,1998,1999,2000,
-@c 2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011
-@c Free Software Foundation, Inc.
+@c Copyright (C) 1988-2014 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -178,7 +176,7 @@ The @uref{http://www.gnu.org/software/classpath/,,GNU Classpath project}
 for all of their merged runtime code.
 
 @item
-Nick Clifton for arm, mcore, fr30, v850, m32r, rx work,
+Nick Clifton for arm, mcore, fr30, v850, m32r, msp430 rx work,
 @option{--help}, and other random hacking.
 
 @item
@@ -220,7 +218,7 @@ Mo DeJong for GCJ and libgcj bug fixes.
 
 @item
 DJ Delorie for the DJGPP port, build and libiberty maintenance,
-various bug fixes, and the M32C, MeP, and RL78 ports.
+various bug fixes, and the M32C, MeP, MSP430, and RL78 ports.
 
 @item
 Arnaud Desitter for helping to debug GNU Fortran.
@@ -238,6 +236,10 @@ support, CFG dumping support, etc., plus support of the C++ runtime
 libraries including for all kinds of C interface issues, contributing and
 maintaining @code{complex<>}, sanity checking and disbursement, configuration
 architecture, libio maintenance, and early math work.
+
+@item
+Fran@,{c}ois Dumont for his work on libstdc++-v3, especially maintaining and
+improving @code{debug-mode} and associative and unordered containers.
 
 @item
 Zdenek Dvorak for a new loop unroller and various fixes.
@@ -305,11 +307,10 @@ Peter Gerwinski for various bug fixes and the Pascal front end.
 
 @item
 Kaveh R.@: Ghazi for his direction via the steering committee, amazing
-work to make @samp{-W -Wall -W* -Werror} useful, and continuously
+work to make @samp{-W -Wall -W* -Werror} useful, and 
 testing GCC on a plethora of platforms.  Kaveh extends his gratitude to
-the @uref{http://www.caip.rutgers.edu,,CAIP Center} at Rutgers
-University for providing him with computing resources to work on Free
-Software since the late 1980s.
+the CAIP Center at Rutgers University for providing him with computing
+resources to work on Free Software from the late 1980s to 2010.
 
 @item
 John Gilmore for a donation to the FSF earmarked improving GNU Java.
@@ -334,7 +335,7 @@ Stu Grossman for gdb hacking, allowing GCJ developers to debug Java code.
 Michael K. Gschwind contributed the port to the PDP-11.
 
 @item
-Richard Guenther for his ongoing middle-end contributions and bug fixes
+Richard Biener for his ongoing middle-end contributions and bug fixes
 and for release management.
 
 @item
@@ -624,7 +625,8 @@ entire libstdc++ testsuite namespace-compatible.
 @item
 Mark Mitchell for his direction via the steering committee, mountains of
 C++ work, load/store hoisting out of loops, alias analysis improvements,
-ISO C @code{restrict} support, and serving as release manager for GCC 3.x.
+ISO C @code{restrict} support, and serving as release manager from 2000
+to 2011.
 
 @item
 Alan Modra for various GNU/Linux bits and testing.
@@ -840,6 +842,9 @@ Lars Segerlund for work on GNU Fortran.
 Dodji Seketeli for numerous C++ bug fixes and debug info improvements.
 
 @item
+Tim Shen for major work on @code{<regex>}.
+
+@item
 Joel Sherrill for his direction via the steering committee, RTEMS
 contributions and RTEMS testing.
 
@@ -873,6 +878,10 @@ Danny Smith for his major efforts on the Mingw (and Cygwin) ports.
 
 @item
 Randy Smith finished the Sun FPA support.
+
+@item
+Ed Smith-Rowland for his continuous work on libstdc++-v3, special functions,
+@code{<random>}, and various improvements to C++11 features.
 
 @item
 Scott Snyder for queue, iterator, istream, and string fixes and libstdc++
@@ -997,7 +1006,7 @@ Feng Wang for contributions to GNU Fortran.
 @item
 Stephen M. Webb for time and effort on making libstdc++ shadow files
 work with the tricky Solaris 8+ headers, and for pushing the build-time
-header tree.
+header tree. Also, for starting and driving the @code{<regex>} effort.
 
 @item
 John Wehle for various improvements for the x86 code generator,
@@ -1039,6 +1048,9 @@ Carlo Wood for various fixes.
 
 @item
 Tom Wood for work on the m88k port.
+
+@item
+Chung-Ju Wu for his work on the Andes NDS32 port.
 
 @item
 Canqun Yang for work on GNU Fortran.

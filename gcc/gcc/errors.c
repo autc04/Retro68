@@ -1,6 +1,5 @@
 /* Basic error reporting routines.
-   Copyright (C) 1999, 2000, 2001, 2003, 2004, 2005, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -49,7 +48,7 @@ warning (const char *format, ...)
   fprintf (stderr, "%s: warning: ", progname);
   vfprintf (stderr, format, ap);
   va_end (ap);
-  fputc('\n', stderr);
+  fputc ('\n', stderr);
 }
 
 
@@ -64,7 +63,7 @@ error (const char *format, ...)
   fprintf (stderr, "%s: ", progname);
   vfprintf (stderr, format, ap);
   va_end (ap);
-  fputc('\n', stderr);
+  fputc ('\n', stderr);
 
   have_error = 1;
 }
@@ -81,7 +80,7 @@ fatal (const char *format, ...)
   fprintf (stderr, "%s: ", progname);
   vfprintf (stderr, format, ap);
   va_end (ap);
-  fputc('\n', stderr);
+  fputc ('\n', stderr);
   exit (FATAL_EXIT_CODE);
 }
 

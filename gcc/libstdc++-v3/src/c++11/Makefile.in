@@ -58,7 +58,8 @@ am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
 	$(top_srcdir)/../lt~obsolete.m4 $(top_srcdir)/crossconfig.m4 \
 	$(top_srcdir)/linkage.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/../config/gc++filt.m4 \
-	$(top_srcdir)/../config/tls.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/../config/tls.m4 $(top_srcdir)/../config/gthr.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 CONFIG_HEADER = $(top_builddir)/config.h
@@ -66,10 +67,10 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libc__11convenience_la_LIBADD =
-am__objects_1 = chrono.lo condition_variable.lo compatibility-c++0x.lo \
-	compatibility-atomic-c++0x.lo debug.lo functexcept.lo \
-	functional.lo future.lo hash_c++0x.lo hashtable_c++0x.lo \
-	limits.lo mutex.lo placeholders.lo regex.lo shared_ptr.lo \
+am__objects_1 = chrono.lo condition_variable.lo debug.lo \
+	functexcept.lo functional.lo future.lo hash_c++0x.lo \
+	hashtable_c++0x.lo limits.lo mutex.lo placeholders.lo \
+	random.lo regex.lo shared_ptr.lo snprintf_lite.lo \
 	system_error.lo thread.lo
 @ENABLE_EXTERN_TEMPLATE_TRUE@am__objects_2 = fstream-inst.lo \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	string-inst.lo wstring-inst.lo
@@ -115,6 +116,8 @@ CNUMERIC_CC = @CNUMERIC_CC@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPU_DEFINES_SRCDIR = @CPU_DEFINES_SRCDIR@
+CPU_OPT_BITS_RANDOM = @CPU_OPT_BITS_RANDOM@
+CPU_OPT_EXT_RANDOM = @CPU_OPT_EXT_RANDOM@
 CSTDIO_H = @CSTDIO_H@
 CTIME_CC = @CTIME_CC@
 CTIME_H = @CTIME_H@
@@ -142,6 +145,7 @@ FGREP = @FGREP@
 GLIBCXX_INCLUDES = @GLIBCXX_INCLUDES@
 GLIBCXX_LIBS = @GLIBCXX_LIBS@
 GREP = @GREP@
+HWCAP_FLAGS = @HWCAP_FLAGS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -178,7 +182,6 @@ PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PDFLATEX = @PDFLATEX@
-PIC_CXXFLAGS = @PIC_CXXFLAGS@
 RANLIB = @RANLIB@
 SECTION_FLAGS = @SECTION_FLAGS@
 SECTION_LDFLAGS = @SECTION_LDFLAGS@
@@ -190,6 +193,9 @@ SYMVER_FILE = @SYMVER_FILE@
 TOPLEVEL_INCLUDES = @TOPLEVEL_INCLUDES@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
+VTV_CXXFLAGS = @VTV_CXXFLAGS@
+VTV_CXXLINKFLAGS = @VTV_CXXLINKFLAGS@
+VTV_PCH_CXXFLAGS = @VTV_PCH_CXXFLAGS@
 WARN_FLAGS = @WARN_FLAGS@
 WERROR = @WERROR@
 XMLLINT = @XMLLINT@
@@ -226,7 +232,10 @@ glibcxx_MOFILES = @glibcxx_MOFILES@
 glibcxx_PCHFLAGS = @glibcxx_PCHFLAGS@
 glibcxx_POFILES = @glibcxx_POFILES@
 glibcxx_builddir = @glibcxx_builddir@
+glibcxx_compiler_pic_flag = @glibcxx_compiler_pic_flag@
+glibcxx_compiler_shared_flag = @glibcxx_compiler_shared_flag@
 glibcxx_localedir = @glibcxx_localedir@
+glibcxx_lt_pic_flag = @glibcxx_lt_pic_flag@
 glibcxx_prefixdir = @glibcxx_prefixdir@
 glibcxx_srcdir = @glibcxx_srcdir@
 glibcxx_toolexecdir = @glibcxx_toolexecdir@
@@ -266,6 +275,7 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
+thread_header = @thread_header@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
@@ -282,11 +292,13 @@ toolexecdir = $(glibcxx_toolexecdir)
 toolexeclibdir = $(glibcxx_toolexeclibdir)
 @ENABLE_WERROR_FALSE@WERROR_FLAG = 
 @ENABLE_WERROR_TRUE@WERROR_FLAG = $(WERROR)
+@ENABLE_EXTERN_TEMPLATE_FALSE@XTEMPLATE_FLAGS = 
+@ENABLE_EXTERN_TEMPLATE_TRUE@XTEMPLATE_FLAGS = -fno-implicit-templates
 
 # These bits are all figured out from configure.  Look in acinclude.m4
 # or configure.ac to see how they are set.  See GLIBCXX_EXPORT_FLAGS.
 CONFIG_CXXFLAGS = \
-	$(SECTION_FLAGS) $(EXTRA_CXX_FLAGS) -frandom-seed=$@
+	$(SECTION_FLAGS) $(HWCAP_FLAGS) -frandom-seed=$@
 
 WARN_CXXFLAGS = \
 	$(WARN_FLAGS) $(WERROR_FLAG) -fdiagnostics-show-location=once 
@@ -301,8 +313,6 @@ headers =
 sources = \
 	chrono.cc \
 	condition_variable.cc \
-	compatibility-c++0x.cc \
-	compatibility-atomic-c++0x.cc \
 	debug.cc \
 	functexcept.cc \
 	functional.cc \
@@ -312,14 +322,17 @@ sources = \
 	limits.cc \
 	mutex.cc \
 	placeholders.cc \
+	random.cc \
 	regex.cc  \
 	shared_ptr.cc \
+	snprintf_lite.cc \
 	system_error.cc \
 	thread.cc
 
-@ENABLE_EXTERN_TEMPLATE_FALSE@XTEMPLATE_FLAGS = 
-@ENABLE_EXTERN_TEMPLATE_TRUE@XTEMPLATE_FLAGS = -fno-implicit-templates
+# XTEMPLATE_FLAGS =
 @ENABLE_EXTERN_TEMPLATE_FALSE@inst_sources = 
+
+# XTEMPLATE_FLAGS = -fno-implicit-templates
 @ENABLE_EXTERN_TEMPLATE_TRUE@inst_sources = \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	fstream-inst.cc \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	string-inst.cc \
@@ -333,11 +346,10 @@ libc__11convenience_la_SOURCES = $(sources)  $(inst_sources)
 # OPTIMIZE_CXXFLAGS on the compile line so that -O2 can be overridden
 # as the occasion calls for it.
 AM_CXXFLAGS = \
-	$(PIC_CXXFLAGS) \
-	$(XTEMPLATE_FLAGS) \
-	$(WARN_CXXFLAGS) \
-	$(OPTIMIZE_CXXFLAGS) \
-	$(CONFIG_CXXFLAGS) -std=gnu++11
+	-std=gnu++11 \
+	$(glibcxx_lt_pic_flag) $(glibcxx_compiler_shared_flag) \
+	$(XTEMPLATE_FLAGS) $(VTV_CXXFLAGS) \
+	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS) $(CONFIG_CXXFLAGS)
 
 AM_MAKEFLAGS = \
 	"gxx_include_dir=$(gxx_include_dir)"
@@ -345,11 +357,7 @@ AM_MAKEFLAGS = \
 
 # Libtool notes
 
-# 1) Need to explicitly set LTCXXCOMPILE so that AM_CXXFLAGS is
-# last. (That way, things like -O2 passed down from the toplevel can
-# be overridden by --enable-debug.)
-
-# 2) In general, libtool expects an argument such as `--tag=CXX' when
+# 1) In general, libtool expects an argument such as `--tag=CXX' when
 # using the C++ compiler, because that will enable the settings
 # detected when C++ support was being configured.  However, when no
 # such flag is given in the command line, libtool attempts to figure
@@ -361,11 +369,23 @@ AM_MAKEFLAGS = \
 # correct solution is to add `--tag CXX' to LTCXXCOMPILE and maybe
 # CXXLINK, just after $(LIBTOOL), so that libtool doesn't have to
 # attempt to infer which configuration to use.
-# We have to put --tag disable-shared after --tag CXX lest things
-# CXX undo the affect of disable-shared.
-LTCXXCOMPILE = $(LIBTOOL) --tag CXX --tag disable-shared $(LIBTOOLFLAGS) \
-	       --mode=compile $(CXX) $(TOPLEVEL_INCLUDES) \
-	       $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+# 
+# The second tag argument, `--tag disable-shared` means that libtool
+# only compiles each source once, for static objects. In actuality,
+# glibcxx_lt_pic_flag and glibcxx_compiler_shared_flag are added to
+# the libtool command that is used create the object, which is
+# suitable for shared libraries.  The `--tag disable-shared` must be
+# placed after --tag CXX lest things CXX undo the affect of
+# disable-shared.
+
+# 2) Need to explicitly set LTCXXCOMPILE so that EXTRA_CXX_FLAGS is
+# last. (That way, things like -O2 passed down from the toplevel can
+# be overridden by --enable-debug.)
+LTCXXCOMPILE = \
+	$(LIBTOOL) --tag CXX --tag disable-shared \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=compile $(CXX) $(TOPLEVEL_INCLUDES) \
+	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS)
 
 LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
 
@@ -375,9 +395,12 @@ LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
 # course is problematic at this point.  So, we get the top-level
 # directory to configure libstdc++-v3 to use gcc as the C++
 # compilation driver.
-CXXLINK = $(LIBTOOL) --tag CXX --tag disable-shared $(LIBTOOLFLAGS) \
-	  --mode=link $(CXX) \
-	  $(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
+CXXLINK = \
+	$(LIBTOOL) --tag CXX --tag disable-shared \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CXX) \
+	$(VTV_CXXLINKFLAGS) \
+	$(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
 
 all: all-am
 
@@ -612,7 +635,13 @@ uninstall-am:
 
 
 vpath % $(top_srcdir)/src/c++11
-vpath % $(top_srcdir)
+
+# Use special rules for the hashtable.cc file so that all
+# the generated template functions are also instantiated. 
+hashtable_c++0x.lo: hashtable_c++0x.cc
+	$(LTCXXCOMPILE) -fimplicit-templates -c $<
+hashtable_c++0x.o: hashtable_c++0x.cc
+	$(CXXCOMPILE) -fimplicit-templates -c $<
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

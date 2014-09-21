@@ -1,5 +1,5 @@
-/* { dg-options "-O2 -mrelax-pic-calls -mno-shared" } */
-/* { dg-final { scan-assembler "\\.reloc\t1f,R_MIPS_JALR,g\n1:\tjalr\t" } } */
+/* { dg-options "-mrelax-pic-calls -mno-shared" } */
+/* { dg-final { scan-assembler "\\.reloc\t1f,R_MIPS_JALR,g\n1:\tjalrs?\t" } } */
 /* { dg-require-visibility "" } */
 
 __attribute__ ((visibility ("hidden"))) void g ();

@@ -1,6 +1,5 @@
 /* Target Definitions for R8C/M16C/M32C
-   Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Red Hat.
 
    This file is part of GCC.
@@ -141,7 +140,6 @@ machine_function;
    matches "int".  Pointers are 16 bits for R8C/M16C (when TARGET_A16
    is true) and 24 bits for M32CM/M32C (when TARGET_A24 is true), but
    24-bit pointers are stored in 32-bit words.  */
-#define BITS_PER_UNIT 8
 #define UNITS_PER_WORD 2
 #define POINTER_SIZE (TARGET_A16 ? 16 : 32)
 #define POINTERS_EXTEND_UNSIGNED 1
@@ -405,15 +403,6 @@ enum reg_class
    A - addresses (currently unused)
 */
 
-#define CONSTRAINT_LEN(CHAR,STR) \
-	((CHAR) == 'I' ? 3 \
-	 : (CHAR) == 'R' ? 3 \
-	 : (CHAR) == 'S' ? 2 \
-	 : (CHAR) == 'A' ? 2 \
-	 : DEFAULT_CONSTRAINT_LEN(CHAR,STR))
-#define REG_CLASS_FROM_CONSTRAINT(CHAR,STR) \
-	(enum reg_class) m32c_reg_class_from_constraint (CHAR, STR)
-
 #define REGNO_OK_FOR_BASE_P(NUM) m32c_regno_ok_for_base_p (NUM)
 #define REGNO_OK_FOR_INDEX_P(NUM) 0
 
@@ -426,16 +415,6 @@ enum reg_class
 #define TARGET_SMALL_REGISTER_CLASSES_FOR_MODE_P hook_bool_mode_true
 
 #define CANNOT_CHANGE_MODE_CLASS(F,T,C) m32c_cannot_change_mode_class(F,T,C)
-
-#define CONST_OK_FOR_CONSTRAINT_P(VALUE,C,STR) \
-	m32c_const_ok_for_constraint_p (VALUE, C, STR)
-#define CONST_DOUBLE_OK_FOR_CONSTRAINT_P(VALUE,C,STR) 0
-#define EXTRA_CONSTRAINT_STR(VALUE,C,STR) \
-	m32c_extra_constraint_p (VALUE, C, STR)
-#define EXTRA_MEMORY_CONSTRAINT(C,STR) \
-	m32c_extra_memory_constraint (C, STR)
-#define EXTRA_ADDRESS_CONSTRAINT(C,STR) \
-	m32c_extra_address_constraint (C, STR)
 
 /* STACK AND CALLING */
 

@@ -1,6 +1,5 @@
 /* Perform optimizations on tree structure.
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004, 2005, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Written by Mark Michell (mark@codesourcery.com).
 
 This file is part of GCC.
@@ -24,6 +23,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "stringpool.h"
 #include "cp-tree.h"
 #include "input.h"
 #include "params.h"
@@ -34,8 +34,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "flags.h"
 #include "langhooks.h"
 #include "diagnostic-core.h"
-#include "tree-dump.h"
-#include "gimple.h"
+#include "dumpfile.h"
+#include "pointer-set.h"
 #include "tree-iterator.h"
 #include "cgraph.h"
 
@@ -128,7 +128,8 @@ build_delete_destructor_body (tree delete_dtor, tree complete_dtor)
 
   /* Call the corresponding complete destructor.  */
   gcc_assert (complete_dtor);
-  call_dtor = build_cxx_call (complete_dtor, 1, &parm);
+  call_dtor = build_cxx_call (complete_dtor, 1, &parm,
+			      tf_warning_or_error);
   add_stmt (call_dtor);
 
   add_stmt (build_stmt (0, LABEL_EXPR, cdtor_label));
@@ -138,7 +139,8 @@ build_delete_destructor_body (tree delete_dtor, tree complete_dtor)
                                       virtual_size,
                                       /*global_p=*/false,
                                       /*placement=*/NULL_TREE,
-                                      /*alloc_fn=*/NULL_TREE);
+                                      /*alloc_fn=*/NULL_TREE,
+				      tf_warning_or_error);
   add_stmt (call_delete);
 
   /* Return the address of the object.  */
@@ -191,30 +193,40 @@ cdtor_comdat_group (tree complete, tree base)
   return get_identifier (grp_name);
 }
 
-/* FN is a function that has a complete body.  Clone the body as
-   necessary.  Returns nonzero if there's no longer any need to
-   process the main body.  */
+/* Returns true iff we can make the base and complete [cd]tor aliases of
+   the same symbol rather than separate functions.  */
 
-bool
-maybe_clone_body (tree fn)
+static bool
+can_alias_cdtor (tree fn)
 {
-  tree comdat_group = NULL_TREE;
+#ifndef ASM_OUTPUT_DEF
+  /* If aliases aren't supported by the assembler, fail.  */
+  return false;
+#endif
+  /* We can't use an alias if there are virtual bases.  */
+  if (CLASSTYPE_VBASECLASSES (DECL_CONTEXT (fn)))
+    return false;
+  /* ??? Why not use aliases with -frepo?  */
+  if (flag_use_repository)
+    return false;
+  gcc_assert (DECL_MAYBE_IN_CHARGE_CONSTRUCTOR_P (fn)
+	      || DECL_MAYBE_IN_CHARGE_DESTRUCTOR_P (fn));
+  /* Don't use aliases for weak/linkonce definitions unless we can put both
+     symbols in the same COMDAT group.  */
+  return (DECL_INTERFACE_KNOWN (fn)
+	  && (SUPPORTS_ONE_ONLY || !DECL_WEAK (fn))
+	  && (!DECL_ONE_ONLY (fn)
+	      || (HAVE_COMDAT_GROUP && DECL_WEAK (fn))));
+}
+
+/* FN is a [cd]tor, fns is a pointer to an array of length 3.  Fill fns
+   with pointers to the base, complete, and deleting variants.  */
+
+static void
+populate_clone_array (tree fn, tree *fns)
+{
   tree clone;
-  tree fns[3];
-  bool first = true;
-  bool in_charge_parm_used;
-  int idx;
-  bool need_alias = false;
 
-  /* We only clone constructors and destructors.  */
-  if (!DECL_MAYBE_IN_CHARGE_CONSTRUCTOR_P (fn)
-      && !DECL_MAYBE_IN_CHARGE_DESTRUCTOR_P (fn))
-    return 0;
-
-  /* Emit the DWARF1 abstract instance.  */
-  (*debug_hooks->deferred_inline_function) (fn);
-
-  in_charge_parm_used = CLASSTYPE_VBASECLASSES (DECL_CONTEXT (fn)) != NULL;
   fns[0] = NULL_TREE;
   fns[1] = NULL_TREE;
   fns[2] = NULL_TREE;
@@ -232,6 +244,206 @@ maybe_clone_body (tree fn)
       fns[2] = clone;
     else
       gcc_unreachable ();
+}
+
+/* FN is a constructor or destructor, and there are FUNCTION_DECLs
+   cloned from it nearby.  Instead of cloning this body, leave it
+   alone and create tiny one-call bodies for the cloned
+   FUNCTION_DECLs.  These clones are sibcall candidates, and their
+   resulting code will be very thunk-esque.  */
+
+static bool
+maybe_thunk_body (tree fn, bool force)
+{
+  tree bind, block, call, clone, clone_result, fn_parm, fn_parm_typelist;
+  tree last_arg, modify, *args;
+  int parmno, vtt_parmno, max_parms;
+  tree fns[3];
+
+  if (!force && !flag_declone_ctor_dtor)
+    return 0;
+
+  /* If function accepts variable arguments, give up.  */
+  last_arg = tree_last (TYPE_ARG_TYPES (TREE_TYPE (fn)));
+  if (last_arg != void_list_node)
+    return 0;
+
+  /* If we got this far, we've decided to turn the clones into thunks.  */
+
+  /* We're going to generate code for fn, so it is no longer "abstract."
+     Also make the unified ctor/dtor private to either the translation unit
+     (for non-vague linkage ctors) or the COMDAT group (otherwise).  */
+
+  populate_clone_array (fn, fns);
+  DECL_ABSTRACT (fn) = false;
+  if (!DECL_WEAK (fn))
+    {
+      TREE_PUBLIC (fn) = false;
+      DECL_EXTERNAL (fn) = false;
+      DECL_INTERFACE_KNOWN (fn) = true;
+    }
+  else if (HAVE_COMDAT_GROUP)
+    {
+      tree comdat_group = cdtor_comdat_group (fns[1], fns[0]);
+      DECL_COMDAT_GROUP (fns[0]) = comdat_group;
+      symtab_add_to_same_comdat_group (cgraph_get_create_node (fns[1]),
+				       cgraph_get_create_node (fns[0]));
+      symtab_add_to_same_comdat_group (symtab_get_node (fn),
+				       symtab_get_node (fns[0]));
+      if (fns[2])
+	/* If *[CD][12]* dtors go into the *[CD]5* comdat group and dtor is
+	   virtual, it goes into the same comdat group as well.  */
+	symtab_add_to_same_comdat_group (cgraph_get_create_node (fns[2]),
+					 symtab_get_node (fns[0]));
+      TREE_PUBLIC (fn) = false;
+      DECL_EXTERNAL (fn) = false;
+      DECL_INTERFACE_KNOWN (fn) = true;
+      /* function_and_variable_visibility doesn't want !PUBLIC decls to
+	 have these flags set.  */
+      DECL_WEAK (fn) = false;
+      DECL_COMDAT (fn) = false;
+    }
+
+  /* Find the vtt_parm, if present.  */
+  for (vtt_parmno = -1, parmno = 0, fn_parm = DECL_ARGUMENTS (fn);
+       fn_parm;
+       ++parmno, fn_parm = TREE_CHAIN (fn_parm))
+    {
+      if (DECL_ARTIFICIAL (fn_parm)
+	  && DECL_NAME (fn_parm) == vtt_parm_identifier)
+	{
+	  /* Compensate for removed in_charge parameter.  */
+	  vtt_parmno = parmno;
+	  break;
+	}
+    }
+
+  /* Allocate an argument buffer for build_cxx_call().
+     Make sure it is large enough for any of the clones.  */
+  max_parms = 0;
+  FOR_EACH_CLONE (clone, fn)
+    {
+      int length = list_length (DECL_ARGUMENTS (fn));
+      if (length > max_parms)
+        max_parms = length;
+    }
+  args = (tree *) alloca (max_parms * sizeof (tree));
+
+  /* We know that any clones immediately follow FN in TYPE_METHODS.  */
+  FOR_EACH_CLONE (clone, fn)
+    {
+      tree clone_parm;
+
+      /* If we've already generated a body for this clone, avoid
+	 duplicating it.  (Is it possible for a clone-list to grow after we
+	 first see it?)  */
+      if (DECL_SAVED_TREE (clone) || TREE_ASM_WRITTEN (clone))
+	continue;
+
+      /* Start processing the function.  */
+      start_preparsed_function (clone, NULL_TREE, SF_PRE_PARSED);
+
+      if (clone == fns[2])
+	{
+	  for (clone_parm = DECL_ARGUMENTS (clone); clone_parm;
+	       clone_parm = TREE_CHAIN (clone_parm))
+	    DECL_ABSTRACT_ORIGIN (clone_parm) = NULL_TREE;
+	  /* Build the delete destructor by calling complete destructor and
+	     delete function.  */
+	  build_delete_destructor_body (clone, fns[1]);
+	}
+      else
+	{
+	  /* Walk parameter lists together, creating parameter list for
+	     call to original function.  */
+	  for (parmno = 0,
+		 fn_parm = DECL_ARGUMENTS (fn),
+		 fn_parm_typelist = TYPE_ARG_TYPES (TREE_TYPE (fn)),
+		 clone_parm = DECL_ARGUMENTS (clone);
+	       fn_parm;
+	       ++parmno,
+		 fn_parm = TREE_CHAIN (fn_parm))
+	    {
+	      if (parmno == vtt_parmno && ! DECL_HAS_VTT_PARM_P (clone))
+		{
+		  gcc_assert (fn_parm_typelist);
+		  /* Clobber argument with formal parameter type.  */
+		  args[parmno]
+		    = convert (TREE_VALUE (fn_parm_typelist),
+			       null_pointer_node);
+		}
+	      else if (parmno == 1 && DECL_HAS_IN_CHARGE_PARM_P (fn))
+		{
+		  tree in_charge
+		    = copy_node (in_charge_arg_for_name (DECL_NAME (clone)));
+		  args[parmno] = in_charge;
+		}
+	      /* Map other parameters to their equivalents in the cloned
+		 function.  */
+	      else
+		{
+		  gcc_assert (clone_parm);
+		  DECL_ABSTRACT_ORIGIN (clone_parm) = NULL;
+		  args[parmno] = clone_parm;
+		  clone_parm = TREE_CHAIN (clone_parm);
+		}
+	      if (fn_parm_typelist)
+		fn_parm_typelist = TREE_CHAIN (fn_parm_typelist);
+	    }
+
+	  /* We built this list backwards; fix now.  */
+	  mark_used (fn);
+	  call = build_cxx_call (fn, parmno, args, tf_warning_or_error);
+	  /* Arguments passed to the thunk by invisible reference should
+	     be transmitted to the callee unchanged.  Do not create a
+	     temporary and invoke the copy constructor.  The thunking
+	     transformation must not introduce any constructor calls.  */
+	  CALL_FROM_THUNK_P (call) = 1;
+	  block = make_node (BLOCK);
+	  if (targetm.cxx.cdtor_returns_this ())
+	    {
+	      clone_result = DECL_RESULT (clone);
+	      modify = build2 (MODIFY_EXPR, TREE_TYPE (clone_result),
+			       clone_result, call);
+	      modify = build1 (RETURN_EXPR, void_type_node, modify);
+	      add_stmt (modify);
+	    }
+	  else
+	    {
+	      add_stmt (call);
+	    }
+	  bind = c_build_bind_expr (DECL_SOURCE_LOCATION (clone),
+				    block, cur_stmt_list);
+	  DECL_SAVED_TREE (clone) = push_stmt_list ();
+	  add_stmt (bind);
+	}
+
+      DECL_ABSTRACT_ORIGIN (clone) = NULL;
+      expand_or_defer_fn (finish_function (0));
+    }
+  return 1;
+}
+
+/* FN is a function that has a complete body.  Clone the body as
+   necessary.  Returns nonzero if there's no longer any need to
+   process the main body.  */
+
+bool
+maybe_clone_body (tree fn)
+{
+  tree comdat_group = NULL_TREE;
+  tree clone;
+  tree fns[3];
+  bool first = true;
+  int idx;
+  bool need_alias = false;
+
+  /* We only clone constructors and destructors.  */
+  if (!DECL_MAYBE_IN_CHARGE_CONSTRUCTOR_P (fn)
+      && !DECL_MAYBE_IN_CHARGE_DESTRUCTOR_P (fn))
+    return 0;
+
+  populate_clone_array (fn, fns);
 
   /* Remember if we can't have multiple clones for some reason.  We need to
      check this before we remap local static initializers in clone_body.  */
@@ -245,9 +457,6 @@ maybe_clone_body (tree fn)
     {
       tree parm;
       tree clone_parm;
-      int parmno;
-      bool alias = false;
-      struct pointer_map_t *decl_map;
 
       clone = fns[idx];
       if (!clone)
@@ -294,26 +503,44 @@ maybe_clone_body (tree fn)
 	   parm = DECL_CHAIN (parm), clone_parm = DECL_CHAIN (clone_parm))
 	/* Update this parameter.  */
 	update_cloned_parm (parm, clone_parm, first);
+    }
+
+  bool can_alias = can_alias_cdtor (fn);
+
+  /* If we decide to turn clones into thunks, they will branch to fn.
+     Must have original function available to call.  */
+  if (!can_alias && maybe_thunk_body (fn, need_alias))
+    {
+      pop_from_top_level ();
+      /* We still need to emit the original function.  */
+      return 0;
+    }
+
+  /* Emit the DWARF1 abstract instance.  */
+  (*debug_hooks->deferred_inline_function) (fn);
+
+  /* We know that any clones immediately follow FN in the TYPE_METHODS list. */
+  for (idx = 0; idx < 3; idx++)
+    {
+      tree parm;
+      tree clone_parm;
+      int parmno;
+      struct pointer_map_t *decl_map;
+      bool alias = false;
+
+      clone = fns[idx];
+      if (!clone)
+	continue;
 
       /* Start processing the function.  */
       start_preparsed_function (clone, NULL_TREE, SF_PRE_PARSED);
 
       /* Tell cgraph if both ctors or both dtors are known to have
 	 the same body.  */
-      if (!in_charge_parm_used
+      if (can_alias
 	  && fns[0]
 	  && idx == 1
-	  && !flag_use_repository
-	  && DECL_INTERFACE_KNOWN (fns[0])
-	  && (SUPPORTS_ONE_ONLY || !DECL_WEAK (fns[0]))
-	  && (!DECL_ONE_ONLY (fns[0])
-	      || (HAVE_COMDAT_GROUP
-		  && DECL_WEAK (fns[0])))
-	  && !flag_syntax_only
-	  /* Set linkage flags appropriately before
-	     cgraph_create_function_alias looks at them.  */
-	  && expand_or_defer_fn_1 (clone)
-	  && cgraph_same_body_alias (cgraph_get_node (fns[0]),
+	  && cgraph_same_body_alias (cgraph_get_create_node (fns[0]),
 				     clone, fns[0]))
 	{
 	  alias = true;
@@ -324,8 +551,8 @@ maybe_clone_body (tree fn)
 		 *[CD][12]*.  */
 	      comdat_group = cdtor_comdat_group (fns[1], fns[0]);
 	      DECL_COMDAT_GROUP (fns[0]) = comdat_group;
-	      cgraph_add_to_same_comdat_group (cgraph_get_node (clone),
-					       cgraph_get_node (fns[0]));
+	      symtab_add_to_same_comdat_group (symtab_get_node (clone),
+					       symtab_get_node (fns[0]));
 	    }
 	}
 
@@ -337,8 +564,9 @@ maybe_clone_body (tree fn)
 	  /* If *[CD][12]* dtors go into the *[CD]5* comdat group and dtor is
 	     virtual, it goes into the same comdat group as well.  */
 	  if (comdat_group)
-	    cgraph_add_to_same_comdat_group (cgraph_get_create_node (clone),
-					     cgraph_get_node (fns[0]));
+	    symtab_add_to_same_comdat_group
+	       (cgraph_get_create_node (clone),
+	        symtab_get_node (fns[0]));
 	}
       else if (alias)
 	/* No need to populate body.  */ ;

@@ -1,6 +1,5 @@
 /* Definitions for PowerPC running FreeBSD using the ELF format
-   Copyright (C) 2001, 2003, 2007, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
    This file is part of GCC.
@@ -72,6 +71,8 @@
    -mrelocatable or -mrelocatable-lib is given.  */
 #undef RELOCATABLE_NEEDS_FIXUP
 #define RELOCATABLE_NEEDS_FIXUP \
-  (target_flags & target_flags_explicit & MASK_RELOCATABLE)
+  (rs6000_isa_flags & rs6000_isa_flags_explicit & OPTION_MASK_RELOCATABLE)
 
 #define DBX_REGISTER_NUMBER(REGNO) rs6000_dbx_register_number (REGNO)
+
+#define POWERPC_FREEBSD

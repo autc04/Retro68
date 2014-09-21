@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,6 +23,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Atree;    use Atree;
 with Err_Vars; use Err_Vars;
 with Opt;      use Opt;
 with Osint;    use Osint;
@@ -32,11 +33,12 @@ with Prj.Env;
 with Prj.Err;  use Prj.Err;
 with Prj.Ext;  use Prj.Ext;
 with Prj.Nmsc; use Prj.Nmsc;
-with Prj.Util;
 with Prj.Part;
+with Prj.Util;
 with Snames;
 
-with Ada.Strings.Fixed; use Ada.Strings.Fixed;
+with Ada.Containers.Vectors;
+with Ada.Strings.Fixed;      use Ada.Strings.Fixed;
 
 with GNAT.Case_Util; use GNAT.Case_Util;
 with GNAT.HTable;
@@ -151,7 +153,8 @@ package body Prj.Proc is
       From_Project_Node_Tree : Project_Node_Tree_Ref;
       Env                    : in out Prj.Tree.Environment;
       Extended_By            : Project_Id;
-      From_Encapsulated_Lib  : Boolean);
+      From_Encapsulated_Lib  : Boolean;
+      On_New_Tree_Loaded     : Tree_Loaded_Callback := null);
    --  Process project with node From_Project_Node in the tree. Do nothing if
    --  From_Project_Node is Empty_Node. If project has already been processed,
    --  simply return its project id. Otherwise create a new project id, mark it
@@ -166,6 +169,9 @@ package body Prj.Proc is
    --
    --  From_Encapsulated_Lib is true if we are parsing a project from
    --  encapsulated library dependencies.
+   --
+   --  If specified, On_New_Tree_Loaded is called after each aggregated project
+   --  has been processed succesfully.
 
    function Get_Attribute_Index
      (Tree  : Project_Node_Tree_Ref;
@@ -1358,7 +1364,8 @@ package body Prj.Proc is
       From_Project_Node      : Project_Node_Id;
       From_Project_Node_Tree : Project_Node_Tree_Ref;
       Env                    : in out Prj.Tree.Environment;
-      Reset_Tree             : Boolean := True)
+      Reset_Tree             : Boolean              := True;
+      On_New_Tree_Loaded     : Tree_Loaded_Callback := null)
    is
    begin
       Process_Project_Tree_Phase_1
@@ -1369,7 +1376,8 @@ package body Prj.Proc is
          From_Project_Node_Tree => From_Project_Node_Tree,
          Env                    => Env,
          Packages_To_Check      => Packages_To_Check,
-         Reset_Tree             => Reset_Tree);
+         Reset_Tree             => Reset_Tree,
+         On_New_Tree_Loaded     => On_New_Tree_Loaded);
 
       if Project_Qualifier_Of
            (From_Project_Node, From_Project_Node_Tree) /= Configuration
@@ -1588,7 +1596,7 @@ package body Prj.Proc is
                   Add_Attributes
                     (Project,
                      Project.Name,
-                     Name_Id (Project.Directory.Name),
+                     Name_Id (Project.Directory.Display_Name),
                      Shared,
                      Shared.Packages.Table (New_Pkg).Decl,
                      First_Attribute_Of
@@ -1967,7 +1975,8 @@ package body Prj.Proc is
                Add (Env.External,
                     External_Name => Get_Name_String (Index_Name),
                     Value         => Get_Name_String (New_Value.Value),
-                    Source        => From_External_Attribute);
+                    Source        => From_External_Attribute,
+                    Silent        => True);
             else
                if Current_Verbosity = High then
                   Debug_Output
@@ -2061,14 +2070,30 @@ package body Prj.Proc is
          if Is_Attribute and then Name = Snames.Name_Project_Path then
             if In_Tree.Is_Root_Tree then
                declare
-                  Val : String_List_Id := New_Value.Values;
+                  package Name_Ids is
+                    new Ada.Containers.Vectors (Positive, Name_Id);
+                  Val  : String_List_Id := New_Value.Values;
+                  List : Name_Ids.Vector;
                begin
+                  --  Get all values
+
                   while Val /= Nil_String loop
+                     List.Prepend
+                       (Shared.String_Elements.Table (Val).Value);
+                     Val := Shared.String_Elements.Table (Val).Next;
+                  end loop;
+
+                  --  Prepend them in the order found in the attribute
+
+                  for K in Positive range 1 .. Positive (List.Length) loop
                      Prj.Env.Add_Directories
                        (Child_Env.Project_Path,
-                        Get_Name_String
-                          (Shared.String_Elements.Table (Val).Value));
-                     Val := Shared.String_Elements.Table (Val).Next;
+                        Normalize_Pathname
+                          (Name      => Get_Name_String
+                             (List.Element (K)),
+                           Directory => Get_Name_String
+                             (Project.Directory.Display_Name)),
+                        Prepend => True);
                   end loop;
                end;
 
@@ -2338,7 +2363,8 @@ package body Prj.Proc is
       From_Project_Node      : Project_Node_Id;
       From_Project_Node_Tree : Project_Node_Tree_Ref;
       Env                    : in out Prj.Tree.Environment;
-      Reset_Tree             : Boolean := True)
+      Reset_Tree             : Boolean              := True;
+      On_New_Tree_Loaded     : Tree_Loaded_Callback := null)
    is
    begin
       if Reset_Tree then
@@ -2363,7 +2389,8 @@ package body Prj.Proc is
          From_Project_Node_Tree => From_Project_Node_Tree,
          Env                    => Env,
          Extended_By            => No_Project,
-         From_Encapsulated_Lib  => False);
+         From_Encapsulated_Lib  => False,
+         On_New_Tree_Loaded     => On_New_Tree_Loaded);
 
       Success :=
         Total_Errors_Detected = 0
@@ -2498,7 +2525,8 @@ package body Prj.Proc is
       From_Project_Node_Tree : Project_Node_Tree_Ref;
       Env                    : in out Prj.Tree.Environment;
       Extended_By            : Project_Id;
-      From_Encapsulated_Lib  : Boolean)
+      From_Encapsulated_Lib  : Boolean;
+      On_New_Tree_Loaded     : Tree_Loaded_Callback := null)
    is
       Shared : constant Shared_Project_Tree_Data_Access := In_Tree.Shared;
 
@@ -2558,7 +2586,8 @@ package body Prj.Proc is
                   From_Project_Node_Tree => From_Project_Node_Tree,
                   Env                    => Env,
                   Extended_By            => No_Project,
-                  From_Encapsulated_Lib  => From_Encapsulated_Lib);
+                  From_Encapsulated_Lib  => From_Encapsulated_Lib,
+                  On_New_Tree_Loaded     => On_New_Tree_Loaded);
 
                if Imported = null then
                   Project.Imported_Projects := new Project_List_Element'
@@ -2589,6 +2618,7 @@ package body Prj.Proc is
          Loaded_Project : Prj.Tree.Project_Node_Id;
          Success        : Boolean := True;
          Tree           : Project_Tree_Ref;
+         Node_Tree      : Project_Node_Tree_Ref;
 
       begin
          if Project.Qualifier not in Aggregate_Project then
@@ -2605,8 +2635,11 @@ package body Prj.Proc is
 
          List := Project.Aggregated_Projects;
          while Success and then List /= null loop
+            Node_Tree := new Project_Node_Tree_Data;
+            Initialize (Node_Tree);
+
             Prj.Part.Parse
-              (In_Tree           => From_Project_Node_Tree,
+              (In_Tree           => Node_Tree,
                Project           => Loaded_Project,
                Packages_To_Check => Packages_To_Check,
                Project_File_Name => Get_Name_String (List.Path),
@@ -2643,9 +2676,10 @@ package body Prj.Proc is
                      Packages_To_Check      => Packages_To_Check,
                      Success                => Success,
                      From_Project_Node      => Loaded_Project,
-                     From_Project_Node_Tree => From_Project_Node_Tree,
+                     From_Project_Node_Tree => Node_Tree,
                      Env                    => Child_Env,
-                     Reset_Tree             => False);
+                     Reset_Tree             => False,
+                     On_New_Tree_Loaded     => On_New_Tree_Loaded);
                else
                   --  use the same environment as the rest of the aggregated
                   --  projects, ie the one that was setup by the root aggregate
@@ -2655,9 +2689,15 @@ package body Prj.Proc is
                      Packages_To_Check      => Packages_To_Check,
                      Success                => Success,
                      From_Project_Node      => Loaded_Project,
-                     From_Project_Node_Tree => From_Project_Node_Tree,
+                     From_Project_Node_Tree => Node_Tree,
                      Env                    => Env,
-                     Reset_Tree             => False);
+                     Reset_Tree             => False,
+                     On_New_Tree_Loaded     => On_New_Tree_Loaded);
+               end if;
+
+               if On_New_Tree_Loaded /= null then
+                  On_New_Tree_Loaded
+                    (Node_Tree, Tree, Loaded_Project, List.Project);
                end if;
 
             else
@@ -2850,7 +2890,7 @@ package body Prj.Proc is
             Add_Attributes
               (Project,
                Name,
-               Name_Id (Project.Directory.Name),
+               Name_Id (Project.Directory.Display_Name),
                In_Tree.Shared,
                Project.Decl,
                Prj.Attr.Attribute_First,
@@ -2889,7 +2929,8 @@ package body Prj.Proc is
                From_Project_Node_Tree => From_Project_Node_Tree,
                Env                    => Env,
                Extended_By            => Project,
-               From_Encapsulated_Lib  => From_Encapsulated_Lib);
+               From_Encapsulated_Lib  => From_Encapsulated_Lib,
+               On_New_Tree_Loaded     => On_New_Tree_Loaded);
 
             Process_Declarative_Items
               (Project                => Project,
@@ -2908,7 +2949,7 @@ package body Prj.Proc is
 
             Process_Imported_Projects (Imported, Limited_With => True);
 
-            if Err_Vars.Total_Errors_Detected = 0 then
+            if Total_Errors_Detected = 0 then
                Process_Aggregated_Projects;
             end if;
 
@@ -2938,7 +2979,7 @@ package body Prj.Proc is
                   end loop;
                end if;
 
-               if Err_Vars.Total_Errors_Detected = 0 then
+               if Total_Errors_Detected = 0 then
 
                   --  For an aggregate library we add the aggregated projects
                   --  as imported ones. This is necessary to give visibility

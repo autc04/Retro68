@@ -5,6 +5,12 @@
    with pre-pushed arguments (e.g. SPARC).  */
 
 /* { dg-do run } */
+
+/* arm_hf_eabi: Variadic funcs use Base AAPCS.  Normal funcs use VFP variant.
+   avr: Variadic funcs don't pass arguments in registers, while normal funcs
+        do.  */
+/* { dg-skip-if "Variadic funcs use different argument passing from normal funcs" { arm_hf_eabi || { avr-*-* } } "*" "" } */
+/* { dg-skip-if "Variadic funcs have all args on stack. Normal funcs have args in registers." { nds32*-*-* } "*" "" } */
    
 
 #define INTEGER_ARG  5
@@ -14,6 +20,9 @@
    E, F and G are passed on stack.  So the size of the stack argument
    data is 20.  */
 #define STACK_ARGUMENTS_SIZE  20
+#elif defined __aarch64__ || defined __arc__ || defined __MMIX__
+/* No parameters on stack for bar.  */
+#define STACK_ARGUMENTS_SIZE 0
 #else
 #define STACK_ARGUMENTS_SIZE  64
 #endif

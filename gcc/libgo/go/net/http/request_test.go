@@ -5,6 +5,7 @@
 package http_test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -29,8 +30,8 @@ func TestQuery(t *testing.T) {
 }
 
 func TestPostQuery(t *testing.T) {
-	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x",
-		strings.NewReader("z=post&both=y"))
+	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&empty=not",
+		strings.NewReader("z=post&both=y&prio=2&empty="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 
 	if q := req.FormValue("q"); q != "foo" {
@@ -39,8 +40,23 @@ func TestPostQuery(t *testing.T) {
 	if z := req.FormValue("z"); z != "post" {
 		t.Errorf(`req.FormValue("z") = %q, want "post"`, z)
 	}
-	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"x", "y"}) {
-		t.Errorf(`req.FormValue("both") = %q, want ["x", "y"]`, both)
+	if bq, found := req.PostForm["q"]; found {
+		t.Errorf(`req.PostForm["q"] = %q, want no entry in map`, bq)
+	}
+	if bz := req.PostFormValue("z"); bz != "post" {
+		t.Errorf(`req.PostFormValue("z") = %q, want "post"`, bz)
+	}
+	if qs := req.Form["q"]; !reflect.DeepEqual(qs, []string{"foo", "bar"}) {
+		t.Errorf(`req.Form["q"] = %q, want ["foo", "bar"]`, qs)
+	}
+	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"y", "x"}) {
+		t.Errorf(`req.Form["both"] = %q, want ["y", "x"]`, both)
+	}
+	if prio := req.FormValue("prio"); prio != "2" {
+		t.Errorf(`req.FormValue("prio") = %q, want "2" (from body)`, prio)
+	}
+	if empty := req.FormValue("empty"); empty != "" {
+		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
 	}
 }
 
@@ -71,6 +87,23 @@ func TestParseFormUnknownContentType(t *testing.T) {
 			t.Errorf("test %d should have returned error", i)
 		case err != nil && !test.shouldError:
 			t.Errorf("test %d should not have returned error, got %v", i, err)
+		}
+	}
+}
+
+func TestParseFormInitializeOnError(t *testing.T) {
+	nilBody, _ := NewRequest("POST", "http://www.google.com/search?q=foo", nil)
+	tests := []*Request{
+		nilBody,
+		{Method: "GET", URL: nil},
+	}
+	for i, req := range tests {
+		err := req.ParseForm()
+		if req.Form == nil {
+			t.Errorf("%d. Form not initialized, error %v", i, err)
+		}
+		if req.PostForm == nil {
+			t.Errorf("%d. PostForm not initialized, error %v", i, err)
 		}
 	}
 }
@@ -128,7 +161,7 @@ func TestSetBasicAuth(t *testing.T) {
 }
 
 func TestMultipartRequest(t *testing.T) {
-	// Test that we can read the values and files of a 
+	// Test that we can read the values and files of a
 	// multipart request with FormValue and FormFile,
 	// and that ParseMultipartForm can be called multiple times.
 	req := newTestMultipartRequest(t)
@@ -177,10 +210,129 @@ func TestRequestMultipartCallOrder(t *testing.T) {
 	}
 }
 
+var readRequestErrorTests = []struct {
+	in  string
+	err error
+}{
+	{"GET / HTTP/1.1\r\nheader:foo\r\n\r\n", nil},
+	{"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF},
+	{"", io.EOF},
+}
+
+func TestReadRequestErrors(t *testing.T) {
+	for i, tt := range readRequestErrorTests {
+		_, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.in)))
+		if err != tt.err {
+			t.Errorf("%d. got error = %v; want %v", i, err, tt.err)
+		}
+	}
+}
+
+func TestNewRequestHost(t *testing.T) {
+	req, err := NewRequest("GET", "http://localhost:1234/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Host != "localhost:1234" {
+		t.Errorf("Host = %q; want localhost:1234", req.Host)
+	}
+}
+
+func TestNewRequestContentLength(t *testing.T) {
+	readByte := func(r io.Reader) io.Reader {
+		var b [1]byte
+		r.Read(b[:])
+		return r
+	}
+	tests := []struct {
+		r    io.Reader
+		want int64
+	}{
+		{bytes.NewReader([]byte("123")), 3},
+		{bytes.NewBuffer([]byte("1234")), 4},
+		{strings.NewReader("12345"), 5},
+		// Not detected:
+		{struct{ io.Reader }{strings.NewReader("xyz")}, 0},
+		{io.NewSectionReader(strings.NewReader("x"), 0, 6), 0},
+		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), 0},
+	}
+	for _, tt := range tests {
+		req, err := NewRequest("POST", "http://localhost/", tt.r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if req.ContentLength != tt.want {
+			t.Errorf("ContentLength(%T) = %d; want %d", tt.r, req.ContentLength, tt.want)
+		}
+	}
+}
+
+var parseHTTPVersionTests = []struct {
+	vers         string
+	major, minor int
+	ok           bool
+}{
+	{"HTTP/0.9", 0, 9, true},
+	{"HTTP/1.0", 1, 0, true},
+	{"HTTP/1.1", 1, 1, true},
+	{"HTTP/3.14", 3, 14, true},
+
+	{"HTTP", 0, 0, false},
+	{"HTTP/one.one", 0, 0, false},
+	{"HTTP/1.1/", 0, 0, false},
+	{"HTTP/-1,0", 0, 0, false},
+	{"HTTP/0,-1", 0, 0, false},
+	{"HTTP/", 0, 0, false},
+	{"HTTP/1,1", 0, 0, false},
+}
+
+func TestParseHTTPVersion(t *testing.T) {
+	for _, tt := range parseHTTPVersionTests {
+		major, minor, ok := ParseHTTPVersion(tt.vers)
+		if ok != tt.ok || major != tt.major || minor != tt.minor {
+			type version struct {
+				major, minor int
+				ok           bool
+			}
+			t.Errorf("failed to parse %q, expected: %#v, got %#v", tt.vers, version{tt.major, tt.minor, tt.ok}, version{major, minor, ok})
+		}
+	}
+}
+
+type logWrites struct {
+	t   *testing.T
+	dst *[]string
+}
+
+func (l logWrites) WriteByte(c byte) error {
+	l.t.Fatalf("unexpected WriteByte call")
+	return nil
+}
+
+func (l logWrites) Write(p []byte) (n int, err error) {
+	*l.dst = append(*l.dst, string(p))
+	return len(p), nil
+}
+
+func TestRequestWriteBufferedWriter(t *testing.T) {
+	got := []string{}
+	req, _ := NewRequest("GET", "http://foo.com/", nil)
+	req.Write(logWrites{t, &got})
+	want := []string{
+		"GET / HTTP/1.1\r\n",
+		"Host: foo.com\r\n",
+		"User-Agent: " + DefaultUserAgent + "\r\n",
+		"\r\n",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
-		t.Errorf("FormFile file = %q, want nil", f)
+		t.Errorf("FormFile file = %v, want nil", f)
 	}
 	if fh != nil {
 		t.Errorf("FormFile file header = %q, want nil", fh)
@@ -281,3 +433,81 @@ Content-Disposition: form-data; name="textb"
 ` + textbValue + `
 --MyBoundary--
 `
+
+func benchmarkReadRequest(b *testing.B, request string) {
+	request = request + "\n"                             // final \n
+	request = strings.Replace(request, "\n", "\r\n", -1) // expand \n to \r\n
+	b.SetBytes(int64(len(request)))
+	r := bufio.NewReader(&infiniteReader{buf: []byte(request)})
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := ReadRequest(r)
+		if err != nil {
+			b.Fatalf("failed to read request: %v", err)
+		}
+	}
+}
+
+// infiniteReader satisfies Read requests as if the contents of buf
+// loop indefinitely.
+type infiniteReader struct {
+	buf    []byte
+	offset int
+}
+
+func (r *infiniteReader) Read(b []byte) (int, error) {
+	n := copy(b, r.buf[r.offset:])
+	r.offset = (r.offset + n) % len(r.buf)
+	return n, nil
+}
+
+func BenchmarkReadRequestChrome(b *testing.B) {
+	// https://github.com/felixge/node-http-perf/blob/master/fixtures/get.http
+	benchmarkReadRequest(b, `GET / HTTP/1.1
+Host: localhost:8080
+Connection: keep-alive
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.52 Safari/537.17
+Accept-Encoding: gzip,deflate,sdch
+Accept-Language: en-US,en;q=0.8
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
+Cookie: __utma=1.1978842379.1323102373.1323102373.1323102373.1; EPi:NumberOfVisits=1,2012-02-28T13:42:18; CrmSession=5b707226b9563e1bc69084d07a107c98; plushContainerWidth=100%25; plushNoTopMenu=0; hudson_auto_refresh=false
+`)
+}
+
+func BenchmarkReadRequestCurl(b *testing.B) {
+	// curl http://localhost:8080/
+	benchmarkReadRequest(b, `GET / HTTP/1.1
+User-Agent: curl/7.27.0
+Host: localhost:8080
+Accept: */*
+`)
+}
+
+func BenchmarkReadRequestApachebench(b *testing.B) {
+	// ab -n 1 -c 1 http://localhost:8080/
+	benchmarkReadRequest(b, `GET / HTTP/1.0
+Host: localhost:8080
+User-Agent: ApacheBench/2.3
+Accept: */*
+`)
+}
+
+func BenchmarkReadRequestSiege(b *testing.B) {
+	// siege -r 1 -c 1 http://localhost:8080/
+	benchmarkReadRequest(b, `GET / HTTP/1.1
+Host: localhost:8080
+Accept: */*
+Accept-Encoding: gzip
+User-Agent: JoeDog/1.00 [en] (X11; I; Siege 2.70)
+Connection: keep-alive
+`)
+}
+
+func BenchmarkReadRequestWrk(b *testing.B) {
+	// wrk -t 1 -r 1 -c 1 http://localhost:8080/
+	benchmarkReadRequest(b, `GET / HTTP/1.1
+Host: localhost:8080
+`)
+}

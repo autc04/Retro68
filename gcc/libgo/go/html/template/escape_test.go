@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"text/template"
@@ -537,7 +538,7 @@ func TestEscape(t *testing.T) {
 		{
 			"typed HTML in script",
 			`<button onclick="alert({{.W}})">`,
-			`<button onclick="alert(&#34;&amp;iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
+			`<button onclick="alert(&#34;\u0026iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
 		},
 		{
 			"typed HTML in RCDATA",
@@ -548,11 +549,6 @@ func TestEscape(t *testing.T) {
 			"range in textarea",
 			"<textarea>{{range .A}}{{.}}{{end}}</textarea>",
 			"<textarea>&lt;a&gt;&lt;b&gt;</textarea>",
-		},
-		{
-			"auditable exemption from escaping",
-			"{{range .A}}{{. | noescape}}{{end}}",
-			"<a><b>",
 		},
 		{
 			"No tag injection",
@@ -658,13 +654,12 @@ func TestEscape(t *testing.T) {
 
 	for _, test := range tests {
 		tmpl := New(test.name)
-		// TODO: Move noescape into template/func.go
-		tmpl.Funcs(FuncMap{
-			"noescape": func(a ...interface{}) string {
-				return fmt.Sprint(a...)
-			},
-		})
 		tmpl = Must(tmpl.Parse(test.input))
+		// Check for bug 6459: Tree field was not set in Parse.
+		if tmpl.Tree != tmpl.text.Tree {
+			t.Errorf("%s: tree not set properly", test.name)
+			continue
+		}
 		b := new(bytes.Buffer)
 		if err := tmpl.Execute(b, data); err != nil {
 			t.Errorf("%s: template execution failed: %s", test.name, err)
@@ -681,6 +676,10 @@ func TestEscape(t *testing.T) {
 		}
 		if w, g := test.output, b.String(); w != g {
 			t.Errorf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
+			continue
+		}
+		if tmpl.Tree != tmpl.text.Tree {
+			t.Errorf("%s: tree mismatch", test.name)
 			continue
 		}
 	}
@@ -1538,6 +1537,11 @@ func TestEnsurePipelineContains(t *testing.T) {
 			".X | urlquery | html | print",
 			[]string{"urlquery", "html"},
 		},
+		{
+			"{{($).X | html | print}}",
+			"($).X | urlquery | html | print",
+			[]string{"urlquery", "html"},
+		},
 	}
 	for i, test := range tests {
 		tmpl := template.Must(template.New("test").Parse(test.input))
@@ -1634,6 +1638,14 @@ func TestIndirectPrint(t *testing.T) {
 		t.Errorf("Unexpected error: %s", err)
 	} else if buf.String() != "hello" {
 		t.Errorf(`Expected "hello"; got %q`, buf.String())
+	}
+}
+
+// This is a test for issue 3272.
+func TestEmptyTemplate(t *testing.T) {
+	page := Must(New("page").ParseFiles(os.DevNull))
+	if err := page.ExecuteTemplate(os.Stdout, "page", "nothing"); err == nil {
+		t.Fatal("expected error")
 	}
 }
 

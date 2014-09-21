@@ -1,5 +1,4 @@
-// Copyright (C) 2004, 2005, 2006, 2007, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,10 +17,10 @@
 
 // 27.6.1.2.2 arithmetic extractors
 
-// XXX This test fails on Solaris 8 and 9 because of a bug in libc
+// XXX This test fails on Solaris 9 because of a bug in libc
 // XXX sscanf for very long input.  See:
 // XXX http://gcc.gnu.org/ml/gcc/2002-12/msg01422.html
-// { dg-do run { xfail { { *-*-solaris2.[89] } || lax_strtofp } } }
+// { dg-do run { xfail { { *-*-solaris2.9 } || lax_strtofp } } }
 
 #include <istream>
 #include <sstream>

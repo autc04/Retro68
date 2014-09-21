@@ -1,5 +1,5 @@
 /* Supporting functions for C exception handling.
-   Copyright (C) 2002, 2003, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldy@quesejoda.com>.
    Shamelessly stolen from the Java front end.
 
@@ -93,6 +93,8 @@ parse_lsda_header (struct _Unwind_Context *context, const unsigned char *p,
 #ifdef __USING_SJLJ_EXCEPTIONS__
 #define PERSONALITY_FUNCTION    __gcc_personality_sj0
 #define __builtin_eh_return_data_regno(x) x
+#elif defined(__SEH__)
+#define PERSONALITY_FUNCTION	__gcc_personality_imp
 #else
 #define PERSONALITY_FUNCTION    __gcc_personality_v0
 #endif
@@ -107,6 +109,9 @@ PERSONALITY_FUNCTION (_Unwind_State state,
 		      struct _Unwind_Exception * ue_header,
 		      struct _Unwind_Context * context)
 #else
+#if defined (__SEH__) && !defined (__USING_SJLJ_EXCEPTIONS__)
+static
+#endif
 _Unwind_Reason_Code
 PERSONALITY_FUNCTION (int, _Unwind_Action, _Unwind_Exception_Class,
 		      struct _Unwind_Exception *, struct _Unwind_Context *);
@@ -227,3 +232,13 @@ PERSONALITY_FUNCTION (int version,
   _Unwind_SetIP (context, landing_pad);
   return _URC_INSTALL_CONTEXT;
 }
+
+#if defined (__SEH__) && !defined (__USING_SJLJ_EXCEPTIONS__)
+EXCEPTION_DISPOSITION
+__gcc_personality_seh0 (PEXCEPTION_RECORD ms_exc, void *this_frame,
+			PCONTEXT ms_orig_context, PDISPATCHER_CONTEXT ms_disp)
+{
+  return _GCC_specific_handler (ms_exc, this_frame, ms_orig_context,
+				ms_disp, __gcc_personality_imp);
+}
+#endif /* SEH */

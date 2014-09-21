@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,13 +23,16 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Aspects;  use Aspects;
 with Atree;    use Atree;
 with Checks;   use Checks;
+with Debug;    use Debug;
 with Einfo;    use Einfo;
 with Errout;   use Errout;
 with Exp_Ch9;  use Exp_Ch9;
 with Elists;   use Elists;
 with Freeze;   use Freeze;
+with Layout;   use Layout;
 with Lib.Xref; use Lib.Xref;
 with Namet;    use Namet;
 with Nlists;   use Nlists;
@@ -64,6 +67,33 @@ package body Sem_Ch9 is
    -- Local Subprograms --
    -----------------------
 
+   function Allows_Lock_Free_Implementation
+     (N               : Node_Id;
+      Lock_Free_Given : Boolean := False) return Boolean;
+   --  This routine returns True iff N satisfies the following list of lock-
+   --  free restrictions for protected type declaration and protected body:
+   --
+   --    1) Protected type declaration
+   --         May not contain entries
+   --         Protected subprogram declarations may not have non-elementary
+   --           parameters.
+   --
+   --    2) Protected Body
+   --         Each protected subprogram body within N must satisfy:
+   --            May reference only one protected component
+   --            May not reference non-constant entities outside the protected
+   --              subprogram scope.
+   --            May not contain address representation items, allocators and
+   --              quantified expressions.
+   --            May not contain delay, goto, loop and procedure call
+   --              statements.
+   --            May not contain exported and imported entities
+   --            May not dereference access values
+   --            Function calls and attribute references must be static
+   --
+   --  If Lock_Free_Given is True, an error message is issued when False is
+   --  returned.
+
    procedure Check_Max_Entries (D : Node_Id; R : All_Parameter_Restrictions);
    --  Given either a protected definition or a task definition in D, check
    --  the corresponding restriction parameter identifier R, and if it is set,
@@ -87,9 +117,579 @@ package body Sem_Ch9 is
    --  Find entity in corresponding task or protected declaration. Use full
    --  view if first declaration was for an incomplete type.
 
-   procedure Install_Declarations (Spec : Entity_Id);
-   --  Utility to make visible in corresponding body the entities defined in
-   --  task, protected type declaration, or entry declaration.
+   -------------------------------------
+   -- Allows_Lock_Free_Implementation --
+   -------------------------------------
+
+   function Allows_Lock_Free_Implementation
+     (N               : Node_Id;
+      Lock_Free_Given : Boolean := False) return Boolean
+   is
+      Errors_Count : Nat;
+      --  Errors_Count is a count of errors detected by the compiler so far
+      --  when Lock_Free_Given is True.
+
+   begin
+      pragma Assert (Nkind_In (N, N_Protected_Type_Declaration,
+                                  N_Protected_Body));
+
+      --  The lock-free implementation is currently enabled through a debug
+      --  flag. When Lock_Free_Given is True, an aspect Lock_Free forces the
+      --  lock-free implementation. In that case, the debug flag is not needed.
+
+      if not Lock_Free_Given and then not Debug_Flag_9 then
+         return False;
+      end if;
+
+      --  Get the number of errors detected by the compiler so far
+
+      if Lock_Free_Given then
+         Errors_Count := Serious_Errors_Detected;
+      end if;
+
+      --  Protected type declaration case
+
+      if Nkind (N) = N_Protected_Type_Declaration then
+         declare
+            Pdef       : constant Node_Id := Protected_Definition (N);
+            Priv_Decls : constant List_Id := Private_Declarations (Pdef);
+            Vis_Decls  : constant List_Id := Visible_Declarations (Pdef);
+            Decl       : Node_Id;
+
+         begin
+            --  Examine the visible and the private declarations
+
+            Decl := First (Vis_Decls);
+            while Present (Decl) loop
+
+               --  Entries and entry families are not allowed by the lock-free
+               --  restrictions.
+
+               if Nkind (Decl) = N_Entry_Declaration then
+                  if Lock_Free_Given then
+                     Error_Msg_N
+                       ("entry not allowed when Lock_Free given", Decl);
+                  else
+                     return False;
+                  end if;
+
+               --  Non-elementary parameters in protected procedure are not
+               --  allowed by the lock-free restrictions.
+
+               elsif Nkind (Decl) = N_Subprogram_Declaration
+                 and then
+                   Nkind (Specification (Decl)) = N_Procedure_Specification
+                 and then
+                   Present (Parameter_Specifications (Specification (Decl)))
+               then
+                  declare
+                     Par_Specs : constant List_Id   :=
+                                   Parameter_Specifications
+                                     (Specification (Decl));
+
+                     Par : Node_Id;
+
+                  begin
+                     Par := First (Par_Specs);
+                     while Present (Par) loop
+                        if not Is_Elementary_Type
+                                 (Etype (Defining_Identifier (Par)))
+                        then
+                           if Lock_Free_Given then
+                              Error_Msg_NE
+                                ("non-elementary parameter& not allowed "
+                                 & "when Lock_Free given",
+                                 Par, Defining_Identifier (Par));
+                           else
+                              return False;
+                           end if;
+                        end if;
+
+                        Next (Par);
+                     end loop;
+                  end;
+               end if;
+
+               --  Examine private declarations after visible declarations
+
+               if No (Next (Decl))
+                 and then List_Containing (Decl) = Vis_Decls
+               then
+                  Decl := First (Priv_Decls);
+               else
+                  Next (Decl);
+               end if;
+            end loop;
+         end;
+
+      --  Protected body case
+
+      else
+         Protected_Body_Case : declare
+            Decls         : constant List_Id   := Declarations (N);
+            Pid           : constant Entity_Id := Corresponding_Spec (N);
+            Prot_Typ_Decl : constant Node_Id   := Parent (Pid);
+            Prot_Def      : constant Node_Id   :=
+                              Protected_Definition (Prot_Typ_Decl);
+            Priv_Decls    : constant List_Id   :=
+                              Private_Declarations (Prot_Def);
+            Decl          : Node_Id;
+
+            function Satisfies_Lock_Free_Requirements
+              (Sub_Body : Node_Id) return Boolean;
+            --  Return True if protected subprogram body Sub_Body satisfies all
+            --  requirements of a lock-free implementation.
+
+            --------------------------------------
+            -- Satisfies_Lock_Free_Requirements --
+            --------------------------------------
+
+            function Satisfies_Lock_Free_Requirements
+              (Sub_Body : Node_Id) return Boolean
+            is
+               Is_Procedure : constant Boolean    :=
+                                Ekind (Corresponding_Spec (Sub_Body)) =
+                                  E_Procedure;
+               --  Indicates if Sub_Body is a procedure body
+
+               Comp : Entity_Id := Empty;
+               --  Track the current component which the body references
+
+               Errors_Count : Nat;
+               --  Errors_Count is a count of errors detected by the compiler
+               --  so far when Lock_Free_Given is True.
+
+               function Check_Node (N : Node_Id) return Traverse_Result;
+               --  Check that node N meets the lock free restrictions
+
+               ----------------
+               -- Check_Node --
+               ----------------
+
+               function Check_Node (N : Node_Id) return Traverse_Result is
+                  Kind : constant Node_Kind := Nkind (N);
+
+                  --  The following function belongs in sem_eval ???
+
+                  function Is_Static_Function (Attr : Node_Id) return Boolean;
+                  --  Given an attribute reference node Attr, return True if
+                  --  Attr denotes a static function according to the rules in
+                  --  (RM 4.9 (22)).
+
+                  ------------------------
+                  -- Is_Static_Function --
+                  ------------------------
+
+                  function Is_Static_Function
+                    (Attr : Node_Id) return Boolean
+                  is
+                     Para : Node_Id;
+
+                  begin
+                     pragma Assert (Nkind (Attr) = N_Attribute_Reference);
+
+                     case Attribute_Name (Attr) is
+                        when Name_Min             |
+                             Name_Max             |
+                             Name_Pred            |
+                             Name_Succ            |
+                             Name_Value           |
+                             Name_Wide_Value      |
+                             Name_Wide_Wide_Value =>
+
+                           --  A language-defined attribute denotes a static
+                           --  function if the prefix denotes a static scalar
+                           --  subtype, and if the parameter and result types
+                           --  are scalar (RM 4.9 (22)).
+
+                           if Is_Scalar_Type (Etype (Attr))
+                             and then Is_Scalar_Type (Etype (Prefix (Attr)))
+                             and then Is_Static_Subtype (Etype (Prefix (Attr)))
+                           then
+                              Para := First (Expressions (Attr));
+
+                              while Present (Para) loop
+                                 if not Is_Scalar_Type (Etype (Para)) then
+                                    return False;
+                                 end if;
+
+                                 Next (Para);
+                              end loop;
+
+                              return True;
+
+                           else
+                              return False;
+                           end if;
+
+                        when others => return False;
+                     end case;
+                  end Is_Static_Function;
+
+               --  Start of processing for Check_Node
+
+               begin
+                  if Is_Procedure then
+                     --  Allocators restricted
+
+                     if Kind = N_Allocator then
+                        if Lock_Free_Given then
+                           Error_Msg_N ("allocator not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Aspects Address, Export and Import restricted
+
+                     elsif Kind = N_Aspect_Specification then
+                        declare
+                           Asp_Name : constant Name_Id   :=
+                                        Chars (Identifier (N));
+                           Asp_Id   : constant Aspect_Id :=
+                                        Get_Aspect_Id (Asp_Name);
+
+                        begin
+                           if Asp_Id = Aspect_Address or else
+                              Asp_Id = Aspect_Export  or else
+                              Asp_Id = Aspect_Import
+                           then
+                              Error_Msg_Name_1 := Asp_Name;
+
+                              if Lock_Free_Given then
+                                 Error_Msg_N ("aspect% not allowed", N);
+                                 return Skip;
+                              end if;
+
+                              return Abandon;
+                           end if;
+                        end;
+
+                     --  Address attribute definition clause restricted
+
+                     elsif Kind = N_Attribute_Definition_Clause
+                       and then Get_Attribute_Id (Chars (N)) =
+                                  Attribute_Address
+                     then
+                        Error_Msg_Name_1 := Chars (N);
+
+                        if Lock_Free_Given then
+                           if From_Aspect_Specification (N) then
+                              Error_Msg_N ("aspect% not allowed", N);
+                           else
+                              Error_Msg_N ("% clause not allowed", N);
+                           end if;
+
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Non-static Attribute references that don't denote a
+                     --  static function restricted.
+
+                     elsif Kind = N_Attribute_Reference
+                       and then not Is_Static_Expression (N)
+                       and then not Is_Static_Function (N)
+                     then
+                        if Lock_Free_Given then
+                           Error_Msg_N
+                             ("non-static attribute reference not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Delay statements restricted
+
+                     elsif Kind in N_Delay_Statement then
+                        if Lock_Free_Given then
+                           Error_Msg_N ("delay not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Dereferences of access values restricted
+
+                     elsif Kind = N_Explicit_Dereference
+                       or else (Kind = N_Selected_Component
+                                 and then Is_Access_Type (Etype (Prefix (N))))
+                     then
+                        if Lock_Free_Given then
+                           Error_Msg_N
+                             ("dereference of access value not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Non-static function calls restricted
+
+                     elsif Kind = N_Function_Call
+                       and then not Is_Static_Expression (N)
+                     then
+                        if Lock_Free_Given then
+                           Error_Msg_N
+                             ("non-static function call not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Goto statements restricted
+
+                     elsif Kind = N_Goto_Statement then
+                        if Lock_Free_Given then
+                           Error_Msg_N ("goto statement not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  References
+
+                     elsif Kind = N_Identifier
+                       and then Present (Entity (N))
+                     then
+                        declare
+                           Id     : constant Entity_Id := Entity (N);
+                           Sub_Id : constant Entity_Id :=
+                                      Corresponding_Spec (Sub_Body);
+
+                        begin
+                           --  Prohibit references to non-constant entities
+                           --  outside the protected subprogram scope.
+
+                           if Ekind (Id) in Assignable_Kind
+                             and then not
+                               Scope_Within_Or_Same (Scope (Id), Sub_Id)
+                             and then not
+                               Scope_Within_Or_Same
+                                 (Scope (Id),
+                                  Protected_Body_Subprogram (Sub_Id))
+                           then
+                              if Lock_Free_Given then
+                                 Error_Msg_NE
+                                   ("reference to global variable& not " &
+                                    "allowed", N, Id);
+                                 return Skip;
+                              end if;
+
+                              return Abandon;
+                           end if;
+                        end;
+
+                     --  Loop statements restricted
+
+                     elsif Kind = N_Loop_Statement then
+                        if Lock_Free_Given then
+                           Error_Msg_N ("loop not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Pragmas Export and Import restricted
+
+                     elsif Kind = N_Pragma then
+                        declare
+                           Prag_Name : constant Name_Id   := Pragma_Name (N);
+                           Prag_Id   : constant Pragma_Id :=
+                                         Get_Pragma_Id (Prag_Name);
+
+                        begin
+                           if Prag_Id = Pragma_Export
+                             or else Prag_Id = Pragma_Import
+                           then
+                              Error_Msg_Name_1 := Prag_Name;
+
+                              if Lock_Free_Given then
+                                 if From_Aspect_Specification (N) then
+                                    Error_Msg_N ("aspect% not allowed", N);
+                                 else
+                                    Error_Msg_N ("pragma% not allowed", N);
+                                 end if;
+
+                                 return Skip;
+                              end if;
+
+                              return Abandon;
+                           end if;
+                        end;
+
+                     --  Procedure call statements restricted
+
+                     elsif Kind = N_Procedure_Call_Statement then
+                        if Lock_Free_Given then
+                           Error_Msg_N ("procedure call not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+
+                     --  Quantified expression restricted. Note that we have
+                     --  to check the original node as well, since at this
+                     --  stage, it may have been rewritten.
+
+                     elsif Kind = N_Quantified_Expression
+                       or else
+                         Nkind (Original_Node (N)) = N_Quantified_Expression
+                     then
+                        if Lock_Free_Given then
+                           Error_Msg_N
+                             ("quantified expression not allowed", N);
+                           return Skip;
+                        end if;
+
+                        return Abandon;
+                     end if;
+                  end if;
+
+                  --  A protected subprogram (function or procedure) may
+                  --  reference only one component of the protected type, plus
+                  --  the type of the component must support atomic operation.
+
+                  if Kind = N_Identifier
+                    and then Present (Entity (N))
+                  then
+                     declare
+                        Id        : constant Entity_Id := Entity (N);
+                        Comp_Decl : Node_Id;
+                        Comp_Id   : Entity_Id := Empty;
+                        Comp_Type : Entity_Id;
+
+                     begin
+                        if Ekind (Id) = E_Component then
+                           Comp_Id := Id;
+
+                        elsif Ekind_In (Id, E_Constant, E_Variable)
+                          and then Present (Prival_Link (Id))
+                        then
+                           Comp_Id := Prival_Link (Id);
+                        end if;
+
+                        if Present (Comp_Id) then
+                           Comp_Decl := Parent (Comp_Id);
+                           Comp_Type := Etype (Comp_Id);
+
+                           if Nkind (Comp_Decl) = N_Component_Declaration
+                             and then Is_List_Member (Comp_Decl)
+                             and then List_Containing (Comp_Decl) = Priv_Decls
+                           then
+                              --  Skip generic types since, in that case, we
+                              --  will not build a body anyway (in the generic
+                              --  template), and the size in the template may
+                              --  have a fake value.
+
+                              if not Is_Generic_Type (Comp_Type) then
+
+                                 --  Make sure the protected component type has
+                                 --  size and alignment fields set at this
+                                 --  point whenever this is possible.
+
+                                 Layout_Type (Comp_Type);
+
+                                 if not
+                                   Support_Atomic_Primitives (Comp_Type)
+                                 then
+                                    if Lock_Free_Given then
+                                       Error_Msg_NE
+                                         ("type of& must support atomic " &
+                                          "operations",
+                                          N, Comp_Id);
+                                       return Skip;
+                                    end if;
+
+                                    return Abandon;
+                                 end if;
+                              end if;
+
+                              --  Check if another protected component has
+                              --  already been accessed by the subprogram body.
+
+                              if No (Comp) then
+                                 Comp := Comp_Id;
+
+                              elsif Comp /= Comp_Id then
+                                 if Lock_Free_Given then
+                                    Error_Msg_N
+                                      ("only one protected component allowed",
+                                       N);
+                                    return Skip;
+                                 end if;
+
+                                 return Abandon;
+                              end if;
+                           end if;
+                        end if;
+                     end;
+                  end if;
+
+                  return OK;
+               end Check_Node;
+
+               function Check_All_Nodes is new Traverse_Func (Check_Node);
+
+            --  Start of processing for Satisfies_Lock_Free_Requirements
+
+            begin
+               --  Get the number of errors detected by the compiler so far
+
+               if Lock_Free_Given then
+                  Errors_Count := Serious_Errors_Detected;
+               end if;
+
+               if Check_All_Nodes (Sub_Body) = OK
+                 and then (not Lock_Free_Given
+                            or else Errors_Count = Serious_Errors_Detected)
+               then
+                  --  Establish a relation between the subprogram body and the
+                  --  unique protected component it references.
+
+                  if Present (Comp) then
+                     Lock_Free_Subprogram_Table.Append
+                       (Lock_Free_Subprogram'(Sub_Body, Comp));
+                  end if;
+
+                  return True;
+               else
+                  return False;
+               end if;
+            end Satisfies_Lock_Free_Requirements;
+
+         --  Start of processing for Protected_Body_Case
+
+         begin
+            Decl := First (Decls);
+            while Present (Decl) loop
+               if Nkind (Decl) = N_Subprogram_Body
+                 and then not Satisfies_Lock_Free_Requirements (Decl)
+               then
+                  if Lock_Free_Given then
+                     Error_Msg_N
+                       ("illegal body when Lock_Free given", Decl);
+                  else
+                     return False;
+                  end if;
+               end if;
+
+               Next (Decl);
+            end loop;
+         end Protected_Body_Case;
+      end if;
+
+      --  When Lock_Free is given, check if no error has been detected during
+      --  the process.
+
+      if Lock_Free_Given
+        and then Errors_Count /= Serious_Errors_Detected
+      then
+         return False;
+      end if;
+
+      return True;
+   end Allows_Lock_Free_Implementation;
 
    -----------------------------
    -- Analyze_Abort_Statement --
@@ -116,7 +716,7 @@ package body Sem_Ch9 is
          else
             if Ada_Version >= Ada_2005 then
                Error_Msg_N ("expect task name or task interface class-wide "
-                          & "object for ABORT", T_Name);
+                            & "object for ABORT", T_Name);
             else
                Error_Msg_N ("expect task name for ABORT", T_Name);
             end if;
@@ -462,9 +1062,9 @@ package body Sem_Ch9 is
         and then Nkind (First (Else_Statements (N))) in N_Delay_Statement
       then
          Error_Msg_N
-           ("suspicious form of conditional entry call?!", N);
+           ("suspicious form of conditional entry call??!", N);
          Error_Msg_N
-           ("\`SELECT OR` may be intended rather than `SELECT ELSE`!", N);
+           ("\`SELECT OR` may be intended rather than `SELECT ELSE`??!", N);
       end if;
 
       --  Postpone the analysis of the statements till expansion. Analyze only
@@ -726,7 +1326,7 @@ package body Sem_Ch9 is
       --  for the discriminals and privals and finally a declaration for the
       --  entry family index (if applicable).
 
-      if Full_Expander_Active
+      if Expander_Active
         and then Is_Protected_Type (P_Type)
       then
          Install_Private_Data_Declarations
@@ -745,9 +1345,10 @@ package body Sem_Ch9 is
       --  Check for unreferenced variables etc. Before the Check_References
       --  call, we transfer Never_Set_In_Source and Referenced flags from
       --  parameters in the spec to the corresponding entities in the body,
-      --  since we want the warnings on the body entities. Note that we do
-      --  not have to transfer Referenced_As_LHS, since that flag can only
-      --  be set for simple variables.
+      --  since we want the warnings on the body entities. Note that we do not
+      --  have to transfer Referenced_As_LHS, since that flag can only be set
+      --  for simple variables, but we include Has_Pragma_Unreferenced,
+      --  which may have been specified for a formal in the body.
 
       --  At the same time, we set the flags on the spec entities to suppress
       --  any warnings on the spec formals, since we also scan the spec.
@@ -782,6 +1383,7 @@ package body Sem_Ch9 is
 
             Set_Referenced (E2, Referenced (E1));
             Set_Referenced (E1);
+            Set_Has_Pragma_Unreferenced (E2, Has_Pragma_Unreferenced (E1));
             Set_Entry_Component (E2, Entry_Component (E1));
 
          <<Continue>>
@@ -867,6 +1469,15 @@ package body Sem_Ch9 is
       end if;
 
       Analyze (Call);
+
+      --  An indirect call in this context is illegal. A procedure call that
+      --  does not involve a renaming of an entry is illegal as well, but this
+      --  and other semantic errors are caught during resolution.
+
+      if Nkind (Call) = N_Explicit_Dereference then
+         Error_Msg_N
+           ("entry call or dispatching primitive of interface required ", N);
+      end if;
 
       if Is_Non_Empty_List (Statements (N)) then
          Analyze_Statements (Statements (N));
@@ -1071,10 +1682,73 @@ package body Sem_Ch9 is
       --  differs from Spec_Id in the case of a single protected object, since
       --  Spec_Id is set to the protected type in this case).
 
+      function Lock_Free_Disabled return Boolean;
+      --  This routine returns False if the protected object has a Lock_Free
+      --  aspect specification or a Lock_Free pragma that turns off the
+      --  lock-free implementation (e.g. whose expression is False).
+
+      ------------------------
+      -- Lock_Free_Disabled --
+      ------------------------
+
+      function Lock_Free_Disabled return Boolean is
+         Ritem : constant Node_Id :=
+                   Get_Rep_Item
+                     (Spec_Id, Name_Lock_Free, Check_Parents => False);
+
+      begin
+         if Present (Ritem) then
+
+            --  Pragma with one argument
+
+            if Nkind (Ritem) = N_Pragma
+              and then Present (Pragma_Argument_Associations (Ritem))
+            then
+               return
+                 Is_False
+                   (Static_Boolean
+                     (Expression
+                       (First (Pragma_Argument_Associations (Ritem)))));
+
+            --  Aspect Specification with expression present
+
+            elsif Nkind (Ritem) = N_Aspect_Specification
+              and then Present (Expression (Ritem))
+            then
+               return Is_False (Static_Boolean (Expression (Ritem)));
+
+            --  Otherwise, return False
+
+            else
+               return False;
+            end if;
+         end if;
+
+         return False;
+      end Lock_Free_Disabled;
+
+   --  Start of processing for Analyze_Protected_Body
+
    begin
       Tasking_Used := True;
       Set_Ekind (Body_Id, E_Protected_Body);
       Spec_Id := Find_Concurrent_Spec (Body_Id);
+
+      --  Protected bodies are currently removed by the expander. Since there
+      --  are no language-defined aspects that apply to a protected body, it is
+      --  not worth changing the whole expansion to accomodate implementation-
+      --  defined aspects. Plus we cannot possibly known the semantics of such
+      --  future implementation defined aspects in order to plan ahead.
+
+      if Has_Aspects (N) then
+         Error_Msg_N
+           ("aspects on protected bodies are not allowed",
+            First (Aspect_Specifications (N)));
+
+         --  Remove illegal aspects to prevent cascaded errors later on
+
+         Remove_Aspects (N);
+      end if;
 
       if Present (Spec_Id)
         and then Ekind (Spec_Id) = E_Protected_Type
@@ -1130,6 +1804,26 @@ package body Sem_Ch9 is
       Check_References (Spec_Id);
       Process_End_Label (N, 't', Ref_Id);
       End_Scope;
+
+      --  When a Lock_Free aspect specification/pragma forces the lock-free
+      --  implementation, verify the protected body meets all the restrictions,
+      --  otherwise Allows_Lock_Free_Implementation issues an error message.
+
+      if Uses_Lock_Free (Spec_Id) then
+         if not Allows_Lock_Free_Implementation (N, True) then
+            return;
+         end if;
+
+      --  In other cases, if there is no aspect specification/pragma that
+      --  disables the lock-free implementation, check both the protected
+      --  declaration and body satisfy the lock-free restrictions.
+
+      elsif not Lock_Free_Disabled
+        and then Allows_Lock_Free_Implementation (Parent (Spec_Id))
+        and then Allows_Lock_Free_Implementation (N)
+      then
+         Set_Uses_Lock_Free (Spec_Id);
+      end if;
    end Analyze_Protected_Body;
 
    ----------------------------------
@@ -1309,11 +2003,11 @@ package body Sem_Ch9 is
          if Error_Msg_Sloc = No_Location then
             Error_Msg_N
               ("objects of this type will violate " &
-               "`No_Local_Protected_Objects`?", N);
+               "`No_Local_Protected_Objects`??", N);
          else
             Error_Msg_N
               ("objects of this type will violate " &
-               "`No_Local_Protected_Objects`?#", N);
+               "`No_Local_Protected_Objects`#??", N);
          end if;
       end if;
 
@@ -1347,11 +2041,89 @@ package body Sem_Ch9 is
 
       End_Scope;
 
+      --  When a Lock_Free aspect forces the lock-free implementation, check N
+      --  meets all the lock-free restrictions. Otherwise, an error message is
+      --  issued by Allows_Lock_Free_Implementation.
+
+      if Uses_Lock_Free (Defining_Identifier (N)) then
+
+         --  Complain when there is an explicit aspect/pragma Priority (or
+         --  Interrupt_Priority) while the lock-free implementation is forced
+         --  by an aspect/pragma.
+
+         declare
+            Id : constant Entity_Id := Defining_Identifier (Original_Node (N));
+            --  The warning must be issued on the original identifier in order
+            --  to deal properly with the case of a single protected object.
+
+            Prio_Item : constant Node_Id :=
+                          Get_Rep_Item (Def_Id, Name_Priority, False);
+
+         begin
+            if Present (Prio_Item) then
+
+               --  Aspect case
+
+               if Nkind (Prio_Item) = N_Aspect_Specification
+                 or else From_Aspect_Specification (Prio_Item)
+               then
+                  Error_Msg_Name_1 := Chars (Identifier (Prio_Item));
+                  Error_Msg_NE ("aspect% for & has no effect when Lock_Free" &
+                                " given??", Prio_Item, Id);
+
+               --  Pragma case
+
+               else
+                  Error_Msg_Name_1 := Pragma_Name (Prio_Item);
+                  Error_Msg_NE ("pragma% for & has no effect when Lock_Free" &
+                                " given??", Prio_Item, Id);
+               end if;
+            end if;
+         end;
+
+         if not Allows_Lock_Free_Implementation (N, True) then
+            return;
+         end if;
+      end if;
+
+      --  If the Attach_Handler aspect is specified or the Interrupt_Handler
+      --  aspect is True, then the initial ceiling priority must be in the
+      --  range of System.Interrupt_Priority. It is therefore recommanded
+      --  to use the Interrupt_Priority aspect instead of the Priority aspect.
+
+      if Has_Interrupt_Handler (T) or else Has_Attach_Handler (T) then
+         declare
+            Prio_Item : constant Node_Id :=
+                          Get_Rep_Item (Def_Id, Name_Priority, False);
+
+         begin
+            if Present (Prio_Item) then
+
+               --  Aspect case
+
+               if (Nkind (Prio_Item) = N_Aspect_Specification
+                    or else From_Aspect_Specification (Prio_Item))
+                 and then Chars (Identifier (Prio_Item)) = Name_Priority
+               then
+                  Error_Msg_N ("aspect Interrupt_Priority is preferred "
+                               & "in presence of handlers??", Prio_Item);
+
+               --  Pragma case
+
+               elsif Nkind (Prio_Item) = N_Pragma
+                 and then Pragma_Name (Prio_Item) = Name_Priority
+               then
+                  Error_Msg_N ("pragma Interrupt_Priority is preferred "
+                               & "in presence of handlers??", Prio_Item);
+               end if;
+            end if;
+         end;
+      end if;
+
       --  Case of a completion of a private declaration
 
-      if T /= Def_Id
-        and then Is_Private_Type (Def_Id)
-      then
+      if T /= Def_Id and then Is_Private_Type (Def_Id) then
+
          --  Deal with preelaborable initialization. Note that this processing
          --  is done by Process_Full_View, but as can be seen below, in this
          --  case the call to Process_Full_View is skipped if any serious
@@ -1370,7 +2142,7 @@ package body Sem_Ch9 is
 
            --  Also skip if expander is not active
 
-           and then Full_Expander_Active
+           and then Expander_Active
          then
             Expand_N_Protected_Type_Declaration (N);
             Process_Full_View (N, T, Def_Id);
@@ -1599,9 +2371,7 @@ package body Sem_Ch9 is
             --  the first parameter of Entry_Id since it is the interface
             --  controlling formal.
 
-            if Ada_Version >= Ada_2012
-              and then Is_Disp_Req
-            then
+            if Ada_Version >= Ada_2012 and then Is_Disp_Req then
                declare
                   Enclosing_Formal : Entity_Id;
                   Target_Formal    : Entity_Id;
@@ -1662,6 +2432,18 @@ package body Sem_Ch9 is
                end loop;
             end;
          end if;
+      end if;
+
+      --  AI05-0225: the target protected object of a requeue must be a
+      --  variable. This is a binding interpretation that applies to all
+      --  versions of the language.
+
+      if Present (Target_Obj)
+        and then Ekind (Scope (Entry_Id)) in Protected_Kind
+        and then not Is_Variable (Target_Obj)
+      then
+         Error_Msg_N
+           ("target protected object of requeue must be a variable", N);
       end if;
    end Analyze_Requeue;
 
@@ -1750,7 +2532,7 @@ package body Sem_Ch9 is
                               if Entity (EDN1) = Ent then
                                  Error_Msg_Sloc := Sloc (Stm1);
                                  Error_Msg_N
-                                   ("?accept duplicates one on line#", Stm);
+                                   ("accept duplicates one on line#??", Stm);
                                  exit;
                               end if;
                            end if;
@@ -1933,13 +2715,29 @@ package body Sem_Ch9 is
       Ref_Id : Entity_Id;
       --  This is the entity of the task or task type, and is the entity used
       --  for cross-reference purposes (it differs from Spec_Id in the case of
-      --  a single task, since Spec_Id is set to the task type)
+      --  a single task, since Spec_Id is set to the task type).
 
    begin
       Tasking_Used := True;
       Set_Ekind (Body_Id, E_Task_Body);
       Set_Scope (Body_Id, Current_Scope);
       Spec_Id := Find_Concurrent_Spec (Body_Id);
+
+      --  Task bodies are transformed into a subprogram spec and body pair by
+      --  the expander. Since there are no language-defined aspects that apply
+      --  to a task body, it is not worth changing the whole expansion to
+      --  accomodate implementation-defined aspects. Plus we cannot possibly
+      --  know semantics of such aspects in order to plan ahead.
+
+      if Has_Aspects (N) then
+         Error_Msg_N
+           ("aspects on task bodies are not allowed",
+            First (Aspect_Specifications (N)));
+
+         --  Remove illegal aspects to prevent cascaded errors later on
+
+         Remove_Aspects (N);
+      end if;
 
       --  The spec is either a task type declaration, or a single task
       --  declaration for which we have created an anonymous type.
@@ -1965,7 +2763,6 @@ package body Sem_Ch9 is
       then
          if Nkind (Parent (Spec_Id)) = N_Task_Type_Declaration then
             Error_Msg_NE ("duplicate body for task type&", N, Spec_Id);
-
          else
             Error_Msg_NE ("duplicate body for task&", N, Spec_Id);
          end if;
@@ -2037,7 +2834,7 @@ package body Sem_Ch9 is
               and then not Entry_Accepted (Ent)
               and then Comes_From_Source (Ent)
             then
-               Error_Msg_NE ("no accept for entry &?", N, Ent);
+               Error_Msg_NE ("no accept for entry &??", N, Ent);
             end if;
 
             Next_Entity (Ent);
@@ -2161,10 +2958,10 @@ package body Sem_Ch9 is
 
          if Error_Msg_Sloc = No_Location then
             Error_Msg_N
-              ("objects of this type will violate `No_Task_Hierarchy`?", N);
+              ("objects of this type will violate `No_Task_Hierarchy`??", N);
          else
             Error_Msg_N
-              ("objects of this type will violate `No_Task_Hierarchy`?#", N);
+              ("objects of this type will violate `No_Task_Hierarchy`#??", N);
          end if;
       end if;
 
@@ -2193,7 +2990,7 @@ package body Sem_Ch9 is
 
            --  Also skip if expander is not active
 
-           and then Full_Expander_Active
+           and then Expander_Active
          then
             Expand_N_Task_Type_Declaration (N);
             Process_Full_View (N, T, Def_Id);
@@ -2291,8 +3088,9 @@ package body Sem_Ch9 is
            and then not Is_Controlling_Limited_Procedure
                           (Entity (Name (Trigger)))
          then
-            Error_Msg_N ("triggering statement must be delay, procedure " &
-                         "or entry call", Trigger);
+            Error_Msg_N
+              ("triggering statement must be procedure or entry call " &
+               "or delay statement", Trigger);
          end if;
       end if;
 
@@ -2578,6 +3376,11 @@ package body Sem_Ch9 is
                  ("dispatching operation of limited or synchronized " &
                   "interface required (RM 9.7.2(3))!", Error_Node);
             end if;
+
+         elsif Nkind (Trigger) = N_Explicit_Dereference then
+            Error_Msg_N
+              ("entry call or dispatching primitive of interface required ",
+                Trigger);
          end if;
       end if;
    end Check_Triggering_Statement;
@@ -2618,4 +3421,91 @@ package body Sem_Ch9 is
       end loop;
    end Install_Declarations;
 
+   ---------------------------
+   -- Install_Discriminants --
+   ---------------------------
+
+   procedure Install_Discriminants (E : Entity_Id) is
+      Disc : Entity_Id;
+      Prev : Entity_Id;
+   begin
+      Disc := First_Discriminant (E);
+      while Present (Disc) loop
+         Prev := Current_Entity (Disc);
+         Set_Current_Entity (Disc);
+         Set_Is_Immediately_Visible (Disc);
+         Set_Homonym (Disc, Prev);
+         Next_Discriminant (Disc);
+      end loop;
+   end Install_Discriminants;
+
+   ------------------------------------------
+   -- Push_Scope_And_Install_Discriminants --
+   ------------------------------------------
+
+   procedure Push_Scope_And_Install_Discriminants (E : Entity_Id) is
+   begin
+      if Has_Discriminants (E) then
+         Push_Scope (E);
+         Install_Discriminants (E);
+      end if;
+   end Push_Scope_And_Install_Discriminants;
+
+   -----------------------------
+   -- Uninstall_Discriminants --
+   -----------------------------
+
+   procedure Uninstall_Discriminants (E : Entity_Id) is
+      Disc  : Entity_Id;
+      Prev  : Entity_Id;
+      Outer : Entity_Id;
+
+   begin
+      Disc := First_Discriminant (E);
+      while Present (Disc) loop
+         if Disc /= Current_Entity (Disc) then
+            Prev := Current_Entity (Disc);
+            while Present (Prev)
+              and then Present (Homonym (Prev))
+              and then Homonym (Prev) /= Disc
+            loop
+               Prev := Homonym (Prev);
+            end loop;
+         else
+            Prev := Empty;
+         end if;
+
+         Set_Is_Immediately_Visible (Disc, False);
+
+         Outer := Homonym (Disc);
+         while Present (Outer) and then Scope (Outer) = E loop
+            Outer := Homonym (Outer);
+         end loop;
+
+         --  Reset homonym link of other entities, but do not modify link
+         --  between entities in current scope, so that the back-end can have
+         --  a proper count of local overloadings.
+
+         if No (Prev) then
+            Set_Name_Entity_Id (Chars (Disc), Outer);
+
+         elsif Scope (Prev) /= Scope (Disc) then
+            Set_Homonym (Prev,  Outer);
+         end if;
+
+         Next_Discriminant (Disc);
+      end loop;
+   end Uninstall_Discriminants;
+
+   -------------------------------------------
+   -- Uninstall_Discriminants_And_Pop_Scope --
+   -------------------------------------------
+
+   procedure Uninstall_Discriminants_And_Pop_Scope (E : Entity_Id) is
+   begin
+      if Has_Discriminants (E) then
+         Uninstall_Discriminants (E);
+         Pop_Scope;
+      end if;
+   end Uninstall_Discriminants_And_Pop_Scope;
 end Sem_Ch9;

@@ -1,6 +1,5 @@
 /* Common declarations for all of GNU Fortran libcaf implementations.
-   Copyright (C) 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Tobias Burnus <burnus@net-b.de>
 
 This file is part of the GNU Fortran Coarray Runtime Library (libcaf).
@@ -77,7 +76,10 @@ void _gfortran_caf_sync_images (int, int[], int *, char *, int);
 
 /* FIXME: The CRITICAL functions should be removed;
    the functionality is better represented using Coarray's lock feature.  */
+void _gfortran_caf_critical (void);
 void _gfortran_caf_critical (void)  { }
+
+void _gfortran_caf_end_critical (void);
 void _gfortran_caf_end_critical (void)  { }
 
 

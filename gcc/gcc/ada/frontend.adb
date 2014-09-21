@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,6 +36,7 @@ with Fname.UF;
 with Inline;   use Inline;
 with Lib;      use Lib;
 with Lib.Load; use Lib.Load;
+with Lib.Xref; use Lib.Xref;
 with Live;     use Live;
 with Namet;    use Namet;
 with Nlists;   use Nlists;
@@ -56,6 +57,7 @@ with Sem_Ch8;  use Sem_Ch8;
 with Sem_SCIL;
 with Sem_Elab; use Sem_Elab;
 with Sem_Prag; use Sem_Prag;
+with Sem_VFpt; use Sem_VFpt;
 with Sem_Warn; use Sem_Warn;
 with Sinfo;    use Sinfo;
 with Sinput;   use Sinput;
@@ -97,13 +99,6 @@ begin
    --  Create package Standard
 
    CStand.Create_Standard;
-
-   --  If the -gnatd.H flag is present, we are only interested in the Standard
-   --  package, so the frontend has done its job here.
-
-   if Debug_Flag_Dot_HH then
-      return;
-   end if;
 
    --  Check possible symbol definitions specified by -gnateD switches
 
@@ -181,6 +176,21 @@ begin
          Config_Pragmas := Empty_List;
       end if;
 
+      --  Check for VAX Float
+
+      if Targparm.VAX_Float_On_Target then
+
+         --  pragma Float_Representation (VAX_Float);
+
+         Opt.Float_Format := 'V';
+
+         --  pragma Long_Float (G_Float);
+
+         Opt.Float_Format_Long := 'G';
+
+         Set_Standard_Fpt_Formats;
+      end if;
+
       --  Now deal with specified config pragmas files if there are any
 
       if Opt.Config_File_Names /= null then
@@ -217,7 +227,7 @@ begin
          end loop;
       end if;
 
-      --  Restore style check, but if config file turned on checks, leave on!
+      --  Restore style check, but if config file turned on checks, leave on
 
       Opt.Style_Check := Save_Style_Check or Style_Check;
 
@@ -283,6 +293,12 @@ begin
 
    if Config_Pragmas /= Error_List
      and then Operating_Mode /= Check_Syntax
+
+     --  Do not attempt to process deferred configuration pragmas if the main
+     --  unit failed to load, to avoid cascaded inconsistencies that can lead
+     --  to a compiler crash.
+
+     and then not Fatal_Error (Main_Unit)
    then
       --  Pragmas that require some semantic activity, such as
       --  Interrupt_State, cannot be processed until the main unit
@@ -345,9 +361,11 @@ begin
 
          --  Cleanup processing after completing main analysis
 
+         --  Comment needed for ASIS mode test and GNATprove mode test???
+
          if Operating_Mode = Generate_Code
            or else (Operating_Mode = Check_Semantics
-                     and then ASIS_Mode)
+                     and then (ASIS_Mode or GNATprove_Mode))
          then
             Instantiate_Bodies;
          end if;
@@ -375,6 +393,7 @@ begin
 
          --  Output waiting warning messages
 
+         Lib.Xref.Process_Deferred_References;
          Sem_Warn.Output_Non_Modified_In_Out_Warnings;
          Sem_Warn.Output_Unreferenced_Messages;
          Sem_Warn.Check_Unused_Withs;

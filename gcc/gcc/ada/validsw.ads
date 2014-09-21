@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2001-2008, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -78,7 +78,7 @@ package Validsw is
 
    Validity_Check_In_Params : Boolean := False;
    --  Controls the validity checking of IN parameters. If this switch is
-   --  set to True using -gnatVm or an 'i' in the argument of a pragma
+   --  set to True using -gnatVi or an 'i' in the argument of a pragma
    --  Validity_Checks, then the initial value of all IN parameters
    --  will be checked at the point of call of a procedure or function.
 

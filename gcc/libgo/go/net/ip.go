@@ -7,10 +7,12 @@
 // IPv4 addresses are 4 bytes; IPv6 addresses are 16 bytes.
 // An IPv4 address can be converted to an IPv6 address by
 // adding a canonical prefix (10 zeros, 2 0xFFs).
-// This library accepts either size of byte array but always
+// This library accepts either size of byte slice but always
 // returns 16-byte addresses.
 
 package net
+
+import "errors"
 
 // IP address lengths (bytes).
 const (
@@ -18,14 +20,14 @@ const (
 	IPv6len = 16
 )
 
-// An IP is a single IP address, an array of bytes.
+// An IP is a single IP address, a slice of bytes.
 // Functions in this package accept either 4-byte (IPv4)
-// or 16-byte (IPv6) arrays as input.
+// or 16-byte (IPv6) slices as input.
 //
 // Note that in this documentation, referring to an
 // IP address as an IPv4 address or an IPv6 address
 // is a semantic property of the address, not just the
-// length of the byte array: a 16-byte array can still
+// length of the byte slice: a 16-byte slice can still
 // be an IPv4 address.
 type IP []byte
 
@@ -222,7 +224,6 @@ func (ip IP) DefaultMask() IPMask {
 	default:
 		return classCMask
 	}
-	return nil // not reached
 }
 
 func allFF(b []byte) bool {
@@ -309,6 +310,43 @@ func (ip IP) String() string {
 		s += itox((uint(p[i])<<8)|uint(p[i+1]), 1)
 	}
 	return s
+}
+
+// ipEmptyString is like ip.String except that it returns
+// an empty string when ip is unset.
+func ipEmptyString(ip IP) string {
+	if len(ip) == 0 {
+		return ""
+	}
+	return ip.String()
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+// The encoding is the same as returned by String.
+func (ip IP) MarshalText() ([]byte, error) {
+	if len(ip) == 0 {
+		return []byte(""), nil
+	}
+	if len(ip) != IPv4len && len(ip) != IPv6len {
+		return nil, errors.New("invalid IP address")
+	}
+	return []byte(ip.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+// The IP address is expected in a form accepted by ParseIP.
+func (ip *IP) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*ip = nil
+		return nil
+	}
+	s := string(text)
+	x := ParseIP(s)
+	if x == nil {
+		return &ParseError{"IP address", s}
+	}
+	*ip = x
+	return nil
 }
 
 // Equal returns true if ip and x are the same IP address.
@@ -432,6 +470,9 @@ func (n *IPNet) Contains(ip IP) bool {
 	return true
 }
 
+// Network returns the address's network name, "ip+net".
+func (n *IPNet) Network() string { return "ip+net" }
+
 // String returns the CIDR notation of n like "192.168.100.1/24"
 // or "2001:DB8::/48" as defined in RFC 4632 and RFC 4291.
 // If the mask is not in the canonical form, it returns the
@@ -449,9 +490,6 @@ func (n *IPNet) String() string {
 	}
 	return nn.String() + "/" + itod(uint(l))
 }
-
-// Network returns the address's network name, "ip+net".
-func (n *IPNet) Network() string { return "ip+net" }
 
 // Parse IPv4 address (d.d.d.d).
 func parseIPv4(s string) IP {
@@ -484,18 +522,18 @@ func parseIPv4(s string) IP {
 	return IPv4(p[0], p[1], p[2], p[3])
 }
 
-// Parse IPv6 address.  Many forms.
-// The basic form is a sequence of eight colon-separated
-// 16-bit hex numbers separated by colons,
-// as in 0123:4567:89ab:cdef:0123:4567:89ab:cdef.
-// Two exceptions:
-//	* A run of zeros can be replaced with "::".
-//	* The last 32 bits can be in IPv4 form.
-// Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
-func parseIPv6(s string) IP {
-	p := make(IP, IPv6len)
+// parseIPv6 parses s as a literal IPv6 address described in RFC 4291
+// and RFC 5952.  It can also parse a literal scoped IPv6 address with
+// zone identifier which is described in RFC 4007 when zoneAllowed is
+// true.
+func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+	ip = make(IP, IPv6len)
 	ellipsis := -1 // position of ellipsis in p
 	i := 0         // index in string s
+
+	if zoneAllowed {
+		s, zone = splitHostZone(s)
+	}
 
 	// Might have leading ellipsis
 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
@@ -503,7 +541,7 @@ func parseIPv6(s string) IP {
 		i = 2
 		// Might be only ellipsis
 		if i == len(s) {
-			return p
+			return ip, zone
 		}
 	}
 
@@ -513,35 +551,35 @@ func parseIPv6(s string) IP {
 		// Hex number.
 		n, i1, ok := xtoi(s, i)
 		if !ok || n > 0xFFFF {
-			return nil
+			return nil, zone
 		}
 
 		// If followed by dot, might be in trailing IPv4.
 		if i1 < len(s) && s[i1] == '.' {
 			if ellipsis < 0 && j != IPv6len-IPv4len {
 				// Not the right place.
-				return nil
+				return nil, zone
 			}
 			if j+IPv4len > IPv6len {
 				// Not enough room.
-				return nil
+				return nil, zone
 			}
-			p4 := parseIPv4(s[i:])
-			if p4 == nil {
-				return nil
+			ip4 := parseIPv4(s[i:])
+			if ip4 == nil {
+				return nil, zone
 			}
-			p[j] = p4[12]
-			p[j+1] = p4[13]
-			p[j+2] = p4[14]
-			p[j+3] = p4[15]
+			ip[j] = ip4[12]
+			ip[j+1] = ip4[13]
+			ip[j+2] = ip4[14]
+			ip[j+3] = ip4[15]
 			i = len(s)
 			j += IPv4len
 			break
 		}
 
 		// Save this 16-bit chunk.
-		p[j] = byte(n >> 8)
-		p[j+1] = byte(n)
+		ip[j] = byte(n >> 8)
+		ip[j+1] = byte(n)
 		j += 2
 
 		// Stop at end of string.
@@ -552,14 +590,14 @@ func parseIPv6(s string) IP {
 
 		// Otherwise must be followed by colon and more.
 		if s[i] != ':' || i+1 == len(s) {
-			return nil
+			return nil, zone
 		}
 		i++
 
 		// Look for ellipsis.
 		if s[i] == ':' {
 			if ellipsis >= 0 { // already have one
-				return nil
+				return nil, zone
 			}
 			ellipsis = j
 			if i++; i == len(s) { // can be at end
@@ -570,23 +608,23 @@ func parseIPv6(s string) IP {
 
 	// Must have used entire string.
 	if i != len(s) {
-		return nil
+		return nil, zone
 	}
 
 	// If didn't parse enough, expand ellipsis.
 	if j < IPv6len {
 		if ellipsis < 0 {
-			return nil
+			return nil, zone
 		}
 		n := IPv6len - j
 		for k := j - 1; k >= ellipsis; k-- {
-			p[k+n] = p[k]
+			ip[k+n] = ip[k]
 		}
 		for k := ellipsis + n - 1; k >= ellipsis; k-- {
-			p[k] = 0
+			ip[k] = 0
 		}
 	}
-	return p
+	return ip, zone
 }
 
 // A ParseError represents a malformed text string and the type of string that was expected.
@@ -599,26 +637,17 @@ func (e *ParseError) Error() string {
 	return "invalid " + e.Type + ": " + e.Text
 }
 
-func parseIP(s string) IP {
-	if p := parseIPv4(s); p != nil {
-		return p
-	}
-	if p := parseIPv6(s); p != nil {
-		return p
-	}
-	return nil
-}
-
 // ParseIP parses s as an IP address, returning the result.
 // The string s can be in dotted decimal ("74.125.19.99")
 // or IPv6 ("2001:4860:0:2001::68") form.
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {
-	if p := parseIPv4(s); p != nil {
-		return p
+	if ip := parseIPv4(s); ip != nil {
+		return ip
 	}
-	return parseIPv6(s)
+	ip, _ := parseIPv6(s, false)
+	return ip
 }
 
 // ParseCIDR parses s as a CIDR notation IP address and mask,
@@ -633,17 +662,17 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 	if i < 0 {
 		return nil, nil, &ParseError{"CIDR address", s}
 	}
-	ipstr, maskstr := s[:i], s[i+1:]
+	addr, mask := s[:i], s[i+1:]
 	iplen := IPv4len
-	ip := parseIPv4(ipstr)
+	ip := parseIPv4(addr)
 	if ip == nil {
 		iplen = IPv6len
-		ip = parseIPv6(ipstr)
+		ip, _ = parseIPv6(addr, false)
 	}
-	n, i, ok := dtoi(maskstr, 0)
-	if ip == nil || !ok || i != len(maskstr) || n < 0 || n > 8*iplen {
+	n, i, ok := dtoi(mask, 0)
+	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
 		return nil, nil, &ParseError{"CIDR address", s}
 	}
 	m := CIDRMask(n, 8*iplen)
-	return ip, &IPNet{ip.Mask(m), m}, nil
+	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
 }

@@ -1,10 +1,10 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check reordering of assignments.
+// Test reordering of assignments.
 
 package main
 
@@ -42,7 +42,7 @@ func check3(x, y, z, xx, yy, zz int) {
 }
 
 func p1() {
-	x := []int{1,2,3}
+	x := []int{1, 2, 3}
 	i := 0
 	i, x[i] = 1, 100
 	_ = i
@@ -50,7 +50,7 @@ func p1() {
 }
 
 func p2() {
-	x := []int{1,2,3}
+	x := []int{1, 2, 3}
 	i := 0
 	x[i], i = 100, 1
 	_ = i
@@ -58,7 +58,7 @@ func p2() {
 }
 
 func p3() {
-	x := []int{1,2,3}
+	x := []int{1, 2, 3}
 	y := x
 	gx = x
 	x[1], y[0] = f(0), f(1)
@@ -66,7 +66,7 @@ func p3() {
 }
 
 func p4() {
-	x := []int{1,2,3}
+	x := []int{1, 2, 3}
 	y := x
 	gx = x
 	x[1], y[0] = gx[0], gx[1]
@@ -74,7 +74,7 @@ func p4() {
 }
 
 func p5() {
-	x := []int{1,2,3}
+	x := []int{1, 2, 3}
 	y := x
 	p := &x[0]
 	q := &x[1]
@@ -89,7 +89,7 @@ func p6() {
 	px := &x
 	py := &y
 	*px, *py = y, x
-	check3(x, y, z, 2, 1, 3)	
+	check3(x, y, z, 2, 1, 3)
 }
 
 func f1(x, y, z int) (xx, yy, zz int) {
@@ -106,16 +106,9 @@ func p7() {
 }
 
 func p8() {
-	x := []int{1,2,3}
-
-	defer func() {
-		err := recover()
-		if err == nil {
-			panic("not panicking")
-		}
-		check(x, 100, 2, 3)
-	}()
-
-	i := 0
-	i, x[i], x[5] = 1, 100, 500
+	m := make(map[int]int)
+	m[0] = len(m)
+	if m[0] != 0 {
+		panic(m[0])
+	}
 }

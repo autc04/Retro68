@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd
 
 // Parse "zoneinfo" time zone file.
 // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
@@ -28,7 +28,19 @@ var zoneDirs = []string{
 	"/usr/share/zoneinfo/",
 	"/usr/share/lib/zoneinfo/",
 	"/usr/lib/locale/TZ/",
-	runtime.GOROOT() + "/lib/time/zoneinfo/",
+	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+}
+
+var origZoneDirs = zoneDirs
+
+func forceZipFileForTesting(zipOnly bool) {
+	zoneDirs = make([]string, len(origZoneDirs))
+	copy(zoneDirs, origZoneDirs)
+	if zipOnly {
+		for i := 0; i < len(zoneDirs)-1; i++ {
+			zoneDirs[i] = "/XXXNOEXIST"
+		}
+	}
 }
 
 func initLocal() {

@@ -90,9 +90,9 @@ __go_map_next_prime (uintptr_t n)
       /* Here LOW <= MID < HIGH.  */
 
       if (prime_list[mid] < n)
-	high = mid;
-      else if (prime_list[mid] > n)
 	low = mid + 1;
+      else if (prime_list[mid] > n)
+	high = mid;
       else
 	return n;
     }
@@ -106,10 +106,11 @@ __go_map_next_prime (uintptr_t n)
 struct __go_map *
 __go_new_map (const struct __go_map_descriptor *descriptor, uintptr_t entries)
 {
-  int ientries;
+  int32 ientries;
   struct __go_map *ret;
 
-  ientries = (int) entries;
+  /* The master library limits map entries to int32, so we do too.  */
+  ientries = (int32) entries;
   if (ientries < 0 || (uintptr_t) ientries != entries)
     runtime_panicstring ("map size out of range");
 

@@ -46,13 +46,16 @@ enum
   MAKE_MAP_OUT_OF_BOUNDS = 8,
 
   /* Channel capacity out of bounds in make: negative or overflow.  */
-  MAKE_CHAN_OUT_OF_BOUNDS = 9
+  MAKE_CHAN_OUT_OF_BOUNDS = 9,
+
+  /* Integer division by zero.  */
+  DIVISION_BY_ZERO = 10
 };
 
 extern void __go_runtime_error () __attribute__ ((noreturn));
 
 void
-__go_runtime_error (int i)
+__go_runtime_error (int32 i)
 {
   switch (i)
     {
@@ -77,6 +80,9 @@ __go_runtime_error (int i)
 
     case MAKE_CHAN_OUT_OF_BOUNDS:
       runtime_panicstring ("make chan len out of range");
+
+    case DIVISION_BY_ZERO:
+      runtime_panicstring ("integer divide by zero");
 
     default:
       runtime_panicstring ("unknown runtime error");

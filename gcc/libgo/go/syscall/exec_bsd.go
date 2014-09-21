@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd netbsd openbsd
+// +build darwin dragonfly freebsd netbsd openbsd
 
 package syscall
 
@@ -20,12 +20,17 @@ type SysProcAttr struct {
 	Noctty     bool        // Detach fd 0 from controlling terminal
 }
 
+// Implemented in runtime package.
+func runtime_BeforeFork()
+func runtime_AfterFork()
+
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
 // If a dup or exec fails, write the errno error to pipe.
 // (Pipe is close-on-exec so if exec succeeds, it will be closed.)
 // In the child, this function must not acquire any locks, because
 // they might have been locked at the time of the fork.  This means
 // no rescheduling, no malloc calls, and no new stack segments.
+// For the same reason compiler does not race instrument it.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
 func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
@@ -38,20 +43,31 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		i      int
 	)
 
+	// guard against side effects of shuffling fds below.
+	// Make sure that nextfd is beyond any currently open files so
+	// that we can't run the risk of overwriting any of them.
 	fd := make([]int, len(attr.Files))
+	nextfd = len(attr.Files)
 	for i, ufd := range attr.Files {
+		if nextfd < int(ufd) {
+			nextfd = int(ufd)
+		}
 		fd[i] = int(ufd)
 	}
+	nextfd++
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
+	runtime_BeforeFork()
 	r1, err1 = raw_fork()
 	if err1 != 0 {
+		runtime_AfterFork()
 		return 0, err1
 	}
 
 	if r1 != 0 {
 		// parent; return PID
+		runtime_AfterFork()
 		return int(r1), 0
 	}
 
@@ -136,7 +152,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
-	nextfd = int(len(fd))
 	if pipe < nextfd {
 		err1 = raw_dup2(pipe, nextfd)
 		if err1 != 0 {
@@ -217,9 +232,18 @@ childerror:
 	for {
 		raw_exit(253)
 	}
+}
 
-	// Calling panic is not actually safe,
-	// but the for loop above won't break
-	// and this shuts up the compiler.
-	panic("unreached")
+// Try to open a pipe with O_CLOEXEC set on both file descriptors.
+func forkExecPipe(p []int) error {
+	err := Pipe(p)
+	if err != nil {
+		return err
+	}
+	_, err = fcntl(p[0], F_SETFD, FD_CLOEXEC)
+	if err != nil {
+		return err
+	}
+	_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
+	return err
 }

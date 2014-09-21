@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -49,6 +49,7 @@ package body Ada.Characters.Handling is
    Hex_Digit  : constant Character_Flags := 16;
    Digit      : constant Character_Flags := 32;
    Special    : constant Character_Flags := 64;
+   Line_Term  : constant Character_Flags := 128;
 
    Letter     : constant Character_Flags := Lower or Upper;
    Alphanum   : constant Character_Flags := Letter or Digit;
@@ -66,10 +67,10 @@ package body Ada.Characters.Handling is
      BEL                         => Control,
      BS                          => Control,
      HT                          => Control,
-     LF                          => Control,
-     VT                          => Control,
-     FF                          => Control,
-     CR                          => Control,
+     LF                          => Control + Line_Term,
+     VT                          => Control + Line_Term,
+     FF                          => Control + Line_Term,
+     CR                          => Control + Line_Term,
      SO                          => Control,
      SI                          => Control,
 
@@ -141,7 +142,7 @@ package body Ada.Characters.Handling is
      BPH                         => Control,
      NBH                         => Control,
      Reserved_132                => Control,
-     NEL                         => Control,
+     NEL                         => Control + Line_Term,
      SSA                         => Control,
      ESA                         => Control,
      HTS                         => Control,
@@ -370,6 +371,15 @@ package body Ada.Characters.Handling is
       return (Char_Map (Item) and Letter) /= 0;
    end Is_Letter;
 
+   ------------------------
+   -- Is_Line_Terminator --
+   ------------------------
+
+   function Is_Line_Terminator (Item : Character) return Boolean is
+   begin
+      return (Char_Map (Item) and Line_Term) /= 0;
+   end Is_Line_Terminator;
+
    --------------
    -- Is_Lower --
    --------------
@@ -378,6 +388,43 @@ package body Ada.Characters.Handling is
    begin
       return (Char_Map (Item) and Lower) /= 0;
    end Is_Lower;
+
+   -------------
+   -- Is_Mark --
+   -------------
+
+   function Is_Mark (Item : Character) return Boolean is
+      pragma Unreferenced (Item);
+   begin
+      return False;
+   end Is_Mark;
+
+   ---------------------
+   -- Is_Other_Format --
+   ---------------------
+
+   function Is_Other_Format (Item : Character) return Boolean is
+   begin
+      return Item = Soft_Hyphen;
+   end Is_Other_Format;
+
+   ------------------------------
+   -- Is_Punctuation_Connector --
+   ------------------------------
+
+   function Is_Punctuation_Connector (Item : Character) return Boolean is
+   begin
+      return Item = '_';
+   end Is_Punctuation_Connector;
+
+   --------------
+   -- Is_Space --
+   --------------
+
+   function Is_Space (Item : Character) return Boolean is
+   begin
+      return Item = ' ' or else Item = No_Break_Space;
+   end Is_Space;
 
    ----------------
    -- Is_Special --
@@ -422,14 +469,12 @@ package body Ada.Characters.Handling is
    end To_Basic;
 
    function To_Basic (Item : String) return String is
-      Result : String (1 .. Item'Length);
-
    begin
-      for J in Item'Range loop
-         Result (J - (Item'First - 1)) := Value (Basic_Map, Item (J));
-      end loop;
-
-      return Result;
+      return Result : String (1 .. Item'Length) do
+         for J in Item'Range loop
+            Result (J - (Item'First - 1)) := Value (Basic_Map, Item (J));
+         end loop;
+      end return;
    end To_Basic;
 
    ------------------
@@ -485,14 +530,12 @@ package body Ada.Characters.Handling is
    end To_Lower;
 
    function To_Lower (Item : String) return String is
-      Result : String (1 .. Item'Length);
-
    begin
-      for J in Item'Range loop
-         Result (J - (Item'First - 1)) := Value (Lower_Case_Map, Item (J));
-      end loop;
-
-      return Result;
+      return Result : String (1 .. Item'Length) do
+         for J in Item'Range loop
+            Result (J - (Item'First - 1)) := Value (Lower_Case_Map, Item (J));
+         end loop;
+      end return;
    end To_Lower;
 
    ---------------
@@ -527,14 +570,12 @@ package body Ada.Characters.Handling is
    function To_Upper
      (Item : String) return String
    is
-      Result : String (1 .. Item'Length);
-
    begin
-      for J in Item'Range loop
-         Result (J - (Item'First - 1)) := Value (Upper_Case_Map, Item (J));
-      end loop;
-
-      return Result;
+      return Result : String (1 .. Item'Length) do
+         for J in Item'Range loop
+            Result (J - (Item'First - 1)) := Value (Upper_Case_Map, Item (J));
+         end loop;
+      end return;
    end To_Upper;
 
    -----------------------

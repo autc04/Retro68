@@ -21,7 +21,6 @@ func TestRequest(t *testing.T) {
 		"REQUEST_URI":     "/path?a=b",
 		"CONTENT_LENGTH":  "123",
 		"CONTENT_TYPE":    "text/xml",
-		"HTTPS":           "1",
 		"REMOTE_ADDR":     "5.6.7.8",
 	}
 	req, err := RequestFromMap(env)
@@ -58,11 +57,34 @@ func TestRequest(t *testing.T) {
 	if req.Trailer == nil {
 		t.Errorf("unexpected nil Trailer")
 	}
-	if req.TLS == nil {
-		t.Errorf("expected non-nil TLS")
+	if req.TLS != nil {
+		t.Errorf("expected nil TLS")
 	}
 	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
 		t.Errorf("RemoteAddr: got %q; want %q", g, e)
+	}
+}
+
+func TestRequestWithTLS(t *testing.T) {
+	env := map[string]string{
+		"SERVER_PROTOCOL": "HTTP/1.1",
+		"REQUEST_METHOD":  "GET",
+		"HTTP_HOST":       "example.com",
+		"HTTP_REFERER":    "elsewhere",
+		"REQUEST_URI":     "/path?a=b",
+		"CONTENT_TYPE":    "text/xml",
+		"HTTPS":           "1",
+		"REMOTE_ADDR":     "5.6.7.8",
+	}
+	req, err := RequestFromMap(env)
+	if err != nil {
+		t.Fatalf("RequestFromMap: %v", err)
+	}
+	if g, e := req.URL.String(), "https://example.com/path?a=b"; e != g {
+		t.Errorf("expected URL %q; got %q", e, g)
+	}
+	if req.TLS == nil {
+		t.Errorf("expected non-nil TLS")
 	}
 }
 
@@ -82,6 +104,28 @@ func TestRequestWithoutHost(t *testing.T) {
 		t.Fatalf("unexpected nil URL")
 	}
 	if g, e := req.URL.String(), "/path?a=b"; e != g {
-		t.Errorf("expected URL %q; got %q", e, g)
+		t.Errorf("URL = %q; want %q", g, e)
+	}
+}
+
+func TestRequestWithoutRequestURI(t *testing.T) {
+	env := map[string]string{
+		"SERVER_PROTOCOL": "HTTP/1.1",
+		"HTTP_HOST":       "example.com",
+		"REQUEST_METHOD":  "GET",
+		"SCRIPT_NAME":     "/dir/scriptname",
+		"PATH_INFO":       "/p1/p2",
+		"QUERY_STRING":    "a=1&b=2",
+		"CONTENT_LENGTH":  "123",
+	}
+	req, err := RequestFromMap(env)
+	if err != nil {
+		t.Fatalf("RequestFromMap: %v", err)
+	}
+	if req.URL == nil {
+		t.Fatalf("unexpected nil URL")
+	}
+	if g, e := req.URL.String(), "http://example.com/dir/scriptname/p1/p2?a=1&b=2"; e != g {
+		t.Errorf("URL = %q; want %q", g, e)
 	}
 }

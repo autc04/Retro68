@@ -1,7 +1,5 @@
 /* Compilation switch flag type definitions for GCC.
-   Copyright (C) 1987, 1988, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -106,6 +104,14 @@ enum symbol_visibility
 };
 #endif
 
+/* The stack reuse level.  */
+enum stack_reuse_level
+{
+  SR_NONE,
+  SR_NAMED_VARS,
+  SR_ALL
+};
+
 /* The algorithm used for the integrated register allocator (IRA).  */
 enum ira_algorithm
 {
@@ -131,13 +137,6 @@ enum excess_precision
   EXCESS_PRECISION_DEFAULT,
   EXCESS_PRECISION_FAST,
   EXCESS_PRECISION_STANDARD
-};
-
-/* Selection of the graph form.  */
-enum graph_dump_types
-{
-  no_graph = 0,
-  vcg
 };
 
 /* Type of stack check.  */
@@ -192,20 +191,42 @@ enum fp_contract_mode {
   FP_CONTRACT_FAST = 2
 };
 
-/* Vectorizer verbosity levels.  */
-enum vect_verbosity_levels {
-  REPORT_NONE,
-  REPORT_VECTORIZED_LOCATIONS,
-  REPORT_UNVECTORIZED_LOCATIONS,
-  REPORT_COST,
-  REPORT_ALIGNMENT,
-  REPORT_DR_DETAILS,
-  REPORT_BAD_FORM_LOOPS,
-  REPORT_OUTER_LOOPS,
-  REPORT_SLP,
-  REPORT_DETAILS,
-  /* New verbosity levels should be added before this one.  */
-  MAX_VERBOSITY_LEVEL
+/* Vectorizer cost-model.  */
+enum vect_cost_model {
+  VECT_COST_MODEL_UNLIMITED = 0,
+  VECT_COST_MODEL_CHEAP = 1,
+  VECT_COST_MODEL_DYNAMIC = 2,
+  VECT_COST_MODEL_DEFAULT = 3
 };
 
+
+/* Different instrumentation modes.  */
+enum sanitize_code {
+  /* AddressSanitizer.  */
+  SANITIZE_ADDRESS = 1 << 0,
+  /* ThreadSanitizer.  */
+  SANITIZE_THREAD = 1 << 1,
+  /* LeakSanitizer.  */
+  SANITIZE_LEAK = 1 << 2,
+  /* UndefinedBehaviorSanitizer.  */
+  SANITIZE_SHIFT = 1 << 3,
+  SANITIZE_DIVIDE = 1 << 4,
+  SANITIZE_UNREACHABLE = 1 << 5,
+  SANITIZE_VLA = 1 << 6,
+  SANITIZE_NULL = 1 << 7,
+  SANITIZE_RETURN = 1 << 8,
+  SANITIZE_SI_OVERFLOW = 1 << 9,
+  SANITIZE_BOOL = 1 << 10,
+  SANITIZE_ENUM = 1 << 11,
+  SANITIZE_UNDEFINED = SANITIZE_SHIFT | SANITIZE_DIVIDE | SANITIZE_UNREACHABLE
+		       | SANITIZE_VLA | SANITIZE_NULL | SANITIZE_RETURN
+		       | SANITIZE_SI_OVERFLOW | SANITIZE_BOOL | SANITIZE_ENUM
+};
+
+/* flag_vtable_verify initialization levels. */
+enum vtv_priority {
+  VTV_NO_PRIORITY       = 0,  /* i.E. Do NOT do vtable verification. */
+  VTV_STANDARD_PRIORITY = 1,
+  VTV_PREINIT_PRIORITY  = 2
+};
 #endif /* ! GCC_FLAG_TYPES_H */

@@ -1,6 +1,5 @@
 # Target Makefile Fragment for R8C/M16C/M32C
-# Copyright (C) 2005, 2006, 2007, 2008, 2009, 2011
-# Free Software Foundation, Inc.
+# Copyright (C) 2005-2014 Free Software Foundation, Inc.
 # Contributed by Red Hat.
 #
 # This file is part of GCC.
@@ -23,7 +22,7 @@
 
 md_file = md
 
-MD_FILES = m32c predicates addsub bitops blkmov cond jump minmax mov muldiv prologue shift
+MD_FILES = m32c constraints predicates addsub bitops blkmov cond jump minmax mov muldiv prologue shift
 
 # Doing it this way lets the gen* programs report the right line numbers.
 

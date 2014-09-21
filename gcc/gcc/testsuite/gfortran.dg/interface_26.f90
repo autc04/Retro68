@@ -23,7 +23,7 @@ PROGRAM test
   USE funcs 
   INTEGER :: rs
   INTEGER, PARAMETER :: a = 2, b = 1
-  rs = recSum( a, b, test1, sumInts ) ! { dg-error "Type/rank mismatch in argument" }
+  rs = recSum( a, b, test1, sumInts ) ! { dg-error "Type mismatch in argument" }
   write(*,*) "Results", rs
 CONTAINS
   RECURSIVE INTEGER FUNCTION recSum( a,b,UserFunction,UserOp ) RESULT( res )
@@ -37,12 +37,10 @@ CONTAINS
     END INTERFACE
     INTEGER, EXTERNAL :: UserOp 
 
-    res = UserFunction( a,b, UserOp ) ! { dg-error "Type/rank mismatch in return value" }
+    res = UserFunction( a,b, UserOp ) ! { dg-error "Type mismatch in function result" }
 
     if( res .lt. 10 ) then
        res = recSum( a, res, UserFunction, UserOp ) 
     end if
   END FUNCTION recSum
 END PROGRAM test
-
-! { dg-final { cleanup-modules "funcs" } }

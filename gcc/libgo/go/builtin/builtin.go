@@ -13,6 +13,12 @@ package builtin
 // bool is the set of boolean values, true and false.
 type bool bool
 
+// true and false are the two untyped boolean values.
+const (
+	true  = 0 == 0 // Untyped bool.
+	false = 0 != 0 // Untyped bool.
+)
+
 // uint8 is the set of all unsigned 8-bit integers.
 // Range: 0 through 255.
 type uint8 uint8
@@ -81,10 +87,18 @@ type uintptr uintptr
 // integer values.
 type byte byte
 
-// rune is an alias for int and is equivalent to int in all ways. It is
+// rune is an alias for int32 and is equivalent to int32 in all ways. It is
 // used, by convention, to distinguish character values from integer values.
-// In a future version of Go, it will change to an alias of int32.
 type rune rune
+
+// iota is a predeclared identifier representing the untyped integer ordinal
+// number of the current const specification in a (usually parenthesized)
+// const declaration. It is zero-indexed.
+const iota = 0 // Untyped int.
+
+// nil is a predeclared identifier representing the zero value for a
+// pointer, channel, func, interface, map, or slice type.
+var nil Type // Type must be a pointer, channel, func, interface, map, or slice type
 
 // Type is here for the purposes of documentation only. It is a stand-in
 // for any Go type, but represents the same type for any given function
@@ -115,6 +129,8 @@ type ComplexType complex64
 // result of append, often in the variable holding the slice itself:
 //	slice = append(slice, elem1, elem2)
 //	slice = append(slice, anotherSlice...)
+// As a special case, it is legal to append a string to a byte slice, like this:
+//	slice = append([]byte("hello "), "world"...)
 func append(slice []Type, elems ...Type) []Type
 
 // The copy built-in function copies elements from a source slice into a
@@ -125,8 +141,8 @@ func append(slice []Type, elems ...Type) []Type
 func copy(dst, src []Type) int
 
 // The delete built-in function deletes the element with the specified key
-// (m[key]) from the map. If there is no such element, delete is a no-op.
-// If m is nil, delete panics.
+// (m[key]) from the map. If m is nil or there is no such element, delete
+// is a no-op.
 func delete(m map[Type]Type1, key Type)
 
 // The len built-in function returns the length of v, according to its type:
@@ -219,6 +235,19 @@ func panic(v interface{})
 // nil. Thus the return value from recover reports whether the goroutine is
 // panicking.
 func recover() interface{}
+
+// The print built-in function formats its arguments in an implementation-
+// specific way and writes the result to standard error.
+// Print is useful for bootstrapping and debugging; it is not guaranteed
+// to stay in the language.
+func print(args ...Type)
+
+// The println built-in function formats its arguments in an implementation-
+// specific way and writes the result to standard error.
+// Spaces are always added between arguments and a newline is appended.
+// Println is useful for bootstrapping and debugging; it is not guaranteed
+// to stay in the language.
+func println(args ...Type)
 
 // The error built-in interface type is the conventional interface for
 // representing an error condition, with the nil value representing no error.

@@ -1,6 +1,6 @@
 // 2006-07-11  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2006, 2009 Free Software Foundation
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,6 +19,12 @@
 
 // 22.2.4.1.1 collate members
 
+// { dg-options "-DMAX_SIZE=1000000" { target simulator } }
+
+#ifndef MAX_SIZE
+#define MAX_SIZE 10000000
+#endif
+
 #include <locale>
 #include <testsuite_hooks.h>
 
@@ -36,7 +42,7 @@ void test01()
   // cache the collate facets
   const collate<char>& coll_c = use_facet<collate<char> >(loc_c); 
 
-  const string_type sstr(10000000, 'a');
+  const string_type sstr(MAX_SIZE, 'a');
 
   const string_type dstr = coll_c.transform(sstr.data(),
 					    sstr.data() + sstr.size());

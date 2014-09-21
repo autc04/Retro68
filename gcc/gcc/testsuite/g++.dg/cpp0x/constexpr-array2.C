@@ -1,5 +1,5 @@
 // PR c++/46348
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 
 template<__SIZE_TYPE__ _Nw>
   struct _Base

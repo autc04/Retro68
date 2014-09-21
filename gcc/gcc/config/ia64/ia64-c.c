@@ -1,6 +1,5 @@
 /* Definitions of C specific functions for GNU compiler.
-   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Contributed by Steve Ellcey <sje@cup.hp.com>
 
 This file is part of GCC.
@@ -24,6 +23,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "stringpool.h"
 #include "cpplib.h"
 #include "c-family/c-common.h"
 #include "c-family/c-pragma.h"

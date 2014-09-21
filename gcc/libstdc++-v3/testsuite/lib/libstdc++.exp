@@ -1,8 +1,6 @@
 # libstdc++ "tool init file" for DejaGNU
 
-# Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-# 2009, 2010, 2011
-# Free Software Foundation, Inc.
+# Copyright (C) 2001-2014 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,7 +84,7 @@ proc libstdc++_init { testfile } {
     global env
     global v3-sharedlib v3-libgomp
     global srcdir blddir objdir tool_root_dir
-    global cc cxx cxxflags cxxpchflags cxxldflags
+    global cc cxx cxxflags cxxpchflags cxxldflags cxxvtvflags
     global includes
     global gluefile wrap_flags
     global ld_library_path
@@ -159,11 +157,24 @@ proc libstdc++_init { testfile } {
     }
     v3track libgompdir 3
 
+    # Locate libvtv. This is only required for --enable-vtable-verify.
+    set v3-libvtv 0
+    set libvtvdir [lookfor_file $blddir/../libvtv .libs/libvtv.$shlib_ext]
+    if {$libvtvdir != ""} {
+	set v3-libvtv 1
+        set libvtvdir [file dirname $libvtvdir]
+	append ld_library_path_tmp ":${libvtvdir}"
+	verbose -log "libvtv support detected"
+    }
+    v3track libvtvdir 3
+
     # Locate libstdc++ shared library. (ie libstdc++.so.)
     set v3-sharedlib 0
     set sharedlibdir [lookfor_file $blddir src/.libs/libstdc++.$shlib_ext]
     if {$sharedlibdir != ""} {
-	if { [string match "*-*-linux*" $target_triplet] && [isnative] } {
+	if { ([string match "*-*-linux*" $target_triplet]
+	      || [string match "*-*-gnu*" $target_triplet])
+	     && [isnative] } then {
 	    set v3-sharedlib 1
 	    verbose -log "shared library support detected"
 	} 
@@ -181,7 +192,7 @@ proc libstdc++_init { testfile } {
 
     # Compute what needs to be added to the existing LD_LIBRARY_PATH.
     if {$gccdir != ""} {
-	set compiler ${gccdir}/g++
+	set compiler ${gccdir}/xg++
 	set ld_library_path ${ld_library_path_tmp}
 	append ld_library_path ":${blddir}/src/.libs"
 
@@ -212,8 +223,9 @@ proc libstdc++_init { testfile } {
 
     # Default settings.
     set cxx [transform "g++"]
-    set cxxflags "-g -O2 -D_GLIBCXX_ASSERT -fmessage-length=0"
+    set cxxflags "-D_GLIBCXX_ASSERT -fmessage-length=0"
     set cxxpchflags ""
+    set cxxvtvflags ""
     set cxxldflags ""
     set cc [transform "gcc"]
     # Locate testsuite_hooks.h and other testsuite headers.
@@ -261,6 +273,7 @@ proc libstdc++_init { testfile } {
 	set cxx [exec sh $flags_file --build-cxx]
 	set cxxflags [exec sh $flags_file --cxxflags]
 	set cxxpchflags [exec sh $flags_file --cxxpchflags]
+	set cxxvtvflags [exec sh $flags_file --cxxvtvflags]
 	set cxxldflags [exec sh $flags_file --cxxldflags]
 	set cc [exec sh $flags_file --build-cc]
 	set includes [exec sh $flags_file --build-includes]
@@ -270,7 +283,7 @@ proc libstdc++_init { testfile } {
     v3track cxxflags 2
 
     # Always use MO files built by this test harness.
-    set cxxflags "$cxxflags -DLOCALEDIR=\".\""
+    set cxxflags "-fdiagnostics-color=never $cxxflags -DLOCALEDIR=\".\""
     set ccflags "$cxxflags -DLOCALEDIR=\".\""
 
     # If a PCH file is available, use it.  We must delay performing
@@ -389,15 +402,22 @@ if { [info procs saved-dg-test] == [list] } {
     proc dg-test { args } {
 	global additional_prunes
 	global errorInfo
+	global testname_with_flags
 
 	if { [ catch { eval saved-dg-test $args } errmsg ] } {
 	    set saved_info $errorInfo
 	    set additional_prunes ""
+	    if [info exists testname_with_flags] {
+		unset testname_with_flags
+	    }
 	    unset_timeout_vars
 	    error $errmsg $saved_info
 	}
 	set additional_prunes ""
 	unset_timeout_vars
+	if [info exists testname_with_flags] {
+	    unset testname_with_flags
+	}
     }
 }
 
@@ -417,6 +437,7 @@ proc v3_target_compile { source dest type options } {
     global wrap_flags
     global cxx
     global cxxflags
+    global cxxvtvflags
     global cxxldflags
     global includes
     global STATIC_LIBCXXFLAGS
@@ -431,6 +452,7 @@ proc v3_target_compile { source dest type options } {
     set cxx_final [concat $cxx_final $cxxlibglossflags]
     set cxx_final [concat $cxx_final $STATIC_LIBCXXFLAGS]
     set cxx_final [concat $cxx_final $cxxflags]
+    set cxx_final [concat $cxx_final $cxxvtvflags]
     set cxx_final [concat $cxx_final $includes]
 
     # Flag setting based on type argument.
@@ -590,15 +612,6 @@ proc v3-build_support { } {
     }
 
     # Collect into libtestc++.a
-    # Delete libtestc++.a first.  Mixed 32 and 64-bit archives cannot be
-    # linked on IRIX 6.
-    # Use same procedure as gcc-dg.exp (remove-build-file).
-    if [is_remote host] {
-	# Ensure the host knows the file is gone by deleting there
-	# first.
-	remote_file host delete "./libtestc++.a"
-	}
-    remote_file build delete "./libtestc++.a"
     if  [info exists env(AR)] {
 	set ar $env(AR)
     } else {
@@ -630,7 +643,7 @@ proc v3-build_support { } {
 	    # Compile with "-w" so that warnings issued by the compiler
 	    # do not prevent compilation.
 	    if { [v3_target_compile $srcdir/util/$f $object_file "sharedlib" \
-	     [list "incdir=$srcdir" "additional_flags=-w -shared -fPIC -DPIC"]]
+	     [list "incdir=$srcdir" "additional_flags=-fno-inline -w -shared -fPIC -DPIC"]]
 		 != "" } {
 		error "could not compile $f"
 	    }
@@ -1361,41 +1374,43 @@ proc check_v3_target_gthreads_timed { } {
 }
 
 
-proc check_v3_target_nanosleep { } {
+proc check_v3_target_sleep { } {
     global cxxflags
     global DEFAULT_CXXFLAGS
-    global et_nanosleep
+    global et_sleep
 
     global tool
 
-    if { ![info exists et_nanosleep_target_name] } {
-        set et_nanosleep_target_name ""
+    if { ![info exists et_sleep_target_name] } {
+        set et_sleep_target_name ""
     }
 
     # If the target has changed since we set the cached value, clear it.
     set current_target [current_target_name]
-    if { $current_target != $et_nanosleep_target_name } {
-        verbose "check_v3_target_nanosleep: `$et_nanosleep_target_name'" 2
-        set et_nanosleep_target_name $current_target
-        if [info exists et_nanosleep] {
-            verbose "check_v3_target_nanosleep: removing cached result" 2
-            unset et_nanosleep
+    if { $current_target != $et_sleep_target_name } {
+        verbose "check_v3_target_sleep: `$et_sleep_target_name'" 2
+        set et_sleep_target_name $current_target
+        if [info exists et_sleep] {
+            verbose "check_v3_target_sleep: removing cached result" 2
+            unset et_sleep
         }
     }
 
-    if [info exists et_nanosleep] {
-        verbose "check_v3_target_nanosleep: using cached result" 2
+    if [info exists et_sleep] {
+        verbose "check_v3_target_sleep: using cached result" 2
     } else {
-        set et_nanosleep 0
+        set et_sleep 0
 	
-	# Set up and preprocess a C++0x test program that depends
-        # on the nanosleep facilities to be available.
-        set src nanosleep[pid].cc
+	# Set up and preprocess a C++11 test program that depends
+        # on the sleep facilities to be available.
+        set src sleep[pid].cc
 
         set f [open $src "w"]
         puts $f "#include <bits/c++config.h>"
         puts $f "#ifndef _GLIBCXX_USE_NANOSLEEP"
-        puts $f "#  error No nanosleep"
+        puts $f "# ifndef _GLIBCXX_HAVE_SLEEP"
+        puts $f "#  error No nanosleep or sleep"
+        puts $f "# endif"
         puts $f "#endif"
         close $f
 
@@ -1408,13 +1423,13 @@ proc check_v3_target_nanosleep { } {
 
         if [string match "" $lines] {
             # No error message, preprocessing succeeded.
-            set et_nanosleep 1
+            set et_sleep 1
         } else {
-            verbose "check_v3_target_nanosleep: compilation failed" 2
+            verbose "check_v3_target_sleep: compilation failed" 2
         }
     }
-    verbose "check_v3_target_nanosleep: $et_nanosleep" 2
-    return $et_nanosleep
+    verbose "check_v3_target_sleep: $et_sleep" 2
+    return $et_sleep
 }
 
 proc check_v3_target_sched_yield { } {
@@ -1702,5 +1717,100 @@ proc check_v3_target_nprocs { } {
     return $et_nprocs
 }
 
+proc check_v3_target_static_libstdcxx { } {
+    global cxxflags
+    global DEFAULT_CXXFLAGS
+    global et_static_libstdcxx
+
+    global tool
+
+    if [info exists et_static_libstdcxx] {
+	verbose "check_v3_target_static_libstdcxx: using cached result" 2
+    } else {
+	set et_static_libstdcxx 0
+
+	# Set up and link a C++0x test program that depends
+	# on static linking
+	set src static-maybe[pid].cc
+
+	set f [open $src "w"]
+        puts $f "#include <iostream>"
+	puts $f "int main() {"
+	puts $f "int i(415);"
+	puts $f "std::cout<< i << std::endl;"
+	puts $f "return 0; }"
+	puts $f ""
+	close $f
+
+	set cxxflags_saved $cxxflags
+	set cxxflags "$cxxflags $DEFAULT_CXXFLAGS -static-libstdc++"
+
+	set lines [v3_target_compile $src /dev/null executable ""]
+	set cxxflags $cxxflags_saved
+	file delete $src
+
+	if [string match "" $lines] {
+	    # No error message, link succeeded.
+	    set et_static_libstdcxx 1
+	} else {
+	    verbose "check_v3_target_static_libstdcxx: compilation failed" 2
+	}
+    }
+    verbose "check_v3_target_static_libstdcxx: $et_static_libstdcxx" 2
+    return $et_static_libstdcxx
+}
+
+proc check_v3_target_little_endian { } {
+    global cxxflags
+    global DEFAULT_CXXFLAGS
+    global et_little_endian
+
+    global tool
+
+    if { ![info exists et_little_endian_target_name] } {
+        set et_little_endian_target_name ""
+    }
+
+    # If the target has changed since we set the cached value, clear it.
+    set current_target [current_target_name]
+    if { $current_target != $et_little_endian_target_name } {
+        verbose "check_v3_target_little_endian: `$et_little_endian_target_name'" 2
+        set et_little_endian_target_name $current_target
+        if [info exists et_little_endian] {
+            verbose "check_v3_target_little_endian: removing cached result" 2
+            unset et_little_endian
+        }
+    }
+
+    if [info exists et_little_endian] {
+        verbose "check_v3_target_little_endian: using cached result" 2
+    } else {
+        set et_little_endian 0
+	
+        set src little_endian[pid].cc
+
+        set f [open $src "w"]
+        puts $f "#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__"
+        puts $f "#  error Not little endian"
+        puts $f "#endif"
+        close $f
+
+        set cxxflags_saved $cxxflags
+        set cxxflags "$cxxflags $DEFAULT_CXXFLAGS -Werror"
+
+        set lines [v3_target_compile $src /dev/null preprocess ""]
+        set cxxflags $cxxflags_saved
+        file delete $src
+
+        if [string match "" $lines] {
+            # No error message, preprocessing succeeded.
+            set et_little_endian 1
+        } else {
+            verbose "check_v3_target_little_endian: compilation failed" 2
+        }
+    }
+    verbose "check_v3_target_little_endian: $et_little_endian" 2
+    return $et_little_endian
+}
 
 set additional_prunes ""

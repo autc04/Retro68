@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -51,7 +51,7 @@ package body Back_End is
 
    flag_stack_check : Int;
    pragma Import (C, flag_stack_check);
-   --  Indicates if stack checking is enabled, imported from decl.c
+   --  Indicates if stack checking is enabled, imported from misc.c
 
    save_argc : Nat;
    pragma Import (C, save_argc);
@@ -76,6 +76,7 @@ package body Back_End is
 
       type File_Info_Type is record
          File_Name        : File_Name_Type;
+         Instance         : Instance_Id;
          Num_Source_Lines : Nat;
       end record;
 
@@ -86,6 +87,7 @@ package body Back_End is
          max_gnat_node                 : Int;
          number_name                   : Nat;
          nodes_ptr                     : Address;
+         flags_ptr                     : Address;
 
          next_node_ptr                 : Address;
          prev_node_ptr                 : Address;
@@ -119,6 +121,7 @@ package body Back_End is
 
       for J in 1 .. Last_Source_File loop
          File_Info_Array (J).File_Name        := Full_Debug_Name (J);
+         File_Info_Array (J).Instance         := Instance (J);
          File_Info_Array (J).Num_Source_Lines :=
            Nat (Physical_To_Logical (Last_Source_Line (J), J));
       end loop;
@@ -139,6 +142,7 @@ package body Back_End is
          max_gnat_node      => Int (Last_Node_Id - First_Node_Id + 1),
          number_name        => Name_Entries_Count,
          nodes_ptr          => Nodes_Address,
+         flags_ptr          => Flags_Address,
 
          next_node_ptr      => Next_Node_Address,
          prev_node_ptr      => Prev_Node_Address,
@@ -179,7 +183,6 @@ package body Back_End is
    -----------------------------
 
    procedure Scan_Compiler_Arguments is
-
       Next_Arg : Positive;
       --  Next argument to be scanned
 
@@ -219,23 +222,30 @@ package body Back_End is
          elsif Switch_Chars (First .. Last) = "quiet" then
             null;
 
-         --  Store any other GCC switches
+         --  Store any other GCC switches. Also do special processing for some
+         --  specific switches that the Ada front-end knows about.
 
          else
             Store_Compilation_Switch (Switch_Chars);
 
-            --  Special check, the back end switch -fno-inline also sets the
+            --  Back end switch -fno-inline also sets the Suppress_All_Inlining
             --  front end flag to entirely inhibit all inlining.
 
             if Switch_Chars (First .. Last) = "fno-inline" then
                Opt.Suppress_All_Inlining := True;
 
-            --  Another special check, the switch -fpreserve-control-flow
-            --  which is also a back end switch sets the front end flag
-            --  that inhibits improper control flow transformations.
+            --  Back end switch -fpreserve-control-flow also sets the front end
+            --  flag that inhibits improper control flow transformations.
 
             elsif Switch_Chars (First .. Last) = "fpreserve-control-flow" then
                Opt.Suppress_Control_Flow_Optimizations := True;
+
+            --  Back end switch -fdump-scos, which exists primarily for C, is
+            --  also accepted for Ada as a synonym of -gnateS.
+
+            elsif Switch_Chars (First .. Last) = "fdump-scos" then
+               Opt.Generate_SCO := True;
+               Opt.Generate_SCO_Instance_Table := True;
             end if;
          end if;
       end Scan_Back_End_Switches;
@@ -243,12 +253,15 @@ package body Back_End is
       --  Local variables
 
       Arg_Count : constant Natural := Natural (save_argc - 1);
-      Args : Argument_List (1 .. Arg_Count);
+      Args      : Argument_List (1 .. Arg_Count);
 
    --  Start of processing for Scan_Compiler_Arguments
 
    begin
-      --  Acquire stack checking mode directly from GCC
+      --  Acquire stack checking mode directly from GCC. The reason we do this
+      --  is to make sure that the indication of stack checking being enabled
+      --  is the same in the front end and the back end. This status obtained
+      --  from gcc is affected by more than just the switch -fstack-check.
 
       Opt.Stack_Checking_Enabled := (flag_stack_check /= 0);
 
@@ -270,19 +283,16 @@ package body Back_End is
       Next_Arg := 1;
       while Next_Arg <= Args'Last loop
          Look_At_Arg : declare
-            Argv     : constant String := Args (Next_Arg).all;
+            Argv : constant String := Args (Next_Arg).all;
 
          begin
             --  If the previous switch has set the Output_File_Name_Present
             --  flag (that is we have seen a -gnatO), then the next argument
             --  is the name of the output object file.
 
-            if Output_File_Name_Present
-              and then not Output_File_Name_Seen
-            then
+            if Output_File_Name_Present and then not Output_File_Name_Seen then
                if Is_Switch (Argv) then
                   Fail ("Object file name missing after -gnatO");
-
                else
                   Set_Output_Object_File_Name (Argv);
                   Output_File_Name_Seen := True;
@@ -300,7 +310,9 @@ package body Back_End is
                   Search_Directory_Present := False;
                end if;
 
-            elsif not Is_Switch (Argv) then -- must be a file name
+            --  If not a switch, must be a file name
+
+            elsif not Is_Switch (Argv) then
                Add_File (Argv);
 
             --  We must recognize -nostdinc to suppress visibility on the
@@ -329,18 +341,6 @@ package body Back_End is
          Next_Arg := Next_Arg + 1;
       end loop;
    end Scan_Compiler_Arguments;
-
-   -----------------------------
-   -- Register_Back_End_Types --
-   -----------------------------
-
-   procedure Register_Back_End_Types (Call_Back : Register_Type_Proc) is
-      procedure Enumerate_Modes (Call_Back : Register_Type_Proc);
-      pragma Import (C, Enumerate_Modes, "enumerate_modes");
-
-   begin
-      Enumerate_Modes (Call_Back);
-   end Register_Back_End_Types;
 
    -------------------------------
    -- Gen_Or_Update_Object_File --

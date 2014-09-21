@@ -58,7 +58,8 @@ am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
 	$(top_srcdir)/../lt~obsolete.m4 $(top_srcdir)/crossconfig.m4 \
 	$(top_srcdir)/linkage.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/../config/gc++filt.m4 \
-	$(top_srcdir)/../config/tls.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/../config/tls.m4 $(top_srcdir)/../config/gthr.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 CONFIG_HEADER = $(top_builddir)/config.h
@@ -76,23 +77,19 @@ am__objects_1 = atomicity.lo codecvt_members.lo collate_members.lo \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	misc-inst.lo ostream-inst.lo \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	sstream-inst.lo streambuf-inst.lo \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	wlocale-inst.lo
-@GLIBCXX_LDBL_COMPAT_TRUE@am__objects_3 = compatibility-ldbl.lo
-@ENABLE_PARALLEL_TRUE@am__objects_4 = parallel_settings.lo \
-@ENABLE_PARALLEL_TRUE@	compatibility-parallel_list.lo \
-@ENABLE_PARALLEL_TRUE@	compatibility-parallel_list-2.lo
-am__objects_5 = basic_file.lo c++locale.lo $(am__objects_2) \
-	$(am__objects_3) $(am__objects_4)
-am__objects_6 = bitmap_allocator.lo pool_allocator.lo mt_allocator.lo \
-	codecvt.lo compatibility.lo compatibility-debug_list.lo \
-	compatibility-debug_list-2.lo compatibility-list.lo \
-	compatibility-list-2.lo complex_io.lo ctype.lo globals_io.lo \
-	hash_tr1.lo hashtable_tr1.lo ios.lo ios_failure.lo ios_init.lo \
-	ios_locale.lo list.lo locale.lo locale_init.lo \
-	locale_facets.lo localename.lo math_stubs_float.lo \
-	math_stubs_long_double.lo stdexcept.lo strstream.lo tree.lo \
-	istream.lo streambuf.lo valarray.lo $(am__objects_1) \
-	$(am__objects_5)
-am_libc__98convenience_la_OBJECTS = $(am__objects_6)
+am__objects_3 = parallel_settings.lo
+am__objects_4 = basic_file.lo c++locale.lo $(am__objects_2) \
+	$(am__objects_3)
+am__objects_5 = bitmap_allocator.lo pool_allocator.lo mt_allocator.lo \
+	codecvt.lo complex_io.lo ctype.lo globals_io.lo hash_tr1.lo \
+	hashtable_tr1.lo ios.lo ios_failure.lo ios_init.lo \
+	ios_locale.lo list.lo list-aux.lo list-aux-2.lo \
+	list_associated.lo list_associated-2.lo locale.lo \
+	locale_init.lo locale_facets.lo localename.lo \
+	math_stubs_float.lo math_stubs_long_double.lo stdexcept.lo \
+	strstream.lo tree.lo istream.lo streambuf.lo valarray.lo \
+	$(am__objects_1) $(am__objects_4)
+am_libc__98convenience_la_OBJECTS = $(am__objects_5)
 libc__98convenience_la_OBJECTS = $(am_libc__98convenience_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp =
@@ -134,6 +131,8 @@ CNUMERIC_CC = @CNUMERIC_CC@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPU_DEFINES_SRCDIR = @CPU_DEFINES_SRCDIR@
+CPU_OPT_BITS_RANDOM = @CPU_OPT_BITS_RANDOM@
+CPU_OPT_EXT_RANDOM = @CPU_OPT_EXT_RANDOM@
 CSTDIO_H = @CSTDIO_H@
 CTIME_CC = @CTIME_CC@
 CTIME_H = @CTIME_H@
@@ -161,6 +160,7 @@ FGREP = @FGREP@
 GLIBCXX_INCLUDES = @GLIBCXX_INCLUDES@
 GLIBCXX_LIBS = @GLIBCXX_LIBS@
 GREP = @GREP@
+HWCAP_FLAGS = @HWCAP_FLAGS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -197,7 +197,6 @@ PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PDFLATEX = @PDFLATEX@
-PIC_CXXFLAGS = @PIC_CXXFLAGS@
 RANLIB = @RANLIB@
 SECTION_FLAGS = @SECTION_FLAGS@
 SECTION_LDFLAGS = @SECTION_LDFLAGS@
@@ -209,6 +208,9 @@ SYMVER_FILE = @SYMVER_FILE@
 TOPLEVEL_INCLUDES = @TOPLEVEL_INCLUDES@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
+VTV_CXXFLAGS = @VTV_CXXFLAGS@
+VTV_CXXLINKFLAGS = @VTV_CXXLINKFLAGS@
+VTV_PCH_CXXFLAGS = @VTV_PCH_CXXFLAGS@
 WARN_FLAGS = @WARN_FLAGS@
 WERROR = @WERROR@
 XMLLINT = @XMLLINT@
@@ -245,7 +247,10 @@ glibcxx_MOFILES = @glibcxx_MOFILES@
 glibcxx_PCHFLAGS = @glibcxx_PCHFLAGS@
 glibcxx_POFILES = @glibcxx_POFILES@
 glibcxx_builddir = @glibcxx_builddir@
+glibcxx_compiler_pic_flag = @glibcxx_compiler_pic_flag@
+glibcxx_compiler_shared_flag = @glibcxx_compiler_shared_flag@
 glibcxx_localedir = @glibcxx_localedir@
+glibcxx_lt_pic_flag = @glibcxx_lt_pic_flag@
 glibcxx_prefixdir = @glibcxx_prefixdir@
 glibcxx_srcdir = @glibcxx_srcdir@
 glibcxx_toolexecdir = @glibcxx_toolexecdir@
@@ -285,6 +290,7 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
+thread_header = @thread_header@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
@@ -301,11 +307,13 @@ toolexecdir = $(glibcxx_toolexecdir)
 toolexeclibdir = $(glibcxx_toolexeclibdir)
 @ENABLE_WERROR_FALSE@WERROR_FLAG = 
 @ENABLE_WERROR_TRUE@WERROR_FLAG = $(WERROR)
+@ENABLE_EXTERN_TEMPLATE_FALSE@XTEMPLATE_FLAGS = 
+@ENABLE_EXTERN_TEMPLATE_TRUE@XTEMPLATE_FLAGS = -fno-implicit-templates
 
 # These bits are all figured out from configure.  Look in acinclude.m4
 # or configure.ac to see how they are set.  See GLIBCXX_EXPORT_FLAGS.
 CONFIG_CXXFLAGS = \
-	$(SECTION_FLAGS) $(EXTRA_CXX_FLAGS) -frandom-seed=$@
+	$(SECTION_FLAGS) $(HWCAP_FLAGS) -frandom-seed=$@
 
 WARN_CXXFLAGS = \
 	$(WARN_FLAGS) $(WERROR_FLAG) -fdiagnostics-show-location=once 
@@ -315,7 +323,7 @@ WARN_CXXFLAGS = \
 AM_CPPFLAGS = $(GLIBCXX_INCLUDES)
 
 # Convenience library for C++98 runtime.
-noinst_LTLIBRARIES = libc++98convenience.la
+noinst_LTLIBRARIES = libc++98convenience.la 
 headers = 
 
 # Source files linked in via configuration/make substitution for a
@@ -337,18 +345,12 @@ atomicity_file = ${glibcxx_srcdir}/$(ATOMICITY_SRCDIR)/atomicity.h
 # particular host, but with ad hoc naming rules.
 host_sources_extra = \
 	basic_file.cc c++locale.cc \
-	${inst_sources} ${ldbl_compat_sources} ${parallel_sources}
+	${inst_sources} ${parallel_sources}
 
-@ENABLE_PARALLEL_FALSE@parallel_sources = 
-@ENABLE_PARALLEL_TRUE@parallel_sources = parallel_settings.cc \
-@ENABLE_PARALLEL_TRUE@		   compatibility-parallel_list.cc \
-@ENABLE_PARALLEL_TRUE@		   compatibility-parallel_list-2.cc
-
-@GLIBCXX_LDBL_COMPAT_FALSE@ldbl_compat_sources = 
-@GLIBCXX_LDBL_COMPAT_TRUE@ldbl_compat_sources = compatibility-ldbl.cc
-@ENABLE_EXTERN_TEMPLATE_FALSE@XTEMPLATE_FLAGS = 
-@ENABLE_EXTERN_TEMPLATE_TRUE@XTEMPLATE_FLAGS = -fno-implicit-templates
+# XTEMPLATE_FLAGS =
 @ENABLE_EXTERN_TEMPLATE_FALSE@inst_sources = 
+
+# XTEMPLATE_FLAGS = -fno-implicit-templates
 @ENABLE_EXTERN_TEMPLATE_TRUE@inst_sources = \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	allocator-inst.cc \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	concept-inst.cc \
@@ -363,6 +365,7 @@ host_sources_extra = \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	streambuf-inst.cc \
 @ENABLE_EXTERN_TEMPLATE_TRUE@	wlocale-inst.cc
 
+parallel_sources = parallel_settings.cc
 
 # Sources present in the src directory, always present.
 sources = \
@@ -370,11 +373,6 @@ sources = \
 	pool_allocator.cc \
 	mt_allocator.cc \
 	codecvt.cc \
-	compatibility.cc \
-	compatibility-debug_list.cc \
-	compatibility-debug_list-2.cc \
-	compatibility-list.cc \
-	compatibility-list-2.cc \
 	complex_io.cc \
 	ctype.cc \
 	globals_io.cc \
@@ -385,6 +383,10 @@ sources = \
 	ios_init.cc \
 	ios_locale.cc \
 	list.cc \
+	list-aux.cc \
+	list-aux-2.cc \
+	list_associated.cc \
+	list_associated-2.cc \
 	locale.cc \
 	locale_init.cc \
 	locale_facets.cc \
@@ -407,7 +409,7 @@ libc__98convenience_la_SOURCES = $(sources)
 GLIBCXX_INCLUDE_DIR = $(glibcxx_builddir)/include
 
 # Use special rules for parallel mode compilation.
-PARALLEL_FLAGS = -fopenmp -D_GLIBCXX_PARALLEL -I$(glibcxx_builddir)/../libgomp
+PARALLEL_FLAGS = -D_GLIBCXX_PARALLEL 
 
 # AM_CXXFLAGS needs to be in each subdirectory so that it can be
 # modified in a per-library or per-sub-library way.  Need to manually
@@ -415,11 +417,9 @@ PARALLEL_FLAGS = -fopenmp -D_GLIBCXX_PARALLEL -I$(glibcxx_builddir)/../libgomp
 # OPTIMIZE_CXXFLAGS on the compile line so that -O2 can be overridden
 # as the occasion calls for it.
 AM_CXXFLAGS = \
-	$(PIC_CXXFLAGS) \
-	$(XTEMPLATE_FLAGS) \
-	$(WARN_CXXFLAGS) \
-	$(OPTIMIZE_CXXFLAGS) \
-	$(CONFIG_CXXFLAGS)
+	$(glibcxx_lt_pic_flag) $(glibcxx_compiler_shared_flag) \
+	$(XTEMPLATE_FLAGS) $(VTV_CXXFLAGS) \
+	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS) $(CONFIG_CXXFLAGS)
 
 AM_MAKEFLAGS = \
 	"gxx_include_dir=$(gxx_include_dir)"
@@ -427,11 +427,7 @@ AM_MAKEFLAGS = \
 
 # Libtool notes
 
-# 1) Need to explicitly set LTCXXCOMPILE so that AM_CXXFLAGS is
-# last. (That way, things like -O2 passed down from the toplevel can
-# be overridden by --enable-debug.)
-
-# 2) In general, libtool expects an argument such as `--tag=CXX' when
+# 1) In general, libtool expects an argument such as `--tag=CXX' when
 # using the C++ compiler, because that will enable the settings
 # detected when C++ support was being configured.  However, when no
 # such flag is given in the command line, libtool attempts to figure
@@ -443,11 +439,23 @@ AM_MAKEFLAGS = \
 # correct solution is to add `--tag CXX' to LTCXXCOMPILE and maybe
 # CXXLINK, just after $(LIBTOOL), so that libtool doesn't have to
 # attempt to infer which configuration to use.
-# We have to put --tag disable-shared after --tag CXX lest things
-# CXX undo the affect of disable-shared.
-LTCXXCOMPILE = $(LIBTOOL) --tag CXX --tag disable-shared $(LIBTOOLFLAGS) \
-	       --mode=compile $(CXX) $(TOPLEVEL_INCLUDES) \
-	       $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+# 
+# The second tag argument, `--tag disable-shared` means that libtool
+# only compiles each source once, for static objects. In actuality,
+# glibcxx_lt_pic_flag and glibcxx_compiler_shared_flag are added to
+# the libtool command that is used create the object, which is
+# suitable for shared libraries.  The `--tag disable-shared` must be
+# placed after --tag CXX lest things CXX undo the affect of
+# disable-shared.
+
+# 2) Need to explicitly set LTCXXCOMPILE so that EXTRA_CXX_FLAGS is
+# last. (That way, things like -O2 passed down from the toplevel can
+# be overridden by --enable-debug.)
+LTCXXCOMPILE = \
+	$(LIBTOOL) --tag CXX --tag disable-shared \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=compile $(CXX) $(TOPLEVEL_INCLUDES) \
+	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS)
 
 LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
 
@@ -457,9 +465,12 @@ LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
 # course is problematic at this point.  So, we get the top-level
 # directory to configure libstdc++-v3 to use gcc as the C++
 # compilation driver.
-CXXLINK = $(LIBTOOL) --tag CXX --tag disable-shared $(LIBTOOLFLAGS) \
-	  --mode=link $(CXX) \
-	  $(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
+CXXLINK = \
+	$(LIBTOOL) --tag CXX --tag disable-shared \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CXX) \
+	$(VTV_CXXLINKFLAGS) \
+	$(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
 
 all: all-am
 
@@ -726,7 +737,6 @@ basic_file.cc: ${glibcxx_srcdir}/$(BASIC_FILE_CC)
 	$(LN_S) ${glibcxx_srcdir}/$(BASIC_FILE_CC) ./$@ || true
 
 vpath % $(top_srcdir)/src/c++98
-vpath % $(top_srcdir)
 strstream.lo: strstream.cc
 	$(LTCXXCOMPILE) -I$(GLIBCXX_INCLUDE_DIR)/backward -Wno-deprecated -c $<
 strstream.o: strstream.cc
@@ -743,23 +753,6 @@ parallel_settings.lo: parallel_settings.cc
 	$(LTCXXCOMPILE) $(PARALLEL_FLAGS) -c $<
 parallel_settings.o: parallel_settings.cc
 	$(CXXCOMPILE) $(PARALLEL_FLAGS) -c $<
-
-compatibility-parallel_list.lo: compatibility-parallel_list.cc
-	$(LTCXXCOMPILE) -c $<
-compatibility-parallel_list.o: compatibility-parallel_list.cc
-	$(CXXCOMPILE) -c $<
-
-compatibility-parallel_list-2.lo: compatibility-parallel_list-2.cc
-	$(LTCXXCOMPILE) -c $<
-compatibility-parallel_list-2.o: compatibility-parallel_list-2.cc
-	$(CXXCOMPILE) -c $<
-
-# Use special rules for compatibility-ldbl.cc compilation, as we need to
-# pass -mlong-double-64.
-@GLIBCXX_LDBL_COMPAT_TRUE@compatibility-ldbl.lo: compatibility-ldbl.cc
-@GLIBCXX_LDBL_COMPAT_TRUE@	$(LTCXXCOMPILE) -mlong-double-64 -c $<
-@GLIBCXX_LDBL_COMPAT_TRUE@compatibility-ldbl.o: compatibility-ldbl.cc
-@GLIBCXX_LDBL_COMPAT_TRUE@	$(CXXCOMPILE) -mlong-double-64 -c $<
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

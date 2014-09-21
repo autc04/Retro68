@@ -1,10 +1,12 @@
-// $G $D/$F.go || echo BUG: shift2
+// compile
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test legal shifts.
 // Issue 1708, legal cases.
+// Compiles but does not run.
 
 package p
 
@@ -18,6 +20,7 @@ var (
 	i       = 1 << s         // 1 has type int
 	j int32 = 1 << s         // 1 has type int32; j == 0
 	k       = uint64(1 << s) // 1 has type uint64; k == 1<<33
+	l       = g(1 << s)      // 1 has type int
 	m int   = 1.0 << s       // legal: 1.0 has type int
 	w int64 = 1.0 << 33      // legal: 1.0<<33 is a constant shift expression
 )

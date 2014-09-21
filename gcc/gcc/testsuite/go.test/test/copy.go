@@ -1,10 +1,10 @@
-// $G $F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Semi-exhaustive test for copy()
+// Semi-exhaustive test for the copy predeclared function.
 
 package main
 
@@ -132,6 +132,7 @@ func verify8(length, in, out, m int) {
 	n := ncopied(length, in, out)
 	if m != n {
 		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
+		os.Exit(1)
 		return
 	}
 	// before
@@ -172,6 +173,7 @@ func verifyS(length, in, out, m int) {
 	n := ncopied(length, in, out)
 	if m != n {
 		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
+		os.Exit(1)
 		return
 	}
 	// before
@@ -212,6 +214,7 @@ func verify16(length, in, out, m int) {
 	n := ncopied(length, in, out)
 	if m != n {
 		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
+		os.Exit(1)
 		return
 	}
 	// before
@@ -252,6 +255,7 @@ func verify32(length, in, out, m int) {
 	n := ncopied(length, in, out)
 	if m != n {
 		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
+		os.Exit(1)
 		return
 	}
 	// before
@@ -292,6 +296,7 @@ func verify64(length, in, out, m int) {
 	n := ncopied(length, in, out)
 	if m != n {
 		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
+		os.Exit(1)
 		return
 	}
 	// before

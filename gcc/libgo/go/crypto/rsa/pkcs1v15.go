@@ -19,16 +19,19 @@ import (
 // WARNING: use of this function to encrypt plaintexts other than session keys
 // is dangerous. Use RSA OAEP in new protocols.
 func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err error) {
+	if err := checkPub(pub); err != nil {
+		return nil, err
+	}
 	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-11 {
 		err = ErrMessageTooLong
 		return
 	}
 
-	// EM = 0x02 || PS || 0x00 || M
-	em := make([]byte, k-1)
-	em[0] = 2
-	ps, mm := em[1:len(em)-len(msg)-1], em[len(em)-len(msg):]
+	// EM = 0x00 || 0x02 || PS || 0x00 || M
+	em := make([]byte, k)
+	em[1] = 2
+	ps, mm := em[2:len(em)-len(msg)-1], em[len(em)-len(msg):]
 	err = nonZeroRandomBytes(ps, rand)
 	if err != nil {
 		return
@@ -38,13 +41,18 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 
 	m := new(big.Int).SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
-	out = c.Bytes()
+
+	copyWithLeftPad(em, c.Bytes())
+	out = em
 	return
 }
 
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
 // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
 func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out []byte, err error) {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return nil, err
+	}
 	valid, out, err := decryptPKCS1v15(rand, priv, ciphertext)
 	if err == nil && valid == 0 {
 		err = ErrDecryption
@@ -67,6 +75,9 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
 // (Crypto '98).
 func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return err
+	}
 	k := (priv.N.BitLen() + 7) / 8
 	if k-(len(key)+3+8) < 0 {
 		err = ErrDecryption
@@ -113,7 +124,11 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 		lookingForIndex = subtle.ConstantTimeSelect(equals0, 0, lookingForIndex)
 	}
 
-	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1)
+	// The PS padding must be at least 8 bytes long, and it starts two
+	// bytes into em.
+	validPS := subtle.ConstantTimeLessOrEq(2+8, index)
+
+	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1) & validPS
 	msg = em[index+1:]
 	return
 }
@@ -151,6 +166,7 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err error) {
 var hashPrefixes = map[crypto.Hash][]byte{
 	crypto.MD5:       {0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10},
 	crypto.SHA1:      {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14},
+	crypto.SHA224:    {0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04, 0x1c},
 	crypto.SHA256:    {0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20},
 	crypto.SHA384:    {0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
 	crypto.SHA512:    {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
@@ -184,9 +200,12 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 
 	m := new(big.Int).SetBytes(em)
 	c, err := decrypt(rand, priv, m)
-	if err == nil {
-		s = c.Bytes()
+	if err != nil {
+		return
 	}
+
+	copyWithLeftPad(em, c.Bytes())
+	s = em
 	return
 }
 
@@ -232,11 +251,21 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, err error) {
 	hashLen = hash.Size()
 	if inLen != hashLen {
-		return 0, nil, errors.New("input must be hashed message")
+		return 0, nil, errors.New("crypto/rsa: input must be hashed message")
 	}
 	prefix, ok := hashPrefixes[hash]
 	if !ok {
-		return 0, nil, errors.New("unsupported hash function")
+		return 0, nil, errors.New("crypto/rsa: unsupported hash function")
 	}
 	return
+}
+
+// copyWithLeftPad copies src to the end of dest, padding with zero bytes as
+// needed.
+func copyWithLeftPad(dest, src []byte) {
+	numPaddingBytes := len(dest) - len(src)
+	for i := 0; i < numPaddingBytes; i++ {
+		dest[i] = 0
+	}
+	copy(dest[numPaddingBytes:], src)
 }

@@ -1,5 +1,5 @@
 /* Definitions for rtems targeting an ix86 using ELF.
-   Copyright (C) 1996, 1997, 2000, 2001, 2002, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
    Contributed by Joel Sherrill (joel@OARcorp.com).
 
 This file is part of GCC.
@@ -26,7 +26,15 @@ along with GCC; see the file COPYING3.  If not see
 	builtin_define ("__rtems__");		\
 	builtin_define ("__USE_INIT_FINI__");	\
 	builtin_assert ("system=rtems");	\
-	if (!TARGET_80387)			\
-	  builtin_define ("_SOFT_FLOAT");	\
     }						\
   while (0)
+
+#undef LONG_DOUBLE_TYPE_SIZE
+#define LONG_DOUBLE_TYPE_SIZE (TARGET_80387 ? 80 : 64)
+
+#undef LIBGCC2_LONG_DOUBLE_TYPE_SIZE
+#ifdef _SOFT_FLOAT
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64
+#else
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 80
+#endif

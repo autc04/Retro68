@@ -1,6 +1,5 @@
 ;; Machine Descriptions for R8C/M16C/M32C
-;; Copyright (C) 2005, 2007, 2008, 2010
-;; Free Software Foundation, Inc.
+;; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ;; Contributed by Red Hat.
 ;;
 ;; This file is part of GCC.
@@ -43,11 +42,11 @@
   [(set (match_operand:QI 0 "memsym_operand" "+Si")
 	(ior:QI (subreg:QI (ashift:HI (const_int 1)
 				      (subreg:QI (match_operand:HI 1 "a_qi_operand" "Raa") 0)) 0)
-		(match_operand:QI 2 "memsym_operand" "0")))]
+		(match_dup 0)))]
   "TARGET_A16"
   "bset\t%0[%1]"
   [(set_attr "flags" "n")]
-  )  
+  )
 
 (define_insn "bset_hi"
   [(set (zero_extract:HI (match_operand:QI 0 "memsym_operand" "+Si")

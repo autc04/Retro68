@@ -1,5 +1,5 @@
-// { dg-do run }
-// { dg-options "-O2 -Wtype-limits -std=c++0x" }
+// { dg-do run { target c++11 } }
+// { dg-options "-O2 -Wtype-limits" }
 extern void link_error (void);
 
 enum Alpha : unsigned char {

@@ -23,7 +23,7 @@ module x
  ! "external" only.
  interface
    subroutine bmp_write(nx)
-     integer :: nx
+     integer, value :: nx
    end subroutine bmp_write
  end interface
 contains
@@ -65,5 +65,3 @@ program main
   call Grid2BMP(10)
 !  call test()
 end program main
-
-! { dg-final { cleanup-modules "x" } }

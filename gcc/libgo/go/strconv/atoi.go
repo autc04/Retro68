@@ -20,7 +20,7 @@ type NumError struct {
 }
 
 func (e *NumError) Error() string {
-	return "strconv." + e.Func + ": " + `parsing "` + e.Num + `": ` + e.Err.Error()
+	return "strconv." + e.Func + ": " + "parsing " + Quote(e.Num) + ": " + e.Err.Error()
 }
 
 func syntaxError(fn, str string) *NumError {
@@ -33,7 +33,8 @@ func rangeError(fn, str string) *NumError {
 
 const intSize = 32 << uint(^uint(0)>>63)
 
-const IntSize = intSize // number of bits in int, uint (32 or 64)
+// IntSize is the size in bits of an int or uint value.
+const IntSize = intSize
 
 // Return the first number n such that n*base >= 1<<64.
 func cutoff64(base int) uint64 {
@@ -44,7 +45,7 @@ func cutoff64(base int) uint64 {
 }
 
 // ParseUint is like ParseInt but for unsigned numbers.
-func ParseUint(s string, b int, bitSize int) (n uint64, err error) {
+func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
 	var cutoff, maxVal uint64
 
 	if bitSize == 0 {
@@ -57,32 +58,32 @@ func ParseUint(s string, b int, bitSize int) (n uint64, err error) {
 		err = ErrSyntax
 		goto Error
 
-	case 2 <= b && b <= 36:
+	case 2 <= base && base <= 36:
 		// valid base; nothing to do
 
-	case b == 0:
+	case base == 0:
 		// Look for octal, hex prefix.
 		switch {
 		case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
-			b = 16
+			base = 16
 			s = s[2:]
 			if len(s) < 1 {
 				err = ErrSyntax
 				goto Error
 			}
 		case s[0] == '0':
-			b = 8
+			base = 8
 		default:
-			b = 10
+			base = 10
 		}
 
 	default:
-		err = errors.New("invalid base " + Itoa(b))
+		err = errors.New("invalid base " + Itoa(base))
 		goto Error
 	}
 
 	n = 0
-	cutoff = cutoff64(b)
+	cutoff = cutoff64(base)
 	maxVal = 1<<uint(bitSize) - 1
 
 	for i := 0; i < len(s); i++ {
@@ -100,19 +101,19 @@ func ParseUint(s string, b int, bitSize int) (n uint64, err error) {
 			err = ErrSyntax
 			goto Error
 		}
-		if int(v) >= b {
+		if int(v) >= base {
 			n = 0
 			err = ErrSyntax
 			goto Error
 		}
 
 		if n >= cutoff {
-			// n*b overflows
+			// n*base overflows
 			n = 1<<64 - 1
 			err = ErrRange
 			goto Error
 		}
-		n *= uint64(b)
+		n *= uint64(base)
 
 		n1 := n + uint64(v)
 		if n1 < n || n1 > maxVal {
@@ -141,9 +142,9 @@ Error:
 //
 // The errors that ParseInt returns have concrete type *NumError
 // and include err.Num = s.  If s is empty or contains invalid
-// digits, err.Error = ErrSyntax; if the value corresponding
+// digits, err.Err = ErrSyntax; if the value corresponding
 // to s cannot be represented by a signed integer of the
-// given size, err.Error = ErrRange.
+// given size, err.Err = ErrRange.
 func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	const fnParseInt = "ParseInt"
 

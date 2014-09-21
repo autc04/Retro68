@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 // From N2235
 
@@ -38,7 +37,7 @@ constexpr int g(int x, int n) // error: body not just ‘‘return expr’’
 } // { dg-error "not a return-statement" }
 
 constexpr int
-bar(int x, int y) { return x + y + x * y; } // { dg-error "previously" }
+bar(int x, int y) { return x + y + x * y; } // { dg-message "previously" }
 
 int bar(int x, int y)	     // { dg-error "redefinition" }
 { return x * 2 + 3 * y; }

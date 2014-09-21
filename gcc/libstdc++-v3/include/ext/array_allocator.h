@@ -1,7 +1,6 @@
 // array allocator -*- C++ -*-
 
-// Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,6 +34,9 @@
 #include <bits/functexcept.h>
 #include <tr1/array>
 #include <bits/move.h>
+#if __cplusplus >= 201103L
+#include <type_traits>
+#endif
 
 namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
 {
@@ -74,7 +76,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       max_size() const _GLIBCXX_USE_NOEXCEPT 
       { return size_t(-1) / sizeof(_Tp); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       template<typename _Up, typename... _Args>
         void
         construct(_Up* __p, _Args&&... __args)
@@ -93,7 +95,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       void 
       destroy(pointer __p) { __p->~_Tp(); }
 #endif
-    };  
+    } _GLIBCXX_DEPRECATED;
 
   /**
    *  @brief  An allocator that uses previously allocated memory.
@@ -113,6 +115,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef _Tp        	value_type;
       typedef _Array		array_type;
 
+#if __cplusplus >= 201103L
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 2103. std::allocator propagate_on_container_move_assignment
+      typedef std::true_type propagate_on_container_move_assignment;
+#endif
+
     private:
       array_type* 	_M_array;
       size_type 	_M_used;
@@ -120,7 +128,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     public:
      template<typename _Tp1, typename _Array1 = _Array>
         struct rebind
-        { typedef array_allocator<_Tp1, _Array1> other; };
+        {
+	  typedef array_allocator<_Tp1, _Array1> other _GLIBCXX_DEPRECATED;
+	} _GLIBCXX_DEPRECATED;
 
       array_allocator(array_type* __array = 0) _GLIBCXX_USE_NOEXCEPT 
       : _M_array(__array), _M_used(size_type()) { }
@@ -144,7 +154,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_M_used += __n;
 	return __ret;
       }
-    };
+    } _GLIBCXX_DEPRECATED;
 
   template<typename _Tp, typename _Array>
     inline bool

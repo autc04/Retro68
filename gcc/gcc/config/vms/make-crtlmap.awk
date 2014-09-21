@@ -1,5 +1,5 @@
 # Generate the VMS crtl map
-#	Copyright (C) 2011  Free Software Foundation, Inc.
+#	Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
 BEGIN {
     is_first = 1;
@@ -40,13 +40,13 @@ BEGIN {
     print "{ \"" $1 "\", "
     if (NF == 1)
         print "0 }"
-    else if (NF == 2)
-        printf "VMS_CRTL_" $2 " }"
-    else if (NF == 3)
-        printf "VMS_CRTL_" $2 " | VMS_CRTL_" $3 " }"
     else
-        # To be fixed.
-        exit 1
+    {
+	printf "VMS_CRTL_" $2
+	for (i = 3; i <= NF; i++)
+	    printf " | VMS_CRTL_" $i
+	printf " }"
+    }
 }
 
 END {

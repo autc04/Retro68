@@ -2,6 +2,6 @@
 
 void foo()
 {
-  const int x[] = 0; // { dg-error "size" }
-  ++x;
+  const int x[] = 0; // { dg-error "initializer" }
+  ++x; // { dg-error "read-only|operand" }
 }

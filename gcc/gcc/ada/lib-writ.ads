@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -183,51 +183,55 @@ package Lib.Writ is
    --      corresponding source file. Parameters is a sequence of zero or more
    --      two letter codes that indicate configuration pragmas and other
    --      parameters that apply:
-   --
+
    --      The arguments are as follows:
-   --
+
    --         CE   Compilation errors. If this is present it means that the ali
    --              file resulted from a compilation with the -gnatQ switch set,
    --              and illegalities were detected. The ali file contents may
    --              not be completely reliable, but the format will be correct
    --              and complete. Note that NO is always present if CE is
    --              present.
-   --
+
    --         DB   Detect_Blocking pragma is in effect for all units in this
    --              file.
-   --
+
+   --         Ex   A valid Partition_Elaboration_Policy pragma applies to all
+   --              the units in this file, where x is the first character
+   --              (upper case) of the policy name (e.g. 'C' for Concurrent).
+
    --         FD   Configuration pragmas apply to all the units in this file
    --              specifying a possibly non-standard floating point format
    --              (VAX float with Long_Float using D_Float).
-   --
+
    --         FG   Configuration pragmas apply to all the units in this file
    --              specifying a possibly non-standard floating point format
    --              (VAX float with Long_Float using G_Float).
-   --
+
    --         FI   Configuration pragmas apply to all the units in this file
    --              specifying a possibly non-standard floating point format
    --              (IEEE Float).
-   --
+
    --         Lx   A valid Locking_Policy pragma applies to all the units in
    --              this file, where x is the first character (upper case) of
    --              the policy name (e.g. 'C' for Ceiling_Locking).
-   --
+
    --         NO   No object. This flag indicates that the units in this file
    --              were not compiled to produce an object. This can occur as a
    --              result of the use of -gnatc, or if no object can be produced
    --              (e.g. when a package spec is compiled instead of the body,
    --              or a subunit on its own).
-   --
+
    --         NR   No_Run_Time. Indicates that a pragma No_Run_Time applies
    --              to all units in the file.
-   --
+
    --         NS   Normalize_Scalars pragma in effect for all units in
    --              this file.
-   --
+
    --         Qx   A valid Queueing_Policy pragma applies to all the units
    --              in this file, where x is the first character (upper case)
    --              of the policy name (e.g. 'P' for Priority_Queueing).
-   --
+
    --         SL   Indicates that the unit is an Interface to a Standalone
    --              Library. Note that this indication is never given by the
    --              compiler, but is added by the Project Manager in gnatmake
@@ -236,19 +240,19 @@ package Lib.Writ is
 
    --         SS   This unit references System.Secondary_Stack (that is,
    --              the unit makes use of the secondary stack facilities).
-   --
+
    --         Tx   A valid Task_Dispatching_Policy pragma applies to all
    --              the units in this file, where x is the first character
    --              (upper case) of the corresponding policy name (e.g. 'F'
    --              for FIFO_Within_Priorities).
-   --
+
    --         UA  Unreserve_All_Interrupts pragma was processed in one or
    --             more units in this file
-   --
+
    --         ZX  Units in this file use zero-cost exceptions and have
    --             generated exception tables. If ZX is not present, the
    --             longjmp/setjmp exception scheme is in use.
-   --
+
    --      Note that language defined units never output policy (Lx, Tx, Qx)
    --      parameters. Language defined units must correctly handle all
    --      possible cases. These values are checked for consistency by the
@@ -256,11 +260,33 @@ package Lib.Writ is
 
    --    Note: The P line must be present. Even in Ignore_Errors mode, Scan_ALI
    --    insists on finding a P line. So if changes are made to the ALI format,
-   --    they should not include removing the P line!
+   --    they should not include removing the P line.
 
    --  ---------------------
    --  -- R  Restrictions --
    --  ---------------------
+
+   --  There are two forms for R lines, positional and named. The positional
+   --  notation is now considered obsolescent, it is not generated by the most
+   --  recent versions of the compiler except under control of the debug switch
+   --  -gnatdR, but is still recognized by the binder.
+
+   --  The recognition by the binder is to ease the transition, and better deal
+   --  with some cases of inconsistent builds using incompatible versions of
+   --  the compiler and binder. The named notation is the current preferred
+   --  approach.
+
+   --  Note that R lines are generated using the information in unit Rident,
+   --  and intepreted by the binder using the information in System.Rident.
+   --  Normally these two units should be effectively identical. However in
+   --  some cases of inconsistent builds, they may be different. This may lead
+   --  to binder diagnostics, which can be suppressed using the -C switch for
+   --  the binder, which results in ignoring unrecognized restrictions in the
+   --  ali files.
+
+   --  ---------------------------------------
+   --  -- R  Restrictions (Positional Form) --
+   --  ---------------------------------------
 
    --  The first R line records the status of restrictions generated by pragma
    --  Restrictions encountered, as well as information on what the compiler
@@ -348,6 +374,76 @@ package Lib.Writ is
    --      signal a fatal error if it is missing. This means that future
    --      changes to the ALI file format must retain the R line.
 
+   --  ----------------------------------
+   --  -- R  Restrictions (Named Form) --
+   --  ----------------------------------
+
+   --  The first R line for named form announces that named notation will be
+   --  used, and also assures that there is at least one R line present, which
+   --  makes parsing of ali files simpler. A blank line preceds the RN line.
+
+   --  RN
+
+   --  In named notation, the restrictions are given as a series of lines, one
+   --  per retrictions that is specified or violated (no information is present
+   --  for restrictions that are not specified or violated). In the following
+   --  name is the name of the restriction in all upper case.
+
+   --  For boolean restrictions, we have only two possibilities. A restrictions
+   --  pragma is present, or a violation is detected:
+
+   --  RR name
+
+   --    A restriction pragma is present for the named boolean restriction.
+   --    No violations were detected by the compiler (or the unit in question
+   --    would have been found to be illegal).
+
+   --  RV name
+
+   --    No restriction pragma is present for the named boolean restriction.
+   --    However, the compiler did detect one or more violations of this
+   --    restriction, which may require a binder consistency check. Note that
+   --    one case of a violation is the use of a Restriction_Set attribute for
+   --    the restriction that yielded False.
+
+   --  For the case of restrictions that take a parameter, we need both the
+   --  information from pragma if present, and the actual information about
+   --  what possible violations occur. For example, we can have a unit with
+   --  a pragma Restrictions (Max_Tasks => 4), where the compiler can detect
+   --  that there are exactly three tasks declared. Both of these pieces
+   --  of information must be passed to the binder. The parameter of 4 is
+   --  important in case the total number of tasks in the partition is greater
+   --  than 4. The parameter of 3 is important in case some other unit has a
+   --  restrictions pragma with Max_Tasks=>2.
+
+   --  RR name=N
+
+   --    A restriction pragma is present for the named restriction which is
+   --    one of the restrictions taking a parameter. The value N (a decimal
+   --    integer) is the value given in the restriction pragma.
+
+   --  RV name=N
+
+   --    A restriction pragma may or may not be present for the restriction
+   --    given by name (one of the restrictions taking a parameter). But in
+   --    either case, the compiler detected possible violations. N (a decimal
+   --    integer) is the maximum or total count of violations (depending
+   --    on the checking type) in all the units represented by the ali file).
+   --    The value here is known to be exact by the compiler and is in the
+   --    range of Natural. Note that if an RR line is present for the same
+   --    restriction, then the value in the RV line cannot exceed the value
+   --    in the RR line (since otherwise the compiler would have detected a
+   --    violation of the restriction).
+
+   --  RV name=N+
+
+   --    Similar to the above, but the compiler cannot determine the exact
+   --    count of violations, but it is at least N.
+
+   --  -------------------------------------------------
+   --  -- R  Restrictions (No_Dependence Information) --
+   --  -------------------------------------------------
+
    --  Subsequent R lines are present only if pragma Restriction No_Dependence
    --  is used. There is one such line for each such pragma appearing in the
    --  extended main unit. The format is:
@@ -417,19 +513,19 @@ package Lib.Writ is
    --  The lines for each compilation unit have the following form
 
    --    U unit-name source-name version <<attributes>>
-   --
+
    --      This line identifies the unit to which this section of the library
    --      information file applies. The first three parameters are the unit
    --      name in internal format, as described in package Uname, and the name
    --      of the source file containing the unit.
-   --
+
    --      Version is the version given as eight hexadecimal characters with
    --      upper case letters. This value is the exclusive or of the source
    --      checksums of the unit and all its semantically dependent units.
-   --
+
    --      The <<attributes>> are a series of two letter codes indicating
    --      information about the unit:
-   --
+
    --         BD  Unit does not have pragma Elaborate_Body, but the elaboration
    --             circuit has determined that it would be a good idea if this
    --             pragma were present, since the body of the package contains
@@ -437,7 +533,7 @@ package Lib.Writ is
    --             visible part of the package. The binder will try, but does
    --             not promise, to keep the elaboration of the body close to
    --             the elaboration of the spec.
-   --
+
    --         DE  Dynamic Elaboration. This unit was compiled with the dynamic
    --             elaboration model, as set by either the -gnatE switch or
    --             pragma Elaboration_Checks (Dynamic).
@@ -449,7 +545,7 @@ package Lib.Writ is
    --             body together whenever possible, and for an instance it is
    --             always possible; however setting EB ensures that this is done
    --             even when using the -p gnatbind switch).
-   --
+
    --         EE  Elaboration entity is present which must be set true when
    --             the unit is elaborated. The name of the elaboration entity is
    --             formed from the unit name in the usual way. If EE is present,
@@ -458,28 +554,28 @@ package Lib.Writ is
    --             be set even if NE is set. This happens when the boolean is
    --             needed solely for checking for the case of access before
    --             elaboration.
-   --
+
    --         GE  Unit is a generic declaration, or corresponding body
    --
    --         IL  Unit source uses a style with identifiers in all lower-case
    --         IU  (IL) or all upper case (IU). If the standard mixed-case usage
    --             is detected, or the compiler cannot determine the style, then
    --             no I parameter will appear.
-   --
+
    --         IS  Initialize_Scalars pragma applies to this unit, or else there
    --             is at least one use of the Invalid_Value attribute.
-   --
+
    --         KM  Unit source uses a style with keywords in mixed case (KM)
    --         KU  or all upper case (KU). If the standard lower-case usage is
    --             is detected, or the compiler cannot determine the style, then
    --             no K parameter will appear.
-   --
+
    --         NE  Unit has no elaboration routine. All subprogram bodies and
    --             specs are in this category. Package bodies and specs may or
    --             may not have NE set, depending on whether or not elaboration
    --             code is required. Set if N_Compilation_Unit node has flag
    --             Has_No_Elaboration_Code set.
-   --
+
    --         OL   The units in this file are compiled with a local pragma
    --              Optimize_Alignment, so no consistency requirement applies
    --              to these units. All internal units have this status since
@@ -488,74 +584,93 @@ package Lib.Writ is
    --         OO   Optimize_Alignment (Off) is the default setting for all
    --              units in this file. All files in the partition that specify
    --              a default must specify the same default.
-   --
+
    --         OS   Optimize_Alignment (Space) is the default setting for all
    --              units in this file. All files in the partition that specify
    --              a default must specify the same default.
-   --
+
    --         OT   Optimize_Alignment (Time) is the default setting for all
    --              units in this file. All files in the partition that specify
    --              a default must specify the same default.
-   --
+
    --         PF  The unit has a library-level (package) finalizer
-   --
+
    --         PK  Unit is package, rather than a subprogram
-   --
+
    --         PU  Unit has pragma Pure
-   --
+
    --         PR  Unit has pragma Preelaborate
-   --
+
    --         RA  Unit declares a Remote Access to Class-Wide (RACW) type
-   --
+
    --         RC  Unit has pragma Remote_Call_Interface
-   --
+
    --         RT  Unit has pragma Remote_Types
-   --
+
    --         SP  Unit has pragma Shared_Passive.
-   --
+
    --         SU  Unit is a subprogram, rather than a package
-   --
+
    --      The attributes may appear in any order, separated by spaces.
 
-   --  ---------------------
-   --  -- W  Withed Units --
-   --  ---------------------
+   --  -----------------------------
+   --  -- W, Y and Z Withed Units --
+   --  -----------------------------
 
    --  Following each U line, is a series of lines of the form
 
    --    W unit-name [source-name lib-name] [E] [EA] [ED] [AD]
-   --
-   --      One of these lines is present for each unit that is mentioned in an
-   --      explicit with clause by the current unit. The first parameter is the
-   --      unit name in internal format. The second parameter is the file name
-   --      of the file that must be compiled to compile this unit. It is
+   --      or
+   --    Y unit-name [source-name lib-name] [E] [EA] [ED] [AD]
+   --      or
+   --    Z unit-name [source-name lib-name] [E] [EA] [ED] [AD]
+
+   --      One W line is present for each unit that is mentioned in an explicit
+   --      non-limited with clause by the current unit. One Y line is present
+   --      for each unit that is mentioned in an explicit limited with clause
+   --      by the current unit. One Z line is present for each unit that is
+   --      only implicitly withed by the current unit. The first parameter is
+   --      the unit name in internal format. The second parameter is the file
+   --      name of the file that must be compiled to compile this unit. It is
    --      usually the file for the body, except for packages which have no
    --      body. For units that need a body, if the source file for the body
    --      cannot be found, the file name of the spec is used instead. The
    --      third parameter is the file name of the library information file
    --      that contains the results of compiling this unit. The optional
    --      modifiers are used as follows:
-   --
+
    --        E   pragma Elaborate applies to this unit
-   --
+
    --        EA  pragma Elaborate_All applies to this unit
-   --
+
    --        ED  Elaborate_Desirable set for this unit, which means that there
    --            is no Elaborate, but the analysis suggests that Program_Error
    --            may be raised if the Elaborate conditions cannot be satisfied.
    --            The binder will attempt to treat ED as E if it can.
-   --
+
    --        AD  Elaborate_All_Desirable set for this unit, which means that
    --            there is no Elaborate_All, but the analysis suggests that
    --            Program_Error may be raised if the Elaborate_All conditions
    --            cannot be satisfied. The binder will attempt to treat AD as
    --            EA if it can.
-   --
+
    --      The parameter source-name and lib-name are omitted for the case of a
    --      generic unit compiled with earlier versions of GNAT which did not
-   --      generate object or ali files for generics.
+   --      generate object or ali files for generics. For compatibility in the
+   --      bootstrap path we continue to omit these entries for predefined
+   --      generic units, even though we do now generate object and ali files.
 
-   --  In fact W lines include implicit withs ???
+   --      However, in SPARK mode, we always generate source-name and lib-name
+   --      parameters. Bootstrap issues do not apply there, and we need this
+   --      information to properly compute frame conditions of subprograms.
+
+   --      The parameter source-name and lib-name are also omitted for the W
+   --      lines that result from use of a Restriction_Set attribute which gets
+   --      a result of False from a No_Dependence check, in the case where the
+   --      unit is not in the semantic closure. In such a case, the bare W
+   --      line is generated, but no D (dependency) line. This will make the
+   --      binder do the consistency check, but not include the unit in the
+   --      partition closure (unless it is properly With'ed somewhere).
 
    --  -----------------------
    --  -- L  Linker_Options --
@@ -586,6 +701,12 @@ package Lib.Writ is
    --      corresponding Linker_Options (or Link_With) pragmas appear in the
    --      source file, so that this order is preserved by the binder in
    --      constructing the set of linker arguments.
+
+   --  Note: Linker_Options lines never appear in the ALI file generated for
+   --  a predefined generic unit, and there is cicuitry in Sem_Prag to enforce
+   --  this restriction, which is needed because of not generating source name
+   --  and lib name parameters on the with lines for such files, as explained
+   --  above in the section on with lines.
 
    --  --------------
    --  -- N  Notes --
@@ -656,6 +777,13 @@ package Lib.Writ is
 
    --    D source-name time-stamp checksum [subunit-name] line:file-name
 
+   --      source-name also includes preprocessing data file and preprocessing
+   --      definition file. These preprocessing files may be given as full
+   --      path names instead of simple file names. If a full path name
+   --      includes a directory with spaces, the path name is quoted (quote
+   --      characters (") added at start and end, and any internal quotes are
+   --      doubled).
+
    --      The time-stamp field contains the time stamp of the corresponding
    --      source file. See types.ads for details on time stamp representation.
 
@@ -702,21 +830,32 @@ package Lib.Writ is
    --------------------------
 
    --  The cross-reference data follows the dependency lines. See the spec of
-   --  Lib.Xref for details on the format of this data.
+   --  Lib.Xref in file lib-xref.ads for details on the format of this data.
 
    ---------------------------------
    -- Source Coverage Obligations --
    ---------------------------------
 
    --  The Source Coverage Obligation (SCO) information follows the cross-
-   --  reference data. See the spec of Par_SCO for full details of the format.
+   --  reference data. See the spec of Par_SCO in file par_sco.ads for full
+   --  details of the format.
 
-   ----------------------
-   -- Alfa Information --
-   ----------------------
+   ---------------------------------------
+   -- SPARK Cross-Reference Information --
+   ---------------------------------------
 
-   --  The Alfa information follows the SCO information. See the spec of Alfa
-   --  for full details of the format.
+   --  The SPARK cross-reference information follows the SCO information. See
+   --  the spec of SPARK_Xrefs in file spark_xrefs.ads for full details of the
+   --  format.
+
+   -------------------------------
+   -- ALI File Generation for C --
+   -------------------------------
+
+   --  The C compiler can also generate ALI files for use by the IDE's in
+   --  providing navigation services in C. These ALI files are a subset of
+   --  the specification above, lacking all Ada-specific output. Primarily
+   --  the IDE uses the cross-reference sections of such files.
 
    ----------------------
    -- Global Variables --

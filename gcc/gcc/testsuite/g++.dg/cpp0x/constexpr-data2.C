@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 template<typename _Tp, _Tp v>
   struct A3

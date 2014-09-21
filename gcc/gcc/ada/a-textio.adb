@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -71,7 +71,7 @@ package body Ada.Text_IO is
    --  correct filename length.
    --
    --  Note: the names for these files are bogus, and probably it would be
-   --  better for these files to have no names, but the ACVC tests insist!
+   --  better for these files to have no names, but the ACVC tests insist.
    --  We use names that are bound to fail in open etc.
 
    Null_Str : aliased constant String := "";
@@ -2118,8 +2118,7 @@ package body Ada.Text_IO is
       end Has_Translated_Characters;
 
       Needs_Binary_Write : constant Boolean :=
-                             text_translation_required
-                               and then Has_Translated_Characters;
+        text_translation_required and then Has_Translated_Characters;
 
    --  Start of processing for Write
 

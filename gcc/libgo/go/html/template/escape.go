@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"io"
 	"text/template"
 	"text/template/parse"
 )
@@ -34,11 +35,13 @@ func escapeTemplates(tmpl *Template, names ...string) error {
 			for _, name := range names {
 				if t := tmpl.set[name]; t != nil {
 					t.text.Tree = nil
+					t.Tree = nil
 				}
 			}
 			return err
 		}
 		tmpl.escaped = true
+		tmpl.Tree = tmpl.text.Tree
 	}
 	e.commit()
 	return nil
@@ -219,10 +222,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	idents := p.Cmds
 	for i := n - 1; i >= 0; i-- {
 		if cmd := p.Cmds[i]; len(cmd.Args) != 0 {
-			if id, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
-				if id.Ident == "noescape" {
-					return
-				}
+			if _, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
 				continue
 			}
 		}
@@ -241,10 +241,11 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	copy(newCmds, p.Cmds)
 	// Merge existing identifier commands with the sanitizers needed.
 	for _, id := range idents {
+		pos := id.Args[0].Position()
 		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
 		if i != -1 {
 			for _, name := range s[:i] {
-				newCmds = appendCmd(newCmds, newIdentCmd(name))
+				newCmds = appendCmd(newCmds, newIdentCmd(name, pos))
 			}
 			s = s[i+1:]
 		}
@@ -252,7 +253,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	}
 	// Create any remaining sanitizers.
 	for _, name := range s {
-		newCmds = appendCmd(newCmds, newIdentCmd(name))
+		newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
 	}
 	p.Cmds = newCmds
 }
@@ -302,7 +303,7 @@ func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
 	return -1
 }
 
-// escFnsEq returns whether the two escaping functions are equivalent.
+// escFnsEq reports whether the two escaping functions are equivalent.
 func escFnsEq(a, b string) bool {
 	if e := equivEscapers[a]; e != "" {
 		a = e
@@ -314,10 +315,10 @@ func escFnsEq(a, b string) bool {
 }
 
 // newIdentCmd produces a command containing a single identifier node.
-func newIdentCmd(identifier string) *parse.CommandNode {
+func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 	return &parse.CommandNode{
 		NodeType: parse.NodeCommand,
-		Args:     []parse.Node{parse.NewIdentifier(identifier)},
+		Args:     []parse.Node{parse.NewIdentifier(identifier).SetPos(pos)},
 	}
 }
 
@@ -750,4 +751,45 @@ func (e *escaper) template(name string) *template.Template {
 		t = e.derived[name]
 	}
 	return t
+}
+
+// Forwarding functions so that clients need only import this package
+// to reach the general escaping functions of text/template.
+
+// HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
+func HTMLEscape(w io.Writer, b []byte) {
+	template.HTMLEscape(w, b)
+}
+
+// HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
+func HTMLEscapeString(s string) string {
+	return template.HTMLEscapeString(s)
+}
+
+// HTMLEscaper returns the escaped HTML equivalent of the textual
+// representation of its arguments.
+func HTMLEscaper(args ...interface{}) string {
+	return template.HTMLEscaper(args...)
+}
+
+// JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
+func JSEscape(w io.Writer, b []byte) {
+	template.JSEscape(w, b)
+}
+
+// JSEscapeString returns the escaped JavaScript equivalent of the plain text data s.
+func JSEscapeString(s string) string {
+	return template.JSEscapeString(s)
+}
+
+// JSEscaper returns the escaped JavaScript equivalent of the textual
+// representation of its arguments.
+func JSEscaper(args ...interface{}) string {
+	return template.JSEscaper(args...)
+}
+
+// URLQueryEscaper returns the escaped value of the textual representation of
+// its arguments in a form suitable for embedding in a URL query.
+func URLQueryEscaper(args ...interface{}) string {
+	return template.URLQueryEscaper(args...)
 }

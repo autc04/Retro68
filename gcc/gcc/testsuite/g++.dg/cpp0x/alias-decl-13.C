@@ -1,5 +1,5 @@
 // Origin PR c++/51191
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 template< class T >
 class ClassTemplate {};

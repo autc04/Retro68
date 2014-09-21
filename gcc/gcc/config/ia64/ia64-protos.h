@@ -1,6 +1,5 @@
 /* Definitions of target machine for GNU compiler for IA-64.
-   Copyright (C) 1999, 2000, 2002, 2003, 2004, 2005, 2007, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -43,7 +42,6 @@ extern bool ia64_expand_vecint_minmax (enum rtx_code, enum machine_mode, rtx[]);
 extern void ia64_unpack_assemble (rtx, rtx, rtx, bool);
 extern void ia64_expand_unpack (rtx [], bool, bool);
 extern void ia64_expand_widen_sum (rtx[], bool);
-extern void ia64_expand_dot_prod_v8qi (rtx[], bool);
 extern void ia64_expand_call (rtx, rtx, rtx, int);
 extern void ia64_split_call (rtx, rtx, rtx, rtx, rtx, int, int);
 extern void ia64_reload_gp (void);
@@ -61,6 +59,7 @@ extern int ia64_hard_regno_rename_ok (int, int);
 extern enum reg_class ia64_secondary_reload_class (enum reg_class,
 						   enum machine_mode, rtx);
 extern const char *get_bundle_name (int);
+extern const char *output_probe_stack_range (rtx, rtx);
 
 extern void ia64_expand_vec_perm_even_odd (rtx, rtx, rtx, int);
 extern bool ia64_expand_vec_perm_const (rtx op[4]);

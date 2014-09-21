@@ -1,6 +1,5 @@
 /* Definitions of target machine for GNU compiler, Renesas M32R cpu.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -501,7 +500,8 @@ extern enum reg_class m32r_regno_reg_class[FIRST_PSEUDO_REGISTER];
    They give nonzero only if REGNO is a hard reg of the suitable class
    or a pseudo reg currently allocated to a suitable hard reg.
    Since they use reg_renumber, they are safe only once reg_renumber
-   has been allocated, which happens in local-alloc.c.  */
+   has been allocated, which happens in reginfo.c during register
+   allocation.  */
 #define REGNO_OK_FOR_BASE_P(REGNO) \
   ((REGNO) < FIRST_PSEUDO_REGISTER			\
    ? GPR_P (REGNO) || (REGNO) == ARG_POINTER_REGNUM	\

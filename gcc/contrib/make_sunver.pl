@@ -19,6 +19,10 @@
 use FileHandle;
 use IPC::Open2;
 
+# Enforce C locale.
+$ENV{'LC_ALL'} = "C";
+$ENV{'LANG'} = "C";
+
 # Input version script, GNU style.
 my $symvers = shift;
 
@@ -185,7 +189,7 @@ while (<F>) {
 	$glob = 'glob';
 	if ($in_extern) {
 	    $in_extern--;
-	    print "$1##$2";
+	    print "$1##$2\n";
 	} else {
 	    print;
 	}

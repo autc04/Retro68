@@ -1,5 +1,5 @@
 ;; Scheduling description for IBM POWER7 processor.
-;; Copyright (C) 2009 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2014 Free Software Foundation, Inc.
 ;;
 ;; Contributed by Pat Haugen (pthaugen@us.ibm.com).
 
@@ -150,7 +150,7 @@
 ; FX Unit
 (define_insn_reservation "power7-integer" 1
   (and (eq_attr "type" "integer,insert_word,insert_dword,shift,trap,\
-                        var_shift_rotate,exts,isel")
+                        var_shift_rotate,exts,isel,popcnt")
        (eq_attr "cpu" "power7"))
   "DU_power7,FXU_power7")
 

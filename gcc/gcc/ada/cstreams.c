@@ -6,7 +6,7 @@
  *                                                                          *
  *              Auxiliary C functions for Interfaces.C.Streams              *
  *                                                                          *
- *          Copyright (C) 1992-2011, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2012, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -31,10 +31,6 @@
 
 /* Routines required for implementing routines in Interfaces.C.Streams.  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef __vxworks
 #include "vxWorks.h"
 #endif
@@ -49,6 +45,10 @@ extern "C" {
 #endif
 
 #include "adaint.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifdef VMS
 #include <unixlib.h>
@@ -187,7 +187,7 @@ __gnat_full_name (char *nam, char *buffer)
 	  *p = '\\';
     }
 
-#elif defined (sgi) || defined (__FreeBSD__)
+#elif defined (__FreeBSD__)
 
   /* Use realpath function which resolves links and references to . and ..
      on those Unix systems that support it. Note that GNU/Linux provides it but
@@ -256,6 +256,35 @@ __gnat_full_name (char *nam, char *buffer)
 
   return buffer;
 }
+
+#ifdef _WIN64
+  /* On Windows 64 we want to use the fseek/fteel supporting large files. This
+     issue is due to the fact that a long on Win64 is still a 32 bits value */
+__int64
+__gnat_ftell64 (FILE *stream)
+{
+  return _ftelli64 (stream);
+}
+
+int
+__gnat_fseek64 (FILE *stream, __int64 offset, int origin)
+{
+  return _fseeki64 (stream, offset, origin);
+}
+
+#else
+long
+__gnat_ftell64 (FILE *stream)
+{
+  return ftell (stream);
+}
+
+int
+__gnat_fseek64 (FILE *stream, long offset, int origin)
+{
+  return fseek (stream, offset, origin);
+}
+#endif
 
 #ifdef __cplusplus
 }

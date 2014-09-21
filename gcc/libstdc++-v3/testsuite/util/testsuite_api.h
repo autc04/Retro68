@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Exception testing utils for the C++ library testsuite. 
 //
-// Copyright (C) 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -86,7 +86,7 @@ namespace __gnu_test
     NonDefaultConstructible(int) { }
     NonDefaultConstructible(const NonDefaultConstructible&) { }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     // For std::iota.
     NonDefaultConstructible&
     operator++()
@@ -174,7 +174,7 @@ namespace __gnu_test
     { return 1; }
   };
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   struct NonCopyConstructible
   {
     NonCopyConstructible() : num(-1) { }

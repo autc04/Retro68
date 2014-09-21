@@ -1,5 +1,5 @@
 /* Generic hooks for the RTL middle-end.
-   Copyright (C) 2004, 2005, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -77,18 +77,6 @@ gen_lowpart_general (enum machine_mode mode, rtx x)
 
       return adjust_address (x, mode, offset);
     }
-}
-
-/* Similar to gen_lowpart, but cannot emit any instruction via
-   copy_to_reg or force_reg.  Mainly used in simplify-rtx.c.  */
-rtx
-gen_lowpart_no_emit_general (enum machine_mode mode, rtx x)
-{
-  rtx result = gen_lowpart_if_possible (mode, x);
-  if (result)
-    return result;
-  else
-    return x;
 }
 
 rtx

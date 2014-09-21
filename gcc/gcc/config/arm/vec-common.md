@@ -1,5 +1,5 @@
 ;; Machine Description for shared bits common to IWMMXT and Neon.
-;; Copyright (C) 2006, 2007, 2010, 2012 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2014 Free Software Foundation, Inc.
 ;; Written by CodeSourcery.
 ;;
 ;; This file is part of GCC.
@@ -28,7 +28,7 @@
 {
   if (can_create_pseudo_p ())
     {
-      if (GET_CODE (operands[0]) != REG)
+      if (!REG_P (operands[0]))
 	operands[1] = force_reg (<MODE>mode, operands[1]);
       else if (TARGET_NEON && CONSTANT_P (operands[1]))
 	{

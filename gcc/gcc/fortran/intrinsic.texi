@@ -1,6 +1,5 @@
 @ignore
-Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2012
-Free Software Foundation, Inc.
+Copyright (C) 2005-2014 Free Software Foundation, Inc.
 This is part of the GNU Fortran manual.   
 For copying conditions, see the file gfortran.texi.
 
@@ -63,6 +62,7 @@ Some basic guidelines for editing this document:
 * @code{ATANH}:         ATANH,     Inverse hyperbolic tangent function
 * @code{ATOMIC_DEFINE}: ATOMIC_DEFINE, Setting a variable atomically
 * @code{ATOMIC_REF}:    ATOMIC_REF, Obtaining the value of a variable atomically
+* @code{BACKTRACE}:     BACKTRACE, Show a backtrace
 * @code{BESSEL_J0}:     BESSEL_J0, Bessel function of the first kind of order 0
 * @code{BESSEL_J1}:     BESSEL_J1, Bessel function of the first kind of order 1
 * @code{BESSEL_JN}:     BESSEL_JN, Bessel function of the first kind
@@ -87,9 +87,9 @@ Some basic guidelines for editing this document:
 * @code{CHMOD}:         CHMOD,     Change access permissions of files
 * @code{CMPLX}:         CMPLX,     Complex conversion function
 * @code{COMMAND_ARGUMENT_COUNT}: COMMAND_ARGUMENT_COUNT, Get number of command line arguments
-* @code{COMPLEX}:       COMPLEX,   Complex conversion function
-* @code{COMPILER_VERSION}: COMPILER_VERSION, Compiler version string
 * @code{COMPILER_OPTIONS}: COMPILER_OPTIONS, Options passed to the compiler
+* @code{COMPILER_VERSION}: COMPILER_VERSION, Compiler version string
+* @code{COMPLEX}:       COMPLEX,   Complex conversion function
 * @code{CONJG}:         CONJG,     Complex conjugate function
 * @code{COS}:           COS,       Cosine function
 * @code{COSH}:          COSH,      Hyperbolic cosine function
@@ -234,12 +234,12 @@ Some basic guidelines for editing this document:
 * @code{PRESENT}:       PRESENT,   Determine whether an optional dummy argument is specified
 * @code{PRODUCT}:       PRODUCT,   Product of array elements
 * @code{RADIX}:         RADIX,     Base of a data model
+* @code{RAN}:           RAN,       Real pseudo-random number
+* @code{RAND}:          RAND,      Real pseudo-random number
 * @code{RANDOM_NUMBER}: RANDOM_NUMBER, Pseudo-random number
 * @code{RANDOM_SEED}:   RANDOM_SEED, Initialize a pseudo-random number sequence
-* @code{RAND}:          RAND,      Real pseudo-random number
 * @code{RANGE}:         RANGE,     Decimal exponent range
 * @code{RANK} :         RANK,      Rank of a data object
-* @code{RAN}:           RAN,       Real pseudo-random number
 * @code{REAL}:          REAL,      Convert to real type 
 * @code{RENAME}:        RENAME,    Rename a file
 * @code{REPEAT}:        REPEAT,    Repeated string concatenation
@@ -349,6 +349,7 @@ the applicable standard for each intrinsic procedure is noted.
 @item @emph{Description}:
 @code{ABORT} causes immediate termination of the program.  On operating
 systems that support a core dump, @code{ABORT} will produce a core dump.
+It will also print a backtrace, unless @code{-fno-backtrace} is given.
 
 @item @emph{Standard}:
 GNU extension
@@ -371,7 +372,7 @@ end program test_abort
 @end smallexample
 
 @item @emph{See also}:
-@ref{EXIT}, @ref{KILL}
+@ref{EXIT}, @ref{KILL}, @ref{BACKTRACE}
 
 @end table
 
@@ -1644,6 +1645,35 @@ end program atomic
 
 
 
+@node BACKTRACE
+@section @code{BACKTRACE} --- Show a backtrace
+@fnindex BACKTRACE
+@cindex backtrace
+
+@table @asis
+@item @emph{Description}:
+@code{BACKTRACE} shows a backtrace at an arbitrary place in user code. Program
+execution continues normally afterwards. The backtrace information is printed
+to the unit corresponding to @code{ERROR_UNIT} in @code{ISO_FORTRAN_ENV}.
+
+@item @emph{Standard}:
+GNU Extension
+
+@item @emph{Class}:
+Subroutine
+
+@item @emph{Syntax}:
+@code{CALL BACKTRACE}
+
+@item @emph{Arguments}:
+None
+
+@item @emph{See also}:
+@ref{ABORT}
+@end table
+
+
+
 @node BESSEL_J0
 @section @code{BESSEL_J0} --- Bessel function of the first kind of order 0
 @fnindex BESSEL_J0
@@ -2241,60 +2271,57 @@ end subroutine association_test
 @end table
 
 
-@node C_FUNLOC
-@section @code{C_FUNLOC} --- Obtain the C address of a procedure
-@fnindex C_FUNLOC
-@cindex pointer, C address of procedures
+@node C_F_POINTER
+@section @code{C_F_POINTER} --- Convert C into Fortran pointer
+@fnindex C_F_POINTER
+@cindex pointer, convert C to Fortran
 
 @table @asis
 @item @emph{Description}:
-@code{C_FUNLOC(x)} determines the C address of the argument.
+@code{C_F_POINTER(CPTR, FPTR[, SHAPE])} assigns the target of the C pointer
+@var{CPTR} to the Fortran pointer @var{FPTR} and specifies its shape.
 
 @item @emph{Standard}:
 Fortran 2003 and later
 
 @item @emph{Class}:
-Inquiry function
+Subroutine
 
 @item @emph{Syntax}:
-@code{RESULT = C_FUNLOC(x)}
+@code{CALL C_F_POINTER(CPTR, FPTR[, SHAPE])}
 
 @item @emph{Arguments}:
 @multitable @columnfractions .15 .70
-@item @var{x} @tab Interoperable function or pointer to such function.
+@item @var{CPTR}  @tab scalar of the type @code{C_PTR}. It is
+@code{INTENT(IN)}.
+@item @var{FPTR}  @tab pointer interoperable with @var{cptr}. It is
+@code{INTENT(OUT)}.
+@item @var{SHAPE} @tab (Optional) Rank-one array of type @code{INTEGER}
+with @code{INTENT(IN)}. It shall be present
+if and only if @var{fptr} is an array. The size
+must be equal to the rank of @var{fptr}.
 @end multitable
-
-@item @emph{Return value}:
-The return value is of type @code{C_FUNPTR} and contains the C address
-of the argument.
 
 @item @emph{Example}:
 @smallexample
-module x
-  use iso_c_binding
-  implicit none
-contains
-  subroutine sub(a) bind(c)
-    real(c_float) :: a
-    a = sqrt(a)+5.0
-  end subroutine sub
-end module x
 program main
   use iso_c_binding
-  use x
   implicit none
   interface
     subroutine my_routine(p) bind(c,name='myC_func')
-      import :: c_funptr
-      type(c_funptr), intent(in) :: p
+      import :: c_ptr
+      type(c_ptr), intent(out) :: p
     end subroutine
   end interface
-  call my_routine(c_funloc(sub))
+  type(c_ptr) :: cptr
+  real,pointer :: a(:)
+  call my_routine(cptr)
+  call c_f_pointer(cptr, a, [12])
 end program main
 @end smallexample
 
 @item @emph{See also}:
-@ref{C_ASSOCIATED}, @ref{C_LOC}, @ref{C_F_POINTER}, @ref{C_F_PROCPOINTER}
+@ref{C_LOC}, @ref{C_F_PROCPOINTER}
 @end table
 
 
@@ -2355,58 +2382,60 @@ end program main
 @end table
 
 
-@node C_F_POINTER
-@section @code{C_F_POINTER} --- Convert C into Fortran pointer
-@fnindex C_F_POINTER
-@cindex pointer, convert C to Fortran
+@node C_FUNLOC
+@section @code{C_FUNLOC} --- Obtain the C address of a procedure
+@fnindex C_FUNLOC
+@cindex pointer, C address of procedures
 
 @table @asis
 @item @emph{Description}:
-@code{C_F_POINTER(CPTR, FPTR[, SHAPE])} Assign the target the C pointer
-@var{CPTR} to the Fortran pointer @var{FPTR} and specify its
-shape.
+@code{C_FUNLOC(x)} determines the C address of the argument.
 
 @item @emph{Standard}:
 Fortran 2003 and later
 
 @item @emph{Class}:
-Subroutine
+Inquiry function
 
 @item @emph{Syntax}:
-@code{CALL C_F_POINTER(CPTR, FPTR[, SHAPE])}
+@code{RESULT = C_FUNLOC(x)}
 
 @item @emph{Arguments}:
 @multitable @columnfractions .15 .70
-@item @var{CPTR}  @tab scalar of the type @code{C_PTR}. It is
-@code{INTENT(IN)}.
-@item @var{FPTR}  @tab pointer interoperable with @var{cptr}. It is
-@code{INTENT(OUT)}.
-@item @var{SHAPE} @tab (Optional) Rank-one array of type @code{INTEGER}
-with @code{INTENT(IN)}. It shall be present
-if and only if @var{fptr} is an array. The size
-must be equal to the rank of @var{fptr}.
+@item @var{x} @tab Interoperable function or pointer to such function.
 @end multitable
+
+@item @emph{Return value}:
+The return value is of type @code{C_FUNPTR} and contains the C address
+of the argument.
 
 @item @emph{Example}:
 @smallexample
+module x
+  use iso_c_binding
+  implicit none
+contains
+  subroutine sub(a) bind(c)
+    real(c_float) :: a
+    a = sqrt(a)+5.0
+  end subroutine sub
+end module x
 program main
   use iso_c_binding
+  use x
   implicit none
   interface
     subroutine my_routine(p) bind(c,name='myC_func')
-      import :: c_ptr
-      type(c_ptr), intent(out) :: p
+      import :: c_funptr
+      type(c_funptr), intent(in) :: p
     end subroutine
   end interface
-  type(c_ptr) :: cptr
-  real,pointer :: a(:)
-  call my_routine(cptr)
-  call c_f_pointer(cptr, a, [12])
+  call my_routine(c_funloc(sub))
 end program main
 @end smallexample
 
 @item @emph{See also}:
-@ref{C_LOC}, @ref{C_F_PROCPOINTER}
+@ref{C_ASSOCIATED}, @ref{C_LOC}, @ref{C_F_POINTER}, @ref{C_F_PROCPOINTER}
 @end table
 
 
@@ -3314,10 +3343,8 @@ end program test_cshift
 @table @asis
 @item @emph{Description}:
 @code{CTIME} converts a system time value, such as returned by
-@code{TIME8}, to a string. Unless the application has called
-@code{setlocale}, the output will be in the default locale, of length
-24 and of the form @samp{Sat Aug 19 18:13:14 1995}. In other locales,
-a longer string may result.
+@code{TIME8}, to a string. The output will be of the form @samp{Sat
+Aug 19 18:13:14 1995}.
 
 This intrinsic is provided in both subroutine and function forms; however,
 only one form can be used in any given program unit.
@@ -3432,7 +3459,7 @@ program test_time_and_date
     call date_and_time(TIME=time)
     call date_and_time(VALUES=values)
     print '(a,2x,a,2x,a)', date, time, zone
-    print '(8i5))', values
+    print '(8i5)', values
 end program test_time_and_date
 @end smallexample
 
@@ -8991,8 +9018,7 @@ cases, the result is of the same type and kind as @var{ARRAY}.
 
 @table @asis
 @item @emph{Description}:
-@code{MOD(A,P)} computes the remainder of the division of A by P@. It is
-calculated as @code{A - (INT(A/P) * P)}.
+@code{MOD(A,P)} computes the remainder of the division of A by P@. 
 
 @item @emph{Standard}:
 Fortran 77 and later
@@ -9005,14 +9031,16 @@ Elemental function
 
 @item @emph{Arguments}:
 @multitable @columnfractions .15 .70
-@item @var{A} @tab Shall be a scalar of type @code{INTEGER} or @code{REAL}
-@item @var{P} @tab Shall be a scalar of the same type as @var{A} and not
-equal to zero
+@item @var{A} @tab Shall be a scalar of type @code{INTEGER} or @code{REAL}.
+@item @var{P} @tab Shall be a scalar of the same type and kind as @var{A} 
+and not equal to zero.
 @end multitable
 
 @item @emph{Return value}:
-The kind of the return value is the result of cross-promoting
-the kinds of the arguments.
+The return value is the result of @code{A - (INT(A/P) * P)}. The type
+and kind of the return value is the same as that of the arguments. The
+returned value has the same sign as A and a magnitude less than the
+magnitude of P.
 
 @item @emph{Example}:
 @smallexample
@@ -9041,6 +9069,10 @@ end program test_mod
 @item @code{AMOD(A,P)} @tab @code{REAL(4) A,P} @tab @code{REAL(4)} @tab Fortran 95 and later
 @item @code{DMOD(A,P)} @tab @code{REAL(8) A,P} @tab @code{REAL(8)} @tab Fortran 95 and later
 @end multitable
+
+@item @emph{See also}:
+@ref{MODULO}
+
 @end table
 
 
@@ -9066,8 +9098,9 @@ Elemental function
 
 @item @emph{Arguments}:
 @multitable @columnfractions .15 .70
-@item @var{A} @tab Shall be a scalar of type @code{INTEGER} or @code{REAL}
-@item @var{P} @tab Shall be a scalar of the same type and kind as @var{A}
+@item @var{A} @tab Shall be a scalar of type @code{INTEGER} or @code{REAL}.
+@item @var{P} @tab Shall be a scalar of the same type and kind as @var{A}. 
+It shall not be zero.
 @end multitable
 
 @item @emph{Return value}:
@@ -9080,7 +9113,8 @@ The type and kind of the result are those of the arguments.
 @item If @var{A} and @var{P} are of type @code{REAL}:
 @code{MODULO(A,P)} has the value of @code{A - FLOOR (A / P) * P}.
 @end table
-In all cases, if @var{P} is zero the result is processor-dependent.
+The returned value has the same sign as P and a magnitude less than
+the magnitude of P.
 
 @item @emph{Example}:
 @smallexample
@@ -9095,6 +9129,9 @@ program test_modulo
   print *, modulo(17.5,-5.5)
 end program
 @end smallexample
+
+@item @emph{See also}:
+@ref{MOD}
 
 @end table
 
@@ -9209,7 +9246,7 @@ Elemental function
 @item @emph{Arguments}:
 @multitable @columnfractions .15 .70
 @item @var{X} @tab Shall be of type @code{REAL}.
-@item @var{S} @tab (Optional) shall be of type @code{REAL} and
+@item @var{S} @tab Shall be of type @code{REAL} and
 not equal to zero.
 @end multitable
 
@@ -9580,7 +9617,7 @@ Fortran 95 and later
 Transformational function
 
 @item @emph{Syntax}:
-@code{RESULT = PACK(ARRAY, MASK[,VECTOR]}
+@code{RESULT = PACK(ARRAY, MASK[,VECTOR])}
 
 @item @emph{Arguments}:
 @multitable @columnfractions .15 .70
@@ -9710,51 +9747,6 @@ default kind.
 
 
 
-@node PRECISION
-@section @code{PRECISION} --- Decimal precision of a real kind
-@fnindex PRECISION
-@cindex model representation, precision
-
-@table @asis
-@item @emph{Description}:
-@code{PRECISION(X)} returns the decimal precision in the model of the
-type of @code{X}.
-
-@item @emph{Standard}:
-Fortran 95 and later
-
-@item @emph{Class}:
-Inquiry function
-
-@item @emph{Syntax}:
-@code{RESULT = PRECISION(X)}
-
-@item @emph{Arguments}:
-@multitable @columnfractions .15 .70
-@item @var{X} @tab Shall be of type @code{REAL} or @code{COMPLEX}.
-@end multitable
-
-@item @emph{Return value}:
-The return value is of type @code{INTEGER} and of the default integer
-kind.
-
-@item @emph{See also}:
-@ref{SELECTED_REAL_KIND}, @ref{RANGE}
-
-@item @emph{Example}:
-@smallexample
-program prec_and_range
-  real(kind=4) :: x(2)
-  complex(kind=8) :: y
-
-  print *, precision(x), range(x)
-  print *, precision(y), range(y)
-end program prec_and_range
-@end smallexample
-@end table
-
-
-
 @node POPCNT
 @section @code{POPCNT} --- Number of bits set
 @fnindex POPCNT
@@ -9839,6 +9831,51 @@ program test_population
   print *, popcnt(huge(0_4)), poppar(huge(0_4))
   print *, popcnt(huge(0_8)), poppar(huge(0_8))
 end program test_population
+@end smallexample
+@end table
+
+
+
+@node PRECISION
+@section @code{PRECISION} --- Decimal precision of a real kind
+@fnindex PRECISION
+@cindex model representation, precision
+
+@table @asis
+@item @emph{Description}:
+@code{PRECISION(X)} returns the decimal precision in the model of the
+type of @code{X}.
+
+@item @emph{Standard}:
+Fortran 95 and later
+
+@item @emph{Class}:
+Inquiry function
+
+@item @emph{Syntax}:
+@code{RESULT = PRECISION(X)}
+
+@item @emph{Arguments}:
+@multitable @columnfractions .15 .70
+@item @var{X} @tab Shall be of type @code{REAL} or @code{COMPLEX}.
+@end multitable
+
+@item @emph{Return value}:
+The return value is of type @code{INTEGER} and of the default integer
+kind.
+
+@item @emph{See also}:
+@ref{SELECTED_REAL_KIND}, @ref{RANGE}
+
+@item @emph{Example}:
+@smallexample
+program prec_and_range
+  real(kind=4) :: x(2)
+  complex(kind=8) :: y
+
+  print *, precision(x), range(x)
+  print *, precision(y), range(y)
+end program prec_and_range
 @end smallexample
 @end table
 
@@ -10134,9 +10171,12 @@ end program
 Restarts or queries the state of the pseudorandom number generator used by 
 @code{RANDOM_NUMBER}.
 
-If @code{RANDOM_SEED} is called without arguments, it is initialized to
-a default state. The example below shows how to initialize the random 
-seed based on the system's time.
+If @code{RANDOM_SEED} is called without arguments, it is initialized
+to a default state. The example below shows how to initialize the
+random seed with a varying seed in order to ensure a different random
+number sequence for each invocation of the program. Note that setting
+any of the seed values to zero should be avoided as it can result in
+poor quality random numbers being generated.
 
 @item @emph{Standard}:
 Fortran 95 and later
@@ -10164,20 +10204,57 @@ the @var{SIZE} argument.
 
 @item @emph{Example}:
 @smallexample
-SUBROUTINE init_random_seed()
-  INTEGER :: i, n, clock
-  INTEGER, DIMENSION(:), ALLOCATABLE :: seed
+subroutine init_random_seed()
+  use iso_fortran_env, only: int64
+  implicit none
+  integer, allocatable :: seed(:)
+  integer :: i, n, un, istat, dt(8), pid
+  integer(int64) :: t
 
-  CALL RANDOM_SEED(size = n)
-  ALLOCATE(seed(n))
-
-  CALL SYSTEM_CLOCK(COUNT=clock)
-
-  seed = clock + 37 * (/ (i - 1, i = 1, n) /)
-  CALL RANDOM_SEED(PUT = seed)
-
-  DEALLOCATE(seed)
-END SUBROUTINE
+  call random_seed(size = n)
+  allocate(seed(n))
+  ! First try if the OS provides a random number generator
+  open(newunit=un, file="/dev/urandom", access="stream", &
+       form="unformatted", action="read", status="old", iostat=istat)
+  if (istat == 0) then
+     read(un) seed
+     close(un)
+  else
+     ! Fallback to XOR:ing the current time and pid. The PID is
+     ! useful in case one launches multiple instances of the same
+     ! program in parallel.
+     call system_clock(t)
+     if (t == 0) then
+        call date_and_time(values=dt)
+        t = (dt(1) - 1970) * 365_int64 * 24 * 60 * 60 * 1000 &
+             + dt(2) * 31_int64 * 24 * 60 * 60 * 1000 &
+             + dt(3) * 24_int64 * 60 * 60 * 1000 &
+             + dt(5) * 60 * 60 * 1000 &
+             + dt(6) * 60 * 1000 + dt(7) * 1000 &
+             + dt(8)
+     end if
+     pid = getpid()
+     t = ieor(t, int(pid, kind(t)))
+     do i = 1, n
+        seed(i) = lcg(t)
+     end do
+  end if
+  call random_seed(put=seed)
+contains
+  ! This simple PRNG might not be good enough for real work, but is
+  ! sufficient for seeding a better PRNG.
+  function lcg(s)
+    integer :: lcg
+    integer(int64) :: s
+    if (s == 0) then
+       s = 104729
+    else
+       s = mod(s, 4294967296_int64)
+    end if
+    s = mod(s * 279470273_int64, 4294967291_int64)
+    lcg = int(mod(s, int(huge(0), int64)), kind(0))
+  end function lcg
+end subroutine init_random_seed
 @end smallexample
 
 @item @emph{See also}:
@@ -10240,7 +10317,7 @@ Technical Specification (TS) 29113
 Inquiry function
 
 @item @emph{Syntax}:
-@code{RESULT = RANGE(A)}
+@code{RESULT = RANK(A)}
 
 @item @emph{Arguments}:
 @multitable @columnfractions .15 .70
@@ -10257,7 +10334,7 @@ program test_rank
   integer :: a
   real, allocatable :: b(:,:)
 
-  print *, rank(a), rank(b) ! Prints:  0  3
+  print *, rank(a), rank(b) ! Prints:  0  2
 end program test_rank
 @end smallexample
 
@@ -11453,7 +11530,7 @@ expression @code{X} occupies.
 GNU extension
 
 @item @emph{Class}:
-Intrinsic function
+Inquiry function
 
 @item @emph{Syntax}:
 @code{N = SIZEOF(X)}
@@ -11999,27 +12076,37 @@ and should considered in new code for future portability.
 @item @emph{Description}:
 Determines the @var{COUNT} of a processor clock since an unspecified
 time in the past modulo @var{COUNT_MAX}, @var{COUNT_RATE} determines
-the number of clock ticks per second.  If the platform supports a high
-resolution monotonic clock, that clock is used and can provide up to
-nanosecond resolution.  If a high resolution monotonic clock is not
-available, the implementation falls back to a potentially lower
-resolution realtime clock.
+the number of clock ticks per second.  If the platform supports a
+monotonic clock, that clock is used and can, depending on the platform
+clock implementation, provide up to nanosecond resolution.  If a
+monotonic clock is not available, the implementation falls back to a
+realtime clock.
 
-@var{COUNT_RATE} and @var{COUNT_MAX} vary depending on the kind of the
-arguments.  For @var{kind=8} arguments, @var{COUNT} represents
-nanoseconds, and for @var{kind=4} arguments, @var{COUNT} represents
-milliseconds. Other than the kind dependency, @var{COUNT_RATE} and
-@var{COUNT_MAX} are constant, however the particular values are
-specific to @command{gfortran}.
+@var{COUNT_RATE} is system dependent and can vary depending on the
+kind of the arguments. For @var{kind=4} arguments, @var{COUNT}
+represents milliseconds, while for @var{kind=8} arguments, @var{COUNT}
+typically represents micro- or nanoseconds depending on resolution of
+the underlying platform clock. @var{COUNT_MAX} usually equals
+@code{HUGE(COUNT_MAX)}. Note that the millisecond resolution of the
+@var{kind=4} version implies that the @var{COUNT} will wrap around in
+roughly 25 days. In order to avoid issues with the wrap around and for
+more precise timing, please use the @var{kind=8} version.
 
-If there is no clock, @var{COUNT} is set to @code{-HUGE(COUNT)}, and
-@var{COUNT_RATE} and @var{COUNT_MAX} are set to zero.
+If there is no clock, or querying the clock fails, @var{COUNT} is set
+to @code{-HUGE(COUNT)}, and @var{COUNT_RATE} and @var{COUNT_MAX} are
+set to zero.
 
-When running on a platform using the GNU C library (glibc), or a
-derivative thereof, the high resolution monotonic clock is available
-only when linking with the @var{rt} library.  This can be done
-explicitly by adding the @code{-lrt} flag when linking the
+When running on a platform using the GNU C library (glibc) version
+2.16 or older, or a derivative thereof, the high resolution monotonic
+clock is available only when linking with the @var{rt} library.  This
+can be done explicitly by adding the @code{-lrt} flag when linking the
 application, but is also done implicitly when using OpenMP.
+
+On the Windows platform, the version with @var{kind=4} arguments uses
+the @code{GetTickCount} function, whereas the @var{kind=8} version
+uses @code{QueryPerformanceCounter} and
+@code{QueryPerformanceCounterFrequency}. For more information, and
+potential caveats, please see the platform documentation.
 
 @item @emph{Standard}:
 Fortran 95 and later
@@ -13019,11 +13106,11 @@ The @code{ISO_C_BINDING} module provides the following named constants of
 type default integer, which can be used as KIND type parameters.
 
 In addition to the integer named constants required by the Fortran 2003 
-standard, GNU Fortran provides as an extension named constants for the 
-128-bit integer types supported by the C compiler: @code{C_INT128_T, 
-C_INT_LEAST128_T, C_INT_FAST128_T}. Furthermore, if @code{__float} is
-supported in C, the named constants @code{C_FLOAT128, C_FLOAT128_COMPLEX}
-are defined.
+standard and @code{C_PTRDIFF_T} of TS 29113, GNU Fortran provides as an
+extension named constants for the 128-bit integer types supported by the
+C compiler: @code{C_INT128_T, C_INT_LEAST128_T, C_INT_FAST128_T}.
+Furthermore, if @code{__float128} is supported in C, the named constants
+@code{C_FLOAT128, C_FLOAT128_COMPLEX} are defined.
 
 @multitable @columnfractions .15 .35 .35 .35
 @item Fortran Type  @tab Named constant         @tab C type                                @tab Extension
@@ -13050,6 +13137,7 @@ are defined.
 @item @code{INTEGER}@tab @code{C_INT_FAST128_T} @tab @code{int_fast128_t}                 @tab Ext.
 @item @code{INTEGER}@tab @code{C_INTMAX_T}      @tab @code{intmax_t}
 @item @code{INTEGER}@tab @code{C_INTPTR_T}      @tab @code{intptr_t}
+@item @code{INTEGER}@tab @code{C_PTRDIFF_T}     @tab @code{intptr_t}                      @tab TS 29113
 @item @code{REAL}   @tab @code{C_FLOAT}         @tab @code{float}
 @item @code{REAL}   @tab @code{C_DOUBLE}        @tab @code{double}
 @item @code{REAL}   @tab @code{C_LONG_DOUBLE}   @tab @code{long double}
@@ -13091,7 +13179,7 @@ Both are equivalent to the value @code{NULL} in C.
 @section OpenMP Modules @code{OMP_LIB} and @code{OMP_LIB_KINDS}
 @table @asis
 @item @emph{Standard}:
-OpenMP Application Program Interface v3.1
+OpenMP Application Program Interface v4.0
 @end table
 
 
@@ -13104,8 +13192,8 @@ the named constants defined in the modules are listed
 below.
 
 For details refer to the actual
-@uref{http://www.openmp.org/mp-documents/spec31.pdf,
-OpenMP Application Program Interface v3.1}.
+@uref{http://www.openmp.org/mp-documents/OpenMP4.0.0.pdf,
+OpenMP Application Program Interface v4.0}.
 
 @code{OMP_LIB_KINDS} provides the following scalar default-integer
 named constants:
@@ -13113,15 +13201,16 @@ named constants:
 @table @asis
 @item @code{omp_lock_kind}
 @item @code{omp_nest_lock_kind}
+@item @code{omp_proc_bind_kind}
 @item @code{omp_sched_kind}
 @end table
 
 @code{OMP_LIB} provides the scalar default-integer
 named constant @code{openmp_version} with a value of the form
 @var{yyyymm}, where @code{yyyy} is the year and @var{mm} the month
-of the OpenMP version; for OpenMP v3.1 the value is @code{201107}.
+of the OpenMP version; for OpenMP v4.0 the value is @code{201307}.
 
-And the following scalar integer named constants of the
+The following scalar integer named constants of the
 kind @code{omp_sched_kind}:
 
 @table @asis
@@ -13129,4 +13218,15 @@ kind @code{omp_sched_kind}:
 @item @code{omp_sched_dynamic}
 @item @code{omp_sched_guided}
 @item @code{omp_sched_auto}
+@end table
+
+And the following scalar integer named constants of the 
+kind @code{omp_proc_bind_kind}:
+
+@table @asis
+@item @code{omp_proc_bind_false}
+@item @code{omp_proc_bind_true}
+@item @code{omp_proc_bind_master}
+@item @code{omp_proc_bind_close}
+@item @code{omp_proc_bind_spread}
 @end table

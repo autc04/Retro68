@@ -1,5 +1,5 @@
 /* Insn note definitions.
-   Copyright (C) 2004, 2005, 2007, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -70,7 +70,9 @@ INSN_NOTE (CALL_ARG_LOCATION)
 
 /* Record the struct for the following basic block.  Uses
    NOTE_BASIC_BLOCK.  FIXME: Redundant with the basic block pointer
-   now included in every insn.  */
+   now included in every insn.  NOTE: If there's no CFG anymore, in other words,
+   if BLOCK_FOR_INSN () == NULL, NOTE_BASIC_BLOCK cannot be considered reliable
+   anymore.  */
 INSN_NOTE (BASIC_BLOCK)
 
 /* Mark the inflection point in the instruction stream where we switch

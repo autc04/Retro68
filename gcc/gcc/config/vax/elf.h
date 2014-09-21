@@ -1,6 +1,5 @@
 /* Target definitions for GNU compiler for VAX using ELF
-   Copyright (C) 2002, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Contributed by Matt Thomas <matt@3am-software.com>
 
 This file is part of GCC.
@@ -55,13 +54,15 @@ along with GCC; see the file COPYING3.  If not see
 /* Place the top of the stack for the DWARF2 EH stackadj value.  */
 #define EH_RETURN_STACKADJ_RTX						\
   gen_rtx_MEM (SImode,							\
-	       plus_constant (gen_rtx_REG (Pmode, FRAME_POINTER_REGNUM),\
+	       plus_constant (Pmode,					\
+			      gen_rtx_REG (Pmode, FRAME_POINTER_REGNUM),\
 			      -4))
 
 /* Simple store the return handler into the call frame.  */
 #define EH_RETURN_HANDLER_RTX						\
   gen_rtx_MEM (Pmode,							\
-	       plus_constant (gen_rtx_REG (Pmode, FRAME_POINTER_REGNUM),\
+	       plus_constant (Pmode,					\
+			      gen_rtx_REG (Pmode, FRAME_POINTER_REGNUM),\
 			      16))
 
 

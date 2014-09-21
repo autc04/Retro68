@@ -6,11 +6,13 @@ package asn1
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"reflect"
 	"time"
+	"unicode/utf8"
 )
 
 // A forkableWriter is an in-memory buffer that can be
@@ -238,11 +240,11 @@ func marshalBitString(out *forkableWriter, b BitString) (err error) {
 }
 
 func marshalObjectIdentifier(out *forkableWriter, oid []int) (err error) {
-	if len(oid) < 2 || oid[0] > 6 || oid[1] >= 40 {
+	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
 		return StructuralError{"invalid object identifier"}
 	}
 
-	err = out.WriteByte(byte(oid[0]*40 + oid[1]))
+	err = marshalBase128Int(out, int64(oid[0]*40+oid[1]))
 	if err != nil {
 		return
 	}
@@ -280,6 +282,11 @@ func marshalIA5String(out *forkableWriter, s string) (err error) {
 	return
 }
 
+func marshalUTF8String(out *forkableWriter, s string) (err error) {
+	_, err = out.Write([]byte(s))
+	return
+}
+
 func marshalTwoDigits(out *forkableWriter, v int) (err error) {
 	err = out.WriteByte(byte('0' + (v/10)%10))
 	if err != nil {
@@ -289,8 +296,7 @@ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
 }
 
 func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
-	utc := t.UTC()
-	year, month, day := utc.Date()
+	year, month, day := t.Date()
 
 	switch {
 	case 1950 <= year && year < 2000:
@@ -298,7 +304,7 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
 	case 2000 <= year && year < 2050:
 		err = marshalTwoDigits(out, int(year-2000))
 	default:
-		return StructuralError{"Cannot represent time as UTCTime"}
+		return StructuralError{"cannot represent time as UTCTime"}
 	}
 	if err != nil {
 		return
@@ -314,7 +320,7 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
 		return
 	}
 
-	hour, min, sec := utc.Clock()
+	hour, min, sec := t.Clock()
 
 	err = marshalTwoDigits(out, hour)
 	if err != nil {
@@ -435,23 +441,25 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 			return
 		}
 
-		var params fieldParameters
+		var fp fieldParameters
 		for i := 0; i < v.Len(); i++ {
 			var pre *forkableWriter
 			pre, out = out.fork()
-			err = marshalField(pre, v.Index(i), params)
+			err = marshalField(pre, v.Index(i), fp)
 			if err != nil {
 				return
 			}
 		}
 		return
 	case reflect.String:
-		if params.stringType == tagIA5String {
+		switch params.stringType {
+		case tagIA5String:
 			return marshalIA5String(out, v.String())
-		} else {
+		case tagPrintableString:
 			return marshalPrintableString(out, v.String())
+		default:
+			return marshalUTF8String(out, v.String())
 		}
-		return
 	}
 
 	return StructuralError{"unknown Go type"}
@@ -461,6 +469,10 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 	// If the field is an interface{} then recurse into it.
 	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 {
 		return marshalField(out, v.Elem(), params)
+	}
+
+	if v.Kind() == reflect.Slice && v.Len() == 0 && params.omitEmpty {
+		return
 	}
 
 	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
@@ -488,16 +500,32 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 	}
 	class := classUniversal
 
-	if params.stringType != 0 {
-		if tag != tagPrintableString {
-			return StructuralError{"Explicit string type given to non-string member"}
+	if params.stringType != 0 && tag != tagPrintableString {
+		return StructuralError{"explicit string type given to non-string member"}
+	}
+
+	if tag == tagPrintableString {
+		if params.stringType == 0 {
+			// This is a string without an explicit string type. We'll use
+			// a PrintableString if the character set in the string is
+			// sufficiently limited, otherwise we'll use a UTF8String.
+			for _, r := range v.String() {
+				if r >= utf8.RuneSelf || !isPrintable(byte(r)) {
+					if !utf8.ValidString(v.String()) {
+						return errors.New("asn1: string not valid UTF-8")
+					}
+					tag = tagUTF8String
+					break
+				}
+			}
+		} else {
+			tag = params.stringType
 		}
-		tag = params.stringType
 	}
 
 	if params.set {
 		if tag != tagSequence {
-			return StructuralError{"Non sequence tagged as set"}
+			return StructuralError{"non sequence tagged as set"}
 		}
 		tag = tagSet
 	}

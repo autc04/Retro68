@@ -1,6 +1,5 @@
 /* DWARF2 EH unwinding support for PowerPC and PowerPC64 Linux.
-   Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -25,9 +24,18 @@
 
 #define R_LR		65
 #define R_CR2		70
+#define R_CR3		71
+#define R_CR4		72
 #define R_VR0		77
 #define R_VRSAVE	109
-#define R_VSCR		110
+
+#ifdef __powerpc64__
+#if _CALL_ELF == 2
+#define TOC_SAVE_SLOT	24
+#else
+#define TOC_SAVE_SLOT	40
+#endif
+#endif
 
 struct gcc_vregs
 {
@@ -109,6 +117,8 @@ get_regs (struct _Unwind_Context *context)
     }
   else if (pc[1] == 0x380000AC)
     {
+#if _CALL_ELF != 2
+      /* These old kernel versions never supported ELFv2.  */
       /* This works for 2.4 kernels, but not for 2.6 kernels with vdso
 	 because pc isn't pointing into the stack.  Can be removed when
 	 no one is running 2.4.19 or 2.4.20, the first two ppc64
@@ -123,6 +133,7 @@ get_regs (struct _Unwind_Context *context)
       if ((long) frame24->puc != -21 * 8)
 	return frame24->puc->regs;
       else
+#endif
 	{
 	  /* This works for 2.4.21 and later kernels.  */
 	  struct rt_sigframe {
@@ -176,38 +187,6 @@ get_regs (struct _Unwind_Context *context)
 }
 #endif
 
-/* Find an entry in the process auxiliary vector.  The canonical way to
-   test for VMX is to look at AT_HWCAP.  */
-
-static long
-ppc_linux_aux_vector (long which)
-{
-  /* __libc_stack_end holds the original stack passed to a process.  */
-  extern long *__libc_stack_end;
-  long argc;
-  char **argv;
-  char **envp;
-  struct auxv
-  {
-    long a_type;
-    long a_val;
-  } *auxp;
-
-  /* The Linux kernel puts argc first on the stack.  */
-  argc = __libc_stack_end[0];
-  /* Followed by argv, NULL terminated.  */
-  argv = (char **) __libc_stack_end + 1;
-  /* Followed by environment string pointers, NULL terminated. */
-  envp = argv + argc + 1;
-  while (*envp++)
-    continue;
-  /* Followed by the aux vector, zero terminated.  */
-  for (auxp = (struct auxv *) envp; auxp->a_type != 0; ++auxp)
-    if (auxp->a_type == which)
-      return auxp->a_val;
-  return 0;
-}
-
 /* Do code reading to identify a signal frame, and set the frame
    state data appropriately.  See unwind-dw2.c for the structs.  */
 
@@ -217,8 +196,9 @@ static _Unwind_Reason_Code
 ppc_fallback_frame_state (struct _Unwind_Context *context,
 			  _Unwind_FrameState *fs)
 {
-  static long hwcap = 0;
   struct gcc_regs *regs = get_regs (context);
+  struct gcc_vregs *vregs;
+  long cr_offset;
   long new_cfa;
   int i;
 
@@ -230,18 +210,31 @@ ppc_fallback_frame_state (struct _Unwind_Context *context,
   fs->regs.cfa_reg = STACK_POINTER_REGNUM;
   fs->regs.cfa_offset = new_cfa - (long) context->cfa;
 
-  for (i = 0; i < 32; i++)
-    if (i != STACK_POINTER_REGNUM)
-      {
-	fs->regs.reg[i].how = REG_SAVED_OFFSET;
-	fs->regs.reg[i].loc.offset = (long) &regs->gpr[i] - new_cfa;
-      }
+#ifdef __powerpc64__
+  fs->regs.reg[2].how = REG_SAVED_OFFSET;
+  fs->regs.reg[2].loc.offset = (long) &regs->gpr[2] - new_cfa;
+#endif
+  for (i = 14; i < 32; i++)
+    {
+      fs->regs.reg[i].how = REG_SAVED_OFFSET;
+      fs->regs.reg[i].loc.offset = (long) &regs->gpr[i] - new_cfa;
+    }
 
+  /* The CR is saved in the low 32 bits of regs->ccr.  */
+  cr_offset = (long) &regs->ccr - new_cfa;
+#ifndef __LITTLE_ENDIAN__
+  cr_offset += sizeof (long) - 4;
+#endif
+  /* In the ELFv1 ABI, CR2 stands in for the whole CR.  */
   fs->regs.reg[R_CR2].how = REG_SAVED_OFFSET;
-  /* CR? regs are always 32-bit and PPC is big-endian, so in 64-bit
-     libgcc loc.offset needs to point to the low 32 bits of regs->ccr.  */
-  fs->regs.reg[R_CR2].loc.offset = (long) &regs->ccr - new_cfa
-				   + sizeof (long) - 4;
+  fs->regs.reg[R_CR2].loc.offset = cr_offset;
+#if _CALL_ELF == 2
+  /* In the ELFv2 ABI, every CR field has a separate CFI entry.  */
+  fs->regs.reg[R_CR3].how = REG_SAVED_OFFSET;
+  fs->regs.reg[R_CR3].loc.offset = cr_offset;
+  fs->regs.reg[R_CR4].how = REG_SAVED_OFFSET;
+  fs->regs.reg[R_CR4].loc.offset = cr_offset;
+#endif
 
   fs->regs.reg[R_LR].how = REG_SAVED_OFFSET;
   fs->regs.reg[R_LR].loc.offset = (long) &regs->link - new_cfa;
@@ -251,57 +244,35 @@ ppc_fallback_frame_state (struct _Unwind_Context *context,
   fs->retaddr_column = ARG_POINTER_REGNUM;
   fs->signal_frame = 1;
 
-  if (hwcap == 0)
-    {
-      hwcap = ppc_linux_aux_vector (16);
-      /* These will already be set if we found AT_HWCAP.  A nonzero
-	 value stops us looking again if for some reason we couldn't
-	 find AT_HWCAP.  */
-#ifdef __powerpc64__
-      hwcap |= 0xc0000000;
-#else
-      hwcap |= 0x80000000;
-#endif
-    }
-
   /* If we have a FPU...  */
-  if (hwcap & 0x08000000)
-    for (i = 0; i < 32; i++)
-      {
-	fs->regs.reg[i + 32].how = REG_SAVED_OFFSET;
-	fs->regs.reg[i + 32].loc.offset = (long) &regs->fpr[i] - new_cfa;
-      }
+  for (i = 14; i < 32; i++)
+    {
+      fs->regs.reg[i + 32].how = REG_SAVED_OFFSET;
+      fs->regs.reg[i + 32].loc.offset = (long) &regs->fpr[i] - new_cfa;
+    }
 
   /* If we have a VMX unit...  */
-  if (hwcap & 0x10000000)
-    {
-      struct gcc_vregs *vregs;
 #ifdef __powerpc64__
-      vregs = regs->vp;
+  vregs = regs->vp;
 #else
-      vregs = &regs->vregs;
+  vregs = &regs->vregs;
 #endif
-      if (regs->msr & (1 << 25))
+  if (regs->msr & (1 << 25))
+    {
+      for (i = 20; i < 32; i++)
 	{
-	  for (i = 0; i < 32; i++)
-	    {
-	      fs->regs.reg[i + R_VR0].how = REG_SAVED_OFFSET;
-	      fs->regs.reg[i + R_VR0].loc.offset
-		= (long) &vregs->vr[i] - new_cfa;
-	    }
-
-	  fs->regs.reg[R_VSCR].how = REG_SAVED_OFFSET;
-	  fs->regs.reg[R_VSCR].loc.offset = (long) &vregs->vscr - new_cfa;
+	  fs->regs.reg[i + R_VR0].how = REG_SAVED_OFFSET;
+	  fs->regs.reg[i + R_VR0].loc.offset = (long) &vregs->vr[i] - new_cfa;
 	}
-
-      fs->regs.reg[R_VRSAVE].how = REG_SAVED_OFFSET;
-      fs->regs.reg[R_VRSAVE].loc.offset = (long) &vregs->vsave - new_cfa;
     }
+
+  fs->regs.reg[R_VRSAVE].how = REG_SAVED_OFFSET;
+  fs->regs.reg[R_VRSAVE].loc.offset = (long) &vregs->vsave - new_cfa;
 
   /* If we have SPE register high-parts... we check at compile-time to
      avoid expanding the code for all other PowerPC.  */
 #ifdef __SPE__
-  for (i = 0; i < 32; i++)
+  for (i = 14; i < 32; i++)
     {
       fs->regs.reg[i + FIRST_PSEUDO_REGISTER - 1].how = REG_SAVED_OFFSET;
       fs->regs.reg[i + FIRST_PSEUDO_REGISTER - 1].loc.offset
@@ -347,9 +318,13 @@ frob_update_context (struct _Unwind_Context *context, _Unwind_FrameState *fs ATT
 	 figure out if it was saved.  The big problem here is that the
 	 code that does the save/restore is generated by the linker, so
 	 we have no good way to determine at compile time what to do.  */
-      if (pc[0] == 0xF8410028
+      if (pc[0] == 0xF8410000 + TOC_SAVE_SLOT
+#if _CALL_ELF != 2
+	  /* The ELFv2 linker never generates the old PLT stub form.  */
 	  || ((pc[0] & 0xFFFF0000) == 0x3D820000
-	      && pc[1] == 0xF8410028))
+	      && pc[1] == 0xF8410000 + TOC_SAVE_SLOT)
+#endif
+	  )
 	{
 	  /* We are in a plt call stub or r2 adjusting long branch stub,
 	     before r2 has been saved.  Keep REG_UNSAVED.  */
@@ -358,18 +333,21 @@ frob_update_context (struct _Unwind_Context *context, _Unwind_FrameState *fs ATT
 	{
 	  unsigned int *insn
 	    = (unsigned int *) _Unwind_GetGR (context, R_LR);
-	  if (insn && *insn == 0xE8410028)
-	    _Unwind_SetGRPtr (context, 2, context->cfa + 40);
+	  if (insn && *insn == 0xE8410000 + TOC_SAVE_SLOT)
+	    _Unwind_SetGRPtr (context, 2, context->cfa + TOC_SAVE_SLOT);
+#if _CALL_ELF != 2
+	  /* ELFv2 does not use this function pointer call sequence.  */
 	  else if (pc[0] == 0x4E800421
-		   && pc[1] == 0xE8410028)
+		   && pc[1] == 0xE8410000 + TOC_SAVE_SLOT)
 	    {
 	      /* We are at the bctrl instruction in a call via function
 		 pointer.  gcc always emits the load of the new R2 just
 		 before the bctrl so this is the first and only place
 		 we need to use the stored R2.  */
 	      _Unwind_Word sp = _Unwind_GetGR (context, 1);
-	      _Unwind_SetGRPtr (context, 2, (void *)(sp + 40));
+	      _Unwind_SetGRPtr (context, 2, (void *)(sp + TOC_SAVE_SLOT));
 	    }
+#endif
 	}
     }
 #endif

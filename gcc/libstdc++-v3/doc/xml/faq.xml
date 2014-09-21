@@ -32,7 +32,7 @@
     <para>
      The GNU Standard C++ Library v3 is an ongoing project to
      implement the ISO 14882 Standard C++ library as described in
-     chapters 17 through 27 and annex D.  For those who want to see
+     clauses 17 through 27 and annex D.  For those who want to see
      exactly how far the project has come, or just want the latest
      bleeding-edge code, the up-to-date source is available over
      anonymous SVN, and can even be browsed over
@@ -241,7 +241,7 @@
   </question>
   <answer xml:id="a-license.what_restrictions">
     <para>
-      None.  We encourage such programs to be released as open source,
+      None.  We encourage such programs to be released as free software,
      but we won't punish you or sue you if you choose otherwise.
     </para> 
   </answer>
@@ -344,7 +344,7 @@
     <para>
     Depending on your platform and library version, the error message might
     be similar to one of the following:
-    </para> 
+    </para>
 
     <screen>
     ./a.out: error while loading shared libraries: libstdc++.so.6: cannot open shared object file: No such file or directory
@@ -358,11 +358,34 @@
     executable is run the linker finds and loads the required shared
     libraries by searching a pre-configured list of directories. If
     the directory where you've installed libstdc++ is not in this list
-    then the libraries won't be found. The simplest way to fix this is
+    then the libraries won't be found.
+    </para>
+
+    <para>
+    If you already have an older version of libstdc++ installed then the
+    error might look like one of the following instead:
+    </para>
+
+    <screen>
+    ./a.out: /usr/lib/libstdc++.so.6: version `GLIBCXX_3.4.20' not found
+    ./a.out: /usr/lib/libstdc++.so.6: version `CXXABI_1.3.8' not found
+    </screen>
+
+    <para>
+    This means the linker found <filename>/usr/lib/libstdc++.so.6</filename>
+    but that library belongs to an older version of GCC than was used to
+    compile and link the program <filename>a.out</filename> (or some part
+    of it). The program depends on code defined in the newer libstdc++
+    that belongs to the newer version of GCC, so the linker must be told
+    how to find the newer libstdc++ shared library.
+    </para>
+
+    <para>
+    The simplest way to fix this is
     to use the <literal>LD_LIBRARY_PATH</literal> environment variable,
     which is a colon-separated list of directories in which the linker
     will search for shared libraries:
-    </para> 
+    </para>
 
     <screen>
     LD_LIBRARY_PATH=${prefix}/lib:$LD_LIBRARY_PATH
@@ -370,17 +393,22 @@
     </screen>
 
     <para>
+    Here the shell variable <command>${prefix}</command> is assumed to contain
+    the directory prefix where GCC was installed to. The directory containing
+    the library might depend on whether you want the 32-bit or 64-bit copy
+    of the library, so for example would be
+    <filename>${prefix}/lib64</filename> on some systems.
     The exact environment variable to use will depend on your
     platform, e.g. DYLD_LIBRARY_PATH for Darwin,
-    LD_LIBRARY_PATH_32/LD_LIBRARY_PATH_64 for Solaris 32-/64-bit,
-    LD_LIBRARYN32_PATH/LD_LIBRARY64_PATH for Irix N32/64-bit ABIs and
-    SHLIB_PATH for HP-UX.
+    LD_LIBRARY_PATH_32/LD_LIBRARY_PATH_64 for Solaris 32-/64-bit
+    and SHLIB_PATH for HP-UX.
     </para>
     <para>
     See the man pages for <command>ld</command>, <command>ldd</command>
     and <command>ldconfig</command> for more information. The dynamic
     linker has different names on different platforms but the man page
-    is usually called something such as <filename>ld.so/rtld/dld.so</filename>.
+    is usually called something such as <filename>ld.so</filename>,
+    <filename>rtld</filename> or <filename>dld.so</filename>.
     </para>
     <para>
     Using LD_LIBRARY_PATH is not always the best solution, <link linkend="manual.intro.using.linkage.dynamic">Finding Dynamic or Shared
@@ -686,7 +714,7 @@
     Short answer: Pretty much everything <emphasis>works</emphasis>
     except for some corner cases.  Support for localization
     in <classname>locale</classname> may be incomplete on non-GNU
-    platforms. Also dependant on the underlying platform is support
+    platforms. Also dependent on the underlying platform is support
     for <type>wchar_t</type> and <type>long
     long</type> specializations, and details of thread support.
     </para>
@@ -695,6 +723,7 @@
     <link linkend="status.iso.1998">C++98</link>,
     <link linkend="status.iso.tr1">TR1</link>, and 
     <link linkend="status.iso.2011">C++11</link>.
+    <link linkend="status.iso.2014">C++14</link>.
     </para> 
   </answer>
 </qandaentry>
@@ -936,8 +965,8 @@
     A few people have reported that the standard containers appear
     to leak memory when tested with memory checkers such as
     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://valgrind.org/">valgrind</link>.
-    The library's default allocators keep free memory in a pool
-    for later reuse, rather than returning it to the OS.  Although
+    Under some configurations the library's allocators keep free memory in a
+    pool for later reuse, rather than returning it to the OS.  Although
     this memory is always reachable by the library and is never
     lost, memory debugging tools can report it as a leak.  If you
     want to test the library for memory leaks please read

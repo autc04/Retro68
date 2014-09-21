@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 template<typename T, typename U> 
 struct is_same 
@@ -55,8 +54,8 @@ public:
 }; 
 
 CHECK_DECLTYPE(decltype(aa.*&A::a), int&);
-decltype(aa.*&A::b) zz; // { dg-error "cannot create pointer to reference member" }
-// { dg-error "invalid type" "" { target *-*-* } 58 }
+decltype(aa.*&A::b) zz; // { dg-error "cannot create pointer to reference member" "cannot" }
+// { dg-error "invalid type" "invalid type" { target *-*-* } 57 }
 CHECK_DECLTYPE(decltype(caa.*&A::a), const int&);
 
 class X { 

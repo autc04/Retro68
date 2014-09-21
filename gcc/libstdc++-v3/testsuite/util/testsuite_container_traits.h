@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -73,6 +73,7 @@ namespace __gnu_test
       typedef std::true_type	has_insert;
       typedef std::true_type	has_push_pop;
       typedef std::true_type	has_size_type_constructor;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2>
@@ -85,6 +86,7 @@ namespace __gnu_test
       typedef std::true_type	has_insert_after;
       typedef std::true_type	has_push_pop;
       typedef std::true_type	has_size_type_constructor;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2>
@@ -98,6 +100,7 @@ namespace __gnu_test
       typedef std::true_type	has_insert;
       typedef std::true_type	has_push_pop;
       typedef std::true_type	has_size_type_constructor;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2>
@@ -111,6 +114,7 @@ namespace __gnu_test
       typedef std::true_type	has_throwing_erase;
       typedef std::true_type	has_insert;
       typedef std::true_type	has_size_type_constructor;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2, typename _Tp3>
@@ -148,6 +152,7 @@ namespace __gnu_test
 
       typedef std::true_type	has_erase;
       typedef std::true_type	has_insert;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2, typename _Tp3, typename _Tp4>
@@ -161,6 +166,7 @@ namespace __gnu_test
 
       typedef std::true_type	has_erase;
       typedef std::true_type	has_insert;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2, typename _Tp3>
@@ -173,6 +179,7 @@ namespace __gnu_test
 
       typedef std::true_type	has_erase;
       typedef std::true_type	has_insert;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2, typename _Tp3>
@@ -185,6 +192,7 @@ namespace __gnu_test
 
       typedef std::true_type	has_erase;
       typedef std::true_type	has_insert;
+      typedef std::true_type	has_emplace;
     };
 
   template<typename _Tp1, typename _Tp2>

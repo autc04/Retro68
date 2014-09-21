@@ -5,15 +5,12 @@
 package fmt
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"math"
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -36,8 +33,8 @@ type ScanState interface {
 	ReadRune() (r rune, size int, err error)
 	// UnreadRune causes the next call to ReadRune to return the same rune.
 	UnreadRune() error
-	// SkipSpace skips space in the input. Newlines are treated as space 
-	// unless the scan operation is Scanln, Fscanln or Sscanln, in which case 
+	// SkipSpace skips space in the input. Newlines are treated as space
+	// unless the scan operation is Scanln, Fscanln or Sscanln, in which case
 	// a newline is treated as EOF.
 	SkipSpace()
 	// Token skips space in the input if skipSpace is true, then returns the
@@ -87,25 +84,36 @@ func Scanf(format string, a ...interface{}) (n int, err error) {
 	return Fscanf(os.Stdin, format, a...)
 }
 
+type stringReader string
+
+func (r *stringReader) Read(b []byte) (n int, err error) {
+	n = copy(b, *r)
+	*r = (*r)[n:]
+	if n == 0 {
+		err = io.EOF
+	}
+	return
+}
+
 // Sscan scans the argument string, storing successive space-separated
 // values into successive arguments.  Newlines count as space.  It
 // returns the number of items successfully scanned.  If that is less
 // than the number of arguments, err will report why.
 func Sscan(str string, a ...interface{}) (n int, err error) {
-	return Fscan(strings.NewReader(str), a...)
+	return Fscan((*stringReader)(&str), a...)
 }
 
 // Sscanln is similar to Sscan, but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Sscanln(str string, a ...interface{}) (n int, err error) {
-	return Fscanln(strings.NewReader(str), a...)
+	return Fscanln((*stringReader)(&str), a...)
 }
 
 // Sscanf scans the argument string, storing successive space-separated
 // values into successive arguments as determined by the format.  It
 // returns the number of items successfully parsed.
 func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
-	return Fscanf(strings.NewReader(str), format, a...)
+	return Fscanf((*stringReader)(&str), format, a...)
 }
 
 // Fscan scans text read from r, storing successive space-separated
@@ -149,7 +157,7 @@ const eof = -1
 // ss is the internal implementation of ScanState.
 type ss struct {
 	rr       io.RuneReader // where to read input
-	buf      bytes.Buffer  // token accumulator
+	buf      buffer        // token accumulator
 	peekRune rune          // one-rune lookahead
 	prevRune rune          // last rune returned by ReadRune
 	count    int           // runes consumed so far.
@@ -160,12 +168,12 @@ type ss struct {
 // ssave holds the parts of ss that need to be
 // saved and restored on recursive scans.
 type ssave struct {
-	validSave  bool // is or was a part of an actual ss.
-	nlIsEnd    bool // whether newline terminates scan
-	nlIsSpace  bool // whether newline counts as white space
-	fieldLimit int  // max value of ss.count for this field; fieldLimit <= limit
-	limit      int  // max value of ss.count.
-	maxWid     int  // width of this field.
+	validSave bool // is or was a part of an actual ss.
+	nlIsEnd   bool // whether newline terminates scan
+	nlIsSpace bool // whether newline counts as white space
+	argLimit  int  // max value of ss.count for this arg; argLimit <= limit
+	limit     int  // max value of ss.count.
+	maxWid    int  // width of this arg.
 }
 
 // The Read method is only in ScanState so that ScanState
@@ -184,7 +192,7 @@ func (s *ss) ReadRune() (r rune, size int, err error) {
 		s.peekRune = -1
 		return
 	}
-	if s.atEOF || s.nlIsEnd && s.prevRune == '\n' || s.count >= s.fieldLimit {
+	if s.atEOF || s.nlIsEnd && s.prevRune == '\n' || s.count >= s.argLimit {
 		err = io.EOF
 		return
 	}
@@ -262,18 +270,51 @@ func (s *ss) Token(skipSpace bool, f func(rune) bool) (tok []byte, err error) {
 	if f == nil {
 		f = notSpace
 	}
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	tok = s.token(skipSpace, f)
 	return
 }
 
-// notSpace is the default scanning function used in Token.
-func notSpace(r rune) bool {
-	return !unicode.IsSpace(r)
+// space is a copy of the unicode.White_Space ranges,
+// to avoid depending on package unicode.
+var space = [][2]uint16{
+	{0x0009, 0x000d},
+	{0x0020, 0x0020},
+	{0x0085, 0x0085},
+	{0x00a0, 0x00a0},
+	{0x1680, 0x1680},
+	{0x180e, 0x180e},
+	{0x2000, 0x200a},
+	{0x2028, 0x2029},
+	{0x202f, 0x202f},
+	{0x205f, 0x205f},
+	{0x3000, 0x3000},
 }
 
-// skipSpace provides Scan() methods the ability to skip space and newline characters 
-// in keeping with the current scanning mode set by format strings and Scan()/Scanln().
+func isSpace(r rune) bool {
+	if r >= 1<<16 {
+		return false
+	}
+	rx := uint16(r)
+	for _, rng := range space {
+		if rx < rng[0] {
+			return false
+		}
+		if rx <= rng[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// notSpace is the default scanning function used in Token.
+func notSpace(r rune) bool {
+	return !isSpace(r)
+}
+
+// SkipSpace provides Scan methods the ability to skip space and newline
+// characters in keeping with the current scanning mode set by format strings
+// and Scan/Scanln.
 func (s *ss) SkipSpace() {
 	s.skipSpace(false)
 }
@@ -297,7 +338,10 @@ func (r *readRune) readByte() (b byte, err error) {
 		r.pending--
 		return
 	}
-	_, err = r.reader.Read(r.pendBuf[0:1])
+	n, err := io.ReadFull(r.reader, r.pendBuf[0:1])
+	if n != 1 {
+		return 0, err
+	}
 	return r.pendBuf[0], err
 }
 
@@ -338,14 +382,14 @@ func (r *readRune) ReadRune() (rr rune, size int, err error) {
 
 var ssFree = newCache(func() interface{} { return new(ss) })
 
-// Allocate a new ss struct or grab a cached one.
+// newScanState allocates a new ss struct or grab a cached one.
 func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
 	// If the reader is a *ss, then we've got a recursive
 	// call to Scan, so re-use the scan state.
 	s, ok := r.(*ss)
 	if ok {
 		old = s.ssave
-		s.limit = s.fieldLimit
+		s.limit = s.argLimit
 		s.nlIsEnd = nlIsEnd || s.nlIsEnd
 		s.nlIsSpace = nlIsSpace
 		return
@@ -363,14 +407,14 @@ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
 	s.peekRune = -1
 	s.atEOF = false
 	s.limit = hugeWid
-	s.fieldLimit = hugeWid
+	s.argLimit = hugeWid
 	s.maxWid = hugeWid
 	s.validSave = true
 	s.count = 0
 	return
 }
 
-// Save used ss structs in ssFree; avoid an allocation per invocation.
+// free saves used ss structs in ssFree; avoid an allocation per invocation.
 func (s *ss) free(old ssave) {
 	// If it was used recursively, just restore the old state.
 	if old.validSave {
@@ -378,10 +422,10 @@ func (s *ss) free(old ssave) {
 		return
 	}
 	// Don't hold on to ss structs with large buffers.
-	if cap(s.buf.Bytes()) > 1024 {
+	if cap(s.buf) > 1024 {
 		return
 	}
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	s.rr = nil
 	ssFree.put(s)
 }
@@ -393,6 +437,9 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 		if r == eof {
 			return
 		}
+		if r == '\r' && s.peek("\n") {
+			continue
+		}
 		if r == '\n' {
 			if stopAtNewline {
 				break
@@ -403,7 +450,7 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 			s.errorString("unexpected newline")
 			return
 		}
-		if !unicode.IsSpace(r) {
+		if !isSpace(r) {
 			s.UnreadRune()
 			break
 		}
@@ -429,16 +476,20 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 		}
 		s.buf.WriteRune(r)
 	}
-	return s.buf.Bytes()
-}
-
-// typeError indicates that the type of the operand did not match the format
-func (s *ss) typeError(field interface{}, expected string) {
-	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.TypeOf(field).String())
+	return s.buf
 }
 
 var complexError = errors.New("syntax error scanning complex number")
 var boolError = errors.New("syntax error scanning boolean")
+
+func indexRune(s string, r rune) int {
+	for i, c := range s {
+		if c == r {
+			return i
+		}
+	}
+	return -1
+}
 
 // consume reads the next rune in the input and reports whether it is in the ok string.
 // If accept is true, it puts the character into the input token.
@@ -447,7 +498,7 @@ func (s *ss) consume(ok string, accept bool) bool {
 	if r == eof {
 		return false
 	}
-	if strings.IndexRune(ok, r) >= 0 {
+	if indexRune(ok, r) >= 0 {
 		if accept {
 			s.buf.WriteRune(r)
 		}
@@ -465,7 +516,7 @@ func (s *ss) peek(ok string) bool {
 	if r != eof {
 		s.UnreadRune()
 	}
-	return strings.IndexRune(ok, r) >= 0
+	return indexRune(ok, r) >= 0
 }
 
 func (s *ss) notEOF() {
@@ -560,7 +611,7 @@ func (s *ss) scanNumber(digits string, haveDigits bool) string {
 	}
 	for s.accept(digits) {
 	}
-	return s.buf.String()
+	return string(s.buf)
 }
 
 // scanRune returns the next rune value in the input.
@@ -660,16 +711,16 @@ func (s *ss) scanUint(verb rune, bitSize int) uint64 {
 // if the width is specified. It's not rigorous about syntax because it doesn't check that
 // we have at least some digits, but Atof will do that.
 func (s *ss) floatToken() string {
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	// NaN?
 	if s.accept("nN") && s.accept("aA") && s.accept("nN") {
-		return s.buf.String()
+		return string(s.buf)
 	}
 	// leading sign?
 	s.accept(sign)
 	// Inf?
 	if s.accept("iI") && s.accept("nN") && s.accept("fF") {
-		return s.buf.String()
+		return string(s.buf)
 	}
 	// digits?
 	for s.accept(decimalDigits) {
@@ -688,7 +739,7 @@ func (s *ss) floatToken() string {
 		for s.accept(decimalDigits) {
 		}
 	}
-	return s.buf.String()
+	return string(s.buf)
 }
 
 // complexTokens returns the real and imaginary parts of the complex number starting here.
@@ -698,13 +749,13 @@ func (s *ss) complexTokens() (real, imag string) {
 	// TODO: accept N and Ni independently?
 	parens := s.accept("(")
 	real = s.floatToken()
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	// Must now have a sign.
 	if !s.accept("+-") {
 		s.error(complexError)
 	}
 	// Sign is now in buffer
-	imagSign := s.buf.String()
+	imagSign := string(s.buf)
 	imag = s.floatToken()
 	if !s.accept("i") {
 		s.error(complexError)
@@ -717,7 +768,7 @@ func (s *ss) complexTokens() (real, imag string) {
 
 // convertFloat converts the string to a float64value.
 func (s *ss) convertFloat(str string, n int) float64 {
-	if p := strings.Index(str, "p"); p >= 0 {
+	if p := indexRune(str, 'p'); p >= 0 {
 		// Atof doesn't handle power-of-2 exponents,
 		// but they're easy to evaluate.
 		f, err := strconv.ParseFloat(str[:p], n)
@@ -728,7 +779,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 			}
 			s.error(err)
 		}
-		n, err := strconv.Atoi(str[p+1:])
+		m, err := strconv.Atoi(str[p+1:])
 		if err != nil {
 			// Put full string into error.
 			if e, ok := err.(*strconv.NumError); ok {
@@ -736,7 +787,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 			}
 			s.error(err)
 		}
-		return math.Ldexp(f, n)
+		return math.Ldexp(f, m)
 	}
 	f, err := strconv.ParseFloat(str, n)
 	if err != nil {
@@ -794,7 +845,7 @@ func (s *ss) quotedString() string {
 			}
 			s.buf.WriteRune(r)
 		}
-		return s.buf.String()
+		return string(s.buf)
 	case '"':
 		// Double-quoted: Include the quotes and let strconv.Unquote do the backslash escapes.
 		s.buf.WriteRune(quote)
@@ -805,13 +856,12 @@ func (s *ss) quotedString() string {
 				// In a legal backslash escape, no matter how long, only the character
 				// immediately after the escape can itself be a backslash or quote.
 				// Thus we only need to protect the first character after the backslash.
-				r := s.mustReadRune()
-				s.buf.WriteRune(r)
+				s.buf.WriteRune(s.mustReadRune())
 			} else if r == '"' {
 				break
 			}
 		}
-		result, err := strconv.Unquote(s.buf.String())
+		result, err := strconv.Unquote(string(s.buf))
 		if err != nil {
 			s.error(err)
 		}
@@ -833,7 +883,7 @@ func (s *ss) hexDigit(d rune) int {
 	case 'A', 'B', 'C', 'D', 'E', 'F':
 		return 10 + digit - 'A'
 	}
-	s.errorString("Scan: illegal hex digit")
+	s.errorString("illegal hex digit")
 	return 0
 }
 
@@ -844,7 +894,7 @@ func (s *ss) hexByte() (b byte, ok bool) {
 	if rune1 == eof {
 		return
 	}
-	if unicode.IsSpace(rune1) {
+	if isSpace(rune1) {
 		s.UnreadRune()
 		return
 	}
@@ -862,11 +912,11 @@ func (s *ss) hexString() string {
 		}
 		s.buf.WriteByte(b)
 	}
-	if s.buf.Len() == 0 {
-		s.errorString("Scan: no hex data for %x string")
+	if len(s.buf) == 0 {
+		s.errorString("no hex data for %x string")
 		return ""
 	}
-	return s.buf.String()
+	return string(s.buf)
 }
 
 const floatVerbs = "beEfFgGv"
@@ -874,11 +924,11 @@ const floatVerbs = "beEfFgGv"
 const hugeWid = 1 << 30
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
-func (s *ss) scanOne(verb rune, field interface{}) {
-	s.buf.Reset()
+func (s *ss) scanOne(verb rune, arg interface{}) {
+	s.buf = s.buf[:0]
 	var err error
 	// If the parameter has its own Scan method, use that.
-	if v, ok := field.(Scanner); ok {
+	if v, ok := arg.(Scanner); ok {
 		err = v.Scan(s, verb)
 		if err != nil {
 			if err == io.EOF {
@@ -889,7 +939,7 @@ func (s *ss) scanOne(verb rune, field interface{}) {
 		return
 	}
 
-	switch v := field.(type) {
+	switch v := arg.(type) {
 	case *bool:
 		*v = s.scanBool(verb)
 	case *complex64:
@@ -942,7 +992,7 @@ func (s *ss) scanOne(verb rune, field interface{}) {
 		val := reflect.ValueOf(v)
 		ptr := val
 		if ptr.Kind() != reflect.Ptr {
-			s.errorString("Scan: type not a pointer: " + val.Type().String())
+			s.errorString("type not a pointer: " + val.Type().String())
 			return
 		}
 		switch v := ptr.Elem(); v.Kind() {
@@ -958,7 +1008,7 @@ func (s *ss) scanOne(verb rune, field interface{}) {
 			// For now, can only handle (renamed) []byte.
 			typ := v.Type()
 			if typ.Elem().Kind() != reflect.Uint8 {
-				s.errorString("Scan: can't handle type: " + val.Type().String())
+				s.errorString("can't scan type: " + val.Type().String())
 			}
 			str := s.convertString(verb)
 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
@@ -972,7 +1022,7 @@ func (s *ss) scanOne(verb rune, field interface{}) {
 		case reflect.Complex64, reflect.Complex128:
 			v.SetComplex(s.scanComplex(verb, v.Type().Bits()))
 		default:
-			s.errorString("Scan: can't handle type: " + val.Type().String())
+			s.errorString("can't scan type: " + val.Type().String())
 		}
 	}
 }
@@ -993,8 +1043,8 @@ func errorHandler(errp *error) {
 // doScan does the real work for scanning without a format string.
 func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
 	defer errorHandler(&err)
-	for _, field := range a {
-		s.scanOne('v', field)
+	for _, arg := range a {
+		s.scanOne('v', arg)
 		numProcessed++
 	}
 	// Check for newline if required.
@@ -1004,8 +1054,8 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
 			if r == '\n' || r == eof {
 				break
 			}
-			if !unicode.IsSpace(r) {
-				s.errorString("Scan: expected newline")
+			if !isSpace(r) {
+				s.errorString("expected newline")
 				break
 			}
 		}
@@ -1032,7 +1082,7 @@ func (s *ss) advance(format string) (i int) {
 			i += w // skip the first %
 		}
 		sawSpace := false
-		for unicode.IsSpace(fmtc) && i < len(format) {
+		for isSpace(fmtc) && i < len(format) {
 			sawSpace = true
 			i += w
 			fmtc, w = utf8.DecodeRuneInString(format[i:])
@@ -1041,10 +1091,11 @@ func (s *ss) advance(format string) (i int) {
 			// There was space in the format, so there should be space (EOF)
 			// in the input.
 			inputc := s.getRune()
-			if inputc == eof {
+			if inputc == eof || inputc == '\n' {
+				// If we've reached a newline, stop now; don't read ahead.
 				return
 			}
-			if !unicode.IsSpace(inputc) {
+			if !isSpace(inputc) {
 				// Space in format but not in input: error
 				s.errorString("expected space in input to match format")
 			}
@@ -1090,9 +1141,9 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 		if !widPresent {
 			s.maxWid = hugeWid
 		}
-		s.fieldLimit = s.limit
-		if f := s.count + s.maxWid; f < s.fieldLimit {
-			s.fieldLimit = f
+		s.argLimit = s.limit
+		if f := s.count + s.maxWid; f < s.argLimit {
+			s.argLimit = f
 		}
 
 		c, w := utf8.DecodeRuneInString(format[i:])
@@ -1102,11 +1153,11 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 			s.errorString("too few operands for format %" + format[i-w:])
 			break
 		}
-		field := a[numProcessed]
+		arg := a[numProcessed]
 
-		s.scanOne(c, field)
+		s.scanOne(c, arg)
 		numProcessed++
-		s.fieldLimit = s.limit
+		s.argLimit = s.limit
 	}
 	if numProcessed < len(a) {
 		s.errorString("too many operands")

@@ -1,6 +1,6 @@
 // 2004-01-03  Jerry Quinn  <jlquinn@optonline.net>
 
-// Copyright (C) 2004, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -75,4 +75,4 @@ int main()
   VERIFY(check_array(val_g, ans4));
 
   return 0;
-};
+}

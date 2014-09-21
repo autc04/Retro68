@@ -1,12 +1,12 @@
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* alpha*-*-osf* mips-sgi-irix6* powerpc-ibm-aix* } }
-// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* alpha*-*-osf* mips-sgi-irix6* powerpc-ibm-aix* } }
+// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* powerpc-ibm-aix* } }
+// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* powerpc-ibm-aix* } }
 // { dg-options " -std=gnu++0x -pthreads" { target *-*-solaris* } }
 // { dg-options " -std=gnu++0x " { target *-*-cygwin *-*-darwin* } }
 // { dg-require-cstdint "" }
 // { dg-require-gthreads "" }
 // { dg-require-atomic-builtins "" }
 
-// Copyright (C) 2010, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2010-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,29 +29,43 @@
 
 using namespace std;
 
-struct work {
-  typedef void result_type;
-  void operator()(mutex& m, condition_variable& cv)
-  {
-    unique_lock<mutex> l(m);
-    cv.notify_one();
-  }
-};
+void work(mutex& m)
+{
+  unique_lock<mutex> l(m);
+}
 
 void test01()
+{
+  mutex m;
+  unique_lock<mutex> l(m);
+  future<void> f1 = async(launch::async, &work, ref(m));
+  l.unlock();  // allow async thread to proceed
+  f1.get();    // wait for it to finish
+}
+
+void test02()
 {
   bool test __attribute__((unused)) = true;
 
   mutex m;
-  condition_variable cv;
   unique_lock<mutex> l(m);
-  future<void> f1 = async(launch::async, work(), ref(m), ref(cv));
-  cv.wait(l);
-  f1.get();
+  future<void> f1 = async(launch::async, &work, ref(m));
+  std::future_status status;
+  status = f1.wait_for(std::chrono::milliseconds(1));
+  VERIFY( status == std::future_status::timeout );
+  status = f1.wait_until(std::chrono::system_clock::now());
+  VERIFY( status == std::future_status::timeout );
+  l.unlock();  // allow async thread to proceed
+  f1.wait();   // wait for it to finish
+  status = f1.wait_for(std::chrono::milliseconds(0));
+  VERIFY( status == std::future_status::ready );
+  status = f1.wait_until(std::chrono::system_clock::now());
+  VERIFY( status == std::future_status::ready );
 }
 
 int main()
 {
   test01();
+  test02();
   return 0;
 }

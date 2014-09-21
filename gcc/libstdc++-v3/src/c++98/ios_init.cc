@@ -1,8 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-// 2006, 2007, 2008, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 1997-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,7 +37,7 @@ namespace __gnu_internal _GLIBCXX_VISIBILITY(hidden)
 {
   using namespace __gnu_cxx;
 
-  // Extern declarations for global objects in src/globals.cc.
+  // Extern declarations for global objects in src/c++98/globals.cc.
   extern stdio_sync_filebuf<char> buf_cout_sync;
   extern stdio_sync_filebuf<char> buf_cin_sync;
   extern stdio_sync_filebuf<char> buf_cerr_sync;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -82,7 +82,7 @@ package body Rtsfind is
 
    --  A unit retrieved through rtsfind  may end up in the context of several
    --  other units, in addition to the main unit. These additional with_clauses
-   --  are needed to generate a proper traversal order for Inspector. To
+   --  are needed to generate a proper traversal order for CodePeer. To
    --  minimize somewhat the redundancy created by numerous calls to rtsfind
    --  from different units, we keep track of the list of implicit with_clauses
    --  already created for the current loaded unit.
@@ -123,7 +123,7 @@ package body Rtsfind is
    --  with_clauses to the extended main unit if needed, and also to whatever
    --  unit needs them, which is not necessarily the main unit. The former
    --  ensures that the object is correctly loaded by the binder. The latter
-   --  is necessary for SofCheck Inspector.
+   --  is necessary for CodePeer.
 
    --  The field First_Implicit_With in the unit table record are used to
    --  avoid creating duplicate with_clauses.
@@ -148,6 +148,7 @@ package body Rtsfind is
    --  value in RTU_Id.
 
    procedure Load_Fail (S : String; U_Id : RTU_Id; Id : RE_Id);
+   pragma No_Return (Load_Fail);
    --  Internal procedure called if we can't successfully locate or process a
    --  run-time unit. The parameters give information about the error message
    --  to be given. S is a reason for failing to compile the file and U_Id is
@@ -224,11 +225,18 @@ package body Rtsfind is
       --  Entity is available
 
       else
-         --  If in No_Run_Time mode and entity is not in one of the
-         --  specially permitted units, raise the exception.
+         --  If in No_Run_Time mode and entity is neither in the current unit
+         --  nor in one of the specially permitted units, raise the exception.
 
          if No_Run_Time_Mode
            and then not OK_No_Run_Time_Unit (U_Id)
+
+           --  If the entity being referenced is defined in the current scope,
+           --  using it is always fine as such usage can never introduce any
+           --  dependency on an additional unit. The presence of this test
+           --  helps generating meaningful error messages for CRT violations.
+
+           and then Scope (Eid) /= Current_Scope
          then
             Entity_Not_Defined (E);
             raise RE_Not_Available;
@@ -456,7 +464,7 @@ package body Rtsfind is
 
       S := Scope (Ent);
 
-      if Ekind (S) /= E_Package then
+      if No (S) or else Ekind (S) /= E_Package then
          return False;
       end if;
 
@@ -536,15 +544,11 @@ package body Rtsfind is
       return
         Nkind (Prf) = N_Identifier
           and then
-           (Chars (Prf) = Name_Text_IO
-              or else
-            Chars (Prf) = Name_Wide_Text_IO
-              or else
-            Chars (Prf) = Name_Wide_Wide_Text_IO)
-          and then
-        Nkind (Sel) = N_Identifier
-          and then
-        Chars (Sel) in Text_IO_Package_Name;
+            Nam_In (Chars (Prf), Name_Text_IO,
+                                 Name_Wide_Text_IO,
+                                 Name_Wide_Wide_Text_IO)
+          and then Nkind (Sel) = N_Identifier
+          and then Chars (Sel) in Text_IO_Package_Name;
    end Is_Text_IO_Kludge_Unit;
 
    ---------------
@@ -706,7 +710,7 @@ package body Rtsfind is
       --  of diagnostics, since we will take care of it here.
 
       --  We save style checking switches and turn off style checking for
-      --  loading the unit, since we don't want any style checking!
+      --  loading the unit, since we don't want any style checking.
 
       declare
          Save_Style_Check : constant Boolean := Style_Check;
@@ -763,7 +767,7 @@ package body Rtsfind is
             --  a real semantic dependence when the purpose of the limited_with
             --  is precisely to avoid such.
 
-            if From_With_Type (Cunit_Entity (U.Unum)) then
+            if From_Limited_With (Cunit_Entity (U.Unum)) then
                null;
 
             else
@@ -802,7 +806,7 @@ package body Rtsfind is
       Scop : Entity_Id;
 
    begin
-      Nam  := New_Reference_To (U.Entity, Standard_Location);
+      Nam  := New_Occurrence_Of (U.Entity, Standard_Location);
       Scop := Scope (U.Entity);
 
       if Nkind (N) = N_Defining_Program_Unit_Name then
@@ -810,7 +814,7 @@ package body Rtsfind is
             Nam :=
               Make_Expanded_Name (Standard_Location,
                 Chars  => Chars (U.Entity),
-                Prefix => New_Reference_To (Scop, Standard_Location),
+                Prefix => New_Occurrence_Of (Scop, Standard_Location),
                 Selector_Name => Nam);
             Set_Entity (Nam, U.Entity);
 
@@ -830,10 +834,9 @@ package body Rtsfind is
       --  We do not need to generate a with_clause for a call issued from
       --  RTE_Component_Available. However, for CodePeer, we need these
       --  additional with's, because for a sequence like "if RTE_Available (X)
-      --  then ... RTE (X)" the RTE call fails to create some necessary
-      --  with's.
+      --  then ... RTE (X)" the RTE call fails to create some necessary with's.
 
-      if RTE_Available_Call and then not Generate_SCIL then
+      if RTE_Available_Call and not Generate_SCIL then
          return;
       end if;
 
@@ -843,8 +846,8 @@ package body Rtsfind is
          return;
       end if;
 
-      --  Add the with_clause, if not already in the context of the
-      --  current compilation unit.
+      --  Add the with_clause, if we have not already added an implicit with
+      --  for this unit to the current compilation unit.
 
       declare
          LibUnit : constant Node_Id := Unit (Cunit (U.Unum));
@@ -1085,7 +1088,7 @@ package body Rtsfind is
       --  declaration and otherwise do a regular find.
 
       --  Not pleasant, but these kinds of annoying recursion when
-      --  writing an Ada compiler in Ada have to be broken somewhere!
+      --  writing an Ada compiler in Ada have to be broken somewhere.
 
       if Present (Main_Unit_Entity)
         and then Chars (Main_Unit_Entity) = Name_System
@@ -1124,7 +1127,7 @@ package body Rtsfind is
             --  only has a limited view, scan the corresponding list of
             --  incomplete types.
 
-            if From_With_Type (U.Entity) then
+            if From_Limited_With (U.Entity) then
                Pkg_Ent := First_Entity (Limited_View (U.Entity));
             else
                Pkg_Ent := First_Entity (U.Entity);
@@ -1466,7 +1469,7 @@ package body Rtsfind is
                end if;
 
                Load_RTU (To_Load, Use_Setting => In_Use (Cunit_Entity (U)));
-               Set_Is_Visible_Child_Unit (RT_Unit_Table (To_Load).Entity);
+               Set_Is_Visible_Lib_Unit (RT_Unit_Table (To_Load).Entity);
 
                --  Prevent creation of an implicit 'with' from (for example)
                --  Ada.Wide_Text_IO.Integer_IO to Ada.Text_IO.Integer_IO,

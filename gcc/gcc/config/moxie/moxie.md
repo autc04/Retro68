@@ -1,5 +1,5 @@
 ;; Machine description for Moxie
-;; Copyright (C) 2009 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2014 Free Software Foundation, Inc.
 ;; Contributed by Anthony Green <green@moxielogic.com>
 
 ;; This file is part of GCC.
@@ -223,7 +223,7 @@
 }")
 
 (define_insn "*movsi"
-  [(set (match_operand:SI 0 "general_operand" "=r,r,r,W,A,r,r,B,r")
+  [(set (match_operand:SI 0 "nonimmediate_operand" "=r,r,r,W,A,r,r,B,r")
 	(match_operand:SI 1 "moxie_general_movsrc_operand" "O,r,i,r,r,W,A,r,B"))]
   "register_operand (operands[0], SImode)
    || register_operand (operands[1], SImode)"
@@ -239,6 +239,56 @@
    ldo.l  %0, %1"
   [(set_attr "length"	"2,2,6,2,6,2,6,6,6")])
 
+(define_insn_and_split "zero_extendqisi2"
+  [(set (match_operand:SI 0 "register_operand" "=r,r,r,r")
+	(zero_extend:SI (match_operand:QI 1 "nonimmediate_operand" "0,W,A,B")))]
+  ""
+  "@
+   ;
+   ld.b   %0, %1
+   lda.b  %0, %1
+   ldo.b  %0, %1"
+  "reload_completed"
+  [(set (match_dup 2) (match_dup 1))
+   (set (match_dup 0) (zero_extend:SI (match_dup 2)))]
+{
+  operands[2] = gen_lowpart (QImode, operands[0]);
+}
+  [(set_attr "length" "0,2,6,6")])
+
+(define_insn_and_split "zero_extendhisi2"
+  [(set (match_operand:SI 0 "register_operand" "=r,r,r,r")
+	(zero_extend:SI (match_operand:HI 1 "nonimmediate_operand" "0,W,A,B")))]
+  ""
+  "@
+   ;
+   ld.s   %0, %1
+   lda.s  %0, %1
+   ldo.s  %0, %1"
+  "reload_completed"
+  [(set (match_dup 2) (match_dup 1))
+   (set (match_dup 0) (zero_extend:SI (match_dup 2)))]
+{
+  operands[2] = gen_lowpart (HImode, operands[0]);
+}
+  [(set_attr "length" "0,2,6,6")])
+
+(define_insn "extendqisi2"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+	(sign_extend:SI (match_operand:QI 1 "nonimmediate_operand" "r")))]
+  ""
+  "@
+   sex.b  %0, %1"
+  [(set_attr "length" "2")])
+
+(define_insn "extendhisi2"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+	(sign_extend:SI (match_operand:HI 1 "nonimmediate_operand" "r")))]
+  ""
+  "@
+   sex.s  %0, %1"
+  [(set_attr "length" "2")])
+
 (define_expand "movqi"
   [(set (match_operand:QI 0 "general_operand" "")
 	(match_operand:QI 1 "general_operand" ""))]
@@ -251,7 +301,7 @@
 }")
 
 (define_insn "*movqi"
-  [(set (match_operand:QI 0 "general_operand" "=r,r,r,W,A,r,r,B,r")
+  [(set (match_operand:QI 0 "nonimmediate_operand" "=r,r,r,W,A,r,r,B,r")
 	(match_operand:QI 1 "moxie_general_movsrc_operand" "O,r,i,r,r,W,A,r,B"))]
   "register_operand (operands[0], QImode)
    || register_operand (operands[1], QImode)"
@@ -279,7 +329,7 @@
 }")
 
 (define_insn "*movhi"
-  [(set (match_operand:HI 0 "general_operand" "=r,r,r,W,A,r,r,B,r")
+  [(set (match_operand:HI 0 "nonimmediate_operand" "=r,r,r,W,A,r,r,B,r")
 	(match_operand:HI 1 "moxie_general_movsrc_operand" "O,r,i,r,r,W,A,r,B"))]
   "(register_operand (operands[0], HImode)
     || register_operand (operands[1], HImode))"

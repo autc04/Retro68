@@ -1,6 +1,192 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-01-21  Tom Tromey  <tromey@redhat.com>
+
+	* ansidecl.h (ANSI_PROTOTYPES, PTRCONST, LONG_DOUBLE, PARAMS)
+	(VPARAMS, VA_START, VA_OPEN, VA_CLOSE, VA_FIXEDARG, CONST)
+	(VOLATILE, SIGNED, PROTO, EXFUN, DEFUN, DEFUN_VOID, AND, DOTS)
+	(NOARGS): Don't define.
+	* libiberty.h (expandargv, writeargv): Don't use PARAMS.
+
+2013-12-23  Bill Maddox  <maddox@google.com>
+
+	* demangle.h (enum gnu_v3_ctor_kinds):
+	Added literal gnu_v3_unified_ctor.
+	(enum gnu_v3_ctor_kinds):
+	Added literal gnu_v3_unified_dtor.
+
+2013-12-04  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* longlong.h: New file.
+
+2013-10-29  Marc Glisse  <marc.glisse@inria.fr>
+
+	PR tree-optimization/58689
+	* ansidecl.h (ATTRIBUTE_RETURNS_NONNULL): New macro.
+	* libiberty.h (basename, lbasename, dos_lbasename, unix_lbasename,
+	concat_copy): Mark with attributes nonnull(1) and returns_nonnull.
+	(concat, reconcat, concat_copy2, choose_temp_base, xstrerror,
+	xmalloc, xrealloc, xcalloc, xstrdup, xstrndup, xmemdup, pex_init):
+	Mark with attribute returns_nonnull.
+
+2013-10-22  Sterling Augustine  <saugustine@google.com>
+
+	* gdb/gdb-index.h: Merge from gdb tree.
+
+2013-08-20  Alan Modra  <amodra@gmail.com>
+
+	* floatformat.h (floatformat_ibm_long_double): Delete.
+	(floatformat_ibm_long_double_big): Declare.
+	(floatformat_ibm_long_double_little): Declare.
+
+2013-08-19  Dehao Chen  <dehao@google.com>
+
+	* dwarf2.def (DW_AT_GNU_discriminator): New attribute.
+
+2013-08-02  Caroline Tice  <cmtice@google.com>
+
+	* vtv-change-permission.h: New file.
+
+2013-04-03  Jason Merrill  <jason@redhat.com>
+
+	Demangle C++11 ref-qualifier.
+	* demangle.h (enum demangle_component_type): Add
+	DEMANGLE_COMPONENT_REFERENCE_THIS,
+	DEMANGLE_COMPONENT_RVALUE_REFERENCE_THIS.
+
+2013-03-01  Cary Coutant  <ccoutant@google.com>
+
+	* dwarf2.h (enum dwarf_sect): New enum type.
+
+2013-02-11  Sriraman Tallam  <tmsriram@google.com>
+
+	* plugin-api.h (enum ld_plugin_level): Assign integers
+	explicitly for all values.
+
+2013-01-30  Kai Tietz  <ktietz@redhat.com>
+
+	PR other/54620
+	PR target/39064
+	* md5.h (md5_uintptr, md5_uint32): Define as uintptr_t/uint32_t if
+	stdint.h and sys/types.h headers are present.
+	* sha1.h (sha1_uintptr, sha1_uint32): Likewise.
+
+2012-12-18  Aldy Hernandez  <aldyh@redhat.com>
+
+	PR other/54324
+	* ansidecl.h (ATTRIBUTE_UNUSED): Do not set __attribute__ for GCC
+	< 3.4.
+
+2012-11-09  Jason Merrill  <jason@redhat.com>
+
+	* demangle.h (enum demangle_component_type): Add
+	DEMANGLE_COMPONENT_TAGGED_NAME.
+
+2012-10-29  Sterling Augustine  <saugustine@google.com>
+            Cary Coutant  <ccoutant@google.com>
+
+	* dwarf2.h (dwarf_location_list_entry_type): New enum with fields
+	DW_LLE_GNU_end_of_list_entry, DW_LLE_GNU_base_address_selection_entry,
+	DW_LLE_GNU_start_end_entry and DW_LLE_GNU_start_length_entry.
+
+
+2012-10-08  Jason Merrill  <jason@redhat.com>
+
+	* demangle.h (enum demangle_component_type): Add
+	DEMANGLE_COMPONENT_TLS_INIT and DEMANGLE_COMPONENT_TLS_WRAPPER.
+
+2012-09-18  Florian Weimer  <fweimer@redhat.com>
+
+	PR other/54411
+	* objalloc.h (objalloc_alloc): Do not use fast path on wraparound.
+
+2012-09-06  Cary Coutant  <ccoutant@google.com>
+
+	* dwarf2.def: Edit comment.
+
+2012-08-24  Sriraman Tallam  <tmsriram@google.com>
+
+	* plugin-api.h (ld_plugin_allow_unique_segment_for_sections):
+	New interface.
+	(ld_plugin_unique_segment_for_sections): New interface.
+	(LDPT_ALLOW_UNIQUE_SEGMENT_FOR_SECTIONS): New enum val.
+	(LDPT_UNIQUE_SEGMENT_FOR_SECTIONS): New enum val.
+	(tv_allow_unique_segment_for_sections): New member.
+	(tv_unique_segment_for_sections): New member.
+
+2012-07-13  Doug Evans  <dje@google.com>
+
+	* filenames.h: #include "hashtab.h".
+	(filename_hash, filename_eq): Declare.
+
+2012-06-18  Doug Evans  <dje@google.com>
+
+	* dwarf2.def (DW_OP): Add DW_OP_GNU_const_index.
+
+2012-06-12  Rafael Ávila de Espíndola <respindola@mozilla.com>
+
+	* plugin-api.h (ld_plugin_output_file_type): Add LDPO_PIE.
+
+2012-06-08  Jakub Jelinek  <jakub@redhat.com>
+
+	* dwarf2.def (DW_FORM_GNU_ref_alt, DW_FORM_GNU_strp_alt): New
+	forms.
+	* dwarf2.h (enum dwarf_macro_record_type): Add
+	DW_MACRO_GNU_define_indirect_alt, DW_MACRO_GNU_undef_indirect_alt
+	and DW_MACRO_GNU_transparent_include_alt.
+
+2012-05-23  Doug Evans  <dje@google.com>
+
+	* leb128.h: #include stdint.h, inttypes.h.
+	(read_uleb128_to_uint64): Renamed from read_uleb128_to_ull.
+	Change to take a uint64_t * argument instead of unsigned long long.
+	(read_sleb128_to_uint64): Renamed from read_sleb128_to_ll.
+	Change to take an int64_t * argument instead of long long.
+
+2012-05-22  Doug Evans  <dje@google.com>
+
+	* leb128.h: New file.
+
+2012-05-19  Gary Funck  <gary@intrepid.com>
+
+	* dwarf2.def: Update comment re: UPC extensions to reference
+	DWARF4 specification.
+
+2012-05-02  Cary Coutant  <ccoutant@google.com>
+
+	* dwarf2.def: Remove DW_FORM_GNU_ref_index,
+	replace DW_AT_GNU_ref_base with DW_AT_GNU_ranges_base.
+
+2012-04-28  Doug Evans  <dje@google.com>
+
+	* dwarf2.def (DW_OP): Add DW_OP_GNU_addr_index.
+
+2012-04-27  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2.h: Wrap function declarations in extern "C".
+
+2012-04-27  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2.h (enum dwarf_tag, enum dwarf_form, enum dwarf_attribute)
+	(enum dwarf_location_atom, enum dwarf_type, enum
+	dwarf_call_frame_info): Remove.
+	(DW_TAG, DW_TAG_DUP, DW_FORM, DW_AT, DW_AT_DUP, DW_OP)
+	(DW_OP_DUP, DW_ATE, DW_ATE_DUP, DW_CFA): New macros.
+	Include dwarf2.def.
+	(get_DW_TAG_name, get_DW_AT_name, get_DW_FORM_name)
+	(get_DW_OP_name, get_DW_ATE_name): Declare.
+	* dwarf2.def: New file, from dwarf2.h.
+
+2012-04-10  Tristan Gingold  <gingold@adacore.com>
+
+	* splay-tree.h: Conditionnaly includes stdint.h and inttypes.h
+	(libi_uhostptr_t, libi_shostptr_t): Remove, replaced by uintptr_t.
 
 2012-01-26  Cary Coutant  <ccoutant@google.com>
 
@@ -170,7 +356,7 @@
 	Sync LD plugin patch series (part 1/6) with src/include/.
 	* plugin-api.h (LDPT_GNU_LD_VERSION): New ld_plugin_tag enum member.
 
-2010-10-06  Andi Kleen <ak@linux.intel.com>
+2010-10-06  Andi Kleen  <ak@linux.intel.com>
 
 	* libiberty.h (setproctitle): Add prototype.
 

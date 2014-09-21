@@ -1,7 +1,6 @@
 // Debugging set implementation -*- C++ -*-
 
-// Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2003-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -50,6 +49,10 @@ namespace __debug
       typedef typename _Base::const_iterator _Base_const_iterator;
       typedef typename _Base::iterator _Base_iterator;
       typedef __gnu_debug::_Equal_to<_Base_const_iterator> _Equal;
+#if __cplusplus >= 201103L
+      typedef __gnu_cxx::__alloc_traits<typename
+					_Base::allocator_type> _Alloc_traits;
+#endif
     public:
       // types:
       typedef _Key				    key_type;
@@ -73,7 +76,10 @@ namespace __debug
       typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
       // 23.3.3.1 construct/copy/destroy:
-      explicit set(const _Compare& __comp = _Compare(),
+
+      set() : _Base() { }
+
+      explicit set(const _Compare& __comp,
 		   const _Allocator& __a = _Allocator())
       : _Base(__comp, __a) { }
 
@@ -92,7 +98,7 @@ namespace __debug
       set(const _Base& __x)
       : _Base(__x) { }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       set(set&& __x)
       noexcept(is_nothrow_copy_constructible<_Compare>::value)
       : _Base(std::move(__x))
@@ -102,6 +108,28 @@ namespace __debug
 	  const _Compare& __comp = _Compare(),
 	  const allocator_type& __a = allocator_type())
       : _Base(__l, __comp, __a) { }
+
+      explicit
+      set(const allocator_type& __a)
+      : _Base(__a) { }
+
+      set(const set& __x, const allocator_type& __a)
+      : _Base(__x, __a) { }
+
+      set(set&& __x, const allocator_type& __a)
+      : _Base(std::move(__x._M_base()), __a) { }
+
+      set(initializer_list<value_type> __l, const allocator_type& __a)
+	: _Base(__l, __a)
+      { }
+
+      template<typename _InputIterator>
+        set(_InputIterator __first, _InputIterator __last,
+	    const allocator_type& __a)
+	: _Base(__gnu_debug::__base(__gnu_debug::__check_valid_range(__first,
+								     __last)),
+		__gnu_debug::__base(__last), __a)
+        { }
 #endif
 
       ~set() _GLIBCXX_NOEXCEPT { }
@@ -109,27 +137,33 @@ namespace __debug
       set&
       operator=(const set& __x)
       {
-	*static_cast<_Base*>(this) = __x;
+	_M_base() = __x;
 	this->_M_invalidate_all();
 	return *this;
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       set&
       operator=(set&& __x)
+      noexcept(_Alloc_traits::_S_nothrow_move())
       {
-	// NB: DR 1204.
-	// NB: DR 675.
-	clear();
-	swap(__x);
+	__glibcxx_check_self_move_assign(__x);
+	bool __xfer_memory = _Alloc_traits::_S_propagate_on_move_assign()
+	    || __x.get_allocator() == this->get_allocator();
+	_M_base() = std::move(__x._M_base());
+	if (__xfer_memory)
+	  this->_M_swap(__x);
+	else
+	  this->_M_invalidate_all();
+	__x._M_invalidate_all();
 	return *this;
       }
 
       set&
       operator=(initializer_list<value_type> __l)
       {
-	this->clear();
-	this->insert(__l);
+	_M_base() = __l;
+	this->_M_invalidate_all();
 	return *this;
       }
 #endif
@@ -169,7 +203,7 @@ namespace __debug
       rend() const _GLIBCXX_NOEXCEPT
       { return const_reverse_iterator(begin()); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       const_iterator
       cbegin() const noexcept
       { return const_iterator(_Base::begin(), this); }
@@ -193,6 +227,27 @@ namespace __debug
       using _Base::max_size;
 
       // modifiers:
+#if __cplusplus >= 201103L
+      template<typename... _Args>
+	std::pair<iterator, bool>
+	emplace(_Args&&... __args)
+	{
+	  auto __res = _Base::emplace(std::forward<_Args>(__args)...);
+	  return std::pair<iterator, bool>(iterator(__res.first, this),
+					   __res.second);
+	}
+
+      template<typename... _Args>
+	iterator
+	emplace_hint(const_iterator __pos, _Args&&... __args)
+	{
+	  __glibcxx_check_insert(__pos);
+	  return iterator(_Base::emplace_hint(__pos.base(),
+					      std::forward<_Args>(__args)...),
+			  this);
+	}
+#endif
+
       std::pair<iterator, bool>
       insert(const value_type& __x)
       {
@@ -201,7 +256,7 @@ namespace __debug
 					 __res.second);
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       std::pair<iterator, bool>
       insert(value_type&& __x)
       {
@@ -219,7 +274,7 @@ namespace __debug
 	return iterator(_Base::insert(__position.base(), __x), this);
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       insert(const_iterator __position, value_type&& __x)
       {
@@ -238,13 +293,13 @@ namespace __debug
 			__gnu_debug::__base(__last));
 	}
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       void
       insert(initializer_list<value_type> __l)
       { _Base::insert(__l); }
 #endif
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __position)
       {
@@ -276,7 +331,7 @@ namespace __debug
 	  }
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __first, const_iterator __last)
       {
@@ -316,7 +371,14 @@ namespace __debug
 
       void
       swap(set& __x)
+#if __cplusplus >= 201103L
+      noexcept(_Alloc_traits::_S_nothrow_swap())
+#endif
       {
+#if __cplusplus >= 201103L
+	if (!_Alloc_traits::_S_propagate_on_swap())
+	  __glibcxx_check_equal_allocs(__x);
+#endif
 	_Base::swap(__x);
 	this->_M_swap(__x);
       }

@@ -1,6 +1,6 @@
 // <condition_variable> -*- C++ -*-
 
-// Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,12 +31,17 @@
 
 #pragma GCC system_header
 
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
 
 #include <chrono>
-#include <mutex> // unique_lock
+#include <mutex>
+#include <ext/concurrence.h>
+#include <bits/alloc_traits.h>
+#include <bits/allocator.h>
+#include <bits/unique_ptr.h>
+#include <bits/shared_ptr.h>
 
 #if defined(_GLIBCXX_HAS_GTHREADS) && defined(_GLIBCXX_USE_C99_STDINT_TR1)
 
@@ -107,8 +112,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	// DR 887 - Sync unknown clock to known clock.
 	const typename _Clock::time_point __c_entry = _Clock::now();
 	const __clock_t::time_point __s_entry = __clock_t::now();
-	const chrono::nanoseconds __delta = __atime - __c_entry;
-	const __clock_t::time_point __s_atime = __s_entry + __delta;
+	const auto __delta = __atime - __c_entry;
+	const auto __s_atime = __s_entry + __delta;
 
 	return __wait_until_impl(__lock, __s_atime);
       }
@@ -143,16 +148,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { return &_M_cond; }
 
   private:
-    template<typename _Clock, typename _Duration>
+    template<typename _Dur>
       cv_status
       __wait_until_impl(unique_lock<mutex>& __lock,
-			const chrono::time_point<_Clock, _Duration>& __atime)
+			const chrono::time_point<__clock_t, _Dur>& __atime)
       {
-	chrono::time_point<__clock_t, chrono::seconds> __s =
-	  chrono::time_point_cast<chrono::seconds>(__atime);
-
-	chrono::nanoseconds __ns =
-	  chrono::duration_cast<chrono::nanoseconds>(__atime - __s);
+	auto __s = chrono::time_point_cast<chrono::seconds>(__atime);
+	auto __ns = chrono::duration_cast<chrono::nanoseconds>(__atime - __s);
 
 	__gthread_time_t __ts =
 	  {
@@ -163,10 +165,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__gthread_cond_timedwait(&_M_cond, __lock.mutex()->native_handle(),
 				 &__ts);
 
-	return (_Clock::now() < __atime
+	return (__clock_t::now() < __atime
 		? cv_status::no_timeout : cv_status::timeout);
       }
   };
+
+  inline namespace _V2 {
 
   /// condition_variable_any
   // Like above, but mutex is not required to have try_lock.
@@ -174,12 +178,31 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   {
     typedef chrono::system_clock	__clock_t;
     condition_variable			_M_cond;
-    mutex				_M_mutex;
+    shared_ptr<mutex>			_M_mutex;
+
+    // scoped unlock - unlocks in ctor, re-locks in dtor
+    template<typename _Lock>
+      struct _Unlock
+      {
+	explicit _Unlock(_Lock& __lk) : _M_lock(__lk) { __lk.unlock(); }
+
+	~_Unlock() noexcept(false)
+	{
+	  if (uncaught_exception())
+	    __try { _M_lock.lock(); } __catch(...) { }
+	  else
+	    _M_lock.lock();
+	}
+
+	_Unlock(const _Unlock&) = delete;
+	_Unlock& operator=(const _Unlock&) = delete;
+
+	_Lock& _M_lock;
+      };
 
   public:
-
-    condition_variable_any() noexcept;
-    ~condition_variable_any() noexcept;
+    condition_variable_any() : _M_mutex(std::make_shared<mutex>()) { }
+    ~condition_variable_any() = default;
 
     condition_variable_any(const condition_variable_any&) = delete;
     condition_variable_any& operator=(const condition_variable_any&) = delete;
@@ -187,14 +210,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     void
     notify_one() noexcept
     {
-      lock_guard<mutex> __lock(_M_mutex);
+      lock_guard<mutex> __lock(*_M_mutex);
       _M_cond.notify_one();
     }
 
     void
     notify_all() noexcept
     {
-      lock_guard<mutex> __lock(_M_mutex);
+      lock_guard<mutex> __lock(*_M_mutex);
       _M_cond.notify_all();
     }
 
@@ -202,23 +225,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       void
       wait(_Lock& __lock)
       {
-	// scoped unlock - unlocks in ctor, re-locks in dtor
-	struct _Unlock {
-	  explicit _Unlock(_Lock& __lk) : _M_lock(__lk) { __lk.unlock(); }
-	  ~_Unlock() noexcept(false)
-	  {
-	    if (uncaught_exception())
-	      __try { _M_lock.lock(); } __catch(...) { }
-	    else
-	      _M_lock.lock();
-	  }
-	  _Lock& _M_lock;
-	};
-
-	unique_lock<mutex> __my_lock(_M_mutex);
-	_Unlock __unlock(__lock);
-	// _M_mutex must be unlocked before re-locking __lock so move
-	// ownership of _M_mutex lock to an object with shorter lifetime.
+	shared_ptr<mutex> __mutex = _M_mutex;
+	unique_lock<mutex> __my_lock(*__mutex);
+	_Unlock<_Lock> __unlock(__lock);
+	// *__mutex must be unlocked before re-locking __lock so move
+	// ownership of *__mutex lock to an object with shorter lifetime.
 	unique_lock<mutex> __my_lock2(std::move(__my_lock));
 	_M_cond.wait(__my_lock2);
       }
@@ -237,11 +248,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       wait_until(_Lock& __lock,
 		 const chrono::time_point<_Clock, _Duration>& __atime)
       {
-        unique_lock<mutex> __my_lock(_M_mutex);
-        __lock.unlock();
-        cv_status __status = _M_cond.wait_until(__my_lock, __atime);
-        __lock.lock();
-        return __status;
+	shared_ptr<mutex> __mutex = _M_mutex;
+	unique_lock<mutex> __my_lock(*__mutex);
+	_Unlock<_Lock> __unlock(__lock);
+	// *__mutex must be unlocked before re-locking __lock so move
+	// ownership of *__mutex lock to an object with shorter lifetime.
+	unique_lock<mutex> __my_lock2(std::move(__my_lock));
+	return _M_cond.wait_until(__my_lock2, __atime);
       }
 
     template<typename _Lock, typename _Clock,
@@ -270,12 +283,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return wait_until(__lock, __clock_t::now() + __rtime, std::move(__p)); }
   };
 
+  } // end inline namespace
+
   // @} group condition_variables
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 
 #endif // _GLIBCXX_HAS_GTHREADS && _GLIBCXX_USE_C99_STDINT_TR1
 
-#endif // __GXX_EXPERIMENTAL_CXX0X__
+#endif // C++11
 
 #endif // _GLIBCXX_CONDITION_VARIABLE

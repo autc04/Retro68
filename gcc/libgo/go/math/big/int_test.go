@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -88,7 +89,7 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 	var z Int
 	f(&z, a.x, a.y)
 	if !isNormalized(&z) {
-		t.Errorf("%s%v is not normalized", z, msg)
+		t.Errorf("%s%v is not normalized", msg, z)
 	}
 	if (&z).Cmp(a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
@@ -642,7 +643,7 @@ func TestSetBytes(t *testing.T) {
 
 func checkBytes(b []byte) bool {
 	b2 := new(Int).SetBytes(b).Bytes()
-	return bytes.Compare(b, b2) == 0
+	return bytes.Equal(b, b2)
 }
 
 func TestBytes(t *testing.T) {
@@ -766,8 +767,10 @@ var expTests = []struct {
 	x, y, m string
 	out     string
 }{
+	{"5", "-7", "", "1"},
+	{"-5", "-7", "", "1"},
 	{"5", "0", "", "1"},
-	{"-5", "0", "", "-1"},
+	{"-5", "0", "", "1"},
 	{"5", "1", "", "5"},
 	{"-5", "1", "", "-5"},
 	{"-2", "3", "2", "0"},
@@ -778,6 +781,7 @@ var expTests = []struct {
 	{"0x8000000000000000", "3", "6719", "5447"},
 	{"0x8000000000000000", "1000", "6719", "1603"},
 	{"0x8000000000000000", "1000000", "6719", "3199"},
+	{"0x8000000000000000", "-1000000", "6719", "1"},
 	{
 		"2938462938472983472983659726349017249287491026512746239764525612965293865296239471239874193284792387498274256129746192347",
 		"298472983472983471903246121093472394872319615612417471234712061",
@@ -806,25 +810,33 @@ func TestExp(t *testing.T) {
 			continue
 		}
 
-		z := y.Exp(x, y, m)
-		if !isNormalized(z) {
-			t.Errorf("#%d: %v is not normalized", i, *z)
+		z1 := new(Int).Exp(x, y, m)
+		if !isNormalized(z1) {
+			t.Errorf("#%d: %v is not normalized", i, *z1)
 		}
-		if z.Cmp(out) != 0 {
-			t.Errorf("#%d: got %s want %s", i, z, out)
+		if z1.Cmp(out) != 0 {
+			t.Errorf("#%d: got %s want %s", i, z1, out)
+		}
+
+		if m == nil {
+			// the result should be the same as for m == 0;
+			// specifically, there should be no div-zero panic
+			m = &Int{abs: nat{}} // m != nil && len(m.abs) == 0
+			z2 := new(Int).Exp(x, y, m)
+			if z2.Cmp(z1) != 0 {
+				t.Errorf("#%d: got %s want %s", i, z1, z2)
+			}
 		}
 	}
 }
 
 func checkGcd(aBytes, bBytes []byte) bool {
+	x := new(Int)
+	y := new(Int)
 	a := new(Int).SetBytes(aBytes)
 	b := new(Int).SetBytes(bBytes)
 
-	x := new(Int)
-	y := new(Int)
-	d := new(Int)
-
-	d.GCD(x, y, a, b)
+	d := new(Int).GCD(x, y, a, b)
 	x.Mul(x, a)
 	y.Mul(y, b)
 	x.Add(x, y)
@@ -833,32 +845,70 @@ func checkGcd(aBytes, bBytes []byte) bool {
 }
 
 var gcdTests = []struct {
-	a, b    int64
-	d, x, y int64
+	d, x, y, a, b string
 }{
-	{120, 23, 1, -9, 47},
+	// a <= 0 || b <= 0
+	{"0", "0", "0", "0", "0"},
+	{"0", "0", "0", "0", "7"},
+	{"0", "0", "0", "11", "0"},
+	{"0", "0", "0", "-77", "35"},
+	{"0", "0", "0", "64515", "-24310"},
+	{"0", "0", "0", "-64515", "-24310"},
+
+	{"1", "-9", "47", "120", "23"},
+	{"7", "1", "-2", "77", "35"},
+	{"935", "-3", "8", "64515", "24310"},
+	{"935000000000000000", "-3", "8", "64515000000000000000", "24310000000000000000"},
+	{"1", "-221", "22059940471369027483332068679400581064239780177629666810348940098015901108344", "98920366548084643601728869055592650835572950932266967461790948584315647051443", "991"},
+
+	// test early exit (after one Euclidean iteration) in binaryGCD
+	{"1", "", "", "1", "98920366548084643601728869055592650835572950932266967461790948584315647051443"},
+}
+
+func testGcd(t *testing.T, d, x, y, a, b *Int) {
+	var X *Int
+	if x != nil {
+		X = new(Int)
+	}
+	var Y *Int
+	if y != nil {
+		Y = new(Int)
+	}
+
+	D := new(Int).GCD(X, Y, a, b)
+	if D.Cmp(d) != 0 {
+		t.Errorf("GCD(%s, %s): got d = %s, want %s", a, b, D, d)
+	}
+	if x != nil && X.Cmp(x) != 0 {
+		t.Errorf("GCD(%s, %s): got x = %s, want %s", a, b, X, x)
+	}
+	if y != nil && Y.Cmp(y) != 0 {
+		t.Errorf("GCD(%s, %s): got y = %s, want %s", a, b, Y, y)
+	}
+
+	// binaryGCD requires a > 0 && b > 0
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return
+	}
+
+	D.binaryGCD(a, b)
+	if D.Cmp(d) != 0 {
+		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+	}
 }
 
 func TestGcd(t *testing.T) {
-	for i, test := range gcdTests {
-		a := NewInt(test.a)
-		b := NewInt(test.b)
+	for _, test := range gcdTests {
+		d, _ := new(Int).SetString(test.d, 0)
+		x, _ := new(Int).SetString(test.x, 0)
+		y, _ := new(Int).SetString(test.y, 0)
+		a, _ := new(Int).SetString(test.a, 0)
+		b, _ := new(Int).SetString(test.b, 0)
 
-		x := new(Int)
-		y := new(Int)
-		d := new(Int)
-
-		expectedX := NewInt(test.x)
-		expectedY := NewInt(test.y)
-		expectedD := NewInt(test.d)
-
-		d.GCD(x, y, a, b)
-
-		if expectedX.Cmp(x) != 0 ||
-			expectedY.Cmp(y) != 0 ||
-			expectedD.Cmp(d) != 0 {
-			t.Errorf("#%d got (%s %s %s) want (%s %s %s)", i, x, y, d, expectedX, expectedY, expectedD)
-		}
+		testGcd(t, d, nil, nil, a, b)
+		testGcd(t, d, x, nil, a, b)
+		testGcd(t, d, nil, y, a, b)
+		testGcd(t, d, x, y, a, b)
 	}
 
 	quick.Check(checkGcd, nil)
@@ -1081,6 +1131,36 @@ func TestInt64(t *testing.T) {
 
 		if out != testVal {
 			t.Errorf("#%d got %d want %d", i, out, testVal)
+		}
+	}
+}
+
+var uint64Tests = []uint64{
+	0,
+	1,
+	4294967295,
+	4294967296,
+	8589934591,
+	8589934592,
+	9223372036854775807,
+	9223372036854775808,
+	18446744073709551615, // 1<<64 - 1
+}
+
+func TestUint64(t *testing.T) {
+	in := new(Int)
+	for i, testVal := range uint64Tests {
+		in.SetUint64(testVal)
+		out := in.Uint64()
+
+		if out != testVal {
+			t.Errorf("#%d got %d want %d", i, out, testVal)
+		}
+
+		str := fmt.Sprint(testVal)
+		strOut := in.String()
+		if strOut != str {
+			t.Errorf("#%d.String got %s want %s", i, strOut, str)
 		}
 	}
 }
@@ -1368,8 +1448,12 @@ func TestModInverse(t *testing.T) {
 	}
 }
 
-// used by TestIntGobEncoding and TestRatGobEncoding
-var gobEncodingTests = []string{
+var encodingTests = []string{
+	"-539345864568634858364538753846587364875430589374589",
+	"-678645873",
+	"-100",
+	"-2",
+	"-1",
 	"0",
 	"1",
 	"2",
@@ -1383,26 +1467,63 @@ func TestIntGobEncoding(t *testing.T) {
 	var medium bytes.Buffer
 	enc := gob.NewEncoder(&medium)
 	dec := gob.NewDecoder(&medium)
-	for i, test := range gobEncodingTests {
-		for j := 0; j < 2; j++ {
-			medium.Reset() // empty buffer for each test case (in case of failures)
-			stest := test
-			if j != 0 {
-				// negative numbers
-				stest = "-" + test
-			}
-			var tx Int
-			tx.SetString(stest, 10)
-			if err := enc.Encode(&tx); err != nil {
-				t.Errorf("#%d%c: encoding failed: %s", i, 'a'+j, err)
-			}
-			var rx Int
-			if err := dec.Decode(&rx); err != nil {
-				t.Errorf("#%d%c: decoding failed: %s", i, 'a'+j, err)
-			}
-			if rx.Cmp(&tx) != 0 {
-				t.Errorf("#%d%c: transmission failed: got %s want %s", i, 'a'+j, &rx, &tx)
-			}
+	for _, test := range encodingTests {
+		medium.Reset() // empty buffer for each test case (in case of failures)
+		var tx Int
+		tx.SetString(test, 10)
+		if err := enc.Encode(&tx); err != nil {
+			t.Errorf("encoding of %s failed: %s", &tx, err)
+		}
+		var rx Int
+		if err := dec.Decode(&rx); err != nil {
+			t.Errorf("decoding of %s failed: %s", &tx, err)
+		}
+		if rx.Cmp(&tx) != 0 {
+			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
+		}
+	}
+}
+
+// Sending a nil Int pointer (inside a slice) on a round trip through gob should yield a zero.
+// TODO: top-level nils.
+func TestGobEncodingNilIntInSlice(t *testing.T) {
+	buf := new(bytes.Buffer)
+	enc := gob.NewEncoder(buf)
+	dec := gob.NewDecoder(buf)
+
+	var in = make([]*Int, 1)
+	err := enc.Encode(&in)
+	if err != nil {
+		t.Errorf("gob encode failed: %q", err)
+	}
+	var out []*Int
+	err = dec.Decode(&out)
+	if err != nil {
+		t.Fatalf("gob decode failed: %q", err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("wrong len; want 1 got %d", len(out))
+	}
+	var zero Int
+	if out[0].Cmp(&zero) != 0 {
+		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
+	}
+}
+
+func TestIntJSONEncoding(t *testing.T) {
+	for _, test := range encodingTests {
+		var tx Int
+		tx.SetString(test, 10)
+		b, err := json.Marshal(&tx)
+		if err != nil {
+			t.Errorf("marshaling of %s failed: %s", &tx, err)
+		}
+		var rx Int
+		if err := json.Unmarshal(b, &rx); err != nil {
+			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+		}
+		if rx.Cmp(&tx) != 0 {
+			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
 		}
 	}
 }

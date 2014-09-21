@@ -6,6 +6,7 @@ package textproto
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"reflect"
 	"strings"
@@ -23,6 +24,11 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	{"uSER-aGENT", "User-Agent"},
 	{"user-agent", "User-Agent"},
 	{"USER-AGENT", "User-Agent"},
+	{"üser-agenT", "üser-Agent"}, // non-ASCII unchanged
+
+	// This caused a panic due to mishandling of a space:
+	{"C Ontent-Transfer-Encoding", "C-Ontent-Transfer-Encoding"},
+	{"foo bar", "Foo-Bar"},
 }
 
 func TestCanonicalMIMEHeaderKey(t *testing.T) {
@@ -236,6 +242,100 @@ func TestRFC959Lines(t *testing.T) {
 		}
 		if msg != tt.wantMsg {
 			t.Errorf("#%d: msg=%q, want %q", i, msg, tt.wantMsg)
+		}
+	}
+}
+
+func TestCommonHeaders(t *testing.T) {
+	// need to disable the commonHeaders-based optimization
+	// during this check, or we'd not be testing anything
+	oldch := commonHeaders
+	commonHeaders = []string{}
+	defer func() { commonHeaders = oldch }()
+
+	last := ""
+	for _, h := range oldch {
+		if last > h {
+			t.Errorf("%v is out of order", h)
+		}
+		if last == h {
+			t.Errorf("%v is duplicated", h)
+		}
+		if canon := CanonicalMIMEHeaderKey(h); h != canon {
+			t.Errorf("%v is not canonical", h)
+		}
+		last = h
+	}
+}
+
+var clientHeaders = strings.Replace(`Host: golang.org
+Connection: keep-alive
+Cache-Control: max-age=0
+Accept: application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5
+User-Agent: Mozilla/5.0 (X11; U; Linux x86_64; en-US) AppleWebKit/534.3 (KHTML, like Gecko) Chrome/6.0.472.63 Safari/534.3
+Accept-Encoding: gzip,deflate,sdch
+Accept-Language: en-US,en;q=0.8,fr-CH;q=0.6
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
+COOKIE: __utma=000000000.0000000000.0000000000.0000000000.0000000000.00; __utmb=000000000.0.00.0000000000; __utmc=000000000; __utmz=000000000.0000000000.00.0.utmcsr=code.google.com|utmccn=(referral)|utmcmd=referral|utmcct=/p/go/issues/detail
+Non-Interned: test
+
+`, "\n", "\r\n", -1)
+
+var serverHeaders = strings.Replace(`Content-Type: text/html; charset=utf-8
+Content-Encoding: gzip
+Date: Thu, 27 Sep 2012 09:03:33 GMT
+Server: Google Frontend
+Cache-Control: private
+Content-Length: 2298
+VIA: 1.1 proxy.example.com:80 (XXX/n.n.n-nnn)
+Connection: Close
+Non-Interned: test
+
+`, "\n", "\r\n", -1)
+
+func BenchmarkReadMIMEHeader(b *testing.B) {
+	b.ReportAllocs()
+	var buf bytes.Buffer
+	br := bufio.NewReader(&buf)
+	r := NewReader(br)
+	for i := 0; i < b.N; i++ {
+		var want int
+		var find string
+		if (i & 1) == 1 {
+			buf.WriteString(clientHeaders)
+			want = 10
+			find = "Cookie"
+		} else {
+			buf.WriteString(serverHeaders)
+			want = 9
+			find = "Via"
+		}
+		h, err := r.ReadMIMEHeader()
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(h) != want {
+			b.Fatalf("wrong number of headers: got %d, want %d", len(h), want)
+		}
+		if _, ok := h[find]; !ok {
+			b.Fatalf("did not find key %s", find)
+		}
+	}
+}
+
+func BenchmarkUncommon(b *testing.B) {
+	b.ReportAllocs()
+	var buf bytes.Buffer
+	br := bufio.NewReader(&buf)
+	r := NewReader(br)
+	for i := 0; i < b.N; i++ {
+		buf.WriteString("uncommon-header-for-benchmark: foo\r\n\r\n")
+		h, err := r.ReadMIMEHeader()
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, ok := h["Uncommon-Header-For-Benchmark"]; !ok {
+			b.Fatal("Missing result header.")
 		}
 	}
 }

@@ -128,6 +128,31 @@ if test $cross_compiling = no && test $multilib = yes \
    cross_compiling=maybe
 fi
 
+# We may wish to install the target headers somewhere.
+AC_MSG_CHECKING([whether to install libiberty headers and static library])
+dnl install-libiberty is disabled by default
+
+AC_ARG_ENABLE(install-libiberty,
+[  --enable-install-libiberty       Install headers and library for end users],
+enable_install_libiberty=$enableval,
+enable_install_libiberty=no)dnl
+
+# Option parsed, now set things appropriately.
+case x"$enable_install_libiberty" in
+  xyes|x)
+    target_header_dir=libiberty
+    ;;
+  xno)   
+    target_header_dir=
+    ;;
+  *) 
+    # This could be sanity-checked in various ways...
+    target_header_dir="${enable_install_libiberty}"
+    ;;
+esac
+AC_MSG_RESULT($enable_install_libiberty)
+AC_MSG_NOTICE([target_header_dir = $target_header_dir])
+
 GCC_NO_EXECUTABLES
 AC_PROG_CC
 AC_SYS_LARGEFILE
@@ -200,6 +225,12 @@ case "${enable_shared}" in
   "") shared=no ;;
   *) shared=yes ;;
 esac
+
+# ...unless --enable-host-shared was passed from top-level config:
+if [[ "${enable_host_shared}" = "yes" ]]; then
+  shared=yes
+fi
+
 if [[ "${shared}" != "yes" ]]; then
   PICFLAG=
 fi
@@ -322,6 +353,7 @@ funcs="$funcs strchr"
 funcs="$funcs strdup"
 funcs="$funcs strncasecmp"
 funcs="$funcs strndup"
+funcs="$funcs strnlen"
 funcs="$funcs strrchr"
 funcs="$funcs strstr"
 funcs="$funcs strtod"
@@ -362,8 +394,8 @@ if test "x" = "y"; then
     random realpath rename rindex \
     sbrk setenv setproctitle setrlimit sigsetmask snprintf spawnve spawnvpe \
      stpcpy stpncpy strcasecmp strchr strdup \
-     strerror strncasecmp strndup strrchr strsignal strstr strtod strtol \
-     strtoul strverscmp sysconf sysctl sysmp \
+     strerror strncasecmp strndup strnlen strrchr strsignal strstr strtod \
+     strtol strtoul strverscmp sysconf sysctl sysmp \
     table times tmpnam \
     vasprintf vfprintf vprintf vsprintf \
     wait3 wait4 waitpid)
@@ -379,7 +411,6 @@ fi
 
 setobjs=
 CHECK=
-target_header_dir=
 if test -n "${with_target_subdir}"; then
 
   # We are being configured as a target library.  AC_REPLACE_FUNCS
@@ -442,13 +473,14 @@ if test -n "${with_target_subdir}"; then
     AC_LIBOBJ([stpcpy])
     AC_LIBOBJ([stpncpy])
     AC_LIBOBJ([strndup])
+    AC_LIBOBJ([strnlen])
     AC_LIBOBJ([strverscmp])
     AC_LIBOBJ([vasprintf])
     AC_LIBOBJ([waitpid])
 
     for f in $funcs; do
       case "$f" in
-	asprintf | basename | bcmp | bcopy | bzero | clock | ffs | getpagesize | index | insque | mempcpy | mkstemps | random | rindex | sigsetmask | stpcpy | stpncpy | strdup | strndup | strverscmp | vasprintf | waitpid)
+	asprintf | basename | bcmp | bcopy | bzero | clock | ffs | getpagesize | index | insque | mempcpy | mkstemps | random | rindex | sigsetmask | stpcpy | stpncpy | strdup | strndup | strnlen | strverscmp | vasprintf | waitpid)
 	  ;;
 	*)
 	  n=HAVE_`echo $f | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
@@ -489,27 +521,6 @@ if test -n "${with_target_subdir}"; then
     ;;
 
   esac
-
-  # We may wish to install the target headers somewhere.
-  AC_ARG_ENABLE(install-libiberty,
-  [  --enable-install-libiberty       Install headers for end users],
-  enable_install_libiberty=$enableval,
-  enable_install_libiberty=no)dnl
-  
-  # Option parsed, now set things appropriately.
-  case x"$enable_install_libiberty" in
-    xyes|x)
-      target_header_dir=libiberty
-      ;;
-    xno)   
-      target_header_dir=
-      ;;
-    *) 
-      # This could be sanity-checked in various ways...
-      target_header_dir="${enable_install_libiberty}"
-      ;;
-  esac
-
 
 else
 

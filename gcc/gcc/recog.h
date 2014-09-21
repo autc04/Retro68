@@ -1,6 +1,5 @@
 /* Declarations for interface to insn recognizer and insn-output.c.
-   Copyright (C) 1987, 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -79,7 +78,7 @@ extern int asm_operand_ok (rtx, const char *, const char **);
 extern bool validate_change (rtx, rtx *, rtx, bool);
 extern bool validate_unshare_change (rtx, rtx *, rtx, bool);
 extern bool canonicalize_change_group (rtx insn, rtx x);
-extern int insn_invalid_p (rtx);
+extern int insn_invalid_p (rtx, bool);
 extern int verify_changes (int);
 extern void confirm_change_group (void);
 extern int apply_change_group (void);
@@ -114,7 +113,7 @@ extern int offsettable_address_addr_space_p (int, enum machine_mode, rtx,
 #define offsettable_address_p(strict,mode,addr) \
 	offsettable_address_addr_space_p ((strict), (mode), (addr), \
 					  ADDR_SPACE_GENERIC)
-extern bool mode_dependent_address_p (rtx);
+extern bool mode_dependent_address_p (rtx, addr_space_t);
 
 extern int recog (rtx, rtx, int *);
 #ifndef GENERATOR_FILE
@@ -180,7 +179,7 @@ extern int which_alternative;
 
 /* The following vectors hold the results from insn_extract.  */
 
-struct recog_data
+struct recog_data_d
 {
   /* It is very tempting to make the 5 operand related arrays into a
      structure and index on that.  However, to be source compatible
@@ -246,7 +245,7 @@ struct recog_data
   rtx insn;
 };
 
-extern struct recog_data recog_data;
+extern struct recog_data_d recog_data;
 
 /* Contains a vector of operand_alternative structures for every operand.
    Set up by preprocess_constraints.  */
@@ -257,7 +256,57 @@ extern struct operand_alternative recog_op_alt[MAX_RECOG_OPERANDS][MAX_RECOG_ALT
 
 typedef int (*insn_operand_predicate_fn) (rtx, enum machine_mode);
 typedef const char * (*insn_output_fn) (rtx *, rtx);
-typedef rtx (*insn_gen_fn) (rtx, ...);
+
+struct insn_gen_fn
+{
+  typedef rtx (*f0) (void);
+  typedef rtx (*f1) (rtx);
+  typedef rtx (*f2) (rtx, rtx);
+  typedef rtx (*f3) (rtx, rtx, rtx);
+  typedef rtx (*f4) (rtx, rtx, rtx, rtx);
+  typedef rtx (*f5) (rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f6) (rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f7) (rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f8) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f9) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f10) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f11) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f12) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f13) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f14) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f15) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+  typedef rtx (*f16) (rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx, rtx);
+
+  typedef f0 stored_funcptr;
+
+  rtx operator () (void) const { return ((f0)func) (); }
+  rtx operator () (rtx a0) const { return ((f1)func) (a0); }
+  rtx operator () (rtx a0, rtx a1) const { return ((f2)func) (a0, a1); }
+  rtx operator () (rtx a0, rtx a1, rtx a2) const { return ((f3)func) (a0, a1, a2); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3) const { return ((f4)func) (a0, a1, a2, a3); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4) const { return ((f5)func) (a0, a1, a2, a3, a4); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5) const { return ((f6)func) (a0, a1, a2, a3, a4, a5); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6) const { return ((f7)func) (a0, a1, a2, a3, a4, a5, a6); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7) const { return ((f8)func) (a0, a1, a2, a3, a4, a5, a6, a7); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8) const { return ((f9)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8, rtx a9) const { return ((f10)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8, rtx a9, rtx a10) const { return ((f11)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8, rtx a9, rtx a10, rtx a11) const { return ((f12)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8, rtx a9, rtx a10, rtx a11, rtx a12) const { return ((f13)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8, rtx a9, rtx a10, rtx a11, rtx a12, rtx a13) const { return ((f14)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8, rtx a9, rtx a10, rtx a11, rtx a12, rtx a13, rtx a14) const { return ((f15)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14); }
+  rtx operator () (rtx a0, rtx a1, rtx a2, rtx a3, rtx a4, rtx a5, rtx a6, rtx a7, rtx a8, rtx a9, rtx a10, rtx a11, rtx a12, rtx a13, rtx a14, rtx a15) const { return ((f16)func) (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15); }
+
+  // This is for compatibility of code that invokes functions like
+  //   (*funcptr) (arg)
+  insn_gen_fn operator * (void) const { return *this; }
+
+  // The wrapped function pointer must be public and there must not be any
+  // constructors.  Otherwise the insn_data_d struct initializers generated
+  // by genoutput.c will result in static initializer functions, which defeats
+  // the purpose of the generated insn_data_d array.
+  stored_funcptr func;
+};
 
 struct insn_operand_data
 {

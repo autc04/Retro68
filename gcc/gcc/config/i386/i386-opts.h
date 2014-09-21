@@ -1,7 +1,5 @@
 /* Definitions for option handling for IA-32.
-   Copyright (C) 1988, 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1988-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -30,14 +28,17 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 /* Algorithm to expand string function with.  */
 enum stringop_alg
 {
-   no_stringop,
-   libcall,
-   rep_prefix_1_byte,
-   rep_prefix_4_byte,
-   rep_prefix_8_byte,
-   loop_1_byte,
-   loop,
-   unrolled_loop
+#undef DEF_ENUM
+#define DEF_ENUM
+
+#undef DEF_ALG
+#define DEF_ALG(alg, name) alg, 
+
+#include "stringop.def"
+last_alg
+
+#undef DEF_ENUM
+#undef DEF_ALG
 };
 
 /* Available call abi.  */
@@ -71,6 +72,11 @@ enum cmodel {
   CM_LARGE_PIC	/* No assumptions.  */
 };
 
+enum pmode {
+  PMODE_SI,	/* Pmode == SImode. */
+  PMODE_DI 	/* Pmode == DImode. */
+};
+
 enum asm_dialect {
   ASM_ATT,
   ASM_INTEL
@@ -80,6 +86,11 @@ enum ix86_veclibabi {
   ix86_veclibabi_type_none,
   ix86_veclibabi_type_svml,
   ix86_veclibabi_type_acml
+};
+
+enum stack_protector_guard {
+  SSP_TLS,      /* per-thread canary in TLS block */
+  SSP_GLOBAL    /* global canary */
 };
 
 #endif

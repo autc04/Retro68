@@ -1,9 +1,7 @@
-@c Copyright (C) 2006 Free Software Foundation, Inc.
+@c Copyright (C) 2006-2014 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
-@c This file is generated automatically using gcc/config/arm/neon-docgen.ml
-@c Please do not edit manually.
 @subsubsection Addition
 
 @itemize @bullet
@@ -972,6 +970,118 @@
 
 
 
+@subsubsection Fused-multiply-accumulate
+
+@itemize @bullet
+@item float32x2_t vfma_f32 (float32x2_t, float32x2_t, float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vfma.f32 @var{d0}, @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vfmaq_f32 (float32x4_t, float32x4_t, float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vfma.f32 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+
+
+@subsubsection Fused-multiply-subtract
+
+@itemize @bullet
+@item float32x2_t vfms_f32 (float32x2_t, float32x2_t, float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vfms.f32 @var{d0}, @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vfmsq_f32 (float32x4_t, float32x4_t, float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vfms.f32 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+
+
+@subsubsection Round to integral (to nearest, ties to even)
+
+@itemize @bullet
+@item float32x2_t vrndn_f32 (float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vrintn.f32 @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vrndqn_f32 (float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vrintn.f32 @var{q0}, @var{q0}}
+@end itemize
+
+
+
+
+@subsubsection Round to integral (to nearest, ties away from zero)
+
+@itemize @bullet
+@item float32x2_t vrnda_f32 (float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vrinta.f32 @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vrndqa_f32 (float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vrinta.f32 @var{q0}, @var{q0}}
+@end itemize
+
+
+
+
+@subsubsection Round to integral (towards +Inf)
+
+@itemize @bullet
+@item float32x2_t vrndp_f32 (float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vrintp.f32 @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vrndqp_f32 (float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vrintp.f32 @var{q0}, @var{q0}}
+@end itemize
+
+
+
+
+@subsubsection Round to integral (towards -Inf)
+
+@itemize @bullet
+@item float32x2_t vrndm_f32 (float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vrintm.f32 @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vrndqm_f32 (float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vrintm.f32 @var{q0}, @var{q0}}
+@end itemize
+
+
+
+
+@subsubsection Round to integral (towards 0)
+
+@itemize @bullet
+@item float32x2_t vrnd_f32 (float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vrintz.f32 @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vrndq_f32 (float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vrintz.f32 @var{q0}, @var{q0}}
+@end itemize
+
+
+
+
 @subsubsection Subtraction
 
 @itemize @bullet
@@ -1497,24 +1607,6 @@
 @subsubsection Comparison (greater-than-or-equal-to)
 
 @itemize @bullet
-@item uint32x2_t vcge_u32 (uint32x2_t, uint32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vcge_u16 (uint16x4_t, uint16x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vcge_u8 (uint8x8_t, uint8x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
 @item uint32x2_t vcge_s32 (int32x2_t, int32x2_t)
 @*@emph{Form of expected instruction(s):} @code{vcge.s32 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
@@ -1539,20 +1631,20 @@
 
 
 @itemize @bullet
-@item uint32x4_t vcgeq_u32 (uint32x4_t, uint32x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{q0}, @var{q0}, @var{q0}}
+@item uint32x2_t vcge_u32 (uint32x2_t, uint32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vcgeq_u16 (uint16x8_t, uint16x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{q0}, @var{q0}, @var{q0}}
+@item uint16x4_t vcge_u16 (uint16x4_t, uint16x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vcgeq_u8 (uint8x16_t, uint8x16_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{q0}, @var{q0}, @var{q0}}
+@item uint8x8_t vcge_u8 (uint8x8_t, uint8x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
@@ -1580,27 +1672,27 @@
 @end itemize
 
 
+@itemize @bullet
+@item uint32x4_t vcgeq_u32 (uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vcgeq_u16 (uint16x8_t, uint16x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vcgeq_u8 (uint8x16_t, uint8x16_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
 
 
 @subsubsection Comparison (less-than-or-equal-to)
-
-@itemize @bullet
-@item uint32x2_t vcle_u32 (uint32x2_t, uint32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vcle_u16 (uint16x4_t, uint16x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vcle_u8 (uint8x8_t, uint8x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
 
 @itemize @bullet
 @item uint32x2_t vcle_s32 (int32x2_t, int32x2_t)
@@ -1627,20 +1719,20 @@
 
 
 @itemize @bullet
-@item uint32x4_t vcleq_u32 (uint32x4_t, uint32x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{q0}, @var{q0}, @var{q0}}
+@item uint32x2_t vcle_u32 (uint32x2_t, uint32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vcleq_u16 (uint16x8_t, uint16x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{q0}, @var{q0}, @var{q0}}
+@item uint16x4_t vcle_u16 (uint16x4_t, uint16x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vcleq_u8 (uint8x16_t, uint8x16_t)
-@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{q0}, @var{q0}, @var{q0}}
+@item uint8x8_t vcle_u8 (uint8x8_t, uint8x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
@@ -1668,27 +1760,27 @@
 @end itemize
 
 
+@itemize @bullet
+@item uint32x4_t vcleq_u32 (uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u32 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vcleq_u16 (uint16x8_t, uint16x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u16 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vcleq_u8 (uint8x16_t, uint8x16_t)
+@*@emph{Form of expected instruction(s):} @code{vcge.u8 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
 
 
 @subsubsection Comparison (greater-than)
-
-@itemize @bullet
-@item uint32x2_t vcgt_u32 (uint32x2_t, uint32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vcgt_u16 (uint16x4_t, uint16x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vcgt_u8 (uint8x8_t, uint8x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
 
 @itemize @bullet
 @item uint32x2_t vcgt_s32 (int32x2_t, int32x2_t)
@@ -1715,20 +1807,20 @@
 
 
 @itemize @bullet
-@item uint32x4_t vcgtq_u32 (uint32x4_t, uint32x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{q0}, @var{q0}, @var{q0}}
+@item uint32x2_t vcgt_u32 (uint32x2_t, uint32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vcgtq_u16 (uint16x8_t, uint16x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{q0}, @var{q0}, @var{q0}}
+@item uint16x4_t vcgt_u16 (uint16x4_t, uint16x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vcgtq_u8 (uint8x16_t, uint8x16_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{q0}, @var{q0}, @var{q0}}
+@item uint8x8_t vcgt_u8 (uint8x8_t, uint8x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
@@ -1756,27 +1848,27 @@
 @end itemize
 
 
+@itemize @bullet
+@item uint32x4_t vcgtq_u32 (uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vcgtq_u16 (uint16x8_t, uint16x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vcgtq_u8 (uint8x16_t, uint8x16_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
 
 
 @subsubsection Comparison (less-than)
-
-@itemize @bullet
-@item uint32x2_t vclt_u32 (uint32x2_t, uint32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vclt_u16 (uint16x4_t, uint16x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vclt_u8 (uint8x8_t, uint8x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{d0}, @var{d0}, @var{d0}}
-@end itemize
-
 
 @itemize @bullet
 @item uint32x2_t vclt_s32 (int32x2_t, int32x2_t)
@@ -1803,20 +1895,20 @@
 
 
 @itemize @bullet
-@item uint32x4_t vcltq_u32 (uint32x4_t, uint32x4_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{q0}, @var{q0}, @var{q0}}
+@item uint32x2_t vclt_u32 (uint32x2_t, uint32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vcltq_u16 (uint16x8_t, uint16x8_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{q0}, @var{q0}, @var{q0}}
+@item uint16x4_t vclt_u16 (uint16x4_t, uint16x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vcltq_u8 (uint8x16_t, uint8x16_t)
-@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{q0}, @var{q0}, @var{q0}}
+@item uint8x8_t vclt_u8 (uint8x8_t, uint8x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{d0}, @var{d0}, @var{d0}}
 @end itemize
 
 
@@ -1841,6 +1933,24 @@
 @itemize @bullet
 @item uint32x4_t vcltq_f32 (float32x4_t, float32x4_t)
 @*@emph{Form of expected instruction(s):} @code{vcgt.f32 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vcltq_u32 (uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u32 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vcltq_u16 (uint16x8_t, uint16x8_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u16 @var{q0}, @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vcltq_u8 (uint8x16_t, uint8x16_t)
+@*@emph{Form of expected instruction(s):} @code{vcgt.u8 @var{q0}, @var{q0}, @var{q0}}
 @end itemize
 
 
@@ -3967,6 +4077,12 @@
 @subsubsection Vector shift right and insert
 
 @itemize @bullet
+@item poly64x1_t vsri_n_p64 (poly64x1_t, poly64x1_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vsri.64 @var{d0}, @var{d0}, #@var{0}}
+@end itemize
+
+
+@itemize @bullet
 @item uint32x2_t vsri_n_u32 (uint32x2_t, uint32x2_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vsri.32 @var{d0}, @var{d0}, #@var{0}}
 @end itemize
@@ -4023,6 +4139,12 @@
 @itemize @bullet
 @item poly8x8_t vsri_n_p8 (poly8x8_t, poly8x8_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vsri.8 @var{d0}, @var{d0}, #@var{0}}
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vsriq_n_p64 (poly64x2_t, poly64x2_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vsri.64 @var{q0}, @var{q0}, #@var{0}}
 @end itemize
 
 
@@ -4091,6 +4213,12 @@
 @subsubsection Vector shift left and insert
 
 @itemize @bullet
+@item poly64x1_t vsli_n_p64 (poly64x1_t, poly64x1_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vsli.64 @var{d0}, @var{d0}, #@var{0}}
+@end itemize
+
+
+@itemize @bullet
 @item uint32x2_t vsli_n_u32 (uint32x2_t, uint32x2_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vsli.32 @var{d0}, @var{d0}, #@var{0}}
 @end itemize
@@ -4147,6 +4275,12 @@
 @itemize @bullet
 @item poly8x8_t vsli_n_p8 (poly8x8_t, poly8x8_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vsli.8 @var{d0}, @var{d0}, #@var{0}}
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vsliq_n_p64 (poly64x2_t, poly64x2_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vsli.64 @var{q0}, @var{q0}, #@var{0}}
 @end itemize
 
 
@@ -4810,13 +4944,13 @@
 
 @itemize @bullet
 @item uint64_t vgetq_lane_u64 (uint64x2_t, const int)
-@*@emph{Form of expected instruction(s):} @code{vmov @var{r0}, @var{r0}, @var{d0}}
+@*@emph{Form of expected instruction(s):} @code{vmov @var{r0}, @var{r0}, @var{d0}} @emph{or} @code{fmrrd @var{r0}, @var{r0}, @var{d0}}
 @end itemize
 
 
 @itemize @bullet
 @item int64_t vgetq_lane_s64 (int64x2_t, const int)
-@*@emph{Form of expected instruction(s):} @code{vmov @var{r0}, @var{r0}, @var{d0}}
+@*@emph{Form of expected instruction(s):} @code{vmov @var{r0}, @var{r0}, @var{d0}} @emph{or} @code{fmrrd @var{r0}, @var{r0}, @var{d0}}
 @end itemize
 
 
@@ -4959,6 +5093,11 @@
 @subsubsection Create vector from literal bit pattern
 
 @itemize @bullet
+@item poly64x1_t vcreate_p64 (uint64_t)
+@end itemize
+
+
+@itemize @bullet
 @item uint32x2_t vcreate_u32 (uint64_t)
 @end itemize
 
@@ -5072,12 +5211,22 @@
 
 
 @itemize @bullet
+@item poly64x1_t vdup_n_p64 (poly64_t)
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1_t vdup_n_u64 (uint64_t)
 @end itemize
 
 
 @itemize @bullet
 @item int64x1_t vdup_n_s64 (int64_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vdupq_n_p64 (poly64_t)
 @end itemize
 
 
@@ -5328,6 +5477,11 @@
 
 
 @itemize @bullet
+@item poly64x1_t vdup_lane_p64 (poly64x1_t, const int)
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1_t vdup_lane_u64 (uint64x1_t, const int)
 @end itemize
 
@@ -5392,6 +5546,11 @@
 
 
 @itemize @bullet
+@item poly64x2_t vdupq_lane_p64 (poly64x1_t, const int)
+@end itemize
+
+
+@itemize @bullet
 @item uint64x2_t vdupq_lane_u64 (uint64x1_t, const int)
 @end itemize
 
@@ -5404,6 +5563,11 @@
 
 
 @subsubsection Combining vectors
+
+@itemize @bullet
+@item poly64x2_t vcombine_p64 (poly64x1_t, poly64x1_t)
+@end itemize
+
 
 @itemize @bullet
 @item uint32x4_t vcombine_u32 (uint32x2_t, uint32x2_t)
@@ -5463,6 +5627,11 @@
 
 
 @subsubsection Splitting vectors
+
+@itemize @bullet
+@item poly64x1_t vget_high_p64 (poly64x2_t)
+@end itemize
+
 
 @itemize @bullet
 @item uint32x2_t vget_high_u32 (uint32x4_t)
@@ -5574,6 +5743,11 @@
 
 
 @itemize @bullet
+@item poly64x1_t vget_low_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1_t vget_low_u64 (uint64x2_t)
 @end itemize
 
@@ -5632,6 +5806,18 @@
 @itemize @bullet
 @item int32x4_t vcvtq_s32_f32 (float32x4_t)
 @*@emph{Form of expected instruction(s):} @code{vcvt.s32.f32 @var{q0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item float16x4_t vcvt_f16_f32 (float32x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcvt.f16.f32 @var{d0}, @var{q0}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vcvt_f32_f16 (float16x4_t)
+@*@emph{Form of expected instruction(s):} @code{vcvt.f32.f16 @var{q0}, @var{d0}}
 @end itemize
 
 
@@ -6694,6 +6880,12 @@
 @subsubsection Vector extract
 
 @itemize @bullet
+@item poly64x1_t vext_p64 (poly64x1_t, poly64x1_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vext.64 @var{d0}, @var{d0}, @var{d0}, #@var{0}}
+@end itemize
+
+
+@itemize @bullet
 @item uint32x2_t vext_u32 (uint32x2_t, uint32x2_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vext.32 @var{d0}, @var{d0}, @var{d0}, #@var{0}}
 @end itemize
@@ -6756,6 +6948,12 @@
 @itemize @bullet
 @item poly8x8_t vext_p8 (poly8x8_t, poly8x8_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vext.8 @var{d0}, @var{d0}, @var{d0}, #@var{0}}
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vextq_p64 (poly64x2_t, poly64x2_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vext.64 @var{q0}, @var{q0}, @var{q0}, #@var{0}}
 @end itemize
 
 
@@ -7050,6 +7248,12 @@
 @subsubsection Bit selection
 
 @itemize @bullet
+@item poly64x1_t vbsl_p64 (uint64x1_t, poly64x1_t, poly64x1_t)
+@*@emph{Form of expected instruction(s):} @code{vbsl @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbit @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbif @var{d0}, @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
 @item uint32x2_t vbsl_u32 (uint32x2_t, uint32x2_t, uint32x2_t)
 @*@emph{Form of expected instruction(s):} @code{vbsl @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbit @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbif @var{d0}, @var{d0}, @var{d0}}
 @end itemize
@@ -7112,6 +7316,12 @@
 @itemize @bullet
 @item poly8x8_t vbsl_p8 (uint8x8_t, poly8x8_t, poly8x8_t)
 @*@emph{Form of expected instruction(s):} @code{vbsl @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbit @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbif @var{d0}, @var{d0}, @var{d0}}
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vbslq_p64 (uint64x2_t, poly64x2_t, poly64x2_t)
+@*@emph{Form of expected instruction(s):} @code{vbsl @var{q0}, @var{q0}, @var{q0}} @emph{or} @code{vbit @var{q0}, @var{q0}, @var{q0}} @emph{or} @code{vbif @var{q0}, @var{q0}, @var{q0}}
 @end itemize
 
 
@@ -7186,12 +7396,6 @@
 @subsubsection Transpose elements
 
 @itemize @bullet
-@item uint32x2x2_t vtrn_u32 (uint32x2_t, uint32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vtrn.32 @var{d0}, @var{d1}}
-@end itemize
-
-
-@itemize @bullet
 @item uint16x4x2_t vtrn_u16 (uint16x4_t, uint16x4_t)
 @*@emph{Form of expected instruction(s):} @code{vtrn.16 @var{d0}, @var{d1}}
 @end itemize
@@ -7200,12 +7404,6 @@
 @itemize @bullet
 @item uint8x8x2_t vtrn_u8 (uint8x8_t, uint8x8_t)
 @*@emph{Form of expected instruction(s):} @code{vtrn.8 @var{d0}, @var{d1}}
-@end itemize
-
-
-@itemize @bullet
-@item int32x2x2_t vtrn_s32 (int32x2_t, int32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vtrn.32 @var{d0}, @var{d1}}
 @end itemize
 
 
@@ -7222,12 +7420,6 @@
 
 
 @itemize @bullet
-@item float32x2x2_t vtrn_f32 (float32x2_t, float32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vtrn.32 @var{d0}, @var{d1}}
-@end itemize
-
-
-@itemize @bullet
 @item poly16x4x2_t vtrn_p16 (poly16x4_t, poly16x4_t)
 @*@emph{Form of expected instruction(s):} @code{vtrn.16 @var{d0}, @var{d1}}
 @end itemize
@@ -7236,6 +7428,24 @@
 @itemize @bullet
 @item poly8x8x2_t vtrn_p8 (poly8x8_t, poly8x8_t)
 @*@emph{Form of expected instruction(s):} @code{vtrn.8 @var{d0}, @var{d1}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x2x2_t vtrn_f32 (float32x2_t, float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vuzp.32 @var{d0}, @var{d1}}
+@end itemize
+
+
+@itemize @bullet
+@item uint32x2x2_t vtrn_u32 (uint32x2_t, uint32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vuzp.32 @var{d0}, @var{d1}}
+@end itemize
+
+
+@itemize @bullet
+@item int32x2x2_t vtrn_s32 (int32x2_t, int32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vuzp.32 @var{d0}, @var{d1}}
 @end itemize
 
 
@@ -7298,12 +7508,6 @@
 @subsubsection Zip elements
 
 @itemize @bullet
-@item uint32x2x2_t vzip_u32 (uint32x2_t, uint32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vzip.32 @var{d0}, @var{d1}}
-@end itemize
-
-
-@itemize @bullet
 @item uint16x4x2_t vzip_u16 (uint16x4_t, uint16x4_t)
 @*@emph{Form of expected instruction(s):} @code{vzip.16 @var{d0}, @var{d1}}
 @end itemize
@@ -7312,12 +7516,6 @@
 @itemize @bullet
 @item uint8x8x2_t vzip_u8 (uint8x8_t, uint8x8_t)
 @*@emph{Form of expected instruction(s):} @code{vzip.8 @var{d0}, @var{d1}}
-@end itemize
-
-
-@itemize @bullet
-@item int32x2x2_t vzip_s32 (int32x2_t, int32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vzip.32 @var{d0}, @var{d1}}
 @end itemize
 
 
@@ -7334,12 +7532,6 @@
 
 
 @itemize @bullet
-@item float32x2x2_t vzip_f32 (float32x2_t, float32x2_t)
-@*@emph{Form of expected instruction(s):} @code{vzip.32 @var{d0}, @var{d1}}
-@end itemize
-
-
-@itemize @bullet
 @item poly16x4x2_t vzip_p16 (poly16x4_t, poly16x4_t)
 @*@emph{Form of expected instruction(s):} @code{vzip.16 @var{d0}, @var{d1}}
 @end itemize
@@ -7348,6 +7540,24 @@
 @itemize @bullet
 @item poly8x8x2_t vzip_p8 (poly8x8_t, poly8x8_t)
 @*@emph{Form of expected instruction(s):} @code{vzip.8 @var{d0}, @var{d1}}
+@end itemize
+
+
+@itemize @bullet
+@item float32x2x2_t vzip_f32 (float32x2_t, float32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vuzp.32 @var{d0}, @var{d1}}
+@end itemize
+
+
+@itemize @bullet
+@item uint32x2x2_t vzip_u32 (uint32x2_t, uint32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vuzp.32 @var{d0}, @var{d1}}
+@end itemize
+
+
+@itemize @bullet
+@item int32x2x2_t vzip_s32 (int32x2_t, int32x2_t)
+@*@emph{Form of expected instruction(s):} @code{vuzp.32 @var{d0}, @var{d1}}
 @end itemize
 
 
@@ -7522,6 +7732,12 @@
 @subsubsection Element/structure loads, VLD1 variants
 
 @itemize @bullet
+@item poly64x1_t vld1_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint32x2_t vld1_u32 (const uint32_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.32 @{@var{d0}@}, [@var{r0}]}
 @end itemize
@@ -7584,6 +7800,12 @@
 @itemize @bullet
 @item poly8x8_t vld1_p8 (const poly8_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.8 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vld1q_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
 @end itemize
 
 
@@ -7708,6 +7930,12 @@
 
 
 @itemize @bullet
+@item poly64x1_t vld1_lane_p64 (const poly64_t *, poly64x1_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1_t vld1_lane_u64 (const uint64_t *, uint64x1_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
 @end itemize
@@ -7770,6 +7998,12 @@
 @itemize @bullet
 @item poly8x16_t vld1q_lane_p8 (const poly8_t *, poly8x16_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vld1.8 @{@var{d0}[@var{0}]@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vld1q_lane_p64 (const poly64_t *, poly64x2_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
 @end itemize
 
 
@@ -7840,6 +8074,12 @@
 
 
 @itemize @bullet
+@item poly64x1_t vld1_dup_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1_t vld1_dup_u64 (const uint64_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
 @end itemize
@@ -7906,20 +8146,32 @@
 
 
 @itemize @bullet
+@item poly64x2_t vld1q_dup_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x2_t vld1q_dup_u64 (const uint64_t *)
-@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
 @end itemize
 
 
 @itemize @bullet
 @item int64x2_t vld1q_dup_s64 (const int64_t *)
-@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
 @end itemize
 
 
 
 
 @subsubsection Element/structure stores, VST1 variants
+
+@itemize @bullet
+@item void vst1_p64 (poly64_t *, poly64x1_t)
+@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
 
 @itemize @bullet
 @item void vst1_u32 (uint32_t *, uint32x2_t)
@@ -7984,6 +8236,12 @@
 @itemize @bullet
 @item void vst1_p8 (poly8_t *, poly8x8_t)
 @*@emph{Form of expected instruction(s):} @code{vst1.8 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item void vst1q_p64 (poly64_t *, poly64x2_t)
+@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
 @end itemize
 
 
@@ -8108,6 +8366,12 @@
 
 
 @itemize @bullet
+@item void vst1_lane_p64 (poly64_t *, poly64x1_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item void vst1_lane_s64 (int64_t *, int64x1_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
 @end itemize
@@ -8170,6 +8434,12 @@
 @itemize @bullet
 @item void vst1q_lane_p8 (poly8_t *, poly8x16_t, const int)
 @*@emph{Form of expected instruction(s):} @code{vst1.8 @{@var{d0}[@var{0}]@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item void vst1q_lane_p64 (poly64_t *, poly64x2_t, const int)
+@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
 @end itemize
 
 
@@ -8240,6 +8510,12 @@
 @itemize @bullet
 @item poly8x8x2_t vld2_p8 (const poly8_t *)
 @*@emph{Form of expected instruction(s):} @code{vld2.8 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item poly64x1x2_t vld2_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
 @end itemize
 
 
@@ -8454,6 +8730,12 @@
 
 
 @itemize @bullet
+@item poly64x1x2_t vld2_dup_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1x2_t vld2_dup_u64 (const uint64_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
 @end itemize
@@ -8520,6 +8802,12 @@
 @itemize @bullet
 @item void vst2_p8 (poly8_t *, poly8x8x2_t)
 @*@emph{Form of expected instruction(s):} @code{vst2.8 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item void vst2_p64 (poly64_t *, poly64x1x2_t)
+@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
 @end itemize
 
 
@@ -8738,6 +9026,12 @@
 
 
 @itemize @bullet
+@item poly64x1x3_t vld3_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1x3_t vld3_u64 (const uint64_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
 @end itemize
@@ -8948,6 +9242,12 @@
 
 
 @itemize @bullet
+@item poly64x1x3_t vld3_dup_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1x3_t vld3_dup_u64 (const uint64_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
 @end itemize
@@ -9014,6 +9314,12 @@
 @itemize @bullet
 @item void vst3_p8 (poly8_t *, poly8x8x3_t)
 @*@emph{Form of expected instruction(s):} @code{vst3.8 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item void vst3_p64 (poly64_t *, poly64x1x3_t)
+@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
 @end itemize
 
 
@@ -9232,6 +9538,12 @@
 
 
 @itemize @bullet
+@item poly64x1x4_t vld4_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1x4_t vld4_u64 (const uint64_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
 @end itemize
@@ -9442,6 +9754,12 @@
 
 
 @itemize @bullet
+@item poly64x1x4_t vld4_dup_p64 (const poly64_t *)
+@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
 @item uint64x1x4_t vld4_dup_u64 (const uint64_t *)
 @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
 @end itemize
@@ -9508,6 +9826,12 @@
 @itemize @bullet
 @item void vst4_p8 (poly8_t *, poly8x8x4_t)
 @*@emph{Form of expected instruction(s):} @code{vst4.8 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+@end itemize
+
+
+@itemize @bullet
+@item void vst4_p64 (poly64_t *, poly64x1x4_t)
+@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
 @end itemize
 
 
@@ -10162,42 +10486,7 @@
 @subsubsection Reinterpret casts
 
 @itemize @bullet
-@item poly8x8_t vreinterpret_p8_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x8_t vreinterpret_p8_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x8_t vreinterpret_p8_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x8_t vreinterpret_p8_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x8_t vreinterpret_p8_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x8_t vreinterpret_p8_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x8_t vreinterpret_p8_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x8_t vreinterpret_p8_s64 (int64x1_t)
+@item poly8x8_t vreinterpret_p8_p16 (poly16x4_t)
 @end itemize
 
 
@@ -10207,102 +10496,47 @@
 
 
 @itemize @bullet
-@item poly8x8_t vreinterpret_p8_p16 (poly16x4_t)
+@item poly8x8_t vreinterpret_p8_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_u32 (uint32x4_t)
+@item poly8x8_t vreinterpret_p8_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_u16 (uint16x8_t)
+@item poly8x8_t vreinterpret_p8_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_u8 (uint8x16_t)
+@item poly8x8_t vreinterpret_p8_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_s32 (int32x4_t)
+@item poly8x8_t vreinterpret_p8_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_s16 (int16x8_t)
+@item poly8x8_t vreinterpret_p8_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_s8 (int8x16_t)
+@item poly8x8_t vreinterpret_p8_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_u64 (uint64x2_t)
+@item poly8x8_t vreinterpret_p8_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly8x16_t vreinterpretq_p8_s64 (int64x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x16_t vreinterpretq_p8_f32 (float32x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly8x16_t vreinterpretq_p8_p16 (poly16x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item poly16x4_t vreinterpret_p16_f32 (float32x2_t)
+@item poly8x8_t vreinterpret_p8_u32 (uint32x2_t)
 @end itemize
 
 
@@ -10312,97 +10546,52 @@
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_u32 (uint32x4_t)
+@item poly16x4_t vreinterpret_p16_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_u16 (uint16x8_t)
+@item poly16x4_t vreinterpret_p16_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_u8 (uint8x16_t)
+@item poly16x4_t vreinterpret_p16_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_s32 (int32x4_t)
+@item poly16x4_t vreinterpret_p16_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_s16 (int16x8_t)
+@item poly16x4_t vreinterpret_p16_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_s8 (int8x16_t)
+@item poly16x4_t vreinterpret_p16_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_u64 (uint64x2_t)
+@item poly16x4_t vreinterpret_p16_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_s64 (int64x2_t)
+@item poly16x4_t vreinterpret_p16_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_f32 (float32x4_t)
+@item poly16x4_t vreinterpret_p16_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item poly16x8_t vreinterpretq_p16_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item float32x2_t vreinterpret_f32_p16 (poly16x4_t)
+@item poly16x4_t vreinterpret_p16_u32 (uint32x2_t)
 @end itemize
 
 
@@ -10412,97 +10601,107 @@
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_u32 (uint32x4_t)
+@item float32x2_t vreinterpret_f32_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_u16 (uint16x8_t)
+@item float32x2_t vreinterpret_f32_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_u8 (uint8x16_t)
+@item float32x2_t vreinterpret_f32_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_s32 (int32x4_t)
+@item float32x2_t vreinterpret_f32_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_s16 (int16x8_t)
+@item float32x2_t vreinterpret_f32_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_s8 (int8x16_t)
+@item float32x2_t vreinterpret_f32_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_u64 (uint64x2_t)
+@item float32x2_t vreinterpret_f32_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_s64 (int64x2_t)
+@item float32x2_t vreinterpret_f32_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_p16 (poly16x8_t)
+@item float32x2_t vreinterpret_f32_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item float32x4_t vreinterpretq_f32_p8 (poly8x16_t)
+@item float32x2_t vreinterpret_f32_u32 (uint32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_u32 (uint32x2_t)
+@item poly64x1_t vreinterpret_p64_p8 (poly8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_u16 (uint16x4_t)
+@item poly64x1_t vreinterpret_p64_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_u8 (uint8x8_t)
+@item poly64x1_t vreinterpret_p64_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_s32 (int32x2_t)
+@item poly64x1_t vreinterpret_p64_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_s16 (int16x4_t)
+@item poly64x1_t vreinterpret_p64_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_s8 (int8x8_t)
+@item poly64x1_t vreinterpret_p64_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_u64 (uint64x1_t)
+@item poly64x1_t vreinterpret_p64_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_f32 (float32x2_t)
+@item poly64x1_t vreinterpret_p64_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x1_t vreinterpret_s64_p16 (poly16x4_t)
+@item poly64x1_t vreinterpret_p64_u8 (uint8x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x1_t vreinterpret_p64_u16 (uint16x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x1_t vreinterpret_p64_u32 (uint32x2_t)
 @end itemize
 
 
@@ -10512,97 +10711,52 @@
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_u32 (uint32x4_t)
+@item int64x1_t vreinterpret_s64_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_u16 (uint16x8_t)
+@item int64x1_t vreinterpret_s64_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_u8 (uint8x16_t)
+@item int64x1_t vreinterpret_s64_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_s32 (int32x4_t)
+@item int64x1_t vreinterpret_s64_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_s16 (int16x8_t)
+@item int64x1_t vreinterpret_s64_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_s8 (int8x16_t)
+@item int64x1_t vreinterpret_s64_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_u64 (uint64x2_t)
+@item int64x1_t vreinterpret_s64_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_f32 (float32x4_t)
+@item int64x1_t vreinterpret_s64_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_p16 (poly16x8_t)
+@item int64x1_t vreinterpret_s64_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int64x2_t vreinterpretq_s64_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_f32 (float32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint64x1_t vreinterpret_u64_p16 (poly16x4_t)
+@item int64x1_t vreinterpret_s64_u32 (uint32x2_t)
 @end itemize
 
 
@@ -10612,97 +10766,52 @@
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_u32 (uint32x4_t)
+@item uint64x1_t vreinterpret_u64_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_u16 (uint16x8_t)
+@item uint64x1_t vreinterpret_u64_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_u8 (uint8x16_t)
+@item uint64x1_t vreinterpret_u64_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_s32 (int32x4_t)
+@item uint64x1_t vreinterpret_u64_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_s16 (int16x8_t)
+@item uint64x1_t vreinterpret_u64_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_s8 (int8x16_t)
+@item uint64x1_t vreinterpret_u64_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_s64 (int64x2_t)
+@item uint64x1_t vreinterpret_u64_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_f32 (float32x4_t)
+@item uint64x1_t vreinterpret_u64_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_p16 (poly16x8_t)
+@item uint64x1_t vreinterpret_u64_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint64x2_t vreinterpretq_u64_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_f32 (float32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int8x8_t vreinterpret_s8_p16 (poly16x4_t)
+@item uint64x1_t vreinterpret_u64_u32 (uint32x2_t)
 @end itemize
 
 
@@ -10712,97 +10821,52 @@
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_u32 (uint32x4_t)
+@item int8x8_t vreinterpret_s8_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_u16 (uint16x8_t)
+@item int8x8_t vreinterpret_s8_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_u8 (uint8x16_t)
+@item int8x8_t vreinterpret_s8_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_s32 (int32x4_t)
+@item int8x8_t vreinterpret_s8_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_s16 (int16x8_t)
+@item int8x8_t vreinterpret_s8_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_u64 (uint64x2_t)
+@item int8x8_t vreinterpret_s8_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_s64 (int64x2_t)
+@item int8x8_t vreinterpret_s8_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_f32 (float32x4_t)
+@item int8x8_t vreinterpret_s8_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_p16 (poly16x8_t)
+@item int8x8_t vreinterpret_s8_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int8x16_t vreinterpretq_s8_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_f32 (float32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int16x4_t vreinterpret_s16_p16 (poly16x4_t)
+@item int8x8_t vreinterpret_s8_u32 (uint32x2_t)
 @end itemize
 
 
@@ -10812,97 +10876,52 @@
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_u32 (uint32x4_t)
+@item int16x4_t vreinterpret_s16_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_u16 (uint16x8_t)
+@item int16x4_t vreinterpret_s16_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_u8 (uint8x16_t)
+@item int16x4_t vreinterpret_s16_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_s32 (int32x4_t)
+@item int16x4_t vreinterpret_s16_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_s8 (int8x16_t)
+@item int16x4_t vreinterpret_s16_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_u64 (uint64x2_t)
+@item int16x4_t vreinterpret_s16_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_s64 (int64x2_t)
+@item int16x4_t vreinterpret_s16_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_f32 (float32x4_t)
+@item int16x4_t vreinterpret_s16_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_p16 (poly16x8_t)
+@item int16x4_t vreinterpret_s16_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int16x8_t vreinterpretq_s16_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_f32 (float32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item int32x2_t vreinterpret_s32_p16 (poly16x4_t)
+@item int16x4_t vreinterpret_s16_u32 (uint32x2_t)
 @end itemize
 
 
@@ -10912,97 +10931,52 @@
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_u32 (uint32x4_t)
+@item int32x2_t vreinterpret_s32_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_u16 (uint16x8_t)
+@item int32x2_t vreinterpret_s32_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_u8 (uint8x16_t)
+@item int32x2_t vreinterpret_s32_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_s16 (int16x8_t)
+@item int32x2_t vreinterpret_s32_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_s8 (int8x16_t)
+@item int32x2_t vreinterpret_s32_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_u64 (uint64x2_t)
+@item int32x2_t vreinterpret_s32_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_s64 (int64x2_t)
+@item int32x2_t vreinterpret_s32_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_f32 (float32x4_t)
+@item int32x2_t vreinterpret_s32_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_p16 (poly16x8_t)
+@item int32x2_t vreinterpret_s32_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item int32x4_t vreinterpretq_s32_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_f32 (float32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint8x8_t vreinterpret_u8_p16 (poly16x4_t)
+@item int32x2_t vreinterpret_s32_u32 (uint32x2_t)
 @end itemize
 
 
@@ -11012,97 +10986,52 @@
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_u32 (uint32x4_t)
+@item uint8x8_t vreinterpret_u8_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_u16 (uint16x8_t)
+@item uint8x8_t vreinterpret_u8_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_s32 (int32x4_t)
+@item uint8x8_t vreinterpret_u8_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_s16 (int16x8_t)
+@item uint8x8_t vreinterpret_u8_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_s8 (int8x16_t)
+@item uint8x8_t vreinterpret_u8_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_u64 (uint64x2_t)
+@item uint8x8_t vreinterpret_u8_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_s64 (int64x2_t)
+@item uint8x8_t vreinterpret_u8_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_f32 (float32x4_t)
+@item uint8x8_t vreinterpret_u8_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_p16 (poly16x8_t)
+@item uint8x8_t vreinterpret_u8_u16 (uint16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint8x16_t vreinterpretq_u8_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_u32 (uint32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_f32 (float32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint16x4_t vreinterpret_u16_p16 (poly16x4_t)
+@item uint8x8_t vreinterpret_u8_u32 (uint32x2_t)
 @end itemize
 
 
@@ -11112,97 +11041,52 @@
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_u32 (uint32x4_t)
+@item uint16x4_t vreinterpret_u16_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_u8 (uint8x16_t)
+@item uint16x4_t vreinterpret_u16_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_s32 (int32x4_t)
+@item uint16x4_t vreinterpret_u16_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_s16 (int16x8_t)
+@item uint16x4_t vreinterpret_u16_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_s8 (int8x16_t)
+@item uint16x4_t vreinterpret_u16_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_u64 (uint64x2_t)
+@item uint16x4_t vreinterpret_u16_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_s64 (int64x2_t)
+@item uint16x4_t vreinterpret_u16_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_f32 (float32x4_t)
+@item uint16x4_t vreinterpret_u16_s32 (int32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_p16 (poly16x8_t)
+@item uint16x4_t vreinterpret_u16_u8 (uint8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint16x8_t vreinterpretq_u16_p8 (poly8x16_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_u16 (uint16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_u8 (uint8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_s32 (int32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_s16 (int16x4_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_s8 (int8x8_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_u64 (uint64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_s64 (int64x1_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_f32 (float32x2_t)
-@end itemize
-
-
-@itemize @bullet
-@item uint32x2_t vreinterpret_u32_p16 (poly16x4_t)
+@item uint16x4_t vreinterpret_u16_u32 (uint32x2_t)
 @end itemize
 
 
@@ -11212,42 +11096,777 @@
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_u16 (uint16x8_t)
+@item uint32x2_t vreinterpret_u32_p16 (poly16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_u8 (uint8x16_t)
+@item uint32x2_t vreinterpret_u32_f32 (float32x2_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_s32 (int32x4_t)
+@item uint32x2_t vreinterpret_u32_p64 (poly64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_s16 (int16x8_t)
+@item uint32x2_t vreinterpret_u32_s64 (int64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_s8 (int8x16_t)
+@item uint32x2_t vreinterpret_u32_u64 (uint64x1_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_u64 (uint64x2_t)
+@item uint32x2_t vreinterpret_u32_s8 (int8x8_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_s64 (int64x2_t)
+@item uint32x2_t vreinterpret_u32_s16 (int16x4_t)
 @end itemize
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_f32 (float32x4_t)
+@item uint32x2_t vreinterpret_u32_s32 (int32x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x2_t vreinterpret_u32_u8 (uint8x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x2_t vreinterpret_u32_u16 (uint16x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly8x16_t vreinterpretq_p8_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly16x8_t vreinterpretq_p16_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item float32x4_t vreinterpretq_f32_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly64x2_t vreinterpretq_p64_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item poly128_t vreinterpretq_p128_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int64x2_t vreinterpretq_s64_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint64x2_t vreinterpretq_u64_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int8x16_t vreinterpretq_s8_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int16x8_t vreinterpretq_s16_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item int32x4_t vreinterpretq_s32_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_u16 (uint16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint8x16_t vreinterpretq_u8_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_p8 (poly8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_p16 (poly16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint16x8_t vreinterpretq_u16_u32 (uint32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_p8 (poly8x16_t)
 @end itemize
 
 
@@ -11257,9 +11876,131 @@
 
 
 @itemize @bullet
-@item uint32x4_t vreinterpretq_u32_p8 (poly8x16_t)
+@item uint32x4_t vreinterpretq_u32_f32 (float32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_p64 (poly64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_p128 (poly128_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_s64 (int64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_u64 (uint64x2_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_s8 (int8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_s16 (int16x8_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_s32 (int32x4_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_u8 (uint8x16_t)
+@end itemize
+
+
+@itemize @bullet
+@item uint32x4_t vreinterpretq_u32_u16 (uint16x8_t)
 @end itemize
 
 
 
+
+
+@itemize @bullet
+@item poly128_t vldrq_p128(poly128_t const *)
+@end itemize
+
+@itemize @bullet
+@item void vstrq_p128(poly128_t *, poly128_t)
+@end itemize
+
+@itemize @bullet
+@item uint64x1_t vceq_p64 (poly64x1_t, poly64x1_t)
+@end itemize
+
+@itemize @bullet
+@item uint64x1_t vtst_p64 (poly64x1_t, poly64x1_t)
+@end itemize
+
+@itemize @bullet
+@item uint32_t vsha1h_u32 (uint32_t)
+@*@emph{Form of expected instruction(s):} @code{sha1h.32 @var{q0}, @var{q1}}
+@end itemize
+
+@itemize @bullet
+@item uint32x4_t vsha1cq_u32 (uint32x4_t, uint32_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha1c.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+
+@itemize @bullet
+@item uint32x4_t vsha1pq_u32 (uint32x4_t, uint32_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha1p.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+
+@itemize @bullet
+@item uint32x4_t vsha1mq_u32 (uint32x4_t, uint32_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha1m.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+
+@itemize @bullet
+@item uint32x4_t vsha1su0q_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha1su0.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+
+@itemize @bullet
+@item uint32x4_t vsha1su1q_u32 (uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha1su1.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+
+@itemize @bullet
+@item uint32x4_t vsha256hq_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha256h.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+ 
+@itemize @bullet
+@item uint32x4_t vsha256h2q_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha256h2.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+ 
+@itemize @bullet
+@item uint32x4_t vsha256su0q_u32 (uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha256su0.32 @var{q0}, @var{q1}}
+@end itemize
+ 
+@itemize @bullet
+@item uint32x4_t vsha256su1q_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
+@*@emph{Form of expected instruction(s):} @code{sha256su1.32 @var{q0}, @var{q1}, @var{q2}}
+@end itemize
+
+@itemize @bullet
+@item poly128_t vmull_p64 (poly64_t a, poly64_t b)
+@*@emph{Form of expected instruction(s):} @code{vmull.p64 @var{q0}, @var{d1}, @var{d2}}
+@end itemize
+
+@itemize @bullet
+@item poly128_t vmull_high_p64 (poly64x2_t a, poly64x2_t b)
+@*@emph{Form of expected instruction(s):} @code{vmull.p64 @var{q0}, @var{d1}, @var{d2}}
+@end itemize
 

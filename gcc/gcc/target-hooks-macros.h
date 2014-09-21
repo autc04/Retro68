@@ -1,7 +1,5 @@
 /* Common macros for target hook definitions.
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -39,7 +37,7 @@
    HOOK_VECTOR_END: Close a struct declaration, providing a member declarator
                     name for nested use.  */
 #ifndef HOOK_VECTOR_1
-#define HOOK_VECTOR_1(NAME, FRAGMENT) HOOKSTRUCT(FRAGMENT)
+#define HOOK_VECTOR_1(NAME, FRAGMENT) HOOKSTRUCT (FRAGMENT)
 #endif
 #define HOOK_VECTOR(INIT_NAME, SNAME) HOOK_VECTOR_1 (INIT_NAME, struct SNAME {)
 #define HOOK_VECTOR_END(DECL_NAME) HOOK_VECTOR_1(,} DECL_NAME ;)
@@ -60,7 +58,7 @@
    In both these cases, leave the DOC string empty, i.e. "".
    Sometimes, for some historic reason the function declaration 
    has to be documented differently
-   than what it is.  In that case, use DEFHOOK_UNDOC to supress auto-generation
+   than what it is.  In that case, use DEFHOOK_UNDOC to suppress auto-generation
    of documentation.  DEFHOOK_UNDOC takes a DOC string which it ignores, so
    you can put GPLed documentation string there if you have hopes that you
    can clear the declaration & documentation for GFDL distribution later,

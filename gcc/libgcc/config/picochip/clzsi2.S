@@ -1,4 +1,4 @@
-// Copyright (C) 2008, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -56,7 +56,7 @@ _picoMark_FUNCTION_END=
 // All DWARF information between this marker, and the END OF DWARF
 // marker should be included in the source file. Search for
 // FUNCTION_STACK_SIZE_GOES_HERE and FUNCTION NAME GOES HERE, and
-// provide the relevent information. Add markers called
+// provide the relevant information. Add markers called
 // _picoMark_FUNCTION_BEGIN and _picoMark_FUNCTION_END around the
 // function in question.
 //============================================================================

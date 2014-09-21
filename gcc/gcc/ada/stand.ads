@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -153,7 +153,7 @@ package Stand is
       S_RS,             -- 16#1E#
       S_US,             -- 16#1F#
 
-      --  Here are the ones for Colonel Whitaker's O26 keypunch!
+      --  Here are the ones for Colonel Whitaker's O26 keypunch
 
       S_Exclam,         -- 16#21#
       S_Quotation,      -- 16#22#
@@ -362,10 +362,15 @@ package Stand is
    --  identifier references to prevent cascaded errors.
 
    Any_Type : Entity_Id;
-   --  Used to represent some unknown type. Plays an important role in
-   --  avoiding cascaded errors, since any node that remains labeled with
-   --  this type corresponds to an already issued error message. Any_Type
-   --  is propagated to avoid cascaded errors from a single type error.
+   --  Used to represent some unknown type. Any_Type is the type of an
+   --  unresolved operator, and it is the type of a node where a type error
+   --  has been detected. Any_Type plays an important role in avoiding cascaded
+   --  errors, because it is compatible with all other types, and is propagated
+   --  to any expression that has a subexpression of Any_Type. When resolving
+   --  operators, Any_Type is the initial type of the node before any of its
+   --  candidate interpretations has been examined. If after examining all of
+   --  them the type is still Any_Type, the node has no possible interpretation
+   --  and an error can be emitted (and Any_Type will be propagated upwards).
 
    Any_Access : Entity_Id;
    --  Used to resolve the overloaded literal NULL
@@ -414,6 +419,16 @@ package Stand is
    --  component type is compatible with any character type, not just
    --  Standard_Character.
 
+   Raise_Type : Entity_Id;
+   --  The type Raise_Type denotes the type of a Raise_Expression. It is
+   --  compatible with all other types, and must eventually resolve to a
+   --  concrete type that is imposed by the context.
+   --
+   --  Historical note: we used to use Any_Type for this purpose, but the
+   --  confusion of meanings (Any_Type normally indicates an error) caused
+   --  difficulties. In particular some needed expansions were skipped since
+   --  the nodes in question looked like they had an error.
+
    Universal_Integer : Entity_Id;
    --  Entity for universal integer type. The bounds of this type correspond
    --  to the largest supported integer type (i.e. Long_Long_Integer). It is
@@ -438,12 +453,18 @@ package Stand is
    Standard_Integer_16 : Entity_Id;
    Standard_Integer_32 : Entity_Id;
    Standard_Integer_64 : Entity_Id;
-   --  These are signed integer types with the indicated sizes, They are used
-   --  for the underlying implementation types for fixed-point and enumeration
-   --  types.
+   --  These are signed integer types with the indicated sizes. Used for the
+   --  underlying implementation types for fixed-point and enumeration types.
 
-   Standard_Unsigned : Entity_Id;
-   --  An unsigned type of the same size as Standard_Integer
+   Standard_Short_Short_Unsigned : Entity_Id;
+   Standard_Short_Unsigned       : Entity_Id;
+   Standard_Unsigned             : Entity_Id;
+   Standard_Long_Unsigned        : Entity_Id;
+   Standard_Long_Long_Unsigned   : Entity_Id;
+   --  Unsigned types with same Esize as corresponding signed integer types
+
+   Standard_Unsigned_64 : Entity_Id;
+   --  An unsigned type, mod 2 ** 64, size of 64 bits.
 
    Abort_Signal : Entity_Id;
    --  Entity for abort signal exception
@@ -460,12 +481,12 @@ package Stand is
    -----------------
 
    procedure Tree_Read;
-   --  Initializes entity values in this package from the current tree
-   --  file using Osint.Tree_Read. Note that Tree_Read includes all the
-   --  initialization that is carried out by Create_Standard.
+   --  Initializes entity values in this package from the current tree file
+   --  using Tree_IO. Note that Tree_Read includes all the initialization that
+   --  is carried out by Create_Standard.
 
    procedure Tree_Write;
    --  Writes out the entity values in this package to the current tree file
-   --  using Osint.Tree_Write.
+   --  using Tree_IO.
 
 end Stand;

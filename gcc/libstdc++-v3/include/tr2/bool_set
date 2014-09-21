@@ -1,6 +1,6 @@
 // TR2 <bool_set> -*- C++ -*-
 
-// Copyright (C) 2009, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -44,7 +44,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  bool_set
    *
    *  See N2136, Bool_set: multi-valued logic
-   *  by Hervé Brönnimann, Guillaume Melquiond, Sylvain Pion.
+   *  by HervÃ© BrÃ¶nnimann, Guillaume Melquiond, Sylvain Pion.
    *
    *  The implicit conversion to bool is slippery!  I may use the new
    *  explicit conversion.  This has been specialized in the language
@@ -56,10 +56,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   public:
 
     ///  Default constructor.
-    bool_set() : _M_b(_S_false) { }
+    constexpr bool_set() : _M_b(_S_false) { }
 
     ///  Constructor from bool.
-    bool_set(bool __t) : _M_b(_Bool_set_val(__t)) { }
+    constexpr bool_set(bool __t) : _M_b(_Bool_set_val(__t)) { }
 
     // I'm not sure about this.
     bool contains(bool_set __b) const

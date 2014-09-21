@@ -16,22 +16,22 @@ struct Foo
   };
 
   void method(void) {
-    typename Foo<::B>::template Nested<::B> n; // { dg-error "17:'<::' cannot begin" "17-begin" }
-// { dg-message "17:'<:' is an alternate spelling" "17-alt" { target *-*-* } 19 }
-// { dg-error "39:'<::' cannot begin" "39-begin" { target *-*-* } 19 }
-// { dg-message "39:'<:' is an alternate spelling" "39-alt" { target *-*-* } 19 }
+    typename Foo<::B>::template Nested<::B> n; // { dg-error "17:'<::' cannot begin" "17-begin" { target { ! c++11 } } }
+// { dg-message "17:'<:' is an alternate spelling" "17-alt" { target { ! c++11 } } 19 }
+// { dg-error "39:'<::' cannot begin" "39-begin" { target { ! c++11 } } 19 }
+// { dg-message "39:'<:' is an alternate spelling" "39-alt" { target { ! c++11 } } 19 }
     n.template Nested<B>::method();
-    n.template Nested<::B>::method();  // { dg-error "22:'<::' cannot begin" "error" }
-// { dg-message "22:'<:' is an alternate" "note" { target *-*-* } 24 }
+    n.template Nested<::B>::method();  // { dg-error "22:'<::' cannot begin" "error" { target { ! c++11 } } }
+// { dg-message "22:'<:' is an alternate" "note" { target { ! c++11 } } 24 }
     Nested<B>::method();
-    Nested<::B>::method(); // { dg-error "11:'<::' cannot begin" "error" }
-// { dg-message "11:'<:' is an alternate" "note" { target *-*-* } 27 }
+    Nested<::B>::method(); // { dg-error "11:'<::' cannot begin" "error" { target { ! c++11 } } }
+// { dg-message "11:'<:' is an alternate" "note" { target { ! c++11 } } 27 }
   }
 };
 
 template <int N> struct Foo2 {};
-template struct Foo2<::B>;  // { dg-error "21:'<::' cannot begin" "begin" }
-// { dg-message "21:'<:' is an alternate" "alt" { target *-*-* } 33 }
+template struct Foo2<::B>;  // { dg-error "21:'<::' cannot begin" "begin" { target { ! c++11 } } }
+// { dg-message "21:'<:' is an alternate" "alt" { target { ! c++11 } } 33 }
 // { dg-message "25:type/value mismatch" "mismatch" { target *-*-* } 33 }
 // { dg-error "25:expected a constant" "const" { target *-*-* } 33 }
 
@@ -39,11 +39,11 @@ int value = 0;
 
 void func(void)
 {
-  Foo<::B> f; // { dg-error "cannot begin" "begin" }
-// { dg-message "alternate spelling" "alt" { target *-*-* } 42 }
+  Foo<::B> f; // { dg-error "cannot begin" "begin" { target { ! c++11 } } }
+// { dg-message "alternate spelling" "alt" { target { ! c++11 } } 42 }
   f.Foo<B>::method();
-  f.Foo<::B>::method(); // { dg-error "8:cannot begin" "begin" }
-// { dg-message "8:alternate spelling" "alt" { target *-*-* } 45 }
+  f.Foo<::B>::method(); // { dg-error "8:cannot begin" "begin" { target { ! c++11 } } }
+// { dg-message "8:alternate spelling" "alt" { target { ! c++11 } } 45 }
 
   // Check cases where we the token sequence is the correct one, but there
   //  was no digraph or whitespaces in the middle, so we should not emit
@@ -53,19 +53,17 @@ void func(void)
 // { dg-error "6:missing template arguments before" "template" { target *-*-* } { 51 } }
 // { dg-error "9:expected primary-expression before ':' token" "primary" { target *-*-* } 51 }
 // { dg-error "9:expected '\]' before ':' token" "backslash" { target *-*-* } 51 }
-// { dg-error "9:expected ';' before ':' token" "semicolon" { target *-*-* } 51 }
 // { dg-error "6:missing template arguments before" "template" { target *-*-* } 52 }
 // { dg-error "7:expected primary-expression before ':' token" "primary" { target *-*-* } 52 }
 // { dg-error "7:expected '\]' before ':' token" "backslash" { target *-*-* } 52 }
-// { dg-error "7:expected ';' before ':' token" "semicolon" { target *-*-* } 52 }
 //
   int Foo[2];
   Foo[::value] = 0;
 }
 
-template struct Foo<::B>; // { dg-error "20:'<::' cannot begin" "begin" }
-// { dg-message "20:is an alternate" "alt" { target *-*-* } 66 }
+template struct Foo<::B>; // { dg-error "20:'<::' cannot begin" "begin" { target { ! c++11 } } }
+// { dg-message "20:is an alternate" "alt" { target { ! c++11 } } 64 }
 
 // On the first error message, an additional note about the use of 
 //  -fpermissive should be present
-// { dg-message "17:\\(if you use '-fpermissive' G\\+\\+ will accept your code\\)" "-fpermissive" { target *-*-* } 19 }
+// { dg-message "17:\\(if you use '-fpermissive' or '-std=c\\+\\+11', or '-std=gnu\\+\\+11' G\\+\\+ will accept your code\\)" "-fpermissive" { target { ! c++11 } } 19 }

@@ -1,8 +1,6 @@
 /* Gcov.c: prepend line execution counts and branch probabilities to a
    source file.
-   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Contributed by James E. Wilson of Cygnus Support.
    Mangled by Bob Manson of Cygnus Support.
    Mangled further by Nathan Sidwell <nathan@codesourcery.com>
@@ -39,6 +37,7 @@ along with Gcov; see the file COPYING3.  If not see
 #include "intl.h"
 #include "diagnostic.h"
 #include "version.h"
+#include "demangle.h"
 
 #include <getopt.h>
 
@@ -57,10 +56,10 @@ along with Gcov; see the file COPYING3.  If not see
 
 /* The code validates that the profile information read in corresponds
    to the code currently being compiled.  Rather than checking for
-   identical files, the code below computes a checksum on the CFG
+   identical files, the code below compares a checksum on the CFG
    (based on the order of basic blocks and the arcs in the CFG).  If
-   the CFG checksum in the gcda file match the CFG checksum for the
-   code currently being compiled, the profile data will be used.  */
+   the CFG checksum in the gcda file match the CFG checksum in the
+   gcno file, the profile data will be used.  */
 
 /* This is the size of the buffer used to read in source file lines.  */
 
@@ -170,6 +169,7 @@ typedef struct function_info
 {
   /* Name of function.  */
   char *name;
+  char *demangled_name;
   unsigned ident;
   unsigned lineno_checksum;
   unsigned cfg_checksum;
@@ -177,7 +177,10 @@ typedef struct function_info
   /* The graph contains at least one fake incoming edge.  */
   unsigned has_catch : 1;
 
-  /* Array of basic blocks.  */
+  /* Array of basic blocks.  Like in GCC, the entry block is
+     at blocks[0] and the exit block is at blocks[1].  */
+#define ENTRY_BLOCK (0)
+#define EXIT_BLOCK (1)
   block_t *blocks;
   unsigned num_blocks;
   unsigned blocks_executed;
@@ -283,14 +286,16 @@ static unsigned total_executed;
 
 static time_t bbg_file_time;
 
-/* Name and file pointer of the input file for the basic block graph.  */
+/* Name of the notes (gcno) output file.  The "bbg" prefix is for
+   historical reasons, when the notes file contained only the
+   basic block graph notes.  */
 
 static char *bbg_file_name;
 
 /* Stamp of the bbg file */
 static unsigned bbg_stamp;
 
-/* Name and file pointer of the input file for the arc count data.  */
+/* Name and file pointer of the input file for the count data (gcda).  */
 
 static char *da_file_name;
 
@@ -321,6 +326,14 @@ static int flag_gcov_file = 1;
    and can be turned on by the -d option.  */
 
 static int flag_display_progress = 0;
+
+/* Output *.gcov file in intermediate format used by 'lcov'.  */
+
+static int flag_intermediate_format = 0;
+
+/* Output demangled function names.  */
+
+static int flag_demangled_names = 0;
 
 /* For included files, make the gcov output file name include the name
    of the input source file.  For example, if x.h is included in a.c,
@@ -385,6 +398,7 @@ static void executed_summary (unsigned, unsigned);
 static void function_summary (const coverage_t *, const char *);
 static const char *format_gcov (gcov_type, gcov_type, int);
 static void accumulate_line_counts (source_t *);
+static void output_gcov_file (const char *, source_t *);
 static int output_branch_count (FILE *, int, const arc_t *);
 static void output_lines (FILE *, const source_t *);
 static char *make_gcov_file_name (const char *, const char *);
@@ -434,8 +448,8 @@ main (int argc, char **argv)
   for (; argno != argc; argno++)
     {
       if (flag_display_progress)
-        printf("Processing file %d out of %d\n",  
-               argno - first_arg + 1, argc - first_arg);
+        printf ("Processing file %d out of %d\n",
+		argno - first_arg + 1, argc - first_arg);
       process_file (argv[argno]);
     }
 
@@ -458,21 +472,23 @@ print_usage (int error_p)
   fnotice (file, "Usage: gcov [OPTION]... SOURCE|OBJ...\n\n");
   fnotice (file, "Print code coverage information.\n\n");
   fnotice (file, "  -h, --help                      Print this help, then exit\n");
-  fnotice (file, "  -v, --version                   Print version number, then exit\n");
   fnotice (file, "  -a, --all-blocks                Show information for every basic block\n");
   fnotice (file, "  -b, --branch-probabilities      Include branch probabilities in output\n");
-  fnotice (file, "  -c, --branch-counts             Given counts of branches taken\n\
+  fnotice (file, "  -c, --branch-counts             Output counts of branches taken\n\
                                     rather than percentages\n");
-  fnotice (file, "  -n, --no-output                 Do not create an output file\n");
+  fnotice (file, "  -d, --display-progress          Display progress information\n");
+  fnotice (file, "  -f, --function-summaries        Output summaries for each function\n");
+  fnotice (file, "  -i, --intermediate-format       Output .gcov file in intermediate text format\n");
   fnotice (file, "  -l, --long-file-names           Use long output file names for included\n\
                                     source files\n");
-  fnotice (file, "  -f, --function-summaries        Output summaries for each function\n");
+  fnotice (file, "  -m, --demangled-names           Output demangled function names\n");
+  fnotice (file, "  -n, --no-output                 Do not create an output file\n");
   fnotice (file, "  -o, --object-directory DIR|FILE Search for object files in DIR or called FILE\n");
-  fnotice (file, "  -s, --source-prefix DIR         Source prefix to elide\n");
-  fnotice (file, "  -r, --relative-only             Only show data for relative sources\n");
   fnotice (file, "  -p, --preserve-paths            Preserve all pathname components\n");
+  fnotice (file, "  -r, --relative-only             Only show data for relative sources\n");
+  fnotice (file, "  -s, --source-prefix DIR         Source prefix to elide\n");
   fnotice (file, "  -u, --unconditional-branches    Show unconditional branch counts too\n");
-  fnotice (file, "  -d, --display-progress          Display progress information\n");
+  fnotice (file, "  -v, --version                   Print version number, then exit\n");
   fnotice (file, "\nFor bug reporting instructions, please see:\n%s.\n",
 	   bug_report_url);
   exit (status);
@@ -484,7 +500,7 @@ static void
 print_version (void)
 {
   fnotice (stdout, "gcov %s%s\n", pkgversion_string, version_string);
-  fprintf (stdout, "Copyright %s 2012 Free Software Foundation, Inc.\n",
+  fprintf (stdout, "Copyright %s 2014 Free Software Foundation, Inc.\n",
 	   _("(C)"));
   fnotice (stdout,
 	   _("This is free software; see the source for copying conditions.\n"
@@ -500,9 +516,11 @@ static const struct option options[] =
   { "all-blocks",           no_argument,       NULL, 'a' },
   { "branch-probabilities", no_argument,       NULL, 'b' },
   { "branch-counts",        no_argument,       NULL, 'c' },
+  { "intermediate-format",  no_argument,       NULL, 'i' },
   { "no-output",            no_argument,       NULL, 'n' },
   { "long-file-names",      no_argument,       NULL, 'l' },
   { "function-summaries",   no_argument,       NULL, 'f' },
+  { "demangled-names",      no_argument,       NULL, 'm' },
   { "preserve-paths",       no_argument,       NULL, 'p' },
   { "relative-only",        no_argument,       NULL, 'r' },
   { "object-directory",     required_argument, NULL, 'o' },
@@ -520,7 +538,8 @@ process_args (int argc, char **argv)
 {
   int opt;
 
-  while ((opt = getopt_long (argc, argv, "abcdfhlno:s:pruv", options, NULL)) != -1)
+  while ((opt = getopt_long (argc, argv, "abcdfhilmno:s:pruv", options, NULL)) !=
+         -1)
     {
       switch (opt)
 	{
@@ -542,6 +561,9 @@ process_args (int argc, char **argv)
 	case 'l':
 	  flag_long_names = 1;
 	  break;
+	case 'm':
+	  flag_demangled_names = 1;
+	  break;
 	case 'n':
 	  flag_gcov_file = 0;
 	  break;
@@ -561,6 +583,10 @@ process_args (int argc, char **argv)
 	case 'u':
 	  flag_unconditional = 1;
 	  break;
+	case 'i':
+          flag_intermediate_format = 1;
+          flag_gcov_file = 1;
+          break;
         case 'd':
           flag_display_progress = 1;
           break;
@@ -575,6 +601,110 @@ process_args (int argc, char **argv)
 
   return optind;
 }
+
+/* Get the name of the gcov file.  The return value must be free'd.
+
+   It appends the '.gcov' extension to the *basename* of the file.
+   The resulting file name will be in PWD.
+
+   e.g.,
+   input: foo.da,       output: foo.da.gcov
+   input: a/b/foo.cc,   output: foo.cc.gcov  */
+
+static char *
+get_gcov_intermediate_filename (const char *file_name)
+{
+  const char *gcov = ".gcov";
+  char *result;
+  const char *cptr;
+
+  /* Find the 'basename'.  */
+  cptr = lbasename (file_name);
+
+  result = XNEWVEC (char, strlen (cptr) + strlen (gcov) + 1);
+  sprintf (result, "%s%s", cptr, gcov);
+
+  return result;
+}
+
+/* Output the result in intermediate format used by 'lcov'.
+
+The intermediate format contains a single file named 'foo.cc.gcov',
+with no source code included. A sample output is
+
+file:foo.cc
+function:5,1,_Z3foov
+function:13,1,main
+function:19,1,_GLOBAL__sub_I__Z3foov
+function:19,1,_Z41__static_initialization_and_destruction_0ii
+lcount:5,1
+lcount:7,9
+lcount:9,8
+lcount:11,1
+file:/.../iostream
+lcount:74,1
+file:/.../basic_ios.h
+file:/.../ostream
+file:/.../ios_base.h
+function:157,0,_ZStorSt12_Ios_IostateS_
+lcount:157,0
+file:/.../char_traits.h
+function:258,0,_ZNSt11char_traitsIcE6lengthEPKc
+lcount:258,0
+...
+
+The default gcov outputs multiple files: 'foo.cc.gcov',
+'iostream.gcov', 'ios_base.h.gcov', etc. with source code
+included. Instead the intermediate format here outputs only a single
+file 'foo.cc.gcov' similar to the above example. */
+
+static void
+output_intermediate_file (FILE *gcov_file, source_t *src)
+{
+  unsigned line_num;    /* current line number.  */
+  const line_t *line;   /* current line info ptr.  */
+  function_t *fn;       /* current function info ptr. */
+
+  fprintf (gcov_file, "file:%s\n", src->name);    /* source file name */
+
+  for (fn = src->functions; fn; fn = fn->line_next)
+    {
+      /* function:<name>,<line_number>,<execution_count> */
+      fprintf (gcov_file, "function:%d,%s,%s\n", fn->line,
+               format_gcov (fn->blocks[0].count, 0, -1),
+               flag_demangled_names ? fn->demangled_name : fn->name);
+    }
+
+  for (line_num = 1, line = &src->lines[line_num];
+       line_num < src->num_lines;
+       line_num++, line++)
+    {
+      arc_t *arc;
+      if (line->exists)
+        fprintf (gcov_file, "lcount:%u,%s\n", line_num,
+                 format_gcov (line->count, 0, -1));
+      if (flag_branches)
+        for (arc = line->u.branches; arc; arc = arc->line_next)
+          {
+            if (!arc->is_unconditional && !arc->is_call_non_return)
+              {
+                const char *branch_type;
+                /* branch:<line_num>,<branch_coverage_type>
+                   branch_coverage_type
+                     : notexec (Branch not executed)
+                     : taken (Branch executed and taken)
+                     : nottaken (Branch executed, but not taken)
+                */
+                if (arc->src->count)
+                  branch_type = (arc->count > 0) ? "taken" : "nottaken";
+                else
+                  branch_type = "notexec";
+                fprintf (gcov_file, "branch:%d,%s\n", line_num, branch_type);
+              }
+          }
+    }
+}
+
 
 /* Process a single input file.  */
 
@@ -652,11 +782,40 @@ process_file (const char *file_name)
 }
 
 static void
+output_gcov_file (const char *file_name, source_t *src)
+{
+  char *gcov_file_name = make_gcov_file_name (file_name, src->coverage.name);
+
+  if (src->coverage.lines)
+    {
+      FILE *gcov_file = fopen (gcov_file_name, "w");
+      if (gcov_file)
+        {
+          fnotice (stdout, "Creating '%s'\n", gcov_file_name);
+          output_lines (gcov_file, src);
+          if (ferror (gcov_file))
+            fnotice (stderr, "Error writing output file '%s'\n", gcov_file_name);
+          fclose (gcov_file);
+        }
+      else
+        fnotice (stderr, "Could not open output file '%s'\n", gcov_file_name);
+    }
+  else
+    {
+      unlink (gcov_file_name);
+      fnotice (stdout, "Removing '%s'\n", gcov_file_name);
+    }
+  free (gcov_file_name);
+}
+
+static void
 generate_results (const char *file_name)
 {
   unsigned ix;
   source_t *src;
   function_t *fn;
+  FILE *gcov_intermediate_file = NULL;
+  char *gcov_intermediate_filename = NULL;
 
   for (ix = n_sources, src = sources; ix--; src++)
     if (src->num_lines)
@@ -667,7 +826,7 @@ generate_results (const char *file_name)
       coverage_t coverage;
 
       memset (&coverage, 0, sizeof (coverage));
-      coverage.name = fn->name;
+      coverage.name = flag_demangled_names ? fn->demangled_name : fn->name;
       add_line_counts (flag_function_summary ? &coverage : NULL, fn);
       if (flag_function_summary)
 	{
@@ -685,7 +844,21 @@ generate_results (const char *file_name)
       else
 	file_name = canonicalize_name (file_name);
     }
-  
+
+  if (flag_gcov_file && flag_intermediate_format)
+    {
+      /* Open the intermediate file.  */
+      gcov_intermediate_filename =
+        get_gcov_intermediate_filename (file_name);
+      gcov_intermediate_file = fopen (gcov_intermediate_filename, "w");
+      if (!gcov_intermediate_file)
+        {
+          fnotice (stderr, "Cannot open intermediate output file %s\n",
+                   gcov_intermediate_filename);
+          return;
+        }
+    }
+
   for (ix = n_sources, src = sources; ix--; src++)
     {
       if (flag_relative_only)
@@ -708,34 +881,21 @@ generate_results (const char *file_name)
       total_executed += src->coverage.lines_executed;
       if (flag_gcov_file)
 	{
-	  char *gcov_file_name
-	    = make_gcov_file_name (file_name, src->coverage.name);
+          if (flag_intermediate_format)
+            /* Output the intermediate format without requiring source
+               files.  This outputs a section to a *single* file.  */
+            output_intermediate_file (gcov_intermediate_file, src);
+          else
+            output_gcov_file (file_name, src);
+          fnotice (stdout, "\n");
+        }
+    }
 
-	  if (src->coverage.lines)
-	    {
-	      FILE *gcov_file = fopen (gcov_file_name, "w");
-
-	      if (gcov_file)
-		{
-		  fnotice (stdout, "Creating '%s'\n", gcov_file_name);
-		  output_lines (gcov_file, src);
-		  if (ferror (gcov_file))
-		    fnotice (stderr, "Error writing output file '%s'\n",
-			     gcov_file_name);
-		  fclose (gcov_file);
-		}
-	      else
-		fnotice (stderr, "Could not open output file '%s'\n",
-			 gcov_file_name);
-	    }
-	  else
-	    {
-	      unlink (gcov_file_name);
-	      fnotice (stdout, "Removing '%s'\n", gcov_file_name);
-	    }
-	  free (gcov_file_name);
-	}
-      fnotice (stdout, "\n");
+  if (flag_gcov_file && flag_intermediate_format)
+    {
+      /* Now we've finished writing the intermediate file.  */
+      fclose (gcov_intermediate_file);
+      XDELETEVEC (gcov_intermediate_filename);
     }
 
   if (!file_name)
@@ -762,6 +922,9 @@ release_function (function_t *fn)
     }
   free (fn->blocks);
   free (fn->counts);
+  if (flag_demangled_names && fn->demangled_name != fn->name)
+    free (fn->demangled_name);
+  free (fn->name);
 }
 
 /* Release all memory used.  */
@@ -837,7 +1000,7 @@ create_file_names (const char *file_name)
     }
 
   /* Remove the extension.  */
-  cptr = strrchr (name, '.');
+  cptr = strrchr (CONST_CAST (char *, lbasename (name)), '.');
   if (cptr)
     *cptr = 0;
 
@@ -973,7 +1136,7 @@ find_source (const char *file_name)
     {
       static int info_emitted;
 
-      fnotice (stderr, "%s:source file is newer than graph file '%s'\n",
+      fnotice (stderr, "%s:source file is newer than notes file '%s'\n",
 	       file_name, bbg_file_name);
       if (!info_emitted)
 	{
@@ -987,7 +1150,7 @@ find_source (const char *file_name)
   return idx;
 }
 
-/* Read the graph file.  Return list of functions read -- in reverse order.  */
+/* Read the notes file.  Return list of functions read -- in reverse order.  */
 
 static function_t *
 read_graph_file (void)
@@ -1003,13 +1166,13 @@ read_graph_file (void)
 
   if (!gcov_open (bbg_file_name, 1))
     {
-      fnotice (stderr, "%s:cannot open graph file\n", bbg_file_name);
+      fnotice (stderr, "%s:cannot open notes file\n", bbg_file_name);
       return fns;
     }
   bbg_file_time = gcov_time ();
   if (!gcov_magic (gcov_read_unsigned (), GCOV_NOTE_MAGIC))
     {
-      fnotice (stderr, "%s:not a gcov graph file\n", bbg_file_name);
+      fnotice (stderr, "%s:not a gcov notes file\n", bbg_file_name);
       gcov_close ();
       return fns;
     }
@@ -1047,6 +1210,12 @@ read_graph_file (void)
 
 	  fn = XCNEW (function_t);
 	  fn->name = function_name;
+          if (flag_demangled_names)
+            {
+              fn->demangled_name = cplus_demangle (fn->name, DMGL_PARAMS);
+              if (!fn->demangled_name)
+                fn->demangled_name = fn->name;
+            }
 	  fn->ident = ident;
 	  fn->lineno_checksum = lineno_checksum;
 	  fn->cfg_checksum = cfg_checksum;
@@ -1245,7 +1414,7 @@ read_count_file (function_t *fns)
   tag = gcov_read_unsigned ();
   if (tag != bbg_stamp)
     {
-      fnotice (stderr, "%s:stamp mismatch with graph file\n", da_file_name);
+      fnotice (stderr, "%s:stamp mismatch with notes file\n", da_file_name);
       goto cleanup;
     }
 
@@ -1363,21 +1532,21 @@ solve_flow_graph (function_t *fn)
 	     bbg_file_name, fn->name);
   else
     {
-      if (fn->blocks[0].num_pred)
+      if (fn->blocks[ENTRY_BLOCK].num_pred)
 	fnotice (stderr, "%s:'%s' has arcs to entry block\n",
 		 bbg_file_name, fn->name);
       else
 	/* We can't deduce the entry block counts from the lack of
 	   predecessors.  */
-	fn->blocks[0].num_pred = ~(unsigned)0;
+	fn->blocks[ENTRY_BLOCK].num_pred = ~(unsigned)0;
 
-      if (fn->blocks[fn->num_blocks - 1].num_succ)
+      if (fn->blocks[EXIT_BLOCK].num_succ)
 	fnotice (stderr, "%s:'%s' has arcs from exit block\n",
 		 bbg_file_name, fn->name);
       else
 	/* Likewise, we can't deduce exit block counts from the lack
 	   of its successors.  */
-	fn->blocks[fn->num_blocks - 1].num_succ = ~(unsigned)0;
+	fn->blocks[EXIT_BLOCK].num_succ = ~(unsigned)0;
     }
 
   /* Propagate the measured counts, this must be done in the same
@@ -1637,7 +1806,7 @@ add_branch_counts (coverage_t *coverage, const arc_t *arc)
     }
 }
 
-/* Format a HOST_WIDE_INT as either a percent ratio, or absolute
+/* Format a GCOV_TYPE integer as either a percent ratio, or absolute
    count.  If dp >= 0, format TOP/BOTTOM * 100 to DP decimal places.
    If DP is zero, no decimal point is printed. Only print 100% when
    TOP==BOTTOM and only print 0% when TOP=0.  If dp < 0, then simply
@@ -2219,15 +2388,8 @@ read_line (FILE *file)
 	  return string;
 	}
       pos += len;
-      ptr = XNEWVEC (char, string_len * 2);
-      if (ptr)
-	{
-	  memcpy (ptr, string, pos);
-	  string = ptr;
-	  string_len += 2;
-	}
-      else
-	pos = 0;
+      string = XRESIZEVEC (char, string, string_len * 2);
+      string_len *= 2;
     }
       
   return pos ? string : NULL;
@@ -2273,18 +2435,20 @@ output_lines (FILE *gcov_file, const source_t *src)
     {
       for (; fn && fn->line == line_num; fn = fn->line_next)
 	{
-	  arc_t *arc = fn->blocks[fn->num_blocks - 1].pred;
-	  gcov_type return_count = fn->blocks[fn->num_blocks - 1].count;
+	  arc_t *arc = fn->blocks[EXIT_BLOCK].pred;
+	  gcov_type return_count = fn->blocks[EXIT_BLOCK].count;
+	  gcov_type called_count = fn->blocks[ENTRY_BLOCK].count;
 
 	  for (; arc; arc = arc->pred_next)
 	    if (arc->fake)
 	      return_count -= arc->count;
 
-	  fprintf (gcov_file, "function %s", fn->name);
+	  fprintf (gcov_file, "function %s", flag_demangled_names ?
+                   fn->demangled_name : fn->name);
 	  fprintf (gcov_file, " called %s",
-		   format_gcov (fn->blocks[0].count, 0, -1));
+		   format_gcov (called_count, 0, -1));
 	  fprintf (gcov_file, " returned %s",
-		   format_gcov (return_count, fn->blocks[0].count, 0));
+		   format_gcov (return_count, called_count, 0));
 	  fprintf (gcov_file, " blocks executed %s",
 		   format_gcov (fn->blocks_executed, fn->num_blocks - 2, 0));
 	  fprintf (gcov_file, "\n");

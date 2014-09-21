@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -110,8 +110,9 @@ package body Sem_Mech is
          Class := First (Expressions (Mech_Name));
 
          if Nkind (Prefix (Mech_Name)) /= N_Identifier
-           or else not (Chars (Prefix (Mech_Name)) = Name_Descriptor or else
-                        Chars (Prefix (Mech_Name)) = Name_Short_Descriptor)
+           or else
+             not Nam_In (Chars (Prefix (Mech_Name)), Name_Descriptor,
+                                                     Name_Short_Descriptor)
            or else Present (Next (Class))
          then
             Bad_Mechanism;
@@ -129,8 +130,9 @@ package body Sem_Mech is
          Param := First (Parameter_Associations (Mech_Name));
 
          if Nkind (Name (Mech_Name)) /= N_Identifier
-           or else not (Chars (Name (Mech_Name)) = Name_Descriptor or else
-                        Chars (Name (Mech_Name)) = Name_Short_Descriptor)
+           or else
+             not Nam_In (Chars (Name (Mech_Name)), Name_Descriptor,
+                                                   Name_Short_Descriptor)
            or else Present (Next (Param))
            or else No (Selector_Name (Param))
            or else Chars (Selector_Name (Param)) /= Name_Class
@@ -245,7 +247,7 @@ package body Sem_Mech is
 
       if Mech in Descriptor_Codes and then not Is_Formal (Ent) then
          if Is_Record_Type (Etype (Ent)) then
-            Error_Msg_N ("?records cannot be returned by Descriptor", Enod);
+            Error_Msg_N ("??records cannot be returned by Descriptor", Enod);
             return;
          end if;
       end if;
@@ -298,12 +300,14 @@ package body Sem_Mech is
                -- Ada --
                ---------
 
-               --  Note: all RM defined conventions are treated the same
-               --  from the point of view of parameter passing mechanism
+               --  Note: all RM defined conventions are treated the same from
+               --  the point of view of parameter passing mechanism. Convention
+               --  Ghost has the same dynamic semantics as convention Ada.
 
                when Convention_Ada       |
                     Convention_Intrinsic |
                     Convention_Entry     |
+                    Convention_Ghost     |
                     Convention_Protected |
                     Convention_Stubbed   =>
 
@@ -352,13 +356,13 @@ package body Sem_Mech is
                   --    Access parameters (RM B.3(68))
                   --    Access to subprogram types (RM B.3(71))
 
-                  --  Note: in the case of access parameters, it is the
-                  --  pointer that is passed by value. In GNAT access
-                  --  parameters are treated as IN parameters of an
-                  --  anonymous access type, so this falls out free.
+                  --  Note: in the case of access parameters, it is the pointer
+                  --  that is passed by value. In GNAT access parameters are
+                  --  treated as IN parameters of an anonymous access type, so
+                  --  this falls out free.
 
-                  --  The bottom line is that all IN elementary types
-                  --  are passed by copy in GNAT.
+                  --  The bottom line is that all IN elementary types are
+                  --  passed by copy in GNAT.
 
                   if Is_Elementary_Type (Typ) then
                      if Ekind (Formal) = E_In_Parameter then
@@ -385,10 +389,21 @@ package body Sem_Mech is
                      if Convention (Typ) /= Convention_C then
                         Set_Mechanism (Formal, By_Reference);
 
-                     --  If convention C_Pass_By_Copy was specified for
-                     --  the record type, then we pass by copy.
+                     --  OUT and IN OUT parameters of record types are passed
+                     --  by reference regardless of pragmas (RM B.3 (69/2)).
 
-                     elsif C_Pass_By_Copy (Typ) then
+                     elsif Ekind_In (Formal, E_Out_Parameter,
+                                             E_In_Out_Parameter)
+                     then
+                        Set_Mechanism (Formal, By_Reference);
+
+                     --  IN parameters of record types are passed by copy only
+                     --  when the related type has convention C_Pass_By_Copy
+                     --  (RM B.3 (68.1/2)).
+
+                     elsif Ekind (Formal) = E_In_Parameter
+                       and then C_Pass_By_Copy (Typ)
+                     then
                         Set_Mechanism (Formal, By_Copy);
 
                      --  Otherwise, for a C convention record, we set the
@@ -447,8 +462,8 @@ package body Sem_Mech is
 
                when Convention_Fortran =>
 
-                  --  In OpenVMS, pass a character of array of character
-                  --  value using Descriptor(S).
+                  --  In OpenVMS, pass character and string types using
+                  --  Short_Descriptor(S)
 
                   if OpenVMS_On_Target
                     and then (Root_Type (Typ) = Standard_Character
@@ -458,7 +473,7 @@ package body Sem_Mech is
                                      Root_Type (Component_Type (Typ)) =
                                                      Standard_Character))
                   then
-                     Set_Mechanism (Formal, By_Descriptor_S);
+                     Set_Mechanism (Formal, By_Short_Descriptor_S);
 
                   --  Access types are passed by default (presumably this
                   --  will mean they are passed by copy)
@@ -473,7 +488,6 @@ package body Sem_Mech is
                   else
                      Set_Mechanism (Formal, By_Reference);
                   end if;
-
             end case;
          end if;
 

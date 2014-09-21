@@ -6,12 +6,15 @@ package runtime
 
 import "unsafe"
 
+// Note: the MemStats struct should be kept in sync with
+// struct MStats in malloc.h
+
 // A MemStats records statistics about the memory allocator.
 type MemStats struct {
 	// General statistics.
 	Alloc      uint64 // bytes allocated and still in use
 	TotalAlloc uint64 // bytes allocated (even if freed)
-	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
+	Sys        uint64 // bytes obtained from system (sum of XxxSys below)
 	Lookups    uint64 // number of pointer lookups
 	Mallocs    uint64 // number of mallocs
 	Frees      uint64 // number of frees
@@ -34,12 +37,14 @@ type MemStats struct {
 	MCacheInuse uint64 // mcache structures
 	MCacheSys   uint64
 	BuckHashSys uint64 // profiling bucket hash table
+	GCSys       uint64 // GC metadata
+	OtherSys    uint64 // other system allocations
 
 	// Garbage collector statistics.
 	NextGC       uint64 // next run in HeapAlloc time (bytes)
 	LastGC       uint64 // last run in absolute time (ns)
 	PauseTotalNs uint64
-	PauseNs      [256]uint64 // most recent GC pause times
+	PauseNs      [256]uint64 // circular buffer of recent GC pause times, most recent at [(NumGC+255)%256]
 	NumGC        uint32
 	EnableGC     bool
 	DebugGC      bool

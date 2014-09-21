@@ -1,6 +1,5 @@
 /* Miscellaneous stuff that doesn't fit anywhere else.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -21,16 +20,8 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "gfortran.h"
-
-
-/* Get terminal width.  */
-
-int
-gfc_terminal_width (void)
-{
-  return 80;
-}
 
 
 /* Initialize a typespec to unknown.  */
@@ -107,6 +98,9 @@ gfc_basic_typename (bt type)
     case BT_UNKNOWN:
       p = "UNKNOWN";
       break;
+    case BT_ASSUMED:
+      p = "TYPE(*)";
+      break;
     default:
       gfc_internal_error ("gfc_basic_typename(): Undefined type");
     }
@@ -154,8 +148,14 @@ gfc_typename (gfc_typespec *ts)
       sprintf (buffer, "TYPE(%s)", ts->u.derived->name);
       break;
     case BT_CLASS:
-      sprintf (buffer, "CLASS(%s)",
-	       ts->u.derived->components->ts.u.derived->name);
+      ts = &ts->u.derived->components->ts;
+      if (ts->u.derived->attr.unlimited_polymorphic)
+	sprintf (buffer, "CLASS(*)");
+      else
+	sprintf (buffer, "CLASS(%s)", ts->u.derived->name);
+      break;
+    case BT_ASSUMED:
+      sprintf (buffer, "TYPE(*)");
       break;
     case BT_PROCEDURE:
       strcpy (buffer, "PROCEDURE");

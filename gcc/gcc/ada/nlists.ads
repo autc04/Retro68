@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -346,7 +346,9 @@ package Nlists is
    function No (List : List_Id) return Boolean;
    pragma Inline (No);
    --  Tests given Id for equality with No_List. This allows notations like
-   --  "if No (Statements)" as opposed to "if Statements = No_List".
+   --  "if No (Statements)" as opposed to "if Statements = No_List". Note that
+   --  an empty list gives False for this test, as opposed to Is_Empty_List
+   --  which gives True either for No_List or for an empty list.
 
    function Present (List : List_Id) return Boolean;
    pragma Inline (Present);
@@ -362,13 +364,5 @@ package Nlists is
    function Prev_Node_Address return System.Address;
    --  These functions return the addresses of the Next_Node and Prev_Node
    --  tables (used in Back_End for Gigi).
-
-   function p (U : Union_Id) return Node_Or_Entity_Id;
-   --  This function is intended for use from the debugger, it determines
-   --  whether U is a Node_Id or List_Id, and calls the appropriate Parent
-   --  function and returns the parent Node in either case. This is shorter
-   --  to type, and avoids the overloading problem of using Parent. It
-   --  should NEVER be used except from the debugger. If p is called with
-   --  other than a node or list id value, it returns 99_999_999.
 
 end Nlists;

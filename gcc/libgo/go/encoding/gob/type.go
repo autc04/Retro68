@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"os"
@@ -18,14 +19,21 @@ import (
 // to the package.  It's computed once and stored in a map keyed by reflection
 // type.
 type userTypeInfo struct {
-	user         reflect.Type // the type the user handed us
-	base         reflect.Type // the base type after all indirections
-	indir        int          // number of indirections to reach the base type
-	isGobEncoder bool         // does the type implement GobEncoder?
-	isGobDecoder bool         // does the type implement GobDecoder?
-	encIndir     int8         // number of indirections to reach the receiver type; may be negative
-	decIndir     int8         // number of indirections to reach the receiver type; may be negative
+	user        reflect.Type // the type the user handed us
+	base        reflect.Type // the base type after all indirections
+	indir       int          // number of indirections to reach the base type
+	externalEnc int          // xGob, xBinary, or xText
+	externalDec int          // xGob, xBinary or xText
+	encIndir    int8         // number of indirections to reach the receiver type; may be negative
+	decIndir    int8         // number of indirections to reach the receiver type; may be negative
 }
+
+// externalEncoding bits
+const (
+	xGob    = 1 + iota // GobEncoder or GobDecoder
+	xBinary            // encoding.BinaryMarshaler or encoding.BinaryUnmarshaler
+	xText              // encoding.TextMarshaler or encoding.TextUnmarshaler
+)
 
 var (
 	// Protected by an RWMutex because we read it a lot and write
@@ -75,15 +83,41 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
 		}
 		ut.indir++
 	}
-	ut.isGobEncoder, ut.encIndir = implementsInterface(ut.user, gobEncoderInterfaceType)
-	ut.isGobDecoder, ut.decIndir = implementsInterface(ut.user, gobDecoderInterfaceType)
+
+	if ok, indir := implementsInterface(ut.user, gobEncoderInterfaceType); ok {
+		ut.externalEnc, ut.encIndir = xGob, indir
+	} else if ok, indir := implementsInterface(ut.user, binaryMarshalerInterfaceType); ok {
+		ut.externalEnc, ut.encIndir = xBinary, indir
+	}
+
+	// NOTE(rsc): Would like to allow MarshalText here, but results in incompatibility
+	// with older encodings for net.IP. See golang.org/issue/6760.
+	// } else if ok, indir := implementsInterface(ut.user, textMarshalerInterfaceType); ok {
+	// 	ut.externalEnc, ut.encIndir = xText, indir
+	// }
+
+	if ok, indir := implementsInterface(ut.user, gobDecoderInterfaceType); ok {
+		ut.externalDec, ut.decIndir = xGob, indir
+	} else if ok, indir := implementsInterface(ut.user, binaryUnmarshalerInterfaceType); ok {
+		ut.externalDec, ut.decIndir = xBinary, indir
+	}
+
+	// See note above.
+	// } else if ok, indir := implementsInterface(ut.user, textUnmarshalerInterfaceType); ok {
+	// 	ut.externalDec, ut.decIndir = xText, indir
+	// }
+
 	userTypeCache[rt] = ut
 	return
 }
 
 var (
-	gobEncoderInterfaceType = reflect.TypeOf((*GobEncoder)(nil)).Elem()
-	gobDecoderInterfaceType = reflect.TypeOf((*GobDecoder)(nil)).Elem()
+	gobEncoderInterfaceType        = reflect.TypeOf((*GobEncoder)(nil)).Elem()
+	gobDecoderInterfaceType        = reflect.TypeOf((*GobDecoder)(nil)).Elem()
+	binaryMarshalerInterfaceType   = reflect.TypeOf((*encoding.BinaryMarshaler)(nil)).Elem()
+	binaryUnmarshalerInterfaceType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
+	textMarshalerInterfaceType     = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	textUnmarshalerInterfaceType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 )
 
 // implementsInterface reports whether the type implements the
@@ -412,7 +446,7 @@ func newStructType(name string) *structType {
 // works through typeIds and userTypeInfos alone.
 func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, error) {
 	// Does this type implement GobEncoder?
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		return newGobEncoderType(name), nil
 	}
 	var err error
@@ -499,7 +533,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		idToType[st.id()] = st
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			if !isExported(f.Name) {
+			if !isSent(&f) {
 				continue
 			}
 			typ := userType(f.Type).base
@@ -526,13 +560,31 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 	default:
 		return nil, errors.New("gob NewTypeObject can't handle type: " + rt.String())
 	}
-	return nil, nil
 }
 
 // isExported reports whether this is an exported - upper case - name.
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(rune)
+}
+
+// isSent reports whether this struct field is to be transmitted.
+// It will be transmitted only if it is exported and not a chan or func field
+// or pointer to chan or func.
+func isSent(field *reflect.StructField) bool {
+	if !isExported(field.Name) {
+		return false
+	}
+	// If the field is a chan or func or pointer thereto, don't send it.
+	// That is, treat it like an unexported field.
+	typ := field.Type
+	for typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
+		return false
+	}
+	return true
 }
 
 // getBaseType returns the Gob type describing the given reflect.Type's base type.
@@ -594,11 +646,13 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // To maintain binary compatibility, if you extend this type, always put
 // the new fields last.
 type wireType struct {
-	ArrayT      *arrayType
-	SliceT      *sliceType
-	StructT     *structType
-	MapT        *mapType
-	GobEncoderT *gobEncoderType
+	ArrayT           *arrayType
+	SliceT           *sliceType
+	StructT          *structType
+	MapT             *mapType
+	GobEncoderT      *gobEncoderType
+	BinaryMarshalerT *gobEncoderType
+	TextMarshalerT   *gobEncoderType
 }
 
 func (w *wireType) string() string {
@@ -617,6 +671,10 @@ func (w *wireType) string() string {
 		return w.MapT.Name
 	case w.GobEncoderT != nil:
 		return w.GobEncoderT.Name
+	case w.BinaryMarshalerT != nil:
+		return w.BinaryMarshalerT.Name
+	case w.TextMarshalerT != nil:
+		return w.TextMarshalerT.Name
 	}
 	return unknown
 }
@@ -632,7 +690,7 @@ var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
 // typeLock must be held.
 func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
 	rt := ut.base
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		// We want the user type, not the base type.
 		rt = ut.user
 	}
@@ -647,12 +705,20 @@ func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
 	}
 	info.id = gt.id()
 
-	if ut.isGobEncoder {
+	if ut.externalEnc != 0 {
 		userType, err := getType(rt.Name(), ut, rt)
 		if err != nil {
 			return nil, err
 		}
-		info.wire = &wireType{GobEncoderT: userType.id().gobType().(*gobEncoderType)}
+		gt := userType.id().gobType().(*gobEncoderType)
+		switch ut.externalEnc {
+		case xGob:
+			info.wire = &wireType{GobEncoderT: gt}
+		case xBinary:
+			info.wire = &wireType{BinaryMarshalerT: gt}
+		case xText:
+			info.wire = &wireType{TextMarshalerT: gt}
+		}
 		typeInfoMap[ut.user] = info
 		return info, nil
 	}
@@ -712,6 +778,7 @@ type GobDecoder interface {
 }
 
 var (
+	registerLock       sync.RWMutex
 	nameToConcreteType = make(map[string]reflect.Type)
 	concreteTypeToName = make(map[reflect.Type]string)
 )
@@ -723,6 +790,8 @@ func RegisterName(name string, value interface{}) {
 		// reserved for nil
 		panic("attempt to register empty name")
 	}
+	registerLock.Lock()
+	defer registerLock.Unlock()
 	ut := userType(reflect.TypeOf(value))
 	// Check for incompatible duplicates. The name must refer to the
 	// same user type, and vice versa.
@@ -749,12 +818,28 @@ func Register(value interface{}) {
 	rt := reflect.TypeOf(value)
 	name := rt.String()
 
-	// But for named types (or pointers to them), qualify with import path.
+	// But for named types (or pointers to them), qualify with import path (but see inner comment).
 	// Dereference one pointer looking for a named type.
 	star := ""
 	if rt.Name() == "" {
 		if pt := rt; pt.Kind() == reflect.Ptr {
 			star = "*"
+			// NOTE: The following line should be rt = pt.Elem() to implement
+			// what the comment above claims, but fixing it would break compatibility
+			// with existing gobs.
+			//
+			// Given package p imported as "full/p" with these definitions:
+			//     package p
+			//     type T1 struct { ... }
+			// this table shows the intended and actual strings used by gob to
+			// name the types:
+			//
+			// Type      Correct string     Actual string
+			//
+			// T1        full/p.T1          full/p.T1
+			// *T1       *full/p.T1         *p.T1
+			//
+			// The missing full path cannot be fixed without breaking existing gob decoders.
 			rt = pt
 		}
 	}

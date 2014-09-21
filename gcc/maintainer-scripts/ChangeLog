@@ -1,6 +1,62 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-02-01  Dmitry Gorbachev  <d.g.gorbachev@gmail.com>
+
+	PR other/56653
+	* gcc_release: Avoid printing empty line to generated MD5SUMS files.
+	Bump copyright year.
+
+2013-12-02  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* update_web_docs_svn: Work around makeinfo generated file names
+	and references with "_002d" instead of "-".
+
+2013-04-12  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Disable snapshots from gcc-4_6-branch.
+	* update_version_svn: Ignore gcc-4_6-branch.
+
+2013-04-07  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* update_web_docs_libstdcxx_svn: No longer ignore all output from
+	the actual copy process.
+	Check the exit code of the actual copy process; diagnose problems.
+
+2013-03-16  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Enable snapshots from gcc-4_8-branch.
+
+2012-07-02  Richard Guenther  <rguenther@suse.de>
+
+	* crontab: Disable snapshots from gcc-4_5-branch.
+	* update_version_svn: Ingore gcc-4_5-branch.
+
+2012-03-23  Richard Guenther  <rguenther@suse.de>
+
+	* crontab: Enable snapshots from gcc-4_7-branch.
+
+2012-03-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Remove 4.4 branch from the list of snapshots to make.
+	* update_version_svn (IGNORE_BRANCHES): Add gcc-4_4-branch.
+
+2012-03-05  Richard Guenther  <rguenther@suse.de>
+
+	* crontab: Remove 4.3 branch from the list of snapshots to make.
+
+2012-03-02  Richard Guenther  <rguenther@suse.de>
+
+	* crontab: Fix day-of-week.
+
+2012-03-02  Richard Guenther  <rguenther@suse.de>
+
+	* crontab: Update for 4.7 branching.
 
 2011-11-21  Gerald Pfeifer  <gerald@pfeifer.com>
 

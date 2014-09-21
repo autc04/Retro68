@@ -1,6 +1,5 @@
 /* Array things
-   Copyright (C) 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -21,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "gfortran.h"
 #include "match.h"
 #include "constructor.h"
@@ -48,8 +48,6 @@ gfc_copy_array_ref (gfc_array_ref *src)
       dest->end[i] = gfc_copy_expr (src->end[i]);
       dest->stride[i] = gfc_copy_expr (src->stride[i]);
     }
-
-  dest->offset = gfc_copy_expr (src->offset);
 
   return dest;
 }
@@ -92,9 +90,7 @@ match_subscript (gfc_array_ref *ar, int init, bool match_star)
   else if (!star)
     m = gfc_match_expr (&ar->start[i]);
 
-  if (m == MATCH_NO && gfc_match_char ('*') == MATCH_YES)
-    return MATCH_NO;
-  else if (m == MATCH_NO)
+  if (m == MATCH_NO)
     gfc_error ("Expected array subscript at %C");
   if (m != MATCH_YES)
     return MATCH_ERROR;
@@ -160,7 +156,7 @@ gfc_match_array_ref (gfc_array_ref *ar, gfc_array_spec *as, int init,
   match m;
   bool matched_bracket = false;
 
-  memset (ar, '\0', sizeof (ar));
+  memset (ar, '\0', sizeof (*ar));
 
   ar->where = gfc_current_locus;
   ar->as = as;
@@ -225,7 +221,7 @@ coarray:
 
   for (ar->codimen = 0; ar->codimen + ar->dimen < GFC_MAX_DIMENSIONS; ar->codimen++)
     {
-      m = match_subscript (ar, init, ar->codimen == (corank - 1));
+      m = match_subscript (ar, init, true);
       if (m == MATCH_ERROR)
 	return MATCH_ERROR;
 
@@ -256,6 +252,13 @@ coarray:
 	    gfc_error ("Invalid form of coarray reference at %C");
 	  return MATCH_ERROR;
 	}
+      else if (ar->dimen_type[ar->codimen + ar->dimen] == DIMEN_STAR)
+	{
+	  gfc_error ("Unexpected '*' for codimension %d of %d at %C",
+		     ar->codimen + 1, corank);
+	  return MATCH_ERROR;
+	}
+
       if (ar->codimen >= corank)
 	{
 	  gfc_error ("Invalid codimension %d at %C, only %d codimensions exist",
@@ -297,15 +300,15 @@ gfc_free_array_spec (gfc_array_spec *as)
 /* Take an array bound, resolves the expression, that make up the
    shape and check associated constraints.  */
 
-static gfc_try
+static bool
 resolve_array_bound (gfc_expr *e, int check_constant)
 {
   if (e == NULL)
-    return SUCCESS;
+    return true;
 
-  if (gfc_resolve_expr (e) == FAILURE
-      || gfc_specification_expr (e) == FAILURE)
-    return FAILURE;
+  if (!gfc_resolve_expr (e)
+      || !gfc_specification_expr (e))
+    return false;
 
   if (check_constant && !gfc_is_constant_expr (e))
     {
@@ -315,34 +318,34 @@ resolve_array_bound (gfc_expr *e, int check_constant)
       else
 	gfc_error ("Expression at %L in this context must be constant",
 		   &e->where);
-      return FAILURE;
+      return false;
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Takes an array specification, resolves the expressions that make up
    the shape and make sure everything is integral.  */
 
-gfc_try
+bool
 gfc_resolve_array_spec (gfc_array_spec *as, int check_constant)
 {
   gfc_expr *e;
   int i;
 
   if (as == NULL)
-    return SUCCESS;
+    return true;
 
   for (i = 0; i < as->rank + as->corank; i++)
     {
       e = as->lower[i];
-      if (resolve_array_bound (e, check_constant) == FAILURE)
-	return FAILURE;
+      if (!resolve_array_bound (e, check_constant))
+	return false;
 
       e = as->upper[i];
-      if (resolve_array_bound (e, check_constant) == FAILURE)
-	return FAILURE;
+      if (!resolve_array_bound (e, check_constant))
+	return false;
 
       if ((as->lower[i] == NULL) || (as->upper[i] == NULL))
 	continue;
@@ -360,7 +363,7 @@ gfc_resolve_array_spec (gfc_array_spec *as, int check_constant)
 	}
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
@@ -389,9 +392,11 @@ match_array_element_spec (gfc_array_spec *as)
 {
   gfc_expr **upper, **lower;
   match m;
+  int rank;
 
-  lower = &as->lower[as->rank + as->corank - 1];
-  upper = &as->upper[as->rank + as->corank - 1];
+  rank = as->rank == -1 ? 0 : as->rank;
+  lower = &as->lower[rank + as->corank - 1];
+  upper = &as->upper[rank + as->corank - 1];
 
   if (gfc_match_char ('*') == MATCH_YES)
     {
@@ -407,7 +412,7 @@ match_array_element_spec (gfc_array_spec *as)
     gfc_error ("Expected expression in array specification at %C");
   if (m != MATCH_YES)
     return AS_UNKNOWN;
-  if (gfc_expr_check_typed (*upper, gfc_current_ns, false) == FAILURE)
+  if (!gfc_expr_check_typed (*upper, gfc_current_ns, false))
     return AS_UNKNOWN;
 
   if (gfc_match_char (':') == MATCH_NO)
@@ -427,7 +432,7 @@ match_array_element_spec (gfc_array_spec *as)
     return AS_UNKNOWN;
   if (m == MATCH_NO)
     return AS_ASSUMED_SHAPE;
-  if (gfc_expr_check_typed (*upper, gfc_current_ns, false) == FAILURE)
+  if (!gfc_expr_check_typed (*upper, gfc_current_ns, false))
     return AS_UNKNOWN;
 
   return AS_EXPLICIT;
@@ -452,6 +457,19 @@ gfc_match_array_spec (gfc_array_spec **asp, bool match_dim, bool match_codim)
 
   if (gfc_match_char ('(') != MATCH_YES)
     {
+      if (!match_codim)
+	goto done;
+      goto coarray;
+    }
+
+  if (gfc_match (" .. )") == MATCH_YES)
+    {
+      as->type = AS_ASSUMED_RANK;
+      as->rank = -1;
+
+      if (!gfc_notify_std (GFC_STD_F2008_TS, "Assumed-rank array at %C"))
+	goto cleanup;
+
       if (!match_codim)
 	goto done;
       goto coarray;
@@ -535,6 +553,9 @@ gfc_match_array_spec (gfc_array_spec **asp, bool match_dim, bool match_codim)
 
 	    gfc_error ("Bad specification for assumed size array at %C");
 	    goto cleanup;
+
+	  case AS_ASSUMED_RANK:
+	    gcc_unreachable ();
 	  }
 
       if (gfc_match_char (')') == MATCH_YES)
@@ -554,9 +575,8 @@ gfc_match_array_spec (gfc_array_spec **asp, bool match_dim, bool match_codim)
 	}
 
       if (as->corank + as->rank >= 7
-	  && gfc_notify_std (GFC_STD_F2008, "Fortran 2008: Array "
-			     "specification at %C with more than 7 dimensions")
-	     == FAILURE)
+	  && !gfc_notify_std (GFC_STD_F2008, "Array specification at %C "
+			      "with more than 7 dimensions"))
 	goto cleanup;
     }
 
@@ -567,8 +587,7 @@ coarray:
   if (gfc_match_char ('[')  != MATCH_YES)
     goto done;
 
-  if (gfc_notify_std (GFC_STD_F2008, "Fortran 2008: Coarray declaration at %C")
-      == FAILURE)
+  if (!gfc_notify_std (GFC_STD_F2008, "Coarray declaration at %C"))
     goto cleanup;
 
   if (gfc_option.coarray == GFC_FCOARRAY_NONE)
@@ -641,6 +660,9 @@ coarray:
 	    case AS_ASSUMED_SIZE:
 	      gfc_error ("Bad specification for assumed size array at %C");
 	      goto cleanup;
+
+	    case AS_ASSUMED_RANK:
+	      gcc_unreachable ();
 	  }
 
       if (gfc_match_char (']') == MATCH_YES)
@@ -705,26 +727,34 @@ cleanup:
    have that array specification.  The error locus is needed in case
    something goes wrong.  On failure, the caller must free the spec.  */
 
-gfc_try
+bool
 gfc_set_array_spec (gfc_symbol *sym, gfc_array_spec *as, locus *error_loc)
 {
   int i;
 
   if (as == NULL)
-    return SUCCESS;
+    return true;
 
   if (as->rank
-      && gfc_add_dimension (&sym->attr, sym->name, error_loc) == FAILURE)
-    return FAILURE;
+      && !gfc_add_dimension (&sym->attr, sym->name, error_loc))
+    return false;
 
   if (as->corank
-      && gfc_add_codimension (&sym->attr, sym->name, error_loc) == FAILURE)
-    return FAILURE;
+      && !gfc_add_codimension (&sym->attr, sym->name, error_loc))
+    return false;
 
   if (sym->as == NULL)
     {
       sym->as = as;
-      return SUCCESS;
+      return true;
+    }
+
+  if ((sym->as->type == AS_ASSUMED_RANK && as->corank)
+      || (as->type == AS_ASSUMED_RANK && sym->as->corank))
+    {
+      gfc_error ("The assumed-rank array '%s' at %L shall not have a "
+		 "codimension", sym->name, error_loc);
+      return false;
     }
 
   if (as->corank)
@@ -766,7 +796,7 @@ gfc_set_array_spec (gfc_symbol *sym, gfc_array_spec *as, locus *error_loc)
     }
 
   free (as);
-  return SUCCESS;
+  return true;
 }
 
 
@@ -1013,6 +1043,7 @@ match
 gfc_match_array_constructor (gfc_expr **result)
 {
   gfc_constructor_base head, new_cons;
+  gfc_undo_change_set changed_syms;
   gfc_expr *expr;
   gfc_typespec ts;
   locus where;
@@ -1026,8 +1057,8 @@ gfc_match_array_constructor (gfc_expr **result)
 	return MATCH_NO;
       else
 	{
-	  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: [...] "
-			      "style array constructors at %C") == FAILURE)
+	  if (!gfc_notify_std (GFC_STD_F2003, "[...] "
+			       "style array constructors at %C"))
 	    return MATCH_ERROR;
 	  end_delim = " ]";
 	}
@@ -1040,27 +1071,38 @@ gfc_match_array_constructor (gfc_expr **result)
   seen_ts = false;
 
   /* Try to match an optional "type-spec ::"  */
-  if (gfc_match_decl_type_spec (&ts, 0) == MATCH_YES)
+  gfc_clear_ts (&ts);
+  gfc_new_undo_checkpoint (changed_syms);
+  if (gfc_match_type_spec (&ts) == MATCH_YES)
     {
       seen_ts = (gfc_match (" ::") == MATCH_YES);
 
       if (seen_ts)
 	{
-	  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: Array constructor "
-			      "including type specification at %C") == FAILURE)
-	    goto cleanup;
+	  if (!gfc_notify_std (GFC_STD_F2003, "Array constructor "
+			       "including type specification at %C"))
+	    {
+	      gfc_restore_last_undo_checkpoint ();
+	      goto cleanup;
+	    }
 
 	  if (ts.deferred)
 	    {
 	      gfc_error ("Type-spec at %L cannot contain a deferred "
 			 "type parameter", &where);
+	      gfc_restore_last_undo_checkpoint ();
 	      goto cleanup;
 	    }
 	}
     }
 
-  if (! seen_ts)
-    gfc_current_locus = where;
+  if (seen_ts)
+    gfc_drop_last_undo_checkpoint ();
+  else
+    {
+      gfc_restore_last_undo_checkpoint ();
+      gfc_current_locus = where;
+    }
 
   if (gfc_match (end_delim) == MATCH_YES)
     {
@@ -1151,7 +1193,7 @@ check_element_type (gfc_expr *expr, bool convert)
     return 0;
 
   if (convert)
-    return gfc_convert_type (expr, &constructor_ts, 1) == SUCCESS ? 0 : 1;
+    return gfc_convert_type(expr, &constructor_ts, 1) ? 0 : 1;
 
   gfc_error ("Element in %s array constructor at %L is %s",
 	     gfc_typename (&constructor_ts), &expr->where,
@@ -1164,7 +1206,7 @@ check_element_type (gfc_expr *expr, bool convert)
 
 /* Recursive work function for gfc_check_constructor_type().  */
 
-static gfc_try
+static bool
 check_constructor_type (gfc_constructor_base base, bool convert)
 {
   gfc_constructor *c;
@@ -1176,27 +1218,27 @@ check_constructor_type (gfc_constructor_base base, bool convert)
 
       if (e->expr_type == EXPR_ARRAY)
 	{
-	  if (check_constructor_type (e->value.constructor, convert) == FAILURE)
-	    return FAILURE;
+	  if (!check_constructor_type (e->value.constructor, convert))
+	    return false;
 
 	  continue;
 	}
 
       if (check_element_type (e, convert))
-	return FAILURE;
+	return false;
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Check that all elements of an array constructor are the same type.
-   On FAILURE, an error has been generated.  */
+   On false, an error has been generated.  */
 
-gfc_try
+bool
 gfc_check_constructor_type (gfc_expr *e)
 {
-  gfc_try t;
+  bool t;
 
   if (e->ts.type != BT_UNKNOWN)
     {
@@ -1212,7 +1254,7 @@ gfc_check_constructor_type (gfc_expr *e)
   /* If e->ts.type != BT_UNKNOWN, the array constructor included a
      typespec, and we will now convert the values on the fly.  */
   t = check_constructor_type (e->value.constructor, e->ts.type != BT_UNKNOWN);
-  if (t == SUCCESS && e->ts.type == BT_UNKNOWN)
+  if (t && e->ts.type == BT_UNKNOWN)
     e->ts = constructor_ts;
 
   return t;
@@ -1229,12 +1271,12 @@ cons_stack;
 
 static cons_stack *base;
 
-static gfc_try check_constructor (gfc_constructor_base, gfc_try (*) (gfc_expr *));
+static bool check_constructor (gfc_constructor_base, bool (*) (gfc_expr *));
 
 /* Check an EXPR_VARIABLE expression in a constructor to make sure
    that that variable is an iteration variables.  */
 
-gfc_try
+bool
 gfc_check_iter_variable (gfc_expr *expr)
 {
   gfc_symbol *sym;
@@ -1244,9 +1286,9 @@ gfc_check_iter_variable (gfc_expr *expr)
 
   for (c = base; c && c->iterator; c = c->previous)
     if (sym == c->iterator->var->symtree->n.sym)
-      return SUCCESS;
+      return true;
 
-  return FAILURE;
+  return false;
 }
 
 
@@ -1254,12 +1296,12 @@ gfc_check_iter_variable (gfc_expr *expr)
    to calling the check function for each expression in the
    constructor, giving variables with the names of iterators a pass.  */
 
-static gfc_try
-check_constructor (gfc_constructor_base ctor, gfc_try (*check_function) (gfc_expr *))
+static bool
+check_constructor (gfc_constructor_base ctor, bool (*check_function) (gfc_expr *))
 {
   cons_stack element;
   gfc_expr *e;
-  gfc_try t;
+  bool t;
   gfc_constructor *c;
 
   for (c = gfc_constructor_first (ctor); c; c = gfc_constructor_next (c))
@@ -1268,8 +1310,8 @@ check_constructor (gfc_constructor_base ctor, gfc_try (*check_function) (gfc_exp
 
       if (e->expr_type != EXPR_ARRAY)
 	{
-	  if ((*check_function) (e) == FAILURE)
-	    return FAILURE;
+	  if (!(*check_function)(e))
+	    return false;
 	  continue;
 	}
 
@@ -1280,12 +1322,12 @@ check_constructor (gfc_constructor_base ctor, gfc_try (*check_function) (gfc_exp
       t = check_constructor (e->value.constructor, check_function);
       base = element.previous;
 
-      if (t == FAILURE)
-	return FAILURE;
+      if (!t)
+	return false;
     }
 
   /* Nothing went wrong, so all OK.  */
-  return SUCCESS;
+  return true;
 }
 
 
@@ -1293,11 +1335,11 @@ check_constructor (gfc_constructor_base ctor, gfc_try (*check_function) (gfc_exp
    expression -- specification, restricted, or initialization as
    determined by the check_function.  */
 
-gfc_try
-gfc_check_constructor (gfc_expr *expr, gfc_try (*check_function) (gfc_expr *))
+bool
+gfc_check_constructor (gfc_expr *expr, bool (*check_function) (gfc_expr *))
 {
   cons_stack *base_save;
-  gfc_try t;
+  bool t;
 
   base_save = base;
   base = NULL;
@@ -1325,19 +1367,19 @@ typedef struct
   gfc_component *component;
   mpz_t *repeat;
 
-  gfc_try (*expand_work_function) (gfc_expr *);
+  bool (*expand_work_function) (gfc_expr *);
 }
 expand_info;
 
 static expand_info current_expand;
 
-static gfc_try expand_constructor (gfc_constructor_base);
+static bool expand_constructor (gfc_constructor_base);
 
 
 /* Work function that counts the number of elements present in a
    constructor.  */
 
-static gfc_try
+static bool
 count_elements (gfc_expr *e)
 {
   mpz_t result;
@@ -1346,10 +1388,10 @@ count_elements (gfc_expr *e)
     mpz_add_ui (*current_expand.count, *current_expand.count, 1);
   else
     {
-      if (gfc_array_size (e, &result) == FAILURE)
+      if (!gfc_array_size (e, &result))
 	{
 	  gfc_free_expr (e);
-	  return FAILURE;
+	  return false;
 	}
 
       mpz_add (*current_expand.count, *current_expand.count, result);
@@ -1357,20 +1399,20 @@ count_elements (gfc_expr *e)
     }
 
   gfc_free_expr (e);
-  return SUCCESS;
+  return true;
 }
 
 
 /* Work function that extracts a particular element from an array
    constructor, freeing the rest.  */
 
-static gfc_try
+static bool
 extract_element (gfc_expr *e)
 {
   if (e->rank != 0)
     {				/* Something unextractable */
       gfc_free_expr (e);
-      return FAILURE;
+      return false;
     }
 
   if (current_expand.extract_count == current_expand.extract_n)
@@ -1379,22 +1421,22 @@ extract_element (gfc_expr *e)
     gfc_free_expr (e);
 
   current_expand.extract_count++;
-  
-  return SUCCESS;
+
+  return true;
 }
 
 
 /* Work function that constructs a new constructor out of the old one,
    stringing new elements together.  */
 
-static gfc_try
+static bool
 expand (gfc_expr *e)
 {
   gfc_constructor *c = gfc_constructor_append_expr (&current_expand.base,
 						    e, &e->where);
 
   c->n.component = current_expand.component;
-  return SUCCESS;
+  return true;
 }
 
 
@@ -1424,7 +1466,7 @@ gfc_simplify_iterator_var (gfc_expr *e)
 /* Expand an expression with that is inside of a constructor,
    recursing into other constructors if present.  */
 
-static gfc_try
+static bool
 expand_expr (gfc_expr *e)
 {
   if (e->expr_type == EXPR_ARRAY)
@@ -1432,48 +1474,48 @@ expand_expr (gfc_expr *e)
 
   e = gfc_copy_expr (e);
 
-  if (gfc_simplify_expr (e, 1) == FAILURE)
+  if (!gfc_simplify_expr (e, 1))
     {
       gfc_free_expr (e);
-      return FAILURE;
+      return false;
     }
 
   return current_expand.expand_work_function (e);
 }
 
 
-static gfc_try
+static bool
 expand_iterator (gfc_constructor *c)
 {
   gfc_expr *start, *end, *step;
   iterator_stack frame;
   mpz_t trip;
-  gfc_try t;
+  bool t;
 
   end = step = NULL;
 
-  t = FAILURE;
+  t = false;
 
   mpz_init (trip);
   mpz_init (frame.value);
   frame.prev = NULL;
 
   start = gfc_copy_expr (c->iterator->start);
-  if (gfc_simplify_expr (start, 1) == FAILURE)
+  if (!gfc_simplify_expr (start, 1))
     goto cleanup;
 
   if (start->expr_type != EXPR_CONSTANT || start->ts.type != BT_INTEGER)
     goto cleanup;
 
   end = gfc_copy_expr (c->iterator->end);
-  if (gfc_simplify_expr (end, 1) == FAILURE)
+  if (!gfc_simplify_expr (end, 1))
     goto cleanup;
 
   if (end->expr_type != EXPR_CONSTANT || end->ts.type != BT_INTEGER)
     goto cleanup;
 
   step = gfc_copy_expr (c->iterator->step);
-  if (gfc_simplify_expr (step, 1) == FAILURE)
+  if (!gfc_simplify_expr (step, 1))
     goto cleanup;
 
   if (step->expr_type != EXPR_CONSTANT || step->ts.type != BT_INTEGER)
@@ -1498,14 +1540,14 @@ expand_iterator (gfc_constructor *c)
 
   while (mpz_sgn (trip) > 0)
     {
-      if (expand_expr (c->expr) == FAILURE)
+      if (!expand_expr (c->expr))
 	goto cleanup;
 
       mpz_add (frame.value, frame.value, step->value.integer);
       mpz_sub_ui (trip, trip, 1);
     }
 
-  t = SUCCESS;
+  t = true;
 
 cleanup:
   gfc_free_expr (start);
@@ -1526,7 +1568,7 @@ cleanup:
    expressions.  The work function needs to either save or free the
    passed expression.  */
 
-static gfc_try
+static bool
 expand_constructor (gfc_constructor_base base)
 {
   gfc_constructor *c;
@@ -1536,8 +1578,8 @@ expand_constructor (gfc_constructor_base base)
     {
       if (c->iterator != NULL)
 	{
-	  if (expand_iterator (c) == FAILURE)
-	    return FAILURE;
+	  if (!expand_iterator (c))
+	    return false;
 	  continue;
 	}
 
@@ -1545,25 +1587,25 @@ expand_constructor (gfc_constructor_base base)
 
       if (e->expr_type == EXPR_ARRAY)
 	{
-	  if (expand_constructor (e->value.constructor) == FAILURE)
-	    return FAILURE;
+	  if (!expand_constructor (e->value.constructor))
+	    return false;
 
 	  continue;
 	}
 
       e = gfc_copy_expr (e);
-      if (gfc_simplify_expr (e, 1) == FAILURE)
+      if (!gfc_simplify_expr (e, 1))
 	{
 	  gfc_free_expr (e);
-	  return FAILURE;
+	  return false;
 	}
       current_expand.offset = &c->offset;
       current_expand.repeat = &c->repeat;
       current_expand.component = c->n.component;
-      if (current_expand.expand_work_function (e) == FAILURE)
-	return FAILURE;
+      if (!current_expand.expand_work_function(e))
+	return false;
     }
-  return SUCCESS;
+  return true;
 }
 
 
@@ -1579,7 +1621,7 @@ gfc_get_array_element (gfc_expr *array, int element)
 {
   expand_info expand_save;
   gfc_expr *e;
-  gfc_try rc;
+  bool rc;
 
   expand_save = current_expand;
   current_expand.extract_n = element;
@@ -1593,7 +1635,7 @@ gfc_get_array_element (gfc_expr *array, int element)
   e = current_expand.extracted;
   current_expand = expand_save;
 
-  if (rc == FAILURE)
+  if (!rc)
     return NULL;
 
   return e;
@@ -1603,12 +1645,12 @@ gfc_get_array_element (gfc_expr *array, int element)
 /* Top level subroutine for expanding constructors.  We only expand
    constructor if they are small enough.  */
 
-gfc_try
+bool
 gfc_expand_constructor (gfc_expr *e, bool fatal)
 {
   expand_info expand_save;
   gfc_expr *f;
-  gfc_try rc;
+  bool rc;
 
   /* If we can successfully get an array element at the max array size then
      the array is too big to expand, so we just return.  */
@@ -1623,9 +1665,9 @@ gfc_expand_constructor (gfc_expr *e, bool fatal)
 		     "upper limit.   See -fmax-array-constructor "
 		     "option", &e->where,
 		     gfc_option.flag_max_array_constructor);
-	  return FAILURE;
+	  return false;
 	}
-      return SUCCESS;
+      return true;
     }
 
   /* We now know the array is not too big so go ahead and try to expand it.  */
@@ -1636,17 +1678,17 @@ gfc_expand_constructor (gfc_expr *e, bool fatal)
 
   current_expand.expand_work_function = expand;
 
-  if (expand_constructor (e->value.constructor) == FAILURE)
+  if (!expand_constructor (e->value.constructor))
     {
       gfc_constructor_free (current_expand.base);
-      rc = FAILURE;
+      rc = false;
       goto done;
     }
 
   gfc_constructor_free (e->value.constructor);
   e->value.constructor = current_expand.base;
 
-  rc = SUCCESS;
+  rc = true;
 
 done:
   current_expand = expand_save;
@@ -1657,9 +1699,9 @@ done:
 
 /* Work function for checking that an element of a constructor is a
    constant, after removal of any iteration variables.  We return
-   FAILURE if not so.  */
+   false if not so.  */
 
-static gfc_try
+static bool
 is_constant_element (gfc_expr *e)
 {
   int rv;
@@ -1667,7 +1709,7 @@ is_constant_element (gfc_expr *e)
   rv = gfc_is_constant_expr (e);
   gfc_free_expr (e);
 
-  return rv ? SUCCESS : FAILURE;
+  return rv ? true : false;
 }
 
 
@@ -1681,7 +1723,7 @@ int
 gfc_constant_ac (gfc_expr *e)
 {
   expand_info expand_save;
-  gfc_try rc;
+  bool rc;
 
   iter_stack = NULL;
   expand_save = current_expand;
@@ -1690,7 +1732,7 @@ gfc_constant_ac (gfc_expr *e)
   rc = expand_constructor (e->value.constructor);
 
   current_expand = expand_save;
-  if (rc == FAILURE)
+  if (!rc)
     return 0;
 
   return 1;
@@ -1717,25 +1759,108 @@ gfc_expanded_ac (gfc_expr *e)
 
 /*************** Type resolution of array constructors ***************/
 
+
+/* The symbol expr_is_sought_symbol_ref will try to find.  */
+static const gfc_symbol *sought_symbol = NULL;
+
+
+/* Tells whether the expression E is a variable reference to the symbol
+   in the static variable SOUGHT_SYMBOL, and sets the locus pointer WHERE
+   accordingly.
+   To be used with gfc_expr_walker: if a reference is found we don't need
+   to look further so we return 1 to skip any further walk.  */
+
+static int
+expr_is_sought_symbol_ref (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
+			   void *where)
+{
+  gfc_expr *expr = *e;
+  locus *sym_loc = (locus *)where;
+
+  if (expr->expr_type == EXPR_VARIABLE
+      && expr->symtree->n.sym == sought_symbol)
+    {
+      *sym_loc = expr->where;
+      return 1;
+    }
+
+  return 0;
+}
+
+
+/* Tells whether the expression EXPR contains a reference to the symbol
+   SYM and in that case sets the position SYM_LOC where the reference is.  */
+
+static bool
+find_symbol_in_expr (gfc_symbol *sym, gfc_expr *expr, locus *sym_loc)
+{
+  int ret;
+
+  sought_symbol = sym;
+  ret = gfc_expr_walker (&expr, &expr_is_sought_symbol_ref, sym_loc);
+  sought_symbol = NULL;
+  return ret;
+}
+
+
 /* Recursive array list resolution function.  All of the elements must
    be of the same type.  */
 
-static gfc_try
+static bool
 resolve_array_list (gfc_constructor_base base)
 {
-  gfc_try t;
+  bool t;
   gfc_constructor *c;
+  gfc_iterator *iter;
 
-  t = SUCCESS;
+  t = true;
 
   for (c = gfc_constructor_first (base); c; c = gfc_constructor_next (c))
     {
-      if (c->iterator != NULL
-	  && gfc_resolve_iterator (c->iterator, false) == FAILURE)
-	t = FAILURE;
+      iter = c->iterator;
+      if (iter != NULL)
+        {
+	  gfc_symbol *iter_var;
+	  locus iter_var_loc;
 
-      if (gfc_resolve_expr (c->expr) == FAILURE)
-	t = FAILURE;
+	  if (!gfc_resolve_iterator (iter, false, true))
+	    t = false;
+
+	  /* Check for bounds referencing the iterator variable.  */
+	  gcc_assert (iter->var->expr_type == EXPR_VARIABLE);
+	  iter_var = iter->var->symtree->n.sym;
+	  if (find_symbol_in_expr (iter_var, iter->start, &iter_var_loc))
+	    {
+	      if (!gfc_notify_std (GFC_STD_LEGACY, "AC-IMPLIED-DO initial "
+				   "expression references control variable "
+				   "at %L", &iter_var_loc))
+	       t = false;
+	    }
+	  if (find_symbol_in_expr (iter_var, iter->end, &iter_var_loc))
+	    {
+	      if (!gfc_notify_std (GFC_STD_LEGACY, "AC-IMPLIED-DO final "
+				   "expression references control variable "
+				   "at %L", &iter_var_loc))
+	       t = false;
+	    }
+	  if (find_symbol_in_expr (iter_var, iter->step, &iter_var_loc))
+	    {
+	      if (!gfc_notify_std (GFC_STD_LEGACY, "AC-IMPLIED-DO step "
+				   "expression references control variable "
+				   "at %L", &iter_var_loc))
+	       t = false;
+	    }
+	}
+
+      if (!gfc_resolve_expr (c->expr))
+	t = false;
+
+      if (UNLIMITED_POLY (c->expr))
+	{
+	  gfc_error ("Array constructor value at %L shall not be unlimited "
+		     "polymorphic [F2008: C4106]", &c->expr->where);
+	  t = false;
+	}
     }
 
   return t;
@@ -1746,7 +1871,7 @@ resolve_array_list (gfc_constructor_base base)
    all elements are of compile-time known length, emit an error as this is
    invalid.  */
 
-gfc_try
+bool
 gfc_resolve_character_array_constructor (gfc_expr *expr)
 {
   gfc_constructor *p;
@@ -1807,7 +1932,7 @@ got_charlen:
 	      current_length = (int) j;
 	    }
 	  else
-	    return SUCCESS;
+	    return true;
 
 	  gcc_assert (current_length != -1);
 
@@ -1818,7 +1943,7 @@ got_charlen:
 	      gfc_error ("Different CHARACTER lengths (%d/%d) in array"
 			 " constructor at %L", found_length, current_length,
 			 &p->expr->where);
-	      return FAILURE;
+	      return false;
 	    }
 
 	  gcc_assert (found_length == current_length);
@@ -1830,7 +1955,7 @@ got_charlen:
       expr->ts.u.cl->length = gfc_get_int_expr (gfc_default_integer_kind,
 						NULL, found_length);
     }
-  else 
+  else
     {
       /* We've got a character length specified.  It should be an integer,
 	 otherwise an error is signalled elsewhere.  */
@@ -1863,7 +1988,7 @@ got_charlen:
 	      /* If gfc_extract_int above set current_length, we implicitly
 		 know the type is BT_INTEGER and it's EXPR_CONSTANT.  */
 
-	      has_ts = (expr->ts.u.cl && expr->ts.u.cl->length_from_typespec);
+	      has_ts = expr->ts.u.cl->length_from_typespec;
 
 	      if (! cl
 		  || (current_length != -1 && current_length != found_length))
@@ -1872,19 +1997,19 @@ got_charlen:
 	    }
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Resolve all of the expressions in an array list.  */
 
-gfc_try
+bool
 gfc_resolve_array_constructor (gfc_expr *expr)
 {
-  gfc_try t;
+  bool t;
 
   t = resolve_array_list (expr->value.constructor);
-  if (t == SUCCESS)
+  if (t)
     t = gfc_check_constructor_type (expr);
 
   /* gfc_resolve_character_array_constructor is called in gfc_resolve_expr after
@@ -1926,11 +2051,11 @@ gfc_copy_iterator (gfc_iterator *src)
 /* Get the size of single dimension of an array specification.  The
    array is guaranteed to be one dimensional.  */
 
-gfc_try
+bool
 spec_dimen_size (gfc_array_spec *as, int dimen, mpz_t *result)
 {
   if (as == NULL)
-    return FAILURE;
+    return false;
 
   if (dimen < 0 || dimen > as->rank - 1)
     gfc_internal_error ("spec_dimen_size(): Bad dimension");
@@ -1940,7 +2065,7 @@ spec_dimen_size (gfc_array_spec *as, int dimen, mpz_t *result)
       || as->upper[dimen]->expr_type != EXPR_CONSTANT
       || as->lower[dimen]->ts.type != BT_INTEGER
       || as->upper[dimen]->ts.type != BT_INTEGER)
-    return FAILURE;
+    return false;
 
   mpz_init (*result);
 
@@ -1949,42 +2074,46 @@ spec_dimen_size (gfc_array_spec *as, int dimen, mpz_t *result)
 
   mpz_add_ui (*result, *result, 1);
 
-  return SUCCESS;
+  return true;
 }
 
 
-gfc_try
+bool
 spec_size (gfc_array_spec *as, mpz_t *result)
 {
   mpz_t size;
   int d;
 
+  if (!as || as->type == AS_ASSUMED_RANK)
+    return false;
+
   mpz_init_set_ui (*result, 1);
 
   for (d = 0; d < as->rank; d++)
     {
-      if (spec_dimen_size (as, d, &size) == FAILURE)
+      if (!spec_dimen_size (as, d, &size))
 	{
 	  mpz_clear (*result);
-	  return FAILURE;
+	  return false;
 	}
 
       mpz_mul (*result, *result, size);
       mpz_clear (size);
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Get the number of elements in an array section. Optionally, also supply
    the end value.  */
 
-gfc_try
+bool
 gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
 {
   mpz_t upper, lower, stride;
-  gfc_try t;
+  mpz_t diff;
+  bool t;
 
   if (dimen < 0 || ar == NULL || dimen > ar->dimen - 1)
     gfc_internal_error ("gfc_ref_dimen_size(): Bad dimension");
@@ -1994,7 +2123,7 @@ gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
     case DIMEN_ELEMENT:
       mpz_init (*result);
       mpz_set_ui (*result, 1);
-      t = SUCCESS;
+      t = true;
       break;
 
     case DIMEN_VECTOR:
@@ -2002,10 +2131,64 @@ gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
       break;
 
     case DIMEN_RANGE:
+
+      mpz_init (stride);
+
+      if (ar->stride[dimen] == NULL)
+	mpz_set_ui (stride, 1);
+      else
+	{
+	  if (ar->stride[dimen]->expr_type != EXPR_CONSTANT)
+	    {
+	      mpz_clear (stride);
+	      return false;
+	    }
+	  mpz_set (stride, ar->stride[dimen]->value.integer);
+	}
+
+      /* Calculate the number of elements via gfc_dep_differce, but only if
+	 start and end are both supplied in the reference or the array spec.
+	 This is to guard against strange but valid code like
+
+	 subroutine foo(a,n)
+	 real a(1:n)
+	 n = 3
+	 print *,size(a(n-1:))
+
+	 where the user changes the value of a variable.  If we have to
+	 determine end as well, we cannot do this using gfc_dep_difference.
+	 Fall back to the constants-only code then.  */
+
+      if (end == NULL)
+	{
+	  bool use_dep;
+
+	  use_dep = gfc_dep_difference (ar->end[dimen], ar->start[dimen],
+					&diff);
+	  if (!use_dep && ar->end[dimen] == NULL && ar->start[dimen] == NULL)
+	    use_dep = gfc_dep_difference (ar->as->upper[dimen],
+					    ar->as->lower[dimen], &diff);
+
+	  if (use_dep)
+	    {
+	      mpz_init (*result);
+	      mpz_add (*result, diff, stride);
+	      mpz_div (*result, *result, stride);
+	      if (mpz_cmp_ui (*result, 0) < 0)
+		mpz_set_ui (*result, 0);
+
+	      mpz_clear (stride);
+	      mpz_clear (diff);
+	      return true;
+	    }
+
+	}
+
+      /*  Constant-only code here, which covers more cases
+	  like a(:4) etc.  */
       mpz_init (upper);
       mpz_init (lower);
-      mpz_init (stride);
-      t = FAILURE;
+      t = false;
 
       if (ar->start[dimen] == NULL)
 	{
@@ -2035,15 +2218,6 @@ gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
 	  mpz_set (upper, ar->end[dimen]->value.integer);
 	}
 
-      if (ar->stride[dimen] == NULL)
-	mpz_set_ui (stride, 1);
-      else
-	{
-	  if (ar->stride[dimen]->expr_type != EXPR_CONSTANT)
-	    goto cleanup;
-	  mpz_set (stride, ar->stride[dimen]->value.integer);
-	}
-
       mpz_init (*result);
       mpz_sub (*result, upper, lower);
       mpz_add (*result, *result, stride);
@@ -2052,7 +2226,7 @@ gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
       /* Zero stride caught earlier.  */
       if (mpz_cmp_ui (*result, 0) < 0)
 	mpz_set_ui (*result, 0);
-      t = SUCCESS;
+      t = true;
 
       if (end)
 	{
@@ -2077,7 +2251,7 @@ gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
 }
 
 
-static gfc_try
+static bool
 ref_size (gfc_array_ref *ar, mpz_t *result)
 {
   mpz_t size;
@@ -2087,35 +2261,40 @@ ref_size (gfc_array_ref *ar, mpz_t *result)
 
   for (d = 0; d < ar->dimen; d++)
     {
-      if (gfc_ref_dimen_size (ar, d, &size, NULL) == FAILURE)
+      if (!gfc_ref_dimen_size (ar, d, &size, NULL))
 	{
 	  mpz_clear (*result);
-	  return FAILURE;
+	  return false;
 	}
 
       mpz_mul (*result, *result, size);
       mpz_clear (size);
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Given an array expression and a dimension, figure out how many
-   elements it has along that dimension.  Returns SUCCESS if we were
-   able to return a result in the 'result' variable, FAILURE
+   elements it has along that dimension.  Returns true if we were
+   able to return a result in the 'result' variable, false
    otherwise.  */
 
-gfc_try
+bool
 gfc_array_dimen_size (gfc_expr *array, int dimen, mpz_t *result)
 {
   gfc_ref *ref;
   int i;
 
-  if (array->ts.type == BT_CLASS)
-    return FAILURE;
+  gcc_assert (array != NULL);
 
-  if (dimen < 0 || array == NULL || dimen > array->rank - 1)
+  if (array->ts.type == BT_CLASS)
+    return false;
+
+  if (array->rank == -1)
+    return false;
+
+  if (dimen < 0 || dimen > array->rank - 1)
     gfc_internal_error ("gfc_array_dimen_size(): Bad dimension");
 
   switch (array->expr_type)
@@ -2143,19 +2322,17 @@ gfc_array_dimen_size (gfc_expr *array, int dimen, mpz_t *result)
       if (array->shape && array->shape[dimen])
 	{
 	  mpz_init_set (*result, array->shape[dimen]);
-	  return SUCCESS;
+	  return true;
 	}
 
       if (array->symtree->n.sym->attr.generic
 	  && array->value.function.esym != NULL)
 	{
-	  if (spec_dimen_size (array->value.function.esym->as, dimen, result)
-	      == FAILURE)
-	    return FAILURE;
+	  if (!spec_dimen_size (array->value.function.esym->as, dimen, result))
+	    return false;
 	}
-      else if (spec_dimen_size (array->symtree->n.sym->as, dimen, result)
-	       == FAILURE)
-	return FAILURE;
+      else if (!spec_dimen_size (array->symtree->n.sym->as, dimen, result))
+	return false;
 
       break;
 
@@ -2170,31 +2347,31 @@ gfc_array_dimen_size (gfc_expr *array, int dimen, mpz_t *result)
       /* Fall through */
     default:
       if (array->shape == NULL)
-	return FAILURE;
+	return false;
 
       mpz_init_set (*result, array->shape[dimen]);
 
       break;
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Given an array expression, figure out how many elements are in the
-   array.  Returns SUCCESS if this is possible, and sets the 'result'
-   variable.  Otherwise returns FAILURE.  */
+   array.  Returns true if this is possible, and sets the 'result'
+   variable.  Otherwise returns false.  */
 
-gfc_try
+bool
 gfc_array_size (gfc_expr *array, mpz_t *result)
 {
   expand_info expand_save;
   gfc_ref *ref;
   int i;
-  gfc_try t;
+  bool t;
 
   if (array->ts.type == BT_CLASS)
-    return FAILURE;
+    return false;
 
   switch (array->expr_type)
     {
@@ -2213,7 +2390,7 @@ gfc_array_size (gfc_expr *array, mpz_t *result)
 
       gfc_pop_suppress_errors ();
 
-      if (t == FAILURE)
+      if (!t)
 	mpz_clear (*result);
       current_expand = expand_save;
       return t;
@@ -2236,7 +2413,7 @@ gfc_array_size (gfc_expr *array, mpz_t *result)
 
     default:
       if (array->rank == 0 || array->shape == NULL)
-	return FAILURE;
+	return false;
 
       mpz_init_set_ui (*result, 1);
 
@@ -2246,14 +2423,14 @@ gfc_array_size (gfc_expr *array, mpz_t *result)
       break;
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Given an array reference, return the shape of the reference in an
    array of mpz_t integers.  */
 
-gfc_try
+bool
 gfc_array_ref_shape (gfc_array_ref *ar, mpz_t *shape)
 {
   int d;
@@ -2265,23 +2442,23 @@ gfc_array_ref_shape (gfc_array_ref *ar, mpz_t *shape)
     {
     case AR_FULL:
       for (; d < ar->as->rank; d++)
-	if (spec_dimen_size (ar->as, d, &shape[d]) == FAILURE)
+	if (!spec_dimen_size (ar->as, d, &shape[d]))
 	  goto cleanup;
 
-      return SUCCESS;
+      return true;
 
     case AR_SECTION:
       for (i = 0; i < ar->dimen; i++)
 	{
 	  if (ar->dimen_type[i] != DIMEN_ELEMENT)
 	    {
-	      if (gfc_ref_dimen_size (ar, i, &shape[d], NULL) == FAILURE)
+	      if (!gfc_ref_dimen_size (ar, i, &shape[d], NULL))
 		goto cleanup;
 	      d++;
 	    }
 	}
 
-      return SUCCESS;
+      return true;
 
     default:
       break;
@@ -2289,7 +2466,7 @@ gfc_array_ref_shape (gfc_array_ref *ar, mpz_t *shape)
 
 cleanup:
   gfc_clear_shape (shape, d);
-  return FAILURE;
+  return false;
 }
 
 

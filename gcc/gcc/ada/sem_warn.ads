@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1999-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,10 +39,13 @@ package Sem_Warn is
 
    type Warnings_Off_Entry is record
       N : Node_Id;
-      --  A pragma Warnings (Off, ent) node
+      --  A pragma Warnings (Off, ent [,Reason]) node
 
       E : Entity_Id;
       --  The entity involved
+
+      R : String_Id;
+      --  Warning reason if present, or null if not (not currently used)
    end record;
 
    --  An entry is made in the following table for any valid Pragma Warnings
@@ -127,7 +130,7 @@ package Sem_Warn is
    --  the end of the compilation process (see body of this routine for a
    --  discussion of why this is done). This procedure outputs the warnings.
    --  Note: this should be called before Output_Unreferenced_Messages, since
-   --  if we have an IN OUT warning, that's the one we want to see!
+   --  if we have an IN OUT warning, that's the one we want to see.
 
    procedure Output_Obsolescent_Entity_Warnings (N : Node_Id; E : Entity_Id);
    --  N is a reference to obsolescent entity E, for which appropriate warning
@@ -198,7 +201,9 @@ package Sem_Warn is
    procedure Warn_On_Overlapping_Actuals (Subp : Entity_Id; N : Node_Id);
    --  Called on a subprogram call. Checks whether an IN OUT actual that is
    --  not by-copy may overlap with another actual, thus leading to aliasing
-   --  in the body of the called subprogram.
+   --  in the body of the called subprogram. This is indeed a warning in Ada
+   --  versions prior to Ada 2012, but, unless Opt.Error_To_Warning is set by
+   --  use of debug flag -gnatd.E, this is illegal and generates an error.
 
    procedure Warn_On_Suspicious_Index (Name : Entity_Id; X : Node_Id);
    --  This is called after resolving an indexed component or a slice. Name

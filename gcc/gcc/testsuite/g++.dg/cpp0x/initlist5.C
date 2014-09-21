@@ -1,5 +1,5 @@
 // Test for narrowing diagnostics
-// { dg-options "-std=c++0x -pedantic-errors" }
+// { dg-do compile { target c++11 } }
 
 #include <initializer_list>
 

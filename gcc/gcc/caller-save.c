@@ -1,7 +1,5 @@
 /* Save and restore call-clobbered registers which are live across a call.
-   Copyright (C) 1989, 1992, 1994, 1995, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -37,8 +35,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic-core.h"
 #include "tm_p.h"
 #include "addresses.h"
-#include "output.h"
 #include "ggc.h"
+#include "dumpfile.h"
 
 #define MOVE_MAX_WORDS (MOVE_MAX / UNITS_PER_WORD)
 
@@ -241,7 +239,7 @@ init_caller_save (void)
 
   for (offset = 1 << (HOST_BITS_PER_INT / 2); offset; offset >>= 1)
     {
-      address = gen_rtx_PLUS (Pmode, addr_reg, GEN_INT (offset));
+      address = gen_rtx_PLUS (Pmode, addr_reg, gen_int_mode (offset, Pmode));
 
       for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
 	if (regno_save_mode[i][1] != VOIDmode
@@ -433,6 +431,8 @@ setup_save_areas (void)
   /* Create hard reg saved regs.  */
   for (chain = reload_insn_chain; chain != 0; chain = next)
     {
+      rtx cheap;
+
       insn = chain->insn;
       next = chain->next;
       if (!CALL_P (insn)
@@ -466,6 +466,9 @@ setup_save_areas (void)
 	      new_saved_hard_reg (regno, freq);
 	    SET_HARD_REG_BIT (hard_regs_used, regno);
 	  }
+      cheap = find_reg_note (insn, REG_RETURNED, NULL);
+      if (cheap)
+	cheap = XEXP (cheap, 0);
       /* Look through all live pseudos, mark their hard registers.  */
       EXECUTE_IF_SET_IN_REG_SET
 	(&chain->live_throughout, FIRST_PSEUDO_REGISTER, regno, rsi)
@@ -473,7 +476,7 @@ setup_save_areas (void)
 	  int r = reg_renumber[regno];
 	  int bound;
 
-	  if (r < 0)
+	  if (r < 0 || regno_reg_rtx[regno] == cheap)
 	    continue;
 
 	  bound = r + hard_regno_nregs[r][PSEUDO_REGNO_MODE (regno)];
@@ -508,12 +511,18 @@ setup_save_areas (void)
       memset (saved_reg_conflicts, 0, saved_regs_num * saved_regs_num);
       for (chain = reload_insn_chain; chain != 0; chain = next)
 	{
+	  rtx cheap;
 	  call_saved_regs_num = 0;
 	  insn = chain->insn;
 	  next = chain->next;
 	  if (!CALL_P (insn)
 	      || find_reg_note (insn, REG_NORETURN, NULL))
 	    continue;
+
+	  cheap = find_reg_note (insn, REG_RETURNED, NULL);
+	  if (cheap)
+	    cheap = XEXP (cheap, 0);
+
 	  REG_SET_TO_HARD_REG_SET (hard_regs_to_save,
 				   &chain->live_throughout);
 	  COPY_HARD_REG_SET (used_regs, call_used_reg_set);
@@ -546,7 +555,7 @@ setup_save_areas (void)
 	      int r = reg_renumber[regno];
 	      int bound;
 
-	      if (r < 0)
+	      if (r < 0 || regno_reg_rtx[regno] == cheap)
 		continue;
 
 	      bound = r + hard_regno_nregs[r][PSEUDO_REGNO_MODE (regno)];
@@ -796,6 +805,11 @@ save_call_clobbered_regs (void)
 	      unsigned regno;
 	      HARD_REG_SET hard_regs_to_save;
 	      reg_set_iterator rsi;
+	      rtx cheap;
+
+	      cheap = find_reg_note (insn, REG_RETURNED, NULL);
+	      if (cheap)
+		cheap = XEXP (cheap, 0);
 
 	      /* Use the register life information in CHAIN to compute which
 		 regs are live during the call.  */
@@ -817,7 +831,7 @@ save_call_clobbered_regs (void)
 		  int nregs;
 		  enum machine_mode mode;
 
-		  if (r < 0)
+		  if (r < 0 || regno_reg_rtx[regno] == cheap)
 		    continue;
 		  nregs = hard_regno_nregs[r][PSEUDO_REGNO_MODE (regno)];
 		  mode = HARD_REGNO_CALLER_SAVE_MODE
@@ -851,6 +865,19 @@ save_call_clobbered_regs (void)
 	      for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
 		if (TEST_HARD_REG_BIT (hard_regs_saved, regno))
 		  n_regs_saved++;
+	      
+	      if (cheap
+		  && HARD_REGISTER_P (cheap)
+		  && TEST_HARD_REG_BIT (call_used_reg_set, REGNO (cheap)))
+		{
+		  rtx dest, newpat;
+		  rtx pat = PATTERN (insn);
+		  if (GET_CODE (pat) == PARALLEL)
+		    pat = XVECEXP (pat, 0, 0);
+		  dest = SET_DEST (pat);
+		  newpat = gen_rtx_SET (VOIDmode, cheap, copy_rtx (dest));
+		  chain = insert_one_insn (chain, 0, -1, newpat);
+		}
 	    }
           last = chain;
 	}
@@ -1387,8 +1414,8 @@ insert_one_insn (struct insn_chain *chain, int before_p, int code, rtx pat)
 		     &new_chain->live_throughout);
 
       CLEAR_REG_SET (&new_chain->dead_or_set);
-      if (chain->insn == BB_HEAD (BASIC_BLOCK (chain->block)))
-	BB_HEAD (BASIC_BLOCK (chain->block)) = new_chain->insn;
+      if (chain->insn == BB_HEAD (BASIC_BLOCK_FOR_FN (cfun, chain->block)))
+	BB_HEAD (BASIC_BLOCK_FOR_FN (cfun, chain->block)) = new_chain->insn;
     }
   else
     {
@@ -1407,8 +1434,8 @@ insert_one_insn (struct insn_chain *chain, int before_p, int code, rtx pat)
       note_stores (PATTERN (chain->insn), add_stored_regs,
 		   &new_chain->live_throughout);
       CLEAR_REG_SET (&new_chain->dead_or_set);
-      if (chain->insn == BB_END (BASIC_BLOCK (chain->block)))
-	BB_END (BASIC_BLOCK (chain->block)) = new_chain->insn;
+      if (chain->insn == BB_END (BASIC_BLOCK_FOR_FN (cfun, chain->block)))
+	BB_END (BASIC_BLOCK_FOR_FN (cfun, chain->block)) = new_chain->insn;
     }
   new_chain->block = chain->block;
   new_chain->is_caller_save_insn = 1;

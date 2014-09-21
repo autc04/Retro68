@@ -1,7 +1,6 @@
 /* elfos.h  --  operating system specific defines to be used when
    targeting GCC for some generic ELF system
-   Copyright (C) 1991, 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004,
-   2007, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
    Based on svr4.h contributed by Ron Guilmette (rfg@netcom.com).
 
 This file is part of GCC.
@@ -83,10 +82,8 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 /* Output #ident as a .ident.  */
 
-#define ASM_OUTPUT_IDENT(FILE, NAME) \
-  fprintf (FILE, "%s\"%s\"\n", IDENT_ASM_OP, NAME);
-
-#define IDENT_ASM_OP "\t.ident\t"
+#undef TARGET_ASM_OUTPUT_IDENT
+#define TARGET_ASM_OUTPUT_IDENT default_asm_output_ident_directive
 
 #undef  SET_ASM_OP
 #define SET_ASM_OP	"\t.set\t"
@@ -290,7 +287,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 /* Write the extra assembler code needed to declare an object properly.  */
 
 #ifdef HAVE_GAS_GNU_UNIQUE_OBJECT
-#define USE_GNU_UNIQUE_OBJECT 1
+#define USE_GNU_UNIQUE_OBJECT flag_gnu_unique
 #else
 #define USE_GNU_UNIQUE_OBJECT 0
 #endif
@@ -436,3 +433,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define ASM_OUTPUT_EXTERNAL(FILE, DECL, NAME) \
   default_elf_asm_output_external (FILE, DECL, NAME)
 #endif
+
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function

@@ -1,6 +1,5 @@
 ;; PowerPC paired single and double hummer description
-;; Copyright (C) 2007, 2009, 2010, 2011
-;; Free Software Foundation, Inc.
+;; Copyright (C) 2007-2014 Free Software Foundation, Inc.
 ;; Contributed by David Edelsohn <edelsohn@gnu.org> and Revital Eres
 ;; <eres@il.ibm.com>
 
@@ -201,8 +200,8 @@
   [(set_attr "type" "fp")])
 
 (define_insn "*movv2sf_paired"
-  [(set (match_operand:V2SF 0 "nonimmediate_operand" "=Z,f,f,o,r,r,f")
-		 (match_operand:V2SF 1 "input_operand" "f,Z,f,r,o,r,W"))]
+  [(set (match_operand:V2SF 0 "nonimmediate_operand" "=Z,f,f,Y,r,r,f")
+		 (match_operand:V2SF 1 "input_operand" "f,Z,f,r,Y,r,W"))]
   "TARGET_PAIRED_FLOAT
    && (register_operand (operands[0], V2SFmode) 
        || register_operand (operands[1], V2SFmode))"
@@ -463,8 +462,8 @@
 }")
 
 (define_expand "movmisalignv2sf"
-  [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-        (match_operand:V2SF 1 "gpc_reg_operand" "f"))]
+  [(set (match_operand:V2SF 0 "nonimmediate_operand" "")
+        (match_operand:V2SF 1 "any_operand" ""))]
   "TARGET_PAIRED_FLOAT"
 {
   paired_expand_vector_move (operands);

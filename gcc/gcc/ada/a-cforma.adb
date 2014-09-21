@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2010-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2010-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,13 +48,13 @@ package body Ada.Containers.Formal_Ordered_Maps is
    pragma Inline (Color);
 
    function Left_Son (Node : Node_Type) return Count_Type;
-   pragma Inline (Left);
+   pragma Inline (Left_Son);
 
    function Parent (Node : Node_Type) return Count_Type;
    pragma Inline (Parent);
 
    function Right_Son (Node : Node_Type) return Count_Type;
-   pragma Inline (Right);
+   pragma Inline (Right_Son);
 
    procedure Set_Color
      (Node  : in out Node_Type;
@@ -283,6 +283,10 @@ package body Ada.Containers.Formal_Ordered_Maps is
       N    : Count_Type;
 
    begin
+      if 0 < Capacity and then Capacity < Source.Capacity then
+         raise Capacity_Error;
+      end if;
+
       return Target : Map (Count_Type'Max (Source.Capacity, Capacity)) do
          if Length (Source) > 0 then
             Target.Length := Source.Length;
@@ -317,6 +321,34 @@ package body Ada.Containers.Formal_Ordered_Maps is
          end if;
       end return;
    end Copy;
+
+   ---------------------
+   -- Current_To_Last --
+   ---------------------
+
+   function Current_To_Last (Container : Map; Current : Cursor) return Map is
+      Curs : Cursor := First (Container);
+      C    : Map (Container.Capacity) := Copy (Container, Container.Capacity);
+      Node : Count_Type;
+
+   begin
+      if Curs = No_Element then
+         Clear (C);
+         return C;
+
+      elsif Current /= No_Element and not Has_Element (Container, Current) then
+         raise Constraint_Error;
+
+      else
+         while Curs.Node /= Current.Node loop
+            Node := Curs.Node;
+            Delete (C, Curs);
+            Curs := Next (Container, (Node => Node));
+         end loop;
+
+         return C;
+      end if;
+   end Current_To_Last;
 
    ------------
    -- Delete --
@@ -486,6 +518,36 @@ package body Ada.Containers.Formal_Ordered_Maps is
       return Container.Nodes (First (Container).Node).Key;
    end First_Key;
 
+   -----------------------
+   -- First_To_Previous --
+   -----------------------
+
+   function First_To_Previous
+     (Container : Map;
+      Current   : Cursor) return Map
+   is
+      Curs : Cursor := Current;
+      C    : Map (Container.Capacity) := Copy (Container, Container.Capacity);
+      Node : Count_Type;
+
+   begin
+      if Curs = No_Element then
+         return C;
+
+      elsif not Has_Element (Container, Curs) then
+         raise Constraint_Error;
+
+      else
+         while Curs.Node /= 0 loop
+            Node := Curs.Node;
+            Delete (C, Curs);
+            Curs := Next (Container, (Node => Node));
+         end loop;
+
+         return C;
+      end if;
+   end First_To_Previous;
+
    -----------
    -- Floor --
    -----------
@@ -558,11 +620,6 @@ package body Ada.Containers.Formal_Ordered_Maps is
       Insert (Container, Key, New_Item, Position, Inserted);
 
       if not Inserted then
-         if Container.Lock > 0 then
-            raise Program_Error with
-              "attempt to tamper with cursors (map is locked)";
-         end if;
-
          declare
             N : Node_Type renames Container.Nodes (Position.Node);
          begin
@@ -635,56 +692,6 @@ package body Ada.Containers.Formal_Ordered_Maps is
       end if;
    end Insert;
 
-   ------------
-   -- Insert --
-   ------------
-
-   procedure Insert
-     (Container : in out Map;
-      Key       : Key_Type;
-      Position  : out Cursor;
-      Inserted  : out Boolean)
-   is
-      function New_Node return Node_Access;
-
-      procedure Insert_Post is
-        new Key_Ops.Generic_Insert_Post (New_Node);
-
-      procedure Insert_Sans_Hint is
-        new Key_Ops.Generic_Conditional_Insert (Insert_Post);
-
-      --------------
-      -- New_Node --
-      --------------
-
-      function New_Node return Node_Access is
-         procedure Initialize (Node : in out Node_Type);
-         procedure Allocate_Node is new Generic_Allocate (Initialize);
-
-         ----------------
-         -- Initialize --
-         ----------------
-
-         procedure Initialize (Node : in out Node_Type) is
-         begin
-            Node.Key := Key;
-         end Initialize;
-
-         X : Node_Access;
-
-      --  Start of processing for New_Node
-
-      begin
-         Allocate_Node (Container, X);
-         return X;
-      end New_Node;
-
-   --  Start of processing for Insert
-
-   begin
-      Insert_Sans_Hint (Container, Key, Position.Node, Inserted);
-   end Insert;
-
    --------------
    -- Is_Empty --
    --------------
@@ -719,48 +726,6 @@ package body Ada.Containers.Formal_Ordered_Maps is
    begin
       return Left < Right.Key;
    end Is_Less_Key_Node;
-
-   -------------
-   -- Iterate --
-   -------------
-
-   procedure Iterate
-     (Container : Map;
-      Process   :
-        not null access procedure (Container : Map; Position : Cursor))
-   is
-      procedure Process_Node (Node : Node_Access);
-      pragma Inline (Process_Node);
-
-      procedure Local_Iterate is
-        new Tree_Operations.Generic_Iteration (Process_Node);
-
-      ------------------
-      -- Process_Node --
-      ------------------
-
-      procedure Process_Node (Node : Node_Access) is
-      begin
-         Process (Container, (Node => Node));
-      end Process_Node;
-
-      B : Natural renames Container'Unrestricted_Access.Busy;
-
-      --  Start of processing for Iterate
-
-   begin
-      B := B + 1;
-
-      begin
-         Local_Iterate (Container);
-      exception
-         when others =>
-            B := B - 1;
-            raise;
-      end;
-
-      B := B - 1;
-   end Iterate;
 
    ---------
    -- Key --
@@ -818,33 +783,6 @@ package body Ada.Containers.Formal_Ordered_Maps is
       return Container.Nodes (Last (Container).Node).Key;
    end Last_Key;
 
-   ----------
-   -- Left --
-   ----------
-
-   function Left (Container : Map; Position : Cursor) return Map is
-      Curs : Cursor := Position;
-      C    : Map (Container.Capacity) := Copy (Container, Container.Capacity);
-      Node : Count_Type;
-
-   begin
-      if Curs = No_Element then
-         return C;
-      end if;
-
-      if not Has_Element (Container, Curs) then
-         raise Constraint_Error;
-      end if;
-
-      while Curs.Node /= 0 loop
-         Node := Curs.Node;
-         Delete (C, Curs);
-         Curs := Next (Container, (Node => Node));
-      end loop;
-
-      return C;
-   end Left;
-
    --------------
    -- Left_Son --
    --------------
@@ -879,11 +817,6 @@ package body Ada.Containers.Formal_Ordered_Maps is
       if Target.Capacity < Length (Source) then
          raise Constraint_Error with  -- ???
            "Source length exceeds Target capacity";
-      end if;
-
-      if Source.Busy > 0 then
-         raise Program_Error with
-           "attempt to tamper with cursors of Source (list is busy)";
       end if;
 
       Clear (Target);
@@ -1003,7 +936,7 @@ package body Ada.Containers.Formal_Ordered_Maps is
 
       declare
          Node : constant Count_Type :=
-                  Tree_Operations.Previous (Container, Position.Node);
+           Tree_Operations.Previous (Container, Position.Node);
 
       begin
          if Node = 0 then
@@ -1013,93 +946,6 @@ package body Ada.Containers.Formal_Ordered_Maps is
          return (Node => Node);
       end;
    end Previous;
-
-   -------------------
-   -- Query_Element --
-   -------------------
-
-   procedure Query_Element
-     (Container : in out Map;
-      Position  : Cursor;
-      Process   : not null access procedure (Key     : Key_Type;
-                                             Element : Element_Type))
-   is
-   begin
-      if not Has_Element (Container, Position) then
-         raise Constraint_Error with
-           "Position cursor of Query_Element has no element";
-      end if;
-
-      pragma Assert (Vet (Container, Position.Node),
-                     "Position cursor of Query_Element is bad");
-
-      declare
-         B : Natural renames Container.Busy;
-         L : Natural renames Container.Lock;
-
-      begin
-         B := B + 1;
-         L := L + 1;
-
-         declare
-            N  : Node_Type renames Container.Nodes (Position.Node);
-            K  : Key_Type renames N.Key;
-            E  : Element_Type renames N.Element;
-
-         begin
-            Process (K, E);
-         exception
-            when others =>
-               L := L - 1;
-               B := B - 1;
-               raise;
-         end;
-
-         L := L - 1;
-         B := B - 1;
-      end;
-   end Query_Element;
-
-   ----------
-   -- Read --
-   ----------
-
-   procedure Read
-     (Stream    : not null access Root_Stream_Type'Class;
-      Container : out Map)
-   is
-      procedure Read_Element (Node : in out Node_Type);
-      pragma Inline (Read_Element);
-
-      procedure Allocate is
-         new Generic_Allocate (Read_Element);
-
-      procedure Read_Elements is
-         new Tree_Operations.Generic_Read (Allocate);
-
-      ------------------
-      -- Read_Element --
-      ------------------
-
-      procedure Read_Element (Node : in out Node_Type) is
-      begin
-         Key_Type'Read (Stream, Node.Key);
-         Element_Type'Read (Stream, Node.Element);
-      end Read_Element;
-
-   --  Start of processing for Read
-
-   begin
-      Read_Elements (Stream, Container);
-   end Read;
-
-   procedure Read
-     (Stream : not null access Root_Stream_Type'Class;
-      Item   : out Cursor)
-   is
-   begin
-      raise Program_Error with "attempt to stream map cursor";
-   end Read;
 
    -------------
    -- Replace --
@@ -1117,11 +963,6 @@ package body Ada.Containers.Formal_Ordered_Maps is
       begin
          if Node = 0 then
             raise Constraint_Error with "key not in map";
-         end if;
-
-         if Container.Lock > 0 then
-            raise Program_Error with
-              "attempt to tamper with cursors (map is locked)";
          end if;
 
          declare
@@ -1148,86 +989,11 @@ package body Ada.Containers.Formal_Ordered_Maps is
            "Position cursor of Replace_Element has no element";
       end if;
 
-      if Container.Lock > 0 then
-         raise Program_Error with
-           "attempt to tamper with cursors (map is locked)";
-      end if;
-
       pragma Assert (Vet (Container, Position.Node),
                      "Position cursor of Replace_Element is bad");
 
       Container.Nodes (Position.Node).Element := New_Item;
    end Replace_Element;
-
-   ---------------------
-   -- Reverse_Iterate --
-   ---------------------
-
-   procedure Reverse_Iterate
-     (Container : Map;
-      Process   : not null access procedure (Container : Map;
-                                             Position : Cursor))
-   is
-      procedure Process_Node (Node : Node_Access);
-      pragma Inline (Process_Node);
-
-      procedure Local_Reverse_Iterate is
-        new Tree_Operations.Generic_Reverse_Iteration (Process_Node);
-
-      ------------------
-      -- Process_Node --
-      ------------------
-
-      procedure Process_Node (Node : Node_Access) is
-      begin
-         Process (Container, (Node => Node));
-      end Process_Node;
-
-      B : Natural renames Container'Unrestricted_Access.Busy;
-
-   --  Start of processing for Reverse_Iterate
-
-   begin
-      B := B + 1;
-
-      begin
-         Local_Reverse_Iterate (Container);
-      exception
-         when others =>
-            B := B - 1;
-            raise;
-      end;
-
-      B := B - 1;
-   end Reverse_Iterate;
-
-   -----------
-   -- Right --
-   -----------
-
-   function Right (Container : Map; Position : Cursor) return Map is
-      Curs : Cursor := First (Container);
-      C    : Map (Container.Capacity) := Copy (Container, Container.Capacity);
-      Node : Count_Type;
-
-   begin
-      if Curs = No_Element then
-         Clear (C);
-         return C;
-
-      end if;
-      if Position /= No_Element and not Has_Element (Container, Position) then
-         raise Constraint_Error;
-      end if;
-
-      while Curs.Node /= Position.Node loop
-         Node := Curs.Node;
-         Delete (C, Curs);
-         Curs := Next (Container, (Node => Node));
-      end loop;
-
-      return C;
-   end Right;
 
    ---------------
    -- Right_Son --
@@ -1304,94 +1070,5 @@ package body Ada.Containers.Formal_Ordered_Maps is
 
       return False;
    end Strict_Equal;
-
-   --------------------
-   -- Update_Element --
-   --------------------
-
-   procedure Update_Element
-     (Container : in out Map;
-      Position  : Cursor;
-      Process   : not null access procedure (Key     : Key_Type;
-                                             Element : in out Element_Type))
-   is
-   begin
-      if not Has_Element (Container, Position) then
-         raise Constraint_Error with
-           "Position cursor of Update_Element has no element";
-      end if;
-
-      pragma Assert (Vet (Container, Position.Node),
-                     "Position cursor of Update_Element is bad");
-
-      declare
-         B : Natural renames Container.Busy;
-         L : Natural renames Container.Lock;
-
-      begin
-         B := B + 1;
-         L := L + 1;
-
-         declare
-            N : Node_Type renames Container.Nodes (Position.Node);
-            K : Key_Type renames N.Key;
-            E : Element_Type renames N.Element;
-
-         begin
-            Process (K, E);
-         exception
-            when others =>
-               L := L - 1;
-               B := B - 1;
-               raise;
-         end;
-
-         L := L - 1;
-         B := B - 1;
-      end;
-   end Update_Element;
-
-   -----------
-   -- Write --
-   -----------
-
-   procedure Write
-     (Stream    : not null access Root_Stream_Type'Class;
-      Container : Map)
-   is
-      procedure Write_Node
-        (Stream : not null access Root_Stream_Type'Class;
-         Node   : Node_Type);
-      pragma Inline (Write_Node);
-
-      procedure Write_Nodes is
-         new Tree_Operations.Generic_Write (Write_Node);
-
-      ----------------
-      -- Write_Node --
-      ----------------
-
-      procedure Write_Node
-        (Stream : not null access Root_Stream_Type'Class;
-         Node   : Node_Type)
-      is
-      begin
-         Key_Type'Write (Stream, Node.Key);
-         Element_Type'Write (Stream, Node.Element);
-      end Write_Node;
-
-   --  Start of processing for Write
-
-   begin
-      Write_Nodes (Stream, Container);
-   end Write;
-
-   procedure Write
-     (Stream : not null access Root_Stream_Type'Class;
-      Item   : Cursor)
-   is
-   begin
-      raise Program_Error with "attempt to stream map cursor";
-   end Write;
 
 end Ada.Containers.Formal_Ordered_Maps;

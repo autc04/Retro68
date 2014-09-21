@@ -8,12 +8,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "config.h"
-
+#include "runtime.h"
 #include "go-alloc.h"
 #include "go-assert.h"
 #include "go-type.h"
-#include "runtime.h"
 
 #ifdef USE_LIBFFI
 
@@ -32,7 +30,7 @@ static ffi_type *go_struct_to_ffi (const struct __go_struct_type *)
 static ffi_type *go_string_to_ffi (void) __attribute__ ((no_split_stack));
 static ffi_type *go_interface_to_ffi (void) __attribute__ ((no_split_stack));
 static ffi_type *go_complex_to_ffi (ffi_type *)
-  __attribute__ ((no_split_stack));
+  __attribute__ ((no_split_stack, unused));
 static ffi_type *go_type_to_ffi (const struct __go_type_descriptor *)
   __attribute__ ((no_split_stack));
 static ffi_type *go_func_return_ffi (const struct __go_func_type *)
@@ -77,13 +75,15 @@ go_slice_to_ffi (
     const struct __go_slice_type *descriptor __attribute__ ((unused)))
 {
   ffi_type *ret;
+  ffi_type *ffi_intgo;
 
   ret = (ffi_type *) __go_alloc (sizeof (ffi_type));
   ret->type = FFI_TYPE_STRUCT;
   ret->elements = (ffi_type **) __go_alloc (4 * sizeof (ffi_type *));
   ret->elements[0] = &ffi_type_pointer;
-  ret->elements[1] = &ffi_type_sint;
-  ret->elements[2] = &ffi_type_sint;
+  ffi_intgo = sizeof (intgo) == 4 ? &ffi_type_sint32 : &ffi_type_sint64;
+  ret->elements[1] = ffi_intgo;
+  ret->elements[2] = ffi_intgo;
   ret->elements[3] = NULL;
   return ret;
 }
@@ -98,9 +98,12 @@ go_struct_to_ffi (const struct __go_struct_type *descriptor)
   const struct __go_struct_field *fields;
   int i;
 
+  field_count = descriptor->__fields.__count;
+  if (field_count == 0) {
+    return &ffi_type_void;
+  }
   ret = (ffi_type *) __go_alloc (sizeof (ffi_type));
   ret->type = FFI_TYPE_STRUCT;
-  field_count = descriptor->__fields.__count;
   fields = (const struct __go_struct_field *) descriptor->__fields.__values;
   ret->elements = (ffi_type **) __go_alloc ((field_count + 1)
 					    * sizeof (ffi_type *));
@@ -110,19 +113,21 @@ go_struct_to_ffi (const struct __go_struct_type *descriptor)
   return ret;
 }
 
-/* Return an ffi_type for a Go string type.  This describes the
-   __go_string struct.  */
+/* Return an ffi_type for a Go string type.  This describes the String
+   struct.  */
 
 static ffi_type *
 go_string_to_ffi (void)
 {
   ffi_type *ret;
+  ffi_type *ffi_intgo;
 
   ret = (ffi_type *) __go_alloc (sizeof (ffi_type));
   ret->type = FFI_TYPE_STRUCT;
   ret->elements = (ffi_type **) __go_alloc (3 * sizeof (ffi_type *));
   ret->elements[0] = &ffi_type_pointer;
-  ret->elements[1] = &ffi_type_sint;
+  ffi_intgo = sizeof (intgo) == 4 ? &ffi_type_sint32 : &ffi_type_sint64;
+  ret->elements[1] = ffi_intgo;
   ret->elements[2] = NULL;
   return ret;
 }
@@ -183,13 +188,23 @@ go_type_to_ffi (const struct __go_type_descriptor *descriptor)
 	return &ffi_type_double;
       abort ();
     case GO_COMPLEX64:
+#ifdef __alpha__
+      runtime_throw("the libffi library does not support Complex64 type with "
+		    "reflect.Call or runtime.SetFinalizer");
+#else
       if (sizeof (float) == 4)
 	return go_complex_to_ffi (&ffi_type_float);
       abort ();
+#endif
     case GO_COMPLEX128:
+#ifdef __alpha__
+      runtime_throw("the libffi library does not support Complex128 type with "
+		    "reflect.Call or runtime.SetFinalizer");
+#else
       if (sizeof (double) == 8)
 	return go_complex_to_ffi (&ffi_type_double);
       abort ();
+#endif
     case GO_INT16:
       return &ffi_type_sint16;
     case GO_INT32:
@@ -199,7 +214,7 @@ go_type_to_ffi (const struct __go_type_descriptor *descriptor)
     case GO_INT8:
       return &ffi_type_sint8;
     case GO_INT:
-      return &ffi_type_sint;
+      return sizeof (intgo) == 4 ? &ffi_type_sint32 : &ffi_type_sint64;
     case GO_UINT16:
       return &ffi_type_uint16;
     case GO_UINT32:
@@ -209,7 +224,7 @@ go_type_to_ffi (const struct __go_type_descriptor *descriptor)
     case GO_UINT8:
       return &ffi_type_uint8;
     case GO_UINT:
-      return &ffi_type_uint;
+      return sizeof (uintgo) == 4 ? &ffi_type_uint32 : &ffi_type_uint64;
     case GO_UINTPTR:
       if (sizeof (void *) == 2)
 	return &ffi_type_uint16;
@@ -259,7 +274,21 @@ go_func_return_ffi (const struct __go_func_type *func)
   types = (const struct __go_type_descriptor **) func->__out.__values;
 
   if (count == 1)
-    return go_type_to_ffi (types[0]);
+    {
+
+#if defined (__i386__) && !defined (__x86_64__)
+      /* FFI does not support complex types.  On 32-bit x86, a
+	 complex64 will be returned in %eax/%edx.  We normally tell
+	 FFI that a complex64 is a struct of two floats.  On 32-bit
+	 x86 a struct of two floats is returned via a hidden first
+	 pointer parameter.  Fortunately we can make everything work
+	 by pretending that complex64 is int64.  */
+      if ((types[0]->__code & GO_CODE_MASK) == GO_COMPLEX64)
+	return &ffi_type_sint64;
+#endif
+
+      return go_type_to_ffi (types[0]);
+    }
 
   ret = (ffi_type *) __go_alloc (sizeof (ffi_type));
   ret->type = FFI_TYPE_STRUCT;
@@ -479,11 +508,23 @@ go_set_results (const struct __go_func_type *func, unsigned char *call_result,
 }
 
 /* Call a function.  The type of the function is FUNC_TYPE, and the
-   address is FUNC_ADDR.  PARAMS is an array of parameter addresses.
-   RESULTS is an array of result addresses.  */
+   closure is FUNC_VAL.  PARAMS is an array of parameter addresses.
+   RESULTS is an array of result addresses.
+
+   If IS_INTERFACE is true this is a call to an interface method and
+   the first argument is the receiver, which is always a pointer.
+   This argument, the receiver, is not described in FUNC_TYPE.
+
+   If IS_METHOD is true this is a call to a method expression.  The
+   first argument is the receiver.  It is described in FUNC_TYPE, but
+   regardless of FUNC_TYPE, it is passed as a pointer.
+
+   If neither IS_INTERFACE nor IS_METHOD is true then we are calling a
+   function indirectly, and we must pass a closure pointer via
+   __go_set_closure.  The pointer to pass is simply FUNC_VAL.  */
 
 void
-reflect_call (const struct __go_func_type *func_type, const void *func_addr,
+reflect_call (const struct __go_func_type *func_type, FuncVal *func_val,
 	      _Bool is_interface, _Bool is_method, void **params,
 	      void **results)
 {
@@ -495,7 +536,9 @@ reflect_call (const struct __go_func_type *func_type, const void *func_addr,
 
   call_result = (unsigned char *) malloc (go_results_size (func_type));
 
-  ffi_call (&cif, func_addr, call_result, params);
+  if (!is_interface && !is_method)
+    __go_set_closure (func_val);
+  ffi_call (&cif, func_val->fn, call_result, params);
 
   /* Some day we may need to free result values if RESULTS is
      NULL.  */
@@ -509,7 +552,7 @@ reflect_call (const struct __go_func_type *func_type, const void *func_addr,
 
 void
 reflect_call (const struct __go_func_type *func_type __attribute__ ((unused)),
-	      const void *func_addr __attribute__ ((unused)),
+	      FuncVal *func_val __attribute__ ((unused)),
 	      _Bool is_interface __attribute__ ((unused)),
 	      _Bool is_method __attribute__ ((unused)),
 	      void **params __attribute__ ((unused)),

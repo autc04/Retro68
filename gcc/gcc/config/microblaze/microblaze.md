@@ -1,5 +1,5 @@
 ;; microblaze.md -- Machine description for Xilinx MicroBlaze processors.
-;; Copyright 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
 ;; Contributed by Michael Eager <eager@eagercon.com>.
 
@@ -40,6 +40,7 @@
   (UNSPEC_PLT           103)    ;; jump table
   (UNSPEC_CMP		104)    ;; signed compare
   (UNSPEC_CMPU		105)    ;; unsigned compare
+  (UNSPEC_TLS           106)    ;; jump table
 ])
 
 
@@ -73,7 +74,7 @@
 ;; bshift 	Shift operations
 
 (define_attr "type"
-  "unknown,branch,jump,call,load,store,move,arith,darith,imul,idiv,icmp,multi,nop,no_delay_arith,no_delay_load,no_delay_store,no_delay_imul,no_delay_move,bshift,fadd,frsub,fmul,fdiv,fcmp,fsl,fsqrt,fcvt"
+  "unknown,branch,jump,call,load,store,move,arith,darith,imul,idiv,icmp,multi,nop,no_delay_arith,no_delay_load,no_delay_store,no_delay_imul,no_delay_move,bshift,fadd,frsub,fmul,fdiv,fcmp,fsl,fsqrt,fcvt,trap"
   (const_string "unknown"))
 
 ;; Main data type used by the insn
@@ -353,6 +354,21 @@
 (automata_option "time")
 (automata_option "progress")
 
+(define_insn "bswapsi2"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+        (bswap:SI (match_operand:SI 1 "register_operand" "r")))]
+  "TARGET_REORDER"
+  "swapb %0, %1"
+)
+
+(define_insn "bswaphi2"
+  [(set (match_operand:HI 0 "register_operand" "=r")
+        (bswap:HI (match_operand:HI 1 "register_operand" "r")))]
+  "TARGET_REORDER"
+  "swapb %0, %1
+   swaph %0, %0"
+)
+
 ;;----------------------------------------------------------------
 ;; Microblaze delay slot description
 ;;----------------------------------------------------------------
@@ -445,7 +461,7 @@
 (define_insn "addsi3"
   [(set (match_operand:SI 0 "register_operand" "=d,d,d")
 	(plus:SI (match_operand:SI 1 "reg_or_0_operand" "%dJ,dJ,dJ")
-		 (match_operand:SI 2 "arith_operand" "d,I,i")))]
+		 (match_operand:SI 2 "arith_plus_operand" "d,I,i")))]
   ""
   "@
    addk\t%0,%z1,%2
@@ -722,32 +738,6 @@
   (set_attr "length"	"4,8,8,8")])
 
 
-(define_insn "anddi3"
-  [(set (match_operand:DI 0 "register_operand" "=d")
-	(and:DI (match_operand:DI 1 "register_operand" "d")
-		(match_operand:DI 2 "register_operand" "d")))]
-  ""
-  "and\t%M0,%M1,%M2\;and\t%L0,%L1,%L2"
-  [(set_attr "type"	"darith")
-  (set_attr "mode"	"DI")
-  (set_attr "length"    "8")])
-
-
-(define_split
-  [(set (match_operand:DI 0 "register_operand" "")
-	(and:DI (match_operand:DI 1 "register_operand" "")
-		(match_operand:DI 2 "register_operand" "")))]
-  "reload_completed 
-   && GET_CODE (operands[0]) == REG && GP_REG_P (REGNO (operands[0]))
-   && GET_CODE (operands[1]) == REG && GP_REG_P (REGNO (operands[1]))
-   && GET_CODE (operands[2]) == REG && GP_REG_P (REGNO (operands[2]))"
-
-  [(set (subreg:SI (match_dup 0) 0) (and:SI (subreg:SI (match_dup 1) 0) 
-					    (subreg:SI (match_dup 2) 0)))
-  (set (subreg:SI (match_dup 0) 4) (and:SI (subreg:SI (match_dup 1) 4) 
-					   (subreg:SI (match_dup 2) 4)))]
-  "")
-
 (define_insn "iorsi3"
   [(set (match_operand:SI 0 "register_operand" "=d,d,d,d")
 	(ior:SI (match_operand:SI 1 "arith_operand" "%d,d,d,d")
@@ -762,34 +752,6 @@
   (set_attr "mode"	"SI,SI,SI,SI")
   (set_attr "length"	"4,8,8,8")])
 
-
-(define_insn "iordi3"
-  [(set (match_operand:DI 0 "register_operand" "=d")
-	(ior:DI (match_operand:DI 1 "register_operand" "d")
-		(match_operand:DI 2 "register_operand" "d")))]
-  ""
-  "or\t%M0,%M1,%M2\;or\t%L0,%L1,%L2"
-  [(set_attr "type"	"darith")
-  (set_attr "mode"	"DI")
-  (set_attr "length"    "8")]
-)
-
-
-(define_split
-  [(set (match_operand:DI 0 "register_operand" "")
-	(ior:DI (match_operand:DI 1 "register_operand" "")
-		(match_operand:DI 2 "register_operand" "")))]
-  "reload_completed 
-   && GET_CODE (operands[0]) == REG && GP_REG_P (REGNO (operands[0]))
-   && GET_CODE (operands[1]) == REG && GP_REG_P (REGNO (operands[1]))
-   && GET_CODE (operands[2]) == REG && GP_REG_P (REGNO (operands[2]))"
-
-  [(set (subreg:SI (match_dup 0) 0) (ior:SI (subreg:SI (match_dup 1) 0) 
-					    (subreg:SI (match_dup 2) 0)))
-  (set (subreg:SI (match_dup 0) 4) (ior:SI (subreg:SI (match_dup 1) 4) 
-					   (subreg:SI (match_dup 2) 4)))]
-  "")
-
 (define_insn "xorsi3"
   [(set (match_operand:SI 0 "register_operand" "=d,d,d")
 	(xor:SI (match_operand:SI 1 "arith_operand" "%d,d,d")
@@ -802,33 +764,6 @@
   [(set_attr "type"	"arith,arith,no_delay_arith")
   (set_attr "mode"	"SI,SI,SI")
   (set_attr "length"	"4,8,8")])
-
-(define_insn "xordi3"
-  [(set (match_operand:DI 0 "register_operand" "=d")
-	(xor:DI (match_operand:DI 1 "register_operand" "d")
-		(match_operand:DI 2 "register_operand" "d")))]
-  ""
-  "xor\t%M0,%M1,%M2\;xor\t%L0,%L1,%L2"
-  [(set_attr "type"	"darith")
-  (set_attr "mode"	"DI")
-  (set_attr "length"    "8")]
-)
-
-
-(define_split
-  [(set (match_operand:DI 0 "register_operand" "")
-	(xor:DI (match_operand:DI 1 "register_operand" "")
-		(match_operand:DI 2 "register_operand" "")))]
-  "reload_completed 
-   && GET_CODE (operands[0]) == REG && GP_REG_P (REGNO (operands[0]))
-   && GET_CODE (operands[1]) == REG && GP_REG_P (REGNO (operands[1]))
-   && GET_CODE (operands[2]) == REG && GP_REG_P (REGNO (operands[2]))"
-
-  [(set (subreg:SI (match_dup 0) 0) (xor:SI (subreg:SI (match_dup 1) 0) 
-					    (subreg:SI (match_dup 2) 0)))
-  (set (subreg:SI (match_dup 0) 4) (xor:SI (subreg:SI (match_dup 1) 4) 
-					   (subreg:SI (match_dup 2) 4)))]
-  "")
 
 ;;----------------------------------------------------------------
 ;; Zero extension
@@ -903,14 +838,14 @@
   ""
   { 
      if (which_alternative == 0)
-       output_asm_insn ("addk\t%D0,r0,%1", operands);
+       output_asm_insn ("addk\t%L0,r0,%1", operands);
      else
-       output_asm_insn ("lw%i1\t%D0,%1", operands);
+       output_asm_insn ("lw%i1\t%L0,%1", operands);
 
-     output_asm_insn ("add\t%0,%D0,%D0", operands);
-     output_asm_insn ("addc\t%0,r0,r0", operands);
-     output_asm_insn ("beqi\t%0,.+8", operands);
-     return "addi\t%0,r0,0xffffffff";
+     output_asm_insn ("add\t%M0,%L0,%L0", operands);
+     output_asm_insn ("addc\t%M0,r0,r0", operands);
+     output_asm_insn ("beqi\t%M0,.+8", operands);
+     return "addi\t%M0,r0,0xffffffff";
   }
   [(set_attr "type"	"multi,multi,multi")
   (set_attr "mode"	"DI")
@@ -959,8 +894,8 @@
 
 
 (define_insn "*movdi_internal"
-  [(set (match_operand:DI 0 "nonimmediate_operand" "=d,d,d,d,d,R,m")
-	(match_operand:DI 1 "general_operand"      " d,i,J,R,m,d,d"))]
+  [(set (match_operand:DI 0 "nonimmediate_operand" "=d,d,d,d,d,R,o")
+	(match_operand:DI 1 "general_operand"      " d,i,J,R,o,d,d"))]
   ""
   { 
     switch (which_alternative)
@@ -968,7 +903,7 @@
       case 0:
         return "addk\t%0,%1\n\taddk\t%D0,%d1";
       case 1:
-	return "addik\t%0,r0,%h1\n\taddik\t%D0,r0,%j1 #li => la";
+	return "addik\t%M0,r0,%h1\n\taddik\t%L0,r0,%j1 #li => la";
       case 2:
 	  return "addk\t%0,r0,r0\n\taddk\t%D0,r0,r0";
       case 3:
@@ -1024,11 +959,11 @@
   }
 )
 
-;; Added for status resgisters 
+;; Added for status registers
 (define_insn "movsi_status"
   [(set (match_operand:SI 0 "register_operand" "=d,d,z")
         (match_operand:SI 1 "register_operand" "z,d,d"))]
-  "interrupt_handler"
+  "microblaze_is_interrupt_variant ()"
   "@
 	mfs\t%0,%1  #mfs
 	addk\t%0,%1,r0 #add movsi
@@ -1066,13 +1001,9 @@
   (set_attr "length"	"4")])
 
 (define_insn "*movsi_internal2"
-  [(set (match_operand:SI 0 "nonimmediate_operand" "=d,d,d,   d,d,R, T")
-	(match_operand:SI 1 "move_operand"         " d,I,Mnis,R,m,dJ,dJ"))]
-  "(register_operand (operands[0], SImode)
-    || register_operand (operands[1], SImode) 
-    || (GET_CODE (operands[1]) == CONST_INT && INTVAL (operands[1]) == 0))
-    && (flag_pic != 2 || (GET_CODE (operands[1]) != SYMBOL_REF 
-                         && GET_CODE (operands[1]) != LABEL_REF))"
+  [(set (match_operand:SI 0 "nonimmediate_operand" "=d,d,d,   d,d,R,m")
+	(match_operand:SI 1 "move_src_operand"         " d,I,Mnis,R,m,dJ,dJ"))]
+  ""
   "@
    addk\t%0,%1,r0
    addik\t%0,r0,%1\t# %X1
@@ -1188,6 +1119,18 @@
   }
 )
 
+;;Load and store reverse
+(define_insn "movsi4_rev"
+  [(set (match_operand:SI 0 "reg_or_mem_operand" "=r,Q")
+        (bswap:SI (match_operand:SF 1 "reg_or_mem_operand" "Q,r")))]
+  "TARGET_REORDER"
+  "@
+   lwr\t%0,%y1,r0
+   swr\t%1,%y0,r0"
+  [(set_attr "type"     "load,store")
+  (set_attr "mode"      "SI")
+  (set_attr "length"    "4,4")])
+
 ;; 32-bit floating point moves
 
 (define_expand "movsf"
@@ -1263,7 +1206,7 @@
 ;; Applies to both TARGET_SOFT_FLOAT and TARGET_HARD_FLOAT
 ;;
 (define_insn "*movdf_internal"
-  [(set (match_operand:DF 0 "nonimmediate_operand" "=d,d,d,d,To")
+  [(set (match_operand:DF 0 "nonimmediate_operand" "=d,d,d,d,o")
         (match_operand:DF 1 "general_operand" "dG,o,F,T,d"))]
   ""
   {
@@ -1542,7 +1485,7 @@
   (set_attr "length"   "124")]
 )
 
-(define_insn "*ashlri_reg"
+(define_insn "*ashrsi_reg"
   [(set (match_operand:SI 0 "register_operand" "=&d")
        (ashiftrt:SI (match_operand:SI 1 "register_operand"  "d")
                    (match_operand:SI 2 "register_operand" "d")))]
@@ -1631,7 +1574,7 @@
   (set_attr "length"   "124")]
 )
 
-(define_insn "*lshlri_reg"
+(define_insn "*lshrsi_reg"
   [(set (match_operand:SI 0 "register_operand" "=&d")
        (lshiftrt:SI (match_operand:SI 1 "register_operand"  "d")
                    (match_operand:SI 2 "register_operand" "d")))]
@@ -1692,36 +1635,14 @@
   (set_attr "length"	"4")]
 )              
 
-(define_insn "signed_compare"
-  [(set (match_operand:SI 0 "register_operand" "=d")
-	(unspec
-		[(match_operand:SI 1 "register_operand" "d")
-		 (match_operand:SI 2 "register_operand" "d")] UNSPEC_CMP))]
-  ""
-  "cmp\t%0,%1,%2"
-  [(set_attr "type"	"arith")
-  (set_attr "mode"	"SI")
-  (set_attr "length"	"4")])
-
-(define_insn "unsigned_compare"
-  [(set (match_operand:SI 0 "register_operand" "=d")
-	(unspec 
-		[(match_operand:SI 1 "register_operand" "d")
-		 (match_operand:SI 2 "register_operand" "d")] UNSPEC_CMPU))]
-  ""
-  "cmpu\t%0,%1,%2"
-  [(set_attr "type"	"arith")
-  (set_attr "mode"	"SI")
-  (set_attr "length"	"4")])
-
 ;;----------------------------------------------------------------
 ;; Setting a register from an floating point comparison. 
 ;;----------------------------------------------------------------
 (define_insn "cstoresf4"
-   [(set (match_operand:SI 0 "register_operand")
+   [(set (match_operand:SI 0 "register_operand" "=r")
         (match_operator:SI 1 "ordered_comparison_operator"
-	      [(match_operand:SF 2 "register_operand")
-	       (match_operand:SF 3 "register_operand")]))]
+	      [(match_operand:SF 2 "register_operand" "r")
+	       (match_operand:SF 3 "register_operand" "r")]))]
   "TARGET_HARD_FLOAT"
   "fcmp.%C1\t%0,%3,%2"
   [(set_attr "type"     "fcmp")
@@ -1748,7 +1669,7 @@
 
 (define_expand "cbranchsf4"
   [(set (pc)
-	(if_then_else (match_operator:SI 0 "ordered_comparison_operator"
+	(if_then_else (match_operator 0 "ordered_comparison_operator"
 		       [(match_operand:SF 1 "register_operand")
 		        (match_operand:SF 2 "register_operand")])
 		      (label_ref (match_operand 3 ""))
@@ -1785,6 +1706,47 @@
   [(set_attr "type"	"branch")
    (set_attr "mode"	"none")
    (set_attr "length"	"4")]
+)
+
+(define_insn "branch_compare"
+  [(set (pc)
+        (if_then_else (match_operator:SI 0 "cmp_op"
+                                         [(match_operand:SI 1 "register_operand" "d")
+                                          (match_operand:SI 2 "register_operand" "d")
+                                         ])
+                      (label_ref (match_operand 3))
+                      (pc)))
+  (clobber(reg:SI R_TMP))]
+  ""
+  {
+    operands[4] = gen_rtx_REG (SImode, MB_ABI_ASM_TEMP_REGNUM);
+    enum rtx_code code = GET_CODE (operands[0]);
+
+    if (code == GT || code == LE)
+      {
+        output_asm_insn ("cmp\tr18,%z1,%z2", operands);
+        code = swap_condition (code);
+      }
+    else if (code == GTU || code == LEU)
+      {
+        output_asm_insn ("cmpu\tr18,%z1,%z2", operands);
+        code = swap_condition (code);
+      }
+    else if (code == GE || code == LT)
+      {
+        output_asm_insn ("cmp\tr18,%z2,%z1", operands);
+      }
+    else if (code == GEU || code == LTU)
+      {
+        output_asm_insn ("cmpu\tr18,%z2,%z1", operands);
+      }
+
+    operands[0] = gen_rtx_fmt_ee (signed_condition (code), SImode, operands[4], const0_rtx);
+    return "b%C0i%?\tr18,%3";
+  }
+  [(set_attr "type"     "branch")
+   (set_attr "mode"     "none")
+   (set_attr "length"   "12")]
 )
 
 ;;----------------------------------------------------------------
@@ -1868,9 +1830,8 @@
 	(plus:SI (match_operand:SI 0 "register_operand" "d")
 		 (label_ref:SI (match_operand 1 "" ""))))
   (use (label_ref:SI (match_dup 1)))]
- "next_active_insn (insn) != 0
-  && GET_CODE (PATTERN (next_active_insn (insn))) == ADDR_DIFF_VEC
-  && PREV_INSN (next_active_insn (insn)) == operands[1]
+ "NEXT_INSN (operands[1]) != 0
+  && GET_CODE (PATTERN (NEXT_INSN (operands[1]))) == ADDR_DIFF_VEC
   && flag_pic"
   {
     output_asm_insn ("addk\t%0,%0,r20",operands);
@@ -1941,6 +1902,32 @@
   }
 )
 
+(define_expand "save_stack_block"
+  [(match_operand 0 "register_operand" "")
+   (match_operand 1 "register_operand" "")]
+  ""
+  {
+    emit_move_insn (operands[0], operands[1]);
+    DONE;
+  }
+)
+
+(define_expand "restore_stack_block"
+  [(match_operand 0 "register_operand" "")
+   (match_operand 1 "register_operand" "")]
+  ""
+  {
+    rtx retaddr = gen_rtx_MEM (Pmode, stack_pointer_rtx);
+    rtx rtmp    = gen_rtx_REG (SImode, R_TMP);
+
+    /* Move the retaddr.  */
+    emit_move_insn (rtmp, retaddr);
+    emit_move_insn (operands[0], operands[1]);
+    emit_move_insn (gen_rtx_MEM (Pmode, operands[0]), rtmp);
+    DONE;
+  }
+)
+
 ;; Trivial return.  Make it look like a normal return insn as that
 ;; allows jump optimizations to work better .
 (define_expand "return"
@@ -1959,7 +1946,7 @@
   [(any_return)]
   ""
   { 
-    if (microblaze_is_interrupt_handler ())
+    if (microblaze_is_interrupt_variant ())
         return "rtid\tr14, 0\;%#";
     else
         return "rtsd\tr15, 8\;%#";
@@ -1976,7 +1963,7 @@
    (use (match_operand:SI 0 "register_operand" ""))]
   ""
   {	
-    if (microblaze_is_interrupt_handler ())
+    if (microblaze_is_interrupt_variant ())
         return "rtid\tr14,0 \;%#";
     else
         return "rtsd\tr15,8 \;%#";
@@ -2072,7 +2059,7 @@
   (set_attr "length"	"4")])
 
 (define_insn "call_internal1"
-  [(call (mem (match_operand:SI 0 "call_insn_operand" "ri"))
+  [(call (mem (match_operand:SI 0 "call_insn_simple_operand" "ri"))
 	 (match_operand:SI 1 "" "i"))
   (clobber (reg:SI R_SR))]
   ""
@@ -2183,9 +2170,17 @@
     register rtx target = operands[1];
     register rtx target2=gen_rtx_REG (Pmode,GP_REG_FIRST + MB_ABI_SUB_RETURN_ADDR_REGNUM);
 
-    if (GET_CODE (target) == SYMBOL_REF){
-	gen_rtx_CLOBBER (VOIDmode,target2);
-	return "brlid\tr15,%1\;%#";
+    if (GET_CODE (target) == SYMBOL_REF)
+    {
+      gen_rtx_CLOBBER (VOIDmode,target2);
+      if (SYMBOL_REF_FLAGS (target) & SYMBOL_FLAG_FUNCTION)
+        {
+	  return "brlid\tr15,%1\;%#";
+        }
+      else
+        {
+	  return "bralid\tr15,%1\;%#";
+        }
     }
     else if (GET_CODE (target) == CONST_INT)
         return "la\t%@,r0,%1\;brald\tr15,%@\;%#";
@@ -2237,6 +2232,14 @@
   (set_attr "mode"	"none")
   (set_attr "length"	"4")])
 
+;; Trap instruction pattern for __builtin_trap. Same as the glibc ABORT_INSTRUCTION
+(define_insn "trap"
+  [(trap_if (const_int 1) (const_int 0))]
+  ""
+  "brki\tr0,-1"
+ [(set_attr "type" "trap")]
+)
+
 ;; The insn to set GOT. The hardcoded number "8" accounts for $pc difference
 ;; between "mfs" and "addik" instructions.
 (define_insn "set_got"
@@ -2247,3 +2250,15 @@
   [(set_attr "type" "multi")
    (set_attr "length" "12")])
 
+;; This insn gives the count of leading number of zeros for the second
+;; operand and stores the result in first operand.
+(define_insn "clzsi2"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+        (clz:SI (match_operand:SI 1 "register_operand" "r")))]
+  "TARGET_HAS_CLZ"
+  "clz\t%0,%1"
+  [(set_attr "type"     "arith")
+  (set_attr "mode"      "SI")
+  (set_attr "length"    "4")])
+
+(include "sync.md")

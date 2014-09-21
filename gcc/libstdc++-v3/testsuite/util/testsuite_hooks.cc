@@ -2,8 +2,7 @@
 
 // Utility subroutines for the C++ library testsuite. 
 //
-// Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2002-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -238,7 +237,7 @@ namespace __gnu_test
   semaphore::semaphore() 
   {
 #ifdef _GLIBCXX_SYSV_SEM
-    // Remeber the PID for the process that created the semaphore set
+    // Remember the PID for the process that created the semaphore set
     // so that only one process will destroy the set.
     pid_ = getpid();
 

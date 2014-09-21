@@ -1,6 +1,6 @@
 // -*- C++ -*- compatibility header.
 
-// Copyright (C) 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,7 +36,7 @@
 # include_next <fenv.h>
 #endif
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
 
 #if _GLIBCXX_USE_C99_FENV_TR1
 
@@ -76,6 +76,6 @@ namespace std
 
 #endif // _GLIBCXX_USE_C99_FENV_TR1
 
-#endif // __GXX_EXPERIMENTAL_CXX0X__
+#endif // C++11
 
 #endif // _GLIBCXX_FENV_H

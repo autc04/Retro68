@@ -1,5 +1,5 @@
 /* Output Go language descriptions of types.
-   Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>.
 
 This file is part of GCC.
@@ -56,7 +56,7 @@ static FILE *go_dump_file;
 
 /* A queue of decls to output.  */
 
-static GTY(()) VEC(tree,gc) *queue;
+static GTY(()) vec<tree, va_gc> *queue;
 
 /* A hash table of macros we have seen.  */
 
@@ -480,7 +480,7 @@ go_decl (tree decl)
       || DECL_IS_BUILTIN (decl)
       || DECL_NAME (decl) == NULL_TREE)
     return;
-  VEC_safe_push (tree, gc, queue, decl);
+  vec_safe_push (queue, decl);
 }
 
 /* A function decl.  */
@@ -515,7 +515,7 @@ go_type_decl (tree decl, int local)
 	  || TREE_CODE (TYPE_NAME (TREE_TYPE (decl))) != IDENTIFIER_NODE)
       && TREE_CODE (TREE_TYPE (decl)) != ENUMERAL_TYPE)
     return;
-  VEC_safe_push (tree, gc, queue, decl);
+  vec_safe_push (queue, decl);
 }
 
 /* A container for the data we pass around when generating information
@@ -728,12 +728,12 @@ go_format_type (struct godump_container *container, tree type,
 	  && tree_int_cst_sgn (TYPE_MIN_VALUE (TYPE_DOMAIN (type))) == 0
 	  && TYPE_MAX_VALUE (TYPE_DOMAIN (type)) != NULL_TREE
 	  && TREE_CODE (TYPE_MAX_VALUE (TYPE_DOMAIN (type))) == INTEGER_CST
-	  && host_integerp (TYPE_MAX_VALUE (TYPE_DOMAIN (type)), 0))
+	  && tree_fits_shwi_p (TYPE_MAX_VALUE (TYPE_DOMAIN (type))))
 	{
 	  char buf[100];
 
 	  snprintf (buf, sizeof buf, HOST_WIDE_INT_PRINT_DEC "+1",
-		    tree_low_cst (TYPE_MAX_VALUE (TYPE_DOMAIN (type)), 0));
+		    tree_to_shwi (TYPE_MAX_VALUE (TYPE_DOMAIN (type))));
 	  obstack_grow (ob, buf, strlen (buf));
 	}
       obstack_1grow (ob, ']');
@@ -981,13 +981,12 @@ go_output_typedef (struct godump_container *container, tree decl)
 	  if (*slot != NULL)
 	    macro_hash_del (*slot);
 
-	  if (host_integerp (TREE_VALUE (element), 0))
+	  if (tree_fits_shwi_p (TREE_VALUE (element)))
 	    snprintf (buf, sizeof buf, HOST_WIDE_INT_PRINT_DEC,
-		     tree_low_cst (TREE_VALUE (element), 0));
-	  else if (host_integerp (TREE_VALUE (element), 1))
+		     tree_to_shwi (TREE_VALUE (element)));
+	  else if (tree_fits_uhwi_p (TREE_VALUE (element)))
 	    snprintf (buf, sizeof buf, HOST_WIDE_INT_PRINT_UNSIGNED,
-		     ((unsigned HOST_WIDE_INT)
-		      tree_low_cst (TREE_VALUE (element), 1)));
+		      tree_to_uhwi (TREE_VALUE (element)));
 	  else
 	    snprintf (buf, sizeof buf, HOST_WIDE_INT_PRINT_DOUBLE_HEX,
 		     ((unsigned HOST_WIDE_INT)
@@ -1024,12 +1023,25 @@ go_output_typedef (struct godump_container *container, tree decl)
       fprintf (go_dump_file, "type _%s ",
 	       IDENTIFIER_POINTER (DECL_NAME (decl)));
       go_output_type (container);
+
+      if (RECORD_OR_UNION_TYPE_P (TREE_TYPE (decl)))
+	{
+	  HOST_WIDE_INT size = int_size_in_bytes (TREE_TYPE (decl));
+
+	  if (size > 0)
+	    fprintf (go_dump_file,
+		     "\nconst _sizeof_%s = " HOST_WIDE_INT_PRINT_DEC,
+		     IDENTIFIER_POINTER (DECL_NAME (decl)),
+		     size);
+	}
+
       pointer_set_insert (container->decls_seen, decl);
     }
   else if (RECORD_OR_UNION_TYPE_P (TREE_TYPE (decl)))
     {
        void **slot;
        const char *type;
+       HOST_WIDE_INT size;
 
        type = IDENTIFIER_POINTER (TYPE_NAME (TREE_TYPE ((decl))));
        /* If type defined already, skip.  */
@@ -1047,6 +1059,13 @@ go_output_typedef (struct godump_container *container, tree decl)
        fprintf (go_dump_file, "type _%s ",
 	       IDENTIFIER_POINTER (TYPE_NAME (TREE_TYPE (decl))));
        go_output_type (container);
+
+       size = int_size_in_bytes (TREE_TYPE (decl));
+       if (size > 0)
+	 fprintf (go_dump_file,
+		  "\nconst _sizeof_%s = " HOST_WIDE_INT_PRINT_DEC,
+		  IDENTIFIER_POINTER (TYPE_NAME (TREE_TYPE (decl))),
+		  size);
     }
   else
     return;
@@ -1144,9 +1163,11 @@ find_dummy_types (const void *ptr, void *adata)
   struct godump_container *data = (struct godump_container *) adata;
   const char *type = (const char *) ptr;
   void **slot;
+  void **islot;
 
   slot = htab_find_slot (data->type_hash, type, NO_INSERT);
-  if (slot == NULL)
+  islot = htab_find_slot (data->invalid_hash, type, NO_INSERT);
+  if (slot == NULL || islot != NULL)
     fprintf (go_dump_file, "type _%s struct {}\n", type);
   return true;
 }
@@ -1174,7 +1195,7 @@ go_finish (const char *filename)
 
   keyword_hash_init (&container);
 
-  FOR_EACH_VEC_ELT (tree, queue, ix, decl)
+  FOR_EACH_VEC_SAFE_ELT (queue, ix, decl)
     {
       switch (TREE_CODE (decl))
 	{
@@ -1191,7 +1212,7 @@ go_finish (const char *filename)
 	  break;
 
 	default:
-	  gcc_unreachable();
+	  gcc_unreachable ();
 	}
     }
 
@@ -1208,7 +1229,7 @@ go_finish (const char *filename)
   htab_delete (container.keyword_hash);
   obstack_free (&container.type_obstack, NULL);
 
-  queue = NULL;
+  vec_free (queue);
 
   if (fclose (go_dump_file) != 0)
     error ("could not close Go dump file: %m");

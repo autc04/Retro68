@@ -7,6 +7,7 @@ package filepath
 import (
 	"errors"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -36,6 +37,9 @@ var ErrBadPattern = errors.New("syntax error in pattern")
 // Match requires pattern to match all of name, not just a substring.
 // The only possible returned error is ErrBadPattern, when pattern
 // is malformed.
+//
+// On Windows, escaping is disabled. Instead, '\\' is treated as
+// path separator.
 //
 func Match(pattern, name string) (matched bool, err error) {
 Pattern:
@@ -95,9 +99,11 @@ Scan:
 	for i = 0; i < len(pattern); i++ {
 		switch pattern[i] {
 		case '\\':
-			// error check handled in matchChunk: bad pattern.
-			if i+1 < len(pattern) {
-				i++
+			if runtime.GOOS != "windows" {
+				// error check handled in matchChunk: bad pattern.
+				if i+1 < len(pattern) {
+					i++
+				}
 			}
 		case '[':
 			inrange = true
@@ -126,6 +132,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 			r, n := utf8.DecodeRuneInString(s)
 			s = s[n:]
 			chunk = chunk[1:]
+			// We can't end right after '[', we're expecting at least
+			// a closing bracket and possibly a caret.
+			if len(chunk) == 0 {
+				err = ErrBadPattern
+				return
+			}
 			// possibly negated
 			negated := chunk[0] == '^'
 			if negated {
@@ -167,10 +179,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 			chunk = chunk[1:]
 
 		case '\\':
-			chunk = chunk[1:]
-			if len(chunk) == 0 {
-				err = ErrBadPattern
-				return
+			if runtime.GOOS != "windows" {
+				chunk = chunk[1:]
+				if len(chunk) == 0 {
+					err = ErrBadPattern
+					return
+				}
 			}
 			fallthrough
 
@@ -191,7 +205,7 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 		err = ErrBadPattern
 		return
 	}
-	if chunk[0] == '\\' {
+	if chunk[0] == '\\' && runtime.GOOS != "windows" {
 		chunk = chunk[1:]
 		if len(chunk) == 0 {
 			err = ErrBadPattern

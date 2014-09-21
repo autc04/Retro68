@@ -9,6 +9,5 @@ void f(void)
 
 void g(void)
 {
-  template f<int>(); /* { dg-error "expected primary-expression" } */
-  /* { dg-error "expected ';'" "" { target *-*-* } 12 } */
+  template f<int>(); /* { dg-error "expected primary-expression" "primary-expression" } */
 }

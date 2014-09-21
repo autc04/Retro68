@@ -1,6 +1,6 @@
 /*
   Origin: PR debug/45024
-  { dg-options "-g -dA -fno-merge-debug-strings" }
+  { dg-options "-g -dA -fno-merge-debug-strings -fno-debug-types-section" }
   { dg-do compile }
 */
 
@@ -32,6 +32,6 @@ We want to express that the DIE of S::T<int> must be a child of the DIE of S, li
 
 Hence the slightly odd regexp:
 
-  { dg-final { scan-assembler "\[^\n\r\]*\\(DIE\[^\n\r\]*DW_TAG_structure_type\\)\[\n\r\]+\[^\n\r\]*\"S\\\\0\"\[ \t\]+\(\[@|#;!\]|//?\)\[ \t\]+DW_AT_name\[\n\r\]+\(.*\)?\\(DIE\[^\n\r\]*DW_TAG_structure_type\\)\[\n\r\]+\[^\n\r\]*\"T<int>\\\\0\"\[ \t\]+\(.*\)?\\(DIE\[^\n\r\]*DW_TAG_template_type_param\\)\[\n\r\]+\[^\n\r\]*\[\n\r\]+\[^\n\r\]*\[\n\r\]+\[^\n\r\]*\(\[@|#;!\]|//?\)\[ \t\]+end of children of DIE\[^\n\r\]*\[\n\r\]+\[^\n\r\]*end of children of DIE\[^\n\r\]*" } }
+  { dg-final { scan-assembler "\[^\n\r\]*\\(DIE\[^\n\r\]*DW_TAG_structure_type\\)\[\n\r\]+\[^\n\r\]*\"S\\\\0\"\[ \t\]+\(\[@|#;!\]+|//?\)\[ \t\]+DW_AT_name\[\n\r\]+\(.*\)?\\(DIE\[^\n\r\]*DW_TAG_structure_type\\)\[\n\r\]+\[^\n\r\]*\"T<int>\\\\0\"\[ \t\]+\(.*\)?\\(DIE\[^\n\r\]*DW_TAG_template_type_param\\)\[\n\r\]+\[^\n\r\]*\[\n\r\]+\[^\n\r\]*\[\n\r\]+\[^\n\r\]*\(\[@|#;!\]+|//?\)\[ \t\]+end of children of DIE\[^\n\r\]*\[\n\r\]+\[^\n\r\]*end of children of DIE\[^\n\r\]*" } }
 
  */

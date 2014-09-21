@@ -171,13 +171,16 @@ contains
   end function
 
   function l()
-    procedure(iabs),pointer :: l
+    ! we cannot use iabs directly as it is elemental
+    abstract interface
+      pure function interf_iabs(x)
+        integer, intent(in) :: x
+      end function interf_iabs
+    end interface
+    procedure(interf_iabs),pointer :: l
     integer :: i
     l => iabs
     if (l(-11)/=11) call abort()
   end function 
 
 end
-
-! { dg-final { cleanup-modules "mo" } }
-

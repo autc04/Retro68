@@ -112,7 +112,7 @@ contains
     type(t),allocatable :: x[:]
     type(t) :: y
     x = y
-    x[1] = y ! { dg-error "must not be have an allocatable ultimate component" }
+    x[1] = y ! { dg-error "must not have an allocatable ultimate component" }
   end subroutine assign2
 end module mmm3
 
@@ -187,5 +187,3 @@ subroutine assign42()
   integer, allocatable :: z(:)[:]
   z(:)[1] = z
 end subroutine assign42
-
-! { dg-final { cleanup-modules "mod2 m mmm3 mmm4" } }

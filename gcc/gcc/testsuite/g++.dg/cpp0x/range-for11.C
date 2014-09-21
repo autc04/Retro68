@@ -2,8 +2,7 @@
 // Test the loop with a custom iterator
 // with begin/end as member functions
 
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 struct iterator
 {

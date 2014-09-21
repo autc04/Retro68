@@ -1,8 +1,11 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test simple methods of various types, with pointer and
+// value receivers.
 
 package main
 
@@ -91,27 +94,27 @@ func main() {
 	}
 
 	if val(s) != 1 {
-		println("s.val:", val(s))
+		println("val(s):", val(s))
 		panic("fail")
 	}
 	if val(ps) != 2 {
-		println("ps.val:", val(ps))
+		println("val(ps):", val(ps))
 		panic("fail")
 	}
 	if val(i) != 3 {
-		println("i.val:", val(i))
+		println("val(i):", val(i))
 		panic("fail")
 	}
 	if val(pi) != 4 {
-		println("pi.val:", val(pi))
+		println("val(pi):", val(pi))
 		panic("fail")
 	}
 	if val(t) != 7 {
-		println("t.val:", val(t))
+		println("val(t):", val(t))
 		panic("fail")
 	}
 	if val(pt) != 8 {
-		println("pt.val:", val(pt))
+		println("val(pt):", val(pt))
 		panic("fail")
 	}
 
@@ -124,4 +127,181 @@ func main() {
 		println("Val.val(v):", Val.val(v))
 		panic("fail")
 	}
+
+	var zs struct{ S }
+	var zps struct{ *S1 }
+	var zi struct{ I }
+	var zpi struct{ *I1 }
+	var zpt struct{ *T1 }
+	var zt struct{ T }
+	var zv struct{ Val }
+
+	if zs.val() != 1 {
+		println("zs.val:", zs.val())
+		panic("fail")
+	}
+	if zps.val() != 2 {
+		println("zps.val:", zps.val())
+		panic("fail")
+	}
+	if zi.val() != 3 {
+		println("zi.val:", zi.val())
+		panic("fail")
+	}
+	if zpi.val() != 4 {
+		println("zpi.val:", zpi.val())
+		panic("fail")
+	}
+	if zt.val() != 7 {
+		println("zt.val:", zt.val())
+		panic("fail")
+	}
+	if zpt.val() != 8 {
+		println("zpt.val:", zpt.val())
+		panic("fail")
+	}
+
+	if val(zs) != 1 {
+		println("val(zs):", val(zs))
+		panic("fail")
+	}
+	if val(zps) != 2 {
+		println("val(zps):", val(zps))
+		panic("fail")
+	}
+	if val(zi) != 3 {
+		println("val(zi):", val(zi))
+		panic("fail")
+	}
+	if val(zpi) != 4 {
+		println("val(zpi):", val(zpi))
+		panic("fail")
+	}
+	if val(zt) != 7 {
+		println("val(zt):", val(zt))
+		panic("fail")
+	}
+	if val(zpt) != 8 {
+		println("val(zpt):", val(zpt))
+		panic("fail")
+	}
+
+	zv.Val = zi
+	if zv.val() != 3 {
+		println("zv.val():", zv.val())
+		panic("fail")
+	}
+
+	if (&zs).val() != 1 {
+		println("(&zs).val:", (&zs).val())
+		panic("fail")
+	}
+	if (&zps).val() != 2 {
+		println("(&zps).val:", (&zps).val())
+		panic("fail")
+	}
+	if (&zi).val() != 3 {
+		println("(&zi).val:", (&zi).val())
+		panic("fail")
+	}
+	if (&zpi).val() != 4 {
+		println("(&zpi).val:", (&zpi).val())
+		panic("fail")
+	}
+	if (&zt).val() != 7 {
+		println("(&zt).val:", (&zt).val())
+		panic("fail")
+	}
+	if (&zpt).val() != 8 {
+		println("(&zpt).val:", (&zpt).val())
+		panic("fail")
+	}
+
+	if val(&zs) != 1 {
+		println("val(&zs):", val(&zs))
+		panic("fail")
+	}
+	if val(&zps) != 2 {
+		println("val(&zps):", val(&zps))
+		panic("fail")
+	}
+	if val(&zi) != 3 {
+		println("val(&zi):", val(&zi))
+		panic("fail")
+	}
+	if val(&zpi) != 4 {
+		println("val(&zpi):", val(&zpi))
+		panic("fail")
+	}
+	if val(&zt) != 7 {
+		println("val(&zt):", val(&zt))
+		panic("fail")
+	}
+	if val(&zpt) != 8 {
+		println("val(&zpt):", val(&zpt))
+		panic("fail")
+	}
+
+	zv.Val = &zi
+	if zv.val() != 3 {
+		println("zv.val():", zv.val())
+		panic("fail")
+	}
+
+	promotion()
+}
+
+type A struct{ B }
+type B struct {
+	C
+	*D
+}
+type C int
+
+func (C) f()  {} // value receiver, direct field of A
+func (*C) g() {} // pointer receiver
+
+type D int
+
+func (D) h()  {} // value receiver, indirect field of A
+func (*D) i() {} // pointer receiver
+
+func expectPanic() {
+	if r := recover(); r == nil {
+		panic("expected nil dereference")
+	}
+}
+
+func promotion() {
+	var a A
+	// Addressable value receiver.
+	a.f()
+	a.g()
+	func() {
+		defer expectPanic()
+		a.h() // dynamic error: nil dereference in a.B.D->f()
+	}()
+	a.i()
+
+	// Non-addressable value receiver.
+	A(a).f()
+	// A(a).g() // static error: cannot call pointer method on A literal.B.C
+	func() {
+		defer expectPanic()
+		A(a).h() // dynamic error: nil dereference in A().B.D->f()
+	}()
+	A(a).i()
+
+	// Pointer receiver.
+	(&a).f()
+	(&a).g()
+	func() {
+		defer expectPanic()
+		(&a).h() // dynamic error: nil deref: nil dereference in (&a).B.D->f()
+	}()
+	(&a).i()
+
+	c := new(C)
+	c.f() // makes a copy
+	c.g()
 }

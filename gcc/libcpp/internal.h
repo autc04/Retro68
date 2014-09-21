@@ -1,6 +1,5 @@
 /* Part of CPP library.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007,
-   2008, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -60,6 +59,8 @@ struct cset_converter
     || (((prevc) == 'p' || (prevc) == 'P') \
         && CPP_OPTION (pfile, extended_numbers))))
 
+#define DIGIT_SEP(c) ((c) == '\'' && CPP_OPTION (pfile, digit_separators))
+
 #define CPP_OPTION(PFILE, OPTION) ((PFILE)->opts.OPTION)
 #define CPP_BUFFER(PFILE) ((PFILE)->buffer)
 #define CPP_BUF_COLUMN(BUF, CUR) ((CUR) - (BUF)->line_base)
@@ -117,7 +118,7 @@ extern unsigned char *_cpp_unaligned_alloc (cpp_reader *, size_t);
 #define BUFF_LIMIT(BUFF) ((BUFF)->limit)
 
 /* #include types.  */
-enum include_type {IT_INCLUDE, IT_INCLUDE_NEXT, IT_IMPORT, IT_CMDLINE};
+enum include_type {IT_INCLUDE, IT_INCLUDE_NEXT, IT_IMPORT, IT_CMDLINE, IT_DEFAULT};
 
 union utoken
 {
@@ -302,6 +303,8 @@ struct cpp_buffer
 
   const unsigned char *buf;        /* Entire character buffer.  */
   const unsigned char *rlimit;     /* Writable byte at end of file.  */
+  const unsigned char *to_free;	   /* Pointer that should be freed when
+				      popping the buffer.  */
 
   _cpp_line_note *notes;           /* Array of notes.  */
   unsigned int cur_note;           /* Next note to process.  */
@@ -413,9 +416,13 @@ struct cpp_reader
      macro invocation.  */
   source_location invocation_location;
 
-  /* True if this call to cpp_get_token should consider setting
-     invocation_location.  */
-  bool set_invocation_location;
+  /* Nonzero if we are about to expand a macro.  Note that if we are
+     really expanding a macro, the function macro_of_context returns
+     the macro being expanded and this flag is set to false.  Client
+     code should use the function in_macro_expansion_p to know if we
+     are either about to expand a macro, or are actually expanding
+     one.  */
+  bool about_to_expand_macro_p;
 
   /* Search paths for include files.  */
   struct cpp_dir *quote_include;	/* "" */
@@ -615,13 +622,13 @@ extern void _cpp_push_token_context (cpp_reader *, cpp_hashnode *,
 extern void _cpp_backup_tokens_direct (cpp_reader *, unsigned int);
 
 /* In identifiers.c */
-extern void _cpp_init_hashtable (cpp_reader *, hash_table *);
+extern void _cpp_init_hashtable (cpp_reader *, cpp_hash_table *);
 extern void _cpp_destroy_hashtable (cpp_reader *);
 
 /* In files.c */
 typedef struct _cpp_file _cpp_file;
 extern _cpp_file *_cpp_find_file (cpp_reader *, const char *, cpp_dir *,
-				  bool, int);
+				  bool, int, bool);
 extern bool _cpp_find_failed (_cpp_file *);
 extern void _cpp_mark_file_once_only (cpp_reader *, struct _cpp_file *);
 extern void _cpp_fake_include (cpp_reader *, const char *);
@@ -632,7 +639,8 @@ extern int _cpp_compare_file_date (cpp_reader *, const char *, int);
 extern void _cpp_report_missing_guards (cpp_reader *);
 extern void _cpp_init_files (cpp_reader *);
 extern void _cpp_cleanup_files (cpp_reader *);
-extern void _cpp_pop_file_buffer (cpp_reader *, struct _cpp_file *);
+extern void _cpp_pop_file_buffer (cpp_reader *, struct _cpp_file *,
+				  const unsigned char *);
 extern bool _cpp_save_file_entries (cpp_reader *pfile, FILE *f);
 extern bool _cpp_read_file_entries (cpp_reader *, FILE *);
 extern const char *_cpp_get_file_name (_cpp_file *);
@@ -705,9 +713,10 @@ extern size_t _cpp_replacement_text_len (const cpp_macro *);
 
 struct normalize_state 
 {
-  /* The previous character.  */
+  /* The previous starter character.  */
   cppchar_t previous;
-  /* The combining class of the previous character.  */
+  /* The combining class of the previous character (whether or not a
+     starter).  */
   unsigned char prev_class;
   /* The lowest normalization level so far.  */
   enum cpp_normalize_level level;
@@ -715,10 +724,10 @@ struct normalize_state
 #define INITIAL_NORMALIZE_STATE { 0, 0, normalized_KC }
 #define NORMALIZE_STATE_RESULT(st) ((st)->level)
 
-/* We saw a character that matches ISIDNUM(), update a
+/* We saw a character C that matches ISIDNUM(), update a
    normalize_state appropriately.  */
-#define NORMALIZE_STATE_UPDATE_IDNUM(st) \
-  ((st)->previous = 0, (st)->prev_class = 0)
+#define NORMALIZE_STATE_UPDATE_IDNUM(st, c)	\
+  ((st)->previous = (c), (st)->prev_class = 0)
 
 extern cppchar_t _cpp_valid_ucn (cpp_reader *, const unsigned char **,
 				 const unsigned char *, int,

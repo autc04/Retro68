@@ -26,14 +26,15 @@ const (
 // to its wrapped io.Writer.
 type Writer struct {
 	Header
-	w          io.Writer
-	level      int
-	compressor io.WriteCloser
-	digest     hash.Hash32
-	size       uint32
-	closed     bool
-	buf        [10]byte
-	err        error
+	w           io.Writer
+	level       int
+	wroteHeader bool
+	compressor  *flate.Writer
+	digest      hash.Hash32
+	size        uint32
+	closed      bool
+	buf         [10]byte
+	err         error
 }
 
 // NewWriter creates a new Writer that satisfies writes by compressing data
@@ -62,14 +63,39 @@ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 	if level < DefaultCompression || level > BestCompression {
 		return nil, fmt.Errorf("gzip: invalid compression level: %d", level)
 	}
-	return &Writer{
+	z := new(Writer)
+	z.init(w, level)
+	return z, nil
+}
+
+func (z *Writer) init(w io.Writer, level int) {
+	digest := z.digest
+	if digest != nil {
+		digest.Reset()
+	} else {
+		digest = crc32.NewIEEE()
+	}
+	compressor := z.compressor
+	if compressor != nil {
+		compressor.Reset(w)
+	}
+	*z = Writer{
 		Header: Header{
 			OS: 255, // unknown
 		},
-		w:      w,
-		level:  level,
-		digest: crc32.NewIEEE(),
-	}, nil
+		w:          w,
+		level:      level,
+		digest:     digest,
+		compressor: compressor,
+	}
+}
+
+// Reset discards the Writer z's state and makes it equivalent to the
+// result of its original state from NewWriter or NewWriterLevel, but
+// writing to w instead. This permits reusing a Writer rather than
+// allocating a new one.
+func (z *Writer) Reset(w io.Writer) {
+	z.init(w, z.level)
 }
 
 // GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
@@ -138,7 +164,8 @@ func (z *Writer) Write(p []byte) (int, error) {
 	}
 	var n int
 	// Write the GZIP header lazily.
-	if z.compressor == nil {
+	if !z.wroteHeader {
+		z.wroteHeader = true
 		z.buf[0] = gzipID1
 		z.buf[1] = gzipID2
 		z.buf[2] = gzipDeflate
@@ -183,12 +210,39 @@ func (z *Writer) Write(p []byte) (int, error) {
 				return n, z.err
 			}
 		}
-		z.compressor, _ = flate.NewWriter(z.w, z.level)
+		if z.compressor == nil {
+			z.compressor, _ = flate.NewWriter(z.w, z.level)
+		}
 	}
 	z.size += uint32(len(p))
 	z.digest.Write(p)
 	n, z.err = z.compressor.Write(p)
 	return n, z.err
+}
+
+// Flush flushes any pending compressed data to the underlying writer.
+//
+// It is useful mainly in compressed network protocols, to ensure that
+// a remote reader has enough data to reconstruct a packet. Flush does
+// not return until the data has been written. If the underlying
+// writer returns an error, Flush returns that error.
+//
+// In the terminology of the zlib library, Flush is equivalent to Z_SYNC_FLUSH.
+func (z *Writer) Flush() error {
+	if z.err != nil {
+		return z.err
+	}
+	if z.closed {
+		return nil
+	}
+	if !z.wroteHeader {
+		z.Write(nil)
+		if z.err != nil {
+			return z.err
+		}
+	}
+	z.err = z.compressor.Flush()
+	return z.err
 }
 
 // Close closes the Writer. It does not close the underlying io.Writer.
@@ -200,7 +254,7 @@ func (z *Writer) Close() error {
 		return nil
 	}
 	z.closed = true
-	if z.compressor == nil {
+	if !z.wroteHeader {
 		z.Write(nil)
 		if z.err != nil {
 			return z.err

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -46,19 +46,20 @@ package Urealp is
    --  use the UR_Eq function).
 
    --  A Ureal value represents an arbitrary precision universal real value,
-   --  stored internally using four components
+   --  stored internally using four components:
 
    --    the numerator (Uint, always non-negative)
    --    the denominator (Uint, always non-zero, always positive if base = 0)
    --    a real base (Nat, either zero, or in the range 2 .. 16)
    --    a sign flag (Boolean), set if negative
 
-   --  If the base is zero, then the absolute value of the Ureal is simply
-   --  numerator/denominator. If the base is non-zero, then the absolute
-   --  value is num / (rbase ** den).
+   --  Negative numbers are represented by the sign flag being True.
 
-   --  Negative numbers are represented by the sign of the numerator being
-   --  negative. The denominator is always positive.
+   --  If the base is zero, then the absolute value of the Ureal is simply
+   --  numerator/denominator, where denominator is positive. If the base is
+   --  non-zero, then the absolute value is numerator / (base ** denominator).
+   --  In that case, since base is positive, (base ** denominator) is also
+   --  positive, even when denominator is negative or null.
 
    --  A normalized Ureal value has base = 0, and numerator/denominator
    --  reduced to lowest terms, with zero itself being represented as 0/1.
@@ -124,7 +125,7 @@ package Urealp is
    --  Returns value 10.0 ** 36
 
    function Ureal_M_10_36 return Ureal;
-   --  Returns value -(10.0
+   --  Returns value -10.0 ** 36
 
    -----------------
    -- Subprograms --

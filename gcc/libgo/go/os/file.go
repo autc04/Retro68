@@ -9,7 +9,7 @@
 // if a call that takes a file name fails, such as Open or Stat, the error
 // will include the failing file name when printed and will be of type
 // *PathError, which may be unpacked for more information.
-// 
+//
 // The os interface is intended to be uniform across all operating systems.
 // Features not generally available appear in the system-specific package syscall.
 //
@@ -174,6 +174,9 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+	if f == nil {
+		return 0, ErrInvalid
+	}
 	r, e := f.seek(offset, whence)
 	if e == nil && f.dirinfo != nil && r != 0 {
 		e = syscall.EISDIR
@@ -185,7 +188,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 }
 
 // WriteString is like Write, but writes the contents of string s rather than
-// an array of bytes.
+// a slice of bytes.
 func (f *File) WriteString(s string) (ret int, err error) {
 	if f == nil {
 		return 0, ErrInvalid
@@ -216,6 +219,9 @@ func Chdir(dir string) error {
 // which must be a directory.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chdir() error {
+	if f == nil {
+		return ErrInvalid
+	}
 	if e := syscall.Fchdir(f.fd); e != nil {
 		return &PathError{"chdir", f.name, e}
 	}
@@ -238,3 +244,6 @@ func Open(name string) (file *File, err error) {
 func Create(name string) (file *File, err error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
+
+// lstat is overridden in tests.
+var lstat = Lstat

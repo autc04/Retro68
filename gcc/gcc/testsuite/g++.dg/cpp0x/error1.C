@@ -1,8 +1,7 @@
 // PR c++/34395
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
-template<int... N> void foo (int... x[N])	// { dg-error "int \\\[N\\\]\\.\\.\\. x" }
+template<int... N> void foo (int... x[N])	// { dg-message "int \\\[N\\\]\\.\\.\\. x" }
 {
   struct A
   {

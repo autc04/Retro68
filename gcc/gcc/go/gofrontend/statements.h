@@ -17,6 +17,7 @@ class Function;
 class Unnamed_label;
 class Temporary_statement;
 class Variable_declaration_statement;
+class Expression_statement;
 class Return_statement;
 class Thunk_statement;
 class Label_statement;
@@ -207,6 +208,13 @@ class Statement
   static Return_statement*
   make_return_statement(Expression_list*, Location);
 
+  // Make a statement that returns the result of a call expression.
+  // If the call does not return any results, this just returns the
+  // call expression as a statement, assuming that the function will
+  // end immediately afterward.
+  static Statement*
+  make_return_from_call(Call_expression*, Location);
+
   // Make a break statement.
   static Statement*
   make_break_statement(Unnamed_label* label, Location);
@@ -298,6 +306,16 @@ class Statement
 	Statement_inserter* inserter)
   { return this->do_lower(gogo, function, block, inserter); }
 
+  // Flatten a statement.  This is called immediately after the order of
+  // evaluation rules are applied to statements.  It returns the same
+  // Statement or a new one.  FUNCTION is the function containing this
+  // statement.  BLOCK is the block containing this statement.
+  // INSERTER can be used to insert new statements before this one.
+  Statement*
+  flatten(Gogo* gogo, Named_object* function, Block* block,
+          Statement_inserter* inserter)
+  { return this->do_flatten(gogo, function, block, inserter); }
+
   // Set type information for unnamed constants.
   void
   determine_types();
@@ -320,6 +338,14 @@ class Statement
   {
     return this->convert<Variable_declaration_statement,
 			 STATEMENT_VARIABLE_DECLARATION>();
+  }
+
+  // If this is an expression statement, return it.  Otherwise return
+  // NULL.
+  Expression_statement*
+  expression_statement()
+  {
+    return this->convert<Expression_statement, STATEMENT_EXPRESSION>();
   }
 
   // If this is a return statement, return it.  Otherwise return NULL.
@@ -394,6 +420,12 @@ class Statement
   // one.
   virtual Statement*
   do_lower(Gogo*, Named_object*, Block*, Statement_inserter*)
+  { return this; }
+
+  // Implemented by the child class: lower this statement to a simpler
+  // one.
+  virtual Statement*
+  do_flatten(Gogo*, Named_object*, Block*, Statement_inserter*)
   { return this; }
 
   // Implemented by child class: set type information for unnamed
@@ -490,6 +522,11 @@ class Temporary_statement : public Statement
   Type*
   type() const;
 
+  // Return the initializer if there is one.
+  Expression*
+  init() const
+  { return this->init_; }
+
   // Note that it is OK for this statement to set hidden fields.
   void
   set_hidden_fields_are_ok()
@@ -562,6 +599,9 @@ class Variable_declaration_statement : public Statement
   Statement*
   do_lower(Gogo*, Named_object*, Block*, Statement_inserter*);
 
+  Statement*
+  do_flatten(Gogo*, Named_object*, Block*, Statement_inserter*);
+
   Bstatement*
   do_get_backend(Translate_context*);
 
@@ -622,6 +662,43 @@ class Return_statement : public Statement
   bool are_hidden_fields_ok_;
   // True if this statement has been lowered.
   bool is_lowered_;
+};
+
+// An expression statement.
+
+class Expression_statement : public Statement
+{
+ public:
+  Expression_statement(Expression* expr, bool is_ignored);
+
+  Expression*
+  expr()
+  { return this->expr_; }
+
+ protected:
+  int
+  do_traverse(Traverse* traverse)
+  { return this->traverse_expression(traverse, &this->expr_); }
+
+  void
+  do_determine_types();
+
+  void
+  do_check_types(Gogo*);
+
+  bool
+  do_may_fall_through() const;
+
+  Bstatement*
+  do_get_backend(Translate_context* context);
+
+  void
+  do_dump_statement(Ast_dump_context*) const;
+
+ private:
+  Expression* expr_;
+  // Whether the value of this expression is being explicitly ignored.
+  bool is_ignored_;
 };
 
 // A send statement.
@@ -889,8 +966,7 @@ class Select_statement : public Statement
   { this->clauses_->check_types(); }
 
   bool
-  do_may_fall_through() const
-  { return this->clauses_->may_fall_through(); }
+  do_may_fall_through() const;
 
   Bstatement*
   do_get_backend(Translate_context*);
@@ -1080,6 +1156,9 @@ class For_statement : public Statement
 
   Statement*
   do_lower(Gogo*, Named_object*, Block*, Statement_inserter*);
+
+  bool
+  do_may_fall_through() const;
 
   Bstatement*
   do_get_backend(Translate_context*)
@@ -1394,6 +1473,9 @@ class Switch_statement : public Statement
   void
   do_dump_statement(Ast_dump_context*) const;
 
+  bool
+  do_may_fall_through() const;
+
  private:
   // The value to switch on.  This may be NULL.
   Expression* val_;
@@ -1444,6 +1526,11 @@ class Type_case_clauses
   lower(Type*, Block*, Temporary_statement* descriptor_temp,
 	Unnamed_label* break_label) const;
 
+  // Return true if these clauses may fall through to the statements
+  // following the switch statement.
+  bool
+  may_fall_through() const;
+
   // Dump the AST representation to a dump context.
   void
   dump_clauses(Ast_dump_context*) const;
@@ -1487,6 +1574,12 @@ class Type_case_clauses
     void
     lower(Type*, Block*, Temporary_statement* descriptor_temp,
 	  Unnamed_label* break_label, Unnamed_label** stmts_label) const;
+
+    // Return true if this clause may fall through to execute the
+    // statements following the switch statement.  This is not the
+    // same as whether this clause falls through to the next clause.
+    bool
+    may_fall_through() const;
 
     // Dump the AST representation to a dump context.
     void
@@ -1550,6 +1643,9 @@ class Type_switch_statement : public Statement
 
   void
   do_dump_statement(Ast_dump_context*) const;
+
+  bool
+  do_may_fall_through() const;
 
  private:
   // The variable holding the value we are switching on.

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Transactional Memory Library (libitm).
@@ -173,7 +173,7 @@ GTM::gtm_thread::decide_begin_dispatch (uint32_t prop)
 	  && dd->closed_nesting_alternative())
 	dd = dd->closed_nesting_alternative();
 
-      if (dd != dispatch_serial() && dd != dispatch_serialirr())
+      if (!(dd->requires_serial() & STATE_SERIAL))
 	{
 	  // The current dispatch is supposedly a non-serial one.  Become an
 	  // active transaction and verify this.  Relaxed memory order is fine
@@ -193,10 +193,7 @@ GTM::gtm_thread::decide_begin_dispatch (uint32_t prop)
 
   // We are some kind of serial transaction.
   serial_lock.write_lock();
-  if (dd == dispatch_serialirr())
-    state = STATE_SERIAL | STATE_IRREVOCABLE;
-  else
-    state = STATE_SERIAL;
+  state = dd->requires_serial();
   return dd;
 }
 
@@ -257,6 +254,11 @@ parse_default_method()
       disp = GTM::dispatch_ml_wt();
       env += 5;
     }
+  else if (strncmp(env, "htm", 3) == 0)
+    {
+      disp = GTM::dispatch_htm();
+      env += 3;
+    }
   else
     goto unknown;
 
@@ -314,7 +316,15 @@ GTM::gtm_thread::number_of_threads_changed(unsigned previous, unsigned now)
 	set_default_dispatch(default_dispatch_user);
       else
 	{
-	  abi_dispatch* a = dispatch_ml_wt();
+	  // If HTM is available, use it by default with serial mode as
+	  // fallback.  Otherwise, use ml_wt because it probably scales best.
+	  abi_dispatch* a;
+#ifdef USE_HTM_FASTPATH
+	  if (htm_available())
+	    a = dispatch_htm();
+	  else
+#endif
+	    a = dispatch_ml_wt();
 	  if (a->supports(now))
 	    set_default_dispatch(a);
 	  else

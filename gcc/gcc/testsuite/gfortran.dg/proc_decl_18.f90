@@ -23,7 +23,7 @@ implicit none
 
 abstract interface
   function abs_fun(x,sz)
-    integer :: x(:)
+    integer,intent(in) :: x(:)
     interface
       pure integer function sz(b)
         integer,intent(in) :: b(:)
@@ -59,5 +59,3 @@ end
       p(l) = y(l)*2
     end do
   end function
-
-! { dg-final { cleanup-modules "m" } }

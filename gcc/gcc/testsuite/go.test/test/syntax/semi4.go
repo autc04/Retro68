@@ -1,4 +1,4 @@
-// errchk $G -e $D/$F.go
+// errorcheck
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -8,7 +8,7 @@ package main
 
 func main() {
 	for x		// GCCGO_ERROR "undefined"
-	{		// ERROR "unexpected semicolon or newline before .?{.?"
+	{		// ERROR "missing .*{.* after for clause"
 		z	// GCCGO_ERROR "undefined"
 
 

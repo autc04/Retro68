@@ -1,5 +1,4 @@
-# Copyright (C) 1997, 2004, 2005, 2006, 2007, 2008, 2010
-# Free Software Foundation, Inc.
+# Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +18,7 @@
 
 # Load support procs.
 load_lib gcc-dg.exp
+load_lib clearcap.exp
 
 # Set up flags used for tests that don't specify options.
 global DEFAULT_VECTCFLAGS
@@ -40,10 +40,11 @@ if ![check_vect_support_and_set_flags] {
 }
 
 # These flags are used for all targets.
-lappend DEFAULT_VECTCFLAGS "-ftree-vectorize" "-fno-vect-cost-model"
+lappend DEFAULT_VECTCFLAGS "-ftree-vectorize" "-fno-vect-cost-model" "-fno-common"
 
 # Initialize `dg'.
 dg-init
+clearcap-init
 
 global VEC_FLAGS
 set VEC_FLAGS $DEFAULT_VECTCFLAGS
@@ -77,7 +78,7 @@ lappend VECT_SLP_CFLAGS "-fdump-tree-slp-details"
 # Main loop.
 set VECT_ADDITIONAL_FLAGS [list ""]
 if { [check_effective_target_lto] } {
-    lappend VECT_ADDITIONAL_FLAGS "-flto"
+    lappend VECT_ADDITIONAL_FLAGS "-flto -ffat-lto-objects"
 }
 foreach flags $VECT_ADDITIONAL_FLAGS {
     dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/pr*.\[cS\]]]  \
@@ -157,7 +158,8 @@ dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/section-anchors-*.\[cS\]]]  
 
 # alignment-sensitive -fsection-anchors tests
 set DEFAULT_VECTCFLAGS $SAVED_DEFAULT_VECTCFLAGS
-lappend DEFAULT_VECTCFLAGS "-fsection-anchors" "-fdump-ipa-increase_alignment"
+lappend DEFAULT_VECTCFLAGS "-fsection-anchors" \
+	"-fdump-ipa-increase_alignment-details"
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/aligned-section-anchors-*.\[cS\]]]  \
 	"" $DEFAULT_VECTCFLAGS
 
@@ -286,4 +288,5 @@ dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/no-tree-sra-bb-slp-*.\[cS\]]
 set dg-do-what-default ${save-dg-do-what-default}
 
 # All done.
+clearcap-finish
 dg-finish

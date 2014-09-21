@@ -1,7 +1,5 @@
 /* Instruction scheduling pass.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com) Enhanced by,
    and currently maintained by, Jim Wilson (wilson@cygnus.com)
 
@@ -60,12 +58,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "insn-attr.h"
 #include "except.h"
 #include "recog.h"
-#include "cfglayout.h"
 #include "params.h"
 #include "sched-int.h"
 #include "sel-sched.h"
 #include "target.h"
-#include "timevar.h"
 #include "tree-pass.h"
 #include "dbgcnt.h"
 
@@ -82,6 +78,9 @@ static int is_cfg_nonregular (void);
 
 /* Number of regions in the procedure.  */
 int nr_regions = 0;
+
+/* Same as above before adding any new regions.  */
+static int nr_regions_initial = 0;
 
 /* Table of region descriptions.  */
 region *rgn_table = NULL;
@@ -125,6 +124,13 @@ int current_blocks;
    target are in array bblst_table.  */
 static basic_block *bblst_table;
 static int bblst_size, bblst_last;
+
+/* Arrays that hold the DFA state at the end of a basic block, to re-use
+   as the initial state at the start of successor blocks.  The BB_STATE
+   array holds the actual DFA state, and BB_STATE_ARRAY[I] is a pointer
+   into BB_STATE for basic block I.  FIXME: This should be a vec.  */
+static char *bb_state_array = NULL;
+static state_t *bb_state = NULL;
 
 /* Target info declarations.
 
@@ -187,7 +193,7 @@ static sbitmap *dom;
 
 /* Is bb_src dominated by bb_trg.  */
 #define IS_DOMINATED(bb_src, bb_trg)                                 \
-( TEST_BIT (dom[bb_src], bb_trg) )
+( bitmap_bit_p (dom[bb_src], bb_trg) )
 
 /* Probability: Prob[i] is an int in [0, REG_BR_PROB_BASE] which is
    the probability of bb i relative to the region entry.  */
@@ -269,7 +275,7 @@ is_cfg_nonregular (void)
 
   /* If we have insns which refer to labels as non-jumped-to operands,
      then we consider the cfg not well structured.  */
-  FOR_EACH_BB (b)
+  FOR_EACH_BB_FN (b, cfun)
     FOR_BB_INSNS (b, insn)
       {
 	rtx note, next, set, dest;
@@ -314,7 +320,7 @@ is_cfg_nonregular (void)
      Unreachable loops with a single block are detected here.  This
      test is redundant with the one in find_rgns, but it's much
      cheaper to go ahead and catch the trivial case here.  */
-  FOR_EACH_BB (b)
+  FOR_EACH_BB_FN (b, cfun)
     {
       if (EDGE_COUNT (b->preds) == 0
 	  || (single_pred_p (b)
@@ -341,7 +347,7 @@ extract_edgelst (sbitmap set, edgelst *el)
   el->nr_members = 0;
 
   /* Iterate over each word in the bitset.  */
-  EXECUTE_IF_SET_IN_SBITMAP (set, 0, i, sbi)
+  EXECUTE_IF_SET_IN_BITMAP (set, 0, i, sbi)
     {
       edgelst_table[edgelst_last++] = rgn_edges[i];
       el->nr_members++;
@@ -398,7 +404,9 @@ debug_region (int rgn)
 
   for (bb = 0; bb < rgn_table[rgn].rgn_nr_blocks; bb++)
     {
-      debug_bb_n_slim (rgn_bb_table[current_blocks + bb]);
+      dump_bb (stderr,
+	       BASIC_BLOCK_FOR_FN (cfun, rgn_bb_table[current_blocks + bb]),
+	       0, TDF_SLIM | TDF_BLOCKS);
       fprintf (stderr, "\n");
     }
 
@@ -436,7 +444,7 @@ dump_region_dot (FILE *f, int rgn)
       edge e;
       edge_iterator ei;
       int src_bb_num = rgn_bb_table[current_blocks + i];
-      struct basic_block_def *bb = BASIC_BLOCK (src_bb_num);
+      basic_block bb = BASIC_BLOCK_FOR_FN (cfun, src_bb_num);
 
       FOR_EACH_EDGE (e, ei, bb->succs)
         if (bb_in_region_p (e->dest->index, rgn))
@@ -474,7 +482,7 @@ find_single_block_region (bool ebbs_p)
       probability_cutoff = PARAM_VALUE (TRACER_MIN_BRANCH_PROBABILITY);
     probability_cutoff = REG_BR_PROB_BASE / 100 * probability_cutoff;
 
-    FOR_EACH_BB (ebb_start)
+    FOR_EACH_BB_FN (ebb_start, cfun)
       {
         RGN_NR_BLOCKS (nr_regions) = 0;
         RGN_BLOCKS (nr_regions) = i;
@@ -491,7 +499,7 @@ find_single_block_region (bool ebbs_p)
             BLOCK_TO_BB (bb->index) = i - RGN_BLOCKS (nr_regions);
             i++;
 
-            if (bb->next_bb == EXIT_BLOCK_PTR
+	    if (bb->next_bb == EXIT_BLOCK_PTR_FOR_FN (cfun)
                 || LABEL_P (BB_HEAD (bb->next_bb)))
               break;
 
@@ -507,7 +515,7 @@ find_single_block_region (bool ebbs_p)
       }
   }
   else
-    FOR_EACH_BB (bb)
+    FOR_EACH_BB_FN (bb, cfun)
       {
         rgn_bb_table[nr_regions] = bb->index;
         RGN_NR_BLOCKS (nr_regions) = 1;
@@ -550,7 +558,7 @@ too_large (int block, int *num_bbs, int *num_insns)
 {
   (*num_bbs)++;
   (*num_insns) += (common_sched_info->estimate_number_of_insns
-                   (BASIC_BLOCK (block)));
+                   (BASIC_BLOCK_FOR_FN (cfun, block)));
 
   return ((*num_bbs > PARAM_VALUE (PARAM_MAX_SCHED_REGION_BLOCKS))
 	  || (*num_insns > PARAM_VALUE (PARAM_MAX_SCHED_REGION_INSNS)));
@@ -564,10 +572,10 @@ too_large (int block, int *num_bbs, int *num_insns)
   if (max_hdr[blk] == -1)			\
     max_hdr[blk] = hdr;				\
   else if (dfs_nr[max_hdr[blk]] > dfs_nr[hdr])	\
-    RESET_BIT (inner, hdr);			\
+    bitmap_clear_bit (inner, hdr);			\
   else if (dfs_nr[max_hdr[blk]] < dfs_nr[hdr])	\
     {						\
-      RESET_BIT (inner,max_hdr[blk]);		\
+      bitmap_clear_bit (inner,max_hdr[blk]);		\
       max_hdr[blk] = hdr;			\
     }						\
 }
@@ -637,23 +645,23 @@ haifa_find_rgns (void)
      STACK, SP and DFS_NR are only used during the first traversal.  */
 
   /* Allocate and initialize variables for the first traversal.  */
-  max_hdr = XNEWVEC (int, last_basic_block);
-  dfs_nr = XCNEWVEC (int, last_basic_block);
-  stack = XNEWVEC (edge_iterator, n_edges);
+  max_hdr = XNEWVEC (int, last_basic_block_for_fn (cfun));
+  dfs_nr = XCNEWVEC (int, last_basic_block_for_fn (cfun));
+  stack = XNEWVEC (edge_iterator, n_edges_for_fn (cfun));
 
-  inner = sbitmap_alloc (last_basic_block);
-  sbitmap_ones (inner);
+  inner = sbitmap_alloc (last_basic_block_for_fn (cfun));
+  bitmap_ones (inner);
 
-  header = sbitmap_alloc (last_basic_block);
-  sbitmap_zero (header);
+  header = sbitmap_alloc (last_basic_block_for_fn (cfun));
+  bitmap_clear (header);
 
-  in_queue = sbitmap_alloc (last_basic_block);
-  sbitmap_zero (in_queue);
+  in_queue = sbitmap_alloc (last_basic_block_for_fn (cfun));
+  bitmap_clear (in_queue);
 
-  in_stack = sbitmap_alloc (last_basic_block);
-  sbitmap_zero (in_stack);
+  in_stack = sbitmap_alloc (last_basic_block_for_fn (cfun));
+  bitmap_clear (in_stack);
 
-  for (i = 0; i < last_basic_block; i++)
+  for (i = 0; i < last_basic_block_for_fn (cfun); i++)
     max_hdr[i] = -1;
 
   #define EDGE_PASSED(E) (ei_end_p ((E)) || ei_edge ((E))->aux)
@@ -661,7 +669,7 @@ haifa_find_rgns (void)
 
   /* DFS traversal to find inner loops in the cfg.  */
 
-  current_edge = ei_start (single_succ (ENTRY_BLOCK_PTR)->succs);
+  current_edge = ei_start (single_succ (ENTRY_BLOCK_PTR_FOR_FN (cfun))->succs);
   sp = -1;
 
   while (1)
@@ -679,8 +687,8 @@ haifa_find_rgns (void)
 	      gcc_assert (node != ENTRY_BLOCK);
 	      child = ei_edge (current_edge)->dest->index;
 	      gcc_assert (child != EXIT_BLOCK);
-	      RESET_BIT (in_stack, child);
-	      if (max_hdr[child] >= 0 && TEST_BIT (in_stack, max_hdr[child]))
+	      bitmap_clear_bit (in_stack, child);
+	      if (max_hdr[child] >= 0 && bitmap_bit_p (in_stack, max_hdr[child]))
 		UPDATE_LOOP_RELATIONS (node, max_hdr[child]);
 	      ei_next (&current_edge);
 	    }
@@ -696,7 +704,7 @@ haifa_find_rgns (void)
       /* Process a node.  */
       node = ei_edge (current_edge)->src->index;
       gcc_assert (node != ENTRY_BLOCK);
-      SET_BIT (in_stack, node);
+      bitmap_set_bit (in_stack, node);
       dfs_nr[node] = ++count;
 
       /* We don't traverse to the exit block.  */
@@ -711,10 +719,10 @@ haifa_find_rgns (void)
       /* If the successor is in the stack, then we've found a loop.
 	 Mark the loop, if it is not a natural loop, then it will
 	 be rejected during the second traversal.  */
-      if (TEST_BIT (in_stack, child))
+      if (bitmap_bit_p (in_stack, child))
 	{
 	  no_loops = 0;
-	  SET_BIT (header, child);
+	  bitmap_set_bit (header, child);
 	  UPDATE_LOOP_RELATIONS (node, child);
 	  SET_EDGE_PASSED (current_edge);
 	  ei_next (&current_edge);
@@ -726,7 +734,7 @@ haifa_find_rgns (void)
 	 with a new edge.  */
       if (dfs_nr[child])
 	{
-	  if (max_hdr[child] >= 0 && TEST_BIT (in_stack, max_hdr[child]))
+	  if (max_hdr[child] >= 0 && bitmap_bit_p (in_stack, max_hdr[child]))
 	    UPDATE_LOOP_RELATIONS (node, max_hdr[child]);
 	  SET_EDGE_PASSED (current_edge);
 	  ei_next (&current_edge);
@@ -740,7 +748,7 @@ haifa_find_rgns (void)
     }
 
   /* Reset ->aux field used by EDGE_PASSED.  */
-  FOR_ALL_BB (bb)
+  FOR_ALL_BB_FN (bb, cfun)
     {
       edge_iterator ei;
       edge e;
@@ -757,7 +765,7 @@ haifa_find_rgns (void)
      the entry node by placing a nonzero value in dfs_nr.  Thus if
      dfs_nr is zero for any block, then it must be unreachable.  */
   unreachable = 0;
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     if (dfs_nr[bb->index] == 0)
       {
 	unreachable = 1;
@@ -768,7 +776,7 @@ haifa_find_rgns (void)
      to hold degree counts.  */
   degree = dfs_nr;
 
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     degree[bb->index] = EDGE_COUNT (bb->preds);
 
   /* Do not perform region scheduling if there are any unreachable
@@ -784,26 +792,27 @@ haifa_find_rgns (void)
       bool extend_regions_p;
 
       if (no_loops)
-	SET_BIT (header, 0);
+	bitmap_set_bit (header, 0);
 
       /* Second traversal:find reducible inner loops and topologically sort
 	 block of each region.  */
 
-      queue = XNEWVEC (int, n_basic_blocks);
+      queue = XNEWVEC (int, n_basic_blocks_for_fn (cfun));
 
       extend_regions_p = PARAM_VALUE (PARAM_MAX_SCHED_EXTEND_REGIONS_ITERS) > 0;
       if (extend_regions_p)
         {
-          degree1 = XNEWVEC (int, last_basic_block);
-          extended_rgn_header = sbitmap_alloc (last_basic_block);
-          sbitmap_zero (extended_rgn_header);
+          degree1 = XNEWVEC (int, last_basic_block_for_fn (cfun));
+          extended_rgn_header =
+	    sbitmap_alloc (last_basic_block_for_fn (cfun));
+          bitmap_clear (extended_rgn_header);
 	}
 
       /* Find blocks which are inner loop headers.  We still have non-reducible
 	 loops to consider at this point.  */
-      FOR_EACH_BB (bb)
+      FOR_EACH_BB_FN (bb, cfun)
 	{
-	  if (TEST_BIT (header, bb->index) && TEST_BIT (inner, bb->index))
+	  if (bitmap_bit_p (header, bb->index) && bitmap_bit_p (inner, bb->index))
 	    {
 	      edge e;
 	      edge_iterator ei;
@@ -820,7 +829,7 @@ haifa_find_rgns (void)
 		 If there exists a block that is not dominated by the loop
 		 header, then the block is reachable from outside the loop
 		 and thus the loop is not a natural loop.  */
-	      FOR_EACH_BB (jbb)
+	      FOR_EACH_BB_FN (jbb, cfun)
 		{
 		  /* First identify blocks in the loop, except for the loop
 		     entry block.  */
@@ -836,7 +845,7 @@ haifa_find_rgns (void)
 	      /* If we exited the loop early, then I is the header of
 		 a non-reducible loop and we should quit processing it
 		 now.  */
-	      if (jbb != EXIT_BLOCK_PTR)
+	      if (jbb != EXIT_BLOCK_PTR_FOR_FN (cfun))
 		continue;
 
 	      /* I is a header of an inner loop, or block 0 in a subroutine
@@ -849,12 +858,13 @@ haifa_find_rgns (void)
                 /* We save degree in case when we meet a too_large region
 		   and cancel it.  We need a correct degree later when
                    calling extend_rgns.  */
-                memcpy (degree1, degree, last_basic_block * sizeof (int));
+                memcpy (degree1, degree,
+			last_basic_block_for_fn (cfun) * sizeof (int));
 
 	      /* Decrease degree of all I's successors for topological
 		 ordering.  */
 	      FOR_EACH_EDGE (e, ei, bb->succs)
-		if (e->dest != EXIT_BLOCK_PTR)
+		if (e->dest != EXIT_BLOCK_PTR_FOR_FN (cfun))
 		  --degree[e->dest->index];
 
 	      /* Estimate # insns, and count # blocks in the region.  */
@@ -867,14 +877,14 @@ haifa_find_rgns (void)
 		 Place those blocks into the queue.  */
 	      if (no_loops)
 		{
-		  FOR_EACH_BB (jbb)
+		  FOR_EACH_BB_FN (jbb, cfun)
 		    /* Leaf nodes have only a single successor which must
 		       be EXIT_BLOCK.  */
 		    if (single_succ_p (jbb)
-			&& single_succ (jbb) == EXIT_BLOCK_PTR)
+			&& single_succ (jbb) == EXIT_BLOCK_PTR_FOR_FN (cfun))
 		      {
 			queue[++tail] = jbb->index;
-			SET_BIT (in_queue, jbb->index);
+			bitmap_set_bit (in_queue, jbb->index);
 
 			if (too_large (jbb->index, &num_bbs, &num_insns))
 			  {
@@ -889,7 +899,7 @@ haifa_find_rgns (void)
 
 		  FOR_EACH_EDGE (e, ei, bb->preds)
 		    {
-		      if (e->src == ENTRY_BLOCK_PTR)
+		      if (e->src == ENTRY_BLOCK_PTR_FOR_FN (cfun))
 			continue;
 
 		      node = e->src->index;
@@ -898,7 +908,7 @@ haifa_find_rgns (void)
 			{
 			  /* This is a loop latch.  */
 			  queue[++tail] = node;
-			  SET_BIT (in_queue, node);
+			  bitmap_set_bit (in_queue, node);
 
 			  if (too_large (node, &num_bbs, &num_insns))
 			    {
@@ -944,22 +954,23 @@ haifa_find_rgns (void)
 		  edge e;
 		  child = queue[++head];
 
-		  FOR_EACH_EDGE (e, ei, BASIC_BLOCK (child)->preds)
+		  FOR_EACH_EDGE (e, ei,
+				 BASIC_BLOCK_FOR_FN (cfun, child)->preds)
 		    {
 		      node = e->src->index;
 
 		      /* See discussion above about nodes not marked as in
 			 this loop during the initial DFS traversal.  */
-		      if (e->src == ENTRY_BLOCK_PTR
+		      if (e->src == ENTRY_BLOCK_PTR_FOR_FN (cfun)
 			  || max_hdr[node] != loop_head)
 			{
 			  tail = -1;
 			  break;
 			}
-		      else if (!TEST_BIT (in_queue, node) && node != bb->index)
+		      else if (!bitmap_bit_p (in_queue, node) && node != bb->index)
 			{
 			  queue[++tail] = node;
-			  SET_BIT (in_queue, node);
+			  bitmap_set_bit (in_queue, node);
 
 			  if (too_large (node, &num_bbs, &num_insns))
 			    {
@@ -1001,8 +1012,10 @@ haifa_find_rgns (void)
 			  CONTAINING_RGN (child) = nr_regions;
 			  queue[head] = queue[tail--];
 
-			  FOR_EACH_EDGE (e, ei, BASIC_BLOCK (child)->succs)
-			    if (e->dest != EXIT_BLOCK_PTR)
+			  FOR_EACH_EDGE (e, ei,
+					 BASIC_BLOCK_FOR_FN (cfun,
+							     child)->succs)
+			    if (e->dest != EXIT_BLOCK_PTR_FOR_FN (cfun))
 			      --degree[e->dest->index];
 			}
 		      else
@@ -1022,8 +1035,8 @@ haifa_find_rgns (void)
 		     This may provide several smaller regions instead
 		     of one too_large region.  */
                   FOR_EACH_EDGE (e, ei, bb->succs)
-                    if (e->dest != EXIT_BLOCK_PTR)
-                      SET_BIT (extended_rgn_header, e->dest->index);
+		    if (e->dest != EXIT_BLOCK_PTR_FOR_FN (cfun))
+                      bitmap_set_bit (extended_rgn_header, e->dest->index);
                 }
 	    }
 	}
@@ -1033,7 +1046,7 @@ haifa_find_rgns (void)
         {
           free (degree1);
 
-          sbitmap_a_or_b (header, header, extended_rgn_header);
+          bitmap_ior (header, header, extended_rgn_header);
           sbitmap_free (extended_rgn_header);
 
           extend_rgns (degree, &idx, header, max_hdr);
@@ -1042,7 +1055,7 @@ haifa_find_rgns (void)
 
   /* Any block that did not end up in a region is placed into a region
      by itself.  */
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     if (degree[bb->index] >= 0)
       {
 	rgn_bb_table[idx] = bb->index;
@@ -1149,13 +1162,13 @@ void
 extend_rgns (int *degree, int *idxp, sbitmap header, int *loop_hdr)
 {
   int *order, i, rescan = 0, idx = *idxp, iter = 0, max_iter, *max_hdr;
-  int nblocks = n_basic_blocks - NUM_FIXED_BLOCKS;
+  int nblocks = n_basic_blocks_for_fn (cfun) - NUM_FIXED_BLOCKS;
 
   max_iter = PARAM_VALUE (PARAM_MAX_SCHED_EXTEND_REGIONS_ITERS);
 
-  max_hdr = XNEWVEC (int, last_basic_block);
+  max_hdr = XNEWVEC (int, last_basic_block_for_fn (cfun));
 
-  order = XNEWVEC (int, last_basic_block);
+  order = XNEWVEC (int, last_basic_block_for_fn (cfun));
   post_order_compute (order, false, false);
 
   for (i = nblocks - 1; i >= 0; i--)
@@ -1192,11 +1205,11 @@ extend_rgns (int *degree, int *idxp, sbitmap header, int *loop_hdr)
 	  edge_iterator ei;
 	  int bbn = order[i];
 
-	  if (max_hdr[bbn] != -1 && !TEST_BIT (header, bbn))
+	  if (max_hdr[bbn] != -1 && !bitmap_bit_p (header, bbn))
 	    {
 	      int hdr = -1;
 
-	      FOR_EACH_EDGE (e, ei, BASIC_BLOCK (bbn)->preds)
+	      FOR_EACH_EDGE (e, ei, BASIC_BLOCK_FOR_FN (cfun, bbn)->preds)
 		{
 		  int predn = e->src->index;
 
@@ -1231,7 +1244,7 @@ extend_rgns (int *degree, int *idxp, sbitmap header, int *loop_hdr)
 		{
 		  /* If BB start its own region,
 		     update set of headers with BB.  */
-		  SET_BIT (header, bbn);
+		  bitmap_set_bit (header, bbn);
 		  rescan = 1;
 		}
 	      else
@@ -1300,8 +1313,8 @@ extend_rgns (int *degree, int *idxp, sbitmap header, int *loop_hdr)
 	      CONTAINING_RGN (bbn) = nr_regions;
 	      BLOCK_TO_BB (bbn) = 0;
 
-	      FOR_EACH_EDGE (e, ei, BASIC_BLOCK (bbn)->succs)
-		if (e->dest != EXIT_BLOCK_PTR)
+	      FOR_EACH_EDGE (e, ei, BASIC_BLOCK_FOR_FN (cfun, bbn)->succs)
+		if (e->dest != EXIT_BLOCK_PTR_FOR_FN (cfun))
 		  degree[e->dest->index]--;
 
 	      if (!large)
@@ -1357,8 +1370,9 @@ extend_rgns (int *degree, int *idxp, sbitmap header, int *loop_hdr)
 
 		      idx++;
 
-		      FOR_EACH_EDGE (e, ei, BASIC_BLOCK (succn)->succs)
-			if (e->dest != EXIT_BLOCK_PTR)
+		      FOR_EACH_EDGE (e, ei,
+				     BASIC_BLOCK_FOR_FN (cfun, succn)->succs)
+			if (e->dest != EXIT_BLOCK_PTR_FOR_FN (cfun))
 			  degree[e->dest->index]--;
 		    }
 		}
@@ -1406,7 +1420,7 @@ compute_dom_prob_ps (int bb)
 
   if (IS_RGN_ENTRY (bb))
     {
-      SET_BIT (dom[bb], 0);
+      bitmap_set_bit (dom[bb], 0);
       prob[bb] = REG_BR_PROB_BASE;
       return;
     }
@@ -1414,34 +1428,41 @@ compute_dom_prob_ps (int bb)
   prob[bb] = 0;
 
   /* Initialize dom[bb] to '111..1'.  */
-  sbitmap_ones (dom[bb]);
+  bitmap_ones (dom[bb]);
 
-  FOR_EACH_EDGE (in_edge, in_ei, BASIC_BLOCK (BB_TO_BLOCK (bb))->preds)
+  FOR_EACH_EDGE (in_edge, in_ei,
+		 BASIC_BLOCK_FOR_FN (cfun, BB_TO_BLOCK (bb))->preds)
     {
       int pred_bb;
       edge out_edge;
       edge_iterator out_ei;
 
-      if (in_edge->src == ENTRY_BLOCK_PTR)
+      if (in_edge->src == ENTRY_BLOCK_PTR_FOR_FN (cfun))
 	continue;
 
       pred_bb = BLOCK_TO_BB (in_edge->src->index);
-      sbitmap_a_and_b (dom[bb], dom[bb], dom[pred_bb]);
-      sbitmap_a_or_b (ancestor_edges[bb],
+      bitmap_and (dom[bb], dom[bb], dom[pred_bb]);
+      bitmap_ior (ancestor_edges[bb],
 		      ancestor_edges[bb], ancestor_edges[pred_bb]);
 
-      SET_BIT (ancestor_edges[bb], EDGE_TO_BIT (in_edge));
+      bitmap_set_bit (ancestor_edges[bb], EDGE_TO_BIT (in_edge));
 
-      sbitmap_a_or_b (pot_split[bb], pot_split[bb], pot_split[pred_bb]);
+      bitmap_ior (pot_split[bb], pot_split[bb], pot_split[pred_bb]);
 
       FOR_EACH_EDGE (out_edge, out_ei, in_edge->src->succs)
-	SET_BIT (pot_split[bb], EDGE_TO_BIT (out_edge));
+	bitmap_set_bit (pot_split[bb], EDGE_TO_BIT (out_edge));
 
-      prob[bb] += ((prob[pred_bb] * in_edge->probability) / REG_BR_PROB_BASE);
+      prob[bb] += combine_probabilities (prob[pred_bb], in_edge->probability);
+      // The rounding divide in combine_probabilities can result in an extra
+      // probability increment propagating along 50-50 edges. Eventually when
+      // the edges re-merge, the accumulated probability can go slightly above
+      // REG_BR_PROB_BASE.
+      if (prob[bb] > REG_BR_PROB_BASE)
+        prob[bb] = REG_BR_PROB_BASE;
     }
 
-  SET_BIT (dom[bb], bb);
-  sbitmap_difference (pot_split[bb], pot_split[bb], ancestor_edges[bb]);
+  bitmap_set_bit (dom[bb], bb);
+  bitmap_and_compl (pot_split[bb], pot_split[bb], ancestor_edges[bb]);
 
   if (sched_verbose >= 2)
     fprintf (sched_dump, ";;  bb_prob(%d, %d) = %3d\n", bb, BB_TO_BLOCK (bb),
@@ -1456,10 +1477,10 @@ compute_dom_prob_ps (int bb)
 static void
 split_edges (int bb_src, int bb_trg, edgelst *bl)
 {
-  sbitmap src = sbitmap_alloc (pot_split[bb_src]->n_bits);
-  sbitmap_copy (src, pot_split[bb_src]);
+  sbitmap src = sbitmap_alloc (SBITMAP_SIZE (pot_split[bb_src]));
+  bitmap_copy (src, pot_split[bb_src]);
 
-  sbitmap_difference (src, src, pot_split[bb_trg]);
+  bitmap_and_compl (src, src, pot_split[bb_trg]);
   extract_edgelst (src, bl);
   sbitmap_free (src);
 }
@@ -1498,7 +1519,7 @@ compute_trg_info (int trg)
   sp->is_speculative = 0;
   sp->src_prob = REG_BR_PROB_BASE;
 
-  visited = sbitmap_alloc (last_basic_block);
+  visited = sbitmap_alloc (last_basic_block_for_fn (cfun));
 
   for (i = trg + 1; i < current_nr_blocks; i++)
     {
@@ -1510,7 +1531,7 @@ compute_trg_info (int trg)
 	  int tf = prob[trg], cf = prob[i];
 
 	  /* In CFGs with low probability edges TF can possibly be zero.  */
-	  sp->src_prob = (tf ? ((cf * REG_BR_PROB_BASE) / tf) : 0);
+	  sp->src_prob = (tf ? GCOV_COMPUTE_SCALE (cf, tf) : 0);
 	  sp->is_valid = (sp->src_prob >= min_spec_prob);
 	}
 
@@ -1540,13 +1561,13 @@ compute_trg_info (int trg)
 	     overrunning the end of the bblst_table.  */
 
 	  update_idx = 0;
-	  sbitmap_zero (visited);
+	  bitmap_clear (visited);
 	  for (j = 0; j < el.nr_members; j++)
 	    {
 	      block = el.first_member[j]->src;
 	      FOR_EACH_EDGE (e, ei, block->succs)
 		{
-		  if (!TEST_BIT (visited, e->dest->index))
+		  if (!bitmap_bit_p (visited, e->dest->index))
 		    {
 		      for (k = 0; k < el.nr_members; k++)
 			if (e == el.first_member[k])
@@ -1555,7 +1576,7 @@ compute_trg_info (int trg)
 		      if (k >= el.nr_members)
 			{
 			  bblst_table[bblst_last++] = e->dest;
-			  SET_BIT (visited, e->dest->index);
+			  bitmap_set_bit (visited, e->dest->index);
 			  update_idx++;
 			}
 		    }
@@ -1827,8 +1848,9 @@ update_live (rtx insn, int src)
 #define IS_REACHABLE(bb_from, bb_to)					\
   (bb_from == bb_to							\
    || IS_RGN_ENTRY (bb_from)						\
-   || (TEST_BIT (ancestor_edges[bb_to],					\
-	 EDGE_TO_BIT (single_pred_edge (BASIC_BLOCK (BB_TO_BLOCK (bb_from)))))))
+   || (bitmap_bit_p (ancestor_edges[bb_to],					\
+	 EDGE_TO_BIT (single_pred_edge (BASIC_BLOCK_FOR_FN (cfun, \
+							    BB_TO_BLOCK (bb_from)))))))
 
 /* Turns on the fed_by_spec_load flag for insns fed by load_insn.  */
 
@@ -2104,6 +2126,8 @@ init_ready_list (void)
      Count number of insns in the target block being scheduled.  */
   for (insn = NEXT_INSN (prev_head); insn != next_tail; insn = NEXT_INSN (insn))
     {
+      gcc_assert (TODO_SPEC (insn) == HARD_DEP || TODO_SPEC (insn) == DEP_POSTPONED);
+      TODO_SPEC (insn) = HARD_DEP;
       try_ready (insn);
       target_n_insns++;
 
@@ -2127,7 +2151,11 @@ init_ready_list (void)
 
 	for (insn = src_head; insn != src_next_tail; insn = NEXT_INSN (insn))
 	  if (INSN_P (insn))
-	    try_ready (insn);
+	    {
+	      gcc_assert (TODO_SPEC (insn) == HARD_DEP || TODO_SPEC (insn) == DEP_POSTPONED);
+	      TODO_SPEC (insn) = HARD_DEP;
+	      try_ready (insn);
+	    }
       }
 }
 
@@ -2219,11 +2247,11 @@ new_ready (rtx next, ds_t ts)
 		ts = new_ds;
 	      else
 		/* NEXT isn't ready yet.  */
-		ts = (ts & ~SPECULATIVE) | HARD_DEP;
+		ts = DEP_POSTPONED;
 	    }
 	  else
 	    /* NEXT isn't ready yet.  */
-            ts = (ts & ~SPECULATIVE) | HARD_DEP;
+            ts = DEP_POSTPONED;
 	}
     }
 
@@ -2427,6 +2455,8 @@ add_branch_dependences (rtx head, rtx tail)
      cc0 setters remain at the end because they can't be moved away from
      their cc0 user.
 
+     Predecessors of SCHED_GROUP_P instructions at the end remain at the end.
+
      COND_EXEC insns cannot be moved past a branch (see e.g. PR17808).
 
      Insns setting TARGET_CLASS_LIKELY_SPILLED_P registers (usually return
@@ -2439,7 +2469,7 @@ add_branch_dependences (rtx head, rtx tail)
   insn = tail;
   last = 0;
   while (CALL_P (insn)
-	 || JUMP_P (insn)
+	 || JUMP_P (insn) || JUMP_TABLE_DATA_P (insn)
 	 || (NONJUMP_INSN_P (insn)
 	     && (GET_CODE (PATTERN (insn)) == USE
 		 || GET_CODE (PATTERN (insn)) == CLOBBER
@@ -2449,7 +2479,8 @@ add_branch_dependences (rtx head, rtx tail)
 #endif
 		 || (!reload_completed
 		     && sets_likely_spilled (PATTERN (insn)))))
-	 || NOTE_P (insn))
+	 || NOTE_P (insn)
+	 || (last != 0 && SCHED_GROUP_P (last)))
     {
       if (!NOTE_P (insn))
 	{
@@ -2458,7 +2489,7 @@ add_branch_dependences (rtx head, rtx tail)
 	    {
 	      if (! sched_insns_conditions_mutex_p (last, insn))
 		add_dependence (last, insn, REG_DEP_ANTI);
-	      SET_BIT (insn_referenced, INSN_LUID (insn));
+	      bitmap_set_bit (insn_referenced, INSN_LUID (insn));
 	    }
 
 	  CANT_MOVE (insn) = 1;
@@ -2482,7 +2513,7 @@ add_branch_dependences (rtx head, rtx tail)
       {
 	insn = prev_nonnote_insn (insn);
 
-	if (TEST_BIT (insn_referenced, INSN_LUID (insn))
+	if (bitmap_bit_p (insn_referenced, INSN_LUID (insn))
 	    || DEBUG_INSN_P (insn))
 	  continue;
 
@@ -2526,7 +2557,7 @@ add_branch_dependences (rtx head, rtx tail)
      possible improvement for handling COND_EXECs in this scheduler: it
      could remove always-true predicates.  */
 
-  if (!reload_completed || ! JUMP_P (tail))
+  if (!reload_completed || ! (JUMP_P (tail) || JUMP_TABLE_DATA_P (tail)))
     return;
 
   insn = tail;
@@ -2636,7 +2667,7 @@ deps_join (struct deps_desc *succ_deps, struct deps_desc *pred_deps)
 static void
 propagate_deps (int bb, struct deps_desc *pred_deps)
 {
-  basic_block block = BASIC_BLOCK (BB_TO_BLOCK (bb));
+  basic_block block = BASIC_BLOCK_FOR_FN (cfun, BB_TO_BLOCK (bb));
   edge_iterator ei;
   edge e;
 
@@ -2644,7 +2675,7 @@ propagate_deps (int bb, struct deps_desc *pred_deps)
   FOR_EACH_EDGE (e, ei, block->succs)
     {
       /* Only bbs "below" bb, in the same region, are interesting.  */
-      if (e->dest == EXIT_BLOCK_PTR
+      if (e->dest == EXIT_BLOCK_PTR_FOR_FN (cfun)
 	  || CONTAINING_RGN (block->index) != CONTAINING_RGN (e->dest->index)
 	  || BLOCK_TO_BB (e->dest->index) <= bb)
 	continue;
@@ -2827,7 +2858,9 @@ void debug_dependencies (rtx head, rtx tail)
 	dep_t dep;
 
 	FOR_EACH_DEP (insn, SD_LIST_FORW, sd_it, dep)
-	  fprintf (sched_dump, "%d ", INSN_UID (DEP_CON (dep)));
+	  fprintf (sched_dump, "%d%s%s ", INSN_UID (DEP_CON (dep)),
+		   DEP_NONREG (dep) ? "n" : "",
+		   DEP_MULTIPLE (dep) ? "m" : "");
       }
       fprintf (sched_dump, "\n");
     }
@@ -2843,7 +2876,8 @@ sched_is_disabled_for_current_region_p (void)
   int bb;
 
   for (bb = 0; bb < current_nr_blocks; bb++)
-    if (!(BASIC_BLOCK (BB_TO_BLOCK (bb))->flags & BB_DISABLE_SCHEDULE))
+    if (!(BASIC_BLOCK_FOR_FN (cfun,
+			      BB_TO_BLOCK (bb))->flags & BB_DISABLE_SCHEDULE))
       return false;
 
   return true;
@@ -2893,6 +2927,61 @@ compute_priorities (void)
   current_sched_info->sched_max_insns_priority++;
 }
 
+/* (Re-)initialize the arrays of DFA states at the end of each basic block.
+
+   SAVED_LAST_BASIC_BLOCK is the previous length of the arrays.  It must be
+   zero for the first call to this function, to allocate the arrays for the
+   first time.
+
+   This function is called once during initialization of the scheduler, and
+   called again to resize the arrays if new basic blocks have been created,
+   for example for speculation recovery code.  */
+
+static void
+realloc_bb_state_array (int saved_last_basic_block)
+{
+  char *old_bb_state_array = bb_state_array;
+  size_t lbb = (size_t) last_basic_block_for_fn (cfun);
+  size_t slbb = (size_t) saved_last_basic_block;
+
+  /* Nothing to do if nothing changed since the last time this was called.  */
+  if (saved_last_basic_block == last_basic_block_for_fn (cfun))
+    return;
+
+  /* The selective scheduler doesn't use the state arrays.  */
+  if (sel_sched_p ())
+    {
+      gcc_assert (bb_state_array == NULL && bb_state == NULL);
+      return;
+    }
+
+  gcc_checking_assert (saved_last_basic_block == 0
+		       || (bb_state_array != NULL && bb_state != NULL));
+
+  bb_state_array = XRESIZEVEC (char, bb_state_array, lbb * dfa_state_size);
+  bb_state = XRESIZEVEC (state_t, bb_state, lbb);
+
+  /* If BB_STATE_ARRAY has moved, fixup all the state pointers array.
+     Otherwise only fixup the newly allocated ones.  For the state
+     array itself, only initialize the new entries.  */
+  bool bb_state_array_moved = (bb_state_array != old_bb_state_array);
+  for (size_t i = bb_state_array_moved ? 0 : slbb; i < lbb; i++)
+    bb_state[i] = (state_t) (bb_state_array + i * dfa_state_size);
+  for (size_t i = slbb; i < lbb; i++)
+    state_reset (bb_state[i]);
+}
+
+/* Free the arrays of DFA states at the end of each basic block.  */
+
+static void
+free_bb_state_array (void)
+{
+  free (bb_state_array);
+  free (bb_state);
+  bb_state_array = NULL;
+  bb_state = NULL;
+}
+
 /* Schedule a region.  A region is either an inner loop, a loop-free
    subroutine, or a single basic block.  Each bb in the region is
    scheduled after its flow predecessors.  */
@@ -2904,6 +2993,15 @@ schedule_region (int rgn)
   int sched_rgn_n_insns = 0;
 
   rgn_n_insns = 0;
+
+  /* Do not support register pressure sensitive scheduling for the new regions
+     as we don't update the liveness info for them.  */
+  if (sched_pressure != SCHED_PRESSURE_NONE
+      && rgn >= nr_regions_initial)
+    {
+      free_global_sched_pressure_data ();
+      sched_pressure = SCHED_PRESSURE_NONE;
+    }
 
   rgn_setup_region (rgn);
 
@@ -2921,7 +3019,7 @@ schedule_region (int rgn)
 
   sched_extend_ready_list (rgn_n_insns);
 
-  if (sched_pressure_p)
+  if (sched_pressure == SCHED_PRESSURE_WEIGHTED)
     {
       sched_init_region_reg_pressure_info ();
       for (bb = 0; bb < current_nr_blocks; bb++)
@@ -2975,9 +3073,23 @@ schedule_region (int rgn)
       curr_bb = first_bb;
       if (dbg_cnt (sched_block))
         {
-          schedule_block (&curr_bb);
-          gcc_assert (EBB_FIRST_BB (bb) == first_bb);
-          sched_rgn_n_insns += sched_n_insns;
+	  edge f;
+	  int saved_last_basic_block = last_basic_block_for_fn (cfun);
+
+	  schedule_block (&curr_bb, bb_state[first_bb->index]);
+	  gcc_assert (EBB_FIRST_BB (bb) == first_bb);
+	  sched_rgn_n_insns += sched_n_insns;
+	  realloc_bb_state_array (saved_last_basic_block);
+	  f = find_fallthru_edge (last_bb->succs);
+	  if (f && f->probability * 100 / REG_BR_PROB_BASE >=
+	      PARAM_VALUE (PARAM_SCHED_STATE_EDGE_PROB_CUTOFF))
+	    {
+	      memcpy (bb_state[f->dest->index], curr_state,
+		      dfa_state_size);
+	      if (sched_verbose >= 5)
+		fprintf (sched_dump, "saving state for edge %d->%d\n",
+			 f->src->index, f->dest->index);
+	    }
         }
       else
         {
@@ -3021,9 +3133,11 @@ sched_rgn_init (bool single_blocks_p)
   CONTAINING_RGN (ENTRY_BLOCK) = -1;
   CONTAINING_RGN (EXIT_BLOCK) = -1;
 
+  realloc_bb_state_array (0);
+
   /* Compute regions for scheduling.  */
   if (single_blocks_p
-      || n_basic_blocks == NUM_FIXED_BLOCKS + 1
+      || n_basic_blocks_for_fn (cfun) == NUM_FIXED_BLOCKS + 1
       || !flag_schedule_interblock
       || is_cfg_nonregular ())
     {
@@ -3047,16 +3161,19 @@ sched_rgn_init (bool single_blocks_p)
 	free_dominance_info (CDI_DOMINATORS);
     }
 
-  gcc_assert (0 < nr_regions && nr_regions <= n_basic_blocks);
+  gcc_assert (0 < nr_regions && nr_regions <= n_basic_blocks_for_fn (cfun));
 
   RGN_BLOCKS (nr_regions) = (RGN_BLOCKS (nr_regions - 1) +
 			     RGN_NR_BLOCKS (nr_regions - 1));
+  nr_regions_initial = nr_regions;
 }
 
 /* Free data structures for region scheduling.  */
 void
 sched_rgn_finish (void)
 {
+  free_bb_state_array ();
+
   /* Reposition the prologue and epilogue notes in case we moved the
      prologue/epilogue insns.  */
   if (reload_completed)
@@ -3133,7 +3250,7 @@ sched_rgn_compute_dependencies (int rgn)
 
       /* Initialize bitmap used in add_branch_dependences.  */
       insn_referenced = sbitmap_alloc (sched_max_luid);
-      sbitmap_zero (insn_referenced);
+      bitmap_clear (insn_referenced);
 
       /* Compute backward dependencies.  */
       for (bb = 0; bb < current_nr_blocks; bb++)
@@ -3173,11 +3290,11 @@ sched_rgn_local_init (int rgn)
       prob = XNEWVEC (int, current_nr_blocks);
 
       dom = sbitmap_vector_alloc (current_nr_blocks, current_nr_blocks);
-      sbitmap_vector_zero (dom, current_nr_blocks);
+      bitmap_vector_clear (dom, current_nr_blocks);
 
       /* Use ->aux to implement EDGE_TO_BIT mapping.  */
       rgn_nr_edges = 0;
-      FOR_EACH_BB (block)
+      FOR_EACH_BB_FN (block, cfun)
 	{
 	  if (CONTAINING_RGN (block->index) != rgn)
 	    continue;
@@ -3187,7 +3304,7 @@ sched_rgn_local_init (int rgn)
 
       rgn_edges = XNEWVEC (edge, rgn_nr_edges);
       rgn_nr_edges = 0;
-      FOR_EACH_BB (block)
+      FOR_EACH_BB_FN (block, cfun)
 	{
 	  if (CONTAINING_RGN (block->index) != rgn)
 	    continue;
@@ -3197,9 +3314,9 @@ sched_rgn_local_init (int rgn)
 
       /* Split edges.  */
       pot_split = sbitmap_vector_alloc (current_nr_blocks, rgn_nr_edges);
-      sbitmap_vector_zero (pot_split, current_nr_blocks);
+      bitmap_vector_clear (pot_split, current_nr_blocks);
       ancestor_edges = sbitmap_vector_alloc (current_nr_blocks, rgn_nr_edges);
-      sbitmap_vector_zero (ancestor_edges, current_nr_blocks);
+      bitmap_vector_clear (ancestor_edges, current_nr_blocks);
 
       /* Compute probabilities, dominators, split_edges.  */
       for (bb = 0; bb < current_nr_blocks; bb++)
@@ -3208,7 +3325,7 @@ sched_rgn_local_init (int rgn)
       /* Cleanup ->aux used for EDGE_TO_BIT mapping.  */
       /* We don't need them anymore.  But we want to avoid duplication of
 	 aux fields in the newly created edges.  */
-      FOR_EACH_BB (block)
+      FOR_EACH_BB_FN (block, cfun)
 	{
 	  if (CONTAINING_RGN (block->index) != rgn)
 	    continue;
@@ -3281,7 +3398,7 @@ schedule_insns (void)
 
   /* Taking care of this degenerate case makes the rest of
      this code simpler.  */
-  if (n_basic_blocks == NUM_FIXED_BLOCKS)
+  if (n_basic_blocks_for_fn (cfun) == NUM_FIXED_BLOCKS)
     return;
 
   rgn_setup_common_sched_info ();
@@ -3327,10 +3444,13 @@ rgn_add_remove_insn (rtx insn, int remove_p)
 void
 extend_regions (void)
 {
-  rgn_table = XRESIZEVEC (region, rgn_table, n_basic_blocks);
-  rgn_bb_table = XRESIZEVEC (int, rgn_bb_table, n_basic_blocks);
-  block_to_bb = XRESIZEVEC (int, block_to_bb, last_basic_block);
-  containing_rgn = XRESIZEVEC (int, containing_rgn, last_basic_block);
+  rgn_table = XRESIZEVEC (region, rgn_table, n_basic_blocks_for_fn (cfun));
+  rgn_bb_table = XRESIZEVEC (int, rgn_bb_table,
+			     n_basic_blocks_for_fn (cfun));
+  block_to_bb = XRESIZEVEC (int, block_to_bb,
+			    last_basic_block_for_fn (cfun));
+  containing_rgn = XRESIZEVEC (int, containing_rgn,
+			       last_basic_block_for_fn (cfun));
 }
 
 void
@@ -3360,10 +3480,11 @@ rgn_add_block (basic_block bb, basic_block after)
   extend_regions ();
   bitmap_set_bit (&not_in_df, bb->index);
 
-  if (after == 0 || after == EXIT_BLOCK_PTR)
+  if (after == 0 || after == EXIT_BLOCK_PTR_FOR_FN (cfun))
     {
       rgn_make_new_region_out_of_new_block (bb);
-      RGN_DONT_CALC_DEPS (nr_regions - 1) = (after == EXIT_BLOCK_PTR);
+      RGN_DONT_CALC_DEPS (nr_regions - 1) = (after
+					     == EXIT_BLOCK_PTR_FOR_FN (cfun));
     }
   else
     {
@@ -3471,10 +3592,37 @@ advance_target_bb (basic_block bb, rtx insn)
 #endif
 
 static bool
+gate_handle_live_range_shrinkage (void)
+{
+#ifdef INSN_SCHEDULING
+  return flag_live_range_shrinkage;
+#else
+  return 0;
+#endif
+}
+
+/* Run instruction scheduler.  */
+static unsigned int
+rest_of_handle_live_range_shrinkage (void)
+{
+#ifdef INSN_SCHEDULING
+  int saved;
+
+  initialize_live_range_shrinkage ();
+  saved = flag_schedule_interblock;
+  flag_schedule_interblock = false;
+  schedule_insns ();
+  flag_schedule_interblock = saved;
+  finish_live_range_shrinkage ();
+#endif
+  return 0;
+}
+
+static bool
 gate_handle_sched (void)
 {
 #ifdef INSN_SCHEDULING
-  return flag_schedule_insns && dbg_cnt (sched_func);
+  return optimize > 0 && flag_schedule_insns && dbg_cnt (sched_func);
 #else
   return 0;
 #endif
@@ -3526,44 +3674,119 @@ rest_of_handle_sched2 (void)
   return 0;
 }
 
-struct rtl_opt_pass pass_sched =
+namespace {
+
+const pass_data pass_data_live_range_shrinkage =
 {
- {
-  RTL_PASS,
-  "sched1",                             /* name */
-  gate_handle_sched,                    /* gate */
-  rest_of_handle_sched,                 /* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_SCHED,                             /* tv_id */
-  0,                                    /* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  TODO_df_finish | TODO_verify_rtl_sharing |
-  TODO_verify_flow |
-  TODO_ggc_collect                      /* todo_flags_finish */
- }
+  RTL_PASS, /* type */
+  "lr_shrinkage", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_LIVE_RANGE_SHRINKAGE, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_rtl_sharing
+    | TODO_verify_flow ), /* todo_flags_finish */
 };
 
-struct rtl_opt_pass pass_sched2 =
+class pass_live_range_shrinkage : public rtl_opt_pass
 {
- {
-  RTL_PASS,
-  "sched2",                             /* name */
-  gate_handle_sched2,                   /* gate */
-  rest_of_handle_sched2,                /* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_SCHED2,                            /* tv_id */
-  0,                                    /* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  TODO_df_finish | TODO_verify_rtl_sharing |
-  TODO_verify_flow |
-  TODO_ggc_collect                      /* todo_flags_finish */
- }
+public:
+  pass_live_range_shrinkage(gcc::context *ctxt)
+    : rtl_opt_pass(pass_data_live_range_shrinkage, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_handle_live_range_shrinkage (); }
+  unsigned int execute () { return rest_of_handle_live_range_shrinkage (); }
+
+}; // class pass_live_range_shrinkage
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_live_range_shrinkage (gcc::context *ctxt)
+{
+  return new pass_live_range_shrinkage (ctxt);
+}
+
+namespace {
+
+const pass_data pass_data_sched =
+{
+  RTL_PASS, /* type */
+  "sched1", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_SCHED, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_rtl_sharing
+    | TODO_verify_flow ), /* todo_flags_finish */
 };
+
+class pass_sched : public rtl_opt_pass
+{
+public:
+  pass_sched (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_sched, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_handle_sched (); }
+  unsigned int execute () { return rest_of_handle_sched (); }
+
+}; // class pass_sched
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_sched (gcc::context *ctxt)
+{
+  return new pass_sched (ctxt);
+}
+
+namespace {
+
+const pass_data pass_data_sched2 =
+{
+  RTL_PASS, /* type */
+  "sched2", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_SCHED2, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_finish | TODO_verify_rtl_sharing
+    | TODO_verify_flow ), /* todo_flags_finish */
+};
+
+class pass_sched2 : public rtl_opt_pass
+{
+public:
+  pass_sched2 (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_sched2, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_handle_sched2 (); }
+  unsigned int execute () { return rest_of_handle_sched2 (); }
+
+}; // class pass_sched2
+
+} // anon namespace
+
+rtl_opt_pass *
+make_pass_sched2 (gcc::context *ctxt)
+{
+  return new pass_sched2 (ctxt);
+}

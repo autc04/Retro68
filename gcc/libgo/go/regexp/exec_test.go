@@ -9,7 +9,6 @@ import (
 	"compress/bzip2"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp/syntax"
@@ -67,14 +66,6 @@ func TestRE2Search(t *testing.T) {
 	testRE2(t, "testdata/re2-search.txt")
 }
 
-func TestRE2Exhaustive(t *testing.T) {
-	if testing.Short() {
-		t.Log("skipping TestRE2Exhaustive during short test")
-		return
-	}
-	testRE2(t, "testdata/re2-exhaustive.txt.bz2")
-}
-
 func testRE2(t *testing.T, file string) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -90,7 +81,7 @@ func testRE2(t *testing.T, file string) {
 		txt = f
 	}
 	lineno := 0
-	r := bufio.NewReader(txt)
+	scanner := bufio.NewScanner(txt)
 	var (
 		str       []string
 		input     []string
@@ -100,16 +91,8 @@ func testRE2(t *testing.T, file string) {
 		nfail     int
 		ncase     int
 	)
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			t.Fatalf("%s:%d: %v", file, lineno, err)
-		}
-		line = line[:len(line)-1] // chop \n
-		lineno++
+	for lineno := 1; scanner.Scan(); lineno++ {
+		line := scanner.Text()
 		switch {
 		case line == "":
 			t.Fatalf("%s:%d: unexpected blank line", file, lineno)
@@ -204,6 +187,9 @@ func testRE2(t *testing.T, file string) {
 		default:
 			t.Fatalf("%s:%d: out of sync: %s\n", file, lineno, line)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("%s:%d: %v", file, lineno, err)
 	}
 	if len(input) != 0 {
 		t.Fatalf("%s:%d: out of sync: have %d strings left at EOF", file, lineno, len(input))
@@ -405,14 +391,14 @@ Reading:
 		//   implementation. If the first character is not [BEASKLP] then the
 		//   specification is a global control line. One or more of [BEASKLP] may be
 		//   specified; the test will be repeated for each mode.
-		// 
+		//
 		//     B 	basic			BRE	(grep, ed, sed)
 		//     E 	REG_EXTENDED		ERE	(egrep)
 		//     A	REG_AUGMENTED		ARE	(egrep with negation)
 		//     S	REG_SHELL		SRE	(sh glob)
 		//     K	REG_SHELL|REG_AUGMENTED	KRE	(ksh glob)
 		//     L	REG_LITERAL		LRE	(fgrep)
-		// 
+		//
 		//     a	REG_LEFT|REG_RIGHT	implicit ^...$
 		//     b	REG_NOTBOL		lhs does not match ^
 		//     c	REG_COMMENT		ignore space and #...\n
@@ -442,23 +428,23 @@ Reading:
 		//     $	                        expand C \c escapes in fields 2 and 3
 		//     /	                        field 2 is a regsubcomp() expression
 		//     =	                        field 3 is a regdecomp() expression
-		// 
+		//
 		//   Field 1 control lines:
-		// 
+		//
 		//     C		set LC_COLLATE and LC_CTYPE to locale in field 2
-		// 
+		//
 		//     ?test ...	output field 5 if passed and != EXPECTED, silent otherwise
 		//     &test ...	output field 5 if current and previous passed
 		//     |test ...	output field 5 if current passed and previous failed
 		//     ; ...	output field 2 if previous failed
 		//     {test ...	skip if failed until }
 		//     }		end of skip
-		// 
+		//
 		//     : comment		comment copied as output NOTE
 		//     :comment:test	:comment: ignored
 		//     N[OTE] comment	comment copied as output NOTE
 		//     T[EST] comment	comment
-		// 
+		//
 		//     number		use number for nmatch (20 by default)
 		flag := field[0]
 		switch flag[0] {
@@ -501,7 +487,7 @@ Reading:
 
 		//   Field 2: the regular expression pattern; SAME uses the pattern from
 		//     the previous specification.
-		// 
+		//
 		if field[1] == "SAME" {
 			field[1] = lastRegexp
 		}
@@ -656,11 +642,17 @@ func makeText(n int) []byte {
 		return text[:n]
 	}
 	text = make([]byte, n)
+	x := ^uint32(0)
 	for i := range text {
-		if rand.Intn(30) == 0 {
+		x += x
+		x ^= 1
+		if int32(x) < 0 {
+			x ^= 0x88888eef
+		}
+		if x%31 == 0 {
 			text[i] = '\n'
 		} else {
-			text[i] = byte(rand.Intn(0x7E+1-0x20) + 0x20)
+			text[i] = byte(x%(0x7E+1-0x20) + 0x20)
 		}
 	}
 	return text
@@ -697,7 +689,7 @@ func BenchmarkMatchEasy1_1K(b *testing.B)   { benchmark(b, easy1, 1<<10) }
 func BenchmarkMatchEasy1_32K(b *testing.B)  { benchmark(b, easy1, 32<<10) }
 func BenchmarkMatchEasy1_1M(b *testing.B)   { benchmark(b, easy1, 1<<20) }
 func BenchmarkMatchEasy1_32M(b *testing.B)  { benchmark(b, easy1, 32<<20) }
-func BenchmarkMatchMedium_32(b *testing.B)  { benchmark(b, medium, 1<<0) }
+func BenchmarkMatchMedium_32(b *testing.B)  { benchmark(b, medium, 32<<0) }
 func BenchmarkMatchMedium_1K(b *testing.B)  { benchmark(b, medium, 1<<10) }
 func BenchmarkMatchMedium_32K(b *testing.B) { benchmark(b, medium, 32<<10) }
 func BenchmarkMatchMedium_1M(b *testing.B)  { benchmark(b, medium, 1<<20) }
@@ -707,3 +699,17 @@ func BenchmarkMatchHard_1K(b *testing.B)    { benchmark(b, hard, 1<<10) }
 func BenchmarkMatchHard_32K(b *testing.B)   { benchmark(b, hard, 32<<10) }
 func BenchmarkMatchHard_1M(b *testing.B)    { benchmark(b, hard, 1<<20) }
 func BenchmarkMatchHard_32M(b *testing.B)   { benchmark(b, hard, 32<<20) }
+
+func TestLongest(t *testing.T) {
+	re, err := Compile(`a(|b)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := re.FindString("ab"), "a"; g != w {
+		t.Errorf("first match was %q, want %q", g, w)
+	}
+	re.Longest()
+	if g, w := re.FindString("ab"), "ab"; g != w {
+		t.Errorf("longest match was %q, want %q", g, w)
+	}
+}

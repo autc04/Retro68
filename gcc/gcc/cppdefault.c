@@ -1,7 +1,5 @@
 /* CPP Library.
-   Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2003, 2004, 2006, 2007, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
    Contributed by Per Bothner, 1994-95.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -63,6 +61,7 @@ const struct default_include cpp_include_defaults[]
 #endif
 #ifdef LOCAL_INCLUDE_DIR
     /* /usr/local/include comes before the fixincluded header files.  */
+    { LOCAL_INCLUDE_DIR, 0, 0, 1, 1, 2 },
     { LOCAL_INCLUDE_DIR, 0, 0, 1, 1, 0 },
 #endif
 #ifdef PREFIX_INCLUDE_DIR
@@ -90,6 +89,7 @@ const struct default_include cpp_include_defaults[]
 #endif
 #ifdef NATIVE_SYSTEM_HEADER_DIR
     /* /usr/include comes dead last.  */
+    { NATIVE_SYSTEM_HEADER_DIR, NATIVE_SYSTEM_HEADER_COMPONENT, 0, 0, 1, 2 },
     { NATIVE_SYSTEM_HEADER_DIR, NATIVE_SYSTEM_HEADER_COMPONENT, 0, 0, 1, 0 },
 #endif
     { 0, 0, 0, 0, 0, 0 }

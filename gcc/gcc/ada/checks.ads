@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -56,6 +56,7 @@ package Checks is
    function Index_Checks_Suppressed           (E : Entity_Id) return Boolean;
    function Length_Checks_Suppressed          (E : Entity_Id) return Boolean;
    function Overflow_Checks_Suppressed        (E : Entity_Id) return Boolean;
+   function Predicate_Checks_Suppressed       (E : Entity_Id) return Boolean;
    function Range_Checks_Suppressed           (E : Entity_Id) return Boolean;
    function Storage_Checks_Suppressed         (E : Entity_Id) return Boolean;
    function Tag_Checks_Suppressed             (E : Entity_Id) return Boolean;
@@ -66,6 +67,17 @@ package Checks is
    --  for the current check, then Empty is used as an argument. Note: the
    --  reason we insist on specifying Empty is to force the caller to think
    --  about whether there is any relevant entity that should be checked.
+
+   function Is_Check_Suppressed (E : Entity_Id; C : Check_Id) return Boolean;
+   --  This function is called if Checks_May_Be_Suppressed (E) is True to
+   --  determine whether check C is suppressed either on the entity E or
+   --  as the result of a scope suppress pragma. If Checks_May_Be_Suppressed
+   --  is False, then the status of the check can be determined simply by
+   --  examining Scope_Suppress, so this routine is not called in that case.
+
+   function Overflow_Check_Mode return Overflow_Mode_Type;
+   --  Returns current overflow checking mode, taking into account whether
+   --  we are inside an assertion expression.
 
    -------------------------------------------
    -- Procedures to Activate Checking Flags --
@@ -82,6 +94,8 @@ package Checks is
    --  Sets Do_Overflow_Check flag in node N, and handles possible local raise.
    --  Always call this routine rather than calling Set_Do_Overflow_Check to
    --  set an explicit value of True, to ensure handling the local raise case.
+   --  Note that this call has no effect for MOD, REM, and unary "+" for which
+   --  overflow is never possible in any case.
 
    procedure Activate_Range_Check (N : Node_Id);
    pragma Inline (Activate_Range_Check);
@@ -118,18 +132,25 @@ package Checks is
    --  are enabled, then this procedure generates a check that the specified
    --  address has an alignment consistent with the alignment of the object,
    --  raising PE if this is not the case. The resulting check (if one is
-   --  generated) is inserted before node N. check is also made for the case of
-   --  a clear overlay situation that the size of the overlaying object is not
+   --  generated) is prepended to the Actions list of N_Freeze_Entity node N.
+   --  Note that the check references E'Alignment, so it cannot be emitted
+   --  before N (its freeze node), otherwise this would cause an illegal
+   --  access before elaboration error in GIGI. For the case of a clear overlay
+   --  situation, we also check that the size of the overlaying object is not
    --  larger than the overlaid object.
 
    procedure Apply_Arithmetic_Overflow_Check (N : Node_Id);
-   --  Given a binary arithmetic operator (+ - *) expand a software integer
-   --  overflow check using range checks on a larger checking type or a call
-   --  to an appropriate runtime routine. This is used for all three operators
-   --  for the signed integer case, and for +/- in the fixed-point case. The
-   --  check is expanded only if Software_Overflow_Checking is enabled and
-   --  Do_Overflow_Check is set on node N. Note that divide is handled
-   --  separately using Apply_Arithmetic_Divide_Overflow_Check.
+   --  Handle overflow checking for an arithmetic operator. Also handles the
+   --  cases of ELIMINATED and MINIMIZED overflow checking mode. If the mode
+   --  is one of the latter two, then this routine can also be called with
+   --  an if or case expression node to make sure that we properly handle
+   --  overflow checking for dependent expressions. This routine handles
+   --  front end vs back end overflow checks (in the front end case it expands
+   --  the necessary check). Note that divide is handled separately using
+   --  Apply_Divide_Checks. Node N may or may not have Do_Overflow_Check.
+   --  In STRICT mode, there is nothing to do if this flag is off, but in
+   --  MINIMIZED/ELIMINATED mode we still have to deal with possible use
+   --  of doing operations in Long_Long_Integer or Bignum mode.
 
    procedure Apply_Constraint_Check
      (N          : Node_Id;
@@ -154,24 +175,28 @@ package Checks is
    --  formals, the check is performed only if the corresponding actual is
    --  constrained, i.e., whether Lhs'Constrained is True.
 
+   procedure Apply_Divide_Checks (N : Node_Id);
+   --  The node kind is N_Op_Divide, N_Op_Mod, or N_Op_Rem if either of the
+   --  flags Do_Division_Check or Do_Overflow_Check is set, then this routine
+   --  ensures that the appropriate checks are made. Note that overflow can
+   --  occur in the signed case for the case of the largest negative number
+   --  divided by minus one.
+
+   procedure Apply_Parameter_Aliasing_Checks
+     (Call : Node_Id;
+      Subp : Entity_Id);
+   --  Given a subprogram call Call, add a check to verify that none of the
+   --  actuals overlap. Subp denotes the subprogram being called.
+
+   procedure Apply_Parameter_Validity_Checks (Subp : Entity_Id);
+   --  Given a subprogram Subp, add both a pre and post condition pragmas that
+   --  verify the proper initialization of scalars in parameters and function
+   --  results.
+
    procedure Apply_Predicate_Check (N : Node_Id; Typ : Entity_Id);
    --  N is an expression to which a predicate check may need to be applied
    --  for Typ, if Typ has a predicate function. The check is applied only
    --  if the type of N does not match Typ.
-
-   function Build_Discriminant_Checks
-     (N     : Node_Id;
-      T_Typ : Entity_Id)
-      return  Node_Id;
-   --  Subsidiary routine for Apply_Discriminant_Check. Builds the expression
-   --  that compares discriminants of the expression with discriminants of the
-   --  type. Also used directly for membership tests (see Exp_Ch4.Expand_N_In).
-
-   procedure Apply_Divide_Check (N : Node_Id);
-   --  The node kind is N_Op_Divide, N_Op_Mod, or N_Op_Rem. An appropriate
-   --  check is generated to ensure that the right operand is non-zero. In
-   --  the divide case, we also check that we do not have the annoying case
-   --  of the largest negative number divided by minus one.
 
    procedure Apply_Type_Conversion_Checks (N : Node_Id);
    --  N is an N_Type_Conversion node. A type conversion actually involves
@@ -189,6 +214,25 @@ package Checks is
    --  result type. This routine deals with range and overflow checks needed
    --  to make sure that the universal result is in range.
 
+   function Build_Discriminant_Checks
+     (N     : Node_Id;
+      T_Typ : Entity_Id)
+      return  Node_Id;
+   --  Subsidiary routine for Apply_Discriminant_Check. Builds the expression
+   --  that compares discriminants of the expression with discriminants of the
+   --  type. Also used directly for membership tests (see Exp_Ch4.Expand_N_In).
+
+   function Convert_From_Bignum (N : Node_Id) return Node_Id;
+   --  Returns result of converting node N from Bignum. The returned value is
+   --  not analyzed, the caller takes responsibility for this. Node N must be
+   --  a subexpression node of type Bignum. The result is Long_Long_Integer.
+
+   function Convert_To_Bignum (N : Node_Id) return Node_Id;
+   --  Returns result of converting node N to Bignum. The returned value is not
+   --  analyzed, the caller takes responsibility for this. Node N must be a
+   --  subexpression node of a signed integer type or Bignum type (if it is
+   --  already a Bignum, the returned value is Relocate_Node (N)).
+
    procedure Determine_Range
      (N            : Node_Id;
       OK           : out Boolean;
@@ -196,22 +240,114 @@ package Checks is
       Hi           : out Uint;
       Assume_Valid : Boolean := False);
    --  N is a node for a subexpression. If N is of a discrete type with no
-   --  error indications, and no other peculiarities (e.g. missing type
-   --  fields), then OK is True on return, and Lo and Hi are set to a
-   --  conservative estimate of the possible range of values of N. Thus if OK
-   --  is True on return, the value of the subexpression N is known to like in
-   --  the range Lo .. Hi (inclusive). If the expression is not of a discrete
-   --  type, or some kind of error condition is detected, then OK is False on
-   --  exit, and Lo/Hi are set to No_Uint. Thus the significance of OK being
-   --  False on return is that no useful information is available on the range
-   --  of the expression. Assume_Valid determines whether the processing is
-   --  allowed to assume that values are in range of their subtypes. If it is
-   --  set to True, then this assumption is valid, if False, then processing
-   --  is done using base types to allow invalid values.
+   --  error indications, and no other peculiarities (e.g. missing Etype),
+   --  then OK is True on return, and Lo and Hi are set to a conservative
+   --  estimate of the possible range of values of N. Thus if OK is True on
+   --  return, the value of the subexpression N is known to lie in the range
+   --  Lo .. Hi (inclusive). If the expression is not of a discrete type, or
+   --  some kind of error condition is detected, then OK is False on exit, and
+   --  Lo/Hi are set to No_Uint. Thus the significance of OK being False on
+   --  return is that no useful information is available on the range of the
+   --  expression. Assume_Valid determines whether the processing is allowed to
+   --  assume that values are in range of their subtypes. If it is set to True,
+   --  then this assumption is valid, if False, then processing is done using
+   --  base types to allow invalid values.
 
    procedure Install_Null_Excluding_Check (N : Node_Id);
    --  Determines whether an access node requires a runtime access check and
    --  if so inserts the appropriate run-time check.
+
+   function Make_Bignum_Block (Loc : Source_Ptr) return Node_Id;
+   --  This function is used by top level overflow checking routines to do a
+   --  mark/release operation on the secondary stack around bignum operations.
+   --  The block created looks like:
+   --
+   --    declare
+   --       M : Mark_Id := SS_Mark;
+   --    begin
+   --       SS_Release (M);
+   --    end;
+   --
+   --  The idea is that the caller will insert any needed extra declarations
+   --  after the declaration of M, and any needed statements (in particular
+   --  the bignum operations) before the call to SS_Release, and then do an
+   --  Insert_Action of the whole block (it is returned unanalyzed). The Loc
+   --  parameter is used to supply Sloc values for the constructed tree.
+
+   procedure Minimize_Eliminate_Overflows
+     (N         : Node_Id;
+      Lo        : out Uint;
+      Hi        : out Uint;
+      Top_Level : Boolean);
+   --  This is the main routine for handling MINIMIZED and ELIMINATED overflow
+   --  processing. On entry N is a node whose result is a signed integer
+   --  subtype. The Do_Overflow_Check flag may or may not be set on N. If the
+   --  node is an arithmetic operation, then a range analysis is carried out,
+   --  and there are three possibilities:
+   --
+   --    The node is left unchanged (apart from expansion of an exponentiation
+   --    operation). This happens if the routine can determine that the result
+   --    is definitely in range. The Do_Overflow_Check flag is turned off in
+   --    this case.
+   --
+   --    The node is transformed into an arithmetic operation with a result
+   --    type of Long_Long_Integer.
+   --
+   --    The node is transformed into a function call that calls an appropriate
+   --    function in the System.Bignums package to compute a Bignum result.
+   --
+   --  In the first two cases, Lo and Hi are set to the bounds of the possible
+   --  range of results, computed as accurately as possible. In the third case
+   --  Lo and Hi are set to No_Uint (there are some cases where we could get an
+   --  advantage from keeping result ranges for Bignum values, but it could use
+   --  a lot of space and is very unlikely to be valuable).
+   --
+   --  If the node is not an arithmetic operation, then it is unchanged but
+   --  Lo and Hi are still set (to the bounds of the result subtype if nothing
+   --  better can be determined).
+   --
+   --  Note: this function is recursive, if called with an arithmetic operator,
+   --  recursive calls are made to process the operands using this procedure.
+   --  So we end up doing things top down. Nothing happens to an arithmetic
+   --  expression until this procedure is called on the top level node and
+   --  then the recursive calls process all the children. We have to do it
+   --  this way. If we try to do it bottom up in natural expansion order, then
+   --  there are two problems. First, where do we stash the bounds, and more
+   --  importantly, semantic processing will be messed up. Consider A+B+C where
+   --  A,B,C are all of type integer, if we processed A+B before doing semantic
+   --  analysis of the addition of this result to C, that addition could end up
+   --  with a Long_Long_Integer left operand and an Integer right operand, and
+   --  we would get a semantic error.
+   --
+   --  The routine is called in three situations if we are operating in either
+   --  MINIMIZED or ELIMINATED modes.
+   --
+   --    Overflow processing applied to the top node of an expression tree when
+   --    that node is an arithmetic operator. In this case the result is
+   --    converted to the appropriate result type (there is special processing
+   --    when the parent is a conversion, see body for details).
+   --
+   --    Overflow processing applied to the operands of a comparison operation.
+   --    In this case, the comparison is done on the result Long_Long_Integer
+   --    or Bignum values, without raising any exceptions.
+   --
+   --    Overflow processing applied to the left operand of a membership test.
+   --    In this case no exception is raised if a Long_Long_Integer or Bignum
+   --    result is outside the range of the type of that left operand (it is
+   --    just that the result of IN is false in that case).
+   --
+   --  Note that if Bignum values appear, the caller must take care of doing
+   --  the appropriate mark/release operations on the secondary stack.
+   --
+   --  Top_Level is used to avoid inefficient unnecessary transitions into the
+   --  Bignum domain. If Top_Level is True, it means that the caller will have
+   --  to convert any Bignum value back to Long_Long_Integer, possibly checking
+   --  that the value is in range. This is the normal case for a top level
+   --  operator in a subexpression. There is no point in going into Bignum mode
+   --  to avoid an overflow just so we can check for overflow the next moment.
+   --  For calls from comparisons and membership tests, and for all recursive
+   --  calls, we do want to transition into the Bignum domain if necessary.
+   --  Note that this setting is only relevant in ELIMINATED mode.
 
    -------------------------------------------------------
    -- Control and Optimization of Range/Overflow Checks --

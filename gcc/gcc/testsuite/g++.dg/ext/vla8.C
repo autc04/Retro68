@@ -8,8 +8,8 @@ struct AvlTreeIter
 
   AvlTreeIter()
   {
-    new (void* [Num()]);
+    new (void* [Num()]); // { dg-warning "parentheses" }
   }
 };
 
-AvlTreeIter<int> a;
+AvlTreeIter<int> a; // { dg-message "from here" }

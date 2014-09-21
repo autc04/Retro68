@@ -1,4 +1,6 @@
 load_lib libgomp-dg.exp
+load_gcc_lib gcc-dg.exp
+load_gcc_lib gfortran-dg.exp
 
 global shlib_ext
 global ALWAYS_CFLAGS
@@ -13,7 +15,11 @@ set quadmath_library_path "../libquadmath/.libs"
 # Initialize dg.
 dg-init
 
+# Turn on OpenMP.
+lappend ALWAYS_CFLAGS "additional_flags=-fopenmp"
+
 if { $blddir != "" } {
+    lappend ALWAYS_CFLAGS "additional_flags=-fintrinsic-modules-path=${blddir}"
     # Look for a static libgfortran first.
     if [file exists "${blddir}/${lang_library_path}/libgfortran.a"] {
         set lang_test_file "${lang_library_path}/libgfortran.a"

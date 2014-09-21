@@ -1,8 +1,10 @@
-// $G $F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test floating-point literal syntax.
 
 package main
 
@@ -193,5 +195,9 @@ func main() {
 	}
 	if !close(-210.012e19, -210012, 1000, 19) {
 		print("-210.012e19 is ", -210.012e19, "\n")
+	}
+
+	if bad {
+		panic("float_lit")
 	}
 }

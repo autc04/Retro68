@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 enum class Col { red, yellow, green };
                                 
 int x = Col::red; // { dg-error "cannot convert" }

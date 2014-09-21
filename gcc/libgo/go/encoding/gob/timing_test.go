@@ -6,7 +6,6 @@ package gob
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"runtime"
@@ -50,47 +49,61 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
 }
 
 func TestCountEncodeMallocs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
+
+	const N = 1000
+
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	mallocs := 0 - memstats.Mallocs
-	const count = 1000
-	for i := 0; i < count; i++ {
+
+	allocs := testing.AllocsPerRun(N, func() {
 		err := enc.Encode(bench)
 		if err != nil {
 			t.Fatal("encode:", err)
 		}
+	})
+	if allocs != 0 {
+		t.Fatalf("mallocs per encode of type Bench: %v; wanted 0\n", allocs)
 	}
-	runtime.ReadMemStats(memstats)
-	mallocs += memstats.Mallocs
-	fmt.Printf("mallocs per encode of type Bench: %d\n", mallocs/count)
 }
 
 func TestCountDecodeMallocs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
+
+	const N = 1000
+
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
-	const count = 1000
-	for i := 0; i < count; i++ {
+
+	// Fill the buffer with enough to decode
+	testing.AllocsPerRun(N, func() {
 		err := enc.Encode(bench)
 		if err != nil {
 			t.Fatal("encode:", err)
 		}
-	}
+	})
+
 	dec := NewDecoder(&buf)
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	mallocs := 0 - memstats.Mallocs
-	for i := 0; i < count; i++ {
+	allocs := testing.AllocsPerRun(N, func() {
 		*bench = Bench{}
 		err := dec.Decode(&bench)
 		if err != nil {
 			t.Fatal("decode:", err)
 		}
+	})
+	if allocs != 3 {
+		t.Fatalf("mallocs per decode of type Bench: %v; wanted 3\n", allocs)
 	}
-	runtime.ReadMemStats(memstats)
-	mallocs += memstats.Mallocs
-	fmt.Printf("mallocs per decode of type Bench: %d\n", mallocs/count)
 }

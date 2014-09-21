@@ -1,6 +1,5 @@
 /* Define builtin-in macros for all front ends that perform preprocessing
-   Copyright (C) 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,9 +19,6 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef GCC_CPPBUILTIN_H
 #define GCC_CPPBUILTIN_H
-
-#include "coretypes.h"
-
 
 /* Parse a BASEVER version string of the format "major.minor.patchlevel"
    or "major.minor" to extract its components.  */

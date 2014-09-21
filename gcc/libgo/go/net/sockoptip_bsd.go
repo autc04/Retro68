@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd netbsd openbsd
-
-// IP-level socket options for BSD variants
+// +build darwin dragonfly freebsd netbsd openbsd
 
 package net
 
@@ -13,50 +11,24 @@ import (
 	"syscall"
 )
 
-func ipv4MulticastTTL(fd *netFD) (int, error) {
-	if err := fd.incref(false); err != nil {
-		return 0, err
-	}
-	defer fd.decref()
-	v, err := syscall.GetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL)
-	if err != nil {
-		return 0, os.NewSyscallError("getsockopt", err)
-	}
-	return int(v), nil
-}
-
-func setIPv4MulticastTTL(fd *netFD, v int) error {
-	if err := fd.incref(false); err != nil {
-		return err
-	}
-	defer fd.decref()
-	err := syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, byte(v))
+func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+	ip, err := interfaceToIPv4Addr(ifi)
 	if err != nil {
 		return os.NewSyscallError("setsockopt", err)
 	}
-	return nil
-}
-
-func ipv6TrafficClass(fd *netFD) (int, error) {
-	if err := fd.incref(false); err != nil {
-		return 0, err
-	}
-	defer fd.decref()
-	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS)
-	if err != nil {
-		return 0, os.NewSyscallError("getsockopt", err)
-	}
-	return v, nil
-}
-
-func setIPv6TrafficClass(fd *netFD, v int) error {
-	if err := fd.incref(false); err != nil {
+	var a [4]byte
+	copy(a[:], ip.To4())
+	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
-	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, v)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a))
+}
+
+func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+	if err := fd.incref(); err != nil {
+		return err
 	}
-	return nil
+	defer fd.decref()
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, byte(boolint(v))))
 }

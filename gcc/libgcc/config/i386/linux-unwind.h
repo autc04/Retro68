@@ -1,6 +1,5 @@
 /* DWARF2 EH unwinding support for AMD x86-64 and x86.
-   Copyright (C) 2004, 2005, 2006, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,10 +28,16 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #ifndef inhibit_libc
 
-#ifdef __x86_64__
+/* There's no sys/ucontext.h for glibc 2.0, so no
+   signal-turned-exceptions for them.  There's also no configure-run for
+   the target, so we can't check on (e.g.) HAVE_SYS_UCONTEXT_H.  Using the
+   target libc version macro should be enough.  */
+#if defined __GLIBC__ && !(__GLIBC__ == 2 && __GLIBC_MINOR__ == 0)
 
 #include <signal.h>
 #include <sys/ucontext.h>
+
+#ifdef __x86_64__
 
 #define MD_FALLBACK_FRAME_STATE_FOR x86_64_fallback_frame_state
 
@@ -48,7 +53,7 @@ x86_64_fallback_frame_state (struct _Unwind_Context *context,
 #ifdef __LP64__
 #define RT_SIGRETURN_SYSCALL	0x050f0000000fc0c7ULL
 #else
-#define RT_SIGRETURN_SYSCALL	0x050f40002006c0c7ULL
+#define RT_SIGRETURN_SYSCALL	0x050f40000201c0c7ULL
 #endif
   if (*(unsigned char *)(pc+0) == 0x48
       && *(unsigned long long *)(pc+1) == RT_SIGRETURN_SYSCALL)
@@ -108,15 +113,6 @@ x86_64_fallback_frame_state (struct _Unwind_Context *context,
 
 #else /* ifdef __x86_64__  */
 
-/* There's no sys/ucontext.h for glibc 2.0, so no
-   signal-turned-exceptions for them.  There's also no configure-run for
-   the target, so we can't check on (e.g.) HAVE_SYS_UCONTEXT_H.  Using the
-   target libc version macro should be enough.  */
-#if defined __GLIBC__ && !(__GLIBC__ == 2 && __GLIBC_MINOR__ == 0)
-
-#include <signal.h>
-#include <sys/ucontext.h>
-
 #define MD_FALLBACK_FRAME_STATE_FOR x86_fallback_frame_state
 
 static _Unwind_Reason_Code
@@ -139,9 +135,9 @@ x86_fallback_frame_state (struct _Unwind_Context *context,
     {
       struct rt_sigframe {
 	int sig;
-	struct siginfo *pinfo;
+	siginfo_t *pinfo;
 	void *puc;
-	struct siginfo info;
+	siginfo_t info;
 	struct ucontext uc;
       } *rt_ = context->cfa;
       /* The void * cast is necessary to avoid an aliasing warning.
@@ -197,6 +193,6 @@ x86_frob_update_context (struct _Unwind_Context *context,
     _Unwind_SetSignalFrame (context, 1);
 }
 
-#endif /* not glibc 2.0 */
 #endif /* ifdef __x86_64__  */
+#endif /* not glibc 2.0 */
 #endif /* ifdef inhibit_libc  */

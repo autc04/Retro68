@@ -1,7 +1,5 @@
 /* Handle errors.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Niels Kristian Bech Jensen
 
 This file is part of GCC.
@@ -28,8 +26,18 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "flags.h"
 #include "gfortran.h"
+
+#ifdef HAVE_TERMIOS_H
+# include <termios.h>
+#endif
+
+#ifdef GWINSZ_IN_SYS_IOCTL
+# include <sys/ioctl.h>
+#endif
+
 
 static int suppress_errors = 0;
 
@@ -60,12 +68,45 @@ gfc_pop_suppress_errors (void)
 }
 
 
+/* Determine terminal width (for trimming source lines in output).  */
+
+static int
+get_terminal_width (void)
+{
+  /* Only limit the width if we're outputting to a terminal.  */
+#ifdef HAVE_UNISTD_H
+  if (!isatty (STDERR_FILENO))
+    return INT_MAX;
+#endif
+  
+  /* Method #1: Use ioctl (not available on all systems).  */
+#ifdef TIOCGWINSZ
+  struct winsize w;
+  w.ws_col = 0;
+  if (ioctl (0, TIOCGWINSZ, &w) == 0 && w.ws_col > 0)
+    return w.ws_col;
+#endif
+
+  /* Method #2: Query environment variable $COLUMNS.  */
+  const char *p = getenv ("COLUMNS");
+  if (p)
+    {
+      int value = atoi (p);
+      if (value > 0)
+	return value;
+    }
+
+  /* If both fail, use reasonable default.  */
+  return 80;
+}
+
+
 /* Per-file error initialization.  */
 
 void
 gfc_error_init_1 (void)
 {
-  terminal_width = gfc_terminal_width ();
+  terminal_width = get_terminal_width ();
   errors = 0;
   warnings = 0;
   buffer_flag = 0;
@@ -175,16 +216,50 @@ error_integer (long int i)
 }
 
 
-static void
+static size_t
+gfc_widechar_display_length (gfc_char_t c)
+{
+  if (gfc_wide_is_printable (c) || c == '\t')
+    /* Printable ASCII character, or tabulation (output as a space).  */
+    return 1;
+  else if (c < ((gfc_char_t) 1 << 8))
+    /* Displayed as \x??  */
+    return 4;
+  else if (c < ((gfc_char_t) 1 << 16))
+    /* Displayed as \u????  */
+    return 6;
+  else
+    /* Displayed as \U????????  */
+    return 10;
+}
+
+
+/* Length of the ASCII representation of the wide string, escaping wide
+   characters as print_wide_char_into_buffer() does.  */
+
+static size_t
+gfc_wide_display_length (const gfc_char_t *str)
+{
+  size_t i, len;
+
+  for (i = 0, len = 0; str[i]; i++)
+    len += gfc_widechar_display_length (str[i]);
+
+  return len;
+}
+
+static int
 print_wide_char_into_buffer (gfc_char_t c, char *buf)
 {
   static const char xdigit[16] = { '0', '1', '2', '3', '4', '5', '6',
     '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-  if (gfc_wide_is_printable (c))
+  if (gfc_wide_is_printable (c) || c == '\t')
     {
       buf[1] = '\0';
-      buf[0] = (unsigned char) c;
+      /* Tabulation is output as a space.  */
+      buf[0] = (unsigned char) (c == '\t' ? ' ' : c);
+      return 1;
     }
   else if (c < ((gfc_char_t) 1 << 8))
     {
@@ -195,6 +270,7 @@ print_wide_char_into_buffer (gfc_char_t c, char *buf)
 
       buf[1] = 'x';
       buf[0] = '\\';
+      return 4;
     }
   else if (c < ((gfc_char_t) 1 << 16))
     {
@@ -209,6 +285,7 @@ print_wide_char_into_buffer (gfc_char_t c, char *buf)
 
       buf[1] = 'u';
       buf[0] = '\\';
+      return 6;
     }
   else
     {
@@ -231,6 +308,7 @@ print_wide_char_into_buffer (gfc_char_t c, char *buf)
 
       buf[1] = 'U';
       buf[0] = '\\';
+      return 10;
     }
 }
 
@@ -255,7 +333,7 @@ show_locus (locus *loc, int c1, int c2)
 {
   gfc_linebuf *lb;
   gfc_file *f;
-  gfc_char_t c, *p;
+  gfc_char_t *p;
   int i, offset, cmax;
 
   /* TODO: Either limit the total length and number of included files
@@ -326,24 +404,15 @@ show_locus (locus *loc, int c1, int c2)
      show up on the terminal.  Tabs are converted to spaces, and 
      nonprintable characters are converted to a "\xNN" sequence.  */
 
-  /* TODO: Although setting i to the terminal width is clever, it fails
-     to work correctly when nonprintable characters exist.  A better 
-     solution should be found.  */
-
   p = &(lb->line[offset]);
-  i = gfc_wide_strlen (p);
+  i = gfc_wide_display_length (p);
   if (i > terminal_width)
     i = terminal_width - 1;
 
-  for (; i > 0; i--)
+  while (i > 0)
     {
       static char buffer[11];
-
-      c = *p++;
-      if (c == '\t')
-	c = ' ';
-
-      print_wide_char_into_buffer (c, buffer);
+      i -= print_wide_char_into_buffer (*p++, buffer);
       error_string (buffer);
     }
 
@@ -355,16 +424,27 @@ show_locus (locus *loc, int c1, int c2)
 
   c1 -= offset;
   c2 -= offset;
+  cmax -= offset;
 
-  for (i = 0; i <= cmax; i++)
+  p = &(lb->line[offset]);
+  for (i = 0; i < cmax; i++)
     {
+      int spaces, j;
+      spaces = gfc_widechar_display_length (*p++);
+
       if (i == c1)
-	error_char ('1');
+	error_char ('1'), spaces--;
       else if (i == c2)
-	error_char ('2');
-      else
+	error_char ('2'), spaces--;
+
+      for (j = 0; j < spaces; j++)
 	error_char (' ');
     }
+
+  if (i == c1)
+    error_char ('1');
+  else if (i == c2)
+    error_char ('2');
 
   error_char ('\n');
 
@@ -509,7 +589,8 @@ error_print (const char *type, const char *format0, va_list argp)
 	  gcc_assert (pos >= 0);
 	  while (ISDIGIT(*format))
 	    format++;
-	  gcc_assert (*format++ == '$');
+	  gcc_assert (*format == '$');
+	  format++;
 	}
       else
 	pos++;
@@ -767,31 +848,70 @@ gfc_notification_std (int std)
 
 /* Possibly issue a warning/error about use of a nonstandard (or deleted)
    feature.  An error/warning will be issued if the currently selected
-   standard does not contain the requested bits.  Return FAILURE if
+   standard does not contain the requested bits.  Return false if
    an error is generated.  */
 
-gfc_try
+bool
 gfc_notify_std (int std, const char *gmsgid, ...)
 {
   va_list argp;
   bool warning;
+  const char *msg1, *msg2;
+  char *buffer;
 
   warning = ((gfc_option.warn_std & std) != 0) && !inhibit_warnings;
   if ((gfc_option.allow_std & std) != 0 && !warning)
-    return SUCCESS;
+    return true;
 
   if (suppress_errors)
-    return warning ? SUCCESS : FAILURE;
+    return warning ? true : false;
 
   cur_error_buffer = warning ? &warning_buffer : &error_buffer;
   cur_error_buffer->flag = 1;
   cur_error_buffer->index = 0;
 
-  va_start (argp, gmsgid);
   if (warning)
-    error_print (_("Warning:"), _(gmsgid), argp);
+    msg1 = _("Warning:");
   else
-    error_print (_("Error:"), _(gmsgid), argp);
+    msg1 = _("Error:");
+  
+  switch (std)
+  {
+    case GFC_STD_F2008_TS:
+      msg2 = "TS 29113:";
+      break;
+    case GFC_STD_F2008_OBS:
+      msg2 = _("Fortran 2008 obsolescent feature:");
+      break;
+    case GFC_STD_F2008:
+      msg2 = "Fortran 2008:";
+      break;
+    case GFC_STD_F2003:
+      msg2 = "Fortran 2003:";
+      break;
+    case GFC_STD_GNU:
+      msg2 = _("GNU Extension:");
+      break;
+    case GFC_STD_LEGACY:
+      msg2 = _("Legacy Extension:");
+      break;
+    case GFC_STD_F95_OBS:
+      msg2 = _("Obsolescent feature:");
+      break;
+    case GFC_STD_F95_DEL:
+      msg2 = _("Deleted feature:");
+      break;
+    default:
+      gcc_unreachable ();
+  }
+
+  buffer = (char *) alloca (strlen (msg1) + strlen (msg2) + 2);
+  strcpy (buffer, msg1);
+  strcat (buffer, " ");
+  strcat (buffer, msg2);
+
+  va_start (argp, gmsgid);
+  error_print (buffer, _(gmsgid), argp);
   va_end (argp);
 
   error_char ('\0');
@@ -802,9 +922,10 @@ gfc_notify_std (int std, const char *gmsgid, ...)
 	warnings++;
       else
 	gfc_increment_error_count();
+      cur_error_buffer->flag = 0;
     }
 
-  return (warning && !warnings_are_errors) ? SUCCESS : FAILURE;
+  return (warning && !warnings_are_errors) ? true : false;
 }
 
 

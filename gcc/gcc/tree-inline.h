@@ -1,6 +1,5 @@
 /* Tree inlining hooks and declarations.
-   Copyright 2001, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva  <aoliva@redhat.com>
 
 This file is part of GCC.
@@ -22,8 +21,6 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_TREE_INLINE_H
 #define GCC_TREE_INLINE_H
 
-#include "vecir.h" /* For VEC(gimple,heap).  */
-
 struct cgraph_edge;
 
 /* Indicate the desired behavior wrt call graph edges.  We can either
@@ -39,7 +36,7 @@ enum copy_body_cge_which
 
 /* Data required for function body duplication.  */
 
-typedef struct copy_body_data
+struct copy_body_data
 {
   /* FUNCTION_DECL for function being inlined, or in general the
      source function providing the original trees.  */
@@ -100,6 +97,10 @@ typedef struct copy_body_data
      by manipulating the CFG rather than a statement.  */
   bool transform_return_to_modify;
 
+  /* True if the parameters of the source function are transformed.
+     Only true for inlining.  */
+  bool transform_parameter;
+
   /* True if this statement will need to be regimplified.  */
   bool regimplify;
 
@@ -116,17 +117,25 @@ typedef struct copy_body_data
   struct pointer_set_t *statements_to_fold;
 
   /* Entry basic block to currently copied body.  */
-  struct basic_block_def *entry_bb;
+  basic_block entry_bb;
+
+  /* For partial function versioning, bitmap of bbs to be copied,
+     otherwise NULL.  */
+  bitmap blocks_to_copy;
 
   /* Debug statements that need processing.  */
-  VEC(gimple,heap) *debug_stmts;
+  vec<gimple> debug_stmts;
 
   /* A map from local declarations in the inlined function to
      equivalents in the function into which it is being inlined, where
      the originals have been mapped to a value rather than to a
      variable.  */
   struct pointer_map_t *debug_map;
-} copy_body_data;
+ 
+  /* Cilk keywords currently need to replace some variables that
+     ordinary nested functions do not.  */ 
+  bool remap_var_for_cilk;
+};
 
 /* Weights of constructions for estimate_num_insns.  */
 
@@ -153,8 +162,8 @@ typedef struct eni_weights_d
   /* Cost of return.  */
   unsigned return_cost;
 
-  /* True when time of statemnt should be estimated.  Thus i.e
-     cost of switch statement is logarithmic rather than linear in number
+  /* True when time of statement should be estimated.  Thus, the
+     cost of a switch statement is logarithmic rather than linear in number
      of cases.  */
   bool time_based;
 } eni_weights;
@@ -174,10 +183,9 @@ extern eni_weights eni_size_weights;
 extern eni_weights eni_time_weights;
 
 /* Function prototypes.  */
-
+void init_inline_once (void);
 extern tree copy_tree_body_r (tree *, int *, void *);
 extern void insert_decl_map (copy_body_data *, tree, tree);
-
 unsigned int optimize_inline_calls (tree);
 tree maybe_inline_call_in_expr (tree);
 bool tree_inlinable_function_p (tree);
@@ -188,11 +196,13 @@ int estimate_num_insns (gimple, eni_weights *);
 int estimate_num_insns_fn (tree, eni_weights *);
 int count_insns_seq (gimple_seq, eni_weights *);
 bool tree_versionable_function_p (tree);
-
 extern tree remap_decl (tree decl, copy_body_data *id);
 extern tree remap_type (tree type, copy_body_data *id);
 extern gimple_seq copy_gimple_seq_and_replace_locals (gimple_seq seq);
+extern bool debug_find_tree (tree, tree);
 
-extern HOST_WIDE_INT estimated_stack_frame_size (struct cgraph_node *);
+/* This is in tree-inline.c since the routine uses
+   data structures from the inliner.  */
+extern tree build_duplicate_type (tree);
 
 #endif /* GCC_TREE_INLINE_H */

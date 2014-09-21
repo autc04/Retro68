@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Checks some of the GNU style formatting rules in a set of patches.
-# Copyright (C) 2010  Free Software Foundation, Inc.
+# Copyright (C) 2010, 2012  Free Software Foundation, Inc.
 # Contributed by Sebastian Pop <sebastian.pop@amd.com>
 
 # This program is free software; you can redistribute it and/or modify
@@ -36,6 +36,10 @@ EOF
 test $# -eq 0 && usage
 
 tmp=check_GNU_style.tmp
+
+# Remove $tmp on exit and various signals.
+trap "rm -f $tmp" 0
+trap "rm -f $tmp ; exit 1" 1 2 3 5 9 13 15
 
 # Grep
 g (){

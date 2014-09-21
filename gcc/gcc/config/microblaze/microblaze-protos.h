@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for Xilinx MicroBlaze.
-   Copyright 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -39,7 +39,7 @@ extern void print_operand (FILE *, rtx, int);
 extern void print_operand_address (FILE *, rtx);
 extern void init_cumulative_args (CUMULATIVE_ARGS *,tree, rtx);
 extern bool microblaze_legitimate_address_p (enum machine_mode, rtx, bool);
-extern int microblaze_is_interrupt_handler (void);
+extern int microblaze_is_interrupt_variant (void);
 extern rtx microblaze_return_addr (int, rtx);
 extern int simple_memory_operand (rtx, enum machine_mode);
 extern int double_memory_operand (rtx, enum machine_mode);
@@ -48,7 +48,12 @@ extern int microblaze_regno_ok_for_base_p (int, int);
 extern HOST_WIDE_INT microblaze_initial_elimination_offset (int, int);
 extern void microblaze_declare_object (FILE *, const char *, const char *,
    const char *, int);
-extern void microblaze_asm_output_ident (FILE *, const char *);
+extern void microblaze_asm_output_ident (const char *);
+extern int microblaze_legitimate_pic_operand (rtx);
+extern bool microblaze_tls_referenced_p (rtx);
+extern int symbol_mentioned_p (rtx);
+extern int label_mentioned_p (rtx);
+extern bool microblaze_cannot_force_const_mem (enum machine_mode, rtx);
 #endif  /* RTX_CODE */
 
 /* Declare functions in microblaze-c.c.  */

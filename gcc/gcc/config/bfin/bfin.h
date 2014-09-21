@@ -1,6 +1,5 @@
 /* Definitions for the Blackfin port.
-   Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Analog Devices.
 
    This file is part of GCC.
@@ -784,7 +783,8 @@ typedef struct {
 #define EH_RETURN_DATA_REGNO(N)	((N) < 2 ? (N) : INVALID_REGNUM)
 #define EH_RETURN_STACKADJ_RTX	gen_rtx_REG (Pmode, REG_P2)
 #define EH_RETURN_HANDLER_RTX \
-    gen_frame_mem (Pmode, plus_constant (frame_pointer_rtx, UNITS_PER_WORD))
+  gen_frame_mem (Pmode, plus_constant (Pmode, frame_pointer_rtx, \
+				       UNITS_PER_WORD))
 
 /* Addressing Modes */
 
@@ -858,9 +858,6 @@ typedef struct {
 
 /* Define this if most significant word of a multiword number is numbered. */
 #define WORDS_BIG_ENDIAN 0
-
-/* number of bits in an addressable storage unit */
-#define BITS_PER_UNIT 8
 
 /* Width in bits of a "word", which is the contents of a machine register.
    Note that this is not necessarily the width of data type `int';

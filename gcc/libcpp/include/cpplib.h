@@ -1,7 +1,5 @@
 /* Definitions for CPP library.
-   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1995-2014 Free Software Foundation, Inc.
    Written by Per Bothner, 1994-95.
 
 This program is free software; you can redistribute it and/or modify it
@@ -167,7 +165,8 @@ enum cpp_ttype
 /* C language kind, used when calling cpp_create_reader.  */
 enum c_lang {CLK_GNUC89 = 0, CLK_GNUC99, CLK_GNUC11,
 	     CLK_STDC89, CLK_STDC94, CLK_STDC99, CLK_STDC11,
-	     CLK_GNUCXX, CLK_CXX98, CLK_GNUCXX11, CLK_CXX11, CLK_ASM};
+	     CLK_GNUCXX, CLK_CXX98, CLK_GNUCXX11, CLK_CXX11,
+	     CLK_GNUCXX1Y, CLK_CXX1Y, CLK_ASM};
 
 /* Payload of a NUMBER, STRING, CHAR or COMMENT token.  */
 struct GTY(()) cpp_string {
@@ -249,7 +248,7 @@ struct GTY(()) cpp_token {
 };
 
 /* Say which field is in use.  */
-extern enum cpp_token_fld_kind cpp_token_val_index (cpp_token *tok);
+extern enum cpp_token_fld_kind cpp_token_val_index (const cpp_token *tok);
 
 /* A type wide enough to hold any multibyte source character.
    cpplib's character constant interpreter requires an unsigned type.
@@ -338,6 +337,9 @@ struct cpp_options
   /* Nonzero means warn if slash-star appears in a comment.  */
   unsigned char warn_comments;
 
+  /* Nonzero means to warn about __DATA__, __TIME__ and __TIMESTAMP__ usage.   */
+  unsigned char warn_date_time;
+
   /* Nonzero means warn if a user-supplied include directory does not
      exist.  */
   unsigned char warn_missing_include_dirs;
@@ -424,8 +426,26 @@ struct cpp_options
   /* True for traditional preprocessing.  */
   unsigned char traditional;
 
-  /* Nonzero for C++ 2011 Standard user-defnied literals.  */
+  /* Nonzero for C++ 2011 Standard user-defined literals.  */
   unsigned char user_literals;
+
+  /* Nonzero means warn when a string or character literal is followed by a
+     ud-suffix which does not beging with an underscore.  */
+  unsigned char warn_literal_suffix;
+
+  /* Nonzero means interpret imaginary, fixed-point, or other gnu extension
+     literal number suffixes as user-defined literal number suffixes.  */
+  unsigned char ext_numeric_literals;
+
+  /* Nonzero means extended identifiers allow the characters specified
+     in C11 and C++11.  */
+  unsigned char c11_identifiers;
+
+  /* Nonzero for C++ 2014 Standard binary constants.  */
+  unsigned char binary_constants;
+
+  /* Nonzero for C++ 2014 Standard digit separators.  */
+  unsigned char digit_separators;
 
   /* Holds the name of the target (execution) character set.  */
   const char *narrow_charset;
@@ -485,6 +505,9 @@ struct cpp_options
 
   /* True disables tokenization outside of preprocessing directives. */
   bool directives_only;
+
+  /* True enables canonicalization of system header file paths. */
+  bool canonical_system_headers;
 };
 
 /* Callback for header lookup for HEADER, which is the name of a
@@ -847,13 +870,15 @@ struct cpp_num
 /* Classify a CPP_NUMBER token.  The return value is a combination of
    the flags from the above sets.  */
 extern unsigned cpp_classify_number (cpp_reader *, const cpp_token *,
-				     const char **);
+				     const char **, source_location);
 
 /* Return the classification flags for a float suffix.  */
-extern unsigned int cpp_interpret_float_suffix (const char *, size_t);
+extern unsigned int cpp_interpret_float_suffix (cpp_reader *, const char *,
+						size_t);
 
 /* Return the classification flags for an int suffix.  */
-extern unsigned int cpp_interpret_int_suffix (const char *, size_t);
+extern unsigned int cpp_interpret_int_suffix (cpp_reader *, const char *,
+					      size_t);
 
 /* Evaluate a token classified as category CPP_N_INTEGER.  */
 extern cpp_num cpp_interpret_integer (cpp_reader *, const cpp_token *,
@@ -906,7 +931,9 @@ enum {
   CPP_W_CXX_OPERATOR_NAMES,
   CPP_W_NORMALIZE,
   CPP_W_INVALID_PCH,
-  CPP_W_WARNING_DIRECTIVE
+  CPP_W_WARNING_DIRECTIVE,
+  CPP_W_LITERAL_SUFFIX,
+  CPP_W_DATE_TIME
 };
 
 /* Output a diagnostic of some kind.  */
@@ -1005,6 +1032,7 @@ extern bool cpp_included (cpp_reader *, const char *);
 extern bool cpp_included_before (cpp_reader *, const char *, source_location);
 extern void cpp_make_system_header (cpp_reader *, int, int);
 extern bool cpp_push_include (cpp_reader *, const char *);
+extern bool cpp_push_default_include (cpp_reader *, const char *);
 extern void cpp_change_file (cpp_reader *, enum lc_reason, const char *);
 extern const char *cpp_get_path (struct _cpp_file *);
 extern cpp_dir *cpp_get_dir (struct _cpp_file *);

@@ -5,7 +5,9 @@
 package xml
 
 import (
+	"io"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -353,5 +355,333 @@ func TestUnmarshalWithoutNameType(t *testing.T) {
 	}
 	if x.Attr != OK {
 		t.Fatalf("have %v\nwant %v", x.Attr, OK)
+	}
+}
+
+func TestUnmarshalAttr(t *testing.T) {
+	type ParamVal struct {
+		Int int `xml:"int,attr"`
+	}
+
+	type ParamPtr struct {
+		Int *int `xml:"int,attr"`
+	}
+
+	type ParamStringPtr struct {
+		Int *string `xml:"int,attr"`
+	}
+
+	x := []byte(`<Param int="1" />`)
+
+	p1 := &ParamPtr{}
+	if err := Unmarshal(x, p1); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if p1.Int == nil {
+		t.Fatalf("Unmarshal failed in to *int field")
+	} else if *p1.Int != 1 {
+		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p1.Int, 1)
+	}
+
+	p2 := &ParamVal{}
+	if err := Unmarshal(x, p2); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if p2.Int != 1 {
+		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p2.Int, 1)
+	}
+
+	p3 := &ParamStringPtr{}
+	if err := Unmarshal(x, p3); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if p3.Int == nil {
+		t.Fatalf("Unmarshal failed in to *string field")
+	} else if *p3.Int != "1" {
+		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p3.Int, 1)
+	}
+}
+
+type Tables struct {
+	HTable string `xml:"http://www.w3.org/TR/html4/ table"`
+	FTable string `xml:"http://www.w3schools.com/furniture table"`
+}
+
+var tables = []struct {
+	xml string
+	tab Tables
+	ns  string
+}{
+	{
+		xml: `<Tables>` +
+			`<table xmlns="http://www.w3.org/TR/html4/">hello</table>` +
+			`<table xmlns="http://www.w3schools.com/furniture">world</table>` +
+			`</Tables>`,
+		tab: Tables{"hello", "world"},
+	},
+	{
+		xml: `<Tables>` +
+			`<table xmlns="http://www.w3schools.com/furniture">world</table>` +
+			`<table xmlns="http://www.w3.org/TR/html4/">hello</table>` +
+			`</Tables>`,
+		tab: Tables{"hello", "world"},
+	},
+	{
+		xml: `<Tables xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/">` +
+			`<f:table>world</f:table>` +
+			`<h:table>hello</h:table>` +
+			`</Tables>`,
+		tab: Tables{"hello", "world"},
+	},
+	{
+		xml: `<Tables>` +
+			`<table>bogus</table>` +
+			`</Tables>`,
+		tab: Tables{},
+	},
+	{
+		xml: `<Tables>` +
+			`<table>only</table>` +
+			`</Tables>`,
+		tab: Tables{HTable: "only"},
+		ns:  "http://www.w3.org/TR/html4/",
+	},
+	{
+		xml: `<Tables>` +
+			`<table>only</table>` +
+			`</Tables>`,
+		tab: Tables{FTable: "only"},
+		ns:  "http://www.w3schools.com/furniture",
+	},
+	{
+		xml: `<Tables>` +
+			`<table>only</table>` +
+			`</Tables>`,
+		tab: Tables{},
+		ns:  "something else entirely",
+	},
+}
+
+func TestUnmarshalNS(t *testing.T) {
+	for i, tt := range tables {
+		var dst Tables
+		var err error
+		if tt.ns != "" {
+			d := NewDecoder(strings.NewReader(tt.xml))
+			d.DefaultSpace = tt.ns
+			err = d.Decode(&dst)
+		} else {
+			err = Unmarshal([]byte(tt.xml), &dst)
+		}
+		if err != nil {
+			t.Errorf("#%d: Unmarshal: %v", i, err)
+			continue
+		}
+		want := tt.tab
+		if dst != want {
+			t.Errorf("#%d: dst=%+v, want %+v", i, dst, want)
+		}
+	}
+}
+
+func TestMarshalNS(t *testing.T) {
+	dst := Tables{"hello", "world"}
+	data, err := Marshal(&dst)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	want := `<Tables><table xmlns="http://www.w3.org/TR/html4/">hello</table><table xmlns="http://www.w3schools.com/furniture">world</table></Tables>`
+	str := string(data)
+	if str != want {
+		t.Errorf("have: %q\nwant: %q\n", str, want)
+	}
+}
+
+type TableAttrs struct {
+	TAttr TAttr
+}
+
+type TAttr struct {
+	HTable string `xml:"http://www.w3.org/TR/html4/ table,attr"`
+	FTable string `xml:"http://www.w3schools.com/furniture table,attr"`
+	Lang   string `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
+	Other1 string `xml:"http://golang.org/xml/ other,attr,omitempty"`
+	Other2 string `xml:"http://golang.org/xmlfoo/ other,attr,omitempty"`
+	Other3 string `xml:"http://golang.org/json/ other,attr,omitempty"`
+	Other4 string `xml:"http://golang.org/2/json/ other,attr,omitempty"`
+}
+
+var tableAttrs = []struct {
+	xml string
+	tab TableAttrs
+	ns  string
+}{
+	{
+		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
+			`h:table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: "world"}},
+	},
+	{
+		xml: `<TableAttrs><TAttr xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
+			`h:table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: "world"}},
+	},
+	{
+		xml: `<TableAttrs><TAttr ` +
+			`h:table="hello" f:table="world" xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: "world"}},
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
+			`h:table="hello" table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: ""}},
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr xmlns="http://www.w3.org/TR/html4/" ` +
+			`table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{HTable: "", FTable: "world"}},
+	},
+	{
+		xml: `<TableAttrs><TAttr ` +
+			`table="bogus" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{},
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
+			`h:table="hello" table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: ""}},
+		ns:  "http://www.w3schools.com/furniture",
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr ` +
+			`table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{HTable: "", FTable: "world"}},
+		ns:  "http://www.w3.org/TR/html4/",
+	},
+	{
+		xml: `<TableAttrs><TAttr ` +
+			`table="bogus" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{},
+		ns:  "something else entirely",
+	},
+}
+
+func TestUnmarshalNSAttr(t *testing.T) {
+	for i, tt := range tableAttrs {
+		var dst TableAttrs
+		var err error
+		if tt.ns != "" {
+			d := NewDecoder(strings.NewReader(tt.xml))
+			d.DefaultSpace = tt.ns
+			err = d.Decode(&dst)
+		} else {
+			err = Unmarshal([]byte(tt.xml), &dst)
+		}
+		if err != nil {
+			t.Errorf("#%d: Unmarshal: %v", i, err)
+			continue
+		}
+		want := tt.tab
+		if dst != want {
+			t.Errorf("#%d: dst=%+v, want %+v", i, dst, want)
+		}
+	}
+}
+
+func TestMarshalNSAttr(t *testing.T) {
+	src := TableAttrs{TAttr{"hello", "world", "en_US", "other1", "other2", "other3", "other4"}}
+	data, err := Marshal(&src)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	want := `<TableAttrs><TAttr xmlns:html4="http://www.w3.org/TR/html4/" html4:table="hello" xmlns:furniture="http://www.w3schools.com/furniture" furniture:table="world" xml:lang="en_US" xmlns:_xml="http://golang.org/xml/" _xml:other="other1" xmlns:_xmlfoo="http://golang.org/xmlfoo/" _xmlfoo:other="other2" xmlns:json="http://golang.org/json/" json:other="other3" xmlns:json_1="http://golang.org/2/json/" json_1:other="other4"></TAttr></TableAttrs>`
+	str := string(data)
+	if str != want {
+		t.Errorf("Marshal:\nhave: %#q\nwant: %#q\n", str, want)
+	}
+
+	var dst TableAttrs
+	if err := Unmarshal(data, &dst); err != nil {
+		t.Errorf("Unmarshal: %v", err)
+	}
+
+	if dst != src {
+		t.Errorf("Unmarshal = %q, want %q", dst, src)
+	}
+}
+
+type MyCharData struct {
+	body string
+}
+
+func (m *MyCharData) UnmarshalXML(d *Decoder, start StartElement) error {
+	for {
+		t, err := d.Token()
+		if err == io.EOF { // found end of element
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if char, ok := t.(CharData); ok {
+			m.body += string(char)
+		}
+	}
+	return nil
+}
+
+var _ Unmarshaler = (*MyCharData)(nil)
+
+func (m *MyCharData) UnmarshalXMLAttr(attr Attr) error {
+	panic("must not call")
+}
+
+type MyAttr struct {
+	attr string
+}
+
+func (m *MyAttr) UnmarshalXMLAttr(attr Attr) error {
+	m.attr = attr.Value
+	return nil
+}
+
+var _ UnmarshalerAttr = (*MyAttr)(nil)
+
+type MyStruct struct {
+	Data *MyCharData
+	Attr *MyAttr `xml:",attr"`
+
+	Data2 MyCharData
+	Attr2 MyAttr `xml:",attr"`
+}
+
+func TestUnmarshaler(t *testing.T) {
+	xml := `<?xml version="1.0" encoding="utf-8"?>
+		<MyStruct Attr="attr1" Attr2="attr2">
+		<Data>hello <!-- comment -->world</Data>
+		<Data2>howdy <!-- comment -->world</Data2>
+		</MyStruct>
+	`
+
+	var m MyStruct
+	if err := Unmarshal([]byte(xml), &m); err != nil {
+		t.Fatal(err)
+	}
+
+	if m.Data == nil || m.Attr == nil || m.Data.body != "hello world" || m.Attr.attr != "attr1" || m.Data2.body != "howdy world" || m.Attr2.attr != "attr2" {
+		t.Errorf("m=%#+v\n", m)
 	}
 }

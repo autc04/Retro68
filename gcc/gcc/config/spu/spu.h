@@ -1,5 +1,4 @@
-/* Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 2006-2014 Free Software Foundation, Inc.
 
    This file is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free
@@ -54,8 +53,6 @@ extern GTY(()) int spu_tune;
 #define BYTES_BIG_ENDIAN 1
 
 #define WORDS_BIG_ENDIAN 1
-
-#define BITS_PER_UNIT 8
 
 /* GCC uses word_mode in many places, assuming that it is the fastest
    integer mode.  That is not the case for SPU though.  We can't use
@@ -250,7 +247,7 @@ targetm.resolve_overloaded_builtin = spu_resolve_overloaded_builtin;	\
 
 #define FIRST_PARM_OFFSET(FNDECL) (0)
 
-#define DYNAMIC_CHAIN_ADDRESS(FP) plus_constant ((FP), -16)
+#define DYNAMIC_CHAIN_ADDRESS(FP) plus_constant (Pmode, (FP), -16)
 
 #define RETURN_ADDR_RTX(COUNT,FP) (spu_return_addr (COUNT, FP))
 
@@ -519,18 +516,6 @@ do {									\
 #define FUNCTION_MODE QImode
 
 #define NO_IMPLICIT_EXTERN_C 1
-
-/* Canonicalize a comparison from one we don't have to one we do have.  */
-#define CANONICALIZE_COMPARISON(CODE,OP0,OP1) \
-  do {                                                                    \
-    if (((CODE) == LE || (CODE) == LT || (CODE) == LEU || (CODE) == LTU)) \
-      {                                                                   \
-        rtx tem = (OP0);                                                  \
-        (OP0) = (OP1);                                                    \
-        (OP1) = tem;                                                      \
-        (CODE) = swap_condition (CODE);                                   \
-      }                                                                   \
-  } while (0)
 
 
 /* Address spaces.  */

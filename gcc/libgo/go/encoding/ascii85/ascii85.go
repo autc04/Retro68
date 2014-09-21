@@ -57,6 +57,7 @@ func Encode(dst, src []byte) int {
 		if v == 0 && len(src) >= 4 {
 			dst[0] = 'z'
 			dst = dst[1:]
+			src = src[4:]
 			n++
 			continue
 		}
@@ -295,5 +296,4 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		nn, d.readErr = d.r.Read(d.buf[d.nbuf:])
 		d.nbuf += nn
 	}
-	panic("unreachable")
 }

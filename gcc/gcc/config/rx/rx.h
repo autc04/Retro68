@@ -1,5 +1,5 @@
 /* GCC backend definitions for the Renesas RX processor.
-   Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Contributed by Red Hat.
 
    This file is part of GCC.
@@ -29,9 +29,22 @@
           builtin_define ("__RX610__");		\
           builtin_assert ("machine=RX610");	\
 	}					\
-     else					\
-        builtin_assert ("machine=RX600");	\
-      						\
+      else if (rx_cpu_type == RX100)		\
+	{					\
+          builtin_define ("__RX100__");		\
+          builtin_assert ("machine=RX100");	\
+	}					\
+      else if (rx_cpu_type == RX200)		\
+	{					\
+          builtin_define ("__RX200__");		\
+          builtin_assert ("machine=RX200");	\
+        }					\
+      else if (rx_cpu_type == RX600)		\
+        {					\
+          builtin_define ("__RX600__");		\
+          builtin_assert ("machine=RX600");	\
+        }					\
+						\
       if (TARGET_BIG_ENDIAN_DATA)		\
 	builtin_define ("__RX_BIG_ENDIAN__");	\
       else					\
@@ -49,12 +62,18 @@
 	builtin_define ("__RX_AS100_SYNTAX__"); \
       else					\
 	builtin_define ("__RX_GAS_SYNTAX__");   \
+						\
+      if (TARGET_GCC_ABI)			\
+	builtin_define ("__RX_GCC_ABI__");	\
+      else					\
+	builtin_define ("__RX_ABI__");		\
     }                                           \
   while (0)
 
 #undef  CC1_SPEC
 #define CC1_SPEC "\
   %{mas100-syntax:%{gdwarf*:%e-mas100-syntax is incompatible with -gdwarf}} \
+  %{mcpu=rx100:%{fpu:%erx100 cpu does not have FPU hardware}} \
   %{mcpu=rx200:%{fpu:%erx200 cpu does not have FPU hardware}}"
 
 #undef  STARTFILE_SPEC
@@ -79,6 +98,8 @@
 %{mrelax:-relax} \
 %{mpid} \
 %{mint-register=*} \
+%{mgcc-abi:-mgcc-abi} %{!mgcc-abi:-mrx-abi} \
+%{mcpu=*} \
 "
 
 #undef  LIB_SPEC
@@ -119,7 +140,8 @@
 
 #define DEFAULT_SIGNED_CHAR		0
 
-#define STRICT_ALIGNMENT 		1
+/* RX load/store instructions can handle unaligned addresses.  */
+#define STRICT_ALIGNMENT 		0
 #define FUNCTION_BOUNDARY 		8
 #define BIGGEST_ALIGNMENT 		32
 #define STACK_BOUNDARY 			32
@@ -370,13 +392,13 @@ typedef unsigned int CUMULATIVE_ARGS;
 # else
 #  define TEXT_SECTION_ASM_OP	      "\t.section P,\"ax\""
 #  define CTORS_SECTION_ASM_OP	      \
-  "\t.section\t.init_array,\"aw\",@init_array"
+  "\t.section\t.init_array,\"awx\",@init_array"
 #  define DTORS_SECTION_ASM_OP	      \
-  "\t.section\t.fini_array,\"aw\",@fini_array"
+  "\t.section\t.fini_array,\"awx\",@fini_array"
 #  define INIT_ARRAY_SECTION_ASM_OP   \
-  "\t.section\t.init_array,\"aw\",@init_array"
+  "\t.section\t.init_array,\"awx\",@init_array"
 #  define FINI_ARRAY_SECTION_ASM_OP   \
-  "\t.section\t.fini_array,\"aw\",@fini_array"
+  "\t.section\t.fini_array,\"awx\",@fini_array"
 # endif
 #else
 # define TEXT_SECTION_ASM_OP	      \
@@ -384,19 +406,19 @@ typedef unsigned int CUMULATIVE_ARGS;
 
 # define CTORS_SECTION_ASM_OP			      \
   (TARGET_AS100_SYNTAX ? "\t.SECTION init_array,CODE" \
-   : "\t.section\t.init_array,\"aw\",@init_array")
+   : "\t.section\t.init_array,\"awx\",@init_array")
 
 # define DTORS_SECTION_ASM_OP			      \
   (TARGET_AS100_SYNTAX ? "\t.SECTION fini_array,CODE" \
-   : "\t.section\t.fini_array,\"aw\",@fini_array")
+   : "\t.section\t.fini_array,\"awx\",@fini_array")
 
 # define INIT_ARRAY_SECTION_ASM_OP		      \
   (TARGET_AS100_SYNTAX ? "\t.SECTION init_array,CODE" \
-   : "\t.section\t.init_array,\"aw\",@init_array")
+   : "\t.section\t.init_array,\"awx\",@init_array")
 
 # define FINI_ARRAY_SECTION_ASM_OP		      \
   (TARGET_AS100_SYNTAX ? "\t.SECTION fini_array,CODE" \
-   : "\t.section\t.fini_array,\"aw\",@fini_array")
+   : "\t.section\t.fini_array,\"awx\",@fini_array")
 #endif
 
 #define GLOBAL_ASM_OP 		\
@@ -601,10 +623,6 @@ typedef unsigned int CUMULATIVE_ARGS;
       fprintf ((FILE), TARGET_AS100_SYNTAX ? "\"\n\t.BYTE\t0\n" : "\"\n");\
     }							\
   while (0)
-
-#undef  IDENT_ASM_OP
-#define IDENT_ASM_OP  (TARGET_AS100_SYNTAX \
-		       ? "\t.END\t; Built by: ": "\t.ident\t")
 
 /* For PIC put jump tables into the text section so that the offsets that
    they contain are always computed between two same-section symbols.  */

@@ -1,8 +1,5 @@
 /* Common hooks for MIPS.
-   Copyright (C) 1989, 1990, 1991, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -65,9 +62,7 @@ static const struct default_options mips_option_optimization_table[] =
   (TARGET_DEFAULT				\
    | TARGET_CPU_DEFAULT				\
    | TARGET_ENDIAN_DEFAULT			\
-   | TARGET_FP_EXCEPTIONS_DEFAULT		\
-   | MASK_CHECK_ZERO_DIV			\
-   | MASK_FUSED_MADD)
+   | MASK_CHECK_ZERO_DIV)
 #undef TARGET_HANDLE_OPTION
 #define TARGET_HANDLE_OPTION mips_handle_option
 

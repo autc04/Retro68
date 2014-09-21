@@ -5,6 +5,7 @@
 package path
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -66,6 +67,29 @@ func TestClean(t *testing.T) {
 	for _, test := range cleantests {
 		if s := Clean(test.path); s != test.result {
 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
+		}
+		if s := Clean(test.result); s != test.result {
+			t.Errorf("Clean(%q) = %q, want %q", test.result, s, test.result)
+		}
+	}
+}
+
+func TestCleanMallocs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Log("skipping AllocsPerRun checks; GOMAXPROCS>1")
+		return
+	}
+
+	t.Log("Skipping AllocsPerRun for gccgo")
+	return
+
+	for _, test := range cleantests {
+		allocs := testing.AllocsPerRun(100, func() { Clean(test.result) })
+		if allocs > 0 {
+			t.Errorf("Clean(%q): %v allocs, want zero", test.result, allocs)
 		}
 	}
 }
@@ -181,6 +205,7 @@ var dirtests = []PathTest{
 	{"x/", "x"},
 	{"abc", "."},
 	{"abc/def", "abc"},
+	{"abc////def", "abc"},
 	{"a/b/.x", "a/b"},
 	{"a/b/c.", "a/b"},
 	{"a/b/c.x", "a/b"},

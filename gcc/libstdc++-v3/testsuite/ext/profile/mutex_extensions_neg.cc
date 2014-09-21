@@ -6,7 +6,7 @@
 // Otherwise we may get *multiple* errors.
 #undef _GLIBCXX_PARALLEL
 
-// Copyright (C) 2006, 2007, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,4 +25,4 @@
 
 #include <vector>
 
-// { dg-error "multiple inlined namespaces" "" { target *-*-* } 263 }
+// { dg-error "multiple inlined namespaces" "" { target *-*-* } 279 }

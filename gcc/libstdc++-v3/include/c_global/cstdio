@@ -1,8 +1,6 @@
 // -*- C++ -*- forwarding header.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-// 2006, 2007, 2008, 2009, 2010, 2012
-// Free Software Foundation, Inc.
+// Copyright (C) 1997-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -71,7 +69,10 @@ extern "C" char* gets (char* __s) __attribute__((deprecated));
 #undef ftell
 #undef fwrite
 #undef getc
-#undef gets
+#undef getchar
+#if __cplusplus <= 201103L
+# undef gets
+#endif
 #undef perror
 #undef printf
 #undef putc
@@ -118,7 +119,10 @@ namespace std
   using ::fwrite;
   using ::getc;
   using ::getchar;
+#if __cplusplus <= 201103L
+  // LWG 2249
   using ::gets;
+#endif
   using ::perror;
   using ::printf;
   using ::putc;
@@ -133,7 +137,9 @@ namespace std
   using ::sprintf;
   using ::sscanf;
   using ::tmpfile;
+#if _GLIBCXX_USE_TMPNAM
   using ::tmpnam;
+#endif
   using ::ungetc;
   using ::vfprintf;
   using ::vprintf;

@@ -1,5 +1,6 @@
 m4_include(../config/acx.m4)
 m4_include(../config/no-executables.m4)
+m4_include(../config/math.m4)
 
 dnl Check that we have a working GNU Fortran compiler
 AC_DEFUN([LIBGFOR_WORKING_GFORTRAN], [
@@ -99,7 +100,7 @@ void foo (void);
 	      [Define to 1 if the target supports #pragma weak])
   fi
   case "$host" in
-    *-*-darwin* | *-*-hpux* | *-*-cygwin* | *-*-mingw* | alpha*-dec-osf* )
+    *-*-darwin* | *-*-hpux* | *-*-cygwin* | *-*-mingw* )
       AC_DEFINE(GTHREAD_USE_WEAK, 0,
 		[Define to 0 if the target shouldn't use #pragma weak])
       ;;
@@ -256,18 +257,6 @@ __mingw_snprintf (NULL, 0, "%d\n", 1);
   fi
 ])
 
-dnl Check whether we have a broken powf implementation
-AC_DEFUN([LIBGFOR_CHECK_FOR_BROKEN_POWF], [
-  AC_CACHE_CHECK([whether powf is broken], libgfor_cv_have_broken_powf, [
-case "${target}" in
-  hppa*64*-*-hpux*) libgfor_cv_have_broken_powf=yes ;;
-  *) libgfor_cv_have_broken_powf=no;;
-esac])
-  if test x"$libgfor_cv_have_broken_powf" = xyes; then
-    AC_DEFINE(HAVE_BROKEN_POWF, 1, [Define if powf is broken.])
-  fi
-])
-
 dnl Check whether we have a __float128 type
 AC_DEFUN([LIBGFOR_CHECK_FLOAT128], [
   LIBQUADSPEC=
@@ -307,7 +296,7 @@ AC_DEFUN([LIBGFOR_CHECK_FLOAT128], [
   if test "x$libgfor_cv_have_float128" = xyes; then
     AC_DEFINE(HAVE_FLOAT128, 1, [Define if have a usable __float128 type.])
 
-    dnl Check whether -Wl,--as-needed is supported
+    dnl Check whether -Wl,--as-needed resp. -Wl,-zignore is supported
     dnl 
     dnl Turn warnings into error to avoid testsuite breakage.  So enable
     dnl AC_LANG_WERROR, but there's currently (autoconf 2.64) no way to turn
@@ -315,23 +304,39 @@ AC_DEFUN([LIBGFOR_CHECK_FLOAT128], [
     dnl AC_PATH_XTRA.
     dnl Cf. http://gcc.gnu.org/ml/gcc-patches/2010-05/msg01889.html
     ac_xsave_[]_AC_LANG_ABBREV[]_werror_flag=$ac_[]_AC_LANG_ABBREV[]_werror_flag
-    AC_CACHE_CHECK([whether --as-needed works],
+    AC_CACHE_CHECK([whether --as-needed/-z ignore works],
       [libgfor_cv_have_as_needed],
       [
+      # Test for native Solaris options first.
+      # No whitespace after -z to pass it through -Wl.
+      libgfor_cv_as_needed_option="-zignore"
+      libgfor_cv_no_as_needed_option="-zrecord"
       save_LDFLAGS="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -Wl,--as-needed -lm -Wl,--no-as-needed"
+      LDFLAGS="$LDFLAGS -Wl,$libgfor_cv_as_needed_option -lm -Wl,$libgfor_cv_no_as_needed_option"
       libgfor_cv_have_as_needed=no
       AC_LANG_WERROR
       AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
 		     [libgfor_cv_have_as_needed=yes],
 		     [libgfor_cv_have_as_needed=no])
       LDFLAGS="$save_LDFLAGS"
+      if test "x$libgfor_cv_have_as_needed" = xno; then
+	libgfor_cv_as_needed_option="--as-needed"
+	libgfor_cv_no_as_needed_option="--no-as-needed"
+	save_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS -Wl,$libgfor_cv_as_needed_option -lm -Wl,$libgfor_cv_no_as_needed_option"
+	libgfor_cv_have_as_needed=no
+	AC_LANG_WERROR
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+		       [libgfor_cv_have_as_needed=yes],
+		       [libgfor_cv_have_as_needed=no])
+	LDFLAGS="$save_LDFLAGS"
+      fi
       ac_[]_AC_LANG_ABBREV[]_werror_flag=$ac_xsave_[]_AC_LANG_ABBREV[]_werror_flag
     ])
 
     dnl For static libgfortran linkage, depend on libquadmath only if needed.
     if test "x$libgfor_cv_have_as_needed" = xyes; then
-      LIBQUADSPEC="%{static-libgfortran:--as-needed} -lquadmath %{static-libgfortran:--no-as-needed}"
+      LIBQUADSPEC="%{static-libgfortran:$libgfor_cv_as_needed_option} -lquadmath %{static-libgfortran:$libgfor_cv_no_as_needed_option}"
     else
       LIBQUADSPEC="-lquadmath"
     fi
@@ -360,4 +365,30 @@ AC_DEFUN([LIBGFOR_CHECK_FLOAT128], [
 
   dnl We need a conditional for the Makefile
   AM_CONDITIONAL(LIBGFOR_BUILD_QUAD, [test "x$libgfor_cv_have_float128" = xyes])
+])
+
+
+dnl Check whether we have strerror_r
+AC_DEFUN([LIBGFOR_CHECK_STRERROR_R], [
+  dnl Check for three-argument POSIX version of strerror_r
+  ac_save_CFLAGS="$CFLAGS"
+  CFLAGS="-Wimplicit-function-declaration -Werror"
+  AC_TRY_COMPILE([#define _GNU_SOURCE 1
+	     	  #include <string.h>
+		  #include <locale.h>],
+		  [char s[128]; strerror_r(5, s, 128);],
+		  AC_DEFINE(HAVE_STRERROR_R, 1,
+		  [Define if strerror_r is available in <string.h>.]),)
+  CFLAGS="$ac_save_CFLAGS"
+
+  dnl Check for two-argument version of strerror_r (e.g. for VxWorks)
+  ac_save_CFLAGS="$CFLAGS"
+  CFLAGS="-Wimplicit-function-declaration -Werror"
+  AC_TRY_COMPILE([#define _GNU_SOURCE 1
+	     	  #include <string.h>
+		  #include <locale.h>],
+		  [char s[128]; strerror_r(5, s);],
+		  AC_DEFINE(HAVE_STRERROR_R_2ARGS, 1,
+		  [Define if strerror_r takes two arguments and is available in <string.h>.]),)
+  CFLAGS="$ac_save_CFLAGS"
 ])

@@ -1,4 +1,4 @@
-// errchk $G -e $D/$F.go
+// errorcheck
 
 // Copyright 2009 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,6 +6,7 @@
 
 // Test that basic operations on named types are valid
 // and preserve the type.
+// Does not compile.
 
 package main
 
@@ -37,8 +38,8 @@ func main() {
 	asBool(true)
 	asBool(*&b)
 	asBool(Bool(true))
-	asBool(1 != 2) // ERROR "cannot use.*type bool.*as type Bool"
-	asBool(i < j)  // ERROR "cannot use.*type bool.*as type Bool"
+	asBool(1 != 2) // ok now
+	asBool(i < j)  // ok now
 
 	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
 

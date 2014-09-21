@@ -284,10 +284,31 @@ const (
 	FilterImportDuplicates
 )
 
+// nameOf returns the function (foo) or method name (foo.bar) for
+// the given function declaration. If the AST is incorrect for the
+// receiver, it assumes a function instead.
+//
+func nameOf(f *FuncDecl) string {
+	if r := f.Recv; r != nil && len(r.List) == 1 {
+		// looks like a correct receiver declaration
+		t := r.List[0].Type
+		// dereference pointer receiver types
+		if p, _ := t.(*StarExpr); p != nil {
+			t = p.X
+		}
+		// the receiver type must be a type name
+		if p, _ := t.(*Ident); p != nil {
+			return p.Name + "." + f.Name.Name
+		}
+		// otherwise assume a function instead
+	}
+	return f.Name.Name
+}
+
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
 //
-var separator = &Comment{noPos, "//"}
+var separator = &Comment{token.NoPos, "//"}
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
 // files belonging to a package. The mode flags control merging behavior.
@@ -348,7 +369,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	var decls []Decl
 	if ndecls > 0 {
 		decls = make([]Decl, ndecls)
-		funcs := make(map[string]int) // map of global function name -> decls index
+		funcs := make(map[string]int) // map of func name -> decls index
 		i := 0                        // current index
 		n := 0                        // number of filtered entries
 		for _, filename := range filenames {
@@ -365,7 +386,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 					//            entities (const, type, vars) if
 					//            multiple declarations are common.
 					if f, isFun := d.(*FuncDecl); isFun {
-						name := f.Name.Name
+						name := nameOf(f)
 						if j, exists := funcs[name]; exists {
 							// function declared already
 							if decls[j] != nil && decls[j].(*FuncDecl).Doc == nil {
@@ -414,7 +435,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 				if path := imp.Path.Value; !seen[path] {
 					// TODO: consider handling cases where:
 					// - 2 imports exist with the same import path but
-					//   have different local names (one should probably 
+					//   have different local names (one should probably
 					//   keep both of them)
 					// - 2 imports exist but only one has a comment
 					// - 2 imports exist and they both have (possibly

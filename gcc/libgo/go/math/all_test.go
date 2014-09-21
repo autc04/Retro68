@@ -1128,9 +1128,9 @@ var vfgammaSC = []float64{
 	NaN(),
 }
 var gammaSC = []float64{
+	NaN(),
+	NaN(),
 	Inf(-1),
-	Inf(1),
-	Inf(1),
 	Inf(1),
 	Inf(1),
 	NaN(),
@@ -1691,6 +1691,17 @@ func alike(a, b float64) bool {
 		return Signbit(a) == Signbit(b)
 	}
 	return false
+}
+
+func TestNaN(t *testing.T) {
+	f64 := NaN()
+	if f64 == f64 {
+		t.Fatalf("NaN() returns %g, expected NaN", f64)
+	}
+	f32 := float32(f64)
+	if f32 == f32 {
+		t.Fatalf("float32(NaN()) is %g, expected NaN", f32)
+	}
 }
 
 func TestAcos(t *testing.T) {
@@ -2268,6 +2279,13 @@ func TestLog2(t *testing.T) {
 	for i := 0; i < len(vflogSC); i++ {
 		if f := Log2(vflogSC[i]); !alike(logSC[i], f) {
 			t.Errorf("Log2(%g) = %g, want %g", vflogSC[i], f, logSC[i])
+		}
+	}
+	for i := -1074; i <= 1023; i++ {
+		f := Ldexp(1, i)
+		l := Log2(f)
+		if l != float64(i) {
+			t.Errorf("Log2(2**%d) = %g, want %d", i, l, i)
 		}
 	}
 }

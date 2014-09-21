@@ -13,6 +13,7 @@ package gosym
 // and the Go format is the runtime source, specifically ../../runtime/symtab.c.
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -33,7 +34,7 @@ type Sym struct {
 	Func *Func
 }
 
-// Static returns whether this symbol is static (not visible outside its file).
+// Static reports whether this symbol is static (not visible outside its file).
 func (s *Sym) Static() bool { return s.Type >= 'a' }
 
 // PackageName returns the package part of the symbol name,
@@ -76,10 +77,26 @@ type Func struct {
 	Obj       *Obj
 }
 
-// An Obj represents a single object file.
+// An Obj represents a collection of functions in a symbol table.
+//
+// The exact method of division of a binary into separate Objs is an internal detail
+// of the symbol table format.
+//
+// In early versions of Go each source file became a different Obj.
+//
+// In Go 1 and Go 1.1, each package produced one Obj for all Go sources
+// and one Obj per C source file.
+//
+// In Go 1.2, there is a single Obj for the entire program.
 type Obj struct {
+	// Funcs is a list of functions in the Obj.
 	Funcs []Func
-	Paths []Sym
+
+	// In Go 1.1 and earlier, Paths is a list of symbols corresponding
+	// to the source file names that produced the Obj.
+	// In Go 1.2, Paths is nil.
+	// Use the keys of Table.Files to obtain a list of source files.
+	Paths []Sym // meta
 }
 
 /*
@@ -92,30 +109,124 @@ type Obj struct {
 type Table struct {
 	Syms  []Sym
 	Funcs []Func
-	Files map[string]*Obj
-	Objs  []Obj
-	//	textEnd uint64;
+	Files map[string]*Obj // nil for Go 1.2 and later binaries
+	Objs  []Obj           // nil for Go 1.2 and later binaries
+
+	go12line *LineTable // Go 1.2 line number table
 }
 
 type sym struct {
-	value  uint32
-	gotype uint32
+	value  uint64
+	gotype uint64
 	typ    byte
 	name   []byte
 }
 
+var (
+	littleEndianSymtab    = []byte{0xFD, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}
+	bigEndianSymtab       = []byte{0xFF, 0xFF, 0xFF, 0xFD, 0x00, 0x00, 0x00}
+	oldLittleEndianSymtab = []byte{0xFE, 0xFF, 0xFF, 0xFF, 0x00, 0x00}
+)
+
 func walksymtab(data []byte, fn func(sym) error) error {
+	var order binary.ByteOrder = binary.BigEndian
+	newTable := false
+	switch {
+	case bytes.HasPrefix(data, oldLittleEndianSymtab):
+		// Same as Go 1.0, but little endian.
+		// Format was used during interim development between Go 1.0 and Go 1.1.
+		// Should not be widespread, but easy to support.
+		data = data[6:]
+		order = binary.LittleEndian
+	case bytes.HasPrefix(data, bigEndianSymtab):
+		newTable = true
+	case bytes.HasPrefix(data, littleEndianSymtab):
+		newTable = true
+		order = binary.LittleEndian
+	}
+	var ptrsz int
+	if newTable {
+		if len(data) < 8 {
+			return &DecodingError{len(data), "unexpected EOF", nil}
+		}
+		ptrsz = int(data[7])
+		if ptrsz != 4 && ptrsz != 8 {
+			return &DecodingError{7, "invalid pointer size", ptrsz}
+		}
+		data = data[8:]
+	}
 	var s sym
 	p := data
-	for len(p) >= 6 {
-		s.value = binary.BigEndian.Uint32(p[0:4])
-		typ := p[4]
-		if typ&0x80 == 0 {
-			return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ}
+	for len(p) >= 4 {
+		var typ byte
+		if newTable {
+			// Symbol type, value, Go type.
+			typ = p[0] & 0x3F
+			wideValue := p[0]&0x40 != 0
+			goType := p[0]&0x80 != 0
+			if typ < 26 {
+				typ += 'A'
+			} else {
+				typ += 'a' - 26
+			}
+			s.typ = typ
+			p = p[1:]
+			if wideValue {
+				if len(p) < ptrsz {
+					return &DecodingError{len(data), "unexpected EOF", nil}
+				}
+				// fixed-width value
+				if ptrsz == 8 {
+					s.value = order.Uint64(p[0:8])
+					p = p[8:]
+				} else {
+					s.value = uint64(order.Uint32(p[0:4]))
+					p = p[4:]
+				}
+			} else {
+				// varint value
+				s.value = 0
+				shift := uint(0)
+				for len(p) > 0 && p[0]&0x80 != 0 {
+					s.value |= uint64(p[0]&0x7F) << shift
+					shift += 7
+					p = p[1:]
+				}
+				if len(p) == 0 {
+					return &DecodingError{len(data), "unexpected EOF", nil}
+				}
+				s.value |= uint64(p[0]) << shift
+				p = p[1:]
+			}
+			if goType {
+				if len(p) < ptrsz {
+					return &DecodingError{len(data), "unexpected EOF", nil}
+				}
+				// fixed-width go type
+				if ptrsz == 8 {
+					s.gotype = order.Uint64(p[0:8])
+					p = p[8:]
+				} else {
+					s.gotype = uint64(order.Uint32(p[0:4]))
+					p = p[4:]
+				}
+			}
+		} else {
+			// Value, symbol type.
+			s.value = uint64(order.Uint32(p[0:4]))
+			if len(p) < 5 {
+				return &DecodingError{len(data), "unexpected EOF", nil}
+			}
+			typ = p[4]
+			if typ&0x80 == 0 {
+				return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ}
+			}
+			typ &^= 0x80
+			s.typ = typ
+			p = p[5:]
 		}
-		typ &^= 0x80
-		s.typ = typ
-		p = p[5:]
+
+		// Name.
 		var i int
 		var nnul int
 		for i = 0; i < len(p); i++ {
@@ -134,13 +245,21 @@ func walksymtab(data []byte, fn func(sym) error) error {
 				}
 			}
 		}
-		if i+nnul+4 > len(p) {
+		if len(p) < i+nnul {
 			return &DecodingError{len(data), "unexpected EOF", nil}
 		}
 		s.name = p[0:i]
 		i += nnul
-		s.gotype = binary.BigEndian.Uint32(p[i : i+4])
-		p = p[i+4:]
+		p = p[i:]
+
+		if !newTable {
+			if len(p) < 4 {
+				return &DecodingError{len(data), "unexpected EOF", nil}
+			}
+			// Go type.
+			s.gotype = uint64(order.Uint32(p[:4]))
+			p = p[4:]
+		}
 		fn(s)
 	}
 	return nil
@@ -159,6 +278,9 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	}
 
 	var t Table
+	if pcln.isGo12() {
+		t.go12line = pcln
+	}
 	fname := make(map[uint16]string)
 	t.Syms = make([]Sym, 0, n)
 	nf := 0
@@ -215,17 +337,29 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	}
 
 	t.Funcs = make([]Func, 0, nf)
-	t.Objs = make([]Obj, 0, nz)
 	t.Files = make(map[string]*Obj)
+
+	var obj *Obj
+	if t.go12line != nil {
+		// Put all functions into one Obj.
+		t.Objs = make([]Obj, 1)
+		obj = &t.Objs[0]
+		t.go12line.go12MapFiles(t.Files, obj)
+	} else {
+		t.Objs = make([]Obj, 0, nz)
+	}
 
 	// Count text symbols and attach frame sizes, parameters, and
 	// locals to them.  Also, find object file boundaries.
-	var obj *Obj
 	lastf := 0
 	for i := 0; i < len(t.Syms); i++ {
 		sym := &t.Syms[i]
 		switch sym.Type {
 		case 'Z', 'z': // path symbol
+			if t.go12line != nil {
+				// Go 1.2 binaries have the file information elsewhere. Ignore.
+				break
+			}
 			// Finish the current object
 			if obj != nil {
 				obj.Funcs = t.Funcs[lastf:]
@@ -294,7 +428,12 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 			fn.Sym = sym
 			fn.Entry = sym.Value
 			fn.Obj = obj
-			if pcln != nil {
+			if t.go12line != nil {
+				// All functions share the same line table.
+				// It knows how to narrow down to a specific
+				// function quickly.
+				fn.LineTable = t.go12line
+			} else if pcln != nil {
 				fn.LineTable = pcln.slice(fn.Entry)
 				pcln = fn.LineTable
 			}
@@ -347,18 +486,32 @@ func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
 	if fn = t.PCToFunc(pc); fn == nil {
 		return
 	}
-	file, line = fn.Obj.lineFromAline(fn.LineTable.PCToLine(pc))
+	if t.go12line != nil {
+		file = t.go12line.go12PCToFile(pc)
+		line = t.go12line.go12PCToLine(pc)
+	} else {
+		file, line = fn.Obj.lineFromAline(fn.LineTable.PCToLine(pc))
+	}
 	return
 }
 
 // LineToPC looks up the first program counter on the given line in
-// the named file.  Returns UnknownPathError or UnknownLineError if
+// the named file.  It returns UnknownPathError or UnknownLineError if
 // there is an error looking up this line.
 func (t *Table) LineToPC(file string, line int) (pc uint64, fn *Func, err error) {
 	obj, ok := t.Files[file]
 	if !ok {
 		return 0, nil, UnknownFileError(file)
 	}
+
+	if t.go12line != nil {
+		pc := t.go12line.go12LineToPC(file, line)
+		if pc == 0 {
+			return 0, nil, &UnknownLineError{file, line}
+		}
+		return pc, t.PCToFunc(pc), nil
+	}
+
 	abs, err := obj.alineFromLine(file, line)
 	if err != nil {
 		return
@@ -402,9 +555,7 @@ func (t *Table) LookupFunc(name string) *Func {
 }
 
 // SymByAddr returns the text, data, or bss symbol starting at the given address.
-// TODO(rsc): Allow lookup by any address within the symbol.
 func (t *Table) SymByAddr(addr uint64) *Sym {
-	// TODO(austin) Maybe make a map
 	for i := range t.Syms {
 		s := &t.Syms[i]
 		switch s.Type {
@@ -421,6 +572,13 @@ func (t *Table) SymByAddr(addr uint64) *Sym {
  * Object files
  */
 
+// This is legacy code for Go 1.1 and earlier, which used the
+// Plan 9 format for pc-line tables. This code was never quite
+// correct. It's probably very close, and it's usually correct, but
+// we never quite found all the corner cases.
+//
+// Go 1.2 and later use a simpler format, documented at golang.org/s/go12symtab.
+
 func (o *Obj) lineFromAline(aline int) (string, int) {
 	type stackEnt struct {
 		path   string
@@ -432,8 +590,6 @@ func (o *Obj) lineFromAline(aline int) (string, int) {
 	noPath := &stackEnt{"", 0, 0, nil}
 	tos := noPath
 
-	// TODO(austin) I have no idea how 'Z' symbols work, except
-	// that they pop the stack.
 pathloop:
 	for _, s := range o.Paths {
 		val := int(s.Value)

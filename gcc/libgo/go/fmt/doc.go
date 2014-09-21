@@ -7,7 +7,8 @@
 	to C's printf and scanf.  The format 'verbs' are derived from C's but
 	are simpler.
 
-	Printing:
+
+	Printing
 
 	The verbs:
 
@@ -30,8 +31,8 @@
 		%X	base 16, with upper-case letters for A-F
 		%U	Unicode format: U+1234; same as "U+%04X"
 	Floating-point and complex constituents:
-		%b	decimalless scientific notation with exponent a power of two, 
-			in the manner of strconv.FormatFloat with the 'b' format, 
+		%b	decimalless scientific notation with exponent a power of two,
+			in the manner of strconv.FormatFloat with the 'b' format,
 			e.g. -123456p-78
 		%e	scientific notation, e.g. -1234.456e+78
 		%E	scientific notation, e.g. -1234.456E+78
@@ -55,13 +56,17 @@
 	character '*', causing their values to be obtained from the next
 	operand, which must be of type int.
 
-	For numeric values, width sets the width of the field and precision
-	sets the number of places after the decimal, if appropriate.  For
-	example, the format %6.2f prints 123.45.
+	For numeric values, width sets the minimum width of the field and
+	precision sets the number of places after the decimal, if appropriate,
+	except that for %g/%G it sets the total number of digits. For example,
+	given 123.45 the format %6.2f prints 123.45 while %.4g prints 123.5.
+	The default precision for %e and %f is 6; for %g it is the smallest
+	number of digits necessary to identify the value uniquely.
 
-	For strings, width is the minimum number of characters to output,
-	padding with spaces if necessary, and precision is the maximum
-	number of characters to output, truncating if necessary.
+	For most values, width is the minimum number of characters to output,
+	padding the formatted form with spaces if necessary.
+	For strings, precision is the maximum number of characters to output,
+	truncating if necessary.
 
 	Other flags:
 		+	always print a sign for numeric values;
@@ -69,11 +74,17 @@
 		-	pad with spaces on the right rather than the left (left-justify the field)
 		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
 			0X for hex (%#X); suppress 0x for %p (%#p);
-			print a raw (backquoted) string if possible for %q (%#q);
+			for %q, print a raw (backquoted) string if strconv.CanBackquote
+			returns true;
 			write e.g. U+0078 'x' if the character is printable for %U (%#U).
 		' '	(space) leave a space for elided sign in numbers (% d);
 			put spaces between bytes printing strings or slices in hex (% x, % X)
-		0	pad with leading zeros rather than spaces
+		0	pad with leading zeros rather than spaces;
+			for numbers, this moves the padding after the sign
+
+	Flags are ignored by verbs that do not expect them.
+	For example there is no alternate decimal format, so %#d and %d
+	behave identically.
 
 	For each Printf-like function, there is also a Print function
 	that takes no format and is equivalent to saying %v for every
@@ -107,6 +118,28 @@
 	convert the value before recurring:
 		func (x X) String() string { return Sprintf("<%s>", string(x)) }
 
+	Explicit argument indexes:
+
+	In Printf, Sprintf, and Fprintf, the default behavior is for each
+	formatting verb to format successive arguments passed in the call.
+	However, the notation [n] immediately before the verb indicates that the
+	nth one-indexed argument is to be formatted instead. The same notation
+	before a '*' for a width or precision selects the argument index holding
+	the value. After processing a bracketed expression [n], arguments n+1,
+	n+2, etc. will be processed unless otherwise directed.
+
+	For example,
+		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
+	will yield "22, 11", while
+		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6),
+	equivalent to
+		fmt.Sprintf("%6.2f", 12.0),
+	will yield " 12.00". Because an explicit index affects subsequent verbs,
+	this notation can be used to print the same values multiple times
+	by resetting the index for the first argument to be repeated:
+		fmt.Sprintf("%d %d %#[1]x %#x", 16, 17)
+	will yield "16 17 0x10 0x11".
+
 	Format errors:
 
 	If an invalid argument is given for a verb, such as providing
@@ -122,19 +155,33 @@
 		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
 			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
 			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
+		Invalid or invalid use of argument index: %!(BADINDEX)
+			Printf("%*[2]d", 7):       %!d(BADINDEX)
+			Printf("%.[2]d", 7):       %!d(BADINDEX)
 
 	All errors begin with the string "%!" followed sometimes
 	by a single character (the verb) and end with a parenthesized
 	description.
 
-	Scanning:
+	If an Error or String method triggers a panic when called by a
+	print routine, the fmt package reformats the error message
+	from the panic, decorating it with an indication that it came
+	through the fmt package.  For example, if a String method
+	calls panic("bad"), the resulting formatted message will look
+	like
+		%!s(PANIC=bad)
+
+	The %!s just shows the print verb in use when the failure
+	occurred.
+
+	Scanning
 
 	An analogous set of functions scans formatted text to yield
 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
 	Fscanf and Fscanln read from a specified io.Reader; Sscan,
 	Sscanf and Sscanln read from an argument string.  Scanln,
 	Fscanln and Sscanln stop scanning at a newline and require that
-	the items be followed by one; Sscanf, Fscanf and Sscanf require
+	the items be followed by one; Scanf, Fscanf and Sscanf require
 	newlines in the input to match newlines in the format; the other
 	routines treat newlines as spaces.
 
@@ -150,6 +197,7 @@
 		%T is not implemented
 		%e %E %f %F %g %G are all equivalent and scan any floating point or complex value
 		%s and %v on strings scan a space-delimited token
+		Flags # and + are not implemented.
 
 	The familiar base-setting prefixes 0 (octal) and 0x
 	(hexadecimal) are accepted when scanning integers without a
@@ -166,6 +214,10 @@
 	text in the format string must match the input text; scanning
 	stops if it does not, with the return value of the function
 	indicating the number of arguments scanned.
+
+	In all the scanning functions, a carriage return followed
+	immediately by a newline is treated as a plain newline
+	(\r\n means the same as \n).
 
 	In all the scanning functions, if an operand implements method
 	Scan (that is, it implements the Scanner interface) that

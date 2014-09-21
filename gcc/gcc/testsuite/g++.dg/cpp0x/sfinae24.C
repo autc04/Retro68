@@ -1,7 +1,7 @@
 // PR c++/49058
 // This error is not subject to SFINAE because it doesn't happen in the
 // deduction context.
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 // { dg-prune-output "note" }
 
 template<typename T> T val();
@@ -19,8 +19,8 @@ struct Bind
     R f();
 
     template<typename R
-      = decltype( val<const F>()( ) )>
-    R f() const;		// { dg-error "no match" }
+      = decltype( val<const F>()( ) )> // { dg-error "no match" }
+    R f() const;
 };
 
 int main()

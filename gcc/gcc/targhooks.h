@@ -1,6 +1,5 @@
 /* Default target hook functions.
-   Copyright (C) 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -70,8 +69,11 @@ extern tree default_mangle_assembler_name (const char *);
 extern bool default_scalar_mode_supported_p (enum machine_mode);
 extern bool targhook_words_big_endian (void);
 extern bool targhook_float_words_big_endian (void);
+extern bool default_float_exceptions_rounding_supported_p (void);
 extern bool default_decimal_float_supported_p (void);
 extern bool default_fixed_point_supported_p (void);
+
+extern bool default_has_ifunc_p (void);
 
 extern const char * default_invalid_within_doloop (const_rtx);
 
@@ -83,6 +85,8 @@ extern int default_builtin_vectorization_cost (enum vect_cost_for_stmt, tree, in
 
 extern tree default_builtin_reciprocal (unsigned int, bool, bool);
 
+extern HOST_WIDE_INT default_vector_alignment (const_tree);
+
 extern bool default_builtin_vector_alignment_reachable (const_tree, bool);
 extern bool
 default_builtin_support_vector_misalignment (enum machine_mode mode,
@@ -90,6 +94,12 @@ default_builtin_support_vector_misalignment (enum machine_mode mode,
 					     int, bool);
 extern enum machine_mode default_preferred_simd_mode (enum machine_mode mode);
 extern unsigned int default_autovectorize_vector_sizes (void);
+extern void *default_init_cost (struct loop *);
+extern unsigned default_add_stmt_cost (void *, int, enum vect_cost_for_stmt,
+				       struct _stmt_vec_info *, int,
+				       enum vect_cost_model_location);
+extern void default_finish_cost (void *, unsigned *, unsigned *, unsigned *);
+extern void default_destroy_cost_data (void *);
 
 /* These are here, and not in hooks.[ch], because not all users of
    hooks.h include tm.h, and thus we don't have CUMULATIVE_ARGS.  */
@@ -124,6 +134,10 @@ extern rtx default_static_chain (const_tree, bool);
 extern void default_trampoline_init (rtx, tree, rtx);
 extern int default_return_pops_args (tree, tree, int);
 extern reg_class_t default_branch_target_register_class (void);
+extern bool default_lra_p (void);
+extern int default_register_priority (int);
+extern bool default_register_usage_leveling_p (void);
+extern bool default_different_addr_displacement_p (void);
 extern reg_class_t default_secondary_reload (bool, rtx, reg_class_t,
 					     enum machine_mode,
 					     secondary_reload_info *);
@@ -134,12 +148,12 @@ extern tree default_mangle_decl_assembler_name (tree, tree);
 extern tree default_emutls_var_fields (tree, tree *);
 extern tree default_emutls_var_init (tree, tree, tree);
 extern bool default_hard_regno_scratch_ok (unsigned int);
-extern bool default_mode_dependent_address_p (const_rtx addr);
+extern bool default_mode_dependent_address_p (const_rtx, addr_space_t);
 extern bool default_target_option_valid_attribute_p (tree, tree, tree, int);
 extern bool default_target_option_pragma_parse (tree, tree);
 extern bool default_target_can_inline_p (tree, tree);
 extern bool default_valid_pointer_mode (enum machine_mode);
-extern bool default_ref_may_alias_errno (struct ao_ref_s *);
+extern bool default_ref_may_alias_errno (struct ao_ref *);
 extern enum machine_mode default_addr_space_pointer_mode (addr_space_t);
 extern enum machine_mode default_addr_space_address_mode (addr_space_t);
 extern bool default_addr_space_valid_pointer_mode (enum machine_mode,
@@ -152,6 +166,10 @@ extern bool default_addr_space_subset_p (addr_space_t, addr_space_t);
 extern rtx default_addr_space_convert (rtx, tree, tree);
 extern unsigned int default_case_values_threshold (void);
 extern bool default_have_conditional_execution (void);
+
+extern bool default_libc_has_function (enum function_class);
+extern bool no_c99_libc_has_function (enum function_class);
+extern bool gnu_libc_has_function (enum function_class);
 
 extern tree default_builtin_tm_load_store (tree);
 
@@ -168,13 +186,25 @@ extern unsigned char default_class_max_nregs (reg_class_t, enum machine_mode);
 
 extern enum unwind_info_type default_debug_unwind_info (void);
 
+extern void default_canonicalize_comparison (int *, rtx *, rtx *, bool);
+
 extern int default_label_align_after_barrier_max_skip (rtx);
 extern int default_loop_align_max_skip (rtx);
 extern int default_label_align_max_skip (rtx);
 extern int default_jump_align_max_skip (rtx);
 extern section * default_function_section(tree decl, enum node_frequency freq,
 					  bool startup, bool exit);
-extern enum machine_mode default_get_reg_raw_mode(int);
+extern enum machine_mode default_get_reg_raw_mode (int);
 
 extern void *default_get_pch_validity (size_t *);
 extern const char *default_pch_valid_p (const void *, size_t);
+
+extern void default_asm_output_ident_directive (const char*);
+
+extern enum machine_mode default_cstore_mode (enum insn_code);
+extern bool default_member_type_forces_blk (const_tree, enum machine_mode);
+extern void default_atomic_assign_expand_fenv (tree *, tree *, tree *);
+extern tree build_va_arg_indirect_ref (tree);
+extern tree std_gimplify_va_arg_expr (tree, tree, gimple_seq *, gimple_seq *);
+extern bool can_use_doloop_if_innermost (double_int, double_int,
+					 unsigned int, bool);

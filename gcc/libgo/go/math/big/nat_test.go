@@ -6,6 +6,7 @@ package big
 
 import (
 	"io"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -62,6 +63,36 @@ var prodNN = []argNN{
 	{nat{0, 0, 991 * 991}, nat{0, 991}, nat{0, 991}},
 	{nat{1 * 991, 2 * 991, 3 * 991, 4 * 991}, nat{1, 2, 3, 4}, nat{991}},
 	{nat{4, 11, 20, 30, 20, 11, 4}, nat{1, 2, 3, 4}, nat{4, 3, 2, 1}},
+	// 3^100 * 3^28 = 3^128
+	{
+		natFromString("11790184577738583171520872861412518665678211592275841109096961"),
+		natFromString("515377520732011331036461129765621272702107522001"),
+		natFromString("22876792454961"),
+	},
+	// z = 111....1 (70000 digits)
+	// x = 10^(99*700) + ... + 10^1400 + 10^700 + 1
+	// y = 111....1 (700 digits, larger than Karatsuba threshold on 32-bit and 64-bit)
+	{
+		natFromString(strings.Repeat("1", 70000)),
+		natFromString("1" + strings.Repeat(strings.Repeat("0", 699)+"1", 99)),
+		natFromString(strings.Repeat("1", 700)),
+	},
+	// z = 111....1 (20000 digits)
+	// x = 10^10000 + 1
+	// y = 111....1 (10000 digits)
+	{
+		natFromString(strings.Repeat("1", 20000)),
+		natFromString("1" + strings.Repeat("0", 9999) + "1"),
+		natFromString(strings.Repeat("1", 10000)),
+	},
+}
+
+func natFromString(s string) nat {
+	x, _, err := nat(nil).scan(strings.NewReader(s), 0)
+	if err != nil {
+		panic(err)
+	}
+	return x
 }
 
 func TestSet(t *testing.T) {
@@ -135,26 +166,43 @@ func TestMulRangeN(t *testing.T) {
 	}
 }
 
-var mulArg, mulTmp nat
+// allocBytes returns the number of bytes allocated by invoking f.
+func allocBytes(f func()) uint64 {
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	t := stats.TotalAlloc
+	f()
+	runtime.ReadMemStats(&stats)
+	return stats.TotalAlloc - t
+}
 
-func init() {
-	const n = 1000
-	mulArg = make(nat, n)
-	for i := 0; i < n; i++ {
-		mulArg[i] = _M
+// TestMulUnbalanced tests that multiplying numbers of different lengths
+// does not cause deep recursion and in turn allocate too much memory.
+// Test case for issue 3807.
+func TestMulUnbalanced(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	x := rndNat(50000)
+	y := rndNat(40)
+	allocSize := allocBytes(func() {
+		nat(nil).mul(x, y)
+	})
+	inputSize := uint64(len(x)+len(y)) * _S
+	if ratio := allocSize / uint64(inputSize); ratio > 10 {
+		t.Errorf("multiplication uses too much memory (%d > %d times the size of inputs)", allocSize, ratio)
 	}
 }
 
-func benchmarkMulLoad() {
-	for j := 1; j <= 10; j++ {
-		x := mulArg[0 : j*100]
-		mulTmp.mul(x, x)
-	}
+func rndNat(n int) nat {
+	return nat(rndV(n)).norm()
 }
 
 func BenchmarkMul(b *testing.B) {
+	mulx := rndNat(1e4)
+	muly := rndNat(1e4)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		benchmarkMulLoad()
+		var z nat
+		z.mul(mulx, muly)
 	}
 }
 
@@ -362,10 +410,46 @@ func TestScanPi(t *testing.T) {
 	}
 }
 
+func TestScanPiParallel(t *testing.T) {
+	const n = 2
+	c := make(chan int)
+	for i := 0; i < n; i++ {
+		go func() {
+			TestScanPi(t)
+			c <- 0
+		}()
+	}
+	for i := 0; i < n; i++ {
+		<-c
+	}
+}
+
 func BenchmarkScanPi(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x nat
 		x.scan(strings.NewReader(pi), 10)
+	}
+}
+
+func BenchmarkStringPiParallel(b *testing.B) {
+	var x nat
+	x, _, _ = x.scan(strings.NewReader(pi), 0)
+	if x.decimalString() != pi {
+		panic("benchmark incorrect: conversion failed")
+	}
+	n := runtime.GOMAXPROCS(0)
+	m := b.N / n // n*m <= b.N due to flooring, but the error is neglibible (n is not very large)
+	c := make(chan int, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			for j := 0; j < m; j++ {
+				x.decimalString()
+			}
+			c <- 0
+		}()
+	}
+	for i := 0; i < n; i++ {
+		<-c
 	}
 }
 
@@ -463,13 +547,13 @@ func BenchmarkLeafSize13(b *testing.B) { LeafSizeHelper(b, 10, 13) }
 func BenchmarkLeafSize14(b *testing.B) { LeafSizeHelper(b, 10, 14) }
 func BenchmarkLeafSize15(b *testing.B) { LeafSizeHelper(b, 10, 15) }
 func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
-func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths 
+func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
 func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
 
 func LeafSizeHelper(b *testing.B, base Word, size int) {
 	b.StopTimer()
 	originalLeafSize := leafSize
-	resetTable(cacheBase10[:])
+	resetTable(cacheBase10.table[:])
 	leafSize = size
 	b.StartTimer()
 
@@ -486,7 +570,7 @@ func LeafSizeHelper(b *testing.B, base Word, size int) {
 	}
 
 	b.StopTimer()
-	resetTable(cacheBase10[:])
+	resetTable(cacheBase10.table[:])
 	leafSize = originalLeafSize
 	b.StartTimer()
 }
@@ -601,7 +685,7 @@ func runModWTests(t *testing.T, tests []modWTest) {
 
 		r := in.abs.modW(d.abs[0])
 		if r != out.abs[0] {
-			t.Errorf("#%d failed: got %s want %s", i, r, out)
+			t.Errorf("#%d failed: got %d want %s", i, r, out)
 		}
 	}
 }
@@ -616,13 +700,22 @@ func TestModW(t *testing.T) {
 }
 
 func TestTrailingZeroBits(t *testing.T) {
-	var x Word
-	x--
-	for i := 0; i < _W; i++ {
-		if trailingZeroBits(x) != i {
-			t.Errorf("Failed at step %d: x: %x got: %d", i, x, trailingZeroBits(x))
+	x := Word(1)
+	for i := uint(0); i <= _W; i++ {
+		n := trailingZeroBits(x)
+		if n != i%_W {
+			t.Errorf("got trailingZeroBits(%#x) = %d; want %d", x, n, i%_W)
 		}
 		x <<= 1
+	}
+
+	y := nat(nil).set(natOne)
+	for i := uint(0); i <= 3*_W; i++ {
+		n := y.trailingZeroBits()
+		if n != i {
+			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.string(lowercaseDigits[0:16]), n, i)
+		}
+		y = y.shl(y, 1)
 	}
 }
 
@@ -661,3 +754,21 @@ func TestExpNN(t *testing.T) {
 		}
 	}
 }
+
+func ExpHelper(b *testing.B, x, y Word) {
+	var z nat
+	for i := 0; i < b.N; i++ {
+		z.expWW(x, y)
+	}
+}
+
+func BenchmarkExp3Power0x10(b *testing.B)     { ExpHelper(b, 3, 0x10) }
+func BenchmarkExp3Power0x40(b *testing.B)     { ExpHelper(b, 3, 0x40) }
+func BenchmarkExp3Power0x100(b *testing.B)    { ExpHelper(b, 3, 0x100) }
+func BenchmarkExp3Power0x400(b *testing.B)    { ExpHelper(b, 3, 0x400) }
+func BenchmarkExp3Power0x1000(b *testing.B)   { ExpHelper(b, 3, 0x1000) }
+func BenchmarkExp3Power0x4000(b *testing.B)   { ExpHelper(b, 3, 0x4000) }
+func BenchmarkExp3Power0x10000(b *testing.B)  { ExpHelper(b, 3, 0x10000) }
+func BenchmarkExp3Power0x40000(b *testing.B)  { ExpHelper(b, 3, 0x40000) }
+func BenchmarkExp3Power0x100000(b *testing.B) { ExpHelper(b, 3, 0x100000) }
+func BenchmarkExp3Power0x400000(b *testing.B) { ExpHelper(b, 3, 0x400000) }

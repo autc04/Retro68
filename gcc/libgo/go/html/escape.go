@@ -15,7 +15,7 @@ type writer interface {
 	WriteString(string) (int, error)
 }
 
-// These replacements permit compatibility with old numeric entities that 
+// These replacements permit compatibility with old numeric entities that
 // assumed Windows-1252 encoding.
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
 var replacementTable = [...]rune{
@@ -51,7 +51,7 @@ var replacementTable = [...]rune{
 	'\u009D',
 	'\u017E',
 	'\u0178', // Last entry is 0x9F.
-	// 0x00->'\uFFFD' is handled programmatically. 
+	// 0x00->'\uFFFD' is handled programmatically.
 	// 0x0D->'\u000D' is a no-op.
 }
 
@@ -187,16 +187,6 @@ func unescape(b []byte) []byte {
 	return b
 }
 
-// lower lower-cases the A-Z bytes in b in-place, so that "aBc" becomes "abc".
-func lower(b []byte) []byte {
-	for i, c := range b {
-		if 'A' <= c && c <= 'Z' {
-			b[i] = c + 'a' - 'A'
-		}
-	}
-	return b
-}
-
 const escapedChars = `&'<>"`
 
 func escape(w writer, s string) error {
@@ -210,13 +200,15 @@ func escape(w writer, s string) error {
 		case '&':
 			esc = "&amp;"
 		case '\'':
-			esc = "&apos;"
+			// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+			esc = "&#39;"
 		case '<':
 			esc = "&lt;"
 		case '>':
 			esc = "&gt;"
 		case '"':
-			esc = "&quot;"
+			// "&#34;" is shorter than "&quot;".
+			esc = "&#34;"
 		default:
 			panic("unrecognized escape character")
 		}
@@ -231,7 +223,7 @@ func escape(w writer, s string) error {
 }
 
 // EscapeString escapes special characters like "<" to become "&lt;". It
-// escapes only five such characters: amp, apos, lt, gt and quot.
+// escapes only five such characters: <, >, &, ' and ".
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func EscapeString(s string) string {

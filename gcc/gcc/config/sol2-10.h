@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for any
    Solaris 2 system starting from Solaris 10.
-   Copyright 2006, 2007, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2006-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -18,5 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-/* Solaris 10 has the float and long double forms of math functions.  */
-#define TARGET_C99_FUNCTIONS 1
+/* Solaris 10 has the float and long double forms of math functions.
+   We redefine this hook so the version from elfos.h header won't be used.  */
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION default_libc_has_function

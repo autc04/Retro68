@@ -1,7 +1,6 @@
 /* Definitions of target machine for GNU compiler.  
    Vitesse IQ2000 processors
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -559,10 +558,6 @@ while (0)
 #define Pmode SImode
 
 #define FUNCTION_MODE SImode
-
-/* Standard GCC variables that we reference.  */
-
-extern char	call_used_regs[];
 
 /* IQ2000 external variables defined in iq2000.c.  */
 

@@ -1,5 +1,5 @@
 /* Target Code for moxie
-   Copyright (C) 2008, 2009, 2010, 2011  Free Software Foundation
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Contributed by Anthony Green.
 
    This file is part of GCC.
@@ -36,6 +36,9 @@
 #include "diagnostic-core.h"
 #include "obstack.h"
 #include "tree.h"
+#include "stor-layout.h"
+#include "varasm.h"
+#include "calls.h"
 #include "expr.h"
 #include "optabs.h"
 #include "except.h"
@@ -281,6 +284,9 @@ moxie_expand_prologue (void)
 
   moxie_compute_frame ();
 
+  if (flag_stack_usage_info)
+    current_function_static_stack_size = cfun->machine->size_for_adjusting_sp;
+
   /* Save callee-saved registers.  */
   for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
     {
@@ -293,8 +299,8 @@ moxie_expand_prologue (void)
 
   if (cfun->machine->size_for_adjusting_sp > 0)
     {
-      int i = cfun->machine->size_for_adjusting_sp;
-      while (i > 255)
+      int i = cfun->machine->size_for_adjusting_sp; 
+      while ((i >= 255) && (i <= 510))
 	{
 	  insn = emit_insn (gen_subsi3 (stack_pointer_rtx, 
 					stack_pointer_rtx, 
@@ -302,11 +308,21 @@ moxie_expand_prologue (void)
 	  RTX_FRAME_RELATED_P (insn) = 1;
 	  i -= 255;
 	}
-      if (i > 0)
+      if (i <= 255)
 	{
 	  insn = emit_insn (gen_subsi3 (stack_pointer_rtx, 
 					stack_pointer_rtx, 
 					GEN_INT (i)));
+	  RTX_FRAME_RELATED_P (insn) = 1;
+	}
+      else
+	{
+	  rtx reg = gen_rtx_REG (SImode, MOXIE_R12);
+	  insn = emit_move_insn (reg, GEN_INT (i));
+	  RTX_FRAME_RELATED_P (insn) = 1;
+	  insn = emit_insn (gen_subsi3 (stack_pointer_rtx, 
+					stack_pointer_rtx, 
+					reg));
 	  RTX_FRAME_RELATED_P (insn) = 1;
 	}
     }
@@ -320,7 +336,7 @@ moxie_expand_epilogue (void)
 
   if (cfun->machine->callee_saved_reg_size != 0)
     {
-      reg = gen_rtx_REG (Pmode, MOXIE_R5);
+      reg = gen_rtx_REG (Pmode, MOXIE_R12);
       if (cfun->machine->callee_saved_reg_size <= 255)
 	{
 	  emit_move_insn (reg, hard_frame_pointer_rtx);
@@ -504,9 +520,9 @@ moxie_static_chain (const_tree fndecl, bool incoming_p)
     return NULL;
 
   if (incoming_p)
-    addr = plus_constant (arg_pointer_rtx, 2 * UNITS_PER_WORD);
+    addr = plus_constant (Pmode, arg_pointer_rtx, 2 * UNITS_PER_WORD);
   else
-    addr = plus_constant (stack_pointer_rtx, -UNITS_PER_WORD);
+    addr = plus_constant (Pmode, stack_pointer_rtx, -UNITS_PER_WORD);
 
   mem = gen_rtx_MEM (Pmode, addr);
   MEM_NOTRAP_P (mem) = 1;

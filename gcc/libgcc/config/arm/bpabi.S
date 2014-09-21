@@ -1,7 +1,6 @@
 /* Miscellaneous BPABI functions.
 
-   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by CodeSourcery, LLC.
 
    This file is free software; you can redistribute it and/or modify it
@@ -124,6 +123,7 @@ ARM_FUNC_START aeabi_ulcmp
 #ifdef L_aeabi_ldivmod
 
 ARM_FUNC_START aeabi_ldivmod
+	cfi_start	__aeabi_ldivmod, LSYM(Lend_aeabi_ldivmod)
 	test_div_by_zero signed
 
 	sub sp, sp, #8
@@ -133,17 +133,20 @@ ARM_FUNC_START aeabi_ldivmod
 #else
 	do_push {sp, lr}
 #endif
+98:	cfi_push 98b - __aeabi_ldivmod, 0xe, -0xc, 0x10
 	bl SYM(__gnu_ldivmod_helper) __PLT__
 	ldr lr, [sp, #4]
 	add sp, sp, #8
 	do_pop {r2, r3}
 	RET
+	cfi_end	LSYM(Lend_aeabi_ldivmod)
 	
 #endif /* L_aeabi_ldivmod */
 
 #ifdef L_aeabi_uldivmod
 
 ARM_FUNC_START aeabi_uldivmod
+	cfi_start	__aeabi_uldivmod, LSYM(Lend_aeabi_uldivmod)
 	test_div_by_zero unsigned
 
 	sub sp, sp, #8
@@ -153,11 +156,13 @@ ARM_FUNC_START aeabi_uldivmod
 #else
 	do_push {sp, lr}
 #endif
+98:	cfi_push 98b - __aeabi_uldivmod, 0xe, -0xc, 0x10
 	bl SYM(__gnu_uldivmod_helper) __PLT__
 	ldr lr, [sp, #4]
 	add sp, sp, #8
 	do_pop {r2, r3}
 	RET
-	
+	cfi_end	LSYM(Lend_aeabi_uldivmod)
+
 #endif /* L_aeabi_divmod */
 	

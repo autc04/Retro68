@@ -1,5 +1,5 @@
 /* Simple data type for positive real numbers for the GNU compiler.
-   Copyright (C) 2002, 2003, 2004, 2007, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -71,6 +71,22 @@ dump_sreal (FILE *file, sreal *x)
   fprintf (file, "(" HOST_WIDE_INT_PRINT_UNSIGNED " * 2^%d)", x->sig, x->exp);
 #endif
 }
+
+DEBUG_FUNCTION void
+debug (sreal &ref)
+{
+  dump_sreal (stderr, &ref);
+}
+
+DEBUG_FUNCTION void
+debug (sreal *ptr)
+{
+  if (ptr)
+    debug (*ptr);
+  else
+    fprintf (stderr, "<nil>\n");
+}
+
 
 /* Copy the sreal number.  */
 

@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package image_test
+package image
 
 import (
-	. "image"
 	"image/color"
 	"testing"
 )
@@ -37,6 +36,7 @@ func TestYCbCr(t *testing.T) {
 		YCbCrSubsampleRatio444,
 		YCbCrSubsampleRatio422,
 		YCbCrSubsampleRatio420,
+		YCbCrSubsampleRatio440,
 	}
 	deltas := []Point{
 		Pt(0, 0),

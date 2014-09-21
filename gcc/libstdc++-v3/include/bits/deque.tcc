@@ -1,8 +1,6 @@
 // Deque implementation (out of line) -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-// 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -62,7 +60,7 @@ namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template <typename _Tp, typename _Alloc>
     void
     deque<_Tp, _Alloc>::
@@ -110,7 +108,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       return *this;
     }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<typename _Tp, typename _Alloc>
     template<typename... _Args>
       void
@@ -145,10 +143,39 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       }
 #endif
 
+#if __cplusplus >= 201103L
+  template<typename _Tp, typename _Alloc>
+    template<typename... _Args>
+      typename deque<_Tp, _Alloc>::iterator
+      deque<_Tp, _Alloc>::
+      emplace(const_iterator __position, _Args&&... __args)
+      {
+	if (__position._M_cur == this->_M_impl._M_start._M_cur)
+	  {
+	    emplace_front(std::forward<_Args>(__args)...);
+	    return this->_M_impl._M_start;
+	  }
+	else if (__position._M_cur == this->_M_impl._M_finish._M_cur)
+	  {
+	    emplace_back(std::forward<_Args>(__args)...);
+	    iterator __tmp = this->_M_impl._M_finish;
+	    --__tmp;
+	    return __tmp;
+	  }
+	else
+	  return _M_insert_aux(__position._M_const_cast(),
+			       std::forward<_Args>(__args)...);
+      }
+#endif
+
   template <typename _Tp, typename _Alloc>
     typename deque<_Tp, _Alloc>::iterator
     deque<_Tp, _Alloc>::
+#if __cplusplus >= 201103L
+    insert(const_iterator __position, const value_type& __x)
+#else
     insert(iterator __position, const value_type& __x)
+#endif
     {
       if (__position._M_cur == this->_M_impl._M_start._M_cur)
 	{
@@ -163,37 +190,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	  return __tmp;
 	}
       else
-        return _M_insert_aux(__position, __x);
-    }
-
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
-  template<typename _Tp, typename _Alloc>
-    template<typename... _Args>
-      typename deque<_Tp, _Alloc>::iterator
-      deque<_Tp, _Alloc>::
-      emplace(iterator __position, _Args&&... __args)
-      {
-	if (__position._M_cur == this->_M_impl._M_start._M_cur)
-	  {
-	    push_front(std::forward<_Args>(__args)...);
-	    return this->_M_impl._M_start;
-	  }
-	else if (__position._M_cur == this->_M_impl._M_finish._M_cur)
-	  {
-	    push_back(std::forward<_Args>(__args)...);
-	    iterator __tmp = this->_M_impl._M_finish;
-	    --__tmp;
-	    return __tmp;
-	  }
-	else
-	  return _M_insert_aux(__position, std::forward<_Args>(__args)...);
-      }
-#endif
+	return _M_insert_aux(__position._M_const_cast(), __x);
+   }
 
   template <typename _Tp, typename _Alloc>
     typename deque<_Tp, _Alloc>::iterator
     deque<_Tp, _Alloc>::
-    erase(iterator __position)
+    _M_erase(iterator __position)
     {
       iterator __next = __position;
       ++__next;
@@ -216,7 +219,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
   template <typename _Tp, typename _Alloc>
     typename deque<_Tp, _Alloc>::iterator
     deque<_Tp, _Alloc>::
-    erase(iterator __first, iterator __last)
+    _M_erase(iterator __first, iterator __last)
     {
       if (__first == __last)
 	return __first;
@@ -303,7 +306,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
         _M_insert_aux(__pos, __n, __x);
     }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template <typename _Tp, typename _Alloc>
     void
     deque<_Tp, _Alloc>::
@@ -383,7 +386,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
         __try
           {
             for (; __first != __last; ++__first)
+#if __cplusplus >= 201103L
+	      emplace_back(*__first);
+#else
               push_back(*__first);
+#endif
           }
         __catch(...)
           {
@@ -430,7 +437,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
   // Called only if _M_impl._M_finish._M_cur == _M_impl._M_finish._M_last - 1.
   template<typename _Tp, typename _Alloc>
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     template<typename... _Args>
       void
       deque<_Tp, _Alloc>::
@@ -445,7 +452,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	*(this->_M_impl._M_finish._M_node + 1) = this->_M_allocate_node();
 	__try
 	  {
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
 	    this->_M_impl.construct(this->_M_impl._M_finish._M_cur,
 				    std::forward<_Args>(__args)...);
 #else
@@ -464,7 +471,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
   // Called only if _M_impl._M_start._M_cur == _M_impl._M_start._M_first.
   template<typename _Tp, typename _Alloc>
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     template<typename... _Args>
       void
       deque<_Tp, _Alloc>::
@@ -482,7 +489,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	    this->_M_impl._M_start._M_set_node(this->_M_impl._M_start._M_node
 					       - 1);
 	    this->_M_impl._M_start._M_cur = this->_M_impl._M_start._M_last - 1;
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
 	    this->_M_impl.construct(this->_M_impl._M_start._M_cur,
 				    std::forward<_Args>(__args)...);
 #else
@@ -579,7 +586,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       }
 
   template<typename _Tp, typename _Alloc>
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     template<typename... _Args>
       typename deque<_Tp, _Alloc>::iterator
       deque<_Tp, _Alloc>::
@@ -996,7 +1003,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       return __result;
     }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   template<typename _Tp>
     _Deque_iterator<_Tp, _Tp&, _Tp*>
     move(_Deque_iterator<_Tp, const _Tp&, const _Tp*> __first,

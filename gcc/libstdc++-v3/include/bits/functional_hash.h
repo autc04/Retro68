@@ -1,6 +1,6 @@
 // functional_hash.h header -*- C++ -*-
 
-// Copyright (C) 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -55,12 +55,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /// Primary class template hash.
   template<typename _Tp>
-    struct hash : public __hash_base<size_t, _Tp>
-    {
-      static_assert(sizeof(_Tp) < 0,
-		    "std::hash is not specialized for this type");
-      size_t operator()(const _Tp&) const noexcept;
-    };
+    struct hash;
 
   /// Partial specializations for pointer types.
   template<typename _Tp>
@@ -198,6 +193,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     };
 
   // @} group hashes
+
+  // Hint about performance of hash functor. If not fast the hash based
+  // containers will cache the hash code.
+  // Default behavior is to consider that hasher are fast unless specified
+  // otherwise.
+  template<typename _Hash>
+    struct __is_fast_hash : public std::true_type
+    { };
+
+  template<>
+    struct __is_fast_hash<hash<long double>> : public std::false_type
+    { };
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace

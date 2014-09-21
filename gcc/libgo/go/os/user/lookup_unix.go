@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd linux
+// +build darwin dragonfly freebsd linux netbsd openbsd
 // +build cgo
 
 package user
@@ -27,12 +27,6 @@ static int mygetpwuid_r(int uid, struct passwd *pwd,
 }
 */
 
-//extern getpwnam_r
-func libc_getpwnam_r(name *byte, pwd *syscall.Passwd, buf *byte, buflen syscall.Size_t, result **syscall.Passwd) int
-
-//extern getpwuid_r
-func libc_getpwuid_r(uid syscall.Uid_t, pwd *syscall.Passwd, buf *byte, buflen syscall.Size_t, result **syscall.Passwd) int
-
 // bytePtrToString takes a NUL-terminated array of bytes and convert
 // it to a Go string.
 func bytePtrToString(p *byte) string {
@@ -44,28 +38,23 @@ func bytePtrToString(p *byte) string {
 	return string(a[:i])
 }
 
-// Current returns the current user. 
-func Current() (*User, error) {
-	return lookup(syscall.Getuid(), "", false)
+func current() (*User, error) {
+	return lookupUnix(syscall.Getuid(), "", false)
 }
 
-// Lookup looks up a user by username. If the user cannot be found,
-// the returned error is of type UnknownUserError.
-func Lookup(username string) (*User, error) {
-	return lookup(-1, username, true)
+func lookup(username string) (*User, error) {
+	return lookupUnix(-1, username, true)
 }
 
-// LookupId looks up a user by userid. If the user cannot be found,
-// the returned error is of type UnknownUserIdError.
-func LookupId(uid string) (*User, error) {
+func lookupId(uid string) (*User, error) {
 	i, e := strconv.Atoi(uid)
 	if e != nil {
 		return nil, e
 	}
-	return lookup(i, "", false)
+	return lookupUnix(i, "", false)
 }
 
-func lookup(uid int, username string, lookupByName bool) (*User, error) {
+func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
 	var pwd syscall.Passwd
 	var result *syscall.Passwd
 
@@ -73,11 +62,14 @@ func lookup(uid int, username string, lookupByName bool) (*User, error) {
 	const bufSize = 1024
 	buf := make([]byte, bufSize)
 	if lookupByName {
-		rv := libc_getpwnam_r(syscall.StringBytePtr(username),
+		p := syscall.StringBytePtr(username)
+		syscall.Entersyscall()
+		rv := libc_getpwnam_r(p,
 			&pwd,
 			&buf[0],
 			bufSize,
 			&result)
+		syscall.Exitsyscall()
 		if rv != 0 {
 			return nil, fmt.Errorf("user: lookup username %s: %s", username, syscall.GetErrno())
 		}
@@ -85,11 +77,13 @@ func lookup(uid int, username string, lookupByName bool) (*User, error) {
 			return nil, UnknownUserError(username)
 		}
 	} else {
+		syscall.Entersyscall()
 		rv := libc_getpwuid_r(syscall.Uid_t(uid),
 			&pwd,
 			&buf[0],
 			bufSize,
 			&result)
+		syscall.Exitsyscall()
 		if rv != 0 {
 			return nil, fmt.Errorf("user: lookup userid %d: %s", uid, syscall.GetErrno())
 		}

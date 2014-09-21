@@ -54,7 +54,6 @@ var (
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
-	stringVal1           string
 	bytesVal             []byte
 	runeVal              rune
 	complex64Val         complex64
@@ -191,6 +190,10 @@ var scanTests = []ScanTest{
 	{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
 	{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
 	{"hello\n", &stringVal, "hello"},
+
+	// Carriage-return followed by newline. (We treat \r\n as \n always.)
+	{"hello\r\n", &stringVal, "hello"},
+	{"27\r\n", &uint8Val, uint8(27)},
 
 	// Renamed types
 	{"true\n", &renamedBoolVal, renamedBool(true)},
@@ -626,7 +629,7 @@ func TestScanlnWithMiddleNewline(t *testing.T) {
 	}
 }
 
-// Special Reader that counts reads at end of file.
+// eofCounter is a special Reader that counts reads at end of file.
 type eofCounter struct {
 	reader   *strings.Reader
 	eofCount int
@@ -640,8 +643,8 @@ func (ec *eofCounter) Read(b []byte) (n int, err error) {
 	return
 }
 
-// Verify that when we scan, we see at most EOF once per call to a Scan function,
-// and then only when it's really an EOF
+// TestEOF verifies that when we scan, we see at most EOF once per call to a
+// Scan function, and then only when it's really an EOF.
 func TestEOF(t *testing.T) {
 	ec := &eofCounter{strings.NewReader("123\n"), 0}
 	var a int
@@ -668,7 +671,7 @@ func TestEOF(t *testing.T) {
 	}
 }
 
-// Verify that we see an EOF error if we run out of input.
+// TestEOFAtEndOfInput verifies that we see an EOF error if we run out of input.
 // This was a buglet: we used to get "expected integer".
 func TestEOFAtEndOfInput(t *testing.T) {
 	var i, j int
@@ -730,7 +733,8 @@ func TestEOFAllTypes(t *testing.T) {
 	}
 }
 
-// Verify that, at least when using bufio, successive calls to Fscan do not lose runes.
+// TestUnreadRuneWithBufio verifies that, at least when using bufio, successive
+// calls to Fscan do not lose runes.
 func TestUnreadRuneWithBufio(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader("123αb"))
 	var i int
@@ -753,7 +757,7 @@ func TestUnreadRuneWithBufio(t *testing.T) {
 
 type TwoLines string
 
-// Attempt to read two lines into the object.  Scanln should prevent this
+// Scan attempts to read two lines into the object.  Scanln should prevent this
 // because it stops at newline; Scan and Scanf should be fine.
 func (t *TwoLines) Scan(state ScanState, verb rune) error {
 	chars := make([]rune, 0, 100)
@@ -810,7 +814,35 @@ func TestMultiLine(t *testing.T) {
 	}
 }
 
-// RecursiveInt accepts an string matching %d.%d.%d....
+// simpleReader is a strings.Reader that implements only Read, not ReadRune.
+// Good for testing readahead.
+type simpleReader struct {
+	sr *strings.Reader
+}
+
+func (s *simpleReader) Read(b []byte) (n int, err error) {
+	return s.sr.Read(b)
+}
+
+// TestLineByLineFscanf tests that Fscanf does not read past newline. Issue
+// 3481.
+func TestLineByLineFscanf(t *testing.T) {
+	r := &simpleReader{strings.NewReader("1\n2\n")}
+	var i, j int
+	n, err := Fscanf(r, "%v\n", &i)
+	if n != 1 || err != nil {
+		t.Fatalf("first read: %d %q", n, err)
+	}
+	n, err = Fscanf(r, "%v\n", &j)
+	if n != 1 || err != nil {
+		t.Fatalf("second read: %d %q", n, err)
+	}
+	if i != 1 || j != 2 {
+		t.Errorf("wrong values; wanted 1 2 got %d %d", i, j)
+	}
+}
+
+// RecursiveInt accepts a string matching %d.%d.%d....
 // and parses it into a linked list.
 // It allows us to benchmark recursive descent style scanners.
 type RecursiveInt struct {
@@ -826,7 +858,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb rune) (err error) {
 	next := new(RecursiveInt)
 	_, err = Fscanf(state, ".%v", next)
 	if err != nil {
-		if err == errors.New("input does not match format") || err == io.ErrUnexpectedEOF {
+		if err == io.ErrUnexpectedEOF {
 			err = nil
 		}
 		return
@@ -835,7 +867,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb rune) (err error) {
 	return
 }
 
-// Perform the same scanning task as RecursiveInt.Scan
+// scanInts performs the same scanning task as RecursiveInt.Scan
 // but without recurring through scanner, so we can compare
 // performance more directly.
 func scanInts(r *RecursiveInt, b *bytes.Buffer) (err error) {

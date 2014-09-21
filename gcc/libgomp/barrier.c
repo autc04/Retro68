@@ -1,4 +1,4 @@
-/* Copyright (C) 2005, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU OpenMP Library (libgomp).
@@ -38,4 +38,16 @@ GOMP_barrier (void)
     return;
 
   gomp_team_barrier_wait (&team->barrier);
+}
+
+bool
+GOMP_barrier_cancel (void)
+{
+  struct gomp_thread *thr = gomp_thread ();
+  struct gomp_team *team = thr->ts.team;
+
+  /* The compiler transforms to barrier_cancel when it sees that the
+     barrier is within a construct that can cancel.  Thus we should
+     never have an orphaned cancellable barrier.  */
+  return gomp_team_barrier_wait_cancel (&team->barrier);
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2011, 2012 Free Software Foundation, Inc.
+/* Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Transactional Memory Library (libitm).
@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-#ifdef HAVE_AS_CFI_PSEUDO_OP
+#if defined(HAVE_AS_CFI_PSEUDO_OP) && defined(__GCC_HAVE_DWARF2_CFI_ASM)
 
 #define cfi_startproc			.cfi_startproc
 #define cfi_endproc			.cfi_endproc
@@ -50,4 +50,4 @@
 #define cfi_restore(r)
 #define cfi_undefined(r)
 
-#endif /* HAVE_AS_CFI_PSEUDO_OP */
+#endif /* HAVE_AS_CFI_PSEUDO_OP && __GCC_HAVE_DWARF2_CFI_ASM */

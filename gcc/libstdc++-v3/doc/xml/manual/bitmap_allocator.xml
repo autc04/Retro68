@@ -4,12 +4,8 @@
 
 <info><title>The bitmap_allocator</title>
   <keywordset>
-    <keyword>
-      ISO C++
-    </keyword>
-    <keyword>
-      allocator
-    </keyword>
+    <keyword>ISO C++</keyword>
+    <keyword>allocator</keyword>
   </keywordset>
 </info>
 
@@ -57,6 +53,7 @@
 </section>
 
 <section xml:id="allocator.bitmap.impl"><info><title>Implementation</title></info>
+<?dbhtml filename="bitmap_allocator_impl.html"?>
 
 
 <section xml:id="bitmap.impl.free_list_store" xreflabel="Free List Store"><info><title>Free List Store</title></info>

@@ -7,14 +7,29 @@
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "tree.h"
+#include "stringpool.h"
 #include "toplev.h"
 #include "basic-block.h"
+#include "pointer-set.h"
+#include "hash-table.h"
+#include "vec.h"
+#include "ggc.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-fold.h"
+#include "tree-eh.h"
+#include "gimple-expr.h"
+#include "is-a.h"
 #include "gimple.h"
+#include "gimple-iterator.h"
 #include "tree.h"
 #include "tree-pass.h"
 #include "intl.h"
 #include "plugin-version.h"
 #include "diagnostic.h"
+#include "context.h"
 
 int plugin_is_GPL_compatible;
 
@@ -46,7 +61,7 @@ get_real_ref_rhs (tree expr)
              e.g. D.1797_14, we need to grab the rhs of its SSA def
              statement (i.e. foo.x).  */
           tree vdecl = SSA_NAME_VAR (expr);
-          if (DECL_ARTIFICIAL (vdecl)
+          if ((!vdecl || DECL_ARTIFICIAL (vdecl))
               && !gimple_nop_p (SSA_NAME_DEF_STMT (expr)))
             {
               gimple def_stmt = SSA_NAME_DEF_STMT (expr);
@@ -86,6 +101,8 @@ get_real_ref_rhs (tree expr)
 static tree
 get_non_ssa_expr (tree expr)
 {
+  if (!expr)
+    return NULL_TREE;
   switch (TREE_CODE (expr))
     {
       case VAR_DECL:
@@ -149,7 +166,7 @@ get_non_ssa_expr (tree expr)
       case SSA_NAME:
         {
           tree vdecl = SSA_NAME_VAR (expr);
-          if (DECL_ARTIFICIAL (vdecl)
+          if ((!vdecl || DECL_ARTIFICIAL (vdecl))
               && !gimple_nop_p (SSA_NAME_DEF_STMT (expr)))
             {
               gimple def_stmt = SSA_NAME_DEF_STMT (expr);
@@ -209,7 +226,7 @@ warn_self_assign (gimple stmt)
       if (TREE_CODE (lhs) == SSA_NAME)
         {
           lhs = SSA_NAME_VAR (lhs);
-          if (DECL_ARTIFICIAL (lhs))
+          if (!lhs || DECL_ARTIFICIAL (lhs))
             return;
         }
 
@@ -244,7 +261,7 @@ execute_warn_self_assign (void)
   gimple_stmt_iterator gsi;
   basic_block bb;
 
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
         warn_self_assign (gsi_stmt (gsi));
@@ -261,24 +278,43 @@ gate_warn_self_assign (void)
   return true;
 }
 
-static struct gimple_opt_pass pass_warn_self_assign =
+namespace {
+
+const pass_data pass_data_warn_self_assign =
 {
-  {
-    GIMPLE_PASS,
-    "warn_self_assign",                   /* name */
-    gate_warn_self_assign,                /* gate */
-    execute_warn_self_assign,             /* execute */
-    NULL,                                 /* sub */
-    NULL,                                 /* next */
-    0,                                    /* static_pass_number */
-    TV_NONE,                              /* tv_id */
-    PROP_ssa,                             /* properties_required */
-    0,                                    /* properties_provided */
-    0,                                    /* properties_destroyed */
-    0,                                    /* todo_flags_start */
-    TODO_dump_func                        /* todo_flags_finish */
-  }
+  GIMPLE_PASS, /* type */
+  "warn_self_assign", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_NONE, /* tv_id */
+  PROP_ssa, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  0, /* todo_flags_finish */
 };
+
+class pass_warn_self_assign : public gimple_opt_pass
+{
+public:
+  pass_warn_self_assign(gcc::context *ctxt)
+    : gimple_opt_pass(pass_data_warn_self_assign, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_warn_self_assign (); }
+  unsigned int execute () { return execute_warn_self_assign (); }
+
+}; // class pass_warn_self_assign
+
+} // anon namespace
+
+static gimple_opt_pass *
+make_pass_warn_self_assign (gcc::context *ctxt)
+{
+  return new pass_warn_self_assign (ctxt);
+}
 
 /* The initialization routine exposed to and called by GCC. The spec of this
    function is defined in gcc/gcc-plugin.h.
@@ -306,7 +342,7 @@ plugin_init (struct plugin_name_args *plugin_info,
     return 1;
 
   /* Self-assign detection should happen after SSA is constructed.  */
-  pass_info.pass = &pass_warn_self_assign.pass;
+  pass_info.pass = make_pass_warn_self_assign (g);
   pass_info.reference_pass_name = "ssa";
   pass_info.ref_pass_instance_number = 1;
   pass_info.pos_op = PASS_POS_INSERT_AFTER;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---           Copyright (C) 2000-2012, Free Software Foundation, Inc.        --
+--           Copyright (C) 2000-2013, Free Software Foundation, Inc.        --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -253,6 +253,7 @@ package body Impunit is
     ("g-cgideb", F),  -- GNAT.CGI.Debug
     ("g-comlin", F),  -- GNAT.Command_Line
     ("g-comver", F),  -- GNAT.Compiler_Version
+    ("g-cppexc", F),  -- GNAT.CPP_Exceptions
     ("g-crc32 ", F),  -- GNAT.CRC32
     ("g-ctrl_c", F),  -- GNAT.Ctrl_C
     ("g-curexc", F),  -- GNAT.Current_Exception
@@ -380,7 +381,14 @@ package body Impunit is
     ("s-ststop", F),  -- System.Strings.Stream_Ops
     ("s-tasinf", F),  -- System.Task_Info
     ("s-wchcnv", F),  -- System.Wch_Cnv
-    ("s-wchcon", F)); -- System.Wch_Con
+    ("s-wchcon", F),  -- System.Wch_Con
+
+   --  The following are strictly speaking Ada 2012 units, but we are allowed
+   --  to add children to system, so we consider them to be implementation
+   --  defined additions to System in earlier versions of Ada.
+
+    ("s-multip", T),  -- System.Multiprocessors
+    ("s-mudido", T)); -- System.Multiprocessors.Dispatching_Domains
 
    --------------------
    -- Ada 2005 Units --
@@ -544,8 +552,6 @@ package body Impunit is
    --  The following units should be used only in Ada 2012 mode
 
    Non_Imp_File_Names_12 : constant File_List := (
-    ("s-multip", T),  -- System.Multiprocessors
-    ("s-mudido", T),  -- System.Multiprocessors.Dispatching_Domains
     ("s-stposu", T),  -- System.Storage_Pools.Subpools
     ("a-cobove", T),  -- Ada.Containers.Bounded_Vectors
     ("a-cbdlli", T),  -- Ada.Containers.Bounded_Doubly_Linked_Lists
@@ -564,6 +570,7 @@ package body Impunit is
     ("a-cbprqu", T),  -- Ada.Containers.Bounded_Priority_Queues
     ("a-extiin", T),  -- Ada.Execution_Time.Interrupts
     ("a-iteint", T),  -- Ada.Iterator_Interfaces
+    ("a-locale", T),  -- Ada.Locales
     ("a-synbar", T),  -- Ada.Synchronous_Barriers
     ("a-undesu", T),  -- Ada.Unchecked_Deallocate_Subpool
 
@@ -662,10 +669,19 @@ package body Impunit is
          return Not_Predefined_Unit;
       end if;
 
-      --  Not predefined if file name does not end in .ads. This can
-      --  happen when non-standard file names are being used.
+      --  To be considered predefined, the file name must end in .ads or .adb.
+      --  File names with other extensions (coming from the use of non-standard
+      --  file naming schemes) can never be predefined.
 
-      if Name_Buffer (Name_Len - 3 .. Name_Len) /= ".ads" then
+      --  Note that in the context of a compiler, the .adb case will never
+      --  arise. However it can arise for other tools, e.g. gnatprove uses
+      --  this routine to detect when a construct comes from an instance of
+      --  a generic defined in a predefined unit.
+
+      if Name_Buffer (Name_Len - 3 .. Name_Len) /= ".ads"
+           and then
+         Name_Buffer (Name_Len - 3 .. Name_Len) /= ".adb"
+      then
          return Not_Predefined_Unit;
       end if;
 

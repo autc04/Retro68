@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2003-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 2003-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,7 +31,7 @@
 
 --  This package provides the low level interface to the C runtime library
 
-pragma Compiler_Unit;
+pragma Compiler_Unit_Warning;
 
 with System.Parameters;
 
@@ -67,6 +67,24 @@ package System.CRTL is
    pragma Convention (C, Filename_Encoding);
    --  Describes the filename's encoding
 
+   --------------------
+   -- GCC intrinsics --
+   --------------------
+
+   --  The following functions are imported with convention Intrinsic so that
+   --  we take advantage of back-end builtins if present (else we fall back
+   --  to C library functions by the same names).
+
+   function strlen (A : System.Address) return size_t;
+   pragma Import (Intrinsic, strlen, "strlen");
+
+   procedure strncpy (dest, src : System.Address; n : size_t);
+   pragma Import (Intrinsic, strncpy, "strncpy");
+
+   -------------------------------
+   -- Other C runtime functions --
+   -------------------------------
+
    function atoi (A : System.Address) return Integer;
    pragma Import (C, atoi, "atoi");
 
@@ -97,7 +115,8 @@ package System.CRTL is
    function fopen
      (filename : chars;
       mode     : chars;
-      encoding : Filename_Encoding := Unspecified) return FILEs;
+      encoding : Filename_Encoding := Unspecified;
+      vms_form : chars := System.Null_Address) return FILEs;
    pragma Import (C, fopen, "__gnat_fopen");
 
    function fputc (C : int; stream : FILEs) return int;
@@ -113,7 +132,8 @@ package System.CRTL is
      (filename : chars;
       mode     : chars;
       stream   : FILEs;
-      encoding : Filename_Encoding := Unspecified) return FILEs;
+      encoding : Filename_Encoding := Unspecified;
+      vms_form : chars := System.Null_Address) return FILEs;
    pragma Import (C, freopen, "__gnat_freopen");
 
    function fseek
@@ -122,8 +142,17 @@ package System.CRTL is
       origin : int) return int;
    pragma Import (C, fseek, "fseek");
 
+   function fseek64
+     (stream : FILEs;
+      offset : ssize_t;
+      origin : int) return int;
+   pragma Import (C, fseek64, "__gnat_fseek64");
+
    function ftell (stream : FILEs) return long;
    pragma Import (C, ftell, "ftell");
+
+   function ftell64 (stream : FILEs) return ssize_t;
+   pragma Import (C, ftell64, "__gnat_ftell64");
 
    function getenv (S : String) return System.Address;
    pragma Import (C, getenv, "getenv");
@@ -165,6 +194,11 @@ package System.CRTL is
    function chdir (dir_name : String) return int;
    pragma Import (C, chdir, "__gnat_chdir");
 
+   function mkdir
+     (dir_name : String;
+      encoding : Filename_Encoding := Unspecified) return int;
+   pragma Import (C, mkdir, "__gnat_mkdir");
+
    function setvbuf
      (stream : FILEs;
       buffer : chars;
@@ -172,7 +206,7 @@ package System.CRTL is
       size   : size_t) return int;
    pragma Import (C, setvbuf, "setvbuf");
 
-   procedure tmpnam (string : chars);
+   procedure tmpnam (str : chars);
    pragma Import (C, tmpnam, "tmpnam");
 
    function tmpfile return FILEs;

@@ -1,6 +1,5 @@
 /* Prototypes of target machine for TILE-Gx.
-   Copyright (C) 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Walter Lee (walt@tilera.com)
 
    This file is part of GCC.
@@ -23,6 +22,8 @@
 #define GCC_TILEGX_PROTOS_H
 
 extern void tilegx_init_expanders (void);
+extern void tilegx_compute_pcrel_address (rtx, rtx);
+extern void tilegx_compute_pcrel_plt_address (rtx, rtx);
 extern bool tilegx_legitimate_pic_operand_p (rtx);
 extern rtx tilegx_simd_int (rtx, enum machine_mode);
 

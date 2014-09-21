@@ -1,6 +1,6 @@
 ; Options for the S/390 / zSeries port of the compiler.
 
-; Copyright (C) 2005, 2006, 2007, 2010, 2011 Free Software Foundation, Inc.
+; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -73,6 +73,9 @@ Enum(processor_type) String(z10) Value(PROCESSOR_2097_Z10)
 EnumValue
 Enum(processor_type) String(z196) Value(PROCESSOR_2817_Z196)
 
+EnumValue
+Enum(processor_type) String(zEC12) Value(PROCESSOR_2827_ZEC12)
+
 mbackchain
 Target Report Mask(BACKCHAIN)
 Maintain backchain pointer
@@ -93,6 +96,14 @@ mhard-float
 Target Report RejectNegative Negative(msoft-float) InverseMask(SOFT_FLOAT, HARD_FLOAT)
 Enable hardware floating point
 
+mhotpatch
+Target Report Var(s390_deferred_options) Defer
+Prepend the function label with 12 two-byte Nop instructions, and add a four byte Nop instruction after the label for hotpatching.
+
+mhotpatch=
+Target RejectNegative Report Joined Var(s390_deferred_options) Defer
+Prepend the function label with the given number of two-byte Nop instructions, and add a four byte Nop instruction after the label for hotpatching.
+
 mlong-double-128
 Target Report RejectNegative Negative(mlong-double-64) Mask(LONG_DOUBLE_128)
 Use 128-bit long double
@@ -100,6 +111,10 @@ Use 128-bit long double
 mlong-double-64
 Target Report RejectNegative Negative(mlong-double-128) InverseMask(LONG_DOUBLE_128)
 Use 64-bit long double
+
+mhtm
+Target Report Mask(OPT_HTM)
+Use hardware transactional execution instructions
 
 mpacked-stack
 Target Report Mask(PACKED_STACK)
@@ -146,3 +161,7 @@ Target Report Joined RejectNegative UInteger Var(s390_branch_cost) Init(1)
 Set the branch costs for conditional branch instructions.  Reasonable
 values are small, non-negative integers.  The default branch cost is
 1.
+
+mlra
+Target Report Var(s390_lra_flag) Init(1) Save
+Use LRA instead of reload

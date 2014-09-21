@@ -1,6 +1,5 @@
 /* Generate attribute information (insn-attr.h) from machine description.
-   Copyright (C) 1991, 1994, 1996, 1998, 1999, 2000, 2003, 2004, 2007, 2008,
-   2010, 2011  Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GCC.
@@ -32,7 +31,7 @@ along with GCC; see the file COPYING3.  If not see
 
 static void gen_attr (rtx);
 
-static VEC (rtx, heap) *const_attrs, *reservations;
+static vec<rtx> const_attrs, reservations;
 
 
 static void
@@ -42,9 +41,9 @@ gen_attr (rtx attr)
   int is_const = GET_CODE (XEXP (attr, 2)) == CONST;
 
   if (is_const)
-    VEC_safe_push (rtx, heap, const_attrs, attr);
+    const_attrs.safe_push (attr);
 
-  printf ("#define HAVE_ATTR_%s\n", XSTR (attr, 0));
+  printf ("#define HAVE_ATTR_%s 1\n", XSTR (attr, 0));
 
   /* If numeric attribute, don't need to write an enum.  */
   if (GET_CODE (attr) == DEFINE_ENUM_ATTR)
@@ -119,13 +118,13 @@ find_tune_attr (rtx exp)
       if (strcmp (XSTR (exp, 0), "alternative") == 0)
 	return false;
 
-      FOR_EACH_VEC_ELT (rtx, const_attrs, i, attr)
+      FOR_EACH_VEC_ELT (const_attrs, i, attr)
 	if (strcmp (XSTR (attr, 0), XSTR (exp, 0)) == 0)
 	  {
 	    unsigned int j;
 	    rtx resv;
 
-	    FOR_EACH_VEC_ELT (rtx, reservations, j, resv)
+	    FOR_EACH_VEC_ELT (reservations, j, resv)
 	      if (! check_tune_attr (XSTR (attr, 0), XEXP (resv, 2)))
 		return false;
 	    return true;
@@ -158,12 +157,6 @@ main (int argc, char **argv)
   puts ("#define GCC_INSN_ATTR_H\n");
 
   puts ("#include \"insn-attr-common.h\"\n");
-
-  /* For compatibility, define the attribute `alternative', which is just
-     a reference to the variable `which_alternative'.  */
-
-  puts ("#define HAVE_ATTR_alternative");
-  puts ("#define get_attr_alternative(insn) which_alternative");
 
   /* Read the machine description.  */
 
@@ -210,14 +203,14 @@ main (int argc, char **argv)
       else if (GET_CODE (desc) == DEFINE_INSN_RESERVATION)
 	{
 	  num_insn_reservations++;
-	  VEC_safe_push (rtx, heap, reservations, desc);
+	  reservations.safe_push (desc);
 	}
     }
 
   if (num_insn_reservations > 0)
     {
       bool has_tune_attr
-	= find_tune_attr (XEXP (VEC_index (rtx, reservations, 0), 2));
+	= find_tune_attr (XEXP (reservations[0], 2));
       /* Output interface for pipeline hazards recognition based on
 	 DFA (deterministic finite state automata.  */
       printf ("\n/* DFA based pipeline interface.  */");
@@ -342,18 +335,36 @@ main (int argc, char **argv)
       printf ("typedef void *state_t;\n\n");
     }
 
+  /* Special-purpose attributes should be tested with if, not #ifdef.  */
+  const char * const special_attrs[] = { "length", "enabled", 0 };
+  for (const char * const *p = special_attrs; *p; p++)
+    {
+      printf ("#ifndef HAVE_ATTR_%s\n"
+	      "#define HAVE_ATTR_%s 0\n"
+	      "#endif\n", *p, *p);
+    }
+  /* We make an exception here to provide stub definitions for
+     insn_*_length* / get_attr_enabled functions.  */
+  puts ("#if !HAVE_ATTR_length\n"
+	"extern int hook_int_rtx_unreachable (rtx);\n"
+	"#define insn_default_length hook_int_rtx_unreachable\n"
+	"#define insn_min_length hook_int_rtx_unreachable\n"
+	"#define insn_variable_length_p hook_int_rtx_unreachable\n"
+	"#define insn_current_length hook_int_rtx_unreachable\n"
+	"#include \"insn-addr.h\"\n"
+	"#endif\n"
+	"#if !HAVE_ATTR_enabled\n"
+	"extern int hook_int_rtx_1 (rtx);\n"
+	"#define get_attr_enabled hook_int_rtx_1\n"
+	"#endif\n");
+
   /* Output flag masks for use by reorg.
 
-     Flags are used to hold branch direction and prediction information
-     for use by eligible_for_...  */
-  printf("\n#define ATTR_FLAG_forward\t0x1\n");
-  printf("#define ATTR_FLAG_backward\t0x2\n");
-  printf("#define ATTR_FLAG_likely\t0x4\n");
-  printf("#define ATTR_FLAG_very_likely\t0x8\n");
-  printf("#define ATTR_FLAG_unlikely\t0x10\n");
-  printf("#define ATTR_FLAG_very_unlikely\t0x20\n");
+     Flags are used to hold branch direction for use by eligible_for_...  */
+  printf ("\n#define ATTR_FLAG_forward\t0x1\n");
+  printf ("#define ATTR_FLAG_backward\t0x2\n");
 
-  puts("\n#endif /* GCC_INSN_ATTR_H */");
+  puts ("\n#endif /* GCC_INSN_ATTR_H */");
 
   if (ferror (stdout) || fflush (stdout) || fclose (stdout))
     return FATAL_EXIT_CODE;

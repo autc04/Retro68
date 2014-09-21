@@ -1,7 +1,5 @@
 /* Definitions of target machine for GNU compiler, for the HP Spectrum.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com) of Cygnus Support
    and Tim Moore (moore@defmacro.cs.utah.edu) of the Center for
    Software Science at the University of Utah.
@@ -116,7 +114,7 @@ extern unsigned long total_code_bytes;
 #define TARGET_HPUX_UNWIND_LIBRARY 0
 
 #ifndef TARGET_DEFAULT
-#define TARGET_DEFAULT (MASK_GAS | MASK_JUMP_IN_DELAY | MASK_BIG_SWITCH)
+#define TARGET_DEFAULT (MASK_GAS | MASK_JUMP_IN_DELAY)
 #endif
 
 #ifndef TARGET_CPU_DEFAULT
@@ -750,7 +748,8 @@ extern int may_call_alloca;
    They give nonzero only if X is a hard reg of the suitable class
    or a pseudo reg currently allocated to a suitable hard reg.
    Since they use reg_renumber, they are safe only once reg_renumber
-   has been allocated, which happens in local-alloc.c.  */
+   has been allocated, which happens in reginfo.c during register
+   allocation.  */
 
 #define REGNO_OK_FOR_INDEX_P(X) \
   ((X) && ((X) < 32							\
@@ -785,9 +784,9 @@ extern int may_call_alloca;
 
 #define MAX_REGS_PER_ADDRESS 2
 
-/* Non-TLS symbolic references.  */
-#define PA_SYMBOL_REF_TLS_P(RTX) \
-  (GET_CODE (RTX) == SYMBOL_REF && SYMBOL_REF_TLS_MODEL (RTX) != 0)
+/* TLS symbolic reference.  */
+#define PA_SYMBOL_REF_TLS_P(X) \
+  (GET_CODE (X) == SYMBOL_REF && SYMBOL_REF_TLS_MODEL (X) != 0)
 
 /* Recognize any constant value that is a valid address except
    for symbolic addresses.  We get better CSE by rejecting them
@@ -797,7 +796,8 @@ extern int may_call_alloca;
 #define CONSTANT_ADDRESS_P(X) \
   ((GET_CODE (X) == LABEL_REF 						\
    || (GET_CODE (X) == SYMBOL_REF && !SYMBOL_REF_TLS_MODEL (X))		\
-   || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST		\
+   || GET_CODE (X) == CONST_INT						\
+   || (GET_CODE (X) == CONST && !pa_tls_referenced_p (X))		\
    || GET_CODE (X) == HIGH) 						\
    && (reload_in_progress || reload_completed				\
        || ! pa_symbolic_expression_p (X)))
@@ -847,9 +847,9 @@ extern int may_call_alloca;
 /* Nonzero if 14-bit offsets can be used for all loads and stores.
    This is not possible when generating PA 1.x code as floating point
    loads and stores only support 5-bit offsets.  Note that we do not
-   forbid the use of 14-bit offsets in GO_IF_LEGITIMATE_ADDRESS.
-   Instead, we use pa_secondary_reload() to reload integer mode
-   REG+D memory addresses used in floating point loads and stores.
+   forbid the use of 14-bit offsets for integer modes.  Instead, we
+   use secondary reloads to fix REG+D memory addresses for integer
+   mode floating-point loads and stores.
 
    FIXME: the ELF32 linker clobbers the LSB of the FP register number
    in PA 2.0 floating-point insns with long displacements.  This is
@@ -867,15 +867,12 @@ extern int may_call_alloca;
    We have two alternate definitions for each of them.
    The usual definition accepts all pseudo regs; the other rejects
    them unless they have been allocated suitable hard regs.
-   The symbol REG_OK_STRICT causes the latter definition to be used.
 
    Most source files want to accept pseudo regs in the hope that
    they will get allocated to the class that the insn wants them to be in.
    Source files for reload pass need to be strict.
    After reload, it makes no difference, since pseudo regs have
    been eliminated by then.  */
-
-#ifndef REG_OK_STRICT
 
 /* Nonzero if X is a hard reg that can be used as an index
    or if it is a pseudo reg.  */
@@ -891,69 +888,20 @@ extern int may_call_alloca;
    || REGNO (X) == FRAME_POINTER_REGNUM				\
    || REGNO (X) >= FIRST_PSEUDO_REGISTER))
 
-#else
-
 /* Nonzero if X is a hard reg that can be used as an index.  */
-#define REG_OK_FOR_INDEX_P(X) REGNO_OK_FOR_INDEX_P (REGNO (X))
+#define STRICT_REG_OK_FOR_INDEX_P(X) REGNO_OK_FOR_INDEX_P (REGNO (X))
 
 /* Nonzero if X is a hard reg that can be used as a base reg.  */
-#define REG_OK_FOR_BASE_P(X) REGNO_OK_FOR_BASE_P (REGNO (X))
-
-#endif
-
-/* GO_IF_LEGITIMATE_ADDRESS recognizes an RTL expression that is a
-   valid memory address for an instruction.  The MODE argument is the
-   machine mode for the MEM expression that wants to use this address.
-
-   On HP PA-RISC, the legitimate address forms are REG+SMALLINT,
-   REG+REG, and REG+(REG*SCALE).  The indexed address forms are only
-   available with floating point loads and stores, and integer loads.
-   We get better code by allowing indexed addresses in the initial
-   RTL generation.
-
-   The acceptance of indexed addresses as legitimate implies that we
-   must provide patterns for doing indexed integer stores, or the move
-   expanders must force the address of an indexed store to a register.
-   We have adopted the latter approach.
-   
-   Another function of GO_IF_LEGITIMATE_ADDRESS is to ensure that
-   the base register is a valid pointer for indexed instructions.
-   On targets that have non-equivalent space registers, we have to
-   know at the time of assembler output which register in a REG+REG
-   pair is the base register.  The REG_POINTER flag is sometimes lost
-   in reload and the following passes, so it can't be relied on during
-   code generation.  Thus, we either have to canonicalize the order
-   of the registers in REG+REG indexed addresses, or treat REG+REG
-   addresses separately and provide patterns for both permutations.
-
-   The latter approach requires several hundred additional lines of
-   code in pa.md.  The downside to canonicalizing is that a PLUS
-   in the wrong order can't combine to form to make a scaled indexed
-   memory operand.  As we won't need to canonicalize the operands if
-   the REG_POINTER lossage can be fixed, it seems better canonicalize.
-
-   We initially break out scaled indexed addresses in canonical order
-   in pa_emit_move_sequence.  LEGITIMIZE_ADDRESS also canonicalizes
-   scaled indexed addresses during RTL generation.  However, fold_rtx
-   has its own opinion on how the operands of a PLUS should be ordered.
-   If one of the operands is equivalent to a constant, it will make
-   that operand the second operand.  As the base register is likely to
-   be equivalent to a SYMBOL_REF, we have made it the second operand.
-
-   GO_IF_LEGITIMATE_ADDRESS accepts REG+REG as legitimate when the
-   operands are in the order INDEX+BASE on targets with non-equivalent
-   space registers, and in any order on targets with equivalent space
-   registers.  It accepts both MULT+BASE and BASE+MULT for scaled indexing.
-
-   We treat a SYMBOL_REF as legitimate if it is part of the current
-   function's constant-pool, because such addresses can actually be
-   output as REG+SMALLINT.  */
+#define STRICT_REG_OK_FOR_BASE_P(X) REGNO_OK_FOR_BASE_P (REGNO (X))
 
 #define VAL_5_BITS_P(X) ((unsigned HOST_WIDE_INT)(X) + 0x10 < 0x20)
 #define INT_5_BITS(X) VAL_5_BITS_P (INTVAL (X))
 
 #define VAL_U5_BITS_P(X) ((unsigned HOST_WIDE_INT)(X) < 0x20)
 #define INT_U5_BITS(X) VAL_U5_BITS_P (INTVAL (X))
+
+#define VAL_U6_BITS_P(X) ((unsigned HOST_WIDE_INT)(X) < 0x40)
+#define INT_U6_BITS(X) VAL_U6_BITS_P (INTVAL (X))
 
 #define VAL_11_BITS_P(X) ((unsigned HOST_WIDE_INT)(X) + 0x400 < 0x800)
 #define INT_11_BITS(X) VAL_11_BITS_P (INTVAL (X))
@@ -987,179 +935,19 @@ extern int may_call_alloca;
    || (MODE) == SFmode							\
    || (MODE) == DFmode)
 
-#define GO_IF_LEGITIMATE_ADDRESS(MODE, X, ADDR) \
-{									\
-  if ((REG_P (X) && REG_OK_FOR_BASE_P (X))				\
-      || ((GET_CODE (X) == PRE_DEC || GET_CODE (X) == POST_DEC		\
-	   || GET_CODE (X) == PRE_INC || GET_CODE (X) == POST_INC)	\
-	  && REG_P (XEXP (X, 0))					\
-	  && REG_OK_FOR_BASE_P (XEXP (X, 0))))				\
-    goto ADDR;								\
-  else if (GET_CODE (X) == PLUS)					\
-    {									\
-      rtx base = 0, index = 0;						\
-      if (REG_P (XEXP (X, 1))						\
-	  && REG_OK_FOR_BASE_P (XEXP (X, 1)))				\
-	base = XEXP (X, 1), index = XEXP (X, 0);			\
-      else if (REG_P (XEXP (X, 0))					\
-	       && REG_OK_FOR_BASE_P (XEXP (X, 0)))			\
-	base = XEXP (X, 0), index = XEXP (X, 1);			\
-      if (base								\
-	  && GET_CODE (index) == CONST_INT				\
-	  && ((INT_14_BITS (index)					\
-	       && (((MODE) != DImode					\
-		    && (MODE) != SFmode					\
-		    && (MODE) != DFmode)				\
-		   /* The base register for DImode loads and stores	\
-		      with long displacements must be aligned because	\
-		      the lower three bits in the displacement are	\
-		      assumed to be zero.  */				\
-		   || ((MODE) == DImode					\
-		       && (!TARGET_64BIT				\
-			   || (INTVAL (index) % 8) == 0))		\
-		   /* Similarly, the base register for SFmode/DFmode	\
-		      loads and stores with long displacements must	\
-		      be aligned.  */					\
-		   || (((MODE) == SFmode || (MODE) == DFmode)		\
-		       && INT14_OK_STRICT				\
-		       && (INTVAL (index) % GET_MODE_SIZE (MODE)) == 0))) \
-	       || INT_5_BITS (index)))					\
-	goto ADDR;							\
-      if (!TARGET_DISABLE_INDEXING					\
-	  /* Only accept the "canonical" INDEX+BASE operand order	\
-	     on targets with non-equivalent space registers.  */	\
-	  && (TARGET_NO_SPACE_REGS					\
-	      ? (base && REG_P (index))					\
-	      : (base == XEXP (X, 1) && REG_P (index)			\
-		 && (reload_completed					\
-		     || (reload_in_progress && HARD_REGISTER_P (base))	\
-		     || REG_POINTER (base))				\
-		 && (reload_completed					\
-		     || (reload_in_progress && HARD_REGISTER_P (index))	\
-		     || !REG_POINTER (index))))				\
-	  && MODE_OK_FOR_UNSCALED_INDEXING_P (MODE)			\
-	  && REG_OK_FOR_INDEX_P (index)					\
-	  && borx_reg_operand (base, Pmode)				\
-	  && borx_reg_operand (index, Pmode))				\
-	goto ADDR;							\
-      if (!TARGET_DISABLE_INDEXING					\
-	  && base							\
-	  && GET_CODE (index) == MULT					\
-	  && MODE_OK_FOR_SCALED_INDEXING_P (MODE)			\
-	  && REG_P (XEXP (index, 0))					\
-	  && GET_MODE (XEXP (index, 0)) == Pmode			\
-	  && REG_OK_FOR_INDEX_P (XEXP (index, 0))			\
-	  && GET_CODE (XEXP (index, 1)) == CONST_INT			\
-	  && INTVAL (XEXP (index, 1))					\
-	     == (HOST_WIDE_INT) GET_MODE_SIZE (MODE)			\
-	  && borx_reg_operand (base, Pmode))				\
-	goto ADDR;							\
-    }									\
-  else if (GET_CODE (X) == LO_SUM					\
-	   && GET_CODE (XEXP (X, 0)) == REG				\
-	   && REG_OK_FOR_BASE_P (XEXP (X, 0))				\
-	   && CONSTANT_P (XEXP (X, 1))					\
-	   && (TARGET_SOFT_FLOAT					\
-	       /* We can allow symbolic LO_SUM addresses for PA2.0.  */	\
-	       || (TARGET_PA_20						\
-		   && !TARGET_ELF32					\
-	           && GET_CODE (XEXP (X, 1)) != CONST_INT)		\
-	       || ((MODE) != SFmode					\
-		   && (MODE) != DFmode)))				\
-    goto ADDR;								\
-  else if (GET_CODE (X) == LO_SUM					\
-	   && GET_CODE (XEXP (X, 0)) == SUBREG				\
-	   && GET_CODE (SUBREG_REG (XEXP (X, 0))) == REG		\
-	   && REG_OK_FOR_BASE_P (SUBREG_REG (XEXP (X, 0)))		\
-	   && CONSTANT_P (XEXP (X, 1))					\
-	   && (TARGET_SOFT_FLOAT					\
-	       /* We can allow symbolic LO_SUM addresses for PA2.0.  */	\
-	       || (TARGET_PA_20						\
-		   && !TARGET_ELF32					\
-	           && GET_CODE (XEXP (X, 1)) != CONST_INT)		\
-	       || ((MODE) != SFmode					\
-		   && (MODE) != DFmode)))				\
-    goto ADDR;								\
-  else if (GET_CODE (X) == CONST_INT && INT_5_BITS (X))			\
-    goto ADDR;								\
-  /* Needed for -fPIC */						\
-  else if (GET_CODE (X) == LO_SUM					\
-	   && GET_CODE (XEXP (X, 0)) == REG             		\
-	   && REG_OK_FOR_BASE_P (XEXP (X, 0))				\
-	   && GET_CODE (XEXP (X, 1)) == UNSPEC				\
-	   && (TARGET_SOFT_FLOAT					\
-	       || (TARGET_PA_20	&& !TARGET_ELF32)			\
-	       || ((MODE) != SFmode					\
-		   && (MODE) != DFmode)))				\
-    goto ADDR;								\
-}
+/* Try a machine-dependent way of reloading an illegitimate address
+   operand.  If we find one, push the reload and jump to WIN.  This
+   macro is used in only one place: `find_reloads_address' in reload.c.  */
 
-/* Look for machine dependent ways to make the invalid address AD a
-   valid address.
-
-   For the PA, transform:
-
-        memory(X + <large int>)
-
-   into:
-
-        if (<large int> & mask) >= 16
-          Y = (<large int> & ~mask) + mask + 1  Round up.
-        else
-          Y = (<large int> & ~mask)             Round down.
-        Z = X + Y
-        memory (Z + (<large int> - Y));
-
-   This makes reload inheritance and reload_cse work better since Z
-   can be reused.
-
-   There may be more opportunities to improve code with this hook.  */
-#define LEGITIMIZE_RELOAD_ADDRESS(AD, MODE, OPNUM, TYPE, IND, WIN) 	\
-do { 									\
-  long offset, newoffset, mask;						\
-  rtx new_rtx, temp = NULL_RTX;						\
-									\
-  mask = (GET_MODE_CLASS (MODE) == MODE_FLOAT				\
-	  ? (INT14_OK_STRICT ? 0x3fff : 0x1f) : 0x3fff);		\
-									\
-  if (optimize && GET_CODE (AD) == PLUS)				\
-    temp = simplify_binary_operation (PLUS, Pmode,			\
-				      XEXP (AD, 0), XEXP (AD, 1));	\
-									\
-  new_rtx = temp ? temp : AD;						\
-									\
-  if (optimize								\
-      && GET_CODE (new_rtx) == PLUS						\
-      && GET_CODE (XEXP (new_rtx, 0)) == REG				\
-      && GET_CODE (XEXP (new_rtx, 1)) == CONST_INT)				\
-    {									\
-      offset = INTVAL (XEXP ((new_rtx), 1));				\
-									\
-      /* Choose rounding direction.  Round up if we are >= halfway.  */	\
-      if ((offset & mask) >= ((mask + 1) / 2))				\
-	newoffset = (offset & ~mask) + mask + 1;			\
-      else								\
-	newoffset = offset & ~mask;					\
-									\
-      /* Ensure that long displacements are aligned.  */		\
-      if (mask == 0x3fff						\
-	  && (GET_MODE_CLASS (MODE) == MODE_FLOAT			\
-	      || (TARGET_64BIT && (MODE) == DImode)))			\
-	newoffset &= ~(GET_MODE_SIZE (MODE) - 1);			\
-									\
-      if (newoffset != 0 && VAL_14_BITS_P (newoffset))			\
-	{								\
-	  temp = gen_rtx_PLUS (Pmode, XEXP (new_rtx, 0),			\
-			       GEN_INT (newoffset));			\
-	  AD = gen_rtx_PLUS (Pmode, temp, GEN_INT (offset - newoffset));\
-	  push_reload (XEXP (AD, 0), 0, &XEXP (AD, 0), 0,		\
-		       BASE_REG_CLASS, Pmode, VOIDmode, 0, 0,		\
-		       (OPNUM), (TYPE));				\
-	  goto WIN;							\
-	}								\
-    }									\
+#define LEGITIMIZE_RELOAD_ADDRESS(AD, MODE, OPNUM, TYPE, IND_L, WIN) 	     \
+do {									     \
+  rtx new_ad = pa_legitimize_reload_address (AD, MODE, OPNUM, TYPE, IND_L);  \
+  if (new_ad)								     \
+    {									     \
+      AD = new_ad;							     \
+      goto WIN;								     \
+    }									     \
 } while (0)
-
 
 
 #define TARGET_ASM_SELECT_SECTION  pa_select_section
@@ -1197,11 +985,9 @@ do { 									\
 #define FUNCTION_NAME_P(NAME)  (*(NAME) == '@')
 
 /* Specify the machine mode that this machine uses for the index in the
-   tablejump instruction.  For small tables, an element consists of a
-   ia-relative branch and its delay slot.  When -mbig-switch is specified,
-   we use a 32-bit absolute address for non-pic code, and a 32-bit offset
-   for both 32 and 64-bit pic code.  */
-#define CASE_VECTOR_MODE (TARGET_BIG_SWITCH ? SImode : DImode)
+   tablejump instruction.  We use a 32-bit absolute address for non-pic code,
+   and a 32-bit offset for 32 and 64-bit pic code.  */
+#define CASE_VECTOR_MODE SImode
 
 /* Jump tables must be 32-bit aligned, no matter the size of the element.  */
 #define ADDR_VEC_ALIGN(ADDR_VEC) 2
@@ -1273,8 +1059,8 @@ do { 									\
 
 /* Handling the special cases is going to get too complicated for a macro,
    just call `pa_adjust_insn_length' to do the real work.  */
-#define ADJUST_INSN_LENGTH(INSN, LENGTH)	\
-  LENGTH += pa_adjust_insn_length (INSN, LENGTH);
+#define ADJUST_INSN_LENGTH(INSN, LENGTH) \
+  ((LENGTH) = pa_adjust_insn_length ((INSN), (LENGTH)))
 
 /* Millicode insns are actually function calls with some special
    constraints on arguments and register usage.
@@ -1378,13 +1164,16 @@ do { 									\
   pa_output_ascii ((FILE), (P), (SIZE))
 
 /* Jump tables are always placed in the text section.  Technically, it
-   is possible to put them in the readonly data section when -mbig-switch
-   is specified.  This has the benefit of getting the table out of .text
-   and reducing branch lengths as a result.  The downside is that an
-   additional insn (addil) is needed to access the table when generating
-   PIC code.  The address difference table also has to use 32-bit
-   pc-relative relocations.  Currently, GAS does not support these
-   relocations, although it is easily modified to do this operation.
+   is possible to put them in the readonly data section.  This has the
+   benefit of getting the table out of .text and reducing branch lengths
+   as a result.
+
+   The downside is that an additional insn (addil) is needed to access
+   the table when generating PIC code.  The address difference table
+   also has to use 32-bit pc-relative relocations.  Currently, GAS does
+   not support these relocations, although it is easily modified to do
+   this operation.
+
    The table entries need to look like "$L1+(.+8-$L0)-$PIC_pcrel$0"
    when using ELF GAS.  A simple difference can be used when using
    SOM GAS or the HP assembler.  The final downside is GDB complains
@@ -1395,20 +1184,14 @@ do { 									\
 /* This is how to output an element of a case-vector that is absolute.  */
 
 #define ASM_OUTPUT_ADDR_VEC_ELT(FILE, VALUE)  \
-  if (TARGET_BIG_SWITCH)						\
-    fprintf (FILE, "\t.word L$%04d\n", VALUE);				\
-  else									\
-    fprintf (FILE, "\tb L$%04d\n\tnop\n", VALUE)
+  fprintf (FILE, "\t.word L$%04d\n", VALUE)
 
 /* This is how to output an element of a case-vector that is relative. 
    Since we always place jump tables in the text section, the difference
    is absolute and requires no relocation.  */
 
 #define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL)  \
-  if (TARGET_BIG_SWITCH)						\
-    fprintf (FILE, "\t.word L$%04d-L$%04d\n", VALUE, REL);		\
-  else									\
-    fprintf (FILE, "\tb L$%04d\n\tnop\n", VALUE)
+  fprintf (FILE, "\t.word L$%04d-L$%04d\n", VALUE, REL)
 
 /* This is how to output an assembler line that says to advance the
    location counter to a multiple of 2**LOG bytes.  */
@@ -1508,9 +1291,6 @@ do { 									\
      of the return address.  */						\
   (GEN_INT (-4))
 
-/* The number of Pmode words for the setjmp buffer.  */
-#define JMP_BUF_SIZE 50
-
 /* We need a libcall to canonicalize function pointers on TARGET_ELF32.  */
 #define CANONICALIZE_FUNCPTR_FOR_COMPARE_LIBCALL \
   "__canonicalize_funcptr_for_compare"
@@ -1519,3 +1299,12 @@ do { 									\
 #undef TARGET_HAVE_TLS
 #define TARGET_HAVE_TLS true
 #endif
+
+/* The maximum offset in bytes for a PA 1.X pc-relative call to the
+   head of the preceding stub table.  The selected offsets have been
+   chosen so that approximately one call stub is allocated for every
+   86.7 instructions.  A long branch stub is two instructions when
+   not generating PIC code.  For HP-UX and ELF targets, PIC stubs are
+   seven and four instructions, respectively.  */  
+#define MAX_PCREL17F_OFFSET \
+  (flag_pic ? (TARGET_HPUX ? 198164 : 221312) : 240000)

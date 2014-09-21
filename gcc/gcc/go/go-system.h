@@ -1,5 +1,5 @@
 // go-system.h -- Go frontend inclusion of gcc header files   -*- C++ -*-
-// Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -125,20 +125,6 @@ struct hash<T*>
 // system.h.
 #include <iostream>
 
-// Some versions of gmp.h assume that #include <iostream> will define
-// std::FILE.  This is not true with libstdc++ 4.3 and later.  This is
-// fixed in GMP 4.3, but at this point we don't know which version of
-// GMP is in use.  Since the top level configure script accepts GMP
-// 4.2, at least for now we #include <cstdio> to ensure that GMP 4.2
-// will work.  FIXME: This can be removed when we require GMP 4.3 or
-// later.
-#include <cstdio>
-
-#ifndef ENABLE_BUILD_WITH_CXX
-extern "C"
-{
-#endif
-
 #include "system.h"
 #include "ansidecl.h"
 #include "coretypes.h"
@@ -146,10 +132,6 @@ extern "C"
 #include "diagnostic-core.h"	/* For error_at and friends.  */
 #include "input.h"		/* For source_location.  */
 #include "intl.h"		/* For _().  */
-
-#ifndef ENABLE_BUILD_WITH_CXX
-} // End extern "C"
-#endif
 
 // When using gcc, go_assert is just gcc_assert.
 #define go_assert(EXPR) gcc_assert(EXPR)

@@ -1,5 +1,4 @@
-/* Copyright (C) 2009
-   Free Software Foundation, Inc.
+/* Copyright (C) 2009-2014 Free Software Foundation, Inc.
    Contributed by Thomas Koenig
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -217,7 +216,7 @@ index_type count_0 (const gfc_array_l1 * array)
   rank = GFC_DESCRIPTOR_RANK (array);
   kind = GFC_DESCRIPTOR_SIZE (array);
 
-  base = array->data;
+  base = array->base_addr;
 
   if (kind == 1 || kind == 2 || kind == 4 || kind == 8
 #ifdef HAVE_GFC_LOGICAL_16

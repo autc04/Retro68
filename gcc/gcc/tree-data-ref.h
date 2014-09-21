@@ -1,6 +1,5 @@
 /* Data references and dependences detectors.
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <pop@cri.ensmp.fr>
 
 This file is part of GCC.
@@ -60,16 +59,17 @@ struct innermost_loop_behavior
 };
 
 /* Describes the evolutions of indices of the memory reference.  The indices
-   are indices of the ARRAY_REFs and the operands of INDIRECT_REFs.
-   For ARRAY_REFs, BASE_OBJECT is the reference with zeroed indices
-   (note that this reference does not have to be valid, if zero does not
-   belong to the range of the array; hence it is not recommended to use
-   BASE_OBJECT in any code generation).  For INDIRECT_REFs, the address is
-   set to the loop-invariant part of the address of the object, except for
-   the constant offset.  For the examples above,
+   are indices of the ARRAY_REFs, indexes in artificial dimensions
+   added for member selection of records and the operands of MEM_REFs.
+   BASE_OBJECT is the part of the reference that is loop-invariant
+   (note that this reference does not have to cover the whole object
+   being accessed, in which case UNCONSTRAINED_BASE is set; hence it is
+   not recommended to use BASE_OBJECT in any code generation).
+   For the examples above,
 
-   base_object:        a[0].b[0][0]                   *(p + x + 4B * j_0)
+   base_object:        a                              *(p + x + 4B * j_0)
    indices:            {j_0, +, 1}_2                  {16, +, 4}_2
+		       4
 		       {i_0, +, 1}_1
 		       {j_0, +, 1}_2
 */
@@ -80,19 +80,18 @@ struct indices
   tree base_object;
 
   /* A list of chrecs.  Access functions of the indices.  */
-  VEC(tree,heap) *access_fns;
+  vec<tree> access_fns;
+
+  /* Whether BASE_OBJECT is an access representing the whole object
+     or whether the access could not be constrained.  */
+  bool unconstrained_base;
 };
 
 struct dr_alias
 {
   /* The alias information that should be used for new pointers to this
-     location.  SYMBOL_TAG is either a DECL or a SYMBOL_MEMORY_TAG.  */
+     location.  */
   struct ptr_info_def *ptr_info;
-
-  /* The set of virtual operands corresponding to this memory reference,
-     serving as a description of the alias information for the memory
-     reference.  This could be eliminated if we had alias oracle.  */
-  bitmap vops;
 };
 
 /* An integer vector.  A vector formally consists of an element of a vector
@@ -100,9 +99,6 @@ struct dr_alias
    and scalar multiplication.  In this vector space, an element is a list of
    integers.  */
 typedef int *lambda_vector;
-DEF_VEC_P(lambda_vector);
-DEF_VEC_ALLOC_P(lambda_vector,heap);
-DEF_VEC_ALLOC_P(lambda_vector,gc);
 
 /* An integer matrix.  A matrix consists of m vectors of length n (IE
    all vectors are the same length).  */
@@ -138,20 +134,20 @@ typedef lambda_vector *lambda_matrix;
 */
 struct access_matrix
 {
-  VEC (loop_p, heap) *loop_nest;
+  vec<loop_p> loop_nest;
   int nb_induction_vars;
-  VEC (tree, heap) *parameters;
-  VEC (lambda_vector, gc) *matrix;
+  vec<tree> parameters;
+  vec<lambda_vector, va_gc> *matrix;
 };
 
 #define AM_LOOP_NEST(M) (M)->loop_nest
 #define AM_NB_INDUCTION_VARS(M) (M)->nb_induction_vars
 #define AM_PARAMETERS(M) (M)->parameters
 #define AM_MATRIX(M) (M)->matrix
-#define AM_NB_PARAMETERS(M) (VEC_length (tree, AM_PARAMETERS(M)))
+#define AM_NB_PARAMETERS(M) (AM_PARAMETERS (M)).length ()
 #define AM_CONST_COLUMN_INDEX(M) (AM_NB_INDUCTION_VARS (M) + AM_NB_PARAMETERS (M))
 #define AM_NB_COLUMNS(M) (AM_NB_INDUCTION_VARS (M) + AM_NB_PARAMETERS (M) + 1)
-#define AM_GET_SUBSCRIPT_ACCESS_VECTOR(M, I) VEC_index (lambda_vector, AM_MATRIX (M), I)
+#define AM_GET_SUBSCRIPT_ACCESS_VECTOR(M, I) AM_MATRIX (M)[I]
 #define AM_GET_ACCESS_MATRIX_ELEMENT(M, I, J) AM_GET_SUBSCRIPT_ACCESS_VECTOR (M, I)[J]
 
 /* Return the column in the access matrix of LOOP_NUM.  */
@@ -162,14 +158,12 @@ am_vector_index_for_loop (struct access_matrix *access_matrix, int loop_num)
   int i;
   loop_p l;
 
-  for (i = 0; VEC_iterate (loop_p, AM_LOOP_NEST (access_matrix), i, l); i++)
+  for (i = 0; AM_LOOP_NEST (access_matrix).iterate (i, &l); i++)
     if (l->num == loop_num)
       return i;
 
-  gcc_unreachable();
+  gcc_unreachable ();
 }
-
-int access_matrix_get_index_for_parameter (tree, struct access_matrix *);
 
 struct data_reference
 {
@@ -201,9 +195,10 @@ struct data_reference
 #define DR_STMT(DR)                (DR)->stmt
 #define DR_REF(DR)                 (DR)->ref
 #define DR_BASE_OBJECT(DR)         (DR)->indices.base_object
+#define DR_UNCONSTRAINED_BASE(DR)  (DR)->indices.unconstrained_base
 #define DR_ACCESS_FNS(DR)	   (DR)->indices.access_fns
-#define DR_ACCESS_FN(DR, I)        VEC_index (tree, DR_ACCESS_FNS (DR), I)
-#define DR_NUM_DIMENSIONS(DR)      VEC_length (tree, DR_ACCESS_FNS (DR))
+#define DR_ACCESS_FN(DR, I)        DR_ACCESS_FNS (DR)[I]
+#define DR_NUM_DIMENSIONS(DR)      DR_ACCESS_FNS (DR).length ()
 #define DR_IS_READ(DR)             (DR)->is_read
 #define DR_IS_WRITE(DR)            (!DR_IS_READ (DR))
 #define DR_BASE_ADDRESS(DR)        (DR)->innermost.base_address
@@ -215,8 +210,6 @@ struct data_reference
 #define DR_ACCESS_MATRIX(DR)       (DR)->access_matrix
 
 typedef struct data_reference *data_reference_p;
-DEF_VEC_P(data_reference_p);
-DEF_VEC_ALLOC_P (data_reference_p, heap);
 
 enum data_dependence_direction {
   dir_positive,
@@ -244,13 +237,13 @@ enum data_dependence_direction {
 #define CF_NOT_KNOWN_P(CF) ((CF)->n == NOT_KNOWN)
 #define CF_NO_DEPENDENCE_P(CF) ((CF)->n == NO_DEPENDENCE)
 
-typedef VEC (tree, heap) *affine_fn;
+typedef vec<tree> affine_fn;
 
-typedef struct
+struct conflict_function
 {
   unsigned n;
   affine_fn fns[MAX_DIM];
-} conflict_function;
+};
 
 /* What is a subscript?  Given two array accesses a subscript is the
    tuple composed of the access functions for a given dimension.
@@ -278,8 +271,6 @@ struct subscript
 };
 
 typedef struct subscript *subscript_p;
-DEF_VEC_P(subscript_p);
-DEF_VEC_ALLOC_P (subscript_p, heap);
 
 #define SUB_CONFLICTS_IN_A(SUB) SUB->conflicting_iterations_in_a
 #define SUB_CONFLICTS_IN_B(SUB) SUB->conflicting_iterations_in_b
@@ -311,16 +302,16 @@ struct data_dependence_relation
   /* For each subscript in the dependence test, there is an element in
      this array.  This is the attribute that labels the edge A->B of
      the data_dependence_relation.  */
-  VEC (subscript_p, heap) *subscripts;
+  vec<subscript_p> subscripts;
 
   /* The analyzed loop nest.  */
-  VEC (loop_p, heap) *loop_nest;
+  vec<loop_p> loop_nest;
 
   /* The classic direction vector.  */
-  VEC (lambda_vector, heap) *dir_vects;
+  vec<lambda_vector> dir_vects;
 
   /* The classic distance vector.  */
-  VEC (lambda_vector, heap) *dist_vects;
+  vec<lambda_vector> dist_vects;
 
   /* An index in loop_nest for the innermost loop that varies for
      this data dependence relation.  */
@@ -339,102 +330,83 @@ struct data_dependence_relation
 };
 
 typedef struct data_dependence_relation *ddr_p;
-DEF_VEC_P(ddr_p);
-DEF_VEC_ALLOC_P(ddr_p,heap);
 
 #define DDR_A(DDR) DDR->a
 #define DDR_B(DDR) DDR->b
 #define DDR_AFFINE_P(DDR) DDR->affine_p
 #define DDR_ARE_DEPENDENT(DDR) DDR->are_dependent
 #define DDR_SUBSCRIPTS(DDR) DDR->subscripts
-#define DDR_SUBSCRIPT(DDR, I) VEC_index (subscript_p, DDR_SUBSCRIPTS (DDR), I)
-#define DDR_NUM_SUBSCRIPTS(DDR) VEC_length (subscript_p, DDR_SUBSCRIPTS (DDR))
+#define DDR_SUBSCRIPT(DDR, I) DDR_SUBSCRIPTS (DDR)[I]
+#define DDR_NUM_SUBSCRIPTS(DDR) DDR_SUBSCRIPTS (DDR).length ()
 
 #define DDR_LOOP_NEST(DDR) DDR->loop_nest
 /* The size of the direction/distance vectors: the number of loops in
    the loop nest.  */
-#define DDR_NB_LOOPS(DDR) (VEC_length (loop_p, DDR_LOOP_NEST (DDR)))
+#define DDR_NB_LOOPS(DDR) (DDR_LOOP_NEST (DDR).length ())
 #define DDR_INNER_LOOP(DDR) DDR->inner_loop
 #define DDR_SELF_REFERENCE(DDR) DDR->self_reference_p
 
 #define DDR_DIST_VECTS(DDR) ((DDR)->dist_vects)
 #define DDR_DIR_VECTS(DDR) ((DDR)->dir_vects)
 #define DDR_NUM_DIST_VECTS(DDR) \
-  (VEC_length (lambda_vector, DDR_DIST_VECTS (DDR)))
+  (DDR_DIST_VECTS (DDR).length ())
 #define DDR_NUM_DIR_VECTS(DDR) \
-  (VEC_length (lambda_vector, DDR_DIR_VECTS (DDR)))
+  (DDR_DIR_VECTS (DDR).length ())
 #define DDR_DIR_VECT(DDR, I) \
-  VEC_index (lambda_vector, DDR_DIR_VECTS (DDR), I)
+  DDR_DIR_VECTS (DDR)[I]
 #define DDR_DIST_VECT(DDR, I) \
-  VEC_index (lambda_vector, DDR_DIST_VECTS (DDR), I)
+  DDR_DIST_VECTS (DDR)[I]
 #define DDR_REVERSED_P(DDR) DDR->reversed_p
 
 
-
-/* Describes a location of a memory reference.  */
-
-typedef struct data_ref_loc_d
-{
-  /* Position of the memory reference.  */
-  tree *pos;
-
-  /* True if the memory reference is read.  */
-  bool is_read;
-} data_ref_loc;
-
-DEF_VEC_O (data_ref_loc);
-DEF_VEC_ALLOC_O (data_ref_loc, heap);
-
-bool get_references_in_stmt (gimple, VEC (data_ref_loc, heap) **);
 bool dr_analyze_innermost (struct data_reference *, struct loop *);
 extern bool compute_data_dependences_for_loop (struct loop *, bool,
-					       VEC (loop_p, heap) **,
-					       VEC (data_reference_p, heap) **,
-					       VEC (ddr_p, heap) **);
+					       vec<loop_p> *,
+					       vec<data_reference_p> *,
+					       vec<ddr_p> *);
 extern bool compute_data_dependences_for_bb (basic_block, bool,
-                                             VEC (data_reference_p, heap) **,
-                                             VEC (ddr_p, heap) **);
-extern void print_direction_vector (FILE *, lambda_vector, int);
-extern void print_dir_vectors (FILE *, VEC (lambda_vector, heap) *, int);
-extern void print_dist_vectors (FILE *, VEC (lambda_vector, heap) *, int);
-extern void dump_subscript (FILE *, struct subscript *);
-extern void dump_ddrs (FILE *, VEC (ddr_p, heap) *);
-extern void dump_dist_dir_vectors (FILE *, VEC (ddr_p, heap) *);
+                                             vec<data_reference_p> *,
+                                             vec<ddr_p> *);
+extern void debug_ddrs (vec<ddr_p> );
 extern void dump_data_reference (FILE *, struct data_reference *);
+extern void debug (data_reference &ref);
+extern void debug (data_reference *ptr);
 extern void debug_data_reference (struct data_reference *);
-extern void dump_data_references (FILE *, VEC (data_reference_p, heap) *);
-extern void debug_data_references (VEC (data_reference_p, heap) *);
+extern void debug_data_references (vec<data_reference_p> );
+extern void debug (vec<data_reference_p> &ref);
+extern void debug (vec<data_reference_p> *ptr);
 extern void debug_data_dependence_relation (struct data_dependence_relation *);
-extern void dump_data_dependence_relation (FILE *,
-					   struct data_dependence_relation *);
-extern void dump_data_dependence_relations (FILE *, VEC (ddr_p, heap) *);
-extern void debug_data_dependence_relations (VEC (ddr_p, heap) *);
-extern void dump_data_dependence_direction (FILE *,
-					    enum data_dependence_direction);
+extern void dump_data_dependence_relations (FILE *, vec<ddr_p> );
+extern void debug (vec<ddr_p> &ref);
+extern void debug (vec<ddr_p> *ptr);
+extern void debug_data_dependence_relations (vec<ddr_p> );
 extern void free_dependence_relation (struct data_dependence_relation *);
-extern void free_dependence_relations (VEC (ddr_p, heap) *);
+extern void free_dependence_relations (vec<ddr_p> );
 extern void free_data_ref (data_reference_p);
-extern void free_data_refs (VEC (data_reference_p, heap) *);
+extern void free_data_refs (vec<data_reference_p> );
 extern bool find_data_references_in_stmt (struct loop *, gimple,
-					  VEC (data_reference_p, heap) **);
+					  vec<data_reference_p> *);
 extern bool graphite_find_data_references_in_stmt (loop_p, loop_p, gimple,
-						   VEC (data_reference_p, heap) **);
+						   vec<data_reference_p> *);
+tree find_data_references_in_loop (struct loop *, vec<data_reference_p> *);
 struct data_reference *create_data_ref (loop_p, loop_p, tree, gimple, bool);
-extern bool find_loop_nest (struct loop *, VEC (loop_p, heap) **);
+extern bool find_loop_nest (struct loop *, vec<loop_p> *);
 extern struct data_dependence_relation *initialize_data_dependence_relation
-     (struct data_reference *, struct data_reference *, VEC (loop_p, heap) *); 
+     (struct data_reference *, struct data_reference *, vec<loop_p>);
+extern void compute_affine_dependence (struct data_dependence_relation *,
+				       loop_p);
 extern void compute_self_dependence (struct data_dependence_relation *);
-extern bool compute_all_dependences (VEC (data_reference_p, heap) *,
-				     VEC (ddr_p, heap) **, VEC (loop_p, heap) *,
-				     bool);
+extern bool compute_all_dependences (vec<data_reference_p> ,
+				     vec<ddr_p> *,
+				     vec<loop_p>, bool);
 extern tree find_data_references_in_bb (struct loop *, basic_block,
-                                        VEC (data_reference_p, heap) **);
+                                        vec<data_reference_p> *);
 
-extern void create_rdg_vertices (struct graph *, VEC (gimple, heap) *);
 extern bool dr_may_alias_p (const struct data_reference *,
 			    const struct data_reference *, bool);
 extern bool dr_equal_offsets_p (struct data_reference *,
                                 struct data_reference *);
+extern void tree_check_data_deps (void);
 
 
 /* Return true when the base objects of data references A and B are
@@ -485,30 +457,19 @@ same_access_functions (const struct data_dependence_relation *ddr)
   return true;
 }
 
-/* Return true when DDR is an anti-dependence relation.  */
+/* Returns true when all the dependences are computable.  */
 
-static inline bool
-ddr_is_anti_dependent (ddr_p ddr)
+inline bool
+known_dependences_p (vec<ddr_p> dependence_relations)
 {
-  return (DDR_ARE_DEPENDENT (ddr) == NULL_TREE
-	  && DR_IS_READ (DDR_A (ddr))
-	  && DR_IS_WRITE (DDR_B (ddr))
-	  && !same_access_functions (ddr));
-}
-
-/* Return true when DEPENDENCE_RELATIONS contains an anti-dependence.  */
-
-static inline bool
-ddrs_have_anti_deps (VEC (ddr_p, heap) *dependence_relations)
-{
-  unsigned i;
   ddr_p ddr;
+  unsigned int i;
 
-  for (i = 0; VEC_iterate (ddr_p, dependence_relations, i, ddr); i++)
-    if (ddr_is_anti_dependent (ddr))
-      return true;
+  FOR_EACH_VEC_ELT (dependence_relations, i, ddr)
+    if (DDR_ARE_DEPENDENT (ddr) == chrec_dont_know)
+      return false;
 
-  return false;
+  return true;
 }
 
 /* Returns the dependence level for a vector DIST of size LENGTH.
@@ -535,7 +496,7 @@ ddr_dependence_level (ddr_p ddr)
   unsigned vector;
   unsigned level = 0;
 
-  if (DDR_DIST_VECTS (ddr))
+  if (DDR_DIST_VECTS (ddr).exists ())
     level = dependence_level (DDR_DIST_VECT (ddr, 0), DDR_NB_LOOPS (ddr));
 
   for (vector = 1; vector < DDR_NUM_DIST_VECTS (ddr); vector++)
@@ -544,89 +505,15 @@ ddr_dependence_level (ddr_p ddr)
   return level;
 }
 
-
-
-/* A Reduced Dependence Graph (RDG) vertex representing a statement.  */
-typedef struct rdg_vertex
-{
-  /* The statement represented by this vertex.  */
-  gimple stmt;
-
-  /* True when the statement contains a write to memory.  */
-  bool has_mem_write;
-
-  /* True when the statement contains a read from memory.  */
-  bool has_mem_reads;
-} *rdg_vertex_p;
-
-#define RDGV_STMT(V)     ((struct rdg_vertex *) ((V)->data))->stmt
-#define RDGV_HAS_MEM_WRITE(V) ((struct rdg_vertex *) ((V)->data))->has_mem_write
-#define RDGV_HAS_MEM_READS(V) ((struct rdg_vertex *) ((V)->data))->has_mem_reads
-#define RDG_STMT(RDG, I) RDGV_STMT (&(RDG->vertices[I]))
-#define RDG_MEM_WRITE_STMT(RDG, I) RDGV_HAS_MEM_WRITE (&(RDG->vertices[I]))
-#define RDG_MEM_READS_STMT(RDG, I) RDGV_HAS_MEM_READS (&(RDG->vertices[I]))
-
-void dump_rdg_vertex (FILE *, struct graph *, int);
-void debug_rdg_vertex (struct graph *, int);
-void dump_rdg_component (FILE *, struct graph *, int, bitmap);
-void debug_rdg_component (struct graph *, int);
-void dump_rdg (FILE *, struct graph *);
-void debug_rdg (struct graph *);
-int rdg_vertex_for_stmt (struct graph *, gimple);
-
-/* Data dependence type.  */
-
-enum rdg_dep_type
-{
-  /* Read After Write (RAW).  */
-  flow_dd = 'f',
-
-  /* Write After Read (WAR).  */
-  anti_dd = 'a',
-
-  /* Write After Write (WAW).  */
-  output_dd = 'o',
-
-  /* Read After Read (RAR).  */
-  input_dd = 'i'
-};
-
-/* Dependence information attached to an edge of the RDG.  */
-
-typedef struct rdg_edge
-{
-  /* Type of the dependence.  */
-  enum rdg_dep_type type;
-
-  /* Levels of the dependence: the depth of the loops that carry the
-     dependence.  */
-  unsigned level;
-
-  /* Dependence relation between data dependences, NULL when one of
-     the vertices is a scalar.  */
-  ddr_p relation;
-} *rdg_edge_p;
-
-#define RDGE_TYPE(E)        ((struct rdg_edge *) ((E)->data))->type
-#define RDGE_LEVEL(E)       ((struct rdg_edge *) ((E)->data))->level
-#define RDGE_RELATION(E)    ((struct rdg_edge *) ((E)->data))->relation
-
-struct graph *build_rdg (struct loop *,
-			 VEC (loop_p, heap) **,
-			 VEC (ddr_p, heap) **,
-			 VEC (data_reference_p, heap) **);
-struct graph *build_empty_rdg (int);
-void free_rdg (struct graph *);
-
 /* Return the index of the variable VAR in the LOOP_NEST array.  */
 
 static inline int
-index_in_loop_nest (int var, VEC (loop_p, heap) *loop_nest)
+index_in_loop_nest (int var, vec<loop_p> loop_nest)
 {
   struct loop *loopi;
   int var_index;
 
-  for (var_index = 0; VEC_iterate (loop_p, loop_nest, var_index, loopi);
+  for (var_index = 0; loop_nest.iterate (var_index, &loopi);
        var_index++)
     if (loopi->num == var)
       break;
@@ -634,50 +521,27 @@ index_in_loop_nest (int var, VEC (loop_p, heap) *loop_nest)
   return var_index;
 }
 
-void stores_from_loop (struct loop *, VEC (gimple, heap) **);
-void stores_zero_from_loop (struct loop *, VEC (gimple, heap) **);
-void remove_similar_memory_refs (VEC (gimple, heap) **);
-bool rdg_defs_used_in_other_loops_p (struct graph *, int);
-bool have_similar_memory_accesses (gimple, gimple);
-bool stmt_with_adjacent_zero_store_dr_p (gimple);
-
-/* Returns true when STRIDE is equal in absolute value to the size of
-   the unit type of TYPE.  */
+/* Returns true when the data reference DR the form "A[i] = ..."
+   with a stride equal to its unit type size.  */
 
 static inline bool
-stride_of_unit_type_p (tree stride, tree type)
+adjacent_dr_p (struct data_reference *dr)
 {
-  return tree_int_cst_equal (fold_unary (ABS_EXPR, TREE_TYPE (stride),
-					 stride),
-			     TYPE_SIZE_UNIT (type));
+  /* If this is a bitfield store bail out.  */
+  if (TREE_CODE (DR_REF (dr)) == COMPONENT_REF
+      && DECL_BIT_FIELD (TREE_OPERAND (DR_REF (dr), 1)))
+    return false;
+
+  if (!DR_STEP (dr)
+      || TREE_CODE (DR_STEP (dr)) != INTEGER_CST)
+    return false;
+
+  return tree_int_cst_equal (fold_unary (ABS_EXPR, TREE_TYPE (DR_STEP (dr)),
+					 DR_STEP (dr)),
+			     TYPE_SIZE_UNIT (TREE_TYPE (DR_REF (dr))));
 }
 
-/* Determines whether RDG vertices V1 and V2 access to similar memory
-   locations, in which case they have to be in the same partition.  */
-
-static inline bool
-rdg_has_similar_memory_accesses (struct graph *rdg, int v1, int v2)
-{
-  return have_similar_memory_accesses (RDG_STMT (rdg, v1),
-				       RDG_STMT (rdg, v2));
-}
-
-/* In tree-data-ref.c  */
 void split_constant_offset (tree , tree *, tree *);
-
-/* Strongly connected components of the reduced data dependence graph.  */
-
-typedef struct rdg_component
-{
-  int num;
-  VEC (int, heap) *vertices;
-} *rdgc;
-
-DEF_VEC_P (rdgc);
-DEF_VEC_ALLOC_P (rdgc, heap);
-
-DEF_VEC_P (bitmap);
-DEF_VEC_ALLOC_P (bitmap, heap);
 
 /* Compute the greatest common divisor of a VECTOR of SIZE numbers.  */
 

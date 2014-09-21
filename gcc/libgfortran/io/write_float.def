@@ -1,4 +1,4 @@
-/* Copyright (C) 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Write float code factoring to this file by Jerry DeLisle   
    F2003 I/O support contributed by Jerry DeLisle
@@ -59,11 +59,60 @@ calculate_sign (st_parameter_dt *dtp, int negative_flag)
 }
 
 
+/* Determine the precision except for EN format. For G format,
+   determines an upper bound to be used for sizing the buffer. */
+
+static int
+determine_precision (st_parameter_dt * dtp, const fnode * f, int len)
+{
+  int precision = f->u.real.d;
+
+  switch (f->format)
+    {
+    case FMT_F:
+    case FMT_G:
+      precision += dtp->u.p.scale_factor;
+      break;
+    case FMT_ES:
+      /* Scale factor has no effect on output.  */
+      break;
+    case FMT_E:
+    case FMT_D:
+      /* See F2008 10.7.2.3.3.6 */
+      if (dtp->u.p.scale_factor <= 0)
+	precision += dtp->u.p.scale_factor - 1;
+      break;
+    default:
+      return -1;
+    }
+
+  /* If the scale factor has a large negative value, we must do our
+     own rounding? Use ROUND='NEAREST', which should be what snprintf
+     is using as well.  */
+  if (precision < 0 && 
+      (dtp->u.p.current_unit->round_status == ROUND_UNSPECIFIED 
+       || dtp->u.p.current_unit->round_status == ROUND_PROCDEFINED))
+    dtp->u.p.current_unit->round_status = ROUND_NEAREST;
+
+  /* Add extra guard digits up to at least full precision when we do
+     our own rounding.  */
+  if (dtp->u.p.current_unit->round_status != ROUND_UNSPECIFIED
+      && dtp->u.p.current_unit->round_status != ROUND_PROCDEFINED)
+    {
+      precision += 2 * len + 4;
+      if (precision < 0)
+	precision = 0;
+    }
+
+  return precision;
+}
+
+
 /* Output a real number according to its format which is FMT_G free.  */
 
-static try
-output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size, 
-	      int sign_bit, bool zero_flag, int ndigits, int edigits)
+static bool
+output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
+	      int nprinted, int precision, int sign_bit, bool zero_flag)
 {
   char *out;
   char *digits;
@@ -76,10 +125,9 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   int nzero;
   /* Number of digits after the decimal point.  */
   int nafter;
-  /* Number of zeros after the decimal point, whatever the precision.  */
-  int nzero_real;
   int leadzero;
   int nblanks;
+  int ndigits, edigits;
   sign_t sign;
 
   ft = f->format;
@@ -88,7 +136,6 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   p = dtp->u.p.scale_factor;
 
   rchar = '5';
-  nzero_real = -1;
 
   /* We should always know the field width and precision.  */
   if (d < 0)
@@ -96,50 +143,94 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
 
   sign = calculate_sign (dtp, sign_bit);
   
-  /* The following code checks the given string has punctuation in the correct
-     places.  Uncomment if needed for debugging.
-     if (d != 0 && ((buffer[2] != '.' && buffer[2] != ',')
-		    || buffer[ndigits + 2] != 'e'))
-       internal_error (&dtp->common, "printf is broken");  */
+  /* Calculate total number of digits.  */
+  if (ft == FMT_F)
+    ndigits = nprinted - 2;
+  else
+    ndigits = precision + 1;
 
   /* Read the exponent back in.  */
-  e = atoi (&buffer[ndigits + 3]) + 1;
+  if (ft != FMT_F)
+    e = atoi (&buffer[ndigits + 3]) + 1;
+  else
+    e = 0;
 
   /* Make sure zero comes out as 0.0e0.   */
   if (zero_flag)
     e = 0;
 
   /* Normalize the fractional component.  */
-  buffer[2] = buffer[1];
-  digits = &buffer[2];
+  if (ft != FMT_F)
+    {
+      buffer[2] = buffer[1];
+      digits = &buffer[2];
+    }
+  else
+    digits = &buffer[1];
 
   /* Figure out where to place the decimal point.  */
   switch (ft)
     {
     case FMT_F:
-      if (d == 0 && e <= 0 && p == 0)
+      nbefore = ndigits - precision;
+      /* Make sure the decimal point is a '.'; depending on the
+	 locale, this might not be the case otherwise.  */
+      digits[nbefore] = '.';
+      if (p != 0)
 	{
-	  memmove (digits + 1, digits, ndigits - 1);
-	  digits[0] = '0';
-	  e++;
-	}
-
-      nbefore = e + p;
-      if (nbefore < 0)
-	{
-	  nzero = -nbefore;
-          nzero_real = nzero;
-	  if (nzero > d)
-	    nzero = d;
-	  nafter = d - nzero;
-	  nbefore = 0;
+	  if (p > 0)
+	    {
+	      
+	      memmove (digits + nbefore, digits + nbefore + 1, p);
+	      digits[nbefore + p] = '.';
+	      nbefore += p;
+	      nafter = d - p;
+	      if (nafter < 0)
+		nafter = 0;
+	      nafter = d;
+	      nzero = 0;
+	    }
+	  else /* p < 0  */
+	    {
+	      if (nbefore + p >= 0)
+		{
+		  nzero = 0;
+		  memmove (digits + nbefore + p + 1, digits + nbefore + p, -p);
+		  nbefore += p;
+		  digits[nbefore] = '.';
+		  nafter = d;
+		}
+	      else
+		{
+		  nzero = -(nbefore + p);
+		  memmove (digits + 1, digits, nbefore);
+		  digits++;
+		  nafter = d + nbefore;
+		  nbefore = 0;
+		}
+	      if (nzero > d)
+		nzero = d;
+	    }
 	}
       else
 	{
 	  nzero = 0;
 	  nafter = d;
 	}
+
+      while (digits[0] == '0' && nbefore > 0)
+	{
+	  digits++;
+	  nbefore--;
+	  ndigits--;
+	}
+
       expchar = 0;
+      /* If we need to do rounding ourselves, get rid of the dot by
+	 moving the fractional part.  */
+      if (dtp->u.p.current_unit->round_status != ROUND_UNSPECIFIED
+	  && dtp->u.p.current_unit->round_status != ROUND_PROCDEFINED)
+	memmove (digits + nbefore, digits + nbefore + 1, ndigits - nbefore);
       break;
 
     case FMT_E:
@@ -149,13 +240,13 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
 	{
 	  generate_error (&dtp->common, LIBERROR_FORMAT, "Precision not "
 			  "greater than zero in format specifier 'E' or 'D'");
-	  return FAILURE;
+	  return false;
 	}
       if (p <= -d || p >= d + 2)
 	{
 	  generate_error (&dtp->common, LIBERROR_FORMAT, "Scale factor "
 			  "out of range in format specifier 'E' or 'D'");
-	  return FAILURE;
+	  return false;
 	}
 
       if (!zero_flag)
@@ -222,10 +313,16 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   if (zero_flag)
     goto skip;
 
-  /* Round the value.  The value being rounded is an unsigned magnitude.
-     The ROUND_COMPATIBLE is rounding away from zero when there is a tie.  */
+  /* Round the value.  The value being rounded is an unsigned magnitude.  */
   switch (dtp->u.p.current_unit->round_status)
     {
+      /* For processor defined and unspecified rounding we use
+	 snprintf to print the exact number of digits needed, and thus
+	 let snprintf handle the rounding.  On system claiming support
+	 for IEEE 754, this ought to be round to nearest, ties to
+	 even, corresponding to the Fortran ROUND='NEAREST'.  */
+      case ROUND_PROCDEFINED: 
+      case ROUND_UNSPECIFIED:
       case ROUND_ZERO: /* Do nothing and truncation occurs.  */
 	goto skip;
       case ROUND_UP:
@@ -262,9 +359,8 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
 		  goto skip;
 	      }
 	  }
-	 /* Fall through.  */ 
-      case ROUND_PROCDEFINED:
-      case ROUND_UNSPECIFIED:
+	/* Fall through.  */
+	/* The ROUND_COMPATIBLE is rounding away from zero when there is a tie.  */
       case ROUND_COMPATIBLE:
 	rchar = '5';
 	goto do_rnd;
@@ -273,7 +369,7 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   updown:
 
   rchar = '0';
-  if (w > 0 && d == 0 && p == 0)
+  if (ft != FMT_F && w > 0 && d == 0 && p == 0)
     nbefore = 1;
   /* Scan for trailing zeros to see if we really need to round it.  */
   for(i = nbefore + nafter; i < ndigits; i++)
@@ -286,13 +382,14 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   do_rnd:
  
   if (nbefore + nafter == 0)
+    /* Handle the case Fw.0 and value < 1.0 */
     {
       ndigits = 0;
-      if (nzero_real == d && digits[0] >= rchar)
+      if (digits[0] >= rchar)
 	{
 	  /* We rounded to zero but shouldn't have */
-	  nzero--;
-	  nafter = 1;
+	  nbefore = 1;
+	  digits--;
 	  digits[0] = '1';
 	  ndigits = 1;
 	}
@@ -382,16 +479,19 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   /* Scan the digits string and count the number of zeros.  If we make it
      all the way through the loop, we know the value is zero after the
      rounding completed above.  */
-  for (i = 0; i < ndigits; i++)
+  int hasdot = 0;
+  for (i = 0; i < ndigits + hasdot; i++)
     {
-      if (digits[i] != '0')
+      if (digits[i] == '.')
+	hasdot = 1;
+      else if (digits[i] != '0')
 	break;
     }
 
   /* To format properly, we need to know if the rounded result is zero and if
      so, we set the zero_flag which may have been already set for
      actual zero.  */
-  if (i == ndigits)
+  if (i == ndigits + hasdot)
     {
       zero_flag = true;
       /* The output is zero, so set the sign according to the sign bit unless
@@ -429,7 +529,7 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   /* Create the ouput buffer.  */
   out = write_block (dtp, w);
   if (out == NULL)
-    return FAILURE;
+    return false;
 
   /* Check the value fits in the specified field width.  */
   if (nblanks < 0 || edigits == -1 || w == 1 || (w == 2 && sign != S_NONE))
@@ -438,10 +538,10 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
 	{
 	  gfc_char4_t *out4 = (gfc_char4_t *) out;
 	  memset4 (out4, '*', w);
-	  return FAILURE;
+	  return false;
 	}
       star_fill (out, w);
-      return FAILURE;
+      return false;
     }
 
   /* See if we have space for a zero before the decimal point.  */
@@ -502,6 +602,10 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
       /* Output the decimal point.  */
       *(out4++) = dtp->u.p.current_unit->decimal_status
 		    == DECIMAL_POINT ? '.' : ',';
+      if (ft == FMT_F 
+	  && (dtp->u.p.current_unit->round_status == ROUND_UNSPECIFIED 
+	      || dtp->u.p.current_unit->round_status == ROUND_PROCDEFINED))
+	digits++;
 
       /* Output leading zeros after the decimal point.  */
       if (nzero > 0)
@@ -545,7 +649,7 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
 	  memset4 (out4, ' ' , nblanks);
 	  dtp->u.p.no_leading_blank = 0;
 	}
-      return SUCCESS;
+      return true;
     } /* End of character(kind=4) internal unit code.  */
 
   /* Pad to full field width.  */
@@ -590,6 +694,10 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
 
   /* Output the decimal point.  */
   *(out++) = dtp->u.p.current_unit->decimal_status == DECIMAL_POINT ? '.' : ',';
+  if (ft == FMT_F
+	  && (dtp->u.p.current_unit->round_status == ROUND_UNSPECIFIED 
+	      || dtp->u.p.current_unit->round_status == ROUND_PROCDEFINED))
+    digits++;
 
   /* Output leading zeros after the decimal point.  */
   if (nzero > 0)
@@ -634,10 +742,7 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
       dtp->u.p.no_leading_blank = 0;
     }
 
-#undef STR
-#undef STR1
-#undef MIN_FIELD_WIDTH
-  return SUCCESS;
+  return true;
 }
 
 
@@ -798,6 +903,89 @@ CALCULATE_EXP(16)
 #endif
 #undef CALCULATE_EXP
 
+
+/* Define a macro to build code for write_float.  */
+
+  /* Note: Before output_float is called, snprintf is used to print to buffer the
+     number in the format +D.DDDDe+ddd. 
+
+     #   The result will always contain a decimal point, even if no
+	 digits follow it
+
+     -   The converted value is to be left adjusted on the field boundary
+
+     +   A sign (+ or -) always be placed before a number
+
+     *   prec is used as the precision
+
+     e format: [-]d.dddeÂ±dd where there is one digit before the
+       decimal-point character and the number of digits after it is
+       equal to the precision. The exponent always contains at least two
+       digits; if the value is zero, the exponent is 00.  */
+
+
+#define TOKENPASTE(x, y) TOKENPASTE2(x, y)
+#define TOKENPASTE2(x, y) x ## y
+
+#define DTOA(suff,prec,val) TOKENPASTE(DTOA2,suff)(prec,val)
+
+#define DTOA2(prec,val)					\
+snprintf (buffer, size, "%+-#.*e", (prec), (val))
+
+#define DTOA2L(prec,val)				\
+snprintf (buffer, size, "%+-#.*Le", (prec), (val))
+
+
+#if defined(GFC_REAL_16_IS_FLOAT128)
+#define DTOA2Q(prec,val)							\
+__qmath_(quadmath_snprintf) (buffer, size, "%+-#.*Qe", (prec), (val))
+#endif
+
+#define FDTOA(suff,prec,val) TOKENPASTE(FDTOA2,suff)(prec,val)
+
+/* For F format, we print to the buffer with f format.  */
+#define FDTOA2(prec,val)							\
+snprintf (buffer, size, "%+-#.*f", (prec), (val))
+
+#define FDTOA2L(prec,val)						\
+snprintf (buffer, size, "%+-#.*Lf", (prec), (val))
+
+
+#if defined(GFC_REAL_16_IS_FLOAT128)
+#define FDTOA2Q(prec,val)			       \
+__qmath_(quadmath_snprintf) (buffer, size, "%+-#.*Qf", \
+			     (prec), (val))
+#endif
+
+
+#if defined(GFC_REAL_16_IS_FLOAT128)
+#define ISFINITE2Q(val) finiteq(val)
+#endif
+#define ISFINITE2(val) isfinite(val)
+#define ISFINITE2L(val) isfinite(val)
+
+#define ISFINITE(suff,val) TOKENPASTE(ISFINITE2,suff)(val)
+
+
+#if defined(GFC_REAL_16_IS_FLOAT128)
+#define SIGNBIT2Q(val) signbitq(val)
+#endif
+#define SIGNBIT2(val) signbit(val)
+#define SIGNBIT2L(val) signbit(val)
+
+#define SIGNBIT(suff,val) TOKENPASTE(SIGNBIT2,suff)(val)
+
+
+#if defined(GFC_REAL_16_IS_FLOAT128)
+#define ISNAN2Q(val) isnanq(val)
+#endif
+#define ISNAN2(val) isnan(val)
+#define ISNAN2L(val) isnan(val)
+
+#define ISNAN(suff,val) TOKENPASTE(ISNAN2,suff)(val)
+
+
+
 /* Generate corresponding I/O format for FMT_G and output.
    The rules to translate FMT_G to FMT_E or FMT_F from DEC fortran
    LRM (table 11-2, Chapter 11, "I/O Formatting", P11-25) is:
@@ -817,26 +1005,26 @@ CALCULATE_EXP(16)
 	  for rounding modes adjustment, r, See Fortran F2008 10.7.5.2.2
 	  the asm volatile is required for 32-bit x86 platforms.  */
 
-#define OUTPUT_FLOAT_FMT_G(x) \
+#define OUTPUT_FLOAT_FMT_G(x,y)			\
 static void \
 output_float_FMT_G_ ## x (st_parameter_dt *dtp, const fnode *f, \
 		      GFC_REAL_ ## x m, char *buffer, size_t size, \
-		      int sign_bit, bool zero_flag, int ndigits, \
-                      int edigits, int comp_d) \
+			  int sign_bit, bool zero_flag, int comp_d) \
 { \
   int e = f->u.real.e;\
   int d = f->u.real.d;\
   int w = f->u.real.w;\
-  fnode *newf;\
-  GFC_REAL_ ## x rexp_d, r = 0.5;\
+  fnode newf;\
+  GFC_REAL_ ## x exp_d, r = 0.5, r_sc;\
   int low, high, mid;\
   int ubound, lbound;\
   char *p, pad = ' ';\
   int save_scale_factor, nb = 0;\
-  try result;\
+  bool result;\
+  int nprinted, precision;\
+  volatile GFC_REAL_ ## x temp;\
 \
   save_scale_factor = dtp->u.p.scale_factor;\
-  newf = (fnode *) get_mem (sizeof (fnode));\
 \
   switch (dtp->u.p.current_unit->round_status)\
     {\
@@ -853,16 +1041,21 @@ output_float_FMT_G_ ## x (st_parameter_dt *dtp, const fnode *f, \
 	break;\
     }\
 \
-  rexp_d = calculate_exp_ ## x (-d);\
-  if ((m > 0.0 && ((m < 0.1 - 0.1 * r * rexp_d) || (rexp_d * (m + r) >= 1.0)))\
+  exp_d = calculate_exp_ ## x (d);\
+  r_sc = (1 - r / exp_d);\
+  temp = 0.1 * r_sc;\
+  if ((m > 0.0 && ((m < temp) || (r >= (exp_d - m))))\
       || ((m == 0.0) && !(compile_options.allow_std\
-			  & (GFC_STD_F2003 | GFC_STD_F2008))))\
+			  & (GFC_STD_F2003 | GFC_STD_F2008)))\
+      ||  d == 0)\
     { \
-      newf->format = FMT_E;\
-      newf->u.real.w = w;\
-      newf->u.real.d = d - comp_d;\
-      newf->u.real.e = e;\
+      newf.format = FMT_E;\
+      newf.u.real.w = w;\
+      newf.u.real.d = d - comp_d;\
+      newf.u.real.e = e;\
       nb = 0;\
+      precision = determine_precision (dtp, &newf, x);\
+      nprinted = DTOA(y,precision,m);			     \
       goto finish;\
     }\
 \
@@ -874,10 +1067,9 @@ output_float_FMT_G_ ## x (st_parameter_dt *dtp, const fnode *f, \
 \
   while (low <= high)\
     { \
-      volatile GFC_REAL_ ## x temp;\
       mid = (low + high) / 2;\
 \
-      temp = (calculate_exp_ ## x (mid - 1) * (1 - r * rexp_d));\
+      temp = (calculate_exp_ ## x (mid - 1) * r_sc);\
 \
       if (m < temp)\
         { \
@@ -905,24 +1097,25 @@ output_float_FMT_G_ ## x (st_parameter_dt *dtp, const fnode *f, \
 \
   nb = e <= 0 ? 4 : e + 2;\
   nb = nb >= w ? w - 1 : nb;\
-  newf->format = FMT_F;\
-  newf->u.real.w = w - nb;\
-  newf->u.real.d = m == 0.0 ? d - 1 : -(mid - d - 1) ;\
+  newf.format = FMT_F;\
+  newf.u.real.w = w - nb;\
+  newf.u.real.d = m == 0.0 ? d - 1 : -(mid - d - 1) ;\
   dtp->u.p.scale_factor = 0;\
+  precision = determine_precision (dtp, &newf, x);	\
+  nprinted = FDTOA(y,precision,m);					\
 \
  finish:\
-  result = output_float (dtp, newf, buffer, size, sign_bit, zero_flag, \
-			 ndigits, edigits);\
+    result = output_float (dtp, &newf, buffer, size, nprinted, precision,\
+			   sign_bit, zero_flag);\
   dtp->u.p.scale_factor = save_scale_factor;\
 \
-  free (newf);\
 \
   if (nb > 0 && !dtp->u.p.g0_no_blanks)\
     {\
       p = write_block (dtp, nb);\
       if (p == NULL)\
 	return;\
-      if (result == FAILURE)\
+      if (!result)\
         pad = '*';\
       if (unlikely (is_char4_unit (dtp)))\
 	{\
@@ -934,81 +1127,134 @@ output_float_FMT_G_ ## x (st_parameter_dt *dtp, const fnode *f, \
     }\
 }\
 
-OUTPUT_FLOAT_FMT_G(4)
+OUTPUT_FLOAT_FMT_G(4,)
 
-OUTPUT_FLOAT_FMT_G(8)
+OUTPUT_FLOAT_FMT_G(8,)
 
 #ifdef HAVE_GFC_REAL_10
-OUTPUT_FLOAT_FMT_G(10)
+OUTPUT_FLOAT_FMT_G(10,L)
 #endif
 
 #ifdef HAVE_GFC_REAL_16
-OUTPUT_FLOAT_FMT_G(16)
+# ifdef GFC_REAL_16_IS_FLOAT128
+OUTPUT_FLOAT_FMT_G(16,Q)
+#else
+OUTPUT_FLOAT_FMT_G(16,L)
+#endif
 #endif
 
 #undef OUTPUT_FLOAT_FMT_G
 
 
-/* Define a macro to build code for write_float.  */
+/* EN format is tricky since the number of significant digits depends
+   on the magnitude.  Solve it by first printing a temporary value and
+   figure out the number of significant digits from the printed
+   exponent.  Values y, 0.95*10.0**e <= y <10.0**e, are rounded to
+   10.0**e even when the final result will not be rounded to 10.0**e.
+   For these values the exponent returned by atoi has to be decremented
+   by one. The values y in the ranges
+       (1000.0-0.5*10.0**(-d))*10.0**(3*n) <= y < 10.0*(3*(n+1))  
+        (100.0-0.5*10.0**(-d))*10.0**(3*n) <= y < 10.0*(3*n+2)
+         (10.0-0.5*10.0**(-d))*10.0**(3*n) <= y < 10.0*(3*n+1)
+   are correctly rounded respectively to 1.0...0*10.0*(3*(n+1)),
+   100.0...0*10.0*(3*n), and 10.0...0*10.0*(3*n), where 0...0
+   represents d zeroes, by the lines 279 to 297. */
 
-  /* Note: Before output_float is called, snprintf is used to print to buffer the
-     number in the format +D.DDDDe+ddd. For an N digit exponent, this gives us
-     (MIN_FIELD_WIDTH-5)-N digits after the decimal point, plus another one
-     before the decimal point.
+#define EN_PREC(x,y)\
+{\
+    volatile GFC_REAL_ ## x tmp, one = 1.0;\
+    tmp = * (GFC_REAL_ ## x *)source;\
+    if (ISFINITE (y,tmp))\
+      {\
+	nprinted = DTOA(y,0,tmp);\
+	int e = atoi (&buffer[4]);\
+	if (buffer[1] == '1')\
+	  {\
+	    tmp = (calculate_exp_ ## x (-e)) * tmp;\
+	    tmp = one - (tmp < 0 ? -tmp : tmp);	\
+	    if (tmp > 0)\
+	      e = e - 1;\
+	  }\
+	nbefore = e%3;\
+	if (nbefore < 0)\
+	  nbefore = 3 + nbefore;\
+      }\
+    else\
+      nprinted = -1;\
+}\
 
-     #   The result will always contain a decimal point, even if no
-	 digits follow it
+static int
+determine_en_precision (st_parameter_dt *dtp, const fnode *f, 
+			const char *source, int len)
+{
+  int nprinted;
+  char buffer[10];
+  const size_t size = 10;
+  int nbefore; /* digits before decimal point - 1.  */
 
-     -   The converted value is to be left adjusted on the field boundary
+  switch (len)
+    {
+    case 4:
+      EN_PREC(4,)
+      break;
 
-     +   A sign (+ or -) always be placed before a number
+    case 8:
+      EN_PREC(8,)
+      break;
 
-     MIN_FIELD_WIDTH  minimum field width
-
-     *   (ndigits-1) is used as the precision
-
-     e format: [-]d.dddeÂ±dd where there is one digit before the
-       decimal-point character and the number of digits after it is
-       equal to the precision. The exponent always contains at least two
-       digits; if the value is zero, the exponent is 00.  */
-
-#define DTOA \
-snprintf (buffer, size, "%+-#" STR(MIN_FIELD_WIDTH) ".*" \
-	  "e", ndigits - 1, tmp);
-
-#define DTOAL \
-snprintf (buffer, size, "%+-#" STR(MIN_FIELD_WIDTH) ".*" \
-	  "Le", ndigits - 1, tmp);
-
-
-#if defined(GFC_REAL_16_IS_FLOAT128)
-#define DTOAQ \
-__qmath_(quadmath_snprintf) (buffer, sizeof buffer, \
-			     "%+-#" STR(MIN_FIELD_WIDTH) ".*" \
-			     "Qe", ndigits - 1, tmp);
+#ifdef HAVE_GFC_REAL_10
+    case 10:
+      EN_PREC(10,L)
+      break;
 #endif
+#ifdef HAVE_GFC_REAL_16
+    case 16:
+# ifdef GFC_REAL_16_IS_FLOAT128
+      EN_PREC(16,Q)
+# else
+      EN_PREC(16,L)
+# endif
+      break;
+#endif
+    default:
+      internal_error (NULL, "bad real kind");
+    }
+
+  if (nprinted == -1)
+    return -1;
+
+  int prec = f->u.real.d + nbefore;
+  if (dtp->u.p.current_unit->round_status != ROUND_UNSPECIFIED
+      && dtp->u.p.current_unit->round_status != ROUND_PROCDEFINED)
+    prec += 2 * len + 4;
+  return prec;
+}
+  
 
 #define WRITE_FLOAT(x,y)\
 {\
 	GFC_REAL_ ## x tmp;\
 	tmp = * (GFC_REAL_ ## x *)source;\
-	sign_bit = signbit (tmp);\
-	if (!isfinite (tmp))\
+	sign_bit = SIGNBIT (y,tmp);\
+	if (!ISFINITE (y,tmp))\
 	  { \
-	    write_infnan (dtp, f, isnan (tmp), sign_bit);\
+	    write_infnan (dtp, f, ISNAN (y,tmp), sign_bit);\
 	    return;\
 	  }\
 	tmp = sign_bit ? -tmp : tmp;\
 	zero_flag = (tmp == 0.0);\
-\
-	DTOA ## y\
-\
-	if (f->format != FMT_G)\
-	  output_float (dtp, f, buffer, size, sign_bit, zero_flag, ndigits, \
-			edigits);\
-	else \
+	if (f->format == FMT_G)\
 	  output_float_FMT_G_ ## x (dtp, f, tmp, buffer, size, sign_bit, \
-				    zero_flag, ndigits, edigits, comp_d);\
+				    zero_flag, comp_d);\
+	else\
+	  {\
+	    if (f->format == FMT_F)\
+	      nprinted = FDTOA(y,precision,tmp);		\
+	    else\
+	      nprinted = DTOA(y,precision,tmp);					\
+	    output_float (dtp, f, buffer, size, nprinted, precision,\
+			  sign_bit, zero_flag);\
+	  }\
 }\
 
 /* Output a real number according to its format.  */
@@ -1017,29 +1263,21 @@ static void
 write_float (st_parameter_dt *dtp, const fnode *f, const char *source, \
             int len, int comp_d)
 {
-
-#if defined(HAVE_GFC_REAL_16) || __LDBL_DIG__ > 18
-# define MIN_FIELD_WIDTH 49
-#else
-# define MIN_FIELD_WIDTH 32
-#endif
-#define STR(x) STR1(x)
-#define STR1(x) #x
-
-  /* This must be large enough to accurately hold any value.  */
-  char buffer[MIN_FIELD_WIDTH+1];
-  int sign_bit, ndigits, edigits;
+  int sign_bit, nprinted;
+  int precision;  /* Precision for snprintf call.  */
   bool zero_flag;
-  size_t size;
 
-  size = MIN_FIELD_WIDTH+1;
+  if (f->format != FMT_EN)
+    precision = determine_precision (dtp, f, len);
+  else
+    precision = determine_en_precision (dtp, f, source, len);
 
-  /* printf pads blanks for us on the exponent so we just need it big enough
-     to handle the largest number of exponent digits expected.  */
-  edigits=4;
-
-  /* Always convert at full precision to avoid double rounding.  */
-    ndigits = MIN_FIELD_WIDTH - 4 - edigits;
+  /* 4932 is the maximum exponent of long double and quad precision, 3
+     extra characters for the sign, the decimal point, and the
+     trailing null, and finally some extra digits depending on the
+     requested precision.  */
+  const size_t size = 4932 + 3 + precision;
+  char buffer[size];
 
   switch (len)
     {

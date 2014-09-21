@@ -1,5 +1,5 @@
 ;; Predicate definitions for SPARC.
-;; Copyright (C) 2005, 2007, 2008, 2010, 2012 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -265,6 +265,11 @@
   (ior (match_test "register_operand (op, SImode)")
        (match_test "TARGET_ARCH64 && register_operand (op, DImode)")))
 
+;; Return true if OP is an integer register of the appropriate mode
+;; for a cstore result.
+(define_special_predicate "cstore_result_operand"
+  (match_test "register_operand (op, TARGET_ARCH64 ? DImode : SImode)"))
+
 ;; Return true if OP is a floating point condition code register.
 (define_predicate "fcc_register_operand"
   (match_code "reg")
@@ -357,7 +362,7 @@
 (define_predicate "arith_add_operand"
   (ior (match_operand 0 "arith_operand")
        (match_operand 0 "const_4096_operand")))
-       
+
 ;; Return true if OP is suitable as second double operand for add/sub.
 (define_predicate "arith_double_add_operand"
   (match_code "const_int,const_double,reg,subreg")
@@ -390,6 +395,14 @@
 (define_predicate "uns_arith_operand"
   (ior (match_operand 0 "register_operand")
        (match_operand 0 "uns_small_int_operand")))
+
+;; Return true if OP is a register, or is a CONST_INT that can fit in a
+;; signed 5-bit immediate field.  This is an acceptable second operand for
+;; the cbcond instructions.
+(define_predicate "arith5_operand"
+  (ior (match_operand 0 "register_operand")
+       (and (match_code "const_int")
+            (match_test "SPARC_SIMM5_P (INTVAL (op))"))))
 
 
 ;; Predicates for miscellaneous instructions.
@@ -427,6 +440,7 @@
 
   /* Allow any 1-instruction integer constant.  */
   if (mclass == MODE_INT
+      && mode != TImode
       && (small_int_operand (op, mode) || const_high_operand (op, mode)))
     return true;
 
@@ -440,12 +454,10 @@
   if (mclass == MODE_FLOAT && GET_CODE (op) == CONST_DOUBLE)
     return true;
 
-  if (mclass == MODE_VECTOR_INT && GET_CODE (op) == CONST_VECTOR
-      && (const_zero_operand (op, mode)
-          || const_all_ones_operand (op, mode)))
+  if (mclass == MODE_VECTOR_INT && const_all_ones_operand (op, mode))
     return true;
 
-  if (register_operand (op, mode))
+  if (register_or_zero_operand (op, mode))
     return true;
 
   /* If this is a SUBREG, look inside so that we handle paradoxical ones.  */

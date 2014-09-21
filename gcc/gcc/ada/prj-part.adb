@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,6 +23,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Atree;    use Atree;
 with Err_Vars; use Err_Vars;
 with Opt;      use Opt;
 with Osint;    use Osint;
@@ -150,6 +151,12 @@ package body Prj.Part is
       Project : Project_Node_Id);
    --  Check that an aggregate project only imports abstract projects
 
+   procedure Check_Import_Aggregate
+     (Flags   : Processing_Flags;
+      In_Tree : Project_Node_Tree_Ref;
+      Project : Project_Node_Id);
+   --  Check that a non aggregate project does not import an aggregate project
+
    procedure Create_Virtual_Extending_Project
      (For_Project     : Project_Node_Id;
       Main_Project    : Project_Node_Id;
@@ -190,7 +197,8 @@ package body Prj.Part is
       Depth             : Natural;
       Current_Dir       : String;
       Is_Config_File    : Boolean;
-      Env               : in out Environment);
+      Env               : in out Environment;
+      Implicit_Project  : Boolean := False);
    --  Parse a project file. This is a recursive procedure: it calls itself for
    --  imported and extended projects. When From_Extended is not None, if the
    --  project has already been parsed and is an extended project A, return the
@@ -200,6 +208,10 @@ package body Prj.Part is
    --
    --  Is_Config_File should be set to True if the project represents a config
    --  file (.cgpr) since some specific checks apply.
+   --
+   --  If Implicit_Project is True, change the Directory of the project node
+   --  to be the Current_Dir. Recursive calls to Parse_Single_Project are
+   --  always done with the default False value for Implicit_Project.
 
    procedure Pre_Parse_Context_Clause
      (In_Tree        : Project_Node_Tree_Ref;
@@ -216,6 +228,7 @@ package body Prj.Part is
    procedure Post_Parse_Context_Clause
      (Context_Clause    : With_Id;
       In_Tree           : Project_Node_Tree_Ref;
+      In_Limited        : Boolean;
       Limited_Withs     : Boolean;
       Imported_Projects : in out Project_Node_Id;
       Project_Directory : Path_Name_Type;
@@ -227,10 +240,12 @@ package body Prj.Part is
       Env               : in out Environment);
    --  Parse the imported projects that have been stored in table Withs, if
    --  any. From_Extended is used for the call to Parse_Single_Project below.
+   --
    --  When In_Limited is True, the importing path includes at least one
    --  "limited with". When Limited_Withs is False, only non limited withed
    --  projects are parsed. When Limited_Withs is True, only limited withed
    --  projects are parsed.
+   --
    --  Is_Config_File should be set to True if the project represents a config
    --  file (.cgpr) since some specific checks apply.
 
@@ -526,7 +541,8 @@ package body Prj.Part is
       Current_Directory : String := "";
       Is_Config_File    : Boolean;
       Env               : in out Prj.Tree.Environment;
-      Target_Name       : String := "")
+      Target_Name       : String := "";
+      Implicit_Project  : Boolean := False)
    is
       Dummy : Boolean;
       pragma Warnings (Off, Dummy);
@@ -594,7 +610,8 @@ package body Prj.Part is
             Depth             => 0,
             Current_Dir       => Current_Directory,
             Is_Config_File    => Is_Config_File,
-            Env               => Env);
+            Env               => Env,
+            Implicit_Project  => Implicit_Project);
 
       exception
          when Types.Unrecoverable_Error =>
@@ -636,9 +653,7 @@ package body Prj.Part is
 
          --  Now, check the projects directly imported by the main project.
          --  Remove from the potentially virtual any project extended by one
-         --  of these imported projects. For non extending imported projects,
-         --  check that they do not belong to the project tree of the project
-         --  being "extended-all" by the main project.
+         --  of these imported projects.
 
          declare
             With_Clause : Project_Node_Id;
@@ -689,7 +704,7 @@ package body Prj.Part is
       --  If there were any kind of error during the parsing, serious
       --  or not, then the parsing fails.
 
-      if Err_Vars.Total_Errors_Detected > 0 then
+      if Total_Errors_Detected > 0 then
          Project := Empty_Node;
       end if;
 
@@ -829,6 +844,7 @@ package body Prj.Part is
    procedure Post_Parse_Context_Clause
      (Context_Clause    : With_Id;
       In_Tree           : Project_Node_Tree_Ref;
+      In_Limited        : Boolean;
       Limited_Withs     : Boolean;
       Imported_Projects : in out Project_Node_Id;
       Project_Directory : Path_Name_Type;
@@ -943,7 +959,9 @@ package body Prj.Part is
                   --  If we have one, get the project id of the limited
                   --  imported project file, and do not parse it.
 
-                  if Limited_Withs and then Project_Stack.Last > 1 then
+                  if (In_Limited or Limited_Withs)
+                    and then Project_Stack.Last > 1
+                  then
                      declare
                         Canonical_Path_Name : Path_Name_Type;
 
@@ -967,7 +985,7 @@ package body Prj.Part is
                      end;
                   end if;
 
-                  --  Parse the imported project, if its project id is unknown
+                  --  Parse the imported project if its project id is unknown
 
                   if No (Withed_Project) then
                      Parse_Single_Project
@@ -977,7 +995,7 @@ package body Prj.Part is
                         Path_Name_Id      => Imported_Path_Name_Id,
                         Extended          => False,
                         From_Extended     => From_Extended,
-                        In_Limited        => Limited_Withs,
+                        In_Limited        => In_Limited or Limited_Withs,
                         Packages_To_Check => Packages_To_Check,
                         Depth             => Depth,
                         Current_Dir       => Current_Dir,
@@ -1087,6 +1105,36 @@ package body Prj.Part is
          end loop;
       end if;
    end Check_Aggregate_Imports;
+
+   ----------------------------
+   -- Check_Import_Aggregate --
+   ----------------------------
+
+   procedure Check_Import_Aggregate
+     (Flags   : Processing_Flags;
+      In_Tree : Project_Node_Tree_Ref;
+      Project : Project_Node_Id)
+   is
+      With_Clause : Project_Node_Id;
+      Imported    : Project_Node_Id;
+
+   begin
+      if Project_Qualifier_Of (Project, In_Tree) /= Aggregate then
+         With_Clause := First_With_Clause_Of (Project, In_Tree);
+         while Present (With_Clause) loop
+            Imported := Project_Node_Of (With_Clause, In_Tree);
+
+            if Project_Qualifier_Of (Imported, In_Tree) = Aggregate then
+               Error_Msg_Name_1 := Name_Id (Path_Name_Of (Imported, In_Tree));
+               Error_Msg
+                 (Flags, "cannot import aggregate project %%", Token_Ptr);
+               exit;
+            end if;
+
+            With_Clause := Next_With_Clause_Of (With_Clause, In_Tree);
+         end loop;
+      end if;
+   end Check_Import_Aggregate;
 
    ----------------------------
    -- Read_Project_Qualifier --
@@ -1225,12 +1273,14 @@ package body Prj.Part is
       Depth             : Natural;
       Current_Dir       : String;
       Is_Config_File    : Boolean;
-      Env               : in out Environment)
+      Env               : in out Environment;
+      Implicit_Project  : Boolean := False)
    is
       Path_Name : constant String := Get_Name_String (Path_Name_Id);
 
       Normed_Path_Name    : Path_Name_Type;
       Canonical_Path_Name : Path_Name_Type;
+      Resolved_Path_Name  : Path_Name_Type;
       Project_Directory   : Path_Name_Type;
       Project_Scan_State  : Saved_Project_Scan_State;
       Source_Index        : Source_File_Index;
@@ -1280,6 +1330,20 @@ package body Prj.Part is
          Name_Len := Canonical_Path'Length;
          Name_Buffer (1 .. Name_Len) := Canonical_Path;
          Canonical_Path_Name := Name_Find;
+
+         if Opt.Follow_Links_For_Files then
+            Resolved_Path_Name := Canonical_Path_Name;
+
+         else
+            Name_Len := 0;
+            Add_Str_To_Name_Buffer
+              (Normalize_Pathname
+                 (Canonical_Path,
+                  Resolve_Links => True,
+                  Case_Sensitive => False));
+            Resolved_Path_Name := Name_Find;
+         end if;
+
       end;
 
       if Has_Circular_Dependencies
@@ -1302,7 +1366,7 @@ package body Prj.Part is
       while
         A_Project_Name_And_Node /= Tree_Private_Part.No_Project_Name_And_Node
       loop
-         if A_Project_Name_And_Node.Canonical_Path = Canonical_Path_Name then
+         if A_Project_Name_And_Node.Resolved_Path = Resolved_Path_Name then
             if Extended then
 
                if A_Project_Name_And_Node.Extended then
@@ -1312,11 +1376,20 @@ package body Prj.Part is
                         "cannot extend the same project file several times",
                         Token_Ptr);
                   end if;
-               else
+               elsif not A_Project_Name_And_Node.From_Extended then
                   Error_Msg
                     (Env.Flags,
                      "cannot extend an already imported project file",
                      Token_Ptr);
+
+               else
+                  --  Register this project as being extended
+
+                  A_Project_Name_And_Node.Extended := True;
+                  Tree_Private_Part.Projects_Htable.Set
+                    (In_Tree.Projects_HT,
+                     A_Project_Name_And_Node.Name,
+                     A_Project_Name_And_Node);
                end if;
 
             elsif A_Project_Name_And_Node.Extended then
@@ -1359,6 +1432,16 @@ package body Prj.Part is
                      "cannot import an already extended project file",
                      Token_Ptr);
                end if;
+
+            elsif A_Project_Name_And_Node.From_Extended then
+               --  This project is now imported from a non extending project.
+               --  Indicate this in has table Projects.HT.
+
+               A_Project_Name_And_Node.From_Extended := False;
+               Tree_Private_Part.Projects_Htable.Set
+                 (In_Tree.Projects_HT,
+                  A_Project_Name_And_Node.Name,
+                  A_Project_Name_And_Node);
             end if;
 
             Project := A_Project_Name_And_Node.Node;
@@ -1389,7 +1472,10 @@ package body Prj.Part is
       Tree.Reset_State;
       Scan (In_Tree);
 
-      if not Is_Config_File and then Name_From_Path = No_Name then
+      if not Is_Config_File
+        and then Name_From_Path = No_Name
+        and then not Implicit_Project
+      then
 
          --  The project file name is not correct (no or bad extension, or not
          --  following Ada identifier's syntax).
@@ -1579,6 +1665,7 @@ package body Prj.Part is
             Post_Parse_Context_Clause
               (In_Tree           => In_Tree,
                Context_Clause    => First_With,
+               In_Limited        => In_Limited,
                Limited_Withs     => False,
                Imported_Projects => Imported_Projects,
                Project_Directory => Project_Directory,
@@ -1701,6 +1788,17 @@ package body Prj.Part is
 
                   if Present (Extended_Project) then
 
+                     if Project_Qualifier_Of (Extended_Project, In_Tree) =
+                                                                   Aggregate
+                     then
+                        Error_Msg_Name_1 :=
+                          Name_Id (Path_Name_Of (Extended_Project, In_Tree));
+                        Error_Msg
+                          (Env.Flags,
+                           "cannot extend aggregate project %%",
+                           Location_Of (Project, In_Tree));
+                     end if;
+
                      --  A project that extends an extending-all project is
                      --  also an extending-all project.
 
@@ -1731,6 +1829,7 @@ package body Prj.Part is
 
       Check_Extending_All_Imports (Env.Flags, In_Tree, Project);
       Check_Aggregate_Imports (Env.Flags, In_Tree, Project);
+      Check_Import_Aggregate (Env.Flags, In_Tree, Project);
 
       --  Check that a project with a name including a dot either imports
       --  or extends the project whose name precedes the last dot.
@@ -1914,8 +2013,9 @@ package body Prj.Part is
             E => (Name           => Name_Of_Project,
                   Display_Name   => Display_Name_Of_Project,
                   Node           => Project,
-                  Canonical_Path => Canonical_Path_Name,
+                  Resolved_Path  => Resolved_Path_Name,
                   Extended       => Extended,
+                  From_Extended  => From_Extended /= None,
                   Proj_Qualifier => Project_Qualifier_Of (Project, In_Tree)));
       end if;
 
@@ -1938,6 +2038,7 @@ package body Prj.Part is
          Post_Parse_Context_Clause
            (In_Tree           => In_Tree,
             Context_Clause    => First_With,
+            In_Limited        => In_Limited,
             Limited_Withs     => True,
             Imported_Projects => Imported_Projects,
             Project_Directory => Project_Directory,
@@ -1970,6 +2071,13 @@ package body Prj.Part is
       Tree.Restore_And_Free (Project_Comment_State);
 
       Debug_Decrease_Indent;
+
+      if Project /= Empty_Node and then Implicit_Project then
+         Name_Len := 0;
+         Add_Str_To_Name_Buffer (Current_Dir);
+         Add_Char_To_Name_Buffer (Dir_Sep);
+         In_Tree.Project_Nodes.Table (Project).Directory := Name_Find;
+      end if;
    end Parse_Single_Project;
 
    -----------------------

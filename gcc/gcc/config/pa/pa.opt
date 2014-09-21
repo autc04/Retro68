@@ -1,6 +1,6 @@
 ; Options for the HP PA-RISC port of the compiler.
 
-; Copyright (C) 2005, 2007, 2011 Free Software Foundation, Inc.
+; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -38,8 +38,8 @@ Target RejectNegative
 Generate PA2.0 code (requires binutils 2.10 or later)
 
 mbig-switch
-Target Report Mask(BIG_SWITCH)
-Generate code for huge switch statements
+Target Ignore
+Does nothing.  Preserved for backward compatibility.
 
 mdisable-fpregs
 Target Report Mask(DISABLE_FPREGS)
@@ -138,9 +138,3 @@ Generate PA1.1 code
 mspace-regs
 Target RejectNegative Report InverseMask(NO_SPACE_REGS)
 Do not disable space regs
-
-Mask(SIO)
-;; Generate cpp defines for server I/O.
-
-Mask(GNU_LD)
-;; Assume GNU linker by default

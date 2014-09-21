@@ -1,7 +1,6 @@
 ;; GCC machine description for Tilera TILE-Gx synchronization
 ;; instructions.
-;; Copyright (C) 2011, 2012
-;; Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
 ;; Contributed by Walter Lee (walt@tilera.com)
 ;;
 ;; This file is part of GCC.
@@ -72,7 +71,7 @@
          UNSPEC_CMPXCHG))]
   ""
   "cmpexch<four_if_si>\t%0, %1, %r2"
-  [(set_attr "type" "X1_L2")])
+  [(set_attr "type" "X1_remote")])
 
 
 (define_expand "atomic_exchange<mode>"
@@ -101,7 +100,7 @@
 	 UNSPEC_XCHG))]
   ""
   "exch<four_if_si>\t%0, %1, %r2"
-  [(set_attr "type" "X1_2cycle")])
+  [(set_attr "type" "X1_remote")])
 
 
 (define_expand "atomic_fetch_<fetchop_name><mode>"
@@ -121,7 +120,7 @@
   emit_insn (gen_atomic_fetch_<fetchop_name>_bare<mode> (operands[0],
                                                          operands[1],
                                                          operands[2]));
-  tilegx_pre_atomic_barrier (model);
+  tilegx_post_atomic_barrier (model);
   DONE;
 })
 
@@ -137,7 +136,7 @@
 	   UNSPEC_ATOMIC))]
   ""
   "fetch<fetchop_name><four_if_si>\t%0, %1, %r2"
-  [(set_attr "type" "X1_2cycle")])
+  [(set_attr "type" "X1_remote")])
 
 
 (define_expand "atomic_fetch_sub<mode>"
@@ -151,15 +150,78 @@
    (match_operand:SI 3 "const_int_operand" "")]         ;; model
   ""
 {
+  rtx addend;
   enum memmodel model = (enum memmodel) INTVAL (operands[3]);
 
   if (operands[2] != const0_rtx)
-    emit_move_insn (operands[2], gen_rtx_NEG (<MODE>mode, operands[2]));
+    {
+       addend = gen_reg_rtx (<MODE>mode);
+       emit_move_insn (addend,
+                       gen_rtx_MINUS (<MODE>mode, const0_rtx, operands[2]));
+    }
+  else
+    addend = operands[2];
 
   tilegx_pre_atomic_barrier (model);
   emit_insn (gen_atomic_fetch_add_bare<mode> (operands[0],
                                               operands[1],
-                                              operands[2]));
+                                              addend));
+  tilegx_post_atomic_barrier (model);
+  DONE;
+})
+
+
+(define_expand "atomic_test_and_set"
+  [(match_operand:QI 0 "register_operand" "")           ;; bool output
+   (match_operand:QI 1 "nonautoincmem_operand" "+U")    ;; memory
+   (match_operand:SI 2 "const_int_operand" "")]         ;; model
+  ""
+{
+  rtx addr, aligned_addr, aligned_mem, offset, word, shmt, tmp;
+  rtx result = operands[0];
+  rtx mem = operands[1];
+  enum memmodel model = (enum memmodel) INTVAL (operands[2]);
+
+  addr = force_reg (Pmode, XEXP (mem, 0));
+
+  aligned_addr = gen_reg_rtx (Pmode);
+  emit_move_insn (aligned_addr, gen_rtx_AND (Pmode, addr, GEN_INT (-8)));
+
+  aligned_mem = change_address (mem, DImode, aligned_addr);
+  set_mem_alias_set (aligned_mem, 0);
+
+  tmp = gen_reg_rtx (Pmode);
+  if (BYTES_BIG_ENDIAN)
+    {
+      emit_move_insn (gen_lowpart (DImode, tmp),
+                      gen_rtx_NOT (DImode, gen_lowpart (DImode, addr)));
+    }
+  else
+    {
+      tmp = addr;
+    }
+
+  offset = gen_reg_rtx (DImode);
+  emit_move_insn (offset, gen_rtx_AND (DImode, gen_lowpart (DImode, tmp),
+                                       GEN_INT (7)));
+
+  tmp = gen_reg_rtx (DImode);
+  emit_move_insn (tmp, GEN_INT (1));
+
+  shmt = gen_reg_rtx (DImode);
+  emit_move_insn (shmt, gen_rtx_ASHIFT (DImode, offset, GEN_INT (3)));
+
+  word = gen_reg_rtx (DImode);
+  emit_move_insn (word, gen_rtx_ASHIFT (DImode, tmp,
+                                        gen_lowpart (SImode, shmt)));
+
+  tmp = gen_reg_rtx (DImode);
   tilegx_pre_atomic_barrier (model);
+  emit_insn (gen_atomic_fetch_or_baredi (tmp, aligned_mem, word));
+  tilegx_post_atomic_barrier (model);
+
+  emit_move_insn (gen_lowpart (DImode, result),
+                  gen_rtx_LSHIFTRT (DImode, tmp,
+                                    gen_lowpart (SImode, shmt)));
   DONE;
 })

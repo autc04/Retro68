@@ -1,6 +1,5 @@
 /* Lower TLS operations to emulation functions.
-   Copyright (C) 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2006-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,10 +21,23 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
+#include "stor-layout.h"
+#include "varasm.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-expr.h"
+#include "is-a.h"
 #include "gimple.h"
+#include "gimple-iterator.h"
+#include "gimple-walk.h"
 #include "tree-pass.h"
-#include "tree-flow.h"
+#include "gimple-ssa.h"
 #include "cgraph.h"
+#include "tree-phinodes.h"
+#include "ssa-iterators.h"
+#include "stringpool.h"
+#include "tree-ssanames.h"
 #include "langhooks.h"
 #include "target.h"
 #include "targhooks.h"
@@ -59,11 +71,11 @@ along with GCC; see the file COPYING3.  If not see
    the index of a TLS variable equals the index of its control variable in
    the other vector.  */
 static varpool_node_set tls_vars;
-static VEC(varpool_node_ptr, heap) *control_vars;
+static vec<varpool_node_ptr> control_vars;
 
 /* For the current basic block, an SSA_NAME that has computed the address 
    of the TLS variable at the corresponding index.  */
-static VEC(tree, heap) *access_vars;
+static vec<tree> access_vars;
 
 /* The type of the control structure, shared with the emutls.c runtime.  */
 static tree emutls_object_type;
@@ -148,30 +160,31 @@ default_emutls_var_fields (tree type, tree *name ATTRIBUTE_UNUSED)
 tree
 default_emutls_var_init (tree to, tree decl, tree proxy)
 {
-  VEC(constructor_elt,gc) *v = VEC_alloc (constructor_elt, gc, 4);
-  constructor_elt *elt;
+  vec<constructor_elt, va_gc> *v;
+  vec_alloc (v, 4);
+  constructor_elt elt;
   tree type = TREE_TYPE (to);
   tree field = TYPE_FIELDS (type);
 
-  elt = VEC_quick_push (constructor_elt, v, NULL);
-  elt->index = field;
-  elt->value = fold_convert (TREE_TYPE (field), DECL_SIZE_UNIT (decl));
+  elt.index = field;
+  elt.value = fold_convert (TREE_TYPE (field), DECL_SIZE_UNIT (decl));
+  v->quick_push (elt);
 
-  elt = VEC_quick_push (constructor_elt, v, NULL);
   field = DECL_CHAIN (field);
-  elt->index = field;
-  elt->value = build_int_cst (TREE_TYPE (field),
-			      DECL_ALIGN_UNIT (decl));
+  elt.index = field;
+  elt.value = build_int_cst (TREE_TYPE (field),
+			     DECL_ALIGN_UNIT (decl));
+  v->quick_push (elt);
 
-  elt = VEC_quick_push (constructor_elt, v, NULL);
   field = DECL_CHAIN (field);
-  elt->index = field;
-  elt->value = null_pointer_node;
+  elt.index = field;
+  elt.value = null_pointer_node;
+  v->quick_push (elt);
 
-  elt = VEC_quick_push (constructor_elt, v, NULL);
   field = DECL_CHAIN (field);
-  elt->index = field;
-  elt->value = proxy;
+  elt.index = field;
+  elt.value = proxy;
+  v->quick_push (elt);
 
   return build_constructor (type, v);
 }
@@ -260,7 +273,7 @@ get_emutls_init_templ_addr (tree decl)
   /* Create varpool node for the new variable and finalize it if it is
      not external one.  */
   if (DECL_EXTERNAL (to))
-    varpool_node (to);
+    varpool_node_for_decl (to);
   else
     varpool_add_new_variable (to);
   return build_fold_addr_expr (to);
@@ -295,7 +308,6 @@ new_emutls_decl (tree decl, tree alias_of)
   DECL_WEAK (to) = DECL_WEAK (decl);
   DECL_VISIBILITY (to) = DECL_VISIBILITY (decl);
   DECL_VISIBILITY_SPECIFIED (to) = DECL_VISIBILITY_SPECIFIED (decl);
-  DECL_RESTRICTED_P (to) = DECL_RESTRICTED_P (decl);
   DECL_DLLIMPORT_P (to) = DECL_DLLIMPORT_P (decl);
 
   DECL_ATTRIBUTES (to) = targetm.merge_decl_attributes (decl, to);
@@ -312,8 +324,8 @@ new_emutls_decl (tree decl, tree alias_of)
   if (!DECL_COMMON (to) && targetm.emutls.var_section)
     {
       DECL_SECTION_NAME (to)
-        = build_string (strlen (targetm.emutls.tmpl_section),
-			targetm.emutls.tmpl_section);
+        = build_string (strlen (targetm.emutls.var_section),
+			targetm.emutls.var_section);
     }
 
   /* If this variable is defined locally, then we need to initialize the
@@ -332,13 +344,13 @@ new_emutls_decl (tree decl, tree alias_of)
   /* Create varpool node for the new variable and finalize it if it is
      not external one.  */
   if (DECL_EXTERNAL (to))
-    varpool_node (to);
+    varpool_node_for_decl (to);
   else if (!alias_of)
     varpool_add_new_variable (to);
   else 
     varpool_create_variable_alias (to,
 				   varpool_node_for_asm
-				    (DECL_ASSEMBLER_NAME (alias_of))->decl);
+				    (DECL_ASSEMBLER_NAME (DECL_VALUE_EXPR (alias_of)))->decl);
   return to;
 }
 
@@ -361,11 +373,11 @@ emutls_index (tree decl)
 static tree
 emutls_decl (tree decl)
 {
-  struct varpool_node *var;
+  varpool_node *var;
   unsigned int i;
 
   i = emutls_index (decl);
-  var = VEC_index (varpool_node_ptr, control_vars, i);
+  var = control_vars[i];
   return var->decl;
 }
 
@@ -420,21 +432,20 @@ gen_emutls_addr (tree decl, struct lower_emutls_data *d)
 
   /* Compute the address of the TLS variable with help from runtime.  */
   index = emutls_index (decl);
-  addr = VEC_index (tree, access_vars, index);
+  addr = access_vars[index];
   if (addr == NULL)
     {
-      struct varpool_node *cvar;
+      varpool_node *cvar;
       tree cdecl;
       gimple x;
 
-      cvar = VEC_index (varpool_node_ptr, control_vars, index);
+      cvar = control_vars[index];
       cdecl = cvar->decl;
       TREE_ADDRESSABLE (cdecl) = 1;
 
       addr = create_tmp_var (build_pointer_type (TREE_TYPE (decl)), NULL);
       x = gimple_build_call (d->builtin_decl, 1, build_fold_addr_expr (cdecl));
       gimple_set_location (x, d->loc);
-      add_referenced_var (cdecl);
 
       addr = make_ssa_name (addr, x);
       gimple_call_set_lhs (x, addr);
@@ -446,10 +457,10 @@ gen_emutls_addr (tree decl, struct lower_emutls_data *d)
 
       /* We may be adding a new reference to a new variable to the function.
          This means we have to play with the ipa-reference web.  */
-      ipa_record_reference (d->cfun_node, NULL, NULL, cvar, IPA_REF_ADDR, x);
+      ipa_record_reference (d->cfun_node, cvar, IPA_REF_ADDR, x);
 
       /* Record this ssa_name for possible use later in the basic block.  */
-      VEC_replace (tree, access_vars, index, addr);
+      access_vars[index] = addr;
     }
 
   return addr;
@@ -607,8 +618,8 @@ lower_emutls_phi_arg (gimple phi, unsigned int i, struct lower_emutls_data *d)
 static inline void
 clear_access_vars (void)
 {
-  memset (VEC_address (tree, access_vars), 0,
-          VEC_length (tree, access_vars) * sizeof(tree));
+  memset (access_vars.address (), 0,
+          access_vars.length () * sizeof (tree));
 }
 
 /* Lower the entire function NODE.  */
@@ -619,7 +630,6 @@ lower_emutls_function_body (struct cgraph_node *node)
   struct lower_emutls_data d;
   bool any_edge_inserts = false;
 
-  current_function_decl = node->decl;
   push_cfun (DECL_STRUCT_FUNCTION (node->decl));
 
   d.cfun_node = node;
@@ -628,7 +638,7 @@ lower_emutls_function_body (struct cgraph_node *node)
      create a node for it.  */
   d.builtin_node = cgraph_get_create_node (d.builtin_decl);
 
-  FOR_EACH_BB (d.bb)
+  FOR_EACH_BB_FN (d.bb, cfun)
     {
       gimple_stmt_iterator gsi;
       unsigned int i, nedge;
@@ -690,7 +700,6 @@ lower_emutls_function_body (struct cgraph_node *node)
     gsi_commit_edge_inserts ();
 
   pop_cfun ();
-  current_function_decl = NULL;
 }
 
 /* Create emutls variable for VAR, DATA is pointer to static
@@ -698,15 +707,17 @@ lower_emutls_function_body (struct cgraph_node *node)
    Callback for varpool_for_variable_and_aliases.  */
 
 static bool
-create_emultls_var (struct varpool_node *var, void *data)
+create_emultls_var (varpool_node *var, void *data)
 {
   tree cdecl;
-  struct varpool_node *cvar;
+  varpool_node *cvar;
 
-  cdecl = new_emutls_decl (var->decl, var->alias_of);
+  cdecl = new_emutls_decl (var->decl,
+			   var->alias && var->analyzed
+			   ? varpool_alias_target (var)->decl : NULL);
 
   cvar = varpool_get_node (cdecl);
-  VEC_quick_push (varpool_node_ptr, control_vars, cvar);
+  control_vars.quick_push (cvar);
 
   if (!var->alias)
     {
@@ -715,7 +726,7 @@ create_emultls_var (struct varpool_node *var, void *data)
 	 need to do this once for the main variable.  */
       emutls_common_1 (var->decl, cdecl, (tree *)data);
     }
-  if (var->alias && !var->alias_of)
+  if (var->alias && !var->analyzed)
     cvar->alias = true;
 
   /* Indicate that the value of the TLS variable may be found elsewhere,
@@ -732,7 +743,7 @@ create_emultls_var (struct varpool_node *var, void *data)
 static unsigned int
 ipa_lower_emutls (void)
 {
-  struct varpool_node *var;
+  varpool_node *var;
   struct cgraph_node *func;
   bool any_aliases = false;
   tree ctor_body = NULL;
@@ -741,18 +752,18 @@ ipa_lower_emutls (void)
   tls_vars = varpool_node_set_new ();
 
   /* Examine all global variables for TLS variables.  */
-  for (var = varpool_nodes; var ; var = var->next)
+  FOR_EACH_VARIABLE (var)
     if (DECL_THREAD_LOCAL_P (var->decl))
       {
 	gcc_checking_assert (TREE_STATIC (var->decl)
 			     || DECL_EXTERNAL (var->decl));
 	varpool_node_set_add (tls_vars, var);
-	if (var->alias && var->analyzed)
+	if (var->alias && var->definition)
 	  varpool_node_set_add (tls_vars, varpool_variable_node (var, NULL));
       }
 
   /* If we found no TLS variables, then there is no further work to do.  */
-  if (tls_vars->nodes == NULL)
+  if (!tls_vars->nodes.exists ())
     {
       tls_vars = NULL;
       if (dump_file)
@@ -761,17 +772,17 @@ ipa_lower_emutls (void)
     }
 
   /* Allocate the on-the-side arrays that share indicies with the TLS vars.  */
-  n_tls = VEC_length (varpool_node_ptr, tls_vars->nodes);
-  control_vars = VEC_alloc (varpool_node_ptr, heap, n_tls);
-  access_vars = VEC_alloc (tree, heap, n_tls);
-  VEC_safe_grow (tree, heap, access_vars, n_tls);
+  n_tls = tls_vars->nodes.length ();
+  control_vars.create (n_tls);
+  access_vars.create (n_tls);
+  access_vars.safe_grow_cleared (n_tls);
 
   /* Create the control variables for each TLS variable.  */
-  FOR_EACH_VEC_ELT (varpool_node_ptr, tls_vars->nodes, i, var)
+  FOR_EACH_VEC_ELT (tls_vars->nodes, i, var)
     {
-      var = VEC_index (varpool_node_ptr, tls_vars->nodes, i);
+      var = tls_vars->nodes[i];
 
-      if (var->alias && !var->alias_of)
+      if (var->alias && !var->analyzed)
 	any_aliases = true;
       else if (!var->alias)
 	varpool_for_node_and_aliases (var, create_emultls_var, &ctor_body, true);
@@ -781,7 +792,7 @@ ipa_lower_emutls (void)
   if (any_aliases)
     {
       alias_pair *p;
-      FOR_EACH_VEC_ELT (alias_pair, alias_pairs, i, p)
+      FOR_EACH_VEC_SAFE_ELT (alias_pairs, i, p)
 	if (DECL_THREAD_LOCAL_P (p->decl))
 	  {
 	    p->decl = emutls_decl (p->decl);
@@ -790,19 +801,19 @@ ipa_lower_emutls (void)
     }
 
   /* Adjust all uses of TLS variables within the function bodies.  */
-  for (func = cgraph_nodes; func; func = func->next)
-    if (func->reachable && func->lowered)
+  FOR_EACH_DEFINED_FUNCTION (func)
+    if (func->lowered)
       lower_emutls_function_body (func);
 
   /* Generate the constructor for any COMMON control variables created.  */
   if (ctor_body)
     cgraph_build_static_cdtor ('I', ctor_body, DEFAULT_INIT_PRIORITY);
 
-  VEC_free (varpool_node_ptr, heap, control_vars);
-  VEC_free (tree, heap, access_vars);
+  control_vars.release ();
+  access_vars.release ();
   free_varpool_node_set (tls_vars);
 
-  return TODO_ggc_collect | TODO_verify_all;
+  return TODO_verify_all;
 }
 
 /* If the target supports TLS natively, we need do nothing here.  */
@@ -813,21 +824,40 @@ gate_emutls (void)
   return !targetm.have_tls;
 }
 
-struct simple_ipa_opt_pass pass_ipa_lower_emutls =
+namespace {
+
+const pass_data pass_data_ipa_lower_emutls =
 {
- {
-  SIMPLE_IPA_PASS,
-  "emutls",				/* name */
-  gate_emutls,				/* gate */
-  ipa_lower_emutls,			/* execute */
-  NULL,                                 /* sub */
-  NULL,                                 /* next */
-  0,                                    /* static_pass_number */
-  TV_IPA_OPT,				/* tv_id */
-  PROP_cfg | PROP_ssa,			/* properties_required */
-  0,                                    /* properties_provided */
-  0,                                    /* properties_destroyed */
-  0,                                    /* todo_flags_start */
-  0,					/* todo_flags_finish */
- }
+  SIMPLE_IPA_PASS, /* type */
+  "emutls", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  true, /* has_gate */
+  true, /* has_execute */
+  TV_IPA_OPT, /* tv_id */
+  ( PROP_cfg | PROP_ssa ), /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  0, /* todo_flags_finish */
 };
+
+class pass_ipa_lower_emutls : public simple_ipa_opt_pass
+{
+public:
+  pass_ipa_lower_emutls (gcc::context *ctxt)
+    : simple_ipa_opt_pass (pass_data_ipa_lower_emutls, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate () { return gate_emutls (); }
+  unsigned int execute () { return ipa_lower_emutls (); }
+
+}; // class pass_ipa_lower_emutls
+
+} // anon namespace
+
+simple_ipa_opt_pass *
+make_pass_ipa_lower_emutls (gcc::context *ctxt)
+{
+  return new pass_ipa_lower_emutls (ctxt);
+}

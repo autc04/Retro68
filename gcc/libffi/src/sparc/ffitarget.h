@@ -1,5 +1,6 @@
 /* -----------------------------------------------------------------*-C-*-
-   ffitarget.h - Copyright (c) 1996-2003  Red Hat, Inc.
+   ffitarget.h - Copyright (c) 2012  Anthony Green
+                 Copyright (c) 1996-2003  Red Hat, Inc.
    Target configuration macros for SPARC.
 
    Permission is hereby granted, free of charge, to any person obtaining
@@ -27,6 +28,10 @@
 #ifndef LIBFFI_TARGET_H
 #define LIBFFI_TARGET_H
 
+#ifndef LIBFFI_H
+#error "Please do not include ffitarget.h directly into your source.  Use ffi.h instead."
+#endif
+
 /* ---- System specific configurations ----------------------------------- */
 
 #if defined(__arch64__) || defined(__sparcv9)
@@ -43,26 +48,40 @@ typedef enum ffi_abi {
   FFI_FIRST_ABI = 0,
   FFI_V8,
   FFI_V8PLUS,
+  /* See below for the COMPAT_V9 rationale.  */
+  FFI_COMPAT_V9,
   FFI_V9,
+  FFI_LAST_ABI,
 #ifdef SPARC64
-  FFI_DEFAULT_ABI = FFI_V9,
+  FFI_DEFAULT_ABI = FFI_V9
 #else
-  FFI_DEFAULT_ABI = FFI_V8,
+  FFI_DEFAULT_ABI = FFI_V8
 #endif
-  FFI_LAST_ABI = FFI_DEFAULT_ABI + 1
 } ffi_abi;
+#endif
+
+#define V8_ABI_P(abi) ((abi) == FFI_V8 || (abi) == FFI_V8PLUS)
+#define V9_ABI_P(abi) ((abi) == FFI_COMPAT_V9 || (abi) == FFI_V9)
+
+#define FFI_TARGET_SPECIFIC_VARIADIC 1
+
+/* The support of variadic functions was broken in the original implementation
+   of the FFI_V9 ABI.  This has been fixed by adding one extra field to the
+   CIF structure (nfixedargs field), which means that the ABI of libffi itself
+   has changed.  In order to support applications using the original ABI, we
+   have renamed FFI_V9 into FFI_COMPAT_V9 and defined a new FFI_V9 value.  */
+#ifdef SPARC64
+#define FFI_EXTRA_CIF_FIELDS unsigned int nfixedargs
 #endif
 
 /* ---- Definitions for closures ----------------------------------------- */
 
 #define FFI_CLOSURES 1
-#define FFI_NATIVE_RAW_API 0
-
 #ifdef SPARC64
 #define FFI_TRAMPOLINE_SIZE 24
 #else
 #define FFI_TRAMPOLINE_SIZE 16
 #endif
+#define FFI_NATIVE_RAW_API 0
 
 #endif
-

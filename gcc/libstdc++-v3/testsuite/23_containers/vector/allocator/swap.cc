@@ -1,4 +1,4 @@
-// Copyright (C) 2011 Free Software Foundation
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,16 +25,37 @@ struct T { int i; };
 
 using __gnu_test::propagating_allocator;
 
+// It is undefined behaviour to swap() containers wth unequal allocators
+// if the allocator doesn't propagate, so ensure the allocators compare
+// equal, while still being able to test propagation via get_personality().
+bool
+operator==(const propagating_allocator<T, false>&,
+           const propagating_allocator<T, false>&)
+{
+  return true;
+}
+
+bool
+operator!=(const propagating_allocator<T, false>&,
+           const propagating_allocator<T, false>&)
+{
+  return false;
+}
+
 void test01()
 {
   bool test __attribute__((unused)) = true;
   typedef propagating_allocator<T, false> alloc_type;
   typedef std::vector<T, alloc_type> test_type;
   test_type v1(alloc_type(1));
+  v1.push_back(T());
   test_type v2(alloc_type(2));
+  v2.push_back(T());
   std::swap(v1, v2);
   VERIFY(1 == v1.get_allocator().get_personality());
   VERIFY(2 == v2.get_allocator().get_personality());
+  // swap back so assertions in uneq_allocator::deallocate don't fail
+  std::swap(v1, v2);
 }
 
 void test02()
@@ -43,7 +64,9 @@ void test02()
   typedef propagating_allocator<T, true> alloc_type;
   typedef std::vector<T, alloc_type> test_type;
   test_type v1(alloc_type(1));
+  v1.push_back(T());
   test_type v2(alloc_type(2));
+  v2.push_back(T());
   std::swap(v1, v2);
   VERIFY(2 == v1.get_allocator().get_personality());
   VERIFY(1 == v2.get_allocator().get_personality());

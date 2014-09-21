@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -47,11 +47,11 @@ package Namet is
 
 --  The forms of the entries are as follows:
 
---    Identifiers Stored with upper case letters folded to lower case. Upper
---                       half (16#80# bit set) and wide characters are stored
---                       in an encoded form (Uhh for upper half char, Whhhh
---                       for wide characters, WWhhhhhhhh as provided by the
---                       routine Store_Encoded_Character, where hh are hex
+--    Identifiers        Stored with upper case letters folded to lower case.
+--                       Upper half (16#80# bit set) and wide characters are
+--                       stored in an encoded form (Uhh for upper half char,
+--                       Whhhh for wide characters, WWhhhhhhhh as provided by
+--                       the routine Store_Encoded_Character, where hh are hex
 --                       digits for the character code using lower case a-f).
 --                       Normally the use of U or W in other internal names is
 --                       avoided, but these letters may be used in internal
@@ -128,11 +128,17 @@ package Namet is
    --  This buffer is used to set the name to be stored in the table for the
    --  Name_Find call, and to retrieve the name for the Get_Name_String call.
    --  The limit here is intended to be an infinite value that ensures that we
-   --  never overflow the buffer (names this long are too absurd to worry!)
+   --  never overflow the buffer (names this long are too absurd to worry).
 
-   Name_Len : Natural;
+   Name_Len : Natural := 0;
    --  Length of name stored in Name_Buffer. Used as an input parameter for
    --  Name_Find, and as an output value by Get_Name_String, or Write_Name.
+   --  Note: in normal usage, all users of Name_Buffer/Name_Len are expected
+   --  to initialize Name_Len appropriately. The reason we preinitialize to
+   --  zero here is that some circuitry (e.g. Osint.Write_Program_Name) does
+   --  a save/restore on Name_Len and Name_Buffer (1 .. Name_Len), and we do
+   --  not want some arbitrary junk value to result in saving an arbitrarily
+   --  long slice which would waste time and blow the stack.
 
    -----------------------------
    -- Types for Namet Package --
@@ -164,6 +170,65 @@ package Namet is
 
    First_Name_Id : constant Name_Id := Names_Low_Bound + 2;
    --  Subscript of first entry in names table
+
+   ------------------------------
+   -- Name_Id Membership Tests --
+   ------------------------------
+
+   --  The following functions allow a convenient notation for testing whether
+   --  a Name_Id value matches any one of a list of possible values. In each
+   --  case True is returned if the given T argument is equal to any of the V
+   --  arguments. These essentially duplicate the Ada 2012 membership tests,
+   --  but we cannot use the latter (yet) in the compiler front end, because
+   --  of bootstrap considerations
+
+   function Nam_In
+     (T  : Name_Id;
+      V1 : Name_Id;
+      V2 : Name_Id) return Boolean;
+
+   function Nam_In
+     (T  : Name_Id;
+      V1 : Name_Id;
+      V2 : Name_Id;
+      V3 : Name_Id) return Boolean;
+
+   function Nam_In
+     (T  : Name_Id;
+      V1 : Name_Id;
+      V2 : Name_Id;
+      V3 : Name_Id;
+      V4 : Name_Id) return Boolean;
+
+   function Nam_In
+     (T  : Name_Id;
+      V1 : Name_Id;
+      V2 : Name_Id;
+      V3 : Name_Id;
+      V4 : Name_Id;
+      V5 : Name_Id) return Boolean;
+
+   function Nam_In
+     (T  : Name_Id;
+      V1 : Name_Id;
+      V2 : Name_Id;
+      V3 : Name_Id;
+      V4 : Name_Id;
+      V5 : Name_Id;
+      V6 : Name_Id) return Boolean;
+
+   function Nam_In
+     (T  : Name_Id;
+      V1 : Name_Id;
+      V2 : Name_Id;
+      V3 : Name_Id;
+      V4 : Name_Id;
+      V5 : Name_Id;
+      V6 : Name_Id;
+      V7 : Name_Id) return Boolean;
+
+   pragma Inline (Nam_In);
+   --  Inline all above functions
 
    -----------------
    -- Subprograms --

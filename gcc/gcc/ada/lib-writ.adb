@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,18 +26,19 @@
 with ALI;      use ALI;
 with Atree;    use Atree;
 with Casing;   use Casing;
+with Debug;    use Debug;
 with Einfo;    use Einfo;
 with Errout;   use Errout;
 with Fname;    use Fname;
 with Fname.UF; use Fname.UF;
 with Lib.Util; use Lib.Util;
 with Lib.Xref; use Lib.Xref;
-               use Lib.Xref.Alfa;
 with Nlists;   use Nlists;
 with Gnatvsn;  use Gnatvsn;
 with Opt;      use Opt;
 with Osint;    use Osint;
 with Osint.C;  use Osint.C;
+with Output;   use Output;
 with Par;
 with Par_SCO;  use Par_SCO;
 with Restrict; use Restrict;
@@ -71,28 +72,29 @@ package body Lib.Writ is
    begin
       Units.Increment_Last;
       Units.Table (Units.Last) :=
-        (Unit_File_Name   => File_Name (S),
-         Unit_Name        => No_Unit_Name,
-         Expected_Unit    => No_Unit_Name,
-         Source_Index     => S,
-         Cunit            => Empty,
-         Cunit_Entity     => Empty,
-         Dependency_Num   => 0,
-         Dynamic_Elab     => False,
-         Fatal_Error      => False,
-         Generate_Code    => False,
-         Has_Allocator    => False,
-         Has_RACW         => False,
-         Is_Compiler_Unit => False,
-         Ident_String     => Empty,
-         Loading          => False,
-         Main_Priority    => -1,
-         Main_CPU         => -1,
-         Munit_Index      => 0,
-         Serial_Number    => 0,
-         Version          => 0,
-         Error_Location   => No_Location,
-         OA_Setting       => 'O');
+        (Unit_File_Name    => File_Name (S),
+         Unit_Name         => No_Unit_Name,
+         Expected_Unit     => No_Unit_Name,
+         Source_Index      => S,
+         Cunit             => Empty,
+         Cunit_Entity      => Empty,
+         Dependency_Num    => 0,
+         Dynamic_Elab      => False,
+         Fatal_Error       => False,
+         Generate_Code     => False,
+         Has_Allocator     => False,
+         Has_RACW          => False,
+         Is_Compiler_Unit  => False,
+         Ident_String      => Empty,
+         Loading           => False,
+         Main_Priority     => -1,
+         Main_CPU          => -1,
+         Munit_Index       => 0,
+         Serial_Number     => 0,
+         Version           => 0,
+         Error_Location    => No_Location,
+         OA_Setting        => 'O',
+         SPARK_Mode_Pragma => Empty);
    end Add_Preprocessing_Dependency;
 
    ------------------------------
@@ -128,28 +130,29 @@ package body Lib.Writ is
 
       Units.Increment_Last;
       Units.Table (Units.Last) := (
-        Unit_File_Name   => System_Fname,
-        Unit_Name        => System_Uname,
-        Expected_Unit    => System_Uname,
-        Source_Index     => System_Source_File_Index,
-        Cunit            => Empty,
-        Cunit_Entity     => Empty,
-        Dependency_Num   => 0,
-        Dynamic_Elab     => False,
-        Fatal_Error      => False,
-        Generate_Code    => False,
-        Has_Allocator    => False,
-        Has_RACW         => False,
-        Is_Compiler_Unit => False,
-        Ident_String     => Empty,
-        Loading          => False,
-        Main_Priority    => -1,
-        Main_CPU         => -1,
-        Munit_Index      => 0,
-        Serial_Number    => 0,
-        Version          => 0,
-        Error_Location   => No_Location,
-        OA_Setting       => 'O');
+        Unit_File_Name    => System_Fname,
+        Unit_Name         => System_Uname,
+        Expected_Unit     => System_Uname,
+        Source_Index      => System_Source_File_Index,
+        Cunit             => Empty,
+        Cunit_Entity      => Empty,
+        Dependency_Num    => 0,
+        Dynamic_Elab      => False,
+        Fatal_Error       => False,
+        Generate_Code     => False,
+        Has_Allocator     => False,
+        Has_RACW          => False,
+        Is_Compiler_Unit  => False,
+        Ident_String      => Empty,
+        Loading           => False,
+        Main_Priority     => -1,
+        Main_CPU          => -1,
+        Munit_Index       => 0,
+        Serial_Number     => 0,
+        Version           => 0,
+        Error_Location    => No_Location,
+        OA_Setting        => 'O',
+        SPARK_Mode_Pragma => Empty);
 
       --  Parse system.ads so that the checksum is set right
       --  Style checks are not applied.
@@ -195,6 +198,11 @@ package body Lib.Writ is
 
       Elab_All_Des_Flags : array (Units.First .. Last_Unit) of Boolean;
       --  Array of flags to show which units have Elaborate_All_Desirable set
+
+      type Yes_No is (Unknown, Yes, No);
+      Implicit_With : array (Units.First .. Last_Unit) of Yes_No;
+      --  Indicates if an implicit with has been given for the unit. Yes if
+      --  certainly present, no if certainly absent, unkonwn if not known.
 
       Sdep_Table : Unit_Ref_Table (1 .. Pos (Last_Unit - Units.First + 2));
       --  Sorted table of source dependencies. One extra entry in case we
@@ -274,7 +282,15 @@ package body Lib.Writ is
                   end if;
 
                else
-                  Set_From_With_Type (Cunit_Entity (Unum));
+                  Set_From_Limited_With (Cunit_Entity (Unum));
+               end if;
+
+               if Implicit_With (Unum) /= Yes then
+                  if Implicit_With_From_Instantiation (Item) then
+                     Implicit_With (Unum) := Yes;
+                  else
+                     Implicit_With (Unum) := No;
+                  end if;
                end if;
             end if;
 
@@ -552,6 +568,7 @@ package body Lib.Writ is
             Elab_All_Flags     (J) := False;
             Elab_Des_Flags     (J) := False;
             Elab_All_Des_Flags (J) := False;
+            Implicit_With      (J) := Unknown;
          end loop;
 
          Collect_Withs (Unode);
@@ -599,9 +616,28 @@ package body Lib.Writ is
 
          Write_With_Lines;
 
-         --  Output linker option lines
+         --  Generate the linker option lines
 
          for J in 1 .. Linker_Option_Lines.Last loop
+
+            --  Pragma Linker_Options is not allowed in predefined generic
+            --  units. This is because they won't be read, due to the fact that
+            --  with lines for generic units lack the file name and lib name
+            --  parameters (see Lib_Writ spec for an explanation).
+
+            if Is_Generic_Unit (Cunit_Entity (Main_Unit))
+              and then
+                Is_Predefined_File_Name (Unit_File_Name (Current_Sem_Unit))
+              and then Linker_Option_Lines.Table (J).Unit = Unit_Num
+            then
+               Set_Standard_Error;
+               Write_Line
+                 ("linker options not allowed in predefined generic unit");
+               raise Unrecoverable_Error;
+            end if;
+
+            --  Output one linker option line
+
             declare
                S : Linker_Option_Entry renames Linker_Option_Lines.Table (J);
             begin
@@ -770,10 +806,14 @@ package body Lib.Writ is
             Uname  := Units.Table (Unum).Unit_Name;
             Fname  := Units.Table (Unum).Unit_File_Name;
 
-            if Ekind (Cunit_Entity (Unum)) = E_Package
-              and then From_With_Type (Cunit_Entity (Unum))
+            if Implicit_With (Unum) = Yes then
+               Write_Info_Initiate ('Z');
+
+            elsif Ekind (Cunit_Entity (Unum)) = E_Package
+              and then From_Limited_With (Cunit_Entity (Unum))
             then
                Write_Info_Initiate ('Y');
+
             else
                Write_Info_Initiate ('W');
             end if;
@@ -797,11 +837,11 @@ package body Lib.Writ is
                      Nkind (Unit (Cunit)) in N_Generic_Renaming_Declaration)
                     and then Generic_May_Lack_ALI (Fname))
 
-              --  In Alfa mode, always generate the dependencies on ALI
+              --  In SPARK mode, always generate the dependencies on ALI
               --  files, which are required to compute frame conditions
               --  of subprograms.
 
-              or else Alfa_Mode
+              or else GNATprove_Mode
             then
                Write_Info_Tab (25);
 
@@ -838,7 +878,7 @@ package body Lib.Writ is
                end if;
 
                if Ekind (Cunit_Entity (Unum)) = E_Package
-                  and then From_With_Type (Cunit_Entity (Unum))
+                  and then From_Limited_With (Cunit_Entity (Unum))
                then
                   null;
                else
@@ -862,6 +902,38 @@ package body Lib.Writ is
 
             Write_Info_EOL;
          end loop;
+
+         --  Finally generate the special lines for cases of Restriction_Set
+         --  with No_Dependence and no restriction present.
+
+         declare
+            Unam : Unit_Name_Type;
+
+         begin
+            for J in Restriction_Set_Dependences.First ..
+                     Restriction_Set_Dependences.Last
+            loop
+               Unam := Restriction_Set_Dependences.Table (J);
+
+               --  Don't need an entry if already in the unit table
+
+               for U in 0 .. Last_Unit loop
+                  if Unit_Name (U) = Unam then
+                     goto Continue;
+                  end if;
+               end loop;
+
+               --  Otherwise generate the entry
+
+               Write_Info_Initiate ('W');
+               Write_Info_Char (' ');
+               Write_Info_Name (Unam);
+               Write_Info_EOL;
+
+            <<Continue>>
+               null;
+            end loop;
+         end;
       end Write_With_Lines;
 
    --  Start of processing for Write_ALI
@@ -888,7 +960,7 @@ package body Lib.Writ is
 
       for Unum in Units.First .. Last_Unit loop
          if Cunit_Entity (Unum) = Empty
-           or else not From_With_Type (Cunit_Entity (Unum))
+           or else not From_Limited_With (Cunit_Entity (Unum))
          then
             Num_Sdep := Num_Sdep + 1;
             Sdep_Table (Num_Sdep) := Unum;
@@ -901,9 +973,10 @@ package body Lib.Writ is
 
       --  If we are not generating code, and there is an up to date ALI file
       --  file accessible, read it, and acquire the compilation arguments from
-      --  this file.
+      --  this file. In GNATprove mode, always generate the ALI file, which
+      --  contains a special section for formal verification.
 
-      if Operating_Mode /= Generate_Code then
+      if Operating_Mode /= Generate_Code and then not GNATprove_Mode then
          if Up_To_Date_ALI_File_Exists then
             Update_Tables_From_ALI_File;
             return;
@@ -1080,6 +1153,11 @@ package body Lib.Writ is
          end if;
       end if;
 
+      if Partition_Elaboration_Policy /= ' ' then
+         Write_Info_Str  (" E");
+         Write_Info_Char (Partition_Elaboration_Policy);
+      end if;
+
       if not Object then
          Write_Info_Str (" NO");
       end if;
@@ -1122,52 +1200,128 @@ package body Lib.Writ is
          end if;
       end loop;
 
-      --  Output first restrictions line
+      --  Positional case (only if debug flag -gnatd.R is set)
 
-      Write_Info_Initiate ('R');
-      Write_Info_Char (' ');
+      if Debug_Flag_Dot_RR then
 
-      --  First the information for the boolean restrictions
+         --  Output first restrictions line
 
-      for R in All_Boolean_Restrictions loop
-         if Main_Restrictions.Set (R)
-           and then not Restriction_Warnings (R)
-         then
-            Write_Info_Char ('r');
-         elsif Main_Restrictions.Violated (R) then
-            Write_Info_Char ('v');
-         else
-            Write_Info_Char ('n');
-         end if;
-      end loop;
+         Write_Info_Initiate ('R');
+         Write_Info_Char (' ');
 
-      --  And now the information for the parameter restrictions
+         --  First the information for the boolean restrictions
 
-      for RP in All_Parameter_Restrictions loop
-         if Main_Restrictions.Set (RP)
-           and then not Restriction_Warnings (RP)
-         then
-            Write_Info_Char ('r');
-            Write_Info_Nat (Nat (Main_Restrictions.Value (RP)));
-         else
-            Write_Info_Char ('n');
-         end if;
-
-         if not Main_Restrictions.Violated (RP)
-           or else RP not in Checked_Parameter_Restrictions
-         then
-            Write_Info_Char ('n');
-         else
-            Write_Info_Char ('v');
-            Write_Info_Nat (Nat (Main_Restrictions.Count (RP)));
-
-            if Main_Restrictions.Unknown (RP) then
-               Write_Info_Char ('+');
+         for R in All_Boolean_Restrictions loop
+            if Main_Restrictions.Set (R)
+              and then not Restriction_Warnings (R)
+            then
+               Write_Info_Char ('r');
+            elsif Main_Restrictions.Violated (R) then
+               Write_Info_Char ('v');
+            else
+               Write_Info_Char ('n');
             end if;
-         end if;
-      end loop;
+         end loop;
 
-      Write_Info_EOL;
+         --  And now the information for the parameter restrictions
+
+         for RP in All_Parameter_Restrictions loop
+            if Main_Restrictions.Set (RP)
+              and then not Restriction_Warnings (RP)
+            then
+               Write_Info_Char ('r');
+               Write_Info_Nat (Nat (Main_Restrictions.Value (RP)));
+            else
+               Write_Info_Char ('n');
+            end if;
+
+            if not Main_Restrictions.Violated (RP)
+              or else RP not in Checked_Parameter_Restrictions
+            then
+               Write_Info_Char ('n');
+            else
+               Write_Info_Char ('v');
+               Write_Info_Nat (Nat (Main_Restrictions.Count (RP)));
+
+               if Main_Restrictions.Unknown (RP) then
+                  Write_Info_Char ('+');
+               end if;
+            end if;
+         end loop;
+
+         Write_Info_EOL;
+
+      --  Named case (if debug flag -gnatd.R is not set)
+
+      else
+         declare
+            C : Character;
+
+         begin
+            --  Write RN header line with preceding blank line
+
+            Write_Info_EOL;
+            Write_Info_Initiate ('R');
+            Write_Info_Char ('N');
+            Write_Info_EOL;
+
+            --  First the lines for the boolean restrictions
+
+            for R in All_Boolean_Restrictions loop
+               if Main_Restrictions.Set (R)
+                 and then not Restriction_Warnings (R)
+               then
+                  C := 'R';
+               elsif Main_Restrictions.Violated (R) then
+                  C := 'V';
+               else
+                  goto Continue;
+               end if;
+
+               Write_Info_Initiate ('R');
+               Write_Info_Char (C);
+               Write_Info_Char (' ');
+               Write_Info_Str (All_Boolean_Restrictions'Image (R));
+               Write_Info_EOL;
+
+            <<Continue>>
+               null;
+            end loop;
+         end;
+
+         --  And now the lines for the parameter restrictions
+
+         for RP in All_Parameter_Restrictions loop
+            if Main_Restrictions.Set (RP)
+              and then not Restriction_Warnings (RP)
+            then
+               Write_Info_Initiate ('R');
+               Write_Info_Str ("R ");
+               Write_Info_Str (All_Parameter_Restrictions'Image (RP));
+               Write_Info_Char ('=');
+               Write_Info_Nat (Nat (Main_Restrictions.Value (RP)));
+               Write_Info_EOL;
+            end if;
+
+            if not Main_Restrictions.Violated (RP)
+              or else RP not in Checked_Parameter_Restrictions
+            then
+               null;
+            else
+               Write_Info_Initiate ('R');
+               Write_Info_Str ("V ");
+               Write_Info_Str (All_Parameter_Restrictions'Image (RP));
+               Write_Info_Char ('=');
+               Write_Info_Nat (Nat (Main_Restrictions.Count (RP)));
+
+               if Main_Restrictions.Unknown (RP) then
+                  Write_Info_Char ('+');
+               end if;
+
+               Write_Info_EOL;
+            end if;
+         end loop;
+      end if;
 
       --  Output R lines for No_Dependence entries
 
@@ -1275,7 +1429,7 @@ package body Lib.Writ is
                   Fname := Name_Find;
                end if;
 
-               Write_Info_Name (Fname);
+               Write_Info_Name_May_Be_Quoted (Fname);
                Write_Info_Tab (25);
                Write_Info_Str (String (Time_Stamp (Sind)));
                Write_Info_Char (' ');
@@ -1333,15 +1487,16 @@ package body Lib.Writ is
          SCO_Output;
       end if;
 
-      --  Output Alfa information if needed
+      --  Output SPARK cross-reference information if needed
 
-      if Opt.Xref_Active and then Alfa_Mode then
-         Collect_Alfa (Sdep_Table => Sdep_Table, Num_Sdep => Num_Sdep);
-         Output_Alfa;
+      if Opt.Xref_Active and then GNATprove_Mode then
+         SPARK_Specific.Collect_SPARK_Xrefs (Sdep_Table => Sdep_Table,
+                                             Num_Sdep   => Num_Sdep);
+         SPARK_Specific.Output_SPARK_Xrefs;
       end if;
 
       --  Output final blank line and we are done. This final blank line is
-      --  probably junk, but we don't feel like making an incompatible change!
+      --  probably junk, but we don't feel like making an incompatible change.
 
       Write_Info_Terminate;
       Close_Output_Library_Info;

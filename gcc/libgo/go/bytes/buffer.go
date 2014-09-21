@@ -87,6 +87,13 @@ func (b *Buffer) grow(n int) int {
 		var buf []byte
 		if b.buf == nil && n <= len(b.bootstrap) {
 			buf = b.bootstrap[0:]
+		} else if m+n <= cap(b.buf)/2 {
+			// We can slide things down instead of allocating a new
+			// slice. We only need m+n <= cap(b.buf) to slide, but
+			// we instead let capacity get twice as large so we
+			// don't spend all our time copying.
+			copy(b.buf[:], b.buf[b.off:])
+			buf = b.buf[:m]
 		} else {
 			// not enough space anywhere
 			buf = makeSlice(2*cap(b.buf) + n)
@@ -99,20 +106,31 @@ func (b *Buffer) grow(n int) int {
 	return b.off + m
 }
 
-// Write appends the contents of p to the buffer.  The return
-// value n is the length of p; err is always nil.
-// If the buffer becomes too large, Write will panic with
-// ErrTooLarge.
+// Grow grows the buffer's capacity, if necessary, to guarantee space for
+// another n bytes. After Grow(n), at least n bytes can be written to the
+// buffer without another allocation.
+// If n is negative, Grow will panic.
+// If the buffer can't grow it will panic with ErrTooLarge.
+func (b *Buffer) Grow(n int) {
+	if n < 0 {
+		panic("bytes.Buffer.Grow: negative count")
+	}
+	m := b.grow(n)
+	b.buf = b.buf[0:m]
+}
+
+// Write appends the contents of p to the buffer, growing the buffer as
+// needed. The return value n is the length of p; err is always nil. If the
+// buffer becomes too large, Write will panic with ErrTooLarge.
 func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(p))
 	return copy(b.buf[m:], p), nil
 }
 
-// WriteString appends the contents of s to the buffer.  The return
-// value n is the length of s; err is always nil.
-// If the buffer becomes too large, WriteString will panic with
-// ErrTooLarge.
+// WriteString appends the contents of s to the buffer, growing the buffer as
+// needed. The return value n is the length of s; err is always nil. If the
+// buffer becomes too large, WriteString will panic with ErrTooLarge.
 func (b *Buffer) WriteString(s string) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(s))
@@ -125,12 +143,10 @@ func (b *Buffer) WriteString(s string) (n int, err error) {
 // underlying buffer.
 const MinRead = 512
 
-// ReadFrom reads data from r until EOF and appends it to the buffer.
-// The return value n is the number of bytes read.
-// Any error except io.EOF encountered during the read
-// is also returned.
-// If the buffer becomes too large, ReadFrom will panic with
-// ErrTooLarge.
+// ReadFrom reads data from r until EOF and appends it to the buffer, growing
+// the buffer as needed. The return value n is the number of bytes read. Any
+// error except io.EOF encountered during the read is also returned. If the
+// buffer becomes too large, ReadFrom will panic with ErrTooLarge.
 func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
 	// If buffer is empty, reset to recover space.
@@ -175,10 +191,10 @@ func makeSlice(n int) []byte {
 	return make([]byte, n)
 }
 
-// WriteTo writes data to w until the buffer is drained or an error
-// occurs. The return value n is the number of bytes written; it always
-// fits into an int, but it is int64 to match the io.WriterTo interface.
-// Any error encountered during the write is also returned.
+// WriteTo writes data to w until the buffer is drained or an error occurs.
+// The return value n is the number of bytes written; it always fits into an
+// int, but it is int64 to match the io.WriterTo interface. Any error
+// encountered during the write is also returned.
 func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	b.lastRead = opInvalid
 	if b.off < len(b.buf) {
@@ -203,10 +219,9 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// WriteByte appends the byte c to the buffer.
-// The returned error is always nil, but is included
-// to match bufio.Writer's WriteByte.
-// If the buffer becomes too large, WriteByte will panic with
+// WriteByte appends the byte c to the buffer, growing the buffer as needed.
+// The returned error is always nil, but is included to match bufio.Writer's
+// WriteByte. If the buffer becomes too large, WriteByte will panic with
 // ErrTooLarge.
 func (b *Buffer) WriteByte(c byte) error {
 	b.lastRead = opInvalid
@@ -215,12 +230,10 @@ func (b *Buffer) WriteByte(c byte) error {
 	return nil
 }
 
-// WriteRune appends the UTF-8 encoding of Unicode
-// code point r to the buffer, returning its length and
-// an error, which is always nil but is included
-// to match bufio.Writer's WriteRune.
-// If the buffer becomes too large, WriteRune will panic with
-// ErrTooLarge.
+// WriteRune appends the UTF-8 encoding of Unicode code point r to the
+// buffer, returning its length and an error, which is always nil but is
+// included to match bufio.Writer's WriteRune. The buffer is grown as needed;
+// if it becomes too large, WriteRune will panic with ErrTooLarge.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	if r < utf8.RuneSelf {
 		b.WriteByte(byte(r))
@@ -347,16 +360,25 @@ func (b *Buffer) UnreadByte() error {
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
+	slice, err := b.readSlice(delim)
+	// return a copy of slice. The buffer's backing array may
+	// be overwritten by later calls.
+	line = append(line, slice...)
+	return
+}
+
+// readSlice is like ReadBytes but returns a reference to internal buffer data.
+func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
 	i := IndexByte(b.buf[b.off:], delim)
-	size := i + 1
+	end := b.off + i + 1
 	if i < 0 {
-		size = len(b.buf) - b.off
+		end = len(b.buf)
 		err = io.EOF
 	}
-	line = make([]byte, size)
-	copy(line, b.buf[b.off:])
-	b.off += size
-	return
+	line = b.buf[b.off:end]
+	b.off = end
+	b.lastRead = opRead
+	return line, err
 }
 
 // ReadString reads until the first occurrence of delim in the input,
@@ -366,8 +388,8 @@ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString returns err != nil if and only if the returned data does not end
 // in delim.
 func (b *Buffer) ReadString(delim byte) (line string, err error) {
-	bytes, err := b.ReadBytes(delim)
-	return string(bytes), err
+	slice, err := b.readSlice(delim)
+	return string(slice), err
 }
 
 // NewBuffer creates and initializes a new Buffer using buf as its initial

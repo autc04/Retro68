@@ -6,20 +6,19 @@
 
 #include <string.h>
 
-#include "config.h"
 #include "runtime.h"
 #include "arch.h"
 #include "malloc.h"
 
-String Signame (int sig) asm ("libgo_syscall.syscall.Signame");
+String Signame (intgo sig) __asm__ (GOSYM_PREFIX "syscall.Signame");
 
 String
-Signame (int sig)
+Signame (intgo sig)
 {
   const char* s = NULL;
   char buf[100];
   size_t len;
-  unsigned char *data;
+  byte *data;
   String ret;
 
 #if defined(HAVE_STRSIGNAL)
@@ -28,13 +27,13 @@ Signame (int sig)
 
   if (s == NULL)
     {
-      snprintf(buf, sizeof buf, "signal %d", sig);
+      snprintf(buf, sizeof buf, "signal %ld", (long) sig);
       s = buf;
     }
   len = __builtin_strlen (s);
-  data = runtime_mallocgc (len, FlagNoPointers, 0, 0);
+  data = runtime_mallocgc (len, 0, FlagNoScan);
   __builtin_memcpy (data, s, len);
-  ret.__data = data;
-  ret.__length = len;
+  ret.str = data;
+  ret.len = len;
   return ret;
 }

@@ -2,22 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// IP sockets stubs for Plan 9
+// Internet protocol family sockets for Plan 9
 
 package net
 
 import (
 	"errors"
-	"io"
 	"os"
 	"syscall"
-	"time"
 )
 
-// probeIPv6Stack returns two boolean values.  If the first boolean value is
-// true, kernel supports basic IPv6 functionality.  If the second
-// boolean value is true, kernel supports IPv6 IPv4-mapping.
+func probeIPv4Stack() bool {
+	// TODO(mikio): implement this when Plan 9 supports IPv6-only
+	// kernel.
+	return true
+}
+
+// probeIPv6Stack returns two boolean values.  If the first boolean
+// value is true, kernel supports basic IPv6 functionality.  If the
+// second boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+	// TODO(mikio): implement this once Plan 9 gets an IPv6
+	// protocol stack implementation.
 	return false, false
 }
 
@@ -48,6 +54,7 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	if err != nil {
 		return
 	}
+	defer f.Close()
 	n, err := f.Read(buf[:])
 	if err != nil {
 		return
@@ -58,108 +65,13 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	}
 	switch proto {
 	case "tcp":
-		addr = &TCPAddr{ip, port}
+		addr = &TCPAddr{IP: ip, Port: port}
 	case "udp":
-		addr = &UDPAddr{ip, port}
+		addr = &UDPAddr{IP: ip, Port: port}
 	default:
 		return nil, errors.New("unknown protocol " + proto)
 	}
 	return addr, nil
-}
-
-type plan9Conn struct {
-	proto, name, dir string
-	ctl, data        *os.File
-	laddr, raddr     Addr
-}
-
-func newPlan9Conn(proto, name string, ctl *os.File, laddr, raddr Addr) *plan9Conn {
-	return &plan9Conn{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
-}
-
-func (c *plan9Conn) ok() bool { return c != nil && c.ctl != nil }
-
-// Implementation of the Conn interface - see Conn for documentation.
-
-// Read implements the Conn Read method.
-func (c *plan9Conn) Read(b []byte) (n int, err error) {
-	if !c.ok() {
-		return 0, syscall.EINVAL
-	}
-	if c.data == nil {
-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, err
-		}
-	}
-	n, err = c.data.Read(b)
-	if c.proto == "udp" && err == io.EOF {
-		n = 0
-		err = nil
-	}
-	return
-}
-
-// Write implements the Conn Write method.
-func (c *plan9Conn) Write(b []byte) (n int, err error) {
-	if !c.ok() {
-		return 0, syscall.EINVAL
-	}
-	if c.data == nil {
-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, err
-		}
-	}
-	return c.data.Write(b)
-}
-
-// Close closes the connection.
-func (c *plan9Conn) Close() error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	err := c.ctl.Close()
-	if err != nil {
-		return err
-	}
-	if c.data != nil {
-		err = c.data.Close()
-	}
-	c.ctl = nil
-	c.data = nil
-	return err
-}
-
-// LocalAddr returns the local network address.
-func (c *plan9Conn) LocalAddr() Addr {
-	if !c.ok() {
-		return nil
-	}
-	return c.laddr
-}
-
-// RemoteAddr returns the remote network address.
-func (c *plan9Conn) RemoteAddr() Addr {
-	if !c.ok() {
-		return nil
-	}
-	return c.raddr
-}
-
-// SetDeadline implements the Conn SetDeadline method.
-func (c *plan9Conn) SetDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetReadDeadline implements the Conn SetReadDeadline method.
-func (c *plan9Conn) SetReadDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetWriteDeadline implements the Conn SetWriteDeadline method.
-func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
-	return syscall.EPLAN9
 }
 
 func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
@@ -192,98 +104,95 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, 
 	var buf [16]byte
 	n, err := f.Read(buf[:])
 	if err != nil {
+		f.Close()
 		return
 	}
 	return f, dest, proto, string(buf[:n]), nil
 }
 
-func dialPlan9(net string, laddr, raddr Addr) (c *plan9Conn, err error) {
+func netErr(e error) {
+	oe, ok := e.(*OpError)
+	if !ok {
+		return
+	}
+	if pe, ok := oe.Err.(*os.PathError); ok {
+		if _, ok = pe.Err.(syscall.ErrorString); ok {
+			oe.Err = pe.Err
+		}
+	}
+}
+
+func dialPlan9(net string, laddr, raddr Addr) (fd *netFD, err error) {
+	defer func() { netErr(err) }()
 	f, dest, proto, name, err := startPlan9(net, raddr)
 	if err != nil {
-		return
+		return nil, &OpError{"dial", net, raddr, err}
 	}
 	_, err = f.WriteString("connect " + dest)
 	if err != nil {
-		return
+		f.Close()
+		return nil, &OpError{"dial", f.Name(), raddr, err}
+	}
+	data, err := os.OpenFile("/net/"+proto+"/"+name+"/data", os.O_RDWR, 0)
+	if err != nil {
+		f.Close()
+		return nil, &OpError{"dial", net, raddr, err}
 	}
 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
 	if err != nil {
-		return
+		data.Close()
+		f.Close()
+		return nil, &OpError{"dial", proto, raddr, err}
 	}
-	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
-	if err != nil {
-		return
-	}
-	return newPlan9Conn(proto, name, f, laddr, raddr), nil
+	return newFD(proto, name, f, data, laddr, raddr), nil
 }
 
-type plan9Listener struct {
-	proto, name, dir string
-	ctl              *os.File
-	laddr            Addr
-}
-
-func listenPlan9(net string, laddr Addr) (l *plan9Listener, err error) {
+func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
+	defer func() { netErr(err) }()
 	f, dest, proto, name, err := startPlan9(net, laddr)
 	if err != nil {
-		return
+		return nil, &OpError{"listen", net, laddr, err}
 	}
 	_, err = f.WriteString("announce " + dest)
 	if err != nil {
-		return
+		f.Close()
+		return nil, &OpError{"announce", proto, laddr, err}
 	}
 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
 	if err != nil {
-		return
+		f.Close()
+		return nil, &OpError{Op: "listen", Net: net, Err: err}
 	}
-	l = new(plan9Listener)
-	l.proto = proto
-	l.name = name
-	l.dir = "/net/" + proto + "/" + name
-	l.ctl = f
-	l.laddr = laddr
-	return l, nil
+	return newFD(proto, name, f, nil, laddr, nil), nil
 }
 
-func (l *plan9Listener) plan9Conn() *plan9Conn {
-	return newPlan9Conn(l.proto, l.name, l.ctl, l.laddr, nil)
+func (l *netFD) netFD() *netFD {
+	return newFD(l.proto, l.name, l.ctl, l.data, l.laddr, l.raddr)
 }
 
-func (l *plan9Listener) acceptPlan9() (c *plan9Conn, err error) {
+func (l *netFD) acceptPlan9() (fd *netFD, err error) {
+	defer func() { netErr(err) }()
 	f, err := os.Open(l.dir + "/listen")
 	if err != nil {
-		return
+		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
 	}
 	var buf [16]byte
 	n, err := f.Read(buf[:])
 	if err != nil {
-		return
+		f.Close()
+		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
 	}
 	name := string(buf[:n])
-	laddr, err := readPlan9Addr(l.proto, l.dir+"/local")
+	data, err := os.OpenFile("/net/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
 	if err != nil {
-		return
+		f.Close()
+		return nil, &OpError{"accept", l.proto, l.laddr, err}
 	}
-	raddr, err := readPlan9Addr(l.proto, l.dir+"/remote")
+	raddr, err := readPlan9Addr(l.proto, "/net/"+l.proto+"/"+name+"/remote")
 	if err != nil {
-		return
+		data.Close()
+		f.Close()
+		return nil, &OpError{"accept", l.proto, l.laddr, err}
 	}
-	return newPlan9Conn(l.proto, name, f, laddr, raddr), nil
+	return newFD(l.proto, name, f, data, l.laddr, raddr), nil
 }
-
-func (l *plan9Listener) Accept() (c Conn, err error) {
-	c1, err := l.acceptPlan9()
-	if err != nil {
-		return
-	}
-	return c1, nil
-}
-
-func (l *plan9Listener) Close() error {
-	if l == nil || l.ctl == nil {
-		return syscall.EINVAL
-	}
-	return l.ctl.Close()
-}
-
-func (l *plan9Listener) Addr() Addr { return l.laddr }

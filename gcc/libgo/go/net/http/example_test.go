@@ -43,9 +43,46 @@ func ExampleGet() {
 		log.Fatal(err)
 	}
 	robots, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	res.Body.Close()
 	fmt.Printf("%s", robots)
+}
+
+func ExampleFileServer() {
+	// Simple static webserver:
+	log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir("/usr/share/doc"))))
+}
+
+func ExampleFileServer_stripPrefix() {
+	// To serve a directory on disk (/tmp) under an alternate URL
+	// path (/tmpfiles/), use StripPrefix to modify the request
+	// URL's path before the FileServer sees it:
+	http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
+}
+
+func ExampleStripPrefix() {
+	// To serve a directory on disk (/tmp) under an alternate URL
+	// path (/tmpfiles/), use StripPrefix to modify the request
+	// URL's path before the FileServer sees it:
+	http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
+}
+
+type apiHandler struct{}
+
+func (apiHandler) ServeHTTP(http.ResponseWriter, *http.Request) {}
+
+func ExampleServeMux_Handle() {
+	mux := http.NewServeMux()
+	mux.Handle("/api/", apiHandler{})
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		// The "/" pattern matches everything, so we need to check
+		// that we're at the root here.
+		if req.URL.Path != "/" {
+			http.NotFound(w, req)
+			return
+		}
+		fmt.Fprintf(w, "Welcome to the home page!")
+	})
 }

@@ -1,7 +1,6 @@
 ; Options for the rs6000 port of the compiler
 ;
-; Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011 Free Software
-; Foundation, Inc.
+; Copyright (C) 2005-2014 Free Software Foundation, Inc.
 ; Contributed by Aldy Hernandez <aldy@quesejoda.com>.
 ;
 ; This file is part of GCC.
@@ -23,9 +22,23 @@
 HeaderInclude
 config/rs6000/rs6000-opts.h
 
+;; ISA flag bits (on/off)
+Variable
+HOST_WIDE_INT rs6000_isa_flags = TARGET_DEFAULT
+
+TargetSave
+HOST_WIDE_INT x_rs6000_isa_flags
+
+;; Miscellaneous flag bits that were set explicitly by the user
+Variable
+HOST_WIDE_INT rs6000_isa_flags_explicit
+
+TargetSave
+HOST_WIDE_INT x_rs6000_isa_flags_explicit
+
 ;; Current processor
 TargetVariable
-enum processor_type rs6000_cpu = PROCESSOR_RIOS1
+enum processor_type rs6000_cpu = PROCESSOR_PPC603
 
 ;; Always emit branch hint bits.
 TargetVariable
@@ -81,110 +94,90 @@ unsigned int rs6000_recip_control
 
 ;; Mask of what builtin functions are allowed
 TargetVariable
-unsigned int rs6000_builtin_mask
+HOST_WIDE_INT rs6000_builtin_mask
 
 ;; Debug flags
 TargetVariable
 unsigned int rs6000_debug
 
-;; Save for target_flags_explicit
-TargetSave
-int rs6000_target_flags_explicit
-
-mpower
-Target Report RejectNegative Mask(POWER)
-Use POWER instruction set
-
-mno-power
-Target Report RejectNegative
-Do not use POWER instruction set
-
-mpower2
-Target Report Mask(POWER2)
-Use POWER2 instruction set
-
+;; This option existed in the past, but now is always on.
 mpowerpc
-Target Report RejectNegative Mask(POWERPC)
-Use PowerPC instruction set
-
-mno-powerpc
-Target Report RejectNegative
-Do not use PowerPC instruction set
+Target RejectNegative Undocumented Ignore
 
 mpowerpc64
-Target Report Mask(POWERPC64)
+Target Report Mask(POWERPC64) Var(rs6000_isa_flags)
 Use PowerPC-64 instruction set
 
 mpowerpc-gpopt
-Target Report Mask(PPC_GPOPT) Save
+Target Report Mask(PPC_GPOPT) Var(rs6000_isa_flags)
 Use PowerPC General Purpose group optional instructions
 
 mpowerpc-gfxopt
-Target Report Mask(PPC_GFXOPT) Save
+Target Report Mask(PPC_GFXOPT) Var(rs6000_isa_flags)
 Use PowerPC Graphics group optional instructions
 
 mmfcrf
-Target Report Mask(MFCRF) Save
+Target Report Mask(MFCRF) Var(rs6000_isa_flags)
 Use PowerPC V2.01 single field mfcr instruction
 
 mpopcntb
-Target Report Mask(POPCNTB) Save
+Target Report Mask(POPCNTB) Var(rs6000_isa_flags)
 Use PowerPC V2.02 popcntb instruction
 
 mfprnd
-Target Report Mask(FPRND) Save
+Target Report Mask(FPRND) Var(rs6000_isa_flags)
 Use PowerPC V2.02 floating point rounding instructions
 
 mcmpb
-Target Report Mask(CMPB) Save
+Target Report Mask(CMPB) Var(rs6000_isa_flags)
 Use PowerPC V2.05 compare bytes instruction
 
 mmfpgpr
-Target Report Mask(MFPGPR) Save
+Target Report Mask(MFPGPR) Var(rs6000_isa_flags)
 Use extended PowerPC V2.05 move floating point to/from GPR instructions
 
 maltivec
-Target Report Mask(ALTIVEC) Save
+Target Report Mask(ALTIVEC) Var(rs6000_isa_flags)
 Use AltiVec instructions
 
+maltivec=le
+Target Report RejectNegative Var(rs6000_altivec_element_order, 1) Save
+Generate Altivec instructions using little-endian element order
+
+maltivec=be
+Target Report RejectNegative Var(rs6000_altivec_element_order, 2)
+Generate Altivec instructions using big-endian element order
+
 mhard-dfp
-Target Report Mask(DFP) Save
+Target Report Mask(DFP) Var(rs6000_isa_flags)
 Use decimal floating point instructions
 
 mmulhw
-Target Report Mask(MULHW) Save
+Target Report Mask(MULHW) Var(rs6000_isa_flags)
 Use 4xx half-word multiply instructions
 
 mdlmzb
-Target Report Mask(DLMZB) Save
+Target Report Mask(DLMZB) Var(rs6000_isa_flags)
 Use 4xx string-search dlmzb instruction
 
 mmultiple
-Target Report Mask(MULTIPLE) Save
+Target Report Mask(MULTIPLE) Var(rs6000_isa_flags)
 Generate load/store multiple instructions
 
 mstring
-Target Report Mask(STRING) Save
+Target Report Mask(STRING) Var(rs6000_isa_flags)
 Generate string instructions for block moves
 
-mnew-mnemonics
-Target Report RejectNegative Mask(NEW_MNEMONICS)
-Use new mnemonics for PowerPC architecture
-
-mold-mnemonics
-Target Report RejectNegative InverseMask(NEW_MNEMONICS)
-Use old mnemonics for PowerPC architecture
-
 msoft-float
-Target Report RejectNegative Mask(SOFT_FLOAT)
+Target Report RejectNegative Mask(SOFT_FLOAT) Var(rs6000_isa_flags)
 Do not use hardware floating point
 
 mhard-float
-Target Report RejectNegative InverseMask(SOFT_FLOAT, HARD_FLOAT)
+Target Report RejectNegative InverseMask(SOFT_FLOAT, HARD_FLOAT) Var(rs6000_isa_flags)
 Use hardware floating point
 
 mpopcntd
-Target Report Mask(POPCNTD) Save
+Target Report Mask(POPCNTD) Var(rs6000_isa_flags)
 Use PowerPC V2.06 popcntd instruction
 
 mfriz
@@ -196,16 +189,19 @@ Target RejectNegative Joined Var(rs6000_veclibabi_name)
 Vector library ABI to use
 
 mvsx
-Target Report Mask(VSX) Save
+Target Report Mask(VSX) Var(rs6000_isa_flags)
 Use vector/scalar (VSX) instructions
 
+mvsx-scalar-float
+Target Undocumented Report Var(TARGET_VSX_SCALAR_FLOAT) Init(1)
+; If -mpower8-vector, use VSX arithmetic instructions for SFmode (on by default)
+
 mvsx-scalar-double
-Target Undocumented Report Var(TARGET_VSX_SCALAR_DOUBLE) Init(-1)
-; If -mvsx, use VSX arithmetic instructions for scalar double (on by default)
+Target Undocumented Report Var(TARGET_VSX_SCALAR_DOUBLE) Init(1)
+; If -mvsx, use VSX arithmetic instructions for DFmode (on by default)
 
 mvsx-scalar-memory
-Target Undocumented Report Var(TARGET_VSX_SCALAR_MEMORY)
-; If -mvsx, use VSX scalar memory reference instructions for scalar double (off by default)
+Target Undocumented Report Alias(mupper-regs-df)
 
 mvsx-align-128
 Target Undocumented Report Var(TARGET_VSX_ALIGN_128)
@@ -236,11 +232,11 @@ Target Undocumented Report Var(TARGET_VECTORIZE_BUILTINS) Init(-1)
 ; Explicitly control whether we vectorize the builtins or not.
 
 mno-update
-Target Report RejectNegative Mask(NO_UPDATE) Save
+Target Report RejectNegative Mask(NO_UPDATE) Var(rs6000_isa_flags)
 Do not generate load/store with update instructions
 
 mupdate
-Target Report RejectNegative InverseMask(NO_UPDATE, UPDATE)
+Target Report RejectNegative InverseMask(NO_UPDATE, UPDATE) Var(rs6000_isa_flags)
 Generate load/store with update instructions
 
 msingle-pic-base
@@ -283,7 +279,7 @@ Target Report RejectNegative Joined Var(rs6000_recip_name)
 Generate software reciprocal divide and square root for better throughput.
 
 mrecip-precision
-Target Report Mask(RECIP_PRECISION) Save
+Target Report Mask(RECIP_PRECISION) Var(rs6000_isa_flags)
 Assume that the reciprocal estimate instructions provide more accuracy.
 
 mno-fp-in-toc
@@ -310,7 +306,7 @@ Place symbol+offset constants in TOC
 ;   This is at the cost of having 2 extra loads and one extra store per
 ;   function, and one less allocable register.
 mminimal-toc
-Target Report Mask(MINIMAL_TOC)
+Target Report Mask(MINIMAL_TOC) Var(rs6000_isa_flags)
 Use only one TOC entry per procedure
 
 mfull-toc
@@ -334,7 +330,7 @@ Target Report Var(rs6000_block_move_inline_limit) Init(0) RejectNegative Joined 
 Specify how many bytes should be moved inline before calling out to memcpy/memmove
 
 misel
-Target Report Mask(ISEL) Save
+Target Report Mask(ISEL) Var(rs6000_isa_flags)
 Generate isel instructions
 
 misel=no
@@ -380,6 +376,14 @@ Use the SPE ABI extensions
 mabi=no-spe
 Target RejectNegative Var(rs6000_spe_abi, 0)
 Do not use the SPE ABI extensions
+
+mabi=elfv1
+Target RejectNegative Var(rs6000_elf_abi, 1) Save
+Use the ELFv1 ABI
+
+mabi=elfv2
+Target RejectNegative Var(rs6000_elf_abi, 2)
+Use the ELFv2 ABI
 
 ; These are here for testing during development only, do not document
 ; in the manual please.
@@ -461,6 +465,10 @@ mlong-double-
 Target RejectNegative Joined UInteger Var(rs6000_long_double_type_size) Save
 -mlong-double-<n>	Specify size of long double (64 or 128 bits)
 
+mlra
+Target Report Var(rs6000_lra_flag) Init(0) Save
+Use LRA instead of reload
+
 msched-costly-dep=
 Target RejectNegative Joined Var(rs6000_sched_costly_dep_str)
 Determine which dependences between insns are considered costly
@@ -532,3 +540,51 @@ Use/do not use r11 to hold the static link in calls to functions via pointers.
 msave-toc-indirect
 Target Report Var(TARGET_SAVE_TOC_INDIRECT) Save
 Control whether we save the TOC in the prologue for indirect calls or generate the save inline
+
+mvsx-timode
+Target Undocumented Mask(VSX_TIMODE) Var(rs6000_isa_flags)
+Allow 128-bit integers in VSX registers
+
+mpower8-fusion
+Target Report Mask(P8_FUSION) Var(rs6000_isa_flags)
+Fuse certain integer operations together for better performance on power8
+
+mpower8-fusion-sign
+Target Undocumented Mask(P8_FUSION_SIGN) Var(rs6000_isa_flags)
+Allow sign extension in fusion operations
+
+mpower8-vector
+Target Report Mask(P8_VECTOR) Var(rs6000_isa_flags)
+Use/do not use vector and scalar instructions added in ISA 2.07.
+
+mcrypto
+Target Report Mask(CRYPTO) Var(rs6000_isa_flags)
+Use ISA 2.07 crypto instructions
+
+mdirect-move
+Target Report Mask(DIRECT_MOVE) Var(rs6000_isa_flags)
+Use ISA 2.07 direct move between GPR & VSX register instructions
+
+mhtm
+Target Report Mask(HTM) Var(rs6000_isa_flags)
+Use ISA 2.07 transactional memory (HTM) instructions
+
+mquad-memory
+Target Report Mask(QUAD_MEMORY) Var(rs6000_isa_flags)
+Generate the quad word memory instructions (lq/stq).
+
+mquad-memory-atomic
+Target Report Mask(QUAD_MEMORY_ATOMIC) Var(rs6000_isa_flags)
+Generate the quad word memory atomic instructions (lqarx/stqcx).
+
+mcompat-align-parm
+Target Report Var(rs6000_compat_align_parm) Init(0) Save
+Generate aggregate parameter passing code with at most 64-bit alignment.
+
+mupper-regs-df
+Target Undocumented Mask(UPPER_REGS_DF) Var(rs6000_isa_flags)
+Allow double variables in upper registers with -mcpu=power7 or -mvsx
+
+mupper-regs-sf
+Target Undocumented Mask(UPPER_REGS_SF) Var(rs6000_isa_flags)
+Allow float variables in upper registers with -mcpu=power8 or -mp8-vector

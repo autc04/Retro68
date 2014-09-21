@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -70,6 +70,18 @@ package Exp_Ch6 is
    procedure Expand_Call (N : Node_Id);
    --  This procedure contains common processing for Expand_N_Function_Call,
    --  Expand_N_Procedure_Statement, and Expand_N_Entry_Call.
+
+   procedure Expand_Subprogram_Contract
+     (N       : Node_Id;
+      Spec_Id : Entity_Id;
+      Body_Id : Entity_Id);
+   --  Expand the contracts of a subprogram body and its correspoding spec (if
+   --  any). This routine processes all [refined] pre- and postconditions as
+   --  well as Contract_Cases, invariants and predicates. N is the body of the
+   --  subprogram. Spec_Id denotes the entity of its specification. Body_Id
+   --  denotes the entity of the subprogram body. This routine is not a "pure"
+   --  expansion mechanism as it is invoked during analysis and may perform
+   --  actions for generic subprograms or set up contract assertions for ASIS.
 
    procedure Freeze_Subprogram (N : Node_Id);
    --  generate the appropriate expansions related to Subprogram freeze
@@ -157,6 +169,10 @@ package Exp_Ch6 is
    --  Predicate to recognize stubbed procedures and null procedures, which
    --  can be inlined unconditionally in all cases.
 
+   procedure List_Inlining_Info;
+   --  Generate listing of calls inlined by the frontend plus listing of
+   --  calls to inline subprograms passed to the backend.
+
    procedure Make_Build_In_Place_Call_In_Allocator
      (Allocator     : Node_Id;
       Function_Call : Node_Id);
@@ -200,6 +216,16 @@ package Exp_Ch6 is
    --  function call. Function_Call must denote either an N_Function_Call node
    --  for which Is_Build_In_Place_Call is True, or an N_Qualified_Expression
    --  node applied to such a function call.
+
+   procedure Make_CPP_Constructor_Call_In_Allocator
+     (Allocator     : Node_Id;
+      Function_Call : Node_Id);
+   --  Handle a call to a CPP constructor that occurs as the expression that
+   --  initializes an allocator, by passing access to the allocated object as
+   --  an additional parameter of the constructor call. A new access object is
+   --  declared that is initialized to the result of the allocator, passed to
+   --  the constructor, and the allocator is rewritten to refer to that access
+   --  object. Function_Call must denote a call to a CPP_Constructor function.
 
    function Needs_BIP_Alloc_Form (Func_Id : Entity_Id) return Boolean;
    --  Ada 2005 (AI-318-02): Return True if the function needs an implicit

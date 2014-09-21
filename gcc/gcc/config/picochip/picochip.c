@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on picoChip processors.
-   Copyright (C) 2001, 2008, 2009, 2010, 2011   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Contributed by Picochip Ltd. (http://www.picochip.com)
    Maintained by Daniel Towner (daniel.towner@picochip.com) and
    Hariharan Sandanagobalane (hariharan@picochip.com)
@@ -34,13 +34,16 @@ along with GCC; see the file COPYING3.  If not, see
 #include "recog.h"
 #include "obstack.h"
 #include "tree.h"
+#include "calls.h"
+#include "stor-layout.h"
+#include "stringpool.h"
+#include "varasm.h"
 #include "expr.h"
 #include "optabs.h"
 #include "except.h"
 #include "function.h"
 #include "output.h"
 #include "basic-block.h"
-#include "integrate.h"
 #include "diagnostic-core.h"
 #include "ggc.h"
 #include "hashtab.h"
@@ -61,6 +64,7 @@ along with GCC; see the file COPYING3.  If not, see
 #include "timevar.h"		/* For TV_SCHED2, in picochip_reorg. */
 #include "libfuncs.h"		/* For memcpy_libfuncs, etc. */
 #include "df.h"			/* For df_regs_ever_live_df_regs_ever_live_pp, etc. */
+#include "dbxout.h"
 
 
 /* Target AE ISA information. */
@@ -188,7 +192,7 @@ struct vliw_state picochip_current_vliw_state;
 
 /* Save/restore recog_data. */
 static int picochip_saved_which_alternative;
-static struct recog_data picochip_saved_recog_data;
+static struct recog_data_d picochip_saved_recog_data;
 
 /* Determine which ALU to use for the instruction in
    picochip_current_prescan_insn. */
@@ -304,8 +308,6 @@ static char picochip_get_vliw_alu_id (void);
    usually requires a scratch register. */
 #undef TARGET_SECONDARY_RELOAD
 #define TARGET_SECONDARY_RELOAD picochip_secondary_reload
-#undef DONT_USE_BUILTIN_SETJMP
-#define DONT_USE_BUILTIN_SETJMP 1
 
 /* How Large Values are Returned  */
 
@@ -812,7 +814,7 @@ picochip_compute_arg_size (const_tree type, enum machine_mode mode)
   int type_size_in_units = 0;
 
   if (type)
-    type_size_in_units = tree_low_cst (TYPE_SIZE_UNIT (type), 1);
+    type_size_in_units = tree_to_uhwi (TYPE_SIZE_UNIT (type));
   else
     type_size_in_units = GET_MODE_SIZE (mode);
 
@@ -1137,7 +1139,7 @@ picochip_can_eliminate_link_sp_save (void)
     accesses become wrong. This wouldnt happen only if we were not using the
     stack at all. The following conditions ensures that.*/
 
-  return (current_function_is_leaf &&
+  return (crtl->is_leaf &&
           !df_regs_ever_live_p(LINK_REGNUM) &&
           !df_regs_ever_live_p(STACK_POINTER_REGNUM) &&
           (picochip_special_save_area_byte_offset() == 0) &&
@@ -1817,7 +1819,7 @@ picochip_output_frame_debug (FILE * file)
 {
   int i = 0;
 
-  if (current_function_is_leaf)
+  if (crtl->is_leaf)
     fprintf (file, "\t\t// Leaf function\n");
   else
     fprintf (file, "\t\t// Non-leaf function\n");
@@ -2099,7 +2101,7 @@ picochip_expand_prologue (void)
 
   /* Save the link registers. We could try to save just one register
      here. This would reduce the amount of stack space required.
-     There hasnt been a good reason to do that so far. */
+     There hasn't been a good reason to do that so far. */
   if (!picochip_can_eliminate_link_sp_save ())
     picochip_emit_save_register (gen_rtx_REG (SImode, LINK_REGNUM),
 				 special_save_offset);
@@ -3153,7 +3155,7 @@ picochip_save_recog_data (void)
 {
   picochip_saved_which_alternative = which_alternative;
   memcpy (&picochip_saved_recog_data, &recog_data,
-	  sizeof (struct recog_data));
+	  sizeof (struct recog_data_d));
 }
 
 /* Restore some of the contents of global variable recog_data. */
@@ -3162,7 +3164,7 @@ picochip_restore_recog_data (void)
 {
   which_alternative = picochip_saved_which_alternative;
   memcpy (&recog_data, &picochip_saved_recog_data,
-	  sizeof (struct recog_data));
+	  sizeof (struct recog_data_d));
 }
 
 /* Ensure that no var tracking notes are emitted in the middle of a
@@ -3172,7 +3174,7 @@ reorder_var_tracking_notes (void)
 {
   basic_block bb;
 
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       rtx insn, next, last_insn = NULL_RTX;
       rtx queue = NULL_RTX;
@@ -3301,16 +3303,16 @@ picochip_reorg (void)
               if (GET_MODE (insn) == TImode)
               {
                 vliw_start = insn;
-                vliw_insn_location = INSN_LOCATOR (insn);
+                vliw_insn_location = INSN_LOCATION (insn);
               }
               if (JUMP_P (insn) || CALL_P(insn))
               {
-                vliw_insn_location = INSN_LOCATOR (insn);
+                vliw_insn_location = INSN_LOCATION (insn);
                 for (insn1 = vliw_start; insn1 != insn ; insn1 = next_real_insn (insn1))
-                  INSN_LOCATOR (insn1) = vliw_insn_location;
+                  INSN_LOCATION (insn1) = vliw_insn_location;
               }
               /* Tag subsequent instructions with the same location. */
-              INSN_LOCATOR (insn) = vliw_insn_location;
+              INSN_LOCATION (insn) = vliw_insn_location;
 	    }
 	}
 
@@ -3633,7 +3635,7 @@ memory_just_off (rtx opnd1, rtx opnd2)
   }
 
   /* Peepholing 2 STW/LDWs has the restriction that the resulting STL/LDL's address
-     should be 4 byte aligned. We can currently guarentee that only if the base
+     should be 4 byte aligned. We can currently guarantee that only if the base
      address is FP(R13) and the offset is aligned. */
 
   if (reg1 == reg2 && reg1 == 13 && abs(offset1-offset2) == 2 && minimum(offset1, offset2) % 4 == 0)
@@ -3663,7 +3665,7 @@ registers_just_off (rtx opnd1, rtx opnd2)
            LDL r[3:2],[r11]
 
    NOTE:
-   1. The LDWs themselves only guarentee that r11 will be a 2-byte
+   1. The LDWs themselves only guarantee that r11 will be a 2-byte
    aligned address. Only FP can be assumed to be 4 byte aligned.
    2. The progression of addresses and the register numbers should
    be similar. For eg., if you swap r2 and r3 in the above instructions,
@@ -3886,7 +3888,7 @@ picochip_final_prescan_insn (rtx insn, rtx * opvec ATTRIBUTE_UNUSED,
   if (GET_MODE (insn) == TImode || !picochip_schedule_type == DFA_TYPE_SPEED)
     picochip_reset_vliw (insn);
 
-  /* No VLIW scheduling occured, so don't go any further. */
+  /* No VLIW scheduling occurred, so don't go any further. */
   if (picochip_schedule_type != DFA_TYPE_SPEED)
     return;
 
@@ -4696,6 +4698,6 @@ picochip_static_chain (const_tree ARG_UNUSED (fndecl), bool incoming_p)
   if (incoming_p)
     addr = arg_pointer_rtx;
   else
-    addr = plus_constant (stack_pointer_rtx, -2 * UNITS_PER_WORD);
+    addr = plus_constant (Pmode, stack_pointer_rtx, -2 * UNITS_PER_WORD);
   return gen_frame_mem (Pmode, addr);
 }

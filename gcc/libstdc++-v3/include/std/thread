@@ -1,6 +1,6 @@
 // <thread> -*- C++ -*-
 
-// Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,7 +31,7 @@
 
 #pragma GCC system_header
 
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
 
@@ -120,6 +120,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   public:
     thread() noexcept = default;
+    // _GLIBCXX_RESOLVE_LIB_DEFECTS
+    // 2097.  packaged_task constructors should be constrained
     thread(thread&) = delete;
     thread(const thread&) = delete;
 
@@ -188,7 +190,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _M_make_routine(_Callable&& __f)
       {
 	// Create and allocate full data structure, not base.
-	return make_shared<_Impl<_Callable>>(std::forward<_Callable>(__f));
+	return std::make_shared<_Impl<_Callable>>(std::forward<_Callable>(__f));
       }
   };
 
@@ -238,8 +240,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 
   /** @namespace std::this_thread
-   *  @brief ISO C++ 0x entities sub namespace for thread.
-   *  30.2.2 Namespace this_thread.
+   *  @brief ISO C++ 2011 entities sub-namespace for thread.
+   *  30.3.2 Namespace this_thread.
    */
   namespace this_thread
   {
@@ -249,32 +251,35 @@ _GLIBCXX_END_NAMESPACE_VERSION
     inline thread::id
     get_id() noexcept { return thread::id(__gthread_self()); }
 
-#ifdef _GLIBCXX_USE_SCHED_YIELD
     /// yield
     inline void
     yield() noexcept
-    { __gthread_yield(); }
+    {
+#ifdef _GLIBCXX_USE_SCHED_YIELD
+      __gthread_yield();
 #endif
+    }
 
-#ifdef _GLIBCXX_USE_NANOSLEEP
+    void
+    __sleep_for(chrono::seconds, chrono::nanoseconds);
+
     /// sleep_for
     template<typename _Rep, typename _Period>
       inline void
       sleep_for(const chrono::duration<_Rep, _Period>& __rtime)
       {
-	chrono::seconds __s =
-	  chrono::duration_cast<chrono::seconds>(__rtime);
-
-	chrono::nanoseconds __ns =
-	  chrono::duration_cast<chrono::nanoseconds>(__rtime - __s);
-
+	auto __s = chrono::duration_cast<chrono::seconds>(__rtime);
+	auto __ns = chrono::duration_cast<chrono::nanoseconds>(__rtime - __s);
+#ifdef _GLIBCXX_USE_NANOSLEEP
 	__gthread_time_t __ts =
 	  {
 	    static_cast<std::time_t>(__s.count()),
 	    static_cast<long>(__ns.count())
 	  };
-
 	::nanosleep(&__ts, 0);
+#else
+	__sleep_for(__s, __ns);
+#endif
       }
 
     /// sleep_until
@@ -282,7 +287,6 @@ _GLIBCXX_END_NAMESPACE_VERSION
       inline void
       sleep_until(const chrono::time_point<_Clock, _Duration>& __atime)
       { sleep_for(__atime - _Clock::now()); }
-#endif
 
   _GLIBCXX_END_NAMESPACE_VERSION
   }
@@ -293,6 +297,6 @@ _GLIBCXX_END_NAMESPACE_VERSION
 
 #endif // _GLIBCXX_HAS_GTHREADS && _GLIBCXX_USE_C99_STDINT_TR1
 
-#endif // __GXX_EXPERIMENTAL_CXX0X__
+#endif // C++11
 
 #endif // _GLIBCXX_THREAD

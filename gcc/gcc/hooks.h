@@ -1,6 +1,5 @@
 /* General-purpose hooks.
-   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -24,6 +23,7 @@
 #define GCC_HOOKS_H
 
 #include "machmode.h"
+#include "double-int.h"
 
 extern bool hook_bool_void_false (void);
 extern bool hook_bool_void_true (void);
@@ -36,12 +36,14 @@ extern bool hook_bool_mode_const_rtx_false (enum machine_mode, const_rtx);
 extern bool hook_bool_mode_const_rtx_true (enum machine_mode, const_rtx);
 extern bool hook_bool_mode_rtx_false (enum machine_mode, rtx);
 extern bool hook_bool_mode_rtx_true (enum machine_mode, rtx);
+extern bool hook_bool_const_rtx_const_rtx_true (const_rtx, const_rtx);
 extern bool hook_bool_mode_uhwi_false (enum machine_mode,
 				       unsigned HOST_WIDE_INT);
 extern bool hook_bool_tree_false (tree);
 extern bool hook_bool_const_tree_false (const_tree);
 extern bool hook_bool_tree_true (tree);
 extern bool hook_bool_const_tree_true (const_tree);
+extern bool hook_bool_gsiptr_false (gimple_stmt_iterator *);
 extern bool hook_bool_const_tree_hwi_hwi_const_tree_false (const_tree,
 							   HOST_WIDE_INT,
 							   HOST_WIDE_INT,
@@ -50,6 +52,7 @@ extern bool hook_bool_const_tree_hwi_hwi_const_tree_true (const_tree,
 							  HOST_WIDE_INT,
 							  HOST_WIDE_INT,
 							  const_tree);
+extern bool hook_bool_rtx_true (rtx);
 extern bool hook_bool_rtx_false (rtx);
 extern bool hook_bool_rtx_int_false (rtx, int);
 extern bool hook_bool_uintp_uintp_false (unsigned int *, unsigned int *);
@@ -58,6 +61,8 @@ extern bool hook_bool_rtx_int_int_int_intp_bool_false (rtx, int, int, int,
 extern bool hook_bool_tree_tree_false (tree, tree);
 extern bool hook_bool_tree_tree_true (tree, tree);
 extern bool hook_bool_tree_bool_false (tree, bool);
+extern bool hook_bool_dint_dint_uint_bool_true (double_int, double_int,
+						unsigned int, bool);
 
 extern void hook_void_void (void);
 extern void hook_void_constcharptr (const char *);
@@ -73,7 +78,11 @@ extern int hook_int_uint_mode_1 (unsigned int, enum machine_mode);
 extern int hook_int_const_tree_0 (const_tree);
 extern int hook_int_const_tree_const_tree_1 (const_tree, const_tree);
 extern int hook_int_rtx_0 (rtx);
+extern int hook_int_rtx_1 (rtx);
+extern int hook_int_rtx_unreachable (rtx);
 extern int hook_int_rtx_bool_0 (rtx, bool);
+extern int hook_int_rtx_mode_as_bool_0 (rtx, enum machine_mode, addr_space_t,
+					bool);
 
 extern tree hook_tree_const_tree_null (const_tree);
 
@@ -83,6 +92,7 @@ extern tree hook_tree_tree_tree_tree_3rd_identity (tree, tree, tree);
 extern tree hook_tree_tree_int_treep_bool_null (tree, int, tree *, bool);
 
 extern unsigned hook_uint_void_0 (void);
+extern unsigned int hook_uint_mode_0 (enum machine_mode);
 
 extern bool default_can_output_mi_thunk_no_vcall (const_tree, HOST_WIDE_INT,
 						  HOST_WIDE_INT, const_tree);
@@ -91,6 +101,7 @@ extern rtx hook_rtx_rtx_identity (rtx);
 extern rtx hook_rtx_rtx_null (rtx);
 extern rtx hook_rtx_tree_int_null (tree, int);
 
+extern const char *hook_constcharptr_void_null (void);
 extern const char *hook_constcharptr_const_tree_null (const_tree);
 extern const char *hook_constcharptr_const_rtx_null (const_rtx);
 extern const char *hook_constcharptr_const_tree_const_tree_null (const_tree, const_tree);

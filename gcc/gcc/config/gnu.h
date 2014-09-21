@@ -1,8 +1,7 @@
 /* Configuration common to all targets running the GNU system.  */
 
 /*
-Copyright (C) 1994, 1995, 1997, 1998, 1999, 2002, 2003, 2004, 2007, 2008, 2011
-Free Software Foundation, Inc.
+Copyright (C) 1994-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -34,7 +33,7 @@ along with GCC.  If not, see <http://www.gnu.org/licenses/>.
 	builtin_define ("__gnu_hurd__");	\
 	builtin_define ("__GNU__");		\
 	builtin_define_std ("unix");		\
-	builtin_define_std ("MACH");		\
+	builtin_define ("__MACH__");		\
 	builtin_assert ("system=gnu");		\
 	builtin_assert ("system=mach");		\
 	builtin_assert ("system=unix");		\

@@ -1,8 +1,6 @@
 // Streambuf iterators
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-// 2006, 2007, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 1997-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -52,7 +50,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     class istreambuf_iterator
     : public iterator<input_iterator_tag, _CharT, typename _Traits::off_type,
                       _CharT*,
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     // LWG 445.
 		      _CharT>
 #else
@@ -104,7 +102,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _GLIBCXX_CONSTEXPR istreambuf_iterator() _GLIBCXX_USE_NOEXCEPT
       : _M_sbuf(0), _M_c(traits_type::eof()) { }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       istreambuf_iterator(const istreambuf_iterator&) noexcept = default;
 
       ~istreambuf_iterator() = default;

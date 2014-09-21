@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,6 +29,8 @@ with Csets;    use Csets;
 with Einfo;    use Einfo;
 with Errout;   use Errout;
 with Namet;    use Namet;
+with Nlists;   use Nlists;
+with Opt;      use Opt;
 with Sinfo;    use Sinfo;
 with Sinput;   use Sinput;
 with Stand;    use Stand;
@@ -41,8 +43,8 @@ package body Style is
    -----------------------
 
    --  If the check specs mode (-gnatys) is set, then all subprograms must
-   --  have specs unless they are parameterless procedures that are not child
-   --  units at the library level (i.e. they are possible main programs).
+   --  have specs unless they are parameterless procedures at the library
+   --  level (i.e. they are possible main programs).
 
    procedure Body_With_No_Spec (N : Node_Id) is
    begin
@@ -94,7 +96,9 @@ package body Style is
    ----------------------
 
    --  In check references mode (-gnatyr), identifier uses must be cased
-   --  the same way as the corresponding identifier declaration.
+   --  the same way as the corresponding identifier declaration. If standard
+   --  references are checked (-gnatyn), then identifiers from Standard must
+   --  be cased as in the Reference Manual.
 
    procedure Check_Identifier
      (Ref : Node_Or_Entity_Id;
@@ -197,10 +201,30 @@ package body Style is
                if Entity (Ref) = Standard_ASCII then
                   Cas := All_Upper_Case;
 
-               --  Special names in ASCII are also all upper case
+               --  Special handling for names in package ASCII
 
                elsif Sdef = Standard_ASCII_Location then
-                  Cas := All_Upper_Case;
+                  declare
+                     Nam : constant String := Get_Name_String (Chars (Def));
+
+                  begin
+                     --  Bar is mixed case
+
+                     if Nam = "bar" then
+                        Cas := Mixed_Case;
+
+                     --  All names longer than 4 characters are mixed case
+
+                     elsif Nam'Length > 4 then
+                        Cas := Mixed_Case;
+
+                     --  All names shorter than 4 characters (other than Bar,
+                     --  which we already tested for specially) are Upper case.
+
+                     else
+                        Cas := All_Upper_Case;
+                     end if;
+                  end;
 
                --  All other entities are in mixed case
 
@@ -235,15 +259,36 @@ package body Style is
    ------------------------
 
    procedure Missing_Overriding (N : Node_Id; E : Entity_Id) is
+      Nod : Node_Id;
+
    begin
-      if Style_Check_Missing_Overriding and then Comes_From_Source (N) then
+      --  Perform the check on source subprograms and on subprogram instances,
+      --  because these can be primitives of untagged types. Note that such
+      --  indicators were introduced in Ada 2005.
+
+      if Style_Check_Missing_Overriding
+        and then (Comes_From_Source (N) or else Is_Generic_Instance (E))
+        and then Ada_Version_Explicit >= Ada_2005
+      then
+         --  If the subprogram is an instantiation,  its declaration appears
+         --  within a wrapper package that precedes the instance node. Place
+         --  warning on the node to avoid references to the original generic.
+
+         if Nkind (N) = N_Subprogram_Declaration
+           and then Is_Generic_Instance (E)
+         then
+            Nod := Next (Parent (Parent (List_Containing (N))));
+         else
+            Nod := N;
+         end if;
+
          if Nkind (N) = N_Subprogram_Body then
             Error_Msg_NE -- CODEFIX
               ("(style) missing OVERRIDING indicator in body of&", N, E);
          else
             Error_Msg_NE -- CODEFIX
               ("(style) missing OVERRIDING indicator in declaration of&",
-               N, E);
+               Nod, E);
          end if;
       end if;
    end Missing_Overriding;

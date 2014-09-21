@@ -1,6 +1,6 @@
 // Bitset reference invalidation tests
 
-// Copyright (C) 2003, 2004, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2003-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ void test01()
     i = new bitset<32>::reference(bs[7]);
     VERIFY(*i);
   }
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
   VERIFY(i->_M_singular());
 #endif
   delete i;

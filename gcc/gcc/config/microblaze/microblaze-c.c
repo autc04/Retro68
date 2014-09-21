@@ -1,5 +1,5 @@
 /* Subroutines used for the C front end for Xilinx MicroBlaze.
-   Copyright 2010 Free Software Foundation, Inc.
+   Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
    Contributed by Michael Eager <eager@eagercon.com>.
 
@@ -41,6 +41,19 @@ microblaze_cpp_define (cpp_reader *pfile)
   builtin_assert ("cpu=microblaze");
   builtin_assert ("machine=microblaze");
   builtin_define ("__MICROBLAZE__");
+  builtin_define ("__microblaze__");
+  if (TARGET_LITTLE_ENDIAN)
+    {
+      builtin_define ("_LITTLE_ENDIAN");
+      builtin_define ("__LITTLE_ENDIAN__");
+      builtin_define ("__MICROBLAZEEL__");
+    }
+  else
+    {
+      builtin_define ("_BIG_ENDIAN");
+      builtin_define ("__BIG_ENDIAN__");
+      builtin_define ("__MICROBLAZEEB__");
+    }
   if (!TARGET_SOFT_MUL) 
     {
       if (!flag_iso)

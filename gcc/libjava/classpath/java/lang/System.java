@@ -1,5 +1,5 @@
 /* System.java -- useful methods to interface with the system
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2012
    Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
@@ -45,6 +45,7 @@ import gnu.classpath.VMStackWalker;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.io.Console;
 import java.nio.channels.Channel;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.AbstractCollection;
@@ -95,6 +96,8 @@ public final class System
    * you, however.
    */
   public static final PrintStream out = VMSystem.makeStandardOutputStream();
+
+  private static final String LINE_SEPARATOR = SystemProperties.getProperty("line.separator");
 
   /**
    * The standard output PrintStream.  This is assigned at startup and
@@ -701,6 +704,24 @@ public final class System
     throws IOException
   {
     return SelectorProvider.provider().inheritedChannel();
+  }
+
+  /*
+   * @since 1.6
+   */
+  public static Console console()
+  {
+    return Console.console();
+  }
+
+  /**
+   * Returns the system-dependent line separator.
+   *
+   * @return the system-dependent line separator.
+   */
+  public static String lineSeparator()
+  {
+    return LINE_SEPARATOR;
   }
 
   /**

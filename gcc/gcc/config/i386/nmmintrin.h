@@ -1,4 +1,4 @@
-/* Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -19,7 +19,7 @@
    You should have received a copy of the GNU General Public License and
    a copy of the GCC Runtime Library Exception along with this program;
    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
-   <http://www.gnu.org/licenses/>.
+   <http://www.gnu.org/licenses/>.  */
 
 /* Implemented from the specification included in the Intel C++ Compiler
    User Guide and Reference, version 10.0.  */
@@ -27,11 +27,7 @@
 #ifndef _NMMINTRIN_H_INCLUDED
 #define _NMMINTRIN_H_INCLUDED
 
-#ifndef __SSE4_2__
-# error "SSE4.2 instruction set not enabled"
-#else
 /* We just include SSE4.1 header file.  */
 #include <smmintrin.h>
-#endif /* __SSE4_2__ */
 
 #endif /* _NMMINTRIN_H_INCLUDED */

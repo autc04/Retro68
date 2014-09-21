@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -117,6 +117,10 @@ package Styleg is
    --  the current line, used to check for appropriate line terminator usage.
    --  The parameter Len is the length of the current line.
 
+   procedure Check_Not_In;
+   --  Called with Scan_Ptr pointing to an IN token, and Prev_Token_Ptr
+   --  pointing to a NOT token. Used to check proper layout of NOT IN.
+
    procedure Check_Pragma_Name;
    --  The current token is a pragma identifier. Check that it is spelled
    --  properly (i.e. with an appropriate casing convention).
@@ -130,8 +134,7 @@ package Styleg is
    procedure Check_Then (If_Loc : Source_Ptr);
    --  Called to check that THEN and IF keywords are appropriately positioned.
    --  The parameters show the first characters of the two keywords. This
-   --  procedure is called only if THEN appears at the start of a line with
-   --  Token_Ptr pointing to the THEN keyword.
+   --  procedure is called with Token_Ptr pointing to the THEN keyword.
 
    procedure Check_Separate_Stmt_Lines;
    pragma Inline (Check_Separate_Stmt_Lines);
@@ -147,8 +150,8 @@ package Styleg is
    --  Called after scanning a vertical bar to check spacing
 
    procedure Check_Xtra_Parens (Loc : Source_Ptr);
-   --  Called after scanning a conditional expression that has at least one
-   --  level of parentheses around the entire expression.
+   --  Called after scanning an if, case, or quantified expression that has at
+   --  least one level of parentheses around the entire expression.
 
    function Mode_In_Check return Boolean;
    pragma Inline (Mode_In_Check);

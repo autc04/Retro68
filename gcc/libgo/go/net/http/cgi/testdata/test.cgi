@@ -8,6 +8,8 @@
 use strict;
 use Cwd;
 
+binmode STDOUT;
+
 my $q = MiniCGI->new;
 my $params = $q->Vars;
 
@@ -16,51 +18,44 @@ if ($params->{"loc"}) {
     exit(0);
 }
 
-my $NL = "\r\n";
-$NL = "\n" if $params->{mode} eq "NL";
-
-my $p = sub {
-  print "$_[0]$NL";
-};
-
-# With carriage returns
-$p->("Content-Type: text/html");
-$p->("X-CGI-Pid: $$");
-$p->("X-Test-Header: X-Test-Value");
-$p->("");
+print "Content-Type: text/html\r\n";
+print "X-CGI-Pid: $$\r\n";
+print "X-Test-Header: X-Test-Value\r\n";
+print "\r\n";
 
 if ($params->{"bigresponse"}) {
-    for (1..1024) {
-        print "A" x 1024, "\n";
+    # 17 MB, for OS X: golang.org/issue/4958
+    for (1..(17 * 1024)) {
+        print "A" x 1024, "\r\n";
     }
     exit 0;
 }
 
-print "test=Hello CGI\n";
+print "test=Hello CGI\r\n";
 
 foreach my $k (sort keys %$params) {
-  print "param-$k=$params->{$k}\n";
+    print "param-$k=$params->{$k}\r\n";
 }
 
 foreach my $k (sort keys %ENV) {
-  my $clean_env = $ENV{$k};
-  $clean_env =~ s/[\n\r]//g;
-  print "env-$k=$clean_env\n";
+    my $clean_env = $ENV{$k};
+    $clean_env =~ s/[\n\r]//g;
+    print "env-$k=$clean_env\r\n";
 }
 
-# NOTE: don't call getcwd() for windows.
-# msys return /c/go/src/... not C:\go\...
-my $dir;
+# NOTE: msys perl returns /c/go/src/... not C:\go\....
+my $dir = getcwd();
 if ($^O eq 'MSWin32' || $^O eq 'msys') {
-  my $cmd = $ENV{'COMSPEC'} || 'c:\\windows\\system32\\cmd.exe';
-  $cmd =~ s!\\!/!g;
-  $dir = `$cmd /c cd`;
-  chomp $dir;
-} else {
-  $dir = getcwd();
+    if ($dir =~ /^.:/) {
+        $dir =~ s!/!\\!g;
+    } else {
+        my $cmd = $ENV{'COMSPEC'} || 'c:\\windows\\system32\\cmd.exe';
+        $cmd =~ s!\\!/!g;
+        $dir = `$cmd /c cd`;
+        chomp $dir;
+    }
 }
-print "cwd=$dir\n";
-
+print "cwd=$dir\r\n";
 
 # A minimal version of CGI.pm, for people without the perl-modules
 # package installed.  (CGI.pm used to be part of the Perl core, but

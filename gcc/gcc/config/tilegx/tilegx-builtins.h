@@ -1,6 +1,5 @@
 /* Enum for builtin intrinsics for TILE-Gx.
-   Copyright (C) 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Walter Lee (walt@tilera.com)
 
    This file is part of GCC.
@@ -194,6 +193,7 @@ enum tilegx_builtin
   TILEGX_INSN_SHRU,
   TILEGX_INSN_SHRUX,
   TILEGX_INSN_SHUFFLEBYTES,
+  TILEGX_INSN_SHUFFLEBYTES1,
   TILEGX_INSN_ST,
   TILEGX_INSN_ST1,
   TILEGX_INSN_ST2,

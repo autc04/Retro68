@@ -40,6 +40,10 @@ type percentSlashTag struct {
 	V string `json:"text/html%"` // http://golang.org/issue/2718
 }
 
+type punctuationTag struct {
+	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // http://golang.org/issue/3546
+}
+
 type emptyTag struct {
 	W string
 }
@@ -54,6 +58,14 @@ type badFormatTag struct {
 
 type badCodeTag struct {
 	Z string `json:" !\"#&'()*+,."`
+}
+
+type spaceTag struct {
+	Q string `json:"With space"`
+}
+
+type unicodeTag struct {
+	W string `json:"Ελλάδα"`
 }
 
 var structTagObjectKeyTests = []struct {
@@ -73,6 +85,9 @@ var structTagObjectKeyTests = []struct {
 	{badFormatTag{"Orfevre"}, "Orfevre", "Y"},
 	{badCodeTag{"Reliable Man"}, "Reliable Man", "Z"},
 	{percentSlashTag{"brut"}, "brut", "text/html%"},
+	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:<=>?@[]^_{|}~"},
+	{spaceTag{"Perreddu"}, "Perreddu", "With space"},
+	{unicodeTag{"Loukanikos"}, "Loukanikos", "Ελλάδα"},
 }
 
 func TestStructTagObjectKey(t *testing.T) {

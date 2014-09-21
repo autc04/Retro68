@@ -1,4 +1,4 @@
-// errchk $G -e $D/$F.go
+// errorcheck
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -10,8 +10,8 @@ var c chan int
 var v int
 
 func main() {
-	if c <- v { // ERROR "send statement.*value.*select"
+	if c <- v { // ERROR "used as value"
 	}
 }
 
-var _ = c <- v // ERROR "send statement.*value.*select"
+var _ = c <- v // ERROR "used as value"

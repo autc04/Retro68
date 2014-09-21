@@ -3,11 +3,53 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Define to the flags needed for the .section .eh_frame directive. */
+#undef EH_FRAME_FLAGS
+
+/* Define to 1 if you have the `accept4' function. */
+#undef HAVE_ACCEPT4
+
+/* Define to 1 if you have the `acosl' function. */
+#undef HAVE_ACOSL
+
+/* Define to 1 if you have the `asinl' function. */
+#undef HAVE_ASINL
+
+/* Define if your assembler supports GNU comdat group syntax. */
+#undef HAVE_AS_COMDAT_GAS
+
+/* Define if your assembler supports unwind section type. */
+#undef HAVE_AS_X86_64_UNWIND_SECTION_TYPE
+
+/* Define if your assembler supports PC relative relocs. */
+#undef HAVE_AS_X86_PCREL
+
+/* Define to 1 if you have the `atan2l' function. */
+#undef HAVE_ATAN2L
+
+/* Define to 1 if you have the `atanl' function. */
+#undef HAVE_ATANL
+
+/* Define to 1 if you have the `cosl' function. */
+#undef HAVE_COSL
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the `dl_iterate_phdr' function. */
+#undef HAVE_DL_ITERATE_PHDR
+
+/* Define to 1 if you have the `dup3' function. */
+#undef HAVE_DUP3
+
 /* Define to 1 if you have the `epoll_create1' function. */
 #undef HAVE_EPOLL_CREATE1
+
+/* Define to 1 if you have the `expl' function. */
+#undef HAVE_EXPL
+
+/* Define to 1 if you have the `expm1l' function. */
+#undef HAVE_EXPM1L
 
 /* Define to 1 if you have the `faccessat' function. */
 #undef HAVE_FACCESSAT
@@ -27,6 +69,9 @@
 /* Define if _Unwind_GetIPInfo is available. */
 #undef HAVE_GETIPINFO
 
+/* Define to 1 if you have the `getxattr' function. */
+#undef HAVE_GETXATTR
+
 /* Define to 1 if you have the `inotify_add_watch' function. */
 #undef HAVE_INOTIFY_ADD_WATCH
 
@@ -42,8 +87,26 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `ldexpl' function. */
+#undef HAVE_LDEXPL
+
+/* Define to 1 if you have the <linux/ether.h> header file. */
+#undef HAVE_LINUX_ETHER_H
+
 /* Define to 1 if you have the <linux/filter.h> header file. */
 #undef HAVE_LINUX_FILTER_H
+
+/* Define to 1 if you have the <linux/fs.h> header file. */
+#undef HAVE_LINUX_FS_H
+
+/* Define to 1 if you have the <linux/if_addr.h> header file. */
+#undef HAVE_LINUX_IF_ADDR_H
+
+/* Define to 1 if you have the <linux/if_ether.h> header file. */
+#undef HAVE_LINUX_IF_ETHER_H
+
+/* Define to 1 if you have the <linux/if_tun.h> header file. */
+#undef HAVE_LINUX_IF_TUN_H
 
 /* Define to 1 if you have the <linux/netlink.h> header file. */
 #undef HAVE_LINUX_NETLINK_H
@@ -54,8 +117,20 @@
 /* Define to 1 if you have the <linux/rtnetlink.h> header file. */
 #undef HAVE_LINUX_RTNETLINK_H
 
+/* Define to 1 if you have the `listxattr' function. */
+#undef HAVE_LISTXATTR
+
 /* Define to 1 if the system has the type `loff_t'. */
 #undef HAVE_LOFF_T
+
+/* Define to 1 if you have the `log10l' function. */
+#undef HAVE_LOG10L
+
+/* Define to 1 if you have the `log1pl' function. */
+#undef HAVE_LOG1PL
+
+/* Define to 1 if you have the `logl' function. */
+#undef HAVE_LOGL
 
 /* Define to 1 if you have the `matherr' function. */
 #undef HAVE_MATHERR
@@ -72,23 +147,65 @@
 /* Define to 1 if you have the `mknodat' function. */
 #undef HAVE_MKNODAT
 
+/* Define to 1 if you have the <netinet/icmp6.h> header file. */
+#undef HAVE_NETINET_ICMP6_H
+
+/* Define to 1 if you have the <netinet/if_ether.h> header file. */
+#undef HAVE_NETINET_IF_ETHER_H
+
+/* Define to 1 if you have the <netinet/in_syst.h> header file. */
+#undef HAVE_NETINET_IN_SYST_H
+
+/* Define to 1 if you have the <netinet/ip.h> header file. */
+#undef HAVE_NETINET_IP_H
+
+/* Define to 1 if you have the <netinet/ip_mroute.h> header file. */
+#undef HAVE_NETINET_IP_MROUTE_H
+
+/* Define to 1 if you have the <netpacket/packet.h> header file. */
+#undef HAVE_NETPACKET_PACKET_H
+
+/* Define to 1 if you have the <net/if_arp.h> header file. */
+#undef HAVE_NET_IF_ARP_H
+
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
+
+/* Define to 1 if you have the <net/route.h> header file. */
+#undef HAVE_NET_ROUTE_H
 
 /* Define to 1 if the system has the type `off64_t'. */
 #undef HAVE_OFF64_T
 
+/* Define to 1 if you have the `open64' function. */
+#undef HAVE_OPEN64
+
 /* Define to 1 if you have the `openat' function. */
 #undef HAVE_OPENAT
 
+/* Define to 1 if you have the `pipe2' function. */
+#undef HAVE_PIPE2
+
+/* Define to 1 if you have the `removexattr' function. */
+#undef HAVE_REMOVEXATTR
+
 /* Define to 1 if you have the `renameat' function. */
 #undef HAVE_RENAMEAT
+
+/* Define to 1 if you have the <sched.h> header file. */
+#undef HAVE_SCHED_H
 
 /* Define to 1 if you have the `sem_timedwait' function. */
 #undef HAVE_SEM_TIMEDWAIT
 
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
+
+/* Define to 1 if you have the `setxattr' function. */
+#undef HAVE_SETXATTR
+
+/* Define to 1 if you have the `sinl' function. */
+#undef HAVE_SINL
 
 /* Define to 1 if you have the `splice' function. */
 #undef HAVE_SPLICE
@@ -139,6 +256,12 @@
 /* Define to 1 if you have the <sys/epoll.h> header file. */
 #undef HAVE_SYS_EPOLL_H
 
+/* Define to 1 if you have the <sys/file.h> header file. */
+#undef HAVE_SYS_FILE_H
+
+/* Define to 1 if you have the <sys/inotify.h> header file. */
+#undef HAVE_SYS_INOTIFY_H
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -184,6 +307,9 @@
 /* Define to 1 if you have the <sys/vfs.h> header file. */
 #undef HAVE_SYS_VFS_H
 
+/* Define to 1 if you have the `tanl' function. */
+#undef HAVE_TANL
+
 /* Define to 1 if you have the `tee' function. */
 #undef HAVE_TEE
 
@@ -198,6 +324,9 @@
 
 /* Define to 1 if you have the <ustat.h> header file and it works. */
 #undef HAVE_USTAT_H
+
+/* Define to 1 if you have the `utimensat' function. */
+#undef HAVE_UTIMENSAT
 
 /* Define to 1 if you have the <utime.h> header file. */
 #undef HAVE_UTIME_H

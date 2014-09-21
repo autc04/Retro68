@@ -6,7 +6,10 @@ package json
 
 import (
 	"bytes"
+	"io/ioutil"
+	"net"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -82,6 +85,28 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
+func TestDecoderBuffered(t *testing.T) {
+	r := strings.NewReader(`{"Name": "Gopher"} extra `)
+	var m struct {
+		Name string
+	}
+	d := NewDecoder(r)
+	err := d.Decode(&m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Name != "Gopher" {
+		t.Errorf("Name = %q; want Gopher", m.Name)
+	}
+	rest, err := ioutil.ReadAll(d.Buffered())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := string(rest), " extra "; g != w {
+		t.Errorf("Remaining = %q; want %q", g, w)
+	}
+}
+
 func nlines(s string, n int) string {
 	if n <= 0 {
 		return ""
@@ -143,5 +168,39 @@ func TestNullRawMessage(t *testing.T) {
 	}
 	if string(b) != msg {
 		t.Fatalf("Marshal: have %#q want %#q", b, msg)
+	}
+}
+
+var blockingTests = []string{
+	`{"x": 1}`,
+	`[1, 2, 3]`,
+}
+
+func TestBlocking(t *testing.T) {
+	for _, enc := range blockingTests {
+		r, w := net.Pipe()
+		go w.Write([]byte(enc))
+		var val interface{}
+
+		// If Decode reads beyond what w.Write writes above,
+		// it will block, and the test will deadlock.
+		if err := NewDecoder(r).Decode(&val); err != nil {
+			t.Errorf("decoding %s: %v", enc, err)
+		}
+		r.Close()
+		w.Close()
+	}
+}
+
+func BenchmarkEncoderEncode(b *testing.B) {
+	b.ReportAllocs()
+	type T struct {
+		X, Y string
+	}
+	v := &T{"foo", "bar"}
+	for i := 0; i < b.N; i++ {
+		if err := NewEncoder(ioutil.Discard).Encode(v); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

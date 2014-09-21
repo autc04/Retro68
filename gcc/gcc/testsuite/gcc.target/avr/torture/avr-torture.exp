@@ -1,4 +1,4 @@
-#   Copyright (C) 2008 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ dg-init
 	{ -O0 } \
 	{ -O1 } \
 	{ -O2 } \
+	{ -Os -flto } \
 	{ -O2 -mcall-prologues } \
 	{ -O2 -fdata-sections } \
 	{ -O2 -fmerge-all-constants } \

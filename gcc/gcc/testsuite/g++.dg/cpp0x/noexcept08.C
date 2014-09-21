@@ -1,4 +1,4 @@
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 // { dg-prune-output "overriding" }
 
 struct A

@@ -1,7 +1,5 @@
 /* Common hooks for ARM.
-   Copyright (C) 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -35,6 +33,7 @@ static const struct default_options arm_option_optimization_table[] =
     /* Enable section anchors by default at -O1 or higher.  */
     { OPT_LEVELS_1_PLUS, OPT_fsection_anchors, NULL, 1 },
     { OPT_LEVELS_1_PLUS, OPT_fomit_frame_pointer, NULL, 1 },
+    { OPT_LEVELS_1_PLUS, OPT_fsched_pressure, NULL, 1 },
     { OPT_LEVELS_NONE, 0, NULL, 0 }
   };
 
@@ -63,6 +62,43 @@ arm_except_unwind_info (struct gcc_options *opts)
   /* ... we use sjlj exceptions for backwards compatibility.  */
   return UI_SJLJ;
 }
+
+#define ARM_CPU_NAME_LENGTH 20
+
+/* Truncate NAME at the first '.' character seen, or return
+   NAME unmodified.  */
+
+const char *
+arm_rewrite_selected_cpu (const char *name)
+{
+  static char output_buf[ARM_CPU_NAME_LENGTH + 1] = {0};
+  char *arg_pos;
+
+  strncpy (output_buf, name, ARM_CPU_NAME_LENGTH);
+  arg_pos = strchr (output_buf, '.');
+
+  /* If we found a '.' truncate the entry at that point.  */
+  if (arg_pos)
+    *arg_pos = '\0';
+
+  return output_buf;
+}
+
+/* Called by the driver to rewrite a name passed to the -mcpu
+   argument in preparation to be passed to the assembler.  The
+   names passed from the command line will be in ARGV, we want
+   to use the right-most argument, which should be in
+   ARGV[ARGC - 1].  ARGC should always be greater than 0.  */
+
+const char *
+arm_rewrite_mcpu (int argc, const char **argv)
+{
+  gcc_assert (argc);
+  return arm_rewrite_selected_cpu (argv[argc - 1]);
+}
+
+#undef ARM_CPU_NAME_LENGTH
+
 
 #undef  TARGET_DEFAULT_TARGET_FLAGS
 #define TARGET_DEFAULT_TARGET_FLAGS (TARGET_DEFAULT | MASK_SCHED_PROLOG)

@@ -1,6 +1,5 @@
 /* libgcc routines for RL78
-   Copyright (C) 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Red Hat.
 
    This file is part of GCC.
@@ -33,9 +32,7 @@
 
 */
 
-r8	=	0xffef0
-r10	=	0xffef2
-r14	=	0xffef6
+#include "vregs.h"
 
 	.data
 	.p2align	1

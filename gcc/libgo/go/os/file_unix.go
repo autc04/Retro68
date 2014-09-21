@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd
 
 package os
 
 import (
 	"runtime"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -24,7 +25,7 @@ type file struct {
 	fd      int
 	name    string
 	dirinfo *dirInfo // nil unless directory being read
-	nepipe  int      // number of consecutive EPIPE in Write
+	nepipe  int32    // number of consecutive EPIPE in Write
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -50,6 +51,16 @@ func NewFile(fd uintptr, name string) *File {
 type dirInfo struct {
 	buf []byte       // buffer for directory I/O
 	dir *syscall.DIR // from opendir
+}
+
+func epipecheck(file *File, e error) {
+	if e == syscall.EPIPE {
+		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
+			sigpipe()
+		}
+	} else {
+		atomic.StoreInt32(&file.nepipe, 0)
+	}
 }
 
 // DevNull is the name of the operating system's ``null device.''
@@ -84,6 +95,9 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 // Close closes the File, rendering it unusable for I/O.
 // It returns an error, if any.
 func (f *File) Close() error {
+	if f == nil {
+		return ErrInvalid
+	}
 	return f.file.close()
 }
 
@@ -97,8 +111,13 @@ func (file *file) close() error {
 	}
 
 	if file.dirinfo != nil {
-		if libc_closedir(file.dirinfo.dir) < 0 && err == nil {
-			err = &PathError{"closedir", file.name, syscall.GetErrno()}
+		syscall.Entersyscall()
+		i := libc_closedir(file.dirinfo.dir)
+		errno := syscall.GetErrno()
+		syscall.Exitsyscall()
+		file.dirinfo = nil
+		if i < 0 && err == nil {
+			err = &PathError{"closedir", file.name, errno}
 		}
 	}
 
@@ -112,6 +131,9 @@ func (file *file) close() error {
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
 func (f *File) Stat() (fi FileInfo, err error) {
+	if f == nil {
+		return nil, ErrInvalid
+	}
 	var stat syscall.Stat_t
 	err = syscall.Fstat(f.fd, &stat)
 	if err != nil {
@@ -153,12 +175,12 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	names, err := f.Readdirnames(n)
 	fi = make([]FileInfo, len(names))
 	for i, filename := range names {
-		fip, err := Lstat(dirname + filename)
-		if err == nil {
-			fi[i] = fip
-		} else {
+		fip, lerr := lstat(dirname + filename)
+		if lerr != nil {
 			fi[i] = &fileStat{name: filename}
+			continue
 		}
+		fi[i] = fip
 	}
 	return fi, err
 }
@@ -179,7 +201,20 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 func (f *File) write(b []byte) (n int, err error) {
-	return syscall.Write(f.fd, b)
+	for {
+		m, err := syscall.Write(f.fd, b)
+		n += m
+
+		// If the syscall wrote some data but not all (short write)
+		// or it returned EINTR, then assume it stopped early for
+		// reasons that are uninteresting to the caller, and try again.
+		if 0 < m && m < len(b) || err == syscall.EINTR {
+			b = b[m:]
+			continue
+		}
+
+		return n, err
+	}
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
@@ -253,25 +288,6 @@ func basename(name string) string {
 	}
 
 	return name
-}
-
-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an error, if any.
-func Pipe() (r *File, w *File, err error) {
-	var p [2]int
-
-	// See ../syscall/exec.go for description of lock.
-	syscall.ForkLock.RLock()
-	e := syscall.Pipe(p[0:])
-	if e != nil {
-		syscall.ForkLock.RUnlock()
-		return nil, nil, NewSyscallError("pipe", e)
-	}
-	syscall.CloseOnExec(p[0])
-	syscall.CloseOnExec(p[1])
-	syscall.ForkLock.RUnlock()
-
-	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
 }
 
 // TempDir returns the default directory to use for temporary files.

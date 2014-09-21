@@ -1,5 +1,5 @@
 /* Fallback FPU-related code (for systems not otherwise supported).
-   Copyright 2005, 2007, 2009, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Francois-Xavier Coudert <coudert@clipper.ens.fr>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -49,4 +49,23 @@ set_fpu (void)
   if (options.fpe & GFC_FPE_INEXACT)
     estr_write ("Fortran runtime warning: IEEE 'inexact' "
 	        "exception not supported.\n");
+}
+
+int
+get_fpu_except_flags (void)
+{
+  return 0;
+}
+
+
+int
+get_fpu_rounding_mode (void)
+{   
+  return 0;
+}               
+
+
+void
+set_fpu_rounding_mode (int round __attribute__((unused)))
+{
 }

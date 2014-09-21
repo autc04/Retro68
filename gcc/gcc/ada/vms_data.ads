@@ -1,12 +1,12 @@
 ------------------------------------------------------------------------------
 --                                                                          --
 --                         GNAT COMPILER COMPONENTS                         --
---                                                                          --
+--                                                                         --
 --                             V M S _ D A T A                              --
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1996-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1275,10 +1275,17 @@ package VMS_Data is
    --   Equivalent to /12 (/2012 is the preferred usage).
 
    S_GCC_Add     : aliased constant S := "/ADD_PROJECT_SEARCH_DIR=*"       &
-                                            "-aP*";
+                                             "-aP*";
    --        /ADD_PROJECT_SEARCH_PATH=(directory[,...])
    --
    --   Add directories to the project search path.
+
+   S_GCC_AlCheck : aliased constant S := "/ALIASING_CHECK "                &
+                                             "-gnateA";
+   --        /NOALIASING_CHECK (D)
+   --        /ALIASING_CHECK
+   --
+   --   Check that there are no aliased parameters in subprogram calls.
 
    S_GCC_Asm     : aliased constant S := "/ASM "                           &
                                              "-S,!-c";
@@ -1347,12 +1354,13 @@ package VMS_Data is
    --                      if the /CHECKS qualifier is not present on the
    --                      command line. Same as /NOCHECKS.
    --
-   --     OVERFLOW        Enables overflow checking for integer operations and
-   --                     checks for access before elaboration on subprogram
-   --                     calls. This causes GNAT to generate slower and larger
-   --                     executable programs by adding code to check for both
-   --                     overflow and division by zero (resulting in raising
-   --                     "Constraint_Error" as required by Ada semantics).
+   --     OVERFLOW        Enables overflow checking in CHECKED mode for integer
+   --                     operations and checks for access before elaboration
+   --                     on subprogram calls. This causes GNAT to generate
+   --                     slower and larger executable programs by adding code
+   --                     to check for both overflow and division by zero
+   --                     (resulting in raising "Constraint_Error" as required
+   --                     by Ada semantics).
    --                     Similarly, GNAT does not generate elaboration check
    --                     by default, and you must specify this keyword to
    --                     enable them.
@@ -1397,6 +1405,14 @@ package VMS_Data is
                                              "-gnatp,!-gnato,!-gnatE";
    --  NODOC (see /CHECKS)
 
+   S_GCC_Chflov  : aliased constant S := "/FLOAT_OVERFLOW_CHECK "          &
+                                             "-gnateF";
+   --        /NOFLOAT_OVERFLOW_CHECK (D)
+   --        /FLOAT_OVERFLOW_CHECK
+   --
+   --   Set mode to check overflow for all floating-point operations including
+   --   those using an unconstrained predefined type (i.e. no infinities).
+
    S_GCC_Compres : aliased constant S := "/COMPRESS_NAMES "                &
                                              "-gnatC";
    --        /NOCOMPRESS_NAMES (D)
@@ -1413,7 +1429,8 @@ package VMS_Data is
                                              "-gnatec>";
    --        /CONFIGURATION_PRAGMAS_FILE=file
    --
-   --   Specify a configuration pragmas file that need to be taken into account
+   --   Specify a configuration pragmas file that needs to be taken into
+   --   account.
 
    S_GCC_Current : aliased constant S := "/CURRENT_DIRECTORY "             &
                                              "!-I-";
@@ -1533,6 +1550,12 @@ package VMS_Data is
                                              "!-g";
    --  NODOC (see /Debug)
 
+   S_GCC_DisAtom : aliased constant S := "/DISABLE_ATOMIC_SYNCHRONIZATION " &
+                                            "-gnated";
+   --         /NODISABLE_ATOMIC_SYNCHRONIZATION (D)
+   --         /DISABLE_ATOMIC_SYNCHRONIZATION
+   --   Disable synchronization of atomic variables.
+
    S_GCC_Dist    : aliased constant S := "/DISTRIBUTION_STUBS="            &
                                             "RECEIVER "                    &
                                                "-gnatzr "                  &
@@ -1547,7 +1570,20 @@ package VMS_Data is
 
    S_GCC_DistX   : aliased constant S := "/NODISTRIBUTION_STUBS "          &
                                             "!-gnatzr,!-gnatzc";
-   --  NODOC (see /DISTRIBUTION_STUBS)
+   --  NODISTRIBUTION_STUBS (see /DISTRIBUTION_STUBS)
+
+   S_GCC_ElabI   : aliased constant S := "/ELABORATION_INFO_MESSAGES "     &
+                                            "-gnatel";
+   --  ELABORATION_INFO_MESSAGES
+   --
+   --  Causes the compiler to output INFO messages that show where implicit
+   --  Elaborate and Elaborate_All pragmas are added when using the static
+   --  elaboration model. Used to diagnose binder circularities when this
+   --  elaboration model is used.
+
+   S_GCC_NoElabI : aliased constant S := "/NOELABORATION_INFO_MESSAGES "     &
+                                            "-gnateL";
+   --  Turns off elaboration info messages (see ELABORATION_INFO_MESSAGES)
 
    S_GCC_Error   : aliased constant S := "/ERROR_LIMIT=#"                  &
                                             "-gnatm#";
@@ -1763,13 +1799,28 @@ package VMS_Data is
                                              "-gnati1";
    --  NODOC (see /IDENTIFIER_CHARACTER_SET)
 
-   S_GCC_Ignore  : aliased constant S := "/IGNORE_REP_CLAUSES "            &
+   S_GCC_IgnoreR : aliased constant S := "/IGNORE_REP_CLAUSES "            &
                                              "-gnatI";
    --        /IGNORE_REP_CLAUSES
    --
    --   Causes all representation clauses to be ignored and treated as
    --   comments. Useful when compiling foreign code (for example when ASIS
    --   is used to analyze such code).
+
+   S_GCC_IgnoreS : aliased constant S := "/IGNORE_STYLE_CHECKS_PRAGMAS "   &
+                                             "-gnateY";
+   --        /IGNORE_STYLE_CHECKS_PRAGMAS
+   --
+   --   Causes all Style_Checks pragmas to be checked for legality, but
+   --   otherwise ignored. Allows style checks to be fully controlled by
+   --   command line qualifiers.
+
+   S_GCC_IgnoreU : aliased constant S := "/IGNORE_UNRECOGNIZED "           &
+                                             "-gnateu";
+   --        /IGNORE_UNRECOGNIZED
+   --
+   --   Causes unrecognized style switches, validity switches, and warning
+   --   switches to be ignored rather than generating an error message.
 
    S_GCC_Immed   : aliased constant S := "/IMMEDIATE_ERRORS "              &
                                              "-gnatdO";
@@ -1780,10 +1831,19 @@ package VMS_Data is
    --   than after compilation is terminated. If GNAT terminates prematurely
    --   or goes into an infinite loop, the last error message displayed may
    --   help to pinpoint the culprit.
+   --
+   --   Note that this qualifier is intended only for helping to diagnose
+   --   illegal programs when the compiler fails. It disconnects many of the
+   --   normal handling procedures for error messages, and may for example
+   --   cause malfunction of pragma Warnings.
 
    S_GCC_Inline  : aliased constant S := "/INLINE="                        &
                                             "PRAGMA "                      &
                                               "-gnatn "                    &
+                                            "PRAGMA_LEVEL_1 "              &
+                                              "-gnatn1 "                   &
+                                            "PRAGMA_LEVEL_2 "              &
+                                              "-gnatn2 "                   &
                                             "FULL "                        &
                                               "-gnatN "                    &
                                             "SUPPRESS "                    &
@@ -1816,6 +1876,14 @@ package VMS_Data is
    --                    optimization options, to get either lower
    --                    (/OPTIMIZE=SOME) or higher (/OPTIMIZE=UNROLL_LOOPS)
    --                    levels of optimization.
+   --
+   --        PRAGMA_LEVEL_1
+   --                    Direct control of the level of "Inline" pragmas
+   --                    optimization with moderate inlining across modules.
+   --
+   --        PRAGMA_LEVEL_2
+   --                    Direct control of the level of "Inline" pragmas
+   --                    optimization with full inlining across modules.
    --
    --        FULL        Front end inlining. The front end inlining activated
    --                    by this switch is generally more extensive, and quite
@@ -1926,11 +1994,14 @@ package VMS_Data is
    --   When using a project file, GNAT MAKE creates a temporary mapping file
    --   and communicates it to the compiler using this switch.
 
-   S_GCC_Multi   : aliased constant S := "/MULTI_UNIT_INDEX=#"             &
-                                            "-gnateI#";
-   --        /MULTI_UNIT_INDEX=nnn
+   S_GCC_MaxI    : aliased constant S := "/MAX_INSTANTIATIONS=#"           &
+                                            "-gnatei#";
+
+   --        /MAX_INSTANTIATIONS=nnn
    --
-   --   Specify the index of the unit to compile in a multi-unit source file.
+   --   Specify the maximum number of instantiations permitted. The default
+   --   value is 8000, which is probably enough for all programs except those
+   --   containing some kind of runaway unintended instantiation loop.
 
    S_GCC_Mess    : aliased constant S := "/MESSAGES_PROJECT_FILE="         &
                                             "DEFAULT "                     &
@@ -1950,6 +2021,12 @@ package VMS_Data is
    --
    --      HIGH        A great number of messages are output, most of them not
    --                  being useful for the user.
+
+   S_GCC_Multi   : aliased constant S := "/MULTI_UNIT_INDEX=#"             &
+                                            "-gnateI#";
+   --        /MULTI_UNIT_INDEX=nnn
+   --
+   --   Specify the index of the unit to compile in a multi-unit source file.
 
    S_GCC_Nesting  : aliased constant S := "/MAX_NESTING=#"                 &
                                              "-gnatyL#";
@@ -2081,6 +2158,30 @@ package VMS_Data is
    --   fname where the period is replace by an underline. For example, if
    --   file xyz.adb is compiled with -gnatl=.lst, then the output is written
    --   to file xyz.adb_lst.
+
+   S_GCC_Overflo : aliased constant S := "/OVERFLOW_CHECKS=#"              &
+                                             "-gnato#";
+   --        /OVERFLOW_CHECKS=nn
+   --
+   --   Set default overflow cheecking mode. If nn is a single digit, in the
+   --   range 0-3, it sets the overflow checking mode for all expressions,
+   --   including those outside and within assertions. The meaning of nnn is:
+   --
+   --     1   all intermediate computations done using base type (STRICT)
+   --     2   minimize intermediate overflows (MINIMIZED)
+   --     3   eliminate intermediate overflows (ELIMINATED)
+   --
+   --   Otherwise nn can be two digits, both 1-3, and in this case the first
+   --   digit sets the mode (using the above code) for expressions outside an
+   --   assertion, and the second digit sets the mode for expressions within
+   --   an assertion.
+
+   S_GCC_PValid  : aliased constant S := "/PARAMETER_VALIDITY_CHECK "      &
+                                            "-gnateV";
+   --        /NOPARAMETER_VALIDITY_CHECK (D)
+   --        /PARAMETER_VALIDITY_CHECK
+   --
+   --   Check validity of subprogram parameters.
 
    S_GCC_Pointer : aliased constant S := "/POINTER_SIZE="                  &
                                             "64 "                          &
@@ -2218,7 +2319,11 @@ package VMS_Data is
                                             "SYMBOLIC "                    &
                                                "-gnatR3 "                  &
                                             "SYMBOLIC_FILE "               &
-                                               "-gnatR3s";
+                                               "-gnatR3s "                 &
+                                            "MECHANISMS "                  &
+                                               "-gnatRm "                  &
+                                            "MECHANISMS_FILE "             &
+                                               "-gnatRms";
    --        /NOREPRESENTATION_INFO (D)
    --        /REPRESENTATION_INFO[=(keyword[,...])]
    --
@@ -2247,6 +2352,13 @@ package VMS_Data is
    --
    --        SYMBOLIC_FILE   Similar to SYMBOLIC, but the output is to a file
    --                        with the name 'file_rep' where 'file' is the name
+   --                        of the corresponding source file.
+   --
+   --        MECHANISMS      List convention and argument passing mechanisms
+   --                        for all subprograms
+   --
+   --        MECHANISMS_FILE Similar to MECHANISMS, but the output is to a file
+   --                        with the name 'file_rep' where file is the name
    --                        of the corresponding source file.
    --
    --        DEFAULT         Equivalent to ARRAYS.
@@ -2410,7 +2522,7 @@ package VMS_Data is
                                             "XTRA_PARENS "                 &
                                                "-gnaty-x "                 &
                                             "NOXTRA_PARENS "               &
-                                               "-gnaty-x ";
+                                               "-gnaty-x";
    --        /NOSTYLE_CHECKS (D)
    --        /STYLE_CHECKS[=(keyword,[...])]
    --
@@ -2793,6 +2905,18 @@ package VMS_Data is
    --
    --   All compiler tables start at nnn times usual starting size.
 
+   S_GCC_Target_W  : aliased constant S := "/WRITE_TARGET_DEPENDENT_INFO=<" &
+                                             "-gnatet=>";
+   --        /WRITE_TARGET_DEPENDENT_INFO=file
+   --
+   --   Generate target dependent information to file.
+
+   S_GCC_Target_R  : aliased constant S := "/READ_TARGET_DEPENDENT_INFO=<"  &
+                                             "-gnateT=>";
+   --        /READ_TARGET_DEPENDENT_INFO=file
+   --
+   --   Read target dependent information from file.
+
    S_GCC_Trace   : aliased constant S := "/TRACE_UNITS "                   &
                                             "-gnatdc";
    --        /TRACE_UNITS
@@ -2995,6 +3119,10 @@ package VMS_Data is
                                                "-gnatwd "                  &
                                             "NO_IMPLICIT_DEREFERENCE "     &
                                                "-gnatwD "                  &
+                                            "TAG_WARNINGS "                &
+                                               "-gnatw.d "                 &
+                                            "NOTAG_WARNINGS "              &
+                                               "-gnatw.D "                 &
                                             "ERRORS "                      &
                                                "-gnatwe "                  &
                                             "UNREFERENCED_FORMALS "        &
@@ -3017,6 +3145,10 @@ package VMS_Data is
                                                "-gnatwi "                  &
                                             "NOIMPLEMENTATION "            &
                                                "-gnatwI "                  &
+                                            "OVERLAPPING_ACTUALS "         &
+                                               "-gnatw.i "                 &
+                                            "NOOVERLAPPING_ACTUALS "       &
+                                               "-gnatw.I "                 &
                                             "OBSOLESCENT "                 &
                                                "-gnatwj "                  &
                                             "NOOBSOLESCENT "               &
@@ -3025,10 +3157,18 @@ package VMS_Data is
                                                "-gnatwk "                  &
                                             "NOCONSTANT_VARIABLES "        &
                                                "-gnatwK "                  &
+                                            "STANDARD_REDEFINITION "       &
+                                               "-gnatw.k "                 &
+                                            "NOSTANDARD_REDEFINITION "     &
+                                               "-gnatw.K "                 &
                                             "ELABORATION "                 &
                                                "-gnatwl "                  &
                                             "NOELABORATION "               &
                                                "-gnatwL "                  &
+                                            "INHERITED_ASPECTS "           &
+                                               "-gnatw.l "                 &
+                                            "NOINHERITED_ASPECTS "         &
+                                               "-gnatw.L "                 &
                                             "MODIFIED_UNREF "              &
                                                "-gnatwm "                  &
                                             "NOMODIFIED_UNREF "            &
@@ -3039,6 +3179,10 @@ package VMS_Data is
                                                "-gnatw.M "                 &
                                             "NORMAL "                      &
                                                "-gnatwn "                  &
+                                            "ATOMIC_SYNCHRONIZATION "      &
+                                               "-gnatw.n "                 &
+                                            "NOATOMIC_SYNCHRONIZATION "    &
+                                               "-gnatw.N "                 &
                                             "OVERLAYS "                    &
                                                "-gnatwo "                  &
                                             "NOOVERLAYS "                  &
@@ -3051,12 +3195,12 @@ package VMS_Data is
                                                "-gnatwp "                  &
                                             "NOINEFFECTIVE_INLINE "        &
                                                "-gnatwP "                  &
-                                            "MISSING_PARENS "              &
-                                               "-gnatwq "                  &
                                             "PARAMETER_ORDER "             &
                                                "-gnatw.p "                 &
                                             "NOPARAMETER_ORDER "           &
                                                "-gnatw.P "                 &
+                                            "MISSING_PARENS "              &
+                                               "-gnatwq "                  &
                                             "NOMISSING_PARENS "            &
                                                "-gnatwQ "                  &
                                             "REDUNDANT "                   &
@@ -3077,6 +3221,10 @@ package VMS_Data is
                                                "-gnatwt "                  &
                                             "NODELETED_CODE "              &
                                                "-gnatwT "                  &
+                                            "SUSPICIOUS_CONTRACT "         &
+                                               "-gnatw.t "                 &
+                                            "NOSUSPICIOUS_CONTRACT "       &
+                                               "-gnatw.T "                 &
                                             "UNINITIALIZED "               &
                                                "-Wuninitialized "          &
                                             "UNUSED "                      &
@@ -3111,10 +3259,14 @@ package VMS_Data is
                                                "-gnatw.x "                 &
                                             "NOLOCAL_RAISE_HANDLING "      &
                                                "-gnatw.X "                 &
-                                            "ADA_2005_COMPATIBILITY "      &
+                                            "ADA_COMPATIBILITY "           &
                                                "-gnatwy "                  &
-                                            "NOADA_2005_COMPATIBILITY "    &
+                                            "NOADA_COMPATIBILITY "         &
                                                "-gnatwY "                  &
+                                            "WHY_SPEC_NEEDS_BODY "         &
+                                               "-gnatw.y "                 &
+                                            "NO_WHY_SPEC_NEEDS_BODY "      &
+                                               "-gnatw.Y "                 &
                                             "UNCHECKED_CONVERSIONS "       &
                                                "-gnatwz "                  &
                                             "NOUNCHECKED_CONVERSIONS "     &
@@ -3133,260 +3285,383 @@ package VMS_Data is
    --   error. Second, if the compiler detects a situation that is sure to
    --   raise an exception at runtime, it generates a warning message.
    --
-   --   You may specify the following keywords to change this behavior:
+   --   You may specify the following keywords to change this behavior.
    --
-   --   DEFAULT (D)             The default behavior above.
+   --   DEFAULT (D)               The default behavior. This includes the
+   --                             following categories of warnings:
    --
-   --   ALL                     Activate all optional warnings.
-   --                           Activates most optional warning messages,
-   --                           see remaining list in this section for
-   --                           details on optional warning messages that
-   --                           can be individually controlled.
-   --                           The warnings that are not turned on by
-   --                           this option are BIASED_ROUNDING,
-   --                           IMPLICIT_DEREFERENCE, HIDING and
-   --                           ELABORATION. All other optional Ada
-   --                           warnings are turned on.
+   --                               ADA_COMPATIBILITY
+   --                               ADDRESS_CLAUSE_OVERLAY
+   --                               BIASED_REPRESENTATION
+   --                               IMPORT_EXPORT_PRAGMAS
+   --                               FAILING_ASSERTIONS
+   --                               IMPLEMENTATION
+   --                               LOWBOUND_ASSUMED
+   --                               MISSING_PARENS
+   --                               OVERLAPPING_ACTUALS
+   --                               REVERSE_BIT_ORDER
+   --                               SUSPICIOUS_CONTRACT
+   --                               SUSPICIOUS_MODULUS
+   --                               UNCHECKED_CONVERSIONS
+   --                               UNRECOGNIZED_PRAGMA
+   --                               VARIABLES_UNINITIALIZED
    --
-   --   EVERY                   Activate every optional warning.
-   --                           Activates all optional warnings, including
-   --                           those listed above as exceptions for ALL.
+   --                             as well as all warnings that cannot be
+   --                             individually suppressed.
    --
-   --   NOALL                   Suppress all optional errors.
-   --                           Suppresses all optional warning messages
-   --                           that can be activated by option ALL.
+   --   ALL                       Activate all optional warnings.
+   --                             Activates the most commong used optional
+   --                             warning messages. The warnings that are not
+   --                             turned on by this are:
    --
-   --   ALL_GCC                 Request additional messages from the GCC
-   --                           backend.  Most of these are not relevant
-   --                           to Ada.
+   --                               ADDRESS_CLAUSE_OVERLAY
+   --                               ATOMIC_SYNCHRONIZATION
+   --                               AVOID_GAPS
+   --                               BAD_FIXED_VALUE
+   --                               BIASED_ROUNDING
+   --                               DELETED_CODE
+   --                               ELABORATION
+   --                               HIDING
+   --                               IMPLICIT_DEREFERENCE
+   --                               INHERITED_ASPECTS
+   --                               OUT_PARAM_UNREF
+   --                               OVERLAPPING_ACTUALS
+   --                               OVERRIDING_SIZE
+   --                               STANDARD_REDEFINITION
+   --                               SUSPICIOUS_MODULUS
+   --                               UNORDERED_ENUMERATION
+   --                               WARNINGS_OFF_PRAGMAS
+   --                               WHY_BODY_NEEDED
    --
-   --   CONDITIONALS            Activate warnings for conditional
-   --                           Expressions used in tests that are known
-   --                           to be True or False at compile time. The
-   --                           default is that such warnings are not
-   --                           generated.
+   --                             All other optional warnings are turned on.
    --
-   --   NOCONDITIONALS          Suppress warnings for conditional
-   --                           expressions used in tests that are known
-   --                           to be True or False at compile time.
+   --   OPTIONAL                  Turn on standard optional warnings.
+   --                             This has the same effect as ALL.
    --
-   --   IMPLICIT_DEREFERENCE    Activate warnings on implicit dereferencing.
-   --                           The use of a prefix of an access type in an
-   --                           indexed component, slice, or selected component
-   --                           without an explicit .all will generate
-   --                           a warning. With this warning enabled, access
-   --                           checks occur only at points where an explicit
-   --                           .all appears in the source code (assuming no
-   --                           warnings are generated as a result of this
-   --                           option). The default is that such warnings are
-   --                           not generated. Note that /WARNINGS=ALL does not
-   --                           affect the setting of this warning option.
+   --   NOALL                     Suppress all optional errors.
+   --                             Suppresses all optional warning messages
+   --                             including those not activated by ALL.
    --
-   --   NOIMPLICIT_DEREFERENCE  Suppress warnings on implicit dereferencing.
-   --                           in indexed components, slices, and selected
-   --                           components.
+   --   NOOPTIONAL                Turn off standard optional warnings.
+   --                             This has the same effect as NOALL
    --
-   --   ELABORATION             Activate warnings on missing pragma
-   --                           Elaborate_All statements. The default is
-   --                           that such warnings are not generated.
+   --   EVERY                     Activate every optional warning.
+   --                             Activates all optional warnings, including
+   --                             those listed above as exceptions for ALL.
    --
-   --   NOELABORATION           Suppress warnings on missing pragma
-   --                           Elaborate_All statements.
+   --   ALL_GCC                   Request additional messages from the GCC
+   --                             backend. Most of these are not Ada-relevant.
    --
-   --   ERRORS                  Warning messages are to be treated as errors.
-   --                           The warning string still appears, but the
-   --                           warning messages are counted as errors, and
-   --                           prevent the generation of an object file.
+   --   UNINITIALIZED             Activate warnings for uninitialized
+   --                             variables. This is a GCC option, not an Ada
+   --                             option. You must also specify the /OPTIMIZE
+   --                             qualifier with a value other than NONE (in
+   --                             other words, this option is effective only
+   --                             if optimization is turned on).
+   --
+   --   ERRORS                    Warning messages are to be treated as errors.
+   --                             The warning string still appears, but the
+   --                             warning messages are counted as errors, and
+   --                             prevent the generation of an object file.
+   --
+   --   SUPPRESS                  Completely suppress the output of all warning
+   --                             messages. Same as /NOWARNINGS.
+   --
+   --   NORMAL                    Sets normal warning mode, in which enabled
+   --                             warnings are issued and treated as warnings
+   --                             rather than errors. This is the default mode.
+   --                             It can be used to cancel the effect of an
+   --                             explicit /WARNINGS=SUPPRESS or
+   --                             /WARNINGS=ERRORS. It also cancels the effect
+   --                             of the implicit /WARNINGS=ERRORS that is
+   --                             activated by the use of /STYLE=GNAT.
+   --
+   --   TAG_WARNINGS              Causes the string [xxx] to be added to
+   --                             warnings that are controlled by the warning
+   --                             switch -gnat??. See below for list of these
+   --                             equivalent switch names.
+   --
+   --   NOTAG_WARNINGS            Turns off warning tag output (default
+   --                             setting).
+   --
+   --   The remaining entries control individual warning categories. If one
+   --   of these options is preceded by NO (e.g. NOAVOID_GAPS), then the
+   --   corresponding class of warnings is suppressed. The -gnatwxx tag
+   --   below the name indicates the non-VMS warning switch option. This is
+   --   used in the warning tags generated by TAG_WARNINGS (above)
+   --
+   --   ADA_COMPATIBILITY       Activate warnings for Ada compatibility issues.
+   --   (-gnatwy)               This generates warnings for usages which are
+   --                           legal, but may cause difficulties with later
+   --                           Ada versions (e.g. the use of INTERFACE as an
+   --                           identifier, which is legal in Ada 85, but in
+   --                           Ada 2005, this is a reserved word).
+   --
+   --   ATOMIC_SYNCHRONIZATION  Activate info msgs for atomic synchronization.
+   --   (-gnatw.n)              This generates information messages when an
+   --                           access to an atomic variable requires the
+   --                           generation of atomic synchronization code.
+   --
+   --   AVOIDGAPS               Activate warnings for gaps in records.
+   --   (-gnatw.h)              This outputs a warning if a representation
+   --                           clause for a record leaves unallocated bits.
+   --
+   --   BAD_FIXED_VALUES        Activate warnings on bad fixed values.
+   --   (-gnatwb)               When this is enabled, a fixed-type literal
+   --                           will generate a warning if its value does not
+   --                           correspond to an exact value of the type and
+   --                           is thus subject to rounding.
+   --
+   --   BIASED_REPRESENTATION   Activate warnings for biased representations.
+   --   (-gnatw.b)              A warning will be generated if a size clause
+   --                           or a component clause forces use of a biased
+   --                           representation (e.g. range 1..5 with size 2).
+   --
+   --   CONDITIONALS            Activate warnings for conditional expressions
+   --   (-gnatwc)               in tests where the expression is known to
+   --                           be True or False at compile time.
+   --
+   --   CONSTANT_VARIABLES      Activate warnings on constant variables.
+   --   (-gnatwk)               A warning is output for a variable which could
+   --                           have been declared as a constant.
+   --
+   --   DELETED_CODE            Activate warning for conditional deleted code.
+   --   (-gnatwt)               This option generates warnings for tracking of
+   --                           code in conditionals (IF and CASE statements)
+   --                           that is detected to be dead code which cannot
+   --                           be executed, and which is removed by the
+   --                           front end. This may be useful for detecting
+   --                           deactivated code in certified applications.
+   --
+   --   ELABORATION             Activate warnings on missing pragma Elaborate
+   --   (-gnatwl)               and Elaborate_All statements.
+   --
+   --   FAILING_ASSERTIONS      Activate warnings on failing assertions.
+   --   (-gnatw.a)              Generates a warning for assertions that are
+   --                           sure to fail.
    --
    --   HIDING                  Activate warnings on hiding declarations.
-   --                           A declaration is considered hiding if it is
-   --                           for a non-overloadable entity, and it declares
+   --   (-gnatwh)               A declaration is considered hiding if it is
+   --                           for a non-overloadable entity, and declares
    --                           an entity with the same name as some other
-   --                           entity that is directly or use-visible. The
-   --                           default is that such warnings are not
-   --                           generated.
-   --
-   --   NOHIDING                Suppress warnings on hiding declarations.
+   --                           entity that is directly or use-visible.
    --
    --   IMPLEMENTATION          Activate warnings for a with of an internal
-   --                           GNAT implementation unit, defined as any unit
-   --                           from the Ada, Interfaces, GNAT, DEC or
-   --                           System hierarchies that is not documented in
-   --                           either the Ada Reference Manual or the GNAT
-   --                           Programmer's Reference Manual. Such units are
-   --                           intended only for internal implementation
-   --                           purposes and should not be with'ed by user
-   --                           programs. The default is that such warnings
-   --                           are generated.
+   --   (-gnatwi)               GNAT implementation unit, defined as any unit
+   --                           from the Ada, Interfaces, GNAT, DEC or System
+   --                           hierarchies that is not documented in the
+   --                           Ada Reference Manual or the GNAT Programmer's
+   --                           Reference Manual. Such units are intended only
+   --                           for internal implementation purposes and may
+   --                           change from version to veresion, and should
+   --                           not be with'ed by user programs.
    --
-   --   NOIMPLEMENTATION        Disables warnings for a with of an internal
-   --                           GNAT implementation unit.
+   --   IMPLICIT_DEREFERENCE    Activate warnings on implicit dereferencing.
+   --   (-gnatwd)               The use of a prefix of an access type in an
+   --                           indexed component, slice, or selected component
+   --                           without an explicit .all will generate a
+   --                           warning. When this warning is enabled, and no
+   --                           warnings of this type are generated, access
+   --                           checks occur only at points where the source
+   --                           program contains an explicit use of .all.
    --
-   --   INEFFECTIVE_INLINE      Activate warnings on ineffective pragma Inlines
-   --                           Activates warnings for failure of front end
-   --                           inlining (activated by /INLINE=FULL) to inline
-   --                           a particular call. There are many reasons for
-   --                           not being able to inline a call, including most
+   --   IMPORT_EXPORT_PRAGMAS   Activate warnings on import-export pragmas.
+   --   (-gnatwx)               This generates a warning on an Export or Import
+   --                           pragma when the compiler detects a possible
+   --                           conflict between the Ada and foreign language
+   --                           calling sequences. For example, the use of
+   --                           default parameters in a convention C procedure
+   --                           is dubious because the C compiler cannot supply
+   --                           the proper default, so a warning is issued.
+   --
+   --   INEFFECTIVE_INLINE      Activate warnings on ineffective Inlines.
+   --   (-gnatwp)               Activates warnings for failure of front end
+   --                           inlining (activated by /INLINE=FULL) to
+   --                           inline a particular call when a pragma Inline
+   --                           applies. There are many reasons for not
+   --                           being able to inline a call, including most
    --                           commonly that the call is too complex to
    --                           inline. This warning can also be turned on
    --                           using /INLINE=FULL.
    --
-   --   NOINEFFECTIVE_INLINE    Suppress warnings on ineffective pragma Inlines
-   --                           Suppresses warnings on ineffective pragma
-   --                           Inlines. If the inlining mechanism cannot
-   --                           inline a call, it will simply ignore the
-   --                           request silently.
+   --   INHERITED_ASPECTS       Activate info messages for inherited aspects.
+   --   (-gantw.l)              Outputs information messages for tagged types
+   --                           that inherit aspects from a parent.
+   --
+   --   LOCAL_RAISE_HANDLING    Activate warnings for No_Exception_Propagation.
+   --   (-gnatw.x)              This generates warnings for exception usage
+   --                           when the No_Exception_Propagation restriction
+   --                           is in effect. Warnings are given for implicit
+   --                           or explicit exception raises which are not
+   --                           covered by a local handler, and for exception
+   --                           handlers which do not cover a local raise.
+   --
+   --   LOWBOUND_ASSUMED        Activate warnings for low bound assumptions.
+   --   (-gnatww)               Outputs warnings if code appears to depend on
+   --                           an assumption about the lower bound of one of
+   --                           the subprogram parameters (for example using
+   --                           S(1 .. 5) instead of S(S'First .. S'First + 4).
    --
    --   MISSING_COMPONENT_CLAUSES
-   --                           Activate warnings for cases when there are
-   --                           component clauses for a record type, but not
-   --                           for every component of the record.
+   --   (-gnatw.c)              Activate warnings for unrepped component.
+   --                           Generates a warning for a record component
+   --                           which does not have a component clause if
+   --                           at least one component claused is present
+   --                           for some other component of the record.
    --
-   --   NOMISSING_COMPONENT_CLAUSES
-   --                           Suppress warnings for cases when there are
-   --                           missing component clauses for a record type.
-   --
-   --   MISSING_PARENS
-   --                           Activate warnings for cases where parentheses
+   --   MISSING_PARENS          Activate warnings for missing parentheses.
+   --   (-gnatwq)               Outputs a warning for cases where parentheses
    --                           are not used and the result is potential
    --                           ambiguity from a reader's point of view.
    --                           For example (not a > b) when a and b are
    --                           modular means (not (a) > b) and very likely
    --                           the programmer intended (not (a > b)).
    --
-   --   NOMISSING_PARENS
-   --                           Suppress warnings for cases where parentheses
-   --                           are not used and the result is potential
-   --                           ambiguity from a reader's point of view.
-   --
-   --   MODIFIED_UNREF          Activates warnings for variables that are
-   --                           assigned (using an initialization value or with
-   --                           one or more assignment statements) but whose
-   --                           value is never read. The warning is suppressed
-   --                           for volatile variables and also for variables
+   --   MODIFIED_UNREF          Activate warning for assigned but not read.
+   --   (-gnatwm)               Outputs a warning for variables that are
+   --                           assigned (using an initialization value or an
+   --                           assignment statements) but whose value is
+   --                           never read. The warning is suppressed for
+   --                           volatile variables and also for variables
    --                           that are renamings of other variables or for
-   --                           which an address clause is given. This warning
-   --                           can also be turned on using /WARNINGS/OPTIONAL.
-   --
-   --   NOMODIFIED_UNREF        Disables warnings for variables that are
-   --                           assigned or initialized, but never read.
-   --
-   --   NORMAL                  Sets normal warning mode, in which enabled
-   --                           warnings are issued and treated as warnings
-   --                           rather than errors. This is the default mode.
-   --                           It can be used to cancel the effect of an
-   --                           explicit /WARNINGS=SUPPRESS or
-   --                           /WARNINGS=ERRORS. It also cancels the effect
-   --                           of the implicit /WARNINGS=ERRORS that is
-   --                           activated by the use of /STYLE=GNAT.
-   --
-   --   OBSOLESCENT             Activates warnings for calls to subprograms
-   --                           marked with pragma Obsolescent and for use of
-   --                           features in Annex J of the Ada Reference
-   --                           Manual. In the case of Annex J, not all
-   --                           features are flagged. In particular use of the
-   --                           renamed packages (like Text_IO), use of package
-   --                           ASCII and use of the attribute 'Constrained are
-   --                           not flagged, since these are very common and
-   --                           would generate many annoying positive warnings.
-   --                           The default is that such warnings are not
-   --                           generated.
-   --
-   --   NOOBSOLESCENT           Disables warnings on use of obsolescent
-   --                           features.
+   --                           which an address clause is given.
    --
    --   OBJECT_RENAME           Activate warnings for non limited objects
-   --                           renaming parameterless functions.
+   --   (-gnatw.r)              renaming parameterless functions.
    --
-   --   NOOBJECT_RENAME         Suppress warnings for non limited objects
-   --                           renaming parameterless functions.
+   --   OBSOLESCENT             Activates warnings for calls to subprograms
+   --   (-gnatwj)               marked with pragma Obsolescent and for use of
+   --                           features in Annex J of the Ada Reference
+   --                           Manual. In the case of Annex J, not all
+   --                           features are flagged. In particular use of
+   --                           the renamed packages (like Text_IO), use of
+   --                           package ASCII,  and use of the attribute
+   --                           'Constrained are not flagged, since these are
+   --                           common and would generate many annoying
+   --                           false-positive warnings.
    --
-   --   OPTIONAL                Equivalent to ALL.
+   --   OUT_PARAM_UNREF         Activate warnings on unreferenced OUT params.
+   --   (-gantw.o)              This switch activates warnings for variables
+   --                           that are modified by using them as actuals for
+   --                           a call to a procedure with an out mode formal,
+   --                           where the resulting assigned value is never
+   --                           read. It is applicable in the case where there
+   --                           is more than one out mode formal. If there is
+   --                           only one out mode formal, the warning is issued
+   --                           by default (controlled by UNUSED). The warning
+   --                           is suppressed for volatile variables and also
+   --                           for variables that are renamings of other
+   --                           variables or for which an address clause
+   --                           is given.
    --
-   --   NOOPTIONAL              Equivalent to NOALL.
+   --   OVERLAPPING_ACTUALS     Activate warnings on overlapping actuals.
+   --   (-gnatw.i)              Enables a warning on statically detectable
+   --                           overlapping actuals in a subprogram call,
+   --                           when one of the actuals is an in-out
+   --                           parameter, and the types of the actuals
+   --                           are not by-copy types.
    --
    --   OVERLAYS                Activate warnings for possibly unintended
-   --                           initialization effects of defining address
-   --                           clauses that cause one variable to overlap
-   --                           another. The default is that such warnings
-   --                           are generated.
-   --
-   --   NOOVERLAYS              Suppress warnings on possibly unintended
-   --                           initialization effects of defining address
+   --   (-gnatwo)               initialization effects of defining address
    --                           clauses that cause one variable to overlap
    --                           another.
    --
+   --   OVERRIDING_SIZE         Activate warning on overridden size clause.
+   --   (-gnatw.s)              Generates a warning if an explicit size clause
+   --                           is overridden by a component clause in a record
+   --                           or a component size in an array.
+   --
+   --   PARAMETER_ORDER         Activate warnings for suspicious parameter
+   --   (-gnatw.p)              ordering. A warning is generated if positional
+   --                           ordering is used and the actuals match the
+   --                           formal names, but are in the wrong order (e.g.
+   --                           GEN (B, A), when the formals of GEN are A, B.)
+   --                           No warning is generated for named parameters,
+   --                           so GEN (A => B, B => A) would be allowed.
+   --
    --   REDUNDANT               Activate warnings for redundant constructs.
-   --                           In particular assignments of a variable to
+   --   (-gnatwr)               In particular assignments of a variable to
    --                           itself, and a type conversion that converts
-   --                           an object to its own type. The default
-   --                           is that such warnings are not generated.
+   --                           an object to its own type.
    --
-   --   NOREDUNDANT             Suppress warnings for redundant constructs.
+   --   REVERSE_BIT_ORDER       Activates info messages for reverse bit order.
+   --   (-gnatw.v)              Generates information messages that show the
+   --                           effect of specifying reverse bit order for
+   --                           a record on individual components.
    --
-   --   SUPPRESS                Completely suppress the output of all warning
-   --                           messages.  Same as /NOWARNINGS.
+   --   STANDARD_REDEFINITION   Activate warnings on standard redefinition.
+   --   (-gnatw.k)              Generates a warning message if a declaration
+   --                           declares an identifier that matches one that
+   --                           is declared in package Standard (e.g. Float).
+   --
+   --   SUSPICIOUS_CONTRACT     Activate warnings on suspicious postconditions.
+   --   (-gnatw.t)              This generates warnings if a postcondition for
+   --                           a function does not mention the result, or if
+   --                           a postcondition for a procedure depends only on
+   --                           the entry values of the parameters.
+   --
+   --   SUSPICIOUS_MODULUS      Warn on suspicious modulus values, for
+   --   (-gnatw.m)              example "mod 7" is suspicious for a size with
+   --                           7 bits, since it was likely intended to be
+   --                           "mod 2**7". Similarly "mod 32" is considered
+   --                           suspicious, since it was likely intended to
+   --                           be "mod 2**32".
    --
    --   UNCHECKED_CONVERSIONS   Activates warnings on unchecked conversions.
-   --                           Causes warnings to be generated for
-   --                           unchecked conversions when the two types are
-   --                           known at compile time to have different sizes.
-   --                           The default is that such warnings are
-   --                           generated.
+   --   (-gnatwz)               Causes warnings to be generated for unchecked
+   --                           conversions between types that are known at
+   --                           compile time to have different sizes.
    --
-   --   NOUNCHECKED_CONVERSIONS Suppress warnings for unchecked conversions.
+   --   UNORDERED_ENUMERATION   Activate warnings for unordered enumeration.
+   --   (-gnatw.u)              Causes warnings to be generated if for an
+   --                           enumeration type that does not have a pragma
+   --                           Ordered that applies, if a subtype with a
+   --                           range is used, or a comparison other than
+   --                           [in]equality appears for values of the type.
    --
-   --   UNINITIALIZED           Generate warnings for uninitialized variables.
-   --                           This is a GCC option, not an Ada option.
-   --                           You must also specify the /OPTIMIZE qualifier
-   --                           with a value other than NONE (in other words,
-   --                           this keyword works only if optimization is
-   --                           turned on).
+   --   UNRECOGNIZED_PRAGMAS    Activate warnings for unrecognized pragmas.
+   --   (-gnatwg)               Such pragmas are ignored other than generating
+   --                           these warnings.
    --
    --   UNREFERENCED_FORMALS    Activate warnings on unreferenced formals.
-   --                           Causes a warning to be generated if a formal
+   --   (-gnatwf)               Causes a warning to be generated if a formal
    --                           parameter is not referenced in the body of
-   --                           the subprogram. This warning can also be turned
-   --                           on using option ALL or UNUSED.
-   --
-   --   NOUNREFERENCED_FORMALS  Suppress warnings on unreferenced formals.
-   --                           Suppresses warnings for unreferenced formal
-   --                           parameters. Note that the combination UNUSED
-   --                           followed by NOUNREFERENCED_FORMALS has the
-   --                           effect of warning on unreferenced entities
-   --                           other than subprogram formals.
+   --                           the subprogram. Note that the combination
+   --                           UNUSED followed by NOUNREFERENCED_FORMALS
+   --                           has the effect of warning on unreferenced
+   --                           entities other than subprogram formals.
    --
    --   UNUSED                  Activates warnings to be generated for entities
-   --                           that are defined but not referenced, and for
+   --   (-gantwu)               that are defined but not referenced, and for
    --                           units that are with'ed and not referenced. In
    --                           the case of packages, a warning is also
    --                           generated if no entities in the package are
    --                           referenced. This means that if the package
    --                           is referenced but the only references are in
-   --                           use clauses or renames declarations, a warning
-   --                           is still generated. A warning is also generated
-   --                           for a generic package that is with'ed but never
-   --                           instantiated.  In the case where a package or
-   --                           subprogram body is compiled, and there is a
-   --                           with on the corresponding spec that is only
-   --                           referenced in the body, a warning is also
-   --                           generated, noting that the with can be moved
-   --                           to the body. The default is that such warnings
-   --                           are not generated.
-   --
-   --   NOUNUSED                Suppress warnings for unused entities and
-   --                           packages.
+   --                           in use clauses or renames declarations, a
+   --                           warning is still generated. A warning is also
+   --                           generated for a generic package that is
+   --                           with'ed but never instantiated. In the case
+   --                           where a package or subprogram body is
+   --                           compiled, and there is a with on the
+   --                           corresponding spec that is only referenced
+   --                           in the body, a warning is also generated,
+   --                           noting the with can be moved to the body.
    --
    --   VARIABLES_UNINITIALIZED Activates warnings on unassigned variables.
-   --                           Causes warnings to be generated when a variable
-   --                           is accessed which may not be properly
-   --                           uninitialized.
-   --                           The default is that such warnings are
-   --                           generated.
+   --   (-gnatwv)               Causes warnings to be generated when a
+   --                           variable is accessed which may not be
+   --                           properly initialized.
    --
-   --   NOVARIABLES_UNINITIALIZED       Suppress warnings for uninitialized
-   --                                   variables.
-
+   --   WARNINGS_OFF_PRAGMAS    Activates warnings for pragma Warnings (Off).
+   --   (-gnatw.w)              This generates a warning if the specific string
+   --                           version the pragma is used as a local pragma
+   --                           (i.e. not a configuration pragma) and no
+   --                           warning is suppressed as a result.
+   --
+   --   WHY_SPEC_NEEDS_BODY     Generates information messages showing why a
+   --   (-gnatw.y)              package specification requires a body.
+   --
    S_GCC_WarnX   : aliased constant S := "/NOWARNINGS "                    &
                                             "-gnatws";
    --  NODOC (see /WARNINGS)
@@ -3544,10 +3819,12 @@ package VMS_Data is
                      S_GCC_Ada_12  'Access,
                      S_GCC_Ada_2012'Access,
                      S_GCC_Add     'Access,
+                     S_GCC_AlCheck 'Access,
                      S_GCC_Asm     'Access,
                      S_GCC_AValid  'Access,
                      S_GCC_CategW  'Access,
                      S_GCC_Checks  'Access,
+                     S_GCC_Chflov  'Access,
                      S_GCC_ChecksX 'Access,
                      S_GCC_Compres 'Access,
                      S_GCC_Config  'Access,
@@ -3555,8 +3832,10 @@ package VMS_Data is
                      S_GCC_Debug   'Access,
                      S_GCC_DebugX  'Access,
                      S_GCC_Data    'Access,
+                     S_GCC_DisAtom 'Access,
                      S_GCC_Dist    'Access,
                      S_GCC_DistX   'Access,
+                     S_GCC_ElabI   'Access,
                      S_GCC_Error   'Access,
                      S_GCC_ErrorX  'Access,
                      S_GCC_Expand  'Access,
@@ -3573,7 +3852,9 @@ package VMS_Data is
                      S_GCC_Help    'Access,
                      S_GCC_Ident   'Access,
                      S_GCC_IdentX  'Access,
-                     S_GCC_Ignore  'Access,
+                     S_GCC_IgnoreR 'Access,
+                     S_GCC_IgnoreS 'Access,
+                     S_GCC_IgnoreU 'Access,
                      S_GCC_Immed   'Access,
                      S_GCC_Inline  'Access,
                      S_GCC_InlineX 'Access,
@@ -3585,16 +3866,20 @@ package VMS_Data is
                      S_GCC_Output  'Access,
                      S_GCC_Machine 'Access,
                      S_GCC_Mapping 'Access,
+                     S_GCC_MaxI    'Access,
                      S_GCC_Multi   'Access,
                      S_GCC_Mess    'Access,
                      S_GCC_Nesting 'Access,
                      S_GCC_Noadc   'Access,
+                     S_GCC_NoElabI 'Access,
                      S_GCC_Noload  'Access,
                      S_GCC_Nostinc 'Access,
                      S_GCC_Nostlib 'Access,
                      S_GCC_NoWarnP 'Access,
                      S_GCC_Opt     'Access,
                      S_GCC_OptX    'Access,
+                     S_GCC_Overflo 'Access,
+                     S_GCC_PValid  'Access,
                      S_GCC_Pointer 'Access,
                      S_GCC_Polling 'Access,
                      S_GCC_Project 'Access,
@@ -3613,6 +3898,8 @@ package VMS_Data is
                      S_GCC_Symbol  'Access,
                      S_GCC_Syntax  'Access,
                      S_GCC_Table   'Access,
+                     S_GCC_Target_W'Access,
+                     S_GCC_Target_R'Access,
                      S_GCC_Trace   'Access,
                      S_GCC_Tree    'Access,
                      S_GCC_Trys    'Access,
@@ -3738,6 +4025,18 @@ package VMS_Data is
    --   Do not generate pragmas for subprograms declared in the sources
    --  listed in a specified file
 
+   S_Elim_Processes : aliased constant S := "/PROCESSES=#"                 &
+                                            "-j#";
+
+   --        /NOPROCESSES (D)
+   --        /PROCESSES=NNN
+   --
+   --   Use NNN processes to carry out the tree creations (internal
+   --   representations of the argument sources). On a multiprocessor machine
+   --   this speeds up processing of big sets of argument sources. If NNN is 0,
+   --   then the maximum number of parallel tree creations is the number of
+   --   core processors on the platform.
+
    S_Elim_Project : aliased constant S := "/PROJECT_FILE=<"                &
                                              "-P>";
    --        /PROJECT_FILE=filename
@@ -3765,14 +4064,14 @@ package VMS_Data is
    --   text file.
 
    S_Elim_Log     : aliased constant S := "/LOG "                          &
-                                          "-l";
+                                          "-log";
    --        /NOLOG (D)
    --        /LOG
    --
    --   Duplicate all the output sent to Stderr into a default log file.
 
    S_Elim_Logfile : aliased constant S := "/LOGFILE=@"                     &
-                                          "-l@";
+                                          "-log@";
 
    --      /LOGFILE=logfilename
    --
@@ -3836,29 +4135,30 @@ package VMS_Data is
    --        QUIET         Some warning messages are suppressed
 
    Elim_Switches : aliased constant Switches :=
-                     (S_Elim_Add     'Access,
-                      S_Elim_All     'Access,
-                      S_Elim_Bind    'Access,
-                      S_Elim_Comp    'Access,
-                      S_Elim_Config  'Access,
-                      S_Elim_Current 'Access,
-                      S_Elim_Ext     'Access,
-                      S_Elim_Files   'Access,
-                      S_Elim_Follow  'Access,
-                      S_Elim_GNATMAKE'Access,
-                      S_Elim_Log     'Access,
-                      S_Elim_Logfile 'Access,
-                      S_Elim_Main    'Access,
-                      S_Elim_Mess    'Access,
-                      S_Elim_Nodisp  'Access,
-                      S_Elim_Out     'Access,
-                      S_Elim_Project 'Access,
-                      S_Elim_Quiet   'Access,
-                      S_Elim_Search  'Access,
-                      S_Elim_Subdirs 'Access,
-                      S_Elim_Time    'Access,
-                      S_Elim_Verb    'Access,
-                      S_Elim_Warn    'Access);
+                     (S_Elim_Add      'Access,
+                      S_Elim_All      'Access,
+                      S_Elim_Bind     'Access,
+                      S_Elim_Comp     'Access,
+                      S_Elim_Config   'Access,
+                      S_Elim_Current  'Access,
+                      S_Elim_Ext      'Access,
+                      S_Elim_Files    'Access,
+                      S_Elim_Follow   'Access,
+                      S_Elim_GNATMAKE 'Access,
+                      S_Elim_Log      'Access,
+                      S_Elim_Logfile  'Access,
+                      S_Elim_Main     'Access,
+                      S_Elim_Mess     'Access,
+                      S_Elim_Nodisp   'Access,
+                      S_Elim_Out      'Access,
+                      S_Elim_Processes'Access,
+                      S_Elim_Project  'Access,
+                      S_Elim_Quiet    'Access,
+                      S_Elim_Search   'Access,
+                      S_Elim_Subdirs  'Access,
+                      S_Elim_Time     'Access,
+                      S_Elim_Verb     'Access,
+                      S_Elim_Warn     'Access);
 
    ----------------------------
    -- Switches for GNAT FIND --
@@ -4187,6 +4487,18 @@ package VMS_Data is
    --   ification field in the image header. It overrides any pragma Ident
    --   specified string.
 
+   S_Link_NoInhib : aliased constant S := "/NOINHIBIT-EXEC "               &
+                                            "--for-linker=--noinhibit-exec";
+   --        /NOINHIBIT-EXEC (D)
+   --
+   --   Preserve executable if there are warnings. This is the default.
+
+   S_Link_Inhib : aliased constant S := "/INHIBIT-EXEC "                   &
+                                            "--for-linker=--inhibit-exec";
+   --        /INHIBIT-EXEC
+   --
+   --   Remove executable if there are warnings.
+
    S_Link_Libdir  : aliased constant S := "/LIBDIR=*"                      &
                                             "-L*";
    --        /LIBDIR=(directory, ...)
@@ -4225,12 +4537,6 @@ package VMS_Data is
    --   Do not compile the file generated by the binder.
    --   This may be used when a link is rerun with different options,
    --   but there is no need to recompile the binder generated file.
-
-   S_Link_Noinhib : aliased constant S := "/NOINHIBIT-EXEC "               &
-                                            "--for-linker=--noinhibit-exec";
-   --        /NOINHIBIT-EXEC
-   --
-   --   Delete executable if there are errors or warnings.
 
    S_Link_Nofiles : aliased constant S := "/NOSTART_FILES "                &
                                             "-nostartfiles";
@@ -4307,12 +4613,13 @@ package VMS_Data is
                       S_Link_Forlink 'Access,
                       S_Link_Force   'Access,
                       S_Link_Ident   'Access,
+                      S_Link_NoInhib 'Access,
+                      S_Link_Inhib   'Access,
                       S_Link_Libdir  'Access,
                       S_Link_Library 'Access,
                       S_Link_Mess    'Access,
                       S_Link_Nocomp  'Access,
                       S_Link_Nofiles 'Access,
-                      S_Link_Noinhib 'Access,
                       S_Link_Project 'Access,
                       S_Link_Return  'Access,
                       S_Link_Static  'Access,
@@ -5506,6 +5813,18 @@ package VMS_Data is
    --   at the main project file will be parsed before the invocation of the
    --   binder.
 
+   S_Metric_Processes : aliased constant S := "/PROCESSES=#"                 &
+                                            "-j#";
+
+   --        /NOPROCESSES (D)
+   --        /PROCESSES=NNN
+   --
+   --   Use NNN processes to carry out the tree creations (internal
+   --   representations of the argument sources). On a multiprocessor machine
+   --   this speeds up processing of big sets of argument sources. If NNN is 0,
+   --   then the maximum number of parallel tree creations is the number of
+   --   core processors on the platform.
+
    S_Metric_Quiet    : aliased constant S := "/QUIET "                     &
                                              "-q";
    --        /NOQUIET (D)
@@ -5546,6 +5865,13 @@ package VMS_Data is
                                                 "-nolocal ";
    --  NODOC  (see /COMPLEXITY_METRICS /NO_LOCAL_DETAILS /NO_EXITS_AS_GOTOS)
 
+   S_Metric_Time    : aliased constant S := "/TIME "                        &
+                                            "-t";
+   --        /NOTIME (D)
+   --        /TIME
+   --
+   --   Print out execution time
+
    S_Metric_Verbose  : aliased constant S := "/VERBOSE "                   &
                                              "-v";
    --        /NOVERBOSE (D)
@@ -5579,11 +5905,13 @@ package VMS_Data is
                         S_Metric_No_Local         'Access,
                         S_Metric_No_Static_Loop   'Access,
                         S_Metric_Project          'Access,
+                        S_Metric_Processes        'Access,
                         S_Metric_Quiet            'Access,
                         S_Metric_Suffix           'Access,
                         S_Metric_Subdirs          'Access,
                         S_Metric_Syntax           'Access,
                         S_Metric_Suppress         'Access,
+                        S_Metric_Time             'Access,
                         S_Metric_Verbose          'Access,
                         S_Metric_XMLout           'Access);
 
@@ -5986,7 +6314,7 @@ package VMS_Data is
    --        /CONTINUATION_INDENT=nnn
    --
    --   Indentation level for continuation lines, nnn from 1 .. 9.
-   --   The default value is one less then the (normal) indentation level,
+   --   The default value is one less than the (normal) indentation level,
    --   unless the indentation is set to 1: in that case the default value for
    --   continuation line indentation is also 1.
 
@@ -5995,7 +6323,7 @@ package VMS_Data is
    --        /NO_SEPARATE_IS
    --
    --   Do not place the IS keyword on a separate line in a subprogram body in
-   --   case if the specification occupies more then one line.
+   --   case if the specification occupies more than one line.
 
    S_Pretty_Sep_Label : aliased constant S := "/SEPARATE_LABEL "           &
                                                     "--separate-label";
@@ -6047,6 +6375,7 @@ package VMS_Data is
    --   By default, the form of the line terminator depends on the platforms.
    --   On Unix and VMS, it is a Line Feed (LF) character. On Windows (DOS),
    --   It is a Carriage Return (CR) followed by a Line Feed.
+
    --   The Options DOS and CRLF are equivalent. The options UNIX and LF are
    --   also equivalent.
 
@@ -6293,6 +6622,30 @@ package VMS_Data is
    --
    --   Replace all tabulations in comments with spaces.
 
+   S_Pretty_Numbers     : aliased constant S := "/NUMBER_CASING="          &
+                                              "AS_DECLARED "               &
+                                                 "-ntD "                   &
+                                              "LOWER_CASE "                &
+                                                 "-ntL "                   &
+                                              "UPPER_CASE "                &
+                                                 "-ntU "                   &
+                                              "MIXED_CASE "                &
+                                                 "-ntM";
+   --        /NUMBER_CASING=name-option
+   --
+   --   Specify the casing of named number names. If not specified, the casing
+   --   of these names is defined by the NAME_CASING option. 'name-option'
+   --   is one of:
+   --
+   --      AS_DECLARED       Names are cased as they appear in the declaration
+   --                        in the source file.
+   --
+   --      LOWER_CASE        Names are in lower case.
+   --
+   --      UPPER_CASE        Names are in upper case.
+   --
+   --      MIXED_CASE        Names are in mixed case.
+
    S_Pretty_Output    : aliased constant S := "/OUTPUT=@"                  &
                                               "-o@";
    --        /OUTPUT=file
@@ -6324,6 +6677,18 @@ package VMS_Data is
    --      MIXED_CASE (D)
    --      LOWER_CASE
    --      UPPER_CASE
+
+   S_Pretty_Processes : aliased constant S := "/PROCESSES=#"                 &
+                                            "-j#";
+
+   --        /NOPROCESSES (D)
+   --        /PROCESSES=NNN
+   --
+   --   Use NNN processes to carry out the tree creations (internal
+   --   representations of the argument sources). On a multiprocessor machine
+   --   this speeds up processing of big sets of argument sources. If NNN is 0,
+   --   then the maximum number of parallel tree creations is the number of
+   --   core processors on the platform.
 
    S_Pretty_Project   : aliased constant S := "/PROJECT_FILE=<"            &
                                                 "-P>";
@@ -6376,6 +6741,13 @@ package VMS_Data is
    --   The actual directories (object, exec, library, ...) are subdirectories
    --   of the directory specified in the project file. If the subdirectory
    --   does not exist, it is created automatically.
+
+   S_Pretty_Time    : aliased constant S := "/TIME "                        &
+                                            "-t";
+   --        /NOTIME (D)
+   --        /TIME
+   --
+   --   Print out execution time
 
    S_Pretty_Types     : aliased constant S := "/TYPE_CASING="              &
                                               "AS_DECLARED "               &
@@ -6448,11 +6820,13 @@ package VMS_Data is
                         S_Pretty_Names            'Access,
                         S_Pretty_No_Labels        'Access,
                         S_Pretty_Notabs           'Access,
+                        S_Pretty_Numbers          'Access,
                         S_Pretty_Output           'Access,
                         S_Pretty_Override         'Access,
                         S_Pretty_Pragma           'Access,
                         S_Pretty_Replace          'Access,
                         S_Pretty_Replace_No_Backup'Access,
+                        S_Pretty_Processes        'Access,
                         S_Pretty_Project          'Access,
                         S_Pretty_RTS              'Access,
                         S_Pretty_Search           'Access,
@@ -6464,6 +6838,7 @@ package VMS_Data is
                         S_Pretty_Stnm_On_Nw_Line  'Access,
                         S_Pretty_Specific         'Access,
                         S_Pretty_Standard         'Access,
+                        S_Pretty_Time             'Access,
                         S_Pretty_Types            'Access,
                         S_Pretty_Verbose          'Access,
                         S_Pretty_Warnings         'Access);
@@ -6510,17 +6885,23 @@ package VMS_Data is
    --   ification field in the image header. It overrides any pragma Ident
    --   specified string.
 
+   S_Shared_NoInhib : aliased constant S := "/NOINHIBIT-IMAGE "            &
+                                            "--for-linker=--noinhibit-exec";
+   --        /NOINHIBIT-EXEC (D)
+   --
+   --   Preserve image if there are warnings. This is the default.
+
+   S_Shared_Inhib : aliased constant S := "/INHIBIT-IMAGE "                &
+                                            "--for-linker=--inhibit-exec";
+   --        /INHIBIT-EXEC
+   --
+   --   Remove image if there are warnings.
+
    S_Shared_Nofiles : aliased constant S := "/NOSTART_FILES "              &
                                             "-nostartfiles";
    --        /NOSTART_FILES
    --
    --   Link in default image initialization and startup functions.
-
-   S_Shared_Noinhib : aliased constant S := "/NOINHIBIT-IMAGE "            &
-                                            "--for-linker=--noinhibit-exec";
-   --        /NOINHIBIT-IMAGE
-   --
-   --   Delete image if there are errors or warnings.
 
    S_Shared_Verb    : aliased constant S := "/VERBOSE "                    &
                                             "-v";
@@ -6541,8 +6922,9 @@ package VMS_Data is
                        (S_Shared_Debug   'Access,
                         S_Shared_Image   'Access,
                         S_Shared_Ident   'Access,
+                        S_Shared_NoInhib 'Access,
+                        S_Shared_Inhib   'Access,
                         S_Shared_Nofiles 'Access,
-                        S_Shared_Noinhib 'Access,
                         S_Shared_Verb    'Access,
                         S_Shared_ZZZZZ   'Access);
 
@@ -7150,6 +7532,13 @@ package VMS_Data is
                        S_Sync_Details  'Access,
                        S_Sync_Warnoff  'Access,
                        S_Sync_Output   'Access);
+
+   ----------------------------
+   -- Switches for GNAT TEST --
+   ----------------------------
+
+   Test_Switches : aliased constant Switches :=
+     (1 .. 0 => null);
 
    ----------------------------
    -- Switches for GNAT XREF --

@@ -25,9 +25,10 @@ func NewCertPool() *CertPool {
 }
 
 // findVerifiedParents attempts to find certificates in s which have signed the
-// given certificate. If no such certificate can be found or the signature
-// doesn't match, it returns nil.
-func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
+// given certificate. If any candidates were rejected then errCert will be set
+// to one of them, arbitrarily, and err will contain the reason that it was
+// rejected.
+func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCert *Certificate, err error) {
 	if s == nil {
 		return
 	}
@@ -41,8 +42,10 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
 	}
 
 	for _, c := range candidates {
-		if cert.CheckSignatureFrom(s.certs[c]) == nil {
+		if err = cert.CheckSignatureFrom(s.certs[c]); err == nil {
 			parents = append(parents, c)
+		} else {
+			errCert = s.certs[c]
 		}
 	}
 
@@ -103,7 +106,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 }
 
 // Subjects returns a list of the DER-encoded subjects of
-// all of the certificates in the pool. 
+// all of the certificates in the pool.
 func (s *CertPool) Subjects() (res [][]byte) {
 	res = make([][]byte, len(s.certs))
 	for i, c := range s.certs {

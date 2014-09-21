@@ -1,6 +1,5 @@
 /* Some code common to C++ and ObjC++ front ends.
-   Copyright (C) 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -33,6 +32,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "cxx-pretty-print.h"
 #include "cp-objcp-common.h"
 
+#include <new>                       // For placement new.
+
 /* Special routine to get the alias set for C++.  */
 
 alias_set_type
@@ -63,7 +64,7 @@ cxx_warn_unused_global_decl (const_tree decl)
     return false;
 
   /* Const variables take the place of #defines in C++.  */
-  if (TREE_CODE (decl) == VAR_DECL && TREE_READONLY (decl))
+  if (VAR_P (decl) && TREE_READONLY (decl))
     return false;
 
   return true;
@@ -118,7 +119,7 @@ cp_var_mod_type_p (tree type, tree fn)
 {
   /* If TYPE is a pointer-to-member, it is variably modified if either
      the class or the member are variably modified.  */
-  if (TYPE_PTR_TO_MEMBER_P (type))
+  if (TYPE_PTRMEM_P (type))
     return (variably_modified_type_p (TYPE_PTRMEM_CLASS_TYPE (type), fn)
 	    || variably_modified_type_p (TYPE_PTRMEM_POINTED_TO_TYPE (type),
 					 fn));
@@ -132,19 +133,15 @@ cp_var_mod_type_p (tree type, tree fn)
 void
 cxx_initialize_diagnostics (diagnostic_context *context)
 {
-  pretty_printer *base;
-  cxx_pretty_printer *pp;
-
   c_common_initialize_diagnostics (context);
 
-  base = context->printer;
-  pp = XNEW (cxx_pretty_printer);
-  memcpy (pp_base (pp), base, sizeof (pretty_printer));
-  pp_cxx_pretty_printer_init (pp);
-  context->printer = (pretty_printer *) pp;
+  pretty_printer *base = context->printer;
+  cxx_pretty_printer *pp = XNEW (cxx_pretty_printer);
+  context->printer = new (pp) cxx_pretty_printer ();
 
-  /* It is safe to free this object because it was previously malloc()'d.  */
-  free (base);
+  /* It is safe to free this object because it was previously XNEW()'d.  */
+  base->~pretty_printer ();
+  XDELETE (base);
 }
 
 /* This compares two types for equivalence ("compatible" in C-based languages).
@@ -163,7 +160,6 @@ bool
 cp_function_decl_explicit_p (tree decl)
 {
   return (decl
-	  && FUNCTION_FIRST_USER_PARMTYPE (decl) != void_list_node
 	  && DECL_LANG_SPECIFIC (STRIP_TEMPLATE (decl))
 	  && DECL_NONCONVERTING_P (decl));
 }
@@ -225,6 +221,25 @@ init_shadowed_var_for_decl (void)
 {
   shadowed_var_for_decl = htab_create_ggc (512, tree_decl_map_hash,
 					   tree_decl_map_eq, 0);
+}
+
+/* Return true if stmt can fall through.  Used by block_may_fallthru
+   default case.  */
+
+bool
+cxx_block_may_fallthru (const_tree stmt)
+{
+  switch (TREE_CODE (stmt))
+    {
+    case EXPR_STMT:
+      return block_may_fallthru (EXPR_STMT_EXPR (stmt));
+
+    case THROW_EXPR:
+      return false;
+
+    default:
+      return true;
+    }
 }
 
 void
@@ -303,6 +318,7 @@ cp_common_init_ts (void)
   MARK_TS_TYPED (USING_STMT);
   MARK_TS_TYPED (LAMBDA_EXPR);
   MARK_TS_TYPED (CTOR_INITIALIZER);
+  MARK_TS_TYPED (ARRAY_NOTATION_REF);
 }
 
 #include "gt-cp-cp-objcp-common.h"

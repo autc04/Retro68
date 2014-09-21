@@ -1,7 +1,5 @@
 /* Set up combined include path chain for the preprocessor.
-   Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    Broken out of cppinit.c and cppfiles.c and rewritten Mar 2003.
 
@@ -35,7 +33,7 @@
    VMS has non-numeric inodes.  */
 #ifdef VMS
 # define INO_T_EQ(A, B) (!memcmp (&(A), &(B), sizeof (A)))
-# define INO_T_COPY(DEST, SRC) memcpy(&(DEST), &(SRC), sizeof (SRC))
+# define INO_T_COPY(DEST, SRC) memcpy (&(DEST), &(SRC), sizeof (SRC))
 #elif !defined (HOST_LACKS_INODE_NUMBERS)
 # define INO_T_EQ(A, B) ((A) == (B))
 # define INO_T_COPY(DEST, SRC) (DEST) = (SRC)
@@ -43,7 +41,7 @@
 
 #if defined INO_T_EQ
 #define DIRS_EQ(A, B) ((A)->dev == (B)->dev \
-	&& INO_T_EQ((A)->ino, (B)->ino))
+	&& INO_T_EQ ((A)->ino, (B)->ino))
 #else
 #define DIRS_EQ(A, B) (!filename_cmp ((A)->canonical_name, (B)->canonical_name))
 #endif
@@ -130,7 +128,7 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 		    const char *imultilib, int cxx_stdinc)
 {
   const struct default_include *p;
-  int relocated = cpp_relocated();
+  int relocated = cpp_relocated ();
   size_t len;
 
   if (iprefix && (len = cpp_GCC_INCLUDE_DIR_len) != 0)
@@ -150,8 +148,19 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 	      if (!filename_ncmp (p->fname, cpp_GCC_INCLUDE_DIR, len))
 		{
 		  char *str = concat (iprefix, p->fname + len, NULL);
-		  if (p->multilib && imultilib)
-		    str = concat (str, dir_separator_str, imultilib, NULL);
+		  if (p->multilib == 1 && imultilib)
+		    str = reconcat (str, str, dir_separator_str,
+				    imultilib, NULL);
+		  else if (p->multilib == 2)
+		    {
+		      if (!imultiarch)
+			{
+			  free (str);
+			  continue;
+			}
+		      str = reconcat (str, str, dir_separator_str,
+				      imultiarch, NULL);
+		    }
 		  add_path (str, SYSTEM, p->cxx_aware, false);
 		}
 	    }
@@ -179,6 +188,7 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 		   && !filename_ncmp (p->fname, cpp_PREFIX, cpp_PREFIX_len))
 	    {
  	      static const char *relocated_prefix;
+	      char *ostr;
 	      /* If this path starts with the configure-time prefix,
 		 but the compiler has been relocated, replace it
 		 with the run-time prefix.  The run-time exec prefix
@@ -194,17 +204,28 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 		    = make_relative_prefix (dummy,
 					    cpp_EXEC_PREFIX,
 					    cpp_PREFIX);
+		  free (dummy);
 		}
-	      str = concat (relocated_prefix,
-			    p->fname + cpp_PREFIX_len,
-			    NULL);
-	      str = update_path (str, p->component);
+	      ostr = concat (relocated_prefix,
+			     p->fname + cpp_PREFIX_len,
+			     NULL);
+	      str = update_path (ostr, p->component);
+	      free (ostr);
 	    }
 	  else
 	    str = update_path (p->fname, p->component);
 
-	  if (p->multilib && imultilib)
-	    str = concat (str, dir_separator_str, imultilib, NULL);
+	  if (p->multilib == 1 && imultilib)
+	    str = reconcat (str, str, dir_separator_str, imultilib, NULL);
+	  else if (p->multilib == 2)
+	    {
+	      if (!imultiarch)
+		{
+		  free (str);
+		  continue;
+		}
+	      str = reconcat (str, str, dir_separator_str, imultiarch, NULL);
+	    }
 
 	  add_path (str, SYSTEM, p->cxx_aware, false);
 	}

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -127,11 +127,9 @@ package body Sem_Intr is
       --  literal is legal even in Ada 83 mode, where such literals are
       --  not static.
 
-      if Cnam = Name_Import_Address
-           or else
-         Cnam = Name_Import_Largest_Value
-           or else
-         Cnam = Name_Import_Value
+      if Nam_In (Cnam, Name_Import_Address,
+                       Name_Import_Largest_Value,
+                       Name_Import_Value)
       then
          if Etype (Arg1) = Any_Type
            or else Raises_Constraint_Error (Arg1)
@@ -163,7 +161,7 @@ package body Sem_Intr is
         and then Can_Never_Be_Null (Etype (Arg1))
       then
          Error_Msg_N
-           ("freeing `NOT NULL` object will raise Constraint_Error?", N);
+           ("freeing `NOT NULL` object will raise Constraint_Error??", N);
 
       --  For unchecked deallocation, error to deallocate from empty pool.
       --  Note: this test used to be in Exp_Intr as a warning, but AI 157
@@ -196,30 +194,13 @@ package body Sem_Intr is
    begin
       --  Arithmetic operators
 
-      if Nam = Name_Op_Add
-           or else
-         Nam = Name_Op_Subtract
-           or else
-         Nam = Name_Op_Multiply
-           or else
-         Nam = Name_Op_Divide
-           or else
-         Nam = Name_Op_Rem
-           or else
-         Nam = Name_Op_Mod
-           or else
-         Nam = Name_Op_Abs
+      if Nam_In (Nam, Name_Op_Add, Name_Op_Subtract, Name_Op_Multiply,
+                      Name_Op_Divide, Name_Op_Rem, Name_Op_Mod, Name_Op_Abs)
       then
          T1 := Etype (First_Formal (E));
 
          if No (Next_Formal (First_Formal (E))) then
-
-            if Nam = Name_Op_Add
-                 or else
-               Nam = Name_Op_Subtract
-                 or else
-               Nam = Name_Op_Abs
-            then
+            if Nam_In (Nam, Name_Op_Add, Name_Op_Subtract, Name_Op_Abs) then
                T2 := T1;
 
             --  Previous error in declaration
@@ -254,24 +235,17 @@ package body Sem_Intr is
 
       --  Comparison operators
 
-      elsif Nam = Name_Op_Eq
-              or else
-            Nam = Name_Op_Ge
-              or else
-            Nam = Name_Op_Gt
-              or else
-            Nam = Name_Op_Le
-              or else
-            Nam = Name_Op_Lt
-              or else
-            Nam = Name_Op_Ne
+      elsif Nam_In (Nam, Name_Op_Eq, Name_Op_Ge, Name_Op_Gt, Name_Op_Le,
+                         Name_Op_Lt, Name_Op_Ne)
       then
          T1 := Etype (First_Formal (E));
 
          --  Return if previous error in declaration, otherwise get T2 type
 
          if No (Next_Formal (First_Formal (E))) then
+            Check_Error_Detected;
             return;
+
          else
             T2 := Etype (Next_Formal (First_Formal (E)));
          end if;
@@ -354,9 +328,17 @@ package body Sem_Intr is
       then
          Errint ("unrecognized intrinsic subprogram", E, N);
 
+      --  Shift cases. We allow user specification of intrinsic shift operators
+      --  for any numeric types.
+
+      elsif Nam_In (Nam, Name_Rotate_Left, Name_Rotate_Right, Name_Shift_Left,
+                         Name_Shift_Right, Name_Shift_Right_Arithmetic)
+      then
+         Check_Shift (E, N);
+
       --  We always allow intrinsic specifications in language defined units
       --  and in expanded code. We assume that the GNAT implementors know what
-      --  they are doing, and do not write or generate junk use of intrinsic!
+      --  they are doing, and do not write or generate junk use of intrinsic.
 
       elsif not Comes_From_Source (E)
         or else not Comes_From_Source (N)
@@ -365,38 +347,23 @@ package body Sem_Intr is
       then
          null;
 
-      --  Shift cases. We allow user specification of intrinsic shift
-      --  operators for any numeric types.
+      --  Exception  functions
 
-      elsif
-        Nam = Name_Rotate_Left
-          or else
-        Nam = Name_Rotate_Right
-          or else
-        Nam = Name_Shift_Left
-          or else
-        Nam = Name_Shift_Right
-          or else
-        Nam = Name_Shift_Right_Arithmetic
-      then
-         Check_Shift (E, N);
-
-      elsif
-        Nam = Name_Exception_Information
-          or else
-        Nam = Name_Exception_Message
-          or else
-        Nam = Name_Exception_Name
+      elsif Nam_In (Nam, Name_Exception_Information,
+                         Name_Exception_Message,
+                         Name_Exception_Name)
       then
          Check_Exception_Function (E, N);
+
+      --  Intrinsic operators
 
       elsif Nkind (E) = N_Defining_Operator_Symbol then
          Check_Intrinsic_Operator (E, N);
 
-      elsif Nam = Name_File
-        or else Nam = Name_Line
-        or else Nam = Name_Source_Location
-        or else Nam = Name_Enclosing_Entity
+      --  Source_Location and navigation functions
+
+      elsif Nam_In (Nam, Name_File, Name_Line, Name_Source_Location,
+                         Name_Enclosing_Entity)
       then
          null;
 
@@ -455,7 +422,7 @@ package body Sem_Intr is
          return;
       end if;
 
-      --  type'Size (not 'Object_Size!) must be one of the allowed values
+      --  type'Size (not 'Object_Size) must be one of the allowed values
 
       Size := UI_To_Int (RM_Size (Typ1));
 
@@ -478,6 +445,8 @@ package body Sem_Intr is
            ("first argument of shift must match return type", Ptyp1, N);
          return;
       end if;
+
+      Set_Has_Shift_Operator (Base_Type (Typ1));
    end Check_Shift;
 
    ------------

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -35,7 +35,8 @@
 
 --  This version of Ada.Exceptions is a full Ada 95 version. It omits Ada 2005
 --  features such as the additional definitions of Exception_Name returning
---  Wide_[Wide_]String.
+--  Wide_[Wide_]String. It differs from the Ada 95 version only in that it is
+--  declared Preelaborate (see declaration below for why this is done).
 
 --  It is used for building the compiler and the basic tools, since these
 --  builds may be done with bootstrap compilers that cannot handle these
@@ -44,7 +45,7 @@
 --  2005 functionality is required. In particular, it is used for building
 --  run times on all targets.
 
-pragma Compiler_Unit;
+pragma Compiler_Unit_Warning;
 
 pragma Polling (Off);
 --  We must turn polling off for this unit, because otherwise we get
@@ -56,12 +57,10 @@ with System.Standard_Library;
 with System.Traceback_Entries;
 
 package Ada.Exceptions is
-   pragma Warnings (Off);
-   pragma Preelaborate_05;
-   pragma Warnings (On);
-   --  We make this preelaborable in Ada 2005 mode. If we did not do this, then
-   --  run time units used by the compiler (e.g. s-soflin.ads) would run
-   --  into trouble. Conformance is not an issue, since this version is used
+   pragma Preelaborate;
+   --  We make this preelaborable. If we did not do this, then run time units
+   --  used by the compiler (e.g. s-soflin.ads) would run into trouble.
+   --  Conformance with Ada 95 is not an issue, since this version is used
    --  only by the compiler.
 
    type Exception_Id is private;
@@ -207,6 +206,13 @@ private
    --  Raise Program_Error, providing information about X (an exception raised
    --  during a controlled operation) in the exception message.
 
+   procedure Reraise_Library_Exception_If_Any;
+   pragma Export
+     (Ada, Reraise_Library_Exception_If_Any,
+           "__gnat_reraise_library_exception_if_any");
+   --  If there was an exception raised during library-level finalization,
+   --  reraise the exception.
+
    procedure Reraise_Occurrence_Always (X : Exception_Occurrence);
    pragma No_Return (Reraise_Occurrence_Always);
    --  This differs from Raise_Occurrence only in that the caller guarantees
@@ -244,7 +250,7 @@ private
 
    --  Note: this used to be in a separate unit called System.Poll, but that
    --  caused horrible circular elaboration problems between System.Poll and
-   --  Ada.Exceptions. One way of solving such circularities is unification!
+   --  Ada.Exceptions.
 
    procedure Poll;
    --  Check for asynchronous abort. Note that we do not inline the body.
@@ -265,9 +271,6 @@ private
    type Exception_Occurrence is record
       Id : Exception_Id;
       --  Exception_Identity for this exception occurrence
-      --  WARNING System.System.Finalization_Implementation.Finalize_List
-      --  relies on the fact that this field is always first in the exception
-      --  occurrence
 
       Msg_Length : Natural := 0;
       --  Length of message (zero = no message)

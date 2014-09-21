@@ -1,5 +1,5 @@
 // DR 990
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 #include <initializer_list>
 

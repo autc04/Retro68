@@ -1,7 +1,6 @@
 // Reference-counted versatile string base -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2005-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -314,7 +313,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       __rc_string_base(const __rc_string_base& __rcs);
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       __rc_string_base(__rc_string_base&& __rcs)
       : _M_dataplus(__rcs._M_dataplus)
       { __rcs._M_data(_S_empty_rep._M_refcopy()); }

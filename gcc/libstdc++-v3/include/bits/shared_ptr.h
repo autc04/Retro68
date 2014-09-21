@@ -1,6 +1,6 @@
 // shared_ptr and weak_ptr implementation -*- C++ -*-
 
-// Copyright (C) 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -60,7 +60,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * @{
    */
 
-  /// 2.2.3.7 shared_ptr I/O
+  /// 20.7.2.2.11 shared_ptr I/O
   template<typename _Ch, typename _Tr, typename _Tp, _Lock_policy _Lp>
     inline std::basic_ostream<_Ch, _Tr>&
     operator<<(std::basic_ostream<_Ch, _Tr>& __os,
@@ -70,7 +70,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       return __os;
     }
 
-  /// 2.2.3.10 shared_ptr get_deleter (experimental)
+  /// 20.7.2.2.10 shared_ptr get_deleter
   template<typename _Del, typename _Tp, _Lock_policy _Lp>
     inline _Del*
     get_deleter(const __shared_ptr<_Tp, _Lp>& __p) noexcept
@@ -250,8 +250,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #if _GLIBCXX_USE_DEPRECATED
       template<typename _Tp1>
-	shared_ptr(std::auto_ptr<_Tp1>&& __r)
-	: __shared_ptr<_Tp>(std::move(__r)) { }
+	shared_ptr(std::auto_ptr<_Tp1>&& __r);
 #endif
 
       template<typename _Tp1, typename _Del>
@@ -320,9 +319,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       template<typename _Tp1, typename _Alloc, typename... _Args>
 	friend shared_ptr<_Tp1>
 	allocate_shared(const _Alloc& __a, _Args&&... __args);
+
+      // This constructor is non-standard, it is used by weak_ptr::lock().
+      shared_ptr(const weak_ptr<_Tp>& __r, std::nothrow_t)
+      : __shared_ptr<_Tp>(__r, std::nothrow) { }
+
+      friend class weak_ptr<_Tp>;
     };
 
-  // 20.8.13.2.7 shared_ptr comparisons
+  // 20.7.2.2.7 shared_ptr comparisons
   template<typename _Tp1, typename _Tp2>
     inline bool
     operator==(const shared_ptr<_Tp1>& __a,
@@ -426,13 +431,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct less<shared_ptr<_Tp>> : public _Sp_less<shared_ptr<_Tp>>
     { };
 
-  // 20.8.13.2.9 shared_ptr specialized algorithms.
+  // 20.7.2.2.8 shared_ptr specialized algorithms.
   template<typename _Tp>
     inline void
     swap(shared_ptr<_Tp>& __a, shared_ptr<_Tp>& __b) noexcept
     { __a.swap(__b); }
 
-  // 20.8.13.2.10 shared_ptr casts.
+  // 20.7.2.2.9 shared_ptr casts.
   template<typename _Tp, typename _Tp1>
     inline shared_ptr<_Tp>
     static_pointer_cast(const shared_ptr<_Tp1>& __r) noexcept
@@ -493,26 +498,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       shared_ptr<_Tp>
       lock() const noexcept
-      {
-#ifdef __GTHREADS
-	if (this->expired())
-	  return shared_ptr<_Tp>();
-
-	__try
-	  {
-	    return shared_ptr<_Tp>(*this);
-	  }
-	__catch(const bad_weak_ptr&)
-	  {
-	    return shared_ptr<_Tp>();
-	  }
-#else
-	return this->expired() ? shared_ptr<_Tp>() : shared_ptr<_Tp>(*this);
-#endif
-      }
+      { return shared_ptr<_Tp>(*this, std::nothrow); }
     };
 
-  // 20.8.13.3.7 weak_ptr specialized algorithms.
+  // 20.7.2.3.6 weak_ptr specialized algorithms.
   template<typename _Tp>
     inline void
     swap(weak_ptr<_Tp>& __a, weak_ptr<_Tp>& __b) noexcept

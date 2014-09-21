@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -40,6 +40,7 @@ package body Targparm is
    type Targparm_Tags is
      (AAM,  --   AAMP
       ACR,  --   Always_Compatible_Rep
+      ASD,  --   Atomic_Sync_Default
       BDC,  --   Backend_Divide_Checks
       BOC,  --   Backend_Overflow_Checks
       CLA,  --   Command_Line_Args
@@ -56,6 +57,7 @@ package body Targparm is
       PAS,  --   Preallocated_Stacks
       RTX,  --   RTX_RTSS_Kernel_Module
       SAG,  --   Support_Aggregates
+      SAP,  --   Support_Atomic_Primitives
       SCA,  --   Support_Composite_Assign
       SCC,  --   Support_Composite_Compare
       SCD,  --   Stack_Check_Default
@@ -66,6 +68,7 @@ package body Targparm is
       SSL,  --   Suppress_Standard_Library
       UAM,  --   Use_Ada_Main_Program_Name
       VMS,  --   OpenVMS
+      VXF,  --   VAX Float
       ZCD); --   ZCX_By_Default
 
    Targparm_Flags : array (Targparm_Tags) of Boolean := (others => False);
@@ -75,6 +78,7 @@ package body Targparm is
 
    AAM_Str : aliased constant Source_Buffer := "AAMP";
    ACR_Str : aliased constant Source_Buffer := "Always_Compatible_Rep";
+   ASD_Str : aliased constant Source_Buffer := "Atomic_Sync_Default";
    BDC_Str : aliased constant Source_Buffer := "Backend_Divide_Checks";
    BOC_Str : aliased constant Source_Buffer := "Backend_Overflow_Checks";
    CLA_Str : aliased constant Source_Buffer := "Command_Line_Args";
@@ -91,6 +95,7 @@ package body Targparm is
    PAS_Str : aliased constant Source_Buffer := "Preallocated_Stacks";
    RTX_Str : aliased constant Source_Buffer := "RTX_RTSS_Kernel_Module";
    SAG_Str : aliased constant Source_Buffer := "Support_Aggregates";
+   SAP_Str : aliased constant Source_Buffer := "Support_Atomic_Primitives";
    SCA_Str : aliased constant Source_Buffer := "Support_Composite_Assign";
    SCC_Str : aliased constant Source_Buffer := "Support_Composite_Compare";
    SCD_Str : aliased constant Source_Buffer := "Stack_Check_Default";
@@ -101,6 +106,7 @@ package body Targparm is
    SSL_Str : aliased constant Source_Buffer := "Suppress_Standard_Library";
    UAM_Str : aliased constant Source_Buffer := "Use_Ada_Main_Program_Name";
    VMS_Str : aliased constant Source_Buffer := "OpenVMS";
+   VXF_Str : aliased constant Source_Buffer := "VAX_Float";
    ZCD_Str : aliased constant Source_Buffer := "ZCX_By_Default";
 
    --  The following defines a set of pointers to the above strings,
@@ -110,6 +116,7 @@ package body Targparm is
    Targparm_Str : constant array (Targparm_Tags) of Buffer_Ptr :=
      (AAM_Str'Access,
       ACR_Str'Access,
+      ASD_Str'Access,
       BDC_Str'Access,
       BOC_Str'Access,
       CLA_Str'Access,
@@ -126,6 +133,7 @@ package body Targparm is
       PAS_Str'Access,
       RTX_Str'Access,
       SAG_Str'Access,
+      SAP_Str'Access,
       SCA_Str'Access,
       SCC_Str'Access,
       SCD_Str'Access,
@@ -136,6 +144,7 @@ package body Targparm is
       SSL_Str'Access,
       UAM_Str'Access,
       VMS_Str'Access,
+      VXF_Str'Access,
       ZCD_Str'Access);
 
    -----------------------
@@ -379,6 +388,16 @@ package body Targparm is
             Opt.Init_Or_Norm_Scalars := True;
             goto Line_Loop_Continue;
 
+         --  Partition_Elaboration_Policy
+
+         elsif System_Text (P .. P + 36) =
+                 "pragma Partition_Elaboration_Policy ("
+         then
+            P := P + 37;
+            Opt.Partition_Elaboration_Policy := System_Text (P);
+            Opt.Partition_Elaboration_Policy_Sloc := System_Location;
+            goto Line_Loop_Continue;
+
          --  Polling (On)
 
          elsif System_Text (P .. P + 19) = "pragma Polling (On);" then
@@ -548,6 +567,7 @@ package body Targparm is
                   case K is
                      when AAM => AAMP_On_Target                      := Result;
                      when ACR => Always_Compatible_Rep_On_Target     := Result;
+                     when ASD => Atomic_Sync_Default_On_Target       := Result;
                      when BDC => Backend_Divide_Checks_On_Target     := Result;
                      when BOC => Backend_Overflow_Checks_On_Target   := Result;
                      when CLA => Command_Line_Args_On_Target         := Result;
@@ -556,6 +576,10 @@ package body Targparm is
                            VM_Target := CLI_Target;
                            Tagged_Type_Expansion := False;
                         end if;
+                        --  This is wrong, this processing should be done in
+                        --  Gnat1drv.Adjust_Global_Switches. It is not the
+                        --  right level for targparm to know about tagged
+                        --  type extension???
 
                      when CRT => Configurable_Run_Time_On_Target     := Result;
                      when D32 => Duration_32_Bits_On_Target          := Result;
@@ -563,17 +587,23 @@ package body Targparm is
                      when EXS => Exit_Status_Supported_On_Target     := Result;
                      when FEL => Frontend_Layout_On_Target           := Result;
                      when FFO => Fractional_Fixed_Ops_On_Target      := Result;
+
                      when JVM =>
                         if Result then
                            VM_Target := JVM_Target;
                            Tagged_Type_Expansion := False;
                         end if;
+                        --  This is wrong, this processing should be done in
+                        --  Gnat1drv.Adjust_Global_Switches. It is not the
+                        --  right level for targparm to know about tagged
+                        --  type extension???
 
                      when MOV => Machine_Overflows_On_Target         := Result;
                      when MRN => Machine_Rounds_On_Target            := Result;
                      when PAS => Preallocated_Stacks_On_Target       := Result;
                      when RTX => RTX_RTSS_Kernel_Module_On_Target    := Result;
                      when SAG => Support_Aggregates_On_Target        := Result;
+                     when SAP => Support_Atomic_Primitives_On_Target := Result;
                      when SCA => Support_Composite_Assign_On_Target  := Result;
                      when SCC => Support_Composite_Compare_On_Target := Result;
                      when SCD => Stack_Check_Default_On_Target       := Result;
@@ -584,6 +614,7 @@ package body Targparm is
                      when SNZ => Signed_Zeros_On_Target              := Result;
                      when UAM => Use_Ada_Main_Program_Name_On_Target := Result;
                      when VMS => OpenVMS_On_Target                   := Result;
+                     when VXF => VAX_Float_On_Target                 := Result;
                      when ZCD => ZCX_By_Default_On_Target            := Result;
 
                      goto Line_Loop_Continue;

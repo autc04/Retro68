@@ -1,6 +1,5 @@
 /* Basic block reordering routines for the GNU compiler.
-   Copyright (C) 2000, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -35,5 +34,7 @@ extern struct target_bb_reorder *this_target_bb_reorder;
 #endif
 
 extern int get_uncond_jump_length (void);
+
+extern void insert_section_boundary_note (void);
 
 #endif

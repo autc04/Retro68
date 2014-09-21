@@ -11,10 +11,9 @@ package http
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
+	"fmt"
 	"io"
-	"strconv"
 )
 
 const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
@@ -22,7 +21,7 @@ const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
 var ErrLineTooLong = errors.New("header line too long")
 
 // newChunkedReader returns a new chunkedReader that translates the data read from r
-// out of HTTP "chunked" format before returning it. 
+// out of HTTP "chunked" format before returning it.
 // The chunkedReader returns io.EOF when the final 0-length chunk is read.
 //
 // newChunkedReader is not needed by normal applications. The http package
@@ -39,16 +38,17 @@ type chunkedReader struct {
 	r   *bufio.Reader
 	n   uint64 // unread bytes in chunk
 	err error
+	buf [2]byte
 }
 
 func (cr *chunkedReader) beginChunk() {
 	// chunk-size CRLF
-	var line string
+	var line []byte
 	line, cr.err = readLine(cr.r)
 	if cr.err != nil {
 		return
 	}
-	cr.n, cr.err = strconv.ParseUint(line, 16, 64)
+	cr.n, cr.err = parseHexUint(line)
 	if cr.err != nil {
 		return
 	}
@@ -74,9 +74,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 	cr.n -= uint64(n)
 	if cr.n == 0 && cr.err == nil {
 		// end of chunk (CRLF)
-		b := make([]byte, 2)
-		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
-			if b[0] != '\r' || b[1] != '\n' {
+		if _, cr.err = io.ReadFull(cr.r, cr.buf[:]); cr.err == nil {
+			if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
 				cr.err = errors.New("malformed chunked encoding")
 			}
 		}
@@ -88,7 +87,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 // Give up if the line exceeds maxLineLength.
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
-func readLineBytes(b *bufio.Reader) (p []byte, err error) {
+func readLine(b *bufio.Reader) (p []byte, err error) {
 	if p, err = b.ReadSlice('\n'); err != nil {
 		// We always know when EOF is coming.
 		// If the caller asked for a line, there should be a line.
@@ -102,20 +101,18 @@ func readLineBytes(b *bufio.Reader) (p []byte, err error) {
 	if len(p) >= maxLineLength {
 		return nil, ErrLineTooLong
 	}
-
-	// Chop off trailing white space.
-	p = bytes.TrimRight(p, " \r\t\n")
-
-	return p, nil
+	return trimTrailingWhitespace(p), nil
 }
 
-// readLineBytes, but convert the bytes into a string.
-func readLine(b *bufio.Reader) (s string, err error) {
-	p, e := readLineBytes(b)
-	if e != nil {
-		return "", e
+func trimTrailingWhitespace(b []byte) []byte {
+	for len(b) > 0 && isASCIISpace(b[len(b)-1]) {
+		b = b[:len(b)-1]
 	}
-	return string(p), nil
+	return b
+}
+
+func isASCIISpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
 // newChunkedWriter returns a new chunkedWriter that translates writes into HTTP
@@ -147,9 +144,7 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	head := strconv.FormatInt(int64(len(data)), 16) + "\r\n"
-
-	if _, err = io.WriteString(cw.Wire, head); err != nil {
+	if _, err = fmt.Fprintf(cw.Wire, "%x\r\n", len(data)); err != nil {
 		return 0, err
 	}
 	if n, err = cw.Wire.Write(data); err != nil {
@@ -167,4 +162,22 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 func (cw *chunkedWriter) Close() error {
 	_, err := io.WriteString(cw.Wire, "0\r\n")
 	return err
+}
+
+func parseHexUint(v []byte) (n uint64, err error) {
+	for _, b := range v {
+		n <<= 4
+		switch {
+		case '0' <= b && b <= '9':
+			b = b - '0'
+		case 'a' <= b && b <= 'f':
+			b = b - 'a' + 10
+		case 'A' <= b && b <= 'F':
+			b = b - 'A' + 10
+		default:
+			return 0, errors.New("invalid byte in chunk length")
+		}
+		n |= uint64(b)
+	}
+	return
 }

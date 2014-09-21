@@ -1,8 +1,10 @@
-// $G $F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test defer.
 
 package main
 
@@ -23,6 +25,7 @@ func test1() {
 	test1helper()
 	if result != "9876543210" {
 		fmt.Printf("test1: bad defer result (should be 9876543210): %q\n", result)
+		panic("defer")
 	}
 }
 
@@ -39,6 +42,7 @@ func test2() {
 	test2helper()
 	if result != "9876543210" {
 		fmt.Printf("test2: bad defer result (should be 9876543210): %q\n", result)
+		panic("defer")
 	}
 }
 

@@ -1,5 +1,5 @@
 /* Conversion routines from GCC internal float representation to MPFR.
-   Copyright (C) 2010
+   Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -22,6 +22,7 @@
 #include "coretypes.h"
 #include "realmpfr.h"
 #include "tree.h"	/* For TYPE_MODE in real_from_mpfr.  */
+#include "stor-layout.h"
 
 /* Convert from REAL_VALUE_TYPE to MPFR.  The caller is responsible
    for initializing and clearing the MPFR parameter.  */

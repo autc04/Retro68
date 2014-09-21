@@ -12,30 +12,35 @@ import (
 )
 
 func Getenv(key string) (value string, found bool) {
+	keyp, err := UTF16PtrFromString(key)
+	if err != nil {
+		return "", false
+	}
 	b := make([]uint16, 100)
-	n, e := GetEnvironmentVariable(StringToUTF16Ptr(key), &b[0], uint32(len(b)))
+	n, e := GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
 	if n == 0 && e == ERROR_ENVVAR_NOT_FOUND {
 		return "", false
 	}
 	if n > uint32(len(b)) {
 		b = make([]uint16, n)
-		n, e = GetEnvironmentVariable(StringToUTF16Ptr(key), &b[0], uint32(len(b)))
+		n, e = GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
 		if n > uint32(len(b)) {
 			n = 0
 		}
-	}
-	if n == 0 {
-		return "", false
 	}
 	return string(utf16.Decode(b[0:n])), true
 }
 
 func Setenv(key, value string) error {
-	var v *uint16
-	if len(value) > 0 {
-		v = StringToUTF16Ptr(value)
+	v, err := UTF16PtrFromString(value)
+	if err != nil {
+		return err
 	}
-	e := SetEnvironmentVariable(StringToUTF16Ptr(key), v)
+	keyp, err := UTF16PtrFromString(key)
+	if err != nil {
+		return err
+	}
+	e := SetEnvironmentVariable(keyp, v)
 	if e != nil {
 		return e
 	}

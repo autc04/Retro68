@@ -4,7 +4,7 @@
 
 package runtime
 
-// Breakpoint() executes a breakpoint trap.
+// Breakpoint executes a breakpoint trap.
 func Breakpoint()
 
 // LockOSThread wires the calling goroutine to its current operating system thread.
@@ -125,6 +125,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool)
 // blocking until data is available.  If profiling is turned off and all the profile
 // data accumulated while it was on has been returned, CPUProfile returns nil.
 // The caller must save the returned data before calling CPUProfile again.
+//
 // Most clients should use the runtime/pprof package or
 // the testing package's -test.cpuprofile flag instead of calling
 // CPUProfile directly.
@@ -133,13 +134,46 @@ func CPUProfile() []byte
 // SetCPUProfileRate sets the CPU profiling rate to hz samples per second.
 // If hz <= 0, SetCPUProfileRate turns off profiling.
 // If the profiler is on, the rate cannot be changed without first turning it off.
+//
 // Most clients should use the runtime/pprof package or
 // the testing package's -test.cpuprofile flag instead of calling
 // SetCPUProfileRate directly.
 func SetCPUProfileRate(hz int)
+
+// SetBlockProfileRate controls the fraction of goroutine blocking events
+// that are reported in the blocking profile.  The profiler aims to sample
+// an average of one blocking event per rate nanoseconds spent blocked.
+//
+// To include every blocking event in the profile, pass rate = 1.
+// To turn off profiling entirely, pass rate <= 0.
+func SetBlockProfileRate(rate int)
+
+// BlockProfileRecord describes blocking events originated
+// at a particular call sequence (stack trace).
+type BlockProfileRecord struct {
+	Count  int64
+	Cycles int64
+	StackRecord
+}
+
+// BlockProfile returns n, the number of records in the current blocking profile.
+// If len(p) >= n, BlockProfile copies the profile into p and returns n, true.
+// If len(p) < n, BlockProfile does not change p and returns n, false.
+//
+// Most clients should use the runtime/pprof package or
+// the testing package's -test.blockprofile flag instead
+// of calling BlockProfile directly.
+func BlockProfile(p []BlockProfileRecord) (n int, ok bool)
 
 // Stack formats a stack trace of the calling goroutine into buf
 // and returns the number of bytes written to buf.
 // If all is true, Stack formats stack traces of all other goroutines
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int
+
+// Get field tracking information.  Only fields with a tag go:"track"
+// are tracked.  This function will add every such field that is
+// referenced to the map.  The keys in the map will be
+// PkgPath.Name.FieldName.  The value will be true for each field
+// added.
+func Fieldtrack(map[string]bool)

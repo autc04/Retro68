@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -44,6 +44,7 @@ with Prj.Util; use Prj.Util;
 with Sdefault;
 with Sinput.P;
 with Snames;   use Snames;
+with Stringt;
 with Table;
 with Targparm;
 with Tempdir;
@@ -59,7 +60,6 @@ with GNAT.OS_Lib; use GNAT.OS_Lib;
 
 procedure GNATCmd is
    Project_Node_Tree : Project_Node_Tree_Ref;
-   Root_Environment  : Prj.Tree.Environment;
    Project_File      : String_Access;
    Project           : Prj.Project_Id;
    Current_Verbosity : Prj.Verbosity := Prj.Default;
@@ -238,12 +238,7 @@ procedure GNATCmd is
 
    function Configuration_Pragmas_File return Path_Name_Type;
    --  Return an argument, if there is a configuration pragmas file to be
-   --  specified for Project, otherwise return No_Name. Used for gnatstub (GNAT
-   --  STUB), gnatpp (GNAT PRETTY), gnatelim (GNAT ELIM), and gnatmetric (GNAT
-   --  METRIC).
-
-   function Mapping_File return Path_Name_Type;
-   --  Create and return the path name of a mapping file. Used for gnatstub
+   --  specified for Project, otherwise return No_Name. Used for gnatstub
    --  (GNAT STUB), gnatpp (GNAT PRETTY), gnatelim (GNAT ELIM), and gnatmetric
    --  (GNAT METRIC).
 
@@ -251,9 +246,21 @@ procedure GNATCmd is
    --  Delete all temporary config files. The caller is responsible for
    --  ensuring that Keep_Temporary_Files is False.
 
+   procedure Ensure_Absolute_Path
+     (Switch : in out String_Access;
+      Parent : String);
+   --  Test if Switch is a relative search path switch. If it is and it
+   --  includes directory information, prepend the path with Parent. This
+   --  subprogram is only called when using project files.
+
    procedure Get_Closure;
    --  Get the sources in the closure of the ASIS_Main and add them to the
    --  list of arguments.
+
+   function Mapping_File return Path_Name_Type;
+   --  Create and return the path name of a mapping file. Used for gnatstub
+   --  (GNAT STUB), gnatpp (GNAT PRETTY), gnatelim (GNAT ELIM), and gnatmetric
+   --  (GNAT METRIC).
 
    procedure Non_VMS_Usage;
    --  Display usage for platforms other than VMS
@@ -268,17 +275,9 @@ procedure GNATCmd is
    --  If Project is a library project, add the correct -L and -l switches to
    --  the linker invocation.
 
-   procedure Set_Libraries is
-      new For_Every_Project_Imported (Boolean, Set_Library_For);
-   --  Add the -L and -l switches to the linker for all of the library
-   --  projects.
-
-   procedure Test_If_Relative_Path
-     (Switch : in out String_Access;
-      Parent : String);
-   --  Test if Switch is a relative search path switch. If it is and it
-   --  includes directory information, prepend the path with Parent. This
-   --  subprogram is only called when using project files.
+   procedure Set_Libraries is new
+     For_Every_Project_Imported (Boolean, Set_Library_For);
+   --  Add the -L and -l switches to the linker for all the library projects
 
    --------------------------
    -- Add_To_Carg_Switches --
@@ -408,18 +407,19 @@ procedure GNATCmd is
          end if;
       end loop;
 
-      --  If all arguments are switches and there is no switch -files=, add
-      --  the path names of all the sources of the main project.
+      --  If all arguments are switches and there is no switch -files=, add the
+      --  path names of all the sources of the main project.
 
       if Add_Sources then
 
-         --  For gnatcheck, gnatpp, and gnatmetric, create a temporary file
-         --  and put the list of sources in it. For gnatstack create a
-         --  temporary file with the list of .ci files.
+         --  For gnatcheck, gnatpp, and gnatmetric, create a temporary file and
+         --  put the list of sources in it. For gnatstack create a temporary
+         --  file with the list of .ci files.
 
          if The_Command = Check  or else
             The_Command = Pretty or else
             The_Command = Metric or else
+            The_Command = List   or else
             The_Command = Stack
          then
             Tempdir.Create_Temp_File (FD, Temp_File_Name);
@@ -554,12 +554,10 @@ procedure GNATCmd is
                         end if;
 
                         if not Subunit then
-                           Last_Switches.Increment_Last;
-                           Last_Switches.Table (Last_Switches.Last) :=
-                             new String'
-                               (Get_Name_String
-                                    (Unit.File_Names
-                                         (Impl).Display_File));
+                           Add_To_Response_File
+                             (Get_Name_String
+                                (Unit.File_Names (Impl).Display_File),
+                              Check_File => False);
                         end if;
                      end if;
 
@@ -572,10 +570,10 @@ procedure GNATCmd is
                      if All_Projects or else
                         Unit.File_Names (Spec).Project = Project
                      then
-                        Last_Switches.Increment_Last;
-                        Last_Switches.Table (Last_Switches.Last) :=
-                          new String'(Get_Name_String
-                                       (Unit.File_Names (Spec).Display_File));
+                        Add_To_Response_File
+                          (Get_Name_String
+                             (Unit.File_Names (Spec).Display_File),
+                           Check_File => False);
                      end if;
                   end if;
 
@@ -789,6 +787,22 @@ procedure GNATCmd is
       end if;
    end Delete_Temp_Config_Files;
 
+   ---------------------------
+   -- Ensure_Absolute_Path --
+   ---------------------------
+
+   procedure Ensure_Absolute_Path
+     (Switch : in out String_Access;
+      Parent : String)
+   is
+   begin
+      Makeutl.Ensure_Absolute_Path
+        (Switch, Parent,
+         Do_Fail              => Osint.Fail'Access,
+         Including_Non_Switch => False,
+         Including_RTS        => True);
+   end Ensure_Absolute_Path;
+
    -----------------
    -- Get_Closure --
    -----------------
@@ -833,6 +847,9 @@ procedure GNATCmd is
       Unit  : Unit_Index;
       Path  : Path_Name_Type;
 
+      Files_File     : Ada.Text_IO.File_Type;
+      Temp_File_Name : Path_Name_Type;
+
    begin
       if GN_Path = null then
          Put_Line (Standard_Error, "could not locate " & GN_Name);
@@ -841,7 +858,7 @@ procedure GNATCmd is
 
       --  Create the temp file
 
-      Tempdir.Create_Temp_File (FD, Name);
+      Prj.Env.Create_Temp_File (Project_Tree.Shared, FD, Name, "files");
 
       --  And close it, because on VMS Spawn with a file descriptor created
       --  with Create_Temp_File does not redirect output.
@@ -889,8 +906,19 @@ procedure GNATCmd is
          raise Error_Exit;
 
       else
-         --  Get each file name in the file, find its path and add it the
-         --  list of arguments.
+         --  Create a temporary file to put the list of files in the closure
+
+         Tempdir.Create_Temp_File (FD, Temp_File_Name);
+         Last_Switches.Increment_Last;
+         Last_Switches.Table (Last_Switches.Last) :=
+           new String'("-files=" & Get_Name_String (Temp_File_Name));
+
+         Close (FD);
+
+         Open (Files_File, Out_File, Get_Name_String (Temp_File_Name));
+
+         --  Get each file name in the file, find its path and add it the list
+         --  of arguments.
 
          while not End_Of_File (File) loop
             Get_Line (File, Line, Last);
@@ -918,17 +946,15 @@ procedure GNATCmd is
                Unit := Units_Htable.Get_Next (Project_Tree.Units_HT);
             end loop;
 
-            Last_Switches.Increment_Last;
-
             if Path /= No_Path then
-               Last_Switches.Table (Last_Switches.Last) :=
-                  new String'(Get_Name_String (Path));
+               Put_Line (Files_File, Get_Name_String (Path));
 
             else
-               Last_Switches.Table (Last_Switches.Last) :=
-                 new String'(Line (1 .. Last));
+               Put_Line (Files_File, Line (1 .. Last));
             end if;
          end loop;
+
+         Close (Files_File);
 
          begin
             if not Keep_Temporary_Files then
@@ -961,6 +987,60 @@ procedure GNATCmd is
          Name     => Result);
       return Result;
    end Mapping_File;
+
+   -------------------
+   -- Non_VMS_Usage --
+   -------------------
+
+   procedure Non_VMS_Usage is
+   begin
+      Output_Version;
+      New_Line;
+      Put_Line ("List of available commands");
+      New_Line;
+
+      for C in Command_List'Range loop
+
+         --  No usage for VMS only command or for Sync
+
+         if not Command_List (C).VMS_Only and then C /= Sync then
+            if Targparm.AAMP_On_Target then
+               Put ("gnaampcmd ");
+            else
+               Put ("gnat ");
+            end if;
+
+            Put (To_Lower (Command_List (C).Cname.all));
+            Set_Col (25);
+
+            --  Never call gnatstack with a prefix
+
+            if C = Stack then
+               Put (Command_List (C).Unixcmd.all);
+            else
+               Put (Program_Name (Command_List (C).Unixcmd.all, "gnat").all);
+            end if;
+
+            declare
+               Sws : Argument_List_Access renames Command_List (C).Unixsws;
+            begin
+               if Sws /= null then
+                  for J in Sws'Range loop
+                     Put (' ');
+                     Put (Sws (J).all);
+                  end loop;
+               end if;
+            end;
+
+            New_Line;
+         end if;
+      end loop;
+
+      New_Line;
+      Put_Line ("All commands except chop, krunch and preprocess " &
+                "accept project file switches -vPx, -Pprj and -Xnam=val");
+      New_Line;
+   end Non_VMS_Usage;
 
    ------------------
    -- Process_Link --
@@ -1302,76 +1382,6 @@ procedure GNATCmd is
       end if;
    end Set_Library_For;
 
-   ---------------------------
-   -- Test_If_Relative_Path --
-   ---------------------------
-
-   procedure Test_If_Relative_Path
-     (Switch : in out String_Access;
-      Parent : String)
-   is
-   begin
-      Makeutl.Test_If_Relative_Path
-        (Switch, Parent,
-         Do_Fail              => Osint.Fail'Access,
-         Including_Non_Switch => False,
-         Including_RTS        => True);
-   end Test_If_Relative_Path;
-
-   -------------------
-   -- Non_VMS_Usage --
-   -------------------
-
-   procedure Non_VMS_Usage is
-   begin
-      Output_Version;
-      New_Line;
-      Put_Line ("List of available commands");
-      New_Line;
-
-      for C in Command_List'Range loop
-
-         --  No usage for VMS only command or for Sync
-
-         if not Command_List (C).VMS_Only and then C /= Sync then
-            if Targparm.AAMP_On_Target then
-               Put ("gnaampcmd ");
-            else
-               Put ("gnat ");
-            end if;
-
-            Put (To_Lower (Command_List (C).Cname.all));
-            Set_Col (25);
-
-            --  Never call gnatstack with a prefix
-
-            if C = Stack then
-               Put (Command_List (C).Unixcmd.all);
-            else
-               Put (Program_Name (Command_List (C).Unixcmd.all, "gnat").all);
-            end if;
-
-            declare
-               Sws : Argument_List_Access renames Command_List (C).Unixsws;
-            begin
-               if Sws /= null then
-                  for J in Sws'Range loop
-                     Put (' ');
-                     Put (Sws (J).all);
-                  end loop;
-               end if;
-            end;
-
-            New_Line;
-         end if;
-      end loop;
-
-      New_Line;
-      Put_Line ("All commands except chop, krunch and preprocess " &
-                "accept project file switches -vPx, -Pprj and -Xnam=val");
-      New_Line;
-   end Non_VMS_Usage;
-
 --  Start of processing for GNATCmd
 
 begin
@@ -1383,11 +1393,9 @@ begin
 
    Csets.Initialize;
    Snames.Initialize;
+   Stringt.Initialize;
 
    Prj.Tree.Initialize (Root_Environment, Gnatmake_Flags);
-   Prj.Env.Initialize_Default_Project_Path
-     (Root_Environment.Project_Path,
-      Target_Name => Sdefault.Target_Name.all);
 
    Project_Node_Tree := new Project_Node_Tree_Data;
    Prj.Tree.Initialize (Project_Node_Tree);
@@ -1759,7 +1767,13 @@ begin
                        (Root_Environment.Project_Path,
                         Argv (Argv'First + 3 .. Argv'Last));
 
-                     Remove_Switch (Arg_Num);
+                     --  Pass -aPdir to gnatls, but not to other tools
+
+                     if The_Command = List then
+                        Arg_Num := Arg_Num + 1;
+                     else
+                        Remove_Switch (Arg_Num);
+                     end if;
 
                   --  -eL  Follow links for files
 
@@ -1771,19 +1785,29 @@ begin
 
                   --  -vPx  Specify verbosity while parsing project files
 
-                  elsif Argv'Length = 4
-                    and then Argv (Argv'First + 1 .. Argv'First + 2) = "vP"
+                  elsif Argv'Length >= 3
+                    and then  Argv (Argv'First + 1 .. Argv'First + 2) = "vP"
                   then
-                     case Argv (Argv'Last) is
-                        when '0' =>
-                           Current_Verbosity := Prj.Default;
-                        when '1' =>
-                           Current_Verbosity := Prj.Medium;
-                        when '2' =>
-                           Current_Verbosity := Prj.High;
-                        when others =>
-                           Fail ("Invalid switch: " & Argv.all);
-                     end case;
+                     if Argv'Length = 4
+                          and then Argv (Argv'Last) in '0' .. '2'
+                     then
+                        case Argv (Argv'Last) is
+                           when '0' =>
+                              Current_Verbosity := Prj.Default;
+                           when '1' =>
+                              Current_Verbosity := Prj.Medium;
+                           when '2' =>
+                              Current_Verbosity := Prj.High;
+                           when others =>
+
+                              --  Cannot happen
+
+                              raise Program_Error;
+                        end case;
+                     else
+                        Fail ("invalid verbosity level: "
+                                & Argv (Argv'First + 3 .. Argv'Last));
+                     end if;
 
                      Remove_Switch (Arg_Num);
 
@@ -1891,6 +1915,13 @@ begin
          end Inspect_Switches;
       end if;
 
+      --  Add the default project search directories now, after the directories
+      --  that have been specified by switches -aP<dir>.
+
+      Prj.Env.Initialize_Default_Project_Path
+        (Root_Environment.Project_Path,
+         Target_Name => Sdefault.Target_Name.all);
+
       --  If there is a project file specified, parse it, get the switches
       --  for the tool and setup PATH environment variables.
 
@@ -1911,6 +1942,12 @@ begin
 
          if Project = Prj.No_Project then
             Fail ("""" & Project_File.all & """ processing failed");
+
+         elsif Project.Qualifier = Aggregate then
+            Fail ("aggregate projects are not supported");
+
+         elsif Aggregate_Libraries_In (Project_Tree) then
+            Fail ("aggregate library projects are not supported");
          end if;
 
          --  Check if a package with the name of the tool is in the project
@@ -1979,7 +2016,19 @@ begin
                           In_Arrays => Element.Decl.Arrays,
                           Shared    => Project_Tree.Shared);
                      Name_Len := 0;
-                     Add_Str_To_Name_Buffer (Main.all);
+
+                     --  If the single main has been specified as an absolute
+                     --  path, use only the simple file name. If the absolute
+                     --  path is incorrect, an error will be reported by the
+                     --  underlying tool and it does not make a difference
+                     --  what switches are used.
+
+                     if Is_Absolute_Path (Main.all) then
+                        Add_Str_To_Name_Buffer (File_Name (Main.all));
+                     else
+                        Add_Str_To_Name_Buffer (Main.all);
+                     end if;
+
                      The_Switches := Prj.Util.Value_Of
                        (Index     => Name_Find,
                         Src_Index => 0,
@@ -2049,13 +2098,18 @@ begin
            or else The_Command = Link
            or else The_Command = Elim
          then
+            if Project.Object_Directory.Name = No_Path then
+               Fail ("project " & Get_Name_String (Project.Display_Name) &
+                     " has no object directory");
+            end if;
+
             Change_Dir (Get_Name_String (Project.Object_Directory.Name));
          end if;
 
          --  Set up the env vars for project path files
 
          Prj.Env.Set_Ada_Paths
-           (Project, Project_Tree, Including_Libraries => False);
+           (Project, Project_Tree, Including_Libraries => True);
 
          --  For gnatcheck, gnatstub, gnatmetric, gnatpp and gnatelim, create
          --  a configuration pragmas file, if necessary.
@@ -2286,10 +2340,15 @@ begin
                     (new String'("-gnatem=" & Get_Name_String (M_File)));
                end if;
 
-               --  For gnatcheck, also indicate a global configuration pragmas
-               --  file and, if -U is not used, a local one.
+               --  For gnatcheck, gnatpp, gnatstub and gnatmetric, also
+               --  indicate a global configuration pragmas file and, if -U
+               --  is not used, a local one.
 
-               if The_Command = Check then
+               if The_Command = Check  or else
+                  The_Command = Pretty or else
+                  The_Command = Stub   or else
+                  The_Command = Metric
+               then
                   declare
                      Pkg  : constant Prj.Package_Id :=
                               Prj.Util.Value_Of
@@ -2322,9 +2381,15 @@ begin
                      if Variable /= Nil_Variable_Value
                        and then Length_Of_Name (Variable.Value) /= 0
                      then
-                        Add_To_Carg_Switches
-                          (new String'
-                             ("-gnatec=" & Get_Name_String (Variable.Value)));
+                        declare
+                           Path : constant String :=
+                                    Absolute_Path
+                                      (Path_Name_Type (Variable.Value),
+                                       Variable.Project);
+                        begin
+                           Add_To_Carg_Switches
+                             (new String'("-gnatec=" & Path));
+                        end;
                      end if;
                   end;
 
@@ -2362,10 +2427,15 @@ begin
                         if Variable /= Nil_Variable_Value
                           and then Length_Of_Name (Variable.Value) /= 0
                         then
-                           Add_To_Carg_Switches
-                             (new String'
-                                ("-gnatec=" &
-                                 Get_Name_String (Variable.Value)));
+                           declare
+                              Path : constant String :=
+                                       Absolute_Path
+                                         (Path_Name_Type (Variable.Value),
+                                          Variable.Project);
+                           begin
+                              Add_To_Carg_Switches
+                                (new String'("-gnatec=" & Path));
+                           end;
                         end if;
                      end;
                   end if;
@@ -2387,7 +2457,7 @@ begin
             --  arguments.
 
             for J in 1 .. Last_Switches.Last loop
-               GNATCmd.Test_If_Relative_Path
+               GNATCmd.Ensure_Absolute_Path
                  (Last_Switches.Table (J), Current_Work_Dir);
             end loop;
 
@@ -2397,7 +2467,7 @@ begin
                Project_Dir : constant String := Name_Buffer (1 .. Name_Len);
             begin
                for J in 1 .. First_Switches.Last loop
-                  GNATCmd.Test_If_Relative_Path
+                  GNATCmd.Ensure_Absolute_Path
                     (First_Switches.Table (J), Project_Dir);
                end loop;
             end;
@@ -2424,7 +2494,9 @@ begin
                --  the file name ends with the spec suffix, then indicate to
                --  gnatstub the name of the body file with a -o switch.
 
-               if not Is_Standard_GNAT_Naming (Lang.Config.Naming_Data) then
+               if Lang /= No_Language_Index
+                 and then not Is_Standard_GNAT_Naming (Lang.Config.Naming_Data)
+               then
                   if File_Index /= 0 then
                      declare
                         Spec : constant String :=

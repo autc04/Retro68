@@ -1,8 +1,6 @@
 // Implementation file for the -*- C++ -*- dynamic memory management header.
 
-// Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-// 2005, 2006, 2007, 2008, 2009, 2010
-// Free Software Foundation
+// Copyright (C) 1996-2014 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -26,16 +24,48 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "new"
+#include <bits/atomic_lockfree_defines.h>
+
+#if ATOMIC_POINTER_LOCK_FREE < 2
+#include <ext/concurrence.h>
+namespace
+{
+  __gnu_cxx::__mutex mx;
+}
+#endif
 
 const std::nothrow_t std::nothrow = { };
 
 using std::new_handler;
-new_handler __new_handler;
+namespace
+{
+  new_handler __new_handler;
+}
 
 new_handler
 std::set_new_handler (new_handler handler) throw()
 {
-  new_handler prev_handler = __new_handler;
+  new_handler prev_handler;
+#if ATOMIC_POINTER_LOCK_FREE > 1
+  __atomic_exchange (&__new_handler, &handler, &prev_handler,
+		     __ATOMIC_ACQ_REL);
+#else
+  __gnu_cxx::__scoped_lock l(mx);
+  prev_handler = __new_handler;
   __new_handler = handler;
+#endif
   return prev_handler;
+}
+
+new_handler
+std::get_new_handler () noexcept
+{
+  new_handler handler;
+#if ATOMIC_POINTER_LOCK_FREE > 1
+  __atomic_load (&__new_handler, &handler, __ATOMIC_ACQUIRE);
+#else
+  __gnu_cxx::__scoped_lock l(mx);
+  handler = __new_handler;
+#endif
+  return handler;
 }

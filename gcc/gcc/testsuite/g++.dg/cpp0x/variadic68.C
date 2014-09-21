@@ -1,5 +1,4 @@
-// { dg-do run }
-// { dg-options "-std=gnu++0x" }
+// { dg-do run { target c++11 } }
 extern "C" void abort();
 
 template<typename T, T... Values>

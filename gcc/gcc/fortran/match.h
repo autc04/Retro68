@@ -1,6 +1,5 @@
 /* All matcher functions.
-   Copyright (C) 2003, 2005, 2007, 2008, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by Steven Bosscher
 
 This file is part of GCC.
@@ -60,6 +59,8 @@ match gfc_match_char (char);
 match gfc_match (const char *, ...);
 match gfc_match_iterator (gfc_iterator *, int);
 match gfc_match_parens (void);
+match gfc_match_type_spec (gfc_typespec *);
+
 
 /* Statement matchers.  */
 match gfc_match_program (void);
@@ -125,20 +126,46 @@ gfc_common_head *gfc_get_common (const char *, int);
 match gfc_match_omp_eos (void);
 match gfc_match_omp_atomic (void);
 match gfc_match_omp_barrier (void);
+match gfc_match_omp_cancel (void);
+match gfc_match_omp_cancellation_point (void);
 match gfc_match_omp_critical (void);
+match gfc_match_omp_declare_reduction (void);
+match gfc_match_omp_declare_simd (void);
+match gfc_match_omp_declare_target (void);
+match gfc_match_omp_distribute (void);
+match gfc_match_omp_distribute_parallel_do (void);
+match gfc_match_omp_distribute_parallel_do_simd (void);
+match gfc_match_omp_distribute_simd (void);
 match gfc_match_omp_do (void);
+match gfc_match_omp_do_simd (void);
 match gfc_match_omp_flush (void);
 match gfc_match_omp_master (void);
 match gfc_match_omp_ordered (void);
 match gfc_match_omp_parallel (void);
 match gfc_match_omp_parallel_do (void);
+match gfc_match_omp_parallel_do_simd (void);
 match gfc_match_omp_parallel_sections (void);
 match gfc_match_omp_parallel_workshare (void);
 match gfc_match_omp_sections (void);
+match gfc_match_omp_simd (void);
 match gfc_match_omp_single (void);
+match gfc_match_omp_target (void);
+match gfc_match_omp_target_data (void);
+match gfc_match_omp_target_teams (void);
+match gfc_match_omp_target_teams_distribute (void);
+match gfc_match_omp_target_teams_distribute_parallel_do (void);
+match gfc_match_omp_target_teams_distribute_parallel_do_simd (void);
+match gfc_match_omp_target_teams_distribute_simd (void);
+match gfc_match_omp_target_update (void);
 match gfc_match_omp_task (void);
+match gfc_match_omp_taskgroup (void);
 match gfc_match_omp_taskwait (void);
 match gfc_match_omp_taskyield (void);
+match gfc_match_omp_teams (void);
+match gfc_match_omp_teams_distribute (void);
+match gfc_match_omp_teams_distribute_parallel_do (void);
+match gfc_match_omp_teams_distribute_parallel_do_simd (void);
+match gfc_match_omp_teams_distribute_simd (void);
 match gfc_match_omp_threadprivate (void);
 match gfc_match_omp_workshare (void);
 match gfc_match_omp_end_nowait (void);
@@ -196,9 +223,9 @@ match gfc_match_volatile (void);
 /* Fortran 2003 c interop.
    TODO: some of these should be moved to another file rather than decl.c */
 void set_com_block_bind_c (gfc_common_head *, int);
-gfc_try set_verify_bind_c_sym (gfc_symbol *, int);
-gfc_try set_verify_bind_c_com_block (gfc_common_head *, int);
-gfc_try get_bind_c_idents (void);
+bool set_verify_bind_c_sym (gfc_symbol *, int);
+bool set_verify_bind_c_com_block (gfc_common_head *, int);
+bool get_bind_c_idents (void);
 match gfc_match_bind_c_stmt (void);
 match gfc_match_suffix (gfc_symbol *, gfc_symbol **);
 match gfc_match_bind_c (gfc_symbol *, bool);
@@ -214,7 +241,7 @@ match gfc_match_literal_constant (gfc_expr **, int);
 /* expr.c -- FIXME: this one should be eliminated by moving the
    matcher to matchexp.c and a call to a new function in expr.c that
    only makes sure the init expr. is valid.  */
-gfc_try gfc_reduce_init_expr (gfc_expr *expr);
+bool gfc_reduce_init_expr (gfc_expr *expr);
 match gfc_match_init_expr (gfc_expr **);
 
 /* array.c.  */

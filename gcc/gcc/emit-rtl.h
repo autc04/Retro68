@@ -1,5 +1,5 @@
 /* Exported functions from emit-rtl.c
-   Copyright (C) 2004, 2007, 2008, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -61,6 +61,7 @@ extern rtx gen_blockage (void);
 extern rtvec gen_rtvec (int, ...);
 extern rtx copy_insn_1 (rtx);
 extern rtx copy_insn (rtx);
+extern rtx copy_delay_slot_insn (rtx);
 extern rtx gen_int_mode (HOST_WIDE_INT, enum machine_mode);
 extern rtx emit_copy_of_insn_after (rtx, rtx);
 extern void set_reg_attrs_from_value (rtx, rtx);
@@ -68,6 +69,8 @@ extern void set_reg_attrs_for_parm (rtx, rtx);
 extern void set_reg_attrs_for_decl_rtl (tree t, rtx x);
 extern void adjust_reg_mode (rtx, enum machine_mode);
 extern int mem_expr_equal_p (const_tree, const_tree);
+
+extern bool need_atomic_barrier_p (enum memmodel, bool);
 
 /* Return the first insn of the current sequence or current function.  */
 
@@ -110,4 +113,7 @@ get_max_uid (void)
 {
   return crtl->emit.x_cur_insn_uid;
 }
+
+extern void set_decl_incoming_rtl (tree, rtx, bool);
+
 #endif /* GCC_EMIT_RTL_H */

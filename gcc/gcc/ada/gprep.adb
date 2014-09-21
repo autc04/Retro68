@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,8 +23,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Atree;    use Atree;
 with Csets;
-with Err_Vars; use Err_Vars;
 with Errutil;
 with Namet;    use Namet;
 with Opt;
@@ -165,7 +165,7 @@ package body GPrep is
 
    procedure Gnatprep is
    begin
-      --  Do some initializations (order is important here!)
+      --  Do some initializations (order is important here)
 
       Csets.Initialize;
       Snames.Initialize;
@@ -524,13 +524,13 @@ package body GPrep is
 
          --  In verbose mode, if there is no error, report it
 
-         if Opt.Verbose_Mode and then Err_Vars.Total_Errors_Detected = 0 then
+         if Opt.Verbose_Mode and then Total_Errors_Detected = 0 then
             Errutil.Finalize (Source_Type => "input");
          end if;
 
          --  If we had some errors, delete the output file, and report them
 
-         if Err_Vars.Total_Errors_Detected > 0 then
+         if Total_Errors_Detected > 0 then
             if Outfile /= Standard_Output then
                Delete (Text_Outfile);
             end if;
@@ -720,7 +720,7 @@ package body GPrep is
 
       loop
          begin
-            Switch := GNAT.Command_Line.Getopt ("D: b c C r s T u v");
+            Switch := GNAT.Command_Line.Getopt ("D: a b c C r s T u v");
 
             case Switch is
 
@@ -730,6 +730,10 @@ package body GPrep is
                when 'D' =>
                   Process_Command_Line_Symbol_Definition
                     (S => GNAT.Command_Line.Parameter);
+
+               when 'a' =>
+                  Opt.No_Deletion := True;
+                  Opt.Undefined_Symbols_Are_False := True;
 
                when 'b' =>
                   Opt.Blank_Deleted_Lines := True;

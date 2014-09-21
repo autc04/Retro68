@@ -1,6 +1,45 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2013-12-07  Jakub Jelinek  <jakub@redhat.com>
+
+	* ssp.c (fail): Avoid -Wformat-security warning.
+
+2013-09-20  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
+2013-02-06  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Revert previous patch.
+
+2013-02-03  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years.
+
+2013-01-15  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	PR 55982
+	* strncat-chk.c (__strncat_chk): Fix loop unroll.
+
+2012-09-14  David Edelsohn  <dje.gcc@gmail.com>
+
+	* configure: Regenerated.
+
+2012-05-29  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/51007
+	* configure.ac: Allow gnu, gnu* variants for --enable-symvers argument.
+	* configure: Regenerated.
+
+2012-05-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
 
 2011-11-21  Andreas Tobler  <andreast@fgznet.ch>
 

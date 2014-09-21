@@ -1,6 +1,5 @@
 /* Prototypes for Blackfin functions used in the md file & elsewhere.
-   Copyright (C) 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
    This file is part of GNU CC.
 
@@ -106,8 +105,8 @@ extern rtx bfin_va_arg (tree, tree);
 
 extern void bfin_expand_prologue (void);
 extern void bfin_expand_epilogue (int, int, bool);
-extern int push_multiple_operation (rtx, enum machine_mode);
-extern int pop_multiple_operation (rtx, enum machine_mode);
+extern int analyze_push_multiple_operation (rtx);
+extern int analyze_pop_multiple_operation (rtx);
 extern void output_push_multiple (rtx, rtx *);
 extern void output_pop_multiple (rtx, rtx *);
 extern int bfin_hard_regno_rename_ok (unsigned int, unsigned int);

@@ -1,4 +1,4 @@
-// Copyright (C) 2004, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -57,7 +57,7 @@ main(void)
   for(int i = 0; i < 100; i++)
     search_n(rcon.begin(), rcon.end(), 10, 1);
   stop_counters(time, resource);
-  report_performance(__FILE__, "random acess iterator", time, resource);
+  report_performance(__FILE__, "random access iterator", time, resource);
   clear_counters(time, resource);
 }
 

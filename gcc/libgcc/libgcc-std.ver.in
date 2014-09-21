@@ -1,5 +1,4 @@
-# Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-# 2008, 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2000-2014 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -1934,4 +1933,8 @@ GCC_4.7.0 {
   __splitstack_find_context
   __splitstack_resetcontext
   __splitstack_releasecontext
+}
+
+%inherit GCC_4.8.0 GCC_4.7.0
+GCC_4.8.0 {
 }

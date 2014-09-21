@@ -12,10 +12,10 @@ import (
 // Getpagesize returns the underlying system's memory page size.
 func Getpagesize() int { return syscall.Getpagesize() }
 
-// A FileInfo describes a file and is returned by Stat and Lstat
+// A FileInfo describes a file and is returned by Stat and Lstat.
 type FileInfo interface {
 	Name() string       // base name of the file
-	Size() int64        // length in bytes
+	Size() int64        // length in bytes for regular files; system-dependent for others
 	Mode() FileMode     // file mode bits
 	ModTime() time.Time // modification time
 	IsDir() bool        // abbreviation for Mode().IsDir()
@@ -58,7 +58,7 @@ const (
 
 func (m FileMode) String() string {
 	const str = "dalTLDpSugct"
-	var buf [20]byte
+	var buf [32]byte // Mode is uint32.
 	w := 0
 	for i, c := range str {
 		if m&(1<<uint(32-1-i)) != 0 {
@@ -88,26 +88,19 @@ func (m FileMode) IsDir() bool {
 	return m&ModeDir != 0
 }
 
+// IsRegular reports whether m describes a regular file.
+// That is, it tests that no mode type bits are set.
+func (m FileMode) IsRegular() bool {
+	return m&ModeType == 0
+}
+
 // Perm returns the Unix permission bits in m.
 func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// A fileStat is the implementation of FileInfo returned by Stat and Lstat.
-type fileStat struct {
-	name    string
-	size    int64
-	mode    FileMode
-	modTime time.Time
-	sys     interface{}
-}
-
-func (fs *fileStat) Name() string       { return fs.name }
-func (fs *fileStat) Size() int64        { return fs.size }
-func (fs *fileStat) Mode() FileMode     { return fs.mode }
-func (fs *fileStat) ModTime() time.Time { return fs.modTime }
-func (fs *fileStat) IsDir() bool        { return fs.mode.IsDir() }
-func (fs *fileStat) Sys() interface{}   { return fs.sys }
+func (fs *fileStat) Name() string { return fs.name }
+func (fs *fileStat) IsDir() bool  { return fs.Mode().IsDir() }
 
 // SameFile reports whether fi1 and fi2 describe the same file.
 // For example, on Unix this means that the device and inode fields
@@ -121,5 +114,5 @@ func SameFile(fi1, fi2 FileInfo) bool {
 	if !ok1 || !ok2 {
 		return false
 	}
-	return sameFile(fs1.sys, fs2.sys)
+	return sameFile(fs1, fs2)
 }

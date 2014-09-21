@@ -37,10 +37,13 @@ const (
 // TranslateAccountName converts a directory service
 // object name from one format to another.
 func TranslateAccountName(username string, from, to uint32, initSize int) (string, error) {
-	u := StringToUTF16Ptr(username)
+	u, e := UTF16PtrFromString(username)
+	if e != nil {
+		return "", e
+	}
 	b := make([]uint16, 50)
 	n := uint32(len(b))
-	e := TranslateName(u, from, to, &b[0], &n)
+	e = TranslateName(u, from, to, &b[0], &n)
 	if e != nil {
 		if e != ERROR_INSUFFICIENT_BUFFER {
 			return "", e
@@ -55,6 +58,14 @@ func TranslateAccountName(username string, from, to uint32, initSize int) (strin
 	return UTF16ToString(b), nil
 }
 
+const (
+	// do not reorder
+	NetSetupUnknownStatus = iota
+	NetSetupUnjoined
+	NetSetupWorkgroupName
+	NetSetupDomainName
+)
+
 type UserInfo10 struct {
 	Name       *uint16
 	Comment    *uint16
@@ -63,11 +74,12 @@ type UserInfo10 struct {
 }
 
 //sys	NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) = netapi32.NetUserGetInfo
+//sys	NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (neterr error) = netapi32.NetGetJoinInformation
 //sys	NetApiBufferFree(buf *byte) (neterr error) = netapi32.NetApiBufferFree
 
 const (
 	// do not reorder
-	SidTypeUser = 1 << iota
+	SidTypeUser = 1 + iota
 	SidTypeGroup
 	SidTypeDomain
 	SidTypeAlias
@@ -94,7 +106,11 @@ type SID struct{}
 // sid into a valid, functional sid.
 func StringToSid(s string) (*SID, error) {
 	var sid *SID
-	e := ConvertStringSidToSid(StringToUTF16Ptr(s), &sid)
+	p, e := UTF16PtrFromString(s)
+	if e != nil {
+		return nil, e
+	}
+	e = ConvertStringSidToSid(p, &sid)
 	if e != nil {
 		return nil, e
 	}
@@ -109,17 +125,23 @@ func LookupSID(system, account string) (sid *SID, domain string, accType uint32,
 	if len(account) == 0 {
 		return nil, "", 0, EINVAL
 	}
-	acc := StringToUTF16Ptr(account)
+	acc, e := UTF16PtrFromString(account)
+	if e != nil {
+		return nil, "", 0, e
+	}
 	var sys *uint16
 	if len(system) > 0 {
-		sys = StringToUTF16Ptr(system)
+		sys, e = UTF16PtrFromString(system)
+		if e != nil {
+			return nil, "", 0, e
+		}
 	}
 	db := make([]uint16, 50)
 	dn := uint32(len(db))
 	b := make([]byte, 50)
 	n := uint32(len(b))
 	sid = (*SID)(unsafe.Pointer(&b[0]))
-	e := LookupAccountName(sys, acc, sid, &n, &db[0], &dn, &accType)
+	e = LookupAccountName(sys, acc, sid, &n, &db[0], &dn, &accType)
 	if e != nil {
 		if e != ERROR_INSUFFICIENT_BUFFER {
 			return nil, "", 0, e
@@ -170,7 +192,10 @@ func (sid *SID) Copy() (*SID, error) {
 func (sid *SID) LookupAccount(system string) (account, domain string, accType uint32, err error) {
 	var sys *uint16
 	if len(system) > 0 {
-		sys = StringToUTF16Ptr(system)
+		sys, err = UTF16PtrFromString(system)
+		if err != nil {
+			return "", "", 0, err
+		}
 	}
 	b := make([]uint16, 50)
 	n := uint32(len(b))

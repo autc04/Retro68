@@ -1,4 +1,4 @@
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 template <class T> using Ptr = T*;
 Ptr<unsigned>; // { dg-error "does not declare anything" }

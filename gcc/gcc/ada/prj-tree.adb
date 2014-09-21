@@ -2,11 +2,11 @@
 --                                                                          --
 --                         GNAT COMPILER COMPONENTS                         --
 --                                                                          --
---                              P R J . T R E E                             --
+--                             P R J . T R E E                              --
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -279,7 +279,8 @@ package body Prj.Tree is
 
    function Case_Insensitive
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Boolean is
+      In_Tree : Project_Node_Tree_Ref) return Boolean
+   is
    begin
       pragma Assert
         (Present (Node)
@@ -524,7 +525,8 @@ package body Prj.Tree is
 
    function Directory_Of
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Path_Name_Type is
+      In_Tree : Project_Node_Tree_Ref) return Path_Name_Type
+   is
    begin
       pragma Assert
         (Present (Node)
@@ -539,7 +541,8 @@ package body Prj.Tree is
 
    function End_Of_Line_Comment
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Name_Id is
+      In_Tree : Project_Node_Tree_Ref) return Name_Id
+   is
       Zone : Project_Node_Id := Empty_Node;
 
    begin
@@ -960,7 +963,8 @@ package body Prj.Tree is
 
    function Follows_Empty_Line
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Boolean is
+      In_Tree : Project_Node_Tree_Ref) return Boolean
+   is
    begin
       pragma Assert
         (Present (Node)
@@ -1005,14 +1009,14 @@ package body Prj.Tree is
    ----------------
 
    procedure Initialize
-     (Self      : out Environment;
-      Flags     : Processing_Flags) is
+     (Self  : out Environment;
+      Flags : Processing_Flags)
+   is
    begin
       --  Do not reset the external references, in case we are reloading a
       --  project, since we want to preserve the current environment. But we
       --  still need to ensure that the external references are properly
       --  initialized.
-      --  Prj.Ext.Reset (Tree.External);
 
       Prj.Ext.Initialize (Self.External);
 
@@ -1025,7 +1029,8 @@ package body Prj.Tree is
 
    procedure Initialize_And_Copy
      (Self      : out Environment;
-      Copy_From : Environment) is
+      Copy_From : Environment)
+   is
    begin
       Self.Flags := Copy_From.Flags;
       Prj.Ext.Initialize (Self.External, Copy_From => Copy_From.External);
@@ -1079,7 +1084,8 @@ package body Prj.Tree is
 
    function Is_Extending_All
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Boolean is
+      In_Tree : Project_Node_Tree_Ref) return Boolean
+   is
    begin
       pragma Assert
         (Present (Node)
@@ -1096,7 +1102,8 @@ package body Prj.Tree is
 
    function Is_Not_Last_In_List
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Boolean is
+      In_Tree : Project_Node_Tree_Ref) return Boolean
+   is
    begin
       pragma Assert
         (Present (Node)
@@ -1155,7 +1162,8 @@ package body Prj.Tree is
 
    function Kind_Of
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Project_Node_Kind is
+      In_Tree : Project_Node_Tree_Ref) return Project_Node_Kind
+   is
    begin
       pragma Assert (Present (Node));
       return In_Tree.Project_Nodes.Table (Node).Kind;
@@ -1167,7 +1175,8 @@ package body Prj.Tree is
 
    function Location_Of
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Source_Ptr is
+      In_Tree : Project_Node_Tree_Ref) return Source_Ptr
+   is
    begin
       pragma Assert (Present (Node));
       return In_Tree.Project_Nodes.Table (Node).Location;
@@ -1179,7 +1188,8 @@ package body Prj.Tree is
 
    function Name_Of
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Name_Id is
+      In_Tree : Project_Node_Tree_Ref) return Name_Id
+   is
    begin
       pragma Assert (Present (Node));
       return In_Tree.Project_Nodes.Table (Node).Name;
@@ -1207,7 +1217,8 @@ package body Prj.Tree is
 
    function Next_Comment
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref) return Project_Node_Id is
+      In_Tree : Project_Node_Tree_Ref) return Project_Node_Id
+   is
    begin
       pragma Assert
         (Present (Node)
@@ -1310,8 +1321,7 @@ package body Prj.Tree is
    begin
       pragma Assert
         (Present (Node)
-          and then
-            In_Tree.Project_Nodes.Table (Node).Kind = N_Term);
+          and then In_Tree.Project_Nodes.Table (Node).Kind = N_Term);
       return In_Tree.Project_Nodes.Table (Node).Field2;
    end Next_Term;
 
@@ -1321,18 +1331,17 @@ package body Prj.Tree is
 
    function Next_Variable
      (Node    : Project_Node_Id;
-      In_Tree : Project_Node_Tree_Ref)
-      return Project_Node_Id
+      In_Tree : Project_Node_Tree_Ref) return Project_Node_Id
    is
    begin
       pragma Assert
         (Present (Node)
           and then
-           (In_Tree.Project_Nodes.Table (Node).Kind =
-              N_Typed_Variable_Declaration
+            (In_Tree.Project_Nodes.Table (Node).Kind =
+                                                  N_Typed_Variable_Declaration
                or else
-            In_Tree.Project_Nodes.Table (Node).Kind =
-              N_Variable_Declaration));
+             In_Tree.Project_Nodes.Table (Node).Kind =
+                                                  N_Variable_Declaration));
 
       return In_Tree.Project_Nodes.Table (Node).Field3;
    end Next_Variable;
@@ -1648,8 +1657,8 @@ package body Prj.Tree is
                      Follows_Empty_Line        => Empty_Line,
                      Is_Followed_By_Empty_Line => False);
 
-               --  Otherwise, it is an end of line comment. If there is
-               --  an end of line node specified, associate the comment with
+               --  Otherwise, it is an end of line comment. If there is an
+               --  end of line node specified, associate the comment with
                --  this node.
 
                elsif Present (End_Of_Line_Node) then
@@ -1670,13 +1679,15 @@ package body Prj.Tree is
                Empty_Line := False;
 
             when others =>
+
                --  If there are comments, where the first comment is not
                --  following an empty line, put the initial uninterrupted
                --  comment zone with the node of the preceding line (either
                --  a Previous_Line or a Previous_End node), if any.
 
                if Comments.Last > 0 and then
-                 not Comments.Table (1).Follows_Empty_Line then
+                 not Comments.Table (1).Follows_Empty_Line
+               then
                   if Present (Previous_Line_Node) then
                      Add_Comments
                        (To      => Previous_Line_Node,
@@ -2038,7 +2049,6 @@ package body Prj.Tree is
      (Node    : Project_Node_Id;
       In_Tree : Project_Node_Tree_Ref;
       To      : Project_Node_Id)
-
    is
       Zone : constant Project_Node_Id := Comment_Zones_Of (Node, In_Tree);
    begin
@@ -2912,9 +2922,10 @@ package body Prj.Tree is
             Prj.Tree.Tree_Private_Part.Project_Name_And_Node'
               (Name           => Name,
                Display_Name   => Name,
-               Canonical_Path => No_Path,
+               Resolved_Path  => No_Path,
                Node           => Project,
                Extended       => False,
+               From_Extended  => False,
                Proj_Qualifier => Qualifier));
       end if;
 

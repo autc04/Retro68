@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -19,7 +20,6 @@ type PathTest struct {
 
 var cleantests = []PathTest{
 	// Already clean
-	{"", "."},
 	{"abc", "abc"},
 	{"abc/def", "abc/def"},
 	{"a/b/c", "a/b/c"},
@@ -29,6 +29,9 @@ var cleantests = []PathTest{
 	{"../../abc", "../../abc"},
 	{"/abc", "/abc"},
 	{"/", "/"},
+
+	// Empty is current dir
+	{"", "."},
 
 	// Remove trailing slash
 	{"abc/", "abc"},
@@ -60,6 +63,7 @@ var cleantests = []PathTest{
 	{"abc/def/../../..", ".."},
 	{"/abc/def/../../..", "/"},
 	{"abc/def/../../../ghi/jkl/../../../mno", "../../mno"},
+	{"/../abc", "/abc"},
 
 	// Combinations
 	{"abc/./../def", "def"},
@@ -98,6 +102,27 @@ func TestClean(t *testing.T) {
 		if s := filepath.Clean(test.path); s != test.result {
 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
 		}
+		if s := filepath.Clean(test.result); s != test.result {
+			t.Errorf("Clean(%q) = %q, want %q", test.result, s, test.result)
+		}
+	}
+
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Log("skipping AllocsPerRun checks; GOMAXPROCS>1")
+		return
+	}
+
+	t.Log("Skipping AllocsPerRun for gccgo")
+	return
+
+	for _, test := range tests {
+		allocs := testing.AllocsPerRun(100, func() { filepath.Clean(test.result) })
+		if allocs > 0 {
+			t.Errorf("Clean(%q): %v allocs, want zero", test.result, allocs)
+		}
 	}
 }
 
@@ -134,10 +159,36 @@ var splitlisttests = []SplitListTest{
 	{string([]byte{lsep, 'a', lsep, 'b'}), []string{"", "a", "b"}},
 }
 
+var winsplitlisttests = []SplitListTest{
+	// quoted
+	{`"a"`, []string{`a`}},
+
+	// semicolon
+	{`";"`, []string{`;`}},
+	{`"a;b"`, []string{`a;b`}},
+	{`";";`, []string{`;`, ``}},
+	{`;";"`, []string{``, `;`}},
+
+	// partially quoted
+	{`a";"b`, []string{`a;b`}},
+	{`a; ""b`, []string{`a`, ` b`}},
+	{`"a;b`, []string{`a;b`}},
+	{`""a;b`, []string{`a`, `b`}},
+	{`"""a;b`, []string{`a;b`}},
+	{`""""a;b`, []string{`a`, `b`}},
+	{`a";b`, []string{`a;b`}},
+	{`a;b";c`, []string{`a`, `b;c`}},
+	{`"a";b";c`, []string{`a`, `b;c`}},
+}
+
 func TestSplitList(t *testing.T) {
-	for _, test := range splitlisttests {
+	tests := splitlisttests
+	if runtime.GOOS == "windows" {
+		tests = append(tests, winsplitlisttests...)
+	}
+	for _, test := range tests {
 		if l := filepath.SplitList(test.list); !reflect.DeepEqual(l, test.result) {
-			t.Errorf("SplitList(%q) = %s, want %s", test.list, l, test.result)
+			t.Errorf("SplitList(%#q) = %#q, want %#q", test.list, l, test.result)
 		}
 	}
 }
@@ -439,7 +490,7 @@ func TestBase(t *testing.T) {
 	tests := basetests
 	if runtime.GOOS == "windows" {
 		// make unix tests work on windows
-		for i, _ := range tests {
+		for i := range tests {
 			tests[i].result = filepath.Clean(tests[i].result)
 		}
 		// add windows specific tests
@@ -482,7 +533,7 @@ func TestDir(t *testing.T) {
 	tests := dirtests
 	if runtime.GOOS == "windows" {
 		// make unix tests work on windows
-		for i, _ := range tests {
+		for i := range tests {
 			tests[i].result = filepath.Clean(tests[i].result)
 		}
 		// add windows specific tests
@@ -585,6 +636,10 @@ func simpleJoin(dir, path string) string {
 }
 
 func TestEvalSymlinks(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("Skipping test: symlinks don't exist under Plan 9")
+	}
+
 	tmpDir, err := ioutil.TempDir("", "evalsymlink")
 	if err != nil {
 		t.Fatal("creating temp dir:", err)
@@ -620,6 +675,12 @@ func TestEvalSymlinks(t *testing.T) {
 			if d.path == d.dest {
 				// will test only real files and directories
 				tests = append(tests, d)
+				// test "canonical" names
+				d2 := EvalSymlinksTest{
+					path: strings.ToUpper(d.path),
+					dest: d.dest,
+				}
+				tests = append(tests, d2)
 			}
 		}
 	} else {
@@ -641,35 +702,66 @@ func TestEvalSymlinks(t *testing.T) {
 	}
 }
 
-/* These tests do not work in the gccgo test environment.
+// Test directories relative to temporary directory.
+// The tests are run in absTestDirs[0].
+var absTestDirs = []string{
+	"a",
+	"a/b",
+	"a/b/c",
+}
 
-// Test paths relative to $GOROOT/src
-var abstests = []string{
-	"../AUTHORS",
-	"pkg/../../AUTHORS",
-	"Make.inc",
-	"pkg/math",
+// Test paths relative to temporary directory. $ expands to the directory.
+// The tests are run in absTestDirs[0].
+// We create absTestDirs first.
+var absTests = []string{
 	".",
-	"$GOROOT/src/Make.inc",
-	"$GOROOT/src/../src/Make.inc",
-	"$GOROOT/misc/cgo",
-	"$GOROOT",
+	"b",
+	"../a",
+	"../a/b",
+	"../a/b/./c/../../.././a",
+	"$",
+	"$/.",
+	"$/a/../a/b",
+	"$/a/b/c/../../.././a",
 }
 
 func TestAbs(t *testing.T) {
-	t.Logf("test needs to be rewritten; disabled")
-	return
-
 	oldwd, err := os.Getwd()
 	if err != nil {
-		t.Fatal("Getwd failed: " + err.Error())
+		t.Fatal("Getwd failed: ", err)
 	}
 	defer os.Chdir(oldwd)
-	goroot := os.Getenv("GOROOT")
-	cwd := filepath.Join(goroot, "src")
-	os.Chdir(cwd)
-	for _, path := range abstests {
-		path = strings.Replace(path, "$GOROOT", goroot, -1)
+
+	root, err := ioutil.TempDir("", "TestAbs")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(root)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("getwd failed: ", err)
+	}
+	err = os.Chdir(root)
+	if err != nil {
+		t.Fatal("chdir failed: ", err)
+	}
+	defer os.Chdir(wd)
+
+	for _, dir := range absTestDirs {
+		err = os.Mkdir(dir, 0777)
+		if err != nil {
+			t.Fatal("Mkdir failed: ", err)
+		}
+	}
+
+	err = os.Chdir(absTestDirs[0])
+	if err != nil {
+		t.Fatal("chdir failed: ", err)
+	}
+
+	for _, path := range absTests {
+		path = strings.Replace(path, "$", root, -1)
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("%s: %s", path, err)
@@ -693,8 +785,6 @@ func TestAbs(t *testing.T) {
 		}
 	}
 }
-
-*/
 
 type RelTests struct {
 	root, path, want string
@@ -783,6 +873,7 @@ type VolumeNameTest struct {
 var volumenametests = []VolumeNameTest{
 	{`c:/foo/bar`, `c:`},
 	{`c:`, `c:`},
+	{`2:`, ``},
 	{``, ``},
 	{`\\\host`, ``},
 	{`\\\host\`, ``},
@@ -814,3 +905,62 @@ func TestVolumeName(t *testing.T) {
 		}
 	}
 }
+
+func TestDriveLetterInEvalSymlinks(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	wd, _ := os.Getwd()
+	if len(wd) < 3 {
+		t.Errorf("Current directory path %q is too short", wd)
+	}
+	lp := strings.ToLower(wd)
+	up := strings.ToUpper(wd)
+	flp, err := filepath.EvalSymlinks(lp)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) failed: %q", lp, err)
+	}
+	fup, err := filepath.EvalSymlinks(up)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) failed: %q", up, err)
+	}
+	if flp != fup {
+		t.Errorf("Results of EvalSymlinks do not match: %q and %q", flp, fup)
+	}
+}
+
+/* This test does not work gccgo, since the sources are arranged
+   differently.
+
+func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
+	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bugs := filepath.Join(root, "bugs")
+	ken := filepath.Join(root, "ken")
+	seenBugs := false
+	seenKen := false
+	filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		switch pth {
+		case bugs:
+			seenBugs = true
+			return filepath.SkipDir
+		case ken:
+			if !seenBugs {
+				t.Fatal("filepath.Walk out of order - ken before bugs")
+			}
+			seenKen = true
+		}
+		return nil
+	})
+	if !seenKen {
+		t.Fatalf("%q not seen", ken)
+	}
+}
+
+*/

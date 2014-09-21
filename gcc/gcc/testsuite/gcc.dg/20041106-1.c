@@ -1,4 +1,4 @@
-/* { dg-do run { target *-*-linux* *-*-solaris* } } */
+/* { dg-do run { target *-*-linux* *-*-gnu* *-*-solaris* } } */
 /* { dg-options -O2 } */
 
 #include <sys/types.h>
@@ -21,7 +21,7 @@ int main ()
   struct S *s;
 
   ptr = malloc (3*ps);
-  page = (char *)(((size_t)ptr + (ps - 1)) & -ps);
+  page = (char *)(((__UINTPTR_TYPE__)ptr + (ps - 1)) & -ps);
   munmap (page + ps, ps);
 
   s = (struct S *)(page + ps - sizeof(struct S));

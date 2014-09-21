@@ -1,4 +1,4 @@
-#   Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,7 +70,8 @@ proc plugin-test-execute { plugin_src plugin_tests } {
     set base [file rootname $basename]
     set plugin_lib $base.so
 
-    verbose "Test the plugin $basename" 1
+    set testcase [dg-trim-dirname $srcdir $plugin_src]
+    verbose "Test the plugin $testcase" 1
 
     # Build the plugin itself
     set extra_flags [plugin-get-options $plugin_src]
@@ -100,10 +101,10 @@ proc plugin-test-execute { plugin_src plugin_tests } {
 		set optstr [concat $optstr " $op"]
 	    }
 	}
-	set optstr [concat $optstr "-DIN_GCC -fPIC -shared -undefined dynamic_lookup"]
+	set optstr [concat $optstr "-DIN_GCC -fPIC -shared -fno-rtti -undefined dynamic_lookup"]
     } else {
 	set plug_cflags $PLUGINCFLAGS 
-	set optstr "$includes $extra_flags -DIN_GCC -fPIC -shared"
+	set optstr "$includes $extra_flags -DIN_GCC -fPIC -shared -fno-rtti"
     }
 
     # Temporarily switch to the environment for the plugin compiler.
@@ -113,8 +114,12 @@ proc plugin-test-execute { plugin_src plugin_tests } {
     set_ld_library_path_env_vars
 
     if { $status != 0 } then {
- 	unresolved "$basename compilation, $optstr"
+ 	fail "$testcase compilation"
+	# Strictly, this is wrong: the tests compiled with the plugin should
+	# become unresolved instead.
  	return
+    } else {
+	pass "$testcase compilation"
     }
 
     # Compile the input source files with the plugin

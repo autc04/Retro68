@@ -49,7 +49,7 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) 
 	return
 }
 
-// GenerateKey generates a public&private key pair.
+// GenerateKey generates a public and private key pair.
 func GenerateKey(c elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error) {
 	k, err := randFieldElement(c, rand)
 	if err != nil {
@@ -66,7 +66,9 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error)
 // hashToInt converts a hash value to an integer. There is some disagreement
 // about how this is done. [NSA] suggests that this is done in the obvious
 // manner, but [SECG] truncates the hash to the bit-length of the curve order
-// first. We follow [SECG] because that's what OpenSSL does.
+// first. We follow [SECG] because that's what OpenSSL does. Additionally,
+// OpenSSL right shifts excess bits from the number if the hash is too large
+// and we mirror that too.
 func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
 	orderBits := c.Params().N.BitLen()
 	orderBytes := (orderBits + 7) / 8
@@ -75,7 +77,7 @@ func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
 	}
 
 	ret := new(big.Int).SetBytes(hash)
-	excess := orderBytes*8 - orderBits
+	excess := len(hash)*8 - orderBits
 	if excess > 0 {
 		ret.Rsh(ret, uint(excess))
 	}
@@ -121,8 +123,8 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	return
 }
 
-// Verify verifies the signature in r, s of hash using the public key, pub. It
-// returns true iff the signature is valid.
+// Verify verifies the signature in r, s of hash using the public key, pub. Its
+// return value records whether the signature is valid.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	// See [NSA] 3.4.2
 	c := pub.Curve
@@ -138,14 +140,16 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	w := new(big.Int).ModInverse(s, N)
 
 	u1 := e.Mul(e, w)
+	u1.Mod(u1, N)
 	u2 := w.Mul(r, w)
+	u2.Mod(u2, N)
 
 	x1, y1 := c.ScalarBaseMult(u1.Bytes())
 	x2, y2 := c.ScalarMult(pub.X, pub.Y, u2.Bytes())
-	if x1.Cmp(x2) == 0 {
+	x, y := c.Add(x1, y1, x2, y2)
+	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}
-	x, _ := c.Add(x1, y1, x2, y2)
 	x.Mod(x, N)
 	return x.Cmp(r) == 0
 }

@@ -1,5 +1,4 @@
-/* Copyright (C) 2002, 2003, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -188,8 +187,7 @@ insert (gfc_unit *new, gfc_unit *t)
 static gfc_unit *
 insert_unit (int n)
 {
-  gfc_unit *u = get_mem (sizeof (gfc_unit));
-  memset (u, '\0', sizeof (gfc_unit));
+  gfc_unit *u = xcalloc (1, sizeof (gfc_unit));
   u->unit_number = n;
 #ifdef __GTHREAD_MUTEX_INIT
   {
@@ -377,6 +375,36 @@ find_or_create_unit (int n)
 }
 
 
+/* Helper function to check rank, stride, format string, and namelist.
+   This is used for optimization. You can't trim out blanks or shorten
+   the string if trailing spaces are significant.  */
+static bool
+is_trim_ok (st_parameter_dt *dtp)
+{
+  /* Check rank and stride.  */
+  if (dtp->internal_unit_desc)
+    return false;
+  /* Format strings can not have 'BZ' or '/'.  */
+  if (dtp->common.flags & IOPARM_DT_HAS_FORMAT)
+    {
+      char *p = dtp->format;
+      off_t i;
+      if (dtp->common.flags & IOPARM_DT_HAS_BLANK)
+	return false;
+      for (i = 0; i < dtp->format_len; i++)
+	{
+	  if (p[i] == '/') return false;
+	  if (p[i] == 'b' || p[i] == 'B')
+	    if (p[i+1] == 'z' || p[i+1] == 'Z')
+	      return false;
+	}
+    }
+  if (dtp->u.p.ionml) /* A namelist.  */
+    return false;
+  return true;
+}
+
+
 gfc_unit *
 get_internal_unit (st_parameter_dt *dtp)
 {
@@ -385,14 +413,8 @@ get_internal_unit (st_parameter_dt *dtp)
 
   /* Allocate memory for a unit structure.  */
 
-  iunit = get_mem (sizeof (gfc_unit));
-  if (iunit == NULL)
-    {
-      generate_error (&dtp->common, LIBERROR_INTERNAL_UNIT, NULL);
-      return NULL;
-    }
+  iunit = xcalloc (1, sizeof (gfc_unit));
 
-  memset (iunit, '\0', sizeof (gfc_unit));
 #ifdef __GTHREAD_MUTEX_INIT
   {
     __gthread_mutex_t tmp = __GTHREAD_MUTEX_INIT;
@@ -404,11 +426,27 @@ get_internal_unit (st_parameter_dt *dtp)
   __gthread_mutex_lock (&iunit->lock);
 
   iunit->recl = dtp->internal_unit_len;
-  
+
   /* For internal units we set the unit number to -1.
      Otherwise internal units can be mistaken for a pre-connected unit or
      some other file I/O unit.  */
   iunit->unit_number = -1;
+
+  /* As an optimization, adjust the unit record length to not
+     include trailing blanks. This will not work under certain conditions
+     where trailing blanks have significance.  */
+  if (dtp->u.p.mode == READING && is_trim_ok (dtp))
+    {
+      int len;
+      if (dtp->common.unit == 0)
+	  len = string_len_trim (dtp->internal_unit_len,
+						   dtp->internal_unit);
+      else
+	  len = string_len_trim_char4 (dtp->internal_unit_len,
+			      (const gfc_char4_t*) dtp->internal_unit);
+      dtp->internal_unit_len = len; 
+      iunit->recl = dtp->internal_unit_len;
+    }
 
   /* Set up the looping specification from the array descriptor, if any.  */
 
@@ -416,7 +454,7 @@ get_internal_unit (st_parameter_dt *dtp)
     {
       iunit->rank = GFC_DESCRIPTOR_RANK (dtp->internal_unit_desc);
       iunit->ls = (array_loop_spec *)
-	get_mem (iunit->rank * sizeof (array_loop_spec));
+	xmalloc (iunit->rank * sizeof (array_loop_spec));
       dtp->internal_unit_len *=
 	init_loop_spec (dtp->internal_unit_desc, iunit->ls, &start_record);
 
@@ -451,9 +489,10 @@ get_internal_unit (st_parameter_dt *dtp)
   iunit->flags.status = STATUS_UNSPECIFIED;
   iunit->flags.sign = SIGN_SUPPRESS;
   iunit->flags.decimal = DECIMAL_POINT;
+  iunit->flags.delim = DELIM_UNSPECIFIED;
   iunit->flags.encoding = ENCODING_DEFAULT;
   iunit->flags.async = ASYNC_NO;
-  iunit->flags.round = ROUND_COMPATIBLE;
+  iunit->flags.round = ROUND_UNSPECIFIED;
 
   /* Initialize the data transfer parameters.  */
 
@@ -543,13 +582,13 @@ init_units (void)
       u->flags.decimal = DECIMAL_POINT;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;
-      u->flags.round = ROUND_COMPATIBLE;
+      u->flags.round = ROUND_UNSPECIFIED;
      
       u->recl = options.default_recl;
       u->endfile = NO_ENDFILE;
 
       u->file_len = strlen (stdin_name);
-      u->file = get_mem (u->file_len);
+      u->file = xmalloc (u->file_len);
       memmove (u->file, stdin_name, u->file_len);
 
       fbuf_init (u, 0);
@@ -571,15 +610,16 @@ init_units (void)
       u->flags.position = POSITION_ASIS;
       u->flags.sign = SIGN_SUPPRESS;
       u->flags.decimal = DECIMAL_POINT;
+      u->flags.delim = DELIM_UNSPECIFIED;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;
-      u->flags.round = ROUND_COMPATIBLE;
+      u->flags.round = ROUND_UNSPECIFIED;
 
       u->recl = options.default_recl;
       u->endfile = AT_ENDFILE;
     
       u->file_len = strlen (stdout_name);
-      u->file = get_mem (u->file_len);
+      u->file = xmalloc (u->file_len);
       memmove (u->file, stdout_name, u->file_len);
       
       fbuf_init (u, 0);
@@ -603,13 +643,13 @@ init_units (void)
       u->flags.decimal = DECIMAL_POINT;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;
-      u->flags.round = ROUND_COMPATIBLE;
+      u->flags.round = ROUND_UNSPECIFIED;
 
       u->recl = options.default_recl;
       u->endfile = AT_ENDFILE;
 
       u->file_len = strlen (stderr_name);
-      u->file = get_mem (u->file_len);
+      u->file = xmalloc (u->file_len);
       memmove (u->file, stderr_name, u->file_len);
       
       fbuf_init (u, 256);  /* 256 bytes should be enough, probably not doing
@@ -766,7 +806,7 @@ filename_from_unit (int n)
   /* Get the filename.  */
   if (u != NULL)
     {
-      filename = (char *) get_mem (u->file_len + 1);
+      filename = (char *) xmalloc (u->file_len + 1);
       unpack_filename (filename, u->file, u->file_len);
       return filename;
     }

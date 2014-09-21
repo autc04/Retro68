@@ -58,7 +58,8 @@ void ffi_prep_args(char *stack, extended_cif *ecif)
 
   argp = stack;
 
-  if (ecif->cif->flags == FFI_TYPE_STRUCT
+  if ((ecif->cif->flags == FFI_TYPE_STRUCT
+       || ecif->cif->flags == FFI_TYPE_MS_STRUCT)
 #ifdef X86_WIN64
       && (ecif->cif->rtype->size != 1 && ecif->cif->rtype->size != 2
           && ecif->cif->rtype->size != 4 && ecif->cif->rtype->size != 8)
@@ -228,12 +229,10 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
   switch (cif->rtype->type)
     {
     case FFI_TYPE_VOID:
-#if defined(X86) || defined (X86_WIN32) || defined(X86_FREEBSD) || defined(X86_DARWIN) || defined(X86_WIN64)
     case FFI_TYPE_UINT8:
     case FFI_TYPE_UINT16:
     case FFI_TYPE_SINT8:
     case FFI_TYPE_SINT16:
-#endif
 #ifdef X86_WIN64
     case FFI_TYPE_UINT32:
     case FFI_TYPE_SINT32:
@@ -281,7 +280,12 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
       else
 #endif
         {
-          cif->flags = FFI_TYPE_STRUCT;
+#ifdef X86_WIN32
+          if (cif->abi == FFI_MS_CDECL)
+            cif->flags = FFI_TYPE_MS_STRUCT;
+          else
+#endif
+            cif->flags = FFI_TYPE_STRUCT;
           /* allocate space for return value pointer */
           cif->bytes += ALIGN(sizeof(void*), FFI_SIZEOF_ARG);
         }
@@ -351,7 +355,8 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
     }
 #else
   if (rvalue == NULL
-      && cif->flags == FFI_TYPE_STRUCT)
+      && (cif->flags == FFI_TYPE_STRUCT
+          || cif->flags == FFI_TYPE_MS_STRUCT))
     {
       ecif.rvalue = alloca(cif->rtype->size);
     }
@@ -364,31 +369,13 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
     {
 #ifdef X86_WIN64
     case FFI_WIN64:
-      {
-        /* Make copies of all struct arguments
-           NOTE: not sure if responsibility should be here or in caller */
-        unsigned int i;
-        for (i=0; i < cif->nargs;i++) {
-          size_t size = cif->arg_types[i]->size;
-          if ((cif->arg_types[i]->type == FFI_TYPE_STRUCT
-               && (size != 1 && size != 2 && size != 4 && size != 8))
-#if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
-              || cif->arg_types[i]->type == FFI_TYPE_LONGDOUBLE
-#endif
-              )
-            {
-              void *local = alloca(size);
-              memcpy(local, avalue[i], size);
-              avalue[i] = local;
-            }
-        }
-        ffi_call_win64(ffi_prep_args, &ecif, cif->bytes,
-                       cif->flags, ecif.rvalue, fn);
-      }
+      ffi_call_win64(ffi_prep_args, &ecif, cif->bytes,
+                     cif->flags, ecif.rvalue, fn);
       break;
 #elif defined(X86_WIN32)
     case FFI_SYSV:
     case FFI_STDCALL:
+    case FFI_MS_CDECL:
       ffi_call_win32(ffi_prep_args, &ecif, cif->abi, cif->bytes, cif->flags,
 		     ecif.rvalue, fn);
       break;
@@ -534,7 +521,8 @@ ffi_prep_incoming_args_SYSV(char *stack, void **rvalue, void **avalue,
     argp += sizeof(void *);
   }
 #else
-  if ( cif->flags == FFI_TYPE_STRUCT ) {
+  if ( cif->flags == FFI_TYPE_STRUCT
+       || cif->flags == FFI_TYPE_MS_STRUCT ) {
     *rvalue = *(void **) argp;
     argp += sizeof(void *);
   }
@@ -694,6 +682,12 @@ ffi_prep_closure_loc (ffi_closure* closure,
                                    &ffi_closure_STDCALL,
                                    (void*)codeloc, cif->bytes);
     }
+  else if (cif->abi == FFI_MS_CDECL)
+    {
+      FFI_INIT_TRAMPOLINE (&closure->tramp[0],
+                           &ffi_closure_SYSV,
+                           (void*)codeloc);
+    }
 #endif /* X86_WIN32 */
 #endif /* !X86_WIN64 */
   else
@@ -783,8 +777,9 @@ ffi_raw_call(ffi_cif *cif, void (*fn)(void), void *rvalue, ffi_raw *fake_avalue)
   /* If the return value is a struct and we don't have a return */
   /* value address then we need to make one                     */
 
-  if ((rvalue == NULL) && 
-      (cif->rtype->type == FFI_TYPE_STRUCT))
+  if (rvalue == NULL
+      && (cif->flags == FFI_TYPE_STRUCT
+          || cif->flags == FFI_TYPE_MS_STRUCT))
     {
       ecif.rvalue = alloca(cif->rtype->size);
     }
@@ -797,6 +792,7 @@ ffi_raw_call(ffi_cif *cif, void (*fn)(void), void *rvalue, ffi_raw *fake_avalue)
 #ifdef X86_WIN32
     case FFI_SYSV:
     case FFI_STDCALL:
+    case FFI_MS_CDECL:
       ffi_call_win32(ffi_prep_args_raw, &ecif, cif->abi, cif->bytes, cif->flags,
 		     ecif.rvalue, fn);
       break;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -74,6 +74,17 @@ package body Output is
    begin
       return Pos (Next_Col);
    end Column;
+
+   ----------------------
+   -- Delete_Last_Char --
+   ----------------------
+
+   procedure Delete_Last_Char is
+   begin
+      if Next_Col /= 1 then
+         Next_Col := Next_Col - 1;
+      end if;
+   end Delete_Last_Char;
 
    ------------------
    -- Flush_Buffer --
@@ -180,6 +191,19 @@ package body Output is
       Cur_Indentation :=
         (Cur_Indentation + Indentation_Amount) mod Indentation_Limit;
    end Indent;
+
+   ---------------
+   -- Last_Char --
+   ---------------
+
+   function Last_Char return Character is
+   begin
+      if Next_Col /= 1 then
+         return Buffer (Next_Col - 1);
+      else
+         return ASCII.NUL;
+      end if;
+   end Last_Char;
 
    -------------
    -- Outdent --
@@ -344,7 +368,7 @@ package body Output is
 
    procedure Write_Eol is
    begin
-      --  Remove any trailing space
+      --  Remove any trailing spaces
 
       while Next_Col > 1 and then Buffer (Next_Col - 1) = ' ' loop
          Next_Col := Next_Col - 1;

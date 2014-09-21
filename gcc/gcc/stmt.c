@@ -1,7 +1,5 @@
 /* Expands front end tree to back end RTL for GCC
-   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,6 +30,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "rtl.h"
 #include "hard-reg-set.h"
 #include "tree.h"
+#include "varasm.h"
+#include "stor-layout.h"
 #include "tm_p.h"
 #include "flags.h"
 #include "except.h"
@@ -43,17 +43,22 @@ along with GCC; see the file COPYING3.  If not see
 #include "machmode.h"
 #include "diagnostic-core.h"
 #include "output.h"
-#include "ggc.h"
 #include "langhooks.h"
 #include "predict.h"
 #include "optabs.h"
 #include "target.h"
+#include "pointer-set.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-expr.h"
+#include "is-a.h"
 #include "gimple.h"
 #include "regs.h"
 #include "alloc-pool.h"
 #include "pretty-print.h"
-#include "bitmap.h"
 #include "params.h"
+#include "dumpfile.h"
 
 
 /* Functions and data structures for expanding case statements.  */
@@ -93,42 +98,23 @@ struct case_node
   tree			low;	/* Lowest index value for this label */
   tree			high;	/* Highest index value for this label */
   tree			code_label; /* Label to jump to when node matches */
+  int                   prob; /* Probability of taking this case.  */
+  /* Probability of reaching subtree rooted at this node */
+  int                   subtree_prob;
 };
 
 typedef struct case_node case_node;
 typedef struct case_node *case_node_ptr;
 
-/* These are used by estimate_case_costs and balance_case_nodes.  */
-
-/* This must be a signed type, and non-ANSI compilers lack signed char.  */
-static short cost_table_[129];
-static int use_cost_table;
-static int cost_table_initialized;
-
-/* Special care is needed because we allow -1, but TREE_INT_CST_LOW
-   is unsigned.  */
-#define COST_TABLE(I)  cost_table_[(unsigned HOST_WIDE_INT) ((I) + 1)]
+extern basic_block label_to_block_fn (struct function *, tree);
 
-static int n_occurrences (int, const char *);
-static bool tree_conflicts_with_clobbers_p (tree, HARD_REG_SET *);
-static void expand_nl_goto_receiver (void);
-static bool check_operand_nalternatives (tree, tree);
 static bool check_unique_operand_names (tree, tree, tree);
 static char *resolve_operand_name_1 (char *, tree, tree, tree);
-static void expand_null_return_1 (void);
-static void expand_value_return (rtx);
-static int estimate_case_costs (case_node_ptr);
-static bool lshift_cheap_p (void);
-static int case_bit_test_cmp (const void *, const void *);
-static void emit_case_bit_tests (tree, tree, tree, tree, case_node_ptr, rtx);
 static void balance_case_nodes (case_node_ptr *, case_node_ptr);
 static int node_has_low_bound (case_node_ptr, tree);
 static int node_has_high_bound (case_node_ptr, tree);
 static int node_is_bounded (case_node_ptr, tree);
-static void emit_case_nodes (rtx, case_node_ptr, rtx, tree);
-static struct case_node *add_case_node (struct case_node *, tree,
-                                        tree, tree, tree, alloc_pool);
-
+static void emit_case_nodes (rtx, case_node_ptr, rtx, int, tree);
 
 /* Return the rtx-label that corresponds to a LABEL_DECL,
    creating it if necessary.  */
@@ -172,20 +158,6 @@ emit_jump (rtx label)
   emit_jump_insn (gen_jump (label));
   emit_barrier ();
 }
-
-/* Emit code to jump to the address
-   specified by the pointer expression EXP.  */
-
-void
-expand_computed_goto (tree exp)
-{
-  rtx x = expand_normal (exp);
-
-  x = convert_memory_address (Pmode, x);
-
-  do_pending_stack_adjust ();
-  emit_indirect_jump (x);
-}
 
 /* Handle goto statements and the labels that they can go to.  */
 
@@ -212,7 +184,7 @@ expand_label (tree label)
 
   if (DECL_NONLOCAL (label))
     {
-      expand_nl_goto_receiver ();
+      expand_builtin_setjmp_receiver (NULL);
       nonlocal_goto_handler_labels
 	= gen_rtx_EXPR_LIST (VOIDmode, label_r,
 			     nonlocal_goto_handler_labels);
@@ -224,56 +196,7 @@ expand_label (tree label)
   if (DECL_NONLOCAL (label) || FORCED_LABEL (label))
     maybe_set_first_label_num (label_r);
 }
-
-/* Generate RTL code for a `goto' statement with target label LABEL.
-   LABEL should be a LABEL_DECL tree node that was or will later be
-   defined with `expand_label'.  */
-
-void
-expand_goto (tree label)
-{
-#ifdef ENABLE_CHECKING
-  /* Check for a nonlocal goto to a containing function.  Should have
-     gotten translated to __builtin_nonlocal_goto.  */
-  tree context = decl_function_context (label);
-  gcc_assert (!context || context == current_function_decl);
-#endif
-
-  emit_jump (label_rtx (label));
-}
 
-/* Return the number of times character C occurs in string S.  */
-static int
-n_occurrences (int c, const char *s)
-{
-  int n = 0;
-  while (*s)
-    n += (*s++ == c);
-  return n;
-}
-
-/* Generate RTL for an asm statement (explicit assembler code).
-   STRING is a STRING_CST node containing the assembler code text,
-   or an ADDR_EXPR containing a STRING_CST.  VOL nonzero means the
-   insn is volatile; don't optimize it.  */
-
-static void
-expand_asm_loc (tree string, int vol, location_t locus)
-{
-  rtx body;
-
-  if (TREE_CODE (string) == ADDR_EXPR)
-    string = TREE_OPERAND (string, 0);
-
-  body = gen_rtx_ASM_INPUT_loc (VOIDmode,
-				ggc_strdup (TREE_STRING_POINTER (string)),
-				locus);
-
-  MEM_VOLATILE_P (body) = vol;
-
-  emit_insn (body);
-}
-
 /* Parse the output constraint pointed to by *CONSTRAINT_P.  It is the
    OPERAND_NUMth output operand, indexed from zero.  There are NINPUTS
    inputs and NOUTPUTS outputs to this extended-asm.  Upon return,
@@ -592,658 +515,6 @@ tree_overlaps_hard_reg_set (tree decl, HARD_REG_SET *regs)
   return walk_tree (&decl, decl_overlaps_hard_reg_set_p, regs, NULL);
 }
 
-/* Check for overlap between registers marked in CLOBBERED_REGS and
-   anything inappropriate in T.  Emit error and return the register
-   variable definition for error, NULL_TREE for ok.  */
-
-static bool
-tree_conflicts_with_clobbers_p (tree t, HARD_REG_SET *clobbered_regs)
-{
-  /* Conflicts between asm-declared register variables and the clobber
-     list are not allowed.  */
-  tree overlap = tree_overlaps_hard_reg_set (t, clobbered_regs);
-
-  if (overlap)
-    {
-      error ("asm-specifier for variable %qE conflicts with asm clobber list",
-	     DECL_NAME (overlap));
-
-      /* Reset registerness to stop multiple errors emitted for a single
-	 variable.  */
-      DECL_REGISTER (overlap) = 0;
-      return true;
-    }
-
-  return false;
-}
-
-/* Generate RTL for an asm statement with arguments.
-   STRING is the instruction template.
-   OUTPUTS is a list of output arguments (lvalues); INPUTS a list of inputs.
-   Each output or input has an expression in the TREE_VALUE and
-   a tree list in TREE_PURPOSE which in turn contains a constraint
-   name in TREE_VALUE (or NULL_TREE) and a constraint string
-   in TREE_PURPOSE.
-   CLOBBERS is a list of STRING_CST nodes each naming a hard register
-   that is clobbered by this insn.
-
-   Not all kinds of lvalue that may appear in OUTPUTS can be stored directly.
-   Some elements of OUTPUTS may be replaced with trees representing temporary
-   values.  The caller should copy those temporary values to the originally
-   specified lvalues.
-
-   VOL nonzero means the insn is volatile; don't optimize it.  */
-
-static void
-expand_asm_operands (tree string, tree outputs, tree inputs,
-		     tree clobbers, tree labels, int vol, location_t locus)
-{
-  rtvec argvec, constraintvec, labelvec;
-  rtx body;
-  int ninputs = list_length (inputs);
-  int noutputs = list_length (outputs);
-  int nlabels = list_length (labels);
-  int ninout;
-  int nclobbers;
-  HARD_REG_SET clobbered_regs;
-  int clobber_conflict_found = 0;
-  tree tail;
-  tree t;
-  int i;
-  /* Vector of RTX's of evaluated output operands.  */
-  rtx *output_rtx = XALLOCAVEC (rtx, noutputs);
-  int *inout_opnum = XALLOCAVEC (int, noutputs);
-  rtx *real_output_rtx = XALLOCAVEC (rtx, noutputs);
-  enum machine_mode *inout_mode = XALLOCAVEC (enum machine_mode, noutputs);
-  const char **constraints = XALLOCAVEC (const char *, noutputs + ninputs);
-  int old_generating_concat_p = generating_concat_p;
-
-  /* An ASM with no outputs needs to be treated as volatile, for now.  */
-  if (noutputs == 0)
-    vol = 1;
-
-  if (! check_operand_nalternatives (outputs, inputs))
-    return;
-
-  string = resolve_asm_operand_names (string, outputs, inputs, labels);
-
-  /* Collect constraints.  */
-  i = 0;
-  for (t = outputs; t ; t = TREE_CHAIN (t), i++)
-    constraints[i] = TREE_STRING_POINTER (TREE_VALUE (TREE_PURPOSE (t)));
-  for (t = inputs; t ; t = TREE_CHAIN (t), i++)
-    constraints[i] = TREE_STRING_POINTER (TREE_VALUE (TREE_PURPOSE (t)));
-
-  /* Sometimes we wish to automatically clobber registers across an asm.
-     Case in point is when the i386 backend moved from cc0 to a hard reg --
-     maintaining source-level compatibility means automatically clobbering
-     the flags register.  */
-  clobbers = targetm.md_asm_clobbers (outputs, inputs, clobbers);
-
-  /* Count the number of meaningful clobbered registers, ignoring what
-     we would ignore later.  */
-  nclobbers = 0;
-  CLEAR_HARD_REG_SET (clobbered_regs);
-  for (tail = clobbers; tail; tail = TREE_CHAIN (tail))
-    {
-      const char *regname;
-      int nregs;
-
-      if (TREE_VALUE (tail) == error_mark_node)
-	return;
-      regname = TREE_STRING_POINTER (TREE_VALUE (tail));
-
-      i = decode_reg_name_and_count (regname, &nregs);
-      if (i == -4)
-	++nclobbers;
-      else if (i == -2)
-	error ("unknown register name %qs in %<asm%>", regname);
-
-      /* Mark clobbered registers.  */
-      if (i >= 0)
-        {
-	  int reg;
-
-	  for (reg = i; reg < i + nregs; reg++)
-	    {
-	      ++nclobbers;
-
-	      /* Clobbering the PIC register is an error.  */
-	      if (reg == (int) PIC_OFFSET_TABLE_REGNUM)
-		{
-		  error ("PIC register clobbered by %qs in %<asm%>", regname);
-		  return;
-		}
-
-	      SET_HARD_REG_BIT (clobbered_regs, reg);
-	    }
-	}
-    }
-
-  /* First pass over inputs and outputs checks validity and sets
-     mark_addressable if needed.  */
-
-  ninout = 0;
-  for (i = 0, tail = outputs; tail; tail = TREE_CHAIN (tail), i++)
-    {
-      tree val = TREE_VALUE (tail);
-      tree type = TREE_TYPE (val);
-      const char *constraint;
-      bool is_inout;
-      bool allows_reg;
-      bool allows_mem;
-
-      /* If there's an erroneous arg, emit no insn.  */
-      if (type == error_mark_node)
-	return;
-
-      /* Try to parse the output constraint.  If that fails, there's
-	 no point in going further.  */
-      constraint = constraints[i];
-      if (!parse_output_constraint (&constraint, i, ninputs, noutputs,
-				    &allows_mem, &allows_reg, &is_inout))
-	return;
-
-      if (! allows_reg
-	  && (allows_mem
-	      || is_inout
-	      || (DECL_P (val)
-		  && REG_P (DECL_RTL (val))
-		  && GET_MODE (DECL_RTL (val)) != TYPE_MODE (type))))
-	mark_addressable (val);
-
-      if (is_inout)
-	ninout++;
-    }
-
-  ninputs += ninout;
-  if (ninputs + noutputs > MAX_RECOG_OPERANDS)
-    {
-      error ("more than %d operands in %<asm%>", MAX_RECOG_OPERANDS);
-      return;
-    }
-
-  for (i = 0, tail = inputs; tail; i++, tail = TREE_CHAIN (tail))
-    {
-      bool allows_reg, allows_mem;
-      const char *constraint;
-
-      /* If there's an erroneous arg, emit no insn, because the ASM_INPUT
-	 would get VOIDmode and that could cause a crash in reload.  */
-      if (TREE_TYPE (TREE_VALUE (tail)) == error_mark_node)
-	return;
-
-      constraint = constraints[i + noutputs];
-      if (! parse_input_constraint (&constraint, i, ninputs, noutputs, ninout,
-				    constraints, &allows_mem, &allows_reg))
-	return;
-
-      if (! allows_reg && allows_mem)
-	mark_addressable (TREE_VALUE (tail));
-    }
-
-  /* Second pass evaluates arguments.  */
-
-  /* Make sure stack is consistent for asm goto.  */
-  if (nlabels > 0)
-    do_pending_stack_adjust ();
-
-  ninout = 0;
-  for (i = 0, tail = outputs; tail; tail = TREE_CHAIN (tail), i++)
-    {
-      tree val = TREE_VALUE (tail);
-      tree type = TREE_TYPE (val);
-      bool is_inout;
-      bool allows_reg;
-      bool allows_mem;
-      rtx op;
-      bool ok;
-
-      ok = parse_output_constraint (&constraints[i], i, ninputs,
-				    noutputs, &allows_mem, &allows_reg,
-				    &is_inout);
-      gcc_assert (ok);
-
-      /* If an output operand is not a decl or indirect ref and our constraint
-	 allows a register, make a temporary to act as an intermediate.
-	 Make the asm insn write into that, then our caller will copy it to
-	 the real output operand.  Likewise for promoted variables.  */
-
-      generating_concat_p = 0;
-
-      real_output_rtx[i] = NULL_RTX;
-      if ((TREE_CODE (val) == INDIRECT_REF
-	   && allows_mem)
-	  || (DECL_P (val)
-	      && (allows_mem || REG_P (DECL_RTL (val)))
-	      && ! (REG_P (DECL_RTL (val))
-		    && GET_MODE (DECL_RTL (val)) != TYPE_MODE (type)))
-	  || ! allows_reg
-	  || is_inout)
-	{
-	  op = expand_expr (val, NULL_RTX, VOIDmode, EXPAND_WRITE);
-	  if (MEM_P (op))
-	    op = validize_mem (op);
-
-	  if (! allows_reg && !MEM_P (op))
-	    error ("output number %d not directly addressable", i);
-	  if ((! allows_mem && MEM_P (op))
-	      || GET_CODE (op) == CONCAT)
-	    {
-	      real_output_rtx[i] = op;
-	      op = gen_reg_rtx (GET_MODE (op));
-	      if (is_inout)
-		emit_move_insn (op, real_output_rtx[i]);
-	    }
-	}
-      else
-	{
-	  op = assign_temp (type, 0, 0, 1);
-	  op = validize_mem (op);
-	  if (!MEM_P (op) && TREE_CODE (TREE_VALUE (tail)) == SSA_NAME)
-	    set_reg_attrs_for_decl_rtl (SSA_NAME_VAR (TREE_VALUE (tail)), op);
-	  TREE_VALUE (tail) = make_tree (type, op);
-	}
-      output_rtx[i] = op;
-
-      generating_concat_p = old_generating_concat_p;
-
-      if (is_inout)
-	{
-	  inout_mode[ninout] = TYPE_MODE (type);
-	  inout_opnum[ninout++] = i;
-	}
-
-      if (tree_conflicts_with_clobbers_p (val, &clobbered_regs))
-	clobber_conflict_found = 1;
-    }
-
-  /* Make vectors for the expression-rtx, constraint strings,
-     and named operands.  */
-
-  argvec = rtvec_alloc (ninputs);
-  constraintvec = rtvec_alloc (ninputs);
-  labelvec = rtvec_alloc (nlabels);
-
-  body = gen_rtx_ASM_OPERANDS ((noutputs == 0 ? VOIDmode
-				: GET_MODE (output_rtx[0])),
-			       ggc_strdup (TREE_STRING_POINTER (string)),
-			       empty_string, 0, argvec, constraintvec,
-			       labelvec, locus);
-
-  MEM_VOLATILE_P (body) = vol;
-
-  /* Eval the inputs and put them into ARGVEC.
-     Put their constraints into ASM_INPUTs and store in CONSTRAINTS.  */
-
-  for (i = 0, tail = inputs; tail; tail = TREE_CHAIN (tail), ++i)
-    {
-      bool allows_reg, allows_mem;
-      const char *constraint;
-      tree val, type;
-      rtx op;
-      bool ok;
-
-      constraint = constraints[i + noutputs];
-      ok = parse_input_constraint (&constraint, i, ninputs, noutputs, ninout,
-				   constraints, &allows_mem, &allows_reg);
-      gcc_assert (ok);
-
-      generating_concat_p = 0;
-
-      val = TREE_VALUE (tail);
-      type = TREE_TYPE (val);
-      /* EXPAND_INITIALIZER will not generate code for valid initializer
-	 constants, but will still generate code for other types of operand.
-	 This is the behavior we want for constant constraints.  */
-      op = expand_expr (val, NULL_RTX, VOIDmode,
-			allows_reg ? EXPAND_NORMAL
-			: allows_mem ? EXPAND_MEMORY
-			: EXPAND_INITIALIZER);
-
-      /* Never pass a CONCAT to an ASM.  */
-      if (GET_CODE (op) == CONCAT)
-	op = force_reg (GET_MODE (op), op);
-      else if (MEM_P (op))
-	op = validize_mem (op);
-
-      if (asm_operand_ok (op, constraint, NULL) <= 0)
-	{
-	  if (allows_reg && TYPE_MODE (type) != BLKmode)
-	    op = force_reg (TYPE_MODE (type), op);
-	  else if (!allows_mem)
-	    warning (0, "asm operand %d probably doesn%'t match constraints",
-		     i + noutputs);
-	  else if (MEM_P (op))
-	    {
-	      /* We won't recognize either volatile memory or memory
-		 with a queued address as available a memory_operand
-		 at this point.  Ignore it: clearly this *is* a memory.  */
-	    }
-	  else
-	    {
-	      warning (0, "use of memory input without lvalue in "
-		       "asm operand %d is deprecated", i + noutputs);
-
-	      if (CONSTANT_P (op))
-		{
-		  rtx mem = force_const_mem (TYPE_MODE (type), op);
-		  if (mem)
-		    op = validize_mem (mem);
-		  else
-		    op = force_reg (TYPE_MODE (type), op);
-		}
-	      if (REG_P (op)
-		  || GET_CODE (op) == SUBREG
-		  || GET_CODE (op) == CONCAT)
-		{
-		  tree qual_type = build_qualified_type (type,
-							 (TYPE_QUALS (type)
-							  | TYPE_QUAL_CONST));
-		  rtx memloc = assign_temp (qual_type, 1, 1, 1);
-		  memloc = validize_mem (memloc);
-		  emit_move_insn (memloc, op);
-		  op = memloc;
-		}
-	    }
-	}
-
-      generating_concat_p = old_generating_concat_p;
-      ASM_OPERANDS_INPUT (body, i) = op;
-
-      ASM_OPERANDS_INPUT_CONSTRAINT_EXP (body, i)
-	= gen_rtx_ASM_INPUT (TYPE_MODE (type),
-			     ggc_strdup (constraints[i + noutputs]));
-
-      if (tree_conflicts_with_clobbers_p (val, &clobbered_regs))
-	clobber_conflict_found = 1;
-    }
-
-  /* Protect all the operands from the queue now that they have all been
-     evaluated.  */
-
-  generating_concat_p = 0;
-
-  /* For in-out operands, copy output rtx to input rtx.  */
-  for (i = 0; i < ninout; i++)
-    {
-      int j = inout_opnum[i];
-      char buffer[16];
-
-      ASM_OPERANDS_INPUT (body, ninputs - ninout + i)
-	= output_rtx[j];
-
-      sprintf (buffer, "%d", j);
-      ASM_OPERANDS_INPUT_CONSTRAINT_EXP (body, ninputs - ninout + i)
-	= gen_rtx_ASM_INPUT (inout_mode[i], ggc_strdup (buffer));
-    }
-
-  /* Copy labels to the vector.  */
-  for (i = 0, tail = labels; i < nlabels; ++i, tail = TREE_CHAIN (tail))
-    ASM_OPERANDS_LABEL (body, i)
-      = gen_rtx_LABEL_REF (Pmode, label_rtx (TREE_VALUE (tail)));
-
-  generating_concat_p = old_generating_concat_p;
-
-  /* Now, for each output, construct an rtx
-     (set OUTPUT (asm_operands INSN OUTPUTCONSTRAINT OUTPUTNUMBER
-			       ARGVEC CONSTRAINTS OPNAMES))
-     If there is more than one, put them inside a PARALLEL.  */
-
-  if (nlabels > 0 && nclobbers == 0)
-    {
-      gcc_assert (noutputs == 0);
-      emit_jump_insn (body);
-    }
-  else if (noutputs == 0 && nclobbers == 0)
-    {
-      /* No output operands: put in a raw ASM_OPERANDS rtx.  */
-      emit_insn (body);
-    }
-  else if (noutputs == 1 && nclobbers == 0)
-    {
-      ASM_OPERANDS_OUTPUT_CONSTRAINT (body) = ggc_strdup (constraints[0]);
-      emit_insn (gen_rtx_SET (VOIDmode, output_rtx[0], body));
-    }
-  else
-    {
-      rtx obody = body;
-      int num = noutputs;
-
-      if (num == 0)
-	num = 1;
-
-      body = gen_rtx_PARALLEL (VOIDmode, rtvec_alloc (num + nclobbers));
-
-      /* For each output operand, store a SET.  */
-      for (i = 0, tail = outputs; tail; tail = TREE_CHAIN (tail), i++)
-	{
-	  XVECEXP (body, 0, i)
-	    = gen_rtx_SET (VOIDmode,
-			   output_rtx[i],
-			   gen_rtx_ASM_OPERANDS
-			   (GET_MODE (output_rtx[i]),
-			    ggc_strdup (TREE_STRING_POINTER (string)),
-			    ggc_strdup (constraints[i]),
-			    i, argvec, constraintvec, labelvec, locus));
-
-	  MEM_VOLATILE_P (SET_SRC (XVECEXP (body, 0, i))) = vol;
-	}
-
-      /* If there are no outputs (but there are some clobbers)
-	 store the bare ASM_OPERANDS into the PARALLEL.  */
-
-      if (i == 0)
-	XVECEXP (body, 0, i++) = obody;
-
-      /* Store (clobber REG) for each clobbered register specified.  */
-
-      for (tail = clobbers; tail; tail = TREE_CHAIN (tail))
-	{
-	  const char *regname = TREE_STRING_POINTER (TREE_VALUE (tail));
-	  int reg, nregs;
-	  int j = decode_reg_name_and_count (regname, &nregs);
-	  rtx clobbered_reg;
-
-	  if (j < 0)
-	    {
-	      if (j == -3)	/* `cc', which is not a register */
-		continue;
-
-	      if (j == -4)	/* `memory', don't cache memory across asm */
-		{
-		  XVECEXP (body, 0, i++)
-		    = gen_rtx_CLOBBER (VOIDmode,
-				       gen_rtx_MEM
-				       (BLKmode,
-					gen_rtx_SCRATCH (VOIDmode)));
-		  continue;
-		}
-
-	      /* Ignore unknown register, error already signaled.  */
-	      continue;
-	    }
-
-	  for (reg = j; reg < j + nregs; reg++)
-	    {
-	      /* Use QImode since that's guaranteed to clobber just
-	       * one reg.  */
-	      clobbered_reg = gen_rtx_REG (QImode, reg);
-
-	      /* Do sanity check for overlap between clobbers and
-		 respectively input and outputs that hasn't been
-		 handled.  Such overlap should have been detected and
-		 reported above.  */
-	      if (!clobber_conflict_found)
-		{
-		  int opno;
-
-		  /* We test the old body (obody) contents to avoid
-		     tripping over the under-construction body.  */
-		  for (opno = 0; opno < noutputs; opno++)
-		    if (reg_overlap_mentioned_p (clobbered_reg,
-						 output_rtx[opno]))
-		      internal_error
-			("asm clobber conflict with output operand");
-
-		  for (opno = 0; opno < ninputs - ninout; opno++)
-		    if (reg_overlap_mentioned_p (clobbered_reg,
-						 ASM_OPERANDS_INPUT (obody,
-								     opno)))
-		      internal_error
-			("asm clobber conflict with input operand");
-		}
-
-	      XVECEXP (body, 0, i++)
-		= gen_rtx_CLOBBER (VOIDmode, clobbered_reg);
-	    }
-	}
-
-      if (nlabels > 0)
-	emit_jump_insn (body);
-      else
-	emit_insn (body);
-    }
-
-  /* For any outputs that needed reloading into registers, spill them
-     back to where they belong.  */
-  for (i = 0; i < noutputs; ++i)
-    if (real_output_rtx[i])
-      emit_move_insn (real_output_rtx[i], output_rtx[i]);
-
-  crtl->has_asm_statement = 1;
-  free_temp_slots ();
-}
-
-void
-expand_asm_stmt (gimple stmt)
-{
-  int noutputs;
-  tree outputs, tail, t;
-  tree *o;
-  size_t i, n;
-  const char *s;
-  tree str, out, in, cl, labels;
-  location_t locus = gimple_location (stmt);
-
-  /* Meh... convert the gimple asm operands into real tree lists.
-     Eventually we should make all routines work on the vectors instead
-     of relying on TREE_CHAIN.  */
-  out = NULL_TREE;
-  n = gimple_asm_noutputs (stmt);
-  if (n > 0)
-    {
-      t = out = gimple_asm_output_op (stmt, 0);
-      for (i = 1; i < n; i++)
-	t = TREE_CHAIN (t) = gimple_asm_output_op (stmt, i);
-    }
-
-  in = NULL_TREE;
-  n = gimple_asm_ninputs (stmt);
-  if (n > 0)
-    {
-      t = in = gimple_asm_input_op (stmt, 0);
-      for (i = 1; i < n; i++)
-	t = TREE_CHAIN (t) = gimple_asm_input_op (stmt, i);
-    }
-
-  cl = NULL_TREE;
-  n = gimple_asm_nclobbers (stmt);
-  if (n > 0)
-    {
-      t = cl = gimple_asm_clobber_op (stmt, 0);
-      for (i = 1; i < n; i++)
-	t = TREE_CHAIN (t) = gimple_asm_clobber_op (stmt, i);
-    }
-
-  labels = NULL_TREE;
-  n = gimple_asm_nlabels (stmt);
-  if (n > 0)
-    {
-      t = labels = gimple_asm_label_op (stmt, 0);
-      for (i = 1; i < n; i++)
-	t = TREE_CHAIN (t) = gimple_asm_label_op (stmt, i);
-    }
-
-  s = gimple_asm_string (stmt);
-  str = build_string (strlen (s), s);
-
-  if (gimple_asm_input_p (stmt))
-    {
-      expand_asm_loc (str, gimple_asm_volatile_p (stmt), locus);
-      return;
-    }
-
-  outputs = out;
-  noutputs = gimple_asm_noutputs (stmt);
-  /* o[I] is the place that output number I should be written.  */
-  o = (tree *) alloca (noutputs * sizeof (tree));
-
-  /* Record the contents of OUTPUTS before it is modified.  */
-  for (i = 0, tail = outputs; tail; tail = TREE_CHAIN (tail), i++)
-    o[i] = TREE_VALUE (tail);
-
-  /* Generate the ASM_OPERANDS insn; store into the TREE_VALUEs of
-     OUTPUTS some trees for where the values were actually stored.  */
-  expand_asm_operands (str, outputs, in, cl, labels,
-		       gimple_asm_volatile_p (stmt), locus);
-
-  /* Copy all the intermediate outputs into the specified outputs.  */
-  for (i = 0, tail = outputs; tail; tail = TREE_CHAIN (tail), i++)
-    {
-      if (o[i] != TREE_VALUE (tail))
-	{
-	  expand_assignment (o[i], TREE_VALUE (tail), false);
-	  free_temp_slots ();
-
-	  /* Restore the original value so that it's correct the next
-	     time we expand this function.  */
-	  TREE_VALUE (tail) = o[i];
-	}
-    }
-}
-
-/* A subroutine of expand_asm_operands.  Check that all operands have
-   the same number of alternatives.  Return true if so.  */
-
-static bool
-check_operand_nalternatives (tree outputs, tree inputs)
-{
-  if (outputs || inputs)
-    {
-      tree tmp = TREE_PURPOSE (outputs ? outputs : inputs);
-      int nalternatives
-	= n_occurrences (',', TREE_STRING_POINTER (TREE_VALUE (tmp)));
-      tree next = inputs;
-
-      if (nalternatives + 1 > MAX_RECOG_ALTERNATIVES)
-	{
-	  error ("too many alternatives in %<asm%>");
-	  return false;
-	}
-
-      tmp = outputs;
-      while (tmp)
-	{
-	  const char *constraint
-	    = TREE_STRING_POINTER (TREE_VALUE (TREE_PURPOSE (tmp)));
-
-	  if (n_occurrences (',', constraint) != nalternatives)
-	    {
-	      error ("operand constraints for %<asm%> differ "
-		     "in number of alternatives");
-	      return false;
-	    }
-
-	  if (TREE_CHAIN (tmp))
-	    tmp = TREE_CHAIN (tmp);
-	  else
-	    tmp = next, next = 0;
-	}
-    }
-
-  return true;
-}
 
 /* A subroutine of expand_asm_operands.  Check that all operand names
    are unique.  Return true if so.  We rely on the fact that these names
@@ -1437,151 +708,6 @@ resolve_operand_name_1 (char *p, tree outputs, tree inputs, tree labels)
   return p;
 }
 
-/* Generate RTL to evaluate the expression EXP.  */
-
-void
-expand_expr_stmt (tree exp)
-{
-  rtx value;
-  tree type;
-
-  value = expand_expr (exp, const0_rtx, VOIDmode, EXPAND_NORMAL);
-  type = TREE_TYPE (exp);
-
-  /* If all we do is reference a volatile value in memory,
-     copy it to a register to be sure it is actually touched.  */
-  if (value && MEM_P (value) && TREE_THIS_VOLATILE (exp))
-    {
-      if (TYPE_MODE (type) == VOIDmode)
-	;
-      else if (TYPE_MODE (type) != BLKmode)
-	copy_to_reg (value);
-      else
-	{
-	  rtx lab = gen_label_rtx ();
-
-	  /* Compare the value with itself to reference it.  */
-	  emit_cmp_and_jump_insns (value, value, EQ,
-				   expand_normal (TYPE_SIZE (type)),
-				   BLKmode, 0, lab);
-	  emit_label (lab);
-	}
-    }
-
-  /* Free any temporaries used to evaluate this expression.  */
-  free_temp_slots ();
-}
-
-/* Warn if EXP contains any computations whose results are not used.
-   Return 1 if a warning is printed; 0 otherwise.  LOCUS is the
-   (potential) location of the expression.  */
-
-int
-warn_if_unused_value (const_tree exp, location_t locus)
-{
- restart:
-  if (TREE_USED (exp) || TREE_NO_WARNING (exp))
-    return 0;
-
-  /* Don't warn about void constructs.  This includes casting to void,
-     void function calls, and statement expressions with a final cast
-     to void.  */
-  if (VOID_TYPE_P (TREE_TYPE (exp)))
-    return 0;
-
-  if (EXPR_HAS_LOCATION (exp))
-    locus = EXPR_LOCATION (exp);
-
-  switch (TREE_CODE (exp))
-    {
-    case PREINCREMENT_EXPR:
-    case POSTINCREMENT_EXPR:
-    case PREDECREMENT_EXPR:
-    case POSTDECREMENT_EXPR:
-    case MODIFY_EXPR:
-    case INIT_EXPR:
-    case TARGET_EXPR:
-    case CALL_EXPR:
-    case TRY_CATCH_EXPR:
-    case WITH_CLEANUP_EXPR:
-    case EXIT_EXPR:
-    case VA_ARG_EXPR:
-      return 0;
-
-    case BIND_EXPR:
-      /* For a binding, warn if no side effect within it.  */
-      exp = BIND_EXPR_BODY (exp);
-      goto restart;
-
-    case SAVE_EXPR:
-    case NON_LVALUE_EXPR:
-      exp = TREE_OPERAND (exp, 0);
-      goto restart;
-
-    case TRUTH_ORIF_EXPR:
-    case TRUTH_ANDIF_EXPR:
-      /* In && or ||, warn if 2nd operand has no side effect.  */
-      exp = TREE_OPERAND (exp, 1);
-      goto restart;
-
-    case COMPOUND_EXPR:
-      if (warn_if_unused_value (TREE_OPERAND (exp, 0), locus))
-	return 1;
-      /* Let people do `(foo (), 0)' without a warning.  */
-      if (TREE_CONSTANT (TREE_OPERAND (exp, 1)))
-	return 0;
-      exp = TREE_OPERAND (exp, 1);
-      goto restart;
-
-    case COND_EXPR:
-      /* If this is an expression with side effects, don't warn; this
-	 case commonly appears in macro expansions.  */
-      if (TREE_SIDE_EFFECTS (exp))
-	return 0;
-      goto warn;
-
-    case INDIRECT_REF:
-      /* Don't warn about automatic dereferencing of references, since
-	 the user cannot control it.  */
-      if (TREE_CODE (TREE_TYPE (TREE_OPERAND (exp, 0))) == REFERENCE_TYPE)
-	{
-	  exp = TREE_OPERAND (exp, 0);
-	  goto restart;
-	}
-      /* Fall through.  */
-
-    default:
-      /* Referencing a volatile value is a side effect, so don't warn.  */
-      if ((DECL_P (exp) || REFERENCE_CLASS_P (exp))
-	  && TREE_THIS_VOLATILE (exp))
-	return 0;
-
-      /* If this is an expression which has no operands, there is no value
-	 to be unused.  There are no such language-independent codes,
-	 but front ends may define such.  */
-      if (EXPRESSION_CLASS_P (exp) && TREE_OPERAND_LENGTH (exp) == 0)
-	return 0;
-
-    warn:
-      warning_at (locus, OPT_Wunused_value, "value computed is not used");
-      return 1;
-    }
-}
-
-
-/* Generate RTL to return from the current function, with no value.
-   (That is, we do not do anything about returning any value.)  */
-
-void
-expand_null_return (void)
-{
-  /* If this function was declared to return a value, but we
-     didn't, clobber the return registers so that they are not
-     propagated live to the rest of the function.  */
-  clobber_return_register ();
-
-  expand_null_return_1 ();
-}
 
 /* Generate RTL to return directly from the current function.
    (That is, we bypass any return value.)  */
@@ -1601,553 +727,76 @@ expand_naked_return (void)
   emit_jump (end_label);
 }
 
-/* Generate RTL to return from the current function, with value VAL.  */
-
+/* Generate code to jump to LABEL if OP0 and OP1 are equal in mode MODE. PROB
+   is the probability of jumping to LABEL.  */
 static void
-expand_value_return (rtx val)
+do_jump_if_equal (enum machine_mode mode, rtx op0, rtx op1, rtx label,
+		  int unsignedp, int prob)
 {
-  /* Copy the value to the return location unless it's already there.  */
-
-  tree decl = DECL_RESULT (current_function_decl);
-  rtx return_reg = DECL_RTL (decl);
-  if (return_reg != val)
-    {
-      tree funtype = TREE_TYPE (current_function_decl);
-      tree type = TREE_TYPE (decl);
-      int unsignedp = TYPE_UNSIGNED (type);
-      enum machine_mode old_mode = DECL_MODE (decl);
-      enum machine_mode mode;
-      if (DECL_BY_REFERENCE (decl))
-        mode = promote_function_mode (type, old_mode, &unsignedp, funtype, 2);
-      else
-        mode = promote_function_mode (type, old_mode, &unsignedp, funtype, 1);
-
-      if (mode != old_mode)
-	val = convert_modes (mode, old_mode, val, unsignedp);
-
-      if (GET_CODE (return_reg) == PARALLEL)
-	emit_group_load (return_reg, val, type, int_size_in_bytes (type));
-      else
-	emit_move_insn (return_reg, val);
-    }
-
-  expand_null_return_1 ();
-}
-
-/* Output a return with no value.  */
-
-static void
-expand_null_return_1 (void)
-{
-  clear_pending_stack_adjust ();
-  do_pending_stack_adjust ();
-  emit_jump (return_label);
-}
-
-/* Generate RTL to evaluate the expression RETVAL and return it
-   from the current function.  */
-
-void
-expand_return (tree retval)
-{
-  rtx result_rtl;
-  rtx val = 0;
-  tree retval_rhs;
-
-  /* If function wants no value, give it none.  */
-  if (TREE_CODE (TREE_TYPE (TREE_TYPE (current_function_decl))) == VOID_TYPE)
-    {
-      expand_normal (retval);
-      expand_null_return ();
-      return;
-    }
-
-  if (retval == error_mark_node)
-    {
-      /* Treat this like a return of no value from a function that
-	 returns a value.  */
-      expand_null_return ();
-      return;
-    }
-  else if ((TREE_CODE (retval) == MODIFY_EXPR
-	    || TREE_CODE (retval) == INIT_EXPR)
-	   && TREE_CODE (TREE_OPERAND (retval, 0)) == RESULT_DECL)
-    retval_rhs = TREE_OPERAND (retval, 1);
-  else
-    retval_rhs = retval;
-
-  result_rtl = DECL_RTL (DECL_RESULT (current_function_decl));
-
-  /* If we are returning the RESULT_DECL, then the value has already
-     been stored into it, so we don't have to do anything special.  */
-  if (TREE_CODE (retval_rhs) == RESULT_DECL)
-    expand_value_return (result_rtl);
-
-  /* If the result is an aggregate that is being returned in one (or more)
-     registers, load the registers here.  */
-
-  else if (retval_rhs != 0
-	   && TYPE_MODE (TREE_TYPE (retval_rhs)) == BLKmode
-	   && REG_P (result_rtl))
-    {
-      val = copy_blkmode_to_reg (GET_MODE (result_rtl), retval_rhs);
-      if (val)
-	{
-	  /* Use the mode of the result value on the return register.  */
-	  PUT_MODE (result_rtl, GET_MODE (val));
-	  expand_value_return (val);
-	}
-      else
-	expand_null_return ();
-    }
-  else if (retval_rhs != 0
-	   && !VOID_TYPE_P (TREE_TYPE (retval_rhs))
-	   && (REG_P (result_rtl)
-	       || (GET_CODE (result_rtl) == PARALLEL)))
-    {
-      /* Calculate the return value into a temporary (usually a pseudo
-         reg).  */
-      tree ot = TREE_TYPE (DECL_RESULT (current_function_decl));
-      tree nt = build_qualified_type (ot, TYPE_QUALS (ot) | TYPE_QUAL_CONST);
-
-      val = assign_temp (nt, 0, 0, 1);
-      val = expand_expr (retval_rhs, val, GET_MODE (val), EXPAND_NORMAL);
-      val = force_not_mem (val);
-      /* Return the calculated value.  */
-      expand_value_return (val);
-    }
-  else
-    {
-      /* No hard reg used; calculate value into hard return reg.  */
-      expand_expr (retval, const0_rtx, VOIDmode, EXPAND_NORMAL);
-      expand_value_return (result_rtl);
-    }
-}
-
-/* Emit code to restore vital registers at the beginning of a nonlocal goto
-   handler.  */
-static void
-expand_nl_goto_receiver (void)
-{
-  rtx chain;
-
-  /* Clobber the FP when we get here, so we have to make sure it's
-     marked as used by this function.  */
-  emit_use (hard_frame_pointer_rtx);
-
-  /* Mark the static chain as clobbered here so life information
-     doesn't get messed up for it.  */
-  chain = targetm.calls.static_chain (current_function_decl, true);
-  if (chain && REG_P (chain))
-    emit_clobber (chain);
-
-#ifdef HAVE_nonlocal_goto
-  if (! HAVE_nonlocal_goto)
-#endif
-    /* First adjust our frame pointer to its actual value.  It was
-       previously set to the start of the virtual area corresponding to
-       the stacked variables when we branched here and now needs to be
-       adjusted to the actual hardware fp value.
-
-       Assignments are to virtual registers are converted by
-       instantiate_virtual_regs into the corresponding assignment
-       to the underlying register (fp in this case) that makes
-       the original assignment true.
-       So the following insn will actually be
-       decrementing fp by STARTING_FRAME_OFFSET.  */
-    emit_move_insn (virtual_stack_vars_rtx, hard_frame_pointer_rtx);
-
-#if !HARD_FRAME_POINTER_IS_ARG_POINTER
-  if (fixed_regs[ARG_POINTER_REGNUM])
-    {
-#ifdef ELIMINABLE_REGS
-      /* If the argument pointer can be eliminated in favor of the
-	 frame pointer, we don't need to restore it.  We assume here
-	 that if such an elimination is present, it can always be used.
-	 This is the case on all known machines; if we don't make this
-	 assumption, we do unnecessary saving on many machines.  */
-      static const struct elims {const int from, to;} elim_regs[] = ELIMINABLE_REGS;
-      size_t i;
-
-      for (i = 0; i < ARRAY_SIZE (elim_regs); i++)
-	if (elim_regs[i].from == ARG_POINTER_REGNUM
-	    && elim_regs[i].to == HARD_FRAME_POINTER_REGNUM)
-	  break;
-
-      if (i == ARRAY_SIZE (elim_regs))
-#endif
-	{
-	  /* Now restore our arg pointer from the address at which it
-	     was saved in our stack frame.  */
-	  emit_move_insn (crtl->args.internal_arg_pointer,
-			  copy_to_reg (get_arg_pointer_save_area ()));
-	}
-    }
-#endif
-
-#ifdef HAVE_nonlocal_goto_receiver
-  if (HAVE_nonlocal_goto_receiver)
-    emit_insn (gen_nonlocal_goto_receiver ());
-#endif
-
-  /* We must not allow the code we just generated to be reordered by
-     scheduling.  Specifically, the update of the frame pointer must
-     happen immediately, not later.  */
-  emit_insn (gen_blockage ());
-}
-
-/* Generate RTL for the automatic variable declaration DECL.
-   (Other kinds of declarations are simply ignored if seen here.)  */
-
-void
-expand_decl (tree decl)
-{
-  tree type;
-
-  type = TREE_TYPE (decl);
-
-  /* For a CONST_DECL, set mode, alignment, and sizes from those of the
-     type in case this node is used in a reference.  */
-  if (TREE_CODE (decl) == CONST_DECL)
-    {
-      DECL_MODE (decl) = TYPE_MODE (type);
-      DECL_ALIGN (decl) = TYPE_ALIGN (type);
-      DECL_SIZE (decl) = TYPE_SIZE (type);
-      DECL_SIZE_UNIT (decl) = TYPE_SIZE_UNIT (type);
-      return;
-    }
-
-  /* Otherwise, only automatic variables need any expansion done.  Static and
-     external variables, and external functions, will be handled by
-     `assemble_variable' (called from finish_decl).  TYPE_DECL requires
-     nothing.  PARM_DECLs are handled in `assign_parms'.  */
-  if (TREE_CODE (decl) != VAR_DECL)
-    return;
-
-  if (TREE_STATIC (decl) || DECL_EXTERNAL (decl))
-    return;
-
-  /* Create the RTL representation for the variable.  */
-
-  if (type == error_mark_node)
-    SET_DECL_RTL (decl, gen_rtx_MEM (BLKmode, const0_rtx));
-
-  else if (DECL_SIZE (decl) == 0)
-    {
-      /* Variable with incomplete type.  */
-      rtx x;
-      if (DECL_INITIAL (decl) == 0)
-	/* Error message was already done; now avoid a crash.  */
-	x = gen_rtx_MEM (BLKmode, const0_rtx);
-      else
-	/* An initializer is going to decide the size of this array.
-	   Until we know the size, represent its address with a reg.  */
-	x = gen_rtx_MEM (BLKmode, gen_reg_rtx (Pmode));
-
-      set_mem_attributes (x, decl, 1);
-      SET_DECL_RTL (decl, x);
-    }
-  else if (use_register_for_decl (decl))
-    {
-      /* Automatic variable that can go in a register.  */
-      enum machine_mode reg_mode = promote_decl_mode (decl, NULL);
-
-      SET_DECL_RTL (decl, gen_reg_rtx (reg_mode));
-
-      /* Note if the object is a user variable.  */
-      if (!DECL_ARTIFICIAL (decl))
-	  mark_user_reg (DECL_RTL (decl));
-
-      if (POINTER_TYPE_P (type))
-	mark_reg_pointer (DECL_RTL (decl),
-			  TYPE_ALIGN (TREE_TYPE (TREE_TYPE (decl))));
-    }
-
-  else
-    {
-      rtx oldaddr = 0;
-      rtx addr;
-      rtx x;
-
-      /* Variable-sized decls are dealt with in the gimplifier.  */
-      gcc_assert (TREE_CODE (DECL_SIZE_UNIT (decl)) == INTEGER_CST);
-
-      /* If we previously made RTL for this decl, it must be an array
-	 whose size was determined by the initializer.
-	 The old address was a register; set that register now
-	 to the proper address.  */
-      if (DECL_RTL_SET_P (decl))
-	{
-	  gcc_assert (MEM_P (DECL_RTL (decl)));
-	  gcc_assert (REG_P (XEXP (DECL_RTL (decl), 0)));
-	  oldaddr = XEXP (DECL_RTL (decl), 0);
-	}
-
-      /* Set alignment we actually gave this decl.  */
-      DECL_ALIGN (decl) = (DECL_MODE (decl) == BLKmode ? BIGGEST_ALIGNMENT
-			   : GET_MODE_BITSIZE (DECL_MODE (decl)));
-      DECL_USER_ALIGN (decl) = 0;
-
-      x = assign_temp (decl, 1, 1, 1);
-      set_mem_attributes (x, decl, 1);
-      SET_DECL_RTL (decl, x);
-
-      if (oldaddr)
-	{
-	  addr = force_operand (XEXP (DECL_RTL (decl), 0), oldaddr);
-	  if (addr != oldaddr)
-	    emit_move_insn (oldaddr, addr);
-	}
-    }
-}
-
-/* Emit code to save the current value of stack.  */
-rtx
-expand_stack_save (void)
-{
-  rtx ret = NULL_RTX;
-
-  do_pending_stack_adjust ();
-  emit_stack_save (SAVE_BLOCK, &ret);
-  return ret;
-}
-
-/* Emit code to restore the current value of stack.  */
-void
-expand_stack_restore (tree var)
-{
-  rtx prev, sa = expand_normal (var);
-
-  sa = convert_memory_address (Pmode, sa);
-
-  prev = get_last_insn ();
-  emit_stack_restore (SAVE_BLOCK, sa);
-  fixup_args_size_notes (prev, get_last_insn (), 0);
+  gcc_assert (prob <= REG_BR_PROB_BASE);
+  do_compare_rtx_and_jump (op0, op1, EQ, unsignedp, mode,
+			   NULL_RTX, NULL_RTX, label, prob);
 }
 
 /* Do the insertion of a case label into case_list.  The labels are
    fed to us in descending order from the sorted vector of case labels used
    in the tree part of the middle end.  So the list we construct is
-   sorted in ascending order.  The bounds on the case range, LOW and HIGH,
-   are converted to case's index type TYPE.  */
+   sorted in ascending order.
+   
+   LABEL is the case label to be inserted. LOW and HIGH are the bounds
+   against which the index is compared to jump to LABEL and PROB is the
+   estimated probability LABEL is reached from the switch statement.  */
 
 static struct case_node *
-add_case_node (struct case_node *head, tree type, tree low, tree high,
-               tree label, alloc_pool case_node_pool)
+add_case_node (struct case_node *head, tree low, tree high,
+               tree label, int prob, alloc_pool case_node_pool)
 {
-  tree min_value, max_value;
   struct case_node *r;
 
-  gcc_assert (TREE_CODE (low) == INTEGER_CST);
-  gcc_assert (!high || TREE_CODE (high) == INTEGER_CST);
+  gcc_checking_assert (low);
+  gcc_checking_assert (high && (TREE_TYPE (low) == TREE_TYPE (high)));
 
-  min_value = TYPE_MIN_VALUE (type);
-  max_value = TYPE_MAX_VALUE (type);
-
-  /* If there's no HIGH value, then this is not a case range; it's
-     just a simple case label.  But that's just a degenerate case
-     range.
-     If the bounds are equal, turn this into the one-value case.  */
-  if (!high || tree_int_cst_equal (low, high))
-    {
-      /* If the simple case value is unreachable, ignore it.  */
-      if ((TREE_CODE (min_value) == INTEGER_CST
-            && tree_int_cst_compare (low, min_value) < 0)
-	  || (TREE_CODE (max_value) == INTEGER_CST
-	      && tree_int_cst_compare (low, max_value) > 0))
-	return head;
-      low = fold_convert (type, low);
-      high = low;
-    }
-  else
-    {
-      /* If the entire case range is unreachable, ignore it.  */
-      if ((TREE_CODE (min_value) == INTEGER_CST
-            && tree_int_cst_compare (high, min_value) < 0)
-	  || (TREE_CODE (max_value) == INTEGER_CST
-	      && tree_int_cst_compare (low, max_value) > 0))
-	return head;
-
-      /* If the lower bound is less than the index type's minimum
-	 value, truncate the range bounds.  */
-      if (TREE_CODE (min_value) == INTEGER_CST
-            && tree_int_cst_compare (low, min_value) < 0)
-	low = min_value;
-      low = fold_convert (type, low);
-
-      /* If the upper bound is greater than the index type's maximum
-	 value, truncate the range bounds.  */
-      if (TREE_CODE (max_value) == INTEGER_CST
-	  && tree_int_cst_compare (high, max_value) > 0)
-	high = max_value;
-      high = fold_convert (type, high);
-    }
-
-
-  /* Add this label to the chain.  Make sure to drop overflow flags.  */
+  /* Add this label to the chain.  */
   r = (struct case_node *) pool_alloc (case_node_pool);
-  r->low = build_int_cst_wide (TREE_TYPE (low), TREE_INT_CST_LOW (low),
-			       TREE_INT_CST_HIGH (low));
-  r->high = build_int_cst_wide (TREE_TYPE (high), TREE_INT_CST_LOW (high),
-				TREE_INT_CST_HIGH (high));
+  r->low = low;
+  r->high = high;
   r->code_label = label;
   r->parent = r->left = NULL;
+  r->prob = prob;
+  r->subtree_prob = prob;
   r->right = head;
   return r;
 }
 
-/* Maximum number of case bit tests.  */
-#define MAX_CASE_BIT_TESTS  3
-
-/* By default, enable case bit tests on targets with ashlsi3.  */
-#ifndef CASE_USE_BIT_TESTS
-#define CASE_USE_BIT_TESTS  (optab_handler (ashl_optab, word_mode) \
-			     != CODE_FOR_nothing)
-#endif
-
-
-/* A case_bit_test represents a set of case nodes that may be
-   selected from using a bit-wise comparison.  HI and LO hold
-   the integer to be tested against, LABEL contains the label
-   to jump to upon success and BITS counts the number of case
-   nodes handled by this test, typically the number of bits
-   set in HI:LO.  */
-
-struct case_bit_test
-{
-  HOST_WIDE_INT hi;
-  HOST_WIDE_INT lo;
-  rtx label;
-  int bits;
-};
-
-/* Determine whether "1 << x" is relatively cheap in word_mode.  */
-
-static
-bool lshift_cheap_p (void)
-{
-  static bool init[2] = {false, false};
-  static bool cheap[2] = {true, true};
-
-  bool speed_p = optimize_insn_for_speed_p ();
-
-  if (!init[speed_p])
-    {
-      rtx reg = gen_rtx_REG (word_mode, 10000);
-      int cost = set_src_cost (gen_rtx_ASHIFT (word_mode, const1_rtx, reg),
-			       speed_p);
-      cheap[speed_p] = cost < COSTS_N_INSNS (3);
-      init[speed_p] = true;
-    }
-
-  return cheap[speed_p];
-}
-
-/* Comparison function for qsort to order bit tests by decreasing
-   number of case nodes, i.e. the node with the most cases gets
-   tested first.  */
-
-static int
-case_bit_test_cmp (const void *p1, const void *p2)
-{
-  const struct case_bit_test *const d1 = (const struct case_bit_test *) p1;
-  const struct case_bit_test *const d2 = (const struct case_bit_test *) p2;
-
-  if (d2->bits != d1->bits)
-    return d2->bits - d1->bits;
-
-  /* Stabilize the sort.  */
-  return CODE_LABEL_NUMBER (d2->label) - CODE_LABEL_NUMBER (d1->label);
-}
-
-/*  Expand a switch statement by a short sequence of bit-wise
-    comparisons.  "switch(x)" is effectively converted into
-    "if ((1 << (x-MINVAL)) & CST)" where CST and MINVAL are
-    integer constants.
-
-    INDEX_EXPR is the value being switched on, which is of
-    type INDEX_TYPE.  MINVAL is the lowest case value of in
-    the case nodes, of INDEX_TYPE type, and RANGE is highest
-    value minus MINVAL, also of type INDEX_TYPE.  NODES is
-    the set of case nodes, and DEFAULT_LABEL is the label to
-    branch to should none of the cases match.
-
-    There *MUST* be MAX_CASE_BIT_TESTS or less unique case
-    node targets.  */
+/* Dump ROOT, a list or tree of case nodes, to file.  */
 
 static void
-emit_case_bit_tests (tree index_type, tree index_expr, tree minval,
-		     tree range, case_node_ptr nodes, rtx default_label)
+dump_case_nodes (FILE *f, struct case_node *root,
+		 int indent_step, int indent_level)
 {
-  struct case_bit_test test[MAX_CASE_BIT_TESTS];
-  enum machine_mode mode;
-  rtx expr, index, label;
-  unsigned int i,j,lo,hi;
-  struct case_node *n;
-  unsigned int count;
+  HOST_WIDE_INT low, high;
 
-  count = 0;
-  for (n = nodes; n; n = n->right)
-    {
-      label = label_rtx (n->code_label);
-      for (i = 0; i < count; i++)
-	if (label == test[i].label)
-	  break;
+  if (root == 0)
+    return;
+  indent_level++;
 
-      if (i == count)
-	{
-	  gcc_assert (count < MAX_CASE_BIT_TESTS);
-	  test[i].hi = 0;
-	  test[i].lo = 0;
-	  test[i].label = label;
-	  test[i].bits = 1;
-	  count++;
-	}
-      else
-        test[i].bits++;
+  dump_case_nodes (f, root->left, indent_step, indent_level);
 
-      lo = tree_low_cst (fold_build2 (MINUS_EXPR, index_type,
-				      n->low, minval), 1);
-      hi = tree_low_cst (fold_build2 (MINUS_EXPR, index_type,
-				      n->high, minval), 1);
-      for (j = lo; j <= hi; j++)
-        if (j >= HOST_BITS_PER_WIDE_INT)
-	  test[i].hi |= (HOST_WIDE_INT) 1 << (j - HOST_BITS_PER_INT);
-	else
-	  test[i].lo |= (HOST_WIDE_INT) 1 << j;
-    }
+  low = tree_to_shwi (root->low);
+  high = tree_to_shwi (root->high);
 
-  qsort (test, count, sizeof(*test), case_bit_test_cmp);
+  fputs (";; ", f);
+  if (high == low)
+    fprintf (f, "%*s" HOST_WIDE_INT_PRINT_DEC,
+	     indent_step * indent_level, "", low);
+  else
+    fprintf (f, "%*s" HOST_WIDE_INT_PRINT_DEC " ... " HOST_WIDE_INT_PRINT_DEC,
+	     indent_step * indent_level, "", low, high);
+  fputs ("\n", f);
 
-  index_expr = fold_build2 (MINUS_EXPR, index_type,
-			    fold_convert (index_type, index_expr),
-			    fold_convert (index_type, minval));
-  index = expand_normal (index_expr);
-  do_pending_stack_adjust ();
-
-  mode = TYPE_MODE (index_type);
-  expr = expand_normal (range);
-  if (default_label)
-    emit_cmp_and_jump_insns (index, expr, GTU, NULL_RTX, mode, 1,
-			     default_label);
-
-  index = convert_to_mode (word_mode, index, 0);
-  index = expand_binop (word_mode, ashl_optab, const1_rtx,
-			index, NULL_RTX, 1, OPTAB_WIDEN);
-
-  for (i = 0; i < count; i++)
-    {
-      expr = immed_double_const (test[i].lo, test[i].hi, word_mode);
-      expr = expand_binop (word_mode, and_optab, index, expr,
-			   NULL_RTX, 1, OPTAB_WIDEN);
-      emit_cmp_and_jump_insns (expr, const0_rtx, NE, NULL_RTX,
-			       word_mode, 1, test[i].label);
-    }
-
-  if (default_label)
-    emit_jump (default_label);
+  dump_case_nodes (f, root->right, indent_step, indent_level);
 }
-
+
 #ifndef HAVE_casesi
 #define HAVE_casesi 0
 #endif
@@ -2155,25 +804,6 @@ emit_case_bit_tests (tree index_type, tree index_expr, tree minval,
 #ifndef HAVE_tablejump
 #define HAVE_tablejump 0
 #endif
-
-/* Return true if a switch should be expanded as a bit test.
-   INDEX_EXPR is the index expression, RANGE is the difference between
-   highest and lowest case, UNIQ is number of unique case node targets
-   not counting the default case and COUNT is the number of comparisons
-   needed, not counting the default case.  */
-bool
-expand_switch_using_bit_tests_p (tree index_expr, tree range,
-				 unsigned int uniq, unsigned int count)
-{
-  return (CASE_USE_BIT_TESTS
-	  && ! TREE_CONSTANT (index_expr)
-	  && compare_tree_int (range, GET_MODE_BITSIZE (word_mode)) < 0
-	  && compare_tree_int (range, 0) > 0
-	  && lshift_cheap_p ()
-	  && ((uniq == 1 && count >= 3)
-	      || (uniq == 2 && count >= 5)
-	      || (uniq == 3 && count >= 6)));
-}
 
 /* Return the smallest number of different values for which it is best to use a
    jump-table instead of a tree of conditional branches.  */
@@ -2189,6 +819,332 @@ case_values_threshold (void)
   return threshold;
 }
 
+/* Return true if a switch should be expanded as a decision tree.
+   RANGE is the difference between highest and lowest case.
+   UNIQ is number of unique case node targets, not counting the default case.
+   COUNT is the number of comparisons needed, not counting the default case.  */
+
+static bool
+expand_switch_as_decision_tree_p (tree range,
+				  unsigned int uniq ATTRIBUTE_UNUSED,
+				  unsigned int count)
+{
+  int max_ratio;
+
+  /* If neither casesi or tablejump is available, or flag_jump_tables
+     over-ruled us, we really have no choice.  */
+  if (!HAVE_casesi && !HAVE_tablejump)
+    return true;
+  if (!flag_jump_tables)
+    return true;
+#ifndef ASM_OUTPUT_ADDR_DIFF_ELT
+  if (flag_pic)
+    return true;
+#endif
+
+  /* If the switch is relatively small such that the cost of one
+     indirect jump on the target are higher than the cost of a
+     decision tree, go with the decision tree.
+
+     If range of values is much bigger than number of values,
+     or if it is too large to represent in a HOST_WIDE_INT,
+     make a sequence of conditional branches instead of a dispatch.
+
+     The definition of "much bigger" depends on whether we are
+     optimizing for size or for speed.  If the former, the maximum
+     ratio range/count = 3, because this was found to be the optimal
+     ratio for size on i686-pc-linux-gnu, see PR11823.  The ratio
+     10 is much older, and was probably selected after an extensive
+     benchmarking investigation on numerous platforms.  Or maybe it
+     just made sense to someone at some point in the history of GCC,
+     who knows...  */
+  max_ratio = optimize_insn_for_size_p () ? 3 : 10;
+  if (count < case_values_threshold ()
+      || ! tree_fits_uhwi_p (range)
+      || compare_tree_int (range, max_ratio * count) > 0)
+    return true;
+
+  return false;
+}
+
+/* Generate a decision tree, switching on INDEX_EXPR and jumping to
+   one of the labels in CASE_LIST or to the DEFAULT_LABEL.
+   DEFAULT_PROB is the estimated probability that it jumps to
+   DEFAULT_LABEL.
+   
+   We generate a binary decision tree to select the appropriate target
+   code.  This is done as follows:
+
+     If the index is a short or char that we do not have
+     an insn to handle comparisons directly, convert it to
+     a full integer now, rather than letting each comparison
+     generate the conversion.
+
+     Load the index into a register.
+
+     The list of cases is rearranged into a binary tree,
+     nearly optimal assuming equal probability for each case.
+
+     The tree is transformed into RTL, eliminating redundant
+     test conditions at the same time.
+
+     If program flow could reach the end of the decision tree
+     an unconditional jump to the default code is emitted.
+
+   The above process is unaware of the CFG.  The caller has to fix up
+   the CFG itself.  This is done in cfgexpand.c.  */     
+
+static void
+emit_case_decision_tree (tree index_expr, tree index_type,
+			 struct case_node *case_list, rtx default_label,
+                         int default_prob)
+{
+  rtx index = expand_normal (index_expr);
+
+  if (GET_MODE_CLASS (GET_MODE (index)) == MODE_INT
+      && ! have_insn_for (COMPARE, GET_MODE (index)))
+    {
+      int unsignedp = TYPE_UNSIGNED (index_type);
+      enum machine_mode wider_mode;
+      for (wider_mode = GET_MODE (index); wider_mode != VOIDmode;
+	   wider_mode = GET_MODE_WIDER_MODE (wider_mode))
+	if (have_insn_for (COMPARE, wider_mode))
+	  {
+	    index = convert_to_mode (wider_mode, index, unsignedp);
+	    break;
+	  }
+    }
+
+  do_pending_stack_adjust ();
+
+  if (MEM_P (index))
+    {
+      index = copy_to_reg (index);
+      if (TREE_CODE (index_expr) == SSA_NAME)
+	set_reg_attrs_for_decl_rtl (SSA_NAME_VAR (index_expr), index);
+    }
+
+  balance_case_nodes (&case_list, NULL);
+
+  if (dump_file && (dump_flags & TDF_DETAILS))
+    {
+      int indent_step = ceil_log2 (TYPE_PRECISION (index_type)) + 2;
+      fprintf (dump_file, ";; Expanding GIMPLE switch as decision tree:\n");
+      dump_case_nodes (dump_file, case_list, indent_step, 0);
+    }
+
+  emit_case_nodes (index, case_list, default_label, default_prob, index_type);
+  if (default_label)
+    emit_jump (default_label);
+}
+
+/* Return the sum of probabilities of outgoing edges of basic block BB.  */
+
+static int
+get_outgoing_edge_probs (basic_block bb)
+{
+  edge e;
+  edge_iterator ei;
+  int prob_sum = 0;
+  if (!bb)
+    return 0;
+  FOR_EACH_EDGE (e, ei, bb->succs)
+    prob_sum += e->probability;
+  return prob_sum;
+}
+
+/* Computes the conditional probability of jumping to a target if the branch
+   instruction is executed.
+   TARGET_PROB is the estimated probability of jumping to a target relative
+   to some basic block BB.
+   BASE_PROB is the probability of reaching the branch instruction relative
+   to the same basic block BB.  */
+
+static inline int
+conditional_probability (int target_prob, int base_prob)
+{
+  if (base_prob > 0)
+    {
+      gcc_assert (target_prob >= 0);
+      gcc_assert (target_prob <= base_prob);
+      return GCOV_COMPUTE_SCALE (target_prob, base_prob);
+    }
+  return -1;
+}
+
+/* Generate a dispatch tabler, switching on INDEX_EXPR and jumping to
+   one of the labels in CASE_LIST or to the DEFAULT_LABEL.
+   MINVAL, MAXVAL, and RANGE are the extrema and range of the case
+   labels in CASE_LIST. STMT_BB is the basic block containing the statement.
+
+   First, a jump insn is emitted.  First we try "casesi".  If that
+   fails, try "tablejump".   A target *must* have one of them (or both).
+
+   Then, a table with the target labels is emitted.
+
+   The process is unaware of the CFG.  The caller has to fix up
+   the CFG itself.  This is done in cfgexpand.c.  */     
+
+static void
+emit_case_dispatch_table (tree index_expr, tree index_type,
+			  struct case_node *case_list, rtx default_label,
+			  tree minval, tree maxval, tree range,
+                          basic_block stmt_bb)
+{
+  int i, ncases;
+  struct case_node *n;
+  rtx *labelvec;
+  rtx fallback_label = label_rtx (case_list->code_label);
+  rtx table_label = gen_label_rtx ();
+  bool has_gaps = false;
+  edge default_edge = stmt_bb ? EDGE_SUCC (stmt_bb, 0) : NULL;
+  int default_prob = default_edge ? default_edge->probability : 0;
+  int base = get_outgoing_edge_probs (stmt_bb);
+  bool try_with_tablejump = false;
+
+  int new_default_prob = conditional_probability (default_prob,
+                                                  base);
+
+  if (! try_casesi (index_type, index_expr, minval, range,
+		    table_label, default_label, fallback_label,
+                    new_default_prob))
+    {
+      /* Index jumptables from zero for suitable values of minval to avoid
+	 a subtraction.  For the rationale see:
+	 "http://gcc.gnu.org/ml/gcc-patches/2001-10/msg01234.html".  */
+      if (optimize_insn_for_speed_p ()
+	  && compare_tree_int (minval, 0) > 0
+	  && compare_tree_int (minval, 3) < 0)
+	{
+	  minval = build_int_cst (index_type, 0);
+	  range = maxval;
+          has_gaps = true;
+	}
+      try_with_tablejump = true;
+    }
+
+  /* Get table of labels to jump to, in order of case index.  */
+
+  ncases = tree_to_shwi (range) + 1;
+  labelvec = XALLOCAVEC (rtx, ncases);
+  memset (labelvec, 0, ncases * sizeof (rtx));
+
+  for (n = case_list; n; n = n->right)
+    {
+      /* Compute the low and high bounds relative to the minimum
+	 value since that should fit in a HOST_WIDE_INT while the
+	 actual values may not.  */
+      HOST_WIDE_INT i_low
+	= tree_to_uhwi (fold_build2 (MINUS_EXPR, index_type,
+				     n->low, minval));
+      HOST_WIDE_INT i_high
+	= tree_to_uhwi (fold_build2 (MINUS_EXPR, index_type,
+				     n->high, minval));
+      HOST_WIDE_INT i;
+
+      for (i = i_low; i <= i_high; i ++)
+	labelvec[i]
+	  = gen_rtx_LABEL_REF (Pmode, label_rtx (n->code_label));
+    }
+
+  /* Fill in the gaps with the default.  We may have gaps at
+     the beginning if we tried to avoid the minval subtraction,
+     so substitute some label even if the default label was
+     deemed unreachable.  */
+  if (!default_label)
+    default_label = fallback_label;
+  for (i = 0; i < ncases; i++)
+    if (labelvec[i] == 0)
+      {
+        has_gaps = true;
+        labelvec[i] = gen_rtx_LABEL_REF (Pmode, default_label);
+      }
+
+  if (has_gaps)
+    {
+      /* There is at least one entry in the jump table that jumps
+         to default label. The default label can either be reached
+         through the indirect jump or the direct conditional jump
+         before that. Split the probability of reaching the
+         default label among these two jumps.  */
+      new_default_prob = conditional_probability (default_prob/2,
+                                                  base);
+      default_prob /= 2;
+      base -= default_prob;
+    }
+  else
+    {
+      base -= default_prob;
+      default_prob = 0;
+    }
+
+  if (default_edge)
+    default_edge->probability = default_prob;
+
+  /* We have altered the probability of the default edge. So the probabilities
+     of all other edges need to be adjusted so that it sums up to
+     REG_BR_PROB_BASE.  */
+  if (base)
+    {
+      edge e;
+      edge_iterator ei;
+      FOR_EACH_EDGE (e, ei, stmt_bb->succs)
+        e->probability = GCOV_COMPUTE_SCALE (e->probability,  base);
+    }
+
+  if (try_with_tablejump)
+    {
+      bool ok = try_tablejump (index_type, index_expr, minval, range,
+                               table_label, default_label, new_default_prob);
+      gcc_assert (ok);
+    }
+  /* Output the table.  */
+  emit_label (table_label);
+
+  if (CASE_VECTOR_PC_RELATIVE || flag_pic)
+    emit_jump_table_data (gen_rtx_ADDR_DIFF_VEC (CASE_VECTOR_MODE,
+						 gen_rtx_LABEL_REF (Pmode,
+								    table_label),
+						 gen_rtvec_v (ncases, labelvec),
+						 const0_rtx, const0_rtx));
+  else
+    emit_jump_table_data (gen_rtx_ADDR_VEC (CASE_VECTOR_MODE,
+					    gen_rtvec_v (ncases, labelvec)));
+
+  /* Record no drop-through after the table.  */
+  emit_barrier ();
+}
+
+/* Reset the aux field of all outgoing edges of basic block BB.  */
+
+static inline void
+reset_out_edges_aux (basic_block bb)
+{
+  edge e;
+  edge_iterator ei;
+  FOR_EACH_EDGE (e, ei, bb->succs)
+    e->aux = (void *)0;
+}
+
+/* Compute the number of case labels that correspond to each outgoing edge of
+   STMT. Record this information in the aux field of the edge.  */
+
+static inline void
+compute_cases_per_edge (gimple stmt)
+{
+  basic_block bb = gimple_bb (stmt);
+  reset_out_edges_aux (bb);
+  int ncases = gimple_switch_num_labels (stmt);
+  for (int i = ncases - 1; i >= 1; --i)
+    {
+      tree elt = gimple_switch_label (stmt, i);
+      tree lab = CASE_LABEL (elt);
+      basic_block case_bb = label_to_block_fn (cfun, lab);
+      edge case_edge = find_edge (bb, case_bb);
+      case_edge->aux = (void *)((intptr_t)(case_edge->aux) + 1);
+    }
+}
+
 /* Terminate a case (Pascal/Ada) or switch (C) statement
    in which ORIG_INDEX is the expression to be tested.
    If ORIG_TYPE is not NULL, it is the original ORIG_INDEX
@@ -2199,382 +1155,238 @@ void
 expand_case (gimple stmt)
 {
   tree minval = NULL_TREE, maxval = NULL_TREE, range = NULL_TREE;
-  rtx default_label = 0;
-  struct case_node *n;
+  rtx default_label = NULL_RTX;
   unsigned int count, uniq;
-  rtx index;
-  rtx table_label;
-  int ncases;
-  rtx *labelvec;
   int i;
-  rtx before_case, end, lab;
-
+  int ncases = gimple_switch_num_labels (stmt);
   tree index_expr = gimple_switch_index (stmt);
   tree index_type = TREE_TYPE (index_expr);
-  int unsignedp = TYPE_UNSIGNED (index_type);
-
-  /* The insn after which the case dispatch should finally
-     be emitted.  Zero for a dummy.  */
-  rtx start;
+  tree elt;
+  basic_block bb = gimple_bb (stmt);
 
   /* A list of case labels; it is first built as a list and it may then
      be rearranged into a nearly balanced binary tree.  */
   struct case_node *case_list = 0;
 
-  /* Label to jump to if no case matches.  */
-  tree default_label_decl = NULL_TREE;
+  /* A pool for case nodes.  */
+  alloc_pool case_node_pool;
 
-  alloc_pool case_node_pool = create_alloc_pool ("struct case_node pool",
-                                                 sizeof (struct case_node),
-                                                 100);
+  /* An ERROR_MARK occurs for various reasons including invalid data type.
+     ??? Can this still happen, with GIMPLE and all?  */
+  if (index_type == error_mark_node)
+    return;
+
+  /* cleanup_tree_cfg removes all SWITCH_EXPR with their index
+     expressions being INTEGER_CST.  */
+  gcc_assert (TREE_CODE (index_expr) != INTEGER_CST);
+  
+  case_node_pool = create_alloc_pool ("struct case_node pool",
+				      sizeof (struct case_node),
+				      100);
 
   do_pending_stack_adjust ();
 
-  /* An ERROR_MARK occurs for various reasons including invalid data type.  */
-  if (index_type != error_mark_node)
+  /* Find the default case target label.  */
+  default_label = label_rtx (CASE_LABEL (gimple_switch_default_label (stmt)));
+  edge default_edge = EDGE_SUCC (bb, 0);
+  int default_prob = default_edge->probability;
+
+  /* Get upper and lower bounds of case values.  */
+  elt = gimple_switch_label (stmt, 1);
+  minval = fold_convert (index_type, CASE_LOW (elt));
+  elt = gimple_switch_label (stmt, ncases - 1);
+  if (CASE_HIGH (elt))
+    maxval = fold_convert (index_type, CASE_HIGH (elt));
+  else
+    maxval = fold_convert (index_type, CASE_LOW (elt));
+
+  /* Compute span of values.  */
+  range = fold_build2 (MINUS_EXPR, index_type, maxval, minval);
+
+  /* Listify the labels queue and gather some numbers to decide
+     how to expand this switch().  */
+  uniq = 0;
+  count = 0;
+  struct pointer_set_t *seen_labels = pointer_set_create ();
+  compute_cases_per_edge (stmt);
+
+  for (i = ncases - 1; i >= 1; --i)
     {
-      tree elt;
-      bitmap label_bitmap;
-      int stopi = 0;
+      elt = gimple_switch_label (stmt, i);
+      tree low = CASE_LOW (elt);
+      gcc_assert (low);
+      tree high = CASE_HIGH (elt);
+      gcc_assert (! high || tree_int_cst_lt (low, high));
+      tree lab = CASE_LABEL (elt);
 
-      /* cleanup_tree_cfg removes all SWITCH_EXPR with their index
-	 expressions being INTEGER_CST.  */
-      gcc_assert (TREE_CODE (index_expr) != INTEGER_CST);
+      /* Count the elements.
+	 A range counts double, since it requires two compares.  */
+      count++;
+      if (high)
+	count++;
 
-      /* The default case, if ever taken, is the first element.  */
-      elt = gimple_switch_label (stmt, 0);
-      if (!CASE_LOW (elt) && !CASE_HIGH (elt))
-	{
-	  default_label_decl = CASE_LABEL (elt);
-	  stopi = 1;
-	}
+      /* If we have not seen this label yet, then increase the
+	 number of unique case node targets seen.  */
+      if (!pointer_set_insert (seen_labels, lab))
+	uniq++;
 
-      for (i = gimple_switch_num_labels (stmt) - 1; i >= stopi; --i)
-	{
-	  tree low, high;
-	  elt = gimple_switch_label (stmt, i);
+      /* The bounds on the case range, LOW and HIGH, have to be converted
+	 to case's index type TYPE.  Note that the original type of the
+	 case index in the source code is usually "lost" during
+	 gimplification due to type promotion, but the case labels retain the
+	 original type.  Make sure to drop overflow flags.  */
+      low = fold_convert (index_type, low);
+      if (TREE_OVERFLOW (low))
+	low = build_int_cst_wide (index_type,
+				  TREE_INT_CST_LOW (low),
+				  TREE_INT_CST_HIGH (low));
 
-	  low = CASE_LOW (elt);
-	  gcc_assert (low);
-	  high = CASE_HIGH (elt);
+      /* The canonical from of a case label in GIMPLE is that a simple case
+	 has an empty CASE_HIGH.  For the casesi and tablejump expanders,
+	 the back ends want simple cases to have high == low.  */
+      if (! high)
+	high = low;
+      high = fold_convert (index_type, high);
+      if (TREE_OVERFLOW (high))
+	high = build_int_cst_wide (index_type,
+				   TREE_INT_CST_LOW (high),
+				   TREE_INT_CST_HIGH (high));
 
-	  /* Discard empty ranges.  */
-	  if (high && tree_int_cst_lt (high, low))
-	    continue;
-
-	  case_list = add_case_node (case_list, index_type, low, high,
-                                     CASE_LABEL (elt), case_node_pool);
-	}
-
-
-      before_case = start = get_last_insn ();
-      if (default_label_decl)
-	default_label = label_rtx (default_label_decl);
-
-      /* Get upper and lower bounds of case values.  */
-
-      uniq = 0;
-      count = 0;
-      label_bitmap = BITMAP_ALLOC (NULL);
-      for (n = case_list; n; n = n->right)
-	{
-	  /* Count the elements and track the largest and smallest
-	     of them (treating them as signed even if they are not).  */
-	  if (count++ == 0)
-	    {
-	      minval = n->low;
-	      maxval = n->high;
-	    }
-	  else
-	    {
-	      if (tree_int_cst_lt (n->low, minval))
-		minval = n->low;
-	      if (tree_int_cst_lt (maxval, n->high))
-		maxval = n->high;
-	    }
-	  /* A range counts double, since it requires two compares.  */
-	  if (! tree_int_cst_equal (n->low, n->high))
-	    count++;
-
-	  /* If we have not seen this label yet, then increase the
-	     number of unique case node targets seen.  */
-	  lab = label_rtx (n->code_label);
-	  if (bitmap_set_bit (label_bitmap, CODE_LABEL_NUMBER (lab)))
-	    uniq++;
-	}
-
-      BITMAP_FREE (label_bitmap);
-
-      /* cleanup_tree_cfg removes all SWITCH_EXPR with a single
-	 destination, such as one with a default case only.  However,
-	 it doesn't remove cases that are out of range for the switch
-	 type, so we may still get a zero here.  */
-      if (count == 0)
-	{
-	  if (default_label)
-	    emit_jump (default_label);
-          free_alloc_pool (case_node_pool);
-	  return;
-	}
-
-      /* Compute span of values.  */
-      range = fold_build2 (MINUS_EXPR, index_type, maxval, minval);
-
-      /* Try implementing this switch statement by a short sequence of
-	 bit-wise comparisons.  However, we let the binary-tree case
-	 below handle constant index expressions.  */
-      if (expand_switch_using_bit_tests_p (index_expr, range, uniq, count))
-	{
-	  /* Optimize the case where all the case values fit in a
-	     word without having to subtract MINVAL.  In this case,
-	     we can optimize away the subtraction.  */
-	  if (compare_tree_int (minval, 0) > 0
-	      && compare_tree_int (maxval, GET_MODE_BITSIZE (word_mode)) < 0)
-	    {
-	      minval = build_int_cst (index_type, 0);
-	      range = maxval;
-	    }
-	  emit_case_bit_tests (index_type, index_expr, minval, range,
-			       case_list, default_label);
-	}
-
-      /* If range of values is much bigger than number of values,
-	 make a sequence of conditional branches instead of a dispatch.
-	 If the switch-index is a constant, do it this way
-	 because we can optimize it.  */
-
-      else if (count < case_values_threshold ()
-	       || compare_tree_int (range,
-				    (optimize_insn_for_size_p () ? 3 : 10) * count) > 0
-	       /* RANGE may be signed, and really large ranges will show up
-		  as negative numbers.  */
-	       || compare_tree_int (range, 0) < 0
-#ifndef ASM_OUTPUT_ADDR_DIFF_ELT
-	       || flag_pic
-#endif
-	       || !flag_jump_tables
-	       || TREE_CONSTANT (index_expr)
-	       /* If neither casesi or tablejump is available, we can
-		  only go this way.  */
-	       || (!HAVE_casesi && !HAVE_tablejump))
-	{
-	  index = expand_normal (index_expr);
-
-	  /* If the index is a short or char that we do not have
-	     an insn to handle comparisons directly, convert it to
-	     a full integer now, rather than letting each comparison
-	     generate the conversion.  */
-
-	  if (GET_MODE_CLASS (GET_MODE (index)) == MODE_INT
-	      && ! have_insn_for (COMPARE, GET_MODE (index)))
-	    {
-	      enum machine_mode wider_mode;
-	      for (wider_mode = GET_MODE (index); wider_mode != VOIDmode;
-		   wider_mode = GET_MODE_WIDER_MODE (wider_mode))
-		if (have_insn_for (COMPARE, wider_mode))
-		  {
-		    index = convert_to_mode (wider_mode, index, unsignedp);
-		    break;
-		  }
-	    }
-
-	  do_pending_stack_adjust ();
-
-	  if (MEM_P (index))
-	    index = copy_to_reg (index);
-
-	  /* We generate a binary decision tree to select the
-	     appropriate target code.  This is done as follows:
-
-	     The list of cases is rearranged into a binary tree,
-	     nearly optimal assuming equal probability for each case.
-
-	     The tree is transformed into RTL, eliminating
-	     redundant test conditions at the same time.
-
-	     If program flow could reach the end of the
-	     decision tree an unconditional jump to the
-	     default code is emitted.  */
-
-	  use_cost_table = estimate_case_costs (case_list);
-	  balance_case_nodes (&case_list, NULL);
-	  emit_case_nodes (index, case_list, default_label, index_type);
-	  if (default_label)
-	    emit_jump (default_label);
-	}
-      else
-	{
-	  rtx fallback_label = label_rtx (case_list->code_label);
-	  table_label = gen_label_rtx ();
-	  if (! try_casesi (index_type, index_expr, minval, range,
-			    table_label, default_label, fallback_label))
-	    {
-	      bool ok;
-
-	      /* Index jumptables from zero for suitable values of
-                 minval to avoid a subtraction.  */
-	      if (optimize_insn_for_speed_p ()
-		  && compare_tree_int (minval, 0) > 0
-		  && compare_tree_int (minval, 3) < 0)
-		{
-		  minval = build_int_cst (index_type, 0);
-		  range = maxval;
-		}
-
-	      ok = try_tablejump (index_type, index_expr, minval, range,
-				  table_label, default_label);
-	      gcc_assert (ok);
-	    }
-
-	  /* Get table of labels to jump to, in order of case index.  */
-
-	  ncases = tree_low_cst (range, 0) + 1;
-	  labelvec = XALLOCAVEC (rtx, ncases);
-	  memset (labelvec, 0, ncases * sizeof (rtx));
-
-	  for (n = case_list; n; n = n->right)
-	    {
-	      /* Compute the low and high bounds relative to the minimum
-		 value since that should fit in a HOST_WIDE_INT while the
-		 actual values may not.  */
-	      HOST_WIDE_INT i_low
-		= tree_low_cst (fold_build2 (MINUS_EXPR, index_type,
-					     n->low, minval), 1);
-	      HOST_WIDE_INT i_high
-		= tree_low_cst (fold_build2 (MINUS_EXPR, index_type,
-					     n->high, minval), 1);
-	      HOST_WIDE_INT i;
-
-	      for (i = i_low; i <= i_high; i ++)
-		labelvec[i]
-		  = gen_rtx_LABEL_REF (Pmode, label_rtx (n->code_label));
-	    }
-
-	  /* Fill in the gaps with the default.  We may have gaps at
-	     the beginning if we tried to avoid the minval subtraction,
-	     so substitute some label even if the default label was
-	     deemed unreachable.  */
-	  if (!default_label)
-	    default_label = fallback_label;
-	  for (i = 0; i < ncases; i++)
-	    if (labelvec[i] == 0)
-	      labelvec[i] = gen_rtx_LABEL_REF (Pmode, default_label);
-
-	  /* Output the table.  */
-	  emit_label (table_label);
-
-	  if (CASE_VECTOR_PC_RELATIVE || flag_pic)
-	    emit_jump_insn (gen_rtx_ADDR_DIFF_VEC (CASE_VECTOR_MODE,
-						   gen_rtx_LABEL_REF (Pmode, table_label),
-						   gen_rtvec_v (ncases, labelvec),
-						   const0_rtx, const0_rtx));
-	  else
-	    emit_jump_insn (gen_rtx_ADDR_VEC (CASE_VECTOR_MODE,
-					      gen_rtvec_v (ncases, labelvec)));
-
-	  /* Record no drop-through after the table.  */
-	  emit_barrier ();
-	}
-
-      before_case = NEXT_INSN (before_case);
-      end = get_last_insn ();
-      reorder_insns (before_case, end, start);
+      basic_block case_bb = label_to_block_fn (cfun, lab);
+      edge case_edge = find_edge (bb, case_bb);
+      case_list = add_case_node (
+          case_list, low, high, lab,
+          case_edge->probability / (intptr_t)(case_edge->aux),
+          case_node_pool);
     }
+  pointer_set_destroy (seen_labels);
+  reset_out_edges_aux (bb);
+
+  /* cleanup_tree_cfg removes all SWITCH_EXPR with a single
+     destination, such as one with a default case only.
+     It also removes cases that are out of range for the switch
+     type, so we should never get a zero here.  */
+  gcc_assert (count > 0);
+
+  rtx before_case = get_last_insn ();
+
+  /* Decide how to expand this switch.
+     The two options at this point are a dispatch table (casesi or
+     tablejump) or a decision tree.  */
+
+  if (expand_switch_as_decision_tree_p (range, uniq, count))
+    emit_case_decision_tree (index_expr, index_type,
+                             case_list, default_label,
+                             default_prob);
+  else
+    emit_case_dispatch_table (index_expr, index_type,
+			      case_list, default_label,
+			      minval, maxval, range, bb);
+
+  reorder_insns (NEXT_INSN (before_case), get_last_insn (), before_case);
 
   free_temp_slots ();
   free_alloc_pool (case_node_pool);
 }
 
-/* Generate code to jump to LABEL if OP0 and OP1 are equal in mode MODE.  */
+/* Expand the dispatch to a short decrement chain if there are few cases
+   to dispatch to.  Likewise if neither casesi nor tablejump is available,
+   or if flag_jump_tables is set.  Otherwise, expand as a casesi or a
+   tablejump.  The index mode is always the mode of integer_type_node.
+   Trap if no case matches the index.
 
-static void
-do_jump_if_equal (enum machine_mode mode, rtx op0, rtx op1, rtx label,
-		  int unsignedp)
+   DISPATCH_INDEX is the index expression to switch on.  It should be a
+   memory or register operand.
+   
+   DISPATCH_TABLE is a set of case labels.  The set should be sorted in
+   ascending order, be contiguous, starting with value 0, and contain only
+   single-valued case labels.  */
+
+void
+expand_sjlj_dispatch_table (rtx dispatch_index,
+			    vec<tree> dispatch_table)
 {
-  do_compare_rtx_and_jump (op0, op1, EQ, unsignedp, mode,
-			   NULL_RTX, NULL_RTX, label, -1);
-}
-
-/* Not all case values are encountered equally.  This function
-   uses a heuristic to weight case labels, in cases where that
-   looks like a reasonable thing to do.
+  tree index_type = integer_type_node;
+  enum machine_mode index_mode = TYPE_MODE (index_type);
 
-   Right now, all we try to guess is text, and we establish the
-   following weights:
+  int ncases = dispatch_table.length ();
 
-	chars above space:	16
-	digits:			16
-	default:		12
-	space, punct:		8
-	tab:			4
-	newline:		2
-	other "\" chars:	1
-	remaining chars:	0
+  do_pending_stack_adjust ();
+  rtx before_case = get_last_insn ();
 
-   If we find any cases in the switch that are not either -1 or in the range
-   of valid ASCII characters, or are control characters other than those
-   commonly used with "\", don't treat this switch scanning text.
-
-   Return 1 if these nodes are suitable for cost estimation, otherwise
-   return 0.  */
-
-static int
-estimate_case_costs (case_node_ptr node)
-{
-  tree min_ascii = integer_minus_one_node;
-  tree max_ascii = build_int_cst (TREE_TYPE (node->high), 127);
-  case_node_ptr n;
-  int i;
-
-  /* If we haven't already made the cost table, make it now.  Note that the
-     lower bound of the table is -1, not zero.  */
-
-  if (! cost_table_initialized)
+  /* Expand as a decrement-chain if there are 5 or fewer dispatch
+     labels.  This covers more than 98% of the cases in libjava,
+     and seems to be a reasonable compromise between the "old way"
+     of expanding as a decision tree or dispatch table vs. the "new
+     way" with decrement chain or dispatch table.  */
+  if (dispatch_table.length () <= 5
+      || (!HAVE_casesi && !HAVE_tablejump)
+      || !flag_jump_tables)
     {
-      cost_table_initialized = 1;
+      /* Expand the dispatch as a decrement chain:
 
-      for (i = 0; i < 128; i++)
+	 "switch(index) {case 0: do_0; case 1: do_1; ...; case N: do_N;}"
+
+	 ==>
+
+	 if (index == 0) do_0; else index--;
+	 if (index == 0) do_1; else index--;
+	 ...
+	 if (index == 0) do_N; else index--;
+
+	 This is more efficient than a dispatch table on most machines.
+	 The last "index--" is redundant but the code is trivially dead
+	 and will be cleaned up by later passes.  */
+      rtx index = copy_to_mode_reg (index_mode, dispatch_index);
+      rtx zero = CONST0_RTX (index_mode);
+      for (int i = 0; i < ncases; i++)
+        {
+	  tree elt = dispatch_table[i];
+	  rtx lab = label_rtx (CASE_LABEL (elt));
+	  do_jump_if_equal (index_mode, index, zero, lab, 0, -1);
+	  force_expand_binop (index_mode, sub_optab,
+			      index, CONST1_RTX (index_mode),
+			      index, 0, OPTAB_DIRECT);
+	}
+    }
+  else
+    {
+      /* Similar to expand_case, but much simpler.  */
+      struct case_node *case_list = 0;
+      alloc_pool case_node_pool = create_alloc_pool ("struct sjlj_case pool",
+						     sizeof (struct case_node),
+						     ncases);
+      tree index_expr = make_tree (index_type, dispatch_index);
+      tree minval = build_int_cst (index_type, 0);
+      tree maxval = CASE_LOW (dispatch_table.last ());
+      tree range = maxval;
+      rtx default_label = gen_label_rtx ();
+
+      for (int i = ncases - 1; i >= 0; --i)
 	{
-	  if (ISALNUM (i))
-	    COST_TABLE (i) = 16;
-	  else if (ISPUNCT (i))
-	    COST_TABLE (i) = 8;
-	  else if (ISCNTRL (i))
-	    COST_TABLE (i) = -1;
+	  tree elt = dispatch_table[i];
+	  tree low = CASE_LOW (elt);
+	  tree lab = CASE_LABEL (elt);
+	  case_list = add_case_node (case_list, low, low, lab, 0, case_node_pool);
 	}
 
-      COST_TABLE (' ') = 8;
-      COST_TABLE ('\t') = 4;
-      COST_TABLE ('\0') = 4;
-      COST_TABLE ('\n') = 2;
-      COST_TABLE ('\f') = 1;
-      COST_TABLE ('\v') = 1;
-      COST_TABLE ('\b') = 1;
+      emit_case_dispatch_table (index_expr, index_type,
+				case_list, default_label,
+				minval, maxval, range,
+                                BLOCK_FOR_INSN (before_case));
+      emit_label (default_label);
+      free_alloc_pool (case_node_pool);
     }
 
-  /* See if all the case expressions look like text.  It is text if the
-     constant is >= -1 and the highest constant is <= 127.  Do all comparisons
-     as signed arithmetic since we don't want to ever access cost_table with a
-     value less than -1.  Also check that none of the constants in a range
-     are strange control characters.  */
+  /* Dispatching something not handled?  Trap!  */
+  expand_builtin_trap ();
 
-  for (n = node; n; n = n->right)
-    {
-      if (tree_int_cst_lt (n->low, min_ascii)
-	  || tree_int_cst_lt (max_ascii, n->high))
-	return 0;
+  reorder_insns (NEXT_INSN (before_case), get_last_insn (), before_case);
 
-      for (i = (HOST_WIDE_INT) TREE_INT_CST_LOW (n->low);
-	   i <= (HOST_WIDE_INT) TREE_INT_CST_LOW (n->high); i++)
-	if (COST_TABLE (i) < 0)
-	  return 0;
-    }
-
-  /* All interesting values are within the range of interesting
-     ASCII characters.  */
-  return 1;
+  free_temp_slots ();
 }
 
+
 /* Take an ordered list of case nodes
    and transform them into a near optimal binary tree,
    on the assumption that any target code selection value is as
@@ -2593,7 +1405,6 @@ balance_case_nodes (case_node_ptr *head, case_node_ptr parent)
   np = *head;
   if (np)
     {
-      int cost = 0;
       int i = 0;
       int ranges = 0;
       case_node_ptr *npp;
@@ -2604,14 +1415,7 @@ balance_case_nodes (case_node_ptr *head, case_node_ptr parent)
       while (np)
 	{
 	  if (!tree_int_cst_equal (np->low, np->high))
-	    {
-	      ranges++;
-	      if (use_cost_table)
-		cost += COST_TABLE (TREE_INT_CST_LOW (np->high));
-	    }
-
-	  if (use_cost_table)
-	    cost += COST_TABLE (TREE_INT_CST_LOW (np->low));
+	    ranges++;
 
 	  i++;
 	  np = np->right;
@@ -2622,37 +1426,9 @@ balance_case_nodes (case_node_ptr *head, case_node_ptr parent)
 	  /* Split this list if it is long enough for that to help.  */
 	  npp = head;
 	  left = *npp;
-	  if (use_cost_table)
-	    {
-	      /* Find the place in the list that bisects the list's total cost,
-		 Here I gets half the total cost.  */
-	      int n_moved = 0;
-	      i = (cost + 1) / 2;
-	      while (1)
-		{
-		  /* Skip nodes while their cost does not reach that amount.  */
-		  if (!tree_int_cst_equal ((*npp)->low, (*npp)->high))
-		    i -= COST_TABLE (TREE_INT_CST_LOW ((*npp)->high));
-		  i -= COST_TABLE (TREE_INT_CST_LOW ((*npp)->low));
-		  if (i <= 0)
-		    break;
-		  npp = &(*npp)->right;
-		  n_moved += 1;
-		}
-	      if (n_moved == 0)
-		{
-		  /* Leave this branch lopsided, but optimize left-hand
-		     side and fill in `parent' fields for right-hand side.  */
-		  np = *head;
-		  np->parent = parent;
-		  balance_case_nodes (&np->left, np);
-		  for (; np->right; np = np->right)
-		    np->right->parent = np;
-		  return;
-		}
-	    }
+
 	  /* If there are just three nodes, split at the middle one.  */
-	  else if (i == 3)
+	  if (i == 3)
 	    npp = &(*npp)->right;
 	  else
 	    {
@@ -2679,6 +1455,9 @@ balance_case_nodes (case_node_ptr *head, case_node_ptr parent)
 	  /* Optimize each of the two split parts.  */
 	  balance_case_nodes (&np->left, np);
 	  balance_case_nodes (&np->right, np);
+          np->subtree_prob = np->prob;
+          np->subtree_prob += np->left->subtree_prob;
+          np->subtree_prob += np->right->subtree_prob;
 	}
       else
 	{
@@ -2686,8 +1465,12 @@ balance_case_nodes (case_node_ptr *head, case_node_ptr parent)
 	     but fill in `parent' fields.  */
 	  np = *head;
 	  np->parent = parent;
+          np->subtree_prob = np->prob;
 	  for (; np->right; np = np->right)
-	    np->right->parent = np;
+            {
+	      np->right->parent = np;
+              (*head)->subtree_prob += np->right->subtree_prob;
+            }
 	}
     }
 }
@@ -2800,6 +1583,7 @@ node_is_bounded (case_node_ptr node, tree index_type)
 	  && node_has_high_bound (node, index_type));
 }
 
+
 /* Emit step-by-step code to select a case for the value of INDEX.
    The thus generated decision tree follows the form of the
    case-node binary tree NODE, whose nodes represent test conditions.
@@ -2828,10 +1612,12 @@ node_is_bounded (case_node_ptr node, tree index_type)
 
 static void
 emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
-		 tree index_type)
+		 int default_prob, tree index_type)
 {
   /* If INDEX has an unsigned type, we must make unsigned branches.  */
   int unsignedp = TYPE_UNSIGNED (index_type);
+  int probability;
+  int prob = node->prob, subtree_prob = node->subtree_prob;
   enum machine_mode mode = GET_MODE (index);
   enum machine_mode imode = TYPE_MODE (index_type);
 
@@ -2846,15 +1632,17 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 
   else if (tree_int_cst_equal (node->low, node->high))
     {
+      probability = conditional_probability (prob, subtree_prob + default_prob);
       /* Node is single valued.  First see if the index expression matches
 	 this node and then check our children, if any.  */
-
       do_jump_if_equal (mode, index,
 			convert_modes (mode, imode,
 				       expand_normal (node->low),
 				       unsignedp),
-			label_rtx (node->code_label), unsignedp);
-
+			label_rtx (node->code_label), unsignedp, probability);
+      /* Since this case is taken at this point, reduce its weight from
+         subtree_weight.  */
+      subtree_prob -= prob;
       if (node->right != 0 && node->left != 0)
 	{
 	  /* This node has children on both sides.
@@ -2865,26 +1653,35 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 
 	  if (node_is_bounded (node->right, index_type))
 	    {
+              probability = conditional_probability (
+                  node->right->prob,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
 				       (mode, imode,
 					expand_normal (node->high),
 					unsignedp),
 				       GT, NULL_RTX, mode, unsignedp,
-				       label_rtx (node->right->code_label));
-	      emit_case_nodes (index, node->left, default_label, index_type);
+				       label_rtx (node->right->code_label),
+                                       probability);
+	      emit_case_nodes (index, node->left, default_label, default_prob,
+                               index_type);
 	    }
 
 	  else if (node_is_bounded (node->left, index_type))
 	    {
+              probability = conditional_probability (
+                  node->left->prob,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
 				       (mode, imode,
 					expand_normal (node->high),
 					unsignedp),
 				       LT, NULL_RTX, mode, unsignedp,
-				       label_rtx (node->left->code_label));
-	      emit_case_nodes (index, node->right, default_label, index_type);
+				       label_rtx (node->left->code_label),
+                                       probability);
+	      emit_case_nodes (index, node->right, default_label, default_prob, index_type);
 	    }
 
 	  /* If both children are single-valued cases with no
@@ -2902,21 +1699,27 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 
 	      /* See if the value matches what the right hand side
 		 wants.  */
+              probability = conditional_probability (
+                  node->right->prob,
+                  subtree_prob + default_prob);
 	      do_jump_if_equal (mode, index,
 				convert_modes (mode, imode,
 					       expand_normal (node->right->low),
 					       unsignedp),
 				label_rtx (node->right->code_label),
-				unsignedp);
+				unsignedp, probability);
 
 	      /* See if the value matches what the left hand side
 		 wants.  */
+              probability = conditional_probability (
+                  node->left->prob,
+                  subtree_prob + default_prob);
 	      do_jump_if_equal (mode, index,
 				convert_modes (mode, imode,
 					       expand_normal (node->left->low),
 					       unsignedp),
 				label_rtx (node->left->code_label),
-				unsignedp);
+				unsignedp, probability);
 	    }
 
 	  else
@@ -2925,9 +1728,15 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 		 then emit the code for one side at a time.  */
 
 	      tree test_label
-		= build_decl (CURR_INSN_LOCATION,
+		= build_decl (curr_insn_location (),
 			      LABEL_DECL, NULL_TREE, NULL_TREE);
 
+              /* The default label could be reached either through the right
+                 subtree or the left subtree. Divide the probability
+                 equally.  */
+              probability = conditional_probability (
+                  node->right->subtree_prob + default_prob/2,
+                  subtree_prob + default_prob);
 	      /* See if the value is on the right.  */
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
@@ -2935,11 +1744,13 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 					expand_normal (node->high),
 					unsignedp),
 				       GT, NULL_RTX, mode, unsignedp,
-				       label_rtx (test_label));
+				       label_rtx (test_label),
+                                       probability);
+              default_prob /= 2;
 
 	      /* Value must be on the left.
 		 Handle the left-hand subtree.  */
-	      emit_case_nodes (index, node->left, default_label, index_type);
+	      emit_case_nodes (index, node->left, default_label, default_prob, index_type);
 	      /* If left-hand subtree does nothing,
 		 go to default.  */
 	      if (default_label)
@@ -2947,7 +1758,7 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 
 	      /* Code branches here for the right-hand subtree.  */
 	      expand_label (test_label);
-	      emit_case_nodes (index, node->right, default_label, index_type);
+	      emit_case_nodes (index, node->right, default_label, default_prob, index_type);
 	    }
 	}
 
@@ -2965,28 +1776,38 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 	    {
 	      if (!node_has_low_bound (node, index_type))
 		{
+                  probability = conditional_probability (
+                      default_prob/2,
+                      subtree_prob + default_prob);
 		  emit_cmp_and_jump_insns (index,
 					   convert_modes
 					   (mode, imode,
 					    expand_normal (node->high),
 					    unsignedp),
 					   LT, NULL_RTX, mode, unsignedp,
-					   default_label);
+					   default_label,
+                                           probability);
+                  default_prob /= 2;
 		}
 
-	      emit_case_nodes (index, node->right, default_label, index_type);
+	      emit_case_nodes (index, node->right, default_label, default_prob, index_type);
 	    }
 	  else
-	    /* We cannot process node->right normally
-	       since we haven't ruled out the numbers less than
-	       this node's value.  So handle node->right explicitly.  */
-	    do_jump_if_equal (mode, index,
-			      convert_modes
-			      (mode, imode,
-			       expand_normal (node->right->low),
-			       unsignedp),
-			      label_rtx (node->right->code_label), unsignedp);
-	}
+            {
+              probability = conditional_probability (
+                  node->right->subtree_prob,
+                  subtree_prob + default_prob);
+	      /* We cannot process node->right normally
+	         since we haven't ruled out the numbers less than
+	         this node's value.  So handle node->right explicitly.  */
+	      do_jump_if_equal (mode, index,
+			        convert_modes
+			        (mode, imode,
+			         expand_normal (node->right->low),
+			         unsignedp),
+			        label_rtx (node->right->code_label), unsignedp, probability);
+            }
+	  }
 
       else if (node->right == 0 && node->left != 0)
 	{
@@ -2996,27 +1817,38 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 	    {
 	      if (!node_has_high_bound (node, index_type))
 		{
+                  probability = conditional_probability (
+                      default_prob/2,
+                      subtree_prob + default_prob);
 		  emit_cmp_and_jump_insns (index,
 					   convert_modes
 					   (mode, imode,
 					    expand_normal (node->high),
 					    unsignedp),
 					   GT, NULL_RTX, mode, unsignedp,
-					   default_label);
+					   default_label,
+                                           probability);
+                  default_prob /= 2;
 		}
 
-	      emit_case_nodes (index, node->left, default_label, index_type);
+	      emit_case_nodes (index, node->left, default_label,
+                               default_prob, index_type);
 	    }
 	  else
-	    /* We cannot process node->left normally
-	       since we haven't ruled out the numbers less than
-	       this node's value.  So handle node->left explicitly.  */
-	    do_jump_if_equal (mode, index,
-			      convert_modes
-			      (mode, imode,
-			       expand_normal (node->left->low),
-			       unsignedp),
-			      label_rtx (node->left->code_label), unsignedp);
+            {
+              probability = conditional_probability (
+                  node->left->subtree_prob,
+                  subtree_prob + default_prob);
+	      /* We cannot process node->left normally
+	         since we haven't ruled out the numbers less than
+	         this node's value.  So handle node->left explicitly.  */
+	      do_jump_if_equal (mode, index,
+			        convert_modes
+			        (mode, imode,
+			         expand_normal (node->left->low),
+			         unsignedp),
+			        label_rtx (node->left->code_label), unsignedp, probability);
+            }
 	}
     }
   else
@@ -3035,43 +1867,58 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 	  tree test_label = 0;
 
 	  if (node_is_bounded (node->right, index_type))
-	    /* Right hand node is fully bounded so we can eliminate any
-	       testing and branch directly to the target code.  */
-	    emit_cmp_and_jump_insns (index,
-				     convert_modes
-				     (mode, imode,
-				      expand_normal (node->high),
-				      unsignedp),
-				     GT, NULL_RTX, mode, unsignedp,
-				     label_rtx (node->right->code_label));
+            {
+	      /* Right hand node is fully bounded so we can eliminate any
+	         testing and branch directly to the target code.  */
+              probability = conditional_probability (
+                  node->right->subtree_prob,
+                  subtree_prob + default_prob);
+	      emit_cmp_and_jump_insns (index,
+				       convert_modes
+				       (mode, imode,
+				        expand_normal (node->high),
+				        unsignedp),
+				       GT, NULL_RTX, mode, unsignedp,
+				       label_rtx (node->right->code_label),
+                                       probability);
+            }
 	  else
 	    {
 	      /* Right hand node requires testing.
 		 Branch to a label where we will handle it later.  */
 
-	      test_label = build_decl (CURR_INSN_LOCATION,
+	      test_label = build_decl (curr_insn_location (),
 				       LABEL_DECL, NULL_TREE, NULL_TREE);
+              probability = conditional_probability (
+                  node->right->subtree_prob + default_prob/2,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
 				       (mode, imode,
 					expand_normal (node->high),
 					unsignedp),
 				       GT, NULL_RTX, mode, unsignedp,
-				       label_rtx (test_label));
+				       label_rtx (test_label),
+                                       probability);
+              default_prob /= 2;
 	    }
 
 	  /* Value belongs to this node or to the left-hand subtree.  */
 
+          probability = conditional_probability (
+              prob,
+              subtree_prob + default_prob);
 	  emit_cmp_and_jump_insns (index,
 				   convert_modes
 				   (mode, imode,
 				    expand_normal (node->low),
 				    unsignedp),
 				   GE, NULL_RTX, mode, unsignedp,
-				   label_rtx (node->code_label));
+				   label_rtx (node->code_label),
+                                   probability);
 
 	  /* Handle the left-hand subtree.  */
-	  emit_case_nodes (index, node->left, default_label, index_type);
+	  emit_case_nodes (index, node->left, default_label, default_prob, index_type);
 
 	  /* If right node had to be handled later, do that now.  */
 
@@ -3083,7 +1930,7 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 		emit_jump (default_label);
 
 	      expand_label (test_label);
-	      emit_case_nodes (index, node->right, default_label, index_type);
+	      emit_case_nodes (index, node->right, default_label, default_prob, index_type);
 	    }
 	}
 
@@ -3093,26 +1940,35 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 	     if they are possible.  */
 	  if (!node_has_low_bound (node, index_type))
 	    {
+              probability = conditional_probability (
+                  default_prob/2,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
 				       (mode, imode,
 					expand_normal (node->low),
 					unsignedp),
 				       LT, NULL_RTX, mode, unsignedp,
-				       default_label);
+				       default_label,
+                                       probability);
+              default_prob /= 2;
 	    }
 
 	  /* Value belongs to this node or to the right-hand subtree.  */
 
+          probability = conditional_probability (
+              prob,
+              subtree_prob + default_prob);
 	  emit_cmp_and_jump_insns (index,
 				   convert_modes
 				   (mode, imode,
 				    expand_normal (node->high),
 				    unsignedp),
 				   LE, NULL_RTX, mode, unsignedp,
-				   label_rtx (node->code_label));
+				   label_rtx (node->code_label),
+                                   probability);
 
-	  emit_case_nodes (index, node->right, default_label, index_type);
+	  emit_case_nodes (index, node->right, default_label, default_prob, index_type);
 	}
 
       else if (node->right == 0 && node->left != 0)
@@ -3121,26 +1977,35 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 	     if they are possible.  */
 	  if (!node_has_high_bound (node, index_type))
 	    {
+              probability = conditional_probability (
+                  default_prob/2,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
 				       (mode, imode,
 					expand_normal (node->high),
 					unsignedp),
 				       GT, NULL_RTX, mode, unsignedp,
-				       default_label);
+				       default_label,
+                                       probability);
+              default_prob /= 2;
 	    }
 
 	  /* Value belongs to this node or to the left-hand subtree.  */
 
+          probability = conditional_probability (
+              prob,
+              subtree_prob + default_prob);
 	  emit_cmp_and_jump_insns (index,
 				   convert_modes
 				   (mode, imode,
 				    expand_normal (node->low),
 				    unsignedp),
 				   GE, NULL_RTX, mode, unsignedp,
-				   label_rtx (node->code_label));
+				   label_rtx (node->code_label),
+                                   probability);
 
-	  emit_case_nodes (index, node->left, default_label, index_type);
+	  emit_case_nodes (index, node->left, default_label, default_prob, index_type);
 	}
 
       else
@@ -3153,24 +2018,32 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 
 	  if (!high_bound && low_bound)
 	    {
+              probability = conditional_probability (
+                  default_prob,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
 				       (mode, imode,
 					expand_normal (node->high),
 					unsignedp),
 				       GT, NULL_RTX, mode, unsignedp,
-				       default_label);
+				       default_label,
+                                       probability);
 	    }
 
 	  else if (!low_bound && high_bound)
 	    {
+              probability = conditional_probability (
+                  default_prob,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (index,
 				       convert_modes
 				       (mode, imode,
 					expand_normal (node->low),
 					unsignedp),
 				       LT, NULL_RTX, mode, unsignedp,
-				       default_label);
+				       default_label,
+                                       probability);
 	    }
 	  else if (!low_bound && !high_bound)
 	    {
@@ -3190,8 +2063,11 @@ emit_case_nodes (rtx index, case_node_ptr node, rtx default_label,
 						    high, low),
 				       NULL_RTX, mode, EXPAND_NORMAL);
 
+              probability = conditional_probability (
+                  default_prob,
+                  subtree_prob + default_prob);
 	      emit_cmp_and_jump_insns (new_index, new_bound, GT, NULL_RTX,
-				       mode, 1, default_label);
+				       mode, 1, default_label, probability);
 	    }
 
 	  emit_jump (label_rtx (node->code_label));

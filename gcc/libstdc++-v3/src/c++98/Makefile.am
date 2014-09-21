@@ -1,8 +1,6 @@
 ## Makefile for the C++03 sources of the GNU C++ Standard library.
 ##
-## Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-## 2006, 2007, 2008, 2009, 2010, 2011, 2012
-## Free Software Foundation, Inc.
+## Copyright (C) 1997-2014 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ## Process this file with automake to produce Makefile.in.
@@ -25,7 +23,7 @@
 include $(top_srcdir)/fragment.am
 
 # Convenience library for C++98 runtime.
-noinst_LTLIBRARIES = libc++98convenience.la
+noinst_LTLIBRARIES = libc++98convenience.la 
 
 headers =
 
@@ -74,7 +72,7 @@ atomicity.cc: ${atomicity_file}
 # particular host, but with ad hoc naming rules.
 host_sources_extra = \
 	basic_file.cc c++locale.cc \
-	${inst_sources} ${ldbl_compat_sources} ${parallel_sources}
+	${inst_sources} ${parallel_sources}
 
 c++locale.cc: ${glibcxx_srcdir}/$(CLOCALE_CC)
 	$(LN_S) ${glibcxx_srcdir}/$(CLOCALE_CC) ./$@ || true
@@ -82,22 +80,9 @@ c++locale.cc: ${glibcxx_srcdir}/$(CLOCALE_CC)
 basic_file.cc: ${glibcxx_srcdir}/$(BASIC_FILE_CC)
 	$(LN_S) ${glibcxx_srcdir}/$(BASIC_FILE_CC) ./$@ || true
 
-if ENABLE_PARALLEL
-parallel_sources = parallel_settings.cc \
-		   compatibility-parallel_list.cc \
-		   compatibility-parallel_list-2.cc
-else
-parallel_sources =
-endif
-
-if GLIBCXX_LDBL_COMPAT
-ldbl_compat_sources = compatibility-ldbl.cc
-else
-ldbl_compat_sources =
-endif
 
 if ENABLE_EXTERN_TEMPLATE
-XTEMPLATE_FLAGS = -fno-implicit-templates
+# XTEMPLATE_FLAGS = -fno-implicit-templates
 inst_sources = \
 	allocator-inst.cc \
 	concept-inst.cc \
@@ -112,9 +97,11 @@ inst_sources = \
 	streambuf-inst.cc \
 	wlocale-inst.cc
 else
-XTEMPLATE_FLAGS =
+# XTEMPLATE_FLAGS =
 inst_sources =
 endif
+
+parallel_sources = parallel_settings.cc
 
 # Sources present in the src directory, always present.
 sources = \
@@ -122,11 +109,6 @@ sources = \
 	pool_allocator.cc \
 	mt_allocator.cc \
 	codecvt.cc \
-	compatibility.cc \
-	compatibility-debug_list.cc \
-	compatibility-debug_list-2.cc \
-	compatibility-list.cc \
-	compatibility-list-2.cc \
 	complex_io.cc \
 	ctype.cc \
 	globals_io.cc \
@@ -137,6 +119,10 @@ sources = \
 	ios_init.cc \
 	ios_locale.cc \
 	list.cc \
+	list-aux.cc \
+	list-aux-2.cc \
+	list_associated.cc \
+	list_associated-2.cc \
 	locale.cc \
 	locale_init.cc \
 	locale_facets.cc \
@@ -153,7 +139,6 @@ sources = \
 	${host_sources_extra}
 
 vpath % $(top_srcdir)/src/c++98
-vpath % $(top_srcdir)
 
 libc__98convenience_la_SOURCES = $(sources)
 
@@ -174,30 +159,11 @@ concept-inst.o: concept-inst.cc
 	$(CXXCOMPILE) -D_GLIBCXX_CONCEPT_CHECKS -fimplicit-templates -c $<
 
 # Use special rules for parallel mode compilation.
-PARALLEL_FLAGS = -fopenmp -D_GLIBCXX_PARALLEL -I$(glibcxx_builddir)/../libgomp
+PARALLEL_FLAGS = -D_GLIBCXX_PARALLEL 
 parallel_settings.lo: parallel_settings.cc
 	$(LTCXXCOMPILE) $(PARALLEL_FLAGS) -c $<
 parallel_settings.o: parallel_settings.cc
 	$(CXXCOMPILE) $(PARALLEL_FLAGS) -c $<
-
-compatibility-parallel_list.lo: compatibility-parallel_list.cc
-	$(LTCXXCOMPILE) -c $<
-compatibility-parallel_list.o: compatibility-parallel_list.cc
-	$(CXXCOMPILE) -c $<
-
-compatibility-parallel_list-2.lo: compatibility-parallel_list-2.cc
-	$(LTCXXCOMPILE) -c $<
-compatibility-parallel_list-2.o: compatibility-parallel_list-2.cc
-	$(CXXCOMPILE) -c $<
-
-if GLIBCXX_LDBL_COMPAT
-# Use special rules for compatibility-ldbl.cc compilation, as we need to
-# pass -mlong-double-64.
-compatibility-ldbl.lo: compatibility-ldbl.cc
-	$(LTCXXCOMPILE) -mlong-double-64 -c $<
-compatibility-ldbl.o: compatibility-ldbl.cc
-	$(CXXCOMPILE) -mlong-double-64 -c $<
-endif
 
 # AM_CXXFLAGS needs to be in each subdirectory so that it can be
 # modified in a per-library or per-sub-library way.  Need to manually
@@ -205,22 +171,16 @@ endif
 # OPTIMIZE_CXXFLAGS on the compile line so that -O2 can be overridden
 # as the occasion calls for it.
 AM_CXXFLAGS = \
-	$(PIC_CXXFLAGS) \
-	$(XTEMPLATE_FLAGS) \
-	$(WARN_CXXFLAGS) \
-	$(OPTIMIZE_CXXFLAGS) \
-	$(CONFIG_CXXFLAGS)
+	$(glibcxx_lt_pic_flag) $(glibcxx_compiler_shared_flag) \
+	$(XTEMPLATE_FLAGS) $(VTV_CXXFLAGS) \
+	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS) $(CONFIG_CXXFLAGS)
 
 AM_MAKEFLAGS = \
 	"gxx_include_dir=$(gxx_include_dir)"
 
 # Libtool notes
 
-# 1) Need to explicitly set LTCXXCOMPILE so that AM_CXXFLAGS is
-# last. (That way, things like -O2 passed down from the toplevel can
-# be overridden by --enable-debug.)
-
-# 2) In general, libtool expects an argument such as `--tag=CXX' when
+# 1) In general, libtool expects an argument such as `--tag=CXX' when
 # using the C++ compiler, because that will enable the settings
 # detected when C++ support was being configured.  However, when no
 # such flag is given in the command line, libtool attempts to figure
@@ -232,11 +192,23 @@ AM_MAKEFLAGS = \
 # correct solution is to add `--tag CXX' to LTCXXCOMPILE and maybe
 # CXXLINK, just after $(LIBTOOL), so that libtool doesn't have to
 # attempt to infer which configuration to use.
-# We have to put --tag disable-shared after --tag CXX lest things
-# CXX undo the affect of disable-shared.
-LTCXXCOMPILE = $(LIBTOOL) --tag CXX --tag disable-shared $(LIBTOOLFLAGS) \
-	       --mode=compile $(CXX) $(TOPLEVEL_INCLUDES) \
-	       $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+# 
+# The second tag argument, `--tag disable-shared` means that libtool
+# only compiles each source once, for static objects. In actuality,
+# glibcxx_lt_pic_flag and glibcxx_compiler_shared_flag are added to
+# the libtool command that is used create the object, which is
+# suitable for shared libraries.  The `--tag disable-shared` must be
+# placed after --tag CXX lest things CXX undo the affect of
+# disable-shared.
+
+# 2) Need to explicitly set LTCXXCOMPILE so that EXTRA_CXX_FLAGS is
+# last. (That way, things like -O2 passed down from the toplevel can
+# be overridden by --enable-debug.)
+LTCXXCOMPILE = \
+	$(LIBTOOL) --tag CXX --tag disable-shared \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=compile $(CXX) $(TOPLEVEL_INCLUDES) \
+	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXX_FLAGS)
 
 LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
 
@@ -246,6 +218,9 @@ LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS))
 # course is problematic at this point.  So, we get the top-level
 # directory to configure libstdc++-v3 to use gcc as the C++
 # compilation driver.
-CXXLINK = $(LIBTOOL) --tag CXX --tag disable-shared $(LIBTOOLFLAGS) \
-	  --mode=link $(CXX) \
-	  $(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
+CXXLINK = \
+	$(LIBTOOL) --tag CXX --tag disable-shared \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CXX) \
+	$(VTV_CXXLINKFLAGS) \
+	$(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@

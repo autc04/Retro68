@@ -1,6 +1,5 @@
 /* General-purpose hooks.
-   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -117,6 +116,14 @@ hook_bool_mode_rtx_true (enum machine_mode mode ATTRIBUTE_UNUSED,
   return true;
 }
 
+/* Generic hook that takes (rtx, rtx) and returns true.  */
+bool
+hook_bool_const_rtx_const_rtx_true (const_rtx follower ATTRIBUTE_UNUSED,
+				    const_rtx followee ATTRIBUTE_UNUSED)
+{
+  return true;
+}
+
 /* Generic hook that takes (enum machine_mode, unsigned HOST_WIDE_INT)
    and returns false.  */
 bool
@@ -136,6 +143,14 @@ hook_void_FILEptr_constcharptr (FILE *a ATTRIBUTE_UNUSED, const char *b ATTRIBUT
 bool
 hook_bool_FILEptr_rtx_false (FILE *a ATTRIBUTE_UNUSED,
 			     rtx b ATTRIBUTE_UNUSED)
+{
+  return false;
+}
+
+/* Generic hook that takes (gimple_stmt_iterator *) and returns
+   false.  */
+bool
+hook_bool_gsiptr_false (gimple_stmt_iterator *a ATTRIBUTE_UNUSED)
 {
   return false;
 }
@@ -195,7 +210,25 @@ hook_int_rtx_0 (rtx a ATTRIBUTE_UNUSED)
 }
 
 int
+hook_int_rtx_1 (rtx)
+{
+  return 1;
+}
+
+int
+hook_int_rtx_unreachable (rtx)
+{
+  gcc_unreachable ();
+}
+
+int
 hook_int_rtx_bool_0 (rtx a ATTRIBUTE_UNUSED, bool b ATTRIBUTE_UNUSED)
+{
+  return 0;
+}
+
+int
+hook_int_rtx_mode_as_bool_0 (rtx, enum machine_mode, addr_space_t, bool)
 {
   return 0;
 }
@@ -269,6 +302,12 @@ hook_bool_tree_bool_false (tree a ATTRIBUTE_UNUSED, bool b ATTRIBUTE_UNUSED)
 }
 
 bool
+hook_bool_rtx_true (rtx a ATTRIBUTE_UNUSED)
+{
+  return true;
+}
+
+bool
 hook_bool_rtx_false (rtx a ATTRIBUTE_UNUSED)
 {
   return false;
@@ -292,6 +331,12 @@ hook_bool_rtx_int_int_int_intp_bool_false (rtx a ATTRIBUTE_UNUSED,
   return false;
 }
 
+bool
+hook_bool_dint_dint_uint_bool_true (double_int, double_int, unsigned int, bool)
+{
+  return true;
+}
+
 /* Generic hook that takes an rtx and returns it.  */
 rtx
 hook_rtx_rtx_identity (rtx x)
@@ -313,12 +358,26 @@ hook_rtx_tree_int_null (tree a ATTRIBUTE_UNUSED, int b ATTRIBUTE_UNUSED)
   return NULL;
 }
 
+/* Generic hook that takes a machine mode and returns an unsigned int 0.  */
+unsigned int
+hook_uint_mode_0 (enum machine_mode m ATTRIBUTE_UNUSED)
+{
+  return 0;
+}
+
 /* Generic hook that takes three trees and returns the last one as is.  */
 tree
 hook_tree_tree_tree_tree_3rd_identity (tree a ATTRIBUTE_UNUSED,
 				       tree b ATTRIBUTE_UNUSED, tree c)
 {
   return c;
+}
+
+/* Generic hook that takes no arguments and returns a NULL string.  */
+const char *
+hook_constcharptr_void_null (void)
+{
+  return NULL;
 }
 
 /* Generic hook that takes a tree and returns a NULL string.  */

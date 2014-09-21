@@ -24,14 +24,21 @@ func chkStat(file string) error {
 	return nil
 }
 
+func hasExt(file string) bool {
+	i := strings.LastIndex(file, ".")
+	if i < 0 {
+		return false
+	}
+	return strings.LastIndexAny(file, `:\/`) < i
+}
+
 func findExecutable(file string, exts []string) (string, error) {
 	if len(exts) == 0 {
 		return file, chkStat(file)
 	}
-	f := strings.ToLower(file)
-	for _, e := range exts {
-		if strings.HasSuffix(f, e) {
-			return file, chkStat(file)
+	if hasExt(file) {
+		if chkStat(file) == nil {
+			return file, nil
 		}
 	}
 	for _, e := range exts {
@@ -47,6 +54,7 @@ func findExecutable(file string, exts []string) (string, error) {
 // If file contains a slash, it is tried directly and the PATH is not consulted.
 // LookPath also uses PATHEXT environment variable to match
 // a suitable candidate.
+// The result may be an absolute path or a path relative to the current directory.
 func LookPath(file string) (f string, err error) {
 	x := os.Getenv(`PATHEXT`)
 	if x == `` {
@@ -72,11 +80,44 @@ func LookPath(file string) (f string, err error) {
 		return
 	}
 	if pathenv := os.Getenv(`PATH`); pathenv != `` {
-		for _, dir := range strings.Split(pathenv, `;`) {
+		for _, dir := range splitList(pathenv) {
 			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
 				return
 			}
 		}
 	}
 	return ``, &Error{file, ErrNotFound}
+}
+
+func splitList(path string) []string {
+	// The same implementation is used in SplitList in path/filepath;
+	// consider changing path/filepath when changing this.
+
+	if path == "" {
+		return []string{}
+	}
+
+	// Split path, respecting but preserving quotes.
+	list := []string{}
+	start := 0
+	quo := false
+	for i := 0; i < len(path); i++ {
+		switch c := path[i]; {
+		case c == '"':
+			quo = !quo
+		case c == os.PathListSeparator && !quo:
+			list = append(list, path[start:i])
+			start = i + 1
+		}
+	}
+	list = append(list, path[start:])
+
+	// Remove quotes.
+	for i, s := range list {
+		if strings.Contains(s, `"`) {
+			list[i] = strings.Replace(s, `"`, ``, -1)
+		}
+	}
+
+	return list
 }

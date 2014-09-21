@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 //This error is diagnosed at instantiation time
 template<typename T> struct S1

@@ -1,6 +1,5 @@
 /* { dg-do compile } */ 
 /* { dg-options "-O2 -fdump-tree-dom1-details" } */
-/* { dg-additional-options "-mbranch-cost=2" { target s390*-*-* } } */
 struct bitmap_head_def;
 typedef struct bitmap_head_def *bitmap;
 typedef const struct bitmap_head_def *const_bitmap;
@@ -59,9 +58,23 @@ bitmap_ior_and_compl (bitmap dst, const_bitmap a, const_bitmap b,
    code we missed the edge when the first conditional is false
    (b_elt is zero, which means the second conditional is always
    zero.  */
-/* { dg-final { scan-tree-dump-times "Threaded" 3 "dom1" { target { ! mips*-*-* } } } } */
-/* MIPS defines LOGICAL_OP_NON_SHORT_CIRCUIT to 0, so we split var1 || var2
-   into two conditions, rather than use (var1 != 0) | (var2 != 0).  */
-/* { dg-final { scan-tree-dump-times "Threaded" 4 "dom1" { target mips*-*-* } } } */
+/* { dg-final { scan-tree-dump-times "Threaded" 3 "dom1" { target { ! logical_op_short_circuit } } } } */
+/* On targets that define LOGICAL_OP_NON_SHORT_CIRCUIT to 0, we split both
+   "a_elt || b_elt" and "b_elt && kill_elt" into two conditions each,
+   rather than using "(var1 != 0) op (var2 != 0)".  Also, as on other targets,
+   we duplicate the header of the inner "while" loop.  There are then
+   4 threading opportunities:
+
+   1x "!a_elt && b_elt" in the outer "while" loop
+      -> the start of the inner "while" loop,
+	 skipping the known-true "b_elt" in the first condition.
+   1x "!b_elt" in the first condition
+      -> the outer "while" loop's continuation point,
+	 skipping the known-false "b_elt" in the second condition.
+   2x "kill_elt->indx >= b_elt->indx" in the first "while" loop
+      -> "kill_elt->indx == b_elt->indx" in the second condition,
+	 skipping the known-true "b_elt && kill_elt" in the second
+	 condition.  */
+/* { dg-final { scan-tree-dump-times "Threaded" 4 "dom1" { target logical_op_short_circuit xfail logical_op_short_circuit } } } */
 /* { dg-final { cleanup-tree-dump "dom1" } } */
 

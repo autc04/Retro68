@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,6 +33,7 @@ package Sem_Ch13 is
    procedure Analyze_Enumeration_Representation_Clause  (N : Node_Id);
    procedure Analyze_Free_Statement                     (N : Node_Id);
    procedure Analyze_Freeze_Entity                      (N : Node_Id);
+   procedure Analyze_Freeze_Generic_Entity              (N : Node_Id);
    procedure Analyze_Record_Representation_Clause       (N : Node_Id);
    procedure Analyze_Code_Statement                     (N : Node_Id);
 
@@ -45,6 +46,14 @@ package Sem_Ch13 is
    --  Called from Freeze where R is a record entity for which reverse bit
    --  order is specified and there is at least one component clause. Adjusts
    --  component positions according to either Ada 95 or Ada 2005 (AI-133).
+
+   function Build_Invariant_Procedure_Declaration
+     (Typ : Entity_Id) return Node_Id;
+   --  If a type declaration has a specified invariant aspect, build the
+   --  declaration for the procedure at once, so that calls to it can be
+   --  generated before the body of the invariant procedure is built. This
+   --  is needed in the presence of public expression functions that return
+   --  the type in question.
 
    procedure Build_Invariant_Procedure (Typ : Entity_Id; N : Node_Id);
    --  Typ is a private type with invariants (indicated by Has_Invariants being
@@ -124,46 +133,45 @@ package Sem_Ch13 is
    --  Esize and RM_Size are reset to the allowed minimum value in T.
 
    function Rep_Item_Too_Early (T : Entity_Id; N : Node_Id) return Boolean;
-   --  Called at the start of processing a representation clause or a
-   --  representation pragma. Used to check that the representation item
-   --  is not being applied to an incomplete type or to a generic formal
-   --  type or a type derived from a generic formal type. Returns False if
-   --  no such error occurs. If this error does occur, appropriate error
-   --  messages are posted on node N, and True is returned.
+   --  Called at start of processing a representation clause/pragma. Used to
+   --  check that the representation item is not being applied to an incomplete
+   --  type or to a generic formal type or a type derived from a generic formal
+   --  type. Returns False if no such error occurs. If this error does occur,
+   --  appropriate error messages are posted on node N, and True is returned.
 
    function Rep_Item_Too_Late
      (T     : Entity_Id;
       N     : Node_Id;
       FOnly : Boolean := False) return Boolean;
    --  Called at the start of processing a representation clause or a
-   --  representation pragma. Used to check that a representation item
-   --  for entity T does not appear too late (according to the rules in
-   --  RM 13.1(9) and RM 13.1(10)). N is the associated node, which in
-   --  the pragma case is the pragma or representation clause itself, used
-   --  for placing error messages if the item is too late.
+   --  representation pragma. Used to check that a representation item for
+   --  entity T does not appear too late (according to the rules in RM 13.1(9)
+   --  and RM 13.1(10)). N is the associated node, which in the pragma case
+   --  is the pragma or representation clause itself, used for placing error
+   --  messages if the item is too late.
    --
    --  Fonly is a flag that causes only the freezing rule (para 9) to be
-   --  applied, and the tests of para 10 are skipped. This is appropriate
-   --  for both subtype related attributes (Alignment and Size) and for
-   --  stream attributes, which, although certainly not subtype related
-   --  attributes, clearly should not be subject to the para 10 restrictions
-   --  (see AI95-00137). Similarly, we also skip the para 10 restrictions for
+   --  applied, and the tests of para 10 are skipped. This is appropriate for
+   --  both subtype related attributes (Alignment and Size) and for stream
+   --  attributes, which, although certainly not subtype related attributes,
+   --  clearly should not be subject to the para 10 restrictions (see
+   --  AI95-00137). Similarly, we also skip the para 10 restrictions for
    --  the Storage_Size case where they also clearly do not apply, and for
    --  Stream_Convert which is in the same category as the stream attributes.
    --
-   --  If the rep item is too late, an appropriate message is output and
-   --  True is returned, which is a signal that the caller should abandon
-   --  processing for the item. If the item is not too late, then False
-   --  is returned, and the caller can continue processing the item.
+   --  If the rep item is too late, an appropriate message is output and True
+   --  is returned, which is a signal that the caller should abandon processing
+   --  for the item. If the item is not too late, then False is returned, and
+   --  the caller can continue processing the item.
    --
    --  If no error is detected, this call also as a side effect links the
    --  representation item onto the head of the representation item chain
    --  (referenced by the First_Rep_Item field of the entity).
    --
-   --  Note: Rep_Item_Too_Late must be called with the underlying type in
-   --  the case of a private or incomplete type. The protocol is to first
-   --  check for Rep_Item_Too_Early using the initial entity, then take the
-   --  underlying type, then call Rep_Item_Too_Late on the result.
+   --  Note: Rep_Item_Too_Late must be called with the underlying type in the
+   --  case of a private or incomplete type. The protocol is to first check for
+   --  Rep_Item_Too_Early using the initial entity, then take the underlying
+   --  type, then call Rep_Item_Too_Late on the result.
    --
    --  Note: Calls to Rep_Item_Too_Late are ignored for the case of attribute
    --  definition clauses which have From_Aspect_Specification set. This is
@@ -237,7 +245,7 @@ package Sem_Ch13 is
    --  The visibility of aspects is tricky. First, the visibility is delayed
    --  to the freeze point. This is not too complicated, what we do is simply
    --  to leave the aspect "laying in wait" for the freeze point, and at that
-   --  point materialize and analye the corresponding attribute definition
+   --  point materialize and analyze the corresponding attribute definition
    --  clause or pragma. There is some special processing for preconditions
    --  and postonditions, where the pragmas themselves deal with the required
    --  delay, but basically the approach is the same, delay analysis of the
@@ -297,7 +305,12 @@ package Sem_Ch13 is
    --  in these two expressions are the same, by seeing if the two expressions
    --  are fully conformant, and if not, issue appropriate error messages.
 
-   --  Quite an awkward procedure, but this is an awkard requirement!
+   --  Quite an awkward approach, but this is an awkard requirement
+
+   procedure Analyze_Aspects_At_Freeze_Point (E : Entity_Id);
+   --  Analyze all the delayed aspects for entity E at freezing point. This
+   --  includes dealing with inheriting delayed aspects from the parent type
+   --  in the case where a derived type is frozen.
 
    procedure Check_Aspect_At_Freeze_Point (ASN : Node_Id);
    --  Performs the processing described above at the freeze point, ASN is the
@@ -307,4 +320,15 @@ package Sem_Ch13 is
    --  Performs the processing described above at the freeze all point, and
    --  issues appropriate error messages if the visibility has indeed changed.
    --  Again, ASN is the N_Aspect_Specification node for the aspect.
+
+   procedure Inherit_Aspects_At_Freeze_Point (Typ : Entity_Id);
+   --  Given an entity Typ that denotes a derived type or a subtype, this
+   --  routine performs the inheritance of aspects at the freeze point.
+
+   procedure Validate_Iterable_Aspect (Typ : Entity_Id; ASN : Node_Id);
+   --  For SPARK 2014 formal containers. The expression has the form of an
+   --  aggregate, and each entry must denote a function with the proper syntax
+   --  for First, Next, and Has_Element. Optionally an Element primitive may
+   --  also be defined.
+
 end Sem_Ch13;

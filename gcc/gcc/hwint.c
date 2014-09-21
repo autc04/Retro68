@@ -1,7 +1,5 @@
 /* Operations on HOST_WIDE_INT.
-   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -25,10 +23,11 @@ along with GCC; see the file COPYING3.  If not see
 
 #if GCC_VERSION < 3004
 
-/* The functions clz_hwi, ctz_hwi, ffs_hwi, floor_log2 and exact_log2
-   are defined as inline functions in hwint.h if GCC_VERSION >= 3004.
-   The definitions here are used for older versions of GCC and non-GCC
-   bootstrap compilers.  */
+/* The functions clz_hwi, ctz_hwi, ffs_hwi, floor_log2, ceil_log2,
+   and exact_log2 are defined as inline functions in hwint.h
+   if GCC_VERSION >= 3004.
+   The definitions here are used for older versions of GCC and
+   non-GCC bootstrap compilers.  */
 
 /* Given X, an unsigned number, return the largest int Y such that 2**Y <= X.
    If X is 0, return -1.  */
@@ -61,6 +60,14 @@ floor_log2 (unsigned HOST_WIDE_INT x)
   return t;
 }
 
+/* Given X, an unsigned number, return the largest Y such that 2**Y >= X.  */
+
+int
+ceil_log2 (unsigned HOST_WIDE_INT x)
+{
+  return floor_log2 (x - 1) + 1;
+}
+
 /* Return the logarithm of X, base 2, considering X unsigned,
    if X is a power of 2.  Otherwise, returns -1.  */
 
@@ -86,7 +93,7 @@ ctz_hwi (unsigned HOST_WIDE_INT x)
 int
 clz_hwi (unsigned HOST_WIDE_INT x)
 {
-  return HOST_BITS_PER_WIDE_INT - 1 - floor_log2(x);
+  return HOST_BITS_PER_WIDE_INT - 1 - floor_log2 (x);
 }
 
 /* Similar to ctz_hwi, except that the least significant bit is numbered
@@ -96,6 +103,23 @@ int
 ffs_hwi (unsigned HOST_WIDE_INT x)
 {
   return 1 + floor_log2 (x & -x);
+}
+
+/* Return the number of set bits in X.  */
+
+int
+popcount_hwi (unsigned HOST_WIDE_INT x)
+{
+  int i, ret = 0;
+  size_t bits = sizeof (x) * CHAR_BIT;
+
+  for (i = 0; i < bits; i += 1)
+    {
+      ret += x & 1;
+      x >>= 1;
+    }
+
+  return ret;
 }
 
 #endif /* GCC_VERSION < 3004 */

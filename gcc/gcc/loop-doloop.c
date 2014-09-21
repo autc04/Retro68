@@ -1,6 +1,5 @@
 /* Perform doloop optimizations
-   Copyright (C) 2004, 2005, 2006, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
    Based on code by Michael P. Hayes (m.hayes@elec.canterbury.ac.nz)
 
 This file is part of GCC.
@@ -31,9 +30,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic-core.h"
 #include "tm_p.h"
 #include "cfgloop.h"
-#include "output.h"
 #include "params.h"
 #include "target.h"
+#include "dumpfile.h"
 
 /* This module is used to modify loops with a determinable number of
    iterations to use special low-overhead looping instructions.
@@ -382,7 +381,7 @@ add_test (rtx cond, edge *e, basic_block dest)
   JUMP_LABEL (jump) = label;
 
   /* The jump is supposed to handle an unlikely special case.  */
-  add_reg_note (jump, REG_BR_PROB, const0_rtx);
+  add_int_reg_note (jump, REG_BR_PROB, 0);
 
   LABEL_NUSES (label)++;
 
@@ -410,6 +409,7 @@ doloop_modify (struct loop *loop, struct niter_desc *desc,
   basic_block loop_end = desc->out_edge->src;
   enum machine_mode mode;
   rtx true_prob_val;
+  double_int iterations;
 
   jump_insn = BB_END (loop_end);
 
@@ -460,9 +460,10 @@ doloop_modify (struct loop *loop, struct niter_desc *desc,
 
       /* Determine if the iteration counter will be non-negative.
 	 Note that the maximum value loaded is iterations_max - 1.  */
-      if (desc->niter_max
-	  <= ((unsigned HOST_WIDEST_INT) 1
-	      << (GET_MODE_PRECISION (mode) - 1)))
+      if (get_max_loop_iterations (loop, &iterations)
+	  && (iterations.ule (double_int_one.llshift
+			       (GET_MODE_PRECISION (mode) - 1,
+				GET_MODE_PRECISION (mode)))))
 	nonneg = 1;
       break;
 
@@ -547,11 +548,8 @@ doloop_modify (struct loop *loop, struct niter_desc *desc,
 #ifdef HAVE_doloop_begin
   {
     rtx init;
-    unsigned level = get_loop_level (loop) + 1;
-    init = gen_doloop_begin (counter_reg,
-			     desc->const_iter ? desc->niter_expr : const0_rtx,
-			     GEN_INT (desc->niter_max),
-			     GEN_INT (level));
+
+    init = gen_doloop_begin (counter_reg, doloop_seq);
     if (init)
       {
 	start_sequence ();
@@ -584,8 +582,7 @@ doloop_modify (struct loop *loop, struct niter_desc *desc,
   if (true_prob_val)
     {
       /* Seems safer to use the branch probability.  */
-      add_reg_note (jump_insn, REG_BR_PROB,
-		    GEN_INT (desc->in_edge->probability));
+      add_int_reg_note (jump_insn, REG_BR_PROB, desc->in_edge->probability);
     }
 }
 
@@ -599,8 +596,8 @@ doloop_optimize (struct loop *loop)
 {
   enum machine_mode mode;
   rtx doloop_seq, doloop_pat, doloop_reg;
-  rtx iterations, count;
-  rtx iterations_max;
+  rtx count;
+  double_int iterations, iterations_max;
   rtx start_label;
   rtx condition;
   unsigned level, est_niter;
@@ -608,6 +605,7 @@ doloop_optimize (struct loop *loop)
   struct niter_desc *desc;
   unsigned word_mode_size;
   unsigned HOST_WIDE_INT word_mode_max;
+  int entered_at_top;
 
   if (dump_file)
     fprintf (dump_file, "Doloop: Processing loop %d.\n", loop->num);
@@ -656,18 +654,30 @@ doloop_optimize (struct loop *loop)
       return false;
     }
 
-  count = copy_rtx (desc->niter_expr);
-  iterations = desc->const_iter ? desc->niter_expr : const0_rtx;
-  iterations_max = GEN_INT (desc->niter_max);
+  if (desc->const_iter)
+    iterations = rtx_to_double_int (desc->niter_expr);
+  else
+    iterations = double_int_zero;
+  if (!get_max_loop_iterations (loop, &iterations_max))
+    iterations_max = double_int_zero;
   level = get_loop_level (loop) + 1;
+  entered_at_top = (loop->latch == desc->in_edge->dest
+		    && contains_no_active_insn_p (loop->latch));
+  if (!targetm.can_use_doloop_p (iterations, iterations_max, level,
+				 entered_at_top))
+    {
+      if (dump_file)
+	fprintf (dump_file, "Loop rejected by can_use_doloop_p.\n");
+      return false;
+    }
 
   /* Generate looping insn.  If the pattern FAILs then give up trying
      to modify the loop since there is some aspect the back-end does
      not like.  */
+  count = copy_rtx (desc->niter_expr);
   start_label = block_label (desc->in_edge->dest);
   doloop_reg = gen_reg_rtx (mode);
-  doloop_seq = gen_doloop_end (doloop_reg, iterations, iterations_max,
-			       GEN_INT (level), start_label);
+  doloop_seq = gen_doloop_end (doloop_reg, start_label);
 
   word_mode_size = GET_MODE_PRECISION (word_mode);
   word_mode_max
@@ -678,26 +688,14 @@ doloop_optimize (struct loop *loop)
 	 computed, we must be sure that the number of iterations fits into
 	 the new mode.  */
       && (word_mode_size >= GET_MODE_PRECISION (mode)
-	  || desc->niter_max <= word_mode_max))
+	  || iterations_max.ule (double_int::from_shwi (word_mode_max))))
     {
       if (word_mode_size > GET_MODE_PRECISION (mode))
-	{
-	  count = simplify_gen_unary (ZERO_EXTEND, word_mode,
-				      count, mode);
-	  iterations = simplify_gen_unary (ZERO_EXTEND, word_mode,
-					   iterations, mode);
-	  iterations_max = simplify_gen_unary (ZERO_EXTEND, word_mode,
-					       iterations_max, mode);
-	}
+	count = simplify_gen_unary (ZERO_EXTEND, word_mode, count, mode);
       else
-	{
-	  count = lowpart_subreg (word_mode, count, mode);
-	  iterations = lowpart_subreg (word_mode, iterations, mode);
-	  iterations_max = lowpart_subreg (word_mode, iterations_max, mode);
-	}
+	count = lowpart_subreg (word_mode, count, mode);
       PUT_MODE (doloop_reg, word_mode);
-      doloop_seq = gen_doloop_end (doloop_reg, iterations, iterations_max,
-				   GEN_INT (level), start_label);
+      doloop_seq = gen_doloop_end (doloop_reg, start_label);
     }
   if (! doloop_seq)
     {
@@ -736,10 +734,9 @@ doloop_optimize (struct loop *loop)
 void
 doloop_optimize_loops (void)
 {
-  loop_iterator li;
   struct loop *loop;
 
-  FOR_EACH_LOOP (li, loop, 0)
+  FOR_EACH_LOOP (loop, 0)
     {
       doloop_optimize (loop);
     }
@@ -747,7 +744,6 @@ doloop_optimize_loops (void)
   iv_analysis_done ();
 
 #ifdef ENABLE_CHECKING
-  verify_dominators (CDI_DOMINATORS);
   verify_loop_structure ();
 #endif
 }

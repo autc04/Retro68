@@ -1,10 +1,36 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
 
-2012-02-24  Dave Korn  <dave.korn.cygwin@gmail.com>
+2014-04-22  Release Manager
 
-	* Makefile.in (bindir): Import from autoconf and pass down to submake.
+	* GCC 4.9.0 released.
+
+2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years
+
+2013-11-15  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* configure: Regenerate.
+
+2013-03-27  Kai Tietz  <ktietz@redhat.com>
+
+	* configure: Regenerated.
+
+2013-02-13  Kai Tietz  <ktietz@redhat.com>
+
+	PR target/52122
+	* Makefile.in (LN_S_RECURSIVE): New.
+	(adainclude, adalib): Use LN_S_RECURSIVE for copy.
+
+2013-01-14  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years.
+
+2012-06-11  Olivier Hainque  <hainque@adacore.com>
+
+	* Makefile.in (GNATLIBCFLAGS_FOR_C): Remove $(PICFLAG).
 
 2012-01-22  Douglas B Rupp  <rupp@gnat.com>
 
@@ -101,7 +127,7 @@
 
 2008-09-21  Laurent Guerby  <laurent@guerby.net>
             Paolo Bonzini  <bonzini@gnu.org>
-	
+
 	PR ada/5911
 	* Makefile.in (all, install, mostlyclean, clean, distclean): Add
 	multilib handling.
@@ -109,7 +135,7 @@
 	* configure: Regenerate.
 
 2008-08-29  Laurent Guerby  <laurent@guerby.net>
-	
+
 	* Makefile.in (FLAGS_TO_PASS): renamed to LIBADA_FLAGS_TO_PASS to
 	avoid conflicts. Factor more flags to pass.
 	(libsubdir): New variable.
@@ -118,7 +144,7 @@
 2008-08-28  Laurent Guerby  <laurent@guerby.net>
 
 	* configure: Regenerate.
-	
+
 2008-08-06  Thomas Quinot  <quinot@adacore.com>
 
 	* Makefile.in: generate s-oscons.ads again, previous change was
@@ -314,7 +340,7 @@
 
 	* New directory, new ChangeLog.
 
-Copyright 2003, 2004 Free Software Foundation, Inc.
+Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
 This ChangeLog is free software; the Free Software Foundation gives
 unlimited permission to copy, distribute, and modify it.

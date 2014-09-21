@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
+	"net/textproto"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,7 +28,8 @@ import (
 type Dir string
 
 func (d Dir) Open(name string) (File, error) {
-	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 {
+	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 ||
+		strings.Contains(name, "\x00") {
 		return nil, errors.New("http: invalid character in file path")
 	}
 	dir := string(d)
@@ -97,40 +100,57 @@ func dirList(w ResponseWriter, f File) {
 // The content's Seek method must work: ServeContent uses
 // a seek to the end of the content to determine its size.
 //
+// If the caller has set w's ETag header, ServeContent uses it to
+// handle requests using If-Range and If-None-Match.
+//
 // Note that *os.File implements the io.ReadSeeker interface.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
-	size, err := content.Seek(0, os.SEEK_END)
-	if err != nil {
-		Error(w, "seeker can't seek", StatusInternalServerError)
-		return
+	sizeFunc := func() (int64, error) {
+		size, err := content.Seek(0, os.SEEK_END)
+		if err != nil {
+			return 0, errSeeker
+		}
+		_, err = content.Seek(0, os.SEEK_SET)
+		if err != nil {
+			return 0, errSeeker
+		}
+		return size, nil
 	}
-	_, err = content.Seek(0, os.SEEK_SET)
-	if err != nil {
-		Error(w, "seeker can't seek", StatusInternalServerError)
-		return
-	}
-	serveContent(w, req, name, modtime, size, content)
+	serveContent(w, req, name, modtime, sizeFunc, content)
 }
+
+// errSeeker is returned by ServeContent's sizeFunc when the content
+// doesn't seek properly. The underlying Seeker's error text isn't
+// included in the sizeFunc reply so it's not sent over HTTP to end
+// users.
+var errSeeker = errors.New("seeker can't seek")
 
 // if name is empty, filename is unknown. (used for mime type, before sniffing)
 // if modtime.IsZero(), modtime is unknown.
 // content must be seeked to the beginning of the file.
-func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, size int64, content io.ReadSeeker) {
+// The sizeFunc is called at most once. Its error, if any, is sent in the HTTP response.
+func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, sizeFunc func() (int64, error), content io.ReadSeeker) {
 	if checkLastModified(w, r, modtime) {
+		return
+	}
+	rangeReq, done := checkETag(w, r)
+	if done {
 		return
 	}
 
 	code := StatusOK
 
-	// If Content-Type isn't set, use the file's extension to find it.
-	if w.Header().Get("Content-Type") == "" {
-		ctype := mime.TypeByExtension(filepath.Ext(name))
+	// If Content-Type isn't set, use the file's extension to find it, but
+	// if the Content-Type is unset explicitly, do not sniff the type.
+	ctypes, haveType := w.Header()["Content-Type"]
+	var ctype string
+	if !haveType {
+		ctype = mime.TypeByExtension(filepath.Ext(name))
 		if ctype == "" {
 			// read a chunk to decide between utf-8 text and binary
-			var buf [1024]byte
+			var buf [sniffLen]byte
 			n, _ := io.ReadFull(content, buf[:])
-			b := buf[:n]
-			ctype = DetectContentType(b)
+			ctype = DetectContentType(buf[:n])
 			_, err := content.Seek(0, os.SEEK_SET) // rewind to output whole file
 			if err != nil {
 				Error(w, "seeker can't seek", StatusInternalServerError)
@@ -138,21 +158,45 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			}
 		}
 		w.Header().Set("Content-Type", ctype)
+	} else if len(ctypes) > 0 {
+		ctype = ctypes[0]
+	}
+
+	size, err := sizeFunc()
+	if err != nil {
+		Error(w, err.Error(), StatusInternalServerError)
+		return
 	}
 
 	// handle Content-Range header.
-	// TODO(adg): handle multiple ranges
 	sendSize := size
+	var sendContent io.Reader = content
 	if size >= 0 {
-		ranges, err := parseRange(r.Header.Get("Range"), size)
-		if err == nil && len(ranges) > 1 {
-			err = errors.New("multiple ranges not supported")
-		}
+		ranges, err := parseRange(rangeReq, size)
 		if err != nil {
 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 			return
 		}
-		if len(ranges) == 1 {
+		if sumRangesSize(ranges) > size {
+			// The total number of bytes in all the ranges
+			// is larger than the size of the file by
+			// itself, so this is probably an attack, or a
+			// dumb client.  Ignore the range request.
+			ranges = nil
+		}
+		switch {
+		case len(ranges) == 1:
+			// RFC 2616, Section 14.16:
+			// "When an HTTP message includes the content of a single
+			// range (for example, a response to a request for a
+			// single range, or to a request for a set of ranges
+			// that overlap without any holes), this content is
+			// transmitted with a Content-Range header, and a
+			// Content-Length header showing the number of bytes
+			// actually transferred.
+			// ...
+			// A response to a request for a single range MUST NOT
+			// be sent using the multipart/byteranges media type."
 			ra := ranges[0]
 			if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
@@ -160,7 +204,41 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			}
 			sendSize = ra.length
 			code = StatusPartialContent
-			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, size))
+			w.Header().Set("Content-Range", ra.contentRange(size))
+		case len(ranges) > 1:
+			for _, ra := range ranges {
+				if ra.start > size {
+					Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+					return
+				}
+			}
+			sendSize = rangesMIMESize(ranges, ctype, size)
+			code = StatusPartialContent
+
+			pr, pw := io.Pipe()
+			mw := multipart.NewWriter(pw)
+			w.Header().Set("Content-Type", "multipart/byteranges; boundary="+mw.Boundary())
+			sendContent = pr
+			defer pr.Close() // cause writing goroutine to fail and exit if CopyN doesn't finish.
+			go func() {
+				for _, ra := range ranges {
+					part, err := mw.CreatePart(ra.mimeHeader(ctype, size))
+					if err != nil {
+						pw.CloseWithError(err)
+						return
+					}
+					if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
+						pw.CloseWithError(err)
+						return
+					}
+					if _, err := io.CopyN(part, content, ra.length); err != nil {
+						pw.CloseWithError(err)
+						return
+					}
+				}
+				mw.Close()
+				pw.Close()
+			}()
 		}
 
 		w.Header().Set("Accept-Ranges", "bytes")
@@ -172,11 +250,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	w.WriteHeader(code)
 
 	if r.Method != "HEAD" {
-		if sendSize == -1 {
-			io.Copy(w, content)
-		} else {
-			io.CopyN(w, content, sendSize)
-		}
+		io.CopyN(w, sendContent, sendSize)
 	}
 }
 
@@ -190,11 +264,66 @@ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
 	// The Date-Modified header truncates sub-second precision, so
 	// use mtime < t+1s instead of mtime <= t to check for unmodified.
 	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && modtime.Before(t.Add(1*time.Second)) {
+		h := w.Header()
+		delete(h, "Content-Type")
+		delete(h, "Content-Length")
 		w.WriteHeader(StatusNotModified)
 		return true
 	}
 	w.Header().Set("Last-Modified", modtime.UTC().Format(TimeFormat))
 	return false
+}
+
+// checkETag implements If-None-Match and If-Range checks.
+// The ETag must have been previously set in the ResponseWriter's headers.
+//
+// The return value is the effective request "Range" header to use and
+// whether this request is now considered done.
+func checkETag(w ResponseWriter, r *Request) (rangeReq string, done bool) {
+	etag := w.Header().get("Etag")
+	rangeReq = r.Header.get("Range")
+
+	// Invalidate the range request if the entity doesn't match the one
+	// the client was expecting.
+	// "If-Range: version" means "ignore the Range: header unless version matches the
+	// current file."
+	// We only support ETag versions.
+	// The caller must have set the ETag on the response already.
+	if ir := r.Header.get("If-Range"); ir != "" && ir != etag {
+		// TODO(bradfitz): handle If-Range requests with Last-Modified
+		// times instead of ETags? I'd rather not, at least for
+		// now. That seems like a bug/compromise in the RFC 2616, and
+		// I've never heard of anybody caring about that (yet).
+		rangeReq = ""
+	}
+
+	if inm := r.Header.get("If-None-Match"); inm != "" {
+		// Must know ETag.
+		if etag == "" {
+			return rangeReq, false
+		}
+
+		// TODO(bradfitz): non-GET/HEAD requests require more work:
+		// sending a different status code on matches, and
+		// also can't use weak cache validators (those with a "W/
+		// prefix).  But most users of ServeContent will be using
+		// it on GET or HEAD, so only support those for now.
+		if r.Method != "GET" && r.Method != "HEAD" {
+			return rangeReq, false
+		}
+
+		// TODO(bradfitz): deal with comma-separated or multiple-valued
+		// list of If-None-match values.  For now just handle the common
+		// case of a single item.
+		if inm == etag || inm == "*" {
+			h := w.Header()
+			delete(h, "Content-Type")
+			delete(h, "Content-Length")
+			w.WriteHeader(StatusNotModified)
+			return "", true
+		}
+	}
+	return rangeReq, false
 }
 
 // name is '/'-separated, not filepath.Separator.
@@ -243,9 +372,6 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	// use contents of index.html for directory, if present
 	if d.IsDir() {
-		if checkLastModified(w, r, d.ModTime()) {
-			return
-		}
 		index := name + indexPage
 		ff, err := fs.Open(index)
 		if err == nil {
@@ -259,12 +385,18 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		}
 	}
 
+	// Still a directory? (we didn't find an index.html file)
 	if d.IsDir() {
+		if checkLastModified(w, r, d.ModTime()) {
+			return
+		}
 		dirList(w, f)
 		return
 	}
 
-	serveContent(w, r, d.Name(), d.ModTime(), d.Size(), f)
+	// serverContent will check modification time
+	sizeFunc := func() (int64, error) { return d.Size(), nil }
+	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
 }
 
 // localRedirect gives a Moved Permanently response.
@@ -312,6 +444,17 @@ type httpRange struct {
 	start, length int64
 }
 
+func (r httpRange) contentRange(size int64) string {
+	return fmt.Sprintf("bytes %d-%d/%d", r.start, r.start+r.length-1, size)
+}
+
+func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHeader {
+	return textproto.MIMEHeader{
+		"Content-Range": {r.contentRange(size)},
+		"Content-Type":  {contentType},
+	}
+}
+
 // parseRange parses a Range header string as per RFC 2616.
 func parseRange(s string, size int64) ([]httpRange, error) {
 	if s == "" {
@@ -323,11 +466,15 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	}
 	var ranges []httpRange
 	for _, ra := range strings.Split(s[len(b):], ",") {
+		ra = strings.TrimSpace(ra)
+		if ra == "" {
+			continue
+		}
 		i := strings.Index(ra, "-")
 		if i < 0 {
 			return nil, errors.New("invalid range")
 		}
-		start, end := ra[:i], ra[i+1:]
+		start, end := strings.TrimSpace(ra[:i]), strings.TrimSpace(ra[i+1:])
 		var r httpRange
 		if start == "" {
 			// If no start is specified, end specifies the
@@ -364,4 +511,33 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		ranges = append(ranges, r)
 	}
 	return ranges, nil
+}
+
+// countingWriter counts how many bytes have been written to it.
+type countingWriter int64
+
+func (w *countingWriter) Write(p []byte) (n int, err error) {
+	*w += countingWriter(len(p))
+	return len(p), nil
+}
+
+// rangesMIMESize returns the nunber of bytes it takes to encode the
+// provided ranges as a multipart response.
+func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (encSize int64) {
+	var w countingWriter
+	mw := multipart.NewWriter(&w)
+	for _, ra := range ranges {
+		mw.CreatePart(ra.mimeHeader(contentType, contentSize))
+		encSize += ra.length
+	}
+	mw.Close()
+	encSize += int64(w)
+	return
+}
+
+func sumRangesSize(ranges []httpRange) (size int64) {
+	for _, ra := range ranges {
+		size += ra.length
+	}
+	return
 }

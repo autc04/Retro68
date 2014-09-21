@@ -1,6 +1,5 @@
 /* Parser for Java(TM) .class files.
-   Copyright (C) 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,6 +27,7 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
+#include "stringpool.h"
 #include "obstack.h"
 #include "flags.h"
 #include "java-except.h"
@@ -39,7 +39,6 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "ggc.h"
 #include "debug.h"
 #include "cgraph.h"
-#include "vecprim.h"
 #include "bitmap.h"
 #include "target.h"
 
@@ -86,7 +85,7 @@ static location_t file_start_location;
 static GTY(()) struct JCF * main_jcf;
 
 /* A list of all the class DECLs seen so far.  */
-static GTY(()) VEC(tree,gc) *all_class_list;
+static GTY(()) vec<tree, va_gc> *all_class_list;
 
 /* The number of source files passed to us by -fsource-filename and an
    array of pointers to each name.  Used by find_sourcefile().  */
@@ -314,13 +313,14 @@ set_source_filename (JCF *jcf, int index)
 {
   tree sfname_id = get_name_constant (jcf, index);
   const char *sfname = IDENTIFIER_POINTER (sfname_id);
-  const char *old_filename = input_filename;
+  const char *old_filename = LOCATION_FILE (input_location);
   int new_len = IDENTIFIER_LENGTH (sfname_id);
   if (old_filename != NULL)
     {
       int old_len = strlen (old_filename);
-      /* Use the current input_filename (derived from the class name)
-	 if it has a directory prefix, but otherwise matches sfname. */
+      /* Use the filename from current input_location (derived from the
+	 class name) if it has a directory prefix, but otherwise matches
+	 sfname.  */
       if (old_len > new_len
 	  && filename_cmp (sfname, old_filename + old_len - new_len) == 0
 	  && (old_filename[old_len - new_len - 1] == '/'
@@ -744,7 +744,7 @@ rewrite_reflection_indexes (void *arg)
 {
   bitmap_iterator bi;
   unsigned int offset;
-  VEC(int, heap) *map = (VEC(int, heap) *) arg;
+  vec<int> *map = (vec<int> *) arg;
   unsigned char *data = TYPE_REFLECTION_DATA (current_class);
 
   if (map)
@@ -753,7 +753,7 @@ rewrite_reflection_indexes (void *arg)
 	{
 	  uint16 index = annotation_read_short (data + offset);
 	  annotation_rewrite_short 
-	    (VEC_index (int, map, index), data + offset);
+	    ((*map)[index], data + offset);
 	}
     }
 }
@@ -933,12 +933,13 @@ handle_signature_attribute (int member_index, JCF *jcf,
 #define HANDLE_EXCEPTIONS_ATTRIBUTE(COUNT) \
 { \
   int n = COUNT; \
-  VEC (tree,gc) *v = VEC_alloc (tree, gc, n); \
-  gcc_assert (DECL_FUNCTION_THROWS (current_method) == NULL); \
+  vec<tree, va_gc> *v; \
+  vec_alloc (v, n); \
+  gcc_assert (!DECL_FUNCTION_THROWS (current_method)); \
   while (--n >= 0) \
     { \
       tree thrown_class = get_class_constant (jcf, JCF_readu2 (jcf)); \
-      VEC_quick_push (tree, v, thrown_class); \
+      v->quick_push (thrown_class); \
     } \
   DECL_FUNCTION_THROWS (current_method) = v; \
 }
@@ -1043,9 +1044,9 @@ get_constant (JCF *jcf, int index)
 	double_int val;
 
 	num = JPOOL_UINT (jcf, index);
-	val = double_int_lshift (uhwi_to_double_int (num), 32, 64, false);
+	val = double_int::from_uhwi (num).llshift (32, 64);
 	num = JPOOL_UINT (jcf, index + 1);
-	val = double_int_ior (val, uhwi_to_double_int (num));
+	val |= double_int::from_uhwi (num);
 
 	value = double_int_to_tree (long_type_node, val);
 	break;
@@ -1113,8 +1114,8 @@ get_constant (JCF *jcf, int index)
   jcf->cpool.data[index].t = value;
   return value;
  bad:
-  internal_error ("bad value constant type %d, index %d", 
-		  JPOOL_TAG (jcf, index), index);
+  fatal_error ("bad value constant type %d, index %d", 
+	       JPOOL_TAG (jcf, index), index);
 }
 
 tree
@@ -1480,7 +1481,7 @@ jcf_parse (JCF* jcf)
   if (current_class == object_type_node)
     layout_class_methods (object_type_node);
   else
-    VEC_safe_push (tree, gc, all_class_list, TYPE_NAME (current_class));
+    vec_safe_push (all_class_list, TYPE_NAME (current_class));
 }
 
 /* If we came across inner classes, load them now. */
@@ -1512,7 +1513,7 @@ static void
 java_layout_seen_class_methods (void)
 {
   unsigned start = 0;
-  unsigned end = VEC_length (tree, all_class_list);
+  unsigned end = vec_safe_length (all_class_list);
 
   while (1)
     {
@@ -1521,7 +1522,7 @@ java_layout_seen_class_methods (void)
 
       for (ix = start; ix != end; ix++)
         {
-	  tree decl = VEC_index (tree, all_class_list, ix);
+	  tree decl = (*all_class_list)[ix];
           tree cls = TREE_TYPE (decl);
 
 	  input_location = DECL_SOURCE_LOCATION (decl);
@@ -1534,7 +1535,7 @@ java_layout_seen_class_methods (void)
 
       /* Note that new classes might have been added while laying out
          methods, changing the value of all_class_list.  */
-      new_length = VEC_length (tree, all_class_list);
+      new_length = vec_safe_length (all_class_list);
       if (end != new_length)
 	{
 	  start = end;
@@ -1560,7 +1561,8 @@ parse_class_file (void)
     linemap_add (line_table, LC_ENTER, 0, loc.file, loc.line);
   }
   file_start_location = input_location;
-  (*debug_hooks->start_source_file) (input_line, input_filename);
+  (*debug_hooks->start_source_file) (LOCATION_LINE (input_location),
+				     LOCATION_FILE (input_location));
 
   java_mark_class_local (current_class);
 
@@ -1618,7 +1620,8 @@ parse_class_file (void)
 	  for (ptr += 2; --i >= 0; ptr += 4)
 	    {
 	      int line = GET_u2 (ptr);
-	      /* Set initial input_line to smallest linenumber.
+	      /* Set initial line of input_location to smallest
+	       * linenumber.
 	       * Needs to be set before init_function_start. */
 	      if (min_line == 0 || line < min_line)
 		min_line = line;
@@ -1665,12 +1668,12 @@ parse_class_file (void)
   input_location = save_location;
 }
 
-static VEC(tree,gc) *predefined_filenames;
+static vec<tree, va_gc> *predefined_filenames;
 
 void
 add_predefined_file (tree name)
 {
-  VEC_safe_push (tree, gc, predefined_filenames, name);
+  vec_safe_push (predefined_filenames, name);
 }
 
 int
@@ -1679,7 +1682,7 @@ predefined_filename_p (tree node)
   unsigned ix;
   tree f;
 
-  FOR_EACH_VEC_ELT (tree, predefined_filenames, ix, f)
+  FOR_EACH_VEC_SAFE_ELT (predefined_filenames, ix, f)
     if (f == node)
       return 1;
 
@@ -1748,7 +1751,7 @@ java_parse_file (void)
       int avail = 2000;
       finput = fopen (main_input_filename, "r");
       if (finput == NULL)
-	fatal_error ("can%'t open %s: %m", input_filename);
+	fatal_error ("can%'t open %s: %m", LOCATION_FILE (input_location));
       list = XNEWVEC (char, avail);
       next = list;
       for (;;)
@@ -1767,7 +1770,8 @@ java_parse_file (void)
 	  if (count == 0)
 	    {
 	      if (! feof (finput))
-		fatal_error ("error closing %s: %m", input_filename);
+		fatal_error ("error closing %s: %m",
+			     LOCATION_FILE (input_location));
 	      *next = '\0';
 	      break;
 	    }
@@ -1853,18 +1857,17 @@ java_parse_file (void)
       const char *resource_filename;
       
       /* Only one resource file may be compiled at a time.  */
-      gcc_assert (VEC_length (tree, all_translation_units) == 1);
+      gcc_assert (all_translation_units->length () == 1);
 
       resource_filename
-	= IDENTIFIER_POINTER
-	    (DECL_NAME (VEC_index (tree, all_translation_units, 0)));
+	= IDENTIFIER_POINTER (DECL_NAME ((*all_translation_units)[0]));
       compile_resource_file (resource_name, resource_filename);
 
       goto finish;
     }
 
   current_jcf = main_jcf;
-  FOR_EACH_VEC_ELT (tree, all_translation_units, ix, node)
+  FOR_EACH_VEC_ELT (*all_translation_units, ix, node)
     {
       unsigned char magic_string[4];
       char *real_path;
@@ -1951,7 +1954,7 @@ java_parse_file (void)
 	}
     }
 
-  FOR_EACH_VEC_ELT (tree, all_translation_units, ix, node)
+  FOR_EACH_VEC_ELT (*all_translation_units, ix, node)
     {
       input_location = DECL_SOURCE_LOCATION (node);
       if (CLASS_FILE_P (node))

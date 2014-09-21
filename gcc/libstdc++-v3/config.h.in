@@ -27,6 +27,9 @@
 /* Define to 1 if you have the `atanl' function. */
 #undef HAVE_ATANL
 
+/* Define to 1 if you have the `at_quick_exit' function. */
+#undef HAVE_AT_QUICK_EXIT
+
 /* Define to 1 if the target assembler supports thread-local storage. */
 #undef HAVE_CC_TLS
 
@@ -303,6 +306,9 @@
 /* Define to 1 if you have the `qfpclass' function. */
 #undef HAVE_QFPCLASS
 
+/* Define to 1 if you have the `quick_exit' function. */
+#undef HAVE_QUICK_EXIT
+
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
 
@@ -326,6 +332,9 @@
 
 /* Define to 1 if you have the `sinl' function. */
 #undef HAVE_SINL
+
+/* Defined if sleep exists. */
+#undef HAVE_SLEEP
 
 /* Define to 1 if you have the `sqrtf' function. */
 #undef HAVE_SQRTF
@@ -391,6 +400,9 @@
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #undef HAVE_SYS_RESOURCE_H
 
+/* Define to 1 if you have a suitable <sys/sdt.h> header file */
+#undef HAVE_SYS_SDT_H
+
 /* Define to 1 if you have the <sys/sem.h> header file. */
 #undef HAVE_SYS_SEM_H
 
@@ -436,6 +448,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Defined if usleep exists. */
+#undef HAVE_USLEEP
+
 /* Defined if vfwscanf exists. */
 #undef HAVE_VFWSCANF
 
@@ -453,6 +468,9 @@
 
 /* Define to 1 if you have the <wctype.h> header file. */
 #undef HAVE_WCTYPE_H
+
+/* Defined if Sleep exists. */
+#undef HAVE_WIN32_SLEEP
 
 /* Define if writev is available in <sys/uio.h>. */
 #undef HAVE_WRITEV
@@ -643,6 +661,9 @@
 /* Define to 1 if you have the `_tanl' function. */
 #undef HAVE__TANL
 
+/* Define to 1 if you have the `__cxa_thread_atexit_impl' function. */
+#undef HAVE___CXA_THREAD_ATEXIT_IMPL
+
 /* Define as const if the declaration of iconv() needs const. */
 #undef ICONV_CONST
 
@@ -789,6 +810,10 @@
    namespace std::tr1. */
 #undef _GLIBCXX_USE_C99_STDINT_TR1
 
+/* Defined if clock_gettime syscall has monotonic and realtime clock support.
+   */
+#undef _GLIBCXX_USE_CLOCK_GETTIME_SYSCALL
+
 /* Defined if clock_gettime has monotonic clock support. */
 #undef _GLIBCXX_USE_CLOCK_MONOTONIC
 
@@ -842,26 +867,20 @@
 /* Define if sysctl(), CTL_HW and HW_NCPU are available in <sys/sysctl.h>. */
 #undef _GLIBCXX_USE_SYSCTL_HW_NCPU
 
+/* Define if obsolescent tmpnam is available in <stdio.h>. */
+#undef _GLIBCXX_USE_TMPNAM
+
 /* Define if code specialized for wchar_t should be used. */
 #undef _GLIBCXX_USE_WCHAR_T
 
+/* Define to 1 if a verbose library is built, or 0 otherwise. */
+#undef _GLIBCXX_VERBOSE
+
+/* Defined if as can handle rdrand. */
+#undef _GLIBCXX_X86_RDRAND
+
 /* Define to 1 if mutex_timedlock is available. */
 #undef _GTHREAD_USE_MUTEX_TIMEDLOCK
-
-/* Define if all C++ overloads are available in <math.h>.  */
-#if __cplusplus >= 199711L
-#undef __CORRECT_ISO_CPP_MATH_H_PROTO1
-#endif
-
-/* Define if only double std::abs(double) is available in <math.h>.  */
-#if __cplusplus >= 199711L
-#undef __CORRECT_ISO_CPP_MATH_H_PROTO2
-#endif
-
-/* Define if all C++ overloads are available in <stdlib.h>.  */
-#if __cplusplus >= 199711L
-#undef __CORRECT_ISO_CPP_STDLIB_H_PROTO
-#endif
 
 #if defined (HAVE__ACOSF) && ! defined (HAVE_ACOSF)
 # define HAVE_ACOSF 1

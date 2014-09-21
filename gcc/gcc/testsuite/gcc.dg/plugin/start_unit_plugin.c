@@ -1,7 +1,7 @@
 /* This plugin tests the correct operation of a PLUGIN_START_UNIT callback.
  * By the time a PLUGIN_START_UNIT callback is invoked, the frontend 
  * initialization should have completed. At least the different *_type_nodes
- * should have been created. This plugin creates an artifical global 
+ * should have been created. This plugin creates an artificial global 
  * interger variable.
  * 
 */
@@ -10,8 +10,21 @@
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "tree.h"
+#include "stringpool.h"
 #include "toplev.h"
 #include "basic-block.h"
+#include "pointer-set.h"
+#include "hash-table.h"
+#include "vec.h"
+#include "ggc.h"
+#include "basic-block.h"
+#include "tree-ssa-alias.h"
+#include "internal-fn.h"
+#include "gimple-fold.h"
+#include "tree-eh.h"
+#include "gimple-expr.h"
+#include "is-a.h"
 #include "gimple.h"
 #include "tree.h"
 #include "tree-pass.h"

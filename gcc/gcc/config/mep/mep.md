@@ -1,6 +1,5 @@
 ;; Toshiba Media Processor Machine description template
-;; Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009 Free
-;; Software Foundation, Inc.
+;; Copyright (C) 2001-2014 Free Software Foundation, Inc.
 ;; Contributed by Red Hat Inc
 ;;
 ;; This file is part of GCC.
@@ -2077,13 +2076,9 @@
 
 (define_expand "doloop_begin"
   [(use (match_operand 0 "register_operand" ""))
-   (use (match_operand:QI 1 "const_int_operand" ""))
-   (use (match_operand:QI 2 "const_int_operand" ""))
-   (use (match_operand:QI 3 "const_int_operand" ""))]
+   (use (match_operand 1 "" ""))]
   "!profile_arc_flag && TARGET_OPT_REPEAT"
-  "if (INTVAL (operands[3]) > 1)
-     FAIL;
-   mep_emit_doloop (operands, 0);
+  "mep_emit_doloop (operands, 0);
    DONE;
   ")
 
@@ -2112,14 +2107,9 @@
 
 (define_expand "doloop_end"
   [(use (match_operand 0 "nonimmediate_operand" ""))
-   (use (match_operand:QI 1 "const_int_operand" ""))
-   (use (match_operand:QI 2 "const_int_operand" ""))
-   (use (match_operand:QI 3 "const_int_operand" ""))
-   (use (label_ref (match_operand 4 "" "")))]
+   (use (label_ref (match_operand 1 "" "")))]
   "!profile_arc_flag && TARGET_OPT_REPEAT"
-  "if (INTVAL (operands[3]) > 1)
-     FAIL;
-   if (GET_CODE (operands[0]) == REG && GET_MODE (operands[0]) != SImode)
+  "if (GET_CODE (operands[0]) == REG && GET_MODE (operands[0]) != SImode)
      FAIL;
    mep_emit_doloop (operands, 1);
    DONE;

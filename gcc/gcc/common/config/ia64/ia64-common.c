@@ -1,7 +1,5 @@
 /* Common hooks for IA64.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -71,8 +69,8 @@ enum unwind_info_type
 ia64_except_unwind_info (struct gcc_options *opts)
 {
   /* Honor the --enable-sjlj-exceptions configure switch.  */
-#ifdef CONFIG_UNWIND_EXCEPTIONS
-  if (CONFIG_UNWIND_EXCEPTIONS)
+#ifdef CONFIG_SJLJ_EXCEPTIONS
+  if (CONFIG_SJLJ_EXCEPTIONS)
     return UI_SJLJ;
 #endif
 

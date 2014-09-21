@@ -1,6 +1,5 @@
 /* Definitions for option handling for IBM S/390.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -35,6 +34,7 @@ enum processor_type
   PROCESSOR_2094_Z9_EC,
   PROCESSOR_2097_Z10,
   PROCESSOR_2817_Z196,
+  PROCESSOR_2827_ZEC12,
   PROCESSOR_max
 };
 

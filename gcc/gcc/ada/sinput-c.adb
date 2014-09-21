@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -50,7 +50,7 @@ package body Sinput.C is
       --  indicates failure to open the specified source file.
 
       Len : Integer;
-      --  Length of file. Assume no more than 2 gigabytes of source!
+      --  Length of file (assume no more than 2 gigabytes of source)
 
       Actual_Len : Integer;
 
@@ -68,7 +68,8 @@ package body Sinput.C is
       if X = Source_File.First then
          Lo := First_Source_Ptr;
       else
-         Lo := Source_File.Table (X - 1).Source_Last + 1;
+         Lo := ((Source_File.Table (X - 1).Source_Last + Source_Align) /
+                  Source_Align) * Source_Align;
       end if;
 
       Name_Len := Path'Length;
@@ -146,7 +147,7 @@ package body Sinput.C is
       end;
 
       --  Read is complete, close the file and we are done (no need to test
-      --  status from close, since we have successfully read the file!)
+      --  status from close, since we have successfully read the file).
 
       Close (Source_File_FD);
 
@@ -178,9 +179,10 @@ package body Sinput.C is
                Full_Debug_Name     => Path_Id,
                Full_File_Name      => Path_Id,
                Full_Ref_Name       => Path_Id,
+               Instance            => No_Instance_Id,
                Identifier_Casing   => Unknown,
+               Inlined_Call        => No_Location,
                Inlined_Body        => False,
-               Instantiation       => No_Location,
                Keyword_Casing      => Unknown,
                Last_Source_Line    => 1,
                License             => Unknown,

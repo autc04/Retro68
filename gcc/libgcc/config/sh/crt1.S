@@ -1,5 +1,4 @@
-/* Copyright (C) 2000, 2001, 2003, 2004, 2005, 2006, 2009, 2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 2000-2014 Free Software Foundation, Inc.
    This file was pretty much copied from newlib.
 
 This file is part of GCC.
@@ -698,7 +697,7 @@ profiling_enabled:
 start:
 	mov.l	stack_k,r15
 
-#if defined (__SH3__) || (defined (__SH_FPU_ANY__) && ! defined (__SH2A__)) || defined (__SH4_NOFPU__)
+#if defined (__SH3__) || (defined (__SH_FPU_ANY__) && ! defined (__SH2E__) && ! defined (__SH2A__)) || defined (__SH4_NOFPU__)
 #define VBR_SETUP
 	! before zeroing the bss ...
 	! if the vbr is already set to vbr_start then the program has been restarted

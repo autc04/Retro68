@@ -33,12 +33,21 @@ type cbcEncrypter cbc
 // mode, using the given Block. The length of iv must be the same as the
 // Block's block size.
 func NewCBCEncrypter(b Block, iv []byte) BlockMode {
+	if len(iv) != b.BlockSize() {
+		panic("cipher.NewCBCEncrypter: IV length must equal block size")
+	}
 	return (*cbcEncrypter)(newCBC(b, iv))
 }
 
 func (x *cbcEncrypter) BlockSize() int { return x.blockSize }
 
 func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%x.blockSize != 0 {
+		panic("crypto/cipher: input not full blocks")
+	}
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
 	for len(src) > 0 {
 		for i := 0; i < x.blockSize; i++ {
 			x.iv[i] ^= src[i]
@@ -52,18 +61,34 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
+func (x *cbcEncrypter) SetIV(iv []byte) {
+	if len(iv) != len(x.iv) {
+		panic("cipher: incorrect length IV")
+	}
+	copy(x.iv, iv)
+}
+
 type cbcDecrypter cbc
 
 // NewCBCDecrypter returns a BlockMode which decrypts in cipher block chaining
 // mode, using the given Block. The length of iv must be the same as the
 // Block's block size and must match the iv used to encrypt the data.
 func NewCBCDecrypter(b Block, iv []byte) BlockMode {
+	if len(iv) != b.BlockSize() {
+		panic("cipher.NewCBCDecrypter: IV length must equal block size")
+	}
 	return (*cbcDecrypter)(newCBC(b, iv))
 }
 
 func (x *cbcDecrypter) BlockSize() int { return x.blockSize }
 
 func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%x.blockSize != 0 {
+		panic("crypto/cipher: input not full blocks")
+	}
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
 	for len(src) > 0 {
 		x.b.Decrypt(x.tmp, src[:x.blockSize])
 		for i := 0; i < x.blockSize; i++ {
@@ -75,4 +100,11 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 		src = src[x.blockSize:]
 		dst = dst[x.blockSize:]
 	}
+}
+
+func (x *cbcDecrypter) SetIV(iv []byte) {
+	if len(iv) != len(x.iv) {
+		panic("cipher: incorrect length IV")
+	}
+	copy(x.iv, iv)
 }

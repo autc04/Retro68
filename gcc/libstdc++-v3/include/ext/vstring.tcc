@@ -1,7 +1,6 @@
 // Versatile string -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2005-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -82,8 +81,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     template<typename _InputIterator>
       __versa_string<_CharT, _Traits, _Alloc, _Base>&
       __versa_string<_CharT, _Traits, _Alloc, _Base>::
-      _M_replace_dispatch(iterator __i1, iterator __i2, _InputIterator __k1,
-			  _InputIterator __k2, std::__false_type)
+      _M_replace_dispatch(const_iterator __i1, const_iterator __i2,
+			  _InputIterator __k1, _InputIterator __k2,
+			  std::__false_type)
       {
 	const __versa_string __s(__k1, __k2);
 	const size_type __n1 = __i2 - __i1;

@@ -9,6 +9,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"unicode"
 )
 
 type Optionals struct {
@@ -146,19 +147,46 @@ func (Val) MarshalJSON() ([]byte, error) {
 	return []byte(`"val"`), nil
 }
 
+// RefText has Marshaler and Unmarshaler methods with pointer receiver.
+type RefText int
+
+func (*RefText) MarshalText() ([]byte, error) {
+	return []byte(`"ref"`), nil
+}
+
+func (r *RefText) UnmarshalText([]byte) error {
+	*r = 13
+	return nil
+}
+
+// ValText has Marshaler methods with value receiver.
+type ValText int
+
+func (ValText) MarshalText() ([]byte, error) {
+	return []byte(`"val"`), nil
+}
+
 func TestRefValMarshal(t *testing.T) {
 	var s = struct {
 		R0 Ref
 		R1 *Ref
+		R2 RefText
+		R3 *RefText
 		V0 Val
 		V1 *Val
+		V2 ValText
+		V3 *ValText
 	}{
 		R0: 12,
 		R1: new(Ref),
+		R2: 14,
+		R3: new(RefText),
 		V0: 13,
 		V1: new(Val),
+		V2: 15,
+		V3: new(ValText),
 	}
-	const want = `{"R0":"ref","R1":"ref","V0":"val","V1":"val"}`
+	const want = `{"R0":"ref","R1":"ref","R2":"\"ref\"","R3":"\"ref\"","V0":"val","V1":"val","V2":"\"val\"","V3":"\"val\""}`
 	b, err := Marshal(&s)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
@@ -175,14 +203,225 @@ func (C) MarshalJSON() ([]byte, error) {
 	return []byte(`"<&>"`), nil
 }
 
+// CText implements Marshaler and returns unescaped text.
+type CText int
+
+func (CText) MarshalText() ([]byte, error) {
+	return []byte(`"<&>"`), nil
+}
+
 func TestMarshalerEscaping(t *testing.T) {
 	var c C
-	const want = `"\u003c\u0026\u003e"`
+	want := `"\u003c\u0026\u003e"`
 	b, err := Marshal(c)
+	if err != nil {
+		t.Fatalf("Marshal(c): %v", err)
+	}
+	if got := string(b); got != want {
+		t.Errorf("Marshal(c) = %#q, want %#q", got, want)
+	}
+
+	var ct CText
+	want = `"\"\u003c\u0026\u003e\""`
+	b, err = Marshal(ct)
+	if err != nil {
+		t.Fatalf("Marshal(ct): %v", err)
+	}
+	if got := string(b); got != want {
+		t.Errorf("Marshal(ct) = %#q, want %#q", got, want)
+	}
+}
+
+type IntType int
+
+type MyStruct struct {
+	IntType
+}
+
+func TestAnonymousNonstruct(t *testing.T) {
+	var i IntType = 11
+	a := MyStruct{i}
+	const want = `{"IntType":11}`
+
+	b, err := Marshal(a)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
 	if got := string(b); got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+type BugA struct {
+	S string
+}
+
+type BugB struct {
+	BugA
+	S string
+}
+
+type BugC struct {
+	S string
+}
+
+// Legal Go: We never use the repeated embedded field (S).
+type BugX struct {
+	A int
+	BugA
+	BugB
+}
+
+// Issue 5245.
+func TestEmbeddedBug(t *testing.T) {
+	v := BugB{
+		BugA{"A"},
+		"B",
+	}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"S":"B"}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+	// Now check that the duplicate field, S, does not appear.
+	x := BugX{
+		A: 23,
+	}
+	b, err = Marshal(x)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want = `{"A":23}`
+	got = string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
+
+type BugD struct { // Same as BugA after tagging.
+	XXX string `json:"S"`
+}
+
+// BugD's tagged S field should dominate BugA's.
+type BugY struct {
+	BugA
+	BugD
+}
+
+// Test that a field with a tag dominates untagged fields.
+func TestTaggedFieldDominates(t *testing.T) {
+	v := BugY{
+		BugA{"BugA"},
+		BugD{"BugD"},
+	}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"S":"BugD"}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
+
+// There are no tags here, so S should not appear.
+type BugZ struct {
+	BugA
+	BugC
+	BugY // Contains a tagged S field through BugD; should not dominate.
+}
+
+func TestDuplicatedFieldDisappears(t *testing.T) {
+	v := BugZ{
+		BugA{"BugA"},
+		BugC{"BugC"},
+		BugY{
+			BugA{"nested BugA"},
+			BugD{"nested BugD"},
+		},
+	}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
+}
+
+func TestStringBytes(t *testing.T) {
+	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
+	es := &encodeState{}
+	var r []rune
+	for i := '\u0000'; i <= unicode.MaxRune; i++ {
+		r = append(r, i)
+	}
+	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
+	_, err := es.string(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	esBytes := &encodeState{}
+	_, err = esBytes.stringBytes([]byte(s))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	enc := es.Buffer.String()
+	encBytes := esBytes.Buffer.String()
+	if enc != encBytes {
+		i := 0
+		for i < len(enc) && i < len(encBytes) && enc[i] == encBytes[i] {
+			i++
+		}
+		enc = enc[i:]
+		encBytes = encBytes[i:]
+		i = 0
+		for i < len(enc) && i < len(encBytes) && enc[len(enc)-i-1] == encBytes[len(encBytes)-i-1] {
+			i++
+		}
+		enc = enc[:len(enc)-i]
+		encBytes = encBytes[:len(encBytes)-i]
+
+		if len(enc) > 20 {
+			enc = enc[:20] + "..."
+		}
+		if len(encBytes) > 20 {
+			encBytes = encBytes[:20] + "..."
+		}
+
+		t.Errorf("encodings differ at %#q vs %#q", enc, encBytes)
+	}
+}
+
+func TestIssue6458(t *testing.T) {
+	type Foo struct {
+		M RawMessage
+	}
+	x := Foo{RawMessage(`"foo"`)}
+
+	b, err := Marshal(&x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"M":"foo"}`; string(b) != want {
+		t.Errorf("Marshal(&x) = %#q; want %#q", b, want)
+	}
+
+	b, err = Marshal(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want := `{"M":"ImZvbyI="}`; string(b) != want {
+		t.Errorf("Marshal(x) = %#q; want %#q", b, want)
 	}
 }

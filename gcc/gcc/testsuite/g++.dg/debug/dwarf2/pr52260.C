@@ -1,6 +1,6 @@
 // PR debug/52260
-// { dg-do compile }
-// { dg-options "-gdwarf-4 -std=c++0x" }
+// { dg-do compile { target c++11 } }
+// { dg-options "-gdwarf-4" }
 
 namespace { typedef decltype (nullptr) T1; }
 struct B {};
@@ -22,7 +22,7 @@ namespace A
 {
   template <typename T>
   struct I : H <T> {};
-  template <typename ...> struct J;
+  template <typename ...> struct J {};
   template <typename> struct K;
   struct L
   {
@@ -36,7 +36,7 @@ namespace A
   template <typename T, typename B2, typename ... B4>
   struct N <T (B4 ...), B2> : L::M <B2> {};
   template <typename T, typename ... B4>
-  struct K <T (B4 ...)> :J <,>, L
+  struct K <T (B4 ...)> :J <>, L
   {
     typedef T O (B4 ...);
     struct P {};

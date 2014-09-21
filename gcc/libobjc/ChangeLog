@@ -1,6 +1,63 @@
-2012-03-22  Release Manager
+2014-07-16  Release Manager
 
-	* GCC 4.7.0 released.
+	* GCC 4.9.1 released.
+
+2014-04-22  Release Manager
+
+	* GCC 4.9.0 released.
+
+2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years
+
+2013-09-20  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
+2013-07-21   OndÅej BÃ­lka  <neleai@seznam.cz>
+
+	* class.c: Fix typos.
+	* encoding.c: Likewise.
+	* init.c: Likewise.
+	* objc-private/runtime.h: Likewise.
+	* objc/runtime.h: Likewise.
+	* objc-sync.c: Likewise.
+
+2013-07-04  Kai Tietz  <ktietz@redhat.com>
+
+	* exception.c: Add check for SjLj to SEH blocks.
+
+2013-02-03  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years.
+
+2012-10-19  Michael Meissner  <meissner@linux.vnet.ibm.com>
+
+	* encoding.c (TARGET_VSX): Provide definitions based on the
+	current compilation options, and not based off the target options
+	structure.
+	(TARGET_ALTIVEC): Likewise.
+	(TARGET_64BIT): Likewise.
+
+2012-09-14  David Edelsohn  <dje.gcc@gmail.com>
+
+	* configure: Regenerated.
+
+2012-07-19  Tristan Gingold  <gingold@adacore.com>
+	    Richard Henderson  <rth@redhat.com>
+
+	* exception.c (__gnu_objc_personality_seh0): New function.
+
+2012-05-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
+
+2012-03-12  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure.ac (enable_objc_gc): Remove alpha*-dec-osf* handling.
+	* configure: Regenerate.
+
+	* thr.c (_XOPEN_SOURCE): Define unconditionally.
 
 2011-11-21  Andreas Tobler  <andreast@fgznet.ch>
 
@@ -31,7 +88,7 @@
 	fields other than the first two upon loading a class.
 
 2011-10-09  Nicola Pero  <nicola.pero@meta-innovation.com>
-	
+
 	* class.c (objc_lookup_class): Added back for compatibility with
 	clang which seems to emit calls to it.
 

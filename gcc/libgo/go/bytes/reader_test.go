@@ -8,6 +8,7 @@ import (
 	. "bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -84,5 +85,88 @@ func TestReaderAt(t *testing.T) {
 		if fmt.Sprintf("%v", err) != fmt.Sprintf("%v", tt.wanterr) {
 			t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
 		}
+	}
+}
+
+func TestReaderWriteTo(t *testing.T) {
+	for i := 0; i < 30; i += 3 {
+		var l int
+		if i > 0 {
+			l = len(data) / i
+		}
+		s := data[:l]
+		r := NewReader(testBytes[:l])
+		var b Buffer
+		n, err := r.WriteTo(&b)
+		if expect := int64(len(s)); n != expect {
+			t.Errorf("got %v; want %v", n, expect)
+		}
+		if err != nil {
+			t.Errorf("for length %d: got error = %v; want nil", l, err)
+		}
+		if b.String() != s {
+			t.Errorf("got string %q; want %q", b.String(), s)
+		}
+		if r.Len() != 0 {
+			t.Errorf("reader contains %v bytes; want 0", r.Len())
+		}
+	}
+}
+
+func TestReaderLen(t *testing.T) {
+	const data = "hello world"
+	r := NewReader([]byte(data))
+	if got, want := r.Len(), 11; got != want {
+		t.Errorf("r.Len(): got %d, want %d", got, want)
+	}
+	if n, err := r.Read(make([]byte, 10)); err != nil || n != 10 {
+		t.Errorf("Read failed: read %d %v", n, err)
+	}
+	if got, want := r.Len(), 1; got != want {
+		t.Errorf("r.Len(): got %d, want %d", got, want)
+	}
+	if n, err := r.Read(make([]byte, 1)); err != nil || n != 1 {
+		t.Errorf("Read failed: read %d %v", n, err)
+	}
+	if got, want := r.Len(), 0; got != want {
+		t.Errorf("r.Len(): got %d, want %d", got, want)
+	}
+}
+
+func TestReaderDoubleUnreadRune(t *testing.T) {
+	buf := NewBuffer([]byte("groucho"))
+	if _, _, err := buf.ReadRune(); err != nil {
+		// should not happen
+		t.Fatal(err)
+	}
+	if err := buf.UnreadByte(); err != nil {
+		// should not happen
+		t.Fatal(err)
+	}
+	if err := buf.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte: expected error, got nil")
+	}
+}
+
+// verify that copying from an empty reader always has the same results,
+// regardless of the presence of a WriteTo method.
+func TestReaderCopyNothing(t *testing.T) {
+	type nErr struct {
+		n   int64
+		err error
+	}
+	type justReader struct {
+		io.Reader
+	}
+	type justWriter struct {
+		io.Writer
+	}
+	discard := justWriter{ioutil.Discard} // hide ReadFrom
+
+	var with, withOut nErr
+	with.n, with.err = io.Copy(discard, NewReader(nil))
+	withOut.n, withOut.err = io.Copy(discard, justReader{NewReader(nil)})
+	if with != withOut {
+		t.Errorf("behavior differs: with = %#v; without: %#v", with, withOut)
 	}
 }

@@ -4,15 +4,9 @@
 
 <info><title>Profile Mode</title>
   <keywordset>
-    <keyword>
-      C++
-    </keyword>
-    <keyword>
-      library
-    </keyword>
-    <keyword>
-      profile
-    </keyword>
+    <keyword>C++</keyword>
+    <keyword>library</keyword>
+    <keyword>profile</keyword>
   </keywordset>
 </info>
 
@@ -216,6 +210,7 @@ vector-size: improvement = 3: call stack = 0x804842c ...
 
 
 <section xml:id="manual.ext.profile_mode.design" xreflabel="Design"><info><title>Design</title></info>
+<?dbhtml filename="profile_mode_design.html"?>
   
 
 <para>
@@ -431,6 +426,7 @@ it helps the user focus on the key problems and ignore the uninteresting ones.
 </section>
 
 <section xml:id="manual.ext.profile_mode.api" xreflabel="API"><info><title>Extensions for Custom Containers</title></info>
+<?dbhtml filename="profile_mode_api.html"?>
 
 
   <para>
@@ -446,6 +442,7 @@ it helps the user focus on the key problems and ignore the uninteresting ones.
 
 
 <section xml:id="manual.ext.profile_mode.cost_model" xreflabel="Cost Model"><info><title>Empirical Cost Model</title></info>
+<?dbhtml filename="profile_mode_cost_model.html"?>
 
 
   <para>
@@ -471,6 +468,7 @@ it helps the user focus on the key problems and ignore the uninteresting ones.
 
 
 <section xml:id="manual.ext.profile_mode.implementation" xreflabel="Implementation"><info><title>Implementation Issues</title></info>
+<?dbhtml filename="profile_mode_impl.html"?>
 
 
 
@@ -563,6 +561,7 @@ it helps the user focus on the key problems and ignore the uninteresting ones.
 
 
 <section xml:id="manual.ext.profile_mode.developer" xreflabel="Developer Information"><info><title>Developer Information</title></info>
+<?dbhtml filename="profile_mode_devel.html"?>
 
 
 <section xml:id="manual.ext.profile_mode.developer.bigpic" xreflabel="Big Picture"><info><title>Big Picture</title></info>
@@ -666,6 +665,7 @@ it helps the user focus on the key problems and ignore the uninteresting ones.
 </section>
 
 <section xml:id="manual.ext.profile_mode.diagnostics"><info><title>Diagnostics</title></info>
+<?dbhtml filename="profile_mode_diagnostics.html"?>
 
 
   <para>
@@ -1401,7 +1401,7 @@ foo.cc:1: advice: Change "list" to "forward_list".
   </para></listitem>
   <listitem><para><emphasis>Fundamentals:</emphasis>
   See papers:
-  <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://portal.acm.org/citation.cfm?doid=1065944.1065981">
+  <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://dl.acm.org/citation.cfm?doid=1065944.1065981">
   A framework for adaptive algorithm selection in STAPL</link> and
   <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://ieeexplore.ieee.org/search/wrapper.jsp?arnumber=4228227">
   Optimizing Sorting with Machine Learning Algorithms</link>.
@@ -1597,7 +1597,7 @@ the allocation sequence or switching to a structure conscious allocator.
   Keep a shadow for each container.  Record iterator dereferences and
   container member accesses.  Issue advice for elements referenced by
   multiple threads.
-  See paper: <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://portal.acm.org/citation.cfm?id=207110.207148">
+  See paper: <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://dl.acm.org/citation.cfm?id=207110.207148">
   The LRPD test: speculative run-time parallelization of loops with
   privatization and reduction parallelization</link>.
   </para></listitem>

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -88,7 +88,7 @@ procedure Gnatname is
       Table_Initial        => 10,
       Table_Increment      => 100,
       Table_Name           => "Gnatname.Arguments");
-   --  Table to accumulate the foreign patterns
+   --  Table to accumulate directories and patterns
 
    package Preprocessor_Switches is new Table.Table
      (Table_Component_Type => String_Access,
@@ -346,6 +346,11 @@ procedure Gnatname is
                   Subdirs :=
                     new String'(Arg (Subdirs_Switch'Length + 1 .. Arg'Last));
 
+               --  --no-backup
+
+               elsif Arg = "--no-backup" then
+                  Opt.No_Backup := True;
+
                --  -c
 
                elsif Arg'Length >= 2 and then Arg (1 .. 2) = "-c" then
@@ -515,6 +520,7 @@ procedure Gnatname is
          Display_Usage_Version_And_Help;
 
          Write_Line ("  --subdirs=dir real obj/lib/exec dirs are subdirs");
+         Write_Line ("  --no-backup   do not create backup of project file");
          Write_Eol;
 
          Write_Line ("  --and        use different patterns");
@@ -575,7 +581,15 @@ begin
    --  Initialize tables
 
    Arguments.Set_Last (0);
-   Arguments.Increment_Last;
+   declare
+      New_Arguments : Argument_Data;
+      pragma Warnings (Off, New_Arguments);
+      --  Declaring this defaulted initialized object ensures
+      --  that the new allocated component of table Arguments
+      --  is correctly initialized.
+   begin
+      Arguments.Append (New_Arguments);
+   end;
    Patterns.Init (Arguments.Table (1).Directories);
    Patterns.Set_Last (Arguments.Table (1).Directories, 0);
    Patterns.Init (Arguments.Table (1).Name_Patterns);

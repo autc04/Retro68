@@ -1,7 +1,5 @@
 /* real.c - software floating point emulation.
-   Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2002,
-   2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
    Contributed by Stephen L. Moshier (moshier@world.std.com).
    Re-written by Richard Henderson <rth@redhat.com>
 
@@ -59,14 +57,7 @@
 
    Both of these requirements are easily satisfied.  The largest target
    significand is 113 bits; we store at least 160.  The smallest
-   denormal number fits in 17 exponent bits; we store 26.
-
-   Note that the decimal string conversion routines are sensitive to
-   rounding errors.  Since the raw arithmetic routines do not themselves
-   have guard digits or rounding, the computation of 10**exp can
-   accumulate more than a few digits of error.  The previous incarnation
-   of real.c successfully used a 144-bit fraction; given the current
-   layout of REAL_VALUE_TYPE we're forced to expand to at least 160 bits.  */
+   denormal number fits in 17 exponent bits; we store 26.  */
 
 
 /* Used to classify two numbers simultaneously.  */
@@ -1386,7 +1377,8 @@ real_to_integer2 (HOST_WIDE_INT *plow, HOST_WIDE_INT *phigh,
 		  const REAL_VALUE_TYPE *r)
 {
   REAL_VALUE_TYPE t;
-  HOST_WIDE_INT low, high;
+  unsigned HOST_WIDE_INT low;
+  HOST_WIDE_INT high;
   int exp;
 
   switch (r->cl)
@@ -1423,10 +1415,10 @@ real_to_integer2 (HOST_WIDE_INT *plow, HOST_WIDE_INT *phigh,
 	 undefined, so it doesn't matter what we return, and some callers
 	 expect to be able to use this routine for both signed and
 	 unsigned conversions.  */
-      if (exp > 2*HOST_BITS_PER_WIDE_INT)
+      if (exp > HOST_BITS_PER_DOUBLE_INT)
 	goto overflow;
 
-      rshift_significand (&t, r, 2*HOST_BITS_PER_WIDE_INT - exp);
+      rshift_significand (&t, r, HOST_BITS_PER_DOUBLE_INT - exp);
       if (HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG)
 	{
 	  high = t.sig[SIGSZ-1];
@@ -2031,75 +2023,50 @@ real_from_string (REAL_VALUE_TYPE *r, const char *str)
   else
     {
       /* Decimal floating point.  */
-      const REAL_VALUE_TYPE *ten = ten_to_ptwo (0);
-      int d;
+      const char *cstr = str;
+      mpfr_t m;
+      bool inexact;
 
-      while (*str == '0')
-	str++;
-      while (ISDIGIT (*str))
+      while (*cstr == '0')
+	cstr++;
+      if (*cstr == '.')
 	{
-	  d = *str++ - '0';
-	  do_multiply (r, r, ten);
-	  if (d)
-	    do_add (r, r, real_digit (d), 0);
-	}
-      if (*str == '.')
-	{
-	  str++;
-	  if (r->cl == rvc_zero)
-	    {
-	      while (*str == '0')
-		str++, exp--;
-	    }
-	  while (ISDIGIT (*str))
-	    {
-	      d = *str++ - '0';
-	      do_multiply (r, r, ten);
-	      if (d)
-	        do_add (r, r, real_digit (d), 0);
-	      exp--;
-	    }
+	  cstr++;
+	  while (*cstr == '0')
+	    cstr++;
 	}
 
       /* If the mantissa is zero, ignore the exponent.  */
-      if (r->cl == rvc_zero)
+      if (!ISDIGIT (*cstr))
 	goto is_a_zero;
 
-      if (*str == 'e' || *str == 'E')
+      /* Nonzero value, possibly overflowing or underflowing.  */
+      mpfr_init2 (m, SIGNIFICAND_BITS);
+      inexact = mpfr_strtofr (m, str, NULL, 10, GMP_RNDZ);
+      /* The result should never be a NaN, and because the rounding is
+	 toward zero should never be an infinity.  */
+      gcc_assert (!mpfr_nan_p (m) && !mpfr_inf_p (m));
+      if (mpfr_zero_p (m) || mpfr_get_exp (m) < -MAX_EXP + 4)
 	{
-	  bool exp_neg = false;
-
-	  str++;
-	  if (*str == '-')
-	    {
-	      exp_neg = true;
-	      str++;
-	    }
-	  else if (*str == '+')
-	    str++;
-
-	  d = 0;
-	  while (ISDIGIT (*str))
-	    {
-	      d *= 10;
-	      d += *str - '0';
-	      if (d > MAX_EXP)
-		{
-		  /* Overflowed the exponent.  */
-		  if (exp_neg)
-		    goto underflow;
-		  else
-		    goto overflow;
-		}
-	      str++;
-	    }
-	  if (exp_neg)
-	    d = -d;
-	  exp += d;
+	  mpfr_clear (m);
+	  goto underflow;
 	}
-
-      if (exp)
-	times_pten (r, exp);
+      else if (mpfr_get_exp (m) > MAX_EXP - 4)
+	{
+	  mpfr_clear (m);
+	  goto overflow;
+	}
+      else
+	{
+	  real_from_mpfr (r, m, NULL_TREE, GMP_RNDZ);
+	  /* 1 to 3 bits may have been shifted off (with a sticky bit)
+	     because the hex digits used in real_from_mpfr did not
+	     start with a digit 8 to f, but the exponent bounds above
+	     should have avoided underflow or overflow.  */
+	  gcc_assert (r->cl = rvc_normal);
+	  /* Set a sticky bit if mpfr_strtofr was inexact.  */
+	  r->sig[0] |= inexact;
+	}
     }
 
   r->sign = sign;
@@ -2160,7 +2127,7 @@ real_from_integer (REAL_VALUE_TYPE *r, enum machine_mode mode,
       memset (r, 0, sizeof (*r));
       r->cl = rvc_normal;
       r->sign = high < 0 && !unsigned_p;
-      SET_REAL_EXP (r, 2 * HOST_BITS_PER_WIDE_INT);
+      SET_REAL_EXP (r, HOST_BITS_PER_DOUBLE_INT);
 
       if (r->sign)
 	{
@@ -2857,7 +2824,7 @@ real_hash (const REAL_VALUE_TYPE *r)
       gcc_unreachable ();
     }
 
-  if (sizeof(unsigned long) > sizeof(unsigned int))
+  if (sizeof (unsigned long) > sizeof (unsigned int))
     for (i = 0; i < SIGSZ; ++i)
       {
 	unsigned long s = r->sig[i];
@@ -4799,84 +4766,6 @@ const struct real_format real_internal_format =
     false
   };
 
-/* Calculate the square root of X in mode MODE, and store the result
-   in R.  Return TRUE if the operation does not raise an exception.
-   For details see "High Precision Division and Square Root",
-   Alan H. Karp and Peter Markstein, HP Lab Report 93-93-42, June
-   1993.  http://www.hpl.hp.com/techreports/93/HPL-93-42.pdf.  */
-
-bool
-real_sqrt (REAL_VALUE_TYPE *r, enum machine_mode mode,
-	   const REAL_VALUE_TYPE *x)
-{
-  static REAL_VALUE_TYPE halfthree;
-  static bool init = false;
-  REAL_VALUE_TYPE h, t, i;
-  int iter, exp;
-
-  /* sqrt(-0.0) is -0.0.  */
-  if (real_isnegzero (x))
-    {
-      *r = *x;
-      return false;
-    }
-
-  /* Negative arguments return NaN.  */
-  if (real_isneg (x))
-    {
-      get_canonical_qnan (r, 0);
-      return false;
-    }
-
-  /* Infinity and NaN return themselves.  */
-  if (!real_isfinite (x))
-    {
-      *r = *x;
-      return false;
-    }
-
-  if (!init)
-    {
-      do_add (&halfthree, &dconst1, &dconsthalf, 0);
-      init = true;
-    }
-
-  /* Initial guess for reciprocal sqrt, i.  */
-  exp = real_exponent (x);
-  real_ldexp (&i, &dconst1, -exp/2);
-
-  /* Newton's iteration for reciprocal sqrt, i.  */
-  for (iter = 0; iter < 16; iter++)
-    {
-      /* i(n+1) = i(n) * (1.5 - 0.5*i(n)*i(n)*x).  */
-      do_multiply (&t, x, &i);
-      do_multiply (&h, &t, &i);
-      do_multiply (&t, &h, &dconsthalf);
-      do_add (&h, &halfthree, &t, 1);
-      do_multiply (&t, &i, &h);
-
-      /* Check for early convergence.  */
-      if (iter >= 6 && real_identical (&i, &t))
-	break;
-
-      /* ??? Unroll loop to avoid copying.  */
-      i = t;
-    }
-
-  /* Final iteration: r = i*x + 0.5*i*x*(1.0 - i*(i*x)).  */
-  do_multiply (&t, x, &i);
-  do_multiply (&h, &t, &i);
-  do_add (&i, &dconst1, &h, 1);
-  do_multiply (&h, &t, &i);
-  do_multiply (&i, &dconsthalf, &h);
-  do_add (&h, &t, &i, 0);
-
-  /* ??? We need a Tuckerman test to get the last bit.  */
-
-  real_convert (r, mode, &h);
-  return true;
-}
-
 /* Calculate X raised to the integer exponent N in mode MODE and store
    the result in R.  Return true if the result may be inexact due to
    loss of precision.  The algorithm is the classic "left-to-right binary

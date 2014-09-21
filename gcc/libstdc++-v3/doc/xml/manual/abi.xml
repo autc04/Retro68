@@ -4,24 +4,12 @@
 
 <info><title>ABI Policy and Guidelines</title>
   <keywordset>
-    <keyword>
-      C++
-    </keyword>
-    <keyword>
-      ABI
-    </keyword>
-    <keyword>
-      version
-    </keyword>
-    <keyword>
-      dynamic
-    </keyword>
-    <keyword>
-      shared
-    </keyword>
-    <keyword>
-      compatibility
-    </keyword>
+    <keyword>C++</keyword>
+    <keyword>ABI</keyword>
+    <keyword>version</keyword>
+    <keyword>dynamic</keyword>
+    <keyword>shared</keyword>
+    <keyword>compatibility</keyword>
   </keywordset>
 </info>
 
@@ -54,7 +42,7 @@
   virtual functions, etc. These details are defined as the compiler
   Application Binary Interface, or ABI. The GNU C++ compiler uses an
   industry-standard C++ ABI starting with version 3. Details can be
-  found in the <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.codesourcery.com/public/cxx-abi/abi.html">ABI
+  found in the <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://mentorembedded.github.com/cxx-abi/abi.html">ABI
   specification</link>.
 </para>
 
@@ -215,6 +203,7 @@ compatible.
     <listitem><para>GCC 4.5.0: GCC_4.5.0</para></listitem>
     <listitem><para>GCC 4.6.0: GCC_4.6.0</para></listitem>
     <listitem><para>GCC 4.7.0: GCC_4.7.0</para></listitem>
+    <listitem><para>GCC 4.8.0: GCC_4.8.0</para></listitem>
     </itemizedlist>
     </listitem>
 
@@ -271,6 +260,10 @@ compatible.
     <listitem><para>GCC 4.5.0: libstdc++.so.6.0.14</para></listitem>
     <listitem><para>GCC 4.6.0: libstdc++.so.6.0.15</para></listitem>
     <listitem><para>GCC 4.6.1: libstdc++.so.6.0.16</para></listitem>
+    <listitem><para>GCC 4.7.0: libstdc++.so.6.0.17</para></listitem>
+    <listitem><para>GCC 4.8.0: libstdc++.so.6.0.18</para></listitem>
+    <listitem><para>GCC 4.8.3: libstdc++.so.6.0.19</para></listitem>
+    <listitem><para>GCC 4.9.0: libstdc++.so.6.0.20</para></listitem>
     </itemizedlist>
     <para>
       Note 1: Error should be libstdc++.so.3.0.3.
@@ -332,6 +325,10 @@ compatible.
     <listitem><para>GCC 4.5.0: GLIBCXX_3.4.14, CXXABI_1.3.4</para></listitem>
     <listitem><para>GCC 4.6.0: GLIBCXX_3.4.15, CXXABI_1.3.5</para></listitem>
     <listitem><para>GCC 4.6.1: GLIBCXX_3.4.16, CXXABI_1.3.5</para></listitem>
+    <listitem><para>GCC 4.7.0: GLIBCXX_3.4.17, CXXABI_1.3.6</para></listitem>
+    <listitem><para>GCC 4.8.0: GLIBCXX_3.4.18, CXXABI_1.3.7</para></listitem>
+    <listitem><para>GCC 4.8.3: GLIBCXX_3.4.19, CXXABI_1.3.7</para></listitem>
+    <listitem><para>GCC 4.9.0: GLIBCXX_3.4.20, CXXABI_1.3.8</para></listitem>
     </itemizedlist>
     </listitem>
 
@@ -449,13 +446,19 @@ compatible.
     <listitem><para>GCC 4.4.4: 20100429</para></listitem>
     <listitem><para>GCC 4.4.5: 20101001</para></listitem>
     <listitem><para>GCC 4.4.6: 20110416</para></listitem>
+    <listitem><para>GCC 4.4.7: 20120313</para></listitem>
     <listitem><para>GCC 4.5.0: 20100414</para></listitem>
     <listitem><para>GCC 4.5.1: 20100731</para></listitem>
     <listitem><para>GCC 4.5.2: 20101216</para></listitem>
     <listitem><para>GCC 4.5.3: 20110428</para></listitem>
+    <listitem><para>GCC 4.5.4: 20120702</para></listitem>
     <listitem><para>GCC 4.6.0: 20110325</para></listitem>
     <listitem><para>GCC 4.6.1: 20110627</para></listitem>
     <listitem><para>GCC 4.6.2: 20111026</para></listitem>
+    <listitem><para>GCC 4.6.3: 20120301</para></listitem>
+    <listitem><para>GCC 4.7.0: 20120322</para></listitem>
+    <listitem><para>GCC 4.7.1: 20120614</para></listitem>
+    <listitem><para>GCC 4.7.2: 20120920</para></listitem>
     </itemizedlist>
     <para/>
     </listitem>
@@ -729,7 +732,7 @@ class that would otherwise have implicit versions. This will change
 the way the compiler deals with this class in by-value return
 statements or parameters: instead of passing instances of this
 class in registers, the compiler will be forced to use memory. See the
-section on <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.codesourcery.com/public/cxx-abi/abi.html#calls">Function
+section on <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://mentorembedded.github.com/cxx-abi/abi.html#calls">Function
 Calling Conventions and APIs</link>
  of the C++ ABI documentation for further details.
 </para></listitem>
@@ -1087,7 +1090,7 @@ gcc test.c -g -O2 -L. -lone -ltwo /usr/lib/libstdc++.so.5 /usr/lib/libstdc++.so.
     <biblioentry xml:id="biblio.cxxabi">
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="http://www.codesourcery.com/public/cxx-abi">
+	      xlink:href="http://www.codesourcery.com/cxx-abi/">
 	  C++ ABI Summary
 	</link>
       </title>

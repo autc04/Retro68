@@ -1,6 +1,5 @@
 /* Prototypes of target machine for SPARC.
-   Copyright (C) 1999, 2000, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com).
    64-bit SPARC-V9 support by Michael Tiemann, Jim Wilson, and Doug Evans,
    at Cygnus Support.
@@ -37,6 +36,7 @@ extern enum direction function_arg_padding (enum machine_mode, const_tree);
 
 extern void order_regs_for_local_alloc (void);
 extern HOST_WIDE_INT sparc_compute_frame_size (HOST_WIDE_INT, int);
+extern int sparc_initial_elimination_offset (int);
 extern void sparc_expand_prologue (void);
 extern void sparc_flat_expand_prologue (void);
 extern void sparc_expand_epilogue (bool);
@@ -69,8 +69,7 @@ extern bool sparc_expand_move (enum machine_mode, rtx *);
 extern void sparc_emit_set_symbolic_const64 (rtx, rtx, rtx);
 extern int sparc_splitdi_legitimate (rtx, rtx);
 extern int sparc_split_regreg_legitimate (rtx, rtx);
-extern int sparc_absnegfloat_split_legitimate (rtx, rtx);
-extern const char *output_ubranch (rtx, int, rtx);
+extern const char *output_ubranch (rtx, rtx);
 extern const char *output_cbranch (rtx, rtx, int, int, int, rtx);
 extern const char *output_return (rtx);
 extern const char *output_sibcall (rtx, rtx);
@@ -78,18 +77,17 @@ extern const char *output_v8plus_shift (rtx, rtx *, const char *);
 extern const char *output_v8plus_mult (rtx, rtx *, const char *);
 extern const char *output_v9branch (rtx, rtx, int, int, int, int, rtx);
 extern const char *output_probe_stack_range (rtx, rtx);
+extern const char *output_cbcond (rtx, rtx, rtx);
 extern bool emit_scc_insn (rtx []);
 extern void emit_conditional_branch_insn (rtx []);
+extern int registers_ok_for_ldd_peep (rtx, rtx);
 extern int mems_ok_for_ldd_peep (rtx, rtx, rtx);
-extern int arith_double_4096_operand (rtx, enum machine_mode);
-extern int arith_4096_operand (rtx, enum machine_mode);
-extern int zero_operand (rtx, enum machine_mode);
-extern int fp_zero_operand (rtx, enum machine_mode);
-extern int reg_or_0_operand (rtx, enum machine_mode);
+extern rtx widen_mem_for_ldd_peep (rtx, rtx, enum machine_mode);
 extern int empty_delay_slot (rtx);
+extern int emit_cbcond_nop (rtx);
+extern int eligible_for_call_delay (rtx);
 extern int eligible_for_return_delay (rtx);
 extern int eligible_for_sibcall_delay (rtx);
-extern int tls_call_delay (rtx);
 extern int emit_move_sequence (rtx, enum machine_mode);
 extern int fp_sethi_p (rtx);
 extern int fp_mov_p (rtx);
@@ -98,7 +96,6 @@ extern int mem_min_alignment (rtx, int);
 extern int pic_address_needs_scratch (rtx);
 extern int register_ok_for_ldd (rtx);
 extern int memory_ok_for_ldd (rtx);
-extern int registers_ok_for_ldd_peep (rtx, rtx);
 extern int v9_regcmp_p (enum rtx_code);
 /* Function used for V8+ code generation.  Returns 1 if the high
    32 bits of REG are 0 before INSN.  */   

@@ -1,8 +1,6 @@
 /* Build up a list of intrinsic subroutines and functions for the
    name-resolution stage.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -23,6 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "flags.h"
 #include "gfortran.h"
 #include "intrinsic.h"
@@ -175,11 +174,76 @@ find_char_conv (gfc_typespec *from, gfc_typespec *to)
 }
 
 
+/* Check TS29113, C407b for assumed type and C535b for assumed-rank,
+   and a likewise check for NO_ARG_CHECK.  */
+
+static bool
+do_ts29113_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
+{
+  gfc_actual_arglist *a;
+
+  for (a = arg; a; a = a->next)
+    {
+      if (!a->expr)
+	continue;
+
+      if (a->expr->expr_type == EXPR_VARIABLE
+	  && (a->expr->symtree->n.sym->attr.ext_attr
+	      & (1 << EXT_ATTR_NO_ARG_CHECK))
+	  && specific->id != GFC_ISYM_C_LOC
+	  && specific->id != GFC_ISYM_PRESENT)
+	{
+	  gfc_error ("Variable with NO_ARG_CHECK attribute at %L is only "
+		     "permitted as argument to the intrinsic functions "
+		     "C_LOC and PRESENT", &a->expr->where);
+	  return false;
+	}
+      else if (a->expr->ts.type == BT_ASSUMED
+	       && specific->id != GFC_ISYM_LBOUND
+	       && specific->id != GFC_ISYM_PRESENT
+	       && specific->id != GFC_ISYM_RANK
+	       && specific->id != GFC_ISYM_SHAPE
+	       && specific->id != GFC_ISYM_SIZE
+	       && specific->id != GFC_ISYM_UBOUND
+	       && specific->id != GFC_ISYM_C_LOC)
+	{
+	  gfc_error ("Assumed-type argument at %L is not permitted as actual"
+		     " argument to the intrinsic %s", &a->expr->where,
+		     gfc_current_intrinsic);
+	  return false;
+	}
+      else if (a->expr->ts.type == BT_ASSUMED && a != arg)
+	{
+	  gfc_error ("Assumed-type argument at %L is only permitted as "
+		     "first actual argument to the intrinsic %s",
+		     &a->expr->where, gfc_current_intrinsic);
+	  return false;
+	}
+      if (a->expr->rank == -1 && !specific->inquiry)
+	{
+	  gfc_error ("Assumed-rank argument at %L is only permitted as actual "
+		     "argument to intrinsic inquiry functions",
+		     &a->expr->where);
+	  return false;
+	}
+      if (a->expr->rank == -1 && arg != a)
+	{
+	  gfc_error ("Assumed-rank argument at %L is only permitted as first "
+		     "actual argument to the intrinsic inquiry function %s",
+		     &a->expr->where, gfc_current_intrinsic);
+	  return false;
+	}
+    }
+
+  return true;
+}
+
+
 /* Interface to the check functions.  We break apart an argument list
    and call the proper check function rather than forcing each
    function to manipulate the argument list.  */
 
-static gfc_try
+static bool
 do_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
 {
   gfc_expr *a1, *a2, *a3, *a4, *a5;
@@ -344,7 +408,7 @@ add_sym (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type
 static void
 add_sym_0 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	   int kind, int standard,
-	   gfc_try (*check) (void),
+	   bool (*check) (void),
 	   gfc_expr *(*simplify) (void),
 	   void (*resolve) (gfc_expr *))
 {
@@ -387,7 +451,7 @@ add_sym_0s (const char *name, gfc_isym_id id, int standard,
 static void
 add_sym_1 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	   int kind, int standard,
-	   gfc_try (*check) (gfc_expr *),
+	   bool (*check) (gfc_expr *),
 	   gfc_expr *(*simplify) (gfc_expr *),
 	   void (*resolve) (gfc_expr *, gfc_expr *),
 	   const char *a1, bt type1, int kind1, int optional1)
@@ -412,7 +476,7 @@ add_sym_1 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt ty
 static void
 add_sym_1_intent (const char *name, gfc_isym_id id, enum klass cl,
 		  int actual_ok, bt type, int kind, int standard,
-		  gfc_try (*check) (gfc_expr *),
+		  bool (*check) (gfc_expr *),
 		  gfc_expr *(*simplify) (gfc_expr *),
 		  void (*resolve) (gfc_expr *, gfc_expr *),
 		  const char *a1, bt type1, int kind1, int optional1,
@@ -437,7 +501,7 @@ add_sym_1_intent (const char *name, gfc_isym_id id, enum klass cl,
 
 static void
 add_sym_1s (const char *name, gfc_isym_id id, enum klass cl, bt type, int kind,
-	    int standard, gfc_try (*check) (gfc_expr *),
+	    int standard, bool (*check) (gfc_expr *),
 	    gfc_expr *(*simplify) (gfc_expr *), void (*resolve) (gfc_code *),
 	    const char *a1, bt type1, int kind1, int optional1,
 	    sym_intent intent1)
@@ -462,7 +526,7 @@ add_sym_1s (const char *name, gfc_isym_id id, enum klass cl, bt type, int kind,
 static void
 add_sym_1m (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	    int kind, int standard,
-	    gfc_try (*check) (gfc_actual_arglist *),
+	    bool (*check) (gfc_actual_arglist *),
 	    gfc_expr *(*simplify) (gfc_expr *),
 	    void (*resolve) (gfc_expr *, gfc_actual_arglist *),
 	    const char *a1, bt type1, int kind1, int optional1,
@@ -489,7 +553,7 @@ add_sym_1m (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt t
 static void
 add_sym_2 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	   int kind, int standard,
-	   gfc_try (*check) (gfc_expr *, gfc_expr *),
+	   bool (*check) (gfc_expr *, gfc_expr *),
 	   gfc_expr *(*simplify) (gfc_expr *, gfc_expr *),
 	   void (*resolve) (gfc_expr *, gfc_expr *, gfc_expr *),
 	   const char *a1, bt type1, int kind1, int optional1,
@@ -516,7 +580,7 @@ add_sym_2 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt ty
 static void
 add_sym_2_intent (const char *name, gfc_isym_id id, enum klass cl,
 		  int actual_ok, bt type, int kind, int standard,
-		  gfc_try (*check) (gfc_expr *, gfc_expr *),
+		  bool (*check) (gfc_expr *, gfc_expr *),
 		  gfc_expr *(*simplify) (gfc_expr *, gfc_expr *),
 		  void (*resolve) (gfc_expr *, gfc_expr *, gfc_expr *),
 		  const char *a1, bt type1, int kind1, int optional1,
@@ -544,7 +608,7 @@ add_sym_2_intent (const char *name, gfc_isym_id id, enum klass cl,
 static void
 add_sym_2s (const char *name, gfc_isym_id id, enum klass cl, bt type,
 	    int kind, int standard,
-	    gfc_try (*check) (gfc_expr *, gfc_expr *),
+	    bool (*check) (gfc_expr *, gfc_expr *),
 	    gfc_expr *(*simplify) (gfc_expr *, gfc_expr *),
 	    void (*resolve) (gfc_code *),
 	    const char *a1, bt type1, int kind1, int optional1,
@@ -572,7 +636,7 @@ add_sym_2s (const char *name, gfc_isym_id id, enum klass cl, bt type,
 static void
 add_sym_3 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	   int kind, int standard,
-	   gfc_try (*check) (gfc_expr *, gfc_expr *, gfc_expr *),
+	   bool (*check) (gfc_expr *, gfc_expr *, gfc_expr *),
 	   gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *),
 	   void (*resolve) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *),
 	   const char *a1, bt type1, int kind1, int optional1,
@@ -601,7 +665,7 @@ add_sym_3 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt ty
 static void
 add_sym_3ml (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	     int kind, int standard,
-	     gfc_try (*check) (gfc_actual_arglist *),
+	     bool (*check) (gfc_actual_arglist *),
 	     gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *),
 	     void (*resolve) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *),
 	     const char *a1, bt type1, int kind1, int optional1,
@@ -630,7 +694,7 @@ add_sym_3ml (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt 
 static void
 add_sym_3red (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	      int kind, int standard,
-	      gfc_try (*check) (gfc_actual_arglist *),
+	      bool (*check) (gfc_actual_arglist *),
 	      gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *),
 	      void (*resolve) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *),
 	      const char *a1, bt type1, int kind1, int optional1,
@@ -659,7 +723,7 @@ add_sym_3red (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt
 static void
 add_sym_3s (const char *name, gfc_isym_id id, enum klass cl, bt type,
 	    int kind, int standard,
-	    gfc_try (*check) (gfc_expr *, gfc_expr *, gfc_expr *),
+	    bool (*check) (gfc_expr *, gfc_expr *, gfc_expr *),
 	    gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *),
 	    void (*resolve) (gfc_code *),
 	    const char *a1, bt type1, int kind1, int optional1,
@@ -689,7 +753,7 @@ add_sym_3s (const char *name, gfc_isym_id id, enum klass cl, bt type,
 static void
 add_sym_4 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt type,
 	   int kind, int standard,
-	   gfc_try (*check) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *),
+	   bool (*check) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *),
 	   gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *,
 				  gfc_expr *),
 	   void (*resolve) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *,
@@ -722,7 +786,7 @@ add_sym_4 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok, bt ty
 static void
 add_sym_4s (const char *name, gfc_isym_id id, enum klass cl, bt type, int kind,
 	    int standard,
-	    gfc_try (*check) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *),
+	    bool (*check) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *),
 	    gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *,
 				   gfc_expr *),
 	    void (*resolve) (gfc_code *),
@@ -755,7 +819,7 @@ add_sym_4s (const char *name, gfc_isym_id id, enum klass cl, bt type, int kind,
 static void
 add_sym_5s (const char *name, gfc_isym_id id, enum klass cl, bt type, int kind,
 	    int standard,
-	    gfc_try (*check) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *,
+	    bool (*check) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *,
 			  gfc_expr *),
 	    gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *,
 				   gfc_expr *, gfc_expr *),
@@ -808,6 +872,57 @@ find_sym (gfc_intrinsic_sym *start, int n, const char *name)
     }
 
   return NULL;
+}
+
+
+gfc_isym_id
+gfc_isym_id_by_intmod (intmod_id from_intmod, int intmod_sym_id)
+{
+  if (from_intmod == INTMOD_NONE)
+    return (gfc_isym_id) intmod_sym_id;
+  else if (from_intmod == INTMOD_ISO_C_BINDING)
+    return (gfc_isym_id) c_interop_kinds_table[intmod_sym_id].value;
+  else if (from_intmod == INTMOD_ISO_FORTRAN_ENV)
+    switch (intmod_sym_id)
+      {
+#define NAMED_SUBROUTINE(a,b,c,d) \
+      case a: \
+	return (gfc_isym_id) c;
+#define NAMED_FUNCTION(a,b,c,d) \
+      case a: \
+	return (gfc_isym_id) c;
+#include "iso-fortran-env.def"
+      default:
+	gcc_unreachable ();
+      }
+  else
+    gcc_unreachable ();
+  return (gfc_isym_id) 0;
+}
+
+
+gfc_isym_id
+gfc_isym_id_by_intmod_sym (gfc_symbol *sym)
+{
+  return gfc_isym_id_by_intmod (sym->from_intmod, sym->intmod_sym_id);
+}
+
+
+gfc_intrinsic_sym *
+gfc_intrinsic_subroutine_by_id (gfc_isym_id id)
+{
+  gfc_intrinsic_sym *start = subroutines;
+  int n = nsub;
+
+  while (true)
+    {
+      gcc_assert (n > 0);
+      if (id == start->id)
+	return start;
+
+      start++;
+      n--;
+    }
 }
 
 
@@ -901,9 +1016,9 @@ gfc_intrinsic_actual_ok (const char *name, const bool subroutine_flag)
 }
 
 
-/* Given a symbol, find out if it is (and is to be treated) an intrinsic.  If
-   it's name refers to an intrinsic but this intrinsic is not included in the
-   selected standard, this returns FALSE and sets the symbol's external
+/* Given a symbol, find out if it is (and is to be treated as) an intrinsic.
+   If its name refers to an intrinsic, but this intrinsic is not included in
+   the selected standard, this returns FALSE and sets the symbol's external
    attribute.  */
 
 bool
@@ -912,10 +1027,13 @@ gfc_is_intrinsic (gfc_symbol* sym, int subroutine_flag, locus loc)
   gfc_intrinsic_sym* isym;
   const char* symstd;
 
-  /* If INTRINSIC/EXTERNAL state is already known, return.  */
+  /* If INTRINSIC attribute is already known, return.  */
   if (sym->attr.intrinsic)
     return true;
-  if (sym->attr.external)
+
+  /* Check for attributes which prevent the symbol from being INTRINSIC.  */
+  if (sym->attr.external || sym->attr.contained
+      || sym->attr.if_source == IFSRC_IFBODY)
     return false;
 
   if (subroutine_flag)
@@ -928,7 +1046,8 @@ gfc_is_intrinsic (gfc_symbol* sym, int subroutine_flag, locus loc)
     return false;
 
   /* See if this intrinsic is allowed in the current standard.  */
-  if (gfc_check_intrinsic_standard (isym, &symstd, false, loc) == FAILURE)
+  if (!gfc_check_intrinsic_standard (isym, &symstd, false, loc)
+      && !sym->attr.artificial)
     {
       if (sym->attr.proc == PROC_UNKNOWN
 	  && gfc_option.warn_intrinsics_std)
@@ -2434,7 +2553,7 @@ add_functions (void)
   make_generic ("range", GFC_ISYM_RANGE, GFC_STD_F95);
 
   add_sym_1 ("rank", GFC_ISYM_RANK, CLASS_INQUIRY, ACTUAL_NO, BT_INTEGER, di,
-	     GFC_STD_F2008_TS, gfc_check_rank, gfc_simplify_rank, NULL,
+	     GFC_STD_F2008_TS, gfc_check_rank, gfc_simplify_rank, gfc_resolve_rank,
 	     a, BT_REAL, dr, REQUIRED);
   make_generic ("rank", GFC_ISYM_RANK, GFC_STD_F2008_TS);
 
@@ -2636,15 +2755,42 @@ add_functions (void)
 
   make_generic ("size", GFC_ISYM_SIZE, GFC_STD_F95);
 
+  /* Obtain the stride for a given dimensions; to be used only internally.
+     "make_from_module" makes inaccessible for external users.  */
+  add_sym_2 (GFC_PREFIX ("stride"), GFC_ISYM_STRIDE, CLASS_INQUIRY, ACTUAL_NO,
+	     BT_INTEGER, gfc_index_integer_kind, GFC_STD_GNU,
+	     NULL, NULL, gfc_resolve_stride,
+	     ar, BT_REAL, dr, REQUIRED, dm, BT_INTEGER, ii, OPTIONAL);
+  make_from_module();
+
   add_sym_1 ("sizeof", GFC_ISYM_SIZEOF, CLASS_IMPURE, ACTUAL_NO, BT_INTEGER, ii,
-	     GFC_STD_GNU, gfc_check_sizeof, NULL, NULL,
+	     GFC_STD_GNU, gfc_check_sizeof, gfc_simplify_sizeof, NULL,
 	     x, BT_UNKNOWN, 0, REQUIRED);
 
   make_generic ("sizeof", GFC_ISYM_SIZEOF, GFC_STD_GNU);
 
-  /* C_SIZEOF is part of ISO_C_BINDING.  */
+  /* The following functions are part of ISO_C_BINDING.  */
+  add_sym_2 ("c_associated", GFC_ISYM_C_ASSOCIATED, CLASS_INQUIRY, ACTUAL_NO,
+	     BT_LOGICAL, dl, GFC_STD_F2003, gfc_check_c_associated, NULL, NULL,
+	     "C_PTR_1", BT_VOID, 0, REQUIRED,
+	     "C_PTR_2", BT_VOID, 0, OPTIONAL);
+  make_from_module();
+
+  add_sym_1 ("c_loc", GFC_ISYM_C_LOC, CLASS_INQUIRY, ACTUAL_NO,
+	     BT_VOID, 0, GFC_STD_F2003,
+	     gfc_check_c_loc, NULL, gfc_resolve_c_loc,
+	     x, BT_UNKNOWN, 0, REQUIRED);
+  make_from_module();
+
+  add_sym_1 ("c_funloc", GFC_ISYM_C_FUNLOC, CLASS_INQUIRY, ACTUAL_NO,
+	     BT_VOID, 0, GFC_STD_F2003,
+	     gfc_check_c_funloc, NULL, gfc_resolve_c_funloc,
+	     x, BT_UNKNOWN, 0, REQUIRED);
+  make_from_module();
+
   add_sym_1 ("c_sizeof", GFC_ISYM_C_SIZEOF, CLASS_INQUIRY, ACTUAL_NO,
-	     BT_INTEGER, ii, GFC_STD_F2008, gfc_check_c_sizeof, NULL, NULL,
+	     BT_INTEGER, gfc_index_integer_kind, GFC_STD_F2008,
+	     gfc_check_c_sizeof, gfc_simplify_sizeof, NULL,
 	     x, BT_UNKNOWN, 0, REQUIRED);
   make_from_module();
 
@@ -2702,7 +2848,8 @@ add_functions (void)
 
   add_sym_2 ("storage_size", GFC_ISYM_STORAGE_SIZE, CLASS_INQUIRY, ACTUAL_NO,
 	     BT_INTEGER, di, GFC_STD_F2008,
-	     gfc_check_storage_size, NULL, gfc_resolve_storage_size,
+	     gfc_check_storage_size, gfc_simplify_storage_size,
+	     gfc_resolve_storage_size,
 	     a, BT_UNKNOWN, 0, REQUIRED,
 	     kind, BT_INTEGER, di, OPTIONAL);
   
@@ -2892,6 +3039,8 @@ add_subroutines (void)
 	      "value", BT_INTEGER, di, REQUIRED, INTENT_OUT,
 	      "atom", BT_INTEGER, di, REQUIRED, INTENT_IN);
 
+  add_sym_0s ("backtrace", GFC_ISYM_BACKTRACE, GFC_STD_GNU, NULL);
+
   add_sym_1s ("cpu_time", GFC_ISYM_CPU_TIME, CLASS_IMPURE, BT_UNKNOWN, 0,
 	      GFC_STD_F95, gfc_check_cpu_time, NULL, gfc_resolve_cpu_time,
 	      tm, BT_REAL, dr, REQUIRED, INTENT_OUT);
@@ -3043,6 +3192,22 @@ add_subroutines (void)
 	      sz, BT_INTEGER, di, OPTIONAL, INTENT_OUT,
 	      pt, BT_INTEGER, di, OPTIONAL, INTENT_IN,
 	      gt, BT_INTEGER, di, OPTIONAL, INTENT_OUT);
+
+  /* The following subroutines are part of ISO_C_BINDING.  */
+
+  add_sym_3s ("c_f_pointer", GFC_ISYM_C_F_POINTER, CLASS_IMPURE, BT_UNKNOWN, 0,
+	      GFC_STD_F2003, gfc_check_c_f_pointer, NULL, NULL,
+	      "cptr", BT_VOID, 0, REQUIRED, INTENT_IN,
+	      "fptr", BT_UNKNOWN, 0, REQUIRED, INTENT_OUT,
+	      "shape", BT_INTEGER, di, OPTIONAL, INTENT_IN);
+  make_from_module();
+
+  add_sym_2s ("c_f_procpointer", GFC_ISYM_C_F_PROCPOINTER, CLASS_IMPURE,
+	      BT_UNKNOWN, 0, GFC_STD_F2003, gfc_check_c_f_procpointer,
+	      NULL, NULL,
+	      "cptr", BT_VOID, 0, REQUIRED, INTENT_IN,
+	      "fptr", BT_UNKNOWN, 0, REQUIRED, INTENT_OUT);
+  make_from_module();
 
   /* More G77 compatibility garbage.  */
   add_sym_3s ("alarm", GFC_ISYM_ALARM, CLASS_IMPURE, BT_UNKNOWN, 0, GFC_STD_GNU,
@@ -3475,9 +3640,9 @@ remove_nullargs (gfc_actual_arglist **ap)
    with the format arglist.  Arguments that are not present are given
    a blank gfc_actual_arglist structure.  If something is obviously
    wrong (say, a missing required argument) we abort sorting and
-   return FAILURE.  */
+   return false.  */
 
-static gfc_try
+static bool
 sort_actual (const char *name, gfc_actual_arglist **ap,
 	     gfc_intrinsic_arg *formal, locus *where)
 {
@@ -3494,7 +3659,7 @@ sort_actual (const char *name, gfc_actual_arglist **ap,
   a = actual;
 
   if (f == NULL && a == NULL)	/* No arguments */
-    return SUCCESS;
+    return true;
 
   for (;;)
     {		/* Put the nonkeyword arguments in a 1:1 correspondence */
@@ -3516,7 +3681,7 @@ sort_actual (const char *name, gfc_actual_arglist **ap,
     goto do_sort;
 
   gfc_error ("Too many arguments in call to '%s' at %L", name, where);
-  return FAILURE;
+  return false;
 
 keywords:
   /* Associate the remaining actual arguments, all of which have
@@ -3535,14 +3700,14 @@ keywords:
 	  else
 	    gfc_error ("Can't find keyword named '%s' in call to '%s' at %L",
 		       a->name, name, where);
-	  return FAILURE;
+	  return false;
 	}
 
       if (f->actual != NULL)
 	{
 	  gfc_error ("Argument '%s' appears twice in call to '%s' at %L",
 		     f->name, name, where);
-	  return FAILURE;
+	  return false;
 	}
 
       f->actual = a;
@@ -3556,7 +3721,7 @@ optional:
 	{
 	  gfc_error ("Missing actual argument '%s' in call to '%s' at %L",
 		     f->name, name, where);
-	  return FAILURE;
+	  return false;
 	}
     }
 
@@ -3570,7 +3735,7 @@ do_sort:
       if (f->actual && f->actual->label != NULL && f->ts.type)
 	{
 	  gfc_error ("ALTERNATE RETURN not permitted at %L", where);
-	  return FAILURE;
+	  return false;
 	}
 
       if (f->actual == NULL)
@@ -3590,7 +3755,7 @@ do_sort:
     }
   actual->next = NULL;		/* End the sorted argument list.  */
 
-  return SUCCESS;
+  return true;
 }
 
 
@@ -3598,7 +3763,7 @@ do_sort:
    list.  The lists are checked for agreement of type.  We don't check
    for arrayness here.  */
 
-static gfc_try
+static bool
 check_arglist (gfc_actual_arglist **ap, gfc_intrinsic_sym *sym,
 	       int error_flag)
 {
@@ -3631,7 +3796,7 @@ check_arglist (gfc_actual_arglist **ap, gfc_intrinsic_sym *sym,
 		       gfc_current_intrinsic, &actual->expr->where,
 		       gfc_typename (&formal->ts),
 		       gfc_typename (&actual->expr->ts));
-	  return FAILURE;
+	  return false;
 	}
 
       /* If the formal argument is INTENT([IN]OUT), check for definability.  */
@@ -3642,13 +3807,12 @@ check_arglist (gfc_actual_arglist **ap, gfc_intrinsic_sym *sym,
 				 : NULL);
 
 	  /* No pointer arguments for intrinsics.  */
-	  if (gfc_check_vardef_context (actual->expr, false, false, context)
-		== FAILURE)
-	    return FAILURE;
+	  if (!gfc_check_vardef_context (actual->expr, false, false, false, context))
+	    return false;
 	}
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
@@ -3739,11 +3903,11 @@ resolve_intrinsic (gfc_intrinsic_sym *specific, gfc_expr *e)
 
 /* Given an intrinsic symbol node and an expression node, call the
    simplification function (if there is one), perhaps replacing the
-   expression with something simpler.  We return FAILURE on an error
-   of the simplification, SUCCESS if the simplification worked, even
+   expression with something simpler.  We return false on an error
+   of the simplification, true if the simplification worked, even
    if nothing has changed in the expression itself.  */
 
-static gfc_try
+static bool
 do_simplify (gfc_intrinsic_sym *specific, gfc_expr *e)
 {
   gfc_expr *result, *a1, *a2, *a3, *a4, *a5;
@@ -3827,7 +3991,7 @@ do_simplify (gfc_intrinsic_sym *specific, gfc_expr *e)
 
 finish:
   if (result == &gfc_bad_expr)
-    return FAILURE;
+    return false;
 
   if (result == NULL)
     resolve_intrinsic (specific, e);	/* Must call at run-time */
@@ -3837,12 +4001,12 @@ finish:
       gfc_replace_expr (e, result);
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
 /* Initialize the gfc_current_intrinsic_arg[] array for the benefit of
-   error messages.  This subroutine returns FAILURE if a subroutine
+   error messages.  This subroutine returns false if a subroutine
    has more than MAX_INTRINSIC_ARGS, in which case the actual argument
    list cannot match any intrinsic.  */
 
@@ -3866,14 +4030,14 @@ init_arglist (gfc_intrinsic_sym *isym)
 
 /* Given a pointer to an intrinsic symbol and an expression consisting
    of a function call, see if the function call is consistent with the
-   intrinsic's formal argument list.  Return SUCCESS if the expression
-   and intrinsic match, FAILURE otherwise.  */
+   intrinsic's formal argument list.  Return true if the expression
+   and intrinsic match, false otherwise.  */
 
-static gfc_try
+static bool
 check_specific (gfc_intrinsic_sym *specific, gfc_expr *expr, int error_flag)
 {
   gfc_actual_arglist *arg, **ap;
-  gfc_try t;
+  bool t;
 
   ap = &expr->value.function.actual;
 
@@ -3884,11 +4048,17 @@ check_specific (gfc_intrinsic_sym *specific, gfc_expr *expr, int error_flag)
       || specific->check.f1m == gfc_check_min_max_integer
       || specific->check.f1m == gfc_check_min_max_real
       || specific->check.f1m == gfc_check_min_max_double)
-    return (*specific->check.f1m) (*ap);
+    {
+      if (!do_ts29113_check (specific, *ap))
+	return false;
+      return (*specific->check.f1m) (*ap);
+    }
 
-  if (sort_actual (specific->name, ap, specific->formal,
-		   &expr->where) == FAILURE)
-    return FAILURE;
+  if (!sort_actual (specific->name, ap, specific->formal, &expr->where))
+    return false;
+
+  if (!do_ts29113_check (specific, *ap))
+    return false;
 
   if (specific->check.f3ml == gfc_check_minloc_maxloc)
     /* This is special because we might have to reorder the argument list.  */
@@ -3909,7 +4079,7 @@ check_specific (gfc_intrinsic_sym *specific, gfc_expr *expr, int error_flag)
        if (specific->check.f1 == NULL)
 	 {
 	   t = check_arglist (ap, specific, error_flag);
-	   if (t == SUCCESS)
+	   if (t)
 	     expr->ts = specific->ts;
 	 }
        else
@@ -3917,7 +4087,7 @@ check_specific (gfc_intrinsic_sym *specific, gfc_expr *expr, int error_flag)
      }
 
   /* Check conformance of elemental intrinsics.  */
-  if (t == SUCCESS && specific->elemental)
+  if (t && specific->elemental)
     {
       int n = 0;
       gfc_expr *first_expr;
@@ -3928,16 +4098,16 @@ check_specific (gfc_intrinsic_sym *specific, gfc_expr *expr, int error_flag)
       first_expr = arg->expr;
 
       for ( ; arg && arg->expr; arg = arg->next, n++)
-	if (gfc_check_conformance (first_expr, arg->expr,
-				   "arguments '%s' and '%s' for "
-				   "intrinsic '%s'",
-				   gfc_current_intrinsic_arg[0]->name,
-				   gfc_current_intrinsic_arg[n]->name,
-				   gfc_current_intrinsic) == FAILURE)
-	  return FAILURE;
+	if (!gfc_check_conformance (first_expr, arg->expr, 
+				    "arguments '%s' and '%s' for "
+				    "intrinsic '%s'", 
+				    gfc_current_intrinsic_arg[0]->name, 
+				    gfc_current_intrinsic_arg[n]->name, 
+				    gfc_current_intrinsic))
+	  return false;
     }
 
-  if (t == FAILURE)
+  if (!t)
     remove_nullargs (ap);
 
   return t;
@@ -3950,9 +4120,9 @@ check_specific (gfc_intrinsic_sym *specific, gfc_expr *expr, int error_flag)
    textual representation of the symbols standard status (like
    "new in Fortran 2008", "a GNU extension" or "obsolescent in Fortran 95") that
    can be used to construct a detailed warning/error message in case of
-   a FAILURE.  */
+   a false.  */
 
-gfc_try
+bool
 gfc_check_intrinsic_standard (const gfc_intrinsic_sym* isym,
 			      const char** symstd, bool silent, locus where)
 {
@@ -3960,7 +4130,7 @@ gfc_check_intrinsic_standard (const gfc_intrinsic_sym* isym,
 
   /* For -fall-intrinsics, just succeed.  */
   if (gfc_option.flag_all_intrinsics)
-    return SUCCESS;
+    return true;
 
   /* Find the symbol's standard message for later usage.  */
   switch (isym->standard)
@@ -4014,17 +4184,17 @@ gfc_check_intrinsic_standard (const gfc_intrinsic_sym* isym,
 	gfc_warning ("Intrinsic '%s' (is %s) is used at %L",
 		     isym->name, _(symstd_msg), &where);
 
-      return SUCCESS;
+      return true;
     }
 
   /* If allowing the symbol's standard, succeed, too.  */
   if (gfc_option.allow_std & isym->standard)
-    return SUCCESS;
+    return true;
 
   /* Otherwise, fail.  */
   if (symstd)
     *symstd = _(symstd_msg);
-  return FAILURE;
+  return false;
 }
 
 
@@ -4050,7 +4220,7 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
   int flag;
 
   if (expr->value.function.isym != NULL)
-    return (do_simplify (expr->value.function.isym, expr) == FAILURE)
+    return (!do_simplify(expr->value.function.isym, expr))
 	   ? MATCH_ERROR : MATCH_YES;
 
   if (!error_flag)
@@ -4066,8 +4236,8 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
 
   if (expr->symtree->n.sym->intmod_sym_id)
     {
-      int id = expr->symtree->n.sym->intmod_sym_id;
-      isym = specific = gfc_intrinsic_function_by_id ((gfc_isym_id) id);
+      gfc_isym_id id = gfc_isym_id_by_intmod_sym (expr->symtree->n.sym);
+      isym = specific = gfc_intrinsic_function_by_id (id);
     }
   else
     isym = specific = gfc_find_function (name);
@@ -4082,9 +4252,8 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
   if ((isym->id == GFC_ISYM_REAL || isym->id == GFC_ISYM_DBLE
        || isym->id == GFC_ISYM_CMPLX)
       && gfc_init_expr_flag
-      && gfc_notify_std (GFC_STD_F2003, "Fortran 2003: Function '%s' "
-			 "as initialization expression at %L", name,
-			 &expr->where) == FAILURE)
+      && !gfc_notify_std (GFC_STD_F2003, "Function '%s' as initialization "
+			  "expression at %L", name, &expr->where))
     {
       if (!error_flag)
 	gfc_pop_suppress_errors ();
@@ -4093,12 +4262,12 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
 
   gfc_current_intrinsic_where = &expr->where;
 
-  /* Bypass the generic list for min and max.  */
+  /* Bypass the generic list for min, max and ISO_C_Binding's c_loc.  */
   if (isym->check.f1m == gfc_check_min_max)
     {
       init_arglist (isym);
 
-      if (gfc_check_min_max (expr->value.function.actual) == SUCCESS)
+      if (isym->check.f1m(expr->value.function.actual))
 	goto got_specific;
 
       if (!error_flag)
@@ -4119,7 +4288,7 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
 	{
 	  if (specific == isym)
 	    continue;
-	  if (check_specific (specific, expr, 0) == SUCCESS)
+	  if (check_specific (specific, expr, 0))
 	    {
 	      gfc_pop_suppress_errors ();
 	      goto got_specific;
@@ -4129,7 +4298,7 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
 
   gfc_pop_suppress_errors ();
 
-  if (check_specific (isym, expr, error_flag) == FAILURE)
+  if (!check_specific (isym, expr, error_flag))
     {
       if (!error_flag)
 	gfc_pop_suppress_errors ();
@@ -4140,12 +4309,13 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
 
 got_specific:
   expr->value.function.isym = specific;
-  gfc_intrinsic_symbol (expr->symtree->n.sym);
+  if (!expr->symtree->n.sym->module)
+    gfc_intrinsic_symbol (expr->symtree->n.sym);
 
   if (!error_flag)
     gfc_pop_suppress_errors ();
 
-  if (do_simplify (specific, expr) == FAILURE)
+  if (!do_simplify (specific, expr))
     return MATCH_ERROR;
 
   /* F95, 7.1.6.1, Initialization expressions
@@ -4158,9 +4328,9 @@ got_specific:
            where each argument is an initialization expression  */
 
   if (gfc_init_expr_flag && isym->elemental && flag
-      && gfc_notify_std (GFC_STD_F2003, "Fortran 2003: Elemental function "
-			"as initialization expression with non-integer/non-"
-		        "character arguments at %L", &expr->where) == FAILURE)
+      && !gfc_notify_std (GFC_STD_F2003, "Elemental function as "
+			  "initialization expression with non-integer/non-"
+			  "character arguments at %L", &expr->where))
     return MATCH_ERROR;
 
   return MATCH_YES;
@@ -4180,7 +4350,14 @@ gfc_intrinsic_sub_interface (gfc_code *c, int error_flag)
 
   name = c->symtree->n.sym->name;
 
-  isym = gfc_find_subroutine (name);
+  if (c->symtree->n.sym->intmod_sym_id)
+    {
+      gfc_isym_id id;
+      id = gfc_isym_id_by_intmod_sym (c->symtree->n.sym);
+      isym = gfc_intrinsic_subroutine_by_id (id);
+    }
+  else
+    isym = gfc_find_subroutine (name);
   if (isym == NULL)
     return MATCH_NO;
 
@@ -4189,17 +4366,20 @@ gfc_intrinsic_sub_interface (gfc_code *c, int error_flag)
 
   init_arglist (isym);
 
-  if (sort_actual (name, &c->ext.actual, isym->formal, &c->loc) == FAILURE)
+  if (!sort_actual (name, &c->ext.actual, isym->formal, &c->loc))
+    goto fail;
+
+  if (!do_ts29113_check (isym, c->ext.actual))
     goto fail;
 
   if (isym->check.f1 != NULL)
     {
-      if (do_check (isym, c->ext.actual) == FAILURE)
+      if (!do_check (isym, c->ext.actual))
 	goto fail;
     }
   else
     {
-      if (check_arglist (&c->ext.actual, isym, 1) == FAILURE)
+      if (!check_arglist (&c->ext.actual, isym, 1))
 	goto fail;
     }
 
@@ -4217,12 +4397,22 @@ gfc_intrinsic_sub_interface (gfc_code *c, int error_flag)
       c->resolved_sym->attr.elemental = isym->elemental;
     }
 
-  if (gfc_pure (NULL) && !isym->pure)
+  if (gfc_do_concurrent_flag && !isym->pure)
+    {
+      gfc_error ("Subroutine call to intrinsic '%s' in DO CONCURRENT "
+		 "block at %L is not PURE", name, &c->loc);
+      return MATCH_ERROR;
+    }
+
+  if (!isym->pure && gfc_pure (NULL))
     {
       gfc_error ("Subroutine call to intrinsic '%s' at %L is not PURE", name,
 		 &c->loc);
       return MATCH_ERROR;
     }
+
+  if (!isym->pure)
+    gfc_unset_implicit_pure (NULL);
 
   c->resolved_sym->attr.noreturn = isym->noreturn;
 
@@ -4237,7 +4427,7 @@ fail:
 
 /* Call gfc_convert_type() with warning enabled.  */
 
-gfc_try
+bool
 gfc_convert_type (gfc_expr *expr, gfc_typespec *ts, int eflag)
 {
   return gfc_convert_type_warn (expr, ts, eflag, 1);
@@ -4254,7 +4444,7 @@ gfc_convert_type (gfc_expr *expr, gfc_typespec *ts, int eflag)
 
    'wflag' controls the warning related to conversion.  */
 
-gfc_try
+bool
 gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag)
 {
   gfc_intrinsic_sym *sym;
@@ -4275,7 +4465,7 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag)
     {
       /* Sometimes the RHS acquire the type.  */
       expr->ts = *ts;
-      return SUCCESS;
+      return true;
     }
 
   if (expr->ts.type == BT_UNKNOWN)
@@ -4283,7 +4473,7 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag)
 
   if (expr->ts.type == BT_DERIVED && ts->type == BT_DERIVED
       && gfc_compare_types (&expr->ts, ts))
-    return SUCCESS;
+    return true;
 
   sym = find_conv (&expr->ts, ts);
   if (sym == NULL)
@@ -4393,22 +4583,22 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag)
   expr->ts = *ts;
 
   if (gfc_is_constant_expr (expr->value.function.actual->expr)
-      && do_simplify (sym, expr) == FAILURE)
+      && !do_simplify (sym, expr))
     {
 
       if (eflag == 2)
 	goto bad;
-      return FAILURE;		/* Error already generated in do_simplify() */
+      return false;		/* Error already generated in do_simplify() */
     }
 
-  return SUCCESS;
+  return true;
 
 bad:
   if (eflag == 1)
     {
       gfc_error ("Can't convert %s to %s at %L",
 		 gfc_typename (&from_ts), gfc_typename (ts), &expr->where);
-      return FAILURE;
+      return false;
     }
 
   gfc_internal_error ("Can't convert %s to %s at %L",
@@ -4418,7 +4608,7 @@ bad:
 }
 
 
-gfc_try
+bool
 gfc_convert_chartype (gfc_expr *expr, gfc_typespec *ts)
 {
   gfc_intrinsic_sym *sym;
@@ -4462,13 +4652,13 @@ gfc_convert_chartype (gfc_expr *expr, gfc_typespec *ts)
   expr->ts = *ts;
 
   if (gfc_is_constant_expr (expr->value.function.actual->expr)
-      && do_simplify (sym, expr) == FAILURE)
+      && !do_simplify (sym, expr))
     {
       /* Error already generated in do_simplify() */
-      return FAILURE;
+      return false;
     }
 
-  return SUCCESS;
+  return true;
 }
 
 
@@ -4494,12 +4684,12 @@ gfc_warn_intrinsic_shadow (const gfc_symbol* sym, bool in_module, bool func)
 
   /* If no intrinsic was found with this name or it's not included in the
      selected standard, everything's fine.  */
-  if (!isym || gfc_check_intrinsic_standard (isym, NULL, true,
-					     sym->declared_at) == FAILURE)
+  if (!isym || !gfc_check_intrinsic_standard (isym, NULL, true, 
+					      sym->declared_at))
     return;
 
   /* Emit the warning.  */
-  if (in_module)
+  if (in_module || sym->ns->proc_name)
     gfc_warning ("'%s' declared at %L may shadow the intrinsic of the same"
 		 " name.  In order to call the intrinsic, explicit INTRINSIC"
 		 " declarations may be required.",

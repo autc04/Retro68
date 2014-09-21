@@ -1,6 +1,5 @@
 /* Common VxWorks target definitions for GNU compiler.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Wind River Systems.
    Rewritten by CodeSourcery, LLC.
 
@@ -20,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-/* Assert that we are targetting VxWorks.  */
+/* Assert that we are targeting VxWorks.  */
 #undef TARGET_VXWORKS
 #define TARGET_VXWORKS 1
 
@@ -114,6 +113,9 @@ extern void vxworks_asm_out_destructor (rtx symbol, int priority);
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
+
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function
 
 /* Both kernels and RTPs have the facilities required by this macro.  */
 #define TARGET_POSIX_IO

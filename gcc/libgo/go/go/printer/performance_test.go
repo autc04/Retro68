@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file implements a simple printer performance benchmark:
-// go test -bench=BenchmarkPrint 
+// go test -bench=BenchmarkPrint
 
 package printer
 
@@ -20,7 +20,7 @@ import (
 var testfile *ast.File
 
 func testprint(out io.Writer, file *ast.File) {
-	if err := (&Config{TabIndent | UseSpaces, 8}).Fprint(out, fset, file); err != nil {
+	if err := (&Config{TabIndent | UseSpaces, 8, 0}).Fprint(out, fset, file); err != nil {
 		log.Fatalf("print error: %s", err)
 	}
 }

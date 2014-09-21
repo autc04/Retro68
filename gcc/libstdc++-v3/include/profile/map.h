@@ -1,6 +1,6 @@
 // Profiling map implementation -*- C++ -*-
 
-// Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,6 +43,10 @@ namespace __profile
     {
       typedef _GLIBCXX_STD_C::map<_Key, _Tp, _Compare, _Allocator> _Base;
 
+#if __cplusplus >= 201103L
+      typedef __gnu_cxx::__alloc_traits<_Allocator> _Alloc_traits;
+#endif
+
     public:
       // types:
       typedef _Key                                  key_type;
@@ -63,13 +67,23 @@ namespace __profile
       typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
       // 23.3.1.1 construct/copy/destroy:
+
+      map()
+      : _Base()
+      { __profcxx_map_to_unordered_map_construct(this); }
+
       explicit
-      map(const _Compare& __comp = _Compare(),
+      map(const _Compare& __comp,
 	  const _Allocator& __a = _Allocator())
       : _Base(__comp, __a)
       { __profcxx_map_to_unordered_map_construct(this); }
 
+#if __cplusplus >= 201103L
+      template<typename _InputIterator,
+	       typename = std::_RequireInputIter<_InputIterator>>
+#else
       template<typename _InputIterator>
+#endif
         map(_InputIterator __first, _InputIterator __last,
 	    const _Compare& __comp = _Compare(),
 	    const _Allocator& __a = _Allocator())
@@ -84,44 +98,65 @@ namespace __profile
       : _Base(__x)
       { __profcxx_map_to_unordered_map_construct(this); }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       map(map&& __x)
       noexcept(is_nothrow_copy_constructible<_Compare>::value)
       : _Base(std::move(__x))
-      { }
+      { __profcxx_map_to_unordered_map_construct(this); }
 
       map(initializer_list<value_type> __l,
 	  const _Compare& __c = _Compare(),
 	  const allocator_type& __a = allocator_type())
-      : _Base(__l, __c, __a) { }
+      : _Base(__l, __c, __a)
+      { __profcxx_map_to_unordered_map_construct(this); }
+
+      explicit
+      map(const allocator_type& __a)
+	: _Base(__a)
+      { __profcxx_map_to_unordered_map_construct(this); }
+
+      map(const map& __x, const allocator_type& __a)
+      : _Base(__x, __a)
+      { __profcxx_map_to_unordered_map_construct(this); }
+
+      map(map&& __x, const allocator_type& __a)
+      noexcept(is_nothrow_copy_constructible<_Compare>::value
+	       && _Alloc_traits::_S_always_equal())
+      : _Base(std::move(__x), __a)
+      { __profcxx_map_to_unordered_map_construct(this); }
+
+      map(initializer_list<value_type> __l, const allocator_type& __a)
+      : _Base(__l, __a)
+      { __profcxx_map_to_unordered_map_construct(this); }
+
+      template<typename _InputIterator>
+        map(_InputIterator __first, _InputIterator __last,
+	    const allocator_type& __a)
+	  : _Base(__first, __last, __a)
+      { __profcxx_map_to_unordered_map_construct(this); }
 #endif
 
       ~map() _GLIBCXX_NOEXCEPT
       { __profcxx_map_to_unordered_map_destruct(this); }
 
+#if __cplusplus < 201103L
       map&
       operator=(const map& __x)
       {
-	*static_cast<_Base*>(this) = __x;
+	_M_base() = __x;
 	return *this;
       }
-
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#else
       map&
-      operator=(map&& __x)
-      {
-	// NB: DR 1204.
-	// NB: DR 675.
-	this->clear();
-	this->swap(__x);
-	return *this;
-      }
+      operator=(const map&) = default;
+
+      map&
+      operator=(map&&) = default;
 
       map&
       operator=(initializer_list<value_type> __l)
       {
-	this->clear();
-	this->insert(__l);
+	_M_base() = __l;
 	return *this;
       }
 #endif
@@ -175,7 +210,7 @@ namespace __profile
         return const_reverse_iterator(begin());
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       const_iterator
       cbegin() const noexcept
       { return const_iterator(_Base::begin()); }
@@ -212,7 +247,7 @@ namespace __profile
         return _Base::operator[](__k);
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       mapped_type&
       operator[](key_type&& __k)
       {
@@ -236,6 +271,30 @@ namespace __profile
       }
 
       // modifiers:
+#if __cplusplus >= 201103L
+      template<typename... _Args>
+	std::pair<iterator, bool>
+	emplace(_Args&&... __args)
+	{
+	  __profcxx_map_to_unordered_map_insert(this, size(), 1);
+	  auto __res = _Base::emplace(std::forward<_Args>(__args)...);
+	  return std::pair<iterator, bool>(iterator(__res.first),
+					   __res.second);
+	}
+
+      template<typename... _Args>
+	iterator
+	emplace_hint(const_iterator __pos, _Args&&... __args)
+	{
+	  size_type size_before = size();
+	  auto __res = _Base::emplace_hint(__pos,
+					   std::forward<_Args>(__args)...);
+	  __profcxx_map_to_unordered_map_insert(this, size_before,
+						size() - size_before);
+	  return __res;
+	}
+#endif
+
       std::pair<iterator, bool>
       insert(const value_type& __x)
       {
@@ -246,10 +305,10 @@ namespace __profile
 					 __res.second);
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       template<typename _Pair, typename = typename
-	       std::enable_if<std::is_convertible<_Pair,
-						  value_type>::value>::type>
+	       std::enable_if<std::is_constructible<value_type,
+						    _Pair&&>::value>::type>
         std::pair<iterator, bool>
         insert(_Pair&& __x)
         {
@@ -262,7 +321,7 @@ namespace __profile
 	}
 #endif
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       void
       insert(std::initializer_list<value_type> __list)
       { 
@@ -274,7 +333,7 @@ namespace __profile
 #endif
 
       iterator
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       insert(const_iterator __position, const value_type& __x)
 #else
       insert(iterator __position, const value_type& __x)
@@ -282,15 +341,15 @@ namespace __profile
       {
         size_type size_before = size();
 	iterator __i = iterator(_Base::insert(__position, __x));
-        __profcxx_map_to_unordered_map_insert(this, size_before, 
+        __profcxx_map_to_unordered_map_insert(this, size_before,
 					      size() - size_before);
 	return __i;
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       template<typename _Pair, typename = typename
-	       std::enable_if<std::is_convertible<_Pair,
-						  value_type>::value>::type>
+	       std::enable_if<std::is_constructible<value_type,
+						    _Pair&&>::value>::type>
         iterator
         insert(const_iterator __position, _Pair&& __x)
         {
@@ -303,7 +362,12 @@ namespace __profile
       }
 #endif
 
+#if __cplusplus >= 201103L
+      template<typename _InputIterator,
+	       typename = std::_RequireInputIter<_InputIterator>>
+#else
       template<typename _InputIterator>
+#endif
         void
         insert(_InputIterator __first, _InputIterator __last)
         {
@@ -313,7 +377,7 @@ namespace __profile
                                                 size() - size_before);
 	}
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __position)
       {
@@ -347,7 +411,7 @@ namespace __profile
 	}
       }
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
       iterator
       erase(const_iterator __first, const_iterator __last)
       { return iterator(_Base::erase(__first, __last)); }
@@ -359,6 +423,9 @@ namespace __profile
 
       void
       swap(map& __x)
+#if __cplusplus >= 201103L
+      noexcept(_Alloc_traits::_S_nothrow_swap())
+#endif
       { _Base::swap(__x); }
 
       void

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -37,6 +37,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "incpath.h"
 #include "cppbuiltin.h"
 #include "mkdeps.h"
+
+#ifndef TARGET_SYSTEM_ROOT
+# define TARGET_SYSTEM_ROOT NULL
+#endif
 
 #ifndef TARGET_CPU_CPP_BUILTINS
 # define TARGET_CPU_CPP_BUILTINS()
@@ -96,6 +100,7 @@ struct gfc_cpp_option_data
   const char *deps_filename_user;       /* -MF <arg> */
   int deps_missing_are_generated;       /* -MG */
   int deps_phony;                       /* -MP */
+  int warn_date_time;                   /* -Wdate-time */
 
   const char *multilib;                 /* -imultilib <dir>  */
   const char *prefix;                   /* -iprefix <dir>  */
@@ -166,7 +171,7 @@ cpp_define_builtins (cpp_reader *pfile)
   cpp_define (pfile, "_LANGUAGE_FORTRAN=1");
 
   if (gfc_option.gfc_flag_openmp)
-    cpp_define (pfile, "_OPENMP=201107");
+    cpp_define (pfile, "_OPENMP=201307");
 
   /* The defines below are necessary for the TARGET_* macros.
 
@@ -258,6 +263,7 @@ gfc_cpp_init_options (unsigned int decoded_options_count,
   gfc_cpp_option.no_predefined = 0;
   gfc_cpp_option.standard_include_paths = 1;
   gfc_cpp_option.verbose = 0;
+  gfc_cpp_option.warn_date_time = 0;
   gfc_cpp_option.deps = 0;
   gfc_cpp_option.deps_skip_system = 0;
   gfc_cpp_option.deps_phony = 0;
@@ -267,7 +273,7 @@ gfc_cpp_init_options (unsigned int decoded_options_count,
 
   gfc_cpp_option.multilib = NULL;
   gfc_cpp_option.prefix = NULL;
-  gfc_cpp_option.sysroot = NULL;
+  gfc_cpp_option.sysroot = TARGET_SYSTEM_ROOT;
 
   gfc_cpp_option.deferred_opt = XNEWVEC (gfc_cpp_deferred_opt_t,
 					 decoded_options_count);
@@ -353,6 +359,10 @@ gfc_cpp_handle_option (size_t scode, const char *arg, int value ATTRIBUTE_UNUSED
 
     case OPT_v:
       gfc_cpp_option.verbose = value;
+      break;
+
+    case OPT_Wdate_time:
+      gfc_cpp_option.warn_date_time = value;
       break;
 
     case OPT_A:
@@ -465,6 +475,7 @@ gfc_cpp_post_options (void)
   cpp_option->discard_comments_in_macro_exp = gfc_cpp_option.discard_comments_in_macro_exp;
   cpp_option->print_include_names = gfc_cpp_option.print_include_names;
   cpp_option->preprocessed = gfc_option.flag_preprocessed;
+  cpp_option->warn_date_time = gfc_cpp_option.warn_date_time;
 
   if (gfc_cpp_makedep ())
     {
@@ -565,6 +576,7 @@ gfc_cpp_init (void)
   if (gfc_option.flag_preprocessed)
     return;
 
+  cpp_change_file (cpp_in, LC_RENAME, _("<built-in>"));
   if (!gfc_cpp_option.no_predefined)
     {
       /* Make sure all of the builtins about to be declared have
@@ -605,11 +617,11 @@ gfc_cpp_init (void)
     pp_dir_change (cpp_in, get_src_pwd ());
 }
 
-gfc_try
+bool
 gfc_cpp_preprocess (const char *source_file)
 {
   if (!gfc_cpp_enabled ())
-    return FAILURE;
+    return false;
 
   cpp_change_file (cpp_in, LC_RENAME, source_file);
 
@@ -632,7 +644,7 @@ gfc_cpp_preprocess (const char *source_file)
       || (gfc_cpp_preprocess_only () && gfc_cpp_option.output_filename))
     fclose (print.outf);
 
-  return SUCCESS;
+  return true;
 }
 
 void
@@ -822,6 +834,7 @@ print_line (source_location src_loc, const char *special_flags)
       size_t to_file_len;
       unsigned char *to_file_quoted;
       unsigned char *p;
+      int sysp;
 
       loc = expand_location (src_loc);
       to_file_len = strlen (loc.file);
@@ -838,9 +851,10 @@ print_line (source_location src_loc, const char *special_flags)
 	       print.src_line == 0 ? 1 : print.src_line,
 	       to_file_quoted, special_flags);
 
-      if (loc.sysp == 2)
+      sysp = in_system_header_at (src_loc);
+      if (sysp == 2)
 	fputs (" 3 4", print.outf);
-      else if (loc.sysp == 1)
+      else if (sysp == 1)
 	fputs (" 3", print.outf);
 
       putc ('\n', print.outf);

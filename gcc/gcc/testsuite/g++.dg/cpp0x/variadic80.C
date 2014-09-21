@@ -1,6 +1,5 @@
 // PR c++/31434
-// { dg-do run }
-// { dg-options "-std=c++0x" }
+// { dg-do run { target c++11 } }
 
 extern "C" void abort ();
 

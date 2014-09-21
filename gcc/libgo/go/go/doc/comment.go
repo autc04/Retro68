@@ -174,7 +174,7 @@ func unindent(block []string) {
 }
 
 // heading returns the trimmed line if it passes as a section heading;
-// otherwise it returns the empty string. 
+// otherwise it returns the empty string.
 func heading(line string) string {
 	line = strings.TrimSpace(line)
 	if len(line) == 0 {
@@ -229,7 +229,8 @@ type block struct {
 var nonAlphaNumRx = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
 func anchorID(line string) string {
-	return nonAlphaNumRx.ReplaceAllString(line, "_")
+	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
+	return "hdr-" + nonAlphaNumRx.ReplaceAllString(line, "_")
 }
 
 // ToHTML converts comment text to formatted HTML.
@@ -238,9 +239,14 @@ func anchorID(line string) string {
 // nor to have trailing spaces at the end of lines.
 // The comment markers have already been removed.
 //
-// Turn each run of multiple \n into </p><p>.
-// Turn each run of indented lines into a <pre> block without indent.
-// Enclose headings with header tags.
+// Each span of unindented non-blank lines is converted into
+// a single paragraph. There is one exception to the rule: a span that
+// consists of a single line, is followed by another paragraph span,
+// begins with a capital letter, and contains no punctuation
+// is formatted as a heading.
+//
+// A span of indented lines is converted into a <pre> block,
+// with the common indent prefix removed.
 //
 // URLs in the comment text are converted into links; if the URL also appears
 // in the words map, the link is taken from the map (if the corresponding map

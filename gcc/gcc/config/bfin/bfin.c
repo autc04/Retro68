@@ -1,6 +1,5 @@
 /* The Blackfin code generation auxiliary output file.
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Analog Devices.
 
    This file is part of GCC.
@@ -33,6 +32,8 @@
 #include "output.h"
 #include "insn-attr.h"
 #include "tree.h"
+#include "varasm.h"
+#include "calls.h"
 #include "flags.h"
 #include "except.h"
 #include "function.h"
@@ -44,20 +45,20 @@
 #include "recog.h"
 #include "optabs.h"
 #include "ggc.h"
-#include "integrate.h"
 #include "cgraph.h"
 #include "langhooks.h"
 #include "bfin-protos.h"
+#include "tm_p.h"
 #include "tm-preds.h"
 #include "tm-constrs.h"
 #include "gt-bfin.h"
 #include "basic-block.h"
-#include "cfglayout.h"
 #include "timevar.h"
 #include "df.h"
 #include "sel-sched.h"
 #include "hw-doloop.h"
 #include "opts.h"
+#include "dumpfile.h"
 
 /* A C structure for machine-specific, per-function data.
    This is added to the cfun structure.  */
@@ -104,7 +105,7 @@ output_file_start (void)
   FILE *file = asm_out_file;
   int i;
 
-  fprintf (file, ".file \"%s\";\n", input_filename);
+  fprintf (file, ".file \"%s\";\n", LOCATION_FILE (input_location));
   
   for (i = 0; arg_regs[i] >= 0; i++)
     ;
@@ -250,7 +251,7 @@ must_save_p (bool is_inthandler, unsigned regno)
 	      || (!TARGET_FDPIC
 		  && regno == PIC_OFFSET_TABLE_REGNUM
 		  && (crtl->uses_pic_offset_table
-		      || (TARGET_ID_SHARED_LIBRARY && !current_function_is_leaf))));
+		      || (TARGET_ID_SHARED_LIBRARY && !crtl->is_leaf))));
     }
   else
     return ((is_inthandler || !call_used_regs[regno])
@@ -348,7 +349,7 @@ expand_prologue_reg_save (rtx spreg, int saveall, bool is_inthandler)
 
       RTX_FRAME_RELATED_P (insn) = 1;
       for (dregno = REG_LT0; dregno <= REG_LB1; dregno++)
-	if (! current_function_is_leaf
+	if (! crtl->is_leaf
 	    || cfun->machine->has_hardware_loops
 	    || cfun->machine->has_loopreg_clobber
 	    || (ENABLE_WA_05000257
@@ -528,7 +529,7 @@ expand_epilogue_reg_restore (rtx spreg, bool saveall, bool is_inthandler)
   if (saveall || is_inthandler)
     {
       for (regno = REG_LB1; regno >= REG_LT0; regno--)
-	if (! current_function_is_leaf
+	if (! crtl->is_leaf
 	    || cfun->machine->has_hardware_loops
 	    || cfun->machine->has_loopreg_clobber
 	    || (ENABLE_WA_05000257 && (regno == REG_LC0 || regno == REG_LC1)))
@@ -580,7 +581,8 @@ setup_incoming_varargs (cumulative_args_t cum,
   for (i = get_cumulative_args (cum)->words + 1; i < max_arg_registers; i++)
     {
       mem = gen_rtx_MEM (Pmode,
-			 plus_constant (arg_pointer_rtx, (i * UNITS_PER_WORD)));
+			 plus_constant (Pmode, arg_pointer_rtx,
+					(i * UNITS_PER_WORD)));
       emit_move_insn (mem, gen_rtx_REG (Pmode, i));
     }
 
@@ -601,7 +603,7 @@ bfin_frame_pointer_required (void)
 
   /* We turn on -fomit-frame-pointer if -momit-leaf-frame-pointer is used,
      so we have to override it for non-leaf functions.  */
-  if (TARGET_OMIT_LEAF_FRAME_POINTER && ! current_function_is_leaf)
+  if (TARGET_OMIT_LEAF_FRAME_POINTER && ! crtl->is_leaf)
     return true;
 
   return false;
@@ -616,7 +618,7 @@ n_regs_saved_by_prologue (void)
   bool is_inthandler = fkind != SUBROUTINE;
   tree attrs = TYPE_ATTRIBUTES (TREE_TYPE (current_function_decl));
   bool all = (lookup_attribute ("saveall", attrs) != NULL_TREE
-	      || (is_inthandler && !current_function_is_leaf));
+	      || (is_inthandler && !crtl->is_leaf));
   int ndregs = all ? 8 : n_dregs_to_save (is_inthandler, false);
   int npregs = all ? 6 : n_pregs_to_save (is_inthandler, false);
   int n = ndregs + npregs;
@@ -636,7 +638,7 @@ n_regs_saved_by_prologue (void)
     {
       /* Increment once for ASTAT.  */
       n++;
-      if (! current_function_is_leaf
+      if (! crtl->is_leaf
 	  || cfun->machine->has_hardware_loops
 	  || cfun->machine->has_loopreg_clobber)
 	{
@@ -761,7 +763,7 @@ add_to_reg (rtx reg, HOST_WIDE_INT value, int frame, int epilogue_p)
 		    && i == PIC_OFFSET_TABLE_REGNUM
 		    && (crtl->uses_pic_offset_table
 			|| (TARGET_ID_SHARED_LIBRARY
-			    && ! current_function_is_leaf))))
+			    && ! crtl->is_leaf))))
 	      break;
 	  if (i <= REG_P5)
 	    tmpreg = gen_rtx_REG (SImode, i);
@@ -957,7 +959,7 @@ expand_interrupt_handler_prologue (rtx spreg, e_funkind fkind, bool all)
 
   /* If we're calling other functions, they won't save their call-clobbered
      registers, so we must save everything here.  */
-  if (!current_function_is_leaf)
+  if (!crtl->is_leaf)
     all = true;
   expand_prologue_reg_save (spreg, all, true);
 
@@ -1020,7 +1022,7 @@ expand_interrupt_handler_epilogue (rtx spreg, e_funkind fkind, bool all)
 
   /* If we're calling other functions, they won't save their call-clobbered
      registers, so we must save (and restore) everything here.  */
-  if (!current_function_is_leaf)
+  if (!crtl->is_leaf)
     all = true;
 
   expand_epilogue_reg_restore (spreg, all, true);
@@ -1050,7 +1052,8 @@ bfin_load_pic_reg (rtx dest)
     return pic_offset_table_rtx;
       
   if (global_options_set.x_bfin_library_id)
-    addr = plus_constant (pic_offset_table_rtx, -4 - bfin_library_id * 4);
+    addr = plus_constant (Pmode, pic_offset_table_rtx,
+			   -4 - bfin_library_id * 4);
   else
     addr = gen_rtx_PLUS (Pmode, pic_offset_table_rtx,
 			 gen_rtx_UNSPEC (Pmode, gen_rtvec (1, const0_rtx),
@@ -1111,7 +1114,7 @@ bfin_expand_prologue (void)
 	    }
 	  else
 	    {
-	      rtx limit = plus_constant (lim, offset);
+	      rtx limit = plus_constant (Pmode, lim, offset);
 	      emit_move_insn (p2reg, limit);
 	      lim = p2reg;
 	    }
@@ -1134,7 +1137,7 @@ bfin_expand_prologue (void)
   if (TARGET_ID_SHARED_LIBRARY
       && !TARGET_SEP_DATA
       && (crtl->uses_pic_offset_table
-	  || !current_function_is_leaf))
+	  || !crtl->is_leaf))
     bfin_load_pic_reg (pic_offset_table_rtx);
 }
 
@@ -1287,7 +1290,10 @@ bfin_dsp_memref_p (rtx x)
    All addressing modes are equally cheap on the Blackfin.  */
 
 static int
-bfin_address_cost (rtx addr ATTRIBUTE_UNUSED, bool speed ATTRIBUTE_UNUSED)
+bfin_address_cost (rtx addr ATTRIBUTE_UNUSED,
+		   enum machine_mode mode ATTRIBUTE_UNUSED,
+		   addr_space_t as ATTRIBUTE_UNUSED,
+		   bool speed ATTRIBUTE_UNUSED)
 {
   return 1;
 }
@@ -1883,7 +1889,7 @@ bfin_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 
   if (TARGET_FDPIC)
     {
-      rtx a = force_reg (Pmode, plus_constant (XEXP (m_tramp, 0), 8));
+      rtx a = force_reg (Pmode, plus_constant (Pmode, XEXP (m_tramp, 0), 8));
       mem = adjust_address (m_tramp, Pmode, 0);
       emit_move_insn (mem, a);
       i = 8;
@@ -2077,7 +2083,7 @@ bfin_expand_call (rtx retval, rtx fnaddr, rtx callarg1, rtx cookie, int sibcall)
 
 	  picreg = gen_reg_rtx (SImode);
 	  emit_insn (gen_load_funcdescsi (picreg,
-					  plus_constant (addr, 4)));
+					  plus_constant (Pmode, addr, 4)));
 	}
 
       nelts++;
@@ -2434,7 +2440,7 @@ cbranch_predicted_taken_p (rtx insn)
 
   if (x)
     {
-      int pred_val = INTVAL (XEXP (x, 0));
+      int pred_val = XINT (x, 0);
 
       return pred_val >= REG_BR_PROB_BASE / 2;
     }
@@ -2986,7 +2992,7 @@ static int first_preg_to_save, first_dreg_to_save;
 static int n_regs_to_save;
 
 int
-push_multiple_operation (rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
+analyze_push_multiple_operation (rtx op)
 {
   int lastdreg = 8, lastpreg = 6;
   int i, group;
@@ -3057,7 +3063,7 @@ push_multiple_operation (rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
 }
 
 int
-pop_multiple_operation (rtx op, enum machine_mode mode ATTRIBUTE_UNUSED)
+analyze_pop_multiple_operation (rtx op)
 {
   int lastdreg = 8, lastpreg = 6;
   int i, group;
@@ -3126,7 +3132,7 @@ output_push_multiple (rtx insn, rtx *operands)
   int ok;
   
   /* Validate the insn again, and compute first_[dp]reg_to_save. */
-  ok = push_multiple_operation (PATTERN (insn), VOIDmode);
+  ok = analyze_push_multiple_operation (PATTERN (insn));
   gcc_assert (ok);
   
   if (first_dreg_to_save == 8)
@@ -3150,7 +3156,7 @@ output_pop_multiple (rtx insn, rtx *operands)
   int ok;
   
   /* Validate the insn again, and compute first_[dp]reg_to_save. */
-  ok = pop_multiple_operation (PATTERN (insn), VOIDmode);
+  ok = analyze_pop_multiple_operation (PATTERN (insn));
   gcc_assert (ok);
 
   if (first_dreg_to_save == 8)
@@ -3362,6 +3368,22 @@ find_prev_insn_start (rtx insn)
   return insn;
 }
 
+/* Implement TARGET_CAN_USE_DOLOOP_P.  */
+
+static bool
+bfin_can_use_doloop_p (double_int, double_int iterations_max,
+		       unsigned int, bool)
+{
+  /* Due to limitations in the hardware (an initial loop count of 0
+     does not loop 2^32 times) we must avoid to generate a hardware
+     loops when we cannot rule out this case.  */
+  if (!flag_unsafe_loop_optimizations
+      && (iterations_max.high != 0
+	  || iterations_max.low >= 0xFFFFFFFF))
+    return false;
+  return true;
+}
+
 /* Increment the counter for the number of loop instructions in the
    current function.  */
 
@@ -3411,14 +3433,12 @@ static bool
 hwloop_optimize (hwloop_info loop)
 {
   basic_block bb;
-  hwloop_info inner;
   rtx insn, last_insn;
   rtx loop_init, start_label, end_label;
   rtx iter_reg, scratchreg, scratch_init, scratch_init_insn;
   rtx lc_reg, lt_reg, lb_reg;
   rtx seq, seq_end;
   int length;
-  unsigned ix;
   bool clobber0, clobber1;
 
   if (loop->depth > MAX_LOOP_DEPTH)
@@ -3478,8 +3498,8 @@ hwloop_optimize (hwloop_info loop)
       insn = BB_END (loop->incoming_src);
       /* If we have to insert the LSETUP before a jump, count that jump in the
 	 length.  */
-      if (VEC_length (edge, loop->incoming) > 1
-	  || !(VEC_last (edge, loop->incoming)->flags & EDGE_FALLTHRU))
+      if (vec_safe_length (loop->incoming) > 1
+	  || !(loop->incoming->last ()->flags & EDGE_FALLTHRU))
 	{
 	  gcc_assert (JUMP_P (insn));
 	  insn = PREV_INSN (insn);
@@ -3580,7 +3600,7 @@ hwloop_optimize (hwloop_info loop)
 
       if (single_pred_p (bb)
 	  && single_pred_edge (bb)->flags & EDGE_FALLTHRU
-	  && single_pred (bb) != ENTRY_BLOCK_PTR)
+	  && single_pred (bb) != ENTRY_BLOCK_PTR_FOR_FN (cfun))
 	{
 	  bb = single_pred (bb);
 	  last_insn = BB_END (bb);
@@ -3747,8 +3767,8 @@ hwloop_optimize (hwloop_info loop)
   if (loop->incoming_src)
     {
       rtx prev = BB_END (loop->incoming_src);
-      if (VEC_length (edge, loop->incoming) > 1
-	  || !(VEC_last (edge, loop->incoming)->flags & EDGE_FALLTHRU))
+      if (vec_safe_length (loop->incoming) > 1
+	  || !(loop->incoming->last ()->flags & EDGE_FALLTHRU))
 	{
 	  gcc_assert (JUMP_P (prev));
 	  prev = PREV_INSN (prev);
@@ -3840,12 +3860,11 @@ hwloop_fail (hwloop_info loop)
 static rtx
 hwloop_pattern_reg (rtx insn)
 {
-  rtx pat, reg;
+  rtx reg;
 
   if (!JUMP_P (insn) || recog_memoized (insn) != CODE_FOR_loop_end)
     return NULL_RTX;
 
-  pat = PATTERN (insn);
   reg = SET_DEST (XVECEXP (PATTERN (insn), 0, 1));
   if (!REG_P (reg))
     return NULL_RTX;
@@ -3864,7 +3883,7 @@ static struct hw_doloop_hooks bfin_doloop_hooks =
    hardware loops are generated.  */
 
 static void
-bfin_reorg_loops (FILE *dump_file)
+bfin_reorg_loops (void)
 {
   reorg_loops (true, &bfin_doloop_hooks);
 }
@@ -3887,8 +3906,7 @@ gen_one_bundle (rtx slot[3])
       rtx t = NEXT_INSN (slot[0]);
       while (t != slot[1])
 	{
-	  if (GET_CODE (t) != NOTE
-	      || NOTE_KIND (t) != NOTE_INSN_DELETED)
+	  if (! NOTE_P (t) || NOTE_KIND (t) != NOTE_INSN_DELETED)
 	    return false;
 	  t = NEXT_INSN (t);
 	}
@@ -3898,8 +3916,7 @@ gen_one_bundle (rtx slot[3])
       rtx t = NEXT_INSN (slot[1]);
       while (t != slot[2])
 	{
-	  if (GET_CODE (t) != NOTE
-	      || NOTE_KIND (t) != NOTE_INSN_DELETED)
+	  if (! NOTE_P (t) || NOTE_KIND (t) != NOTE_INSN_DELETED)
 	    return false;
 	  t = NEXT_INSN (t);
 	}
@@ -3917,12 +3934,12 @@ gen_one_bundle (rtx slot[3])
     }
 
   /* Avoid line number information being printed inside one bundle.  */
-  if (INSN_LOCATOR (slot[1])
-      && INSN_LOCATOR (slot[1]) != INSN_LOCATOR (slot[0]))
-    INSN_LOCATOR (slot[1]) = INSN_LOCATOR (slot[0]);
-  if (INSN_LOCATOR (slot[2])
-      && INSN_LOCATOR (slot[2]) != INSN_LOCATOR (slot[0]))
-    INSN_LOCATOR (slot[2]) = INSN_LOCATOR (slot[0]);
+  if (INSN_LOCATION (slot[1])
+      && INSN_LOCATION (slot[1]) != INSN_LOCATION (slot[0]))
+    INSN_LOCATION (slot[1]) = INSN_LOCATION (slot[0]);
+  if (INSN_LOCATION (slot[2])
+      && INSN_LOCATION (slot[2]) != INSN_LOCATION (slot[0]))
+    INSN_LOCATION (slot[2]) = INSN_LOCATION (slot[0]);
 
   /* Terminate them with "|| " instead of ";" in the output.  */
   PUT_MODE (slot[0], SImode);
@@ -3940,7 +3957,7 @@ static void
 bfin_gen_bundles (void)
 {
   basic_block bb;
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       rtx insn, next;
       rtx slot[3];
@@ -4019,7 +4036,7 @@ static void
 reorder_var_tracking_notes (void)
 {
   basic_block bb;
-  FOR_EACH_BB (bb)
+  FOR_EACH_BB_FN (bb, cfun)
     {
       rtx insn, next;
       rtx queue = NULL_RTX;
@@ -4086,12 +4103,15 @@ workaround_rts_anomaly (void)
       if (NOTE_P (insn) || LABEL_P (insn))
 	continue;
 
+      if (JUMP_TABLE_DATA_P (insn))
+	continue;
+
       if (first_insn == NULL_RTX)
 	first_insn = insn;
       pat = PATTERN (insn);
       if (GET_CODE (pat) == USE || GET_CODE (pat) == CLOBBER
-	  || GET_CODE (pat) == ASM_INPUT || GET_CODE (pat) == ADDR_VEC
-	  || GET_CODE (pat) == ADDR_DIFF_VEC || asm_noperands (pat) >= 0)
+	  || GET_CODE (pat) == ASM_INPUT
+	  || asm_noperands (pat) >= 0)
 	continue;
 
       if (CALL_P (insn))
@@ -4116,8 +4136,8 @@ workaround_rts_anomaly (void)
 
 	  if (GET_CODE (pat) == PARALLEL)
 	    {
-	      if (push_multiple_operation (pat, VOIDmode)
-		  || pop_multiple_operation (pat, VOIDmode))
+	      if (analyze_push_multiple_operation (pat)
+		  || analyze_pop_multiple_operation (pat))
 		this_cycles = n_regs_to_save;
 	    }
 	  else
@@ -4279,6 +4299,8 @@ workaround_speculation (void)
       
       if (NOTE_P (insn) || BARRIER_P (insn))
 	continue;
+      if (JUMP_TABLE_DATA_P (insn))
+	continue;
 
       if (LABEL_P (insn))
 	{
@@ -4287,8 +4309,7 @@ workaround_speculation (void)
 	}
 
       pat = PATTERN (insn);
-      if (GET_CODE (pat) == USE || GET_CODE (pat) == CLOBBER
-	  || GET_CODE (pat) == ADDR_VEC || GET_CODE (pat) == ADDR_DIFF_VEC)
+      if (GET_CODE (pat) == USE || GET_CODE (pat) == CLOBBER)
 	continue;
       
       if (GET_CODE (pat) == ASM_INPUT || asm_noperands (pat) >= 0)
@@ -4436,10 +4457,13 @@ workaround_speculation (void)
 	      if (NOTE_P (target) || BARRIER_P (target) || LABEL_P (target))
 		continue;
 
+	      if (JUMP_TABLE_DATA_P (target))
+		continue;
+
 	      pat = PATTERN (target);
 	      if (GET_CODE (pat) == USE || GET_CODE (pat) == CLOBBER
-		  || GET_CODE (pat) == ASM_INPUT || GET_CODE (pat) == ADDR_VEC
-		  || GET_CODE (pat) == ADDR_DIFF_VEC || asm_noperands (pat) >= 0)
+		  || GET_CODE (pat) == ASM_INPUT
+		  || asm_noperands (pat) >= 0)
 		continue;
 
 	      if (NONDEBUG_INSN_P (target))
@@ -4512,11 +4536,13 @@ add_sched_insns_for_speculation (void)
 
       if (NOTE_P (insn) || BARRIER_P (insn) || LABEL_P (insn))
 	continue;
+      if (JUMP_TABLE_DATA_P (insn))
+	continue;
 
       pat = PATTERN (insn);
       if (GET_CODE (pat) == USE || GET_CODE (pat) == CLOBBER
-	  || GET_CODE (pat) == ASM_INPUT || GET_CODE (pat) == ADDR_VEC
-	  || GET_CODE (pat) == ADDR_DIFF_VEC || asm_noperands (pat) >= 0)
+	  || GET_CODE (pat) == ASM_INPUT
+	  || asm_noperands (pat) >= 0)
 	continue;
 
       if (JUMP_P (insn))
@@ -4601,7 +4627,7 @@ bfin_reorg (void)
 
   /* Doloop optimization */
   if (cfun->machine->has_hardware_loops)
-    bfin_reorg_loops (dump_file);
+    bfin_reorg_loops ();
 
   workaround_speculation ();
 
@@ -4945,7 +4971,8 @@ bfin_output_mi_thunk (FILE *file ATTRIBUTE_UNUSED,
       output_asm_insn ("%2 = r0; %2 = [%2];", xops);
 
       /* Adjust the this parameter.  */
-      xops[0] = gen_rtx_MEM (Pmode, plus_constant (p2tmp, vcall_offset));
+      xops[0] = gen_rtx_MEM (Pmode, plus_constant (Pmode, p2tmp,
+						   vcall_offset));
       if (!memory_operand (xops[0], Pmode))
 	{
 	  rtx tmp2 = gen_rtx_REG (Pmode, REG_P1);
@@ -5800,5 +5827,8 @@ bfin_conditional_register_usage (void)
    change order of insns.  It also needs a valid CFG.  */
 #undef TARGET_DELAY_VARTRACK
 #define TARGET_DELAY_VARTRACK true
+
+#undef TARGET_CAN_USE_DOLOOP_P
+#define TARGET_CAN_USE_DOLOOP_P bfin_can_use_doloop_p
 
 struct gcc_target targetm = TARGET_INITIALIZER;

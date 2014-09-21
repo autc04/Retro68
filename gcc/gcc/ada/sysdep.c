@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *         Copyright (C) 1992-2012, Free Software Foundation, Inc.          *
+ *         Copyright (C) 1992-2013, Free Software Foundation, Inc.          *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -42,6 +42,13 @@
 #endif
 #include "selectLib.h"
 #include "vxWorks.h"
+#if defined (__RTP__)
+#  include "vwModNum.h"
+#endif /* __RTP__ */
+#endif
+
+#ifdef __ANDROID__
+#undef linux
 #endif
 
 #ifdef IN_RTS
@@ -251,28 +258,28 @@ __gnat_ttyname (int filedes)
 }
 #endif
 
-#if defined (linux) || defined (sun) || defined (sgi) \
-  || (defined (__osf__) && ! defined (__alpha_vxworks)) || defined (WINNT) \
+#if defined (linux) || defined (sun) \
+  || defined (WINNT) \
   || defined (__MACHTEN__) || defined (__hpux__) || defined (_AIX) \
   || (defined (__svr4__) && defined (i386)) || defined (__Lynx__) \
   || defined (__CYGWIN__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
   || defined (__GLIBC__) || defined (__APPLE__)
 
-#ifdef __MINGW32__
-#if OLD_MINGW
-#include <termios.h>
-#else
-#include <conio.h>  /* for getch(), kbhit() */
-#endif
-#else
-#include <termios.h>
-#endif
+# ifdef __MINGW32__
+#  if OLD_MINGW
+#   include <termios.h>
+#  else
+#   include <conio.h>  /* for getch(), kbhit() */
+#  endif
+# else
+#  include <termios.h>
+# endif
 
 #else
-#if defined (VMS)
+# if defined (VMS)
 extern char *decc$ga_stdscr;
 static int initted = 0;
-#endif
+# endif
 #endif
 
 /* Implements the common processing for getc_immediate and
@@ -309,8 +316,7 @@ getc_immediate_common (FILE *stream,
                        int *avail,
                        int waiting)
 {
-#if defined (linux) || defined (sun) || defined (sgi) \
-    || (defined (__osf__) && ! defined (__alpha_vxworks)) \
+#if defined (linux) || defined (sun) \
     || defined (__CYGWIN32__) || defined (__MACHTEN__) || defined (__hpux__) \
     || defined (_AIX) || (defined (__svr4__) && defined (i386)) \
     || defined (__Lynx__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
@@ -330,8 +336,8 @@ getc_immediate_common (FILE *stream,
       /* Set RAW mode, with no echo */
       termios_rec.c_lflag = termios_rec.c_lflag & ~ICANON & ~ECHO;
 
-#if defined(linux) || defined (sun) || defined (sgi) \
-    || defined (__osf__) || defined (__MACHTEN__) || defined (__hpux__) \
+#if defined(linux) || defined (sun) \
+    || defined (__MACHTEN__) || defined (__hpux__) \
     || defined (_AIX) || (defined (__svr4__) && defined (i386)) \
     || defined (__Lynx__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
     || defined (__GLIBC__) || defined (__APPLE__)
@@ -666,9 +672,11 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
   tzi_status = GetTimeZoneInformation (&tzi);
 
   /* Processing for RTX targets or cases where we simply want to extract the
-     offset of the current time zone, regardless of the date. */
+     offset of the current time zone, regardless of the date. A value of "0"
+     for flag "is_historic" signifies that the date is NOT historic, see the
+     body of Ada.Calendar.UTC_Time_Offset. */
 
-  if (rtx_active || !is_historic) {
+  if (rtx_active || *is_historic == 0) {
     *off = tzi.Bias;
 
     /* The system is operating in the range covered by the StandardDate
@@ -716,7 +724,7 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
       && SystemTimeToTzSpecificLocalTime (&tzi, &utc_sys_time, &local_sys_time)
       && SystemTimeToFileTime (&local_sys_time, &local_time.ft_time);
 
-    /* An error has occured, return invalid_tzoff */
+    /* An error has occurred, return invalid_tzoff */
 
     if (!status) {
       *off = __gnat_invalid_tzoff;
@@ -781,8 +789,8 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
 {
   struct tm tp;
 
-/* AIX, HPUX, SGI Irix, Sun Solaris */
-#if defined (_AIX) || defined (__hpux__) || defined (sgi) || defined (sun)
+/* AIX, HPUX, Sun Solaris */
+#if defined (_AIX) || defined (__hpux__) || defined (sun)
 {
   (*Lock_Task) ();
 
@@ -842,11 +850,11 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
   (*Unlock_Task) ();
 }
 
-/* Darwin, Free BSD, Linux, Tru64, where component tm_gmtoff is present in
+/* Darwin, Free BSD, Linux, where component tm_gmtoff is present in
    struct tm */
 
 #elif defined (__APPLE__) || defined (__FreeBSD__) || defined (linux) ||\
-     (defined (__alpha__) && defined (__osf__)) || defined (__GLIBC__)
+     defined (__GLIBC__)
 {
   localtime_r (timer, &tp);
   *off = tp.tm_gmtoff;
@@ -915,10 +923,60 @@ __gnat_is_file_not_found_error (int errno_val) {
 #if ! defined (__RTP__) && (! defined (VTHREADS) || defined (__VXWORKSMILS__))
       case S_nfsLib_NFSERR_NOENT:
 #endif
+#if defined (__RTP__)
+	/* An RTP can return an NFS file not found, and the NFS bits must
+	   first be masked on to check the errno.  */
+      case M_nfsStat | ENOENT:
+#endif
 #endif
          return 1;
 
       default:
-         return 0;
+        return 0;
    }
 }
+
+#ifdef __ANDROID__
+
+/* Provide extern symbols for sig* as needed by the tasking run-time, instead
+   of static inline functions.  */
+
+#include <signal.h>
+
+int
+_sigismember (sigset_t *set, int signum)
+{
+  return sigismember (set, signum);
+}
+
+int
+_sigaddset (sigset_t *set, int signum)
+{
+  return sigaddset (set, signum);
+}
+
+int
+_sigdelset (sigset_t *set, int signum)
+{
+  return sigdelset (set, signum);
+}
+
+int
+_sigemptyset (sigset_t *set)
+{
+  return sigemptyset (set);
+}
+
+int
+_sigfillset (sigset_t *set)
+{
+  return sigfillset (set);
+}
+
+#include <unistd.h>
+int
+_getpagesize (void)
+{
+  return getpagesize ();
+}
+#endif

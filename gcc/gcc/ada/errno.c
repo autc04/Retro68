@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *           Copyright (C) 1992-2009, Free Software Foundation, Inc.        *
+ *           Copyright (C) 1992-2012, Free Software Foundation, Inc.        *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -38,7 +38,6 @@
 
 #define _REENTRANT
 #define _THREAD_SAFE
-#define _SGI_MP_SOURCE
 
 #ifdef MaRTE
 
@@ -59,8 +58,10 @@ __get_errno(void)
   return errno;
 }
 
+#ifndef __ANDROID__
 void
 __set_errno(int err)
 {
   errno = err;
 }
+#endif

@@ -22,7 +22,7 @@ const (
 	logMaxOffsetSize   = 15  // Standard DEFLATE
 	minMatchLength     = 3   // The smallest match that the compressor looks for
 	maxMatchLength     = 258 // The longest match for the compressor
-	minOffsetSize      = 1   // The shortest offset that makes any sence
+	minOffsetSize      = 1   // The shortest offset that makes any sense
 
 	// The maximum number of tokens we put into a single flat block, just too
 	// stop things from getting too large.
@@ -32,6 +32,7 @@ const (
 	hashSize            = 1 << hashBits
 	hashMask            = (1 << hashBits) - 1
 	hashShift           = (hashBits + minMatchLength - 1) / minMatchLength
+	maxHashOffset       = 1 << 24
 
 	skipNever = math.MaxInt32
 )
@@ -106,6 +107,25 @@ func (d *compressor) fillDeflate(b []byte) int {
 			d.blockStart = math.MaxInt32
 		}
 		d.hashOffset += windowSize
+		if d.hashOffset > maxHashOffset {
+			delta := d.hashOffset - 1
+			d.hashOffset -= delta
+			d.chainHead -= delta
+			for i, v := range d.hashPrev {
+				if v > delta {
+					d.hashPrev[i] -= delta
+				} else {
+					d.hashPrev[i] = 0
+				}
+			}
+			for i, v := range d.hashHead {
+				if v > delta {
+					d.hashHead[i] -= delta
+				} else {
+					d.hashHead[i] = 0
+				}
+			}
+		}
 	}
 	n := copy(d.window[d.windowEnd:], b)
 	d.windowEnd += n
@@ -396,6 +416,50 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 	return nil
 }
 
+var zeroes [32]int
+var bzeroes [256]byte
+
+func (d *compressor) reset(w io.Writer) {
+	d.w.reset(w)
+	d.sync = false
+	d.err = nil
+	switch d.compressionLevel.chain {
+	case 0:
+		// level was NoCompression.
+		for i := range d.window {
+			d.window[i] = 0
+		}
+		d.windowEnd = 0
+	default:
+		d.chainHead = -1
+		for s := d.hashHead; len(s) > 0; {
+			n := copy(s, zeroes[:])
+			s = s[n:]
+		}
+		for s := d.hashPrev; len(s) > 0; s = s[len(zeroes):] {
+			copy(s, zeroes[:])
+		}
+		d.hashOffset = 1
+
+		d.index, d.windowEnd = 0, 0
+		for s := d.window; len(s) > 0; {
+			n := copy(s, bzeroes[:])
+			s = s[n:]
+		}
+		d.blockStart, d.byteAvailable = 0, false
+
+		d.tokens = d.tokens[:maxFlateBlockTokens+1]
+		for i := 0; i <= maxFlateBlockTokens; i++ {
+			d.tokens[i] = 0
+		}
+		d.tokens = d.tokens[:0]
+		d.length = minMatchLength - 1
+		d.offset = 0
+		d.hash = 0
+		d.maxInsertIndex = 0
+	}
+}
+
 func (d *compressor) close() error {
 	d.sync = true
 	d.step(d)
@@ -419,7 +483,6 @@ func (d *compressor) close() error {
 // If level is in the range [-1, 9] then the error returned will be nil.
 // Otherwise the error returned will be non-nil.
 func NewWriter(w io.Writer, level int) (*Writer, error) {
-	const logWindowSize = logMaxOffsetSize
 	var dw Writer
 	if err := dw.d.init(w, level); err != nil {
 		return nil, err
@@ -442,6 +505,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	zw.Write(dict)
 	zw.Flush()
 	dw.enabled = true
+	zw.dict = append(zw.dict, dict...) // duplicate dictionary for Reset method.
 	return zw, err
 }
 
@@ -460,7 +524,8 @@ func (w *dictWriter) Write(b []byte) (n int, err error) {
 // A Writer takes data written to it and writes the compressed
 // form of that data to an underlying writer (see NewWriter).
 type Writer struct {
-	d compressor
+	d    compressor
+	dict []byte
 }
 
 // Write writes data to w, which will eventually write the
@@ -485,4 +550,22 @@ func (w *Writer) Flush() error {
 // Close flushes and closes the writer.
 func (w *Writer) Close() error {
 	return w.d.close()
+}
+
+// Reset discards the writer's state and makes it equivalent to
+// the result of NewWriter or NewWriterDict called with dst
+// and w's level and dictionary.
+func (w *Writer) Reset(dst io.Writer) {
+	if dw, ok := w.d.w.w.(*dictWriter); ok {
+		// w was created with NewWriterDict
+		dw.w = dst
+		w.d.reset(dw)
+		dw.enabled = false
+		w.Write(w.dict)
+		w.Flush()
+		dw.enabled = true
+	} else {
+		// w was created with NewWriter
+		w.d.reset(dst)
+	}
 }

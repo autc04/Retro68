@@ -1,7 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for PowerPC e500 machines running GNU/Linux.
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez (aldy@quesejoda.com).
 
    This file is part of GCC.
@@ -21,21 +20,13 @@
    <http://www.gnu.org/licenses/>.  */
 
 /* Override rs6000.h and sysv4.h definition.  */
+#if (TARGET_DEFAULT & MASK_LITTLE_ENDIAN)
 #undef	TARGET_DEFAULT
-#define	TARGET_DEFAULT (MASK_POWERPC | MASK_NEW_MNEMONICS | MASK_STRICT_ALIGN)
-
-#undef  SUBSUBTARGET_OVERRIDE_OPTIONS
-#define SUBSUBTARGET_OVERRIDE_OPTIONS \
-  if (!global_options_set.x_rs6000_cpu_index) \
-    rs6000_cpu = PROCESSOR_PPC8540; \
-  if (!global_options_set.x_rs6000_spe_abi) \
-    rs6000_spe_abi = 1; \
-  if (!global_options_set.x_rs6000_float_gprs) \
-    rs6000_float_gprs = 1; \
-  if (!global_options_set.x_rs6000_spe) \
-    rs6000_spe = 1; \
-  if (target_flags & MASK_64BIT) \
-    error ("-m64 not supported in this configuration")
+#define TARGET_DEFAULT (MASK_STRICT_ALIGN | MASK_LITTLE_ENDIAN)
+#else
+#undef	TARGET_DEFAULT
+#define TARGET_DEFAULT MASK_STRICT_ALIGN
+#endif
 
 #undef  ASM_DEFAULT_SPEC
 #define	ASM_DEFAULT_SPEC "-mppc -mspe -me500"

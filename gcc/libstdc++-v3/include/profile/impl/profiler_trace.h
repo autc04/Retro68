@@ -1,6 +1,6 @@
 // -*- C++ -*-
 //
-// Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@
 #include <cerrno>
 #include <cstdlib> // atof, atoi, strtol, getenv, atexit, abort
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
 #define _GLIBCXX_IMPL_UNORDERED_MAP std::_GLIBCXX_STD_C::unordered_map
 #include <unordered_map>
 #else
@@ -283,7 +283,7 @@ namespace __gnu_profile
     
 	  if (__stack_it == __stack_table.end())
 	    {
-	      // First occurence of this call context.
+	      // First occurrence of this call context.
 	      if (__max_mem() == 0 || __stack_table_byte_size < __max_mem()) 
 		{
 		  __stack_table_byte_size 

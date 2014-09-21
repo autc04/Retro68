@@ -1,5 +1,5 @@
 // PR c++/31441
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 template<typename> struct A;
 

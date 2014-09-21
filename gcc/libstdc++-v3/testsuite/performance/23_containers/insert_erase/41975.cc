@@ -1,6 +1,6 @@
 // { dg-options "-std=gnu++0x" }
 
-// Copyright (C) 2011 Free Software Foundation, Inc.
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,6 +18,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <sstream>
+#include <tr1/unordered_set>
 #include <unordered_set>
 #include <testsuite_performance.h>
 
@@ -25,14 +26,10 @@ namespace
 {
   // Bench using an unordered_set<int>. Hash functor for int is quite
   // predictable so it helps bench very specific use cases.
-  template<bool use_cache>
-    void bench()
+  template<typename _ContType>
+    void bench(const char* desc)
     {
       using namespace __gnu_test;
-      std::ostringstream ostr;
-      ostr << "unordered_set<int> " << (use_cache ? "with" : "without")
-	   << " cache";
-      const std::string desc = ostr.str();
 
       time_counter time;
       resource_counter resource;
@@ -40,13 +37,12 @@ namespace
       const int nb = 200000;
       start_counters(time, resource);
 
-      std::__unordered_set<int, std::hash<int>, std::equal_to<int>,
-			   std::allocator<int>, use_cache> us;
+      _ContType us;
       for (int i = 0; i != nb; ++i)
-	us.insert(i);
+	  us.insert(i);
 
       stop_counters(time, resource);
-      ostr.str("");
+      std::ostringstream ostr;
       ostr << desc << ": first insert";
       report_performance(__FILE__, ostr.str().c_str(), time, resource);
 
@@ -73,7 +69,7 @@ namespace
       start_counters(time, resource);
 
       // This is a worst insertion use case for the current implementation as
-      // we insert an element at the begining of the hashtable and then we
+      // we insert an element at the beginning of the hashtable and then we
       // insert starting at the end so that each time we need to seek up to the
       // first bucket to find the first non-empty one.
       us.insert(0);
@@ -99,14 +95,10 @@ namespace
   // Bench using unordered_set<string> that show how important it is to cache
   // hash code as computing string hash code is quite expensive compared to
   // computing it for int.
-  template<bool use_cache>
-    void bench_str()
+  template<typename _ContType>
+    void bench_str(const char* desc)
     {
       using namespace __gnu_test;
-      std::ostringstream ostr;
-      ostr << "unordered_set<string> " << (use_cache ? "with" : "without")
-	   << " cache";
-      const std::string desc = ostr.str();
 
       time_counter time;
       resource_counter resource;
@@ -114,6 +106,7 @@ namespace
       const int nb = 200000;
       // First generate once strings that are going to be used throughout the
       // bench:
+      std::ostringstream ostr;
       std::vector<std::string> strs;
       strs.reserve(nb);
       for (int i = 0; i != nb; ++i)
@@ -125,9 +118,7 @@ namespace
 
       start_counters(time, resource);
 
-      std::__unordered_set<std::string, std::hash<std::string>,
-			   std::equal_to<std::string>,
-			   std::allocator<std::string>, use_cache> us;
+      _ContType us;
       for (int i = 0; i != nb; ++i)
 	us.insert(strs[i]);
 
@@ -173,11 +164,53 @@ namespace
     }
 }
 
+template<bool cache>
+  using __uset =
+	      std::__uset_hashtable<int, std::hash<int>, std::equal_to<int>,
+				    std::allocator<int>,
+				    std::__uset_traits<cache>>;
+
+template<bool cache>
+  using __tr1_uset =
+	      std::tr1::__unordered_set<int, std::hash<int>, std::equal_to<int>,
+					std::allocator<int>,
+					cache>;
+
+template<bool cache>
+  using __str_uset = 
+	      std::__uset_hashtable<std::string, std::hash<std::string>,
+				    std::equal_to<std::string>,
+				    std::allocator<std::string>,
+				    std::__uset_traits<cache>>;
+
+template<bool cache>
+  using __tr1_str_uset = 
+	      std::tr1::__unordered_set<std::string, std::hash<std::string>,
+					std::equal_to<std::string>,
+					std::allocator<std::string>,
+					cache>;
+
 int main()
 {
-  bench<false>();
-  bench<true>();
-  bench_str<false>();
-  bench_str<true>();
+  bench<__tr1_uset<false>>(
+	"std::tr1::unordered_set<int> without hash code cached");
+  bench<__tr1_uset<true>>(
+	"std::tr1::unordered_set<int> with hash code cached");
+  bench<__uset<false>>(
+	"std::unordered_set<int> without hash code cached");
+  bench<__uset<true>>(
+	"std::unordered_set<int> with hash code cached");
+  bench<std::unordered_set<int>>(
+	"std::unordered_set<int> default cache");
+  bench_str<__tr1_str_uset<false>>(
+	"std::tr1::unordered_set<string> without hash code cached");
+  bench_str<__tr1_str_uset<true>>(
+	"std::tr1::unordered_set<string> with hash code cached");
+  bench_str<__str_uset<false>>(
+	"std::unordered_set<string> without hash code cached");
+  bench_str<__str_uset<true>>(
+	"std::unordered_set<string> with hash code cached");
+    bench_str<std::unordered_set<std::string>>(
+	"std::unordered_set<string> default cache");
   return 0;
 }

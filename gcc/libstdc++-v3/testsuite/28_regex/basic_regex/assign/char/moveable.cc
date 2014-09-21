@@ -2,7 +2,7 @@
 
 // 2010-07-07  Stephen M. Webb  <stephen.webb@bregmasoft.com>
 //
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,16 +30,16 @@ void test01()
 {
   bool test __attribute__((unused)) = true;
 
-	std::regex src_re("aaba");
+  std::regex src_re("aaba");
   const unsigned mark_count = src_re.mark_count();
-	const std::regex::flag_type flags = src_re.flags();
+  const std::regex::flag_type flags = src_re.flags();
 
-	std::regex target_re;
+  std::regex target_re;
   
   target_re.assign(std::move(src_re));
   
-	VERIFY( target_re.flags() == flags );
-	VERIFY( target_re.mark_count() == mark_count );
+  VERIFY( target_re.flags() == flags );
+  VERIFY( target_re.mark_count() == mark_count );
 }
 
 int
@@ -47,4 +47,4 @@ main()
 { 
   test01();
   return 0;
-};
+}

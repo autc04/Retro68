@@ -1,6 +1,6 @@
-// C++0x typeindex -*- C++ -*-
+// C++11 <typeindex> -*- C++ -*-
 
-// Copyright (C) 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2010-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,7 +31,7 @@
 
 #pragma GCC system_header
 
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
 
@@ -42,9 +42,12 @@ namespace std _GLIBCXX_VISIBILITY(default)
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /**
-     @brief The class type_index provides a simple wrapper for type_info
-     which can be used as an index type in associative containers (23.6)
-     and in unordered associative containers (23.7).
+   * @brief Class type_index
+   * @ingroup utilities
+   *
+   *  The class type_index provides a simple wrapper for type_info
+   *  which can be used as an index type in associative containers
+   *  (23.6) and in unordered associative containers (23.7).
    */
   struct type_index
   {
@@ -80,7 +83,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { return _M_target->hash_code(); }
 
     const char*
-    name() const
+    name() const noexcept
     { return _M_target->name(); }
 
   private:
@@ -102,8 +105,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     };
 
 _GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
+} // namespace std
 
-#endif  // __GXX_EXPERIMENTAL_CXX0X__
+#endif  // C++11
 
 #endif  // _GLIBCXX_TYPEINDEX

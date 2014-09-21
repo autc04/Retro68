@@ -1,6 +1,5 @@
 ;; GCC machine description for Tensilica's Xtensa architecture.
-;; Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-;; Free Software Foundation, Inc.
+;; Copyright (C) 2001-2014 Free Software Foundation, Inc.
 ;; Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
 ;; This file is part of GCC.
@@ -1714,7 +1713,7 @@
   ""
   "")
 
-(define_insn "load_tp"
+(define_insn "get_thread_pointersi"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(unspec:SI [(const_int 0)] UNSPEC_TP))]
   "TARGET_THREADPTR"
@@ -1723,7 +1722,7 @@
    (set_attr "mode"	"SI")
    (set_attr "length"	"3")])
 
-(define_insn "set_tp"
+(define_insn "set_thread_pointersi"
   [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")]
 		    UNSPECV_SET_TP)]
   "TARGET_THREADPTR"

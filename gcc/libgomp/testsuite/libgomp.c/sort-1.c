@@ -1,5 +1,5 @@
 /* Test and benchmark of a couple of parallel sorting algorithms.
-   Copyright (C) 2008 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
    GCC is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free
@@ -100,7 +100,7 @@ static inline void
 busy_wait (void)
 {
 #if defined __i386__ || defined __x86_64__
-  __asm volatile ("rep; nop" : : : "memory");
+  __builtin_ia32_pause ();
 #elif defined __ia64__
   __asm volatile ("hint @pause" : : : "memory");
 #elif defined __sparc__ && (defined __arch64__ || defined __sparc_v9__)

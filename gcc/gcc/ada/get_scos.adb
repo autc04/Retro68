@@ -28,8 +28,8 @@ pragma Ada_2005;
 --  read SCO information from ALI files (Xcov and sco_test). Ada 2005
 --  constructs may therefore be used freely (and are indeed).
 
+with Namet;  use Namet;
 with SCOs;   use SCOs;
-with Snames; use Snames;
 with Types;  use Types;
 
 with Ada.IO_Exceptions; use Ada.IO_Exceptions;
@@ -203,7 +203,9 @@ procedure Get_SCOs is
    N   : Natural;
    --  Scratch buffer, and index into it
 
---  Start of processing for Get_Scos
+   Nam : Name_Id;
+
+--  Start of processing for Get_SCOs
 
 begin
    SCOs.Initialize;
@@ -225,7 +227,7 @@ begin
 
       case C is
 
-         --  Header entry
+         --  Header or instance table entry
 
          when ' ' =>
 
@@ -236,26 +238,73 @@ begin
                  SCO_Table.Last;
             end if;
 
-            --  Scan out dependency number and file name
-
-            Skip_Spaces;
-            Dnum := Get_Int;
-
             Skip_Spaces;
 
-            N := 0;
-            while Nextc > ' ' loop
-               N := N + 1;
-               Buf (N) := Getc;
-            end loop;
+            case Nextc is
 
-            --  Make new unit table entry (will fill in To later)
+               --  Instance table entry
 
-            SCO_Unit_Table.Append (
-              (File_Name => new String'(Buf (1 .. N)),
-               Dep_Num   => Dnum,
-               From      => SCO_Table.Last + 1,
-               To        => 0));
+               when 'i' =>
+                  declare
+                     Inum : SCO_Instance_Index;
+                  begin
+                     Skipc;
+                     Skip_Spaces;
+
+                     Inum := SCO_Instance_Index (Get_Int);
+                     SCO_Instance_Table.Increment_Last;
+                     pragma Assert (SCO_Instance_Table.Last = Inum);
+
+                     Skip_Spaces;
+                     declare
+                        SIE : SCO_Instance_Table_Entry
+                                renames SCO_Instance_Table.Table (Inum);
+                     begin
+                        SIE.Inst_Dep_Num := Get_Int;
+                        C := Getc;
+                        pragma Assert (C = '|');
+                        Get_Source_Location (SIE.Inst_Loc);
+
+                        if At_EOL then
+                           SIE.Enclosing_Instance := 0;
+                        else
+                           Skip_Spaces;
+                           SIE.Enclosing_Instance :=
+                             SCO_Instance_Index (Get_Int);
+                           pragma Assert (SIE.Enclosing_Instance in
+                                            SCO_Instance_Table.First
+                                         .. SCO_Instance_Table.Last);
+                        end if;
+                     end;
+                  end;
+
+               --  Unit header
+
+               when '0' .. '9' =>
+                  --  Scan out dependency number and file name
+
+                  Dnum := Get_Int;
+
+                  Skip_Spaces;
+
+                  N := 0;
+                  while Nextc > ' ' loop
+                     N := N + 1;
+                     Buf (N) := Getc;
+                  end loop;
+
+                  --  Make new unit table entry (will fill in To later)
+
+                  SCO_Unit_Table.Append (
+                    (File_Name => new String'(Buf (1 .. N)),
+                     Dep_Num   => Dnum,
+                     From      => SCO_Table.Last + 1,
+                     To        => 0));
+
+                     when others =>
+                        raise Program_Error;
+
+            end case;
 
          --  Statement entry
 
@@ -263,7 +312,6 @@ begin
             declare
                Typ : Character;
                Key : Character;
-               Pid : Pragma_Id;
 
             begin
                Key := 'S';
@@ -282,7 +330,7 @@ begin
                --  Loop through items on one line
 
                loop
-                  Pid := Unknown_Pragma;
+                  Nam := No_Name;
                   Typ := Nextc;
 
                   case Typ is
@@ -296,6 +344,10 @@ begin
                         Key := '>';
                         Typ := Getc;
 
+                        --  Sanity check on dominance marker type indication
+
+                        pragma Assert (Typ in 'A' .. 'Z');
+
                      when '1' .. '9' =>
                         Typ := ' ';
 
@@ -303,25 +355,16 @@ begin
                         Skipc;
                         if Typ = 'P' or else Typ = 'p' then
                            if Nextc not in '1' .. '9' then
-                              N := 1;
+                              Name_Len := 0;
                               loop
-                                 Buf (N) := Getc;
+                                 Name_Len := Name_Len + 1;
+                                 Name_Buffer (Name_Len) := Getc;
                                  exit when Nextc = ':';
-                                 N := N + 1;
                               end loop;
 
-                              Skipc;
+                              Skipc;  --  Past ':'
 
-                              begin
-                                 Pid :=
-                                   Pragma_Id'Value ("pragma_" & Buf (1 .. N));
-                              exception
-                                 when Constraint_Error =>
-
-                                    --  Pid remains set to Unknown_Pragma
-
-                                    null;
-                              end;
+                              Nam := Name_Find;
                            end if;
                         end if;
                   end case;
@@ -334,13 +377,13 @@ begin
                   end if;
 
                   SCO_Table.Append
-                    ((C1          => Key,
-                      C2          => Typ,
-                      From        => Loc1,
-                      To          => Loc2,
-                      Last        => At_EOL,
-                      Pragma_Sloc => No_Location,
-                      Pragma_Name => Pid));
+                    ((C1                 => Key,
+                      C2                 => Typ,
+                      From               => Loc1,
+                      To                 => Loc2,
+                      Last               => At_EOL,
+                      Pragma_Sloc        => No_Location,
+                      Pragma_Aspect_Name => Nam));
 
                   if Key = '>' then
                      Key := 'S';
@@ -352,8 +395,22 @@ begin
 
          --  Decision entry
 
-         when 'E' | 'G' | 'I' | 'P' | 'W' | 'X' =>
+         when 'E' | 'G' | 'I' | 'P' | 'W' | 'X' | 'A' =>
             Dtyp := C;
+
+            if C = 'A' then
+               Name_Len := 0;
+               while Nextc /= ' ' loop
+                  Name_Len := Name_Len + 1;
+                  Name_Buffer (Name_Len) := Getc;
+               end loop;
+
+               Nam := Name_Find;
+
+            else
+               Nam := No_Name;
+            end if;
+
             Skip_Spaces;
 
             --  Output header
@@ -371,12 +428,13 @@ begin
                end if;
 
                SCO_Table.Append
-                 ((C1     => Dtyp,
-                   C2     => ' ',
-                   From   => Loc,
-                   To     => No_Source_Location,
-                   Last   => False,
-                   others => <>));
+                 ((C1                 => Dtyp,
+                   C2                 => ' ',
+                   From               => Loc,
+                   To                 => No_Source_Location,
+                   Last               => False,
+                   Pragma_Aspect_Name => Nam,
+                   others             => <>));
             end;
 
             --  Loop through terms in complex expression

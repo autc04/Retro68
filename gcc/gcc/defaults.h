@@ -1,7 +1,5 @@
 /* Definitions of various defaults for tm.h macros.
-   Copyright (C) 1992, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com)
 
 This file is part of GCC.
@@ -78,7 +76,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 	  int c = p[i];			   				      \
 	  if (c == '\"' || c == '\\')					      \
 	    putc ('\\', asm_out_file);					      \
-	  if (ISPRINT(c))						      \
+	  if (ISPRINT (c))						      \
 	    putc (c, asm_out_file);					      \
 	  else								      \
 	    {								      \
@@ -88,7 +86,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 		 The VAX assembler fails to stop reading the escape	      \
 		 after three digits, so this is the only way we		      \
 		 can get it to parse the data properly.  */		      \
-	      if (i < thissize - 1 && ISDIGIT(p[i + 1]))		      \
+	      if (i < thissize - 1 && ISDIGIT (p[i + 1]))		      \
 		fprintf (asm_out_file, "\"\n\t.ascii \"");		      \
 	  }								      \
 	}								      \
@@ -332,12 +330,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 # endif
 #endif
 
-/* Determines whether we may use common symbols to represent one-only
-   semantics (a.k.a. "vague linkage").  */
-#ifndef USE_COMMON_FOR_ONE_ONLY
-# define USE_COMMON_FOR_ONE_ONLY 1
-#endif
-
 /* By default we can assume that all global symbols are in one namespace,
    across all shared libraries.  */
 #ifndef MULTIPLE_SYMBOL_SPACES
@@ -350,13 +342,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define SUPPORTS_INIT_PRIORITY 1
 #endif /* SUPPORTS_INIT_PRIORITY */
 
-/* If duplicate library search directories can be removed from a
-   linker command without changing the linker's semantics, give this
-   symbol a nonzero.  */
-#ifndef LINK_ELIMINATE_DUPLICATE_LDIRECTORIES
-#define LINK_ELIMINATE_DUPLICATE_LDIRECTORIES 0
-#endif /* LINK_ELIMINATE_DUPLICATE_LDIRECTORIES */
-
 /* If we have a definition of INCOMING_RETURN_ADDR_RTX, assume that
    the rest of the DWARF 2 frame unwind support is also provided.  */
 #if !defined (DWARF2_UNWIND_INFO) && defined (INCOMING_RETURN_ADDR_RTX)
@@ -366,7 +351,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 /* If we have named sections, and we're using crtstuff to run ctors,
    use them for registering eh frame information.  */
 #if defined (TARGET_ASM_NAMED_SECTION) && DWARF2_UNWIND_INFO \
-    && !defined(EH_FRAME_IN_DATA_SECTION)
+    && !defined (EH_FRAME_IN_DATA_SECTION)
 #ifndef EH_FRAME_SECTION_NAME
 #define EH_FRAME_SECTION_NAME ".eh_frame"
 #endif
@@ -486,10 +471,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    your target, you should override these values by defining the
    appropriate symbols in your tm.h file.  */
 
-#ifndef BITS_PER_UNIT
-#define BITS_PER_UNIT 8
-#endif
-
 #ifndef BITS_PER_WORD
 #define BITS_PER_WORD (BITS_PER_UNIT * UNITS_PER_WORD)
 #endif
@@ -587,6 +568,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #ifndef SIZE_TYPE
 #define SIZE_TYPE "long unsigned int"
+#endif
+
+#ifndef SIZETYPE
+#define SIZETYPE SIZE_TYPE
 #endif
 
 #ifndef PID_TYPE
@@ -1051,16 +1036,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #endif /* old constraint mechanism in use */
 
-/* Determine whether the entire c99 runtime
-   is present in the runtime library.  */
-#ifndef TARGET_C99_FUNCTIONS
-#define TARGET_C99_FUNCTIONS 0
-#endif
-
-/* Determine whether the target runtime library has
-   a sincos implementation following the GNU extension.  */
-#ifndef TARGET_HAS_SINCOS
-#define TARGET_HAS_SINCOS 0
+/* Determin whether the target runtime library is Bionic */
+#ifndef TARGET_HAS_BIONIC
+#define TARGET_HAS_BIONIC 0
 #endif
 
 /* Indicate that CLZ and CTZ are undefined at zero.  */
@@ -1222,11 +1200,8 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define ATTRIBUTE_ALIGNED_VALUE BIGGEST_ALIGNMENT
 #endif
 
-/* Many ports have no mode-dependent addresses (except possibly autoincrement
-   and autodecrement addresses, which are handled by target-independent code
-   in recog.c).  */
-#ifndef GO_IF_MODE_DEPENDENT_ADDRESS
-#define GO_IF_MODE_DEPENDENT_ADDRESS(X, WIN)
+#ifndef SLOW_UNALIGNED_ACCESS
+#define SLOW_UNALIGNED_ACCESS(MODE, ALIGN) STRICT_ALIGNMENT
 #endif
 
 /* For most ports anything that evaluates to a constant symbolic
@@ -1299,7 +1274,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    SET_RATIO or more simple move-instruction sequences, we will do a movmem
    or libcall instead.  */
 #ifndef SET_RATIO
-#define SET_RATIO(speed) MOVE_RATIO(speed)
+#define SET_RATIO(speed) MOVE_RATIO (speed)
 #endif
 
 /* Supply a default definition for FUNCTION_ARG_PADDING:

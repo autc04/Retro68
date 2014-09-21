@@ -1,8 +1,10 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test the 'for range' construct.
 
 package main
 
@@ -53,7 +55,18 @@ func testslice() {
 		panic("fail")
 	}
 	if s != 15 {
-		println("wrong sum ranging over makeslice")
+		println("wrong sum ranging over makeslice", s)
+		panic("fail")
+	}
+
+	x := []int{10, 20}
+	y := []int{99}
+	i := 1
+	for i, x[i] = range y {
+		break
+	}
+	if i != 0 || x[0] != 10 || x[1] != 99 {
+		println("wrong parallel assignment", i, x[0], x[1])
 		panic("fail")
 	}
 }
@@ -69,7 +82,7 @@ func testslice1() {
 		panic("fail")
 	}
 	if s != 10 {
-		println("wrong sum ranging over makeslice")
+		println("wrong sum ranging over makeslice", s)
 		panic("fail")
 	}
 }
@@ -93,7 +106,7 @@ func testarray() {
 		panic("fail")
 	}
 	if s != 15 {
-		println("wrong sum ranging over makearray")
+		println("wrong sum ranging over makearray", s)
 		panic("fail")
 	}
 }
@@ -109,7 +122,7 @@ func testarray1() {
 		panic("fail")
 	}
 	if s != 10 {
-		println("wrong sum ranging over makearray")
+		println("wrong sum ranging over makearray", s)
 		panic("fail")
 	}
 }
@@ -142,7 +155,7 @@ func testarrayptr() {
 		panic("fail")
 	}
 	if s != 15 {
-		println("wrong sum ranging over makearrayptr")
+		println("wrong sum ranging over makearrayptr", s)
 		panic("fail")
 	}
 }
@@ -158,7 +171,7 @@ func testarrayptr1() {
 		panic("fail")
 	}
 	if s != 10 {
-		println("wrong sum ranging over makearrayptr")
+		println("wrong sum ranging over makearrayptr", s)
 		panic("fail")
 	}
 }
@@ -182,7 +195,7 @@ func teststring() {
 		panic("fail")
 	}
 	if s != 'a'+'b'+'c'+'d'+'☺' {
-		println("wrong sum ranging over makestring")
+		println("wrong sum ranging over makestring", s)
 		panic("fail")
 	}
 }
@@ -198,7 +211,7 @@ func teststring1() {
 		panic("fail")
 	}
 	if s != 10 {
-		println("wrong sum ranging over makestring")
+		println("wrong sum ranging over makestring", s)
 		panic("fail")
 	}
 }
@@ -222,7 +235,7 @@ func testmap() {
 		panic("fail")
 	}
 	if s != 'a'+'b'+'c'+'d'+'☺' {
-		println("wrong sum ranging over makemap")
+		println("wrong sum ranging over makemap", s)
 		panic("fail")
 	}
 }
@@ -238,7 +251,7 @@ func testmap1() {
 		panic("fail")
 	}
 	if s != 10 {
-		println("wrong sum ranging over makemap")
+		println("wrong sum ranging over makemap", s)
 		panic("fail")
 	}
 }

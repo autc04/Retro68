@@ -7,12 +7,8 @@
   <indexterm><primary>Containers</primary></indexterm>
 </title>
   <keywordset>
-    <keyword>
-      ISO C++
-    </keyword>
-    <keyword>
-      library
-    </keyword>
+    <keyword>ISO C++</keyword>
+    <keyword>library</keyword>
   </keywordset>
 </info>
 
@@ -236,7 +232,7 @@
    <para>
      There are a couple of ways to handle this kind of thing.  Please
      consider all of them before passing judgement.  They include, in
-     no chaptericular order:
+     no particular order:
    </para>
       <itemizedlist>
 	<listitem><para>A very large N in <code>bitset&lt;N&gt;</code>.</para></listitem>
@@ -353,7 +349,126 @@
 
 </section>
 
-<!-- Sect1 03 : Interacting with C -->
+<!-- Sect1 03 : Unordered Associative -->
+<section xml:id="std.containers.unordered" xreflabel="Unordered">
+  <info><title>Unordered Associative</title></info>
+  <?dbhtml filename="unordered_associative.html"?>
+
+  <section xml:id="containers.unordered.insert_hints" xreflabel="Insertion Hints">
+    <info><title>Insertion Hints</title></info>
+
+    <para>
+     Here is how the hinting works in the libstdc++ implementation of unordered
+     containers, and the rationale behind this behavior.
+    </para>
+    <para>
+      In the following text, the phrase <emphasis>equivalent to</emphasis> refer
+      to the result of the invocation of the equal predicate imposed on the
+      container by its <code>key_equal</code> object, which defaults to (basically)
+      <quote>==</quote>.
+    </para>
+    <para>
+      Unordered containers can be seen as a <code>std::vector</code> of
+      <code>std::forward_list</code>. The <code>std::vector</code> represents
+      the buckets and each <code>std::forward_list</code> is the list of nodes
+      belonging to the same bucket. When inserting an element in such a data
+      structure we first need to compute the element hash code to find the
+      bucket to insert the element to, the second step depends on the uniqueness
+      of elements in the container.
+    </para>
+    <para>
+      In the case of <code>std::unordered_set</code> and
+      <code>std::unordered_map</code> you need to look through all bucket's
+      elements for an equivalent one. If there is none the insertion can be
+      achieved, otherwise the insertion fails. As we always need to loop though
+      all bucket's elements, the hint doesn't tell us if the element is already
+      present, and we don't have any constraint on where the new element is to
+      be inserted, the hint won't be of any help and will then be ignored.
+    </para>
+    <para>
+      In the case of <code>std::unordered_multiset</code>
+      and <code>std::unordered_multimap</code> equivalent elements must be
+      linked together so that the <code>equal_range(const key_type&amp;)</code>
+      can return the range of iterators pointing to all equivalent elements.
+      This is where hinting can be used to point to another equivalent element
+      already part of the container and so skip all non equivalent elements of
+      the bucket. So to be useful the hint shall point to an element equivalent
+      to the one being inserted. The new element will be then inserted right
+      after the hint. Note that because of an implementation detail inserting
+      after a node can require updating the bucket of the following node. To
+      check if the next bucket is to be modified we need to compute the
+      following node's hash code. So if you want your hint to be really efficient
+      it should be followed by another equivalent element, the implementation
+      will detect this equivalence and won't compute next element hash code.
+    </para>
+    <para>
+      It is highly advised to start using unordered containers hints only if you
+      have a benchmark that will demonstrate the benefit of it. If you don't then do
+      not use hints, it might do more harm than good.
+    </para>
+  </section>
+
+  <section xml:id="containers.unordered.hash" xreflabel="Hash">
+    <info><title>Hash Code</title></info>
+
+  <section xml:id="containers.unordered.cache" xreflabel="Cache">
+    <info><title>Hash Code Caching Policy</title></info>
+
+    <para>
+      The unordered containers in libstdc++ may cache the hash code for each
+      element alongside the element itself. In some cases not recalculating
+      the hash code every time it's needed can improve performance, but the
+      additional memory overhead can also reduce performance, so whether an
+      unordered associative container caches the hash code or not depends on
+      the properties described below.
+    </para>
+    <para>
+      The C++ standard requires that <code>erase</code> and <code>swap</code>
+      operations must not throw exceptions. Those operations might need an
+      element's hash code, but cannot use the hash function if it could
+      throw.
+      This means the hash codes will be cached unless the hash function
+      has a non-throwing exception specification such as <code>noexcept</code>
+      or <code>throw()</code>.
+    </para>
+    <para>
+      If the hash function is non-throwing then libstdc++ doesn't need to
+      cache the hash code for
+      correctness, but might still do so for performance if computing a
+      hash code is an expensive operation, as it may be for arbitrarily
+      long strings.
+      As an extension libstdc++ provides a trait type to describe whether
+      a hash function is fast. By default hash functions are assumed to be
+      fast unless the trait is specialized for the hash function and the
+      trait's value is false, in which case the hash code will always be
+      cached.
+      The trait can be specialized for user-defined hash functions like so:
+    </para>
+    <programlisting>
+      #include &lt;unordered_set&gt;
+
+      struct hasher
+      {
+        std::size_t operator()(int val) const noexcept
+        {
+          // Some very slow computation of a hash code from an int !
+          ...
+        }
+      }
+
+      namespace std
+      {
+        template&lt;&gt;
+          struct __is_fast_hash&lt;hasher&gt; : std::false_type
+          { };
+      }
+    </programlisting>
+  </section>
+</section>
+
+</section>
+
+<!-- Sect1 04 : Interacting with C -->
 <section xml:id="std.containers.c" xreflabel="Interacting with C"><info><title>Interacting with C</title></info>
 <?dbhtml filename="containers_and_c.html"?>
   

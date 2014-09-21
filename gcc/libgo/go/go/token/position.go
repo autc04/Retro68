@@ -76,7 +76,7 @@ type Pos int
 // associated with it, and NoPos().IsValid() is false. NoPos is always
 // smaller than any other Pos value. The corresponding Position value
 // for NoPos is the zero value for Position.
-// 
+//
 const NoPos Pos = 0
 
 // IsValid returns true if the position is valid.
@@ -97,7 +97,7 @@ type File struct {
 	size int    // file size as provided to AddFile
 
 	// lines and infos are protected by set.mutex
-	lines []int
+	lines []int // lines contains the offset of the first character for each line (the first entry is always 0)
 	infos []lineInfo
 }
 
@@ -134,6 +134,29 @@ func (f *File) AddLine(offset int) {
 		f.lines = append(f.lines, offset)
 	}
 	f.set.mutex.Unlock()
+}
+
+// MergeLine merges a line with the following line. It is akin to replacing
+// the newline character at the end of the line with a space (to not change the
+// remaining offsets). To obtain the line number, consult e.g. Position.Line.
+// MergeLine will panic if given an invalid line number.
+//
+func (f *File) MergeLine(line int) {
+	if line <= 0 {
+		panic("illegal line number (line numbering starts at 1)")
+	}
+	f.set.mutex.Lock()
+	defer f.set.mutex.Unlock()
+	if line >= len(f.lines) {
+		panic("illegal line number")
+	}
+	// To merge the line numbered <line> with the line numbered <line+1>,
+	// we need to remove the entry in lines corresponding to the line
+	// numbered <line+1>. The entry in lines corresponding to the line
+	// numbered <line+1> is located at index <line>, since indices in lines
+	// are 0-based and line numbers are 1-based.
+	copy(f.lines[line:], f.lines[line+1:])
+	f.lines = f.lines[:len(f.lines)-1]
 }
 
 // SetLines sets the line offsets for a file and returns true if successful.
@@ -295,9 +318,9 @@ type FileSet struct {
 
 // NewFileSet creates a new file set.
 func NewFileSet() *FileSet {
-	s := new(FileSet)
-	s.base = 1 // 0 == NoPos
-	return s
+	return &FileSet{
+		base: 1, // 0 == NoPos
+	}
 }
 
 // Base returns the minimum base offset that must be provided to
@@ -314,7 +337,8 @@ func (s *FileSet) Base() int {
 // AddFile adds a new file with a given filename, base offset, and file size
 // to the file set s and returns the file. Multiple files may have the same
 // name. The base offset must not be smaller than the FileSet's Base(), and
-// size must not be negative.
+// size must not be negative. As a special case, if a negative base is provided,
+// the current value of the FileSet's Base() is used instead.
 //
 // Adding the file will set the file set's Base() value to base + size + 1
 // as the minimum base value for the next file. The following relationship
@@ -329,6 +353,9 @@ func (s *FileSet) Base() int {
 func (s *FileSet) AddFile(filename string, base, size int) *File {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	if base < 0 {
+		base = s.base
+	}
 	if base < s.base || size < 0 {
 		panic("illegal base or size")
 	}
@@ -347,7 +374,7 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 
 // Iterate calls f for the files in the file set in the order they were added
 // until f returns false.
-// 
+//
 func (s *FileSet) Iterate(f func(*File) bool) {
 	for i := 0; ; i++ {
 		var file *File
@@ -367,8 +394,10 @@ func searchFiles(a []*File, x int) int {
 }
 
 func (s *FileSet) file(p Pos) *File {
+	s.mutex.RLock()
 	// common case: p is in last file
 	if f := s.last; f != nil && f.base <= int(p) && int(p) <= f.base+f.size {
+		s.mutex.RUnlock()
 		return f
 	}
 	// p is not in last file - search all files
@@ -376,10 +405,14 @@ func (s *FileSet) file(p Pos) *File {
 		f := s.files[i]
 		// f.base <= int(p) by definition of searchFiles
 		if int(p) <= f.base+f.size {
-			s.last = f
+			s.mutex.RUnlock()
+			s.mutex.Lock()
+			s.last = f // race is ok - s.last is only a cache
+			s.mutex.Unlock()
 			return f
 		}
 	}
+	s.mutex.RUnlock()
 	return nil
 }
 
@@ -389,9 +422,7 @@ func (s *FileSet) file(p Pos) *File {
 //
 func (s *FileSet) File(p Pos) (f *File) {
 	if p != NoPos {
-		s.mutex.RLock()
 		f = s.file(p)
-		s.mutex.RUnlock()
 	}
 	return
 }
@@ -399,11 +430,9 @@ func (s *FileSet) File(p Pos) (f *File) {
 // Position converts a Pos in the fileset into a general Position.
 func (s *FileSet) Position(p Pos) (pos Position) {
 	if p != NoPos {
-		s.mutex.RLock()
 		if f := s.file(p); f != nil {
 			pos = f.position(p)
 		}
-		s.mutex.RUnlock()
 	}
 	return
 }

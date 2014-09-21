@@ -1,5 +1,4 @@
-// Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010
-// Free Software Foundation, Inc.
+// Copyright (C) 2004-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,9 +31,11 @@
 int array1[11] = {0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0};
 int array2[TEST_DEPTH];
 
+int pred_count;
 bool 
 pred(int i, int j)
 {
+  ++pred_count;
   return i == j;
 }
 
@@ -91,16 +92,22 @@ int main()
 
 	    int* t1 = search_n(forwardcon.begin(),
 			       forwardcon.end(), j, 1).ptr;
+	    pred_count = 0;
 	    int* t2 = search_n(forwardcon.begin(),
 			       forwardcon.end(), j, 1, pred).ptr;
+	    VERIFY(pred_count <= i);
 	    int* t3 = search_n(bidircon.begin(),
 			       bidircon.end(), j, 1).ptr;
+	    pred_count = 0;
 	    int* t4 = search_n(bidircon.begin(),
 			       bidircon.end(), j, 1, pred).ptr;
+	    VERIFY(pred_count <= i);
 	    int* t5 = search_n(randomcon.begin(),
 			       randomcon.end(), j, 1).ptr;
+	    pred_count = 0;
 	    int* t6 = search_n(randomcon.begin(),
 			       randomcon.end(), j, 1, pred).ptr;
+	    VERIFY(pred_count <= i);
 	    VERIFY((t1 == t2) && (t2 == t3) && (t3 == t4) &&
 		   (t4 == t5) && (t5 == t6));
 	  }

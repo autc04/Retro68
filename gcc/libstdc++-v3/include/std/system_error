@@ -1,6 +1,6 @@
 // <system_error> -*- C++ -*-
 
-// Copyright (C) 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,7 +31,7 @@
 
 #pragma GCC system_header
 
-#ifndef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
 
@@ -65,11 +65,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// error_category
   class error_category
   {
-  protected:
-    error_category() noexcept;
-
   public:
-    virtual ~error_category() noexcept;
+#ifdef _GLIBCXX_COMPATIBILITY_CXX0X
+    error_category() noexcept;
+#else
+    constexpr error_category() noexcept = default;
+#endif
+
+    virtual ~error_category();
 
     error_category(const error_category&) = delete;
     error_category& operator=(const error_category&) = delete;
@@ -373,6 +376,6 @@ _GLIBCXX_END_NAMESPACE_VERSION
 
 #endif // _GLIBCXX_COMPATIBILITY_CXX0X
 
-#endif // __GXX_EXPERIMENTAL_CXX0X__
+#endif // C++11
 
 #endif // _GLIBCXX_SYSTEM_ERROR

@@ -1,5 +1,4 @@
-/* Copyright (C) 2002, 2003, 2005, 2006, 2007, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -166,7 +165,8 @@ sys_abort (void)
   if (options.backtrace == 1
       || (options.backtrace == -1 && compile_options.backtrace == 1))
     {
-      show_backtrace ();
+      estr_write ("\nProgram aborted. Backtrace:\n");
+      backtrace ();
       signal (SIGABRT, SIG_DFL);
     }
 
@@ -212,6 +212,7 @@ gf_strerror (int errnum,
 	     size_t buflen __attribute__((unused)))
 {
 #ifdef HAVE_STRERROR_R
+  /* POSIX returns an "int", GNU a "char*".  */
   return
     __builtin_choose_expr (__builtin_classify_type (strerror_r (0, buf, 0))
 			   == 5,
@@ -219,6 +220,9 @@ gf_strerror (int errnum,
 			   strerror_r (errnum, buf, buflen),
 			   /* POSIX strerror_r ()  */
 			   (strerror_r (errnum, buf, buflen), buf));
+#elif defined(HAVE_STRERROR_R_2ARGS)
+  strerror_r (errnum, buf);
+  return buf;
 #else
   /* strerror () is not necessarily thread-safe, but should at least
      be available everywhere.  */
@@ -582,17 +586,17 @@ notification_std (int std)
    feature.  An error/warning will be issued if the currently selected
    standard does not contain the requested bits.  */
 
-try
+bool
 notify_std (st_parameter_common *cmp, int std, const char * message)
 {
   int warning;
 
   if (!compile_options.pedantic)
-    return SUCCESS;
+    return true;
 
   warning = compile_options.warn_std & std;
   if ((compile_options.allow_std & std) != 0 && !warning)
-    return SUCCESS;
+    return true;
 
   if (!warning)
     {
@@ -610,5 +614,5 @@ notify_std (st_parameter_common *cmp, int std, const char * message)
       estr_write (message);
       estr_write ("\n");
     }
-  return FAILURE;
+  return false;
 }
