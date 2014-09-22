@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 		std::ofstream out(tempFileName);
 		
 		std::string wordS = "[0-9a-f][0-9a-f][0-9a-f][0-9a-f]";
-		rx::regex jsr("\tjsr __magic_inline_(" + wordS + "(_" + wordS + ")*)");
+		rx::regex jsr("\t(jsr|jra) __magic_inline_(" + wordS + "(_" + wordS + ")*)");
 		rx::regex word(wordS);
 		rx::regex rts("\trts");
 		rx::regex instruction("\t[a-z]+.*");
@@ -97,6 +97,11 @@ int main(int argc, char *argv[])
 					++p)
 				{
 					out << "\tdc.w 0x" << p->str() << std::endl;
+				}
+				if(match[1] == "jra")
+				{
+					out << "rts\n";
+					hadRts = true;
 				}
 			}
 
