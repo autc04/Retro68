@@ -467,18 +467,22 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
 
   if (is_pascal)
     {
-      if (valreg) 
-        emit_move_insn(valreg,
+      if (valreg)
+        {
+          rtx pop_insn;
+          int modesize = GET_MODE_SIZE (GET_MODE (valreg));
+#ifdef PUSH_ROUNDING
+          modesize = PUSH_ROUNDING (modesize);
+#endif
+          pop_insn = emit_move_insn(valreg,
                        gen_rtx_MEM( GET_MODE (valreg),
-#ifdef HAVE_POST_INCREMENT
                                gen_rtx_POST_INC( Pmode,
                                         stack_pointer_rtx)
-#else
-                               gen_rtx_PLUS( Pmode,
-                                        gen_rtx_CONST_INT( Pmode, 1),
-                                        stack_pointer_rtx)
-#endif
                                ));
+      
+          stack_pointer_delta -= modesize;
+          add_reg_note (pop_insn, REG_ARGS_SIZE, GEN_INT (stack_pointer_delta));
+        }
     }
 
 
@@ -2522,19 +2526,6 @@ expand_call (tree exp, rtx target, int ignore)
       structure_value_addr_parm = 1;
     }
 
-  if (is_pascal)
-  { /* ### */
-    int modesize;
-    
-
-    pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
-    modesize = GET_MODE_SIZE (pascal_return_mode);
-#ifdef PUSH_ROUNDING
-    modesize = PUSH_ROUNDING (modesize);
-#endif
-    push_block (GEN_INT (modesize), 0, 0);
-  }
-
   /* Count the arguments and set NUM_ACTUALS.  */
   num_actuals =
     call_expr_nargs (exp) + num_complex_actuals + structure_value_addr_parm;
@@ -3092,6 +3083,21 @@ expand_call (tree exp, rtx target, int ignore)
 	save_area = save_fixed_argument_area (reg_parm_stack_space, argblock,
 					      &low_to_save, &high_to_save);
 #endif
+
+  if (is_pascal)
+  { /* ### */
+    int modesize;
+    
+
+    pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
+    modesize = GET_MODE_SIZE (pascal_return_mode);
+#ifdef PUSH_ROUNDING
+    modesize = PUSH_ROUNDING (modesize);
+#endif
+    push_block (GEN_INT (modesize), 0, 0);
+    //stack_pointer_delta -= INTVAL (GEN_INT (modesize));
+    NO_DEFER_POP;
+  }
 
       /* Now store (and compute if necessary) all non-register parms.
 	 These come before register parms, since they can require block-moves,
