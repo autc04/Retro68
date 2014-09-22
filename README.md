@@ -22,11 +22,15 @@ Prerequisites
 
 For Ubuntu Linux, the following should help a bit:
 
-    sudo apt-get install cmake ghc libgmp-dev libmpfr-dev libmpc-dev
+    sudo apt-get install cmake ghc libgmp-dev libmpfr-dev libmpc-dev \
+                         libghc-system-filepath-dev libghc-parsec3-dev \
+                         libghc-mtl-dev
 
 On a Mac, get the homebrew package manager and:
 
     brew install cmake gmp mpfr libmpc
+
+TODO: document package names for ghc and ghc libraries on Mac
 
 Apple Universal Interfaces
 --------------------------
@@ -81,7 +85,7 @@ projects with a few small key components added.
 
 Third Party Components:
 - binutils 2.20.1
-- gcc 4.7.0 with some Retro68-specific hacks
+- gcc 4.9.1 with some Retro68-specific hacks
 - newlib 2.10.1 (inside the gcc directory)
 - elf2flt (from the ucLinux project's CVS)
 - hfsutils 3.2.6 (just for convenience)
