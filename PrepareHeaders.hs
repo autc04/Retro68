@@ -135,6 +135,7 @@ hexword = integer tp
 outputItem typeMap (CharItem c) = [c]
 -- outputItem (FunctionItem cconv rettype name argumentTypes argumentNames words) = "<fun>"
 
+{-
 outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words Nothing)
     | True, not (null words), Just retcat <- classifyType typeMap rettype
     = let
@@ -172,6 +173,24 @@ outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames 
                 (if retcat == VoidType then PP.empty else PP.text "return") <+>
                 helper <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ map PP.text magicArgValues) <> PP.semi
             ) $+$ PP.text "}\n\n"
+-}
+
+outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words Nothing)
+    | True, not (null words), Just retcat <- classifyType typeMap rettype
+    = let
+        helper = PP.text "__magic_inline_" <> PP.text name
+        magic = PP.text "__magic_inline_" <> PP.hcat (PP.punctuate (PP.char '_') (map (PP.text . hexword) words))
+        hexword w = replicate (4 - length s) '0' ++ s where s = showHex w ""
+        cconvAttr = case cconv of
+            Pascal -> PP.text "__attribute__((__pascal__))" 
+            CCall -> PP.empty
+        magicAttr = PP.text "__attribute__((__magicinline__))" 
+    in PP.render $
+       PP.text rettype <+> cconvAttr <+> magicAttr <+> PP.text name
+            <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ zipWith (\t n -> PP.text t <+> PP.text n) argumentTypes argumentNames)
+            <+> PP.text("__asm__") <> PP.parens ( PP.doubleQuotes magic )
+            <> PP.semi <> PP.text "\n"
+
 
 
       
