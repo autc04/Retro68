@@ -1,2 +1,5 @@
 CIncludes
-Universal Headers
+Universal Headers*
+*~
+.*.swp
+CMakeLists.txt.user
