@@ -318,6 +318,8 @@ static const struct attribute_spec m68k_attribute_table[] =
      if they are not variable.  */
   { "pascal",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
     true },  
+  { "magicinline",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
+    false },  
   { "interrupt_handler", 0, 0, true,  false, false,
     m68k_handle_fndecl_attribute, false },
   { "interrupt_thread", 0, 0, true,  false, false,
@@ -6508,8 +6510,8 @@ m68k_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 static int
 m68k_return_pops_args (tree fundecl, tree funtype, int size)
 {
-if(lookup_attribute ("pascal", TYPE_ATTRIBUTES (funtype)))
-   return size;
+  if (lookup_attribute ("pascal", TYPE_ATTRIBUTES (funtype)))
+    return size;
   return ((TARGET_RTD
 	   && (!fundecl
 	       || TREE_CODE (fundecl) != IDENTIFIER_NODE)
@@ -6569,7 +6571,7 @@ m68k_write_macsbug_name(FILE *file, const char *name)
     fprintf(file, "\t.byte 0x80\n\t.byte %d\n", len);
 
   ASM_OUTPUT_ASCII(file, name, len);
-  fprintf(file, "\t.align 2,0\n\t.short 0\n", len);
+  fprintf(file, "\t.align 2,0\n\t.short 0\n");
 }
 
 

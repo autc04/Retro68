@@ -132,8 +132,7 @@ static int stack_arg_under_construction;
 static void emit_call_1 (rtx, tree, tree, tree, HOST_WIDE_INT, HOST_WIDE_INT,
 			 HOST_WIDE_INT, rtx, rtx, int, rtx, int,
 			 cumulative_args_t,
-                         int is_pascal,
-                         enum machine_mode pascal_return_mode);
+                         bool is_pascal);
 static void precompute_register_parameters (int, struct arg_data *, int *);
 static int store_one_arg (struct arg_data *, rtx, int, int, int);
 static void store_unaligned_arguments_into_pseudos (struct arg_data *, int);
@@ -190,18 +189,14 @@ prepare_call_address (tree fndecl, rtx funexp, rtx static_chain_value,
     {
 #ifndef NO_FUNCTION_CSE
       int is_magic = 0;
-      tree decl = fndecl;//SYMBOL_REF_DECL(funexp);
-      if(decl)
-      {
-         if(DECL_NAME(decl))
-         {
-            if(!strncmp(IDENTIFIER_POINTER (DECL_NAME (decl)), "__magic_inline_", 15))
-            {
-               is_magic = 1;
-            }
-         }
-      }
 
+      if (fndecl)
+        {
+          tree fntype = TREE_TYPE(fndecl);
+          if(fntype && lookup_attribute ("__magicinline__", TYPE_ATTRIBUTES (fntype)))
+            is_magic = 1;
+        }
+    
       if (optimize && ! flag_no_function_cse && !is_magic)
 	funexp = force_reg (Pmode, funexp);
 #endif
@@ -275,8 +270,7 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
 	     int old_inhibit_defer_pop, rtx call_fusage, int ecf_flags,
 	     cumulative_args_t args_so_far ATTRIBUTE_UNUSED,
 
-             int is_pascal,
-             enum machine_mode pascal_return_mode)
+             bool is_pascal)
 {
   rtx rounded_stack_size_rtx = GEN_INT (rounded_stack_size);
   rtx call_insn, call, funmem;
@@ -2359,7 +2353,7 @@ expand_call (tree exp, rtx target, int ignore)
   rtx static_chain_value;
 
   /* Nonzero if this is a call to a pascal-declared function. */
-  int is_pascal = 0 /* ### */;
+  bool is_pascal = false /* ### */;
   /* The mode of the value being returned by a pascal-declared function. */
   enum machine_mode pascal_return_mode = VOIDmode;
 
@@ -2387,7 +2381,7 @@ expand_call (tree exp, rtx target, int ignore)
   struct_value = targetm.calls.struct_value_rtx (fntype, 0);
 
   if(lookup_attribute ("pascal", TYPE_ATTRIBUTES (fntype)))
-        is_pascal = 1;
+        is_pascal = true;
 
 
   /* Warn if this value is an aggregate type,
@@ -3239,7 +3233,7 @@ expand_call (tree exp, rtx target, int ignore)
       emit_call_1 (funexp, exp, fndecl, funtype, unadjusted_args_size,
 		   adjusted_args_size.constant, struct_value_size,
 		   next_arg_reg, valreg, old_inhibit_defer_pop, call_fusage,
-		   flags, args_so_far, is_pascal, pascal_return_mode);
+		   flags, args_so_far, is_pascal);
 
       /* If the call setup or the call itself overlaps with anything
 	 of the argument setup we probably clobbered our call address.
@@ -4267,7 +4261,7 @@ emit_library_call_value_1 (int retval, rtx orgfun, rtx value,
 					   VOIDmode, void_type_node, true),
 	       valreg,
 	       old_inhibit_defer_pop + 1, call_fusage, flags, args_so_far,
-               0, VOIDmode /*is_pascal, pascal_return_mode*/);
+               false /*is_pascal*/);
 
   /* Right-shift returned value if necessary.  */
   if (!pcc_struct_value
