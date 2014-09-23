@@ -15,8 +15,10 @@ P ConstStr255Param
 W CharParameter
 W OSErr
 L OSStatus
+B UInt8
 W UInt16
 L UInt32
+B SInt8
 W SInt16
 L SInt32
 P KeyMap
