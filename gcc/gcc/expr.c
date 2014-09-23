@@ -3943,10 +3943,10 @@ find_args_size_adjust (rtx insn)
 	{
 	case PRE_INC:
 	case POST_INC:
-	  return GET_MODE_SIZE (GET_MODE (mem));
+	  return PUSH_ROUNDING( GET_MODE_SIZE (GET_MODE (mem)) );
 	case PRE_DEC:
 	case POST_DEC:
-	  return -GET_MODE_SIZE (GET_MODE (mem));
+	  return -PUSH_ROUNDING( GET_MODE_SIZE (GET_MODE (mem)) );
 	case PRE_MODIFY:
 	case POST_MODIFY:
 	  addr = XEXP (addr, 1);
