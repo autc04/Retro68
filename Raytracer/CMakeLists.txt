@@ -18,7 +18,7 @@
 cmake_minimum_required(VERSION 2.8)
 
 if(NOT APPLE)
-set(CMAKE_CXX_FLAGS "-std=c++11 -fno-threadsafe-statics -fomit-frame-pointer -O0 -fno-exceptions") # -mcpu=68040")
+set(CMAKE_CXX_FLAGS "-std=c++11 -fno-threadsafe-statics -g -fomit-frame-pointer") # -mcpu=68040")
 endif()
 
 include_directories(../App2)
@@ -35,8 +35,8 @@ if(APPLE)
 target_link_libraries(Raytracer "-framework Carbon")
 target_link_libraries(Raytracer2 "-framework Carbon")
 else()
-add_executable(FixedBenchmark fixedbenchmark.cc fixed.h )
-target_link_libraries(FixedBenchmark  retrocrt) #RetroConsole
+add_executable(FixedBenchmark fixedbenchmark.cc fixed.h fixed.cc)
+target_link_libraries(FixedBenchmark RetroConsole retrocrt)
 add_custom_command(
 	OUTPUT FixedBenchmark.bin
 	COMMAND ${MAKE_APPL} -c FixedBenchmark -o FixedBenchmark
