@@ -3038,6 +3038,8 @@ elimination_effects (rtx x, enum machine_mode mem_mode)
 		else
 		  ep->can_eliminate = 0;
 	      }
+            if (code == POST_DEC || code == POST_INC)
+              ep->can_eliminate = 0;
 	  }
 
       /* These two aren't unary operators.  */
