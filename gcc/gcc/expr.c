@@ -3975,13 +3975,13 @@ fixup_args_size_notes (rtx prev, rtx last, int end_args_size)
 	continue;
 
       this_delta = find_args_size_adjust (insn);
-      if (this_delta == 0)
+   /*   if (this_delta == 0)
 	{
 	  if (!CALL_P (insn)
 	      || ACCUMULATE_OUTGOING_ARGS
 	      || find_reg_note (insn, REG_NORETURN, NULL_RTX) == NULL_RTX)
 	    continue;
-	}
+	}*/
 
       gcc_assert (!saw_unknown);
       if (this_delta == HOST_WIDE_INT_MIN)
