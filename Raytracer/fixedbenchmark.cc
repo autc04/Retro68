@@ -24,7 +24,7 @@
 
 #include <Events.h>
 
-#include "fixed.h"
+//#include "fixed.h"
 #include <cmath>
 
 using std::sqrt;
@@ -43,40 +43,44 @@ void runTests(std::string type, std::vector<number>& numbers)
 	std::cout << "***********************************\n";
 	std::cout << "Running tests on type " << type << ":\n";
 	std::cout << "***********************************\n";
+	Debugger();
 
 	int n = numbers.size();
-	std::vector<number> outputs(n);
-
+	std::vector<float> outputs(n);
+	Debugger();
 	std::cout << "Testing Multiplication..." << std::flush;
 	{
 		timer t;
-		for(int i = 0; i < n; i++)
+	/*	for(int i = 0; i < n; i++)
 		{
 			outputs[i] = numbers[i] * numbers[n - i - 1];
-		}
+		}*/
 		std::cout << 1000 * t.elapsed() / n << "ms\n";
 	}
-
+	Debugger();
 	std::cout << "Testing Division..." << std::flush;
 	{
 		timer t;
-		for(int i = 0; i < n; i++)
+	/*	for(int i = 0; i < n; i++)
 		{
 			outputs[i] = numbers[i] / numbers[n - i - 1];
-		}
+		}*/
 		std::cout << 1000 * t.elapsed() / n << "ms\n";
 	}
-
+	Debugger();
 	std::cout << "Testing Square Root..." << std::flush;
 	{
 		timer t;
-		for(int i = 0; i < n; i++)
+	/*	for(int i = 0; i < n; i++)
 		{
 			outputs[i] = sqrt(numbers[i]);
-		}
+		}*/
+		//Debugger();
 		std::cout << 1000 * t.elapsed() / n << "ms\n";
 	}
-	std::cout << std::endl;
+	Debugger();
+
+	//std::cout << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -86,26 +90,30 @@ int main(int argc, char** argv)
 	std::cout << "Generating numbers..." << std::flush;
 	
 	const int n = 1000;
-	std::vector<fixed> numbers(n);
+//	std::vector<fixed> numbers(n);
 	std::vector<float> floats(n);
-	std::vector<double> doubles(n);
-
-	for(int i = 0; i < numbers.size(); i++)
+//	std::vector<double> doubles(n);
+/*
+	for(int i = 0; i < n; i++)
 	{
-		numbers[i] = fixed(std::rand(), fixed::raw());
+	//	numbers[i] = fixed(std::rand(), fixed::raw());
 		floats[i] = float(std::rand()) / RAND_MAX;
-		doubles[i] = double(std::rand()) / RAND_MAX;
-	}
-	std::vector<fixed> outputs(n);
+	//	doubles[i] = double(std::rand()) / RAND_MAX;
+	}*/
+	//std::vector<fixed> outputs(n);
 	std::cout << "done.\n\n";
 	
-	runTests("float", floats);
-	runTests("double", doubles);
-	runTests("fixed", numbers);
+	Debugger();
 
+	runTests("float", floats);
+	Debugger();
+
+	/*runTests("double", doubles);
+	runTests("fixed", numbers);*/
+/*
 	std::cout << "Press Enter to Exit ;-)\n";
 	
 	std::cin.get();
-	
+	*/
 	return 0;
 }
