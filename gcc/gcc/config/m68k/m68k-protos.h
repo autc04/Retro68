@@ -62,7 +62,6 @@ extern rtx m68k_legitimize_tls_address (rtx);
 extern bool m68k_tls_reference_p (rtx, bool);
 extern int valid_dbcc_comparison_p_2 (rtx, enum machine_mode);
 extern rtx m68k_libcall_value (enum machine_mode);
-extern rtx m68k_function_value (const_tree, const_tree);
 extern int emit_move_sequence (rtx *, enum machine_mode, rtx);
 extern bool m68k_movem_pattern_p (rtx, rtx, HOST_WIDE_INT, bool);
 extern const char *m68k_output_movem (rtx *, rtx, HOST_WIDE_INT, bool);

@@ -167,6 +167,8 @@ static rtx m68k_function_arg (cumulative_args_t, enum machine_mode,
 static bool m68k_cannot_force_const_mem (enum machine_mode mode, rtx x);
 static bool m68k_output_addr_const_extra (FILE *, rtx);
 static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
+static rtx m68k_function_value (const_tree, const_tree, bool);
+
 
 /* Initialize the GCC target structure.  */
 
@@ -308,6 +310,9 @@ static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
 #undef TARGET_ATOMIC_TEST_AND_SET_TRUEVAL
 #define TARGET_ATOMIC_TEST_AND_SET_TRUEVAL 128
 
+#undef TARGET_FUNCTION_VALUE
+#define TARGET_FUNCTION_VALUE m68k_function_value
+
 static const struct attribute_spec m68k_attribute_table[] =
 {
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler,
@@ -318,6 +323,8 @@ static const struct attribute_spec m68k_attribute_table[] =
      if they are not variable.  */
   { "pascal",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
     true },  
+  { "regparam",   1, 1, false, true,  true, m68k_handle_fndecl_attribute,
+    true },
   { "magicinline",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
     false },  
   { "interrupt_handler", 0, 0, true,  false, false,
@@ -1394,9 +1401,9 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
       rtx cfun_value;
       rtx call_value;
 
-      cfun_value = FUNCTION_VALUE (TREE_TYPE (DECL_RESULT (cfun->decl)),
-				   cfun->decl);
-      call_value = FUNCTION_VALUE (TREE_TYPE (exp), decl);
+      cfun_value = m68k_function_value (TREE_TYPE (DECL_RESULT (cfun->decl)),
+				   cfun->decl, false);
+      call_value = m68k_function_value (TREE_TYPE (exp), decl, false);
 
       /* Check that the values are equal or that the result the callee
 	 function returns is superset of what the current function returns.  */
@@ -1420,15 +1427,83 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
   return false;
 }
 
-/* On the m68k all args are always pushed.  */
+/* On the m68k all args are always pushed - NOT.  */
+
+void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum, 
+    const_tree fntype, 
+    rtx libname ATTRIBUTE_UNUSED,
+    tree indirect ATTRIBUTE_UNUSED,
+    int n_named_args)
+{
+  cum->bytes = 0;
+  cum->index = 0;
+  cum->regparam = false;
+
+  if(!fntype)
+    return;
+
+  tree regparam = lookup_attribute ("regparam", TYPE_ATTRIBUTES( fntype ));
+  cum->regparam = regparam != NULL;
+  if(regparam)
+    {
+      regparam = TREE_VALUE(TREE_VALUE(regparam));
+      if(TREE_CODE(regparam) == STRING_CST)
+        {
+          const char *paramstr = TREE_STRING_POINTER(regparam);
+          printf("regparam: %s\n", paramstr);
+
+          const char *p = paramstr;
+
+          bool ok = true;
+          int idx = 0;
+          cum->arg_regs[0] = 0;
+          if(*p == '(')
+          {
+            idx = 1;
+            p++;
+          }
+          while(*p)
+            {
+              while(*p && (*p == '_' || *p == '%' || *p == ',' || *p == '(' || *p == ')' || *p == ' ' || *p == '\t'))
+                p++;
+
+              if(!*p)
+                break;
+
+              if(*p != 'a' && *p != 'd' && *p != 'A' && *p != 'D')
+                { ok = false; break; }
+              if(p[1] < '0' || p[1] > '7')
+                { ok = false; break; }
+              cum->arg_regs[idx++] = p[1] - '0'
+                + (*p == 'a' || *p == 'A' ? 8 : 0);
+
+              p += 2;
+
+            }
+          printf("regparam parsed: %d, %d", (int) ok, idx);
+          // TODO: error checking
+          cum->total_count = idx - 1;
+          if(cum->total_count < 0)
+            cum->total_count = 0;
+        }
+    }
+}
 
 static rtx
-m68k_function_arg (cumulative_args_t cum ATTRIBUTE_UNUSED,
+m68k_function_arg (cumulative_args_t cum_v,
 		   enum machine_mode mode ATTRIBUTE_UNUSED,
 		   const_tree type ATTRIBUTE_UNUSED,
 		   bool named ATTRIBUTE_UNUSED)
 {
-  return NULL_RTX;
+  CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
+  if(!cum->regparam)
+    return NULL_RTX;
+
+  if(cum->index < cum->total_count)
+    return gen_rtx_REG (mode, cum->arg_regs[cum->index+1]);
+  else
+    return NULL_RTX;
+      //return gen_rtx_REG (mode, 0); // ###
 }
 
 static void
@@ -1437,9 +1512,10 @@ m68k_function_arg_advance (cumulative_args_t cum_v, enum machine_mode mode,
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
-  *cum += (mode != BLKmode
+  cum->bytes += (mode != BLKmode
 	   ? (GET_MODE_SIZE (mode) + 1) & ~1
 	   : (int_size_in_bytes (type) + 1) & ~1);
+  cum->index ++;
 }
 
 /* Convert X to a legitimate function call memory reference and return the
@@ -5298,15 +5374,27 @@ m68k_libcall_value (enum machine_mode mode)
   return gen_rtx_REG (mode, m68k_libcall_value_in_a0_p ? A0_REG : D0_REG);
 }
 
-/* Location in which function value is returned.
-   NOTE: Due to differences in ABIs, don't call this function directly,
-   use FUNCTION_VALUE instead.  */
+/* Location in which function value is returned.  */
 rtx
-m68k_function_value (const_tree valtype, const_tree func ATTRIBUTE_UNUSED)
+m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outgoing)
 {
   enum machine_mode mode;
 
   mode = TYPE_MODE (valtype);
+
+  if(func_decl_or_type)
+    {
+      CUMULATIVE_ARGS cum;
+      const_tree type = func_decl_or_type;
+      if(TREE_CODE(type) == FUNCTION_DECL)
+        type = TREE_TYPE(type);
+      m68k_init_cumulative_args(&cum, type, NULL, NULL, -1);
+      if(cum.regparam)
+        return gen_rtx_REG (mode, cum.arg_regs[0]);
+    }
+  return gen_rtx_REG (mode, D0_REG);
+
+  #if 0
   switch (mode) {
   case SFmode:
   case DFmode:
@@ -5340,6 +5428,7 @@ m68k_function_value (const_tree valtype, const_tree func ATTRIBUTE_UNUSED)
     return gen_rtx_REG (mode, A0_REG);
   else
     return gen_rtx_REG (mode, D0_REG);
+  #endif
 }
 
 /* Worker function for TARGET_RETURN_IN_MEMORY.  */

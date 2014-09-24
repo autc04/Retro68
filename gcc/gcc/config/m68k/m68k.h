@@ -508,8 +508,7 @@ extern enum reg_class regno_reg_class[];
 #define FIRST_PARM_OFFSET(FNDECL) 8
 
 /* On the m68k the return value defaults to D0.  */
-#define FUNCTION_VALUE(VALTYPE, FUNC)  \
-  gen_rtx_REG (TYPE_MODE (VALTYPE), D0_REG)
+//  gen_rtx_REG (TYPE_MODE (VALTYPE), D0_REG)
 
 /* On the m68k the return value defaults to D0.  */
 #define LIBCALL_VALUE(MODE)  gen_rtx_REG (MODE, D0_REG)
@@ -525,13 +524,21 @@ extern enum reg_class regno_reg_class[];
 /* On the m68k, all arguments are usually pushed on the stack.  */
 #define FUNCTION_ARG_REGNO_P(N) 0
 
-/* On the m68k, this is a single integer, which is a number of bytes
-   of arguments scanned so far.  */
-#define CUMULATIVE_ARGS int
+
+typedef struct {
+	int bytes; /* number of bytes  of arguments scanned so far.  */
+	int total_count;
+	int index;
+	bool regparam;
+    int arg_regs[32];
+    
+} CUMULATIVE_ARGS;
+
+extern void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum, const_tree fntype, rtx libname, tree indirect, int n_named_args);
 
 /* On the m68k, the offset starts at 0.  */
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
- ((CUM) = 0)
+  m68k_init_cumulative_args(&(CUM), (FNTYPE), (LIBNAME), (INDIRECT), (N_NAMED_ARGS));
 
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
   asm_fprintf (FILE, "\tlea %LLP%d,%Ra0\n\tjsr mcount\n", (LABELNO))

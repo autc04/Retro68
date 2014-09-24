@@ -17,8 +17,6 @@
    and unions in registers, which is slightly more efficient.  */
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
-#undef FUNCTION_VALUE
-#define FUNCTION_VALUE(VALTYPE,FUNC) LIBCALL_VALUE (TYPE_MODE (VALTYPE))
 
 #undef LIBCALL_VALUE
 #define LIBCALL_VALUE(MODE)					\
