@@ -21,7 +21,7 @@
 #include <Files.h>
 #include <string.h>
 
-Size GetPtrSize(Ptr ptr)
+pascal Size GetPtrSize(Ptr ptr)
 {
 	long tmp;
 	__asm__ __volatile__(
@@ -35,7 +35,7 @@ Size GetPtrSize(Ptr ptr)
 		return 0;
 }
 
-OSErr SetVol (ConstStr63Param volName, short vRefNum)
+pascal OSErr SetVol (ConstStr63Param volName, short vRefNum)
 {
 	ParamBlockRec pb;
 	memset(&pb, 0, sizeof(pb));
@@ -44,7 +44,7 @@ OSErr SetVol (ConstStr63Param volName, short vRefNum)
 	return PBSetVolSync(&pb);
 }
 
-OSErr UnmountVol (ConstStr63Param volName, short vRefNum)
+pascal OSErr UnmountVol (ConstStr63Param volName, short vRefNum)
 {
 	ParamBlockRec pb;
 	memset(&pb, 0, sizeof(pb));
@@ -53,7 +53,7 @@ OSErr UnmountVol (ConstStr63Param volName, short vRefNum)
 	return PBUnmountVolImmed(&pb);
 }
 
-OSErr Eject (ConstStr63Param volName, short vRefNum)
+pascal OSErr Eject (ConstStr63Param volName, short vRefNum)
 {
 	ParamBlockRec pb;
 	memset(&pb, 0, sizeof(pb));
