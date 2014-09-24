@@ -1383,6 +1383,9 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
   if (CALL_EXPR_STATIC_CHAIN (exp))
     return false;
 
+  if (decl && lookup_attribute ("magicinline", TYPE_ATTRIBUTES( TREE_TYPE(decl) )))
+    return false;
+
   if (!VOID_TYPE_P (TREE_TYPE (DECL_RESULT (cfun->decl))))
     {
       /* Check that the return value locations are the same.  For
