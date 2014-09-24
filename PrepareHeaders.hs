@@ -52,8 +52,8 @@ tp = makeTokenParser javaStyle
 
 item  =   (char '\r' >> return (CharItem '\n'))
       <|> try externApiDeclaration
-      <|> try (string "= 0x4E90" >> return IgnoredItem)
-      <|> try (string "= 0x4E91" >> return IgnoredItem)
+     -- <|> try (string "= 0x4E90" >> return IgnoredItem)
+     -- <|> try (string "= 0x4E91" >> return IgnoredItem)
       <|> try pragmaParameter
       <|> fmap CharItem anyChar
 
@@ -116,21 +116,6 @@ reg = (reserved tp "__A0" >> return "%%a0")
    <|>(reserved tp "__D1" >> return "%%d1")
    
 
-data TypeCategory = ByteType | WordType | LongType | PointerType | VoidType
-   deriving(Show, Eq)
-classifyType tm t | "Ptr" `isSuffixOf` t = Just PointerType
-                  | "*" `isSuffixOf` t = Just PointerType
-                  | "Handle" `isSuffixOf` t = Just PointerType
-                  | "UPP" `isSuffixOf` t = Just PointerType
-                  | "Ref" `isSuffixOf` t = Just PointerType
-classifyType tm "unsigned char" = Just ByteType
-classifyType tm "signed char" = Just ByteType
-classifyType tm "char" = Just ByteType
-classifyType tm "short" = Just WordType
-classifyType tm "long" = Just LongType
-classifyType tm "void" = Just VoidType
-classifyType tm t = Map.lookup t tm
-
 pprParameterRegs (ParameterRegs mbRet args)
     = maybe PP.empty PP.text mbRet
     <+> PP.parens (
@@ -138,52 +123,10 @@ pprParameterRegs (ParameterRegs mbRet args)
         )
 
 hexword = integer tp
-outputItem typeMap (CharItem c) = [c]
+outputItem (CharItem c) = [c]
 -- outputItem (FunctionItem cconv rettype name argumentTypes argumentNames words) = "<fun>"
 
-{-
-outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words Nothing)
-    | True, not (null words), Just retcat <- classifyType typeMap rettype
-    = let
-        helper = PP.text "__magic_inline_" <> PP.text name
-        magic = PP.text "__magic_inline_" <> PP.hcat (PP.punctuate (PP.char '_') (map (PP.text . hexword) words'))
-        hexword w = replicate (4 - length s) '0' ++ s where s = showHex w ""
-        magicArgTypes = case retcat of
-            ByteType -> reverse $ "char" : argumentTypes
-            WordType -> reverse $ "short" : argumentTypes
-            LongType -> reverse $ "long" : argumentTypes
-            PointerType -> reverse $ "long" : argumentTypes                           
-            VoidType -> reverse argumentTypes
-        magicArgValues = case retcat of
-            VoidType -> reverse argumentNames
-            _ -> reverse $ "0" : argumentNames
-        words' = case retcat of
-            VoidType -> words
-            _ | cconv == CCall -> words
-            ByteType -> words ++ [ 0x101f ] -- move.b (a7)+,d0
-            WordType -> words ++ [ 0x301f ] -- move.w (a7)+,d0
-            LongType -> words ++ [ 0x201f ] -- move.l (a7)+,d0
-            PointerType -> words ++ [ 0x201f ] -- move.l (a7)+,d0   
-        cconvAttr = case cconv of
-            Pascal -> PP.text "__attribute__((stdcall))" 
-            CCall -> PP.empty
-    in PP.render $
-       PP.text rettype <+> cconvAttr <+> helper
-            <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ map PP.text magicArgTypes)
-            <+> PP.text("__asm__") <> PP.parens ( PP.doubleQuotes magic )
-            <> PP.semi
-       $+$
-       PP.text "static inline" <+> PP.text rettype <+> PP.text name
-            <+> PP.parens (PP.hsep $ PP.punctuate PP.comma $ zipWith (\t n -> PP.text t <+> PP.text n) argumentTypes argumentNames) $$
-            PP.text "{" $+$ (PP.nest 4 $
-                (if retcat == VoidType then PP.empty else PP.text "return") <+>
-                helper <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ map PP.text magicArgValues) <> PP.semi
-            ) $+$ PP.text "}\n\n"
--}
-
-
-outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words mbParamRegs)
-    -- | True, not (null words), Just retcat <- classifyType typeMap rettype
+outputItem (FunctionItem cconv rettype name argumentTypes argumentNames words mbParamRegs)
     = let
         magic = PP.text "__magic_inline_" <> PP.hcat (PP.punctuate (PP.char '_') (map (PP.text . hexword) words))
         hexword w = replicate (4 - length s) '0' ++ s where s = showHex w ""
@@ -205,118 +148,7 @@ outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames 
             <+> inlineMagic
             <> PP.semi <> PP.text "\n"
 
-{-}
-
-outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words (Just regs)) = 
-    = let
-        magic = PP.text "__magic_inline_" <> PP.hcat (PP.punctuate (PP.char '_') (map (PP.text . hexword) words))
-        hexword w = replicate (4 - length s) '0' ++ s where s = showHex w ""
-        cconvAttr = 
-        magicAttr = PP.text "__attribute__((__magicinline__))" 
-    in PP.render $
-       PP.text rettype <+> cconvAttr <+> magicAttr <+> PP.text name
-            <> PP.parens (PP.hsep $ PP.punctuate PP.comma $ zipWith (\t n -> PP.text t <+> PP.text n) argumentTypes argumentNames)
-            <+> PP.text("__asm__") <> PP.parens ( PP.doubleQuotes magic )
-            <> PP.semi <> PP.text "\n"
-
-
-outputItem typeMap (FunctionItem cconv rettype name argumentTypes argumentNames words mbParamRegs) = 
-    PP.render $
-        linkage <+> PP.text rettype <+> PP.text name
-            <+> PP.parens (PP.hsep $ PP.punctuate PP.comma $ zipWith (\t n -> PP.text t <+> PP.text n) argumentTypes argumentNames) $$
-        if isJust mbCategories && not (null words)
-            then
-                PP.text "{" $+$ (PP.nest 4 $
-                    addReturnValue $
-                    PP.text "__asm__ __volatile__ (" $+$
-                    PP.nest 4 (
-                        PP.nest 4 (PP.vcat asmStatements) $+$
-                        showConstraints outs $+$
-                        showConstraints ins $+$
-                        PP.text ": \"%a0\", \"%a1\", \"%d0\", \"%d1\", \"%d2\", \"memory\", \"cc\""
-                        <> (if tooltrap then PP.text ", \"%a5\"" else PP.empty)
-                    )
-                    $+$ PP.text ");"
-                ) $+$ PP.text "}\n\n"
-            else
-                PP.semi $+$ 
-                PP.text "//" <+> PP.text (show words) $+$
-                PP.text "//" <+> PP.text rettype <+> PP.text (show $ (classifyType typeMap) rettype) $+$
-                PP.text "//" <+> PP.text (show argumentTypes) <+> PP.text (show $ map (classifyType typeMap) argumentTypes) $+$
-                PP.text "\n" -- couldn't convert type
-    where
-        tooltrap = True -- trapnum >= 0xA800
-        linkage | null words = PP.text "extern"
-                | otherwise = PP.text "static inline"
- 
- 
-        mbCategories = do
-            retcat <- classifyType typeMap rettype
-            argcats <- mapM (classifyType typeMap) argumentTypes
-            return (retcat, argcats)
-  
-        Just (returnCategory, argumentCategories) = mbCategories
-  
-        returnsValue = returnCategory /= VoidType
-        addReturnValue body 
-            | returnsValue = (PP.text rettype <+> PP.text "_ret;") $+$
-                             body $+$
-                             PP.text "return _ret;"
-            | otherwise = body
-        outs | returnsValue = [PP.text "\"=g\"(_ret)"]
-             | otherwise = []
-        ins = zipWith inputConstraint argumentCategories argumentNames 
-     
-        inputConstraint PointerType name = PP.text "\"m\"(*(char*)" <> PP.text name <> PP.text ")"
-        inputConstraint VoidType name = error $ "Void Parameter: " ++ name
-        inputConstraint _ name = PP.text "\"g\"(" <> PP.text name <> PP.text ")"
-  
-  
-        showConstraints constraints = PP.text ":" <+> PP.hsep (PP.punctuate PP.comma $ constraints)
-        asmStatements = 
-            subq ++
-            pushes ++
-            map (\trapnum -> PP.text "\"dc.w" <+> PP.text "0x" <> PP.text (showHex trapnum "") 
-                          <> PP.text "\\n\\t\"") words
-            ++ pop
-  
-        (subq, pop) = case returnCategory of
-                VoidType -> ([], [])
-                _ -> (ifpascal [PP.text "\"subq #" <> PP.int size <> PP.text ", %%sp\\n\\t\""],
-                      [PP.text "\"move" <> szLetter <+> src <+> PP.text ", %0\\n\\t\""])
-            where
-                size = case returnCategory of
-                    PointerType -> 4 ; LongType -> 4 ; WordType -> 2 ; ByteType -> 2 {- keep stack aligned -}
-                   
-                szLetter = PP.text $ case returnCategory of
-                    PointerType -> ".l" ; LongType -> ".l" ; WordType -> ".w" ; ByteType -> ".b"
-                src = case mbParamRegs of
-                        Nothing -> PP.text "%%sp@+"
-                        Just (ParameterRegs (Just r) _) -> PP.text r
-                        Just (ParameterRegs Nothing _) -> error $ "no reg for return value: " ++ name
-    
-                ifpascal x = case mbParamRegs of Nothing -> x ; Just _ -> []
-    
-        pushes = case mbParamRegs of
-                    Nothing -> zipWith (mkPush Nothing) argumentCategories
-                    Just (ParameterRegs _ regs) -> zipWith3 mkPush (map Just regs) argumentCategories
-            $
-                map (\i -> PP.char '%' <> PP.int i) $
-                (if returnsValue then [1..] else [0..])
-  
-        endtxt = PP.text "\\n\\t\""
-        mkPush Nothing PointerType operand = PP.text "\"pea" <+> operand <> endtxt
-        mkPush (Just reg) PointerType operand = PP.text "\"lea" <+> operand <> PP.comma <+> PP.text reg <> endtxt
-        mkPush mbReg size operand =
-            PP.text "\"move" <> PP.text sz <+> operand <> PP.comma <+> dst    <> endtxt
-            where
-                sz = case size of
-                    LongType -> ".l" ; WordType -> ".w" ; ByteType -> ".b"
-                dst = case mbReg of
-                    Nothing -> PP.text "%%sp@-"
-                    Just reg -> PP.text reg
--}
-outputItem _ _ = ""
+outputItem _ = ""
 
 collectPragmas xs = evalState (mapM doit xs) Map.empty
     where
@@ -326,11 +158,6 @@ collectPragmas xs = evalState (mapM doit xs) Map.empty
             return $ FunctionItem cconv rettype name argumentTypes argumentNames inlines (Map.lookup name m)
         doit x = return x
 
-parseTypeMap tm = Map.fromList $ map handleLine $ lines tm
-    where
-        handleLine tml = case words tml of
-            (x : xs) -> (trim $ unwords xs, case x of
-                            "B" -> ByteType ; "W" -> WordType ; "L" -> LongType ; "P" -> PointerType)
 processFile inputDir outputDir file
     | isLower (head file) = putStrLn $ "Skipping " ++ file ++ " (standard library or MPW runtime)"
     | ".h" `isSuffixOf` file = do
@@ -340,13 +167,12 @@ processFile inputDir outputDir file
         hSetEncoding f latin1
         txt <- hGetContents f
         let parseResult = parse (many item) file txt
-        typeMap <- fmap parseTypeMap $ readFile "../Retro68/types.txt"
         case parseResult of
             Right items -> do
                 outf <- openFile (outputDir </> file) WriteMode
                 hSetEncoding outf latin1
 
-                let processed = concatMap (outputItem typeMap) $ collectPragmas $ items
+                let processed = concatMap outputItem $ collectPragmas $ items
                 if (file == "ConditionalMacros.h")
                     then do
                         hPutStrLn outf $ unlines [
