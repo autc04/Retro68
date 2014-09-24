@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
 		rx::regex rts("\trts");
 		rx::regex instruction("\t[a-z]+.*");
 		rx::regex macsbug("# macsbug symbol");
+		rx::regex rtd("\trtd #([0-9]+)");
 
 		bool hadRts = false;
 		bool macsbugSymbol = false, macsbugSymbol1;
@@ -103,6 +104,14 @@ int main(int argc, char *argv[])
 					out << "rts\n";
 					hadRts = true;
 				}
+			}
+
+			else if(rx::regex_match(line, match, rtd))
+			{
+				out << "\tmove.l (%a7)+, %a0\n";
+				out << "\tlea " + match[1] + "(%a7), %a7\n";
+				out << "\tjmp (%a0)\n";
+				hadRts = true;
 			}
 
 			// ******* 2. strip unneeded extra rts from "# macsbug symbol" paragraphs
