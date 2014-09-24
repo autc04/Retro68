@@ -65,9 +65,6 @@ int main(int argc, char *argv[])
 		std::ifstream in(inputFileName);
 		std::ofstream out(tempFileName);
 		
-		std::string wordS = "[0-9a-f][0-9a-f][0-9a-f][0-9a-f]";
-		rx::regex jsr("\t(jsr|jra) __magic_inline_(" + wordS + "(_" + wordS + ")*)");
-		rx::regex word(wordS);
 		rx::regex rts("\trts");
 		rx::regex instruction("\t[a-z]+.*");
 		rx::regex macsbug("# macsbug symbol");
@@ -85,28 +82,14 @@ int main(int argc, char *argv[])
 			macsbugSymbol1 = false;
 
 			rx::smatch match;
-			// ******* 1. __magic_inline hack for Toolbox calls
+			// ******* 1. rtd hack
 			// 
-			// PrepareHeaders.hs converts calls to ONEWORDINLINE, TWOWORDINLINE etc. functions
-			// into "jsr __magic_inline_a123" or "jsr __magic_inline_1234_5678", etc.
-			// This is converted to a series of dc.w
-			if(rx::regex_match(line, match, jsr))
-			{
-				const rx::sregex_iterator end;
-				for (rx::sregex_iterator p(line.cbegin(), line.cend(), word);
-					p != end;
-					++p)
-				{
-					out << "\tdc.w 0x" << p->str() << std::endl;
-				}
-				if(match[1] == "jra")
-				{
-					out << "rts\n";
-					hadRts = true;
-				}
-			}
+			// GCC currently generates rtd instructions when returning
+			// from pascal functions. This instruction is not supported on the original 68000,
+			// so let's replace it.
+			// This should really be done by GCC itself.
 
-			else if(rx::regex_match(line, match, rtd))
+			if(rx::regex_match(line, match, rtd))
 			{
 				out << "\tmove.l (%a7)+, %a0\n";
 				out << "\tlea " + match[1] + "(%a7), %a7\n";
