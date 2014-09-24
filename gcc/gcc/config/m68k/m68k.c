@@ -325,7 +325,7 @@ static const struct attribute_spec m68k_attribute_table[] =
     true },  
   { "regparam",   1, 1, false, true,  true, m68k_handle_fndecl_attribute,
     true },
-  { "magicinline",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
+  { "raw_inline",   1, 32, false, true,  true, m68k_handle_fndecl_attribute,
     false },  
   { "interrupt_handler", 0, 0, true,  false, false,
     m68k_handle_fndecl_attribute, false },
@@ -1390,7 +1390,7 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
   if (CALL_EXPR_STATIC_CHAIN (exp))
     return false;
 
-  if (decl && lookup_attribute ("magicinline", TYPE_ATTRIBUTES( TREE_TYPE(decl) )))
+  if (decl && lookup_attribute ("raw_inline", TYPE_ATTRIBUTES( TREE_TYPE(decl) )))
     return false;
 
   if (!VOID_TYPE_P (TREE_TYPE (DECL_RESULT (cfun->decl))))
@@ -2527,21 +2527,6 @@ legitimize_pic_address (rtx orig, enum machine_mode mode ATTRIBUTE_UNUSED,
   /* First handle a simple SYMBOL_REF or LABEL_REF */
   if (GET_CODE (orig) == SYMBOL_REF || GET_CODE (orig) == LABEL_REF)
     {
-      if(GET_CODE (orig) == SYMBOL_REF)
-      {
-         tree decl = SYMBOL_REF_DECL(orig);
-         if(decl)
-         {
-            if(DECL_NAME(decl))
-            {
-               if(!strncmp(IDENTIFIER_POINTER (DECL_NAME (decl)), "__magic_inline_", 15))
-               {
-                  return orig;
-               }
-            }
-               //fprintf(stderr, "Hello: %s\n", IDENTIFIER_POINTER (DECL_NAME (decl)));
-         }
-      }
       gcc_assert (reg);
 
       pic_ref = m68k_wrap_symbol_into_got_ref (orig, RELOC_GOT, reg);
@@ -5125,6 +5110,41 @@ output_xorsi3 (rtx *operands)
 const char *
 output_call (rtx x)
 {
+  if(GET_CODE (x) == SYMBOL_REF)
+    {
+      tree decl = SYMBOL_REF_DECL(x);
+      if(decl)
+        {
+          tree attr = lookup_attribute ("raw_inline", TYPE_ATTRIBUTES( TREE_TYPE(decl) ));
+          if(attr)
+            {
+              tree arg = TREE_VALUE(attr);
+
+              char buf[512];
+              char *p = buf, *e = buf + sizeof(buf);
+              bool first = true;
+              p += snprintf(p, e-p, ".short ");
+
+              while(arg)
+                {
+                  tree word_tree = TREE_VALUE(arg);
+                  if (TREE_CODE(word_tree) == INTEGER_CST)
+                    {
+                      int word = TREE_INT_CST_LOW(word_tree);
+                      if(!first)
+                        p += snprintf(p, e-p, ", ");
+                      first = false;
+                      p += snprintf(p, e-p, "0x%04x", word);
+                    }
+                  arg = TREE_CHAIN(arg);
+                }
+
+                if(p < e)
+                  return buf;
+            }
+        }
+    }
+
   if (symbolic_operand (x, VOIDmode))
     return m68k_symbolic_call;
   else

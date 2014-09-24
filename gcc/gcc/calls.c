@@ -193,7 +193,7 @@ prepare_call_address (tree fndecl, rtx funexp, rtx static_chain_value,
       if (fndecl)
         {
           tree fntype = TREE_TYPE(fndecl);
-          if(fntype && lookup_attribute ("__magicinline__", TYPE_ATTRIBUTES (fntype)))
+          if(fntype && lookup_attribute ("raw_inline", TYPE_ATTRIBUTES (fntype)))
             is_magic = 1;
         }
     
