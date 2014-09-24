@@ -192,8 +192,15 @@ along with GCC; see the file COPYING3.  If not see
 									\
       builtin_assert ("cpu=m68k");					\
       builtin_assert ("machine=m68k");					\
+      \
+      builtin_define("pascal=__attribute__((__pascal__))");	\
     }									\
   while (0)
+
+
+extern void m68k_register_pragmas();
+  /* Target Pragmas.  */
+#define REGISTER_TARGET_PRAGMAS() m68k_register_pragmas ()
 
 /* Classify the groups of pseudo-ops used to assemble QI, HI and SI
    quantities.  */
@@ -534,7 +541,7 @@ typedef struct {
     
 } CUMULATIVE_ARGS;
 
-extern void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum, const_tree fntype, rtx libname, tree indirect, int n_named_args);
+extern void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum, const_tree fntype, rtx libname, const_tree fundecl, int n_named_args);
 
 /* On the m68k, the offset starts at 0.  */
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
@@ -998,3 +1005,5 @@ extern int m68k_sched_indexed_address_bypass_p (rtx, rtx);
     }								\
   while (0)
 
+extern bool m68k_is_pascal_func(tree, tree);
+#define IS_PASCAL_FUNC(fntype, fndecl) m68k_is_pascal_func(fntype, fndecl)

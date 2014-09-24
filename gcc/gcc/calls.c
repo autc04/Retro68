@@ -2384,9 +2384,9 @@ expand_call (tree exp, rtx target, int ignore)
 
   struct_value = targetm.calls.struct_value_rtx (fntype, 0);
 
-  if(lookup_attribute ("pascal", TYPE_ATTRIBUTES (fntype)))
-        is_pascal = true;
-
+#ifdef IS_PASCAL_FUNC
+  is_pascal = IS_PASCAL_FUNC(fntype, fndecl);
+#endif
 
   /* Warn if this value is an aggregate type,
      regardless of which calling convention we are using for it.  */

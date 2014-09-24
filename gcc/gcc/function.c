@@ -2318,7 +2318,9 @@ assign_parms_augmented_arg_list (struct assign_parm_data_all *all)
 
       all->function_result_decl = decl;
     }
-  if (lookup_attribute ("pascal", TYPE_ATTRIBUTES (TREE_TYPE(current_function_decl))))
+
+#ifdef IS_PASCAL_FUNC
+  if (IS_PASCAL_FUNC(fntype, fndecl))
     {
         // reverse argument order
       unsigned n = fnargs.length(), n2 = fnargs.length() / 2;
@@ -2329,6 +2331,7 @@ assign_parms_augmented_arg_list (struct assign_parm_data_all *all)
         fnargs[n - 1 - i] = tmp;
       }
     }
+#endif
 
   /* If the target wants to split complex arguments into scalars, do so.  */
   if (targetm.calls.split_complex_arg)

@@ -34,7 +34,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "output.h"
 #include "insn-attr.h"
 #include "recog.h"
-#include "diagnostic-core.h"
 #include "expr.h"
 #include "reload.h"
 #include "tm_p.h"
@@ -49,6 +48,19 @@ along with GCC; see the file COPYING3.  If not see
 #include "ggc.h"
 #include "opts.h"
 #include "optabs.h"
+
+#include "c-family/c-pragma.h"
+#include "c-family/c-common.h"
+#include "diagnostic-core.h"
+#include "cpplib.h"
+
+#include <string>
+#include <map>
+#include <vector>
+
+static std::map<std::string, int> pragma_parameter_register_names;
+static std::map< std::string, std::vector<int> > pragma_parameter_directives;
+
 
 enum reg_class regno_reg_class[] =
 {
@@ -1432,7 +1444,7 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
 void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum, 
     const_tree fntype, 
     rtx libname ATTRIBUTE_UNUSED,
-    tree indirect ATTRIBUTE_UNUSED,
+    const_tree fndecl,
     int n_named_args)
 {
   cum->bytes = 0;
@@ -1485,6 +1497,36 @@ void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum,
             cum->total_count = 0;
         }
     }
+
+  if(!regparam && fndecl)
+    {
+      std::map< std::string, std::vector<int> >::iterator p
+        = pragma_parameter_directives.find(IDENTIFIER_POINTER(DECL_NAME(fndecl)));
+      if(p != pragma_parameter_directives.end())
+        {
+          cum->regparam = true;
+          cum->total_count = p->second.size()-1;
+          for(unsigned i = 0; i < p->second.size(); i++)
+            cum->arg_regs[i] = p->second[i];
+        }
+    }
+
+
+}
+
+bool
+m68k_is_pascal_func(tree fntype, tree fndecl)
+{
+  if(!fntype)
+    return false;
+  if(lookup_attribute ("pascal", TYPE_ATTRIBUTES (fntype)))
+    {
+      CUMULATIVE_ARGS cum;
+      m68k_init_cumulative_args(&cum, fntype, NULL, fndecl, -1);
+      return !cum.regparam;
+    }
+  else
+    return false;
 }
 
 static rtx
@@ -1515,6 +1557,115 @@ m68k_function_arg_advance (cumulative_args_t cum_v, enum machine_mode mode,
 	   : (int_size_in_bytes (type) + 1) & ~1);
   cum->index ++;
 }
+
+
+/* Return libcall result in A0 instead of usual D0.  */
+static bool m68k_libcall_value_in_a0_p = false;
+
+/* Return floating point values in a 68881 register.  This makes 68881 code
+   a little bit faster.  It also makes -msoft-float code incompatible with
+   hard-float code, so people have to be careful not to mix the two.
+   For ColdFire it was decided the ABI incompatibility is undesirable.
+   If there is need for a hard-float ABI it is probably worth doing it
+   properly and also passing function arguments in FP registers.  */
+rtx
+m68k_libcall_value (enum machine_mode mode)
+{
+  switch (mode) {
+  case SFmode:
+  case DFmode:
+  case XFmode:
+    if (TARGET_68881)
+      return gen_rtx_REG (mode, FP0_REG);
+    break;
+  default:
+    break;
+  }
+
+  return gen_rtx_REG (mode, m68k_libcall_value_in_a0_p ? A0_REG : D0_REG);
+}
+
+/* Location in which function value is returned.  */
+rtx
+m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outgoing)
+{
+  enum machine_mode mode;
+
+  mode = TYPE_MODE (valtype);
+
+  if(func_decl_or_type)
+    {
+      CUMULATIVE_ARGS cum;
+      const_tree decl = func_decl_or_type;
+      const_tree type = func_decl_or_type;
+      if(TREE_CODE(type) == FUNCTION_DECL)
+        type = TREE_TYPE(type);
+      else
+        decl = NULL;
+      m68k_init_cumulative_args(&cum, type, NULL, decl, -1);
+      if(cum.regparam)
+        return gen_rtx_REG (mode, cum.arg_regs[0]);
+    }
+  return gen_rtx_REG (mode, D0_REG);
+
+  #if 0
+  switch (mode) {
+  case SFmode:
+  case DFmode:
+  case XFmode:
+    if (TARGET_68881)
+      return gen_rtx_REG (mode, FP0_REG);
+    break;
+  default:
+    break;
+  }
+
+  /* If the function returns a pointer, push that into %a0.  */
+  if (func && POINTER_TYPE_P (TREE_TYPE (TREE_TYPE (func))))
+    /* For compatibility with the large body of existing code which
+       does not always properly declare external functions returning
+       pointer types, the m68k/SVR4 convention is to copy the value
+       returned for pointer functions from a0 to d0 in the function
+       epilogue, so that callers that have neglected to properly
+       declare the callee can still find the correct return value in
+       d0.  */
+    return gen_rtx_PARALLEL
+      (mode,
+       gen_rtvec (2,
+                  gen_rtx_EXPR_LIST (VOIDmode,
+                                     gen_rtx_REG (mode, A0_REG),
+                                     const0_rtx),
+                  gen_rtx_EXPR_LIST (VOIDmode,
+                                     gen_rtx_REG (mode, D0_REG),
+                                     const0_rtx)));
+  else if (POINTER_TYPE_P (valtype))
+    return gen_rtx_REG (mode, A0_REG);
+  else
+    return gen_rtx_REG (mode, D0_REG);
+  #endif
+}
+
+/* Worker function for TARGET_RETURN_IN_MEMORY.  */
+#if M68K_HONOR_TARGET_STRICT_ALIGNMENT
+static bool
+m68k_return_in_memory (const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
+{
+  enum machine_mode mode = TYPE_MODE (type);
+
+  if (mode == BLKmode)
+    return true;
+
+  /* If TYPE's known alignment is less than the alignment of MODE that
+     would contain the structure, then return in memory.  We need to
+     do so to maintain the compatibility between code compiled with
+     -mstrict-align and that compiled with -mno-strict-align.  */
+  if (AGGREGATE_TYPE_P (type)
+      && TYPE_ALIGN (type) < GET_MODE_ALIGNMENT (mode))
+    return true;
+
+  return false;
+}
+#endif
 
 /* Convert X to a legitimate function call memory reference and return the
    result.  */
@@ -2569,9 +2720,6 @@ m68k_get_tls_get_addr (void)
 
   return m68k_tls_get_addr;
 }
-
-/* Return libcall result in A0 instead of usual D0.  */
-static bool m68k_libcall_value_in_a0_p = false;
 
 /* Emit instruction sequence that calls __tls_get_addr.  X is
    the TLS symbol we are referencing and RELOC is the symbol type to use
@@ -5118,7 +5266,7 @@ output_call (rtx x)
             {
               tree arg = TREE_VALUE(attr);
 
-              char buf[512];
+              static char buf[512];
               char *p = buf, *e = buf + sizeof(buf);
               bool first = true;
               p += snprintf(p, e-p, ".short ");
@@ -5369,107 +5517,6 @@ m68k_preferred_reload_class (rtx x, enum reg_class rclass)
   return rclass;
 }
 
-/* Return floating point values in a 68881 register.  This makes 68881 code
-   a little bit faster.  It also makes -msoft-float code incompatible with
-   hard-float code, so people have to be careful not to mix the two.
-   For ColdFire it was decided the ABI incompatibility is undesirable.
-   If there is need for a hard-float ABI it is probably worth doing it
-   properly and also passing function arguments in FP registers.  */
-rtx
-m68k_libcall_value (enum machine_mode mode)
-{
-  switch (mode) {
-  case SFmode:
-  case DFmode:
-  case XFmode:
-    if (TARGET_68881)
-      return gen_rtx_REG (mode, FP0_REG);
-    break;
-  default:
-    break;
-  }
-
-  return gen_rtx_REG (mode, m68k_libcall_value_in_a0_p ? A0_REG : D0_REG);
-}
-
-/* Location in which function value is returned.  */
-rtx
-m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outgoing)
-{
-  enum machine_mode mode;
-
-  mode = TYPE_MODE (valtype);
-
-  if(func_decl_or_type)
-    {
-      CUMULATIVE_ARGS cum;
-      const_tree type = func_decl_or_type;
-      if(TREE_CODE(type) == FUNCTION_DECL)
-        type = TREE_TYPE(type);
-      m68k_init_cumulative_args(&cum, type, NULL, NULL, -1);
-      if(cum.regparam)
-        return gen_rtx_REG (mode, cum.arg_regs[0]);
-    }
-  return gen_rtx_REG (mode, D0_REG);
-
-  #if 0
-  switch (mode) {
-  case SFmode:
-  case DFmode:
-  case XFmode:
-    if (TARGET_68881)
-      return gen_rtx_REG (mode, FP0_REG);
-    break;
-  default:
-    break;
-  }
-
-  /* If the function returns a pointer, push that into %a0.  */
-  if (func && POINTER_TYPE_P (TREE_TYPE (TREE_TYPE (func))))
-    /* For compatibility with the large body of existing code which
-       does not always properly declare external functions returning
-       pointer types, the m68k/SVR4 convention is to copy the value
-       returned for pointer functions from a0 to d0 in the function
-       epilogue, so that callers that have neglected to properly
-       declare the callee can still find the correct return value in
-       d0.  */
-    return gen_rtx_PARALLEL
-      (mode,
-       gen_rtvec (2,
-		  gen_rtx_EXPR_LIST (VOIDmode,
-				     gen_rtx_REG (mode, A0_REG),
-				     const0_rtx),
-		  gen_rtx_EXPR_LIST (VOIDmode,
-				     gen_rtx_REG (mode, D0_REG),
-				     const0_rtx)));
-  else if (POINTER_TYPE_P (valtype))
-    return gen_rtx_REG (mode, A0_REG);
-  else
-    return gen_rtx_REG (mode, D0_REG);
-  #endif
-}
-
-/* Worker function for TARGET_RETURN_IN_MEMORY.  */
-#if M68K_HONOR_TARGET_STRICT_ALIGNMENT
-static bool
-m68k_return_in_memory (const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
-{
-  enum machine_mode mode = TYPE_MODE (type);
-
-  if (mode == BLKmode)
-    return true;
-
-  /* If TYPE's known alignment is less than the alignment of MODE that
-     would contain the structure, then return in memory.  We need to
-     do so to maintain the compatibility between code compiled with
-     -mstrict-align and that compiled with -mno-strict-align.  */
-  if (AGGREGATE_TYPE_P (type)
-      && TYPE_ALIGN (type) < GET_MODE_ALIGNMENT (mode))
-    return true;
-
-  return false;
-}
-#endif
 
 /* CPU to schedule the program for.  */
 enum attr_cpu m68k_sched_cpu;
@@ -6682,6 +6729,102 @@ m68k_write_macsbug_name(FILE *file, const char *name)
 
   ASM_OUTPUT_ASCII(file, name, len);
   fprintf(file, "\t.align 2,0\n\t.short 0\n");
+}
+
+
+
+static int lookup_reg(std::string s)
+{
+  std::map<std::string, int>::const_iterator p = pragma_parameter_register_names.find(s);
+  if(p == pragma_parameter_register_names.end())
+    return -1;
+  else
+    return p->second;
+}
+
+static void
+m68k_pragma_parameter (cpp_reader * reader ATTRIBUTE_UNUSED)
+{
+  /* on off */
+  tree token;
+  enum cpp_ttype type;
+
+  std::string name;
+  std::vector<int> argregs;
+
+  type = pragma_lex (&token);
+  argregs.push_back(0);
+  if (type == CPP_NAME)
+    {
+      name = IDENTIFIER_POINTER(token);
+      type = pragma_lex (&token);
+      if (type == CPP_NAME)
+        {
+          argregs.back() = lookup_reg(name);
+          if(argregs.back() < 0)
+            {
+              error ("invalid register name %s", name.c_str());
+              return;
+            }
+          name = IDENTIFIER_POINTER(token);
+          type = pragma_lex (&token);
+        }
+      if (type == CPP_EOF)
+        {
+          pragma_parameter_directives[name] = argregs;
+          return;
+        }
+
+      if (type == CPP_OPEN_PAREN)
+        {
+          type = pragma_lex (&token);
+          while(argregs.size() == 1 ? type == CPP_NAME : type == CPP_COMMA)
+            {
+              if(argregs.size() != 1)
+                type = pragma_lex (&token);
+              if(type != CPP_NAME)
+                break;
+              
+              argregs.push_back(lookup_reg(IDENTIFIER_POINTER(token)));
+              if(argregs.back() < 0)
+                {
+                  error ("invalid register name %s", IDENTIFIER_POINTER(token));
+                  return;
+                }
+
+              type = pragma_lex (&token);
+            }
+
+          if (type == CPP_CLOSE_PAREN)
+            {
+              type = pragma_lex (&token);
+              if (type != CPP_EOF)
+                {
+                  error ("junk at end of #pragma parameter");
+                }
+              else
+                {
+                  pragma_parameter_directives[name] = argregs;
+                }
+              return;
+            }
+        }
+    }
+  error ("malformed #pragma parameter ");
+}
+
+
+void
+m68k_register_pragmas()
+{
+  for(int i = 0; i < 8; i++)
+    {
+      std::string n(1, '0' + i);
+      pragma_parameter_register_names["__D" + n] = i;
+      pragma_parameter_register_names["__A" + n] = i + 8;
+    }
+  c_register_pragma (NULL, "parameter", m68k_pragma_parameter);
+
 }
 
 
