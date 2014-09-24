@@ -1450,7 +1450,6 @@ void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum,
       if(TREE_CODE(regparam) == STRING_CST)
         {
           const char *paramstr = TREE_STRING_POINTER(regparam);
-          printf("regparam: %s\n", paramstr);
 
           const char *p = paramstr;
 
@@ -1480,7 +1479,6 @@ void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum,
               p += 2;
 
             }
-          printf("regparam parsed: %d, %d", (int) ok, idx);
           // TODO: error checking
           cum->total_count = idx - 1;
           if(cum->total_count < 0)
