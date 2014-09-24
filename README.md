@@ -15,22 +15,17 @@ Prerequisites
 - Linux or Mac OS X
 - boost, if using gcc 4.8 or earlier to compile on Linux
 - CMake 2.8
-- Glasgow Haskell Compiler (GHC) 
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - Apple Universal Interfaces (tested with version 3.1 - see below)
 - An ancient Mac and/or an emulator.
 
 For Ubuntu Linux, the following should help a bit:
 
-    sudo apt-get install cmake ghc libgmp-dev libmpfr-dev libmpc-dev \
-                         libghc-system-filepath-dev libghc-parsec3-dev \
-                         libghc-mtl-dev
+    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev
 
 On a Mac, get the homebrew package manager and:
 
     brew install cmake gmp mpfr libmpc
-
-TODO: document package names for ghc and ghc libraries on Mac
 
 Apple Universal Interfaces
 --------------------------
@@ -107,9 +102,10 @@ Currently unmodified from the original. Configured for m68k-unknown-elf.
 Various patches and hacks, most importantly:
 - Changed register usage.
 - Change the way 1-byte and 2-byte parameters are passed.
-- added a Microsoft-style 'stdcall' calling convention.
-  What we really want is a 'pascal' calling convention, but that's harder
-  to implement, and the MS one is close enough.
+- added a pascal calling convention (`pascal` or `__attribute__((__pascal__))`)
+- added `__attribute__((__raw_inline__(word1, word2, word3)))` to emulate `ONEWORDINLINE` and friends
+- added `__attribute__((regparam("...")))` to specify custom register calling conventions
+- - added `#pragma parameter` to specify custom register calling conventions
 
 ### newlib
 
@@ -125,31 +121,17 @@ Minor patch: provide symbols around .init and .fini sections
 
 Included for convenience. No changes.
 
+### prepare-headers.sh:
+
+Apply any necessary patches to Apple's headers; currently, this only modifies `ConditionalMacros.h`.
+
 ### ASFilter:
 
-The most evil hack. Installs a replacement for m68k-unknown-elf-as that
-replaces all instructions of the form
+An evil hack. Installs a replacement for m68k-unknown-elf-as that
+runs a few regexps on generated assembly code. Two things are changed:
 
-    jsr __magic_inline_1234_5678_9ABC
-
-by
-    
-    dc.w 0x1234
-    dc.w 0x5678
-    dc.w 0x9abc
-
-### PrepareHeaders.hs
-
-A small Haskell program that parses header files (specifically, Apple's
-Universal Headers), understands inline declarations and translates
-them to a form that gcc already understands.
-
-For OS Traps (parameters in registers), static inline functions
-with inline assembly are generated.
-
-For Toolbox Traps (pascal calling convention), the stdcall calling
-convention and the __magic_inline hack described above are used.
-
+1. Replace occurrences of the RTD instruction, with something that is supported on 68000 as well. GCC currently generates this in `pascal` functions that you declare.
+2. While we're at it, remove unnecessary duplicate RTS instructions from MacsBug symbol names.
 
 ### MakeAPPL
 
