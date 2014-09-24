@@ -102,6 +102,7 @@ Currently unmodified from the original. Configured for m68k-unknown-elf.
 Various patches and hacks, most importantly:
 - Changed register usage.
 - Change the way 1-byte and 2-byte parameters are passed.
+- support `"\pPascal String Literals"``
 - added a pascal calling convention (`pascal` or `__attribute__((__pascal__))`)
 - added `__attribute__((__raw_inline__(word1, word2, word3)))` to emulate `ONEWORDINLINE` and friends
 - added `__attribute__((regparam("...")))` to specify custom register calling conventions
