@@ -198,7 +198,7 @@ along with GCC; see the file COPYING3.  If not see
   while (0)
 
 
-extern void m68k_register_pragmas();
+extern void m68k_register_pragmas(void);
   /* Target Pragmas.  */
 #define REGISTER_TARGET_PRAGMAS() m68k_register_pragmas ()
 
@@ -536,7 +536,7 @@ typedef struct {
 	int bytes; /* number of bytes  of arguments scanned so far.  */
 	int total_count;
 	int index;
-	bool regparam;
+	int regparam;
     int arg_regs[32];
     
 } CUMULATIVE_ARGS;
@@ -1005,5 +1005,5 @@ extern int m68k_sched_indexed_address_bypass_p (rtx, rtx);
     }								\
   while (0)
 
-extern bool m68k_is_pascal_func(tree, tree);
+extern int m68k_is_pascal_func(tree, tree);
 #define IS_PASCAL_FUNC(fntype, fndecl) m68k_is_pascal_func(fntype, fndecl)

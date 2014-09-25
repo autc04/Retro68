@@ -414,6 +414,8 @@ m32r*-*-*)
 m68k-*-*)
 	extra_headers=math-68881.h
 	extra_options="${extra_options} m68k/m68k-tables.opt"
+	c_target_objs="m68k-mac-pragmas.o"
+	cxx_target_objs="m68k-mac-pragmas.o"
 	;;
 microblaze*-*-*)
         cpu_type=microblaze
