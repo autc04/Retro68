@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 			if(rx::regex_match(line, match, rtd))
 			{
 				out << "\tmove.l (%a7)+, %a0\n";
-				out << "\tlea " + match[1] + "(%a7), %a7\n";
+				out << "\tlea " + match[1].str() + "(%a7), %a7\n";
 				out << "\tjmp (%a0)\n";
 				hadRts = true;
 			}

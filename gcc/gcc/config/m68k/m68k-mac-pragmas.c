@@ -1,3 +1,7 @@
+#include <string>
+#include <map>
+#include <vector>
+
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -8,10 +12,6 @@
 #include "c-family/c-common.h"
 #include "diagnostic-core.h"
 #include "cpplib.h"
-
-#include <string>
-#include <map>
-#include <vector>
 
 std::map<std::string, int> pragma_parameter_register_names;
 extern std::map< std::string, std::vector<int> > pragma_parameter_directives;
