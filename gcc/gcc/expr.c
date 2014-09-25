@@ -3975,15 +3975,29 @@ fixup_args_size_notes (rtx prev, rtx last, int end_args_size)
 	continue;
 
       this_delta = find_args_size_adjust (insn);
-   /*   if (this_delta == 0)
+
+      /* **** HALF-UNDERSTOOD HACK:
+
+        The original code here leaves out REG_ARGS_SIZE annotations for
+        instructions that don't adjust the stack under some circumstances.
+
+        In some situations, involving both m68k mac pascal functions 
+        and exception handling, this leads to a failure in dwarf2cfi.c:combine_traces.
+
+        Disabling the if (this_delta == 0) fixes this, but causes the subsequent gcc_assert 
+        to trip sometimes. Disabling both hasn't caused any observable problems... YET.
+
+      if (this_delta == 0)
 	{
 	  if (!CALL_P (insn)
 	      || ACCUMULATE_OUTGOING_ARGS
 	      || find_reg_note (insn, REG_NORETURN, NULL_RTX) == NULL_RTX)
 	    continue;
-	}*/
+	}
 
       gcc_assert (!saw_unknown);
+
+      */
       if (this_delta == HOST_WIDE_INT_MIN)
 	saw_unknown = true;
 
