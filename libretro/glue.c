@@ -154,3 +154,26 @@ pascal OSErr SetFPos (short refNum, short posMode, long posOff)
 	pb.ioParam.ioPosOffset = posOff;
 	return PBSetFPosSync(&pb);
 }
+
+pascal OSErr Create (ConstStr255Param fileName, short vRefNum, OSType creator,
+		OSType fileType)
+{
+	ParamBlockRec pb;
+	OSErr err;
+	memset(&pb, 0, sizeof(pb));
+	pb.fileParam.ioVRefNum = vRefNum;
+	pb.fileParam.ioNamePtr = (StringPtr)fileName;
+	// create the file
+	err = PBCreateSync(&pb);
+	if (err != noErr) return err;
+	// get previous finder info
+	err = PBGetFInfoSync(&pb);
+	if (err != noErr) return err;
+	// clear directory index
+	pb.fileParam.ioFDirIndex = 0;
+	// copy finder info words
+	pb.fileParam.ioFlFndrInfo.fdType = fileType;
+	pb.fileParam.ioFlFndrInfo.fdCreator = creator;
+	// save finder info
+	return PBSetFInfoSync(&pb);
+}
