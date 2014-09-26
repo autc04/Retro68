@@ -20,6 +20,8 @@
 #include <MacMemory.h>
 #include <Files.h>
 #include <string.h>
+#include <Files.h>
+#include <Devices.h>
 
 pascal Size GetPtrSize(Ptr ptr)
 {
@@ -60,4 +62,61 @@ pascal OSErr Eject (ConstStr63Param volName, short vRefNum)
 	pb.volumeParam.ioNamePtr = (StringPtr)volName;
 	pb.volumeParam.ioVRefNum = vRefNum;
 	return PBEject(&pb);
+}
+
+pascal OSErr FSOpen (ConstStr255Param fileName, short vRefNum, short *refNum)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioNamePtr = (StringPtr)fileName;
+	pb.ioParam.ioVRefNum = vRefNum;
+
+	// Try newer OpenDF first, because it does not open drivers
+	err = PBOpenDFSync(&pb);
+	if (err == paramErr) {
+		// OpenDF not implemented, so use regular Open.
+		err = PBOpenSync(&pb);
+	}
+
+	*refNum = pb.ioParam.ioRefNum;
+	return err;
+}
+
+pascal OSErr OpenDF (ConstStr255Param fileName, short vRefNum, short *refNum)
+{
+	return FSOpen(fileName, vRefNum, refNum);
+}
+
+pascal OSErr FSClose (short refNum)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	return PBCloseSync(&pb);
+}
+
+pascal OSErr FSRead (short refNum, long *count, void *buffPtr)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioBuffer = buffPtr;
+	pb.ioParam.ioReqCount = *count;
+
+	err = PBReadSync(&pb);
+	*count = pb.ioParam.ioActCount;
+	return err;
+}
+
+pascal OSErr GetEOF (short refNum, long *logEOF)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	err = PBGetEOFSync(&pb);
+	*logEOF = (long)pb.ioParam.ioMisc;
+	return err;
 }
