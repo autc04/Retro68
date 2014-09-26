@@ -110,6 +110,20 @@ pascal OSErr FSRead (short refNum, long *count, void *buffPtr)
 	return err;
 }
 
+pascal OSErr FSWrite (short refNum, long *count, const void *buffPtr)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioBuffer = (void *)buffPtr;
+	pb.ioParam.ioReqCount = *count;
+
+	err = PBWriteSync(&pb);
+	*count = pb.ioParam.ioActCount;
+	return err;
+}
+
 pascal OSErr GetEOF (short refNum, long *logEOF)
 {
 	OSErr err;
@@ -119,4 +133,24 @@ pascal OSErr GetEOF (short refNum, long *logEOF)
 	err = PBGetEOFSync(&pb);
 	*logEOF = (long)pb.ioParam.ioMisc;
 	return err;
+}
+
+pascal OSErr GetFPos (short refNum, long *filePos)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	pb.ioParam.ioRefNum = refNum;
+	err = PBGetFPosSync(&pb);
+	*filePos = pb.ioParam.ioPosOffset;
+	return err;
+}
+
+pascal OSErr SetFPos (short refNum, short posMode, long posOff)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioPosMode = posMode;
+	pb.ioParam.ioPosOffset = posOff;
+	return PBSetFPosSync(&pb);
 }
