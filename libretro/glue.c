@@ -20,6 +20,8 @@
 #include <MacMemory.h>
 #include <Files.h>
 #include <string.h>
+#include <Files.h>
+#include <Devices.h>
 
 pascal Size GetPtrSize(Ptr ptr)
 {
@@ -60,4 +62,128 @@ pascal OSErr Eject (ConstStr63Param volName, short vRefNum)
 	pb.volumeParam.ioNamePtr = (StringPtr)volName;
 	pb.volumeParam.ioVRefNum = vRefNum;
 	return PBEject(&pb);
+}
+
+pascal OSErr FSOpen (ConstStr255Param fileName, short vRefNum, short *refNum)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioNamePtr = (StringPtr)fileName;
+	pb.ioParam.ioVRefNum = vRefNum;
+
+	// Try newer OpenDF first, because it does not open drivers
+	err = PBOpenDFSync(&pb);
+	if (err == paramErr) {
+		// OpenDF not implemented, so use regular Open.
+		err = PBOpenSync(&pb);
+	}
+
+	*refNum = pb.ioParam.ioRefNum;
+	return err;
+}
+
+pascal OSErr OpenDF (ConstStr255Param fileName, short vRefNum, short *refNum)
+{
+	return FSOpen(fileName, vRefNum, refNum);
+}
+
+pascal OSErr FSClose (short refNum)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	return PBCloseSync(&pb);
+}
+
+pascal OSErr FSRead (short refNum, long *count, void *buffPtr)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioBuffer = buffPtr;
+	pb.ioParam.ioReqCount = *count;
+
+	err = PBReadSync(&pb);
+	*count = pb.ioParam.ioActCount;
+	return err;
+}
+
+pascal OSErr FSWrite (short refNum, long *count, const void *buffPtr)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioBuffer = (void *)buffPtr;
+	pb.ioParam.ioReqCount = *count;
+
+	err = PBWriteSync(&pb);
+	*count = pb.ioParam.ioActCount;
+	return err;
+}
+
+pascal OSErr GetEOF (short refNum, long *logEOF)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	err = PBGetEOFSync(&pb);
+	*logEOF = (long)pb.ioParam.ioMisc;
+	return err;
+}
+
+pascal OSErr SetEOF (short refNum, long logEOF)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioMisc = (Ptr)logEOF;
+	return PBGetEOFSync(&pb);
+}
+
+pascal OSErr GetFPos (short refNum, long *filePos)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	pb.ioParam.ioRefNum = refNum;
+	err = PBGetFPosSync(&pb);
+	*filePos = pb.ioParam.ioPosOffset;
+	return err;
+}
+
+pascal OSErr SetFPos (short refNum, short posMode, long posOff)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioPosMode = posMode;
+	pb.ioParam.ioPosOffset = posOff;
+	return PBSetFPosSync(&pb);
+}
+
+pascal OSErr Create (ConstStr255Param fileName, short vRefNum, OSType creator,
+		OSType fileType)
+{
+	ParamBlockRec pb;
+	OSErr err;
+	memset(&pb, 0, sizeof(pb));
+	pb.fileParam.ioVRefNum = vRefNum;
+	pb.fileParam.ioNamePtr = (StringPtr)fileName;
+	// create the file
+	err = PBCreateSync(&pb);
+	if (err != noErr) return err;
+	// get previous finder info
+	err = PBGetFInfoSync(&pb);
+	if (err != noErr) return err;
+	// clear directory index
+	pb.fileParam.ioFDirIndex = 0;
+	// copy finder info words
+	pb.fileParam.ioFlFndrInfo.fdType = fileType;
+	pb.fileParam.ioFlFndrInfo.fdCreator = creator;
+	// save finder info
+	return PBSetFInfoSync(&pb);
 }
