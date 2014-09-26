@@ -135,6 +135,16 @@ pascal OSErr GetEOF (short refNum, long *logEOF)
 	return err;
 }
 
+pascal OSErr SetEOF (short refNum, long logEOF)
+{
+	OSErr err;
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioMisc = (Ptr)logEOF;
+	return PBGetEOFSync(&pb);
+}
+
 pascal OSErr GetFPos (short refNum, long *filePos)
 {
 	OSErr err;
