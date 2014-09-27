@@ -25,6 +25,8 @@
 #include <functional>
 #include <errno.h>
 #include <fstream>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 using namespace std::placeholders;
 
@@ -99,7 +101,7 @@ int main(int argc, char *argv[])
 
 			// ******* 2. strip unneeded extra rts from "# macsbug symbol" paragraphs
 			//
-			// GCC is patche to add something like this to the end of every function:
+			// GCC is patched to add something like this to the end of every function:
 			// # macsbug symbol
 			//     rts
 			//     .byte 132
@@ -142,8 +144,19 @@ int main(int argc, char *argv[])
 
 	argv3.push_back(NULL);
 	
-	execvp(argv3[0], const_cast<char*const*>( argv3.data() ));
-	perror("execvp");
-	
+	pid_t pid = fork();
+	if(pid > 0)
+	{
+		waitpid(pid, NULL, 0);
+		unlink(tempFileName.c_str());
+		return 0;
+	}
+	else if(pid == 0)
+	{
+		execvp(argv3[0], const_cast<char*const*>( argv3.data() ));
+		perror("execvp");
+	}
+	else
+		perror("fork");
 	return 1;
 }
