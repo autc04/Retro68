@@ -16,7 +16,7 @@
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
 cmake_minimum_required(VERSION 2.8)
-set(CMAKE_CXX_FLAGS "-std=c++11") # -fomit-frame-pointer")
+set(CMAKE_CXX_FLAGS "-std=c++11")
 
 add_library(RetroConsole
 	Console.cc
@@ -25,30 +25,9 @@ add_library(RetroConsole
     InitConsole.cc
 	)
 
-add_executable(Test
-	test.cc
-	Console.cc
-	Console.h
-	MacUtils.h
-   )
 add_executable(HelloWorld
 	hello.c
    )
-
-enable_language(ASM)
-add_executable(AsmTest
-	AsmTest.s
-   )
-set_target_properties(AsmTest PROPERTIES LINKER_LANGUAGE C)
-
-#target_link_libraries(Test :retrocrt.o)
-
-target_link_libraries(Test retrocrt)
-add_custom_command(
-   OUTPUT Test.bin
-   COMMAND ${MAKE_APPL} -c Test
-   DEPENDS Test)
-add_custom_target(TestAPPL ALL DEPENDS Test.bin)
 
 target_link_libraries(HelloWorld RetroConsole retrocrt)
 add_custom_command(
@@ -56,20 +35,3 @@ add_custom_command(
    COMMAND ${MAKE_APPL} -c HelloWorld -o HelloWorld
    DEPENDS HelloWorld)
 add_custom_target(HelloWorldAPPL ALL DEPENDS HelloWorld.bin)
-
-target_link_libraries(AsmTest retrocrt)
-add_custom_command(
-   OUTPUT AsmTest.bin
-   COMMAND ${MAKE_APPL} -c AsmTest -o AsmTest
-   DEPENDS AsmTest)
-add_custom_target(AsmTestAPPL ALL DEPENDS AsmTest.bin)
-
-
-
-set(UPLOAD_URL "" CACHE STRING "ftp url to upload to")
-if(UPLOAD_URL)
-add_custom_target(upload
-		DEPENDS Test.bin
-		COMMAND wput -u Test.bin ${UPLOAD_URL}
-	)
-endif()

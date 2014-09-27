@@ -20,8 +20,6 @@
 #ifdef __APPLE__
 #include <Carbon/Carbon.h>
 #include <ApplicationServices/ApplicationServices.h>
-#define PSTR(x) ("\p" x)
-
 #else
 
 #include <Quickdraw.h>
@@ -32,10 +30,7 @@
 #include <NumberFormatting.h>
 
 #ifdef __GNUC__
-#include "MacUtils.h"
 QDGlobals qd;
-#else
-#define PSTR(x) ("\p" x)
 #endif
 
 #endif
