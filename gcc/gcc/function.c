@@ -5056,29 +5056,26 @@ expand_function_end (void)
      communicate between __builtin_eh_return and the epilogue.  */
   expand_eh_return ();
 
-
-  if (lookup_attribute ("pascal", TYPE_ATTRIBUTES (TREE_TYPE(current_function_decl))))
-    {
-      tree decl_result = DECL_RESULT (current_function_decl);
-      rtx decl_rtl = DECL_RTL (decl_result);
-      enum machine_mode mode = GET_MODE(decl_rtl);;
-
-      rtx return_slot = GEN_INT(crtl->args.pops_args + 8);
-      return_slot = gen_rtx_PLUS(Pmode, arg_pointer_rtx, return_slot);
-      return_slot = gen_rtx_MEM(mode, return_slot);
-      MEM_VOLATILE_P(return_slot) = true;
-      emit_move_insn (return_slot, decl_rtl);
-      crtl->return_rtx = return_slot;
-    }
   /* If scalar return value was computed in a pseudo-reg, or was a named
      return value that got dumped to the stack, copy that to the hard
      return register.  */
-  else if (DECL_RTL_SET_P (DECL_RESULT (current_function_decl)))
+  if (DECL_RTL_SET_P (DECL_RESULT (current_function_decl)))
     {
       tree decl_result = DECL_RESULT (current_function_decl);
       rtx decl_rtl = DECL_RTL (decl_result);
 
-      if (REG_P (decl_rtl)
+      if (lookup_attribute ("pascal", TYPE_ATTRIBUTES (TREE_TYPE(current_function_decl))))
+	{
+	  enum machine_mode mode = GET_MODE(decl_rtl);;
+
+	  rtx return_slot = GEN_INT(crtl->args.pops_args + 8);
+	  return_slot = gen_rtx_PLUS(Pmode, arg_pointer_rtx, return_slot);
+	  return_slot = gen_rtx_MEM(mode, return_slot);
+	  MEM_VOLATILE_P(return_slot) = true;
+	  emit_move_insn (return_slot, decl_rtl);
+	  crtl->return_rtx = return_slot;
+	}
+      else if (REG_P (decl_rtl)
 	  ? REGNO (decl_rtl) >= FIRST_PSEUDO_REGISTER
 	  : DECL_REGISTER (decl_result))
 	{
