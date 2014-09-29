@@ -18,6 +18,7 @@
 */
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <Processes.h>
 #include <Sound.h>
@@ -113,9 +114,10 @@ void _start()
 		}
 	}
 	
+	int result;
 	{
 		char *argv[2] = { "./a.out", NULL };
-		main(1, argv);
+		result = main(1, argv);
 	}
-	ExitToShell();
+	exit(result);
 }
