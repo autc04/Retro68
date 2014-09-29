@@ -29,6 +29,17 @@ add_custom_command(
    DEPENDS ExceptionTest)
 add_custom_target(ExceptionTestAPPL ALL DEPENDS ExceptionTest.bin)
 
+add_executable(InitTest
+	InitTest.cc
+   )
+
+target_link_libraries(InitTest RetroConsole retrocrt)
+add_custom_command(
+   OUTPUT InitTest.bin
+   COMMAND ${MAKE_APPL} -b -c InitTest -o InitTest
+   DEPENDS InitTest)
+add_custom_target(InitTestAPPL ALL DEPENDS InitTest.bin)
+
 
 enable_language(ASM)
 add_executable(AsmTest
