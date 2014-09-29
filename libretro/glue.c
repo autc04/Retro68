@@ -187,3 +187,35 @@ pascal OSErr Create (ConstStr255Param fileName, short vRefNum, OSType creator,
 	// save finder info
 	return PBSetFInfoSync(&pb);
 }
+
+pascal OSErr GetWDInfo(short wdRefNum, short *vRefNum, long *dirID,
+		long *procID)
+{
+	OSErr err;
+	WDPBRec	pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.ioVRefNum = wdRefNum;
+	err = PBGetWDInfo(&pb, false);
+	*vRefNum = pb.ioWDVRefNum;
+	*dirID = pb.ioWDDirID;
+	*procID = pb.ioWDProcID;
+	return err;
+}
+
+pascal OSErr OpenDriver(ConstStr255Param name, short *drvrRefNum)
+{
+	ParamBlockRec pb;
+	OSErr err;
+	memset(&pb, 0, sizeof(pb));
+
+	pb.ioParam.ioNamePtr = (StringPtr)name;
+
+	err = PBOpenSync(&pb);
+	*drvrRefNum = pb.ioParam.ioRefNum;
+	return err;
+}
+
+pascal OSErr CloseDriver(short refNum)
+{
+	return FSClose(refNum);
+}
