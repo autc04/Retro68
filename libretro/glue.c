@@ -202,3 +202,20 @@ pascal OSErr GetWDInfo(short wdRefNum, short *vRefNum, long *dirID,
 	return err;
 }
 
+pascal OSErr OpenDriver(ConstStr255Param name, short *drvrRefNum)
+{
+	ParamBlockRec pb;
+	OSErr err;
+	memset(&pb, 0, sizeof(pb));
+
+	pb.ioParam.ioNamePtr = (StringPtr)name;
+
+	err = PBOpenSync(&pb);
+	*drvrRefNum = pb.ioParam.ioRefNum;
+	return err;
+}
+
+pascal OSErr CloseDriver(short refNum)
+{
+	return FSClose(refNum);
+}
