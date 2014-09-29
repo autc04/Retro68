@@ -71,28 +71,12 @@ void _start()
 	
 	SysEnvRec env;
 	long bss_size;
-	Ptr bss;
 	
 	env.processor = 0;
-	__asm__ __volatile__ (
-			"move.w #2, %%d0\n\t"	// versionRequested
-			"lea %0, %%a0\n\t"		// &env
-			"dc.w 0xa090\n\t"		// _SysEnvirons
-		: 
-		: "m"(env)
-		: "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
-	);
-	
+	SysEnvirons(0, &env);
+
 	bss_size = header->bss_end - header->data_end;
-	//Ptr bss = NewPtrClear(bss_size);
-	__asm__ __volatile__ (
-			"move.l %1, %%d0\n\t"
-			"dc.w 0xa31e\n\t"	// _NewPtrClear
-			"move.l %%a0 , %0\n\t"
-		: "=g"(bss)
-		: "g"(bss_size)
-		: "%a0", "%a1", "%d0", "%d1", "%d2", "memory", "cc"
-	);
+	Ptr bss = NewPtrClear(bss_size);
 
 	long n = header->reloc_count;
 	long *relocs = (long*)( (char*)header + header->reloc_start );
@@ -116,7 +100,7 @@ void _start()
 	}
 	if(env.processor >= env68040)
 	{
-		__asm__ __volatile__ ("dc.w 0xa0bd" : : : "%a0", "%a1", "%d0", "%d1", "%d2", "cc"); // FlushCache();
+		FlushCodeCache();
 	}
 	{
 		char *p = (char*)&__init_section;
