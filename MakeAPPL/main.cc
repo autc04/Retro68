@@ -433,5 +433,19 @@ int main(int argc, char *argv[])
 					   rsrc, Fork());
 	}
 	wrapMacBinary(binFileName, dskFileName);
+
+	{
+		std::ofstream dataOut((outFileName + ".APPL").c_str());
+		system("mkdir -p .rsrc");
+		std::ofstream rsrcOut((".rsrc/" + outFileName + ".APPL").c_str());
+
+		rsrc.writeFork(rsrcOut);
+		system("mkdir -p .finf");
+		std::ofstream finfOut((".finf/" + outFileName + ".APPL").c_str());
+		ostype(finfOut, "APPL");
+		ostype(finfOut, "????");
+		for(int i = 8; i < 32; i++)
+			byte(finfOut, 0);
+	}
 	return 0; 
 }
