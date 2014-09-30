@@ -23,6 +23,10 @@
 #include <Files.h>
 #include <Devices.h>
 
+#include <Quickdraw.h>
+QDGlobals qd;
+
+
 pascal Size GetPtrSize(Ptr ptr)
 {
 	long tmp;

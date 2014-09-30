@@ -21,39 +21,44 @@
 #include <vector>
 #include <string>
 
-class Console
+namespace Retro
 {
-public:
-	Console(GrafPtr port, Rect r);
-	~Console();
-	void Draw();
-	void putch(char c);
 
-	void write(const char *s, int n);
-	std::string ReadLine();
+	class Console
+	{
+	public:
+		Console(GrafPtr port, Rect r);
+		~Console();
+		void Draw();
+		void putch(char c);
 
-	static Console *currentInstance;
-private:
-	GrafPtr consolePort;
-	Rect bounds;
+		void write(const char *s, int n);
+		std::string ReadLine();
 
-	std::vector<char> chars, onscreen;
+		static Console *currentInstance;
+	private:
+		GrafPtr consolePort;
+		Rect bounds;
 
-	short cellSizeX;
-	short cellSizeY;
+		std::vector<char> chars, onscreen;
 
-	short rows, cols;
+		short cellSizeX;
+		short cellSizeY;
 
-	short cursorX, cursorY;
+		short rows, cols;
 
-	Rect dirtyRect;
+		short cursorX, cursorY;
 
-	void PutCharNoUpdate(char c);
-	void Update();
+		Rect dirtyRect;
 
-	Rect CellRect(short x, short y);
-	void DrawCell(short x, short y, bool erase = true);
-	void DrawCells(short x1, short x2, short y, bool erase = true);
-	void ScrollUp(short n = 1);
-};
+		void PutCharNoUpdate(char c);
+		void Update();
 
+		Rect CellRect(short x, short y);
+		void DrawCell(short x, short y, bool erase = true);
+		void DrawCells(short x1, short x2, short y, bool erase = true);
+		void ScrollUp(short n = 1);
+	};
+
+
+}

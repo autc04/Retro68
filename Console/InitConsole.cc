@@ -31,9 +31,14 @@
 #include "MacUtils.h"
 #include "Console.h"
 
-QDGlobals qd;
+namespace Retro
+{
+	void InitConsole();
+}
 
-void InitConsole()
+using namespace Retro;
+
+void Retro::InitConsole()
 {
 	if(Console::currentInstance)
 		return;
@@ -43,18 +48,18 @@ void InitConsole()
 	InitFonts();
 	InitWindows();
 	InitMenus();
-	
+
 	Rect r;
 	SetRect(&r, qd.screenBits.bounds.left + 5, qd.screenBits.bounds.top + 45, qd.screenBits.bounds.right - 5, qd.screenBits.bounds.bottom -5);
 	win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, false, 0);
-	
+
 	SetPort(win);
 	EraseRect(&win->portRect);
 
 	Console *console = new Console(win, win->portRect);
 }
 
-extern "C" ssize_t consolewrite(int fd, const void *buf, size_t count)
+extern "C" ssize_t _consolewrite(int fd, const void *buf, size_t count)
 {
 	if(!Console::currentInstance)
 		InitConsole();
@@ -63,7 +68,7 @@ extern "C" ssize_t consolewrite(int fd, const void *buf, size_t count)
 	return count;
 }
 
-extern "C" ssize_t consoleread(int fd, void *buf, size_t count)
+extern "C" ssize_t _consoleread(int fd, void *buf, size_t count)
 {
 	if(!Console::currentInstance)
 		InitConsole();

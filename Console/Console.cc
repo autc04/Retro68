@@ -24,6 +24,8 @@
 
 #include <algorithm>
 
+using namespace Retro;
+
 Console *Console::currentInstance = NULL;
 
 Console::Console(GrafPtr port, Rect r)

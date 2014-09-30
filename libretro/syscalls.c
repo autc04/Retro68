@@ -32,40 +32,28 @@ void *sbrk(long increment)
 
 void _exit(int status)
 {
-	if(status != 0)
-		Debugger();
+	//if(status != 0)
+	//	Debugger();
 	ExitToShell();
 	for(;;)
 		;
 }
 
-ssize_t (*__write_hook)(int fd, const void*buf, size_t count) = NULL;
-ssize_t (*__read_hook)(int fd, void*buf, size_t count) = NULL;
-
-ssize_t consolewrite(int fd, const void *buf, size_t count);
-ssize_t consoleread(int fd, void *buf, size_t count);
+ssize_t _consolewrite(int fd, const void *buf, size_t count);
+ssize_t _consoleread(int fd, void *buf, size_t count);
 
 ssize_t write(int fd, const void *buf, size_t count)
 {
-	if(__write_hook)
-		return (*__write_hook)(fd,buf,count);
-	else
-		return consolewrite(fd,buf,count);
-	return -1;
+	return _consolewrite(fd,buf,count);
 }
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-	if(__read_hook)
-		return (*__read_hook)(fd,buf,count);
-	else
-		return consoleread(fd,buf,count);
-	return -1;
+	return _consoleread(fd,buf,count);
 }
 
 int open(const char* name, int flags, mode_t mode)
 {
-	__asm__ __volatile__ ("dc.w 0xa9ff");
 	return -1;
 }
 
