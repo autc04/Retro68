@@ -1,11 +1,6 @@
-set(CMAKE_C_FLAGS "-Wno-multichar")
-add_executable(Launcher
-    Launcher.c
-    )
+cmake_minimum_required(VERSION 2.8)
 
-target_link_libraries(Launcher RetroConsole retrocrt)
-add_custom_command(
-    OUTPUT Launcher.bin
-    COMMAND ${MAKE_APPL} -c Launcher -o Launcher
-    DEPENDS Launcher)
-add_custom_target(LauncherAPPL ALL DEPENDS Launcher.bin)
+set(CMAKE_C_FLAGS "-Wno-multichar")
+
+add_application(Launcher
+	FILES Launcher.c CONSOLE)

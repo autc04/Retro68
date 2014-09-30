@@ -25,13 +25,10 @@ add_library(RetroConsole
     InitConsole.cc
 	)
 
-add_executable(HelloWorld
+install(TARGETS RetroConsole  DESTINATION lib)
+
+add_application(HelloWorld
 	hello.c
+	CONSOLE
    )
 
-target_link_libraries(HelloWorld RetroConsole retrocrt)
-add_custom_command(
-   OUTPUT HelloWorld.bin
-   COMMAND ${MAKE_APPL} -c HelloWorld -o HelloWorld
-   DEPENDS HelloWorld)
-add_custom_target(HelloWorldAPPL ALL DEPENDS HelloWorld.bin)

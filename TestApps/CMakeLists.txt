@@ -18,42 +18,12 @@
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "-std=c++11") # -fomit-frame-pointer")
 
-add_executable(ExceptionTest
-	ExceptionTest.cc
-   )
-
-target_link_libraries(ExceptionTest RetroConsole retrocrt)
-add_custom_command(
-   OUTPUT ExceptionTest.bin
-   COMMAND ${MAKE_APPL} -c ExceptionTest -o ExceptionTest
-   DEPENDS ExceptionTest)
-add_custom_target(ExceptionTestAPPL ALL DEPENDS ExceptionTest.bin)
-
-add_executable(InitTest
-	InitTest.cc
-   )
-
-target_link_libraries(InitTest RetroConsole retrocrt)
-add_custom_command(
-   OUTPUT InitTest.bin
-   COMMAND ${MAKE_APPL} -b -c InitTest -o InitTest
-   DEPENDS InitTest)
-add_custom_target(InitTestAPPL ALL DEPENDS InitTest.bin)
-
+add_application(ExceptionTest CONSOLE ExceptionTest.cc)
+add_application(InitTest CONSOLE InitTest.cc)
 
 enable_language(ASM)
-add_executable(AsmTest
-	AsmTest.s
-   )
+add_application(AsmTest AsmTest.s)
 set_target_properties(AsmTest PROPERTIES LINKER_LANGUAGE C)
-
-target_link_libraries(AsmTest retrocrt)
-add_custom_command(
-   OUTPUT AsmTest.bin
-   COMMAND ${MAKE_APPL} -c AsmTest -o AsmTest
-   DEPENDS AsmTest)
-add_custom_target(AsmTestAPPL ALL DEPENDS AsmTest.bin)
-
 
 
 set(UPLOAD_URL "" CACHE STRING "ftp url to upload to")

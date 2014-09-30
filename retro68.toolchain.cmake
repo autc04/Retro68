@@ -26,5 +26,3 @@ set( MAKE_APPL "${RETRO68_ROOT}/bin/MakeAPPL" )
 set( CMAKE_C_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-gcc" )
 set( CMAKE_CXX_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-g++" )
 
-set( CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,-elf2flt -Wl,-q -Wl,-Map=linkmap.txt -Wl,-undefined=consolewrite" )
-
