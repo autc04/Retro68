@@ -27,11 +27,21 @@ void referenceMyMalloc() {}
 
 void *_malloc_r(struct _reent *reent_ptr, size_t sz)
 {
-	return NewPtr(sz); // TODO: set errno
+	Ptr p = NewPtr(sz);
+
+	if(!p)
+		errno = ENOMEM;
+
+	return p;
 }
 void *_calloc_r(struct _reent *reent_ptr, size_t sz, size_t sz2)
 {
-	return NewPtrClear(sz*sz2); // TODO: set errno
+	Ptr p = NewPtrClear(sz*sz2);
+
+	if(!p)
+		errno = ENOMEM;
+
+	return p;
 }
 
 void _free_r(struct _reent *reent_ptr, void *ptr)
@@ -44,7 +54,12 @@ void *_realloc_r(struct _reent *reent_ptr, void *ptr, size_t sz)
 {
 	if(ptr == NULL)
 	{
-		return NewPtr(sz);
+		Ptr p = NewPtr(sz);
+
+		if(!p)
+			errno = ENOMEM;
+
+		return p;
 	}
 	else
 	{
