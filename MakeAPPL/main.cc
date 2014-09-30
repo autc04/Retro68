@@ -384,8 +384,8 @@ int main(int argc, char *argv[])
 
 			rsrc.addResource(Resource("CODE", 1, code1.str()));
 		 
-			if(code1.str().size() + 64*1024 > minimumSize)
-				minimumSize = code1.str().size() + 64*1024;
+			if(code1.str().size() + 128*1024 > minimumSize)
+				minimumSize = code1.str().size() + 128*1024;
 			if(minimumSize > preferredSize)
 				preferredSize = minimumSize;
 		}
