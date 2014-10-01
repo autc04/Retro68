@@ -51,9 +51,10 @@ class Resource
 	int id;
 	std::string name;
 	std::string data;
+	int attr;
 public:
-	Resource(std::string type, int id, std::string data)
-		: type(type), id(id), data(data) {}
+	Resource(std::string type, int id, std::string data, std::string name = "", int attr = 0)
+		: type(type), id(id), data(data), name(name), attr(attr) {}
 
 	const std::string& getData() const { return data; }
 	inline std::string getType() const { return type; }
@@ -71,8 +72,12 @@ class Resources : public Fork
 {
 	std::vector<Resource> resources;
 public:
+	Resources() {}
+	Resources(std::istream& in);
 	void writeFork(std::ostream& out) const;
 	void addResource(Resource res) { resources.push_back(res); }
+
+	void addResources(const Resources& res);
 };
 
 void byte(std::ostream& out, int byte)
@@ -97,6 +102,36 @@ void longword(std::ostream& out, int longword)
 	byte(out,longword & 0xFF);
 }
 
+int byte(std::istream& in)
+{
+	return in.get() & 0xFF;
+}
+int word(std::istream& in)
+{
+	int a = byte(in);
+	int b = byte(in);
+	return (a << 8) | b;
+}
+std::string ostype(std::istream& in)
+{
+	char s[5];
+	in.read(s,4);
+	s[4] = 0;
+	return s;
+}
+int longword(std::istream& in)
+{
+	int a = byte(in);
+	int b = byte(in);
+	int c = byte(in);
+	int d = byte(in);
+	return (a << 24) | (b << 16) | (c << 8) | d;
+}
+
+void Resources::addResources(const Resources& res)
+{
+	resources.insert(resources.end(),res.resources.begin(), res.resources.end());
+}
 
 void Resources::writeFork(std::ostream& out) const
 {
@@ -166,6 +201,55 @@ void Resources::writeFork(std::ostream& out) const
 	longword(out, dataend - start - std::streampos(0x100));
 	longword(out, end - resmap);
 	out.seekp(end);
+}
+
+Resources::Resources(std::istream &in)
+{
+	std::streampos start = in.tellg();
+	int resdataOffset = longword(in);
+	int resmapOffset = longword(in);
+
+	in.seekg(start + std::streampos(resmapOffset + 16 + 4 + 2 + 2));
+	int typeListOffset = word(in);
+	int nameListOffset = word(in);
+	int nTypes = (word(in) + 1) & 0xFFFF;
+
+	for(int i = 0; i < nTypes; i++)
+	{
+		in.seekg(start + std::streampos(resmapOffset + typeListOffset + 2 + i * 8));
+		std::string type = ostype(in);
+		int nRes = (word(in) + 1) & 0xFFFF;
+		int refListOffset = word(in);
+
+		for(int j = 0; j < nRes; j++)
+		{
+			in.seekg(start + std::streampos(resmapOffset + typeListOffset + refListOffset + j * 12));
+			int id = word(in);
+			int nameOffset = word(in);
+			int attr = byte(in);
+			int off1 = byte(in);
+			int off2 = byte(in);
+			int off3 = byte(in);
+			int offset = (off1 << 16) | (off2 << 8) | off3;
+			std::string name;
+			if(nameOffset != 0xFFFF)
+			{
+				in.seekg(start + std::streampos(resmapOffset + nameListOffset + nameOffset));
+				int nameLen = byte(in);
+				char buf[256];
+				in.read(buf, nameLen);
+				name = std::string(buf, nameLen);
+			}
+
+			in.seekg(start + std::streampos(resdataOffset + offset));
+			int size = longword(in);
+			std::vector<char> tmp(size);
+			in.read(tmp.data(), size);
+			std::string data(tmp.data(), size);
+
+			addResource(Resource(type, id, data, name, attr));
+		}
+	}
 }
 
 // CRC 16 table lookup array
@@ -410,6 +494,14 @@ int main(int argc, char *argv[])
 			assert(i < argc);
 			std::istringstream in(argv[i++]);
 			in >> std::hex >> sizeFlags;
+		}
+		else if(arg == "--copy")
+		{
+			assert(i < argc);
+			std::string fn = argv[i++];
+			std::ifstream in(fn.c_str(), std::ios::in|std::ios::binary);
+			Resources rsrc2(in);
+			rsrc.addResources(rsrc2);
 		}
 		else
 		{
