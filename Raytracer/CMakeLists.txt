@@ -32,6 +32,9 @@ if(APPLE)
 else()
 	set(CMAKE_CXX_FLAGS "-std=c++11")
 
+		# save 200KB of code by removing unused stuff
+	set(CMAKE_EXE_LINKER_FLAGS "-Wl,-gc-sections")
+
 	add_application(Raytracer
 		raytracer.c
 		)

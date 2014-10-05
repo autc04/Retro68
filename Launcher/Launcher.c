@@ -47,7 +47,7 @@ void EjectOldDisk()
 	if(h)
 	{
 		short refNum = **(short**)h;
-		printf("Ejecting disk (refNum = %d)\n", refNum);
+		printf("Ejecting disk (refNum = %d)\n", (int)refNum);
 
 		Eject(NULL, refNum);
 		UnmountVol(NULL, refNum);
@@ -136,7 +136,7 @@ int main()
 
 							printf("Launching...\n");
 							err = LaunchApplication(&lpb);
-							printf("Still here after launch (err = %d). Press Enter to exit.\n");
+							printf("Still here after launch (err = %d). Press Enter to exit.\n", (int)err);
 							getchar();
 							return 0;
 						}
