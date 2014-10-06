@@ -10,7 +10,7 @@
 %define parse.assert
 
 %token<std::string> IDENTIFIER;
-%token<std::string> CHARLIT;
+%token<int> CHARLIT;
 %token<std::string> STRINGLIT;
 %token<int> INTLIT;
 
@@ -83,6 +83,8 @@
 %param { RezLexer& lexer }
 
 %code requires {
+	#include "ResourceDefinitions.h"
+
 	#define YY_NULLPTR nullptr
 	class RezLexer;
 }
@@ -120,14 +122,6 @@ rez	: %empty
 	| rez resource ";"
 	;
 
-simpletype	: "boolean"
-			| "bit" | "byte" | "word" | "integer" | "long" | "longint" | "rect"
-			| "point"
-			| "char"
-			| "pstring" array_count_opt
-			| "wstring" array_count_opt
-			| "string" array_count_opt;
-		| "bitstring" "[" expression "]";
 
 type_definition	: "type" type_spec "{" field_definitions "}"
 				{ std::cout << "TYPE " << $2 << std::endl; }
@@ -135,9 +129,12 @@ type_definition	: "type" type_spec "{" field_definitions "}"
 				{ std::cout << "TYPE " << $2 << std::endl; }
 				;
 
-%type <std::string> type_spec;
-type_spec : CHARLIT { $$ = $1; }
-		  | CHARLIT "(" INTLIT ")" { $$ = $1; }
+%type <ResType> res_type;
+res_type : CHARLIT { $$ = ResType($1); } ;
+
+%type <TypeSpec> type_spec;
+type_spec : res_type { $$ = TypeSpec($res_type); }
+		  | res_type "(" INTLIT ")" { $$ = TypeSpec($res_type, $INTLIT); }
 		  ;
 
 field_definitions	: %empty
@@ -145,40 +142,78 @@ field_definitions	: %empty
 					| field_definitions ";"
 					| field_definitions field_definition ";" ;
 
-field_definition:  simple_field_definition
+%type <FieldPtr> field_definition;
+field_definition: simple_field_definition	{ $$ = $1; }
 				| array_definition
 				| switch_definition
 				| fill_statement
 				| align_statement;
+
+%type <SimpleFieldPtr> simple_field_definition;
+simple_field_definition: field_attributes simpletype array_count_opt value_spec_opt
+	{
+		$$ = std::make_shared<SimpleField>();
+		$$->attrs = $field_attributes;
+		$$->type = $simpletype;
+		$$->arrayCount = $array_count_opt;
+		$$->value = $value_spec_opt;
+	}
+	| simple_field_definition IDENTIFIER
+	{ $$ = $1; $$->addNamedValue($IDENTIFIER); }
+	| simple_field_definition IDENTIFIER "=" value
+	{ $$ = $1; $$->addNamedValue($IDENTIFIER, $value); }
+	| simple_field_definition "," IDENTIFIER
+	{ $$ = $1; $$->addNamedValue($IDENTIFIER); }
+	| simple_field_definition "," IDENTIFIER "=" value
+	{ $$ = $1; $$->addNamedValue($IDENTIFIER, $value); }
+	;
+
+%type <ExprPtr> array_count array_count_opt value_spec_opt value ;
+%type <ExprPtr> expression expression1 expression2 ;
+%type <ExprPtr> expression3 expression4 expression5 expression6;
+%type <ExprPtr> expression7 expression8;
+
+value_spec_opt	: %empty { $$ = nullptr; } | "=" value { $$ = $2; } ;
+
+%type <SimpleField::Type> simpletype;
+simpletype	: "boolean"		{ $$ = SimpleField::Type::boolean; }
+			| "byte"		{ $$ = SimpleField::Type::byte; }
+			| "integer"		{ $$ = SimpleField::Type::integer; }
+			| "longint"		{ $$ = SimpleField::Type::longint; }
+			| "rect"		{ $$ = SimpleField::Type::rect; }
+			| "point"		{ $$ = SimpleField::Type::point; }
+			| "char"		{ $$ = SimpleField::Type::char_; }
+			| "pstring" 	{ $$ = SimpleField::Type::pstring; }
+			| "wstring"		{ $$ = SimpleField::Type::wstring; }
+			| "string"		{ $$ = SimpleField::Type::string; }
+			| "bitstring"	{ $$ = SimpleField::Type::bitstring; }
+			;
 
 fill_statement	: "fill" fill_unit array_count_opt;
 align_statement	: "align" fill_unit;
 
 fill_unit	: "bit" | "byte" | "word" | "long";
 
-simple_field_definition: field_attributes simpletype value_spec;
-
-value_spec : %empty
-		   | named_values
-		   | "=" expression;
-
-named_values: named_value
-			| named_values "," named_value
-			| named_values named_value;
-
-named_value	: IDENTIFIER
-			| IDENTIFIER "=" expression ;
 
 array_definition: array_attributes "array" array_name_opt array_count_opt "{" field_definitions "}" ;
 
-array_count : "[" expression "]" ;
-array_count_opt : %empty | array_count ;
+array_count : "[" expression "]" { $$ = $2; }
+array_count_opt : %empty { $$ = nullptr; } | array_count;
 
 array_name_opt : %empty | IDENTIFIER ;
 
 array_attributes: %empty | "wide" ;
-field_attributes: %empty | field_attributes field_attribute;
-field_attribute : "hex" | "key" | "unsigned" | "literal";
+
+%type <SimpleField::Attrs> field_attributes field_attribute;
+field_attributes: %empty { $$ = SimpleField::Attrs::none; }
+				| field_attributes field_attribute { $$ = $1 | $2; }
+				;
+
+field_attribute : "hex"			{ $$ = SimpleField::Attrs::hex; }
+				| "key"			{ $$ = SimpleField::Attrs::key; }
+				| "unsigned"	{ $$ = SimpleField::Attrs::unsigned_; }
+				| "literal"		{ $$ = SimpleField::Attrs::literal; }
+				;
 
 switch_definition: "switch" "{"
 		switch_cases
@@ -205,6 +240,11 @@ expression
 			| expression "*" expression
 			;
 */
+
+value	: expression
+		| "{" resource_body "}"
+		| STRINGLIT				{ $$ = std::make_shared<StringExpr>($1); }
+		;
 
 expression	: expression1
 			| expression "^" expression1
@@ -243,20 +283,20 @@ expression7	: expression8
 			| "~" expression7
 			;
 
-expression8	: INTLIT
-			| CHARLIT
-			| STRINGLIT
+expression8	: INTLIT	{ $$ = std::make_shared<IntExpr>($1); }
+			| CHARLIT	{ $$ = std::make_shared<IntExpr>($1); }
+
 			| IDENTIFIER
 			| IDENTIFIER "(" function_argument_list ")"
 			| IDENTIFIER "[" function_argument_list1 "]"
-			| "(" expression ")"
-			| "{" resource_body "}"
+			| "(" expression ")"	{ $$ = $2; }
+
 			;
 
 function_argument_list : %empty | function_argument_list1 ;
 function_argument_list1 : expression | function_argument_list "," expression ;
 
-resource: "resource" CHARLIT "(" function_argument_list ")" "{" resource_body "}"
+resource: "resource" res_type "(" function_argument_list ")" "{" resource_body "}"
 	{ std::cout << "RESOURCE " << $2 << std::endl; }
 
 resource_body : %empty | resource_body1 ;
@@ -266,6 +306,6 @@ resource_body1	: resource_item
 				| resource_body1 ";"
 				;
 
-resource_item	: expression | IDENTIFIER "{" resource_body "}" ;
+resource_item	: value | IDENTIFIER "{" resource_body "}" ;
 
 %%

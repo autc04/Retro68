@@ -49,6 +49,24 @@ static int readInt(const char *str)
 	return x;
 }
 
+static int readCharLit(const char *str)
+{
+	const char *p = str + 1;
+	const char *e = str + strlen(str) - 1;
+
+	if(e - p != 4)
+		std::cout << "warning: CHAR LITERAL " << str << "\n";
+
+	int x = 0;
+	while(p != e)
+	{
+		x <<= 8;
+		x |= (*p) & 0xFF;
+		++p;
+	}
+	return x;
+}
+
 RezSymbol RezLexer::nextToken()
 {
 	for(auto tok = nextWave(); tok != T_EOI && tok != T_EOF; tok = nextWave())
@@ -154,7 +172,7 @@ case T_ ## name: /*std::cout << #name << std::endl;*/ return RezParser::make_ ##
 				{
 					case T_INTLIT: return RezParser::make_INTLIT(readInt(tok.get_value().c_str()), loc);
 
-					case T_CHARLIT: return RezParser::make_CHARLIT(tok.get_value().c_str(), loc);
+					case T_CHARLIT: return RezParser::make_CHARLIT(readCharLit(tok.get_value().c_str()), loc);
 					case T_STRINGLIT: return RezParser::make_STRINGLIT(tok.get_value().c_str(), loc);
 
 					NOVAL_TOK(LEFTBRACE);
