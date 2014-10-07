@@ -130,10 +130,24 @@ int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
 	}
 	else
 	{
-		ExprPtr val = ctx->lookupIdentifier(id);
+		Subscripts sub;
+		for(auto arg : arguments)
+			sub.addSubscript(arg->evaluateInt(ctx));
+		ExprPtr val = ctx->lookupIdentifier(id, sub);
 		assert(val);
 		return val->evaluateInt(ctx);
 	}
+}
+
+std::string IdentifierExpr::evaluateString(ResourceCompiler *ctx)
+{
+	assert(!isFunction);
+	Subscripts sub;
+	for(auto arg : arguments)
+		sub.addSubscript(arg->evaluateInt(ctx));
+	ExprPtr val = ctx->lookupIdentifier(id, sub);
+	assert(val);
+	return val->evaluateString(ctx);
 }
 
 

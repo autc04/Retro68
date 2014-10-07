@@ -111,6 +111,7 @@ public:
 
 	void addArgument(ExprPtr e);
 	virtual int evaluateInt(ResourceCompiler *ctx);
+	virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
 #endif // EXPRESSION_H
