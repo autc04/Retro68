@@ -137,6 +137,16 @@ public:
 };
 typedef std::shared_ptr<ArrayField> ArrayFieldPtr;
 
+class SwitchField : public Field
+{
+	std::map<std::string, FieldListPtr> cases;
+public:
+	void addCase(const std::string name, FieldListPtr alternative);
+
+	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
+};
+typedef std::shared_ptr<SwitchField> SwitchFieldPtr;
+
 class TypeDefinition : public FieldList
 {
 };

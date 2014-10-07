@@ -181,3 +181,20 @@ void LabelField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
 {
 	compiler->defineLabel(name);
 }
+
+
+void SwitchField::addCase(const std::string name, FieldListPtr alternative)
+{
+	cases[name] = alternative;
+}
+
+void SwitchField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
+{
+	CaseExprPtr caseExpr = std::dynamic_pointer_cast<CaseExpr>(expr);
+	assert(caseExpr);
+
+	FieldListPtr caseDefinition = cases[caseExpr->tag];
+	assert(caseDefinition);
+
+	caseDefinition->compile(caseExpr->expr, compiler, prePass);
+}

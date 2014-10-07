@@ -125,3 +125,9 @@ int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
 		return val->evaluateInt(ctx);
 	}
 }
+
+
+CaseExpr::CaseExpr(const std::string &tag, CompoundExprPtr expr)
+	: tag(tag), expr(expr)
+{
+}

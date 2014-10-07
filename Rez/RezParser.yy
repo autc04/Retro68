@@ -157,7 +157,7 @@ field_definitions	: %empty
 %type <FieldPtr> field_definition;
 field_definition: simple_field_definition	{ $$ = $1; }
 				| array_definition			{ $$ = $1; }
-				| switch_definition			{ $$ = nullptr; }
+				| switch_definition			{ $$ = $1; }
 				| fill_statement			{ $$ = nullptr; }
 				| align_statement			{ $$ = nullptr; }
 				;
@@ -240,13 +240,31 @@ field_attribute : "hex"			{ $$ = SimpleField::Attrs::hex; }
 				| "literal"		{ $$ = SimpleField::Attrs::literal; }
 				;
 
-switch_definition: "switch" "{"
+%type <FieldPtr> switch_definition;
+switch_definition:
+	"switch"
+		{ world.switches.push(std::make_shared<SwitchField>()); }
+	"{"
 		switch_cases
-	"}" ;
+	"}"
+		{
+			$$ = world.switches.top();
+			world.switches.pop();
+		}
+	;
 
 switch_cases : %empty | switch_cases switch_case ;
 
-switch_case : "case" IDENTIFIER ":" field_definitions ;
+switch_case : "case" IDENTIFIER ":"
+	{
+		world.fieldLists.push(std::make_shared<FieldList>());
+	}
+	field_definitions
+	{
+		world.switches.top()->addCase($IDENTIFIER, world.fieldLists.top());
+		world.fieldLists.pop();
+	}
+	;
 
 value	: expression	{ $$ = $1; }
 		| "{" resource_body "}"	{ $$ = $2; }
@@ -340,7 +358,7 @@ resource_body1	: resource_item	{ $$ = std::make_shared<CompoundExpr>(); $$->addI
 				;
 
 resource_item	: value { $$ = $1; }
-				| IDENTIFIER "{" resource_body "}" // ###
+				| IDENTIFIER "{" resource_body "}" { $$ = std::make_shared<CaseExpr>($IDENTIFIER, $resource_body); }
 				;
 
 %%

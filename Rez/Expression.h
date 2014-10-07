@@ -9,9 +9,11 @@ class ResourceCompiler;
 class Expression;
 class CompoundExpr;
 class IdentifierExpr;
+class CaseExpr;
 typedef std::shared_ptr<Expression> ExprPtr;
 typedef std::shared_ptr<CompoundExpr> CompoundExprPtr;
 typedef std::shared_ptr<IdentifierExpr> IdentifierExprPtr;
+typedef std::shared_ptr<CaseExpr> CaseExprPtr;
 
 
 enum class BinaryOp
@@ -62,6 +64,15 @@ public:
 	int size() const { return items.size(); }
 
 	~CompoundExpr();
+};
+
+class CaseExpr : public Expression
+{
+	std::string tag;
+	CompoundExprPtr expr;
+	friend class SwitchField;
+public:
+	CaseExpr(const std::string& tag, CompoundExprPtr expr);
 };
 
 class BinaryExpr : public Expression
