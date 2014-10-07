@@ -12,6 +12,7 @@ class RezWorld
 
 	std::map<TypeSpec, TypeDefinitionPtr>	types;
 	std::stack<FieldListPtr> fieldLists;
+	std::stack<IdentifierExprPtr> functionCalls;
 public:
 	RezWorld();
 	void addTypeDefinition(TypeSpec spec, TypeDefinitionPtr type);

@@ -4,17 +4,14 @@
 #include <memory>
 #include <vector>
 
-class Context
-{
-
-};
-
-
+class ResourceCompiler;
 
 class Expression;
 class CompoundExpr;
+class IdentifierExpr;
 typedef std::shared_ptr<Expression> ExprPtr;
 typedef std::shared_ptr<CompoundExpr> CompoundExprPtr;
+typedef std::shared_ptr<IdentifierExpr> IdentifierExprPtr;
 
 
 enum class BinaryOp
@@ -34,7 +31,7 @@ class TypeError
 class Expression
 {
 public:
-	virtual int evaluateInt(Context *ctx);
+	virtual int evaluateInt(ResourceCompiler *ctx);
 	virtual ~Expression();
 };
 
@@ -53,7 +50,7 @@ public:
 	IntExpr(int val) : val(val) {}
 	~IntExpr();
 
-	virtual int evaluateInt(Context *ctx);
+	virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
 class CompoundExpr : public Expression
@@ -76,7 +73,7 @@ public:
 		: op(op), a(a), b(b) {}
 	~BinaryExpr();
 
-	virtual int evaluateInt(Context *ctx);
+	virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
 class UnaryExpr : public Expression
@@ -88,9 +85,19 @@ public:
 		: op(op), a(a) {}
 	~UnaryExpr();
 
-	virtual int evaluateInt(Context *ctx);
+	virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
+class IdentifierExpr : public Expression
+{
+	std::string id;
+	std::vector<ExprPtr> arguments;
+	bool isFunction;
+public:
+	IdentifierExpr(std::string id, bool isFunction = false);
 
+	void addArgument(ExprPtr e);
+	virtual int evaluateInt(ResourceCompiler *ctx);
+};
 
 #endif // EXPRESSION_H

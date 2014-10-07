@@ -36,7 +36,7 @@ void FieldList::addField(FieldPtr field)
 
 void FieldList::addLabel(std::string name)
 {
-	// ### TODO
+	addField(std::make_shared<LabelField>(name));
 }
 
 void FieldList::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
@@ -56,6 +56,30 @@ void FieldList::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
 
 
 
+
+void SimpleField::addNamedValue(std::string n)
+{
+	if(lastNamedValue)
+		addNamedValue(n, std::make_shared<BinaryExpr>(
+			BinaryOp::PLUS, lastNamedValue, std::make_shared<IntExpr>(1)));
+	else
+		addNamedValue(n, std::make_shared<IntExpr>(0));
+}
+
+void SimpleField::addNamedValue(std::string n, ExprPtr val)
+{
+	namedValues[n] = val;
+	lastNamedValue = val;
+}
+
+ExprPtr SimpleField::lookupNamedValue(std::string n)
+{
+	auto p = namedValues.find(n);
+	if(p != namedValues.end())
+		return p->second;
+	else
+		return nullptr;
+}
 
 bool SimpleField::needsValue()
 {
@@ -88,6 +112,7 @@ void SimpleField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass
 	int actualValue = 0;
 	if(!prePass)
 	{
+		ResourceCompiler::FieldScope scope(compiler, this);
 		if(value)
 		{
 			actualValue = value->evaluateInt(compiler);
@@ -121,6 +146,7 @@ void ArrayField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
 	while(i < n)
 	{
 		++iterations;
+		ResourceCompiler::ArrayScope scope(compiler, name, iterations);
 		for(FieldPtr f : fields)
 		{
 			if(f->needsValue())
@@ -133,9 +159,25 @@ void ArrayField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
 		}
 	}
 
-	if(arrayCount)
+	if(!prePass && arrayCount)
 	{
 		int expected = arrayCount->evaluateInt(compiler);
 		assert(expected == iterations);
 	}
+}
+
+
+LabelField::LabelField(std::string name)
+	: name(name)
+{
+}
+
+bool LabelField::needsValue()
+{
+	return false;
+}
+
+void LabelField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
+{
+	compiler->defineLabel(name);
 }

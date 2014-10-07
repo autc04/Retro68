@@ -1,8 +1,9 @@
 #include "Expression.h"
+#include "ResourceCompiler.h"
+#include <cassert>
+#include <iostream>
 
-
-
-int Expression::evaluateInt(Context *ctx)
+int Expression::evaluateInt(ResourceCompiler *ctx)
 {
 	throw TypeError();
 }
@@ -21,7 +22,7 @@ IntExpr::~IntExpr()
 {
 }
 
-int IntExpr::evaluateInt(Context *ctx)
+int IntExpr::evaluateInt(ResourceCompiler *ctx)
 {
 	return val;
 }
@@ -41,7 +42,7 @@ BinaryExpr::~BinaryExpr()
 {
 }
 
-int BinaryExpr::evaluateInt(Context *ctx)
+int BinaryExpr::evaluateInt(ResourceCompiler *ctx)
 {
 	switch(op)
 	{
@@ -75,7 +76,7 @@ UnaryExpr::~UnaryExpr()
 {
 }
 
-int UnaryExpr::evaluateInt(Context *ctx)
+int UnaryExpr::evaluateInt(ResourceCompiler *ctx)
 {
 	switch(op)
 	{
@@ -83,5 +84,44 @@ int UnaryExpr::evaluateInt(Context *ctx)
 			return -a->evaluateInt(ctx);
 		case UnaryOp::COMPLEMENT:
 			return ~a->evaluateInt(ctx);
+	}
+}
+
+
+IdentifierExpr::IdentifierExpr(std::string id, bool isFunction)
+	: id(id), isFunction(isFunction)
+{
+}
+
+void IdentifierExpr::addArgument(ExprPtr e)
+{
+	arguments.push_back(e);
+}
+
+int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
+{
+	if(isFunction)
+	{
+		if(id == "$$countof" || id == "$$arrayindex")
+		{
+			assert(arguments.size() == 1);
+			IdentifierExprPtr arr = std::dynamic_pointer_cast<IdentifierExpr>(arguments[0]);
+			assert(arr);
+			if(id == "$$countof")
+				return ctx->getArrayCount(arr->id);
+			else
+				return ctx->getArrayIndex(arr->id);
+		}
+		else
+		{
+			std::cout << id << std::endl;
+			assert(false);
+		}
+	}
+	else
+	{
+		ExprPtr val = ctx->lookupIdentifier(id);
+		assert(val);
+		return val->evaluateInt(ctx);
 	}
 }

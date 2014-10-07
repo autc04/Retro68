@@ -57,6 +57,8 @@ public:
 	virtual bool needsValue() { return true; }
 
 	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass) = 0;
+
+	virtual ExprPtr lookupNamedValue(std::string) { return nullptr; }
 };
 typedef std::shared_ptr<Field> FieldPtr;
 
@@ -80,9 +82,11 @@ public:
 
 	ExprPtr	value;
 	std::map<std::string, ExprPtr> namedValues;
+	ExprPtr lastNamedValue;
 
-	void addNamedValue(std::string n) {}
-	void addNamedValue(std::string n, ExprPtr val) {}
+	void addNamedValue(std::string n);
+	void addNamedValue(std::string n, ExprPtr val);
+	ExprPtr lookupNamedValue(std::string);
 
 	virtual bool needsValue();
 	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
@@ -94,6 +98,19 @@ inline SimpleField::Attrs operator|(SimpleField::Attrs a, SimpleField::Attrs b)
 {
 	return SimpleField::Attrs( int(a) | int(b) );
 }
+
+
+class LabelField : public Field
+{
+	std::string name;
+public:
+	LabelField(std::string name);
+
+	virtual bool needsValue();
+	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
+};
+typedef std::shared_ptr<LabelField> LabelFieldPtr;
+
 
 class FieldList : public Field
 {

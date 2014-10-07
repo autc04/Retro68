@@ -293,27 +293,33 @@ expression7	: expression8		{ $$ = $1; }
 expression8	: INTLIT	{ $$ = std::make_shared<IntExpr>($1); }
 			| CHARLIT	{ $$ = std::make_shared<IntExpr>($1); }
 
-			| IDENTIFIER	/* ### */
-			| IDENTIFIER "(" function_argument_list ")"
-			| IDENTIFIER "[" function_argument_list1 "]"
+			| IDENTIFIER	{ $$ = std::make_shared<IdentifierExpr>($1); }
+			| IDENTIFIER
+				{ world.functionCalls.push(std::make_shared<IdentifierExpr>($1,true)); }
+				"(" function_argument_list ")"
+				{ $$ = world.functionCalls.top(); world.functionCalls.pop(); }
+			| IDENTIFIER
+				{ world.functionCalls.push(std::make_shared<IdentifierExpr>($1,false)); }
+				"[" function_argument_list1 "]"
+				{ $$ = world.functionCalls.top(); world.functionCalls.pop(); }
 			| "(" expression ")"	{ $$ = $2; }
 
 			;
 
 function_argument_list : %empty | function_argument_list1 ;
-function_argument_list1 : expression | function_argument_list "," expression ;
+function_argument_list1 : expression
+							{ world.functionCalls.top()->addArgument($expression); }
+						| function_argument_list "," expression
+							{ world.functionCalls.top()->addArgument($expression); }
+						;
 
 resource	: "resource" res_type "(" expression resource_attributes ")" "{" resource_body "}"
 			{
 				int id = $expression->evaluateInt(nullptr);
 				std::cout << "RESOURCE " << $2 << "(" << id << ")" << std::endl;
 				TypeDefinitionPtr type = world.getTypeDefinition($res_type, id);
-				ResourceCompiler compiler;
-				std::cout << "(first pass)\n";
-				type->compile($resource_body, &compiler, true);
-				std::cout << "(second pass)\n";
-				type->compile($resource_body, &compiler, false);
-				std::cout << "(done)\n";
+				ResourceCompiler compiler(type, $resource_body);
+				compiler.compile();
 			}
 			;
 
