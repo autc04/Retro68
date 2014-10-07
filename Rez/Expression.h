@@ -110,6 +110,7 @@ public:
 	IdentifierExpr(std::string id, bool isFunction = false);
 
 	void addArgument(ExprPtr e);
+	ExprPtr lookup(ResourceCompiler *ctx);
 	virtual int evaluateInt(ResourceCompiler *ctx);
 	virtual std::string evaluateString(ResourceCompiler *ctx);
 };

@@ -108,6 +108,16 @@ void IdentifierExpr::addArgument(ExprPtr e)
 	arguments.push_back(e);
 }
 
+ExprPtr IdentifierExpr::lookup(ResourceCompiler *ctx)
+{
+	Subscripts sub;
+	for(auto arg : arguments)
+		sub.addSubscript(arg->evaluateInt(ctx));
+	ExprPtr val = ctx->lookupIdentifier(id, sub);
+	assert(val);
+	return val;
+}
+
 int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
 {
 	if(isFunction)
@@ -130,24 +140,14 @@ int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
 	}
 	else
 	{
-		Subscripts sub;
-		for(auto arg : arguments)
-			sub.addSubscript(arg->evaluateInt(ctx));
-		ExprPtr val = ctx->lookupIdentifier(id, sub);
-		assert(val);
-		return val->evaluateInt(ctx);
+		return lookup(ctx)->evaluateInt(ctx);
 	}
 }
 
 std::string IdentifierExpr::evaluateString(ResourceCompiler *ctx)
 {
 	assert(!isFunction);
-	Subscripts sub;
-	for(auto arg : arguments)
-		sub.addSubscript(arg->evaluateInt(ctx));
-	ExprPtr val = ctx->lookupIdentifier(id, sub);
-	assert(val);
-	return val->evaluateString(ctx);
+	return lookup(ctx)->evaluateString(ctx);
 }
 
 

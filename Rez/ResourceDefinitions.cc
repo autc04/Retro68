@@ -103,6 +103,12 @@ void SimpleField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass
 		case Type::char_:
 			compileString(expr, compiler, prePass);
 			break;
+
+		case Type::rect:
+		case Type::point:
+			compileCompound(expr, compiler, prePass);
+			break;
+
 	}
 }
 
@@ -179,6 +185,38 @@ void SimpleField::compileInt(ExprPtr expr, ResourceCompiler *compiler, bool preP
 	}
 
 	compiler->write(bitSize, actualValue);
+}
+
+void SimpleField::compileCompound(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
+{
+	ExprPtr val = value ? value : expr;
+	if(IdentifierExprPtr id = std::dynamic_pointer_cast<IdentifierExpr>(val))
+	{
+		ResourceCompiler::FieldScope scope(compiler, this);
+		val = id->lookup(compiler);
+	}
+
+	int count = 0;
+	switch(type)
+	{
+		case Type::rect:
+			count = 4;
+			break;
+		case Type::point:
+			count = 2;
+			break;
+	}
+
+	CompoundExprPtr compound = std::dynamic_pointer_cast<CompoundExpr>(val);
+	assert(compound);
+
+	assert(compound->size() == count);
+
+	for(int i = 0; i < count; i++)
+	{
+		int x = compound->getItem(i)->evaluateInt(compiler);
+		compiler->write(16, x);
+	}
 }
 
 

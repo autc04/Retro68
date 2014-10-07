@@ -94,6 +94,7 @@ public:
 private:
 	void compileString(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
 	void compileInt(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
+	void compileCompound(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
 };
 typedef std::shared_ptr<SimpleField> SimpleFieldPtr;
 
