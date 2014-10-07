@@ -61,7 +61,9 @@ class CompoundExpr : public Expression
 	std::vector<ExprPtr> items;
 public:
 	void addItem(ExprPtr item);
-	ExprPtr getItem(int i) { return items[i]; }
+	ExprPtr getItem(int i) const { return items[i]; }
+	int size() const { return items.size(); }
+
 	~CompoundExpr();
 };
 

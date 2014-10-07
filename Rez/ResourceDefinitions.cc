@@ -101,3 +101,41 @@ void SimpleField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass
 
 	compiler->write(bitSize, actualValue);
 }
+
+
+ArrayField::ArrayField(std::string name, ExprPtr count)
+	: name(name), arrayCount(count)
+{
+}
+
+void ArrayField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
+{
+	CompoundExprPtr compound = std::dynamic_pointer_cast<CompoundExpr>(expr);
+	assert(compound);
+
+
+	int i = 0;
+	int n = compound->size();
+
+	int iterations = 0;
+	while(i < n)
+	{
+		++iterations;
+		for(FieldPtr f : fields)
+		{
+			if(f->needsValue())
+			{
+				assert(i < n);
+				f->compile(compound->getItem(i++), compiler, prePass);
+			}
+			else
+				f->compile(nullptr, compiler, prePass);
+		}
+	}
+
+	if(arrayCount)
+	{
+		int expected = arrayCount->evaluateInt(compiler);
+		assert(expected == iterations);
+	}
+}

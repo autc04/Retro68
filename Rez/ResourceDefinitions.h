@@ -108,6 +108,18 @@ public:
 };
 typedef std::shared_ptr<FieldList> FieldListPtr;
 
+
+class ArrayField : public FieldList
+{
+	std::string name;
+	ExprPtr arrayCount;
+public:
+	ArrayField(std::string name /* or empty */, ExprPtr count /* may be null*/);
+
+	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
+};
+typedef std::shared_ptr<ArrayField> ArrayFieldPtr;
+
 class TypeDefinition : public FieldList
 {
 };

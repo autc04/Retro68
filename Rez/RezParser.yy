@@ -156,7 +156,7 @@ field_definitions	: %empty
 
 %type <FieldPtr> field_definition;
 field_definition: simple_field_definition	{ $$ = $1; }
-				| array_definition			{ $$ = nullptr; }
+				| array_definition			{ $$ = $1; }
 				| switch_definition			{ $$ = nullptr; }
 				| fill_statement			{ $$ = nullptr; }
 				| align_statement			{ $$ = nullptr; }
@@ -207,13 +207,25 @@ align_statement	: "align" fill_unit;
 
 fill_unit	: "bit" | "byte" | "word" | "long";
 
-
-array_definition: array_attributes "array" array_name_opt array_count_opt "{" field_definitions "}" ;
+%type <FieldPtr> array_definition;
+array_definition:
+	array_attributes "array" array_name_opt array_count_opt
+	{
+		ArrayFieldPtr af = std::make_shared<ArrayField>($array_name_opt, $array_count_opt);
+		world.fieldLists.push(af);
+	}
+	"{" field_definitions "}"
+	{
+		$$ = world.fieldLists.top();
+		world.fieldLists.pop();
+	}
+	;
 
 array_count : "[" expression "]" { $$ = $2; }
-array_count_opt : %empty { $$ = nullptr; } | array_count;
+array_count_opt : %empty { $$ = nullptr; } | array_count { $$ = $1; };
 
-array_name_opt : %empty | IDENTIFIER ;
+%type <std::string> array_name_opt;
+array_name_opt : %empty { $$ = ""; } | IDENTIFIER { $$ = $1; } ;
 
 array_attributes: %empty | "wide" ;
 
