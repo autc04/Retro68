@@ -44,8 +44,17 @@ add_executable(Rez
 		RezLexerWaveToken.h
 		RezLexerNextToken.cc
 
+		RezWorld.cc
+		RezWorld.h
+
 		ResourceDefinitions.cc
 		ResourceDefinitions.h
+
+		Expression.cc
+		Expression.h
+
+		ResourceCompiler.cc
+		ResourceCompiler.h
 	)
 target_link_libraries(Rez ${Boost_LIBRARIES})
 

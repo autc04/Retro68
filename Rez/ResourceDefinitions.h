@@ -5,6 +5,8 @@
 #include <memory>
 #include <map>
 
+#include "Expression.h"
+
 class ResType
 {
 	int x;
@@ -12,6 +14,7 @@ public:
 	ResType() : x(0) {}
 	ResType(int x) : x(x) {}
 	operator int() const { return x; }
+	bool operator<(ResType y) const { return x < y.x; }
 };
 
 std::ostream& operator<<(std::ostream& out, ResType t);
@@ -31,42 +34,29 @@ public:
 	int getID() const { return id; }
 
 	bool hasID() const { return id != noID; }
+
+	bool operator<(TypeSpec y) const
+	{
+		if(type < y.type)
+			return true;
+		else if(y.type < type)
+			return false;
+		else
+			return id < y.id;
+	}
 };
 
 std::ostream& operator<<(std::ostream& out, TypeSpec ts);
 
-class Context
-{
 
-};
-
-class Expression
-{
-public:
-	//virtual int evaluateInt(Context *ctx);
-
-};
-
-class StringExpr : public Expression
-{
-	std::string str;
-public:
-	StringExpr(const std::string& str) : str(str) {}
-};
-
-class IntExpr : public Expression
-{
-	int val;
-public:
-	IntExpr(int val) : val(val) {}
-};
-
-typedef std::shared_ptr<Expression> ExprPtr;
+class ResourceCompiler;
 
 class Field
 {
 public:
 	virtual bool needsValue() { return true; }
+
+	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass) = 0;
 };
 typedef std::shared_ptr<Field> FieldPtr;
 
@@ -93,6 +83,9 @@ public:
 
 	void addNamedValue(std::string n) {}
 	void addNamedValue(std::string n, ExprPtr val) {}
+
+	virtual bool needsValue();
+	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
 };
 typedef std::shared_ptr<SimpleField> SimpleFieldPtr;
 
@@ -102,11 +95,22 @@ inline SimpleField::Attrs operator|(SimpleField::Attrs a, SimpleField::Attrs b)
 	return SimpleField::Attrs( int(a) | int(b) );
 }
 
-
-class ResourceDefinitions
+class FieldList : public Field
 {
+protected:
+	std::vector<FieldPtr> fields;
 public:
-	ResourceDefinitions();
+	virtual ~FieldList();
+	void addField(FieldPtr field);
+	void addLabel(std::string name);
+
+	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
 };
+typedef std::shared_ptr<FieldList> FieldListPtr;
+
+class TypeDefinition : public FieldList
+{
+};
+typedef std::shared_ptr<TypeDefinition> TypeDefinitionPtr;
 
 #endif // RESOURCEDEFINITIONS_H
