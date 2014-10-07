@@ -34,6 +34,7 @@ class Expression
 {
 public:
 	virtual int evaluateInt(ResourceCompiler *ctx);
+	virtual std::string evaluateString(ResourceCompiler *ctx);
 	virtual ~Expression();
 };
 
@@ -43,6 +44,7 @@ class StringExpr : public Expression
 public:
 	StringExpr(const std::string& str) : str(str) {}
 	~StringExpr();
+	virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
 class IntExpr : public Expression

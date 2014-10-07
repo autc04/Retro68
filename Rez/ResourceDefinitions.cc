@@ -88,7 +88,69 @@ bool SimpleField::needsValue()
 
 void SimpleField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
 {
-	int bitSize;
+	switch(type)
+	{
+		case Type::bitstring:
+		case Type::boolean:
+		case Type::byte:
+		case Type::integer:
+		case Type::longint:
+			compileInt(expr, compiler, prePass);
+			break;
+		case Type::string:
+		case Type::wstring:
+		case Type::pstring:
+		case Type::char_:
+			compileString(expr, compiler, prePass);
+			break;
+	}
+}
+
+void SimpleField::compileString(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
+{
+	std::string str;
+	{
+		ResourceCompiler::FieldScope scope(compiler, this);
+		str = (value ? value : expr)->evaluateString(compiler);
+	}
+
+	if(arrayCount || type == Type::char_)
+	{
+		int requestedSize = type == Type::char_ ? 1 : arrayCount->evaluateInt(compiler);
+		if(requestedSize < str.size())
+			str.erase(str.begin() + requestedSize, str.end());
+		else if(requestedSize > str.size())
+			str.insert(str.end(),requestedSize - str.size(), '\0');
+	}
+
+	int count = str.size();
+
+	if(type == Type::pstring)
+	{
+		if(count > 255)
+		{
+			str.erase(str.begin() + 255, str.end());
+			count = 255;
+		}
+		compiler->write(8, count);
+	}
+	else if(type == Type::wstring)
+	{
+		if(count > 65535)
+		{
+			str.erase(str.begin() + 65535, str.end());
+			count = 65535;
+		}
+		compiler->write(16, count);
+	}
+
+	for(char c : str)
+		compiler->write(8, c);
+}
+
+void SimpleField::compileInt(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
+{
+	int bitSize = 0;
 
 	switch(type)
 	{
@@ -113,15 +175,7 @@ void SimpleField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass
 	if(!prePass)
 	{
 		ResourceCompiler::FieldScope scope(compiler, this);
-		if(value)
-		{
-			actualValue = value->evaluateInt(compiler);
-		}
-		else
-		{
-			// TODO: add alternatives to context
-			actualValue = expr->evaluateInt(compiler);
-		}
+		actualValue = (value ? value : expr)->evaluateInt(compiler);
 	}
 
 	compiler->write(bitSize, actualValue);

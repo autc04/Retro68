@@ -8,6 +8,11 @@ int Expression::evaluateInt(ResourceCompiler *ctx)
 	throw TypeError();
 }
 
+std::string Expression::evaluateString(ResourceCompiler *ctx)
+{
+	throw TypeError();
+}
+
 Expression::~Expression()
 {
 }
@@ -15,6 +20,11 @@ Expression::~Expression()
 
 StringExpr::~StringExpr()
 {
+}
+
+std::string StringExpr::evaluateString(ResourceCompiler *ctx)
+{
+	return str;
 }
 
 
