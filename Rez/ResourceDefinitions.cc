@@ -252,3 +252,46 @@ void SwitchField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass
 
 	caseDefinition->compile(caseExpr->expr, compiler, prePass);
 }
+
+
+FillAlignField::FillAlignField(FillAlignField::Type type, bool isAlign, ExprPtr count)
+	: type(type), isAlign(isAlign), count(count)
+{
+
+}
+
+bool FillAlignField::needsValue()
+{
+	return false;
+}
+
+void FillAlignField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
+{
+	int bitSize;
+	switch(type)
+	{
+		case Type::bit:		bitSize = 1; break;
+		case Type::nibble:	bitSize = 4; break;
+		case Type::byte:	bitSize = 8; break;
+		case Type::word:	bitSize = 16; break;
+		case Type::long_:	bitSize = 32; break;
+	}
+
+	int actualCount = 1;
+	if(count)
+		actualCount = count->evaluateInt(compiler);
+
+	for(int i = 0; i < actualCount; i++)
+	{
+		int n;
+		if(isAlign)
+		{
+			int mask = bitSize - 1;
+			int pos = compiler->tell();
+			n = ((pos + mask) & ~mask) - pos;
+		}
+		else
+			n = bitSize;
+		compiler->write(n, 0);
+	}
+}

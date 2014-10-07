@@ -97,6 +97,22 @@ private:
 };
 typedef std::shared_ptr<SimpleField> SimpleFieldPtr;
 
+class FillAlignField : public Field
+{
+public:
+	enum class Type
+	{
+		bit, nibble, byte, word, long_
+	};
+
+	FillAlignField(Type type, bool isAlign, ExprPtr count = ExprPtr());
+	virtual bool needsValue();
+	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
+private:
+	Type type;
+	ExprPtr count;
+	bool isAlign;
+};
 
 inline SimpleField::Attrs operator|(SimpleField::Attrs a, SimpleField::Attrs b)
 {

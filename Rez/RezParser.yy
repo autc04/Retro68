@@ -57,6 +57,7 @@
 
 %token BOOLEAN "boolean";
 %token BIT "bit";
+%token NIBBLE "nibble";
 %token BYTE "byte";
 %token CHAR "char";
 %token WORD "word";
@@ -158,8 +159,8 @@ field_definitions	: %empty
 field_definition: simple_field_definition	{ $$ = $1; }
 				| array_definition			{ $$ = $1; }
 				| switch_definition			{ $$ = $1; }
-				| fill_statement			{ $$ = nullptr; }
-				| align_statement			{ $$ = nullptr; }
+				| fill_statement			{ $$ = $1; }
+				| align_statement			{ $$ = $1; }
 				;
 
 %type <SimpleFieldPtr> simple_field_definition;
@@ -202,10 +203,21 @@ simpletype	: "boolean"		{ $$ = SimpleField::Type::boolean; }
 			| "bitstring"	{ $$ = SimpleField::Type::bitstring; }
 			;
 
-fill_statement	: "fill" fill_unit array_count_opt;
-align_statement	: "align" fill_unit;
+%type <FieldPtr> fill_statement align_statement;
+fill_statement	: "fill" fill_unit array_count_opt
+				{ $$ = std::make_shared<FillAlignField>($fill_unit, false, $array_count_opt); }
+				;
+align_statement	: "align" fill_unit
+				{ $$ = std::make_shared<FillAlignField>($fill_unit, true); }
+				;
 
-fill_unit	: "bit" | "byte" | "word" | "long";
+%type <FillAlignField::Type> fill_unit;
+fill_unit	: "bit"		{ $$ = FillAlignField::Type::bit; }
+			| "nibble"	{ $$ = FillAlignField::Type::nibble; }
+			| "byte"	{ $$ = FillAlignField::Type::byte; }
+			| "word"	{ $$ = FillAlignField::Type::word; }
+			| "long"	{ $$ = FillAlignField::Type::long_; }
+			;
 
 %type <FieldPtr> array_definition;
 array_definition:

@@ -117,6 +117,7 @@ RezSymbol RezLexer::nextToken()
 					KEYWORD(LITERAL, "literal"),
 					KEYWORD(BOOLEAN, "boolean"),
 					KEYWORD(BIT, "bit"),
+					KEYWORD(NIBBLE, "nibble"),
 					KEYWORD(BYTE, "byte"),
 					KEYWORD(CHAR, "char"),
 					KEYWORD(WORD, "word"),

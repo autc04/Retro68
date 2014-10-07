@@ -37,6 +37,7 @@ public:
 
 	void reserve(int nBits) { write(nBits, 0); }
 	void write(int nBits, int value);
+	int tell() { return currentOffset; }
 
 	ExprPtr lookupIdentifier(std::string name, const Subscripts& sub = Subscripts());
 
