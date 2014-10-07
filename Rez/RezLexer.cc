@@ -90,6 +90,9 @@ RezLexer::RezLexer(std::string filename)
 	pImpl->ctx.add_include_path("/home/wolfgang/Projects/Retro68/RIncludes");
 	//	ctx.add_macro_definition(...);
 	pImpl->ctx.add_macro_definition("DeRez", "0");
+	pImpl->ctx.add_macro_definition("Rez", "1");
+	pImpl->ctx.add_macro_definition("true", "1");
+	pImpl->ctx.add_macro_definition("false", "0");
 
 	pImpl->iter = pImpl->ctx.begin();
 }
