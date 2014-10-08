@@ -31,9 +31,13 @@ class ResourceCompiler
 	Field* currentField;
 	Subscripts currentSubscripts;
 
+	std::vector<unsigned char>	data;
+
 	void beginArrayScope(std::string& arrayName, int index);
 public:
 	ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body);
+
+	std::string resourceData();
 
 	void reserve(int nBits) { write(nBits, 0); }
 	void write(int nBits, int value);

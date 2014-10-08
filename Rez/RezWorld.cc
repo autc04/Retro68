@@ -1,4 +1,8 @@
 #include "RezWorld.h"
+#include "ResourceCompiler.h"
+#include "ResourceFiles.h"
+
+#include <iostream>
 
 RezWorld::RezWorld()
 {
@@ -19,4 +23,14 @@ TypeDefinitionPtr RezWorld::getTypeDefinition(ResType type, int id)
 		return p->second;
 
 	return nullptr;
+}
+
+void RezWorld::addResource(ResType type, int id, CompoundExprPtr body)
+{
+	std::cout << "RESOURCE " << type << "(" << id << ")" << std::endl;
+	TypeDefinitionPtr def = getTypeDefinition(type, id);
+	ResourceCompiler compiler(def, body);
+	compiler.compile();
+
+	resources.addResource(Resource(type, id, compiler.resourceData()));
 }

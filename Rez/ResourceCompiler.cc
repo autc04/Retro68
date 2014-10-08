@@ -8,10 +8,31 @@ ResourceCompiler::ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body)
 
 }
 
+std::string ResourceCompiler::resourceData()
+{
+	return std::string(data.begin(), data.end());
+}
+
 void ResourceCompiler::write(int nBits, int value)
 {
 	std::cout << "[" << nBits << " bits] = " << std::hex << value << std::dec << std::endl;
-	currentOffset += nBits;
+
+	unsigned mask = 1 << (nBits-1);
+
+	for(int i = 0; i < nBits; i++)
+	{
+		bool bit = (value & mask) != 0;
+
+		if(currentOffset % 8 == 0)
+			data.push_back(bit ? 0x80 : 0);
+		else if(bit)
+			data.back() |= (0x80 >> (currentOffset % 8));
+		++currentOffset;
+
+		mask >>= 1;
+	}
+
+	//currentOffset += nBits;
 }
 
 ExprPtr ResourceCompiler::lookupIdentifier(std::string name, const Subscripts &sub)
@@ -19,12 +40,17 @@ ExprPtr ResourceCompiler::lookupIdentifier(std::string name, const Subscripts &s
 	if(currentField)
 	{
 		if(ExprPtr val = currentField->lookupNamedValue(name))
+		{
+			std::cout << "current field: " << name << " found.";
 			return val;
+		}
 	}
 
 	auto p = labelValues.find(std::make_pair(name, sub));
 	if(p != labelValues.end())
 		return p->second;
+
+	std::cout << "ID lookup failed: " << name << std::endl;
 
 	return nullptr;
 }
@@ -38,9 +64,11 @@ void ResourceCompiler::compile()
 {
 	std::cout << "(first pass)\n";
 	currentOffset = 0;
+	data.clear();
 	typeDefinition->compile(body, this, true);
 	std::cout << "(second pass)\n";
 	currentOffset = 0;
+	data.clear();
 	typeDefinition->compile(body, this, false);
 	std::cout << "(done)\n";
 

@@ -56,6 +56,6 @@ add_executable(Rez
 		ResourceCompiler.cc
 		ResourceCompiler.h
 	)
-target_link_libraries(Rez ${Boost_LIBRARIES})
+target_link_libraries(Rez ResourceFiles ${Boost_LIBRARIES})
 
 install(TARGETS Rez RUNTIME DESTINATION bin)

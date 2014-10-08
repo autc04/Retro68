@@ -346,10 +346,7 @@ function_argument_list1 : expression
 resource	: "resource" res_type "(" expression resource_attributes ")" "{" resource_body "}"
 			{
 				int id = $expression->evaluateInt(nullptr);
-				std::cout << "RESOURCE " << $2 << "(" << id << ")" << std::endl;
-				TypeDefinitionPtr type = world.getTypeDefinition($res_type, id);
-				ResourceCompiler compiler(type, $resource_body);
-				compiler.compile();
+				world.addResource($res_type, id, $resource_body);
 			}
 			;
 

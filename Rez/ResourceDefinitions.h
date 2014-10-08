@@ -6,18 +6,8 @@
 #include <map>
 
 #include "Expression.h"
+#include "ResType.h"
 
-class ResType
-{
-	int x;
-public:
-	ResType() : x(0) {}
-	ResType(int x) : x(x) {}
-	operator int() const { return x; }
-	bool operator<(ResType y) const { return x < y.x; }
-};
-
-std::ostream& operator<<(std::ostream& out, ResType t);
 
 class TypeSpec
 {

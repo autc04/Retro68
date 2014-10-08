@@ -88,11 +88,10 @@ RezLexer::RezLexer(std::string filename)
 						  filename));
 
 	pImpl->ctx.add_include_path("/home/wolfgang/Projects/Retro68/RIncludes");
-	//	ctx.add_macro_definition(...);
-	pImpl->ctx.add_macro_definition("DeRez", "0");
-	pImpl->ctx.add_macro_definition("Rez", "1");
-	pImpl->ctx.add_macro_definition("true", "1");
-	pImpl->ctx.add_macro_definition("false", "0");
+	pImpl->ctx.add_macro_definition("DeRez=0");
+	pImpl->ctx.add_macro_definition("Rez=1");
+	pImpl->ctx.add_macro_definition("true=1");
+	pImpl->ctx.add_macro_definition("false=0");
 
 	pImpl->iter = pImpl->ctx.begin();
 }
@@ -109,7 +108,14 @@ bool RezLexer::atEnd()
 
 RezLexer::WaveToken RezLexer::nextWave()
 {
-	return pImpl->iter == pImpl->ctx.end() ? WaveToken() : (*pImpl->iter++);
+	if(pImpl->iter == pImpl->ctx.end())
+		return WaveToken();
+	else
+	{
+		WaveToken tok = *pImpl->iter++;
+		std::cout << tok.get_value();
+		return tok;
+	}
 }
 
 RezLexer::WaveToken RezLexer::peekWave()

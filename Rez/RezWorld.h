@@ -5,6 +5,7 @@
 #include <stack>
 #include "ResourceDefinitions.h"
 #include "Expression.h"
+#include "ResourceFiles.h"
 
 class RezWorld
 {
@@ -14,11 +15,17 @@ class RezWorld
 	std::stack<FieldListPtr> fieldLists;
 	std::stack<IdentifierExprPtr> functionCalls;
 	std::stack<SwitchFieldPtr> switches;
+
+	Resources resources;
 public:
 	RezWorld();
 	void addTypeDefinition(TypeSpec spec, TypeDefinitionPtr type);
 
 	TypeDefinitionPtr getTypeDefinition(ResType type, int id);
+
+	void addResource(ResType type, int id, CompoundExprPtr body);
+
+	Resources& getResources() { return resources; }
 };
 
 
