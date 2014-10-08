@@ -7,13 +7,15 @@
 
 using namespace boost::wave;
 
-static int readInt(const char *str)
+static int readInt(const char *str, const char *end = NULL, int baseOverride = 0)
 {
 	int x = 0;
 
 	int base = 10;
 
-	if(*str == '0')
+	if(baseOverride)
+		base = baseOverride;
+	else if(*str == '0')
 	{
 		base = 8;
 		++str;
@@ -34,7 +36,7 @@ static int readInt(const char *str)
 		++str;
 	}
 
-	while(*str)
+	while(str != end && *str)
 	{
 		x *= base;
 		if(*str >= 'a' && *str <= 'z')
@@ -65,6 +67,70 @@ static int readCharLit(const char *str)
 		++p;
 	}
 	return x;
+}
+
+static std::string readStringLit(const char *str)
+{
+	const char *p = str + 1;
+	const char *e = str + strlen(str) - 1;
+
+	std::ostringstream out;
+
+	while(p != e)
+	{
+		if(*p == '\\')
+		{
+			++p;
+			if(p != e)
+			{
+				switch(*p)
+				{
+					case 'n':
+						out << '\n';
+						break;
+					case 'r':
+						out << '\r';
+						break;
+					case 't':
+						out << '\t';
+						break;
+					case '0':
+					case '1':
+					case '2':
+					case '3':
+						if(p + 3 > e)
+							continue;
+						if(p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))
+						{
+							if(p + 4 > e)
+								continue;
+							out << (char)readInt(p+2, p+4, 16);
+							p += 4;
+						}
+						else
+						{
+							out << (char)readInt(p, p+3, 8);
+							p += 3;
+						}
+						break;
+					case '$':
+						{
+							if(p + 3 > e)
+								continue;
+							out << (char)readInt(p+1, p+3, 16);
+							p += 3;
+						}
+						break;
+				}
+			}
+		}
+		else
+		{
+			out << *p++;
+		}
+	}
+
+	return out.str();
 }
 
 RezSymbol RezLexer::nextToken()
@@ -174,7 +240,7 @@ case T_ ## name: /*std::cout << #name << std::endl;*/ return RezParser::make_ ##
 					case T_INTLIT: return RezParser::make_INTLIT(readInt(tok.get_value().c_str()), loc);
 
 					case T_CHARLIT: return RezParser::make_CHARLIT(readCharLit(tok.get_value().c_str()), loc);
-					case T_STRINGLIT: return RezParser::make_STRINGLIT(tok.get_value().c_str(), loc);
+					case T_STRINGLIT: return RezParser::make_STRINGLIT(readStringLit(tok.get_value().c_str()), loc);
 
 					NOVAL_TOK(LEFTBRACE);
 					NOVAL_TOK(RIGHTBRACE);
