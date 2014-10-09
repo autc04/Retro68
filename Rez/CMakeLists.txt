@@ -19,7 +19,7 @@ cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_CXX_FLAGS "--std=c++11")
 
-find_package(Boost COMPONENTS wave filesystem system thread regex)
+find_package(Boost COMPONENTS wave filesystem system thread regex program_options)
 
 
 find_package(BISON REQUIRED)

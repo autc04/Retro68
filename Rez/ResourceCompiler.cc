@@ -2,8 +2,13 @@
 #include <iostream>
 #include "ResourceDefinitions.h"
 
-ResourceCompiler::ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body)
-	: typeDefinition(type), body(body), currentOffset(0), currentField(nullptr)
+ResourceCompiler::ResourceCompiler(
+		TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag)
+	: typeDefinition(type),
+	  body(body),
+	  currentOffset(0),
+	  currentField(nullptr),
+	  verboseFlag(verboseFlag)
 {
 
 }
@@ -15,7 +20,8 @@ std::string ResourceCompiler::resourceData()
 
 void ResourceCompiler::write(int nBits, int value)
 {
-	std::cout << "[" << nBits << " bits] = " << std::hex << value << std::dec << std::endl;
+	if(verboseFlag)
+		std::cout << "[" << nBits << " bits] = " << std::hex << value << std::dec << std::endl;
 
 	unsigned mask = 1 << (nBits-1);
 
@@ -41,7 +47,6 @@ ExprPtr ResourceCompiler::lookupIdentifier(std::string name, const Subscripts &s
 	{
 		if(ExprPtr val = currentField->lookupNamedValue(name))
 		{
-			std::cout << "current field: " << name << " found.";
 			return val;
 		}
 	}
@@ -50,7 +55,7 @@ ExprPtr ResourceCompiler::lookupIdentifier(std::string name, const Subscripts &s
 	if(p != labelValues.end())
 		return p->second;
 
-	std::cout << "ID lookup failed: " << name << std::endl;
+	std::cerr << "ID lookup failed: " << name << std::endl;
 
 	return nullptr;
 }
@@ -62,15 +67,15 @@ void ResourceCompiler::defineLabel(const std::string &name)
 
 void ResourceCompiler::compile()
 {
-	std::cout << "(first pass)\n";
+	if(verboseFlag) std::cout << "(first pass)\n";
 	currentOffset = 0;
 	data.clear();
 	typeDefinition->compile(body, this, true);
-	std::cout << "(second pass)\n";
+	if(verboseFlag) std::cout << "(second pass)\n";
 	currentOffset = 0;
 	data.clear();
 	typeDefinition->compile(body, this, false);
-	std::cout << "(done)\n";
+	if(verboseFlag) std::cout << "(done)\n";
 
 }
 

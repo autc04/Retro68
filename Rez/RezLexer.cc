@@ -113,7 +113,6 @@ RezLexer::WaveToken RezLexer::nextWave()
 	else
 	{
 		WaveToken tok = *pImpl->iter++;
-		std::cout << tok.get_value();
 		return tok;
 	}
 }

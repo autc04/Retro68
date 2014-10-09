@@ -26,6 +26,8 @@ public:
 	void addResource(ResType type, int id, CompoundExprPtr body);
 
 	Resources& getResources() { return resources; }
+
+	bool verboseFlag;
 };
 
 

@@ -5,6 +5,7 @@
 #include <iostream>
 
 RezWorld::RezWorld()
+	: verboseFlag(false)
 {
 }
 
@@ -27,9 +28,10 @@ TypeDefinitionPtr RezWorld::getTypeDefinition(ResType type, int id)
 
 void RezWorld::addResource(ResType type, int id, CompoundExprPtr body)
 {
-	std::cout << "RESOURCE " << type << "(" << id << ")" << std::endl;
+	if(verboseFlag)
+		std::cout << "RESOURCE " << type << "(" << id << ")" << std::endl;
 	TypeDefinitionPtr def = getTypeDefinition(type, id);
-	ResourceCompiler compiler(def, body);
+	ResourceCompiler compiler(def, body, verboseFlag);
 	compiler.compile();
 
 	resources.addResource(Resource(type, id, compiler.resourceData()));

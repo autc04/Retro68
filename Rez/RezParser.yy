@@ -167,9 +167,9 @@ type_definition	: "type" type_spec
 						world.fieldLists.push(td);
 					}
 				"{" field_definitions "}"
-				{ world.fieldLists.pop(); std::cout << "TYPE " << $2 << std::endl; }
+				{ world.fieldLists.pop(); if(world.verboseFlag) std::cout << "TYPE " << $2 << std::endl; }
 				| "type" type_spec "as" type_spec
-				{ std::cout << "TYPE " << $2 << std::endl; }
+				{ if(world.verboseFlag) std::cout << "TYPE " << $2 << std::endl; }
 				;
 
 %type <ResType> res_type;

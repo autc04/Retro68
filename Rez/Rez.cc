@@ -1,6 +1,7 @@
-#include <fstream>
 #include <iostream>
-
+#include "boost/program_options.hpp"
+#include "boost/filesystem.hpp"
+#include "boost/filesystem/fstream.hpp"
 
 #include "RezParser.generated.hh"
 #include "RezLexer.h"
@@ -9,24 +10,83 @@
 #include "ResourceFiles.h"
 #include "BinaryIO.h"
 
-int main()
-{
-	//RezLexer lexer("/home/wolfgang/Projects/Retro68/RIncludes/Types.r");
-	RezLexer lexer("/home/wolfgang/Projects/Retro68/Rez/Test.r");
-	RezWorld world;
-	RezParser parser(lexer, world);
+namespace po = boost::program_options;
+namespace fs = boost::filesystem;
 
-	parser.parse();
+static po::options_description desc;
+
+static void usage()
+{
+	std::cerr << "Usage: " << "Rez [options] input-file\n";
+	std::cerr << desc << std::endl;
+}
+
+int main(int argc, const char *argv[])
+{
+	desc.add_options()
+		("help,h", "show this help message")
+		("output,o", po::value<std::string>()->default_value("rez.output.rsrc"), "output file")
+		("type,t", po::value<std::string>()->default_value("rsrc"), "output file finder type code")
+		("creator,c", po::value<std::string>()->default_value("RSED"), "output file finder creator code")
+		("debug,d", "debug logging")
+	;
+	po::options_description hidden, alldesc;
+	hidden.add_options()
+		("input", po::value<std::vector<std::string>>(), "input file" )
+	;
+	alldesc.add(desc).add(hidden);
+
+	po::variables_map options;
+	try
 	{
-		std::ofstream dataOut("test.rsrc");
-		system("mkdir -p .rsrc");
-		std::ofstream rsrcOut(".rsrc/test.rsrc");
+		auto parsed = po::command_line_parser(argc, argv)
+				.options(alldesc)
+				.positional(po::positional_options_description().add("input", -1))
+				.style(po::command_line_style::default_style |
+					   po::command_line_style::allow_long_disguise)
+				.run();
+
+		po::store(parsed, options);
+	}
+	catch(po::error& e)
+	{
+		std::cerr << "ERROR: " << e.what() << std::endl << std::endl;
+		usage();
+		return 1;
+	}
+
+	po::notify(options);
+
+	if(options.count("help") || !options.count("input"))
+	{
+		usage();
+		return 0;
+	}
+
+	RezWorld world;
+
+	if(options.count("debug"))
+		world.verboseFlag = true;
+
+	for(std::string fn : options["input"].as<std::vector<std::string>>())
+	{
+		RezLexer lexer(fn);
+		RezParser parser(lexer, world);
+		parser.parse();
+	}
+
+	std::string outfile = options["output"].as<std::string>();
+	{
+		fs::path dataPath(outfile);
+		fs::create_directory(dataPath.parent_path() / ".rsrc");
+		fs::create_directory(dataPath.parent_path() / ".finf");
+		fs::ofstream dataOut(dataPath);
+		fs::ofstream rsrcOut(dataPath.parent_path() / ".rsrc" / dataPath.filename());
+		fs::ofstream finfOut(dataPath.parent_path() / ".finf" / dataPath.filename());
 
 		world.getResources().writeFork(rsrcOut);
-		system("mkdir -p .finf");
-		std::ofstream finfOut(".finf/test.rsrc");
-		ostype(finfOut, "rsrc");
-		ostype(finfOut, "RSED");
+		ostype(finfOut, options["type"].as<std::string>());
+		ostype(finfOut, options["creator"].as<std::string>());
 		for(int i = 8; i < 32; i++)
 			byte(finfOut, 0);
 	}

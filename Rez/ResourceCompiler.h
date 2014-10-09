@@ -32,10 +32,11 @@ class ResourceCompiler
 	Subscripts currentSubscripts;
 
 	std::vector<unsigned char>	data;
+	bool verboseFlag;
 
 	void beginArrayScope(std::string& arrayName, int index);
 public:
-	ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body);
+	ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag);
 
 	std::string resourceData();
 
