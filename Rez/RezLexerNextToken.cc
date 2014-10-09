@@ -198,7 +198,7 @@ RezSymbol RezLexer::nextToken()
 					KEYWORD(BITSTRING, "bitstring"),
 
 					KEYWORD(INTEGER, "int"),
-
+					KEYWORD(DOLLAR, "$")
 				};
 
 				std::string s = tok.get_value().c_str();

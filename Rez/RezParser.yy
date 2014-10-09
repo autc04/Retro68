@@ -39,7 +39,7 @@
 %token OR "|";
 %token XOR "^";
 %token COMPL "~";
-
+%token DOLLAR "$";
 
 %token TYPE "type";
 %token RESOURCE "resource";
@@ -119,6 +119,37 @@
 	{
 		std::cerr << loc << ": " << err << std::endl;
 	}
+
+	static std::string fromHex(std::string hex)
+	{
+		std::string bin;
+		int nibble;
+		bool haveNibble = false;
+		for(std::string::iterator p = hex.begin(); p != hex.end(); ++p)
+		{
+			if(std::isspace(*p))
+				continue;
+			assert(isdigit(*p) || (tolower(*p) >= 'a' && tolower(*p) <= 'f'));
+			int digit;
+			if(isdigit(*p))
+				digit = *p - '0';
+			else
+				digit = tolower(*p) - 'a' + 0xA;
+
+			if(haveNibble)
+			{
+				bin += (char) ((nibble << 4) | digit);
+				haveNibble = false;
+			}
+			else
+			{
+				nibble = digit;
+				haveNibble = true;
+			}
+		}
+		return bin;
+	}
+
 }
 
 %%
@@ -278,9 +309,17 @@ switch_case : "case" IDENTIFIER ":"
 	}
 	;
 
+%type <std::string> string onestring;
+string	: onestring { $$ = $1; }
+		| string onestring { $$ = $1 + $2; }
+		;
+onestring	: STRINGLIT { $$ = $1; }
+			| DOLLAR STRINGLIT { $$ = fromHex($2); }
+			;
+
 value	: expression	{ $$ = $1; }
 		| "{" resource_body "}"	{ $$ = $2; }
-		| STRINGLIT				{ $$ = std::make_shared<StringExpr>($1); }
+		| string				{ $$ = std::make_shared<StringExpr>($1); }
 		;
 
 expression	: expression1	{ $$ = $1; }
