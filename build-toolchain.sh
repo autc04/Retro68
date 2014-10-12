@@ -66,6 +66,10 @@ cd build-host
 cmake ../../Retro68/ -DCMAKE_INSTALL_PREFIX=$PREFIX
 cd ..
 
+	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
+$PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
+	# the real libretrocrt.a is built and installed by `make -C build-target install` later
+
 mkdir -p build-target
 cd build-target
 cmake ../../Retro68/ -DCMAKE_INSTALL_PREFIX=$PREFIX/m68k-unknown-elf \
