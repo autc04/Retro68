@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
 			std::string fn = argv[i++];
 			std::string flt = readfile(fn);
 
-			rsrc.addResource(Resource("CODE", 0,
+			rsrc.addResource(Resource(ResType("CODE"), 0,
 				fromhex(
 					"00000028 00000000 00000008 00000020"
 					"0000 3F3C 0001 A9F0"

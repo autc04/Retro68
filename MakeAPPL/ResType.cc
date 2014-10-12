@@ -1,10 +1,13 @@
 #include "ResType.h"
 #include <iostream>
+#include <cassert>
 
 ResType::ResType(const std::string &str)
 {
 	auto p = str.begin();
 	auto e = str.end();
+
+	assert(str.size() == 4);
 
 	x = 0;
 	while(p != e)
@@ -14,6 +17,23 @@ ResType::ResType(const std::string &str)
 		++p;
 	}
 }
+
+ResType::ResType(const char *s)
+{
+	auto p = s;
+	auto e = s + 4;
+
+	assert(s[0] && s[1] && s[2] && s[3] && !s[4]);
+
+	x = 0;
+	while(p != e)
+	{
+		x <<= 8;
+		x |= (*p) & 0xFF;
+		++p;
+	}
+}
+
 
 ResType::operator std::string()
 {

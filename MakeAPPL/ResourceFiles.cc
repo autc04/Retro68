@@ -3,10 +3,13 @@
 
 #include <iostream>
 #include <map>
+#include <vector>
 
 void Resources::addResources(const Resources& res)
 {
-	resources.insert(resources.end(),res.resources.begin(), res.resources.end());
+	for(auto& rr : res.resources)
+		resources.insert(rr);
+//	resources.insert(resources.end(),res.resources.begin(), res.resources.end());
 }
 
 void Resources::writeFork(std::ostream& out) const
@@ -19,10 +22,11 @@ void Resources::writeFork(std::ostream& out) const
 	out.seekp(start + std::streampos(0x100));
 	std::map< std::string, std::map<int, int> > resourceInfos;
 	std::streampos datastart = out.tellp();
-	for(std::vector<Resource>::const_iterator p = resources.begin(); p != resources.end(); ++p)
+	for(auto& rr : resources)
 	{
-		const std::string& data = p->getData();
-		resourceInfos[ p->getType() ][ p->getID() ] = out.tellp() - datastart;
+		const Resource& r = rr.second;
+		const std::string& data = r.getData();
+		resourceInfos[ r.getType() ][ r.getID() ] = out.tellp() - datastart;
 		longword(out, data.size());
 		out << data;
 	}

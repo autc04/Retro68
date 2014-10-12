@@ -2,6 +2,8 @@
 #include <iostream>
 #include <cassert>
 
+#include "ResType.h"
+
 void byte(std::ostream& out, int byte)
 {
 	out.put((unsigned char)byte);
@@ -11,10 +13,9 @@ void word(std::ostream& out, int word)
 	byte(out,(word >> 8) & 0xFF);
 	byte(out,word & 0xFF);
 }
-void ostype(std::ostream& out, std::string type)
+void ostype(std::ostream& out, ResType type)
 {
-	assert(type.size() == 4);
-	out << type;
+	longword(out, type);
 }
 void longword(std::ostream& out, int longword)
 {
@@ -34,12 +35,9 @@ int word(std::istream& in)
 	int b = byte(in);
 	return (a << 8) | b;
 }
-std::string ostype(std::istream& in)
+ResType ostype(std::istream& in)
 {
-	char s[5];
-	in.read(s,4);
-	s[4] = 0;
-	return s;
+	return longword(in);
 }
 int longword(std::istream& in)
 {
