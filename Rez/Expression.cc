@@ -2,6 +2,7 @@
 #include "ResourceCompiler.h"
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 int Expression::evaluateInt(ResourceCompiler *ctx)
 {
@@ -78,6 +79,21 @@ int BinaryExpr::evaluateInt(ResourceCompiler *ctx)
 			return a->evaluateInt(ctx) * b->evaluateInt(ctx);
 		case BinaryOp::DIVIDE:
 			return a->evaluateInt(ctx) / b->evaluateInt(ctx);
+		default:
+			throw TypeError();
+			break;
+	}
+}
+
+std::string BinaryExpr::evaluateString(ResourceCompiler *ctx)
+{
+	switch(op)
+	{
+		case BinaryOp::CONCAT:
+			return a->evaluateString(ctx) + b->evaluateString(ctx);
+		default:
+			throw TypeError();
+			break;
 	}
 }
 
@@ -98,8 +114,8 @@ int UnaryExpr::evaluateInt(ResourceCompiler *ctx)
 }
 
 
-IdentifierExpr::IdentifierExpr(std::string id, bool isFunction)
-	: id(id), isFunction(isFunction)
+IdentifierExpr::IdentifierExpr(std::string id)
+	: id(id)
 {
 }
 
@@ -120,33 +136,11 @@ ExprPtr IdentifierExpr::lookup(ResourceCompiler *ctx)
 
 int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
 {
-	if(isFunction)
-	{
-		if(id == "$$countof" || id == "$$arrayindex")
-		{
-			assert(arguments.size() == 1);
-			IdentifierExprPtr arr = std::dynamic_pointer_cast<IdentifierExpr>(arguments[0]);
-			assert(arr);
-			if(id == "$$countof")
-				return ctx->getArrayCount(arr->id);
-			else
-				return ctx->getArrayIndex(arr->id);
-		}
-		else
-		{
-			std::cout << id << std::endl;
-			assert(false);
-		}
-	}
-	else
-	{
-		return lookup(ctx)->evaluateInt(ctx);
-	}
+	return lookup(ctx)->evaluateInt(ctx);
 }
 
 std::string IdentifierExpr::evaluateString(ResourceCompiler *ctx)
 {
-	assert(!isFunction);
 	return lookup(ctx)->evaluateString(ctx);
 }
 
@@ -154,4 +148,41 @@ std::string IdentifierExpr::evaluateString(ResourceCompiler *ctx)
 CaseExpr::CaseExpr(const std::string &tag, CompoundExprPtr expr)
 	: tag(tag), expr(expr)
 {
+}
+
+
+int CountOfExpr::evaluateInt(ResourceCompiler *ctx)
+{
+	assert(arg->arguments.size() == 0);
+	return ctx->getArrayCount(arg->id);
+}
+
+
+int ArrayIndexExpr::evaluateInt(ResourceCompiler *ctx)
+{
+	assert(arg->arguments.size() == 0);
+	return ctx->getArrayIndex(arg->id);
+}
+
+
+std::string ReadExpr::evaluateString(ResourceCompiler *ctx)
+{
+	std::string filename = arg->evaluateString(ctx);
+	std::ifstream instream(filename);
+	// ### TODO: check error
+	return std::string(std::istreambuf_iterator<char>(instream.rdbuf()),
+					   std::istreambuf_iterator<char>());
+}
+
+
+int UnimplementedExpr::evaluateInt(ResourceCompiler *ctx)
+{
+	std::cerr << msg << std::endl;
+	return 0;
+}
+
+std::string UnimplementedExpr::evaluateString(ResourceCompiler *ctx)
+{
+	std::cerr << msg << std::endl;
+	return "";
 }

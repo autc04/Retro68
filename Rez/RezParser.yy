@@ -71,6 +71,14 @@
 %token RECT "rect";
 %token BITSTRING "bitstring";
 
+%token FUN_COUNTOF "$$countof";
+%token FUN_ARRAYINDEX "$$arrayindex";
+%token FUN_READ "$$read";
+%token FUN_BITFIELD "$$bitfield";
+%token FUN_WORD "$$word";
+%token FUN_BYTE "$$byte";
+%token FUN_LONG "$$long";
+
 /*
 %left "|";
 %left "^";
@@ -309,17 +317,10 @@ switch_case : "case" IDENTIFIER ":"
 	}
 	;
 
-%type <std::string> string onestring;
-string	: onestring { $$ = $1; }
-		| string onestring { $$ = $1 + $2; }
-		;
-onestring	: STRINGLIT { $$ = $1; }
-			| DOLLAR STRINGLIT { $$ = fromHex($2); }
-			;
 
 value	: expression	{ $$ = $1; }
 		| "{" resource_body "}"	{ $$ = $2; }
-		| string				{ $$ = std::make_shared<StringExpr>($1); }
+		| string_expression { $$ = $1; }
 		;
 
 expression	: expression1	{ $$ = $1; }
@@ -362,18 +363,30 @@ expression7	: expression8		{ $$ = $1; }
 expression8	: INTLIT	{ $$ = std::make_shared<IntExpr>($1); }
 			| CHARLIT	{ $$ = std::make_shared<IntExpr>($1); }
 
-			| IDENTIFIER	{ $$ = std::make_shared<IdentifierExpr>($1); }
-			| IDENTIFIER
-				{ world.functionCalls.push(std::make_shared<IdentifierExpr>($1,true)); }
-				"(" function_argument_list ")"
-				{ $$ = world.functionCalls.top(); world.functionCalls.pop(); }
-			| IDENTIFIER
-				{ world.functionCalls.push(std::make_shared<IdentifierExpr>($1,false)); }
-				"[" function_argument_list1 "]"
-				{ $$ = world.functionCalls.top(); world.functionCalls.pop(); }
+			| identifier_expression	{ $$ = $1; }
 			| "(" expression ")"	{ $$ = $2; }
 
+			| "$$countof" "(" identifier_expression ")"
+				{ $$ = std::make_shared<CountOfExpr>($identifier_expression); }
+			| "$$arrayindex" "(" identifier_expression ")"
+				{ $$ = std::make_shared<ArrayIndexExpr>($identifier_expression); }
+			| "$$bitfield" "(" expression "," expression "," expression ")"
+				{ $$ = std::make_shared<UnimplementedExpr>("$$bitfield"); }
+			| "$$word" "(" expression ")"
+				{ $$ = std::make_shared<UnimplementedExpr>("$$word"); }
+			| "$$byte" "(" expression ")"
+				{ $$ = std::make_shared<UnimplementedExpr>("$$byte"); }
+			| "$$long" "(" expression ")"
+				{ $$ = std::make_shared<UnimplementedExpr>("$$long"); }
 			;
+
+%type <IdentifierExprPtr> identifier_expression;
+identifier_expression	: IDENTIFIER	{ $$ = std::make_shared<IdentifierExpr>($1); }
+						| IDENTIFIER
+							{ world.functionCalls.push(std::make_shared<IdentifierExpr>($1)); }
+							"[" function_argument_list1 "]"
+							{ $$ = world.functionCalls.top(); world.functionCalls.pop(); }
+						;
 
 function_argument_list : %empty | function_argument_list1 ;
 function_argument_list1 : expression
@@ -381,6 +394,22 @@ function_argument_list1 : expression
 						| function_argument_list "," expression
 							{ world.functionCalls.top()->addArgument($expression); }
 						;
+
+%type <ExprPtr> string_expression string_expression1;
+string_expression	: string_expression1	{ $$ = $1; }
+					| string_expression string_expression1
+						{ $$ = std::make_shared<BinaryExpr>(BinaryOp::CONCAT, $1, $2); }
+					;
+
+%type <std::string> stringlit;
+stringlit	: STRINGLIT { $$ = $1; }
+			| DOLLAR STRINGLIT { $$ = fromHex($2); }
+			;
+
+string_expression1	:	stringlit	{ $$ = std::make_shared<StringExpr>($1); }
+					|	"$$read" "(" string_expression ")"
+						{ $$ = std::make_shared<ReadExpr>($string_expression); }
+					;
 
 resource	: "resource" res_type "(" expression resource_attributes ")" "{" resource_body "}"
 			{

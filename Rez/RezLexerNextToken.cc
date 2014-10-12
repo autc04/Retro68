@@ -198,7 +198,15 @@ RezSymbol RezLexer::nextToken()
 					KEYWORD(BITSTRING, "bitstring"),
 
 					KEYWORD(INTEGER, "int"),
-					KEYWORD(DOLLAR, "$")
+					KEYWORD(DOLLAR, "$"),
+
+					KEYWORD(FUN_COUNTOF, "$$countof"),
+					KEYWORD(FUN_ARRAYINDEX, "$$arrayindex"),
+					KEYWORD(FUN_READ, "$$read"),
+					KEYWORD(FUN_BITFIELD, "$$bitfield"),
+					KEYWORD(FUN_WORD, "$$word"),
+					KEYWORD(FUN_BYTE, "$$byte"),
+					KEYWORD(FUN_LONG, "$$long"),
 				};
 
 				std::string s = tok.get_value().c_str();
