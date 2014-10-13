@@ -40,7 +40,7 @@ static int readInt(const char *str, const char *end = NULL, int baseOverride = 0
 	{
 		x *= base;
 		if(*str >= 'a' && *str <= 'z')
-			x += *str - 'a';
+			x += *str - 'a' + 10;
 		else if(*str >= 'A' && *str <= 'Z')
 			x += *str - 'A' + 10;
 		else if(*str >= '0' && *str <= '9')
