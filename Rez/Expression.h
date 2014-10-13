@@ -148,5 +148,15 @@ public:
 	virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
+class PeekExpr : public Expression
+{
+	ExprPtr addr;
+	ExprPtr offset;
+	ExprPtr size;
+public:
+	PeekExpr(ExprPtr addr, ExprPtr offset, ExprPtr size);
+	PeekExpr(ExprPtr addr, int size);
+	virtual int evaluateInt(ResourceCompiler *ctx);
+};
 
 #endif // EXPRESSION_H

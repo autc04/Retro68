@@ -371,13 +371,13 @@ expression8	: INTLIT	{ $$ = std::make_shared<IntExpr>($1); }
 			| "$$arrayindex" "(" identifier_expression ")"
 				{ $$ = std::make_shared<ArrayIndexExpr>($identifier_expression); }
 			| "$$bitfield" "(" expression "," expression "," expression ")"
-				{ $$ = std::make_shared<UnimplementedExpr>("$$bitfield"); }
+				{ $$ = std::make_shared<PeekExpr>($3, $5, $7); }
 			| "$$word" "(" expression ")"
-				{ $$ = std::make_shared<UnimplementedExpr>("$$word"); }
+				{ $$ = std::make_shared<PeekExpr>($3, 16); }
 			| "$$byte" "(" expression ")"
-				{ $$ = std::make_shared<UnimplementedExpr>("$$byte"); }
+				{ $$ = std::make_shared<PeekExpr>($3, 8); }
 			| "$$long" "(" expression ")"
-				{ $$ = std::make_shared<UnimplementedExpr>("$$long"); }
+				{ $$ = std::make_shared<PeekExpr>($3, 32); }
 			;
 
 %type <IdentifierExprPtr> identifier_expression;

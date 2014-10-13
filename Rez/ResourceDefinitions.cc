@@ -169,11 +169,8 @@ void SimpleField::compileInt(ExprPtr expr, ResourceCompiler *compiler, bool preP
 	}
 
 	int actualValue = 0;
-	if(!prePass)
-	{
-		ResourceCompiler::FieldScope scope(compiler, this);
-		actualValue = (value ? value : expr)->evaluateInt(compiler);
-	}
+	ResourceCompiler::FieldScope scope(compiler, this);
+	actualValue = (value ? value : expr)->evaluateInt(compiler);
 
 	compiler->write(bitSize, actualValue);
 }

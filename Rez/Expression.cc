@@ -136,6 +136,8 @@ ExprPtr IdentifierExpr::lookup(ResourceCompiler *ctx)
 
 int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
 {
+	if(ctx->isPrePass())
+		return 0;
 	return lookup(ctx)->evaluateInt(ctx);
 }
 
@@ -185,4 +187,25 @@ std::string UnimplementedExpr::evaluateString(ResourceCompiler *ctx)
 {
 	std::cerr << msg << std::endl;
 	return "";
+}
+
+
+PeekExpr::PeekExpr(ExprPtr addr, ExprPtr offset, ExprPtr size)
+	: addr(addr), offset(offset), size(size)
+{
+}
+
+PeekExpr::PeekExpr(ExprPtr addr, int size)
+	: addr(addr),
+	  offset(std::make_shared<IntExpr>(0)),
+	  size(std::make_shared<IntExpr>(size))
+{
+}
+
+int PeekExpr::evaluateInt(ResourceCompiler *ctx)
+{
+	int p = addr->evaluateInt(ctx) + offset->evaluateInt(ctx);
+	int s = size->evaluateInt(ctx);
+
+	return ctx->peek(p, s);
 }

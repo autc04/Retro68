@@ -31,10 +31,12 @@ class ResourceCompiler
 	Field* currentField;
 	Subscripts currentSubscripts;
 
-	std::vector<unsigned char>	data;
+	std::vector<unsigned char>	data, prePassData;
 	bool verboseFlag;
 
 	void beginArrayScope(std::string& arrayName, int index);
+
+	bool prePass;
 public:
 	ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag);
 
@@ -44,6 +46,8 @@ public:
 	void write(int nBits, int value);
 	int tell() { return currentOffset; }
 
+	int peek(int bitPos, int size);
+
 	ExprPtr lookupIdentifier(std::string name, const Subscripts& sub = Subscripts());
 
 	void defineLabel(const std::string& name);
@@ -51,6 +55,8 @@ public:
 
 	int getArrayCount(const std::string& arrayName);
 	int getArrayIndex(const std::string& arrayName);
+
+	bool isPrePass() { return prePass; }
 
 	class FieldScope
 	{

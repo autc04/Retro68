@@ -41,6 +41,37 @@ void ResourceCompiler::write(int nBits, int value)
 	//currentOffset += nBits;
 }
 
+int ResourceCompiler::peek(int bitPos, int size)
+{
+	int bytePos = bitPos / 8;
+	int endBytePos = (bitPos + size - 1) / 8 + 1;
+
+	unsigned bitPosInByte = bitPos % 8;
+	unsigned outPos = 32 - size;
+
+	unsigned val = 0;
+
+	for(int i = bytePos; i != endBytePos; ++i)
+	{
+		unsigned byte;
+		if(i < data.size())
+			byte = data[i];
+		else if(i < prePassData.size())
+			byte = prePassData[i];
+		else
+			byte = 0;
+
+		unsigned read = byte << (bitPosInByte + 24);
+		val |= (read >> outPos);
+
+		outPos += 8 - bitPosInByte;
+
+		bitPosInByte = 0;
+	}
+
+	return val;
+}
+
 ExprPtr ResourceCompiler::lookupIdentifier(std::string name, const Subscripts &sub)
 {
 	if(currentField)
@@ -70,10 +101,13 @@ void ResourceCompiler::compile()
 	if(verboseFlag) std::cout << "(first pass)\n";
 	currentOffset = 0;
 	data.clear();
+	prePass = true;
 	typeDefinition->compile(body, this, true);
 	if(verboseFlag) std::cout << "(second pass)\n";
 	currentOffset = 0;
-	data.clear();
+	prePassData = std::move(data);
+	data.clear();	// ###
+	prePass = false;
 	typeDefinition->compile(body, this, false);
 	if(verboseFlag) std::cout << "(done)\n";
 
