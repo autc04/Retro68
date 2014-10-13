@@ -393,6 +393,7 @@ int main(int argc, char *argv[])
 	std::string outFileName = "Test";
 	std::string binFileName = "Test.bin";
 	std::string dskFileName = "Test.dsk";
+	std::string creatorCode = "????";
 
 	std::string curRType = "CODE";
 	bool breakOnEntry = false;
@@ -429,6 +430,11 @@ int main(int argc, char *argv[])
 			std::string fn = argv[i++];
 			
 			rsrc.addResource(Resource(curRType, id, readfile(fn)));
+		}
+		else if(arg == "-C")
+		{
+			assert(i < argc);
+			creatorCode = argv[i++];
 		}
 		else if(arg == "-c")
 		{
@@ -521,7 +527,7 @@ int main(int argc, char *argv[])
 	{
 		std::ofstream out(binFileName.c_str());
 		
-		writeMacBinary(out, outFileName, "APPL", "????",
+		writeMacBinary(out, outFileName, "APPL", creatorCode,
 					   rsrc, Fork());
 	}
 	wrapMacBinary(binFileName, dskFileName);
@@ -535,7 +541,7 @@ int main(int argc, char *argv[])
 		system("mkdir -p .finf");
 		std::ofstream finfOut((".finf/" + outFileName + ".APPL").c_str());
 		ostype(finfOut, "APPL");
-		ostype(finfOut, "????");
+		ostype(finfOut, creatorCode);
 		for(int i = 8; i < 32; i++)
 			byte(finfOut, 0);
 	}
