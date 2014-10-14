@@ -43,6 +43,13 @@
 
 %token TYPE "type";
 %token RESOURCE "resource";
+%token DATA "data";
+%token READ "read";
+%token INCLUDE "include";
+%token CHANGE "change";
+%token DELETE "delete";
+
+
 %token ARRAY "array";
 %token SWITCH "switch";
 %token CASE "case";
@@ -95,6 +102,7 @@
 %code requires {
 	#include "ResourceDefinitions.h"
 	#include "Expression.h"
+	#include "ResSpec.h"
 
 	#define YY_NULLPTR nullptr
 	class RezLexer;
@@ -166,6 +174,7 @@
 rez	: %empty
 	| rez type_definition ";"
 	| rez resource ";"
+	| rez data ";"
 	;
 
 type_definition	: "type" type_spec
@@ -411,18 +420,23 @@ string_expression1	:	stringlit	{ $$ = std::make_shared<StringExpr>($1); }
 						{ $$ = std::make_shared<ReadExpr>($string_expression); }
 					;
 
-resource	: "resource" res_type "(" expression resource_attributes ")" "{" resource_body "}"
+resource	: "resource" res_spec "{" resource_body "}"
 			{
-				int id = $expression->evaluateInt(nullptr);
-				world.addResource($res_type, id, $resource_body);
+				world.addResource($res_spec, $resource_body);
 			}
 			;
 
-%type <int> resource_attributes resource_attribute;
-resource_attributes	: %empty { $$ = 0; }
-					| resource_attributes "," resource_attribute { $$ = $1 | $3; }
+%type <ResSpec> res_spec;
+
+res_spec : res_type "(" expression resource_attributes ")"
+		 { $$ = $resource_attributes( ResSpec($res_type, $expression->evaluateInt(nullptr)) ); }
+
+%type <std::function<ResSpec(ResSpec)>> resource_attributes ;
+resource_attributes	: %empty { $$ = [](ResSpec s){ return s; }; }
+					| resource_attributes "," IDENTIFIER { $$ = $1; }
+					| resource_attributes "," string_expression { $$ = $1; }
+
 					;
-resource_attribute	: IDENTIFIER { $$ = 0; }	 /* ### */
 
 %type <CompoundExprPtr> resource_body resource_body1;
 resource_body	: %empty { $$ = std::make_shared<CompoundExpr>(); }
@@ -437,5 +451,12 @@ resource_body1	: resource_item	{ $$ = std::make_shared<CompoundExpr>(); $$->addI
 resource_item	: value { $$ = $1; }
 				| IDENTIFIER "{" resource_body "}" { $$ = std::make_shared<CaseExpr>($IDENTIFIER, $resource_body); }
 				;
+
+
+data : "data" res_spec "{" string_expression "}"
+{
+	world.addData($res_spec, $string_expression->evaluateString(nullptr));
+}
+;
 
 %%

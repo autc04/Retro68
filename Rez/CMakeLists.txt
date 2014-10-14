@@ -55,6 +55,8 @@ add_executable(Rez
 
 		ResourceCompiler.cc
 		ResourceCompiler.h
+
+		ResSpec.h
 	)
 target_link_libraries(Rez ResourceFiles ${Boost_LIBRARIES})
 

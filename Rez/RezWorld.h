@@ -3,9 +3,11 @@
 
 #include <map>
 #include <stack>
+#include <string>
 #include "ResourceDefinitions.h"
 #include "Expression.h"
 #include "ResourceFiles.h"
+#include "ResSpec.h"
 
 class RezWorld
 {
@@ -23,7 +25,8 @@ public:
 
 	TypeDefinitionPtr getTypeDefinition(ResType type, int id);
 
-	void addResource(ResType type, int id, CompoundExprPtr body);
+	void addResource(ResSpec spec, CompoundExprPtr body);
+	void addData(ResSpec spec, const std::string& data);
 
 	Resources& getResources() { return resources; }
 

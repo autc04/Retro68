@@ -26,13 +26,20 @@ TypeDefinitionPtr RezWorld::getTypeDefinition(ResType type, int id)
 	return nullptr;
 }
 
-void RezWorld::addResource(ResType type, int id, CompoundExprPtr body)
+void RezWorld::addResource(ResSpec spec, CompoundExprPtr body)
 {
 	if(verboseFlag)
-		std::cout << "RESOURCE " << type << "(" << id << ")" << std::endl;
-	TypeDefinitionPtr def = getTypeDefinition(type, id);
+		std::cout << "RESOURCE " << spec.type() << "(" << spec.id() << ", " << "\"" << spec.name() << "\"" << spec.attr() << ")" << std::endl;
+	TypeDefinitionPtr def = getTypeDefinition(spec.type(), spec.id());
 	ResourceCompiler compiler(def, body, verboseFlag);
 	compiler.compile();
 
-	resources.addResource(Resource(type, id, compiler.resourceData()));
+	resources.addResource(Resource(spec.type(), spec.id(), compiler.resourceData(), spec.name(), spec.attr()));
+}
+
+void RezWorld::addData(ResSpec spec, const std::string &data)
+{
+	if(verboseFlag)
+		std::cout << "DATA " << spec.type() << "(" << spec.id() << ", " << "\"" << spec.name() << "\"" << spec.attr() << ")" << std::endl;
+	resources.addResource(Resource(spec.type(), spec.id(), data, spec.name(), spec.attr()));
 }

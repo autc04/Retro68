@@ -169,6 +169,11 @@ RezSymbol RezLexer::nextToken()
 				static std::unordered_map<std::string, memfun> keywords = {
 					KEYWORD(TYPE, "type"),
 					KEYWORD(RESOURCE, "resource"),
+					KEYWORD(DATA, "data"),
+					KEYWORD(READ, "read"),
+					KEYWORD(INCLUDE, "include"),
+					KEYWORD(CHANGE, "change"),
+					KEYWORD(DELETE, "delete"),
 
 					KEYWORD(ARRAY,"array"),
 					KEYWORD(SWITCH, "switch"),
