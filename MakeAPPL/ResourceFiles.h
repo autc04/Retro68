@@ -15,7 +15,7 @@ class Resource
 public:
 	Resource() {}
 	Resource(ResType type, int id, std::string data, std::string name = "", int attr = 0)
-		: type(type), id(id), data(data), name(name), attr(attr) {}
+		: type(type), id(id), name(name), data(data), attr(attr) {}
 
 	const std::string& getData() const { return data; }
 	inline ResType getType() const { return type; }

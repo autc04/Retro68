@@ -113,7 +113,7 @@ void SimpleField::compileString(ExprPtr expr, ResourceCompiler *compiler, bool p
 
 	if(arrayCount || type == Type::char_)
 	{
-		int requestedSize = type == Type::char_ ? 1 : arrayCount->evaluateInt(compiler);
+		unsigned requestedSize = type == Type::char_ ? 1 : arrayCount->evaluateInt(compiler);
 		if(requestedSize < str.size())
 			str.erase(str.begin() + requestedSize, str.end());
 		else if(requestedSize > str.size())
@@ -166,6 +166,8 @@ void SimpleField::compileInt(ExprPtr expr, ResourceCompiler *compiler, bool preP
 		case Type::longint:
 			bitSize = 32;
 			break;
+		default:
+			assert(false);
 	}
 
 	int actualValue = 0;
@@ -193,6 +195,8 @@ void SimpleField::compileCompound(ExprPtr expr, ResourceCompiler *compiler, bool
 		case Type::point:
 			count = 2;
 			break;
+		default:
+			assert(false);
 	}
 
 	CompoundExprPtr compound = std::dynamic_pointer_cast<CompoundExpr>(val);
@@ -281,7 +285,7 @@ void SwitchField::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass
 
 
 FillAlignField::FillAlignField(FillAlignField::Type type, bool isAlign, ExprPtr count)
-	: type(type), isAlign(isAlign), count(count)
+	: type(type), count(count), isAlign(isAlign)
 {
 
 }
