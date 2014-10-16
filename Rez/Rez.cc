@@ -26,6 +26,7 @@ int main(int argc, const char *argv[])
 	desc.add_options()
 		("help,h", "show this help message")
 		("output,o", po::value<std::string>()->default_value("rez.output.rsrc"), "output file")
+		("append,a", "append to existing output file")
 		("type,t", po::value<std::string>()->default_value("rsrc"), "output file finder type code")
 		("creator,c", po::value<std::string>()->default_value("RSED"), "output file finder creator code")
 		("define,D", po::value<std::vector<std::string>>(), "predefine preprocessor symbol")
@@ -70,6 +71,19 @@ int main(int argc, const char *argv[])
 	if(options.count("debug"))
 		world.verboseFlag = true;
 
+	std::string outfile = options["output"].as<std::string>();
+	fs::path dataPath = outfile;
+	fs::create_directory(dataPath.parent_path() / ".rsrc");
+	fs::create_directory(dataPath.parent_path() / ".finf");
+	fs::path rsrcPath = dataPath.parent_path() / ".rsrc" / dataPath.filename();
+	fs::path finfPath = dataPath.parent_path() / ".finf" / dataPath.filename();
+
+	if(options.count("append"))
+	{
+		fs::ifstream rsrcIn(rsrcPath);
+		world.getResources().addResources(Resources(rsrcIn));
+	}
+
 	for(std::string fn : options["input"].as<std::vector<std::string>>())
 	{
 		RezLexer lexer(fn);
@@ -84,14 +98,10 @@ int main(int argc, const char *argv[])
 		parser.parse();
 	}
 
-	std::string outfile = options["output"].as<std::string>();
 	{
-		fs::path dataPath(outfile);
-		fs::create_directory(dataPath.parent_path() / ".rsrc");
-		fs::create_directory(dataPath.parent_path() / ".finf");
 		fs::ofstream dataOut(dataPath);
-		fs::ofstream rsrcOut(dataPath.parent_path() / ".rsrc" / dataPath.filename());
-		fs::ofstream finfOut(dataPath.parent_path() / ".finf" / dataPath.filename());
+		fs::ofstream rsrcOut(rsrcPath);
+		fs::ofstream finfOut(finfPath);
 
 		world.getResources().writeFork(rsrcOut);
 		ostype(finfOut, options["type"].as<std::string>());
