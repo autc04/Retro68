@@ -23,6 +23,9 @@ public:
 	~RezLexer();
 
 	RezSymbol nextToken();
+
+	void addDefine(std::string str);
+	void addIncludePath(std::string path);
 };
 
 #endif // REZLEXER_H

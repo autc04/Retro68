@@ -28,6 +28,8 @@ int main(int argc, const char *argv[])
 		("output,o", po::value<std::string>()->default_value("rez.output.rsrc"), "output file")
 		("type,t", po::value<std::string>()->default_value("rsrc"), "output file finder type code")
 		("creator,c", po::value<std::string>()->default_value("RSED"), "output file finder creator code")
+		("define,D", po::value<std::vector<std::string>>(), "predefine preprocessor symbol")
+		("include,I", po::value<std::vector<std::string>>(), "add include file path")
 		("debug,d", "debug logging")
 	;
 	po::options_description hidden, alldesc;
@@ -71,6 +73,13 @@ int main(int argc, const char *argv[])
 	for(std::string fn : options["input"].as<std::vector<std::string>>())
 	{
 		RezLexer lexer(fn);
+
+		for(std::string define : options["define"].as<std::vector<std::string>>())
+			lexer.addDefine(define);
+		for(std::string path : options["include"].as<std::vector<std::string>>())
+			lexer.addIncludePath(path);
+
+
 		RezParser parser(lexer, world);
 		parser.parse();
 	}

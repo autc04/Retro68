@@ -101,6 +101,18 @@ RezLexer::~RezLexer()
 
 }
 
+
+
+void RezLexer::addDefine(std::string str)
+{
+	pImpl->ctx.add_macro_definition(str);
+}
+
+void RezLexer::addIncludePath(std::string path)
+{
+	pImpl->ctx.add_include_path(path.c_str());
+}
+
 bool RezLexer::atEnd()
 {
 	return pImpl->iter == pImpl->ctx.end();
