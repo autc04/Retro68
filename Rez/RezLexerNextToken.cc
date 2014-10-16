@@ -45,7 +45,7 @@ static int readInt(const char *str, const char *end = NULL, int baseOverride = 0
 			x += *str - 'A' + 10;
 		else if(*str >= '0' && *str <= '9')
 			x += *str - '0';
-		*str++;
+		str++;
 	}
 
 	return x;
@@ -86,13 +86,13 @@ static std::string readStringLit(const char *str)
 				switch(*p)
 				{
 					case 'n':
-						out << '\n';
+						out << '\n'; ++p;
 						break;
 					case 'r':
-						out << '\r';
+						out << '\r'; ++p;
 						break;
 					case 't':
-						out << '\t';
+						out << '\t'; ++p;
 						break;
 					case '0':
 					case '1':
