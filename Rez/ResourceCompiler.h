@@ -20,25 +20,17 @@ public:
 	bool empty() const { return subscripts.empty(); }
 };
 
-class ResourceCompiler
+class BinaryOutput
 {
-	TypeDefinitionPtr typeDefinition;
-	CompoundExprPtr body;
-	std::map<std::pair<std::string, Subscripts>, ExprPtr> labelValues;
-	std::map<std::pair<std::string, Subscripts>, int> arrayCounts;
-	std::map<std::string, int> curArrayIndices;
+protected:
 	int currentOffset;
-	Field* currentField;
-	Subscripts currentSubscripts;
-
-	std::vector<unsigned char>	data, prePassData;
+	std::vector<unsigned char> data;
+	std::vector<unsigned char> prePassData;
 	bool verboseFlag;
-
-	void beginArrayScope(std::string& arrayName, int index);
-
 	bool prePass;
 public:
-	ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag);
+	BinaryOutput();
+	void reset(bool prePass);
 
 	std::string resourceData();
 
@@ -48,6 +40,27 @@ public:
 
 	int peek(int bitPos, int size);
 
+	bool isPrePass() { return prePass; }
+};
+
+class ResourceCompiler : public BinaryOutput
+{
+	TypeDefinitionPtr typeDefinition;
+	CompoundExprPtr body;
+	std::map<std::pair<std::string, Subscripts>, ExprPtr> labelValues;
+	std::map<std::pair<std::string, Subscripts>, int> arrayCounts;
+	std::map<std::string, int> curArrayIndices;
+	Field* currentField;
+	Subscripts currentSubscripts;
+
+
+
+	void beginArrayScope(std::string& arrayName, int index);
+
+public:
+	ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag);
+
+
 	ExprPtr lookupIdentifier(std::string name, const Subscripts& sub = Subscripts());
 
 	void defineLabel(const std::string& name);
@@ -56,7 +69,6 @@ public:
 	int getArrayCount(const std::string& arrayName);
 	int getArrayIndex(const std::string& arrayName);
 
-	bool isPrePass() { return prePass; }
 
 	class FieldScope
 	{

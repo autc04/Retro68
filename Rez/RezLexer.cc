@@ -11,6 +11,25 @@ namespace wave = boost::wave;
 
 using namespace boost::wave;
 
+static std::string readContents(std::istream&& instream)
+{
+	instream.unsetf(std::ios::skipws);
+
+	return std::string(std::istreambuf_iterator<char>(instream.rdbuf()),
+					   std::istreambuf_iterator<char>());
+}
+
+static std::string preFilter(std::string str)
+{
+	boost::regex endif("#endif[^\r\n]*");
+	str = boost::regex_replace(str, endif, "#endif");
+
+	boost::regex dollar_escape("\\\\\\$([a-zA-Z0-9][a-zA-Z0-9])");
+	str = boost::regex_replace(str, dollar_escape, "\\\\0x$1");
+
+	return str;
+}
+
 struct load_file_to_string_filtered
 {
 	template <typename IterContextT>
@@ -30,19 +49,8 @@ struct load_file_to_string_filtered
 					bad_include_file, iter_ctx.filename.c_str(), act_pos);
 				return;
 			}
-			instream.unsetf(std::ios::skipws);
 
-			std::string str(std::istreambuf_iterator<char>(instream.rdbuf()),
-							std::istreambuf_iterator<char>());
-
-			boost::regex endif("#endif[^\r\n]*");
-			str = boost::regex_replace(str, endif, "#endif");
-
-			boost::regex dollar_escape("\\\\\\$([a-zA-Z0-9][a-zA-Z0-9])");
-			str = boost::regex_replace(str, dollar_escape, "\\x$1");
-
-
-			iter_ctx.instring = str;
+			iter_ctx.instring = preFilter(readContents(std::move(instream)));
 
 			iter_ctx.first = iterator_type(
 				iter_ctx.instring.begin(), iter_ctx.instring.end(),
@@ -79,13 +87,13 @@ struct RezLexer::Priv
 };
 
 RezLexer::RezLexer(std::string filename)
+	: RezLexer(filename, readContents(std::ifstream(filename)))
 {
-	std::ifstream instream(filename);
+}
 
-	pImpl.reset(new Priv(std::string(
-							 std::istreambuf_iterator<char>(instream.rdbuf()),
-							 std::istreambuf_iterator<char>()),
-						  filename));
+RezLexer::RezLexer(std::string filename, const std::string &data)
+{
+	pImpl.reset(new Priv(preFilter(data), filename));
 
 	pImpl->ctx.add_include_path("/home/wolfgang/Projects/Retro68/RIncludes");
 	pImpl->ctx.add_macro_definition("DeRez=0");

@@ -20,6 +20,7 @@ class RezLexer
 
 public:
 	RezLexer(std::string filename);
+	RezLexer(std::string filename, const std::string& data);
 	~RezLexer();
 
 	RezSymbol nextToken();

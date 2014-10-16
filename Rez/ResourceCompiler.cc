@@ -6,19 +6,32 @@ ResourceCompiler::ResourceCompiler(
 		TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag)
 	: typeDefinition(type),
 	  body(body),
-	  currentOffset(0),
-	  currentField(nullptr),
-	  verboseFlag(verboseFlag)
+	  currentField(nullptr)
 {
-
+	this->verboseFlag = verboseFlag;
 }
 
-std::string ResourceCompiler::resourceData()
+BinaryOutput::BinaryOutput()
+	: verboseFlag(false)
+{
+	reset(true);
+}
+
+void BinaryOutput::reset(bool prePass)
+{
+	currentOffset = 0;
+	if(!prePass)
+		prePassData = std::move(data);
+	data.clear();
+	this->prePass = prePass;
+}
+
+std::string BinaryOutput::resourceData()
 {
 	return std::string(data.begin(), data.end());
 }
 
-void ResourceCompiler::write(int nBits, int value)
+void BinaryOutput::write(int nBits, int value)
 {
 	if(verboseFlag)
 		std::cout << "[" << nBits << " bits] = " << std::hex << value << std::dec << std::endl;
@@ -41,17 +54,17 @@ void ResourceCompiler::write(int nBits, int value)
 	//currentOffset += nBits;
 }
 
-int ResourceCompiler::peek(int bitPos, int size)
+int BinaryOutput::peek(int bitPos, int size)
 {
-	int bytePos = bitPos / 8;
-	int endBytePos = (bitPos + size - 1) / 8 + 1;
+	unsigned bytePos = bitPos / 8;
+	unsigned endBytePos = (bitPos + size - 1) / 8 + 1;
 
 	unsigned bitPosInByte = bitPos % 8;
 	unsigned outPos = 32 - size;
 
 	unsigned val = 0;
 
-	for(int i = bytePos; i != endBytePos; ++i)
+	for(unsigned i = bytePos; i != endBytePos; ++i)
 	{
 		unsigned byte;
 		if(i < data.size())
@@ -99,18 +112,13 @@ void ResourceCompiler::defineLabel(const std::string &name)
 void ResourceCompiler::compile()
 {
 	if(verboseFlag) std::cout << "(first pass)\n";
-	currentOffset = 0;
-	data.clear();
-	prePass = true;
+	reset(true);
 	typeDefinition->compile(body, this, true);
 	if(verboseFlag) std::cout << "(second pass)\n";
-	currentOffset = 0;
-	prePassData = std::move(data);
-	data.clear();	// ###
-	prePass = false;
+
+	reset(false);
 	typeDefinition->compile(body, this, false);
 	if(verboseFlag) std::cout << "(done)\n";
-
 }
 
 int ResourceCompiler::getArrayCount(const std::string &name)

@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 2.8)
 
-set(CMAKE_CXX_FLAGS "--std=c++11")
+set(CMAKE_CXX_FLAGS "--std=c++11 -Wall")
 
 find_package(Boost COMPONENTS wave filesystem system thread regex program_options)
 
@@ -34,9 +34,7 @@ add_custom_command(
   COMMENT "Generating parser.cpp"
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.cc ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.hh
 )
-add_executable(Rez
-		Rez.cc
-
+add_library(RezLib
 		RezParser.yy RezParser.generated.hh RezParser.generated.cc
 
 		RezLexer.h
@@ -58,6 +56,13 @@ add_executable(Rez
 
 		ResSpec.h
 	)
-target_link_libraries(Rez ResourceFiles ${Boost_LIBRARIES})
+target_link_libraries(RezLib ResourceFiles ${Boost_LIBRARIES})
+
+add_executable(Rez
+		Rez.cc
+	)
+target_link_libraries(Rez RezLib ResourceFiles ${Boost_LIBRARIES})
 
 install(TARGETS Rez RUNTIME DESTINATION bin)
+
+add_subdirectory(Test)
