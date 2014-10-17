@@ -27,6 +27,13 @@ On a Mac, get the homebrew package manager and:
 
     brew install cmake gmp mpfr libmpc
 
+You can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
+In that case, get the tigerbrew package manager and
+
+    brew install gcc cmake
+
+
+
 Apple Universal Interfaces
 --------------------------
 
