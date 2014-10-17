@@ -74,8 +74,12 @@ the build directory.
 Sample programs
 ---------------
 
-Sample programs are built as MacBinary files (*.bin) and also
-automatically wrapped into raw disk images (*.dsk).
+Sample programs are built in several formats:
+- On Macs: Real Mac Applications (`ApplicationName.APPL`)
+- Elsewhere: `ApplicationName.APPL`, `.rsrc/ApplicationName.APPL`, `.finf/ApplicationName.APPL` (BasiliskII/Sheepshaver compatible)
+- MacBinary files (`ApplicationName.bin`)
+- Raw HFS disk image (`ApplicationName.dsk`, containing `ApplicationName`)
+
 Look under Retro68-build/build-target/ for the compiled binaries.
 
 Overview
@@ -97,8 +101,8 @@ Retro68-Specific Components:
 - PrepareHeaders.hs
 - MakeAPPL
 - libretro
-- Sample Program: Raytracer
-- Sample Program: App2
+- Sample Programs: Raytracer, TestApps, Launcher
+- Sample Program: TestApps
 
 ### binutils
 
