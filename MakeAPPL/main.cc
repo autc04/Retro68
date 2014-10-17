@@ -28,6 +28,10 @@
 #include <functional>
 #include <cstring>
 
+#ifdef __APPLE__
+#include <sys/xattr.h>
+#endif
+
 std::string commandPath;
 
 void wrapMacBinary(std::string macBinaryFile, std::string diskImagePath)
@@ -532,6 +536,21 @@ int main(int argc, char *argv[])
 	}
 	wrapMacBinary(binFileName, dskFileName);
 
+#ifdef __APPLE__
+    {
+        std::ofstream dataOut((outFileName + ".APPL").c_str());
+		std::ofstream rsrcOut((outFileName + ".APPL/..namedfork/rsrc").c_str());
+		rsrc.writeFork(rsrcOut);
+    
+		std::ostringstream finfOut;
+		ostype(finfOut, "APPL");
+		ostype(finfOut, creatorCode);
+		for(int i = 8; i < 32; i++)
+			byte(finfOut, 0);
+		setxattr((outFileName + ".APPL").c_str(), XATTR_FINDERINFO_NAME,
+		        finfOut.str().data(), 32, 0, 0);
+    }
+#else
 	{
 		std::ofstream dataOut((outFileName + ".APPL").c_str());
 		system("mkdir -p .rsrc");
@@ -545,5 +564,6 @@ int main(int argc, char *argv[])
 		for(int i = 8; i < 32; i++)
 			byte(finfOut, 0);
 	}
+#endif
 	return 0; 
 }
