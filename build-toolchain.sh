@@ -1,4 +1,4 @@
-#   Copyright 2012 Wolfgang Thaller.
+#   Copyright 2014 Wolfgang Thaller.
 #
 #   This file is part of Retro68.
 #
@@ -40,7 +40,7 @@ cd ..
 BINUTILS=$(cd binutils-build && pwd -P)
 
 cp $SRC/elf.h $PREFIX/include/
-export "CFLAGS=-I../../Retro68/binutils/include -I../toolchain/include"
+export "CFLAGS=-I${SRC}/binutils/include -I../toolchain/include"
 mkdir -p elf2flt-build
 cd elf2flt-build
 $SRC/elf2flt/configure --target=m68k-unknown-elf --prefix=$PREFIX --with-binutils-build-dir=$BINUTILS
@@ -63,7 +63,7 @@ sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/m68k-unknown-elf/include
 
 mkdir -p build-host
 cd build-host
-cmake ../../Retro68/ -DCMAKE_INSTALL_PREFIX=$PREFIX
+cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX
 cd ..
 
 	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
@@ -72,7 +72,7 @@ $PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
 
 mkdir -p build-target
 cd build-target
-cmake ../../Retro68/ -DCMAKE_INSTALL_PREFIX=$PREFIX/m68k-unknown-elf \
+cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX/m68k-unknown-elf \
 					-DCMAKE_TOOLCHAIN_FILE=$SRC/retro68.toolchain.cmake \
 					-DRETRO68_ROOT=$PREFIX \
 					-DCMAKE_BUILD_TYPE=Release
