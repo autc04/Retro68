@@ -1,6 +1,6 @@
 #include "RezWorld.h"
 #include "ResourceCompiler.h"
-#include "ResourceFiles.h"
+#include "ResourceFork.h"
 
 #include <iostream>
 

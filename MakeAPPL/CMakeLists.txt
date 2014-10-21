@@ -18,7 +18,7 @@
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "--std=c++0x")
 
-add_library(ResourceFiles ResourceFiles.h ResourceFiles.cc BinaryIO.h BinaryIO.cc ResType.h ResType.cc)
+add_library(ResourceFiles ResourceFork.h ResourceFork.cc BinaryIO.h BinaryIO.cc ResType.h ResType.cc)
 target_include_directories(ResourceFiles PUBLIC .)
 add_executable(MakeAPPL main.cc)
 target_link_libraries(MakeAPPL ResourceFiles)

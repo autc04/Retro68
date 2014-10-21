@@ -6,7 +6,7 @@
 #include <string>
 #include "ResourceDefinitions.h"
 #include "Expression.h"
-#include "ResourceFiles.h"
+#include "ResourceFork.h"
 #include "ResSpec.h"
 
 class RezWorld

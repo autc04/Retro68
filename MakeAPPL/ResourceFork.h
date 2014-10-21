@@ -1,5 +1,5 @@
-#ifndef RESOURCEFILES_H
-#define RESOURCEFILES_H
+#ifndef RESOURCEFORK_H
+#define RESOURCEFORK_H
 
 #include <string>
 #include <map>
@@ -41,4 +41,4 @@ public:
 	void addResources(const Resources& res);
 };
 
-#endif // RESOURCEFILES_H
+#endif // RESOURCEFORK_H

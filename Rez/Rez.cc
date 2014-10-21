@@ -7,7 +7,7 @@
 #include "RezLexer.h"
 #include "RezWorld.h"
 
-#include "ResourceFiles.h"
+#include "ResourceFork.h"
 #include "BinaryIO.h"
 
 namespace po = boost::program_options;

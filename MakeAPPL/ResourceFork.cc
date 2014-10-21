@@ -1,4 +1,4 @@
-#include "ResourceFiles.h"
+#include "ResourceFork.h"
 #include "BinaryIO.h"
 
 #include <iostream>

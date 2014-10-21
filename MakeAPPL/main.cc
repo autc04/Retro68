@@ -31,7 +31,7 @@
 #ifdef __APPLE__
 #include <sys/xattr.h>
 #endif
-#include "ResourceFiles.h"
+#include "ResourceFork.h"
 #include "BinaryIO.h"
 
 std::string commandPath;
