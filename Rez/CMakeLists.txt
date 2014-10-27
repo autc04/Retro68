@@ -21,6 +21,7 @@ set(CMAKE_CXX_FLAGS "--std=c++11 -Wall")
 
 find_package(Boost COMPONENTS wave filesystem system thread regex program_options)
 
+if(Boost_FOUND)
 
 find_package(BISON REQUIRED)
 
@@ -66,3 +67,5 @@ target_link_libraries(Rez RezLib ResourceFiles ${Boost_LIBRARIES})
 install(TARGETS Rez RUNTIME DESTINATION bin)
 
 add_subdirectory(Test)
+
+endif(Boost_FOUND)
