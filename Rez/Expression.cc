@@ -110,6 +110,9 @@ int UnaryExpr::evaluateInt(ResourceCompiler *ctx)
 			return -a->evaluateInt(ctx);
 		case UnaryOp::COMPLEMENT:
 			return ~a->evaluateInt(ctx);
+		default:
+			throw TypeError();
+			break;
 	}
 }
 
