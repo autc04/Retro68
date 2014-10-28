@@ -22,6 +22,7 @@ set( RETRO68_ROOT "" CACHE PATH "path to root of Retro68 Toolchain" )
 set( CMAKE_INSTALL_PREFIX "${RETRO68_ROOT}/m68k-unknown-elf/" CACHE PATH "installation prefix" )
 
 set( MAKE_APPL "${RETRO68_ROOT}/bin/MakeAPPL" )
+set( REZ "${RETRO68_ROOT}/bin/Rez" )
 
 set( CMAKE_C_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-gcc" )
 set( CMAKE_CXX_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-g++" )
