@@ -88,10 +88,12 @@ int main(int argc, const char *argv[])
 	{
 		RezLexer lexer(fn);
 
-		for(std::string define : options["define"].as<std::vector<std::string>>())
-			lexer.addDefine(define);
-		for(std::string path : options["include"].as<std::vector<std::string>>())
-			lexer.addIncludePath(path);
+		if(options.count("define"))
+			for(std::string define : options["define"].as<std::vector<std::string>>())
+				lexer.addDefine(define);
+		if(options.count("include"))
+			for(std::string path : options["include"].as<std::vector<std::string>>())
+				lexer.addIncludePath(path);
 
 
 		RezParser parser(lexer, world);
