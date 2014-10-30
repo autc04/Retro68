@@ -95,7 +95,6 @@ RezLexer::RezLexer(std::string filename, const std::string &data)
 {
 	pImpl.reset(new Priv(preFilter(data), filename));
 
-	pImpl->ctx.add_include_path("/home/wolfgang/Projects/Retro68/RIncludes");
 	pImpl->ctx.add_macro_definition("DeRez=0");
 	pImpl->ctx.add_macro_definition("Rez=1");
 	pImpl->ctx.add_macro_definition("true=1");
