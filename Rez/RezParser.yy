@@ -443,7 +443,7 @@ resource_attributes	: %empty { $$ = [](ResSpec s){ return s; }; }
 					;
 
 %type <CompoundExprPtr> resource_body resource_body1;
-resource_body	: %empty { $$ = std::make_shared<CompoundExpr>(@1); }
+resource_body	: %empty { $$ = std::make_shared<CompoundExpr>(yy::location()); }
 				| resource_body1 { $$ = $1; $$->location = @1; }
 				;
 resource_body1	: resource_item	{ $$ = std::make_shared<CompoundExpr>(@1); $$->addItem($1); }
