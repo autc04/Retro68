@@ -56,6 +56,8 @@ add_library(RezLib
 		ResourceCompiler.h
 
 		ResSpec.h
+
+		Diagnostic.h Diagnostic.cc
 	)
 target_link_libraries(RezLib ResourceFiles ${Boost_LIBRARIES})
 

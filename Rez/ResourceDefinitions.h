@@ -8,6 +8,7 @@
 #include "Expression.h"
 #include "ResType.h"
 
+#include "location.hh"
 
 class TypeSpec
 {
@@ -44,6 +45,8 @@ class ResourceCompiler;
 class Field
 {
 public:
+	yy::location location;
+
 	virtual bool needsValue() { return true; }
 
 	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass) = 0;
@@ -129,8 +132,8 @@ protected:
 	std::vector<FieldPtr> fields;
 public:
 	virtual ~FieldList();
-	void addField(FieldPtr field);
-	void addLabel(std::string name);
+	void addField(FieldPtr field, yy::location loc);
+	void addLabel(std::string name, yy::location loc);
 
 	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass);
 };

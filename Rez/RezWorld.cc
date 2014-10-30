@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#include "Diagnostic.h"
+
 RezWorld::RezWorld()
 	: verboseFlag(false)
 {
@@ -14,7 +16,7 @@ void RezWorld::addTypeDefinition(TypeSpec spec, TypeDefinitionPtr type)
 	types[spec] = type;
 }
 
-TypeDefinitionPtr RezWorld::getTypeDefinition(ResType type, int id)
+TypeDefinitionPtr RezWorld::getTypeDefinition(ResType type, int id, yy::location loc)
 {
 	auto p = types.find(TypeSpec(type, id));
 	if(p != types.end())
@@ -22,24 +24,31 @@ TypeDefinitionPtr RezWorld::getTypeDefinition(ResType type, int id)
 	p = types.find(TypeSpec(type));
 	if(p != types.end())
 		return p->second;
+	problem(Diagnostic(Diagnostic::Severity::error, "Can't find type definition for '" + std::string(type) + "'", loc));
 
 	return nullptr;
 }
 
-void RezWorld::addResource(ResSpec spec, CompoundExprPtr body)
+void RezWorld::addResource(ResSpec spec, CompoundExprPtr body, yy::location loc)
 {
 	if(verboseFlag)
 		std::cout << "RESOURCE " << spec.type() << "(" << spec.id() << ", " << "\"" << spec.name() << "\"" << spec.attr() << ")" << std::endl;
-	TypeDefinitionPtr def = getTypeDefinition(spec.type(), spec.id());
-	ResourceCompiler compiler(def, body, verboseFlag);
+	TypeDefinitionPtr def = getTypeDefinition(spec.type(), spec.id(), loc);
+
+	ResourceCompiler compiler(*this, def, body, verboseFlag);
 	compiler.compile();
 
 	resources.addResource(Resource(spec.type(), spec.id(), compiler.resourceData(), spec.name(), spec.attr()));
 }
 
-void RezWorld::addData(ResSpec spec, const std::string &data)
+void RezWorld::addData(ResSpec spec, const std::string &data, yy::location loc)
 {
 	if(verboseFlag)
 		std::cout << "DATA " << spec.type() << "(" << spec.id() << ", " << "\"" << spec.name() << "\"" << spec.attr() << ")" << std::endl;
 	resources.addResource(Resource(spec.type(), spec.id(), data, spec.name(), spec.attr()));
+}
+
+void RezWorld::problem(Diagnostic d)
+{
+	std::cerr << d << std::endl;
 }

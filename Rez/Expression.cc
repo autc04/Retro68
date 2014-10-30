@@ -3,19 +3,27 @@
 #include <cassert>
 #include <iostream>
 #include <fstream>
+#include "Diagnostic.h"
 
 int Expression::evaluateInt(ResourceCompiler *ctx)
 {
-	throw TypeError();
+	error(ctx, "Expected an integer or integer expression here.");
+	return 0;
 }
 
 std::string Expression::evaluateString(ResourceCompiler *ctx)
 {
-	throw TypeError();
+	error(ctx, "Expected a string or string expression here.");
+	return "";
 }
 
 Expression::~Expression()
 {
+}
+
+void Expression::error(ResourceCompiler *ctx, std::string err)
+{
+	ctx->problem(Diagnostic(Diagnostic::Severity::error, err, location));
 }
 
 
@@ -80,8 +88,8 @@ int BinaryExpr::evaluateInt(ResourceCompiler *ctx)
 		case BinaryOp::DIVIDE:
 			return a->evaluateInt(ctx) / b->evaluateInt(ctx);
 		default:
-			throw TypeError();
-			break;
+			error(ctx, "Expected an integer or integer expression here.");
+			return 0;
 	}
 }
 
@@ -92,8 +100,8 @@ std::string BinaryExpr::evaluateString(ResourceCompiler *ctx)
 		case BinaryOp::CONCAT:
 			return a->evaluateString(ctx) + b->evaluateString(ctx);
 		default:
-			throw TypeError();
-			break;
+			error(ctx, "Expected a string or string expression here.");
+			return "";
 	}
 }
 
@@ -111,14 +119,14 @@ int UnaryExpr::evaluateInt(ResourceCompiler *ctx)
 		case UnaryOp::COMPLEMENT:
 			return ~a->evaluateInt(ctx);
 		default:
-			throw TypeError();
-			break;
+			error(ctx, "Expected an integer or integer expression here.");
+			return 0;
 	}
 }
 
 
-IdentifierExpr::IdentifierExpr(std::string id)
-	: id(id)
+IdentifierExpr::IdentifierExpr(std::string id, yy::location loc)
+	: Expression(loc), id(id)
 {
 }
 
@@ -133,7 +141,8 @@ ExprPtr IdentifierExpr::lookup(ResourceCompiler *ctx)
 	for(auto arg : arguments)
 		sub.addSubscript(arg->evaluateInt(ctx));
 	ExprPtr val = ctx->lookupIdentifier(id, sub);
-	assert(val);
+	if(!val)
+		error(ctx, "Identifier \"" + id + "\" is not defined.");
 	return val;
 }
 
@@ -141,17 +150,23 @@ int IdentifierExpr::evaluateInt(ResourceCompiler *ctx)
 {
 	if(ctx->isPrePass())
 		return 0;
-	return lookup(ctx)->evaluateInt(ctx);
+	if(ExprPtr e = lookup(ctx))
+		return e->evaluateInt(ctx);
+	else
+		return 0;
 }
 
 std::string IdentifierExpr::evaluateString(ResourceCompiler *ctx)
 {
-	return lookup(ctx)->evaluateString(ctx);
+	if(ExprPtr e = lookup(ctx))
+		return e->evaluateString(ctx);
+	else
+		return "";
 }
 
 
-CaseExpr::CaseExpr(const std::string &tag, CompoundExprPtr expr)
-	: tag(tag), expr(expr)
+CaseExpr::CaseExpr(const std::string &tag, CompoundExprPtr expr, yy::location loc)
+	: Expression(loc), tag(tag), expr(expr)
 {
 }
 
@@ -193,15 +208,16 @@ std::string UnimplementedExpr::evaluateString(ResourceCompiler *ctx)
 }
 
 
-PeekExpr::PeekExpr(ExprPtr addr, ExprPtr offset, ExprPtr size)
-	: addr(addr), offset(offset), size(size)
+PeekExpr::PeekExpr(ExprPtr addr, ExprPtr offset, ExprPtr size, yy::location loc)
+	: Expression(loc), addr(addr), offset(offset), size(size)
 {
 }
 
-PeekExpr::PeekExpr(ExprPtr addr, int size)
-	: addr(addr),
-	  offset(std::make_shared<IntExpr>(0)),
-	  size(std::make_shared<IntExpr>(size))
+PeekExpr::PeekExpr(ExprPtr addr, int size, yy::location loc)
+	: Expression(loc),
+	  addr(addr),
+	  offset(std::make_shared<IntExpr>(0,loc)),
+	  size(std::make_shared<IntExpr>(size,loc))
 {
 }
 

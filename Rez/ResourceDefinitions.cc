@@ -20,14 +20,15 @@ FieldList::~FieldList()
 
 }
 
-void FieldList::addField(FieldPtr field)
+void FieldList::addField(FieldPtr field, yy::location loc)
 {
+	field->location = loc;
 	fields.push_back(field);
 }
 
-void FieldList::addLabel(std::string name)
+void FieldList::addLabel(std::string name, yy::location loc)
 {
-	addField(std::make_shared<LabelField>(name));
+	addField(std::make_shared<LabelField>(name), loc);
 }
 
 void FieldList::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
@@ -52,9 +53,9 @@ void SimpleField::addNamedValue(std::string n)
 {
 	if(lastNamedValue)
 		addNamedValue(n, std::make_shared<BinaryExpr>(
-			BinaryOp::PLUS, lastNamedValue, std::make_shared<IntExpr>(1)));
+			BinaryOp::PLUS, lastNamedValue, std::make_shared<IntExpr>(1, yy::location()), yy::location()));
 	else
-		addNamedValue(n, std::make_shared<IntExpr>(0));
+		addNamedValue(n, std::make_shared<IntExpr>(0, yy::location()));
 }
 
 void SimpleField::addNamedValue(std::string n, ExprPtr val)
@@ -200,8 +201,12 @@ void SimpleField::compileCompound(ExprPtr expr, ResourceCompiler *compiler, bool
 	}
 
 	CompoundExprPtr compound = std::dynamic_pointer_cast<CompoundExpr>(val);
+	if(!compound || compound->size() != count)
+	{
+		expr->error(compiler, std::string("expected ") + (type == Type::rect ? "rect {t,l,b,r}." : "point {v,h}."));
+		return;
+	}
 	assert(compound);
-
 	assert(compound->size() == count);
 
 	for(int i = 0; i < count; i++)

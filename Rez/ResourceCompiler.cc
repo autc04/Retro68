@@ -1,10 +1,13 @@
 #include "ResourceCompiler.h"
 #include <iostream>
 #include "ResourceDefinitions.h"
+#include "RezWorld.h"
+#include "Diagnostic.h"
 
 ResourceCompiler::ResourceCompiler(
-		TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag)
-	: typeDefinition(type),
+		RezWorld& world, TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag)
+	: world(world),
+	  typeDefinition(type),
 	  body(body),
 	  currentField(nullptr)
 {
@@ -99,14 +102,14 @@ ExprPtr ResourceCompiler::lookupIdentifier(std::string name, const Subscripts &s
 	if(p != labelValues.end())
 		return p->second;
 
-	std::cerr << "ID lookup failed: " << name << std::endl;
+	//std::cerr << "ID lookup failed: " << name << std::endl;
 
 	return nullptr;
 }
 
 void ResourceCompiler::defineLabel(const std::string &name)
 {
-	labelValues[std::make_pair(name,currentSubscripts)] = std::make_shared<IntExpr>(currentOffset);
+	labelValues[std::make_pair(name,currentSubscripts)] = std::make_shared<IntExpr>(currentOffset, yy::location());
 }
 
 void ResourceCompiler::compile()
@@ -140,6 +143,11 @@ int ResourceCompiler::getArrayCount(const std::string &name)
 int ResourceCompiler::getArrayIndex(const std::string &arrayName)
 {
 	return curArrayIndices[arrayName];
+}
+
+void ResourceCompiler::problem(Diagnostic d)
+{
+	world.problem(d);
 }
 
 void ResourceCompiler::beginArrayScope(std::string &arrayName, int index)

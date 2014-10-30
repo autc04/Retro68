@@ -9,6 +9,8 @@
 #include "ResourceFork.h"
 #include "ResSpec.h"
 
+class Diagnostic;
+
 class RezWorld
 {
 	friend class RezParser;
@@ -19,18 +21,21 @@ class RezWorld
 	std::stack<SwitchFieldPtr> switches;
 
 	Resources resources;
+
 public:
 	RezWorld();
 	void addTypeDefinition(TypeSpec spec, TypeDefinitionPtr type);
 
-	TypeDefinitionPtr getTypeDefinition(ResType type, int id);
+	TypeDefinitionPtr getTypeDefinition(ResType type, int id, yy::location loc);
 
-	void addResource(ResSpec spec, CompoundExprPtr body);
-	void addData(ResSpec spec, const std::string& data);
+	void addResource(ResSpec spec, CompoundExprPtr body, yy::location loc);
+	void addData(ResSpec spec, const std::string& data, yy::location loc);
 
 	Resources& getResources() { return resources; }
 
 	bool verboseFlag;
+
+	void problem(Diagnostic d);
 };
 
 

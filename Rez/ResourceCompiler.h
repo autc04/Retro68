@@ -5,7 +5,8 @@
 #include "ResourceDefinitions.h"
 
 class Field;
-
+class RezWorld;
+class Diagnostic;
 
 class Subscripts
 {
@@ -45,6 +46,7 @@ public:
 
 class ResourceCompiler : public BinaryOutput
 {
+	RezWorld& world;
 	TypeDefinitionPtr typeDefinition;
 	CompoundExprPtr body;
 	std::map<std::pair<std::string, Subscripts>, ExprPtr> labelValues;
@@ -53,13 +55,9 @@ class ResourceCompiler : public BinaryOutput
 	Field* currentField;
 	Subscripts currentSubscripts;
 
-
-
 	void beginArrayScope(std::string& arrayName, int index);
-
 public:
-	ResourceCompiler(TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag);
-
+	ResourceCompiler(RezWorld& world, TypeDefinitionPtr type, CompoundExprPtr body, bool verboseFlag);
 
 	ExprPtr lookupIdentifier(std::string name, const Subscripts& sub = Subscripts());
 
@@ -87,6 +85,8 @@ public:
 			: compiler(compiler) { compiler->beginArrayScope(arrayName, index); }
 		~ArrayScope() { compiler->currentSubscripts.popSubscript(); }
 	};
+
+	void problem(Diagnostic d);
 };
 
 
