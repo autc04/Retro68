@@ -186,7 +186,11 @@ type_definition	: "type" type_spec
 				"{" field_definitions "}"
 				{ world.fieldLists.pop(); if(world.verboseFlag) std::cout << "TYPE " << $2 << std::endl; }
 				| "type" type_spec "as" type_spec
-				{ if(world.verboseFlag) std::cout << "TYPE " << $2 << std::endl; }
+				{
+					if(world.verboseFlag) std::cout << "TYPE " << $2 << std::endl;
+					auto spec = $4;
+					world.addTypeDefinition($2, world.getTypeDefinition(spec.getType(), spec.getID(), @4));
+				}
 				;
 
 %type <ResType> res_type;
