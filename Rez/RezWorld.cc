@@ -13,6 +13,8 @@ RezWorld::RezWorld()
 
 void RezWorld::addTypeDefinition(TypeSpec spec, TypeDefinitionPtr type)
 {
+	if(!type)
+		return;
 	types[spec] = type;
 }
 
@@ -34,7 +36,8 @@ void RezWorld::addResource(ResSpec spec, CompoundExprPtr body, yy::location loc)
 	if(verboseFlag)
 		std::cout << "RESOURCE " << spec.type() << "(" << spec.id() << ", " << "\"" << spec.name() << "\"" << spec.attr() << ")" << std::endl;
 	TypeDefinitionPtr def = getTypeDefinition(spec.type(), spec.id(), loc);
-
+	if(!def)
+		return;
 	ResourceCompiler compiler(*this, def, body, verboseFlag);
 	compiler.compile();
 
