@@ -332,45 +332,45 @@ switch_case : "case" IDENTIFIER ":"
 
 
 value	: expression	{ $$ = $1; }
-		| "{" resource_body "}"	{ $$ = $2; $$->location = @0; }
+		| "{" resource_body "}"	{ $$ = $2; }
 		| string_expression { $$ = $1; }
 		;
 
 expression	: expression1	{ $$ = $1; }
-			| expression "^" expression1	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::XOR, $1, $3, @0); }
+			| expression "^" expression1	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::XOR, $1, $3, @1); }
 			;
 
 expression1	: expression2	{ $$ = $1; }
-			| expression1 "&" expression2	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::AND, $1, $3, @0); }
+			| expression1 "&" expression2	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::AND, $1, $3, @1); }
 			;
 
 expression2 : expression3	{ $$ = $1; }
-			| expression2 "|" expression3	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::OR, $1, $3, @0); }
+			| expression2 "|" expression3	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::OR, $1, $3, @1); }
 			;
 
 expression3 : expression4	{ $$ = $1; }
-			| expression3 "==" expression4	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::EQUAL, $1, $3, @0); }
-			| expression3 "!=" expression4	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::NOTEQUAL, $1, $3, @0); }
+			| expression3 "==" expression4	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::EQUAL, $1, $3, @1); }
+			| expression3 "!=" expression4	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::NOTEQUAL, $1, $3, @1); }
 			;
 
 expression4 : expression5	{ $$ = $1; }
-			| expression4 ">>" expression5	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::SHIFTRIGHT, $1, $3, @0); }
-			| expression4 "<<" expression5	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::SHIFTLEFT, $1, $3, @0); }
+			| expression4 ">>" expression5	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::SHIFTRIGHT, $1, $3, @1); }
+			| expression4 "<<" expression5	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::SHIFTLEFT, $1, $3, @1); }
 			;
 
 expression5 : expression6	{ $$ = $1; }
-			| expression5 "+" expression6	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::PLUS, $1, $3, @0); }
-			| expression5 "-" expression6	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::MINUS, $1, $3, @0); }
+			| expression5 "+" expression6	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::PLUS, $1, $3, @1); }
+			| expression5 "-" expression6	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::MINUS, $1, $3, @1); }
 			;
 
 expression6 : expression7	{ $$ = $1; }
-			| expression6 "*" expression7	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::MULTIPLY, $1, $3, @0); }
-			| expression6 "/" expression7	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::DIVIDE, $1, $3, @0); }
+			| expression6 "*" expression7	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::MULTIPLY, $1, $3, @1); }
+			| expression6 "/" expression7	{ $$ = std::make_shared<BinaryExpr>(BinaryOp::DIVIDE, $1, $3, @1); }
 			;
 expression7	: expression8		{ $$ = $1; }
-			| "-" expression7	{ $$ = std::make_shared<UnaryExpr>(UnaryOp::MINUS, $2, @0); }
+			| "-" expression7	{ $$ = std::make_shared<UnaryExpr>(UnaryOp::MINUS, $2, @1); }
 			| "+" expression7	{ $$ = $2; }
-			| "~" expression7	{ $$ = std::make_shared<UnaryExpr>(UnaryOp::COMPLEMENT, $2, @0); }
+			| "~" expression7	{ $$ = std::make_shared<UnaryExpr>(UnaryOp::COMPLEMENT, $2, @1); }
 			;
 
 expression8	: INTLIT	{ $$ = std::make_shared<IntExpr>($1, @1); }
@@ -380,17 +380,17 @@ expression8	: INTLIT	{ $$ = std::make_shared<IntExpr>($1, @1); }
 			| "(" expression ")"	{ $$ = $2; }
 
 			| "$$countof" "(" identifier_expression ")"
-				{ $$ = std::make_shared<CountOfExpr>($identifier_expression, @0); }
+				{ $$ = std::make_shared<CountOfExpr>($identifier_expression, @1); }
 			| "$$arrayindex" "(" identifier_expression ")"
-				{ $$ = std::make_shared<ArrayIndexExpr>($identifier_expression, @0); }
+				{ $$ = std::make_shared<ArrayIndexExpr>($identifier_expression, @1); }
 			| "$$bitfield" "(" expression "," expression "," expression ")"
-				{ $$ = std::make_shared<PeekExpr>($3, $5, $7, @0); }
+				{ $$ = std::make_shared<PeekExpr>($3, $5, $7, @1); }
 			| "$$word" "(" expression ")"
-				{ $$ = std::make_shared<PeekExpr>($3, 16, @0); }
+				{ $$ = std::make_shared<PeekExpr>($3, 16, @1); }
 			| "$$byte" "(" expression ")"
-				{ $$ = std::make_shared<PeekExpr>($3, 8, @0); }
+				{ $$ = std::make_shared<PeekExpr>($3, 8, @1); }
 			| "$$long" "(" expression ")"
-				{ $$ = std::make_shared<PeekExpr>($3, 32, @0); }
+				{ $$ = std::make_shared<PeekExpr>($3, 32, @1); }
 			;
 
 %type <IdentifierExprPtr> identifier_expression;
@@ -411,7 +411,7 @@ function_argument_list1 : expression
 %type <ExprPtr> string_expression string_expression1;
 string_expression	: string_expression1	{ $$ = $1; }
 					| string_expression string_expression1
-						{ $$ = std::make_shared<BinaryExpr>(BinaryOp::CONCAT, $1, $2, @0); }
+						{ $$ = std::make_shared<BinaryExpr>(BinaryOp::CONCAT, $1, $2, @1); }
 					;
 
 %type <std::string> stringlit;
@@ -421,12 +421,12 @@ stringlit	: STRINGLIT { $$ = $1; }
 
 string_expression1	:	stringlit	{ $$ = std::make_shared<StringExpr>($1, @1); }
 					|	"$$read" "(" string_expression ")"
-						{ $$ = std::make_shared<ReadExpr>($string_expression, @0); }
+						{ $$ = std::make_shared<ReadExpr>($string_expression, @1); }
 					;
 
 resource	: "resource" res_spec "{" resource_body "}"
 			{
-				world.addResource($res_spec, $resource_body, @0);
+				world.addResource($res_spec, $resource_body, @1);
 			}
 			;
 
@@ -443,7 +443,7 @@ resource_attributes	: %empty { $$ = [](ResSpec s){ return s; }; }
 					;
 
 %type <CompoundExprPtr> resource_body resource_body1;
-resource_body	: %empty { $$ = std::make_shared<CompoundExpr>(@0); }
+resource_body	: %empty { $$ = std::make_shared<CompoundExpr>(@1); }
 				| resource_body1 { $$ = $1; $$->location = @1; }
 				;
 resource_body1	: resource_item	{ $$ = std::make_shared<CompoundExpr>(@1); $$->addItem($1); }
@@ -453,13 +453,13 @@ resource_body1	: resource_item	{ $$ = std::make_shared<CompoundExpr>(@1); $$->ad
 				;
 
 resource_item	: value { $$ = $1; }
-				| IDENTIFIER "{" resource_body "}" { $$ = std::make_shared<CaseExpr>($IDENTIFIER, $resource_body, @0); }
+				| IDENTIFIER "{" resource_body "}" { $$ = std::make_shared<CaseExpr>($IDENTIFIER, $resource_body, @1); }
 				;
 
 
 data : "data" res_spec "{" string_expression "}"
 {
-	world.addData($res_spec, $string_expression->evaluateString(nullptr), @0);
+	world.addData($res_spec, $string_expression->evaluateString(nullptr), @1);
 }
 ;
 
