@@ -19,7 +19,9 @@ void Resources::writeFork(std::ostream& out) const
 	longword(out,0);
 	longword(out,0);
 	longword(out,0);
-	out.seekp(start + std::streampos(0x100));
+	for(int i = 0; i < 0x100 - 16; i++)
+		byte(out, 0);
+
 	std::map< std::string, std::map<int, int> > resourceInfos;
 	std::streampos datastart = out.tellp();
 	for(auto& rr : resources)
@@ -34,7 +36,8 @@ void Resources::writeFork(std::ostream& out) const
 //   while(out.tellp() % 0x100)
 //      out.put(0);
 	std::streampos resmap = out.tellp();
-	out.seekp(16+4+2+2, std::ios::cur);
+	for(int i = 0; i < 16+4+2+2; i++)
+		byte(out, 0);
 	word(out,16+4+2+2+2+2); // offset to resource type list
 	std::streampos resnameOffset = out.tellp();
 	word(out,0);

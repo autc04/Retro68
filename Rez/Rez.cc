@@ -9,6 +9,7 @@
 
 #include "ResourceFork.h"
 #include "BinaryIO.h"
+#include "ResourceFile.h"
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -72,16 +73,13 @@ int main(int argc, const char *argv[])
 		world.verboseFlag = true;
 
 	std::string outfile = options["output"].as<std::string>();
-	fs::path dataPath = outfile;
-	fs::create_directory(dataPath.parent_path() / ".rsrc");
-	fs::create_directory(dataPath.parent_path() / ".finf");
-	fs::path rsrcPath = dataPath.parent_path() / ".rsrc" / dataPath.filename();
-	fs::path finfPath = dataPath.parent_path() / ".finf" / dataPath.filename();
+	ResourceFile rsrcFile(outfile);
 
 	if(options.count("append"))
 	{
-		fs::ifstream rsrcIn(rsrcPath);
-		world.getResources().addResources(Resources(rsrcIn));
+		rsrcFile.read();
+
+		world.getResources().addResources(rsrcFile.resources);
 	}
 
 	for(std::string fn : options["input"].as<std::vector<std::string>>())
@@ -100,16 +98,9 @@ int main(int argc, const char *argv[])
 		parser.parse();
 	}
 
-	{
-		fs::ofstream dataOut(dataPath);
-		fs::ofstream rsrcOut(rsrcPath);
-		fs::ofstream finfOut(finfPath);
-
-		world.getResources().writeFork(rsrcOut);
-		ostype(finfOut, options["type"].as<std::string>());
-		ostype(finfOut, options["creator"].as<std::string>());
-		for(int i = 8; i < 32; i++)
-			byte(finfOut, 0);
-	}
+	rsrcFile.resources = world.getResources();
+	rsrcFile.creator = options["creator"].as<std::string>();
+	rsrcFile.type = options["type"].as<std::string>();
+	rsrcFile.write();
 	return 0;
 }

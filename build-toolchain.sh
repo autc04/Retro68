@@ -54,7 +54,7 @@ mkdir -p $PREFIX/man/man1
 rm -rf hfsutils
 cp -r $SRC/hfsutils .
 cd hfsutils
-./configure --prefix=$PREFIX
+./configure --prefix=$PREFIX --enable-devlibs
 make 
 make install
 cd ..

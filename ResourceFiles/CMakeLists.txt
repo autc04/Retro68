@@ -16,12 +16,18 @@
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
 cmake_minimum_required(VERSION 2.8)
-set(CMAKE_CXX_FLAGS "--std=c++0x")
+set(CMAKE_CXX_FLAGS "--std=c++0x -Wall -Werror=return-type")
+
+find_package(Boost COMPONENTS filesystem system)
 
 add_library(ResourceFiles
 	ResourceFork.h ResourceFork.cc
 	BinaryIO.h BinaryIO.cc
 	ResType.h ResType.cc
+	ResourceFile.h ResourceFile.cc
 	)
-target_include_directories(ResourceFiles PUBLIC .)
+
+target_link_libraries(ResourceFiles ${Boost_LIBRARIES} ${CMAKE_INSTALL_PREFIX}/lib/libhfs.a)
+target_include_directories(ResourceFiles PUBLIC .
+										 PRIVATE ${CMAKE_INSTALL_PREFIX}/include)
 
