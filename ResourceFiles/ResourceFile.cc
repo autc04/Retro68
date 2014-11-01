@@ -161,19 +161,36 @@ bool ResourceFile::read()
 	{
 		case Format::basilisk:
 			{
-				fs::path rsrcPath = path.parent_path() / ".rsrc" / path.filename();
-				fs::path finfPath = path.parent_path() / ".finf" / path.filename();
-
-				fs::ifstream rsrcIn(rsrcPath);
-				resources.addResources(Resources(rsrcIn));
-				fs::ifstream finfIn(finfPath);
-				type = ostype(finfIn);
-				creator = ostype(finfIn);
 				fs::ifstream dataIn(path);
 				data = std::string(std::istreambuf_iterator<char>(dataIn),
 								   std::istreambuf_iterator<char>());
+
+				fs::ifstream rsrcIn(path.parent_path() / ".rsrc" / path.filename());
+				resources.addResources(Resources(rsrcIn));
+				fs::ifstream finfIn(path.parent_path() / ".finf" / path.filename());
+				type = ostype(finfIn);
+				creator = ostype(finfIn);
 			}
 			break;
+#ifdef __APPLE__
+		case Format::real:
+			{
+				fs::ifstream dataIn(path);
+				data = std::string(std::istreambuf_iterator<char>(dataIn),
+								   std::istreambuf_iterator<char>());
+				fs::ifstream rsrcIn(path / "..namedfork" / "rsrc");
+				resources.addResources(Resources(rsrcIn));
+
+				char finf[32];
+				int n = getxattr(path.c_str(), XATTR_FINDERINFO_NAME,
+						finf, 32, 0, 0);
+
+				std::istringstream finfIn(std::string(finf, finf+n));
+				type = ostype(finfIn);
+				creator = ostype(finfIn);
+			}
+			break;
+#endif
 		default:
 			return false;
 	}
@@ -202,7 +219,6 @@ bool ResourceFile::write()
 				ostype(finfOut, creator);
 				for(int i = 8; i < 32; i++)
 					byte(finfOut, 0);
-
 			}
 			break;
 #ifdef __APPLE__
@@ -213,7 +229,7 @@ bool ResourceFile::write()
 				std::ostringstream finfOut;
 
 				dataOut << data;
-				rsrc.writeFork(rsrcOut);
+				resources.writeFork(rsrcOut);
 
 				ostype(finfOut, type);
 				ostype(finfOut, creator);
