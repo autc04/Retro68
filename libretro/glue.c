@@ -22,6 +22,9 @@
 #include <string.h>
 #include <Files.h>
 #include <Devices.h>
+#include <Resources.h>
+#include <SegLoad.h>
+#include <LowMem.h>
 
 #include <Quickdraw.h>
 QDGlobals qd;
@@ -29,17 +32,181 @@ QDGlobals qd;
 
 pascal Size GetPtrSize(Ptr ptr)
 {
-	long tmp;
-	__asm__ __volatile__(
-		"move.l %1, %%a0\n\t"
-		"dc.w 0xA021\n\t"
-		"move.l %%d0, %1"
-	: "=g"(tmp) : "g"(ptr) : "%%a0", "%%d0");
+	#pragma parameter __D0 _GetPtrSize(__A0)
+	pascal long _GetPtrSize(Ptr ptr) ONEWORDINLINE(0xA021);
+
+	long tmp = _GetPtrSize(ptr);
 	if(tmp > 0)
 		return (Size) tmp;
 	else
 		return 0;
 }
+
+pascal Size GetHandleSize(Handle h)
+{
+	#pragma parameter __D0 _GetHandleSize(__A0)
+	pascal long _GetHandleSize(Handle h) ONEWORDINLINE(0xA025);
+
+	long tmp = _GetHandleSize(h);
+	if(tmp > 0)
+		return (Size) tmp;
+	else
+		return 0;
+}
+
+EXTERN_API( OSErr )
+PtrToHand(
+  const void *  srcPtr,
+  Handle *      dstHndl,
+  long          size)
+{
+	#pragma parameter __A0 _PtrToHand(__A0, __D0)
+	pascal Handle _PtrToHand(const void *srcPtr, long size) ONEWORDINLINE(0xA9E3);
+
+	*dstHndl = _PtrToHand(srcPtr, size);
+
+	return MemError();
+}
+
+EXTERN_API( OSErr )
+HandToHand(Handle * theHndl)
+{
+	#pragma parameter __A0 _HandToHand(__A0)
+	pascal Handle _HandToHand(Handle h) ONEWORDINLINE(0xA9E1);
+
+	*theHndl = _HandToHand(*theHndl);
+
+	return MemError();
+}
+
+EXTERN_API( void )
+StringToNum(
+  ConstStr255Param   theString,
+  long *             theNum)
+{
+	#pragma parameter __D0 _StringToNum(__A0)
+	pascal long _StringToNum(ConstStr255Param theString) THREEWORDINLINE(0x3F3C, 0x0001, 0xA9EE);
+	*theNum = _StringToNum(theString);
+}
+
+EXTERN_API( void )
+NumToString(
+  long     theNum,
+  Str255   theString)
+{
+	#pragma parameter _NumToString(__D0, __A0)
+	pascal long _NumToString(long theNum, ConstStr255Param theString) TWOWORDINLINE(0x4267, 0xA9EE);
+	_NumToString(theNum, theString);
+}
+
+EXTERN_API( Boolean )
+EqualString(
+  ConstStr255Param   str1,
+  ConstStr255Param   str2,
+  Boolean            caseSensitive,
+  Boolean            diacSensitive)
+{
+	#pragma parameter __D0 _CmpString(__A0, __A1, __D0)
+	pascal long _CmpString(const char *a, const char *b, long lens) ONEWORDINLINE(0xA03C);
+	#pragma parameter __D0 _CmpStringCase(__A0, __A1, __D0)
+	pascal long _CmpStringCase(const char *a, const char *b, long lens) ONEWORDINLINE(0xA43C);
+	#pragma parameter __D0 _CmpStringMarks(__A0, __A1, __D0)
+	pascal long _CmpStringMarks(const char *a, const char *b, long lens) ONEWORDINLINE(0xA23C);
+	#pragma parameter __D0 _CmpStringCaseMarks(__A0, __A1, __D0)
+	pascal long _CmpStringCaseMarks(const char *a, const char *b, long lens) ONEWORDINLINE(0xA63C);
+
+	long lens = (str1[0] << 16) | str2[0];
+	long result;
+	if(caseSensitive)
+	{
+		if(diacSensitive)
+			result = _CmpStringCase(str1+1, str2+1, lens);
+		else
+			result = _CmpStringCaseMarks(str1+1, str2+1, lens);
+	}
+	else
+	{
+		if(diacSensitive)
+			result = _CmpString(str1+1, str2+1, lens);
+		else
+			result = _CmpStringMarks(str1+1, str2+1, lens);
+	}
+	return result == 0;
+}
+
+pascal void GetIndString(Str255 theString, short strListID, short index)
+{
+	Handle h = GetResource('STR#', strListID);
+	theString[0] = 0;
+	if(index > *(short*)*h)
+		return;
+	unsigned char *p = ((unsigned char*) *h) + 2;
+	while(--index > 0)
+		p += *p + 1;
+	if(index == 0)
+		memcpy(theString, p, p[0]+1);
+}
+
+EXTERN_API( UniversalProcPtr )
+NGetTrapAddress(
+  UInt16     trapNum,
+  TrapType   tTyp)
+{
+	if(tTyp == kOSTrapType)
+		return GetOSTrapAddress(trapNum);
+	else
+		return GetToolTrapAddress(trapNum);
+}
+
+EXTERN_API( void )
+CountAppFiles(
+  short *  message,
+  short *  count)
+{
+	Handle h = LMGetAppParmHandle();
+	if(!GetHandleSize(h))
+		return;
+	*message = ((short*)*h)[0];
+	*count = ((short*)*h)[1];
+}
+
+static AppFile* AppFilePtr(short index)
+{
+	Handle h = LMGetAppParmHandle();
+	if(!GetHandleSize(h))
+		return NULL;
+	short count = ((short*)*h)[1];
+	if(index < 1 || index > count)
+		return NULL;
+	index--;
+
+	Ptr p = *h + 4;
+	while(index)
+	{
+		AppFile *f = (AppFile*) p;
+		p += (8 + 1 + f->fName[0] + 1) & ~1;
+	}
+	return (AppFile*) p;
+}
+
+EXTERN_API( void )
+GetAppFiles(
+  short      index,
+  AppFile *  theFile)
+{
+	AppFile *ptr = AppFilePtr(index);
+	if(ptr)
+		memcpy(theFile, ptr, 8 + 1 + ptr->fName[0]);
+}
+
+EXTERN_API( void )
+ClrAppFiles(short index)
+{
+	AppFile *ptr = AppFilePtr(index);
+	if(ptr)
+		ptr->fType = 0;
+}
+
 
 pascal OSErr SetVol (ConstStr63Param volName, short vRefNum)
 {
@@ -49,6 +216,20 @@ pascal OSErr SetVol (ConstStr63Param volName, short vRefNum)
 	pb.volumeParam.ioVRefNum = vRefNum;
 	return PBSetVolSync(&pb);
 }
+
+EXTERN_API( OSErr )
+GetVol(
+  StringPtr   volName,
+  short *     vRefNum)
+{
+	ParamBlockRec pb;
+	memset(&pb, 0, sizeof(pb));
+	pb.volumeParam.ioNamePtr = volName;
+	OSErr err = PBGetVolSync(&pb);
+	*vRefNum = pb.volumeParam.ioVRefNum;
+	return err;
+}
+
 
 pascal OSErr UnmountVol (ConstStr63Param volName, short vRefNum)
 {
@@ -204,6 +385,73 @@ pascal OSErr GetWDInfo(short wdRefNum, short *vRefNum, long *dirID,
 	*dirID = pb.ioWDDirID;
 	*procID = pb.ioWDProcID;
 	return err;
+}
+
+EXTERN_API( OSErr )
+GetFInfo(
+  ConstStr255Param   fileName,
+  short              vRefNum,
+  FInfo *            fndrInfo)
+{
+	ParamBlockRec pb;
+	OSErr err;
+	memset(&pb, 0, sizeof(pb));
+	pb.fileParam.ioVRefNum = vRefNum;
+	pb.fileParam.ioNamePtr = (StringPtr)fileName;
+	err = PBGetFInfoSync(&pb);
+	*fndrInfo = pb.fileParam.ioFlFndrInfo;
+	return err;
+}
+
+EXTERN_API( OSErr )
+HDelete(
+  short              vRefNum,
+  long               dirID,
+  ConstStr255Param   fileName)
+{
+	HParamBlockRec pb;
+	pb.fileParam.ioVRefNum = vRefNum;
+	pb.fileParam.ioNamePtr = (StringPtr)fileName;
+	pb.fileParam.ioDirID = dirID;
+	pb.fileParam.ioFVersNum = 0;	// ???
+	return PBHDeleteSync(&pb);
+}
+
+EXTERN_API( OSErr )
+HGetFInfo(
+  short              vRefNum,
+  long               dirID,
+  ConstStr255Param   fileName,
+  FInfo *            fndrInfo)
+{
+	HParamBlockRec pb;
+	OSErr err;
+	pb.fileParam.ioVRefNum = vRefNum;
+	pb.fileParam.ioNamePtr = (StringPtr)fileName;
+	pb.fileParam.ioFVersNum = 0;	// ???
+	pb.fileParam.ioFDirIndex = 0;
+	pb.fileParam.ioDirID = dirID;
+	err = PBHGetFInfoSync(&pb);
+	*fndrInfo = pb.fileParam.ioFlFndrInfo;
+	return err;
+}
+
+EXTERN_API( OSErr )
+HSetFInfo(
+  short              vRefNum,
+  long               dirID,
+  ConstStr255Param   fileName,
+  const FInfo *      fndrInfo)
+{
+	HParamBlockRec pb;
+	OSErr err;
+	pb.fileParam.ioVRefNum = vRefNum;
+	pb.fileParam.ioNamePtr = (StringPtr)fileName;
+	pb.fileParam.ioFVersNum = 0;	// ???
+	pb.fileParam.ioFDirIndex = 0;
+	pb.fileParam.ioDirID = dirID;
+	pb.fileParam.ioFlFndrInfo = *fndrInfo;
+	return PBHSetFInfoSync(&pb);
 }
 
 pascal OSErr OpenDriver(ConstStr255Param name, short *drvrRefNum)
