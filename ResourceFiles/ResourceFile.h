@@ -17,6 +17,7 @@ public:
 		macbin,
 		diskimage,
 		basilisk,
+		applesingle,
 		//underscore_ad,
 		//appledouble
 	};
