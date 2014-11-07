@@ -32,6 +32,7 @@ int main(int argc, const char *argv[])
 		("creator,c", po::value<std::string>()->default_value("RSED"), "output file finder creator code")
 		("define,D", po::value<std::vector<std::string>>(), "predefine preprocessor symbol")
 		("include,I", po::value<std::vector<std::string>>(), "add include file path")
+		("copy", po::value<std::vector<std::string>>(), "copy resources from other resource file")
 		("debug,d", "debug logging")
 	;
 	po::options_description hidden, alldesc;
@@ -81,6 +82,14 @@ int main(int argc, const char *argv[])
 
 		world.getResources().addResources(rsrcFile.resources);
 	}
+	if(options.count("copy"))
+		for(std::string copyFile : options["define"].as<std::vector<std::string>>())
+		{
+			ResourceFile copyRsrc(copyFile);
+
+			copyRsrc.read();
+			world.getResources().addResources(copyRsrc.resources);
+		}
 
 	for(std::string fn : options["input"].as<std::vector<std::string>>())
 	{
