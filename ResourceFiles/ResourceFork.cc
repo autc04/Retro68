@@ -8,8 +8,7 @@
 void Resources::addResources(const Resources& res)
 {
 	for(auto& rr : res.resources)
-		resources.insert(rr);
-//	resources.insert(resources.end(),res.resources.begin(), res.resources.end());
+		addResource(rr.second);
 }
 
 void Resources::writeFork(std::ostream& out) const

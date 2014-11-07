@@ -27,16 +27,14 @@ find_package(BISON REQUIRED)
 
 include_directories(. ${CMAKE_CURRENT_BINARY_DIR})
 
-add_custom_command(
-  DEPENDS RezParser.yy
-  COMMAND ${BISON_EXECUTABLE}
-  ARGS -o ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.cc
-	   ${CMAKE_CURRENT_SOURCE_DIR}/RezParser.yy --graph
-  COMMENT "Generating parser.cpp"
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.cc ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.hh
-)
+bison_target(RezParser RezParser.yy
+	${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.cc ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.hh
+	${CMAKE_CURRENT_BINARY_DIR}/location.hh ${CMAKE_CURRENT_BINARY_DIR}/position.hh
+	${CMAKE_CURRENT_BINARY_DIR}/stack.hh)
+
 add_library(RezLib
-		RezParser.yy RezParser.generated.hh RezParser.generated.cc
+		RezParser.yy
+		${BISON_RezParser_OUTPUTS}
 
 		RezLexer.h
 		RezLexer.cc

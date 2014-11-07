@@ -32,23 +32,6 @@
 #include "BinaryIO.h"
 #include "ResourceFile.h"
 
-std::string commandPath;
-
-void wrapMacBinary(std::string macBinaryFile, std::string diskImagePath)
-{
-	int size = static_cast<int>(
-			std::ifstream(macBinaryFile.c_str()).seekg(0,std::ios::end).tellg()
-		);
-
-	size += 20 * 1024;
-	size += 800*1024 - size % (800*1024);
-
-	std::ofstream(diskImagePath.c_str(), std::ios::binary | std::ios::trunc).seekp(size-1).put(0);
-	
-	std::system((commandPath + "hformat " + diskImagePath + " > /dev/null").c_str());
-	std::system((commandPath + "hcopy -m " + macBinaryFile + " :").c_str());
-}
-
 std::string fromhex(std::string hex)
 {
 	std::string bin;
@@ -103,11 +86,6 @@ int main(int argc, char *argv[])
 	unsigned short sizeFlags = 0x80; // 32-bit clean
 	unsigned long minimumSize = 384 * 1024;
 	unsigned long preferredSize = 384 * 1024;
-
-	if(char *lastSlash = std::strrchr(argv[0], '/'))
-	{
-		commandPath = std::string(argv[0], lastSlash + 1);
-	}
 
 	for(int i = 1; i < argc;)
 	{
@@ -207,9 +185,9 @@ int main(int argc, char *argv[])
 		{
 			assert(i < argc);
 			std::string fn = argv[i++];
-			std::ifstream in(fn.c_str(), std::ios::in|std::ios::binary);
-			Resources rsrc2(in);
-			rsrc.addResources(rsrc2);
+			ResourceFile copyRsrc(fn);
+			copyRsrc.read();
+			rsrc.addResources(copyRsrc.resources);
 		}
 		else
 		{
@@ -235,7 +213,6 @@ int main(int argc, char *argv[])
 
 	file.assign(dskFileName, ResourceFile::Format::diskimage);
 	file.write();
-	//wrapMacBinary(binFileName, dskFileName);
 
 #ifdef __APPLE__
 	file.assign(outFileName + ".APPL", ResourceFile::Format::real);
