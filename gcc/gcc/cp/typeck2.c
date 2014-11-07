@@ -970,7 +970,7 @@ digest_init_r (tree type, tree init, bool nested, int flags,
 
 	  if (TYPE_PRECISION (typ1) == BITS_PER_UNIT)
 	    {
-	      if (char_type != char_type_node)
+	      if (char_type != char_type_node && char_type != unsigned_char_type_node)
 		{
 		  if (complain & tf_error)
 		    error ("char-array initialized from wide string");
@@ -979,7 +979,7 @@ digest_init_r (tree type, tree init, bool nested, int flags,
 	    }
 	  else
 	    {
-	      if (char_type == char_type_node)
+	      if (char_type == char_type_node || char_type == unsigned_char_type_node)
 		{
 		  if (complain & tf_error)
 		    error ("int-array initialized from non-wide string");

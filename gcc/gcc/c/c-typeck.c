@@ -6553,7 +6553,7 @@ digest_init (location_t init_loc, tree type, tree init, tree origtype,
 
 	  if (char_array)
 	    {
-	      if (typ2 != char_type_node)
+	      if (typ2 != char_type_node && typ2 != unsigned_char_type_node)
 		{
 		  error_init ("char-array initialized from wide string");
 		  return error_mark_node;
@@ -6561,7 +6561,7 @@ digest_init (location_t init_loc, tree type, tree init, tree origtype,
 	    }
 	  else
 	    {
-	      if (typ2 == char_type_node)
+	      if (typ2 == char_type_node || typ2 == unsigned_char_type_node)
 		{
 		  error_init ("wide character array initialized from non-wide "
 			      "string");
