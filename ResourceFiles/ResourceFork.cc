@@ -21,7 +21,7 @@ void Resources::writeFork(std::ostream& out) const
 	for(int i = 0; i < 0x100 - 16; i++)
 		byte(out, 0);
 
-	std::map< std::string, std::map<int, int> > resourceInfos;
+	std::map< ResType, std::map<int, int> > resourceInfos;
 	std::streampos datastart = out.tellp();
 	for(auto& rr : resources)
 	{
@@ -42,7 +42,7 @@ void Resources::writeFork(std::ostream& out) const
 	word(out,0);
 	std::streampos typelist = out.tellp();
 	word(out,resourceInfos.size() - 1);
-	for(std::map< std::string, std::map<int, int> >::iterator p = resourceInfos.begin();
+	for(std::map< ResType, std::map<int, int> >::iterator p = resourceInfos.begin();
 			p != resourceInfos.end(); ++p)
 	{
 		if(p->second.size())
@@ -53,7 +53,8 @@ void Resources::writeFork(std::ostream& out) const
 		}
 	}
 	int typeIndex = 0;
-	for(std::map< std::string, std::map<int, int> >::iterator p = resourceInfos.begin();
+	int nameOffset = 0;
+	for(std::map< ResType, std::map<int, int> >::iterator p = resourceInfos.begin();
 			p != resourceInfos.end(); ++p)
 	{
 		if(p->second.size())
@@ -66,8 +67,15 @@ void Resources::writeFork(std::ostream& out) const
 
 			for(std::map<int,int>::iterator q = p->second.begin(); q != p->second.end(); ++q)
 			{
+				std::string name = resources.find(ResRef(p->first, q->first))->second.getName();
 				word(out,q->first);
-				word(out,-1);
+				if(name.size() == 0)
+					word(out,-1);
+				else
+				{
+					word(out, nameOffset);
+					nameOffset += (name.size() > 255 ? 255 : name.size()) + 1;
+				}
 				longword(out,q->second);
 				longword(out,0);
 			}
@@ -77,6 +85,23 @@ void Resources::writeFork(std::ostream& out) const
 	out.seekp(resnameOffset);
 	word(out, resnames - resmap);
 	out.seekp(resnames);
+
+	for(std::map< ResType, std::map<int, int> >::iterator p = resourceInfos.begin();
+			p != resourceInfos.end(); ++p)
+	{
+		for(std::map<int,int>::iterator q = p->second.begin(); q != p->second.end(); ++q)
+		{
+			std::string name = resources.find(ResRef(p->first, q->first))->second.getName();
+			if(name.size() > 0)
+			{
+				int sz = name.size() > 255 ? 255 : name.size();
+				byte(out, sz);
+				for(int i = 0; i < sz; i++)
+					byte(out, name[i]);
+			}
+		}
+	}
+
 	std::streampos end = out.tellp();
 	out.seekp(start + std::streampos(4));
 	longword(out, resmap - start);

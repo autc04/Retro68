@@ -21,6 +21,7 @@ public:
 	inline ResType getType() const { return type; }
 	inline int getID() const { return id; }
 	inline ResRef getTypeAndID() const { return ResRef(type, id); }
+	std::string getName() const { return name; }
 };
 
 class Fork
