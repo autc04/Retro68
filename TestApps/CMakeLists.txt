@@ -20,16 +20,9 @@ set(CMAKE_CXX_FLAGS "-std=c++11") # -fomit-frame-pointer")
 
 add_application(ExceptionTest CONSOLE ExceptionTest.cc)
 add_application(InitTest CONSOLE InitTest.cc)
+add_application(EmptyTest EmptyTest.c)
 
 enable_language(ASM)
 add_application(AsmTest AsmTest.s)
 set_target_properties(AsmTest PROPERTIES LINKER_LANGUAGE C)
 
-
-set(UPLOAD_URL "" CACHE STRING "ftp url to upload to")
-if(UPLOAD_URL)
-add_custom_target(upload
-		DEPENDS Test.bin
-		COMMAND wput -u Test.bin ${UPLOAD_URL}
-	)
-endif()
