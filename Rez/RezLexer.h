@@ -2,6 +2,7 @@
 #define REZLEXER_H
 
 #include <memory>
+#include <string>
 
 class RezSymbol;
 

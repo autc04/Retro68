@@ -4,6 +4,7 @@
 #include <boost/filesystem.hpp>
 #include "boost/filesystem/fstream.hpp"
 #include <sstream>
+#include <iostream>
 
 #ifdef __APPLE__
 #include <sys/xattr.h>
@@ -341,7 +342,7 @@ bool ResourceFile::write()
 				hfs_format(pathstring.c_str(), 0, 0, path.stem().string().substr(0,27).c_str(), 0, NULL);
 				hfsvol *vol = hfs_mount(pathstring.c_str(), 0, HFS_MODE_RDWR);
 				//hfs_setvol(vol, )
-				hfsfile *file = hfs_create(vol, (path.stem().string().substr(0.31)).c_str(),
+				hfsfile *file = hfs_create(vol, (path.stem().string().substr(0,31)).c_str(),
 										   ((std::string)type).c_str(), ((std::string)creator).c_str());
 				hfs_setfork(file, 0);
 				hfs_write(file, data.data(), data.size());
