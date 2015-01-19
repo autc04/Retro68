@@ -165,7 +165,7 @@ bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
 		format = Format::basilisk;
 #endif
 	}
-	std::cout << "assigned: " << pathstring << " format " << (int)format << "\n";
+//	std::cout << "assigned: " << pathstring << " format " << (int)format << "\n";
 	return true;
 }
 
