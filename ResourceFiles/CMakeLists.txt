@@ -18,7 +18,7 @@
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_FLAGS "--std=c++0x -Wall -Werror=return-type")
 
-find_package(Boost COMPONENTS filesystem system)
+find_package(Boost COMPONENTS filesystem system REQUIRED)
 
 add_library(ResourceFiles
 	ResourceFork.h ResourceFork.cc

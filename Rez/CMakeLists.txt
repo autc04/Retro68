@@ -21,9 +21,11 @@ set(CMAKE_CXX_FLAGS "--std=c++11 -Wall")
 
 find_package(Boost COMPONENTS wave filesystem system thread regex program_options)
 
-if(Boost_FOUND)
+set(CMAKE_PROGRAM_PATH $CMAKE_PROGRAM_PATH "/usr/local/opt/bison/bin")
+find_package(BISON 3.0.2)
 
-find_package(BISON REQUIRED)
+if(Boost_FOUND AND BISON_FOUND)
+
 
 include_directories(. ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -68,4 +70,6 @@ install(TARGETS Rez RUNTIME DESTINATION bin)
 
 add_subdirectory(Test)
 
-endif(Boost_FOUND)
+else(Boost_FOUND AND BISON_FOUND)
+	message(WARNING "Rez compiler will not be built; both boost and Bison 3.0.2 are required")
+endif(Boost_FOUND AND BISON_FOUND)

@@ -13,21 +13,22 @@ Prerequisites
 -------------
 
 - Linux or Mac OS X
-- boost, if using gcc 4.8 or earlier to compile on Linux
+- boost
 - CMake 2.8
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
+- bison version 3.0.2 or later
 - Apple Universal Interfaces (tested with version 3.1 - see below)
 - An ancient Mac and/or an emulator.
 
 For Ubuntu Linux, the following should help a bit:
 
-    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev
+    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison
 
 On a Mac, get the homebrew package manager and:
 
-    brew install cmake gmp mpfr libmpc
+    brew install cmake gmp mpfr libmpc boost bison
 
-You can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
+In theory, you can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
 In that case, get the tigerbrew package manager and
 
     brew install gcc cmake
