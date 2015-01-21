@@ -6,7 +6,7 @@ export LANG=en
 
 # cp $IN/[A-Z]*.h $OUT/
 for file in $(cd $IN; ls [A-Z]*.h); do
-	tr '\r' '\n' < $IN/$file > $OUT/$file
+	tr '\r' '\n' < $IN/$file | sed 's/= \(0x[0-9A-Z]*\);/ONEWORDINLINE(\1);/' > $OUT/$file
 done
 
 cat > $OUT/ConditionalMacros.h <<END_MARKER
