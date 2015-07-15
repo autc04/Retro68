@@ -66,19 +66,18 @@ cd build-host
 cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX
 cd ..
 
+make -C build-host install
+
 	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
 $PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
 	# the real libretrocrt.a is built and installed by `make -C build-target install` later
 
 mkdir -p build-target
 cd build-target
-cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX/m68k-unknown-elf \
-					-DCMAKE_TOOLCHAIN_FILE=$SRC/retro68.toolchain.cmake \
-					-DRETRO68_ROOT=$PREFIX \
+cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=$PREFIX/cmake/retro68.toolchain.cmake \
 					-DCMAKE_BUILD_TYPE=Release
 cd ..
 
-make -C build-host install
 
 if test ! -e $PREFIX/bin/m68k-unknown-elf-as.real; then
 	mv $PREFIX/bin/m68k-unknown-elf-as $PREFIX/bin/m68k-unknown-elf-as.real
