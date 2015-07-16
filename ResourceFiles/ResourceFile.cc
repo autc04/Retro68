@@ -239,7 +239,30 @@ bool ResourceFile::read()
 				}
 			}
 			break;
+		case Format::macbin:
+			{
+				fs::ifstream in(path);
+				if(byte(in) != 0)
+					return false;
+				if(byte(in) > 63)
+					return false;
+				in.seekg(65);
+				type = ostype(in);
+				creator = ostype(in);
+				in.seekg(83);
+				int datasize = longword(in);
+				//int rsrcsize = longword(in);
 
+				in.seekg(0);
+				char header[124];
+				in.read(header, 124);
+				unsigned short crc = CalculateCRC(0,header,124);
+				if(word(in) != crc)
+					return false;
+				in.seekg(128 + datasize);
+				resources = Resources(in);
+			}
+			break;
 		default:
 			return false;
 	}
