@@ -29,6 +29,7 @@ add_subdirectory(TestApps)
 add_subdirectory(Samples/HelloWorld)
 add_subdirectory(Samples/Raytracer)
 add_subdirectory(Samples/Launcher)
+add_subdirectory(Samples/Dialog)
 else()
 
 configure_file(cmake/retro68.toolchain.cmake.in cmake/retro68.toolchain.cmake @ONLY)

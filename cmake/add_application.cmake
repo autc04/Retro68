@@ -13,8 +13,21 @@ function(add_application name)
 	list(APPEND ARGS_FILES ${ARGS_UNPARSED_ARGUMENTS})
 
 	set(files)
-		foreach(f ${ARGS_FILES})
-		list(APPEND files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
+	set(rsrc_files)
+	foreach(f ${ARGS_FILES})
+		if(${f} MATCHES "\\.r$")
+			add_custom_command(
+				OUTPUT ${f}.rsrc
+				COMMAND ${REZ} ${CMAKE_CURRENT_SOURCE_DIR}/${f} -I ${REZ_INCLUDE_PATH} -o ${f}.rsrc
+				DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${f})
+			list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc")
+		elseif(${f} MATCHES "\\.rsrc$")
+			list(APPEND rsrc_files "${f}")
+		elseif(${f} MATCHES "\\.rsrc.bin$")
+			list(APPEND rsrc_files "${f}")
+		else()
+			list(APPEND files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
+		endif()
 	endforeach()
 
 	add_executable(${name} ${files})
@@ -29,6 +42,11 @@ function(add_application name)
 		set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
 	endif()
 
+	foreach(f ${rsrc_files})
+		list(APPEND ARGS_MAKEAPPL_ARGS --copy "${f}")
+	endforeach()
+
+
 
 	if(TARGET libretro)
 		set_target_properties(${name} PROPERTIES LINK_DEPENDS libretro)
@@ -39,7 +57,7 @@ function(add_application name)
 	add_custom_command(
 		OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
 		COMMAND ${MAKE_APPL} ${ARGS_MAKEAPPL_ARGS} -c "${name}.flt" -o "${name}"
-		DEPENDS ${name})
+		DEPENDS ${name} ${rsrc_files})
 	add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
 endfunction()
 

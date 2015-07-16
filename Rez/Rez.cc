@@ -83,7 +83,7 @@ int main(int argc, const char *argv[])
 		world.getResources().addResources(rsrcFile.resources);
 	}
 	if(options.count("copy"))
-		for(std::string copyFile : options["define"].as<std::vector<std::string>>())
+		for(std::string copyFile : options["copy"].as<std::vector<std::string>>())
 		{
 			ResourceFile copyRsrc(copyFile);
 

@@ -61,6 +61,9 @@ cd ..
 
 sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/m68k-unknown-elf/include
 
+mkdir -p toolchain/RIncludes
+cp '$SRC/RIncludes/*.r' toolchain/RIncludes/
+
 mkdir -p build-host
 cd build-host
 cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX

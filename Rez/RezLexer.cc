@@ -27,6 +27,8 @@ static std::string preFilter(std::string str)
 	boost::regex dollar_escape("\\\\\\$([a-zA-Z0-9][a-zA-Z0-9])");
 	str = boost::regex_replace(str, dollar_escape, "\\\\0x$1");
 
+	if(str.size() == 0 || str[str.size()-1] != '\n')
+		str += "\n";
 	return str;
 }
 

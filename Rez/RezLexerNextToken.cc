@@ -286,5 +286,5 @@ case T_ ## name: /*std::cout << #name << std::endl;*/ return RezParser::make_ ##
 			}
 		}
 	}
-	return RezSymbol();
+	return RezParser::symbol_type(RezParser::token_type(0), yy::location());
 }
