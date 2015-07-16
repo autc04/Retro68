@@ -15,6 +15,12 @@
 #	You should have received a copy of the GNU General Public License
 #	along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
+# To use this example as a standalone project using CMake:
+# mkdir build
+# cd build
+# cmake .. -DCMAKE_TOOLCHAIN_FILE=path/to/Retro68-build/toolchain/cmake/retro68.toolchain.cmake
+# make
+
 cmake_minimum_required(VERSION 2.8)
 
 if(APPLE)
