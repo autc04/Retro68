@@ -37,7 +37,7 @@ function(add_application name)
 	set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
 
 	add_custom_command(
-		OUTPUT ${name}.bin ${name} ${name}.dsk
+		OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
 		COMMAND ${MAKE_APPL} ${ARGS_MAKEAPPL_ARGS} -c "${name}.flt" -o "${name}"
 		DEPENDS ${name})
 	add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
