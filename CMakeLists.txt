@@ -25,6 +25,7 @@ add_subdirectory(libretro)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/libretro)
 
 add_subdirectory(Console)
+add_subdirectory(HelloWorld)
 add_subdirectory(TestApps)
 add_subdirectory(Raytracer)
 add_subdirectory(Launcher)

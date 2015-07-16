@@ -22,13 +22,8 @@ add_library(RetroConsole
 	Console.cc
 	Console.h
 	MacUtils.h
-    InitConsole.cc
+	InitConsole.cc
 	)
 
 install(TARGETS RetroConsole  DESTINATION lib)
-
-add_application(HelloWorld
-	hello.c
-	CONSOLE
-   )
 

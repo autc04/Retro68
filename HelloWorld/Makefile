@@ -13,3 +13,7 @@ HelloWorld.bin HelloWorld.APPL HelloWorld.dsk: HelloWorld.flt
 
 HelloWorld.flt: hello.o
 	$(CXX) $< -o $@ $(LDFLAGS)	# C++ used for linking because RetroConsole needs it
+
+.PHONY: clean
+clean:
+	rm -f HelloWorld.bin HelloWorld.APPL HelloWorld.dsk HelloWorld.flt HelloWorld.flt.gdb hello.o
