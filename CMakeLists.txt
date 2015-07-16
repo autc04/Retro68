@@ -25,10 +25,10 @@ add_subdirectory(libretro)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/libretro)
 
 add_subdirectory(Console)
-add_subdirectory(HelloWorld)
 add_subdirectory(TestApps)
-add_subdirectory(Raytracer)
-add_subdirectory(Launcher)
+add_subdirectory(Samples/HelloWorld)
+add_subdirectory(Samples/Raytracer)
+add_subdirectory(Samples/Launcher)
 else()
 
 configure_file(cmake/retro68.toolchain.cmake.in cmake/retro68.toolchain.cmake @ONLY)
