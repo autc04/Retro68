@@ -17,10 +17,10 @@ function(add_application name)
 	foreach(f ${ARGS_FILES})
 		if(${f} MATCHES "\\.r$")
 			add_custom_command(
-				OUTPUT ${f}.rsrc
-				COMMAND ${REZ} ${CMAKE_CURRENT_SOURCE_DIR}/${f} -I ${REZ_INCLUDE_PATH} -o ${f}.rsrc
+				OUTPUT ${f}.rsrc.bin
+				COMMAND ${REZ} ${CMAKE_CURRENT_SOURCE_DIR}/${f} -I ${REZ_INCLUDE_PATH} -o ${f}.rsrc.bin
 				DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${f})
-			list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc")
+			list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc.bin")
 		elseif(${f} MATCHES "\\.rsrc$")
 			list(APPEND rsrc_files "${f}")
 		elseif(${f} MATCHES "\\.rsrc.bin$")
