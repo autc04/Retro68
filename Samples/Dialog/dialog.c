@@ -36,12 +36,12 @@ pascal void ButtonFrameProc(DialogRef dlg, DialogItemIndex itemNo)
 
 int main()
 {
-	WindowPtr win;
-	
     InitGraf(&qd.thePort);
     InitFonts();
     InitWindows();
     InitMenus();
+	TEInit();
+	InitDialogs(NULL);
 
     DialogPtr dlg = GetNewDialog(128,0,(WindowPtr)-1);
     InitCursor();
