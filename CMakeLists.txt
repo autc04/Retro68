@@ -23,6 +23,7 @@ add_subdirectory(libretro)
 
 # add library path so that GCC picks up the freshly-built libretro
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/libretro)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libretro)
 
 add_subdirectory(Console)
 add_subdirectory(TestApps)

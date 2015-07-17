@@ -23,7 +23,10 @@
 
 cmake_minimum_required(VERSION 2.8)
 
-add_library(retrocrt start.c
+add_library(retrocrt
+	Retro68Runtime.h
+	start.c
+	relocate.c
 	malloc.c
 	syscalls.c
 	glue.c
