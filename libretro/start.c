@@ -25,7 +25,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <SegLoad.h>
 
 #include "Retro68Runtime.h"
 

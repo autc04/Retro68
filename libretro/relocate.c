@@ -66,7 +66,7 @@ extern void __fini_section_end(void);
 
 
 static long headerVirtualAddress = -0x40;
-static Ptr savedBSS = (Ptr) -1;
+static Ptr bssPtr = (Ptr) -1;
 
 #define ACCESS_DISPLACED(VAR) \
 	( * (typeof(&VAR)) ((char*)(&VAR) + displacement) )
@@ -92,10 +92,14 @@ void Retro68Relocate()
 	long data_end = header->data_end - 0x40;
 	long bss_displacement = 0;
 
-	Ptr bss = ACCESS_DISPLACED(savedBSS);
+	Ptr bss = ACCESS_DISPLACED(bssPtr);
 	if(bss == (Ptr)-1)
 	{
-		bss = NewPtrClear(bss_size);
+		THz zone = ApplicationZone();
+		if(!zone || (char*)header < (char*)zone)
+			bss = NewPtrSysClear(bss_size);
+		else
+			bss = NewPtrClear(bss_size);
 		bss_displacement = (long)bss - data_end;
 	}
 
@@ -121,7 +125,7 @@ void Retro68Relocate()
 	// accessing globals and calling functions is OK below here.
 
 	headerVirtualAddress += displacement;
-	savedBSS = bss;
+	bssPtr = bss;
 }
 
 void Retro68CallConstructors()
@@ -135,3 +139,13 @@ void Retro68CallConstructors()
 		p += 6;
 	}
 }
+
+void Retro68FreeGlobals()
+{
+	if(bssPtr != (Ptr) -1)
+	{
+		DisposePtr(bssPtr);
+		bssPtr = (Ptr) -1;
+	}
+}
+

@@ -33,4 +33,4 @@ add_library(retrocrt
 	consolehooks.c)
 
 install(TARGETS retrocrt  DESTINATION lib)
-
+install(FILES Retro68Runtime.h DESTINATION include)
