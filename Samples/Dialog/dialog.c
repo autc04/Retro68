@@ -19,6 +19,7 @@
 
 #include <Quickdraw.h>
 #include <Dialogs.h>
+#include <Fonts.h>
 
 QDGlobals qd;
 
@@ -52,7 +53,7 @@ int main()
     Rect box;
 
     GetDialogItem(dlg, 2, &type, &itemH, &box);
-    SetDialogItem(dlg, 2, type, (Handle) NewUserItemUPP(&ButtonFrameProc), &box);
+	SetDialogItem(dlg, 2, type, (Handle) NewUserItemProc(&ButtonFrameProc), &box);
 
     ControlHandle cb, radio1, radio2;
     GetDialogItem(dlg, 5, &type, &itemH, &box);
