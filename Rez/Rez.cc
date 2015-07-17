@@ -62,7 +62,7 @@ int main(int argc, const char *argv[])
 
 	po::notify(options);
 
-	if(options.count("help") || !options.count("input"))
+	if(options.count("help") || (!options.count("input") && !options.count("copy")))
 	{
 		usage();
 		return 0;
@@ -91,21 +91,22 @@ int main(int argc, const char *argv[])
 			world.getResources().addResources(copyRsrc.resources);
 		}
 
-	for(std::string fn : options["input"].as<std::vector<std::string>>())
-	{
-		RezLexer lexer(fn);
+	if(options.count("input"))
+		for(std::string fn : options["input"].as<std::vector<std::string>>())
+		{
+			RezLexer lexer(fn);
 
-		if(options.count("define"))
-			for(std::string define : options["define"].as<std::vector<std::string>>())
-				lexer.addDefine(define);
-		if(options.count("include"))
-			for(std::string path : options["include"].as<std::vector<std::string>>())
-				lexer.addIncludePath(path);
+			if(options.count("define"))
+				for(std::string define : options["define"].as<std::vector<std::string>>())
+					lexer.addDefine(define);
+			if(options.count("include"))
+				for(std::string path : options["include"].as<std::vector<std::string>>())
+					lexer.addIncludePath(path);
 
 
-		RezParser parser(lexer, world);
-		parser.parse();
-	}
+			RezParser parser(lexer, world);
+			parser.parse();
+		}
 
 	rsrcFile.resources = world.getResources();
 	rsrcFile.creator = options["creator"].as<std::string>();
