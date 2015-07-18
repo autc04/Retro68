@@ -6,6 +6,8 @@
 #include <boost/regex.hpp>
 
 #include "RezLexerWaveToken.h"
+#include "RezWorld.h"
+#include "Diagnostic.h"
 
 namespace wave = boost::wave;
 
@@ -88,12 +90,13 @@ struct RezLexer::Priv
 	}
 };
 
-RezLexer::RezLexer(std::string filename)
-	: RezLexer(filename, readContents(std::ifstream(filename)))
+RezLexer::RezLexer(RezWorld& world, std::string filename)
+	: RezLexer(world, filename, readContents(std::ifstream(filename)))
 {
 }
 
-RezLexer::RezLexer(std::string filename, const std::string &data)
+RezLexer::RezLexer(RezWorld& world, std::string filename, const std::string &data)
+	: world(world), curFile(filename), lastLocation(&curFile)
 {
 	pImpl.reset(new Priv(preFilter(data), filename));
 
@@ -129,12 +132,32 @@ bool RezLexer::atEnd()
 
 RezLexer::WaveToken RezLexer::nextWave()
 {
-	if(pImpl->iter == pImpl->ctx.end())
-		return WaveToken();
-	else
+	try
 	{
-		WaveToken tok = *pImpl->iter++;
-		return tok;
+		if(pImpl->iter == pImpl->ctx.end())
+			return WaveToken();
+		else
+		{
+			WaveToken tok = *pImpl->iter++;
+			return tok;
+		}
+	}
+	catch(preprocess_exception e)
+	{
+		curFile = e.file_name();
+		auto yypos = yy::position(&curFile, e.line_no(), e.column_no());
+		yy::location loc(yypos);
+		lastLocation = loc;
+
+		world.problem(Diagnostic(
+			e.severity_level(e.get_errorcode()) >= util::severity_error
+			? Diagnostic::error
+			: Diagnostic::warning,
+			preprocess_exception::error_text(e.get_errorcode()), loc));
+		if(e.is_recoverable())
+			return nextWave();
+		else
+			return WaveToken();
 	}
 }
 

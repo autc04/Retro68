@@ -155,6 +155,7 @@ RezSymbol RezLexer::nextToken()
 			curFile = pos.get_file().c_str();
 			auto yypos = yy::position(&curFile, pos.get_line(), pos.get_column());
 			yy::location loc(yypos);
+			lastLocation = loc;
 
 			if(tok == (UnknownTokenType | '"'))
 			{

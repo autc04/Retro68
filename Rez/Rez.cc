@@ -10,6 +10,7 @@
 #include "ResourceFork.h"
 #include "BinaryIO.h"
 #include "ResourceFile.h"
+#include "Diagnostic.h"
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -94,23 +95,34 @@ int main(int argc, const char *argv[])
 	if(options.count("input"))
 		for(std::string fn : options["input"].as<std::vector<std::string>>())
 		{
-			RezLexer lexer(fn);
+			try
+			{
+				RezLexer lexer(world, fn);
 
-			if(options.count("define"))
-				for(std::string define : options["define"].as<std::vector<std::string>>())
-					lexer.addDefine(define);
-			if(options.count("include"))
-				for(std::string path : options["include"].as<std::vector<std::string>>())
-					lexer.addIncludePath(path);
+				if(options.count("define"))
+					for(std::string define : options["define"].as<std::vector<std::string>>())
+						lexer.addDefine(define);
+				if(options.count("include"))
+					for(std::string path : options["include"].as<std::vector<std::string>>())
+						lexer.addIncludePath(path);
 
 
-			RezParser parser(lexer, world);
-			parser.parse();
+				RezParser parser(lexer, world);
+				parser.parse();
+			}
+			catch(...)
+			{
+				world.problem(Diagnostic(Diagnostic::fatalError,"unknown error",yy::location(&fn)));
+			}
 		}
+
+	if(world.hadErrors)
+		return 1;
 
 	rsrcFile.resources = world.getResources();
 	rsrcFile.creator = options["creator"].as<std::string>();
 	rsrcFile.type = options["type"].as<std::string>();
 	rsrcFile.write();
+
 	return 0;
 }

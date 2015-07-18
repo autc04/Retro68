@@ -7,7 +7,7 @@
 #include "Diagnostic.h"
 
 RezWorld::RezWorld()
-	: verboseFlag(false)
+	: verboseFlag(false), hadErrors(false)
 {
 }
 
@@ -53,5 +53,6 @@ void RezWorld::addData(ResSpec spec, const std::string &data, yy::location loc)
 
 void RezWorld::problem(Diagnostic d)
 {
+	hadErrors = true;
 	std::cerr << d << std::endl;
 }

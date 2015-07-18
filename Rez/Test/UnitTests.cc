@@ -6,6 +6,7 @@
 #include "RezLexer.h"
 #include "RezParser.generated.hh"
 #include "ResourceCompiler.h"
+#include "RezWorld.h"
 
 #include <iostream>
 
@@ -26,7 +27,8 @@ BOOST_AUTO_TEST_SUITE(LexSuite)
 
 BOOST_AUTO_TEST_CASE(basicInt)
 {
-	RezLexer lex("test", "123 0x456 0xaBcd9\n");
+	RezWorld world;
+	RezLexer lex(world, "test", "123 0x456 0xaBcd9\n");
 
 	CHECKSYM(RezParser::token::INTLIT, int, 123);
 	CHECKSYM(RezParser::token::INTLIT, int, 0x456);
@@ -36,7 +38,8 @@ BOOST_AUTO_TEST_CASE(basicInt)
 
 BOOST_AUTO_TEST_CASE(alternateHex)
 {
-	RezLexer lex("test", "$456 $aBcd9\n");
+	RezWorld world;
+	RezLexer lex(world, "test", "$456 $aBcd9\n");
 
 	CHECKSYM(RezParser::token::INTLIT, int, 0x456);
 	CHECKSYM(RezParser::token::INTLIT, int, 0xabcd9);
@@ -45,7 +48,8 @@ BOOST_AUTO_TEST_CASE(alternateHex)
 
 BOOST_AUTO_TEST_CASE(noNewlineAtEOF)
 {
-	RezLexer lex("test", "123 456");
+	RezWorld world;
+	RezLexer lex(world, "test", "123 456");
 	CHECKSYM(RezParser::token::INTLIT, int, 123);
 	CHECKSYM(RezParser::token::INTLIT, int, 456);
 	CHECKSYM_(0);
@@ -53,7 +57,8 @@ BOOST_AUTO_TEST_CASE(noNewlineAtEOF)
 
 BOOST_AUTO_TEST_CASE(strings)
 {
-	RezLexer lex("test", R"rez(
+	RezWorld world;
+	RezLexer lex(world, "test", R"rez(
 		"Hello, world."
 		"Foo \n"
 		"\r Quux"

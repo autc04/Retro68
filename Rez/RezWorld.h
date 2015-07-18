@@ -34,6 +34,7 @@ public:
 	Resources& getResources() { return resources; }
 
 	bool verboseFlag;
+	bool hadErrors;
 
 	void problem(Diagnostic d);
 };

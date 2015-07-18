@@ -26,7 +26,7 @@ QDGlobals qd;
 pascal void ButtonFrameProc(DialogRef dlg, DialogItemIndex itemNo)
 {
     DialogItemType type;
-    Handle itemH;
+	Handle itemH;
     Rect box;
 
     GetDialogItem(dlg, 1, &type, &itemH, &box);

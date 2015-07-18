@@ -3,7 +3,7 @@
 #include <cassert>
 
 #include "ResourceCompiler.h"
-
+#include "Diagnostic.h"
 
 
 std::ostream &operator<<(std::ostream &out, TypeSpec ts)
@@ -40,9 +40,19 @@ void FieldList::compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass)
 	for(FieldPtr f : fields)
 	{
 		if(f->needsValue())
-			f->compile(compound->getItem(i++), compiler, prePass);
+		{
+			if(i >= compound->size())
+				compiler->problem(Diagnostic(Diagnostic::error,"not enough values specified", compound->location));
+			else
+				f->compile(compound->getItem(i++), compiler, prePass);
+		}
 		else
 			f->compile(nullptr, compiler, prePass);
+	}
+	if(i < compound->size())
+	{
+		compiler->problem(Diagnostic(Diagnostic::error,"extra value specified",
+									 compound->getItem(i)->location));
 	}
 }
 

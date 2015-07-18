@@ -4,14 +4,19 @@
 #include <memory>
 #include <string>
 
+#include "location.hh"
+
 class RezSymbol;
+class RezWorld;
 
 class RezLexer
 {
+	RezWorld& world;
 	struct Priv;
 	std::unique_ptr<Priv> pImpl;
 
 	std::string curFile;
+	yy::location lastLocation;
 
 	class WaveToken;
 
@@ -20,8 +25,8 @@ class RezLexer
 	WaveToken peekWave();
 
 public:
-	RezLexer(std::string filename);
-	RezLexer(std::string filename, const std::string& data);
+	RezLexer(RezWorld& world, std::string filename);
+	RezLexer(RezWorld& world, std::string filename, const std::string& data);
 	~RezLexer();
 
 	RezSymbol nextToken();
