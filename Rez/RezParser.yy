@@ -125,6 +125,7 @@
 	#include "RezLexer.h"
 	#include "RezWorld.h"
 	#include "ResourceCompiler.h"
+	#include "Diagnostic.h"
 
 	static yy::RezParser::symbol_type yylex(RezLexer& lexer, RezWorld&)
 	{
@@ -133,7 +134,7 @@
 
 	void yy::RezParser::error(const location_type& loc, std::string const& err)
 	{
-		std::cerr << loc << ": " << err << std::endl;
+		world.problem(Diagnostic(Diagnostic::error, err, loc));
 	}
 
 	static std::string fromHex(std::string hex)
@@ -431,16 +432,55 @@ resource	: "resource" res_spec "{" resource_body "}"
 			;
 
 %type <ResSpec> res_spec;
+%type <ResSpec> resource_attributes;
 
 res_spec : res_type "(" expression resource_attributes ")"
-		 { $$ = $resource_attributes( ResSpec($res_type, $expression->evaluateInt(nullptr)) ); }
+			{
+				$$ = $resource_attributes;
+				$$.type() = $res_type;
+				$$.id() = $expression->evaluateInt(nullptr);
+			}
+			;
 
-%type <std::function<ResSpec(ResSpec)>> resource_attributes ;
-resource_attributes	: %empty { $$ = [](ResSpec s){ return s; }; }
-					| resource_attributes "," IDENTIFIER { $$ = $1; }
-					| resource_attributes "," string_expression { $$ = $1; }
-
+resource_attributes	: %empty { $$ = ResSpec(); }
+					| resource_attributes "," IDENTIFIER
+						{
+							$$ = $1;
+							if($IDENTIFIER == "changed")
+								$$.attr() |= 2;
+							else if($IDENTIFIER == "preload")
+								$$.attr() |= 4;
+							else if($IDENTIFIER == "protected")
+								$$.attr() |= 8;
+							else if($IDENTIFIER == "locked")
+								$$.attr() |= 16;
+							else if($IDENTIFIER == "purgeable")
+								$$.attr() |= 32;
+							else if($IDENTIFIER == "sysheap")
+								$$.attr() |= 64;
+							else if($IDENTIFIER == "unchanged")
+								$$.attr() &= ~2;
+							else if($IDENTIFIER == "nonpreload")
+								$$.attr() &= ~4;
+							else if($IDENTIFIER == "unprotected")
+								$$.attr() &= ~8;
+							else if($IDENTIFIER == "unlocked")
+								$$.attr() &= ~16;
+							else if($IDENTIFIER == "nonpurgeable")
+								$$.attr() &= ~32;
+							else if($IDENTIFIER == "appheap")
+								$$.attr() &= ~64;
+							else
+								world.problem(Diagnostic(Diagnostic::error, "illegal attribute " + $IDENTIFIER, @1));
+						}
+					| resource_attributes "," string_expression
+						{
+							$$ = $1;
+							$$.name() = $3->evaluateString(nullptr);
+						}
 					;
+
+
 
 %type <CompoundExprPtr> resource_body resource_body1;
 resource_body	: %empty { $$ = std::make_shared<CompoundExpr>(yy::location()); }

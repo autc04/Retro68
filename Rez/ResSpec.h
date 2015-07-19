@@ -10,7 +10,7 @@ class ResSpec : public ResRef
 	std::string name_;
 
 public:
-	ResSpec() {}
+	ResSpec() : attr_(0) {}
 	ResSpec(ResType type, int id, int attr = 0, std::string name = "")
 		: ResRef(type, id), attr_(attr), name_(name)
 	{}

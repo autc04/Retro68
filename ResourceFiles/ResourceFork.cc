@@ -27,7 +27,9 @@ void Resources::writeFork(std::ostream& out) const
 	{
 		const Resource& r = rr.second;
 		const std::string& data = r.getData();
-		resourceInfos[ r.getType() ][ r.getID() ] = out.tellp() - datastart;
+		unsigned offset = out.tellp() - datastart;
+		offset = (r.getAttr() << 24) | (offset & 0xFFFFFF);
+		resourceInfos[ r.getType() ][ r.getID() ] = (int)offset;
 		longword(out, data.size());
 		out << data;
 	}
