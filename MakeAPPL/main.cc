@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
 			word(code1, 0x0697); // addi.l #_, (a7) 
 			longword(code1, entrypoint + 12);
 			word(code1, 0x4e75); // rts
-			longword(code1, code1.tellp() + 4);
+			longword(code1, (long)(code1.tellp()) + 4);
 			code1 << flt;
 
 			rsrc.addResource(Resource("CODE", 1, code1.str()));
