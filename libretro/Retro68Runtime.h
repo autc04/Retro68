@@ -23,15 +23,21 @@
 	<http://www.gnu.org/licenses/>.
 */
 
-#define RETRO68_GET_DISPLACEMENT(DISPLACEMENT) \
+#define _RETRO68_GET_DISPLACEMENT(DISPLACEMENT, STRIP) \
 	do {	\
-		long virtualstart, realstart;	\
+		char *virtualstart, *realstart;	\
 		__asm__( "1:\n"	\
 				 "\tmove.l #1b, %0\n"	\
 				 "\tlea (1b:w,%%pc), %1" \
 				: "=r"(virtualstart) , "=a"(realstart) );	\
-		DISPLACEMENT = realstart - virtualstart;	\
+		DISPLACEMENT = STRIP(realstart) - virtualstart;	\
 	} while(0)
+
+#define RETRO68_GET_DISPLACEMENT(DISPLACEMENT) \
+	_RETRO68_GET_DISPLACEMENT(DISPLACEMENT, )
+
+#define RETRO68_GET_DISPLACEMENT_STRIP(DISPLACEMENT) \
+	_RETRO68_GET_DISPLACEMENT(DISPLACEMENT, StripAddress)
 
 #define RETRO68_CALL_UNRELOCATED(FUN,ARGS) \
 	do {	\

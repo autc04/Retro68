@@ -65,8 +65,9 @@ extern void __fini_section_end(void);
 
 
 
-static long headerVirtualAddress = -0x40;
+static long headerVirtualAddress = -sizeof(struct flat_hdr);
 static Ptr bssPtr = (Ptr) -1;
+static Handle codeHandle = NULL;
 
 #define ACCESS_DISPLACED(VAR) \
 	( * (typeof(&VAR)) ((char*)(&VAR) + displacement) )
@@ -74,9 +75,35 @@ static Ptr bssPtr = (Ptr) -1;
 void Retro68Relocate()
 {
 	long displacement;
-	RETRO68_GET_DISPLACEMENT(displacement);
+	RETRO68_GET_DISPLACEMENT_STRIP(displacement);
 
-	struct flat_hdr *header = (struct flat_hdr*) (ACCESS_DISPLACED(headerVirtualAddress) + displacement);
+	if(displacement == 0)
+	{
+		if(bssPtr != (Ptr) -1)
+		{
+			// this is not the first time, no relocations needed.
+			// should only happen for code resources.
+			HLock(codeHandle);
+			return;
+		}
+	}
+
+	long headerOldVirtualAddress = ACCESS_DISPLACED(headerVirtualAddress);
+	struct flat_hdr *header = (struct flat_hdr*) (headerOldVirtualAddress + displacement);
+	uint8_t *base = (uint8_t*) (header+1);
+
+	uint32_t headerOffsetInResource = ((uint32_t*)header)[-1];
+
+	if(headerOffsetInResource < 4096)
+		// Arbitrary magic number. We expect the offset to be small, just a few header bytes before it.
+	{
+		Handle h = RecoverHandle((Ptr) header - headerOffsetInResource);
+		if(MemError() == noErr && h)
+		{
+			HLock(h);
+			ACCESS_DISPLACED(codeHandle) = h;
+		}
+	}
 
 	SysEnvRec env;
 	long bss_size;
@@ -89,7 +116,8 @@ void Retro68Relocate()
 	long n = header->reloc_count;
 	long *relocs = (long*)( (char*)header + header->reloc_start );
 	long i;
-	long data_end = header->data_end - 0x40;
+	long data_end = header->data_end + headerOldVirtualAddress;
+	uint32_t flt_size = (uint32_t) header->data_end;
 	long bss_displacement = 0;
 
 	Ptr bss = ACCESS_DISPLACED(bssPtr);
@@ -105,17 +133,19 @@ void Retro68Relocate()
 
 	for(i = 0; i < n; i++)
 	{
-		uint8_t *addrPtr = (uint8_t*)(relocs[i] + displacement);
-		long addr;
+		uint8_t *addrPtr = base + relocs[i];
+		uint32_t addr;
 
-		addr = (addrPtr[0] << 24) | (addrPtr[1] << 16) | (addrPtr[2] << 8) | addrPtr[3];
+		//addr = *(uint32_t*)addrPtr;
+		addr = (((((addrPtr[0] << 8) | addrPtr[1]) << 8) | addrPtr[2]) << 8) | addrPtr[3];
 
-		addr += addr >= data_end ? bss_displacement : displacement;
+		addr += (uint32_t)(addr - headerOldVirtualAddress) >= flt_size ? bss_displacement : displacement;
 
-		addrPtr[0] = addr >> 24;
-		addrPtr[1] = addr >> 16;
-		addrPtr[2] = addr >> 8;
 		addrPtr[3] = addr;
+		addrPtr[2] = (addr >>= 8);
+		addrPtr[1] = (addr >>= 8);
+		addrPtr[0] = (addr >>= 8);
+		//*(uint32_t*)addrPtr = addr;
 	}
 
 	if(env.processor >= env68040)
