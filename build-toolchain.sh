@@ -17,6 +17,7 @@
 
 SRC=$(cd `dirname $0` && pwd -P)
 mkdir -p binutils-build
+rm -rf toolchain
 mkdir -p toolchain
 PREFIX=`pwd`/toolchain/
 set -e
@@ -61,7 +62,7 @@ cd ..
 
 sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/m68k-unknown-elf/include
 
-mkdir -p toolchain/RIncludes
+mkdir -p toolchain/m68k-unknown-elf/RIncludes
 sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/m68k-unknown-elf/RIncludes
 
 mkdir -p build-host
@@ -70,6 +71,12 @@ cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX
 cd ..
 
 make -C build-host install
+if test ! -e $PREFIX/bin/m68k-unknown-elf-as.real; then
+	mv $PREFIX/bin/m68k-unknown-elf-as $PREFIX/bin/m68k-unknown-elf-as.real
+	ln -s $PREFIX/bin/asfilter $PREFIX/bin/m68k-unknown-elf-as
+	mv $PREFIX/m68k-unknown-elf/bin/as $PREFIX/m68k-unknown-elf/bin/as.real
+	ln -s $PREFIX/bin/asfilter $PREFIX/m68k-unknown-elf/bin/as
+fi
 
 	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
 $PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
@@ -77,16 +84,11 @@ $PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
 
 mkdir -p build-target
 cd build-target
-cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=$PREFIX/cmake/retro68.toolchain.cmake \
-					-DCMAKE_BUILD_TYPE=Release
+cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/retro68.toolchain.cmake \
+			 -DIN_RETRO68_TREE=True	\
+			 -DCMAKE_BUILD_TYPE=Release
 cd ..
 
 
-if test ! -e $PREFIX/bin/m68k-unknown-elf-as.real; then
-	mv $PREFIX/bin/m68k-unknown-elf-as $PREFIX/bin/m68k-unknown-elf-as.real
-	ln -s $PREFIX/bin/asfilter $PREFIX/bin/m68k-unknown-elf-as
-	mv $PREFIX/m68k-unknown-elf/bin/as $PREFIX/m68k-unknown-elf/bin/as.real
-	ln -s $PREFIX/bin/asfilter $PREFIX/m68k-unknown-elf/bin/as
-fi
 
 make -C build-target install

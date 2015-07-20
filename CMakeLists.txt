@@ -19,11 +19,25 @@ cmake_minimum_required(VERSION 2.8)
 project(Retro)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+
+list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
+include(add_application)
+
+configure_file(cmake/retro68.toolchain.cmake.in cmake/retro68.toolchain.cmake @ONLY)
+install(DIRECTORY cmake/ DESTINATION cmake FILES_MATCHING PATTERN "*.cmake")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/retro68.toolchain.cmake DESTINATION cmake)
+
+set(MAKE_APPL ${CMAKE_CURRENT_BINARY_DIR}/../build-host/MakeAPPL/MakeAPPL)
+set(REZ ${CMAKE_CURRENT_BINARY_DIR}/../build-host/Rez/Rez)
+set( REZ_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libretro:${CMAKE_INSTALL_PREFIX}/RIncludes" )
+
+
 add_subdirectory(libretro)
 
 # add library path so that GCC picks up the freshly-built libretro
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/libretro)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libretro)
+
 
 add_subdirectory(Console)
 add_subdirectory(TestApps)
@@ -34,10 +48,8 @@ add_subdirectory(Samples/Dialog)
 add_subdirectory(Samples/SystemExtension)
 else()
 
+set(RETRO68_ROOT ${CMAKE_INSTALL_PREFIX})
 configure_file(cmake/retro68.toolchain.cmake.in cmake/retro68.toolchain.cmake @ONLY)
-
-install(DIRECTORY cmake/ DESTINATION cmake FILES_MATCHING PATTERN "*.cmake")
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/retro68.toolchain.cmake DESTINATION cmake)
 
 add_subdirectory(ResourceFiles)
 add_subdirectory(MakeAPPL)
