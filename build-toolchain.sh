@@ -62,7 +62,7 @@ cd ..
 sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/m68k-unknown-elf/include
 
 mkdir -p toolchain/RIncludes
-cp $SRC/RIncludes/*.r toolchain/RIncludes/
+sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/m68k-unknown-elf/RIncludes
 
 mkdir -p build-host
 cd build-host
