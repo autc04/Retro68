@@ -21,12 +21,11 @@ set( CMAKE_SYSTEM_VERSION 1)
 set( RETRO68_ROOT "@RETRO68_ROOT@" CACHE PATH "path to root of Retro68 Toolchain" )
 set( CMAKE_INSTALL_PREFIX "${RETRO68_ROOT}/m68k-unknown-elf/" CACHE PATH "installation prefix" )
 
-set( MAKE_APPL "${RETRO68_ROOT}/bin/MakeAPPL" )
-set( REZ "${RETRO68_ROOT}/bin/Rez" )
-set( REZ_INCLUDE_PATH "${RETRO68_ROOT}/m68k-unknown-elf/RIncludes" )
+set( MAKE_APPL "@CMAKE_BINARY_DIR@/MakeAPPL/MakeAPPL" )
+set( REZ "@CMAKE_BINARY_DIR@/Rez/Rez" )
+set( REZ_INCLUDE_PATH "${CMAKE_INSTALL_PREFIX}/RIncludes" )
 
 set( CMAKE_C_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-gcc" )
 set( CMAKE_CXX_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-g++" )
 
-list( APPEND CMAKE_MODULE_PATH "${RETRO68_ROOT}/cmake" )
-include(add_application)
+list( APPEND CMAKE_MODULE_PATH "@CMAKE_SOURCE_DIR@/cmake" )

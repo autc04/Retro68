@@ -84,7 +84,7 @@ $PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
 
 mkdir -p build-target
 cd build-target
-cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/retro68.toolchain.cmake \
+cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intree.toolchain.cmake \
 			 -DIN_RETRO68_TREE=True	\
 			 -DCMAKE_BUILD_TYPE=Release
 cd ..
