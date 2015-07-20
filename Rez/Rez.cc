@@ -34,6 +34,7 @@ int main(int argc, const char *argv[])
 		("define,D", po::value<std::vector<std::string>>(), "predefine preprocessor symbol")
 		("include,I", po::value<std::vector<std::string>>(), "add include file path")
 		("copy", po::value<std::vector<std::string>>(), "copy resources from other resource file")
+		("cc", po::value<std::vector<std::string>>(), "also write output to another file")
 		("debug,d", "debug logging")
 	;
 	po::options_description hidden, alldesc;
@@ -48,8 +49,7 @@ int main(int argc, const char *argv[])
 		auto parsed = po::command_line_parser(argc, argv)
 				.options(alldesc)
 				.positional(po::positional_options_description().add("input", -1))
-				.style(po::command_line_style::default_style |
-					   po::command_line_style::allow_long_disguise)
+				.style(po::command_line_style::default_style)
 				.run();
 
 		po::store(parsed, options);
@@ -95,24 +95,35 @@ int main(int argc, const char *argv[])
 	if(options.count("input"))
 		for(std::string fn : options["input"].as<std::vector<std::string>>())
 		{
-			try
+			fs::path path(fn);
+			if(path.extension() == ".rsrc" || path.extension() == ".bin")
 			{
-				RezLexer lexer(world, fn);
+				ResourceFile copyRsrc(fn);
 
-				if(options.count("define"))
-					for(std::string define : options["define"].as<std::vector<std::string>>())
-						lexer.addDefine(define);
-				if(options.count("include"))
-					for(std::string path : options["include"].as<std::vector<std::string>>())
-						lexer.addIncludePath(path);
-
-
-				RezParser parser(lexer, world);
-				parser.parse();
+				copyRsrc.read();
+				world.getResources().addResources(copyRsrc.resources);
 			}
-			catch(...)
+			else
 			{
-				world.problem(Diagnostic(Diagnostic::fatalError,"unknown error",yy::location(&fn)));
+				try
+				{
+					RezLexer lexer(world, fn);
+
+					if(options.count("define"))
+						for(std::string define : options["define"].as<std::vector<std::string>>())
+							lexer.addDefine(define);
+					if(options.count("include"))
+						for(std::string path : options["include"].as<std::vector<std::string>>())
+							lexer.addIncludePath(path);
+
+
+					RezParser parser(lexer, world);
+					parser.parse();
+				}
+				catch(...)
+				{
+					world.problem(Diagnostic(Diagnostic::fatalError,"unknown error",yy::location(&fn)));
+				}
 			}
 		}
 
@@ -123,6 +134,13 @@ int main(int argc, const char *argv[])
 	rsrcFile.creator = options["creator"].as<std::string>();
 	rsrcFile.type = options["type"].as<std::string>();
 	rsrcFile.write();
+
+	if(options.count("cc"))
+		for(std::string ccFile : options["cc"].as<std::vector<std::string>>())
+		{
+			rsrcFile.assign(ccFile);
+			rsrcFile.write();
+		}
 
 	return 0;
 }
