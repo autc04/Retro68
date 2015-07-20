@@ -122,7 +122,16 @@ void RezLexer::addDefine(std::string str)
 
 void RezLexer::addIncludePath(std::string path)
 {
-	pImpl->ctx.add_include_path(path.c_str());
+	std::size_t pos = path.find(':');
+	if(pos == std::string::npos)
+	{
+		pImpl->ctx.add_include_path(path.c_str());
+	}
+	else
+	{
+		addIncludePath(path.substr(0,pos));
+		addIncludePath(path.substr(pos + 1));
+	}
 }
 
 bool RezLexer::atEnd()
