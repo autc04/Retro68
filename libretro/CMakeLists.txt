@@ -30,7 +30,11 @@ add_library(retrocrt
 	malloc.c
 	syscalls.c
 	glue.c
-	consolehooks.c)
+	consolehooks.c
+	Retro68.r
+	Retro68APPL.r
+)
 
 install(TARGETS retrocrt  DESTINATION lib)
 install(FILES Retro68Runtime.h DESTINATION include)
+install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)

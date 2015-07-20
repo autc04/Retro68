@@ -54,3 +54,26 @@ resource 'DITL' (128) {
 		RadioButton { enabled, "Radio 2" };
 	}
 };
+
+#include "Processes.r"
+
+resource 'SIZE' (-1) {
+	dontSaveScreen,
+	acceptSuspendResumeEvents,
+	enableOptionSwitch,
+	canBackground,
+	multiFinderAware,
+	backgroundAndForeground,
+	dontGetFrontClicks,
+	ignoreChildDiedEvents,
+	is32BitCompatible,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	100 * 1024,
+	100 * 1024
+};

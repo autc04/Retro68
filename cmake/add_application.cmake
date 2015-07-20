@@ -8,6 +8,7 @@ function(add_application name)
 	set(options DEBUGBREAK CONSOLE)
 	set(oneValueArgs TYPE CREATOR)
 	set(multiValueArgs FILES MAKEAPPL_ARGS)
+
 	cmake_parse_arguments(ARGS "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
 	list(APPEND ARGS_FILES ${ARGS_UNPARSED_ARGUMENTS})
@@ -45,9 +46,15 @@ function(add_application name)
 	endif()
 
 	foreach(f ${rsrc_files})
-		list(APPEND ARGS_MAKEAPPL_ARGS --copy "${f}")
+		list(APPEND ARGS_MAKEAPPL_ARGS "${f}")
 	endforeach()
 
+	if(NOT ARGS_TYPE)
+		set(ARGS_TYPE "APPL")
+	endif()
+	if(NOT ARGS_CREATOR)
+		set(ARGS_CREATOR "????")
+	endif()
 
 
 	if(TARGET libretro)
@@ -58,7 +65,13 @@ function(add_application name)
 
 	add_custom_command(
 		OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
-		COMMAND ${MAKE_APPL} ${ARGS_MAKEAPPL_ARGS} -c "${name}.flt" -o "${name}"
+		#COMMAND ${MAKE_APPL} ${ARGS_MAKEAPPL_ARGS} -c "${name}.flt" -o "${name}"
+		COMMAND ${REZ} ${CMAKE_SOURCE_DIR}/libretro/Retro68APPL.r
+				-I${REZ_INCLUDE_PATH}
+				-DFLT_FILE_NAME="\\"${name}.flt\\""
+				-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+				-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
+				${ARGS_MAKEAPPL_ARGS}
 		DEPENDS ${name} ${rsrc_files})
 	add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
 endfunction()
