@@ -133,7 +133,7 @@ Resources::Resources(std::istream &in)
 		for(int j = 0; j < nRes; j++)
 		{
 			in.seekg(start + std::streampos(resmapOffset + typeListOffset + refListOffset + j * 12));
-			int id = word(in);
+			int id = (short) word(in);
 			int nameOffset = word(in);
 			int attr = byte(in);
 			int off1 = byte(in);

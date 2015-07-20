@@ -8,7 +8,7 @@
 class Resource
 {
 	ResType type;
-	int id;
+	short id;
 	std::string name;
 	std::string data;
 	int attr;

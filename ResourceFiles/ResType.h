@@ -21,15 +21,15 @@ public:
 
 std::ostream& operator<<(std::ostream& out, ResType t);
 
-struct ResRef : public std::pair<ResType, int>
+struct ResRef : public std::pair<ResType, short>
 {
-	ResRef() : std::pair<ResType, int>(ResType(), 0) {}
-	ResRef(ResType t, int id) : std::pair<ResType, int>(t,id) {}
+	ResRef() : std::pair<ResType, short>(ResType(), 0) {}
+	ResRef(ResType t, int id) : std::pair<ResType, short>(t,id) {}
 
 	ResType& type() { return first; }
 	ResType type() const { return first; }
-	int& id() { return second; }
-	int id() const { return second; }
+	short& id() { return second; }
+	short id() const { return second; }
 };
 
 #endif // RESTYPE_H
