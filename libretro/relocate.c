@@ -63,55 +63,92 @@ extern void __init_section_end(void);
 extern void __fini_section(void);
 extern void __fini_section_end(void);
 
+typedef struct Retro68RelocState
+{
+	long	headerVirtualAddress;
+	Ptr		bssPtr;
+	Handle	codeHandle;
+} Retro68RelocState;
 
+static Retro68RelocState relocState __attribute__ ((nocommon)) = {
+	-sizeof(struct flat_hdr), NULL, NULL
+};
 
-static long headerVirtualAddress = -sizeof(struct flat_hdr);
-static Ptr bssPtr = (Ptr) -1;
-static Handle codeHandle = NULL;
-
-#define ACCESS_DISPLACED(VAR) \
-	( * (typeof(&VAR)) ((char*)(&VAR) + displacement) )
+#if 1
+#define assert(x) do { } while(0)
+#else
+#define assert(x) do { \
+		if(!(x)) {\
+			unsigned char str[6];	\
+			int i;	\
+			int l = __LINE__; \
+			for(i = 1; i < 6; i++)	\
+				str[i] = ' ';	\
+			str[0] = 5;	\
+			str[5] = '0';	\
+			for(i = 5; l && i > 0; i--)	\
+			{	\
+				str[i] = '0' + (l % 10);	\
+				l /= 10;	\
+			}	\
+			DebugStr(str);	\
+		}	\
+	} while(0)
+#endif
 
 void Retro68Relocate()
 {
+	// Figure out the displacement
+	// what is the difference between the addresses in our program code
+	// and an address calculated by PC-relative access?
 	long displacement;
 	RETRO68_GET_DISPLACEMENT_STRIP(displacement);
 
+	struct Retro68RelocState *rState = (Retro68RelocState*)
+			((char*)&relocState + displacement);
+	// rState now points to the global relocState variable
+
 	if(displacement == 0)
 	{
-		if(bssPtr != (Ptr) -1)
+		if(rState->bssPtr)
 		{
 			// this is not the first time, no relocations needed.
-			// should only happen for code resources.
-			HLock(codeHandle);
+			// should only happen for code resources
+			// that are invoked more than once.
+
+			// Lock the code to be sure.
+			HLock(rState->codeHandle);
 			return;
 		}
 	}
 
-	long headerOldVirtualAddress = ACCESS_DISPLACED(headerVirtualAddress);
+	// Locate the start of the FLT file header inside the code resource
+	long headerOldVirtualAddress = rState->headerVirtualAddress;
 	struct flat_hdr *header = (struct flat_hdr*) (headerOldVirtualAddress + displacement);
 	uint8_t *base = (uint8_t*) (header+1);
 
+
+	// Recover the handle to the code resource by looking at the
+	// longword before the FLT header. The resource templates in Retro68.r store the offset
+	// from the beginning of the code resource there.
 	uint32_t headerOffsetInResource = ((uint32_t*)header)[-1];
 
 	if(headerOffsetInResource < 4096)
 		// Arbitrary magic number. We expect the offset to be small, just a few header bytes before it.
+		// if it's out of range, assume the longword before the header is not the offset we're looking for.
 	{
 		Handle h = RecoverHandle((Ptr) header - headerOffsetInResource);
 		if(MemError() == noErr && h)
 		{
+			// Make sure the code is locked. Only relevant for some code resources.
 			HLock(h);
-			ACCESS_DISPLACED(codeHandle) = h;
+			rState->codeHandle = h;
 		}
 	}
 
-	SysEnvRec env;
-	long bss_size;
 
-	env.processor = 0;
-	SysEnvirons(0, &env);
 
-	bss_size = header->bss_end - header->data_end;
+	long bss_size = header->bss_end - header->data_end;
 
 	long n = header->reloc_count;
 	long *relocs = (long*)( (char*)header + header->reloc_start );
@@ -120,26 +157,37 @@ void Retro68Relocate()
 	uint32_t flt_size = (uint32_t) header->data_end;
 	long bss_displacement = 0;
 
-	Ptr bss = ACCESS_DISPLACED(bssPtr);
-	if(bss == (Ptr)-1)
+	// Allocate BSS section (uninitialized/zero-initialized global data)
+	if(!rState->bssPtr)
 	{
 		THz zone = ApplicationZone();
 		if(!zone || (char*)header < (char*)zone)
-			bss = NewPtrSysClear(bss_size);
+			rState->bssPtr = NewPtrSysClear(bss_size);
 		else
-			bss = NewPtrClear(bss_size);
-		bss_displacement = (long)bss - data_end;
+			rState->bssPtr = NewPtrClear(bss_size);
+		bss_displacement = (long)(rState->bssPtr) - data_end;
 	}
 
+	// Process relocation records
 	for(i = 0; i < n; i++)
 	{
 		uint8_t *addrPtr = base + relocs[i];
 		uint32_t addr;
 
+		assert((Ptr)addrPtr >= (Ptr)header);
+		assert((Ptr)addrPtr < (Ptr)header + flt_size);
+
 		//addr = *(uint32_t*)addrPtr;
 		addr = (((((addrPtr[0] << 8) | addrPtr[1]) << 8) | addrPtr[2]) << 8) | addrPtr[3];
 
-		addr += (uint32_t)(addr - headerOldVirtualAddress) >= flt_size ? bss_displacement : displacement;
+		assert(addr + 0x40 >= headerOldVirtualAddress + 0x40);
+		assert(addr + 0x40 < headerOldVirtualAddress + header->bss_end + 0x40);
+
+		addr += (uint32_t)(addr - headerOldVirtualAddress) >= flt_size ?
+					bss_displacement : displacement;
+
+		assert((Ptr)addr >= (Ptr)header && (Ptr)addr < (Ptr)header + flt_size
+			   || (Ptr)addr >= rState->bssPtr && (Ptr)addr < rState->bssPtr + bss_size);
 
 		addrPtr[3] = addr;
 		addrPtr[2] = (addr >>= 8);
@@ -148,14 +196,19 @@ void Retro68Relocate()
 		//*(uint32_t*)addrPtr = addr;
 	}
 
+	// We're basically done.
+	// Now check whether we're on 68040 or later and need to flush the cache.
+	SysEnvRec env;
+
+	env.processor = 0;
+	SysEnvirons(0, &env);
 	if(env.processor >= env68040)
 	{
 		FlushCodeCache();
 	}
 	// accessing globals and calling functions is OK below here.
 
-	headerVirtualAddress += displacement;
-	bssPtr = bss;
+	rState->headerVirtualAddress += displacement;
 }
 
 void Retro68CallConstructors()
@@ -172,10 +225,10 @@ void Retro68CallConstructors()
 
 void Retro68FreeGlobals()
 {
-	if(bssPtr != (Ptr) -1)
+	if(relocState.bssPtr != (Ptr) -1)
 	{
-		DisposePtr(bssPtr);
-		bssPtr = (Ptr) -1;
+		DisposePtr(relocState.bssPtr);
+		relocState.bssPtr = (Ptr) -1;
 	}
 }
 
