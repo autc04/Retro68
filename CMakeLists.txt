@@ -20,6 +20,8 @@ project(Retro)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 
+
+set( REZ_TEMPLATES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libretro)
 include(add_application)
 
 configure_file(cmake/retro68.toolchain.cmake.in cmake/retro68.toolchain.cmake @ONLY)

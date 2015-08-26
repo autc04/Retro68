@@ -25,9 +25,9 @@ function(add_application name)
 			list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc.bin")
 			list(APPEND rez_files "${f}")
 		elseif(${f} MATCHES "\\.rsrc$")
-			list(APPEND rsrc_files "${f}")
+			list(APPEND rsrc_files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
 		elseif(${f} MATCHES "\\.rsrc.bin$")
-			list(APPEND rsrc_files "${f}")
+			list(APPEND rsrc_files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
 		else()
 			list(APPEND files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
 		endif()
@@ -66,7 +66,7 @@ function(add_application name)
 	add_custom_command(
 		OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
 		#COMMAND ${MAKE_APPL} ${ARGS_MAKEAPPL_ARGS} -c "${name}.flt" -o "${name}"
-		COMMAND ${REZ} ${CMAKE_SOURCE_DIR}/libretro/Retro68APPL.r
+		COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/Retro68APPL.r
 				-I${REZ_INCLUDE_PATH}
 				-DFLT_FILE_NAME="\\"${name}.flt\\""
 				-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"

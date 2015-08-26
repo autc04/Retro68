@@ -28,5 +28,7 @@ set( REZ_INCLUDE_PATH "${RETRO68_ROOT}/m68k-unknown-elf/RIncludes" )
 set( CMAKE_C_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-gcc" )
 set( CMAKE_CXX_COMPILER "${RETRO68_ROOT}/bin/m68k-unknown-elf-g++" )
 
-list( APPEND CMAKE_MODULE_PATH "${RETRO68_ROOT}/cmake" )
+set( REZ_TEMPLATES_PATH ${REZ_INCLUDE_PATH})
+
+list( APPEND CMAKE_MODULE_PATH "${RETRO68_ROOT}/m68k-unknown-elf/cmake" )
 include(add_application)
