@@ -6,7 +6,8 @@ export LANG=en
 
 # cp $IN/[A-Z]*.h $OUT/
 for file in $(cd $IN; ls [A-Z]*.h); do
-	tr '\r' '\n' < $IN/$file | sed 's/= \(0x[0-9A-Z]*\);/ONEWORDINLINE(\1);/' > $OUT/$file
+	tr '\r' '\n' < $IN/$file > $OUT/$file
+	#| sed 's/= \(0x[0-9A-Z]*\);/ONEWORDINLINE(\1);/' > $OUT/$file
 done
 
 cat > $OUT/ConditionalMacros.h <<END_MARKER
@@ -30,31 +31,6 @@ tr '\r' '\n' < $IN/ConditionalMacros.h | sed 's/__GNUC__/__GNUC_DISABLED__/g' >>
 
 cat >> $OUT/ConditionalMacros.h <<END_MARKER
 
-#undef ONEWORDINLINE(w1)
-#undef TWOWORDINLINE(w1,w2)
-#undef THREEWORDINLINE(w1,w2,w3)
-#undef FOURWORDINLINE(w1,w2,w3,w4)
-#undef FIVEWORDINLINE(w1,w2,w3,w4,w5)
-#undef SIXWORDINLINE(w1,w2,w3,w4,w5,w6)
-#undef SEVENWORDINLINE(w1,w2,w3,w4,w5,w6,w7)
-#undef EIGHTWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8)
-#undef NINEWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9)
-#undef TENWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10)
-#undef ELEVENWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11)
-#undef TWELVEWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11,w12)
-
-#define ONEWORDINLINE(w1)               __attribute__((__raw_inline__(w1)))
-#define TWOWORDINLINE(w1,w2)            __attribute__((__raw_inline__(w1,w2)))
-#define THREEWORDINLINE(w1,w2,w3)       __attribute__((__raw_inline__(w1,w2,w3)))
-#define FOURWORDINLINE(w1,w2,w3,w4)     __attribute__((__raw_inline__(w1,w2,w3,w4)))
-#define FIVEWORDINLINE(w1,w2,w3,w4,w5)  __attribute__((__raw_inline__(w1,w2,w3,w4,w5)))
-#define SIXWORDINLINE(w1,w2,w3,w4,w5,w6)                            __attribute__((__raw_inline__(w1,w2,w3,w4,w5,w6)))
-#define SEVENWORDINLINE(w1,w2,w3,w4,w5,w6,w7)                       __attribute__((__raw_inline__(w1,w2,w3,w4,w5,w6,w7)))
-#define EIGHTWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8)                    __attribute__((__raw_inline__(w1,w2,w3,w4,w5,w6,w7,w8)))
-#define NINEWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9)                  __attribute__((__raw_inline__(w1,w2,w3,w4,w5,w6,w7,w8,w9)))
-#define TENWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10)               __attribute__((__raw_inline__(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10)))
-#define ELEVENWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11)        __attribute__((__raw_inline__(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11)))
-#define TWELVEWORDINLINE(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11,w12)    __attribute__((__raw_inline__(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11,w12)))
 
 #endif /* __CONDITIONALMACROS__WRAP__ */
 END_MARKER

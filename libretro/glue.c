@@ -35,12 +35,11 @@
 #include <Quickdraw.h>
 QDGlobals qd;
 
+#pragma parameter __D0 _GetPtrSize(__A0)
+pascal long _GetPtrSize(Ptr ptr) = { 0xA021 };
 
 pascal Size GetPtrSize(Ptr ptr)
 {
-	#pragma parameter __D0 _GetPtrSize(__A0)
-	pascal long _GetPtrSize(Ptr ptr) ONEWORDINLINE(0xA021);
-
 	long tmp = _GetPtrSize(ptr);
 	if(tmp > 0)
 		return (Size) tmp;
@@ -48,11 +47,11 @@ pascal Size GetPtrSize(Ptr ptr)
 		return 0;
 }
 
+#pragma parameter __D0 _GetHandleSize(__A0)
+pascal long _GetHandleSize(Handle h) = { 0xA025 };
+
 pascal Size GetHandleSize(Handle h)
 {
-	#pragma parameter __D0 _GetHandleSize(__A0)
-	pascal long _GetHandleSize(Handle h) ONEWORDINLINE(0xA025);
-
 	long tmp = _GetHandleSize(h);
 	if(tmp > 0)
 		return (Size) tmp;
@@ -60,50 +59,61 @@ pascal Size GetHandleSize(Handle h)
 		return 0;
 }
 
+#pragma parameter __A0 _PtrToHand(__A0, __D0)
+pascal Handle _PtrToHand(const void *srcPtr, long size) = { 0xA9E3 };
+
 EXTERN_API( OSErr )
 PtrToHand(
   const void *  srcPtr,
   Handle *      dstHndl,
   long          size)
 {
-	#pragma parameter __A0 _PtrToHand(__A0, __D0)
-	pascal Handle _PtrToHand(const void *srcPtr, long size) ONEWORDINLINE(0xA9E3);
-
 	*dstHndl = _PtrToHand(srcPtr, size);
 
 	return MemError();
 }
 
+#pragma parameter __A0 _HandToHand(__A0)
+pascal Handle _HandToHand(Handle h) = { 0xA9E1 };
+
 EXTERN_API( OSErr )
 HandToHand(Handle * theHndl)
 {
-	#pragma parameter __A0 _HandToHand(__A0)
-	pascal Handle _HandToHand(Handle h) ONEWORDINLINE(0xA9E1);
-
 	*theHndl = _HandToHand(*theHndl);
 
 	return MemError();
 }
+
+#pragma parameter __D0 _StringToNum(__A0)
+pascal long _StringToNum(ConstStr255Param theString) = { 0x3F3C, 0x0001, 0xA9EE };
 
 EXTERN_API( void )
 StringToNum(
   ConstStr255Param   theString,
   long *             theNum)
 {
-	#pragma parameter __D0 _StringToNum(__A0)
-	pascal long _StringToNum(ConstStr255Param theString) THREEWORDINLINE(0x3F3C, 0x0001, 0xA9EE);
 	*theNum = _StringToNum(theString);
 }
+
+#pragma parameter _NumToString(__D0, __A0)
+pascal long _NumToString(long theNum, ConstStr255Param theString) = { 0x4267, 0xA9EE };
 
 EXTERN_API( void )
 NumToString(
   long     theNum,
   Str255   theString)
 {
-	#pragma parameter _NumToString(__D0, __A0)
-	pascal long _NumToString(long theNum, ConstStr255Param theString) TWOWORDINLINE(0x4267, 0xA9EE);
 	_NumToString(theNum, theString);
 }
+
+#pragma parameter __D0 _CmpString(__A0, __A1, __D0)
+pascal long _CmpString(const char *a, const char *b, long lens) = { 0xA03C };
+#pragma parameter __D0 _CmpStringCase(__A0, __A1, __D0)
+pascal long _CmpStringCase(const char *a, const char *b, long lens) = { 0xA43C };
+#pragma parameter __D0 _CmpStringMarks(__A0, __A1, __D0)
+pascal long _CmpStringMarks(const char *a, const char *b, long lens) = { 0xA23C };
+#pragma parameter __D0 _CmpStringCaseMarks(__A0, __A1, __D0)
+pascal long _CmpStringCaseMarks(const char *a, const char *b, long lens) = { 0xA63C };
 
 EXTERN_API( Boolean )
 EqualString(
@@ -112,15 +122,6 @@ EqualString(
   Boolean            caseSensitive,
   Boolean            diacSensitive)
 {
-	#pragma parameter __D0 _CmpString(__A0, __A1, __D0)
-	pascal long _CmpString(const char *a, const char *b, long lens) ONEWORDINLINE(0xA03C);
-	#pragma parameter __D0 _CmpStringCase(__A0, __A1, __D0)
-	pascal long _CmpStringCase(const char *a, const char *b, long lens) ONEWORDINLINE(0xA43C);
-	#pragma parameter __D0 _CmpStringMarks(__A0, __A1, __D0)
-	pascal long _CmpStringMarks(const char *a, const char *b, long lens) ONEWORDINLINE(0xA23C);
-	#pragma parameter __D0 _CmpStringCaseMarks(__A0, __A1, __D0)
-	pascal long _CmpStringCaseMarks(const char *a, const char *b, long lens) ONEWORDINLINE(0xA63C);
-
 	long lens = (str1[0] << 16) | str2[0];
 	long result;
 	if(caseSensitive)
