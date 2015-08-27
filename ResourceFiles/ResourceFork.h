@@ -41,6 +41,8 @@ public:
 	void writeFork(std::ostream& out) const;
 	void addResource(Resource res) { resources[res.getTypeAndID()] = res; }
 	void addResources(const Resources& res);
+
+	unsigned countResources() const { return resources.size(); }
 };
 
 #endif // RESOURCEFORK_H

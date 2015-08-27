@@ -23,6 +23,21 @@ static void usage()
 	std::cerr << desc << std::endl;
 }
 
+static void CopyBinaryResources(RezWorld& world, const std::string& fn)
+{
+	ResourceFile copyRsrc(fn);
+	if(!copyRsrc.read())
+	{
+		world.problem(Diagnostic(Diagnostic::error, "Could not read binary resource file " + fn, yy::location()));
+	}
+	else if(world.verboseFlag)
+	{
+		std::cerr << "Read " << copyRsrc.resources.countResources() << " resources from " << fn << "\n";
+	}
+
+	world.getResources().addResources(copyRsrc.resources);
+}
+
 int main(int argc, const char *argv[])
 {
 	desc.add_options()
@@ -84,13 +99,8 @@ int main(int argc, const char *argv[])
 		world.getResources().addResources(rsrcFile.resources);
 	}
 	if(options.count("copy"))
-		for(std::string copyFile : options["copy"].as<std::vector<std::string>>())
-		{
-			ResourceFile copyRsrc(copyFile);
-
-			copyRsrc.read();
-			world.getResources().addResources(copyRsrc.resources);
-		}
+		for(std::string fn : options["copy"].as<std::vector<std::string>>())
+			CopyBinaryResources(world, fn);
 
 	if(options.count("input"))
 		for(std::string fn : options["input"].as<std::vector<std::string>>())
@@ -98,10 +108,7 @@ int main(int argc, const char *argv[])
 			fs::path path(fn);
 			if(path.extension() == ".rsrc" || path.extension() == ".bin")
 			{
-				ResourceFile copyRsrc(fn);
-
-				copyRsrc.read();
-				world.getResources().addResources(copyRsrc.resources);
+				CopyBinaryResources(world, fn);
 			}
 			else
 			{
@@ -116,6 +123,10 @@ int main(int argc, const char *argv[])
 						for(std::string path : options["include"].as<std::vector<std::string>>())
 							lexer.addIncludePath(path);
 
+					if(world.verboseFlag)
+					{
+						std::cerr << "Compiling " << fn << "...\n";
+					}
 
 					RezParser parser(lexer, world);
 					parser.parse();
@@ -133,6 +144,11 @@ int main(int argc, const char *argv[])
 	rsrcFile.resources = world.getResources();
 	rsrcFile.creator = options["creator"].as<std::string>();
 	rsrcFile.type = options["type"].as<std::string>();
+
+	if(world.verboseFlag)
+	{
+		std::cerr << "Writing " << rsrcFile.resources.countResources() << " resources.\n";
+	}
 	rsrcFile.write();
 
 	if(options.count("cc"))

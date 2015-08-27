@@ -90,10 +90,23 @@ struct RezLexer::Priv
 	}
 };
 
+static std::string readInitial(RezWorld& world, std::string filename)
+{
+	std::ifstream in(filename);
+	if(!in.is_open())
+	{
+		world.problem(Diagnostic(Diagnostic::error,
+			"could not open " + filename, yy::location()));
+	}
+	return readContents(std::move(in));
+}
+
 RezLexer::RezLexer(RezWorld& world, std::string filename)
-	: RezLexer(world, filename, readContents(std::ifstream(filename)))
+	: RezLexer(world, filename, readInitial(world,filename))
 {
 }
+
+
 
 RezLexer::RezLexer(RezWorld& world, std::string filename, const std::string &data)
 	: world(world), curFile(filename), lastLocation(&curFile)
