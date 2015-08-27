@@ -53,10 +53,11 @@ image from:
 
 http://macintoshgarden.org/apps/macintosh-programmer%E2%80%99s-workshop
 
-and use the CIncludes directory from there.
+and use the CIncludes and RIncludes directories from there.
 
 Put the C header files into a directory called "CIncludes" at the top
-level of the Retro68 directory.
+level of the Retro68 directory; likewise, the Rez includes should go into
+a directory called "RIncludes".
 
 Building
 --------
@@ -119,6 +120,7 @@ Various patches and hacks, most importantly:
 - added `__attribute__((__raw_inline__(word1, word2, word3)))` to emulate `ONEWORDINLINE` and friends
 - added `__attribute__((regparam("...")))` to specify custom register calling conventions
 - added `#pragma parameter` to specify custom register calling conventions
+- added support for the `= { 0x1234 }` syntax for inline machine code.
 
 ### newlib
 
@@ -143,13 +145,17 @@ Apply any necessary patches to Apple's headers; currently, this only modifies `C
 An evil hack. Installs a replacement for m68k-unknown-elf-as that
 runs a few regexps on generated assembly code. Two things are changed:
 
-1. Replace occurrences of the RTD instruction, with something that is supported on 68000 as well. GCC currently generates this in `pascal` functions that you declare.
+1. Replace occurrences of the RTD instruction with something that is supported on 68000 as well. GCC currently generates this in `pascal` functions that you declare.
 2. While we're at it, remove unnecessary duplicate RTS instructions from MacsBug symbol names.
 
 ### MakeAPPL
 
 Reads a FLAT executable as output by elf2flt and converts it to
 a MacBinary file containing a classic Macintosh application.
+
+### Rez
+
+A reimplementation of Apple's Rez resource compiler. Reader `.r` files countaining textual resource descriptions and 
 
 ### libretro
 
