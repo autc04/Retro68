@@ -4088,7 +4088,8 @@ start_decl (struct c_declarator *declarator, struct c_declspecs *declspecs,
 	break;
 
       case FUNCTION_DECL:
-	error ("function %qD is initialized like a variable", decl);
+	//error ("function %qD is initialized like a variable", decl);
+        // Retro68: a function defined by inline opcodes does not count as initialized.
 	initialized = 0;
 	break;
 

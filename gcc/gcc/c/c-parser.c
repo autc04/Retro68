@@ -1253,6 +1253,8 @@ static bool c_parser_cilk_verify_simd (c_parser *, enum pragma_context);
 static tree c_parser_array_notation (location_t, c_parser *, tree, tree);
 static tree c_parser_cilk_clause_vectorlength (c_parser *, tree, bool);
 
+static tree c_parser_inline_opcodes(c_parser *);
+
 /* Parse a translation unit (C90 6.7, C99 6.9).
 
    translation-unit:
@@ -1747,17 +1749,26 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok,
 		  /* The declaration of the variable is in effect while
 		     its initializer is parsed.  */
 		  d = start_decl (declarator, specs, true,
-				  chainon (postfix_attrs, all_prefix_attrs));
+			          chainon (postfix_attrs, all_prefix_attrs));
 		  if (!d)
 		    d = error_mark_node;
-		  if (omp_declare_simd_clauses.exists ()
-		      || !vec_safe_is_empty (parser->cilk_simd_fn_tokens))
-		    c_finish_omp_declare_simd (parser, d, NULL_TREE,
-					       omp_declare_simd_clauses);
-		  start_init (d, asm_name, global_bindings_p ());
-		  init_loc = c_parser_peek_token (parser)->location;
-		  init = c_parser_initializer (parser);
-		  finish_init ();
+                  if (omp_declare_simd_clauses.exists ()
+                      || !vec_safe_is_empty (parser->cilk_simd_fn_tokens))
+                    c_finish_omp_declare_simd (parser, d, NULL_TREE,
+                                               omp_declare_simd_clauses);
+
+                  if(TREE_CODE(d) == FUNCTION_DECL)
+                    {
+                      tree rawinline_attr = c_parser_inline_opcodes(parser);
+                      decl_attributes (&d, rawinline_attr, 0);
+                    }
+                  else
+                    {
+		      start_init (d, asm_name, global_bindings_p ());
+		      init_loc = c_parser_peek_token (parser)->location;
+		      init = c_parser_initializer (parser);
+		      finish_init ();
+                    }
 		}
 	      if (d != error_mark_node)
 		{
@@ -14180,6 +14191,32 @@ c_parser_array_notation (location_t loc, c_parser *parser, tree initial_index,
   if (value_tree != error_mark_node)
     SET_EXPR_LOCATION (value_tree, loc);
   return value_tree;
+}
+
+static tree c_parser_inline_opcodes(c_parser * parser)
+{
+  tree attr_args;
+  vec<tree, va_gc> *expr_list;
+  bool braced = false;
+    
+  braced = c_parser_next_token_is(parser, CPP_OPEN_BRACE);
+  if(braced)
+    c_parser_consume_token(parser);
+  
+  expr_list = c_parser_expr_list (parser, false, true,
+                                  NULL, NULL, NULL, NULL);
+  attr_args = build_tree_list_vec (expr_list);
+  release_tree_vector (expr_list);
+  
+  if(braced)
+    {
+      if(c_parser_next_token_is(parser, CPP_CLOSE_BRACE))
+        c_parser_consume_token(parser);
+      else
+        c_parser_error (parser, "expected %<}%>");
+    }
+  
+  return build_tree_list (get_identifier("__raw_inline__"), attr_args);
 }
 
 #include "gt-c-c-parser.h"

@@ -2474,6 +2474,8 @@ static tree cp_parser_make_typename_type
 static cp_declarator * cp_parser_make_indirect_declarator
  (enum tree_code, tree, cp_cv_quals, cp_declarator *, tree);
 
+static tree cp_parser_inline_opcodes(cp_parser * parser);
+
 /* Returns nonzero if we are parsing tentatively.  */
 
 static inline bool
@@ -16813,7 +16815,17 @@ cp_parser_init_declarator (cp_parser* parser,
 	{
 	  cp_token *initializer_start_token = cp_lexer_peek_token (parser->lexer);
 	   if (initialization_kind == CPP_EQ)
-	     initializer = cp_parser_pure_specifier (parser);
+             {
+               if(member_p)
+                 initializer = cp_parser_pure_specifier (parser);
+               else
+                 {
+                   is_initialized = false;
+                   cp_lexer_consume_token (parser->lexer);
+                   tree rawinline_attr = cp_parser_inline_opcodes (parser);
+                   decl_attributes (&decl, rawinline_attr, 0);                   
+                 }
+             }
 	   else
 	     {
 	       /* If the declaration was erroneous, we don't really
@@ -32214,5 +32226,48 @@ finish_fully_implicit_template (cp_parser *parser, tree member_decl_opt)
 
   return member_decl_opt;
 }
+
+
+static tree cp_parser_inline_opcodes(cp_parser * parser)
+{
+  tree attr_args;
+  bool braced = false;
+    
+  braced = cp_lexer_next_token_is(parser->lexer, CPP_OPEN_BRACE);
+  if(braced)
+    cp_lexer_consume_token(parser->lexer);
+  
+  vec<tree, va_gc> *expr_list = make_tree_vector ();
+
+  if(!braced || !cp_lexer_next_token_is(parser->lexer, CPP_CLOSE_BRACE))
+  {
+    for(;;)
+    {
+      tree val = cp_parser_constant_expression (parser,
+                                                /*allow_non_constant_p=*/false,
+                                                NULL);
+      vec_safe_push (expr_list, val);
+
+      if(cp_lexer_next_token_is(parser->lexer, CPP_COMMA))
+        cp_lexer_consume_token(parser->lexer);
+      else
+        break;
+    }
+  }
+
+  attr_args = build_tree_list_vec (expr_list);
+  release_tree_vector (expr_list);
+
+  if(braced)
+    {
+      if(cp_lexer_next_token_is(parser->lexer, CPP_CLOSE_BRACE))
+        cp_lexer_consume_token(parser->lexer);
+      else
+        cp_parser_error (parser, "expected %<}%>");
+    }
+  
+  return build_tree_list (get_identifier("__raw_inline__"), attr_args);
+}
+
 
 #include "gt-cp-parser.h"
