@@ -1,6 +1,6 @@
 // 2001-02-26 Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -52,7 +52,11 @@ void test04()
     obj1 = obj2;
   }
   allocate_on_stack();
+#if _GLIBCXX_USE_CXX11_ABI
+  VERIFY( std::strstr(obj1.what(), strlit1) != NULL );
+#else
   VERIFY( std::strcmp(strlit1, obj1.what()) == 0 ); 
+#endif
 
   // block 02
   {
@@ -61,7 +65,11 @@ void test04()
     obj1 = obj3;
   }
   allocate_on_stack();     
+#if _GLIBCXX_USE_CXX11_ABI
+  VERIFY( std::strstr(obj1.what(), strlit2) != NULL );
+#else
   VERIFY( std::strcmp(strlit2, obj1.what()) == 0 ); 
+#endif
 }
 
 int main(void)

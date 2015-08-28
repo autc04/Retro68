@@ -1,8 +1,8 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 // Use smaller statistics when running on simulators, so it takes less time.
-// { dg-options "-std=gnu++0x -DSAMPLES=30000" { target simulator } }
+// { dg-options "-std=gnu++11 -DSAMPLES=30000" { target simulator } }
 
-// Copyright (C) 2010-2014 Free Software Foundation, Inc.
+// Copyright (C) 2010-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

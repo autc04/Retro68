@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -652,6 +652,10 @@ package body Ch3 is
 
                   Typedef_Node := P_Record_Definition;
                   Set_Limited_Present (Typedef_Node, True);
+                  End_Labl := Make_Identifier (Token_Ptr, Chars (Ident_Node));
+                  Set_Comes_From_Source (End_Labl, False);
+
+                  Set_End_Label (Typedef_Node, End_Labl);
 
                --  Ada 2005 (AI-251): LIMITED INTERFACE
 
@@ -1217,19 +1221,13 @@ package body Ch3 is
 
    function P_Constraint_Opt return Node_Id is
    begin
-      if Token = Tok_Range
-        or else Bad_Spelling_Of (Tok_Range)
-      then
+      if Token = Tok_Range or else Bad_Spelling_Of (Tok_Range) then
          return P_Range_Constraint;
 
-      elsif Token = Tok_Digits
-        or else Bad_Spelling_Of (Tok_Digits)
-      then
+      elsif Token = Tok_Digits or else Bad_Spelling_Of (Tok_Digits) then
          return P_Digits_Constraint;
 
-      elsif Token = Tok_Delta
-        or else Bad_Spelling_Of (Tok_Delta)
-      then
+      elsif Token = Tok_Delta or else Bad_Spelling_Of (Tok_Delta) then
          return P_Delta_Constraint;
 
       elsif Token = Tok_Left_Paren then
@@ -1238,6 +1236,31 @@ package body Ch3 is
       elsif Token = Tok_In then
          Ignore (Tok_In);
          return P_Constraint_Opt;
+
+      --  One more possibility is e.g. 1 .. 10 (i.e. missing RANGE keyword)
+
+      elsif Token = Tok_Identifier      or else
+            Token = Tok_Integer_Literal or else
+            Token = Tok_Real_Literal
+      then
+         declare
+            Scan_State : Saved_Scan_State;
+
+         begin
+            Save_Scan_State (Scan_State); -- at identifier or literal
+            Scan; -- past identifier or literal
+
+            if Token = Tok_Dot_Dot then
+               Restore_Scan_State (Scan_State);
+               Error_Msg_BC ("missing RANGE keyword");
+               return P_Range_Constraint;
+            else
+               Restore_Scan_State (Scan_State);
+               return Empty;
+            end if;
+         end;
+
+      --  Nothing worked, no constraint there
 
       else
          return Empty;
@@ -1432,6 +1455,16 @@ package body Ch3 is
 
          else
             Restore_Scan_State (Scan_State);
+
+            --  Reset Token_Node, because it already got changed from an
+            --  Identifier to a Defining_Identifier, and we don't want that
+            --  for a statement!
+
+            Token_Node :=
+              Make_Identifier (Sloc (Token_Node), Chars (Token_Node));
+
+            --  And now scan out one or more statements
+
             Statement_When_Declaration_Expected (Decls, Done, In_Spec);
             return;
          end if;
@@ -1481,14 +1514,34 @@ package body Ch3 is
             return;
 
          --  Otherwise we definitely have an ordinary identifier with a junk
-         --  token after it. Just complain that we expect a declaration, and
-         --  skip to a semicolon
+         --  token after it.
 
          else
-            Set_Declaration_Expected;
-            Resync_Past_Semicolon;
-            Done := False;
-            return;
+            --  If in -gnatd.2 mode, try for statements
+
+            if Debug_Flag_Dot_2 then
+               Restore_Scan_State (Scan_State);
+
+               --  Reset Token_Node, because it already got changed from an
+               --  Identifier to a Defining_Identifier, and we don't want that
+               --  for a statement!
+
+               Token_Node :=
+                 Make_Identifier (Sloc (Token_Node), Chars (Token_Node));
+
+               --  And now scan out one or more statements
+
+               Statement_When_Declaration_Expected (Decls, Done, In_Spec);
+               return;
+
+            --  Normal case, just complain and skip to semicolon
+
+            else
+               Set_Declaration_Expected;
+               Resync_Past_Semicolon;
+               Done := False;
+               return;
+            end if;
          end if;
       end if;
 
@@ -1835,7 +1888,26 @@ package body Ch3 is
          end if;
 
          Set_Defining_Identifier (Decl_Node, Idents (Ident));
-         P_Aspect_Specifications (Decl_Node);
+         P_Aspect_Specifications (Decl_Node, Semicolon => False);
+
+         --  Allow initialization expression to follow aspects (note that in
+         --  this case P_Aspect_Specifications already issued an error msg).
+
+         if Token = Tok_Colon_Equal then
+            if Is_Non_Empty_List (Aspect_Specifications (Decl_Node)) then
+               Error_Msg
+                 ("aspect specifications must come after initialization "
+                  & "expression",
+                  Sloc (First (Aspect_Specifications (Decl_Node))));
+            end if;
+
+            Set_Expression (Decl_Node, Init_Expr_Opt);
+            Set_Has_Init_Expression (Decl_Node);
+         end if;
+
+         --  Now scan out the semicolon, which we deferred above
+
+         T_Semicolon;
 
          if List_OK then
             if Ident < Num_Idents then
@@ -2033,7 +2105,9 @@ package body Ch3 is
 
    --  RANGE_CONSTRAINT ::= range RANGE
 
-   --  The caller has checked that the initial token is RANGE
+   --  The caller has checked that the initial token is RANGE or some
+   --  misspelling of it, or it may be absent completely (and a message
+   --  has already been issued).
 
    --  Error recovery: cannot raise Error_Resync
 
@@ -2042,7 +2116,13 @@ package body Ch3 is
 
    begin
       Range_Node := New_Node (N_Range_Constraint, Token_Ptr);
-      Scan; -- past RANGE
+
+      --  Skip range keyword if present
+
+      if Token = Tok_Range or else Bad_Spelling_Of (Tok_Range) then
+         Scan; -- past RANGE
+      end if;
+
       Set_Range_Expression (Range_Node, P_Range);
       return Range_Node;
    end P_Range_Constraint;
@@ -3903,6 +3983,7 @@ package body Ch3 is
       Access_Loc       : constant Source_Ptr := Token_Ptr;
       Prot_Flag        : Boolean;
       Not_Null_Present : Boolean := False;
+      Not_Null_Subtype : Boolean := False;
       Type_Def_Node    : Node_Id;
       Result_Not_Null  : Boolean;
       Result_Node      : Node_Id;
@@ -3937,8 +4018,18 @@ package body Ch3 is
 
    begin
       if not Header_Already_Parsed then
-         Not_Null_Present := P_Null_Exclusion;         --  Ada 2005 (AI-231)
+
+         --  NOT NULL ACCESS .. is a common form of access definition.
+         --  ACCESS NOT NULL ..  is certainly rare, but syntactically legal.
+         --  NOT NULL ACCESS NOT NULL .. is rarer yet, and also legal.
+         --  The last two cases are only meaningful if the following subtype
+         --  indication denotes an access type (semantic check). The flag
+         --  Not_Null_Subtype indicates that this second null exclusion is
+         --  present in the access type definition.
+
+         Not_Null_Present := P_Null_Exclusion;     --  Ada 2005 (AI-231)
          Scan; -- past ACCESS
+         Not_Null_Subtype := P_Null_Exclusion;     --  Might also appear
       end if;
 
       if Token_Name = Name_Protected then
@@ -4013,6 +4104,7 @@ package body Ch3 is
          Type_Def_Node :=
            New_Node (N_Access_To_Object_Definition, Access_Loc);
          Set_Null_Exclusion_Present (Type_Def_Node, Not_Null_Present);
+         Set_Null_Excluding_Subtype (Type_Def_Node, Not_Null_Subtype);
 
          if Token = Tok_All or else Token = Tok_Constant then
             if Ada_Version = Ada_83 then
@@ -4715,6 +4807,12 @@ package body Ch3 is
          if In_Spec then
             null;
 
+         --  Just ignore it if we are in -gnatd.2 (allow statements to appear
+         --  in declaration sequences) mode.
+
+         elsif Debug_Flag_Dot_2 then
+            null;
+
          --  In the declarative part case, take a second statement as a sure
          --  sign that we really have a missing BEGIN, and end the declarative
          --  part now. Note that the caller will fix up the first message to
@@ -4728,26 +4826,32 @@ package body Ch3 is
       --  Case of first occurrence of unexpected statement
 
       else
-         --  If we are in a package spec, then give message of statement
-         --  not allowed in package spec. This message never gets changed.
+         --  Do not give error message if we are operating in -gnatd.2 mode
+         --  (alllow statements to appear in declarative parts).
 
-         if In_Spec then
-            Error_Msg_SC ("statement not allowed in package spec");
+         if not Debug_Flag_Dot_2 then
 
-         --  If in declarative part, then we give the message complaining
-         --  about finding a statement when a declaration is expected. This
-         --  gets changed to a complaint about a missing BEGIN if we later
-         --  find that no BEGIN is present.
+            --  If we are in a package spec, then give message of statement
+            --  not allowed in package spec. This message never gets changed.
 
-         else
-            Error_Msg_SC ("statement not allowed in declarative part");
+            if In_Spec then
+               Error_Msg_SC ("statement not allowed in package spec");
+
+            --  If in declarative part, then we give the message complaining
+            --  about finding a statement when a declaration is expected. This
+            --  gets changed to a complaint about a missing BEGIN if we later
+            --  find that no BEGIN is present.
+
+            else
+               Error_Msg_SC ("statement not allowed in declarative part");
+            end if;
+
+            --  Capture message Id. This is used for two purposes, first to
+            --  stop multiple messages, see test above, and second, to allow
+            --  the replacement of the message in the declarative part case.
+
+            Missing_Begin_Msg := Get_Msg_Id;
          end if;
-
-         --  Capture message Id. This is used for two purposes, first to
-         --  stop multiple messages, see test above, and second, to allow
-         --  the replacement of the message in the declarative part case.
-
-         Missing_Begin_Msg := Get_Msg_Id;
       end if;
 
       --  In all cases except the case in which we decided to terminate the

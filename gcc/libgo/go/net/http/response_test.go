@@ -12,8 +12,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http/internal"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -26,6 +28,10 @@ type respTest struct {
 
 func dummyReq(method string) *Request {
 	return &Request{Method: method}
+}
+
+func dummyReq11(method string) *Request {
+	return &Request{Method: method, Proto: "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1}
 }
 
 var respTests = []respTest{
@@ -371,6 +377,34 @@ some body`,
 
 		"Body here\n",
 	},
+
+	// 206 Partial Content. golang.org/issue/8923
+	{
+		"HTTP/1.1 206 Partial Content\r\n" +
+			"Content-Type: text/plain; charset=utf-8\r\n" +
+			"Accept-Ranges: bytes\r\n" +
+			"Content-Range: bytes 0-5/1862\r\n" +
+			"Content-Length: 6\r\n\r\n" +
+			"foobar",
+
+		Response{
+			Status:     "206 Partial Content",
+			StatusCode: 206,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Accept-Ranges":  []string{"bytes"},
+				"Content-Length": []string{"6"},
+				"Content-Type":   []string{"text/plain; charset=utf-8"},
+				"Content-Range":  []string{"bytes 0-5/1862"},
+			},
+			ContentLength: 6,
+		},
+
+		"foobar",
+	},
 }
 
 func TestReadResponse(t *testing.T) {
@@ -406,8 +440,7 @@ func TestWriteResponse(t *testing.T) {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
-		bout := bytes.NewBuffer(nil)
-		err = resp.Write(bout)
+		err = resp.Write(ioutil.Discard)
 		if err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
@@ -447,7 +480,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		var wr io.Writer = &buf
 		if test.chunked {
-			wr = newChunkedWriter(wr)
+			wr = internal.NewChunkedWriter(wr)
 		}
 		if test.compressed {
 			buf.WriteString("Content-Encoding: gzip\r\n")
@@ -506,6 +539,9 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		rest, err := ioutil.ReadAll(bufr)
 		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
+			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func(match string) string {
+				return fmt.Sprintf("x(repeated x%d)", len(match))
+			})
 			fatalf("remainder = %q, expected %q", g, e)
 		}
 	}
@@ -612,6 +648,15 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	}
 	if err != io.ErrUnexpectedEOF {
 		t.Errorf("io.Copy error = %#v; want io.ErrUnexpectedEOF", err)
+	}
+}
+
+func TestReadResponseUnexpectedEOF(t *testing.T) {
+	br := bufio.NewReader(strings.NewReader("HTTP/1.1 301 Moved Permanently\r\n" +
+		"Location: http://example.com"))
+	_, err := ReadResponse(br, nil)
+	if err != io.ErrUnexpectedEOF {
+		t.Errorf("ReadResponse = %v; want io.ErrUnexpectedEOF", err)
 	}
 }
 

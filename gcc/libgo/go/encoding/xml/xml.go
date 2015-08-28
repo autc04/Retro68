@@ -196,10 +196,13 @@ type Decoder struct {
 	ns             map[string]string
 	err            error
 	line           int
+	offset         int64
 	unmarshalDepth int
 }
 
 // NewDecoder creates a new XML parser reading from r.
+// If r does not implement io.ByteReader, NewDecoder will
+// do its own buffering.
 func NewDecoder(r io.Reader) *Decoder {
 	d := &Decoder{
 		ns:       make(map[string]string),
@@ -857,7 +860,15 @@ func (d *Decoder) getc() (b byte, ok bool) {
 	if b == '\n' {
 		d.line++
 	}
+	d.offset++
 	return b, true
+}
+
+// InputOffset returns the input stream byte offset of the current decoder position.
+// The offset gives the location of the end of the most recently returned token
+// and the beginning of the next token.
+func (d *Decoder) InputOffset() int64 {
+	return d.offset
 }
 
 // Return saved offset.
@@ -889,6 +900,7 @@ func (d *Decoder) ungetc(b byte) {
 		d.line--
 	}
 	d.nextByte = int(b)
+	d.offset--
 }
 
 var entity = map[string]int{

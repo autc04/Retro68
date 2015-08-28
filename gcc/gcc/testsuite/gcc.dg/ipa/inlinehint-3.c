@@ -1,5 +1,8 @@
 /* { dg-options "-O3 -c -fdump-ipa-inline-details -fno-early-inlining -fno-ipa-cp"  } */
+/* { dg-add-options bind_pic_locally } */
+
 void abort (void);
+int scc_entry (int);
 int sum;
 int a[10];
 int
@@ -20,6 +23,7 @@ scc_entry (int c)
     scc_next (c);
   return sum;
 }
+int
 main()
 {
   int sum;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Write float code factoring to this file by Jerry DeLisle   
    F2003 I/O support contributed by Jerry DeLisle
@@ -446,7 +446,7 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
   skip:
 
   /* Calculate the format of the exponent field.  */
-  if (expchar)
+  if (expchar && !(dtp->u.p.g0_no_blanks && e == 0))
     {
       edigits = 1;
       for (i = abs (e); i >= 10; i /= 10)
@@ -632,7 +632,7 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
 	}
 
       /* Output the exponent.  */
-      if (expchar)
+      if (expchar && !(dtp->u.p.g0_no_blanks && e == 0))
 	{
 	  if (expchar != ' ')
 	    {
@@ -724,7 +724,7 @@ output_float (st_parameter_dt *dtp, const fnode *f, char *buffer, size_t size,
     }
 
   /* Output the exponent.  */
-  if (expchar)
+  if (expchar && !(dtp->u.p.g0_no_blanks && e == 0))
     {
       if (expchar != ' ')
 	{
@@ -1277,7 +1277,13 @@ write_float (st_parameter_dt *dtp, const fnode *f, const char *source, \
      trailing null, and finally some extra digits depending on the
      requested precision.  */
   const size_t size = 4932 + 3 + precision;
-  char buffer[size];
+#define BUF_STACK_SZ 5000
+  char buf_stack[BUF_STACK_SZ];
+  char *buffer;
+  if (size > BUF_STACK_SZ)
+     buffer = xmalloc (size);
+  else
+     buffer = buf_stack;
 
   switch (len)
     {
@@ -1306,4 +1312,6 @@ write_float (st_parameter_dt *dtp, const fnode *f, const char *source, \
     default:
       internal_error (NULL, "bad real kind");
     }
+  if (size > BUF_STACK_SZ)
+     free (buffer);
 }

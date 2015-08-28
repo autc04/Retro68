@@ -174,6 +174,9 @@ enum {
 #ifdef TIOCGWINSZ
   TIOCGWINSZ_val = TIOCGWINSZ,
 #endif
+#ifdef TIOCSWINSZ
+  TIOCSWINSZ_val = TIOCSWINSZ,
+#endif
 #ifdef TIOCNOTTY
   TIOCNOTTY_val = TIOCNOTTY,
 #endif
@@ -191,6 +194,12 @@ enum {
 #endif
 #ifdef TIOCSIG
   TIOCSIG_val = TIOCSIG,
+#endif
+#ifdef TCGETS
+  TCGETS_val = TCGETS,
+#endif
+#ifdef TCSETS
+  TCSETS_val = TCSETS,
 #endif
 };
 EOF
@@ -249,6 +258,16 @@ for flag in F_GETLK F_SETLK F_SETLKW; do
     echo "const ${flag} = ${flag}64" >> ${OUT}
   fi
 done
+
+# The Flock_t struct for fcntl.
+grep '^type _flock ' gen-sysinfo.go | \
+    sed -e 's/type _flock/type Flock_t/' \
+      -e 's/l_type/Type/' \
+      -e 's/l_whence/Whence/' \
+      -e 's/l_start/Start/' \
+      -e 's/l_len/Len/' \
+      -e 's/l_pid/Pid/' \
+    >> ${OUT}
 
 # The signal numbers.
 grep '^const _SIG[^_]' gen-sysinfo.go | \
@@ -420,12 +439,50 @@ if ! grep '^const _PTRACE_TRACEME' ${OUT} > /dev/null 2>&1; then
   echo "const _PTRACE_TRACEME = 0" >> ${OUT}
 fi
 
+# A helper function that prints a structure from gen-sysinfo.go with the first
+# letter of the field names in upper case.  $1 is the name of structure.  If $2
+# is not empty, the structure or type is renamed to $2.
+upcase_fields () {
+  name="$1"
+  def=`grep "^type $name" gen-sysinfo.go`
+  fields=`echo $def | sed -e 's/^[^{]*{\(.*\)}$/\1/'`
+  prefix=`echo $def | sed -e 's/{.*//'`
+  if test "$2" != ""; then
+    prefix=`echo $prefix | sed -e "s/$1/$2/"`
+  fi
+  if test "$fields" != ""; then
+    nfields=
+    while test -n "$fields"; do
+      field=`echo $fields | sed -e 's/^\([^;]*\);.*$/\1/'`
+      fields=`echo $fields | sed -e 's/^[^;]*; *\(.*\)$/\1/'`
+      # capitalize the next character.
+      f=`echo $field | sed -e 's/^\(.\).*$/\1/'`
+      r=`echo $field | sed -e 's/^.\(.*\)$/\1/'`
+      f=`echo $f | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ`
+      field="$f$r"
+      nfields="$nfields $field;"
+    done
+    echo "${prefix} {$nfields }"
+  fi
+}
+
 # The registers returned by PTRACE_GETREGS.  This is probably
 # GNU/Linux specific; it should do no harm if there is no
 # _user_regs_struct.
 regs=`grep '^type _user_regs_struct struct' gen-sysinfo.go || true`
+if test "$regs" == ""; then
+  # s390
+  regs=`grep '^type __user_regs_struct struct' gen-sysinfo.go || true`
+  if test "$regs" != ""; then
+    # Substructures of __user_regs_struct on s390
+    upcase_fields "__user_psw_struct" "PtracePsw" >> ${OUT} || true
+    upcase_fields "__user_fpregs_struct" "PtraceFpregs" >> ${OUT} || true
+    upcase_fields "__user_per_struct" "PtracePer" >> ${OUT} || true
+  fi
+fi
 if test "$regs" != ""; then
-  regs=`echo $regs | sed -e 's/type _user_regs_struct struct //' -e 's/[{}]//g'`
+  regs=`echo $regs |
+    sed -e 's/type __*user_regs_struct struct //' -e 's/[{}]//g'`
   regs=`echo $regs | sed -e s'/^ *//'`
   nregs=
   while test -n "$regs"; do
@@ -436,6 +493,10 @@ if test "$regs" != ""; then
     r=`echo $field | sed -e 's/^.\(.*\)$/\1/'`
     f=`echo $f | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ`
     field="$f$r"
+    field=`echo "$field" | sed \
+      -e 's/__user_psw_struct/PtracePsw/' \
+      -e 's/__user_fpregs_struct/PtraceFpregs/' \
+      -e 's/__user_per_struct/PtracePer/'`
     nregs="$nregs $field;"
   done
   echo "type PtraceRegs struct {$nregs }" >> ${OUT}
@@ -597,7 +658,7 @@ grep '^const _DT_' gen-sysinfo.go |
 rusage=`grep '^type _rusage struct' gen-sysinfo.go`
 if test "$rusage" != ""; then
   # Remove anonymous unions from GNU/Linux <bits/resource.h>.
-  rusage=`echo $rusage | sed -e 's/Godump_[0-9]* struct {\([^}]*\)};/\1/g'`
+  rusage=`echo $rusage | sed -e 's/Godump_[0-9][0-9]* struct {\([^}]*\)};/\1/g'`
   rusage=`echo $rusage | sed -e 's/type _rusage struct //' -e 's/[{}]//g'`
   rusage=`echo $rusage | sed -e 's/^ *//'`
   nrusage=
@@ -685,12 +746,7 @@ grep '^const _SCM_' gen-sysinfo.go | \
   sed -e 's/^\(const \)_\(SCM_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
 
 # The ucred struct.
-grep '^type _ucred ' gen-sysinfo.go | \
-    sed -e 's/_ucred/Ucred/' \
-      -e 's/pid/Pid/' \
-      -e 's/uid/Uid/' \
-      -e 's/gid/Gid/' \
-    >> ${OUT}
+upcase_fields "_ucred" "Ucred" >> ${OUT} || true
 
 # The ip_mreq struct.
 grep '^type _ip_mreq ' gen-sysinfo.go | \
@@ -780,6 +836,11 @@ if ! grep '^const TIOCGWINSZ' ${OUT} >/dev/null 2>&1; then
     echo 'const TIOCGWINSZ = _TIOCGWINSZ_val' >> ${OUT}
   fi
 fi
+if ! grep '^const TIOCSWINSZ' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TIOCSWINSZ_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TIOCSWINSZ = _TIOCSWINSZ_val' >> ${OUT}
+  fi
+fi
 if ! grep '^const TIOCNOTTY' ${OUT} >/dev/null 2>&1; then
   if grep '^const _TIOCNOTTY_val' ${OUT} >/dev/null 2>&1; then
     echo 'const TIOCNOTTY = _TIOCNOTTY_val' >> ${OUT}
@@ -812,8 +873,18 @@ if ! grep '^const TIOCSIG' ${OUT} >/dev/null 2>&1; then
 fi
 
 # The ioctl flags for terminal control
-grep '^const _TC[GS]ET' gen-sysinfo.go | \
+grep '^const _TC[GS]ET' gen-sysinfo.go | grep -v _val | \
     sed -e 's/^\(const \)_\(TC[GS]ET[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
+if ! grep '^const TCGETS' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TCGETS_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TCGETS = _TCGETS_val' >> ${OUT}
+  fi
+fi
+if ! grep '^const TCSETS' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TCSETS_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TCSETS = _TCSETS_val' >> ${OUT}
+  fi
+fi
 
 # ioctl constants.  Might fall back to 0 if TIOCNXCL is missing, too, but
 # needs handling in syscalls.exec.go.
@@ -1169,11 +1240,6 @@ grep '^type _inotify_event ' gen-sysinfo.go | \
 grep '^const _CLONE_' gen-sysinfo.go | \
   sed -e 's/^\(const \)_\(CLONE_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
 
-# The Solaris 11 Update 1 _zone_net_addr_t struct.
-grep '^type _zone_net_addr_t ' gen-sysinfo.go | \
-    sed -e 's/_in6_addr/[16]byte/' \
-    >> ${OUT}
-
 # Struct sizes.
 set cmsghdr Cmsghdr ip_mreq IPMreq ip_mreqn IPMreqn ipv6_mreq IPv6Mreq \
     ifaddrmsg IfAddrmsg ifinfomsg IfInfomsg in_pktinfo Inet4Pktinfo \
@@ -1206,5 +1272,10 @@ fi
 if ! grep 'const SizeofICMPv6Filter ' ${OUT} >/dev/null 2>&1; then
     echo 'const SizeofICMPv6Filter = 32' >> ${OUT}
 fi
+
+# The Solaris 11 Update 1 _zone_net_addr_t struct.
+grep '^type _zone_net_addr_t ' gen-sysinfo.go | \
+    sed -e 's/_in6_addr/[16]byte/' \
+    >> ${OUT}
 
 exit $?

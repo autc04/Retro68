@@ -1,6 +1,6 @@
 // 1999-05-11 bkoz
 
-// Copyright (C) 1999-2014 Free Software Foundation, Inc.
+// Copyright (C) 1999-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,7 +36,11 @@ void test01()
   VERIFY( sz02 >= 100 );
   str01.reserve();
   sz01 = str01.capacity();
+#if _GLIBCXX_USE_CXX11_ABI
+  VERIFY( sz01 < 100);
+#else
   VERIFY( sz01 == 0 );
+#endif
 
   sz01 = str01.size() + 5;
   str01.resize(sz01);

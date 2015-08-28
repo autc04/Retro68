@@ -1,6 +1,6 @@
 // Profiling iterator implementation -*- C++ -*-
 
-// Copyright (C) 2009-2014 Free Software Foundation, Inc.
+// Copyright (C) 2009-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,9 +35,8 @@ namespace std _GLIBCXX_VISIBILITY(default)
 {
 namespace __profile
 {
-
   template<typename _Iterator, typename _Sequence>
-    class __iterator_tracker 
+    class __iterator_tracker
     {
       typedef __iterator_tracker _Self;
 
@@ -49,12 +48,12 @@ namespace __profile
       typedef std::iterator_traits<_Iterator> _Traits;
 
     public:
-      typedef _Iterator		              _Base_iterator;
-      typedef typename _Traits::iterator_category iterator_category; 
-      typedef typename _Traits::value_type        value_type;
-      typedef typename _Traits::difference_type   difference_type;
-      typedef typename _Traits::reference         reference;
-      typedef typename _Traits::pointer           pointer;
+      typedef _Iterator					_Base_iterator;
+      typedef typename _Traits::iterator_category	iterator_category;
+      typedef typename _Traits::value_type		value_type;
+      typedef typename _Traits::difference_type		difference_type;
+      typedef typename _Traits::reference		reference;
+      typedef typename _Traits::pointer			pointer;
 
       __iterator_tracker() _GLIBCXX_NOEXCEPT
       : _M_current(), _M_ds(0) { }
@@ -67,7 +66,7 @@ namespace __profile
       : _M_current(__x._M_current), _M_ds(__x._M_ds) { }
 
       template<typename _MutableIterator>
-        __iterator_tracker(const __iterator_tracker<_MutableIterator,
+	__iterator_tracker(const __iterator_tracker<_MutableIterator,
 			   typename __gnu_cxx::__enable_if
 			   <(std::__are_same<_MutableIterator, typename
 			     _Sequence::iterator::_Base_iterator>::__value),
@@ -76,7 +75,7 @@ namespace __profile
 
       _Iterator
       base() const _GLIBCXX_NOEXCEPT { return _M_current; }
-  
+
       /**
        * @brief Conversion to underlying non-debug iterator to allow
        * better interaction with non-profile containers.
@@ -124,6 +123,7 @@ namespace __profile
       operator=(const __iterator_tracker& __x) _GLIBCXX_NOEXCEPT
       {
 	_M_current = __x._M_current;
+	_M_ds = __x._M_ds;
 	return *this;
       }
 
@@ -166,10 +166,6 @@ namespace __profile
 	return __tmp;
       }
 
-      void
-      _M_find()
-      { _M_ds->_M_profile_find(); }
-
       const _Sequence*
       _M_get_sequence() const
       { return static_cast<const _Sequence*>(_M_ds); }
@@ -199,7 +195,7 @@ namespace __profile
   template<typename _Iterator, typename _Sequence>
     inline bool
     operator!=(const __iterator_tracker<_Iterator, _Sequence>& __lhs,
-               const __iterator_tracker<_Iterator, _Sequence>& __rhs)
+	       const __iterator_tracker<_Iterator, _Sequence>& __rhs)
     _GLIBCXX_NOEXCEPT
     { return __lhs.base() != __rhs.base(); }
 

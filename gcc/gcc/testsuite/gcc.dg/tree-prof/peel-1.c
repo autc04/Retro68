@@ -1,4 +1,4 @@
-/* { dg-options "-O3 -fdump-rtl-loop2_unroll -fno-unroll-loops -fpeel-loops" } */
+/* { dg-options "-O3 -fdump-tree-cunroll-details -fno-unroll-loops -fpeel-loops" } */
 void abort();
 
 int a[1000];
@@ -12,6 +12,7 @@ t()
       return 1;
   abort ();
 }
+int
 main()
 {
   int i;
@@ -19,7 +20,7 @@ main()
     t();
   return 0;
 }
-/* { dg-final-use { scan-rtl-dump "Considering simply peeling loop" "loop2_unroll" } } */
+/* { dg-final-use { scan-tree-dump "Peeled loop ., 2 times" "cunroll" } } */
 /* In fact one peeling is enough; we however mispredict number of iterations of the loop
    at least until loop_ch is schedule ahead of profiling pass.  */
-/* { dg-final-use { cleanup-rtl-dump "loop2_unroll" } } */
+/* { dg-final-use { cleanup-tree-dump "cunroll" } } */

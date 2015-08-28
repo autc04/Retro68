@@ -1,11 +1,13 @@
 /* Test for ICE arising from VSX code generation.  */
 /* { dg-do compile } */
+/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power7" } } */
 /* { dg-options "-O3 -mcpu=power7 -funroll-loops" } */
 /* { dg-require-effective-target powerpc_vsx_ok } */
 
 int sourcenode;
 int ARCHelems;
 int *source_elms;
+void vv12x12 (double *, double *, double *);
 void
 foo (int argc, char **argv)
 {

@@ -22,7 +22,7 @@ Gogo::import_unsafe(const std::string& local_name, bool is_local_name_exported,
   bool add_to_globals;
   Package* package = this->add_imported_package("unsafe", local_name,
 						is_local_name_exported,
-						"unsafe", location,
+						"unsafe", "unsafe", location,
 						&add_to_globals);
 
   if (package == NULL)
@@ -66,7 +66,7 @@ Gogo::import_unsafe(const std::string& local_name, bool is_local_name_exported,
   fntype->set_is_builtin();
   no = bindings->add_function_declaration("Sizeof", package, fntype, bloc);
   if (add_to_globals)
-    this->add_named_object(no);
+    this->add_dot_import_object(no);
 
   // Offsetof.
   results = new Typed_identifier_list;
@@ -76,7 +76,7 @@ Gogo::import_unsafe(const std::string& local_name, bool is_local_name_exported,
   fntype->set_is_builtin();
   no = bindings->add_function_declaration("Offsetof", package, fntype, bloc);
   if (add_to_globals)
-    this->add_named_object(no);
+    this->add_dot_import_object(no);
 
   // Alignof.
   results = new Typed_identifier_list;
@@ -86,7 +86,7 @@ Gogo::import_unsafe(const std::string& local_name, bool is_local_name_exported,
   fntype->set_is_builtin();
   no = bindings->add_function_declaration("Alignof", package, fntype, bloc);
   if (add_to_globals)
-    this->add_named_object(no);
+    this->add_dot_import_object(no);
 
   if (!this->imported_unsafe_)
     {

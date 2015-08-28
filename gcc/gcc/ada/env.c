@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2005-2012, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2005-2015, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -30,18 +30,30 @@
  ****************************************************************************/
 
 #ifdef IN_RTS
-#include "tconfig.h"
-#include "tsystem.h"
+# include "tconfig.h"
+# include "tsystem.h"
 
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <time.h>
-#ifdef VMS
-#include <unixio.h>
-#endif
+# include <sys/stat.h>
+# include <fcntl.h>
+# include <time.h>
+# ifdef VMS
+#  include <unixio.h>
+# endif
+/* We don't have libiberty, so use malloc.  */
+# define xmalloc(S) malloc (S)
+#else /* IN_RTS */
+# include "config.h"
+# include "system.h"
+#endif /* IN_RTS */
 
 #if defined (__MINGW32__)
 #include <stdlib.h>
+#endif
+
+#if defined (__APPLE__) && !defined (__arm__)
+/* On Darwin, _NSGetEnviron must be used for shared libraries; but it is not
+   available on iOS.  */
+#include <crt_externs.h>
 #endif
 
 #if defined (__vxworks)
@@ -65,19 +77,8 @@
   #endif
 #endif
 
-/* We don't have libiberty, so use malloc.  */
-#define xmalloc(S) malloc (S)
-#else /* IN_RTS */
-#include "config.h"
-#include "system.h"
-#endif /* IN_RTS */
-
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#if defined (__APPLE__)
-#include <crt_externs.h>
 #endif
 
 #ifdef VMS
@@ -208,14 +209,13 @@ __gnat_environ (void)
 #if defined (VMS) || defined (RTX)
   /* Not implemented */
   return NULL;
-#elif defined (__APPLE__)
-  char ***result = _NSGetEnviron ();
-  return *result;
 #elif defined (__MINGW32__)
   return _environ;
 #elif defined (sun)
   extern char **_environ;
   return _environ;
+#elif defined (__APPLE__) && !defined (__arm__)
+  return *_NSGetEnviron ();
 #elif ! (defined (__vxworks))
   extern char **environ;
   return environ;
@@ -224,7 +224,8 @@ __gnat_environ (void)
 #endif
 }
 
-void __gnat_unsetenv (char *name) {
+void __gnat_unsetenv (char *name)
+{
 #if defined (VMS)
   /* Not implemented */
   return;
@@ -282,12 +283,14 @@ void __gnat_unsetenv (char *name) {
 #endif
 }
 
-void __gnat_clearenv (void) {
+void __gnat_clearenv (void)
+{
 #if defined (VMS)
   /* not implemented */
   return;
 #elif defined (sun) \
-   || (defined (__vxworks) && ! defined (__RTP__)) || defined (__Lynx__)
+  || (defined (__vxworks) && ! defined (__RTP__)) || defined (__Lynx__) \
+  || defined (__PikeOS__)
   /* On Solaris, VxWorks (not RTPs), and Lynx there is no system
      call to unset a variable or to clear the environment so set all
      the entries in the environ table to NULL (see comment in

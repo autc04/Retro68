@@ -1,6 +1,397 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
+
+2015-04-22  Release Manager
+
+	* GCC 5.1.0 released.
+
+2015-04-09  Richard Biener  <rguenther@suse.de>
+
+	PR pch/65550
+	* files.c (pch_open_file): Allow main and pre-included files
+	when trying to open a PCH.
+
+2015-04-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/61977
+	* lex.c (cpp_peek_token): If peektok is CPP_EOF, back it up
+	with all tokens peeked by the current function.
+
+2015-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/61977
+	* lex.c (cpp_peek_token): Temporarily clear pfile->cb.line_change.
+
+2015-03-23  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/65238
+	* internal.h (_cpp_scan_out_logical_line): Add third argument.
+	* directives.c (prepare_directive_trad): Pass false to it.
+	* traditional.c (_cpp_read_logical_line_trad,
+	_cpp_create_trad_definition): Likewise.
+	(struct fun_macro): Add paramc field.
+	(fun_like_macro): New function.
+	(maybe_start_funlike): Handle NODE_BUILTIN macros.  Initialize
+	macro->paramc field.
+	(save_argument): Use macro->paramc instead of
+	macro->node->value.macro->paramc.
+	(push_replacement_text): Formatting fix.
+	(recursive_macro): Use fun_like_macro helper.
+	(_cpp_scan_out_logical_line): Likewise.  Add BUILTIN_MACRO_ARG
+	argument.  Initialize fmacro.paramc field.  Handle builtin
+	function-like macros.
+
+2015-03-16  Edward Smith-Rowland  <3dw4rd@verizon.net>
+
+	PR c++/64626
+	* lex.c (lex_number): If a number ends with digit-seps (') skip back
+	and let lex_string take them.
+
+2015-03-02  Markus Trippelsdorf  <markus@trippelsdorf.de>
+
+	PR target/65261
+	* lex.c (search_line_fast): Silence ubsan errors.
+
+2015-02-03    <dodji@redhat.com>
+
+	PR preprocessor/64803
+	* internal.h (cpp_reader::top_most_macro_node): New data member.
+	* macro.c (enter_macro_context): Pass the location of the end of
+	the top-most invocation of the function-like macro, or the
+	location of the expansion point of the top-most object-like macro.
+	(cpp_get_token_1): Store the top-most macro node in the new
+	pfile->top_most_macro_node data member.
+	(_cpp_pop_context): Clear the new cpp_reader::top_most_macro_node
+	data member.
+
+2015-01-30  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	* lex.c (search_line_fast): Change __ARM_NEON__ to __ARM_NEON.
+
+2015-01-23  Marek Polacek  <polacek@redhat.com>
+
+	DR#412
+	PR preprocessor/60570
+	* directives.c (do_elif): Don't evaluate #elif conditionals
+	when they don't need to be.
+
+2015-01-16  Jakub Jelinek  <jakub@redhat.com>
+
+	* expr.c (cpp_classify_number): Add N_() around ?: string
+	literals used in cpp_error_with_line call as format string.
+
+2015-01-05  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2014-12-19  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/63831
+	* directives.c (lex_macro_node): Remove __has_attribute__ handling.
+	* internal.h (struct spec_node): Remove n__has_attribute__ field.
+	(struct lexer_state): Remove in__has_attribute__ field.
+	* macro.c (_cpp_builtin_macro_text): Handle BT_HAS_ATTRIBUTE.
+	* identifiers.c (_cpp_init_hashtable): Remove __has_attribute__
+	handling.
+	* init.c (builtin_array): Add __has_attribute and __has_cpp_attribute.
+	(cpp_init_special_builtins): Don't initialize __has_attribute
+	or __has_cpp_attribute if CLK_ASM or pfile->cb.has_attribute is NULL.
+	* traditional.c (enum ls): Remove ls_has_attribute,
+	ls_has_attribute_close.
+	(_cpp_scan_out_logical_line): Remove __has_attribute__ handling.
+	* include/cpplib.h (enum cpp_builtin_type): Add BT_HAS_ATTRIBUTE.
+	* pch.c (cpp_read_state): Remove __has_attribute__ handling.
+	* expr.c (eval_token): Likewise.
+	(parse_has_attribute): Removed.
+
+2014-12-11  Uros Bizjak  <ubizjak@gmail.com>
+
+	* directives.c (cpp_define_formatted): Use xvasprintf.
+
+2014-12-05  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* line-map.c (linemap_position_for_loc_and_offset): Add new
+	linemap_assert_fails.
+
+2014-12-02  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* include/line-map.h (linemap_assert_fails): Declare.
+	* line-map.c (linemap_position_for_loc_and_offset): Use it.
+
+2014-12-02  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+        * line-map.c (linemap_add): Fix typo.
+        (linemap_line_start): Fix whitespace.
+
+2014-11-29  John Schmerge  <jbschmerge@gmail.com>
+
+	PR preprocessor/41698
+	* charset.c (one_utf8_to_utf16): Do not produce surrogate pairs
+	for 0xffff.
+
+2014-11-25  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/60436
+	* line-map.c (linemap_line_start): If highest is above 0x60000000
+	and we are still tracking columns or highest is above 0x70000000,
+	force add_map.
+
+2014-11-20  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR target/63966
+	* lex.c [__i386__ || __x86_64__]: Compile special SSE functions
+	only for (__GNUC__ >= 5 || !defined(__PIC__)).
+
+2014-11-13  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* include/line-map.h: Include EXPR, so that unused variable warnings
+	do not occur.
+
+2014-11-11  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	PR fortran/44054
+	* include/line-map.h (linemap_position_for_loc_and_offset):
+	Declare.
+	* line-map.c (linemap_position_for_loc_and_offset): New.
+
+2014-11-11  David Malcolm  <dmalcolm@redhat.com>
+
+	* ChangeLog.jit: New.
+
+2014-11-10  Edward Smith-Rowland  <3dw4rd@verizon.net>
+
+	* include/cpplib.h (cpp_callbacks): Add has_attribute.
+	* internal.h (lexer_state): Add in__has_attribute__.
+	* directives.c (lex_macro_node): Prevent use of __has_attribute__
+	as a macro.
+	* expr.c (parse_has_attribute): New function; (eval_token): Look for
+	__has_attribute__ and route to parse_has_attribute.
+	* identifiers.c (_cpp_init_hashtable): Initialize n__has_attribute__.
+	* pch.c (cpp_read_state): Initialize n__has_attribute__.
+	* traditional.c (enum ls): Add ls_has_attribute, ls_has_attribute_close;
+	(_cpp_scan_out_logical_line): Attend to __has_attribute__.
+
+2014-11-06  Joseph Myers  <joseph@codesourcery.com>
+
+	* include/cpp-id-data.h (struct cpp_macro): Update comment
+	regarding parameters.
+	* include/cpplib.h (struct cpp_macro_arg, struct cpp_identifier):
+	Add spelling fields.
+	(struct cpp_token): Update comment on macro_arg.
+	* internal.h (_cpp_save_parameter): Add extra argument.
+	(_cpp_spell_ident_ucns): New declaration.
+	* lex.c (lex_identifier): Add SPELLING argument.  Set *SPELLING to
+	original spelling of identifier.
+	(_cpp_lex_direct): Update calls to lex_identifier.
+	(_cpp_spell_ident_ucns): New function, factored out of
+	cpp_spell_token.
+	(cpp_spell_token): Adjust FORSTRING argument semantics to return
+	original spelling of identifiers.  Use _cpp_spell_ident_ucns in
+	!FORSTRING case.
+	(_cpp_equiv_tokens): Check spellings of identifiers and macro
+	arguments are identical.
+	* macro.c (macro_arg_saved_data): New structure.
+	(paste_tokens): Use original spellings of identifiers from
+	cpp_spell_token.
+	(_cpp_save_parameter): Add argument SPELLING.  Save both canonical
+	node and its value.
+	(parse_params): Update calls to _cpp_save_parameter.
+	(lex_expansion_token): Save spelling of macro argument tokens.
+	(_cpp_create_definition): Extract canonical node from saved data.
+	(cpp_macro_definition): Use UCNs in spelling of macro name.  Use
+	original spellings of macro argument tokens and identifiers.
+	* traditional.c (scan_parameters): Update call to
+	_cpp_save_parameter.
+
+2014-11-05  Joseph Myers  <joseph@codesourcery.com>
+
+	PR preprocessor/9449
+	* init.c (lang_defaults): Enable extended identifiers for C++ and
+	C99-based standards.
+
+2014-10-22  Alan Modra  <amodra@gmail.com>
+
+	* symtab.c (ht_create): Use obstack_specify_allocation in place of
+	_obstack_begin.
+	* files.c (_cpp_init_files): Likewise.
+	* init.c (cpp_create_reader): Likewise.
+	* identifiers.c (_cpp_init_hashtable): Likewise.
+
+2014-10-14  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* include/line-map.h (linemap_location_from_macro_expansion_p):
+	const struct line_maps * argument.
+	(linemap_position_for_line_and_column): const struct line_map *
+	argument.
+	* line-map.c (linemap_add_macro_token): Use correct argument name
+	in comment.
+	(linemap_position_for_line_and_column): const struct line_map *
+	argument.
+	(linemap_macro_map_loc_to_def_point): Fix comment. Make static.
+	(linemap_location_from_macro_expansion_p): const struct line_maps *
+	argument.
+	(linemap_resolve_location): Fix argument names in comment.
+
+2014-10-03  Bill Schmidt  <wschmidt@linux.vnet.ibm.com>
+
+	* lex.c (search_line_fast): Add new version to be used for Power8
+	and later targets when Altivec is enabled.  Restrict the existing
+	Altivec version to big-endian systems so that lvsr is not used on
+	little endian, where it is deprecated.  Remove LE-specific code
+	from the now-BE-only version.
+
+2014-10-02  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+	    Jeff Law  <law@redhat.com>
+
+	* charset.c (convert_no_conversion): Reallocate memory with 25%
+	headroom.
+
+2014-10-01  Edward Smith-Rowland  <3dw4rd@verizon.net>
+
+	Implement SD-6: SG10 Feature Test Recommendations
+	* internal.h (lexer_state, spec_nodes): Add in__has_include__.
+	* directives.c: Support __has_include__ builtin.
+	* expr.c (parse_has_include): New function to parse __has_include__
+	builtin; (eval_token()): Use it.
+	* files.c (_cpp_has_header()): New funtion to look for header;
+	(open_file_failed()): Not an error to not find a header file for
+	__has_include__.
+	* identifiers.c (_cpp_init_hashtable()): Add entry for __has_include__.
+	* pch.c (cpp_read_state): Lookup __has_include__.
+	* traditional.c (enum ls, _cpp_scan_out_logical_line()): Walk through
+	__has_include__ statements.
+
+2014-09-30  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	PR preprocessor/58893
+	* errors.c (cpp_diagnostic): Fix possible out of bounds access.
+	* files.c (_cpp_stack_include): Initialize src_loc for IT_CMDLINE.
+
+2014-09-24  Marek Polacek  <polacek@redhat.com>
+
+	PR c/61405
+	PR c/53874
+	* include/cpplib.h (enum cpp_ttype): Define CPP_KEYWORD.
+
+2014-09-17  Jan Hubicka  <hubicka@ucw.cz>
+
+	* charset.c (conversion): Rename to ...
+	(cpp_conversion): ... this one; update.
+	* files.c (file_hash_entry): Rename to ...
+	(cpp_file_hash_entry): ... this one ; update.
+
+2014-09-17  Marek Polacek  <polacek@redhat.com>
+
+	PR c/61854
+	* init.c (struct lang_flags): Remove cplusplus_comments.
+	(cpp_set_lang): Likewise.
+	(post_options): Likewise.
+	* lex.c (_cpp_lex_direct): Disallow C++ style comments in C90/C94.
+
+2014-09-09  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* include/cpplib.h (struct cpp_options): Declare warn_normalize as
+	int instead of enum.
+
+2014-09-04  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* macro.c (replace_args): Use cpp_pedwarning, cpp_warning and
+	CPP_W flags.
+	* include/cpplib.h: Add CPP_W_C90_C99_COMPAT and CPP_W_PEDANTIC.
+	* init.c (cpp_create_reader): Do not init to -1 here.
+	* expr.c (num_binary_op): Use cpp_pedwarning.
+
+2014-08-29  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* directives.c (check_eol_1): New.
+	(check_eol_endif_labels): New.
+	(check_eol): Call check_eol_1.
+	(do_else,do_endif): Call check_eol_endif_labels.
+
+2014-08-29  Manuel López-Ibáñez  <manu@gcc.gnu.org>
+
+	* macro.c (warn_of_redefinition): Suppress warnings for builtins
+	that lack the NODE_WARN flag, unless Wbuiltin-macro-redefined.
+	(_cpp_create_definition): Use Wbuiltin-macro-redefined for
+	builtins that lack the NODE_WARN flag.
+	* directives.c (do_undef): Likewise.
+	* init.c (cpp_init_special_builtins): Do not change flags
+	depending on Wbuiltin-macro-redefined.
+
+2014-08-28  Edward Smith-Rowland  <3dw4rd@verizon.net>
+
+	PR cpp/23827 - standard C++ should not have hex float preprocessor
+	tokens
+	* libcpp/init.c (lang_flags): Change CXX98 flag for extended numbers
+	from 1 to 0.
+	* libcpp/expr.c (cpp_classify_number): Weite error message for improper
+	use of hex floating literal.
+
+2014-08-23  Edward Smith-Rowland  <3dw4rd@verizon.net>
+
+	* include/cpplib.h (enum c_lang): Add CLK_GNUCXX1Z, CLK_CXX1Z;
+	Rename CLK_GNUCXX1Y, CLK_CXX1Y to CLK_GNUCXX14, CLK_CXX14;
+	* init.c (struct lang_flags lang_defaults): Add column for trigraphs;
+	Add rows for CLK_GNUCXX1Z, CLK_CXX1Z; (cpp_set_lang): Set trigraphs;
+	(cpp_init_builtins): Set __cplusplus to 201402L for C++14;
+	Set __cplusplus to 201500L for C++17.
+	* expr.c (cpp_classify_number): Change C++1y to C++14 in binary
+	constants error message.
+
+2014-08-20  Marek Polacek  <polacek@redhat.com>
+
+	* include/cpplib.h (cpp_options): Use signed char.
+	* lex.c (_cpp_lex_direct): Don't warn in C++ mode.
+
+2014-08-19  Marek Polacek  <polacek@redhat.com>
+
+	* lex.c (_cpp_lex_direct): Fix a typo.
+
+2014-08-19  Marek Polacek  <polacek@redhat.com>
+
+	* charset.c (_cpp_valid_ucn): Warn only if -Wc90-c99-compat.
+	* lex.c (_cpp_lex_direct): Likewise.
+	* macro.c (replace_args): Likewise.
+	(parse_params): Likewise.
+	* include/cpplib.h (cpp_options): Change cpp_warn_c90_c99_compat
+	to char.
+
+2014-08-10 Marek Polacek  <polacek@redhat.com>
+
+	PR c/51849
+	* lex.c (_cpp_lex_direct): Warn when -Wc90-c99-compat is in effect.
+	* charset.c (_cpp_valid_ucn): Likewise.
+	* include/cpplib.h (cpp_options): Add cpp_warn_c90_c99_compat.
+	* macro.c (replace_args): Warn when -Wc90-c99-compat is in effect.
+	(parse_params): Likewise.
+
+2014-07-27  Marek Polacek  <polacek@redhat.com>
+
+	PR c/61861
+	* macro.c (builtin_macro): Add location parameter.  Set
+	location of builtin macro to the expansion point.
+	(enter_macro_context): Pass location to builtin_macro.
+
+2014-07-16  Dodji Seketeli  <dodji@redhat.com>
+
+	Support location tracking for built-in macro tokens
+	* include/line-map.h (line_maps::builtin_location): New data
+	member.
+	(line_map_init): Add a new parameter to initialize the new
+	line_maps::builtin_location data member.
+	* line-map.c (linemap_init): Initialize the
+	line_maps::builtin_location data member.
+	* macro.c (builtin_macro): Create a macro map and track the token
+	resulting from the expansion of a built-in macro.
+
+2014-07-10  Edward Smith-Rowland  <3dw4rd@verizon.net>
+	    Jonathan Wakely  <jwakely@redhat.com>
+
+	PR preprocessor/61389
+	* macro.c (_cpp_arguments_ok, parse_params, create_iso_definition):
+	Warning messages mention C++11 in c++ mode and C99 in c mode.
+	* lex.c (lex_identifier_intern, lex_identifier): Ditto
 
 2014-07-09  Edward Smith-Rowland  <3dw4rd@verizon.net>
 
@@ -9,9 +400,55 @@
 	* lex.c (lex_raw_string ()): Do not warn about invalid suffix
 	if skipping. (lex_string ()): Ditto.
 
-2014-04-22  Release Manager
+2014-06-04  Edward Smith-Rowland  <3dw4rd@verizon.net>
 
-	* GCC 4.9.0 released.
+	PR c++/61038
+	* macro.c (stringify_arg (cpp_reader *, macro_arg *)):
+	Combine user-defined escape logic with the other string and char logic.
+
+2014-05-26  Richard Biener  <rguenther@suse.de>
+
+	* configure.ac: Remove long long and __int64 type checks,
+	add check for uint64_t and fail if that wasn't found.
+	* include/cpplib.h (cpp_num_part): Use uint64_t.
+	* config.in: Regenerate.
+	* configure: Likewise.
+
+2014-05-21  Marek Polacek  <polacek@redhat.com>
+
+	PR c/61212
+	* files.c (find_file_in_dir): Add parens around &&.
+
+2014-05-20  Edward Smith-Rowland  <3dw4rd@verizon.net>
+
+	PR c++/61038
+	* macro.c (stringify_arg (cpp_reader *, macro_arg *)):
+	Check for user-defined literal strings and user-defined literal chars
+	to escape necessary characters.
+
+2014-05-20  Richard Biener  <rguenther@suse.de>
+
+	* configure.ac: Copy gcc logic of detecting a 64bit type.
+	Remove HOST_WIDE_INT define.
+	* include/cpplib.h: typedef cpp_num_part to a 64bit type,
+	similar to how hwint.h does it.
+	* config.in: Regenerate.
+	* configure: Likewise.
+
+2014-05-09  Joey Ye  <joey.ye@arm.com>
+
+	* files.c (find_file_in_dir): Always try to shorten for DOS
+	non-system headers.
+	* init.c (ENABLE_CANONICAL_SYSTEM_HEADERS): Default enabled for DOS.
+
+2014-05-07  Richard Biener  <rguenther@suse.de>
+
+	* configure.ac: Always set need_64bit_hwint to yes.
+	* configure: Regenerated.
+
+2014-04-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* lex.c: Remove Solaris 9 reference.
 
 2014-02-24  Walter Lee  <walt@tilera.com>
 
@@ -562,7 +999,7 @@
 
 	* lex.c (lex_raw_string): Change C++ style comments into C style
 	comments.
-    	(lex_string): Likewise.
+	(lex_string): Likewise.
 
 2012-04-27   Ollie Wild  <aaw@google.com>
 
@@ -738,15 +1175,15 @@
 
 	PR bootstrap/50760
 	* include/line-map.h (struct linemap_stats): Change the type of
-    	the members from size_t to long.
+	the members from size_t to long.
 	* macro.c (macro_arg_token_iter_init): Unconditionally initialize
-    	iter->location_ptr.
+	iter->location_ptr.
 
 2011-10-17  Dodji Seketeli  <dodji@redhat.com>
 
 	* line-map.c (linemap_macro_map_loc_to_exp_point): Avoid setting a
-    	variable without using it if ENABLE_CHECKING is not defined.  Mark
-    	the LOCATION parameter as being unused.
+	variable without using it if ENABLE_CHECKING is not defined.  Mark
+	the LOCATION parameter as being unused.
 
 2011-10-15  Tom Tromey  <tromey@redhat.com>
 	    Dodji Seketeli  <dodji@redhat.com>
@@ -861,7 +1298,7 @@
 	member.
 	(MAX_SOURCE_LOCATION): New constant.
 	(struct line_map_ordinary, struct line_map_macro): New structs.
-    	(struct line_map): Turn this into a union of the two above.  Add
+	(struct line_map): Turn this into a union of the two above.  Add
 	comments.
 	(struct maps_info): New struct.
 	(struct line_maps)<info_ordinary, info_macro>: Two new fields.
@@ -1116,7 +1553,7 @@
 	* lex.c [ALTIVEC] (search_line_fast): Require gcc version 4.5.
 
 2011-11-04  Eric Botcazou  <ebotcazou@adacore.com>
-            Jakub Jelinek  <jakub@redhat.com>
+	    Jakub Jelinek  <jakub@redhat.com>
 
 	PR preprocessor/39213
 	* directives.c (end_directive): Call _cpp_remove_overlay for deferred
@@ -1869,7 +2306,7 @@
 	* directives-only.c (_cpp_preprocess_dir_only): Likewise.
 	* internal.h (CPP_INCREMENT_LINE): Likewise.
 	* lex.c (_cpp_skip_block_comment): Use source_location.
-	
+
 2008-07-14  Ben Elliston  <bje@au.ibm.com>
 
 	* include/cpplib.h (NODE_CONDITIONAL): New.
@@ -2135,7 +2572,7 @@
 
 	PR preprocessor/30363
 	* traditional.c (replace_args_and_push): Add local variable
-	cxtquote, calculate the replacement text size assuming a 
+	cxtquote, calculate the replacement text size assuming a
 	worst case of every input character quoted with backslash,
 	and properly handle output quoting of quote characters in
 	actual arguments used in function-like macros.
@@ -2289,8 +2726,8 @@
 2007-06-09  Vladimir Prus  <vladimir@codesourcery.com>
 
 	* files.c (open_file): Account for the
-        fact that on windows, opening a directory gives
-        EACCES.
+	fact that on windows, opening a directory gives
+	EACCES.
 
 2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de>
 
@@ -2342,7 +2779,7 @@
 
 2007-05-14  Janis Johnson  <janis187@us.ibm.com>
 
-        * expr.c (cpp_classify_number): Warn about dfp constant for -pedantic.
+	* expr.c (cpp_classify_number): Warn about dfp constant for -pedantic.
 
 	PR c/31924
 	* expr.c (interpret_float_suffix): Check for invalid suffix.

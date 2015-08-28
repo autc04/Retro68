@@ -1,4 +1,4 @@
-#   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2015 Free Software Foundation, Inc.
 #   Written by Ian Lance Taylor <iant@google.com>.
 
 # This program is free software; you can redistribute it and/or modify
@@ -152,7 +152,7 @@ proc errchk { test opts } {
 
     set hold_runtests $runtests
     set runtests "go-test.exp"
-    go-dg-runtest $filename "-fno-show-column $DEFAULT_GOCFLAGS $opts"
+    go-dg-runtest $filename "" "-fno-show-column $DEFAULT_GOCFLAGS $opts"
     set runtests $hold_runtests
 
     file delete $filename
@@ -176,7 +176,7 @@ proc go-execute-xfail { test } {
 
     set hold_runtests $runtests
     set runtests "go-test.exp"
-    go-dg-runtest $filename "-w $DEFAULT_GOCFLAGS"
+    go-dg-runtest $filename "" "-w $DEFAULT_GOCFLAGS"
     set runtests $hold_runtests
 
     file delete $filename
@@ -241,8 +241,18 @@ proc go-set-goarch { } {
 	    if [check_effective_target_ilp32] {
 		set goarch "ppc"
 	    } else {
-		set goarch "ppc64"
+		if [istarget "powerpc64le-*-*"] {
+		    set goarch "ppc64le"
+		} else {
+		    set goarch "ppc64"
+		}
 	    }
+	}
+	"s390-*-*" {
+	    set goarch "s390"
+	}
+	"s390x-*-*" {
+	    set goarch "s390x"
 	}
 	"sparc*-*-*" {
 	    if [check_effective_target_ilp32] {
@@ -381,7 +391,7 @@ proc go-gc-tests { } {
 	}
 
 	# Handle certain tests in a target-dependant way.
-	if { [istarget "alpha*-*-*"] || [istarget "sparc*-*-solaris*"] || [istarget "powerpc*-*-*"] } {
+	if { [istarget "alpha*-*-*"] || [istarget "sparc*-*-solaris*"] || [istarget "powerpc*-*-*"] || [istarget "s390*-*-*"] } {
 	    if { [string match "*go.test/test/nilptr.go" $test] } {
 		untested $test
 		continue
@@ -404,7 +414,8 @@ proc go-gc-tests { } {
 
 	if { ( [file tail $test] == "select2.go" \
 		   || [file tail $test] == "stack.go" \
-		   || [file tail $test] == "peano.go" ) \
+		   || [file tail $test] == "peano.go" \
+		   || [file tail $test] == "nilptr2.go" ) \
 		 && ! [check_effective_target_split_stack] } {
 	    # These tests fails on targets without split stack.
 	    untested $name
@@ -449,13 +460,22 @@ proc go-gc-tests { } {
 	    }
 
 	    if { [ string match "// +build *" $test_line ] } {
-		if { [ string match "*[getenv GOARCH]*" $test_line ] } {
-		    continue
+		set matches_pos 0
+		set matches_neg 0
+		if { [ regexp -line "\[ 	\][getenv GOARCH]\(\[ 	\]\|\$\)" $test_line ] } {
+		    set matches_pos 1
+		} elseif { [ regexp -line "\[ 	\]\![getenv GOARCH]\(\[ 	\]\|\$\)" $test_line ] } {
+		    set matches_neg 1
+		} elseif { [ regexp -line "\[ 	\]linux\(\[ 	\]\|\$\)" $test_line ] } {
+		    set matches_pos 1
+		} elseif { [ regexp -line "\[ 	\]\!linux\(\[ 	\]\|\$\)" $test_line ] } {
+		    set matches_neg 1
+		} elseif { [ regexp -line "\[ 	\]\!windows\(\[ 	\]\|\$\)" $test_line ] } {
+		    set matches_pos 1
+		} elseif { [ regexp -line "\[ 	\]windows\(\[ 	\]\|\$\)" $test_line ] } {
+		    set matches_neg 1
 		}
-		if { [ string match "*linux*" $test_line ] } {
-		    continue
-		}
-		if { [ string match "*!windows*" $test_line ] } {
+		if { $matches_pos == 1 && $matches_neg == 0 } {
 		    continue
 		}
 		close $fd
@@ -488,6 +508,12 @@ proc go-gc-tests { } {
 	}
 
 	close $fd
+
+	# runtest_file_p is already run above, and the code below can run
+	# runtest_file_p again, make sure everything for this test is
+	# performed if the above runtest_file_p decided this runtest
+	# instance should execute the test
+	gcc_parallel_test_enable 0
 
 	set go_compile_args ""
 	set go_execute_args ""
@@ -524,7 +550,7 @@ proc go-gc-tests { } {
 	     || $test_line == "// echo bug395 is broken  # takes 90+ seconds to break" } {
 	    # This is a vanilla compile test.
 	    set dg-do-what-default "assemble"
-	    go-dg-runtest $test "-w $DEFAULT_GOCFLAGS"
+	    go-dg-runtest $test "" "-w $DEFAULT_GOCFLAGS"
 	} elseif { $test_line == "// run"
 		   || $test_line == "// \$G \$F.go && \$L \$F.\$A && ./\$A.out" } {
 	    # This is a vanilla execution test.
@@ -533,7 +559,7 @@ proc go-gc-tests { } {
 	} elseif { $test_line == "// build" } {
 	    # This is a vanilla compile and link test.
 	    set dg-do-what-default "link"
-	    go-dg-runtest $test "-w $DEFAULT_GOCFLAGS"
+	    go-dg-runtest $test "" "-w $DEFAULT_GOCFLAGS"
 	} elseif { [string match "// runoutput*" $test_line] \
 		       || ($test_line == "// \$G \$D/\$F.go && \$L \$F.\$A &&"
 			   && $test_line2 == "// ./\$A.out >tmp.go && \$G tmp.go && \$L -o \$A.out1 tmp.\$A && ./\$A.out1") } {
@@ -588,6 +614,7 @@ proc go-gc-tests { } {
 		    pass "$name execution"
 		    regsub "\\.go$" $test ".out" expect
 		    filecmp $expect $base.p "$name compare"
+		    file delete $output_file
 		}
 		file delete $base.p
 	    } else {
@@ -651,13 +678,17 @@ proc go-gc-tests { } {
 	    set runtests "go-test.exp"
 	    set dg-do-what-default "assemble"
 	    set dir "[file rootname $test].dir"
-	    set del {}
-	    foreach f [lsort [glob "$dir/*.go"]] {
-		dg-test -keep-output $f "-O" "-w $DEFAULT_GOCFLAGS"
-		lappend del "[file rootname [file tail $f]].o"
-	    }
-	    foreach f $del {
-		file delete $f
+	    set files [lsort [glob "$dir/*.go"]]
+	    set packages [go-find-packages $test $name $files]
+	    if { [llength $packages] > 0 } {
+		set del [list]
+		foreach p $packages {
+		    dg-test -keep-output [lindex $p 1] "[lrange $p 2 end] -O" "-w $DEFAULT_GOCFLAGS"
+		    lappend del "[file rootname [file tail [lindex $p 1]]].o"
+		}
+		foreach f $del {
+		    file delete $f
+		}
 	    }
 	    set runtests $hold_runtests
 	} elseif { $test_line == "// rundir" } {
@@ -676,8 +707,10 @@ proc go-gc-tests { } {
 		    lappend del "[file rootname [file tail [lindex $p 1]]].o"
 		}
 		set dg-do-what-default "link"
-		set go_compile_args $del
-		go-torture-execute [lrange $last 1 end]
+		set go_compile_args ""
+		append go_compile_args [lrange $last 2 end]
+		append go_compile_args $del
+		go-torture-execute [lindex $last 1]
 		foreach f $del {
 		    file delete $f
 		}
@@ -1158,6 +1191,7 @@ proc go-gc-tests { } {
 	set go_compile_args ""
 	set go_execute_args ""
         set TORTURE_OPTIONS [list { -O2 -g }]
+	gcc_parallel_test_enable 1
     }
 
     set dg-do-what-default ${saved-dg-do-what-default}

@@ -74,31 +74,29 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	}
 
 	for len(src) > 0 {
-		dst[0] = 0
-		dst[1] = 0
-		dst[2] = 0
-		dst[3] = 0
+		var b0, b1, b2, b3 byte
 
 		// Unpack 4x 6-bit source blocks into a 4 byte
 		// destination quantum
 		switch len(src) {
 		default:
-			dst[3] |= src[2] & 0x3F
-			dst[2] |= src[2] >> 6
+			b3 = src[2] & 0x3F
+			b2 = src[2] >> 6
 			fallthrough
 		case 2:
-			dst[2] |= (src[1] << 2) & 0x3F
-			dst[1] |= src[1] >> 4
+			b2 |= (src[1] << 2) & 0x3F
+			b1 = src[1] >> 4
 			fallthrough
 		case 1:
-			dst[1] |= (src[0] << 4) & 0x3F
-			dst[0] |= src[0] >> 2
+			b1 |= (src[0] << 4) & 0x3F
+			b0 = src[0] >> 2
 		}
 
 		// Encode 6-bit blocks using the base64 alphabet
-		for j := 0; j < 4; j++ {
-			dst[j] = enc.encode[dst[j]]
-		}
+		dst[0] = enc.encode[b0]
+		dst[1] = enc.encode[b1]
+		dst[2] = enc.encode[b2]
+		dst[3] = enc.encode[b3]
 
 		// Pad the final quantum
 		if len(src) < 3 {
@@ -159,13 +157,11 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 		nn := len(e.out) / 4 * 3
 		if nn > len(p) {
 			nn = len(p)
+			nn -= nn % 3
 		}
-		nn -= nn % 3
-		if nn > 0 {
-			e.enc.Encode(e.out[0:], p[0:nn])
-			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
-				return n, e.err
-			}
+		e.enc.Encode(e.out[0:], p[0:nn])
+		if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
+			return n, e.err
 		}
 		n += nn
 		p = p[nn:]
@@ -226,21 +222,33 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		var dbuf [4]byte
 		dlen := 4
 
-		for j := 0; j < 4; {
+		for j := range dbuf {
 			if len(src) == 0 {
 				return n, false, CorruptInputError(olen - len(src) - j)
 			}
 			in := src[0]
 			src = src[1:]
-			if in == '=' && j >= 2 && len(src) < 4 {
+			if in == '=' {
 				// We've reached the end and there's padding
-				if len(src)+j < 4-1 {
-					// not enough padding
-					return n, false, CorruptInputError(olen)
-				}
-				if len(src) > 0 && src[0] != '=' {
+				switch j {
+				case 0, 1:
 					// incorrect padding
 					return n, false, CorruptInputError(olen - len(src) - 1)
+				case 2:
+					// "==" is expected, the first "=" is already consumed.
+					if len(src) == 0 {
+						// not enough padding
+						return n, false, CorruptInputError(olen)
+					}
+					if src[0] != '=' {
+						// incorrect padding
+						return n, false, CorruptInputError(olen - len(src) - 1)
+					}
+					src = src[1:]
+				}
+				if len(src) > 0 {
+					// trailing garbage
+					err = CorruptInputError(olen - len(src))
 				}
 				dlen, end = j, true
 				break
@@ -249,7 +257,6 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 			if dbuf[j] == 0xFF {
 				return n, false, CorruptInputError(olen - len(src) - 1)
 			}
-			j++
 		}
 
 		// Pack 4x 6-bit source blocks into 3 byte destination
@@ -268,7 +275,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		n += dlen - 1
 	}
 
-	return n, end, nil
+	return n, end, err
 }
 
 // Decode decodes src using the encoding enc.  It writes at most
@@ -286,7 +293,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 	s = strings.Map(removeNewlinesMapper, s)
 	dbuf := make([]byte, enc.DecodedLen(len(s)))
-	n, err := enc.Decode(dbuf, []byte(s))
+	n, _, err := enc.decode(dbuf, []byte(s))
 	return dbuf[:n], err
 }
 

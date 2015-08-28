@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++1y" }
+// { dg-options "-std=gnu++14" }
 // { dg-do run }
 
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,6 +22,9 @@
 #include <testsuite_hooks.h>
 
 #include <tuple>
+
+using std::experimental::bad_optional_access;
+static_assert( std::is_default_constructible<bad_optional_access>::value, "" );
 
 struct trivially_destructible
 {

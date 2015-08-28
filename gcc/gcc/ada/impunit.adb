@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---           Copyright (C) 2000-2013, Free Software Foundation, Inc.        --
+--           Copyright (C) 2000-2015, Free Software Foundation, Inc.        --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -273,6 +273,7 @@ package body Impunit is
     ("g-expect", F),  -- GNAT.Expect
     ("g-exptty", F),  -- GNAT.Expect.TTY
     ("g-flocon", F),  -- GNAT.Float_Control
+    ("g-forstr", F),  -- GNAT.Formatted_String
     ("g-heasor", F),  -- GNAT.Heap_Sort
     ("g-hesora", F),  -- GNAT.Heap_Sort_A
     ("g-hesorg", F),  -- GNAT.Heap_Sort_G
@@ -291,6 +292,7 @@ package body Impunit is
     ("g-regexp", F),  -- GNAT.Regexp
     ("g-regist", F),  -- GNAT.Registry
     ("g-regpat", F),  -- GNAT.Regpat
+    ("g-rewdat", F),  -- GNAT.Rewrite_Data
     ("g-semaph", F),  -- GNAT.Semaphores
     ("g-sercom", F),  -- GNAT.Serial_Communications
     ("g-sestin", F),  -- GNAT.Secondary_Stack_Info
@@ -343,7 +345,6 @@ package body Impunit is
     ("i-cexten", F),  -- Interfaces.C.Extensions
     ("i-cil   ", F),  -- Interfaces.CIL
     ("i-cilobj", F),  -- Interfaces.CIL.Object
-    ("i-cpp   ", F),  -- Interfaces.CPP
     ("i-cstrea", F),  -- Interfaces.C.Streams
     ("i-java  ", F),  -- Interfaces.Java
     ("i-javjni", F),  -- Interfaces.Java.JNI
@@ -366,6 +367,7 @@ package body Impunit is
    --------------------------------------
 
     ("s-addima", F),  -- System.Address_Image
+    ("s-atocou", F),  -- System.Atomic_Counters
     ("s-assert", F),  -- System.Assertions
     ("s-diflio", F),  -- System.Dim.Float_IO
     ("s-diinio", F),  -- System.Dim.Integer_IO
@@ -380,8 +382,9 @@ package body Impunit is
     ("s-rident", F),  -- System.Rident
     ("s-ststop", F),  -- System.Strings.Stream_Ops
     ("s-tasinf", F),  -- System.Task_Info
-    ("s-wchcnv", F),  -- System.Wch_Cnv
-    ("s-wchcon", F),  -- System.Wch_Con
+    ("s-unstyp", F),  -- System.Unsigned_Types
+    ("s-wchcnv", F),  -- System.WCh_Cnv
+    ("s-wchcon", F),  -- System.WCh_Con
 
    --  The following are strictly speaking Ada 2012 units, but we are allowed
    --  to add children to system, so we consider them to be implementation
@@ -424,6 +427,7 @@ package body Impunit is
     ("a-coorse", T),  -- Ada.Containers.Ordered_Sets
     ("a-coteio", T),  -- Ada.Complex_Text_IO
     ("a-direct", T),  -- Ada.Directories
+    ("a-dinopr", T),  -- Ada.Dispatching.Non_Preemptive
     ("a-diroro", T),  -- Ada.Dispatching.Round_Robin
     ("a-disedf", T),  -- Ada.Dispatching.EDF
     ("a-dispat", T),  -- Ada.Dispatching
@@ -571,6 +575,7 @@ package body Impunit is
     ("a-extiin", T),  -- Ada.Execution_Time.Interrupts
     ("a-iteint", T),  -- Ada.Iterator_Interfaces
     ("a-locale", T),  -- Ada.Locales
+    ("a-stcoed", T),  -- Ada.Synchronous_Task_Control.EDF
     ("a-synbar", T),  -- Ada.Synchronous_Barriers
     ("a-undesu", T),  -- Ada.Unchecked_Deallocate_Subpool
 
@@ -578,6 +583,8 @@ package body Impunit is
    -- GNAT Defined Additions to Ada 2012 --
    ----------------------------------------
 
+    ("a-cfinve", F),  -- Ada.Containers.Formal_Indefinite_Vectors
+    ("a-coboho", F),  -- Ada.Containers.Bounded_Holders
     ("a-cofove", F),  -- Ada.Containers.Formal_Vectors
     ("a-cfdlli", F),  -- Ada.Containers.Formal_Doubly_Linked_Lists
     ("a-cforse", F),  -- Ada.Containers.Formal_Ordered_Sets

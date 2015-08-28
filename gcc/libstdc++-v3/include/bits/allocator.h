@@ -1,6 +1,6 @@
 // Allocators -*- C++ -*-
 
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -83,7 +83,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /**
    * @brief  The @a standard allocator, as per [20.4].
    *
-   *  See http://gcc.gnu.org/onlinedocs/libstdc++/manual/bk01pt04ch11.html
+   *  See https://gcc.gnu.org/onlinedocs/libstdc++/manual/memory.html#std.util.memory.allocator
    *  for further details.
    *
    *  @tparam  _Tp  Type of allocated object.
@@ -126,21 +126,25 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _T1, typename _T2>
     inline bool
     operator==(const allocator<_T1>&, const allocator<_T2>&)
+    _GLIBCXX_USE_NOEXCEPT
     { return true; }
 
   template<typename _Tp>
     inline bool
     operator==(const allocator<_Tp>&, const allocator<_Tp>&)
+    _GLIBCXX_USE_NOEXCEPT
     { return true; }
 
   template<typename _T1, typename _T2>
     inline bool
     operator!=(const allocator<_T1>&, const allocator<_T2>&)
+    _GLIBCXX_USE_NOEXCEPT
     { return false; }
 
   template<typename _Tp>
     inline bool
     operator!=(const allocator<_Tp>&, const allocator<_Tp>&)
+    _GLIBCXX_USE_NOEXCEPT
     { return false; }
 
   /// @} group allocator

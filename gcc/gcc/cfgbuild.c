@@ -1,5 +1,5 @@
 /* Control flow graph building code for GNU compiler.
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,14 +22,41 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "rtl.h"
 #include "hard-reg-set.h"
+#include "predict.h"
+#include "hashtab.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfgrtl.h"
+#include "cfganal.h"
+#include "cfgbuild.h"
 #include "basic-block.h"
 #include "regs.h"
 #include "flags.h"
-#include "function.h"
 #include "except.h"
+#include "statistics.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "insn-config.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
 #include "expr.h"
 #include "diagnostic-core.h"
 #include "timevar.h"
@@ -44,7 +71,7 @@ static void compute_outgoing_frequencies (basic_block);
    block.  */
 
 bool
-inside_basic_block_p (const_rtx insn)
+inside_basic_block_p (const rtx_insn *insn)
 {
   switch (GET_CODE (insn))
     {
@@ -73,7 +100,7 @@ inside_basic_block_p (const_rtx insn)
    the basic block.  */
 
 bool
-control_flow_insn_p (const_rtx insn)
+control_flow_insn_p (const rtx_insn *insn)
 {
   switch (GET_CODE (insn))
     {
@@ -218,7 +245,7 @@ make_edges (basic_block min, basic_block max, int update_p)
 
   FOR_BB_BETWEEN (bb, min, max->next_bb, next_bb)
     {
-      rtx insn, x;
+      rtx_insn *insn;
       enum rtx_code code;
       edge e;
       edge_iterator ei;
@@ -252,6 +279,7 @@ make_edges (basic_block min, basic_block max, int update_p)
       if (code == JUMP_INSN)
 	{
 	  rtx tmp;
+	  rtx_jump_table_data *table;
 
 	  /* Recognize a non-local goto as a branch outside the
 	     current function.  */
@@ -259,15 +287,10 @@ make_edges (basic_block min, basic_block max, int update_p)
 	    ;
 
 	  /* Recognize a tablejump and do the right thing.  */
-	  else if (tablejump_p (insn, NULL, &tmp))
+	  else if (tablejump_p (insn, NULL, &table))
 	    {
-	      rtvec vec;
+	      rtvec vec = table->get_labels ();
 	      int j;
-
-	      if (GET_CODE (PATTERN (tmp)) == ADDR_VEC)
-		vec = XVEC (PATTERN (tmp), 0);
-	      else
-		vec = XVEC (PATTERN (tmp), 1);
 
 	      for (j = GET_NUM_ELEM (vec) - 1; j >= 0; --j)
 		make_label_edge (edge_cache, bb,
@@ -281,15 +304,15 @@ make_edges (basic_block min, basic_block max, int update_p)
 		  && GET_CODE (SET_SRC (tmp)) == IF_THEN_ELSE
 		  && GET_CODE (XEXP (SET_SRC (tmp), 2)) == LABEL_REF)
 		make_label_edge (edge_cache, bb,
-				 XEXP (XEXP (SET_SRC (tmp), 2), 0), 0);
+				 LABEL_REF_LABEL (XEXP (SET_SRC (tmp), 2)), 0);
 	    }
 
 	  /* If this is a computed jump, then mark it as reaching
 	     everything on the forced_labels list.  */
 	  else if (computed_jump_p (insn))
 	    {
-	      for (x = forced_labels; x; x = XEXP (x, 1))
-		make_label_edge (edge_cache, bb, XEXP (x, 0), EDGE_ABNORMAL);
+	      for (rtx_insn_list *x = forced_labels; x; x = x->next ())
+		make_label_edge (edge_cache, bb, x->insn (), EDGE_ABNORMAL);
 	    }
 
 	  /* Returns create an exit out.  */
@@ -341,8 +364,10 @@ make_edges (basic_block min, basic_block max, int update_p)
 		     taken, then only calls to those functions or to other
 		     nested functions that use them could possibly do
 		     nonlocal gotos.  */
-		  for (x = nonlocal_goto_handler_labels; x; x = XEXP (x, 1))
-		    make_label_edge (edge_cache, bb, XEXP (x, 0),
+		  for (rtx_insn_list *x = nonlocal_goto_handler_labels;
+		       x;
+		       x = x->next ())
+		    make_label_edge (edge_cache, bb, x->insn (),
 				     EDGE_ABNORMAL | EDGE_ABNORMAL_CALL);
 		}
 
@@ -396,18 +421,16 @@ mark_tablejump_edge (rtx label)
 }
 
 static void
-purge_dead_tablejump_edges (basic_block bb, rtx table)
+purge_dead_tablejump_edges (basic_block bb, rtx_jump_table_data *table)
 {
-  rtx insn = BB_END (bb), tmp;
+  rtx_insn *insn = BB_END (bb);
+  rtx tmp;
   rtvec vec;
   int j;
   edge_iterator ei;
   edge e;
 
-  if (GET_CODE (PATTERN (table)) == ADDR_VEC)
-    vec = XVEC (PATTERN (table), 0);
-  else
-    vec = XVEC (PATTERN (table), 1);
+  vec = table->get_labels ();
 
   for (j = GET_NUM_ELEM (vec) - 1; j >= 0; --j)
     mark_tablejump_edge (XEXP (RTVEC_ELT (vec, j), 0));
@@ -419,7 +442,7 @@ purge_dead_tablejump_edges (basic_block bb, rtx table)
        && SET_DEST (tmp) == pc_rtx
        && GET_CODE (SET_SRC (tmp)) == IF_THEN_ELSE
        && GET_CODE (XEXP (SET_SRC (tmp), 2)) == LABEL_REF)
-    mark_tablejump_edge (XEXP (XEXP (SET_SRC (tmp), 2), 0));
+    mark_tablejump_edge (LABEL_REF_LABEL (XEXP (SET_SRC (tmp), 2)));
 
   for (ei = ei_start (bb->succs); (e = ei_safe_edge (ei)); )
     {
@@ -442,10 +465,10 @@ static void
 find_bb_boundaries (basic_block bb)
 {
   basic_block orig_bb = bb;
-  rtx insn = BB_HEAD (bb);
-  rtx end = BB_END (bb), x;
-  rtx table;
-  rtx flow_transfer_insn = NULL_RTX;
+  rtx_insn *insn = BB_HEAD (bb);
+  rtx_insn *end = BB_END (bb), *x;
+  rtx_jump_table_data *table;
+  rtx_insn *flow_transfer_insn = NULL;
   edge fallthru = NULL;
 
   if (insn == BB_END (bb))
@@ -479,7 +502,7 @@ find_bb_boundaries (basic_block bb)
 
 	  bb = fallthru->dest;
 	  remove_edge (fallthru);
-	  flow_transfer_insn = NULL_RTX;
+	  flow_transfer_insn = NULL;
 	  if (code == CODE_LABEL && LABEL_ALT_ENTRY_P (insn))
 	    make_edge (ENTRY_BLOCK_PTR_FOR_FN (cfun), bb, 0);
 	}

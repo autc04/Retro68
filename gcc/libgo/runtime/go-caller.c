@@ -7,6 +7,9 @@
 /* Implement runtime.Caller.  */
 
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "backtrace.h"
 
@@ -34,36 +37,12 @@ callback (void *data, uintptr_t pc __attribute__ ((unused)),
 {
   struct caller *c = (struct caller *) data;
 
-  if (function == NULL)
-    {
-      c->fn.str = NULL;
-      c->fn.len = 0;
-    }
-  else
-    {
-      byte *s;
-
-      c->fn.len = __builtin_strlen (function);
-      s = runtime_malloc (c->fn.len);
-      __builtin_memcpy (s, function, c->fn.len);
-      c->fn.str = s;
-    }
-
-  if (filename == NULL)
-    {
-      c->file.str = NULL;
-      c->file.len = 0;
-    }
-  else
-    {
-      byte *s;
-
-      c->file.len = __builtin_strlen (filename);
-      s = runtime_malloc (c->file.len);
-      __builtin_memcpy (s, filename, c->file.len);
-      c->file.str = s;
-    }
-
+  /* The libbacktrace library says that these strings might disappear,
+     but with the current implementation they won't.  We can't easily
+     allocate memory here, so for now assume that we can save a
+     pointer to the strings.  */
+  c->fn = runtime_gostringnocopy ((const byte *) function);
+  c->file = runtime_gostringnocopy ((const byte *) filename);
   c->line = lineno;
 
   return 0;
@@ -99,6 +78,7 @@ __go_get_backtrace_state ()
   if (back_state == NULL)
     {
       const char *filename;
+      struct stat s;
 
       filename = (const char *) runtime_progname ();
 
@@ -106,6 +86,14 @@ __go_get_backtrace_state ()
 	 might not be the same as the file with the same name in the
 	 current directory.  */
       if (__builtin_strchr (filename, '/') == NULL)
+	filename = NULL;
+
+      /* If the file is small, then it's not the real executable.
+	 This is specifically to deal with Docker, which uses a bogus
+	 argv[0] (http://gcc.gnu.org/PR61895).  It would be nice to
+	 have a better check for whether this file is the real
+	 executable.  */
+      if (stat (filename, &s) < 0 || s.st_size < 1024)
 	filename = NULL;
 
       back_state = backtrace_create_state (filename, 1, error_callback, NULL);
@@ -177,8 +165,8 @@ Caller (int skip)
   int32 n;
 
   runtime_memclr (&ret, sizeof ret);
-  n = runtime_callers (skip + 1, &loc, 1);
-  if (n < 1)
+  n = runtime_callers (skip + 1, &loc, 1, false);
+  if (n < 1 || loc.pc == 0)
     return ret;
   ret.pc = loc.pc;
   ret.file = loc.filename;
@@ -243,6 +231,8 @@ String runtime_funcname_go (Func *f)
 String
 runtime_funcname_go (Func *f)
 {
+  if (f == NULL)
+    return runtime_gostringnocopy ((const byte *) "");
   return f->name;
 }
 

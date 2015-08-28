@@ -1,5 +1,5 @@
 ;; ARM 1136J[F]-S Pipeline Description
-;; Copyright (C) 2003-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2015 Free Software Foundation, Inc.
 ;; Written by CodeSourcery, LLC.
 ;;
 ;; This file is part of GCC.
@@ -76,7 +76,7 @@
 (define_insn_reservation "11_alu_op" 2
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
       (eq_attr "type" "alu_imm,alus_imm,logic_imm,logics_imm,\
-                       alu_reg,alus_reg,logic_reg,logics_reg,\
+                       alu_sreg,alus_sreg,logic_reg,logics_reg,\
                        adc_imm,adcs_imm,adc_reg,adcs_reg,\
                        adr,bfm,rev,\
                        shift_imm,shift_reg,\

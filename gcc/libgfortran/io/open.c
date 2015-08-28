@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -502,37 +502,15 @@ new_unit (st_parameter_open *opp, gfc_unit *u, unit_flags * flags)
   s = open_external (opp, flags);
   if (s == NULL)
     {
-      char *path, *msg;
-      size_t msglen;
-      path = (char *) gfc_alloca (opp->file_len + 1);
-      msglen = opp->file_len + 51;
-      msg = (char *) gfc_alloca (msglen);
-      unpack_filename (path, opp->file, opp->file_len);
-
-      switch (errno)
-	{
-	case ENOENT: 
-	  snprintf (msg, msglen, "File '%s' does not exist", path);
-	  break;
-
-	case EEXIST:
-	  snprintf (msg, msglen, "File '%s' already exists", path);
-	  break;
-
-	case EACCES:
-	  snprintf (msg, msglen, 
-		    "Permission denied trying to open file '%s'", path);
-	  break;
-
-	case EISDIR:
-	  snprintf (msg, msglen, "'%s' is a directory", path);
-	  break;
-
-	default:
-	  msg = NULL;
-	}
-
+      char errbuf[256];
+      char *path = fc_strdup (opp->file, opp->file_len);
+      size_t msglen = opp->file_len + 22 + sizeof (errbuf);
+      char *msg = xmalloc (msglen);
+      snprintf (msg, msglen, "Cannot open file '%s': %s", path,
+		gf_strerror (errno, errbuf, sizeof (errbuf)));
       generate_error (&opp->common, LIBERROR_OS, msg);
+      free (msg);
+      free (path);
       goto cleanup;
     }
 
@@ -541,7 +519,6 @@ new_unit (st_parameter_open *opp, gfc_unit *u, unit_flags * flags)
 
   /* Create the unit structure.  */
 
-  u->file = xmalloc (opp->file_len);
   if (u->unit_number != opp->common.unit)
     internal_error (&opp->common, "Unit number changed");
   u->s = s;
@@ -618,8 +595,7 @@ new_unit (st_parameter_open *opp, gfc_unit *u, unit_flags * flags)
       u->strm_pos = stell (u->s) + 1;
     }
 
-  memmove (u->file, opp->file, opp->file_len);
-  u->file_len = opp->file_len;
+  u->filename = fc_strdup (opp->file, opp->file_len);
 
   /* Curiously, the standard requires that the
      position specifier be ignored for new files so a newly connected
@@ -676,15 +652,6 @@ already_open (st_parameter_open *opp, gfc_unit * u, unit_flags * flags)
 
   if (!compare_file_filename (u, opp->file, opp->file_len))
     {
-#if !HAVE_UNLINK_OPEN_FILE
-      char *path = NULL;
-      if (u->file && u->flags.status == STATUS_SCRATCH)
-	{
-	  path = (char *) gfc_alloca (u->file_len + 1);
-	  unpack_filename (path, u->file, u->file_len);
-	}
-#endif
-
       if (sclose (u->s) == -1)
 	{
 	  unlock_unit (u);
@@ -694,14 +661,13 @@ already_open (st_parameter_open *opp, gfc_unit * u, unit_flags * flags)
 	}
 
       u->s = NULL;
-      free (u->file);
-      u->file = NULL;
-      u->file_len = 0;
-
+ 
 #if !HAVE_UNLINK_OPEN_FILE
-      if (path != NULL)
-	unlink (path);
+      if (u->filename && u->flags.status == STATUS_SCRATCH)
+	unlink (u->filename);
 #endif
+     free (u->filename);
+     u->filename = NULL;
 
       u = new_unit (opp, u, flags);
       if (u != NULL)

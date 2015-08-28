@@ -24,7 +24,7 @@ This page describes the C++14 and library TS support in mainline GCC SVN,
 not in any particular release.
 </para>
 
-<table frame="all">
+<table frame="all" xml:id="table.cxx14_status">
 <title>C++ 2014 Implementation Status</title>
 
 <tgroup cols="4" align="left" colsep="0" rowsep="1">
@@ -212,14 +212,13 @@ not in any particular release.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8C8B0" ?>
       <entry>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/JTC1/sc22/WG21/docs/papers/2013/n3657.htm">
 	  N3657
 	</link>
       </entry>
       <entry>Adding heterogeneous comparison lookup to associative containers</entry>
-      <entry>WIP</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
 
@@ -242,8 +241,8 @@ not in any particular release.
 	</link>
       </entry>
       <entry>Null Forward Iterators</entry>
-      <entry>N</entry>
-      <entry/>
+      <entry>Partial</entry>
+      <entry>Only affects Debug Mode</entry>
     </row>
 
   </tbody>
@@ -251,7 +250,7 @@ not in any particular release.
 </table>
 
 
-<table frame="all">
+<table frame="all" xml:id="table.ts_status">
 <title>C++ Technical Specifications Implementation Status</title>
 
 <tgroup cols="4" align="left" colsep="0" rowsep="1">
@@ -283,18 +282,6 @@ not in any particular release.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
-      <entry>
-	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2013/n3783.pdf">
-	  N3783
-	</link>
-      </entry>
-      <entry>Network byte order conversion</entry>
-      <entry>N</entry>
-      <entry>Library Fundamentals TS</entry>
-    </row>
-
-    <row>
       <entry>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2013/n3793.html">
 	  N3793
@@ -306,26 +293,13 @@ not in any particular release.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2013/n3804.html">
 	  N3804
 	</link>
       </entry>
       <entry>Any library proposal</entry>
-      <entry>N</entry>
-      <entry>Library Fundamentals TS</entry>
-    </row>
-
-    <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
-      <entry>
-	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2014/n3843.pdf">
-	  N3843
-	</link>
-      </entry>
-      <entry>A SFINAE-Friendly std::common_type (option 2 was approved)</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry>Library Fundamentals TS</entry>
     </row>
 
@@ -342,26 +316,24 @@ not in any particular release.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="">
 	  N3905
 	</link>
       </entry>
       <entry>Faster string searching (Boyer-Moore et al.)</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry>Library Fundamentals TS</entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n3915.pdf">
 	  N3915
 	</link>
       </entry>
       <entry>apply() call a function with arguments from a tuple</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry>Library Fundamentals TS</entry>
     </row>
 
@@ -401,38 +373,24 @@ not in any particular release.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
-      <entry>
-	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n3923.pdf">
-	  N3923
-	</link>
-      </entry>
-      <entry>A SFINAE-Friendly std::iterator_traits</entry>
-      <entry>N</entry>
-      <entry>Library Fundamentals TS</entry>
-    </row>
-
-    <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n3925.pdf">
 	  N3925
 	</link>
       </entry>
       <entry>A sample proposal</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry>Library Fundamentals TS</entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n3932.htm">
 	  N3932
 	</link>
       </entry>
       <entry>Variable Templates For Type Traits</entry>
-      <entry>N</entry>
+      <entry>Y</entry>
       <entry>Library Fundamentals TS</entry>
     </row>
 

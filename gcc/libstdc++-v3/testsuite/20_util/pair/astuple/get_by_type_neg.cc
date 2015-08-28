@@ -1,7 +1,7 @@
 // { dg-do compile }
-// { dg-options "-std=gnu++1y" }
+// { dg-options "-std=gnu++14" }
 
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,5 +24,5 @@ void test01()
 {
   std::pair<int, int> p;
 
-  std::get<int>(p);  // { dg-error "ambiguous" }
+  std::get<int>(p);  // { dg-error "ambiguous|lvalue" }
 }

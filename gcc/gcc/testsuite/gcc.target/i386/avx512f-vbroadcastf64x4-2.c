@@ -9,6 +9,7 @@
 #define SIZE (AVX512F_LEN / 64)
 #include "avx512f-mask-type.h"
 
+static void
 CALC (double *r, double *s)
 {
   int i;
@@ -18,7 +19,7 @@ CALC (double *r, double *s)
     }
 }
 
-void static
+void
 TEST (void)
 {
   int i, sign;
@@ -28,7 +29,7 @@ TEST (void)
   double res_ref[SIZE];
 
   sign = -1;
-  for (i = 0; i < 2; i++)
+  for (i = 0; i < 4; i++)
     {
       src.a[i] = 34.67 * i * sign;
       sign = sign * -1;

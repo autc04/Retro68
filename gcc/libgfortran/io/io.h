@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -32,6 +32,17 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #include <gthr.h>
 
+
+/* POSIX 2008 specifies that the extended locale stuff is found in
+   locale.h, but some systems have them in xlocale.h.  */
+
+#include <locale.h>
+
+#ifdef HAVE_XLOCALE_H
+#include <xlocale.h>
+#endif
+
+
 /* Forward declarations.  */
 struct st_parameter_dt;
 typedef struct stream stream;
@@ -39,6 +50,19 @@ struct fbuf;
 struct format_data;
 typedef struct fnode fnode;
 struct gfc_unit;
+
+#ifdef HAVE_NEWLOCALE
+/* We have POSIX 2008 extended locale stuff.  */
+extern locale_t c_locale;
+internal_proto(c_locale);
+#else
+extern char* old_locale;
+internal_proto(old_locale);
+extern int old_locale_ctr;
+internal_proto(old_locale_ctr);
+extern __gthread_mutex_t old_locale_lock;
+internal_proto(old_locale_lock);
+#endif
 
 
 /* Macros for testing what kinds of I/O we are doing.  */
@@ -207,7 +231,7 @@ typedef enum
 unit_advance;
 
 typedef enum
-{READING, WRITING}
+{READING, WRITING, LIST_READING, LIST_WRITING}
 unit_mode;
 
 typedef enum
@@ -450,6 +474,9 @@ typedef struct st_parameter_dt
 	  char *line_buffer;
 	  struct format_data *fmt;
 	  namelist_info *ionml;
+#ifdef HAVE_NEWLOCALE
+	  locale_t old_locale;
+#endif
 	  /* Current position within the look-ahead line buffer.  */
 	  int line_buffer_pos;
 	  /* Storage area for values except for strings.  Must be
@@ -567,14 +594,19 @@ typedef struct gfc_unit
   array_loop_spec *ls;
   int rank;
 
-  int file_len;
-  char *file;
+  /* Name of the file at the time OPEN was executed, as a
+     null-terminated C string.  */
+  char *filename;
 
   /* The format hash table.  */
   struct format_hash_entry format_hash_table[FORMAT_HASH_SIZE];
   
   /* Formatting buffer.  */
   struct fbuf *fbuf;
+  
+  /* Function pointer, points to list_read worker functions.  */
+  int (*next_char_fn_ptr) (st_parameter_dt *);
+  void (*push_char_fn_ptr) (st_parameter_dt *, int);
 }
 gfc_unit;
 

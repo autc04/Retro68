@@ -1,5 +1,5 @@
 /* Header for Fortran 95 types backend support.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
    and Steven Bosscher <s.bosscher@student.tudelft.nl>
 
@@ -76,7 +76,7 @@ int gfc_copy_dt_decls_ifequal (gfc_symbol *, gfc_symbol *, bool);
 tree gfc_get_function_type (gfc_symbol *);
 
 tree gfc_type_for_size (unsigned, int);
-tree gfc_type_for_mode (enum machine_mode, int);
+tree gfc_type_for_mode (machine_mode, int);
 tree gfc_build_uint_type (int);
 
 tree gfc_get_element_type (tree);
@@ -97,8 +97,10 @@ int gfc_return_by_reference (gfc_symbol *);
 int gfc_is_nodesc_array (gfc_symbol *);
 
 /* Return the DTYPE for an array.  */
+tree gfc_get_dtype_rank_type (int, tree);
 tree gfc_get_dtype (tree);
 
 tree gfc_get_ppc_type (gfc_component *);
+tree gfc_get_caf_vector_type (int dim);
 
 #endif

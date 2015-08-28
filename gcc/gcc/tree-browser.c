@@ -1,5 +1,5 @@
 /* Tree browser.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <s.pop@laposte.net>
 
 This file is part of GCC.
@@ -22,6 +22,16 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "hash-table.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "tree-pretty-print.h"
 #include "print-tree.h"
@@ -102,22 +112,13 @@ static tree TB_history_prev (void);
 void browse_tree (tree);
 
 /* Hashtable helpers.  */
-struct tree_upper_hasher : typed_noop_remove <tree_node>
+struct tree_upper_hasher : pointer_hash<tree_node>
 {
-  typedef tree_node value_type;
-  typedef tree_node compare_type;
-  static inline hashval_t hash (const value_type *);
-  static inline bool equal (const value_type *, const compare_type *);
+  static inline bool equal (const value_type &, const compare_type &);
 };
 
-inline hashval_t
-tree_upper_hasher::hash (const value_type *v)
-{
-  return pointer_hash <value_type>::hash (v);
-}
-
 inline bool
-tree_upper_hasher::equal (const value_type *parent, const compare_type *node)
+tree_upper_hasher::equal (const value_type &parent, const compare_type &node)
 {
   if (parent == NULL || node == NULL)
     return 0;
@@ -134,7 +135,7 @@ tree_upper_hasher::equal (const value_type *parent, const compare_type *node)
 }
 
 /* Static variables.  */
-static hash_table <tree_upper_hasher> TB_up_ht;
+static hash_table<tree_upper_hasher> *TB_up_ht;
 static vec<tree, va_gc> *TB_history_stack;
 static int TB_verbose = 1;
 
@@ -167,7 +168,7 @@ browse_tree (tree begin)
 
   /* Store in a hashtable information about previous and upper statements.  */
   {
-    TB_up_ht.create (1023);
+    TB_up_ht = new hash_table<tree_upper_hasher> (1023);
     TB_update_up (head);
   }
 
@@ -645,7 +646,8 @@ browse_tree (tree begin)
     }
 
  ret:;
-  TB_up_ht.dispose ();
+  delete TB_up_ht;
+  TB_up_ht = NULL;
   return;
 }
 
@@ -691,7 +693,7 @@ TB_up_expr (tree node)
   if (node == NULL_TREE)
     return NULL_TREE;
 
-  res = TB_up_ht.find (node);
+  res = TB_up_ht->find (node);
   return res;
 }
 
@@ -769,7 +771,7 @@ store_child_info (tree *tp, int *walk_subtrees ATTRIBUTE_UNUSED,
       for (i = 0; i < n; i++)
 	{
 	  tree op = TREE_OPERAND (node, i);
-	  slot = TB_up_ht.find_slot (op, INSERT);
+	  slot = TB_up_ht->find_slot (op, INSERT);
 	  *slot = node;
 	}
     }

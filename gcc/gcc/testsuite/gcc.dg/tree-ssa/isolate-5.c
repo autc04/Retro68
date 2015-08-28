@@ -1,5 +1,6 @@
 /* { dg-do compile } */ 
 /* { dg-options "-O2 -fdump-tree-isolate-paths -fdump-tree-optimized" } */
+/* { dg-skip-if "" keeps_null_pointer_checks } */
 
 struct demangle_component
 {
@@ -15,6 +16,9 @@ struct d_info
   int next_comp;
   int num_comps;
 };
+
+void foo (int);
+void bar (int);
 
 static struct demangle_component *
 d_make_empty (struct d_info *di)

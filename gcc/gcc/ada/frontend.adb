@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,6 +33,7 @@ with Elists;
 with Exp_Dbug;
 with Fmap;
 with Fname.UF;
+with Ghost;    use Ghost;
 with Inline;   use Inline;
 with Lib;      use Lib;
 with Lib.Load; use Lib.Load;
@@ -57,7 +58,6 @@ with Sem_Ch8;  use Sem_Ch8;
 with Sem_SCIL;
 with Sem_Elab; use Sem_Elab;
 with Sem_Prag; use Sem_Prag;
-with Sem_VFpt; use Sem_VFpt;
 with Sem_Warn; use Sem_Warn;
 with Sinfo;    use Sinfo;
 with Sinput;   use Sinput;
@@ -80,7 +80,6 @@ begin
    --  since it uses names table entries.
 
    Rtsfind.Initialize;
-   Atree.Initialize;
    Nlists.Initialize;
    Elists.Initialize;
    Lib.Load.Initialize;
@@ -145,11 +144,13 @@ begin
 
       Prag : Node_Id;
 
+      Temp_File : Boolean;
+
    begin
-      --  We always analyze config files with style checks off, since
-      --  we don't want a miscellaneous gnat.adc that is around to
-      --  discombobulate intended -gnatg or -gnaty compilations. We
-      --  also disconnect checking for maximum line length.
+      --  We always analyze config files with style checks off, since we
+      --  don't want a miscellaneous gnat.adc that is around to discombobulate
+      --  intended -gnatg or -gnaty compilations. We also disconnect checking
+      --  for maximum line length.
 
       Opt.Style_Check := False;
       Style_Check := False;
@@ -165,9 +166,23 @@ begin
          Name_Len := 8;
          Source_gnat_adc := Load_Config_File (Name_Enter);
 
+         --  Case of gnat.adc file present
+
          if Source_gnat_adc /= No_Source_File then
+
+            --  Parse the gnat.adc file for configuration pragmas
+
             Initialize_Scanner (No_Unit, Source_gnat_adc);
             Config_Pragmas := Par (Configuration_Pragmas => True);
+
+            --  We unconditionally add a compilation dependency for gnat.adc
+            --  so that if it changes, we force a recompilation. This is a
+            --  fairly recent (2014-03-28) change.
+
+            Prepcomp.Add_Dependency (Source_gnat_adc);
+
+         --  Case of no gnat.adc file present
+
          else
             Config_Pragmas := Empty_List;
          end if;
@@ -176,34 +191,45 @@ begin
          Config_Pragmas := Empty_List;
       end if;
 
-      --  Check for VAX Float
-
-      if Targparm.VAX_Float_On_Target then
-
-         --  pragma Float_Representation (VAX_Float);
-
-         Opt.Float_Format := 'V';
-
-         --  pragma Long_Float (G_Float);
-
-         Opt.Float_Format_Long := 'G';
-
-         Set_Standard_Fpt_Formats;
-      end if;
-
       --  Now deal with specified config pragmas files if there are any
 
       if Opt.Config_File_Names /= null then
+
+         --  Loop through config pragmas files
+
          for Index in Opt.Config_File_Names'Range loop
+
+            --  See if extension is .TMP/.tmp indicating a temporary config
+            --  file (which we ignore from the dependency point of view).
+
             Name_Len := Config_File_Names (Index)'Length;
             Name_Buffer (1 .. Name_Len) := Config_File_Names (Index).all;
+            Temp_File :=
+              Name_Len > 4
+                and then
+                  (Name_Buffer (Name_Len - 3 .. Name_Len) = ".TMP"
+                     or else
+                   Name_Buffer (Name_Len - 3 .. Name_Len) = ".tmp");
+
+            --  Load the file, error if we did not find it
+
             Source_Config_File := Load_Config_File (Name_Enter);
 
             if Source_Config_File = No_Source_File then
                Osint.Fail
                  ("cannot find configuration pragmas file "
                   & Config_File_Names (Index).all);
+
+            --  If we did find the file, and it is not a temporary file, then
+            --  we unconditionally add a compilation dependency for it so
+            --  that if it changes, we force a recompilation. This is a
+            --  fairly recent (2014-03-28) change.
+
+            elsif not Temp_File then
+               Prepcomp.Add_Dependency (Source_Config_File);
             end if;
+
+            --  Parse the config pragmas file, and accumulate results
 
             Initialize_Scanner (No_Unit, Source_Config_File);
             Append_List_To
@@ -235,6 +261,20 @@ begin
 
       Opt.Suppress_Options := Scope_Suppress;
    end;
+
+   --  If a target dependency info file has been read through switch -gnateT=,
+   --  add it to the dependencies.
+
+   if Target_Dependent_Info_Read_Name /= null then
+      declare
+         Index : Source_File_Index;
+      begin
+         Name_Len := 0;
+         Add_Str_To_Name_Buffer (Target_Dependent_Info_Read_Name.all);
+         Index := Load_Config_File (Name_Enter);
+         Prepcomp.Add_Dependency (Index);
+      end;
+   end if;
 
    --  This is where we can capture the value of the compilation unit specific
    --  restrictions that have been set by the config pragma files (or from
@@ -298,12 +338,12 @@ begin
      --  unit failed to load, to avoid cascaded inconsistencies that can lead
      --  to a compiler crash.
 
-     and then not Fatal_Error (Main_Unit)
+     and then Fatal_Error (Main_Unit) /= Error_Detected
    then
-      --  Pragmas that require some semantic activity, such as
-      --  Interrupt_State, cannot be processed until the main unit
-      --  is installed, because they require a compilation unit on
-      --  which to attach with_clauses, etc. So analyze them now.
+      --  Pragmas that require some semantic activity, such as Interrupt_State,
+      --  cannot be processed until the main unit is installed, because they
+      --  require a compilation unit on which to attach with_clauses, etc. So
+      --  analyze them now.
 
       declare
          Prag : Node_Id;
@@ -311,7 +351,14 @@ begin
       begin
          Prag := First (Config_Pragmas);
          while Present (Prag) loop
-            if Delay_Config_Pragma_Analyze (Prag) then
+
+            --  Guard against the case where a configuration pragma may be
+            --  split into multiple pragmas and the original rewritten as a
+            --  null statement.
+
+            if Nkind (Prag) = N_Pragma
+              and then Delay_Config_Pragma_Analyze (Prag)
+            then
                Analyze_Pragma (Prag);
             end if;
 
@@ -341,7 +388,7 @@ begin
 
       --  Following steps are skipped if we had a fatal error during parsing
 
-      if not Fatal_Error (Main_Unit) then
+      if Fatal_Error (Main_Unit) /= Error_Detected then
 
          --  Reset Operating_Mode to Check_Semantics for subunits. We cannot
          --  actually generate code for subunits, so we suppress expansion.
@@ -361,6 +408,13 @@ begin
 
          --  Cleanup processing after completing main analysis
 
+         --  Turn off unnesting of subprograms mode. This is not right
+         --  with respect to instantiations. What needs to happen is that
+         --  we do the unnesting AFTER the call to Instantiate_Bodies. We
+         --  will take care of that later ???
+
+         Opt.Unnest_Subprogram_Mode := False;
+
          --  Comment needed for ASIS mode test and GNATprove mode test???
 
          if Operating_Mode = Generate_Code
@@ -375,14 +429,19 @@ begin
                Analyze_Inlined_Bodies;
             end if;
 
-            --  Remove entities from program that do not have any
-            --  execution time references.
+            --  Remove entities from program that do not have any execution
+            --  time references.
 
             if Debug_Flag_UU then
                Collect_Garbage_Entities;
             end if;
 
             Check_Elab_Calls;
+
+            --  Remove any ignored Ghost code as it must not appear in the
+            --  executable.
+
+            Remove_Ignored_Ghost_Code;
          end if;
 
          --  List library units if requested

@@ -1,5 +1,5 @@
 /* "Bag-of-pages" garbage collector for the GNU compiler.
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +21,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "rtl.h"
 #include "tm_p.h"
@@ -30,9 +39,21 @@ along with GCC; see the file COPYING3.  If not see
 #include "ggc-internal.h"
 #include "timevar.h"
 #include "params.h"
+#include "hash-map.h"
+#include "is-a.h"
+#include "plugin-api.h"
+#include "vec.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "ipa-ref.h"
 #include "cgraph.h"
 #include "cfgloop.h"
 #include "plugin.h"
+#include "basic-block.h"
 
 /* Prefer MAP_ANON(YMOUS) to /dev/zero, since we don't need to keep a
    file open.  Prefer either to valloc.  */
@@ -156,7 +177,7 @@ along with GCC; see the file COPYING3.  If not see
 struct max_alignment {
   char c;
   union {
-    HOST_WIDEST_INT i;
+    int64_t i;
     void *p;
   } u;
 };
@@ -332,6 +353,41 @@ typedef struct page_table_chain
 
 #endif
 
+class finalizer
+{
+public:
+  finalizer (void *addr, void (*f)(void *)) : m_addr (addr), m_function (f) {}
+
+  void *addr () const { return m_addr; }
+
+  void call () const { m_function (m_addr); }
+
+private:
+  void *m_addr;
+  void (*m_function)(void *);
+};
+
+class vec_finalizer
+{
+public:
+  vec_finalizer (uintptr_t addr, void (*f)(void *), size_t s, size_t n) :
+    m_addr (addr), m_function (f), m_object_size (s), m_n_objects (n) {}
+
+  void call () const
+    {
+      for (size_t i = 0; i < m_n_objects; i++)
+	m_function (reinterpret_cast<void *> (m_addr + (i * m_object_size)));
+    }
+
+  void *addr () const { return reinterpret_cast<void *> (m_addr); }
+
+private:
+  uintptr_t m_addr;
+  void (*m_function)(void *);
+  size_t m_object_size;
+  size_t m_n_objects;
+  };
+
 #ifdef ENABLE_GC_ALWAYS_COLLECT
 /* List of free objects to be verified as actually free on the
    next collection.  */
@@ -343,7 +399,7 @@ struct free_object
 #endif
 
 /* The rest of the global variables.  */
-static struct globals
+static struct ggc_globals
 {
   /* The Nth element in this array is a page with objects of size 2^N.
      If there are any pages with free objects, they will be at the
@@ -425,6 +481,12 @@ static struct globals
      better runtime data access pattern.  */
   unsigned long **save_in_use;
 
+  /* Finalizers for single objects.  */
+  vec<finalizer> finalizers;
+
+  /* Finalizers for vectors of objects.  */
+  vec<vec_finalizer> vec_finalizers;
+
 #ifdef ENABLE_GC_ALWAYS_COLLECT
   /* List of free objects to be verified as actually free on the
      next collection.  */
@@ -458,6 +520,10 @@ static struct globals
     unsigned long long total_overhead_per_order[NUM_ORDERS];
   } stats;
 } G;
+
+/* True if a gc is currently taking place.  */
+
+static bool in_gc = false;
 
 /* The size in bytes required to maintain a bitmap for the objects
    on a page-entry.  */
@@ -1202,7 +1268,8 @@ ggc_round_alloc_size (size_t requested_size)
 /* Allocate a chunk of memory of SIZE bytes.  Its contents are undefined.  */
 
 void *
-ggc_internal_alloc_stat (size_t size MEM_STAT_DECL)
+ggc_internal_alloc (size_t size, void (*f)(void *), size_t s, size_t n
+		    MEM_STAT_DECL)
 {
   size_t order, word, bit, object_offset, object_size;
   struct page_entry *entry;
@@ -1344,6 +1411,12 @@ ggc_internal_alloc_stat (size_t size MEM_STAT_DECL)
 
   /* For timevar statistics.  */
   timevar_ggc_mem_total += object_size;
+
+  if (f && n == 1)
+    G.finalizers.safe_push (finalizer (result, f));
+  else if (f)
+    G.vec_finalizers.safe_push
+      (vec_finalizer (reinterpret_cast<uintptr_t> (result), f, s, n));
 
   if (GATHER_STATISTICS)
     {
@@ -1526,6 +1599,9 @@ ggc_get_size (const void *p)
 void
 ggc_free (void *p)
 {
+  if (in_gc)
+    return;
+
   page_entry *pe = lookup_page_table_entry (p);
   size_t order = pe->order;
   size_t size = OBJECT_SIZE (order);
@@ -1642,7 +1718,12 @@ compute_inverse (unsigned order)
 void
 init_ggc (void)
 {
+  static bool init_p = false;
   unsigned order;
+
+  if (init_p)
+    return;
+  init_p = true;
 
   G.pagesize = getpagesize ();
   G.lg_pagesize = exact_log2 (G.pagesize);
@@ -1808,6 +1889,47 @@ clear_marks (void)
 	  p->in_use_p[num_objects / HOST_BITS_PER_LONG]
 	    = ((unsigned long) 1 << (num_objects % HOST_BITS_PER_LONG));
 	}
+    }
+}
+
+/* Check if any blocks with a registered finalizer have become unmarked. If so
+   run the finalizer and unregister it because the block is about to be freed.
+   Note that no garantee is made about what order finalizers will run in so
+   touching other objects in gc memory is extremely unwise.  */
+
+static void
+ggc_handle_finalizers ()
+{
+  if (G.context_depth != 0)
+    return;
+
+  unsigned length = G.finalizers.length ();
+  for (unsigned int i = 0; i < length;)
+    {
+      finalizer &f = G.finalizers[i];
+      if (!ggc_marked_p (f.addr ()))
+	{
+	  f.call ();
+	  G.finalizers.unordered_remove (i);
+	  length--;
+	}
+      else
+	i++;
+    }
+
+
+  length = G.vec_finalizers.length ();
+  for (unsigned int i = 0; i < length;)
+    {
+      vec_finalizer &f = G.vec_finalizers[i];
+      if (!ggc_marked_p (f.addr ()))
+	{
+	  f.call ();
+	  G.vec_finalizers.unordered_remove (i);
+	  length--;
+	}
+      else
+	i++;
     }
 }
 
@@ -2050,7 +2172,6 @@ ggc_collect (void)
     MAX (G.allocated_last_gc, (size_t)PARAM_VALUE (GGC_MIN_HEAPSIZE) * 1024);
 
   float min_expand = allocated_last_gc * PARAM_VALUE (GGC_MIN_EXPAND) / 100;
-
   if (G.allocated < allocated_last_gc + min_expand && !ggc_force_collect)
     return;
 
@@ -2073,8 +2194,10 @@ ggc_collect (void)
 
   invoke_plugin_callbacks (PLUGIN_GGC_START, NULL);
 
+  in_gc = true;
   clear_marks ();
   ggc_mark_roots ();
+  ggc_handle_finalizers ();
 
   if (GATHER_STATISTICS)
     ggc_prune_overhead_list ();
@@ -2083,6 +2206,7 @@ ggc_collect (void)
   validate_free_objects ();
   sweep_pages ();
 
+  in_gc = false;
   G.allocated_last_gc = G.allocated;
 
   invoke_plugin_callbacks (PLUGIN_GGC_END, NULL);
@@ -2093,6 +2217,23 @@ ggc_collect (void)
     fprintf (stderr, "%luk}", (unsigned long) G.allocated / 1024);
   if (GGC_DEBUG_LEVEL >= 2)
     fprintf (G.debug_file, "END COLLECTING\n");
+}
+
+/* Assume that all GGC memory is reachable and grow the limits for next collection.
+   With checking, trigger GGC so -Q compilation outputs how much of memory really is
+   reachable.  */
+
+void
+ggc_grow (void)
+{
+#ifndef ENABLE_CHECKING
+  G.allocated_last_gc = MAX (G.allocated_last_gc,
+			     G.allocated);
+#else
+  ggc_collect ();
+#endif
+  if (!quiet_flag)
+    fprintf (stderr, " {GC start %luk} ", (unsigned long) G.allocated / 1024);
 }
 
 /* Print allocation statistics.  */
@@ -2308,7 +2449,7 @@ ggc_pch_write_object (struct ggc_pch_data *d,
     }
 
   if (fwrite (x, size, 1, f) != 1)
-    fatal_error ("can%'t write PCH file: %m");
+    fatal_error (input_location, "can%'t write PCH file: %m");
 
   /* If SIZE is not the same as OBJECT_SIZE(order), then we need to pad the
      object out to OBJECT_SIZE(order).  This happens for strings.  */
@@ -2324,13 +2465,13 @@ ggc_pch_write_object (struct ggc_pch_data *d,
       if (padding <= sizeof (emptyBytes))
         {
           if (fwrite (emptyBytes, 1, padding, f) != padding)
-            fatal_error ("can%'t write PCH file");
+            fatal_error (input_location, "can%'t write PCH file");
         }
       else
         {
           /* Larger than our buffer?  Just default to fseek.  */
           if (fseek (f, padding, SEEK_CUR) != 0)
-            fatal_error ("can%'t write PCH file");
+            fatal_error (input_location, "can%'t write PCH file");
         }
     }
 
@@ -2339,14 +2480,14 @@ ggc_pch_write_object (struct ggc_pch_data *d,
       && fseek (f, ROUND_UP_VALUE (d->d.totals[order] * OBJECT_SIZE (order),
 				   G.pagesize),
 		SEEK_CUR) != 0)
-    fatal_error ("can%'t write PCH file: %m");
+    fatal_error (input_location, "can%'t write PCH file: %m");
 }
 
 void
 ggc_pch_finish (struct ggc_pch_data *d, FILE *f)
 {
   if (fwrite (&d->d, sizeof (d->d), 1, f) != 1)
-    fatal_error ("can%'t write PCH file: %m");
+    fatal_error (input_location, "can%'t write PCH file: %m");
   free (d);
 }
 
@@ -2436,7 +2577,7 @@ ggc_pch_read (FILE *f, void *addr)
   /* Allocate the appropriate page-table entries for the pages read from
      the PCH file.  */
   if (fread (&d, sizeof (d), 1, f) != 1)
-    fatal_error ("can%'t read PCH file: %m");
+    fatal_error (input_location, "can%'t read PCH file: %m");
 
   for (i = 0; i < NUM_ORDERS; i++)
     {

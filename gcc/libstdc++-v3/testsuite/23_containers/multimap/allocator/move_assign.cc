@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -52,16 +52,51 @@ void test02()
   typedef std::multimap<T, U, Cmp, alloc_type> test_type;
   test_type v1(alloc_type(1));
   v1 = { test_type::value_type{} };
+  auto it = v1.begin();
   test_type v2(alloc_type(2));
   v2 = { test_type::value_type{} };
   v2 = std::move(v1);
   VERIFY(0 == v1.get_allocator().get_personality());
   VERIFY(1 == v2.get_allocator().get_personality());
+  VERIFY( it == v2.begin()  );
+}
+
+void test03()
+{
+  bool test __attribute__((unused)) = true;
+
+  using namespace __gnu_test;
+
+  typedef propagating_allocator<std::pair<const int, int>, false,
+				tracker_allocator<std::pair<const int, int>>>
+    alloc_type;
+  typedef std::multimap<int, int, std::less<int>, alloc_type> test_type;
+
+  tracker_allocator_counter::reset();
+
+  test_type v1(alloc_type(1));
+  v1 = { { 1, 1 }, { 1, 1 } };
+
+  test_type v2(alloc_type(2));
+  v2 = { { 2, 2 }, { 2, 2 } };
+
+  auto allocs = tracker_allocator_counter::get_allocation_count();
+  auto constructs = tracker_allocator_counter::get_construct_count();
+
+  // Check no allocation on move assignment with non propagating allocators.
+  v1 = std::move(v2);
+
+  VERIFY( 1 == v1.get_allocator().get_personality() );
+  VERIFY( 2 == v2.get_allocator().get_personality() );
+
+  VERIFY( tracker_allocator_counter::get_allocation_count() == allocs );
+  VERIFY( tracker_allocator_counter::get_construct_count() == constructs + 2 );
 }
 
 int main()
 {
   test01();
   test02();
+  test03();
   return 0;
 }

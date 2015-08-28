@@ -1,7 +1,9 @@
 /* Check that we speculatively devirutalize call to FOO to B::foo becuase
    A is noreturn.  */
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-ipa-devirt -fdump-tree-optimized"  } */
+/* { dg-options "-O2 -fdump-ipa-devirt-details -fdump-tree-optimized"  } */
+/* { dg-add-options bind_pic_locally } */
+
 class A {
 public:
   virtual int foo(void)
@@ -33,7 +35,7 @@ main()
   m();
 }
 
-/* { dg-final { scan-ipa-dump "Speculatively devirtualizing call" "devirt"} } */
+/* { dg-final { scan-ipa-dump "speculatively devirtualizing call" "devirt"} } */
 /* { dg-final { cleanup-ipa-dump "devirt" } } */
 /* Match if (PROF_6 == foo) to verify that the speculation survived.  */
 /* { dg-final { scan-tree-dump "== foo" "optimized"} } */

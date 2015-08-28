@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2013, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2015, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -38,9 +38,9 @@
     installed by this file are used to catch the resulting signals that come
     from these probes failing (i.e. touching protected pages).  */
 
-/* This file should be kept synchronized with 2sinit.ads, 2sinit.adb,
-   s-init-ae653-cert.adb and s-init-xi-sparc.adb.  All these files implement
-   the required functionality for different targets.  */
+/* This file should be kept synchronized with s-init.ads, s-init.adb and the
+   s-init-*.adb variants. All these files implement the required functionality
+   for different targets.  */
 
 /* The following include is here to meet the published VxWorks requirement
    that the __vxworks header appear before any other include.  */
@@ -674,7 +674,7 @@ __gnat_error_handler (int sig)
       msg = "unhandled signal";
     }
 
-    Raise_From_Signal_Handler(exception, msg);
+    Raise_From_Signal_Handler (exception, msg);
 }
 
 void
@@ -1730,7 +1730,7 @@ __gnat_inum_to_ivec (int num)
 }
 #endif
 
-#if !defined(__alpha_vxworks) && (_WRS_VXWORKS_MAJOR != 6) && !defined(__RTP__)
+#if !defined(__alpha_vxworks) && ((_WRS_VXWORKS_MAJOR != 6) && (_WRS_VXWORKS_MAJOR != 7)) && !defined(__RTP__)
 
 /* getpid is used by s-parint.adb, but is not defined by VxWorks, except
    on Alpha VxWorks and VxWorks 6.x (including RTPs).  */
@@ -1800,7 +1800,7 @@ __gnat_map_signal (int sig, siginfo_t *si ATTRIBUTE_UNUSED,
       msg = "SIGBUS: possible stack overflow";
       break;
 #endif
-#elif (_WRS_VXWORKS_MAJOR == 6)
+#elif (_WRS_VXWORKS_MAJOR >= 6)
     case SIGILL:
       exception = &constraint_error;
       msg = "SIGILL";
@@ -1911,9 +1911,9 @@ __gnat_error_handler (int sig, siginfo_t *si, void *sc)
   sigdelset (&mask, sig);
   sigprocmask (SIG_SETMASK, &mask, NULL);
 
-#if (defined (__ARMEL__) || defined (__PPC__)) && defined(_WRS_KERNEL)
-  /* On PowerPC, kernel mode, we process signals through a Call Frame Info
-     trampoline, voiding the need for myriads of fallback_frame_state
+#if defined (__ARMEL__) || defined (__PPC__)
+  /* On ARM and PowerPC, kernel mode, we process signals through a Call Frame
+     Info trampoline, voiding the need for myriads of fallback_frame_state
      variants in the ZCX runtime.  We have no simple way to distinguish ZCX
      from SJLJ here, so we do this for SJLJ as well even though this is not
      necessary.  This only incurs a few extra instructions and a tiny
@@ -1922,7 +1922,7 @@ __gnat_error_handler (int sig, siginfo_t *si, void *sc)
   #include "sigtramp.h"
 
   __gnat_sigtramp (sig, (void *)si, (void *)sc,
-		   (sighandler_t *)&__gnat_map_signal);
+		   (__sigtramphandler_t *)&__gnat_map_signal);
 
 #else
   __gnat_map_signal (sig, si, sc);
@@ -2100,7 +2100,7 @@ __gnat_error_handler (int sig)
       msg = "unhandled signal";
     }
 
-    Raise_From_Signal_Handler(exception, msg);
+    Raise_From_Signal_Handler (exception, msg);
 }
 
 void
@@ -2163,7 +2163,7 @@ __gnat_error_handler (int sig)
       msg = "unhandled signal";
     }
 
-    Raise_From_Signal_Handler(exception, msg);
+    Raise_From_Signal_Handler (exception, msg);
 }
 
 void
@@ -2198,9 +2198,6 @@ __gnat_install_handler(void)
 #include <stdlib.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
-#include <mach/mach_vm.h>
-#include <mach/mach_init.h>
-#include <mach/vm_statistics.h>
 
 /* This must be in keeping with System.OS_Interface.Alternate_Stack_Size.  */
 char __gnat_alternate_stack[32 * 1024]; /* 1 * MINSIGSTKSZ */
@@ -2209,10 +2206,17 @@ char __gnat_alternate_stack[32 * 1024]; /* 1 * MINSIGSTKSZ */
    Tell the kernel to re-use alt stack when delivering a signal.  */
 #define	UC_RESET_ALT_STACK	0x80000000
 
+#ifndef __arm__
+#include <mach/mach_vm.h>
+#include <mach/mach_init.h>
+#include <mach/vm_statistics.h>
+#endif
+
 /* Return true if ADDR is within a stack guard area.  */
 static int
 __gnat_is_stack_guard (mach_vm_address_t addr)
 {
+#ifndef __arm__
   kern_return_t kret;
   vm_region_submap_info_data_64_t info;
   mach_vm_address_t start;
@@ -2232,6 +2236,10 @@ __gnat_is_stack_guard (mach_vm_address_t addr)
       && info.user_tag == VM_MEMORY_STACK)
     return 1;
   return 0;
+#else
+  /* Pagezero for arm.  */
+  return addr >= 4096;
+#endif
 }
 
 #define HAVE_GNAT_ADJUST_CONTEXT_FOR_RAISE
@@ -2372,12 +2380,23 @@ __gnat_install_handler (void)
 /*******************/
 
 #include <signal.h>
-#include <stdlib.h>
+#include "sigtramp.h"
+
+#define HAVE_GNAT_ADJUST_CONTEXT_FOR_RAISE
+
+void
+__gnat_adjust_context_for_raise (int signo ATTRIBUTE_UNUSED, void *ucontext)
+{
+  mcontext_t *mcontext = &((ucontext_t *) ucontext)->uc_mcontext;
+
+  /* ARM Bump has to be an even number because of odd/even architecture.  */
+  ((mcontext_t *) mcontext)->arm_pc += 2;
+}
 
 static void
-__gnat_error_handler (int sig,
-		      siginfo_t *si ATTRIBUTE_UNUSED,
-		      void *ucontext ATTRIBUTE_UNUSED)
+__gnat_map_signal (int sig,
+		   siginfo_t *si ATTRIBUTE_UNUSED,
+		   void *ucontext ATTRIBUTE_UNUSED)
 {
   struct Exception_Data *exception;
   const char *msg;
@@ -2405,6 +2424,17 @@ __gnat_error_handler (int sig,
     }
 
   Raise_From_Signal_Handler (exception, msg);
+}
+
+static void
+__gnat_error_handler (int sig,
+		      siginfo_t *si ATTRIBUTE_UNUSED,
+		      void *ucontext ATTRIBUTE_UNUSED)
+{
+  __gnat_adjust_context_for_raise (sig, ucontext);
+
+  __gnat_sigtramp (sig, (void *) si, (void *) ucontext,
+		   (__sigtramphandler_t *)&__gnat_map_signal);
 }
 
 /* This must be in keeping with System.OS_Interface.Alternate_Stack_Size.  */

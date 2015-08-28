@@ -1,10 +1,50 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-04-22  Release Manager
 
-	* GCC 4.9.0 released.
+	* GCC 5.1.0 released.
+
+2015-02-05  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR libobjc/63765
+	* thr.c (_XOPEN_SOURCE): Remove.
+
+2015-01-27  Matthias Klose  <doko@ubuntu.com>
+
+	* sendmsg.c: Add prototypes for __objc_get_forward_imp and get_imp.
+
+2015-01-09  Dimitris Papavasiliou  <dpapavas@gmail.com>
+
+	PR libobjc/51891
+	* ivars.c: Add a check for classes without instance
+	variables, which have a NULL ivar list pointer.
+
+2015-01-05  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2014-11-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/63784
+	* configure: Regenerated.
+
+2014-11-11  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
+
+	PR target/63610
+	* configure: Regenerate.
+
+2014-11-05  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* thr.c (_XOPEN_SOURCE): Define as 600.
+
+2014-07-27  Alan Modra  <amodra@gmail.com>
+	    Matthias Klose  <doko@ubuntu.com>
+
+	PR libobjc/61920
+
+	* encoding.c: Define rs6000_special_adjust_field_align_p.
 
 2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
 

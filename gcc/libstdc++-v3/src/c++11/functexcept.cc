@@ -1,4 +1,4 @@
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,6 +19,9 @@
 // a copy of the GCC Runtime Library Exception along with this program;
 // see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 // <http://www.gnu.org/licenses/>.
+
+// We don't want to change the type thrown by __throw_ios_failure (yet?)
+#define _GLIBCXX_USE_CXX11_ABI 0
 
 #include <bits/functexcept.h>
 #include <cstdlib>

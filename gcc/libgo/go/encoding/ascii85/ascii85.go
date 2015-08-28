@@ -249,7 +249,6 @@ type decoder struct {
 	err     error
 	readErr error
 	r       io.Reader
-	end     bool       // saw end of message
 	buf     [1024]byte // leftover input
 	nbuf    int
 	out     []byte // leftover decoded output
@@ -280,6 +279,18 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 				d.out = d.outbuf[0:ndst]
 				d.nbuf = copy(d.buf[0:], d.buf[nsrc:d.nbuf])
 				continue // copy out and return
+			}
+			if ndst == 0 && d.err == nil {
+				// Special case: input buffer is mostly filled with non-data bytes.
+				// Filter out such bytes to make room for more input.
+				off := 0
+				for i := 0; i < d.nbuf; i++ {
+					if d.buf[i] > ' ' {
+						d.buf[off] = d.buf[i]
+						off++
+					}
+				}
+				d.nbuf = off
 			}
 		}
 

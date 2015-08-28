@@ -1,5 +1,8 @@
 /* { dg-do compile } */
 /* { dg-options "-Os -c -fdump-ipa-inline -fno-early-inlining -fno-partial-inlining -fno-ipa-cp"  } */
+/* { dg-add-options bind_pic_locally } */
+
+void work_hard (void);
 
 void do_something (int shall_i_work)
 {

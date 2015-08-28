@@ -1,5 +1,5 @@
 /* SSA operand management for trees.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -45,7 +45,7 @@ typedef struct use_optype_d *use_optype_p;
    operand memory manager.  Operands are suballocated out of this block.  The
    MEM array varies in size.  */
 
-struct GTY((chain_next("%h.next"), variable_size)) ssa_operand_memory_d {
+struct GTY((chain_next("%h.next"))) ssa_operand_memory_d {
   struct ssa_operand_memory_d *next;
   char mem[1];
 };

@@ -1,5 +1,5 @@
 ;; ARM 926EJ-S Pipeline Description
-;; Copyright (C) 2003-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2015 Free Software Foundation, Inc.
 ;; Written by CodeSourcery, LLC.
 ;;
 ;; This file is part of GCC.
@@ -59,7 +59,7 @@
 (define_insn_reservation "9_alu_op" 1 
  (and (eq_attr "tune" "arm926ejs")
       (eq_attr "type" "alu_imm,alus_imm,logic_imm,logics_imm,\
-                       alu_reg,alus_reg,logic_reg,logics_reg,\
+                       alu_sreg,alus_sreg,logic_reg,logics_reg,\
                        adc_imm,adcs_imm,adc_reg,adcs_reg,\
                        adr,bfm,rev,\
                        alu_shift_imm,alus_shift_imm,\

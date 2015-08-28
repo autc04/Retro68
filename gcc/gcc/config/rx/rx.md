@@ -1,5 +1,5 @@
 ;;  Machine Description for Renesas RX processors
-;;  Copyright (C) 2008-2014 Free Software Foundation, Inc.
+;;  Copyright (C) 2008-2015 Free Software Foundation, Inc.
 ;;  Contributed by Red Hat.
 
 ;; This file is part of GCC.
@@ -617,7 +617,7 @@
   [(set (reg:SI SP_REG)
 	(minus:SI (reg:SI SP_REG)
 		  (const_int 4)))
-   (set (mem:SI (reg:SI SP_REG))
+   (set (mem:SI (minus:SI (reg:SI SP_REG) (const_int 4)))
 	(match_operand:SI 0 "register_operand" "r"))]
   ""
   "push.l\t%0"

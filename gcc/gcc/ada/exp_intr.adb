@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,6 +27,7 @@ with Atree;    use Atree;
 with Checks;   use Checks;
 with Einfo;    use Einfo;
 with Elists;   use Elists;
+with Errout;   use Errout;
 with Expander; use Expander;
 with Exp_Atag; use Exp_Atag;
 with Exp_Ch4;  use Exp_Ch4;
@@ -36,7 +37,7 @@ with Exp_Code; use Exp_Code;
 with Exp_Fixd; use Exp_Fixd;
 with Exp_Util; use Exp_Util;
 with Freeze;   use Freeze;
-with Namet;    use Namet;
+with Inline;   use Inline;
 with Nmake;    use Nmake;
 with Nlists;   use Nlists;
 with Opt;      use Opt;
@@ -109,10 +110,102 @@ package body Exp_Intr is
    procedure Expand_Source_Info (N : Node_Id; Nam : Name_Id);
    --  Rewrite the node by the appropriate string or positive constant.
    --  Nam can be one of the following:
-   --    Name_File             - expand string that is the name of source file
-   --    Name_Line             - expand integer line number
-   --    Name_Source_Location  - expand string of form file:line
-   --    Name_Enclosing_Entity - expand string  with name of enclosing entity
+   --    Name_File                  - expand string name of source file
+   --    Name_Line                  - expand integer line number
+   --    Name_Source_Location       - expand string of form file:line
+   --    Name_Enclosing_Entity      - expand string name of enclosing entity
+   --    Name_Compilation_Date      - expand string with compilation date
+   --    Name_Compilation_Time      - expand string with compilation time
+
+   procedure Write_Entity_Name (E : Entity_Id);
+   --  Recursive procedure to construct string for qualified name of enclosing
+   --  program unit. The qualification stops at an enclosing scope has no
+   --  source name (block or loop). If entity is a subprogram instance, skip
+   --  enclosing wrapper package. The name is appended to the current contents
+   --  of Name_Buffer, incrementing Name_Len.
+
+   ---------------------
+   -- Add_Source_Info --
+   ---------------------
+
+   procedure Add_Source_Info (Loc : Source_Ptr; Nam : Name_Id) is
+      Ent : Entity_Id;
+
+      Save_NB : constant String  := Name_Buffer (1 .. Name_Len);
+      Save_NL : constant Natural := Name_Len;
+      --  Save current Name_Buffer contents
+
+   begin
+      Name_Len := 0;
+
+      --  Line
+
+      case Nam is
+
+         when Name_Line =>
+            Add_Nat_To_Name_Buffer (Nat (Get_Logical_Line_Number (Loc)));
+
+         when Name_File =>
+            Get_Decoded_Name_String
+              (Reference_Name (Get_Source_File_Index (Loc)));
+
+         when Name_Source_Location =>
+            Build_Location_String (Loc);
+
+         when Name_Enclosing_Entity =>
+
+            --  Skip enclosing blocks to reach enclosing unit
+
+            Ent := Current_Scope;
+            while Present (Ent) loop
+               exit when not Ekind_In (Ent, E_Block, E_Loop);
+               Ent := Scope (Ent);
+            end loop;
+
+            --  Ent now points to the relevant defining entity
+
+            Write_Entity_Name (Ent);
+
+         when Name_Compilation_Date =>
+            declare
+               subtype S13 is String (1 .. 3);
+               Months : constant array (1 .. 12) of S13 :=
+                          ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
+
+               M1 : constant Character := Opt.Compilation_Time (6);
+               M2 : constant Character := Opt.Compilation_Time (7);
+
+               MM : constant Natural range 1 .. 12 :=
+                      (Character'Pos (M1) - Character'Pos ('0')) * 10 +
+                 (Character'Pos (M2) - Character'Pos ('0'));
+
+            begin
+               --  Reformat ISO date into MMM DD YYYY (__DATE__) format
+
+               Name_Buffer (1 .. 3)  := Months (MM);
+               Name_Buffer (4)       := ' ';
+               Name_Buffer (5 .. 6)  := Opt.Compilation_Time (9 .. 10);
+               Name_Buffer (7)       := ' ';
+               Name_Buffer (8 .. 11) := Opt.Compilation_Time (1 .. 4);
+               Name_Len := 11;
+            end;
+
+         when Name_Compilation_Time =>
+            Name_Buffer (1 .. 8) := Opt.Compilation_Time (12 .. 19);
+            Name_Len := 8;
+
+         when others =>
+            raise Program_Error;
+      end case;
+
+      --  Prepend original Name_Buffer contents
+
+      Name_Buffer (Save_NL + 1 .. Save_NL + Name_Len) :=
+        Name_Buffer (1 .. Name_Len);
+      Name_Buffer (1 .. Save_NL) := Save_NB;
+      Name_Len := Name_Len + Save_NL;
+   end Add_Source_Info;
 
    ---------------------------------
    -- Expand_Binary_Operator_Call --
@@ -557,7 +650,9 @@ package body Exp_Intr is
       elsif Nam_In (Nam, Name_File,
                          Name_Line,
                          Name_Source_Location,
-                         Name_Enclosing_Entity)
+                         Name_Enclosing_Entity,
+                         Name_Compilation_Date,
+                         Name_Compilation_Time)
       then
          Expand_Source_Info (N, Nam);
 
@@ -714,61 +809,6 @@ package body Exp_Intr is
       Loc : constant Source_Ptr := Sloc (N);
       Ent : Entity_Id;
 
-      procedure Write_Entity_Name (E : Entity_Id);
-      --  Recursive procedure to construct string for qualified name of
-      --  enclosing program unit. The qualification stops at an enclosing
-      --  scope has no source name (block or loop). If entity is a subprogram
-      --  instance, skip enclosing wrapper package.
-
-      -----------------------
-      -- Write_Entity_Name --
-      -----------------------
-
-      procedure Write_Entity_Name (E : Entity_Id) is
-         SDef : Source_Ptr;
-         TDef : constant Source_Buffer_Ptr :=
-                  Source_Text (Get_Source_File_Index (Sloc (E)));
-
-      begin
-         --  Nothing to do if at outer level
-
-         if Scope (E) = Standard_Standard then
-            null;
-
-         --  If scope comes from source, write its name
-
-         elsif Comes_From_Source (Scope (E)) then
-            Write_Entity_Name (Scope (E));
-            Add_Char_To_Name_Buffer ('.');
-
-         --  If in wrapper package skip past it
-
-         elsif Is_Wrapper_Package (Scope (E)) then
-            Write_Entity_Name (Scope (Scope (E)));
-            Add_Char_To_Name_Buffer ('.');
-
-         --  Otherwise nothing to output (happens in unnamed block statements)
-
-         else
-            null;
-         end if;
-
-         --  Loop to output the name
-
-         --  This is not right wrt wide char encodings ??? ()
-
-         SDef := Sloc (E);
-         while TDef (SDef) in '0' .. '9'
-           or else TDef (SDef) >= 'A'
-           or else TDef (SDef) = ASCII.ESC
-         loop
-            Add_Char_To_Name_Buffer (TDef (SDef));
-            SDef := SDef + 1;
-         end loop;
-      end Write_Entity_Name;
-
-   --  Start of processing for Expand_Source_Info
-
    begin
       --  Integer cases
 
@@ -805,6 +845,35 @@ package body Exp_Intr is
                --  Ent now points to the relevant defining entity
 
                Write_Entity_Name (Ent);
+
+            when Name_Compilation_Date =>
+               declare
+                  subtype S13 is String (1 .. 3);
+                  Months : constant array (1 .. 12) of S13 :=
+                    ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
+
+                  M1 : constant Character := Opt.Compilation_Time (6);
+                  M2 : constant Character := Opt.Compilation_Time (7);
+
+                  MM : constant Natural range 1 .. 12 :=
+                    (Character'Pos (M1) - Character'Pos ('0')) * 10 +
+                    (Character'Pos (M2) - Character'Pos ('0'));
+
+               begin
+                  --  Reformat ISO date into MMM DD YYYY (__DATE__) format
+
+                  Name_Buffer (1 .. 3)  := Months (MM);
+                  Name_Buffer (4)       := ' ';
+                  Name_Buffer (5 .. 6)  := Opt.Compilation_Time (9 .. 10);
+                  Name_Buffer (7)       := ' ';
+                  Name_Buffer (8 .. 11) := Opt.Compilation_Time (1 .. 4);
+                  Name_Len := 11;
+               end;
+
+            when Name_Compilation_Time =>
+               Name_Buffer (1 .. 8) := Opt.Compilation_Time (12 .. 19);
+               Name_Len := 8;
 
             when others =>
                raise Program_Error;
@@ -914,6 +983,7 @@ package body Exp_Intr is
       Finalizer_Data  : Finalization_Exception_Data;
 
       Blk        : Node_Id := Empty;
+      Blk_Id     : Entity_Id;
       Deref      : Node_Id;
       Final_Code : List_Id;
       Free_Arg   : Node_Id;
@@ -925,6 +995,10 @@ package body Exp_Intr is
       --  we can avoid the test. The reason that we need to capture this is
       --  that we analyze some generated statements before properly attaching
       --  them to the tree, and that can disturb current value settings.
+
+      Dummy : Entity_Id;
+      --  This variable captures an unused dummy internal entity, see the
+      --  comment associated with its use.
 
    begin
       --  Nothing to do if we know the argument is null
@@ -1007,18 +1081,34 @@ package body Exp_Intr is
          --  protected by an abort defer/undefer pair.
 
          if Abort_Allowed then
-            Prepend_To (Final_Code,
-              Build_Runtime_Call (Loc, RE_Abort_Defer));
+            Prepend_To (Final_Code, Build_Runtime_Call (Loc, RE_Abort_Defer));
 
-            Blk :=
-              Make_Block_Statement (Loc, Handled_Statement_Sequence =>
-                Make_Handled_Sequence_Of_Statements (Loc,
-                  Statements  => Final_Code,
-                  At_End_Proc =>
-                    New_Occurrence_Of (RTE (RE_Abort_Undefer_Direct), Loc)));
+            declare
+               AUD : constant Entity_Id := RTE (RE_Abort_Undefer_Direct);
+
+            begin
+               Blk :=
+                 Make_Block_Statement (Loc,
+                   Handled_Statement_Sequence =>
+                     Make_Handled_Sequence_Of_Statements (Loc,
+                       Statements  => Final_Code,
+                       At_End_Proc => New_Occurrence_Of (AUD, Loc)));
+
+               --  Present the Abort_Undefer_Direct function to the backend so
+               --  that it can inline the call to the function.
+
+               Add_Inlined_Body (AUD, N);
+            end;
+
+            Add_Block_Identifier (Blk, Blk_Id);
 
             Append (Blk, Stmts);
+
          else
+            --  Generate a dummy entity to ensure that the internal symbols are
+            --  in sync when a unit is compiled with and without aborts.
+
+            Dummy := New_Internal_Entity (E_Block, Current_Scope, Loc, 'B');
             Append_List_To (Stmts, Final_Code);
          end if;
       end if;
@@ -1063,9 +1153,11 @@ package body Exp_Intr is
          end if;
       end if;
 
-      --  Normal processing for non-controlled types
+      --  Normal processing for non-controlled types. The argument to free is
+      --  a renaming rather than a constant to ensure that the original context
+      --  is always set to null after the deallocation takes place.
 
-      Free_Arg := Duplicate_Subexpr_No_Checks (Arg);
+      Free_Arg  := Duplicate_Subexpr_No_Checks (Arg, Renaming_Req => True);
       Free_Node := Make_Free_Statement (Loc, Empty);
       Append_To (Stmts, Free_Node);
       Set_Storage_Pool (Free_Node, Pool);
@@ -1317,4 +1409,109 @@ package body Exp_Intr is
       Analyze (N);
    end Expand_To_Pointer;
 
+   -----------------------
+   -- Write_Entity_Name --
+   -----------------------
+
+   procedure Write_Entity_Name (E : Entity_Id) is
+
+      procedure Write_Entity_Name_Inner (E : Entity_Id);
+      --  Inner recursive routine, keep outer routine non-recursive to ease
+      --  debugging when we get strange results from this routine.
+
+      -----------------------------
+      -- Write_Entity_Name_Inner --
+      -----------------------------
+
+      procedure Write_Entity_Name_Inner (E : Entity_Id) is
+      begin
+         --  If entity has an internal name, skip by it, and print its scope.
+         --  Note that Is_Internal_Name destroys Name_Buffer, hence the save
+         --  and restore since we depend on its current contents. Note that
+         --  we strip a final R from the name before the test, this is needed
+         --  for some cases of instantiations.
+
+         declare
+            Save_NB : constant String  := Name_Buffer (1 .. Name_Len);
+            Save_NL : constant Natural := Name_Len;
+            Iname   : Boolean;
+
+         begin
+            Get_Name_String (Chars (E));
+
+            if Name_Buffer (Name_Len) = 'R' then
+               Name_Len := Name_Len - 1;
+            end if;
+
+            Iname := Is_Internal_Name;
+
+            Name_Buffer (1 .. Save_NL) := Save_NB;
+            Name_Len := Save_NL;
+
+            if Iname then
+               Write_Entity_Name_Inner (Scope (E));
+               return;
+            end if;
+         end;
+
+         --  Just print entity name if its scope is at the outer level
+
+         if Scope (E) = Standard_Standard then
+            null;
+
+         --  If scope comes from source, write scope and entity
+
+         elsif Comes_From_Source (Scope (E)) then
+            Write_Entity_Name (Scope (E));
+            Add_Char_To_Name_Buffer ('.');
+
+         --  If in wrapper package skip past it
+
+         elsif Is_Wrapper_Package (Scope (E)) then
+            Write_Entity_Name (Scope (Scope (E)));
+            Add_Char_To_Name_Buffer ('.');
+
+         --  Otherwise nothing to output (happens in unnamed block statements)
+
+         else
+            null;
+         end if;
+
+         --  Output the name
+
+         declare
+            Save_NB : constant String  := Name_Buffer (1 .. Name_Len);
+            Save_NL : constant Natural := Name_Len;
+
+         begin
+            Get_Unqualified_Decoded_Name_String (Chars (E));
+
+            --  Remove trailing upper case letters from the name (useful for
+            --  dealing with some cases of internal names generated in the case
+            --  of references from within a generic.
+
+            while Name_Len > 1
+              and then Name_Buffer (Name_Len) in 'A' .. 'Z'
+            loop
+               Name_Len := Name_Len  - 1;
+            end loop;
+
+            --  Adjust casing appropriately (gets name from source if possible)
+
+            Adjust_Name_Case (Sloc (E));
+
+            --  Append to original entry value of Name_Buffer
+
+            Name_Buffer (Save_NL + 1 ..  Save_NL + Name_Len) :=
+              Name_Buffer (1 .. Name_Len);
+            Name_Buffer (1 .. Save_NL) := Save_NB;
+            Name_Len := Save_NL + Name_Len;
+         end;
+      end Write_Entity_Name_Inner;
+
+   --  Start of processing for Write_Entity_Name
+
+   begin
+      Write_Entity_Name_Inner (E);
+   end Write_Entity_Name;
 end Exp_Intr;

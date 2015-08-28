@@ -1,6 +1,6 @@
 // Allocator traits -*- C++ -*-
 
-// Copyright (C) 2011-2014 Free Software Foundation, Inc.
+// Copyright (C) 2011-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -71,6 +71,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       typedef _Alloc<_Tp, _Args...> __type;
     };
+
+  template<typename _Alloc, typename _Tp>
+    using __alloc_rebind = typename __alloctr_rebind<_Alloc, _Tp>::__type;
 
   /**
    * @brief  Uniform interface to all allocator types.

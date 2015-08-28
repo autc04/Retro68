@@ -1,8 +1,9 @@
 /* { dg-do compile } */ 
 /* { dg-options "-O2 -fdump-tree-isolate-paths" } */
+/* { dg-skip-if "" keeps_null_pointer_checks } */
 
 
-typedef long unsigned int size_t;
+typedef __SIZE_TYPE__ size_t;
 extern void *memset (void *__s, int __c, size_t __n)
   __attribute__ ((__nothrow__, __leaf__)) __attribute__ ((__nonnull__ (1)));
 struct rtx_def;
@@ -42,6 +43,8 @@ VEC_rtx_gc_safe_grow_cleared (VEC_rtx_gc ** vec_, int size_,
 }
 
 static VEC_rtx_gc *reg_base_value;
+unsigned int max_reg_num (void);
+int arf (void);
 void
 init_alias_analysis (void)
 {

@@ -1,5 +1,5 @@
 /* Translation of constants
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
 This file is part of GCC.
@@ -23,12 +23,24 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "gfortran.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "real.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stor-layout.h"
 #include "realmpfr.h"
 #include "diagnostic-core.h"	/* For fatal_error.  */
 #include "double-int.h"
-#include "gfortran.h"
 #include "trans.h"
 #include "trans-const.h"
 #include "trans-types.h"
@@ -80,6 +92,7 @@ gfc_build_string_const (int length, const char *s)
     build_array_type (gfc_character1_type_node,
 		      build_range_type (gfc_charlen_type_node,
 					size_one_node, len));
+  TYPE_STRING_FLAG (TREE_TYPE (str)) = 1;
   return str;
 }
 
@@ -109,6 +122,7 @@ gfc_build_wide_string_const (int kind, int length, const gfc_char_t *string)
     build_array_type (gfc_get_char_type (kind),
 		      build_range_type (gfc_charlen_type_node,
 					size_one_node, len));
+  TYPE_STRING_FLAG (TREE_TYPE (str)) = 1;
   return str;
 }
 
@@ -145,8 +159,7 @@ gfc_conv_string_init (tree length, gfc_expr * expr)
 
   gcc_assert (expr->expr_type == EXPR_CONSTANT);
   gcc_assert (expr->ts.type == BT_CHARACTER);
-  gcc_assert (INTEGER_CST_P (length));
-  gcc_assert (TREE_INT_CST_HIGH (length) == 0);
+  gcc_assert (tree_fits_uhwi_p (length));
 
   len = TREE_INT_CST_LOW (length);
   slen = expr->value.character.length;
@@ -201,8 +214,8 @@ gfc_init_constants (void)
 tree
 gfc_conv_mpz_to_tree (mpz_t i, int kind)
 {
-  double_int val = mpz_get_double_int (gfc_get_int_type (kind), i, true);
-  return double_int_to_tree (gfc_get_int_type (kind), val);
+  wide_int val = wi::from_mpz (gfc_get_int_type (kind), i, true);
+  return wide_int_to_tree (gfc_get_int_type (kind), val);
 }
 
 /* Converts a backend tree into a GMP integer.  */
@@ -210,8 +223,7 @@ gfc_conv_mpz_to_tree (mpz_t i, int kind)
 void
 gfc_conv_tree_to_mpz (mpz_t i, tree source)
 {
-  double_int val = tree_to_double_int (source);
-  mpz_set_double_int (i, val, TYPE_UNSIGNED (TREE_TYPE (source)));
+  wi::to_mpz (source, i, TYPE_SIGN (TREE_TYPE (source)));
 }
 
 /* Converts a real constant into backend form.  */
@@ -253,6 +265,16 @@ gfc_build_inf_or_huge (tree type, int kind)
       int k = gfc_validate_kind (BT_REAL, kind, false);
       return gfc_conv_mpfr_to_tree (gfc_real_kinds[k].huge, kind, 0);
     }
+}
+
+/* Returns a floating-point NaN of a given type.  */
+
+tree
+gfc_build_nan (tree type, const char *str)
+{
+  REAL_VALUE_TYPE real;
+  real_nan (&real, str, 1, TYPE_MODE (type));
+  return build_real (type, real);
 }
 
 /* Converts a backend tree into a real constant.  */
@@ -310,7 +332,7 @@ gfc_conv_constant_to_tree (gfc_expr * expr)
 			gfc_build_string_const (expr->representation.length,
 						expr->representation.string));
 	  if (!integer_zerop (tmp) && !integer_onep (tmp))
-	    gfc_warning ("Assigning value other than 0 or 1 to LOGICAL"
+	    gfc_warning (0, "Assigning value other than 0 or 1 to LOGICAL"
 			 " has undefined result at %L", &expr->where);
 	  return fold_convert (gfc_get_logical_type (expr->ts.kind), tmp);
 	}
@@ -346,7 +368,8 @@ gfc_conv_constant_to_tree (gfc_expr * expr)
 				     expr->representation.string);
 
     default:
-      fatal_error ("gfc_conv_constant_to_tree(): invalid type: %s",
+      fatal_error (input_location,
+		   "gfc_conv_constant_to_tree(): invalid type: %s",
 		   gfc_typename (&expr->ts));
     }
 }

@@ -1,10 +1,11 @@
 /* { dg-do compile } */
-/* { dg-options "-march=k8-sse3" { target x86_64-*-* } } */
+/* { dg-options "-march=k8-sse3" { target i?86-*-* x86_64-*-* } } */
 
 struct alu_bank_swizzle {
     int hw_gpr[3][4];
     int hw_cfile_addr[4];
 };
+void check_vector (struct alu_bank_swizzle *);
 static void init_bank_swizzle(struct alu_bank_swizzle *bs)
 {
   int i, cycle, component;

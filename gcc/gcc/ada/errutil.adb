@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1991-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1991-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -177,7 +177,7 @@ package body Errutil is
          raise Error_Msg_Exception;
       end if;
 
-      Test_Style_Warning_Serious_Unconditional_Msg (Msg);
+      Prescan_Message (Msg);
       Set_Msg_Text (Msg, Sptr);
 
       --  Kill continuation if parent message killed
@@ -201,23 +201,28 @@ package body Errutil is
 
       --  Otherwise build error message object for new message
 
-      Errors.Increment_Last;
-      Cur_Msg := Errors.Last;
-      Errors.Table (Cur_Msg).Text     := new String'(Msg_Buffer (1 .. Msglen));
-      Errors.Table (Cur_Msg).Next     := No_Error_Msg;
-      Errors.Table (Cur_Msg).Sptr     := Sptr;
-      Errors.Table (Cur_Msg).Optr     := Optr;
-      Errors.Table (Cur_Msg).Sfile    := Get_Source_File_Index (Sptr);
-      Errors.Table (Cur_Msg).Line     := Get_Physical_Line_Number (Sptr);
-      Errors.Table (Cur_Msg).Col      := Get_Column_Number (Sptr);
-      Errors.Table (Cur_Msg).Style    := Is_Style_Msg;
-      Errors.Table (Cur_Msg).Warn     := Is_Warning_Msg;
-      Errors.Table (Cur_Msg).Warn_Chr := Warning_Msg_Char;
-      Errors.Table (Cur_Msg).Serious  := Is_Serious_Error;
-      Errors.Table (Cur_Msg).Uncond   := Is_Unconditional_Msg;
-      Errors.Table (Cur_Msg).Msg_Cont := Continuation;
-      Errors.Table (Cur_Msg).Deleted  := False;
+      Errors.Append
+        (New_Val =>
+           (Text     => new String'(Msg_Buffer (1 .. Msglen)),
+            Next     => No_Error_Msg,
+            Prev     => No_Error_Msg,
+            Sfile    => Get_Source_File_Index (Sptr),
+            Sptr     => Sptr,
+            Optr     => Optr,
+            Line     => Get_Physical_Line_Number (Sptr),
+            Col      => Get_Column_Number (Sptr),
+            Warn     => Is_Warning_Msg,
+            Info     => Is_Info_Msg,
+            Check    => Is_Check_Msg,
+            Warn_Err => Warning_Mode = Treat_As_Error,
+            Warn_Chr => Warning_Msg_Char,
+            Style    => Is_Style_Msg,
+            Serious  => Is_Serious_Error,
+            Uncond   => Is_Unconditional_Msg,
+            Msg_Cont => Continuation,
+            Deleted  => False));
 
+      Cur_Msg  := Errors.Last;
       Prev_Msg := No_Error_Msg;
       Next_Msg := First_Error_Msg;
 
@@ -304,6 +309,13 @@ package body Errutil is
          Errors.Table (Cur_Msg).Style
       then
          Warnings_Detected := Warnings_Detected + 1;
+
+         if Errors.Table (Cur_Msg).Info then
+            Info_Messages := Info_Messages + 1;
+         end if;
+
+      elsif Errors.Table (Cur_Msg).Check then
+         Check_Messages := Check_Messages + 1;
 
       else
          Total_Errors_Detected := Total_Errors_Detected + 1;
@@ -498,10 +510,10 @@ package body Errutil is
          --  error to make sure that *something* appears on standard error in
          --  an error situation.
 
-         --  Formerly, only the "# errors" suffix was sent to stderr, whereas
-         --  "# lines:" appeared on stdout. This caused problems on VMS when
-         --  the stdout buffer was flushed, giving an extra line feed after
-         --  the prefix.
+         --  Historical note: Formerly, only the "# errors" suffix was sent
+         --  to stderr, whereas "# lines:" appeared on stdout. This caused
+         --  some problems on now-obsolete ports, but there seems to be no
+         --  reason to revert this page since it would be incompatible.
 
          if Total_Errors_Detected + Warnings_Detected /= 0
            and then not Brief_Output
@@ -532,19 +544,19 @@ package body Errutil is
             Write_Str (" errors");
          end if;
 
-         if Warnings_Detected /= 0 then
+         if Warnings_Detected - Info_Messages  /= 0 then
             Write_Str (", ");
-            Write_Int (Warnings_Detected);
+            Write_Int (Warnings_Detected - Info_Messages);
             Write_Str (" warning");
 
-            if Warnings_Detected /= 1 then
+            if Warnings_Detected - Info_Messages /= 1 then
                Write_Char ('s');
             end if;
 
             if Warning_Mode = Treat_As_Error then
                Write_Str (" (treated as error");
 
-               if Warnings_Detected /= 1 then
+               if Warnings_Detected - Info_Messages /= 1 then
                   Write_Char ('s');
                end if;
 
@@ -571,8 +583,9 @@ package body Errutil is
       end if;
 
       if Warning_Mode = Treat_As_Error then
-         Total_Errors_Detected := Total_Errors_Detected + Warnings_Detected;
-         Warnings_Detected := 0;
+         Total_Errors_Detected :=
+           Total_Errors_Detected + Warnings_Detected - Info_Messages;
+         Warnings_Detected := Info_Messages;
       end if;
 
       --  Prevent displaying the same messages again in the future
@@ -592,6 +605,7 @@ package body Errutil is
       Serious_Errors_Detected := 0;
       Total_Errors_Detected := 0;
       Warnings_Detected := 0;
+      Info_Messages := 0;
       Cur_Msg := No_Error_Msg;
 
       --  Initialize warnings table, if all warnings are suppressed, supply
@@ -770,6 +784,9 @@ package body Errutil is
          then
             P := P - 1;
             Set_Msg_Insertion_Reserved_Word (Text, P);
+
+         elsif C = '~' then
+            Set_Msg_Str (Error_Msg_String (1 .. Error_Msg_Strlen));
 
          --  Normal character with no special treatment
 

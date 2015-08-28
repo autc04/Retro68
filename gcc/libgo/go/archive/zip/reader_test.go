@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -235,6 +236,18 @@ var tests = []ZipTest{
 			},
 		},
 	},
+	// Another zip64 file with different Extras fields. (golang.org/issue/7069)
+	{
+		Name: "zip64-2.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "README",
+				Content: []byte("This small file is in ZIP64 format.\n"),
+				Mtime:   "08-10-12 14:33:32",
+				Mode:    0644,
+			},
+		},
+	},
 }
 
 var crossPlatform = []ZipTestFile{
@@ -343,17 +356,11 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 
 	testFileMode(t, zt.Name, f, ft.Mode)
 
-	size0 := f.UncompressedSize
-
 	var b bytes.Buffer
 	r, err := f.Open()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("%s: %v", zt.Name, err)
 		return
-	}
-
-	if size1 := f.UncompressedSize; size0 != size1 {
-		t.Errorf("file %q changed f.UncompressedSize from %d to %d", f.Name, size0, size1)
 	}
 
 	_, err = io.Copy(&b, r)
@@ -364,6 +371,14 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 		return
 	}
 	r.Close()
+
+	size := uint64(f.UncompressedSize)
+	if size == uint32max {
+		size = f.UncompressedSize64
+	}
+	if g := uint64(b.Len()); g != size {
+		t.Errorf("%v: read %v bytes but f.UncompressedSize == %v", f.Name, g, size)
+	}
 
 	var c []byte
 	if ft.Content != nil {
@@ -493,4 +508,26 @@ func rZipBytes() []byte {
 func returnRecursiveZip() (r io.ReaderAt, size int64) {
 	b := rZipBytes()
 	return bytes.NewReader(b), int64(len(b))
+}
+
+func TestIssue8186(t *testing.T) {
+	// Directory headers & data found in the TOC of a JAR file.
+	dirEnts := []string{
+		"PK\x01\x02\n\x00\n\x00\x00\b\x00\x004\x9d3?\xaa\x1b\x06\xf0\x81\x02\x00\x00\x81\x02\x00\x00-\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00res/drawable-xhdpi-v4/ic_actionbar_accept.png\xfe\xca\x00\x00\x00",
+		"PK\x01\x02\n\x00\n\x00\x00\b\x00\x004\x9d3?\x90K\x89\xc7t\n\x00\x00t\n\x00\x00\x0e\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xd1\x02\x00\x00resources.arsc\x00\x00\x00",
+		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xff$\x18\xed3\x03\x00\x00\xb4\b\x00\x00\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00t\r\x00\x00AndroidManifest.xml",
+		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\x14\xc5K\xab\x192\x02\x00\xc8\xcd\x04\x00\v\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xe8\x10\x00\x00classes.dex",
+		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?E\x96\nD\xac\x01\x00\x00P\x03\x00\x00&\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00:C\x02\x00res/layout/actionbar_set_wallpaper.xml",
+		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?Ļ\x14\xe3\xd8\x01\x00\x00\xd8\x03\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00:E\x02\x00res/layout/wallpaper_cropper.xml",
+		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?}\xc1\x15\x9eZ\x01\x00\x00!\x02\x00\x00\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00`G\x02\x00META-INF/MANIFEST.MF",
+		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xe6\x98Ьo\x01\x00\x00\x84\x02\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfcH\x02\x00META-INF/CERT.SF",
+		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xbfP\x96b\x86\x04\x00\x00\xb2\x06\x00\x00\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa9J\x02\x00META-INF/CERT.RSA",
+	}
+	for i, s := range dirEnts {
+		var f File
+		err := readDirectoryHeader(&f, strings.NewReader(s))
+		if err != nil {
+			t.Errorf("error reading #%d: %v", i, err)
+		}
+	}
 }

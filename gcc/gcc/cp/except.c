@@ -1,5 +1,5 @@
 /* Handle exceptional things in C++.
-   Copyright (C) 1989-2014 Free Software Foundation, Inc.
+   Copyright (C) 1989-2015 Free Software Foundation, Inc.
    Contributed by Michael Tiemann <tiemann@cygnus.com>
    Rewritten by Mike Stump <mrs@cygnus.com>, based upon an
    initial re-implementation courtesy Tad Hunt.
@@ -25,6 +25,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "trans-mem.h"
@@ -295,7 +304,8 @@ decl_is_java_type (tree decl, int err)
 
 	  if (jthrow_node == NULL_TREE)
 	    fatal_error
-	      ("call to Java %<catch%> or %<throw%> with %<jthrowable%> undefined");
+	      (input_location,
+	       "call to Java %<catch%> or %<throw%> with %<jthrowable%> undefined");
 
 	  jthrow_node = TREE_TYPE (TREE_TYPE (jthrow_node));
 
@@ -1138,7 +1148,7 @@ check_noexcept_r (tree *tp, int * /*walk_subtrees*/, void * /*data*/)
 {
   tree t = *tp;
   enum tree_code code = TREE_CODE (t);
-  if (code == CALL_EXPR
+  if ((code == CALL_EXPR && CALL_EXPR_FN (t))
       || code == AGGR_INIT_EXPR)
     {
       /* We can only use the exception specification of the called function
@@ -1340,6 +1350,18 @@ build_noexcept_spec (tree expr, int complain)
 		  || TREE_CODE (expr) == DEFERRED_NOEXCEPT);
       return build_tree_list (expr, NULL_TREE);
     }
+}
+
+/* Returns a noexcept-specifier to be evaluated later, for an
+   implicitly-declared or explicitly defaulted special member function.  */
+
+tree
+unevaluated_noexcept_spec (void)
+{
+  static tree spec;
+  if (spec == NULL_TREE)
+    spec = build_noexcept_spec (make_node (DEFERRED_NOEXCEPT), tf_none);
+  return spec;
 }
 
 /* Returns a TRY_CATCH_EXPR that will put TRY_LIST and CATCH_LIST in the

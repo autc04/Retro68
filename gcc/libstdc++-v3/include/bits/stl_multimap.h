@@ -1,6 +1,6 @@
 // Multimap implementation -*- C++ -*-
 
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -158,6 +158,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  @brief  Default constructor creates no elements.
        */
       multimap()
+#if __cplusplus >= 201103L
+      noexcept(is_nothrow_default_constructible<allocator_type>::value)
+#endif
       : _M_t() { }
 
       /**
@@ -292,28 +295,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       }
 
 #if __cplusplus >= 201103L
-      /**
-       *  @brief  %Multimap move assignment operator.
-       *  @param  __x  A %multimap of identical element and allocator types.
-       *
-       *  The contents of @a __x are moved into this multimap (without copying
-       *  if the allocators compare equal or get moved on assignment).
-       *  Afterwards @a __x is in a valid, but unspecified state.
-       */
+      /// Move assignment operator.
       multimap&
-      operator=(multimap&& __x) noexcept(_Alloc_traits::_S_nothrow_move())
-      {
-	if (!_M_t._M_move_assign(__x._M_t))
-	  {
-	    // The rvalue's allocator cannot be moved and is not equal,
-	    // so we need to individually move each element.
-	    clear();
-	    insert(std::__make_move_if_noexcept_iterator(__x.begin()),
-		   std::__make_move_if_noexcept_iterator(__x.end()));
-	    __x.clear();
-	  }
-	return *this;
-      }
+      operator=(multimap&&) = default;
 
       /**
        *  @brief  %Multimap list assignment operator.
@@ -329,8 +313,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       multimap&
       operator=(initializer_list<value_type> __l)
       {
-	this->clear();
-	this->insert(__l.begin(), __l.end());
+	_M_t._M_assign_equal(__l.begin(), __l.end());
 	return *this;
       }
 #endif
@@ -508,7 +491,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  cause no gains in efficiency.
        *
        *  For more on @a hinting, see:
-       *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/bk01pt07ch17.html
+       *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/associative.html#containers.associative.insert_hints
        *
        *  Insertion requires logarithmic time (if the hint is not taken).
        */
@@ -562,7 +545,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  cause no gains in efficiency.
        *
        *  For more on @a hinting, see:
-       *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/bk01pt07ch17.html
+       *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/associative.html#containers.associative.insert_hints
        *
        *  Insertion requires logarithmic time (if the hint is not taken).
        */
@@ -754,6 +737,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { return value_compare(_M_t.key_comp()); }
 
       // multimap operations
+
+      //@{
       /**
        *  @brief Tries to locate an element in a %multimap.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -769,6 +754,15 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x)
       { return _M_t.find(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	find(const _Kt& __x) -> decltype(_M_t._M_find_tr(__x))
+	{ return _M_t._M_find_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Tries to locate an element in a %multimap.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -784,6 +778,15 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x) const
       { return _M_t.find(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	find(const _Kt& __x) const -> decltype(_M_t._M_find_tr(__x))
+	{ return _M_t._M_find_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Finds the number of elements with given key.
        *  @param  __x  Key of (key, value) pairs to be located.
@@ -793,6 +796,15 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       count(const key_type& __x) const
       { return _M_t.count(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	count(const _Kt& __x) const -> decltype(_M_t._M_count_tr(__x))
+	{ return _M_t._M_count_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Finds the beginning of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -808,6 +820,16 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       lower_bound(const key_type& __x)
       { return _M_t.lower_bound(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	lower_bound(const _Kt& __x)
+	-> decltype(_M_t._M_lower_bound_tr(__x))
+	{ return _M_t._M_lower_bound_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Finds the beginning of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -823,6 +845,16 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       lower_bound(const key_type& __x) const
       { return _M_t.lower_bound(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	lower_bound(const _Kt& __x) const
+	-> decltype(_M_t._M_lower_bound_tr(__x))
+	{ return _M_t._M_lower_bound_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Finds the end of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -833,6 +865,16 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       upper_bound(const key_type& __x)
       { return _M_t.upper_bound(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	upper_bound(const _Kt& __x)
+	-> decltype(_M_t._M_upper_bound_tr(__x))
+	{ return _M_t._M_upper_bound_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Finds the end of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -843,6 +885,16 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       upper_bound(const key_type& __x) const
       { return _M_t.upper_bound(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	upper_bound(const _Kt& __x) const
+	-> decltype(_M_t._M_upper_bound_tr(__x))
+	{ return _M_t._M_upper_bound_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Finds a subsequence matching given key.
        *  @param  __x  Key of (key, value) pairs to be located.
@@ -860,6 +912,16 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x)
       { return _M_t.equal_range(__x); }
 
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	equal_range(const _Kt& __x)
+	-> decltype(_M_t._M_equal_range_tr(__x))
+	{ return _M_t._M_equal_range_tr(__x); }
+#endif
+      //@}
+
+      //@{
       /**
        *  @brief Finds a subsequence matching given key.
        *  @param  __x  Key of (key, value) pairs to be located.
@@ -876,6 +938,15 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       std::pair<const_iterator, const_iterator>
       equal_range(const key_type& __x) const
       { return _M_t.equal_range(__x); }
+
+#if __cplusplus > 201103L
+      template<typename _Kt>
+	auto
+	equal_range(const _Kt& __x) const
+	-> decltype(_M_t._M_equal_range_tr(__x))
+	{ return _M_t._M_equal_range_tr(__x); }
+#endif
+      //@}
 
       template<typename _K1, typename _T1, typename _C1, typename _A1>
         friend bool

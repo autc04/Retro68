@@ -1,9 +1,9 @@
 // { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 
 // 2007-05-03  Benjamin Kosnik  <bkoz@redhat.com>
 //
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -48,5 +48,5 @@ void test01()
 // { dg-error "required from here" "" { target *-*-* } 40 }
 // { dg-error "required from here" "" { target *-*-* } 42 }
 
-// { dg-error "invalid use of incomplete type" "" { target *-*-* } 1747 }
-// { dg-error "declaration of" "" { target *-*-* } 1711 }
+// { dg-error "invalid use of incomplete type" "" { target *-*-* } 1869 }
+// { dg-error "declaration of" "" { target *-*-* } 1833 }

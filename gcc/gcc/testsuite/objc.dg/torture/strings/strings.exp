@@ -1,6 +1,6 @@
 # String tests that should be run at all optimization levels.
 
-# Copyright (C) 2010-2014 Free Software Foundation, Inc.
+# Copyright (C) 2010-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,11 +24,11 @@ dg-init
 # Gather a list of all tests.
 set tests [lsort [glob -nocomplain $srcdir/$subdir/*.m]]
 
-objc-dg-runtest $tests "-fgnu-runtime"
+objc-dg-runtest $tests "" "-fgnu-runtime"
 
 # Darwin targets also test with the NeXT runtime.
 if [istarget "*-*-darwin*" ] {
-  objc-dg-runtest $tests "-fnext-runtime"
+  objc-dg-runtest $tests "" "-fnext-runtime"
 }
 
 dg-finish

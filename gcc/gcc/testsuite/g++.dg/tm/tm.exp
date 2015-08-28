@@ -1,4 +1,4 @@
-#   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,10 +34,10 @@ dg-init
 
 # Run the tests that are shared with C.
 g++-dg-runtest [lsort [glob -nocomplain $srcdir/c-c++-common/tm/*.c]] \
-	$DEFAULT_CXXFLAGS
+	"" $DEFAULT_CXXFLAGS
 # Run the C++ only tests.
 g++-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.C]] \
-	$DEFAULT_CXXFLAGS
+	"" $DEFAULT_CXXFLAGS
 
 # All done.
 dg-finish

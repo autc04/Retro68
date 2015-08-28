@@ -1,6 +1,6 @@
 // shared_ptr and weak_ptr implementation -*- C++ -*-
 
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -75,7 +75,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline _Del*
     get_deleter(const __shared_ptr<_Tp, _Lp>& __p) noexcept
     {
-#ifdef __GXX_RTTI
+#if __cpp_rtti
       return static_cast<_Del*>(__p._M_get_deleter(typeid(_Del)));
 #else
       return 0;
@@ -92,6 +92,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Tp>
     class shared_ptr : public __shared_ptr<_Tp>
     {
+      template<typename _Ptr>
+	using _Convertible
+	  = typename enable_if<is_convertible<_Ptr, _Tp*>::value>::type;
+
     public:
       /**
        *  @brief  Construct an empty %shared_ptr.
@@ -213,8 +217,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @param  __r  A %shared_ptr.
        *  @post   get() == __r.get() && use_count() == __r.use_count()
        */
-      template<typename _Tp1, typename = typename
-	       std::enable_if<std::is_convertible<_Tp1*, _Tp*>::value>::type>
+      template<typename _Tp1, typename = _Convertible<_Tp1*>>
 	shared_ptr(const shared_ptr<_Tp1>& __r) noexcept
         : __shared_ptr<_Tp>(__r) { }
 
@@ -231,8 +234,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @param  __r  A %shared_ptr rvalue.
        *  @post   *this contains the old value of @a __r, @a __r is empty.
        */
-      template<typename _Tp1, typename = typename
-	       std::enable_if<std::is_convertible<_Tp1*, _Tp*>::value>::type>
+      template<typename _Tp1, typename = _Convertible<_Tp1*>>
 	shared_ptr(shared_ptr<_Tp1>&& __r) noexcept
 	: __shared_ptr<_Tp>(std::move(__r)) { }
 
@@ -253,17 +255,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	shared_ptr(std::auto_ptr<_Tp1>&& __r);
 #endif
 
-      template<typename _Tp1, typename _Del>
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 2399. shared_ptr's constructor from unique_ptr should be constrained
+      template<typename _Tp1, typename _Del, typename
+	       = _Convertible<typename unique_ptr<_Tp1, _Del>::pointer>>
 	shared_ptr(std::unique_ptr<_Tp1, _Del>&& __r)
 	: __shared_ptr<_Tp>(std::move(__r)) { }
 
       /**
        *  @brief  Construct an empty %shared_ptr.
-       *  @param  __p  A null pointer constant.
        *  @post   use_count() == 0 && get() == nullptr
        */
-      constexpr shared_ptr(nullptr_t __p) noexcept
-      : __shared_ptr<_Tp>(__p) { }
+      constexpr shared_ptr(nullptr_t) noexcept : shared_ptr() { }
 
       shared_ptr& operator=(const shared_ptr&) noexcept = default;
 
@@ -466,19 +469,31 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Tp>
     class weak_ptr : public __weak_ptr<_Tp>
     {
-    public:
-      constexpr weak_ptr() noexcept
-      : __weak_ptr<_Tp>() { }
+      template<typename _Ptr>
+	using _Convertible
+	  = typename enable_if<is_convertible<_Ptr, _Tp*>::value>::type;
 
-      template<typename _Tp1, typename = typename
-	       std::enable_if<std::is_convertible<_Tp1*, _Tp*>::value>::type>
+    public:
+      constexpr weak_ptr() noexcept = default;
+
+      template<typename _Tp1, typename = _Convertible<_Tp1*>>
+	weak_ptr(const shared_ptr<_Tp1>& __r) noexcept
+	: __weak_ptr<_Tp>(__r) { }
+
+      weak_ptr(const weak_ptr&) noexcept = default;
+
+      template<typename _Tp1, typename = _Convertible<_Tp1*>>
 	weak_ptr(const weak_ptr<_Tp1>& __r) noexcept
 	: __weak_ptr<_Tp>(__r) { }
 
-      template<typename _Tp1, typename = typename
-	       std::enable_if<std::is_convertible<_Tp1*, _Tp*>::value>::type>
-	weak_ptr(const shared_ptr<_Tp1>& __r) noexcept
-	: __weak_ptr<_Tp>(__r) { }
+      weak_ptr(weak_ptr&&) noexcept = default;
+
+      template<typename _Tp1, typename = _Convertible<_Tp1*>>
+	weak_ptr(weak_ptr<_Tp1>&& __r) noexcept
+	: __weak_ptr<_Tp>(std::move(__r)) { }
+
+      weak_ptr&
+      operator=(const weak_ptr& __r) noexcept = default;
 
       template<typename _Tp1>
 	weak_ptr&
@@ -493,6 +508,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	operator=(const shared_ptr<_Tp1>& __r) noexcept
 	{
 	  this->__weak_ptr<_Tp>::operator=(__r);
+	  return *this;
+	}
+
+      weak_ptr&
+      operator=(weak_ptr&& __r) noexcept = default;
+
+      template<typename _Tp1>
+	weak_ptr&
+	operator=(weak_ptr<_Tp1>&& __r) noexcept
+	{
+	  this->__weak_ptr<_Tp>::operator=(std::move(__r));
 	  return *this;
 	}
 

@@ -1,10 +1,41 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-04-22  Release Manager
 
-	* GCC 4.9.0 released.
+	* GCC 5.1.0 released.
+
+2014-12-18  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* testsuite/lib/boehm-gc.exp: Load target-utils.exp.
+
+2014-11-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/63784
+	* configure: Regenerated.
+
+2014-11-11  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
+
+	PR target/63610
+	* configure: Regenerate.
+
+2014-10-23  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* include/gc.h [(sparc || __sparc) && sun] (GC_INIT): Remove
+	comment and definition.
+
+2014-10-06  Marek Polacek  <polacek@redhat.com>
+
+	* testsuite/boehm-gc.c/gctest.c: Fix defaulting to int.
+
+2014-05-13  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	Fix current cygwin-64 build problems.
+	* include/gc_config_macros.h (GC_PTHREADS): Use __CYGWIN__ instead
+	of __CYGWIN32__ here.
+	* win32_threads.c (GC_push_all_stacks): Push all X86_64 registers.
+	(GC_get_thread_stack_base): Get the stack base for X86_64.
 
 2014-04-22  Jakub Jelinek  <jakub@redhat.com>
 

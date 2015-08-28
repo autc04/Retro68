@@ -7,16 +7,18 @@ DEFS = -D_GNU_SOURCE -D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D
 if USING_MAC_INTERPOSE
 DEFS += -DMAC_INTERPOSE_FUNCTIONS -DMISSING_BLOCKS_SUPPORT
 endif
-AM_CXXFLAGS = -Wall -W -Wno-unused-parameter -Wwrite-strings -pedantic -Wno-long-long  -fPIC -fno-builtin -fno-exceptions -fno-rtti -fomit-frame-pointer -funwind-tables -fvisibility=hidden -Wno-variadic-macros
+AM_CXXFLAGS = -Wall -W -Wno-unused-parameter -Wwrite-strings -pedantic -Wno-long-long  -fPIC -fno-builtin -fno-exceptions -fno-rtti -fomit-frame-pointer -funwind-tables -fvisibility=hidden -Wno-variadic-macros -fno-ipa-icf
 AM_CXXFLAGS += $(LIBSTDCXX_RAW_CXX_CXXFLAGS)
+AM_CXXFLAGS += -std=gnu++11
 ACLOCAL_AMFLAGS = -I $(top_srcdir) -I $(top_srcdir)/config
 
 toolexeclib_LTLIBRARIES = libasan.la
 nodist_toolexeclib_HEADERS = libasan_preinit.o
 
 asan_files = \
+	asan_activation.cc \
 	asan_allocator2.cc \
-	asan_dll_thunk.cc \
+	asan_debugging.cc \
 	asan_fake_stack.cc \
 	asan_globals.cc \
 	asan_interceptors.cc \
@@ -33,7 +35,9 @@ asan_files = \
 	asan_stack.cc \
 	asan_stats.cc \
 	asan_thread.cc \
-	asan_win.cc
+	asan_win.cc \
+	asan_win_dll_thunk.cc \
+	asan_win_dynamic_runtime_thunk.cc
 
 libasan_la_SOURCES = $(asan_files)
 libasan_la_LIBADD = $(top_builddir)/sanitizer_common/libsanitizer_common.la $(top_builddir)/lsan/libsanitizer_lsan.la

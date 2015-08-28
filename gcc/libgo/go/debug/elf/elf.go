@@ -11,6 +11,7 @@
  * $FreeBSD: src/sys/i386/include/elf.h,v 1.16 2004/08/02 19:12:17 dfr Exp $
  * $FreeBSD: src/sys/powerpc/include/elf.h,v 1.7 2004/11/02 09:47:01 ssouhlal Exp $
  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
+ * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
  * Copyright (c) 2001 David E. O'Brien
@@ -192,49 +193,50 @@ func (i Type) GoString() string { return stringName(uint32(i), typeStrings, true
 type Machine uint16
 
 const (
-	EM_NONE        Machine = 0  /* Unknown machine. */
-	EM_M32         Machine = 1  /* AT&T WE32100. */
-	EM_SPARC       Machine = 2  /* Sun SPARC. */
-	EM_386         Machine = 3  /* Intel i386. */
-	EM_68K         Machine = 4  /* Motorola 68000. */
-	EM_88K         Machine = 5  /* Motorola 88000. */
-	EM_860         Machine = 7  /* Intel i860. */
-	EM_MIPS        Machine = 8  /* MIPS R3000 Big-Endian only. */
-	EM_S370        Machine = 9  /* IBM System/370. */
-	EM_MIPS_RS3_LE Machine = 10 /* MIPS R3000 Little-Endian. */
-	EM_PARISC      Machine = 15 /* HP PA-RISC. */
-	EM_VPP500      Machine = 17 /* Fujitsu VPP500. */
-	EM_SPARC32PLUS Machine = 18 /* SPARC v8plus. */
-	EM_960         Machine = 19 /* Intel 80960. */
-	EM_PPC         Machine = 20 /* PowerPC 32-bit. */
-	EM_PPC64       Machine = 21 /* PowerPC 64-bit. */
-	EM_S390        Machine = 22 /* IBM System/390. */
-	EM_V800        Machine = 36 /* NEC V800. */
-	EM_FR20        Machine = 37 /* Fujitsu FR20. */
-	EM_RH32        Machine = 38 /* TRW RH-32. */
-	EM_RCE         Machine = 39 /* Motorola RCE. */
-	EM_ARM         Machine = 40 /* ARM. */
-	EM_SH          Machine = 42 /* Hitachi SH. */
-	EM_SPARCV9     Machine = 43 /* SPARC v9 64-bit. */
-	EM_TRICORE     Machine = 44 /* Siemens TriCore embedded processor. */
-	EM_ARC         Machine = 45 /* Argonaut RISC Core. */
-	EM_H8_300      Machine = 46 /* Hitachi H8/300. */
-	EM_H8_300H     Machine = 47 /* Hitachi H8/300H. */
-	EM_H8S         Machine = 48 /* Hitachi H8S. */
-	EM_H8_500      Machine = 49 /* Hitachi H8/500. */
-	EM_IA_64       Machine = 50 /* Intel IA-64 Processor. */
-	EM_MIPS_X      Machine = 51 /* Stanford MIPS-X. */
-	EM_COLDFIRE    Machine = 52 /* Motorola ColdFire. */
-	EM_68HC12      Machine = 53 /* Motorola M68HC12. */
-	EM_MMA         Machine = 54 /* Fujitsu MMA. */
-	EM_PCP         Machine = 55 /* Siemens PCP. */
-	EM_NCPU        Machine = 56 /* Sony nCPU. */
-	EM_NDR1        Machine = 57 /* Denso NDR1 microprocessor. */
-	EM_STARCORE    Machine = 58 /* Motorola Star*Core processor. */
-	EM_ME16        Machine = 59 /* Toyota ME16 processor. */
-	EM_ST100       Machine = 60 /* STMicroelectronics ST100 processor. */
-	EM_TINYJ       Machine = 61 /* Advanced Logic Corp. TinyJ processor. */
-	EM_X86_64      Machine = 62 /* Advanced Micro Devices x86-64 */
+	EM_NONE        Machine = 0   /* Unknown machine. */
+	EM_M32         Machine = 1   /* AT&T WE32100. */
+	EM_SPARC       Machine = 2   /* Sun SPARC. */
+	EM_386         Machine = 3   /* Intel i386. */
+	EM_68K         Machine = 4   /* Motorola 68000. */
+	EM_88K         Machine = 5   /* Motorola 88000. */
+	EM_860         Machine = 7   /* Intel i860. */
+	EM_MIPS        Machine = 8   /* MIPS R3000 Big-Endian only. */
+	EM_S370        Machine = 9   /* IBM System/370. */
+	EM_MIPS_RS3_LE Machine = 10  /* MIPS R3000 Little-Endian. */
+	EM_PARISC      Machine = 15  /* HP PA-RISC. */
+	EM_VPP500      Machine = 17  /* Fujitsu VPP500. */
+	EM_SPARC32PLUS Machine = 18  /* SPARC v8plus. */
+	EM_960         Machine = 19  /* Intel 80960. */
+	EM_PPC         Machine = 20  /* PowerPC 32-bit. */
+	EM_PPC64       Machine = 21  /* PowerPC 64-bit. */
+	EM_S390        Machine = 22  /* IBM System/390. */
+	EM_V800        Machine = 36  /* NEC V800. */
+	EM_FR20        Machine = 37  /* Fujitsu FR20. */
+	EM_RH32        Machine = 38  /* TRW RH-32. */
+	EM_RCE         Machine = 39  /* Motorola RCE. */
+	EM_ARM         Machine = 40  /* ARM. */
+	EM_SH          Machine = 42  /* Hitachi SH. */
+	EM_SPARCV9     Machine = 43  /* SPARC v9 64-bit. */
+	EM_TRICORE     Machine = 44  /* Siemens TriCore embedded processor. */
+	EM_ARC         Machine = 45  /* Argonaut RISC Core. */
+	EM_H8_300      Machine = 46  /* Hitachi H8/300. */
+	EM_H8_300H     Machine = 47  /* Hitachi H8/300H. */
+	EM_H8S         Machine = 48  /* Hitachi H8S. */
+	EM_H8_500      Machine = 49  /* Hitachi H8/500. */
+	EM_IA_64       Machine = 50  /* Intel IA-64 Processor. */
+	EM_MIPS_X      Machine = 51  /* Stanford MIPS-X. */
+	EM_COLDFIRE    Machine = 52  /* Motorola ColdFire. */
+	EM_68HC12      Machine = 53  /* Motorola M68HC12. */
+	EM_MMA         Machine = 54  /* Fujitsu MMA. */
+	EM_PCP         Machine = 55  /* Siemens PCP. */
+	EM_NCPU        Machine = 56  /* Sony nCPU. */
+	EM_NDR1        Machine = 57  /* Denso NDR1 microprocessor. */
+	EM_STARCORE    Machine = 58  /* Motorola Star*Core processor. */
+	EM_ME16        Machine = 59  /* Toyota ME16 processor. */
+	EM_ST100       Machine = 60  /* STMicroelectronics ST100 processor. */
+	EM_TINYJ       Machine = 61  /* Advanced Logic Corp. TinyJ processor. */
+	EM_X86_64      Machine = 62  /* Advanced Micro Devices x86-64 */
+	EM_AARCH64     Machine = 183 /* ARM 64-bit Architecture (AArch64) */
 
 	/* Non-standard or deprecated. */
 	EM_486         Machine = 6      /* Intel i486. */
@@ -517,7 +519,7 @@ const (
 	DT_INIT_ARRAY   DynTag = 25 /* Address of the array of pointers to initialization functions */
 	DT_FINI_ARRAY   DynTag = 26 /* Address of the array of pointers to termination functions */
 	DT_INIT_ARRAYSZ DynTag = 27 /* Size in bytes of the array of initialization functions. */
-	DT_FINI_ARRAYSZ DynTag = 28 /* Size in bytes of the array of terminationfunctions. */
+	DT_FINI_ARRAYSZ DynTag = 28 /* Size in bytes of the array of termination functions. */
 	DT_RUNPATH      DynTag = 29 /* String table offset of a null-terminated library search path string. */
 	DT_FLAGS        DynTag = 30 /* Object specific flag values. */
 	DT_ENCODING     DynTag = 32 /* Values greater than or equal to DT_ENCODING
@@ -773,6 +775,256 @@ var rx86_64Strings = []intName{
 
 func (i R_X86_64) String() string   { return stringName(uint32(i), rx86_64Strings, false) }
 func (i R_X86_64) GoString() string { return stringName(uint32(i), rx86_64Strings, true) }
+
+// Relocation types for AArch64 (aka arm64)
+type R_AARCH64 int
+
+const (
+	R_AARCH64_NONE                            R_AARCH64 = 0
+	R_AARCH64_P32_ABS32                       R_AARCH64 = 1
+	R_AARCH64_P32_ABS16                       R_AARCH64 = 2
+	R_AARCH64_P32_PREL32                      R_AARCH64 = 3
+	R_AARCH64_P32_PREL16                      R_AARCH64 = 4
+	R_AARCH64_P32_MOVW_UABS_G0                R_AARCH64 = 5
+	R_AARCH64_P32_MOVW_UABS_G0_NC             R_AARCH64 = 6
+	R_AARCH64_P32_MOVW_UABS_G1                R_AARCH64 = 7
+	R_AARCH64_P32_MOVW_SABS_G0                R_AARCH64 = 8
+	R_AARCH64_P32_LD_PREL_LO19                R_AARCH64 = 9
+	R_AARCH64_P32_ADR_PREL_LO21               R_AARCH64 = 10
+	R_AARCH64_P32_ADR_PREL_PG_HI21            R_AARCH64 = 11
+	R_AARCH64_P32_ADD_ABS_LO12_NC             R_AARCH64 = 12
+	R_AARCH64_P32_LDST8_ABS_LO12_NC           R_AARCH64 = 13
+	R_AARCH64_P32_LDST16_ABS_LO12_NC          R_AARCH64 = 14
+	R_AARCH64_P32_LDST32_ABS_LO12_NC          R_AARCH64 = 15
+	R_AARCH64_P32_LDST64_ABS_LO12_NC          R_AARCH64 = 16
+	R_AARCH64_P32_LDST128_ABS_LO12_NC         R_AARCH64 = 17
+	R_AARCH64_P32_TSTBR14                     R_AARCH64 = 18
+	R_AARCH64_P32_CONDBR19                    R_AARCH64 = 19
+	R_AARCH64_P32_JUMP26                      R_AARCH64 = 20
+	R_AARCH64_P32_CALL26                      R_AARCH64 = 21
+	R_AARCH64_P32_GOT_LD_PREL19               R_AARCH64 = 25
+	R_AARCH64_P32_ADR_GOT_PAGE                R_AARCH64 = 26
+	R_AARCH64_P32_LD32_GOT_LO12_NC            R_AARCH64 = 27
+	R_AARCH64_P32_TLSGD_ADR_PAGE21            R_AARCH64 = 81
+	R_AARCH64_P32_TLSGD_ADD_LO12_NC           R_AARCH64 = 82
+	R_AARCH64_P32_TLSIE_ADR_GOTTPREL_PAGE21   R_AARCH64 = 103
+	R_AARCH64_P32_TLSIE_LD32_GOTTPREL_LO12_NC R_AARCH64 = 104
+	R_AARCH64_P32_TLSIE_LD_GOTTPREL_PREL19    R_AARCH64 = 105
+	R_AARCH64_P32_TLSLE_MOVW_TPREL_G1         R_AARCH64 = 106
+	R_AARCH64_P32_TLSLE_MOVW_TPREL_G0         R_AARCH64 = 107
+	R_AARCH64_P32_TLSLE_MOVW_TPREL_G0_NC      R_AARCH64 = 108
+	R_AARCH64_P32_TLSLE_ADD_TPREL_HI12        R_AARCH64 = 109
+	R_AARCH64_P32_TLSLE_ADD_TPREL_LO12        R_AARCH64 = 110
+	R_AARCH64_P32_TLSLE_ADD_TPREL_LO12_NC     R_AARCH64 = 111
+	R_AARCH64_P32_TLSDESC_LD_PREL19           R_AARCH64 = 122
+	R_AARCH64_P32_TLSDESC_ADR_PREL21          R_AARCH64 = 123
+	R_AARCH64_P32_TLSDESC_ADR_PAGE21          R_AARCH64 = 124
+	R_AARCH64_P32_TLSDESC_LD32_LO12_NC        R_AARCH64 = 125
+	R_AARCH64_P32_TLSDESC_ADD_LO12_NC         R_AARCH64 = 126
+	R_AARCH64_P32_TLSDESC_CALL                R_AARCH64 = 127
+	R_AARCH64_P32_COPY                        R_AARCH64 = 180
+	R_AARCH64_P32_GLOB_DAT                    R_AARCH64 = 181
+	R_AARCH64_P32_JUMP_SLOT                   R_AARCH64 = 182
+	R_AARCH64_P32_RELATIVE                    R_AARCH64 = 183
+	R_AARCH64_P32_TLS_DTPMOD                  R_AARCH64 = 184
+	R_AARCH64_P32_TLS_DTPREL                  R_AARCH64 = 185
+	R_AARCH64_P32_TLS_TPREL                   R_AARCH64 = 186
+	R_AARCH64_P32_TLSDESC                     R_AARCH64 = 187
+	R_AARCH64_P32_IRELATIVE                   R_AARCH64 = 188
+	R_AARCH64_NULL                            R_AARCH64 = 256
+	R_AARCH64_ABS64                           R_AARCH64 = 257
+	R_AARCH64_ABS32                           R_AARCH64 = 258
+	R_AARCH64_ABS16                           R_AARCH64 = 259
+	R_AARCH64_PREL64                          R_AARCH64 = 260
+	R_AARCH64_PREL32                          R_AARCH64 = 261
+	R_AARCH64_PREL16                          R_AARCH64 = 262
+	R_AARCH64_MOVW_UABS_G0                    R_AARCH64 = 263
+	R_AARCH64_MOVW_UABS_G0_NC                 R_AARCH64 = 264
+	R_AARCH64_MOVW_UABS_G1                    R_AARCH64 = 265
+	R_AARCH64_MOVW_UABS_G1_NC                 R_AARCH64 = 266
+	R_AARCH64_MOVW_UABS_G2                    R_AARCH64 = 267
+	R_AARCH64_MOVW_UABS_G2_NC                 R_AARCH64 = 268
+	R_AARCH64_MOVW_UABS_G3                    R_AARCH64 = 269
+	R_AARCH64_MOVW_SABS_G0                    R_AARCH64 = 270
+	R_AARCH64_MOVW_SABS_G1                    R_AARCH64 = 271
+	R_AARCH64_MOVW_SABS_G2                    R_AARCH64 = 272
+	R_AARCH64_LD_PREL_LO19                    R_AARCH64 = 273
+	R_AARCH64_ADR_PREL_LO21                   R_AARCH64 = 274
+	R_AARCH64_ADR_PREL_PG_HI21                R_AARCH64 = 275
+	R_AARCH64_ADR_PREL_PG_HI21_NC             R_AARCH64 = 276
+	R_AARCH64_ADD_ABS_LO12_NC                 R_AARCH64 = 277
+	R_AARCH64_LDST8_ABS_LO12_NC               R_AARCH64 = 278
+	R_AARCH64_TSTBR14                         R_AARCH64 = 279
+	R_AARCH64_CONDBR19                        R_AARCH64 = 280
+	R_AARCH64_JUMP26                          R_AARCH64 = 282
+	R_AARCH64_CALL26                          R_AARCH64 = 283
+	R_AARCH64_LDST16_ABS_LO12_NC              R_AARCH64 = 284
+	R_AARCH64_LDST32_ABS_LO12_NC              R_AARCH64 = 285
+	R_AARCH64_LDST64_ABS_LO12_NC              R_AARCH64 = 286
+	R_AARCH64_LDST128_ABS_LO12_NC             R_AARCH64 = 299
+	R_AARCH64_GOT_LD_PREL19                   R_AARCH64 = 309
+	R_AARCH64_ADR_GOT_PAGE                    R_AARCH64 = 311
+	R_AARCH64_LD64_GOT_LO12_NC                R_AARCH64 = 312
+	R_AARCH64_TLSGD_ADR_PAGE21                R_AARCH64 = 513
+	R_AARCH64_TLSGD_ADD_LO12_NC               R_AARCH64 = 514
+	R_AARCH64_TLSIE_MOVW_GOTTPREL_G1          R_AARCH64 = 539
+	R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC       R_AARCH64 = 540
+	R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21       R_AARCH64 = 541
+	R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC     R_AARCH64 = 542
+	R_AARCH64_TLSIE_LD_GOTTPREL_PREL19        R_AARCH64 = 543
+	R_AARCH64_TLSLE_MOVW_TPREL_G2             R_AARCH64 = 544
+	R_AARCH64_TLSLE_MOVW_TPREL_G1             R_AARCH64 = 545
+	R_AARCH64_TLSLE_MOVW_TPREL_G1_NC          R_AARCH64 = 546
+	R_AARCH64_TLSLE_MOVW_TPREL_G0             R_AARCH64 = 547
+	R_AARCH64_TLSLE_MOVW_TPREL_G0_NC          R_AARCH64 = 548
+	R_AARCH64_TLSLE_ADD_TPREL_HI12            R_AARCH64 = 549
+	R_AARCH64_TLSLE_ADD_TPREL_LO12            R_AARCH64 = 550
+	R_AARCH64_TLSLE_ADD_TPREL_LO12_NC         R_AARCH64 = 551
+	R_AARCH64_TLSDESC_LD_PREL19               R_AARCH64 = 560
+	R_AARCH64_TLSDESC_ADR_PREL21              R_AARCH64 = 561
+	R_AARCH64_TLSDESC_ADR_PAGE21              R_AARCH64 = 562
+	R_AARCH64_TLSDESC_LD64_LO12_NC            R_AARCH64 = 563
+	R_AARCH64_TLSDESC_ADD_LO12_NC             R_AARCH64 = 564
+	R_AARCH64_TLSDESC_OFF_G1                  R_AARCH64 = 565
+	R_AARCH64_TLSDESC_OFF_G0_NC               R_AARCH64 = 566
+	R_AARCH64_TLSDESC_LDR                     R_AARCH64 = 567
+	R_AARCH64_TLSDESC_ADD                     R_AARCH64 = 568
+	R_AARCH64_TLSDESC_CALL                    R_AARCH64 = 569
+	R_AARCH64_COPY                            R_AARCH64 = 1024
+	R_AARCH64_GLOB_DAT                        R_AARCH64 = 1025
+	R_AARCH64_JUMP_SLOT                       R_AARCH64 = 1026
+	R_AARCH64_RELATIVE                        R_AARCH64 = 1027
+	R_AARCH64_TLS_DTPMOD64                    R_AARCH64 = 1028
+	R_AARCH64_TLS_DTPREL64                    R_AARCH64 = 1029
+	R_AARCH64_TLS_TPREL64                     R_AARCH64 = 1030
+	R_AARCH64_TLSDESC                         R_AARCH64 = 1031
+	R_AARCH64_IRELATIVE                       R_AARCH64 = 1032
+)
+
+var raarch64Strings = []intName{
+	{0, "R_AARCH64_NONE"},
+	{1, "R_AARCH64_P32_ABS32"},
+	{2, "R_AARCH64_P32_ABS16"},
+	{3, "R_AARCH64_P32_PREL32"},
+	{4, "R_AARCH64_P32_PREL16"},
+	{5, "R_AARCH64_P32_MOVW_UABS_G0"},
+	{6, "R_AARCH64_P32_MOVW_UABS_G0_NC"},
+	{7, "R_AARCH64_P32_MOVW_UABS_G1"},
+	{8, "R_AARCH64_P32_MOVW_SABS_G0"},
+	{9, "R_AARCH64_P32_LD_PREL_LO19"},
+	{10, "R_AARCH64_P32_ADR_PREL_LO21"},
+	{11, "R_AARCH64_P32_ADR_PREL_PG_HI21"},
+	{12, "R_AARCH64_P32_ADD_ABS_LO12_NC"},
+	{13, "R_AARCH64_P32_LDST8_ABS_LO12_NC"},
+	{14, "R_AARCH64_P32_LDST16_ABS_LO12_NC"},
+	{15, "R_AARCH64_P32_LDST32_ABS_LO12_NC"},
+	{16, "R_AARCH64_P32_LDST64_ABS_LO12_NC"},
+	{17, "R_AARCH64_P32_LDST128_ABS_LO12_NC"},
+	{18, "R_AARCH64_P32_TSTBR14"},
+	{19, "R_AARCH64_P32_CONDBR19"},
+	{20, "R_AARCH64_P32_JUMP26"},
+	{21, "R_AARCH64_P32_CALL26"},
+	{25, "R_AARCH64_P32_GOT_LD_PREL19"},
+	{26, "R_AARCH64_P32_ADR_GOT_PAGE"},
+	{27, "R_AARCH64_P32_LD32_GOT_LO12_NC"},
+	{81, "R_AARCH64_P32_TLSGD_ADR_PAGE21"},
+	{82, "R_AARCH64_P32_TLSGD_ADD_LO12_NC"},
+	{103, "R_AARCH64_P32_TLSIE_ADR_GOTTPREL_PAGE21"},
+	{104, "R_AARCH64_P32_TLSIE_LD32_GOTTPREL_LO12_NC"},
+	{105, "R_AARCH64_P32_TLSIE_LD_GOTTPREL_PREL19"},
+	{106, "R_AARCH64_P32_TLSLE_MOVW_TPREL_G1"},
+	{107, "R_AARCH64_P32_TLSLE_MOVW_TPREL_G0"},
+	{108, "R_AARCH64_P32_TLSLE_MOVW_TPREL_G0_NC"},
+	{109, "R_AARCH64_P32_TLSLE_ADD_TPREL_HI12"},
+	{110, "R_AARCH64_P32_TLSLE_ADD_TPREL_LO12"},
+	{111, "R_AARCH64_P32_TLSLE_ADD_TPREL_LO12_NC"},
+	{122, "R_AARCH64_P32_TLSDESC_LD_PREL19"},
+	{123, "R_AARCH64_P32_TLSDESC_ADR_PREL21"},
+	{124, "R_AARCH64_P32_TLSDESC_ADR_PAGE21"},
+	{125, "R_AARCH64_P32_TLSDESC_LD32_LO12_NC"},
+	{126, "R_AARCH64_P32_TLSDESC_ADD_LO12_NC"},
+	{127, "R_AARCH64_P32_TLSDESC_CALL"},
+	{180, "R_AARCH64_P32_COPY"},
+	{181, "R_AARCH64_P32_GLOB_DAT"},
+	{182, "R_AARCH64_P32_JUMP_SLOT"},
+	{183, "R_AARCH64_P32_RELATIVE"},
+	{184, "R_AARCH64_P32_TLS_DTPMOD"},
+	{185, "R_AARCH64_P32_TLS_DTPREL"},
+	{186, "R_AARCH64_P32_TLS_TPREL"},
+	{187, "R_AARCH64_P32_TLSDESC"},
+	{188, "R_AARCH64_P32_IRELATIVE"},
+	{256, "R_AARCH64_NULL"},
+	{257, "R_AARCH64_ABS64"},
+	{258, "R_AARCH64_ABS32"},
+	{259, "R_AARCH64_ABS16"},
+	{260, "R_AARCH64_PREL64"},
+	{261, "R_AARCH64_PREL32"},
+	{262, "R_AARCH64_PREL16"},
+	{263, "R_AARCH64_MOVW_UABS_G0"},
+	{264, "R_AARCH64_MOVW_UABS_G0_NC"},
+	{265, "R_AARCH64_MOVW_UABS_G1"},
+	{266, "R_AARCH64_MOVW_UABS_G1_NC"},
+	{267, "R_AARCH64_MOVW_UABS_G2"},
+	{268, "R_AARCH64_MOVW_UABS_G2_NC"},
+	{269, "R_AARCH64_MOVW_UABS_G3"},
+	{270, "R_AARCH64_MOVW_SABS_G0"},
+	{271, "R_AARCH64_MOVW_SABS_G1"},
+	{272, "R_AARCH64_MOVW_SABS_G2"},
+	{273, "R_AARCH64_LD_PREL_LO19"},
+	{274, "R_AARCH64_ADR_PREL_LO21"},
+	{275, "R_AARCH64_ADR_PREL_PG_HI21"},
+	{276, "R_AARCH64_ADR_PREL_PG_HI21_NC"},
+	{277, "R_AARCH64_ADD_ABS_LO12_NC"},
+	{278, "R_AARCH64_LDST8_ABS_LO12_NC"},
+	{279, "R_AARCH64_TSTBR14"},
+	{280, "R_AARCH64_CONDBR19"},
+	{282, "R_AARCH64_JUMP26"},
+	{283, "R_AARCH64_CALL26"},
+	{284, "R_AARCH64_LDST16_ABS_LO12_NC"},
+	{285, "R_AARCH64_LDST32_ABS_LO12_NC"},
+	{286, "R_AARCH64_LDST64_ABS_LO12_NC"},
+	{299, "R_AARCH64_LDST128_ABS_LO12_NC"},
+	{309, "R_AARCH64_GOT_LD_PREL19"},
+	{311, "R_AARCH64_ADR_GOT_PAGE"},
+	{312, "R_AARCH64_LD64_GOT_LO12_NC"},
+	{513, "R_AARCH64_TLSGD_ADR_PAGE21"},
+	{514, "R_AARCH64_TLSGD_ADD_LO12_NC"},
+	{539, "R_AARCH64_TLSIE_MOVW_GOTTPREL_G1"},
+	{540, "R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC"},
+	{541, "R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21"},
+	{542, "R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC"},
+	{543, "R_AARCH64_TLSIE_LD_GOTTPREL_PREL19"},
+	{544, "R_AARCH64_TLSLE_MOVW_TPREL_G2"},
+	{545, "R_AARCH64_TLSLE_MOVW_TPREL_G1"},
+	{546, "R_AARCH64_TLSLE_MOVW_TPREL_G1_NC"},
+	{547, "R_AARCH64_TLSLE_MOVW_TPREL_G0"},
+	{548, "R_AARCH64_TLSLE_MOVW_TPREL_G0_NC"},
+	{549, "R_AARCH64_TLSLE_ADD_TPREL_HI12"},
+	{550, "R_AARCH64_TLSLE_ADD_TPREL_LO12"},
+	{551, "R_AARCH64_TLSLE_ADD_TPREL_LO12_NC"},
+	{560, "R_AARCH64_TLSDESC_LD_PREL19"},
+	{561, "R_AARCH64_TLSDESC_ADR_PREL21"},
+	{562, "R_AARCH64_TLSDESC_ADR_PAGE21"},
+	{563, "R_AARCH64_TLSDESC_LD64_LO12_NC"},
+	{564, "R_AARCH64_TLSDESC_ADD_LO12_NC"},
+	{565, "R_AARCH64_TLSDESC_OFF_G1"},
+	{566, "R_AARCH64_TLSDESC_OFF_G0_NC"},
+	{567, "R_AARCH64_TLSDESC_LDR"},
+	{568, "R_AARCH64_TLSDESC_ADD"},
+	{569, "R_AARCH64_TLSDESC_CALL"},
+	{1024, "R_AARCH64_COPY"},
+	{1025, "R_AARCH64_GLOB_DAT"},
+	{1026, "R_AARCH64_JUMP_SLOT"},
+	{1027, "R_AARCH64_RELATIVE"},
+	{1028, "R_AARCH64_TLS_DTPMOD64"},
+	{1029, "R_AARCH64_TLS_DTPREL64"},
+	{1030, "R_AARCH64_TLS_TPREL64"},
+	{1031, "R_AARCH64_TLSDESC"},
+	{1032, "R_AARCH64_IRELATIVE"},
+}
+
+func (i R_AARCH64) String() string   { return stringName(uint32(i), raarch64Strings, false) }
+func (i R_AARCH64) GoString() string { return stringName(uint32(i), raarch64Strings, true) }
 
 // Relocation types for Alpha.
 type R_ALPHA int
@@ -1161,6 +1413,250 @@ var rppcStrings = []intName{
 
 func (i R_PPC) String() string   { return stringName(uint32(i), rppcStrings, false) }
 func (i R_PPC) GoString() string { return stringName(uint32(i), rppcStrings, true) }
+
+// Relocation types for PowerPC 64.
+type R_PPC64 int
+
+const (
+	R_PPC64_NONE               R_PPC64 = 0
+	R_PPC64_ADDR32             R_PPC64 = 1
+	R_PPC64_ADDR24             R_PPC64 = 2
+	R_PPC64_ADDR16             R_PPC64 = 3
+	R_PPC64_ADDR16_LO          R_PPC64 = 4
+	R_PPC64_ADDR16_HI          R_PPC64 = 5
+	R_PPC64_ADDR16_HA          R_PPC64 = 6
+	R_PPC64_ADDR14             R_PPC64 = 7
+	R_PPC64_ADDR14_BRTAKEN     R_PPC64 = 8
+	R_PPC64_ADDR14_BRNTAKEN    R_PPC64 = 9
+	R_PPC64_REL24              R_PPC64 = 10
+	R_PPC64_REL14              R_PPC64 = 11
+	R_PPC64_REL14_BRTAKEN      R_PPC64 = 12
+	R_PPC64_REL14_BRNTAKEN     R_PPC64 = 13
+	R_PPC64_GOT16              R_PPC64 = 14
+	R_PPC64_GOT16_LO           R_PPC64 = 15
+	R_PPC64_GOT16_HI           R_PPC64 = 16
+	R_PPC64_GOT16_HA           R_PPC64 = 17
+	R_PPC64_JMP_SLOT           R_PPC64 = 21
+	R_PPC64_REL32              R_PPC64 = 26
+	R_PPC64_ADDR64             R_PPC64 = 38
+	R_PPC64_ADDR16_HIGHER      R_PPC64 = 39
+	R_PPC64_ADDR16_HIGHERA     R_PPC64 = 40
+	R_PPC64_ADDR16_HIGHEST     R_PPC64 = 41
+	R_PPC64_ADDR16_HIGHESTA    R_PPC64 = 42
+	R_PPC64_REL64              R_PPC64 = 44
+	R_PPC64_TOC16              R_PPC64 = 47
+	R_PPC64_TOC16_LO           R_PPC64 = 48
+	R_PPC64_TOC16_HI           R_PPC64 = 49
+	R_PPC64_TOC16_HA           R_PPC64 = 50
+	R_PPC64_TOC                R_PPC64 = 51
+	R_PPC64_ADDR16_DS          R_PPC64 = 56
+	R_PPC64_ADDR16_LO_DS       R_PPC64 = 57
+	R_PPC64_GOT16_DS           R_PPC64 = 58
+	R_PPC64_GOT16_LO_DS        R_PPC64 = 59
+	R_PPC64_TOC16_DS           R_PPC64 = 63
+	R_PPC64_TOC16_LO_DS        R_PPC64 = 64
+	R_PPC64_TLS                R_PPC64 = 67
+	R_PPC64_DTPMOD64           R_PPC64 = 68
+	R_PPC64_TPREL16            R_PPC64 = 69
+	R_PPC64_TPREL16_LO         R_PPC64 = 70
+	R_PPC64_TPREL16_HI         R_PPC64 = 71
+	R_PPC64_TPREL16_HA         R_PPC64 = 72
+	R_PPC64_TPREL64            R_PPC64 = 73
+	R_PPC64_DTPREL16           R_PPC64 = 74
+	R_PPC64_DTPREL16_LO        R_PPC64 = 75
+	R_PPC64_DTPREL16_HI        R_PPC64 = 76
+	R_PPC64_DTPREL16_HA        R_PPC64 = 77
+	R_PPC64_DTPREL64           R_PPC64 = 78
+	R_PPC64_GOT_TLSGD16        R_PPC64 = 79
+	R_PPC64_GOT_TLSGD16_LO     R_PPC64 = 80
+	R_PPC64_GOT_TLSGD16_HI     R_PPC64 = 81
+	R_PPC64_GOT_TLSGD16_HA     R_PPC64 = 82
+	R_PPC64_GOT_TLSLD16        R_PPC64 = 83
+	R_PPC64_GOT_TLSLD16_LO     R_PPC64 = 84
+	R_PPC64_GOT_TLSLD16_HI     R_PPC64 = 85
+	R_PPC64_GOT_TLSLD16_HA     R_PPC64 = 86
+	R_PPC64_GOT_TPREL16_DS     R_PPC64 = 87
+	R_PPC64_GOT_TPREL16_LO_DS  R_PPC64 = 88
+	R_PPC64_GOT_TPREL16_HI     R_PPC64 = 89
+	R_PPC64_GOT_TPREL16_HA     R_PPC64 = 90
+	R_PPC64_GOT_DTPREL16_DS    R_PPC64 = 91
+	R_PPC64_GOT_DTPREL16_LO_DS R_PPC64 = 92
+	R_PPC64_GOT_DTPREL16_HI    R_PPC64 = 93
+	R_PPC64_GOT_DTPREL16_HA    R_PPC64 = 94
+	R_PPC64_TPREL16_DS         R_PPC64 = 95
+	R_PPC64_TPREL16_LO_DS      R_PPC64 = 96
+	R_PPC64_TPREL16_HIGHER     R_PPC64 = 97
+	R_PPC64_TPREL16_HIGHERA    R_PPC64 = 98
+	R_PPC64_TPREL16_HIGHEST    R_PPC64 = 99
+	R_PPC64_TPREL16_HIGHESTA   R_PPC64 = 100
+	R_PPC64_DTPREL16_DS        R_PPC64 = 101
+	R_PPC64_DTPREL16_LO_DS     R_PPC64 = 102
+	R_PPC64_DTPREL16_HIGHER    R_PPC64 = 103
+	R_PPC64_DTPREL16_HIGHERA   R_PPC64 = 104
+	R_PPC64_DTPREL16_HIGHEST   R_PPC64 = 105
+	R_PPC64_DTPREL16_HIGHESTA  R_PPC64 = 106
+	R_PPC64_TLSGD              R_PPC64 = 107
+	R_PPC64_TLSLD              R_PPC64 = 108
+	R_PPC64_REL16              R_PPC64 = 249
+	R_PPC64_REL16_LO           R_PPC64 = 250
+	R_PPC64_REL16_HI           R_PPC64 = 251
+	R_PPC64_REL16_HA           R_PPC64 = 252
+)
+
+var rppc64Strings = []intName{
+	{0, "R_PPC64_NONE"},
+	{1, "R_PPC64_ADDR32"},
+	{2, "R_PPC64_ADDR24"},
+	{3, "R_PPC64_ADDR16"},
+	{4, "R_PPC64_ADDR16_LO"},
+	{5, "R_PPC64_ADDR16_HI"},
+	{6, "R_PPC64_ADDR16_HA"},
+	{7, "R_PPC64_ADDR14"},
+	{8, "R_PPC64_ADDR14_BRTAKEN"},
+	{9, "R_PPC64_ADDR14_BRNTAKEN"},
+	{10, "R_PPC64_REL24"},
+	{11, "R_PPC64_REL14"},
+	{12, "R_PPC64_REL14_BRTAKEN"},
+	{13, "R_PPC64_REL14_BRNTAKEN"},
+	{14, "R_PPC64_GOT16"},
+	{15, "R_PPC64_GOT16_LO"},
+	{16, "R_PPC64_GOT16_HI"},
+	{17, "R_PPC64_GOT16_HA"},
+	{21, "R_PPC64_JMP_SLOT"},
+	{26, "R_PPC64_REL32"},
+	{38, "R_PPC64_ADDR64"},
+	{39, "R_PPC64_ADDR16_HIGHER"},
+	{40, "R_PPC64_ADDR16_HIGHERA"},
+	{41, "R_PPC64_ADDR16_HIGHEST"},
+	{42, "R_PPC64_ADDR16_HIGHESTA"},
+	{44, "R_PPC64_REL64"},
+	{47, "R_PPC64_TOC16"},
+	{48, "R_PPC64_TOC16_LO"},
+	{49, "R_PPC64_TOC16_HI"},
+	{50, "R_PPC64_TOC16_HA"},
+	{51, "R_PPC64_TOC"},
+	{56, "R_PPC64_ADDR16_DS"},
+	{57, "R_PPC64_ADDR16_LO_DS"},
+	{58, "R_PPC64_GOT16_DS"},
+	{59, "R_PPC64_GOT16_LO_DS"},
+	{63, "R_PPC64_TOC16_DS"},
+	{64, "R_PPC64_TOC16_LO_DS"},
+	{67, "R_PPC64_TLS"},
+	{68, "R_PPC64_DTPMOD64"},
+	{69, "R_PPC64_TPREL16"},
+	{70, "R_PPC64_TPREL16_LO"},
+	{71, "R_PPC64_TPREL16_HI"},
+	{72, "R_PPC64_TPREL16_HA"},
+	{73, "R_PPC64_TPREL64"},
+	{74, "R_PPC64_DTPREL16"},
+	{75, "R_PPC64_DTPREL16_LO"},
+	{76, "R_PPC64_DTPREL16_HI"},
+	{77, "R_PPC64_DTPREL16_HA"},
+	{78, "R_PPC64_DTPREL64"},
+	{79, "R_PPC64_GOT_TLSGD16"},
+	{80, "R_PPC64_GOT_TLSGD16_LO"},
+	{81, "R_PPC64_GOT_TLSGD16_HI"},
+	{82, "R_PPC64_GOT_TLSGD16_HA"},
+	{83, "R_PPC64_GOT_TLSLD16"},
+	{84, "R_PPC64_GOT_TLSLD16_LO"},
+	{85, "R_PPC64_GOT_TLSLD16_HI"},
+	{86, "R_PPC64_GOT_TLSLD16_HA"},
+	{87, "R_PPC64_GOT_TPREL16_DS"},
+	{88, "R_PPC64_GOT_TPREL16_LO_DS"},
+	{89, "R_PPC64_GOT_TPREL16_HI"},
+	{90, "R_PPC64_GOT_TPREL16_HA"},
+	{91, "R_PPC64_GOT_DTPREL16_DS"},
+	{92, "R_PPC64_GOT_DTPREL16_LO_DS"},
+	{93, "R_PPC64_GOT_DTPREL16_HI"},
+	{94, "R_PPC64_GOT_DTPREL16_HA"},
+	{95, "R_PPC64_TPREL16_DS"},
+	{96, "R_PPC64_TPREL16_LO_DS"},
+	{97, "R_PPC64_TPREL16_HIGHER"},
+	{98, "R_PPC64_TPREL16_HIGHERA"},
+	{99, "R_PPC64_TPREL16_HIGHEST"},
+	{100, "R_PPC64_TPREL16_HIGHESTA"},
+	{101, "R_PPC64_DTPREL16_DS"},
+	{102, "R_PPC64_DTPREL16_LO_DS"},
+	{103, "R_PPC64_DTPREL16_HIGHER"},
+	{104, "R_PPC64_DTPREL16_HIGHERA"},
+	{105, "R_PPC64_DTPREL16_HIGHEST"},
+	{106, "R_PPC64_DTPREL16_HIGHESTA"},
+	{107, "R_PPC64_TLSGD"},
+	{108, "R_PPC64_TLSLD"},
+	{249, "R_PPC64_REL16"},
+	{250, "R_PPC64_REL16_LO"},
+	{251, "R_PPC64_REL16_HI"},
+	{252, "R_PPC64_REL16_HA"},
+}
+
+func (i R_PPC64) String() string   { return stringName(uint32(i), rppc64Strings, false) }
+func (i R_PPC64) GoString() string { return stringName(uint32(i), rppc64Strings, true) }
+
+// Relocation types for s390
+type R_390 int
+
+const (
+	R_390_NONE     R_390 = 0
+	R_390_8        R_390 = 1
+	R_390_12       R_390 = 2
+	R_390_16       R_390 = 3
+	R_390_32       R_390 = 4
+	R_390_PC32     R_390 = 5
+	R_390_GOT12    R_390 = 6
+	R_390_GOT32    R_390 = 7
+	R_390_PLT32    R_390 = 8
+	R_390_COPY     R_390 = 9
+	R_390_GLOB_DAT R_390 = 10
+	R_390_JMP_SLOT R_390 = 11
+	R_390_RELATIVE R_390 = 12
+	R_390_GOTOFF   R_390 = 13
+	R_390_GOTPC    R_390 = 14
+	R_390_GOT16    R_390 = 15
+	R_390_PC16     R_390 = 16
+	R_390_PC16DBL  R_390 = 17
+	R_390_PLT16DBL R_390 = 18
+	R_390_PC32DBL  R_390 = 19
+	R_390_PLT32DBL R_390 = 20
+	R_390_GOTPCDBL R_390 = 21
+	R_390_64       R_390 = 22
+	R_390_PC64     R_390 = 23
+	R_390_GOT64    R_390 = 24
+	R_390_PLT64    R_390 = 25
+	R_390_GOTENT   R_390 = 26
+)
+
+var r390Strings = []intName{
+	{0, "R_390_NONE"},
+	{1, "R_390_8"},
+	{2, "R_390_12"},
+	{3, "R_390_16"},
+	{4, "R_390_32"},
+	{5, "R_390_PC32"},
+	{6, "R_390_GOT12"},
+	{7, "R_390_GOT32"},
+	{8, "R_390_PLT32"},
+	{9, "R_390_COPY"},
+	{10, "R_390_GLOB_DAT"},
+	{11, "R_390_JMP_SLOT"},
+	{12, "R_390_RELATIVE"},
+	{13, "R_390_GOTOFF"},
+	{14, "R_390_GOTPC"},
+	{15, "R_390_GOT16"},
+	{16, "R_390_PC16"},
+	{17, "R_390_PC16DBL"},
+	{18, "R_390_PLT16DBL"},
+	{19, "R_390_PC32DBL"},
+	{20, "R_390_PLT32DBL"},
+	{21, "R_390_GOTPCDBL"},
+	{22, "R_390_64"},
+	{23, "R_390_PC64"},
+	{24, "R_390_GOT64"},
+	{25, "R_390_PLT64"},
+	{26, "R_390_GOTENT"},
+}
+
+func (i R_390) String() string   { return stringName(uint32(i), r390Strings, false) }
+func (i R_390) GoString() string { return stringName(uint32(i), r390Strings, true) }
 
 // Relocation types for SPARC.
 type R_SPARC int

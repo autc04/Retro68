@@ -1,5 +1,5 @@
 /* Instruction scheduling pass.   Log dumping infrastructure.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -26,12 +26,20 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm_p.h"
 #include "hard-reg-set.h"
 #include "regs.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "machmode.h"
+#include "input.h"
 #include "function.h"
+#include "predict.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "basic-block.h"
 #include "flags.h"
 #include "insn-config.h"
 #include "insn-attr.h"
 #include "params.h"
-#include "basic-block.h"
 #include "cselib.h"
 #include "target.h"
 
@@ -534,7 +542,7 @@ void
 dump_insn_vector (rtx_vec_t succs)
 {
   int i;
-  rtx succ;
+  rtx_insn *succ;
 
   FOR_EACH_VEC_ELT (succs, i, succ)
     if (succ)
@@ -567,7 +575,7 @@ dump_hard_reg_set (const char *prefix, HARD_REG_SET set)
 
 /* Pretty print INSN.  This is used as a hook.  */
 const char *
-sel_print_insn (const_rtx insn, int aligned ATTRIBUTE_UNUSED)
+sel_print_insn (const rtx_insn *insn, int aligned ATTRIBUTE_UNUSED)
 {
   static char buf[80];
 
@@ -996,7 +1004,7 @@ debug_blist (blist_t bnds)
 
 /* Dump a rtx vector REF.  */
 DEBUG_FUNCTION void
-debug (vec<rtx> &ref)
+debug (vec<rtx_insn *> &ref)
 {
   switch_dump (stderr);
   dump_insn_vector (ref);
@@ -1005,7 +1013,7 @@ debug (vec<rtx> &ref)
 }
 
 DEBUG_FUNCTION void
-debug (vec<rtx> *ptr)
+debug (vec<rtx_insn *> *ptr)
 {
   if (ptr)
     debug (*ptr);
@@ -1045,7 +1053,7 @@ DEBUG_FUNCTION rtx
 debug_mem_addr_value (rtx x)
 {
   rtx t, addr;
-  enum machine_mode address_mode;
+  machine_mode address_mode;
 
   gcc_assert (MEM_P (x));
   address_mode = get_address_mode (x);

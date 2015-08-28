@@ -1,5 +1,5 @@
 ;; Machine description for TI C6X.
-;; Copyright (C) 2010-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2015 Free Software Foundation, Inc.
 ;; Contributed by Andrew Jenner <andrew@codesourcery.com>
 ;; Contributed by Bernd Schmidt <bernds@codesourcery.com>
 ;; Contributed by CodeSourcery.
@@ -469,7 +469,7 @@
   [(set (match_dup 2) (match_dup 3))]
 {
   unsigned HOST_WIDE_INT mask, val;
-  enum machine_mode inner_mode = GET_MODE_INNER (<MODE>mode);
+  machine_mode inner_mode = GET_MODE_INNER (<MODE>mode);
   int i;
 
   val = 0;
@@ -505,7 +505,7 @@
   unsigned HOST_WIDE_INT mask;
   unsigned HOST_WIDE_INT val[2];
   rtx lo_half, hi_half;
-  enum machine_mode inner_mode = GET_MODE_INNER (<MODE>mode);
+  machine_mode inner_mode = GET_MODE_INNER (<MODE>mode);
   int i, j;
 
   split_di (operands, 1, &lo_half, &hi_half);
@@ -775,7 +775,7 @@
 		       UNSPEC_MISALIGNED_ACCESS))]
   "TARGET_INSNS_64"
 {
-  if (memory_operand (operands[0], <MODE>mode))
+  if (MEM_P (operands[0]))
     {
       emit_insn (gen_movmisalign<mode>_store (operands[0], operands[1]));
       DONE;
@@ -1519,7 +1519,7 @@
 ;; -------------------------------------------------------------------------
 
 (define_insn "real_jump"
-  [(unspec [(match_operand 0 "c6x_jump_operand" "a,b,s") (const_int 0)]
+  [(unspec [(match_operand 0 "c6x_jump_operand" "a,b,S3") (const_int 0)]
 	   UNSPEC_REAL_JUMP)]
   ""
 {

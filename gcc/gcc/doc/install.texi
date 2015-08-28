@@ -44,7 +44,7 @@
 @settitle Installing GCC: GNU Free Documentation License
 @end ifset
 
-@c Copyright (C) 1988-2014 Free Software Foundation, Inc.
+@c Copyright (C) 1988-2015 Free Software Foundation, Inc.
 @c *** Converted to texinfo by Dean Wakerley, dean@wakerley.com
 
 @c IMPORTANT: whenever you modify this file, run `install.texi2html' to
@@ -69,7 +69,7 @@
 
 @c Part 2 Summary Description and Copyright
 @copying
-Copyright @copyright{} 1988-2014 Free Software Foundation, Inc.
+Copyright @copyright{} 1988-2015 Free Software Foundation, Inc.
 @sp 1
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -383,7 +383,7 @@ installed but it is not in your default library search path, the
 @option{--with-mpc} configure option should be used.  See also
 @option{--with-mpc-lib} and @option{--with-mpc-include}.
 
-@item ISL Library version 0.12.2
+@item ISL Library version 0.14 (or 0.12.2)
 
 Necessary to build GCC with the Graphite loop optimizations.
 It can be downloaded from @uref{ftp://gcc.gnu.org/pub/gcc/infrastructure/}
@@ -392,21 +392,6 @@ in a subdirectory of your GCC sources named @file{isl}, it will be
 built together with GCC.  Alternatively, the @option{--with-isl} configure
 option should be used if ISL is not installed in your default library
 search path.
-
-@item CLooG 0.18.1
-
-Necessary to build GCC with the Graphite loop optimizations.  It can be
-downloaded from @uref{ftp://gcc.gnu.org/pub/gcc/infrastructure/} as
-@file{cloog-0.18.1.tar.gz}.  If a CLooG source distribution is found
-in a subdirectory of your GCC sources named @file{cloog}, it will be
-built together with GCC.  Alternatively, the @option{--with-cloog} configure
-option should be used if CLooG is not installed in your default library search
-path.
-
-If you want to install CLooG separately it needs to be built against
-ISL 0.12.2 by using the @option{--with-isl=system} to direct CLooG to pick
-up an already installed ISL.  Using the ISL library as bundled with CLooG
-is not supported.
 
 @end table
 
@@ -451,7 +436,7 @@ Necessary to run the GCC testsuite; see the section on testing for
 details.  Tcl 8.6 has a known regression in RE pattern handling that
 make parts of the testsuite fail.  See
 @uref{http://core.tcl.tk/tcl/tktview/267b7e2334ee2e9de34c4b00d6e72e2f1997085f}
-for more information.
+for more information.  This bug has been fixed in 8.6.1.
 
 @item autogen version 5.5.4 (or later) and
 @itemx guile version 1.4.1 (or later)
@@ -490,6 +475,11 @@ included in releases.
 Necessary for running @command{texi2dvi} and @command{texi2pdf}, which
 are used when running @command{make dvi} or @command{make pdf} to create
 DVI or PDF files, respectively.
+
+@item Sphinx version 1.0 (or later)
+
+Necessary to regenerate @file{jit/docs/_build/texinfo} from the @file{.rst}
+files in the directories below @file{jit/docs}.
 
 @item SVN (any version)
 @itemx SSH (any version)
@@ -954,7 +944,7 @@ Specify that the @emph{host} code should be built into position-independent
 machine code (with -fPIC), allowing it to be used within shared libraries,
 but yielding a slightly slower compiler.
 
-Currently this option is only of use to people developing GCC itself.
+This option is required when building the libgccjit.so library.
 
 Contrast with @option{--enable-shared}, which affects @emph{target}
 libraries.
@@ -1271,6 +1261,32 @@ ISA for floating-point arithmetics.  You can select either @samp{sse} which
 enables @option{-msse2} or @samp{avx} which enables @option{-mavx} by default.
 This option is only supported on i386 and x86-64 targets.
 
+@item --with-fp-32=@var{mode}
+On MIPS targets, set the default value for the @option{-mfp} option when using
+the o32 ABI.  The possibilities for @var{mode} are:
+@table @code
+@item 32
+Use the o32 FP32 ABI extension, as with the @option{-mfp32} command-line
+option.
+@item xx
+Use the o32 FPXX ABI extension, as with the @option{-mfpxx} command-line
+option.
+@item 64
+Use the o32 FP64 ABI extension, as with the @option{-mfp64} command-line
+option.
+@end table
+In the absence of this configuration option the default is to use the o32
+FP32 ABI extension.
+
+@item --with-odd-spreg-32
+On MIPS targets, set the @option{-modd-spreg} option by default when using
+the o32 ABI.
+
+@item --without-odd-spreg-32
+On MIPS targets, set the @option{-mno-odd-spreg} option by default when using
+the o32 ABI.  This is normally used in conjunction with
+@option{--with-fp-32=64} in order to target the o32 FP64A ABI extension.
+
 @item --with-nan=@var{encoding}
 On MIPS targets, set the default encoding convention to use for the
 special not-a-number (NaN) IEEE 754 floating-point data.  The
@@ -1414,6 +1430,114 @@ particularly useful if you intend to use several versions of GCC in
 parallel.  This is currently supported by @samp{libgfortran},
 @samp{libjava}, @samp{libstdc++}, and @samp{libobjc}.
 
+@item @anchor{WithAixSoname}--with-aix-soname=@samp{aix}, @samp{svr4} or @samp{both}
+Traditional AIX shared library versioning (versioned @code{Shared Object}
+files as members of unversioned @code{Archive Library} files named
+@samp{lib.a}) causes numerous headaches for package managers. However,
+@code{Import Files} as members of @code{Archive Library} files allow for
+@strong{filename-based versioning} of shared libraries as seen on Linux/SVR4,
+where this is called the "SONAME". But as they prevent static linking,
+@code{Import Files} may be used with @code{Runtime Linking} only, where the
+linker does search for @samp{libNAME.so} before @samp{libNAME.a} library
+filenames with the @samp{-lNAME} linker flag.
+
+@anchor{AixLdCommand}For detailed information please refer to the AIX
+@uref{http://www-01.ibm.com/support/knowledgecenter/search/%22the%20ld%20command%2C%20also%20called%20the%20linkage%20editor%20or%20binder%22,,ld
+Command} reference.
+
+As long as shared library creation is enabled, upon:
+@table @code
+@item --with-aix-soname=aix
+@item --with-aix-soname=both
+ A (traditional AIX) @code{Shared Archive Library} file is created:
+ @itemize @bullet
+  @item using the @samp{libNAME.a} filename scheme
+  @item with the @code{Shared Object} file as archive member named
+  @samp{libNAME.so.V} (except for @samp{libgcc_s}, where the @code{Shared
+  Object} file is named @samp{shr.o} for backwards compatibility), which
+  @itemize @minus
+   @item is used for runtime loading from inside the @samp{libNAME.a} file
+   @item is used for dynamic loading via
+   @code{dlopen("libNAME.a(libNAME.so.V)", RTLD_MEMBER)}
+   @item is used for shared linking
+   @item is used for static linking, so no separate @code{Static Archive
+   Library} file is needed
+  @end itemize
+ @end itemize
+@item --with-aix-soname=both
+@item --with-aix-soname=svr4
+ A (second) @code{Shared Archive Library} file is created:
+ @itemize @bullet
+ @item using the @samp{libNAME.so.V} filename scheme
+ @item with the @code{Shared Object} file as archive member named
+ @samp{shr.o}, which
+  @itemize @minus
+   @item is created with the @code{-G linker flag}
+   @item has the @code{F_LOADONLY} flag set
+   @item is used for runtime loading from inside the @samp{libNAME.so.V} file
+   @item is used for dynamic loading via @code{dlopen("libNAME.so.V(shr.o)",
+   RTLD_MEMBER)}
+  @end itemize
+ @item with the @code{Import File} as archive member named @samp{shr.imp},
+ which
+  @itemize @minus
+   @item refers to @samp{libNAME.so.V(shr.o)} as the "SONAME", to be recorded
+   in the @code{Loader Section} of subsequent binaries
+   @item indicates whether @samp{libNAME.so.V(shr.o)} is 32 or 64 bit
+   @item lists all the public symbols exported by @samp{lib.so.V(shr.o)},
+   eventually decorated with the @code{@samp{weak} Keyword}
+   @item is necessary for shared linking against @samp{lib.so.V(shr.o)}
+   @end itemize
+  @end itemize
+  A symbolic link using the @samp{libNAME.so} filename scheme is created:
+  @itemize @bullet
+  @item pointing to the @samp{libNAME.so.V} @code{Shared Archive Library} file
+  @item to permit the @code{ld Command} to find @samp{lib.so.V(shr.imp)} via
+  the @samp{-lNAME} argument (requires @code{Runtime Linking} to be enabled)
+  @item to permit dynamic loading of @samp{lib.so.V(shr.o)} without the need
+  to specify the version number via @code{dlopen("libNAME.so(shr.o)",
+  RTLD_MEMBER)}
+  @end itemize
+@end table
+
+As long as static library creation is enabled, upon:
+@table @code
+@item --with-aix-soname=svr4
+ A @code{Static Archive Library} is created:
+ @itemize @bullet
+ @item using the @samp{libNAME.a} filename scheme
+ @item with all the @code{Static Object} files as archive members, which
+  @itemize @minus
+   @item are used for static linking
+  @end itemize
+ @end itemize
+@end table
+
+While the aix-soname=@samp{svr4} option does not create @code{Shared Object}
+files as members of unversioned @code{Archive Library} files any more, package
+managers still are responsible to
+@uref{./specific.html#TransferAixShobj,,transfer} @code{Shared Object} files
+found as member of a previously installed unversioned @code{Archive Library}
+file into the newly installed @code{Archive Library} file with the same
+filename.
+
+@emph{WARNING:} Creating @code{Shared Object} files with @code{Runtime Linking}
+enabled may bloat the TOC, eventually leading to @code{TOC overflow} errors,
+requiring the use of either the @option{-Wl,-bbigtoc} linker flag (seen to
+break with the @code{GDB} debugger) or some of the TOC-related compiler flags,
+@ifnothtml
+@xref{RS/6000 and PowerPC Options,, RS/6000 and PowerPC Options, gcc,
+Using the GNU Compiler Collection (GCC)}.
+@end ifnothtml
+@ifhtml
+see ``RS/6000 and PowerPC Options'' in the main manual.
+@end ifhtml
+
+@option{--with-aix-soname} is currently supported by @samp{libgcc_s} only, so
+this option is still experimental and not for normal use yet.
+
+Default is the traditional behaviour @option{--with-aix-soname=@samp{aix}}.
+
 @item --enable-languages=@var{lang1},@var{lang2},@dots{}
 Specify that only a particular subset of compilers and
 their runtime libraries should be built.  For a list of valid values for
@@ -1451,6 +1575,10 @@ be built.  This can be useful for debugging, or for compatibility with
 previous Ada build procedures, when it was required to explicitly
 do a @samp{make -C gcc gnatlib_and_tools}.
 
+@item --disable-libsanitizer
+Specify that the run-time libraries for the various sanitizers should
+not be built.
+
 @item --disable-libssp
 Specify that the run-time libraries for stack smashing protection
 should not be built.
@@ -1466,7 +1594,8 @@ Specify that the Fortran front end and @code{libgfortran} do not add
 support for @code{libquadmath} on systems supporting it.
 
 @item --disable-libgomp
-Specify that the run-time libraries used by GOMP should not be built.
+Specify that the GNU Offloading and Multi Processing Runtime Library
+should not be built.
 
 @item --disable-libvtv
 Specify that the run-time libraries used by vtable verification
@@ -1699,21 +1828,13 @@ a cross compiler, they will not be used to configure target libraries.
 @item --with-isl=@var{pathname}
 @itemx --with-isl-include=@var{pathname}
 @itemx --with-isl-lib=@var{pathname}
-@itemx --with-cloog=@var{pathname}
-@itemx --with-cloog-include=@var{pathname}
-@itemx --with-cloog-lib=@var{pathname}
-If you do not have ISL and the CLooG
-libraries installed in a standard location and you want to build GCC,
-you can explicitly specify the directory where they are installed
-(@samp{--with-isl=@/@var{islinstalldir}},
-@samp{--with-cloog=@/@var{clooginstalldir}}). The
+If you do not have the ISL library installed in a standard location and you
+want to build GCC, you can explicitly specify the directory where it is
+installed (@samp{--with-isl=@/@var{islinstalldir}}). The
 @option{--with-isl=@/@var{islinstalldir}} option is shorthand for
 @option{--with-isl-lib=@/@var{islinstalldir}/lib} and
-@option{--with-isl-include=@/@var{islinstalldir}/include}.  Likewise the
-@option{--with-cloog=@/@var{clooginstalldir}} option is shorthand for
-@option{--with-cloog-lib=@/@var{clooginstalldir}/lib} and
-@option{--with-cloog-include=@/@var{clooginstalldir}/include}.  If these
-shorthand assumptions are not correct, you can use the explicit
+@option{--with-isl-include=@/@var{islinstalldir}/include}. If this
+shorthand assumption is not correct, you can use the explicit
 include and lib options directly.
 
 These flags are applicable to the host platform only.  When building
@@ -1775,10 +1896,38 @@ static data members and inline function local statics.  Enabled by
 default for a toolchain with an assembler that accepts it and
 GLIBC 2.11 or above, otherwise disabled.
 
+@item --with-diagnostics-color=@var{choice}
+Tells GCC to use @var{choice} as the default for @option{-fdiagnostics-color=}
+option (if not used explicitly on the command line).  @var{choice}
+can be one of @samp{never}, @samp{auto}, @samp{always}, and @samp{auto-if-env}
+where @samp{auto} is the default.  @samp{auto-if-env} means that
+@option{-fdiagnostics-color=auto} will be the default if @code{GCC_COLORS}
+is present and non-empty in the environment, and
+@option{-fdiagnostics-color=never} otherwise.
+
 @item --enable-lto
 @itemx --disable-lto
 Enable support for link-time optimization (LTO).  This is enabled by
 default, and may be disabled using @option{--disable-lto}.
+
+@item --enable-linker-plugin-configure-flags=FLAGS
+@itemx --enable-linker-plugin-flags=FLAGS
+By default, linker plugins (such as the LTO plugin) are built for the
+host system architecture.  For the case that the linker has a
+different (but run-time compatible) architecture, these flags can be
+specified to build plugins that are compatible to the linker.  For
+example, if you are building GCC for a 64-bit x86_64
+(@samp{x86_64-unknown-linux-gnu}) host system, but have a 32-bit x86
+GNU/Linux (@samp{i686-pc-linux-gnu}) linker executable (which is
+executable on the former system), you can configure GCC as follows for
+getting compatible linker plugins:
+
+@smallexample
+% @var{srcdir}/configure \
+    --host=x86_64-unknown-linux-gnu \
+    --enable-linker-plugin-configure-flags=--host=i686-pc-linux-gnu \
+    --enable-linker-plugin-flags='CC=gcc\ -m32\ -Wl,-rpath,[...]/i686-pc-linux-gnu/lib'
+@end smallexample
 
 @item --with-plugin-ld=@var{pathname}
 Enable an alternate linker to be used at link-time optimization (LTO)
@@ -1806,6 +1955,20 @@ If GCC is configured with some multilibs that use glibc and some that
 do not, this option applies only to the multilibs that use glibc.
 However, such configurations may not work well as not all the relevant
 configuration in GCC is on a per-multilib basis.
+
+@item --enable-as-accelerator-for=@var{target}
+Build as offload target compiler. Specify offload host triple by @var{target}.
+
+@item --enable-offload-targets=@var{target1}[=@var{path1}],@dots{},@var{targetN}[=@var{pathN}]
+Enable offloading to targets @var{target1}, @dots{}, @var{targetN}.
+Offload compilers are expected to be already installed.  Default search
+path for them is @file{@var{exec-prefix}}, but it can be changed by
+specifying paths @var{path1}, @dots{}, @var{pathN}.
+
+@smallexample
+% @var{srcdir}/configure \
+    --enable-offload-target=i686-unknown-linux-gnu=/path/to/i686/compiler,x86_64-pc-linux-gnu
+@end smallexample
 @end table
 
 @subheading Cross-Compiler-Specific Options
@@ -2356,7 +2519,16 @@ Analogous to @code{bootstrap-O1}.
 @item @samp{bootstrap-lto}
 Enables Link-Time Optimization for host tools during bootstrapping.
 @samp{BUILD_CONFIG=bootstrap-lto} is equivalent to adding
-@option{-flto} to @samp{BOOT_CFLAGS}.
+@option{-flto} to @samp{BOOT_CFLAGS}.  This option assumes that the host
+supports the linker plugin (e.g. GNU ld version 2.21 or later or GNU gold
+version 2.21 or later).
+
+@item @samp{bootstrap-lto-noplugin}
+This option is similar to @code{bootstrap-lto}, but is intended for
+hosts that do not support the linker plugin.  Without the linker plugin 
+static libraries are not compiled with link-time optimizations.  Since 
+the GCC middle end and back end are in @file{libbackend.a} this means
+that only the front end is actually LTO optimized.
 
 @item @samp{bootstrap-debug}
 Verifies that the compiler generates the same executable code, whether
@@ -3075,6 +3247,8 @@ information have to.
 @ifhtml
 @itemize
 @item
+@uref{#aarch64-x-x,,aarch64*-*-*}
+@item
 @uref{#alpha-x-x,,alpha*-*-*}
 @item
 @uref{#alpha-dec-osf51,,alpha*-dec-osf5.1}
@@ -3102,8 +3276,6 @@ information have to.
 @uref{#x-x-linux-gnu,,*-*-linux-gnu}
 @item
 @uref{#ix86-x-linux,,i?86-*-linux*}
-@item
-@uref{#ix86-x-solaris289,,i?86-*-solaris2.9}
 @item
 @uref{#ix86-x-solaris210,,i?86-*-solaris2.10}
 @item
@@ -3140,6 +3312,8 @@ information have to.
 @uref{#nds32le-x-elf,,nds32le-*-elf}
 @item
 @uref{#nds32be-x-elf,,nds32be-*-elf}
+@item
+@uref{#nvptx-x-none,,nvptx-*-none}
 @item
 @uref{#powerpc-x-x,,powerpc*-*-*}
 @item
@@ -3189,6 +3363,8 @@ information have to.
 @item
 @uref{#tilepro-x-linux,,tilepro-*-linux*}
 @item
+@uref{#visium-x-elf, visium-*-elf}
+@item
 @uref{#x-x-vxworks,,*-*-vxworks*}
 @item
 @uref{#x86-64-x-x,,x86_64-*-*, amd64-*-*}
@@ -3221,6 +3397,36 @@ information have to.
 
 @html
 <!-- -------- host/target specific issues start here ---------------- -->
+<hr />
+@end html
+@anchor{aarch64-x-x}
+@heading aarch64*-*-*
+Binutils pre 2.24 does not have support for selecting @option{-mabi} and
+does not support ILP32.  If it is used to build GCC 4.9 or later, GCC will
+not support option @option{-mabi=ilp32}.
+
+To enable a workaround for the Cortex-A53 erratum number 835769 by default
+(for all CPUs regardless of -mcpu option given) at configure time use the
+@option{--enable-fix-cortex-a53-835769} option.  This will enable the fix by
+default and can be explicitly disabled during compilation by passing the
+@option{-mno-fix-cortex-a53-835769} option.  Conversely,
+@option{--disable-fix-cortex-a53-835769} will disable the workaround by
+default.  The workaround is disabled by default if neither of
+@option{--enable-fix-cortex-a53-835769} or
+@option{--disable-fix-cortex-a53-835769} is given at configure time.
+
+To enable a workaround for the Cortex-A53 erratum number 843419 by default
+(for all CPUs regardless of -mcpu option given) at configure time use the
+@option{--enable-fix-cortex-a53-843419} option.  This workaround is applied at
+link time.  Enabling the workaround will cause GCC to pass the relevant option
+to the linker.  It can be explicitly disabled during compilation by passing the
+@option{-mno-fix-cortex-a53-843419} option.  Conversely,
+@option{--disable-fix-cortex-a53-843419} will disable the workaround by default.
+The workaround is disabled by default if neither of
+@option{--enable-fix-cortex-a53-843419} or
+@option{--disable-fix-cortex-a53-843419} is given at configure time.
+
+@html
 <hr />
 @end html
 @anchor{alpha-x-x}
@@ -3669,27 +3875,6 @@ found on @uref{http://www.bitwizard.nl/sig11/,,www.bitwizard.nl}.
 @html
 <hr />
 @end html
-@anchor{ix86-x-solaris29}
-@heading i?86-*-solaris2.9
-The Sun assembler in Solaris 9 has several bugs and limitations.
-While GCC works around them, several features are missing, so it is
-@c FIXME: which ones?
-recommended to use the GNU assembler instead.  There is no bundled
-version, but the current version, from GNU binutils 2.22, is known to
-work.
-
-Solaris@tie{}2/x86 doesn't support the execution of SSE/SSE2 instructions
-before Solaris@tie{}9 4/04, even if the CPU supports them.  Programs will
-receive @code{SIGILL} if they try.  The fix is available both in
-Solaris@tie{}9 Update@tie{}6 and kernel patch 112234-12 or newer.  To
-avoid this problem,
-@option{-march} defaults to @samp{pentiumpro} on Solaris 9.  If
-you have the patch installed, you can configure GCC with an appropriate
-@option{--with-arch} option, but need GNU @command{as} for SSE2 support.
-
-@html
-<hr />
-@end html
 @anchor{ix86-x-solaris210}
 @heading i?86-*-solaris2.10
 Use this for Solaris 10 or later on x86 and x86-64 systems.  Starting
@@ -3752,15 +3937,6 @@ GCC versions 3.2.3 and earlier, @option{--enable-libunwind-exceptions}
 is required to build GCC@.  For GCC 3.3 and later, this is the default.
 For gcc 3.4.3 and later, @option{--enable-libunwind-exceptions} is
 removed and the system libunwind library will always be used.
-
-@html
-<hr />
-@end html
-@anchor{aarch64-x-x}
-@heading aarch64*-*-*
-Binutils pre 2.24 does not have support for selecting @option{-mabi} and
-does not support ILP32.  If it is used to build GCC 4.9 or later, GCC will
-not support option @option{-mabi=ilp32}.
 
 @html
 <hr />
@@ -3837,6 +4013,7 @@ APAR IY26685 (AIX 4.3) or APAR IY25528 (AIX 5.1).  It also requires a
 fix for another AIX Assembler bug and a co-dependent AIX Archiver fix
 referenced as APAR IY53606 (AIX 5.2) or as APAR IY54774 (AIX 5.1)
 
+@anchor{TransferAixShobj}
 @samp{libstdc++} in GCC 3.4 increments the major version number of the
 shared object and GCC installation places the @file{libstdc++.a}
 shared library in a common location which will overwrite the and GCC
@@ -3866,6 +4043,11 @@ Archive the runtime-only shared object in the GCC 3.4
 @smallexample
 % ar -q libstdc++.a libstdc++.so.4 libstdc++.so.5
 @end smallexample
+
+Eventually, the
+@uref{./configure.html#WithAixSoname,,@option{--with-aix-soname=svr4}}
+configure option may drop the need for this procedure for libraries that
+support it.
 
 Linking executables and shared libraries may produce warnings of
 duplicate symbols.  The assembly files generated by GCC for AIX always
@@ -4111,6 +4293,27 @@ Andes NDS32 target in big endian mode.
 @html
 <hr />
 @end html
+@anchor{nvptx-x-none}
+@heading nvptx-*-none
+Nvidia PTX target.
+
+Instead of GNU binutils, you will need to install
+@uref{https://github.com/MentorEmbedded/nvptx-tools/,,nvptx-tools}.
+Tell GCC where to find it:
+@option{--with-build-time-tools=[install-nvptx-tools]/nvptx-none/bin}.
+
+A nvptx port of newlib is available at
+@uref{https://github.com/MentorEmbedded/nvptx-newlib/,,nvptx-newlib}.
+It can be automatically built together with GCC@.  For this, add a
+symbolic link to nvptx-newlib's @file{newlib} directory to the
+directory containing the GCC sources.
+
+Use the @option{--disable-sjlj-exceptions} and
+@option{--enable-newlib-io-long-long} options when configuring.
+
+@html
+<hr />
+@end html
 @anchor{powerpc-x-x}
 @heading powerpc-*-*
 You can specify a default version for the @option{-mcpu=@var{cpu_type}}
@@ -4243,10 +4446,9 @@ supported as cross-compilation target only.
 @c alone is too unspecific and must be avoided.
 @anchor{x-x-solaris2}
 @heading *-*-solaris2*
-Support for Solaris 9 has been obsoleted in GCC 4.9, but can still be
-enabled by configuring with @option{--enable-obsolete}.  Support will be
-removed in GCC 4.10.  Support for Solaris 8 has removed in GCC 4.8.
-Support for Solaris 7 has been removed in GCC 4.6.
+Support for Solaris 9 has been removed in GCC 4.10.  Support for Solaris
+8 has been removed in GCC 4.8.  Support for Solaris 7 has been removed
+in GCC 4.6.
 
 Sun does not ship a C compiler with Solaris 2 before Solaris 10, though
 you can download the Sun Studio compilers for free.  In Solaris 10 and
@@ -4325,25 +4527,6 @@ itself, rather it is a kernel bug triggered by the @command{expect}
 program which is used only by the GCC testsuite driver.  When the bug
 causes the @command{expect} program to miss anticipated output, extra
 testsuite failures appear.
-
-There are patches for Solaris 9 (117171-11 or newer for
-SPARC, 117172-11 or newer for Intel) that address this problem.
-
-Thread-local storage (TLS) is supported in Solaris@tie{}9, but requires
-some patches.  The @samp{libthread} patches provide the
-@code{__tls_get_addr} (SPARC, 64-bit x86) resp.@ @code{___tls_get_addr}
-(32-bit x86) functions.  On Solaris@tie{}9, the necessary support
-on SPARC is present since FCS, while 114432-05 or newer is required on
-Intel.  Additionally, on Solaris@tie{}9/x86, patch 113986-02 or newer is
-required for the Sun @command{ld} and runtime linker (@command{ld.so.1})
-support, while Solaris@tie{}9/SPARC works since FCS.  The linker
-patches must be installed even if GNU @command{ld} is used. Sun
-@command{as} in Solaris@tie{}9 doesn't support the necessary
-relocations, so GNU @command{as} must be used.  The @command{configure}
-script checks for those prerequisites and automatically enables TLS
-support if they are met.  Although those minimal patch versions should
-work, it is recommended to use the latest patch versions which include
-additional bug fixes.
 
 @html
 <hr />
@@ -4511,6 +4694,14 @@ port requires binutils-2.23 or newer.
 @heading tilepro-*-linux*
 The TILEPro processor running GNU/Linux.  This port requires
 binutils-2.22 or newer.
+
+@html
+<hr />
+@end html
+@anchor{visium-x-elf}
+@heading visium-*-elf
+CDS VISIUMcore processor.
+This configuration is intended for embedded systems.
 
 @html
 <hr />

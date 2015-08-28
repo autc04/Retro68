@@ -1,7 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-tree-pre" } */
-
-int bar (int);
+/* { dg-options "-O2 -ftree-tail-merge -fdump-tree-pre" } */
 
 int z;
 

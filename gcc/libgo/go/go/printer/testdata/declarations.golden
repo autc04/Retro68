@@ -397,6 +397,21 @@ func _() {
 	}
 }
 
+// use the formatted output rather than the input to decide when to align
+// (was issue 4505)
+const (
+	short		= 2 * (1 + 2)
+	aMuchLongerName	= 3
+)
+
+var (
+	short		= X{}
+	aMuchLongerName	= X{}
+
+	x1	= X{}	// foo
+	x2	= X{}	// foo
+)
+
 func _() {
 	type (
 		xxxxxx	int
@@ -578,7 +593,7 @@ var (
 )
 
 func _() {
-	var privateKey2 = &Block{Type:	"RSA PRIVATE KEY",
+	var privateKey2 = &Block{Type: "RSA PRIVATE KEY",
 		Headers:	map[string]string{},
 		Bytes: []uint8{0x30, 0x82, 0x1, 0x3a, 0x2, 0x1, 0x0, 0x2,
 			0x41, 0x0, 0xb2, 0x99, 0xf, 0x49, 0xc4, 0x7d, 0xfa, 0x8c,
@@ -683,6 +698,29 @@ var _ = T4{
 	c:	z,
 }
 
+// no alignment of map composite entries if they are not the first entry on a line
+var _ = T{0: 0}	// not aligned
+var _ = T{0: 0,	// not aligned
+	1:	1,				// aligned
+	22:	22,				// aligned
+	333:	333, 1234: 12, 12345: 0,	// first on line aligned
+}
+
+// test cases form issue 8685
+// not aligned
+var _ = map[int]string{1: "spring", 2: "summer",
+	3:	"autumn", 4: "winter"}
+
+// not aligned
+var _ = map[string]string{"a": "spring", "b": "summer",
+	"c":	"autumn", "d": "winter"}
+
+// aligned
+var _ = map[string]string{"a": "spring",
+	"b":	"summer",
+	"c":	"autumn",
+	"d":	"winter"}
+
 func _() {
 	var _ = T{
 		a,	// must introduce trailing comma
@@ -723,7 +761,8 @@ func _() int {
 }
 
 // making function declarations safe for new semicolon rules
-func _() { /* multi-line func because of comment */
+func _()	{ /* single-line function because of "short-ish" comment */ }
+func _() { /* multi-line function because of "long-ish" comment - much more comment text is following here */ /* and more */
 }
 
 func _() {

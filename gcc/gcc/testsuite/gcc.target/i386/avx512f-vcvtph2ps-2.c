@@ -9,7 +9,7 @@
 #define SIZE (AVX512F_LEN / 32)
 #include "avx512f-mask-type.h"
 
-static void
+void
 TEST (void)
 {
   UNION_TYPE (AVX512F_LEN_HALF, i_w) val;
@@ -67,9 +67,9 @@ TEST (void)
   val.a[15] = 0xc800;
 #endif
 
-  res1.x = _mm512_cvtph_ps (val.x);
-  res2.x = _mm512_mask_cvtph_ps (res2.x, mask, val.x);
-  res3.x = _mm512_maskz_cvtph_ps (mask, val.x);
+  res1.x = INTRINSIC (_cvtph_ps) (val.x);
+  res2.x = INTRINSIC (_mask_cvtph_ps) (res2.x, mask, val.x);
+  res3.x = INTRINSIC (_maskz_cvtph_ps) (mask, val.x);
 
   if (UNION_CHECK (AVX512F_LEN,) (res1, exp))
     abort ();

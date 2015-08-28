@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---          Copyright (C) 1999-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -35,9 +35,11 @@ pragma Polling (Off);
 --  Turn off polling, we do not want ATC polling to take place during
 --  tasking operations. It causes infinite loops and other problems.
 
-package body System.OS_Interface is
+with Interfaces.C.Extensions;
 
+package body System.OS_Interface is
    use Interfaces.C;
+   use Interfaces.C.Extensions;
 
    -----------------
    -- To_Duration --
@@ -97,16 +99,19 @@ package body System.OS_Interface is
 
       use Interfaces;
 
-      type timeval is array (1 .. 2) of C.long;
+      type timeval is array (1 .. 3) of C.long;
+      --  The timeval array is sized to contain long_long sec and long usec.
+      --  If long_long'Size = long'Size then it will be overly large but that
+      --  won't effect the implementation since it's not accessed directly.
 
       procedure timeval_to_duration
         (T    : not null access timeval;
-         sec  : not null access C.long;
+         sec  : not null access C.Extensions.long_long;
          usec : not null access C.long);
       pragma Import (C, timeval_to_duration, "__gnat_timeval_to_duration");
 
       Micro  : constant := 10**6;
-      sec    : aliased C.long;
+      sec    : aliased C.Extensions.long_long;
       usec   : aliased C.long;
       TV     : aliased timeval;
       Result : int;
@@ -123,6 +128,36 @@ package body System.OS_Interface is
       tp.all := To_Timespec (Duration (sec) + Duration (usec) / Micro);
       return Result;
    end clock_gettime;
+
+   ------------------
+   -- clock_getres --
+   ------------------
+
+   function clock_getres
+     (clock_id : clockid_t;
+      res      : access timespec) return int
+   is
+      pragma Unreferenced (clock_id);
+
+      --  Darwin Threads don't have clock_getres.
+
+      Nano   : constant := 10**9;
+      nsec   : int := 0;
+      Result : int := -1;
+
+      function clock_get_res return int;
+      pragma Import (C, clock_get_res, "__gnat_clock_get_res");
+
+   begin
+      nsec := clock_get_res;
+      res.all := To_Timespec (Duration (0.0) + Duration (nsec) / Nano);
+
+      if nsec > 0 then
+         Result := 0;
+      end if;
+
+      return Result;
+   end clock_getres;
 
    -----------------
    -- sched_yield --

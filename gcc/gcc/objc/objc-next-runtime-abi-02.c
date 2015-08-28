@@ -1,5 +1,5 @@
 /* Next Runtime (ABI-2) private.
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2015 Free Software Foundation, Inc.
 
    Contributed by Iain Sandoe and based, in part, on an implementation in
    'branches/apple/trunk' contributed by Apple Computer Inc.
@@ -29,7 +29,18 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stringpool.h"
 
 #ifdef OBJCPLUS
@@ -238,7 +249,7 @@ static GTY ((length ("SIZEHASHTABLE"))) hash *extern_names;
 bool
 objc_next_runtime_abi_02_init (objc_runtime_hooks *rthooks)
 {
-  extern_names = ggc_alloc_cleared_vec_hash (SIZEHASHTABLE);
+  extern_names = ggc_cleared_vec_alloc<hash> (SIZEHASHTABLE);
 
   if (flag_objc_exceptions && flag_objc_sjlj_exceptions)
     {
@@ -857,7 +868,7 @@ hash_name_enter (hash *hashlist, tree id)
   hash obj;
   int slot = IDENTIFIER_HASH_VALUE (DECL_NAME (id)) % SIZEHASHTABLE;
 
-  obj = ggc_alloc_hashed_entry ();
+  obj = ggc_alloc<hashed_entry> ();
   obj->list = 0;
   obj->next = hashlist[slot];
   obj->key = id;

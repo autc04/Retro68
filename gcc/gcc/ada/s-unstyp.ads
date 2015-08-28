@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -50,10 +50,13 @@ package System.Unsigned_Types is
    --  Used in the implementation of Is_Negative intrinsic (see Exp_Intr)
 
    type Packed_Byte is mod 2 ** 8;
+   pragma Universal_Aliasing (Packed_Byte);
    for Packed_Byte'Size use 8;
-   --  Component type for Packed_Bytes array
+   --  Component type for Packed_Bytes1, Packed_Bytes2 and Packed_Byte4 arrays.
+   --  As this type is used by the compiler to implement operations on user
+   --  packed array, it needs to be able to alias any type.
 
-   type Packed_Bytes1 is array (Natural range <>) of Packed_Byte;
+   type Packed_Bytes1 is array (Natural range <>) of aliased Packed_Byte;
    for Packed_Bytes1'Alignment use 1;
    for Packed_Bytes1'Component_Size use Packed_Byte'Size;
    --  This is the type used to implement packed arrays where no alignment
@@ -200,7 +203,7 @@ package System.Unsigned_Types is
    --  previous version of the compiler and runtime, but are not needed
    --  by the current version. We retain them to help with bootstrap path
    --  problems. Also they seem harmless, and if any user programs have
-   --  been (rather improperly) using these types, why discombobulate them?
+   --  been using these types, why discombobulate them?
 
    subtype Packed_Bytes           is Packed_Bytes4;
    subtype Packed_Bytes_Unaligned is Packed_Bytes1;

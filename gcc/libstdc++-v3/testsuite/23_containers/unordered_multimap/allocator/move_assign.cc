@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=c++11" }
+// { dg-options "-std=gnu++11" }
 
 #include <unordered_map>
 #include <testsuite_hooks.h>
@@ -66,6 +66,8 @@ void test02()
   v1.emplace(std::piecewise_construct,
 	     std::make_tuple(1), std::make_tuple(1));
 
+  auto it = v1.begin();
+
   test_type v2(alloc_type(2));
   v2.emplace(std::piecewise_construct,
 	     std::make_tuple(2), std::make_tuple(2));
@@ -79,6 +81,8 @@ void test02()
 
   VERIFY( counter_type::move_assign_count == 0 );
   VERIFY( counter_type::destructor_count == 2 );
+
+  VERIFY( it == v2.begin() );
 }
 
 int main()

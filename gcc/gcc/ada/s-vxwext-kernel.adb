@@ -6,7 +6,7 @@
 --                                                                          --
 --                                   B o d y                                --
 --                                                                          --
---            Copyright (C) 2008-2011, Free Software Foundation, Inc.       --
+--            Copyright (C) 2008-2015, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNARL is free software;  you can redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -49,10 +49,10 @@ package body System.VxWorks.Ext is
    -- Int_Unlock --
    ----------------
 
-   function intUnlock return int;
+   function intUnlock (Old : int) return int;
    pragma Import (C, intUnlock, "intUnlock");
 
-   function Int_Unlock return int renames intUnlock;
+   function Int_Unlock (Old : int) return int renames intUnlock;
 
    ---------------
    -- semDelete --
@@ -84,6 +84,17 @@ package body System.VxWorks.Ext is
    begin
       return ERROR;
    end taskMaskAffinitySet;
+
+   --------------
+   -- taskCont --
+   --------------
+
+   function Task_Cont (tid : t_id) return int is
+      function taskCont (tid : t_id) return int;
+      pragma Import (C, taskCont, "taskCont");
+   begin
+      return taskCont (tid);
+   end Task_Cont;
 
    --------------
    -- taskStop --

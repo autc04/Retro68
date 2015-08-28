@@ -1,5 +1,5 @@
 ;; Predicate definitions for Synopsys DesignWare ARC.
-;; Copyright (C) 2007-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2015 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -585,7 +585,7 @@
 (define_special_predicate "cc_set_register"
   (match_code "reg")
 {
-  enum machine_mode rmode = GET_MODE (op);
+  machine_mode rmode = GET_MODE (op);
 
   if (mode == VOIDmode)
     {

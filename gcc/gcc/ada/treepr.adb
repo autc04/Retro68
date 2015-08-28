@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -236,14 +236,17 @@ package body Treepr is
       end case;
    end p;
 
+   ---------
+   -- par --
+   ---------
+
+   function par (N : Union_Id) return Node_Or_Entity_Id renames p;
+
    --------
    -- pe --
    --------
 
-   procedure pe (E : Elist_Id) is
-   begin
-      Print_Tree_Elist (E);
-   end pe;
+   procedure pe (N : Union_Id) renames pn;
 
    --------
    -- pl --
@@ -327,10 +330,13 @@ package body Treepr is
    -- pp --
    --------
 
-   procedure pp (N : Union_Id) is
-   begin
-      pn (N);
-   end pp;
+   procedure pp (N : Union_Id) renames pn;
+
+   ---------
+   -- ppp --
+   ---------
+
+   procedure ppp (N : Union_Id) renames pt;
 
    ----------------
    -- Print_Char --
@@ -597,49 +603,18 @@ package body Treepr is
 
             begin
                case M is
-                  when Default_Mechanism
-                                    => Write_Str ("Default");
-                  when By_Copy
-                                    => Write_Str ("By_Copy");
-                  when By_Reference
-                                    => Write_Str ("By_Reference");
-                  when By_Descriptor
-                                    => Write_Str ("By_Descriptor");
-                  when By_Descriptor_UBS
-                                    => Write_Str ("By_Descriptor_UBS");
-                  when By_Descriptor_UBSB
-                                    => Write_Str ("By_Descriptor_UBSB");
-                  when By_Descriptor_UBA
-                                    => Write_Str ("By_Descriptor_UBA");
-                  when By_Descriptor_S
-                                    => Write_Str ("By_Descriptor_S");
-                  when By_Descriptor_SB
-                                    => Write_Str ("By_Descriptor_SB");
-                  when By_Descriptor_A
-                                    => Write_Str ("By_Descriptor_A");
-                  when By_Descriptor_NCA
-                                    => Write_Str ("By_Descriptor_NCA");
-                  when By_Short_Descriptor
-                                    => Write_Str ("By_Short_Descriptor");
-                  when By_Short_Descriptor_UBS
-                                    => Write_Str ("By_Short_Descriptor_UBS");
-                  when By_Short_Descriptor_UBSB
-                                    => Write_Str ("By_Short_Descriptor_UBSB");
-                  when By_Short_Descriptor_UBA
-                                    => Write_Str ("By_Short_Descriptor_UBA");
-                  when By_Short_Descriptor_S
-                                    => Write_Str ("By_Short_Descriptor_S");
-                  when By_Short_Descriptor_SB
-                                    => Write_Str ("By_Short_Descriptor_SB");
-                  when By_Short_Descriptor_A
-                                    => Write_Str ("By_Short_Descriptor_A");
-                  when By_Short_Descriptor_NCA
-                                    => Write_Str ("By_Short_Descriptor_NCA");
+                  when Default_Mechanism        =>
+                     Write_Str ("Default");
+
+                  when By_Copy                  =>
+                     Write_Str ("By_Copy");
+
+                  when By_Reference             =>
+                     Write_Str ("By_Reference");
 
                   when 1 .. Mechanism_Type'Last =>
                      Write_Str ("By_Copy if size <= ");
                      Write_Int (Int (M));
-
                end case;
             end;
 
@@ -1307,7 +1282,30 @@ package body Treepr is
    -----------------------
 
    procedure Print_Node_Header (N : Node_Id) is
-      Notes : Boolean := False;
+      Enumerate : Boolean := False;
+      --  Flag set when enumerating multiple header flags
+
+      procedure Print_Header_Flag (Flag : String);
+      --  Output one of the flags that appears in a node header. The routine
+      --  automatically handles enumeration of multiple flags.
+
+      -----------------------
+      -- Print_Header_Flag --
+      -----------------------
+
+      procedure Print_Header_Flag (Flag : String) is
+      begin
+         if Enumerate then
+            Print_Char (',');
+         else
+            Enumerate := True;
+            Print_Char ('(');
+         end if;
+
+         Print_Str (Flag);
+      end Print_Header_Flag;
+
+   --  Start of processing for Print_Node_Header
 
    begin
       Print_Node_Ref (N);
@@ -1318,34 +1316,25 @@ package body Treepr is
          return;
       end if;
 
+      Print_Char (' ');
+
       if Comes_From_Source (N) then
-         Notes := True;
-         Print_Str (" (source");
+         Print_Header_Flag ("source");
       end if;
 
       if Analyzed (N) then
-         if not Notes then
-            Notes := True;
-            Print_Str (" (");
-         else
-            Print_Str (",");
-         end if;
-
-         Print_Str ("analyzed");
+         Print_Header_Flag ("analyzed");
       end if;
 
       if Error_Posted (N) then
-         if not Notes then
-            Notes := True;
-            Print_Str (" (");
-         else
-            Print_Str (",");
-         end if;
-
-         Print_Str ("posted");
+         Print_Header_Flag ("posted");
       end if;
 
-      if Notes then
+      if Is_Ignored_Ghost_Node (N) then
+         Print_Header_Flag ("ignored ghost");
+      end if;
+
+      if Enumerate then
          Print_Char (')');
       end if;
 
@@ -1583,19 +1572,19 @@ package body Treepr is
    -- pt --
    --------
 
-   procedure pt (N : Node_Id) is
+   procedure pt (N : Union_Id) is
    begin
-      Print_Node_Subtree (N);
+      case N is
+         when List_Low_Bound .. List_High_Bound - 1 =>
+            Print_List_Subtree (List_Id (N));
+         when Node_Range =>
+            Print_Node_Subtree (Node_Id (N));
+         when Elist_Range =>
+            Print_Elist_Subtree (Elist_Id (N));
+         when others =>
+            pp (N);
+      end case;
    end pt;
-
-   ---------
-   -- ppp --
-   ---------
-
-   procedure ppp (N : Node_Id) is
-   begin
-      pt (N);
-   end ppp;
 
    -------------------
    -- Serial_Number --
@@ -2090,11 +2079,11 @@ package body Treepr is
          Visit_Descendent (Field22 (N));
          Visit_Descendent (Field23 (N));
 
-         --  Now an interesting kludge. Normally parents are always printed
-         --  since we traverse the tree in a downwards direction. There is
-         --  however an exception to this rule, which is the case where a
-         --  parent is constructed by the compiler and is not referenced
-         --  elsewhere in the tree. The following catches this case
+         --  Now an interesting special case. Normally parents are always
+         --  printed since we traverse the tree in a downwards direction.
+         --  However, there is an exception to this rule, which is the
+         --  case where a parent is constructed by the compiler and is not
+         --  referenced elsewhere in the tree. The following catches this case.
 
          if not Comes_From_Source (N) then
             Visit_Descendent (Union_Id (Parent (N)));

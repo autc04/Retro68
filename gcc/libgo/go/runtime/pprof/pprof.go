@@ -20,7 +20,7 @@ import (
 	"text/tabwriter"
 )
 
-// BUG(rsc): Profiles are incomplete and inaccuate on NetBSD, OpenBSD, and OS X.
+// BUG(rsc): Profiles are incomplete and inaccurate on NetBSD and OS X.
 // See http://golang.org/issue/6047 for details.
 
 // A Profile is a collection of stack traces showing the call sequences
@@ -331,6 +331,11 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
 			if i > 0 && pc > f.Entry() && !wasPanic {
 				if runtime.GOARCH == "386" || runtime.GOARCH == "amd64" {
 					tracepc--
+				} else if runtime.GOARCH == "s390" || runtime.GOARCH == "s390x" {
+					// only works if function was called
+					// with the brasl instruction (or a
+					// different 6-byte instruction).
+					tracepc -= 6
 				} else {
 					tracepc -= 4 // arm, etc
 				}
@@ -340,7 +345,14 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
 			// Hide runtime.goexit and any runtime functions at the beginning.
 			// This is useful mainly for allocation traces.
 			wasPanic = name == "runtime.panic"
-			if name == "runtime.goexit" || !show && strings.HasPrefix(name, "runtime.") {
+			if name == "runtime.goexit" || !show && (strings.HasPrefix(name, "runtime.") || strings.HasPrefix(name, "runtime_")) {
+				continue
+			}
+			if !show && !strings.Contains(name, ".") && strings.HasPrefix(name, "__go_") {
+				continue
+			}
+			if !show && name == "" {
+				// This can happen due to http://gcc.gnu.org/PR65797.
 				continue
 			}
 			show = true
@@ -573,12 +585,6 @@ func StartCPUProfile(w io.Writer) error {
 	// convert sample counts to seconds.  Instead of requiring
 	// each client to specify the frequency, we hard code it.
 	const hz = 100
-
-	// Avoid queueing behind StopCPUProfile.
-	// Could use TryLock instead if we had it.
-	if cpu.profiling {
-		return fmt.Errorf("cpu profiling already in use")
-	}
 
 	cpu.Lock()
 	defer cpu.Unlock()

@@ -1,5 +1,5 @@
 /* Definitions for MicroBlaze running Linux.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2015 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -21,6 +21,9 @@
 
 #undef TARGET_SUPPORTS_PIC
 #define TARGET_SUPPORTS_PIC 1
+
+#undef CPP_SPEC
+#define CPP_SPEC "%{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
 
 #undef TLS_NEEDS_GOT
 #define TLS_NEEDS_GOT 1

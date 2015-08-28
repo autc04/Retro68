@@ -1,5 +1,5 @@
 /* Default error handlers for CPP Library.
-   Copyright (C) 1986-2014 Free Software Foundation, Inc.
+   Copyright (C) 1986-2015 Free Software Foundation, Inc.
    Written by Per Bothner, 1994.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -48,10 +48,7 @@ cpp_diagnostic (cpp_reader * pfile, int level, int reason,
      current run -- that is invalid.  */
   else if (pfile->cur_token == pfile->cur_run->base)
     {
-      if (pfile->cur_run->prev != NULL)
-	src_loc = pfile->cur_run->prev->limit->src_loc;
-      else
-	src_loc = 0;
+      src_loc = 0;
     }
   else
     {

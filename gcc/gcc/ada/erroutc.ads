@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -60,14 +60,28 @@ package Erroutc is
    --  character ! and is thus to be treated as an unconditional message.
 
    Is_Warning_Msg : Boolean := False;
-   --  Set True to indicate if current message is warning message (contains ?)
+   --  Set True to indicate if current message is warning message (contains ?
+   --  or contains < and Error_Msg_Warn is True.
+
+   Is_Info_Msg : Boolean := False;
+   --  Set True to indicate that the current message starts with the characters
+   --  "info: " and is to be treated as an information message. This string
+   --  will be prepended to the message and all its continuations.
+
+   Is_Check_Msg : Boolean := False;
+   --  Set True to indicate that the current message starts with one of
+   --  "high: ", "medium: ", "low: " and is to be treated as a check message.
 
    Warning_Msg_Char : Character;
    --  Warning character, valid only if Is_Warning_Msg is True
-   --    ' '      -- ? appeared on its own in message
-   --    '?'      -- ?? appeared in message
-   --    'x'      -- ?x? appeared in message
-   --    'X'      -- ?x? appeared in message (X is upper case of x)
+   --    ' '      -- ?   or <   appeared on its own in message
+   --    '?'      -- ??  or <<  appeared in message
+   --    'x'      -- ?x? or <x< appeared in message (x = a .. z)
+   --    'X'      -- ?X? or <X< appeared in message (X = A .. Z)
+   --    '*'      -- ?*? or <*< appeared in message
+   --    '$'      -- ?$? or <$< appeared in message
+   --  In the case of the < sequences, this is set only if the message is
+   --  actually a warning, i.e. if Error_Msg_Warn is True
 
    Is_Style_Msg : Boolean := False;
    --  Set True to indicate if the current message is a style message
@@ -193,7 +207,13 @@ package Erroutc is
       --  Column number for error message
 
       Warn : Boolean;
-      --  True if warning message (i.e. insertion character ? appeared)
+      --  True if warning message
+
+      Info : Boolean;
+      --  True if info message
+
+      Check : Boolean;
+      --  True if check message
 
       Warn_Err : Boolean;
       --  True if this is a warning message which is to be treated as an error
@@ -201,10 +221,14 @@ package Erroutc is
 
       Warn_Chr : Character;
       --  Warning character (note: set even if Warning_Doc_Switch is False)
-      --    ' '      -- ? appeared on its own in message or no ? in message
-      --    '?'      -- ?? appeared in message
-      --    'x'      -- ?x? appeared in message
-      --    'X'      -- ?x? appeared in message (X is upper case of x)
+      --    ' '      -- ?   or <   appeared on its own in message
+      --    '?'      -- ??  or <<  appeared in message
+      --    'x'      -- ?x? or <x< appeared in message (x = a .. z)
+      --    'X'      -- ?X? or <X< appeared in message (X = A .. Z)
+      --    '*'      -- ?*? or <*< appeared in message
+      --    '$'      -- ?$? or <$< appeared in message
+      --  In the case of the < sequences, this is set only if the message is
+      --  actually a warning, i.e. if Error_Msg_Warn is True
 
       Style : Boolean;
       --  True if style message (starts with "(style)")
@@ -402,6 +426,34 @@ package Erroutc is
    --  splits the line generating multiple lines of output, and in this case
    --  the last line has no terminating end of line character.
 
+   procedure Prescan_Message (Msg : String);
+   --  Scans message text and sets the following variables:
+   --
+   --    Is_Warning_Msg is set True if Msg is a warning message (contains a
+   --    question mark character), and False otherwise.
+   --
+   --    Is_Style_Msg is set True if Msg is a style message (starts with
+   --    "(style)") and False otherwise.
+   --
+   --    Is_Info_Msg is set True if Msg is an information message (starts
+   --    with "info: ". Such messages must contain a ? sequence since they
+   --    are also considered to be warning messages, and get a tag.
+   --
+   --    Is_Serious_Error is set to True unless the message is a warning or
+   --    style message or contains the character | (non-serious error).
+   --
+   --    Is_Unconditional_Msg is set True if the message contains the character
+   --    ! and is otherwise set False.
+   --
+   --    Has_Double_Exclam is set True if the message contains the sequence !!
+   --    and is otherwise set False.
+   --
+   --  We need to know right away these aspects of a message, since we will
+   --  test these values before doing the full error scan.
+   --
+   --  Note that the call has no effect for continuation messages (those whose
+   --  first character is '\'), and all variables are left unchanged.
+
    procedure Purge_Messages (From : Source_Ptr; To : Source_Ptr);
    --  All error messages whose location is in the range From .. To (not
    --  including the end points) will be deleted from the error listing.
@@ -475,7 +527,8 @@ package Erroutc is
    procedure Set_Msg_Str (Text : String);
    --  Add a sequence of characters to the current message. This routine does
    --  not check for special insertion characters (they are just treated as
-   --  text characters if they occur).
+   --  text characters if they occur). It does perform the transformation of
+   --  the special strings _xxx (xxx = Pre/Post/Type_Invariant) to xxx'Class.
 
    procedure Set_Next_Non_Deleted_Msg (E : in out Error_Msg_Id);
    --  Given a message id, move to next message id, but skip any deleted
@@ -521,27 +574,6 @@ package Erroutc is
    --  Called in response to a pragma Warnings (On) to record the source
    --  location from which warnings are to be turned back on.
 
-   procedure Test_Style_Warning_Serious_Unconditional_Msg (Msg : String);
-   --  Scans message text and sets the following variables:
-   --
-   --    Is_Warning_Msg is set True if Msg is a warning message (contains a
-   --    question mark character), and False otherwise.
-   --
-   --    Is_Style_Msg is set True if Msg is a style message (starts with
-   --    "(style)") and False otherwise.
-   --
-   --    Is_Serious_Error is set to True unless the message is a warning or
-   --    style message or contains the character | (non-serious error).
-   --
-   --    Is_Unconditional_Msg is set True if the message contains the character
-   --    ! and is otherwise set False.
-   --
-   --    Has_Double_Exclam is set True if the message contains the sequence !!
-   --    and is otherwise set False.
-   --
-   --  Note that the call has no effect for continuation messages (those whose
-   --  first character is '\'), and all variables are left unchanged.
-
    function Warnings_Suppressed (Loc : Source_Ptr) return String_Id;
    --  Determines if given location is covered by a warnings off suppression
    --  range in the warnings table (or is suppressed by compilation option,
@@ -554,12 +586,18 @@ package Erroutc is
 
    function Warning_Specifically_Suppressed
      (Loc : Source_Ptr;
-      Msg : String_Ptr) return String_Id;
+      Msg : String_Ptr;
+      Tag : String := "") return String_Id;
    --  Determines if given message to be posted at given location is suppressed
    --  by specific ON/OFF Warnings pragmas specifying this particular message.
    --  If the warning is not suppressed then No_String is returned, otherwise
    --  the corresponding warning string is returned (or the null string if no
-   --  Warning argument was present in the pragma).
+   --  Warning argument was present in the pragma). Tag is the error message
+   --  tag for the message in question or the null string if there is no tag.
+   --
+   --  Note: we have a null default for Tag to deal with calls from an old
+   --  branch of gnat2why, which does not know about tags in the calls but
+   --  which uses the latest version of erroutc.
 
    function Warning_Treated_As_Error (Msg : String) return Boolean;
    --  Returns True if the warning message Msg matches any of the strings

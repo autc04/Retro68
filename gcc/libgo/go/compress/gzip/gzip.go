@@ -22,8 +22,8 @@ const (
 	DefaultCompression = flate.DefaultCompression
 )
 
-// A Writer is an io.WriteCloser that satisfies writes by compressing data written
-// to its wrapped io.Writer.
+// A Writer is an io.WriteCloser.
+// Writes to a Writer are compressed and written to w.
 type Writer struct {
 	Header
 	w           io.Writer
@@ -37,8 +37,8 @@ type Writer struct {
 	err         error
 }
 
-// NewWriter creates a new Writer that satisfies writes by compressing data
-// written to w.
+// NewWriter returns a new Writer.
+// Writes to the returned writer are compressed and written to w.
 //
 // It is the caller's responsibility to call Close on the WriteCloser when done.
 // Writes may be buffered and not flushed until Close.
@@ -245,7 +245,8 @@ func (z *Writer) Flush() error {
 	return z.err
 }
 
-// Close closes the Writer. It does not close the underlying io.Writer.
+// Close closes the Writer, flushing any unwritten data to the underlying
+// io.Writer, but does not close the underlying io.Writer.
 func (z *Writer) Close() error {
 	if z.err != nil {
 		return z.err

@@ -1,5 +1,6 @@
 /* { dg-do compile } */
-/* { dg-options "-O0 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1" } */
+/* { dg-options "-O0 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512dq -mavx512bw -mavx512vl -mavx512ifma -mavx512vbmi -mclwb -mpcommit -mmwaitx" } */
+/* { dg-add-options bind_pic_locally } */
 
 #include <mm_malloc.h>
 
@@ -68,13 +69,13 @@
   { return func (A, B, C, imm1, imm2, imm3); }
 
 #define test_3v(func, op1_type, op2_type, op3_type, imm)		\
-  _CONCAT(_,func) (op1_type A, op2_type B,				\
-		   op3_type C, int const I)				\
+  int _CONCAT(_,func) (op1_type A, op2_type B,				\
+		       op3_type C, int const I)				\
   { func (A, B, C, imm); }
 
 #define test_3vx(func, op1_type, op2_type, op3_type, imm1, imm2)   \
-  _CONCAT(_,func) (op1_type A, op2_type B,             \
-           op3_type C, int const I, int const L)       \
+  int _CONCAT(_,func) (op1_type A, op2_type B,			   \
+		       op3_type C, int const I, int const L)       \
   { func (A, B, C, imm1, imm2); }
 
 #define test_4(func, type, op1_type, op2_type, op3_type, op4_type, imm)	\
@@ -93,8 +94,8 @@
   { return func (A, B, C, D, imm1, imm2, imm3); }
 
 #define test_4v(func, op1_type, op2_type, op3_type, op4_type, imm)	\
-  _CONCAT(_,func) (op1_type A, op2_type B,				\
-		   op3_type C, op4_type D, int const I)			\
+  int _CONCAT(_,func) (op1_type A, op2_type B,				\
+		       op3_type C, op4_type D, int const I)		\
   { func (A, B, C, D, imm); }
 
 
@@ -600,6 +601,8 @@ test_2 (_mm_alignr_pi8, __m64, __m64, __m64, 1)
 
 /* emmintrin.h */
 test_2 (_mm_shuffle_pd, __m128d, __m128d, __m128d, 1)
+test_1 (_mm_bsrli_si128, __m128i, __m128i, 1)
+test_1 (_mm_bslli_si128, __m128i, __m128i, 1)
 test_1 (_mm_srli_si128, __m128i, __m128i, 1)
 test_1 (_mm_slli_si128, __m128i, __m128i, 1)
 test_1 (_mm_extract_epi16, int, __m128i, 1)

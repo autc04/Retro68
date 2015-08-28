@@ -9,7 +9,6 @@
 #define SIZE (AVX512F_LEN / 64)
 #include "avx512f-mask-type.h"
 #include "math.h"
-#include "values.h"
 
 static void
 CALC (long long *dst, long long *src1, long long *ind, long long *src2)
@@ -25,7 +24,7 @@ CALC (long long *dst, long long *src1, long long *ind, long long *src2)
     }
 }
 
-void static
+void
 TEST (void)
 {
   int i;

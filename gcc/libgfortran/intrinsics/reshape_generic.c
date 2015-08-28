@@ -1,5 +1,5 @@
 /* Generic implementation of the RESHAPE intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -99,11 +99,11 @@ reshape_internal (parray *ret, parray *source, shape_type *shape,
       ret->offset = 0;
 
       if (unlikely (rs < 1))
-	alloc_size = 1;
+	alloc_size = 0; /* xmalloc will allocate 1 byte.  */
       else
-	alloc_size = rs * size;
+	alloc_size = rs;
 
-      ret->base_addr = xmalloc (alloc_size);
+      ret->base_addr = xmallocarray (alloc_size, size);
 
       ret->dtype = (source->dtype & ~GFC_DTYPE_RANK_MASK) | rdim;
     }

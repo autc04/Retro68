@@ -1,5 +1,5 @@
 /* Functions to support general ended bitmaps.
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -34,11 +34,11 @@ struct bitmap_descriptor_d
   const char *file;
   int line;
   int created;
-  unsigned HOST_WIDEST_INT allocated;
-  unsigned HOST_WIDEST_INT peak;
-  unsigned HOST_WIDEST_INT current;
-  unsigned HOST_WIDEST_INT nsearches;
-  unsigned HOST_WIDEST_INT search_iter;
+  uint64_t allocated;
+  uint64_t peak;
+  uint64_t current;
+  uint64_t nsearches;
+  uint64_t search_iter;
 };
 
 typedef struct bitmap_descriptor_d *bitmap_descriptor;
@@ -80,7 +80,7 @@ bitmap_desc_hasher::equal (const value_type *d, const compare_type *l)
 }
 
 /* Hashtable mapping bitmap names to descriptors.  */
-static hash_table <bitmap_desc_hasher> bitmap_desc_hash;
+static hash_table<bitmap_desc_hasher> *bitmap_desc_hash;
 
 /* For given file and line, return descriptor, create new if needed.  */
 static bitmap_descriptor
@@ -93,12 +93,13 @@ get_bitmap_descriptor (const char *file, int line, const char *function)
   loc.function = function;
   loc.line = line;
 
-  if (!bitmap_desc_hash.is_created ())
-    bitmap_desc_hash.create (10);
+  if (!bitmap_desc_hash)
+    bitmap_desc_hash = new hash_table<bitmap_desc_hasher> (10);
 
-  slot = bitmap_desc_hash.find_slot_with_hash (&loc,
-					       htab_hash_pointer (file) + line,
-					       INSERT);
+  slot
+    = bitmap_desc_hash->find_slot_with_hash (&loc,
+					     htab_hash_pointer (file) + line,
+					     INSERT);
   if (*slot)
     return *slot;
 
@@ -244,7 +245,7 @@ bitmap_element_allocate (bitmap head)
 	  /*  Inner list was just a singleton.  */
 	  bitmap_ggc_free = element->prev;
       else
-	element = ggc_alloc_bitmap_element ();
+	element = ggc_alloc<bitmap_element> ();
     }
 
   if (GATHER_STATISTICS)
@@ -388,7 +389,7 @@ bitmap_gc_alloc_stat (ALONE_MEM_STAT_DECL)
 {
   bitmap map;
 
-  map = ggc_alloc_bitmap_head ();
+  map = ggc_alloc<bitmap_head> ();
   bitmap_initialize_stat (map, NULL PASS_MEM_STAT);
 
   if (GATHER_STATISTICS)
@@ -1594,6 +1595,8 @@ bitmap_ior (bitmap dst, const_bitmap a, const_bitmap b)
   if (dst_elt)
     {
       changed = true;
+      /* Ensure that dst->current is valid.  */
+      dst->current = dst->first;
       bitmap_elt_clear_from (dst, dst_elt);
     }
   gcc_checking_assert (!dst->current == !dst->first);
@@ -1950,6 +1953,8 @@ bitmap_ior_and_compl (bitmap dst, const_bitmap a, const_bitmap b, const_bitmap k
   if (dst_elt)
     {
       changed = true;
+      /* Ensure that dst->current is valid.  */
+      dst->current = dst->first;
       bitmap_elt_clear_from (dst, dst_elt);
     }
   gcc_checking_assert (!dst->current == !dst->first);
@@ -2117,7 +2122,7 @@ debug_bitmap_file (FILE *file, const_bitmap head)
 DEBUG_FUNCTION void
 debug_bitmap (const_bitmap head)
 {
-  debug_bitmap_file (stdout, head);
+  debug_bitmap_file (stderr, head);
 }
 
 /* Function to print out the contents of a bitmap.  Unlike debug_bitmap_file,
@@ -2142,16 +2147,16 @@ bitmap_print (FILE *file, const_bitmap head, const char *prefix,
 
 
 /* Used to accumulate statistics about bitmap sizes.  */
-struct output_info
+struct bitmap_output_info
 {
-  unsigned HOST_WIDEST_INT size;
-  unsigned HOST_WIDEST_INT count;
+  uint64_t size;
+  uint64_t count;
 };
 
 /* Called via hash_table::traverse.  Output bitmap descriptor pointed out by
    SLOT and update statistics.  */
 int
-print_statistics (bitmap_descriptor_d **slot, output_info *i)
+print_statistics (bitmap_descriptor_d **slot, bitmap_output_info *i)
 {
   bitmap_descriptor d = *slot;
   char s[4096];
@@ -2165,10 +2170,8 @@ print_statistics (bitmap_descriptor_d **slot, output_info *i)
       sprintf (s, "%s:%i (%s)", s1, d->line, d->function);
       s[41] = 0;
       fprintf (stderr,
-	       "%-41s %9u"
-	       " %15"HOST_WIDEST_INT_PRINT"d %15"HOST_WIDEST_INT_PRINT"d"
-	       " %15"HOST_WIDEST_INT_PRINT"d"
-	       " %10"HOST_WIDEST_INT_PRINT"d %10"HOST_WIDEST_INT_PRINT"d\n",
+	       "%-41s %9u %15"PRId64" %15"PRId64" %15"PRId64
+	       " %10"PRId64" %10"PRId64"\n",
 	       s, d->created,
 	       d->allocated, d->peak, d->current,
 	       d->nsearches, d->search_iter);
@@ -2182,12 +2185,12 @@ print_statistics (bitmap_descriptor_d **slot, output_info *i)
 void
 dump_bitmap_statistics (void)
 {
-  struct output_info info;
+  struct bitmap_output_info info;
 
   if (! GATHER_STATISTICS)
     return;
 
-  if (!bitmap_desc_hash.is_created ())
+  if (!bitmap_desc_hash)
     return;
 
   fprintf (stderr,
@@ -2198,10 +2201,10 @@ dump_bitmap_statistics (void)
   fprintf (stderr, "---------------------------------------------------------------------------------\n");
   info.count = 0;
   info.size = 0;
-  bitmap_desc_hash.traverse <output_info *, print_statistics> (&info);
+  bitmap_desc_hash->traverse <bitmap_output_info *, print_statistics> (&info);
   fprintf (stderr, "---------------------------------------------------------------------------------\n");
   fprintf (stderr,
-	   "%-41s %9"HOST_WIDEST_INT_PRINT"d %15"HOST_WIDEST_INT_PRINT"d\n",
+	   "%-41s %9"PRId64" %15"PRId64"\n",
 	   "Total", info.count, info.size);
   fprintf (stderr, "---------------------------------------------------------------------------------\n");
 }

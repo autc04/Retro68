@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -240,6 +240,10 @@ package body Ch5 is
                    and then Statement_Seen)
                 or else All_Pragmas)
             then
+               --  This Ada 2012 construct not allowed in a compiler unit
+
+               Check_Compiler_Unit ("null statement list", Token_Ptr);
+
                declare
                   Null_Stm : constant Node_Id :=
                                Make_Null_Statement (Token_Ptr);
@@ -695,6 +699,11 @@ package body Ch5 is
 
                      else
                         TF_Semicolon;
+
+                        --  Normal processing as though semicolon were present
+
+                        Change_Name_To_Procedure_Call_Statement (Name_Node);
+                        Append_To (Statement_List, Name_Node);
                         Statement_Required := False;
                      end if;
 

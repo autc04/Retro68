@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,10 +17,25 @@
 # Return 1 if compilation with -fsanitize=address is error-free for trivial
 # code, 0 otherwise.
 
-proc check_effective_target_faddress_sanitizer {} {
-    return [check_no_compiler_messages faddress_sanitizer object {
-	void foo (void) { }
+proc check_effective_target_fsanitize_address {} {
+    return [check_no_compiler_messages fsanitize_address executable {
+	int main (void) { return 0; }
     } "-fsanitize=address"]
+}
+
+proc asan_include_flags {} {
+    global srcdir
+    global TESTING_IN_BUILD_TREE
+
+    set flags ""
+
+    if { [is_remote host] || ! [info exists TESTING_IN_BUILD_TREE] } {
+      return "${flags}"
+    }
+
+    set flags "-I$srcdir/../../libsanitizer/include"
+
+    return "$flags"
 }
 
 #
@@ -32,11 +47,13 @@ proc asan_link_flags { paths } {
     global srcdir
     global ld_library_path
     global shlib_ext
+    global asan_saved_library_path
 
     set gccpath ${paths}
     set flags ""
 
     set shlib_ext [get_shlib_extension]
+    set asan_saved_library_path $ld_library_path
 
     if { $gccpath != "" } {
       if { [file exists "${gccpath}/libsanitizer/asan/.libs/libasan.a"]
@@ -70,6 +87,7 @@ proc asan_init { args } {
     global ALWAYS_CXXFLAGS
     global TOOL_OPTIONS
     global asan_saved_TEST_ALWAYS_FLAGS
+    global asan_saved_ALWAYS_CXXFLAGS
 
     set link_flags ""
     if ![is_remote host] {
@@ -80,23 +98,22 @@ proc asan_init { args } {
 	}
     }
 
+    set include_flags "[asan_include_flags]"
+
     if [info exists TEST_ALWAYS_FLAGS] {
 	set asan_saved_TEST_ALWAYS_FLAGS $TEST_ALWAYS_FLAGS
     }
     if [info exists ALWAYS_CXXFLAGS] {
+	set asan_saved_ALWAYS_CXXFLAGS $ALWAYS_CXXFLAGS
 	set ALWAYS_CXXFLAGS [concat "{ldflags=$link_flags}" $ALWAYS_CXXFLAGS]
-	set ALWAYS_CXXFLAGS [concat "{additional_flags=-fsanitize=address -g}" $ALWAYS_CXXFLAGS]
+	set ALWAYS_CXXFLAGS [concat "{additional_flags=-fsanitize=address -g $include_flags}" $ALWAYS_CXXFLAGS]
     } else {
 	if [info exists TEST_ALWAYS_FLAGS] {
-	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address -g $TEST_ALWAYS_FLAGS"
+	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address -g $include_flags $TEST_ALWAYS_FLAGS"
 	} else {
-	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address -g"
+	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address -g $include_flags"
 	}
     }
-    if { $link_flags != "" } {
-	return 1
-    }
-    return 0
 }
 
 #
@@ -106,12 +123,21 @@ proc asan_init { args } {
 proc asan_finish { args } {
     global TEST_ALWAYS_FLAGS
     global asan_saved_TEST_ALWAYS_FLAGS
+    global asan_saved_ALWAYS_CXXFLAGS
+    global asan_saved_library_path
+    global ld_library_path
 
-    if [info exists asan_saved_TEST_ALWAYS_FLAGS] {
-	set TEST_ALWAYS_FLAGS $asan_saved_TEST_ALWAYS_FLAGS
+    if [info exists asan_saved_ALWAYS_CXXFLAGS ] {
+	set ALWAYS_CXXFLAGS $asan_saved_ALWAYS_CXXFLAGS
     } else {
-	unset TEST_ALWAYS_FLAGS
+	if [info exists asan_saved_TEST_ALWAYS_FLAGS] {
+	    set TEST_ALWAYS_FLAGS $asan_saved_TEST_ALWAYS_FLAGS
+	} else {
+	    unset TEST_ALWAYS_FLAGS
+	}
     }
+    set ld_library_path $asan_saved_library_path
+    set_ld_library_path_env_vars
 }
 
 # Symbolize lines like

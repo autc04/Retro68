@@ -861,29 +861,29 @@ func TestErrors(t *testing.T) {
 		// Error cases.
 		{
 			"{{if .Cond}}<a{{end}}",
-			"z:1: {{if}} branches",
+			"z:1:5: {{if}} branches",
 		},
 		{
 			"{{if .Cond}}\n{{else}}\n<a{{end}}",
-			"z:1: {{if}} branches",
+			"z:1:5: {{if}} branches",
 		},
 		{
 			// Missing quote in the else branch.
 			`{{if .Cond}}<a href="foo">{{else}}<a href="bar>{{end}}`,
-			"z:1: {{if}} branches",
+			"z:1:5: {{if}} branches",
 		},
 		{
 			// Different kind of attribute: href implies a URL.
 			"<a {{if .Cond}}href='{{else}}title='{{end}}{{.X}}'>",
-			"z:1: {{if}} branches",
+			"z:1:8: {{if}} branches",
 		},
 		{
 			"\n{{with .X}}<a{{end}}",
-			"z:2: {{with}} branches",
+			"z:2:7: {{with}} branches",
 		},
 		{
 			"\n{{with .X}}<a>{{else}}<a{{end}}",
-			"z:2: {{with}} branches",
+			"z:2:7: {{with}} branches",
 		},
 		{
 			"{{range .Items}}<a{{end}}",
@@ -891,7 +891,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			"\n{{range .Items}} x='<a{{end}}",
-			"z:2: on range loop re-entry: {{range}} branches",
+			"z:2:8: on range loop re-entry: {{range}} branches",
 		},
 		{
 			"<a b=1 c={{.H}}",
@@ -903,7 +903,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
-			"z:1: {{.H}} appears in an ambiguous URL context",
+			"z:1:47: {{.H}} appears in an ambiguous URL context",
 		},
 		{
 			`<a onclick="alert('Hello \`,
@@ -932,7 +932,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`{{template "foo"}}`,
-			"z:1: no such template \"foo\"",
+			"z:1:11: no such template \"foo\"",
 		},
 		{
 			`<div{{template "y"}}>` +
@@ -993,6 +993,11 @@ func TestErrors(t *testing.T) {
 		if strings.Index(got, test.err) == -1 {
 			t.Errorf("input=%q: error\n\t%q\ndoes not contain expected string\n\t%q", test.input, got, test.err)
 			continue
+		}
+		// Check that we get the same error if we call Execute again.
+		if err := tmpl.Execute(buf, nil); err == nil || err.Error() != got {
+			t.Errorf("input=%q: unexpected error on second call %q", test.input, err)
+
 		}
 	}
 }
@@ -1646,6 +1651,38 @@ func TestEmptyTemplate(t *testing.T) {
 	page := Must(New("page").ParseFiles(os.DevNull))
 	if err := page.ExecuteTemplate(os.Stdout, "page", "nothing"); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+type Issue7379 int
+
+func (Issue7379) SomeMethod(x int) string {
+	return fmt.Sprintf("<%d>", x)
+}
+
+// This is a test for issue 7379: type assertion error caused panic, and then
+// the code to handle the panic breaks escaping. It's hard to see the second
+// problem once the first is fixed, but its fix is trivial so we let that go. See
+// the discussion for issue 7379.
+func TestPipeToMethodIsEscaped(t *testing.T) {
+	tmpl := Must(New("x").Parse("<html>{{0 | .SomeMethod}}</html>\n"))
+	tryExec := func() string {
+		defer func() {
+			panicValue := recover()
+			if panicValue != nil {
+				t.Errorf("panicked: %v\n", panicValue)
+			}
+		}()
+		var b bytes.Buffer
+		tmpl.Execute(&b, Issue7379(0))
+		return b.String()
+	}
+	for i := 0; i < 3; i++ {
+		str := tryExec()
+		const expect = "<html>&lt;0&gt;</html>\n"
+		if str != expect {
+			t.Errorf("expected %q got %q", expect, str)
+		}
 	}
 }
 

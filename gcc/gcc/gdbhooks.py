@@ -1,5 +1,5 @@
 # Python hooks for gdb for debugging GCC
-# Copyright (C) 2013-2014 Free Software Foundation, Inc.
+# Copyright (C) 2013-2015 Free Software Foundation, Inc.
 
 # Contributed by David Malcolm <dmalcolm@redhat.com>
 
@@ -130,6 +130,7 @@ Instead (for now) you must access m_vecdata:
   (gdb) p bb->preds->m_vecdata[1]
   $21 = <edge 0x7ffff044d3b8 (4 -> 5)>
 """
+import os.path
 import re
 
 import gdb
@@ -248,6 +249,26 @@ class CGraphNodePrinter:
             #    return IDENTIFIER_POINTER (DECL_NAME (decl));
             tree_decl = Tree(self.gdbval['decl'])
             result += ' "%s"' % tree_decl.DECL_NAME().IDENTIFIER_POINTER()
+        result += '>'
+        return result
+
+######################################################################
+# Dwarf DIE pretty-printers
+######################################################################
+
+class DWDieRefPrinter:
+    def __init__(self, gdbval):
+        self.gdbval = gdbval
+
+    def to_string (self):
+        if long(self.gdbval) == 0:
+            return '<dw_die_ref 0x0>'
+        result = '<dw_die_ref 0x%x' % long(self.gdbval)
+        result += ' %s' % self.gdbval['die_tag']
+        if long(self.gdbval['die_parent']) != 0:
+            result += ' <parent=0x%x %s>' % (long(self.gdbval['die_parent']),
+                                             self.gdbval['die_parent']['die_tag'])
+                                             
         result += '>'
         return result
 
@@ -454,7 +475,26 @@ def build_pretty_printer():
                              'tree', TreePrinter)
     pp.add_printer_for_types(['cgraph_node *'],
                              'cgraph_node', CGraphNodePrinter)
-    pp.add_printer_for_types(['gimple', 'gimple_statement_base *'],
+    pp.add_printer_for_types(['dw_die_ref'],
+                             'dw_die_ref', DWDieRefPrinter)
+    pp.add_printer_for_types(['gimple', 'gimple_statement_base *',
+
+                              # Keep this in the same order as gimple.def:
+                              'gimple_cond', 'const_gimple_cond',
+                              'gimple_statement_cond *',
+                              'gimple_debug', 'const_gimple_debug',
+                              'gimple_statement_debug *',
+                              'gimple_label', 'const_gimple_label',
+                              'gimple_statement_label *',
+                              'gimple_switch', 'const_gimple_switch',
+                              'gimple_statement_switch *',
+                              'gimple_assign', 'const_gimple_assign',
+                              'gimple_statement_assign *',
+                              'gimple_bind', 'const_gimple_bind',
+                              'gimple_statement_bind *',
+                              'gimple_phi', 'const_gimple_phi',
+                              'gimple_statement_phi *'],
+
                              'gimple',
                              GimplePrinter)
     pp.add_printer_for_types(['basic_block', 'basic_block_def *'],
@@ -475,5 +515,71 @@ def build_pretty_printer():
 gdb.printing.register_pretty_printer(
     gdb.current_objfile(),
     build_pretty_printer())
+
+def find_gcc_source_dir():
+    # Use location of global "g" to locate the source tree
+    sym_g = gdb.lookup_global_symbol('g')
+    path = sym_g.symtab.filename # e.g. '../../src/gcc/context.h'
+    srcdir = os.path.split(path)[0] # e.g. '../../src/gcc'
+    return srcdir
+
+class PassNames:
+    """Parse passes.def, gathering a list of pass class names"""
+    def __init__(self):
+        srcdir = find_gcc_source_dir()
+        self.names = []
+        with open(os.path.join(srcdir, 'passes.def')) as f:
+            for line in f:
+                m = re.match('\s*NEXT_PASS \((.+)\);', line)
+                if m:
+                    self.names.append(m.group(1))
+
+class BreakOnPass(gdb.Command):
+    """
+    A custom command for putting breakpoints on the execute hook of passes.
+    This is largely a workaround for issues with tab-completion in gdb when
+    setting breakpoints on methods on classes within anonymous namespaces.
+
+    Example of use: putting a breakpoint on "final"
+      (gdb) break-on-pass
+    Press <TAB>; it autocompletes to "pass_":
+      (gdb) break-on-pass pass_
+    Press <TAB>:
+      Display all 219 possibilities? (y or n)
+    Press "n"; then type "f":
+      (gdb) break-on-pass pass_f
+    Press <TAB> to autocomplete to pass classnames beginning with "pass_f":
+      pass_fast_rtl_dce              pass_fold_builtins
+      pass_feedback_split_functions  pass_forwprop
+      pass_final                     pass_fre
+      pass_fixup_cfg                 pass_free_cfg
+    Type "in<TAB>" to complete to "pass_final":
+      (gdb) break-on-pass pass_final
+    ...and hit <RETURN>:
+      Breakpoint 6 at 0x8396ba: file ../../src/gcc/final.c, line 4526.
+    ...and we have a breakpoint set; continue execution:
+      (gdb) cont
+      Continuing.
+      Breakpoint 6, (anonymous namespace)::pass_final::execute (this=0x17fb990) at ../../src/gcc/final.c:4526
+      4526	  virtual unsigned int execute (function *) { return rest_of_handle_final (); }
+    """
+    def __init__(self):
+        gdb.Command.__init__(self, 'break-on-pass', gdb.COMMAND_BREAKPOINTS)
+        self.pass_names = None
+
+    def complete(self, text, word):
+        # Lazily load pass names:
+        if not self.pass_names:
+            self.pass_names = PassNames()
+
+        return [name
+                for name in sorted(self.pass_names.names)
+                if name.startswith(text)]
+
+    def invoke(self, arg, from_tty):
+        sym = '(anonymous namespace)::%s::execute' % arg
+        breakpoint = gdb.Breakpoint(sym)
+
+BreakOnPass()
 
 print('Successfully loaded GDB hooks for GCC')

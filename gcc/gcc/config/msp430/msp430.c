@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on TI MSP430 processors.
-   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+   Copyright (C) 2012-2015 Free Software Foundation, Inc.
    Contributed by Red Hat.
 
    This file is part of GCC.
@@ -22,7 +22,17 @@
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stor-layout.h"
 #include "calls.h"
 #include "rtl.h"
@@ -34,13 +44,33 @@
 #include "insn-attr.h"
 #include "flags.h"
 #include "function.h"
+#include "hashtab.h"
+#include "statistics.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
 #include "expr.h"
+#include "insn-codes.h"
 #include "optabs.h"
 #include "libfuncs.h"
 #include "recog.h"
 #include "diagnostic-core.h"
 #include "toplev.h"
 #include "reload.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfgrtl.h"
+#include "cfganal.h"
+#include "lcm.h"
+#include "cfgbuild.h"
+#include "cfgcleanup.h"
+#include "predict.h"
+#include "basic-block.h"
 #include "df.h"
 #include "ggc.h"
 #include "tm_p.h"
@@ -51,6 +81,7 @@
 #include "msp430-protos.h"
 #include "dumpfile.h"
 #include "opts.h"
+#include "builtins.h"
 
 
 static void msp430_compute_frame_info (void);
@@ -90,7 +121,7 @@ msp430_init_machine_status (void)
 {
   struct machine_function *m;
 
-  m = ggc_alloc_cleared_machine_function ();
+  m = ggc_cleared_alloc<machine_function> ();
 
   return m;
 }
@@ -227,6 +258,21 @@ msp430_option_override (void)
     optimize_size = 1;
 }
 
+#undef  TARGET_SCALAR_MODE_SUPPORTED_P
+#define TARGET_SCALAR_MODE_SUPPORTED_P msp430_scalar_mode_supported_p
+
+static bool
+msp430_scalar_mode_supported_p (machine_mode m)
+{
+  if (m == PSImode && msp430x)
+    return true;
+#if 0
+  if (m == TImode)
+    return true;
+#endif
+  return default_scalar_mode_supported_p (m);
+}
+
 
 
 /* Storage Layout */
@@ -248,7 +294,7 @@ msp430_ms_bitfield_layout_p (const_tree record_type ATTRIBUTE_UNUSED)
    PSImode value, but not an SImode value.  */
 int
 msp430_hard_regno_nregs (int regno ATTRIBUTE_UNUSED,
-			 enum machine_mode mode)
+			 machine_mode mode)
 {
   if (mode == PSImode && msp430x)
     return 1;
@@ -256,17 +302,38 @@ msp430_hard_regno_nregs (int regno ATTRIBUTE_UNUSED,
 	  / UNITS_PER_WORD);
 }
 
+/* Implements HARD_REGNO_NREGS_HAS_PADDING.  */
+int
+msp430_hard_regno_nregs_has_padding (int regno ATTRIBUTE_UNUSED,
+				     machine_mode mode)
+{
+  if (mode == PSImode && msp430x)
+    return 1;
+  return ((GET_MODE_SIZE (mode) + UNITS_PER_WORD - 1)
+	  / UNITS_PER_WORD);
+}
+
+/* Implements HARD_REGNO_NREGS_WITH_PADDING.  */
+int
+msp430_hard_regno_nregs_with_padding (int regno ATTRIBUTE_UNUSED,
+				     machine_mode mode)
+{
+  if (mode == PSImode)
+    return 2;
+  return msp430_hard_regno_nregs (regno, mode);
+}
+
 /* Implements HARD_REGNO_MODE_OK.  */
 int
 msp430_hard_regno_mode_ok (int regno ATTRIBUTE_UNUSED,
-			   enum machine_mode mode)
+			   machine_mode mode)
 {
   return regno <= (ARG_POINTER_REGNUM - msp430_hard_regno_nregs (regno, mode));
 }
 
 /* Implements MODES_TIEABLE_P.  */
 bool
-msp430_modes_tieable_p (enum machine_mode mode1, enum machine_mode mode2)
+msp430_modes_tieable_p (machine_mode mode1, machine_mode mode2)
 {
   if ((mode1 == PSImode || mode2 == SImode)
       || (mode1 == SImode || mode2 == PSImode))
@@ -346,7 +413,7 @@ msp430_initial_elimination_offset (int from, int to)
 #undef  TARGET_ADDR_SPACE_ADDRESS_MODE
 #define TARGET_ADDR_SPACE_ADDRESS_MODE msp430_addr_space_pointer_mode
 
-static enum machine_mode
+static machine_mode
 msp430_addr_space_pointer_mode (addr_space_t addrspace)
 {
   switch (addrspace)
@@ -366,10 +433,10 @@ msp430_addr_space_pointer_mode (addr_space_t addrspace)
 #undef  TARGET_UNWIND_WORD_MODE
 #define TARGET_UNWIND_WORD_MODE msp430_unwind_word_mode
 
-static enum machine_mode
+static machine_mode
 msp430_unwind_word_mode (void)
 {
-  return TARGET_LARGE ? SImode : HImode;
+  return TARGET_LARGE ? PSImode : HImode;
 }
 
 /* Determine if one named address space is a subset of another.  */
@@ -482,7 +549,7 @@ msp430_function_value (const_tree ret_type,
 #define TARGET_LIBCALL_VALUE msp430_libcall_value
 
 rtx
-msp430_libcall_value (enum machine_mode mode, const_rtx fun ATTRIBUTE_UNUSED)
+msp430_libcall_value (machine_mode mode, const_rtx fun ATTRIBUTE_UNUSED)
 {
   return gen_rtx_REG (mode, 12);
 }
@@ -515,7 +582,7 @@ msp430_init_cumulative_args (CUMULATIVE_ARGS *ca,
    code that determines where an argument will be passed.  */
 static void
 msp430_evaluate_arg (cumulative_args_t cap,
-		     enum machine_mode mode,
+		     machine_mode mode,
 		     const_tree type ATTRIBUTE_UNUSED,
 		     bool named)
 {
@@ -600,7 +667,7 @@ msp430_promote_prototypes (const_tree fntype ATTRIBUTE_UNUSED)
 
 rtx
 msp430_function_arg (cumulative_args_t cap,
-		     enum machine_mode mode,
+		     machine_mode mode,
 		     const_tree type,
 		     bool named)
 {
@@ -619,7 +686,7 @@ msp430_function_arg (cumulative_args_t cap,
 
 int
 msp430_arg_partial_bytes (cumulative_args_t cap,
-			  enum machine_mode mode,
+			  machine_mode mode,
 			  tree type,
 			  bool named)
 {
@@ -638,7 +705,7 @@ msp430_arg_partial_bytes (cumulative_args_t cap,
 
 static bool
 msp430_pass_by_reference (cumulative_args_t cap ATTRIBUTE_UNUSED,
-			  enum machine_mode mode,
+			  machine_mode mode,
 			  const_tree type,
 			  bool named ATTRIBUTE_UNUSED)
 {
@@ -652,7 +719,7 @@ msp430_pass_by_reference (cumulative_args_t cap ATTRIBUTE_UNUSED,
 
 static bool
 msp430_callee_copies (cumulative_args_t cap ATTRIBUTE_UNUSED,
-                     enum machine_mode mode ATTRIBUTE_UNUSED,
+                     machine_mode mode ATTRIBUTE_UNUSED,
                      const_tree type ATTRIBUTE_UNUSED,
                      bool named ATTRIBUTE_UNUSED)
 {
@@ -664,7 +731,7 @@ msp430_callee_copies (cumulative_args_t cap ATTRIBUTE_UNUSED,
 
 void
 msp430_function_arg_advance (cumulative_args_t cap,
-			     enum machine_mode mode,
+			     machine_mode mode,
 			     const_tree type,
 			     bool named)
 {
@@ -684,7 +751,7 @@ msp430_function_arg_advance (cumulative_args_t cap,
 #define TARGET_FUNCTION_ARG_BOUNDARY msp430_function_arg_boundary
 
 static unsigned int
-msp430_function_arg_boundary (enum machine_mode mode, const_tree type)
+msp430_function_arg_boundary (machine_mode mode, const_tree type)
 {
   if (mode == BLKmode
       && int_size_in_bytes (type) > 1)
@@ -700,7 +767,7 @@ msp430_function_arg_boundary (enum machine_mode mode, const_tree type)
 static bool
 msp430_return_in_memory (const_tree ret_type, const_tree fntype ATTRIBUTE_UNUSED)
 {
-  enum machine_mode mode = TYPE_MODE (ret_type);
+  machine_mode mode = TYPE_MODE (ret_type);
 
   if (mode == BLKmode
       || (fntype && TREE_CODE (TREE_TYPE (fntype)) == RECORD_TYPE)
@@ -716,7 +783,7 @@ msp430_return_in_memory (const_tree ret_type, const_tree fntype ATTRIBUTE_UNUSED
 #undef  TARGET_GET_RAW_ARG_MODE
 #define TARGET_GET_RAW_ARG_MODE msp430_get_raw_arg_mode
 
-static enum machine_mode
+static machine_mode
 msp430_get_raw_arg_mode (int regno)
 {
   return (regno == ARG_POINTER_REGNUM) ? VOIDmode : Pmode;
@@ -725,7 +792,7 @@ msp430_get_raw_arg_mode (int regno)
 #undef  TARGET_GET_RAW_RESULT_MODE
 #define TARGET_GET_RAW_RESULT_MODE msp430_get_raw_result_mode
 
-static enum machine_mode
+static machine_mode
 msp430_get_raw_result_mode (int regno ATTRIBUTE_UNUSED)
 {
   return Pmode;
@@ -842,7 +909,7 @@ reg_ok_for_addr (rtx r, bool strict)
 }
 
 bool
-msp430_legitimate_address_p (enum machine_mode mode ATTRIBUTE_UNUSED,
+msp430_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED,
 			     rtx x ATTRIBUTE_UNUSED,
 			     bool strict ATTRIBUTE_UNUSED)
 {
@@ -884,11 +951,57 @@ msp430_legitimate_address_p (enum machine_mode mode ATTRIBUTE_UNUSED,
     }
 }
 
+#undef  TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P
+#define TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P msp430_addr_space_legitimate_address_p
+
+bool
+msp430_addr_space_legitimate_address_p (machine_mode mode,
+					rtx x,
+					bool strict,
+					addr_space_t as ATTRIBUTE_UNUSED)
+{
+  return msp430_legitimate_address_p (mode, x, strict);
+}
+
+#undef  TARGET_ASM_INTEGER
+#define TARGET_ASM_INTEGER msp430_asm_integer
+static bool
+msp430_asm_integer (rtx x, unsigned int size, int aligned_p)
+{
+  int c = GET_CODE (x);
+
+  if (size == 3 && GET_MODE (x) == PSImode)
+    size = 4;
+
+  switch (size)
+    {
+    case 4:
+      if (c == SYMBOL_REF || c == CONST || c == LABEL_REF || c == CONST_INT)
+	{
+	  fprintf (asm_out_file, "\t.long\t");
+	  output_addr_const (asm_out_file, x);
+	  fputc ('\n', asm_out_file);
+	  return true;
+	}
+      break;
+    }
+  return default_assemble_integer (x, size, aligned_p);
+}
+
+#undef  TARGET_ASM_OUTPUT_ADDR_CONST_EXTRA
+#define TARGET_ASM_OUTPUT_ADDR_CONST_EXTRA msp430_asm_output_addr_const_extra
+static bool
+msp430_asm_output_addr_const_extra (FILE *file ATTRIBUTE_UNUSED, rtx x)
+{
+  debug_rtx(x);
+  return false;
+}
+
 #undef  TARGET_LEGITIMATE_CONSTANT_P
 #define TARGET_LEGITIMATE_CONSTANT_P msp430_legitimate_constant
 
 static bool
-msp430_legitimate_constant (enum machine_mode mode, rtx x)
+msp430_legitimate_constant (machine_mode mode, rtx x)
 {
   return ! CONST_INT_P (x)
     || mode != PSImode
@@ -1176,7 +1289,7 @@ msp430_attr (tree * node,
 	  break;
 
 	case INTEGER_CST:
-	  if (TREE_INT_CST_LOW (value) > 63)
+	  if (wi::gtu_p (value, 63))
 	    /* Allow the attribute to be added - the linker script
 	       being used may still recognise this value.  */
 	    warning (OPT_Wattributes,
@@ -1285,6 +1398,7 @@ enum msp430_builtin
 {
   MSP430_BUILTIN_BIC_SR,
   MSP430_BUILTIN_BIS_SR,
+  MSP430_BUILTIN_DELAY_CYCLES,
   MSP430_BUILTIN_max
 };
 
@@ -1294,6 +1408,7 @@ static void
 msp430_init_builtins (void)
 {
   tree void_ftype_int = build_function_type_list (void_type_node, integer_type_node, NULL);
+  tree void_ftype_longlong = build_function_type_list (void_type_node, long_long_integer_type_node, NULL);
 
   msp430_builtins[MSP430_BUILTIN_BIC_SR] =
     add_builtin_function ( "__bic_SR_register_on_exit", void_ftype_int,
@@ -1302,6 +1417,10 @@ msp430_init_builtins (void)
   msp430_builtins[MSP430_BUILTIN_BIS_SR] =
     add_builtin_function ( "__bis_SR_register_on_exit", void_ftype_int,
 			   MSP430_BUILTIN_BIS_SR, BUILT_IN_MD, NULL, NULL_TREE);
+
+  msp430_builtins[MSP430_BUILTIN_DELAY_CYCLES] =
+    add_builtin_function ( "__delay_cycles", void_ftype_longlong,
+			   MSP430_BUILTIN_DELAY_CYCLES, BUILT_IN_MD, NULL, NULL_TREE);
 }
 
 static tree
@@ -1311,22 +1430,139 @@ msp430_builtin_decl (unsigned code, bool initialize ATTRIBUTE_UNUSED)
     {
     case MSP430_BUILTIN_BIC_SR:
     case MSP430_BUILTIN_BIS_SR:
+    case MSP430_BUILTIN_DELAY_CYCLES:
       return msp430_builtins[code];
     default:
       return error_mark_node;
     }
 }
 
+/* These constants are really register reads, which are faster than
+   regular constants.  */
+static int
+cg_magic_constant (HOST_WIDE_INT c)
+{
+  switch (c)
+    {
+    case 0xffff:
+    case -1:
+    case 0:
+    case 1:
+    case 2:
+    case 4:
+    case 8:
+      return 1;
+    default:
+      return 0;
+    }
+}
+
+static rtx
+msp430_expand_delay_cycles (rtx arg)
+{
+  HOST_WIDE_INT i, c, n;
+  /* extra cycles for MSP430X instructions */
+#define CYCX(M,X) (msp430x ? (X) : (M))
+
+  if (GET_CODE (arg) != CONST_INT)
+    {
+      error ("__delay_cycles() only takes constant arguments");
+      return NULL_RTX;
+    }
+
+  c = INTVAL (arg);
+
+  if (HOST_BITS_PER_WIDE_INT > 32)
+    {
+      if (c < 0)
+	{
+	  error ("__delay_cycles only takes non-negative cycle counts.");
+	  return NULL_RTX;
+	}
+    }
+
+  emit_insn (gen_delay_cycles_start (arg));
+
+  /* For 32-bit loops, there's 13(16) + 5(min(x,0x10000) + 6x cycles.  */
+  if (c > 3 * 0xffff + CYCX (7, 10))
+    {
+      n = c;
+      /* There's 4 cycles in the short (i>0xffff) loop and 7 in the long (x<=0xffff) loop */
+      if (c >= 0x10000 * 7 + CYCX (14, 16))
+	{
+	  i = 0x10000;
+	  c -= CYCX (14, 16) + 7 * 0x10000;
+	  i += c / 4;
+	  c %= 4;
+	  if ((unsigned long long) i > 0xffffffffULL)
+	    {
+	      error ("__delay_cycles is limited to 32-bit loop counts.");
+	      return NULL_RTX;
+	    }
+	}
+      else
+	{
+	  i = (c - CYCX (14, 16)) / 7;
+	  c -= CYCX (14, 16) + i * 7;
+	}
+
+      if (cg_magic_constant (i & 0xffff))
+	c ++;
+      if (cg_magic_constant ((i >> 16) & 0xffff))
+	c ++;
+
+      if (msp430x)
+	emit_insn (gen_delay_cycles_32x (GEN_INT (i), GEN_INT (n - c)));
+      else
+	emit_insn (gen_delay_cycles_32 (GEN_INT (i), GEN_INT (n - c)));
+    }
+
+  /* For 16-bit loops, there's 7(10) + 3x cycles - so the max cycles is 0x30004(7).  */
+  if (c > 12)
+    {
+      n = c;
+      i = (c - CYCX (7, 10)) / 3;
+      c -= CYCX (7, 10) + i * 3;
+
+      if (cg_magic_constant (i))
+	c ++;
+
+      if (msp430x)
+	emit_insn (gen_delay_cycles_16x (GEN_INT (i), GEN_INT (n - c)));
+      else
+	emit_insn (gen_delay_cycles_16 (GEN_INT (i), GEN_INT (n - c)));
+    }
+
+  while (c > 1)
+    {
+      emit_insn (gen_delay_cycles_2 ());
+      c -= 2;
+    }
+
+  if (c)
+    {
+      emit_insn (gen_delay_cycles_1 ());
+      c -= 1;
+    }
+
+  emit_insn (gen_delay_cycles_end (arg));
+
+  return NULL_RTX;
+}
+
 static rtx
 msp430_expand_builtin (tree exp,
 		       rtx target ATTRIBUTE_UNUSED,
 		       rtx subtarget ATTRIBUTE_UNUSED,
-		       enum machine_mode mode ATTRIBUTE_UNUSED,
+		       machine_mode mode ATTRIBUTE_UNUSED,
 		       int ignore ATTRIBUTE_UNUSED)
 {
   tree fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
   unsigned int fcode = DECL_FUNCTION_CODE (fndecl);
   rtx arg1 = expand_normal (CALL_EXPR_ARG (exp, 0));
+
+  if (fcode == MSP430_BUILTIN_DELAY_CYCLES)
+    return msp430_expand_delay_cycles (arg1);
 
   if (! msp430_is_interrupt_func ())
     {
@@ -1370,7 +1606,12 @@ msp430_expand_prologue (void)
   rtx p;
 
   if (is_naked_func ())
-    return;
+    {
+      /* We must generate some RTX as thread_prologue_and_epilogue_insns()
+	 examines the output of the gen_prologue() function.  */
+      emit_insn (gen_rtx_CLOBBER (VOIDmode, GEN_INT (0)));
+      return;
+    }
 
   emit_insn (gen_prologue_start_marker ());
 
@@ -1479,7 +1720,12 @@ msp430_expand_epilogue (int is_eh)
   int helper_n = 0;
 
   if (is_naked_func ())
-    return;
+    {
+      /* We must generate some RTX as thread_prologue_and_epilogue_insns()
+	 examines the output of the gen_epilogue() function.  */
+      emit_insn (gen_rtx_CLOBBER (VOIDmode, GEN_INT (0)));
+      return;
+    }
 
   if (cfun->machine->need_to_save [10])
     {
@@ -1619,6 +1865,33 @@ msp430_expand_eh_return (rtx eh_handler)
   emit_move_insn (tmp, ra);
 }
 
+#undef  TARGET_INIT_DWARF_REG_SIZES_EXTRA
+#define TARGET_INIT_DWARF_REG_SIZES_EXTRA msp430_init_dwarf_reg_sizes_extra
+void
+msp430_init_dwarf_reg_sizes_extra (tree address)
+{
+  int i;
+  rtx addr = expand_normal (address);
+  rtx mem = gen_rtx_MEM (BLKmode, addr);
+
+  if (!msp430x)
+    return;
+
+  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+    {
+      unsigned int dnum = DWARF_FRAME_REGNUM (i);
+      unsigned int rnum = DWARF2_FRAME_REG_OUT (dnum, 1);
+
+      if (rnum < DWARF_FRAME_REGISTERS)
+	{
+	  HOST_WIDE_INT offset = rnum * GET_MODE_SIZE (QImode);
+
+	  emit_move_insn (adjust_address (mem, QImode, offset),
+			  gen_int_mode (4, QImode));
+	}
+    }
+}
+
 /* This is a list of MD patterns that implement fixed-count shifts.  */
 static struct
 {
@@ -1656,9 +1929,9 @@ msp430_expand_helper (rtx *operands, const char *helper_name, bool const_variant
   char *helper_const = NULL;
   int arg2 = 13;
   int arg1sz = 1;
-  enum machine_mode arg0mode = GET_MODE (operands[0]);
-  enum machine_mode arg1mode = GET_MODE (operands[1]);
-  enum machine_mode arg2mode = GET_MODE (operands[2]);
+  machine_mode arg0mode = GET_MODE (operands[0]);
+  machine_mode arg1mode = GET_MODE (operands[1]);
+  machine_mode arg2mode = GET_MODE (operands[2]);
   int have_430x = msp430x ? 1 : 0;
 
   if (CONST_INT_P (operands[2]))
@@ -1723,7 +1996,7 @@ msp430_expand_helper (rtx *operands, const char *helper_name, bool const_variant
 
 /* Called by cbranch<mode>4 to coerce operands into usable forms.  */
 void
-msp430_fixup_compare_operands (enum machine_mode my_mode, rtx * operands)
+msp430_fixup_compare_operands (machine_mode my_mode, rtx * operands)
 {
   /* constants we're looking for, not constants which are allowed.  */
   int const_op_idx = 1;
@@ -1740,7 +2013,7 @@ msp430_fixup_compare_operands (enum machine_mode my_mode, rtx * operands)
    need it to below, so we use this function for when we must get a
    valid subreg in a "natural" state.  */
 rtx
-msp430_subreg (enum machine_mode mode, rtx r, enum machine_mode omode, int byte)
+msp430_subreg (machine_mode mode, rtx r, machine_mode omode, int byte)
 {
   rtx rv;
 
@@ -1748,7 +2021,7 @@ msp430_subreg (enum machine_mode mode, rtx r, enum machine_mode omode, int byte)
       && SUBREG_BYTE (r) == 0)
     {
       rtx ireg = SUBREG_REG (r);
-      enum machine_mode imode = GET_MODE (ireg);
+      machine_mode imode = GET_MODE (ireg);
 
       /* special case for (HI (SI (PSI ...), 0)) */
       if (imode == PSImode
@@ -1906,20 +2179,55 @@ static const struct
   { NULL, NULL }
 };
 
-/* Returns true if the current MCU is an F5xxx series.  */
+/* Returns true if the current MCU supports an F5xxx series
+   hardware multiper.  */
+
 bool
 msp430_use_f5_series_hwmult (void)
 {
+  static const char * cached_match = NULL;
+  static bool         cached_result;
+
   if (msp430_hwmult_type == F5SERIES)
     return true;
 
   if (target_mcu == NULL || msp430_hwmult_type != AUTO)
     return false;
 
-  return strncasecmp (target_mcu, "msp430f5", 8) == 0;
+  if (target_mcu == cached_match)
+    return cached_result;
+
+  cached_match = target_mcu;
+
+  if (strncasecmp (target_mcu, "msp430f5", 8) == 0)
+    return cached_result = true;
+  if (strncasecmp (target_mcu, "msp430fr5", 9) == 0)
+    return cached_result = true;
+  if (strncasecmp (target_mcu, "msp430f6", 8) == 0)
+    return cached_result = true;
+
+  static const char * known_f5_mult_mcus [] =
+    {
+      "cc430f5123",	"cc430f5125",	"cc430f5133",
+      "cc430f5135",	"cc430f5137",	"cc430f5143",
+      "cc430f5145",	"cc430f5147",	"cc430f6125",
+      "cc430f6126",	"cc430f6127",	"cc430f6135",
+      "cc430f6137",	"cc430f6143",	"cc430f6145",
+      "cc430f6147",	"msp430bt5190",	"msp430sl5438a",
+      "msp430xgeneric"
+    };
+  int i;
+
+  for (i = ARRAY_SIZE (known_f5_mult_mcus); i--;)
+    if (strcasecmp (target_mcu, known_f5_mult_mcus[i]) == 0)
+      return cached_result = true;
+
+  return cached_result = false;
 }
 
-/* Returns true id the current MCU has a second generation 32-bit hardware multiplier.  */
+/* Returns true if the current MCU has a second generation
+   32-bit hardware multiplier.  */
+
 static bool
 use_32bit_hwmult (void)
 {
@@ -1932,6 +2240,8 @@ use_32bit_hwmult (void)
       "msp430f47186",     "msp430f47196",     "msp430f47167",
       "msp430f47177",     "msp430f47187",     "msp430f47197"
     };
+  static const char * cached_match = NULL;
+  static bool         cached_result;
   int i;
 
   if (msp430_hwmult_type == LARGE)
@@ -1940,15 +2250,105 @@ use_32bit_hwmult (void)
   if (target_mcu == NULL || msp430_hwmult_type != AUTO)
     return false;
 
+  if (target_mcu == cached_match)
+    return cached_result;
+
+  cached_match = target_mcu;
   for (i = ARRAY_SIZE (known_32bit_mult_mcus); i--;)
     if (strcasecmp (target_mcu, known_32bit_mult_mcus[i]) == 0)
-      return true;
+      return cached_result = true;
 
-  return false;
+  return cached_result = false;
+}
+
+/* Returns true if the current MCU does not have a
+   hardware multiplier of any kind.  */
+
+static bool
+msp430_no_hwmult (void)
+{
+  static const char * known_nomult_mcus [] =
+    {
+      "msp430c091",	"msp430c092",	"msp430c111",
+      "msp430c1111", 	"msp430c112", 	"msp430c1121",
+      "msp430c1331", 	"msp430c1351", 	"msp430c311s",
+      "msp430c312", 	"msp430c313", 	"msp430c314",
+      "msp430c315", 	"msp430c323", 	"msp430c325",
+      "msp430c412", 	"msp430c413", 	"msp430e112",
+      "msp430e313", 	"msp430e315", 	"msp430e325",
+      "msp430f110", 	"msp430f1101", 	"msp430f1101a",
+      "msp430f1111", 	"msp430f1111a",	"msp430f112",
+      "msp430f1121", 	"msp430f1121a", "msp430f1122",
+      "msp430f1132", 	"msp430f122", 	"msp430f1222",
+      "msp430f123", 	"msp430f1232", 	"msp430f133",
+      "msp430f135", 	"msp430f155", 	"msp430f156",
+      "msp430f157", 	"msp430f2001", 	"msp430f2002",
+      "msp430f2003", 	"msp430f2011", 	"msp430f2012",
+      "msp430f2013", 	"msp430f2101", 	"msp430f2111",
+      "msp430f2112", 	"msp430f2121", 	"msp430f2122",
+      "msp430f2131", 	"msp430f2132", 	"msp430f2232",
+      "msp430f2234", 	"msp430f2252", 	"msp430f2254",
+      "msp430f2272", 	"msp430f2274", 	"msp430f412",
+      "msp430f413", 	"msp430f4132", 	"msp430f415",
+      "msp430f4152", 	"msp430f417", 	"msp430f4250",
+      "msp430f4260", 	"msp430f4270", 	"msp430f435",
+      "msp430f4351", 	"msp430f436", 	"msp430f4361",
+      "msp430f437", 	"msp430f4371", 	"msp430f438",
+      "msp430f439", 	"msp430f477", 	"msp430f478",
+      "msp430f479", 	"msp430fe423", 	"msp430fe4232",
+      "msp430fe423a",   "msp430fe4242",	"msp430fe425",
+      "msp430fe4252",   "msp430fe425a", "msp430fe427",
+      "msp430fe4272",   "msp430fe427a", "msp430fg4250",
+      "msp430fg4260",   "msp430fg4270", "msp430fg437",
+      "msp430fg438", 	"msp430fg439", 	"msp430fg477",
+      "msp430fg478", 	"msp430fg479",  "msp430fr2032",
+      "msp430fr2033",	"msp430fr4131",	"msp430fr4132",
+      "msp430fr4133",	"msp430fw423",  "msp430fw425",
+      "msp430fw427", 	"msp430fw428",  "msp430fw429",
+      "msp430g2001", 	"msp430g2101",  "msp430g2102",
+      "msp430g2111", 	"msp430g2112",  "msp430g2113",
+      "msp430g2121", 	"msp430g2131",  "msp430g2132",
+      "msp430g2152", 	"msp430g2153",  "msp430g2201",
+      "msp430g2202", 	"msp430g2203",  "msp430g2210",
+      "msp430g2211", 	"msp430g2212",  "msp430g2213",
+      "msp430g2221", 	"msp430g2230",  "msp430g2231",
+      "msp430g2232", 	"msp430g2233",  "msp430g2252",
+      "msp430g2253", 	"msp430g2302",  "msp430g2303",
+      "msp430g2312", 	"msp430g2313",  "msp430g2332",
+      "msp430g2333", 	"msp430g2352",  "msp430g2353",
+      "msp430g2402", 	"msp430g2403",  "msp430g2412",
+      "msp430g2413", 	"msp430g2432",  "msp430g2433",
+      "msp430g2444", 	"msp430g2452",  "msp430g2453",
+      "msp430g2513", 	"msp430g2533",  "msp430g2544",
+      "msp430g2553", 	"msp430g2744",  "msp430g2755",
+      "msp430g2855", 	"msp430g2955",  "msp430l092",
+      "msp430p112", 	"msp430p313",   "msp430p315",
+      "msp430p315s", 	"msp430p325",   "msp430tch5e"
+    };
+  static const char * cached_match = NULL;
+  static bool         cached_result;
+  int i;
+
+  if (msp430_hwmult_type == NONE)
+    return true;
+
+  if (target_mcu == NULL || msp430_hwmult_type != AUTO)
+    return false;
+
+  if (target_mcu == cached_match)
+    return cached_result;
+
+  cached_match = target_mcu;
+  for (i = ARRAY_SIZE (known_nomult_mcus); i--;)
+    if (strcasecmp (target_mcu, known_nomult_mcus[i]) == 0)
+      return cached_result = true;
+
+  return cached_result = false;
 }
 
 /* This function does the same as the default, but it will replace GCC
    function names with the MSPABI-specified ones.  */
+
 void
 msp430_output_labelref (FILE *file, const char *name)
 {
@@ -1969,7 +2369,7 @@ msp430_output_labelref (FILE *file, const char *name)
 	{
 	  if (msp430_use_f5_series_hwmult ())
 	    name = "__mulhi2_f5";
-	  else
+	  else if (! msp430_no_hwmult ())
 	    name = "__mulhi2";
 	}
       else if (strcmp ("__mspabi_mpyl", name) == 0)
@@ -1978,7 +2378,7 @@ msp430_output_labelref (FILE *file, const char *name)
 	    name = "__mulsi2_f5";
 	  else if (use_32bit_hwmult ())
 	    name = "__mulsi2_hw32";
-	  else
+	  else if (! msp430_no_hwmult ())
 	    name = "__mulsi2";
 	}
     }
@@ -2229,7 +2629,7 @@ msp430_print_operand (FILE * file, rtx op, int letter)
     case 'X':
       /* This is used to turn, for example, an ADD opcode into an ADDX
 	 opcode when we're using 20-bit addresses.  */
-      if (TARGET_LARGE)
+      if (TARGET_LARGE || GET_MODE (op) == PSImode)
 	fprintf (file, "X");
       /* We don't care which operand we use, but we want 'X' in the MD
 	 file, so we do it this way.  */
@@ -2237,7 +2637,7 @@ msp430_print_operand (FILE * file, rtx op, int letter)
 
     case 'x':
       /* Similarly, but only for PSImodes.  BIC, for example, needs this.  */
-      if (TARGET_LARGE && GET_MODE (op) == PSImode)
+      if (GET_MODE (op) == PSImode)
 	fprintf (file, "X");
       return;
 

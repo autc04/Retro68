@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -41,19 +41,11 @@ inquire_via_unit (st_parameter_inquire *iqp, gfc_unit * u)
   const char *p;
   GFC_INTEGER_4 cf = iqp->common.flags;
 
-  if ((cf & IOPARM_INQUIRE_HAS_EXIST) != 0)
-    {
-      *iqp->exist = (iqp->common.unit >= 0
-		     && iqp->common.unit <= GFC_INTEGER_4_HUGE);
+  if (iqp->common.unit == GFC_INTERNAL_UNIT)
+    generate_error (&iqp->common, LIBERROR_INQUIRE_INTERNAL_UNIT, NULL);
 
-      if ((cf & IOPARM_INQUIRE_HAS_FILE) == 0)
-	{
-	  if (!(*iqp->exist))
-	    *iqp->common.iostat = LIBERROR_BAD_UNIT;
-	  *iqp->exist = *iqp->exist
-			&& (*iqp->common.iostat != LIBERROR_BAD_UNIT);
-	}
-    }
+  if ((cf & IOPARM_INQUIRE_HAS_EXIST) != 0)
+    *iqp->exist = (u != NULL) || (iqp->common.unit >= 0);
 
   if ((cf & IOPARM_INQUIRE_HAS_OPENED) != 0)
     *iqp->opened = (u != NULL);
@@ -80,10 +72,10 @@ inquire_via_unit (st_parameter_inquire *iqp, gfc_unit * u)
 		memset (&iqp->name[tmplen], ' ', iqp->name_len - tmplen);
 	    }
 	  else /* If ttyname does not work, go with the default.  */
-	    fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+	    cf_strcpy (iqp->name, iqp->name_len, u->filename);
 	}
       else
-	fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+	cf_strcpy (iqp->name, iqp->name_len, u->filename);
 #elif defined __MINGW32__
       if (u->unit_number == options.stdin_unit)
 	fstrcpy (iqp->name, iqp->name_len, "CONIN$", sizeof("CONIN$"));
@@ -92,9 +84,9 @@ inquire_via_unit (st_parameter_inquire *iqp, gfc_unit * u)
       else if (u->unit_number == options.stderr_unit)
 	fstrcpy (iqp->name, iqp->name_len, "CONERR$", sizeof("CONERR$"));
       else
-	fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+	cf_strcpy (iqp->name, iqp->name_len, u->filename);
 #else
-    fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+      cf_strcpy (iqp->name, iqp->name_len, u->filename);
 #endif
     }
 

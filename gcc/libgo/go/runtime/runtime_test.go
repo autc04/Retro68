@@ -9,10 +9,12 @@ import (
 	// "io/ioutil"
 	// "os"
 	// "os/exec"
-	// . "runtime"
+	. "runtime"
+	"runtime/debug"
 	// "strconv"
 	// "strings"
 	"testing"
+	"unsafe"
 )
 
 var errf error
@@ -95,18 +97,23 @@ func BenchmarkDeferMany(b *testing.B) {
 // The value reported will include the padding between runtime.gogo and the
 // next function in memory. That's fine.
 func TestRuntimeGogoBytes(t *testing.T) {
+	switch GOOS {
+	case "android", "nacl":
+		t.Skipf("skipping on %s", GOOS)
+	}
+
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
-	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../../test/helloworld.go").CombinedOutput()
+	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../test/helloworld.go").CombinedOutput()
 	if err != nil {
 		t.Fatalf("building hello world: %v\n%s", err, out)
 	}
 
-	out, err = exec.Command("go", "tool", "nm", "-S", dir+"/hello").CombinedOutput()
+	out, err = exec.Command("go", "tool", "nm", "-size", dir+"/hello").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, out)
 	}
@@ -125,3 +132,121 @@ func TestRuntimeGogoBytes(t *testing.T) {
 	t.Fatalf("go tool nm did not report size for runtime.gogo")
 }
 */
+
+// golang.org/issue/7063
+func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
+	SetCPUProfileRate(0)
+}
+
+// Addresses to test for faulting behavior.
+// This is less a test of SetPanicOnFault and more a check that
+// the operating system and the runtime can process these faults
+// correctly. That is, we're indirectly testing that without SetPanicOnFault
+// these would manage to turn into ordinary crashes.
+// Note that these are truncated on 32-bit systems, so the bottom 32 bits
+// of the larger addresses must themselves be invalid addresses.
+// We might get unlucky and the OS might have mapped one of these
+// addresses, but probably not: they're all in the first page, very high
+// adderesses that normally an OS would reserve for itself, or malformed
+// addresses. Even so, we might have to remove one or two on different
+// systems. We will see.
+
+var faultAddrs = []uint64{
+	// low addresses
+	0,
+	1,
+	0xfff,
+	// high (kernel) addresses
+	// or else malformed.
+	0xffffffffffffffff,
+	0xfffffffffffff001,
+	0xffffffffffff0001,
+	0xfffffffffff00001,
+	0xffffffffff000001,
+	0xfffffffff0000001,
+	0xffffffff00000001,
+	0xfffffff000000001,
+	0xffffff0000000001,
+	0xfffff00000000001,
+	0xffff000000000001,
+	0xfff0000000000001,
+	0xff00000000000001,
+	0xf000000000000001,
+	0x8000000000000001,
+}
+
+func TestSetPanicOnFault(t *testing.T) {
+	// This currently results in a fault in the signal trampoline on
+	// dragonfly/386 - see issue 7421.
+	if GOOS == "dragonfly" && GOARCH == "386" {
+		t.Skip("skipping test on dragonfly/386")
+	}
+
+	old := debug.SetPanicOnFault(true)
+	defer debug.SetPanicOnFault(old)
+
+	nfault := 0
+	for _, addr := range faultAddrs {
+		testSetPanicOnFault(t, uintptr(addr), &nfault)
+	}
+	if nfault == 0 {
+		t.Fatalf("none of the addresses faulted")
+	}
+}
+
+func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
+	if GOOS == "nacl" {
+		t.Skip("nacl doesn't seem to fault on high addresses")
+	}
+
+	defer func() {
+		if err := recover(); err != nil {
+			*nfault++
+		}
+	}()
+
+	// The read should fault, except that sometimes we hit
+	// addresses that have had C or kernel pages mapped there
+	// readable by user code. So just log the content.
+	// If no addresses fault, we'll fail the test.
+	v := *(*byte)(unsafe.Pointer(addr))
+	t.Logf("addr %#x: %#x\n", addr, v)
+}
+
+func eqstring_generic(s1, s2 string) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	// optimization in assembly versions:
+	// if s1.str == s2.str { return true }
+	for i := 0; i < len(s1); i++ {
+		if s1[i] != s2[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestEqString(t *testing.T) {
+	// This isn't really an exhaustive test of eqstring, it's
+	// just a convenient way of documenting (via eqstring_generic)
+	// what eqstring does.
+	s := []string{
+		"",
+		"a",
+		"c",
+		"aaa",
+		"ccc",
+		"cccc"[:3], // same contents, different string
+		"1234567890",
+	}
+	for _, s1 := range s {
+		for _, s2 := range s {
+			x := s1 == s2
+			y := eqstring_generic(s1, s2)
+			if x != y {
+				t.Errorf(`eqstring("%s","%s") = %t, want %t`, s1, s2, x, y)
+			}
+		}
+	}
+}

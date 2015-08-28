@@ -1,5 +1,7 @@
 /* { dg-do compile } */
 /* { dg-require-effective-target int32plus } */
+/* { dg-require-effective-target label_values } */
+/* { dg-require-effective-target indirect_jumps } */
 
 typedef int int32_t;
 typedef unsigned char uint8_t;
@@ -32,6 +34,8 @@ struct scm_vm {
 };
 static SCM vm_regular_engine (SCM vm, SCM program, SCM *argv, int nargs) {
 }
+void vm_dispatch_hook ();
+int _setjmp ();
 static SCM vm_debug_engine (SCM vm, SCM program, SCM *argv, int nargs) {
     register scm_t_uint8 *ip ;
     register SCM *sp ;

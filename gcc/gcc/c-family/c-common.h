@@ -1,5 +1,5 @@
 /* Definitions for c-common.c.
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,7 +23,22 @@ along with GCC; see the file COPYING3.  If not see
 #include "splay-tree.h"
 #include "cpplib.h"
 #include "ggc.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "input.h"
+#include "statistics.h"
+#include "vec.h"
+#include "double-int.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "alias.h"
+#include "flags.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 
 /* In order for the format checking to accept the C frontend
    diagnostic framework extensions, you must include this file before
@@ -91,7 +106,6 @@ enum rid
 
   /* C */
   RID_INT,     RID_CHAR,   RID_FLOAT,    RID_DOUBLE, RID_VOID,
-  RID_INT128,
   RID_ENUM,    RID_STRUCT, RID_UNION,    RID_IF,     RID_ELSE,
   RID_WHILE,   RID_DO,     RID_FOR,      RID_SWITCH, RID_CASE,
   RID_DEFAULT, RID_BREAK,  RID_CONTINUE, RID_RETURN, RID_GOTO,
@@ -102,7 +116,7 @@ enum rid
   RID_EXTENSION, RID_IMAGPART, RID_REALPART, RID_LABEL,      RID_CHOOSE_EXPR,
   RID_TYPES_COMPATIBLE_P,      RID_BUILTIN_COMPLEX,	     RID_BUILTIN_SHUFFLE,
   RID_DFLOAT32, RID_DFLOAT64, RID_DFLOAT128,
-  RID_FRACT, RID_ACCUM, RID_AUTO_TYPE,
+  RID_FRACT, RID_ACCUM, RID_AUTO_TYPE, RID_BUILTIN_CALL_WITH_STATIC_CHAIN,
 
   /* C11 */
   RID_ALIGNAS, RID_GENERIC,
@@ -138,18 +152,20 @@ enum rid
   RID_HAS_TRIVIAL_CONSTRUCTOR, RID_HAS_TRIVIAL_COPY,
   RID_HAS_TRIVIAL_DESTRUCTOR,  RID_HAS_VIRTUAL_DESTRUCTOR,
   RID_IS_ABSTRACT,             RID_IS_BASE_OF,
-  RID_IS_CLASS,                RID_IS_CONVERTIBLE_TO,
+  RID_IS_CLASS,
   RID_IS_EMPTY,                RID_IS_ENUM,
   RID_IS_FINAL,                RID_IS_LITERAL_TYPE,
   RID_IS_POD,                  RID_IS_POLYMORPHIC,
   RID_IS_STD_LAYOUT,           RID_IS_TRIVIAL,
+  RID_IS_TRIVIALLY_ASSIGNABLE, RID_IS_TRIVIALLY_CONSTRUCTIBLE,
+  RID_IS_TRIVIALLY_COPYABLE,
   RID_IS_UNION,                RID_UNDERLYING_TYPE,
 
   /* C++11 */
   RID_CONSTEXPR, RID_DECLTYPE, RID_NOEXCEPT, RID_NULLPTR, RID_STATIC_ASSERT,
 
   /* Cilk Plus keywords.  */
-  RID_CILK_SPAWN, RID_CILK_SYNC,
+  RID_CILK_SPAWN, RID_CILK_SYNC, RID_CILK_FOR,
   
   /* Objective-C ("AT" reserved words - they are only keywords when
      they follow '@')  */
@@ -187,6 +203,23 @@ enum rid
 
   RID_FIRST_ADDR_SPACE = RID_ADDR_SPACE_0,
   RID_LAST_ADDR_SPACE = RID_ADDR_SPACE_15,
+
+  /* __intN keywords.  The _N_M here doesn't correspond to the intN
+     in the keyword; use the bitsize in int_n_t_data_t[M] for that.
+     For example, if int_n_t_data_t[0].bitsize is 13, then RID_INT_N_0
+     is for __int13.  */
+
+  /* Note that the range to use is RID_FIRST_INT_N through
+     RID_FIRST_INT_N + NUM_INT_N_ENTS - 1 and c-parser.c has a list of
+     all RID_INT_N_* in a case statement.  */
+
+  RID_INT_N_0,
+  RID_INT_N_1,
+  RID_INT_N_2,
+  RID_INT_N_3,
+
+  RID_FIRST_INT_N = RID_INT_N_0,
+  RID_LAST_INT_N = RID_INT_N_3,
 
   RID_MAX,
 
@@ -297,8 +330,6 @@ enum c_tree_index
     CTI_C99_FUNCTION_NAME_DECL,
     CTI_SAVED_FUNCTION_NAME_DECLS,
 
-    CTI_VOID_ZERO,
-
     CTI_NULL,
 
     CTI_MAX
@@ -327,10 +358,11 @@ struct c_common_resword
   const unsigned int disable   : 16;
 };
 
-/* Extra cpp_ttype values for C++.  */
+/* Mode used to build pointers (VOIDmode means ptr_mode).  */
 
-/* A token type for keywords, as opposed to ordinary identifiers.  */
-#define CPP_KEYWORD ((enum cpp_ttype) (N_TTYPES + 1))
+extern machine_mode c_default_pointer_mode;
+
+/* Extra cpp_ttype values for C++.  */
 
 /* A token type for template-ids.  If a template-id is processed while
    parsing tentatively, it is replaced with a CPP_TEMPLATE_ID token;
@@ -348,8 +380,11 @@ struct c_common_resword
 /* A token type for pre-parsed C++0x decltype.  */
 #define CPP_DECLTYPE ((enum cpp_ttype) (CPP_NESTED_NAME_SPECIFIER + 1))
 
+/* A token type for pre-parsed primary-expression (lambda- or statement-).  */
+#define CPP_PREPARSED_EXPR ((enum cpp_ttype) (CPP_DECLTYPE + 1))
+
 /* The number of token types, including C++-specific ones.  */
-#define N_CP_TTYPES ((int) (CPP_DECLTYPE + 1))
+#define N_CP_TTYPES ((int) (CPP_PREPARSED_EXPR + 1))
 
 /* Disable mask.  Keywords are disabled if (reswords[i].disable &
    mask) is _true_.  Thus for keywords which are present in all
@@ -430,9 +465,6 @@ extern const unsigned int num_c_common_reswords;
 #define c99_function_name_decl_node		c_global_trees[CTI_C99_FUNCTION_NAME_DECL]
 #define saved_function_name_decls	c_global_trees[CTI_SAVED_FUNCTION_NAME_DECLS]
 
-/* A node for `((void) 0)'.  */
-#define void_zero_node                  c_global_trees[CTI_VOID_ZERO]
-
 /* The node for C++ `__null'.  */
 #define null_node                       c_global_trees[CTI_NULL]
 
@@ -440,7 +472,7 @@ extern GTY(()) tree c_global_trees[CTI_MAX];
 
 /* In a RECORD_TYPE, a sorted array of the fields of the type, not a
    tree for size reasons.  */
-struct GTY((variable_size)) sorted_fields_type {
+struct GTY(()) sorted_fields_type {
   int len;
   tree GTY((length ("%h.len"))) elts[1];
 };
@@ -451,7 +483,7 @@ struct GTY((variable_size)) sorted_fields_type {
 
 typedef enum c_language_kind
 {
-  clk_c		= 0,		/* C90, C94 or C99 */
+  clk_c		= 0,		/* C90, C94, C99 or C11 */
   clk_objc	= 1,		/* clk_c with ObjC features.  */
   clk_cxx	= 2,		/* ANSI/ISO C++ */
   clk_objcxx	= 3		/* clk_cxx with ObjC features.  */
@@ -624,6 +656,13 @@ extern const char *constant_string_class_name;
 /* C++ language option variables.  */
 
 
+/* Return TRUE if one of {flag_abi_version,flag_abi_compat_version} is
+   less than N and the other is at least N, for use by -Wabi.  */
+#define abi_version_crosses(N)			\
+  (abi_version_at_least(N)			\
+   != (flag_abi_compat_version == 0		\
+       || flag_abi_compat_version >= (N)))
+
 /* Nonzero means generate separate instantiation control files and
    juggle them at link time.  */
 
@@ -638,8 +677,10 @@ enum cxx_dialect {
   /* C++11  */
   cxx0x,
   cxx11 = cxx0x,
-  /* C++1y (C++17?) */
-  cxx1y
+  /* C++14 */
+  cxx14,
+  /* C++1z (C++17?) */
+  cxx1z
 };
 
 /* The C++ dialect being used. C++98 is the default.  */
@@ -740,7 +781,7 @@ extern bool attribute_takes_identifier_p (const_tree);
 extern bool c_common_handle_option (size_t, const char *, int, int, location_t,
 				    const struct cl_option_handlers *);
 extern bool default_handle_c_option (size_t, const char *, int);
-extern tree c_common_type_for_mode (enum machine_mode, int);
+extern tree c_common_type_for_mode (machine_mode, int);
 extern tree c_common_type_for_size (unsigned int, int);
 extern tree c_common_fixed_point_type_for_size (unsigned int, unsigned int,
 						int, int);
@@ -758,7 +799,6 @@ extern tree c_wrap_maybe_const (tree, bool);
 extern tree c_save_expr (tree);
 extern tree c_common_truthvalue_conversion (location_t, tree);
 extern void c_apply_type_quals_to_decl (int, tree);
-extern unsigned int min_align_of_type (tree);
 extern tree c_sizeof_or_alignof_type (location_t, tree, bool, bool, int);
 extern tree c_alignof_expr (location_t, tree);
 /* Print an error message for invalid operands to arith operation CODE.
@@ -777,6 +817,7 @@ extern void overflow_warning (location_t, tree);
 extern bool warn_if_unused_value (const_tree, location_t);
 extern void warn_logical_operator (location_t, enum tree_code, tree,
 				   enum tree_code, tree, enum tree_code, tree);
+extern void warn_logical_not_parentheses (location_t, enum tree_code, tree);
 extern void check_main_parameter_types (tree decl);
 extern bool c_determine_visibility (tree);
 extern bool vector_types_compatible_elements_p (tree, tree);
@@ -823,7 +864,7 @@ extern tree build_va_arg (location_t, tree, tree);
 
 extern const unsigned int c_family_lang_mask;
 extern unsigned int c_common_option_lang_mask (void);
-extern void c_common_initialize_diagnostics (diagnostic_context *);
+extern void c_common_diagnostics_set_defaults (diagnostic_context *);
 extern bool c_common_complain_wrong_lang_p (const struct cl_option *);
 extern void c_common_init_options_struct (struct gcc_options *);
 extern void c_common_init_options (unsigned int, struct cl_decoded_option *);
@@ -831,6 +872,7 @@ extern bool c_common_post_options (const char **);
 extern bool c_common_init (void);
 extern void c_common_finish (void);
 extern void c_common_parse_file (void);
+extern FILE *get_dump_info (int, int *);
 extern alias_set_type c_common_get_alias_set (tree);
 extern void c_register_builtin_type (tree, const char*);
 extern bool c_promoting_integer_type_p (const_tree);
@@ -936,6 +978,7 @@ extern void c_cpp_builtins_optimize_pragma (cpp_reader *, tree, tree);
 extern bool c_cpp_error (cpp_reader *, int, int, location_t, unsigned int,
 			 const char *, va_list *)
      ATTRIBUTE_GCC_DIAG(6,0);
+extern int c_common_has_attribute (cpp_reader *);
 
 extern bool parse_optimize_options (tree, bool);
 
@@ -990,7 +1033,7 @@ extern tree builtin_type_for_size (int, bool);
 
 extern void c_common_mark_addressable_vec (tree);
 
-extern void warn_array_subscript_with_type_char (tree);
+extern void warn_array_subscript_with_type_char (location_t, tree);
 extern void warn_about_parentheses (location_t,
 				    enum tree_code,
 				    enum tree_code, tree,
@@ -1005,14 +1048,20 @@ extern void warn_for_sign_compare (location_t,
 extern void do_warn_double_promotion (tree, tree, tree, const char *, 
 				      location_t);
 extern void set_underlying_type (tree);
+extern void record_types_used_by_current_var_decl (tree);
 extern void record_locally_defined_typedef (tree);
 extern void maybe_record_typedef_use (tree);
 extern void maybe_warn_unused_local_typedefs (void);
+extern void maybe_warn_bool_compare (location_t, enum tree_code, tree, tree);
 extern vec<tree, va_gc> *make_tree_vector (void);
 extern void release_tree_vector (vec<tree, va_gc> *);
 extern vec<tree, va_gc> *make_tree_vector_single (tree);
 extern vec<tree, va_gc> *make_tree_vector_from_list (tree);
 extern vec<tree, va_gc> *make_tree_vector_copy (const vec<tree, va_gc> *);
+
+/* Used for communication between c_common_type_for_mode and
+   c_register_builtin_type.  */
+extern GTY(()) tree registered_builtin_types;
 
 /* In c-gimplify.c  */
 extern void c_genericize (tree);
@@ -1203,16 +1252,12 @@ extern void c_finish_omp_taskwait (location_t);
 extern void c_finish_omp_taskyield (location_t);
 extern tree c_finish_omp_for (location_t, enum tree_code, tree, tree, tree,
 			      tree, tree, tree);
+extern tree c_finish_oacc_wait (location_t, tree, tree);
 extern void c_omp_split_clauses (location_t, enum tree_code, omp_clause_mask,
 				 tree, tree *);
 extern tree c_omp_declare_simd_clauses_to_numbers (tree, tree);
 extern void c_omp_declare_simd_clauses_to_decls (tree, tree);
 extern enum omp_clause_default_kind c_omp_predetermined_sharing (tree);
-
-/* Not in c-omp.c; provided by the front end.  */
-extern bool c_omp_sharing_predetermined (tree);
-extern tree c_omp_remap_decl (tree, bool);
-extern void record_types_used_by_current_var_decl (tree);
 
 /* Return next tree in the chain for chain_next walking of tree nodes.  */
 static inline tree
@@ -1286,7 +1331,7 @@ extern tree build_userdef_literal (tree suffix_id, tree value,
 				   enum overflow_type overflow,
 				   tree num_string);
 
-extern void convert_vector_to_pointer_for_subscript (location_t, tree*, tree);
+extern bool convert_vector_to_pointer_for_subscript (location_t, tree *, tree);
 
 /* Possibe cases of scalar_to_vector conversion.  */
 enum stv_conv {
@@ -1389,4 +1434,7 @@ extern tree create_cilk_function_exit (tree, bool, bool);
 extern tree cilk_install_body_pedigree_operations (tree);
 extern void cilk_outline (tree, tree *, void *);
 extern bool contains_cilk_spawn_stmt (tree);
+extern tree cilk_for_number_of_iterations (tree);
+extern bool check_no_cilk (tree, const char *, const char *,
+		           location_t loc = UNKNOWN_LOCATION);
 #endif /* ! GCC_C_COMMON_H */

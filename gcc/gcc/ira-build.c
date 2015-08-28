@@ -1,5 +1,5 @@
 /* Building internal representation for IRA.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2015 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -28,6 +28,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "regs.h"
 #include "flags.h"
 #include "hard-reg-set.h"
+#include "predict.h"
+#include "vec.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "insn-config.h"
 #include "recog.h"
@@ -39,7 +48,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "ira-int.h"
 #include "emit-rtl.h"  /* FIXME: Can go away once crtl is moved to rtl.h.  */
 
-static ira_copy_t find_allocno_copy (ira_allocno_t, ira_allocno_t, rtx,
+static ira_copy_t find_allocno_copy (ira_allocno_t, ira_allocno_t, rtx_insn *,
 				     ira_loop_tree_node_t);
 
 /* The root of the loop tree corresponding to the all function.  */
@@ -515,6 +524,7 @@ ira_create_allocno (int regno, bool cap_p,
   ALLOCNO_CALL_FREQ (a) = 0;
   ALLOCNO_CALLS_CROSSED_NUM (a) = 0;
   ALLOCNO_CHEAP_CALLS_CROSSED_NUM (a) = 0;
+  CLEAR_HARD_REG_SET (ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (a));
 #ifdef STACK_REGS
   ALLOCNO_NO_STACK_REG_P (a) = false;
   ALLOCNO_TOTAL_NO_STACK_REG_P (a) = false;
@@ -523,6 +533,7 @@ ira_create_allocno (int regno, bool cap_p,
   ALLOCNO_BAD_SPILL_P (a) = false;
   ALLOCNO_ASSIGNED_P (a) = false;
   ALLOCNO_MODE (a) = (regno < 0 ? VOIDmode : PSEUDO_REGNO_MODE (regno));
+  ALLOCNO_WMODE (a) = ALLOCNO_MODE (a);
   ALLOCNO_PREFS (a) = NULL;
   ALLOCNO_COPIES (a) = NULL;
   ALLOCNO_HARD_REG_COSTS (a) = NULL;
@@ -568,7 +579,7 @@ ira_set_allocno_class (ira_allocno_t a, enum reg_class aclass)
 void
 ira_create_allocno_objects (ira_allocno_t a)
 {
-  enum machine_mode mode = ALLOCNO_MODE (a);
+  machine_mode mode = ALLOCNO_MODE (a);
   enum reg_class aclass = ALLOCNO_CLASS (a);
   int n = ira_reg_class_max_nregs[aclass][mode];
   int i;
@@ -892,6 +903,7 @@ create_cap_allocno (ira_allocno_t a)
   parent = ALLOCNO_LOOP_TREE_NODE (a)->parent;
   cap = ira_create_allocno (ALLOCNO_REGNO (a), true, parent);
   ALLOCNO_MODE (cap) = ALLOCNO_MODE (a);
+  ALLOCNO_WMODE (cap) = ALLOCNO_WMODE (a);
   aclass = ALLOCNO_CLASS (a);
   ira_set_allocno_class (cap, aclass);
   ira_create_allocno_objects (cap);
@@ -913,6 +925,8 @@ create_cap_allocno (ira_allocno_t a)
 
   ALLOCNO_CALLS_CROSSED_NUM (cap) = ALLOCNO_CALLS_CROSSED_NUM (a);
   ALLOCNO_CHEAP_CALLS_CROSSED_NUM (cap) = ALLOCNO_CHEAP_CALLS_CROSSED_NUM (a);
+  IOR_HARD_REG_SET (ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (cap),
+		    ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (a));
   if (internal_flag_ira_verbose > 2 && ira_dump_file != NULL)
     {
       fprintf (ira_dump_file, "    Creating cap ");
@@ -1219,7 +1233,7 @@ ira_create_pref (ira_allocno_t a, int hard_regno, int freq)
   return pref;
 }
 
-/* Attach a pref PREF to the cooresponding allocno.  */
+/* Attach a pref PREF to the corresponding allocno.  */
 static void
 add_allocno_pref_to_list (ira_pref_t pref)
 {
@@ -1382,7 +1396,7 @@ initiate_copies (void)
 /* Return copy connecting A1 and A2 and originated from INSN of
    LOOP_TREE_NODE if any.  */
 static ira_copy_t
-find_allocno_copy (ira_allocno_t a1, ira_allocno_t a2, rtx insn,
+find_allocno_copy (ira_allocno_t a1, ira_allocno_t a2, rtx_insn *insn,
 		   ira_loop_tree_node_t loop_tree_node)
 {
   ira_copy_t cp, next_cp;
@@ -1413,7 +1427,7 @@ find_allocno_copy (ira_allocno_t a1, ira_allocno_t a2, rtx insn,
    SECOND, FREQ, CONSTRAINT_P, and INSN.  */
 ira_copy_t
 ira_create_copy (ira_allocno_t first, ira_allocno_t second, int freq,
-		 bool constraint_p, rtx insn,
+		 bool constraint_p, rtx_insn *insn,
 		 ira_loop_tree_node_t loop_tree_node)
 {
   ira_copy_t cp;
@@ -1490,7 +1504,7 @@ swap_allocno_copy_ends_if_necessary (ira_copy_t cp)
    LOOP_TREE_NODE.  */
 ira_copy_t
 ira_add_allocno_copy (ira_allocno_t first, ira_allocno_t second, int freq,
-		      bool constraint_p, rtx insn,
+		      bool constraint_p, rtx_insn *insn,
 		      ira_loop_tree_node_t loop_tree_node)
 {
   ira_copy_t cp;
@@ -1856,9 +1870,9 @@ static basic_block curr_bb;
 
 /* This recursive function creates allocnos corresponding to
    pseudo-registers containing in X.  True OUTPUT_P means that X is
-   a lvalue.  */
+   an lvalue.  PARENT corresponds to the parent expression of X.  */
 static void
-create_insn_allocnos (rtx x, bool output_p)
+create_insn_allocnos (rtx x, rtx outer, bool output_p)
 {
   int i, j;
   const char *fmt;
@@ -1873,7 +1887,15 @@ create_insn_allocnos (rtx x, bool output_p)
 	  ira_allocno_t a;
 
 	  if ((a = ira_curr_regno_allocno_map[regno]) == NULL)
-	    a = ira_create_allocno (regno, false, ira_curr_loop_tree_node);
+	    {
+	      a = ira_create_allocno (regno, false, ira_curr_loop_tree_node);
+	      if (outer != NULL && GET_CODE (outer) == SUBREG)
+		{
+		  machine_mode wmode = GET_MODE (outer);
+		  if (GET_MODE_SIZE (wmode) > GET_MODE_SIZE (ALLOCNO_WMODE (a)))
+		    ALLOCNO_WMODE (a) = wmode;
+		}
+	    }
 
 	  ALLOCNO_NREFS (a)++;
 	  ALLOCNO_FREQ (a) += REG_FREQ_FROM_BB (curr_bb);
@@ -1884,25 +1906,25 @@ create_insn_allocnos (rtx x, bool output_p)
     }
   else if (code == SET)
     {
-      create_insn_allocnos (SET_DEST (x), true);
-      create_insn_allocnos (SET_SRC (x), false);
+      create_insn_allocnos (SET_DEST (x), NULL, true);
+      create_insn_allocnos (SET_SRC (x), NULL, false);
       return;
     }
   else if (code == CLOBBER)
     {
-      create_insn_allocnos (XEXP (x, 0), true);
+      create_insn_allocnos (XEXP (x, 0), NULL, true);
       return;
     }
   else if (code == MEM)
     {
-      create_insn_allocnos (XEXP (x, 0), false);
+      create_insn_allocnos (XEXP (x, 0), NULL, false);
       return;
     }
   else if (code == PRE_DEC || code == POST_DEC || code == PRE_INC ||
 	   code == POST_INC || code == POST_MODIFY || code == PRE_MODIFY)
     {
-      create_insn_allocnos (XEXP (x, 0), true);
-      create_insn_allocnos (XEXP (x, 0), false);
+      create_insn_allocnos (XEXP (x, 0), NULL, true);
+      create_insn_allocnos (XEXP (x, 0), NULL, false);
       return;
     }
 
@@ -1910,10 +1932,10 @@ create_insn_allocnos (rtx x, bool output_p)
   for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
     {
       if (fmt[i] == 'e')
-	create_insn_allocnos (XEXP (x, i), output_p);
+	create_insn_allocnos (XEXP (x, i), x, output_p);
       else if (fmt[i] == 'E')
 	for (j = 0; j < XVECLEN (x, i); j++)
-	  create_insn_allocnos (XVECEXP (x, i, j), output_p);
+	  create_insn_allocnos (XVECEXP (x, i, j), x, output_p);
     }
 }
 
@@ -1924,7 +1946,7 @@ static void
 create_bb_allocnos (ira_loop_tree_node_t bb_node)
 {
   basic_block bb;
-  rtx insn;
+  rtx_insn *insn;
   unsigned int i;
   bitmap_iterator bi;
 
@@ -1932,7 +1954,7 @@ create_bb_allocnos (ira_loop_tree_node_t bb_node)
   ira_assert (bb != NULL);
   FOR_BB_INSNS_REVERSE (bb, insn)
     if (NONDEBUG_INSN_P (insn))
-      create_insn_allocnos (PATTERN (insn), false);
+      create_insn_allocnos (PATTERN (insn), NULL, false);
   /* It might be a allocno living through from one subloop to
      another.  */
   EXECUTE_IF_SET_IN_REG_SET (df_get_live_in (bb), FIRST_PSEUDO_REGISTER, i, bi)
@@ -2048,6 +2070,8 @@ propagate_allocno_info (void)
 	    += ALLOCNO_CALLS_CROSSED_NUM (a);
 	  ALLOCNO_CHEAP_CALLS_CROSSED_NUM (parent_a)
 	    += ALLOCNO_CHEAP_CALLS_CROSSED_NUM (a);
+ 	  IOR_HARD_REG_SET (ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (parent_a),
+ 			    ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (a));
 	  ALLOCNO_EXCESS_PRESSURE_POINTS_NUM (parent_a)
 	    += ALLOCNO_EXCESS_PRESSURE_POINTS_NUM (a);
 	  aclass = ALLOCNO_CLASS (a);
@@ -2428,6 +2452,9 @@ propagate_some_info_from_allocno (ira_allocno_t a, ira_allocno_t from_a)
   ALLOCNO_CALLS_CROSSED_NUM (a) += ALLOCNO_CALLS_CROSSED_NUM (from_a);
   ALLOCNO_CHEAP_CALLS_CROSSED_NUM (a)
     += ALLOCNO_CHEAP_CALLS_CROSSED_NUM (from_a);
+  IOR_HARD_REG_SET (ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (a),
+ 		    ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (from_a));
+
   ALLOCNO_EXCESS_PRESSURE_POINTS_NUM (a)
     += ALLOCNO_EXCESS_PRESSURE_POINTS_NUM (from_a);
   if (! ALLOCNO_BAD_SPILL_P (from_a))
@@ -2813,8 +2840,9 @@ sort_conflict_id_map (void)
       FOR_EACH_ALLOCNO_OBJECT (a, obj, oi)
 	ira_object_id_map[num++] = obj;
     }
-  qsort (ira_object_id_map, num, sizeof (ira_object_t),
-	 object_range_compare_func);
+  if (num > 1)
+    qsort (ira_object_id_map, num, sizeof (ira_object_t),
+	   object_range_compare_func);
   for (i = 0; i < num; i++)
     {
       ira_object_t obj = ira_object_id_map[i];
@@ -3059,6 +3087,8 @@ copy_info_to_removed_store_destinations (int regno)
 	+= ALLOCNO_CALLS_CROSSED_NUM (a);
       ALLOCNO_CHEAP_CALLS_CROSSED_NUM (parent_a)
 	+= ALLOCNO_CHEAP_CALLS_CROSSED_NUM (a);
+      IOR_HARD_REG_SET (ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (parent_a),
+ 			ALLOCNO_CROSSED_CALLS_CLOBBERED_REGS (a));
       ALLOCNO_EXCESS_PRESSURE_POINTS_NUM (parent_a)
 	+= ALLOCNO_EXCESS_PRESSURE_POINTS_NUM (a);
       merged_p = true;
@@ -3222,7 +3252,6 @@ ira_flattening (int max_regno_before_emit, int ira_max_point_before_emit)
 		continue;
 
 	      aclass = ALLOCNO_CLASS (a);
-	      sparseset_set_bit (objects_live, OBJECT_CONFLICT_ID (obj));
 	      EXECUTE_IF_SET_IN_SPARSESET (objects_live, n)
 		{
 		  ira_object_t live_obj = ira_object_id_map[n];
@@ -3234,6 +3263,7 @@ ira_flattening (int max_regno_before_emit, int ira_max_point_before_emit)
 		      && live_a != a)
 		    ira_add_conflict (obj, live_obj);
 		}
+	      sparseset_set_bit (objects_live, OBJECT_CONFLICT_ID (obj));
 	    }
 
 	  for (r = ira_finish_point_ranges[i]; r != NULL; r = r->finish_next)

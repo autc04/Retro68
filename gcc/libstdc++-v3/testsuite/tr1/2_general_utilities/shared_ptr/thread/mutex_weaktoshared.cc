@@ -1,4 +1,4 @@
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,8 +17,8 @@
 
 // TR1 2.2.2 Template class shared_ptr [tr.util.smartptr.shared]
 
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* } }
-// { dg-options "-pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* } }
+// { dg-do run { target *-*-freebsd* *-*-dragonfly* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* } }
+// { dg-options "-pthread" { target *-*-freebsd* *-*-dragonfly* *-*-netbsd* *-*-linux* *-*-gnu* } }
 // { dg-options "-pthreads" { target *-*-solaris* } }
 
 #include <tr1/memory>

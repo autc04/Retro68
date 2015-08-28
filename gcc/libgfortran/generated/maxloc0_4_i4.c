@@ -1,5 +1,5 @@
 /* Implementation of the MAXLOC intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran 95 runtime library (libgfortran).
@@ -58,7 +58,7 @@ maxloc0_4_i4 (gfc_array_i4 * const restrict retarray,
       GFC_DIMENSION_SET(retarray->dim[0], 0, rank-1, 1);
       retarray->dtype = (retarray->dtype & ~GFC_DTYPE_RANK_MASK) | 1;
       retarray->offset = 0;
-      retarray->base_addr = xmalloc (sizeof (GFC_INTEGER_4) * rank);
+      retarray->base_addr = xmallocarray (rank, sizeof (GFC_INTEGER_4));
     }
   else
     {
@@ -199,7 +199,7 @@ mmaxloc0_4_i4 (gfc_array_i4 * const restrict retarray,
       GFC_DIMENSION_SET(retarray->dim[0], 0, rank - 1, 1);
       retarray->dtype = (retarray->dtype & ~GFC_DTYPE_RANK_MASK) | 1;
       retarray->offset = 0;
-      retarray->base_addr = xmalloc (sizeof (GFC_INTEGER_4) * rank);
+      retarray->base_addr = xmallocarray (rank, sizeof (GFC_INTEGER_4));
     }
   else
     {
@@ -367,7 +367,7 @@ smaxloc0_4_i4 (gfc_array_i4 * const restrict retarray,
       GFC_DIMENSION_SET(retarray->dim[0], 0, rank-1, 1);
       retarray->dtype = (retarray->dtype & ~GFC_DTYPE_RANK_MASK) | 1;
       retarray->offset = 0;
-      retarray->base_addr = xmalloc (sizeof (GFC_INTEGER_4) * rank);
+      retarray->base_addr = xmallocarray (rank, sizeof (GFC_INTEGER_4));
     }
   else if (unlikely (compile_options.bounds_check))
     {

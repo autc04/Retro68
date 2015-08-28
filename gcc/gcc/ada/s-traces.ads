@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---          Copyright (C) 2001-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software;  you can redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,24 +33,23 @@
 
 --  Warning : NO dependencies to tasking should be created here
 
---  This package, and all its children are used to implement debug
---  informations
+--  This package and all its children are used to implement debug information
 
 --  A new primitive, Send_Trace_Info (Id : Trace_T; 'data') is introduced.
---  Trace_T is an event identifier, 'data' are the informations to pass
+--  Trace_T is an event identifier, 'data' are the information to pass
 --  with the event. This procedure is used from within the Runtime to send
---  debug informations.
+--  debug information.
 
 --  This primitive is overloaded in System.Traces.Tasking and this package
 
 --  Send_Trace_Info calls Send_Trace, in System.Traces.Send, which is target
---  dependent, to send the debug informations to a debugger, stream ..
+--  dependent, to send the debug information to a debugger, stream ..
 
 --  To add a new event, just add them to the Trace_T type, and write the
 --  corresponding Send_Trace_Info procedure. It may be required for some
 --  target to modify Send_Trace (e.g. VxWorks).
 
---  To add a new target, just adapt System.Traces.Send to your own purposes
+--  To add a new target, just adapt System.Traces.Send as needed
 
 package System.Traces is
    pragma Preelaborate;

@@ -1,5 +1,5 @@
 /* This file contains definitions for the register renamer.
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -56,7 +56,7 @@ struct du_chain
   struct du_chain *next_use;
 
   /* The insn where the register appears.  */
-  rtx insn;
+  rtx_insn *insn;
   /* The location inside the insn.  */
   rtx *loc;
   /* The register class required by the insn at this location.  */
@@ -89,8 +89,8 @@ extern void regrename_init (bool);
 extern void regrename_finish (void);
 extern void regrename_analyze (bitmap);
 extern du_head_p regrename_chain_from_id (unsigned int);
-extern int find_best_rename_reg (du_head_p, enum reg_class, HARD_REG_SET *,
-				 int);
+extern int find_rename_reg (du_head_p, enum reg_class, HARD_REG_SET *, int,
+			    bool);
 extern void regrename_do_replace (du_head_p, int);
 
 #endif

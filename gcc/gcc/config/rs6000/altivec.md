@@ -1,5 +1,5 @@
 ;; AltiVec patterns.
-;; Copyright (C) 2002-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2015 Free Software Foundation, Inc.
 ;; Contributed by Aldy Hernandez (aldy@quesejoda.com)
 
 ;; This file is part of GCC.
@@ -67,7 +67,7 @@
    UNSPEC_VCTSXS
    UNSPEC_VLOGEFP
    UNSPEC_VEXPTEFP
-   UNSPEC_VLSDOI
+   UNSPEC_VSLDOI
    UNSPEC_VUNPACK_HI_SIGN
    UNSPEC_VUNPACK_LO_SIGN
    UNSPEC_VUNPACK_HI_SIGN_DIRECT
@@ -189,8 +189,8 @@
 
 ;; Vector move instructions.
 (define_insn "*altivec_mov<mode>"
-  [(set (match_operand:VM2 0 "nonimmediate_operand" "=Z,v,v,*Y,*r,*r,v,v")
-	(match_operand:VM2 1 "input_operand" "v,Z,v,r,Y,r,j,W"))]
+  [(set (match_operand:VM2 0 "nonimmediate_operand" "=Z,v,v,*Y,*r,*r,v,v,*r")
+	(match_operand:VM2 1 "input_operand" "v,Z,v,r,Y,r,j,W,W"))]
   "VECTOR_MEM_ALTIVEC_P (<MODE>mode)
    && (register_operand (operands[0], <MODE>mode) 
        || register_operand (operands[1], <MODE>mode))"
@@ -205,10 +205,12 @@
     case 5: return "#";
     case 6: return "vxor %0,%0,%0";
     case 7: return output_vec_const_move (operands);
+    case 8: return "#";
     default: gcc_unreachable ();
     }
 }
-  [(set_attr "type" "vecstore,vecload,vecsimple,store,load,*,vecsimple,*")])
+  [(set_attr "type" "vecstore,vecload,vecsimple,store,load,*,vecsimple,*,*")
+   (set_attr "length" "4,4,4,20,20,20,4,8,32")])
 
 ;; Unlike other altivec moves, allow the GPRs, since a normal use of TImode
 ;; is for unions.  However for plain data movement, slightly favor the vector
@@ -244,7 +246,7 @@
   [(const_int 0)]
 {
   rtx dest = operands[0];
-  enum machine_mode mode = GET_MODE (operands[0]);
+  machine_mode mode = GET_MODE (operands[0]);
   rtvec v;
   int i, num_elements;
 
@@ -273,7 +275,7 @@
 {
   rtx dup = gen_easy_altivec_constant (operands[1]);
   rtx const_vec;
-  enum machine_mode op_mode = <MODE>mode;
+  machine_mode op_mode = <MODE>mode;
 
   /* Divide the operand of the resulting VEC_DUPLICATE, and use
      simplify_rtx to make a CONST_VECTOR.  */
@@ -2077,7 +2079,7 @@
         (unspec:VM [(match_operand:VM 1 "register_operand" "v")
 		    (match_operand:VM 2 "register_operand" "v")
 		    (match_operand:QI 3 "immediate_operand" "i")]
-		  UNSPEC_VLSDOI))]
+		  UNSPEC_VSLDOI))]
   "TARGET_ALTIVEC"
   "vsldoi %0,%1,%2,%3"
   [(set_attr "type" "vecperm")])
@@ -2297,7 +2299,31 @@
   "dststt %0,%1,%2"
   [(set_attr "type" "vecsimple")])
 
-(define_insn "altivec_lvsl"
+(define_expand "altivec_lvsl"
+  [(use (match_operand:V16QI 0 "register_operand" ""))
+   (use (match_operand:V16QI 1 "memory_operand" ""))]
+  "TARGET_ALTIVEC"
+{
+  if (VECTOR_ELT_ORDER_BIG)
+    emit_insn (gen_altivec_lvsl_direct (operands[0], operands[1]));
+  else
+    {
+      int i;
+      rtx mask, perm[16], constv, vperm;
+      mask = gen_reg_rtx (V16QImode);
+      emit_insn (gen_altivec_lvsl_direct (mask, operands[1]));
+      for (i = 0; i < 16; ++i)
+        perm[i] = GEN_INT (i);
+      constv = gen_rtx_CONST_VECTOR (V16QImode, gen_rtvec_v (16, perm));
+      constv = force_reg (V16QImode, constv);
+      vperm = gen_rtx_UNSPEC (V16QImode, gen_rtvec (3, mask, mask, constv),
+                              UNSPEC_VPERM);
+      emit_insn (gen_rtx_SET (VOIDmode, operands[0], vperm));
+    }
+  DONE;
+})
+
+(define_insn "altivec_lvsl_direct"
   [(set (match_operand:V16QI 0 "register_operand" "=v")
 	(unspec:V16QI [(match_operand:V16QI 1 "memory_operand" "Z")]
 		      UNSPEC_LVSL))]
@@ -2305,7 +2331,31 @@
   "lvsl %0,%y1"
   [(set_attr "type" "vecload")])
 
-(define_insn "altivec_lvsr"
+(define_expand "altivec_lvsr"
+  [(use (match_operand:V16QI 0 "register_operand" ""))
+   (use (match_operand:V16QI 1 "memory_operand" ""))]
+  "TARGET_ALTIVEC"
+{
+  if (VECTOR_ELT_ORDER_BIG)
+    emit_insn (gen_altivec_lvsr_direct (operands[0], operands[1]));
+  else
+    {
+      int i;
+      rtx mask, perm[16], constv, vperm;
+      mask = gen_reg_rtx (V16QImode);
+      emit_insn (gen_altivec_lvsr_direct (mask, operands[1]));
+      for (i = 0; i < 16; ++i)
+        perm[i] = GEN_INT (i);
+      constv = gen_rtx_CONST_VECTOR (V16QImode, gen_rtvec_v (16, perm));
+      constv = force_reg (V16QImode, constv);
+      vperm = gen_rtx_UNSPEC (V16QImode, gen_rtvec (3, mask, mask, constv),
+                              UNSPEC_VPERM);
+      emit_insn (gen_rtx_SET (VOIDmode, operands[0], vperm));
+    }
+  DONE;
+})
+
+(define_insn "altivec_lvsr_direct"
   [(set (match_operand:V16QI 0 "register_operand" "=v")
 	(unspec:V16QI [(match_operand:V16QI 1 "memory_operand" "Z")]
 		      UNSPEC_LVSR))]
@@ -2405,7 +2455,7 @@
     }
 })
 
-(define_insn "*altivec_lvx_<mode>_internal"
+(define_insn "altivec_lvx_<mode>_internal"
   [(parallel
     [(set (match_operand:VM2 0 "register_operand" "=v")
 	  (match_operand:VM2 1 "memory_operand" "Z"))
@@ -2428,7 +2478,7 @@
     }
 })
 
-(define_insn "*altivec_stvx_<mode>_internal"
+(define_insn "altivec_stvx_<mode>_internal"
   [(parallel
     [(set (match_operand:VM2 0 "memory_operand" "=Z")
 	  (match_operand:VM2 1 "register_operand" "v"))

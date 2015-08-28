@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -91,7 +91,7 @@ package body Ada.Strings.Unbounded is
       --  Otherwise, allocate new shared string and fill data
 
       else
-         DR := Allocate (LR.Last + RR.Last);
+         DR := Allocate (DL);
          DR.Data (1 .. LR.Last) := LR.Data (1 .. LR.Last);
          DR.Data (LR.Last + 1 .. DL) := RR.Data (1 .. RR.Last);
          DR.Last := DL;
@@ -1096,7 +1096,7 @@ package body Ada.Strings.Unbounded is
       --  Otherwise, allocate new shared string and fill it
 
       else
-         DR := Allocate (DL + DL /Growth_Factor);
+         DR := Allocate (DL + DL / Growth_Factor);
          DR.Data (1 .. Before - 1) := SR.Data (1 .. Before - 1);
          DR.Data (Before .. Before + New_Item'Length - 1) := New_Item;
          DR.Data (Before + New_Item'Length .. DL) :=
@@ -1609,17 +1609,35 @@ package body Ada.Strings.Unbounded is
    -------------------------
 
    function To_Unbounded_String (Source : String) return Unbounded_String is
-      DR : constant Shared_String_Access := Allocate (Source'Length);
+      DR : Shared_String_Access;
+
    begin
-      DR.Data (1 .. Source'Length) := Source;
-      DR.Last := Source'Length;
+      if Source'Length = 0 then
+         Reference (Empty_Shared_String'Access);
+         DR := Empty_Shared_String'Access;
+
+      else
+         DR := Allocate (Source'Length);
+         DR.Data (1 .. Source'Length) := Source;
+         DR.Last := Source'Length;
+      end if;
+
       return (AF.Controlled with Reference => DR);
    end To_Unbounded_String;
 
    function To_Unbounded_String (Length : Natural) return Unbounded_String is
-      DR : constant Shared_String_Access := Allocate (Length);
+      DR : Shared_String_Access;
+
    begin
-      DR.Last := Length;
+      if Length = 0 then
+         Reference (Empty_Shared_String'Access);
+         DR := Empty_Shared_String'Access;
+
+      else
+         DR := Allocate (Length);
+         DR.Last := Length;
+      end if;
+
       return (AF.Controlled with Reference => DR);
    end To_Unbounded_String;
 

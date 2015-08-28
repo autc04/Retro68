@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,23 +23,25 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;     use Atree;
-with Debug;     use Debug;
-with Elists;    use Elists;
-with Errout;    use Errout;
-with Lib;       use Lib;
-with Osint;     use Osint;
-with Opt;       use Opt;
-with Osint.C;   use Osint.C;
-with Namet;     use Namet;
-with Nlists;    use Nlists;
-with Stand;     use Stand;
-with Sinput;    use Sinput;
-with Stringt;   use Stringt;
-with Switch;    use Switch;
-with Switch.C;  use Switch.C;
-with System;    use System;
-with Types;     use Types;
+--  This is the version of the Back_End package for GCC back ends
+
+with Atree;    use Atree;
+with Debug;    use Debug;
+with Elists;   use Elists;
+with Errout;   use Errout;
+with Lib;      use Lib;
+with Osint;    use Osint;
+with Opt;      use Opt;
+with Osint.C;  use Osint.C;
+with Namet;    use Namet;
+with Nlists;   use Nlists;
+with Stand;    use Stand;
+with Sinput;   use Sinput;
+with Stringt;  use Stringt;
+with Switch;   use Switch;
+with Switch.C; use Switch.C;
+with System;   use System;
+with Types;    use Types;
 
 with System.OS_Lib; use System.OS_Lib;
 
@@ -126,6 +128,9 @@ package body Back_End is
            Nat (Physical_To_Logical (Last_Source_Line (J), J));
       end loop;
 
+      --  Deal with case of generating SCIL, we should not be here unless
+      --  debugging CodePeer mode in GNAT.
+
       if Generate_SCIL then
          Error_Msg_N ("'S'C'I'L generation not available", Cunit (Main_Unit));
 
@@ -136,6 +141,16 @@ package body Back_End is
             return;
          end if;
       end if;
+
+      --  We should be here in GNATprove mode only when debugging GNAT. Do not
+      --  call gigi in that case, as it is not prepared to handle the special
+      --  form of the tree obtained in GNATprove mode.
+
+      if GNATprove_Mode then
+         return;
+      end if;
+
+      --  The actual call to the back end
 
       gigi
         (gnat_root          => Int (Cunit (Main_Unit)),
@@ -162,6 +177,15 @@ package body Back_End is
          gigi_standard_exception_type  => Standard_Exception_Type,
          gigi_operating_mode           => Mode);
    end Call_Back_End;
+
+   -------------------------------
+   -- Gen_Or_Update_Object_File --
+   -------------------------------
+
+   procedure Gen_Or_Update_Object_File is
+   begin
+      null;
+   end Gen_Or_Update_Object_File;
 
    -------------
    -- Len_Arg --
@@ -210,9 +234,10 @@ package body Back_End is
          Last  : constant Natural  := Switch_Last (Switch_Chars);
 
       begin
-         --  Skip -o or internal GCC switches together with their argument
+         --  Skip -o, -G or internal GCC switches together with their argument.
 
          if Switch_Chars (First .. Last) = "o"
+           or else Switch_Chars (First .. Last) = "G"
            or else Is_Internal_GCC_Switch (Switch_Chars)
          then
             Next_Arg := Next_Arg + 1;
@@ -228,11 +253,12 @@ package body Back_End is
          else
             Store_Compilation_Switch (Switch_Chars);
 
-            --  Back end switch -fno-inline also sets the Suppress_All_Inlining
-            --  front end flag to entirely inhibit all inlining.
+            --  For gcc back ends, -fno-inline disables Inline pragmas only,
+            --  not Inline_Always to remain consistent with the always_inline
+            --  attribute behavior.
 
             if Switch_Chars (First .. Last) = "fno-inline" then
-               Opt.Suppress_All_Inlining := True;
+               Opt.Disable_FE_Inline := True;
 
             --  Back end switch -fpreserve-control-flow also sets the front end
             --  flag that inhibits improper control flow transformations.
@@ -341,14 +367,5 @@ package body Back_End is
          Next_Arg := Next_Arg + 1;
       end loop;
    end Scan_Compiler_Arguments;
-
-   -------------------------------
-   -- Gen_Or_Update_Object_File --
-   -------------------------------
-
-   procedure Gen_Or_Update_Object_File is
-   begin
-      null;
-   end Gen_Or_Update_Object_File;
 
 end Back_End;

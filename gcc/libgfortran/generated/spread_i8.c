@@ -1,5 +1,5 @@
 /* Special implementation of the SPREAD intrinsic
-   Copyright (C) 2008-2014 Free Software Foundation, Inc.
+   Copyright (C) 2008-2015 Free Software Foundation, Inc.
    Contributed by Thomas Koenig <tkoenig@gcc.gnu.org>, based on
    spread_generic.c written by Paul Brook <paul@nowt.org>
 
@@ -101,8 +101,8 @@ spread_i8 (gfc_array_i8 *ret, const gfc_array_i8 *source,
 	}
       ret->offset = 0;
 
-      /* xmalloc allocates a single byte for zero size.  */
-      ret->base_addr = xmalloc (rs * sizeof(GFC_INTEGER_8));
+      /* xmallocarray allocates a single byte for zero size.  */
+      ret->base_addr = xmallocarray (rs, sizeof(GFC_INTEGER_8));
       if (rs <= 0)
         return;
     }
@@ -244,7 +244,7 @@ spread_scalar_i8 (gfc_array_i8 *ret, const GFC_INTEGER_8 *source,
 
   if (ret->base_addr == NULL)
     {
-      ret->base_addr = xmalloc (ncopies * sizeof (GFC_INTEGER_8));
+      ret->base_addr = xmallocarray (ncopies, sizeof (GFC_INTEGER_8));
       ret->offset = 0;
       GFC_DIMENSION_SET(ret->dim[0], 0, ncopies - 1, 1);
     }

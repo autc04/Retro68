@@ -11,6 +11,7 @@
 #ifndef TSAN_REPORT_H
 #define TSAN_REPORT_H
 
+#include "sanitizer_common/sanitizer_symbolizer.h"
 #include "tsan_defs.h"
 #include "tsan_vector.h"
 
@@ -20,21 +21,26 @@ enum ReportType {
   ReportTypeRace,
   ReportTypeVptrRace,
   ReportTypeUseAfterFree,
+  ReportTypeVptrUseAfterFree,
   ReportTypeThreadLeak,
   ReportTypeMutexDestroyLocked,
+  ReportTypeMutexDoubleLock,
+  ReportTypeMutexBadUnlock,
+  ReportTypeMutexBadReadLock,
+  ReportTypeMutexBadReadUnlock,
   ReportTypeSignalUnsafe,
-  ReportTypeErrnoInSignal
+  ReportTypeErrnoInSignal,
+  ReportTypeDeadlock
 };
 
 struct ReportStack {
   ReportStack *next;
-  char *module;
-  uptr offset;
-  uptr pc;
-  char *func;
-  char *file;
-  int line;
-  int col;
+  AddressInfo info;
+  bool suppressable;
+  static ReportStack *New(uptr addr);
+
+ private:
+  ReportStack();
 };
 
 struct ReportMopMutex {
@@ -64,16 +70,17 @@ enum ReportLocationType {
 
 struct ReportLocation {
   ReportLocationType type;
-  uptr addr;
-  uptr size;
-  char *module;
-  uptr offset;
+  DataInfo global;
+  uptr heap_chunk_start;
+  uptr heap_chunk_size;
   int tid;
   int fd;
-  char *name;
-  char *file;
-  int line;
+  bool suppressable;
   ReportStack *stack;
+
+  static ReportLocation *New(ReportLocationType type);
+ private:
+  explicit ReportLocation(ReportLocationType type);
 };
 
 struct ReportThread {
@@ -87,6 +94,7 @@ struct ReportThread {
 
 struct ReportMutex {
   u64 id;
+  uptr addr;
   bool destroyed;
   ReportStack *stack;
 };
@@ -99,6 +107,7 @@ class ReportDesc {
   Vector<ReportLocation*> locs;
   Vector<ReportMutex*> mutexes;
   Vector<ReportThread*> threads;
+  Vector<int> unique_tids;
   ReportStack *sleep;
   int count;
 

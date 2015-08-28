@@ -1,5 +1,5 @@
 ;; Machine Description for Altera Nios II.
-;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2015 Free Software Foundation, Inc.
 ;; Contributed by Jonah Graham (jgraham@altera.com) and 
 ;; Will Reece (wreece@altera.com).
 ;; Contributed by Mentor Graphics, Inc.
@@ -70,6 +70,7 @@
   UNSPEC_FATAN
   UNSPEC_FEXP
   UNSPEC_FLOG
+  UNSPEC_ROUND
   UNSPEC_LOAD_GOT_REGISTER
   UNSPEC_PIC_SYM
   UNSPEC_PIC_CALL_SYM
@@ -585,6 +586,13 @@
   { return nios2_fpu_insn_asm (n2fpu_fix<f><i>); }
   [(set_attr "type" "custom")])
 
+(define_insn "lroundsfsi2"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+        (unspec:SI [(match_operand:SF 1 "general_operand" "r")] UNSPEC_ROUND))]
+  "nios2_fpu_insn_enabled (n2fpu_round)"
+  { return nios2_fpu_insn_asm (n2fpu_round); }
+  [(set_attr "type" "custom")])
+
 (define_insn "extendsfdf2"
   [(set (match_operand:DF 0 "register_operand" "=r")
         (float_extend:DF (match_operand:SF 1 "general_operand" "r")))]
@@ -718,7 +726,7 @@
                     (match_operand 1 "" ""))
               (clobber (reg:SI RA_REGNO))])]
   ""
-  "nios2_adjust_call_address (&operands[0]);")
+  "nios2_adjust_call_address (&operands[0], NULL_RTX);")
 
 (define_expand "call_value"
   [(parallel [(set (match_operand 0 "" "")
@@ -726,7 +734,7 @@
                          (match_operand 2 "" "")))
               (clobber (reg:SI RA_REGNO))])]
   ""
-  "nios2_adjust_call_address (&operands[1]);")
+  "nios2_adjust_call_address (&operands[1], NULL_RTX);")
 
 (define_insn "*call"
   [(call (mem:QI (match_operand:SI 0 "call_operand" "i,r"))
@@ -754,7 +762,7 @@
                     (match_operand 1 "" ""))
               (return)])]
   ""
-  "nios2_adjust_call_address (&operands[0]);")
+  "nios2_adjust_call_address (&operands[0], NULL_RTX);")
 
 (define_expand "sibcall_value"
   [(parallel [(set (match_operand 0 "" "")
@@ -762,9 +770,9 @@
                          (match_operand 2 "" "")))
               (return)])]
   ""
-  "nios2_adjust_call_address (&operands[1]);")
+  "nios2_adjust_call_address (&operands[1], NULL_RTX);")
 
-(define_insn "*sibcall"
+(define_insn "sibcall_internal"
  [(call (mem:QI (match_operand:SI 0 "call_operand" "i,j"))
         (match_operand 1 "" ""))
   (return)]
@@ -774,7 +782,7 @@
    jmp\\t%0"
   [(set_attr "type" "control")])
 
-(define_insn "*sibcall_value"
+(define_insn "sibcall_value_internal"
  [(set (match_operand 0 "register_operand" "")
        (call (mem:QI (match_operand:SI 1 "call_operand" "i,j"))
              (match_operand 2 "" "")))
@@ -869,8 +877,8 @@
   [(set_attr "type" "control")
    (set (attr "length") 
         (if_then_else
-	    (and (ge (minus (match_dup 1) (pc)) (const_int -32768))
-	         (le (minus (match_dup 1) (pc)) (const_int 32764)))
+	    (and (ge (minus (match_dup 3) (pc)) (const_int -32768))
+	         (le (minus (match_dup 3) (pc)) (const_int 32764)))
 	    (const_int 4) (const_int 8)))])
 
 ;; Floating point comparisons

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1999-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -179,13 +179,13 @@ package Targparm is
 
    --  The default values here are used if no value is found in system.ads.
    --  This should normally happen if the special version of system.ads used
-   --  by the compiler itself is in use or if the value is only relevant to
-   --  a particular target (e.g. OpenVMS, AAMP). The default values are
-   --  suitable for use in normal environments. This approach allows the
-   --  possibility of new versions of the compiler (possibly with new system
-   --  parameters added) being used to compile older versions of the compiler
-   --  sources, as well as avoiding duplicating values in all system-*.ads
-   --  files for flags that are used on a few platforms only.
+   --  by the compiler itself is in use or if the value is only relevant to a
+   --  particular target (e.g. AAMP). The default values are suitable for use
+   --  in normal environments. This approach allows the possibility of new
+   --  versions of the compiler (possibly with new system parameters added)
+   --  being used to compile older versions of the compiler sources, as well as
+   --  avoiding duplicating values in all system-*.ads files for flags that are
+   --  used on a few platforms only.
 
    --  All these parameters should be regarded as read only by all clients
    --  of the package. The only way they get modified is by calling the
@@ -202,15 +202,6 @@ package Targparm is
 
    AAMP_On_Target : Boolean := False;
    --  Set to True if target is AAMP
-
-   OpenVMS_On_Target : Boolean := False;
-   --  Set to True if target is OpenVMS
-
-   VAX_Float_On_Target : Boolean := False;
-   --  Set to True if target float format is VAX Float
-
-   RTX_RTSS_Kernel_Module_On_Target : Boolean := False;
-   --  Set to True if target is RTSS module for RTX
 
    type Virtual_Machine_Kind is (No_VM, JVM_Target, CLI_Target);
    VM_Target : Virtual_Machine_Kind := No_VM;
@@ -358,8 +349,6 @@ package Targparm is
    --    The calls to __gnat_initialize and __gnat_finalize are omitted
    --
    --    All finalization and initialization (controlled types) is omitted
-   --
-   --    The routine __gnat_handler_installed is not imported
 
    Preallocated_Stacks_On_Target : Boolean := False;
    --  If this flag is True, then the expander preallocates all task stacks
@@ -612,17 +601,42 @@ package Targparm is
    --  These subprograms are used to initialize the target parameter values
    --  from the system.ads file. Note that this is only done once, so if more
    --  than one call is made to either routine, the second and subsequent
-   --  calls are ignored.
+   --  calls are ignored. It also reads restriction pragmas from system.ads
+   --  and records them, though as further detailed below, the caller has some
+   --  control over the handling of No_Dependence restrictions.
+
+   type Make_Id_Type is access function (Str : Text_Buffer) return Node_Id;
+   --  Parameter type for Get_Target_Parameters for function that creates an
+   --  identifier node with Sloc value System_Location and given string as the
+   --  Chars value.
+
+   type Make_SC_Type is access function (Pre, Sel : Node_Id) return Node_Id;
+   --  Parameter type for Get_Target_Parameters for function that creates a
+   --  selected component with Sloc value System_Location and given Prefix
+   --  (Pre) and Selector (Sel) values.
+
+   type Set_RND_Type is access procedure (Unit : Node_Id);
+   --  Parameter type for Get_Target_Parameters that records a Restriction
+   --  No_Dependence for the given unit (identifier or selected component).
 
    procedure Get_Target_Parameters
      (System_Text  : Source_Buffer_Ptr;
       Source_First : Source_Ptr;
-      Source_Last  : Source_Ptr);
+      Source_Last  : Source_Ptr;
+      Make_Id      : Make_Id_Type := null;
+      Make_SC      : Make_SC_Type := null;
+      Set_RND      : Set_RND_Type := null);
    --  Called at the start of execution to obtain target parameters from
    --  the source of package System. The parameters provide the source
    --  text to be scanned (in System_Text (Source_First .. Source_Last)).
+   --  if the three subprograms are left at their default value of null,
+   --  Get_Target_Parameters will ignore pragma Restrictions No_Dependence
+   --  lines, otherwise it will use these three subprograms to record them.
 
-   procedure Get_Target_Parameters;
+   procedure Get_Target_Parameters
+     (Make_Id : Make_Id_Type := null;
+      Make_SC : Make_SC_Type := null;
+      Set_RND : Set_RND_Type := null);
    --  This version reads in system.ads using Osint. The idea is that the
    --  caller uses the first version if they have to read system.ads anyway
    --  (e.g. the compiler) and uses this simpler interface if system.ads is

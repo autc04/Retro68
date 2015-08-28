@@ -1,5 +1,5 @@
 # Expect driver script for GCC Regression Tests
-# Copyright (C) 1993-2014 Free Software Foundation, Inc.
+# Copyright (C) 1993-2015 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ dg-init
 # Main loop.
 set saved-dg-do-what-default ${dg-do-what-default}
 set dg-do-what-default "assemble"
-gcc-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.\[cS\]]] "-w"
+gcc-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.\[cS\]]] "" "-w"
 set dg-do-what-default ${saved-dg-do-what-default}
 
 # All done.

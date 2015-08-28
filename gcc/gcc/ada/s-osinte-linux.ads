@@ -47,6 +47,8 @@ package System.OS_Interface is
    pragma Preelaborate;
 
    pragma Linker_Options ("-lpthread");
+   pragma Linker_Options ("-lrt");
+   --  Needed for clock_getres with glibc versions prior to 2.17
 
    subtype int            is Interfaces.C.int;
    subtype char           is Interfaces.C.char;
@@ -217,9 +219,15 @@ package System.OS_Interface is
    -- Time --
    ----------
 
-   subtype time_t   is System.Linux.time_t;
-   subtype timespec is System.Linux.timespec;
-   subtype timeval  is System.Linux.timeval;
+   subtype time_t    is System.Linux.time_t;
+   subtype timespec  is System.Linux.timespec;
+   subtype timeval   is System.Linux.timeval;
+   subtype clockid_t is System.Linux.clockid_t;
+
+   function clock_getres
+     (clock_id : clockid_t;
+      res      : access timespec) return int;
+   pragma Import (C, clock_getres, "clock_getres");
 
    function To_Duration (TS : timespec) return Duration;
    pragma Inline (To_Duration);
@@ -599,9 +607,6 @@ private
 
    type pid_t is new int;
 
-   type unsigned_long_long_t is mod 2 ** 64;
-   --  Local type only used to get the alignment of this type below
-
    subtype char_array is Interfaces.C.char_array;
 
    type pthread_attr_t is record
@@ -644,7 +649,7 @@ private
       Data : char_array (1 .. OS_Constants.PTHREAD_COND_SIZE);
    end record;
    pragma Convention (C, pthread_cond_t);
-   for pthread_cond_t'Alignment use unsigned_long_long_t'Alignment;
+   for pthread_cond_t'Alignment use Interfaces.Unsigned_64'Alignment;
 
    type pthread_key_t is new unsigned;
 

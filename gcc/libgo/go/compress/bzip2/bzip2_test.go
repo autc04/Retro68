@@ -14,7 +14,7 @@ import (
 )
 
 func TestBitReader(t *testing.T) {
-	buf := bytes.NewBuffer([]byte{0xaa})
+	buf := bytes.NewReader([]byte{0xaa})
 	br := newBitReader(buf)
 	if n := br.ReadBits(1); n != 1 {
 		t.Errorf("read 1 wrong")
@@ -31,7 +31,7 @@ func TestBitReader(t *testing.T) {
 }
 
 func TestBitReaderLarge(t *testing.T) {
-	buf := bytes.NewBuffer([]byte{0x12, 0x34, 0x56, 0x78})
+	buf := bytes.NewReader([]byte{0x12, 0x34, 0x56, 0x78})
 	br := newBitReader(buf)
 	if n := br.ReadBits(32); n != 0x12345678 {
 		t.Errorf("got: %x want: %x", n, 0x12345678)
@@ -43,7 +43,7 @@ func readerFromHex(s string) io.Reader {
 	if err != nil {
 		panic("readerFromHex: bad input")
 	}
-	return bytes.NewBuffer(data)
+	return bytes.NewReader(data)
 }
 
 func decompressHex(s string) (out []byte, err error) {
@@ -177,7 +177,7 @@ const (
 
 var testfiles = []string{
 	// Digits is the digits of the irrational number e. Its decimal representation
-	// does not repeat, but there are only 10 posible digits, so it should be
+	// does not repeat, but there are only 10 possible digits, so it should be
 	// reasonably compressible.
 	digits: "testdata/e.txt.bz2",
 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
@@ -191,7 +191,7 @@ func benchmarkDecode(b *testing.B, testfile int) {
 	}
 	b.SetBytes(int64(len(compressed)))
 	for i := 0; i < b.N; i++ {
-		r := bytes.NewBuffer(compressed)
+		r := bytes.NewReader(compressed)
 		io.Copy(ioutil.Discard, NewReader(r))
 	}
 }
@@ -201,11 +201,57 @@ func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
 
 func TestBufferOverrun(t *testing.T) {
 	// Tests https://code.google.com/p/go/issues/detail?id=5747.
-	buffer := bytes.NewBuffer([]byte(bufferOverrunBase64))
+	buffer := bytes.NewReader([]byte(bufferOverrunBase64))
 	decoder := base64.NewDecoder(base64.StdEncoding, buffer)
 	decompressor := NewReader(decoder)
 	// This shouldn't panic.
 	ioutil.ReadAll(decompressor)
+}
+
+func TestOutOfRangeSelector(t *testing.T) {
+	// Tests https://code.google.com/p/go/issues/detail?id=8363.
+	buffer := bytes.NewReader(outOfRangeSelector)
+	decompressor := NewReader(buffer)
+	// This shouldn't panic.
+	ioutil.ReadAll(decompressor)
+}
+
+func TestMTF(t *testing.T) {
+	mtf := newMTFDecoderWithRange(5)
+
+	// 0 1 2 3 4
+	expect := byte(1)
+	x := mtf.Decode(1)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 1 0 2 3 4
+	x = mtf.Decode(0)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 1 0 2 3 4
+	expect = byte(0)
+	x = mtf.Decode(1)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 0 1 2 3 4
+	expect = byte(4)
+	x = mtf.Decode(4)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
+
+	// 4 0 1 2 3
+	expect = byte(0)
+	x = mtf.Decode(1)
+	if x != expect {
+		t.Errorf("expected %v, got %v", expect, x)
+	}
 }
 
 var bufferOverrunBase64 string = `
@@ -361,3 +407,13 @@ O0A8s/iua5oFdNZTWvbVI4FUH9sKcLiB3/fIAF+sB4n8q6L+UCfmbPcAo/crQ6b3
 HqhDBMY9J0q/jdz9GNYZ/1fbXdkUqAQKFePhtzJDRBZba27+LPQNMCcrHMq06F1T
 4QmLmkHt7LxB2pAczUO+T2O9bHEw/HWw+dYf2MoRDUw=
 `
+
+var outOfRangeSelector = []byte{
+	0x42, 0x5a, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26,
+	0x53, 0x59, 0x4e, 0xec, 0xe8, 0x36, 0x00, 0x00,
+	0x02, 0x51, 0x80, 0x00, 0x10, 0x40, 0x00, 0x06,
+	0x44, 0x90, 0x80, 0x20, 0x00, 0x31, 0x06, 0x4c,
+	0x41, 0x01, 0xa7, 0xa9, 0xa5, 0x80, 0xbb, 0x94,
+	0x31, 0x17, 0x72, 0x45, 0x38, 0x50, 0x90, 0x00,
+	0x00, 0x00, 0x00,
+}

@@ -1,5 +1,5 @@
 /* Implementation of the MINLOC intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -98,10 +98,9 @@ minloc1_4_i4 (gfc_array_i4 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype = (array->dtype & ~GFC_DTYPE_RANK_MASK) | rank;
 
-      alloc_size = sizeof (GFC_INTEGER_4) * GFC_DESCRIPTOR_STRIDE(retarray,rank-1)
-    		   * extent[rank-1];
+      alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
-      retarray->base_addr = xmalloc (alloc_size);
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_4));
       if (alloc_size == 0)
 	{
 	  /* Make sure we have a zero-sized array.  */
@@ -294,8 +293,7 @@ mminloc1_4_i4 (gfc_array_i4 * const restrict retarray,
 
 	}
 
-      alloc_size = sizeof (GFC_INTEGER_4) * GFC_DESCRIPTOR_STRIDE(retarray,rank-1)
-    		   * extent[rank-1];
+      alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
       retarray->offset = 0;
       retarray->dtype = (array->dtype & ~GFC_DTYPE_RANK_MASK) | rank;
@@ -307,7 +305,7 @@ mminloc1_4_i4 (gfc_array_i4 * const restrict retarray,
 	  return;
 	}
       else
-	retarray->base_addr = xmalloc (alloc_size);
+	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_4));
 
     }
   else
@@ -485,8 +483,7 @@ sminloc1_4_i4 (gfc_array_i4 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype = (array->dtype & ~GFC_DTYPE_RANK_MASK) | rank;
 
-      alloc_size = sizeof (GFC_INTEGER_4) * GFC_DESCRIPTOR_STRIDE(retarray,rank-1)
-    		   * extent[rank-1];
+      alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
       if (alloc_size == 0)
 	{
@@ -495,7 +492,7 @@ sminloc1_4_i4 (gfc_array_i4 * const restrict retarray,
 	  return;
 	}
       else
-	retarray->base_addr = xmalloc (alloc_size);
+	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_4));
     }
   else
     {

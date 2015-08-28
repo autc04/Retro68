@@ -1,5 +1,5 @@
 /* LTO symbol table.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2015 Free Software Foundation, Inc.
    Contributed by CodeSourcery, Inc.
 
 This file is part of GCC.
@@ -22,18 +22,40 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "diagnostic-core.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
 #include "gimple-expr.h"
 #include "is-a.h"
 #include "gimple.h"
-#include "hashtab.h"
 #include "plugin-api.h"
+#include "hash-map.h"
+#include "ipa-ref.h"
+#include "cgraph.h"
 #include "lto-streamer.h"
 #include "ipa-utils.h"
+#include "alloc-pool.h"
+#include "symbol-summary.h"
+#include "ipa-prop.h"
 #include "ipa-inline.h"
+#include "builtins.h"
 
 /* Replace the cgraph node NODE with PREVAILING_NODE in the cgraph, merging
    all edges and removing the old node.  */
@@ -45,9 +67,9 @@ lto_cgraph_replace_node (struct cgraph_node *node,
   struct cgraph_edge *e, *next;
   bool compatible_p;
 
-  if (cgraph_dump_file)
+  if (symtab->dump_file)
     {
-      fprintf (cgraph_dump_file, "Replacing cgraph node %s/%i by %s/%i"
+      fprintf (symtab->dump_file, "Replacing cgraph node %s/%i by %s/%i"
  	       " for symbol %s\n",
 	       node->name (), node->order,
 	       prevailing_node->name (),
@@ -58,14 +80,16 @@ lto_cgraph_replace_node (struct cgraph_node *node,
 
   /* Merge node flags.  */
   if (node->force_output)
-    cgraph_mark_force_output_node (prevailing_node);
+    prevailing_node->mark_force_output ();
   if (node->forced_by_abi)
     prevailing_node->forced_by_abi = true;
   if (node->address_taken)
     {
       gcc_assert (!prevailing_node->global.inlined_to);
-      cgraph_mark_address_taken_node (prevailing_node);
+      prevailing_node->mark_address_taken ();
     }
+  if (node->definition && prevailing_node->definition)
+    prevailing_node->merged = true;
 
   /* Redirect all incoming edges.  */
   compatible_p
@@ -74,7 +98,7 @@ lto_cgraph_replace_node (struct cgraph_node *node,
   for (e = node->callers; e; e = next)
     {
       next = e->next_caller;
-      cgraph_redirect_edge_callee (e, prevailing_node);
+      e->redirect_callee (prevailing_node);
       /* If there is a mismatch between the supposed callee return type and
 	 the real one do not attempt to inline this function.
 	 ???  We really need a way to match function signatures for ABI
@@ -83,22 +107,30 @@ lto_cgraph_replace_node (struct cgraph_node *node,
 	e->call_stmt_cannot_inline_p = 1;
     }
   /* Redirect incomming references.  */
-  ipa_clone_referring (prevailing_node, &node->ref_list);
+  prevailing_node->clone_referring (node);
+
+  /* Fix instrumentation references.  */
+  if (node->instrumented_version)
+    {
+      gcc_assert (node->instrumentation_clone
+		  == prevailing_node->instrumentation_clone);
+      node->instrumented_version->instrumented_version = prevailing_node;
+      if (!prevailing_node->instrumented_version)
+	prevailing_node->instrumented_version = node->instrumented_version;
+      /* Need to reset node->instrumented_version to NULL,
+	 otherwise node removal code would reset
+	 node->instrumented_version->instrumented_version.  */
+      node->instrumented_version = NULL;
+    }
 
   ipa_merge_profiles (prevailing_node, node);
   lto_free_function_in_decl_state_for_node (node);
 
   if (node->decl != prevailing_node->decl)
-    cgraph_release_function_body (node);
-
-  /* Time profile merging */
-  if (node->tp_first_run)
-    prevailing_node->tp_first_run = prevailing_node->tp_first_run ?
-      MIN (prevailing_node->tp_first_run, node->tp_first_run) :
-      node->tp_first_run;
+    node->release_body ();
 
   /* Finally remove the replaced node.  */
-  cgraph_remove_node (node);
+  node->remove ();
 }
 
 /* Replace the cgraph node NODE with PREVAILING_NODE in the cgraph, merging
@@ -111,7 +143,7 @@ lto_varpool_replace_node (varpool_node *vnode,
   gcc_assert (!vnode->definition || prevailing_node->definition);
   gcc_assert (!vnode->analyzed || prevailing_node->analyzed);
 
-  ipa_clone_referring (prevailing_node, &vnode->ref_list);
+  prevailing_node->clone_referring (vnode);
   if (vnode->force_output)
     prevailing_node->force_output = true;
   if (vnode->forced_by_abi)
@@ -121,8 +153,54 @@ lto_varpool_replace_node (varpool_node *vnode,
   if (DECL_INITIAL (vnode->decl)
       && vnode->decl != prevailing_node->decl)
     DECL_INITIAL (vnode->decl) = error_mark_node;
+
+  /* Check and report ODR violations on virtual tables.  */
+  if (DECL_VIRTUAL_P (vnode->decl) || DECL_VIRTUAL_P (prevailing_node->decl))
+    compare_virtual_tables (prevailing_node, vnode);
+
+  if (vnode->tls_model != prevailing_node->tls_model)
+    {
+      bool error = false;
+
+      /* Non-TLS and TLS never mix together.  Also emulated model is not
+	 compatible with anything else.  */
+      if (prevailing_node->tls_model == TLS_MODEL_NONE
+	  || prevailing_node->tls_model == TLS_MODEL_EMULATED
+	  || vnode->tls_model == TLS_MODEL_NONE
+	  || vnode->tls_model == TLS_MODEL_EMULATED)
+	error = true;
+      /* Linked is silently supporting transitions
+	 GD -> IE, GD -> LE, LD -> LE, IE -> LE, LD -> IE.
+	 Do the same transitions and error out on others.  */
+      else if ((prevailing_node->tls_model == TLS_MODEL_REAL
+		|| prevailing_node->tls_model == TLS_MODEL_LOCAL_DYNAMIC)
+	       && (vnode->tls_model == TLS_MODEL_INITIAL_EXEC
+		   || vnode->tls_model == TLS_MODEL_LOCAL_EXEC))
+	prevailing_node->tls_model = vnode->tls_model;
+      else if ((vnode->tls_model == TLS_MODEL_REAL
+		|| vnode->tls_model == TLS_MODEL_LOCAL_DYNAMIC)
+	       && (prevailing_node->tls_model == TLS_MODEL_INITIAL_EXEC
+		   || prevailing_node->tls_model == TLS_MODEL_LOCAL_EXEC))
+	;
+      else if (prevailing_node->tls_model == TLS_MODEL_INITIAL_EXEC
+	       && vnode->tls_model == TLS_MODEL_LOCAL_EXEC)
+	prevailing_node->tls_model = vnode->tls_model;
+      else if (vnode->tls_model == TLS_MODEL_INITIAL_EXEC
+	       && prevailing_node->tls_model == TLS_MODEL_LOCAL_EXEC)
+	;
+      else
+	error = true;
+      if (error)
+	{
+	  error_at (DECL_SOURCE_LOCATION (vnode->decl),
+		    "%qD is defined with tls model %s", vnode->decl, tls_model_names [vnode->tls_model]);
+	  inform (DECL_SOURCE_LOCATION (prevailing_node->decl),
+		  "previously defined here as %s",
+		  tls_model_names [prevailing_node->tls_model]);
+	}
+    }
   /* Finally remove the replaced node.  */
-  varpool_remove_node (vnode);
+  vnode->remove ();
 }
 
 /* Merge two variable or function symbol table entries PREVAILING and ENTRY.
@@ -257,7 +335,7 @@ lto_symtab_symbol_p (symtab_node *e)
 {
   if (!TREE_PUBLIC (e->decl) && !DECL_EXTERNAL (e->decl))
     return false;
-  return symtab_real_symbol_p (e);
+  return e->real_symbol_p ();
 }
 
 /* Return true if the symtab entry E can be the prevailing one.  */
@@ -306,7 +384,7 @@ lto_symtab_resolve_symbols (symtab_node *first)
 	    && (e->resolution == LDPR_PREVAILING_DEF_IRONLY
 		|| e->resolution == LDPR_PREVAILING_DEF_IRONLY_EXP
 		|| e->resolution == LDPR_PREVAILING_DEF))
-	  fatal_error ("multiple prevailing defs for %qE",
+	  fatal_error (input_location, "multiple prevailing defs for %qE",
 		       DECL_NAME (prevailing->decl));
       return prevailing;
     }
@@ -395,7 +473,8 @@ lto_symtab_merge_decls_2 (symtab_node *first, bool diagnosed_p)
     if (TREE_PUBLIC (e->decl))
       {
 	if (!lto_symtab_merge (prevailing, e)
-	    && !diagnosed_p)
+	    && !diagnosed_p
+	    && !DECL_ARTIFICIAL (e->decl))
 	  mismatches.safe_push (e->decl);
       }
   if (mismatches.is_empty ())
@@ -435,13 +514,13 @@ lto_symtab_merge_decls_1 (symtab_node *first)
   symtab_node *prevailing;
   bool diagnosed_p = false;
 
-  if (cgraph_dump_file)
+  if (symtab->dump_file)
     {
-      fprintf (cgraph_dump_file, "Merging nodes for %s. Candidates:\n",
+      fprintf (symtab->dump_file, "Merging nodes for %s. Candidates:\n",
 	       first->asm_name ());
       for (e = first; e; e = e->next_sharing_asm_name)
 	if (TREE_PUBLIC (e->decl))
-	  dump_symtab_node (cgraph_dump_file, e);
+	  e->dump (symtab->dump_file);
     }
 
   /* Compute the symbol resolutions.  This is a no-op when using the
@@ -489,7 +568,7 @@ lto_symtab_merge_decls_1 (symtab_node *first)
 	}
     }
 
-  symtab_prevail_in_asm_name_hash (prevailing);
+  symtab->symtab_prevail_in_asm_name_hash (prevailing);
 
   /* Diagnose mismatched objects.  */
   for (e = prevailing->next_sharing_asm_name;
@@ -531,11 +610,11 @@ lto_symtab_merge_decls_1 (symtab_node *first)
      mismatches.  */
   lto_symtab_merge_decls_2 (prevailing, diagnosed_p);
 
-  if (cgraph_dump_file)
+  if (symtab->dump_file)
     {
-      fprintf (cgraph_dump_file, "After resolution:\n");
+      fprintf (symtab->dump_file, "After resolution:\n");
       for (e = prevailing; e; e = e->next_sharing_asm_name)
-	dump_symtab_node (cgraph_dump_file, e);
+	e->dump (symtab->dump_file);
     }
 }
 
@@ -547,7 +626,7 @@ lto_symtab_merge_decls (void)
   symtab_node *node;
 
   /* Populate assembler name hash.   */
-  symtab_initialize_asm_name_hash ();
+  symtab->symtab_initialize_asm_name_hash ();
 
   FOR_EACH_SYMBOL (node)
     if (!node->previous_sharing_asm_name
@@ -571,11 +650,11 @@ lto_symtab_merge_symbols_1 (symtab_node *prevailing)
 
       if (!lto_symtab_symbol_p (e))
 	continue;
-      cgraph_node *ce = dyn_cast <cgraph_node> (e);
+      cgraph_node *ce = dyn_cast <cgraph_node *> (e);
       if (ce && !DECL_BUILT_IN (e->decl))
-	lto_cgraph_replace_node (ce, cgraph (prevailing));
-      if (varpool_node *ve = dyn_cast <varpool_node> (e))
-	lto_varpool_replace_node (ve, varpool (prevailing));
+	lto_cgraph_replace_node (ce, dyn_cast<cgraph_node *> (prevailing));
+      if (varpool_node *ve = dyn_cast <varpool_node *> (e))
+	lto_varpool_replace_node (ve, dyn_cast<varpool_node *> (prevailing));
     }
 
   return;
@@ -591,7 +670,7 @@ lto_symtab_merge_symbols (void)
 
   if (!flag_ltrans)
     {
-      symtab_initialize_asm_name_hash ();
+      symtab->symtab_initialize_asm_name_hash ();
 
       /* Do the actual merging.  
          At this point we invalidate hash translating decls into symtab nodes
@@ -613,14 +692,14 @@ lto_symtab_merge_symbols (void)
 
 	  if (!node->analyzed && node->alias_target)
 	    {
-	      symtab_node *tgt = symtab_node_for_asm (node->alias_target);
+	      symtab_node *tgt = symtab_node::get_for_asmname (node->alias_target);
 	      gcc_assert (node->weakref);
 	      if (tgt)
-		symtab_resolve_alias (node, tgt);
+		node->resolve_alias (tgt);
 	    }
 	  node->aux = NULL;
 
-	  if (!(cnode = dyn_cast <cgraph_node> (node))
+	  if (!(cnode = dyn_cast <cgraph_node *> (node))
 	      || !cnode->clone_of
 	      || cnode->clone_of->decl != cnode->decl)
 	    {
@@ -628,29 +707,29 @@ lto_symtab_merge_symbols (void)
 		 possible that tree merging unified the declaration.  We
 		 do not want duplicate entries in symbol table.  */
 	      if (cnode && DECL_BUILT_IN (node->decl)
-		  && (cnode2 = cgraph_get_node (node->decl))
+		  && (cnode2 = cgraph_node::get (node->decl))
 		  && cnode2 != cnode)
 		lto_cgraph_replace_node (cnode2, cnode);
 
 	      /* The user defined assembler variables are also not unified by their
 		 symbol name (since it is irrelevant), but we need to unify symbol
 		 nodes if tree merging occured.  */
-	      if ((vnode = dyn_cast <varpool_node> (node))
+	      if ((vnode = dyn_cast <varpool_node *> (node))
 		  && DECL_HARD_REGISTER (vnode->decl)
-		  && (node2 = symtab_get_node (vnode->decl))
+		  && (node2 = symtab_node::get (vnode->decl))
 		  && node2 != node)
-		lto_varpool_replace_node (dyn_cast <varpool_node> (node2),
+		lto_varpool_replace_node (dyn_cast <varpool_node *> (node2),
 					  vnode);
 	  
 
 	      /* Abstract functions may have duplicated cgraph nodes attached;
 		 remove them.  */
-	      else if (cnode && DECL_ABSTRACT (cnode->decl)
-		       && (cnode2 = cgraph_get_node (node->decl))
+	      else if (cnode && DECL_ABSTRACT_P (cnode->decl)
+		       && (cnode2 = cgraph_node::get (node->decl))
 		       && cnode2 != cnode)
-		cgraph_remove_node (cnode2);
+		cnode2->remove ();
 
-	      symtab_insert_node_to_hashtable (node);
+	      node->decl->decl_with_vis.symtab_node = node;
 	    }
 	}
     }
@@ -667,8 +746,8 @@ lto_symtab_prevailing_decl (tree decl)
   if ((!TREE_PUBLIC (decl) && !DECL_EXTERNAL (decl)) || is_builtin_fn (decl))
     return decl;
 
-  /* DECL_ABSTRACTs are their own prevailng decl.  */
-  if (TREE_CODE (decl) == FUNCTION_DECL && DECL_ABSTRACT (decl))
+  /* DECL_ABSTRACT_Ps are their own prevailing decl.  */
+  if (TREE_CODE (decl) == FUNCTION_DECL && DECL_ABSTRACT_P (decl))
     return decl;
 
   /* Likewise builtins are their own prevailing decl.  This preserves
@@ -680,7 +759,7 @@ lto_symtab_prevailing_decl (tree decl)
   gcc_assert (DECL_ASSEMBLER_NAME_SET_P (decl));
 
   /* Walk through the list of candidates and return the one we merged to.  */
-  ret = symtab_node_for_asm (DECL_ASSEMBLER_NAME (decl));
+  ret = symtab_node::get_for_asmname (DECL_ASSEMBLER_NAME (decl));
   if (!ret)
     return decl;
 

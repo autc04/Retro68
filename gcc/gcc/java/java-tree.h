@@ -1,6 +1,6 @@
 /* Definitions for parsing and type checking for the GNU compiler for
    the Java(TM) language.
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -699,8 +699,7 @@ union GTY((desc ("TREE_CODE (&%h.generic) == IDENTIFIER_NODE"),
 #define MAYBE_CREATE_VAR_LANG_DECL_SPECIFIC(T)                       \
   if (DECL_LANG_SPECIFIC (T) == NULL)                                \
     {                                                                \
-      DECL_LANG_SPECIFIC ((T))                                       \
-        = ggc_alloc_cleared_lang_decl (sizeof (struct lang_decl));   \
+      DECL_LANG_SPECIFIC ((T)) = ggc_cleared_alloc<struct lang_decl> (); \
       DECL_LANG_SPECIFIC (T)->desc = LANG_DECL_VAR;                  \
     }
 
@@ -710,6 +709,25 @@ union GTY((desc ("TREE_CODE (&%h.generic) == IDENTIFIER_NODE"),
    || (TREE_CODE (NODE) == INTEGER_CST \
        && TREE_CODE (TREE_TYPE (NODE)) != POINTER_TYPE) \
    || TREE_CODE (NODE) == REAL_CST)
+
+struct GTY((for_user)) treetreehash_entry {
+  tree key;
+  tree value;
+};
+
+struct treetreehasher : ggc_hasher<treetreehash_entry *>
+{
+  typedef tree compare_type;
+
+  static hashval_t hash (treetreehash_entry *);
+  static bool equal (treetreehash_entry *, tree);
+};
+
+struct ict_hasher : ggc_hasher<tree_node *>
+{
+  static hashval_t hash (tree t) { return htab_hash_pointer (t); }
+  static bool equal (tree a, tree b) { return a == b; }
+};
 
 /* DECL_LANG_SPECIFIC for FUNCTION_DECLs. */
 struct GTY(()) lang_decl_func {
@@ -727,10 +745,10 @@ struct GTY(()) lang_decl_func {
   tree exc_obj;			/* Decl holding the exception object.  */
 
   /* Class initialization test variables  */
-  htab_t GTY ((param_is (struct treetreehash_entry))) init_test_table;
+  hash_table<treetreehasher> *init_test_table;
 				
   /* Initialized (static) Class Table */
-  htab_t GTY ((param_is (union tree_node))) ict;
+  hash_table<ict_hasher> *ict;
 
   unsigned int native : 1;	/* Nonzero if this is a native method  */
   unsigned int strictfp : 1;
@@ -741,11 +759,6 @@ struct GTY(()) lang_decl_func {
   unsigned int local_cni : 1;	/* Decl needs mangle_local_cni_method.  */
   unsigned int bridge : 1;	/* Bridge method.  */
   unsigned int varargs : 1;	/* Varargs method.  */
-};
-
-struct GTY(()) treetreehash_entry {
-  tree key;
-  tree value;
 };
 
 /* These represent the possible assertion_codes that can be emitted in the
@@ -779,15 +792,21 @@ typedef enum
   JV_ANNOTATION_DEFAULT_KIND
 } jv_attr_kind;
 
-typedef struct GTY(()) type_assertion {
+typedef struct GTY((for_user)) type_assertion {
   int assertion_code; /* 'opcode' for the type of this assertion. */
   tree op1;           /* First operand. */
   tree op2;           /* Second operand. */
 } type_assertion;
 
-extern tree java_treetreehash_find (htab_t, tree);
-extern tree * java_treetreehash_new (htab_t, tree);
-extern htab_t java_treetreehash_create (size_t size);
+struct type_assertion_hasher : ggc_hasher<type_assertion *>
+{
+  static hashval_t hash (type_assertion *);
+  static bool equal (type_assertion *, type_assertion *);
+};
+
+extern tree java_treetreehash_find (hash_table<treetreehasher> *, tree);
+extern tree * java_treetreehash_new (hash_table<treetreehasher> *, tree);
+extern hash_table<treetreehasher> *java_treetreehash_create (size_t size);
 
 /* DECL_LANG_SPECIFIC for VAR_DECL, PARM_DECL and sometimes FIELD_DECL
    (access methods on outer class fields) and final fields. */
@@ -808,7 +827,7 @@ struct GTY(()) lang_decl_var {
 
 enum lang_decl_desc {LANG_DECL_FUNC, LANG_DECL_VAR};
 
-struct GTY((variable_size)) lang_decl {
+struct GTY(()) lang_decl {
   enum lang_decl_desc desc;
   union lang_decl_u
     {
@@ -825,8 +844,7 @@ struct GTY((variable_size)) lang_decl {
 #define TYPE_CPOOL_DATA_REF(T)	(TYPE_LANG_SPECIFIC (T)->cpool_data_ref)
 #define MAYBE_CREATE_TYPE_TYPE_LANG_SPECIFIC(T) \
   if (TYPE_LANG_SPECIFIC ((T)) == NULL)		\
-     TYPE_LANG_SPECIFIC ((T))			\
-       = ggc_alloc_cleared_lang_type (sizeof (struct lang_type));
+     TYPE_LANG_SPECIFIC ((T)) = ggc_cleared_alloc<struct lang_type> ();
 
 #define TYPE_DUMMY(T)		(TYPE_LANG_SPECIFIC(T)->dummy_class)
 
@@ -869,10 +887,7 @@ typedef struct GTY(()) method_entry_d {
 } method_entry;
 
 
-/* FIXME: the variable_size annotation here is needed because these types are
-   variable-sized in some other frontends.  Due to gengtype deficiency the GTY
-   options of such types have to agree across all frontends. */
-struct GTY((variable_size)) lang_type {
+struct GTY(()) lang_type {
   tree signature;
   struct JCF *jcf;
   struct CPool *cpool;
@@ -898,11 +913,11 @@ struct GTY((variable_size)) lang_type {
 				   type matcher.  */
   vec<constructor_elt, va_gc> *catch_classes;
 
-  htab_t GTY ((param_is (struct treetreehash_entry))) type_to_runtime_map;   
+  hash_table<treetreehasher> *type_to_runtime_map;   
                                 /* The mapping of classes to exception region
 				   markers.  */
 
-  htab_t GTY ((param_is (struct type_assertion))) type_assertions;
+  hash_table<type_assertion_hasher> *type_assertions;
 				/* Table of type assertions to be evaluated 
   				   by the runtime when this class is loaded. */
 
@@ -937,7 +952,7 @@ struct GTY((variable_size)) lang_type {
 struct eh_range;
 
 extern void java_parse_file (void);
-extern tree java_type_for_mode (enum machine_mode, int);
+extern tree java_type_for_mode (machine_mode, int);
 extern tree java_type_for_size (unsigned int, int);
 extern tree java_truthvalue_conversion (tree);
 extern void add_assume_compiled (const char *, int);
@@ -1018,7 +1033,7 @@ extern void maybe_rewrite_invocation (tree *, vec<tree, va_gc> **, tree *,
 extern tree build_known_method_ref (tree, tree, tree, tree, vec<tree, va_gc> *,
 				    tree);
 extern tree build_class_init (tree, tree);
-extern int attach_init_test_initialization_flags (void **, void *);
+extern int attach_init_test_initialization_flags (treetreehash_entry **, tree);
 extern tree build_invokevirtual (tree, tree, tree);
 extern tree build_invokeinterface (tree, tree);
 extern tree build_jni_stub (tree);

@@ -1,5 +1,5 @@
 /* Intrinsic function resolution.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -29,6 +29,16 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "gfortran.h"
@@ -2590,10 +2600,11 @@ gfc_resolve_image_index (gfc_expr *f, gfc_expr *array ATTRIBUTE_UNUSED,
 
 
 void
-gfc_resolve_this_image (gfc_expr *f, gfc_expr *array, gfc_expr *dim)
+gfc_resolve_this_image (gfc_expr *f, gfc_expr *array, gfc_expr *dim,
+			gfc_expr *distance ATTRIBUTE_UNUSED)
 {
   static char this_image[] = "__this_image";
-  if (array)
+  if (array && gfc_is_coarray (array))
     resolve_bound (f, array, dim, NULL, "__this_image", true);
   else
     {
@@ -3292,13 +3303,14 @@ gfc_resolve_system_clock (gfc_code *c)
 {
   const char *name;
   int kind;
+  gfc_expr *count = c->ext.actual->expr;
+  gfc_expr *count_max = c->ext.actual->next->next->expr;
 
-  if (c->ext.actual->expr != NULL)
-    kind = c->ext.actual->expr->ts.kind;
-  else if (c->ext.actual->next->expr != NULL)
-      kind = c->ext.actual->next->expr->ts.kind;
-  else if (c->ext.actual->next->next->expr != NULL)
-      kind = c->ext.actual->next->next->expr->ts.kind;
+  /* The INTEGER(8) version has higher precision, it is used if both COUNT
+     and COUNT_MAX can hold 64-bit values, or are absent.  */
+  if ((!count || count->ts.kind >= 8)
+      && (!count_max || count_max->ts.kind >= 8))
+    kind = 8;
   else
     kind = gfc_default_integer_kind;
 

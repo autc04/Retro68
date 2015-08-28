@@ -191,14 +191,12 @@ func (addrs byPriorityWeight) shuffleByWeight() {
 	}
 	for sum > 0 && len(addrs) > 1 {
 		s := 0
-		n := rand.Intn(sum + 1)
+		n := rand.Intn(sum)
 		for i := range addrs {
 			s += int(addrs[i].Weight)
-			if s >= n {
+			if s > n {
 				if i > 0 {
-					t := addrs[i]
-					copy(addrs[1:i+1], addrs[0:i])
-					addrs[0] = t
+					addrs[0], addrs[i] = addrs[i], addrs[0]
 				}
 				break
 			}

@@ -1,5 +1,5 @@
 /* Header file for gimple statement walk support.
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -36,7 +36,7 @@ struct walk_stmt_info
   /* Pointer map used to mark visited tree nodes when calling
      walk_tree on each operand.  If set to NULL, duplicate tree nodes
      will be visited more than once.  */
-  struct pointer_set_t *pset;
+  hash_set<tree> *pset;
 
   /* Operand returned by the callbacks.  This is set when calling
      walk_gimple_seq.  If the walk_stmt_fn or walk_tree_fn callback

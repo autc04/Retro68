@@ -3,7 +3,7 @@
 //
 // 2013-09-18  Tim Shen <timshen91@gmail.com>
 //
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -65,6 +65,8 @@ test01()
 			     regex_constants::match_prev_avail));
   VERIFY( regex_search_debug("ba"+1, regex("\\Ba"),
 			     regex_constants::match_prev_avail));
+  // PR libstdc++/63920
+  VERIFY(!regex_search_debug("a", regex("b*"), regex_constants::match_not_null));
 }
 
 int

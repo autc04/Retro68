@@ -11,6 +11,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -109,9 +111,34 @@ var dumpTests = []dumpTest{
 
 		NoBody: true,
 	},
+
+	// Request with Body > 8196 (default buffer size)
+	{
+		Req: http.Request{
+			Method: "POST",
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   "post.tld",
+				Path:   "/",
+			},
+			ContentLength: 8193,
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+		},
+
+		Body: bytes.Repeat([]byte("a"), 8193),
+
+		WantDumpOut: "POST / HTTP/1.1\r\n" +
+			"Host: post.tld\r\n" +
+			"User-Agent: Go 1.1 package http\r\n" +
+			"Content-Length: 8193\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n" +
+			strings.Repeat("a", 8193),
+	},
 }
 
 func TestDumpRequest(t *testing.T) {
+	numg0 := runtime.NumGoroutine()
 	for i, tt := range dumpTests {
 		setBody := func() {
 			if tt.Body == nil {
@@ -119,9 +146,11 @@ func TestDumpRequest(t *testing.T) {
 			}
 			switch b := tt.Body.(type) {
 			case []byte:
-				tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
 			case func() io.ReadCloser:
 				tt.Req.Body = b()
+			default:
+				t.Fatalf("Test %d: unsupported Body of %T", i, tt.Body)
 			}
 		}
 		setBody()
@@ -155,6 +184,11 @@ func TestDumpRequest(t *testing.T) {
 			}
 		}
 	}
+	if dg := runtime.NumGoroutine() - numg0; dg > 4 {
+		buf := make([]byte, 4096)
+		buf = buf[:runtime.Stack(buf, true)]
+		t.Errorf("Unexpectedly large number of new goroutines: %d new: %s", dg, buf)
+	}
 }
 
 func chunk(s string) string {
@@ -175,4 +209,83 @@ func mustNewRequest(method, url string, body io.Reader) *http.Request {
 		panic(fmt.Sprintf("NewRequest(%q, %q, %p) err = %v", method, url, body, err))
 	}
 	return req
+}
+
+var dumpResTests = []struct {
+	res  *http.Response
+	body bool
+	want string
+}{
+	{
+		res: &http.Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 50,
+			Header: http.Header{
+				"Foo": []string{"Bar"},
+			},
+			Body: ioutil.NopCloser(strings.NewReader("foo")), // shouldn't be used
+		},
+		body: false, // to verify we see 50, not empty or 3.
+		want: `HTTP/1.1 200 OK
+Content-Length: 50
+Foo: Bar`,
+	},
+
+	{
+		res: &http.Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 3,
+			Body:          ioutil.NopCloser(strings.NewReader("foo")),
+		},
+		body: true,
+		want: `HTTP/1.1 200 OK
+Content-Length: 3
+
+foo`,
+	},
+
+	{
+		res: &http.Response{
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.1",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			ContentLength:    -1,
+			Body:             ioutil.NopCloser(strings.NewReader("foo")),
+			TransferEncoding: []string{"chunked"},
+		},
+		body: true,
+		want: `HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+
+3
+foo
+0`,
+	},
+}
+
+func TestDumpResponse(t *testing.T) {
+	for i, tt := range dumpResTests {
+		gotb, err := DumpResponse(tt.res, tt.body)
+		if err != nil {
+			t.Errorf("%d. DumpResponse = %v", i, err)
+			continue
+		}
+		got := string(gotb)
+		got = strings.TrimSpace(got)
+		got = strings.Replace(got, "\r", "", -1)
+
+		if got != tt.want {
+			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)
+		}
+	}
 }

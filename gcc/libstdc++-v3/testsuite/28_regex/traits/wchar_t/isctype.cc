@@ -1,7 +1,8 @@
 // { dg-do run }
-// { dg-options "-std=c++0x" }
+// { dg-options "-std=gnu++11" }
+// { dg-additional-options "-DNEWLINE_IN_CLASS_BLANK" { target newlib } }
 
-// Copyright (C) 2010-2014 Free Software Foundation, Inc.
+// Copyright (C) 2010-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -50,7 +51,13 @@ test01()
   VERIFY(!t.isctype(L'_', t.lookup_classname(range(digit))));
   VERIFY( t.isctype(L' ', t.lookup_classname(range(blank))));
   VERIFY( t.isctype(L'\t', t.lookup_classname(range(blank))));
+#if defined (NEWLINE_IN_CLASS_BLANK)
+  /* On some targets, '\n' is in class 'blank'.
+     See https://gcc.gnu.org/ml/gcc-patches/2015-02/msg00059.html.  */
+  VERIFY( t.isctype(L'\n', t.lookup_classname(range(blank))));
+#else
   VERIFY(!t.isctype(L'\n', t.lookup_classname(range(blank))));
+#endif
   VERIFY( t.isctype(L't', t.lookup_classname(range(upper), true)));
   VERIFY( t.isctype(L'T', t.lookup_classname(range(lower), true)));
 #undef range

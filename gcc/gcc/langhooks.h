@@ -1,5 +1,5 @@
 /* The lang_hooks data structure.
-   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+   Copyright (C) 2001-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -69,7 +69,7 @@ struct lang_hooks_for_types
 
   /* Given MODE and UNSIGNEDP, return a suitable type-tree with that
      mode.  */
-  tree (*type_for_mode) (enum machine_mode, int);
+  tree (*type_for_mode) (machine_mode, int);
 
   /* Given PRECISION and UNSIGNEDP, return a suitable type-tree for an
      integer type with at least that precision.  */
@@ -137,6 +137,12 @@ struct lang_hooks_for_types
      return values from functions.  The argument TYPE is the top of the
      chain, and BOTTOM is the new type which we will point to.  */
   tree (*reconstruct_complex_type) (tree, tree);
+
+  /* Returns the tree that represents the underlying data type used to
+     implement the enumeration.  The default implementation will just use
+     type_for_size.  Used in dwarf2out.c to add a DW_AT_type base type
+     reference to a DW_TAG_enumeration.  */
+  tree (*enum_underlying_base_type) (const_tree);
 };
 
 /* Language hooks related to decls and the symbol table.  */
@@ -159,6 +165,9 @@ struct lang_hooks_for_decls
 
   /* Returns true if DECL is explicit member function.  */
   bool (*function_decl_explicit_p) (tree);
+
+  /* Returns true if DECL is C++11 deleted special member function.  */
+  bool (*function_decl_deleted_p) (tree);
 
   /* Returns True if the parameter is a generic parameter decl
      of a generic type, e.g a template template parameter for the C++ FE.  */
@@ -252,7 +261,8 @@ struct lang_hooks_for_lto
 
 struct lang_hooks
 {
-  /* String identifying the front end.  e.g. "GNU C++".  */
+  /* String identifying the front end and optionally language standard
+     version, e.g. "GNU C++98" or "GNU Java".  */
   const char *name;
 
   /* sizeof (struct lang_identifier), so make_node () creates
@@ -494,5 +504,11 @@ extern tree add_builtin_function_ext_scope (const char *name, tree type,
 					    const char *library_name,
 					    tree attrs);
 extern tree add_builtin_type (const char *name, tree type);
+
+/* Language helper functions.  */
+
+extern bool lang_GNU_C (void);
+extern bool lang_GNU_CXX (void);
+extern bool lang_GNU_Fortran (void);
  
 #endif /* GCC_LANG_HOOKS_H */

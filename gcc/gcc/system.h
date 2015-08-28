@@ -1,6 +1,6 @@
 /* Get common system includes and various definitions and declarations based
    on autoconf macros.
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +21,12 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef GCC_SYSTEM_H
 #define GCC_SYSTEM_H
+
+/* Define this so that inttypes.h defines the PRI?64 macros even
+   when compiling with a C++ compiler.  Define it here so in the
+   event inttypes.h gets pulled in by another header it is already
+   defined.  */
+#define __STDC_FORMAT_MACROS
 
 /* We must include stdarg.h before stdio.h.  */
 #include <stdarg.h>
@@ -188,6 +194,13 @@ extern int fprintf_unlocked (FILE *, const char *, ...);
 #undef fread_unlocked
 #undef fwrite_unlocked
 
+/* Include <string> before "safe-ctype.h" to avoid GCC poisoning
+   the ctype macros through safe-ctype.h */
+
+#ifdef __cplusplus
+# include <string>
+#endif
+
 /* There are an extraordinary number of issues with <ctype.h>.
    The last straw is that it varies with the locale.  Use libiberty's
    replacement instead.  */
@@ -202,7 +215,9 @@ extern int errno;
 #endif
 
 #ifdef __cplusplus
+# include <algorithm>
 # include <cstring>
+# include <utility>
 #endif
 
 /* Some of glibc's string inlines cause warnings.  Plus we'd rather
@@ -711,6 +726,16 @@ extern void fancy_abort (const char *, int, const char *) ATTRIBUTE_NORETURN;
 #define gcc_unreachable() (fancy_abort (__FILE__, __LINE__, __FUNCTION__))
 #endif
 
+#if GCC_VERSION >= 3001
+#define STATIC_CONSTANT_P(X) (__builtin_constant_p (X) && (X))
+#else
+#define STATIC_CONSTANT_P(X) (false && (X))
+#endif
+
+/* Until we can use C++11's static_assert.  */
+#define STATIC_ASSERT(X) \
+  typedef int assertion1[(X) ? 1 : -1] ATTRIBUTE_UNUSED
+
 /* Provide a fake boolean type.  We make no attempt to use the
    C99 _Bool, as it may not be available in the bootstrap compiler,
    and even if it is, it is liable to be buggy.
@@ -830,7 +855,10 @@ extern void fancy_abort (const char *, int, const char *) ATTRIBUTE_NORETURN;
 	CAN_DEBUG_WITHOUT_FP UNLIKELY_EXECUTED_TEXT_SECTION_NAME	\
 	HOT_TEXT_SECTION_NAME LEGITIMATE_CONSTANT_P ALWAYS_STRIP_DOTDOT	\
 	OUTPUT_ADDR_CONST_EXTRA SMALL_REGISTER_CLASSES ASM_OUTPUT_IDENT	\
-	ASM_BYTE_OP MEMBER_TYPE_FORCES_BLK
+	ASM_BYTE_OP MEMBER_TYPE_FORCES_BLK LIBGCC2_HAS_SF_MODE		\
+	LIBGCC2_HAS_DF_MODE LIBGCC2_HAS_XF_MODE LIBGCC2_HAS_TF_MODE	\
+	CLEAR_BY_PIECES_P MOVE_BY_PIECES_P SET_BY_PIECES_P		\
+	STORE_BY_PIECES_P
 
 /* Target macros only used for code built for the target, that have
    moved to libgcc-tm.h or have never been present elsewhere.  */
@@ -912,7 +940,15 @@ extern void fancy_abort (const char *, int, const char *) ATTRIBUTE_NORETURN;
 	USE_COMMON_FOR_ONE_ONLY IFCVT_EXTRA_FIELDS IFCVT_INIT_EXTRA_FIELDS \
 	CASE_USE_BIT_TESTS FIXUNS_TRUNC_LIKE_FIX_TRUNC                     \
         GO_IF_MODE_DEPENDENT_ADDRESS DELAY_SLOTS_FOR_EPILOGUE              \
-        ELIGIBLE_FOR_EPILOGUE_DELAY TARGET_C99_FUNCTIONS TARGET_HAS_SINCOS
+        ELIGIBLE_FOR_EPILOGUE_DELAY TARGET_C99_FUNCTIONS TARGET_HAS_SINCOS \
+	REG_CLASS_FROM_LETTER CONST_OK_FOR_LETTER_P			   \
+	CONST_DOUBLE_OK_FOR_LETTER_P EXTRA_CONSTRAINT			   \
+	REG_CLASS_FROM_CONSTRAINT REG_CLASS_FOR_CONSTRAINT		   \
+	EXTRA_CONSTRAINT_STR EXTRA_MEMORY_CONSTRAINT			   \
+	EXTRA_ADDRESS_CONSTRAINT CONST_DOUBLE_OK_FOR_CONSTRAINT_P	   \
+	CALLER_SAVE_PROFITABLE LARGEST_EXPONENT_IS_NORMAL		   \
+	ROUND_TOWARDS_ZERO SF_SIZE DF_SIZE XF_SIZE TF_SIZE LIBGCC2_TF_CEXT \
+	LIBGCC2_LONG_DOUBLE_TYPE_SIZE
 
 /* Hooks that are no longer used.  */
  #pragma GCC poison LANG_HOOKS_FUNCTION_MARK LANG_HOOKS_FUNCTION_FREE	\
@@ -1012,6 +1048,7 @@ helper_const_non_const_cast (const char *p)
 #define CONST_CAST(TYPE,X) CONST_CAST2 (TYPE, const TYPE, (X))
 #define CONST_CAST_TREE(X) CONST_CAST (union tree_node *, (X))
 #define CONST_CAST_RTX(X) CONST_CAST (struct rtx_def *, (X))
+#define CONST_CAST_RTX_INSN(X) CONST_CAST (struct rtx_insn *, (X))
 #define CONST_CAST_BB(X) CONST_CAST (struct basic_block_def *, (X))
 #define CONST_CAST_GIMPLE(X) CONST_CAST (struct gimple_statement_base *, (X))
 
@@ -1025,7 +1062,7 @@ helper_const_non_const_cast (const char *p)
 #endif
 #endif
 
-#ifdef ENABLE_VALGRIND_CHECKING
+#ifdef ENABLE_VALGRIND_ANNOTATIONS
 # ifdef HAVE_VALGRIND_MEMCHECK_H
 #  include <valgrind/memcheck.h>
 # elif defined HAVE_MEMCHECK_H
@@ -1060,7 +1097,10 @@ helper_const_non_const_cast (const char *p)
 #define DEBUG_VARIABLE
 #endif
 
-/* Get definitions of HOST_WIDE_INT and HOST_WIDEST_INT.  */
+/* General macro to extract bit Y of X.  */
+#define TEST_BIT(X, Y) (((X) >> (Y)) & 1)
+
+/* Get definitions of HOST_WIDE_INT.  */
 #include "hwint.h"
 
 #endif /* ! GCC_SYSTEM_H */

@@ -1,5 +1,5 @@
 /* Vector API for GNU compiler.
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
    Contributed by Nathan Sidwell <nathan@codesourcery.com>
    Re-implemented in C++ by Diego Novillo <dnovillo@google.com>
 
@@ -48,9 +48,10 @@ along with GCC; see the file COPYING3.  If not see
      weak.  There are files compiled with -DGENERATOR_FILE that already
      include ggc.h.  We only need to provide these definitions if ggc.h
      has not been included.  Sigh.  */
+
   extern void ggc_free (void *);
   extern size_t ggc_round_alloc_size (size_t requested_size);
-  extern void *ggc_realloc_stat (void *, size_t MEM_STAT_DECL);
+  extern void *ggc_realloc (void *, size_t CXX_MEM_STAT_INFO);
 #  endif  // GCC_GGC_H
 #endif	// VEC_GC_ENABLED
 
@@ -396,7 +397,7 @@ va_gc::reserve (vec<T, A, vl_embed> *&v, unsigned reserve, bool exact
   size = vec_offset + alloc * elt_size;
 
   unsigned nelem = v ? v->length () : 0;
-  v = static_cast <vec<T, A, vl_embed> *> (::ggc_realloc_stat (v, size
+  v = static_cast <vec<T, A, vl_embed> *> (::ggc_realloc (v, size
 							       PASS_MEM_STAT));
   v->embedded_init (alloc, nelem);
 }
@@ -1573,7 +1574,10 @@ vec<T, va_heap, vl_ptr>::safe_grow (unsigned len MEM_STAT_DECL)
   unsigned oldlen = length ();
   gcc_checking_assert (oldlen <= len);
   reserve_exact (len - oldlen PASS_MEM_STAT);
-  m_vec->quick_grow (len);
+  if (m_vec)
+    m_vec->quick_grow (len);
+  else
+    gcc_checking_assert (len == 0);
 }
 
 

@@ -12,8 +12,6 @@
 #include "sanitizer_common.h"
 #include "sanitizer_flags.h"
 #include "sanitizer_libc.h"
-#include "sanitizer_stacktrace.h"
-#include "sanitizer_symbolizer.h"
 
 namespace __sanitizer {
 
@@ -91,7 +89,7 @@ uptr ReadFileToBuffer(const char *file_name, char **buff,
     if (internal_iserror(openrv)) return 0;
     fd_t fd = openrv;
     UnmapOrDie(*buff, *buff_size);
-    *buff = (char*)MmapOrDie(size, __FUNCTION__);
+    *buff = (char*)MmapOrDie(size, __func__);
     *buff_size = size;
     // Read up to one page at a time.
     read_len = 0;
@@ -155,23 +153,12 @@ const char *StripPathPrefix(const char *filepath,
   return pos;
 }
 
-void PrintSourceLocation(InternalScopedString *buffer, const char *file,
-                         int line, int column) {
-  CHECK(file);
-  buffer->append("%s",
-                 StripPathPrefix(file, common_flags()->strip_path_prefix));
-  if (line > 0) {
-    buffer->append(":%d", line);
-    if (column > 0)
-      buffer->append(":%d", column);
-  }
-}
-
-void PrintModuleAndOffset(InternalScopedString *buffer, const char *module,
-                          uptr offset) {
-  buffer->append("(%s+0x%zx)",
-                 StripPathPrefix(module, common_flags()->strip_path_prefix),
-                 offset);
+const char *StripModuleName(const char *module) {
+  if (module == 0)
+    return 0;
+  if (const char *slash_pos = internal_strrchr(module, '/'))
+    return slash_pos + 1;
+  return module;
 }
 
 void ReportErrorSummary(const char *error_message) {
@@ -195,31 +182,17 @@ void ReportErrorSummary(const char *error_type, const char *file,
   ReportErrorSummary(buff.data());
 }
 
-void ReportErrorSummary(const char *error_type, StackTrace *stack) {
-  if (!common_flags()->print_summary)
-    return;
-  AddressInfo ai;
-#if !SANITIZER_GO
-  if (stack->size > 0 && Symbolizer::Get()->IsAvailable()) {
-    // Currently, we include the first stack frame into the report summary.
-    // Maybe sometimes we need to choose another frame (e.g. skip memcpy/etc).
-    uptr pc = StackTrace::GetPreviousInstructionPc(stack->trace[0]);
-    Symbolizer::Get()->SymbolizeCode(pc, &ai, 1);
-  }
-#endif
-  ReportErrorSummary(error_type, ai.file, ai.line, ai.function);
-}
-
 LoadedModule::LoadedModule(const char *module_name, uptr base_address) {
   full_name_ = internal_strdup(module_name);
   base_address_ = base_address;
   n_ranges_ = 0;
 }
 
-void LoadedModule::addAddressRange(uptr beg, uptr end) {
+void LoadedModule::addAddressRange(uptr beg, uptr end, bool executable) {
   CHECK_LT(n_ranges_, kMaxNumberOfAddressRanges);
   ranges_[n_ranges_].beg = beg;
   ranges_[n_ranges_].end = end;
+  exec_[n_ranges_] = executable;
   n_ranges_++;
 }
 
@@ -231,15 +204,23 @@ bool LoadedModule::containsAddress(uptr address) const {
   return false;
 }
 
-char *StripModuleName(const char *module) {
-  if (module == 0)
-    return 0;
-  const char *short_module_name = internal_strrchr(module, '/');
-  if (short_module_name)
-    short_module_name += 1;
-  else
-    short_module_name = module;
-  return internal_strdup(short_module_name);
+static atomic_uintptr_t g_total_mmaped;
+
+void IncreaseTotalMmap(uptr size) {
+  if (!common_flags()->mmap_limit_mb) return;
+  uptr total_mmaped =
+      atomic_fetch_add(&g_total_mmaped, size, memory_order_relaxed) + size;
+  if ((total_mmaped >> 20) > common_flags()->mmap_limit_mb) {
+    // Since for now mmap_limit_mb is not a user-facing flag, just CHECK.
+    uptr mmap_limit_mb = common_flags()->mmap_limit_mb;
+    common_flags()->mmap_limit_mb = 0;  // Allow mmap in CHECK.
+    RAW_CHECK(total_mmaped >> 20 < mmap_limit_mb);
+  }
+}
+
+void DecreaseTotalMmap(uptr size) {
+  if (!common_flags()->mmap_limit_mb) return;
+  atomic_fetch_sub(&g_total_mmaped, size, memory_order_relaxed);
 }
 
 }  // namespace __sanitizer
@@ -272,11 +253,6 @@ void __sanitizer_set_report_path(const char *path) {
     report_path_prefix[len] = '\0';
     log_to_file = true;
   }
-}
-
-void NOINLINE __sanitizer_sandbox_on_notify(void *reserved) {
-  (void)reserved;
-  PrepareForSandboxing();
 }
 
 void __sanitizer_report_error_summary(const char *error_summary) {

@@ -510,10 +510,30 @@ func (z *Int) Scan(s fmt.ScanState, ch rune) error {
 	return err
 }
 
+// low32 returns the least significant 32 bits of z.
+func low32(z nat) uint32 {
+	if len(z) == 0 {
+		return 0
+	}
+	return uint32(z[0])
+}
+
+// low64 returns the least significant 64 bits of z.
+func low64(z nat) uint64 {
+	if len(z) == 0 {
+		return 0
+	}
+	v := uint64(z[0])
+	if _W == 32 && len(z) > 1 {
+		v |= uint64(z[1]) << 32
+	}
+	return v
+}
+
 // Int64 returns the int64 representation of x.
 // If x cannot be represented in an int64, the result is undefined.
 func (x *Int) Int64() int64 {
-	v := int64(x.Uint64())
+	v := int64(low64(x.abs))
 	if x.neg {
 		v = -v
 	}
@@ -523,14 +543,7 @@ func (x *Int) Int64() int64 {
 // Uint64 returns the uint64 representation of x.
 // If x cannot be represented in a uint64, the result is undefined.
 func (x *Int) Uint64() uint64 {
-	if len(x.abs) == 0 {
-		return 0
-	}
-	v := uint64(x.abs[0])
-	if _W == 32 && len(x.abs) > 1 {
-		v |= uint64(x.abs[1]) << 32
-	}
-	return v
+	return low64(x.abs)
 }
 
 // SetString sets z to the value of s, interpreted in the given base,
@@ -576,21 +589,28 @@ func (x *Int) BitLen() int {
 }
 
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
-// If y <= 0, the result is 1; if m == nil or m == 0, z = x**y.
+// If y <= 0, the result is 1 mod |m|; if m == nil or m == 0, z = x**y.
 // See Knuth, volume 2, section 4.6.3.
 func (z *Int) Exp(x, y, m *Int) *Int {
-	if y.neg || len(y.abs) == 0 {
-		return z.SetInt64(1)
+	var yWords nat
+	if !y.neg {
+		yWords = y.abs
 	}
-	// y > 0
+	// y >= 0
 
 	var mWords nat
 	if m != nil {
 		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
-	z.abs = z.abs.expNN(x.abs, y.abs, mWords)
-	z.neg = len(z.abs) > 0 && x.neg && y.abs[0]&1 == 1 // 0 has no sign
+	z.abs = z.abs.expNN(x.abs, yWords, mWords)
+	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
+	if z.neg && len(mWords) > 0 {
+		// make modulus result positive
+		z.abs = z.abs.sub(mWords, z.abs) // z == x**y mod |m| && 0 <= z < |m|
+		z.neg = false
+	}
+
 	return z
 }
 
@@ -732,15 +752,16 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	return z
 }
 
-// ModInverse sets z to the multiplicative inverse of g in the group ℤ/pℤ (where
-// p is a prime) and returns z.
-func (z *Int) ModInverse(g, p *Int) *Int {
+// ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
+// and returns z. If g and n are not relatively prime, the result is undefined.
+func (z *Int) ModInverse(g, n *Int) *Int {
 	var d Int
-	d.GCD(z, nil, g, p)
-	// x and y are such that g*x + p*y = d. Since p is prime, d = 1. Taking
-	// that modulo p results in g*x = 1, therefore x is the inverse element.
+	d.GCD(z, nil, g, n)
+	// x and y are such that g*x + n*y = d. Since g and n are
+	// relatively prime, d = 1. Taking that modulo n results in
+	// g*x = 1, therefore x is the inverse element.
 	if z.neg {
-		z.Add(z, p)
+		z.Add(z, n)
 	}
 	return z
 }
@@ -866,7 +887,7 @@ func (z *Int) AndNot(x, y *Int) *Int {
 	}
 
 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
-	y1 := nat(nil).add(y.abs, natOne)
+	y1 := nat(nil).sub(y.abs, natOne)
 	z.abs = z.abs.and(x.abs, y1)
 	z.neg = false
 	return z
@@ -982,17 +1003,29 @@ func (z *Int) GobDecode(buf []byte) error {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (x *Int) MarshalJSON() ([]byte, error) {
+func (z *Int) MarshalJSON() ([]byte, error) {
 	// TODO(gri): get rid of the []byte/string conversions
-	return []byte(x.String()), nil
+	return []byte(z.String()), nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-func (z *Int) UnmarshalJSON(x []byte) error {
+func (z *Int) UnmarshalJSON(text []byte) error {
 	// TODO(gri): get rid of the []byte/string conversions
-	_, ok := z.SetString(string(x), 0)
-	if !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %s into a *big.Int", x)
+	if _, ok := z.SetString(string(text), 0); !ok {
+		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+	}
+	return nil
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (z *Int) MarshalText() (text []byte, err error) {
+	return []byte(z.String()), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (z *Int) UnmarshalText(text []byte) error {
+	if _, ok := z.SetString(string(text), 0); !ok {
+		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
 	}
 	return nil
 }

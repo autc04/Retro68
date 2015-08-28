@@ -40,10 +40,11 @@ import (
 //
 // Floating point, integer, and Number values encode as JSON numbers.
 //
-// String values encode as JSON strings. InvalidUTF8Error will be returned
-// if an invalid UTF-8 sequence is encountered.
+// String values encode as JSON strings coerced to valid UTF-8,
+// replacing invalid bytes with the Unicode replacement rune.
 // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
 // to keep some browsers from misinterpreting JSON output as HTML.
+// Ampersand "&" is also escaped to "\u0026" for the same reason.
 //
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string, and a nil slice
@@ -92,6 +93,8 @@ import (
 // as described in the next paragraph.
 // An anonymous struct field with a name given in its JSON tag is treated as
 // having that name, rather than being anonymous.
+// An anonymous struct field of interface type is treated the same as having
+// that type as its name, rather than being anonymous.
 //
 // The Go visibility rules for struct fields are amended for JSON when
 // deciding which field to marshal or unmarshal. If there are
@@ -241,24 +244,15 @@ type encodeState struct {
 	scratch      [64]byte
 }
 
-// TODO(bradfitz): use a sync.Cache here
-var encodeStatePool = make(chan *encodeState, 8)
+var encodeStatePool sync.Pool
 
 func newEncodeState() *encodeState {
-	select {
-	case e := <-encodeStatePool:
+	if v := encodeStatePool.Get(); v != nil {
+		e := v.(*encodeState)
 		e.Reset()
 		return e
-	default:
-		return new(encodeState)
 	}
-}
-
-func putEncodeState(e *encodeState) {
-	select {
-	case encodeStatePool <- e:
-	default:
-	}
+	return new(encodeState)
 }
 
 func (e *encodeState) marshal(v interface{}) (err error) {
@@ -704,12 +698,12 @@ type ptrEncoder struct {
 	elemEnc encoderFunc
 }
 
-func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
+func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, quoted bool) {
 	if v.IsNil() {
 		e.WriteString("null")
 		return
 	}
-	pe.elemEnc(e, v.Elem(), false)
+	pe.elemEnc(e, v.Elem(), quoted)
 }
 
 func newPtrEncoder(t reflect.Type) encoderFunc {
@@ -811,9 +805,12 @@ func (e *encodeState) string(s string) (int, error) {
 			case '\r':
 				e.WriteByte('\\')
 				e.WriteByte('r')
+			case '\t':
+				e.WriteByte('\\')
+				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \n and \r,
-				// as well as < and >. The latter are escaped because they
+				// as well as <, > and &. The latter are escaped because they
 				// can lead to security holes when user-controlled strings
 				// are rendered into JSON and served to some browsers.
 				e.WriteString(`\u00`)
@@ -884,9 +881,12 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
 			case '\r':
 				e.WriteByte('\\')
 				e.WriteByte('r')
+			case '\t':
+				e.WriteByte('\\')
+				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \n and \r,
-				// as well as < and >. The latter are escaped because they
+				// as well as <, >, and &. The latter are escaped because they
 				// can lead to security holes when user-controlled strings
 				// are rendered into JSON and served to some browsers.
 				e.WriteString(`\u00`)
@@ -936,11 +936,20 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
 // A field represents a single field found in a struct.
 type field struct {
 	name      string
+	nameBytes []byte                 // []byte(name)
+	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
+
 	tag       bool
 	index     []int
 	typ       reflect.Type
 	omitEmpty bool
 	quoted    bool
+}
+
+func fillField(f field) field {
+	f.nameBytes = []byte(f.name)
+	f.equalFold = foldFunc(f.nameBytes)
+	return f
 }
 
 // byName sorts field by name, breaking ties with depth,
@@ -1042,8 +1051,14 @@ func typeFields(t reflect.Type) []field {
 					if name == "" {
 						name = sf.Name
 					}
-					fields = append(fields, field{name, tagged, index, ft,
-						opts.Contains("omitempty"), opts.Contains("string")})
+					fields = append(fields, fillField(field{
+						name:      name,
+						tag:       tagged,
+						index:     index,
+						typ:       ft,
+						omitEmpty: opts.Contains("omitempty"),
+						quoted:    opts.Contains("string"),
+					}))
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
 						// so that the annihilation code will see a duplicate.
@@ -1057,7 +1072,7 @@ func typeFields(t reflect.Type) []field {
 				// Record new anonymous struct to explore in next round.
 				nextCount[ft]++
 				if nextCount[ft] == 1 {
-					next = append(next, field{name: ft.Name(), index: index, typ: ft})
+					next = append(next, fillField(field{name: ft.Name(), index: index, typ: ft}))
 				}
 			}
 		}

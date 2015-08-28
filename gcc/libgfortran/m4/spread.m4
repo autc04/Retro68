@@ -1,5 +1,5 @@
 `/* Special implementation of the SPREAD intrinsic
-   Copyright (C) 2008-2014 Free Software Foundation, Inc.
+   Copyright (C) 2008-2015 Free Software Foundation, Inc.
    Contributed by Thomas Koenig <tkoenig@gcc.gnu.org>, based on
    spread_generic.c written by Paul Brook <paul@nowt.org>
 
@@ -102,8 +102,8 @@ spread_'rtype_code` ('rtype` *ret, const 'rtype` *source,
 	}
       ret->offset = 0;
 
-      /* xmalloc allocates a single byte for zero size.  */
-      ret->base_addr = xmalloc (rs * sizeof('rtype_name`));
+      /* xmallocarray allocates a single byte for zero size.  */
+      ret->base_addr = xmallocarray (rs, sizeof('rtype_name`));
       if (rs <= 0)
         return;
     }
@@ -245,7 +245,7 @@ spread_scalar_'rtype_code` ('rtype` *ret, const 'rtype_name` *source,
 
   if (ret->base_addr == NULL)
     {
-      ret->base_addr = xmalloc (ncopies * sizeof ('rtype_name`));
+      ret->base_addr = xmallocarray (ncopies, sizeof ('rtype_name`));
       ret->offset = 0;
       GFC_DIMENSION_SET(ret->dim[0], 0, ncopies - 1, 1);
     }

@@ -1,5 +1,5 @@
 /* PR rtl-optimization/57003 */
-/* { dg-do run } */
+/* { dg-do run { target { ! x32 } } } */
 /* { dg-options "-O2" } */
 
 #define N 2001
@@ -21,7 +21,7 @@ baz (unsigned long x)
   return d;
 }
 
-__attribute__ ((ms_abi, noinline, noclone))
+__attribute__ ((ms_abi, noinline, noclone)) void
 foo (void)
 {
   unsigned d;

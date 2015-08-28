@@ -1,5 +1,5 @@
 /* Implementation of various C99 functions 
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
 
 This file is part of the GNU Fortran 95 runtime library (libgfortran).
 
@@ -38,6 +38,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #   define I (1.0fi)
 # endif
 #endif
+
+/* Macros to get real and imaginary parts of a complex, and set
+   a complex value.  */
+#define REALPART(z) (__real__(z))
+#define IMAGPART(z) (__imag__(z))
+#define COMPLEX_ASSIGN(z_, r_, i_) {__real__(z_) = (r_); __imag__(z_) = (i_);}
+
 
 /* Prototypes are included to silence -Wstrict-prototypes
    -Wmissing-prototypes.  */

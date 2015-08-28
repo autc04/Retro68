@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9,!windows
+// +build !nacl,!plan9,!windows
 
 package net
 
@@ -151,6 +151,73 @@ func TestUnixAutobindClose(t *testing.T) {
 	ln.Close()
 }
 
+func TestUnixgramWrite(t *testing.T) {
+	addr := testUnixAddr()
+	laddr, err := ResolveUnixAddr("unixgram", addr)
+	if err != nil {
+		t.Fatalf("ResolveUnixAddr failed: %v", err)
+	}
+	c, err := ListenPacket("unixgram", addr)
+	if err != nil {
+		t.Fatalf("ListenPacket failed: %v", err)
+	}
+	defer os.Remove(addr)
+	defer c.Close()
+
+	testUnixgramWriteConn(t, laddr)
+	testUnixgramWritePacketConn(t, laddr)
+}
+
+func testUnixgramWriteConn(t *testing.T, raddr *UnixAddr) {
+	c, err := Dial("unixgram", raddr.String())
+	if err != nil {
+		t.Fatalf("Dial failed: %v", err)
+	}
+	defer c.Close()
+
+	if _, err := c.(*UnixConn).WriteToUnix([]byte("Connection-oriented mode socket"), raddr); err == nil {
+		t.Fatal("WriteToUnix should fail")
+	} else if err.(*OpError).Err != ErrWriteToConnected {
+		t.Fatalf("WriteToUnix should fail as ErrWriteToConnected: %v", err)
+	}
+	if _, err = c.(*UnixConn).WriteTo([]byte("Connection-oriented mode socket"), raddr); err == nil {
+		t.Fatal("WriteTo should fail")
+	} else if err.(*OpError).Err != ErrWriteToConnected {
+		t.Fatalf("WriteTo should fail as ErrWriteToConnected: %v", err)
+	}
+	if _, _, err = c.(*UnixConn).WriteMsgUnix([]byte("Connection-oriented mode socket"), nil, raddr); err == nil {
+		t.Fatal("WriteTo should fail")
+	} else if err.(*OpError).Err != ErrWriteToConnected {
+		t.Fatalf("WriteMsgUnix should fail as ErrWriteToConnected: %v", err)
+	}
+	if _, err := c.Write([]byte("Connection-oriented mode socket")); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+}
+
+func testUnixgramWritePacketConn(t *testing.T, raddr *UnixAddr) {
+	addr := testUnixAddr()
+	c, err := ListenPacket("unixgram", addr)
+	if err != nil {
+		t.Fatalf("ListenPacket failed: %v", err)
+	}
+	defer os.Remove(addr)
+	defer c.Close()
+
+	if _, err := c.(*UnixConn).WriteToUnix([]byte("Connectionless mode socket"), raddr); err != nil {
+		t.Fatalf("WriteToUnix failed: %v", err)
+	}
+	if _, err := c.WriteTo([]byte("Connectionless mode socket"), raddr); err != nil {
+		t.Fatalf("WriteTo failed: %v", err)
+	}
+	if _, _, err := c.(*UnixConn).WriteMsgUnix([]byte("Connectionless mode socket"), nil, raddr); err != nil {
+		t.Fatalf("WriteMsgUnix failed: %v", err)
+	}
+	if _, err := c.(*UnixConn).Write([]byte("Connectionless mode socket")); err == nil {
+		t.Fatal("Write should fail")
+	}
+}
+
 func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 	for _, laddr := range []string{"", testUnixAddr()} {
 		laddr := laddr
@@ -189,8 +256,11 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 			t.Fatalf("UnixConn.Write failed: %v", err)
 		}
 
-		if runtime.GOOS == "linux" && laddr == "" {
-			laddr = "@" // autobind feature
+		switch runtime.GOOS {
+		case "android", "linux":
+			if laddr == "" {
+				laddr = "@" // autobind feature
+			}
 		}
 		var connAddrs = [3]struct{ got, want Addr }{
 			{ln.Addr(), ta},
@@ -241,9 +311,13 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 			}
 		}()
 
-		if runtime.GOOS == "linux" && laddr == "" {
-			laddr = "@" // autobind feature
+		switch runtime.GOOS {
+		case "android", "linux":
+			if laddr == "" {
+				laddr = "@" // autobind feature
+			}
 		}
+
 		var connAddrs = [4]struct{ got, want Addr }{
 			{c1.LocalAddr(), ta},
 			{c1.RemoteAddr(), nil},

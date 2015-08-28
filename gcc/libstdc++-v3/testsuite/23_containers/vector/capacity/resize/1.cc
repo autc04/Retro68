@@ -1,7 +1,7 @@
 // 1999-05-07
 // bkoz 
 
-// Copyright (C) 1999-2014 Free Software Foundation, Inc.
+// Copyright (C) 1999-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,7 +22,7 @@
 
 // This fails on some versions of Darwin 8 because malloc doesn't return
 // NULL even if an allocation fails (filed as Radar 3884894).
-// { dg-do run { xfail *-*-darwin8.[0-4].* } }
+// { dg-do run { xfail *-*-darwin8.[0-4].* *-*-dragonfly* } }
 
 #include <vector>
 #include <stdexcept>

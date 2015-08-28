@@ -1,18 +1,19 @@
 /* { dg-do run } */
 /* { dg-options "-O2" } */
+/* { dg-require-effective-target nonlocal_goto } */
 
 extern void abort (void);
 
 int global;
 
-static foo(void) __attribute__((noinline));
+static int foo(void) __attribute__((noinline));
 
-static foo(void)
+static int foo(void)
 {
   global = 1;
 }
 
-static bar(void)
+static int bar(void)
 {
   foo ();
   global = 0;

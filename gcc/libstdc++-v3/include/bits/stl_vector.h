@@ -1,6 +1,6 @@
 // Vector implementation -*- C++ -*-
 
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -84,17 +84,17 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	pointer _M_end_of_storage;
 
 	_Vector_impl()
-	: _Tp_alloc_type(), _M_start(0), _M_finish(0), _M_end_of_storage(0)
+	: _Tp_alloc_type(), _M_start(), _M_finish(), _M_end_of_storage()
 	{ }
 
 	_Vector_impl(_Tp_alloc_type const& __a) _GLIBCXX_NOEXCEPT
-	: _Tp_alloc_type(__a), _M_start(0), _M_finish(0), _M_end_of_storage(0)
+	: _Tp_alloc_type(__a), _M_start(), _M_finish(), _M_end_of_storage()
 	{ }
 
 #if __cplusplus >= 201103L
 	_Vector_impl(_Tp_alloc_type&& __a) noexcept
 	: _Tp_alloc_type(std::move(__a)),
-	  _M_start(0), _M_finish(0), _M_end_of_storage(0)
+	  _M_start(), _M_finish(), _M_end_of_storage()
 	{ }
 #endif
 
@@ -167,7 +167,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       _M_allocate(size_t __n)
       {
 	typedef __gnu_cxx::__alloc_traits<_Tp_alloc_type> _Tr;
-	return __n != 0 ? _Tr::allocate(_M_impl, __n) : 0;
+	return __n != 0 ? _Tr::allocate(_M_impl, __n) : pointer();
       }
 
       void
@@ -1297,9 +1297,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       void
       _M_fill_initialize(size_type __n, const value_type& __value)
       {
-	std::__uninitialized_fill_n_a(this->_M_impl._M_start, __n, __value, 
-				      _M_get_Tp_allocator());
-	this->_M_impl._M_finish = this->_M_impl._M_end_of_storage;
+	this->_M_impl._M_finish =
+	  std::__uninitialized_fill_n_a(this->_M_impl._M_start, __n, __value,
+					_M_get_Tp_allocator());
       }
 
 #if __cplusplus >= 201103L
@@ -1307,9 +1307,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       void
       _M_default_initialize(size_type __n)
       {
-	std::__uninitialized_default_n_a(this->_M_impl._M_start, __n, 
-					 _M_get_Tp_allocator());
-	this->_M_impl._M_finish = this->_M_impl._M_end_of_storage;
+	this->_M_impl._M_finish =
+	  std::__uninitialized_default_n_a(this->_M_impl._M_start, __n,
+					   _M_get_Tp_allocator());
       }
 #endif
 

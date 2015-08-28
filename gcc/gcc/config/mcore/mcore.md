@@ -1,5 +1,5 @@
 ;;  Machine description the Motorola MCore
-;;  Copyright (C) 1993-2014 Free Software Foundation, Inc.
+;;  Copyright (C) 1993-2015 Free Software Foundation, Inc.
 ;;  Contributed by Motorola.
 
 ;; This file is part of GCC.
@@ -2769,7 +2769,7 @@
 "*
 {
    int ofs;
-   enum machine_mode mode;
+   machine_mode mode;
    rtx base_reg = XEXP (operands[4], 0);
 
    if ((ofs = mcore_byte_offset (INTVAL (operands[3]))) > -1)
@@ -3007,8 +3007,8 @@
     }
   else
     {
-      rtx out_label = 0;
-      rtx loop_label = gen_label_rtx ();
+      rtx_code_label *out_label = 0;
+      rtx_code_label *loop_label = gen_label_rtx ();
       rtx step = gen_reg_rtx (Pmode);
       rtx tmp = gen_reg_rtx (Pmode);
       rtx test, memref;

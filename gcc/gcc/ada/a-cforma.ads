@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -66,9 +66,11 @@ generic
    with function "<" (Left, Right : Key_Type) return Boolean is <>;
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
-package Ada.Containers.Formal_Ordered_Maps is
+package Ada.Containers.Formal_Ordered_Maps with
+  Pure,
+  SPARK_Mode
+is
    pragma Annotate (GNATprove, External_Axiomatization);
-   pragma Pure;
 
    function Equivalent_Keys (Left, Right : Key_Type) return Boolean with
      Global => null;
@@ -77,7 +79,8 @@ package Ada.Containers.Formal_Ordered_Maps is
      Iterable => (First       => First,
                   Next        => Next,
                   Has_Element => Has_Element,
-                  Element     => Element);
+                  Element     => Element),
+     Default_Initial_Condition => Is_Empty (Map);
    pragma Preelaborable_Initialization (Map);
 
    type Cursor is private;
@@ -241,6 +244,7 @@ package Ada.Containers.Formal_Ordered_Maps is
      Global => null;
 
    function Strict_Equal (Left, Right : Map) return Boolean with
+     Ghost,
      Global => null;
    --  Strict_Equal returns True if the containers are physically equal, i.e.
    --  they are structurally equal (function "=" returns True) and that they
@@ -248,10 +252,13 @@ package Ada.Containers.Formal_Ordered_Maps is
 
    function First_To_Previous (Container : Map; Current : Cursor) return Map
    with
+     Ghost,
      Global => null,
      Pre    => Has_Element (Container, Current) or else Current = No_Element;
+
    function Current_To_Last (Container : Map; Current : Cursor) return Map
    with
+     Ghost,
      Global => null,
      Pre    => Has_Element (Container, Current) or else Current = No_Element;
    --  First_To_Previous returns a container containing all elements preceding
@@ -265,7 +272,9 @@ package Ada.Containers.Formal_Ordered_Maps is
    function Overlap (Left, Right : Map) return Boolean with
      Global => null;
    --  Overlap returns True if the containers have common keys
+
 private
+   pragma SPARK_Mode (Off);
 
    pragma Inline (Next);
    pragma Inline (Previous);
@@ -288,7 +297,7 @@ private
      new Ada.Containers.Red_Black_Trees.Generic_Bounded_Tree_Types (Node_Type);
 
    type Map (Capacity : Count_Type) is
-      new Tree_Types.Tree_Type (Capacity) with null record;
+     new Tree_Types.Tree_Type (Capacity) with null record;
 
    type Cursor is record
       Node : Node_Access;

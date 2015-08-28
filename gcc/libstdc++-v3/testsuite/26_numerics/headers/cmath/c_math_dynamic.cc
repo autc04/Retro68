@@ -1,6 +1,6 @@
 // Inspired by libstdc++/7680 & 26_numerics/c_math.cc, 2003-04-12 ljr
 
-// Copyright (C) 2003-2014 Free Software Foundation, Inc.
+// Copyright (C) 2003-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,7 +19,7 @@
 
 
 // { dg-do link }
-// { dg-options "-D_XOPEN_SOURCE" { target *-*-freebsd* } }
+// { dg-options "-D_XOPEN_SOURCE" { target *-*-freebsd* *-*-dragonfly* } }
 
 #include <cmath>
 

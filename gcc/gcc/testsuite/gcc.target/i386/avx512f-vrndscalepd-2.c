@@ -31,13 +31,12 @@ CALC (double *s, double *r, int imm)
       }
 }
 
-void static
+void
 TEST (void)
 {
   int imm, i, j;
   UNION_TYPE (AVX512F_LEN, d) res1,res2,res3,s;
   double res_ref[SIZE];
-  double res_ref_mask[SIZE];
 
   MASK_TYPE mask = 6 ^ (0xff >> SIZE);
 
@@ -65,12 +64,16 @@ TEST (void)
 	case 1:
 	  imm = _MM_FROUND_FLOOR;
 	  res1.x = INTRINSIC (_floor_pd) (s.x);
-	  res2.x = INTRINSIC (_mask_floor_pd) (res2.x, mask, s.x);
+	  #if AVX512F_LEN == 512
+	    res2.x = INTRINSIC (_mask_floor_pd) (res2.x, mask, s.x);
+	  #endif
 	  break;
 	case 2:
 	  imm = _MM_FROUND_CEIL;
 	  res1.x = INTRINSIC (_ceil_pd) (s.x);
-	  res2.x = INTRINSIC (_mask_ceil_pd) (res2.x, mask, s.x);
+	  #if AVX512F_LEN == 512
+	    res2.x = INTRINSIC (_mask_ceil_pd) (res2.x, mask, s.x);
+	  #endif
 	  break;
 	}
 
@@ -81,8 +84,13 @@ TEST (void)
 
       MASK_MERGE(d) (res_ref,mask,SIZE );
 
-      if (UNION_CHECK (AVX512F_LEN, d) (res2, res_ref))
-	abort ();
+      #if AVX512F_LEN == 512
+	if (UNION_CHECK (AVX512F_LEN, d) (res2, res_ref))
+	  abort ();
+      #else
+	if (!i && UNION_CHECK (AVX512F_LEN, d) (res2, res_ref))
+	  abort ();
+      #endif
 
       MASK_ZERO(d) (res_ref,mask,SIZE );
 

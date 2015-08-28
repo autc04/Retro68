@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -132,6 +132,11 @@ package body Exp_Dbug is
    function Bounds_Match_Size (E : Entity_Id) return  Boolean;
    --  Determine whether the bounds of E match the size of the type. This is
    --  used to determine whether encoding is required for a discrete type.
+
+   function Is_Handled_Scale_Factor (U : Ureal) return Boolean;
+   --  The argument U is the Small_Value of a fixed-point type. This function
+   --  determines whether the back-end can handle this scale factor. When it
+   --  cannot, we have to output a GNAT encoding for the corresponding type.
 
    procedure Output_Homonym_Numbers_Suffix;
    --  If homonym numbers are stored, then output them into Name_Buffer
@@ -306,6 +311,16 @@ package body Exp_Dbug is
       Obj : Entity_Id;
       Res : Node_Id;
 
+      Enable : Boolean := Nkind (N) = N_Package_Renaming_Declaration;
+      --  By default, we do not generate an encoding for renaming. This is
+      --  however done (in which case this is set to True) in a few cases:
+      --    - when a package is renamed,
+      --    - when the renaming involves a packed array,
+      --    - when the renaming involves a packed record.
+
+      procedure Enable_If_Packed_Array (N : Node_Id);
+      --  Enable encoding generation if N is a packed array
+
       function Output_Subscript (N : Node_Id; S : String) return Boolean;
       --  Outputs a single subscript value as ?nnn (subscript is compile time
       --  known value with value nnn) or as ?e (subscript is local constant
@@ -313,6 +328,18 @@ package body Exp_Dbug is
       --  Returns False if the subscript is not of an appropriate type to
       --  output in one of these two forms. The result is prepended to the
       --  name stored in Name_Buffer.
+
+      ----------------------------
+      -- Enable_If_Packed_Array --
+      ----------------------------
+
+      procedure Enable_If_Packed_Array (N : Node_Id) is
+         T : constant Entity_Id := Etype (N);
+      begin
+         Enable :=
+           Enable or else (Ekind (T) in Array_Kind
+                            and then Present (Packed_Array_Impl_Type (T)));
+      end Enable_If_Packed_Array;
 
       ----------------------
       -- Output_Subscript --
@@ -372,6 +399,7 @@ package body Exp_Dbug is
                exit;
 
             when N_Selected_Component =>
+               Enable := Enable or else Is_Packed (Etype (Prefix (Ren)));
                Prepend_String_To_Buffer
                  (Get_Name_String (Chars (Selector_Name (Ren))));
                Prepend_String_To_Buffer ("XR");
@@ -379,9 +407,12 @@ package body Exp_Dbug is
 
             when N_Indexed_Component =>
                declare
-                  X : Node_Id := Last (Expressions (Ren));
+                  X : Node_Id;
 
                begin
+                  Enable_If_Packed_Array (Prefix (Ren));
+
+                  X := Last (Expressions (Ren));
                   while Present (X) loop
                      if not Output_Subscript (X, "XS") then
                         Set_Materialize_Entity (Ent);
@@ -395,7 +426,7 @@ package body Exp_Dbug is
                Ren := Prefix (Ren);
 
             when N_Slice =>
-
+               Enable_If_Packed_Array (Prefix (Ren));
                Typ := Etype (First_Index (Etype (Nam)));
 
                if not Output_Subscript (Type_High_Bound (Typ), "XS") then
@@ -421,6 +452,13 @@ package body Exp_Dbug is
                return Empty;
          end case;
       end loop;
+
+      --  If we found no reason here to emit an encoding, stop now
+
+      if not Enable then
+         Set_Materialize_Entity (Ent);
+         return Empty;
+      end if;
 
       Prepend_String_To_Buffer ("___XE");
 
@@ -479,6 +517,13 @@ package body Exp_Dbug is
 
       Set_Debug_Info_Needed (Obj);
 
+      --  The renamed entity may be a temporary, e.g. the result of an
+      --  implicit dereference in an iterator. Indicate that the temporary
+      --  itself requires debug information. If the renamed entity comes
+      --  from source this is a no-op.
+
+      Set_Debug_Info_Needed (Entity (Ren));
+
       --  Mark the object as internal so that it won't be initialized when
       --  pragma Initialize_Scalars or Normalize_Scalars is in use.
 
@@ -494,6 +539,27 @@ package body Exp_Dbug is
       when others =>
          return Make_Null_Statement (Loc);
    end Debug_Renaming_Declaration;
+
+   -----------------------------
+   -- Is_Handled_Scale_Factor --
+   -----------------------------
+
+   function Is_Handled_Scale_Factor (U : Ureal) return Boolean is
+   begin
+      --  Keep in sync with gigi (see E_*_Fixed_Point_Type handling in
+      --  decl.c:gnat_to_gnu_entity).
+
+      if UI_Eq (Numerator (U), Uint_1) then
+         if Rbase (U) = 2 or else Rbase (U) = 10 then
+            return True;
+         end if;
+      end if;
+
+      return
+        (UI_Is_In_Int_Range (Norm_Num (U))
+           and then
+         UI_Is_In_Int_Range (Norm_Den (U)));
+   end Is_Handled_Scale_Factor;
 
    ----------------------
    -- Get_Encoded_Name --
@@ -553,9 +619,13 @@ package body Exp_Dbug is
 
       Has_Suffix := True;
 
-      --  Fixed-point case
+      --  Fixed-point case: generate GNAT encodings when asked to or when we
+      --  know the back-end will not be able to handle the scale factor.
 
-      if Is_Fixed_Point_Type (E) then
+      if Is_Fixed_Point_Type (E)
+        and then (GNAT_Encodings /= DWARF_GNAT_Encodings_Minimal
+                   or else not Is_Handled_Scale_Factor (Small_Value (E)))
+      then
          Get_External_Name (E, True, "XF_");
          Add_Real_To_Buffer (Delta_Value (E));
 
@@ -564,23 +634,11 @@ package body Exp_Dbug is
             Add_Real_To_Buffer (Small_Value (E));
          end if;
 
-      --  Vax floating-point case
+      --  Discrete case where bounds do not match size. Not necessary if we can
+      --  emit standard DWARF.
 
-      elsif Vax_Float (E) then
-         if Digits_Value (Base_Type (E)) = 6 then
-            Get_External_Name (E, True, "XFF");
-
-         elsif Digits_Value (Base_Type (E)) = 9 then
-            Get_External_Name (E, True, "XFF");
-
-         else
-            pragma Assert (Digits_Value (Base_Type (E)) = 15);
-            Get_External_Name (E, True, "XFG");
-         end if;
-
-      --  Discrete case where bounds do not match size
-
-      elsif Is_Discrete_Type (E)
+      elsif GNAT_Encodings /= DWARF_GNAT_Encodings_Minimal
+        and then Is_Discrete_Type (E)
         and then not Bounds_Match_Size (E)
       then
          declare
@@ -592,13 +650,11 @@ package body Exp_Dbug is
 
             Lo_Discr : constant Boolean :=
                          Nkind (Lo) = N_Identifier
-                           and then
-                         Ekind (Entity (Lo)) = E_Discriminant;
+                          and then Ekind (Entity (Lo)) = E_Discriminant;
 
             Hi_Discr : constant Boolean :=
                          Nkind (Hi) = N_Identifier
-                           and then
-                         Ekind (Entity (Hi)) = E_Discriminant;
+                          and then Ekind (Entity (Hi)) = E_Discriminant;
 
             Lo_Encode : constant Boolean := Lo_Con or Lo_Discr;
             Hi_Encode : constant Boolean := Hi_Con or Hi_Discr;
@@ -958,10 +1014,10 @@ package body Exp_Dbug is
    end Get_Secondary_DT_External_Name;
 
    ---------------------------------
-   -- Make_Packed_Array_Type_Name --
+   -- Make_Packed_Array_Impl_Type_Name --
    ---------------------------------
 
-   function Make_Packed_Array_Type_Name
+   function Make_Packed_Array_Impl_Type_Name
      (Typ   : Entity_Id;
       Csize : Uint)
       return  Name_Id
@@ -971,7 +1027,7 @@ package body Exp_Dbug is
       Add_Str_To_Name_Buffer ("___XP");
       Add_Uint_To_Buffer (Csize);
       return Name_Find;
-   end Make_Packed_Array_Type_Name;
+   end Make_Packed_Array_Impl_Type_Name;
 
    -----------------------------------
    -- Output_Homonym_Numbers_Suffix --
@@ -1042,10 +1098,21 @@ package body Exp_Dbug is
    procedure Qualify_All_Entity_Names is
       E   : Entity_Id;
       Ent : Entity_Id;
+      Nod : Node_Id;
 
    begin
       for J in Name_Qualify_Units.First .. Name_Qualify_Units.Last loop
-         E := Defining_Entity (Name_Qualify_Units.Table (J));
+         Nod := Name_Qualify_Units.Table (J);
+
+         --  When a scoping construct is ignored Ghost, it is rewritten as
+         --  a null statement. Skip such constructs as they no longer carry
+         --  names.
+
+         if Nkind (Nod) = N_Null_Statement then
+            goto Continue;
+         end if;
+
+         E := Defining_Entity (Nod);
          Reset_Buffers;
          Qualify_Entity_Name (E);
 
@@ -1069,6 +1136,9 @@ package body Exp_Dbug is
                exit when Ent = E;
             end loop;
          end if;
+
+         <<Continue>>
+         null;
       end loop;
    end Qualify_All_Entity_Names;
 
@@ -1096,7 +1166,8 @@ package body Exp_Dbug is
 
       function Qualify_Needed (S : Entity_Id) return Boolean;
       --  Given a scope, determines if the scope is to be included in the
-      --  fully qualified name, True if so, False if not.
+      --  fully qualified name, True if so, False if not. Blocks and loops
+      --  are excluded from a qualified name.
 
       procedure Set_BNPE_Suffix (E : Entity_Id);
       --  Recursive routine to append the BNPE qualification suffix. Works
@@ -1211,6 +1282,7 @@ package body Exp_Dbug is
             return Is_Subprogram (Ent)
               or else Ekind (Ent) = E_Subprogram_Body
               or else (Ekind (S) /= E_Block
+                        and then Ekind (S) /= E_Loop
                         and then not Is_Dynamic_Scope (S));
          end if;
       end Qualify_Needed;

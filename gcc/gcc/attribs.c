@@ -1,5 +1,5 @@
 /* Functions dealing with attribute handling, used by most front ends.
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +21,14 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "symtab.h"
+#include "input.h"
+#include "alias.h"
+#include "double-int.h"
+#include "machmode.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "attribs.h"
@@ -85,7 +93,7 @@ struct scoped_attributes
 {
   const char *ns;
   vec<attribute_spec> attributes;
-  hash_table <attribute_hasher> attribute_hash;
+  hash_table<attribute_hasher> *attribute_hash;
 };
 
 /* The table of scope attributes.  */
@@ -144,7 +152,7 @@ register_scoped_attributes (const struct attribute_spec * attributes,
       sa.ns = ns;
       sa.attributes.create (64);
       result = attributes_table.safe_push (sa);
-      result->attribute_hash.create (200);
+      result->attribute_hash = new hash_table<attribute_hasher> (200);
     }
 
   /* Really add the attributes to their namespace now.  */
@@ -281,7 +289,7 @@ register_scoped_attribute (const struct attribute_spec *attr,
 
   gcc_assert (attr != NULL && name_space != NULL);
 
-  gcc_assert (name_space->attribute_hash.is_created ());
+  gcc_assert (name_space->attribute_hash);
 
   str.str = attr->name;
   str.length = strlen (str.str);
@@ -291,8 +299,8 @@ register_scoped_attribute (const struct attribute_spec *attr,
   gcc_assert (str.length > 0 && str.str[0] != '_');
 
   slot = name_space->attribute_hash
-	 .find_slot_with_hash (&str, substring_hash (str.str, str.length),
-			       INSERT);
+	 ->find_slot_with_hash (&str, substring_hash (str.str, str.length),
+				INSERT);
   gcc_assert (!*slot || attr->name[0] == '*');
   *slot = CONST_CAST (struct attribute_spec *, attr);
 }
@@ -316,8 +324,9 @@ lookup_scoped_attribute_spec (const_tree ns, const_tree name)
   attr.str = IDENTIFIER_POINTER (name);
   attr.length = IDENTIFIER_LENGTH (name);
   extract_attribute_substring (&attr);
-  return attrs->attribute_hash.find_with_hash (&attr,
-			 substring_hash (attr.str, attr.length));
+  return attrs->attribute_hash->find_with_hash (&attr,
+						substring_hash (attr.str,
+							       	attr.length));
 }
 
 /* Return the spec for the attribute named NAME.  If NAME is a TREE_LIST,
@@ -501,11 +510,7 @@ decl_attributes (tree *node, tree attributes, int flags)
       if (spec->type_required && DECL_P (*anode))
 	{
 	  anode = &TREE_TYPE (*anode);
-	  /* Allow ATTR_FLAG_TYPE_IN_PLACE for the type's naming decl.  */
-	  if (!(TREE_CODE (*anode) == TYPE_DECL
-		&& *anode == TYPE_NAME (TYPE_MAIN_VARIANT
-					(TREE_TYPE (*anode)))))
-	    flags &= ~(int) ATTR_FLAG_TYPE_IN_PLACE;
+	  flags &= ~(int) ATTR_FLAG_TYPE_IN_PLACE;
 	}
 
       if (spec->function_type_required && TREE_CODE (*anode) != FUNCTION_TYPE

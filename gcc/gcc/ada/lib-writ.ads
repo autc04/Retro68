@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -116,7 +116,7 @@ package Lib.Writ is
    --  -- M  Main Program --
    --  ---------------------
 
-   --    M type [priority] [T=time-slice] [AB] [C=cpu] W=?
+   --    M type [priority] [T=time-slice] [C=cpu] W=?
 
    --      This line appears only if the main unit for this file is suitable
    --      for use as a main program. The parameters are:
@@ -140,14 +140,6 @@ package Lib.Writ is
    --          range 0 .. 10**9 giving the time slice value in units of
    --          milliseconds. The actual significance of this parameter is
    --          target dependent.
-
-   --        AB
-
-   --          Present if there is an allocator in the body of the procedure
-   --          after the BEGIN. This will be a violation of the restriction
-   --          No_Allocators_After_Elaboration if it is present, and this
-   --          unit is used as a main program (only the binder can find the
-   --          violation, since only the binder knows the main program).
 
    --        C=cpu
 
@@ -200,17 +192,8 @@ package Lib.Writ is
    --              the units in this file, where x is the first character
    --              (upper case) of the policy name (e.g. 'C' for Concurrent).
 
-   --         FD   Configuration pragmas apply to all the units in this file
-   --              specifying a possibly non-standard floating point format
-   --              (VAX float with Long_Float using D_Float).
-
-   --         FG   Configuration pragmas apply to all the units in this file
-   --              specifying a possibly non-standard floating point format
-   --              (VAX float with Long_Float using G_Float).
-
-   --         FI   Configuration pragmas apply to all the units in this file
-   --              specifying a possibly non-standard floating point format
-   --              (IEEE Float).
+   --         GP   Set if this compilation was done in GNATprove mode, either
+   --              from direct use of GNATprove, or from use of -gnatdF.
 
    --         Lx   A valid Locking_Policy pragma applies to all the units in
    --              this file, where x is the first character (upper case) of
@@ -220,13 +203,21 @@ package Lib.Writ is
    --              were not compiled to produce an object. This can occur as a
    --              result of the use of -gnatc, or if no object can be produced
    --              (e.g. when a package spec is compiled instead of the body,
-   --              or a subunit on its own).
+   --              or a subunit on its own). Note that in GNATprove mode, we
+   --              do produce an object. The object is not suitable for binding
+   --              and linking, but we do not set NO, instead we set GP.
 
    --         NR   No_Run_Time. Indicates that a pragma No_Run_Time applies
    --              to all units in the file.
 
    --         NS   Normalize_Scalars pragma in effect for all units in
    --              this file.
+
+   --         OH   Pragma Default_Scalar_Storage_Order (High_Order_First) is
+   --              present in a configuration pragma file that applies.
+
+   --         OL   Pragma Default_Scalar_Storage_Order (Low_Order_First) is
+   --              present in a configuration pragma file that applies.
 
    --         Qx   A valid Queueing_Policy pragma applies to all the units
    --              in this file, where x is the first character (upper case)
@@ -384,10 +375,10 @@ package Lib.Writ is
 
    --  RN
 
-   --  In named notation, the restrictions are given as a series of lines, one
-   --  per retrictions that is specified or violated (no information is present
-   --  for restrictions that are not specified or violated). In the following
-   --  name is the name of the restriction in all upper case.
+   --  In named notation, the restrictions are given as a series of lines,
+   --  one per restrictions that is specified or violated (no information is
+   --  present for restrictions that are not specified or violated). In the
+   --  following name is the name of the restriction in all upper case.
 
    --  For boolean restrictions, we have only two possibilities. A restrictions
    --  pragma is present, or a violation is detected:
@@ -607,11 +598,15 @@ package Lib.Writ is
 
    --         RT  Unit has pragma Remote_Types
 
-   --         SP  Unit has pragma Shared_Passive.
+   --         SE  Compilation of unit encountered one or more serious errors.
+   --             Normally the generation of an ALI file is suppressed if there
+   --             is a serious error, but this can be overridden with -gnatQ.
+
+   --         SP  Unit has pragma Shared_Passive
 
    --         SU  Unit is a subprogram, rather than a package
 
-   --      The attributes may appear in any order, separated by spaces.
+   --      The attributes may appear in any order, separated by spaces
 
    --  -----------------------------
    --  -- W, Y and Z Withed Units --
@@ -726,7 +721,10 @@ package Lib.Writ is
    --        T  pragma Title
    --        S  pragma Subtitle
 
-   --      <sloc> is the source location of the pragma in line:col format
+   --      <sloc> is the source location of the pragma in line:col[:filename]
+   --      format. The file name is omitted if it is the same as the current
+   --      unit (it therefore appears explicitly in the case of pragmas
+   --      occurring in subunits, which do not have U sections of their own).
 
    --      Successive entries record the pragma_argument_associations.
 
@@ -775,7 +773,7 @@ package Lib.Writ is
    --  units depend. This is used by the binder for consistency checking.
    --  These lines are also referenced by the cross-reference information.
 
-   --    D source-name time-stamp checksum [subunit-name] line:file-name
+   --    D source-name time-stamp checksum (sub)unit-name line:file-name
 
    --      source-name also includes preprocessing data file and preprocessing
    --      definition file. These preprocessing files may be given as full
@@ -790,9 +788,10 @@ package Lib.Writ is
    --      The checksum is an 8-hex digit representation of the source file
    --      checksum, with letters given in lower case.
 
-   --      The subunit name is present only if the dependency line is for a
-   --      subunit. It contains the fully qualified name of the subunit in all
-   --      lower case letters.
+   --      If the unit is not a subunit, the (sub)unit name is the unit name in
+   --      internal format, as described in package Uname. If the unit is a
+   --      subunit, the (sub)unit name is the fully qualified name of the
+   --      subunit in all lower case letters.
 
    --      The line:file-name entry is present only if a Source_Reference
    --      pragma appeared in the source file identified by source-name. In
@@ -927,7 +926,8 @@ package Lib.Writ is
    procedure Write_ALI (Object : Boolean);
    --  This procedure writes the library information for the current main unit
    --  The Object parameter is true if an object file is created, and false
-   --  otherwise.
+   --  otherwise. Note that the pseudo-object file generated in GNATProve mode
+   --  does count as an object file from this point of view.
    --
    --  Note: in the case where we are not generating code (-gnatc mode), this
    --  routine only writes an ALI file if it cannot find an existing up to

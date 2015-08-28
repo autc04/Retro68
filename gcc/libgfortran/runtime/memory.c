@@ -1,5 +1,5 @@
 /* Memory management routines.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -25,6 +25,11 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #include "libgfortran.h"
 #include <stdlib.h>
+#include <errno.h>
+
+#ifndef SIZE_MAX
+#define SIZE_MAX ((size_t)-1)
+#endif
 
 
 void *
@@ -44,12 +49,36 @@ xmalloc (size_t n)
 }
 
 
+void *
+xmallocarray (size_t nmemb, size_t size)
+{
+  void *p;
+
+  if (!nmemb || !size)
+    size = nmemb = 1;
+#define HALF_SIZE_T (((size_t) 1) << (__CHAR_BIT__ * sizeof (size_t) / 2))
+  else if (__builtin_expect ((nmemb | size) >= HALF_SIZE_T, 0)
+	   && nmemb > SIZE_MAX / size)
+    {
+      errno = ENOMEM;
+      os_error ("Integer overflow in xmallocarray");
+    }
+
+  p = malloc (nmemb * size);
+
+  if (!p)
+    os_error ("Memory allocation failed in xmallocarray");
+
+  return p;
+}
+
+
 /* calloc wrapper that aborts on error.  */
 
 void *
 xcalloc (size_t nmemb, size_t size)
 {
-  if (nmemb * size == 0)
+  if (!nmemb || !size)
     nmemb = size = 1;
 
   void *p = calloc (nmemb, size);
@@ -57,4 +86,18 @@ xcalloc (size_t nmemb, size_t size)
     os_error ("Allocating cleared memory failed");
 
   return p;
+}
+
+
+void *
+xrealloc (void *ptr, size_t size)
+{
+  if (size == 0)
+    size = 1;
+
+  void *newp = realloc (ptr, size);
+  if (!newp)
+    os_error ("Memory allocation failure in xrealloc");
+
+  return newp;
 }

@@ -1,5 +1,5 @@
 /* RTL-level loop invariant motion.
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -42,13 +42,39 @@ along with GCC; see the file COPYING3.  If not see
 #include "rtl.h"
 #include "tm_p.h"
 #include "obstack.h"
+#include "predict.h"
+#include "vec.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfgrtl.h"
 #include "basic-block.h"
 #include "cfgloop.h"
+#include "symtab.h"
+#include "flags.h"
+#include "statistics.h"
+#include "double-int.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "alias.h"
+#include "wide-int.h"
+#include "inchash.h"
+#include "tree.h"
+#include "insn-config.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
 #include "expr.h"
 #include "recog.h"
 #include "target.h"
-#include "function.h"
-#include "flags.h"
 #include "df.h"
 #include "hash-table.h"
 #include "except.h"
@@ -78,7 +104,7 @@ struct loop_data
 struct use
 {
   rtx *pos;			/* Position of the use.  */
-  rtx insn;			/* The insn in that the use occurs.  */
+  rtx_insn *insn;		/* The insn in that the use occurs.  */
   unsigned addr_use_p;		/* Whether the use occurs in an address.  */
   struct use *next;		/* Next use in the list.  */
 };
@@ -104,6 +130,9 @@ struct invariant
   /* The number of the invariant with the same value.  */
   unsigned eqto;
 
+  /* The number of invariants which eqto this.  */
+  unsigned eqno;
+
   /* If we moved the invariant out of the loop, the register that contains its
      value.  */
   rtx reg;
@@ -116,7 +145,7 @@ struct invariant
   struct def *def;
 
   /* The insn in that it is defined.  */
-  rtx insn;
+  rtx_insn *insn;
 
   /* Whether it is always executed.  */
   bool always_executed;
@@ -157,7 +186,7 @@ struct invariant_expr_entry
   rtx expr;
 
   /* Its mode.  */
-  enum machine_mode mode;
+  machine_mode mode;
 
   /* Its hash.  */
   hashval_t hash;
@@ -286,7 +315,7 @@ invariant_for_use (df_ref use)
 /* Computes hash value for invariant expression X in INSN.  */
 
 static hashval_t
-hash_invariant_expr_1 (rtx insn, rtx x)
+hash_invariant_expr_1 (rtx_insn *insn, rtx x)
 {
   enum rtx_code code = GET_CODE (x);
   int i, j;
@@ -340,7 +369,7 @@ hash_invariant_expr_1 (rtx insn, rtx x)
    and INSN2 have always the same value.  */
 
 static bool
-invariant_expr_equal_p (rtx insn1, rtx e1, rtx insn2, rtx e2)
+invariant_expr_equal_p (rtx_insn *insn1, rtx e1, rtx_insn *insn2, rtx e2)
 {
   enum rtx_code code = GET_CODE (e1);
   int i, j;
@@ -453,14 +482,14 @@ invariant_expr_hasher::equal (const value_type *entry1,
 				 entry2->inv->insn, entry2->expr);
 }
 
-typedef hash_table <invariant_expr_hasher> invariant_htab_type;
+typedef hash_table<invariant_expr_hasher> invariant_htab_type;
 
 /* Checks whether invariant with value EXPR in machine mode MODE is
    recorded in EQ.  If this is the case, return the invariant.  Otherwise
    insert INV to the table for this expression and return INV.  */
 
 static struct invariant *
-find_or_insert_inv (invariant_htab_type eq, rtx expr, enum machine_mode mode,
+find_or_insert_inv (invariant_htab_type *eq, rtx expr, machine_mode mode,
 		    struct invariant *inv)
 {
   hashval_t hash = hash_invariant_expr_1 (inv->insn, expr);
@@ -471,7 +500,7 @@ find_or_insert_inv (invariant_htab_type eq, rtx expr, enum machine_mode mode,
   pentry.expr = expr;
   pentry.inv = inv;
   pentry.mode = mode;
-  slot = eq.find_slot_with_hash (&pentry, hash, INSERT);
+  slot = eq->find_slot_with_hash (&pentry, hash, INSERT);
   entry = *slot;
 
   if (entry)
@@ -491,13 +520,14 @@ find_or_insert_inv (invariant_htab_type eq, rtx expr, enum machine_mode mode,
    hash table of the invariants.  */
 
 static void
-find_identical_invariants (invariant_htab_type eq, struct invariant *inv)
+find_identical_invariants (invariant_htab_type *eq, struct invariant *inv)
 {
   unsigned depno;
   bitmap_iterator bi;
   struct invariant *dep;
   rtx expr, set;
-  enum machine_mode mode;
+  machine_mode mode;
+  struct invariant *tmp;
 
   if (inv->eqto != ~0u)
     return;
@@ -513,7 +543,12 @@ find_identical_invariants (invariant_htab_type eq, struct invariant *inv)
   mode = GET_MODE (expr);
   if (mode == VOIDmode)
     mode = GET_MODE (SET_DEST (set));
-  inv->eqto = find_or_insert_inv (eq, expr, mode, inv)->invno;
+
+  tmp = find_or_insert_inv (eq, expr, mode, inv);
+  inv->eqto = tmp->invno;
+
+  if (tmp->invno != inv->invno && inv->always_executed)
+    tmp->eqno++;
 
   if (dump_file && inv->eqto != inv->invno)
     fprintf (dump_file,
@@ -528,13 +563,10 @@ merge_identical_invariants (void)
 {
   unsigned i;
   struct invariant *inv;
-  invariant_htab_type eq;
-  eq.create (invariants.length ());
+  invariant_htab_type eq (invariants.length ());
 
   FOR_EACH_VEC_ELT (invariants, i, inv)
-    find_identical_invariants (eq, inv);
-
-  eq.dispose ();
+    find_identical_invariants (&eq, inv);
 }
 
 /* Determines the basic blocks inside LOOP that are always executed and
@@ -572,7 +604,7 @@ find_exits (struct loop *loop, basic_block *body,
   edge e;
   struct loop *outermost_exit = loop, *aexit;
   bool has_call = false;
-  rtx insn;
+  rtx_insn *insn;
 
   for (i = 0; i < loop->num_nodes; i++)
     {
@@ -683,7 +715,7 @@ find_defs (struct loop *loop)
    is returned.  */
 
 static struct invariant *
-create_new_invariant (struct def *def, rtx insn, bitmap depends_on,
+create_new_invariant (struct def *def, rtx_insn *insn, bitmap depends_on,
 		      bool always_executed)
 {
   struct invariant *inv = XNEW (struct invariant);
@@ -725,6 +757,10 @@ create_new_invariant (struct def *def, rtx insn, bitmap depends_on,
 
   inv->invno = invariants.length ();
   inv->eqto = ~0u;
+
+  /* Itself.  */
+  inv->eqno = 1;
+
   if (def)
     def->invno = inv->invno;
   invariants.safe_push (inv);
@@ -823,19 +859,52 @@ check_dependency (basic_block bb, df_ref use, bitmap depends_on)
    loop invariants, false otherwise.  */
 
 static bool
-check_dependencies (rtx insn, bitmap depends_on)
+check_dependencies (rtx_insn *insn, bitmap depends_on)
 {
   struct df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
-  df_ref *use_rec;
+  df_ref use;
   basic_block bb = BLOCK_FOR_INSN (insn);
 
-  for (use_rec = DF_INSN_INFO_USES (insn_info); *use_rec; use_rec++)
-    if (!check_dependency (bb, *use_rec, depends_on))
+  FOR_EACH_INSN_INFO_USE (use, insn_info)
+    if (!check_dependency (bb, use, depends_on))
       return false;
-  for (use_rec = DF_INSN_INFO_EQ_USES (insn_info); *use_rec; use_rec++)
-    if (!check_dependency (bb, *use_rec, depends_on))
+  FOR_EACH_INSN_INFO_EQ_USE (use, insn_info)
+    if (!check_dependency (bb, use, depends_on))
       return false;
 
+  return true;
+}
+
+/* Pre-check candidate DEST to skip the one which can not make a valid insn
+   during move_invariant_reg.  SIMPLE is to skip HARD_REGISTER.  */
+static bool
+pre_check_invariant_p (bool simple, rtx dest)
+{
+  if (simple && REG_P (dest) && DF_REG_DEF_COUNT (REGNO (dest)) > 1)
+    {
+      df_ref use;
+      rtx ref;
+      unsigned int i = REGNO (dest);
+      struct df_insn_info *insn_info;
+      df_ref def_rec;
+
+      for (use = DF_REG_USE_CHAIN (i); use; use = DF_REF_NEXT_REG (use))
+	{
+	  ref = DF_REF_INSN (use);
+	  insn_info = DF_INSN_INFO_GET (ref);
+
+	  FOR_EACH_INSN_INFO_DEF (def_rec, insn_info)
+	    if (DF_REF_REGNO (def_rec) == i)
+	      {
+		/* Multi definitions at this stage, most likely are due to
+		   instruction constraints, which requires both read and write
+		   on the same register.  Since move_invariant_reg is not
+		   powerful enough to handle such cases, just ignore the INV
+		   and leave the chance to others.  */
+		return false;
+	      }
+	}
+    }
   return true;
 }
 
@@ -844,7 +913,7 @@ check_dependencies (rtx insn, bitmap depends_on)
    unless the program ends due to a function call.  */
 
 static void
-find_invariant_insn (rtx insn, bool always_reached, bool always_executed)
+find_invariant_insn (rtx_insn *insn, bool always_reached, bool always_executed)
 {
   df_ref ref;
   struct def *def;
@@ -868,7 +937,8 @@ find_invariant_insn (rtx insn, bool always_reached, bool always_executed)
       || HARD_REGISTER_P (dest))
     simple = false;
 
-  if (!may_assign_reg_p (SET_DEST (set))
+  if (!may_assign_reg_p (dest)
+      || !pre_check_invariant_p (simple, dest)
       || !check_maybe_invariant (SET_SRC (set)))
     return;
 
@@ -906,22 +976,20 @@ find_invariant_insn (rtx insn, bool always_reached, bool always_executed)
 /* Record registers used in INSN that have a unique invariant definition.  */
 
 static void
-record_uses (rtx insn)
+record_uses (rtx_insn *insn)
 {
   struct df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
-  df_ref *use_rec;
+  df_ref use;
   struct invariant *inv;
 
-  for (use_rec = DF_INSN_INFO_USES (insn_info); *use_rec; use_rec++)
+  FOR_EACH_INSN_INFO_USE (use, insn_info)
     {
-      df_ref use = *use_rec;
       inv = invariant_for_use (use);
       if (inv)
 	record_use (inv->def, use);
     }
-  for (use_rec = DF_INSN_INFO_EQ_USES (insn_info); *use_rec; use_rec++)
+  FOR_EACH_INSN_INFO_EQ_USE (use, insn_info)
     {
-      df_ref use = *use_rec;
       inv = invariant_for_use (use);
       if (inv)
 	record_use (inv->def, use);
@@ -933,7 +1001,7 @@ record_uses (rtx insn)
    unless the program ends due to a function call.  */
 
 static void
-find_invariants_insn (rtx insn, bool always_reached, bool always_executed)
+find_invariants_insn (rtx_insn *insn, bool always_reached, bool always_executed)
 {
   find_invariant_insn (insn, always_reached, always_executed);
   record_uses (insn);
@@ -947,7 +1015,7 @@ find_invariants_insn (rtx insn, bool always_reached, bool always_executed)
 static void
 find_invariants_bb (basic_block bb, bool always_reached, bool always_executed)
 {
-  rtx insn;
+  rtx_insn *insn;
 
   FOR_BB_INSNS (bb, insn)
     {
@@ -1024,7 +1092,7 @@ free_use_list (struct use *use)
 /* Return pressure class and number of hard registers (through *NREGS)
    for destination of INSN. */
 static enum reg_class
-get_pressure_class_and_nregs (rtx insn, int *nregs)
+get_pressure_class_and_nregs (rtx_insn *insn, int *nregs)
 {
   rtx reg;
   enum reg_class pressure_class;
@@ -1058,16 +1126,22 @@ get_pressure_class_and_nregs (rtx insn, int *nregs)
 }
 
 /* Calculates cost and number of registers needed for moving invariant INV
-   out of the loop and stores them to *COST and *REGS_NEEDED.  */
+   out of the loop and stores them to *COST and *REGS_NEEDED.  *CL will be
+   the REG_CLASS of INV.  Return
+     -1: if INV is invalid.
+      0: if INV and its depends_on have same reg_class
+      1: if INV and its depends_on have different reg_classes.  */
 
-static void
-get_inv_cost (struct invariant *inv, int *comp_cost, unsigned *regs_needed)
+static int
+get_inv_cost (struct invariant *inv, int *comp_cost, unsigned *regs_needed,
+	      enum reg_class *cl)
 {
   int i, acomp_cost;
   unsigned aregs_needed[N_REG_CLASSES];
   unsigned depno;
   struct invariant *dep;
   bitmap_iterator bi;
+  int ret = 1;
 
   /* Find the representative of the class of the equivalent invariants.  */
   inv = invariants[inv->eqto];
@@ -1083,7 +1157,7 @@ get_inv_cost (struct invariant *inv, int *comp_cost, unsigned *regs_needed)
 
   if (inv->move
       || inv->stamp == actual_stamp)
-    return;
+    return -1;
   inv->stamp = actual_stamp;
 
   if (! flag_ira_loop_pressure)
@@ -1095,11 +1169,13 @@ get_inv_cost (struct invariant *inv, int *comp_cost, unsigned *regs_needed)
 
       pressure_class = get_pressure_class_and_nregs (inv->insn, &nregs);
       regs_needed[pressure_class] += nregs;
+      *cl = pressure_class;
+      ret = 0;
     }
 
   if (!inv->cheap_address
       || inv->def->n_addr_uses < inv->def->n_uses)
-    (*comp_cost) += inv->cost;
+    (*comp_cost) += inv->cost * inv->eqno;
 
 #ifdef STACK_REGS
   {
@@ -1135,10 +1211,16 @@ get_inv_cost (struct invariant *inv, int *comp_cost, unsigned *regs_needed)
   EXECUTE_IF_SET_IN_BITMAP (inv->depends_on, 0, depno, bi)
     {
       bool check_p;
+      enum reg_class dep_cl = ALL_REGS;
+      int dep_ret;
 
       dep = invariants[depno];
 
-      get_inv_cost (dep, &acomp_cost, aregs_needed);
+      /* If DEP is moved out of the loop, it is not a depends_on any more.  */
+      if (dep->move)
+	continue;
+
+      dep_ret = get_inv_cost (dep, &acomp_cost, aregs_needed, &dep_cl);
 
       if (! flag_ira_loop_pressure)
 	check_p = aregs_needed[0] != 0;
@@ -1148,6 +1230,12 @@ get_inv_cost (struct invariant *inv, int *comp_cost, unsigned *regs_needed)
 	    if (aregs_needed[ira_pressure_classes[i]] != 0)
 	      break;
 	  check_p = i < ira_pressure_classes_num;
+
+	  if ((dep_ret == 1) || ((dep_ret == 0) && (*cl != dep_cl)))
+	    {
+	      *cl = ALL_REGS;
+	      ret = 1;
+	    }
 	}
       if (check_p
 	  /* We need to check always_executed, since if the original value of
@@ -1181,6 +1269,7 @@ get_inv_cost (struct invariant *inv, int *comp_cost, unsigned *regs_needed)
 	}
       (*comp_cost) += acomp_cost;
     }
+  return ret;
 }
 
 /* Calculates gain for eliminating invariant INV.  REGS_USED is the number
@@ -1195,10 +1284,14 @@ gain_for_invariant (struct invariant *inv, unsigned *regs_needed,
 		    bool speed, bool call_p)
 {
   int comp_cost, size_cost;
+  /* Workaround -Wmaybe-uninitialized false positive during
+     profiledbootstrap by initializing it.  */
+  enum reg_class cl = NO_REGS;
+  int ret;
 
   actual_stamp++;
 
-  get_inv_cost (inv, &comp_cost, regs_needed);
+  ret = get_inv_cost (inv, &comp_cost, regs_needed, &cl);
 
   if (! flag_ira_loop_pressure)
     {
@@ -1207,6 +1300,11 @@ gain_for_invariant (struct invariant *inv, unsigned *regs_needed,
 		   - estimate_reg_pressure_cost (new_regs[0],
 						 regs_used, speed, call_p));
     }
+  else if (ret < 0)
+    return -1;
+  else if ((ret == 0) && (cl == NO_REGS))
+    /* Hoist it anyway since it does not impact register pressure.  */
+    return 1;
   else
     {
       int i;
@@ -1215,6 +1313,10 @@ gain_for_invariant (struct invariant *inv, unsigned *regs_needed,
       for (i = 0; i < ira_pressure_classes_num; i++)
 	{
 	  pressure_class = ira_pressure_classes[i];
+
+	  if (!reg_classes_intersect_p (pressure_class, cl))
+	    continue;
+
 	  if ((int) new_regs[pressure_class]
 	      + (int) regs_needed[pressure_class]
 	      + LOOP_DATA (curr_loop)->max_reg_pressure[pressure_class]
@@ -1804,7 +1906,8 @@ calculate_loop_reg_pressure (void)
   unsigned int j;
   bitmap_iterator bi;
   basic_block bb;
-  rtx insn, link;
+  rtx_insn *insn;
+  rtx link;
   struct loop *loop, *parent;
 
   FOR_EACH_LOOP (loop, 0)

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2009-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2009-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,6 +48,9 @@ package SCOs is
 
    --  Put_SCO reads the internal tables and generates text lines in the ALI
    --  format.
+
+   --  WARNING: There are C bindings for this package. Any changes to this
+   --  source file must be properly reflected in the C header file scos.h
 
    --------------------
    -- SCO ALI Format --
@@ -440,8 +443,8 @@ package SCOs is
    --    SCO contexts, the only pragmas with decisions are Assert, Check,
    --    dyadic Debug, Precondition and Postcondition). These entries will
    --    be omitted in output if the pragma is disabled (see comments for
-   --    statement entries). This is achieved by setting C1 to NUL for all
-   --    SCO entries of the decision.
+   --    statement entries): this filtering is achieved during the second pass
+   --    of SCO generation (Par_SCO.SCO_Record_Filtered).
 
    --    Decision (ASPECT)
    --      C1   = 'A'
@@ -464,7 +467,7 @@ package SCOs is
 
    --    Operator
    --      C1   = '!', '&', '|'
-   --      C2   = ' '
+   --      C2   = ' '/'?'/ (Logical operator/Putative one)
    --      From = location of NOT/AND/OR token
    --      To   = No_Source_Location
    --      Last = False
@@ -497,6 +500,9 @@ package SCOs is
       File_Name : String_Ptr;
       --  Pointer to file name in ALI file
 
+      File_Index : Source_File_Index;
+      --  Index for the source file
+
       Dep_Num : Nat;
       --  Dependency number in ALI file
 
@@ -505,6 +511,14 @@ package SCOs is
 
       To : Nat;
       --  Ending index in SCO_Table of SCO information for this unit
+
+      --  Warning: SCOs generation (in Par_SCO) is done in two passes, which
+      --  communicate through an intermediate table (Par_SCO.SCO_Raw_Table).
+      --  Before the second pass executes, From and To actually reference index
+      --  in the internal table: SCO_Table is empty. Then, at the end of the
+      --  second pass, these indexes are updated in order to reference indexes
+      --  in SCO_Table.
+
    end record;
 
    package SCO_Unit_Table is new GNAT.Table (

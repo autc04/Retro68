@@ -1,5 +1,6 @@
 /* { dg-do run } */
 /* { dg-skip-if "Stack alignment is too small" { hppa*-*-hpux* } "*" "" } */
+/* { dg-require-effective-target alloca } */
 
 #include "check.h"
 
@@ -8,6 +9,7 @@
 #endif
 
 typedef int aligned __attribute__((aligned(ALIGNMENT)));
+extern int strncmp (const char *, const char *, size_t);
 
 int global;
 

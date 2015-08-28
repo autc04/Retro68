@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2015 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -75,4 +75,15 @@
 
 #include <adxintrin.h>
 
+#include <clwbintrin.h>
+
+#include <pcommitintrin.h>
+
+#include <clflushoptintrin.h>
+
+#include <xsavesintrin.h>
+
+#include <xsavecintrin.h>
+
+#include <mwaitxintrin.h>
 #endif /* _X86INTRIN_H_INCLUDED */

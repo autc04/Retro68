@@ -9,6 +9,7 @@
 
 #include <gmp.h>
 #include <mpfr.h>
+#include <mpc.h>
 
 #include "operator.h"
 
@@ -215,22 +216,22 @@ class Backend
   is_circular_pointer_type(Btype*) = 0;
 
   // Return the size of a type.
-  virtual size_t
+  virtual int64_t
   type_size(Btype*) = 0;
 
   // Return the alignment of a type.
-  virtual size_t
+  virtual int64_t
   type_alignment(Btype*) = 0;
 
   // Return the alignment of a struct field of this type.  This is
   // normally the same as type_alignment, but not always.
-  virtual size_t
+  virtual int64_t
   type_field_alignment(Btype*) = 0;
 
   // Return the offset of field INDEX in a struct type.  INDEX is the
   // entry in the FIELDS std::vector parameter of struct_type or
   // set_placeholder_struct_type.
-  virtual size_t
+  virtual int64_t
   type_field_offset(Btype*, size_t index) = 0;
 
   // Expressions.
@@ -247,15 +248,27 @@ class Backend
   virtual Bexpression*
   error_expression() = 0;
 
+  // Create a nil pointer expression.
+  virtual Bexpression*
+  nil_pointer_expression() = 0;
+
   // Create a reference to a variable.
   virtual Bexpression*
   var_expression(Bvariable* var, Location) = 0;
 
   // Create an expression that indirects through the pointer expression EXPR
   // (i.e., return the expression for *EXPR). KNOWN_VALID is true if the pointer
-  // is known to point to a valid memory location.
+  // is known to point to a valid memory location.  BTYPE is the expected type
+  // of the indirected EXPR.
   virtual Bexpression*
-  indirect_expression(Bexpression* expr, bool known_valid, Location) = 0;
+  indirect_expression(Btype* btype, Bexpression* expr, bool known_valid,
+		      Location) = 0;
+
+  // Return an expression that declares a constant named NAME with the
+  // constant value VAL in BTYPE.
+  virtual Bexpression*
+  named_constant_expression(Btype* btype, const std::string& name,
+                             Bexpression* val, Location) = 0;
 
   // Return an expression for the multi-precision integer VAL in BTYPE.
   virtual Bexpression*
@@ -265,9 +278,29 @@ class Backend
   virtual Bexpression*
   float_constant_expression(Btype* btype, mpfr_t val) = 0;
 
-  // Return an expression for the complex value REAL/IMAG in BTYPE.
+  // Return an expression for the complex value VAL in BTYPE.
   virtual Bexpression*
-  complex_constant_expression(Btype* btype, mpfr_t real, mpfr_t imag) = 0;
+  complex_constant_expression(Btype* btype, mpc_t val) = 0;
+
+  // Return an expression for the string value VAL.
+  virtual Bexpression*
+  string_constant_expression(const std::string& val) = 0;
+
+  // Return an expression for the boolean value VAL.
+  virtual Bexpression*
+  boolean_constant_expression(bool val) = 0;
+
+  // Return an expression for the real part of BCOMPLEX.
+  virtual Bexpression*
+  real_part_expression(Bexpression* bcomplex, Location) = 0;
+
+  // Return an expression for the imaginary part of BCOMPLEX.
+  virtual Bexpression*
+  imag_part_expression(Bexpression* bcomplex, Location) = 0;
+
+  // Return an expression for the complex number (BREAL, BIMAG).
+  virtual Bexpression*
+  complex_expression(Bexpression* breal, Bexpression* bimag, Location) = 0;
 
   // Return an expression that converts EXPR to TYPE.
   virtual Bexpression*
@@ -312,6 +345,38 @@ class Backend
   binary_expression(Operator op, Bexpression* left, Bexpression* right,
                     Location) = 0;
 
+  // Return an expression that constructs BTYPE with VALS.  BTYPE must be the
+  // backend representation a of struct.  VALS must be in the same order as the
+  // corresponding fields in BTYPE.
+  virtual Bexpression*
+  constructor_expression(Btype* btype, const std::vector<Bexpression*>& vals,
+                         Location) = 0;
+
+  // Return an expression that constructs an array of BTYPE with INDEXES and
+  // VALS.  INDEXES and VALS must have the same amount of elements. Each index
+  // in INDEXES must be in the same order as the corresponding value in VALS.
+  virtual Bexpression*
+  array_constructor_expression(Btype* btype,
+                               const std::vector<unsigned long>& indexes,
+                               const std::vector<Bexpression*>& vals,
+                               Location) = 0;
+
+  // Return an expression for the address of BASE[INDEX].
+  // BASE has a pointer type.  This is used for slice indexing.
+  virtual Bexpression*
+  pointer_offset_expression(Bexpression* base, Bexpression* index,
+                            Location) = 0;
+
+  // Return an expression for ARRAY[INDEX] as an l-value.  ARRAY is a valid
+  // fixed-length array, not a slice.
+  virtual Bexpression*
+  array_index_expression(Bexpression* array, Bexpression* index, Location) = 0;
+
+  // Create an expression for a call to FN with ARGS.
+  virtual Bexpression*
+  call_expression(Bexpression* fn, const std::vector<Bexpression*>& args,
+		  Bexpression* static_chain, Location) = 0;
+
   // Statements.
 
   // Create an error statement.  This is used for cases which should
@@ -352,9 +417,9 @@ class Backend
   // integers, then STATEMENTS[i] is executed.  STATEMENTS[i] will
   // either end with a goto statement or will fall through into
   // STATEMENTS[i + 1].  CASES[i] is empty for the default clause,
-  // which need not be last.
+  // which need not be last.  FUNCTION is the current function.
   virtual Bstatement*
-  switch_statement(Bexpression* value,
+  switch_statement(Bfunction* function, Bexpression* value,
 		   const std::vector<std::vector<Bexpression*> >& cases,
 		   const std::vector<Bstatement*>& statements,
 		   Location) = 0;
@@ -366,6 +431,15 @@ class Backend
   // Create a single statement from a list of statements.
   virtual Bstatement*
   statement_list(const std::vector<Bstatement*>&) = 0;
+
+  // Create a statement that attempts to execute BSTAT and calls EXCEPT_STMT if
+  // an exception occurs. EXCEPT_STMT may be NULL.  FINALLY_STMT may be NULL and
+  // if not NULL, it will always be executed.  This is used for handling defers
+  // in Go functions.  In C++, the resulting code is of this form:
+  //   try { BSTAT; } catch { EXCEPT_STMT; } finally { FINALLY_STMT; }
+  virtual Bstatement*
+  exception_handler_statement(Bstatement* bstat, Bstatement* except_stmt,
+                              Bstatement* finally_stmt, Location) = 0;
 
   // Blocks.
 
@@ -455,6 +529,11 @@ class Backend
 		     Btype* type, bool is_address_taken,
 		     Location location) = 0;
 
+  // Create a static chain parameter.  This is the closure parameter.
+  virtual Bvariable*
+  static_chain_variable(Bfunction* function, const std::string& name,
+		        Btype* type, Location location) = 0;
+
   // Create a temporary variable.  A temporary variable has no name,
   // just a type.  We pass in FUNCTION and BLOCK in case they are
   // needed.  If INIT is not NULL, the variable should be initialized
@@ -470,6 +549,56 @@ class Backend
   temporary_variable(Bfunction*, Bblock*, Btype*, Bexpression* init,
 		     bool address_is_taken, Location location,
 		     Bstatement** pstatement) = 0;
+
+  // Create an implicit variable that is compiler-defined.  This is
+  // used when generating GC data and roots, when storing the values
+  // of a slice constructor, and for the zero value of types.  This returns a
+  // Bvariable because it corresponds to an initialized variable in C.
+  //
+  // NAME is the name to use for the initialized variable this will create.
+  //
+  // TYPE is the type of the implicit variable. 
+  //
+  // IS_HIDDEN will be true if the descriptor should only be visible
+  // within the current object.
+  //
+  // IS_CONSTANT is true if the implicit variable should be treated like it is
+  // immutable.  For slice initializers, if the values must be copied to the
+  // heap, the variable IS_CONSTANT.
+  //
+  // IS_COMMON is true if the implicit variable should
+  // be treated as a common variable (multiple definitions with
+  // different sizes permitted in different object files, all merged
+  // into the largest definition at link time); this will be true for
+  // the zero value.  IS_HIDDEN and IS_COMMON will never both be true.
+  //
+  // If ALIGNMENT is not zero, it is the desired alignment of the variable.
+  virtual Bvariable*
+  implicit_variable(const std::string& name, Btype* type, bool is_hidden,
+		    bool is_constant, bool is_common, int64_t alignment) = 0;
+
+
+  // Set the initial value of a variable created by implicit_variable.
+  // This must be called even if there is no initializer, i.e., INIT is NULL.
+  // The NAME, TYPE, IS_HIDDEN, IS_CONSTANT, and IS_COMMON parameters are
+  // the same ones passed to implicit_variable.  INIT will be a composite
+  // literal of type TYPE.  It will not contain any function calls or anything
+  // else that can not be put into a read-only data section.
+  // It may contain the address of variables created by implicit_variable.
+  //
+  // If IS_COMMON is true, INIT will be NULL, and the
+  // variable should be initialized to all zeros.
+  virtual void
+  implicit_variable_set_init(Bvariable*, const std::string& name, Btype* type,
+			     bool is_hidden, bool is_constant, bool is_common,
+			     Bexpression* init) = 0;
+
+  // Create a reference to a named implicit variable defined in some other
+  // package.  This will be a variable created by a call to implicit_variable
+  // with the same NAME and TYPE and with IS_COMMON passed as false.  This
+  // corresponds to an extern global variable in C.
+  virtual Bvariable*
+  implicit_variable_reference(const std::string& name, Btype* type) = 0;
 
   // Create a named immutable initialized data structure.  This is
   // used for type descriptors, map descriptors, and function
@@ -570,25 +699,45 @@ class Backend
   function(Btype* fntype, const std::string& name, const std::string& asm_name,
            bool is_visible, bool is_declaration, bool is_inlinable,
            bool disable_split_stack, bool in_unique_section, Location) = 0;
+
+  // Create a statement that runs all deferred calls for FUNCTION.  This should
+  // be a statement that looks like this in C++:
+  //   finish:
+  //     try { UNDEFER; } catch { CHECK_DEFER; goto finish; }
+  virtual Bstatement*
+  function_defer_statement(Bfunction* function, Bexpression* undefer,
+                           Bexpression* check_defer, Location) = 0;
+
+  // Record PARAM_VARS as the variables to use for the parameters of FUNCTION.
+  // This will only be called for a function definition.  Returns true on
+  // success, false on failure.
+  virtual bool
+  function_set_parameters(Bfunction* function,
+                         const std::vector<Bvariable*>& param_vars) = 0;
+
+  // Set the function body for FUNCTION using the code in CODE_STMT.  Returns
+  // true on success, false on failure.
+  virtual bool
+  function_set_body(Bfunction* function, Bstatement* code_stmt) = 0;
+
+  // Look up a named built-in function in the current backend implementation.
+  // Returns NULL if no built-in function by that name exists.
+  virtual Bfunction*
+  lookup_builtin(const std::string&) = 0;
+
+  // Utility.
+
+  // Write the definitions for all TYPE_DECLS, CONSTANT_DECLS,
+  // FUNCTION_DECLS, and VARIABLE_DECLS declared globally.
+  virtual void
+  write_global_definitions(const std::vector<Btype*>& type_decls,
+                           const std::vector<Bexpression*>& constant_decls,
+                           const std::vector<Bfunction*>& function_decls,
+                           const std::vector<Bvariable*>& variable_decls) = 0;
 };
 
 // The backend interface has to define this function.
 
 extern Backend* go_get_backend();
-
-// FIXME: Temporary helper functions while converting to new backend
-// interface.
-
-extern Btype* tree_to_type(tree);
-extern Bexpression* tree_to_expr(tree);
-extern Bstatement* tree_to_stat(tree);
-extern Bfunction* tree_to_function(tree);
-extern Bblock* tree_to_block(tree);
-extern tree type_to_tree(Btype*);
-extern tree expr_to_tree(Bexpression*);
-extern tree stat_to_tree(Bstatement*);
-extern tree block_to_tree(Bblock*);
-extern tree var_to_tree(Bvariable*);
-extern tree function_to_tree(Bfunction*);
 
 #endif // !defined(GO_BACKEND_H)

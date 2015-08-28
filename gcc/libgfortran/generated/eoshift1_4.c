@@ -1,5 +1,5 @@
 /* Implementation of the EOSHIFT intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -105,8 +105,8 @@ eoshift1 (gfc_array_char * const restrict ret,
 	  GFC_DIMENSION_SET(ret->dim[i], 0, ub, str);
 
         }
-      /* xmalloc allocates a single byte for zero size.  */
-      ret->base_addr = xmalloc (size * arraysize);
+      /* xmallocarray allocates a single byte for zero size.  */
+      ret->base_addr = xmallocarray (arraysize, size);
 
     }
   else if (unlikely (compile_options.bounds_check))

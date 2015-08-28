@@ -30,6 +30,13 @@ type AttributeTypeAndValue struct {
 	Value interface{}
 }
 
+// AttributeTypeAndValueSET represents a set of ASN.1 sequences of
+// AttributeTypeAndValue sequences from RFC 2986 (PKCS #10).
+type AttributeTypeAndValueSET struct {
+	Type  asn1.ObjectIdentifier
+	Value [][]AttributeTypeAndValue `asn1:"set"`
+}
+
 // Extension represents the ASN.1 structure of the same name. See RFC
 // 5280, section 4.2.
 type Extension struct {
@@ -157,7 +164,7 @@ type TBSCertificateList struct {
 	Signature           AlgorithmIdentifier
 	Issuer              RDNSequence
 	ThisUpdate          time.Time
-	NextUpdate          time.Time
+	NextUpdate          time.Time            `asn1:"optional"`
 	RevokedCertificates []RevokedCertificate `asn1:"optional"`
 	Extensions          []Extension          `asn1:"tag:0,optional,explicit"`
 }

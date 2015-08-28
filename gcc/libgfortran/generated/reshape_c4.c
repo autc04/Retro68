@@ -1,5 +1,5 @@
 /* Implementation of the RESHAPE intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -111,11 +111,11 @@ reshape_c4 (gfc_array_c4 * const restrict ret,
       ret->offset = 0;
 
       if (unlikely (rs < 1))
-        alloc_size = 1;
+        alloc_size = 0;
       else
-        alloc_size = rs * sizeof (GFC_COMPLEX_4);
+        alloc_size = rs;
 
-      ret->base_addr = xmalloc (alloc_size);
+      ret->base_addr = xmallocarray (alloc_size, sizeof (GFC_COMPLEX_4));
       ret->dtype = (source->dtype & ~GFC_DTYPE_RANK_MASK) | rdim;
     }
 

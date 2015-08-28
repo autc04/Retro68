@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *         Copyright (C) 1992-2013, Free Software Foundation, Inc.          *
+ *         Copyright (C) 1992-2015, Free Software Foundation, Inc.          *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -42,6 +42,7 @@
 #endif
 #include "selectLib.h"
 #include "vxWorks.h"
+#include "version.h"
 #if defined (__RTP__)
 #  include "vwModNum.h"
 #endif /* __RTP__ */
@@ -57,9 +58,6 @@
 #include "tsystem.h"
 #include <fcntl.h>
 #include <sys/stat.h>
-#ifdef VMS
-#include <unixio.h>
-#endif
 #else
 #include "config.h"
 #include "system.h"
@@ -104,11 +102,12 @@ extern struct tm *localtime_r(const time_t *, struct tm *);
    file positioning function, unless the input operation encounters
    end-of-file.
 
-   The other target dependent declarations here are for the two functions
-   __gnat_set_binary_mode and __gnat_set_text_mode:
+   The other target dependent declarations here are for the three functions
+   __gnat_set_binary_mode, __gnat_set_text_mode and __gnat_set_mode:
 
       void __gnat_set_binary_mode (int handle);
       void __gnat_set_text_mode   (int handle);
+      void __gnat_set_mode        (int handle, int mode);
 
    These functions have no effect in Unix (or similar systems where there is
    no distinction between binary and text files), but in DOS (and similar
@@ -150,6 +149,29 @@ __gnat_set_text_mode (int handle)
   WIN_SETMODE (handle, O_TEXT);
 }
 
+void
+__gnat_set_mode (int handle, int mode)
+{
+  /*  the values here must be synchronized with
+      System.File_Control_Block.Content_Encodding:
+
+      None         = 0
+      Default_Text = 1
+      Text         = 2
+      U8text       = 3
+      Wtext        = 4
+      U16text      = 5  */
+
+ switch (mode) {
+    case 0 : WIN_SETMODE (handle, _O_BINARY);          break;
+    case 1 : WIN_SETMODE (handle, CurrentCCSEncoding); break;
+    case 2 : WIN_SETMODE (handle, _O_TEXT);            break;
+    case 3 : WIN_SETMODE (handle, _O_U8TEXT);          break;
+    case 4 : WIN_SETMODE (handle, _O_WTEXT);           break;
+    case 5 : WIN_SETMODE (handle, _O_U16TEXT);         break;
+ }
+}
+
 #ifdef __CYGWIN__
 
 char *
@@ -164,8 +186,6 @@ __gnat_ttyname (int filedes)
 
 #if defined (__CYGWIN__) || defined (__MINGW32__)
 #include <windows.h>
-
-#ifndef RTX
 
 int __gnat_is_windows_xp (void);
 
@@ -190,8 +210,6 @@ __gnat_is_windows_xp (void)
     }
   return is_win_xp;
 }
-
-#endif /* !RTX */
 
 /* Get the bounds of the stack.  The stack pointer is supposed to be
    initialized to BASE when a thread is created and the stack can be extended
@@ -245,16 +263,22 @@ void
 __gnat_set_text_mode (int handle ATTRIBUTE_UNUSED)
 {
 }
+
+void
+__gnat_set_mode (int handle ATTRIBUTE_UNUSED, int mode ATTRIBUTE_UNUSED)
+{
+}
+
 char *
 __gnat_ttyname (int filedes)
 {
-#if defined (__vxworks) || defined (__nucleus)
+#if defined (__vxworks)
   return "";
 #else
   extern char *ttyname (int);
 
   return ttyname (filedes);
-#endif /* defined (__vxworks) || defined (__nucleus) */
+#endif /* defined (__vxworks) */
 }
 #endif
 
@@ -275,11 +299,6 @@ __gnat_ttyname (int filedes)
 #  include <termios.h>
 # endif
 
-#else
-# if defined (VMS)
-extern char *decc$ga_stdscr;
-static int initted = 0;
-# endif
 #endif
 
 /* Implements the common processing for getc_immediate and
@@ -314,7 +333,7 @@ getc_immediate_common (FILE *stream,
                        int *ch,
                        int *end_of_file,
                        int *avail,
-                       int waiting)
+                       int waiting ATTRIBUTE_UNUSED)
 {
 #if defined (linux) || defined (sun) \
     || defined (__CYGWIN32__) || defined (__MACHTEN__) || defined (__hpux__) \
@@ -392,29 +411,6 @@ getc_immediate_common (FILE *stream,
       *ch = c;
     }
 
-  else
-#elif defined (VMS)
-  int fd = fileno (stream);
-
-  if (isatty (fd))
-    {
-      if (initted == 0)
-	{
-	  decc$bsd_initscr ();
-	  initted = 1;
-	}
-
-      decc$bsd_cbreak ();
-      *ch = decc$bsd_wgetch (decc$ga_stdscr);
-
-      if (*ch == 4)
-	*end_of_file = 1;
-      else
-	*end_of_file = 0;
-
-      *avail = 1;
-      decc$bsd_nocbreak ();
-    }
   else
 #elif defined (__MINGW32__)
   int fd = fileno (stream);
@@ -598,23 +594,6 @@ rts_get_nShowCmd (void)
 }
 
 #endif /* WINNT */
-#ifdef VMS
-
-/* This gets around a problem with using the old threads library on VMS 7.0. */
-
-extern long get_gmtoff (void);
-
-long
-get_gmtoff (void)
-{
-  time_t t;
-  struct tm *ts;
-
-  t = time ((time_t) 0);
-  ts = localtime (&t);
-  return ts->tm_gmtoff;
-}
-#endif
 
 /* This value is returned as the time zone offset when a valid value
    cannot be determined. It is simply a bizarre value that will never
@@ -658,25 +637,18 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
 {
   TIME_ZONE_INFORMATION tzi;
 
-  BOOL  rtx_active;
   DWORD tzi_status;
-
-#ifdef RTX
-  rtx_active = 1;
-#else
-  rtx_active = 0;
-#endif
 
   (*Lock_Task) ();
 
   tzi_status = GetTimeZoneInformation (&tzi);
 
-  /* Processing for RTX targets or cases where we simply want to extract the
-     offset of the current time zone, regardless of the date. A value of "0"
-     for flag "is_historic" signifies that the date is NOT historic, see the
+  /* Cases where we simply want to extract the offset of the current time
+     zone, regardless of the date. A value of "0" for flag "is_historic"
+     signifies that the date is NOT historic, see the
      body of Ada.Calendar.UTC_Time_Offset. */
 
-  if (rtx_active || *is_historic == 0) {
+  if (*is_historic == 0) {
     *off = tzi.Bias;
 
     /* The system is operating in the range covered by the StandardDate
@@ -711,7 +683,7 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
                         * 10000000ULL;
 
     /* If GetTimeZoneInformation does not return a value between 0 and 2 then
-       it means that we were not able to retrieve timezone informations. Note
+       it means that we were not able to retrieve timezone information. Note
        that we cannot use here FileTimeToLocalFileTime as Windows will use in
        always in this case the current timezone setting. As suggested on MSDN
        we use the following three system calls to get the right information.
@@ -744,11 +716,9 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
   (*Unlock_Task) ();
 }
 
-#else
+#elif defined (__Lynx__)
 
 /* On Lynx, all time values are treated in GMT */
-
-#if defined (__Lynx__)
 
 /* As of LynxOS 3.1.0a patch level 040, LynuxWorks changes the
    prototype to the C library function localtime_r from the POSIX.4
@@ -767,13 +737,7 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
 
 #else
 
-/* VMS does not need __gnat_localtime_tzoff */
-
-#if defined (VMS)
-
-/* Other targets except Lynx, VMS and Windows provide a standard localtime_r */
-
-#else
+/* Other targets except Lynx and Windows provide a standard localtime_r */
 
 #define Lock_Task system__soft_links__lock_task
 extern void (*Lock_Task) (void);
@@ -785,9 +749,11 @@ extern void
 __gnat_localtime_tzoff (const time_t *, const int *, long *);
 
 void
-__gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
+__gnat_localtime_tzoff (const time_t *timer ATTRIBUTE_UNUSED,
+			const int *is_historic ATTRIBUTE_UNUSED,
+			long *off ATTRIBUTE_UNUSED)
 {
-  struct tm tp;
+  struct tm tp ATTRIBUTE_UNUSED;
 
 /* AIX, HPUX, Sun Solaris */
 #if defined (_AIX) || defined (__hpux__) || defined (sun)
@@ -833,7 +799,7 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
 
     tz_start = index (tz_str, ':') + 2;
     tz_end = index (tz_start, ':');
-    tz_end = '\0';
+    *tz_end = '\0';
 
     /* The Ada layer expects an offset in seconds. Note that we must reverse
        the sign of the result since west is positive and east is negative on
@@ -853,8 +819,8 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
 /* Darwin, Free BSD, Linux, where component tm_gmtoff is present in
    struct tm */
 
-#elif defined (__APPLE__) || defined (__FreeBSD__) || defined (linux) ||\
-     defined (__GLIBC__)
+#elif defined (__APPLE__) || defined (__FreeBSD__) || defined (linux) \
+  || defined (__GLIBC__)
 {
   localtime_r (timer, &tp);
   *off = tp.tm_gmtoff;
@@ -865,11 +831,9 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
 #else
   *off = 0;
 
-#endif
+#endif  /* defined(_AIX) ... */
 }
 
-#endif
-#endif
 #endif
 
 #ifdef __vxworks
@@ -917,7 +881,7 @@ __gnat_is_file_not_found_error (int errno_val) {
       /* In the case of VxWorks, we also have to take into account various
        * filesystem-specific variants of this error.
        */
-#if ! defined (VTHREADS)
+#if ! defined (VTHREADS) && (_WRS_VXWORKS_MAJOR < 7)
       case S_dosFsLib_FILE_NOT_FOUND:
 #endif
 #if ! defined (__RTP__) && (! defined (VTHREADS) || defined (__VXWORKSMILS__))

@@ -1,5 +1,5 @@
 /* dwarf2out.h - Various declarations for functions found in dwarf2out.c
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #define GCC_DWARF2OUT_H 1
 
 #include "dwarf2.h"	/* ??? Remove this once only used by dwarf2foo.c.  */
+#include "wide-int.h"
 
 typedef struct die_struct *dw_die_ref;
 typedef const struct die_struct *const_dw_die_ref;
@@ -29,6 +30,7 @@ typedef struct dw_val_node *dw_val_ref;
 typedef struct dw_cfi_node *dw_cfi_ref;
 typedef struct dw_loc_descr_node *dw_loc_descr_ref;
 typedef struct dw_loc_list_struct *dw_loc_list_ref;
+typedef wide_int *wide_int_ptr;
 
 
 /* Call frames are described using a sequence of Call Frame
@@ -136,6 +138,7 @@ enum dw_val_class
   dw_val_class_const,
   dw_val_class_unsigned_const,
   dw_val_class_const_double,
+  dw_val_class_wide_int,
   dw_val_class_vec,
   dw_val_class_flag,
   dw_val_class_die_ref,
@@ -176,6 +179,7 @@ struct GTY(()) dw_val_node {
       HOST_WIDE_INT GTY ((default)) val_int;
       unsigned HOST_WIDE_INT GTY ((tag ("dw_val_class_unsigned_const"))) val_unsigned;
       double_int GTY ((tag ("dw_val_class_const_double"))) val_double;
+      wide_int_ptr GTY ((tag ("dw_val_class_wide_int"))) val_wide;
       dw_vec_const GTY ((tag ("dw_val_class_vec"))) val_vec;
       struct dw_val_die_union
 	{
@@ -201,7 +205,7 @@ struct GTY(()) dw_val_node {
 /* Locations in memory are described using a sequence of stack machine
    operations.  */
 
-struct GTY(()) dw_loc_descr_node {
+struct GTY((chain_next ("%h.dw_loc_next"))) dw_loc_descr_node {
   dw_loc_descr_ref dw_loc_next;
   ENUM_BITFIELD (dwarf_location_atom) dw_loc_opc : 8;
   /* Used to distinguish DW_OP_addr with a direct symbol relocation
@@ -219,7 +223,7 @@ extern struct dw_loc_descr_node *build_cfa_loc
 extern struct dw_loc_descr_node *build_cfa_aligned_loc
   (dw_cfa_location *, HOST_WIDE_INT offset, HOST_WIDE_INT alignment);
 extern struct dw_loc_descr_node *mem_loc_descriptor
-  (rtx, enum machine_mode mode, enum machine_mode mem_mode,
+  (rtx, machine_mode mode, machine_mode mem_mode,
    enum var_init_status);
 extern bool loc_descr_equal_p (dw_loc_descr_ref, dw_loc_descr_ref);
 extern dw_fde_ref dwarf2out_alloc_current_fde (void);
@@ -245,12 +249,12 @@ extern enum dw_cfi_oprnd_type dw_cfi_oprnd2_desc
 
 extern void output_cfi_directive (FILE *f, struct dw_cfi_node *cfi);
 
-extern void dwarf2out_decl (tree);
 extern void dwarf2out_emit_cfi (dw_cfi_ref cfi);
 
 extern void debug_dwarf (void);
 struct die_struct;
 extern void debug_dwarf_die (struct die_struct *);
+extern void debug_dwarf_loc_descr (dw_loc_descr_ref);
 extern void debug (die_struct &ref);
 extern void debug (die_struct *ptr);
 extern void dwarf2out_set_demangle_name_func (const char *(*) (const char *));
@@ -258,9 +262,17 @@ extern void dwarf2out_set_demangle_name_func (const char *(*) (const char *));
 extern void dwarf2out_vms_debug_main_pointer (void);
 #endif
 
+enum array_descr_ordering
+{
+  array_descr_ordering_default,
+  array_descr_ordering_row_major,
+  array_descr_ordering_column_major
+};
+
 struct array_descr_info
 {
   int ndimensions;
+  enum array_descr_ordering ordering;
   tree element_type;
   tree base_decl;
   tree data_location;
@@ -268,10 +280,16 @@ struct array_descr_info
   tree associated;
   struct array_descr_dimen
     {
+      /* GCC uses sizetype for array indices, so lower_bound and upper_bound
+	 will likely be "sizetype" values. However, bounds may have another
+	 type in the original source code.  */
+      tree bounds_type;
       tree lower_bound;
       tree upper_bound;
       tree stride;
     } dimen[10];
 };
+
+void dwarf2out_c_finalize (void);
 
 #endif /* GCC_DWARF2OUT_H */

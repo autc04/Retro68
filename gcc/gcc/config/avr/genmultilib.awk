@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2014 Free Software Foundation, Inc.
+# Copyright (C) 2011-2015 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -135,7 +135,6 @@ BEGIN {
 #    m_options     <->    MULTILIB_OPTIONS         Makefile
 #    m_dirnames    <->    MULTILIB_DIRNAMES           "
 #    m_exceptions  <->    MULTILIB_EXCEPTIONS         "
-#    m_matches     <->    MULTILIB_MATCHES            "
 #
 ##################################################################
 
@@ -143,7 +142,6 @@ END {
     m_options    = "\nMULTILIB_OPTIONS = "
     m_dirnames   = "\nMULTILIB_DIRNAMES ="
     m_exceptions = "\nMULTILIB_EXCEPTIONS ="
-    m_matches    = "\nMULTILIB_MATCHES ="
 
     ##############################################################
     # Compose MULTILIB_OPTIONS.  This represents the Cross-Product
@@ -169,8 +167,6 @@ END {
 	line = option[core] ":" option[mcu[t]]
 	gsub ("=", "?", line)
 	gsub (":", "=", line)
-
-	m_matches = m_matches " \\\n\t" line
     }
 
     ####################################################################
@@ -221,6 +217,5 @@ END {
 	print m_options
 	print m_dirnames
 	print m_exceptions
-	print m_matches
     }
 }

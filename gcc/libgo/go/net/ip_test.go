@@ -25,6 +25,7 @@ var parseIPTests = []struct {
 	{"fe80::1%lo0", nil},
 	{"fe80::1%911", nil},
 	{"", nil},
+	{"a1:a2:a3:a4::b1:b2:b3:b4", nil}, // Issue 6628
 }
 
 func TestParseIP(t *testing.T) {
@@ -39,6 +40,14 @@ func TestParseIP(t *testing.T) {
 		var out IP
 		if err := out.UnmarshalText([]byte(tt.in)); !reflect.DeepEqual(out, tt.out) || (tt.out == nil) != (err != nil) {
 			t.Errorf("IP.UnmarshalText(%q) = %v, %v, want %v", tt.in, out, err, tt.out)
+		}
+	}
+}
+
+func BenchmarkParseIP(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tt := range parseIPTests {
+			ParseIP(tt.in)
 		}
 	}
 }
@@ -90,6 +99,16 @@ func TestIPString(t *testing.T) {
 	}
 }
 
+func BenchmarkIPString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tt := range ipStringTests {
+			if tt.in != nil {
+				tt.in.String()
+			}
+		}
+	}
+}
+
 var ipMaskTests = []struct {
 	in   IP
 	mask IPMask
@@ -126,6 +145,14 @@ func TestIPMaskString(t *testing.T) {
 	for _, tt := range ipMaskStringTests {
 		if out := tt.in.String(); out != tt.out {
 			t.Errorf("IPMask.String(%v) = %q, want %q", tt.in, out, tt.out)
+		}
+	}
+}
+
+func BenchmarkIPMaskString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tt := range ipMaskStringTests {
+			tt.in.String()
 		}
 	}
 }

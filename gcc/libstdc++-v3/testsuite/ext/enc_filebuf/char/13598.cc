@@ -1,10 +1,10 @@
 // Before Solaris 11, iconv -f ISO-8859-1 -t ISO-8859-1 fails with
 // Not supported ISO-8859-1 to ISO-8859-1
 //
-// { dg-do run { xfail *-*-solaris2.9 *-*-solaris2.10 } }
+// { dg-do run { xfail *-*-solaris2.10 } }
 // { dg-require-iconv "ISO-8859-1" }
 
-// Copyright (C) 2004-2014 Free Software Foundation, Inc.
+// Copyright (C) 2004-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

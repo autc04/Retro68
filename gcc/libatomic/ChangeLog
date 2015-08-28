@@ -1,10 +1,68 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-04-22  Release Manager
 
-	* GCC 4.9.0 released.
+	* GCC 5.1.0 released.
+
+2015-01-21  Andrew Waterman <waterman@cs.berkeley.edu>
+
+	* fop_n.c (libat_fetch_op): Align address to word boundary.
+	(libat_op_fetch): Likewise.
+
+2015-01-16  Ilya Verbin  <ilya.verbin@intel.com>
+
+	PR testsuite/64605
+	* testsuite/lib/libatomic.exp: Do not load gcc-dg.exp.
+	* testsuite/libatomic.c/c.exp: Load gcc-dg.exp.
+
+2015-01-09  Andreas Tobler  <andreast@gcc.gnu.org>
+
+	* configure.tgt: Exclude arm*-*-freebsd* from try_ifunc.
+
+2015-01-05  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2014-12-12  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	* testsuite/lib/libatomic.exp: Load target-utils.exp
+
+2014-11-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/63784
+	* configure: Regenerated.
+
+2014-11-13  Andrew Waterman <waterman@cs.berkeley.edu>
+
+	* cas_n.c (libat_compare_exchange): Add missing cast.
+
+2014-11-11  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
+
+	PR target/63610
+	* configure: Regenerate.
+
+2014-08-19  Yaakov Selkowitz  <yselkowi@redhat.com>
+
+	* configure.tgt: Add cygwin to supported targets.
+
+2014-07-18  Uros Bizjak  <ubizjak@gmail.com>
+
+	* configure.tgt (alpha*): Add -mfp-trap-mode=sui to XCFLAGS.
+
+2014-06-17  Kai Tietz  <ktietz@redhat.com>
+
+	* Makefile.am (libatomic_la_LDFLAGS): Add lt_host_flags.
+	* configure.ac (ACX_LT_HOST_FLAGS): New.
+	(target_thread_file): New.
+	* configure.tgt (mingw): Add mingw support.
+	* config/mingw/host-config.h: New file.
+	* config/mingw/lock.c: Likewise.
+	* Makefile.in: Regenerated.
+	* configure: Likewise.
+	* aclocal.m4: Likewise.
+	* testsuite/Makefile.in: Likewise.
 
 2014-02-20  Richard Henderson <rth@redhat.com>
 

@@ -1,5 +1,5 @@
 /* Specific flags and argument handling of the Fortran front-end.
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -142,7 +142,7 @@ append_arg (const struct cl_decoded_option *arg)
     }
 
   if (g77_newargc == newargsize)
-    fatal_error ("overflowed output arg list for %qs",
+    fatal_error (input_location, "overflowed output arg list for %qs",
 		 arg->orig_option_with_args_text);
 
   g77_new_decoded_options[g77_newargc++] = *arg;
@@ -198,7 +198,7 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
   /* By default, we throw on the math library if we have one.  */
   int need_math = (MATH_LIBRARY[0] != '\0');
 
-  /* Whether we should link a static libgfortran. */
+  /* Whether we should link a static libgfortran.  */
   int static_lib = 0; 
 
   /* Whether we need to link statically.  */
@@ -276,7 +276,7 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 
 	case OPT__version:
 	  printf ("GNU Fortran %s%s\n", pkgversion_string, version_string);
-	  printf ("Copyright %s 2014 Free Software Foundation, Inc.\n\n",
+	  printf ("Copyright %s 2015 Free Software Foundation, Inc.\n\n",
 		  _("(C)"));
 	  printf (_("GNU Fortran comes with NO WARRANTY, to the extent permitted by law.\n\
 You may redistribute copies of GNU Fortran\n\
@@ -296,7 +296,8 @@ For more information about these matters, see the file named COPYING\n\n"));
     }
 
   if ((n_outfiles != 0) && (n_infiles == 0))
-    fatal_error ("no input files; unwilling to write output files");
+    fatal_error (input_location,
+		 "no input files; unwilling to write output files");
 
   /* If there are no input files, no need for the library.  */
   if (n_infiles == 0)

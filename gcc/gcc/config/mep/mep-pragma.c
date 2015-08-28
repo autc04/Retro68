@@ -1,5 +1,5 @@
 /* Definitions of Toshiba Media Processor
-   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+   Copyright (C) 2001-2015 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
 This file is part of GCC.
@@ -22,6 +22,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "diagnostic-core.h"
 #include "c-family/c-pragma.h"
@@ -29,6 +38,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "hard-reg-set.h"
 #include "output.h" /* for decode_reg_name */
 #include "mep-protos.h"
+#include "input.h"
 #include "function.h"
 #define MAX_RECOG_OPERANDS 10
 #include "reload.h"
@@ -274,24 +284,21 @@ mep_pragma_coprocessor_subclass (void)
   if (type != CPP_CHAR)
     goto syntax_error;
   class_letter = tree_to_uhwi (val);
-  if (class_letter >= 'A' && class_letter <= 'D')
-    switch (class_letter)
-      {
-      case 'A':
-	rclass = USER0_REGS;
-	break;
-      case 'B':
-	rclass = USER1_REGS;
-	break;
-      case 'C':
-	rclass = USER2_REGS;
-	break;
-      case 'D':
-	rclass = USER3_REGS;
-	break;
-      }
-  else
+  switch (class_letter)
     {
+    case 'A':
+      rclass = USER0_REGS;
+      break;
+    case 'B':
+      rclass = USER1_REGS;
+      break;
+    case 'C':
+      rclass = USER2_REGS;
+      break;
+    case 'D':
+      rclass = USER3_REGS;
+      break;
+    default:
       error ("#pragma GCC coprocessor subclass letter must be in [ABCD]");
       return;
     }

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -34,8 +34,8 @@
 with Ada.Iterator_Interfaces;
 
 private with Ada.Containers.Hash_Tables;
-private with Ada.Streams;
 private with Ada.Finalization;
+private with Ada.Streams;
 
 generic
    type Element_Type is private;
@@ -433,10 +433,42 @@ package Ada.Containers.Hashed_Sets is
          Key       : Key_Type) return Reference_Type;
 
    private
-      type Reference_Type (Element : not null access Element_Type)
-         is null record;
-
       use Ada.Streams;
+      type Set_Access is access all Set;
+      for Set_Access'Storage_Size use 0;
+
+      --  Key_Preserving references must carry information to allow removal
+      --  of elements whose value may have been altered improperly, i.e. have
+      --  been given values incompatible with the hash-code of the previous
+      --  value, and are thus in the wrong bucket. (RM 18.7 (96.6/3))
+
+      --  We cannot store the key directly because it is an unconstrained type.
+      --  To avoid using additional dynamic allocation we store the old cursor
+      --  which simplifies possible removal. This is not possible for some
+      --  other set types.
+
+      --  The mechanism is different for Update_Element_Preserving_Key, as
+      --  in that case the check that buckets have not changed is performed
+      --  at the time of the update, not when the reference is finalized.
+
+      type Reference_Control_Type is
+         new Ada.Finalization.Controlled with
+      record
+         Container : Set_Access;
+         Index     : Hash_Type;
+         Old_Pos   : Cursor;
+         Old_Hash  : Hash_Type;
+      end record;
+
+      overriding procedure Adjust (Control : in out Reference_Control_Type);
+      pragma Inline (Adjust);
+
+      overriding procedure Finalize (Control : in out Reference_Control_Type);
+      pragma Inline (Finalize);
+
+      type Reference_Type (Element : not null access Element_Type) is record
+         Control  : Reference_Control_Type;
+      end record;
 
       procedure Read
         (Stream : not null access Root_Stream_Type'Class;
@@ -449,7 +481,6 @@ package Ada.Containers.Hashed_Sets is
          Item   : Reference_Type);
 
       for Reference_Type'Write use Write;
-
    end Generic_Keys;
 
 private
@@ -498,6 +529,10 @@ private
       Node      : Node_Access;
    end record;
 
+   type Reference_Control_Type is new Ada.Finalization.Controlled with record
+      Container : Set_Access;
+   end record;
+
    procedure Write
      (Stream : not null access Root_Stream_Type'Class;
       Item   : Cursor);
@@ -509,11 +544,6 @@ private
       Item   : out Cursor);
 
    for Cursor'Read use Read;
-
-   type Reference_Control_Type is
-      new Controlled with record
-         Container : Set_Access;
-      end record;
 
    overriding procedure Adjust (Control : in out Reference_Control_Type);
    pragma Inline (Adjust);
@@ -543,15 +573,17 @@ private
 
    No_Element : constant Cursor := (Container => null, Node => null);
 
-   type Iterator is limited new
-     Set_Iterator_Interfaces.Forward_Iterator with record
-        Container : Set_Access;
-     end record;
+   type Iterator is new Limited_Controlled
+     and Set_Iterator_Interfaces.Forward_Iterator with
+   record
+      Container : Set_Access;
+   end record;
 
    overriding function First (Object : Iterator) return Cursor;
 
    overriding function Next
      (Object   : Iterator;
       Position : Cursor) return Cursor;
+   overriding procedure Finalize (Object : in out Iterator);
 
 end Ada.Containers.Hashed_Sets;

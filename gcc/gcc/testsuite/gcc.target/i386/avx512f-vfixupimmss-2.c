@@ -6,7 +6,7 @@
 #include "avx512f-check.h"
 #include "avx512f-helper.h"
 #include <math.h>
-#include <values.h>
+#include <float.h>
 #include "avx512f-mask-type.h"
 
 void
@@ -57,17 +57,17 @@ compute_fixupimmps (float *r, float src, int tbl)
       *r = M_PI_2;
       break;
     case 14:
-      *r = MAXFLOAT;
+      *r = FLT_MAX;
       break;
     case 15:
-      *r = -MAXFLOAT;
+      *r = -FLT_MAX;
       break;
     default:
       abort ();
     }
 }
 
-void static
+void
 avx512f_test (void)
 {
   union128 s1, res1, res2, res3;

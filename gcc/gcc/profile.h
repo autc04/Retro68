@@ -1,6 +1,6 @@
 /* Header file for minimum-cost maximal flow routines used to smooth basic
    block and edge frequency counts.
-   Copyright (C) 2008-2014 Free Software Foundation, Inc.
+   Copyright (C) 2008-2015 Free Software Foundation, Inc.
    Contributed by Paul Yuan (yingbo.com@gmail.com)
        and Vinodha Ramasamy (vinodha@google.com).
 
@@ -23,7 +23,7 @@ along with GCC; see the file COPYING3.  If not see
 #define PROFILE_H
 
 /* Additional information about edges. */
-struct edge_info
+struct edge_profile_info
 {
   unsigned int count_valid:1;
 
@@ -35,7 +35,11 @@ struct edge_info
   unsigned int ignore:1;
 };
 
-#define EDGE_INFO(e)  ((struct edge_info *) (e)->aux)
+#define EDGE_INFO(e)  ((struct edge_profile_info *) (e)->aux)
+
+typedef struct gcov_working_set_info gcov_working_set_t;
+extern gcov_working_set_t *find_working_set (unsigned pct_times_10);
+extern void add_working_set (gcov_working_set_t *);
 
 /* Smoothes the initial assigned basic block and edge counts using
    a minimum cost flow algorithm. */
@@ -48,8 +52,8 @@ extern void del_node_map (void);
 
 extern void get_working_sets (void);
 
-/* In predict.c.  */
-extern gcov_type get_hot_bb_threshold (void);
-extern void set_hot_bb_threshold (gcov_type);
+/* Counter summary from the last set of coverage counts read by
+   profile.c.  */
+extern const struct gcov_ctr_summary *profile_info;
 
 #endif /* PROFILE_H */

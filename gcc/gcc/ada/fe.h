@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2013, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2014, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -55,9 +55,7 @@ extern char Fold_Lower[], Fold_Upper[];
 #define Debug_Flag_NN debug__debug_flag_nn
 extern Boolean Debug_Flag_NN;
 
-/* einfo: We will be setting Esize for types, Component_Bit_Offset for fields,
-   Alignment for types and objects, Component_Size for array types, and
-   Present_Expr for N_Variant nodes.  */
+/* einfo: */
 
 #define Set_Alignment			einfo__set_alignment
 #define Set_Component_Bit_Offset	einfo__set_component_bit_offset
@@ -65,7 +63,6 @@ extern Boolean Debug_Flag_NN;
 #define Set_Esize			einfo__set_esize
 #define Set_Mechanism			einfo__set_mechanism
 #define Set_RM_Size			einfo__set_rm_size
-#define Set_Present_Expr		sinfo__set_present_expr
 
 extern void Set_Alignment		(Entity_Id, Uint);
 extern void Set_Component_Bit_Offset	(Entity_Id, Uint);
@@ -73,7 +70,6 @@ extern void Set_Component_Size		(Entity_Id, Uint);
 extern void Set_Esize			(Entity_Id, Uint);
 extern void Set_Mechanism		(Entity_Id, Mechanism_Type);
 extern void Set_RM_Size			(Entity_Id, Uint);
-extern void Set_Present_Expr		(Node_Id, Uint);
 
 #define Is_Entity_Name einfo__is_entity_name
 extern Boolean Is_Entity_Name		(Node_Id);
@@ -158,11 +154,6 @@ extern void Get_External_Name	(Entity_Id, Boolean, String_Pointer);
 
 extern Boolean Is_Fully_Repped_Tagged_Type      (Entity_Id);
 
-/* exp_vfpt: */
-
-#define Get_Vax_Real_Literal_As_Signed exp_vfpt__get_vax_real_literal_as_signed
-extern Ureal Get_Vax_Real_Literal_As_Signed (Node_Id);
-
 /* lib: */
 
 #define Cunit 				lib__cunit
@@ -177,23 +168,27 @@ extern Boolean In_Same_Source_Unit              (Node_Id, Node_Id);
 
 /* opt: */
 
-#define Back_Annotate_Rep_Info         opt__back_annotate_rep_info
+#define Back_End_Inlining              opt__back_end_inlining
 #define Exception_Extra_Info           opt__exception_extra_info
 #define Exception_Locations_Suppressed opt__exception_locations_suppressed
 #define Exception_Mechanism            opt__exception_mechanism
-#define Generate_SCO_Instance_Table    opt__generate_sco_instance_table
-#define Global_Discard_Names           opt__global_discard_names
 #define Float_Format                   opt__float_format
+#define Generate_SCO_Instance_Table    opt__generate_sco_instance_table
+#define GNAT_Mode                      opt__gnat_mode
+#define List_Representation_Info       opt__list_representation_info
+#define No_Strict_Aliasing_CP          opt__no_strict_aliasing
 
 typedef enum {Setjmp_Longjmp, Back_End_Exceptions} Exception_Mechanism_Type;
 
-extern Boolean Back_Annotate_Rep_Info;
+extern Boolean Back_End_Inlining;
 extern Boolean Exception_Extra_Info;
 extern Boolean Exception_Locations_Suppressed;
 extern Exception_Mechanism_Type Exception_Mechanism;
-extern Boolean Generate_SCO_Instance_Table;
-extern Boolean Global_Discard_Names;
 extern Char Float_Format;
+extern Boolean Generate_SCO_Instance_Table;
+extern Boolean GNAT_Mode;
+extern Int List_Representation_Info;
+extern Boolean No_Strict_Aliasing_CP;
 
 /* restrict: */
 
@@ -206,6 +201,11 @@ extern Boolean No_Exception_Handlers_Set   (void);
 extern void Check_No_Implicit_Heap_Alloc   (Node_Id);
 extern void Check_Elaboration_Code_Allowed (Node_Id);
 extern void Check_Implicit_Dynamic_Code_Allowed (Node_Id);
+
+/* sem_aggr:  */
+#define Is_Others_Aggregate    sem_aggr__is_others_aggregate
+
+extern Boolean Is_Others_Aggregate (Node_Id);
 
 /* sem_aux:  */
 
@@ -255,11 +255,15 @@ extern Node_Id First_Actual		(Node_Id);
 extern Node_Id Next_Actual		(Node_Id);
 extern Boolean Requires_Transient_Scope (Entity_Id);
 
-/* sinfo: These functions aren't in sinfo.h since we don't make the
-   setting functions, just the retrieval functions.  */
+/* sinfo: */
 
-#define Set_Has_No_Elaboration_Code sinfo__set_has_no_elaboration_code
+#define End_Location			sinfo__end_location
+#define Set_Has_No_Elaboration_Code 	sinfo__set_has_no_elaboration_code
+#define Set_Present_Expr		sinfo__set_present_expr
+
+extern Source_Ptr End_Location 		(Node_Id);
 extern void Set_Has_No_Elaboration_Code	(Node_Id, Boolean);
+extern void Set_Present_Expr		(Node_Id, Uint);
 
 /* targparm: */
 

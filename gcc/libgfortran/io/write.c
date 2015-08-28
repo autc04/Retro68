@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Namelist output contributed by Paul Thomas
    F2003 I/O support contributed by Jerry DeLisle
@@ -25,6 +25,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
 #include "io.h"
+#include "fbuf.h"
 #include "format.h"
 #include "unix.h"
 #include <assert.h>
@@ -1585,6 +1586,7 @@ list_formatted_write_scalar (st_parameter_dt *dtp, bt type, void *p, int kind,
       internal_error (&dtp->common, "list_formatted_write(): Bad type");
     }
 
+  fbuf_flush_list (dtp->u.p.current_unit, LIST_WRITING);
   dtp->u.p.char_flag = (type == BT_CHARACTER);
 }
 
@@ -1702,10 +1704,11 @@ nml_write_obj (st_parameter_dt *dtp, namelist_info * obj, index_type offset,
   size_t clen;
   index_type elem_ctr;
   size_t obj_name_len;
-  void * p ;
+  void * p;
   char cup;
   char * obj_name;
   char * ext_name;
+  char * q;
   size_t ext_name_len;
   char rep_buff[NML_DIGITS];
   namelist_info * cmp;
@@ -1743,6 +1746,8 @@ nml_write_obj (st_parameter_dt *dtp, namelist_info * obj, index_type offset,
       for (dim_i = len; dim_i < clen; dim_i++)
 	{
 	  cup = toupper ((int) obj->var_name[dim_i]);
+	  if (cup == '+')
+	    cup = '%';
 	  write_character (dtp, &cup, 1, 1, NODELIM);
 	}
       write_character (dtp, "=", 1, 1, NODELIM);
@@ -1835,7 +1840,10 @@ nml_write_obj (st_parameter_dt *dtp, namelist_info * obj, index_type offset,
               break;
 
 	    case BT_CHARACTER:
-	      write_character (dtp, p, 1, obj->string_length, DELIM);
+	      if (dtp->u.p.current_unit->flags.encoding == ENCODING_UTF8)
+		write_character (dtp, p, 4, obj->string_length, DELIM);
+	      else
+		write_character (dtp, p, 1, obj->string_length, DELIM);
               break;
 
 	    case BT_REAL:
@@ -1864,7 +1872,7 @@ nml_write_obj (st_parameter_dt *dtp, namelist_info * obj, index_type offset,
 	      base_var_name_len = base ? strlen (base->var_name) : 0;
 	      ext_name_len = base_name_len + base_var_name_len 
 		+ strlen (obj->var_name) + obj->var_rank * NML_DIGITS + 1;
-	      ext_name = (char*)xmalloc (ext_name_len);
+	      ext_name = xmalloc (ext_name_len);
 
 	      memcpy (ext_name, base_name, base_name_len);
 	      clen = strlen (obj->var_name + base_var_name_len);
@@ -1889,11 +1897,14 @@ nml_write_obj (st_parameter_dt *dtp, namelist_info * obj, index_type offset,
 		}
 
 	      ext_name[tot_len] = '\0';
+	      for (q = ext_name; *q; q++)
+		if (*q == '+')
+		  *q = '%';
 
 	      /* Now obj_name.  */
 
 	      obj_name_len = strlen (obj->var_name) + 1;
-	      obj_name = xmalloc (obj_name_len+1);
+	      obj_name = xmalloc (obj_name_len + 1);
 	      memcpy (obj_name, obj->var_name, obj_name_len-1);
 	      memcpy (obj_name + obj_name_len-1, "%", 2);
 

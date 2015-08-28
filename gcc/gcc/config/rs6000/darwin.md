@@ -1,5 +1,5 @@
 /* Machine description patterns for PowerPC running Darwin (Mac OS X).
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
 This file is part of GCC.
@@ -213,22 +213,18 @@ You should have received a copy of the GNU General Public License
 })
 
 (define_insn "macho_low_si"
-  [(set (match_operand:SI 0 "gpc_reg_operand" "=r,r")
-	(lo_sum:SI (match_operand:SI 1 "gpc_reg_operand" "b,!*r")
+  [(set (match_operand:SI 0 "gpc_reg_operand" "=r")
+	(lo_sum:SI (match_operand:SI 1 "gpc_reg_operand" "b")
 		   (match_operand 2 "" "")))]
    "TARGET_MACHO && ! TARGET_64BIT"
-   "@
-    la %0,lo16(%2)(%1)
-    addic %0,%1,lo16(%2)")
+   "la %0,lo16(%2)(%1)")
 
 (define_insn "macho_low_di"
-  [(set (match_operand:DI 0 "gpc_reg_operand" "=r,r")
-	(lo_sum:DI (match_operand:DI 1 "gpc_reg_operand" "b,!*r")
+  [(set (match_operand:DI 0 "gpc_reg_operand" "=r")
+	(lo_sum:DI (match_operand:DI 1 "gpc_reg_operand" "b")
 		   (match_operand 2 "" "")))]
    "TARGET_MACHO && TARGET_64BIT"
-   "@
-    la %0,lo16(%2)(%1)
-    addic %0,%1,lo16(%2)")
+   "la %0,lo16(%2)(%1)")
 
 (define_split
   [(set (mem:V4SI (plus:DI (match_operand:DI 0 "gpc_reg_operand" "")

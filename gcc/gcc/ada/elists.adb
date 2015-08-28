@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -137,6 +137,19 @@ package body Elists is
          Write_Eol;
       end if;
    end Append_Elmt;
+
+   ---------------------
+   -- Append_New_Elmt --
+   ---------------------
+
+   procedure Append_New_Elmt (N : Node_Or_Entity_Id; To : in out Elist_Id) is
+   begin
+      if To = No_Elist then
+         To := New_Elmt_List;
+      end if;
+
+      Append_Elmt (N, To);
+   end Append_New_Elmt;
 
    ------------------------
    -- Append_Unique_Elmt --
@@ -274,6 +287,32 @@ package body Elists is
    begin
       return Elmts.Last;
    end Last_Elmt_Id;
+
+   -----------------
+   -- List_Length --
+   -----------------
+
+   function List_Length (List : Elist_Id) return Nat is
+      Elmt : Elmt_Id;
+      N    : Nat;
+
+   begin
+      if List = No_Elist then
+         return 0;
+
+      else
+         N := 0;
+         Elmt := First_Elmt (List);
+         loop
+            if No (Elmt) then
+               return N;
+            else
+               N := N + 1;
+               Next_Elmt (Elmt);
+            end if;
+         end loop;
+      end if;
+   end List_Length;
 
    ----------
    -- Lock --

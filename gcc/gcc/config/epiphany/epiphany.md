@@ -1,5 +1,5 @@
 ;; Machine description of the Adaptiva epiphany cpu for GNU C compiler
-;; Copyright (C) 1994-2014 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2015 Free Software Foundation, Inc.
 ;; Contributed by Embecosm on behalf of Adapteva, Inc.
 
 ;; This file is part of GCC.
@@ -976,7 +976,7 @@
       REAL_VALUE_TYPE offset;
       rtx limit;
       rtx tmp = gen_reg_rtx (SFmode);
-      rtx label = gen_label_rtx ();
+      rtx_code_label *label = gen_label_rtx ();
       rtx bit31;
       rtx cc1 = gen_rtx_REG (CC_FPmode, CCFP_REGNUM);
       rtx cmp = gen_rtx_LT (VOIDmode, cc1, CONST0_RTX (SFmode));
@@ -1687,7 +1687,7 @@
         (compare:CC (match_operand:SI 1 "gpr_operand"  "r")
                     (match_operand:SI 2 "arith_int_operand" "L")))
    (set (match_operand:SI 0 "gpr_operand" "=r")
-        (plus:SI (match_dup 1) (match_operand:SI 3 "const_int_operand" "L")))]
+        (plus:SI (match_dup 1) (match_operand:SI 3 "const_int_operand" "CnL")))]
   "INTVAL (operands[2]) == -INTVAL (operands[3])"
   "sub %0,%1,%2"
   [(set_attr "type" "compare")])
@@ -1946,7 +1946,7 @@
 {
   rtx cmp_op0 = XEXP (operands[1], 0);
   rtx cmp_op1 = XEXP (operands[1], 1);
-  enum machine_mode cmp_in_mode;
+  machine_mode cmp_in_mode;
   enum rtx_code code = GET_CODE (operands[1]);
 
   cmp_in_mode = GET_MODE (cmp_op0);
@@ -1960,7 +1960,7 @@
       && !rtx_equal_p (operands[0], operands[3]))
     {
       rtx tmp = operands[2]; operands[2] = operands[3]; operands[3] = tmp;
-      code = (FLOAT_MODE_P (GET_MODE (cmp_op0))
+      code = (FLOAT_MODE_P (GET_MODE (cmp_op0)) && !flag_finite_math_only
 	      ? reverse_condition_maybe_unordered (code)
 	      : reverse_condition (code));
     }
@@ -2380,7 +2380,7 @@
 	(plus:SI (reg:SI GPR_SP) (match_operand:SI 0 "arith_operand" "rL")))
    (clobber (reg:CC CC_REGNUM))
    (clobber (reg:SI STATUS_REGNUM))
-   (clobber (match_operand:BLK 1 "memory_operand" "=m"))]
+   (clobber (match_operand:BLK 1 "memclob_operand" "=X"))]
   "reload_completed"
   "add sp,sp,%0")
 
@@ -2396,7 +2396,7 @@
 	(match_operand 1 "any_gpr_operand" "r"))
    (set (reg:SI GPR_SP)
 	(plus:SI (reg:SI GPR_SP) (match_operand:SI 2 "nonmemory_operand" "rn")))
-   (clobber (match_operand:BLK 3 "memory_operand" "=m"))]
+   (clobber (match_operand:BLK 3 "memclob_operand" "=X"))]
   "reload_completed"
 {
   return (GET_MODE_SIZE (GET_MODE (operands[0])) <= 4

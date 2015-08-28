@@ -1,6 +1,6 @@
 /* Write the GIMPLE representation to a file stream.
 
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2015 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
    Re-implemented by Diego Novillo <dnovillo@google.com>
 
@@ -24,14 +24,40 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stor-layout.h"
 #include "stringpool.h"
-#include "expr.h"
-#include "flags.h"
-#include "params.h"
-#include "input.h"
 #include "hashtab.h"
+#include "hard-reg-set.h"
+#include "function.h"
+#include "rtl.h"
+#include "flags.h"
+#include "statistics.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "insn-config.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
+#include "expr.h"
+#include "params.h"
+#include "predict.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -42,16 +68,21 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple-ssa.h"
 #include "tree-ssanames.h"
 #include "tree-pass.h"
-#include "function.h"
 #include "diagnostic-core.h"
 #include "except.h"
 #include "lto-symtab.h"
+#include "hash-map.h"
+#include "plugin-api.h"
+#include "ipa-ref.h"
+#include "cgraph.h"
 #include "lto-streamer.h"
 #include "data-streamer.h"
 #include "gimple-streamer.h"
 #include "tree-streamer.h"
 #include "streamer-hooks.h"
 #include "cfgloop.h"
+#include "builtins.h"
+#include "gomp-constants.h"
 
 
 static void lto_write_tree (struct output_block*, tree, bool);
@@ -86,7 +117,7 @@ create_output_block (enum lto_section_type section_type)
 
   clear_line_info (ob);
 
-  ob->string_hash_table.create (37);
+  ob->string_hash_table = new hash_table<string_slot_hasher> (37);
   gcc_obstack_init (&ob->obstack);
 
   return ob;
@@ -100,7 +131,8 @@ destroy_output_block (struct output_block *ob)
 {
   enum lto_section_type section_type = ob->section_type;
 
-  ob->string_hash_table.dispose ();
+  delete ob->string_hash_table;
+  ob->string_hash_table = NULL;
 
   free (ob->main_stream);
   free (ob->string_stream);
@@ -135,8 +167,12 @@ tree_is_indexable (tree t)
   /* Parameters and return values of functions of variably modified types
      must go to global stream, because they may be used in the type
      definition.  */
-  if (TREE_CODE (t) == PARM_DECL || TREE_CODE (t) == RESULT_DECL)
+  if ((TREE_CODE (t) == PARM_DECL || TREE_CODE (t) == RESULT_DECL)
+      && DECL_CONTEXT (t))
     return variably_modified_type_p (TREE_TYPE (DECL_CONTEXT (t)), NULL_TREE);
+  /* IMPORTED_DECL is put into BLOCK and thus it never can be shared.  */
+  else if (TREE_CODE (t) == IMPORTED_DECL)
+    return false;
   else if (((TREE_CODE (t) == VAR_DECL && !TREE_STATIC (t))
 	    || TREE_CODE (t) == TYPE_DECL
 	    || TREE_CODE (t) == CONST_DECL
@@ -182,10 +218,7 @@ lto_output_location (struct output_block *ob, struct bitpack_d *bp,
   bp_pack_value (bp, ob->current_col != xloc.column, 1);
 
   if (ob->current_file != xloc.file)
-    bp_pack_var_len_unsigned (bp,
-	                      streamer_string_index (ob, xloc.file,
-						     strlen (xloc.file) + 1,
-						     true));
+    bp_pack_string (ob, bp, xloc.file, true);
   ob->current_file = xloc.file;
 
   if (ob->current_line != xloc.line)
@@ -316,7 +349,7 @@ lto_is_streamable (tree expr)
 /* For EXPR lookup and return what we want to stream to OB as DECL_INITIAL.  */
 
 static tree
-get_symbol_initial_value (struct output_block *ob, tree expr)
+get_symbol_initial_value (lto_symtab_encoder_t encoder, tree expr)
 {
   gcc_checking_assert (DECL_P (expr)
 		       && TREE_CODE (expr) != FUNCTION_DECL
@@ -329,15 +362,13 @@ get_symbol_initial_value (struct output_block *ob, tree expr)
       && !DECL_IN_CONSTANT_POOL (expr)
       && initial)
     {
-      lto_symtab_encoder_t encoder;
       varpool_node *vnode;
-
-      encoder = ob->decl_state->symtab_node_encoder;
-      vnode = varpool_get_node (expr);
-      if (!vnode
-	  || !lto_symtab_encoder_encode_initializer_p (encoder,
-						       vnode))
-	initial = error_mark_node;
+      /* Extra section needs about 30 bytes; do not produce it for simple
+	 scalar values.  */
+      if (TREE_CODE (DECL_INITIAL (expr)) == CONSTRUCTOR
+	  || !(vnode = varpool_node::get (expr))
+	  || !lto_symtab_encoder_encode_initializer_p (encoder, vnode))
+        initial = error_mark_node;
     }
 
   return initial;
@@ -354,9 +385,7 @@ lto_write_tree_1 (struct output_block *ob, tree expr, bool ref_p)
 {
   /* Pack all the non-pointer fields in EXPR into a bitpack and write
      the resulting bitpack.  */
-  bitpack_d bp = bitpack_create (ob->main_stream);
-  streamer_pack_tree_bitfields (ob, &bp, expr);
-  streamer_write_bitpack (&bp);
+  streamer_write_tree_bitfields (ob, expr);
 
   /* Write all the pointer fields in EXPR.  */
   streamer_write_tree_body (ob, expr, ref_p);
@@ -367,7 +396,8 @@ lto_write_tree_1 (struct output_block *ob, tree expr, bool ref_p)
       && TREE_CODE (expr) != TRANSLATION_UNIT_DECL)
     {
       /* Handle DECL_INITIAL for symbols.  */
-      tree initial = get_symbol_initial_value (ob, expr);
+      tree initial = get_symbol_initial_value
+			 (ob->decl_state->symtab_node_encoder, expr);
       stream_write_tree (ob, initial, ref_p);
     }
 }
@@ -435,33 +465,259 @@ lto_output_tree_1 (struct output_block *ob, tree expr, hashval_t hash,
     }
 }
 
-struct sccs
+class DFS
 {
-  unsigned int dfsnum;
-  unsigned int low;
+public:
+  DFS (struct output_block *ob, tree expr, bool ref_p, bool this_ref_p,
+       bool single_p);
+  ~DFS ();
+
+  struct scc_entry
+  {
+    tree t;
+    hashval_t hash;
+  };
+  vec<scc_entry> sccstack;
+
+private:
+  struct sccs
+  {
+    unsigned int dfsnum;
+    unsigned int low;
+  };
+  struct worklist
+  {
+    tree expr;
+    sccs *from_state;
+    sccs *cstate;
+    bool ref_p;
+    bool this_ref_p;
+  };
+
+  static int scc_entry_compare (const void *, const void *);
+
+  void DFS_write_tree_body (struct output_block *ob,
+			    tree expr, sccs *expr_state, bool ref_p);
+
+  void DFS_write_tree (struct output_block *ob, sccs *from_state,
+		       tree expr, bool ref_p, bool this_ref_p);
+
+  hashval_t
+  hash_scc (struct output_block *ob, unsigned first, unsigned size);
+
+  hash_map<tree, sccs *> sccstate;
+  vec<worklist> worklist_vec;
+  struct obstack sccstate_obstack;
 };
 
-struct scc_entry
+DFS::DFS (struct output_block *ob, tree expr, bool ref_p, bool this_ref_p,
+	  bool single_p)
 {
-  tree t;
-  hashval_t hash;
-};
+  unsigned int next_dfs_num = 1;
+  sccstack.create (0);
+  gcc_obstack_init (&sccstate_obstack);
+  worklist_vec = vNULL;
+  DFS_write_tree (ob, NULL, expr, ref_p, this_ref_p);
+  while (!worklist_vec.is_empty ())
+    {
+      worklist &w = worklist_vec.last ();
+      expr = w.expr;
+      sccs *from_state = w.from_state;
+      sccs *cstate = w.cstate;
+      ref_p = w.ref_p;
+      this_ref_p = w.this_ref_p;
+      if (cstate == NULL)
+	{
+	  sccs **slot = &sccstate.get_or_insert (expr);
+	  cstate = *slot;
+	  if (cstate)
+	    {
+	      gcc_checking_assert (from_state);
+	      if (cstate->dfsnum < from_state->dfsnum)
+		from_state->low = MIN (cstate->dfsnum, from_state->low);
+	      worklist_vec.pop ();
+	      continue;
+	    }
 
-static unsigned int next_dfs_num;
-static vec<scc_entry> sccstack;
-static struct pointer_map_t *sccstate;
-static struct obstack sccstate_obstack;
+	  scc_entry e = { expr, 0 };
+	  /* Not yet visited.  DFS recurse and push it onto the stack.  */
+	  *slot = cstate = XOBNEW (&sccstate_obstack, struct sccs);
+	  sccstack.safe_push (e);
+	  cstate->dfsnum = next_dfs_num++;
+	  cstate->low = cstate->dfsnum;
+	  w.cstate = cstate;
 
-static void
-DFS_write_tree (struct output_block *ob, sccs *from_state,
-		tree expr, bool ref_p, bool this_ref_p);
+	  if (streamer_handle_as_builtin_p (expr))
+	    ;
+	  else if (TREE_CODE (expr) == INTEGER_CST
+		   && !TREE_OVERFLOW (expr))
+	    DFS_write_tree (ob, cstate, TREE_TYPE (expr), ref_p, ref_p);
+	  else
+	    {
+	      DFS_write_tree_body (ob, expr, cstate, ref_p);
+
+	      /* Walk any LTO-specific edges.  */
+	      if (DECL_P (expr)
+		  && TREE_CODE (expr) != FUNCTION_DECL
+		  && TREE_CODE (expr) != TRANSLATION_UNIT_DECL)
+		{
+		  /* Handle DECL_INITIAL for symbols.  */
+		  tree initial
+		    = get_symbol_initial_value (ob->decl_state->symtab_node_encoder,
+						expr);
+		  DFS_write_tree (ob, cstate, initial, ref_p, ref_p);
+		}
+	    }
+	  continue;
+	}
+
+      /* See if we found an SCC.  */
+      if (cstate->low == cstate->dfsnum)
+	{
+	  unsigned first, size;
+	  tree x;
+
+	  /* If we are re-walking a single leaf-SCC just pop it,
+	     let earlier worklist item access the sccstack.  */
+	  if (single_p)
+	    {
+	      worklist_vec.pop ();
+	      continue;
+	    }
+
+	  /* Pop the SCC and compute its size.  */
+	  first = sccstack.length ();
+	  do
+	    {
+	      x = sccstack[--first].t;
+	    }
+	  while (x != expr);
+	  size = sccstack.length () - first;
+
+	  /* No need to compute hashes for LTRANS units, we don't perform
+	     any merging there.  */
+	  hashval_t scc_hash = 0;
+	  unsigned scc_entry_len = 0;
+	  if (!flag_wpa)
+	    {
+	      scc_hash = hash_scc (ob, first, size);
+
+	      /* Put the entries with the least number of collisions first.  */
+	      unsigned entry_start = 0;
+	      scc_entry_len = size + 1;
+	      for (unsigned i = 0; i < size;)
+		{
+		  unsigned from = i;
+		  for (i = i + 1; i < size
+		       && (sccstack[first + i].hash
+			   == sccstack[first + from].hash); ++i)
+		    ;
+		  if (i - from < scc_entry_len)
+		    {
+		      scc_entry_len = i - from;
+		      entry_start = from;
+		    }
+		}
+	      for (unsigned i = 0; i < scc_entry_len; ++i)
+		{
+		  scc_entry tem = sccstack[first + i];
+		  sccstack[first + i] = sccstack[first + entry_start + i];
+		  sccstack[first + entry_start + i] = tem;
+		}
+
+	      if (scc_entry_len == 1)
+		; /* We already sorted SCC deterministically in hash_scc.  */
+	      else
+		/* Check that we have only one SCC.
+		   Naturally we may have conflicts if hash function is not
+ 		   strong enough.  Lets see how far this gets.  */
+		{
+#ifdef ENABLE_CHECKING
+		  gcc_unreachable ();
+#endif
+		}
+	    }
+
+	  /* Write LTO_tree_scc.  */
+	  streamer_write_record_start (ob, LTO_tree_scc);
+	  streamer_write_uhwi (ob, size);
+	  streamer_write_uhwi (ob, scc_hash);
+
+	  /* Write size-1 SCCs without wrapping them inside SCC bundles.
+	     All INTEGER_CSTs need to be handled this way as we need
+	     their type to materialize them.  Also builtins are handled
+	     this way.
+	     ???  We still wrap these in LTO_tree_scc so at the
+	     input side we can properly identify the tree we want
+	     to ultimatively return.  */
+	  if (size == 1)
+	    lto_output_tree_1 (ob, expr, scc_hash, ref_p, this_ref_p);
+	  else
+	    {
+	      /* Write the size of the SCC entry candidates.  */
+	      streamer_write_uhwi (ob, scc_entry_len);
+
+	      /* Write all headers and populate the streamer cache.  */
+	      for (unsigned i = 0; i < size; ++i)
+		{
+		  hashval_t hash = sccstack[first+i].hash;
+		  tree t = sccstack[first+i].t;
+		  bool exists_p = streamer_tree_cache_insert (ob->writer_cache,
+							      t, hash, NULL);
+		  gcc_assert (!exists_p);
+
+		  if (!lto_is_streamable (t))
+		    internal_error ("tree code %qs is not supported "
+				    "in LTO streams",
+				    get_tree_code_name (TREE_CODE (t)));
+
+		  gcc_checking_assert (!streamer_handle_as_builtin_p (t));
+
+		  /* Write the header, containing everything needed to
+		     materialize EXPR on the reading side.  */
+		  streamer_write_tree_header (ob, t);
+		}
+
+	      /* Write the bitpacks and tree references.  */
+	      for (unsigned i = 0; i < size; ++i)
+		{
+		  lto_write_tree_1 (ob, sccstack[first+i].t, ref_p);
+
+		  /* Mark the end of the tree.  */
+		  streamer_write_zero (ob);
+		}
+	    }
+
+	  /* Finally truncate the vector.  */
+	  sccstack.truncate (first);
+
+	  if (from_state)
+	    from_state->low = MIN (from_state->low, cstate->low);
+	  worklist_vec.pop ();
+	  continue;
+	}
+
+      gcc_checking_assert (from_state);
+      from_state->low = MIN (from_state->low, cstate->low);
+      if (cstate->dfsnum < from_state->dfsnum)
+	from_state->low = MIN (cstate->dfsnum, from_state->low);
+      worklist_vec.pop ();
+    }
+  worklist_vec.release ();
+}
+
+DFS::~DFS ()
+{
+  sccstack.release ();
+  obstack_free (&sccstate_obstack, NULL);
+}
 
 /* Handle the tree EXPR in the DFS walk with SCC state EXPR_STATE and
    DFS recurse for all tree edges originating from it.  */
 
-static void
-DFS_write_tree_body (struct output_block *ob,
-		     tree expr, sccs *expr_state, bool ref_p)
+void
+DFS::DFS_write_tree_body (struct output_block *ob,
+			  tree expr, sccs *expr_state, bool ref_p)
 {
 #define DFS_follow_tree_edge(DEST) \
   DFS_write_tree (ob, expr_state, DEST, ref_p, ref_p)
@@ -526,7 +782,6 @@ DFS_write_tree_body (struct output_block *ob,
     {
       if (TREE_CODE (expr) == TYPE_DECL)
 	DFS_follow_tree_edge (DECL_ORIGINAL_TYPE (expr));
-      DFS_follow_tree_edge (DECL_VINDEX (expr));
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_DECL_WITH_VIS))
@@ -534,8 +789,6 @@ DFS_write_tree_body (struct output_block *ob,
       /* Make sure we don't inadvertently set the assembler name.  */
       if (DECL_ASSEMBLER_NAME_SET_P (expr))
 	DFS_follow_tree_edge (DECL_ASSEMBLER_NAME (expr));
-      DFS_follow_tree_edge (DECL_SECTION_NAME (expr));
-      DFS_follow_tree_edge (DECL_COMDAT_GROUP (expr));
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_FIELD_DECL))
@@ -549,8 +802,9 @@ DFS_write_tree_body (struct output_block *ob,
 
   if (CODE_CONTAINS_STRUCT (code, TS_FUNCTION_DECL))
     {
+      DFS_follow_tree_edge (DECL_VINDEX (expr));
       DFS_follow_tree_edge (DECL_FUNCTION_PERSONALITY (expr));
-      /* Do not DECL_FUNCTION_SPECIFIC_TARGET.  They will be regenerated.  */
+      DFS_follow_tree_edge (DECL_FUNCTION_SPECIFIC_TARGET (expr));
       DFS_follow_tree_edge (DECL_FUNCTION_SPECIFIC_OPTIMIZATION (expr));
     }
 
@@ -614,9 +868,13 @@ DFS_write_tree_body (struct output_block *ob,
   if (CODE_CONTAINS_STRUCT (code, TS_BLOCK))
     {
       for (tree t = BLOCK_VARS (expr); t; t = TREE_CHAIN (t))
-	/* ???  FIXME.  See also streamer_write_chain.  */
-	if (!(VAR_OR_FUNCTION_DECL_P (t)
-	      && DECL_EXTERNAL (t)))
+	if (VAR_OR_FUNCTION_DECL_P (t)
+	    && DECL_EXTERNAL (t))
+	  /* We have to stream externals in the block chain as
+	     non-references.  See also
+	     tree-streamer-out.c:streamer_write_chain.  */
+	  DFS_write_tree (ob, expr_state, t, ref_p, false);
+	else
 	  DFS_follow_tree_edge (t);
 
       DFS_follow_tree_edge (BLOCK_SUPERCONTEXT (expr));
@@ -687,234 +945,232 @@ DFS_write_tree_body (struct output_block *ob,
 #undef DFS_follow_tree_edge
 }
 
-/* Return a hash value for the tree T.  */
+/* Return a hash value for the tree T.
+   CACHE holds hash values of trees outside current SCC.  MAP, if non-NULL,
+   may hold hash values if trees inside current SCC.  */
 
 static hashval_t
-hash_tree (struct streamer_tree_cache_d *cache, tree t)
+hash_tree (struct streamer_tree_cache_d *cache, hash_map<tree, hashval_t> *map, tree t)
 {
+  inchash::hash hstate;
+
 #define visit(SIBLING) \
   do { \
     unsigned ix; \
-    if (SIBLING && streamer_tree_cache_lookup (cache, SIBLING, &ix)) \
-      v = iterative_hash_hashval_t (streamer_tree_cache_get_hash (cache, ix), v); \
+    if (!SIBLING) \
+      hstate.add_int (0); \
+    else if (streamer_tree_cache_lookup (cache, SIBLING, &ix)) \
+      hstate.add_int (streamer_tree_cache_get_hash (cache, ix)); \
+    else if (map) \
+      hstate.add_int (*map->get (SIBLING)); \
+    else \
+      hstate.add_int (1); \
   } while (0)
 
   /* Hash TS_BASE.  */
   enum tree_code code = TREE_CODE (t);
-  hashval_t v = iterative_hash_host_wide_int (code, 0);
+  hstate.add_int (code);
   if (!TYPE_P (t))
     {
-      v = iterative_hash_host_wide_int (TREE_SIDE_EFFECTS (t)
-					| (TREE_CONSTANT (t) << 1)
-					| (TREE_READONLY (t) << 2)
-					| (TREE_PUBLIC (t) << 3), v);
+      hstate.add_flag (TREE_SIDE_EFFECTS (t));
+      hstate.add_flag (TREE_CONSTANT (t));
+      hstate.add_flag (TREE_READONLY (t));
+      hstate.add_flag (TREE_PUBLIC (t));
     }
-  v = iterative_hash_host_wide_int (TREE_ADDRESSABLE (t)
-				    | (TREE_THIS_VOLATILE (t) << 1), v);
+  hstate.add_flag (TREE_ADDRESSABLE (t));
+  hstate.add_flag (TREE_THIS_VOLATILE (t));
   if (DECL_P (t))
-    v = iterative_hash_host_wide_int (DECL_UNSIGNED (t), v);
+    hstate.add_flag (DECL_UNSIGNED (t));
   else if (TYPE_P (t))
-    v = iterative_hash_host_wide_int (TYPE_UNSIGNED (t), v);
+    hstate.add_flag (TYPE_UNSIGNED (t));
   if (TYPE_P (t))
-    v = iterative_hash_host_wide_int (TYPE_ARTIFICIAL (t), v);
+    hstate.add_flag (TYPE_ARTIFICIAL (t));
   else
-    v = iterative_hash_host_wide_int (TREE_NO_WARNING (t), v);
-  v = iterative_hash_host_wide_int (TREE_NOTHROW (t)
-				    | (TREE_STATIC (t) << 1)
-				    | (TREE_PROTECTED (t) << 2)
-				    | (TREE_DEPRECATED (t) << 3), v);
+    hstate.add_flag (TREE_NO_WARNING (t));
+  hstate.add_flag (TREE_NOTHROW (t));
+  hstate.add_flag (TREE_STATIC (t));
+  hstate.add_flag (TREE_PROTECTED (t));
+  hstate.add_flag (TREE_DEPRECATED (t));
   if (code != TREE_BINFO)
-    v = iterative_hash_host_wide_int (TREE_PRIVATE (t), v);
+    hstate.add_flag (TREE_PRIVATE (t));
   if (TYPE_P (t))
-    v = iterative_hash_host_wide_int (TYPE_SATURATING (t)
-				      | (TYPE_ADDR_SPACE (t) << 1), v);
+    {
+      hstate.add_flag (TYPE_SATURATING (t));
+      hstate.add_flag (TYPE_ADDR_SPACE (t));
+    }
   else if (code == SSA_NAME)
-    v = iterative_hash_host_wide_int (SSA_NAME_IS_DEFAULT_DEF (t), v);
+    hstate.add_flag (SSA_NAME_IS_DEFAULT_DEF (t));
+  hstate.commit_flag ();
 
   if (CODE_CONTAINS_STRUCT (code, TS_INT_CST))
     {
-      v = iterative_hash_host_wide_int (TREE_INT_CST_LOW (t), v);
-      v = iterative_hash_host_wide_int (TREE_INT_CST_HIGH (t), v);
+      int i;
+      hstate.add_wide_int (TREE_INT_CST_NUNITS (t));
+      hstate.add_wide_int (TREE_INT_CST_EXT_NUNITS (t));
+      for (i = 0; i < TREE_INT_CST_NUNITS (t); i++)
+	hstate.add_wide_int (TREE_INT_CST_ELT (t, i));
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_REAL_CST))
     {
       REAL_VALUE_TYPE r = TREE_REAL_CST (t);
-      v = iterative_hash_host_wide_int (r.cl, v);
-      v = iterative_hash_host_wide_int (r.decimal
-					| (r.sign << 1)
-					| (r.signalling << 2)
-					| (r.canonical << 3), v);
-      v = iterative_hash_host_wide_int (r.uexp, v);
-      for (unsigned i = 0; i < SIGSZ; ++i)
-	v = iterative_hash_host_wide_int (r.sig[i], v);
+      hstate.add_flag (r.cl);
+      hstate.add_flag (r.sign);
+      hstate.add_flag (r.signalling);
+      hstate.add_flag (r.canonical);
+      hstate.commit_flag ();
+      hstate.add_int (r.uexp);
+      hstate.add (r.sig, sizeof (r.sig));
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_FIXED_CST))
     {
       FIXED_VALUE_TYPE f = TREE_FIXED_CST (t);
-      v = iterative_hash_host_wide_int (f.mode, v);
-      v = iterative_hash_host_wide_int (f.data.low, v);
-      v = iterative_hash_host_wide_int (f.data.high, v);
+      hstate.add_int (f.mode);
+      hstate.add_int (f.data.low);
+      hstate.add_int (f.data.high);
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_DECL_COMMON))
     {
-      v = iterative_hash_host_wide_int (DECL_MODE (t), v);
-      v = iterative_hash_host_wide_int (DECL_NONLOCAL (t)
-					| (DECL_VIRTUAL_P (t) << 1)
-					| (DECL_IGNORED_P (t) << 2)
-					| (DECL_ABSTRACT (t) << 3)
-					| (DECL_ARTIFICIAL (t) << 4)
-					| (DECL_USER_ALIGN (t) << 5)
-					| (DECL_PRESERVE_P (t) << 6)
-					| (DECL_EXTERNAL (t) << 7)
-					| (DECL_GIMPLE_REG_P (t) << 8), v);
-      v = iterative_hash_host_wide_int (DECL_ALIGN (t), v);
+      hstate.add_wide_int (DECL_MODE (t));
+      hstate.add_flag (DECL_NONLOCAL (t));
+      hstate.add_flag (DECL_VIRTUAL_P (t));
+      hstate.add_flag (DECL_IGNORED_P (t));
+      hstate.add_flag (DECL_ABSTRACT_P (t));
+      hstate.add_flag (DECL_ARTIFICIAL (t));
+      hstate.add_flag (DECL_USER_ALIGN (t));
+      hstate.add_flag (DECL_PRESERVE_P (t));
+      hstate.add_flag (DECL_EXTERNAL (t));
+      hstate.add_flag (DECL_GIMPLE_REG_P (t));
+      hstate.commit_flag ();
+      hstate.add_int (DECL_ALIGN (t));
       if (code == LABEL_DECL)
 	{
-	  v = iterative_hash_host_wide_int (EH_LANDING_PAD_NR (t), v);
-	  v = iterative_hash_host_wide_int (LABEL_DECL_UID (t), v);
+          hstate.add_int (EH_LANDING_PAD_NR (t));
+	  hstate.add_int (LABEL_DECL_UID (t));
 	}
       else if (code == FIELD_DECL)
 	{
-	  v = iterative_hash_host_wide_int (DECL_PACKED (t)
-					    | (DECL_NONADDRESSABLE_P (t) << 1),
-					    v);
-	  v = iterative_hash_host_wide_int (DECL_OFFSET_ALIGN (t), v);
+	  hstate.add_flag (DECL_PACKED (t));
+	  hstate.add_flag (DECL_NONADDRESSABLE_P (t));
+	  hstate.add_int (DECL_OFFSET_ALIGN (t));
 	}
       else if (code == VAR_DECL)
 	{
-	  v = iterative_hash_host_wide_int (DECL_HAS_DEBUG_EXPR_P (t)
-					    | (DECL_NONLOCAL_FRAME (t) << 1),
-					    v);
+	  hstate.add_flag (DECL_HAS_DEBUG_EXPR_P (t));
+	  hstate.add_flag (DECL_NONLOCAL_FRAME (t));
 	}
       if (code == RESULT_DECL
 	  || code == PARM_DECL
 	  || code == VAR_DECL)
 	{
-	  v = iterative_hash_host_wide_int (DECL_BY_REFERENCE (t), v);
+	  hstate.add_flag (DECL_BY_REFERENCE (t));
 	  if (code == VAR_DECL
 	      || code == PARM_DECL)
-	    v = iterative_hash_host_wide_int (DECL_HAS_VALUE_EXPR_P (t), v);
+	    hstate.add_flag (DECL_HAS_VALUE_EXPR_P (t));
 	}
+      hstate.commit_flag ();
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_DECL_WRTL))
-    v = iterative_hash_host_wide_int (DECL_REGISTER (t), v);
+    hstate.add_int (DECL_REGISTER (t));
 
   if (CODE_CONTAINS_STRUCT (code, TS_DECL_WITH_VIS))
     {
-      v = iterative_hash_host_wide_int ((DECL_COMMON (t))
-					| (DECL_DLLIMPORT_P (t) << 1)
-					| (DECL_WEAK (t) << 2)
-					| (DECL_SEEN_IN_BIND_EXPR_P (t) << 3)
-					| (DECL_COMDAT (t) << 4)
-					| (DECL_VISIBILITY_SPECIFIED (t) << 6),
-					v);
-      v = iterative_hash_host_wide_int (DECL_VISIBILITY (t), v);
+      hstate.add_flag (DECL_COMMON (t));
+      hstate.add_flag (DECL_DLLIMPORT_P (t));
+      hstate.add_flag (DECL_WEAK (t));
+      hstate.add_flag (DECL_SEEN_IN_BIND_EXPR_P (t));
+      hstate.add_flag (DECL_COMDAT (t));
+      hstate.add_flag (DECL_VISIBILITY_SPECIFIED (t));
+      hstate.add_int (DECL_VISIBILITY (t));
       if (code == VAR_DECL)
 	{
 	  /* DECL_IN_TEXT_SECTION is set during final asm output only.  */
-	  v = iterative_hash_host_wide_int (DECL_HARD_REGISTER (t)
-					    | (DECL_IN_CONSTANT_POOL (t) << 1),
-					    v);
-	  v = iterative_hash_host_wide_int (DECL_TLS_MODEL (t), v);
+	  hstate.add_flag (DECL_HARD_REGISTER (t));
+	  hstate.add_flag (DECL_IN_CONSTANT_POOL (t));
 	}
       if (TREE_CODE (t) == FUNCTION_DECL)
-	v = iterative_hash_host_wide_int (DECL_FINAL_P (t)
-					  | (DECL_CXX_CONSTRUCTOR_P (t) << 1)
-					  | (DECL_CXX_DESTRUCTOR_P (t) << 2),
-					  v);
-      if (VAR_OR_FUNCTION_DECL_P (t))
-	v = iterative_hash_host_wide_int (DECL_INIT_PRIORITY (t), v);
+        {
+	  hstate.add_flag (DECL_FINAL_P (t));
+	  hstate.add_flag (DECL_CXX_CONSTRUCTOR_P (t));
+	  hstate.add_flag (DECL_CXX_DESTRUCTOR_P (t));
+	}
+      hstate.commit_flag ();
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_FUNCTION_DECL))
     {
-      v = iterative_hash_host_wide_int (DECL_BUILT_IN_CLASS (t), v);
-      v = iterative_hash_host_wide_int (DECL_STATIC_CONSTRUCTOR (t)
-					| (DECL_STATIC_DESTRUCTOR (t) << 1)
-					| (DECL_UNINLINABLE (t) << 2)
-					| (DECL_POSSIBLY_INLINED (t) << 3)
-					| (DECL_IS_NOVOPS (t) << 4)
-					| (DECL_IS_RETURNS_TWICE (t) << 5)
-					| (DECL_IS_MALLOC (t) << 6)
-					| (DECL_IS_OPERATOR_NEW (t) << 7)
-					| (DECL_DECLARED_INLINE_P (t) << 8)
-					| (DECL_STATIC_CHAIN (t) << 9)
-					| (DECL_NO_INLINE_WARNING_P (t) << 10)
-					| (DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT (t) << 11)
-					| (DECL_NO_LIMIT_STACK (t) << 12)
-					| (DECL_DISREGARD_INLINE_LIMITS (t) << 13)
-					| (DECL_PURE_P (t) << 14)
-					| (DECL_LOOPING_CONST_OR_PURE_P (t) << 15), v);
+      hstate.add_int (DECL_BUILT_IN_CLASS (t));
+      hstate.add_flag (DECL_STATIC_CONSTRUCTOR (t));
+      hstate.add_flag (DECL_STATIC_DESTRUCTOR (t));
+      hstate.add_flag (DECL_UNINLINABLE (t));
+      hstate.add_flag (DECL_POSSIBLY_INLINED (t));
+      hstate.add_flag (DECL_IS_NOVOPS (t));
+      hstate.add_flag (DECL_IS_RETURNS_TWICE (t));
+      hstate.add_flag (DECL_IS_MALLOC (t));
+      hstate.add_flag (DECL_IS_OPERATOR_NEW (t));
+      hstate.add_flag (DECL_DECLARED_INLINE_P (t));
+      hstate.add_flag (DECL_STATIC_CHAIN (t));
+      hstate.add_flag (DECL_NO_INLINE_WARNING_P (t));
+      hstate.add_flag (DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT (t));
+      hstate.add_flag (DECL_NO_LIMIT_STACK (t));
+      hstate.add_flag (DECL_DISREGARD_INLINE_LIMITS (t));
+      hstate.add_flag (DECL_PURE_P (t));
+      hstate.add_flag (DECL_LOOPING_CONST_OR_PURE_P (t));
+      hstate.commit_flag ();
       if (DECL_BUILT_IN_CLASS (t) != NOT_BUILT_IN)
-	v = iterative_hash_host_wide_int (DECL_FUNCTION_CODE (t), v);
-      if (DECL_STATIC_DESTRUCTOR (t))
-	v = iterative_hash_host_wide_int (DECL_FINI_PRIORITY (t), v);
+	hstate.add_int (DECL_FUNCTION_CODE (t));
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_TYPE_COMMON))
     {
-      v = iterative_hash_host_wide_int (TYPE_MODE (t), v);
-      v = iterative_hash_host_wide_int (TYPE_STRING_FLAG (t)
-					| (TYPE_NO_FORCE_BLK (t) << 1)
-					| (TYPE_NEEDS_CONSTRUCTING (t) << 2)
-					| (TYPE_PACKED (t) << 3)
-					| (TYPE_RESTRICT (t) << 4)
-					| (TYPE_USER_ALIGN (t) << 5)
-					| (TYPE_READONLY (t) << 6), v);
+      hstate.add_wide_int (TYPE_MODE (t));
+      hstate.add_flag (TYPE_STRING_FLAG (t));
+      hstate.add_flag (TYPE_NO_FORCE_BLK (t));
+      hstate.add_flag (TYPE_NEEDS_CONSTRUCTING (t));
+      hstate.add_flag (TYPE_PACKED (t));
+      hstate.add_flag (TYPE_RESTRICT (t));
+      hstate.add_flag (TYPE_USER_ALIGN (t));
+      hstate.add_flag (TYPE_READONLY (t));
       if (RECORD_OR_UNION_TYPE_P (t))
 	{
-	  v = iterative_hash_host_wide_int (TYPE_TRANSPARENT_AGGR (t)
-					    | (TYPE_FINAL_P (t) << 1), v);
+	  hstate.add_flag (TYPE_TRANSPARENT_AGGR (t));
+	  hstate.add_flag (TYPE_FINAL_P (t));
 	}
       else if (code == ARRAY_TYPE)
-	v = iterative_hash_host_wide_int (TYPE_NONALIASED_COMPONENT (t), v);
-      v = iterative_hash_host_wide_int (TYPE_PRECISION (t), v);
-      v = iterative_hash_host_wide_int (TYPE_ALIGN (t), v);
-      v = iterative_hash_host_wide_int ((TYPE_ALIAS_SET (t) == 0
+	hstate.add_flag (TYPE_NONALIASED_COMPONENT (t));
+      hstate.commit_flag ();
+      hstate.add_int (TYPE_PRECISION (t));
+      hstate.add_int (TYPE_ALIGN (t));
+      hstate.add_int ((TYPE_ALIAS_SET (t) == 0
 					 || (!in_lto_p
 					     && get_alias_set (t) == 0))
-					? 0 : -1, v);
+					? 0 : -1);
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_TRANSLATION_UNIT_DECL))
-    v = iterative_hash (TRANSLATION_UNIT_LANGUAGE (t),
-			strlen (TRANSLATION_UNIT_LANGUAGE (t)), v);
+    hstate.add (TRANSLATION_UNIT_LANGUAGE (t),
+			strlen (TRANSLATION_UNIT_LANGUAGE (t)));
 
-  if (CODE_CONTAINS_STRUCT (code, TS_TARGET_OPTION))
-    gcc_unreachable ();
+  if (CODE_CONTAINS_STRUCT (code, TS_TARGET_OPTION)
+      /* We don't stream these when passing things to a different target.  */
+      && !lto_stream_offload_p)
+    hstate.add_wide_int (cl_target_option_hash (TREE_TARGET_OPTION (t)));
 
   if (CODE_CONTAINS_STRUCT (code, TS_OPTIMIZATION))
-    v = iterative_hash (t, sizeof (struct cl_optimization), v);
+    hstate.add_wide_int (cl_optimization_hash (TREE_OPTIMIZATION (t)));
 
   if (CODE_CONTAINS_STRUCT (code, TS_IDENTIFIER))
-    v = iterative_hash_host_wide_int (IDENTIFIER_HASH_VALUE (t), v);
+    hstate.merge_hash (IDENTIFIER_HASH_VALUE (t));
 
   if (CODE_CONTAINS_STRUCT (code, TS_STRING))
-    v = iterative_hash (TREE_STRING_POINTER (t), TREE_STRING_LENGTH (t), v);
+    hstate.add (TREE_STRING_POINTER (t), TREE_STRING_LENGTH (t));
 
   if (CODE_CONTAINS_STRUCT (code, TS_TYPED))
     {
-      if (POINTER_TYPE_P (t))
-	{
-	  /* For pointers factor in the pointed-to type recursively as
-	     we cannot recurse through only pointers.
-	     ???  We can generalize this by keeping track of the
-	     in-SCC edges for each tree (or arbitrarily the first
-	     such edge) and hashing that in in a second stage
-	     (instead of the quadratic mixing of the SCC we do now).  */
-	  hashval_t x;
-	  unsigned ix;
-	  if (streamer_tree_cache_lookup (cache, TREE_TYPE (t), &ix))
-	    x = streamer_tree_cache_get_hash (cache, ix);
-	  else
-	    x = hash_tree (cache, TREE_TYPE (t));
-	  v = iterative_hash_hashval_t (x, v);
-	}
-      else if (code != IDENTIFIER_NODE)
+      if (code != IDENTIFIER_NODE)
 	visit (TREE_TYPE (t));
     }
 
@@ -963,15 +1219,12 @@ hash_tree (struct streamer_tree_cache_d *cache, tree t)
     {
       if (code == TYPE_DECL)
 	visit (DECL_ORIGINAL_TYPE (t));
-      visit (DECL_VINDEX (t));
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_DECL_WITH_VIS))
     {
       if (DECL_ASSEMBLER_NAME_SET_P (t))
 	visit (DECL_ASSEMBLER_NAME (t));
-      visit (DECL_SECTION_NAME (t));
-      visit (DECL_COMDAT_GROUP (t));
     }
 
   if (CODE_CONTAINS_STRUCT (code, TS_FIELD_DECL))
@@ -985,8 +1238,9 @@ hash_tree (struct streamer_tree_cache_d *cache, tree t)
 
   if (CODE_CONTAINS_STRUCT (code, TS_FUNCTION_DECL))
     {
+      visit (DECL_VINDEX (t));
       visit (DECL_FUNCTION_PERSONALITY (t));
-      /* Do not follow DECL_FUNCTION_SPECIFIC_TARGET.  */
+      visit (DECL_FUNCTION_SPECIFIC_TARGET (t));
       visit (DECL_FUNCTION_SPECIFIC_OPTIMIZATION (t));
     }
 
@@ -1036,7 +1290,7 @@ hash_tree (struct streamer_tree_cache_d *cache, tree t)
 
   if (CODE_CONTAINS_STRUCT (code, TS_EXP))
     {
-      v = iterative_hash_host_wide_int (TREE_OPERAND_LENGTH (t), v);
+      hstate.add_wide_int (TREE_OPERAND_LENGTH (t));
       for (int i = 0; i < TREE_OPERAND_LENGTH (t); ++i)
 	visit (TREE_OPERAND (t, i));
     }
@@ -1060,7 +1314,7 @@ hash_tree (struct streamer_tree_cache_d *cache, tree t)
     {
       unsigned i;
       tree index, value;
-      v = iterative_hash_host_wide_int (CONSTRUCTOR_NELTS (t), v);
+      hstate.add_wide_int (CONSTRUCTOR_NELTS (t));
       FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (t), i, index, value)
 	{
 	  visit (index);
@@ -1071,45 +1325,48 @@ hash_tree (struct streamer_tree_cache_d *cache, tree t)
   if (code == OMP_CLAUSE)
     {
       int i;
+      HOST_WIDE_INT val;
 
-      v = iterative_hash_host_wide_int (OMP_CLAUSE_CODE (t), v);
+      hstate.add_wide_int (OMP_CLAUSE_CODE (t));
       switch (OMP_CLAUSE_CODE (t))
 	{
 	case OMP_CLAUSE_DEFAULT:
-	  v = iterative_hash_host_wide_int (OMP_CLAUSE_DEFAULT_KIND (t), v);
+	  val = OMP_CLAUSE_DEFAULT_KIND (t);
 	  break;
 	case OMP_CLAUSE_SCHEDULE:
-	  v = iterative_hash_host_wide_int (OMP_CLAUSE_SCHEDULE_KIND (t), v);
+	  val = OMP_CLAUSE_SCHEDULE_KIND (t);
 	  break;
 	case OMP_CLAUSE_DEPEND:
-	  v = iterative_hash_host_wide_int (OMP_CLAUSE_DEPEND_KIND (t), v);
+	  val = OMP_CLAUSE_DEPEND_KIND (t);
 	  break;
 	case OMP_CLAUSE_MAP:
-	  v = iterative_hash_host_wide_int (OMP_CLAUSE_MAP_KIND (t), v);
+	  val = OMP_CLAUSE_MAP_KIND (t);
 	  break;
 	case OMP_CLAUSE_PROC_BIND:
-	  v = iterative_hash_host_wide_int (OMP_CLAUSE_PROC_BIND_KIND (t), v);
+	  val = OMP_CLAUSE_PROC_BIND_KIND (t);
 	  break;
 	case OMP_CLAUSE_REDUCTION:
-	  v = iterative_hash_host_wide_int (OMP_CLAUSE_REDUCTION_CODE (t), v);
+	  val = OMP_CLAUSE_REDUCTION_CODE (t);
 	  break;
 	default:
+	  val = 0;
 	  break;
 	}
+      hstate.add_wide_int (val);
       for (i = 0; i < omp_clause_num_ops[OMP_CLAUSE_CODE (t)]; i++)
 	visit (OMP_CLAUSE_OPERAND (t, i));
       visit (OMP_CLAUSE_CHAIN (t));
     }
 
-  return v;
+  return hstate.end ();
 
 #undef visit
 }
 
 /* Compare two SCC entries by their hash value for qsorting them.  */
 
-static int
-scc_entry_compare (const void *p1_, const void *p2_)
+int
+DFS::scc_entry_compare (const void *p1_, const void *p2_)
 {
   const scc_entry *p1 = (const scc_entry *) p1_;
   const scc_entry *p2 = (const scc_entry *) p2_;
@@ -1123,58 +1380,160 @@ scc_entry_compare (const void *p1_, const void *p2_)
 /* Return a hash value for the SCC on the SCC stack from FIRST with
    size SIZE.  */
 
-static hashval_t
-hash_scc (struct streamer_tree_cache_d *cache, unsigned first, unsigned size)
+hashval_t
+DFS::hash_scc (struct output_block *ob,
+	       unsigned first, unsigned size)
 {
+  unsigned int last_classes = 0, iterations = 0;
+
   /* Compute hash values for the SCC members.  */
   for (unsigned i = 0; i < size; ++i)
-    sccstack[first+i].hash = hash_tree (cache, sccstack[first+i].t);
+    sccstack[first+i].hash = hash_tree (ob->writer_cache, NULL,
+					sccstack[first+i].t);
 
   if (size == 1)
     return sccstack[first].hash;
 
-  /* Sort the SCC of type, hash pairs so that when we mix in
-     all members of the SCC the hash value becomes independent on
-     the order we visited the SCC.  Disregard hashes equal to
-     the hash of the tree we mix into because we cannot guarantee
-     a stable sort for those across different TUs.  */
-  qsort (&sccstack[first], size, sizeof (scc_entry), scc_entry_compare);
-  hashval_t *tem = XALLOCAVEC (hashval_t, size);
-  for (unsigned i = 0; i < size; ++i)
+  /* We aim to get unique hash for every tree within SCC and compute hash value
+     of the whole SCC by combing all values together in an stable (entry point
+     independent) order.  This guarantees that the same SCC regions within
+     different translation units will get the same hash values and therefore
+     will be merged at WPA time.
+
+     Often the hashes are already unique.  In that case we compute scc hash
+     by combining individual hash values in an increasing order.
+
+     If thre are duplicates we seek at least one tree with unique hash (and
+     pick one with minimal hash and this property).  Then we obtain stable
+     order by DFS walk starting from this unique tree and then use index
+     within this order to make individual hash values unique.
+
+     If there is no tree with unique hash, we iteratively propagate the hash
+     values across the internal edges of SCC.  This usually quickly leads
+     to unique hashes.  Consider, for example, an SCC containing two pointers
+     that are identical except for type they point and assume that these
+     types are also part of the SCC.
+     The propagation will add the points-to type information into their hash
+     values.  */
+  do
     {
-      hashval_t hash = sccstack[first+i].hash;
-      hashval_t orig_hash = hash;
-      unsigned j;
-      /* Skip same hashes.  */
-      for (j = i + 1;
-	   j < size && sccstack[first+j].hash == orig_hash; ++j)
-	;
-      for (; j < size; ++j)
-	hash = iterative_hash_hashval_t (sccstack[first+j].hash, hash);
-      for (j = 0; sccstack[first+j].hash != orig_hash; ++j)
-	hash = iterative_hash_hashval_t (sccstack[first+j].hash, hash);
-      tem[i] = hash;
+      /* Sort the SCC so we can easily see check for uniqueness.  */
+      qsort (&sccstack[first], size, sizeof (scc_entry), scc_entry_compare);
+
+      unsigned int classes = 1;
+      int firstunique = -1;
+
+      /* Find tree with lowest unique hash (if it exists) and compute
+	 number of equivalence classes.  */
+      if (sccstack[first].hash != sccstack[first+1].hash)
+	firstunique = 0;
+      for (unsigned i = 1; i < size; ++i)
+	if (sccstack[first+i-1].hash != sccstack[first+i].hash)
+	  {
+	    classes++;
+	    if (firstunique == -1
+		&& (i == size - 1
+		    || sccstack[first+i+1].hash != sccstack[first+i].hash))
+	      firstunique = i;
+	  }
+
+      /* If we found tree with unique hash; stop the iteration.  */
+      if (firstunique != -1
+	  /* Also terminate if we run out of iterations or if the number of
+	     equivalence classes is no longer increasing.
+	     For example a cyclic list of trees that are all equivalent will
+	     never have unique entry point; we however do not build such SCCs
+	     in our IL.  */
+	  || classes <= last_classes || iterations > 16)
+	{
+          hashval_t scc_hash;
+
+	  /* If some hashes are not unique (CLASSES != SIZE), use the DFS walk
+	     starting from FIRSTUNIQUE to obstain stable order.  */
+	  if (classes != size && firstunique != -1)
+	    {
+	      hash_map <tree, hashval_t> map(size*2);
+
+	      /* Store hash values into a map, so we can associate them with
+		 reordered SCC.  */
+	      for (unsigned i = 0; i < size; ++i)
+		map.put (sccstack[first+i].t, sccstack[first+i].hash);
+
+	      DFS again (ob, sccstack[first+firstunique].t, false, false, true);
+	      gcc_assert (again.sccstack.length () == size);
+
+	      memcpy (sccstack.address () + first,
+		      again.sccstack.address (),
+		      sizeof (scc_entry) * size);
+
+	      /* Update hash values of individual members by hashing in the
+		 index within the stable order.  This ensures uniqueness.
+		 Also compute the scc_hash by mixing in all hash values in the
+		 stable order we obtained.  */
+	      sccstack[first].hash = *map.get (sccstack[first].t);
+	      scc_hash = sccstack[first].hash;
+	      for (unsigned i = 1; i < size; ++i)
+		{
+		  sccstack[first+i].hash
+		    = iterative_hash_hashval_t (i,
+						*map.get (sccstack[first+i].t));
+		  scc_hash = iterative_hash_hashval_t (scc_hash,
+						       sccstack[first+i].hash);
+		}
+	    }
+	  /* If we got unique hash values for each tree, then sort already
+	     ensured entry point independent order.  Only compute the final
+	     scc hash.
+
+	     If we failed to find the unique entry point, we go by the same
+	     route. We will eventually introduce unwanted hash conflicts.  */
+	  else
+	    {
+	      scc_hash = sccstack[first].hash;
+	      for (unsigned i = 1; i < size; ++i)
+		scc_hash = iterative_hash_hashval_t (scc_hash,
+						     sccstack[first+i].hash);
+	      /* We can not 100% guarantee that the hash will not conflict in
+		 in a way so the unique hash is not found.  This however
+		 should be extremely rare situation.  ICE for now so possible
+		 issues are found and evaulated.  */
+	      gcc_checking_assert (classes == size);
+	    }
+
+	  /* To avoid conflicts across SCCs iteratively hash the whole SCC
+	     hash into the hash of each of the elements.  */
+	  for (unsigned i = 0; i < size; ++i)
+	    sccstack[first+i].hash
+	      = iterative_hash_hashval_t (sccstack[first+i].hash, scc_hash);
+	  return scc_hash;
+	}
+
+      last_classes = classes;
+      iterations++;
+
+      /* We failed to identify the entry point; propagate hash values across
+	 the edges.  */
+      {
+	hash_map <tree, hashval_t> map(size*2);
+	for (unsigned i = 0; i < size; ++i)
+	  map.put (sccstack[first+i].t, sccstack[first+i].hash);
+
+	for (unsigned i = 0; i < size; i++)
+	  sccstack[first+i].hash = hash_tree (ob->writer_cache, &map,
+					      sccstack[first+i].t);
+      }
     }
-  hashval_t scc_hash = 0;
-  for (unsigned i = 0; i < size; ++i)
-    {
-      sccstack[first+i].hash = tem[i];
-      scc_hash = iterative_hash_hashval_t (tem[i], scc_hash);
-    }
-  return scc_hash;
+  while (true);
 }
 
 /* DFS walk EXPR and stream SCCs of tree bodies if they are not
    already in the streamer cache.  Main routine called for
    each visit of EXPR.  */
 
-static void
-DFS_write_tree (struct output_block *ob, sccs *from_state,
-		tree expr, bool ref_p, bool this_ref_p)
+void
+DFS::DFS_write_tree (struct output_block *ob, sccs *from_state,
+		     tree expr, bool ref_p, bool this_ref_p)
 {
-  unsigned ix;
-  sccs **slot;
-
   /* Handle special cases.  */
   if (expr == NULL_TREE)
     return;
@@ -1184,151 +1543,16 @@ DFS_write_tree (struct output_block *ob, sccs *from_state,
     return;
 
   /* Check if we already streamed EXPR.  */
-  if (streamer_tree_cache_lookup (ob->writer_cache, expr, &ix))
+  if (streamer_tree_cache_lookup (ob->writer_cache, expr, NULL))
     return;
 
-  slot = (sccs **)pointer_map_insert (sccstate, expr);
-  sccs *cstate = *slot;
-  if (!cstate)
-    {
-      scc_entry e = { expr, 0 };
-      /* Not yet visited.  DFS recurse and push it onto the stack.  */
-      *slot = cstate = XOBNEW (&sccstate_obstack, struct sccs);
-      sccstack.safe_push (e);
-      cstate->dfsnum = next_dfs_num++;
-      cstate->low = cstate->dfsnum;
-
-      if (streamer_handle_as_builtin_p (expr))
-	;
-      else if (TREE_CODE (expr) == INTEGER_CST
-	       && !TREE_OVERFLOW (expr))
-	DFS_write_tree (ob, cstate, TREE_TYPE (expr), ref_p, ref_p);
-      else
-	{
-	  DFS_write_tree_body (ob, expr, cstate, ref_p);
-
-	  /* Walk any LTO-specific edges.  */
-	  if (DECL_P (expr)
-	      && TREE_CODE (expr) != FUNCTION_DECL
-	      && TREE_CODE (expr) != TRANSLATION_UNIT_DECL)
-	    {
-	      /* Handle DECL_INITIAL for symbols.  */
-	      tree initial = get_symbol_initial_value (ob, expr);
-	      DFS_write_tree (ob, cstate, initial, ref_p, ref_p);
-	    }
-	}
-
-      /* See if we found an SCC.  */
-      if (cstate->low == cstate->dfsnum)
-	{
-	  unsigned first, size;
-	  tree x;
-
-	  /* Pop the SCC and compute its size.  */
-	  first = sccstack.length ();
-	  do
-	    {
-	      x = sccstack[--first].t;
-	    }
-	  while (x != expr);
-	  size = sccstack.length () - first;
-
-	  /* No need to compute hashes for LTRANS units, we don't perform
-	     any merging there.  */
-	  hashval_t scc_hash = 0;
-	  unsigned scc_entry_len = 0;
-	  if (!flag_wpa)
-	    {
-	      scc_hash = hash_scc (ob->writer_cache, first, size);
-
-	      /* Put the entries with the least number of collisions first.  */
-	      unsigned entry_start = 0;
-	      scc_entry_len = size + 1;
-	      for (unsigned i = 0; i < size;)
-		{
-		  unsigned from = i;
-		  for (i = i + 1; i < size
-		       && (sccstack[first + i].hash
-			   == sccstack[first + from].hash); ++i)
-		    ;
-		  if (i - from < scc_entry_len)
-		    {
-		      scc_entry_len = i - from;
-		      entry_start = from;
-		    }
-		}
-	      for (unsigned i = 0; i < scc_entry_len; ++i)
-		{
-		  scc_entry tem = sccstack[first + i];
-		  sccstack[first + i] = sccstack[first + entry_start + i];
-		  sccstack[first + entry_start + i] = tem;
-		}
-	    }
-
-	  /* Write LTO_tree_scc.  */
-	  streamer_write_record_start (ob, LTO_tree_scc);
-	  streamer_write_uhwi (ob, size);
-	  streamer_write_uhwi (ob, scc_hash);
-
-	  /* Write size-1 SCCs without wrapping them inside SCC bundles.
-	     All INTEGER_CSTs need to be handled this way as we need
-	     their type to materialize them.  Also builtins are handled
-	     this way.
-	     ???  We still wrap these in LTO_tree_scc so at the
-	     input side we can properly identify the tree we want
-	     to ultimatively return.  */
-	  if (size == 1)
-	    lto_output_tree_1 (ob, expr, scc_hash, ref_p, this_ref_p);
-	  else
-	    {
-	      /* Write the size of the SCC entry candidates.  */
-	      streamer_write_uhwi (ob, scc_entry_len);
-
-	      /* Write all headers and populate the streamer cache.  */
-	      for (unsigned i = 0; i < size; ++i)
-		{
-		  hashval_t hash = sccstack[first+i].hash;
-		  tree t = sccstack[first+i].t;
-		  bool exists_p = streamer_tree_cache_insert (ob->writer_cache,
-							      t, hash, &ix);
-		  gcc_assert (!exists_p);
-
-		  if (!lto_is_streamable (t))
-		    internal_error ("tree code %qs is not supported "
-				    "in LTO streams",
-				    get_tree_code_name (TREE_CODE (t)));
-
-		  gcc_checking_assert (!streamer_handle_as_builtin_p (t));
-
-		  /* Write the header, containing everything needed to
-		     materialize EXPR on the reading side.  */
-		  streamer_write_tree_header (ob, t);
-		}
-
-	      /* Write the bitpacks and tree references.  */
-	      for (unsigned i = 0; i < size; ++i)
-		{
-		  lto_write_tree_1 (ob, sccstack[first+i].t, ref_p);
-
-		  /* Mark the end of the tree.  */
-		  streamer_write_zero (ob);
-		}
-	    }
-
-	  /* Finally truncate the vector.  */
-	  sccstack.truncate (first);
-
-	  if (from_state)
-	    from_state->low = MIN (from_state->low, cstate->low);
-	  return;
-	}
-
-      if (from_state)
-	from_state->low = MIN (from_state->low, cstate->low);
-    }
-  gcc_checking_assert (from_state);
-  if (cstate->dfsnum < from_state->dfsnum)
-    from_state->low = MIN (cstate->dfsnum, from_state->low);
+  worklist w;
+  w.expr = expr;
+  w.from_state = from_state;
+  w.cstate = NULL;
+  w.ref_p = ref_p;
+  w.this_ref_p = this_ref_p;
+  worklist_vec.safe_push (w);
 }
 
 
@@ -1382,13 +1606,7 @@ lto_output_tree (struct output_block *ob, tree expr,
       /* Save ob state ... */
       /* let's see ... */
       in_dfs_walk = true;
-      sccstate = pointer_map_create ();
-      gcc_obstack_init (&sccstate_obstack);
-      next_dfs_num = 1;
-      DFS_write_tree (ob, NULL, expr, ref_p, this_ref_p);
-      sccstack.release ();
-      pointer_map_destroy (sccstate);
-      obstack_free (&sccstate_obstack, NULL);
+      DFS (ob, expr, ref_p, this_ref_p, false);
       in_dfs_walk = false;
 
       /* Finally append a reference to the tree we were writing.
@@ -1608,6 +1826,21 @@ output_ssa_names (struct output_block *ob, struct function *fn)
 }
 
 
+/* Output a wide-int.  */
+
+static void
+streamer_write_wi (struct output_block *ob,
+		   const widest_int &w)
+{
+  int len = w.get_len ();
+
+  streamer_write_uhwi (ob, w.get_precision ());
+  streamer_write_uhwi (ob, len);
+  for (int i = 0; i < len; i++)
+    streamer_write_hwi (ob, w.elt (i));
+}
+
+
 /* Output the cfg.  */
 
 static void
@@ -1680,20 +1913,15 @@ output_cfg (struct output_block *ob, struct function *fn)
 			   loop_estimation, EST_LAST, loop->estimate_state);
       streamer_write_hwi (ob, loop->any_upper_bound);
       if (loop->any_upper_bound)
-	{
-	  streamer_write_uhwi (ob, loop->nb_iterations_upper_bound.low);
-	  streamer_write_hwi (ob, loop->nb_iterations_upper_bound.high);
-	}
+	streamer_write_wi (ob, loop->nb_iterations_upper_bound);
       streamer_write_hwi (ob, loop->any_estimate);
       if (loop->any_estimate)
-	{
-	  streamer_write_uhwi (ob, loop->nb_iterations_estimate.low);
-	  streamer_write_hwi (ob, loop->nb_iterations_estimate.high);
-	}
+	streamer_write_wi (ob, loop->nb_iterations_estimate);
 
       /* Write OMP SIMD related info.  */
       streamer_write_hwi (ob, loop->safelen);
-      streamer_write_hwi (ob, loop->force_vect);
+      streamer_write_hwi (ob, loop->dont_vectorize);
+      streamer_write_hwi (ob, loop->force_vectorize);
       stream_write_tree (ob, loop->simduid, true);
     }
 
@@ -1710,7 +1938,6 @@ produce_asm (struct output_block *ob, tree fn)
   enum lto_section_type section_type = ob->section_type;
   struct lto_function_header header;
   char *section_name;
-  struct lto_output_stream *header_stream;
 
   if (section_type == LTO_section_function_body)
     {
@@ -1727,20 +1954,14 @@ produce_asm (struct output_block *ob, tree fn)
   memset (&header, 0, sizeof (struct lto_function_header));
 
   /* Write the header.  */
-  header.lto_header.major_version = LTO_major_version;
-  header.lto_header.minor_version = LTO_minor_version;
-
-  header.compressed_size = 0;
+  header.major_version = LTO_major_version;
+  header.minor_version = LTO_minor_version;
 
   if (section_type == LTO_section_function_body)
     header.cfg_size = ob->cfg_stream->total_size;
   header.main_size = ob->main_stream->total_size;
   header.string_size = ob->string_stream->total_size;
-
-  header_stream = XCNEW (struct lto_output_stream);
-  lto_output_data_stream (header_stream, &header, sizeof header);
-  lto_write_stream (header_stream);
-  free (header_stream);
+  lto_write_data (&header, sizeof header);
 
   /* Put all of the gimple and the string table out the asm file as a
      block of text.  */
@@ -1788,10 +2009,11 @@ output_struct_function_base (struct output_block *ob, struct function *fn)
   bp_pack_value (&bp, fn->has_nonlocal_label, 1);
   bp_pack_value (&bp, fn->calls_alloca, 1);
   bp_pack_value (&bp, fn->calls_setjmp, 1);
-  bp_pack_value (&bp, fn->has_force_vect_loops, 1);
+  bp_pack_value (&bp, fn->has_force_vectorize_loops, 1);
   bp_pack_value (&bp, fn->has_simduid_loops, 1);
   bp_pack_value (&bp, fn->va_list_fpr_size, 8);
   bp_pack_value (&bp, fn->va_list_gpr_size, 8);
+  bp_pack_value (&bp, fn->last_clique, sizeof (short) * 8);
 
   /* Output the function start and end loci.  */
   stream_output_location (ob, &bp, fn->function_start_locus);
@@ -1816,7 +2038,7 @@ output_function (struct cgraph_node *node)
   ob = create_output_block (LTO_section_function_body);
 
   clear_line_info (ob);
-  ob->cgraph_node = node;
+  ob->symbol = node;
 
   gcc_assert (current_function_decl == NULL_TREE && cfun == NULL);
 
@@ -1859,16 +2081,17 @@ output_function (struct cgraph_node *node)
       set_gimple_stmt_max_uid (cfun, 0);
       FOR_ALL_BB_FN (bb, cfun)
 	{
-	  gimple_stmt_iterator gsi;
-	  for (gsi = gsi_start_phis (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+	  for (gphi_iterator gsi = gsi_start_phis (bb); !gsi_end_p (gsi);
+	       gsi_next (&gsi))
 	    {
-	      gimple stmt = gsi_stmt (gsi);
+	      gphi *stmt = gsi.phi ();
 
 	      /* Virtual PHIs are not going to be streamed.  */
 	      if (!virtual_operand_p (gimple_phi_result (stmt)))
 	        gimple_set_uid (stmt, inc_gimple_stmt_max_uid (cfun));
 	    }
-	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+	  for (gimple_stmt_iterator gsi = gsi_start_bb (bb); !gsi_end_p (gsi);
+	       gsi_next (&gsi))
 	    {
 	      gimple stmt = gsi_stmt (gsi);
 	      gimple_set_uid (stmt, inc_gimple_stmt_max_uid (cfun));
@@ -1878,10 +2101,10 @@ output_function (struct cgraph_node *node)
 	 virtual phis now.  */
       FOR_ALL_BB_FN (bb, cfun)
 	{
-	  gimple_stmt_iterator gsi;
-	  for (gsi = gsi_start_phis (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+	  for (gphi_iterator gsi = gsi_start_phis (bb); !gsi_end_p (gsi);
+	       gsi_next (&gsi))
 	    {
-	      gimple stmt = gsi_stmt (gsi);
+	      gphi *stmt = gsi.phi ();
 	      if (virtual_operand_p (gimple_phi_result (stmt)))
 	        gimple_set_uid (stmt, inc_gimple_stmt_max_uid (cfun));
 	    }
@@ -1907,6 +2130,32 @@ output_function (struct cgraph_node *node)
   destroy_output_block (ob);
 }
 
+/* Output the body of function NODE->DECL.  */
+
+static void
+output_constructor (struct varpool_node *node)
+{
+  tree var = node->decl;
+  struct output_block *ob;
+
+  ob = create_output_block (LTO_section_function_body);
+
+  clear_line_info (ob);
+  ob->symbol = node;
+
+  /* Make string 0 be a NULL string.  */
+  streamer_write_char_stream (ob->string_stream, 0);
+
+  /* Output DECL_INITIAL for the function, which contains the tree of
+     lexical scopes.  */
+  stream_write_tree (ob, DECL_INITIAL (var), true);
+
+  /* Create a section to hold the pickled output of this function.   */
+  produce_asm (ob, var);
+
+  destroy_output_block (ob);
+}
+
 
 /* Emit toplevel asms.  */
 
@@ -1916,10 +2165,9 @@ lto_output_toplevel_asms (void)
   struct output_block *ob;
   struct asm_node *can;
   char *section_name;
-  struct lto_output_stream *header_stream;
-  struct lto_asm_header header;
+  struct lto_simple_header_with_strings header;
 
-  if (! asm_nodes)
+  if (!symtab->first_asm_symbol ())
     return;
 
   ob = create_output_block (LTO_section_asm);
@@ -1927,7 +2175,7 @@ lto_output_toplevel_asms (void)
   /* Make string 0 be a NULL string.  */
   streamer_write_char_stream (ob->string_stream, 0);
 
-  for (can = asm_nodes; can; can = can->next)
+  for (can = symtab->first_asm_symbol (); can; can = can->next)
     {
       streamer_write_string_cst (ob, ob->main_stream, can->asm_str);
       streamer_write_hwi (ob, can->order);
@@ -1943,16 +2191,12 @@ lto_output_toplevel_asms (void)
   memset (&header, 0, sizeof (header));
 
   /* Write the header.  */
-  header.lto_header.major_version = LTO_major_version;
-  header.lto_header.minor_version = LTO_minor_version;
+  header.major_version = LTO_major_version;
+  header.minor_version = LTO_minor_version;
 
   header.main_size = ob->main_stream->total_size;
   header.string_size = ob->string_stream->total_size;
-
-  header_stream = XCNEW (struct lto_output_stream);
-  lto_output_data_stream (header_stream, &header, sizeof (header));
-  lto_write_stream (header_stream);
-  free (header_stream);
+  lto_write_data (&header, sizeof header);
 
   /* Put all of the gimple and the string table out the asm file as a
      block of text.  */
@@ -1965,14 +2209,13 @@ lto_output_toplevel_asms (void)
 }
 
 
-/* Copy the function body of NODE without deserializing. */
+/* Copy the function body or variable constructor of NODE without deserializing. */
 
 static void
-copy_function (struct cgraph_node *node)
+copy_function_or_variable (struct symtab_node *node)
 {
   tree function = node->decl;
   struct lto_file_decl_data *file_data = node->lto_file_data;
-  struct lto_output_stream *output_stream = XCNEW (struct lto_output_stream);
   const char *data;
   size_t len;
   const char *name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (function));
@@ -1993,8 +2236,7 @@ copy_function (struct cgraph_node *node)
   gcc_assert (data);
 
   /* Do a bit copy of the function body.  */
-  lto_output_data_stream (output_stream, data, len);
-  lto_write_stream (output_stream);
+  lto_write_data (data, len);
 
   /* Copy decls. */
   in_state =
@@ -2003,8 +2245,8 @@ copy_function (struct cgraph_node *node)
 
   for (i = 0; i < LTO_N_DECL_STREAMS; i++)
     {
-      size_t n = in_state->streams[i].size;
-      tree *trees = in_state->streams[i].trees;
+      size_t n = vec_safe_length (in_state->streams[i]);
+      vec<tree, va_gc> *trees = in_state->streams[i];
       struct lto_tree_ref_encoder *encoder = &(out_state->streams[i]);
 
       /* The out state must have the same indices and the in state.
@@ -2013,12 +2255,11 @@ copy_function (struct cgraph_node *node)
       gcc_assert (lto_tree_ref_encoder_size (encoder) == 0);
       encoder->trees.reserve_exact (n);
       for (j = 0; j < n; j++)
-	encoder->trees.safe_push (trees[j]);
+	encoder->trees.safe_push ((*trees)[j]);
     }
 
   lto_free_section_data (file_data, LTO_section_function_body, name,
 			 data, len);
-  free (output_stream);
   lto_end_section ();
 }
 
@@ -2066,7 +2307,7 @@ lto_output (void)
   for (i = 0; i < n_nodes; i++)
     {
       symtab_node *snode = lto_symtab_encoder_deref (encoder, i);
-      if (cgraph_node *node = dyn_cast <cgraph_node> (snode))
+      if (cgraph_node *node = dyn_cast <cgraph_node *> (snode))
 	{
 	  if (lto_symtab_encoder_encode_body_p (encoder, node)
 	      && !node->alias)
@@ -2077,22 +2318,46 @@ lto_output (void)
 #endif
 	      decl_state = lto_new_out_decl_state ();
 	      lto_push_out_decl_state (decl_state);
-	      if (gimple_has_body_p (node->decl) || !flag_wpa)
+	      if (gimple_has_body_p (node->decl) || !flag_wpa
+		  /* Thunks have no body but they may be synthetized
+		     at WPA time.  */
+		  || DECL_ARGUMENTS (node->decl))
 		output_function (node);
 	      else
-		copy_function (node);
+		copy_function_or_variable (node);
 	      gcc_assert (lto_get_out_decl_state () == decl_state);
 	      lto_pop_out_decl_state ();
 	      lto_record_function_out_decl_state (node->decl, decl_state);
 	    }
 	}
-      else if (varpool_node *node = dyn_cast <varpool_node> (snode))
+      else if (varpool_node *node = dyn_cast <varpool_node *> (snode))
 	{
 	  /* Wrap symbol references inside the ctor in a type
 	     preserving MEM_REF.  */
 	  tree ctor = DECL_INITIAL (node->decl);
 	  if (ctor && !in_lto_p)
 	    walk_tree (&ctor, wrap_refs, NULL, NULL);
+	  if (get_symbol_initial_value (encoder, node->decl) == error_mark_node
+	      && lto_symtab_encoder_encode_initializer_p (encoder, node)
+	      && !node->alias)
+	    {
+	      timevar_push (TV_IPA_LTO_CTORS_OUT);
+#ifdef ENABLE_CHECKING
+	      gcc_assert (!bitmap_bit_p (output, DECL_UID (node->decl)));
+	      bitmap_set_bit (output, DECL_UID (node->decl));
+#endif
+	      decl_state = lto_new_out_decl_state ();
+	      lto_push_out_decl_state (decl_state);
+	      if (DECL_INITIAL (node->decl) != error_mark_node
+		  || !flag_wpa)
+		output_constructor (node);
+	      else
+		copy_function_or_variable (node);
+	      gcc_assert (lto_get_out_decl_state () == decl_state);
+	      lto_pop_out_decl_state ();
+	      lto_record_function_out_decl_state (node->decl, decl_state);
+	      timevar_pop (TV_IPA_LTO_CTORS_OUT);
+	    }
 	}
     }
 
@@ -2101,6 +2366,8 @@ lto_output (void)
      have been renumbered so that edges can be associated with call
      statements using the statement UIDs.  */
   output_symtab ();
+
+  output_offload_tables ();
 
 #ifdef ENABLE_CHECKING
   lto_bitmap_free (output);
@@ -2139,15 +2406,15 @@ write_global_stream (struct output_block *ob,
 
 static void
 write_global_references (struct output_block *ob,
-			 struct lto_output_stream *ref_stream,
  			 struct lto_tree_ref_encoder *encoder)
 {
   tree t;
   uint32_t index;
   const uint32_t size = lto_tree_ref_encoder_size (encoder);
 
-  /* Write size as 32-bit unsigned. */
-  lto_output_data_stream (ref_stream, &size, sizeof (int32_t));
+  /* Write size and slot indexes as 32-bit unsigned numbers. */
+  uint32_t *data = XNEWVEC (uint32_t, size + 1);
+  data[0] = size;
 
   for (index = 0; index < size; index++)
     {
@@ -2156,8 +2423,11 @@ write_global_references (struct output_block *ob,
       t = lto_tree_ref_encoder_get_tree (encoder, index);
       streamer_tree_cache_lookup (ob->writer_cache, t, &slot_num);
       gcc_assert (slot_num != (unsigned)-1);
-      lto_output_data_stream (ref_stream, &slot_num, sizeof slot_num);
+      data[index + 1] = slot_num;
     }
+
+  lto_write_data (data, sizeof (int32_t) * (size + 1));
+  free (data);
 }
 
 
@@ -2180,7 +2450,6 @@ lto_output_decl_state_streams (struct output_block *ob,
 
 void
 lto_output_decl_state_refs (struct output_block *ob,
-			    struct lto_output_stream *out_stream,
 			    struct lto_out_decl_state *state)
 {
   unsigned i;
@@ -2192,10 +2461,10 @@ lto_output_decl_state_refs (struct output_block *ob,
   decl = (state->fn_decl) ? state->fn_decl : void_type_node;
   streamer_tree_cache_lookup (ob->writer_cache, decl, &ref);
   gcc_assert (ref != (unsigned)-1);
-  lto_output_data_stream (out_stream, &ref, sizeof (uint32_t));
+  lto_write_data (&ref, sizeof (uint32_t));
 
   for (i = 0;  i < LTO_N_DECL_STREAMS; i++)
-    write_global_references (ob, out_stream, &state->streams[i]);
+    write_global_references (ob, &state->streams[i]);
 }
 
 
@@ -2223,14 +2492,13 @@ lto_out_decl_state_written_size (struct lto_out_decl_state *state)
 
 static void
 write_symbol (struct streamer_tree_cache_d *cache,
-	      struct lto_output_stream *stream,
-	      tree t, struct pointer_set_t *seen, bool alias)
+	      tree t, hash_set<const char *> *seen, bool alias)
 {
   const char *name;
   enum gcc_plugin_symbol_kind kind;
-  enum gcc_plugin_symbol_visibility visibility;
+  enum gcc_plugin_symbol_visibility visibility = GCCPV_DEFAULT;
   unsigned slot_num;
-  unsigned HOST_WIDEST_INT size;
+  uint64_t size;
   const char *comdat;
   unsigned char c;
 
@@ -2238,7 +2506,7 @@ write_symbol (struct streamer_tree_cache_d *cache,
      symbol table.  */
   if (!TREE_PUBLIC (t)
       || is_builtin_fn (t)
-      || DECL_ABSTRACT (t)
+      || DECL_ABSTRACT_P (t)
       || (TREE_CODE (t) == VAR_DECL && DECL_HARD_REGISTER (t)))
     return;
   gcc_assert (TREE_CODE (t) != RESULT_DECL);
@@ -2252,9 +2520,8 @@ write_symbol (struct streamer_tree_cache_d *cache,
      same name manipulations that ASM_OUTPUT_LABELREF does. */
   name = IDENTIFIER_POINTER ((*targetm.asm_out.mangle_assembler_name) (name));
 
-  if (pointer_set_contains (seen, name))
+  if (seen->add (name))
     return;
-  pointer_set_insert (seen, name);
 
   streamer_tree_cache_lookup (cache, t, &slot_num);
   gcc_assert (slot_num != (unsigned)-1);
@@ -2277,10 +2544,10 @@ write_symbol (struct streamer_tree_cache_d *cache,
 
       /* When something is defined, it should have node attached.  */
       gcc_assert (alias || TREE_CODE (t) != VAR_DECL
-		  || varpool_get_node (t)->definition);
+		  || varpool_node::get (t)->definition);
       gcc_assert (alias || TREE_CODE (t) != FUNCTION_DECL
-		  || (cgraph_get_node (t)
-		      && cgraph_get_node (t)->definition));
+		  || (cgraph_node::get (t)
+		      && cgraph_node::get (t)->definition));
     }
 
   /* Imitate what default_elf_asm_output_external do.
@@ -2318,18 +2585,18 @@ write_symbol (struct streamer_tree_cache_d *cache,
     size = 0;
 
   if (DECL_ONE_ONLY (t))
-    comdat = IDENTIFIER_POINTER (DECL_COMDAT_GROUP (t));
+    comdat = IDENTIFIER_POINTER (decl_comdat_group_id (t));
   else
     comdat = "";
 
-  lto_output_data_stream (stream, name, strlen (name) + 1);
-  lto_output_data_stream (stream, comdat, strlen (comdat) + 1);
+  lto_write_data (name, strlen (name) + 1);
+  lto_write_data (comdat, strlen (comdat) + 1);
   c = (unsigned char) kind;
-  lto_output_data_stream (stream, &c, 1);
+  lto_write_data (&c, 1);
   c = (unsigned char) visibility;
-  lto_output_data_stream (stream, &c, 1);
-  lto_output_data_stream (stream, &size, 8);
-  lto_output_data_stream (stream, &slot_num, 4);
+  lto_write_data (&c, 1);
+  lto_write_data (&size, 8);
+  lto_write_data (&slot_num, 4);
 }
 
 /* Return true if NODE should appear in the plugin symbol table.  */
@@ -2338,12 +2605,12 @@ bool
 output_symbol_p (symtab_node *node)
 {
   struct cgraph_node *cnode;
-  if (!symtab_real_symbol_p (node))
+  if (!node->real_symbol_p ())
     return false;
   /* We keep external functions in symtab for sake of inlining
      and devirtualization.  We do not want to see them in symbol table as
      references unless they are really used.  */
-  cnode = dyn_cast <cgraph_node> (node);
+  cnode = dyn_cast <cgraph_node *> (node);
   if (cnode && (!node->definition || DECL_EXTERNAL (cnode->decl))
       && cnode->callers)
     return true;
@@ -2356,12 +2623,11 @@ output_symbol_p (symtab_node *node)
     {
       int i;
       struct ipa_ref *ref;
-      for (i = 0; ipa_ref_list_referring_iterate (&node->ref_list,
-					          i, ref); i++)
+      for (i = 0; node->iterate_referring (i, ref); i++)
 	{
 	  if (ref->use == IPA_REF_ALIAS)
 	    continue;
-          if (is_a <cgraph_node> (ref->referring))
+          if (is_a <cgraph_node *> (ref->referring))
 	    return true;
 	  if (!DECL_EXTERNAL (ref->referring->decl))
 	    return true;
@@ -2380,16 +2646,13 @@ produce_symtab (struct output_block *ob)
 {
   struct streamer_tree_cache_d *cache = ob->writer_cache;
   char *section_name = lto_get_section_name (LTO_section_symtab, NULL, NULL);
-  struct pointer_set_t *seen;
-  struct lto_output_stream stream;
   lto_symtab_encoder_t encoder = ob->decl_state->symtab_node_encoder;
   lto_symtab_encoder_iterator lsei;
 
   lto_begin_section (section_name, false);
   free (section_name);
 
-  seen = pointer_set_create ();
-  memset (&stream, 0, sizeof (stream));
+  hash_set<const char *> seen;
 
   /* Write the symbol table.
      First write everything defined and then all declarations.
@@ -2401,7 +2664,7 @@ produce_symtab (struct output_block *ob)
 
       if (!output_symbol_p (node) || DECL_EXTERNAL (node->decl))
 	continue;
-      write_symbol (cache, &stream, node->decl, seen, false);
+      write_symbol (cache, node->decl, &seen, false);
     }
   for (lsei = lsei_start (encoder);
        !lsei_end_p (lsei); lsei_next (&lsei))
@@ -2410,13 +2673,100 @@ produce_symtab (struct output_block *ob)
 
       if (!output_symbol_p (node) || !DECL_EXTERNAL (node->decl))
 	continue;
-      write_symbol (cache, &stream, node->decl, seen, false);
+      write_symbol (cache, node->decl, &seen, false);
     }
 
-  lto_write_stream (&stream);
-  pointer_set_destroy (seen);
+  lto_end_section ();
+}
+
+
+/* Init the streamer_mode_table for output, where we collect info on what
+   machine_mode values have been streamed.  */
+void
+lto_output_init_mode_table (void)
+{
+  memset (streamer_mode_table, '\0', MAX_MACHINE_MODE);
+}
+
+
+/* Write the mode table.  */
+static void
+lto_write_mode_table (void)
+{
+  struct output_block *ob;
+  ob = create_output_block (LTO_section_mode_table);
+  bitpack_d bp = bitpack_create (ob->main_stream);
+
+  /* Ensure that for GET_MODE_INNER (m) != VOIDmode we have
+     also the inner mode marked.  */
+  for (int i = 0; i < (int) MAX_MACHINE_MODE; i++)
+    if (streamer_mode_table[i])
+      {
+	machine_mode m = (machine_mode) i;
+	if (GET_MODE_INNER (m) != VOIDmode)
+	  streamer_mode_table[(int) GET_MODE_INNER (m)] = 1;
+      }
+  /* First stream modes that have GET_MODE_INNER (m) == VOIDmode,
+     so that we can refer to them afterwards.  */
+  for (int pass = 0; pass < 2; pass++)
+    for (int i = 0; i < (int) MAX_MACHINE_MODE; i++)
+      if (streamer_mode_table[i] && i != (int) VOIDmode && i != (int) BLKmode)
+	{
+	  machine_mode m = (machine_mode) i;
+	  if ((GET_MODE_INNER (m) == VOIDmode) ^ (pass == 0))
+	    continue;
+	  bp_pack_value (&bp, m, 8);
+	  bp_pack_enum (&bp, mode_class, MAX_MODE_CLASS, GET_MODE_CLASS (m));
+	  bp_pack_value (&bp, GET_MODE_SIZE (m), 8);
+	  bp_pack_value (&bp, GET_MODE_PRECISION (m), 16);
+	  bp_pack_value (&bp, GET_MODE_INNER (m), 8);
+	  bp_pack_value (&bp, GET_MODE_NUNITS (m), 8);
+	  switch (GET_MODE_CLASS (m))
+	    {
+	    case MODE_FRACT:
+	    case MODE_UFRACT:
+	    case MODE_ACCUM:
+	    case MODE_UACCUM:
+	      bp_pack_value (&bp, GET_MODE_IBIT (m), 8);
+	      bp_pack_value (&bp, GET_MODE_FBIT (m), 8);
+	      break;
+	    case MODE_FLOAT:
+	    case MODE_DECIMAL_FLOAT:
+	      bp_pack_string (ob, &bp, REAL_MODE_FORMAT (m)->name, true);
+	      break;
+	    default:
+	      break;
+	    }
+	  bp_pack_string (ob, &bp, GET_MODE_NAME (m), true);
+	}
+  bp_pack_value (&bp, VOIDmode, 8);
+
+  streamer_write_bitpack (&bp);
+
+  char *section_name
+    = lto_get_section_name (LTO_section_mode_table, NULL, NULL);
+  lto_begin_section (section_name, !flag_wpa);
+  free (section_name);
+
+  /* The entire header stream is computed here.  */
+  struct lto_simple_header_with_strings header;
+  memset (&header, 0, sizeof (header));
+
+  /* Write the header.  */
+  header.major_version = LTO_major_version;
+  header.minor_version = LTO_minor_version;
+
+  header.main_size = ob->main_stream->total_size;
+  header.string_size = ob->string_stream->total_size;
+  lto_write_data (&header, sizeof header);
+
+  /* Put all of the gimple and the string table out the asm file as a
+     block of text.  */
+  lto_write_stream (ob->main_stream);
+  lto_write_stream (ob->string_stream);
 
   lto_end_section ();
+  destroy_output_block (ob);
 }
 
 
@@ -2434,13 +2784,11 @@ produce_asm_for_decls (void)
   struct lto_decl_header header;
   char *section_name;
   struct output_block *ob;
-  struct lto_output_stream *header_stream, *decl_state_stream;
   unsigned idx, num_fns;
   size_t decl_state_size;
   int32_t num_decl_states;
 
   ob = create_output_block (LTO_section_decls);
-  ob->global = true;
 
   memset (&header, 0, sizeof (struct lto_decl_header));
 
@@ -2472,8 +2820,8 @@ produce_asm_for_decls (void)
       lto_output_decl_state_streams (ob, fn_out_state);
     }
 
-  header.lto_header.major_version = LTO_major_version;
-  header.lto_header.minor_version = LTO_minor_version;
+  header.major_version = LTO_major_version;
+  header.minor_version = LTO_minor_version;
 
   /* Currently not used.  This field would allow us to preallocate
      the globals vector, so that it need not be resized as it is extended.  */
@@ -2493,26 +2841,18 @@ produce_asm_for_decls (void)
   header.main_size = ob->main_stream->total_size;
   header.string_size = ob->string_stream->total_size;
 
-  header_stream = XCNEW (struct lto_output_stream);
-  lto_output_data_stream (header_stream, &header, sizeof header);
-  lto_write_stream (header_stream);
-  free (header_stream);
+  lto_write_data (&header, sizeof header);
 
   /* Write the main out-decl state, followed by out-decl states of
      functions. */
-  decl_state_stream = XCNEW (struct lto_output_stream);
   num_decl_states = num_fns + 1;
-  lto_output_data_stream (decl_state_stream, &num_decl_states,
-			  sizeof (num_decl_states));
-  lto_output_decl_state_refs (ob, decl_state_stream, out_state);
+  lto_write_data (&num_decl_states, sizeof (num_decl_states));
+  lto_output_decl_state_refs (ob, out_state);
   for (idx = 0; idx < num_fns; idx++)
     {
-      fn_out_state =
-	lto_function_decl_states[idx];
-      lto_output_decl_state_refs (ob, decl_state_stream, fn_out_state);
+      fn_out_state = lto_function_decl_states[idx];
+      lto_output_decl_state_refs (ob, fn_out_state);
     }
-  lto_write_stream (decl_state_stream);
-  free (decl_state_stream);
 
   lto_write_stream (ob->main_stream);
   lto_write_stream (ob->string_stream);
@@ -2537,4 +2877,6 @@ produce_asm_for_decls (void)
   lto_symtab_encoder_delete (ob->decl_state->symtab_node_encoder);
   lto_function_decl_states.release ();
   destroy_output_block (ob);
+  if (lto_stream_offload_p)
+    lto_write_mode_table ();
 }

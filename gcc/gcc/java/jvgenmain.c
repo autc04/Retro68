@@ -1,5 +1,5 @@
 /* Program to generate "main" a Java(TM) class containing a main method.
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,6 +28,16 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "coretypes.h"
 #include "obstack.h"
 #include "jcf.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "java-tree.h"
 #include "intl.h"
@@ -127,6 +137,10 @@ main (int argc, char **argv)
   /* At this point every element of ARGV from 1 to LAST_ARG is a `-D'
      option.  Process them appropriately.  */
   fprintf (stream, "extern const char **_Jv_Compiler_Properties;\n");
+  if (indirect)
+    fprintf (stream, "extern void JvRunMainName ();\n");
+  else
+    fprintf (stream, "extern void JvRunMain ();\n");
   fprintf (stream, "static const char *props[] =\n{\n");
   for (i = 1; i < last_arg; ++i)
     {

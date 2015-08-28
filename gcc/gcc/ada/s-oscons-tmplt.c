@@ -7,7 +7,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2000-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -80,11 +80,23 @@ pragma Style_Checks ("M32766");
 
 /* Feature macro definitions */
 
-#if defined (__linux__) && !defined (_XOPEN_SOURCE)
-/** For Linux _XOPEN_SOURCE must be defined, otherwise IOV_MAX is not defined
+/**
+ ** Note: we deliberately do not define _POSIX_SOURCE / _POSIX_C_SOURCE
+ ** unconditionally, as on many platforms these macros actually disable
+ ** a number of non-POSIX but useful/required features.
  **/
-#define _XOPEN_SOURCE 500
-#endif
+
+#if defined (__linux__)
+
+/* Define _XOPEN_SOURCE to get IOV_MAX */
+# if !defined (_XOPEN_SOURCE)
+#  define _XOPEN_SOURCE 500
+# endif
+
+/* Define _BSD_SOURCE to get CRTSCTS */
+# define _BSD_SOURCE
+
+#endif /* defined (__linux__) */
 
 /* Include gsocket.h before any system header so it can redefine FD_SETSIZE */
 
@@ -96,16 +108,7 @@ pragma Style_Checks ("M32766");
 #include <fcntl.h>
 #include <time.h>
 
-#if defined (__VMS)
-/** VMS is unable to do vector IO operations with default value of IOV_MAX,
- ** so its value is redefined to a small one which is known to work properly.
- **/
-#undef IOV_MAX
-#define IOV_MAX 16
-#endif
-
-#if ! (defined (__vxworks) || defined (__VMS) || defined (__MINGW32__) || \
-       defined (__nucleus__))
+#if ! (defined (__vxworks) || defined (__MINGW32__))
 # define HAVE_TERMIOS
 #endif
 
@@ -159,7 +162,8 @@ pragma Style_Checks ("M32766");
 # include <signal.h>
 #endif
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(__CYGWIN__)
+# include <windef.h>
 # include <winbase.h>
 #endif
 
@@ -273,12 +277,10 @@ package System.OS_Constants is
    -- General platform parameters --
    ---------------------------------
 
-   type OS_Type is (Windows, VMS, Other_OS);
+   type OS_Type is (Windows, Other_OS);
 */
 #if defined (__MINGW32__)
 # define TARGET_OS "Windows"
-#elif defined (__VMS)
-# define TARGET_OS "VMS"
 #else
 # define TARGET_OS "Other_OS"
 #endif
@@ -313,15 +315,28 @@ CND(SIZEOF_unsigned_int, "Size of unsigned int")
 #endif
 CND(IOV_MAX, "Maximum writev iovcnt")
 
+/* NAME_MAX is used to compute the allocation size for a struct dirent
+ * passed to readdir() / readdir_r(). However on some systems it is not
+ * defined, as it is technically a filesystem dependent property that
+ * we should retrieve through pathconf(). In any case, we do not need a
+ * precise value but only an upper limit.
+ */
 #ifndef NAME_MAX
-# define NAME_MAX 255
+# ifdef MAXNAMELEN
+   /* Solaris has no NAME_MAX but defines MAXNAMELEN */
+#  define NAME_MAX MAXNAMELEN
+# elif defined(PATH_MAX)
+   /* PATH_MAX (maximum length of a full path name) is a safe fall back */
+#  define NAME_MAX PATH_MAX
+# elif defined(FILENAME_MAX)
+   /* Similarly FILENAME_MAX can provide a safe fall back */
+#  define NAME_MAX FILENAME_MAX
+# else
+   /* Hardcode a reasonably large value as a last chance fallback */
+#  define NAME_MAX 1024
+# endif
 #endif
 CND(NAME_MAX, "Maximum file name length")
-
-#ifndef PATH_MAX
-# define PATH_MAX 1024
-#endif
-CND(FILENAME_MAX, "Maximum file path length")
 
 /*
 
@@ -986,7 +1001,7 @@ CND(VEOL2, "Alternative EOL")
 
 #endif /* HAVE_TERMIOS */
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(__CYGWIN__)
 CNU(DTR_CONTROL_ENABLE, "Enable DTR flow ctrl")
 CNU(RTS_CONTROL_ENABLE, "Enable RTS flow ctrl")
 #endif

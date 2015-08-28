@@ -1,5 +1,5 @@
 ;; Constant defintions of Andes NDS32 cpu for GNU compiler
-;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2015 Free Software Foundation, Inc.
 ;; Contributed by Andes Technology Corporation.
 ;;
 ;; This file is part of GCC.
@@ -41,6 +41,7 @@
   UNSPEC_VOLATILE_MTUSR
   UNSPEC_VOLATILE_SETGIE_EN
   UNSPEC_VOLATILE_SETGIE_DIS
+  UNSPEC_VOLATILE_POP25_RETURN
 ])
 
 ;; ------------------------------------------------------------------------

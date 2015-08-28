@@ -18,7 +18,7 @@ CALC (long long *s1, long long *s2, long long *r)
     r[i] = s1[i] & s2[i];
 }
 
-void static
+void
 TEST (void)
 {
   UNION_TYPE (AVX512F_LEN, i_q) s1, s2, res1, res2, res3;
@@ -34,14 +34,18 @@ TEST (void)
       res2.a[i] = DEFAULT_VALUE;
     }
 
+#if AVX512F_LEN == 512
   res1.x = INTRINSIC (_and_epi64) (s1.x, s2.x);
+#endif
   res2.x = INTRINSIC (_mask_and_epi64) (res2.x, mask, s1.x, s2.x);
   res3.x = INTRINSIC (_maskz_and_epi64) (mask, s1.x, s2.x);
 
   CALC (s1.a, s2.a, res_ref);
 
+#if AVX512F_LEN == 512
   if (UNION_CHECK (AVX512F_LEN, i_q) (res1, res_ref))
       abort ();
+#endif
 
   MASK_MERGE (i_q) (res_ref, mask, SIZE);
   if (UNION_CHECK (AVX512F_LEN, i_q) (res2, res_ref))

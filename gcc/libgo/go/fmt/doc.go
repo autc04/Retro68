@@ -13,7 +13,7 @@
 	The verbs:
 
 	General:
-		%v	the value in a default format.
+		%v	the value in a default format
 			when printing structs, the plus flag (%+v) adds field names
 		%#v	a Go-syntax representation of the value
 		%T	a Go-syntax representation of the type of the value
@@ -37,8 +37,9 @@
 		%e	scientific notation, e.g. -1234.456e+78
 		%E	scientific notation, e.g. -1234.456E+78
 		%f	decimal point but no exponent, e.g. 123.456
-		%g	whichever of %e or %f produces more compact output
-		%G	whichever of %E or %f produces more compact output
+		%F	synonym for %f
+		%g	%e for large exponents, %f otherwise
+		%G	%E for large exponents, %F otherwise
 	String and slice of bytes:
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
@@ -50,23 +51,58 @@
 	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
 	Similarly, there is no need to specify the size of the operand (int8, int64).
 
-	The width and precision control formatting and are in units of Unicode
-	code points.  (This differs from C's printf where the units are numbers
-	of bytes.) Either or both of the flags may be replaced with the
-	character '*', causing their values to be obtained from the next
-	operand, which must be of type int.
+	The default format for %v is:
+		bool:                    %t
+		int, int8 etc.:          %d
+		uint, uint8 etc.:        %d, %x if printed with %#v
+		float32, complex64, etc: %g
+		string:                  %s
+		chan:                    %p
+		pointer:                 %p
+	For compound objects, the elements are printed using these rules, recursively,
+	laid out like this:
+		struct:             {field0 field1 ...}
+		array, slice:       [elem0  elem1 ...]
+		maps:               map[key1:value1 key2:value2]
+		pointer to above:   &{}, &[], &map[]
 
-	For numeric values, width sets the minimum width of the field and
+	Width is specified by an optional decimal number immediately following the verb.
+	If absent, the width is whatever is necessary to represent the value.
+	Precision is specified after the (optional) width by a period followed by a
+	decimal number. If no period is present, a default precision is used.
+	A period with no following number specifies a precision of zero.
+	Examples:
+		%f:    default width, default precision
+		%9f    width 9, default precision
+		%.2f   default width, precision 2
+		%9.2f  width 9, precision 2
+		%9.f   width 9, precision 0
+
+	Width and precision are measured in units of Unicode code points,
+	that is, runes. (This differs from C's printf where the
+	units are always measured in bytes.) Either or both of the flags
+	may be replaced with the character '*', causing their values to be
+	obtained from the next operand, which must be of type int.
+
+	For most values, width is the minimum number of runes to output,
+	padding the formatted form with spaces if necessary.
+
+	For strings, byte slices and byte arrays, however, precision
+	limits the length of the input to be formatted (not the size of
+	the output), truncating if necessary. Normally it is measured in
+	runes, but for these types when formatted with the %x or %X format
+	it is measured in bytes.
+
+	For floating-point values, width sets the minimum width of the field and
 	precision sets the number of places after the decimal, if appropriate,
 	except that for %g/%G it sets the total number of digits. For example,
 	given 123.45 the format %6.2f prints 123.45 while %.4g prints 123.5.
 	The default precision for %e and %f is 6; for %g it is the smallest
 	number of digits necessary to identify the value uniquely.
 
-	For most values, width is the minimum number of characters to output,
-	padding the formatted form with spaces if necessary.
-	For strings, precision is the maximum number of characters to output,
-	truncating if necessary.
+	For complex numbers, the width and precision apply to the two
+	components independently and the result is parenthesized, so %f applied
+	to 1.2+3.4i produces (1.200000+3.400000i).
 
 	Other flags:
 		+	always print a sign for numeric values;
@@ -98,25 +134,42 @@
 		fmt.Printf("%v\n", i)
 	will print 23.
 
-	If an operand implements interface Formatter, that interface
-	can be used for fine control of formatting.
+	Except when printed using the verbs %T and %p, special
+	formatting considerations apply for operands that implement
+	certain interfaces. In order of application:
+
+	1. If an operand implements the Formatter interface, it will
+	be invoked. Formatter provides fine control of formatting.
+
+	2. If the %v verb is used with the # flag (%#v) and the operand
+	implements the GoStringer interface, that will be invoked.
 
 	If the format (which is implicitly %v for Println etc.) is valid
-	for a string (%s %q %v %x %X), the following two rules also apply:
+	for a string (%s %q %v %x %X), the following two rules apply:
 
-	1. If an operand implements the error interface, the Error method
-	will be used to convert the object to a string, which will then
+	3. If an operand implements the error interface, the Error method
+	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
-	2. If an operand implements method String() string, that method
-	will be used to convert the object to a string, which will then
+	4. If an operand implements method String() string, that method
+	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
+
+	For compound operands such as slices and structs, the format
+	applies to the elements of each operand, recursively, not to the
+	operand as a whole. Thus %q will quote each element of a slice
+	of strings, and %6.2f will control formatting for each element
+	of a floating-point array.
 
 	To avoid recursion in cases such as
 		type X string
 		func (x X) String() string { return Sprintf("<%s>", x) }
 	convert the value before recurring:
 		func (x X) String() string { return Sprintf("<%s>", string(x)) }
+	Infinite recursion can also be triggered by self-referential data
+	structures, such as a slice that contains itself as an element, if
+	that type has a String method. Such pathologies are rare, however,
+	and the package does not protect against them.
 
 	Explicit argument indexes:
 
@@ -130,7 +183,7 @@
 
 	For example,
 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
-	will yield "22, 11", while
+	will yield "22 11", while
 		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6),
 	equivalent to
 		fmt.Sprintf("%6.2f", 12.0),

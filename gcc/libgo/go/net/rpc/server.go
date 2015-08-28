@@ -217,10 +217,11 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // Register publishes in the server the set of methods of the
 // receiver value that satisfy the following conditions:
 //	- exported method
-//	- two arguments, both pointers to exported structs
+//	- two arguments, both of exported type
+//	- the second argument is a pointer
 //	- one return value, of type error
 // It returns an error if the receiver is not an exported type or has
-// no methods or unsuitable methods. It also logs the error using package log.
+// no suitable methods. It also logs the error using package log.
 // The client accesses each method using a string of the form "Type.Method",
 // where Type is the receiver's concrete type.
 func (server *Server) Register(rcvr interface{}) error {
@@ -394,6 +395,7 @@ type gobServerCodec struct {
 	dec    *gob.Decoder
 	enc    *gob.Encoder
 	encBuf *bufio.Writer
+	closed bool
 }
 
 func (c *gobServerCodec) ReadRequestHeader(r *Request) error {
@@ -406,15 +408,32 @@ func (c *gobServerCodec) ReadRequestBody(body interface{}) error {
 
 func (c *gobServerCodec) WriteResponse(r *Response, body interface{}) (err error) {
 	if err = c.enc.Encode(r); err != nil {
+		if c.encBuf.Flush() == nil {
+			// Gob couldn't encode the header. Should not happen, so if it does,
+			// shut down the connection to signal that the connection is broken.
+			log.Println("rpc: gob error encoding response:", err)
+			c.Close()
+		}
 		return
 	}
 	if err = c.enc.Encode(body); err != nil {
+		if c.encBuf.Flush() == nil {
+			// Was a gob problem encoding the body but the header has been written.
+			// Shut down the connection to signal that the connection is broken.
+			log.Println("rpc: gob error encoding body:", err)
+			c.Close()
+		}
 		return
 	}
 	return c.encBuf.Flush()
 }
 
 func (c *gobServerCodec) Close() error {
+	if c.closed {
+		// Only call c.rwc.Close once; otherwise the semantics are undefined.
+		return nil
+	}
+	c.closed = true
 	return c.rwc.Close()
 }
 
@@ -425,7 +444,12 @@ func (c *gobServerCodec) Close() error {
 // connection.  To use an alternate codec, use ServeCodec.
 func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	buf := bufio.NewWriter(conn)
-	srv := &gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(buf), buf}
+	srv := &gobServerCodec{
+		rwc:    conn,
+		dec:    gob.NewDecoder(conn),
+		enc:    gob.NewEncoder(buf),
+		encBuf: buf,
+	}
 	server.ServeCodec(srv)
 }
 

@@ -1,10 +1,10 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 // Use smaller statistics when running on simulators, so it takes less time.
 // For e.g. cris-elf, mipsisa32r2el-elf, powerpc-eabi and i386-linux-gnu,
 // this test fails for SAMPLES=30000.
-// { dg-options "-std=gnu++0x -DSAMPLES=35000" { target simulator } }
+// { dg-options "-std=gnu++11 -DSAMPLES=35000" { target simulator } }
 
-// Copyright (C) 2010-2014 Free Software Foundation, Inc.
+// Copyright (C) 2010-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

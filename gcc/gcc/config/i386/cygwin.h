@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows32, using a Unix style C library and tools.
-   Copyright (C) 1995-2014 Free Software Foundation, Inc.
+   Copyright (C) 1995-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,6 +32,7 @@ along with GCC; see the file COPYING3.  If not see
 #undef CPP_SPEC
 #define CPP_SPEC "%(cpp_cpu) %{posix:-D_POSIX_SOURCE} \
   %{!ansi:-Dunix} \
+  %{pthread:-D_REENTRANT} \
   %{mwin32:-DWIN32 -D_WIN32 -D__WIN32 -D__WIN32__ %{!ansi:-DWINNT}} \
   %{!nostdinc:%{!mno-win32:-idirafter ../include/w32api%s -idirafter ../../include/w32api%s}}\
 "
@@ -40,12 +41,18 @@ along with GCC; see the file COPYING3.  If not see
 #define STARTFILE_SPEC "\
   %{!shared: %{!mdll: crt0%O%s \
   %{pg:gcrt0%O%s}}}\
-  crtbegin.o%s"
+  %{shared:crtbeginS.o%s;:crtbegin.o%s} \
+  %{fvtable-verify=none:%s; \
+    fvtable-verify=preinit:vtv_start.o%s; \
+    fvtable-verify=std:vtv_start.o%s}"
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC \
   "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s}\
    %{!shared:%:if-exists(default-manifest.o%s)}\
+   %{fvtable-verify=none:%s; \
+    fvtable-verify=preinit:vtv_end.o%s; \
+    fvtable-verify=std:vtv_end.o%s} \
    crtend.o%s"
 
 /* Normally, -lgcc is not needed since everything in it is in the DLL, but we
@@ -77,8 +84,11 @@ along with GCC; see the file COPYING3.  If not see
 #undef LIB_SPEC
 #define LIB_SPEC "\
   %{pg:-lgmon} \
+  %{pthread: } \
   -lcygwin \
   %{mwindows:-lgdi32 -lcomdlg32} \
+  %{fvtable-verify=preinit:-lvtv -lpsapi; \
+    fvtable-verify=std:-lvtv -lpsapi} \
   -ladvapi32 -lshell32 -luser32 -lkernel32"
 
 /* To implement C++ function replacement we always wrap the cxx
@@ -120,7 +130,8 @@ along with GCC; see the file COPYING3.  If not see
   %{shared: --shared} %{mdll:--dll} \
   %{static:-Bstatic} %{!static:-Bdynamic} \
   %{shared|mdll: --enable-auto-image-base -e __cygwin_dll_entry@12} \
-  --dll-search-prefix=cyg -tsaware"
+  --dll-search-prefix=cyg \
+  %{!shared: %{!mdll: --large-address-aware --tsaware}}"
 
 /* Binutils does not handle weak symbols from dlls correctly.  For now,
    do not use them unnecessarily in gthr-posix.h.  */
@@ -128,7 +139,7 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Every program on cygwin links against cygwin1.dll which contains 
    the pthread routines.  There is no need to explicitly link them
-   and the -pthread flag is not recognized.  */
+   and the -pthread flag is accepted only for compatibility.  */
 #undef GOMP_SELF_SPECS
 #define GOMP_SELF_SPECS ""
 #undef GTM_SELF_SPECS
@@ -143,5 +154,5 @@ along with GCC; see the file COPYING3.  If not see
 #define LIBGCC_SONAME "cyggcc_s" LIBGCC_EH_EXTN "-1.dll"
 
 /* We should find a way to not have to update this manually.  */
-#define LIBGCJ_SONAME "cyggcj" /*LIBGCC_EH_EXTN*/ "-15.dll"
+#define LIBGCJ_SONAME "cyggcj" /*LIBGCC_EH_EXTN*/ "-16.dll"
 

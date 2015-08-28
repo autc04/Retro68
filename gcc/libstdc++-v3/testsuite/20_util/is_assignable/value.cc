@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 // { dg-do compile }
 
-// Copyright (C) 2011-2014 Free Software Foundation, Inc.
+// Copyright (C) 2011-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -174,7 +174,7 @@ static_assert(!std::is_assignable<bool&, SE>::value, "Error");
 static_assert(std::is_assignable<bool&, void*>::value, "Error");
 static_assert(std::is_assignable<bool&, int B::*>::value, "Error");
 static_assert(std::is_assignable<bool&, void*>::value, "Error");
-static_assert(std::is_assignable<bool&, std::nullptr_t>::value, "Error");
+static_assert(!std::is_assignable<bool&, std::nullptr_t>::value, "Error");
 
 static_assert(std::is_assignable<std::nullptr_t&,
 std::nullptr_t>::value, "Error");

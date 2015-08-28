@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2014, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2015, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -30,7 +30,17 @@
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 
 #include "ada.h"
 #include "types.h"
@@ -160,7 +170,11 @@ UI_From_gnu (tree Input)
      in a signed 64-bit integer.  */
   if (tree_fits_shwi_p (Input))
     return UI_From_Int (tree_to_shwi (Input));
-  else if (TREE_INT_CST_HIGH (Input) < 0 && TYPE_UNSIGNED (gnu_type))
+
+  gcc_assert (TYPE_PRECISION (gnu_type) <= 64);
+  if (TYPE_UNSIGNED (gnu_type)
+      && TYPE_PRECISION (gnu_type) == 64
+      && wi::neg_p (Input, SIGNED))
     return No_Uint;
 #endif
 

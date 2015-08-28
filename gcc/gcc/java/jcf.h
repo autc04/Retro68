@@ -1,5 +1,5 @@
 /* Utility macros to read Java(TM) .class files and byte codes.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -65,7 +65,7 @@ jcf_open_exact_case (const char* filename, int oflag);
 struct JCF;
 typedef int (*jcf_filbuf_t) (struct JCF*, int needed);
 
-union GTY((variable_size)) cpool_entry {
+union GTY(()) cpool_entry {
   jword GTY ((tag ("0"))) w;
   tree GTY ((tag ("1"))) t;
 };

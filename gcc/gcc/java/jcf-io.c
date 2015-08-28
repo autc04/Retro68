@@ -1,5 +1,5 @@
 /* Utility routines for finding and reading Java(TM) .class files.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,6 +28,16 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "coretypes.h"
 
 #include "jcf.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "java-tree.h"
 #include "hash-table.h"
@@ -299,7 +309,7 @@ charstar_hash::equal (const value_type *existing, const compare_type *candidate)
    during class lookup.  (There is no need to cache the values
    associated with names that were found; they are saved in
    IDENTIFIER_CLASS_VALUE.)  */
-static hash_table <charstar_hash> memoized_class_lookups;
+static hash_table<charstar_hash> *memoized_class_lookups;
 
 /* Returns a freshly malloc'd string with the fully qualified pathname
    of the .class file for the class CLASSNAME.  CLASSNAME must be
@@ -321,13 +331,13 @@ find_class (const char *classname, int classname_length, JCF *jcf)
   hashval_t hash;
 
   /* Create the hash table, if it does not already exist.  */
-  if (!memoized_class_lookups.is_created ())
-    memoized_class_lookups.create (37);
+  if (!memoized_class_lookups)
+    memoized_class_lookups = new hash_table<charstar_hash> (37);
 
   /* Loop for this class in the hashtable.  If it is present, we've
      already looked for this class and failed to find it.  */
   hash = charstar_hash::hash (classname);
-  if (memoized_class_lookups.find_with_hash (classname, hash))
+  if (memoized_class_lookups->find_with_hash (classname, hash))
     return NULL;
 
   /* Allocate and zero out the buffer, since we don't explicitly put a
@@ -402,7 +412,7 @@ find_class (const char *classname, int classname_length, JCF *jcf)
 
   /* Remember that this class could not be found so that we do not
      have to look again.  */
-  *memoized_class_lookups.find_slot_with_hash (classname, hash, INSERT)
+  *memoized_class_lookups->find_slot_with_hash (classname, hash, INSERT)
     = classname;
 
   return NULL;

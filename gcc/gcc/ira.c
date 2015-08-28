@@ -1,5 +1,5 @@
 /* Integrated Register Allocator (IRA) entry point.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2015 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -153,7 +153,7 @@ along with GCC; see the file COPYING3.  If not see
          calculates its initial (non-accumulated) cost of memory and
          each hard-register of its allocno class (file ira-cost.c).
 
-       * IRA creates live ranges of each allocno, calulates register
+       * IRA creates live ranges of each allocno, calculates register
          pressure for each pressure class in each region, sets up
          conflict hard registers for each allocno and info about calls
          the allocno lives through (file ira-lives.c).
@@ -245,13 +245,13 @@ along with GCC; see the file COPYING3.  If not see
          hard-register for allocnos conflicting with given allocno.
 
        * Chaitin-Briggs coloring assigns as many pseudos as possible
-         to hard registers.  After coloringh we try to improve
+         to hard registers.  After coloring we try to improve
          allocation with cost point of view.  We improve the
          allocation by spilling some allocnos and assigning the freed
          hard registers to other allocnos if it decreases the overall
          allocation cost.
 
-       * After allono assigning in the region, IRA modifies the hard
+       * After allocno assigning in the region, IRA modifies the hard
          register and memory costs for the corresponding allocnos in
          the subregions to reflect the cost of possible loads, stores,
          or moves on the border of the region and its subregions.
@@ -307,7 +307,7 @@ along with GCC; see the file COPYING3.  If not see
        rebuilding would be, but is much faster.
 
      o After IR flattening, IRA tries to assign hard registers to all
-       spilled allocnos.  This is impelemented by a simple and fast
+       spilled allocnos.  This is implemented by a simple and fast
        priority coloring algorithm (see function
        ira_reassign_conflict_allocnos::ira-color.c).  Here new allocnos
        created during the code change pass can be assigned to hard
@@ -328,7 +328,7 @@ along with GCC; see the file COPYING3.  If not see
          in places where the pseudo-register lives.
 
    IRA uses a lot of data representing the target processors.  These
-   data are initilized in file ira.c.
+   data are initialized in file ira.c.
 
    If function has no loops (or the loops are ignored when
    -fira-algorithm=CB is used), we have classic Chaitin-Briggs
@@ -368,6 +368,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "regs.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "rtl.h"
 #include "tm_p.h"
@@ -376,8 +385,27 @@ along with GCC; see the file COPYING3.  If not see
 #include "obstack.h"
 #include "bitmap.h"
 #include "hard-reg-set.h"
+#include "predict.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfgrtl.h"
+#include "cfgbuild.h"
+#include "cfgcleanup.h"
 #include "basic-block.h"
 #include "df.h"
+#include "hashtab.h"
+#include "statistics.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "insn-config.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
 #include "expr.h"
 #include "recog.h"
 #include "params.h"
@@ -386,12 +414,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "except.h"
 #include "reload.h"
 #include "diagnostic-core.h"
-#include "function.h"
 #include "ggc.h"
 #include "ira-int.h"
 #include "lra.h"
 #include "dce.h"
 #include "dbgcnt.h"
+#include "rtl-iter.h"
+#include "shrink-wrap.h"
 
 struct target_ira default_target_ira;
 struct target_ira_int default_target_ira_int;
@@ -418,9 +447,9 @@ struct ira_spilled_reg_stack_slot *ira_spilled_reg_stack_slots;
    the allocnos assigned to memory, cost of loads, stores and register
    move insns generated for pseudo-register live range splitting (see
    ira-emit.c).  */
-int ira_overall_cost, overall_cost_before;
-int ira_reg_cost, ira_mem_cost;
-int ira_load_cost, ira_store_cost, ira_shuffle_cost;
+int64_t ira_overall_cost, overall_cost_before;
+int64_t ira_reg_cost, ira_mem_cost;
+int64_t ira_load_cost, ira_store_cost, ira_shuffle_cost;
 int ira_move_loops_num, ira_additional_jumps_num;
 
 /* All registers that can be eliminated.  */
@@ -580,11 +609,11 @@ setup_class_subset_and_memory_move_costs (void)
 	  {
 	    ira_max_memory_move_cost[mode][cl][0]
 	      = ira_memory_move_cost[mode][cl][0]
-	      = memory_move_cost ((enum machine_mode) mode,
+	      = memory_move_cost ((machine_mode) mode,
 				  (reg_class_t) cl, false);
 	    ira_max_memory_move_cost[mode][cl][1]
 	      = ira_memory_move_cost[mode][cl][1]
-	      = memory_move_cost ((enum machine_mode) mode,
+	      = memory_move_cost ((machine_mode) mode,
 				  (reg_class_t) cl, true);
 	    /* Costs for NO_REGS are used in cost calculation on the
 	       1st pass when the preferred register classes are not
@@ -817,7 +846,7 @@ setup_pressure_classes (void)
 				      ira_prohibited_class_mode_regs[cl][m]);
 	      if (hard_reg_set_empty_p (temp_hard_regset))
 		continue;
-	      ira_init_register_move_cost_if_necessary ((enum machine_mode) m);
+	      ira_init_register_move_cost_if_necessary ((machine_mode) m);
 	      cost = ira_register_move_cost[m][cl][cl];
 	      if (cost <= ira_max_memory_move_cost[m][cl][1]
 		  || cost <= ira_max_memory_move_cost[m][cl][0])
@@ -896,7 +925,7 @@ setup_pressure_classes (void)
 	  IOR_HARD_REG_SET (temp_hard_regset, reg_class_contents[cl]);
       }
     for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
-      /* Some targets (like SPARC with ICC reg) have alocatable regs
+      /* Some targets (like SPARC with ICC reg) have allocatable regs
 	 for which no reg class is defined.  */
       if (REGNO_REG_CLASS (i) == NO_REGS)
 	SET_HARD_REG_BIT (ignore_hard_regs, i);
@@ -941,7 +970,7 @@ setup_uniform_class_p (void)
       	  for (m = 0; m < NUM_MACHINE_MODES; m++)
 	    if (contains_reg_of_mode[cl][m] && contains_reg_of_mode[cl2][m])
 	      {
-		ira_init_register_move_cost_if_necessary ((enum machine_mode) m);
+		ira_init_register_move_cost_if_necessary ((machine_mode) m);
 		if (ira_register_move_cost[m][cl][cl]
 		    != ira_register_move_cost[m][cl2][cl2])
 		  break;
@@ -957,7 +986,7 @@ setup_uniform_class_p (void)
 /* Set up IRA_ALLOCNO_CLASSES, IRA_ALLOCNO_CLASSES_NUM,
    IRA_IMPORTANT_CLASSES, and IRA_IMPORTANT_CLASSES_NUM.
 
-   Target may have many subtargets and not all target hard regiters can
+   Target may have many subtargets and not all target hard registers can
    be used for allocation, e.g. x86 port in 32-bit mode can not use
    hard registers introduced in x86-64 like r8-r15).  Some classes
    might have the same allocatable hard registers, e.g.  INDEX_REGS
@@ -1017,7 +1046,7 @@ setup_allocno_and_important_classes (void)
   classes[n] = LIM_REG_CLASSES;
 
   /* Set up classes which can be used for allocnos as classes
-     conatining non-empty unique sets of allocatable hard
+     containing non-empty unique sets of allocatable hard
      registers.  */
   ira_allocno_classes_num = 0;
   for (i = 0; (cl = classes[i]) != LIM_REG_CLASSES; i++)
@@ -1076,7 +1105,7 @@ setup_allocno_and_important_classes (void)
    containing a given class.  If allocatable hard register set of a
    given class is not a subset of any corresponding set of a class
    from CLASSES, we use the cheapest (with load/store point of view)
-   class from CLASSES whose set intersects with given class set */
+   class from CLASSES whose set intersects with given class set.  */
 static void
 setup_class_translate_array (enum reg_class *class_translate,
 			     int classes_num, enum reg_class *classes)
@@ -1311,7 +1340,7 @@ setup_reg_class_relations (void)
 	      if (important_class_p[cl3]
 		  && hard_reg_set_subset_p (temp_hard_regset, union_set))
 		{
-		  /* CL3 allocatbale hard register set is inside of
+		  /* CL3 allocatable hard register set is inside of
 		     union of allocatable hard register sets of CL1
 		     and CL2.  */
 		  COPY_HARD_REG_SET
@@ -1364,7 +1393,7 @@ setup_reg_class_relations (void)
     }
 }
 
-/* Output all unifrom and important classes into file F.  */
+/* Output all uniform and important classes into file F.  */
 static void
 print_unform_and_important_classes (FILE *f)
 {
@@ -1471,7 +1500,7 @@ setup_reg_class_nregs (void)
       for (cl = 0; cl < N_REG_CLASSES; cl++)
 	ira_reg_class_max_nregs[cl][m]
 	  = ira_reg_class_min_nregs[cl][m]
-	  = targetm.class_max_nregs ((reg_class_t) cl, (enum machine_mode) m);
+	  = targetm.class_max_nregs ((reg_class_t) cl, (machine_mode) m);
       for (cl = 0; cl < N_REG_CLASSES; cl++)
 	for (i = 0;
 	     (cl2 = alloc_reg_class_subclasses[cl][i]) != LIM_REG_CLASSES;
@@ -1503,11 +1532,11 @@ setup_prohibited_class_mode_regs (void)
 	  for (k = ira_class_hard_regs_num[cl] - 1; k >= 0; k--)
 	    {
 	      hard_regno = ira_class_hard_regs[cl][k];
-	      if (! HARD_REGNO_MODE_OK (hard_regno, (enum machine_mode) j))
+	      if (! HARD_REGNO_MODE_OK (hard_regno, (machine_mode) j))
 		SET_HARD_REG_BIT (ira_prohibited_class_mode_regs[cl][j],
 				  hard_regno);
 	      else if (in_hard_reg_set_p (temp_hard_regset,
-					  (enum machine_mode) j, hard_regno))
+					  (machine_mode) j, hard_regno))
 		{
 		  last_hard_regno = hard_regno;
 		  count++;
@@ -1555,7 +1584,7 @@ clarify_prohibited_class_mode_regs (void)
 	    if (!TEST_HARD_REG_BIT (ira_prohibited_class_mode_regs[cl][j],
 				    hard_regno))
 	      add_to_hard_reg_set (&ira_useful_class_mode_regs[cl][j],
-				   (enum machine_mode) j, hard_regno);
+				   (machine_mode) j, hard_regno);
 	  }
       }
 }
@@ -1563,7 +1592,7 @@ clarify_prohibited_class_mode_regs (void)
 /* Allocate and initialize IRA_REGISTER_MOVE_COST, IRA_MAY_MOVE_IN_COST
    and IRA_MAY_MOVE_OUT_COST for MODE.  */
 void
-ira_init_register_move_cost (enum machine_mode mode)
+ira_init_register_move_cost (machine_mode mode)
 {
   static unsigned short last_move_cost[N_REG_CLASSES][N_REG_CLASSES];
   bool all_match = true;
@@ -1672,32 +1701,38 @@ ira_init_once (void)
 
 /* Free ira_max_register_move_cost, ira_may_move_in_cost and
    ira_may_move_out_cost for each mode.  */
-static void
-free_register_move_costs (void)
+void
+target_ira_int::free_register_move_costs (void)
 {
   int mode, i;
 
   /* Reset move_cost and friends, making sure we only free shared
      table entries once.  */
   for (mode = 0; mode < MAX_MACHINE_MODE; mode++)
-    if (ira_register_move_cost[mode])
+    if (x_ira_register_move_cost[mode])
       {
 	for (i = 0;
-	     i < mode && (ira_register_move_cost[i]
-			  != ira_register_move_cost[mode]);
+	     i < mode && (x_ira_register_move_cost[i]
+			  != x_ira_register_move_cost[mode]);
 	     i++)
 	  ;
 	if (i == mode)
 	  {
-	    free (ira_register_move_cost[mode]);
-	    free (ira_may_move_in_cost[mode]);
-	    free (ira_may_move_out_cost[mode]);
+	    free (x_ira_register_move_cost[mode]);
+	    free (x_ira_may_move_in_cost[mode]);
+	    free (x_ira_may_move_out_cost[mode]);
 	  }
       }
-  memset (ira_register_move_cost, 0, sizeof ira_register_move_cost);
-  memset (ira_may_move_in_cost, 0, sizeof ira_may_move_in_cost);
-  memset (ira_may_move_out_cost, 0, sizeof ira_may_move_out_cost);
+  memset (x_ira_register_move_cost, 0, sizeof x_ira_register_move_cost);
+  memset (x_ira_may_move_in_cost, 0, sizeof x_ira_may_move_in_cost);
+  memset (x_ira_may_move_out_cost, 0, sizeof x_ira_may_move_out_cost);
   last_mode_for_init_move_cost = -1;
+}
+
+target_ira_int::~target_ira_int ()
+{
+  free_ira_costs ();
+  free_register_move_costs ();
 }
 
 /* This is called every time when register related information is
@@ -1705,7 +1740,7 @@ free_register_move_costs (void)
 void
 ira_init (void)
 {
-  free_register_move_costs ();
+  this_target_ira_int->free_register_move_costs ();
   setup_reg_mode_hard_regset ();
   setup_alloc_regs (flag_omit_frame_pointer != 0);
   setup_class_subset_and_memory_move_costs ();
@@ -1715,16 +1750,6 @@ ira_init (void)
   clarify_prohibited_class_mode_regs ();
   setup_hard_regno_aclass ();
   ira_init_costs ();
-  lra_init ();
-}
-
-/* Function called once at the end of compiler work.  */
-void
-ira_finish_once (void)
-{
-  ira_finish_costs_once ();
-  free_register_move_costs ();
-  lra_finish_once ();
 }
 
 
@@ -1736,7 +1761,8 @@ static void
 setup_prohibited_mode_move_regs (void)
 {
   int i, j;
-  rtx test_reg1, test_reg2, move_pat, move_insn;
+  rtx test_reg1, test_reg2, move_pat;
+  rtx_insn *move_insn;
 
   if (ira_prohibited_mode_move_regs_initialized_p)
     return;
@@ -1744,24 +1770,26 @@ setup_prohibited_mode_move_regs (void)
   test_reg1 = gen_rtx_REG (VOIDmode, 0);
   test_reg2 = gen_rtx_REG (VOIDmode, 0);
   move_pat = gen_rtx_SET (VOIDmode, test_reg1, test_reg2);
-  move_insn = gen_rtx_INSN (VOIDmode, 0, 0, 0, 0, move_pat, 0, -1, 0);
+  move_insn = gen_rtx_INSN (VOIDmode, 0, 0, 0, move_pat, 0, -1, 0);
   for (i = 0; i < NUM_MACHINE_MODES; i++)
     {
       SET_HARD_REG_SET (ira_prohibited_mode_move_regs[i]);
       for (j = 0; j < FIRST_PSEUDO_REGISTER; j++)
 	{
-	  if (! HARD_REGNO_MODE_OK (j, (enum machine_mode) i))
+	  if (! HARD_REGNO_MODE_OK (j, (machine_mode) i))
 	    continue;
 	  SET_REGNO_RAW (test_reg1, j);
-	  PUT_MODE (test_reg1, (enum machine_mode) i);
+	  PUT_MODE (test_reg1, (machine_mode) i);
 	  SET_REGNO_RAW (test_reg2, j);
-	  PUT_MODE (test_reg2, (enum machine_mode) i);
+	  PUT_MODE (test_reg2, (machine_mode) i);
 	  INSN_CODE (move_insn) = -1;
 	  recog_memoized (move_insn);
 	  if (INSN_CODE (move_insn) < 0)
 	    continue;
 	  extract_insn (move_insn);
-	  if (! constrain_operands (1))
+	  /* We don't know whether the move will be in code that is optimized
+	     for size or speed, so consider all enabled alternatives.  */
+	  if (! constrain_operands (1, get_enabled_alternatives (move_insn)))
 	    continue;
 	  CLEAR_HARD_REG_BIT (ira_prohibited_mode_move_regs[i], j);
 	}
@@ -1770,43 +1798,12 @@ setup_prohibited_mode_move_regs (void)
 
 
 
-/* Return TRUE if the operand constraint STR is commutative.  */
-static bool
-commutative_constraint_p (const char *str)
-{
-  int curr_alt, c;
-  bool ignore_p;
-
-  for (ignore_p = false, curr_alt = 0;;)
-    {
-      c = *str;
-      if (c == '\0')
-	break;
-      str += CONSTRAINT_LEN (c, str);
-      if (c == '#' || !recog_data.alternative_enabled_p[curr_alt])
-	ignore_p = true;
-      else if (c == ',')
-	{
-	  curr_alt++;
-	  ignore_p = false;
-	}
-      else if (! ignore_p)
-	{
-	  /* Usually `%' is the first constraint character but the
-	     documentation does not require this.  */
-	  if (c == '%')
-	    return true;
-	}
-    }
-  return false;
-}
-
 /* Setup possible alternatives in ALTS for INSN.  */
 void
-ira_setup_alts (rtx insn, HARD_REG_SET &alts)
+ira_setup_alts (rtx_insn *insn, HARD_REG_SET &alts)
 {
   /* MAP nalt * nop -> start of constraints for given operand and
-     alternative */
+     alternative.  */
   static vec<const char *> insn_constraints;
   int nop, nalt;
   bool curr_swapped;
@@ -1815,6 +1812,7 @@ ira_setup_alts (rtx insn, HARD_REG_SET &alts)
   int commutative = -1;
 
   extract_insn (insn);
+  alternative_mask preferred = get_preferred_alternatives (insn);
   CLEAR_HARD_REG_SET (alts);
   insn_constraints.release ();
   insn_constraints.safe_grow_cleared (recog_data.n_operands
@@ -1844,7 +1842,8 @@ ira_setup_alts (rtx insn, HARD_REG_SET &alts)
 	}
       for (nalt = 0; nalt < recog_data.n_alternatives; nalt++)
 	{
-	  if (! recog_data.alternative_enabled_p[nalt] || TEST_HARD_REG_BIT (alts, nalt))
+	  if (!TEST_BIT (preferred, nalt)
+	      || TEST_HARD_REG_BIT (alts, nalt))
 	    continue;
 
 	  for (nop = 0; nop < recog_data.n_operands; nop++)
@@ -1866,9 +1865,6 @@ ira_setup_alts (rtx insn, HARD_REG_SET &alts)
 		    len = 0;
 		    break;
 		  
-		  case '?':  case '!': case '*':  case '=':  case '+':
-		    break;
-		    
 		  case '%':
 		    /* We only support one commutative marker, the
 		       first one.  We already set commutative
@@ -1877,100 +1873,41 @@ ira_setup_alts (rtx insn, HARD_REG_SET &alts)
 		      commutative = nop;
 		    break;
 
-		  case '&':
-		    break;
-		    
 		  case '0':  case '1':  case '2':  case '3':  case '4':
 		  case '5':  case '6':  case '7':  case '8':  case '9':
 		    goto op_success;
 		    break;
 		    
-		  case 'p':
 		  case 'g':
-		  case 'X':
-		  case TARGET_MEM_CONSTRAINT:
-		    goto op_success;
-		    break;
-		    
-		  case '<':
-		    if (MEM_P (op)
-			&& (GET_CODE (XEXP (op, 0)) == PRE_DEC
-			    || GET_CODE (XEXP (op, 0)) == POST_DEC))
-		    goto op_success;
-		    break;
-		    
-		  case '>':
-		    if (MEM_P (op)
-		      && (GET_CODE (XEXP (op, 0)) == PRE_INC
-			  || GET_CODE (XEXP (op, 0)) == POST_INC))
-		      goto op_success;
-		    break;
-		    
-		  case 'E':
-		  case 'F':
-		    if (CONST_DOUBLE_AS_FLOAT_P (op)
-			|| (GET_CODE (op) == CONST_VECTOR
-			    && GET_MODE_CLASS (GET_MODE (op)) == MODE_VECTOR_FLOAT))
-		      goto op_success;
-		    break;
-		    
-		  case 'G':
-		  case 'H':
-		    if (CONST_DOUBLE_AS_FLOAT_P (op)
-			&& CONST_DOUBLE_OK_FOR_CONSTRAINT_P (op, c, p))
-		      goto op_success;
-		    break;
-		    
-		  case 's':
-		    if (CONST_SCALAR_INT_P (op))
-		      break;
-		  case 'i':
-		    if (CONSTANT_P (op))
-		      goto op_success;
-		    break;
-		    
-		  case 'n':
-		    if (CONST_SCALAR_INT_P (op))
-		      goto op_success;
-		    break;
-		    
-		  case 'I':
-		  case 'J':
-		  case 'K':
-		  case 'L':
-		  case 'M':
-		  case 'N':
-		  case 'O':
-		  case 'P':
-		    if (CONST_INT_P (op)
-			&& CONST_OK_FOR_CONSTRAINT_P (INTVAL (op), c, p))
-		      goto op_success;
-		    break;
-		    
-		  case 'V':
-		    if (MEM_P (op) && ! offsettable_memref_p (op))
-		      goto op_success;
-		    break;
-		    
-		  case 'o':
 		    goto op_success;
 		    break;
 		    
 		  default:
 		    {
-		      enum reg_class cl;
-		      
-		      cl = (c == 'r' ? GENERAL_REGS : REG_CLASS_FROM_CONSTRAINT (c, p));
-		      if (cl != NO_REGS)
-			goto op_success;
-#ifdef EXTRA_CONSTRAINT_STR
-		      else if (EXTRA_CONSTRAINT_STR (op, c, p))
-			goto op_success;
-		      else if (EXTRA_MEMORY_CONSTRAINT (c, p))
-			goto op_success;
-		      else if (EXTRA_ADDRESS_CONSTRAINT (c, p))
-			goto op_success;
-#endif
+		      enum constraint_num cn = lookup_constraint (p);
+		      switch (get_constraint_type (cn))
+			{
+			case CT_REGISTER:
+			  if (reg_class_for_constraint (cn) != NO_REGS)
+			    goto op_success;
+			  break;
+
+			case CT_CONST_INT:
+			  if (CONST_INT_P (op)
+			      && (insn_const_int_ok_for_constraint
+				  (INTVAL (op), cn)))
+			    goto op_success;
+			  break;
+
+			case CT_ADDRESS:
+			case CT_MEMORY:
+			  goto op_success;
+
+			case CT_FIXED_FORM:
+			  if (constraint_satisfied_p (op, cn))
+			    goto op_success;
+			  break;
+			}
 		      break;
 		    }
 		  }
@@ -2003,65 +1940,45 @@ ira_get_dup_out_num (int op_num, HARD_REG_SET &alts)
   int curr_alt, c, original, dup;
   bool ignore_p, use_commut_op_p;
   const char *str;
-#ifdef EXTRA_CONSTRAINT_STR
-  rtx op;
-#endif
 
   if (op_num < 0 || recog_data.n_alternatives == 0)
     return -1;
-  use_commut_op_p = false;
+  /* We should find duplications only for input operands.  */
+  if (recog_data.operand_type[op_num] != OP_IN)
+    return -1;
   str = recog_data.constraints[op_num];
+  use_commut_op_p = false;
   for (;;)
     {
-#ifdef EXTRA_CONSTRAINT_STR
-      op = recog_data.operand[op_num];
-#endif
+      rtx op = recog_data.operand[op_num];
       
-      for (ignore_p = false, original = -1, curr_alt = 0;;)
+      for (curr_alt = 0, ignore_p = !TEST_HARD_REG_BIT (alts, curr_alt),
+	   original = -1;;)
 	{
 	  c = *str;
 	  if (c == '\0')
 	    break;
-	  if (c == '#' || !TEST_HARD_REG_BIT (alts, curr_alt))
+	  if (c == '#')
 	    ignore_p = true;
 	  else if (c == ',')
 	    {
 	      curr_alt++;
-	      ignore_p = false;
+	      ignore_p = !TEST_HARD_REG_BIT (alts, curr_alt);
 	    }
 	  else if (! ignore_p)
 	    switch (c)
 	      {
-		/* We should find duplications only for input operands.  */
-	      case '=':
-	      case '+':
-		goto fail;
-	      case 'X':
-	      case 'p':
 	      case 'g':
 		goto fail;
-	      case 'r':
-	      case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-	      case 'h': case 'j': case 'k': case 'l':
-	      case 'q': case 't': case 'u':
-	      case 'v': case 'w': case 'x': case 'y': case 'z':
-	      case 'A': case 'B': case 'C': case 'D':
-	      case 'Q': case 'R': case 'S': case 'T': case 'U':
-	      case 'W': case 'Y': case 'Z':
+	      default:
 		{
-		  enum reg_class cl;
-		  
-		  cl = (c == 'r'
-			? GENERAL_REGS : REG_CLASS_FROM_CONSTRAINT (c, str));
-		  if (cl != NO_REGS)
-		    {
-		      if (! targetm.class_likely_spilled_p (cl))
-			goto fail;
-		    }
-#ifdef EXTRA_CONSTRAINT_STR
-		  else if (EXTRA_CONSTRAINT_STR (op, c, str))
+		  enum constraint_num cn = lookup_constraint (str);
+		  enum reg_class cl = reg_class_for_constraint (cn);
+		  if (cl != NO_REGS
+		      && !targetm.class_likely_spilled_p (cl))
 		    goto fail;
-#endif
+		  if (constraint_satisfied_p (op, cn))
+		    goto fail;
 		  break;
 		}
 		
@@ -2101,10 +2018,9 @@ ira_get_dup_out_num (int op_num, HARD_REG_SET &alts)
       if (use_commut_op_p)
 	break;
       use_commut_op_p = true;
-      if (commutative_constraint_p (recog_data.constraints[op_num]))
+      if (recog_data.constraints[op_num][0] == '%')
 	str = recog_data.constraints[op_num + 1];
-      else if (op_num > 0 && commutative_constraint_p (recog_data.constraints
-						       [op_num - 1]))
+      else if (op_num > 0 && recog_data.constraints[op_num - 1][0] == '%')
 	str = recog_data.constraints[op_num - 1];
       else
 	break;
@@ -2128,7 +2044,9 @@ static void
 decrease_live_ranges_number (void)
 {
   basic_block bb;
-  rtx insn, set, src, dest, dest_death, p, q, note;
+  rtx_insn *insn;
+  rtx set, src, dest, dest_death, q, note;
+  rtx_insn *p;
   int sregno, dregno;
 
   if (! flag_expensive_optimizations)
@@ -2335,25 +2253,6 @@ ira_bad_reload_regno (int regno, rtx in, rtx out)
 	  || ira_bad_reload_regno_1 (regno, out));
 }
 
-/* Return TRUE if *LOC contains an asm.  */
-static int
-insn_contains_asm_1 (rtx *loc, void *data ATTRIBUTE_UNUSED)
-{
-  if ( !*loc)
-    return FALSE;
-  if (GET_CODE (*loc) == ASM_OPERANDS)
-    return TRUE;
-  return FALSE;
-}
-
-
-/* Return TRUE if INSN contains an ASM.  */
-static bool
-insn_contains_asm (rtx insn)
-{
-  return for_each_rtx (&insn, insn_contains_asm_1, NULL);
-}
-
 /* Add register clobbers from asm statements.  */
 static void
 compute_regs_asm_clobbered (void)
@@ -2362,15 +2261,14 @@ compute_regs_asm_clobbered (void)
 
   FOR_EACH_BB_FN (bb, cfun)
     {
-      rtx insn;
+      rtx_insn *insn;
       FOR_BB_INSNS_REVERSE (bb, insn)
 	{
-	  df_ref *def_rec;
+	  df_ref def;
 
-	  if (insn_contains_asm (insn))
-	    for (def_rec = DF_INSN_DEFS (insn); *def_rec; def_rec++)
+	  if (NONDEBUG_INSN_P (insn) && extract_asm_operands (PATTERN (insn)))
+	    FOR_EACH_INSN_DEF (def, insn)
 	      {
-		df_ref def = *def_rec;
 		unsigned int dregno = DF_REF_REGNO (def);
 		if (HARD_REGISTER_NUM_P (dregno))
 		  add_to_hard_reg_set (&crtl->asm_clobbers,
@@ -2607,10 +2505,15 @@ calculate_allocation_cost (void)
   if (internal_flag_ira_verbose > 0 && ira_dump_file != NULL)
     {
       fprintf (ira_dump_file,
-	       "+++Costs: overall %d, reg %d, mem %d, ld %d, st %d, move %d\n",
+	       "+++Costs: overall %"PRId64
+	       ", reg %"PRId64
+	       ", mem %"PRId64
+	       ", ld %"PRId64
+	       ", st %"PRId64
+	       ", move %"PRId64,
 	       ira_overall_cost, ira_reg_cost, ira_mem_cost,
 	       ira_load_cost, ira_store_cost, ira_shuffle_cost);
-      fprintf (ira_dump_file, "+++       move loops %d, new jumps %d\n",
+      fprintf (ira_dump_file, "\n+++       move loops %d, new jumps %d\n",
 	       ira_move_loops_num, ira_additional_jumps_num);
     }
 
@@ -2713,9 +2616,10 @@ setup_reg_equiv_init (void)
    to update equiv info for register shuffles on the region borders
    and for caller save/restore insns.  */
 void
-ira_update_equiv_info_by_shuffle_insn (int to_regno, int from_regno, rtx insns)
+ira_update_equiv_info_by_shuffle_insn (int to_regno, int from_regno, rtx_insn *insns)
 {
-  rtx insn, x, note;
+  rtx_insn *insn;
+  rtx x, note;
 
   if (! ira_reg_equiv[from_regno].defined_p
       && (! ira_reg_equiv[to_regno].defined_p
@@ -2734,7 +2638,7 @@ ira_update_equiv_info_by_shuffle_insn (int to_regno, int from_regno, rtx insns)
       ira_reg_equiv[to_regno].memory
 	= ira_reg_equiv[to_regno].constant
 	= ira_reg_equiv[to_regno].invariant
-	= ira_reg_equiv[to_regno].init_insns = NULL_RTX;
+	= ira_reg_equiv[to_regno].init_insns = NULL;
       if (internal_flag_ira_verbose > 3 && ira_dump_file != NULL)
 	fprintf (ira_dump_file,
 		 "      Invalidating equiv info for reg %d\n", to_regno);
@@ -2817,7 +2721,7 @@ fix_reg_equiv_init (void)
 	  {
 	    next = XEXP (x, 1);
 	    insn = XEXP (x, 0);
-	    set = single_set (insn);
+	    set = single_set (as_a <rtx_insn *> (insn));
 	    ira_assert (set != NULL_RTX
 			&& (REG_P (SET_DEST (set)) || REG_P (SET_SRC (set))));
 	    if (REG_P (SET_DEST (set))
@@ -2859,7 +2763,7 @@ print_redundant_copies (void)
   FOR_EACH_ALLOCNO (a, ai)
     {
       if (ALLOCNO_CAP_MEMBER (a) != NULL)
-	/* It is a cap. */
+	/* It is a cap.  */
 	continue;
       hard_regno = ALLOCNO_HARD_REGNO (a);
       if (hard_regno >= 0)
@@ -2905,7 +2809,7 @@ setup_preferred_alternate_classes_for_new_pseudos (int start)
 }
 
 
-/* The number of entries allocated in teg_info.  */
+/* The number of entries allocated in reg_info.  */
 static int allocated_reg_info_size;
 
 /* Regional allocation can create new pseudo-registers.  This function
@@ -3021,16 +2925,26 @@ struct equivalence
      e.g. by reload.  */
   rtx replacement;
   rtx *src_p;
-  /* The list of each instruction which initializes this register.  */
-  rtx init_insns;
+
+  /* The list of each instruction which initializes this register.
+
+     NULL indicates we know nothing about this register's equivalence
+     properties.
+
+     An INSN_LIST with a NULL insn indicates this pseudo is already
+     known to not have a valid equivalence.  */
+  rtx_insn_list *init_insns;
+
   /* Loop depth is used to recognize equivalences which appear
      to be present within the same loop (or in an inner loop).  */
-  int loop_depth;
+  short loop_depth;
   /* Nonzero if this had a preexisting REG_EQUIV note.  */
-  int is_arg_equivalence;
+  unsigned char is_arg_equivalence : 1;
   /* Set when an attempt should be made to replace a register
      with the associated src_p entry.  */
-  char replace;
+  unsigned char replace : 1;
+  /* Set if this register has no known equivalence.  */
+  unsigned char no_equiv : 1;
 };
 
 /* reg_equiv[N] (where N is a pseudo reg number) is the equivalence
@@ -3064,9 +2978,9 @@ validate_equiv_mem_from_store (rtx dest, const_rtx set ATTRIBUTE_UNUSED,
 
    Return 1 if MEMREF remains valid.  */
 static int
-validate_equiv_mem (rtx start, rtx reg, rtx memref)
+validate_equiv_mem (rtx_insn *start, rtx reg, rtx memref)
 {
-  rtx insn;
+  rtx_insn *insn;
   rtx note;
 
   equiv_mem = memref;
@@ -3340,9 +3254,9 @@ memref_referenced_p (rtx memref, rtx x)
 /* TRUE if some insn in the range (START, END] references a memory location
    that would be affected by a store to MEMREF.  */
 static int
-memref_used_between_p (rtx memref, rtx start, rtx end)
+memref_used_between_p (rtx memref, rtx_insn *start, rtx_insn *end)
 {
-  rtx insn;
+  rtx_insn *insn;
 
   for (insn = NEXT_INSN (start); insn != NEXT_INSN (end);
        insn = NEXT_INSN (insn))
@@ -3373,25 +3287,26 @@ no_equiv (rtx reg, const_rtx store ATTRIBUTE_UNUSED,
 	  void *data ATTRIBUTE_UNUSED)
 {
   int regno;
-  rtx list;
+  rtx_insn_list *list;
 
   if (!REG_P (reg))
     return;
   regno = REGNO (reg);
+  reg_equiv[regno].no_equiv = 1;
   list = reg_equiv[regno].init_insns;
-  if (list == const0_rtx)
+  if (list && list->insn () == NULL)
     return;
-  reg_equiv[regno].init_insns = const0_rtx;
+  reg_equiv[regno].init_insns = gen_rtx_INSN_LIST (VOIDmode, NULL_RTX, NULL);
   reg_equiv[regno].replacement = NULL_RTX;
   /* This doesn't matter for equivalences made for argument registers, we
      should keep their initialization insns.  */
   if (reg_equiv[regno].is_arg_equivalence)
     return;
   ira_reg_equiv[regno].defined_p = false;
-  ira_reg_equiv[regno].init_insns = NULL_RTX;
-  for (; list; list =  XEXP (list, 1))
+  ira_reg_equiv[regno].init_insns = NULL;
+  for (; list; list = list->next ())
     {
-      rtx insn = XEXP (list, 0);
+      rtx_insn *insn = list->insn ();
       remove_note (insn, find_reg_note (insn, REG_EQUIV, NULL_RTX));
     }
 }
@@ -3399,23 +3314,20 @@ no_equiv (rtx reg, const_rtx store ATTRIBUTE_UNUSED,
 /* Check whether the SUBREG is a paradoxical subreg and set the result
    in PDX_SUBREGS.  */
 
-static int
-set_paradoxical_subreg (rtx *subreg, void *pdx_subregs)
+static void
+set_paradoxical_subreg (rtx_insn *insn, bool *pdx_subregs)
 {
-  rtx reg;
-
-  if ((*subreg) == NULL_RTX)
-    return 1;
-  if (GET_CODE (*subreg) != SUBREG)
-    return 0;
-  reg = SUBREG_REG (*subreg);
-  if (!REG_P (reg))
-    return 0;
-
-  if (paradoxical_subreg_p (*subreg))
-    ((bool *)pdx_subregs)[REGNO (reg)] = true;
-
-  return 0;
+  subrtx_iterator::array_type array;
+  FOR_EACH_SUBRTX (iter, array, PATTERN (insn), NONCONST)
+    {
+      const_rtx subreg = *iter;
+      if (GET_CODE (subreg) == SUBREG)
+	{
+	  const_rtx reg = SUBREG_REG (subreg);
+	  if (REG_P (reg) && paradoxical_subreg_p (subreg))
+	    pdx_subregs[REGNO (reg)] = true;
+	}
+    }
 }
 
 /* In DEBUG_INSN location adjust REGs from CLEARED_REGS bitmap to the
@@ -3452,7 +3364,7 @@ static int recorded_label_ref;
 static int
 update_equiv_regs (void)
 {
-  rtx insn;
+  rtx_insn *insn;
   basic_block bb;
   int loop_depth;
   bitmap cleared_regs;
@@ -3472,13 +3384,13 @@ update_equiv_regs (void)
   init_alias_analysis ();
 
   /* Scan insns and set pdx_subregs[regno] if the reg is used in a
-     paradoxical subreg. Don't set such reg sequivalent to a mem,
+     paradoxical subreg. Don't set such reg equivalent to a mem,
      because lra will not substitute such equiv memory in order to
      prevent access beyond allocated memory for paradoxical memory subreg.  */
   FOR_EACH_BB_FN (bb, cfun)
     FOR_BB_INSNS (bb, insn)
       if (NONDEBUG_INSN_P (insn))
-	for_each_rtx (&insn, set_paradoxical_subreg, (void *) pdx_subregs);
+	set_paradoxical_subreg (insn, pdx_subregs);
 
   /* Scan the insns and find which registers have equivalences.  Do this
      in a separate scan of the insns because (due to -fcse-follow-jumps)
@@ -3507,7 +3419,7 @@ update_equiv_regs (void)
 
 	  /* If this insn contains more (or less) than a single SET,
 	     only mark all destinations as having no known equivalence.  */
-	  if (set == 0)
+	  if (set == NULL_RTX)
 	    {
 	      note_stores (PATTERN (insn), no_equiv, NULL);
 	      continue;
@@ -3571,7 +3483,8 @@ update_equiv_regs (void)
 
 	  if (!REG_P (dest)
 	      || (regno = REGNO (dest)) < FIRST_PSEUDO_REGISTER
-	      || reg_equiv[regno].init_insns == const0_rtx
+	      || (reg_equiv[regno].init_insns
+		  && reg_equiv[regno].init_insns->insn () == NULL)
 	      || (targetm.class_likely_spilled_p (reg_preferred_class (regno))
 		  && MEM_P (src) && ! reg_equiv[regno].is_arg_equivalence))
 	    {
@@ -3597,20 +3510,53 @@ update_equiv_regs (void)
 	    note = set_unique_reg_note (insn, REG_EQUAL, copy_rtx (src));
 
 	  /* Don't bother considering a REG_EQUAL note containing an EXPR_LIST
-	     since it represents a function call */
+	     since it represents a function call.  */
 	  if (note && GET_CODE (XEXP (note, 0)) == EXPR_LIST)
 	    note = NULL_RTX;
 
-	  if (DF_REG_DEF_COUNT (regno) != 1
-	      && (! note
+	  if (DF_REG_DEF_COUNT (regno) != 1)
+	    {
+	      bool equal_p = true;
+	      rtx_insn_list *list;
+
+	      /* If we have already processed this pseudo and determined it
+		 can not have an equivalence, then honor that decision.  */
+	      if (reg_equiv[regno].no_equiv)
+		continue;
+
+	      if (! note
 		  || rtx_varies_p (XEXP (note, 0), 0)
 		  || (reg_equiv[regno].replacement
 		      && ! rtx_equal_p (XEXP (note, 0),
-					reg_equiv[regno].replacement))))
-	    {
-	      no_equiv (dest, set, NULL);
-	      continue;
+					reg_equiv[regno].replacement)))
+		{
+		  no_equiv (dest, set, NULL);
+		  continue;
+		}
+
+	      list = reg_equiv[regno].init_insns;
+	      for (; list; list = list->next ())
+		{
+		  rtx note_tmp;
+		  rtx_insn *insn_tmp;
+
+		  insn_tmp = list->insn ();
+		  note_tmp = find_reg_note (insn_tmp, REG_EQUAL, NULL_RTX);
+		  gcc_assert (note_tmp);
+		  if (! rtx_equal_p (XEXP (note, 0), XEXP (note_tmp, 0)))
+		    {
+		      equal_p = false;
+		      break;
+		    }
+		}
+
+	      if (! equal_p)
+		{
+		  no_equiv (dest, set, NULL);
+		  continue;
+		}
 	    }
+
 	  /* Record this insn as initializing this register.  */
 	  reg_equiv[regno].init_insns
 	    = gen_rtx_INSN_LIST (VOIDmode, insn, reg_equiv[regno].init_insns);
@@ -3639,10 +3585,9 @@ update_equiv_regs (void)
 	     a register used only in one basic block from a MEM.  If so, and the
 	     MEM remains unchanged for the life of the register, add a REG_EQUIV
 	     note.  */
-
 	  note = find_reg_note (insn, REG_EQUIV, NULL_RTX);
 
-	  if (note == 0 && REG_BASIC_BLOCK (regno) >= NUM_FIXED_BLOCKS
+	  if (note == NULL_RTX && REG_BASIC_BLOCK (regno) >= NUM_FIXED_BLOCKS
 	      && MEM_P (SET_SRC (set))
 	      && validate_equiv_mem (insn, dest, SET_SRC (set)))
 	    note = set_unique_reg_note (insn, REG_EQUIV, copy_rtx (SET_SRC (set)));
@@ -3672,7 +3617,7 @@ update_equiv_regs (void)
 
 	      reg_equiv[regno].replacement = x;
 	      reg_equiv[regno].src_p = &SET_SRC (set);
-	      reg_equiv[regno].loop_depth = loop_depth;
+	      reg_equiv[regno].loop_depth = (short) loop_depth;
 
 	      /* Don't mess with things live during setjmp.  */
 	      if (REG_LIVE_LENGTH (regno) >= 0 && optimize)
@@ -3742,14 +3687,15 @@ update_equiv_regs (void)
 	  && (regno = REGNO (src)) >= FIRST_PSEUDO_REGISTER
 	  && REG_BASIC_BLOCK (regno) >= NUM_FIXED_BLOCKS
 	  && DF_REG_DEF_COUNT (regno) == 1
-	  && reg_equiv[regno].init_insns != 0
-	  && reg_equiv[regno].init_insns != const0_rtx
+	  && reg_equiv[regno].init_insns != NULL
+	  && reg_equiv[regno].init_insns->insn () != NULL
 	  && ! find_reg_note (XEXP (reg_equiv[regno].init_insns, 0),
 			      REG_EQUIV, NULL_RTX)
 	  && ! contains_replace_regs (XEXP (dest, 0))
 	  && ! pdx_subregs[regno])
 	{
-	  rtx init_insn = XEXP (reg_equiv[regno].init_insns, 0);
+	  rtx_insn *init_insn =
+	    as_a <rtx_insn *> (XEXP (reg_equiv[regno].init_insns, 0));
 	  if (validate_equiv_mem (init_insn, src, dest)
 	      && ! memref_used_between_p (dest, init_insn, insn)
 	      /* Attaching a REG_EQUIV note will fail if INIT_INSN has
@@ -3801,7 +3747,7 @@ update_equiv_regs (void)
 		  rtx equiv_insn;
 
 		  if (! reg_equiv[regno].replace
-		      || reg_equiv[regno].loop_depth < loop_depth
+		      || reg_equiv[regno].loop_depth < (short) loop_depth
 		      /* There is no sense to move insns if live range
 			 shrinkage or register pressure-sensitive
 			 scheduling were done because it will not
@@ -3861,16 +3807,16 @@ update_equiv_regs (void)
 		      delete_insn (equiv_insn);
 
 		      reg_equiv[regno].init_insns
-			= XEXP (reg_equiv[regno].init_insns, 1);
+			= reg_equiv[regno].init_insns->next ();
 
-		      ira_reg_equiv[regno].init_insns = NULL_RTX;
+		      ira_reg_equiv[regno].init_insns = NULL;
 		      bitmap_set_bit (cleared_regs, regno);
 		    }
 		  /* Move the initialization of the register to just before
 		     INSN.  Update the flow information.  */
 		  else if (prev_nondebug_insn (insn) != equiv_insn)
 		    {
-		      rtx new_insn;
+		      rtx_insn *new_insn;
 
 		      new_insn = emit_insn_before (PATTERN (equiv_insn), insn);
 		      REG_NOTES (new_insn) = REG_NOTES (equiv_insn);
@@ -3951,15 +3897,17 @@ static void
 setup_reg_equiv (void)
 {
   int i;
-  rtx elem, prev_elem, next_elem, insn, set, x;
+  rtx_insn_list *elem, *prev_elem, *next_elem;
+  rtx_insn *insn;
+  rtx set, x;
 
   for (i = FIRST_PSEUDO_REGISTER; i < ira_reg_equiv_len; i++)
     for (prev_elem = NULL, elem = ira_reg_equiv[i].init_insns;
 	 elem;
 	 prev_elem = elem, elem = next_elem)
       {
-	next_elem = XEXP (elem, 1);
-	insn = XEXP (elem, 0);
+	next_elem = elem->next ();
+	insn = elem->insn ();
 	set = single_set (insn);
 	
 	/* Init insns can set up equivalence when the reg is a destination or
@@ -4012,7 +3960,7 @@ setup_reg_equiv (void)
 		  }
 		else if (function_invariant_p (x))
 		  {
-		    enum machine_mode mode;
+		    machine_mode mode;
 		    
 		    mode = GET_MODE (SET_DEST (set));
 		    if (GET_CODE (x) == PLUS
@@ -4028,7 +3976,7 @@ setup_reg_equiv (void)
 			if (ira_reg_equiv[i].memory == NULL_RTX)
 			  {
 			    ira_reg_equiv[i].defined_p = false;
-			    ira_reg_equiv[i].init_insns = NULL_RTX;
+			    ira_reg_equiv[i].init_insns = NULL;
 			    break;
 			  }
 		      }
@@ -4038,7 +3986,7 @@ setup_reg_equiv (void)
 	      }
 	  }
 	ira_reg_equiv[i].defined_p = false;
-	ira_reg_equiv[i].init_insns = NULL_RTX;
+	ira_reg_equiv[i].init_insns = NULL;
 	break;
       }
 }
@@ -4132,7 +4080,7 @@ build_insn_chain (void)
   FOR_EACH_BB_REVERSE_FN (bb, cfun)
     {
       bitmap_iterator bi;
-      rtx insn;
+      rtx_insn *insn;
 
       CLEAR_REG_SET (live_relevant_regs);
       bitmap_clear (live_subregs_used);
@@ -4155,9 +4103,8 @@ build_insn_chain (void)
 	{
 	  if (!NOTE_P (insn) && !BARRIER_P (insn))
 	    {
-	      unsigned int uid = INSN_UID (insn);
-	      df_ref *def_rec;
-	      df_ref *use_rec;
+	      struct df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
+	      df_ref def, use;
 
 	      c = new_insn_chain ();
 	      c->next = next;
@@ -4169,9 +4116,8 @@ build_insn_chain (void)
 	      c->block = bb->index;
 
 	      if (NONDEBUG_INSN_P (insn))
-		for (def_rec = DF_INSN_UID_DEFS (uid); *def_rec; def_rec++)
+		FOR_EACH_INSN_INFO_DEF (def, insn_info)
 		  {
-		    df_ref def = *def_rec;
 		    unsigned int regno = DF_REF_REGNO (def);
 
 		    /* Ignore may clobbers because these are generated
@@ -4260,9 +4206,8 @@ build_insn_chain (void)
 	      bitmap_copy (&c->live_throughout, live_relevant_regs);
 
 	      if (NONDEBUG_INSN_P (insn))
-		for (use_rec = DF_INSN_UID_USES (uid); *use_rec; use_rec++)
+		FOR_EACH_INSN_INFO_USE (use, insn_info)
 		  {
-		    df_ref use = *use_rec;
 		    unsigned int regno = DF_REF_REGNO (use);
 		    rtx reg = DF_REF_REG (use);
 
@@ -4271,7 +4216,7 @@ build_insn_chain (void)
 		       to a multiword reg.  Here, we only model the
 		       subreg case that is not wrapped in ZERO_EXTRACT
 		       precisely so we do not need to look at the
-		       fabricated use. */
+		       fabricated use.  */
 		    if (DF_REF_FLAGS_IS_SET (use, DF_REF_READ_WRITE)
 			&& !DF_REF_FLAGS_IS_SET (use, DF_REF_ZERO_EXTRACT)
 			&& DF_REF_FLAGS_IS_SET (use, DF_REF_SUBREG))
@@ -4434,6 +4379,12 @@ rtx_moveable_p (rtx *loc, enum op_type type)
     case CLOBBER:
       return rtx_moveable_p (&SET_DEST (x), OP_OUT);
 
+    case UNSPEC_VOLATILE:
+      /* It is a bad idea to consider insns with with such rtl
+	 as moveable ones.  The insn scheduler also considers them as barrier
+	 for a reason.  */
+      return false;
+
     default:
       break;
     }
@@ -4507,7 +4458,7 @@ find_moveable_pseudos (void)
   int max_uid = get_max_uid ();
   basic_block bb;
   int *uid_luid = XNEWVEC (int, max_uid);
-  rtx *closest_uses = XNEWVEC (rtx, max_regs);
+  rtx_insn **closest_uses = XNEWVEC (rtx_insn *, max_regs);
   /* A set of registers which are live but not modified throughout a block.  */
   bitmap_head *bb_transp_live = XNEWVEC (bitmap_head,
 					 last_basic_block_for_fn (cfun));
@@ -4536,7 +4487,7 @@ find_moveable_pseudos (void)
   bitmap_initialize (&unusable_as_input, 0);
   FOR_EACH_BB_FN (bb, cfun)
     {
-      rtx insn;
+      rtx_insn *insn;
       bitmap transp = bb_transp_live + bb->index;
       bitmap moveable = bb_moveable_reg_sets + bb->index;
       bitmap local = bb_local + bb->index;
@@ -4554,41 +4505,40 @@ find_moveable_pseudos (void)
       FOR_BB_INSNS (bb, insn)
 	if (NONDEBUG_INSN_P (insn))
 	  {
-	    df_ref *u_rec, *d_rec;
+	    df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
+	    df_ref def, use;
 
 	    uid_luid[INSN_UID (insn)] = i++;
 	    
-	    u_rec = DF_INSN_USES (insn);
-	    d_rec = DF_INSN_DEFS (insn);
-	    if (d_rec[0] != NULL && d_rec[1] == NULL
-		&& u_rec[0] != NULL && u_rec[1] == NULL
-		&& DF_REF_REGNO (*u_rec) == DF_REF_REGNO (*d_rec)
-		&& !bitmap_bit_p (&set, DF_REF_REGNO (*u_rec))
+	    def = df_single_def (insn_info);
+	    use = df_single_use (insn_info);
+	    if (use
+		&& def
+		&& DF_REF_REGNO (use) == DF_REF_REGNO (def)
+		&& !bitmap_bit_p (&set, DF_REF_REGNO (use))
 		&& rtx_moveable_p (&PATTERN (insn), OP_IN))
 	      {
-		unsigned regno = DF_REF_REGNO (*u_rec);
+		unsigned regno = DF_REF_REGNO (use);
 		bitmap_set_bit (moveable, regno);
 		bitmap_set_bit (&set, regno);
 		bitmap_set_bit (&used, regno);
 		bitmap_clear_bit (transp, regno);
 		continue;
 	      }
-	    while (*u_rec)
+	    FOR_EACH_INSN_INFO_USE (use, insn_info)
 	      {
-		unsigned regno = DF_REF_REGNO (*u_rec);
+		unsigned regno = DF_REF_REGNO (use);
 		bitmap_set_bit (&used, regno);
 		if (bitmap_clear_bit (moveable, regno))
 		  bitmap_clear_bit (transp, regno);
-		u_rec++;
 	      }
 
-	    while (*d_rec)
+	    FOR_EACH_INSN_INFO_DEF (def, insn_info)
 	      {
-		unsigned regno = DF_REF_REGNO (*d_rec);
+		unsigned regno = DF_REF_REGNO (def);
 		bitmap_set_bit (&set, regno);
 		bitmap_clear_bit (transp, regno);
 		bitmap_clear_bit (moveable, regno);
-		d_rec++;
 	      }
 	  }
     }
@@ -4600,21 +4550,22 @@ find_moveable_pseudos (void)
   FOR_EACH_BB_FN (bb, cfun)
     {
       bitmap local = bb_local + bb->index;
-      rtx insn;
+      rtx_insn *insn;
 
       FOR_BB_INSNS (bb, insn)
 	if (NONDEBUG_INSN_P (insn))
 	  {
-	    rtx def_insn, closest_use, note;
-	    df_ref *def_rec, def, use;
+	    df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
+	    rtx_insn *def_insn;
+	    rtx closest_use, note;
+	    df_ref def, use;
 	    unsigned regno;
 	    bool all_dominated, all_local;
-	    enum machine_mode mode;
+	    machine_mode mode;
 
-	    def_rec = DF_INSN_DEFS (insn);
+	    def = df_single_def (insn_info);
 	    /* There must be exactly one def in this insn.  */
-	    def = *def_rec;
-	    if (!def || def_rec[1] || !single_set (insn))
+	    if (!def || !single_set (insn))
 	      continue;
 	    /* This must be the only definition of the reg.  We also limit
 	       which modes we deal with so that we can assume we can generate
@@ -4648,7 +4599,7 @@ find_moveable_pseudos (void)
 	    closest_use = NULL_RTX;
 	    for (; use; use = DF_REF_NEXT_REG (use))
 	      {
-		rtx insn;
+		rtx_insn *insn;
 		if (!DF_REF_INSN_INFO (use))
 		  {
 		    all_dominated = false;
@@ -4700,7 +4651,9 @@ find_moveable_pseudos (void)
 	      }
 #endif
 	    bitmap_set_bit (&interesting, regno);
-	    closest_uses[regno] = closest_use;
+	    /* If we get here, we know closest_use is a non-NULL insn
+	       (as opposed to const_0_rtx).  */
+	    closest_uses[regno] = as_a <rtx_insn *> (closest_use);
 
 	    if (dump_file && (all_local || all_dominated))
 	      {
@@ -4719,14 +4672,14 @@ find_moveable_pseudos (void)
   EXECUTE_IF_SET_IN_BITMAP (&interesting, 0, i, bi)
     {
       df_ref def = DF_REG_DEF_CHAIN (i);
-      rtx def_insn = DF_REF_INSN (def);
+      rtx_insn *def_insn = DF_REF_INSN (def);
       basic_block def_block = BLOCK_FOR_INSN (def_insn);
       bitmap def_bb_local = bb_local + def_block->index;
       bitmap def_bb_moveable = bb_moveable_reg_sets + def_block->index;
       bitmap def_bb_transp = bb_transp_live + def_block->index;
       bool local_to_bb_p = bitmap_bit_p (def_bb_local, i);
-      rtx use_insn = closest_uses[i];
-      df_ref *def_insn_use_rec = DF_INSN_USES (def_insn);
+      rtx_insn *use_insn = closest_uses[i];
+      df_ref use;
       bool all_ok = true;
       bool all_transp = true;
 
@@ -4757,9 +4710,8 @@ find_moveable_pseudos (void)
       if (dump_file)
 	fprintf (dump_file, "Examining insn %d, def for %d\n",
 		 INSN_UID (def_insn), i);
-      while (*def_insn_use_rec != NULL)
+      FOR_EACH_INSN_USE (use, def_insn)
 	{
-	  df_ref use = *def_insn_use_rec;
 	  unsigned regno = DF_REF_REGNO (use);
 	  if (bitmap_bit_p (&unusable_as_input, regno))
 	    {
@@ -4779,7 +4731,7 @@ find_moveable_pseudos (void)
 		{
 		  if (modified_between_p (DF_REF_REG (use), def_insn, use_insn))
 		    {
-		      rtx x = NEXT_INSN (def_insn);
+		      rtx_insn *x = NEXT_INSN (def_insn);
 		      while (!modified_in_p (DF_REF_REG (use), x))
 			{
 			  gcc_assert (x != use_insn);
@@ -4802,8 +4754,6 @@ find_moveable_pseudos (void)
 	      else
 		all_transp = false;
 	    }
-
-	  def_insn_use_rec++;
 	}
       if (!all_ok)
 	continue;
@@ -4867,14 +4817,14 @@ interesting_dest_for_shprep_1 (rtx set, basic_block call_dom)
   return dest;
 }
 
-/* If insn is interesting for parameter range-splitting shring-wrapping
+/* If insn is interesting for parameter range-splitting shrink-wrapping
    preparation, i.e. it is a single set from a hard register to a pseudo, which
    is live at CALL_DOM (if non-NULL, otherwise this check is omitted), or a
    parallel statement with only one such statement, return the destination.
    Otherwise return NULL.  */
 
 static rtx
-interesting_dest_for_shprep (rtx insn, basic_block call_dom)
+interesting_dest_for_shprep (rtx_insn *insn, basic_block call_dom)
 {
   if (!INSN_P (insn))
     return NULL;
@@ -4912,11 +4862,11 @@ split_live_ranges_for_shrink_wrap (void)
 {
   basic_block bb, call_dom = NULL;
   basic_block first = single_succ (ENTRY_BLOCK_PTR_FOR_FN (cfun));
-  rtx insn, last_interesting_insn = NULL;
+  rtx_insn *insn, *last_interesting_insn = NULL;
   bitmap_head need_new, reachable;
   vec<basic_block> queue;
 
-  if (!flag_shrink_wrap)
+  if (!SHRINK_WRAPPING_ENABLED)
     return false;
 
   bitmap_initialize (&need_new, 0);
@@ -4979,17 +4929,6 @@ split_live_ranges_for_shrink_wrap (void)
 	   use;
 	   use = DF_REF_NEXT_REG (use))
 	{
-	  if (NONDEBUG_INSN_P (DF_REF_INSN (use))
-	      && GET_CODE (DF_REF_REG (use)) == SUBREG)
-	    {
-	      /* This is necessary to avoid hitting an assert at
-		 postreload.c:2294 in libstc++ testcases on x86_64-linux.  I'm
-		 not really sure what the probblem actually is there.  */
-	      bitmap_clear (&need_new);
-	      bitmap_clear (&reachable);
-	      return false;
-	    }
-
 	  int ubbi = DF_REF_BB (use)->index;
 	  if (bitmap_bit_p (&reachable, ubbi))
 	    bitmap_set_bit (&need_new, ubbi);
@@ -5033,14 +4972,14 @@ split_live_ranges_for_shrink_wrap (void)
   FOR_BB_INSNS (first, insn)
     {
       rtx dest = interesting_dest_for_shprep (insn, call_dom);
-      if (!dest)
+      if (!dest || dest == pic_offset_table_rtx)
 	continue;
 
       rtx newreg = NULL_RTX;
       df_ref use, next;
       for (use = DF_REG_USE_CHAIN (REGNO (dest)); use; use = next)
 	{
-	  rtx uin = DF_REF_INSN (use);
+	  rtx_insn *uin = DF_REF_INSN (use);
 	  next = DF_REF_NEXT_REG (use);
 
 	  basic_block ubb = BLOCK_FOR_INSN (uin);
@@ -5086,12 +5025,12 @@ move_unallocated_pseudos (void)
       {
 	int idx = i - first_moveable_pseudo;
 	rtx other_reg = pseudo_replaced_reg[idx];
-	rtx def_insn = DF_REF_INSN (DF_REG_DEF_CHAIN (i));
+	rtx_insn *def_insn = DF_REF_INSN (DF_REG_DEF_CHAIN (i));
 	/* The use must follow all definitions of OTHER_REG, so we can
 	   insert the new definition immediately after any of them.  */
 	df_ref other_def = DF_REG_DEF_CHAIN (REGNO (other_reg));
-	rtx move_insn = DF_REF_INSN (other_def);
-	rtx newinsn = emit_insn_after (PATTERN (def_insn), move_insn);
+	rtx_insn *move_insn = DF_REF_INSN (other_def);
+	rtx_insn *newinsn = emit_insn_after (PATTERN (def_insn), move_insn);
 	rtx set;
 	int success;
 
@@ -5185,6 +5124,9 @@ ira (FILE *f)
   bool saved_flag_caller_saves = flag_caller_saves;
   enum ira_region saved_flag_ira_region = flag_ira_region;
 
+  /* Perform target specific PIC register initialization.  */
+  targetm.init_pic_reg ();
+
   ira_conflicts_p = optimize > 0;
 
   ira_use_lra_p = targetm.lra_p ();
@@ -5209,7 +5151,8 @@ ira (FILE *f)
 #endif
   bitmap_obstack_initialize (&ira_bitmap_obstack);
 
-  if (flag_caller_saves)
+  /* LRA uses its own infrastructure to handle caller save registers.  */
+  if (flag_caller_saves && !ira_use_lra_p)
     init_caller_save ();
 
   if (flag_ira_verbose < 10)
@@ -5347,7 +5290,18 @@ ira (FILE *f)
 	      ira_allocno_iterator ai;
 
 	      FOR_EACH_ALLOCNO (a, ai)
-		ALLOCNO_REGNO (a) = REGNO (ALLOCNO_EMIT_DATA (a)->reg);
+                {
+                  int old_regno = ALLOCNO_REGNO (a);
+                  int new_regno = REGNO (ALLOCNO_EMIT_DATA (a)->reg);
+
+                  ALLOCNO_REGNO (a) = new_regno;
+
+                  if (old_regno != new_regno)
+                    setup_reg_classes (new_regno, reg_preferred_class (old_regno),
+                                       reg_alternate_class (old_regno),
+                                       reg_allocno_class (old_regno));
+                }
+
 	    }
 	  else
 	    {
@@ -5405,14 +5359,16 @@ ira (FILE *f)
 #ifdef ENABLE_IRA_CHECKING
       print_redundant_copies ();
 #endif
-
-      ira_spilled_reg_stack_slots_num = 0;
-      ira_spilled_reg_stack_slots
-	= ((struct ira_spilled_reg_stack_slot *)
-	   ira_allocate (max_regno
-			 * sizeof (struct ira_spilled_reg_stack_slot)));
-      memset (ira_spilled_reg_stack_slots, 0,
-	      max_regno * sizeof (struct ira_spilled_reg_stack_slot));
+      if (! ira_use_lra_p)
+	{
+	  ira_spilled_reg_stack_slots_num = 0;
+	  ira_spilled_reg_stack_slots
+	    = ((struct ira_spilled_reg_stack_slot *)
+	       ira_allocate (max_regno
+			     * sizeof (struct ira_spilled_reg_stack_slot)));
+	  memset (ira_spilled_reg_stack_slots, 0,
+		  max_regno * sizeof (struct ira_spilled_reg_stack_slot));
+	}
     }
   allocate_initial_values ();
 
@@ -5433,9 +5389,17 @@ do_reload (void)
 {
   basic_block bb;
   bool need_dce;
+  unsigned pic_offset_table_regno = INVALID_REGNUM;
 
   if (flag_ira_verbose < 10)
     ira_dump_file = dump_file;
+
+  /* If pic_offset_table_rtx is a pseudo register, then keep it so
+     after reload to avoid possible wrong usages of hard reg assigned
+     to it.  */
+  if (pic_offset_table_rtx
+      && REGNO (pic_offset_table_rtx) >= FIRST_PSEUDO_REGISTER)
+    pic_offset_table_regno = REGNO (pic_offset_table_rtx);
 
   timevar_push (TV_RELOAD);
   if (ira_use_lra_p)
@@ -5448,9 +5412,6 @@ do_reload (void)
       FOR_ALL_BB_FN (bb, cfun)
 	bb->loop_father = NULL;
       current_loops = NULL;
-      
-      if (ira_conflicts_p)
-	ira_free (ira_spilled_reg_stack_slots);
 
       ira_destroy ();
 
@@ -5482,7 +5443,8 @@ do_reload (void)
 
   if (internal_flag_ira_verbose > 0 && ira_dump_file != NULL
       && overall_cost_before != ira_overall_cost)
-    fprintf (ira_dump_file, "+++Overall after reload %d\n", ira_overall_cost);
+    fprintf (ira_dump_file, "+++Overall after reload %"PRId64 "\n",
+	     ira_overall_cost);
 
   flag_ira_share_spill_slots = saved_flag_ira_share_spill_slots;
 
@@ -5544,16 +5506,13 @@ do_reload (void)
       inform (DECL_SOURCE_LOCATION (decl), "for %qD", decl);
     }
 
+  if (pic_offset_table_regno != INVALID_REGNUM)
+    pic_offset_table_rtx = gen_rtx_REG (Pmode, pic_offset_table_regno);
+
   timevar_pop (TV_IRA);
 }
 
 /* Run the integrated register allocator.  */
-static unsigned int
-rest_of_handle_ira (void)
-{
-  ira (dump_file);
-  return 0;
-}
 
 namespace {
 
@@ -5562,8 +5521,6 @@ const pass_data pass_data_ira =
   RTL_PASS, /* type */
   "ira", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  false, /* has_gate */
-  true, /* has_execute */
   TV_IRA, /* tv_id */
   0, /* properties_required */
   0, /* properties_provided */
@@ -5580,7 +5537,15 @@ public:
   {}
 
   /* opt_pass methods: */
-  unsigned int execute () { return rest_of_handle_ira (); }
+  virtual bool gate (function *)
+    {
+      return !targetm.no_register_allocation;
+    }
+  virtual unsigned int execute (function *)
+    {
+      ira (dump_file);
+      return 0;
+    }
 
 }; // class pass_ira
 
@@ -5592,13 +5557,6 @@ make_pass_ira (gcc::context *ctxt)
   return new pass_ira (ctxt);
 }
 
-static unsigned int
-rest_of_handle_reload (void)
-{
-  do_reload ();
-  return 0;
-}
-
 namespace {
 
 const pass_data pass_data_reload =
@@ -5606,8 +5564,6 @@ const pass_data pass_data_reload =
   RTL_PASS, /* type */
   "reload", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  false, /* has_gate */
-  true, /* has_execute */
   TV_RELOAD, /* tv_id */
   0, /* properties_required */
   0, /* properties_provided */
@@ -5624,7 +5580,15 @@ public:
   {}
 
   /* opt_pass methods: */
-  unsigned int execute () { return rest_of_handle_reload (); }
+  virtual bool gate (function *)
+    {
+      return !targetm.no_register_allocation;
+    }
+  virtual unsigned int execute (function *)
+    {
+      do_reload ();
+      return 0;
+    }
 
 }; // class pass_reload
 

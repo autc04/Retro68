@@ -6,6 +6,7 @@ package zip
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -86,6 +87,24 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+func TestWriterFlush(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(struct{ io.Writer }{&buf})
+	_, err := w.Create("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() > 0 {
+		t.Fatalf("Unexpected %d bytes already in buffer", buf.Len())
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() == 0 {
+		t.Fatal("No bytes written after Flush")
+	}
+}
+
 func testCreate(t *testing.T, w *Writer, wt *WriteTest) {
 	header := &FileHeader{
 		Name:   wt.Name,
@@ -123,5 +142,23 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	}
 	if !bytes.Equal(b, wt.Data) {
 		t.Errorf("File contents %q, want %q", b, wt.Data)
+	}
+}
+
+func BenchmarkCompressedZipGarbage(b *testing.B) {
+	b.ReportAllocs()
+	var buf bytes.Buffer
+	bigBuf := bytes.Repeat([]byte("a"), 1<<20)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		zw := NewWriter(&buf)
+		for j := 0; j < 3; j++ {
+			w, _ := zw.CreateHeader(&FileHeader{
+				Name:   "foo",
+				Method: Deflate,
+			})
+			w.Write(bigBuf)
+		}
+		zw.Close()
 	}
 }

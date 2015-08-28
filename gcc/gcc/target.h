@@ -1,5 +1,5 @@
 /* Data structure definitions for a generic GCC target.
-   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+   Copyright (C) 2001-2015 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -50,7 +50,9 @@
 
 #include "insn-modes.h"
 #include "insn-codes.h"
-#include "double-int.h"
+#include "wide-int.h"
+#include "tm.h"
+#include "hard-reg-set.h"
 
 #ifdef ENABLE_CHECKING
 
@@ -78,6 +80,17 @@ enum print_switch_type
   SWITCH_TYPE_LINE_END		/* Please emit a line terminator.  */
 };
 
+/* Types of memory operation understood by the "by_pieces" infrastructure.
+   Used by the TARGET_USE_BY_PIECES_INFRASTRUCTURE_P target hook.  */
+
+enum by_pieces_operation
+{
+  CLEAR_BY_PIECES,
+  MOVE_BY_PIECES,
+  SET_BY_PIECES,
+  STORE_BY_PIECES
+};
+
 typedef int (* print_switch_fn_type) (print_switch_type, const char *);
 
 /* An example implementation for ELF targets.  Defined in varasm.c  */
@@ -88,6 +101,10 @@ extern int elf_record_gcc_switches (print_switch_type type, const char *);
    the target actually supports multiple different modes.  For now,
    we disable such optimizations on such targets, using this function.  */
 extern bool target_default_pointer_address_modes_p (void);
+
+/* For hooks which use the MOVE_RATIO macro, this gives the legacy default
+   behaviour.  */
+extern unsigned int get_move_ratio (bool);
 
 struct stdarg_info;
 struct spec_info_def;

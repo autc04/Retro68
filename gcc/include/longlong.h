@@ -1,5 +1,5 @@
 /* longlong.h -- definitions for mixed size 32/64 bit arithmetic.
-   Copyright (C) 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU C Library.
 
@@ -122,7 +122,26 @@ extern const UQItype __clz_tab[256] attribute_hidden;
 #define __AND_CLOBBER_CC , "cc"
 #endif /* __GNUC__ < 2 */
 
+#if defined (__aarch64__)
+
+#if W_TYPE_SIZE == 32
+#define count_leading_zeros(COUNT, X)	((COUNT) = __builtin_clz (X))
+#define count_trailing_zeros(COUNT, X)   ((COUNT) = __builtin_ctz (X))
+#define COUNT_LEADING_ZEROS_0 32
+#endif /* W_TYPE_SIZE == 32 */
+
+#if W_TYPE_SIZE == 64
+#define count_leading_zeros(COUNT, X)	((COUNT) = __builtin_clzll (X))
+#define count_trailing_zeros(COUNT, X)   ((COUNT) = __builtin_ctzll (X))
+#define COUNT_LEADING_ZEROS_0 64
+#endif /* W_TYPE_SIZE == 64 */
+
+#endif /* __aarch64__ */
+
 #if defined (__alpha) && W_TYPE_SIZE == 64
+/* There is a bug in g++ before version 5 that
+   errors on __builtin_alpha_umulh.  */
+#if !defined(__cplusplus) || __GNUC__ >= 5
 #define umul_ppmm(ph, pl, m0, m1) \
   do {									\
     UDItype __m0 = (m0), __m1 = (m1);					\
@@ -130,6 +149,7 @@ extern const UQItype __clz_tab[256] attribute_hidden;
     (pl) = __m0 * __m1;							\
   } while (0)
 #define UMUL_TIME 46
+#endif /* !c++ */
 #ifndef LONGLONG_STANDALONE
 #define udiv_qrnnd(q, r, n1, n0, d) \
   do { UDItype __r;							\
@@ -467,7 +487,7 @@ extern UDItype __umulsidi3 (USItype, USItype);
 #define UDIV_TIME 40
 #endif /* 80x86 */
 
-#if (defined (__x86_64__) || defined (__i386__)) && W_TYPE_SIZE == 64
+#if defined (__x86_64__) && W_TYPE_SIZE == 64
 #define add_ssaaaa(sh, sl, ah, al, bh, bl) \
   __asm__ ("add{q} {%5,%1|%1,%5}\n\tadc{q} {%3,%0|%0,%3}"		\
 	   : "=r" ((UDItype) (sh)),					\
@@ -832,7 +852,7 @@ extern UDItype __umulsidi3 (USItype, USItype);
 #define UMUL_TIME 10
 #define UDIV_TIME 100
 
-#if (__mips == 32 || __mips == 64) && ! __mips16
+#if (__mips == 32 || __mips == 64) && ! defined (__mips16)
 #define count_leading_zeros(COUNT,X)	((COUNT) = __builtin_clz (X))
 #define COUNT_LEADING_ZEROS_0 32
 #endif
@@ -1671,7 +1691,8 @@ extern UHItype __stormy16_count_leading_zeros (UHItype);
 #if !defined (udiv_qrnnd) && defined (sdiv_qrnnd)
 #define udiv_qrnnd(q, r, nh, nl, d) \
   do {									\
-    USItype __r;							\
+    extern UWtype __udiv_w_sdiv (UWtype *, UWtype, UWtype, UWtype);	\
+    UWtype __r;								\
     (q) = __udiv_w_sdiv (&__r, nh, nl, d);				\
     (r) = __r;								\
   } while (0)

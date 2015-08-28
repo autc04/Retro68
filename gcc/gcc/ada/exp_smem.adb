@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,6 +25,7 @@
 
 with Atree;    use Atree;
 with Einfo;    use Einfo;
+with Elists;   use Elists;
 with Exp_Ch7;  use Exp_Ch7;
 with Exp_Ch9;  use Exp_Ch9;
 with Exp_Tss;  use Exp_Tss;
@@ -129,62 +130,123 @@ package body Exp_Smem is
    -------------------------------
 
    procedure Add_Shared_Var_Lock_Procs (N : Node_Id) is
-      Loc   : constant Source_Ptr := Sloc (N);
-      Obj   : constant Entity_Id  := Entity (Expression (First_Actual (N)));
-      Inode : Node_Id;
-      Vnm   : String_Id;
+      Loc : constant Source_Ptr := Sloc (N);
+      Obj : constant Entity_Id  := Entity (Expression (First_Actual (N)));
+      Vnm : String_Id;
+      Vid : Entity_Id;
+      Vde : Node_Id;
+      Aft : constant List_Id := New_List;
+
+      In_Transient : constant Boolean := Scope_Is_Transient;
+
+      function Build_Shared_Var_Lock_Call (RE : RE_Id) return Node_Id;
+      --  Return a procedure call statement for lock proc RTE
+
+      --------------------------------
+      -- Build_Shared_Var_Lock_Call --
+      --------------------------------
+
+      function Build_Shared_Var_Lock_Call (RE : RE_Id) return Node_Id is
+      begin
+         return
+           Make_Procedure_Call_Statement (Loc,
+             Name                   =>
+               New_Occurrence_Of (RTE (RE), Loc),
+             Parameter_Associations =>
+               New_List (New_Occurrence_Of (Vid, Loc)));
+      end Build_Shared_Var_Lock_Call;
+
+   --  Start of processing for Add_Shared_Var_Lock_Procs
 
    begin
-      --  We have to add Shared_Var_Lock and Shared_Var_Unlock calls around
-      --  the procedure or function call node. First we locate the right place
-      --  to do the insertion, which is the call itself in the procedure call
-      --  case, or else the nearest non subexpression node that contains the
-      --  function call.
+      --  Discussion of transient scopes: we need to have a transient scope
+      --  to hold the required lock/unlock actions. Either the current scope
+      --  is transient, in which case we reuse it, or we establish a new
+      --  transient scope. If this is a function call with unconstrained
+      --  return type, we can't introduce a transient scope here (because
+      --  Wrap_Transient_Expression would need to declare a temporary with
+      --  the unconstrained type outside of the transient block), but in that
+      --  case we know that we have already established one at an outer level
+      --  for secondary stack management purposes.
 
-      Inode := N;
-      while Nkind (Inode) /= N_Procedure_Call_Statement
-        and then Nkind (Inode) in N_Subexpr
-      loop
-         Inode := Parent (Inode);
-      end loop;
+      --  If the lock/read/write/unlock actions for this object have already
+      --  been emitted in the current scope, no need to perform them anew.
 
-      --  Now insert the Lock and Unlock calls and the read/write calls
-
-      --  Two concerns here. First we are not dealing with the exception case,
-      --  really we need some kind of cleanup routine to do the Unlock. Second,
-      --  these lock calls should be inside the protected object processing,
-      --  not outside, otherwise they can be done at the wrong priority,
-      --  resulting in dead lock situations ???
+      if In_Transient
+        and then Contains (Scope_Stack.Table (Scope_Stack.Last)
+                             .Locked_Shared_Objects,
+                           Obj)
+      then
+         return;
+      end if;
 
       Build_Full_Name (Obj, Vnm);
 
+      --  Declare a constant string to hold the name of the shared object.
+      --  Note that this must occur outside of the transient scope, as the
+      --  scope's finalizer needs to have access to this object. Also, it
+      --  appears that GIGI does not support elaborating string literal
+      --  subtypes in transient scopes.
+
+      Vid := Make_Temporary (Loc, 'N', Obj);
+      Vde :=
+        Make_Object_Declaration (Loc,
+          Defining_Identifier => Vid,
+          Constant_Present    => True,
+          Object_Definition   => New_Occurrence_Of (Standard_String, Loc),
+          Expression          => Make_String_Literal (Loc, Vnm));
+
+      --  Already in a transient scope. Make sure that we insert Vde outside
+      --  that scope.
+
+      if In_Transient then
+         Insert_Before_And_Analyze (Node_To_Be_Wrapped, Vde);
+
+      --  Not in a transient scope yet: insert Vde as an action on N prior to
+      --  establishing one.
+
+      else
+         Insert_Action (N, Vde);
+         Establish_Transient_Scope (N, Sec_Stack => False);
+      end if;
+
+      --  Mark object as locked in the current (transient) scope
+
+      Append_New_Elmt
+        (Obj,
+         To => Scope_Stack.Table (Scope_Stack.Last).Locked_Shared_Objects);
+
       --  First insert the Lock call before
 
-      Insert_Before_And_Analyze (Inode,
-        Make_Procedure_Call_Statement (Loc,
-          Name => New_Occurrence_Of (RTE (RE_Shared_Var_Lock), Loc),
-          Parameter_Associations => New_List (
-            Make_String_Literal (Loc, Vnm))));
+      Insert_Action (N, Build_Shared_Var_Lock_Call (RE_Shared_Var_Lock));
 
       --  Now, right after the Lock, insert a call to read the object
 
-      Insert_Before_And_Analyze (Inode,
-        Build_Shared_Var_Proc_Call (Loc, Obj, Name_Read));
+      Insert_Action (N, Build_Shared_Var_Proc_Call (Loc, Obj, Name_Read));
 
-      --  Now insert the Unlock call after
-
-      Insert_After_And_Analyze (Inode,
-        Make_Procedure_Call_Statement (Loc,
-          Name => New_Occurrence_Of (RTE (RE_Shared_Var_Unlock), Loc),
-          Parameter_Associations => New_List (
-            Make_String_Literal (Loc, Vnm))));
-
-      --  Now for a procedure call, but not a function call, insert the
-      --  call to write the object just before the unlock.
+      --  For a procedure call only, insert the call to write the object prior
+      --  to unlocking.
 
       if Nkind (N) = N_Procedure_Call_Statement then
-         Insert_After_And_Analyze (Inode,
-           Build_Shared_Var_Proc_Call (Loc, Obj, Name_Write));
+         Append_To (Aft, Build_Shared_Var_Proc_Call (Loc, Obj, Name_Write));
+      end if;
+
+      --  Finally insert the Unlock call
+
+      Append_To (Aft, Build_Shared_Var_Lock_Call (RE_Shared_Var_Unlock));
+
+      --  Store cleanup actions in transient scope
+
+      Store_Cleanup_Actions_In_Scope (Aft);
+
+      --  If we have established a transient scope here, wrap it now
+
+      if not In_Transient then
+         if Nkind (N) = N_Procedure_Call_Statement then
+            Wrap_Transient_Statement (N);
+         else
+            Wrap_Transient_Expression (N);
+         end if;
       end if;
    end Add_Shared_Var_Lock_Procs;
 

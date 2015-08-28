@@ -1,10 +1,186 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-04-22  Release Manager
 
-	* GCC 4.9.0 released.
+	* GCC 5.1.0 released.
+
+2015-01-30  Joseph Myers  <joseph@codesourcery.com>
+
+	* class.c, expr.c, jcf-parse.c, jvspec.c: All callers of
+	fatal_error changed to pass input_location as first argument.
+
+2015-10-15  Prathamesh Kulkarni  <prathamesh.kulkarni@linaro.org>
+	
+	* builtins.c: Include calls.h dojump.h emit-rtl.h explow.h expmed.h
+	fixed-value.h function.h hard-reg-set.h hashtab.h insn-config.h
+	real.h statistics.h stmt.h varasm.h.
+
+2015-01-09  Michael Collison  <michael.collison@linaro.org>
+
+	* boehm.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, options.h, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* builtins.c: Ditto.
+	* class.c: Ditto.
+	* constants.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, options.h, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* decl.c: Ditto.
+	* except.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* expr.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, fold-const.h,
+	wide-int.h,inchash.h and real.h due to flattening of tree.h.
+	* gimplify.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, options.h, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* jcf-dump.c: Ditto.
+	* jcf-io.c: Ditto.
+	* jcf-parse.c: Ditto.
+	* jvgenmain.c: Ditto.
+	* lang.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* mangle.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, options.h, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* mangle_name.c: Ditto.
+	* resource.c: Ditto.
+	* typeck.c: Ditto.
+	* verify-glue.c: Ditto.
+	* verify-impl.c: Ditto.
+
+2015-01-05  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+	* jcf-dump.c (version): Update copyright notice dates.
+
+2014-11-24  Richard Biener  <rguenther@suse.de>
+
+	PR java/64004
+	* class.c (build_classdollar_field): Do not set TREE_READONLY.
+
+2014-11-19  David Malcolm  <dmalcolm@redhat.com>
+
+	Merger of git branch "gimple-classes-v2-option-3".
+	* ChangeLog.gimple-classes: New.
+	* java-gimplify.c (java_gimplify_block): Strengthen local "outer"
+	from gimple to gbind *.
+
+2014-11-11  David Malcolm  <dmalcolm@redhat.com>
+
+	* gcc/ChangeLog.jit: New.
+
+2014-10-29  Richard Sandiford  <richard.sandiford@arm.com>
+
+	* builtins.c, java-tree.h, typeck.c: Remove redundant enum from
+	machine_mode.
+
+2014-10-28  Andrew MacLeod  <amacleod@redhat.com>
+
+	* class.c: Adjust include files.
+	* decl.c: Ditto.
+	* jcf-parse.c: Ditto.
+	* resource.c: Ditto.
+
+2014-10-27  Andrew MacLeod  <amacleod@redhat.com>
+
+	* java-gimplify.c: Adjust include files.
+
+2014-10-22  Alan Modra  <amodra@gmail.com>
+
+	* mangle.c (finish_mangling): Cast result of obstack_base to (char *).
+	* typeck.c (build_java_argument_signature): Likewise.
+	(build_java_signature): Likewise.
+
+2014-10-16  Andrew MacLeod  <amacleod@redhat.com>
+
+	* class.c: Adjust include files.
+	* resource.c: Likewise.
+
+2014-10-15  Evgeny Stupachenko  <evstupac@gmail.com>
+
+	PR target/63536
+	* lang.c (java_print_error_function): Add check on NULL function
+	context.
+
+2014-10-12  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* class.c, decl.c, except.c, expr.c, java-tree.h, lang.c: Use
+	hash_table instead of hashtab.
+
+2014-10-07  Marek Polacek  <polacek@redhat.com>
+
+	* jvgenmain.c (main): Provide declarations for JvRunMain{,Name}.
+
+2014-07-08  Mark Wielaard  <mjw@redhat.com>
+
+	* builtins.c (putVolatile_builtin): Use build_qualified_type
+	instead of build_type_variant.
+	(getVolatile_builtin): Likewise.
+	(build_classdollar_field): Likewise.
+
+2014-06-24  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* jcf-io.c: Adjust.
+
+2014-06-11  Jan Hubicka  <hubicka@ucw.cz>
+
+	* java/class.c (build_utf8_ref): Update handling for section names
+	that are no longer trees.
+	(emit_register_classes_in_jcr_section): Update.
+
+2014-06-07  Jan Hubicka  <hubicka@ucw.cz>
+
+	* class.c (build_utf8_ref): Use set_decl_section_name.
+	(emit_register_classes_in_jcr_section): Likewise.
+	(emit_register_classes_in_jcr_section): Likewise.
+
+2014-05-17  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* class.c (add_method_1): Adjust.
+	(java_treetreehash_new): Likewise.
+	* constants.c (set_constant_entry): Likewise.
+	(cpool_for_class): Likewise.
+	* decl.c (make_binding_level): Likewise.
+	(java_dup_lang_specific_decl): Likewise.
+	* expr.c (add_type_assertion): Likewise.
+	* java-tree.h (MAYBE_CREATE_VAR_LANG_DECL_SPECIFIC): Likewise.
+	(lang_decl): don't use variable_size gty attribute.
+	(MAYBE_CREATE_TYPE_TYPE_LANG_SPECIFIC): Adjust.
+	(lang_type): Don't use variable_size gty attribute.
+	* jcf-parse.c (java_parse_file): Adjust.
+	(process_zip_dir): Likewise.
+	* jcf.h: Remove usage of variable_size gty attribute.
+	* jcf-reader.c (jcf_parse_constant_pool): Adjust.
+	(jcf_parse_bootstrap_methods): Likewise.
+
+2014-05-17  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* constants.c (set_constant_entry): Adjust.
+
+2014-05-06  Richard Sandiford  <r.sandiford@uk.ibm.com>
+
+	* boehm.c (mark_reference_fields): Don't update the mask when
+	setting pointer_after_end.
+
+2014-05-06  Kenneth Zadeck  <zadeck@naturalbridge.com>
+	    Mike Stump  <mikestump@comcast.net>
+	    Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* boehm.c: Include wide-int.h.
+	(mark_reference_fields): Use a wide_int mask.
+	(get_boehm_type_descriptor): Use wide-int interfaces.
+	* expr.c: Include wide-int.h.
+	(build_newarray): Remove bogus "== INTEGER_CST".
+	(expand_java_pushc): Use real_from_integer.
+	(build_field_ref): Use tree_int_cst_lt instead of INT_CST_LT_UNSIGNED.
+	* jcf-parse.c: Include wide-int.h.
+	(get_constant): Use wide-int interfaces.
 
 2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
 
@@ -22908,7 +23084,7 @@ Tue Mar  9 11:52:08 1999  Alexandre Petit-Bianco  <apbianco@cygnus.com>
 	New directory.
 
 
-Copyright (C) 1996-2014 Free Software Foundation, Inc.
+Copyright (C) 1996-2015 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

@@ -1,4 +1,4 @@
-# Copyright (C) 1993-2014 Free Software Foundation, Inc.
+# Copyright (C) 1993-2015 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -63,8 +63,12 @@ MULTILIB_MATCHES = $(shell \
     done \
   done)
 
-# SH1 only supports big endian.
+# SH1 and SH2A support big endian only.
+ifeq ($(DEFAULT_ENDIAN),ml)
+MULTILIB_EXCEPTIONS = m1 ml/m1 m2a* ml/m2a* $(TM_MULTILIB_EXCEPTIONS_CONFIG)
+else
 MULTILIB_EXCEPTIONS = ml/m1 ml/m2a* $(TM_MULTILIB_EXCEPTIONS_CONFIG)
+endif
 
 MULTILIB_OSDIRNAMES = \
 	$(OTHER_ENDIAN)=!$(OTHER_ENDIAN) \

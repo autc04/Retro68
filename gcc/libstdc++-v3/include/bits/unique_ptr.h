@@ -1,6 +1,6 @@
 // unique_ptr implementation -*- C++ -*-
 
-// Copyright (C) 2008-2014 Free Software Foundation, Inc.
+// Copyright (C) 2008-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -743,6 +743,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     };
 
 #if __cplusplus > 201103L
+
+#define __cpp_lib_make_unique 201304
+
   template<typename _Tp>
     struct _MakeUniq
     { typedef unique_ptr<_Tp> __single_object; };
@@ -765,7 +768,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Tp>
     inline typename _MakeUniq<_Tp>::__array
     make_unique(size_t __num)
-    { return unique_ptr<_Tp>(new typename remove_extent<_Tp>::type[__num]()); }
+    { return unique_ptr<_Tp>(new remove_extent_t<_Tp>[__num]()); }
 
   /// Disable std::make_unique for arrays of known bound
   template<typename _Tp, typename... _Args>

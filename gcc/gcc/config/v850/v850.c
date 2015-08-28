@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.c for NEC V850 series
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2015 Free Software Foundation, Inc.
    Contributed by Jeff Law (law@cygnus.com).
 
    This file is part of GCC.
@@ -22,6 +22,15 @@
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "stor-layout.h"
@@ -36,15 +45,34 @@
 #include "insn-attr.h"
 #include "flags.h"
 #include "recog.h"
-#include "expr.h"
+#include "hashtab.h"
 #include "function.h"
+#include "statistics.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "emit-rtl.h"
+#include "stmt.h"
+#include "expr.h"
 #include "diagnostic-core.h"
 #include "ggc.h"
 #include "tm_p.h"
 #include "target.h"
 #include "target-def.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfgrtl.h"
+#include "cfganal.h"
+#include "lcm.h"
+#include "cfgbuild.h"
+#include "cfgcleanup.h"
+#include "predict.h"
+#include "basic-block.h"
 #include "df.h"
 #include "opts.h"
+#include "builtins.h"
 
 #ifndef streq
 #define streq(a,b) (strcmp (a, b) == 0)
@@ -53,8 +81,8 @@
 static void v850_print_operand_address (FILE *, rtx);
 
 /* Names of the various data areas used on the v850.  */
-tree GHS_default_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
-tree GHS_current_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
+const char * GHS_default_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
+const char * GHS_current_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
 
 /* Track the current data area set by the data area pragma (which 
    can be nested).  Tested by check_default_data_area.  */
@@ -109,7 +137,7 @@ v850_all_frame_related (rtx par)
 
 static bool
 v850_pass_by_reference (cumulative_args_t cum ATTRIBUTE_UNUSED,
-			enum machine_mode mode, const_tree type,
+			machine_mode mode, const_tree type,
 			bool named ATTRIBUTE_UNUSED)
 {
   unsigned HOST_WIDE_INT size;
@@ -130,7 +158,7 @@ v850_pass_by_reference (cumulative_args_t cum ATTRIBUTE_UNUSED,
    is NULL_RTX, the argument will be pushed.  */
 
 static rtx
-v850_function_arg (cumulative_args_t cum_v, enum machine_mode mode,
+v850_function_arg (cumulative_args_t cum_v, machine_mode mode,
 		   const_tree type, bool named)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
@@ -194,7 +222,7 @@ v850_function_arg (cumulative_args_t cum_v, enum machine_mode mode,
 /* Return the number of bytes which must be put into registers
    for values which are part in registers and part in memory.  */
 static int
-v850_arg_partial_bytes (cumulative_args_t cum_v, enum machine_mode mode,
+v850_arg_partial_bytes (cumulative_args_t cum_v, machine_mode mode,
                         tree type, bool named)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
@@ -238,7 +266,7 @@ v850_arg_partial_bytes (cumulative_args_t cum_v, enum machine_mode mode,
    (TYPE is null for libcalls where that information may not be available.)  */
 
 static void
-v850_function_arg_advance (cumulative_args_t cum_v, enum machine_mode mode,
+v850_function_arg_advance (cumulative_args_t cum_v, machine_mode mode,
 			   const_tree type, bool named ATTRIBUTE_UNUSED)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
@@ -791,10 +819,13 @@ v850_output_addr_const_extra (FILE * file, rtx x)
      nothing, since the table will not be used.
      (cf gcc.c-torture/compile/990801-1.c).  */
   if (GET_CODE (x) == MINUS
-      && GET_CODE (XEXP (x, 0)) == LABEL_REF
-      && GET_CODE (XEXP (XEXP (x, 0), 0)) == CODE_LABEL
-      && INSN_DELETED_P (XEXP (XEXP (x, 0), 0)))
-    return true;
+      && GET_CODE (XEXP (x, 0)) == LABEL_REF)
+    {
+      rtx_code_label *label
+	= dyn_cast<rtx_code_label *> (XEXP (XEXP (x, 0), 0));
+      if (label && label->deleted ())
+	return true;
+    }
 
   output_addr_const (file, x);
   return true;
@@ -901,7 +932,7 @@ output_move_single (rtx * operands)
   return "";
 }
 
-enum machine_mode
+machine_mode
 v850_select_cc_mode (enum rtx_code cond, rtx op0, rtx op1 ATTRIBUTE_UNUSED)
 {
   if (GET_MODE_CLASS (GET_MODE (op0)) == MODE_FLOAT)
@@ -927,8 +958,8 @@ v850_select_cc_mode (enum rtx_code cond, rtx op0, rtx op1 ATTRIBUTE_UNUSED)
   return CCmode;
 }
 
-enum machine_mode
-v850_gen_float_compare (enum rtx_code cond, enum machine_mode mode ATTRIBUTE_UNUSED, rtx op0, rtx op1)
+machine_mode
+v850_gen_float_compare (enum rtx_code cond, machine_mode mode ATTRIBUTE_UNUSED, rtx op0, rtx op1)
 {
   if (GET_MODE (op0) == DFmode)
     {
@@ -991,7 +1022,7 @@ v850_gen_float_compare (enum rtx_code cond, enum machine_mode mode ATTRIBUTE_UNU
 }
 
 rtx
-v850_gen_compare (enum rtx_code cond, enum machine_mode mode, rtx op0, rtx op1)
+v850_gen_compare (enum rtx_code cond, machine_mode mode, rtx op0, rtx op1)
 {
   if (GET_MODE_CLASS(GET_MODE (op0)) != MODE_FLOAT)
     {
@@ -1013,7 +1044,7 @@ v850_gen_compare (enum rtx_code cond, enum machine_mode mode, rtx op0, rtx op1)
    MODE and signedness UNSIGNEDP.  */
 
 static int
-ep_memory_offset (enum machine_mode mode, int unsignedp ATTRIBUTE_UNUSED)
+ep_memory_offset (machine_mode mode, int unsignedp ATTRIBUTE_UNUSED)
 {
   int max_offset = 0;
 
@@ -1054,7 +1085,7 @@ ep_memory_offset (enum machine_mode mode, int unsignedp ATTRIBUTE_UNUSED)
 /* Return true if OP is a valid short EP memory reference */
 
 int
-ep_memory_operand (rtx op, enum machine_mode mode, int unsigned_load)
+ep_memory_operand (rtx op, machine_mode mode, int unsigned_load)
 {
   rtx addr, op0, op1;
   int max_offset;
@@ -1113,15 +1144,15 @@ ep_memory_operand (rtx op, enum machine_mode mode, int unsigned_load)
    taking care to save and preserve the ep.  */
 
 static void
-substitute_ep_register (rtx first_insn,
-                        rtx last_insn,
+substitute_ep_register (rtx_insn *first_insn,
+                        rtx_insn *last_insn,
                         int uses,
                         int regno,
                         rtx * p_r1,
                         rtx * p_ep)
 {
   rtx reg = gen_rtx_REG (Pmode, regno);
-  rtx insn;
+  rtx_insn *insn;
 
   if (!*p_r1)
     {
@@ -1226,8 +1257,8 @@ v850_reorg (void)
   struct
   {
     int uses;
-    rtx first_insn;
-    rtx last_insn;
+    rtx_insn *first_insn;
+    rtx_insn *last_insn;
   }
   regs[FIRST_PSEUDO_REGISTER];
 
@@ -1235,7 +1266,7 @@ v850_reorg (void)
   int use_ep = FALSE;
   rtx r1 = NULL_RTX;
   rtx ep = NULL_RTX;
-  rtx insn;
+  rtx_insn *insn;
   rtx pattern;
 
   /* If not ep mode, just return now.  */
@@ -1245,8 +1276,8 @@ v850_reorg (void)
   for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
     {
       regs[i].uses = 0;
-      regs[i].first_insn = NULL_RTX;
-      regs[i].last_insn = NULL_RTX;
+      regs[i].first_insn = NULL;
+      regs[i].last_insn = NULL;
     }
 
   for (insn = get_insns (); insn != NULL_RTX; insn = NEXT_INSN (insn))
@@ -1279,8 +1310,8 @@ v850_reorg (void)
 	  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
 	    {
 	      regs[i].uses = 0;
-	      regs[i].first_insn = NULL_RTX;
-	      regs[i].last_insn = NULL_RTX;
+	      regs[i].first_insn = NULL;
+	      regs[i].last_insn = NULL;
 	    }
 	  break;
 
@@ -1375,7 +1406,7 @@ v850_reorg (void)
 		 for the register */
 	      if (GET_CODE (dest) == REG)
 		{
-		  enum machine_mode mode = GET_MODE (dest);
+		  machine_mode mode = GET_MODE (dest);
 		  int regno;
 		  int endregno;
 
@@ -1412,8 +1443,8 @@ v850_reorg (void)
 			  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
 			    {
 			      regs[i].uses = 0;
-			      regs[i].first_insn = NULL_RTX;
-			      regs[i].last_insn = NULL_RTX;
+			      regs[i].first_insn = NULL;
+			      regs[i].last_insn = NULL;
 			    }
 			}
 		    }
@@ -1421,8 +1452,8 @@ v850_reorg (void)
 		  for (i = regno; i < endregno; i++)
 		    {
 		      regs[i].uses = 0;
-		      regs[i].first_insn = NULL_RTX;
-		      regs[i].last_insn = NULL_RTX;
+		      regs[i].first_insn = NULL;
+		      regs[i].last_insn = NULL;
 		    }
 		}
 	    }
@@ -1988,7 +2019,7 @@ expand_epilogue (void)
 
 /* Update the condition code from the insn.  */
 void
-notice_update_cc (rtx body, rtx insn)
+notice_update_cc (rtx body, rtx_insn *insn)
 {
   switch (get_attr_cc (insn))
     {
@@ -2189,7 +2220,7 @@ v850_encode_data_area (tree decl, rtx symbol)
     {
       if (DECL_SECTION_NAME (decl))
 	{
-	  const char *name = TREE_STRING_POINTER (DECL_SECTION_NAME (decl));
+	  const char *name = DECL_SECTION_NAME (decl);
 	  
 	  if (streq (name, ".zdata") || streq (name, ".zbss"))
 	    v850_set_data_area (decl, DATA_AREA_ZDA);
@@ -2568,19 +2599,19 @@ v850_insert_attributes (tree decl, tree * attr_ptr ATTRIBUTE_UNUSED )
   if (GHS_default_section_names [(int) GHS_SECTION_KIND_SDATA] == NULL)
     {
       GHS_default_section_names [(int) GHS_SECTION_KIND_SDATA]
-	= build_string (sizeof (".sdata")-1, ".sdata");
+	= ".sdata";
 
       GHS_default_section_names [(int) GHS_SECTION_KIND_ROSDATA]
-	= build_string (sizeof (".rosdata")-1, ".rosdata");
+	= ".rosdata";
 
       GHS_default_section_names [(int) GHS_SECTION_KIND_TDATA]
-	= build_string (sizeof (".tdata")-1, ".tdata");
+	= ".tdata";
       
       GHS_default_section_names [(int) GHS_SECTION_KIND_ZDATA]
-	= build_string (sizeof (".zdata")-1, ".zdata");
+	= ".zdata";
 
       GHS_default_section_names [(int) GHS_SECTION_KIND_ROZDATA]
-	= build_string (sizeof (".rozdata")-1, ".rozdata");
+	= ".rozdata";
     }
   
   if (current_function_decl == NULL_TREE
@@ -2591,7 +2622,7 @@ v850_insert_attributes (tree decl, tree * attr_ptr ATTRIBUTE_UNUSED )
       && !DECL_SECTION_NAME (decl))
     {
       enum GHS_section_kind kind = GHS_SECTION_KIND_DEFAULT;
-      tree chosen_section;
+      const char * chosen_section;
 
       if (TREE_CODE (decl) == FUNCTION_DECL)
 	kind = GHS_SECTION_KIND_TEXT;
@@ -2643,7 +2674,7 @@ v850_insert_attributes (tree decl, tree * attr_ptr ATTRIBUTE_UNUSED )
 	  /* Only set the section name if specified by a pragma, because
 	     otherwise it will force those variables to get allocated storage
 	     in this module, rather than by the linker.  */
-	  DECL_SECTION_NAME (decl) = chosen_section;
+	  set_decl_section_name (decl, chosen_section);
 	}
     }
 }
@@ -3061,7 +3092,7 @@ v850_issue_rate (void)
 /* Implement TARGET_LEGITIMATE_CONSTANT_P.  */
 
 static bool
-v850_legitimate_constant_p (enum machine_mode mode ATTRIBUTE_UNUSED, rtx x)
+v850_legitimate_constant_p (machine_mode mode ATTRIBUTE_UNUSED, rtx x)
 {
   return (GET_CODE (x) == CONST_DOUBLE
 	  || !(GET_CODE (x) == CONST
@@ -3072,7 +3103,7 @@ v850_legitimate_constant_p (enum machine_mode mode ATTRIBUTE_UNUSED, rtx x)
 }
 
 static int
-v850_memory_move_cost (enum machine_mode mode,
+v850_memory_move_cost (machine_mode mode,
 		       reg_class_t reg_class ATTRIBUTE_UNUSED,
 		       bool in)
 {
@@ -3091,7 +3122,7 @@ v850_memory_move_cost (enum machine_mode mode,
 }
 
 int
-v850_adjust_insn_length (rtx insn, int length)
+v850_adjust_insn_length (rtx_insn *insn, int length)
 {
   if (TARGET_V850E3V5_UP)
     {

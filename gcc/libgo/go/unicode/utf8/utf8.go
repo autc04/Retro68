@@ -211,8 +211,11 @@ func FullRuneInString(s string) bool {
 	return !short
 }
 
-// DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and
+// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// the encoding is invalid, it returns (RuneError, 1). Both are impossible
+// results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
@@ -221,8 +224,10 @@ func DecodeRune(p []byte) (r rune, size int) {
 	return
 }
 
-// DecodeRuneInString is like DecodeRune but its input is a string.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeRuneInString is like DecodeRune but its input is a string. If s is
+// empty it returns (RuneError, 0). Otherwise, if the encoding is invalid, it
+// returns (RuneError, 1). Both are impossible results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
@@ -231,8 +236,11 @@ func DecodeRuneInString(s string) (r rune, size int) {
 	return
 }
 
-// DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and its width in bytes.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and
+// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// the encoding is invalid, it returns (RuneError, 1). Both are impossible
+// results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
@@ -268,8 +276,10 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	return r, size
 }
 
-// DecodeLastRuneInString is like DecodeLastRune but its input is a string.
-// If the encoding is invalid, it returns (RuneError, 1), an impossible result for correct UTF-8.
+// DecodeLastRuneInString is like DecodeLastRune but its input is a string. If
+// s is empty it returns (RuneError, 0). Otherwise, if the encoding is invalid,
+// it returns (RuneError, 1). Both are impossible results for correct UTF-8.
+//
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
@@ -329,37 +339,29 @@ func RuneLen(r rune) int {
 // It returns the number of bytes written.
 func EncodeRune(p []byte, r rune) int {
 	// Negative values are erroneous.  Making it unsigned addresses the problem.
-	if uint32(r) <= rune1Max {
+	switch i := uint32(r); {
+	case i <= rune1Max:
 		p[0] = byte(r)
 		return 1
-	}
-
-	if uint32(r) <= rune2Max {
+	case i <= rune2Max:
 		p[0] = t2 | byte(r>>6)
 		p[1] = tx | byte(r)&maskx
 		return 2
-	}
-
-	if uint32(r) > MaxRune {
+	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
 		r = RuneError
-	}
-
-	if surrogateMin <= r && r <= surrogateMax {
-		r = RuneError
-	}
-
-	if uint32(r) <= rune3Max {
+		fallthrough
+	case i <= rune3Max:
 		p[0] = t3 | byte(r>>12)
 		p[1] = tx | byte(r>>6)&maskx
 		p[2] = tx | byte(r)&maskx
 		return 3
+	default:
+		p[0] = t4 | byte(r>>18)
+		p[1] = tx | byte(r>>12)&maskx
+		p[2] = tx | byte(r>>6)&maskx
+		p[3] = tx | byte(r)&maskx
+		return 4
 	}
-
-	p[0] = t4 | byte(r>>18)
-	p[1] = tx | byte(r>>12)&maskx
-	p[2] = tx | byte(r>>6)&maskx
-	p[3] = tx | byte(r)&maskx
-	return 4
 }
 
 // RuneCount returns the number of runes in p.  Erroneous and short
@@ -380,7 +382,7 @@ func RuneCount(p []byte) int {
 
 // RuneCountInString is like RuneCount but its input is a string.
 func RuneCountInString(s string) (n int) {
-	for _ = range s {
+	for range s {
 		n++
 	}
 	return

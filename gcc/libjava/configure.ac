@@ -1088,11 +1088,6 @@ case "$THREADS" in
 	THREADLIBS='-lpthread -lrt'
 	THREADSPEC='-lpthread -lrt'
 	;;
-     *-*-solaris2.9)
-	# Need libthread for TLS support.
-	THREADLIBS='-lpthread -lthread'
-	THREADSPEC='-lpthread -lthread'
-	;;
      *-*-darwin*)
 	# Don't set THREADLIBS or THREADSPEC as Darwin already
 	# provides pthread via libSystem.
@@ -1759,6 +1754,9 @@ case "${host}" in
     ;;
  powerpc*-*-aix*)
     SIGNAL_HANDLER=include/aix-signal.h
+    ;;
+ i?86-*-freebsd* | x86_64-*-freebsd*)
+    SIGNAL_HANDLER=include/freebsd-signal.h
     ;;
  *)
     SIGNAL_HANDLER=include/default-signal.h

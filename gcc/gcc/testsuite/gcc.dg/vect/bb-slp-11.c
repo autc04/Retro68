@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-require-effective-target vect_pack_trunc } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -48,6 +49,6 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "basic block vectorized" 1 "slp" { target vect64 } } } */
-/* { dg-final { cleanup-tree-dump "slp" } } */
+/* { dg-final { scan-tree-dump-times "basic block vectorized" 1 "slp2" { target vect64 } } } */
+/* { dg-final { cleanup-tree-dump "slp2" } } */
   

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1995-2013, AdaCore                     --
+--                     Copyright (C) 1995-2014, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -96,8 +96,8 @@ package body System.OS_Lib is
       Stdout : Boolean);
    --  Internal routine to implement two Create_Temp_File routines. If Stdout
    --  is set to True the created descriptor is stdout-compatible, otherwise
-   --  it might not be depending on the OS (VMS is one example). The first two
-   --  parameters are as in Create_Temp_File.
+   --  it might not be depending on the OS. The first two parameters are as
+   --  in Create_Temp_File.
 
    function C_String_Length (S : Address) return Integer;
    --  Returns the length of C (null-terminated) string at S, or 0 for
@@ -279,7 +279,6 @@ package body System.OS_Lib is
    procedure Close (FD : File_Descriptor) is
       use CRTL;
       Discard : constant int := close (int (FD));
-      pragma Unreferenced (Discard);
    begin
       null;
    end Close;
@@ -417,8 +416,8 @@ package body System.OS_Lib is
          loop
             R := Read (From, Buffer (1)'Address, Buf_Size);
 
-            --  For VMS, the buffer may not be full. So, we need to try again
-            --  until there is nothing to read.
+            --  On some systems, the buffer may not be full. So, we need to try
+            --  again until there is nothing to read.
 
             exit when R = 0;
 
@@ -798,6 +797,8 @@ package body System.OS_Lib is
          return C_Create_File (C_Name (C_Name'First)'Address);
       end Create_New_Output_Text_File;
 
+   --  Start of processing for Create_Temp_File_Internal
+
    begin
       --  Loop until a new temp file can be created
 
@@ -887,6 +888,26 @@ package body System.OS_Lib is
          end if;
       end loop File_Loop;
    end Create_Temp_File_Internal;
+
+   -------------------------
+   -- Current_Time_String --
+   -------------------------
+
+   function Current_Time_String return String is
+      subtype S23 is String (1 .. 23);
+      --  Holds current time in ISO 8601 format YYYY-MM-DD HH:MM:SS.SS + NUL
+
+      procedure Current_Time_String (Time : System.Address);
+      pragma Import (C, Current_Time_String, "__gnat_current_time_string");
+      --  Puts current time into Time in above ISO 8601 format
+
+      Result23 : aliased S23;
+      --  Current time in ISO 8601 format
+
+   begin
+      Current_Time_String (Result23'Address);
+      return Result23 (1 .. 19);
+   end Current_Time_String;
 
    -----------------
    -- Delete_File --
@@ -1308,6 +1329,28 @@ package body System.OS_Lib is
       Second := S;
    end GM_Split;
 
+   ----------------
+   -- GM_Time_Of --
+   ----------------
+
+   function GM_Time_Of
+     (Year   : Year_Type;
+      Month  : Month_Type;
+      Day    : Day_Type;
+      Hour   : Hour_Type;
+      Minute : Minute_Type;
+      Second : Second_Type) return OS_Time
+   is
+      procedure To_OS_Time
+        (P_Time_T : Address; Year, Month, Day, Hours, Mins, Secs : Integer);
+      pragma Import (C, To_OS_Time, "__gnat_to_os_time");
+      Result : OS_Time;
+   begin
+      To_OS_Time
+        (Result'Address, Year - 1900, Month - 1, Day, Hour, Minute, Second);
+      return Result;
+   end GM_Time_Of;
+
    -------------
    -- GM_Year --
    -------------
@@ -1655,6 +1698,54 @@ package body System.OS_Lib is
       end if;
    end Non_Blocking_Spawn;
 
+   function Non_Blocking_Spawn
+     (Program_Name : String;
+      Args         : Argument_List;
+      Stdout_File  : String;
+      Stderr_File  : String) return Process_Id
+   is
+      Stdout_FD : constant File_Descriptor :=
+                     Create_Output_Text_File (Stdout_File);
+      Stderr_FD : constant File_Descriptor :=
+                     Create_Output_Text_File (Stderr_File);
+
+      Saved_Output : File_Descriptor;
+      Saved_Error  : File_Descriptor;
+
+      Result : Process_Id;
+
+   begin
+      --  Do not attempt to spawn if the output files could not be created
+
+      if Stdout_FD = Invalid_FD or else Stderr_FD = Invalid_FD then
+         return Invalid_Pid;
+      end if;
+
+      --  Set standard output and error to the specified files
+
+      Saved_Output := Dup (Standout);
+      Dup2 (Stdout_FD, Standout);
+
+      Saved_Error  := Dup (Standerr);
+      Dup2 (Stderr_FD, Standerr);
+
+      --  Spawn the program
+
+      Result := Non_Blocking_Spawn (Program_Name, Args);
+
+      --  Restore the standard output and error
+
+      Dup2 (Saved_Output, Standout);
+      Dup2 (Saved_Error, Standerr);
+
+      --  And close the saved standard output and error file descriptors
+
+      Close (Saved_Output);
+      Close (Saved_Error);
+
+      return Result;
+   end Non_Blocking_Spawn;
+
    -------------------------
    -- Normalize_Arguments --
    -------------------------
@@ -1810,6 +1901,7 @@ package body System.OS_Lib is
         (Host_File : System.Address) return System.Address;
       pragma Import
         (C, To_Canonical_File_Spec, "__gnat_to_canonical_file_spec");
+      --  Convert possible foreign file syntax to canonical form
 
       The_Name : String (1 .. Name'Length + 1);
       Canonical_File_Addr : System.Address;
@@ -1937,19 +2029,19 @@ package body System.OS_Lib is
          return "";
       end if;
 
-      --  First, convert VMS file spec to Unix file spec.
-      --  If Name is not in VMS syntax, then this is equivalent
-      --  to put Name at the beginning of Path_Buffer.
+      --  First, convert possible foreign file spec to Unix file spec. If no
+      --  conversion is required, all this does is put Name at the beginning
+      --  of Path_Buffer unchanged.
 
-      VMS_Conversion : begin
+      File_Name_Conversion : begin
          The_Name (1 .. Name'Length) := Name;
          The_Name (The_Name'Last) := ASCII.NUL;
 
          Canonical_File_Addr := To_Canonical_File_Spec (The_Name'Address);
          Canonical_File_Len  := Integer (CRTL.strlen (Canonical_File_Addr));
 
-         --  If VMS syntax conversion has failed, return an empty string
-         --  to indicate the failure.
+         --  If syntax conversion has failed, return an empty string to
+         --  indicate the failure.
 
          if Canonical_File_Len = 0 then
             return "";
@@ -1966,7 +2058,7 @@ package body System.OS_Lib is
             End_Path := Canonical_File_Len;
             Last := 1;
          end;
-      end VMS_Conversion;
+      end File_Name_Conversion;
 
       --  Replace all '/' by Directory Separators (this is for Windows)
 
@@ -1978,12 +2070,7 @@ package body System.OS_Lib is
          end loop;
       end if;
 
-      --  Resolve directory names for Windows (formerly also VMS)
-
-      --  On VMS, if we have a Unix path such as /temp/..., and TEMP is a
-      --  logical name, we must not try to resolve this logical name, because
-      --  it may have multiple equivalences and if resolved we will only
-      --  get the first one.
+      --  Resolve directory names for Windows
 
       if On_Windows then
 
@@ -2220,6 +2307,33 @@ package body System.OS_Lib is
       return "";
    end Normalize_Pathname;
 
+   -----------------
+   -- Open_Append --
+   -----------------
+
+   function Open_Append
+     (Name  : C_File_Name;
+      Fmode : Mode) return File_Descriptor
+   is
+      function C_Open_Append
+        (Name  : C_File_Name;
+         Fmode : Mode) return File_Descriptor;
+      pragma Import (C, C_Open_Append, "__gnat_open_append");
+   begin
+      return C_Open_Append (Name, Fmode);
+   end Open_Append;
+
+   function Open_Append
+     (Name  : String;
+      Fmode : Mode) return File_Descriptor
+   is
+      C_Name : String (1 .. Name'Length + 1);
+   begin
+      C_Name (1 .. Name'Length) := Name;
+      C_Name (C_Name'Last)      := ASCII.NUL;
+      return Open_Append (C_Name (C_Name'First)'Address, Fmode);
+   end Open_Append;
+
    ---------------
    -- Open_Read --
    ---------------
@@ -2375,15 +2489,29 @@ package body System.OS_Lib is
    -- Set_Executable --
    --------------------
 
-   procedure Set_Executable (Name : String) is
-      procedure C_Set_Executable (Name : C_File_Name);
+   procedure Set_Executable (Name : String; Mode : Positive := S_Owner) is
+      procedure C_Set_Executable (Name : C_File_Name; Mode : Integer);
       pragma Import (C, C_Set_Executable, "__gnat_set_executable");
       C_Name : aliased String (Name'First .. Name'Last + 1);
    begin
       C_Name (Name'Range)  := Name;
       C_Name (C_Name'Last) := ASCII.NUL;
-      C_Set_Executable (C_Name (C_Name'First)'Address);
+      C_Set_Executable (C_Name (C_Name'First)'Address, Mode);
    end Set_Executable;
+
+   -------------------------------------
+   -- Set_File_Last_Modify_Time_Stamp --
+   -------------------------------------
+
+   procedure Set_File_Last_Modify_Time_Stamp (Name : String; Time : OS_Time) is
+      procedure C_Set_File_Time (Name : C_File_Name; Time : OS_Time);
+      pragma Import (C, C_Set_File_Time, "__gnat_set_file_time_name");
+      C_Name : aliased String (Name'First .. Name'Last + 1);
+   begin
+      C_Name (Name'Range)  := Name;
+      C_Name (C_Name'Last) := ASCII.NUL;
+      C_Set_File_Time (C_Name'Address, Time);
+   end Set_File_Last_Modify_Time_Stamp;
 
    ----------------------
    -- Set_Non_Readable --

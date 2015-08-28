@@ -40,12 +40,14 @@ repository=$1
 old_rev=`sed 1q MERGE`
 
 rm -rf ${OLDDIR}
-hg clone -r ${old_rev} ${repository} ${OLDDIR}
+git clone ${repository} ${OLDDIR}
+(cd ${OLDDIR} && git checkout ${old_rev})
 
 rm -rf ${NEWDIR}
-hg clone -u ${rev} ${repository} ${NEWDIR}
+git clone ${repository} ${NEWDIR}
+(cd ${NEWDIR} && git checkout ${rev})
 
-new_rev=`cd ${NEWDIR} && hg log -r ${rev} | sed 1q | sed -e 's/.*://'`
+new_rev=`cd ${NEWDIR} && git log | sed 1q | sed -e 's/commit //'`
 
 merge() {
   name=$1
@@ -69,7 +71,7 @@ merge() {
   elif test -f ${old}; then
     # The file exists in the old version.
     if ! test -f ${libgo}; then
-      echo "merge.sh: $name: skipping: exists in old and new hg, but not in libgo"
+      echo "merge.sh: $name: skipping: exists in old and new git, but not in libgo"
       continue
     fi
     if cmp -s ${old} ${libgo}; then
@@ -124,11 +126,11 @@ merge() {
 merge_c() {
   from=$1
   to=$2
-  oldfile=${OLDDIR}/src/pkg/runtime/$from
+  oldfile=${OLDDIR}/src/runtime/$from
   if test -f ${oldfile}; then
     sed -e 's/·/_/g' < ${oldfile} > ${oldfile}.tmp
     oldfile=${oldfile}.tmp
-    newfile=${NEWDIR}/src/pkg/runtime/$from
+    newfile=${NEWDIR}/src/runtime/$from
     sed -e 's/·/_/g' < ${newfile} > ${newfile}.tmp
     newfile=${newfile}.tmp
     libgofile=runtime/$to
@@ -136,25 +138,34 @@ merge_c() {
   fi
 }
 
-(cd ${NEWDIR}/src/pkg && find . -name '*.go' -print) | while read f; do
-  oldfile=${OLDDIR}/src/pkg/$f
-  newfile=${NEWDIR}/src/pkg/$f
+if test -f VERSION; then
+  if ! cmp -s ${NEWDIR}/VERSION VERSION; then
+    cp ${NEWDIR}/VERSION .
+  fi
+else
+  if test -f ${NEWDIR}/VERSION; then
+    cp ${NEWDIR}/VERSION .
+  fi
+fi
+
+(cd ${NEWDIR}/src && find . -name '*.go' -print) | while read f; do
+  oldfile=${OLDDIR}/src/$f
+  newfile=${NEWDIR}/src/$f
   libgofile=go/$f
   merge $f ${oldfile} ${newfile} ${libgofile}
 done
 
-(cd ${NEWDIR}/src/pkg && find . -name testdata -print) | while read d; do
-  oldtd=${OLDDIR}/src/pkg/$d
-  newtd=${NEWDIR}/src/pkg/$d
+(cd ${NEWDIR}/src && find . -name testdata -print) | while read d; do
+  oldtd=${OLDDIR}/src/$d
+  newtd=${NEWDIR}/src/$d
   libgotd=go/$d
   if ! test -d ${oldtd}; then
     continue
   fi
-  (cd ${oldtd} && hg status -A .) | while read f; do
-    if test "`basename $f`" = ".hgignore"; then
+  (cd ${oldtd} && git ls-files .) | while read f; do
+    if test "`basename $f`" = ".gitignore"; then
       continue
     fi
-    f=`echo $f | sed -e 's/^..//'`
     name=$d/$f
     oldfile=${oldtd}/$f
     newfile=${newtd}/$f
@@ -163,17 +174,47 @@ done
   done
 done
 
-runtime="chan.c cpuprof.c env_posix.c lock_futex.c lock_sema.c mcache.c mcentral.c mfinal.c mfixalloc.c mgc0.c mgc0.h mheap.c msize.c netpoll.goc netpoll_epoll.c netpoll_kqueue.c netpoll_stub.c panic.c print.c proc.c race.h runtime.c runtime.h signal_unix.c signal_unix.h malloc.h malloc.goc mprof.goc parfor.c runtime1.goc sema.goc sigqueue.goc string.goc time.goc"
-for f in $runtime; do
-  merge_c $f $f
+cmdlist="cgo go gofmt"
+for c in $cmdlist; do
+  (cd ${NEWDIR}/src/cmd/$c && find . -name '*.go' -print) | while read f; do
+    oldfile=${OLDDIR}/src/cmd/$c/$f
+    newfile=${NEWDIR}/src/cmd/$c/$f
+    libgofile=go/cmd/$c/$f
+    merge $f ${oldfile} ${newfile} ${libgofile}
+  done
+
+  (cd ${NEWDIR}/src/cmd/$c && find . -name testdata -print) | while read d; do
+    oldtd=${OLDDIR}/src/cmd/$c/$d
+    newtd=${NEWDIR}/src/cmd/$c/$d
+    libgotd=go/cmd/$c/$d
+    if ! test -d ${oldtd}; then
+      continue
+    fi
+    (cd ${oldtd} && git ls-files .) | while read f; do
+      if test "`basename $f`" = ".gitignore"; then
+        continue
+      fi
+      name=$d/$f
+      oldfile=${oldtd}/$f
+      newfile=${newtd}/$f
+      libgofile=${libgotd}/$f
+      merge ${name} ${oldfile} ${newfile} ${libgofile}
+    done
+  done
 done
 
-merge_c os_linux.c thread-linux.c
-merge_c mem_linux.c mem.c
+runtime="chan.goc chan.h cpuprof.goc env_posix.c heapdump.c lock_futex.c lfstack.goc lock_sema.c mcache.c mcentral.c mfixalloc.c mgc0.c mgc0.h mheap.c msize.c netpoll.goc netpoll_epoll.c netpoll_kqueue.c netpoll_stub.c panic.c print.c proc.c race.h rdebug.goc runtime.c runtime.h signal_unix.c signal_unix.h malloc.h malloc.goc mprof.goc parfor.c runtime1.goc sema.goc sigqueue.goc string.goc time.goc"
+for f in $runtime; do
+  # merge_c $f $f
+  true
+done
 
-(cd ${OLDDIR}/src/pkg && find . -name '*.go' -print) | while read f; do
-  oldfile=${OLDDIR}/src/pkg/$f
-  newfile=${NEWDIR}/src/pkg/$f
+# merge_c os_linux.c thread-linux.c
+# merge_c mem_linux.c mem.c
+
+(cd ${OLDDIR}/src && find . -name '*.go' -print) | while read f; do
+  oldfile=${OLDDIR}/src/$f
+  newfile=${NEWDIR}/src/$f
   libgofile=go/$f
   if test -f ${newfile}; then
     continue

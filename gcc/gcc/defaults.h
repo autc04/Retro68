@@ -1,5 +1,5 @@
 /* Definitions of various defaults for tm.h macros.
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2015 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com)
 
 This file is part of GCC.
@@ -438,6 +438,11 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define DWARF_FRAME_REGNUM(REG) DBX_REGISTER_NUMBER (REG)
 #endif
 
+/* The mapping from dwarf CFA reg number to internal dwarf reg numbers.  */
+#ifndef DWARF_REG_TO_UNWIND_COLUMN
+#define DWARF_REG_TO_UNWIND_COLUMN(REGNO) (REGNO)
+#endif
+
 /* Map register numbers held in the call frame info that gcc has
    collected using DWARF_FRAME_REGNUM to those that should be output in
    .debug_frame and .eh_frame.  */
@@ -451,7 +456,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    Dwarf 2 addresses need to be larger than the architecture's
    pointers.  */
 #ifndef DWARF2_ADDR_SIZE
-#define DWARF2_ADDR_SIZE (POINTER_SIZE / BITS_PER_UNIT)
+#define DWARF2_ADDR_SIZE ((POINTER_SIZE + BITS_PER_UNIT - 1) / BITS_PER_UNIT)
 #endif
 
 /* The size in bytes of a DWARF field indicating an offset or length
@@ -470,6 +475,14 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 /* Default sizes for base C types.  If the sizes are different for
    your target, you should override these values by defining the
    appropriate symbols in your tm.h file.  */
+
+#if BITS_PER_UNIT == 8
+#define LOG2_BITS_PER_UNIT 3
+#elif BITS_PER_UNIT == 16
+#define LOG2_BITS_PER_UNIT 4
+#else
+#error Unknown BITS_PER_UNIT
+#endif
 
 #ifndef BITS_PER_WORD
 #define BITS_PER_WORD (BITS_PER_UNIT * UNITS_PER_WORD)
@@ -743,6 +756,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #ifndef POINTER_SIZE
 #define POINTER_SIZE BITS_PER_WORD
 #endif
+#ifndef POINTER_SIZE_UNITS
+#define POINTER_SIZE_UNITS ((POINTER_SIZE + BITS_PER_UNIT - 1) / BITS_PER_UNIT)
+#endif
+
 
 #ifndef PIC_OFFSET_TABLE_REGNUM
 #define PIC_OFFSET_TABLE_REGNUM INVALID_REGNUM
@@ -914,14 +931,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define PREFERRED_DEBUGGING_TYPE NO_DEBUG
 #endif
 
-#ifndef LARGEST_EXPONENT_IS_NORMAL
-#define LARGEST_EXPONENT_IS_NORMAL(SIZE) 0
-#endif
-
-#ifndef ROUND_TOWARDS_ZERO
-#define ROUND_TOWARDS_ZERO 0
-#endif
-
 #ifndef FLOAT_LIB_COMPARE_RETURNS_BOOL
 #define FLOAT_LIB_COMPARE_RETURNS_BOOL(MODE, COMPARISON) false
 #endif
@@ -968,73 +977,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define DEFAULT_USE_CXA_ATEXIT 0
 #endif
 
-/* If none of these macros are defined, the port must use the new
-   technique of defining constraints in the machine description.
-   tm_p.h will define those macros that machine-independent code
-   still uses.  */
-#if  !defined CONSTRAINT_LEN			\
-  && !defined REG_CLASS_FROM_LETTER		\
-  && !defined REG_CLASS_FROM_CONSTRAINT		\
-  && !defined CONST_OK_FOR_LETTER_P		\
-  && !defined CONST_OK_FOR_CONSTRAINT_P		\
-  && !defined CONST_DOUBLE_OK_FOR_LETTER_P	\
-  && !defined CONST_DOUBLE_OK_FOR_CONSTRAINT_P  \
-  && !defined EXTRA_CONSTRAINT			\
-  && !defined EXTRA_CONSTRAINT_STR		\
-  && !defined EXTRA_MEMORY_CONSTRAINT		\
-  && !defined EXTRA_ADDRESS_CONSTRAINT
-
-#define USE_MD_CONSTRAINTS
-
 #if GCC_VERSION >= 3000 && defined IN_GCC
 /* These old constraint macros shouldn't appear anywhere in a
    configuration using MD constraint definitions.  */
-#pragma GCC poison REG_CLASS_FROM_LETTER CONST_OK_FOR_LETTER_P \
-                   CONST_DOUBLE_OK_FOR_LETTER_P EXTRA_CONSTRAINT
 #endif
-
-#else /* old constraint mechanism in use */
-
-/* Determine whether extra constraint letter should be handled
-   via address reload (like 'o').  */
-#ifndef EXTRA_MEMORY_CONSTRAINT
-#define EXTRA_MEMORY_CONSTRAINT(C,STR) 0
-#endif
-
-/* Determine whether extra constraint letter should be handled
-   as an address (like 'p').  */
-#ifndef EXTRA_ADDRESS_CONSTRAINT
-#define EXTRA_ADDRESS_CONSTRAINT(C,STR) 0
-#endif
-
-/* When a port defines CONSTRAINT_LEN, it should use DEFAULT_CONSTRAINT_LEN
-   for all the characters that it does not want to change, so things like the
-  'length' of a digit in a matching constraint is an implementation detail,
-   and not part of the interface.  */
-#define DEFAULT_CONSTRAINT_LEN(C,STR) 1
-
-#ifndef CONSTRAINT_LEN
-#define CONSTRAINT_LEN(C,STR) DEFAULT_CONSTRAINT_LEN (C, STR)
-#endif
-
-#if defined (CONST_OK_FOR_LETTER_P) && ! defined (CONST_OK_FOR_CONSTRAINT_P)
-#define CONST_OK_FOR_CONSTRAINT_P(VAL,C,STR) CONST_OK_FOR_LETTER_P (VAL, C)
-#endif
-
-#if defined (CONST_DOUBLE_OK_FOR_LETTER_P) && ! defined (CONST_DOUBLE_OK_FOR_CONSTRAINT_P)
-#define CONST_DOUBLE_OK_FOR_CONSTRAINT_P(OP,C,STR) \
-  CONST_DOUBLE_OK_FOR_LETTER_P (OP, C)
-#endif
-
-#ifndef REG_CLASS_FROM_CONSTRAINT
-#define REG_CLASS_FROM_CONSTRAINT(C,STR) REG_CLASS_FROM_LETTER (C)
-#endif
-
-#if defined (EXTRA_CONSTRAINT) && ! defined (EXTRA_CONSTRAINT_STR)
-#define EXTRA_CONSTRAINT_STR(OP, C,STR) EXTRA_CONSTRAINT (OP, C)
-#endif
-
-#endif /* old constraint mechanism in use */
 
 /* Determin whether the target runtime library is Bionic */
 #ifndef TARGET_HAS_BIONIC
@@ -1065,6 +1011,15 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define MOVE_MAX_PIECES   MOVE_MAX
 #endif
 
+/* STORE_MAX_PIECES is the number of bytes at a time that we can
+   store efficiently.  Due to internal GCC limitations, this is
+   MOVE_MAX_PIECES limited by the number of bytes GCC can represent
+   for an immediate constant.  */
+
+#ifndef STORE_MAX_PIECES
+#define STORE_MAX_PIECES  MIN (MOVE_MAX_PIECES, 2 * sizeof (HOST_WIDE_INT))
+#endif
+
 #ifndef MAX_MOVE_MAX
 #define MAX_MOVE_MAX MOVE_MAX
 #endif
@@ -1083,6 +1038,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #ifndef LOCAL_REGNO
 #define LOCAL_REGNO(REGNO)  0
+#endif
+
+#ifndef HONOR_REG_ALLOC_ORDER
+#define HONOR_REG_ALLOC_ORDER 0
 #endif
 
 /* EXIT_IGNORE_STACK should be nonzero if, when returning from a function,
@@ -1134,6 +1093,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #ifndef FRAME_GROWS_DOWNWARD
 #define FRAME_GROWS_DOWNWARD 0
+#endif
+
+#ifndef RETURN_ADDR_IN_PREVIOUS_FRAME
+#define RETURN_ADDR_IN_PREVIOUS_FRAME 0
 #endif
 
 /* On most machines, the CFA coincides with the first incoming parm.  */
@@ -1386,6 +1349,14 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #ifndef SWITCHABLE_TARGET
 #define SWITCHABLE_TARGET 0
+#endif
+
+/* If the target supports integers that are wider than two
+   HOST_WIDE_INTs on the host compiler, then the target should define
+   TARGET_SUPPORTS_WIDE_INT and make the appropriate fixups.
+   Otherwise the compiler really is not robust.  */
+#ifndef TARGET_SUPPORTS_WIDE_INT
+#define TARGET_SUPPORTS_WIDE_INT 0
 #endif
 
 #endif /* GCC_INSN_FLAGS_H  */

@@ -1,12 +1,12 @@
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* powerpc-ibm-aix* } }
-// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-gnu* powerpc-ibm-aix* } }
-// { dg-options " -std=gnu++0x -pthreads" { target *-*-solaris* } }
-// { dg-options " -std=gnu++0x " { target *-*-cygwin *-*-darwin* } }
+// { dg-do run { target *-*-freebsd* *-*-dragonfly* *-*-netbsd* *-*-linux* *-*-gnu* *-*-solaris* *-*-cygwin *-*-darwin* powerpc-ibm-aix* } }
+// { dg-options " -std=gnu++11 -pthread" { target *-*-freebsd* *-*-dragonfly* *-*-netbsd* *-*-linux* *-*-gnu* powerpc-ibm-aix* } }
+// { dg-options " -std=gnu++11 -pthreads" { target *-*-solaris* } }
+// { dg-options " -std=gnu++11 " { target *-*-cygwin *-*-darwin* } }
 // { dg-require-cstdint "" }
 // { dg-require-gthreads "" }
 // { dg-require-atomic-builtins "" }
 
-// Copyright (C) 2010-2014 Free Software Foundation, Inc.
+// Copyright (C) 2010-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,14 +27,20 @@
 #include <testsuite_hooks.h>
 #include <testsuite_allocator.h>
 
+using std::promise;
+using std::allocator_arg;
+
 void test01()
 {
-  using std::promise;
-  using std::allocator_arg;
-  using __gnu_test::uneq_allocator;
+  __gnu_test::uneq_allocator<char> alloc(99);
+  promise<int> p1(allocator_arg, alloc);
+  p1.set_value(5);
+  VERIFY( p1.get_future().get() == 5 );
+}
 
-  uneq_allocator<char> alloc(99);
-
+void test02()
+{
+  __gnu_test::CustomPointerAlloc<int> alloc;
   promise<int> p1(allocator_arg, alloc);
   p1.set_value(5);
   VERIFY( p1.get_future().get() == 5 );
@@ -43,5 +49,6 @@ void test01()
 int main()
 {
   test01();
+  test02();
   return 0;
 }

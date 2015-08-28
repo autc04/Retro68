@@ -1,5 +1,5 @@
 `/* Implementation of the CSHIFT intrinsic
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
    Contributed by Feng Wang <wf_cs@yahoo.com>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -81,7 +81,7 @@ cshift1 (gfc_array_char * const restrict ret,
     {
       int i;
 
-      ret->base_addr = xmalloc (size * arraysize);
+      ret->base_addr = xmallocarray (arraysize, size);
       ret->offset = 0;
       ret->dtype = array->dtype;
       for (i = 0; i < GFC_DESCRIPTOR_RANK (array); i++)

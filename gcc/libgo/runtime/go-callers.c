@@ -26,6 +26,7 @@ struct callers_data
   int skip;
   int index;
   int max;
+  int keep_thunks;
 };
 
 /* Callback function for backtrace_full.  Just collect the locations.
@@ -63,7 +64,7 @@ callback (void *data, uintptr_t pc, const char *filename, int lineno,
   /* Skip thunks and recover functions.  There is no equivalent to
      these functions in the gc toolchain, so returning them here means
      significantly different results for runtime.Caller(N).  */
-  if (function != NULL)
+  if (function != NULL && !arg->keep_thunks)
     {
       const char *p;
 
@@ -82,7 +83,20 @@ callback (void *data, uintptr_t pc, const char *filename, int lineno,
     }
 
   loc = &arg->locbuf[arg->index];
-  loc->pc = pc;
+
+  /* On the call to backtrace_full the pc value was most likely
+     decremented if there was a normal call, since the pc referred to
+     the instruction where the call returned and not the call itself.
+     This was done so that the line number referred to the call
+     instruction.  To make sure the actual pc from the call stack is
+     used, it is incremented here.
+
+     In the case of a signal, the pc was not decremented by
+     backtrace_full but still incremented here.  That doesn't really
+     hurt anything since the line number is right and the pc refers to
+     the same instruction.  */
+
+  loc->pc = pc + 1;
 
   /* The libbacktrace library says that these strings might disappear,
      but with the current implementation they won't.  We can't easily
@@ -93,6 +107,32 @@ callback (void *data, uintptr_t pc, const char *filename, int lineno,
 
   loc->lineno = lineno;
   ++arg->index;
+
+  /* There is no point to tracing past certain runtime functions.
+     Stopping the backtrace here can avoid problems on systems that
+     don't provide proper unwind information for makecontext, such as
+     Solaris (http://gcc.gnu.org/PR52583 comment #21).  */
+  if (function != NULL)
+    {
+      if (__builtin_strcmp (function, "makecontext") == 0)
+	return 1;
+      if (filename != NULL)
+	{
+	  const char *p;
+
+	  p = strrchr (filename, '/');
+	  if (p == NULL)
+	    p = filename;
+	  if (__builtin_strcmp (p, "/proc.c") == 0)
+	    {
+	      if (__builtin_strcmp (function, "kickoff") == 0
+		  || __builtin_strcmp (function, "runtime_mstart") == 0
+		  || __builtin_strcmp (function, "runtime_main") == 0)
+		return 1;
+	    }
+	}
+    }
+
   return arg->index >= arg->max;
 }
 
@@ -102,6 +142,11 @@ static void
 error_callback (void *data __attribute__ ((unused)),
 		const char *msg, int errnum)
 {
+  if (errnum == -1)
+    {
+      /* No debug info available.  Carry on as best we can.  */
+      return;
+    }
   if (errnum != 0)
     runtime_printf ("%s errno %d\n", msg, errnum);
   runtime_throw (msg);
@@ -110,7 +155,7 @@ error_callback (void *data __attribute__ ((unused)),
 /* Gather caller PC's.  */
 
 int32
-runtime_callers (int32 skip, Location *locbuf, int32 m)
+runtime_callers (int32 skip, Location *locbuf, int32 m, bool keep_thunks)
 {
   struct callers_data data;
 
@@ -118,6 +163,7 @@ runtime_callers (int32 skip, Location *locbuf, int32 m)
   data.skip = skip + 1;
   data.index = 0;
   data.max = m;
+  data.keep_thunks = keep_thunks;
   runtime_xadd (&runtime_in_callers, 1);
   backtrace_full (__go_get_backtrace_state (), 0, callback, error_callback,
 		  &data);
@@ -141,7 +187,7 @@ Callers (int skip, struct __go_open_array pc)
      which we can not correct because it would break backward
      compatibility.  Normally we would add 1 to SKIP here, but we
      don't so that we are compatible.  */
-  ret = runtime_callers (skip, locbuf, pc.__count);
+  ret = runtime_callers (skip, locbuf, pc.__count, false);
 
   for (i = 0; i < ret; i++)
     ((uintptr *) pc.__values)[i] = locbuf[i].pc;

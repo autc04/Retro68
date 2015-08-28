@@ -1,4 +1,5 @@
-// { dg-do run { target c++1y } }
+// { dg-do run { target c++11 } }
+// { dg-options "-Wno-vla" }
 
 #include <initializer_list>
 

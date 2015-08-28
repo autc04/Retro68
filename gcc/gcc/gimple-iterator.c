@@ -1,5 +1,5 @@
 /* Iterator routines for GIMPLE statements.
-   Copyright (C) 2007-2014 Free Software Foundation, Inc.
+   Copyright (C) 2007-2015 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez  <aldy@quesejoda.com>
 
 This file is part of GCC.
@@ -22,7 +22,23 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
+#include "predict.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -32,6 +48,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple.h"
 #include "gimple-iterator.h"
 #include "gimple-ssa.h"
+#include "hash-map.h"
+#include "plugin-api.h"
+#include "ipa-ref.h"
 #include "cgraph.h"
 #include "tree-cfg.h"
 #include "tree-phinodes.h"
@@ -101,12 +120,12 @@ update_call_edge_frequencies (gimple_seq_node first, basic_block bb)
 	   to avoid calling them if we never see any calls.  */
 	if (cfun_node == NULL)
 	  {
-	    cfun_node = cgraph_get_node (current_function_decl);
+	    cfun_node = cgraph_node::get (current_function_decl);
 	    bb_freq = (compute_call_stmt_bb_frequency
 		       (current_function_decl, bb));
 	  }
 
-	e = cgraph_edge (cfun_node, n);
+	e = cfun_node->get_edge (n);
 	if (e != NULL)
 	  e->frequency = bb_freq;
       }
@@ -429,15 +448,17 @@ gsi_split_seq_before (gimple_stmt_iterator *i, gimple_seq *pnew_seq)
 /* Replace the statement pointed-to by GSI to STMT.  If UPDATE_EH_INFO
    is true, the exception handling information of the original
    statement is moved to the new statement.  Assignments must only be
-   replaced with assignments to the same LHS.  */
+   replaced with assignments to the same LHS.  Returns whether EH edge
+   cleanup is required.  */
 
-void
+bool
 gsi_replace (gimple_stmt_iterator *gsi, gimple stmt, bool update_eh_info)
 {
   gimple orig_stmt = gsi_stmt (*gsi);
+  bool require_eh_edge_purge = false;
 
   if (stmt == orig_stmt)
-    return;
+    return false;
 
   gcc_assert (!gimple_has_lhs (orig_stmt) || !gimple_has_lhs (stmt)
 	      || gimple_get_lhs (orig_stmt) == gimple_get_lhs (stmt));
@@ -448,7 +469,7 @@ gsi_replace (gimple_stmt_iterator *gsi, gimple stmt, bool update_eh_info)
   /* Preserve EH region information from the original statement, if
      requested by the caller.  */
   if (update_eh_info)
-    maybe_clean_or_replace_eh_stmt (orig_stmt, stmt);
+    require_eh_edge_purge = maybe_clean_or_replace_eh_stmt (orig_stmt, stmt);
 
   gimple_duplicate_stmt_histograms (cfun, stmt, cfun, orig_stmt);
 
@@ -460,6 +481,7 @@ gsi_replace (gimple_stmt_iterator *gsi, gimple stmt, bool update_eh_info)
   gsi_set_stmt (gsi, stmt);
   gimple_set_modified (stmt, true);
   update_modified_stmt (stmt);
+  return require_eh_edge_purge;
 }
 
 
@@ -623,6 +645,19 @@ gsi_for_stmt (gimple stmt)
   return i;
 }
 
+/* Finds iterator for PHI.  */
+
+gphi_iterator
+gsi_for_phi (gphi *phi)
+{
+  gphi_iterator i;
+  basic_block bb = gimple_bb (phi);
+
+  i = gsi_start_phis (bb);
+  i.ptr = phi;
+
+  return i;
+}
 
 /* Move the statement at FROM so it comes right after the statement at TO.  */
 
@@ -689,6 +724,15 @@ gsi_insert_seq_on_edge (edge e, gimple_seq seq)
   gimple_seq_add_seq (&PENDING_STMT (e), seq);
 }
 
+/* Return a new iterator pointing to the first statement in sequence of
+   statements on edge E.  Such statements need to be subsequently moved into a
+   basic block by calling gsi_commit_edge_inserts.  */
+
+gimple_stmt_iterator
+gsi_start_edge (edge e)
+{
+  return gsi_start (PENDING_STMT (e));
+}
 
 /* Insert the statement pointed-to by GSI into edge E.  Every attempt
    is made to place the statement in an existing basic block, but
@@ -874,9 +918,17 @@ gsi_commit_one_edge_insert (edge e, basic_block *new_bb)
 
 /* Returns iterator at the start of the list of phi nodes of BB.  */
 
-gimple_stmt_iterator
+gphi_iterator
 gsi_start_phis (basic_block bb)
 {
   gimple_seq *pseq = phi_nodes_ptr (bb);
-  return gsi_start_1 (pseq);
+
+  /* Adapted from gsi_start_1. */
+  gphi_iterator i;
+
+  i.ptr = gimple_seq_first (*pseq);
+  i.seq = pseq;
+  i.bb = i.ptr ? gimple_bb (i.ptr) : NULL;
+
+  return i;
 }

@@ -119,7 +119,7 @@ func (o *operation) InitBuf(buf []byte) {
 	o.buf.Len = uint32(len(buf))
 	o.buf.Buf = nil
 	if len(buf) != 0 {
-		o.buf.Buf = (*byte)(unsafe.Pointer(&buf[0]))
+		o.buf.Buf = &buf[0]
 	}
 }
 
@@ -294,6 +294,18 @@ func (fd *netFD) init() error {
 			fd.skipSyncNotif = true
 		}
 	}
+	// Disable SIO_UDP_CONNRESET behavior.
+	// http://support.microsoft.com/kb/263823
+	switch fd.net {
+	case "udp", "udp4", "udp6":
+		ret := uint32(0)
+		flag := uint32(0)
+		size := uint32(unsafe.Sizeof(flag))
+		err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_UDP_CONNRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
+		if err != nil {
+			return os.NewSyscallError("WSAIoctl", err)
+		}
+	}
 	fd.rop.mode = 'r'
 	fd.wop.mode = 'w'
 	fd.rop.fd = fd
@@ -313,10 +325,17 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
+func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
+	if err := fd.init(); err != nil {
+		return err
+	}
+	if !deadline.IsZero() {
+		fd.setWriteDeadline(deadline)
+		defer fd.setWriteDeadline(noDeadline)
+	}
 	if !canUseConnectEx(fd.net) {
 		return syscall.Connect(fd.sysfd, ra)
 	}
@@ -431,11 +450,11 @@ func (fd *netFD) shutdown(how int) error {
 	return nil
 }
 
-func (fd *netFD) CloseRead() error {
+func (fd *netFD) closeRead() error {
 	return fd.shutdown(syscall.SHUT_RD)
 }
 
-func (fd *netFD) CloseWrite() error {
+func (fd *netFD) closeWrite() error {
 	return fd.shutdown(syscall.SHUT_WR)
 }
 
@@ -458,7 +477,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	return n, err
 }
 
-func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	if len(buf) == 0 {
 		return 0, nil, nil
 	}
@@ -497,7 +516,7 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	})
 }
 
-func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	if len(buf) == 0 {
 		return 0, nil
 	}
@@ -513,7 +532,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	})
 }
 
-func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
+func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
 	// Get new socket.
 	s, err := sysSocket(fd.family, fd.sotype, 0)
 	if err != nil {
@@ -552,7 +571,7 @@ func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.R
 	return netfd, nil
 }
 
-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+func (fd *netFD) accept() (*netFD, error) {
 	if err := fd.readLock(); err != nil {
 		return nil, err
 	}
@@ -563,7 +582,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	var err error
 	var rawsa [2]syscall.RawSockaddrAny
 	for {
-		netfd, err = fd.acceptOne(toAddr, rawsa[:], o)
+		netfd, err = fd.acceptOne(rawsa[:], o)
 		if err == nil {
 			break
 		}
@@ -596,7 +615,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	lsa, _ := lrsa.Sockaddr()
 	rsa, _ := rrsa.Sockaddr()
 
-	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+	netfd.setAddr(netfd.addrFunc()(lsa), netfd.addrFunc()(rsa))
 	return netfd, nil
 }
 
@@ -628,10 +647,10 @@ func (fd *netFD) dup() (*os.File, error) {
 
 var errNoSupport = errors.New("address family not supported")
 
-func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
 	return 0, 0, 0, nil, errNoSupport
 }
 
-func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
 	return 0, 0, errNoSupport
 }

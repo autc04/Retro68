@@ -15,7 +15,6 @@
 #include "asan_allocator.h"
 #include "asan_internal.h"
 #include "asan_fake_stack.h"
-#include "asan_stack.h"
 #include "asan_stats.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_libc.h"
@@ -70,18 +69,23 @@ class AsanThread {
   AsanThreadContext *context() { return context_; }
   void set_context(AsanThreadContext *context) { context_ = context; }
 
-  const char *GetFrameNameByAddr(uptr addr, uptr *offset, uptr *frame_pc);
+  struct StackFrameAccess {
+    uptr offset;
+    uptr frame_pc;
+    const char *frame_descr;
+  };
+  bool GetStackFrameAccessByAddr(uptr addr, StackFrameAccess *access);
 
   bool AddrIsInStack(uptr addr) {
     return addr >= stack_bottom_ && addr < stack_top_;
   }
 
-  void DeleteFakeStack() {
+  void DeleteFakeStack(int tid) {
     if (!fake_stack_) return;
     FakeStack *t = fake_stack_;
     fake_stack_ = 0;
     SetTLSFakeStack(0);
-    t->Destroy();
+    t->Destroy(tid);
   }
 
   bool has_fake_stack() {
@@ -101,6 +105,10 @@ class AsanThread {
   // malloc internally. See PR17116 for more details.
   bool isUnwinding() const { return unwinding_; }
   void setUnwinding(bool b) { unwinding_ = b; }
+
+  // True if we are in a deadly signal handler.
+  bool isInDeadlySignal() const { return in_deadly_signal_; }
+  void setInDeadlySignal(bool b) { in_deadly_signal_ = b; }
 
   AsanThreadLocalMallocStorage &malloc_storage() { return malloc_storage_; }
   AsanStats &stats() { return stats_; }
@@ -127,6 +135,7 @@ class AsanThread {
   AsanThreadLocalMallocStorage malloc_storage_;
   AsanStats stats_;
   bool unwinding_;
+  bool in_deadly_signal_;
 };
 
 // ScopedUnwinding is a scope for stacktracing member of a context
@@ -136,6 +145,20 @@ class ScopedUnwinding {
     t->setUnwinding(true);
   }
   ~ScopedUnwinding() { thread->setUnwinding(false); }
+
+ private:
+  AsanThread *thread;
+};
+
+// ScopedDeadlySignal is a scope for handling deadly signals.
+class ScopedDeadlySignal {
+ public:
+  explicit ScopedDeadlySignal(AsanThread *t) : thread(t) {
+    if (thread) thread->setInDeadlySignal(true);
+  }
+  ~ScopedDeadlySignal() {
+    if (thread) thread->setInDeadlySignal(false);
+  }
 
  private:
   AsanThread *thread;

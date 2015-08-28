@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2013-2015 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -38,9 +38,13 @@
 typedef double __v8df __attribute__ ((__vector_size__ (64)));
 typedef float __v16sf __attribute__ ((__vector_size__ (64)));
 typedef long long __v8di __attribute__ ((__vector_size__ (64)));
+typedef unsigned long long __v8du __attribute__ ((__vector_size__ (64)));
 typedef int __v16si __attribute__ ((__vector_size__ (64)));
+typedef unsigned int __v16su __attribute__ ((__vector_size__ (64)));
 typedef short __v32hi __attribute__ ((__vector_size__ (64)));
+typedef unsigned short __v32hu __attribute__ ((__vector_size__ (64)));
 typedef char __v64qi __attribute__ ((__vector_size__ (64)));
+typedef unsigned char __v64qu __attribute__ ((__vector_size__ (64)));
 
 /* The Intel API is flexible enough that we must allow aliasing with other
    vector types, and their scalar components.  */
@@ -515,11 +519,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_mullo_epi32 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pmulld512_mask ((__v16si) __A,
-						  (__v16si) __B,
-						  (__v16si)
-						  _mm512_undefined_si512 (),
-						  (__mmask16) -1);
+  return (__m512i) ((__v16su) __A * (__v16su) __B);
 }
 
 extern __inline __m512i
@@ -642,11 +642,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_add_epi64 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_paddq512_mask ((__v8di) __A,
-						 (__v8di) __B,
-						 (__v8di)
-						 _mm512_undefined_si512 (),
-						 (__mmask8) -1);
+  return (__m512i) ((__v8du) __A + (__v8du) __B);
 }
 
 extern __inline __m512i
@@ -674,11 +670,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_sub_epi64 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_psubq512_mask ((__v8di) __A,
-						 (__v8di) __B,
-						 (__v8di)
-						 _mm512_undefined_pd (),
-						 (__mmask8) -1);
+  return (__m512i) ((__v8du) __A - (__v8du) __B);
 }
 
 extern __inline __m512i
@@ -802,11 +794,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_add_epi32 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_paddd512_mask ((__v16si) __A,
-						 (__v16si) __B,
-						 (__v16si)
-						 _mm512_undefined_si512 (),
-						 (__mmask16) -1);
+  return (__m512i) ((__v16su) __A + (__v16su) __B);
 }
 
 extern __inline __m512i
@@ -865,11 +853,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_sub_epi32 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_psubd512_mask ((__v16si) __A,
-						 (__v16si) __B,
-						 (__v16si)
-						 _mm512_undefined_si512 (),
-						 (__mmask16) -1);
+  return (__m512i) ((__v16su) __A - (__v16su) __B);
 }
 
 extern __inline __m512i
@@ -3619,47 +3603,28 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_set1_epi64 (long long __A)
 {
-#ifdef TARGET_64BIT
   return (__m512i) __builtin_ia32_pbroadcastq512_gpr_mask (__A,
 							   (__v8di)
 							   _mm512_undefined_si512 (),
 							   (__mmask8)(-1));
-#else
-  return (__m512i) __builtin_ia32_pbroadcastq512_mem_mask (__A,
-							   (__v8di)
-							   _mm512_undefined_si512 (),
-							   (__mmask8)(-1));
-#endif
 }
 
 extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_mask_set1_epi64 (__m512i __O, __mmask8 __M, long long __A)
 {
-#ifdef TARGET_64BIT
   return (__m512i) __builtin_ia32_pbroadcastq512_gpr_mask (__A, (__v8di) __O,
 							   __M);
-#else
-  return (__m512i) __builtin_ia32_pbroadcastq512_mem_mask (__A, (__v8di) __O,
-							   __M);
-#endif
 }
 
 extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_maskz_set1_epi64 (__mmask8 __M, long long __A)
 {
-#ifdef TARGET_64BIT
   return (__m512i)
 	 __builtin_ia32_pbroadcastq512_gpr_mask (__A,
 						 (__v8di) _mm512_setzero_si512 (),
 						 __M);
-#else
-  return (__m512i)
-	 __builtin_ia32_pbroadcastq512_mem_mask (__A,
-						 (__v8di) _mm512_setzero_si512 (),
-						 __M);
-#endif
 }
 
 extern __inline __m512
@@ -6797,22 +6762,14 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_or_si512 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pord512_mask ((__v16si) __A,
-						(__v16si) __B,
-						(__v16si)
-						_mm512_undefined_si512 (),
-						(__mmask16) -1);
+  return (__m512i) ((__v16su) __A | (__v16su) __B);
 }
 
 extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_or_epi32 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pord512_mask ((__v16si) __A,
-						(__v16si) __B,
-						(__v16si)
-						_mm512_undefined_si512 (),
-						(__mmask16) -1);
+  return (__m512i) ((__v16su) __A | (__v16su) __B);
 }
 
 extern __inline __m512i
@@ -6840,11 +6797,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_or_epi64 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_porq512_mask ((__v8di) __A,
-						(__v8di) __B,
-						(__v8di)
-						_mm512_undefined_si512 (),
-						(__mmask8) -1);
+  return (__m512i) ((__v8du) __A | (__v8du) __B);
 }
 
 extern __inline __m512i
@@ -6872,22 +6825,14 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_xor_si512 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pxord512_mask ((__v16si) __A,
-						 (__v16si) __B,
-						 (__v16si)
-						 _mm512_undefined_si512 (),
-						 (__mmask16) -1);
+  return (__m512i) ((__v16su) __A ^ (__v16su) __B);
 }
 
 extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_xor_epi32 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pxord512_mask ((__v16si) __A,
-						 (__v16si) __B,
-						 (__v16si)
-						 _mm512_undefined_si512 (),
-						 (__mmask16) -1);
+  return (__m512i) ((__v16su) __A ^ (__v16su) __B);
 }
 
 extern __inline __m512i
@@ -6915,11 +6860,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_xor_epi64 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pxorq512_mask ((__v8di) __A,
-						 (__v8di) __B,
-						 (__v8di)
-						 _mm512_undefined_si512 (),
-						 (__mmask8) -1);
+  return (__m512i) ((__v8du) __A ^ (__v8du) __B);
 }
 
 extern __inline __m512i
@@ -7128,22 +7069,14 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_and_si512 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pandd512_mask ((__v16si) __A,
-						 (__v16si) __B,
-						 (__v16si)
-						 _mm512_undefined_si512 (),
-						 (__mmask16) -1);
+  return (__m512i) ((__v16su) __A & (__v16su) __B);
 }
 
 extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_and_epi32 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pandd512_mask ((__v16si) __A,
-						 (__v16si) __B,
-						 (__v16si)
-						 _mm512_undefined_si512 (),
-						 (__mmask16) -1);
+  return (__m512i) ((__v16su) __A & (__v16su) __B);
 }
 
 extern __inline __m512i
@@ -7171,11 +7104,7 @@ extern __inline __m512i
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_and_epi64 (__m512i __A, __m512i __B)
 {
-  return (__m512i) __builtin_ia32_pandq512_mask ((__v8di) __A,
-						 (__v8di) __B,
-						 (__v8di)
-						 _mm512_undefined_si512 (),
-						 (__mmask8) -1);
+  return (__m512i) ((__v8du) __A & (__v8du) __B);
 }
 
 extern __inline __m512i
@@ -8103,6 +8032,22 @@ _mm512_stream_load_si512 (void *__P)
   return __builtin_ia32_movntdqa512 ((__v8di *)__P);
 }
 
+/* Constants for mantissa extraction */
+typedef enum
+{
+  _MM_MANT_NORM_1_2,		/* interval [1, 2)      */
+  _MM_MANT_NORM_p5_2,		/* interval [0.5, 2)    */
+  _MM_MANT_NORM_p5_1,		/* interval [0.5, 1)    */
+  _MM_MANT_NORM_p75_1p5		/* interval [0.75, 1.5) */
+} _MM_MANTISSA_NORM_ENUM;
+
+typedef enum
+{
+  _MM_MANT_SIGN_src,		/* sign = sign(SRC)     */
+  _MM_MANT_SIGN_zero,		/* sign = 0             */
+  _MM_MANT_SIGN_nan		/* DEST = NaN if sign(SRC) = 1 */
+} _MM_MANTISSA_SIGN_ENUM;
+
 #ifdef __OPTIMIZE__
 extern __inline __m128
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
@@ -8181,22 +8126,6 @@ _mm512_maskz_getexp_round_pd (__mmask8 __U, __m512d __A, const int __R)
 						    _mm512_setzero_pd (),
 						    (__mmask8) __U, __R);
 }
-
-/* Constants for mantissa extraction */
-typedef enum
-{
-  _MM_MANT_NORM_1_2,		/* interval [1, 2)      */
-  _MM_MANT_NORM_p5_2,		/* interval [0.5, 2)    */
-  _MM_MANT_NORM_p5_1,		/* interval [0.5, 1)    */
-  _MM_MANT_NORM_p75_1p5		/* interval [0.75, 1.5) */
-} _MM_MANTISSA_NORM_ENUM;
-
-typedef enum
-{
-  _MM_MANT_SIGN_src,		/* sign = sign(SRC)     */
-  _MM_MANT_SIGN_zero,		/* sign = 0             */
-  _MM_MANT_SIGN_nan		/* DEST = NaN if sign(SRC) = 1 */
-} _MM_MANTISSA_SIGN_ENUM;
 
 extern __inline __m512d
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
@@ -8753,11 +8682,38 @@ _mm512_cmpge_epi32_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask16
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpge_epi32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_cmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 5,
+						    (__mmask16) __M);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpge_epu32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 5,
+						    (__mmask16) __M);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmpge_epu32_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
 						    (__v16si) __Y, 5,
 						    (__mmask16) -1);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpge_epi64_mask (__mmask8 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_cmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 5,
+						    (__mmask8) __M);
 }
 
 extern __inline __mmask8
@@ -8771,11 +8727,29 @@ _mm512_cmpge_epi64_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask8
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpge_epu64_mask (__mmask8 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 5,
+						    (__mmask8) __M);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmpge_epu64_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __X,
 						    (__v8di) __Y, 5,
 						    (__mmask8) -1);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmple_epi32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_cmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 2,
+						    (__mmask16) __M);
 }
 
 extern __inline __mmask16
@@ -8789,11 +8763,29 @@ _mm512_cmple_epi32_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask16
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmple_epu32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 2,
+						    (__mmask16) __M);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmple_epu32_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
 						    (__v16si) __Y, 2,
 						    (__mmask16) -1);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmple_epi64_mask (__mmask8 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_cmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 2,
+						    (__mmask8) __M);
 }
 
 extern __inline __mmask8
@@ -8807,11 +8799,29 @@ _mm512_cmple_epi64_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask8
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmple_epu64_mask (__mmask8 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 2,
+						    (__mmask8) __M);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmple_epu64_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __X,
 						    (__v8di) __Y, 2,
 						    (__mmask8) -1);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmplt_epi32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_cmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 1,
+						    (__mmask16) __M);
 }
 
 extern __inline __mmask16
@@ -8825,6 +8835,15 @@ _mm512_cmplt_epi32_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask16
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmplt_epu32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 1,
+						    (__mmask16) __M);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmplt_epu32_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
@@ -8834,11 +8853,29 @@ _mm512_cmplt_epu32_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask8
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmplt_epi64_mask (__mmask8 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_cmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 1,
+						    (__mmask8) __M);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmplt_epi64_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask8) __builtin_ia32_cmpq512_mask ((__v8di) __X,
 						    (__v8di) __Y, 1,
 						    (__mmask8) -1);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmplt_epu64_mask (__mmask8 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 1,
+						    (__mmask8) __M);
 }
 
 extern __inline __mmask8
@@ -8861,6 +8898,24 @@ _mm512_cmpneq_epi32_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask16
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpneq_epi32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_cmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 4,
+						    (__mmask16) __M);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpneq_epu32_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
+						    (__v16si) __Y, 4,
+						    (__mmask16) __M);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmpneq_epu32_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __X,
@@ -8870,11 +8925,29 @@ _mm512_cmpneq_epu32_mask (__m512i __X, __m512i __Y)
 
 extern __inline __mmask8
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpneq_epi64_mask (__mmask16 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_cmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 4,
+						    (__mmask8) __M);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_cmpneq_epi64_mask (__m512i __X, __m512i __Y)
 {
   return (__mmask8) __builtin_ia32_cmpq512_mask ((__v8di) __X,
 						    (__v8di) __Y, 4,
 						    (__mmask8) -1);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpneq_epu64_mask (__mmask8 __M, __m512i __X, __m512i __Y)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __X,
+						    (__v8di) __Y, 4,
+						    (__mmask8) __M);
 }
 
 extern __inline __mmask8
@@ -10605,12 +10678,7 @@ extern __inline __m512d
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_add_pd (__m512d __A, __m512d __B)
 {
-  return (__m512d) __builtin_ia32_addpd512_mask ((__v8df) __A,
-						 (__v8df) __B,
-						 (__v8df)
-						 _mm512_undefined_pd (),
-						 (__mmask8) -1,
-						 _MM_FROUND_CUR_DIRECTION);
+  return (__m512d) ((__v8df)__A + (__v8df)__B);
 }
 
 extern __inline __m512d
@@ -10640,12 +10708,7 @@ extern __inline __m512
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_add_ps (__m512 __A, __m512 __B)
 {
-  return (__m512) __builtin_ia32_addps512_mask ((__v16sf) __A,
-						(__v16sf) __B,
-						(__v16sf)
-						_mm512_undefined_ps (),
-						(__mmask16) -1,
-						_MM_FROUND_CUR_DIRECTION);
+  return (__m512) ((__v16sf)__A + (__v16sf)__B);
 }
 
 extern __inline __m512
@@ -10675,12 +10738,7 @@ extern __inline __m512d
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_sub_pd (__m512d __A, __m512d __B)
 {
-  return (__m512d) __builtin_ia32_subpd512_mask ((__v8df) __A,
-						 (__v8df) __B,
-						 (__v8df)
-						 _mm512_undefined_pd (),
-						 (__mmask8) -1,
-						 _MM_FROUND_CUR_DIRECTION);
+  return (__m512d) ((__v8df)__A - (__v8df)__B);
 }
 
 extern __inline __m512d
@@ -10710,12 +10768,7 @@ extern __inline __m512
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_sub_ps (__m512 __A, __m512 __B)
 {
-  return (__m512) __builtin_ia32_subps512_mask ((__v16sf) __A,
-						(__v16sf) __B,
-						(__v16sf)
-						_mm512_undefined_ps (),
-						(__mmask16) -1,
-						_MM_FROUND_CUR_DIRECTION);
+  return (__m512) ((__v16sf)__A - (__v16sf)__B);
 }
 
 extern __inline __m512
@@ -10745,12 +10798,7 @@ extern __inline __m512d
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_mul_pd (__m512d __A, __m512d __B)
 {
-  return (__m512d) __builtin_ia32_mulpd512_mask ((__v8df) __A,
-						 (__v8df) __B,
-						 (__v8df)
-						 _mm512_undefined_pd (),
-						 (__mmask8) -1,
-						 _MM_FROUND_CUR_DIRECTION);
+  return (__m512d) ((__v8df)__A * (__v8df)__B);
 }
 
 extern __inline __m512d
@@ -10780,12 +10828,7 @@ extern __inline __m512
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_mul_ps (__m512 __A, __m512 __B)
 {
-  return (__m512) __builtin_ia32_mulps512_mask ((__v16sf) __A,
-						(__v16sf) __B,
-						(__v16sf)
-						_mm512_undefined_ps (),
-						(__mmask16) -1,
-						_MM_FROUND_CUR_DIRECTION);
+  return (__m512) ((__v16sf)__A * (__v16sf)__B);
 }
 
 extern __inline __m512
@@ -10815,12 +10858,7 @@ extern __inline __m512d
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_div_pd (__m512d __M, __m512d __V)
 {
-  return (__m512d) __builtin_ia32_divpd512_mask ((__v8df) __M,
-						 (__v8df) __V,
-						 (__v8df)
-						 _mm512_undefined_pd (),
-						 (__mmask8) -1,
-						 _MM_FROUND_CUR_DIRECTION);
+  return (__m512d) ((__v8df)__M / (__v8df)__V);
 }
 
 extern __inline __m512d
@@ -10850,12 +10888,7 @@ extern __inline __m512
 __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_div_ps (__m512 __A, __m512 __B)
 {
-  return (__m512) __builtin_ia32_divps512_mask ((__v16sf) __A,
-						(__v16sf) __B,
-						(__v16sf)
-						_mm512_undefined_ps (),
-						(__mmask16) -1,
-						_MM_FROUND_CUR_DIRECTION);
+  return (__m512) ((__v16sf)__A / (__v16sf)__B);
 }
 
 extern __inline __m512
@@ -12905,6 +12938,200 @@ __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 _mm512_kmov (__mmask16 __A)
 {
   return __builtin_ia32_kmov16 (__A);
+}
+
+extern __inline __m512
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castpd_ps (__m512d __A)
+{
+  return (__m512) (__A);
+}
+
+extern __inline __m512i
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castpd_si512 (__m512d __A)
+{
+  return (__m512i) (__A);
+}
+
+extern __inline __m512d
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castps_pd (__m512 __A)
+{
+  return (__m512d) (__A);
+}
+
+extern __inline __m512i
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castps_si512 (__m512 __A)
+{
+  return (__m512i) (__A);
+}
+
+extern __inline __m512
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castsi512_ps (__m512i __A)
+{
+  return (__m512) (__A);
+}
+
+extern __inline __m512d
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castsi512_pd (__m512i __A)
+{
+  return (__m512d) (__A);
+}
+
+extern __inline __m128d
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castpd512_pd128 (__m512d __A)
+{
+  return (__m128d)_mm512_extractf32x4_ps((__m512)__A, 0);
+}
+
+extern __inline __m128
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castps512_ps128 (__m512 __A)
+{
+  return _mm512_extractf32x4_ps(__A, 0);
+}
+
+extern __inline __m128i
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castsi512_si128 (__m512i __A)
+{
+  return (__m128i)_mm512_extracti32x4_epi32((__m512i)__A, 0);
+}
+
+extern __inline __m256d
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castpd512_pd256 (__m512d __A)
+{
+  return _mm512_extractf64x4_pd(__A, 0);
+}
+
+extern __inline __m256
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castps512_ps256 (__m512 __A)
+{
+  return (__m256)_mm512_extractf64x4_pd((__m512d)__A, 0);
+}
+
+extern __inline __m256i
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castsi512_si256 (__m512i __A)
+{
+  return (__m256i)_mm512_extractf64x4_pd((__m512d)__A, 0);
+}
+
+extern __inline __m512d
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castpd128_pd512 (__m128d __A)
+{
+  return (__m512d) __builtin_ia32_pd512_pd((__m128d)__A);
+}
+
+extern __inline __m512
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castps128_ps512 (__m128 __A)
+{
+  return (__m512) __builtin_ia32_ps512_ps((__m128)__A);
+}
+
+extern __inline __m512i
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castsi128_si512 (__m128i __A)
+{
+  return (__m512i) __builtin_ia32_si512_si((__v4si)__A);
+}
+
+extern __inline __m512d
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castpd256_pd512 (__m256d __A)
+{
+  return __builtin_ia32_pd512_256pd (__A);
+}
+
+extern __inline __m512
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castps256_ps512 (__m256 __A)
+{
+  return __builtin_ia32_ps512_256ps (__A);
+}
+
+extern __inline __m512i
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_castsi256_si512 (__m256i __A)
+{
+  return (__m512i)__builtin_ia32_si512_256si ((__v8si)__A);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_cmpeq_epu32_mask (__m512i __A, __m512i __B)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __A,
+						     (__v16si) __B, 0,
+						     (__mmask16) -1);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpeq_epu32_mask (__mmask16 __U, __m512i __A, __m512i __B)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __A,
+						     (__v16si) __B, 0, __U);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpeq_epu64_mask (__mmask8 __U, __m512i __A, __m512i __B)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __A,
+						    (__v8di) __B, 0, __U);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_cmpeq_epu64_mask (__m512i __A, __m512i __B)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __A,
+						    (__v8di) __B, 0,
+						    (__mmask8) -1);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_cmpgt_epu32_mask (__m512i __A, __m512i __B)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __A,
+						     (__v16si) __B, 6,
+						     (__mmask16) -1);
+}
+
+extern __inline __mmask16
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpgt_epu32_mask (__mmask16 __U, __m512i __A, __m512i __B)
+{
+  return (__mmask16) __builtin_ia32_ucmpd512_mask ((__v16si) __A,
+						     (__v16si) __B, 6,  __U);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_mask_cmpgt_epu64_mask (__mmask8 __U, __m512i __A, __m512i __B)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __A,
+						    (__v8di) __B, 6, __U);
+}
+
+extern __inline __mmask8
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+_mm512_cmpgt_epu64_mask (__m512i __A, __m512i __B)
+{
+  return (__mmask8) __builtin_ia32_ucmpq512_mask ((__v8di) __A,
+						    (__v8di) __B, 6,
+						    (__mmask8) -1);
 }
 
 #ifdef __DISABLE_AVX512F__

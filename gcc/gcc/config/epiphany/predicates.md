@@ -1,5 +1,5 @@
 ;; Predicate definitions for code generation on the EPIPHANY cpu.
-;; Copyright (C) 1994-2014 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2015 Free Software Foundation, Inc.
 ;; Contributed by Embecosm on behalf of Adapteva, Inc.
 ;;
 ;; This file is part of GCC.
@@ -357,6 +357,11 @@
 (define_predicate "post_modify_operand"
   (and (match_code "mem")
        (match_test "post_modify_address (XEXP (op, 0), Pmode)")))
+
+; used in the memory clobber of stack_adjust_str, allows addresses with
+; large offsets.
+(define_predicate "memclob_operand"
+  (match_code "mem"))
 
 (define_predicate "nonsymbolic_immediate_operand"
   (ior (match_test "immediate_operand (op, mode)")
