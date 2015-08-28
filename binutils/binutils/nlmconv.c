@@ -1,6 +1,5 @@
 /* nlmconv.c -- NLM conversion program
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -37,12 +36,11 @@
 #include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
+#include "filenames.h"
 #include "safe-ctype.h"
 
 #include "ansidecl.h"
 #include <time.h>
-#include <sys/stat.h>
-#include <sys/file.h>
 #include <assert.h>
 #include "getopt.h"
 
@@ -213,6 +211,7 @@ main (int argc, char **argv)
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
+  bfd_set_error_program_name (program_name);
 
   expandargv (&argc, &argv);
 
@@ -268,7 +267,7 @@ main (int argc, char **argv)
 	  ++optind;
 	  if (optind < argc)
 	    show_usage (stderr, 1);
-	  if (strcmp (input_file, output_file) == 0)
+	  if (filename_cmp (input_file, output_file) == 0)
 	    {
 	      fatal (_("input and output files must be different"));
 	    }
@@ -1417,6 +1416,9 @@ i386_mangle_relocs (bfd *outbfd, asection *insec, arelent ***relocs_ptr,
       bfd_vma addend;
 
       rel = *relocs++;
+      /* PR 17512: file: 057f89c1.  */
+      if (rel->sym_ptr_ptr == NULL)
+	continue;
       sym = *rel->sym_ptr_ptr;
 
       /* We're moving the relocs from the input section to the output
@@ -1873,7 +1875,7 @@ powerpc_mangle_relocs (bfd *outbfd, asection *insec,
 
   toc_howto = bfd_reloc_type_lookup (insec->owner, BFD_RELOC_PPC_TOC16);
   if (toc_howto == (reloc_howto_type *) NULL)
-    abort ();
+    fatal (_("Unable to locate PPC_TOC16 reloc information"));
 
   /* If this is the .got section, clear out all the contents beyond
      the initial size.  We must do this here because copy_sections is
@@ -1912,6 +1914,10 @@ powerpc_mangle_relocs (bfd *outbfd, asection *insec,
 	    }
 	}
 
+      /* PR 17512: file: 70cfde95.  */
+      if (rel->howto == NULL)
+	continue;
+
       /* We must be able to resolve all PC relative relocs at this
 	 point.  If we get a branch to an undefined symbol we build a
 	 stub, since NetWare will resolve undefined symbols into a
@@ -1929,6 +1935,13 @@ powerpc_mangle_relocs (bfd *outbfd, asection *insec,
 	    {
 	      bfd_vma val;
 
+	      if (rel->address > contents_size - 4)
+		{
+		  non_fatal (_("Out of range relocation: %lx"),
+			     (long) rel->address);
+		  break;
+		}
+	      
 	      assert (rel->howto->size == 2 && rel->howto->pcrel_offset);
 	      val = bfd_get_32 (outbfd, (bfd_byte *) contents + rel->address);
 	      val = ((val &~ rel->howto->dst_mask)
@@ -1978,6 +1991,13 @@ powerpc_mangle_relocs (bfd *outbfd, asection *insec,
 	  switch (rel->howto->size)
 	    {
 	    case 1:
+	      if (rel->address > contents_size - 2)
+		{
+		  non_fatal (_("Out of range relocation: %lx"),
+			     (long) rel->address);
+		  break;
+		}
+		       
 	      val = bfd_get_16 (outbfd,
 				(bfd_byte *) contents + rel->address);
 	      val = ((val &~ rel->howto->dst_mask)
@@ -1993,6 +2013,14 @@ powerpc_mangle_relocs (bfd *outbfd, asection *insec,
 	      break;
 
 	    case 2:
+	      /* PR 17512: file: 0455a112.  */
+	      if (rel->address > contents_size - 4)
+		{
+		  non_fatal (_("Out of range relocation: %lx"),
+			     (long) rel->address);
+		  break;
+		}
+		       
 	      val = bfd_get_32 (outbfd,
 				(bfd_byte *) contents + rel->address);
 	      val = ((val &~ rel->howto->dst_mask)
@@ -2004,7 +2032,7 @@ powerpc_mangle_relocs (bfd *outbfd, asection *insec,
 	      break;
 
 	    default:
-	      abort ();
+	      fatal (_("Unsupported relocation size: %d"), rel->howto->size);
 	    }
 
 	  if (! bfd_is_und_section (bfd_get_section (sym)))
@@ -2039,7 +2067,7 @@ powerpc_mangle_relocs (bfd *outbfd, asection *insec,
    file.  */
 
 static char *
-link_inputs (struct string_list *inputs, char *ld, char * map_file)
+link_inputs (struct string_list *inputs, char *ld, char * mfile)
 {
   size_t c;
   struct string_list *q;
@@ -2088,12 +2116,12 @@ link_inputs (struct string_list *inputs, char *ld, char * map_file)
   argv[3] = unlink_on_exit;
   /* If we have been given the name of a mapfile and that
      name is not 'stderr' then pass it on to the linker.  */
-  if (map_file
-      && * map_file
-      && strcmp (map_file, "stderr") == 0)
+  if (mfile
+      && * mfile
+      && strcmp (mfile, "stderr") == 0)
     {
       argv[4] = (char *) "-Map";
-      argv[5] = map_file;
+      argv[5] = mfile;
       i = 6;
     }
   else

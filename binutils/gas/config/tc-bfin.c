@@ -1,6 +1,5 @@
 /* tc-bfin.c -- Assembler for the ADI Blackfin.
-   Copyright 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -85,7 +84,7 @@ bfin_pic_ptr (int nbytes)
   do
     {
       bfd_reloc_code_real_type reloc_type = BFD_RELOC_BFIN_FUNCDESC;
-      
+
       if (strncasecmp (input_line_pointer, "funcdesc(", 9) == 0)
 	{
 	  input_line_pointer += 9;
@@ -136,7 +135,7 @@ const pseudo_typeS md_pseudo_table[] = {
 };
 
 /* Characters that are used to denote comments and line separators. */
-const char comment_chars[] = "";
+const char comment_chars[] = "#";
 const char line_comment_chars[] = "#";
 const char line_separator_chars[] = ";";
 
@@ -151,6 +150,8 @@ const char FLT_CHARS[] = "fFdDxX";
 typedef enum bfin_cpu_type
 {
   BFIN_CPU_UNKNOWN,
+  BFIN_CPU_BF504,
+  BFIN_CPU_BF506,
   BFIN_CPU_BF512,
   BFIN_CPU_BF514,
   BFIN_CPU_BF516,
@@ -179,7 +180,8 @@ typedef enum bfin_cpu_type
   BFIN_CPU_BF548M,
   BFIN_CPU_BF549,
   BFIN_CPU_BF549M,
-  BFIN_CPU_BF561
+  BFIN_CPU_BF561,
+  BFIN_CPU_BF592,
 } bfin_cpu_t;
 
 bfin_cpu_t bfin_cpu_type = BFIN_CPU_UNKNOWN;
@@ -200,15 +202,23 @@ struct bfin_cpu
 
 struct bfin_cpu bfin_cpus[] =
 {
+  {"bf504", BFIN_CPU_BF504, 0x0000, AC_05000074},
+
+  {"bf506", BFIN_CPU_BF506, 0x0000, AC_05000074},
+
+  {"bf512", BFIN_CPU_BF512, 0x0002, AC_05000074},
   {"bf512", BFIN_CPU_BF512, 0x0001, AC_05000074},
   {"bf512", BFIN_CPU_BF512, 0x0000, AC_05000074},
 
+  {"bf514", BFIN_CPU_BF514, 0x0002, AC_05000074},
   {"bf514", BFIN_CPU_BF514, 0x0001, AC_05000074},
   {"bf514", BFIN_CPU_BF514, 0x0000, AC_05000074},
 
+  {"bf516", BFIN_CPU_BF516, 0x0002, AC_05000074},
   {"bf516", BFIN_CPU_BF516, 0x0001, AC_05000074},
   {"bf516", BFIN_CPU_BF516, 0x0000, AC_05000074},
 
+  {"bf518", BFIN_CPU_BF518, 0x0002, AC_05000074},
   {"bf518", BFIN_CPU_BF518, 0x0001, AC_05000074},
   {"bf518", BFIN_CPU_BF518, 0x0000, AC_05000074},
 
@@ -275,30 +285,35 @@ struct bfin_cpu bfin_cpus[] =
 
   {"bf542m", BFIN_CPU_BF542M, 0x0003, AC_05000074},
 
+  {"bf542", BFIN_CPU_BF542, 0x0004, AC_05000074},
   {"bf542", BFIN_CPU_BF542, 0x0002, AC_05000074},
   {"bf542", BFIN_CPU_BF542, 0x0001, AC_05000074},
   {"bf542", BFIN_CPU_BF542, 0x0000, AC_05000074},
 
   {"bf544m", BFIN_CPU_BF544M, 0x0003, AC_05000074},
 
+  {"bf544", BFIN_CPU_BF544, 0x0004, AC_05000074},
   {"bf544", BFIN_CPU_BF544, 0x0002, AC_05000074},
   {"bf544", BFIN_CPU_BF544, 0x0001, AC_05000074},
   {"bf544", BFIN_CPU_BF544, 0x0000, AC_05000074},
 
   {"bf547m", BFIN_CPU_BF547M, 0x0003, AC_05000074},
 
+  {"bf547", BFIN_CPU_BF547, 0x0004, AC_05000074},
   {"bf547", BFIN_CPU_BF547, 0x0002, AC_05000074},
   {"bf547", BFIN_CPU_BF547, 0x0001, AC_05000074},
   {"bf547", BFIN_CPU_BF547, 0x0000, AC_05000074},
 
   {"bf548m", BFIN_CPU_BF548M, 0x0003, AC_05000074},
 
+  {"bf548", BFIN_CPU_BF548, 0x0004, AC_05000074},
   {"bf548", BFIN_CPU_BF548, 0x0002, AC_05000074},
   {"bf548", BFIN_CPU_BF548, 0x0001, AC_05000074},
   {"bf548", BFIN_CPU_BF548, 0x0000, AC_05000074},
 
   {"bf549m", BFIN_CPU_BF549M, 0x0003, AC_05000074},
 
+  {"bf549", BFIN_CPU_BF549, 0x0004, AC_05000074},
   {"bf549", BFIN_CPU_BF549, 0x0002, AC_05000074},
   {"bf549", BFIN_CPU_BF549, 0x0001, AC_05000074},
   {"bf549", BFIN_CPU_BF549, 0x0000, AC_05000074},
@@ -306,6 +321,9 @@ struct bfin_cpu bfin_cpus[] =
   {"bf561", BFIN_CPU_BF561, 0x0005, AC_05000074},
   {"bf561", BFIN_CPU_BF561, 0x0003, AC_05000074},
   {"bf561", BFIN_CPU_BF561, 0x0002, AC_05000074},
+
+  {"bf592", BFIN_CPU_BF592, 0x0001, AC_05000074},
+  {"bf592", BFIN_CPU_BF592, 0x0000, AC_05000074},
 
   {NULL, 0, 0, 0}
 };
@@ -418,9 +436,12 @@ md_parse_option (int c ATTRIBUTE_UNUSED, char *arg ATTRIBUTE_UNUSED)
 }
 
 void
-md_show_usage (FILE * stream ATTRIBUTE_UNUSED)
+md_show_usage (FILE * stream)
 {
-  fprintf (stream, _(" BFIN specific command line options:\n"));
+  fprintf (stream, _(" Blackfin specific assembler options:\n"));
+  fprintf (stream, _("  -mcpu=<cpu[-sirevision]> specify the name of the target CPU\n"));
+  fprintf (stream, _("  -mfdpic                  assemble for the FDPIC ABI\n"));
+  fprintf (stream, _("  -mno-fdpic/-mnopic       disable -mfdpic\n"));
 }
 
 /* Perform machine-specific initializations.  */
@@ -438,7 +459,7 @@ md_begin ()
   /* Ensure that lines can begin with '(', for multiple
      register stack pops. */
   lex_type ['('] = LEX_BEGIN_NAME;
-  
+
 #ifdef OBJ_ELF
   record_alignment (text_section, 2);
   record_alignment (data_section, 2);
@@ -451,7 +472,7 @@ md_begin ()
 #ifdef DEBUG
   extern int debug_codeselection;
   debug_codeselection = 1;
-#endif 
+#endif
 
   last_insn_size = 0;
 }
@@ -841,11 +862,11 @@ md_pcrel_from_section (fixP, sec)
 /* Return true if the fix can be handled by GAS, false if it must
    be passed through to the linker.  */
 
-bfd_boolean  
+bfd_boolean
 bfin_fix_adjustable (fixS *fixP)
-{         
+{
   switch (fixP->fx_r_type)
-    {     
+    {
   /* Adjust_reloc_syms doesn't know about the GOT.  */
     case BFD_RELOC_BFIN_GOT:
     case BFD_RELOC_BFIN_PLTPC:
@@ -853,10 +874,10 @@ bfin_fix_adjustable (fixS *fixP)
     case BFD_RELOC_VTABLE_INHERIT:
     case BFD_RELOC_VTABLE_ENTRY:
       return 0;
-        
+
     default:
       return 1;
-    }     
+    }
 }
 
 /* Special extra functions that help bfin-parse.y perform its job.  */
@@ -927,7 +948,7 @@ int ninsns;
 int count_insns;
 
 static void *
-allocate (int n)
+allocate (size_t n)
 {
   return obstack_alloc (&mempool, n);
 }
@@ -1134,6 +1155,7 @@ Expr_Node_Gen_Reloc_R (Expr_Node * head)
 
 #define INIT(t)  t c_code = init_##t
 #define ASSIGN(x) c_code.opcode |= ((x & c_code.mask_##x)<<c_code.bits_##x)
+#define ASSIGNF(x,f) c_code.opcode |= ((x & c_code.mask_##f)<<c_code.bits_##f)
 #define ASSIGN_R(x) c_code.opcode |= (((x ? (x->regno & CODE_MASK) : 0) & c_code.mask_##x)<<c_code.bits_##x)
 
 #define HI(x) ((x >> 16) & 0xffff)
@@ -1302,13 +1324,13 @@ bfin_gen_calla (Expr_Node * addr, int S)
 {
   int val;
   int high_val;
-  int reloc = 0;
+  int rel = 0;
   INIT (CALLa);
 
   switch(S){
-   case 0 : reloc = BFD_RELOC_BFIN_24_PCREL_JUMP_L; break;
-   case 1 : reloc = BFD_RELOC_24_PCREL; break;
-   case 2 : reloc = BFD_RELOC_BFIN_PLTPC; break;
+   case 0 : rel = BFD_RELOC_BFIN_24_PCREL_JUMP_L; break;
+   case 1 : rel = BFD_RELOC_24_PCREL; break;
+   case 2 : rel = BFD_RELOC_BFIN_PLTPC; break;
    default : break;
   }
 
@@ -1318,7 +1340,7 @@ bfin_gen_calla (Expr_Node * addr, int S)
   high_val = val >> 16;
 
   return conscode (gencode (HI (c_code.opcode) | (high_val & 0xff)),
-                     Expr_Node_Gen_Reloc (addr, reloc));
+                     Expr_Node_Gen_Reloc (addr, rel));
   }
 
 INSTR_T
@@ -1336,7 +1358,7 @@ bfin_gen_linkage (int R, int framesize)
 /* Load and Store.  */
 
 INSTR_T
-bfin_gen_ldimmhalf (REG_T reg, int H, int S, int Z, Expr_Node * phword, int reloc)
+bfin_gen_ldimmhalf (REG_T reg, int H, int S, int Z, Expr_Node * phword, int rel)
 {
   int grp, hword;
   unsigned val = EXPR_VALUE (phword);
@@ -1349,11 +1371,11 @@ bfin_gen_ldimmhalf (REG_T reg, int H, int S, int Z, Expr_Node * phword, int relo
   ASSIGN_R (reg);
   grp = (GROUP (reg));
   ASSIGN (grp);
-  if (reloc == 2)
+  if (rel == 2)
     {
       return conscode (gencode (HI (c_code.opcode)), Expr_Node_Gen_Reloc (phword, BFD_RELOC_BFIN_16_IMM));
     }
-  else if (reloc == 1)
+  else if (rel == 1)
     {
       return conscode (gencode (HI (c_code.opcode)), Expr_Node_Gen_Reloc (phword, IS_H (*reg) ? BFD_RELOC_BFIN_16_HIGH : BFD_RELOC_BFIN_16_LOW));
     }
@@ -1450,12 +1472,11 @@ bfin_gen_ldst (REG_T ptr, REG_T reg, int aop, int sz, int Z, int W)
 }
 
 INSTR_T
-bfin_gen_ldstii (REG_T ptr, REG_T reg, Expr_Node * poffset, int W, int op)
+bfin_gen_ldstii (REG_T ptr, REG_T reg, Expr_Node * poffset, int W, int opc)
 {
   int offset;
   int value = 0;
   INIT (LDSTii);
-
 
   if (!IS_PREG (*ptr))
     {
@@ -1463,7 +1484,7 @@ bfin_gen_ldstii (REG_T ptr, REG_T reg, Expr_Node * poffset, int W, int op)
       return 0;
     }
 
-  switch (op)
+  switch (opc)
     {
     case 1:
     case 2:
@@ -1481,7 +1502,7 @@ bfin_gen_ldstii (REG_T ptr, REG_T reg, Expr_Node * poffset, int W, int op)
   offset = value;
   ASSIGN (offset);
   ASSIGN (W);
-  ASSIGN (op);
+  ASSIGNF (opc, op);
 
   return GEN_OPCODE16 ();
 }
@@ -1580,48 +1601,48 @@ bfin_gen_alu2op (REG_T dst, REG_T src, int opc)
 }
 
 INSTR_T
-bfin_gen_compi2opd (REG_T dst, int src, int op)
+bfin_gen_compi2opd (REG_T dst, int src, int opc)
 {
   INIT (COMPI2opD);
 
   ASSIGN_R (dst);
   ASSIGN (src);
-  ASSIGN (op);
+  ASSIGNF (opc, op);
 
   return GEN_OPCODE16 ();
 }
 
 INSTR_T
-bfin_gen_compi2opp (REG_T dst, int src, int op)
+bfin_gen_compi2opp (REG_T dst, int src, int opc)
 {
   INIT (COMPI2opP);
 
   ASSIGN_R (dst);
   ASSIGN (src);
-  ASSIGN (op);
+  ASSIGNF (opc, op);
 
   return GEN_OPCODE16 ();
 }
 
 INSTR_T
-bfin_gen_dagmodik (REG_T i, int op)
+bfin_gen_dagmodik (REG_T i, int opc)
 {
   INIT (DagMODik);
 
   ASSIGN_R (i);
-  ASSIGN (op);
+  ASSIGNF (opc, op);
 
   return GEN_OPCODE16 ();
 }
 
 INSTR_T
-bfin_gen_dagmodim (REG_T i, REG_T m, int op, int br)
+bfin_gen_dagmodim (REG_T i, REG_T m, int opc, int br)
 {
   INIT (DagMODim);
 
   ASSIGN_R (i);
   ASSIGN_R (m);
-  ASSIGN (op);
+  ASSIGNF (opc, op);
   ASSIGN (br);
 
   return GEN_OPCODE16 ();
@@ -1684,12 +1705,12 @@ bfin_gen_ccmv (REG_T src, REG_T dst, int T)
 }
 
 INSTR_T
-bfin_gen_cc2stat (int cbit, int op, int D)
+bfin_gen_cc2stat (int cbit, int opc, int D)
 {
   INIT (CC2stat);
 
   ASSIGN (cbit);
-  ASSIGN (op);
+  ASSIGNF (opc, op);
   ASSIGN (D);
 
   return GEN_OPCODE16 ();
@@ -1713,11 +1734,11 @@ bfin_gen_regmv (REG_T src, REG_T dst)
 }
 
 INSTR_T
-bfin_gen_cc2dreg (int op, REG_T reg)
+bfin_gen_cc2dreg (int opc, REG_T reg)
 {
   INIT (CC2dreg);
 
-  ASSIGN (op);
+  ASSIGNF (opc, op);
   ASSIGN_R (reg);
 
   return GEN_OPCODE16 ();
@@ -1735,13 +1756,13 @@ bfin_gen_progctrl (int prgfunc, int poprnd)
 }
 
 INSTR_T
-bfin_gen_cactrl (REG_T reg, int a, int op)
+bfin_gen_cactrl (REG_T reg, int a, int opc)
 {
   INIT (CaCTRL);
 
   ASSIGN_R (reg);
   ASSIGN (a);
-  ASSIGN (op);
+  ASSIGNF (opc, op);
 
   return GEN_OPCODE16 ();
 }
@@ -1803,6 +1824,16 @@ bfin_gen_pseudodbg_assert (int dbgop, REG_T regtest, int expected)
   return GEN_OPCODE32 ();
 }
 
+INSTR_T
+bfin_gen_pseudochr (int ch)
+{
+  INIT (PseudoChr);
+
+  ASSIGN (ch);
+
+  return GEN_OPCODE16 ();
+}
+
 /* Multiple instruction generation.  */
 
 INSTR_T
@@ -1841,14 +1872,15 @@ bfin_gen_multi_instr (INSTR_T dsp32, INSTR_T dsp16_grp1, INSTR_T dsp16_grp2)
 }
 
 INSTR_T
-bfin_gen_loop (Expr_Node *expr, REG_T reg, int rop, REG_T preg)
+bfin_gen_loop (Expr_Node *exp, REG_T reg, int rop, REG_T preg)
 {
   const char *loopsym;
   char *lbeginsym, *lendsym;
   Expr_Node_Value lbeginval, lendval;
   Expr_Node *lbegin, *lend;
+  symbolS *sym;
 
-  loopsym = expr->value.s_value;
+  loopsym = exp->value.s_value;
   lbeginsym = (char *) xmalloc (strlen (loopsym) + strlen ("__BEGIN") + 5);
   lendsym = (char *) xmalloc (strlen (loopsym) + strlen ("__END") + 5);
 
@@ -1869,20 +1901,31 @@ bfin_gen_loop (Expr_Node *expr, REG_T reg, int rop, REG_T preg)
   lbegin = Expr_Node_Create (Expr_Node_Reloc, lbeginval, NULL, NULL);
   lend   = Expr_Node_Create (Expr_Node_Reloc, lendval, NULL, NULL);
 
-  symbol_remove (symbol_find (loopsym), &symbol_rootP, &symbol_lastP);
+  sym = symbol_find(loopsym);
+  if (!S_IS_LOCAL (sym) || (S_IS_LOCAL (sym) && !symbol_used_p (sym)))
+    symbol_remove (sym, &symbol_rootP, &symbol_lastP);
 
-  return bfin_gen_loopsetup(lbegin, reg, rop, lend, preg);
+  return bfin_gen_loopsetup (lbegin, reg, rop, lend, preg);
 }
 
 void
-bfin_loop_beginend (Expr_Node *expr, int begin)
+bfin_loop_attempt_create_label (Expr_Node *exp, int is_begin)
+{
+  char *name;
+  name = fb_label_name (exp->value.i_value, is_begin);
+  exp->value.s_value = xstrdup (name);
+  exp->type = Expr_Node_Reloc;
+}
+
+void
+bfin_loop_beginend (Expr_Node *exp, int begin)
 {
   const char *loopsym;
   char *label_name;
-  symbolS *line_label;
+  symbolS *linelabel;
   const char *suffix = begin ? "__BEGIN" : "__END";
 
-  loopsym = expr->value.s_value;
+  loopsym = exp->value.s_value;
   label_name = (char *) xmalloc (strlen (loopsym) + strlen (suffix) + 5);
 
   label_name[0] = 0;
@@ -1891,12 +1934,12 @@ bfin_loop_beginend (Expr_Node *expr, int begin)
   strcat (label_name, loopsym);
   strcat (label_name, suffix);
 
-  line_label = colon (label_name);
+  linelabel = colon (label_name);
 
   /* LOOP_END follows the last instruction in the loop.
      Adjust label address.  */
   if (!begin)
-    ((struct local_symbol *) line_label)->lsy_value -= last_insn_size;
+    ((struct local_symbol *) linelabel)->lsy_value -= last_insn_size;
 }
 
 bfd_boolean
@@ -1937,7 +1980,7 @@ bfin_start_label (char *s, char *ptr)
     }
 
   return TRUE;
-} 
+}
 
 int
 bfin_force_relocation (struct fix *fixp)
@@ -2018,9 +2061,9 @@ decode_dagMODim_0 (int iw0)
      | 1 | 0 | 0 | 1 | 1 | 1 | 1 | 0 |.br| 1 | 1 |.op|.m.....|.i.....|
      +---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---+  */
   int i  = ((iw0 >> DagMODim_i_bits) & DagMODim_i_mask);
-  int op  = ((iw0 >> DagMODim_op_bits) & DagMODim_op_mask);
+  int opc  = ((iw0 >> DagMODim_op_bits) & DagMODim_op_mask);
 
-  if (op == 0 || op == 1)
+  if (opc == 0 || opc == 1)
     return IREG_MASK (i);
   else
     return 0;
@@ -2199,18 +2242,18 @@ decode_LDSTii_0 (int iw0)
      | 1 | 0 | 1 |.W.|.op....|.offset........|.ptr.......|.reg.......|
      +---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---+  */
   int reg = ((iw0 >> LDSTii_reg_bit) & LDSTii_reg_mask);
-  int op = ((iw0 >> LDSTii_op_bit) & LDSTii_op_mask);
+  int opc = ((iw0 >> LDSTii_op_bit) & LDSTii_op_mask);
   int W = ((iw0 >> LDSTii_W_bit) & LDSTii_W_mask);
 
-  if (W == 0 && op != 3)
+  if (W == 0 && opc != 3)
     return DREG_MASK (reg);
-  else if (W == 0 && op == 3)
+  else if (W == 0 && opc == 3)
    return 0;
-  else if (W == 1 && op == 0)
+  else if (W == 1 && opc == 0)
     return 0;
-  else if (W == 1 && op == 1)
+  else if (W == 1 && opc == 1)
     return 0;
-  else if (W == 1 && op == 3)
+  else if (W == 1 && opc == 3)
     return 0;
 
   abort ();
@@ -2430,7 +2473,7 @@ decode_dsp32alu_0 (int iw0, int iw1)
 
   else if (aop == 0 && aopcde == 24)
     return DREG_MASK (dst0);
-  else if (aop == 1 && aopcde == 24) 
+  else if (aop == 1 && aopcde == 24)
     return DREG_MASK (dst0) | DREG_MASK (dst1);
   else if (aopcde == 13)
     return DREG_MASK (dst0) | DREG_MASK (dst1);

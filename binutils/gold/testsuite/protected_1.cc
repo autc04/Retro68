@@ -1,6 +1,6 @@
 // protected_1.cc -- a test case for gold
 
-// Copyright 2008 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -30,4 +30,29 @@ int
 f1()
 {
   return 1;
+}
+
+// The function f2 is used to test that the executable can see the
+// same function address for a protected function in the executable
+// and in the shared library.  We can't use the visibility attribute
+// here, becaues that may cause gcc to generate a PC relative reloc;
+// we need it to get the value from the GOT.  I'm not sure this is
+// really useful, given that it doesn't work with the visibility
+// attribute.  This test exists here mainly because the glibc
+// testsuite has the same test, and we want to make sure that gold
+// passes the glibc testsuite.
+
+extern "C" int f2();
+asm(".protected f2");
+
+extern "C" int
+f2()
+{
+  return 2;
+}
+
+int
+(*get_f2_addr())()
+{
+  return f2;
 }

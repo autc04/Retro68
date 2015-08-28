@@ -1,6 +1,6 @@
 /* LTO IL options.
 
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2015 Free Software Foundation, Inc.
    Contributed by Simon Baldwin <simonb@google.com>
 
 This file is part of GCC.
@@ -22,21 +22,41 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
 #include "gimple-expr.h"
 #include "is-a.h"
 #include "gimple.h"
-#include "hashtab.h"
 #include "bitmap.h"
 #include "flags.h"
 #include "opts.h"
 #include "options.h"
 #include "common/common-target.h"
 #include "diagnostic.h"
+#include "hash-map.h"
+#include "plugin-api.h"
+#include "ipa-ref.h"
+#include "cgraph.h"
 #include "lto-streamer.h"
+#include "lto-section-names.h"
 #include "toplev.h"
 
 /* Append the option piece OPT to the COLLECT_GCC_OPTIONS string
@@ -67,7 +87,6 @@ append_to_collect_gcc_options (struct obstack *ob,
 void
 lto_write_options (void)
 {
-  struct lto_output_stream stream;
   char *section_name;
   struct obstack temporary_obstack;
   unsigned int i, j;
@@ -76,7 +95,6 @@ lto_write_options (void)
 
   section_name = lto_get_section_name (LTO_section_opts, NULL, NULL);
   lto_begin_section (section_name, false);
-  memset (&stream, 0, sizeof (stream));
 
   obstack_init (&temporary_obstack);
 
@@ -117,6 +135,24 @@ lto_write_options (void)
       default:
 	gcc_unreachable ();
       }
+  /* The default -fmath-errno, -fsigned-zeros and -ftrapping-math change
+     depending on the language (they can be disabled by the Ada and Java
+     front-ends).  Pass thru conservative standard settings.  */
+  if (!global_options_set.x_flag_errno_math)
+    append_to_collect_gcc_options (&temporary_obstack, &first_p,
+				   global_options.x_flag_errno_math
+				   ? "-fmath-errno"
+				   : "-fno-math-errno");
+  if (!global_options_set.x_flag_signed_zeros)
+    append_to_collect_gcc_options (&temporary_obstack, &first_p,
+				   global_options.x_flag_signed_zeros
+				   ? "-fsigned-zeros"
+				   : "-fno-signed-zeros");
+  if (!global_options_set.x_flag_trapping_math)
+    append_to_collect_gcc_options (&temporary_obstack, &first_p,
+				   global_options.x_flag_trapping_math
+				   ? "-ftrapping-math"
+				   : "-fno-trapping-math");
   /* We need to merge -f[no-]strict-overflow, -f[no-]wrapv and -f[no-]trapv
      conservatively, so stream out their defaults.  */
   if (!global_options_set.x_flag_wrapv
@@ -129,6 +165,31 @@ lto_write_options (void)
       && !global_options.x_flag_strict_overflow)
     append_to_collect_gcc_options (&temporary_obstack, &first_p,
 			       "-fno-strict-overflow");
+
+  if (!global_options_set.x_flag_openmp
+      && !global_options.x_flag_openmp)
+    append_to_collect_gcc_options (&temporary_obstack, &first_p, "-fno-openmp");
+  if (!global_options_set.x_flag_openacc
+      && !global_options.x_flag_openacc)
+    append_to_collect_gcc_options (&temporary_obstack, &first_p,
+				   "-fno-openacc");
+
+  /* Append options from target hook and store them to offload_lto section.  */
+  if (lto_stream_offload_p)
+    {
+      char *offload_opts = targetm.offload_options ();
+      char *offload_ptr = offload_opts;
+      while (offload_ptr)
+       {
+	 char *next = strchr (offload_ptr, ' ');
+	 if (next)
+	   *next++ = '\0';
+	 append_to_collect_gcc_options (&temporary_obstack, &first_p,
+					offload_ptr);
+	 offload_ptr = next;
+       }
+      free (offload_opts);
+    }
 
   /* Output explicitly passed options.  */
   for (i = 1; i < save_decoded_options_count; ++i)
@@ -153,15 +214,22 @@ lto_write_options (void)
       if (!(cl_options[option->opt_index].flags & (CL_COMMON|CL_TARGET|CL_LTO)))
 	continue;
 
+      /* Do not store target-specific options in offload_lto section.  */
+      if ((cl_options[option->opt_index].flags & CL_TARGET)
+	  && lto_stream_offload_p)
+       continue;
+
       /* Drop options created from the gcc driver that will be rejected
 	 when passed on to the driver again.  */
       if (cl_options[option->opt_index].cl_reject_driver)
 	continue;
 
       /* Also drop all options that are handled by the driver as well,
-         which includes things like -o and -v or -fhelp for example.
-	 We do not need those.  Also drop all diagnostic options.  */
-      if (cl_options[option->opt_index].flags & (CL_DRIVER|CL_WARNING))
+	 which includes things like -o and -v or -fhelp for example.
+	 We do not need those.  The only exception is -foffload option, if we
+	 write it in offload_lto section.  Also drop all diagnostic options.  */
+      if ((cl_options[option->opt_index].flags & (CL_DRIVER|CL_WARNING))
+	  && (!lto_stream_offload_p || option->opt_index != OPT_foffload_))
 	continue;
 
       for (j = 0; j < option->canonical_option_num_elements; ++j)
@@ -170,9 +238,7 @@ lto_write_options (void)
     }
   obstack_grow (&temporary_obstack, "\0", 1);
   args = XOBFINISH (&temporary_obstack, char *);
-  lto_output_data_stream (&stream, args, strlen (args) + 1);
-
-  lto_write_stream (&stream);
+  lto_write_data (args, strlen (args) + 1);
   lto_end_section ();
 
   obstack_free (&temporary_obstack, NULL);

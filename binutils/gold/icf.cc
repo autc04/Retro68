@@ -1,6 +1,6 @@
 // icf.cc -- Identical Code Folding.
 //
-// Copyright 2009 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 // Written by Sriraman Tallam <tmsriram@google.com>.
 
 // This file is part of gold.
@@ -23,7 +23,7 @@
 // Identical Code Folding Algorithm
 // ----------------------------------
 // Detecting identical functions is done here and the basic algorithm
-// is as follows.  A checksum is computed on each .text section using
+// is as follows.  A checksum is computed on each foldable section using
 // its contents and relocations.  If the symbol name corresponding to
 // a relocation is known it is used to compute the checksum.  If the
 // symbol name is not known the stringified name of the object and the
@@ -34,8 +34,8 @@
 // checking the contents when two sections have the same checksum.
 //
 // However, two functions A and B with identical text but with
-// relocations pointing to different .text sections can be identical if
-// the corresponding .text sections to which their relocations point to
+// relocations pointing to different foldable sections can be identical if
+// the corresponding foldable sections to which their relocations point to
 // turn out to be identical.  Hence, this checksumming process must be
 // done repeatedly until convergence is obtained.  Here is an example for
 // the following case :
@@ -101,8 +101,38 @@
 // when folding takes place.  This could lead to unexpected run-time
 // behaviour.
 //
+// Safe Folding :
+// ------------
 //
-// How to run  : --icf
+// ICF in safe mode folds only ctors and dtors if their function pointers can
+// never be taken.  Also, for X86-64, safe folding uses the relocation
+// type to determine if a function's pointer is taken or not and only folds
+// functions whose pointers are definitely not taken.
+//
+// Caveat with safe folding :
+// ------------------------
+//
+// This applies only to x86_64.
+//
+// Position independent executables are created from PIC objects (compiled
+// with -fPIC) and/or PIE objects (compiled with -fPIE).  For PIE objects, the
+// relocation types for function pointer taken and a call are the same.
+// Now, it is not always possible to tell if an object used in the link of
+// a pie executable is a PIC object or a PIE object.  Hence, for pie
+// executables, using relocation types to disambiguate function pointers is
+// currently disabled.
+//
+// Further, it is not correct to use safe folding to build non-pie
+// executables using PIC/PIE objects.  PIC/PIE objects have different
+// relocation types for function pointers than non-PIC objects, and the
+// current implementation of safe folding does not handle those relocation
+// types.  Hence, if used, functions whose pointers are taken could still be
+// folded causing unpredictable run-time behaviour if the pointers were used
+// in comparisons.
+//
+//
+//
+// How to run  : --icf=[safe|all|none]
 // Optional parameters : --icf-iterations <num> --print-icf-sections
 //
 // Performance : Less than 20 % link-time overhead on industry strength
@@ -115,6 +145,8 @@
 #include "symtab.h"
 #include "libiberty.h"
 #include "demangle.h"
+#include "elfcpp.h"
+#include "int_encoding.h"
 
 namespace gold
 {
@@ -150,6 +182,11 @@ preprocess_for_unique_sections(const std::vector<Section_id>& id_section,
       section_size_type plen;
       if (section_contents == NULL)
         {
+          // Lock the object so we can read from it.  This is only called
+          // single-threaded from queue_middle_tasks, so it is OK to lock.
+          // Unfortunately we have no way to pass in a Task token.
+          const Task* dummy_task = reinterpret_cast<const Task*>(-1);
+          Task_lock_obj<Object> tl(dummy_task, secn.first);
           const unsigned char* contents;
           contents = secn.first->section_contents(secn.second,
                                                   &plen,
@@ -200,15 +237,16 @@ get_section_contents(bool first_iteration,
                      const std::vector<unsigned int>& kept_section_id,
                      std::vector<std::string>* section_contents)
 {
+  // Lock the object so we can read from it.  This is only called
+  // single-threaded from queue_middle_tasks, so it is OK to lock.
+  // Unfortunately we have no way to pass in a Task token.
+  const Task* dummy_task = reinterpret_cast<const Task*>(-1);
+  Task_lock_obj<Object> tl(dummy_task, secn.first);
+
   section_size_type plen;
   const unsigned char* contents = NULL;
-
   if (first_iteration)
-    {
-      contents = secn.first->section_contents(secn.second,
-                                              &plen,
-                                              false);
-    }
+    contents = secn.first->section_contents(secn.second, &plen, false);
 
   // The buffer to hold all the contents including relocs.  A checksum
   // is then computed on this buffer.
@@ -218,39 +256,87 @@ get_section_contents(bool first_iteration,
   if (num_tracked_relocs)
     *num_tracked_relocs = 0;
 
-  Icf::Section_list& seclist = symtab->icf()->section_reloc_list();
-  Icf::Symbol_list& symlist = symtab->icf()->symbol_reloc_list();
-  Icf::Addend_list& addendlist = symtab->icf()->addend_reloc_list();
+  Icf::Reloc_info_list& reloc_info_list = 
+    symtab->icf()->reloc_info_list();
 
-  Icf::Section_list::iterator it_seclist = seclist.find(secn);
-  Icf::Symbol_list::iterator it_symlist = symlist.find(secn);
-  Icf::Addend_list::iterator it_addendlist = addendlist.find(secn);
+  Icf::Reloc_info_list::iterator it_reloc_info_list =
+    reloc_info_list.find(secn);
 
   buffer.clear();
   icf_reloc_buffer.clear();
 
   // Process relocs and put them into the buffer.
 
-  if (it_seclist != seclist.end())
+  if (it_reloc_info_list != reloc_info_list.end())
     {
-      gold_assert(it_symlist != symlist.end());
-      gold_assert(it_addendlist != addendlist.end());
-      Icf::Sections_reachable_list v = it_seclist->second;
-      Icf::Symbol_info s = it_symlist->second;
-      Icf::Addend_info a = it_addendlist->second;
-      Icf::Sections_reachable_list::iterator it_v = v.begin();
-      Icf::Symbol_info::iterator it_s = s.begin();
+      Icf::Sections_reachable_info &v =
+        (it_reloc_info_list->second).section_info;
+      // Stores the information of the symbol pointed to by the reloc.
+      const Icf::Symbol_info &s = (it_reloc_info_list->second).symbol_info;
+      // Stores the addend and the symbol value.
+      Icf::Addend_info &a = (it_reloc_info_list->second).addend_info;
+      // Stores the offset of the reloc.
+      const Icf::Offset_info &o = (it_reloc_info_list->second).offset_info;
+      const Icf::Reloc_addend_size_info &reloc_addend_size_info =
+        (it_reloc_info_list->second).reloc_addend_size_info;
+      Icf::Sections_reachable_info::iterator it_v = v.begin();
+      Icf::Symbol_info::const_iterator it_s = s.begin();
       Icf::Addend_info::iterator it_a = a.begin();
+      Icf::Offset_info::const_iterator it_o = o.begin();
+      Icf::Reloc_addend_size_info::const_iterator it_addend_size =
+        reloc_addend_size_info.begin();
 
-      for (; it_v != v.end(); ++it_v, ++it_s, ++it_a)
+      for (; it_v != v.end(); ++it_v, ++it_s, ++it_a, ++it_o, ++it_addend_size)
         {
-          // ADDEND_STR stores the symbol value and addend, each
-          // atmost 16 hex digits long.  it_v points to a pair
+	  if (first_iteration
+	      && it_v->first != NULL)
+	    {
+	      Symbol_location loc;
+	      loc.object = it_v->first;
+	      loc.shndx = it_v->second;
+	      loc.offset = convert_types<off_t, long long>(it_a->first
+							   + it_a->second);
+	      // Look through function descriptors
+	      parameters->target().function_location(&loc);
+	      if (loc.shndx != it_v->second)
+		{
+		  it_v->second = loc.shndx;
+		  // Modify symvalue/addend to the code entry.
+		  it_a->first = loc.offset;
+		  it_a->second = 0;
+		}
+	    }
+
+          // ADDEND_STR stores the symbol value and addend and offset,
+          // each at most 16 hex digits long.  it_a points to a pair
           // where first is the symbol value and second is the
           // addend.
-          char addend_str[34];
-          snprintf(addend_str, sizeof(addend_str), "%llx %llx",
-                   (*it_a).first, (*it_a).second);
+          char addend_str[50];
+
+	  // It would be nice if we could use format macros in inttypes.h
+	  // here but there are not in ISO/IEC C++ 1998.
+          snprintf(addend_str, sizeof(addend_str), "%llx %llx %llux",
+                   static_cast<long long>((*it_a).first),
+		   static_cast<long long>((*it_a).second),
+		   static_cast<unsigned long long>(*it_o));
+
+	  // If the symbol pointed to by the reloc is not in an ordinary
+	  // section or if the symbol type is not FROM_OBJECT, then the
+	  // object is NULL.
+	  if (it_v->first == NULL)
+            {
+	      if (first_iteration)
+                {
+		  // If the symbol name is available, use it.
+                  if ((*it_s) != NULL)
+                      buffer.append((*it_s)->name());
+                  // Append the addend.
+                  buffer.append(addend_str);
+                  buffer.append("@");
+		}
+	      continue;
+	    }
+
           Section_id reloc_secn(it_v->first, it_v->second);
 
           // If this reloc turns back and points to the same section,
@@ -270,7 +356,12 @@ get_section_contents(bool first_iteration,
             symtab->icf()->section_to_int_map();
           Icf::Uniq_secn_id_map::iterator section_id_map_it =
             section_id_map.find(reloc_secn);
-          if (section_id_map_it != section_id_map.end())
+          bool is_sym_preemptible = (*it_s != NULL
+				     && !(*it_s)->is_from_dynobj()
+				     && !(*it_s)->is_undefined()
+				     && (*it_s)->is_preemptible());
+          if (!is_sym_preemptible
+              && section_id_map_it != section_id_map.end())
             {
               // This is a reloc to a section that might be folded.
               if (num_tracked_relocs)
@@ -300,11 +391,59 @@ get_section_contents(bool first_iteration,
               uint64_t secn_flags = (it_v->first)->section_flags(it_v->second);
               // This reloc points to a merge section.  Hash the
               // contents of this section.
-              if ((secn_flags & elfcpp::SHF_MERGE) != 0)
+              if ((secn_flags & elfcpp::SHF_MERGE) != 0
+		  && parameters->target().can_icf_inline_merge_sections())
                 {
                   uint64_t entsize =
                     (it_v->first)->section_entsize(it_v->second);
-                  long long offset = it_a->first + it_a->second;
+		  long long offset = it_a->first;
+
+                  unsigned long long addend = it_a->second;
+                  // Ignoring the addend when it is a negative value.  See the 
+                  // comments in Merged_symbol_value::Value in object.h.
+                  if (addend < 0xffffff00)
+                    offset = offset + addend;
+
+		  // For SHT_REL relocation sections, the addend is stored in the
+		  // text section at the relocation offset.
+		  uint64_t reloc_addend_value = 0;
+                  const unsigned char* reloc_addend_ptr =
+		    contents + static_cast<unsigned long long>(*it_o);
+		  switch(*it_addend_size)
+		    {
+		      case 0:
+		        {
+                          break;
+                        }
+                      case 1:
+                        {
+                          reloc_addend_value =
+                            read_from_pointer<8>(reloc_addend_ptr);
+			  break;
+                        }
+                      case 2:
+                        {
+                          reloc_addend_value =
+                            read_from_pointer<16>(reloc_addend_ptr);
+			  break;
+                        }
+                      case 4:
+                        {
+                          reloc_addend_value =
+                            read_from_pointer<32>(reloc_addend_ptr);
+			  break;
+                        }
+                      case 8:
+                        {
+                          reloc_addend_value =
+                            read_from_pointer<64>(reloc_addend_ptr);
+			  break;
+                        }
+		      default:
+		        gold_unreachable();
+		    }
+		  offset = offset + reloc_addend_value;
+
                   section_size_type secn_len;
                   const unsigned char* str_contents =
                   (it_v->first)->section_contents(it_v->second,
@@ -355,12 +494,12 @@ get_section_contents(bool first_iteration,
                                                      char*>(str_contents),
                                     entsize);
                     }
+		  buffer.append("@");
                 }
               else if ((*it_s) != NULL)
                 {
                   // If symbol name is available use that.
-                  const char *sym_name = (*it_s)->name();
-                  buffer.append(sym_name);
+                  buffer.append((*it_s)->name());
                   // Append the addend.
                   buffer.append(addend_str);
                   buffer.append("@");
@@ -420,7 +559,7 @@ get_section_contents(bool first_iteration,
 // KEPT_SECTION_ID    : Vector which maps folded sections to kept sections.
 // ID_SECTION         : Vector mapping a section to an unique integer.
 // IS_SECN_OR_GROUP_UNIQUE : To check if a section or a group of identical
-//                            sectionsis already known to be unique.
+//                            sections is already known to be unique.
 // SECTION_CONTENTS   : Store the section's text and relocs to non-ICF
 //                      sections.
 
@@ -532,16 +671,17 @@ match_sections(unsigned int iteration_num,
 }
 
 // During safe icf (--icf=safe), only fold functions that are ctors or dtors.
-// This function returns true if the mangled function name is a ctor or a
-// dtor.
+// This function returns true if the section name is that of a ctor or a dtor.
 
 static bool
-is_function_ctor_or_dtor(const char* mangled_func_name)
+is_function_ctor_or_dtor(const std::string& section_name)
 {
-  if ((is_prefix_of("_ZN", mangled_func_name)
-       || is_prefix_of("_ZZ", mangled_func_name))
-      && (is_gnu_v3_mangled_ctor(mangled_func_name)
-          || is_gnu_v3_mangled_dtor(mangled_func_name)))
+  const char* mangled_func_name = strrchr(section_name.c_str(), '.');
+  gold_assert(mangled_func_name != NULL);
+  if ((is_prefix_of("._ZN", mangled_func_name)
+       || is_prefix_of("._ZZ", mangled_func_name))
+      && (is_gnu_v3_mangled_ctor(mangled_func_name + 1)
+          || is_gnu_v3_mangled_dtor(mangled_func_name + 1)))
     {
       return true;
     }
@@ -560,6 +700,7 @@ Icf::find_identical_sections(const Input_objects* input_objects,
   std::vector<unsigned int> num_tracked_relocs;
   std::vector<bool> is_secn_or_group_unique;
   std::vector<std::string> section_contents;
+  const Target& target = parameters->target();
 
   // Decide which sections are possible candidates first.
 
@@ -567,21 +708,32 @@ Icf::find_identical_sections(const Input_objects* input_objects,
        p != input_objects->relobj_end();
        ++p)
     {
+      // Lock the object so we can read from it.  This is only called
+      // single-threaded from queue_middle_tasks, so it is OK to lock.
+      // Unfortunately we have no way to pass in a Task token.
+      const Task* dummy_task = reinterpret_cast<const Task*>(-1);
+      Task_lock_obj<Object> tl(dummy_task, *p);
+
       for (unsigned int i = 0;i < (*p)->shnum(); ++i)
         {
-	  const char* section_name = (*p)->section_name(i).c_str();
-          // Only looking to fold functions, so just look at .text sections.
-          if (!is_prefix_of(".text.", section_name))
+	  const std::string section_name = (*p)->section_name(i);
+          if (!is_section_foldable_candidate(section_name))
             continue;
           if (!(*p)->is_section_included(i))
             continue;
           if (parameters->options().gc_sections()
               && symtab->gc()->is_section_garbage(*p, i))
               continue;
-	  // With --icf=safe, check if mangled name is a ctor or a dtor.
+	  // With --icf=safe, check if the mangled function name is a ctor
+	  // or a dtor.  The mangled function name can be obtained from the
+	  // section name by stripping the section prefix.
 	  if (parameters->options().icf_safe_folding()
-	      && !is_function_ctor_or_dtor(section_name + 6))
-	    continue;
+              && !is_function_ctor_or_dtor(section_name)
+	      && (!target.can_check_for_function_pointers()
+                  || section_has_function_pointers(*p, i)))
+            {
+	      continue;
+            }
           this->id_section_.push_back(Section_id(*p, i));
           this->section_id_[Section_id(*p, i)] = section_num;
           this->kept_section_id_.push_back(section_num);

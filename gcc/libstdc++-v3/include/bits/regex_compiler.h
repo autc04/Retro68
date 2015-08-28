@@ -1,6 +1,6 @@
 // class template regex -*- C++ -*-
 
-// Copyright (C) 2010-2014 Free Software Foundation, Inc.
+// Copyright (C) 2010-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,7 +43,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct _BracketMatcher;
 
   /**
-   * @brief Builds an NFA from an input iterator interval.
+   * @brief Builds an NFA from an input iterator range.
    *
    * The %_TraitsT type should fulfill requirements [28.3].
    */
@@ -57,11 +57,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef regex_constants::syntax_option_type _FlagT;
 
       _Compiler(_IterT __b, _IterT __e,
-		const _TraitsT& __traits, _FlagT __flags);
+		const typename _TraitsT::locale_type& __traits, _FlagT __flags);
 
-      std::shared_ptr<_RegexT>
+      shared_ptr<const _RegexT>
       _M_get_nfa()
-      { return make_shared<_RegexT>(std::move(_M_nfa)); }
+      { return std::move(_M_nfa); }
 
     private:
       typedef _Scanner<_CharT>               _ScannerT;
@@ -118,7 +118,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       template<bool __icase, bool __collate>
 	void
-	_M_expression_term(_BracketMatcher<_TraitsT, __icase, __collate>&
+	_M_expression_term(pair<bool, _CharT>& __last_char,
+			   _BracketMatcher<_TraitsT, __icase, __collate>&
 			   __matcher);
 
       int
@@ -135,24 +136,71 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	return ret;
       }
 
-      _FlagT          _M_flags;
-      const _TraitsT& _M_traits;
-      const _CtypeT&  _M_ctype;
-      _ScannerT       _M_scanner;
-      _RegexT         _M_nfa;
-      _StringT        _M_value;
-      _StackT         _M_stack;
+      _FlagT              _M_flags;
+      _ScannerT           _M_scanner;
+      shared_ptr<_RegexT> _M_nfa;
+      _StringT            _M_value;
+      _StackT             _M_stack;
+      const _TraitsT&     _M_traits;
+      const _CtypeT&      _M_ctype;
     };
 
-  template<typename _TraitsT>
-    inline std::shared_ptr<_NFA<_TraitsT>>
-    __compile_nfa(const typename _TraitsT::char_type* __first,
-		  const typename _TraitsT::char_type* __last,
-		  const _TraitsT& __traits,
+  template<typename _Tp>
+    struct __has_contiguous_iter : std::false_type { };
+
+  template<typename _Ch, typename _Tr, typename _Alloc>
+    struct __has_contiguous_iter<std::basic_string<_Ch, _Tr, _Alloc>>
+    : std::true_type
+    { };
+
+  template<typename _Tp, typename _Alloc>
+    struct __has_contiguous_iter<std::vector<_Tp, _Alloc>>
+    : std::true_type
+    { };
+
+  template<typename _Tp>
+    struct __is_contiguous_normal_iter : std::false_type { };
+
+  template<typename _CharT>
+    struct __is_contiguous_normal_iter<_CharT*> : std::true_type { };
+
+  template<typename _Tp, typename _Cont>
+    struct
+    __is_contiguous_normal_iter<__gnu_cxx::__normal_iterator<_Tp, _Cont>>
+    : __has_contiguous_iter<_Cont>::type
+    { };
+
+  template<typename _Iter, typename _TraitsT>
+    using __enable_if_contiguous_normal_iter
+      = typename enable_if< __is_contiguous_normal_iter<_Iter>::value,
+                           std::shared_ptr<const _NFA<_TraitsT>> >::type;
+
+  template<typename _Iter, typename _TraitsT>
+    using __disable_if_contiguous_normal_iter
+      = typename enable_if< !__is_contiguous_normal_iter<_Iter>::value,
+                           std::shared_ptr<const _NFA<_TraitsT>> >::type;
+
+  template<typename _FwdIter, typename _TraitsT>
+    inline __enable_if_contiguous_normal_iter<_FwdIter, _TraitsT>
+    __compile_nfa(_FwdIter __first, _FwdIter __last,
+		  const typename _TraitsT::locale_type& __loc,
 		  regex_constants::syntax_option_type __flags)
     {
+      size_t __len = __last - __first;
+      const auto* __cfirst = __len ? std::__addressof(*__first) : nullptr;
       using _Cmplr = _Compiler<_TraitsT>;
-      return _Cmplr(__first, __last, __traits, __flags)._M_get_nfa();
+      return _Cmplr(__cfirst, __cfirst + __len, __loc, __flags)._M_get_nfa();
+    }
+
+  template<typename _FwdIter, typename _TraitsT>
+    inline __disable_if_contiguous_normal_iter<_FwdIter, _TraitsT>
+    __compile_nfa(_FwdIter __first, _FwdIter __last,
+		  const typename _TraitsT::locale_type& __loc,
+		  regex_constants::syntax_option_type __flags)
+    {
+      basic_string<typename _TraitsT::char_type> __str(__first, __last);
+      return __compile_nfa(__str.data(), __str.data() + __str.size(), __loc,
+          __flags);
     }
 
   // [28.13.14]
@@ -212,7 +260,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef _CharT                       _StrTransT;
 
       explicit
-      _RegexTranslator(const _TraitsT& __traits)
+      _RegexTranslator(const _TraitsT&)
       { }
 
       _CharT
@@ -329,7 +377,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       operator()(_CharT __ch) const
       {
 	_GLIBCXX_DEBUG_ASSERT(_M_is_ready);
-	return _M_apply(__ch, _IsChar());
+	return _M_apply(__ch, _UseCache());
       }
 
       void
@@ -390,6 +438,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       void
       _M_make_range(_CharT __l, _CharT __r)
       {
+	if (__l > __r)
+	  __throw_regex_error(regex_constants::error_range);
 	_M_range_set.push_back(make_pair(_M_translator._M_transform(__l),
 					 _M_translator._M_transform(__r)));
 #ifdef _GLIBCXX_DEBUG
@@ -400,21 +450,31 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       void
       _M_ready()
       {
-	_M_make_cache(_IsChar());
+	std::sort(_M_char_set.begin(), _M_char_set.end());
+	auto __end = std::unique(_M_char_set.begin(), _M_char_set.end());
+	_M_char_set.erase(__end, _M_char_set.end());
+	_M_make_cache(_UseCache());
 #ifdef _GLIBCXX_DEBUG
 	_M_is_ready = true;
 #endif
       }
 
     private:
-      typedef typename is_same<_CharT, char>::type _IsChar;
-      struct _Dummy { };
-      typedef typename conditional<_IsChar::value,
-				   std::bitset<1 << (8 * sizeof(_CharT))>,
-				   _Dummy>::type _CacheT;
-      typedef typename make_unsigned<_CharT>::type _UnsignedCharT;
+      // Currently we only use the cache for char
+      typedef typename std::is_same<_CharT, char>::type _UseCache;
 
-    private:
+      static constexpr size_t
+      _S_cache_size()
+      {
+	return 1ul << (sizeof(_CharT) * __CHAR_BIT__ * int(_UseCache::value));
+      }
+
+      struct _Dummy { };
+      typedef typename std::conditional<_UseCache::value,
+					std::bitset<_S_cache_size()>,
+					_Dummy>::type _CacheT;
+      typedef typename std::make_unsigned<_CharT>::type _UnsignedCharT;
+
       bool
       _M_apply(_CharT __ch, false_type) const;
 
@@ -425,9 +485,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       void
       _M_make_cache(true_type)
       {
-	for (int __i = 0; __i < _M_cache.size(); __i++)
-	  _M_cache[static_cast<_UnsignedCharT>(__i)] =
-	    _M_apply(__i, false_type());
+	for (unsigned __i = 0; __i < _M_cache.size(); __i++)
+	  _M_cache[__i] = _M_apply(static_cast<_CharT>(__i), false_type());
       }
 
       void
@@ -435,7 +494,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { }
 
     private:
-      _CacheT                                   _M_cache;
       std::vector<_CharT>                       _M_char_set;
       std::vector<_StringT>                     _M_equiv_set;
       std::vector<pair<_StrTransT, _StrTransT>> _M_range_set;
@@ -444,6 +502,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _TransT                                   _M_translator;
       const _TraitsT&                           _M_traits;
       bool                                      _M_is_non_matching;
+      _CacheT					_M_cache;
 #ifdef _GLIBCXX_DEBUG
       bool                                      _M_is_ready;
 #endif

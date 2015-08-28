@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -116,6 +117,14 @@ func TestDateParsing(t *testing.T) {
 	}
 }
 
+func TestAddressParsingError(t *testing.T) {
+	const txt = "=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>"
+	_, err := ParseAddress(txt)
+	if err == nil || !strings.Contains(err.Error(), "charset not supported") {
+		t.Errorf(`mail.ParseAddress(%q) err: %q, want ".*charset not supported.*"`, txt, err)
+	}
+}
+
 func TestAddressParsing(t *testing.T) {
 	tests := []struct {
 		addrsStr string
@@ -181,6 +190,16 @@ func TestAddressParsing(t *testing.T) {
 			[]*Address{
 				{
 					Name:    `Jörg Doe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// RFC 2047 "Q"-encoded US-ASCII address. Dumb but legal.
+		{
+			`=?us-ascii?q?J=6Frg_Doe?= <joerg@example.com>`,
+			[]*Address{
+				{
+					Name:    `Jorg Doe`,
 					Address: "joerg@example.com",
 				},
 			},
@@ -276,6 +295,14 @@ func TestAddressFormatting(t *testing.T) {
 			// note the ö (o with an umlaut)
 			&Address{Name: "Böb", Address: "bob@example.com"},
 			`=?utf-8?q?B=C3=B6b?= <bob@example.com>`,
+		},
+		{
+			&Address{Name: "Bob Jane", Address: "bob@example.com"},
+			`"Bob Jane" <bob@example.com>`,
+		},
+		{
+			&Address{Name: "Böb Jacöb", Address: "bob@example.com"},
+			`=?utf-8?q?B=C3=B6b_Jac=C3=B6b?= <bob@example.com>`,
 		},
 	}
 	for _, test := range tests {

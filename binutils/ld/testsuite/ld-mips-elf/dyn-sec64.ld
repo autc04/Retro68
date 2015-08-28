@@ -17,7 +17,9 @@ SECTIONS
   .MIPS.stubs : { *(.MIPS.stubs) }
 
   . = 0x1235000000000;
-  _gp = ALIGN (16) + 0x7ff0;
+  HIDDEN (_gp = ALIGN (16) + 0x7ff0);
   .got : { *(.got) }
   .data : { *(.data) }
+
+  /DISCARD/ : { *(.MIPS.abiflags) *(.gnu.attributes) }
 }

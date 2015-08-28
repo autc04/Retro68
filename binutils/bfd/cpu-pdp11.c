@@ -1,5 +1,5 @@
 /* BFD back-end for PDP-11 support.
-   Copyright 2001, 2002, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -34,7 +34,8 @@ const bfd_arch_info_type bfd_pdp11_arch =
     1,		/* aligment = 16 bit */
     TRUE, /* the one and only */
     bfd_default_compatible,
-    bfd_default_scan ,
+    bfd_default_scan,
+    bfd_arch_default_fill,
     0,
   };
 

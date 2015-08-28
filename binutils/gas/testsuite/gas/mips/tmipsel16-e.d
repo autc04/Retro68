@@ -1,4 +1,4 @@
-#objdump: -rst -mips16
+#objdump: -rst --special-syms -mips16
 #name: MIPS16 reloc
 #as: -32 -mips16
 #source: mips16-e.s
@@ -15,7 +15,9 @@ SYMBOL TABLE:
 0+0000004 l       \.text	0+0000000 0xf0 \.L1.1
 0+0000000 l    d  foo	0+0000000 (|foo)
 0+0000000 l    d  \.reginfo	0+0000000 (|\.reginfo)
+0+0000000 l    d  \.MIPS\.abiflags	0+0000000 (|\.MIPS\.abiflags)
 0+0000000 l    d  \.(mdebug|pdr)	0+0000000 (|\.mdebug|\.pdr)
+0+0000000 l    d  \.gnu\.attributes	0+0000000 (|\.gnu\.attributes)
 0+0000000         \*UND\*	0+0000000 g1
 
 
@@ -32,8 +34,13 @@ OFFSET [ ]+ TYPE              VALUE
 Contents of section \.text:
  0000 00650065 00650065 00650065 00650065  .*
 Contents of section \.reginfo:
- 0000 01000000 00000000 00000000 00000000  .*
+ 0000 00000100 00000000 00000000 00000000  .*
  0010 00000000 00000000                    .*
+Contents of section \.MIPS\.abiflags:
+ .*
+ .*
 Contents of section foo:
  0000 00000000 08000000 00000000 03000000  .*
  0010 00000000 08000000 00000000 00000000  .*
+Contents of section \.gnu\.attributes:
+ .*

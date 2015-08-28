@@ -1,6 +1,5 @@
 /* tc-arc.c -- Assembler for the ARC
-   Copyright 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2009  Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -540,7 +539,8 @@ arc_extoper (int opertype)
       return;
     }
 
-  ext_oper = xmalloc (sizeof (struct arc_ext_operand_value));
+  ext_oper = (struct arc_ext_operand_value *)
+      xmalloc (sizeof (struct arc_ext_operand_value));
 
   if (opertype)
     {
@@ -802,7 +802,7 @@ arc_extinst (int ignore ATTRIBUTE_UNUSED)
     strcat (syntax, "%F");
   strcat (syntax, "%S%L");
 
-  ext_op = xmalloc (sizeof (struct arc_opcode));
+  ext_op = (struct arc_opcode *) xmalloc (sizeof (struct arc_opcode));
   ext_op->syntax = xstrdup (syntax);
 
   ext_op->mask  = I (-1) | ((0x3 == opcode) ? C (-1) : 0);
@@ -933,7 +933,7 @@ arc_common (int localScope)
       S_SET_SIZE       (symbolP, size);
       S_SET_SEGMENT    (symbolP, bss_section);
       S_CLEAR_EXTERNAL (symbolP);
-      symbolP->local = 1;
+      symbol_get_obj (symbolP)->local = 1;
       subseg_set (old_sec, old_subsec);
     }
   else
@@ -1160,7 +1160,7 @@ md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
    Values for the status register are specified with %st(label).
    `label' will be right shifted by 2.  */
 
-void
+bfd_reloc_code_real_type
 arc_parse_cons_expression (expressionS *exp,
 			   unsigned int nbytes ATTRIBUTE_UNUSED)
 {
@@ -1179,6 +1179,7 @@ arc_parse_cons_expression (expressionS *exp,
       arc_code_symbol (exp);
       input_line_pointer = p;
     }
+  return BFD_RELOC_NONE;
 }
 
 /* Record a fixup for a cons expression.  */
@@ -1187,7 +1188,8 @@ void
 arc_cons_fix_new (fragS *frag,
 		  int where,
 		  int nbytes,
-		  expressionS *exp)
+		  expressionS *exp,
+		  bfd_reloc_code_real_type r ATTRIBUTE_UNUSED)
 {
   if (nbytes == 4)
     {
@@ -1196,7 +1198,8 @@ arc_cons_fix_new (fragS *frag,
 
       /* This may be a special ARC reloc (eg: %st()).  */
       reloc_type = get_arc_exp_reloc_type (1, BFD_RELOC_32, exp, &exptmp);
-      fix_new_exp (frag, where, nbytes, &exptmp, 0, reloc_type);
+      fix_new_exp (frag, where, nbytes, &exptmp, 0,
+                   (enum bfd_reloc_code_real) reloc_type);
     }
   else
     {
@@ -1350,8 +1353,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED,
 {
   arelent *reloc;
 
-  reloc = xmalloc (sizeof (arelent));
-  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+  reloc = (arelent *) xmalloc (sizeof (arelent));
+  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
 
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
@@ -1568,7 +1571,8 @@ md_assemble (char *str)
 	      if ((suf = get_ext_suffix (s)))
 		ext_suffix_p = 1;
 	      else
-		suf = hash_find (arc_suffix_hash, s);
+		suf = (const struct arc_operand_value *)
+                    hash_find (arc_suffix_hash, s);
 	      if (!suf)
 		{
 		  /* This can happen in "blle foo" and we're currently using

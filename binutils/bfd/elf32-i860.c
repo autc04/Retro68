@@ -1,6 +1,5 @@
 /* Intel i860 specific support for 32-bit ELF.
-   Copyright 1993, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    Full i860 support contributed by Jason Eckhardt <jle@cygnus.com>.
 
@@ -265,11 +264,11 @@ static reloc_howto_type elf32_i860_howto_table [] =
   /* This relocation does nothing.  */
   HOWTO (R_860_NONE,		/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_860_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
@@ -1014,7 +1013,7 @@ elf32_i860_relocate_highadj (bfd *input_bfd,
   insn = bfd_get_32 (input_bfd, contents + rel->r_offset);
 
   value += rel->r_addend;
-  value += 0x8000; 
+  value += 0x8000;
   value = ((value >> 16) & 0xffff);
 
   insn = (insn & 0xffff0000) | value;
@@ -1120,24 +1119,17 @@ elf32_i860_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	}
       else
 	{
-	  bfd_boolean unresolved_reloc, warned;
+	  bfd_boolean unresolved_reloc, warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	}
 
-      if (sec != NULL && elf_discarded_section (sec))
-	{
-	  /* For relocs against symbols from removed linkonce sections,
-	     or sections discarded by a linker script, we just want the
-	     section contents zeroed.  Avoid any special processing.  */
-	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
-	  rel->r_info = 0;
-	  rel->r_addend = 0;
-	  continue;
-	}
+      if (sec != NULL && discarded_section (sec))
+	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
+					 rel, 1, relend, howto, 0, contents);
 
       if (info->relocatable)
 	continue;
@@ -1257,9 +1249,9 @@ elf32_i860_is_local_label_name (bfd *abfd, const char *name)
   return _bfd_elf_is_local_label_name (abfd, name);
 }
 
-#define TARGET_BIG_SYM		bfd_elf32_i860_vec
+#define TARGET_BIG_SYM		i860_elf32_vec
 #define TARGET_BIG_NAME		"elf32-i860"
-#define TARGET_LITTLE_SYM	bfd_elf32_i860_little_vec
+#define TARGET_LITTLE_SYM	i860_elf32_le_vec
 #define TARGET_LITTLE_NAME	"elf32-i860-little"
 #define ELF_ARCH		bfd_arch_i860
 #define ELF_MACHINE_CODE	EM_860

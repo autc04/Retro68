@@ -63,7 +63,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 		return nil, fmt.Errorf("print: %s", err)
 	}
 
-	// make sure formated output is syntactically correct
+	// make sure formatted output is syntactically correct
 	res := buf.Bytes()
 	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
@@ -159,13 +159,6 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 }
 
 func check(t *testing.T, source, golden string, mode checkMode) {
-	// start a timer to produce a time-out signal
-	tc := make(chan int)
-	go func() {
-		time.Sleep(10 * time.Second) // plenty of a safety margin, even for very slow machines
-		tc <- 0
-	}()
-
 	// run the test
 	cc := make(chan int)
 	go func() {
@@ -173,13 +166,13 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 		cc <- 0
 	}()
 
-	// wait for the first finisher
+	// wait with timeout
 	select {
-	case <-tc:
+	case <-time.After(10 * time.Second): // plenty of a safety margin, even for very slow machines
 		// test running past time out
 		t.Errorf("%s: running too slowly", source)
 	case <-cc:
-		// test finished within alloted time margin
+		// test finished within allotted time margin
 	}
 }
 
@@ -212,7 +205,7 @@ func TestFiles(t *testing.T) {
 	}
 }
 
-// TestLineComments, using a simple test case, checks that consequtive line
+// TestLineComments, using a simple test case, checks that consecutive line
 // comments are properly terminated with a newline even if the AST position
 // information is incorrect.
 //
@@ -357,7 +350,7 @@ func idents(f *ast.File) <-chan *ast.Ident {
 // identCount returns the number of identifiers found in f.
 func identCount(f *ast.File) int {
 	n := 0
-	for _ = range idents(f) {
+	for range idents(f) {
 		n++
 	}
 	return n

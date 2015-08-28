@@ -1,6 +1,5 @@
 /* ELF strtab with GC and suffix merging support.
-   Copyright 2001, 2002, 2003, 2005, 2006, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -201,13 +200,39 @@ _bfd_elf_strtab_delref (struct elf_strtab_hash *tab, bfd_size_type idx)
   --tab->array[idx]->refcount;
 }
 
+unsigned int
+_bfd_elf_strtab_refcount (struct elf_strtab_hash *tab, bfd_size_type idx)
+{
+  return tab->array[idx]->refcount;
+}
+
 void
 _bfd_elf_strtab_clear_all_refs (struct elf_strtab_hash *tab)
 {
   bfd_size_type idx;
 
-  for (idx = 1; idx < tab->size; ++idx)
+  for (idx = 1; idx < tab->size; idx++)
     tab->array[idx]->refcount = 0;
+}
+
+/* Downsizes strtab.  Entries from IDX up to the current size are
+   removed from the array.  */
+void
+_bfd_elf_strtab_restore_size (struct elf_strtab_hash *tab, bfd_size_type idx)
+{
+  bfd_size_type curr_size = tab->size;
+
+  BFD_ASSERT (tab->sec_size == 0);
+  BFD_ASSERT (idx <= curr_size);
+  tab->size = idx;
+  for (; idx < curr_size; ++idx)
+    {
+      /* We don't remove entries from the hash table, just set their
+	 REFCOUNT to zero.  Setting LEN zero will result in the size
+	 growing if the entry is added again.  See _bfd_elf_strtab_add.  */
+      tab->array[idx]->refcount = 0;
+      tab->array[idx]->len = 0;
+    }
 }
 
 bfd_size_type

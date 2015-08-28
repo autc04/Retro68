@@ -1,4 +1,20 @@
-if ![is_elf_format] then {
+# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
+
+if { ![is_elf_format] && ![is_pecoff_format] } then {
     return
 }
 
@@ -35,12 +51,16 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
 	set ASFLAGS "$old_ASFLAGS"
     }
 
+    if { [is_pecoff_format] } then {
+	run_dump_test "reloc-pe-i386"
+    }
+
 } elseif { [istarget alpha*-*-*] } then {
     run_dump_test "cfi-alpha-1"
     run_dump_test "cfi-alpha-2"
     run_dump_test "cfi-alpha-3"
 
-} elseif { [istarget ppc*-*-*] || [istarget powerpc*-*-*] } then {
+} elseif { [istarget powerpc*-*-*] } then {
     run_dump_test "cfi-ppc-1"
 
 } elseif { [istarget s390*-*-*] } then {
@@ -68,7 +88,11 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
 	run_dump_test "cfi-sh-1"
     }
 
-} elseif { [istarget "arm*-*"] || [istarget "xscale*-*"] } then {
+} elseif { [istarget "arm*-*"] } then {
+    # Only ELF based ARM targets support CFI.
+    if { [is_pecoff_format] } then {
+	return
+    }
     run_dump_test "cfi-arm-1"
 
 } elseif { [istarget "mips*-*"] } then {
@@ -88,11 +112,14 @@ if { ![istarget "hppa64*-*"] } then {
   run_dump_test "cfi-common-2"
   run_dump_test "cfi-common-3"
   run_dump_test "cfi-common-4"
-  run_dump_test "cfi-common-5"
-  run_dump_test "cfi-common-7"
-}
-
-# MIPS doesn't support PC relative cfi directives.
-if { ![istarget "mips*-*"] } then {
+  if { ![is_pecoff_format] } then {
+    # This test uses .subsection/.previous which are elf-specific.
+    run_dump_test "cfi-common-5"
+  }
+  # Some targets don't support PC relative cfi directives
+  if { ![istarget "mips*-*"] &&
+       !([istarget powerpc*-*-*] && [is_pecoff_format]) } then {
     run_dump_test "cfi-common-6"
+  }
+  run_dump_test "cfi-common-7"
 }

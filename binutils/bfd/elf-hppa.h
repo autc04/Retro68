@@ -1,6 +1,5 @@
 /* Common code for PA ELF implementations.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -48,7 +47,7 @@
 
 static reloc_howto_type elf_hppa_howto_table[ELF_HOWTO_TABLE_SIZE] =
 {
-  { R_PARISC_NONE, 0, 0, 0, FALSE, 0, complain_overflow_bitfield,
+  { R_PARISC_NONE, 0, 3, 0, FALSE, 0, complain_overflow_dont,
     bfd_elf_generic_reloc, "R_PARISC_NONE", FALSE, 0, 0, FALSE },
 
   /* The values in DIR32 are to placate the check in
@@ -678,7 +677,7 @@ elf_hppa_reloc_final_type (bfd *abfd,
 	      /* When in 64bit mode, a 32bit relocation is supposed to
 		 be a section relative relocation.  Dwarf2 (for example)
 		 uses 32bit section relative relocations.  */
-	      if (bfd_get_arch_info (abfd)->bits_per_address != 32)
+	      if (bfd_arch_bits_per_address (abfd) != 32)
 		final_type = R_PARISC_SECREL32;
 	      break;
 	    case e_psel:

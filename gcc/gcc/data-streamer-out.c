@@ -1,7 +1,7 @@
 /* Routines for saving various data types to a file stream.  This deals
    with various data types like strings, integers, enums, etc.
 
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2015 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@google.com>
 
 This file is part of GCC.
@@ -23,14 +23,77 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
 #include "gimple-expr.h"
 #include "is-a.h"
 #include "gimple.h"
+#include "hash-map.h"
+#include "plugin-api.h"
+#include "ipa-ref.h"
+#include "cgraph.h"
 #include "data-streamer.h"
+
+
+/* Adds a new block to output stream OBS.  */
+
+void
+lto_append_block (struct lto_output_stream *obs)
+{
+  struct lto_char_ptr_base *new_block;
+
+  gcc_assert (obs->left_in_block == 0);
+
+  if (obs->first_block == NULL)
+    {
+      /* This is the first time the stream has been written
+	 into.  */
+      obs->block_size = 1024;
+      new_block = (struct lto_char_ptr_base*) xmalloc (obs->block_size);
+      obs->first_block = new_block;
+    }
+  else
+    {
+      struct lto_char_ptr_base *tptr;
+      /* Get a new block that is twice as big as the last block
+	 and link it into the list.  */
+      obs->block_size *= 2;
+      new_block = (struct lto_char_ptr_base*) xmalloc (obs->block_size);
+      /* The first bytes of the block are reserved as a pointer to
+	 the next block.  Set the chain of the full block to the
+	 pointer to the new block.  */
+      tptr = obs->current_block;
+      tptr->ptr = (char *) new_block;
+    }
+
+  /* Set the place for the next char at the first position after the
+     chain to the next block.  */
+  obs->current_pointer
+    = ((char *) new_block) + sizeof (struct lto_char_ptr_base);
+  obs->current_block = new_block;
+  /* Null out the newly allocated block's pointer to the next block.  */
+  new_block->ptr = NULL;
+  obs->left_in_block = obs->block_size - sizeof (struct lto_char_ptr_base);
+}
+
 
 /* Return index used to reference STRING of LEN characters in the string table
    in OB.  The string might or might not include a trailing '\0'.
@@ -38,7 +101,7 @@ along with GCC; see the file COPYING3.  If not see
    When PERSISTENT is set, the string S is supposed to not change during
    duration of the OB and thus OB can keep pointer into it.  */
 
-unsigned
+static unsigned
 streamer_string_index (struct output_block *ob, const char *s, unsigned int len,
 		       bool persistent)
 {
@@ -49,7 +112,7 @@ streamer_string_index (struct output_block *ob, const char *s, unsigned int len,
   s_slot.len = len;
   s_slot.slot_num = 0;
 
-  slot = ob->string_hash_table.find_slot (&s_slot, INSERT);
+  slot = ob->string_hash_table->find_slot (&s_slot, INSERT);
   if (*slot == NULL)
     {
       struct lto_output_stream *string_stream = ob->string_stream;
@@ -71,7 +134,7 @@ streamer_string_index (struct output_block *ob, const char *s, unsigned int len,
       new_slot->slot_num = start;
       *slot = new_slot;
       streamer_write_uhwi_stream (string_stream, len);
-      lto_output_data_stream (string_stream, string, len);
+      streamer_write_data_stream (string_stream, string, len);
       return start + 1;
     }
   else
@@ -304,3 +367,34 @@ streamer_write_gcov_count_stream (struct lto_output_stream *obs, gcov_type work)
   gcc_assert ((HOST_WIDE_INT) work == work);
   streamer_write_hwi_stream (obs, work);
 }
+
+/* Write raw DATA of length LEN to the output block OB.  */
+
+void
+streamer_write_data_stream (struct lto_output_stream *obs, const void *data,
+			    size_t len)
+{
+  while (len)
+    {
+      size_t copy;
+
+      /* No space left.  */
+      if (obs->left_in_block == 0)
+	lto_append_block (obs);
+
+      /* Determine how many bytes to copy in this loop.  */
+      if (len <= obs->left_in_block)
+	copy = len;
+      else
+	copy = obs->left_in_block;
+
+      /* Copy the data and do bookkeeping.  */
+      memcpy (obs->current_pointer, data, copy);
+      obs->current_pointer += copy;
+      obs->total_size += copy;
+      obs->left_in_block -= copy;
+      data = (const char *) data + copy;
+      len -= copy;
+    }
+}
+

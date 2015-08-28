@@ -15,6 +15,8 @@ import (
 	"unicode/utf8"
 )
 
+const smallMaxTokenSize = 256 // Much smaller for more efficient testing.
+
 // Test white space table matches the Unicode definition.
 func TestSpace(t *testing.T) {
 	for r := rune(0); r <= utf8.MaxRune; r++ {
@@ -38,7 +40,7 @@ var scanTests = []string{
 
 func TestScanByte(t *testing.T) {
 	for n, test := range scanTests {
-		buf := bytes.NewBufferString(test)
+		buf := strings.NewReader(test)
 		s := NewScanner(buf)
 		s.Split(ScanBytes)
 		var i int
@@ -60,7 +62,7 @@ func TestScanByte(t *testing.T) {
 // Test that the rune splitter returns same sequence of runes (not bytes) as for range string.
 func TestScanRune(t *testing.T) {
 	for n, test := range scanTests {
-		buf := bytes.NewBufferString(test)
+		buf := strings.NewReader(test)
 		s := NewScanner(buf)
 		s.Split(ScanRunes)
 		var i, runeCount int
@@ -104,7 +106,7 @@ var wordScanTests = []string{
 // Test that the word splitter returns the same data as strings.Fields.
 func TestScanWords(t *testing.T) {
 	for n, test := range wordScanTests {
-		buf := bytes.NewBufferString(test)
+		buf := strings.NewReader(test)
 		s := NewScanner(buf)
 		s.Split(ScanWords)
 		words := strings.Fields(test)
@@ -135,7 +137,7 @@ func TestScanWords(t *testing.T) {
 // reads in Scanner.Scan.
 type slowReader struct {
 	max int
-	buf *bytes.Buffer
+	buf io.Reader
 }
 
 func (sr *slowReader) Read(p []byte) (n int, err error) {
@@ -172,7 +174,6 @@ func genLine(buf *bytes.Buffer, lineNum, n int, addNewline bool) {
 
 // Test the line splitter, including some carriage returns but no long lines.
 func TestScanLongLines(t *testing.T) {
-	const smallMaxTokenSize = 256 // Much smaller for more efficient testing.
 	// Build a buffer of lots of line lengths up to but not exceeding smallMaxTokenSize.
 	tmp := new(bytes.Buffer)
 	buf := new(bytes.Buffer)
@@ -248,7 +249,7 @@ func TestScanLineTooLong(t *testing.T) {
 
 // Test that the line splitter handles a final line without a newline.
 func testNoNewline(text string, lines []string, t *testing.T) {
-	buf := bytes.NewBufferString(text)
+	buf := strings.NewReader(text)
 	s := NewScanner(&slowReader{7, buf})
 	s.Split(ScanLines)
 	for lineNum := 0; s.Scan(); lineNum++ {
@@ -277,7 +278,7 @@ func TestScanLineNoNewline(t *testing.T) {
 	testNoNewline(text, lines, t)
 }
 
-// Test that the line splitter handles a final line with a carriage return but nonewline.
+// Test that the line splitter handles a final line with a carriage return but no newline.
 func TestScanLineReturnButNoNewline(t *testing.T) {
 	const text = "abcdefghijklmn\nopqrstuvwxyz\r"
 	lines := []string{
@@ -328,7 +329,7 @@ func TestSplitError(t *testing.T) {
 	}
 	// Read the data.
 	const text = "abcdefghijklmnopqrstuvwxyz"
-	buf := bytes.NewBufferString(text)
+	buf := strings.NewReader(text)
 	s := NewScanner(&slowReader{1, buf})
 	s.Split(errorSplit)
 	var i int
@@ -402,5 +403,122 @@ func TestBadReader(t *testing.T) {
 	err := scanner.Err()
 	if err != io.ErrNoProgress {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestScanWordsExcessiveWhiteSpace(t *testing.T) {
+	const word = "ipsum"
+	s := strings.Repeat(" ", 4*smallMaxTokenSize) + word
+	scanner := NewScanner(strings.NewReader(s))
+	scanner.MaxTokenSize(smallMaxTokenSize)
+	scanner.Split(ScanWords)
+	if !scanner.Scan() {
+		t.Fatalf("scan failed: %v", scanner.Err())
+	}
+	if token := scanner.Text(); token != word {
+		t.Fatalf("unexpected token: %v", token)
+	}
+}
+
+// Test that empty tokens, including at end of line or end of file, are found by the scanner.
+// Issue 8672: Could miss final empty token.
+
+func commaSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	for i := 0; i < len(data); i++ {
+		if data[i] == ',' {
+			return i + 1, data[:i], nil
+		}
+	}
+	if !atEOF {
+		return 0, nil, nil
+	}
+	return 0, data, nil
+}
+
+func TestEmptyTokens(t *testing.T) {
+	s := NewScanner(strings.NewReader("1,2,3,"))
+	values := []string{"1", "2", "3", ""}
+	s.Split(commaSplit)
+	var i int
+	for i = 0; i < len(values); i++ {
+		if !s.Scan() {
+			break
+		}
+		if s.Text() != values[i] {
+			t.Errorf("%d: expected %q got %q", i, values[i], s.Text())
+		}
+	}
+	if i != len(values) {
+		t.Errorf("got %d fields, expected %d", i, len(values))
+	}
+	if err := s.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func loopAtEOFSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if len(data) > 0 {
+		return 1, data[:1], nil
+	}
+	return 0, data, nil
+}
+
+func TestDontLoopForever(t *testing.T) {
+	s := NewScanner(strings.NewReader("abc"))
+	s.Split(loopAtEOFSplit)
+	// Expect a panic
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("should have panicked")
+		}
+		if msg, ok := err.(string); !ok || !strings.Contains(msg, "empty tokens") {
+			panic(err)
+		}
+	}()
+	for count := 0; s.Scan(); count++ {
+		if count > 1000 {
+			t.Fatal("looping")
+		}
+	}
+	if s.Err() != nil {
+		t.Fatal("after scan:", s.Err())
+	}
+}
+
+func TestBlankLines(t *testing.T) {
+	s := NewScanner(strings.NewReader(strings.Repeat("\n", 1000)))
+	for count := 0; s.Scan(); count++ {
+		if count > 2000 {
+			t.Fatal("looping")
+		}
+	}
+	if s.Err() != nil {
+		t.Fatal("after scan:", s.Err())
+	}
+}
+
+type countdown int
+
+func (c *countdown) split(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if *c > 0 {
+		*c--
+		return 1, data[:1], nil
+	}
+	return 0, nil, nil
+}
+
+// Check that the looping-at-EOF check doesn't trigger for merely empty tokens.
+func TestEmptyLinesOK(t *testing.T) {
+	c := countdown(10000)
+	s := NewScanner(strings.NewReader(strings.Repeat("\n", 10000)))
+	s.Split(c.split)
+	for s.Scan() {
+	}
+	if s.Err() != nil {
+		t.Fatal("after scan:", s.Err())
+	}
+	if c != 0 {
+		t.Fatalf("stopped with %d left to process", c)
 	}
 }

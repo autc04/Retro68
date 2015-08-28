@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -284,7 +285,7 @@ var gunzipTests = []gunzipTest{
 func TestDecompressor(t *testing.T) {
 	b := new(bytes.Buffer)
 	for _, tt := range gunzipTests {
-		in := bytes.NewBuffer(tt.gzip)
+		in := bytes.NewReader(tt.gzip)
 		gzip, err := NewReader(in)
 		if err != nil {
 			t.Errorf("%s: NewReader: %s", tt.name, err)
@@ -300,6 +301,26 @@ func TestDecompressor(t *testing.T) {
 			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
 		}
 		s := b.String()
+		if s != tt.raw {
+			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
+		}
+
+		// Test Reader Reset.
+		in = bytes.NewReader(tt.gzip)
+		err = gzip.Reset(in)
+		if err != nil {
+			t.Errorf("%s: Reset: %s", tt.name, err)
+			continue
+		}
+		if tt.name != gzip.Name {
+			t.Errorf("%s: got name %s", tt.name, gzip.Name)
+		}
+		b.Reset()
+		n, err = io.Copy(b, gzip)
+		if err != tt.err {
+			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
+		}
+		s = b.String()
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
 		}
@@ -331,5 +352,59 @@ func TestIssue6550(t *testing.T) {
 		t.Errorf("Copy hung")
 	case <-done:
 		// ok
+	}
+}
+
+func TestInitialReset(t *testing.T) {
+	var r Reader
+	if err := r.Reset(bytes.NewReader(gunzipTests[1].gzip)); err != nil {
+		t.Error(err)
+	}
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, &r); err != nil {
+		t.Error(err)
+	}
+	if s := buf.String(); s != gunzipTests[1].raw {
+		t.Errorf("got %q want %q", s, gunzipTests[1].raw)
+	}
+}
+
+func TestMultistreamFalse(t *testing.T) {
+	// Find concatenation test.
+	var tt gunzipTest
+	for _, tt = range gunzipTests {
+		if strings.HasSuffix(tt.desc, " x2") {
+			goto Found
+		}
+	}
+	t.Fatal("cannot find hello.txt x2 in gunzip tests")
+
+Found:
+	br := bytes.NewReader(tt.gzip)
+	var r Reader
+	if err := r.Reset(br); err != nil {
+		t.Fatalf("first reset: %v", err)
+	}
+
+	// Expect two streams with "hello world\n", then real EOF.
+	const hello = "hello world\n"
+
+	r.Multistream(false)
+	data, err := ioutil.ReadAll(&r)
+	if string(data) != hello || err != nil {
+		t.Fatalf("first stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+	}
+
+	if err := r.Reset(br); err != nil {
+		t.Fatalf("second reset: %v", err)
+	}
+	r.Multistream(false)
+	data, err = ioutil.ReadAll(&r)
+	if string(data) != hello || err != nil {
+		t.Fatalf("second stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+	}
+
+	if err := r.Reset(br); err != io.EOF {
+		t.Fatalf("third reset: err=%v, want io.EOF", err)
 	}
 }

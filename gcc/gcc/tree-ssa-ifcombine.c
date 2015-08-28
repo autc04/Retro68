@@ -1,5 +1,5 @@
 /* Combining of if-expressions on trees.
-   Copyright (C) 2007-2014 Free Software Foundation, Inc.
+   Copyright (C) 2007-2015 Free Software Foundation, Inc.
    Contributed by Richard Guenther <rguenther@suse.de>
 
 This file is part of GCC.
@@ -26,8 +26,25 @@ along with GCC; see the file COPYING3.  If not see
    BRANCH_COST.  */
 #include "rtl.h"
 #include "tm_p.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stor-layout.h"
+#include "predict.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfganal.h"
 #include "basic-block.h"
 #include "tree-pretty-print.h"
 #include "tree-ssa-alias.h"
@@ -158,12 +175,12 @@ same_phi_args_p (basic_block bb1, basic_block bb2, basic_block dest)
 {
   edge e1 = find_edge (bb1, dest);
   edge e2 = find_edge (bb2, dest);
-  gimple_stmt_iterator gsi;
-  gimple phi;
+  gphi_iterator gsi;
+  gphi *phi;
 
   for (gsi = gsi_start_phis (dest); !gsi_end_p (gsi); gsi_next (&gsi))
     {
-      phi = gsi_stmt (gsi);
+      phi = gsi.phi ();
       if (!operand_equal_p (PHI_ARG_DEF_FROM_EDGE (phi, e1),
 			    PHI_ARG_DEF_FROM_EDGE (phi, e2), 0))
         return false;
@@ -202,7 +219,7 @@ get_name_for_bit_test (tree candidate)
    Returns true if the pattern matched, false otherwise.  */
 
 static bool
-recognize_single_bit_test (gimple cond, tree *name, tree *bit, bool inv)
+recognize_single_bit_test (gcond *cond, tree *name, tree *bit, bool inv)
 {
   gimple stmt;
 
@@ -311,7 +328,7 @@ recognize_single_bit_test (gimple cond, tree *name, tree *bit, bool inv)
    Returns true if the pattern matched, false otherwise.  */
 
 static bool
-recognize_bits_test (gimple cond, tree *name, tree *bits, bool inv)
+recognize_bits_test (gcond *cond, tree *name, tree *bits, bool inv)
 {
   gimple stmt;
 
@@ -342,18 +359,21 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
 		   basic_block outer_cond_bb, bool outer_inv, bool result_inv)
 {
   gimple_stmt_iterator gsi;
-  gimple inner_cond, outer_cond;
+  gimple inner_stmt, outer_stmt;
+  gcond *inner_cond, *outer_cond;
   tree name1, name2, bit1, bit2, bits1, bits2;
 
-  inner_cond = last_stmt (inner_cond_bb);
-  if (!inner_cond
-      || gimple_code (inner_cond) != GIMPLE_COND)
+  inner_stmt = last_stmt (inner_cond_bb);
+  if (!inner_stmt
+      || gimple_code (inner_stmt) != GIMPLE_COND)
     return false;
+  inner_cond = as_a <gcond *> (inner_stmt);
 
-  outer_cond = last_stmt (outer_cond_bb);
-  if (!outer_cond
-      || gimple_code (outer_cond) != GIMPLE_COND)
+  outer_stmt = last_stmt (outer_cond_bb);
+  if (!outer_stmt
+      || gimple_code (outer_stmt) != GIMPLE_COND)
     return false;
+  outer_cond = as_a <gcond *> (outer_stmt);
 
   /* See if we test a single bit of the same name in both tests.  In
      that case remove the outer test, merging both else edges,
@@ -505,12 +525,12 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
       /* Invert comparisons if necessary (and possible).  */
       if (inner_inv)
 	inner_cond_code = invert_tree_comparison (inner_cond_code,
-	  HONOR_NANS (TYPE_MODE (TREE_TYPE (gimple_cond_lhs (inner_cond)))));
+	  HONOR_NANS (gimple_cond_lhs (inner_cond)));
       if (inner_cond_code == ERROR_MARK)
 	return false;
       if (outer_inv)
 	outer_cond_code = invert_tree_comparison (outer_cond_code,
-	  HONOR_NANS (TYPE_MODE (TREE_TYPE (gimple_cond_lhs (outer_cond)))));
+	  HONOR_NANS (gimple_cond_lhs (outer_cond)));
       if (outer_cond_code == ERROR_MARK)
 	return false;
       /* Don't return false so fast, try maybe_fold_or_comparisons?  */
@@ -728,8 +748,35 @@ tree_ssa_ifcombine_bb (basic_block inner_cond_bb)
 
 /* Main entry for the tree if-conversion pass.  */
 
-static unsigned int
-tree_ssa_ifcombine (void)
+namespace {
+
+const pass_data pass_data_tree_ifcombine =
+{
+  GIMPLE_PASS, /* type */
+  "ifcombine", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  TV_TREE_IFCOMBINE, /* tv_id */
+  ( PROP_cfg | PROP_ssa ), /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  TODO_update_ssa, /* todo_flags_finish */
+};
+
+class pass_tree_ifcombine : public gimple_opt_pass
+{
+public:
+  pass_tree_ifcombine (gcc::context *ctxt)
+    : gimple_opt_pass (pass_data_tree_ifcombine, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  virtual unsigned int execute (function *);
+
+}; // class pass_tree_ifcombine
+
+unsigned int
+pass_tree_ifcombine::execute (function *fun)
 {
   basic_block *bbs;
   bool cfg_changed = false;
@@ -746,7 +793,7 @@ tree_ssa_ifcombine (void)
      inner ones, and also that we do not try to visit a removed
      block.  This is opposite of PHI-OPT, because we cascade the
      combining rather than cascading PHIs. */
-  for (i = n_basic_blocks_for_fn (cfun) - NUM_FIXED_BLOCKS - 1; i >= 0; i--)
+  for (i = n_basic_blocks_for_fn (fun) - NUM_FIXED_BLOCKS - 1; i >= 0; i--)
     {
       basic_block bb = bbs[i];
       gimple stmt = last_stmt (bb);
@@ -760,42 +807,6 @@ tree_ssa_ifcombine (void)
 
   return cfg_changed ? TODO_cleanup_cfg : 0;
 }
-
-static bool
-gate_ifcombine (void)
-{
-  return 1;
-}
-
-namespace {
-
-const pass_data pass_data_tree_ifcombine =
-{
-  GIMPLE_PASS, /* type */
-  "ifcombine", /* name */
-  OPTGROUP_NONE, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
-  TV_TREE_IFCOMBINE, /* tv_id */
-  ( PROP_cfg | PROP_ssa ), /* properties_required */
-  0, /* properties_provided */
-  0, /* properties_destroyed */
-  0, /* todo_flags_start */
-  ( TODO_update_ssa | TODO_verify_ssa ), /* todo_flags_finish */
-};
-
-class pass_tree_ifcombine : public gimple_opt_pass
-{
-public:
-  pass_tree_ifcombine (gcc::context *ctxt)
-    : gimple_opt_pass (pass_data_tree_ifcombine, ctxt)
-  {}
-
-  /* opt_pass methods: */
-  bool gate () { return gate_ifcombine (); }
-  unsigned int execute () { return tree_ssa_ifcombine (); }
-
-}; // class pass_tree_ifcombine
 
 } // anon namespace
 

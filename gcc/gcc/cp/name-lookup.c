@@ -1,5 +1,5 @@
 /* Definitions for C++ name lookup routines.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -23,6 +23,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "flags.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "print-tree.h"
@@ -35,7 +44,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "debug.h"
 #include "c-family/c-pragma.h"
 #include "params.h"
-#include "pointer-set.h"
 
 /* The bindings for a particular name in a particular scope.  */
 
@@ -105,7 +113,7 @@ binding_entry_make (tree name, tree type)
       free_binding_entry = entry->chain;
     }
   else
-    entry = ggc_alloc_binding_entry_s ();
+    entry = ggc_alloc<binding_entry_s> ();
 
   entry->name = name;
   entry->type = type;
@@ -147,7 +155,7 @@ binding_table_construct (binding_table table, size_t chain_count)
 {
   table->chain_count = chain_count;
   table->entry_count = 0;
-  table->chain = ggc_alloc_cleared_vec_binding_entry (table->chain_count);
+  table->chain = ggc_cleared_vec_alloc<binding_entry> (table->chain_count);
 }
 
 /* Make TABLE's entries ready for reuse.  */
@@ -181,7 +189,7 @@ binding_table_free (binding_table table)
 static inline binding_table
 binding_table_new (size_t chain_count)
 {
-  binding_table table = ggc_alloc_binding_table_s ();
+  binding_table table = ggc_alloc<binding_table_s> ();
   table->chain = NULL;
   binding_table_construct (table, chain_count);
   return table;
@@ -299,7 +307,7 @@ cxx_binding_make (tree value, tree type)
       free_bindings = binding->previous;
     }
   else
-    binding = ggc_alloc_cxx_binding ();
+    binding = ggc_alloc<cxx_binding> ();
 
   cxx_binding_init (binding, value, type);
 
@@ -561,6 +569,12 @@ supplement_binding_1 (cxx_binding *binding, tree decl)
       region to refer only to the namespace to which it already
       refers.  */
     ok = false;
+  else if (maybe_remove_implicit_alias (bval))
+    {
+      /* There was a mangling compatibility alias using this mangled name,
+	 but now we have a real decl that wants to use it instead.  */
+      binding->value = decl;
+    }
   else
     {
       diagnose_name_conflict (decl, bval);
@@ -766,22 +780,19 @@ pushdecl_maybe_friend_1 (tree x, bool is_friend)
 		   middle end.  */
 		{
 		  struct cxx_int_tree_map *h;
-		  void **loc;
 
 		  TREE_PUBLIC (x) = TREE_PUBLIC (t);
 
 		  if (cp_function_chain->extern_decl_map == NULL)
 		    cp_function_chain->extern_decl_map
-		      = htab_create_ggc (20, cxx_int_tree_map_hash,
-					 cxx_int_tree_map_eq, NULL);
+		      = hash_table<cxx_int_tree_map_hasher>::create_ggc (20);
 
-		  h = ggc_alloc_cxx_int_tree_map ();
+		  h = ggc_alloc<cxx_int_tree_map> ();
 		  h->uid = DECL_UID (x);
 		  h->to = t;
-		  loc = htab_find_slot_with_hash
-			  (cp_function_chain->extern_decl_map, h,
-			   h->uid, INSERT);
-		  *(struct cxx_int_tree_map **) loc = h;
+		  cxx_int_tree_map **loc = cp_function_chain->extern_decl_map
+		    ->find_slot (h, INSERT);
+		  *loc = h;
 		}
 	    }
 	  else if (TREE_CODE (t) == PARM_DECL)
@@ -922,7 +933,18 @@ pushdecl_maybe_friend_1 (tree x, bool is_friend)
 	}
 
       if (DECL_DECLARES_FUNCTION_P (t))
-	check_default_args (t);
+	{
+	  check_default_args (t);
+
+	  if (is_friend && t == x && !flag_friend_injection)
+	    {
+	      /* This is a new friend declaration of a function or a
+		 function template, so hide it from ordinary function
+		 lookup.  */
+	      DECL_ANTICIPATED (t) = 1;
+	      DECL_HIDDEN_FRIEND_P (t) = 1;
+	    }
+	}
 
       if (t != x || DECL_FUNCTION_TEMPLATE_P (t))
 	return t;
@@ -945,16 +967,14 @@ pushdecl_maybe_friend_1 (tree x, bool is_friend)
 	    set_underlying_type (x);
 
 	  if (type != error_mark_node
-	      && TYPE_NAME (type)
 	      && TYPE_IDENTIFIER (type))
 	    set_identifier_type_value (DECL_NAME (x), x);
 
 	  /* If this is a locally defined typedef in a function that
 	     is not a template instantation, record it to implement
 	     -Wunused-local-typedefs.  */
-	  if (current_instantiation () == NULL
-	      || (current_instantiation ()->decl != current_function_decl))
-	  record_locally_defined_typedef (x);
+	  if (!instantiating_current_function_p ())
+	    record_locally_defined_typedef (x);
 	}
 
       /* Multiple external decls of the same identifier ought to match.
@@ -975,23 +995,14 @@ pushdecl_maybe_friend_1 (tree x, bool is_friend)
 	      && (DECL_EXTERNAL (decl) || TREE_PUBLIC (decl))
 	      /* If different sort of thing, we already gave an error.  */
 	      && TREE_CODE (decl) == TREE_CODE (x)
-	      && !same_type_p (TREE_TYPE (x), TREE_TYPE (decl)))
+	      && !comptypes (TREE_TYPE (x), TREE_TYPE (decl),
+			     COMPARE_REDECLARATION))
 	    {
 	      if (permerror (input_location, "type mismatch with previous "
 			     "external decl of %q#D", x))
 		inform (input_location, "previous external decl of %q+#D",
 			decl);
 	    }
-	}
-
-      if (TREE_CODE (x) == FUNCTION_DECL
-	  && is_friend
-	  && !flag_friend_injection)
-	{
-	  /* This is a new declaration of a friend function, so hide
-	     it from ordinary function lookup.  */
-	  DECL_ANTICIPATED (x) = 1;
-	  DECL_HIDDEN_FRIEND_P (x) = 1;
 	}
 
       /* This name is new in its binding level.
@@ -1239,9 +1250,24 @@ pushdecl_maybe_friend_1 (tree x, bool is_friend)
 
 	      if (member && !TREE_STATIC (member))
 		{
-		  /* Location of previous decl is not useful in this case.  */
-		  warning (OPT_Wshadow, "declaration of %qD shadows a member of 'this'",
-			   x);
+		  if (BASELINK_P (member))
+		    member = BASELINK_FUNCTIONS (member);
+		  member = OVL_CURRENT (member);
+	
+		  /* Do not warn if a variable shadows a function, unless
+		     the variable is a function or a pointer-to-function.  */
+		  if (TREE_CODE (member) != FUNCTION_DECL
+		      || TREE_CODE (x) == FUNCTION_DECL
+		      || TYPE_PTRFN_P (TREE_TYPE (x))
+		      || TYPE_PTRMEMFUNC_P (TREE_TYPE (x)))
+		    {
+		      if (warning_at (input_location, OPT_Wshadow,
+				      "declaration of %qD shadows a member of %qT",
+				      x, current_nonlambda_class_type ())
+			  && DECL_P (member))
+			inform (DECL_SOURCE_LOCATION (member),
+				"shadowed declaration is here");
+		    }
 		}
 	      else if (oldglobal != NULL_TREE
 		       && (VAR_P (oldglobal)
@@ -1250,7 +1276,8 @@ pushdecl_maybe_friend_1 (tree x, bool is_friend)
                               old and new decls are type decls.  */
                            || (TREE_CODE (oldglobal) == TYPE_DECL
                                && (!DECL_ARTIFICIAL (oldglobal)
-                                   || TREE_CODE (x) == TYPE_DECL))))
+                                   || TREE_CODE (x) == TYPE_DECL)))
+		       && !instantiating_current_function_p ())
 		/* XXX shadow warnings in outer-more namespaces */
 		{
 		  if (warning_at (input_location, OPT_Wshadow,
@@ -1545,7 +1572,7 @@ begin_scope (scope_kind kind, tree entity)
       free_binding_level = scope->level_chain;
     }
   else
-    scope = ggc_alloc_cleared_cp_binding_level ();
+    scope = ggc_cleared_alloc<cp_binding_level> ();
 
   scope->this_entity = entity;
   scope->more_cleanups_ok = true;
@@ -2487,7 +2514,7 @@ validate_nonmember_using_decl (tree decl, tree scope, tree name)
        member-declaration.  */
   if (TYPE_P (scope))
     {
-      error ("%qT is not a namespace", scope);
+      error ("%qT is not a namespace or unscoped enum", scope);
       return NULL_TREE;
     }
   else if (scope == error_mark_node)
@@ -3333,7 +3360,7 @@ do_class_using_decl (tree scope, tree name)
     }
   /* Using T::T declares inheriting ctors, even if T is a typedef.  */
   if (MAYBE_CLASS_TYPE_P (scope)
-      && ((TYPE_NAME (scope) && name == TYPE_IDENTIFIER (scope))
+      && (name == TYPE_IDENTIFIER (scope)
 	  || constructor_name_p (name, scope)))
     {
       maybe_warn_cpp0x (CPP0X_INHERITING_CTORS);
@@ -3381,7 +3408,7 @@ do_class_using_decl (tree scope, tree name)
 			   tf_warning_or_error);
       if (b_kind < bk_proper_base)
 	{
-	  if (!bases_dependent_p)
+	  if (!bases_dependent_p || b_kind == bk_same_type)
 	    {
 	      error_not_base_type (scope, current_class_type);
 	      return NULL_TREE;
@@ -3592,10 +3619,8 @@ current_decl_namespace (void)
   return result;
 }
 
-/* Process any ATTRIBUTES on a namespace definition.  Currently only
-   attribute visibility is meaningful, which is a property of the syntactic
-   block rather than the namespace as a whole, so we don't touch the
-   NAMESPACE_DECL at all.  Returns true if attribute visibility is seen.  */
+/* Process any ATTRIBUTES on a namespace definition.  Returns true if
+   attribute visibility is seen.  */
 
 bool
 handle_namespace_attrs (tree ns, tree attributes)
@@ -3610,6 +3635,9 @@ handle_namespace_attrs (tree ns, tree attributes)
 
       if (is_attribute_p ("visibility", name))
 	{
+	  /* attribute visibility is a property of the syntactic block
+	     rather than the namespace as a whole, so we don't touch the
+	     NAMESPACE_DECL at all.  */
 	  tree x = args ? TREE_VALUE (args) : NULL_TREE;
 	  if (x == NULL_TREE || TREE_CODE (x) != STRING_CST || TREE_CHAIN (args))
 	    {
@@ -3626,6 +3654,33 @@ handle_namespace_attrs (tree ns, tree attributes)
 
 	  push_visibility (TREE_STRING_POINTER (x), 1);
 	  saw_vis = true;
+	}
+      else if (is_attribute_p ("abi_tag", name))
+	{
+	  if (!DECL_NAMESPACE_ASSOCIATIONS (ns))
+	    {
+	      warning (OPT_Wattributes, "ignoring %qD attribute on non-inline "
+		       "namespace", name);
+	      continue;
+	    }
+	  if (!DECL_NAME (ns))
+	    {
+	      warning (OPT_Wattributes, "ignoring %qD attribute on anonymous "
+		       "namespace", name);
+	      continue;
+	    }
+	  if (!args)
+	    {
+	      tree dn = DECL_NAME (ns);
+	      args = build_string (IDENTIFIER_LENGTH (dn) + 1,
+				   IDENTIFIER_POINTER (dn));
+	      TREE_TYPE (args) = char_array_type_node;
+	      args = fix_string_type (args);
+	      args = build_tree_list (NULL_TREE, args);
+	    }
+	  if (check_abi_tag_args (args, name))
+	    DECL_ATTRIBUTES (ns) = tree_cons (name, args,
+					      DECL_ATTRIBUTES (ns));
 	}
       else
 	{
@@ -4019,13 +4074,14 @@ do_using_directive (tree name_space)
 void
 parse_using_directive (tree name_space, tree attribs)
 {
-  tree a;
-
   do_using_directive (name_space);
 
-  for (a = attribs; a; a = TREE_CHAIN (a))
+  if (attribs == error_mark_node)
+    return;
+
+  for (tree a = attribs; a; a = TREE_CHAIN (a))
     {
-      tree name = TREE_PURPOSE (a);
+      tree name = get_attribute_name (a);
       if (is_attribute_p ("strong", name))
 	{
 	  if (!toplevel_bindings_p ())
@@ -5151,7 +5207,7 @@ struct arg_lookup
   vec<tree, va_gc> *namespaces;
   vec<tree, va_gc> *classes;
   tree functions;
-  struct pointer_set_t *fn_set;
+  hash_set<tree> *fn_set;
 };
 
 static bool arg_assoc (struct arg_lookup*, tree);
@@ -5174,7 +5230,7 @@ add_function (struct arg_lookup *k, tree fn)
   if (!is_overloaded_fn (fn))
     /* All names except those of (possibly overloaded) functions and
        function templates are ignored.  */;
-  else if (k->fn_set && pointer_set_insert (k->fn_set, fn))
+  else if (k->fn_set && k->fn_set->add (fn))
     /* It's already in the list.  */;
   else if (!k->functions)
     k->functions = fn;
@@ -5638,9 +5694,9 @@ lookup_arg_dependent_1 (tree name, tree fns, vec<tree, va_gc> *args)
       /* We shouldn't be here if lookup found something other than
 	 namespace-scope functions.  */
       gcc_assert (DECL_NAMESPACE_SCOPE_P (OVL_CURRENT (fns)));
-      k.fn_set = pointer_set_create ();
+      k.fn_set = new hash_set<tree>;
       for (ovl = fns; ovl; ovl = OVL_NEXT (ovl))
-	pointer_set_insert (k.fn_set, OVL_CURRENT (ovl));
+	k.fn_set->add (OVL_CURRENT (ovl));
     }
   else
     k.fn_set = NULL;
@@ -5660,8 +5716,7 @@ lookup_arg_dependent_1 (tree name, tree fns, vec<tree, va_gc> *args)
 
   release_tree_vector (k.classes);
   release_tree_vector (k.namespaces);
-  if (k.fn_set)
-    pointer_set_destroy (k.fn_set);
+  delete k.fn_set;
     
   return fns;
 }
@@ -6074,7 +6129,7 @@ push_to_top_level (void)
   bool need_pop;
 
   bool subtime = timevar_cond_start (TV_NAME_LOOKUP);
-  s = ggc_alloc_cleared_saved_scope ();
+  s = ggc_cleared_alloc<saved_scope> ();
 
   b = scope_chain ? current_binding_level : 0;
 

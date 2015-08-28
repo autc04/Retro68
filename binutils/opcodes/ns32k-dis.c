@@ -1,6 +1,5 @@
 /* Print National Semiconductor 32000 instructions.
-   Copyright 1986, 1988, 1991, 1992, 1994, 1998, 2001, 2002, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -58,7 +57,7 @@ struct private
   bfd_byte *max_fetched;
   bfd_byte the_buffer[MAXLEN];
   bfd_vma insn_start;
-  jmp_buf bailout;
+  OPCODES_SIGJMP_BUF bailout;
 };
 
 
@@ -83,7 +82,7 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
   if (status != 0)
     {
       (*info->memory_error_func) (status, start, info);
-      longjmp (priv->bailout, 1);
+      OPCODES_SIGLONGJMP (priv->bailout, 1);
     }
   else
     priv->max_fetched = addr;
@@ -466,7 +465,6 @@ print_insn_arg (int d,
   int Ivalue;
   int addr_mode;
   int disp1, disp2;
-  int index;
   int size;
 
   switch (d)
@@ -616,17 +614,17 @@ print_insn_arg (int d,
 	case 0x1d:
 	case 0x1e:
 	case 0x1f:
-	  /* Scaled index basemode[R0 -- R7:B,W,D,Q].  */
-	  index = bit_extract (buffer, index_offset - 8, 3);
-	  print_insn_arg (d, index_offset, aoffsetp, buffer, addr,
-			  result, 0);
 	  {
+	    int bit_index;
 	    static const char *ind = "bwdq";
 	    char *off;
-
+	    
+	    /* Scaled index basemode[R0 -- R7:B,W,D,Q].  */
+	    bit_index = bit_extract (buffer, index_offset - 8, 3);
+	    print_insn_arg (d, index_offset, aoffsetp, buffer, addr,
+			    result, 0);
 	    off = result + strlen (result);
-	    sprintf (off, "[r%d:%c]", index,
-		     ind[addr_mode & 3]);
+	    sprintf (off, "[r%d:%c]", bit_index, ind[addr_mode & 3]);
 	  }
 	  break;
 	}
@@ -747,7 +745,7 @@ print_insn_ns32k (bfd_vma memaddr, disassemble_info *info)
   info->private_data = & priv;
   priv.max_fetched = priv.the_buffer;
   priv.insn_start = memaddr;
-  if (setjmp (priv.bailout) != 0)
+  if (OPCODES_SIGSETJMP (priv.bailout) != 0)
     /* Error return.  */
     return -1;
 

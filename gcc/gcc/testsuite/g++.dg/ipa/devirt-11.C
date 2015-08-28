@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-ipa-inline -fno-devirtualize-speculatively" } */
+/* { dg-options "-O2 -fno-ipa-cp -fdump-ipa-inline -fno-devirtualize-speculatively" } */
 int baz ();
 struct A
 {
@@ -42,8 +42,5 @@ bar ()
   baz ();
   c + d;
 }
-/* While inlining function called once we should devirtualize a new call to fn2
-   and two to fn3. While doing so the new symbol for fn2 needs to be
-   introduced.  */
 /* { dg-final { scan-ipa-dump "Discovered a virtual call to a known target" "inline"  } } */
 /* { dg-final { cleanup-ipa-dump "inline" } } */

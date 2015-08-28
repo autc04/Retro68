@@ -1,6 +1,5 @@
 # Expect script for common symbol tests
-#   Copyright 2003, 2005, 2006, 2007, 2008, 2009
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,6 +25,11 @@
 
 # This test can only be run on ELF platforms.
 if ![is_elf_format] {
+    return
+}
+
+# hpux assembly is weird
+if [istarget "hppa*-*-hpux*"] {
     return
 }
 
@@ -176,9 +180,14 @@ proc assembler_generates_commons {} {
     return 1
 }
 
+if [istarget nios2*-*-*] {
+    set CFLAGS "$CFLAGS -G0"
+}
 
-if {   ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/common1a.c tmpdir/common1a.o]
-    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/common1b.c tmpdir/common1b.o] } {
+# Explicitly use "-fcommon" so that even if $CFLAGS includes
+# "-fno-common", these tests are compiled as expected.
+if {   ![ld_compile "$CC $CFLAGS -fcommon" $srcdir/$subdir/common1a.c tmpdir/common1a.o]
+    || ![ld_compile "$CC $CFLAGS -fcommon" $srcdir/$subdir/common1b.c tmpdir/common1b.o] } {
     unresolved $test1
     return
 }
@@ -203,8 +212,8 @@ if { [ld_simple_link $ld tmpdir/common1.o $options] } {
 }
 
 # This test fails on MIPS because the backend sets type_change_ok.
-# The size change warning is suppressed.
-if {[istarget mips*-*-*]} {
+# The size change warning is suppressed.  Same on hppa64.
+if {[istarget mips*-*-*] || [istarget hppa*64*-*-*]} {
     if { ![regexp "Warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output] } {
         fail $test1w1
     } else {

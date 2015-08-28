@@ -1,5 +1,5 @@
 /* Loop unswitching.
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,8 +21,24 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "tm_p.h"
+#include "predict.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -138,15 +154,17 @@ tree_ssa_unswitch_loops (void)
 static tree
 tree_may_unswitch_on (basic_block bb, struct loop *loop)
 {
-  gimple stmt, def;
+  gimple last, def;
+  gcond *stmt;
   tree cond, use;
   basic_block def_bb;
   ssa_op_iter iter;
 
   /* BB must end in a simple conditional jump.  */
-  stmt = last_stmt (bb);
-  if (!stmt || gimple_code (stmt) != GIMPLE_COND)
+  last = last_stmt (bb);
+  if (!last || gimple_code (last) != GIMPLE_COND)
     return NULL_TREE;
+  stmt = as_a <gcond *> (last);
 
   /* To keep the things simple, we do not directly remove the conditions,
      but just replace tests with 0 != 0 resp. 1 != 0.  Prevent the infinite
@@ -248,13 +266,15 @@ tree_unswitch_single_loop (struct loop *loop, int num)
       if (integer_nonzerop (cond))
 	{
 	  /* Remove false path.  */
-	  gimple_cond_set_condition_from_tree (stmt, boolean_true_node);
+	  gimple_cond_set_condition_from_tree (as_a <gcond *> (stmt),
+					       boolean_true_node);
 	  changed = true;
 	}
       else if (integer_zerop (cond))
 	{
 	  /* Remove true path.  */
-	  gimple_cond_set_condition_from_tree (stmt, boolean_false_node);
+	  gimple_cond_set_condition_from_tree (as_a <gcond *> (stmt),
+					       boolean_false_node);
 	  changed = true;
 	}
       /* Do not unswitch too much.  */
@@ -316,9 +336,10 @@ tree_unswitch_single_loop (struct loop *loop, int num)
 	      if (stmt
 		  && gimple_code (stmt) == GIMPLE_COND)
 		{
-		  if (gimple_cond_true_p (stmt))
+		  gcond *cond_stmt = as_a <gcond *> (stmt);
+		  if (gimple_cond_true_p (cond_stmt))
 		    flags = EDGE_FALSE_VALUE;
-		  else if (gimple_cond_false_p (stmt))
+		  else if (gimple_cond_false_p (cond_stmt))
 		    flags = EDGE_TRUE_VALUE;
 		}
 	    }
@@ -402,21 +423,6 @@ tree_unswitch_loop (struct loop *loop,
 
 /* Loop unswitching pass.  */
 
-static unsigned int
-tree_ssa_loop_unswitch (void)
-{
-  if (number_of_loops (cfun) <= 1)
-    return 0;
-
-  return tree_ssa_unswitch_loops ();
-}
-
-static bool
-gate_tree_ssa_loop_unswitch (void)
-{
-  return flag_unswitch_loops != 0;
-}
-
 namespace {
 
 const pass_data pass_data_tree_unswitch =
@@ -424,8 +430,6 @@ const pass_data pass_data_tree_unswitch =
   GIMPLE_PASS, /* type */
   "unswitch", /* name */
   OPTGROUP_LOOP, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
   TV_TREE_LOOP_UNSWITCH, /* tv_id */
   PROP_cfg, /* properties_required */
   0, /* properties_provided */
@@ -442,10 +446,19 @@ public:
   {}
 
   /* opt_pass methods: */
-  bool gate () { return gate_tree_ssa_loop_unswitch (); }
-  unsigned int execute () { return tree_ssa_loop_unswitch (); }
+  virtual bool gate (function *) { return flag_unswitch_loops != 0; }
+  virtual unsigned int execute (function *);
 
 }; // class pass_tree_unswitch
+
+unsigned int
+pass_tree_unswitch::execute (function *fun)
+{
+  if (number_of_loops (fun) <= 1)
+    return 0;
+
+  return tree_ssa_unswitch_loops ();
+}
 
 } // anon namespace
 

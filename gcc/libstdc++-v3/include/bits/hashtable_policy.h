@@ -1,6 +1,6 @@
 // Internal policy header for unordered_set and unordered_map -*- C++ -*-
 
-// Copyright (C) 2010-2014 Free Software Foundation, Inc.
+// Copyright (C) 2010-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -81,7 +81,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   // Helper type used to detect whether the hash functor is noexcept.
   template <typename _Key, typename _Hash>
-    struct __is_noexcept_hash : std::integral_constant<bool,
+    struct __is_noexcept_hash : std::__bool_constant<
 	noexcept(declval<const _Hash&>()(declval<const _Key&>()))>
     { };
 
@@ -211,9 +211,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<bool _Cache_hash_code, bool _Constant_iterators, bool _Unique_keys>
     struct _Hashtable_traits
     {
-      template<bool _Cond>
-	using __bool_constant = integral_constant<bool, _Cond>;
-
       using __hash_cached = __bool_constant<_Cache_hash_code>;
       using __constant_iterators = __bool_constant<_Constant_iterators>;
       using __unique_keys = __bool_constant<_Unique_keys>;
@@ -460,7 +457,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// smallest prime that keeps the load factor small enough.
   struct _Prime_rehash_policy
   {
-    _Prime_rehash_policy(float __z = 1.0)
+    _Prime_rehash_policy(float __z = 1.0) noexcept
     : _M_max_load_factor(__z), _M_next_resize(0) { }
 
     float
@@ -584,12 +581,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Key, typename _Pair, typename _Alloc, typename _Equal,
 	   typename _H1, typename _H2, typename _Hash,
 	   typename _RehashPolicy, typename _Traits>
-    typename _Map_base<_Key, _Pair, _Alloc, _Select1st, _Equal,
-		       _H1, _H2, _Hash, _RehashPolicy, _Traits, true>
-		       ::mapped_type&
+    auto
     _Map_base<_Key, _Pair, _Alloc, _Select1st, _Equal,
 	      _H1, _H2, _Hash, _RehashPolicy, _Traits, true>::
     operator[](const key_type& __k)
+    -> mapped_type&
     {
       __hashtable* __h = static_cast<__hashtable*>(this);
       __hash_code __code = __h->_M_hash_code(__k);
@@ -610,12 +606,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Key, typename _Pair, typename _Alloc, typename _Equal,
 	   typename _H1, typename _H2, typename _Hash,
 	   typename _RehashPolicy, typename _Traits>
-    typename _Map_base<_Key, _Pair, _Alloc, _Select1st, _Equal,
-		       _H1, _H2, _Hash, _RehashPolicy, _Traits, true>
-		       ::mapped_type&
+    auto
     _Map_base<_Key, _Pair, _Alloc, _Select1st, _Equal,
 	      _H1, _H2, _Hash, _RehashPolicy, _Traits, true>::
     operator[](key_type&& __k)
+    -> mapped_type&
     {
       __hashtable* __h = static_cast<__hashtable*>(this);
       __hash_code __code = __h->_M_hash_code(__k);
@@ -636,12 +631,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Key, typename _Pair, typename _Alloc, typename _Equal,
 	   typename _H1, typename _H2, typename _Hash,
 	   typename _RehashPolicy, typename _Traits>
-    typename _Map_base<_Key, _Pair, _Alloc, _Select1st, _Equal,
-		       _H1, _H2, _Hash, _RehashPolicy, _Traits, true>
-		       ::mapped_type&
+    auto
     _Map_base<_Key, _Pair, _Alloc, _Select1st, _Equal,
 	      _H1, _H2, _Hash, _RehashPolicy, _Traits, true>::
     at(const key_type& __k)
+    -> mapped_type&
     {
       __hashtable* __h = static_cast<__hashtable*>(this);
       __hash_code __code = __h->_M_hash_code(__k);
@@ -656,12 +650,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Key, typename _Pair, typename _Alloc, typename _Equal,
 	   typename _H1, typename _H2, typename _Hash,
 	   typename _RehashPolicy, typename _Traits>
-    const typename _Map_base<_Key, _Pair, _Alloc, _Select1st,
-			     _Equal, _H1, _H2, _Hash, _RehashPolicy,
-			     _Traits, true>::mapped_type&
+    auto
     _Map_base<_Key, _Pair, _Alloc, _Select1st, _Equal,
 	      _H1, _H2, _Hash, _RehashPolicy, _Traits, true>::
     at(const key_type& __k) const
+    -> const mapped_type&
     {
       const __hashtable* __h = static_cast<const __hashtable*>(this);
       __hash_code __code = __h->_M_hash_code(__k);
@@ -701,8 +694,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       using __unique_keys = typename __hashtable_base::__unique_keys;
       using __ireturn_type = typename __hashtable_base::__ireturn_type;
       using __node_type = _Hash_node<_Value, _Traits::__hash_cached::value>;
-      using __node_alloc_type =
-	typename __alloctr_rebind<_Alloc, __node_type>::__type;
+      using __node_alloc_type = __alloc_rebind<_Alloc, __node_type>;
       using __node_gen_type = _AllocNode<__node_alloc_type>;
 
       __hashtable&
@@ -1072,7 +1064,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef void* 					__hash_code;
       typedef _Hash_node<_Value, false>			__node_type;
 
-      // We need the default constructor for the local iterators.
+      // We need the default constructor for the local iterators and _Hashtable
+      // default constructor.
       _Hash_code_base() = default;
 
       _Hash_code_base(const _ExtractKey& __ex, const _H1&, const _H2&,
@@ -1162,7 +1155,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef std::size_t 				__hash_code;
       typedef _Hash_node<_Value, false>			__node_type;
 
-      // We need the default constructor for the local iterators.
+      // We need the default constructor for the local iterators and _Hashtable
+      // default constructor.
       _Hash_code_base() = default;
 
       _Hash_code_base(const _ExtractKey& __ex,
@@ -1251,6 +1245,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef std::size_t 				__hash_code;
       typedef _Hash_node<_Value, true>			__node_type;
 
+      // We need the default constructor for _Hashtable default constructor.
+      _Hash_code_base() = default;
       _Hash_code_base(const _ExtractKey& __ex,
 		      const _H1& __h1, const _H2& __h2,
 		      const _Default_ranged_hash&)
@@ -1695,6 +1691,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 					__hash_code, __hash_cached::value>;
 
   protected:
+    _Hashtable_base() = default;
     _Hashtable_base(const _ExtractKey& __ex, const _H1& __h1, const _H2& __h2,
 		    const _Hash& __hash, const _Equal& __eq)
     : __hash_code_base(__ex, __h1, __h2, __hash), _EqualEBO(__eq)
@@ -1898,15 +1895,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       using __value_type = typename __node_type::value_type;
       using __value_alloc_type =
-	typename __alloctr_rebind<__node_alloc_type, __value_type>::__type;
+	__alloc_rebind<__node_alloc_type, __value_type>;
       using __value_alloc_traits = std::allocator_traits<__value_alloc_type>;
 
       using __node_base = __detail::_Hash_node_base;
       using __bucket_type = __node_base*;      
       using __bucket_alloc_type =
-	typename __alloctr_rebind<__node_alloc_type, __bucket_type>::__type;
+	__alloc_rebind<__node_alloc_type, __bucket_type>;
       using __bucket_alloc_traits = std::allocator_traits<__bucket_alloc_type>;
 
+      _Hashtable_alloc() = default;
       _Hashtable_alloc(const _Hashtable_alloc&) = default;
       _Hashtable_alloc(_Hashtable_alloc&&) = default;
 

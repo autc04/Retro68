@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -43,6 +43,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    around PR 30518; otherwise, MacOS 10.3.9 headers are just broken.  */
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
+
+
+#include <locale.h>
+
+#ifdef HAVE_XLOCALE_H
+#include <xlocale.h>
 #endif
 
 
@@ -204,14 +211,26 @@ gfc_xtoa (GFC_UINTEGER_LARGEST n, char *buffer, size_t len)
 }
 
 
-/* Hopefully thread-safe wrapper for a strerror_r() style function.  */
+/* Hopefully thread-safe wrapper for a strerror() style function.  */
 
 char *
 gf_strerror (int errnum, 
              char * buf __attribute__((unused)), 
 	     size_t buflen __attribute__((unused)))
 {
-#ifdef HAVE_STRERROR_R
+#ifdef HAVE_STRERROR_L
+  locale_t myloc = newlocale (LC_CTYPE_MASK | LC_MESSAGES_MASK, "",
+			      (locale_t) 0);
+  char *p = strerror_l (errnum, myloc);
+  freelocale (myloc);
+  return p;
+#elif defined(HAVE_STRERROR_R)
+#ifdef HAVE_USELOCALE
+  /* Some targets (Darwin at least) have the POSIX 2008 extended
+     locale functions, but not strerror_l.  So reset the per-thread
+     locale here.  */
+  uselocale (LC_GLOBAL_LOCALE);
+#endif
   /* POSIX returns an "int", GNU a "char*".  */
   return
     __builtin_choose_expr (__builtin_classify_type (strerror_r (0, buf, 0))
@@ -467,6 +486,10 @@ translate_error (int code)
 
     case LIBERROR_CORRUPT_FILE:
       p = "Unformatted file structure has been corrupted";
+      break;
+
+    case LIBERROR_INQUIRE_INTERNAL_UNIT:
+      p = "Inquire statement identifies an internal file";
       break;
 
     default:

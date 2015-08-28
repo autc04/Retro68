@@ -1,6 +1,6 @@
-// { dg-options "-std=gnu++1y" }
+// { dg-options "-std=gnu++14" }
 
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,7 @@ test01()
   // basic_string_view()
   const std::experimental::wstring_view str00{};
   VERIFY( str00.length() == 0 );
-  VERIFY( str00.data() != nullptr );
+  VERIFY( str00.data() == nullptr );
 
   // basic_string_view(const char*)
   const wchar_t str_lit01[] = L"rodeo beach, marin";
@@ -53,11 +53,6 @@ test01()
   std::experimental::wstring_view str05{str_lit01, len_lit01};
   VERIFY( str05.length() == len_lit01 );
   VERIFY( str05.data() == str_lit01 );
-
-  //  basic_string_view(const wchar_t* s, std::size_t l)
-  std::experimental::wstring_view str06{nullptr, len_lit01};
-  VERIFY( str06.length() == 0 );
-  VERIFY( str06.data() != nullptr );
 
   // basic_string_view(basic_string& s)
   std::wstring istr07(10, L'z');

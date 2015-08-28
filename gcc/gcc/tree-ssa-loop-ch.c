@@ -1,5 +1,5 @@
 /* Loop header copying on trees.
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,8 +21,24 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "tm_p.h"
+#include "predict.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -131,8 +147,36 @@ do_while_loop_p (struct loop *loop)
    of the loop.  This is beneficial since it increases efficiency of
    code motion optimizations.  It also saves one jump on entry to the loop.  */
 
-static unsigned int
-copy_loop_headers (void)
+namespace {
+
+const pass_data pass_data_ch =
+{
+  GIMPLE_PASS, /* type */
+  "ch", /* name */
+  OPTGROUP_LOOP, /* optinfo_flags */
+  TV_TREE_CH, /* tv_id */
+  ( PROP_cfg | PROP_ssa ), /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  0, /* todo_flags_finish */
+};
+
+class pass_ch : public gimple_opt_pass
+{
+public:
+  pass_ch (gcc::context *ctxt)
+    : gimple_opt_pass (pass_data_ch, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  virtual bool gate (function *) { return flag_tree_ch != 0; }
+  virtual unsigned int execute (function *);
+
+}; // class pass_ch
+
+unsigned int
+pass_ch::execute (function *fun)
 {
   struct loop *loop;
   basic_block header;
@@ -140,18 +184,19 @@ copy_loop_headers (void)
   basic_block *bbs, *copied_bbs;
   unsigned n_bbs;
   unsigned bbs_size;
+  bool changed = false;
 
   loop_optimizer_init (LOOPS_HAVE_PREHEADERS
 		       | LOOPS_HAVE_SIMPLE_LATCHES);
-  if (number_of_loops (cfun) <= 1)
+  if (number_of_loops (fun) <= 1)
     {
       loop_optimizer_finalize ();
       return 0;
     }
 
-  bbs = XNEWVEC (basic_block, n_basic_blocks_for_fn (cfun));
-  copied_bbs = XNEWVEC (basic_block, n_basic_blocks_for_fn (cfun));
-  bbs_size = n_basic_blocks_for_fn (cfun);
+  bbs = XNEWVEC (basic_block, n_basic_blocks_for_fn (fun));
+  copied_bbs = XNEWVEC (basic_block, n_basic_blocks_for_fn (fun));
+  bbs_size = n_basic_blocks_for_fn (fun);
 
   FOR_EACH_LOOP (loop, 0)
     {
@@ -247,6 +292,8 @@ copy_loop_headers (void)
 	 are not now, since there was the loop exit condition.  */
       split_edge (loop_preheader_edge (loop));
       split_edge (loop_latch_edge (loop));
+
+      changed = true;
     }
 
   update_ssa (TODO_update_ssa);
@@ -254,45 +301,8 @@ copy_loop_headers (void)
   free (copied_bbs);
 
   loop_optimizer_finalize ();
-  return 0;
+  return changed ? TODO_cleanup_cfg : 0;
 }
-
-static bool
-gate_ch (void)
-{
-  return flag_tree_ch != 0;
-}
-
-namespace {
-
-const pass_data pass_data_ch =
-{
-  GIMPLE_PASS, /* type */
-  "ch", /* name */
-  OPTGROUP_LOOP, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
-  TV_TREE_CH, /* tv_id */
-  ( PROP_cfg | PROP_ssa ), /* properties_required */
-  0, /* properties_provided */
-  0, /* properties_destroyed */
-  0, /* todo_flags_start */
-  ( TODO_cleanup_cfg | TODO_verify_ssa
-    | TODO_verify_flow ), /* todo_flags_finish */
-};
-
-class pass_ch : public gimple_opt_pass
-{
-public:
-  pass_ch (gcc::context *ctxt)
-    : gimple_opt_pass (pass_data_ch, ctxt)
-  {}
-
-  /* opt_pass methods: */
-  bool gate () { return gate_ch (); }
-  unsigned int execute () { return copy_loop_headers (); }
-
-}; // class pass_ch
 
 } // anon namespace
 

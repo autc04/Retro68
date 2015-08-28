@@ -1,5 +1,5 @@
 /* Routines dealing with ObjC encoding of types
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,6 +20,16 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "stor-layout.h"
@@ -380,7 +390,7 @@ encode_array (tree type, int curtype, int format)
 	 identifier.
       */
       {
-	char *enc = obstack_base (&util_obstack) + curtype;
+	char *enc = (char *) obstack_base (&util_obstack) + curtype;
 	if (memchr (enc, '=',
 		    obstack_object_size (&util_obstack) - curtype) == NULL)
 	  {
@@ -729,7 +739,7 @@ encode_type (tree type, int curtype, int format)
 	 to be rearranged for compatibility with gcc-3.3.  */
       if (code == POINTER_TYPE && obstack_object_size (&util_obstack) >= 3)
 	{
-	  char *enc = obstack_base (&util_obstack) + curtype;
+	  char *enc = (char *) obstack_base (&util_obstack) + curtype;
 
 	  /* Rewrite "in const" from "nr" to "rn".  */
 	  if (curtype >= 1 && !strncmp (enc - 1, "nr", 2))

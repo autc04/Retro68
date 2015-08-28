@@ -1,6 +1,6 @@
 // 2001-02-26 Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,8 +37,13 @@ void test01()
   // 2
   std::ios_base::failure obj2(s);
 
+#if _GLIBCXX_USE_CXX11_ABI
+  VERIFY( std::strstr(obj1.what(), s.data()) != NULL );
+  VERIFY( std::strstr(obj2.what(), s.data()) != NULL );
+#else
   VERIFY( std::strcmp(obj1.what(), s.data()) == 0 );
   VERIFY( std::strcmp(obj2.what(), s.data()) == 0 );
+#endif
 }
 
 void test02()
@@ -47,7 +52,11 @@ void test02()
   std::string s("lack of sunlight error");
   std::range_error x(s);
   
+#if _GLIBCXX_USE_CXX11_ABI
+  VERIFY( std::strstr(x.what(), s.data()) != NULL );
+#else
   VERIFY( std::strcmp(x.what(), s.data()) == 0 );
+#endif
 }
 
 int main(void)

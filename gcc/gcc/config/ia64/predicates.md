@@ -1,5 +1,5 @@
 ;; Predicate definitions for IA-64.
-;; Copyright (C) 2004-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2015 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -69,7 +69,12 @@
 	     of constants here.  */
 	  t = SYMBOL_REF_DECL (op);
 	  if (DECL_P (t))
-	    t = DECL_SIZE_UNIT (t);
+	    {
+	      /* Common symbol isn't placed in small data section.  */
+	      if (DECL_COMMON (t))
+		return false;
+	      t = DECL_SIZE_UNIT (t);
+	    }
 	  else
 	    t = TYPE_SIZE_UNIT (TREE_TYPE (t));
 	  if (t && tree_fits_shwi_p (t))

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,6 +31,7 @@ with Exp_Ch6;  use Exp_Ch6;
 with Exp_Imgv; use Exp_Imgv;
 with Exp_Tss;  use Exp_Tss;
 with Exp_Util; use Exp_Util;
+with Freeze;   use Freeze;
 with Namet;    use Namet;
 with Nlists;   use Nlists;
 with Nmake;    use Nmake;
@@ -399,7 +400,14 @@ package body Exp_Ch13 is
                   --  Skip this for aspects (e.g. Current_Value) for which
                   --  there is no corresponding pragma or attribute.
 
-                  if Present (Aitem) then
+                  if Present (Aitem)
+
+                    --  Also skip if we have a null statement rather than a
+                    --  delayed aspect (this happens when we are ignoring rep
+                    --  items from use of the -gnatI switch).
+
+                    and then Nkind (Aitem) /= N_Null_Statement
+                  then
                      pragma Assert (Is_Delayed_Aspect (Aitem));
                      Insert_Before (N, Aitem);
                   end if;
@@ -410,10 +418,32 @@ package body Exp_Ch13 is
          end;
       end if;
 
-      --  Processing for objects with address clauses
+      --  Processing for objects
 
-      if Is_Object (E) and then Present (Address_Clause (E)) then
-         Apply_Address_Clause_Check (E, N);
+      if Is_Object (E) then
+         if Present (Address_Clause (E)) then
+            Apply_Address_Clause_Check (E, N);
+         end if;
+
+         --  Analyze actions in freeze node, if any
+
+         if Present (Actions (N)) then
+            declare
+               Act : Node_Id;
+            begin
+               Act := First (Actions (N));
+               while Present (Act) loop
+                  Analyze (Act);
+                  Next (Act);
+               end loop;
+            end;
+         end if;
+
+         --  If initialization statements have been captured in a compound
+         --  statement, insert them back into the tree now.
+
+         Explode_Initialization_Compound_Statement (E);
+
          return;
 
       --  Only other items requiring any front end action are types and
@@ -432,6 +462,17 @@ package body Exp_Ch13 is
       if No (E_Scope) then
          Check_Error_Detected;
          return;
+      end if;
+
+      --  The entity may be a subtype declared for a constrained record
+      --  component, in which case the relevant scope is the scope of
+      --  the record. This happens for class-wide subtypes created for
+      --  a constrained type extension with inherited discriminants.
+
+      if Is_Type (E_Scope)
+        and then Ekind (E_Scope) not in Concurrent_Kind
+      then
+         E_Scope := Scope (E_Scope);
       end if;
 
       --  Remember that we are processing a freezing entity and its freezing
@@ -508,7 +549,7 @@ package body Exp_Ch13 is
            and then
              (Is_Entry (E_Scope)
                 or else (Is_Subprogram (E_Scope)
-                           and then Is_Protected_Type (Scope (E_Scope)))
+                          and then Is_Protected_Type (Scope (E_Scope)))
                 or else Is_Task_Type (E_Scope))
          then
             null;
@@ -546,7 +587,7 @@ package body Exp_Ch13 is
       --  If subprogram, freeze the subprogram
 
       elsif Is_Subprogram (E) then
-         Freeze_Subprogram (N);
+         Exp_Ch6.Freeze_Subprogram (N);
 
          --  Ada 2005 (AI-251): Remove the freezing node associated with the
          --  entities internally used by the frontend to register primitives

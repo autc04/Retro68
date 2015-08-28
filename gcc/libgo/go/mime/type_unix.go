@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
 
 package mime
 
@@ -53,7 +53,7 @@ func initMime() {
 func initMimeForTests() map[string]string {
 	typeFiles = []string{"testdata/test.types"}
 	return map[string]string{
-		".t1":  "application/test",
+		".T1":  "application/test",
 		".t2":  "text/test; charset=utf-8",
 		".png": "image/png",
 	}

@@ -1,6 +1,5 @@
 /* tc-tic4x.c -- Assemble for the Texas Instruments TMS320C[34]x.
-   Copyright (C) 1997,1998, 2002, 2003, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation. Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
    Contributed by Michael P. Hayes (m.hayes@elec.canterbury.ac.nz)
 
@@ -27,11 +26,6 @@
   o .align cannot handle fill-data-width larger than 0xFF/8-bits. It
     should be possible to define a 32-bits pattern.
 
-  o .align fills all section with NOP's when used regardless if has
-    been used in .text or .data. (However the .align is primarily
-    intended used in .text sections. If you require something else,
-    use .align <size>,0x00)
-
   o .align: Implement a 'bu' insn if the number of nop's exceeds 4
     within the align frag. if(fragsize>4words) insert bu fragend+1
     first.
@@ -43,14 +37,12 @@
   o Evaluation of constant floating point expressions (expr.c needs
     work!)
 
-  o Support 'abc' constants (that is 0x616263)
-*/
+  o Support 'abc' constants (that is 0x616263).  */
 
-#include "safe-ctype.h"
 #include "as.h"
+#include "safe-ctype.h"
 #include "opcode/tic4x.h"
 #include "subsegs.h"
-#include "obstack.h"
 
 /* OK, we accept a syntax similar to the other well known C30
    assembly tools.  With TIC4X_ALT_SYNTAX defined we are more
@@ -88,7 +80,7 @@ static unsigned long tic4x_oplevel = 0;   /* Opcode level */
 #define OPTION_ENHANCED (OPTION_MD_BASE + 7)
 #define OPTION_REV      (OPTION_MD_BASE + 8)
 
-CONST char *md_shortopts = "bm:prs";
+const char *md_shortopts = "bm:prs";
 struct option md_longopts[] =
 {
   { "mcpu",   required_argument, NULL, OPTION_CPU },
@@ -949,8 +941,9 @@ tic4x_eval (int x ATTRIBUTE_UNUSED)
     }
   name = input_line_pointer;
   c = get_symbol_end ();	/* Get terminator.  */
-  demand_empty_rest_of_line ();
   tic4x_insert_sym (name, value);
+  *input_line_pointer++ = c;
+  demand_empty_rest_of_line ();
 }
 
 /* Reset local labels.  */
@@ -967,7 +960,6 @@ tic4x_sect (int x ATTRIBUTE_UNUSED)
 {
   char c;
   char *section_name;
-  char *subsection_name;
   char *name;
   segT seg;
   offsetT num;
@@ -988,7 +980,6 @@ tic4x_sect (int x ATTRIBUTE_UNUSED)
      Volker Kuhlmann  <v.kuhlmann@elec.canterbury.ac.nz>.  */
   if (c == ':')
     {
-      subsection_name = input_line_pointer;
       c = get_symbol_end ();	/* Get terminator.  */
       input_line_pointer++;	/* Skip null symbol terminator.  */
       as_warn (_(".sect: subsection name ignored"));
@@ -1248,7 +1239,7 @@ tic4x_inst_make (char *name, unsigned long opcode, char *args)
 {
   static tic4x_inst_t *insts = NULL;
   static char *names = NULL;
-  static int index = 0;
+  static int iindex = 0;
 
   if (insts == NULL)
     {
@@ -1258,18 +1249,18 @@ tic4x_inst_make (char *name, unsigned long opcode, char *args)
       insts = (tic4x_inst_t *)
 	xmalloc (sizeof (tic4x_inst_t) * 1024);
     }
-  insts[index].name = names;
-  insts[index].opcode = opcode;
-  insts[index].opmask = 0xffffffff;
-  insts[index].args = args;
-  index++;
+  insts[iindex].name = names;
+  insts[iindex].opcode = opcode;
+  insts[iindex].opmask = 0xffffffff;
+  insts[iindex].args = args;
+  iindex++;
 
   do
     *names++ = *name++;
   while (*name);
   *names++ = '\0';
 
-  return &insts[index - 1];
+  return &insts[iindex - 1];
 }
 
 /* Add instruction template, creating dynamic templates as required.  */
@@ -1672,12 +1663,12 @@ tic4x_operand_parse (char *s, tic4x_operand_t *operand)
 }
 
 static int 
-tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
+tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *tinsn, int check)
 {
   const char *args = inst->args;
   unsigned long opcode = inst->opcode;
-  int num_operands = insn->num_operands;
-  tic4x_operand_t *operand = insn->operands;
+  int num_operands = tinsn->num_operands;
+  tic4x_operand_t *operand = tinsn->operands;
   expressionS *exp = &operand->expr;
   int ret = 1;
   int reg;
@@ -1688,13 +1679,13 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
      If an operand matches, we modify insn or opcode appropriately,
      and do a "continue".  If an operand fails to match, we "break".  */
 
-  insn->nchars = 4;		/* Instructions always 4 bytes.  */
-  insn->reloc = NO_RELOC;
-  insn->pcrel = 0;
+  tinsn->nchars = 4;		/* Instructions always 4 bytes.  */
+  tinsn->reloc = NO_RELOC;
+  tinsn->pcrel = 0;
 
   if (*args == '\0')
     {
-      insn->opcode = opcode;
+      tinsn->opcode = opcode;
       return num_operands == 0;
     }
 
@@ -1706,7 +1697,7 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 	case '\0':		/* End of args.  */
 	  if (num_operands == 1)
 	    {
-	      insn->opcode = opcode;
+	      tinsn->opcode = opcode;
 	      return ret;
 	    }
 	  break;		/* Too many operands.  */
@@ -1735,8 +1726,8 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 	    }
 	  else if (exp->X_op == O_symbol)
 	    {
-	      insn->reloc = BFD_RELOC_HI16;
-	      insn->exp = *exp;
+	      tinsn->reloc = BFD_RELOC_HI16;
+	      tinsn->exp = *exp;
 	      continue;
 	    }
 	  break;		/* Not direct (dp) addressing.  */
@@ -1752,8 +1743,8 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 	    }
 	  else if (exp->X_op == O_symbol)
 	    {
-	      insn->reloc = BFD_RELOC_LO16;
-	      insn->exp = *exp;
+	      tinsn->reloc = BFD_RELOC_LO16;
+	      tinsn->exp = *exp;
 	      continue;
 	    }
 	  break;		/* Not direct addressing.  */
@@ -1794,15 +1785,15 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 	    }
 	  if (IS_CPU_TIC4X (tic4x_cpu))
 	    {
-	      insn->reloc = BFD_RELOC_24_PCREL;
-	      insn->pcrel = 1;
+	      tinsn->reloc = BFD_RELOC_24_PCREL;
+	      tinsn->pcrel = 1;
 	    }
 	  else
 	    {
-	      insn->reloc = BFD_RELOC_24;
-	      insn->pcrel = 0;
+	      tinsn->reloc = BFD_RELOC_24;
+	      tinsn->pcrel = 0;
 	    }
-	  insn->exp = *exp;
+	  tinsn->exp = *exp;
 	  continue;
 
 	case 'C':
@@ -2048,9 +2039,9 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 		  continue;
 		}
 	    }
-	  insn->reloc = BFD_RELOC_16_PCREL;
-	  insn->pcrel = 1;
-	  insn->exp = *exp;
+	  tinsn->reloc = BFD_RELOC_16_PCREL;
+	  tinsn->pcrel = 1;
+	  tinsn->exp = *exp;
 	  continue;
 
 	case 'Q':
@@ -2127,21 +2118,21 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 	    {
 	      if (operand->mode == M_HI)
 		{
-		  insn->reloc = BFD_RELOC_HI16;
+		  tinsn->reloc = BFD_RELOC_HI16;
 		}
 	      else
 		{
-		  insn->reloc = BFD_RELOC_LO16;
+		  tinsn->reloc = BFD_RELOC_LO16;
 		}
-	      insn->exp = *exp;
+	      tinsn->exp = *exp;
 	      continue;
 	    }
 	  /* Handle cases like ldi foo - $, ar0  where foo
 	     is a forward reference.  Perhaps we should check
 	     for X_op == O_symbol and disallow things like
 	     ldi foo, ar0.  */
-	  insn->reloc = BFD_RELOC_16;
-	  insn->exp = *exp;
+	  tinsn->reloc = BFD_RELOC_16;
+	  tinsn->exp = *exp;
 	  continue;
 
 	case 'T':		/* 5-bit immediate value for tic4x stik.  */
@@ -2189,15 +2180,15 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 	  else if (exp->X_op == O_symbol)
 	    {
 	      if (operand->mode == M_HI)
-		insn->reloc = BFD_RELOC_HI16;
+		tinsn->reloc = BFD_RELOC_HI16;
 	      else
-		insn->reloc = BFD_RELOC_LO16;
+		tinsn->reloc = BFD_RELOC_LO16;
 
-	      insn->exp = *exp;
+	      tinsn->exp = *exp;
 	      continue;
 	    }
-	  insn->reloc = BFD_RELOC_16;
-	  insn->exp = *exp;
+	  tinsn->reloc = BFD_RELOC_16;
+	  tinsn->exp = *exp;
 	  continue;
 
 	case 'V':		/* Trap numbers (immediate field).  */
@@ -2254,8 +2245,8 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 		  continue;
 		}
 	    }
-	  insn->reloc = BFD_RELOC_16;
-	  insn->exp = *exp;
+	  tinsn->reloc = BFD_RELOC_16;
+	  tinsn->exp = *exp;
 	  continue;
 
 	case 'X':		/* Expansion register for tic4x.  */
@@ -2309,7 +2300,7 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 	  continue;
 
 	case '|':		/* treat as `,' if have ldi_ldi form.  */
-	  if (insn->parallel)
+	  if (tinsn->parallel)
 	    {
 	      if (--num_operands < 0)
 		break;		/* Too few operands.  */
@@ -2343,57 +2334,57 @@ tic4x_operands_match (tic4x_inst_t *inst, tic4x_insn_t *insn, int check)
 }
 
 static void
-tic4x_insn_check (tic4x_insn_t *insn)
+tic4x_insn_check (tic4x_insn_t *tinsn)
 {
   
-  if (!strcmp(insn->name, "lda"))
+  if (!strcmp (tinsn->name, "lda"))
     {
-      if (insn->num_operands < 2 || insn->num_operands > 2)
+      if (tinsn->num_operands < 2 || tinsn->num_operands > 2)
         as_fatal ("Illegal internal LDA insn definition");
 
-      if ( insn->operands[0].mode == M_REGISTER
-           && insn->operands[1].mode == M_REGISTER
-           && insn->operands[0].expr.X_add_number == insn->operands[1].expr.X_add_number )
+      if (tinsn->operands[0].mode == M_REGISTER
+	  && tinsn->operands[1].mode == M_REGISTER
+	  && tinsn->operands[0].expr.X_add_number == tinsn->operands[1].expr.X_add_number )
         as_bad (_("Source and destination register should not be equal"));
     }
-  else if( !strcmp(insn->name, "ldi_ldi")
-           || !strcmp(insn->name, "ldi1_ldi2")
-           || !strcmp(insn->name, "ldi2_ldi1")
-           || !strcmp(insn->name, "ldf_ldf")
-           || !strcmp(insn->name, "ldf1_ldf2")
-           || !strcmp(insn->name, "ldf2_ldf1") )
+  else if (!strcmp (tinsn->name, "ldi_ldi")
+           || !strcmp (tinsn->name, "ldi1_ldi2")
+           || !strcmp (tinsn->name, "ldi2_ldi1")
+           || !strcmp (tinsn->name, "ldf_ldf")
+           || !strcmp (tinsn->name, "ldf1_ldf2")
+           || !strcmp (tinsn->name, "ldf2_ldf1") )
     {
-      if ( insn->num_operands < 4 && insn->num_operands > 5 )
-        as_fatal ("Illegal internal %s insn definition", insn->name);
+      if (tinsn->num_operands < 4 && tinsn->num_operands > 5 )
+        as_fatal ("Illegal internal %s insn definition", tinsn->name);
       
-      if ( insn->operands[1].mode == M_REGISTER
-           && insn->operands[insn->num_operands-1].mode == M_REGISTER
-           && insn->operands[1].expr.X_add_number == insn->operands[insn->num_operands-1].expr.X_add_number )
+      if (tinsn->operands[1].mode == M_REGISTER
+	  && tinsn->operands[tinsn->num_operands-1].mode == M_REGISTER
+	  && tinsn->operands[1].expr.X_add_number == tinsn->operands[tinsn->num_operands-1].expr.X_add_number )
         as_warn (_("Equal parallell destination registers, one result will be discarded"));
     }
 }
 
 static void 
-tic4x_insn_output (tic4x_insn_t *insn)
+tic4x_insn_output (tic4x_insn_t *tinsn)
 {
   char *dst;
 
   /* Grab another fragment for opcode.  */
-  dst = frag_more (insn->nchars);
+  dst = frag_more (tinsn->nchars);
 
   /* Put out opcode word as a series of bytes in little endian order.  */
-  md_number_to_chars (dst, insn->opcode, insn->nchars);
+  md_number_to_chars (dst, tinsn->opcode, tinsn->nchars);
 
   /* Put out the symbol-dependent stuff.  */
-  if (insn->reloc != NO_RELOC)
+  if (tinsn->reloc != NO_RELOC)
     {
       /* Where is the offset into the fragment for this instruction.  */
       fix_new_exp (frag_now,
 		   dst - frag_now->fr_literal,	/* where */
-		   insn->nchars,	/* size */
-		   &insn->exp,
-		   insn->pcrel,
-		   insn->reloc);
+		   tinsn->nchars,	/* size */
+		   &tinsn->exp,
+		   tinsn->pcrel,
+		   tinsn->reloc);
     }
 }
 
@@ -2465,7 +2456,7 @@ md_assemble (char *str)
       if (*s)			/* Null terminate for hash_find.  */
 	*s++ = '\0';		/* and skip past null.  */
       strcat (insn->name, "_");
-      strncat (insn->name, str, TIC4X_NAME_MAX - strlen (insn->name));
+      strncat (insn->name, str, TIC4X_NAME_MAX - 1 - strlen (insn->name));
 
       insn->operands[insn->num_operands++].mode = M_PARALLEL;
 
@@ -2956,13 +2947,11 @@ md_pcrel_from (fixS *fixP)
 /* Fill the alignment area with NOP's on .text, unless fill-data
    was specified. */
 int 
-tic4x_do_align (int alignment ATTRIBUTE_UNUSED,
-		const char *fill ATTRIBUTE_UNUSED,
-		int len ATTRIBUTE_UNUSED,
-		int max ATTRIBUTE_UNUSED)
+tic4x_do_align (int alignment,
+		const char *fill,
+		int len,
+		int max)
 {
-  unsigned long nop = TIC_NOP_OPCODE;
-
   /* Because we are talking lwords, not bytes, adjust alignment to do words */
   alignment += 2;
   
@@ -2970,11 +2959,15 @@ tic4x_do_align (int alignment ATTRIBUTE_UNUSED,
     {
       if (fill == NULL)
         {
-          /*if (subseg_text_p (now_seg))*/  /* FIXME: doesn't work for .text for some reason */
-          frag_align_pattern( alignment, (const char *)&nop, sizeof(nop), max);
-          return 1;
-          /*else
-            frag_align (alignment, 0, max);*/
+          if (subseg_text_p (now_seg))
+	    {
+	      char nop[4];
+
+	      md_number_to_chars (nop, TIC_NOP_OPCODE, 4);
+	      frag_align_pattern (alignment, nop, sizeof (nop), max);
+	    }
+          else
+            frag_align (alignment, 0, max);
 	}
       else if (len <= 1)
 	frag_align (alignment, *fill, max);

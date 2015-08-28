@@ -1,6 +1,5 @@
 /* tc-pdp11.c - pdp11-specific -
-   Copyright 2001, 2002, 2004, 2005, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -501,8 +500,6 @@ parse_op_no_deferred (char *str, struct pdp11_code *operand)
       /* label, d(rn), -(rn)  */
     default:
       {
-	char *old = str;
-
 	if (strncmp (str, "-(", 2) == 0)	/* -(rn) */
 	  {
 	    str = parse_reg (str + 2, operand);
@@ -527,11 +524,6 @@ parse_op_no_deferred (char *str, struct pdp11_code *operand)
 
 	if (*str != '(')
 	  {
-	    if (operand->reloc.exp.X_op != O_symbol)
-	      {
-		operand->error = _("Label expected");
-		return old;
-	      }
 	    operand->code = 067;
 	    operand->additional = 1;
 	    operand->word = 0;

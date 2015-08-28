@@ -43,6 +43,8 @@ AM_INIT_AUTOMAKE(foreign no-dist)
 
 AM_MAINTAINER_MODE
 
+AM_ENABLE_MULTILIB(, ..)
+
 # Build a DLL on Windows
 # AC_LIBTOOL_WIN32_DLL
 AC_PROG_CC
@@ -50,7 +52,6 @@ AC_PROG_CXX
 # AC_PROG_LIBTOOL
 # AC_CONFIG_MACRO_DIR([..])
 AC_CONFIG_FILES([Makefile libcilkrts.spec])
-AM_ENABLE_MULTILIB(, ..)
 AC_FUNC_ALLOCA
 
 # Check whether the target supports protected visibility.
@@ -164,6 +165,27 @@ AC_SUBST(toolexeclibdir)
 
 AC_SUBST(lt_cv_dlopen_libs)
 
+# Check to see if -pthread or -lpthread is needed.  Prefer the former.
+# Note that the CILK_SELF_SPEC in gcc.c may force -pthread.
+# In case the pthread.h system header is not found, this test will fail.
+XCFLAGS=""
+XLDFLAGS=""
+CFLAGS="$CFLAGS -pthread"
+AC_LINK_IFELSE(
+ [AC_LANG_PROGRAM(
+  [#include <pthread.h>
+   void *g(void *d) { return NULL; }],
+  [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
+ [XCFLAGS=" -Wc,-pthread"],
+ [CFLAGS="$save_CFLAGS" LIBS="-lpthread $LIBS"
+  AC_LINK_IFELSE(
+   [AC_LANG_PROGRAM(
+    [#include <pthread.h>
+     void *g(void *d) { return NULL; }],
+    [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
+   [],
+   [AC_MSG_ERROR([Pthreads are required to build libcilkrts])])])
+
 # Check for pthread_{,attr_}[sg]etaffinity_np.
 AC_LINK_IFELSE(
  [AC_LANG_PROGRAM(
@@ -183,24 +205,24 @@ AC_LINK_IFELSE(
   AC_DEFINE(HAVE_PTHREAD_AFFINITY_NP, 1,
 [       Define if pthread_{,attr_}{g,s}etaffinity_np is supported.]))
 
-# Check to see if -pthread or -lpthread is needed.  Prefer the former.
-# Note that the CILK_SELF_SPEC in gcc.c may force -pthread.
-# In case the pthread.h system header is not found, this test will fail.
-CFLAGS="$CFLAGS -pthread"
-AC_LINK_IFELSE(
- [AC_LANG_PROGRAM(
-  [#include <pthread.h>
-   void *g(void *d) { return NULL; }],
-  [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
- [],
- [CFLAGS="$save_CFLAGS" LIBS="-lpthread $LIBS"
-  AC_LINK_IFELSE(
-   [AC_LANG_PROGRAM(
-    [#include <pthread.h>
-     void *g(void *d) { return NULL; }],
-    [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
-   [],
-   [AC_MSG_ERROR([Pthreads are required to build libcilkrts])])])
+# Every c++ lib is linking by default with -nostdlib, which leads to the
+# fact, that proper pthread library will not be given at link time. We have
+# to hard-code that.
+case "${target}" in
+
+  *android*)
+    XLDFLAGS="$XLDFLAGS -lc"
+     ;;
+  *)
+    XLDFLAGS="$XLDFLAGS -lpthread"
+    ;;
+
+esac
+
+AC_SUBST(XCFLAGS)
+AC_SUBST(XLDFLAGS)
+
+CFLAGS="$save_CFLAGS"
 
 if test $enable_shared = yes; then
   link_cilkrts="-lcilkrts %{static: $LIBS}"

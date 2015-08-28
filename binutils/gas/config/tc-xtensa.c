@@ -1,6 +1,5 @@
 /* tc-xtensa.c -- Assemble Xtensa instructions.
-   Copyright 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -19,8 +18,8 @@
    the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include <limits.h>
 #include "as.h"
+#include <limits.h>
 #include "sb.h"
 #include "safe-ctype.h"
 #include "tc-xtensa.h"
@@ -74,9 +73,6 @@ const char FLT_CHARS[] = "rRsSfFdDxXpP";
 
 bfd_boolean density_supported = XCHAL_HAVE_DENSITY;
 bfd_boolean absolute_literals_supported = XSHAL_USE_ABSOLUTE_LITERALS;
-
-/* Maximum width we would pad an unreachable frag to get alignment.  */
-#define UNREACHABLE_MAX_WIDTH  8
 
 static vliw_insn cur_vinsn;
 
@@ -472,6 +468,12 @@ static void xtensa_set_frag_assembly_state (fragS *);
 static void finish_vinsn (vliw_insn *);
 static bfd_boolean emit_single_op (TInsn *);
 static int total_frag_text_expansion (fragS *);
+static bfd_boolean use_trampolines = TRUE;
+static void xtensa_check_frag_count (void);
+static void xtensa_create_trampoline_frag (bfd_boolean);
+static void xtensa_maybe_create_trampoline_frag (void);
+struct trampoline_frag;
+static int init_trampoline_frag (struct trampoline_frag *);
 
 /* Alignment Functions.  */
 
@@ -524,6 +526,7 @@ static void tinsn_from_chars (TInsn *, char *, int);
 static void tinsn_immed_from_frag (TInsn *, fragS *, int);
 static int get_num_stack_text_bytes (IStack *);
 static int get_num_stack_literal_bytes (IStack *);
+static bfd_boolean tinsn_to_slotbuf (xtensa_format, int, TInsn *, xtensa_insnbuf);
 
 /* vliw_insn functions.  */
 
@@ -691,7 +694,10 @@ enum
   option_prefer_l32r,
   option_prefer_const16,
 
-  option_target_hardware
+  option_target_hardware,
+
+  option_trampolines,
+  option_no_trampolines,
 };
 
 const char *md_shortopts = "";
@@ -763,6 +769,9 @@ struct option md_longopts[] =
   { "no-link-relax", no_argument, NULL, option_no_link_relax },
 
   { "target-hardware", required_argument, NULL, option_target_hardware },
+
+  { "trampolines", no_argument, NULL, option_trampolines },
+  { "no-trampolines", no_argument, NULL, option_no_trampolines },
 
   { NULL, no_argument, NULL, 0 }
 };
@@ -944,6 +953,14 @@ md_parse_option (int c, char *arg)
       directive_state[directive_transform] = FALSE;
       return 1;
 
+    case option_trampolines:
+      use_trampolines = TRUE;
+      return 1;
+
+    case option_no_trampolines:
+      use_trampolines = FALSE;
+      return 1;
+
     default:
       return 0;
     }
@@ -967,7 +984,9 @@ Xtensa options:\n\
                           flix bundles\n\
   --no-allow-flix         neither allow hand-written nor generate\n\
                           flix bundles\n\
-  --rename-section old=new Rename section 'old' to 'new'\n", stream);
+  --rename-section old=new Rename section 'old' to 'new'\n\
+  --[no-]trampolines      [Do not] generate trampolines (jumps to jumps)\n\
+                          when jumps do not reach their targets\n", stream);
 }
 
 
@@ -1324,18 +1343,18 @@ xtensa_end_directive (int ignore ATTRIBUTE_UNUSED)
 
   md_flush_pending_output ();
 
-  switch (end_directive)
+  switch ((int) end_directive)
     {
-    case (directiveE) XTENSA_UNDEFINED:
+    case XTENSA_UNDEFINED:
       discard_rest_of_line ();
       return;
 
-    case directive_density:
+    case (int) directive_density:
       as_warn (_(".end [no-]density is ignored"));
       demand_empty_rest_of_line ();
       break;
 
-    case directive_absolute_literals:
+    case (int) directive_absolute_literals:
       if (!absolute_literals_supported && !end_negated)
 	{
 	  as_warn (_("Xtensa absolute literals option not supported; ignored"));
@@ -1454,6 +1473,9 @@ xtensa_literal_pseudo (int ignored ATTRIBUTE_UNUSED)
      need to put them in the section we just switched to.  */
   if (use_literal_section || directive_state[directive_absolute_literals])
     dest_seg = now_seg;
+
+  /* FIXME, despite the previous comments, dest_seg is unused...  */
+  (void) dest_seg;
 
   /* All literals are aligned to four-byte boundaries.  */
   frag_align (2, 0, 0);
@@ -1826,6 +1848,7 @@ expression_maybe_register (xtensa_opcode opc, int opnd, expressionS *tok)
     {
       bfd_reloc_code_real_type reloc;
       segT t = expression (tok);
+
       if (t == absolute_section
 	  && xtensa_operand_is_PCrelative (isa, opc, opnd) == 1)
 	{
@@ -3235,15 +3258,16 @@ xg_immeds_fit (const TInsn *insn)
   gas_assert (insn->insn_type == ITYPE_INSN);
   for (i = 0; i < n; ++i)
     {
-      const expressionS *expr = &insn->tok[i];
+      const expressionS *exp = &insn->tok[i];
+
       if (xtensa_operand_is_register (isa, insn->opcode, i) == 1)
 	continue;
 
-      switch (expr->X_op)
+      switch (exp->X_op)
 	{
 	case O_register:
 	case O_constant:
-	  if (xg_check_operand (expr->X_add_number, insn->opcode, i))
+	  if (xg_check_operand (exp->X_add_number, insn->opcode, i))
 	    return FALSE;
 	  break;
 
@@ -3279,15 +3303,16 @@ xg_symbolic_immeds_fit (const TInsn *insn,
 
   for (i = 0; i < n; ++i)
     {
-      const expressionS *expr = &insn->tok[i];
+      const expressionS *exp = &insn->tok[i];
+
       if (xtensa_operand_is_register (isa, insn->opcode, i) == 1)
 	continue;
 
-      switch (expr->X_op)
+      switch (exp->X_op)
 	{
 	case O_register:
 	case O_constant:
-	  if (xg_check_operand (expr->X_add_number, insn->opcode, i))
+	  if (xg_check_operand (exp->X_add_number, insn->opcode, i))
 	    return FALSE;
 	  break;
 
@@ -3307,8 +3332,8 @@ xg_symbolic_immeds_fit (const TInsn *insn,
 
 	  /* If it is a weak symbol or a symbol in a different section,
 	     it cannot be known to fit at assembly time.  */
-	  if (S_IS_WEAK (expr->X_add_symbol)
-	      || S_GET_SEGMENT (expr->X_add_symbol) != pc_seg)
+	  if (S_IS_WEAK (exp->X_add_symbol)
+	      || S_GET_SEGMENT (exp->X_add_symbol) != pc_seg)
 	    {
 	      /* For a direct call with --no-longcalls, be optimistic and
 		 assume it will be in range.  If the symbol is weak and
@@ -3318,16 +3343,16 @@ xg_symbolic_immeds_fit (const TInsn *insn,
 		 symbols even if longcalls is not enabled.  */
 	      if (is_direct_call_opcode (insn->opcode)
 		  && ! pc_frag->tc_frag_data.use_longcalls
-		  && (! S_IS_WEAK (expr->X_add_symbol)
-		      || S_IS_DEFINED (expr->X_add_symbol)))
+		  && (! S_IS_WEAK (exp->X_add_symbol)
+		      || S_IS_DEFINED (exp->X_add_symbol)))
 		return TRUE;
 
 	      return FALSE;
 	    }
 
-	  symbolP = expr->X_add_symbol;
+	  symbolP = exp->X_add_symbol;
 	  sym_frag = symbol_get_frag (symbolP);
-	  target = S_GET_VALUE (symbolP) + expr->X_add_number;
+	  target = S_GET_VALUE (symbolP) + exp->X_add_number;
 	  pc = pc_frag->fr_address + pc_offset;
 
 	  /* If frag has yet to be reached on this pass, assume it
@@ -3568,11 +3593,11 @@ xg_expand_to_stack (IStack *istack, TInsn *insn, int lateral_steps)
 	      /* Check to see if it fits.  */
 	      for (i = stack_size; i < istack->ninsn; i++)
 		{
-		  TInsn *insn = &istack->insn[i];
+		  TInsn *tinsn = &istack->insn[i];
 
-		  if (insn->insn_type == ITYPE_INSN
-		      && !tinsn_has_symbolic_operands (insn)
-		      && !xg_immeds_fit (insn))
+		  if (tinsn->insn_type == ITYPE_INSN
+		      && !tinsn_has_symbolic_operands (tinsn)
+		      && !xg_immeds_fit (tinsn))
 		    {
 		      istack->ninsn = stack_size;
 		      return FALSE;
@@ -4192,7 +4217,7 @@ xg_add_opcode_fix (TInsn *tinsn,
 		   int opnum,
 		   xtensa_format fmt,
 		   int slot,
-		   expressionS *expr,
+		   expressionS *exp,
 		   fragS *fragP,
 		   offsetT offset)
 {
@@ -4212,15 +4237,15 @@ xg_add_opcode_fix (TInsn *tinsn,
     }
   else if (opcode == xtensa_const16_opcode)
     {
-      if (expr->X_op == O_lo16)
+      if (exp->X_op == O_lo16)
 	{
 	  reloc = encode_reloc (slot);
-	  expr->X_op = O_symbol;
+	  exp->X_op = O_symbol;
 	}
-      else if (expr->X_op == O_hi16)
+      else if (exp->X_op == O_hi16)
 	{
 	  reloc = encode_alt_reloc (slot);
-	  expr->X_op = O_symbol;
+	  exp->X_op = O_symbol;
 	}
     }
 
@@ -4234,7 +4259,7 @@ xg_add_opcode_fix (TInsn *tinsn,
   /* Handle erroneous "@h" and "@l" expressions here before they propagate
      into the symbol table where the generic portions of the assembler
      won't know what to do with them.  */
-  if (expr->X_op == O_lo16 || expr->X_op == O_hi16)
+  if (exp->X_op == O_lo16 || exp->X_op == O_hi16)
     {
       as_bad (_("invalid expression for operand %i of '%s'"),
 	      opnum + 1, xtensa_opcode_name (xtensa_default_isa, opcode));
@@ -4259,11 +4284,11 @@ xg_add_opcode_fix (TInsn *tinsn,
     }
 
   fmt_length = xtensa_format_length (xtensa_default_isa, fmt);
-  the_fix = fix_new_exp (fragP, offset, fmt_length, expr,
+  the_fix = fix_new_exp (fragP, offset, fmt_length, exp,
 			 howto->pc_relative, reloc);
   the_fix->fx_no_overflow = 1;
-  the_fix->tc_fix_data.X_add_symbol = expr->X_add_symbol;
-  the_fix->tc_fix_data.X_add_number = expr->X_add_number;
+  the_fix->tc_fix_data.X_add_symbol = exp->X_add_symbol;
+  the_fix->tc_fix_data.X_add_number = exp->X_add_number;
   the_fix->tc_fix_data.slot = slot;
 
   return TRUE;
@@ -4521,12 +4546,18 @@ frag_format_size (const fragS *fragP)
 	 be accompanied by major changes to make use of that data.
 
 	 In any event, we can tell that we are expanding from a single-slot
-	 three-byte format to a wider one with the logic below.  */
+	 format to a wider one with the logic below.  */
 
-      if (fmt_size <= 3 && fragP->tc_frag_data.text_expansion[0] != 3)
-	return 3 + fragP->tc_frag_data.text_expansion[0];
-      else
-	return 3;
+      int i;
+      int relaxed_size = fmt_size + fragP->tc_frag_data.text_expansion[0];
+
+      for (i = 0; i < xtensa_isa_num_formats (isa); i++)
+	{
+	  if (relaxed_size == xtensa_format_length (isa, i))
+	    return relaxed_size;
+	}
+
+      return 3;
     }
 
   if (fragP->tc_frag_data.slot_subtypes[0] == RELAX_NARROW)
@@ -4643,6 +4674,12 @@ next_frag_is_loop_target (const fragS *fragP)
 }
 
 
+/* As specified in the relaxation table, when a loop instruction is
+   relaxed, there are 24 bytes between the loop instruction itself and
+   the first instruction in the loop.  */
+
+#define RELAXED_LOOP_INSN_BYTES 24
+
 static addressT
 next_frag_pre_opcode_bytes (const fragS *fragp)
 {
@@ -4665,7 +4702,7 @@ next_frag_pre_opcode_bytes (const fragS *fragp)
      been relaxed.  Note that we can assume that the LOOP
      instruction is in slot 0 because loops aren't bundleable.  */
   if (next_fragp->tc_frag_data.slot_subtypes[0] > RELAX_IMMED)
-      return get_expanded_loop_offset (next_opcode);
+      return get_expanded_loop_offset (next_opcode) + RELAXED_LOOP_INSN_BYTES;
 
   return 0;
 }
@@ -5004,16 +5041,22 @@ xtensa_find_unaligned_loops (bfd *abfd ATTRIBUTE_UNUSED,
 	      addressT frag_addr;
 	      xtensa_format fmt;
 
-	      xtensa_insnbuf_from_chars
-		(isa, insnbuf, (unsigned char *) frag->fr_literal, 0);
-	      fmt = xtensa_format_decode (isa, insnbuf);
-	      op_size = xtensa_format_length (isa, fmt);
-	      frag_addr = frag->fr_address % xtensa_fetch_width;
-
-	      if (frag_addr + op_size > xtensa_fetch_width)
-		as_warn_where (frag->fr_file, frag->fr_line,
-			       _("unaligned loop: %d bytes at 0x%lx"),
-			       op_size, (long) frag->fr_address);
+	      if (frag->fr_fix == 0)
+		frag = next_non_empty_frag (frag);
+	      
+	      if (frag)
+		{
+		  xtensa_insnbuf_from_chars
+		    (isa, insnbuf, (unsigned char *) frag->fr_literal, 0);
+		  fmt = xtensa_format_decode (isa, insnbuf);
+		  op_size = xtensa_format_length (isa, fmt);
+		  frag_addr = frag->fr_address % xtensa_fetch_width;
+		  
+		  if (frag_addr + op_size > xtensa_fetch_width)
+		    as_warn_where (frag->fr_file, frag->fr_line,
+				   _("unaligned loop: %d bytes at 0x%lx"),
+				   op_size, (long) frag->fr_address);
+		}
 	    }
 	  frag = frag->fr_next;
 	}
@@ -5419,12 +5462,11 @@ md_assemble (char *str)
 	      bfd_reloc_code_real_type reloc;
 	      char *old_input_line_pointer;
 	      expressionS *tok = &orig_insn.extra_arg;
-	      segT t;
 
 	      old_input_line_pointer = input_line_pointer;
 	      input_line_pointer = arg_strings[num_args - 1];
 
-	      t = expression (tok);
+	      expression (tok);
 	      if (tok->X_op == O_symbol
 		  && ((reloc = xtensa_elf_suffix (&input_line_pointer, tok))
 		      == BFD_RELOC_XTENSA_TLS_CALL))
@@ -5549,6 +5591,8 @@ md_assemble (char *str)
 
   /* We've just emitted a new instruction so clear the list of labels.  */
   xtensa_clear_insn_labels ();
+
+  xtensa_check_frag_count ();
 }
 
 
@@ -5565,7 +5609,6 @@ xtensa_handle_align (fragS *fragP)
       && ! fragP->tc_frag_data.is_literal
       && (fragP->fr_type == rs_align
 	  || fragP->fr_type == rs_align_code)
-      && fragP->fr_address + fragP->fr_fix > 0
       && fragP->fr_offset > 0
       && now_seg != bss_section)
     {
@@ -5775,14 +5818,6 @@ xtensa_elf_section_change_hook (void)
 bfd_boolean
 xtensa_fix_adjustable (fixS *fixP)
 {
-  /* An offset is not allowed in combination with the difference of two
-     symbols, but that cannot be easily detected after a local symbol
-     has been adjusted to a (section+offset) form.  Return 0 so that such
-     an fix will not be adjusted.  */
-  if (fixP->fx_subsy && fixP->fx_addsy && fixP->fx_offset
-      && relaxable_section (S_GET_SEGMENT (fixP->fx_subsy)))
-    return 0;
-
   /* We need the symbol name for the VTABLE entries.  */
   if (fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
       || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
@@ -5832,25 +5867,19 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg)
 	    {
 	    case BFD_RELOC_8:
 	      fixP->fx_r_type = BFD_RELOC_XTENSA_DIFF8;
+	      fixP->fx_signed = 1;
 	      break;
 	    case BFD_RELOC_16:
 	      fixP->fx_r_type = BFD_RELOC_XTENSA_DIFF16;
+	      fixP->fx_signed = 1;
 	      break;
 	    case BFD_RELOC_32:
 	      fixP->fx_r_type = BFD_RELOC_XTENSA_DIFF32;
+	      fixP->fx_signed = 1;
 	      break;
 	    default:
 	      break;
 	    }
-
-	  /* An offset is only allowed when it results from adjusting a
-	     local symbol into a section-relative offset.  If the offset
-	     came from the original expression, tc_fix_adjustable will have
-	     prevented the fix from being converted to a section-relative
-	     form so that we can flag the error here.  */
-	  if (fixP->fx_offset != 0 && !symbol_section_p (fixP->fx_addsy))
-	    as_bad_where (fixP->fx_file, fixP->fx_line,
-			  _("cannot represent subtraction with an offset"));
 
 	  val = (S_GET_VALUE (fixP->fx_addsy) + fixP->fx_offset
 		 - S_GET_VALUE (fixP->fx_subsy));
@@ -6370,6 +6399,8 @@ finish_vinsn (vliw_insn *vinsn)
   xg_assemble_vliw_tokens (vinsn);
 
   xg_clear_vinsn (vinsn);
+
+  xtensa_check_frag_count ();
 }
 
 
@@ -6932,7 +6963,7 @@ xg_assemble_vliw_tokens (vliw_insn *vinsn)
   if (frag_now_fix () != 0
       && (! frag_now->tc_frag_data.is_insn
  	  || (vinsn_has_specific_opcodes (vinsn) && use_transform ())
- 	  || !use_transform () != frag_now->tc_frag_data.is_no_transform
+ 	  || (!use_transform ()) != frag_now->tc_frag_data.is_no_transform
  	  || (directive_state[directive_longcalls]
 	      != frag_now->tc_frag_data.use_longcalls)
  	  || (directive_state[directive_absolute_literals]
@@ -7134,16 +7165,17 @@ xg_assemble_vliw_tokens (vliw_insn *vinsn)
 	{
 	  gas_assert (finish_frag);
 	  frag_var (rs_machine_dependent,
-		    UNREACHABLE_MAX_WIDTH, UNREACHABLE_MAX_WIDTH,
+		    xtensa_fetch_width, xtensa_fetch_width,
 		    RELAX_UNREACHABLE,
 		    frag_now->fr_symbol, frag_now->fr_offset, NULL);
 	  xtensa_set_frag_assembly_state (frag_now);
+	  xtensa_maybe_create_trampoline_frag ();
 	}
       else if (is_branch && do_align_targets ())
 	{
 	  gas_assert (finish_frag);
 	  frag_var (rs_machine_dependent,
-		    UNREACHABLE_MAX_WIDTH, UNREACHABLE_MAX_WIDTH,
+		    xtensa_fetch_width, xtensa_fetch_width,
 		    RELAX_MAYBE_UNREACHABLE,
 		    frag_now->fr_symbol, frag_now->fr_offset, NULL);
 	  xtensa_set_frag_assembly_state (frag_now);
@@ -7220,8 +7252,163 @@ xtensa_end (void)
   xtensa_sanity_check ();
 
   xtensa_add_config_info ();
+
+  xtensa_check_frag_count ();
 }
 
+
+struct trampoline_frag
+{
+  struct trampoline_frag *next;
+  bfd_boolean needs_jump_around;
+  fragS *fragP;
+  fixS *fixP;
+};
+
+struct trampoline_seg
+{
+  struct trampoline_seg *next;
+  asection *seg;
+  struct trampoline_frag trampoline_list;
+};
+
+static struct trampoline_seg trampoline_seg_list;
+#define J_RANGE (128 * 1024)
+
+static int unreachable_count = 0;
+
+
+static void
+xtensa_maybe_create_trampoline_frag (void)
+{
+  if (!use_trampolines)
+    return;
+
+  /* We create an area for possible trampolines every 10 unreachable frags.
+     These are preferred over the ones not preceded by an unreachable frag,
+     because we don't have to jump around them. This function is called after
+     each RELAX_UNREACHABLE frag is created.  */
+
+  if (++unreachable_count > 10)
+    {
+      xtensa_create_trampoline_frag (FALSE);
+      clear_frag_count ();
+      unreachable_count = 0;
+    }
+}
+
+static void
+xtensa_check_frag_count (void)
+{
+  if (!use_trampolines || frag_now->tc_frag_data.is_no_transform)
+    return;
+
+  /* We create an area for possible trampolines every 8000 frags or so. This
+     is an estimate based on the max range of a "j" insn (+/-128K) divided
+     by a typical frag byte count (16), minus a few for safety. This function
+     is called after each source line is processed.  */
+
+  if (get_frag_count () > 8000)
+    {
+      xtensa_create_trampoline_frag (TRUE);
+      clear_frag_count ();
+      unreachable_count = 0;
+    }
+}
+
+static xtensa_insnbuf trampoline_buf = NULL;
+static xtensa_insnbuf trampoline_slotbuf = NULL;
+
+#define TRAMPOLINE_FRAG_SIZE 3000
+
+static void
+xtensa_create_trampoline_frag (bfd_boolean needs_jump_around)
+{
+  /* Emit a frag where we can place intermediate jump instructions,
+     in case we need to jump farther than 128K bytes.
+     Each jump instruction takes three bytes.
+     We allocate enough for 1000 trampolines in each frag.
+     If that's not enough, oh well.  */
+
+  struct trampoline_seg *ts = trampoline_seg_list.next;
+  struct trampoline_frag *tf;
+  char *varP;
+  fragS *fragP;
+  int size = TRAMPOLINE_FRAG_SIZE;
+
+  for ( ; ts; ts = ts->next)
+    {
+      if (ts->seg == now_seg)
+	break;
+    }
+
+  if (ts == NULL)
+    {
+      ts = (struct trampoline_seg *)xcalloc(sizeof (struct trampoline_seg), 1);
+      ts->next = trampoline_seg_list.next;
+      trampoline_seg_list.next = ts;
+      ts->seg = now_seg;
+    }
+
+  frag_wane (frag_now);
+  frag_new (0);
+  xtensa_set_frag_assembly_state (frag_now);
+  varP = frag_var (rs_machine_dependent, size, size, RELAX_TRAMPOLINE, NULL, 0, NULL);
+  fragP = (fragS *)(varP - SIZEOF_STRUCT_FRAG);
+  if (trampoline_buf == NULL)
+    {
+      trampoline_buf = xtensa_insnbuf_alloc (xtensa_default_isa);
+      trampoline_slotbuf = xtensa_insnbuf_alloc (xtensa_default_isa);
+    }
+  tf = (struct trampoline_frag *)xmalloc(sizeof (struct trampoline_frag));
+  tf->next = ts->trampoline_list.next;
+  ts->trampoline_list.next = tf;
+  tf->needs_jump_around = needs_jump_around;
+  tf->fragP = fragP;
+  tf->fixP = NULL;
+}
+
+
+static struct trampoline_seg *
+find_trampoline_seg (asection *seg)
+{
+  struct trampoline_seg *ts = trampoline_seg_list.next;
+
+  for ( ; ts; ts = ts->next)
+    {
+      if (ts->seg == seg)
+	return ts;
+    }
+
+  return NULL;
+}
+
+
+void dump_trampolines (void);
+
+void
+dump_trampolines (void)
+{
+  struct trampoline_seg *ts = trampoline_seg_list.next;
+
+  for ( ; ts; ts = ts->next)
+    {
+      asection *seg = ts->seg;
+
+      if (seg == NULL)
+	continue;
+      fprintf(stderr, "SECTION %s\n", seg->name);
+      struct trampoline_frag *tf = ts->trampoline_list.next;
+      for ( ; tf; tf = tf->next)
+	{
+	  if (tf->fragP == NULL)
+	    continue;
+	  fprintf(stderr, "   0x%08x: fix=%d, jump_around=%s\n",
+		  (int)tf->fragP->fr_address, (int)tf->fragP->fr_fix,
+		  tf->needs_jump_around ? "T" : "F");
+	}
+    }
+}
 
 static void
 xtensa_cleanup_align_frags (void)
@@ -7366,12 +7553,12 @@ static offsetT unrelaxed_frag_max_size (fragS *);
 static bfd_boolean
 is_narrow_branch_guaranteed_in_range (fragS *fragP, TInsn *tinsn)
 {
-  const expressionS *expr = &tinsn->tok[1];
-  symbolS *symbolP = expr->X_add_symbol;
-  offsetT max_distance = expr->X_add_number;
+  const expressionS *exp = &tinsn->tok[1];
+  symbolS *symbolP = exp->X_add_symbol;
+  offsetT max_distance = exp->X_add_number;
   fragS *target_frag;
 
-  if (expr->X_op != O_symbol)
+  if (exp->X_op != O_symbol)
     return FALSE;
 
   target_frag = symbol_get_frag (symbolP);
@@ -7412,9 +7599,36 @@ xtensa_mark_zcl_first_insns (void)
 		    || fragP->fr_subtype == RELAX_CHECK_ALIGN_NEXT_OPCODE))
 	      {
 		/* Find the loop frag.  */
-		fragS *targ_frag = next_non_empty_frag (fragP);
+		fragS *loop_frag = next_non_empty_frag (fragP);
 		/* Find the first insn frag.  */
-		targ_frag = next_non_empty_frag (targ_frag);
+		fragS *targ_frag = next_non_empty_frag (loop_frag);
+
+	      /* Handle a corner case that comes up in hardware
+		 diagnostics.  The original assembly looks like this:
+		 
+		 loop aX, LabelA
+		 <empty_frag>--not found by next_non_empty_frag
+		 loop aY, LabelB
+
+		 Depending on the start address, the assembler may or
+		 may not change it to look something like this:
+
+		 loop aX, LabelA
+		 nop--frag isn't empty anymore
+		 loop aY, LabelB
+
+		 So set up to check the alignment of the nop if it
+		 exists  */
+		while (loop_frag != targ_frag)
+		  {
+		    if (loop_frag->fr_type == rs_machine_dependent
+			&& (loop_frag->fr_subtype == RELAX_ALIGN_NEXT_OPCODE
+			    || loop_frag->fr_subtype 
+			    == RELAX_CHECK_ALIGN_NEXT_OPCODE))
+		      targ_frag = loop_frag;
+		    else
+		      loop_frag = loop_frag->fr_next;
+		  }
 
 		/* Of course, sometimes (mostly for toy test cases) a
 		   zero-cost loop instruction is the last in a section.  */
@@ -7458,12 +7672,12 @@ xtensa_mark_difference_of_two_symbols (void)
   for (expr_sym = expr_symbols; expr_sym; 
        expr_sym = symbol_get_tc (expr_sym)->next_expr_symbol)
     {
-      expressionS *expr = symbol_get_value_expression (expr_sym);
+      expressionS *exp = symbol_get_value_expression (expr_sym);
 
-      if (expr->X_op == O_subtract)
+      if (exp->X_op == O_subtract)
 	{
-	  symbolS *left = expr->X_add_symbol;
-	  symbolS *right = expr->X_op_symbol;
+	  symbolS *left = exp->X_add_symbol;
+	  symbolS *right = exp->X_op_symbol;
 	  
 	  /* Difference of two symbols not in the same section
 	     are handled with relocations in the linker.  */
@@ -7865,7 +8079,6 @@ xtensa_fix_short_loop_frags (void)
     for (frchP = seg_info (s)->frchainP; frchP; frchP = frchP->frch_next)
       {
 	fragS *fragP;
-	fragS *current_target = NULL;
 	xtensa_opcode current_opcode = XTENSA_UNDEFINED;
 
 	/* Walk over all of the fragments in a subsection.  */
@@ -7878,7 +8091,6 @@ xtensa_fix_short_loop_frags (void)
 		TInsn t_insn;
 		fragS *loop_frag = next_non_empty_frag (fragP);
 		tinsn_from_chars (&t_insn, loop_frag->fr_opcode, 0);
-		current_target = symbol_get_frag (fragP->fr_symbol);
 		current_opcode = t_insn.opcode;
 		gas_assert (xtensa_opcode_is_loop (xtensa_default_isa,
 					       current_opcode) == 1);
@@ -8100,7 +8312,7 @@ xtensa_sanity_check (void)
 static bfd_boolean
 is_empty_loop (const TInsn *insn, fragS *fragP)
 {
-  const expressionS *expr;
+  const expressionS *exp;
   symbolS *symbolP;
   fragS *next_fragP;
 
@@ -8113,12 +8325,12 @@ is_empty_loop (const TInsn *insn, fragS *fragP)
   if (insn->ntok <= LOOP_IMMED_OPN)
     return FALSE;
 
-  expr = &insn->tok[LOOP_IMMED_OPN];
+  exp = &insn->tok[LOOP_IMMED_OPN];
 
-  if (expr->X_op != O_symbol)
+  if (exp->X_op != O_symbol)
     return FALSE;
 
-  symbolP = expr->X_add_symbol;
+  symbolP = exp->X_add_symbol;
   if (!symbolP)
     return FALSE;
 
@@ -8147,7 +8359,7 @@ is_empty_loop (const TInsn *insn, fragS *fragP)
 static bfd_boolean
 is_local_forward_loop (const TInsn *insn, fragS *fragP)
 {
-  const expressionS *expr;
+  const expressionS *exp;
   symbolS *symbolP;
   fragS *next_fragP;
 
@@ -8160,12 +8372,12 @@ is_local_forward_loop (const TInsn *insn, fragS *fragP)
   if (insn->ntok <= LOOP_IMMED_OPN)
     return FALSE;
 
-  expr = &insn->tok[LOOP_IMMED_OPN];
+  exp = &insn->tok[LOOP_IMMED_OPN];
 
-  if (expr->X_op != O_symbol)
+  if (exp->X_op != O_symbol)
     return FALSE;
 
-  symbolP = expr->X_add_symbol;
+  symbolP = exp->X_add_symbol;
   if (!symbolP)
     return FALSE;
 
@@ -8243,8 +8455,33 @@ get_text_align_power (unsigned target_size)
 {
   if (target_size <= 4)
     return 2;
-  gas_assert (target_size == 8);
-  return 3;
+
+  if (target_size <= 8)
+    return 3;
+
+  if (target_size <= 16)
+    return 4;
+
+  if (target_size <= 32)
+    return 5;
+
+  if (target_size <= 64)
+    return 6;
+
+  if (target_size <= 128)
+    return 7;
+
+  if (target_size <= 256)
+    return 8;
+
+  if (target_size <= 512)
+    return 9;
+
+  if (target_size <= 1024)
+    return 10;
+
+  gas_assert (0);
+  return 0;
 }
 
 
@@ -8317,19 +8554,17 @@ get_text_align_fill_size (addressT address,
 static int
 branch_align_power (segT sec)
 {
-  /* If the Xtensa processor has a fetch width of 8 bytes, and the section
-     is aligned to at least an 8-byte boundary, then a branch target need
-     only fit within an 8-byte aligned block of memory to avoid a stall.
-     Otherwise, try to fit branch targets within 4-byte aligned blocks
-     (which may be insufficient, e.g., if the section has no alignment, but
-     it's good enough).  */
-  if (xtensa_fetch_width == 8)
-    {
-      if (get_recorded_alignment (sec) >= 3)
-	return 3;
-    }
-  else
-    gas_assert (xtensa_fetch_width == 4);
+  /* If the Xtensa processor has a fetch width of X, and
+     the section is aligned to at least that boundary, then a branch
+     target need only fit within that aligned block of memory to avoid
+     a stall.  Otherwise, try to fit branch targets within 4-byte
+     aligned blocks (which may be insufficient, e.g., if the section
+     has no alignment, but it's good enough).  */
+  int fetch_align = get_text_align_power(xtensa_fetch_width);
+  int sec_align = get_recorded_alignment (sec);
+
+  if (sec_align >= fetch_align)
+    return fetch_align;
 
   return 2;
 }
@@ -8658,6 +8893,149 @@ xtensa_relax_frag (fragS *fragP, long stretch, int *stretched_p)
 	new_stretch += relax_frag_for_align (fragP, stretch);
       break;
 
+    case RELAX_TRAMPOLINE:
+      if (fragP->tc_frag_data.relax_seen)
+        {
+          segment_info_type *seginfo = seg_info (now_seg);
+          fragS *fP; /* The out-of-range jump.  */
+          fixS *fixP;
+
+          /* Scan for jumps that will not reach.  */
+          for (fixP = seginfo->fix_root; fixP ; fixP = fixP->fx_next)
+            {
+              symbolS *s = fixP->fx_addsy;
+	      xtensa_opcode opcode;
+              int target;
+              int addr;
+              int delta;
+
+              if (fixP->fx_r_type < BFD_RELOC_XTENSA_SLOT0_OP ||
+                  fixP->fx_r_type > BFD_RELOC_XTENSA_SLOT14_OP)
+                continue;
+	      xtensa_insnbuf_from_chars (isa, trampoline_buf,
+					 (unsigned char *) fixP->fx_frag->fr_literal + fixP->fx_where,
+					 0);
+	      fmt = xtensa_format_decode (isa, trampoline_buf);
+	      gas_assert (fmt != XTENSA_UNDEFINED);
+	      slot = fixP->tc_fix_data.slot;
+	      xtensa_format_get_slot (isa, fmt, slot, trampoline_buf, trampoline_slotbuf);
+	      opcode = xtensa_opcode_decode (isa, fmt, slot, trampoline_slotbuf);
+	      if (opcode != xtensa_j_opcode)
+		continue;
+              target = S_GET_VALUE (s);
+              addr = fixP->fx_frag->fr_address;
+              delta = target - addr + stretch;
+              if (delta > J_RANGE  || delta < -1 * J_RANGE)
+                { /* Found an out-of-range jump; scan the list of trampolines for the best match.  */
+		  struct trampoline_seg *ts = find_trampoline_seg (now_seg);
+		  struct trampoline_frag *tf = ts->trampoline_list.next;
+		  struct trampoline_frag *prev = &ts->trampoline_list;
+		  int lower = (target < addr) ? target : addr;
+		  int upper = (target > addr) ? target : addr;
+		  int midpoint = lower + (upper - lower) / 2;
+
+		  if ((upper - lower) > 2 * J_RANGE)
+		    {
+		      /* One trampoline won't suffice; we need multiple jumps.
+			 Jump to the trampoline that's farthest, but still in
+			 range relative to the original "j" instruction.  */
+		      for ( ; tf; prev = tf, tf = tf->next )
+			{
+			  int this_addr = tf->fragP->fr_address + tf->fragP->fr_fix;
+			  int next_addr = (tf->next) ? tf->next->fragP->fr_address + tf->next->fragP->fr_fix : 0 ;
+
+			  if (addr == lower)
+			    {
+			      /* Forward jump.  */
+			      if (this_addr - addr < J_RANGE)
+				break;
+			    }
+			  else
+			    {
+			      /* Backward jump.  */
+			      if (next_addr == 0 || addr - next_addr > J_RANGE)
+				break;
+			    }
+			}
+		    }
+		  else
+		    {
+		      struct trampoline_frag *best_tf = NULL;
+		      int best_delta = 0;
+
+		      for ( ; tf; prev = tf, tf = tf->next )
+			{
+			  int this_addr = tf->fragP->fr_address + tf->fragP->fr_fix;
+			  int this_delta = abs (this_addr - midpoint);
+
+			  if (!best_tf || this_delta < best_delta)
+			    {
+			       best_tf = tf;
+			       best_delta = this_delta;
+			    }
+			}
+		      tf = best_tf;
+		    }
+		  if (tf->fragP == fragP)
+		    {
+		      int trampaddr = fragP->fr_address + fragP->fr_fix;
+
+		      if (abs (addr - trampaddr) < J_RANGE)
+			{ /* The trampoline is in range of original; fix it!  */
+			  fixS *newfixP;
+			  int offset;
+			  TInsn insn;
+			  symbolS *lsym;
+
+			  new_stretch += init_trampoline_frag (tf);
+			  offset = fragP->fr_fix; /* Where to assemble the j insn.  */
+			  lsym = fragP->fr_symbol;
+			  fP = fixP->fx_frag;
+			  /* Assemble a jump to the target label here.  */
+			  tinsn_init (&insn);
+			  insn.insn_type = ITYPE_INSN;
+			  insn.opcode = xtensa_j_opcode;
+			  insn.ntok = 1;
+			  set_expr_symbol_offset (&insn.tok[0], lsym, offset);
+			  fmt = xg_get_single_format (xtensa_j_opcode);
+			  tinsn_to_slotbuf (fmt, 0, &insn, trampoline_slotbuf);
+			  xtensa_format_set_slot (isa, fmt, 0, trampoline_buf, trampoline_slotbuf);
+			  xtensa_insnbuf_to_chars (isa, trampoline_buf, (unsigned char *)fragP->fr_literal + offset, 3);
+			  fragP->fr_fix += 3;
+			  fragP->fr_var -= 3;
+			  /* Add a fix-up for the original j insn.  */
+			  newfixP = fix_new (fP, fixP->fx_where, fixP->fx_size, lsym, fragP->fr_fix - 3, TRUE, fixP->fx_r_type);
+			  newfixP->fx_no_overflow = 1;
+			  newfixP->tc_fix_data.X_add_symbol = lsym;
+			  newfixP->tc_fix_data.X_add_number = offset;
+			  newfixP->tc_fix_data.slot = slot;
+			  /* Move the fix-up from the original j insn to this one.  */
+			  fixP->fx_frag = fragP;
+			  fixP->fx_where = fragP->fr_fix - 3;
+			  fixP->tc_fix_data.slot = 0;
+			  /* Adjust the jump around this trampoline (if present).  */
+			  if (tf->fixP != NULL)
+			    {
+			      tf->fixP->fx_offset += 3;
+			    }
+			  new_stretch += 3;
+			  fragP->tc_frag_data.relax_seen = FALSE; /* Need another pass.  */
+			  /* Do we have room for more?  */
+			  if (fragP->fr_var < 3)
+			    { /* No, convert to fill.  */
+			      frag_wane (fragP);
+			      fragP->fr_subtype = 0;
+			      /* Remove from the trampoline_list.  */
+			      prev->next = tf->next;
+			      break;
+			    }
+			}
+		    }
+                }
+            }
+        }
+      break;
+
     default:
       as_bad (_("bad relaxation state"));
     }
@@ -8827,7 +9205,7 @@ find_address_of_next_align_frag (fragS **fragPP,
 		  (*widens)++;
 		  break;
 		}
-	      address += total_frag_text_expansion (fragP);;
+	      address += total_frag_text_expansion (fragP);
 	      break;
 
 	    case RELAX_IMMED:
@@ -8955,7 +9333,7 @@ future_alignment_required (fragS *fragP, long stretch ATTRIBUTE_UNUSED)
 	{
 	  if (this_frag->fr_subtype == RELAX_UNREACHABLE)
 	    {
-	      gas_assert (opt_diff <= UNREACHABLE_MAX_WIDTH);
+	      gas_assert (opt_diff <= (signed) xtensa_fetch_width);
 	      return opt_diff;
 	    }
 	  return 0;
@@ -8993,39 +9371,11 @@ future_alignment_required (fragS *fragP, long stretch ATTRIBUTE_UNUSED)
 /* The idea: widen everything you can to get a target or loop aligned,
    then start using NOPs.
 
-   When we must have a NOP, here is a table of how we decide
-   (so you don't have to fight through the control flow below):
-
    wide_nops   = the number of wide NOPs available for aligning
    narrow_nops = the number of narrow NOPs available for aligning
 		 (a subset of wide_nops)
    widens      = the number of narrow instructions that should be widened
 
-   Desired   wide   narrow
-   Diff      nop    nop      widens
-   1           0      0         1
-   2           0      1         0
-   3a          1      0         0
-    b          0      1         1 (case 3a makes this case unnecessary)
-   4a          1      0         1
-    b          0      2         0
-    c          0      1         2 (case 4a makes this case unnecessary)
-   5a          1      0         2
-    b          1      1         0
-    c          0      2         1 (case 5b makes this case unnecessary)
-   6a          2      0         0
-    b          1      0         3
-    c          0      1         4 (case 6b makes this case unnecessary)
-    d          1      1         1 (case 6a makes this case unnecessary)
-    e          0      2         2 (case 6a makes this case unnecessary)
-    f          0      3         0 (case 6a makes this case unnecessary)
-   7a          1      0         4
-    b          2      0         1
-    c          1      1         2 (case 7b makes this case unnecessary)
-    d          0      1         5 (case 7a makes this case unnecessary)
-    e          0      2         3 (case 7b makes this case unnecessary)
-    f          0      3         1 (case 7b makes this case unnecessary)
-    g          1      2         1 (case 7b makes this case unnecessary)
 */
 
 static long
@@ -9035,9 +9385,13 @@ bytes_to_stretch (fragS *this_frag,
 		  int num_widens,
 		  int desired_diff)
 {
+  int nops_needed;
+  int nop_bytes;
+  int extra_bytes;
   int bytes_short = desired_diff - num_widens;
 
-  gas_assert (desired_diff >= 0 && desired_diff < 8);
+  gas_assert (desired_diff >= 0 
+	      && desired_diff < (signed) xtensa_fetch_width);
   if (desired_diff == 0)
     return 0;
 
@@ -9064,101 +9418,253 @@ bytes_to_stretch (fragS *this_frag,
   /* From here we will need at least one NOP to get an alignment.
      However, we may not be able to align at all, in which case,
      don't widen.  */
-  if (this_frag->fr_subtype == RELAX_FILL_NOP)
-    {
-      switch (desired_diff)
-	{
-	case 1:
-	  return 0;
-	case 2:
-	  if (!this_frag->tc_frag_data.is_no_density && narrow_nops == 1)
-	    return 2; /* case 2 */
-	  return 0;
-	case 3:
-	  if (wide_nops > 1)
-	    return 0;
-	  else
-	    return 3; /* case 3a */
-	case 4:
-	  if (num_widens >= 1 && wide_nops == 1)
-	    return 3; /* case 4a */
-	  if (!this_frag->tc_frag_data.is_no_density && narrow_nops == 2)
-	    return 2; /* case 4b */
-	  return 0;
-	case 5:
-	  if (num_widens >= 2 && wide_nops == 1)
-	    return 3; /* case 5a */
-	  /* We will need two nops.  Are there enough nops
-	     between here and the align target?  */
-	  if (wide_nops < 2 || narrow_nops == 0)
-	    return 0;
-	  /* Are there other nops closer that can serve instead?  */
-	  if (wide_nops > 2 && narrow_nops > 1)
-	    return 0;
-	  /* Take the density one first, because there might not be
-	     another density one available.  */
-	  if (!this_frag->tc_frag_data.is_no_density)
-	    return 2; /* case 5b narrow */
-	  else
-	    return 3; /* case 5b wide */
-	  return 0;
-	case 6:
-	  if (wide_nops == 2)
-	    return 3; /* case 6a */
-	  else if (num_widens >= 3 && wide_nops == 1)
-	    return 3; /* case 6b */
-	  return 0;
-	case 7:
-	  if (wide_nops == 1 && num_widens >= 4)
-	    return 3; /* case 7a */
-	  else if (wide_nops == 2 && num_widens >= 1)
-	    return 3; /* case 7b */
-	  return 0;
-	default:
-	  gas_assert (0);
-	}
-    }
-  else
-    {
-      /* We will need a NOP no matter what, but should we widen
-	 this instruction to help?
+  nops_needed = desired_diff / 3;
 
-	 This is a RELAX_NARROW frag.  */
-      switch (desired_diff)
+  /* If there aren't enough nops, don't widen.  */
+  if (nops_needed > wide_nops)
+    return 0;
+
+  /* First try it with all wide nops.  */
+  nop_bytes = nops_needed * 3;
+  extra_bytes = desired_diff - nop_bytes;
+
+  if (nop_bytes + num_widens >= desired_diff)
+    {
+      if (this_frag->fr_subtype == RELAX_FILL_NOP)
+	return 3;
+      else if (num_widens == extra_bytes)
+	return 1;
+      return 0;
+    }
+
+  /* Add a narrow nop.  */
+  nops_needed++;
+  nop_bytes += 2;
+  extra_bytes -= 2;
+  if (narrow_nops == 0 || nops_needed > wide_nops)
+    return 0;
+
+  if (nop_bytes + num_widens >= desired_diff && extra_bytes >= 0)
+    {
+      if (this_frag->fr_subtype == RELAX_FILL_NOP)
+	return !this_frag->tc_frag_data.is_no_density ? 2 : 3;
+      else if (num_widens == extra_bytes)
+	return 1;
+      return 0;
+    }
+
+  /* Replace a wide nop with a narrow nop--we can get here if
+     extra_bytes was negative in the previous conditional.  */
+  if (narrow_nops == 1)
+    return 0;
+  nop_bytes--;
+  extra_bytes++;
+  if (nop_bytes + num_widens >= desired_diff)
+    {
+      if (this_frag->fr_subtype == RELAX_FILL_NOP)
+	return !this_frag->tc_frag_data.is_no_density ? 2 : 3;
+      else if (num_widens == extra_bytes)
+	return 1;
+      return 0;
+    }
+
+  /* If we can't satisfy any of the above cases, then we can't align
+     using padding or fill nops.  */
+  return 0;
+}
+
+
+static struct trampoline_frag *
+search_trampolines (TInsn *tinsn, fragS *fragP, bfd_boolean unreachable_only)
+{
+  struct trampoline_seg *ts = find_trampoline_seg (now_seg);
+  struct trampoline_frag *tf = (ts) ? ts->trampoline_list.next : NULL;
+  struct trampoline_frag *best_tf = NULL;
+  int best_delta = 0;
+  int best_addr = 0;
+  symbolS *sym = tinsn->tok[0].X_add_symbol;
+  offsetT target = S_GET_VALUE (sym) + tinsn->tok[0].X_add_number;
+  offsetT addr = fragP->fr_address;
+  offsetT lower = (addr < target) ? addr : target;
+  offsetT upper = (addr > target) ? addr : target;
+  int delta = upper - lower;
+  offsetT midpoint = lower + delta / 2;
+  int this_delta = -1;
+  int this_addr = -1;
+
+  if (delta > 2 * J_RANGE)
+    {
+      /* One trampoline won't do; we need multiple.
+	 Choose the farthest trampoline that's still in range of the original
+	 and let a later pass finish the job.  */
+      for ( ; tf; tf = tf->next)
 	{
-	case 1:
-	  gas_assert (0);
-	  return 0;
-	case 2:
-	case 3:
-	  return 0;
-	case 4:
-	  if (wide_nops >= 1 && num_widens == 1)
-	    return 1; /* case 4a */
-	  return 0;
-	case 5:
-	  if (wide_nops >= 1 && num_widens == 2)
-	    return 1; /* case 5a */
-	  return 0;
-	case 6:
-	  if (wide_nops >= 2)
-	    return 0; /* case 6a */
-	  else if (wide_nops >= 1 && num_widens == 3)
-	    return 1; /* case 6b */
-	  return 0;
-	case 7:
-	  if (wide_nops >= 1 && num_widens == 4)
-	    return 1; /* case 7a */
-	  else if (wide_nops >= 2 && num_widens == 1)
-	    return 1; /* case 7b */
-	  return 0;
-	default:
-	  gas_assert (0);
-	  return 0;
+	  int next_addr = (tf->next) ? tf->next->fragP->fr_address + tf->next->fragP->fr_fix : 0;
+
+	  this_addr = tf->fragP->fr_address + tf->fragP->fr_fix;
+	  if (lower == addr)
+	    {
+	      /* Forward jump.  */
+	      if (this_addr - addr < J_RANGE)
+		break;
+	    }
+	  else
+	    {
+	      /* Backward jump.  */
+	      if (next_addr == 0 || addr - next_addr > J_RANGE)
+		break;
+	    }
+	  if (abs (addr - this_addr) < J_RANGE)
+	    return tf;
+
+	  return NULL;
 	}
     }
-  gas_assert (0);
-  return 0;
+  for ( ; tf; tf = tf->next)
+    {
+      this_addr = tf->fragP->fr_address + tf->fragP->fr_fix;
+      this_delta = abs (this_addr - midpoint);
+      if (unreachable_only && tf->needs_jump_around)
+	continue;
+      if (!best_tf || this_delta < best_delta)
+        {
+	  best_tf = tf;
+	  best_delta = this_delta;
+	  best_addr = this_addr;
+        }
+    }
+
+  if (best_tf &&
+      best_delta < J_RANGE &&
+      abs(best_addr - lower) < J_RANGE &&
+      abs(best_addr - upper) < J_RANGE)
+    return best_tf;
+
+  return NULL; /* No suitable trampoline found.  */
+}
+
+
+static struct trampoline_frag *
+get_best_trampoline (TInsn *tinsn, fragS *fragP)
+{
+  struct trampoline_frag *tf = NULL;
+
+  tf = search_trampolines (tinsn, fragP, TRUE); /* Try unreachable first.  */
+
+  if (tf == NULL)
+    tf = search_trampolines (tinsn, fragP, FALSE); /* Try ones needing a jump-around, too.  */
+
+  return tf;
+}
+
+
+static void
+check_and_update_trampolines (void)
+{
+  struct trampoline_seg *ts = find_trampoline_seg (now_seg);
+  struct trampoline_frag *tf = ts->trampoline_list.next;
+  struct trampoline_frag *prev = &ts->trampoline_list;
+
+  for ( ; tf; prev = tf, tf = tf->next)
+    {
+      if (tf->fragP->fr_var < 3)
+	{
+	  frag_wane (tf->fragP);
+	  prev->next = tf->next;
+	  tf->fragP = NULL;
+	}
+    }
+}
+
+
+static int
+init_trampoline_frag (struct trampoline_frag *trampP)
+{
+  fragS *fp = trampP->fragP;
+  int growth = 0;
+
+  if (fp->fr_fix == 0)
+    {
+      symbolS *lsym;
+      char label[10 + 2 * sizeof(fp)];
+      sprintf (label, ".L0_TR_%p", fp);
+
+      lsym = (symbolS *)local_symbol_make (label, now_seg, 0, fp);
+      fp->fr_symbol = lsym;
+      if (trampP->needs_jump_around)
+        {
+	  /* Add a jump around this block of jumps, in case
+	     control flows into this block.  */
+	  fixS *fixP;
+	  TInsn insn;
+	  xtensa_format fmt;
+	  xtensa_isa isa = xtensa_default_isa;
+
+	  fp->tc_frag_data.is_insn = 1;
+	  /* Assemble a jump insn.  */
+	  tinsn_init (&insn);
+	  insn.insn_type = ITYPE_INSN;
+	  insn.opcode = xtensa_j_opcode;
+	  insn.ntok = 1;
+	  set_expr_symbol_offset (&insn.tok[0], lsym, 3);
+	  fmt = xg_get_single_format (xtensa_j_opcode);
+	  tinsn_to_slotbuf (fmt, 0, &insn, trampoline_slotbuf);
+	  xtensa_format_set_slot (isa, fmt, 0, trampoline_buf, trampoline_slotbuf);
+	  xtensa_insnbuf_to_chars (isa, trampoline_buf, (unsigned char *)fp->fr_literal, 3);
+	  fp->fr_fix += 3;
+	  fp->fr_var -= 3;
+	  growth = 3;
+	  fixP = fix_new (fp, 0, 3, lsym, 3, TRUE, BFD_RELOC_XTENSA_SLOT0_OP);
+	  trampP->fixP = fixP;
+        }
+    }
+  return growth;
+}
+
+
+static int
+add_jump_to_trampoline (struct trampoline_frag *trampP, fragS *origfrag)
+{
+  fragS *tramp = trampP->fragP;
+  fixS *fixP;
+  int offset = tramp->fr_fix; /* Where to assemble the j insn.  */
+  TInsn insn;
+  symbolS *lsym;
+  symbolS *tsym;
+  int toffset;
+  xtensa_format fmt;
+  xtensa_isa isa = xtensa_default_isa;
+  int growth = 0;
+
+  lsym = tramp->fr_symbol;
+  /* Assemble a jump to the target label in the trampoline frag.  */
+  tsym = origfrag->tc_frag_data.slot_symbols[0];
+  toffset = origfrag-> tc_frag_data.slot_offsets[0];
+  tinsn_init (&insn);
+  insn.insn_type = ITYPE_INSN;
+  insn.opcode = xtensa_j_opcode;
+  insn.ntok = 1;
+  set_expr_symbol_offset (&insn.tok[0], tsym, toffset);
+  fmt = xg_get_single_format (xtensa_j_opcode);
+  tinsn_to_slotbuf (fmt, 0, &insn, trampoline_slotbuf);
+  xtensa_format_set_slot (isa, fmt, 0, trampoline_buf, trampoline_slotbuf);
+  xtensa_insnbuf_to_chars (isa, trampoline_buf, (unsigned char *)tramp->fr_literal + offset, 3);
+  tramp->fr_fix += 3;
+  tramp->fr_var -= 3;
+  growth = 3;
+  /* add a fix-up for the trampoline jump.  */
+  fixP = fix_new (tramp, tramp->fr_fix - 3, 3, tsym, toffset, TRUE, BFD_RELOC_XTENSA_SLOT0_OP);
+  /* Modify the jump at the start of this trampoline to point past the newly-added jump.  */
+  fixP = trampP->fixP;
+  if (fixP)
+    fixP->fx_offset += 3;
+  /* Modify the original j to point here.  */
+  origfrag->tc_frag_data.slot_symbols[0] = lsym;
+  origfrag->tc_frag_data.slot_offsets[0] = tramp->fr_fix - 3;
+  /* If trampoline is full, remove it from the list.  */
+  check_and_update_trampolines ();
+
+  return growth;
 }
 
 
@@ -9300,6 +9806,37 @@ relax_frag_immed (segT segP,
   if (negatable_branch && istack.ninsn > 1)
     update_next_frag_state (fragP);
 
+  /* If last insn is a jump, and it cannot reach its target, try to find a trampoline.  */
+  if (istack.ninsn > 2 &&
+      istack.insn[istack.ninsn - 1].insn_type == ITYPE_LABEL &&
+      istack.insn[istack.ninsn - 2].insn_type == ITYPE_INSN &&
+      istack.insn[istack.ninsn - 2].opcode == xtensa_j_opcode)
+    {
+      TInsn *jinsn = &istack.insn[istack.ninsn - 2];
+
+      if (!xg_symbolic_immeds_fit (jinsn, segP, fragP, fragP->fr_offset, total_text_diff))
+	{
+	  struct trampoline_frag *tf = get_best_trampoline (jinsn, fragP);
+
+	  if (tf)
+	    {
+	      this_text_diff += init_trampoline_frag (tf);
+	      this_text_diff += add_jump_to_trampoline (tf, fragP);
+	    }
+	  else
+	    {
+	      /* If target symbol is undefined, assume it will reach once linked.  */
+	      expressionS *exp = &istack.insn[istack.ninsn - 2].tok[0];
+
+	      if (exp->X_op == O_symbol && S_IS_DEFINED (exp->X_add_symbol))
+		{
+		  as_bad_where (fragP->fr_file, fragP->fr_line,
+		    _("jump target out of range; no usable trampoline found"));
+		}
+	    }
+	}
+    }
+
   return this_text_diff;
 }
 
@@ -9419,6 +9956,9 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragp)
 	}
       else
 	as_bad (_("invalid relaxation fragment result"));
+      break;
+
+    case RELAX_TRAMPOLINE:
       break;
     }
 
@@ -9613,7 +10153,6 @@ convert_frag_immed (segT segP,
       symbolS *gen_label = NULL;
       offsetT frag_offset;
       bfd_boolean first = TRUE;
-      bfd_boolean last_is_jump;
 
       /* It does not fit.  Find something that does and
          convert immediately.  */
@@ -9688,7 +10227,6 @@ convert_frag_immed (segT segP,
 
       total_size = 0;
       first = TRUE;
-      last_is_jump = FALSE;
       for (i = 0; i < istack.ninsn; i++)
 	{
 	  TInsn *tinsn = &istack.insn[i];
@@ -10079,7 +10617,7 @@ xtensa_move_literals (void)
 {
   seg_list *segment;
   frchainS *frchain_from, *frchain_to;
-  fragS *search_frag, *next_frag, *last_frag, *literal_pool, *insert_after;
+  fragS *search_frag, *next_frag, *literal_pool, *insert_after;
   fragS **frag_splice;
   emit_state state;
   segT dest_seg;
@@ -10121,7 +10659,6 @@ xtensa_move_literals (void)
 	 frags in it.  */
       frag_variant (rs_fill, 0, 0, 0, NULL, 0, NULL);
       xtensa_set_frag_assembly_state (frag_now);
-      last_frag = frag_now;
       frag_variant (rs_fill, 0, 0, 0, NULL, 0, NULL);
       xtensa_set_frag_assembly_state (frag_now);
 
@@ -10184,9 +10721,9 @@ xtensa_move_literals (void)
   for (lit = literal_syms; lit; lit = lit->next)
     {
       symbolS *lit_sym = lit->sym;
-      segT dest_seg = symbol_get_frag (lit_sym)->tc_frag_data.lit_seg;
-      if (dest_seg)
-	S_SET_SEGMENT (lit_sym, dest_seg);
+      segT dseg = symbol_get_frag (lit_sym)->tc_frag_data.lit_seg;
+      if (dseg)
+	S_SET_SEGMENT (lit_sym, dseg);
     }
 }
 
@@ -10438,15 +10975,25 @@ cache_literal_section (bfd_boolean use_abs_literals)
     }
   else
     {
-      /* If the section name ends with ".text", then replace that suffix
-	 instead of appending an additional suffix.  */
+      /* If the section name begins or ends with ".text", then replace
+	 that portion instead of appending an additional suffix.  */
       size_t len = strlen (text_name);
-      if (len >= 5 && strcmp (text_name + len - 5, ".text") == 0)
+      if (len >= 5
+	  && (strcmp (text_name + len - 5, ".text") == 0
+	      || strncmp (text_name, ".text", 5) == 0))
 	len -= 5;
 
       name = xmalloc (len + strlen (base_name) + 1);
-      strcpy (name, text_name);
-      strcpy (name + len, base_name);
+      if (strncmp (text_name, ".text", 5) == 0)
+	{
+	  strcpy (name, base_name);
+	  strcat (name, text_name + 5);
+	}
+      else
+	{
+	  strcpy (name, text_name);
+	  strcpy (name + len, base_name);
+	}
     }
 
   /* Canonicalize section names to allow renaming literal sections.
@@ -11208,7 +11755,6 @@ xg_get_single_slot (xtensa_opcode opcode)
 void
 istack_init (IStack *stack)
 {
-  memset (stack, 0, sizeof (IStack));
   stack->ninsn = 0;
 }
 
@@ -11418,20 +11964,20 @@ tinsn_to_slotbuf (xtensa_format fmt,
 
   for (i = 0; i < noperands; i++)
     {
-      expressionS *expr = &tinsn->tok[i];
+      expressionS *exp = &tinsn->tok[i];
       int rc;
       unsigned line;
       char *file_name;
       uint32 opnd_value;
 
-      switch (expr->X_op)
+      switch (exp->X_op)
 	{
 	case O_register:
 	  if (xtensa_operand_is_visible (isa, opcode, i) == 0)
 	    break;
 	  /* The register number has already been checked in
 	     expression_maybe_register, so we don't need to check here.  */
-	  opnd_value = expr->X_add_number;
+	  opnd_value = exp->X_add_number;
 	  (void) xtensa_operand_encode (isa, opcode, i, &opnd_value);
 	  rc = xtensa_operand_set_field (isa, opcode, i, fmt, slot, slotbuf,
 					 opnd_value);
@@ -11446,7 +11992,7 @@ tinsn_to_slotbuf (xtensa_format fmt,
 	  /* It is a constant and we called this function
 	     then we have to try to fit it.  */
 	  xtensa_insnbuf_set_operand (slotbuf, fmt, slot, opcode, i,
-				      expr->X_add_number, file_name, line);
+				      exp->X_add_number, file_name, line);
 	  break;
 
 	default:
@@ -11800,8 +12346,8 @@ vinsn_to_insnbuf (vliw_insn *vinsn,
 
 	  for (i = 0; i < noperands; i++)
 	    {
-	      expressionS* expr = &tinsn->tok[i];
-	      switch (expr->X_op)
+	      expressionS* exp = &tinsn->tok[i];
+	      switch (exp->X_op)
 		{
 		case O_symbol:
 		case O_lo16:
@@ -11816,15 +12362,15 @@ vinsn_to_insnbuf (vliw_insn *vinsn,
 			  || tinsn->is_specific_opcode
 			  || !xg_is_relaxable_insn (tinsn, 0))
 			{
-			  xg_add_opcode_fix (tinsn, i, fmt, slot, expr, fragP,
+			  xg_add_opcode_fix (tinsn, i, fmt, slot, exp, fragP,
 					     frag_offset - fragP->fr_literal);
 			}
 		      else
 			{
-			  if (expr->X_op != O_symbol)
+			  if (exp->X_op != O_symbol)
 			    as_bad (_("invalid operand"));
-			  tinsn->symbol = expr->X_add_symbol;
-			  tinsn->offset = expr->X_add_number;
+			  tinsn->symbol = exp->X_add_symbol;
+			  tinsn->offset = exp->X_add_number;
 			}
 		    }
 		  else

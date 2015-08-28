@@ -1,4 +1,4 @@
-@c Copyright (C) 1988-2014 Free Software Foundation, Inc.
+@c Copyright (C) 1988-2015 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -68,6 +68,9 @@ David Binderman tests weekly snapshots of GCC trunk against Fedora Rawhide
 for several architectures.
 
 @item
+Laurynas Biveinis for memory management work and DJGPP port fixes.
+
+@item
 Uros Bizjak for the implementation of x87 math built-in functions and
 for various middle end and i386 back end improvements and bug fixes.
 
@@ -128,7 +131,8 @@ Herman A.J. ten Brugge for various fixes.
 Joerg Brunsmann for Java compiler hacking and help with the GCJ FAQ@.
 
 @item
-Joe Buck for his direction via the steering committee.
+Joe Buck for his direction via the steering committee from its creation
+to 2013.
 
 @item
 Craig Burley for leadership of the G77 Fortran effort.
@@ -325,6 +329,9 @@ support, improved leaf function register allocation, and his direction
 via the steering committee.
 
 @item
+Jonny Grant for improvements to @code{collect2's} @option{--help} documentation.
+
+@item
 Anthony Green for his @option{-Os} contributions, the moxie port, and
 Java front end work.
 
@@ -421,7 +428,14 @@ Kamil Iskra for general m68k hacking.
 Lee Iverson for random fixes and MIPS testing.
 
 @item
+Balaji V. Iyer for Cilk+ development and merging.
+
+@item
 Andreas Jaeger for testing and benchmarking of GCC and various bug fixes.
+
+@item
+Martin Jambor for his work on inter-procedural optimizations, the
+switch conversion pass, and scalar replacement of aggregates.
 
 @item
 Jakub Jelinek for his SPARC work and sibling call optimizations as well
@@ -497,6 +511,10 @@ Bruce Korb for the new and improved fixincludes code.
 
 @item
 Benjamin Kosnik for his G++ work and for leading the libstdc++-v3 effort.
+
+@item
+Maxim Kuvyrkov for contributions to the instruction scheduler, the Android 
+and m68k/Coldfire ports, and optimizations.
 
 @item
 Charles LaBrec contributed the support for the Integrated Solutions
@@ -584,8 +602,15 @@ implementation of the automaton based instruction scheduler.
 Bob Manson for his behind the scenes work on dejagnu.
 
 @item
+John Marino for contributing the DragonFly BSD port.
+
+@item
 Philip Martin for lots of libstdc++ string and vector iterator fixes and
 improvements, and string clean up and testsuites.
+
+@item
+Michael Matz for his work on dominance tree discovery, the x86-64 port,
+link-time optimization framework and general optimization improvements.
 
 @item
 All of the Mauve project
@@ -787,6 +812,9 @@ translation of the old @file{g77-0.5.16/f/DOC} file.
 Ken Rose for fixes to GCC's delay slot filling code.
 
 @item
+Ira Rosen for her contributions to the auto-vectorizer.
+
+@item
 Paul Rubin wrote most of the preprocessor.
 
 @item
@@ -875,6 +903,8 @@ Christopher Smith did the port for Convex machines.
 
 @item
 Danny Smith for his major efforts on the Mingw (and Cygwin) ports.
+Retired from GCC maintainership August 2010, having mentored two 
+new maintainers into the role.
 
 @item
 Randy Smith finished the Sun FPA support.

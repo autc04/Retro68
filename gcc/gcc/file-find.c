@@ -1,5 +1,5 @@
 /* Utility functions for finding files relative to GCC binaries.
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -105,15 +105,16 @@ find_a_file (struct path_prefix *pprefix, const char *name, int mode)
   return 0;
 }
 
-/* Add an entry for PREFIX to prefix list PPREFIX.  */
+/* Add an entry for PREFIX to prefix list PREFIX.
+   Add at beginning if FIRST is true.  */
 
 void
-add_prefix (struct path_prefix *pprefix, const char *prefix)
+do_add_prefix (struct path_prefix *pprefix, const char *prefix, bool first)
 {
   struct prefix_list *pl, **prev;
   int len;
 
-  if (pprefix->plist)
+  if (pprefix->plist && !first)
     {
       for (pl = pprefix->plist; pl->next; pl = pl->next)
 	;
@@ -136,6 +137,22 @@ add_prefix (struct path_prefix *pprefix, const char *prefix)
   else
     pl->next = (struct prefix_list *) 0;
   *prev = pl;
+}
+
+/* Add an entry for PREFIX at the end of prefix list PREFIX.  */
+
+void
+add_prefix (struct path_prefix *pprefix, const char *prefix)
+{
+  do_add_prefix (pprefix, prefix, false);
+}
+
+/* Add an entry for PREFIX at the begin of prefix list PREFIX.  */
+
+void
+add_prefix_begin (struct path_prefix *pprefix, const char *prefix)
+{
+  do_add_prefix (pprefix, prefix, true);
 }
 
 /* Take the value of the environment variable ENV, break it into a path, and

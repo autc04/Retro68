@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"runtime/debug"
 	"testing"
+	"time"
+	"unsafe"
 )
 
 func TestGcSys(t *testing.T) {
@@ -152,4 +154,141 @@ func TestGcRescan(t *testing.T) {
 			t.Fatal("corrupted heap")
 		}
 	}
+}
+
+func TestGcLastTime(t *testing.T) {
+	ms := new(runtime.MemStats)
+	t0 := time.Now().UnixNano()
+	runtime.GC()
+	t1 := time.Now().UnixNano()
+	runtime.ReadMemStats(ms)
+	last := int64(ms.LastGC)
+	if t0 > last || last > t1 {
+		t.Fatalf("bad last GC time: got %v, want [%v, %v]", last, t0, t1)
+	}
+	pause := ms.PauseNs[(ms.NumGC+255)%256]
+	// Due to timer granularity, pause can actually be 0 on windows
+	// or on virtualized environments.
+	if pause == 0 {
+		t.Logf("last GC pause was 0")
+	} else if pause > 10e9 {
+		t.Logf("bad last GC pause: got %v, want [0, 10e9]", pause)
+	}
+}
+
+var hugeSink interface{}
+
+func TestHugeGCInfo(t *testing.T) {
+	// The test ensures that compiler can chew these huge types even on weakest machines.
+	// The types are not allocated at runtime.
+	if hugeSink != nil {
+		// 400MB on 32 bots, 4TB on 64-bits.
+		const n = (400 << 20) + (unsafe.Sizeof(uintptr(0))-4)<<40
+		hugeSink = new([n]*byte)
+		hugeSink = new([n]uintptr)
+		hugeSink = new(struct {
+			x float64
+			y [n]*byte
+			z []string
+		})
+		hugeSink = new(struct {
+			x float64
+			y [n]uintptr
+			z []string
+		})
+	}
+}
+
+func BenchmarkSetTypeNoPtr1(b *testing.B) {
+	type NoPtr1 struct {
+		p uintptr
+	}
+	var p *NoPtr1
+	for i := 0; i < b.N; i++ {
+		p = &NoPtr1{}
+	}
+	_ = p
+}
+func BenchmarkSetTypeNoPtr2(b *testing.B) {
+	type NoPtr2 struct {
+		p, q uintptr
+	}
+	var p *NoPtr2
+	for i := 0; i < b.N; i++ {
+		p = &NoPtr2{}
+	}
+	_ = p
+}
+func BenchmarkSetTypePtr1(b *testing.B) {
+	type Ptr1 struct {
+		p *byte
+	}
+	var p *Ptr1
+	for i := 0; i < b.N; i++ {
+		p = &Ptr1{}
+	}
+	_ = p
+}
+func BenchmarkSetTypePtr2(b *testing.B) {
+	type Ptr2 struct {
+		p, q *byte
+	}
+	var p *Ptr2
+	for i := 0; i < b.N; i++ {
+		p = &Ptr2{}
+	}
+	_ = p
+}
+
+func BenchmarkAllocation(b *testing.B) {
+	type T struct {
+		x, y *byte
+	}
+	ngo := runtime.GOMAXPROCS(0)
+	work := make(chan bool, b.N+ngo)
+	result := make(chan *T)
+	for i := 0; i < b.N; i++ {
+		work <- true
+	}
+	for i := 0; i < ngo; i++ {
+		work <- false
+	}
+	for i := 0; i < ngo; i++ {
+		go func() {
+			var x *T
+			for <-work {
+				for i := 0; i < 1000; i++ {
+					x = &T{}
+				}
+			}
+			result <- x
+		}()
+	}
+	for i := 0; i < ngo; i++ {
+		<-result
+	}
+}
+
+func TestPrintGC(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				runtime.GC()
+			}
+		}
+	}()
+	for i := 0; i < 1e4; i++ {
+		func() {
+			defer print("")
+		}()
+	}
+	close(done)
 }

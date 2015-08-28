@@ -243,7 +243,12 @@ func TestIterGrowWithGC(t *testing.T) {
 
 func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
 	if runtime.GOMAXPROCS(-1) == 1 {
-		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
+		if runtime.GOARCH == "s390" {
+			// Test uses too much address space on 31-bit S390.
+			defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+		} else {
+			defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
+		}
 	}
 	numLoop := 10
 	numGrowStep := 250
@@ -260,7 +265,7 @@ func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
 			for nr := 0; nr < numReader; nr++ {
 				go func() {
 					defer wg.Done()
-					for _ = range m {
+					for range m {
 					}
 				}()
 				go func() {
@@ -416,3 +421,139 @@ func TestMapNanGrowIterator(t *testing.T) {
 		t.Fatalf("missing value")
 	}
 }
+
+func TestMapIterOrder(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("skipping for gccgo")
+	}
+
+	for _, n := range [...]int{3, 7, 9, 15} {
+		for i := 0; i < 1000; i++ {
+			// Make m be {0: true, 1: true, ..., n-1: true}.
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			// Check that iterating over the map produces at least two different orderings.
+			ord := func() []int {
+				var s []int
+				for key := range m {
+					s = append(s, key)
+				}
+				return s
+			}
+			first := ord()
+			ok := false
+			for try := 0; try < 100; try++ {
+				if !reflect.DeepEqual(first, ord()) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				t.Errorf("Map with n=%d elements had consistent iteration order: %v", n, first)
+				break
+			}
+		}
+	}
+}
+
+// Issue 8410
+func TestMapSparseIterOrder(t *testing.T) {
+	// Run several rounds to increase the probability
+	// of failure. One is not enough.
+	if runtime.Compiler == "gccgo" {
+		t.Skip("skipping for gccgo")
+	}
+NextRound:
+	for round := 0; round < 10; round++ {
+		m := make(map[int]bool)
+		// Add 1000 items, remove 980.
+		for i := 0; i < 1000; i++ {
+			m[i] = true
+		}
+		for i := 20; i < 1000; i++ {
+			delete(m, i)
+		}
+
+		var first []int
+		for i := range m {
+			first = append(first, i)
+		}
+
+		// 800 chances to get a different iteration order.
+		// See bug 8736 for why we need so many tries.
+		for n := 0; n < 800; n++ {
+			idx := 0
+			for i := range m {
+				if i != first[idx] {
+					// iteration order changed.
+					continue NextRound
+				}
+				idx++
+			}
+		}
+		t.Fatalf("constant iteration order on round %d: %v", round, first)
+	}
+}
+
+func TestMapStringBytesLookup(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("skipping for gccgo")
+	}
+	// Use large string keys to avoid small-allocation coalescing,
+	// which can cause AllocsPerRun to report lower counts than it should.
+	m := map[string]int{
+		"1000000000000000000000000000000000000000000000000": 1,
+		"2000000000000000000000000000000000000000000000000": 2,
+	}
+	buf := []byte("1000000000000000000000000000000000000000000000000")
+	if x := m[string(buf)]; x != 1 {
+		t.Errorf(`m[string([]byte("1"))] = %d, want 1`, x)
+	}
+	buf[0] = '2'
+	if x := m[string(buf)]; x != 2 {
+		t.Errorf(`m[string([]byte("2"))] = %d, want 2`, x)
+	}
+
+	var x int
+	n := testing.AllocsPerRun(100, func() {
+		x += m[string(buf)]
+	})
+	if n != 0 {
+		t.Errorf("AllocsPerRun for m[string(buf)] = %v, want 0", n)
+	}
+
+	x = 0
+	n = testing.AllocsPerRun(100, func() {
+		y, ok := m[string(buf)]
+		if !ok {
+			panic("!ok")
+		}
+		x += y
+	})
+	if n != 0 {
+		t.Errorf("AllocsPerRun for x,ok = m[string(buf)] = %v, want 0", n)
+	}
+}
+
+func benchmarkMapPop(b *testing.B, n int) {
+	m := map[int]int{}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < n; j++ {
+			m[j] = j
+		}
+		for j := 0; j < n; j++ {
+			// Use iterator to pop an element.
+			// We want this to be fast, see issue 8412.
+			for k := range m {
+				delete(m, k)
+				break
+			}
+		}
+	}
+}
+
+func BenchmarkMapPop100(b *testing.B)   { benchmarkMapPop(b, 100) }
+func BenchmarkMapPop1000(b *testing.B)  { benchmarkMapPop(b, 1000) }
+func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }

@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 // { dg-do compile }
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,8 +24,7 @@
 #include <testsuite_tr1.h>
 
 using namespace __gnu_test;
-using std::weak_ptr;
-template class weak_ptr<int>;
-template class weak_ptr<void>;
-template class weak_ptr<ClassType>;
-template class weak_ptr<IncompleteClass>;
+template class std::weak_ptr<int>;
+template class std::weak_ptr<void>;
+template class std::weak_ptr<ClassType>;
+template class std::weak_ptr<IncompleteClass>;

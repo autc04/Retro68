@@ -1,5 +1,5 @@
 ;; Predicate definitions for DEC Alpha.
-;; Copyright (C) 2004-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2015 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -638,7 +638,7 @@
   /* Avoid search unless necessary.  */
   if (!TARGET_EXPLICIT_RELOCS || !reload_completed)
     return false;
-  return for_each_rtx (&op, some_small_symbolic_operand_int, NULL);
+  return some_small_symbolic_operand_int (op);
 })
 
 ;; Accept a register, or a memory if BWX is enabled.

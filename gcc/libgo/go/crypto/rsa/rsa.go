@@ -6,6 +6,7 @@
 package rsa
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -58,9 +59,27 @@ type PrivateKey struct {
 	Precomputed PrecomputedValues
 }
 
+// Public returns the public key corresponding to priv.
+func (priv *PrivateKey) Public() crypto.PublicKey {
+	return &priv.PublicKey
+}
+
+// Sign signs msg with priv, reading randomness from rand. If opts is a
+// *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
+// be used. This method is intended to support keys where the private part is
+// kept in, for example, a hardware module. Common uses should use the Sign*
+// functions in this package.
+func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if pssOpts, ok := opts.(*PSSOptions); ok {
+		return SignPSS(rand, priv, pssOpts.Hash, msg, pssOpts)
+	}
+
+	return SignPKCS1v15(rand, priv, opts.HashFunc(), msg)
+}
+
 type PrecomputedValues struct {
 	Dp, Dq *big.Int // D mod (P-1) (or mod Q-1)
-	Qinv   *big.Int // Q^-1 mod Q
+	Qinv   *big.Int // Q^-1 mod P
 
 	// CRTValues is used for the 3rd and subsequent primes. Due to a
 	// historical accident, the CRT for the first two primes is handled
@@ -120,16 +139,18 @@ func (priv *PrivateKey) Validate() error {
 	return nil
 }
 
-// GenerateKey generates an RSA keypair of the given bit size.
+// GenerateKey generates an RSA keypair of the given bit size using the
+// random source random (for example, crypto/rand.Reader).
 func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err error) {
 	return GenerateMultiPrimeKey(random, 2, bits)
 }
 
 // GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
-// size, as suggested in [1]. Although the public keys are compatible
-// (actually, indistinguishable) from the 2-prime case, the private keys are
-// not. Thus it may not be possible to export multi-prime private keys in
-// certain formats or to subsequently import them into other code.
+// size and the given random source, as suggested in [1]. Although the public
+// keys are compatible (actually, indistinguishable) from the 2-prime case,
+// the private keys are not. Thus it may not be possible to export multi-prime
+// private keys in certain formats or to subsequently import them into other
+// code.
 //
 // Table 1 in [2] suggests maximum numbers of primes for a given size.
 //

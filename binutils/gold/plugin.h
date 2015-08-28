@@ -1,6 +1,6 @@
 // plugin.h -- plugin manager for gold      -*- C++ -*-
 
-// Copyright 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.
@@ -36,12 +36,17 @@ namespace gold
 class General_options;
 class Input_file;
 class Input_objects;
+class Archive;
+class Input_group;
+class Symbol;
 class Symbol_table;
 class Layout;
 class Dirsearch;
 class Mapfile;
+class Task;
 class Task_token;
 class Pluginobj;
+class Plugin_rescan;
 
 // This class represents a single plugin library.
 
@@ -54,7 +59,8 @@ class Plugin
       args_(),
       claim_file_handler_(NULL),
       all_symbols_read_handler_(NULL),
-      cleanup_handler_(NULL)      
+      cleanup_handler_(NULL),
+      cleanup_done_(false)
   { }
 
   ~Plugin()
@@ -66,7 +72,7 @@ class Plugin
 
   // Call the claim-file handler.
   bool
-  claim_file(struct ld_plugin_input_file *plugin_input_file);
+  claim_file(struct ld_plugin_input_file* plugin_input_file);
 
   // Call the all-symbols-read handler.
   void
@@ -93,7 +99,7 @@ class Plugin
 
   // Add an argument
   void
-  add_option(const char *arg)
+  add_option(const char* arg)
   {
     this->args_.push_back(arg);
   }
@@ -112,6 +118,8 @@ class Plugin
   ld_plugin_claim_file_handler claim_file_handler_;
   ld_plugin_all_symbols_read_handler all_symbols_read_handler_;
   ld_plugin_cleanup_handler cleanup_handler_;
+  // TRUE if the cleanup handlers have been called.
+  bool cleanup_done_;
 };
 
 // A manager class for plugins.
@@ -121,10 +129,12 @@ class Plugin_manager
  public:
   Plugin_manager(const General_options& options)
     : plugins_(), objects_(), deferred_layout_objects_(), input_file_(NULL),
-      plugin_input_file_(), in_replacement_phase_(false), cleanup_done_(false),
+      plugin_input_file_(), rescannable_(), undefined_symbols_(),
+      any_claimed_(false), in_replacement_phase_(false), any_added_(false),
+      in_claim_file_handler_(false),
       options_(options), workqueue_(NULL), task_(NULL), input_objects_(NULL),
       symtab_(NULL), layout_(NULL), dirpath_(NULL), mapfile_(NULL),
-      this_blocker_(NULL)
+      this_blocker_(NULL), extra_search_path_()
   { this->current_ = plugins_.end(); }
 
   ~Plugin_manager();
@@ -144,18 +154,44 @@ class Plugin_manager
 
   // Load all plugin libraries.
   void
-  load_plugins();
+  load_plugins(Layout* layout);
 
   // Call the plugin claim-file handlers in turn to see if any claim the file.
   Pluginobj*
-  claim_file(Input_file *input_file, off_t offset, off_t filesize);
+  claim_file(Input_file* input_file, off_t offset, off_t filesize,
+             Object* elf_object);
+
+  // Get the object associated with the handle and check if it is an elf object.
+  // If it is not a Pluginobj, it is an elf object.
+  Object*
+  get_elf_object(const void* handle);
+
+  // True if the claim_file handler of the plugins is being called.
+  bool
+  in_claim_file_handler()
+  { return in_claim_file_handler_; }
+
+  // Let the plugin manager save an archive for later rescanning.
+  // This takes ownership of the Archive pointer.
+  void
+  save_archive(Archive*);
+
+  // Let the plugin manager save an input group for later rescanning.
+  // This takes ownership of the Input_group pointer.
+  void
+  save_input_group(Input_group*);
 
   // Call the all-symbols-read handlers.
   void
   all_symbols_read(Workqueue* workqueue, Task* task,
                    Input_objects* input_objects, Symbol_table* symtab,
-                   Layout* layout, Dirsearch* dirpath, Mapfile* mapfile,
+                   Dirsearch* dirpath, Mapfile* mapfile,
                    Task_token** last_blocker);
+
+  // Tell the plugin manager that we've a new undefined symbol which
+  // may require rescanning.
+  void
+  new_undefined_symbol(Symbol*);
 
   // Run deferred layout.
   void
@@ -194,8 +230,8 @@ class Plugin_manager
   Pluginobj*
   make_plugin_object(unsigned int handle);
 
-  // Return the Pluginobj associated with the given HANDLE.
-  Pluginobj*
+  // Return the object associated with the given HANDLE.
+  Object*
   object(unsigned int handle) const
   {
     if (handle >= this->objects_.size())
@@ -207,7 +243,7 @@ class Plugin_manager
   // and we are still in the initial input phase.
   bool
   should_defer_layout() const
-  { return !this->objects_.empty() && !this->in_replacement_phase_; }
+  { return this->any_claimed_ && !this->in_replacement_phase_; }
 
   // Add a regular object to the deferred layout list.  These are
   // objects whose layout has been deferred until after the
@@ -219,7 +255,10 @@ class Plugin_manager
   // Get input file information with an open (possibly re-opened)
   // file descriptor.
   ld_plugin_status
-  get_input_file(unsigned int handle, struct ld_plugin_input_file *file);
+  get_input_file(unsigned int handle, struct ld_plugin_input_file* file);
+
+  ld_plugin_status
+  get_view(unsigned int handle, const void **viewp);
 
   // Release an input file.
   ld_plugin_status
@@ -227,20 +266,65 @@ class Plugin_manager
 
   // Add a new input file.
   ld_plugin_status
-  add_input_file(char *pathname, bool is_lib);
+  add_input_file(const char* pathname, bool is_lib);
+
+  // Set the extra library path.
+  ld_plugin_status
+  set_extra_library_path(const char* path);
 
   // Return TRUE if we are in the replacement phase.
   bool
   in_replacement_phase() const
   { return this->in_replacement_phase_; }
 
+  Input_objects*
+  input_objects() const
+  { return this->input_objects_; }
+
+  Layout*
+  layout()
+  { return this->layout_; }
+
  private:
   Plugin_manager(const Plugin_manager&);
   Plugin_manager& operator=(const Plugin_manager&);
 
+  // Plugin_rescan is a Task which calls the private rescan method.
+  friend class Plugin_rescan;
+
+  // An archive or input group which may have to be rescanned if a
+  // plugin adds a new file.
+  struct Rescannable
+  {
+    bool is_archive;
+    union
+    {
+      Archive* archive;
+      Input_group* input_group;
+    } u;
+
+    Rescannable(Archive* archive)
+      : is_archive(true)
+    { this->u.archive = archive; }
+
+    Rescannable(Input_group* input_group)
+      : is_archive(false)
+    { this->u.input_group = input_group; }
+  };
+
   typedef std::list<Plugin*> Plugin_list;
-  typedef std::vector<Pluginobj*> Object_list;
+  typedef std::vector<Object*> Object_list;
   typedef std::vector<Relobj*> Deferred_layout_list;
+  typedef std::vector<Rescannable> Rescannable_list;
+  typedef std::vector<Symbol*> Undefined_symbol_list;
+
+  // Rescan archives for undefined symbols.
+  void
+  rescan(Task*);
+
+  // See whether the rescannable at index I defines SYM.
+  bool
+  rescannable_defines(size_t i, Symbol* sym);
 
   // The list of plugin libraries.
   Plugin_list plugins_;
@@ -258,13 +342,26 @@ class Plugin_manager
   Input_file* input_file_;
   struct ld_plugin_input_file plugin_input_file_;
 
-  // TRUE after the all symbols read event; indicates that we are
-  // processing replacement files whose symbols should replace the
+  // A list of archives and input groups being saved for possible
+  // later rescanning.
+  Rescannable_list rescannable_;
+
+  // A list of undefined symbols found in added files.
+  Undefined_symbol_list undefined_symbols_;
+
+  // Whether any input files have been claimed by a plugin.
+  bool any_claimed_;
+
+  // Set to true after the all symbols read event; indicates that we
+  // are processing replacement files whose symbols should replace the
   // placeholder symbols from the Pluginobj objects.
   bool in_replacement_phase_;
 
-  // TRUE if the cleanup handlers have been called.
-  bool cleanup_done_;
+  // Whether any input files or libraries were added by a plugin.
+  bool any_added_;
+
+  // Set to true when the claim_file handler of a plugin is called.
+  bool in_claim_file_handler_;
 
   const General_options& options_;
   Workqueue* workqueue_;
@@ -275,6 +372,10 @@ class Plugin_manager
   Dirsearch* dirpath_;
   Mapfile* mapfile_;
   Task_token* this_blocker_;
+
+  // An extra directory to seach for the libraries passed by
+  // add_input_library.
+  std::string extra_search_path_;
 };
 
 
@@ -292,7 +393,9 @@ class Pluginobj : public Object
 
   // Fill in the symbol resolution status for the given plugin symbols.
   ld_plugin_status
-  get_symbol_resolution_info(int nsyms, ld_plugin_symbol* syms) const;
+  get_symbol_resolution_info(int nsyms,
+			     ld_plugin_symbol* syms,
+			     int version) const;
 
   // Store the incoming symbols from the plugin for later processing.
   void
@@ -330,7 +433,7 @@ class Pluginobj : public Object
 
   // The number of symbols provided by the plugin.
   int nsyms_;
-  
+
   // The symbols provided by the plugin.
   const struct ld_plugin_symbol* syms_;
 
@@ -367,17 +470,32 @@ class Sized_pluginobj : public Pluginobj
   void
   do_add_symbols(Symbol_table*, Read_symbols_data*, Layout*);
 
+  Archive::Should_include
+  do_should_include_member(Symbol_table* symtab, Layout*, Read_symbols_data*,
+                           std::string* why);
+
+  // Iterate over global symbols, calling a visitor class V for each.
+  void
+  do_for_all_global_symbols(Read_symbols_data* sd,
+			    Library_base::Symbol_visitor_base* v);
+
+  // Iterate over local symbols, calling a visitor class V for each GOT offset
+  // associated with a local symbol.
+  void
+  do_for_all_local_got_entries(Got_offset_list::Visitor* v) const;
+
   // Get the size of a section.
   uint64_t
   do_section_size(unsigned int shndx);
 
   // Get the name of a section.
   std::string
-  do_section_name(unsigned int shndx);
+  do_section_name(unsigned int shndx) const;
 
   // Return a view of the contents of a section.
-  Object::Location
-  do_section_contents(unsigned int shndx);
+  const unsigned char*
+  do_section_contents(unsigned int shndx, section_size_type* plen,
+		      bool cache);
 
   // Return section flags.
   uint64_t
@@ -415,6 +533,10 @@ class Sized_pluginobj : public Pluginobj
   void
   do_get_global_symbol_counts(const Symbol_table*, size_t*, size_t*) const;
 
+  // Get global symbols.
+  const Symbols*
+  do_get_global_symbols() const;
+
   // Add placeholder symbols from a claimed file.
   ld_plugin_status
   add_symbols_from_plugin(int nsyms, const ld_plugin_symbol* syms);
@@ -432,11 +554,11 @@ class Plugin_hook : public Task
 {
  public:
   Plugin_hook(const General_options& options, Input_objects* input_objects,
-	      Symbol_table* symtab, Layout* layout, Dirsearch* dirpath,
+	      Symbol_table* symtab, Layout* /*layout*/, Dirsearch* dirpath,
 	      Mapfile* mapfile, Task_token* this_blocker,
 	      Task_token* next_blocker)
     : options_(options), input_objects_(input_objects), symtab_(symtab),
-      layout_(layout), dirpath_(dirpath), mapfile_(mapfile),
+      dirpath_(dirpath), mapfile_(mapfile),
       this_blocker_(this_blocker), next_blocker_(next_blocker)
   { }
 
@@ -461,7 +583,6 @@ class Plugin_hook : public Task
   const General_options& options_;
   Input_objects* input_objects_;
   Symbol_table* symtab_;
-  Layout* layout_;
   Dirsearch* dirpath_;
   Mapfile* mapfile_;
   Task_token* this_blocker_;

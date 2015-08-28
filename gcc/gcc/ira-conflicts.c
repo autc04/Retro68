@@ -1,5 +1,5 @@
 /* IRA conflict builder.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2015 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -28,6 +28,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "target.h"
 #include "flags.h"
 #include "hard-reg-set.h"
+#include "predict.h"
+#include "vec.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "input.h"
+#include "function.h"
 #include "basic-block.h"
 #include "insn-config.h"
 #include "recog.h"
@@ -60,7 +67,7 @@ static IRA_INT_TYPE **conflicts;
 
 /* Record a conflict between objects OBJ1 and OBJ2.  If necessary,
    canonicalize the conflict by recording it for lower-order subobjects
-   of the corresponding allocnos. */
+   of the corresponding allocnos.  */
 static void
 record_object_conflict (ira_object_t obj1, ira_object_t obj2)
 {
@@ -115,8 +122,8 @@ build_conflict_bit_table (void)
 	  = ((OBJECT_MAX (obj) - OBJECT_MIN (obj) + IRA_INT_BITS)
 	     / IRA_INT_BITS);
 	allocated_words_num += conflict_bit_vec_words_num;
-	if ((unsigned HOST_WIDEST_INT) allocated_words_num * sizeof (IRA_INT_TYPE)
-	    > (unsigned HOST_WIDEST_INT) IRA_MAX_CONFLICT_TABLE_SIZE * 1024 * 1024)
+	if ((uint64_t) allocated_words_num * sizeof (IRA_INT_TYPE)
+	    > (uint64_t) IRA_MAX_CONFLICT_TABLE_SIZE * 1024 * 1024)
 	  {
 	    if (internal_flag_ira_verbose > 0 && ira_dump_file != NULL)
 	      fprintf
@@ -170,7 +177,6 @@ build_conflict_bit_table (void)
 	  gcc_assert (id < ira_objects_num);
 
 	  aclass = ALLOCNO_CLASS (allocno);
-	  sparseset_set_bit (objects_live, id);
 	  EXECUTE_IF_SET_IN_SPARSESET (objects_live, j)
 	    {
 	      ira_object_t live_obj = ira_object_id_map[j];
@@ -184,6 +190,7 @@ build_conflict_bit_table (void)
 		  record_object_conflict (obj, live_obj);
 		}
 	    }
+	  sparseset_set_bit (objects_live, id);
 	}
 
       for (r = ira_finish_point_ranges[i]; r != NULL; r = r->finish_next)
@@ -244,13 +251,13 @@ go_through_subreg (rtx x, int *offset)
    FALSE.  */
 static bool
 process_regs_for_copy (rtx reg1, rtx reg2, bool constraint_p,
-		       rtx insn, int freq)
+		       rtx_insn *insn, int freq)
 {
   int allocno_preferenced_hard_regno, cost, index, offset1, offset2;
   bool only_regs_p;
   ira_allocno_t a;
   reg_class_t rclass, aclass;
-  enum machine_mode mode;
+  machine_mode mode;
   ira_copy_t cp;
 
   gcc_assert (REG_SUBREG_P (reg1) && REG_SUBREG_P (reg2));
@@ -345,7 +352,7 @@ process_reg_shuffles (rtx reg, int op_num, int freq, bool *bound_p)
 	  || bound_p[i])
 	continue;
 
-      process_regs_for_copy (reg, another_reg, false, NULL_RTX, freq);
+      process_regs_for_copy (reg, another_reg, false, NULL, freq);
     }
 }
 
@@ -353,7 +360,7 @@ process_reg_shuffles (rtx reg, int op_num, int freq, bool *bound_p)
    it might be because INSN is a pseudo-register move or INSN is two
    operand insn.  */
 static void
-add_insn_allocno_copies (rtx insn)
+add_insn_allocno_copies (rtx_insn *insn)
 {
   rtx set, operand, dup;
   bool bound_p[MAX_RECOG_OPERANDS];
@@ -396,7 +403,7 @@ add_insn_allocno_copies (rtx insn)
 				REG_P (operand)
 				? operand
 				: SUBREG_REG (operand)) != NULL_RTX)
-	    process_regs_for_copy (operand, dup, true, NULL_RTX,
+	    process_regs_for_copy (operand, dup, true, NULL,
 				   freq);
 	}
     }
@@ -421,7 +428,7 @@ static void
 add_copies (ira_loop_tree_node_t loop_tree_node)
 {
   basic_block bb;
-  rtx insn;
+  rtx_insn *insn;
 
   bb = loop_tree_node->bb;
   if (bb == NULL)
@@ -772,6 +779,27 @@ ira_build_conflicts (void)
 				no_caller_save_reg_set);
 	      IOR_HARD_REG_SET (OBJECT_CONFLICT_HARD_REGS (obj),
 				temp_hard_reg_set);
+	    }
+
+	  /* Now we deal with paradoxical subreg cases where certain registers
+	     cannot be accessed in the widest mode.  */
+	  machine_mode outer_mode = ALLOCNO_WMODE (a);
+	  machine_mode inner_mode = ALLOCNO_MODE (a);
+	  if (GET_MODE_SIZE (outer_mode) > GET_MODE_SIZE (inner_mode))
+	    {
+	      enum reg_class aclass = ALLOCNO_CLASS (a);
+	      for (int j = ira_class_hard_regs_num[aclass] - 1; j >= 0; --j)
+		{
+		   int inner_regno = ira_class_hard_regs[aclass][j];
+		   int outer_regno = simplify_subreg_regno (inner_regno,
+							    inner_mode, 0,
+							    outer_mode);
+		   if (outer_regno < 0
+		       || !in_hard_reg_set_p (reg_class_contents[aclass],
+					      outer_mode, outer_regno))
+		     SET_HARD_REG_BIT (OBJECT_CONFLICT_HARD_REGS (obj),
+				       inner_regno);
+		}
 	    }
 
 	  if (ALLOCNO_CALLS_CROSSED_NUM (a) != 0)

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -72,11 +72,11 @@ package body ALI is
       --  These two loops are empty and harmless the first time in.
 
       for J in ALIs.First .. ALIs.Last loop
-         Set_Name_Table_Info (ALIs.Table (J).Afile, 0);
+         Set_Name_Table_Int (ALIs.Table (J).Afile, 0);
       end loop;
 
       for J in Units.First .. Units.Last loop
-         Set_Name_Table_Info (Units.Table (J).Uname, 0);
+         Set_Name_Table_Int (Units.Table (J).Uname, 0);
       end loop;
 
       --  Free argument table strings
@@ -108,13 +108,14 @@ package body ALI is
       --  ALI files that are read for a given processing run in gnatbind.
 
       Dynamic_Elaboration_Checks_Specified   := False;
-      Float_Format_Specified                 := ' ';
       Locking_Policy_Specified               := ' ';
       No_Normalize_Scalars_Specified         := False;
       No_Object_Specified                    := False;
+      GNATprove_Mode_Specified               := False;
       Normalize_Scalars_Specified            := False;
       Partition_Elaboration_Policy_Specified := ' ';
       Queuing_Policy_Specified               := ' ';
+      SSO_Default_Specified                  := False;
       Static_Elaboration_Model_Used          := False;
       Task_Dispatching_Policy_Specified      := ' ';
       Unreserve_All_Interrupts_Specified     := False;
@@ -866,7 +867,7 @@ package body ALI is
 
       ALIs.Increment_Last;
       Id := ALIs.Last;
-      Set_Name_Table_Info (F, Int (Id));
+      Set_Name_Table_Int (F, Int (Id));
 
       ALIs.Table (Id) := (
         Afile                        => F,
@@ -875,7 +876,7 @@ package body ALI is
         First_Sdep                   => No_Sdep_Id,
         First_Specific_Dispatching   => Specific_Dispatching.Last + 1,
         First_Unit                   => No_Unit_Id,
-        Float_Format                 => 'I',
+        GNATprove_Mode               => False,
         Last_Interrupt_State         => Interrupt_States.Last,
         Last_Sdep                    => No_Sdep_Id,
         Last_Specific_Dispatching    => Specific_Dispatching.Last,
@@ -892,9 +893,9 @@ package body ALI is
         Restrictions                 => No_Restrictions,
         SAL_Interface                => False,
         Sfile                        => No_File,
+        SSO_Default                  => ' ',
         Task_Dispatching_Policy      => ' ',
         Time_Slice_Value             => -1,
-        Allocator_In_Body            => False,
         WC_Encoding                  => 'b',
         Unit_Exception_Table         => False,
         Ver                          => (others => ' '),
@@ -973,14 +974,6 @@ package body ALI is
                   P := P + 1;
                   Checkc ('=');
                   ALIs.Table (Id).Time_Slice_Value := Get_Nat;
-               end if;
-
-               Skip_Space;
-
-               if Nextc = 'A' then
-                  P := P + 1;
-                  Checkc ('B');
-                  ALIs.Table (Id).Allocator_In_Body := True;
                end if;
 
                Skip_Space;
@@ -1098,11 +1091,12 @@ package body ALI is
                ALIs.Table (Id).Partition_Elaboration_Policy :=
                  Partition_Elaboration_Policy_Specified;
 
-            --  Processing for FD/FG/FI
+            --  Processing for GP
 
-            elsif C = 'F' then
-               Float_Format_Specified := Getc;
-               ALIs.Table (Id).Float_Format := Float_Format_Specified;
+            elsif C = 'G' then
+               Checkc ('P');
+               GNATprove_Mode_Specified := True;
+               ALIs.Table (Id).GNATprove_Mode := True;
 
             --  Processing for Lx
 
@@ -1135,6 +1129,19 @@ package body ALI is
                   NS_Found := True;
 
                --  Invalid switch starting with N
+
+               else
+                  Fatal_Error_Ignore;
+               end if;
+
+            --  Processing for OH/OL
+
+            elsif C = 'O' then
+               C := Getc;
+
+               if C = 'L' or else C = 'H' then
+                  ALIs.Table (Id).SSO_Default := C;
+                  SSO_Default_Specified := True;
 
                else
                   Fatal_Error_Ignore;
@@ -1697,6 +1704,7 @@ package body ALI is
             UL.Shared_Passive           := False;
             UL.RCI                      := False;
             UL.Remote_Types             := False;
+            UL.Serious_Errors           := False;
             UL.Has_RACW                 := False;
             UL.Init_Scalars             := False;
             UL.Is_Generic               := False;
@@ -1730,7 +1738,7 @@ package body ALI is
          --  Check for duplicated unit in different files
 
          declare
-            Info : constant Int := Get_Name_Table_Info
+            Info : constant Int := Get_Name_Table_Int
                                      (Units.Table (Units.Last).Uname);
          begin
             if Info /= 0
@@ -1778,7 +1786,7 @@ package body ALI is
             end if;
          end;
 
-         Set_Name_Table_Info
+         Set_Name_Table_Int
            (Units.Table (Units.Last).Uname, Int (Units.Last));
 
          --  Scan out possible version and other parameters
@@ -1949,10 +1957,14 @@ package body ALI is
 
                Check_At_End_Of_Field;
 
+            --  SE/SP/SU parameters
+
             elsif C = 'S' then
                C := Getc;
 
-               if C = 'P' then
+               if C = 'E' then
+                  Units.Table (Units.Last).Serious_Errors := True;
+               elsif C = 'P' then
                   Units.Table (Units.Last).Shared_Passive := True;
                elsif C = 'U' then
                   Units.Table (Units.Last).Unit_Kind := 's';
@@ -2179,20 +2191,30 @@ package body ALI is
                Notes.Table (Notes.Last).Pragma_Line := Get_Nat;
                Checkc (':');
                Notes.Table (Notes.Last).Pragma_Col  := Get_Nat;
-               Notes.Table (Notes.Last).Unit        := Units.Last;
+
+               if not At_Eol and then Nextc = ':' then
+                  Checkc (':');
+                  Notes.Table (Notes.Last).Pragma_Source_File :=
+                    Get_File_Name (Lower => True);
+               else
+                  Notes.Table (Notes.Last).Pragma_Source_File :=
+                    Units.Table (Units.Last).Sfile;
+               end if;
 
                if At_Eol then
                   Notes.Table (Notes.Last).Pragma_Args := No_Name;
 
                else
+                  --  Note: can't use Get_Name here as the remainder of the
+                  --  line is unstructured text whose syntax depends on the
+                  --  particular pragma used.
+
                   Checkc (' ');
 
                   Name_Len := 0;
                   while not At_Eol loop
                      Add_Char_To_Name_Buffer (Getc);
                   end loop;
-
-                  Notes.Table (Notes.Last).Pragma_Args := Name_Enter;
                end if;
 
                Skip_Eol;
@@ -2326,9 +2348,10 @@ package body ALI is
                end if;
             end;
 
-            --  Acquire subunit and reference file name entries
+            --  Acquire (sub)unit and reference file name entries
 
             Sdep.Table (Sdep.Last).Subunit_Name := No_Name;
+            Sdep.Table (Sdep.Last).Unit_Name    := No_Name;
             Sdep.Table (Sdep.Last).Rfile        :=
               Sdep.Table (Sdep.Last).Sfile;
             Sdep.Table (Sdep.Last).Start_Line   := 1;
@@ -2336,7 +2359,7 @@ package body ALI is
             if not At_Eol then
                Skip_Space;
 
-               --  Here for subunit name
+               --  Here for (sub)unit name
 
                if Nextc not in '0' .. '9' then
                   Name_Len := 0;
@@ -2344,11 +2367,18 @@ package body ALI is
                      Add_Char_To_Name_Buffer (Getc);
                   end loop;
 
-                  --  Set the subunit name. Note that we use Name_Find rather
+                  --  Set the (sub)unit name. Note that we use Name_Find rather
                   --  than Name_Enter here as the subunit name may already
                   --  have been put in the name table by the Project Manager.
 
-                  Sdep.Table (Sdep.Last).Subunit_Name := Name_Find;
+                  if Name_Len <= 2
+                    or else Name_Buffer (Name_Len - 1) /= '%'
+                  then
+                     Sdep.Table (Sdep.Last).Subunit_Name := Name_Find;
+                  else
+                     Name_Len := Name_Len - 2;
+                     Sdep.Table (Sdep.Last).Unit_Name := Name_Find;
+                  end if;
 
                   Skip_Space;
                end if;

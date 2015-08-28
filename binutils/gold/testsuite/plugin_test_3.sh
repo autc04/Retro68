@@ -2,7 +2,7 @@
 
 # plugin_test_3.sh -- a test case for the plugin API.
 
-# Copyright 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2008-2014 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@google.com>.
 
 # This file is part of gold.
@@ -46,7 +46,7 @@ check plugin_test_3.err "two_file_test_main.o: claim file hook called"
 check plugin_test_3.err "two_file_test_1.syms: claim file hook called"
 check plugin_test_3.err "two_file_test_1b.syms: claim file hook called"
 check plugin_test_3.err "two_file_test_2.syms: claim file hook called"
-check plugin_test_3.err "two_file_test_1.syms: _Z4f13iv: PREVAILING_DEF_REG"
+check plugin_test_3.err "two_file_test_1.syms: _Z4f13iv: PREVAILING_DEF_IRONLY_EXP"
 check plugin_test_3.err "two_file_test_1.syms: _Z2t2v: PREVAILING_DEF_REG"
 check plugin_test_3.err "two_file_test_1.syms: v2: RESOLVED_IR"
 check plugin_test_3.err "two_file_test_1.syms: t17data: RESOLVED_IR"

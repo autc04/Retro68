@@ -1,5 +1,5 @@
 /* Common hooks for MIPS.
-   Copyright (C) 1989-2014 Free Software Foundation, Inc.
+   Copyright (C) 1989-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -40,6 +40,15 @@ mips_handle_option (struct gcc_options *opts,
     {
     case OPT_mno_flush_func:
       opts->x_mips_cache_flush_func = NULL;
+      return true;
+
+    case OPT_mfp32:
+    case OPT_mfp64:
+      opts->x_target_flags &= ~MASK_FLOATXX;
+      return true;
+
+    case OPT_mfpxx:
+      opts->x_target_flags &= ~MASK_FLOAT64;
       return true;
 
     default:

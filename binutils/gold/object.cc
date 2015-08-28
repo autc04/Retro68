@@ -1,6 +1,6 @@
 // object.cc -- support for an object file for linking in gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -39,9 +39,34 @@
 #include "object.h"
 #include "dynobj.h"
 #include "plugin.h"
+#include "compressed_output.h"
+#include "incremental.h"
 
 namespace gold
 {
+
+// Struct Read_symbols_data.
+
+// Destroy any remaining File_view objects and buffers of decompressed
+// sections.
+
+Read_symbols_data::~Read_symbols_data()
+{
+  if (this->section_headers != NULL)
+    delete this->section_headers;
+  if (this->section_names != NULL)
+    delete this->section_names;
+  if (this->symbols != NULL)
+    delete this->symbols;
+  if (this->symbol_names != NULL)
+    delete this->symbol_names;
+  if (this->versym != NULL)
+    delete this->versym;
+  if (this->verdef != NULL)
+    delete this->verdef;
+  if (this->verneed != NULL)
+    delete this->verneed;
+}
 
 // Class Xindex.
 
@@ -154,18 +179,9 @@ Object::error(const char* format, ...) const
 const unsigned char*
 Object::section_contents(unsigned int shndx, section_size_type* plen,
 			 bool cache)
-{
-  Location loc(this->do_section_contents(shndx));
-  *plen = convert_to_section_size_type(loc.data_size);
-  if (*plen == 0)
-    {
-      static const unsigned char empty[1] = { '\0' };
-      return empty;
-    }
-  return this->get_view(loc.file_offset, *plen, true, cache);
-}
+{ return this->do_section_contents(shndx, plen, cache); }
 
-// Read the section data into SD.  This is code common to Sized_relobj
+// Read the section data into SD.  This is code common to Sized_relobj_file
 // and Sized_dynobj, so we put it into Object.
 
 template<int size, bool big_endian>
@@ -232,7 +248,7 @@ Object::handle_gnu_warning_section(const char* name, unsigned int shndx,
 }
 
 // If NAME is the name of the special section which indicates that
-// this object was compiled with -fstack-split, mark it accordingly.
+// this object was compiled with -fsplit-stack, mark it accordingly.
 
 bool
 Object::handle_split_stack_section(const char* name)
@@ -253,28 +269,28 @@ Object::handle_split_stack_section(const char* name)
 // Class Relobj
 
 // To copy the symbols data read from the file to a local data structure.
-// This function is called from do_layout only while doing garbage 
+// This function is called from do_layout only while doing garbage
 // collection.
 
 void
-Relobj::copy_symbols_data(Symbols_data* gc_sd, Read_symbols_data* sd, 
-                          unsigned int section_header_size)
+Relobj::copy_symbols_data(Symbols_data* gc_sd, Read_symbols_data* sd,
+			  unsigned int section_header_size)
 {
-  gc_sd->section_headers_data = 
-         new unsigned char[(section_header_size)];
+  gc_sd->section_headers_data =
+	 new unsigned char[(section_header_size)];
   memcpy(gc_sd->section_headers_data, sd->section_headers->data(),
-         section_header_size);
-  gc_sd->section_names_data = 
-         new unsigned char[sd->section_names_size];
+	 section_header_size);
+  gc_sd->section_names_data =
+	 new unsigned char[sd->section_names_size];
   memcpy(gc_sd->section_names_data, sd->section_names->data(),
-         sd->section_names_size);
+	 sd->section_names_size);
   gc_sd->section_names_size = sd->section_names_size;
   if (sd->symbols != NULL)
     {
-      gc_sd->symbols_data = 
-             new unsigned char[sd->symbols_size];
+      gc_sd->symbols_data =
+	     new unsigned char[sd->symbols_size];
       memcpy(gc_sd->symbols_data, sd->symbols->data(),
-            sd->symbols_size);
+	    sd->symbols_size);
     }
   else
     {
@@ -285,9 +301,9 @@ Relobj::copy_symbols_data(Symbols_data* gc_sd, Read_symbols_data* sd,
   if (sd->symbol_names != NULL)
     {
       gc_sd->symbol_names_data =
-             new unsigned char[sd->symbol_names_size];
+	     new unsigned char[sd->symbol_names_size];
       memcpy(gc_sd->symbol_names_data, sd->symbol_names->data(),
-            sd->symbol_names_size);
+	    sd->symbol_names_size);
     }
   else
     {
@@ -303,35 +319,103 @@ Relobj::copy_symbols_data(Symbols_data* gc_sd, Read_symbols_data* sd,
 bool
 Relobj::is_section_name_included(const char* name)
 {
-  if (is_prefix_of(".ctors", name) 
-      || is_prefix_of(".dtors", name) 
-      || is_prefix_of(".note", name) 
-      || is_prefix_of(".init", name) 
-      || is_prefix_of(".fini", name) 
-      || is_prefix_of(".gcc_except_table", name) 
-      || is_prefix_of(".jcr", name) 
-      || is_prefix_of(".preinit_array", name) 
-      || (is_prefix_of(".text", name) 
-          && strstr(name, "personality")) 
-      || (is_prefix_of(".data", name) 
-          &&  strstr(name, "personality")) 
-      || (is_prefix_of(".gnu.linkonce.d", name) && 
-            strstr(name, "personality")))
+  if (is_prefix_of(".ctors", name)
+      || is_prefix_of(".dtors", name)
+      || is_prefix_of(".note", name)
+      || is_prefix_of(".init", name)
+      || is_prefix_of(".fini", name)
+      || is_prefix_of(".gcc_except_table", name)
+      || is_prefix_of(".jcr", name)
+      || is_prefix_of(".preinit_array", name)
+      || (is_prefix_of(".text", name)
+	  && strstr(name, "personality"))
+      || (is_prefix_of(".data", name)
+	  && strstr(name, "personality"))
+      || (is_prefix_of(".sdata", name)
+	  && strstr(name, "personality"))
+      || (is_prefix_of(".gnu.linkonce.d", name)
+	  && strstr(name, "personality"))
+      || (is_prefix_of(".rodata", name)
+	  && strstr(name, "nptl_version")))
     {
-      return true; 
+      return true;
     }
   return false;
 }
 
+// Finalize the incremental relocation information.  Allocates a block
+// of relocation entries for each symbol, and sets the reloc_bases_
+// array to point to the first entry in each block.  If CLEAR_COUNTS
+// is TRUE, also clear the per-symbol relocation counters.
+
+void
+Relobj::finalize_incremental_relocs(Layout* layout, bool clear_counts)
+{
+  unsigned int nsyms = this->get_global_symbols()->size();
+  this->reloc_bases_ = new unsigned int[nsyms];
+
+  gold_assert(this->reloc_bases_ != NULL);
+  gold_assert(layout->incremental_inputs() != NULL);
+
+  unsigned int rindex = layout->incremental_inputs()->get_reloc_count();
+  for (unsigned int i = 0; i < nsyms; ++i)
+    {
+      this->reloc_bases_[i] = rindex;
+      rindex += this->reloc_counts_[i];
+      if (clear_counts)
+	this->reloc_counts_[i] = 0;
+    }
+  layout->incremental_inputs()->set_reloc_count(rindex);
+}
+
 // Class Sized_relobj.
 
+// Iterate over local symbols, calling a visitor class V for each GOT offset
+// associated with a local symbol.
+
 template<int size, bool big_endian>
-Sized_relobj<size, big_endian>::Sized_relobj(
+void
+Sized_relobj<size, big_endian>::do_for_all_local_got_entries(
+    Got_offset_list::Visitor* v) const
+{
+  unsigned int nsyms = this->local_symbol_count();
+  for (unsigned int i = 0; i < nsyms; i++)
+    {
+      Local_got_offsets::const_iterator p = this->local_got_offsets_.find(i);
+      if (p != this->local_got_offsets_.end())
+	{
+	  const Got_offset_list* got_offsets = p->second;
+	  got_offsets->for_all_got_offsets(v);
+	}
+    }
+}
+
+// Get the address of an output section.
+
+template<int size, bool big_endian>
+uint64_t
+Sized_relobj<size, big_endian>::do_output_section_address(
+    unsigned int shndx)
+{
+  // If the input file is linked as --just-symbols, the output
+  // section address is the input section address.
+  if (this->just_symbols())
+    return this->section_address(shndx);
+
+  const Output_section* os = this->do_output_section(shndx);
+  gold_assert(os != NULL);
+  return os->address();
+}
+
+// Class Sized_relobj_file.
+
+template<int size, bool big_endian>
+Sized_relobj_file<size, big_endian>::Sized_relobj_file(
     const std::string& name,
     Input_file* input_file,
     off_t offset,
     const elfcpp::Ehdr<size, big_endian>& ehdr)
-  : Relobj(name, input_file, offset),
+  : Sized_relobj<size, big_endian>(name, input_file, offset),
     elf_file_(this, ehdr),
     symtab_shndx_(-1U),
     local_symbol_count_(0),
@@ -342,15 +426,20 @@ Sized_relobj<size, big_endian>::Sized_relobj(
     local_symbol_offset_(0),
     local_dynsym_offset_(0),
     local_values_(),
-    local_got_offsets_(),
+    local_plt_offsets_(),
     kept_comdat_sections_(),
     has_eh_frame_(false),
-    discarded_eh_frame_shndx_(-1U)
+    discarded_eh_frame_shndx_(-1U),
+    is_deferred_layout_(false),
+    deferred_layout_(),
+    deferred_layout_relocs_(),
+    compressed_sections_()
 {
+  this->e_type_ = ehdr.get_e_type();
 }
 
 template<int size, bool big_endian>
-Sized_relobj<size, big_endian>::~Sized_relobj()
+Sized_relobj_file<size, big_endian>::~Sized_relobj_file()
 {
 }
 
@@ -359,7 +448,7 @@ Sized_relobj<size, big_endian>::~Sized_relobj()
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::do_setup()
+Sized_relobj_file<size, big_endian>::do_setup()
 {
   const unsigned int shnum = this->elf_file_.shnum();
   this->set_shnum(shnum);
@@ -372,7 +461,7 @@ Sized_relobj<size, big_endian>::do_setup()
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::find_symtab(const unsigned char* pshdrs)
+Sized_relobj_file<size, big_endian>::find_symtab(const unsigned char* pshdrs)
 {
   const unsigned int shnum = this->shnum();
   this->symtab_shndx_ = 0;
@@ -421,7 +510,7 @@ Sized_relobj<size, big_endian>::find_symtab(const unsigned char* pshdrs)
 
 template<int size, bool big_endian>
 Xindex*
-Sized_relobj<size, big_endian>::do_initialize_xindex()
+Sized_relobj_file<size, big_endian>::do_initialize_xindex()
 {
   gold_assert(this->symtab_shndx_ != -1U);
   Xindex* xindex = new Xindex(this->elf_file_.large_shndx_offset());
@@ -434,11 +523,72 @@ Sized_relobj<size, big_endian>::do_initialize_xindex()
 
 template<int size, bool big_endian>
 bool
-Sized_relobj<size, big_endian>::check_eh_frame_flags(
+Sized_relobj_file<size, big_endian>::check_eh_frame_flags(
     const elfcpp::Shdr<size, big_endian>* shdr) const
 {
-  return (shdr->get_sh_type() == elfcpp::SHT_PROGBITS
+  elfcpp::Elf_Word sh_type = shdr->get_sh_type();
+  return ((sh_type == elfcpp::SHT_PROGBITS
+	   || sh_type == elfcpp::SHT_X86_64_UNWIND)
 	  && (shdr->get_sh_flags() & elfcpp::SHF_ALLOC) != 0);
+}
+
+// Find the section header with the given name.
+
+template<int size, bool big_endian>
+const unsigned char*
+Object::find_shdr(
+    const unsigned char* pshdrs,
+    const char* name,
+    const char* names,
+    section_size_type names_size,
+    const unsigned char* hdr) const
+{
+  const int shdr_size = elfcpp::Elf_sizes<size>::shdr_size;
+  const unsigned int shnum = this->shnum();
+  const unsigned char* hdr_end = pshdrs + shdr_size * shnum;
+  size_t sh_name = 0;
+
+  while (1)
+    {
+      if (hdr)
+	{
+	  // We found HDR last time we were called, continue looking.
+	  typename elfcpp::Shdr<size, big_endian> shdr(hdr);
+	  sh_name = shdr.get_sh_name();
+	}
+      else
+	{
+	  // Look for the next occurrence of NAME in NAMES.
+	  // The fact that .shstrtab produced by current GNU tools is
+	  // string merged means we shouldn't have both .not.foo and
+	  // .foo in .shstrtab, and multiple .foo sections should all
+	  // have the same sh_name.  However, this is not guaranteed
+	  // by the ELF spec and not all ELF object file producers may
+	  // be so clever.
+	  size_t len = strlen(name) + 1;
+	  const char *p = sh_name ? names + sh_name + len : names;
+	  p = reinterpret_cast<const char*>(memmem(p, names_size - (p - names),
+						   name, len));
+	  if (p == NULL)
+	    return NULL;
+	  sh_name = p - names;
+	  hdr = pshdrs;
+	  if (sh_name == 0)
+	    return hdr;
+	}
+
+      hdr += shdr_size;
+      while (hdr < hdr_end)
+	{
+	  typename elfcpp::Shdr<size, big_endian> shdr(hdr);
+	  if (shdr.get_sh_name() == sh_name)
+	    return hdr;
+	  hdr += shdr_size;
+	}
+      hdr = NULL;
+      if (sh_name == 0)
+	return hdr;
+    }
 }
 
 // Return whether there is a GNU .eh_frame section, given the section
@@ -446,38 +596,177 @@ Sized_relobj<size, big_endian>::check_eh_frame_flags(
 
 template<int size, bool big_endian>
 bool
-Sized_relobj<size, big_endian>::find_eh_frame(
+Sized_relobj_file<size, big_endian>::find_eh_frame(
     const unsigned char* pshdrs,
     const char* names,
     section_size_type names_size) const
 {
-  const unsigned int shnum = this->shnum();
-  const unsigned char* p = pshdrs + This::shdr_size;
-  for (unsigned int i = 1; i < shnum; ++i, p += This::shdr_size)
+  const unsigned char* s = NULL;
+
+  while (1)
     {
-      typename This::Shdr shdr(p);
+      s = this->template find_shdr<size, big_endian>(pshdrs, ".eh_frame",
+						     names, names_size, s);
+      if (s == NULL)
+	return false;
+
+      typename This::Shdr shdr(s);
       if (this->check_eh_frame_flags(&shdr))
+	return true;
+    }
+}
+
+// Return TRUE if this is a section whose contents will be needed in the
+// Add_symbols task.  This function is only called for sections that have
+// already passed the test in is_compressed_debug_section(), so we know
+// that the section name begins with ".zdebug".
+
+static bool
+need_decompressed_section(const char* name)
+{
+  // Skip over the ".zdebug" and a quick check for the "_".
+  name += 7;
+  if (*name++ != '_')
+    return false;
+
+#ifdef ENABLE_THREADS
+  // Decompressing these sections now will help only if we're
+  // multithreaded.
+  if (parameters->options().threads())
+    {
+      // We will need .zdebug_str if this is not an incremental link
+      // (i.e., we are processing string merge sections) or if we need
+      // to build a gdb index.
+      if ((!parameters->incremental() || parameters->options().gdb_index())
+	  && strcmp(name, "str") == 0)
+	return true;
+
+      // We will need these other sections when building a gdb index.
+      if (parameters->options().gdb_index()
+	  && (strcmp(name, "info") == 0
+	      || strcmp(name, "types") == 0
+	      || strcmp(name, "pubnames") == 0
+	      || strcmp(name, "pubtypes") == 0
+	      || strcmp(name, "ranges") == 0
+	      || strcmp(name, "abbrev") == 0))
+	return true;
+    }
+#endif
+
+  // Even when single-threaded, we will need .zdebug_str if this is
+  // not an incremental link and we are building a gdb index.
+  // Otherwise, we would decompress the section twice: once for
+  // string merge processing, and once for building the gdb index.
+  if (!parameters->incremental()
+      && parameters->options().gdb_index()
+      && strcmp(name, "str") == 0)
+    return true;
+
+  return false;
+}
+
+// Build a table for any compressed debug sections, mapping each section index
+// to the uncompressed size and (if needed) the decompressed contents.
+
+template<int size, bool big_endian>
+Compressed_section_map*
+build_compressed_section_map(
+    const unsigned char* pshdrs,
+    unsigned int shnum,
+    const char* names,
+    section_size_type names_size,
+    Sized_relobj_file<size, big_endian>* obj)
+{
+  Compressed_section_map* uncompressed_map = new Compressed_section_map();
+  const unsigned int shdr_size = elfcpp::Elf_sizes<size>::shdr_size;
+  const unsigned char* p = pshdrs + shdr_size;
+
+  for (unsigned int i = 1; i < shnum; ++i, p += shdr_size)
+    {
+      typename elfcpp::Shdr<size, big_endian> shdr(p);
+      if (shdr.get_sh_type() == elfcpp::SHT_PROGBITS
+	  && (shdr.get_sh_flags() & elfcpp::SHF_ALLOC) == 0)
 	{
 	  if (shdr.get_sh_name() >= names_size)
 	    {
-	      this->error(_("bad section name offset for section %u: %lu"),
-			  i, static_cast<unsigned long>(shdr.get_sh_name()));
+	      obj->error(_("bad section name offset for section %u: %lu"),
+			 i, static_cast<unsigned long>(shdr.get_sh_name()));
 	      continue;
 	    }
 
 	  const char* name = names + shdr.get_sh_name();
-	  if (strcmp(name, ".eh_frame") == 0)
-	    return true;
+	  if (is_compressed_debug_section(name))
+	    {
+	      section_size_type len;
+	      const unsigned char* contents =
+		  obj->section_contents(i, &len, false);
+	      uint64_t uncompressed_size = get_uncompressed_size(contents, len);
+	      Compressed_section_info info;
+	      info.size = convert_to_section_size_type(uncompressed_size);
+	      info.contents = NULL;
+	      if (uncompressed_size != -1ULL)
+		{
+		  unsigned char* uncompressed_data = NULL;
+		  if (need_decompressed_section(name))
+		    {
+		      uncompressed_data = new unsigned char[uncompressed_size];
+		      if (decompress_input_section(contents, len,
+						   uncompressed_data,
+						   uncompressed_size))
+			info.contents = uncompressed_data;
+		      else
+			delete[] uncompressed_data;
+		    }
+		  (*uncompressed_map)[i] = info;
+		}
+	    }
 	}
     }
-  return false;
+  return uncompressed_map;
+}
+
+// Stash away info for a number of special sections.
+// Return true if any of the sections found require local symbols to be read.
+
+template<int size, bool big_endian>
+bool
+Sized_relobj_file<size, big_endian>::do_find_special_sections(
+    Read_symbols_data* sd)
+{
+  const unsigned char* const pshdrs = sd->section_headers->data();
+  const unsigned char* namesu = sd->section_names->data();
+  const char* names = reinterpret_cast<const char*>(namesu);
+
+  if (this->find_eh_frame(pshdrs, names, sd->section_names_size))
+    this->has_eh_frame_ = true;
+
+  if (memmem(names, sd->section_names_size, ".zdebug_", 8) != NULL)
+    this->compressed_sections_
+      = build_compressed_section_map(pshdrs, this->shnum(), names,
+				     sd->section_names_size, this);
+  return (this->has_eh_frame_
+	  || (!parameters->options().relocatable()
+	      && parameters->options().gdb_index()
+	      && (memmem(names, sd->section_names_size, "debug_info", 12) == 0
+		  || memmem(names, sd->section_names_size, "debug_types",
+			    13) == 0)));
 }
 
 // Read the sections and symbols from an object file.
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
+Sized_relobj_file<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
+{
+  this->base_read_symbols(sd);
+}
+
+// Read the sections and symbols from an object file.  This is common
+// code for all target-specific overrides of do_read_symbols().
+
+template<int size, bool big_endian>
+void
+Sized_relobj_file<size, big_endian>::base_read_symbols(Read_symbols_data* sd)
 {
   this->read_section_data(&this->elf_file_, sd);
 
@@ -485,13 +774,7 @@ Sized_relobj<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
 
   this->find_symtab(pshdrs);
 
-  const unsigned char* namesu = sd->section_names->data();
-  const char* names = reinterpret_cast<const char*>(namesu);
-  if (memmem(names, sd->section_names_size, ".eh_frame", 10) != NULL)
-    {
-      if (this->find_eh_frame(pshdrs, names, sd->section_names_size))
-        this->has_eh_frame_ = true;
-    }
+  bool need_local_symbols = this->do_find_special_sections(sd);
 
   sd->symbols = NULL;
   sd->symbols_size = 0;
@@ -510,7 +793,8 @@ Sized_relobj<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
 				 + this->symtab_shndx_ * This::shdr_size);
   gold_assert(symtabshdr.get_sh_type() == elfcpp::SHT_SYMTAB);
 
-  // If this object has a .eh_frame section, we need all the symbols.
+  // If this object has a .eh_frame section, or if building a .gdb_index
+  // section and there is debug info, we need all the symbols.
   // Otherwise we only need the external symbols.  While it would be
   // simpler to just always read all the symbols, I've seen object
   // files with well over 2000 local symbols, which for a 64-bit
@@ -528,8 +812,8 @@ Sized_relobj<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
   off_t extoff = dataoff + locsize;
   section_size_type extsize = datasize - locsize;
 
-  off_t readoff = this->has_eh_frame_ ? dataoff : extoff;
-  section_size_type readsize = this->has_eh_frame_ ? datasize : extsize;
+  off_t readoff = need_local_symbols ? dataoff : extoff;
+  section_size_type readsize = need_local_symbols ? datasize : extsize;
 
   if (readsize == 0)
     {
@@ -561,7 +845,7 @@ Sized_relobj<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
 
   sd->symbols = fvsymtab;
   sd->symbols_size = readsize;
-  sd->external_symbols_offset = this->has_eh_frame_ ? locsize : 0;
+  sd->external_symbols_offset = need_local_symbols ? locsize : 0;
   sd->symbol_names = fvstrtab;
   sd->symbol_names_size =
     convert_to_section_size_type(strtabshdr.get_sh_size());
@@ -569,16 +853,16 @@ Sized_relobj<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
 
 // Return the section index of symbol SYM.  Set *VALUE to its value in
 // the object file.  Set *IS_ORDINARY if this is an ordinary section
-// index.  not a special cod between SHN_LORESERVE and SHN_HIRESERVE.
+// index, not a special code between SHN_LORESERVE and SHN_HIRESERVE.
 // Note that for a symbol which is not defined in this object file,
 // this will set *VALUE to 0 and return SHN_UNDEF; it will not return
 // the final value of the symbol in the link.
 
 template<int size, bool big_endian>
 unsigned int
-Sized_relobj<size, big_endian>::symbol_section_and_value(unsigned int sym,
-							 Address* value,
-							 bool* is_ordinary)
+Sized_relobj_file<size, big_endian>::symbol_section_and_value(unsigned int sym,
+							      Address* value,
+							      bool* is_ordinary)
 {
   section_size_type symbols_size;
   const unsigned char* symbols = this->section_contents(this->symtab_shndx_,
@@ -602,7 +886,7 @@ Sized_relobj<size, big_endian>::symbol_section_and_value(unsigned int sym,
 
 template<int size, bool big_endian>
 bool
-Sized_relobj<size, big_endian>::include_section_group(
+Sized_relobj_file<size, big_endian>::include_section_group(
     Symbol_table* symtab,
     Layout* layout,
     unsigned int index,
@@ -624,10 +908,11 @@ Sized_relobj<size, big_endian>::include_section_group(
   // just like ordinary sections.
   elfcpp::Elf_Word flags = elfcpp::Swap<32, big_endian>::readval(pword);
 
-  // Look up the group signature, which is the name of a symbol.  This
-  // is a lot of effort to go to to read a string.  Why didn't they
-  // just have the group signature point into the string table, rather
-  // than indirect through a symbol?
+  // Look up the group signature, which is the name of a symbol.  ELF
+  // uses a symbol name because some group signatures are long, and
+  // the name is generally already in the symbol table, so it makes
+  // sense to put the long string just once in .strtab rather than in
+  // both .strtab and .shstrtab.
 
   // Get the appropriate symbol table header (this will normally be
   // the single SHT_SYMTAB section, but in principle it need not be).
@@ -681,7 +966,7 @@ Sized_relobj<size, big_endian>::include_section_group(
 	}
       typename This::Shdr member_shdr(shdrs + sym_shndx * This::shdr_size);
       if (member_shdr.get_sh_name() < section_names_size)
-        signature = section_names + member_shdr.get_sh_name();
+	signature = section_names + member_shdr.get_sh_name();
     }
 
   // Record this section group in the layout, and see whether we've already
@@ -701,6 +986,13 @@ Sized_relobj<size, big_endian>::include_section_group(
 						       this, index, true,
 						       true, &kept_section);
       is_comdat = true;
+    }
+
+  if (is_comdat && include_group)
+    {
+      Incremental_inputs* incremental_inputs = layout->incremental_inputs();
+      if (incremental_inputs != NULL)
+	incremental_inputs->report_comdat_group(this, signature.c_str());
     }
 
   size_t count = shdr.get_sh_size() / sizeof(elfcpp::Elf_Word);
@@ -728,18 +1020,18 @@ Sized_relobj<size, big_endian>::include_section_group(
       // Check for an earlier section number, since we're going to get
       // it wrong--we may have already decided to include the section.
       if (shndx < index)
-        this->error(_("invalid section group %u refers to earlier section %u"),
-                    index, shndx);
+	this->error(_("invalid section group %u refers to earlier section %u"),
+		    index, shndx);
 
       // Get the name of the member section.
       typename This::Shdr member_shdr(shdrs + shndx * This::shdr_size);
       if (member_shdr.get_sh_name() >= section_names_size)
-        {
-          // This is an error, but it will be diagnosed eventually
-          // in do_layout, so we don't need to do anything here but
-          // ignore it.
-          continue;
-        }
+	{
+	  // This is an error, but it will be diagnosed eventually
+	  // in do_layout, so we don't need to do anything here but
+	  // ignore it.
+	  continue;
+	}
       std::string mname(section_names + member_shdr.get_sh_name());
 
       if (include_group)
@@ -749,11 +1041,11 @@ Sized_relobj<size, big_endian>::include_section_group(
 					     member_shdr.get_sh_size());
 	}
       else
-        {
-          (*omit)[shndx] = true;
+	{
+	  (*omit)[shndx] = true;
 
 	  if (is_comdat)
-            {
+	    {
 	      Relobj* kept_object = kept_section->object();
 	      if (kept_section->is_comdat())
 		{
@@ -787,8 +1079,8 @@ Sized_relobj<size, big_endian>::include_section_group(
 		    this->set_kept_comdat_section(shndx, kept_object,
 						  kept_section->shndx());
 		}
-            }
-        }
+	    }
+	}
     }
 
   if (relocate_group)
@@ -815,7 +1107,7 @@ Sized_relobj<size, big_endian>::include_section_group(
 
 template<int size, bool big_endian>
 bool
-Sized_relobj<size, big_endian>::include_linkonce_section(
+Sized_relobj_file<size, big_endian>::include_linkonce_section(
     Layout* layout,
     unsigned int index,
     const char* name,
@@ -887,12 +1179,13 @@ Sized_relobj<size, big_endian>::include_linkonce_section(
 
 template<int size, bool big_endian>
 inline void
-Sized_relobj<size, big_endian>::layout_section(Layout* layout,
-                                               unsigned int shndx,
-                                               const char* name,
-                                               typename This::Shdr& shdr,
-                                               unsigned int reloc_shndx,
-                                               unsigned int reloc_type)
+Sized_relobj_file<size, big_endian>::layout_section(
+    Layout* layout,
+    unsigned int shndx,
+    const char* name,
+    const typename This::Shdr& shdr,
+    unsigned int reloc_shndx,
+    unsigned int reloc_type)
 {
   off_t offset;
   Output_section* os = layout->layout(this, shndx, name, shdr,
@@ -900,9 +1193,9 @@ Sized_relobj<size, big_endian>::layout_section(Layout* layout,
 
   this->output_sections()[shndx] = os;
   if (offset == -1)
-    this->section_offsets_[shndx] = invalid_address;
+    this->section_offsets()[shndx] = invalid_address;
   else
-    this->section_offsets_[shndx] = convert_types<Address, off_t>(offset);
+    this->section_offsets()[shndx] = convert_types<Address, off_t>(offset);
 
   // If this section requires special handling, and if there are
   // relocs that apply to it, then we must do the special handling
@@ -911,74 +1204,137 @@ Sized_relobj<size, big_endian>::layout_section(Layout* layout,
     this->set_relocs_must_follow_section_writes();
 }
 
-// Lay out the input sections.  We walk through the sections and check
-// whether they should be included in the link.  If they should, we
-// pass them to the Layout object, which will return an output section
-// and an offset.  
-// During garbage collection (--gc-sections) and identical code folding 
-// (--icf), this function is called twice.  When it is called the first 
-// time, it is for setting up some sections as roots to a work-list for
-// --gc-sections and to do comdat processing.  Actual layout happens the 
-// second time around after all the relevant sections have been determined.  
-// The first time, is_worklist_ready or is_icf_ready is false. It is then 
-// set to true after the garbage collection worklist or identical code 
-// folding is processed and the relevant sections to be kept are 
-// determined.  Then, this function is called again to layout the sections.
+// Layout an input .eh_frame section.
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
-					  Layout* layout,
-					  Read_symbols_data* sd)
+Sized_relobj_file<size, big_endian>::layout_eh_frame_section(
+    Layout* layout,
+    const unsigned char* symbols_data,
+    section_size_type symbols_size,
+    const unsigned char* symbol_names_data,
+    section_size_type symbol_names_size,
+    unsigned int shndx,
+    const typename This::Shdr& shdr,
+    unsigned int reloc_shndx,
+    unsigned int reloc_type)
+{
+  gold_assert(this->has_eh_frame_);
+
+  off_t offset;
+  Output_section* os = layout->layout_eh_frame(this,
+					       symbols_data,
+					       symbols_size,
+					       symbol_names_data,
+					       symbol_names_size,
+					       shndx,
+					       shdr,
+					       reloc_shndx,
+					       reloc_type,
+					       &offset);
+  this->output_sections()[shndx] = os;
+  if (os == NULL || offset == -1)
+    {
+      // An object can contain at most one section holding exception
+      // frame information.
+      gold_assert(this->discarded_eh_frame_shndx_ == -1U);
+      this->discarded_eh_frame_shndx_ = shndx;
+      this->section_offsets()[shndx] = invalid_address;
+    }
+  else
+    this->section_offsets()[shndx] = convert_types<Address, off_t>(offset);
+
+  // If this section requires special handling, and if there are
+  // relocs that aply to it, then we must do the special handling
+  // before we apply the relocs.
+  if (os != NULL && offset == -1 && reloc_shndx != 0)
+    this->set_relocs_must_follow_section_writes();
+}
+
+// Lay out the input sections.  We walk through the sections and check
+// whether they should be included in the link.  If they should, we
+// pass them to the Layout object, which will return an output section
+// and an offset.
+// This function is called twice sometimes, two passes, when mapping
+// of input sections to output sections must be delayed.
+// This is true for the following :
+// * Garbage collection (--gc-sections): Some input sections will be
+// discarded and hence the assignment must wait until the second pass.
+// In the first pass,  it is for setting up some sections as roots to
+// a work-list for --gc-sections and to do comdat processing.
+// * Identical Code Folding (--icf=<safe,all>): Some input sections
+// will be folded and hence the assignment must wait.
+// * Using plugins to map some sections to unique segments: Mapping
+// some sections to unique segments requires mapping them to unique
+// output sections too.  This can be done via plugins now and this
+// information is not available in the first pass.
+
+template<int size, bool big_endian>
+void
+Sized_relobj_file<size, big_endian>::do_layout(Symbol_table* symtab,
+					       Layout* layout,
+					       Read_symbols_data* sd)
 {
   const unsigned int shnum = this->shnum();
-  bool is_gc_pass_one = ((parameters->options().gc_sections() 
-                          && !symtab->gc()->is_worklist_ready())
-                         || (parameters->options().icf_enabled()
-                             && !symtab->icf()->is_icf_ready()));
- 
-  bool is_gc_pass_two = ((parameters->options().gc_sections() 
-                          && symtab->gc()->is_worklist_ready())
-                         || (parameters->options().icf_enabled()
-                             && symtab->icf()->is_icf_ready()));
 
-  bool is_gc_or_icf = (parameters->options().gc_sections()
-                       || parameters->options().icf_enabled()); 
+  /* Should this function be called twice?  */
+  bool is_two_pass = (parameters->options().gc_sections()
+		      || parameters->options().icf_enabled()
+		      || layout->is_unique_segment_for_sections_specified());
 
-  // Both is_gc_pass_one and is_gc_pass_two should not be true.
-  gold_assert(!(is_gc_pass_one  && is_gc_pass_two));
+  /* Only one of is_pass_one and is_pass_two is true.  Both are false when
+     a two-pass approach is not needed.  */
+  bool is_pass_one = false;
+  bool is_pass_two = false;
 
+  Symbols_data* gc_sd = NULL;
+
+  /* Check if do_layout needs to be two-pass.  If so, find out which pass
+     should happen.  In the first pass, the data in sd is saved to be used
+     later in the second pass.  */
+  if (is_two_pass)
+    {
+      gc_sd = this->get_symbols_data();
+      if (gc_sd == NULL)
+	{
+	  gold_assert(sd != NULL);
+	  is_pass_one = true;
+	}
+      else
+	{
+	  if (parameters->options().gc_sections())
+	    gold_assert(symtab->gc()->is_worklist_ready());
+	  if (parameters->options().icf_enabled())
+	    gold_assert(symtab->icf()->is_icf_ready()); 
+	  is_pass_two = true;
+	}
+    }
+    
   if (shnum == 0)
     return;
-  Symbols_data* gc_sd = NULL;
-  if (is_gc_pass_one)
+
+  if (is_pass_one)
     {
-      // During garbage collection save the symbols data to use it when 
-      // re-entering this function.   
+      // During garbage collection save the symbols data to use it when
+      // re-entering this function.
       gc_sd = new Symbols_data;
       this->copy_symbols_data(gc_sd, sd, This::shdr_size * shnum);
       this->set_symbols_data(gc_sd);
-    }
-  else if (is_gc_pass_two)
-    {
-      gc_sd = this->get_symbols_data();
     }
 
   const unsigned char* section_headers_data = NULL;
   section_size_type section_names_size;
   const unsigned char* symbols_data = NULL;
   section_size_type symbols_size;
-  section_offset_type external_symbols_offset;
   const unsigned char* symbol_names_data = NULL;
   section_size_type symbol_names_size;
- 
-  if (is_gc_or_icf)
+
+  if (is_two_pass)
     {
       section_headers_data = gc_sd->section_headers_data;
       section_names_size = gc_sd->section_names_size;
       symbols_data = gc_sd->symbols_data;
       symbols_size = gc_sd->symbols_size;
-      external_symbols_offset = gc_sd->external_symbols_offset;
       symbol_names_data = gc_sd->symbol_names_data;
       symbol_names_size = gc_sd->symbol_names_size;
     }
@@ -987,11 +1343,10 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
       section_headers_data = sd->section_headers->data();
       section_names_size = sd->section_names_size;
       if (sd->symbols != NULL)
-        symbols_data = sd->symbols->data();
+	symbols_data = sd->symbols->data();
       symbols_size = sd->symbols_size;
-      external_symbols_offset = sd->external_symbols_offset;
       if (sd->symbol_names != NULL)
-        symbol_names_data = sd->symbol_names->data();
+	symbol_names_data = sd->symbol_names->data();
       symbol_names_size = sd->symbol_names_size;
     }
 
@@ -1000,9 +1355,9 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
   const unsigned char* pshdrs;
 
   // Get the section names.
-  const unsigned char* pnamesu = (is_gc_or_icf) 
-                                 ? gc_sd->section_names_data
-                                 : sd->section_names->data();
+  const unsigned char* pnamesu = (is_two_pass
+				  ? gc_sd->section_names_data
+				  : sd->section_names->data());
 
   const char* pnames = reinterpret_cast<const char*>(pnamesu);
 
@@ -1026,7 +1381,7 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
 
       // Count the number of sections whose layout will be deferred.
       if (should_defer_layout && (shdr.get_sh_flags() & elfcpp::SHF_ALLOC))
-        ++num_sections_to_defer;
+	++num_sections_to_defer;
 
       unsigned int sh_type = shdr.get_sh_type();
       if (sh_type == elfcpp::SHT_REL || sh_type == elfcpp::SHT_RELA)
@@ -1050,9 +1405,9 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
     }
 
   Output_sections& out_sections(this->output_sections());
-  std::vector<Address>& out_section_offsets(this->section_offsets_);
+  std::vector<Address>& out_section_offsets(this->section_offsets());
 
-  if (!is_gc_pass_two)
+  if (!is_pass_two)
     {
       out_sections.resize(shnum);
       out_section_offsets.resize(shnum);
@@ -1062,13 +1417,13 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
   // do here.
   if (this->input_file()->just_symbols())
     {
-      if (!is_gc_pass_two)
-        {
-          delete sd->section_headers;
-          sd->section_headers = NULL;
-          delete sd->section_names;
-          sd->section_names = NULL;
-        }
+      if (!is_pass_two)
+	{
+	  delete sd->section_headers;
+	  sd->section_headers = NULL;
+	  delete sd->section_names;
+	  sd->section_names = NULL;
+	}
       return;
     }
 
@@ -1076,6 +1431,7 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
     {
       parameters->options().plugins()->add_deferred_layout_object(this);
       this->deferred_layout_.reserve(num_sections_to_defer);
+      this->is_deferred_layout_ = true;
     }
 
   // Whether we've seen a .note.GNU-stack section.
@@ -1095,6 +1451,10 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
   // Keep track of .eh_frame sections.
   std::vector<unsigned int> eh_frame_sections;
 
+  // Keep track of .debug_info and .debug_types sections.
+  std::vector<unsigned int> debug_info_sections;
+  std::vector<unsigned int> debug_types_sections;
+
   // Skip the first, dummy, section.
   pshdrs = shdrs + This::shdr_size;
   for (unsigned int i = 1; i < shnum; ++i, pshdrs += This::shdr_size)
@@ -1110,71 +1470,98 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
 
       const char* name = pnames + shdr.get_sh_name();
 
-      if (!is_gc_pass_two)
-        { 
-          if (this->handle_gnu_warning_section(name, i, symtab))
-            { 
-    	      if (!relocatable)
-	        omit[i] = true;
+      if (!is_pass_two)
+	{
+	  if (this->handle_gnu_warning_section(name, i, symtab))
+	    {
+	      if (!relocatable && !parameters->options().shared())
+		omit[i] = true;
 	    }
 
-          // The .note.GNU-stack section is special.  It gives the
-          // protection flags that this object file requires for the stack
-          // in memory.
-          if (strcmp(name, ".note.GNU-stack") == 0)
-            {
+	  // The .note.GNU-stack section is special.  It gives the
+	  // protection flags that this object file requires for the stack
+	  // in memory.
+	  if (strcmp(name, ".note.GNU-stack") == 0)
+	    {
 	      seen_gnu_stack = true;
 	      gnu_stack_flags |= shdr.get_sh_flags();
 	      omit[i] = true;
-            }
+	    }
 
 	  // The .note.GNU-split-stack section is also special.  It
 	  // indicates that the object was compiled with
 	  // -fsplit-stack.
 	  if (this->handle_split_stack_section(name))
 	    {
-	      if (!parameters->options().relocatable()
-		  && !parameters->options().shared())
+	      if (!relocatable && !parameters->options().shared())
 		omit[i] = true;
 	    }
 
-          bool discard = omit[i];
-          if (!discard)
-            {
-	      if (shdr.get_sh_type() == elfcpp::SHT_GROUP)
-	        {
-	          if (!this->include_section_group(symtab, layout, i, name, 
-                                                   shdrs, pnames, 
-                                                   section_names_size,
-					           &omit))
-		    discard = true;
-	        }
-              else if ((shdr.get_sh_flags() & elfcpp::SHF_GROUP) == 0
-                       && Layout::is_linkonce(name))
-	        {
-	          if (!this->include_linkonce_section(layout, i, name, shdr))
-   		    discard = true;
-	        }
+	  // Skip attributes section.
+	  if (parameters->target().is_attributes_section(name))
+	    {
+	      omit[i] = true;
 	    }
 
-          if (discard)
-            {
+	  bool discard = omit[i];
+	  if (!discard)
+	    {
+	      if (shdr.get_sh_type() == elfcpp::SHT_GROUP)
+		{
+		  if (!this->include_section_group(symtab, layout, i, name,
+						   shdrs, pnames,
+						   section_names_size,
+						   &omit))
+		    discard = true;
+		}
+	      else if ((shdr.get_sh_flags() & elfcpp::SHF_GROUP) == 0
+		       && Layout::is_linkonce(name))
+		{
+		  if (!this->include_linkonce_section(layout, i, name, shdr))
+		    discard = true;
+		}
+	    }
+
+	  // Add the section to the incremental inputs layout.
+	  Incremental_inputs* incremental_inputs = layout->incremental_inputs();
+	  if (incremental_inputs != NULL
+	      && !discard
+	      && can_incremental_update(shdr.get_sh_type()))
+	    {
+	      off_t sh_size = shdr.get_sh_size();
+	      section_size_type uncompressed_size;
+	      if (this->section_is_compressed(i, &uncompressed_size))
+		sh_size = uncompressed_size;
+	      incremental_inputs->report_input_section(this, i, name, sh_size);
+	    }
+
+	  if (discard)
+	    {
 	      // Do not include this section in the link.
 	      out_sections[i] = NULL;
-              out_section_offsets[i] = invalid_address;
+	      out_section_offsets[i] = invalid_address;
 	      continue;
-            }
-        }
- 
-      if (is_gc_pass_one && parameters->options().gc_sections())
-        {
-          if (is_section_name_included(name)
-              || shdr.get_sh_type() == elfcpp::SHT_INIT_ARRAY 
-              || shdr.get_sh_type() == elfcpp::SHT_FINI_ARRAY)
-            {
-              symtab->gc()->worklist().push(Section_id(this, i)); 
-            }
-        }
+	    }
+	}
+
+      if (is_pass_one && parameters->options().gc_sections())
+	{
+	  if (this->is_section_name_included(name)
+	      || layout->keep_input_section (this, name)
+	      || shdr.get_sh_type() == elfcpp::SHT_INIT_ARRAY
+	      || shdr.get_sh_type() == elfcpp::SHT_FINI_ARRAY)
+	    {
+	      symtab->gc()->worklist().push(Section_id(this, i));
+	    }
+	  // If the section name XXX can be represented as a C identifier
+	  // it cannot be discarded if there are references to
+	  // __start_XXX and __stop_XXX symbols.  These need to be
+	  // specially handled.
+	  if (is_cident(name))
+	    {
+	      symtab->gc()->add_cident_section(name, Section_id(this, i));
+	    }
+	}
 
       // When doing a relocatable link we are going to copy input
       // reloc sections into the output.  We only want to copy the
@@ -1200,123 +1587,169 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
       // determine which sections are being discarded, and discard the
       // corresponding information.
       if (!relocatable
-          && strcmp(name, ".eh_frame") == 0
-          && this->check_eh_frame_flags(&shdr))
-        {
-          if (is_gc_pass_one)
-            {
-              out_sections[i] = reinterpret_cast<Output_section*>(1);
-              out_section_offsets[i] = invalid_address;
-            }
-          else
-            eh_frame_sections.push_back(i);
-          continue;
-        }
+	  && strcmp(name, ".eh_frame") == 0
+	  && this->check_eh_frame_flags(&shdr))
+	{
+	  if (is_pass_one)
+	    {
+	      if (this->is_deferred_layout())
+		out_sections[i] = reinterpret_cast<Output_section*>(2);
+	      else
+		out_sections[i] = reinterpret_cast<Output_section*>(1);
+	      out_section_offsets[i] = invalid_address;
+	    }
+	  else if (this->is_deferred_layout())
+	    this->deferred_layout_.push_back(Deferred_layout(i, name,
+							     pshdrs,
+							     reloc_shndx[i],
+							     reloc_type[i]));
+	  else
+	    eh_frame_sections.push_back(i);
+	  continue;
+	}
 
-      if (is_gc_pass_two && parameters->options().gc_sections())
-        {
-          // This is executed during the second pass of garbage 
-          // collection. do_layout has been called before and some 
-          // sections have been already discarded. Simply ignore 
-          // such sections this time around.
-          if (out_sections[i] == NULL)
-            {
-              gold_assert(out_section_offsets[i] == invalid_address);
-              continue; 
-            }
-          if (((shdr.get_sh_flags() & elfcpp::SHF_ALLOC) != 0)
-              && symtab->gc()->is_section_garbage(this, i))
-              {
-                if (parameters->options().print_gc_sections())
-                  gold_info(_("%s: removing unused section from '%s'" 
-                              " in file '%s'"),
-                            program_name, this->section_name(i).c_str(), 
-                            this->name().c_str());
-                out_sections[i] = NULL;
-                out_section_offsets[i] = invalid_address;
-                continue;
-              }
-        }
+      if (is_pass_two && parameters->options().gc_sections())
+	{
+	  // This is executed during the second pass of garbage
+	  // collection. do_layout has been called before and some
+	  // sections have been already discarded. Simply ignore
+	  // such sections this time around.
+	  if (out_sections[i] == NULL)
+	    {
+	      gold_assert(out_section_offsets[i] == invalid_address);
+	      continue;
+	    }
+	  if (((shdr.get_sh_flags() & elfcpp::SHF_ALLOC) != 0)
+	      && symtab->gc()->is_section_garbage(this, i))
+	      {
+		if (parameters->options().print_gc_sections())
+		  gold_info(_("%s: removing unused section from '%s'"
+			      " in file '%s'"),
+			    program_name, this->section_name(i).c_str(),
+			    this->name().c_str());
+		out_sections[i] = NULL;
+		out_section_offsets[i] = invalid_address;
+		continue;
+	      }
+	}
 
-      if (is_gc_pass_two && parameters->options().icf_enabled())
-        {
-          if (out_sections[i] == NULL)
-            {
-              gold_assert(out_section_offsets[i] == invalid_address);
-              continue;
-            }
-          if (((shdr.get_sh_flags() & elfcpp::SHF_ALLOC) != 0)
-              && symtab->icf()->is_section_folded(this, i))
-              {
-                if (parameters->options().print_icf_sections())
-                  {
-                    Section_id folded =
-                                symtab->icf()->get_folded_section(this, i);
-                    Relobj* folded_obj =
-                                reinterpret_cast<Relobj*>(folded.first);
-                    gold_info(_("%s: ICF folding section '%s' in file '%s'"
-                                "into '%s' in file '%s'"),
-                              program_name, this->section_name(i).c_str(),
-                              this->name().c_str(),
-                              folded_obj->section_name(folded.second).c_str(),
-                              folded_obj->name().c_str());
-                  }
-                out_sections[i] = NULL;
-                out_section_offsets[i] = invalid_address;
-                continue;
-              }
-        }
+      if (is_pass_two && parameters->options().icf_enabled())
+	{
+	  if (out_sections[i] == NULL)
+	    {
+	      gold_assert(out_section_offsets[i] == invalid_address);
+	      continue;
+	    }
+	  if (((shdr.get_sh_flags() & elfcpp::SHF_ALLOC) != 0)
+	      && symtab->icf()->is_section_folded(this, i))
+	      {
+		if (parameters->options().print_icf_sections())
+		  {
+		    Section_id folded =
+				symtab->icf()->get_folded_section(this, i);
+		    Relobj* folded_obj =
+				reinterpret_cast<Relobj*>(folded.first);
+		    gold_info(_("%s: ICF folding section '%s' in file '%s' "
+				"into '%s' in file '%s'"),
+			      program_name, this->section_name(i).c_str(),
+			      this->name().c_str(),
+			      folded_obj->section_name(folded.second).c_str(),
+			      folded_obj->name().c_str());
+		  }
+		out_sections[i] = NULL;
+		out_section_offsets[i] = invalid_address;
+		continue;
+	      }
+	}
 
       // Defer layout here if input files are claimed by plugins.  When gc
-      // is turned on this function is called twice.  For the second call
-      // should_defer_layout should be false.
-      if (should_defer_layout && (shdr.get_sh_flags() & elfcpp::SHF_ALLOC))
-        {
-          gold_assert(!is_gc_pass_two);
-          this->deferred_layout_.push_back(Deferred_layout(i, name, 
-                                                           pshdrs,
-                                                           reloc_shndx[i],
-                                                           reloc_type[i]));
-          // Put dummy values here; real values will be supplied by
-          // do_layout_deferred_sections.
-          out_sections[i] = reinterpret_cast<Output_section*>(2);
-          out_section_offsets[i] = invalid_address;
-          continue;
-        }
+      // is turned on this function is called twice; we only want to do this
+      // on the first pass.
+      if (!is_pass_two
+          && this->is_deferred_layout()
+          && (shdr.get_sh_flags() & elfcpp::SHF_ALLOC))
+	{
+	  this->deferred_layout_.push_back(Deferred_layout(i, name,
+							   pshdrs,
+							   reloc_shndx[i],
+							   reloc_type[i]));
+	  // Put dummy values here; real values will be supplied by
+	  // do_layout_deferred_sections.
+	  out_sections[i] = reinterpret_cast<Output_section*>(2);
+	  out_section_offsets[i] = invalid_address;
+	  continue;
+	}
 
       // During gc_pass_two if a section that was previously deferred is
       // found, do not layout the section as layout_deferred_sections will
       // do it later from gold.cc.
-      if (is_gc_pass_two 
-          && (out_sections[i] == reinterpret_cast<Output_section*>(2)))
-        continue;
+      if (is_pass_two
+	  && (out_sections[i] == reinterpret_cast<Output_section*>(2)))
+	continue;
 
-      if (is_gc_pass_one)
-        {
-          // This is during garbage collection. The out_sections are 
-          // assigned in the second call to this function. 
-          out_sections[i] = reinterpret_cast<Output_section*>(1);
-          out_section_offsets[i] = invalid_address;
-        }
+      if (is_pass_one)
+	{
+	  // This is during garbage collection. The out_sections are
+	  // assigned in the second call to this function.
+	  out_sections[i] = reinterpret_cast<Output_section*>(1);
+	  out_section_offsets[i] = invalid_address;
+	}
       else
-        {
-          // When garbage collection is switched on the actual layout
-          // only happens in the second call.
-          this->layout_section(layout, i, name, shdr, reloc_shndx[i],
-                               reloc_type[i]);
-        }
+	{
+	  // When garbage collection is switched on the actual layout
+	  // only happens in the second call.
+	  this->layout_section(layout, i, name, shdr, reloc_shndx[i],
+			       reloc_type[i]);
+
+	  // When generating a .gdb_index section, we do additional
+	  // processing of .debug_info and .debug_types sections after all
+	  // the other sections for the same reason as above.
+	  if (!relocatable
+	      && parameters->options().gdb_index()
+	      && !(shdr.get_sh_flags() & elfcpp::SHF_ALLOC))
+	    {
+	      if (strcmp(name, ".debug_info") == 0
+		  || strcmp(name, ".zdebug_info") == 0)
+		debug_info_sections.push_back(i);
+	      else if (strcmp(name, ".debug_types") == 0
+		       || strcmp(name, ".zdebug_types") == 0)
+		debug_types_sections.push_back(i);
+	    }
+	}
     }
 
-  if (!is_gc_pass_one)
-    layout->layout_gnu_stack(seen_gnu_stack, gnu_stack_flags);
+  if (!is_pass_two)
+    layout->layout_gnu_stack(seen_gnu_stack, gnu_stack_flags, this);
+
+  // Handle the .eh_frame sections after the other sections.
+  gold_assert(!is_pass_one || eh_frame_sections.empty());
+  for (std::vector<unsigned int>::const_iterator p = eh_frame_sections.begin();
+       p != eh_frame_sections.end();
+       ++p)
+    {
+      unsigned int i = *p;
+      const unsigned char* pshdr;
+      pshdr = section_headers_data + i * This::shdr_size;
+      typename This::Shdr shdr(pshdr);
+
+      this->layout_eh_frame_section(layout,
+				    symbols_data,
+				    symbols_size,
+				    symbol_names_data,
+				    symbol_names_size,
+				    i,
+				    shdr,
+				    reloc_shndx[i],
+				    reloc_type[i]);
+    }
 
   // When doing a relocatable link handle the reloc sections at the
-  // end.  Garbage collection  and Identical Code Folding is not 
-  // turned on for relocatable code. 
+  // end.  Garbage collection  and Identical Code Folding is not
+  // turned on for relocatable code.
   if (emit_relocs)
     this->size_relocatable_relocs();
 
-  gold_assert(!(is_gc_or_icf) || reloc_sections.empty());
+  gold_assert(!is_two_pass || reloc_sections.empty());
 
   for (std::vector<unsigned int>::const_iterator p = reloc_sections.begin();
        p != reloc_sections.end();
@@ -1335,10 +1768,23 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
 	}
 
       Output_section* data_section = out_sections[data_shndx];
+      if (data_section == reinterpret_cast<Output_section*>(2))
+	{
+	  if (is_pass_two)
+	    continue;
+	  // The layout for the data section was deferred, so we need
+	  // to defer the relocation section, too.
+	  const char* name = pnames + shdr.get_sh_name();
+	  this->deferred_layout_relocs_.push_back(
+	      Deferred_layout(i, name, pshdr, 0, elfcpp::SHT_NULL));
+	  out_sections[i] = reinterpret_cast<Output_section*>(2);
+	  out_section_offsets[i] = invalid_address;
+	  continue;
+	}
       if (data_section == NULL)
 	{
 	  out_sections[i] = NULL;
-          out_section_offsets[i] = invalid_address;
+	  out_section_offsets[i] = invalid_address;
 	  continue;
 	}
 
@@ -1351,50 +1797,30 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
       out_section_offsets[i] = invalid_address;
     }
 
-  // Handle the .eh_frame sections at the end.
-  gold_assert(!is_gc_pass_one || eh_frame_sections.empty());
-  for (std::vector<unsigned int>::const_iterator p = eh_frame_sections.begin();
-       p != eh_frame_sections.end();
+  // When building a .gdb_index section, scan the .debug_info and
+  // .debug_types sections.
+  gold_assert(!is_pass_one
+	      || (debug_info_sections.empty() && debug_types_sections.empty()));
+  for (std::vector<unsigned int>::const_iterator p
+	   = debug_info_sections.begin();
+       p != debug_info_sections.end();
        ++p)
     {
-      gold_assert(this->has_eh_frame_);
-      gold_assert(external_symbols_offset != 0);
-
       unsigned int i = *p;
-      const unsigned char *pshdr;
-      pshdr = section_headers_data + i * This::shdr_size;
-      typename This::Shdr shdr(pshdr);
-
-      off_t offset;
-      Output_section* os = layout->layout_eh_frame(this,
-						   symbols_data,
-						   symbols_size,
-						   symbol_names_data,
-						   symbol_names_size,
-						   i, shdr,
-						   reloc_shndx[i],
-						   reloc_type[i],
-						   &offset);
-      out_sections[i] = os;
-      if (offset == -1)
-	{
-	  // An object can contain at most one section holding exception
-	  // frame information.
-	  gold_assert(this->discarded_eh_frame_shndx_ == -1U);
-	  this->discarded_eh_frame_shndx_ = i;
-	  out_section_offsets[i] = invalid_address;
-	}
-      else
-        out_section_offsets[i] = convert_types<Address, off_t>(offset);
-
-      // If this section requires special handling, and if there are
-      // relocs that apply to it, then we must do the special handling
-      // before we apply the relocs.
-      if (offset == -1 && reloc_shndx[i] != 0)
-	this->set_relocs_must_follow_section_writes();
+      layout->add_to_gdb_index(false, this, symbols_data, symbols_size,
+			       i, reloc_shndx[i], reloc_type[i]);
+    }
+  for (std::vector<unsigned int>::const_iterator p
+	   = debug_types_sections.begin();
+       p != debug_types_sections.end();
+       ++p)
+    {
+      unsigned int i = *p;
+      layout->add_to_gdb_index(true, this, symbols_data, symbols_size,
+			       i, reloc_shndx[i], reloc_type[i]);
     }
 
-  if (is_gc_pass_two)
+  if (is_pass_two)
     {
       delete[] gc_sd->section_headers_data;
       delete[] gc_sd->section_names_data;
@@ -1416,7 +1842,7 @@ Sized_relobj<size, big_endian>::do_layout(Symbol_table* symtab,
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::do_layout_deferred_sections(Layout* layout)
+Sized_relobj_file<size, big_endian>::do_layout_deferred_sections(Layout* layout)
 {
   typename std::vector<Deferred_layout>::iterator deferred;
 
@@ -1425,20 +1851,86 @@ Sized_relobj<size, big_endian>::do_layout_deferred_sections(Layout* layout)
        ++deferred)
     {
       typename This::Shdr shdr(deferred->shdr_data_);
+
+      if (!parameters->options().relocatable()
+	  && deferred->name_ == ".eh_frame"
+	  && this->check_eh_frame_flags(&shdr))
+	{
+	  // Checking is_section_included is not reliable for
+	  // .eh_frame sections, because they do not have an output
+	  // section.  This is not a problem normally because we call
+	  // layout_eh_frame_section unconditionally, but when
+	  // deferring sections that is not true.  We don't want to
+	  // keep all .eh_frame sections because that will cause us to
+	  // keep all sections that they refer to, which is the wrong
+	  // way around.  Instead, the eh_frame code will discard
+	  // .eh_frame sections that refer to discarded sections.
+
+	  // Reading the symbols again here may be slow.
+	  Read_symbols_data sd;
+	  this->base_read_symbols(&sd);
+	  this->layout_eh_frame_section(layout,
+					sd.symbols->data(),
+					sd.symbols_size,
+					sd.symbol_names->data(),
+					sd.symbol_names_size,
+					deferred->shndx_,
+					shdr,
+					deferred->reloc_shndx_,
+					deferred->reloc_type_);
+	  continue;
+	}
+
+      // If the section is not included, it is because the garbage collector
+      // decided it is not needed.  Avoid reverting that decision.
+      if (!this->is_section_included(deferred->shndx_))
+	continue;
+
       this->layout_section(layout, deferred->shndx_, deferred->name_.c_str(),
-                           shdr, deferred->reloc_shndx_, deferred->reloc_type_);
+			   shdr, deferred->reloc_shndx_,
+			   deferred->reloc_type_);
     }
 
   this->deferred_layout_.clear();
+
+  // Now handle the deferred relocation sections.
+
+  Output_sections& out_sections(this->output_sections());
+  std::vector<Address>& out_section_offsets(this->section_offsets());
+
+  for (deferred = this->deferred_layout_relocs_.begin();
+       deferred != this->deferred_layout_relocs_.end();
+       ++deferred)
+    {
+      unsigned int shndx = deferred->shndx_;
+      typename This::Shdr shdr(deferred->shdr_data_);
+      unsigned int data_shndx = this->adjust_shndx(shdr.get_sh_info());
+
+      Output_section* data_section = out_sections[data_shndx];
+      if (data_section == NULL)
+	{
+	  out_sections[shndx] = NULL;
+	  out_section_offsets[shndx] = invalid_address;
+	  continue;
+	}
+
+      Relocatable_relocs* rr = new Relocatable_relocs();
+      this->set_relocatable_relocs(shndx, rr);
+
+      Output_section* os = layout->layout_reloc(this, shndx, shdr,
+						data_section, rr);
+      out_sections[shndx] = os;
+      out_section_offsets[shndx] = invalid_address;
+    }
 }
 
 // Add the symbols to the symbol table.
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
-					       Read_symbols_data* sd,
-					       Layout*)
+Sized_relobj_file<size, big_endian>::do_add_symbols(Symbol_table* symtab,
+						    Read_symbols_data* sd,
+						    Layout*)
 {
   if (sd->symbols == NULL)
     {
@@ -1472,6 +1964,121 @@ Sized_relobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
   sd->symbol_names = NULL;
 }
 
+// Find out if this object, that is a member of a lib group, should be included
+// in the link. We check every symbol defined by this object. If the symbol
+// table has a strong undefined reference to that symbol, we have to include
+// the object.
+
+template<int size, bool big_endian>
+Archive::Should_include
+Sized_relobj_file<size, big_endian>::do_should_include_member(
+    Symbol_table* symtab,
+    Layout* layout,
+    Read_symbols_data* sd,
+    std::string* why)
+{
+  char* tmpbuf = NULL;
+  size_t tmpbuflen = 0;
+  const char* sym_names =
+      reinterpret_cast<const char*>(sd->symbol_names->data());
+  const unsigned char* syms =
+      sd->symbols->data() + sd->external_symbols_offset;
+  const int sym_size = elfcpp::Elf_sizes<size>::sym_size;
+  size_t symcount = ((sd->symbols_size - sd->external_symbols_offset)
+			 / sym_size);
+
+  const unsigned char* p = syms;
+
+  for (size_t i = 0; i < symcount; ++i, p += sym_size)
+    {
+      elfcpp::Sym<size, big_endian> sym(p);
+      unsigned int st_shndx = sym.get_st_shndx();
+      if (st_shndx == elfcpp::SHN_UNDEF)
+	continue;
+
+      unsigned int st_name = sym.get_st_name();
+      const char* name = sym_names + st_name;
+      Symbol* symbol;
+      Archive::Should_include t = Archive::should_include_member(symtab,
+								 layout,
+								 name,
+								 &symbol, why,
+								 &tmpbuf,
+								 &tmpbuflen);
+      if (t == Archive::SHOULD_INCLUDE_YES)
+	{
+	  if (tmpbuf != NULL)
+	    free(tmpbuf);
+	  return t;
+	}
+    }
+  if (tmpbuf != NULL)
+    free(tmpbuf);
+  return Archive::SHOULD_INCLUDE_UNKNOWN;
+}
+
+// Iterate over global defined symbols, calling a visitor class V for each.
+
+template<int size, bool big_endian>
+void
+Sized_relobj_file<size, big_endian>::do_for_all_global_symbols(
+    Read_symbols_data* sd,
+    Library_base::Symbol_visitor_base* v)
+{
+  const char* sym_names =
+      reinterpret_cast<const char*>(sd->symbol_names->data());
+  const unsigned char* syms =
+      sd->symbols->data() + sd->external_symbols_offset;
+  const int sym_size = elfcpp::Elf_sizes<size>::sym_size;
+  size_t symcount = ((sd->symbols_size - sd->external_symbols_offset)
+		     / sym_size);
+  const unsigned char* p = syms;
+
+  for (size_t i = 0; i < symcount; ++i, p += sym_size)
+    {
+      elfcpp::Sym<size, big_endian> sym(p);
+      if (sym.get_st_shndx() != elfcpp::SHN_UNDEF)
+	v->visit(sym_names + sym.get_st_name());
+    }
+}
+
+// Return whether the local symbol SYMNDX has a PLT offset.
+
+template<int size, bool big_endian>
+bool
+Sized_relobj_file<size, big_endian>::local_has_plt_offset(
+    unsigned int symndx) const
+{
+  typename Local_plt_offsets::const_iterator p =
+    this->local_plt_offsets_.find(symndx);
+  return p != this->local_plt_offsets_.end();
+}
+
+// Get the PLT offset of a local symbol.
+
+template<int size, bool big_endian>
+unsigned int
+Sized_relobj_file<size, big_endian>::do_local_plt_offset(
+    unsigned int symndx) const
+{
+  typename Local_plt_offsets::const_iterator p =
+    this->local_plt_offsets_.find(symndx);
+  gold_assert(p != this->local_plt_offsets_.end());
+  return p->second;
+}
+
+// Set the PLT offset of a local symbol.
+
+template<int size, bool big_endian>
+void
+Sized_relobj_file<size, big_endian>::set_local_plt_offset(
+    unsigned int symndx, unsigned int plt_offset)
+{
+  std::pair<typename Local_plt_offsets::iterator, bool> ins =
+    this->local_plt_offsets_.insert(std::make_pair(symndx, plt_offset));
+  gold_assert(ins.second);
+}
+
 // First pass over the local symbols.  Here we add their names to
 // *POOL and *DYNPOOL, and we store the symbol value in
 // THIS->LOCAL_VALUES_.  This function is always called from a
@@ -1480,8 +2087,8 @@ Sized_relobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
-						       Stringpool* dynpool)
+Sized_relobj_file<size, big_endian>::do_count_local_symbols(Stringpool* pool,
+							    Stringpool* dynpool)
 {
   gold_assert(this->symtab_shndx_ != -1U);
   if (this->symtab_shndx_ == 0)
@@ -1521,6 +2128,8 @@ Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
   unsigned int dyncount = 0;
   // Skip the first, dummy, symbol.
   psyms += sym_size;
+  bool strip_all = parameters->options().strip_all();
+  bool discard_all = parameters->options().discard_all();
   bool discard_locals = parameters->options().discard_locals();
   for (unsigned int i = 1; i < loccount; ++i, psyms += sym_size)
     {
@@ -1537,6 +2146,8 @@ Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
 	lv.set_is_section_symbol();
       else if (sym.get_st_type() == elfcpp::STT_TLS)
 	lv.set_is_tls_symbol();
+      else if (sym.get_st_type() == elfcpp::STT_GNU_IFUNC)
+	lv.set_is_ifunc_symbol();
 
       // Save the input symbol value for use in do_finalize_local_symbols().
       lv.set_input_value(sym.get_st_value());
@@ -1544,17 +2155,18 @@ Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
       // Decide whether this symbol should go into the output file.
 
       if ((shndx < shnum && out_sections[shndx] == NULL)
-	  || (shndx == this->discarded_eh_frame_shndx_))
-        {
-	  lv.set_no_output_symtab_entry();
-          gold_assert(!lv.needs_output_dynsym_entry());
-          continue;
-        }
-
-      if (sym.get_st_type() == elfcpp::STT_SECTION)
+	  || shndx == this->discarded_eh_frame_shndx_)
 	{
 	  lv.set_no_output_symtab_entry();
-          gold_assert(!lv.needs_output_dynsym_entry());
+	  gold_assert(!lv.needs_output_dynsym_entry());
+	  continue;
+	}
+
+      if (sym.get_st_type() == elfcpp::STT_SECTION
+	  || !this->adjust_local_symbol(&lv))
+	{
+	  lv.set_no_output_symtab_entry();
+	  gold_assert(!lv.needs_output_dynsym_entry());
 	  continue;
 	}
 
@@ -1563,6 +2175,22 @@ Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
 	  this->error(_("local symbol %u section name out of range: %u >= %u"),
 		      i, sym.get_st_name(),
 		      static_cast<unsigned int>(strtab_size));
+	  lv.set_no_output_symtab_entry();
+	  continue;
+	}
+
+      const char* name = pnames + sym.get_st_name();
+
+      // If needed, add the symbol to the dynamic symbol table string pool.
+      if (lv.needs_output_dynsym_entry())
+	{
+	  dynpool->add(name, true, NULL);
+	  ++dyncount;
+	}
+
+      if (strip_all
+	  || (discard_all && lv.may_be_discarded_from_output_symtab()))
+	{
 	  lv.set_no_output_symtab_entry();
 	  continue;
 	}
@@ -1579,10 +2207,10 @@ Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
       //   - the symbol has a name.
       //
       // We do not discard a symbol if it needs a dynamic symbol entry.
-      const char* name = pnames + sym.get_st_name();
       if (discard_locals
 	  && sym.get_st_type() != elfcpp::STT_FILE
 	  && !lv.needs_output_dynsym_entry()
+	  && lv.may_be_discarded_from_output_symtab()
 	  && parameters->target().is_local_label_name(name))
 	{
 	  lv.set_no_output_symtab_entry();
@@ -1592,25 +2220,192 @@ Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
       // Discard the local symbol if -retain_symbols_file is specified
       // and the local symbol is not in that file.
       if (!parameters->options().should_retain_symbol(name))
-        {
-          lv.set_no_output_symtab_entry();
-          continue;
-        }
+	{
+	  lv.set_no_output_symtab_entry();
+	  continue;
+	}
 
       // Add the symbol to the symbol table string pool.
       pool->add(name, true, NULL);
       ++count;
-
-      // If needed, add the symbol to the dynamic symbol table string pool.
-      if (lv.needs_output_dynsym_entry())
-        {
-          dynpool->add(name, true, NULL);
-          ++dyncount;
-        }
     }
 
   this->output_local_symbol_count_ = count;
   this->output_local_dynsym_count_ = dyncount;
+}
+
+// Compute the final value of a local symbol.
+
+template<int size, bool big_endian>
+typename Sized_relobj_file<size, big_endian>::Compute_final_local_value_status
+Sized_relobj_file<size, big_endian>::compute_final_local_value_internal(
+    unsigned int r_sym,
+    const Symbol_value<size>* lv_in,
+    Symbol_value<size>* lv_out,
+    bool relocatable,
+    const Output_sections& out_sections,
+    const std::vector<Address>& out_offsets,
+    const Symbol_table* symtab)
+{
+  // We are going to overwrite *LV_OUT, if it has a merged symbol value,
+  // we may have a memory leak.
+  gold_assert(lv_out->has_output_value());
+
+  bool is_ordinary;
+  unsigned int shndx = lv_in->input_shndx(&is_ordinary);
+
+  // Set the output symbol value.
+
+  if (!is_ordinary)
+    {
+      if (shndx == elfcpp::SHN_ABS || Symbol::is_common_shndx(shndx))
+	lv_out->set_output_value(lv_in->input_value());
+      else
+	{
+	  this->error(_("unknown section index %u for local symbol %u"),
+		      shndx, r_sym);
+	  lv_out->set_output_value(0);
+	  return This::CFLV_ERROR;
+	}
+    }
+  else
+    {
+      if (shndx >= this->shnum())
+	{
+	  this->error(_("local symbol %u section index %u out of range"),
+		      r_sym, shndx);
+	  lv_out->set_output_value(0);
+	  return This::CFLV_ERROR;
+	}
+
+      Output_section* os = out_sections[shndx];
+      Address secoffset = out_offsets[shndx];
+      if (symtab->is_section_folded(this, shndx))
+	{
+	  gold_assert(os == NULL && secoffset == invalid_address);
+	  // Get the os of the section it is folded onto.
+	  Section_id folded = symtab->icf()->get_folded_section(this,
+								shndx);
+	  gold_assert(folded.first != NULL);
+	  Sized_relobj_file<size, big_endian>* folded_obj = reinterpret_cast
+	    <Sized_relobj_file<size, big_endian>*>(folded.first);
+	  os = folded_obj->output_section(folded.second);
+	  gold_assert(os != NULL);
+	  secoffset = folded_obj->get_output_section_offset(folded.second);
+
+	  // This could be a relaxed input section.
+	  if (secoffset == invalid_address)
+	    {
+	      const Output_relaxed_input_section* relaxed_section =
+		os->find_relaxed_input_section(folded_obj, folded.second);
+	      gold_assert(relaxed_section != NULL);
+	      secoffset = relaxed_section->address() - os->address();
+	    }
+	}
+
+      if (os == NULL)
+	{
+	  // This local symbol belongs to a section we are discarding.
+	  // In some cases when applying relocations later, we will
+	  // attempt to match it to the corresponding kept section,
+	  // so we leave the input value unchanged here.
+	  return This::CFLV_DISCARDED;
+	}
+      else if (secoffset == invalid_address)
+	{
+	  uint64_t start;
+
+	  // This is a SHF_MERGE section or one which otherwise
+	  // requires special handling.
+	  if (shndx == this->discarded_eh_frame_shndx_)
+	    {
+	      // This local symbol belongs to a discarded .eh_frame
+	      // section.  Just treat it like the case in which
+	      // os == NULL above.
+	      gold_assert(this->has_eh_frame_);
+	      return This::CFLV_DISCARDED;
+	    }
+	  else if (!lv_in->is_section_symbol())
+	    {
+	      // This is not a section symbol.  We can determine
+	      // the final value now.
+	      lv_out->set_output_value(
+		  os->output_address(this, shndx, lv_in->input_value()));
+	    }
+	  else if (!os->find_starting_output_address(this, shndx, &start))
+	    {
+	      // This is a section symbol, but apparently not one in a
+	      // merged section.  First check to see if this is a relaxed
+	      // input section.  If so, use its address.  Otherwise just
+	      // use the start of the output section.  This happens with
+	      // relocatable links when the input object has section
+	      // symbols for arbitrary non-merge sections.
+	      const Output_section_data* posd =
+		os->find_relaxed_input_section(this, shndx);
+	      if (posd != NULL)
+		{
+		  Address relocatable_link_adjustment =
+		    relocatable ? os->address() : 0;
+		  lv_out->set_output_value(posd->address()
+					   - relocatable_link_adjustment);
+		}
+	      else
+		lv_out->set_output_value(os->address());
+	    }
+	  else
+	    {
+	      // We have to consider the addend to determine the
+	      // value to use in a relocation.  START is the start
+	      // of this input section.  If we are doing a relocatable
+	      // link, use offset from start output section instead of
+	      // address.
+	      Address adjusted_start =
+		relocatable ? start - os->address() : start;
+	      Merged_symbol_value<size>* msv =
+		new Merged_symbol_value<size>(lv_in->input_value(),
+					      adjusted_start);
+	      lv_out->set_merged_symbol_value(msv);
+	    }
+	}
+      else if (lv_in->is_tls_symbol()
+               || (lv_in->is_section_symbol()
+                   && (os->flags() & elfcpp::SHF_TLS)))
+	lv_out->set_output_value(os->tls_offset()
+				 + secoffset
+				 + lv_in->input_value());
+      else
+	lv_out->set_output_value((relocatable ? 0 : os->address())
+				 + secoffset
+				 + lv_in->input_value());
+    }
+  return This::CFLV_OK;
+}
+
+// Compute final local symbol value.  R_SYM is the index of a local
+// symbol in symbol table.  LV points to a symbol value, which is
+// expected to hold the input value and to be over-written by the
+// final value.  SYMTAB points to a symbol table.  Some targets may want
+// to know would-be-finalized local symbol values in relaxation.
+// Hence we provide this method.  Since this method updates *LV, a
+// callee should make a copy of the original local symbol value and
+// use the copy instead of modifying an object's local symbols before
+// everything is finalized.  The caller should also free up any allocated
+// memory in the return value in *LV.
+template<int size, bool big_endian>
+typename Sized_relobj_file<size, big_endian>::Compute_final_local_value_status
+Sized_relobj_file<size, big_endian>::compute_final_local_value(
+    unsigned int r_sym,
+    const Symbol_value<size>* lv_in,
+    Symbol_value<size>* lv_out,
+    const Symbol_table* symtab)
+{
+  // This is just a wrapper of compute_final_local_value_internal.
+  const bool relocatable = parameters->options().relocatable();
+  const Output_sections& out_sections(this->output_sections());
+  const std::vector<Address>& out_offsets(this->section_offsets());
+  return this->compute_final_local_value_internal(r_sym, lv_in, lv_out,
+						  relocatable, out_sections,
+						  out_offsets, symtab);
 }
 
 // Finalize the local symbols.  Here we set the final value in
@@ -1620,9 +2415,10 @@ Sized_relobj<size, big_endian>::do_count_local_symbols(Stringpool* pool,
 
 template<int size, bool big_endian>
 unsigned int
-Sized_relobj<size, big_endian>::do_finalize_local_symbols(unsigned int index,
-							  off_t off,
-                                                          Symbol_table* symtab)
+Sized_relobj_file<size, big_endian>::do_finalize_local_symbols(
+    unsigned int index,
+    off_t off,
+    Symbol_table* symtab)
 {
   gold_assert(off == static_cast<off_t>(align_address(off, size >> 3)));
 
@@ -1631,118 +2427,32 @@ Sized_relobj<size, big_endian>::do_finalize_local_symbols(unsigned int index,
 
   const bool relocatable = parameters->options().relocatable();
   const Output_sections& out_sections(this->output_sections());
-  const std::vector<Address>& out_offsets(this->section_offsets_);
-  unsigned int shnum = this->shnum();
+  const std::vector<Address>& out_offsets(this->section_offsets());
 
   for (unsigned int i = 1; i < loccount; ++i)
     {
-      Symbol_value<size>& lv(this->local_values_[i]);
+      Symbol_value<size>* lv = &this->local_values_[i];
 
-      bool is_ordinary;
-      unsigned int shndx = lv.input_shndx(&is_ordinary);
-
-      // Set the output symbol value.
-
-      if (!is_ordinary)
+      Compute_final_local_value_status cflv_status =
+	this->compute_final_local_value_internal(i, lv, lv, relocatable,
+						 out_sections, out_offsets,
+						 symtab);
+      switch (cflv_status)
 	{
-	  if (shndx == elfcpp::SHN_ABS || Symbol::is_common_shndx(shndx))
-	    lv.set_output_value(lv.input_value());
-	  else
+	case CFLV_OK:
+	  if (!lv->is_output_symtab_index_set())
 	    {
-	      this->error(_("unknown section index %u for local symbol %u"),
-			  shndx, i);
-	      lv.set_output_value(0);
+	      lv->set_output_symtab_index(index);
+	      ++index;
 	    }
+	  break;
+	case CFLV_DISCARDED:
+	case CFLV_ERROR:
+	  // Do nothing.
+	  break;
+	default:
+	  gold_unreachable();
 	}
-      else
-	{
-	  if (shndx >= shnum)
-	    {
-	      this->error(_("local symbol %u section index %u out of range"),
-			  i, shndx);
-	      shndx = 0;
-	    }
-
-	  Output_section* os = out_sections[shndx];
-          Address secoffset = out_offsets[shndx];
-          if (symtab->is_section_folded(this, shndx))
-            {
-              gold_assert (os == NULL && secoffset == invalid_address);
-              // Get the os of the section it is folded onto.
-              Section_id folded = symtab->icf()->get_folded_section(this,
-                                                                    shndx);
-              gold_assert(folded.first != NULL);
-              Sized_relobj<size, big_endian>* folded_obj = reinterpret_cast
-                <Sized_relobj<size, big_endian>*>(folded.first);
-              os = folded_obj->output_section(folded.second);
-              gold_assert(os != NULL);
-              secoffset = folded_obj->get_output_section_offset(folded.second);
-              gold_assert(secoffset != invalid_address);
-            }
-
-	  if (os == NULL)
-	    {
-              // This local symbol belongs to a section we are discarding.
-              // In some cases when applying relocations later, we will
-              // attempt to match it to the corresponding kept section,
-              // so we leave the input value unchanged here.
-	      continue;
-	    }
-	  else if (secoffset == invalid_address)
-	    {
-	      uint64_t start;
-
-	      // This is a SHF_MERGE section or one which otherwise
-	      // requires special handling.
-	      if (shndx == this->discarded_eh_frame_shndx_)
-		{
-		  // This local symbol belongs to a discarded .eh_frame
-		  // section.  Just treat it like the case in which
-		  // os == NULL above.
-		  gold_assert(this->has_eh_frame_);
-		  continue;
-		}
-	      else if (!lv.is_section_symbol())
-		{
-		  // This is not a section symbol.  We can determine
-		  // the final value now.
-		  lv.set_output_value(os->output_address(this, shndx,
-							 lv.input_value()));
-		}
-	      else if (!os->find_starting_output_address(this, shndx, &start))
-		{
-		  // This is a section symbol, but apparently not one
-		  // in a merged section.  Just use the start of the
-		  // output section.  This happens with relocatable
-		  // links when the input object has section symbols
-		  // for arbitrary non-merge sections.
-		  lv.set_output_value(os->address());
-		}
-	      else
-		{
-		  // We have to consider the addend to determine the
-		  // value to use in a relocation.  START is the start
-		  // of this input section.
-		  Merged_symbol_value<size>* msv =
-		    new Merged_symbol_value<size>(lv.input_value(), start);
-		  lv.set_merged_symbol_value(msv);
-		}
-	    }
-          else if (lv.is_tls_symbol())
-	    lv.set_output_value(os->tls_offset()
-				+ secoffset
-				+ lv.input_value());
-	  else
-	    lv.set_output_value((relocatable ? 0 : os->address())
-				+ secoffset
-				+ lv.input_value());
-	}
-
-      if (lv.needs_output_symtab_entry())
-        {
-          lv.set_output_symtab_index(index);
-          ++index;
-        }
     }
   return index;
 }
@@ -1751,17 +2461,18 @@ Sized_relobj<size, big_endian>::do_finalize_local_symbols(unsigned int index,
 
 template<int size, bool big_endian>
 unsigned int
-Sized_relobj<size, big_endian>::do_set_local_dynsym_indexes(unsigned int index)
+Sized_relobj_file<size, big_endian>::do_set_local_dynsym_indexes(
+    unsigned int index)
 {
   const unsigned int loccount = this->local_symbol_count_;
   for (unsigned int i = 1; i < loccount; ++i)
     {
       Symbol_value<size>& lv(this->local_values_[i]);
       if (lv.needs_output_dynsym_entry())
-        {
-          lv.set_output_dynsym_index(index);
-          ++index;
-        }
+	{
+	  lv.set_output_dynsym_index(index);
+	  ++index;
+	}
     }
   return index;
 }
@@ -1772,7 +2483,7 @@ Sized_relobj<size, big_endian>::do_set_local_dynsym_indexes(unsigned int index)
 
 template<int size, bool big_endian>
 unsigned int
-Sized_relobj<size, big_endian>::do_set_local_dynsym_offset(off_t off)
+Sized_relobj_file<size, big_endian>::do_set_local_dynsym_offset(off_t off)
 {
   gold_assert(off == static_cast<off_t>(align_address(off, size >> 3)));
   this->local_dynsym_offset_ = off;
@@ -1784,18 +2495,18 @@ Sized_relobj<size, big_endian>::do_set_local_dynsym_offset(off_t off)
 
 template<int size, bool big_endian>
 uint64_t
-Sized_relobj<size, big_endian>::do_section_flags(unsigned int shndx)
+Sized_relobj_file<size, big_endian>::do_section_flags(unsigned int shndx)
 {
   Symbols_data* sd = this->get_symbols_data();
   if (sd != NULL)
     {
       const unsigned char* pshdrs = sd->section_headers_data
-                                    + This::shdr_size * shndx;
+				    + This::shdr_size * shndx;
       typename This::Shdr shdr(pshdrs);
-      return shdr.get_sh_flags(); 
+      return shdr.get_sh_flags();
     }
   // If sd is NULL, read the section header from the file.
-  return this->elf_file_.section_flags(shndx); 
+  return this->elf_file_.section_flags(shndx);
 }
 
 // Get the section's ent size from Symbols_data.  Called by get_section_contents
@@ -1803,28 +2514,28 @@ Sized_relobj<size, big_endian>::do_section_flags(unsigned int shndx)
 
 template<int size, bool big_endian>
 uint64_t
-Sized_relobj<size, big_endian>::do_section_entsize(unsigned int shndx)
+Sized_relobj_file<size, big_endian>::do_section_entsize(unsigned int shndx)
 {
   Symbols_data* sd = this->get_symbols_data();
-  gold_assert (sd != NULL);
+  gold_assert(sd != NULL);
 
   const unsigned char* pshdrs = sd->section_headers_data
-                                + This::shdr_size * shndx;
+				+ This::shdr_size * shndx;
   typename This::Shdr shdr(pshdrs);
-  return shdr.get_sh_entsize(); 
+  return shdr.get_sh_entsize();
 }
-
 
 // Write out the local symbols.
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::write_local_symbols(
+Sized_relobj_file<size, big_endian>::write_local_symbols(
     Output_file* of,
     const Stringpool* sympool,
     const Stringpool* dynpool,
     Output_symtab_xindex* symtab_xindex,
-    Output_symtab_xindex* dynsym_xindex)
+    Output_symtab_xindex* dynsym_xindex,
+    off_t symtab_off)
 {
   const bool strip_all = parameters->options().strip_all();
   if (strip_all)
@@ -1869,13 +2580,14 @@ Sized_relobj<size, big_endian>::write_local_symbols(
   off_t output_size = this->output_local_symbol_count_ * sym_size;
   unsigned char* oview = NULL;
   if (output_size > 0)
-    oview = of->get_output_view(this->local_symbol_offset_, output_size);
+    oview = of->get_output_view(symtab_off + this->local_symbol_offset_,
+				output_size);
 
   off_t dyn_output_size = this->output_local_dynsym_count_ * sym_size;
   unsigned char* dyn_oview = NULL;
   if (dyn_output_size > 0)
     dyn_oview = of->get_output_view(this->local_dynsym_offset_,
-                                    dyn_output_size);
+				    dyn_output_size);
 
   const Output_sections out_sections(this->output_sections());
 
@@ -1901,62 +2613,63 @@ Sized_relobj<size, big_endian>::write_local_symbols(
 	  st_shndx = out_sections[st_shndx]->out_shndx();
 	  if (st_shndx >= elfcpp::SHN_LORESERVE)
 	    {
-	      if (lv.needs_output_symtab_entry() && !strip_all)
+	      if (lv.has_output_symtab_entry())
 		symtab_xindex->add(lv.output_symtab_index(), st_shndx);
-	      if (lv.needs_output_dynsym_entry())
+	      if (lv.has_output_dynsym_entry())
 		dynsym_xindex->add(lv.output_dynsym_index(), st_shndx);
 	      st_shndx = elfcpp::SHN_XINDEX;
 	    }
 	}
 
       // Write the symbol to the output symbol table.
-      if (!strip_all && lv.needs_output_symtab_entry())
-        {
-          elfcpp::Sym_write<size, big_endian> osym(ov);
+      if (lv.has_output_symtab_entry())
+	{
+	  elfcpp::Sym_write<size, big_endian> osym(ov);
 
-          gold_assert(isym.get_st_name() < strtab_size);
-          const char* name = pnames + isym.get_st_name();
-          osym.put_st_name(sympool->get_offset(name));
-          osym.put_st_value(this->local_values_[i].value(this, 0));
-          osym.put_st_size(isym.get_st_size());
-          osym.put_st_info(isym.get_st_info());
-          osym.put_st_other(isym.get_st_other());
-          osym.put_st_shndx(st_shndx);
+	  gold_assert(isym.get_st_name() < strtab_size);
+	  const char* name = pnames + isym.get_st_name();
+	  osym.put_st_name(sympool->get_offset(name));
+	  osym.put_st_value(this->local_values_[i].value(this, 0));
+	  osym.put_st_size(isym.get_st_size());
+	  osym.put_st_info(isym.get_st_info());
+	  osym.put_st_other(isym.get_st_other());
+	  osym.put_st_shndx(st_shndx);
 
-          ov += sym_size;
-        }
+	  ov += sym_size;
+	}
 
       // Write the symbol to the output dynamic symbol table.
-      if (lv.needs_output_dynsym_entry())
-        {
-          gold_assert(dyn_ov < dyn_oview + dyn_output_size);
-          elfcpp::Sym_write<size, big_endian> osym(dyn_ov);
+      if (lv.has_output_dynsym_entry())
+	{
+	  gold_assert(dyn_ov < dyn_oview + dyn_output_size);
+	  elfcpp::Sym_write<size, big_endian> osym(dyn_ov);
 
-          gold_assert(isym.get_st_name() < strtab_size);
-          const char* name = pnames + isym.get_st_name();
-          osym.put_st_name(dynpool->get_offset(name));
-          osym.put_st_value(this->local_values_[i].value(this, 0));
-          osym.put_st_size(isym.get_st_size());
-          osym.put_st_info(isym.get_st_info());
-          osym.put_st_other(isym.get_st_other());
-          osym.put_st_shndx(st_shndx);
+	  gold_assert(isym.get_st_name() < strtab_size);
+	  const char* name = pnames + isym.get_st_name();
+	  osym.put_st_name(dynpool->get_offset(name));
+	  osym.put_st_value(this->local_values_[i].value(this, 0));
+	  osym.put_st_size(isym.get_st_size());
+	  osym.put_st_info(isym.get_st_info());
+	  osym.put_st_other(isym.get_st_other());
+	  osym.put_st_shndx(st_shndx);
 
-          dyn_ov += sym_size;
-        }
+	  dyn_ov += sym_size;
+	}
     }
 
 
   if (output_size > 0)
     {
       gold_assert(ov - oview == output_size);
-      of->write_output_view(this->local_symbol_offset_, output_size, oview);
+      of->write_output_view(symtab_off + this->local_symbol_offset_,
+			    output_size, oview);
     }
 
   if (dyn_output_size > 0)
     {
       gold_assert(dyn_ov - dyn_oview == dyn_output_size);
       of->write_output_view(this->local_dynsym_offset_, dyn_output_size,
-                            dyn_oview);
+			    dyn_oview);
     }
 }
 
@@ -1966,7 +2679,7 @@ Sized_relobj<size, big_endian>::write_local_symbols(
 
 template<int size, bool big_endian>
 bool
-Sized_relobj<size, big_endian>::get_symbol_location_info(
+Sized_relobj_file<size, big_endian>::get_symbol_location_info(
     unsigned int shndx,
     off_t offset,
     Symbol_location_info* info)
@@ -2011,26 +2724,27 @@ Sized_relobj<size, big_endian>::get_symbol_location_info(
 	  && static_cast<off_t>(sym.get_st_value()) <= offset
 	  && (static_cast<off_t>(sym.get_st_value() + sym.get_st_size())
 	      > offset))
-        {
-          if (sym.get_st_name() > names_size)
+	{
+	  info->enclosing_symbol_type = sym.get_st_type();
+	  if (sym.get_st_name() > names_size)
 	    info->enclosing_symbol_name = "(invalid)";
 	  else
-            {
-              info->enclosing_symbol_name = symbol_names + sym.get_st_name();
-              if (parameters->options().do_demangle())
-                {
-                  char* demangled_name = cplus_demangle(
-                      info->enclosing_symbol_name.c_str(),
-                      DMGL_ANSI | DMGL_PARAMS);
-                  if (demangled_name != NULL)
-                    {
-                      info->enclosing_symbol_name.assign(demangled_name);
-                      free(demangled_name);
-                    }
-                }
-            }
+	    {
+	      info->enclosing_symbol_name = symbol_names + sym.get_st_name();
+	      if (parameters->options().do_demangle())
+		{
+		  char* demangled_name = cplus_demangle(
+		      info->enclosing_symbol_name.c_str(),
+		      DMGL_ANSI | DMGL_PARAMS);
+		  if (demangled_name != NULL)
+		    {
+		      info->enclosing_symbol_name.assign(demangled_name);
+		      free(demangled_name);
+		    }
+		}
+	    }
 	  return true;
-        }
+	}
     }
 
   return false;
@@ -2041,8 +2755,8 @@ Sized_relobj<size, big_endian>::get_symbol_location_info(
 // debugging sections.  If we can't find the kept section, return 0.
 
 template<int size, bool big_endian>
-typename Sized_relobj<size, big_endian>::Address
-Sized_relobj<size, big_endian>::map_to_kept_section(
+typename Sized_relobj_file<size, big_endian>::Address
+Sized_relobj_file<size, big_endian>::map_to_kept_section(
     unsigned int shndx,
     bool* found) const
 {
@@ -2050,8 +2764,8 @@ Sized_relobj<size, big_endian>::map_to_kept_section(
   unsigned int kept_shndx;
   if (this->get_kept_comdat_section(shndx, &kept_object, &kept_shndx))
     {
-      Sized_relobj<size, big_endian>* kept_relobj =
-	static_cast<Sized_relobj<size, big_endian>*>(kept_object);
+      Sized_relobj_file<size, big_endian>* kept_relobj =
+	static_cast<Sized_relobj_file<size, big_endian>*>(kept_object);
       Output_section* os = kept_relobj->output_section(kept_shndx);
       Address offset = kept_relobj->get_output_section_offset(kept_shndx);
       if (os != NULL && offset != invalid_address)
@@ -2068,14 +2782,14 @@ Sized_relobj<size, big_endian>::map_to_kept_section(
 
 template<int size, bool big_endian>
 void
-Sized_relobj<size, big_endian>::do_get_global_symbol_counts(
+Sized_relobj_file<size, big_endian>::do_get_global_symbol_counts(
     const Symbol_table*,
     size_t* defined,
     size_t* used) const
 {
   *defined = this->defined_count_;
   size_t count = 0;
-  for (Symbols::const_iterator p = this->symbols_.begin();
+  for (typename Symbols::const_iterator p = this->symbols_.begin();
        p != this->symbols_.end();
        ++p)
     if (*p != NULL
@@ -2084,6 +2798,85 @@ Sized_relobj<size, big_endian>::do_get_global_symbol_counts(
 	&& (*p)->is_defined())
       ++count;
   *used = count;
+}
+
+// Return a view of the decompressed contents of a section.  Set *PLEN
+// to the size.  Set *IS_NEW to true if the contents need to be freed
+// by the caller.
+
+template<int size, bool big_endian>
+const unsigned char*
+Sized_relobj_file<size, big_endian>::do_decompressed_section_contents(
+    unsigned int shndx,
+    section_size_type* plen,
+    bool* is_new)
+{
+  section_size_type buffer_size;
+  const unsigned char* buffer = this->do_section_contents(shndx, &buffer_size,
+							  false);
+
+  if (this->compressed_sections_ == NULL)
+    {
+      *plen = buffer_size;
+      *is_new = false;
+      return buffer;
+    }
+
+  Compressed_section_map::const_iterator p =
+      this->compressed_sections_->find(shndx);
+  if (p == this->compressed_sections_->end())
+    {
+      *plen = buffer_size;
+      *is_new = false;
+      return buffer;
+    }
+
+  section_size_type uncompressed_size = p->second.size;
+  if (p->second.contents != NULL)
+    {
+      *plen = uncompressed_size;
+      *is_new = false;
+      return p->second.contents;
+    }
+
+  unsigned char* uncompressed_data = new unsigned char[uncompressed_size];
+  if (!decompress_input_section(buffer,
+				buffer_size,
+				uncompressed_data,
+				uncompressed_size))
+    this->error(_("could not decompress section %s"),
+		this->do_section_name(shndx).c_str());
+
+  // We could cache the results in p->second.contents and store
+  // false in *IS_NEW, but build_compressed_section_map() would
+  // have done so if it had expected it to be profitable.  If
+  // we reach this point, we expect to need the contents only
+  // once in this pass.
+  *plen = uncompressed_size;
+  *is_new = true;
+  return uncompressed_data;
+}
+
+// Discard any buffers of uncompressed sections.  This is done
+// at the end of the Add_symbols task.
+
+template<int size, bool big_endian>
+void
+Sized_relobj_file<size, big_endian>::do_discard_decompressed_sections()
+{
+  if (this->compressed_sections_ == NULL)
+    return;
+
+  for (Compressed_section_map::iterator p = this->compressed_sections_->begin();
+       p != this->compressed_sections_->end();
+       ++p)
+    {
+      if (p->second.contents != NULL)
+	{
+	  delete[] p->second.contents;
+	  p->second.contents = NULL;
+	}
+    }
 }
 
 // Input_objects methods.
@@ -2118,7 +2911,8 @@ Input_objects::add_object(Object* obj)
     }
 
   // Add this object to the cross-referencer if requested.
-  if (parameters->options().user_set_print_symbol_counts())
+  if (parameters->options().user_set_print_symbol_counts()
+      || parameters->options().cref())
     {
       if (this->cref_ == NULL)
 	this->cref_ = new Cref();
@@ -2153,9 +2947,9 @@ Input_objects::check_dynamic_dependencies() const
       (*p)->set_has_unknown_needed_entries(!found_all);
 
       // --copy-dt-needed-entries aka --add-needed is a GNU ld option
-      // --that gold does not support.  However, they cause no trouble
-      // --unless there is a DT_NEEDED entry that we don't know about;
-      // --warn only in that case.
+      // that gold does not support.  However, they cause no trouble
+      // unless there is a DT_NEEDED entry that we don't know about;
+      // warn only in that case.
       if (!found_all
 	  && !issued_copy_dt_needed_error
 	  && (parameters->options().copy_dt_needed_entries()
@@ -2178,7 +2972,8 @@ Input_objects::check_dynamic_dependencies() const
 void
 Input_objects::archive_start(Archive* archive)
 {
-  if (parameters->options().user_set_print_symbol_counts())
+  if (parameters->options().user_set_print_symbol_counts()
+      || parameters->options().cref())
     {
       if (this->cref_ == NULL)
 	this->cref_ = new Cref();
@@ -2191,7 +2986,8 @@ Input_objects::archive_start(Archive* archive)
 void
 Input_objects::archive_stop(Archive* archive)
 {
-  if (parameters->options().user_set_print_symbol_counts())
+  if (parameters->options().user_set_print_symbol_counts()
+      || parameters->options().cref())
     this->cref_->add_archive_stop(archive);
 }
 
@@ -2205,48 +3001,52 @@ Input_objects::print_symbol_counts(const Symbol_table* symtab) const
     this->cref_->print_symbol_counts(symtab);
 }
 
+// Print a cross reference table.
+
+void
+Input_objects::print_cref(const Symbol_table* symtab, FILE* f) const
+{
+  if (parameters->options().cref() && this->cref_ != NULL)
+    this->cref_->print_cref(symtab, f);
+}
+
 // Relocate_info methods.
 
-// Return a string describing the location of a relocation.  This is
-// only used in error messages.
+// Return a string describing the location of a relocation when file
+// and lineno information is not available.  This is only used in
+// error messages.
 
 template<int size, bool big_endian>
 std::string
 Relocate_info<size, big_endian>::location(size_t, off_t offset) const
 {
-  // See if we can get line-number information from debugging sections.
-  std::string filename;
-  std::string file_and_lineno;   // Better than filename-only, if available.
-
   Sized_dwarf_line_info<size, big_endian> line_info(this->object);
-  // This will be "" if we failed to parse the debug info for any reason.
-  file_and_lineno = line_info.addr2line(this->data_shndx, offset);
+  std::string ret = line_info.addr2line(this->data_shndx, offset, NULL);
+  if (!ret.empty())
+    return ret;
 
-  std::string ret(this->object->name());
-  ret += ':';
+  ret = this->object->name();
+
   Symbol_location_info info;
   if (this->object->get_symbol_location_info(this->data_shndx, offset, &info))
     {
-      ret += " in function ";
-      ret += info.enclosing_symbol_name;
+      if (!info.source_file.empty())
+	{
+	  ret += ":";
+	  ret += info.source_file;
+	}
       ret += ":";
-      filename = info.source_file;
+      if (info.enclosing_symbol_type == elfcpp::STT_FUNC)
+	ret += _("function ");
+      ret += info.enclosing_symbol_name;
+      return ret;
     }
 
-  if (!file_and_lineno.empty())
-    ret += file_and_lineno;
-  else
-    {
-      if (!filename.empty())
-        ret += filename;
-      ret += "(";
-      ret += this->object->section_name(this->data_shndx);
-      char buf[100];
-      // Offsets into sections have to be positive.
-      snprintf(buf, sizeof(buf), "+0x%lx", static_cast<long>(offset));
-      ret += buf;
-      ret += ")";
-    }
+  ret += "(";
+  ret += this->object->section_name(this->data_shndx);
+  char buf[100];
+  snprintf(buf, sizeof buf, "+0x%lx)", static_cast<long>(offset));
+  ret += buf;
   return ret;
 }
 
@@ -2266,7 +3066,8 @@ make_elf_sized_object(const std::string& name, Input_file* input_file,
 		      off_t offset, const elfcpp::Ehdr<size, big_endian>& ehdr,
 		      bool* punconfigured)
 {
-  Target* target = select_target(ehdr.get_e_machine(), size, big_endian,
+  Target* target = select_target(input_file, offset,
+				 ehdr.get_e_machine(), size, big_endian,
 				 ehdr.get_e_ident()[elfcpp::EI_OSABI],
 				 ehdr.get_e_ident()[elfcpp::EI_ABIVERSION]);
   if (target == NULL)
@@ -2297,7 +3098,7 @@ namespace gold
 
 bool
 is_elf_object(Input_file* input_file, off_t offset,
-	      const unsigned char** start, int *read_size)
+	      const unsigned char** start, int* read_size)
 {
   off_t filesize = input_file->file().filesize();
   int want = elfcpp::Elf_recognizer::max_header_size;
@@ -2323,10 +3124,10 @@ make_elf_object(const std::string& name, Input_file* input_file, off_t offset,
     *punconfigured = false;
 
   std::string error;
-  bool big_endian;
-  int size;
+  bool big_endian = false;
+  int size = 0;
   if (!elfcpp::Elf_recognizer::is_valid_header(p, bytes, &size,
-                                               &big_endian, &error))
+					       &big_endian, &error))
     {
       gold_error(_("%s: %s"), name.c_str(), error.c_str());
       return NULL;
@@ -2413,6 +3214,10 @@ template
 void
 Object::read_section_data<32, false>(elfcpp::Elf_file<32, false, Object>*,
 				     Read_symbols_data*);
+template
+const unsigned char*
+Object::find_shdr<32,false>(const unsigned char*, const char*, const char*,
+			    section_size_type, const unsigned char*) const;
 #endif
 
 #ifdef HAVE_TARGET_32_BIG
@@ -2420,6 +3225,10 @@ template
 void
 Object::read_section_data<32, true>(elfcpp::Elf_file<32, true, Object>*,
 				    Read_symbols_data*);
+template
+const unsigned char*
+Object::find_shdr<32,true>(const unsigned char*, const char*, const char*,
+			   section_size_type, const unsigned char*) const;
 #endif
 
 #ifdef HAVE_TARGET_64_LITTLE
@@ -2427,6 +3236,10 @@ template
 void
 Object::read_section_data<64, false>(elfcpp::Elf_file<64, false, Object>*,
 				     Read_symbols_data*);
+template
+const unsigned char*
+Object::find_shdr<64,false>(const unsigned char*, const char*, const char*,
+			    section_size_type, const unsigned char*) const;
 #endif
 
 #ifdef HAVE_TARGET_64_BIG
@@ -2434,26 +3247,42 @@ template
 void
 Object::read_section_data<64, true>(elfcpp::Elf_file<64, true, Object>*,
 				    Read_symbols_data*);
+template
+const unsigned char*
+Object::find_shdr<64,true>(const unsigned char*, const char*, const char*,
+			   section_size_type, const unsigned char*) const;
 #endif
 
 #ifdef HAVE_TARGET_32_LITTLE
 template
 class Sized_relobj<32, false>;
+
+template
+class Sized_relobj_file<32, false>;
 #endif
 
 #ifdef HAVE_TARGET_32_BIG
 template
 class Sized_relobj<32, true>;
+
+template
+class Sized_relobj_file<32, true>;
 #endif
 
 #ifdef HAVE_TARGET_64_LITTLE
 template
 class Sized_relobj<64, false>;
+
+template
+class Sized_relobj_file<64, false>;
 #endif
 
 #ifdef HAVE_TARGET_64_BIG
 template
 class Sized_relobj<64, true>;
+
+template
+class Sized_relobj_file<64, true>;
 #endif
 
 #ifdef HAVE_TARGET_32_LITTLE
@@ -2474,6 +3303,50 @@ struct Relocate_info<64, false>;
 #ifdef HAVE_TARGET_64_BIG
 template
 struct Relocate_info<64, true>;
+#endif
+
+#ifdef HAVE_TARGET_32_LITTLE
+template
+void
+Xindex::initialize_symtab_xindex<32, false>(Object*, unsigned int);
+
+template
+void
+Xindex::read_symtab_xindex<32, false>(Object*, unsigned int,
+				      const unsigned char*);
+#endif
+
+#ifdef HAVE_TARGET_32_BIG
+template
+void
+Xindex::initialize_symtab_xindex<32, true>(Object*, unsigned int);
+
+template
+void
+Xindex::read_symtab_xindex<32, true>(Object*, unsigned int,
+				     const unsigned char*);
+#endif
+
+#ifdef HAVE_TARGET_64_LITTLE
+template
+void
+Xindex::initialize_symtab_xindex<64, false>(Object*, unsigned int);
+
+template
+void
+Xindex::read_symtab_xindex<64, false>(Object*, unsigned int,
+				      const unsigned char*);
+#endif
+
+#ifdef HAVE_TARGET_64_BIG
+template
+void
+Xindex::initialize_symtab_xindex<64, true>(Object*, unsigned int);
+
+template
+void
+Xindex::read_symtab_xindex<64, true>(Object*, unsigned int,
+				     const unsigned char*);
 #endif
 
 } // End namespace gold.

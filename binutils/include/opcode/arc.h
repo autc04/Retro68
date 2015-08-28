@@ -1,6 +1,5 @@
 /* Opcode table for the ARC.
-   Copyright 1994, 1995, 1997, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler, GDB, the GNU debugger, and
@@ -8,7 +7,7 @@
 
    GAS/GDB is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
+   the Free Software Foundation; either version 3, or (at your option)
    any later version.
 
    GAS/GDB is distributed in the hope that it will be useful,
@@ -17,10 +16,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS or GDB; see the file COPYING.	If not, write to
+   along with GAS or GDB; see the file COPYING3.  If not, write to
    the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
-
 
 /* List of the various cpu types.
    The tables currently use bit masks to say whether the instruction or

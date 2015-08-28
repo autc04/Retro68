@@ -1,6 +1,5 @@
-/* tc-ldx.c -- Assemble for the DLX
-   Copyright 2002, 2003, 2004, 2005, 2007, 2009
-   Free Software Foundation, Inc.
+/* tc-dlx.c -- Assemble for the DLX
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -21,8 +20,8 @@
 
 /* Initially created by Kuang Hwa Lin, 3/20/2002.  */
 
-#include "safe-ctype.h"
 #include "as.h"
+#include "safe-ctype.h"
 #include "tc-dlx.h"
 #include "opcode/dlx.h"
 
@@ -245,7 +244,12 @@ s_proc (int end_p)
 	  /* Missing entry point, use function's name with the leading
 	     char prepended.  */
 	  if (leading_char)
-	    asprintf (&label, "%c%s", leading_char, name);
+	    {
+	      unsigned len = strlen (name) + 1;
+	      label = xmalloc (len + 1);
+	      label[0] = leading_char;
+	      memcpy (label + 1, name, len);
+	    }
 	  else
 	    label = name;
 	}
@@ -657,11 +661,13 @@ machine_ip (char *str)
   char *s;
   const char *args;
   struct machine_opcode *insn;
-  char *argsStart;
   unsigned long opcode;
   expressionS the_operand;
   expressionS *operand = &the_operand;
   unsigned int reg, reg_shift = 0;
+
+  memset (&the_insn, '\0', sizeof (the_insn));
+  the_insn.reloc = NO_RELOC;
 
   /* Fixup the opcode string to all lower cases, and also
      allow numerical digits.  */
@@ -687,30 +693,19 @@ machine_ip (char *str)
       return;
     }
 
-  /* Hash the opcode, insn will have the string from opcode table.
-     also initialized the_insn struct.  */
+  /* Hash the opcode, insn will have the string from opcode table.  */
   if ((insn = (struct machine_opcode *) hash_find (op_hash, str)) == NULL)
     {
       /* Handle the ret and return macro here.  */
       if ((strcmp (str, "ret") == 0) || (strcmp (str, "return") == 0))
-	{
-	  memset (&the_insn, '\0', sizeof (the_insn));
-	  the_insn.reloc = NO_RELOC;
-	  the_insn.pcrel = 0;
-	  the_insn.opcode =
-	    (unsigned long)(JROP | 0x03e00000);    /* 0x03e00000 = r31 << 21 */
-	}
+	the_insn.opcode = JROP | 0x03e00000;    /* 0x03e00000 = r31 << 21 */
       else
 	as_bad (_("Unknown opcode `%s'."), str);
 
       return;
     }
 
-  argsStart = s;
   opcode = insn->opcode;
-  memset (&the_insn, '\0', sizeof (the_insn));
-  the_insn.reloc = NO_RELOC;
-  the_insn.pcrel = 0;
 
   /* Set the sip reloc HI16 flag.  */
   if (!set_dlx_skip_hi16_flag (1))

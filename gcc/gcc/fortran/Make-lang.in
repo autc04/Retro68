@@ -1,6 +1,6 @@
 # -*- makefile -*-
 # Top level makefile fragment for GNU gfortran, the GNU Fortran 95 compiler.
-# Copyright (C) 2002-2014 Free Software Foundation, Inc.
+# Copyright (C) 2002-2015 Free Software Foundation, Inc.
 # Contributed by Paul Brook <paul@nowt.org
 # and Steven Bosscher <s.bosscher@student.tudelft.nl>
 
@@ -168,12 +168,7 @@ check-fortran-subtargets : check-gfortran-subtargets
 lang_checks += check-gfortran
 lang_checks_parallelized += check-gfortran
 # For description see comment above check_gcc_parallelize in gcc/Makefile.in.
-check_gfortran_parallelize = dg.exp=gfortran.dg/\[adAD\]* \
-			     dg.exp=gfortran.dg/\[bcBC\]* \
-			     dg.exp=gfortran.dg/\[nopNOP\]* \
-			     dg.exp=gfortran.dg/\[isuvISUV\]* \
-			     dg.exp=gfortran.dg/\[efhkqrxzEFHKQRXZ\]* \
-			     dg.exp=gfortran.dg/\[0-9gjlmtwyGJLMTWY\]*
+check_gfortran_parallelize = 10000
 
 # GFORTRAN documentation.
 GFORTRAN_TEXI = \
@@ -240,14 +235,16 @@ install-finclude-dir: installdirs
 # Install the driver program as $(target)-gfortran, and also as gfortran
 # if native.
 fortran.install-common: install-finclude-dir installdirs
-	-if [ -f f951$(exeext) ] ; then \
-	  rm -f $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext); \
-	  $(INSTALL_PROGRAM) gfortran$(exeext) $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext); \
-	  chmod a+x $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext); \
-	  if [ ! -f gfortran-cross$(exeext) ] ; then \
-	    rm -f $(DESTDIR)$(bindir)/$(GFORTRAN_TARGET_INSTALL_NAME)$(exeext); \
-	    $(LN) $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext) $(DESTDIR)$(bindir)/$(GFORTRAN_TARGET_INSTALL_NAME)$(exeext); \
-	  fi ; \
+	-if test "$(enable_as_accelerator)" != "yes" ; then \
+	  if [ -f f951$(exeext) ] ; then \
+	    rm -f $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext); \
+	    $(INSTALL_PROGRAM) gfortran$(exeext) $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext); \
+	    chmod a+x $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext); \
+	    if [ ! -f gfortran-cross$(exeext) ] ; then \
+	      rm -f $(DESTDIR)$(bindir)/$(GFORTRAN_TARGET_INSTALL_NAME)$(exeext); \
+	      $(LN) $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext) $(DESTDIR)$(bindir)/$(GFORTRAN_TARGET_INSTALL_NAME)$(exeext); \
+	    fi ; \
+	  fi; \
 	fi
 
 fortran.install-plugin:

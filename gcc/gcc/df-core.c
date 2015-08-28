@@ -1,5 +1,5 @@
 /* Allocation for dataflow support routines.
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2015 Free Software Foundation, Inc.
    Originally contributed by Michael P. Hayes
              (m.hayes@elec.canterbury.ac.nz, mhayes@redhat.com)
    Major rewrite contributed by Danny Berlin (dberlin@dberlin.org)
@@ -181,7 +181,7 @@ There are four ways of doing the incremental scanning:
    next call to df_analyze or df_process_deferred_rescans.
 
    This mode is also used by a few passes that still rely on note_uses,
-   note_stores and for_each_rtx instead of using the DF data.  This
+   note_stores and rtx iterators instead of using the DF data.  This
    can be said to fall under case 1c.
 
    To enable this mode, call df_set_flags (DF_DEFER_INSN_RESCAN).
@@ -382,11 +382,20 @@ are write-only operations.
 #include "tm_p.h"
 #include "insn-config.h"
 #include "recog.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "machmode.h"
+#include "hard-reg-set.h"
+#include "input.h"
 #include "function.h"
 #include "regs.h"
 #include "alloc-pool.h"
 #include "flags.h"
-#include "hard-reg-set.h"
+#include "predict.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfganal.h"
 #include "basic-block.h"
 #include "sbitmap.h"
 #include "bitmap.h"
@@ -740,13 +749,6 @@ rest_of_handle_df_initialize (void)
 }
 
 
-static bool
-gate_opt (void)
-{
-  return optimize > 0;
-}
-
-
 namespace {
 
 const pass_data pass_data_df_initialize_opt =
@@ -754,8 +756,6 @@ const pass_data pass_data_df_initialize_opt =
   RTL_PASS, /* type */
   "dfinit", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
   TV_DF_SCAN, /* tv_id */
   0, /* properties_required */
   0, /* properties_provided */
@@ -772,8 +772,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  bool gate () { return gate_opt (); }
-  unsigned int execute () { return rest_of_handle_df_initialize (); }
+  virtual bool gate (function *) { return optimize > 0; }
+  virtual unsigned int execute (function *)
+    {
+      return rest_of_handle_df_initialize ();
+    }
 
 }; // class pass_df_initialize_opt
 
@@ -786,13 +789,6 @@ make_pass_df_initialize_opt (gcc::context *ctxt)
 }
 
 
-static bool
-gate_no_opt (void)
-{
-  return optimize == 0;
-}
-
-
 namespace {
 
 const pass_data pass_data_df_initialize_no_opt =
@@ -800,8 +796,6 @@ const pass_data pass_data_df_initialize_no_opt =
   RTL_PASS, /* type */
   "no-opt dfinit", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
   TV_DF_SCAN, /* tv_id */
   0, /* properties_required */
   0, /* properties_provided */
@@ -818,8 +812,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  bool gate () { return gate_no_opt (); }
-  unsigned int execute () { return rest_of_handle_df_initialize (); }
+  virtual bool gate (function *) { return optimize == 0; }
+  virtual unsigned int execute (function *)
+    {
+      return rest_of_handle_df_initialize ();
+    }
 
 }; // class pass_df_initialize_no_opt
 
@@ -866,8 +863,6 @@ const pass_data pass_data_df_finish =
   RTL_PASS, /* type */
   "dfinish", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  false, /* has_gate */
-  true, /* has_execute */
   TV_NONE, /* tv_id */
   0, /* properties_required */
   0, /* properties_provided */
@@ -884,7 +879,10 @@ public:
   {}
 
   /* opt_pass methods: */
-  unsigned int execute () { return rest_of_handle_df_finish (); }
+  virtual unsigned int execute (function *)
+    {
+      return rest_of_handle_df_finish ();
+    }
 
 }; // class pass_df_finish
 
@@ -1954,22 +1952,17 @@ df_set_clean_cfg (void)
 df_ref
 df_bb_regno_first_def_find (basic_block bb, unsigned int regno)
 {
-  rtx insn;
-  df_ref *def_rec;
-  unsigned int uid;
+  rtx_insn *insn;
+  df_ref def;
 
   FOR_BB_INSNS (bb, insn)
     {
       if (!INSN_P (insn))
 	continue;
 
-      uid = INSN_UID (insn);
-      for (def_rec = DF_INSN_UID_DEFS (uid); *def_rec; def_rec++)
-	{
-	  df_ref def = *def_rec;
-	  if (DF_REF_REGNO (def) == regno)
-	    return def;
-	}
+      FOR_EACH_INSN_DEF (def, insn)
+	if (DF_REF_REGNO (def) == regno)
+	  return def;
     }
   return NULL;
 }
@@ -1980,22 +1973,17 @@ df_bb_regno_first_def_find (basic_block bb, unsigned int regno)
 df_ref
 df_bb_regno_last_def_find (basic_block bb, unsigned int regno)
 {
-  rtx insn;
-  df_ref *def_rec;
-  unsigned int uid;
+  rtx_insn *insn;
+  df_ref def;
 
   FOR_BB_INSNS_REVERSE (bb, insn)
     {
       if (!INSN_P (insn))
 	continue;
 
-      uid = INSN_UID (insn);
-      for (def_rec = DF_INSN_UID_DEFS (uid); *def_rec; def_rec++)
-	{
-	  df_ref def = *def_rec;
-	  if (DF_REF_REGNO (def) == regno)
-	    return def;
-	}
+      FOR_EACH_INSN_DEF (def, insn)
+	if (DF_REF_REGNO (def) == regno)
+	  return def;
     }
 
   return NULL;
@@ -2005,22 +1993,17 @@ df_bb_regno_last_def_find (basic_block bb, unsigned int regno)
    DF is the dataflow object.  */
 
 df_ref
-df_find_def (rtx insn, rtx reg)
+df_find_def (rtx_insn *insn, rtx reg)
 {
-  unsigned int uid;
-  df_ref *def_rec;
+  df_ref def;
 
   if (GET_CODE (reg) == SUBREG)
     reg = SUBREG_REG (reg);
   gcc_assert (REG_P (reg));
 
-  uid = INSN_UID (insn);
-  for (def_rec = DF_INSN_UID_DEFS (uid); *def_rec; def_rec++)
-    {
-      df_ref def = *def_rec;
-      if (DF_REF_REGNO (def) == REGNO (reg))
-	return def;
-    }
+  FOR_EACH_INSN_DEF (def, insn)
+    if (DF_REF_REGNO (def) == REGNO (reg))
+      return def;
 
   return NULL;
 }
@@ -2029,7 +2012,7 @@ df_find_def (rtx insn, rtx reg)
 /* Return true if REG is defined in INSN, zero otherwise.  */
 
 bool
-df_reg_defined (rtx insn, rtx reg)
+df_reg_defined (rtx_insn *insn, rtx reg)
 {
   return df_find_def (insn, reg) != NULL;
 }
@@ -2039,29 +2022,22 @@ df_reg_defined (rtx insn, rtx reg)
    DF is the dataflow object.  */
 
 df_ref
-df_find_use (rtx insn, rtx reg)
+df_find_use (rtx_insn *insn, rtx reg)
 {
-  unsigned int uid;
-  df_ref *use_rec;
+  df_ref use;
 
   if (GET_CODE (reg) == SUBREG)
     reg = SUBREG_REG (reg);
   gcc_assert (REG_P (reg));
 
-  uid = INSN_UID (insn);
-  for (use_rec = DF_INSN_UID_USES (uid); *use_rec; use_rec++)
-    {
-      df_ref use = *use_rec;
+  df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
+  FOR_EACH_INSN_INFO_USE (use, insn_info)
+    if (DF_REF_REGNO (use) == REGNO (reg))
+      return use;
+  if (df->changeable_flags & DF_EQ_NOTES)
+    FOR_EACH_INSN_INFO_EQ_USE (use, insn_info)
       if (DF_REF_REGNO (use) == REGNO (reg))
 	return use;
-    }
-  if (df->changeable_flags & DF_EQ_NOTES)
-    for (use_rec = DF_INSN_UID_EQ_USES (uid); *use_rec; use_rec++)
-      {
-	df_ref use = *use_rec;
-	if (DF_REF_REGNO (use) == REGNO (reg))
-	  return use;
-      }
   return NULL;
 }
 
@@ -2069,7 +2045,7 @@ df_find_use (rtx insn, rtx reg)
 /* Return true if REG is referenced in INSN, zero otherwise.  */
 
 bool
-df_reg_used (rtx insn, rtx reg)
+df_reg_used (rtx_insn *insn, rtx reg)
 {
   return df_find_use (insn, reg) != NULL;
 }
@@ -2295,7 +2271,7 @@ df_dump_bottom (basic_block bb, FILE *file)
 
 /* Dump information about INSN just before or after dumping INSN itself.  */
 static void
-df_dump_insn_problem_data (const_rtx insn, FILE *file, bool top)
+df_dump_insn_problem_data (const rtx_insn *insn, FILE *file, bool top)
 {
   int i;
 
@@ -2323,7 +2299,7 @@ df_dump_insn_problem_data (const_rtx insn, FILE *file, bool top)
 /* Dump information about INSN before dumping INSN itself.  */
 
 void
-df_dump_insn_top (const_rtx insn, FILE *file)
+df_dump_insn_top (const rtx_insn *insn, FILE *file)
 {
   df_dump_insn_problem_data (insn,  file, /*top=*/true);
 }
@@ -2331,7 +2307,7 @@ df_dump_insn_top (const_rtx insn, FILE *file)
 /* Dump information about INSN after dumping INSN itself.  */
 
 void
-df_dump_insn_bottom (const_rtx insn, FILE *file)
+df_dump_insn_bottom (const rtx_insn *insn, FILE *file)
 {
   df_dump_insn_problem_data (insn,  file, /*top=*/false);
 }
@@ -2349,16 +2325,14 @@ df_ref_dump (df_ref ref, FILE *file)
 }
 
 void
-df_refs_chain_dump (df_ref *ref_rec, bool follow_chain, FILE *file)
+df_refs_chain_dump (df_ref ref, bool follow_chain, FILE *file)
 {
   fprintf (file, "{ ");
-  while (*ref_rec)
+  for (; ref; ref = DF_REF_NEXT_LOC (ref))
     {
-      df_ref ref = *ref_rec;
       df_ref_dump (ref, file);
       if (follow_chain)
 	df_chain_dump (DF_REF_CHAIN (ref), file);
-      ref_rec++;
     }
   fprintf (file, "}");
 }
@@ -2380,15 +2354,12 @@ df_regs_chain_dump (df_ref ref,  FILE *file)
 
 
 static void
-df_mws_dump (struct df_mw_hardreg **mws, FILE *file)
+df_mws_dump (struct df_mw_hardreg *mws, FILE *file)
 {
-  while (*mws)
-    {
-      fprintf (file, "mw %c r[%d..%d]\n",
-	       (DF_MWS_REG_DEF_P (*mws)) ? 'd' : 'u',
-	       (*mws)->start_regno, (*mws)->end_regno);
-      mws++;
-    }
+  for (; mws; mws = DF_MWS_NEXT (mws))
+    fprintf (file, "mw %c r[%d..%d]\n",
+	     DF_MWS_REG_DEF_P (mws) ? 'd' : 'u',
+	     mws->start_regno, mws->end_regno);
 }
 
 
@@ -2427,13 +2398,13 @@ df_insn_uid_debug (unsigned int uid,
 
 
 DEBUG_FUNCTION void
-df_insn_debug (rtx insn, bool follow_chain, FILE *file)
+df_insn_debug (rtx_insn *insn, bool follow_chain, FILE *file)
 {
   df_insn_uid_debug (INSN_UID (insn), follow_chain, file);
 }
 
 DEBUG_FUNCTION void
-df_insn_debug_regno (rtx insn, FILE *file)
+df_insn_debug_regno (rtx_insn *insn, FILE *file)
 {
   struct df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
 
@@ -2492,7 +2463,7 @@ df_ref_debug (df_ref ref, FILE *file)
 /* Functions for debugging from GDB.  */
 
 DEBUG_FUNCTION void
-debug_df_insn (rtx insn)
+debug_df_insn (rtx_insn *insn)
 {
   df_insn_debug (insn, true, stderr);
   debug_rtx (insn);

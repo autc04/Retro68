@@ -19,52 +19,73 @@
 
 namespace __asan {
 
-void PrintStack(StackTrace *stack);
-void PrintStack(const uptr *trace, uptr size);
-
-}  // namespace __asan
-
 // Get the stack trace with the given pc and bp.
 // The pc will be in the position 0 of the resulting stack trace.
 // The bp may refer to the current frame or to the caller's frame.
+ALWAYS_INLINE
+void GetStackTraceWithPcBpAndContext(BufferedStackTrace *stack, uptr max_depth,
+                                     uptr pc, uptr bp, void *context,
+                                     bool fast) {
 #if SANITIZER_WINDOWS
-#define GET_STACK_TRACE_WITH_PC_AND_BP(max_s, pc, bp, fast) \
-  StackTrace stack;                                         \
-  stack.Unwind(max_s, pc, bp, 0, 0, fast)
+  stack->Unwind(max_depth, pc, bp, context, 0, 0, fast);
 #else
-#define GET_STACK_TRACE_WITH_PC_AND_BP(max_s, pc, bp, fast)                    \
-  StackTrace stack;                                                            \
-  {                                                                            \
-    AsanThread *t;                                                             \
-    stack.size = 0;                                                            \
-    if (asan_inited) {                                                         \
-      if ((t = GetCurrentThread()) && !t->isUnwinding()) {                     \
-        uptr stack_top = t->stack_top();                                       \
-        uptr stack_bottom = t->stack_bottom();                                 \
-        ScopedUnwinding unwind_scope(t);                                       \
-        stack.Unwind(max_s, pc, bp, stack_top, stack_bottom, fast);            \
-      } else if (t == 0 && !fast) {                                            \
-        /* If GetCurrentThread() has failed, try to do slow unwind anyways. */ \
-        stack.Unwind(max_s, pc, bp, 0, 0, false);                              \
-      }                                                                        \
-    }                                                                          \
+  AsanThread *t;
+  stack->size = 0;
+  if (LIKELY(asan_inited)) {
+    if ((t = GetCurrentThread()) && !t->isUnwinding()) {
+      // On FreeBSD the slow unwinding that leverages _Unwind_Backtrace()
+      // yields the call stack of the signal's handler and not of the code
+      // that raised the signal (as it does on Linux).
+      if (SANITIZER_FREEBSD && t->isInDeadlySignal()) fast = true;
+      uptr stack_top = t->stack_top();
+      uptr stack_bottom = t->stack_bottom();
+      ScopedUnwinding unwind_scope(t);
+      stack->Unwind(max_depth, pc, bp, context, stack_top, stack_bottom, fast);
+    } else if (t == 0 && !fast) {
+      /* If GetCurrentThread() has failed, try to do slow unwind anyways. */
+      stack->Unwind(max_depth, pc, bp, context, 0, 0, false);
+    }
   }
 #endif  // SANITIZER_WINDOWS
+}
+
+}  // namespace __asan
 
 // NOTE: A Rule of thumb is to retrieve stack trace in the interceptors
 // as early as possible (in functions exposed to the user), as we generally
 // don't want stack trace to contain functions from ASan internals.
 
-#define GET_STACK_TRACE(max_size, fast)                       \
-  GET_STACK_TRACE_WITH_PC_AND_BP(max_size,                    \
-      StackTrace::GetCurrentPc(), GET_CURRENT_FRAME(), fast)
+#define GET_STACK_TRACE(max_size, fast)                                        \
+  BufferedStackTrace stack;                                                    \
+  if (max_size <= 2) {                                                         \
+    stack.size = max_size;                                                     \
+    if (max_size > 0) {                                                        \
+      stack.top_frame_bp = GET_CURRENT_FRAME();                                \
+      stack.trace_buffer[0] = StackTrace::GetCurrentPc();                      \
+      if (max_size > 1)                                                        \
+        stack.trace_buffer[1] = GET_CALLER_PC();                               \
+    }                                                                          \
+  } else {                                                                     \
+    GetStackTraceWithPcBpAndContext(&stack, max_size,                          \
+                                    StackTrace::GetCurrentPc(),                \
+                                    GET_CURRENT_FRAME(), 0, fast);             \
+  }
 
-#define GET_STACK_TRACE_FATAL(pc, bp)                                 \
-  GET_STACK_TRACE_WITH_PC_AND_BP(kStackTraceMax, pc, bp,              \
-                                 common_flags()->fast_unwind_on_fatal)
+#define GET_STACK_TRACE_FATAL(pc, bp)                                          \
+  BufferedStackTrace stack;                                                    \
+  GetStackTraceWithPcBpAndContext(&stack, kStackTraceMax, pc, bp, 0,           \
+                                  common_flags()->fast_unwind_on_fatal)
+
+#define GET_STACK_TRACE_SIGNAL(pc, bp, context)                                \
+  BufferedStackTrace stack;                                                    \
+  GetStackTraceWithPcBpAndContext(&stack, kStackTraceMax, pc, bp, context,     \
+                                  common_flags()->fast_unwind_on_fatal)
 
 #define GET_STACK_TRACE_FATAL_HERE                                \
   GET_STACK_TRACE(kStackTraceMax, common_flags()->fast_unwind_on_fatal)
+
+#define GET_STACK_TRACE_CHECK_HERE                                \
+  GET_STACK_TRACE(kStackTraceMax, common_flags()->fast_unwind_on_check)
 
 #define GET_STACK_TRACE_THREAD                                    \
   GET_STACK_TRACE(kStackTraceMax, true)
@@ -78,7 +99,13 @@ void PrintStack(const uptr *trace, uptr size);
 #define PRINT_CURRENT_STACK()   \
   {                             \
     GET_STACK_TRACE_FATAL_HERE; \
-    PrintStack(&stack);         \
+    stack.Print();              \
+  }
+
+#define PRINT_CURRENT_STACK_CHECK() \
+  {                                 \
+    GET_STACK_TRACE_CHECK_HERE;     \
+    stack.Print();                  \
   }
 
 #endif  // ASAN_STACK_H

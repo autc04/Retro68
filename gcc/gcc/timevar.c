@@ -1,5 +1,5 @@
 /* Timing variables for measuring compiler performance.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2015 Free Software Foundation, Inc.
    Contributed by Alex Samuel <samuel@codesourcery.com>
 
 This file is part of GCC.
@@ -223,6 +223,9 @@ timevar_accumulate (struct timevar_time_def *timer,
 void
 timevar_init (void)
 {
+  if (timevar_enable)
+    return;
+
   timevar_enable = true;
 
   /* Zero all elapsed times.  */

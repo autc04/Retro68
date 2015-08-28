@@ -198,3 +198,7 @@ bad	.byte	xtrn@tpoff
 
 	.text
 	mov	xtrn@tpoff (%rbx), %eax
+
+	.data
+	.long	xtrn@got - 4
+	.long	xtrn@got + 4

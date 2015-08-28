@@ -1,6 +1,6 @@
 #objdump: -d -l -mmips:4000
 #name: assembly line numbers
-#as: --gstabs -march=r4000
+#as: --gstabs -32 -march=r4000
 
 
 .*: +file format .*mips.*
@@ -17,9 +17,9 @@ main\(\):
 .*lineno.s:16
 .*10:.*addiu.*
 .*lineno.s:17
-.*14:.*sd.*
+.*14:.*sw.*
 .*lineno.s:18
-.*18:.*sd.*
+.*18:.*sw.*
 .*lineno.s:19
 .*1c:.*move.*
 .*lineno.s:20
@@ -51,17 +51,12 @@ main\(\):
 .*lineno.s:32
 .*58:.*b.*
 .*5c:.*nop
-# Objdump puts an '$L1' symbol here for ELF, but not for ECOFF.  For
-# ELF, $L1 is in the .text section so objdump picks it for this location.
-# For ECOFF, it's in the *DEBUG* section, so objdump prefers the .text
-# symbol over $L1.
-#...
 .*lineno.s:34
 .*60:.*move.*
 .*lineno.s:35
-.*64:.*ld.*
+.*64:.*lw.*
 .*lineno.s:36
-.*68:.*ld.*
+.*68:.*lw.*
 .*lineno.s:37
 .*6c:.*addiu.*
 .*lineno.s:38
@@ -73,7 +68,7 @@ g\(\):
 .*lineno.s:47
 .*78:.*addiu.*
 .*lineno.s:48
-.*7c:.*sd.*
+.*7c:.*sw.*
 .*lineno.s:49
 .*80:.*move.*
 .*lineno.s:50
@@ -87,12 +82,10 @@ g\(\):
 .*lineno.s:54
 .*94:.*b.*
 .*98:.*nop
-# Objdump puts an '$L2' symbol here for ELF, but not for ECOFF.
-#...
 .*lineno.s:56
 .*9c:.*move.*
 .*lineno.s:57
-.*a0:.*ld.*
+.*a0:.*lw.*
 .*lineno.s:58
 .*a4:.*addiu.*
 .*lineno.s:59

@@ -241,7 +241,7 @@ func BenchmarkMapIter(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for _, _ = range m {
+		for range m {
 		}
 	}
 }
@@ -250,7 +250,7 @@ func BenchmarkMapIterEmpty(b *testing.B) {
 	m := make(map[int]bool)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for _, _ = range m {
+		for range m {
 		}
 	}
 }
@@ -266,5 +266,35 @@ func BenchmarkSameLengthMap(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = m[s1]
+	}
+}
+
+type BigKey [3]int64
+
+func BenchmarkBigKeyMap(b *testing.B) {
+	m := make(map[BigKey]bool)
+	k := BigKey{3, 4, 5}
+	m[k] = true
+	for i := 0; i < b.N; i++ {
+		_ = m[k]
+	}
+}
+
+type BigVal [3]int64
+
+func BenchmarkBigValMap(b *testing.B) {
+	m := make(map[BigKey]BigVal)
+	k := BigKey{3, 4, 5}
+	m[k] = BigVal{6, 7, 8}
+	for i := 0; i < b.N; i++ {
+		_ = m[k]
+	}
+}
+
+func BenchmarkSmallKeyMap(b *testing.B) {
+	m := make(map[int16]bool)
+	m[5] = true
+	for i := 0; i < b.N; i++ {
+		_ = m[5]
 	}
 }

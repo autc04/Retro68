@@ -205,6 +205,48 @@ func TestOverlongMessagePKCS1v15(t *testing.T) {
 	}
 }
 
+func TestUnpaddedSignature(t *testing.T) {
+	msg := []byte("Thu Dec 19 18:06:16 EST 2013\n")
+	// This base64 value was generated with:
+	// % echo Thu Dec 19 18:06:16 EST 2013 > /tmp/msg
+	// % openssl rsautl -sign -inkey key -out /tmp/sig -in /tmp/msg
+	//
+	// Where "key" contains the RSA private key given at the bottom of this
+	// file.
+	expectedSig := decodeBase64("pX4DR8azytjdQ1rtUiC040FjkepuQut5q2ZFX1pTjBrOVKNjgsCDyiJDGZTCNoh9qpXYbhl7iEym30BWWwuiZg==")
+
+	sig, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.Hash(0), msg)
+	if err != nil {
+		t.Fatalf("SignPKCS1v15 failed: %s", err)
+	}
+	if !bytes.Equal(sig, expectedSig) {
+		t.Fatalf("signature is not expected value: got %x, want %x", sig, expectedSig)
+	}
+	if err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.Hash(0), msg, sig); err != nil {
+		t.Fatalf("signature failed to verify: %s", err)
+	}
+}
+
+func TestShortSessionKey(t *testing.T) {
+	// This tests that attempting to decrypt a session key where the
+	// ciphertext is too small doesn't run outside the array bounds.
+	ciphertext, err := EncryptPKCS1v15(rand.Reader, &rsaPrivateKey.PublicKey, []byte{1})
+	if err != nil {
+		t.Fatalf("Failed to encrypt short message: %s", err)
+	}
+
+	var key [32]byte
+	if err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, ciphertext, key[:]); err != nil {
+		t.Fatalf("Failed to decrypt short message: %s", err)
+	}
+
+	for _, v := range key {
+		if v != 0 {
+			t.Fatal("key was modified when ciphertext was invalid")
+		}
+	}
+}
+
 // In order to generate new test vectors you'll need the PEM form of this key:
 // -----BEGIN RSA PRIVATE KEY-----
 // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0

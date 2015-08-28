@@ -1,14 +1,195 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-06-29  Richard Biener  <rguenther@suse.de>
+2015-04-22  Release Manager
+
+	* GCC 5.1.0 released.
+
+2015-04-22  Jakub Jelinek  <jakub@redhat.com>
+
+	* gennews (files): Add files for GCC 5.
+
+2015-03-06  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	* dg-extract-results.sh: Check that the necessary python modules exist.
+
+2015-02-05  Ilya Verbin  <ilya.verbin@intel.com>
+
+	* gcc_update (files_and_dependencies): Add rules for liboffloadmic and
+	liboffloadmic/plugin.
+
+2015-01-15  Richard Sandiford  <richard.sandiford@arm.com>
+
+	* update-copyright.py (Copyright.__init__): Add a regexp for
+	"copyright = u'".
+	(Copyright.update_copyright): Don't add a space before the year
+	in that case.
+
+2015-01-15  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* gcc_update (files_and_dependencies): Update rules for new
+	libgomp/plugin/Makefrag.am and libgomp/plugin/configfrag.ac files.
+
+2015-01-12  Yury Gribov  <y.gribov@samsung.com>
+
+	* check_GNU_style.sh: Support patches coming from stdin.
+	Check that spaces are converted to tabs.
+	Make double-space-after-dot check more precice.
+
+2015-01-06  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* config-list.mk (LIST): Add visium-elf.
+
+2015-01-05  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* config-list.mk: Use shortest match for OPT to find the actual
+	target name.
+
+2014-12-17  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* dg-extract-results.sh: Use --text with grep to avoid issues with
+	binary files.  Fall back to cat -v, if that doesn't work.
+
+2014-12-12  Chung-Ju Wu  <jasonwucj@gmail.com>
+
+	* download_prerequisites: Modify the comment for GRAPHITE_LOOP_OPT.
+
+2014-12-09  Laurynas Biveinis  <laurynas.biveinis@gmail.com>
+	    Yury Gribov  <y.gribov@samsung.com>
+
+	* vimrc: New file.
+
+2014-12-04  Thomas Preud'homme  <thomas.preudhomme@arm.com>
+
+	* check_GNU_style.sh: Warn for incorrect number of spaces in function
+	call only if 0 or 2+ spaces found.
+
+2014-12-02  Tobias Burnus  <burnus@net-b.de>
+
+	* download_prerequisites: Download ISL 0.14 instead of 0.12.2.
+
+2014-11-25  Tom de Vries  <tom@codesourcery.com>
+	    Peter Bergner  <bergner@vnet.ibm.com>
+
+	* mklog: Handle .mklog.  Use git setting independent of presence .git
+	directory.
+
+2014-11-14  Tom de Vries  <tom@codesourcery.com>
+
+	* mklog: Move reading of .diff file up and add comment.  Copy diff_lines
+	to orig_diff_lines.  Use orig_diff_lines when appending patch.
+
+2014-11-11  David Malcolm  <dmalcolm@redhat.com>
+
+	* ChangeLog.jit: New.
+	* jit-coverage-report.py: New file: a script to print crude
+	code-coverage information for the libgccjit API.
+
+2014-11-11  Marat Zakirov  <m.zakirov@samsung.com>
+
+	* mklog: Symbol '}' stops search for changes.  
+
+2014-11-11  Tobias Burnus  <burnus@net-b.de>
+
+	* download_prerequisites: Stop downloading CLooG.
+
+2014-11-07  Marat Zakirov  <m.zakirov@samsung.com>
+
+	* mklog: Always doubt in functions.  
+	Add EOF protection.  
+
+2014-10-31  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* config-list.mk: Don't build Go for certain targets.
+
+2014-10-04  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* compare-all-tests: Don't test score-*.
+	* config-list.mk: Likewise.
+
+2014-10-02  Segher Boessenkool  <segher@kernel.crashing.org>
+
+	* dg-extract-results.py (output_variation): Always sort if do_sum.
+
+2014-09-22  Tom de Vries  <tom@codesourcery.com>
+
+	* mklog: Add --inline option.
+
+2014-09-19  Segher Boessenkool  <segher@kernel.crashing.org>
+
+	* dg-extract-results.py (Prog.result_re): Include options in test name.
+
+2014-09-19  Olivier Hainque  <hainque@adacore.com>
+
+	* config-list.mk (LIST): Add powerpc-wrs-vxworksmils.
+
+2014-09-18  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* config-list.mk (LIST): Add v850-rtems.
+
+2014-09-18  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+
+	* config-list.mk (LIST): Add arm-rtems.
+	Add nios2-rtems.  Remove extra option from powerpc-rtems.
+
+2014-09-08  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* compare-all-tests: Don't test picochip.
+	* config-list.mk: Likewise.
+
+2014-08-11  Mingjie Xing <mingjie.xing@gmail.com>
+
+	* texi2pod.pl (postprocess): Move command process for '@sc' to the
+	front of '@dfn'.  Add a new command process for '@t{...}', just print
+	the content.
+
+2014-07-21  Trevor Saunders  <tsaunders@mozilla.com>
+	    Yury Gribov  <y.gribov@samsung.com>
+
+	* mklog: Run mklog as a filter.
+
+2014-07-21  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* mklog: Read name and email from git config when available.
+
+2014-06-28  Richard Biener  <rguenther@suse.de>
 
 	* gennews: Use gcc-3.0/index.html.
 
-2014-04-22  Release Manager
+2014-06-14  Richard Sandiford  <rdsandiford@googlemail.com>
 
-	* GCC 4.9.0 released.
+	* dg-extract-results.py: For Python 3, force sys.stdout to handle
+	surrogate escape sequences.
+	(safe_open): New function.
+	(output_segment, main): Use it.
+
+2014-05-25  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* dg-extract-results.py (Named): Remove __cmp__ method.
+	(output_variation): Use a key to sort variation.harnesses.
+
+2014-05-24  Uros Bizjak  <ubizjak@gmail.com>
+
+	* texi2pod.pl: Force .pod file to not be a numbered list.
+
+2014-05-20  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* dg-extract-results.py (parse_run): Handle warnings that are printed
+	before a test harness is run.
+
+2014-05-09  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* config-list.mk (show): New target.
+
+2014-05-08  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* dg-extract-results.py: New file.
+	* dg-extract-results.sh: Use it if the environment seems suitable.
+
+2014-04-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* config-list.mk (LIST): Remove sparc-sun-solaris2.9, i686-solaris2.9.
 
 2013-04-22  Jakub Jelinek  <jakub@redhat.com>
 
@@ -84,7 +265,7 @@
 2013-08-03  Caroline Tice  <cmtice@google.com>
 
 	* gcc_update: Add libvtv files.
-	
+
 2013-06-06  Brooks Moses  <bmoses@google.com>
 
 	* testsuite-management/validate_failures.py: Fix handling of
@@ -271,7 +452,7 @@
 2012-08-24   Diego Novillo  <dnovillo@google.com>
 
 	* testsuite-management/x86_64-unknown-linux-gnu.xfail: Update.
-	
+
 2012-08-14   Diego Novillo  <dnovillo@google.com>
 
 	* testsuite-management/x86_64-unknown-linux-gnu.xfail: New.
@@ -672,7 +853,7 @@
 2009-08-18  H.J. Lu  <hongjiu.lu@intel.com>
 
 	PR testsuite/40704
-	* test_summary: Filter out "\r". 
+	* test_summary: Filter out "\r".
 
 2009-06-02  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -745,7 +926,7 @@
 2008-03-10  Janis Johnson  <janis187@us.ibm.com>
 
 	* patch_tester.sh (initialization): Initialize svnpatch and stop.
-	(usage): Add -svnpath and -stop.	
+	(usage): Add -svnpath and -stop.
 	(makedir): New.
 	(argument handling): Process -stop and -svnpath.
 	(setup code): Use makedir, error out if initial svn checkout fails.
@@ -816,7 +997,7 @@
 
 	* texi2pod.pl: Handle @asis.
 	(postprocess): Move @gccoptlist{} after all formatting commands.
-	
+
 2007-10-01  Alexandre Oliva  <aoliva@redhat.com>
 
 	* compare-debug: Avoid spurious errors when .stripped files
@@ -978,14 +1159,14 @@
 
 2005-10-28  Daniel Berlin  <dberlin@dberlin.org>
 	    Ben Elliston  <bje@au1.ibm.com>
-	
+
 	* gcc_update: Update for svn.
 	* newcvsroot: Ditto.
 	* gcc_build: Ditto.
 
 2005-10-21  Mark Mitchell  <mark@codesourcery.com>
 
-	* texi2pod.pl: Substitue for @value even when part of @include. 
+	* texi2pod.pl: Substitue for @value even when part of @include.
 
 2005-10-21  Bob Wilson  <bob.wilson@acm.org>
 

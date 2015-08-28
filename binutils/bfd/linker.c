@@ -1,7 +1,5 @@
 /* linker.c -- BFD linker routines
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
    Written by Steve Chamberlain and Ian Lance Taylor, Cygnus Support
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -223,27 +221,22 @@ SUBSUBSECTION
 	archive and decide which elements of the archive should be
 	included in the link.  For each such element it must call the
 	<<add_archive_element>> linker callback, and it must add the
-	symbols from the object file to the linker hash table.
+	symbols from the object file to the linker hash table.  (The
+	callback may in fact indicate that a replacement BFD should be
+	used, in which case the symbols from that BFD should be added
+	to the linker hash table instead.)
 
 @findex _bfd_generic_link_add_archive_symbols
 	In most cases the work of looking through the symbols in the
 	archive should be done by the
-	<<_bfd_generic_link_add_archive_symbols>> function.  This
-	function builds a hash table from the archive symbol table and
-	looks through the list of undefined symbols to see which
-	elements should be included.
+	<<_bfd_generic_link_add_archive_symbols>> function.
 	<<_bfd_generic_link_add_archive_symbols>> is passed a function
 	to call to make the final decision about adding an archive
 	element to the link and to do the actual work of adding the
-	symbols to the linker hash table.
-
-	The function passed to
-	<<_bfd_generic_link_add_archive_symbols>> must read the
-	symbols of the archive element and decide whether the archive
-	element should be included in the link.  If the element is to
+	symbols to the linker hash table.  If the element is to
 	be included, the <<add_archive_element>> linker callback
 	routine must be called with the element as an argument, and
-	the elements symbols must be added to the linker hash table
+	the element's symbols must be added to the linker hash table
 	just as though the element had itself been passed to the
 	<<_bfd_link_add_symbols>> function.
 
@@ -257,7 +250,8 @@ SUBSUBSECTION
 	symbol) it calls the <<add_archive_element>> callback and then
 	<<aout_link_check_archive_element>> calls
 	<<aout_link_add_symbols>> to actually add the symbols to the
-	linker hash table.
+	linker hash table - possibly those of a substitute BFD, if the
+	<<add_archive_element>> callback avails itself of that option.
 
 	The ECOFF back end is unusual in that it does not normally
 	call <<_bfd_generic_link_add_archive_symbols>>, because ECOFF
@@ -307,7 +301,7 @@ SUBSUBSECTION
 
 	The <<input_bfds>> field of the <<bfd_link_info>> structure
 	will point to a list of all the input files included in the
-	link.  These files are linked through the <<link_next>> field
+	link.  These files are linked through the <<link.next>> field
 	of the <<bfd>> structure.
 
 	Each section in the output file will have a list of
@@ -413,11 +407,14 @@ static bfd_boolean generic_link_add_object_symbols
 static bfd_boolean generic_link_add_symbols
   (bfd *, struct bfd_link_info *, bfd_boolean);
 static bfd_boolean generic_link_check_archive_element_no_collect
-  (bfd *, struct bfd_link_info *, bfd_boolean *);
+  (bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *, const char *,
+   bfd_boolean *);
 static bfd_boolean generic_link_check_archive_element_collect
-  (bfd *, struct bfd_link_info *, bfd_boolean *);
+  (bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *, const char *,
+   bfd_boolean *);
 static bfd_boolean generic_link_check_archive_element
-  (bfd *, struct bfd_link_info *, bfd_boolean *, bfd_boolean);
+  (bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *, const char *,
+   bfd_boolean *, bfd_boolean);
 static bfd_boolean generic_link_add_symbol_list
   (bfd *, struct bfd_link_info *, bfd_size_type count, asymbol **,
    bfd_boolean);
@@ -457,10 +454,8 @@ _bfd_link_hash_newfunc (struct bfd_hash_entry *entry,
       struct bfd_link_hash_entry *h = (struct bfd_link_hash_entry *) entry;
 
       /* Initialize the local fields.  */
-      h->type = bfd_link_hash_new;
-      memset (&h->u.undef.next, 0,
-	      (sizeof (struct bfd_link_hash_entry)
-	       - offsetof (struct bfd_link_hash_entry, u.undef.next)));
+      memset ((char *) &h->root + sizeof (h->root), 0,
+	      sizeof (*h) - sizeof (h->root));
     }
 
   return entry;
@@ -478,11 +473,22 @@ _bfd_link_hash_table_init
 				      const char *),
    unsigned int entsize)
 {
+  bfd_boolean ret;
+
+  BFD_ASSERT (!abfd->is_linker_output && !abfd->link.hash);
   table->undefs = NULL;
   table->undefs_tail = NULL;
   table->type = bfd_link_generic_hash_table;
 
-  return bfd_hash_table_init (&table->table, newfunc, entsize);
+  ret = bfd_hash_table_init (&table->table, newfunc, entsize);
+  if (ret)
+    {
+      /* Arrange for destruction of this hash table on closing ABFD.  */
+      table->hash_table_free = _bfd_generic_link_hash_table_free;
+      abfd->link.hash = table;
+      abfd->is_linker_output = TRUE;
+    }
+  return ret;
 }
 
 /* Look up a symbol in a link hash table.  If follow is TRUE, we
@@ -562,8 +568,6 @@ bfd_wrapped_link_hash_lookup (bfd *abfd,
 	  return h;
 	}
 
-#undef WRAP
-
 #undef  REAL
 #define REAL "__real_"
 
@@ -598,21 +602,68 @@ bfd_wrapped_link_hash_lookup (bfd *abfd,
   return bfd_link_hash_lookup (info->hash, string, create, copy, follow);
 }
 
-/* Traverse a generic link hash table.  The only reason this is not a
-   macro is to do better type checking.  This code presumes that an
-   argument passed as a struct bfd_hash_entry * may be caught as a
-   struct bfd_link_hash_entry * with no explicit cast required on the
-   call.  */
+/* If H is a wrapped symbol, ie. the symbol name starts with "__wrap_"
+   and the remainder is found in wrap_hash, return the real symbol.  */
+
+struct bfd_link_hash_entry *
+unwrap_hash_lookup (struct bfd_link_info *info,
+		    bfd *input_bfd,
+		    struct bfd_link_hash_entry *h)
+{
+  const char *l = h->root.string;
+
+  if (*l == bfd_get_symbol_leading_char (input_bfd)
+      || *l == info->wrap_char)
+    ++l;
+
+  if (CONST_STRNEQ (l, WRAP))
+    {
+      l += sizeof WRAP - 1;
+
+      if (bfd_hash_lookup (info->wrap_hash, l, FALSE, FALSE) != NULL)
+	{
+	  char save = 0;
+	  if (l - (sizeof WRAP - 1) != h->root.string)
+	    {
+	      --l;
+	      save = *l;
+	      *(char *) l = *h->root.string;
+	    }
+	  h = bfd_link_hash_lookup (info->hash, l, FALSE, FALSE, FALSE);
+	  if (save)
+	    *(char *) l = save;
+	}
+    }
+  return h;
+}
+#undef WRAP
+
+/* Traverse a generic link hash table.  Differs from bfd_hash_traverse
+   in the treatment of warning symbols.  When warning symbols are
+   created they replace the real symbol, so you don't get to see the
+   real symbol in a bfd_hash_travere.  This traversal calls func with
+   the real symbol.  */
 
 void
 bfd_link_hash_traverse
-  (struct bfd_link_hash_table *table,
+  (struct bfd_link_hash_table *htab,
    bfd_boolean (*func) (struct bfd_link_hash_entry *, void *),
    void *info)
 {
-  bfd_hash_traverse (&table->table,
-		     (bfd_boolean (*) (struct bfd_hash_entry *, void *)) func,
-		     info);
+  unsigned int i;
+
+  htab->table.frozen = 1;
+  for (i = 0; i < htab->table.size; i++)
+    {
+      struct bfd_link_hash_entry *p;
+
+      p = (struct bfd_link_hash_entry *) htab->table.table[i];
+      for (; p != NULL; p = (struct bfd_link_hash_entry *) p->root.next)
+	if (!(*func) (p->type == bfd_link_hash_warning ? p->u.i.link : p, info))
+	  goto out;
+    }
+ out:
+  htab->table.frozen = 0;
 }
 
 /* Add a symbol to the linker hash table undefs list.  */
@@ -722,13 +773,16 @@ _bfd_generic_link_hash_table_create (bfd *abfd)
 }
 
 void
-_bfd_generic_link_hash_table_free (struct bfd_link_hash_table *hash)
+_bfd_generic_link_hash_table_free (bfd *obfd)
 {
-  struct generic_link_hash_table *ret
-    = (struct generic_link_hash_table *) hash;
+  struct generic_link_hash_table *ret;
 
+  BFD_ASSERT (obfd->is_linker_output && obfd->link.hash);
+  ret = (struct generic_link_hash_table *) obfd->link.hash;
   bfd_hash_table_free (&ret->root.table);
   free (ret);
+  obfd->link.hash = NULL;
+  obfd->is_linker_output = FALSE;
 }
 
 /* Grab the symbols for an object file when doing a generic link.  We
@@ -793,8 +847,19 @@ void
 _bfd_generic_link_just_syms (asection *sec,
 			     struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
+  sec->sec_info_type = SEC_INFO_TYPE_JUST_SYMS;
   sec->output_section = bfd_abs_section_ptr;
   sec->output_offset = sec->vma;
+}
+
+/* Copy the symbol type and other attributes for a linker script
+   assignment from HSRC to HDEST.
+   The default implementation does nothing.  */
+void
+_bfd_generic_copy_link_hash_symbol_type (bfd *abfd ATTRIBUTE_UNUSED,
+    struct bfd_link_hash_entry *hdest ATTRIBUTE_UNUSED,
+    struct bfd_link_hash_entry *hsrc ATTRIBUTE_UNUSED)
+{
 }
 
 /* Add symbols from an object file to the global hash table.  */
@@ -843,136 +908,32 @@ generic_link_add_object_symbols (bfd *abfd,
   return generic_link_add_symbol_list (abfd, info, symcount, outsyms, collect);
 }
 
-/* We build a hash table of all symbols defined in an archive.  */
-
-/* An archive symbol may be defined by multiple archive elements.
-   This linked list is used to hold the elements.  */
-
-struct archive_list
-{
-  struct archive_list *next;
-  unsigned int indx;
-};
-
-/* An entry in an archive hash table.  */
-
-struct archive_hash_entry
-{
-  struct bfd_hash_entry root;
-  /* Where the symbol is defined.  */
-  struct archive_list *defs;
-};
-
-/* An archive hash table itself.  */
-
-struct archive_hash_table
-{
-  struct bfd_hash_table table;
-};
-
-/* Create a new entry for an archive hash table.  */
-
-static struct bfd_hash_entry *
-archive_hash_newfunc (struct bfd_hash_entry *entry,
-		      struct bfd_hash_table *table,
-		      const char *string)
-{
-  struct archive_hash_entry *ret = (struct archive_hash_entry *) entry;
-
-  /* Allocate the structure if it has not already been allocated by a
-     subclass.  */
-  if (ret == NULL)
-    ret = (struct archive_hash_entry *)
-        bfd_hash_allocate (table, sizeof (struct archive_hash_entry));
-  if (ret == NULL)
-    return NULL;
-
-  /* Call the allocation method of the superclass.  */
-  ret = ((struct archive_hash_entry *)
-	 bfd_hash_newfunc ((struct bfd_hash_entry *) ret, table, string));
-
-  if (ret)
-    {
-      /* Initialize the local fields.  */
-      ret->defs = NULL;
-    }
-
-  return &ret->root;
-}
-
-/* Initialize an archive hash table.  */
-
-static bfd_boolean
-archive_hash_table_init
-  (struct archive_hash_table *table,
-   struct bfd_hash_entry *(*newfunc) (struct bfd_hash_entry *,
-				      struct bfd_hash_table *,
-				      const char *),
-   unsigned int entsize)
-{
-  return bfd_hash_table_init (&table->table, newfunc, entsize);
-}
-
-/* Look up an entry in an archive hash table.  */
-
-#define archive_hash_lookup(t, string, create, copy) \
-  ((struct archive_hash_entry *) \
-   bfd_hash_lookup (&(t)->table, (string), (create), (copy)))
-
-/* Allocate space in an archive hash table.  */
-
-#define archive_hash_allocate(t, size) bfd_hash_allocate (&(t)->table, (size))
-
-/* Free an archive hash table.  */
-
-#define archive_hash_table_free(t) bfd_hash_table_free (&(t)->table)
-
 /* Generic function to add symbols from an archive file to the global
    hash file.  This function presumes that the archive symbol table
    has already been read in (this is normally done by the
-   bfd_check_format entry point).  It looks through the undefined and
-   common symbols and searches the archive symbol table for them.  If
-   it finds an entry, it includes the associated object file in the
-   link.
-
-   The old linker looked through the archive symbol table for
-   undefined symbols.  We do it the other way around, looking through
-   undefined symbols for symbols defined in the archive.  The
-   advantage of the newer scheme is that we only have to look through
-   the list of undefined symbols once, whereas the old method had to
-   re-search the symbol table each time a new object file was added.
-
-   The CHECKFN argument is used to see if an object file should be
-   included.  CHECKFN should set *PNEEDED to TRUE if the object file
-   should be included, and must also call the bfd_link_info
-   add_archive_element callback function and handle adding the symbols
-   to the global hash table.  CHECKFN should only return FALSE if some
-   sort of error occurs.
-
-   For some formats, such as a.out, it is possible to look through an
-   object file but not actually include it in the link.  The
-   archive_pass field in a BFD is used to avoid checking the symbols
-   of an object files too many times.  When an object is included in
-   the link, archive_pass is set to -1.  If an object is scanned but
-   not included, archive_pass is set to the pass number.  The pass
-   number is incremented each time a new object file is included.  The
-   pass number is used because when a new object file is included it
-   may create new undefined symbols which cause a previously examined
-   object file to be included.  */
+   bfd_check_format entry point).  It looks through the archive symbol
+   table for symbols that are undefined or common in the linker global
+   symbol hash table.  When one is found, the CHECKFN argument is used
+   to see if an object file should be included.  This allows targets
+   to customize common symbol behaviour.  CHECKFN should set *PNEEDED
+   to TRUE if the object file should be included, and must also call
+   the bfd_link_info add_archive_element callback function and handle
+   adding the symbols to the global hash table.  CHECKFN must notice
+   if the callback indicates a substitute BFD, and arrange to add
+   those symbols instead if it does so.  CHECKFN should only return
+   FALSE if some sort of error occurs.  */
 
 bfd_boolean
 _bfd_generic_link_add_archive_symbols
   (bfd *abfd,
    struct bfd_link_info *info,
-   bfd_boolean (*checkfn) (bfd *, struct bfd_link_info *, bfd_boolean *))
+   bfd_boolean (*checkfn) (bfd *, struct bfd_link_info *,
+			   struct bfd_link_hash_entry *, const char *,
+			   bfd_boolean *))
 {
-  carsym *arsyms;
-  carsym *arsym_end;
-  register carsym *arsym;
-  int pass;
-  struct archive_hash_table arsym_hash;
-  unsigned int indx;
-  struct bfd_link_hash_entry **pundef;
+  bfd_boolean loop;
+  bfd_size_type amt;
+  unsigned char *included;
 
   if (! bfd_has_map (abfd))
     {
@@ -983,148 +944,103 @@ _bfd_generic_link_add_archive_symbols
       return FALSE;
     }
 
-  arsyms = bfd_ardata (abfd)->symdefs;
-  arsym_end = arsyms + bfd_ardata (abfd)->symdef_count;
-
-  /* In order to quickly determine whether an symbol is defined in
-     this archive, we build a hash table of the symbols.  */
-  if (! archive_hash_table_init (&arsym_hash, archive_hash_newfunc,
-				 sizeof (struct archive_hash_entry)))
+  amt = bfd_ardata (abfd)->symdef_count;
+  if (amt == 0)
+    return TRUE;
+  amt *= sizeof (*included);
+  included = (unsigned char *) bfd_zmalloc (amt);
+  if (included == NULL)
     return FALSE;
-  for (arsym = arsyms, indx = 0; arsym < arsym_end; arsym++, indx++)
+
+  do
     {
-      struct archive_hash_entry *arh;
-      struct archive_list *l, **pp;
+      carsym *arsyms;
+      carsym *arsym_end;
+      carsym *arsym;
+      unsigned int indx;
+      file_ptr last_ar_offset = -1;
+      bfd_boolean needed = FALSE;
+      bfd *element = NULL;
 
-      arh = archive_hash_lookup (&arsym_hash, arsym->name, TRUE, FALSE);
-      if (arh == NULL)
-	goto error_return;
-      l = ((struct archive_list *)
-	   archive_hash_allocate (&arsym_hash, sizeof (struct archive_list)));
-      if (l == NULL)
-	goto error_return;
-      l->indx = indx;
-      for (pp = &arh->defs; *pp != NULL; pp = &(*pp)->next)
-	;
-      *pp = l;
-      l->next = NULL;
-    }
-
-  /* The archive_pass field in the archive itself is used to
-     initialize PASS, sine we may search the same archive multiple
-     times.  */
-  pass = abfd->archive_pass + 1;
-
-  /* New undefined symbols are added to the end of the list, so we
-     only need to look through it once.  */
-  pundef = &info->hash->undefs;
-  while (*pundef != NULL)
-    {
-      struct bfd_link_hash_entry *h;
-      struct archive_hash_entry *arh;
-      struct archive_list *l;
-
-      h = *pundef;
-
-      /* When a symbol is defined, it is not necessarily removed from
-	 the list.  */
-      if (h->type != bfd_link_hash_undefined
-	  && h->type != bfd_link_hash_common)
+      loop = FALSE;
+      arsyms = bfd_ardata (abfd)->symdefs;
+      arsym_end = arsyms + bfd_ardata (abfd)->symdef_count;
+      for (arsym = arsyms, indx = 0; arsym < arsym_end; arsym++, indx++)
 	{
-	  /* Remove this entry from the list, for general cleanliness
-	     and because we are going to look through the list again
-	     if we search any more libraries.  We can't remove the
-	     entry if it is the tail, because that would lose any
-	     entries we add to the list later on (it would also cause
-	     us to lose track of whether the symbol has been
-	     referenced).  */
-	  if (*pundef != info->hash->undefs_tail)
-	    *pundef = (*pundef)->u.undef.next;
-	  else
-	    pundef = &(*pundef)->u.undef.next;
-	  continue;
-	}
+	  struct bfd_link_hash_entry *h;
+	  struct bfd_link_hash_entry *undefs_tail;
 
-      /* Look for this symbol in the archive symbol map.  */
-      arh = archive_hash_lookup (&arsym_hash, h->root.string, FALSE, FALSE);
-      if (arh == NULL)
-	{
-	  /* If we haven't found the exact symbol we're looking for,
-	     let's look for its import thunk */
-	  if (info->pei386_auto_import)
+	  if (included[indx])
+	    continue;
+	  if (needed && arsym->file_offset == last_ar_offset)
 	    {
-	      bfd_size_type amt = strlen (h->root.string) + 10;
-	      char *buf = (char *) bfd_malloc (amt);
-	      if (buf == NULL)
-		return FALSE;
-
-	      sprintf (buf, "__imp_%s", h->root.string);
-	      arh = archive_hash_lookup (&arsym_hash, buf, FALSE, FALSE);
-	      free(buf);
-	    }
-	  if (arh == NULL)
-	    {
-	      pundef = &(*pundef)->u.undef.next;
+	      included[indx] = 1;
 	      continue;
 	    }
-	}
-      /* Look at all the objects which define this symbol.  */
-      for (l = arh->defs; l != NULL; l = l->next)
-	{
-	  bfd *element;
-	  bfd_boolean needed;
 
-	  /* If the symbol has gotten defined along the way, quit.  */
-	  if (h->type != bfd_link_hash_undefined
-	      && h->type != bfd_link_hash_common)
-	    break;
+	  h = bfd_link_hash_lookup (info->hash, arsym->name,
+				    FALSE, FALSE, TRUE);
 
-	  element = bfd_get_elt_at_index (abfd, l->indx);
-	  if (element == NULL)
-	    goto error_return;
-
-	  /* If we've already included this element, or if we've
-	     already checked it on this pass, continue.  */
-	  if (element->archive_pass == -1
-	      || element->archive_pass == pass)
+	  if (h == NULL
+	      && info->pei386_auto_import
+	      && CONST_STRNEQ (arsym->name, "__imp_"))
+	    h = bfd_link_hash_lookup (info->hash, arsym->name + 6,
+				      FALSE, FALSE, TRUE);
+	  if (h == NULL)
 	    continue;
 
-	  /* If we can't figure this element out, just ignore it.  */
-	  if (! bfd_check_format (element, bfd_object))
+	  if (h->type != bfd_link_hash_undefined
+	      && h->type != bfd_link_hash_common)
 	    {
-	      element->archive_pass = -1;
+	      if (h->type != bfd_link_hash_undefweak)
+		/* Symbol must be defined.  Don't check it again.  */
+		included[indx] = 1;
 	      continue;
 	    }
+
+	  if (last_ar_offset != arsym->file_offset)
+	    {
+	      last_ar_offset = arsym->file_offset;
+	      element = _bfd_get_elt_at_filepos (abfd, last_ar_offset);
+	      if (element == NULL
+		  || !bfd_check_format (element, bfd_object))
+		goto error_return;
+	    }
+
+	  undefs_tail = info->hash->undefs_tail;
 
 	  /* CHECKFN will see if this element should be included, and
 	     go ahead and include it if appropriate.  */
-	  if (! (*checkfn) (element, info, &needed))
+	  if (! (*checkfn) (element, info, h, arsym->name, &needed))
 	    goto error_return;
 
-	  if (! needed)
-	    element->archive_pass = pass;
-	  else
+	  if (needed)
 	    {
-	      element->archive_pass = -1;
+	      unsigned int mark;
 
-	      /* Increment the pass count to show that we may need to
-		 recheck object files which were already checked.  */
-	      ++pass;
+	      /* Look backward to mark all symbols from this object file
+		 which we have already seen in this pass.  */
+	      mark = indx;
+	      do
+		{
+		  included[mark] = 1;
+		  if (mark == 0)
+		    break;
+		  --mark;
+		}
+	      while (arsyms[mark].file_offset == last_ar_offset);
+
+	      if (undefs_tail != info->hash->undefs_tail)
+		loop = TRUE;
 	    }
 	}
+    } while (loop);
 
-      pundef = &(*pundef)->u.undef.next;
-    }
-
-  archive_hash_table_free (&arsym_hash);
-
-  /* Save PASS in case we are called again.  */
-  abfd->archive_pass = pass;
-
+  free (included);
   return TRUE;
 
  error_return:
-  archive_hash_table_free (&arsym_hash);
+  free (included);
   return FALSE;
 }
 
@@ -1134,12 +1050,14 @@ _bfd_generic_link_add_archive_symbols
    for finding them.  */
 
 static bfd_boolean
-generic_link_check_archive_element_no_collect (
-					       bfd *abfd,
+generic_link_check_archive_element_no_collect (bfd *abfd,
 					       struct bfd_link_info *info,
+					       struct bfd_link_hash_entry *h,
+					       const char *name,
 					       bfd_boolean *pneeded)
 {
-  return generic_link_check_archive_element (abfd, info, pneeded, FALSE);
+  return generic_link_check_archive_element (abfd, info, h, name, pneeded,
+					     FALSE);
 }
 
 /* See if we should include an archive element.  This version is used
@@ -1149,9 +1067,12 @@ generic_link_check_archive_element_no_collect (
 static bfd_boolean
 generic_link_check_archive_element_collect (bfd *abfd,
 					    struct bfd_link_info *info,
+					    struct bfd_link_hash_entry *h,
+					    const char *name,
 					    bfd_boolean *pneeded)
 {
-  return generic_link_check_archive_element (abfd, info, pneeded, TRUE);
+  return generic_link_check_archive_element (abfd, info, h, name, pneeded,
+					     TRUE);
 }
 
 /* See if we should include an archive element.  Optionally collect
@@ -1160,6 +1081,8 @@ generic_link_check_archive_element_collect (bfd *abfd,
 static bfd_boolean
 generic_link_check_archive_element (bfd *abfd,
 				    struct bfd_link_info *info,
+				    struct bfd_link_hash_entry *h,
+				    const char *name ATTRIBUTE_UNUSED,
 				    bfd_boolean *pneeded,
 				    bfd_boolean collect)
 {
@@ -1175,7 +1098,6 @@ generic_link_check_archive_element (bfd *abfd,
   for (; pp < ppend; pp++)
     {
       asymbol *p;
-      struct bfd_link_hash_entry *h;
 
       p = *pp;
 
@@ -1198,22 +1120,21 @@ generic_link_check_archive_element (bfd *abfd,
 
       /* P is a symbol we are looking for.  */
 
-      if (! bfd_is_com_section (p->section))
+      if (! bfd_is_com_section (p->section)
+	  || (h->type == bfd_link_hash_undefined
+	      && h->u.undef.abfd == NULL))
 	{
-	  bfd_size_type symcount;
-	  asymbol **symbols;
-
-	  /* This object file defines this symbol, so pull it in.  */
-	  if (! (*info->callbacks->add_archive_element) (info, abfd,
-							 bfd_asymbol_name (p)))
-	    return FALSE;
-	  symcount = _bfd_generic_link_get_symcount (abfd);
-	  symbols = _bfd_generic_link_get_symbols (abfd);
-	  if (! generic_link_add_symbol_list (abfd, info, symcount,
-					      symbols, collect))
-	    return FALSE;
+	  /* P is not a common symbol, or an undefined reference was
+	     created from outside BFD such as from a linker -u option.
+	     This object file defines the symbol, so pull it in.  */
 	  *pneeded = TRUE;
-	  return TRUE;
+	  if (!(*info->callbacks
+		->add_archive_element) (info, abfd, bfd_asymbol_name (p),
+					&abfd))
+	    return FALSE;
+	  /* Potentially, the add_archive_element hook may have set a
+	     substitute BFD for us.  */
+	  return generic_link_add_object_symbols (abfd, info, collect);
 	}
 
       /* P is a common symbol.  */
@@ -1224,19 +1145,6 @@ generic_link_check_archive_element (bfd *abfd,
 	  bfd_vma size;
 	  unsigned int power;
 
-	  symbfd = h->u.undef.abfd;
-	  if (symbfd == NULL)
-	    {
-	      /* This symbol was created as undefined from outside
-		 BFD.  We assume that we should link in the object
-		 file.  This is for the -u option in the linker.  */
-	      if (! (*info->callbacks->add_archive_element)
-		  (info, abfd, bfd_asymbol_name (p)))
-		return FALSE;
-	      *pneeded = TRUE;
-	      return TRUE;
-	    }
-
 	  /* Turn the symbol into a common symbol but do not link in
 	     the object file.  This is how a.out works.  Object
 	     formats that require different semantics must implement
@@ -1244,6 +1152,7 @@ generic_link_check_archive_element (bfd *abfd,
 	     undefs list.  We add the section to a common section
 	     attached to symbfd to ensure that it is in a BFD which
 	     will be linked in.  */
+	  symbfd = h->u.undef.abfd;
 	  h->type = bfd_link_hash_common;
 	  h->u.c.p = (struct bfd_link_hash_common_entry *)
 	    bfd_hash_allocate (&info->hash->table,
@@ -1264,7 +1173,7 @@ generic_link_check_archive_element (bfd *abfd,
 	  else
 	    h->u.c.p->section = bfd_make_section_old_way (symbfd,
 							  p->section->name);
-	  h->u.c.p->section->flags = SEC_ALLOC;
+	  h->u.c.p->section->flags |= SEC_ALLOC;
 	}
       else
 	{
@@ -1433,8 +1342,7 @@ enum link_action
   CIND,		/* Make indirect symbol from existing common symbol.  */
   SET,		/* Add value to set.  */
   MWARN,	/* Make warning symbol.  */
-  WARN,		/* Issue warning.  */
-  CWARN,	/* Warn if referenced, else MWARN.  */
+  WARN,		/* Warn if referenced, else MWARN.  */
   CYCLE,	/* Repeat with symbol pointed to.  */
   REFC,		/* Mark indirect symbol referenced and then CYCLE.  */
   WARNC		/* Issue warning and then CYCLE.  */
@@ -1452,7 +1360,7 @@ static const enum link_action link_action[8][8] =
   /* DEFW_ROW 	*/  {DEFW,  DEFW,  DEFW,  NOACT, NOACT, NOACT, NOACT, CYCLE },
   /* COMMON_ROW	*/  {COM,   COM,   COM,   CREF,  COM,   BIG,   REFC,  WARNC },
   /* INDR_ROW	*/  {IND,   IND,   IND,   MDEF,  IND,   CIND,  MIND,  CYCLE },
-  /* WARN_ROW   */  {MWARN, WARN,  WARN,  CWARN, CWARN, WARN,  CWARN, NOACT },
+  /* WARN_ROW   */  {MWARN, WARN,  WARN,  WARN,  WARN,  WARN,  WARN,  NOACT },
   /* SET_ROW	*/  {SET,   SET,   SET,   SET,   SET,   SET,   CYCLE, CYCLE }
 };
 
@@ -1534,11 +1442,23 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 {
   enum link_row row;
   struct bfd_link_hash_entry *h;
+  struct bfd_link_hash_entry *inh = NULL;
   bfd_boolean cycle;
+
+  BFD_ASSERT (section != NULL);
 
   if (bfd_is_ind_section (section)
       || (flags & BSF_INDIRECT) != 0)
-    row = INDR_ROW;
+    {
+      row = INDR_ROW;
+      /* Create the indirect symbol here.  This is for the benefit of
+	 the plugin "notice" function.
+	 STRING is the name of the symbol we want to indirect to.  */
+      inh = bfd_wrapped_link_hash_lookup (abfd, info, string, TRUE,
+					  copy, FALSE);
+      if (inh == NULL)
+	return FALSE;
+    }
   else if ((flags & BSF_WARNING) != 0)
     row = WARN_ROW;
   else if ((flags & BSF_CONSTRUCTOR) != 0)
@@ -1553,7 +1473,13 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
   else if ((flags & BSF_WEAK) != 0)
     row = DEFW_ROW;
   else if (bfd_is_com_section (section))
-    row = COMMON_ROW;
+    {
+      row = COMMON_ROW;
+      if (strcmp (name, "__gnu_lto_slim") == 0)
+	(*_bfd_error_handler)
+	  (_("%s: plugin needed to handle lto object"),
+	   bfd_get_filename (abfd));
+    }
   else
     row = DEF_ROW;
 
@@ -1577,8 +1503,8 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
       || (info->notice_hash != NULL
 	  && bfd_hash_lookup (info->notice_hash, name, FALSE, FALSE) != NULL))
     {
-      if (! (*info->callbacks->notice) (info, h->root.string, abfd, section,
-					value))
+      if (! (*info->callbacks->notice) (info, h, inh,
+					abfd, section, value, flags))
 	return FALSE;
     }
 
@@ -1611,7 +1537,6 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  /* Make a new weak undefined symbol.  */
 	  h->type = bfd_link_hash_undefweak;
 	  h->u.undef.abfd = abfd;
-	  h->u.undef.weak = abfd;
 	  break;
 
 	case CDEF:
@@ -1619,9 +1544,7 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	     previously common.  */
 	  BFD_ASSERT (h->type == bfd_link_hash_common);
 	  if (! ((*info->callbacks->multiple_common)
-		 (info, h->root.string,
-		  h->u.c.p->section->owner, bfd_link_hash_common, h->u.c.size,
-		  abfd, bfd_link_hash_defined, 0)))
+		 (info, h, abfd, bfd_link_hash_defined, 0)))
 	    return FALSE;
 	  /* Fall through.  */
 	case DEF:
@@ -1637,6 +1560,7 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	      h->type = bfd_link_hash_defined;
 	    h->u.def.section = section;
 	    h->u.def.value = value;
+	    h->linker_def = 0;
 
 	    /* If we have been asked to, we act like collect2 and
 	       identify all functions that might be global
@@ -1726,16 +1650,17 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  if (section == bfd_com_section_ptr)
 	    {
 	      h->u.c.p->section = bfd_make_section_old_way (abfd, "COMMON");
-	      h->u.c.p->section->flags = SEC_ALLOC;
+	      h->u.c.p->section->flags |= SEC_ALLOC;
 	    }
 	  else if (section->owner != abfd)
 	    {
 	      h->u.c.p->section = bfd_make_section_old_way (abfd,
 							    section->name);
-	      h->u.c.p->section->flags = SEC_ALLOC;
+	      h->u.c.p->section->flags |= SEC_ALLOC;
 	    }
 	  else
 	    h->u.c.p->section = section;
+	  h->linker_def = 0;
 	  break;
 
 	case REF:
@@ -1750,9 +1675,7 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	     two sizes, and use the section required by the larger symbol.  */
 	  BFD_ASSERT (h->type == bfd_link_hash_common);
 	  if (! ((*info->callbacks->multiple_common)
-		 (info, h->root.string,
-		  h->u.c.p->section->owner, bfd_link_hash_common, h->u.c.size,
-		  abfd, bfd_link_hash_common, value)))
+		 (info, h, abfd, bfd_link_hash_common, value)))
 	    return FALSE;
 	  if (value > h->u.c.size)
 	    {
@@ -1775,13 +1698,13 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 		{
 		  h->u.c.p->section
 		    = bfd_make_section_old_way (abfd, "COMMON");
-		  h->u.c.p->section->flags = SEC_ALLOC;
+		  h->u.c.p->section->flags |= SEC_ALLOC;
 		}
 	      else if (section->owner != abfd)
 		{
 		  h->u.c.p->section
 		    = bfd_make_section_old_way (abfd, section->name);
-		  h->u.c.p->section->flags = SEC_ALLOC;
+		  h->u.c.p->section->flags |= SEC_ALLOC;
 		}
 	      else
 		h->u.c.p->section = section;
@@ -1789,23 +1712,11 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  break;
 
 	case CREF:
-	  {
-	    bfd *obfd;
-
-	    /* We have found a common definition for a symbol which
-	       was already defined.  FIXME: It would nice if we could
-	       report the BFD which defined an indirect symbol, but we
-	       don't have anywhere to store the information.  */
-	    if (h->type == bfd_link_hash_defined
-		|| h->type == bfd_link_hash_defweak)
-	      obfd = h->u.def.section->owner;
-	    else
-	      obfd = NULL;
-	    if (! ((*info->callbacks->multiple_common)
-		   (info, h->root.string, obfd, h->type, 0,
-		    abfd, bfd_link_hash_common, value)))
-	      return FALSE;
-	  }
+	  /* We have found a common definition for a symbol which
+	     was already defined.  */
+	  if (! ((*info->callbacks->multiple_common)
+		 (info, h, abfd, bfd_link_hash_common, value)))
+	    return FALSE;
 	  break;
 
 	case MIND:
@@ -1816,88 +1727,53 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  /* Fall through.  */
 	case MDEF:
 	  /* Handle a multiple definition.  */
-	  if (!info->allow_multiple_definition)
-	    {
-	      asection *msec = NULL;
-	      bfd_vma mval = 0;
-
-	      switch (h->type)
-		{
-		case bfd_link_hash_defined:
-		  msec = h->u.def.section;
-		  mval = h->u.def.value;
-		  break;
-	        case bfd_link_hash_indirect:
-		  msec = bfd_ind_section_ptr;
-		  mval = 0;
-		  break;
-		default:
-		  abort ();
-		}
-
-	      /* Ignore a redefinition of an absolute symbol to the
-		 same value; it's harmless.  */
-	      if (h->type == bfd_link_hash_defined
-		  && bfd_is_abs_section (msec)
-		  && bfd_is_abs_section (section)
-		  && value == mval)
-		break;
-
-	      if (! ((*info->callbacks->multiple_definition)
-		     (info, h->root.string, msec->owner, msec, mval,
-		      abfd, section, value)))
-		return FALSE;
-	    }
+	  if (! ((*info->callbacks->multiple_definition)
+		 (info, h, abfd, section, value)))
+	    return FALSE;
 	  break;
 
 	case CIND:
 	  /* Create an indirect symbol from an existing common symbol.  */
 	  BFD_ASSERT (h->type == bfd_link_hash_common);
 	  if (! ((*info->callbacks->multiple_common)
-		 (info, h->root.string,
-		  h->u.c.p->section->owner, bfd_link_hash_common, h->u.c.size,
-		  abfd, bfd_link_hash_indirect, 0)))
+		 (info, h, abfd, bfd_link_hash_indirect, 0)))
 	    return FALSE;
 	  /* Fall through.  */
 	case IND:
-	  /* Create an indirect symbol.  */
-	  {
-	    struct bfd_link_hash_entry *inh;
-
-	    /* STRING is the name of the symbol we want to indirect
-	       to.  */
-	    inh = bfd_wrapped_link_hash_lookup (abfd, info, string, TRUE,
-						copy, FALSE);
-	    if (inh == NULL)
+	  if (inh->type == bfd_link_hash_indirect
+	      && inh->u.i.link == h)
+	    {
+	      (*_bfd_error_handler)
+		(_("%B: indirect symbol `%s' to `%s' is a loop"),
+		 abfd, name, string);
+	      bfd_set_error (bfd_error_invalid_operation);
 	      return FALSE;
-	    if (inh->type == bfd_link_hash_indirect
-		&& inh->u.i.link == h)
-	      {
-		(*_bfd_error_handler)
-		  (_("%B: indirect symbol `%s' to `%s' is a loop"),
-		   abfd, name, string);
-		bfd_set_error (bfd_error_invalid_operation);
-		return FALSE;
-	      }
-	    if (inh->type == bfd_link_hash_new)
-	      {
-		inh->type = bfd_link_hash_undefined;
-		inh->u.undef.abfd = abfd;
-		bfd_link_add_undef (info->hash, inh);
-	      }
+	    }
+	  if (inh->type == bfd_link_hash_new)
+	    {
+	      inh->type = bfd_link_hash_undefined;
+	      inh->u.undef.abfd = abfd;
+	      bfd_link_add_undef (info->hash, inh);
+	    }
 
-	    /* If the indirect symbol has been referenced, we need to
-	       push the reference down to the symbol we are
-	       referencing.  */
-	    if (h->type != bfd_link_hash_new)
-	      {
-		row = UNDEF_ROW;
-		cycle = TRUE;
-	      }
+	  /* If the indirect symbol has been referenced, we need to
+	     push the reference down to the symbol we are referencing.  */
+	  if (h->type != bfd_link_hash_new)
+	    {
+	      /* ??? If inh->type == bfd_link_hash_undefweak this
+		 converts inh to bfd_link_hash_undefined.  */
+	      row = UNDEF_ROW;
+	      cycle = TRUE;
+	    }
 
-	    h->type = bfd_link_hash_indirect;
-	    h->u.i.link = inh;
-	  }
+	  h->type = bfd_link_hash_indirect;
+	  h->u.i.link = inh;
+	  /* Not setting h = h->u.i.link here means that when cycle is
+	     set above we'll always go to REFC, and then cycle again
+	     to the indirected symbol.  This means that any successful
+	     change of an existing symbol to indirect counts as a
+	     reference.  ??? That may not be correct when the existing
+	     symbol was defweak.  */
 	  break;
 
 	case SET:
@@ -1908,8 +1784,10 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  break;
 
 	case WARNC:
-	  /* Issue a warning and cycle.  */
-	  if (h->u.i.warning != NULL)
+	  /* Issue a warning and cycle, except when the reference is
+	     in LTO IR.  */
+	  if (h->u.i.warning != NULL
+	      && (abfd->flags & BFD_PLUGIN) == 0)
 	    {
 	      if (! (*info->callbacks->warning) (info, h->u.i.warning,
 						 h->root.string, abfd,
@@ -1934,19 +1812,11 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  break;
 
 	case WARN:
-	  /* Issue a warning.  */
-	  if (! (*info->callbacks->warning) (info, string, h->root.string,
-					     hash_entry_bfd (h), NULL, 0))
-	    return FALSE;
-	  break;
-
-	case CWARN:
-	  /* Warn if this symbol has been referenced already,
-	     otherwise add a warning.  A symbol has been referenced if
-	     the u.undef.next field is not NULL, or it is the tail of the
-	     undefined symbol list.  The REF case above helps to
-	     ensure this.  */
-	  if (h->u.undef.next != NULL || info->hash->undefs_tail == h)
+	  /* Warn if this symbol has been referenced already from non-IR,
+	     otherwise add a warning.  */
+	  if ((!info->lto_plugin_active
+	       && (h->u.undef.next != NULL || info->hash->undefs_tail == h))
+	      || h->non_ir_ref)
 	    {
 	      if (! (*info->callbacks->warning) (info, string, h->root.string,
 						 hash_entry_bfd (h), NULL, 0))
@@ -2018,7 +1888,7 @@ _bfd_generic_final_link (bfd *abfd, struct bfd_link_info *info)
 	p->u.indirect.section->linker_mark = TRUE;
 
   /* Build the output symbol table.  */
-  for (sub = info->input_bfds; sub != NULL; sub = sub->link_next)
+  for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
     if (! _bfd_generic_link_output_symbols (abfd, sub, info, &outsymalloc))
       return FALSE;
 
@@ -2363,6 +2233,12 @@ _bfd_generic_link_output_symbols (bfd *output_bfd,
 	  else
 	    output = FALSE;
 	}
+      else if (sym->flags == 0
+	       && (sym->section->owner->flags & BFD_PLUGIN) != 0)
+	/* LTO doesn't set symbol information.  We get here with the
+	   generic linker for a symbol that was "common" but no longer
+	   needs to be global.  */
+	output = FALSE;
       else
 	abort ();
 
@@ -2457,9 +2333,6 @@ _bfd_generic_link_write_global_symbol (struct generic_link_hash_entry *h,
   struct generic_write_global_symbol_info *wginfo =
       (struct generic_write_global_symbol_info *) data;
   asymbol *sym;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct generic_link_hash_entry *) h->root.u.i.link;
 
   if (h->written)
     return TRUE;
@@ -2561,7 +2434,7 @@ _bfd_generic_reloc_link_order (bfd *abfd,
 
       size = bfd_get_reloc_size (r->howto);
       buf = (bfd_byte *) bfd_zmalloc (size);
-      if (buf == NULL)
+      if (buf == NULL && size != 0)
 	return FALSE;
       rstat = _bfd_relocate_contents (r->howto, abfd,
 				      (bfd_vma) link_order->u.reloc.p->addend,
@@ -2672,7 +2545,14 @@ default_data_link_order (bfd *abfd,
 
   fill = link_order->u.data.contents;
   fill_size = link_order->u.data.size;
-  if (fill_size != 0 && fill_size < size)
+  if (fill_size == 0)
+    {
+      fill = abfd->arch_info->fill (size, bfd_big_endian (abfd),
+				    (sec->flags & SEC_CODE) != 0);
+      if (fill == NULL)
+	return FALSE;
+    }
+  else if (fill_size < size)
     {
       bfd_byte *p;
       fill = (bfd_byte *) bfd_malloc (size);
@@ -2896,12 +2776,13 @@ FUNCTION
 	bfd_section_already_linked
 
 SYNOPSIS
-        void bfd_section_already_linked (bfd *abfd, asection *sec,
-					 struct bfd_link_info *info);
+        bfd_boolean bfd_section_already_linked (bfd *abfd,
+						asection *sec,
+						struct bfd_link_info *info);
 
 DESCRIPTION
-	Check if @var{sec} has been already linked during a reloceatable
-	or final link.
+	Check if @var{data} has been already linked during a reloceatable
+	or final link.  Return TRUE if it has.
 
 .#define bfd_section_already_linked(abfd, sec, info) \
 .       BFD_SEND (abfd, _section_already_linked, (abfd, sec, info))
@@ -2912,7 +2793,7 @@ DESCRIPTION
 /* Sections marked with the SEC_LINK_ONCE flag should only be linked
    once into the output.  This routine checks each section, and
    arrange to discard it if a section of the same name has already
-   been linked.  This code assumes that all relevant sections have the 
+   been linked.  This code assumes that all relevant sections have the
    SEC_LINK_ONCE flag set; that is, it does not depend solely upon the
    section name.  bfd_section_already_linked is called via
    bfd_map_over_sections.  */
@@ -2995,20 +2876,109 @@ bfd_section_already_linked_table_free (void)
   bfd_hash_table_free (&_bfd_section_already_linked_table);
 }
 
+/* Report warnings as appropriate for duplicate section SEC.
+   Return FALSE if we decide to keep SEC after all.  */
+
+bfd_boolean
+_bfd_handle_already_linked (asection *sec,
+			    struct bfd_section_already_linked *l,
+			    struct bfd_link_info *info)
+{
+  switch (sec->flags & SEC_LINK_DUPLICATES)
+    {
+    default:
+      abort ();
+
+    case SEC_LINK_DUPLICATES_DISCARD:
+      /* If we found an LTO IR match for this comdat group on
+	 the first pass, replace it with the LTO output on the
+	 second pass.  We can't simply choose real object
+	 files over IR because the first pass may contain a
+	 mix of LTO and normal objects and we must keep the
+	 first match, be it IR or real.  */
+      if (info->loading_lto_outputs
+	  && (l->sec->owner->flags & BFD_PLUGIN) != 0)
+	{
+	  l->sec = sec;
+	  return FALSE;
+	}
+      break;
+
+    case SEC_LINK_DUPLICATES_ONE_ONLY:
+      info->callbacks->einfo
+	(_("%B: ignoring duplicate section `%A'\n"),
+	 sec->owner, sec);
+      break;
+
+    case SEC_LINK_DUPLICATES_SAME_SIZE:
+      if ((l->sec->owner->flags & BFD_PLUGIN) != 0)
+	;
+      else if (sec->size != l->sec->size)
+	info->callbacks->einfo
+	  (_("%B: duplicate section `%A' has different size\n"),
+	   sec->owner, sec);
+      break;
+
+    case SEC_LINK_DUPLICATES_SAME_CONTENTS:
+      if ((l->sec->owner->flags & BFD_PLUGIN) != 0)
+	;
+      else if (sec->size != l->sec->size)
+	info->callbacks->einfo
+	  (_("%B: duplicate section `%A' has different size\n"),
+	   sec->owner, sec);
+      else if (sec->size != 0)
+	{
+	  bfd_byte *sec_contents, *l_sec_contents = NULL;
+
+	  if (!bfd_malloc_and_get_section (sec->owner, sec, &sec_contents))
+	    info->callbacks->einfo
+	      (_("%B: could not read contents of section `%A'\n"),
+	       sec->owner, sec);
+	  else if (!bfd_malloc_and_get_section (l->sec->owner, l->sec,
+						&l_sec_contents))
+	    info->callbacks->einfo
+	      (_("%B: could not read contents of section `%A'\n"),
+	       l->sec->owner, l->sec);
+	  else if (memcmp (sec_contents, l_sec_contents, sec->size) != 0)
+	    info->callbacks->einfo
+	      (_("%B: duplicate section `%A' has different contents\n"),
+	       sec->owner, sec);
+
+	  if (sec_contents)
+	    free (sec_contents);
+	  if (l_sec_contents)
+	    free (l_sec_contents);
+	}
+      break;
+    }
+
+  /* Set the output_section field so that lang_add_section
+     does not create a lang_input_section structure for this
+     section.  Since there might be a symbol in the section
+     being discarded, we must retain a pointer to the section
+     which we are really going to use.  */
+  sec->output_section = bfd_abs_section_ptr;
+  sec->kept_section = l->sec;
+  return TRUE;
+}
+
 /* This is used on non-ELF inputs.  */
 
-void
-_bfd_generic_section_already_linked (bfd *abfd, asection *sec,
+bfd_boolean
+_bfd_generic_section_already_linked (bfd *abfd ATTRIBUTE_UNUSED,
+				     asection *sec,
 				     struct bfd_link_info *info)
 {
-  flagword flags;
   const char *name;
   struct bfd_section_already_linked *l;
   struct bfd_section_already_linked_hash_entry *already_linked_list;
 
-  flags = sec->flags;
-  if ((flags & SEC_LINK_ONCE) == 0)
-    return;
+  if ((sec->flags & SEC_LINK_ONCE) == 0)
+    return FALSE;
+
+  /* The generic linker doesn't handle section groups.  */
+  if ((sec->flags & SEC_GROUP) != 0)
+    return FALSE;
 
   /* FIXME: When doing a relocatable link, we may have trouble
      copying relocations in other sections that refer to local symbols
@@ -3027,81 +2997,88 @@ _bfd_generic_section_already_linked (bfd *abfd, asection *sec,
 
   already_linked_list = bfd_section_already_linked_table_lookup (name);
 
-  for (l = already_linked_list->entry; l != NULL; l = l->next)
+  l = already_linked_list->entry;
+  if (l != NULL)
     {
-      bfd_boolean skip = FALSE;
-      struct coff_comdat_info *s_comdat
-	= bfd_coff_get_comdat_section (abfd, sec);
-      struct coff_comdat_info *l_comdat
-	= bfd_coff_get_comdat_section (l->sec->owner, l->sec);
-
-      /* We may have 3 different sections on the list: group section,
-	 comdat section and linkonce section. SEC may be a linkonce or
-	 comdat section. We always ignore group section. For non-COFF
-	 inputs, we also ignore comdat section.
-
-	 FIXME: Is that safe to match a linkonce section with a comdat
-	 section for COFF inputs?  */
-      if ((l->sec->flags & SEC_GROUP) != 0)
-	skip = TRUE;
-      else if (bfd_get_flavour (abfd) == bfd_target_coff_flavour)
-	{
-	  if (s_comdat != NULL
-	      && l_comdat != NULL
-	      && strcmp (s_comdat->name, l_comdat->name) != 0)
-	    skip = TRUE;
-	}
-      else if (l_comdat != NULL)
-	skip = TRUE;
-
-      if (!skip)
-	{
-	  /* The section has already been linked.  See if we should
-             issue a warning.  */
-	  switch (flags & SEC_LINK_DUPLICATES)
-	    {
-	    default:
-	      abort ();
-
-	    case SEC_LINK_DUPLICATES_DISCARD:
-	      break;
-
-	    case SEC_LINK_DUPLICATES_ONE_ONLY:
-	      (*_bfd_error_handler)
-		(_("%B: warning: ignoring duplicate section `%A'\n"),
-		 abfd, sec);
-	      break;
-
-	    case SEC_LINK_DUPLICATES_SAME_CONTENTS:
-	      /* FIXME: We should really dig out the contents of both
-                 sections and memcmp them.  The COFF/PE spec says that
-                 the Microsoft linker does not implement this
-                 correctly, so I'm not going to bother doing it
-                 either.  */
-	      /* Fall through.  */
-	    case SEC_LINK_DUPLICATES_SAME_SIZE:
-	      if (sec->size != l->sec->size)
-		(*_bfd_error_handler)
-		  (_("%B: warning: duplicate section `%A' has different size\n"),
-		   abfd, sec);
-	      break;
-	    }
-
-	  /* Set the output_section field so that lang_add_section
-	     does not create a lang_input_section structure for this
-	     section.  Since there might be a symbol in the section
-	     being discarded, we must retain a pointer to the section
-	     which we are really going to use.  */
-	  sec->output_section = bfd_abs_section_ptr;
-	  sec->kept_section = l->sec;
-
-	  return;
-	}
+      /* The section has already been linked.  See if we should
+	 issue a warning.  */
+      return _bfd_handle_already_linked (sec, l, info);
     }
 
   /* This is the first section with this name.  Record it.  */
-  if (! bfd_section_already_linked_table_insert (already_linked_list, sec))
+  if (!bfd_section_already_linked_table_insert (already_linked_list, sec))
     info->callbacks->einfo (_("%F%P: already_linked_table: %E\n"));
+  return FALSE;
+}
+
+/* Choose a neighbouring section to S in OBFD that will be output, or
+   the absolute section if ADDR is out of bounds of the neighbours.  */
+
+asection *
+_bfd_nearby_section (bfd *obfd, asection *s, bfd_vma addr)
+{
+  asection *next, *prev, *best;
+
+  /* Find preceding kept section.  */
+  for (prev = s->prev; prev != NULL; prev = prev->prev)
+    if ((prev->flags & SEC_EXCLUDE) == 0
+	&& !bfd_section_removed_from_list (obfd, prev))
+      break;
+
+  /* Find following kept section.  Start at prev->next because
+     other sections may have been added after S was removed.  */
+  if (s->prev != NULL)
+    next = s->prev->next;
+  else
+    next = s->owner->sections;
+  for (; next != NULL; next = next->next)
+    if ((next->flags & SEC_EXCLUDE) == 0
+	&& !bfd_section_removed_from_list (obfd, next))
+      break;
+
+  /* Choose better of two sections, based on flags.  The idea
+     is to choose a section that will be in the same segment
+     as S would have been if it was kept.  */
+  best = next;
+  if (prev == NULL)
+    {
+      if (next == NULL)
+	best = bfd_abs_section_ptr;
+    }
+  else if (next == NULL)
+    best = prev;
+  else if (((prev->flags ^ next->flags)
+	    & (SEC_ALLOC | SEC_THREAD_LOCAL | SEC_LOAD)) != 0)
+    {
+      if (((next->flags ^ s->flags)
+	   & (SEC_ALLOC | SEC_THREAD_LOCAL)) != 0
+	  /* We prefer to choose a loaded section.  Section S
+	     doesn't have SEC_LOAD set (it being excluded, that
+	     part of the flag processing didn't happen) so we
+	     can't compare that flag to those of NEXT and PREV.  */
+	  || ((prev->flags & SEC_LOAD) != 0
+	      && (next->flags & SEC_LOAD) == 0))
+	best = prev;
+    }
+  else if (((prev->flags ^ next->flags) & SEC_READONLY) != 0)
+    {
+      if (((next->flags ^ s->flags) & SEC_READONLY) != 0)
+	best = prev;
+    }
+  else if (((prev->flags ^ next->flags) & SEC_CODE) != 0)
+    {
+      if (((next->flags ^ s->flags) & SEC_CODE) != 0)
+	best = prev;
+    }
+  else
+    {
+      /* Flags we care about are the same.  Prefer the following
+	 section if that will result in a positive valued sym.  */
+      if (addr < next->vma)
+	best = prev;
+    }
+
+  return best;
 }
 
 /* Convert symbols in excluded output sections to use a kept section.  */
@@ -3110,9 +3087,6 @@ static bfd_boolean
 fix_syms (struct bfd_link_hash_entry *h, void *data)
 {
   bfd *obfd = (bfd *) data;
-
-  if (h->type == bfd_link_hash_warning)
-    h = h->u.i.link;
 
   if (h->type == bfd_link_hash_defined
       || h->type == bfd_link_hash_defweak)
@@ -3123,68 +3097,10 @@ fix_syms (struct bfd_link_hash_entry *h, void *data)
 	  && (s->output_section->flags & SEC_EXCLUDE) != 0
 	  && bfd_section_removed_from_list (obfd, s->output_section))
 	{
-	  asection *op, *op1;
+	  asection *op;
 
 	  h->u.def.value += s->output_offset + s->output_section->vma;
-
-	  /* Find preceding kept section.  */
-	  for (op1 = s->output_section->prev; op1 != NULL; op1 = op1->prev)
-	    if ((op1->flags & SEC_EXCLUDE) == 0
-		&& !bfd_section_removed_from_list (obfd, op1))
-	      break;
-
-	  /* Find following kept section.  Start at prev->next because
-	     other sections may have been added after S was removed.  */
-	  if (s->output_section->prev != NULL)
-	    op = s->output_section->prev->next;
-	  else
-	    op = s->output_section->owner->sections;
-	  for (; op != NULL; op = op->next)
-	    if ((op->flags & SEC_EXCLUDE) == 0
-		&& !bfd_section_removed_from_list (obfd, op))
-	      break;
-
-	  /* Choose better of two sections, based on flags.  The idea
-	     is to choose a section that will be in the same segment
-	     as S would have been if it was kept.  */
-	  if (op1 == NULL)
-	    {
-	      if (op == NULL)
-		op = bfd_abs_section_ptr;
-	    }
-	  else if (op == NULL)
-	    op = op1;
-	  else if (((op1->flags ^ op->flags)
-		    & (SEC_ALLOC | SEC_THREAD_LOCAL | SEC_LOAD)) != 0)
-	    {
-	      if (((op->flags ^ s->flags)
-		   & (SEC_ALLOC | SEC_THREAD_LOCAL)) != 0
-		  /* We prefer to choose a loaded section.  Section S
-		     doesn't have SEC_LOAD set (it being excluded, that
-		     part of the flag processing didn't happen) so we
-		     can't compare that flag to those of OP and OP1.  */
-		  || ((op1->flags & SEC_LOAD) != 0
-		      && (op->flags & SEC_LOAD) == 0))
-		op = op1;
-	    }
-	  else if (((op1->flags ^ op->flags) & SEC_READONLY) != 0)
-	    {
-	      if (((op->flags ^ s->flags) & SEC_READONLY) != 0)
-		op = op1;
-	    }
-	  else if (((op1->flags ^ op->flags) & SEC_CODE) != 0)
-	    {
-	      if (((op->flags ^ s->flags) & SEC_CODE) != 0)
-		op = op1;
-	    }
-	  else
-	    {
-	      /* Flags we care about are the same.  Prefer the following
-		 section if that will result in a positive valued sym.  */
-	      if (h->u.def.value < op->vma)
-		op = op1;
-	    }
-
+	  op = _bfd_nearby_section (obfd, s->output_section, h->u.def.value);
 	  h->u.def.value -= op->vma;
 	  h->u.def.section = op;
 	}
@@ -3260,7 +3176,7 @@ bfd_generic_define_common_symbol (bfd *output_bfd,
 
 /*
 FUNCTION
-	bfd_find_version_for_sym 
+	bfd_find_version_for_sym
 
 SYNOPSIS
 	struct bfd_elf_version_tree * bfd_find_version_for_sym
@@ -3363,4 +3279,27 @@ bfd_find_version_for_sym (struct bfd_elf_version_tree *verdefs,
     }
 
   return NULL;
+}
+
+/*
+FUNCTION
+	bfd_hide_sym_by_version
+
+SYNOPSIS
+	bfd_boolean bfd_hide_sym_by_version
+	  (struct bfd_elf_version_tree *verdefs, const char *sym_name);
+
+DESCRIPTION
+	Search an elf version script tree for symbol versioning
+	info for a given symbol.  Return TRUE if the symbol is hidden.
+
+*/
+
+bfd_boolean
+bfd_hide_sym_by_version (struct bfd_elf_version_tree *verdefs,
+			 const char *sym_name)
+{
+  bfd_boolean hidden = FALSE;
+  bfd_find_version_for_sym (verdefs, sym_name, &hidden);
+  return hidden;
 }

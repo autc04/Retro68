@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
 
 package os
 
@@ -34,15 +34,26 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
+var errFinished = errors.New("os: process already finished")
+
 func (p *Process) signal(sig Signal) error {
+	if p.Pid == -1 {
+		return errors.New("os: process already released")
+	}
+	if p.Pid == 0 {
+		return errors.New("os: process not initialized")
+	}
 	if p.done() {
-		return errors.New("os: process already finished")
+		return errFinished
 	}
 	s, ok := sig.(syscall.Signal)
 	if !ok {
 		return errors.New("os: unsupported signal type")
 	}
 	if e := syscall.Kill(p.Pid, s); e != nil {
+		if e == syscall.ESRCH {
+			return errFinished
+		}
 		return e
 	}
 	return nil

@@ -1,6 +1,5 @@
 /* ia64-opc.h -- IA-64 opcode table.
-   Copyright 1998, 1999, 2000, 2002, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of the GNU opcodes library.
@@ -71,6 +70,7 @@
 #define R2	IA64_OPND_R2
 #define R3	IA64_OPND_R3
 #define R3_2	IA64_OPND_R3_2
+#define DAHR	IA64_OPND_DAHR3
 
 #define CPUID_R3 IA64_OPND_CPUID_R3
 #define DBR_R3	IA64_OPND_DBR_R3
@@ -82,6 +82,7 @@
 #define PKR_R3	IA64_OPND_PKR_R3
 #define PMC_R3	IA64_OPND_PMC_R3
 #define PMD_R3	IA64_OPND_PMD_R3
+#define DAHR_R3	IA64_OPND_DAHR_R3
 #define RR_R3	IA64_OPND_RR_R3
 
 #define CCNT5	IA64_OPND_CCNT5
@@ -109,6 +110,8 @@
 #define IMM9a	IA64_OPND_IMM9a
 #define IMM9b	IA64_OPND_IMM9b
 #define IMMU2	IA64_OPND_IMMU2
+#define IMMU16	IA64_OPND_IMMU16
+#define IMMU19	IA64_OPND_IMMU19
 #define IMMU21	IA64_OPND_IMMU21
 #define IMMU24	IA64_OPND_IMMU24
 #define IMMU62	IA64_OPND_IMMU62
@@ -129,5 +132,7 @@
 #define TGT25b	IA64_OPND_TGT25b
 #define TGT25c	IA64_OPND_TGT25c
 #define TGT64   IA64_OPND_TGT64
+#define CNT6a	IA64_OPND_CNT6a
+#define STRD5b	IA64_OPND_STRD5b
 
 #endif

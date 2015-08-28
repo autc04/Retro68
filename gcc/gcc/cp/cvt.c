@@ -1,5 +1,5 @@
 /* Language-level data type conversion for GNU C++.
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2015 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GCC.
@@ -28,6 +28,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stor-layout.h"
 #include "flags.h"
@@ -197,8 +206,9 @@ cp_convert_to_pointer (tree type, tree expr, tsubst_flags_t complain)
 						       complain);
 	    }
 	}
-      error_at (loc, "cannot convert %qE from type %qT to type %qT",
-		expr, intype, type);
+      if (complain & tf_error)
+	error_at (loc, "cannot convert %qE from type %qT to type %qT",
+		  expr, intype, type);
       return error_mark_node;
     }
 
@@ -582,9 +592,7 @@ ignore_overflows (tree expr, tree orig)
     {
       gcc_assert (!TREE_OVERFLOW (orig));
       /* Ensure constant sharing.  */
-      expr = build_int_cst_wide (TREE_TYPE (expr),
-				 TREE_INT_CST_LOW (expr),
-				 TREE_INT_CST_HIGH (expr));
+      expr = wide_int_to_tree (TREE_TYPE (expr), expr);
     }
   return expr;
 }
@@ -595,8 +603,20 @@ ignore_overflows (tree expr, tree orig)
 tree
 cp_fold_convert (tree type, tree expr)
 {
-  tree conv = fold_convert (type, expr);
-  conv = ignore_overflows (conv, expr);
+  tree conv;
+  if (TREE_TYPE (expr) == type)
+    conv = expr;
+  else if (TREE_CODE (expr) == PTRMEM_CST)
+    {
+      /* Avoid wrapping a PTRMEM_CST in NOP_EXPR.  */
+      conv = copy_node (expr);
+      TREE_TYPE (conv) = type;
+    }
+  else
+    {
+      conv = fold_convert (type, expr);
+      conv = ignore_overflows (conv, expr);
+    }
   return conv;
 }
 
@@ -675,9 +695,7 @@ ocp_convert (tree type, tree expr, int convtype, int flags,
     }
 
   /* FIXME remove when moving to c_fully_fold model.  */
-  /* FIXME do we still need this test?  */
-  if (!CLASS_TYPE_P (type))
-    e = integral_constant_value (e);
+  e = scalar_constant_value (e);
   if (error_operand_p (e))
     return error_mark_node;
 
@@ -1285,7 +1303,7 @@ convert_to_void (tree expr, impl_conv_void implicit, tsubst_flags_t complain)
 	    }
 	else
 	  return error_mark_node;
-	expr = void_zero_node;
+	expr = void_node;
       }
     else if (implicit != ICV_CAST && probe == expr && is_overloaded_fn (probe))
       {
@@ -1415,7 +1433,7 @@ convert_to_void (tree expr, impl_conv_void implicit, tsubst_flags_t complain)
       expr = build1 (CONVERT_EXPR, void_type_node, expr);
     }
   if (! TREE_SIDE_EFFECTS (expr))
-    expr = void_zero_node;
+    expr = void_node;
   return expr;
 }
 
@@ -1658,8 +1676,9 @@ build_expr_type_conversion (int desires, tree expr, bool complain)
 		    {
 		      error ("ambiguous default type conversion from %qT",
 			     basetype);
-		      error ("  candidate conversions include %qD and %qD",
-			     winner, cand);
+		      inform (input_location,
+			      "  candidate conversions include %qD and %qD",
+			      winner, cand);
 		    }
 		  return error_mark_node;
 		}
@@ -1701,13 +1720,9 @@ type_promotes_to (tree type)
   if (TREE_CODE (type) == BOOLEAN_TYPE)
     type = integer_type_node;
 
-  /* Scoped enums don't promote, but pretend they do for backward ABI bug
-     compatibility wrt varargs.  */
-  else if (SCOPED_ENUM_P (type) && abi_version_at_least (6))
-    ;
-
   /* Normally convert enums to int, but convert wide enums to something
-     wider.  */
+     wider.  Scoped enums don't promote, but pretend they do for backward
+     ABI bug compatibility wrt varargs.  */
   else if (TREE_CODE (type) == ENUMERAL_TYPE
 	   || type == char16_type_node
 	   || type == char32_type_node
@@ -1716,16 +1731,26 @@ type_promotes_to (tree type)
       int precision = MAX (TYPE_PRECISION (type),
 			   TYPE_PRECISION (integer_type_node));
       tree totype = c_common_type_for_size (precision, 0);
-      if (SCOPED_ENUM_P (type))
-	warning (OPT_Wabi, "scoped enum %qT will not promote to an integral "
-		 "type in a future version of GCC", type);
-      if (TREE_CODE (type) == ENUMERAL_TYPE)
-	type = ENUM_UNDERLYING_TYPE (type);
-      if (TYPE_UNSIGNED (type)
-	  && ! int_fits_type_p (TYPE_MAX_VALUE (type), totype))
-	type = c_common_type_for_size (precision, 1);
+      tree prom = type;
+      if (TREE_CODE (prom) == ENUMERAL_TYPE)
+	prom = ENUM_UNDERLYING_TYPE (prom);
+      if (TYPE_UNSIGNED (prom)
+	  && ! int_fits_type_p (TYPE_MAX_VALUE (prom), totype))
+	prom = c_common_type_for_size (precision, 1);
       else
-	type = totype;
+	prom = totype;
+      if (SCOPED_ENUM_P (type))
+	{
+	  if (abi_version_crosses (6)
+	      && TYPE_MODE (prom) != TYPE_MODE (type))
+	    warning (OPT_Wabi, "scoped enum %qT passed through ... as "
+		     "%qT before -fabi-version=6, %qT after",
+		     type, prom, ENUM_UNDERLYING_TYPE (type));
+	  if (!abi_version_at_least (6))
+	    type = prom;
+	}
+      else
+	type = prom;
     }
   else if (c_promoting_integer_type_p (type))
     {

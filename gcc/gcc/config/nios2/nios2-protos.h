@@ -1,5 +1,5 @@
 /* Subroutine declarations for Altera Nios II target support.
-   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+   Copyright (C) 2012-2015 Free Software Foundation, Inc.
    Contributed by Jonah Graham (jgraham@altera.com).
    Contributed by Mentor Graphics, Inc.
 
@@ -29,15 +29,15 @@ extern void nios2_expand_epilogue (bool);
 extern void nios2_function_profiler (FILE *, int);
 
 #ifdef RTX_CODE
-extern int nios2_emit_move_sequence (rtx *, enum machine_mode);
-extern void nios2_emit_expensive_div (rtx *, enum machine_mode);
-extern void nios2_adjust_call_address (rtx *);
+extern int nios2_emit_move_sequence (rtx *, machine_mode);
+extern void nios2_emit_expensive_div (rtx *, machine_mode);
+extern void nios2_adjust_call_address (rtx *, rtx);
 
 extern rtx nios2_get_return_address (int);
 extern void nios2_set_return_address (rtx, rtx);
 
-extern bool nios2_validate_compare (enum machine_mode, rtx *, rtx *, rtx *);
-extern bool nios2_validate_fpu_compare (enum machine_mode, rtx *, rtx *, rtx *,
+extern bool nios2_validate_compare (machine_mode, rtx *, rtx *, rtx *);
+extern bool nios2_validate_fpu_compare (machine_mode, rtx *, rtx *, rtx *,
 					bool);
 
 extern bool nios2_fpu_insn_enabled (enum n2fpu_code);
@@ -51,8 +51,8 @@ extern bool nios2_unspec_reloc_p (rtx);
 #ifdef TREE_CODE
 #ifdef ARGS_SIZE_RTX
 /* expr.h defines both ARGS_SIZE_RTX and `enum direction' */
-extern enum direction nios2_function_arg_padding (enum machine_mode, const_tree);
-extern enum direction nios2_block_reg_padding (enum machine_mode, tree, int);
+extern enum direction nios2_function_arg_padding (machine_mode, const_tree);
+extern enum direction nios2_block_reg_padding (machine_mode, tree, int);
 #endif /* ARGS_SIZE_RTX */
 
 #endif /* TREE_CODE */

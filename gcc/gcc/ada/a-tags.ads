@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -33,11 +33,41 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with System;
+--  For performance analysis, take into account that the operations in this
+--  package provide the guarantee that all dispatching calls on primitive
+--  operations of tagged types and interfaces take constant time (in terms
+--  of source lines executed), that is to say, the cost of these calls is
+--  independent of the number of primitives of the type or interface, and
+--  independent of the number of ancestors or interface progenitors that a
+--  tagged type may have.
+
+--  The following subprograms of the public part of this package take constant
+--  time (in terms of source lines executed):
+
+--    Expanded_Name, Wide_Expanded_Name, Wide_Wide_Expanded_Name, External_Tag,
+--    Is_Descendant_At_Same_Level, Parent_Tag, Type_Is_Abstract
+--    Descendant_Tag (when used with a library-level tagged type),
+--    Internal_Tag (when used with a library-level tagged type).
+
+--  The following subprograms of the public part of this package execute in
+--  time that is not constant (in terms of sources line executed):
+
+--    Internal_Tag (when used with a locally defined tagged type), because in
+--    such cases this routine processes the external tag, extracts from it an
+--    address available there, and converts it into the tag value returned by
+--    this function. The number of instructions executed is not constant since
+--    it depends on the length of the external tag string.
+
+--    Descendant_Tag (when used with a locally defined tagged type), because
+--    it relies on the subprogram Internal_Tag() to provide its functionality.
+
+--    Interface_Ancestor_Tags, because this function returns a table whose
+--    length depends on the number of interfaces covered by a tagged type.
+
 with System.Storage_Elements;
 
 package Ada.Tags is
-   pragma Preelaborate_05;
+   pragma Preelaborate;
    --  In accordance with Ada 2005 AI-362
 
    type Tag is private;

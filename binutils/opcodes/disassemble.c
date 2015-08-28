@@ -1,6 +1,5 @@
 /* Select disassembly routine for specified architecture.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -23,6 +22,7 @@
 #include "dis-asm.h"
 
 #ifdef ARCH_all
+#define ARCH_aarch64
 #define ARCH_alpha
 #define ARCH_arc
 #define ARCH_arm
@@ -34,6 +34,7 @@
 #define ARCH_d10v
 #define ARCH_d30v
 #define ARCH_dlx
+#define ARCH_epiphany
 #define ARCH_fr30
 #define ARCH_frv
 #define ARCH_h8300
@@ -53,9 +54,9 @@
 #define ARCH_m68hc12
 #define ARCH_m68k
 #define ARCH_m88k
-#define ARCH_maxq
 #define ARCH_mcore
 #define ARCH_mep
+#define ARCH_metag
 #define ARCH_microblaze
 #define ARCH_mips
 #define ARCH_mmix
@@ -64,13 +65,16 @@
 #define ARCH_moxie
 #define ARCH_mt
 #define ARCH_msp430
+#define ARCH_nds32
+#define ARCH_nios2
 #define ARCH_ns32k
-#define ARCH_openrisc
-#define ARCH_or32
+#define ARCH_or1k
 #define ARCH_pdp11
 #define ARCH_pj
 #define ARCH_powerpc
 #define ARCH_rs6000
+#define ARCH_rl78
+#define ARCH_rx
 #define ARCH_s390
 #define ARCH_score
 #define ARCH_sh
@@ -79,12 +83,16 @@
 #define ARCH_tic30
 #define ARCH_tic4x
 #define ARCH_tic54x
+#define ARCH_tic6x
 #define ARCH_tic80
+#define ARCH_tilegx
+#define ARCH_tilepro
 #define ARCH_v850
 #define ARCH_vax
 #define ARCH_w65
 #define ARCH_xstormy16
 #define ARCH_xc16x
+#define ARCH_xgate
 #define ARCH_xtensa
 #define ARCH_z80
 #define ARCH_z8k
@@ -106,6 +114,11 @@ disassembler (abfd)
     {
       /* If you add a case to this table, also add it to the
 	 ARCH_all definition right above this function.  */
+#ifdef ARCH_aarch64
+    case bfd_arch_aarch64:
+      disassemble = print_insn_aarch64;
+      break;
+#endif
 #ifdef ARCH_alpha
     case bfd_arch_alpha:
       disassemble = print_insn_alpha;
@@ -113,10 +126,8 @@ disassembler (abfd)
 #endif
 #ifdef ARCH_arc
     case bfd_arch_arc:
-      {
-	disassemble = arc_get_disassembler (abfd);
-	break;
-      }
+      disassemble = arc_get_disassembler (abfd);
+      break;
 #endif
 #ifdef ARCH_arm
     case bfd_arch_arm:
@@ -199,6 +210,7 @@ disassembler (abfd)
 #ifdef ARCH_i386
     case bfd_arch_i386:
     case bfd_arch_l1om:
+    case bfd_arch_k1om:
       disassemble = print_insn_i386;
       break;
 #endif
@@ -222,6 +234,11 @@ disassembler (abfd)
       disassemble = print_insn_ip2k;
       break;
 #endif
+#ifdef ARCH_epiphany
+    case bfd_arch_epiphany:
+      disassemble = print_insn_epiphany;
+      break;
+#endif
 #ifdef ARCH_fr30
     case bfd_arch_fr30:
       disassemble = print_insn_fr30;
@@ -237,12 +254,19 @@ disassembler (abfd)
       disassemble = print_insn_m32r;
       break;
 #endif
-#if defined(ARCH_m68hc11) || defined(ARCH_m68hc12)
+#if defined(ARCH_m68hc11) || defined(ARCH_m68hc12) \
+    || defined(ARCH_9s12x) || defined(ARCH_m9s12xg)
     case bfd_arch_m68hc11:
       disassemble = print_insn_m68hc11;
       break;
     case bfd_arch_m68hc12:
       disassemble = print_insn_m68hc12;
+      break;
+    case bfd_arch_m9s12x:
+      disassemble = print_insn_m9s12x;
+      break;
+    case bfd_arch_m9s12xg:
+      disassemble = print_insn_m9s12xg;
       break;
 #endif
 #ifdef ARCH_m68k
@@ -253,11 +277,6 @@ disassembler (abfd)
 #ifdef ARCH_m88k
     case bfd_arch_m88k:
       disassemble = print_insn_m88k;
-      break;
-#endif
-#ifdef ARCH_maxq
-    case bfd_arch_maxq:
-      disassemble = print_insn_maxq_little;
       break;
 #endif
 #ifdef ARCH_mt
@@ -275,6 +294,11 @@ disassembler (abfd)
       disassemble = print_insn_msp430;
       break;
 #endif
+#ifdef ARCH_nds32
+    case bfd_arch_nds32:
+      disassemble = print_insn_nds32;
+      break;
+#endif
 #ifdef ARCH_ns32k
     case bfd_arch_ns32k:
       disassemble = print_insn_ns32k;
@@ -288,6 +312,11 @@ disassembler (abfd)
 #ifdef ARCH_mep
     case bfd_arch_mep:
       disassemble = print_insn_mep;
+      break;
+#endif
+#ifdef ARCH_metag
+    case bfd_arch_metag:
+      disassemble = print_insn_metag;
       break;
 #endif
 #ifdef ARCH_mips
@@ -313,17 +342,17 @@ disassembler (abfd)
       disassemble = print_insn_mn10300;
       break;
 #endif
-#ifdef ARCH_openrisc
-    case bfd_arch_openrisc:
-      disassemble = print_insn_openrisc;
+#ifdef ARCH_nios2
+    case bfd_arch_nios2:
+      if (bfd_big_endian (abfd))
+	disassemble = print_insn_big_nios2;
+      else
+	disassemble = print_insn_little_nios2;
       break;
 #endif
-#ifdef ARCH_or32
-    case bfd_arch_or32:
-      if (bfd_big_endian (abfd))
-        disassemble = print_insn_big_or32;
-      else
-        disassemble = print_insn_little_or32;
+#ifdef ARCH_or1k
+    case bfd_arch_or1k:
+      disassemble = print_insn_or1k;
       break;
 #endif
 #ifdef ARCH_pdp11
@@ -352,6 +381,16 @@ disassembler (abfd)
 	disassemble = print_insn_rs6000;
       break;
 #endif
+#ifdef ARCH_rl78
+    case bfd_arch_rl78:
+      disassemble = print_insn_rl78;
+      break;
+#endif
+#ifdef ARCH_rx
+    case bfd_arch_rx:
+      disassemble = print_insn_rx;
+      break;
+#endif
 #ifdef ARCH_s390
     case bfd_arch_s390:
       disassemble = print_insn_s390;
@@ -360,9 +399,9 @@ disassembler (abfd)
 #ifdef ARCH_score
     case bfd_arch_score:
       if (bfd_big_endian (abfd))
-        disassemble = print_insn_big_score;      
+	disassemble = print_insn_big_score;
       else
-        disassemble = print_insn_little_score; 
+	disassemble = print_insn_little_score;
      break;
 #endif
 #ifdef ARCH_sh
@@ -395,6 +434,11 @@ disassembler (abfd)
       disassemble = print_insn_tic54x;
       break;
 #endif
+#ifdef ARCH_tic6x
+    case bfd_arch_tic6x:
+      disassemble = print_insn_tic6x;
+      break;
+#endif
 #ifdef ARCH_tic80
     case bfd_arch_tic80:
       disassemble = print_insn_tic80;
@@ -402,12 +446,18 @@ disassembler (abfd)
 #endif
 #ifdef ARCH_v850
     case bfd_arch_v850:
+    case bfd_arch_v850_rh850:
       disassemble = print_insn_v850;
       break;
 #endif
 #ifdef ARCH_w65
     case bfd_arch_w65:
       disassemble = print_insn_w65;
+      break;
+#endif
+#ifdef ARCH_xgate
+    case bfd_arch_xgate:
+      disassemble = print_insn_xgate;
       break;
 #endif
 #ifdef ARCH_xstormy16
@@ -463,6 +513,16 @@ disassembler (abfd)
       disassemble = print_insn_m32c;
       break;
 #endif
+#ifdef ARCH_tilegx
+    case bfd_arch_tilegx:
+      disassemble = print_insn_tilegx;
+      break;
+#endif
+#ifdef ARCH_tilepro
+    case bfd_arch_tilepro:
+      disassemble = print_insn_tilepro;
+      break;
+#endif
     default:
       return 0;
     }
@@ -473,6 +533,9 @@ void
 disassembler_usage (stream)
      FILE * stream ATTRIBUTE_UNUSED;
 {
+#ifdef ARCH_aarch64
+  print_aarch64_disassembler_options (stream);
+#endif
 #ifdef ARCH_arm
   print_arm_disassembler_options (stream);
 #endif
@@ -500,6 +563,12 @@ disassemble_init_for_target (struct disassemble_info * info)
 
   switch (info->arch)
     {
+#ifdef ARCH_aarch64
+    case bfd_arch_aarch64:
+      info->symbol_is_valid = aarch64_symbol_is_valid;
+      info->disassembler_needs_relocs = TRUE;
+      break;
+#endif
 #ifdef ARCH_arm
     case bfd_arch_arm:
       info->symbol_is_valid = arm_symbol_is_valid;
@@ -522,8 +591,15 @@ disassemble_init_for_target (struct disassemble_info * info)
       info->skip_zeroes_at_end = 0;
       break;
 #endif
+#ifdef ARCH_metag
+    case bfd_arch_metag:
+      info->disassembler_needs_relocs = TRUE;
+      break;
+#endif
 #ifdef ARCH_m32c
     case bfd_arch_m32c:
+      /* This processor in fact is little endian.  The value set here
+	 reflects the way opcodes are written in the cgen description.  */
       info->endian = BFD_ENDIAN_BIG;
       if (! info->insn_sets)
 	{
@@ -533,6 +609,16 @@ disassemble_init_for_target (struct disassemble_info * info)
 	  else
 	    cgen_bitset_set (info->insn_sets, ISA_M32C);
 	}
+      break;
+#endif
+#ifdef ARCH_powerpc
+    case bfd_arch_powerpc:
+#endif
+#ifdef ARCH_rs6000
+    case bfd_arch_rs6000:
+#endif
+#if defined (ARCH_powerpc) || defined (ARCH_rs6000)
+      disassemble_init_powerpc (info);
       break;
 #endif
     default:

@@ -68,7 +68,6 @@ r7 = byteop3p (r3:2, r1:0) (hi, r) ;
 
 //Dreg = A1.L + A1.H, Dreg = A0.L + A0.H ; /* (b) */
 
-R0 = A1.L + A1.H, R0= A0.L + A0.H ;
 R0 = A1.L + A1.H, R1= A0.L + A0.H ;
 R2 = A1.L + A1.H, R3= A0.L + A0.H ;
 R4 = A1.L + A1.H, R5= A0.L + A0.H ;

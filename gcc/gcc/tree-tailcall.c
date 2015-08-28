@@ -1,5 +1,5 @@
 /* Tail call optimization on trees.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,11 +21,25 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stor-layout.h"
 #include "tm_p.h"
-#include "basic-block.h"
+#include "predict.h"
+#include "hard-reg-set.h"
 #include "function.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
 #include "gimple-expr.h"
@@ -39,17 +53,34 @@ along with GCC; see the file COPYING3.  If not see
 #include "stringpool.h"
 #include "tree-ssanames.h"
 #include "tree-into-ssa.h"
+#include "hashtab.h"
+#include "rtl.h"
+#include "flags.h"
+#include "statistics.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "insn-config.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
 #include "expr.h"
 #include "tree-dfa.h"
 #include "gimple-pretty-print.h"
 #include "except.h"
 #include "tree-pass.h"
-#include "flags.h"
 #include "langhooks.h"
 #include "dbgcnt.h"
 #include "target.h"
 #include "cfgloop.h"
 #include "common/common-target.h"
+#include "hash-map.h"
+#include "plugin-api.h"
+#include "ipa-ref.h"
+#include "cgraph.h"
 #include "ipa-utils.h"
 
 /* The file implements the tail recursion elimination.  It is also used to
@@ -267,7 +298,7 @@ independent_of_stmt_p (tree expr, gimple at, gimple_stmt_iterator gsi)
    additive factor for the real return value.  */
 
 static bool
-process_assignment (gimple stmt, gimple_stmt_iterator call, tree *m,
+process_assignment (gassign *stmt, gimple_stmt_iterator call, tree *m,
 		    tree *a, tree *ass_var)
 {
   tree op0, op1 = NULL_TREE, non_ass_var = NULL_TREE;
@@ -388,11 +419,11 @@ static tree
 propagate_through_phis (tree var, edge e)
 {
   basic_block dest = e->dest;
-  gimple_stmt_iterator gsi;
+  gphi_iterator gsi;
 
   for (gsi = gsi_start_phis (dest); !gsi_end_p (gsi); gsi_next (&gsi))
     {
-      gimple phi = gsi_stmt (gsi);
+      gphi *phi = gsi.phi ();
       if (PHI_ARG_DEF_FROM_EDGE (phi, e) == var)
         return PHI_RESULT (phi);
     }
@@ -406,7 +437,8 @@ static void
 find_tail_calls (basic_block bb, struct tailcall **ret)
 {
   tree ass_var = NULL_TREE, ret_var, func, param;
-  gimple stmt, call = NULL;
+  gimple stmt;
+  gcall *call = NULL;
   gimple_stmt_iterator gsi, agsi;
   bool tail_recursion;
   struct tailcall *nw;
@@ -433,8 +465,8 @@ find_tail_calls (basic_block bb, struct tailcall **ret)
       /* Check for a call.  */
       if (is_gimple_call (stmt))
 	{
-	  call = stmt;
-	  ass_var = gimple_call_lhs (stmt);
+	  call = as_a <gcall *> (stmt);
+	  ass_var = gimple_call_lhs (call);
 	  break;
 	}
 
@@ -559,7 +591,8 @@ find_tail_calls (basic_block bb, struct tailcall **ret)
 	return;
 
       /* This is a gimple assign. */
-      if (! process_assignment (stmt, gsi, &tmp_m, &tmp_a, &ass_var))
+      if (! process_assignment (as_a <gassign *> (stmt), gsi, &tmp_m,
+				&tmp_a, &ass_var))
 	return;
 
       if (tmp_a)
@@ -584,7 +617,7 @@ find_tail_calls (basic_block bb, struct tailcall **ret)
     }
 
   /* See if this is a tail call we can handle.  */
-  ret_var = gimple_return_retval (stmt);
+  ret_var = gimple_return_retval (as_a <greturn *> (stmt));
 
   /* We may proceed if there either is no return value, or the return value
      is identical to the call's return.  */
@@ -619,14 +652,14 @@ find_tail_calls (basic_block bb, struct tailcall **ret)
 static void
 add_successor_phi_arg (edge e, tree var, tree phi_arg)
 {
-  gimple_stmt_iterator gsi;
+  gphi_iterator gsi;
 
   for (gsi = gsi_start_phis (e->dest); !gsi_end_p (gsi); gsi_next (&gsi))
-    if (PHI_RESULT (gsi_stmt (gsi)) == var)
+    if (PHI_RESULT (gsi.phi ()) == var)
       break;
 
   gcc_assert (!gsi_end_p (gsi));
-  add_phi_arg (gsi_stmt (gsi), phi_arg, e, UNKNOWN_LOCATION);
+  add_phi_arg (gsi.phi (), phi_arg, e, UNKNOWN_LOCATION);
 }
 
 /* Creates a GIMPLE statement which computes the operation specified by
@@ -641,7 +674,7 @@ adjust_return_value_with_ops (enum tree_code code, const char *label,
 
   tree ret_type = TREE_TYPE (DECL_RESULT (current_function_decl));
   tree result = make_temp_ssa_name (ret_type, NULL, label);
-  gimple stmt;
+  gassign *stmt;
 
   if (POINTER_TYPE_P (ret_type))
     {
@@ -650,7 +683,7 @@ adjust_return_value_with_ops (enum tree_code code, const char *label,
     }
   if (types_compatible_p (TREE_TYPE (acc), TREE_TYPE (op1))
       && code != POINTER_PLUS_EXPR)
-    stmt = gimple_build_assign_with_ops (code, result, acc, op1);
+    stmt = gimple_build_assign (result, code, acc, op1);
   else
     {
       tree tem;
@@ -678,10 +711,10 @@ static tree
 update_accumulator_with_ops (enum tree_code code, tree acc, tree op1,
 			     gimple_stmt_iterator gsi)
 {
-  gimple stmt;
-  tree var = copy_ssa_name (acc, NULL);
+  gassign *stmt;
+  tree var = copy_ssa_name (acc);
   if (types_compatible_p (TREE_TYPE (acc), TREE_TYPE (op1)))
-    stmt = gimple_build_assign_with_ops (code, var, acc, op1);
+    stmt = gimple_build_assign (var, code, acc, op1);
   else
     {
       tree rhs = fold_convert (TREE_TYPE (acc),
@@ -745,7 +778,7 @@ static void
 adjust_return_value (basic_block bb, tree m, tree a)
 {
   tree retval;
-  gimple ret_stmt = gimple_seq_last_stmt (bb_seq (bb));
+  greturn *ret_stmt = as_a <greturn *> (gimple_seq_last_stmt (bb_seq (bb)));
   gimple_stmt_iterator gsi = gsi_last_bb (bb);
 
   gcc_assert (gimple_code (ret_stmt) == GIMPLE_RETURN);
@@ -818,7 +851,8 @@ eliminate_tail_call (struct tailcall *t)
   size_t idx;
   basic_block bb, first;
   edge e;
-  gimple phi;
+  gphi *phi;
+  gphi_iterator gpi;
   gimple_stmt_iterator gsi;
   gimple orig_stmt;
 
@@ -871,7 +905,7 @@ eliminate_tail_call (struct tailcall *t)
   /* Add phi node entries for arguments.  The ordering of the phi nodes should
      be the same as the ordering of the arguments.  */
   for (param = DECL_ARGUMENTS (current_function_decl),
-	 idx = 0, gsi = gsi_start_phis (first);
+	 idx = 0, gpi = gsi_start_phis (first);
        param;
        param = DECL_CHAIN (param), idx++)
     {
@@ -879,11 +913,11 @@ eliminate_tail_call (struct tailcall *t)
 	continue;
 
       arg = gimple_call_arg (stmt, idx);
-      phi = gsi_stmt (gsi);
+      phi = gpi.phi ();
       gcc_assert (param == SSA_NAME_VAR (PHI_RESULT (phi)));
 
       add_phi_arg (phi, arg, e, gimple_location (stmt));
-      gsi_next (&gsi);
+      gsi_next (&gpi);
     }
 
   /* Update the values of accumulators.  */
@@ -916,7 +950,7 @@ optimize_tail_call (struct tailcall *t, bool opt_tailcalls)
 
   if (opt_tailcalls)
     {
-      gimple stmt = gsi_stmt (t->call_gsi);
+      gcall *stmt = as_a <gcall *> (gsi_stmt (t->call_gsi));
 
       gimple_call_set_tail (stmt, true);
       cfun->tail_call_marked = true;
@@ -945,7 +979,7 @@ create_tailcall_accumulator (const char *label, basic_block bb, tree init)
     ret_type = sizetype;
 
   tree tmp = make_temp_ssa_name (ret_type, NULL, label);
-  gimple phi;
+  gphi *phi;
 
   phi = create_phi_node (tmp, bb);
   /* RET_TYPE can be a float when -ffast-maths is enabled.  */
@@ -1009,7 +1043,7 @@ tree_optimize_tail_calls_1 (bool opt_tailcalls)
 	      {
 		tree name = ssa_default_def (cfun, param);
 		tree new_name = make_ssa_name (param, SSA_NAME_DEF_STMT (name));
-		gimple phi;
+		gphi *phi;
 
 		set_ssa_default_def (cfun, param, new_name);
 		phi = create_phi_node (name, first);
@@ -1059,8 +1093,7 @@ tree_optimize_tail_calls_1 (bool opt_tailcalls)
   if (changed)
     {
       /* We may have created new loops.  Make them magically appear.  */
-      if (current_loops)
-	loops_state_set (LOOPS_NEED_FIXUP);
+      loops_state_set (LOOPS_NEED_FIXUP);
       free_dominance_info (CDI_DOMINATORS);
     }
 
@@ -1073,12 +1106,6 @@ tree_optimize_tail_calls_1 (bool opt_tailcalls)
   if (changed)
     return TODO_cleanup_cfg | TODO_update_ssa_only_virtuals;
   return 0;
-}
-
-static unsigned int
-execute_tail_recursion (void)
-{
-  return tree_optimize_tail_calls_1 (false);
 }
 
 static bool
@@ -1100,14 +1127,12 @@ const pass_data pass_data_tail_recursion =
   GIMPLE_PASS, /* type */
   "tailr", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
   TV_NONE, /* tv_id */
   ( PROP_cfg | PROP_ssa ), /* properties_required */
   0, /* properties_provided */
   0, /* properties_destroyed */
   0, /* todo_flags_start */
-  TODO_verify_ssa, /* todo_flags_finish */
+  0, /* todo_flags_finish */
 };
 
 class pass_tail_recursion : public gimple_opt_pass
@@ -1119,8 +1144,11 @@ public:
 
   /* opt_pass methods: */
   opt_pass * clone () { return new pass_tail_recursion (m_ctxt); }
-  bool gate () { return gate_tail_calls (); }
-  unsigned int execute () { return execute_tail_recursion (); }
+  virtual bool gate (function *) { return gate_tail_calls (); }
+  virtual unsigned int execute (function *)
+    {
+      return tree_optimize_tail_calls_1 (false);
+    }
 
 }; // class pass_tail_recursion
 
@@ -1139,14 +1167,12 @@ const pass_data pass_data_tail_calls =
   GIMPLE_PASS, /* type */
   "tailc", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
   TV_NONE, /* tv_id */
   ( PROP_cfg | PROP_ssa ), /* properties_required */
   0, /* properties_provided */
   0, /* properties_destroyed */
   0, /* todo_flags_start */
-  TODO_verify_ssa, /* todo_flags_finish */
+  0, /* todo_flags_finish */
 };
 
 class pass_tail_calls : public gimple_opt_pass
@@ -1157,8 +1183,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  bool gate () { return gate_tail_calls (); }
-  unsigned int execute () { return execute_tail_calls (); }
+  virtual bool gate (function *) { return gate_tail_calls (); }
+  virtual unsigned int execute (function *) { return execute_tail_calls (); }
 
 }; // class pass_tail_calls
 

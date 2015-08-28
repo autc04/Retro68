@@ -2,7 +2,7 @@
    MMU, using ELF at the compiler level but possibly FLT for final
    linked executables and shared libraries in some no-MMU cases, and
    possibly with a choice of libc implementations.
-   Copyright (C) 1995-2014 Free Software Foundation, Inc.
+   Copyright (C) 1995-2015 Free Software Foundation, Inc.
    Contributed by Eric Youngdale.
    Modified for stabs-in-ELF by H.J. Lu (hjl@lucon.org).
 
@@ -116,10 +116,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 # define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function
 
 #else /* !uClinux, i.e., normal Linux */
-
-/* IFUNCs are supported by glibc, but not by uClibc or Bionic.  */
-# undef TARGET_HAS_IFUNC_P
-# define TARGET_HAS_IFUNC_P linux_has_ifunc_p
 
 /* Determine what functions are present at the runtime;
    this includes full c99 runtime and sincos.  */

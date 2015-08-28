@@ -140,11 +140,16 @@ var canbackquotetests = []canBackquoteTest{
 	{string(29), false},
 	{string(30), false},
 	{string(31), false},
+	{string(0x7F), false},
 	{`' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true},
 	{`0123456789`, true},
 	{`ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true},
 	{`abcdefghijklmnopqrstuvwxyz`, true},
 	{`☺`, true},
+	{"\x80", false},
+	{"a\xe0\xa0z", false},
+	{"\ufeffabc", false},
+	{"a\ufeffz", false},
 }
 
 func TestCanBackquote(t *testing.T) {

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,6 +42,7 @@ with Snames;   use Snames;
 with Stringt;  use Stringt;
 with Targparm; use Targparm;
 with Uintp;    use Uintp;
+with Widechar; use Widechar;
 
 package body Erroutc is
 
@@ -113,13 +114,13 @@ package body Erroutc is
       N1, N2 : Error_Msg_Id;
 
       procedure Delete_Msg (Delete, Keep : Error_Msg_Id);
-      --  Called to delete message Delete, keeping message Keep. Marks all
-      --  messages of Delete with deleted flag set to True, and also makes sure
-      --  that for the error messages that are retained the preferred message
-      --  is the one retained (we prefer the shorter one in the case where one
-      --  has an Instance tag). Note that we always know that Keep has at least
-      --  as many continuations as Delete (since we always delete the shorter
-      --  sequence).
+      --  Called to delete message Delete, keeping message Keep. Marks msg
+      --  Delete and all its continuations with deleted flag set to True.
+      --  Also makes sure that for the error messages that are retained the
+      --  preferred message is the one retained (we prefer the shorter one in
+      --  the case where one has an Instance tag). Note that we always know
+      --  that Keep has at least as many continuations as Delete (since we
+      --  always delete the shorter sequence).
 
       ----------------
       -- Delete_Msg --
@@ -139,6 +140,17 @@ package body Erroutc is
 
             if Errors.Table (D).Warn or else Errors.Table (D).Style then
                Warnings_Detected := Warnings_Detected - 1;
+
+               if Errors.Table (D).Info then
+                  Info_Messages := Info_Messages - 1;
+               end if;
+
+               --  Note: we do not need to decrement Warnings_Treated_As_Errors
+               --  because this only gets incremented if we actually output the
+               --  message, which we won't do if we are deleting it here!
+
+            elsif Errors.Table (D).Check then
+               Check_Messages := Check_Messages - 1;
 
             else
                Total_Errors_Detected := Total_Errors_Detected - 1;
@@ -227,7 +239,7 @@ package body Erroutc is
    function Compilation_Errors return Boolean is
    begin
       return Total_Errors_Detected /= 0
-        or else (Warnings_Detected /= 0
+        or else (Warnings_Detected - Info_Messages /= 0
                   and then Warning_Mode = Treat_As_Error)
         or else Warnings_Treated_As_Errors /= 0;
    end Compilation_Errors;
@@ -257,6 +269,7 @@ package body Erroutc is
       w ("Dumping error message, Id = ", Int (Id));
       w ("  Text     = ", E.Text.all);
       w ("  Next     = ", Int (E.Next));
+      w ("  Prev     = ", Int (E.Prev));
       w ("  Sfile    = ", Int (E.Sfile));
 
       Write_Str
@@ -272,6 +285,8 @@ package body Erroutc is
       w ("  Line     = ", Int (E.Line));
       w ("  Col      = ", Int (E.Col));
       w ("  Warn     = ", E.Warn);
+      w ("  Warn_Err = ", E.Warn_Err);
+      w ("  Warn_Chr = '" & E.Warn_Chr & ''');
       w ("  Style    = ", E.Style);
       w ("  Serious  = ", E.Serious);
       w ("  Uncond   = ", E.Uncond);
@@ -310,6 +325,10 @@ package body Erroutc is
       if Warn and then Warn_Chr /= ' ' then
          if Warn_Chr = '?' then
             return "[enabled by default]";
+         elsif Warn_Chr = '*' then
+            return "[restriction warning]";
+         elsif Warn_Chr = '$' then
+            return "[-gnatel]";
          elsif Warn_Chr in 'a' .. 'z' then
             return "[-gnatw" & Warn_Chr & ']';
          else pragma Assert (Warn_Chr in 'A' .. 'Z');
@@ -433,32 +452,75 @@ package body Erroutc is
            and then Errors.Table (T).Line = Errors.Table (E).Line
            and then Errors.Table (T).Sfile = Errors.Table (E).Sfile
          loop
-            --  Loop to output blanks till current flag position
+            declare
+               Src : Source_Buffer_Ptr
+                       renames Source_Text (Errors.Table (T).Sfile);
 
-            while P < Errors.Table (T).Sptr loop
-               if Source_Text (Errors.Table (T).Sfile) (P) = ASCII.HT then
-                  Write_Char (ASCII.HT);
-               else
-                  Write_Char (' ');
+            begin
+               --  Loop to output blanks till current flag position
+
+               while P < Errors.Table (T).Sptr loop
+
+                  --  Horizontal tab case, just echo the tab
+
+                  if Src (P) = ASCII.HT then
+                     Write_Char (ASCII.HT);
+                     P := P + 1;
+
+                  --  Deal with wide character case, but don't include brackets
+                  --  notation in this circuit, since we know that this will
+                  --  display unencoded (no one encodes brackets notation).
+
+                  elsif Src (P) /= '['
+                    and then Is_Start_Of_Wide_Char (Src, P)
+                  then
+                     Skip_Wide (Src, P);
+                     Write_Char (' ');
+
+                  --  Normal non-wide character case (or bracket)
+
+                  else
+                     P := P + 1;
+                     Write_Char (' ');
+                  end if;
+               end loop;
+
+               --  Output flag (unless already output, this happens if more
+               --  than one error message occurs at the same flag position).
+
+               if P = Errors.Table (T).Sptr then
+                  if (Flag_Num = 1 and then not Mult_Flags)
+                    or else Flag_Num > 9
+                  then
+                     Write_Char ('|');
+                  else
+                     Write_Char
+                       (Character'Val (Character'Pos ('0') + Flag_Num));
+                  end if;
+
+                  --  Skip past the corresponding source text character
+
+                  --  Horizontal tab case, we output a flag at the tab position
+                  --  so now we output a tab to match up with the text.
+
+                  if Src (P) = ASCII.HT then
+                     Write_Char (ASCII.HT);
+                     P := P + 1;
+
+                  --  Skip wide character other than left bracket
+
+                  elsif Src (P) /= '['
+                    and then Is_Start_Of_Wide_Char (Src, P)
+                  then
+                     Skip_Wide (Src, P);
+
+                  --  Skip normal non-wide character case (or bracket)
+
+                  else
+                     P := P + 1;
+                  end if;
                end if;
-
-               P := P + 1;
-            end loop;
-
-            --  Output flag (unless already output, this happens if more
-            --  than one error message occurs at the same flag position).
-
-            if P = Errors.Table (T).Sptr then
-               if (Flag_Num = 1 and then not Mult_Flags)
-                 or else Flag_Num > 9
-               then
-                  Write_Char ('|');
-               else
-                  Write_Char (Character'Val (Character'Pos ('0') + Flag_Num));
-               end if;
-
-               P := P + 1;
-            end if;
+            end;
 
             Set_Next_Non_Deleted_Msg (T);
             Flag_Num := Flag_Num + 1;
@@ -572,24 +634,22 @@ package body Erroutc is
 
          if Errors.Table (E).Warn then
 
-            --  Nothing to do with info messages, "info " already set
+            --  For info messages, prefix message with "info: "
 
-            if Txt'Length >= 6
-              and then Txt (Txt'First .. Txt'First + 5) = "info: "
-            then
-               null;
+            if Errors.Table (E).Info then
+               Txt := new String'("info: " & Txt.all);
 
             --  Warning treated as error
 
             elsif Errors.Table (E).Warn_Err then
 
-               --  We prefix the tag error: rather than warning: and postfix
+               --  We prefix with "error:" rather than warning: and postfix
                --  [warning-as-error] at the end.
 
                Warnings_Treated_As_Errors := Warnings_Treated_As_Errors + 1;
                Txt := new String'("error: " & Txt.all & " [warning-as-error]");
 
-            --  Normal case, prefix
+            --  Normal case, prefix with "warning: "
 
             else
                Txt := new String'("warning: " & Txt.all);
@@ -598,6 +658,11 @@ package body Erroutc is
             --  No prefix needed for style message, "(style)" is there already
 
          elsif Errors.Table (E).Style then
+            null;
+
+            --  No prefix needed for check message, severity is there already
+
+         elsif Errors.Table (E).Check then
             null;
 
             --  All other cases, add "error: " if unique error tag set
@@ -680,6 +745,119 @@ package body Erroutc is
          end loop;
       end;
    end Output_Msg_Text;
+
+   ---------------------
+   -- Prescan_Message --
+   ---------------------
+
+   procedure Prescan_Message (Msg : String) is
+      J : Natural;
+
+   begin
+      --  Nothing to do for continuation line
+
+      if Msg (Msg'First) = '\' then
+         return;
+      end if;
+
+      --  Set initial values of globals (may be changed during scan)
+
+      Is_Serious_Error     := True;
+      Is_Unconditional_Msg := False;
+      Is_Warning_Msg       := False;
+      Has_Double_Exclam    := False;
+
+      --  Check style message
+
+      Is_Style_Msg :=
+        Msg'Length > 7 and then Msg (Msg'First .. Msg'First + 6) = "(style)";
+
+      --  Check info message
+
+      Is_Info_Msg :=
+        Msg'Length > 6 and then Msg (Msg'First .. Msg'First + 5) = "info: ";
+
+      --  Check check message
+
+      Is_Check_Msg :=
+        (Msg'Length > 8 and then Msg (Msg'First .. Msg'First + 7) = "medium: ")
+        or else
+          (Msg'Length > 6 and then Msg (Msg'First .. Msg'First + 5) = "high: ")
+        or else
+          (Msg'Length > 5 and then Msg (Msg'First .. Msg'First + 4) = "low: ");
+
+      --  Loop through message looking for relevant insertion sequences
+
+      J := Msg'First;
+      while J <= Msg'Last loop
+
+         --  If we have a quote, don't look at following character
+
+         if Msg (J) = ''' then
+            J := J + 2;
+
+         --  Warning message (? or < insertion sequence)
+
+         elsif Msg (J) = '?' or else Msg (J) = '<' then
+            Is_Warning_Msg := Msg (J) = '?' or else Error_Msg_Warn;
+            Warning_Msg_Char := ' ';
+            J := J + 1;
+
+            if Is_Warning_Msg then
+               declare
+                  C : constant Character := Msg (J - 1);
+               begin
+                  if J <= Msg'Last then
+                     if Msg (J) = C then
+                        Warning_Msg_Char := '?';
+                        J := J + 1;
+
+                     elsif J < Msg'Last and then Msg (J + 1) = C
+                       and then (Msg (J) in 'a' .. 'z' or else
+                                 Msg (J) in 'A' .. 'Z' or else
+                                 Msg (J) = '*'         or else
+                                 Msg (J) = '$')
+                     then
+                        Warning_Msg_Char := Msg (J);
+                        J := J + 2;
+                     end if;
+                  end if;
+               end;
+            end if;
+
+            --  Bomb if untagged warning message. This code can be uncommented
+            --  for debugging when looking for untagged warning messages.
+
+            --  if Is_Warning_Msg and then Warning_Msg_Char = ' ' then
+            --     raise Program_Error;
+            --  end if;
+
+         --  Unconditional message (! insertion)
+
+         elsif Msg (J) = '!' then
+            Is_Unconditional_Msg := True;
+            J := J + 1;
+
+            if J <= Msg'Last and then Msg (J) = '!' then
+               Has_Double_Exclam := True;
+               J := J + 1;
+            end if;
+
+         --  Non-serious error (| insertion)
+
+         elsif Msg (J) = '|' then
+            Is_Serious_Error := False;
+            J := J + 1;
+
+         else
+            J := J + 1;
+         end if;
+      end loop;
+
+      if Is_Warning_Msg or Is_Style_Msg or Is_Check_Msg then
+         Is_Serious_Error := False;
+      end if;
+   end Prescan_Message;
 
    --------------------
    -- Purge_Messages --
@@ -1170,9 +1348,7 @@ package body Erroutc is
 
    procedure Set_Msg_Name_Buffer is
    begin
-      for J in 1 .. Name_Len loop
-         Set_Msg_Char (Name_Buffer (J));
-      end loop;
+      Set_Msg_Str (Name_Buffer (1 .. Name_Len));
    end Set_Msg_Name_Buffer;
 
    -------------------
@@ -1192,9 +1368,42 @@ package body Erroutc is
 
    procedure Set_Msg_Str (Text : String) is
    begin
-      for J in Text'Range loop
-         Set_Msg_Char (Text (J));
-      end loop;
+      --  Do replacement for special x'Class aspect names
+
+      if Text = "_Pre" then
+         Set_Msg_Str ("Pre'Class");
+
+      elsif Text = "_Post" then
+         Set_Msg_Str ("Post'Class");
+
+      elsif Text = "_Type_Invariant" then
+         Set_Msg_Str ("Type_Invariant'Class");
+
+      elsif Text = "_pre" then
+         Set_Msg_Str ("pre'class");
+
+      elsif Text = "_post" then
+         Set_Msg_Str ("post'class");
+
+      elsif Text = "_type_invariant" then
+         Set_Msg_Str ("type_invariant'class");
+
+      elsif Text = "_PRE" then
+         Set_Msg_Str ("PRE'CLASS");
+
+      elsif Text = "_POST" then
+         Set_Msg_Str ("POST'CLASS");
+
+      elsif Text = "_TYPE_INVARIANT" then
+         Set_Msg_Str ("TYPE_INVARIANT'CLASS");
+
+      --  Normal case with no replacement
+
+      else
+         for J in Text'Range loop
+            Set_Msg_Char (Text (J));
+         end loop;
+      end if;
    end Set_Msg_Str;
 
    ------------------------------
@@ -1249,6 +1458,7 @@ package body Erroutc is
       for J in 1 .. Specific_Warnings.Last loop
          declare
             SWE : Specific_Warning_Entry renames Specific_Warnings.Table (J);
+
          begin
             if Msg = SWE.Msg.all
               and then Loc > SWE.Start
@@ -1350,63 +1560,6 @@ package body Erroutc is
       end if;
    end Set_Warnings_Mode_On;
 
-   ------------------------------------
-   -- Test_Style_Warning_Serious_Msg --
-   ------------------------------------
-
-   procedure Test_Style_Warning_Serious_Unconditional_Msg (Msg : String) is
-   begin
-      --  Nothing to do for continuation line
-
-      if Msg (Msg'First) = '\' then
-         return;
-      end if;
-
-      --  Set initial values of globals (may be changed during scan)
-
-      Is_Serious_Error     := True;
-      Is_Unconditional_Msg := False;
-      Is_Warning_Msg       := False;
-      Has_Double_Exclam    := False;
-
-      Is_Style_Msg :=
-        (Msg'Length > 7 and then Msg (Msg'First .. Msg'First + 6) = "(style)");
-
-      for J in Msg'Range loop
-         if Msg (J) = '?'
-           and then (J = Msg'First or else Msg (J - 1) /= ''')
-         then
-            Is_Warning_Msg := True;
-            Warning_Msg_Char := ' ';
-
-         elsif Msg (J) = '!'
-           and then (J = Msg'First or else Msg (J - 1) /= ''')
-         then
-            Is_Unconditional_Msg := True;
-            Warning_Msg_Char := ' ';
-
-            if J < Msg'Last and then Msg (J + 1) = '!' then
-               Has_Double_Exclam := True;
-            end if;
-
-         elsif Msg (J) = '<'
-           and then (J = Msg'First or else Msg (J - 1) /= ''')
-         then
-            Is_Warning_Msg := Error_Msg_Warn;
-            Warning_Msg_Char := ' ';
-
-         elsif Msg (J) = '|'
-           and then (J = Msg'First or else Msg (J - 1) /= ''')
-         then
-            Is_Serious_Error := False;
-         end if;
-      end loop;
-
-      if Is_Warning_Msg or Is_Style_Msg then
-         Is_Serious_Error := False;
-      end if;
-   end Test_Style_Warning_Serious_Unconditional_Msg;
-
    --------------------------------
    -- Validate_Specific_Warnings --
    --------------------------------
@@ -1436,10 +1589,11 @@ package body Erroutc is
                elsif not SWE.Used
 
                  --  Do not issue this warning for -Wxxx messages since the
-                 --  back-end doesn't report the information.
+                 --  back-end doesn't report the information. Note that there
+                 --  is always an asterisk at the start of every message.
 
                  and then not
-                   (SWE.Msg'Length > 2 and then SWE.Msg (1 .. 2) = "-W")
+                   (SWE.Msg'Length > 3 and then SWE.Msg (2 .. 3) = "-W")
                then
                   Eproc.all
                     ("?W?no warning suppressed by this pragma", SWE.Start);
@@ -1455,7 +1609,8 @@ package body Erroutc is
 
    function Warning_Specifically_Suppressed
      (Loc : Source_Ptr;
-      Msg : String_Ptr) return String_Id
+      Msg : String_Ptr;
+      Tag : String := "") return String_Id
    is
    begin
       --  Loop through specific warning suppression entries
@@ -1471,7 +1626,9 @@ package body Erroutc is
             if SWE.Config
               or else (SWE.Start <= Loc and then Loc <= SWE.Stop)
             then
-               if Matches (Msg.all, SWE.Msg.all) then
+               if Matches (Msg.all, SWE.Msg.all)
+                 or else Matches (Tag, SWE.Msg.all)
+               then
                   SWE.Used := True;
                   return SWE.Reason;
                end if;

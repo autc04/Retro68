@@ -1,5 +1,5 @@
 /* Coalesce spilled pseudos.
-   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+   Copyright (C) 2010-2015 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -54,8 +54,32 @@ along with GCC; see the file COPYING3.	If not see
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "flags.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "machmode.h"
+#include "input.h"
 #include "function.h"
+#include "symtab.h"
+#include "statistics.h"
+#include "double-int.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "alias.h"
+#include "wide-int.h"
+#include "inchash.h"
+#include "tree.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
 #include "expr.h"
+#include "predict.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "except.h"
 #include "timevar.h"
@@ -75,8 +99,8 @@ static int *first_coalesced_pseudo, *next_coalesced_pseudo;
 static int
 move_freq_compare_func (const void *v1p, const void *v2p)
 {
-  rtx mv1 = *(const rtx *) v1p;
-  rtx mv2 = *(const rtx *) v2p;
+  rtx_insn *mv1 = *(rtx_insn * const *) v1p;
+  rtx_insn *mv2 = *(rtx_insn * const *) v2p;
   int pri1, pri2;
 
   pri1 = REG_FREQ_FROM_BB (BLOCK_FOR_INSN (mv1));
@@ -168,6 +192,16 @@ substitute (rtx *loc)
   return res;
 }
 
+/* Specialize "substitute" for use on an insn.  This can't change
+   the insn ptr, just the contents of the insn.  */
+
+static bool
+substitute_within_insn (rtx_insn *insn)
+{
+  rtx loc = insn;
+  return substitute (&loc);
+}
+
 /* The current iteration (1, 2, ...) of the coalescing pass.  */
 int lra_coalesce_iter;
 
@@ -219,7 +253,8 @@ bool
 lra_coalesce (void)
 {
   basic_block bb;
-  rtx mv, set, insn, next, *sorted_moves;
+  rtx_insn *mv, *insn, *next, **sorted_moves;
+  rtx set;
   int i, mv_num, sregno, dregno;
   unsigned int regno;
   int coalesced_moves;
@@ -238,7 +273,7 @@ lra_coalesce (void)
   next_coalesced_pseudo = XNEWVEC (int, max_regno);
   for (i = 0; i < max_regno; i++)
     first_coalesced_pseudo[i] = next_coalesced_pseudo[i] = i;
-  sorted_moves = XNEWVEC (rtx, get_max_uid ());
+  sorted_moves = XNEWVEC (rtx_insn *, get_max_uid ());
   mv_num = 0;
   /* Collect moves.  */
   coalesced_moves = 0;
@@ -308,7 +343,7 @@ lra_coalesce (void)
 	if (INSN_P (insn)
 	    && bitmap_bit_p (&involved_insns_bitmap, INSN_UID (insn)))
 	  {
-	    if (! substitute (&insn))
+	    if (! substitute_within_insn (insn))
 	      continue;
 	    lra_update_insn_regno_info (insn);
 	    if ((set = single_set (insn)) != NULL_RTX && set_noop_p (set))

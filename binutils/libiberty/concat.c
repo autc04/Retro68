@@ -1,5 +1,5 @@
 /* Concatenate variable number of strings.
-   Copyright (C) 1991, 1994, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1994, 2001, 2011, 2013 Free Software Foundation, Inc.
    Written by Fred Fish @ Cygnus Support
 
 This file is part of the libiberty library.
@@ -21,25 +21,14 @@ Boston, MA 02110-1301, USA.  */
 
 /*
 
-@deftypefn Extension char* concat (const char *@var{s1}, const char *@var{s2}, @dots{}, @code{NULL})
+@deftypefn Extension char* concat (const char *@var{s1}, const char *@var{s2}, @
+  @dots{}, @code{NULL})
 
 Concatenate zero or more of strings and return the result in freshly
-@code{xmalloc}ed memory.  Returns @code{NULL} if insufficient memory is
-available.  The argument list is terminated by the first @code{NULL}
-pointer encountered.  Pointers to empty strings are ignored.
+@code{xmalloc}ed memory.  The argument list is terminated by the first
+@code{NULL} pointer encountered.  Pointers to empty strings are ignored.
 
 @end deftypefn
-
-NOTES
-
-	This function uses xmalloc() which is expected to be a front end
-	function to malloc() that deals with low memory situations.  In
-	typical use, if malloc() returns NULL then xmalloc() diverts to an
-	error handler routine which never returns, and thus xmalloc will
-	never return a NULL pointer.  If the client application wishes to
-	deal with low memory situations itself, it should supply an xmalloc
-	that just directly invokes malloc and blindly returns whatever
-	malloc returns.
 
 */
 
@@ -101,11 +90,11 @@ unsigned long
 concat_length (const char *first, ...)
 {
   unsigned long length;
+  va_list args;
 
-  VA_OPEN (args, first);
-  VA_FIXEDARG (args, const char *, first);
+  va_start (args, first);
   length = vconcat_length (first, args);
-  VA_CLOSE (args);
+  va_end (args);
 
   return length;
 }
@@ -116,13 +105,12 @@ char *
 concat_copy (char *dst, const char *first, ...)
 {
   char *save_dst;
+  va_list args;
 
-  VA_OPEN (args, first);
-  VA_FIXEDARG (args, char *, dst);
-  VA_FIXEDARG (args, const char *, first);
+  va_start (args, first);
   vconcat_copy (dst, first, args);
   save_dst = dst; /* With K&R C, dst goes out of scope here.  */
-  VA_CLOSE (args);
+  va_end (args);
 
   return save_dst;
 }
@@ -140,10 +128,10 @@ char *libiberty_concat_ptr;
 char *
 concat_copy2 (const char *first, ...)
 {
-  VA_OPEN (args, first);
-  VA_FIXEDARG (args, const char *, first);
+  va_list args;
+  va_start (args, first);
   vconcat_copy (libiberty_concat_ptr, first, args);
-  VA_CLOSE (args);
+  va_end (args);
 
   return libiberty_concat_ptr;
 }
@@ -152,25 +140,25 @@ char *
 concat (const char *first, ...)
 {
   char *newstr;
+  va_list args;
 
   /* First compute the size of the result and get sufficient memory.  */
-  VA_OPEN (args, first);
-  VA_FIXEDARG (args, const char *, first);
+  va_start (args, first);
   newstr = XNEWVEC (char, vconcat_length (first, args) + 1);
-  VA_CLOSE (args);
+  va_end (args);
 
   /* Now copy the individual pieces to the result string. */
-  VA_OPEN (args, first);
-  VA_FIXEDARG (args, const char *, first);
+  va_start (args, first);
   vconcat_copy (newstr, first, args);
-  VA_CLOSE (args);
+  va_end (args);
 
   return newstr;
 }
 
 /*
 
-@deftypefn Extension char* reconcat (char *@var{optr}, const char *@var{s1}, @dots{}, @code{NULL})
+@deftypefn Extension char* reconcat (char *@var{optr}, const char *@var{s1}, @
+  @dots{}, @code{NULL})
 
 Same as @code{concat}, except that if @var{optr} is not @code{NULL} it
 is freed after the string is created.  This is intended to be useful
@@ -189,22 +177,19 @@ char *
 reconcat (char *optr, const char *first, ...)
 {
   char *newstr;
+  va_list args;
 
   /* First compute the size of the result and get sufficient memory.  */
-  VA_OPEN (args, first);
-  VA_FIXEDARG (args, char *, optr);
-  VA_FIXEDARG (args, const char *, first);
+  va_start (args, first);
   newstr = XNEWVEC (char, vconcat_length (first, args) + 1);
-  VA_CLOSE (args);
+  va_end (args);
 
   /* Now copy the individual pieces to the result string. */
-  VA_OPEN (args, first);
-  VA_FIXEDARG (args, char *, optr);
-  VA_FIXEDARG (args, const char *, first);
+  va_start (args, first);
   vconcat_copy (newstr, first, args);
   if (optr) /* Done before VA_CLOSE so optr stays in scope for K&R C.  */
     free (optr);
-  VA_CLOSE (args);
+  va_end (args);
 
   return newstr;
 }

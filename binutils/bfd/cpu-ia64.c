@@ -1,5 +1,5 @@
 /* BFD support for the ia64 architecture.
-   Copyright 1998, 1999, 2000, 2002, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -35,7 +35,8 @@ const bfd_arch_info_type bfd_ia64_elf32_arch =
     3,	/* log2 of section alignment */
     TRUE, /* the one and only */
     bfd_default_compatible,
-    bfd_default_scan ,
+    bfd_default_scan,
+    bfd_arch_default_fill,
     0,
   };
 
@@ -51,7 +52,8 @@ const bfd_arch_info_type bfd_ia64_arch =
     3,	/* log2 of section alignment */
     TRUE, /* the one and only */
     bfd_default_compatible,
-    bfd_default_scan ,
+    bfd_default_scan,
+    bfd_arch_default_fill,
     &bfd_ia64_elf32_arch,
   };
 

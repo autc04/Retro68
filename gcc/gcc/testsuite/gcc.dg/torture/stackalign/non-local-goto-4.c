@@ -1,4 +1,5 @@
 /* { dg-do run } */
+/* { dg-require-effective-target nonlocal_goto } */
 
 extern void abort (void);
 extern void exit (int);
@@ -11,11 +12,10 @@ extern void exit (int);
 
 #if ! defined (NO_LABEL_VALUES) && !defined (NO_TRAMPOLINES)
 int
-
-x(a)
+x(int a)
 {
   __label__ xlab;
-  void y(a)
+  void y(int a)
     {
       if (a==0)
 	goto xlab;

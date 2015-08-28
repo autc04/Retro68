@@ -1,10 +1,10 @@
 // { dg-do compile }
-// { dg-options "-std=c++0x" }
+// { dg-options "-std=gnu++11" }
 // { dg-require-cstdint "" }
 //
 // 2012-01-28  Edward M. Smith-Rowland <3dw4rd@verizon.net>
 //
-// Copyright (C) 2012-2014 Free Software Foundation, Inc.
+// Copyright (C) 2012-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,8 +21,8 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// 26.4.8.3.* Class template rice_distribution [rand.dist.ext.rice]
-// 26.4.2.4 Concept RandomNumberDistribution [rand.concept.dist]
+// Class template rice_distribution
+// 26.5.1.6 Random number distribution requirements [rand.req.dist]
 
 #include <ext/random>
 

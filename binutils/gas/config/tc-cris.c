@@ -1,6 +1,5 @@
 /* tc-cris.c -- Assembler code for the CRIS CPU core.
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    Contributed by Axis Communications AB, Lund, Sweden.
    Originally written for GAS 1.38.1 by Mikael Asker.
@@ -815,7 +814,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec ATTRIBUTE_UNUSED,
 
   /* Used to check integrity of the relaxation.
      One of 2 = long, 1 = word, or 0 = byte.  */
-  int length_code;
+  int length_code ATTRIBUTE_UNUSED;
 
   /* Size in bytes of variable-sized part of frag.  */
   int var_part_size = 0;
@@ -1125,9 +1124,15 @@ md_create_long_jump (char *storep, addressT from_addr, addressT to_addr,
 
   if (max_short_minus_distance <= distance
       && distance <= max_short_plus_distance)
-    /* Then make it a "short" long jump.  */
-    md_create_short_jump (storep, from_addr, to_addr, fragP,
+    {
+      /* Then make it a "short" long jump.  */
+      md_create_short_jump (storep, from_addr, to_addr, fragP,
 			    to_symbol);
+      if (cris_arch == arch_crisv32)
+	md_number_to_chars (storep + 6, NOP_OPCODE_V32, 2);
+      else
+	md_number_to_chars (storep + 6, NOP_OPCODE, 2);
+    }
   else
     {
       /* We have a "long" long jump: "JUMP [PC+]".  If CRISv32, always
@@ -1487,6 +1492,19 @@ md_assemble (char *str)
     }
 }
 
+/* Helper error-reporting function: calls as_bad for a format string
+   for a single value and zeroes the offending value (zero assumed
+   being a valid value) to avoid repeated error reports in later value
+   checking.  */
+
+static void
+cris_bad (const char *format, offsetT *valp)
+{
+  /* We cast to long so the format string can assume that format.  */
+  as_bad (format, (long) *valp);
+  *valp = 0;
+}
+
 /* Low level text-to-bits assembly.  */
 
 static void
@@ -1641,8 +1659,8 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 		  if (out_insnp->expr.X_op == O_constant
 		      && (out_insnp->expr.X_add_number < 0
 			  || out_insnp->expr.X_add_number > 31))
-		    as_bad (_("Immediate value not in 5 bit unsigned range: %ld"),
-			    out_insnp->expr.X_add_number);
+		    cris_bad (_("Immediate value not in 5 bit unsigned range: %ld"),
+			      &out_insnp->expr.X_add_number);
 
 		  out_insnp->reloc = BFD_RELOC_CRIS_UNSIGNED_5;
 		  continue;
@@ -1657,8 +1675,8 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 		  if (out_insnp->expr.X_op == O_constant
 		      && (out_insnp->expr.X_add_number < 0
 			  || out_insnp->expr.X_add_number > 15))
-		    as_bad (_("Immediate value not in 4 bit unsigned range: %ld"),
-			    out_insnp->expr.X_add_number);
+		    cris_bad (_("Immediate value not in 4 bit unsigned range: %ld"),
+			      &out_insnp->expr.X_add_number);
 
 		  out_insnp->reloc = BFD_RELOC_CRIS_UNSIGNED_4;
 		  continue;
@@ -1709,8 +1727,9 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 		  if (out_insnp->expr.X_op == O_constant
 		      && (out_insnp->expr.X_add_number < -32
 			  || out_insnp->expr.X_add_number > 31))
-		    as_bad (_("Immediate value not in 6 bit range: %ld"),
-			    out_insnp->expr.X_add_number);
+		    cris_bad (_("Immediate value not in 6 bit range: %ld"),
+			      &out_insnp->expr.X_add_number);
+
 		  out_insnp->reloc = BFD_RELOC_CRIS_SIGNED_6;
 		  continue;
 		}
@@ -1724,8 +1743,9 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 		  if (out_insnp->expr.X_op == O_constant
 		      && (out_insnp->expr.X_add_number < 0
 			  || out_insnp->expr.X_add_number > 63))
-		    as_bad (_("Immediate value not in 6 bit unsigned range: %ld"),
-			    out_insnp->expr.X_add_number);
+		    cris_bad (_("Immediate value not in 6 bit unsigned range: %ld"),
+			      &out_insnp->expr.X_add_number);
+
 		  out_insnp->reloc = BFD_RELOC_CRIS_UNSIGNED_6;
 		  continue;
 		}
@@ -2117,8 +2137,8 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 			if (out_insnp->expr.X_op == O_constant
 			    && (out_insnp->expr.X_add_number < -128
 				|| out_insnp->expr.X_add_number > 255))
-			  as_bad (_("Immediate value not in 8 bit range: %ld"),
-				  out_insnp->expr.X_add_number);
+			  cris_bad (_("Immediate value not in 8 bit range: %ld"),
+				    &out_insnp->expr.X_add_number);
 			/* Fall through.  */
 		      case 2:
 			/* FIXME:  We need an indicator in the instruction
@@ -2127,8 +2147,8 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 			if (out_insnp->expr.X_op == O_constant
 			    && (out_insnp->expr.X_add_number < -32768
 				|| out_insnp->expr.X_add_number > 65535))
-			  as_bad (_("Immediate value not in 16 bit range: %ld"),
-				  out_insnp->expr.X_add_number);
+			  cris_bad (_("Immediate value not in 16 bit range: %ld"),
+				    &out_insnp->expr.X_add_number);
 			out_insnp->imm_oprnd_size = 2;
 			break;
 
@@ -2157,18 +2177,18 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 			  if (instruction->imm_oprnd_size == SIZE_FIELD
 			      && (out_insnp->expr.X_add_number < -128
 				  || out_insnp->expr.X_add_number > 255))
-			    as_bad (_("Immediate value not in 8 bit range: %ld"),
-				    out_insnp->expr.X_add_number);
+			    cris_bad (_("Immediate value not in 8 bit range: %ld"),
+				      &out_insnp->expr.X_add_number);
 			  else if (instruction->imm_oprnd_size == SIZE_FIELD_SIGNED
 			      && (out_insnp->expr.X_add_number < -128
 				  || out_insnp->expr.X_add_number > 127))
-			    as_bad (_("Immediate value not in 8 bit signed range: %ld"),
-				    out_insnp->expr.X_add_number);
+			    cris_bad (_("Immediate value not in 8 bit signed range: %ld"),
+				      &out_insnp->expr.X_add_number);
 			  else if (instruction->imm_oprnd_size == SIZE_FIELD_UNSIGNED
 				   && (out_insnp->expr.X_add_number < 0
 				       || out_insnp->expr.X_add_number > 255))
-			    as_bad (_("Immediate value not in 8 bit unsigned range: %ld"),
-				    out_insnp->expr.X_add_number);
+			    cris_bad (_("Immediate value not in 8 bit unsigned range: %ld"),
+				      &out_insnp->expr.X_add_number);
 			}
 
 		      /* Fall through.  */
@@ -2178,18 +2198,18 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 			  if (instruction->imm_oprnd_size == SIZE_FIELD
 			      && (out_insnp->expr.X_add_number < -32768
 				  || out_insnp->expr.X_add_number > 65535))
-			    as_bad (_("Immediate value not in 16 bit range: %ld"),
-				    out_insnp->expr.X_add_number);
+			    cris_bad (_("Immediate value not in 16 bit range: %ld"),
+				      &out_insnp->expr.X_add_number);
 			  else if (instruction->imm_oprnd_size == SIZE_FIELD_SIGNED
 			      && (out_insnp->expr.X_add_number < -32768
 				  || out_insnp->expr.X_add_number > 32767))
-			    as_bad (_("Immediate value not in 16 bit signed range: %ld"),
-				    out_insnp->expr.X_add_number);
+			    cris_bad (_("Immediate value not in 16 bit signed range: %ld"),
+				      &out_insnp->expr.X_add_number);
 			  else if (instruction->imm_oprnd_size == SIZE_FIELD_UNSIGNED
 			      && (out_insnp->expr.X_add_number < 0
 				  || out_insnp->expr.X_add_number > 65535))
-			    as_bad (_("Immediate value not in 16 bit unsigned range: %ld"),
-				    out_insnp->expr.X_add_number);
+			    cris_bad (_("Immediate value not in 16 bit unsigned range: %ld"),
+				      &out_insnp->expr.X_add_number);
 			}
 		      out_insnp->imm_oprnd_size = 2;
 		      break;
@@ -3085,7 +3105,6 @@ static int
 cris_get_expression (char **cPP, expressionS *exprP)
 {
   char *saved_input_line_pointer;
-  segT exp;
 
   /* The "expression" function expects to find an expression at the
      global variable input_line_pointer, so we have to save it to give
@@ -3104,7 +3123,7 @@ cris_get_expression (char **cPP, expressionS *exprP)
       return 0;
     }
 
-  exp = expression (exprP);
+  expression (exprP);
   if (exprP->X_op == O_illegal || exprP->X_op == O_absent)
     {
       input_line_pointer = saved_input_line_pointer;
@@ -3812,6 +3831,8 @@ md_parse_option (int arg, char *argp ATTRIBUTE_UNUSED)
       break;
 
     case OPTION_PIC:
+      if (OUTPUT_FLAVOR != bfd_target_elf_flavour)
+	as_bad (_("--pic is invalid for this object format"));
       pic = TRUE;
       if (cris_arch != arch_crisv32)
 	md_long_jump_size = cris_any_v0_v10_long_jump_size_pic;
@@ -4009,8 +4030,10 @@ md_show_usage (FILE *stream)
 	   _("  --no-underscore         User symbols do not have any prefix.\n"));
   fprintf (stream, "%s",
 	   _("                          Registers will require a `$'-prefix.\n"));
+#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
   fprintf (stream, "%s",
 	   _("  --pic			Enable generation of position-independent code.\n"));
+#endif
   fprintf (stream, "%s",
 	   _("  --march=<arch>		Generate code for <arch>.  Valid choices for <arch>\n\
 				are v0_v10, v10, v32 and common_v10_v32.\n"));

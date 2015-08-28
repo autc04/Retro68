@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,12 +32,15 @@ with Lib;      use Lib;
 with Osint;    use Osint;
 with Opt;      use Opt;
 with Stylesw;  use Stylesw;
+with Targparm; use Targparm;
 with Ttypes;   use Ttypes;
 with Validsw;  use Validsw;
 with Warnsw;   use Warnsw;
 
 with Ada.Unchecked_Deallocation;
+
 with System.WCh_Con; use System.WCh_Con;
+with System.OS_Lib;
 
 package body Switch.C is
 
@@ -207,54 +210,70 @@ package body Switch.C is
               or else Switch_Chars (Ptr + 3) /= '='
             then
                Osint.Fail ("missing path for --RTS");
+
             else
-               --  Check that this is the first time --RTS is specified or if
-               --  it is not the first time, the same path has been specified.
+               declare
+                  Runtime_Dir : String_Access;
+               begin
+                  if System.OS_Lib.Is_Absolute_Path
+                       (Switch_Chars (Ptr + 4 .. Max))
+                  then
+                     Runtime_Dir :=
+                       new String'(System.OS_Lib.Normalize_Pathname
+                                      (Switch_Chars (Ptr + 4 .. Max)));
+                  else
+                     Runtime_Dir :=
+                       new String'(Switch_Chars (Ptr + 4 .. Max));
+                  end if;
 
-               if RTS_Specified = null then
-                  RTS_Specified := new String'(Switch_Chars (Ptr + 4 .. Max));
+                  --  Valid --RTS switch
 
-               elsif
-                 RTS_Specified.all /= Switch_Chars (Ptr + 4 .. Max)
-               then
-                  Osint.Fail ("--RTS cannot be specified multiple times");
-               end if;
+                  Opt.No_Stdinc := True;
+                  Opt.RTS_Switch := True;
 
-               --  Valid --RTS switch
+                  RTS_Src_Path_Name :=
+                    Get_RTS_Search_Dir (Runtime_Dir.all, Include);
 
-               Opt.No_Stdinc := True;
-               Opt.RTS_Switch := True;
+                  RTS_Lib_Path_Name :=
+                    Get_RTS_Search_Dir (Runtime_Dir.all, Objects);
 
-               RTS_Src_Path_Name :=
-                 Get_RTS_Search_Dir
-                   (Switch_Chars (Ptr + 4 .. Max), Include);
+                  if RTS_Specified /= null then
+                     if RTS_Src_Path_Name = null
+                       or else RTS_Lib_Path_Name = null
+                       or else
+                         System.OS_Lib.Normalize_Pathname
+                           (RTS_Specified.all) /=
+                         System.OS_Lib.Normalize_Pathname
+                           (RTS_Lib_Path_Name.all)
+                     then
+                        Osint.Fail
+                          ("--RTS cannot be specified multiple times");
+                     end if;
 
-               RTS_Lib_Path_Name :=
-                 Get_RTS_Search_Dir
-                   (Switch_Chars (Ptr + 4 .. Max), Objects);
+                  elsif RTS_Src_Path_Name /= null
+                    and then RTS_Lib_Path_Name /= null
+                  then
+                     --  Store the -fRTS switch (Note: Store_Compilation_Switch
+                     --  changes -fRTS back into --RTS for the actual output).
 
-               if RTS_Src_Path_Name /= null
-                 and then RTS_Lib_Path_Name /= null
-               then
-                  --  Store the -fRTS switch (Note: Store_Compilation_Switch
-                  --  changes -fRTS back into --RTS for the actual output).
+                     Store_Compilation_Switch (Switch_Chars);
+                     RTS_Specified := new String'(RTS_Lib_Path_Name.all);
 
-                  Store_Compilation_Switch (Switch_Chars);
+                  elsif RTS_Src_Path_Name = null
+                    and then RTS_Lib_Path_Name = null
+                  then
+                     Osint.Fail ("RTS path not valid: missing "
+                                 & "adainclude and adalib directories");
 
-               elsif RTS_Src_Path_Name = null
-                 and then RTS_Lib_Path_Name = null
-               then
-                  Osint.Fail ("RTS path not valid: missing " &
-                              "adainclude and adalib directories");
+                  elsif RTS_Src_Path_Name = null then
+                     Osint.Fail ("RTS path not valid: missing "
+                                 & "adainclude directory");
 
-               elsif RTS_Src_Path_Name = null then
-                  Osint.Fail ("RTS path not valid: missing " &
-                              "adainclude directory");
-
-               elsif RTS_Lib_Path_Name = null then
-                  Osint.Fail ("RTS path not valid: missing " &
-                              "adalib directory");
-               end if;
+                  elsif RTS_Lib_Path_Name = null then
+                     Osint.Fail ("RTS path not valid: missing "
+                                 & "adalib directory");
+                  end if;
+               end;
             end if;
 
             --  There are no other switches not starting with -gnat
@@ -310,15 +329,6 @@ package body Switch.C is
                     ("-gnatc must be first if combined with other switches");
                end if;
 
-               --  Not allowed if previous -gnatR given
-
-               if List_Representation_Info /= 0
-                 or else List_Representation_Info_Mechanisms
-               then
-                  Osint.Fail
-                    ("-gnatc not allowed since -gnatR given previously");
-               end if;
-
                Ptr := Ptr + 1;
                Operating_Mode := Check_Semantics;
 
@@ -372,7 +382,7 @@ package body Switch.C is
 
                         if C = 'b'
                           and then (Ptr /= First_Ptr + 1
-                                      or else not First_Switch)
+                                     or else not First_Switch)
                         then
                            Osint.Fail
                              ("-gnatd.b must be first if combined "
@@ -564,7 +574,7 @@ package body Switch.C is
 
                   when 'F' =>
                      Ptr := Ptr + 1;
-                     Check_Float_Overflow := True;
+                     Check_Float_Overflow := not Machine_Overflows_On_Target;
 
                   --  -gnateG (save preprocessor output)
 
@@ -811,15 +821,11 @@ package body Switch.C is
             when 'g' =>
                Ptr := Ptr + 1;
                GNAT_Mode := True;
+               GNAT_Mode_Config := True;
                Identifier_Character_Set := 'n';
                System_Extend_Unit := Empty;
                Warning_Mode := Treat_As_Error;
                Style_Check_Main := True;
-
-               --  Set Ada 2012 mode explicitly. We don't want to rely on the
-               --  implicit setting here, since for example, we want
-               --  Preelaborate_05 treated as Preelaborate
-
                Ada_Version          := Ada_2012;
                Ada_Version_Explicit := Ada_2012;
                Ada_Version_Pragma   := Empty;
@@ -950,38 +956,57 @@ package body Switch.C is
 
             when 'o' =>
                Ptr := Ptr + 1;
-               Suppress_Options.Suppress (Overflow_Check) := False;
 
-               --  Case of no digits after the -gnato
+               --  Case of -gnato0 (overflow checking turned off)
 
-               if Ptr > Max or else Switch_Chars (Ptr) not in '1' .. '3' then
+               if Ptr <= Max and then Switch_Chars (Ptr) = '0' then
+                  Ptr := Ptr + 1;
+                  Suppress_Options.Suppress (Overflow_Check) := True;
+
+                  --  We set strict mode in case overflow checking is turned
+                  --  on locally (also records that we had a -gnato switch).
+
                   Suppress_Options.Overflow_Mode_General    := Strict;
                   Suppress_Options.Overflow_Mode_Assertions := Strict;
 
-               --  At least one digit after the -gnato
+               --  All cases other than -gnato0 (overflow checking turned on)
 
                else
-                  --  Handle first digit after -gnato
+                  Suppress_Options.Suppress (Overflow_Check) := False;
 
-                  Suppress_Options.Overflow_Mode_General :=
-                    Get_Overflow_Mode (Switch_Chars (Ptr));
-                  Ptr := Ptr + 1;
-
-                  --  Only one digit after -gnato, set assertions mode to
-                  --  be the same as general mode.
+                  --  Case of no digits after the -gnato
 
                   if Ptr > Max
                     or else Switch_Chars (Ptr) not in '1' .. '3'
                   then
-                     Suppress_Options.Overflow_Mode_Assertions :=
-                       Suppress_Options.Overflow_Mode_General;
+                     Suppress_Options.Overflow_Mode_General    := Strict;
+                     Suppress_Options.Overflow_Mode_Assertions := Strict;
 
-                  --  Process second digit after -gnato
+                  --  At least one digit after the -gnato
 
                   else
-                     Suppress_Options.Overflow_Mode_Assertions :=
+                     --  Handle first digit after -gnato
+
+                     Suppress_Options.Overflow_Mode_General :=
                        Get_Overflow_Mode (Switch_Chars (Ptr));
                      Ptr := Ptr + 1;
+
+                     --  Only one digit after -gnato, set assertions mode to be
+                     --  the same as general mode.
+
+                     if Ptr > Max
+                       or else Switch_Chars (Ptr) not in '1' .. '3'
+                     then
+                        Suppress_Options.Overflow_Mode_Assertions :=
+                          Suppress_Options.Overflow_Mode_General;
+
+                     --  Process second digit after -gnato
+
+                     else
+                        Suppress_Options.Overflow_Mode_Assertions :=
+                          Get_Overflow_Mode (Switch_Chars (Ptr));
+                        Ptr := Ptr + 1;
+                     end if;
                   end if;
                end if;
 
@@ -1023,6 +1048,13 @@ package body Switch.C is
 
                   Validity_Checks_On  := False;
                   Opt.Suppress_Checks := True;
+
+                  --  Set overflow mode checking to strict in case it gets
+                  --  turned on locally (also signals that overflow checking
+                  --  has been specifically turned off).
+
+                  Suppress_Options.Overflow_Mode_General    := Strict;
+                  Suppress_Options.Overflow_Mode_Assertions := Strict;
                end if;
 
             --  -gnatP (periodic poll)
@@ -1060,14 +1092,6 @@ package body Switch.C is
                if Debug_Generated_Code then
                   Osint.Fail
                     ("-gnatR not permitted since -gnatD given previously");
-               end if;
-
-               --  Not allowed if previous -gnatc was given, since we must
-               --  call the code generator to determine rep information.
-
-               if Operating_Mode = Check_Semantics then
-                  Osint.Fail
-                    ("-gnatR not permitted since -gnatc given previously");
                end if;
 
                --  Set to annotate rep info, and set default -gnatR mode

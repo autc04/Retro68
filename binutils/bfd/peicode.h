@@ -1,6 +1,5 @@
 /* Support for the generic parts of PE/PEI, for BFD.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009  Free Software Foundation, Inc.
+   Copyright (C) 1995-2014 Free Software Foundation, Inc.
    Written by Cygnus Solutions.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -122,6 +121,9 @@ typedef struct
 }
 pe_ILF_vars;
 #endif /* COFF_IMAGE_WITH_PE */
+
+const bfd_target *coff_real_object_p
+  (bfd *, unsigned, struct internal_filehdr *, struct internal_aouthdr *);
 
 #ifndef NO_COFF_RELOCS
 static void
@@ -148,7 +150,7 @@ coff_swap_reloc_out (bfd * abfd, void * src, void * dst)
   H_PUT_32 (abfd, reloc_src->r_symndx, reloc_dst->r_symndx);
   H_PUT_16 (abfd, reloc_src->r_type, reloc_dst->r_type);
 
-#ifdef SWAP_OUT_RELOC_OFFSET 
+#ifdef SWAP_OUT_RELOC_OFFSET
   SWAP_OUT_RELOC_OFFSET (abfd, reloc_src->r_offset, reloc_dst->r_offset);
 #endif
 #ifdef SWAP_OUT_RELOC_EXTRA
@@ -157,6 +159,11 @@ coff_swap_reloc_out (bfd * abfd, void * src, void * dst)
   return RELSZ;
 }
 #endif /* not NO_COFF_RELOCS */
+
+#ifdef COFF_IMAGE_WITH_PE
+#undef FILHDR
+#define FILHDR struct external_PEI_IMAGE_hdr
+#endif
 
 static void
 coff_swap_filehdr_in (bfd * abfd, void * src, void * dst)
@@ -264,6 +271,7 @@ pe_mkobject (bfd * abfd)
   /* in_reloc_p is architecture dependent.  */
   pe->in_reloc_p = in_reloc_p;
 
+  memset (& pe->pe_opthdr, 0, sizeof pe->pe_opthdr);
   return TRUE;
 }
 
@@ -349,7 +357,7 @@ pe_bfd_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
       && pe_data (ibfd) != NULL
       && pe_data (ibfd)->real_flags & IMAGE_FILE_LARGE_ADDRESS_AWARE)
     pe_data (obfd)->real_flags |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
-      
+
   if (!_bfd_XX_bfd_copy_private_bfd_data_common (ibfd, obfd))
     return FALSE;
 
@@ -545,7 +553,7 @@ pe_ILF_make_a_symbol (pe_ILF_vars *  vars,
   sprintf (vars->string_ptr, "%s%s", prefix, symbol_name);
 
   if (section == NULL)
-    section = (asection_ptr) & bfd_und_section;
+    section = bfd_und_section_ptr;
 
   /* Initialise the external symbol.  */
   H_PUT_32 (vars->abfd, vars->string_ptr - vars->string_table,
@@ -560,6 +568,7 @@ pe_ILF_make_a_symbol (pe_ILF_vars *  vars,
   ent->u.syment.n_sclass          = sclass;
   ent->u.syment.n_scnum           = section->target_index;
   ent->u.syment._n._n_n._n_offset = (bfd_hostptr_t) sym;
+  ent->is_sym = TRUE;
 
   sym->symbol.the_bfd = vars->abfd;
   sym->symbol.name    = vars->string_ptr;
@@ -601,7 +610,7 @@ pe_ILF_make_a_section (pe_ILF_vars * vars,
 
   bfd_set_section_flags (vars->abfd, sec, flags | extra_flags);
 
-  bfd_set_section_alignment (vars->abfd, sec, 2);
+  (void) bfd_set_section_alignment (vars->abfd, sec, 2);
 
   /* Check that we will not run out of space.  */
   BFD_ASSERT (vars->data + size < vars->bim->buffer + vars->bim->size);
@@ -884,10 +893,14 @@ pe_ILF_build_a_bfd (bfd *           abfd,
       if (import_name_type != IMPORT_NAME)
 	{
 	  char c = symbol[0];
-	  if (c == '_' || c == '@' || c == '?')
+
+	  /* Check that we don't remove for targets with empty
+	     USER_LABEL_PREFIX the leading underscore.  */
+	  if ((c == '_' && abfd->xvec->symbol_leading_char != 0)
+	      || c == '@' || c == '?')
 	    symbol++;
 	}
-      
+
       len = strlen (symbol);
       if (import_name_type == IMPORT_NAME_UNDECORATE)
 	{
@@ -1002,7 +1015,9 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
   abfd->iostream = (void *) vars.bim;
   abfd->flags |= BFD_IN_MEMORY /* | HAS_LOCALS */;
+  abfd->iovec = &_bfd_memory_iovec;
   abfd->where = 0;
+  abfd->origin = 0;
   obj_sym_filepos (abfd) = 0;
 
   /* Now create a symbol describing the imported value.  */
@@ -1064,7 +1079,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 static const bfd_target *
 pe_ILF_object_p (bfd * abfd)
 {
-  bfd_byte        buffer[16];
+  bfd_byte        buffer[14];
   bfd_byte *      ptr;
   char *          symbol_name;
   char *          source_dll;
@@ -1074,16 +1089,12 @@ pe_ILF_object_p (bfd * abfd)
   unsigned int    types;
   unsigned int    magic;
 
-  /* Upon entry the first four buyes of the ILF header have
+  /* Upon entry the first six bytes of the ILF header have
       already been read.  Now read the rest of the header.  */
-  if (bfd_bread (buffer, (bfd_size_type) 16, abfd) != 16)
+  if (bfd_bread (buffer, (bfd_size_type) 14, abfd) != 14)
     return NULL;
 
   ptr = buffer;
-
-  /*  We do not bother to check the version number.
-      version = H_GET_16 (abfd, ptr);  */
-  ptr += 2;
 
   machine = H_GET_16 (abfd, ptr);
   ptr += 2;
@@ -1238,21 +1249,27 @@ pe_ILF_object_p (bfd * abfd)
 static const bfd_target *
 pe_bfd_object_p (bfd * abfd)
 {
-  bfd_byte buffer[4];
+  bfd_byte buffer[6];
   struct external_PEI_DOS_hdr dos_hdr;
   struct external_PEI_IMAGE_hdr image_hdr;
+  struct internal_filehdr internal_f;
+  struct internal_aouthdr internal_a;
+  file_ptr opt_hdr_size;
   file_ptr offset;
 
   /* Detect if this a Microsoft Import Library Format element.  */
+  /* First read the beginning of the header.  */
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
-      || bfd_bread (buffer, (bfd_size_type) 4, abfd) != 4)
+      || bfd_bread (buffer, (bfd_size_type) 6, abfd) != 6)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-  if (H_GET_32 (abfd, buffer) == 0xffff0000)
+  /* Then check the magic and the version (only 0 is supported).  */
+  if (H_GET_32 (abfd, buffer) == 0xffff0000
+      && H_GET_16 (abfd, buffer + 4) == 0)
     return pe_ILF_object_p (abfd);
 
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
@@ -1296,17 +1313,46 @@ pe_bfd_object_p (bfd * abfd)
       return NULL;
     }
 
-  /* Here is the hack.  coff_object_p wants to read filhsz bytes to
-     pick up the COFF header for PE, see "struct external_PEI_filehdr"
-     in include/coff/pe.h.  We adjust so that that will work. */
-  if (bfd_seek (abfd, (file_ptr) (offset - sizeof (dos_hdr)), SEEK_SET) != 0)
+  /* Swap file header, so that we get the location for calling
+     real_object_p.  */
+  bfd_coff_swap_filehdr_in (abfd, &image_hdr, &internal_f);
+
+  if (! bfd_coff_bad_format_hook (abfd, &internal_f)
+      || internal_f.f_opthdr > bfd_coff_aoutsz (abfd))
     {
-      if (bfd_get_error () != bfd_error_system_call)
-	bfd_set_error (bfd_error_wrong_format);
+      bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-  return coff_object_p (abfd);
+  /* Read the optional header, which has variable size.  */
+  opt_hdr_size = internal_f.f_opthdr;
+
+  if (opt_hdr_size != 0)
+    {
+      bfd_size_type amt = opt_hdr_size;
+      void * opthdr;
+
+      /* PR 17521 file: 230-131433-0.004.  */
+      if (amt < sizeof (PEAOUTHDR))
+	amt = sizeof (PEAOUTHDR);
+
+      opthdr = bfd_zalloc (abfd, amt);
+      if (opthdr == NULL)
+	return NULL;
+      if (bfd_bread (opthdr, opt_hdr_size, abfd)
+	  != (bfd_size_type) opt_hdr_size)
+	return NULL;
+
+      bfd_set_error (bfd_error_no_error);
+      bfd_coff_swap_aouthdr_in (abfd, opthdr, & internal_a);
+      if (bfd_get_error () != bfd_error_no_error)
+	return NULL;
+    }
+
+  return coff_real_object_p (abfd, internal_f.f_nscns, &internal_f,
+                            (opt_hdr_size != 0
+                             ? &internal_a
+                             : (struct internal_aouthdr *) NULL));
 }
 
 #define coff_object_p pe_bfd_object_p

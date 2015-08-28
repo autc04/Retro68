@@ -1,6 +1,5 @@
 /* windres.c -- a program to manipulate Windows resources
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
 
@@ -37,7 +36,6 @@
 
 #include "sysdep.h"
 #include <assert.h>
-#include <time.h>
 #include "bfd.h"
 #include "getopt.h"
 #include "bucomm.h"
@@ -46,11 +44,6 @@
 #include "obstack.h"
 #include "windres.h"
 
-/* Defined in bfd/binary.c.  Used to set architecture and machine of input
-   binary files.  */
-extern enum bfd_architecture  bfd_external_binary_architecture;
-extern unsigned long          bfd_external_machine;
-
 /* Used by resrc.c at least.  */
 
 int verbose = 0;
@@ -58,7 +51,7 @@ int verbose = 0;
 int target_is_bigendian = 0;
 const char *def_target_arch;
 
-static void set_endianess (bfd *, const char *);
+static void set_endianness (bfd *, const char *);
 
 /* An enumeration of format types.  */
 
@@ -211,6 +204,7 @@ open_file_search (const char *filename, const char *mode, const char *errmsg,
 	      *real_filename = n;
 	      return e;
 	    }
+	  free (n);
 
 	  if (errno != ENOENT)
 	    break;
@@ -344,17 +338,12 @@ define_resource (rc_res_directory **resources, int cids,
 
       if (*resources == NULL)
 	{
-	  static unsigned int timeval;
-
-	  /* Use the same timestamp for every resource created in a
-             single run.  */
-	  if (timeval == 0)
-	    timeval = time (NULL);
-
 	  *resources = ((rc_res_directory *)
 			res_alloc (sizeof (rc_res_directory)));
 	  (*resources)->characteristics = 0;
-	  (*resources)->time = timeval;
+	  /* Using a real timestamp only serves to create non-deterministic
+	     results.  Use zero instead.  */
+	  (*resources)->time = 0;
 	  (*resources)->major = 0;
 	  (*resources)->minor = 0;
 	  (*resources)->entries = NULL;
@@ -669,6 +658,7 @@ usage (FILE *stream, int status)
   -O --output-format=<format>  Specify output format\n\
   -F --target=<target>         Specify COFF target\n\
      --preprocessor=<program>  Program to use to preprocess rc file\n\
+     --preprocessor-arg=<arg>  Additional preprocessor argument\n\
   -I --include-dir=<dir>       Include directory when preprocessing rc file\n\
   -D --define <sym>[=<val>]    Define SYM when preprocessing rc file\n\
   -U --undefine <sym>          Undefine SYM when preprocessing rc file\n\
@@ -731,12 +721,16 @@ quot (const char *string)
 
 /* Long options.  */
 
-/* 150 isn't special; it's just an arbitrary non-ASCII char value.  */
-
-#define OPTION_PREPROCESSOR	150
-#define OPTION_USE_TEMP_FILE	(OPTION_PREPROCESSOR + 1)
-#define OPTION_NO_USE_TEMP_FILE	(OPTION_USE_TEMP_FILE + 1)
-#define OPTION_YYDEBUG		(OPTION_NO_USE_TEMP_FILE + 1)
+enum option_values
+{
+  /* 150 isn't special; it's just an arbitrary non-ASCII char value.  */
+  OPTION_PREPROCESSOR	= 150,
+  OPTION_USE_TEMP_FILE,
+  OPTION_NO_USE_TEMP_FILE,
+  OPTION_YYDEBUG,
+  OPTION_INCLUDE_DIR,
+  OPTION_PREPROCESSOR_ARG
+};
 
 static const struct option long_options[] =
 {
@@ -746,7 +740,8 @@ static const struct option long_options[] =
   {"output-format", required_argument, 0, 'O'},
   {"target", required_argument, 0, 'F'},
   {"preprocessor", required_argument, 0, OPTION_PREPROCESSOR},
-  {"include-dir", required_argument, 0, 'I'},
+  {"preprocessor-arg", required_argument, 0, OPTION_PREPROCESSOR_ARG},
+  {"include-dir", required_argument, 0, OPTION_INCLUDE_DIR},
   {"define", required_argument, 0, 'D'},
   {"undefine", required_argument, 0, 'U'},
   {"verbose", no_argument, 0, 'v'},
@@ -813,6 +808,7 @@ main (int argc, char **argv)
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
+  bfd_set_error_program_name (program_name);
 
   expandargv (&argc, &argv);
 
@@ -890,6 +886,24 @@ main (int argc, char **argv)
 	  preprocessor = optarg;
 	  break;
 
+	case OPTION_PREPROCESSOR_ARG:
+	  if (preprocargs == NULL)
+	    {
+	      quotedarg = quot (optarg);
+	      preprocargs = xstrdup (quotedarg);
+	    }
+	  else
+	    {
+	      char *n;
+
+	      quotedarg = quot (optarg);
+	      n = xmalloc (strlen (preprocargs) + strlen (quotedarg) + 2);
+	      sprintf (n, "%s %s", preprocargs, quotedarg);
+	      free (preprocargs);
+	      preprocargs = n;
+	    }
+	  break;
+
 	case 'D':
 	case 'U':
 	  if (preprocargs == NULL)
@@ -923,12 +937,27 @@ main (int argc, char **argv)
 	  input_format_tmp = format_from_name (optarg, 0);
 	  if (input_format_tmp != RES_FORMAT_UNKNOWN)
 	    {
-	      fprintf (stderr,
-	      	       _("Option -I is deprecated for setting the input format, please use -J instead.\n"));
-	      input_format = input_format_tmp;
-	      break;
+	      struct stat statbuf;
+	      char modebuf[11];
+	      
+	      if (stat (optarg, & statbuf) == 0
+		  /* Coded this way to avoid importing knowledge of S_ISDIR into this file.  */
+		  && (mode_string (statbuf.st_mode, modebuf), modebuf[0] == 'd'))
+		/* We have a -I option with a directory name that just happens
+		   to match a format name as well.  eg: -I res  Assume that the
+		   user knows what they are doing and do not complain.  */
+		;
+	      else
+		{
+		  fprintf (stderr,
+			   _("Option -I is deprecated for setting the input format, please use -J instead.\n"));
+		  input_format = input_format_tmp;
+		  break;
+		}
 	    }
+	  /* Fall through.  */
 
+	case OPTION_INCLUDE_DIR:
 	  if (preprocargs == NULL)
 	    {
 	      quotedarg = quot (optarg);
@@ -1014,7 +1043,7 @@ main (int argc, char **argv)
 	output_format = format_from_filename (output_filename, 0);
     }
 
-  set_endianess (NULL, target);
+  set_endianness (NULL, target);
 
   /* Read the input file.  */
   switch (input_format)
@@ -1062,71 +1091,18 @@ main (int argc, char **argv)
   return 0;
 }
 
-static int
-find_arch_match(const char *tname,const char **arch)
-{
-  while (*arch != NULL)
-    {
-      const char *in_a = strstr (*arch, tname);
-      char end_ch = (in_a ? in_a[strlen(tname)] : 0);
-
-      if (in_a && (in_a == *arch || in_a[-1] == ':')
-	  && end_ch == 0)
-        {
-	  def_target_arch = *arch;
-	  return 1;
-        }
-      arch++;
-    }
-  return 0;
-}
-
 static void
-set_endianess (bfd *abfd, const char *target)
+set_endianness (bfd *abfd, const char *target)
 {
   const bfd_target *target_vec;
 
   def_target_arch = NULL;
-  target_vec = bfd_find_target (target, abfd);
+  target_vec = bfd_get_target_info (target, abfd, &target_is_bigendian, NULL,
+                                   &def_target_arch);
   if (! target_vec)
-    fatal ("Can't detect target endianess and architecture.");
-  target_is_bigendian = ((target_vec->byteorder == BFD_ENDIAN_BIG) ? 1 : 0);
-
-  {
-    const char *  tname = target_vec->name;
-    const char ** arches = bfd_arch_list();
-
-    if (arches && tname)
-      {
-	char *hyp = strchr (tname, '-');
-
-	if (hyp != NULL)
-	  {
-	    tname = ++hyp;
-
-	    /* Make sure we dectect architecture names
-	       for triplets like "pe-arm-wince-little".  */
-	    if (!find_arch_match (tname, arches))
-	      {
-		char *new_tname = (char *) alloca (strlen (hyp) + 1);
-		strcpy (new_tname, hyp);
-		while ((hyp = strrchr (new_tname, '-')) != NULL)
-		  {
-		    *hyp = 0;
-		    if (find_arch_match (new_tname, arches))
-		      break;
-		  }
-	      }
-	  }
-	else
-	  find_arch_match (tname, arches);
-      }
-
-    free (arches);
-
-    if (! def_target_arch)
-      fatal ("Can't detect architecture.");
-  }
+    fatal ("Can't detect target endianness and architecture.");
+  if (! def_target_arch)
+    fatal ("Can't detect architecture.");
 }
 
 bfd *
@@ -1145,7 +1121,7 @@ windres_open_as_binary (const char *filename, int rdmode)
 }
 
 void
-set_windres_bfd_endianess (windres_bfd *wrbfd, int is_bigendian)
+set_windres_bfd_endianness (windres_bfd *wrbfd, int is_bigendian)
 {
   assert (!! wrbfd);
   switch (WR_KIND(wrbfd))

@@ -1,9 +1,6 @@
-// { dg-options "-std=gnu++1y" }
-// XFAIL pending resolution of PR libstdc++/58777
-// { dg-do compile { xfail *-*-* } }
-// { dg-excess-errors "" }
+// { dg-options "-std=gnu++14" }
 
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,11 +18,12 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <experimental/optional>
-#include <testsuite_hooks.h>
 
 struct value_type
 {
   int i;
+
+  void* operator&() { return nullptr; } // N.B. non-const
 };
 
 int main()

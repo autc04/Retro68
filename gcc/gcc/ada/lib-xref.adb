@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -415,6 +415,7 @@ package body Lib.Xref is
 
       function Get_Through_Renamings (E : Entity_Id) return Entity_Id is
          Result : Entity_Id := E;
+
       begin
          while Present (Result)
            and then Is_Object (Result)
@@ -422,6 +423,7 @@ package body Lib.Xref is
          loop
             Result := Get_Enclosing_Object (Renamed_Object (Result));
          end loop;
+
          return Result;
       end Get_Through_Renamings;
 
@@ -477,8 +479,8 @@ package body Lib.Xref is
             elsif (K = N_Selected_Component or else K = N_Indexed_Component)
               and then Prefix (P) = N
             then
-               --  Check for access type. First a kludge, In some cases this is
-               --  called too early (see comments in Sem_Ch8.Find_Direct_Name),
+               --  Check for access type. First a special test, In some cases
+               --  this is called too early (see comments in Find_Direct_Name),
                --  at a point where the tree is not fully typed yet. In that
                --  case we may lack an Etype for N, and we can't check the
                --  Etype. For now, we always return False in such a case,
@@ -640,12 +642,17 @@ package body Lib.Xref is
       --  For the same reason we accept an implicit reference generated for
       --  a default in an instance.
 
+      --  We also set the referenced flag in a generic package that is not in
+      --  then main source unit, when the variable is of a formal private type,
+      --  to warn in the instance if the corresponding type is not a fully
+      --  initialized type.
+
       if not In_Extended_Main_Source_Unit (N) then
-         if Typ = 'e'
-           or else Typ = 'I'
-           or else Typ = 'p'
-           or else Typ = 'i'
-           or else Typ = 'k'
+         if Typ = 'e' or else
+            Typ = 'I' or else
+            Typ = 'p' or else
+            Typ = 'i' or else
+            Typ = 'k'
            or else (Typ = 'b' and then Is_Generic_Instance (E))
 
             --  Allow the generation of references to reads, writes and calls
@@ -657,6 +664,20 @@ package body Lib.Xref is
                and then (Typ = 'm' or else Typ = 'r' or else Typ = 's'))
          then
             null;
+
+         elsif In_Instance_Body
+           and then In_Extended_Main_Code_Unit (N)
+           and then Is_Generic_Type (Etype (E))
+         then
+            Set_Referenced (E);
+            return;
+
+         elsif Inside_A_Generic
+           and then Is_Generic_Type (Etype (E))
+         then
+            Set_Referenced (E);
+            return;
+
          else
             return;
          end if;
@@ -868,7 +889,7 @@ package body Lib.Xref is
 
             else
                Error_Msg_NE -- CODEFIX
-                 ("?pragma Unreferenced given for&!", N, E);
+                 ("??pragma Unreferenced given for&!", N, E);
             end if;
          end if;
 
@@ -934,6 +955,14 @@ package body Lib.Xref is
          --  Normal case of source entity comes from source
 
          if Comes_From_Source (E) then
+            Ent := E;
+
+         --  Because a declaration may be generated for a subprogram body
+         --  without declaration in GNATprove mode, for inlining, some
+         --  parameters may end up being marked as not coming from source
+         --  although they are. Take these into account specially.
+
+         elsif GNATprove_Mode and then Ekind (E) in Formal_Kind then
             Ent := E;
 
          --  Entity does not come from source, but is a derived subprogram and
@@ -1029,8 +1058,10 @@ package body Lib.Xref is
             Ref := Sloc (Nod);
             Def := Sloc (Ent);
 
-            Ref_Scope := SPARK_Specific.Enclosing_Subprogram_Or_Package (Nod);
-            Ent_Scope := SPARK_Specific.Enclosing_Subprogram_Or_Package (Ent);
+            Ref_Scope :=
+              SPARK_Specific.Enclosing_Subprogram_Or_Library_Package (Nod);
+            Ent_Scope :=
+              SPARK_Specific.Enclosing_Subprogram_Or_Library_Package (Ent);
 
             --  Since we are reaching through renamings in SPARK mode, we may
             --  end up with standard constants. Ignore those.
@@ -1633,6 +1664,15 @@ package body Lib.Xref is
          J := 1;
          while J <= Xrefs.Last loop
             Ent := Xrefs.Table (J).Key.Ent;
+
+            --  Do not generate reference information for an ignored Ghost
+            --  entity because neither the entity nor its references will
+            --  appear in the final tree.
+
+            if Is_Ignored_Ghost_Entity (Ent) then
+               goto Orphan_Continue;
+            end if;
+
             Get_Type_Reference (Ent, Tref, L, R);
 
             if Present (Tref)
@@ -1715,6 +1755,7 @@ package body Lib.Xref is
                end;
             end if;
 
+            <<Orphan_Continue>>
             J := J + 1;
          end loop;
       end Handle_Orphan_Type_References;
@@ -1723,7 +1764,6 @@ package body Lib.Xref is
       --  references, so we can sort them, and output them.
 
       Output_Refs : declare
-
          Nrefs : constant Nat := Xrefs.Last;
          --  Number of references in table
 
@@ -1872,12 +1912,18 @@ package body Lib.Xref is
 
                procedure Check_Type_Reference
                  (Ent            : Entity_Id;
-                  List_Interface : Boolean);
+                  List_Interface : Boolean;
+                  Is_Component   : Boolean := False);
                --  Find whether there is a meaningful type reference for
                --  Ent, and display it accordingly. If List_Interface is
                --  true, then Ent is a progenitor interface of the current
                --  type entity being listed. In that case list it as is,
-               --  without looking for a type reference for it.
+               --  without looking for a type reference for it. Flag is also
+               --  used for index types of an array type, where the caller
+               --  supplies the intended type reference. Is_Component serves
+               --  the same purpose, to display the component type of a
+               --  derived array type, for which only the parent type has
+               --  ben displayed so far.
 
                procedure Output_Instantiation_Refs (Loc : Source_Ptr);
                --  Recursive procedure to output instantiation references for
@@ -1894,7 +1940,8 @@ package body Lib.Xref is
 
                procedure Check_Type_Reference
                  (Ent            : Entity_Id;
-                  List_Interface : Boolean)
+                  List_Interface : Boolean;
+                  Is_Component   : Boolean := False)
                is
                begin
                   if List_Interface then
@@ -1905,6 +1952,13 @@ package body Lib.Xref is
                      Tref  := Ent;
                      Left  := '<';
                      Right := '>';
+
+                  --  The following is not documented in lib-xref.ads ???
+
+                  elsif Is_Component then
+                     Tref  := Ent;
+                     Left  := '(';
+                     Right := ')';
 
                   else
                      Get_Type_Reference (Ent, Tref, Left, Right);
@@ -2071,6 +2125,15 @@ package body Lib.Xref is
 
             begin
                Ent := XE.Key.Ent;
+
+               --  Do not generate reference information for an ignored Ghost
+               --  entity because neither the entity nor its references will
+               --  appear in the final tree.
+
+               if Is_Ignored_Ghost_Entity (Ent) then
+                  goto Continue;
+               end if;
+
                Ctyp := Xref_Entity_Letters (Ekind (Ent));
 
                --  Skip reference if it is the only reference to an entity,
@@ -2494,8 +2557,21 @@ package body Lib.Xref is
 
                      if Is_Array_Type (XE.Key.Ent) then
                         declare
+                           A_Typ : constant Entity_Id := XE.Key.Ent;
                            Indx : Node_Id;
+
                         begin
+                           --  If this is a derived array type, we have
+                           --  output the parent type, so add the component
+                           --  type now.
+
+                           if Is_Derived_Type (A_Typ) then
+                              Check_Type_Reference
+                                (Component_Type (A_Typ), False, True);
+                           end if;
+
+                           --  Add references to index types.
+
                            Indx := First_Index (XE.Key.Ent);
                            while Present (Indx) loop
                               Check_Type_Reference

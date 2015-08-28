@@ -1,5 +1,5 @@
 /* Implement the vsnprintf function.
-   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2011, 2013 Free Software Foundation, Inc.
    Written by Kaveh R. Ghazi <ghazi@caip.rutgers.edu>.
 
 This file is part of the libiberty library.  This library is free
@@ -25,7 +25,8 @@ the executable file might be covered by the GNU General Public License. */
 
 /*
 
-@deftypefn Supplemental int vsnprintf (char *@var{buf}, size_t @var{n}, const char *@var{format}, va_list @var{ap})
+@deftypefn Supplemental int vsnprintf (char *@var{buf}, size_t @var{n}, @
+  const char *@var{format}, va_list @var{ap})
 
 This function is similar to @code{vsprintf}, but it will write to
 @var{buf} at most @code{@var{n}-1} bytes of text, followed by a
@@ -94,12 +95,10 @@ static int ATTRIBUTE_PRINTF_3
 checkit (char *s, size_t n, const char *format, ...)
 {
   int result;
-  VA_OPEN (ap, format);
-  VA_FIXEDARG (ap, char *, s);
-  VA_FIXEDARG (ap, size_t, n);
-  VA_FIXEDARG (ap, const char *, format);
+  va_list ap;
+  va_start (ap, format);
   result = vsnprintf (s, n, format, ap);
-  VA_CLOSE (ap);
+  va_end (ap);
   return result;
 }
 

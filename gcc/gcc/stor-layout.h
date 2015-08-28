@@ -1,5 +1,5 @@
 /* Definitions and declarations for stor-layout.c.
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,7 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_STOR_LAYOUT_H
 #define GCC_STOR_LAYOUT_H
 
-extern void set_min_and_max_values_for_integral_type (tree, int, bool);
+extern void set_min_and_max_values_for_integral_type (tree, int, signop);
 extern void fixup_signed_type (tree);
 extern void internal_reference_types (void);
 extern unsigned int update_alignment_for_field (record_layout_info, tree,
@@ -35,6 +35,7 @@ extern tree rli_size_so_far (record_layout_info);
 extern void normalize_rli (record_layout_info);
 extern void place_field (record_layout_info, tree);
 extern void compute_record_mode (tree);
+extern void finish_bitfield_layout (tree);
 extern void finish_record_layout (record_layout_info, int);
 extern unsigned int element_precision (const_tree);
 extern void finalize_size_functions (void);
@@ -58,6 +59,9 @@ extern void layout_decl (tree, unsigned);
    TYPE_ALIGN and TYPE_MODE fields.  If called more than once on one
    node, does nothing except for the first time.  */
 extern void layout_type (tree);
+
+/* Return the least alignment in bytes required for type TYPE.  */
+extern unsigned int min_align_of_type (tree);
 
 /* Construct various nodes representing fract or accum data types.  */
 extern tree make_fract_type (int, int, int);
@@ -96,7 +100,9 @@ extern tree make_unsigned_type (int);
    If LIMIT is nonzero, then don't use modes bigger than MAX_FIXED_MODE_SIZE.
    The value is BLKmode if no other mode is found.  This is like
    mode_for_size, but is passed a tree.  */
-extern enum machine_mode mode_for_size_tree (const_tree, enum mode_class, int);
+extern machine_mode mode_for_size_tree (const_tree, enum mode_class, int);
+
+extern tree bitwise_type_for_mode (machine_mode);
 
 /* Given a VAR_DECL, PARM_DECL or RESULT_DECL, clears the results of
    a previous call to layout_decl and calls it again.  */
@@ -110,6 +116,6 @@ extern void relayout_decl (tree);
 extern tree variable_size (tree);
 
 /* Vector types need to check target flags to determine type.  */
-extern enum machine_mode vector_type_mode (const_tree);
+extern machine_mode vector_type_mode (const_tree);
 
 #endif  // GCC_STOR_LAYOUT_H

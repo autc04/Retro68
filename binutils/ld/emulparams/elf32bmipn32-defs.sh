@@ -44,14 +44,14 @@ ENTRY=__start
 OTHER_GOT_RELOC_SECTIONS="
   .rel.dyn      ${RELOCATING-0} : { *(.rel.dyn) }
 "
-# GOT-related settings.  
+# GOT-related settings.
 # If the output has a GOT section, there must be exactly 0x7ff0 bytes
 # between .got and _gp.  The ". = ." below stops the orphan code from
 # inserting other sections between the assignment to _gp and the start
 # of .got.
 OTHER_GOT_SYMBOLS='
   . = .;
-  _gp = ALIGN(16) + 0x7ff0;
+  HIDDEN (_gp = ALIGN (16) + 0x7ff0);
 '
 # .got.plt is only used for the PLT psABI extension.  It should not be
 # included in the .sdata block with .got, as there is no need to access
@@ -88,6 +88,7 @@ if test -z "${CREATE_SHLIB}"; then
   INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
 fi
 INITIAL_READONLY_SECTIONS="${INITIAL_READONLY_SECTIONS}
+  .MIPS.abiflags      ${RELOCATING-0} : { *(.MIPS.abiflags) }
   .reginfo      ${RELOCATING-0} : { *(.reginfo) }"
 # Discard any .MIPS.content* or .MIPS.events* sections.  The linker
 # doesn't know how to adjust them.

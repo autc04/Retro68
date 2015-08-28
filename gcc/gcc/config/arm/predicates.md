@@ -1,5 +1,5 @@
 ;; Predicate definitions for ARM and Thumb
-;; Copyright (C) 2004-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2015 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 
 ;; This file is part of GCC.
@@ -286,6 +286,15 @@
 		 (and (match_code "rotate")
 		      (match_test "CONST_INT_P (XEXP (op, 1))
 				   && ((unsigned HOST_WIDE_INT) INTVAL (XEXP (op, 1))) < 32")))
+	    (and (match_code "ashift,ashiftrt,lshiftrt,rotatert")
+		 (match_test "!CONST_INT_P (XEXP (op, 1))
+			      || ((unsigned HOST_WIDE_INT) INTVAL (XEXP (op, 1))) < 32")))
+       (match_test "mode == GET_MODE (op)")))
+
+(define_special_predicate "shift_nomul_operator"
+  (and (ior (and (match_code "rotate")
+		 (match_test "CONST_INT_P (XEXP (op, 1))
+			      && ((unsigned HOST_WIDE_INT) INTVAL (XEXP (op, 1))) < 32"))
 	    (and (match_code "ashift,ashiftrt,lshiftrt,rotatert")
 		 (match_test "!CONST_INT_P (XEXP (op, 1))
 			      || ((unsigned HOST_WIDE_INT) INTVAL (XEXP (op, 1))) < 32")))
@@ -681,5 +690,6 @@
        (match_code "reg" "0")))
 
 (define_predicate "call_insn_operand"
-  (ior (match_code "symbol_ref")
+  (ior (and (match_code "symbol_ref")
+	    (match_test "!arm_is_long_call_p (SYMBOL_REF_DECL (op))"))
        (match_operand 0 "s_register_operand")))

@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-Os -fipa-cp -fdump-ipa-cp -fno-early-inlining -fdump-tree-optimized"  } */
+/* { dg-options "-Os -fipa-cp -fdump-ipa-cp -fno-early-inlining -fdump-tree-optimized -fno-ipa-icf"  } */
 
 int array[100];
 
@@ -43,6 +43,7 @@ i_can_not_be_propagated_fully2 (int *a)
   i_can_not_be_propagated_fully (a);
   i_can_not_be_propagated_fully (a);
 }
+int
 main()
 {
   i_can_be_propagated_fully2 (array);

@@ -1,5 +1,5 @@
 /* Set up combined include path chain for the preprocessor.
-   Copyright (C) 1986-2014 Free Software Foundation, Inc.
+   Copyright (C) 1986-2015 Free Software Foundation, Inc.
 
    Broken out of cppinit.c and cppfiles.c and rewritten Mar 2003.
 
@@ -263,7 +263,8 @@ remove_duplicates (cpp_reader *pfile, struct cpp_dir *head,
 	      /* If -Wmissing-include-dirs is given, warn.  */
 	      cpp_options *opts = cpp_get_options (pfile);
 	      if (opts->warn_missing_include_dirs && cur->user_supplied_p)
-		cpp_errno (pfile, CPP_DL_WARNING, cur->name);
+		cpp_warning (pfile, CPP_W_MISSING_INCLUDE_DIRS, "%s: %s",
+			     cur->name, xstrerror (errno));
 	      reason = REASON_NOENT;
 	    }
 	}

@@ -1,6 +1,5 @@
 /* tc-ia64.c -- Assembler for the HP/Intel IA-64 architecture.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -103,6 +102,9 @@ enum reloc_func
     FUNC_LT_DTP_RELATIVE,
     FUNC_LT_TP_RELATIVE,
     FUNC_IPLT_RELOC,
+#ifdef TE_VMS
+    FUNC_SLOTCOUNT_RELOC,
+#endif
   };
 
 enum reg_symbol
@@ -111,7 +113,8 @@ enum reg_symbol
     REG_FR	= (REG_GR + 128),
     REG_AR	= (REG_FR + 128),
     REG_CR	= (REG_AR + 128),
-    REG_P	= (REG_CR + 128),
+    REG_DAHR	= (REG_CR + 128),
+    REG_P	= (REG_DAHR + 8),
     REG_BR	= (REG_P  + 64),
     REG_IP	= (REG_BR + 8),
     REG_CFM,
@@ -130,6 +133,7 @@ enum reg_symbol
     IND_PKR,
     IND_PMC,
     IND_PMD,
+    IND_DAHR,
     IND_RR,
     /* The following pseudo-registers are used for unwind directives only:  */
     REG_PSP,
@@ -162,6 +166,11 @@ struct label_fix
   struct symbol *sym;
   bfd_boolean dw2_mark_labels;
 };
+
+#ifdef TE_VMS
+/* An internally used relocation.  */
+#define DUMMY_RELOC_IA64_SLOTCOUNT	(BFD_RELOC_UNUSED + 1)
+#endif
 
 /* This is the endianness of the current section.  */
 extern int target_big_endian;
@@ -531,6 +540,7 @@ indirect_reg[] =
     { "pkr",	IND_PKR },
     { "pmc",	IND_PMC },
     { "pmd",	IND_PMD },
+    { "dahr",	IND_DAHR },
     { "rr",	IND_RR },
   };
 
@@ -575,6 +585,9 @@ pseudo_func[] =
     { NULL, 0, { 0 } },	/* placeholder for FUNC_LT_DTP_RELATIVE */
     { NULL, 0, { 0 } },	/* placeholder for FUNC_LT_TP_RELATIVE */
     { "iplt",	PSEUDO_FUNC_RELOC, { 0 } },
+#ifdef TE_VMS
+    { "slotcount", PSEUDO_FUNC_RELOC, { 0 } },
+#endif
 
     /* mbtype4 constants:  */
     { "alt",	PSEUDO_FUNC_CONST, { 0xa } },
@@ -598,12 +611,18 @@ pseudo_func[] =
 
     /* hint constants: */
     { "pause",	PSEUDO_FUNC_CONST, { 0x0 } },
+    { "priority", PSEUDO_FUNC_CONST, { 0x1 } },
+
+    /* tf constants: */
+    { "clz",	PSEUDO_FUNC_CONST, {  32 } },
+    { "mpy",	PSEUDO_FUNC_CONST, {  33 } },
+    { "datahints",	PSEUDO_FUNC_CONST, {  34 } },
 
     /* unwind-related constants:  */
     { "svr4",	PSEUDO_FUNC_CONST,	{ ELFOSABI_NONE } },
     { "hpux",	PSEUDO_FUNC_CONST,	{ ELFOSABI_HPUX } },
     { "nt",	PSEUDO_FUNC_CONST,	{ 2 } },		/* conflicts w/ELFOSABI_NETBSD */
-    { "linux",	PSEUDO_FUNC_CONST,	{ ELFOSABI_LINUX } },
+    { "linux",	PSEUDO_FUNC_CONST,	{ ELFOSABI_GNU } },
     { "freebsd", PSEUDO_FUNC_CONST,	{ ELFOSABI_FREEBSD } },
     { "openvms", PSEUDO_FUNC_CONST,	{ ELFOSABI_OPENVMS } },
     { "nsk",	PSEUDO_FUNC_CONST,	{ ELFOSABI_NSK } },
@@ -850,7 +869,7 @@ ia64_elf_section_letter (int letter, char **ptr_msg)
     return SHF_IA_64_VMS_GLOBAL;
 #endif
 
-  *ptr_msg = _("Bad .section directive: want a,o,s,w,x,M,S,G,T in string");
+  *ptr_msg = _("bad .section directive: want a,o,s,w,x,M,S,G,T in string");
   return -1;
 }
 
@@ -1027,6 +1046,141 @@ ia64_cons_align (int nbytes)
       input_line_pointer = saved_input_line_pointer;
     }
 }
+
+#ifdef TE_VMS
+
+/* .vms_common section, symbol, size, alignment  */
+
+static void
+obj_elf_vms_common (int ignore ATTRIBUTE_UNUSED)
+{
+  char *sec_name;
+  char *sym_name;
+  char c;
+  offsetT size;
+  offsetT cur_size;
+  offsetT temp;
+  symbolS *symbolP;
+  segT current_seg = now_seg;
+  subsegT current_subseg = now_subseg;
+  offsetT log_align;
+
+  /* Section name.  */
+  sec_name = obj_elf_section_name ();
+  if (sec_name == NULL)
+    return;
+
+  /* Symbol name.  */
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer == ',')
+    {
+      input_line_pointer++;
+      SKIP_WHITESPACE ();
+    }
+  else
+    {
+      as_bad (_("expected ',' after section name"));
+      ignore_rest_of_line ();
+      return;
+    }
+
+  sym_name = input_line_pointer;
+  c = get_symbol_end ();
+
+  if (input_line_pointer == sym_name)
+    {
+      *input_line_pointer = c;
+      as_bad (_("expected symbol name"));
+      ignore_rest_of_line ();
+      return;
+    }
+
+  symbolP = symbol_find_or_make (sym_name);
+  *input_line_pointer = c;
+
+  if ((S_IS_DEFINED (symbolP) || symbol_equated_p (symbolP))
+      && !S_IS_COMMON (symbolP))
+    {
+      as_bad (_("Ignoring attempt to re-define symbol"));
+      ignore_rest_of_line ();
+      return;
+    }
+
+  /* Symbol size.  */
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer == ',')
+    {
+      input_line_pointer++;
+      SKIP_WHITESPACE ();
+    }
+  else
+    {
+      as_bad (_("expected ',' after symbol name"));
+      ignore_rest_of_line ();
+      return;
+    }
+
+  temp = get_absolute_expression ();
+  size = temp;
+  size &= ((offsetT) 2 << (stdoutput->arch_info->bits_per_address - 1)) - 1;
+  if (temp != size)
+    {
+      as_warn (_("size (%ld) out of range, ignored"), (long) temp);
+      ignore_rest_of_line ();
+      return;
+    }
+
+  /* Alignment.  */
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer == ',')
+    {
+      input_line_pointer++;
+      SKIP_WHITESPACE ();
+    }
+  else
+    {
+      as_bad (_("expected ',' after symbol size"));
+      ignore_rest_of_line ();
+      return;
+    }
+
+  log_align = get_absolute_expression ();
+
+  demand_empty_rest_of_line ();
+
+  obj_elf_change_section
+    (sec_name, SHT_NOBITS,
+     SHF_ALLOC | SHF_WRITE | SHF_IA_64_VMS_OVERLAID | SHF_IA_64_VMS_GLOBAL,
+     0, NULL, 1, 0);
+
+  S_SET_VALUE (symbolP, 0);
+  S_SET_SIZE (symbolP, size);
+  S_SET_EXTERNAL (symbolP);
+  S_SET_SEGMENT (symbolP, now_seg);
+
+  symbol_get_bfdsym (symbolP)->flags |= BSF_OBJECT;
+
+  record_alignment (now_seg, log_align);
+
+  cur_size = bfd_section_size (stdoutput, now_seg);
+  if ((int) size > cur_size)
+    {
+      char *pfrag
+        = frag_var (rs_fill, 1, 1, (relax_substateT)0, NULL,
+                    (valueT)size - (valueT)cur_size, NULL);
+      *pfrag = 0;
+      bfd_section_size (stdoutput, now_seg) = size;
+    }
+
+  /* Switch back to current segment.  */
+  subseg_set (current_seg, current_subseg);
+
+#ifdef md_elf_section_change_hook
+  md_elf_section_change_hook ();
+#endif
+}
+
+#endif /* TE_VMS */
 
 /* Output COUNT bytes to a memory location.  */
 static char *vbyte_mem_ptr = NULL;
@@ -2547,7 +2701,7 @@ slot_index (unsigned long slot_addr,
 	    fragS *first_frag,
 	    int before_relax)
 {
-  unsigned long index = 0;
+  unsigned long s_index = 0;
 
   /* First time we are called, the initial address and frag are invalid.  */
   if (first_addr == 0)
@@ -2565,7 +2719,7 @@ slot_index (unsigned long slot_addr,
 	  /* We can get the final addresses only during and after
 	     relaxation.  */
 	  if (first_frag->fr_next && first_frag->fr_next->fr_address)
-	    index += 3 * ((first_frag->fr_next->fr_address
+	    s_index += 3 * ((first_frag->fr_next->fr_address
 			   - first_frag->fr_address
 			     - first_frag->fr_fix) >> 4);
 	}
@@ -2586,7 +2740,7 @@ slot_index (unsigned long slot_addr,
 	  case rs_align_test:
 	    /* Take alignment into account.  Assume the worst case
 	       before relaxation.  */
-	    index += 3 * ((1 << first_frag->fr_offset) >> 4);
+	    s_index += 3 * ((1 << first_frag->fr_offset) >> 4);
 	    break;
 
 	  case rs_org:
@@ -2596,14 +2750,14 @@ slot_index (unsigned long slot_addr,
 		break;
 	      }
 	  case rs_fill:
-	    index += 3 * (first_frag->fr_offset >> 4);
+	    s_index += 3 * (first_frag->fr_offset >> 4);
 	    break;
 	  }
 
       /* Add in the full size of the frag converted to instruction slots.  */
-      index += 3 * (first_frag->fr_fix >> 4);
+      s_index += 3 * (first_frag->fr_fix >> 4);
       /* Subtract away the initial part before first_addr.  */
-      index -= (3 * ((first_addr >> 4) - (start_addr >> 4))
+      s_index -= (3 * ((first_addr >> 4) - (start_addr >> 4))
 		+ ((first_addr & 0x3) - (start_addr & 0x3)));
 
       /* Move to the beginning of the next frag.  */
@@ -2619,9 +2773,9 @@ slot_index (unsigned long slot_addr,
     }
 
   /* Add in the used part of the last frag.  */
-  index += (3 * ((slot_addr >> 4) - (first_addr >> 4))
+  s_index += (3 * ((slot_addr >> 4) - (first_addr >> 4))
 	    + ((slot_addr & 0x3) - (first_addr & 0x3)));
-  return index;
+  return s_index;
 }
 
 /* Optimize unwind record directives.  */
@@ -2823,7 +2977,7 @@ ia64_estimate_size_before_relax (fragS *frag,
 }
 
 /* This function converts a rs_machine_dependent variant frag into a
-  normal fill frag with the unwind image from the the record list.  */
+  normal fill frag with the unwind image from the record list.  */
 void
 ia64_convert_frag (fragS *frag)
 {
@@ -4312,14 +4466,15 @@ dot_endp (int dummy ATTRIBUTE_UNUSED)
 					  symbol_get_frag (unwind.proc_pending.sym));
       else
 	e.X_add_symbol = unwind.proc_pending.sym;
-      ia64_cons_fix_new (frag_now, where, bytes_per_address, &e);
+      ia64_cons_fix_new (frag_now, where, bytes_per_address, &e,
+			 BFD_RELOC_NONE);
 
       e.X_op = O_pseudo_fixup;
       e.X_op_symbol = pseudo_func[FUNC_SEG_RELATIVE].u.sym;
       e.X_add_number = 0;
       e.X_add_symbol = proc_end;
       ia64_cons_fix_new (frag_now, where + bytes_per_address,
-			 bytes_per_address, &e);
+			 bytes_per_address, &e, BFD_RELOC_NONE);
 
       if (unwind.info)
 	{
@@ -4328,7 +4483,7 @@ dot_endp (int dummy ATTRIBUTE_UNUSED)
 	  e.X_add_number = 0;
 	  e.X_add_symbol = unwind.info;
 	  ia64_cons_fix_new (frag_now, where + (bytes_per_address * 2),
-			     bytes_per_address, &e);
+			     bytes_per_address, &e, BFD_RELOC_NONE);
 	}
     }
   subseg_set (saved_seg, saved_subseg);
@@ -4646,7 +4801,7 @@ dot_ln (int dummy ATTRIBUTE_UNUSED)
 }
 
 static void
-cross_section (int ref, void (*cons) (int), int ua)
+cross_section (int ref, void (*builder) (int), int ua)
 {
   char *start, *end;
   int saved_auto_align;
@@ -4691,15 +4846,15 @@ cross_section (int ref, void (*cons) (int), int ua)
   end = input_line_pointer + 1;		/* skip comma */
   input_line_pointer = start;
   md.keep_pending_output = 1;
-  section_count = bfd_count_sections(stdoutput);
+  section_count = bfd_count_sections (stdoutput);
   obj_elf_section (0);
-  if (section_count != bfd_count_sections(stdoutput))
+  if (section_count != bfd_count_sections (stdoutput))
     as_warn (_("Creating sections with .xdataN/.xrealN/.xstringZ is deprecated."));
   input_line_pointer = end;
   saved_auto_align = md.auto_align;
   if (ua)
     md.auto_align = 0;
-  (*cons) (ref);
+  (*builder) (ref);
   if (ua)
     md.auto_align = saved_auto_align;
   obj_elf_previous (0);
@@ -5221,6 +5376,10 @@ const pseudo_typeS md_pseudo_table[] =
     {"4byte", stmt_cons_ua, 4},
     {"8byte", stmt_cons_ua, 8},
 
+#ifdef TE_VMS
+    {"vms_common", obj_elf_vms_common, 0},
+#endif
+
     { NULL, 0, 0 }
   };
 
@@ -5305,9 +5464,9 @@ operand_width (enum ia64_opnd opnd)
 }
 
 static enum operand_match_result
-operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
+operand_match (const struct ia64_opcode *idesc, int res_index, expressionS *e)
 {
-  enum ia64_opnd opnd = idesc->operands[index];
+  enum ia64_opnd opnd = idesc->operands[res_index];
   int bits, relocatable = 0;
   struct insn_fix *fix;
   bfd_signed_vma val;
@@ -5417,6 +5576,12 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
 	return OPERAND_MATCH;
       break;
 
+    case IA64_OPND_DAHR3:
+      if (e->X_op == O_register && e->X_add_number >= REG_DAHR
+	  && e->X_add_number < REG_DAHR + 8)
+	return OPERAND_MATCH;
+      break;
+
     case IA64_OPND_F1:
     case IA64_OPND_F2:
     case IA64_OPND_F3:
@@ -5461,6 +5626,7 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
     case IA64_OPND_PKR_R3:
     case IA64_OPND_PMC_R3:
     case IA64_OPND_PMD_R3:
+    case IA64_OPND_DAHR_R3:
     case IA64_OPND_RR_R3:
       if (e->X_op == O_index && e->X_op_symbol
 	  && (S_GET_VALUE (e->X_op_symbol) - IND_CPUID
@@ -5477,7 +5643,7 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
     case IA64_OPND_CNT2a:
     case IA64_OPND_LEN4:
     case IA64_OPND_LEN6:
-      bits = operand_width (idesc->operands[index]);
+      bits = operand_width (idesc->operands[res_index]);
       if (e->X_op == O_constant)
 	{
 	  if ((bfd_vma) (e->X_add_number - 1) < ((bfd_vma) 1 << bits))
@@ -5551,7 +5717,7 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
 		e->X_op = O_symbol;
 	    }
 
-	  fix->opnd = idesc->operands[index];
+	  fix->opnd = idesc->operands[res_index];
 	  fix->expr = *e;
 	  fix->is_pcrel = 0;
 	  ++CURR_SLOT.num_fixups;
@@ -5581,12 +5747,14 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
     case IA64_OPND_IMMU2:
     case IA64_OPND_IMMU7a:
     case IA64_OPND_IMMU7b:
+    case IA64_OPND_IMMU16:
+    case IA64_OPND_IMMU19:
     case IA64_OPND_IMMU21:
     case IA64_OPND_IMMU24:
     case IA64_OPND_MBTYPE4:
     case IA64_OPND_MHTYPE8:
     case IA64_OPND_POS6:
-      bits = operand_width (idesc->operands[index]);
+      bits = operand_width (idesc->operands[res_index]);
       if (e->X_op == O_constant)
 	{
 	  if ((bfd_vma) e->X_add_number < ((bfd_vma) 1 << bits))
@@ -5597,7 +5765,7 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
       break;
 
     case IA64_OPND_IMMU9:
-      bits = operand_width (idesc->operands[index]);
+      bits = operand_width (idesc->operands[res_index]);
       if (e->X_op == O_constant)
 	{
 	  if ((bfd_vma) e->X_add_number < ((bfd_vma) 1 << bits))
@@ -5673,14 +5841,14 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
     case IA64_OPND_IMM8M1U8:
     case IA64_OPND_IMM9a:
     case IA64_OPND_IMM9b:
-      bits = operand_width (idesc->operands[index]);
+      bits = operand_width (idesc->operands[res_index]);
       if (relocatable && (e->X_op == O_symbol
 			  || e->X_op == O_subtract
 			  || e->X_op == O_pseudo_fixup))
 	{
 	  fix = CURR_SLOT.fixup + CURR_SLOT.num_fixups;
 
-	  if (idesc->operands[index] == IA64_OPND_IMM14)
+	  if (idesc->operands[res_index] == IA64_OPND_IMM14)
 	    fix->code = BFD_RELOC_IA64_IMM14;
 	  else
 	    fix->code = BFD_RELOC_IA64_IMM22;
@@ -5692,7 +5860,7 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
 		e->X_op = O_symbol;
 	    }
 
-	  fix->opnd = idesc->operands[index];
+	  fix->opnd = idesc->operands[res_index];
 	  fix->expr = *e;
 	  fix->is_pcrel = 0;
 	  ++CURR_SLOT.num_fixups;
@@ -5798,7 +5966,7 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
 	    abort ();
 
 	  fix->code = ia64_gen_real_reloc_type (e->X_op_symbol, fix->code);
-	  fix->opnd = idesc->operands[index];
+	  fix->opnd = idesc->operands[res_index];
 	  fix->expr = *e;
 	  fix->is_pcrel = 1;
 	  ++CURR_SLOT.num_fixups;
@@ -5817,7 +5985,7 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
 	     create a dummy reloc.  This will not live past md_apply_fix.  */
 	  fix->code = BFD_RELOC_UNUSED;
 	  fix->code = ia64_gen_real_reloc_type (e->X_op_symbol, fix->code);
-	  fix->opnd = idesc->operands[index];
+	  fix->opnd = idesc->operands[res_index];
 	  fix->expr = *e;
 	  fix->is_pcrel = 1;
 	  ++CURR_SLOT.num_fixups;
@@ -5831,11 +5999,44 @@ operand_match (const struct ia64_opcode *idesc, int index, expressionS *e)
     case IA64_OPND_LDXMOV:
       fix = CURR_SLOT.fixup + CURR_SLOT.num_fixups;
       fix->code = BFD_RELOC_IA64_LDXMOV;
-      fix->opnd = idesc->operands[index];
+      fix->opnd = idesc->operands[res_index];
       fix->expr = *e;
       fix->is_pcrel = 0;
       ++CURR_SLOT.num_fixups;
       return OPERAND_MATCH;
+
+    case IA64_OPND_STRD5b:
+      if (e->X_op == O_constant)
+	{
+	  /* 5-bit signed scaled by 64 */
+	  if ((e->X_add_number <=  	( 0xf  << 6 )) 
+	       && (e->X_add_number >=  -( 0x10 << 6 )))
+	    {
+	      
+	      /* Must be a multiple of 64 */
+	      if ((e->X_add_number & 0x3f) != 0)
+	        as_warn (_("stride must be a multiple of 64; lower 6 bits ignored"));
+
+	      e->X_add_number &= ~ 0x3f;
+	      return OPERAND_MATCH;
+	    }
+	  else
+	    return OPERAND_OUT_OF_RANGE;
+	}
+      break;
+    case IA64_OPND_CNT6a:
+      if (e->X_op == O_constant)
+	{
+	  /* 6-bit unsigned biased by 1 -- count 0 is meaningless */
+	  if ((e->X_add_number     <=   64) 
+	       && (e->X_add_number > 0) )
+	    {
+	      return OPERAND_MATCH;
+	    }
+	  else
+	    return OPERAND_OUT_OF_RANGE;
+	}
+      break;
 
     default:
       break;
@@ -6287,6 +6488,10 @@ build_insn (struct slot *slot, bfd_vma *insnp)
 	  val -= REG_CR;
 	  break;
 
+	case IA64_OPND_DAHR3:
+	  val -= REG_DAHR;
+	  break;
+
 	case IA64_OPND_F1:
 	case IA64_OPND_F2:
 	case IA64_OPND_F3:
@@ -6313,6 +6518,7 @@ build_insn (struct slot *slot, bfd_vma *insnp)
 	case IA64_OPND_PKR_R3:
 	case IA64_OPND_PMC_R3:
 	case IA64_OPND_PMD_R3:
+	case IA64_OPND_DAHR_R3:
 	case IA64_OPND_RR_R3:
 	  val -= REG_GR;
 	  break;
@@ -6728,15 +6934,6 @@ emit_one_bundle (void)
 	  md.slot[curr].unwind_record = NULL;
 	}
 
-      if (required_unit == IA64_UNIT_L)
-	{
-	  know (i == 1);
-	  /* skip one slot for long/X-unit instructions */
-	  ++i;
-	}
-      --md.num_slots_in_use;
-      last_slot = i;
-
       for (j = 0; j < md.slot[curr].num_fixups; ++j)
 	{
 	  ifix = md.slot[curr].fixup + j;
@@ -6748,6 +6945,17 @@ emit_one_bundle (void)
 	}
 
       end_of_insn_group = md.slot[curr].end_of_insn_group;
+
+      /* This adjustment to "i" must occur after the fix, otherwise the fix
+	 is assigned to the wrong slot, and the VMS linker complains.  */
+      if (required_unit == IA64_UNIT_L)
+	{
+	  know (i == 1);
+	  /* skip one slot for long/X-unit instructions */
+	  ++i;
+	}
+      --md.num_slots_in_use;
+      last_slot = i;
 
       /* clear slot:  */
       ia64_free_opcode (md.slot[curr].idesc);
@@ -6990,7 +7198,9 @@ IA-64 options:\n\
 			  unwind directive check (default -munwind-check=warning)\n\
   -mhint.b=[ok|warning|error]\n\
 			  hint.b check (default -mhint.b=error)\n\
-  -x | -xexplicit	  turn on dependency violation checking\n\
+  -x | -xexplicit	  turn on dependency violation checking\n"), stream);
+  /* Note for translators: "automagically" can be translated as "automatically" here.  */
+  fputs (_("\
   -xauto		  automagically remove dependency violations (default)\n\
   -xnone		  turn off dependency violation checking\n\
   -xdebug		  debug dependency violation checker\n\
@@ -7158,6 +7368,12 @@ md_begin (void)
     symbol_new (".<iplt>", undefined_section, FUNC_IPLT_RELOC,
 		&zero_address_frag);
 
+#ifdef TE_VMS
+  pseudo_func[FUNC_SLOTCOUNT_RELOC].u.sym =
+    symbol_new (".<slotcount>", undefined_section, FUNC_SLOTCOUNT_RELOC,
+		&zero_address_frag);
+#endif
+
  if (md.tune != itanium1)
    {
      /* Convert MFI NOPs bundles into MMI NOPs bundles.  */
@@ -7276,6 +7492,9 @@ md_begin (void)
   declare_register_set ("cr", 128, REG_CR);
   for (i = 0; i < NELEMS (cr); ++i)
     declare_register (cr[i].name, REG_CR + cr[i].regnum);
+
+  /* dahr registers:  */
+  declare_register_set ("dahr", 8, REG_DAHR);
 
   declare_register ("ip", REG_IP);
   declare_register ("cfm", REG_CFM);
@@ -7627,9 +7846,9 @@ ia64_frob_label (struct symbol *sym)
 int
 ia64_frob_symbol (struct symbol *sym)
 {
-  if ((S_GET_SEGMENT (sym) == &bfd_und_section && ! symbol_used_p (sym) &&
+  if ((S_GET_SEGMENT (sym) == bfd_und_section_ptr && ! symbol_used_p (sym) &&
        ELF_ST_VISIBILITY (S_GET_OTHER (sym)) == STV_DEFAULT)
-      || (S_GET_SEGMENT (sym) == &bfd_abs_section
+      || (S_GET_SEGMENT (sym) == bfd_abs_section_ptr
 	  && ! S_IS_EXTERNAL (sym)))
     return 1;
   return 0;
@@ -7744,6 +7963,15 @@ ia64_parse_name (char *name, expressionS *e, char *nextcharP)
 	    }
 	  /* Skip ')'.  */
 	  ++input_line_pointer;
+#ifdef TE_VMS
+          if (idx == FUNC_SLOTCOUNT_RELOC)
+            {
+              /* @slotcount can accept any expression.  Canonicalize.  */
+              e->X_add_symbol = make_expr_symbol (e);
+              e->X_op = O_symbol;
+              e->X_add_number = 0;
+            }
+#endif
 	  if (e->X_op != O_symbol)
 	    {
 	      if (e->X_op != O_pseudo_fixup)
@@ -8361,9 +8589,9 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 	      || (!rsrc_write && idesc->operands[1] == IA64_OPND_PMD_R3))
 
 	    {
-	      int index = ((idesc->operands[1] == IA64_OPND_R3 && !rsrc_write)
-			   ? 1 : !rsrc_write);
-	      int regno = CURR_SLOT.opnd[index].X_add_number - REG_GR;
+	      int reg_index = ((idesc->operands[1] == IA64_OPND_R3 && !rsrc_write)
+			       ? 1 : !rsrc_write);
+	      int regno = CURR_SLOT.opnd[reg_index].X_add_number - REG_GR;
 	      if (regno >= 0 && regno < NELEMS (gr_values)
 		  && KNOWN (regno))
 		{
@@ -8521,6 +8749,22 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 	}
       break;
 
+    case IA64_RS_DAHR:
+      if (note == 0)
+	{
+	  if (idesc->operands[!rsrc_write] == IA64_OPND_DAHR3)
+	    {
+	      specs[count] = tmpl;
+	      specs[count++].index =
+		CURR_SLOT.opnd[!rsrc_write].X_add_number - REG_DAHR;
+	    }
+	}
+      else
+	{
+	  UNHANDLED;
+	}
+      break;
+
     case IA64_RS_FR:
     case IA64_RS_FRb:
       if (note != 1)
@@ -8595,6 +8839,7 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 		      || idesc->operands[i] == IA64_OPND_PKR_R3
 		      || idesc->operands[i] == IA64_OPND_PMC_R3
 		      || idesc->operands[i] == IA64_OPND_PMD_R3
+		      || idesc->operands[i] == IA64_OPND_DAHR_R3
 		      || idesc->operands[i] == IA64_OPND_RR_R3
 		      || ((i >= idesc->num_outputs)
 			  && (idesc->operands[i] == IA64_OPND_R1
@@ -8901,11 +9146,11 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 		      if (idesc->operands[0] == IA64_OPND_CR3
 			  || idesc->operands[1] == IA64_OPND_CR3)
 			{
-			  int index =
+			  int reg_index =
 			    ((idesc->operands[0] == IA64_OPND_CR3)
 			     ? 0 : 1);
 			  int regno =
-			    CURR_SLOT.opnd[index].X_add_number - REG_CR;
+			    CURR_SLOT.opnd[reg_index].X_add_number - REG_CR;
 
 			  switch (regno)
 			    {
@@ -8939,15 +9184,15 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 		      if (idesc->operands[0] == IA64_OPND_AR3
 			  || idesc->operands[1] == IA64_OPND_AR3)
 			{
-			  int index =
+			  int reg_index =
 			    ((idesc->operands[0] == IA64_OPND_AR3)
 			     ? 0 : 1);
 			  int regno =
-			    CURR_SLOT.opnd[index].X_add_number - REG_AR;
+			    CURR_SLOT.opnd[reg_index].X_add_number - REG_AR;
 
 			  if (regno == AR_ITC
 			      || regno == AR_RUC
-			      || (index == 0
+			      || (reg_index == 0
 				  && (regno == AR_RSC
 				      || (regno >= AR_K0
 					  && regno <= AR_K7))))
@@ -10799,22 +11044,22 @@ ia64_pcrel_from_section (fixS *fix, segT sec)
 void
 ia64_dwarf2_emit_offset (symbolS *symbol, unsigned int size)
 {
-  expressionS expr;
+  expressionS exp;
 
-  expr.X_op = O_pseudo_fixup;
-  expr.X_op_symbol = pseudo_func[FUNC_SEC_RELATIVE].u.sym;
-  expr.X_add_number = 0;
-  expr.X_add_symbol = symbol;
-  emit_expr (&expr, size);
+  exp.X_op = O_pseudo_fixup;
+  exp.X_op_symbol = pseudo_func[FUNC_SEC_RELATIVE].u.sym;
+  exp.X_add_number = 0;
+  exp.X_add_symbol = symbol;
+  emit_expr (&exp, size);
 }
 
 /* This is called whenever some data item (not an instruction) needs a
    fixup.  We pick the right reloc code depending on the byteorder
    currently in effect.  */
 void
-ia64_cons_fix_new (fragS *f, int where, int nbytes, expressionS *exp)
+ia64_cons_fix_new (fragS *f, int where, int nbytes, expressionS *exp,
+		   bfd_reloc_code_real_type code)
 {
-  bfd_reloc_code_real_type code;
   fixS *fix;
 
   switch (nbytes)
@@ -11109,6 +11354,11 @@ ia64_gen_real_reloc_type (struct symbol *sym, bfd_reloc_code_real_type r_type)
 	}
       break;
 
+#ifdef TE_VMS
+    case FUNC_SLOTCOUNT_RELOC:
+      return DUMMY_RELOC_IA64_SLOTCOUNT;
+#endif
+
     default:
       abort ();
     }
@@ -11255,7 +11505,7 @@ md_apply_fix (fixS *fix, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     }
   if (fix->fx_addsy)
     {
-      switch (fix->fx_r_type)
+      switch ((unsigned) fix->fx_r_type)
 	{
 	case BFD_RELOC_UNUSED:
 	  /* This must be a TAG13 or TAG13b operand.  There are no external
@@ -11278,12 +11528,48 @@ md_apply_fix (fixS *fix, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  S_SET_THREAD_LOCAL (fix->fx_addsy);
 	  break;
 
+#ifdef TE_VMS
+        case DUMMY_RELOC_IA64_SLOTCOUNT:
+	  as_bad_where (fix->fx_file, fix->fx_line,
+			_("cannot resolve @slotcount parameter"));
+	  fix->fx_done = 1;
+	  return;
+#endif
+
 	default:
 	  break;
 	}
     }
   else if (fix->tc_fix_data.opnd == IA64_OPND_NIL)
     {
+#ifdef TE_VMS
+      if (fix->fx_r_type == DUMMY_RELOC_IA64_SLOTCOUNT)
+        {
+          /* For @slotcount, convert an addresses difference to a slots
+             difference.  */
+          valueT v;
+
+          v = (value >> 4) * 3;
+          switch (value & 0x0f)
+            {
+            case 0:
+            case 1:
+            case 2:
+              v += value & 0x0f;
+              break;
+            case 0x0f:
+              v += 2;
+              break;
+            case 0x0e:
+              v += 1;
+              break;
+            default:
+              as_bad (_("invalid @slotcount value"));
+            }
+          value = v;
+        }
+#endif
+
       if (fix->tc_fix_data.bigendian)
 	number_to_chars_bigendian (fixpos, value, fix->fx_size);
       else
@@ -11403,13 +11689,13 @@ ia64_handle_align (fragS *fragp)
 {
   int bytes;
   char *p;
-  const unsigned char *nop;
+  const unsigned char *nop_type;
 
   if (fragp->fr_type != rs_align_code)
     return;
 
   /* Check if this frag has to end with a stop bit.  */
-  nop = fragp->tc_frag_data ? le_nop_stop : le_nop;
+  nop_type = fragp->tc_frag_data ? le_nop_stop : le_nop;
 
   bytes = fragp->fr_next->fr_address - fragp->fr_address - fragp->fr_fix;
   p = fragp->fr_literal + fragp->fr_fix;
@@ -11446,7 +11732,7 @@ ia64_handle_align (fragS *fragp)
     }
 
   /* Instruction bundles are always little-endian.  */
-  memcpy (p, nop, 16);
+  memcpy (p, nop_type, 16);
   fragp->fr_var = 16;
 }
 
@@ -11699,7 +11985,6 @@ ia64_vms_note (void)
   char *p;
   asection *seg = now_seg;
   subsegT subseg = now_subseg;
-  Elf_Internal_Note i_note;
   asection *secp = NULL;
   char *bname;
   char buf [256];
@@ -11712,39 +11997,27 @@ ia64_vms_note (void)
 			 secp,
 			 SEC_HAS_CONTENTS | SEC_READONLY);
 
-  /* Module header note.  */
+  /* Module header note (MHD).  */
   bname = xstrdup (lbasename (out_file_name));
   if ((p = strrchr (bname, '.')))
     *p = '\0';
-
-  i_note.namesz = 8;
-  i_note.descsz = 40 + strlen (bname);
-  i_note.type = NT_VMS_MHD;
-
-  p = frag_more (sizeof (i_note.namesz));
-  number_to_chars_littleendian (p, i_note.namesz, 8);
-
-  p = frag_more (sizeof (i_note.descsz));
-  number_to_chars_littleendian (p, i_note.descsz, 8);
-
-  p = frag_more (sizeof (i_note.type));
-  number_to_chars_littleendian (p, i_note.type, 8);
+  
+  /* VMS note header is 24 bytes long.  */
+  p = frag_more (8 + 8 + 8);
+  number_to_chars_littleendian (p + 0, 8, 8);
+  number_to_chars_littleendian (p + 8, 40 + strlen (bname), 8);
+  number_to_chars_littleendian (p + 16, NT_VMS_MHD, 8);
 
   p = frag_more (8);
   strcpy (p, "IPF/VMS");
 
-  get_vms_time (buf);
-  p = frag_more (17);
-  strcpy (p, buf);
-
-  p = frag_more (17);
-  strcpy (p, "24-FEB-2005 15:00");
-
-  p = frag_more (strlen (bname) + 1);
+  p = frag_more (17 + 17 + strlen (bname) + 1 + 5);
+  get_vms_time (p);
+  strcpy (p + 17, "24-FEB-2005 15:00");
+  p += 17 + 17;
   strcpy (p, bname);
+  p += strlen (bname) + 1;
   free (bname);
-
-  p = frag_more (5);
   strcpy (p, "V1.0");
 
   frag_align (3, 0, 0);
@@ -11753,18 +12026,10 @@ ia64_vms_note (void)
   sprintf (buf, "GNU assembler version %s (%s) using BFD version %s",
 	   VERSION, TARGET_ALIAS, BFD_VERSION_STRING);
 
-  i_note.namesz = 8;
-  i_note.descsz = 1 + strlen (buf);
-  i_note.type = NT_VMS_LNM;
-
-  p = frag_more (sizeof (i_note.namesz));
-  number_to_chars_littleendian (p, i_note.namesz, 8);
-
-  p = frag_more (sizeof (i_note.descsz));
-  number_to_chars_littleendian (p, i_note.descsz, 8);
-
-  p = frag_more (sizeof (i_note.type));
-  number_to_chars_littleendian (p, i_note.type, 8);
+  p = frag_more (8 + 8 + 8);
+  number_to_chars_littleendian (p + 0, 8, 8);
+  number_to_chars_littleendian (p + 8, strlen (buf) + 1, 8);
+  number_to_chars_littleendian (p + 16, NT_VMS_LNM, 8);
 
   p = frag_more (8);
   strcpy (p, "IPF/VMS");

@@ -1,5 +1,5 @@
 /* Data and functions related to line maps and input files.
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -105,7 +105,7 @@ struct fcache
 
 /* Current position in real source file.  */
 
-location_t input_location;
+location_t input_location = UNKNOWN_LOCATION;
 
 struct line_maps *line_table;
 
@@ -182,7 +182,7 @@ diagnostic_file_cache_init (void)
     fcache_tab = new fcache[fcache_tab_size];
 }
 
-/* Free the ressources used by the set of cache used for files accessed
+/* Free the resources used by the set of cache used for files accessed
    by caret diagnostic.  */
 
 void
@@ -713,6 +713,22 @@ location_get_source_line (expanded_location xloc,
   return read ? buffer : NULL;
 }
 
+/* Test if the location originates from the spelling location of a
+   builtin-tokens.  That is, return TRUE if LOC is a (possibly
+   virtual) location of a built-in token that appears in the expansion
+   list of a macro.  Please note that this function also works on
+   tokens that result from built-in tokens.  For instance, the
+   function would return true if passed a token "4" that is the result
+   of the expansion of the built-in __LINE__ macro.  */
+bool
+is_location_from_builtin_token (source_location loc)
+{
+  const line_map *map = NULL;
+  loc = linemap_resolve_location (line_table, loc,
+				  LRK_SPELLING_LOCATION, &map);
+  return loc == BUILTINS_LOCATION;
+}
+
 /* Expand the source location LOC into a human readable location.  If
    LOC is virtual, it resolves to the expansion point of the involved
    macro.  If LOC resolves to a builtin location, the file name of the
@@ -733,19 +749,20 @@ expand_location (source_location loc)
 expanded_location
 expand_location_to_spelling_point (source_location loc)
 {
-  return expand_location_1 (loc, /*expansion_piont_p=*/false);
+  return expand_location_1 (loc, /*expansion_point_p=*/false);
 }
 
-/* If LOCATION is in a system header and if it's a virtual location for
-   a token coming from the expansion of a macro M, unwind it to the
-   location of the expansion point of M.  Otherwise, just return
+/* If LOCATION is in a system header and if it is a virtual location for
+   a token coming from the expansion of a macro, unwind it to the
+   location of the expansion point of the macro.  Otherwise, just return
    LOCATION.
 
    This is used for instance when we want to emit diagnostics about a
-   token that is located in a macro that is itself defined in a system
-   header -- e.g for the NULL macro.  In that case, if LOCATION is
-   passed to diagnostics emitting functions like warning_at as is, no
-   diagnostic won't be emitted.  */
+   token that may be located in a macro that is itself defined in a
+   system header, for example, for the NULL macro.  In such a case, if
+   LOCATION were passed directly to diagnostic functions such as
+   warning_at, the diagnostic would be suppressed (unless
+   -Wsystem-headers).  */
 
 source_location
 expansion_point_location_if_in_system_header (source_location location)

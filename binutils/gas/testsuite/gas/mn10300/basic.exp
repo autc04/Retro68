@@ -1,5 +1,4 @@
-# Copyright (C) 1996, 2000, 2002, 2004, 2005, 2007
-# Free Software Foundation, Inc.
+# Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1806,4 +1805,5 @@ if [istarget mn10300*-*-*] then {
 
     run_dump_test "am33-2"
     run_dump_test "relax"
+    run_dump_test "pr11973"
 }

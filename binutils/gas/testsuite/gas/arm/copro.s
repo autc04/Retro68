@@ -44,3 +44,6 @@ bar:
 	# Extra instructions to allow for code alignment in arm-aout target.
 	nop
 	nop
+
+	# UAL-syntax for MRC with APSR. Pre-UAL was PC
+	mrcge	p4, 5, APSR_nzcv, cr1, cr2, 7

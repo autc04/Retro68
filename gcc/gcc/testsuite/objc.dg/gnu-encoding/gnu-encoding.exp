@@ -1,5 +1,5 @@
 # GCC Objective-C testsuite that uses the `dg.exp' driver.
-#   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,7 +58,9 @@ if { $status == 0 } then {
                 continue
             }
 
+	    gcc_parallel_test_enable 0
             dg-runtest $src "" $DEFAULT_CFLAGS
+	    gcc_parallel_test_enable 1
         }
     } else {
         warning "Could not execute objc.dg/gnu-encoding/struct-layout-encoding-1 generator"

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -86,14 +86,13 @@ package body Sem_Cat is
    --  Return True if the entity or one of its subcomponents does not support
    --  external streaming.
 
-   function In_RCI_Declaration (N : Node_Id) return Boolean;
-   --  Determines if a declaration is  within the visible part of a Remote
-   --  Call Interface compilation unit, for semantic checking purposes only
-   --  (returns false within an instance and within the package body).
-
+   function In_RCI_Declaration return Boolean;
    function In_RT_Declaration return Boolean;
-   --  Determines if current scope is within the declaration of a Remote Types
-   --  unit, for semantic checking purposes.
+   --  Determine if current scope is within the declaration of a Remote Call
+   --  Interface or Remote Types unit, for semantic checking purposes.
+
+   function In_Package_Declaration return Boolean;
+   --  Shared supporting routine for In_RCI_Declaration and In_RT_Declaration
 
    function In_Shared_Passive_Unit return Boolean;
    --  Determines if current scope is within a Shared Passive compilation unit
@@ -277,7 +276,7 @@ package body Sem_Cat is
            and then Is_Preelaborated (Depended_Entity)
          then
             Error_Msg_NE
-              ("<must use private with clause for preelaborated unit& ",
+              ("<<must use private with clause for preelaborated unit& ",
                N, Depended_Entity);
 
          --  Subunit case
@@ -291,7 +290,7 @@ package body Sem_Cat is
 
          else
             Error_Msg_NE
-              ("<cannot depend on& " &
+              ("<<cannot depend on& " &
                "(wrong categorization)", N, Depended_Entity);
          end if;
 
@@ -299,7 +298,7 @@ package body Sem_Cat is
 
          if Unit_Category = Pure then
             Error_Msg_NE
-              ("\<pure unit cannot depend on non-pure unit",
+              ("\<<pure unit cannot depend on non-pure unit",
                N, Depended_Entity);
 
          elsif Is_Preelaborated (Unit_Entity)
@@ -307,7 +306,7 @@ package body Sem_Cat is
            and then not Is_Pure (Depended_Entity)
          then
             Error_Msg_NE
-              ("\<preelaborated unit cannot depend on "
+              ("\<<preelaborated unit cannot depend on "
                & "non-preelaborated unit",
                N, Depended_Entity);
          end if;
@@ -355,7 +354,7 @@ package body Sem_Cat is
       loop
          if Present (Expression (Component_Decl))
            and then Nkind (Expression (Component_Decl)) /= N_Null
-           and then not Is_Static_Expression (Expression (Component_Decl))
+           and then not Is_OK_Static_Expression (Expression (Component_Decl))
          then
             Error_Msg_Sloc := Sloc (Component_Decl);
             Error_Msg_F
@@ -498,6 +497,23 @@ package body Sem_Cat is
                    or else not Is_Hidden (Entity (Rep_Item)));
    end Has_Stream_Attribute_Definition;
 
+   ----------------------------
+   -- In_Package_Declaration --
+   ----------------------------
+
+   function In_Package_Declaration return Boolean is
+      Unit_Kind   : constant Node_Kind :=
+                      Nkind (Unit (Cunit (Current_Sem_Unit)));
+
+   begin
+      --  There are no restrictions on the body of an RCI or RT unit
+
+      return Is_Package_Or_Generic_Package (Current_Scope)
+        and then Unit_Kind /= N_Package_Body
+        and then not In_Package_Body (Current_Scope)
+        and then not In_Instance;
+   end In_Package_Declaration;
+
    ---------------------------
    -- In_Preelaborated_Unit --
    ---------------------------
@@ -548,25 +564,10 @@ package body Sem_Cat is
    -- In_RCI_Declaration --
    ------------------------
 
-   function In_RCI_Declaration (N : Node_Id) return Boolean is
-      Unit_Entity : constant Entity_Id := Current_Scope;
-      Unit_Kind   : constant Node_Kind :=
-                      Nkind (Unit (Cunit (Current_Sem_Unit)));
-
+   function In_RCI_Declaration return Boolean is
    begin
-      --  There are no restrictions on the private part or body
-      --  of an RCI unit.
-
-      return Is_Remote_Call_Interface (Unit_Entity)
-        and then Is_Package_Or_Generic_Package (Unit_Entity)
-        and then Unit_Kind /= N_Package_Body
-        and then List_Containing (N) =
-                   Visible_Declarations (Package_Specification (Unit_Entity))
-        and then not In_Package_Body (Unit_Entity)
-        and then not In_Instance;
-
-      --  What about the case of a nested package in the visible part???
-      --  This case is missed by the List_Containing check above???
+      return Is_Remote_Call_Interface (Current_Scope)
+        and then In_Package_Declaration;
    end In_RCI_Declaration;
 
    -----------------------
@@ -574,18 +575,8 @@ package body Sem_Cat is
    -----------------------
 
    function In_RT_Declaration return Boolean is
-      Unit_Entity : constant Entity_Id := Current_Scope;
-      Unit_Kind   : constant Node_Kind :=
-                      Nkind (Unit (Cunit (Current_Sem_Unit)));
-
    begin
-      --  There are no restrictions on the body of a Remote Types unit
-
-      return Is_Remote_Types (Unit_Entity)
-        and then Is_Package_Or_Generic_Package (Unit_Entity)
-        and then Unit_Kind /= N_Package_Body
-        and then not In_Package_Body (Unit_Entity)
-        and then not In_Instance;
+      return Is_Remote_Types (Current_Scope) and then In_Package_Declaration;
    end In_RT_Declaration;
 
    ----------------------------
@@ -615,9 +606,7 @@ package body Sem_Cat is
 
       E := Current_Scope;
       loop
-         if Is_Subprogram (E)
-              or else
-            Is_Generic_Subprogram (E)
+         if Is_Subprogram_Or_Generic_Subprogram (E)
               or else
             Is_Concurrent_Type (E)
          then
@@ -636,7 +625,9 @@ package body Sem_Cat is
    -------------------------------
 
    function Is_Non_Remote_Access_Type (E : Entity_Id) return Boolean is
-      U_E : constant Entity_Id := Underlying_Type (E);
+      U_E : constant Entity_Id := Underlying_Type (Base_Type (E));
+      --  Use full view of base type to handle subtypes properly.
+
    begin
       if No (U_E) then
 
@@ -815,7 +806,8 @@ package body Sem_Cat is
       Discriminant_Spec := First (L);
       while Present (Discriminant_Spec) loop
          if Present (Expression (Discriminant_Spec))
-           and then not Is_Static_Expression (Expression (Discriminant_Spec))
+           and then
+             not Is_OK_Static_Expression (Expression (Discriminant_Spec))
          then
             return False;
          end if;
@@ -1102,7 +1094,7 @@ package body Sem_Cat is
 
                Error_Msg_Warn := GNAT_Mode;
                Error_Msg_N
-                 ("<statements not allowed in preelaborated unit", Item);
+                 ("<<statements not allowed in preelaborated unit", Item);
 
                exit;
             end if;
@@ -1367,20 +1359,22 @@ package body Sem_Cat is
       if In_Pure_Unit and then not In_Subprogram_Task_Protected_Unit then
          Error_Msg_N ("declaration of variable not allowed in pure unit", N);
 
-      --  The visible part of an RCI library unit must not contain the
-      --  declaration of a variable (RM E.1.3(9))
+      elsif not In_Private_Part (Id) then
 
-      elsif In_RCI_Declaration (N) then
-         Error_Msg_N ("visible variable not allowed in 'R'C'I unit", N);
+         --  The visible part of an RCI library unit must not contain the
+         --  declaration of a variable (RM E.1.3(9)).
 
-      --  The visible part of a Shared Passive library unit must not contain
-      --  the declaration of a variable (RM E.2.2(7))
+         if In_RCI_Declaration then
+            Error_Msg_N ("visible variable not allowed in 'R'C'I unit", N);
 
-      elsif In_RT_Declaration and then not In_Private_Part (Id) then
-         Error_Msg_N
-           ("visible variable not allowed in remote types unit", N);
+         --  The visible part of a Shared Passive library unit must not contain
+         --  the declaration of a variable (RM E.2.2(7)).
+
+         elsif In_RT_Declaration then
+            Error_Msg_N
+              ("visible variable not allowed in remote types unit", N);
+         end if;
       end if;
-
    end Validate_Object_Declaration;
 
    -----------------------------
@@ -1595,7 +1589,7 @@ package body Sem_Cat is
    procedure Validate_RCI_Subprogram_Declaration (N : Node_Id) is
       K               : constant Node_Kind := Nkind (N);
       Profile         : List_Id;
-      Id              : Node_Id;
+      Id              : constant Entity_Id := Defining_Entity (N);
       Param_Spec      : Node_Id;
       Param_Type      : Entity_Id;
       Error_Node      : Node_Id := N;
@@ -1608,21 +1602,22 @@ package body Sem_Cat is
       --    1. from Analyze_Subprogram_Declaration.
       --    2. from Validate_Object_Declaration (access to subprogram).
 
-      if not (Comes_From_Source (N) and then In_RCI_Declaration (N)) then
+      if not (Comes_From_Source (N)
+                and then In_RCI_Declaration
+                and then not In_Private_Part (Scope (Id)))
+      then
          return;
       end if;
 
       if K = N_Subprogram_Declaration then
-         Id := Defining_Unit_Name (Specification (N));
          Profile := Parameter_Specifications (Specification (N));
 
-      else pragma Assert (K = N_Object_Declaration);
+      else
+         pragma Assert (K = N_Object_Declaration);
 
          --  The above assertion is dubious, the visible declarations of an
          --  RCI unit never contain an object declaration, this should be an
          --  ACCESS-to-object declaration???
-
-         Id := Defining_Identifier (N);
 
          if Nkind (Id) = N_Defining_Identifier
            and then Nkind (Parent (Etype (Id))) = N_Full_Type_Declaration
@@ -1651,12 +1646,10 @@ package body Sem_Cat is
 
                --  Report error only if declaration is in source program
 
-               if Comes_From_Source
-                 (Defining_Entity (Specification (N)))
-               then
+               if Comes_From_Source (Id) then
                   Error_Msg_N
                     ("subprogram in 'R'C'I unit cannot have access parameter",
-                      Error_Node);
+                     Error_Node);
                end if;
 
             --  For a limited private type parameter, we check only the private
@@ -1679,8 +1672,15 @@ package body Sem_Cat is
 
             Next (Param_Spec);
          end loop;
+      end if;
 
-         --  No check on return type???
+      if Ekind (Id) = E_Function
+        and then Ekind (Etype (Id)) = E_Anonymous_Access_Type
+        and then Comes_From_Source (Id)
+      then
+         Error_Msg_N
+           ("function in 'R'C'I unit cannot have access result",
+             Error_Node);
       end if;
    end Validate_RCI_Subprogram_Declaration;
 
@@ -1697,17 +1697,18 @@ package body Sem_Cat is
       --  the given node is N_Access_To_Object_Definition.
 
       if not Comes_From_Source (T)
-        or else (not In_RCI_Declaration (Parent (T))
-                  and then not In_RT_Declaration)
+        or else (not In_RCI_Declaration and then not In_RT_Declaration)
       then
          return;
       end if;
 
-      --  An access definition in the private part of a Remote Types package
-      --  may be legal if it has user-defined Read and Write attributes. This
-      --  will be checked at the end of the package spec processing.
+      --  An access definition in the private part of a package is not a
+      --  remote access type. Restrictions related to external streaming
+      --  support for non-remote access types are enforced elsewhere. Note
+      --  that In_Private_Part is never set on type entities: check flag
+      --  on enclosing scope.
 
-      if In_RT_Declaration and then In_Private_Part (Scope (T)) then
+      if In_Private_Part (Scope (T)) then
          return;
       end if;
 
@@ -1720,7 +1721,7 @@ package body Sem_Cat is
       if Ekind (T) /= E_General_Access_Type
         or else not Is_Class_Wide_Type (Designated_Type (T))
       then
-         if In_RCI_Declaration (Parent (T)) then
+         if In_RCI_Declaration then
             Error_Msg_N
               ("error in access type in Remote_Call_Interface unit", T);
          else
@@ -1933,7 +1934,7 @@ package body Sem_Cat is
 
       Typ := First_Entity (Name_U);
       while Present (Typ) and then Typ /= First_Priv_Ent loop
-         U_Typ := Underlying_Type (Typ);
+         U_Typ := Underlying_Type (Base_Type (Typ));
 
          if No (U_Typ) then
             U_Typ := Typ;
@@ -2048,7 +2049,8 @@ package body Sem_Cat is
    ---------------------------------
 
    procedure Validate_Static_Object_Name (N : Node_Id) is
-      E : Entity_Id;
+      E   : Entity_Id;
+      Val : Node_Id;
 
       function Is_Primary (N : Node_Id) return Boolean;
       --  Determine whether node is syntactically a primary in an expression
@@ -2151,7 +2153,8 @@ package body Sem_Cat is
          elsif Ekind (Entity (N)) = E_Constant
            and then not Is_Static_Expression (N)
          then
-            E := Entity (N);
+            E   := Entity (N);
+            Val := Constant_Value (E);
 
             if Is_Internal_File_Name (Unit_File_Name (Get_Source_Unit (N)))
               and then
@@ -2162,10 +2165,25 @@ package body Sem_Cat is
                                    and then Is_Entity_Name (Renamed_Object (E))
                                    and then
                                      (Is_Preelaborated
-                                       (Scope (Renamed_Object (E)))
-                                         or else
-                                           Is_Pure (Scope
-                                             (Renamed_Object (E))))))
+                                        (Scope (Renamed_Object (E)))
+                                       or else
+                                         Is_Pure
+                                           (Scope (Renamed_Object (E))))))
+            then
+               null;
+
+            --  If the value of the constant is a local variable that renames
+            --  an aggregate, this is in itself legal. The aggregate may be
+            --  expanded into a loop, but this does not affect preelaborability
+            --  in itself. If some aggregate components are non-static, that is
+            --  to say if they involve non static primaries, they will be
+            --  flagged when analyzed.
+
+            elsif Present (Val)
+              and then Is_Entity_Name (Val)
+              and then Is_Array_Type (Etype (Val))
+              and then not Comes_From_Source (Val)
+              and then Nkind (Original_Node (Val)) = N_Aggregate
             then
                null;
 

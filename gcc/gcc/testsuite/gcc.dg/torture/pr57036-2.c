@@ -1,6 +1,8 @@
 /* { dg-do compile } */
+/* { dg-require-effective-target nonlocal_goto } */
 
 int j_;
+void g (void);
 int jpgDecode_convert (unsigned i)
 {
   __label__ label;

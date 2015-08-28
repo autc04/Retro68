@@ -1,5 +1,5 @@
 /* Various declarations for language-independent pretty-print subroutines.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -23,6 +23,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "obstack.h"
 #include "input.h"
+#include "wide-int-print.h"
 
 /* Maximum number of format string arguments.  */
 #define PP_NL_ARGMAX   30
@@ -99,7 +100,44 @@ struct output_buffer
   /* This must be large enough to hold any printed integer or
      floating-point value.  */
   char digit_buffer[128];
+
+  /* Nonzero means that text should be flushed when
+     appropriate. Otherwise, text is buffered until either
+     pp_really_flush or pp_clear_output_area are called.  */
+  bool flush_p;
 };
+
+/* Finishes constructing a NULL-terminated character string representing
+   the buffered text.  */
+static inline const char *
+output_buffer_formatted_text (output_buffer *buff)
+{
+  obstack_1grow (buff->obstack, '\0');
+  return (const char *) obstack_base (buff->obstack);
+}
+
+/* Append to the output buffer a string specified by its
+   STARTing character and LENGTH.  */
+static inline void
+output_buffer_append_r (output_buffer *buff, const char *start, int length)
+{
+  obstack_grow (buff->obstack, start, length);
+  buff->line_length += length;
+}
+
+/*  Return a pointer to the last character emitted in the
+    output_buffer.  A NULL pointer means no character available.  */
+static inline const char *
+output_buffer_last_position_in_text (const output_buffer *buff)
+{
+  const char *p = NULL;
+  struct obstack *text = buff->obstack;
+
+  if (obstack_base (text) != obstack_next_free (text))
+    p = ((const char *) obstack_next_free (text)) - 1;
+  return p;
+}
+
 
 /* The type of pretty-printer flags passed to clients.  */
 typedef unsigned int pp_flags;
@@ -261,10 +299,15 @@ pp_get_prefix (const pretty_printer *pp) { return pp->prefix; }
 #define pp_decimal_int(PP, I)  pp_scalar (PP, "%d", I)
 #define pp_unsigned_wide_integer(PP, I) \
    pp_scalar (PP, HOST_WIDE_INT_PRINT_UNSIGNED, (unsigned HOST_WIDE_INT) I)
+#define pp_wide_int(PP, W, SGN)					\
+  do								\
+    {								\
+      print_dec (W, pp_buffer (PP)->digit_buffer, SGN);		\
+      pp_string (PP, pp_buffer (PP)->digit_buffer);		\
+    }								\
+  while (0)
 #define pp_wide_integer(PP, I) \
    pp_scalar (PP, HOST_WIDE_INT_PRINT_DEC, (HOST_WIDE_INT) I)
-#define pp_widest_integer(PP, I) \
-   pp_scalar (PP, HOST_WIDEST_INT_PRINT_DEC, (HOST_WIDEST_INT) I)
 #define pp_pointer(PP, P)      pp_scalar (PP, "%p", P)
 
 #define pp_identifier(PP, ID)  pp_string (PP, (pp_translate_identifiers (PP) \
@@ -308,6 +351,7 @@ extern void pp_printf (pretty_printer *, const char *, ...)
 extern void pp_verbatim (pretty_printer *, const char *, ...)
      ATTRIBUTE_GCC_PPDIAG(2,3);
 extern void pp_flush (pretty_printer *);
+extern void pp_really_flush (pretty_printer *);
 extern void pp_format (pretty_printer *, text_info *);
 extern void pp_output_formatted_text (pretty_printer *);
 extern void pp_format_verbatim (pretty_printer *, text_info *);

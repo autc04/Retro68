@@ -1,6 +1,5 @@
 /* BFD back-end for HP/Intel IA-64 COFF files.
-   Copyright 1999, 2000, 2001, 2002, 2005, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger <davidm@hpl.hp.com>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -54,12 +53,9 @@ static reloc_howto_type howto_table[] =
 /* Return TRUE if this relocation should
    appear in the output .reloc section.  */
 
-static bfd_boolean in_reloc_p PARAMS ((bfd *, reloc_howto_type *));
-
 static bfd_boolean
-in_reloc_p(abfd, howto)
-     bfd * abfd ATTRIBUTE_UNUSED;
-     reloc_howto_type *howto ATTRIBUTE_UNUSED;
+in_reloc_p (bfd * abfd ATTRIBUTE_UNUSED,
+	    reloc_howto_type *howto ATTRIBUTE_UNUSED)
 {
   return FALSE;			/* We don't do relocs for now...  */
 }
@@ -71,11 +67,8 @@ in_reloc_p(abfd, howto)
 
 #include "coffcode.h"
 
-static const bfd_target *ia64coff_object_p PARAMS ((bfd *));
-
 static const bfd_target *
-ia64coff_object_p (abfd)
-     bfd *abfd;
+ia64coff_object_p (bfd *abfd)
 {
 #ifdef COFF_IMAGE_WITH_PE
   {
@@ -176,6 +169,7 @@ const bfd_target
 #endif
   '/',				/* ar_pad_char */
   15,				/* ar_max_namelen */
+  0,				/* match priority.  */
 
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,

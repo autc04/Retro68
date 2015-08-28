@@ -1,5 +1,5 @@
 ;; ARM Cortex-A9 pipeline description
-;; Copyright (C) 2008-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2015 Free Software Foundation, Inc.
 ;; Originally written by CodeSourcery for VFP.
 ;;
 ;; Rewritten by Ramana Radhakrishnan <ramana.radhakrishnan@arm.com>
@@ -81,9 +81,9 @@ cortex_a9_p1_e2 + cortex_a9_p0_e1 + cortex_a9_p1_e1")
 (define_insn_reservation "cortex_a9_dp" 2
   (and (eq_attr "tune" "cortexa9")
        (eq_attr "type" "alu_imm,alus_imm,logic_imm,logics_imm,\
-                        alu_reg,alus_reg,logic_reg,logics_reg,\
+                        alu_sreg,alus_sreg,logic_reg,logics_reg,\
                         adc_imm,adcs_imm,adc_reg,adcs_reg,\
-                        adr,bfm,rev,\
+                        adr,bfm,clz,rbit,rev,alu_dsp_reg,\
                         shift_imm,shift_reg,\
                         mov_imm,mov_reg,mvn_imm,mvn_reg,\
                         mov_shift_reg,mov_shift,\

@@ -1,6 +1,5 @@
 /* Disassemble h8500 instructions.
-   Copyright 1993, 1998, 2000, 2001, 2002, 2004, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -19,12 +18,12 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
+#include "sysdep.h"
 #include <stdio.h>
 
 #define DISASSEMBLER_TABLE
 #define DEFINE_TABLE
 
-#include "sysdep.h"
 #include "h8500-opc.h"
 #include "dis-asm.h"
 #include "opintl.h"
@@ -40,7 +39,7 @@ struct private
   bfd_byte *max_fetched;
   bfd_byte the_buffer[MAXLEN];
   bfd_vma insn_start;
-  jmp_buf bailout;
+  OPCODES_SIGJMP_BUF bailout;
 };
 
 /* Make sure that bytes from INFO->PRIVATE_DATA->BUFFER (inclusive)
@@ -64,7 +63,7 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
   if (status != 0)
     {
       (*info->memory_error_func) (status, start, info);
-      longjmp (priv->bailout, 1);
+      OPCODES_SIGLONGJMP (priv->bailout, 1);
     }
   else
     priv->max_fetched = addr;
@@ -85,7 +84,7 @@ print_insn_h8500 (bfd_vma addr, disassemble_info *info)
   info->private_data = (PTR) & priv;
   priv.max_fetched = priv.the_buffer;
   priv.insn_start = addr;
-  if (setjmp (priv.bailout) != 0)
+  if (OPCODES_SIGSETJMP (priv.bailout) != 0)
     /* Error return.  */
     return -1;
 
@@ -97,7 +96,7 @@ print_insn_h8500 (bfd_vma addr, disassemble_info *info)
       int rd = 0;
       int rs = 0;
       int disp = 0;
-      int abs = 0;
+      int abs_val = 0;
       int imm = 0;
       int pcrel = 0;
       int qim = 0;
@@ -154,17 +153,17 @@ print_insn_h8500 (bfd_vma addr, disassemble_info *info)
 		  break;
 		case ABS24:
 		  FETCH_DATA (info, buffer + byte + 3);
-		  abs =
+		  abs_val =
 		    (buffer[byte] << 16)
 		    | (buffer[byte + 1] << 8)
 		    | (buffer[byte + 2]);
 		  break;
 		case ABS16:
 		  FETCH_DATA (info, buffer + byte + 2);
-		  abs = (buffer[byte] << 8) | (buffer[byte + 1]);
+		  abs_val = (buffer[byte] << 8) | (buffer[byte + 1]);
 		  break;
 		case ABS8:
-		  abs = (buffer[byte]);
+		  abs_val = (buffer[byte]);
 		  break;
 		case IMM16:
 		  FETCH_DATA (info, buffer + byte + 2);
@@ -265,28 +264,28 @@ print_insn_h8500 (bfd_vma addr, disassemble_info *info)
 	      func (stream, "@-sp");
 	      break;
 	    case ABS24:
-	      func (stream, "@0x%0x:24", abs);
+	      func (stream, "@0x%0x:24", abs_val);
 	      break;
 	    case ABS16:
-	      func (stream, "@0x%0x:16", abs & 0xffff);
+	      func (stream, "@0x%0x:16", abs_val & 0xffff);
 	      break;
 	    case ABS8:
-	      func (stream, "@0x%0x:8", abs & 0xff);
+	      func (stream, "@0x%0x:8", abs_val & 0xff);
 	      break;
 	    case IMM16:
 	      func (stream, "#0x%0x:16", imm & 0xffff);
 	      break;
 	    case RLIST:
 	      {
-		int i;
+		int j;
 		int nc = 0;
 
 		func (stream, "(");
-		for (i = 0; i < 8; i++)
+		for (j = 0; j < 8; j++)
 		  {
-		    if (imm & (1 << i))
+		    if (imm & (1 << j))
 		      {
-			func (stream, "r%d", i);
+			func (stream, "r%d", j);
 			if (nc)
 			  func (stream, ",");
 			nc = 1;

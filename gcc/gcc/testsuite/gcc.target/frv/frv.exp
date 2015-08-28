@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2014 Free Software Foundation, Inc.
+# Copyright (C) 2004-2015 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -49,5 +49,5 @@ foreach arch $archs {
 }
 
 dg-init
-gcc-dg-runtest [eval concat $files] ""
+gcc-dg-runtest [eval concat $files] "" ""
 dg-finish

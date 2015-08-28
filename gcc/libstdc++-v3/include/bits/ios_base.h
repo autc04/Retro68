@@ -1,6 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997-2014 Free Software Foundation, Inc.
+// Copyright (C) 1997-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,6 +39,12 @@
 #include <ext/atomicity.h>
 #include <bits/localefwd.h>
 #include <bits/locale_classes.h>
+
+#if __cplusplus < 201103L
+# include <stdexcept>
+#else
+# include <system_error>
+#endif
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -186,6 +192,23 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _S_ios_seekdir_end = 1L << 16 
     };
 
+#if __cplusplus >= 201103L
+  /// I/O error code
+  enum class io_errc { stream = 1 };
+
+  template <> struct is_error_code_enum<io_errc> : public true_type { };
+
+  const error_category& iostream_category() noexcept;
+
+  inline error_code
+  make_error_code(io_errc e) noexcept
+  { return error_code(static_cast<int>(e), iostream_category()); }
+
+  inline error_condition
+  make_error_condition(io_errc e) noexcept
+  { return error_condition(static_cast<int>(e), iostream_category()); }
+#endif
+
   // 27.4.2  Class ios_base
   /**
    *  @brief  The base of the I/O class hierarchy.
@@ -198,6 +221,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   */
   class ios_base
   {
+#if _GLIBCXX_USE_CXX11_ABI
+#if __cplusplus < 201103L
+    // Type that is layout-compatible with std::system_error
+    struct system_error : std::runtime_error
+    {
+      // Type that is layout-compatible with std::error_code
+      struct error_code
+      {
+	error_code() { }
+      private:
+	int		_M_value;
+	const void*	_M_cat;
+      } _M_code;
+    };
+#endif
+#endif
   public:
 
     /** 
@@ -206,6 +245,28 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      *
      *  27.4.2.1.1  Class ios_base::failure
      */
+#if _GLIBCXX_USE_CXX11_ABI
+    class _GLIBCXX_ABI_TAG_CXX11 failure : public system_error
+    {
+    public:
+      explicit
+      failure(const string& __str);
+
+#if __cplusplus >= 201103L
+      explicit
+      failure(const string&, const error_code&);
+
+      explicit
+      failure(const char*, const error_code& = io_errc::stream);
+#endif
+
+      virtual
+      ~failure() throw();
+
+      virtual const char*
+      what() const throw();
+    };
+#else
     class failure : public exception
     {
     public:
@@ -225,6 +286,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     private:
       string _M_msg;
     };
+#endif
 
     // 27.4.2.1.2  Type ios_base::fmtflags
     /**
@@ -368,7 +430,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     /// Perform input and output in binary mode (as opposed to text mode).
     /// This is probably not what you think it is; see
-    /// http://gcc.gnu.org/onlinedocs/libstdc++/manual/bk01pt11ch27s02.html
+    /// https://gcc.gnu.org/onlinedocs/libstdc++/manual/fstreams.html#std.io.filestreams.binary
     static const openmode binary =	_S_bin;
 
     /// Open for input.  Default for @c ifstream and fstream.
@@ -666,7 +728,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      *  The synchronization referred to is @e only that between the standard
      *  C facilities (e.g., stdout) and the standard C++ objects (e.g.,
      *  cout).  User-declared streams are unaffected.  See
-     *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/bk01pt11ch28s02.html
+     *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/fstreams.html#std.io.filestreams.binary
     */
     static bool
     sync_with_stdio(bool __sync = true);
@@ -780,6 +842,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   protected:
     ios_base() throw ();
 
+#if __cplusplus < 201103L
   // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // 50.  Copy constructor and assignment operator of ios_base
   private:
@@ -787,6 +850,20 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     ios_base&
     operator=(const ios_base&);
+#else
+  public:
+    ios_base(const ios_base&) = delete;
+
+    ios_base&
+    operator=(const ios_base&) = delete;
+
+  protected:
+    void
+    _M_move(ios_base&) noexcept;
+
+    void
+    _M_swap(ios_base& __rhs) noexcept;
+#endif
   };
 
   // [27.4.5.1] fmtflags manipulators
@@ -968,6 +1045,27 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     __base.setf(ios_base::scientific, ios_base::floatfield);
     return __base;
   }
+
+#if __cplusplus >= 201103L
+  // New C++11 floatfield manipulators
+
+  /// Calls
+  /// base.setf(ios_base::fixed|ios_base::scientific, ios_base::floatfield)
+  inline ios_base&
+  hexfloat(ios_base& __base)
+  {
+    __base.setf(ios_base::fixed | ios_base::scientific, ios_base::floatfield);
+    return __base;
+  }
+
+  /// Calls @c base.unsetf(ios_base::floatfield)
+  inline ios_base&
+  defaultfloat(ios_base& __base)
+  {
+    __base.unsetf(ios_base::floatfield);
+    return __base;
+  }
+#endif
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace

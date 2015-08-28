@@ -1,4 +1,11 @@
-/* config.in.  Generated from configure.in by autoheader.  */
+/* config.in.  Generated from configure.ac by autoheader.  */
+
+/* Check that config.h is #included before system headers
+   (this works only for glibc, but that should be enough).  */
+#if defined(__GLIBC__) && !defined(__FreeBSD_kernel__) && !defined(__CONFIG_H__)
+#  error config.h must be #included before system headers
+#endif
+#define __CONFIG_H__ 1
 
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
@@ -46,8 +53,36 @@
    */
 #undef HAVE_ALLOCA_H
 
+/* Define to 1 if you have the declaration of `free', and to 0 if you don't.
+   */
+#undef HAVE_DECL_FREE
+
+/* Define to 1 if you have the declaration of `getenv', and to 0 if you don't.
+   */
+#undef HAVE_DECL_GETENV
+
 /* Is the prototype for getopt in <unistd.h> in the expected format? */
 #undef HAVE_DECL_GETOPT
+
+/* Define to 1 if you have the declaration of `malloc', and to 0 if you don't.
+   */
+#undef HAVE_DECL_MALLOC
+
+/* Define to 1 if you have the declaration of `mempcpy', and to 0 if you
+   don't. */
+#undef HAVE_DECL_MEMPCPY
+
+/* Define to 1 if you have the declaration of `realloc', and to 0 if you
+   don't. */
+#undef HAVE_DECL_REALLOC
+
+/* Define to 1 if you have the declaration of `stpcpy', and to 0 if you don't.
+   */
+#undef HAVE_DECL_STPCPY
+
+/* Define to 1 if you have the declaration of `strstr', and to 0 if you don't.
+   */
+#undef HAVE_DECL_STRSTR
 
 /* Define to 1 if you have the declaration of `vsnprintf', and to 0 if you
    don't. */
@@ -62,8 +97,14 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define if your <locale.h> file defines LC_MESSAGES. */
+#undef HAVE_LC_MESSAGES
+
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
+
+/* Define to 1 if you have the <locale.h> header file. */
+#undef HAVE_LOCALE_H
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -74,8 +115,8 @@
 /* Define to 1 if you have the `sbrk' function. */
 #undef HAVE_SBRK
 
-/* Define to 1 if you have the <stdarg.h> header file. */
-#undef HAVE_STDARG_H
+/* Define to 1 if you have the `setlocale' function. */
+#undef HAVE_SETLOCALE
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -113,8 +154,11 @@
 /* Define to 1 if you have the `unlink' function. */
 #undef HAVE_UNLINK
 
-/* Define to 1 if you have the <varargs.h> header file. */
-#undef HAVE_VARARGS_H
+/* Define to 1 if you have the <windows.h> header file. */
+#undef HAVE_WINDOWS_H
+
+/* Define to 1 if you have the <zlib.h> header file. */
+#undef HAVE_ZLIB_H
 
 /* Using i386 COFF? */
 #undef I386COFF
@@ -137,6 +181,24 @@
 
 /* Choose a default ABI for MIPS targets. */
 #undef MIPS_DEFAULT_ABI
+
+/* Define value for nds32_arch_name */
+#undef NDS32_DEFAULT_ARCH_NAME
+
+/* Define default value for nds32_audio_ext */
+#undef NDS32_DEFAULT_AUDIO_EXT
+
+/* Define default value for nds32_dx_regs */
+#undef NDS32_DEFAULT_DX_REGS
+
+/* Define default value for nds32_perf_ext */
+#undef NDS32_DEFAULT_PERF_EXT
+
+/* Define default value for nds32_perf_ext2 */
+#undef NDS32_DEFAULT_PERF_EXT2
+
+/* Define default value for nds32_string_ext */
+#undef NDS32_DEFAULT_STRING_EXT
 
 /* Define if environ is not declared in system header files. */
 #undef NEED_DECLARATION_ENVIRON
@@ -217,6 +279,9 @@
 
 /* Using strict COFF? */
 #undef STRICTCOFF
+
+/* Define if you can safely include both <string.h> and <strings.h>. */
+#undef STRING_WITH_STRINGS
 
 /* Target alias. */
 #undef TARGET_ALIAS

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -37,51 +37,15 @@ package Exp_Ch6 is
    procedure Expand_N_Subprogram_Body_Stub      (N : Node_Id);
    procedure Expand_N_Subprogram_Declaration    (N : Node_Id);
 
-   procedure Expand_Actuals (N : Node_Id; Subp : Entity_Id);
-   --  For each actual of an in-out or out parameter which is a numeric
-   --  (view) conversion of the form T (A), where A denotes a variable,
-   --  we insert the declaration:
-   --
-   --    Temp : T[ := T (A)];
-   --
-   --  prior to the call. Then we replace the actual with a reference to Temp,
-   --  and append the assignment:
-   --
-   --    A := TypeA (Temp);
-   --
-   --  after the call. Here TypeA is the actual type of variable A. For out
-   --  parameters, the initial declaration has no expression. If A is not an
-   --  entity name, we generate instead:
-   --
-   --    Var  : TypeA renames A;
-   --    Temp : T := Var;       --  omitting expression for out parameter.
-   --    ...
-   --    Var := TypeA (Temp);
-   --
-   --  For other in-out parameters, we emit the required constraint checks
-   --  before and/or after the call.
-   --
-   --  For all parameter modes, actuals that denote components and slices of
-   --  packed arrays are expanded into suitable temporaries.
-   --
-   --  For non-scalar objects that are possibly unaligned, add call by copy
-   --  code (copy in for IN and IN OUT, copy out for OUT and IN OUT).
-
    procedure Expand_Call (N : Node_Id);
    --  This procedure contains common processing for Expand_N_Function_Call,
    --  Expand_N_Procedure_Statement, and Expand_N_Entry_Call.
 
-   procedure Expand_Subprogram_Contract
-     (N       : Node_Id;
-      Spec_Id : Entity_Id;
-      Body_Id : Entity_Id);
+   procedure Expand_Subprogram_Contract (N : Node_Id);
    --  Expand the contracts of a subprogram body and its correspoding spec (if
    --  any). This routine processes all [refined] pre- and postconditions as
-   --  well as Contract_Cases, invariants and predicates. N is the body of the
-   --  subprogram. Spec_Id denotes the entity of its specification. Body_Id
-   --  denotes the entity of the subprogram body. This routine is not a "pure"
-   --  expansion mechanism as it is invoked during analysis and may perform
-   --  actions for generic subprograms or set up contract assertions for ASIS.
+   --  well as Contract_Cases, invariants and predicates. N denotes the body of
+   --  the subprogram.
 
    procedure Freeze_Subprogram (N : Node_Id);
    --  generate the appropriate expansions related to Subprogram freeze
@@ -168,10 +132,6 @@ package Exp_Ch6 is
    function Is_Null_Procedure (Subp : Entity_Id) return Boolean;
    --  Predicate to recognize stubbed procedures and null procedures, which
    --  can be inlined unconditionally in all cases.
-
-   procedure List_Inlining_Info;
-   --  Generate listing of calls inlined by the frontend plus listing of
-   --  calls to inline subprograms passed to the backend.
 
    procedure Make_Build_In_Place_Call_In_Allocator
      (Allocator     : Node_Id;

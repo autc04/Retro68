@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -107,7 +107,7 @@ package Types is
 
    subtype Upper_Half_Character is
      Character range Character'Val (16#80#) .. Character'Val (16#FF#);
-   --  Characters with the upper bit set
+   --  8-bit Characters with the upper bit set
 
    type Character_Ptr is access all Character;
    type String_Ptr    is access all String;
@@ -659,29 +659,31 @@ package Types is
    type Check_Id is new Nat;
    --  Type used to represent a check id
 
-   No_Check_Id         : constant := 0;
+   No_Check_Id : constant := 0;
    --  Check_Id value used to indicate no check
 
    Access_Check           : constant :=  1;
    Accessibility_Check    : constant :=  2;
    Alignment_Check        : constant :=  3;
-   Atomic_Synchronization : constant :=  4;
-   Discriminant_Check     : constant :=  5;
-   Division_Check         : constant :=  6;
-   Elaboration_Check      : constant :=  7;
-   Index_Check            : constant :=  8;
-   Length_Check           : constant :=  9;
-   Overflow_Check         : constant := 10;
-   Predicate_Check        : constant := 11;
-   Range_Check            : constant := 12;
-   Storage_Check          : constant := 13;
-   Tag_Check              : constant := 14;
-   Validity_Check         : constant := 15;
+   Allocation_Check       : constant :=  4;
+   Atomic_Synchronization : constant :=  5;
+   Discriminant_Check     : constant :=  6;
+   Division_Check         : constant :=  7;
+   Duplicated_Tag_Check   : constant :=  8;
+   Elaboration_Check      : constant :=  9;
+   Index_Check            : constant := 10;
+   Length_Check           : constant := 11;
+   Overflow_Check         : constant := 12;
+   Predicate_Check        : constant := 13;
+   Range_Check            : constant := 14;
+   Storage_Check          : constant := 15;
+   Tag_Check              : constant := 16;
+   Validity_Check         : constant := 17;
    --  Values used to represent individual predefined checks (including the
    --  setting of Atomic_Synchronization, which is implemented internally using
    --  a "check" whose name is Atomic_Synchronization).
 
-   All_Checks : constant := 16;
+   All_Checks : constant := 18;
    --  Value used to represent All_Checks value
 
    subtype Predefined_Check_Id is Check_Id range 1 .. All_Checks;
@@ -704,7 +706,7 @@ package Types is
 
    --  To add a new check type to GNAT, the following steps are required:
 
-   --    1.  Add an entry to Snames spec and body for the new name
+   --    1.  Add an entry to Snames spec for the new name
    --    2.  Add an entry to the definition of Check_Id above
    --    3.  Add a new function to Checks to handle the new check test
    --    4.  Add a new Do_xxx_Check flag to Sinfo (if required)
@@ -793,10 +795,16 @@ package Types is
    --  mechanism. See specification of Sem_Mech for full details. The following
    --  subtype is used to represent values of this type:
 
-   subtype Mechanism_Type is Int range -18 .. Int'Last;
+   subtype Mechanism_Type is Int range -2 .. Int'Last;
    --  Type used to represent a mechanism value. This is a subtype rather than
    --  a type to avoid some annoying processing problems with certain routines
-   --  in Einfo (processing them to create the corresponding C).
+   --  in Einfo (processing them to create the corresponding C). The values in
+   --  the range -2 .. 0 are used to represent mechanism types declared as
+   --  named constants in the spec of Sem_Mech. Positive values are used for
+   --  the case of a pragma C_Pass_By_Copy that sets a threshold value for the
+   --  mechanism to be used. For example if pragma C_Pass_By_Copy (32) is given
+   --  then Default_C_Record_Mechanism is set to 32, and the meaning is to use
+   --  By_Reference if the size is greater than 32, and By_Copy otherwise.
 
    ------------------------------
    -- Run-Time Exception Codes --
@@ -818,17 +826,29 @@ package Types is
 
    --  To add a new code, you need to do the following:
 
-   --    1. Modify the type and subtype declarations below appropriately,
-   --       keeping things in alphabetical order.
+   --    1. Assign a new number to the reason. Do not renumber existing codes,
+   --       since this causes compatibility/bootstrap issues, and problems in
+   --       the CIL/JVM backends. So always add the new code at the end of the
+   --       list.
 
-   --    2. Modify the corresponding definitions in types.h, including the
+   --    2. Update the contents of the array Kind
+
+   --    3. Modify the corresponding definitions in types.h, including the
    --       definition of last_reason_code.
 
-   --    3. Add the name of the routines in exp_ch11.Get_RT_Exception_Name
+   --    4. Add the name of the routines in exp_ch11.Get_RT_Exception_Name
 
-   --    4. Add a new routine in Ada.Exceptions with the appropriate call and
+   --    5. Add a new routine in Ada.Exceptions with the appropriate call and
    --       static string constant. Note that there is more than one version
    --       of a-except.adb which must be modified.
+
+   --  Note on ordering of references. For the tables in Ada.Exceptions units,
+   --  usually the ordering does not matter, and we use the same ordering as
+   --  is used here (note the requirement in the ordering here that CE/PE/SE
+   --  codes be kept together, so the subtype declarations work OK). However,
+   --  there is an important exception, which is in a-except-2005.adb, where
+   --  ordering of the Rcheck routines must correspond to the ordering of the
+   --  Rmsg_xx messages. This is required by the .NET scripts.
 
    type RT_Exception_Code is
      (CE_Access_Check_Failed,            -- 00
@@ -841,17 +861,18 @@ package Types is
       CE_Length_Check_Failed,            -- 07
       CE_Null_Exception_Id,              -- 08
       CE_Null_Not_Allowed,               -- 09
+
       CE_Overflow_Check_Failed,          -- 10
       CE_Partition_Check_Failed,         -- 11
       CE_Range_Check_Failed,             -- 12
       CE_Tag_Check_Failed,               -- 13
-
       PE_Access_Before_Elaboration,      -- 14
       PE_Accessibility_Check_Failed,     -- 15
       PE_Address_Of_Intrinsic,           -- 16
       PE_Aliased_Parameters,             -- 17
       PE_All_Guards_Closed,              -- 18
       PE_Bad_Predicated_Generic_Type,    -- 19
+
       PE_Current_Task_In_Entry_Body,     -- 20
       PE_Duplicated_Entry_Address,       -- 21
       PE_Explicit_Raise,                 -- 22
@@ -862,24 +883,60 @@ package Types is
       PE_Overlaid_Controlled_Object,     -- 27
       PE_Potentially_Blocking_Operation, -- 28
       PE_Stubbed_Subprogram_Called,      -- 29
+
       PE_Unchecked_Union_Restriction,    -- 30
       PE_Non_Transportable_Actual,       -- 31
-
       SE_Empty_Storage_Pool,             -- 32
       SE_Explicit_Raise,                 -- 33
       SE_Infinite_Recursion,             -- 34
-      SE_Object_Too_Large);              -- 35
+      SE_Object_Too_Large,               -- 35
+      PE_Stream_Operation_Not_Allowed);  -- 36
 
-   subtype RT_CE_Exceptions is RT_Exception_Code range
-     CE_Access_Check_Failed ..
-     CE_Tag_Check_Failed;
+   Last_Reason_Code : constant := 36;
+   --  Last reason code
 
-   subtype RT_PE_Exceptions is RT_Exception_Code range
-     PE_Access_Before_Elaboration ..
-     PE_Non_Transportable_Actual;
+   type Reason_Kind is (CE_Reason, PE_Reason, SE_Reason);
+   --  Categorization of reason codes by exception raised
 
-   subtype RT_SE_Exceptions is RT_Exception_Code range
-     SE_Empty_Storage_Pool ..
-     SE_Object_Too_Large;
+   Rkind : array (RT_Exception_Code range <>) of Reason_Kind :=
+             (CE_Access_Check_Failed            => CE_Reason,
+              CE_Access_Parameter_Is_Null       => CE_Reason,
+              CE_Discriminant_Check_Failed      => CE_Reason,
+              CE_Divide_By_Zero                 => CE_Reason,
+              CE_Explicit_Raise                 => CE_Reason,
+              CE_Index_Check_Failed             => CE_Reason,
+              CE_Invalid_Data                   => CE_Reason,
+              CE_Length_Check_Failed            => CE_Reason,
+              CE_Null_Exception_Id              => CE_Reason,
+              CE_Null_Not_Allowed               => CE_Reason,
+              CE_Overflow_Check_Failed          => CE_Reason,
+              CE_Partition_Check_Failed         => CE_Reason,
+              CE_Range_Check_Failed             => CE_Reason,
+              CE_Tag_Check_Failed               => CE_Reason,
+
+              PE_Access_Before_Elaboration      => PE_Reason,
+              PE_Accessibility_Check_Failed     => PE_Reason,
+              PE_Address_Of_Intrinsic           => PE_Reason,
+              PE_Aliased_Parameters             => PE_Reason,
+              PE_All_Guards_Closed              => PE_Reason,
+              PE_Bad_Predicated_Generic_Type    => PE_Reason,
+              PE_Current_Task_In_Entry_Body     => PE_Reason,
+              PE_Duplicated_Entry_Address       => PE_Reason,
+              PE_Explicit_Raise                 => PE_Reason,
+              PE_Finalize_Raised_Exception      => PE_Reason,
+              PE_Implicit_Return                => PE_Reason,
+              PE_Misaligned_Address_Value       => PE_Reason,
+              PE_Missing_Return                 => PE_Reason,
+              PE_Overlaid_Controlled_Object     => PE_Reason,
+              PE_Potentially_Blocking_Operation => PE_Reason,
+              PE_Stubbed_Subprogram_Called      => PE_Reason,
+              PE_Unchecked_Union_Restriction    => PE_Reason,
+              PE_Non_Transportable_Actual       => PE_Reason,
+              PE_Stream_Operation_Not_Allowed   => PE_Reason,
+
+              SE_Empty_Storage_Pool             => SE_Reason,
+              SE_Explicit_Raise                 => SE_Reason,
+              SE_Infinite_Recursion             => SE_Reason,
+              SE_Object_Too_Large               => SE_Reason);
 
 end Types;

@@ -4,8 +4,7 @@
    THIS FILE IS MACHINE GENERATED WITH CGEN.
    - the resultant file is machine generated, cgen-asm.in isn't
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -633,7 +632,7 @@ expand_macro (arg *args, int narg, macro *mac)
   char *result = 0, *rescanned_result = 0;
   char *e = mac->expansion;
   char *mark = e;
-  int arg = 0;
+  int mac_arg = 0;
 
   /*  printf("expanding macro %s with %d args\n", mac->name, narg + 1); */
   while (*e)
@@ -644,9 +643,9 @@ expand_macro (arg *args, int narg, macro *mac)
 	  ((*(e + 1) - '1') <= narg))
 	{
 	  result = str_append (result, mark, e - mark);
-	  arg = (*(e + 1) - '1');
-	  /* printf("replacing `%d with %s\n", arg+1, args[arg].start); */
-	  result = str_append (result, args[arg].start, args[arg].len);
+	  mac_arg = (*(e + 1) - '1');
+	  /* printf("replacing `%d with %s\n", mac_arg+1, args[mac_arg].start); */
+	  result = str_append (result, args[mac_arg].start, args[mac_arg].len);
 	  ++e;
 	  mark = e+1;
 	}
@@ -678,8 +677,7 @@ expand_string (const char *in, int first_only)
   arg args[MAXARGS];
   int state = IN_TEXT;
   const char *mark = in;
-  macro *macro = 0;
-
+  macro *pmacro = NULL;
   char *expansion = 0;
   char *result = 0;
 
@@ -690,18 +688,18 @@ expand_string (const char *in, int first_only)
 	case IN_TEXT:
 	  if (*in == '%' && *(in + 1) && (!first_only || num_expansions == 0)) 
 	    {	      
-	      macro = lookup_macro (in + 1);
-	      if (macro)
+	      pmacro = lookup_macro (in + 1);
+	      if (pmacro)
 		{
 		  /* printf("entering state %d at '%s'...\n", state, in); */
 		  result = str_append (result, mark, in - mark);
 		  mark = in;
-		  in += 1 + strlen (macro->name);
+		  in += 1 + strlen (pmacro->name);
 		  while (*in == ' ') ++in;
 		  if (*in != '(')
 		    {
 		      state = IN_TEXT;		      
-		      macro = 0;
+		      pmacro = NULL;
 		    }
 		  else
 		    {
@@ -727,10 +725,10 @@ expand_string (const char *in, int first_only)
 		case ')':
 		  state = IN_TEXT;
 		  /* printf("entering state %d at '%s'...\n", state, in); */
-		  if (macro)
+		  if (pmacro)
 		    {
 		      expansion = 0;
-		      expansion = expand_macro (args, narg, macro);
+		      expansion = expand_macro (args, narg, pmacro);
 		      num_expansions++;
 		      if (expansion)
 			{
@@ -742,7 +740,7 @@ expand_string (const char *in, int first_only)
 		    {
 		      result = str_append (result, mark, in - mark);
 		    }
-		  macro = 0;
+		  pmacro = NULL;
 		  mark = in + 1;
 		  break;
 		case '(':
@@ -1534,9 +1532,11 @@ parse_insn_normal (CGEN_CPU_DESC cd,
 	  continue;
 	}
 
+#ifdef CGEN_MNEMONIC_OPERANDS
+      (void) past_opcode_p;
+#endif
       /* We have an operand of some sort.  */
-      errmsg = cd->parse_operand (cd, CGEN_SYNTAX_FIELD (*syn),
-					  &str, fields);
+      errmsg = cd->parse_operand (cd, CGEN_SYNTAX_FIELD (*syn), &str, fields);
       if (errmsg)
 	return errmsg;
 
@@ -1653,31 +1653,39 @@ mep_cgen_assemble_insn (CGEN_CPU_DESC cd,
 
   {
     static char errbuf[150];
-#ifdef CGEN_VERBOSE_ASSEMBLER_ERRORS
     const char *tmp_errmsg;
-
-    /* If requesting verbose error messages, use insert_errmsg.
-       Failing that, use parse_errmsg.  */
-    tmp_errmsg = (insert_errmsg ? insert_errmsg :
-		  parse_errmsg ? parse_errmsg :
-		  recognized_mnemonic ?
-		  _("unrecognized form of instruction") :
-		  _("unrecognized instruction"));
-
-    if (strlen (start) > 50)
-      /* xgettext:c-format */
-      sprintf (errbuf, "%s `%.50s...'", tmp_errmsg, start);
-    else 
-      /* xgettext:c-format */
-      sprintf (errbuf, "%s `%.50s'", tmp_errmsg, start);
+#ifdef CGEN_VERBOSE_ASSEMBLER_ERRORS
+#define be_verbose 1
 #else
-    if (strlen (start) > 50)
-      /* xgettext:c-format */
-      sprintf (errbuf, _("bad instruction `%.50s...'"), start);
-    else 
-      /* xgettext:c-format */
-      sprintf (errbuf, _("bad instruction `%.50s'"), start);
+#define be_verbose 0
 #endif
+
+    if (be_verbose)
+      {
+	/* If requesting verbose error messages, use insert_errmsg.
+	   Failing that, use parse_errmsg.  */
+	tmp_errmsg = (insert_errmsg ? insert_errmsg :
+		      parse_errmsg ? parse_errmsg :
+		      recognized_mnemonic ?
+		      _("unrecognized form of instruction") :
+		      _("unrecognized instruction"));
+
+	if (strlen (start) > 50)
+	  /* xgettext:c-format */
+	  sprintf (errbuf, "%s `%.50s...'", tmp_errmsg, start);
+	else 
+	  /* xgettext:c-format */
+	  sprintf (errbuf, "%s `%.50s'", tmp_errmsg, start);
+      }
+    else
+      {
+	if (strlen (start) > 50)
+	  /* xgettext:c-format */
+	  sprintf (errbuf, _("bad instruction `%.50s...'"), start);
+	else 
+	  /* xgettext:c-format */
+	  sprintf (errbuf, _("bad instruction `%.50s'"), start);
+      }
       
     *errmsg = errbuf;
     return NULL;

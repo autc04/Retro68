@@ -1,5 +1,5 @@
 /* tc-z80.c -- Assemble code for the Zilog Z80 and ASCII R800
-   Copyright 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Arnold Metselaar <arnold_m@operamail.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -161,12 +161,93 @@ Default: -z80 -ignore-undocument-instructions -warn-unportable-instructions.\n")
 
 static symbolS * zero;
 
+struct reg_entry
+{
+  char* name;
+  int number;
+};
+#define R_STACKABLE (0x80)
+#define R_ARITH     (0x40)
+#define R_IX        (0x20)
+#define R_IY        (0x10)
+#define R_INDEX     (R_IX | R_IY)
+
+#define REG_A (7)
+#define REG_B (0)
+#define REG_C (1)
+#define REG_D (2)
+#define REG_E (3)
+#define REG_H (4)
+#define REG_L (5)
+#define REG_F (6 | 8)
+#define REG_I (9)
+#define REG_R (10)
+
+#define REG_AF (3 | R_STACKABLE)
+#define REG_BC (0 | R_STACKABLE | R_ARITH)
+#define REG_DE (1 | R_STACKABLE | R_ARITH)
+#define REG_HL (2 | R_STACKABLE | R_ARITH)
+#define REG_IX (REG_HL | R_IX)
+#define REG_IY (REG_HL | R_IY)
+#define REG_SP (3 | R_ARITH)
+
+static const struct reg_entry regtable[] =
+{
+  {"a",  REG_A },
+  {"af", REG_AF },
+  {"b",  REG_B },
+  {"bc", REG_BC },
+  {"c",  REG_C },
+  {"d",  REG_D },
+  {"de", REG_DE },
+  {"e",  REG_E },
+  {"f",  REG_F },
+  {"h",  REG_H },
+  {"hl", REG_HL },
+  {"i",  REG_I },
+  {"ix", REG_IX },
+  {"ixh",REG_H | R_IX },
+  {"ixl",REG_L | R_IX },
+  {"iy", REG_IY },
+  {"iyh",REG_H | R_IY },
+  {"iyl",REG_L | R_IY },
+  {"l",  REG_L },
+  {"r",  REG_R },
+  {"sp", REG_SP },
+} ;
+
+#define BUFLEN 8 /* Large enough for any keyword.  */
+
 void
 md_begin (void)
 {
-  expressionS nul;
+  expressionS nul, reg;
   char * p;
+  unsigned int i, j, k;
+  char buf[BUFLEN];
 
+  reg.X_op = O_register;
+  reg.X_md = 0;
+  reg.X_add_symbol = reg.X_op_symbol = 0;
+  for ( i = 0 ; i < ARRAY_SIZE ( regtable ) ; ++i )
+    {
+      reg.X_add_number = regtable[i].number;
+      k = strlen ( regtable[i].name );
+      buf[k] = 0;
+      if ( k+1 < BUFLEN )
+        {
+          for ( j = ( 1<<k ) ; j ; --j )
+            {
+              for ( k = 0 ; regtable[i].name[k] ; ++k )
+                {
+                  buf[k] = ( j & ( 1<<k ) ) ? TOUPPER ( regtable[i].name[k] ) : regtable[i].name[k];
+                }
+              symbolS * psym = symbol_find_or_make(buf);
+	      S_SET_SEGMENT(psym, reg_section);
+	      symbol_set_value_expression(psym, &reg);
+            }
+        }
+    }
   p = input_line_pointer;
   input_line_pointer = "0";
   nul.X_md=0;
@@ -253,10 +334,8 @@ z80_start_line_hook (void)
     {
       char c, *rest, *line_start;
       int len;
-      symbolS * symbolP;
 
       line_start = input_line_pointer;
-      LISTING_NEWLINE ();
       if (ignore_input ())
 	return 0;
 
@@ -275,20 +354,17 @@ z80_start_line_hook (void)
 	len = 4;
       else
 	len = 0;
-      if (len && (rest[len] == ' ' || rest[len] == '\t'))
+      if (len && (!ISALPHA(rest[len]) ) )
 	{
 	  /* Handle assignment here.  */
-	  input_line_pointer = rest + len;
 	  if (line_start[-1] == '\n')
-	    bump_line_counters ();
-	  /* Most Z80 assemblers require the first definition of a
-             label to use "EQU" and redefinitions to have "DEFL".  */
-	  if (len == 3 && (symbolP = symbol_find (line_start)) != NULL) 
 	    {
-	      if (S_IS_DEFINED (symbolP) || symbol_equated_p (symbolP))
-		as_bad (_("symbol `%s' is already defined"), line_start);
+	      bump_line_counters ();
+	      LISTING_NEWLINE ();
 	    }
-	  equals (line_start, 1);
+	  input_line_pointer = rest + len - 1;
+	  /* Allow redefining with "DEFL" (len == 4), but not with "EQU".  */
+	  equals (line_start, len == 4);
 	  return 1;
 	}
       else
@@ -348,62 +424,8 @@ key_cmp (const void * a, const void * b)
   return strcmp (str_a, str_b);
 }
 
-#define BUFLEN 8 /* Large enough for any keyword.  */
-
 char buf[BUFLEN];
 const char *key = buf;
-
-#define R_STACKABLE (0x80)
-#define R_ARITH     (0x40)
-#define R_IX        (0x20)
-#define R_IY        (0x10)
-#define R_INDEX     (R_IX | R_IY)
-
-#define REG_A (7)
-#define REG_B (0)
-#define REG_C (1)
-#define REG_D (2)
-#define REG_E (3)
-#define REG_H (4)
-#define REG_L (5)
-#define REG_F (6 | 8)
-#define REG_I (9)
-#define REG_R (10)
-
-#define REG_AF (3 | R_STACKABLE)
-#define REG_BC (0 | R_STACKABLE | R_ARITH)
-#define REG_DE (1 | R_STACKABLE | R_ARITH)
-#define REG_HL (2 | R_STACKABLE | R_ARITH)
-#define REG_SP (3 | R_ARITH)
-
-static const struct reg_entry
-{
-  char* name;
-  int number;
-} regtable[] =
-{
-  {"a",  REG_A },
-  {"af", REG_AF },
-  {"b",  REG_B },
-  {"bc", REG_BC },
-  {"c",  REG_C },
-  {"d",  REG_D },
-  {"de", REG_DE },
-  {"e",  REG_E },
-  {"f",  REG_F },
-  {"h",  REG_H },
-  {"hl", REG_HL },
-  {"i",  REG_I },
-  {"ix", REG_HL | R_IX },
-  {"ixh",REG_H | R_IX },
-  {"ixl",REG_L | R_IX },
-  {"iy", REG_HL | R_IY },
-  {"iyh",REG_H | R_IY },
-  {"iyl",REG_L | R_IY },
-  {"l",  REG_L },
-  {"r",  REG_R },
-  {"sp", REG_SP },
-} ;
 
 /* Prevent an error on a line from also generating
    a "junk at end of line" error message.  */
@@ -445,7 +467,7 @@ wrong_mach (int ins_type)
   if (ins_type & ins_err)
     error (_(p));
   else
-    as_warn (_(p));
+    as_warn ("%s", _(p));
 }
 
 static void
@@ -501,88 +523,89 @@ is_indir (const char *s)
   return indir;
 }
 
-/* Parse general expression.  */
+/* Check whether a symbol involves a register.  */
+static int 
+contains_register(symbolS *sym)
+{
+  if (sym)
+  {
+    expressionS * ex = symbol_get_value_expression(sym);
+    return (O_register == ex->X_op) 
+      || (ex->X_add_symbol && contains_register(ex->X_add_symbol)) 
+      || (ex->X_op_symbol && contains_register(ex->X_op_symbol));
+  }
+  else
+    return 0;
+}
+
+/* Parse general expression, not loooking for indexed adressing.  */
 static const char *
-parse_exp2 (const char *s, expressionS *op, segT *pseg)
+parse_exp_not_indexed (const char *s, expressionS *op)
 {
   const char *p;
   int indir;
-  int i;
-  const struct reg_entry * regp;
-  expressionS offset;
 
   p = skip_space (s);
   op->X_md = indir = is_indir (p);
-  if (indir)
-    p = skip_space (p + 1);
-
-  for (i = 0; i < BUFLEN; ++i)
-    {
-      if (!ISALPHA (p[i])) /* Register names consist of letters only.  */
-	break;
-      buf[i] = TOLOWER (p[i]);
-    }
-
-  if ((i < BUFLEN) && ((p[i] == 0) || (strchr (")+-, \t", p[i]))))
-    {
-      buf[i] = 0;
-      regp = bsearch (& key, regtable, ARRAY_SIZE (regtable),
-		      sizeof (regtable[0]), key_cmp);
-      if (regp)
-	{
-	  *pseg = reg_section;
-	  op->X_add_symbol = op->X_op_symbol = 0;
-	  op->X_add_number = regp->number;
-	  op->X_op = O_register;
-	  p += strlen (regp->name);
-	  p = skip_space (p);
-	  if (indir)
-	    {
-	      if (*p == ')')
-		++p;
-	      if ((regp->number & R_INDEX) && (regp->number & R_ARITH))
-		{
-		  op->X_op = O_md1;
-
-		  if  ((*p == '+') || (*p == '-'))
-		    {
-		      input_line_pointer = (char*) p;
-		      expression (& offset);
-		      p = skip_space (input_line_pointer);
-		      if (*p != ')')
-			error (_("bad offset expression syntax"));
-		      else
-			++ p;
-		      op->X_add_symbol = make_expr_symbol (& offset);
-		      return p;
-		    }
-
-		  /* We treat (i[xy]) as (i[xy]+0), which is how it will
-		     end up anyway, unless we're processing jp (i[xy]).  */
-		  op->X_add_symbol = zero;
-		}
-	    }
-	  p = skip_space (p);
-
-	  if ((*p == 0) || (*p == ','))
-	    return p;
-	}
-    }
-  /* Not an argument involving a register; use the generic parser.  */
   input_line_pointer = (char*) s ;
-  *pseg = expression (op);
-  if (op->X_op == O_absent)
-    error (_("missing operand"));
-  if (op->X_op == O_illegal)
-    error (_("bad expression syntax"));
+  expression (op);
+  switch (op->X_op)
+    {
+    case O_absent:
+      error (_("missing operand"));
+      break;
+    case O_illegal:
+      error (_("bad expression syntax"));
+      break;
+    }
   return input_line_pointer;
 }
 
+/* Parse expression, change operator to O_md1 for indexed addressing*/
 static const char *
 parse_exp (const char *s, expressionS *op)
 {
-  segT dummy;
-  return parse_exp2 (s, op, & dummy);
+  const char* res = parse_exp_not_indexed (s, op);
+  switch (op->X_op)
+    {
+    case O_add:
+    case O_subtract:
+      if (op->X_md && (O_register == symbol_get_value_expression(op->X_add_symbol)->X_op))
+        {
+	  int rnum = symbol_get_value_expression(op->X_add_symbol)->X_add_number;
+	  if ( ((REG_IX != rnum) && (REG_IY != rnum)) || contains_register(op->X_op_symbol) )
+	    {
+	      ill_op();
+	    }
+	  else
+	    {
+	      if (O_subtract == op->X_op)
+	        {
+		  expressionS minus;
+		  minus.X_op = O_uminus;
+		  minus.X_add_number = 0;
+		  minus.X_add_symbol = op->X_op_symbol;
+		  minus.X_op_symbol = 0;
+		  op->X_op_symbol = make_expr_symbol(&minus);
+		  op->X_op = O_add;
+	        }
+	      symbol_get_value_expression(op->X_op_symbol)->X_add_number += op->X_add_number;
+	      op->X_add_number = rnum;
+	      op->X_add_symbol = op->X_op_symbol;
+	      op->X_op_symbol = 0;
+	      op->X_op = O_md1;
+	    }
+	}
+      break;
+    case O_register:
+      if ( op->X_md && ((REG_IX == op->X_add_number)||(REG_IY == op->X_add_number)) )
+        {
+	  op->X_add_symbol = zero;
+	  op->X_op = O_md1;
+	}
+	break;
+    }
+  return res;
 }
 
 /* Condition codes, including some synonyms provided by HiTech zas.  */
@@ -681,11 +704,14 @@ emit_byte (expressionS * val, bfd_reloc_code_real_type r_type)
 {
   char *p;
   int lo, hi;
-  fixS * fixp;
 
   p = frag_more (1);
   *p = val->X_add_number;
-  if ((r_type == BFD_RELOC_8_PCREL) && (val->X_op == O_constant))
+  if ( contains_register(val->X_add_symbol) || contains_register(val->X_op_symbol) )
+    {
+      ill_op();
+    }
+  else if ((r_type == BFD_RELOC_8_PCREL) && (val->X_op == O_constant))
     {
       as_bad (_("cannot make a relative jump to an absolute location"));
     }
@@ -704,8 +730,8 @@ emit_byte (expressionS * val, bfd_reloc_code_real_type r_type)
     }
   else
     {
-      fixp = fix_new_exp (frag_now, p - frag_now->fr_literal, 1, val,
-			  (r_type == BFD_RELOC_8_PCREL) ? TRUE : FALSE, r_type);
+      fix_new_exp (frag_now, p - frag_now->fr_literal, 1, val,
+		   (r_type == BFD_RELOC_8_PCREL) ? TRUE : FALSE, r_type);
       /* FIXME : Process constant offsets immediately.  */
     }
 }
@@ -717,7 +743,9 @@ emit_word (expressionS * val)
 
   p = frag_more (2);
   if (   (val->X_op == O_register)
-      || (val->X_op == O_md1))
+      || (val->X_op == O_md1)
+      || contains_register(val->X_add_symbol)
+      || contains_register(val->X_op_symbol) )
     ill_op ();
   else
     {
@@ -774,8 +802,12 @@ emit_mx (char prefix, char opcode, int shift, expressionS * arg)
       q = frag_more (2);
       *q++ = (rnum & R_IX) ? 0xDD : 0xFD;
       *q = (prefix) ? prefix : (opcode + (6 << shift));
-      emit_byte (symbol_get_value_expression (arg->X_add_symbol),
-		 BFD_RELOC_Z80_DISP8);
+      {
+	expressionS offset = *arg;
+	offset.X_op = O_symbol;
+	offset.X_add_number = 0;
+	emit_byte (&offset, BFD_RELOC_Z80_DISP8);
+      }
       if (prefix)
 	{
 	  q = frag_more (1);
@@ -889,7 +921,7 @@ emit_call (char prefix ATTRIBUTE_UNUSED, char opcode, const char * args)
   expressionS addr;
   const char *p;  char *q;
 
-  p = parse_exp (args, &addr);
+  p = parse_exp_not_indexed (args, &addr);
   if (addr.X_md)
     ill_op ();
   else
@@ -937,7 +969,7 @@ emit_jr (char prefix ATTRIBUTE_UNUSED, char opcode, const char * args)
   const char *p;
   char *q;
 
-  p = parse_exp (args, &addr);
+  p = parse_exp_not_indexed (args, &addr);
   if (addr.X_md)
     ill_op ();
   else
@@ -957,14 +989,11 @@ emit_jp (char prefix, char opcode, const char * args)
   char *q;
   int rnum;
 
-  p = parse_exp (args, & addr);
+  p = parse_exp_not_indexed (args, & addr);
   if (addr.X_md)
     {
       rnum = addr.X_add_number;
-      if ((addr.X_op == O_register && (rnum & ~R_INDEX) == REG_HL)
-	 /* An operand (i[xy]) would have been rewritten to (i[xy]+0)
-            in parse_exp ().  */
-	  || (addr.X_op == O_md1 && addr.X_add_symbol == zero))
+      if ((O_register == addr.X_op) && (REG_HL == (rnum & ~R_INDEX)))
 	{
 	  q = frag_more ((rnum & R_INDEX) ? 2 : 1);
 	  if (rnum & R_INDEX)
@@ -1067,7 +1096,7 @@ emit_adc (char prefix, char opcode, const char * args)
   p = parse_exp (args, &term);
   if (*p++ != ',')
     {
-      error (_("bad intruction syntax"));
+      error (_("bad instruction syntax"));
       return p;
     }
 
@@ -1110,7 +1139,7 @@ emit_add (char prefix, char opcode, const char * args)
   p = parse_exp (args, &term);
   if (*p++ != ',')
     {
-      error (_("bad intruction syntax"));
+      error (_("bad instruction syntax"));
       return p;
     }
 
@@ -1154,7 +1183,7 @@ emit_bit (char prefix, char opcode, const char * args)
 
   p = parse_exp (args, &b);
   if (*p++ != ',')
-    error (_("bad intruction syntax"));
+    error (_("bad instruction syntax"));
 
   bn = b.X_add_number;
   if ((!b.X_md)
@@ -1218,7 +1247,7 @@ emit_ex (char prefix_in ATTRIBUTE_UNUSED,
   const char * p;
   char prefix, opcode;
 
-  p = parse_exp (args, &op);
+  p = parse_exp_not_indexed (args, &op);
   p = skip_space (p);
   if (*p++ != ',')
     {
@@ -1274,7 +1303,7 @@ emit_in (char prefix ATTRIBUTE_UNUSED, char opcode ATTRIBUTE_UNUSED,
   p = parse_exp (args, &reg);
   if (*p++ != ',')
     {
-      error (_("bad intruction syntax"));
+      error (_("bad instruction syntax"));
       return p;
     }
 
@@ -1328,7 +1357,7 @@ emit_out (char prefix ATTRIBUTE_UNUSED, char opcode ATTRIBUTE_UNUSED,
   p = parse_exp (args, & port);
   if (*p++ != ',')
     {
-      error (_("bad intruction syntax"));
+      error (_("bad instruction syntax"));
       return p;
     }
   p = parse_exp (p, &reg);
@@ -1378,7 +1407,7 @@ emit_rst (char prefix ATTRIBUTE_UNUSED, char opcode, const char * args)
   const char *p;
   char *q;
 
-  p = parse_exp (args, &addr);
+  p = parse_exp_not_indexed (args, &addr);
   if (addr.X_op != O_constant)
     {
       error ("rst needs constant address");
@@ -1597,14 +1626,19 @@ emit_ld (char prefix_in ATTRIBUTE_UNUSED, char opcode_in ATTRIBUTE_UNUSED,
 
   p = parse_exp (args, &dst);
   if (*p++ != ',')
-    error (_("bad intruction syntax"));
+    error (_("bad instruction syntax"));
   p = parse_exp (p, &src);
 
   switch (dst.X_op)
     {
     case O_md1:
-      emit_ldxhl ((dst.X_add_number & R_IX) ? 0xDD : 0xFD, 0x70,
-		  &src, symbol_get_value_expression (dst.X_add_symbol));
+      {
+        expressionS dst_offset = dst;
+	dst_offset.X_op = O_symbol;
+	dst_offset.X_add_number = 0;
+	emit_ldxhl ((dst.X_add_number & R_IX) ? 0xDD : 0xFD, 0x70,
+		    &src, &dst_offset);
+      }
       break;
 
     case O_register:
@@ -1917,7 +1951,7 @@ void
 md_apply_fix (fixS * fixP, valueT* valP, segT seg ATTRIBUTE_UNUSED)
 {
   long val = * (long *) valP;
-  char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
+  char *p_lit = fixP->fx_where + fixP->fx_frag->fr_literal;
 
   switch (fixP->fx_r_type)
     {
@@ -1933,7 +1967,7 @@ md_apply_fix (fixS * fixP, valueT* valP, segT seg ATTRIBUTE_UNUSED)
 	  if (!fixP->fx_no_overflow)
             as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("relative jump out of range"));
-	  *buf++ = val;
+	  *p_lit++ = val;
           fixP->fx_done = 1;
         }
       break;
@@ -1950,7 +1984,7 @@ md_apply_fix (fixS * fixP, valueT* valP, segT seg ATTRIBUTE_UNUSED)
 	  if (!fixP->fx_no_overflow)
             as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("index offset  out of range"));
-	  *buf++ = val;
+	  *p_lit++ = val;
           fixP->fx_done = 1;
         }
       break;
@@ -1958,34 +1992,34 @@ md_apply_fix (fixS * fixP, valueT* valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_8:
       if (val > 255 || val < -128)
 	as_warn_where (fixP->fx_file, fixP->fx_line, _("overflow"));
-      *buf++ = val;
+      *p_lit++ = val;
       fixP->fx_no_overflow = 1; 
       if (fixP->fx_addsy == NULL)
 	fixP->fx_done = 1;
       break;
 
     case BFD_RELOC_16:
-      *buf++ = val;
-      *buf++ = (val >> 8);
+      *p_lit++ = val;
+      *p_lit++ = (val >> 8);
       fixP->fx_no_overflow = 1; 
       if (fixP->fx_addsy == NULL)
 	fixP->fx_done = 1;
       break;
 
     case BFD_RELOC_24: /* Def24 may produce this.  */
-      *buf++ = val;
-      *buf++ = (val >> 8);
-      *buf++ = (val >> 16);
+      *p_lit++ = val;
+      *p_lit++ = (val >> 8);
+      *p_lit++ = (val >> 16);
       fixP->fx_no_overflow = 1; 
       if (fixP->fx_addsy == NULL)
 	fixP->fx_done = 1;
       break;
 
     case BFD_RELOC_32: /* Def32 and .long may produce this.  */
-      *buf++ = val;
-      *buf++ = (val >> 8);
-      *buf++ = (val >> 16);
-      *buf++ = (val >> 24);
+      *p_lit++ = val;
+      *p_lit++ = (val >> 8);
+      *p_lit++ = (val >> 16);
+      *p_lit++ = (val >> 24);
       if (fixP->fx_addsy == NULL)
 	fixP->fx_done = 1;
       break;

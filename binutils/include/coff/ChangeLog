@@ -1,3 +1,149 @@
+2014-08-20  Daniel Micay  <danielmicay@gmail.com>
+
+	* pe.h: Add HIGH_ENTROPY_VA flag
+
+2014-04-22  Christian Svensson  <blue@cmd.nu>
+
+	* or32.h: Delete.
+
+2014-04-08  Jon TURNEY  <jon.turney@dronecode.org.uk>
+
+	* pe.h (external_IMAGE_DEBUG_DIRECTORY, _CV_INFO_PDB70)
+	(_CV_INFO_PDB20): Add structures and constants for debug directory
+	and codeview records.
+	* internal.h (internal_IMAGE_DEBUG_DIRECTORY, CODEVIEW_INFO):
+	Add structures and constants for internal representation of debug
+	directory and codeview records.
+
+2014-03-13  Tristan Gingold  <gingold@adacore.com>
+
+	* pe.h (struct external_ANON_OBJECT_HEADER_BIGOBJ): Declare.
+	(FILHSZ_BIGOBJ): Define.
+	(struct external_SYMBOL_EX): Declare.
+	(SYMENT_BIGOBJ, SYMESZ_BIGOBJ): Define.
+	(union external_AUX_SYMBOL_EX): Declare.
+	(AUXENT_BIGOBJ, AUXESZ_BIGOBJ): Define.
+	* internal.h (struct internal_filehdr): Change type
+	of f_nscns.
+
+2014-03-05  Alan Modra  <amodra@gmail.com>
+
+	Update copyright years.
+
+2013-12-06  Tristan Gingold  <gingold@adacore.com>
+
+	* pe.h (UWOP_EPILOG, UWOP_PARE): Define.
+
+2013-07-10  Tristan Gingold  <gingold@adacore.com>
+
+	* rs6000.h (external_core_dumpx): New structure.
+	(external_ld_info32): Ditto.
+
+2013-07-02  Tristan Gingold  <gingold@adacore.com>
+
+	* internal.h (C_STTLS, C_GTLS): Define.
+	* xcoff.h (XMC_TL, XMC_TU, XMC_TE): Define.
+
+2013-02-04  Alan Modra  <amodra@gmail.com>
+
+	* ti.h (SWAP_OUT_RELOC_EXTRA): Define.
+
+2013-01-02  Martin Storsjo <martin@martin.st>
+
+	* arm.h (ARMV7PEMAGIC): Define.
+	(ARMBADMAG): Update.
+
+2011-06-02  Nick Clifton  <nickc@redhat.com>
+
+	* i860.h: Fix spelling mistake in comment.
+
+2011-05-04  Tristan Gingold  <gingold@adacore.com>
+
+	* rs6000.h (union external_auxent): Add x_ftype field.
+	* rs6k64.h: (struct external_auxent): Remap x_file field.
+
+2011-05-04  Tristan Gingold  <gingold@adacore.com>
+
+	* rs6000.h (struct external_exceptab): New struct.
+	(EXCEPTSZ): New macro.
+	* rs6k64.h: (struct external_exceptab): New struct.
+	(EXCEPTSZ): New macro.
+
+2011-05-03  Tristan Gingold  <gingold@adacore.com>
+
+	* rs6000.h (struct external_ldsym): Use E_SYMNMLEN instead of
+	SYMNMLEN.
+
+2011-04-27  Tristan Gingold  <gingold@adacore.com>
+
+	* xcoff.h (F_FDPR_PROF, F_FDPR_OPTI, F_DSA, F_VARPG)
+	(STYP_DWARF, SSUBTYP_DWINFO)
+	(SSUBTYP_DWLINE, SSUBTYP_DWPBNMS, SSUBTYP_DWPBTYP)
+	(SSUBTYP_DWARNGE, SSUBTYP_DWABREV, SSUBTYP_DWSTR)
+	(SSUBTYP_DWRNGES, STYP_TDATA, STYP_TBSS, R_TLS, R_TLS_IE)
+	(R_TLS_LD, R_TLS_LE, R_TLSM, R_TLSML, R_TOCU, R_TOCL, C_DWARF):
+	New macros.
+
+2011-03-31  Tristan Gingold  <gingold@adacore.com>
+
+	* internal.h (C_NULL_VALUE): Define.
+
+2010-06-29  Alan Modra  <amodra@gmail.com>
+
+	* maxq.h: Delete file.
+
+2010-04-15  Nick Clifton  <nickc@redhat.com>
+
+	* alpha.h: Update copyright notice to use GPLv3.
+	* apollo.h: Likewise.
+	* arm.h: Likewise.
+	* aux-coff.h: Likewise.
+	* ecoff.h: Likewise.
+	* external.h: Likewise.
+	* go32exe.h: Likewise.
+	* h8300.h: Likewise.
+	* h8500.h: Likewise.
+	* i386.h: Likewise.
+	* i860.h: Likewise.
+	* i960.h: Likewise.
+	* ia64.h: Likewise.
+	* internal.h: Likewise.
+	* m68k.h: Likewise.
+	* m88k.h: Likewise.
+	* maxq.h: Likewise.
+	* mcore.h: Likewise.
+	* mips.h: Likewise.
+	* mipspe.h: Likewise.
+	* or32.h: Likewise.
+	* pe.h: Likewise.
+	* powerpc.h: Likewise.
+	* rs6000.h: Likewise.
+	* rs6k64.h: Likewise.
+	* sh.h: Likewise.
+	* sparc.h: Likewise.
+	* ti.h: Likewise.
+	* tic30.h: Likewise.
+	* tic4x.h: Likewise.
+	* tic54x.h: Likewise.
+	* tic80.h: Likewise.
+	* w65.h: Likewise.
+	* we32k.h: Likewise.
+	* x86_64.h: Likewise.
+	* xcoff.h: Likewise.
+	* z80.h: Likewise.
+	* z8k.h: Likewise.
+
+2009-12-02  Jerker Bäck  <jerker.back@gmail.com>
+
+	PR binutils/11017
+	* i386lh (COFF_PAGE_SIZE): Define.
+	* x86_64.h (COFF_PAGE_SIZE): Define.
+
+2009-10-17  Arnold Metselaar  <arnold.metselaar@planet.nl>
+
+	* z80.h: Store alignment requirement in section header, to allow
+	ld to preserve alignment. Some code was copied from ti.h.
+
 2009-09-05  Martin Thuresson  <martin@mtme.org>
 
 	* ti.h (GET_LNSZ_SIZE, PUT_LNSZ_SIZE): Updated name of class
@@ -212,7 +358,7 @@
 	internal.h, m68k.h, m88k.h, maxq.h, mcore.h, mips.h, mipspe.h,
 	or32.h, pe.h, powerpc.h, rs6k64.h, sh.h, sparc.h, ti.h, tic30.h,
 	tic4x.h, tic54x.h, tic80.h, w65.h, we32k.h, xcoff.h, z8k.h
-	
+
 2005-02-21  Alan Modra  <amodra@bigpond.net.au>
 
 	* xcoff.h (struct xcoff_loader_info): Warning fix.
@@ -249,6 +395,12 @@
 
 For older changes see ChangeLog-9103
 
+Copyright (C) 2004-2014 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
 Local Variables:
 mode: change-log
 left-margin: 8

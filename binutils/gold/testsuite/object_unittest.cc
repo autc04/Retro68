@@ -1,6 +1,6 @@
 // object_unittest.cc -- test Object, Relobj, etc.
 
-// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -23,6 +23,8 @@
 #include "gold.h"
 
 #include "object.h"
+#include "options.h"
+#include "parameters.h"
 
 #include "test.h"
 #include "testfile.h"
@@ -62,7 +64,10 @@ Sized_object_test(const unsigned char* test_file, unsigned int test_file_size)
 bool
 Object_test(Test_report*)
 {
+  General_options options;
   int fail = 0;
+
+  set_parameters_options(&options);
 
 #ifdef HAVE_TARGET_32_LITTLE
   if (!Sized_object_test<32, false>(test_file_1_32_little,

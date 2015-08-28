@@ -167,8 +167,13 @@ func TestRemoveAll(t *testing.T) {
 }
 
 func TestMkdirAllWithSymlink(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skip("Skipping test: symlinks don't exist under Windows/Plan 9")
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("skipping on %s", runtime.GOOS)
+	case "windows":
+		if !supportsSymlinks {
+			t.Skipf("skipping on %s", runtime.GOOS)
+		}
 	}
 
 	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")
@@ -197,8 +202,9 @@ func TestMkdirAllWithSymlink(t *testing.T) {
 }
 
 func TestMkdirAllAtSlash(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
+	switch runtime.GOOS {
+	case "android", "plan9", "windows":
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	RemoveAll("/_go_os_test")
 	err := MkdirAll("/_go_os_test/dir", 0777)

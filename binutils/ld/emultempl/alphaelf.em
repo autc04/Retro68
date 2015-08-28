@@ -1,6 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2003, 2004, 2005, 2007, 2008, 2009
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -30,7 +29,6 @@ fragment <<EOF
 #include "elf-bfd.h"
 
 static bfd_boolean limit_32bit;
-static bfd_boolean disable_relaxation;
 
 extern bfd_boolean elf64_alpha_use_secureplt;
 
@@ -42,7 +40,7 @@ static void
 alpha_after_open (void)
 {
   if (bfd_get_flavour (link_info.output_bfd) == bfd_target_elf_flavour
-      && elf_object_id (link_info.output_bfd) == ALPHA_ELF_TDATA)
+      && elf_object_id (link_info.output_bfd) == ALPHA_ELF_DATA)
     {
       unsigned int num_plt;
       lang_output_section_statement_type *os;
@@ -74,6 +72,7 @@ alpha_after_open (void)
 static void
 alpha_after_parse (void)
 {
+  link_info.relax_pass = 2;
   if (limit_32bit && !link_info.shared && !link_info.relocatable)
     lang_section_start (".interp",
 			exp_binop ('+',
@@ -91,8 +90,8 @@ alpha_before_allocation (void)
   gld${EMULATION_NAME}_before_allocation ();
 
   /* Add -relax if -O, not -r, and not explicitly disabled.  */
-  if (link_info.optimize && !link_info.relocatable && !disable_relaxation)
-    command_line.relax = TRUE;
+  if (link_info.optimize && !link_info.relocatable && ! RELAXATION_DISABLED_BY_USER)
+    ENABLE_RELAXATION;
 }
 
 static void
@@ -110,14 +109,12 @@ EOF
 #
 PARSE_AND_LIST_PROLOGUE='
 #define OPTION_TASO		300
-#define OPTION_NO_RELAX		(OPTION_TASO + 1)
-#define OPTION_SECUREPLT	(OPTION_NO_RELAX + 1)
+#define OPTION_SECUREPLT	(OPTION_TASO + 1)
 #define OPTION_NO_SECUREPLT	(OPTION_SECUREPLT + 1)
 '
 
 PARSE_AND_LIST_LONGOPTS='
   { "taso", no_argument, NULL, OPTION_TASO },
-  { "no-relax", no_argument, NULL, OPTION_NO_RELAX },
   { "secureplt", no_argument, NULL, OPTION_SECUREPLT },
   { "no-secureplt", no_argument, NULL, OPTION_NO_SECUREPLT },
 '
@@ -126,7 +123,6 @@ PARSE_AND_LIST_OPTIONS='
   fprintf (file, _("\
   --taso                      Load executable in the lower 31-bit addressable\n\
                                 virtual address range.\n\
-  --no-relax                  Do not relax call and gp sequences.\n\
   --secureplt                 Force PLT in text segment.\n\
   --no-secureplt              Force PLT in data segment.\n\
 "));
@@ -135,9 +131,6 @@ PARSE_AND_LIST_OPTIONS='
 PARSE_AND_LIST_ARGS_CASES='
     case OPTION_TASO:
       limit_32bit = 1;
-      break;
-    case OPTION_NO_RELAX:
-      disable_relaxation = TRUE;
       break;
     case OPTION_SECUREPLT:
       elf64_alpha_use_secureplt = TRUE;

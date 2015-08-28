@@ -1,5 +1,5 @@
 /* Configuration for an i386 running MS-DOS with DJGPP.
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -80,7 +80,8 @@ along with GCC; see the file COPYING3.  If not see
 #undef LINK_COMMAND_SPEC
 #define LINK_COMMAND_SPEC \
 "%{!fsyntax-only: \
-%{!c:%{!M:%{!MM:%{!E:%{!S:%(linker) %l %X %{o*} %{e*} %{N} %{n} \
+%{!c:%{!M:%{!MM:%{!E:%{!S:%(linker) %l " LINK_COMPRESS_DEBUG_SPEC \
+"%X %{o*} %{e*} %{N} %{n} \
 \t%{r} %{s} %{t} %{u*} %{z} %{Z}\
 \t%{!nostdlib:%{!nostartfiles:%S}}\
 \t%{static:} %{L*} %D %o\
@@ -176,3 +177,5 @@ while (0)
 /* Support for C++ templates.  */
 #undef MAKE_DECL_ONE_ONLY
 #define MAKE_DECL_ONE_ONLY(DECL) (DECL_WEAK (DECL) = 1)
+
+#define IX86_MAYBE_NO_LIBGCC_TFMODE

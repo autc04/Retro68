@@ -1,6 +1,5 @@
 /* tc-c30.c -- Assembly code for the Texas Instruments TMS320C30
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of GAS, the GNU Assembler.
@@ -34,7 +33,7 @@
 static char operand_special_chars[] = "%$-+(,)*._~/<>&^!:[@]";
 static char *ordinal_names[] =
 {
-  "first", "second", "third", "fourth", "fifth"
+  N_("first"), N_("second"), N_("third"), N_("fourth"), N_("fifth")
 };
 
 const char comment_chars[]        = ";";
@@ -85,11 +84,11 @@ debug (const char *string, ...)
   if (flag_debug)
     {
       char str[100];
+      va_list argptr;
 
-      VA_OPEN (argptr, string);
-      VA_FIXEDARG (argptr, const char *, string);
+      va_start (argptr, string);
       vsprintf (str, string, argptr);
-      VA_CLOSE (argptr);
+      va_end (argptr);
       if (str[0] == '\0')
 	return (0);
       fputs (str, USE_STDOUT ? stdout : stderr);
@@ -327,19 +326,19 @@ tic30_find_parallel_insn (char *current_line, char *next_line)
 
   {
     int i;
-    char *opcode, *operands, *line;
+    char *op, *operands, *line;
 
     for (i = 0; i < 2; i++)
       {
 	if (i == 0)
 	  {
-	    opcode = &first_opcode[0];
+	    op = &first_opcode[0];
 	    operands = &first_operands[0];
 	    line = current_line;
 	  }
 	else
 	  {
-	    opcode = &second_opcode[0];
+	    op = &second_opcode[0];
 	    operands = &second_operands[0];
 	    line = next_line;
 	  }
@@ -353,14 +352,14 @@ tic30_find_parallel_insn (char *current_line, char *next_line)
 	    {
 	      if (is_opcode_char (c) && search_status == NONE)
 		{
-		  opcode[char_ptr++] = TOLOWER (c);
+		  op[char_ptr++] = TOLOWER (c);
 		  search_status = START_OPCODE;
 		}
 	      else if (is_opcode_char (c) && search_status == START_OPCODE)
-		opcode[char_ptr++] = TOLOWER (c);
+		op[char_ptr++] = TOLOWER (c);
 	      else if (!is_opcode_char (c) && search_status == START_OPCODE)
 		{
-		  opcode[char_ptr] = '\0';
+		  op[char_ptr] = '\0';
 		  char_ptr = 0;
 		  search_status = END_OPCODE;
 		}
@@ -620,8 +619,6 @@ tic30_operand (char *token)
 	    }
 	  else
 	    {
-	      unsigned count;
-
 	      debug ("Found a number or displacement\n");
 	      for (count = 0; count < strlen (token); count++)
 		if (*(token + count) == '.')
@@ -1307,42 +1304,42 @@ md_atof (int what_statement_type,
 	}
       if (prec == 2)
 	{
-	  long exp, mant;
+	  long expon, mantis;
 
 	  if (tmsfloat == 0x80000000)
 	    value = 0x8000;
 	  else
 	    {
 	      value = 0;
-	      exp = (tmsfloat & 0xFF000000);
-	      exp >>= 24;
-	      mant = tmsfloat & 0x007FFFFF;
+	      expon = (tmsfloat & 0xFF000000);
+	      expon >>= 24;
+	      mantis = tmsfloat & 0x007FFFFF;
 	      if (tmsfloat & 0x00800000)
 		{
-		  mant |= 0xFF000000;
-		  mant += 0x00000800;
-		  mant >>= 12;
-		  mant |= 0x00000800;
-		  mant &= 0x0FFF;
-		  if (exp > 7)
+		  mantis |= 0xFF000000;
+		  mantis += 0x00000800;
+		  mantis >>= 12;
+		  mantis |= 0x00000800;
+		  mantis &= 0x0FFF;
+		  if (expon > 7)
 		    value = 0x7800;
 		}
 	      else
 		{
-		  mant |= 0x00800000;
-		  mant += 0x00000800;
-		  exp += (mant >> 24);
-		  mant >>= 12;
-		  mant &= 0x07FF;
-		  if (exp > 7)
+		  mantis |= 0x00800000;
+		  mantis += 0x00000800;
+		  expon += (mantis >> 24);
+		  mantis >>= 12;
+		  mantis &= 0x07FF;
+		  if (expon > 7)
 		    value = 0x77FF;
 		}
-	      if (exp < -8)
+	      if (expon < -8)
 		value = 0x8000;
 	      if (value == 0)
 		{
-		  mant = (exp << 12) | mant;
-		  value = mant & 0xFFFF;
+		  mantis = (expon << 12) | mantis;
+		  value = mantis & 0xFFFF;
 		}
 	    }
 	}
@@ -1416,7 +1413,7 @@ md_operand (expressionS *expressionP ATTRIBUTE_UNUSED)
 void
 md_assemble (char *line)
 {
-  insn_template *opcode;
+  insn_template *op;
   char *current_posn;
   char *token_start;
   char save_char;
@@ -1464,11 +1461,11 @@ md_assemble (char *line)
     /* Find instruction.  */
     save_char = *current_posn;
     *current_posn = '\0';
-    opcode = (insn_template *) hash_find (op_hash, token_start);
-    if (opcode)
+    op = (insn_template *) hash_find (op_hash, token_start);
+    if (op)
       {
-	debug ("Found instruction %s\n", opcode->name);
-	insn.tm = opcode;
+	debug ("Found instruction %s\n", op->name);
+	insn.tm = op;
       }
     else
       {

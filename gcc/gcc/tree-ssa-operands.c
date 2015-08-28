@@ -1,5 +1,5 @@
 /* SSA operands management for trees.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,13 +21,26 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stmt.h"
 #include "print-tree.h"
 #include "flags.h"
+#include "hard-reg-set.h"
+#include "input.h"
 #include "function.h"
 #include "gimple-pretty-print.h"
 #include "bitmap.h"
+#include "predict.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -166,6 +179,7 @@ create_vop_var (struct function *fn)
 			   get_identifier (".MEM"),
 			   void_type_node);
   DECL_ARTIFICIAL (global_var) = 1;
+  DECL_IGNORED_P (global_var) = 1;
   TREE_READONLY (global_var) = 0;
   DECL_EXTERNAL (global_var) = 1;
   TREE_STATIC (global_var) = 1;
@@ -275,8 +289,8 @@ ssa_operand_alloc (struct function *fn, unsigned size)
 	}
 
 
-      ptr = ggc_alloc_ssa_operand_memory_d (sizeof (void *)
-                        + gimple_ssa_operands (fn)->ssa_operand_mem_size);
+      ptr = (ssa_operand_memory_d *) ggc_internal_alloc
+	(sizeof (void *) + gimple_ssa_operands (fn)->ssa_operand_mem_size);
 
       ptr->next = gimple_ssa_operands (fn)->operand_memory;
       gimple_ssa_operands (fn)->operand_memory = ptr;
@@ -401,9 +415,10 @@ finalize_ssa_uses (struct function *fn, gimple stmt)
   /* If there is anything in the old list, free it.  */
   if (old_ops)
     {
-      for (ptr = old_ops; ptr; ptr = ptr->next)
+      for (ptr = old_ops; ptr->next; ptr = ptr->next)
 	delink_imm_use (USE_OP_PTR (ptr));
-      old_ops->next = gimple_ssa_operands (fn)->free_uses;
+      delink_imm_use (USE_OP_PTR (ptr));
+      ptr->next = gimple_ssa_operands (fn)->free_uses;
       gimple_ssa_operands (fn)->free_uses = old_ops;
     }
 
@@ -477,9 +492,6 @@ append_use (tree *use_p)
 static inline void
 append_vdef (tree var)
 {
-  if (!optimize)
-    return;
-
   gcc_assert ((build_vdef == NULL_TREE
 	       || build_vdef == var)
 	      && (build_vuse == NULL_TREE
@@ -495,9 +507,6 @@ append_vdef (tree var)
 static inline void
 append_vuse (tree var)
 {
-  if (!optimize)
-    return;
-
   gcc_assert (build_vuse == NULL_TREE
 	      || build_vuse == var);
 
@@ -639,7 +648,7 @@ get_tmr_operands (struct function *fn, gimple stmt, tree expr, int flags)
    escape, add them to the VDEF/VUSE lists for it.  */
 
 static void
-maybe_add_call_vops (struct function *fn, gimple stmt)
+maybe_add_call_vops (struct function *fn, gcall *stmt)
 {
   int call_flags = gimple_call_flags (stmt);
 
@@ -660,7 +669,7 @@ maybe_add_call_vops (struct function *fn, gimple stmt)
 /* Scan operands in the ASM_EXPR stmt referred to in INFO.  */
 
 static void
-get_asm_stmt_operands (struct function *fn, gimple stmt)
+get_asm_stmt_operands (struct function *fn, gasm *stmt)
 {
   size_t i, noutputs;
   const char **oconstraints;
@@ -864,6 +873,7 @@ get_expr_operands (struct function *fn, gimple stmt, tree *expr_p, int flags)
       }
 
     case DOT_PROD_EXPR:
+    case SAD_EXPR:
     case REALIGN_LOAD_EXPR:
     case WIDEN_MULT_PLUS_EXPR:
     case WIDEN_MULT_MINUS_EXPR:
@@ -913,7 +923,7 @@ parse_ssa_operands (struct function *fn, gimple stmt)
   switch (code)
     {
     case GIMPLE_ASM:
-      get_asm_stmt_operands (fn, stmt);
+      get_asm_stmt_operands (fn, as_a <gasm *> (stmt));
       break;
 
     case GIMPLE_TRANSACTION:
@@ -934,7 +944,7 @@ parse_ssa_operands (struct function *fn, gimple stmt)
 
     case GIMPLE_CALL:
       /* Add call-clobbered operands, if needed.  */
-      maybe_add_call_vops (fn, stmt);
+      maybe_add_call_vops (fn, as_a <gcall *> (stmt));
       /* FALLTHRU */
 
     case GIMPLE_ASSIGN:
@@ -1090,12 +1100,6 @@ update_stmt_operands (struct function *fn, gimple stmt)
     return;
 
   timevar_push (TV_TREE_OPS);
-
-  /* If the stmt is a noreturn call queue it to be processed by
-     split_bbs_on_noreturn_calls during cfg cleanup.  */
-  if (is_gimple_call (stmt)
-      && gimple_call_noreturn_p (stmt))
-    vec_safe_push (MODIFIED_NORETURN_CALLS (fn), stmt);
 
   gcc_assert (gimple_modified_p (stmt));
   build_ssa_operands (fn, stmt);

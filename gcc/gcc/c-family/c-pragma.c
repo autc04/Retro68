@@ -1,5 +1,5 @@
 /* Handle #pragma, system V.4 style.  Supports #pragma weak and #pragma pack.
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,11 +21,26 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "attribs.h"
 #include "varasm.h"
-#include "gcc-symtab.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "machmode.h"
+#include "hard-reg-set.h"
+#include "input.h"
 #include "function.h"		/* For cfun.  FIXME: Does the parser know
 				   when it is inside a function, so that
 				   we don't have to look at cfun?  */
@@ -35,11 +50,14 @@ along with GCC; see the file COPYING3.  If not see
 #include "c-common.h"
 #include "tm_p.h"		/* For REGISTER_TARGET_PRAGMAS (why is
 				   this not a target hook?).  */
-#include "vec.h"
 #include "target.h"
 #include "diagnostic.h"
 #include "opts.h"
 #include "plugin.h"
+#include "hash-map.h"
+#include "is-a.h"
+#include "plugin-api.h"
+#include "ipa-ref.h"
 #include "cgraph.h"
 
 #define GCC_BAD(gmsgid) \
@@ -74,9 +92,7 @@ static void pop_alignment (tree);
 static void
 push_alignment (int alignment, tree id)
 {
-  align_stack * entry;
-
-  entry = ggc_alloc_align_stack ();
+  align_stack * entry = ggc_alloc<align_stack> ();
 
   entry->alignment  = alignment;
   entry->id	    = id;
@@ -331,7 +347,7 @@ maybe_apply_pending_pragma_weaks (void)
       if (id == NULL)
 	continue;
 
-      target = symtab_node_for_asm (id);
+      target = symtab_node::get_for_asmname (id);
       decl = build_decl (UNKNOWN_LOCATION,
 			 target ? TREE_CODE (target->decl) : FUNCTION_DECL,
 			 alias_id, default_function_type);
@@ -376,6 +392,9 @@ handle_pragma_weak (cpp_reader * ARG_UNUSED (dummy))
   decl = identifier_global_value (name);
   if (decl && DECL_P (decl))
     {
+      if (!VAR_OR_FUNCTION_DECL_P (decl))
+	GCC_BAD2 ("%<#pragma weak%> declaration of %q+D not allowed,"
+		  " ignored", decl);
       apply_pragma_weak (decl, value);
       if (value)
 	{
@@ -481,7 +500,7 @@ handle_pragma_redefine_extname (cpp_reader * ARG_UNUSED (dummy))
 			 "conflict with previous rename");
 	    }
 	  else
-	    change_decl_assembler_name (decl, newname);
+	    symtab->change_decl_assembler_name (decl, newname);
 	}
     }
 
@@ -911,7 +930,6 @@ handle_pragma_push_options (cpp_reader *ARG_UNUSED(dummy))
 {
   enum cpp_ttype token;
   tree x = 0;
-  opt_stack *p;
 
   token = pragma_lex (&x);
   if (token != CPP_EOF)
@@ -920,7 +938,7 @@ handle_pragma_push_options (cpp_reader *ARG_UNUSED(dummy))
       return;
     }
 
-  p = ggc_alloc_opt_stack ();
+  opt_stack *p = ggc_alloc<opt_stack> ();
   p->prev = options_stack;
   options_stack = p;
 
@@ -1175,6 +1193,17 @@ typedef struct
 static vec<pragma_ns_name> registered_pp_pragmas;
 
 struct omp_pragma_def { const char *name; unsigned int id; };
+static const struct omp_pragma_def oacc_pragmas[] = {
+  { "cache", PRAGMA_OACC_CACHE },
+  { "data", PRAGMA_OACC_DATA },
+  { "enter", PRAGMA_OACC_ENTER_DATA },
+  { "exit", PRAGMA_OACC_EXIT_DATA },
+  { "kernels", PRAGMA_OACC_KERNELS },
+  { "loop", PRAGMA_OACC_LOOP },
+  { "parallel", PRAGMA_OACC_PARALLEL },
+  { "update", PRAGMA_OACC_UPDATE },
+  { "wait", PRAGMA_OACC_WAIT }
+};
 static const struct omp_pragma_def omp_pragmas[] = {
   { "atomic", PRAGMA_OMP_ATOMIC },
   { "barrier", PRAGMA_OMP_BARRIER },
@@ -1207,10 +1236,19 @@ static const struct omp_pragma_def omp_pragmas_simd[] = {
 void
 c_pp_lookup_pragma (unsigned int id, const char **space, const char **name)
 {
+  const int n_oacc_pragmas = sizeof (oacc_pragmas) / sizeof (*oacc_pragmas);
   const int n_omp_pragmas = sizeof (omp_pragmas) / sizeof (*omp_pragmas);
   const int n_omp_pragmas_simd = sizeof (omp_pragmas_simd)
 				 / sizeof (*omp_pragmas);
   int i;
+
+  for (i = 0; i < n_oacc_pragmas; ++i)
+    if (oacc_pragmas[i].id == id)
+      {
+	*space = "acc";
+	*name = oacc_pragmas[i].name;
+	return;
+      }
 
   for (i = 0; i < n_omp_pragmas; ++i)
     if (omp_pragmas[i].id == id)
@@ -1378,6 +1416,17 @@ c_invoke_pragma_handler (unsigned int id)
 void
 init_pragma (void)
 {
+  if (flag_openacc)
+    {
+      const int n_oacc_pragmas
+	= sizeof (oacc_pragmas) / sizeof (*oacc_pragmas);
+      int i;
+
+      for (i = 0; i < n_oacc_pragmas; ++i)
+	cpp_register_deferred_pragma (parse_in, "acc", oacc_pragmas[i].name,
+				      oacc_pragmas[i].id, true, true);
+    }
+
   if (flag_openmp)
     {
       const int n_omp_pragmas = sizeof (omp_pragmas) / sizeof (*omp_pragmas);
@@ -1409,6 +1458,11 @@ init_pragma (void)
   if (!flag_preprocess_only)
     cpp_register_deferred_pragma (parse_in, "GCC", "ivdep", PRAGMA_IVDEP, false,
 				  false);
+
+  if (flag_cilkplus && !flag_preprocess_only)
+    cpp_register_deferred_pragma (parse_in, "cilk", "grainsize",
+				  PRAGMA_CILK_GRAINSIZE, true, false);
+
 #ifdef HANDLE_PRAGMA_PACK_WITH_EXPANSION
   c_register_pragma_with_expansion (0, "pack", handle_pragma_pack);
 #else

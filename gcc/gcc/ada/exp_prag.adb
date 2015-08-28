@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,6 +32,7 @@ with Errout;   use Errout;
 with Exp_Ch11; use Exp_Ch11;
 with Exp_Util; use Exp_Util;
 with Expander; use Expander;
+with Inline;   use Inline;
 with Namet;    use Namet;
 with Nlists;   use Nlists;
 with Nmake;    use Nmake;
@@ -41,14 +42,12 @@ with Rident;   use Rident;
 with Rtsfind;  use Rtsfind;
 with Sem;      use Sem;
 with Sem_Ch8;  use Sem_Ch8;
-with Sem_Res;  use Sem_Res;
 with Sem_Util; use Sem_Util;
 with Sinfo;    use Sinfo;
 with Sinput;   use Sinput;
 with Snames;   use Snames;
 with Stringt;  use Stringt;
 with Stand;    use Stand;
-with Targparm; use Targparm;
 with Tbuild;   use Tbuild;
 with Uintp;    use Uintp;
 with Validsw;  use Validsw;
@@ -68,12 +67,19 @@ package body Exp_Prag is
    procedure Expand_Pragma_Check                   (N : Node_Id);
    procedure Expand_Pragma_Common_Object           (N : Node_Id);
    procedure Expand_Pragma_Import_Or_Interface     (N : Node_Id);
-   procedure Expand_Pragma_Import_Export_Exception (N : Node_Id);
    procedure Expand_Pragma_Inspection_Point        (N : Node_Id);
    procedure Expand_Pragma_Interrupt_Priority      (N : Node_Id);
    procedure Expand_Pragma_Loop_Variant            (N : Node_Id);
    procedure Expand_Pragma_Psect_Object            (N : Node_Id);
    procedure Expand_Pragma_Relative_Deadline       (N : Node_Id);
+   procedure Expand_Pragma_Suppress_Initialization (N : Node_Id);
+
+   procedure Undo_Initialization (Def_Id : Entity_Id; N : Node_Id);
+   --  This procedure is used to undo initialization already done for Def_Id,
+   --  which is always an E_Variable, in response to the occurrence of the
+   --  pragma N, a pragma Interface, Import, or Suppress_Initialization. In all
+   --  these cases we want no initialization to occur, but we have already done
+   --  the initialization by the time we see the pragma, so we have to undo it.
 
    ----------
    -- Arg1 --
@@ -268,18 +274,20 @@ package body Exp_Prag is
       --  Given the entity Id of a boolean flag, generate:
       --    Id : Boolean := False;
 
-      procedure Expand_Old_In_Consequence
+      procedure Expand_Attributes_In_Consequence
         (Decls  : List_Id;
          Evals  : in out Node_Id;
          Flag   : Entity_Id;
          Conseq : Node_Id);
       --  Perform specialized expansion of all attribute 'Old references found
       --  in consequence Conseq such that at runtime only prefixes coming from
-      --  the selected consequence are evaluated. Any temporaries generated in
-      --  the process are added to declarative list Decls. Evals is a complex
-      --  if statement tasked with the evaluation of all prefixes coming from
-      --  a selected consequence. Flag is the corresponding case guard flag.
-      --  Conseq is the consequence expression.
+      --  the selected consequence are evaluated. Similarly expand attribute
+      --  'Result references by replacing them with identifier _result which
+      --  resolves to the sole formal parameter of procedure _Postconditions.
+      --  Any temporaries generated in the process are added to declarations
+      --  Decls. Evals is a complex if statement tasked with the evaluation of
+      --  all prefixes coming from a single selected consequence. Flag is the
+      --  corresponding case guard flag. Conseq is the consequence expression.
 
       function Increment (Id : Entity_Id) return Node_Id;
       --  Given the entity Id of a numerical variable, generate:
@@ -403,11 +411,11 @@ package body Exp_Prag is
              Expression          => New_Occurrence_Of (Standard_False, Loc));
       end Declaration_Of;
 
-      -------------------------------
-      -- Expand_Old_In_Consequence --
-      -------------------------------
+      --------------------------------------
+      -- Expand_Attributes_In_Consequence --
+      --------------------------------------
 
-      procedure Expand_Old_In_Consequence
+      procedure Expand_Attributes_In_Consequence
         (Decls  : List_Id;
          Evals  : in out Node_Id;
          Flag   : Entity_Id;
@@ -417,20 +425,22 @@ package body Exp_Prag is
          --  The evaluation sequence expressed as assignment statements of all
          --  prefixes of attribute 'Old found in the current consequence.
 
-         function Expand_Old (N : Node_Id) return Traverse_Result;
-         --  Determine whether an arbitrary node denotes attribute 'Old and if
-         --  it does, perform all expansion-related actions.
+         function Expand_Attributes (N : Node_Id) return Traverse_Result;
+         --  Determine whether an arbitrary node denotes attribute 'Old or
+         --  'Result and if it does, perform all expansion-related actions.
 
-         ----------------
-         -- Expand_Old --
-         ----------------
+         -----------------------
+         -- Expand_Attributes --
+         -----------------------
 
-         function Expand_Old (N : Node_Id) return Traverse_Result is
+         function Expand_Attributes (N : Node_Id) return Traverse_Result is
             Decl : Node_Id;
             Pref : Node_Id;
             Temp : Entity_Id;
 
          begin
+            --  Attribute 'Old
+
             if Nkind (N) = N_Attribute_Reference
               and then Attribute_Name (N) = Name_Old
             then
@@ -440,6 +450,9 @@ package body Exp_Prag is
 
                --  Generate a temporary to capture the value of the prefix:
                --    Temp : <Pref type>;
+               --  Place that temporary at the beginning of declarations, to
+               --  prevent anomalies in the GNATprove flow-analysis pass in
+               --  the precondition procedure that follows.
 
                Decl :=
                  Make_Object_Declaration (Loc,
@@ -448,7 +461,8 @@ package body Exp_Prag is
                      New_Occurrence_Of (Etype (Pref), Loc));
                Set_No_Initialization (Decl);
 
-               Append_To (Decls, Decl);
+               Prepend_To (Decls, Decl);
+               Analyze (Decl);
 
                --  Evaluate the prefix, generate:
                --    Temp := <Pref>;
@@ -472,20 +486,32 @@ package body Exp_Prag is
                --  generated temporary.
 
                Rewrite (N, New_Occurrence_Of (Temp, Loc));
+
+            --  Attribute 'Result
+
+            elsif Is_Attribute_Result (N) then
+               Rewrite (N, Make_Identifier (Loc, Name_uResult));
             end if;
 
             return OK;
-         end Expand_Old;
+         end Expand_Attributes;
 
-         procedure Expand_Olds is new Traverse_Proc (Expand_Old);
+         procedure Expand_Attributes_In is
+           new Traverse_Proc (Expand_Attributes);
 
-      --  Start of processing for Expand_Old_In_Consequence
+      --  Start of processing for Expand_Attributes_In_Consequence
 
       begin
-         --  Inspect the consequence and expand any attribute 'Old references
-         --  found within.
+         --  Inspect the consequence and expand any attribute 'Old and 'Result
+         --  references found within.
 
-         Expand_Olds (Conseq);
+         Expand_Attributes_In (Conseq);
+
+         --  The consequence does not contain any attribute 'Old references
+
+         if No (Eval_Stmts) then
+            return;
+         end if;
 
          --  Augment the machinery to trigger the evaluation of all prefixes
          --  found in the step above. If Eval is empty, then this is the first
@@ -516,7 +542,7 @@ package body Exp_Prag is
                 Condition       => New_Occurrence_Of (Flag, Loc),
                 Then_Statements => Eval_Stmts));
          end if;
-      end Expand_Old_In_Consequence;
+      end Expand_Attributes_In_Consequence;
 
       ---------------
       -- Increment --
@@ -556,11 +582,15 @@ package body Exp_Prag is
       Conseq        : Node_Id;
       Conseq_Checks : Node_Id   := Empty;
       Count         : Entity_Id;
+      Count_Decl    : Node_Id;
       Error_Decls   : List_Id;
       Flag          : Entity_Id;
+      Flag_Decl     : Node_Id;
+      If_Stmt       : Node_Id;
       Msg_Str       : Entity_Id;
       Multiple_PCs  : Boolean;
       Old_Evals     : Node_Id   := Empty;
+      Others_Decl   : Node_Id;
       Others_Flag   : Entity_Id := Empty;
       Post_Case     : Node_Id;
 
@@ -587,12 +617,14 @@ package body Exp_Prag is
       --    Count : Natural := 0;
 
       Count := Make_Temporary (Loc, 'C');
-
-      Prepend_To (Decls,
+      Count_Decl :=
         Make_Object_Declaration (Loc,
           Defining_Identifier => Count,
           Object_Definition   => New_Occurrence_Of (Standard_Natural, Loc),
-          Expression          => Make_Integer_Literal (Loc, 0)));
+          Expression          => Make_Integer_Literal (Loc, 0));
+
+      Prepend_To (Decls, Count_Decl);
+      Analyze (Count_Decl);
 
       --  Create the base error message for multiple overlapping case guards
 
@@ -625,7 +657,10 @@ package body Exp_Prag is
 
          if Nkind (Case_Guard) = N_Others_Choice then
             Others_Flag := Make_Temporary (Loc, 'F');
-            Prepend_To (Decls, Declaration_Of (Others_Flag));
+            Others_Decl := Declaration_Of (Others_Flag);
+
+            Prepend_To (Decls, Others_Decl);
+            Analyze (Others_Decl);
 
             --  Check possible overlap between a case guard and "others"
 
@@ -638,9 +673,9 @@ package body Exp_Prag is
             end if;
 
             --  Inspect the consequence and perform special expansion of any
-            --  attribute 'Old references found within.
+            --  attribute 'Old and 'Result references found within.
 
-            Expand_Old_In_Consequence
+            Expand_Attributes_In_Consequence
               (Decls  => Decls,
                Evals  => Old_Evals,
                Flag   => Others_Flag,
@@ -660,7 +695,10 @@ package body Exp_Prag is
             --  guard.
 
             Flag := Make_Temporary (Loc, 'F');
-            Prepend_To (Decls, Declaration_Of (Flag));
+            Flag_Decl := Declaration_Of (Flag);
+
+            Prepend_To (Decls, Flag_Decl);
+            Analyze (Flag_Decl);
 
             --  The flag is set when the case guard is evaluated to True
             --    if Case_Guard then
@@ -668,12 +706,15 @@ package body Exp_Prag is
             --       Count := Count + 1;
             --    end if;
 
-            Append_To (Decls,
+            If_Stmt :=
               Make_Implicit_If_Statement (CCs,
                 Condition       => Relocate_Node (Case_Guard),
                 Then_Statements => New_List (
                   Set (Flag),
-                  Increment (Count))));
+                  Increment (Count)));
+
+            Append_To (Decls, If_Stmt);
+            Analyze (If_Stmt);
 
             --  Check whether this case guard overlaps with another one
 
@@ -686,9 +727,9 @@ package body Exp_Prag is
             end if;
 
             --  Inspect the consequence and perform special expansion of any
-            --  attribute 'Old references found within.
+            --  attribute 'Old and 'Result references found within.
 
-            Expand_Old_In_Consequence
+            Expand_Attributes_In_Consequence
               (Decls  => Decls,
                Evals  => Old_Evals,
                Flag   => Flag,
@@ -774,11 +815,15 @@ package body Exp_Prag is
       end if;
 
       Append_To (Decls, CG_Checks);
+      Analyze (CG_Checks);
 
       --  Once all case guards are evaluated and checked, evaluate any prefixes
       --  of attribute 'Old founds in the selected consequence.
 
-      Append_To (Decls, Old_Evals);
+      if Present (Old_Evals) then
+         Append_To (Decls, Old_Evals);
+         Analyze (Old_Evals);
+      end if;
 
       --  Raise Assertion_Error when the corresponding consequence of a case
       --  guard that evaluated to True fails.
@@ -815,14 +860,8 @@ package body Exp_Prag is
             when Pragma_Common_Object =>
                Expand_Pragma_Common_Object (N);
 
-            when Pragma_Export_Exception =>
-               Expand_Pragma_Import_Export_Exception (N);
-
             when Pragma_Import =>
                Expand_Pragma_Import_Or_Interface (N);
-
-            when Pragma_Import_Exception =>
-               Expand_Pragma_Import_Export_Exception (N);
 
             when Pragma_Inspection_Point =>
                Expand_Pragma_Inspection_Point (N);
@@ -841,6 +880,9 @@ package body Exp_Prag is
 
             when Pragma_Relative_Deadline =>
                Expand_Pragma_Relative_Deadline (N);
+
+            when Pragma_Suppress_Initialization =>
+               Expand_Pragma_Suppress_Initialization (N);
 
             --  All other pragmas need no expander action
 
@@ -883,11 +925,11 @@ package body Exp_Prag is
       Stms : List_Id;
       HSS  : Node_Id;
       Blk  : constant Entity_Id :=
-        New_Internal_Entity (E_Block, Current_Scope, Sloc (N), 'B');
+               New_Internal_Entity (E_Block, Current_Scope, Sloc (N), 'B');
+      AUD : constant Entity_Id := RTE (RE_Abort_Undefer_Direct);
 
    begin
       Stms := New_List (Build_Runtime_Call (Loc, RE_Abort_Defer));
-
       loop
          Stm := Remove_Next (N);
          exit when No (Stm);
@@ -896,9 +938,13 @@ package body Exp_Prag is
 
       HSS :=
         Make_Handled_Sequence_Of_Statements (Loc,
-          Statements => Stms,
-          At_End_Proc =>
-            New_Occurrence_Of (RTE (RE_Abort_Undefer_Direct), Loc));
+          Statements  => Stms,
+          At_End_Proc => New_Occurrence_Of (AUD, Loc));
+
+      --  Present the Abort_Undefer_Direct function to the backend so that it
+      --  can inline the call to the function.
+
+      Add_Inlined_Body (AUD, N);
 
       Rewrite (N,
         Make_Block_Statement (Loc,
@@ -916,17 +962,23 @@ package body Exp_Prag is
    --------------------------
 
    procedure Expand_Pragma_Check (N : Node_Id) is
-      Loc  : constant Source_Ptr := Sloc (N);
-      --  Location of the pragma node. Note: it is important to use this
-      --  location (and not the location of the expression) for the generated
-      --  statements, otherwise the implicit return statement in the body
-      --  of a pre/postcondition subprogram may inherit the source location
-      --  of part of the expression, which causes confusing debug information
-      --  to be generated, which interferes with coverage analysis tools.
-
       Cond : constant Node_Id := Arg2 (N);
       Nam  : constant Name_Id := Chars (Arg1 (N));
       Msg  : Node_Id;
+
+      Loc : constant Source_Ptr := Sloc (First_Node (Cond));
+      --  Source location used in the case of a failed assertion: point to the
+      --  failing condition, not Loc. Note that the source location of the
+      --  expression is not usually the best choice here, because it points to
+      --  the location of the topmost tree node, which may be an operator in
+      --  the middle of the source text of the expression. For example, it gets
+      --  located on the last AND keyword in a chain of boolean expressiond
+      --  AND'ed together. It is best to put the message on the first character
+      --  of the condition, which is the effect of the First_Node call here.
+      --  This source location is used to build the default exception message,
+      --  and also as the sloc of the call to the runtime subprogram raising
+      --  Assert_Failure, so that coverage analysis tools can relate the
+      --  call to the failed check.
 
    begin
       --  Nothing to do if pragma is ignored
@@ -985,19 +1037,16 @@ package body Exp_Prag is
       --  Case where we generate a direct raise
 
       if ((Debug_Flag_Dot_G
-           or else Restriction_Active (No_Exception_Propagation))
-          and then Present (Find_Local_Handler (RTE (RE_Assert_Failure), N)))
+             or else Restriction_Active (No_Exception_Propagation))
+           and then Present (Find_Local_Handler (RTE (RE_Assert_Failure), N)))
         or else (Opt.Exception_Locations_Suppressed and then No (Arg3 (N)))
       then
          Rewrite (N,
            Make_If_Statement (Loc,
-             Condition =>
-               Make_Op_Not (Loc,
-                 Right_Opnd => Cond),
+             Condition       => Make_Op_Not (Loc, Right_Opnd => Cond),
              Then_Statements => New_List (
                Make_Raise_Statement (Loc,
-                 Name =>
-                   New_Occurrence_Of (RTE (RE_Assert_Failure), Loc)))));
+                 Name => New_Occurrence_Of (RTE (RE_Assert_Failure), Loc)))));
 
       --  Case where we call the procedure
 
@@ -1011,15 +1060,7 @@ package body Exp_Prag is
 
          else
             declare
-               Msg_Loc : constant String :=
-                           Build_Location_String (Sloc (First_Node (Cond)));
-               --  Source location used in the case of a failed assertion:
-               --  point to the failing condition, not Loc. Note that the
-               --  source location of the expression is not usually the best
-               --  choice here. For example, it gets located on the last AND
-               --  keyword in a chain of boolean expressiond AND'ed together.
-               --  It is best to put the message on the first character of the
-               --  condition, which is the effect of the First_Node call here.
+               Loc_Str : constant String := Build_Location_String (Loc);
 
             begin
                Name_Len := 0;
@@ -1066,7 +1107,7 @@ package body Exp_Prag is
 
                --  In all cases, add location string
 
-               Add_Str_To_Name_Buffer (Msg_Loc);
+               Add_Str_To_Name_Buffer (Loc_Str);
 
                --  Build the message
 
@@ -1078,12 +1119,10 @@ package body Exp_Prag is
 
          Rewrite (N,
            Make_If_Statement (Loc,
-             Condition =>
-               Make_Op_Not (Loc,
-                 Right_Opnd => Cond),
+             Condition       => Make_Op_Not (Loc, Right_Opnd => Cond),
              Then_Statements => New_List (
                Make_Procedure_Call_Statement (Loc,
-                 Name =>
+                 Name                   =>
                    New_Occurrence_Of (RTE (RE_Raise_Assert_Failure), Loc),
                  Parameter_Associations => New_List (Relocate_Node (Msg))))));
       end if;
@@ -1151,15 +1190,13 @@ package body Exp_Prag is
          Set_All_Upper_Case;
 
          Psect :=
-           Make_String_Literal (Eloc,
-             Strval => String_From_Name_Buffer);
+           Make_String_Literal (Eloc, Strval => String_From_Name_Buffer);
 
       else
          Get_Name_String (Chars (Internal));
          Set_All_Upper_Case;
          Psect :=
-           Make_String_Literal (Iloc,
-             Strval => String_From_Name_Buffer);
+           Make_String_Literal (Iloc, Strval => String_From_Name_Buffer);
       end if;
 
       Ploc := Sloc (Psect);
@@ -1167,18 +1204,16 @@ package body Exp_Prag is
       --  Insert the pragma
 
       Insert_After_And_Analyze (N,
-         Make_Pragma (Loc,
-           Chars                        => Name_Machine_Attribute,
-           Pragma_Argument_Associations => New_List (
-             Make_Pragma_Argument_Association (Iloc,
-               Expression => New_Copy_Tree (Internal)),
-             Make_Pragma_Argument_Association (Eloc,
-               Expression =>
-                 Make_String_Literal (Sloc => Ploc,
-                   Strval => "common_object")),
-             Make_Pragma_Argument_Association (Ploc,
-               Expression => New_Copy_Tree (Psect)))));
-
+        Make_Pragma (Loc,
+          Chars                        => Name_Machine_Attribute,
+          Pragma_Argument_Associations => New_List (
+            Make_Pragma_Argument_Association (Iloc,
+              Expression => New_Copy_Tree (Internal)),
+            Make_Pragma_Argument_Association (Eloc,
+              Expression =>
+                Make_String_Literal (Sloc => Ploc, Strval => "common_object")),
+            Make_Pragma_Argument_Association (Ploc,
+              Expression => New_Copy_Tree (Psect)))));
    end Expand_Pragma_Common_Object;
 
    ---------------------------------------
@@ -1187,7 +1222,6 @@ package body Exp_Prag is
 
    procedure Expand_Pragma_Import_Or_Interface (N : Node_Id) is
       Def_Id    : Entity_Id;
-      Init_Call : Node_Id;
 
    begin
       --  In Relaxed_RM_Semantics, support old Ada 83 style:
@@ -1203,35 +1237,10 @@ package body Exp_Prag is
          Def_Id := Entity (Arg2 (N));
       end if;
 
-      --  Variable case
+      --  Variable case (we have to undo any initialization already done)
 
       if Ekind (Def_Id) = E_Variable then
-
-         --  When applied to a variable, the default initialization must not be
-         --  done. As it is already done when the pragma is found, we just get
-         --  rid of the call the initialization procedure which followed the
-         --  object declaration. The call is inserted after the declaration,
-         --  but validity checks may also have been inserted and thus the
-         --  initialization call does not necessarily appear immediately
-         --  after the object declaration.
-
-         --  We can't use the freezing mechanism for this purpose, since we
-         --  have to elaborate the initialization expression when it is first
-         --  seen (so this elaboration cannot be deferred to the freeze point).
-
-         --  Find and remove generated initialization call for object, if any
-
-         Init_Call := Remove_Init_Call (Def_Id, Rep_Clause => N);
-
-         --  Any default initialization expression should be removed (e.g.
-         --  null defaults for access objects, zero initialization of packed
-         --  bit arrays). Imported objects aren't allowed to have explicit
-         --  initialization, so the expression must have been generated by
-         --  the compiler.
-
-         if No (Init_Call) and then Present (Expression (Parent (Def_Id))) then
-            Set_Expression (Parent (Def_Id), Empty);
-         end if;
+         Undo_Initialization (Def_Id, N);
 
       --  Case of exception with convention C++
 
@@ -1299,175 +1308,87 @@ package body Exp_Prag is
       end if;
    end Expand_Pragma_Import_Or_Interface;
 
-   -------------------------------------------
-   -- Expand_Pragma_Import_Export_Exception --
-   -------------------------------------------
+   -------------------------------------
+   -- Expand_Pragma_Initial_Condition --
+   -------------------------------------
 
-   --  For a VMS exception fix up the language field with "VMS"
-   --  instead of "Ada" (gigi needs this), create a constant that will be the
-   --  value of the VMS condition code and stuff the Interface_Name field
-   --  with the unexpanded name of the exception (if not already set).
-   --  For a Ada exception, just stuff the Interface_Name field
-   --  with the unexpanded name of the exception (if not already set).
+   procedure Expand_Pragma_Initial_Condition (Spec_Or_Body : Node_Id) is
+      Loc       : constant Source_Ptr := Sloc (Spec_Or_Body);
+      Check     : Node_Id;
+      Expr      : Node_Id;
+      Init_Cond : Node_Id;
+      List      : List_Id;
+      Pack_Id   : Entity_Id;
 
-   procedure Expand_Pragma_Import_Export_Exception (N : Node_Id) is
    begin
-      --  This pragma is only effective on OpenVMS systems, it was ignored
-      --  on non-VMS systems, and we need to ignore it here as well.
+      if Nkind (Spec_Or_Body) = N_Package_Body then
+         Pack_Id := Corresponding_Spec (Spec_Or_Body);
 
-      if not OpenVMS_On_Target then
+         if Present (Handled_Statement_Sequence (Spec_Or_Body)) then
+            List := Statements (Handled_Statement_Sequence (Spec_Or_Body));
+
+         --  The package body lacks statements, create an empty list
+
+         else
+            List := New_List;
+
+            Set_Handled_Statement_Sequence (Spec_Or_Body,
+              Make_Handled_Sequence_Of_Statements (Loc, Statements => List));
+         end if;
+
+      elsif Nkind (Spec_Or_Body) = N_Package_Declaration then
+         Pack_Id := Defining_Entity (Spec_Or_Body);
+
+         if Present (Visible_Declarations (Specification (Spec_Or_Body))) then
+            List := Visible_Declarations (Specification (Spec_Or_Body));
+
+         --  The package lacks visible declarations, create an empty list
+
+         else
+            List := New_List;
+
+            Set_Visible_Declarations (Specification (Spec_Or_Body), List);
+         end if;
+
+      --  This routine should not be used on anything other than packages
+
+      else
+         raise Program_Error;
+      end if;
+
+      Init_Cond := Get_Pragma (Pack_Id, Pragma_Initial_Condition);
+
+      --  The caller should check whether the package is subject to pragma
+      --  Initial_Condition.
+
+      pragma Assert (Present (Init_Cond));
+
+      Expr :=
+        Get_Pragma_Arg (First (Pragma_Argument_Associations (Init_Cond)));
+
+      --  The assertion expression was found to be illegal, do not generate the
+      --  runtime check as it will repeat the illegality.
+
+      if Error_Posted (Init_Cond) or else Error_Posted (Expr) then
          return;
       end if;
 
-      declare
-         Id     : constant Entity_Id := Entity (Arg1 (N));
-         Call   : constant Node_Id := Register_Exception_Call (Id);
-         Loc    : constant Source_Ptr := Sloc (N);
+      --  Generate:
+      --    pragma Check (Initial_Condition, <Expr>);
 
-      begin
-         if Present (Call) then
-            declare
-               Excep_Internal : constant Node_Id := Make_Temporary (Loc, 'V');
-               Export_Pragma  : Node_Id;
-               Excep_Alias    : Node_Id;
-               Excep_Object   : Node_Id;
-               Excep_Image    : String_Id;
-               Exdata         : List_Id;
-               Lang_Char      : Node_Id;
-               Code           : Node_Id;
+      Check :=
+        Make_Pragma (Loc,
+          Chars                        => Name_Check,
+          Pragma_Argument_Associations => New_List (
+            Make_Pragma_Argument_Association (Loc,
+              Expression => Make_Identifier (Loc, Name_Initial_Condition)),
 
-            begin
-               --  Compute the symbol for the code of the condition
+            Make_Pragma_Argument_Association (Loc,
+              Expression => New_Copy_Tree (Expr))));
 
-               if Present (Interface_Name (Id)) then
-                  Excep_Image := Strval (Interface_Name (Id));
-               else
-                  Get_Name_String (Chars (Id));
-                  Set_All_Upper_Case;
-                  Excep_Image := String_From_Name_Buffer;
-               end if;
-
-               Exdata := Component_Associations (Expression (Parent (Id)));
-
-               if Is_VMS_Exception (Id) then
-                  Lang_Char := Next (First (Exdata));
-
-                  --  Change the one-character language designator to 'V'
-
-                  Rewrite (Expression (Lang_Char),
-                    Make_Character_Literal (Loc,
-                      Chars => Name_uV,
-                      Char_Literal_Value =>
-                        UI_From_Int (Character'Pos ('V'))));
-                  Analyze (Expression (Lang_Char));
-
-                  if Exception_Code (Id) /= No_Uint then
-
-                     --  The code for the exception is present. Create a linker
-                     --  alias to define the symbol.
-
-                     Code :=
-                       Unchecked_Convert_To (RTE (RE_Address),
-                         Make_Integer_Literal (Loc,
-                           Intval => Exception_Code (Id)));
-
-                     --  Declare a dummy object
-
-                     Excep_Object :=
-                       Make_Object_Declaration (Loc,
-                         Defining_Identifier => Excep_Internal,
-                         Object_Definition   =>
-                           New_Occurrence_Of (RTE (RE_Address), Loc));
-
-                     Insert_Action (N, Excep_Object);
-                     Analyze (Excep_Object);
-
-                     --  Clear severity bits
-
-                     Start_String;
-                     Store_String_Int
-                       (UI_To_Int (Exception_Code (Id)) / 8 * 8);
-
-                     --  Insert a pragma Linker_Alias to set the value of the
-                     --  dummy object symbol.
-
-                     Excep_Alias :=
-                       Make_Pragma (Loc,
-                         Chars                        => Name_Linker_Alias,
-                         Pragma_Argument_Associations => New_List (
-                           Make_Pragma_Argument_Association (Loc,
-                             Expression =>
-                               New_Occurrence_Of (Excep_Internal, Loc)),
-
-                           Make_Pragma_Argument_Association (Loc,
-                             Expression =>
-                               Make_String_Literal (Loc, End_String))));
-
-                     Insert_Action (N, Excep_Alias);
-                     Analyze (Excep_Alias);
-
-                     --  Insert a pragma Export to give a Linker_Name to the
-                     --  dummy object.
-
-                     Export_Pragma :=
-                       Make_Pragma (Loc,
-                         Chars                        => Name_Export,
-                         Pragma_Argument_Associations => New_List (
-                           Make_Pragma_Argument_Association (Loc,
-                             Expression => Make_Identifier (Loc, Name_C)),
-
-                           Make_Pragma_Argument_Association (Loc,
-                             Expression =>
-                               New_Occurrence_Of (Excep_Internal, Loc)),
-
-                           Make_Pragma_Argument_Association (Loc,
-                             Expression =>
-                               Make_String_Literal (Loc, Excep_Image)),
-
-                           Make_Pragma_Argument_Association (Loc,
-                             Expression =>
-                               Make_String_Literal (Loc, Excep_Image))));
-
-                     Insert_Action (N, Export_Pragma);
-                     Analyze (Export_Pragma);
-
-                  else
-                     Code :=
-                        Make_Function_Call (Loc,
-                          Name                   =>
-                            New_Occurrence_Of (RTE (RE_Import_Address), Loc),
-                          Parameter_Associations => New_List
-                            (Make_String_Literal (Loc,
-                              Strval => Excep_Image)));
-                  end if;
-
-                  --  Generate the call to Register_VMS_Exception
-
-                  Rewrite (Call,
-                    Make_Procedure_Call_Statement (Loc,
-                      Name => New_Occurrence_Of
-                                (RTE (RE_Register_VMS_Exception), Loc),
-                      Parameter_Associations => New_List (
-                        Code,
-                        Unchecked_Convert_To (RTE (RE_Exception_Data_Ptr),
-                          Make_Attribute_Reference (Loc,
-                            Prefix         => New_Occurrence_Of (Id, Loc),
-                            Attribute_Name => Name_Unrestricted_Access)))));
-
-                  Analyze_And_Resolve (Code, RTE (RE_Address));
-                  Analyze (Call);
-               end if;
-
-               if No (Interface_Name (Id)) then
-                  Set_Interface_Name (Id,
-                     Make_String_Literal
-                       (Sloc => Loc,
-                        Strval => Excep_Image));
-               end if;
-            end;
-         end if;
-      end;
-   end Expand_Pragma_Import_Export_Exception;
+      Append_To (List, Check);
+      Analyze (Check);
+   end Expand_Pragma_Initial_Condition;
 
    ------------------------------------
    -- Expand_Pragma_Inspection_Point --
@@ -1935,5 +1856,75 @@ package body Exp_Prag is
          Analyze (N);
       end if;
    end Expand_Pragma_Relative_Deadline;
+
+   -------------------------------------------
+   -- Expand_Pragma_Suppress_Initialization --
+   -------------------------------------------
+
+   procedure Expand_Pragma_Suppress_Initialization (N : Node_Id) is
+      Def_Id : constant Entity_Id  := Entity (Arg1 (N));
+
+   begin
+      --  Variable case (we have to undo any initialization already done)
+
+      if Ekind (Def_Id) = E_Variable then
+         Undo_Initialization (Def_Id, N);
+      end if;
+   end Expand_Pragma_Suppress_Initialization;
+
+   -------------------------
+   -- Undo_Initialization --
+   -------------------------
+
+   procedure Undo_Initialization (Def_Id : Entity_Id; N : Node_Id) is
+      Init_Call : Node_Id;
+
+   begin
+      --  When applied to a variable, the default initialization must not be
+      --  done. As it is already done when the pragma is found, we just get rid
+      --  of the call the initialization procedure which followed the object
+      --  declaration. The call is inserted after the declaration, but validity
+      --  checks may also have been inserted and thus the initialization call
+      --  does not necessarily appear immediately after the object declaration.
+
+      --  We can't use the freezing mechanism for this purpose, since we have
+      --  to elaborate the initialization expression when it is first seen (so
+      --  this elaboration cannot be deferred to the freeze point).
+
+      --  Find and remove generated initialization call for object, if any
+
+      Init_Call := Remove_Init_Call (Def_Id, Rep_Clause => N);
+
+      --  Any default initialization expression should be removed (e.g.
+      --  null defaults for access objects, zero initialization of packed
+      --  bit arrays). Imported objects aren't allowed to have explicit
+      --  initialization, so the expression must have been generated by
+      --  the compiler.
+
+      if No (Init_Call) and then Present (Expression (Parent (Def_Id))) then
+         Set_Expression (Parent (Def_Id), Empty);
+      end if;
+
+      --  The object may not have any initialization, but in the presence of
+      --  Initialize_Scalars code is inserted after then declaration, which
+      --  must now be removed as well. The code carries the same source
+      --  location as the declaration itself.
+
+      if Initialize_Scalars and then Is_Array_Type (Etype (Def_Id)) then
+         declare
+            Init : Node_Id;
+            Nxt  : Node_Id;
+         begin
+            Init := Next (Parent (Def_Id));
+            while not Comes_From_Source (Init)
+              and then Sloc (Init) = Sloc (Def_Id)
+            loop
+               Nxt := Next (Init);
+               Remove (Init);
+               Init := Nxt;
+            end loop;
+         end;
+      end if;
+   end Undo_Initialization;
 
 end Exp_Prag;

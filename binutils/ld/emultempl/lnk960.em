@@ -2,8 +2,7 @@
 # It does some substitutions.
 fragment <<EOF
 /* intel coff loader emulation specific stuff
-   Copyright 1991, 1992, 1994, 1995, 1996, 1999, 2000, 2001, 2002, 2003,
-   2005, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
    This file is part of the GNU Binutils.
@@ -130,15 +129,73 @@ lnk960_after_parse (void)
   add_on (syslib_list, lang_input_file_is_search_file_enum);
 }
 
+/* Create a symbol with the given name with the value of the
+   address of first byte of the section named.
+
+   If the symbol already exists, then do nothing.  */
+
+static void
+symbol_at_beginning_of (const char *secname, const char *name)
+{
+  struct bfd_link_hash_entry *h;
+
+  h = bfd_link_hash_lookup (link_info.hash, name, TRUE, TRUE, TRUE);
+  if (h == NULL)
+    einfo (_("%P%F: bfd_link_hash_lookup failed: %E\n"));
+
+  if (h->type == bfd_link_hash_new
+      || h->type == bfd_link_hash_undefined)
+    {
+      asection *sec;
+
+      h->type = bfd_link_hash_defined;
+
+      sec = bfd_get_section_by_name (link_info.output_bfd, secname);
+      if (sec == NULL)
+	sec = bfd_abs_section_ptr;
+      h->u.def.value = 0;
+      h->u.def.section = sec;
+    }
+}
+
+/* Create a symbol with the given name with the value of the
+   address of the first byte after the end of the section named.
+
+   If the symbol already exists, then do nothing.  */
+
+static void
+symbol_at_end_of (const char *secname, const char *name)
+{
+  struct bfd_link_hash_entry *h;
+
+  h = bfd_link_hash_lookup (link_info.hash, name, TRUE, TRUE, TRUE);
+  if (h == NULL)
+    einfo (_("%P%F: bfd_link_hash_lookup failed: %E\n"));
+
+  if (h->type == bfd_link_hash_new
+      || h->type == bfd_link_hash_undefined)
+    {
+      asection *sec;
+
+      h->type = bfd_link_hash_defined;
+
+      sec = bfd_get_section_by_name (link_info.output_bfd, secname);
+      if (sec == NULL)
+	sec = bfd_abs_section_ptr;
+      h->u.def.value = sec->size;
+      h->u.def.section = sec;
+    }
+}
+
 static void
 lnk960_after_allocation (void)
 {
   if (!link_info.relocatable)
     {
-      lang_abs_symbol_at_end_of (".text", "_etext");
-      lang_abs_symbol_at_end_of (".data", "_edata");
-      lang_abs_symbol_at_beginning_of (".bss", "_bss_start");
-      lang_abs_symbol_at_end_of (".bss", "_end");
+      symbol_at_end_of (".text", "_etext");
+      symbol_at_end_of (".data", "_edata");
+      symbol_at_beginning_of (".bss", "_bss_start");
+      symbol_at_end_of (".bss", "_end");
     }
 }
 
@@ -210,7 +267,7 @@ static char *
 lnk960_get_script (int *isfile)
 EOF
 
-if test -n "$COMPILE_IN"
+if test x"$COMPILE_IN" = xyes
 then
 # Scripts compiled in.
 
@@ -265,7 +322,7 @@ struct ld_emulation_xfer_struct ld_lnk960_emulation =
   lnk960_syslib,
   lnk960_hll,
   lnk960_after_parse,
-  NULL,			/* after_open */
+  after_open_default,
   lnk960_after_allocation,
   lnk960_set_output_arch,
   lnk960_choose_target,
@@ -285,6 +342,7 @@ struct ld_emulation_xfer_struct ld_lnk960_emulation =
   NULL,	/* list options */
   NULL,	/* recognized file */
   NULL,	/* find_potential_libraries */
-  NULL	/* new_vers_pattern */
+  NULL,	/* new_vers_pattern */
+  NULL	/* extra_map_file_text */
 };
 EOF

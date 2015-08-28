@@ -16,13 +16,13 @@ SECTIONS
   .text : { *(.text) }
 
   . = ALIGN (0x10000);
-  _gp = . + 0x7ff0;
+  HIDDEN (_gp = . + 0x7ff0);
   .got : { *(.got) }
 
   . = ALIGN (0x400);
   .bss : { *(.bss .bss.*) }
 
-  /DISCARD/ : { *(.reginfo) }
+  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) }
 }
 
 VERSION

@@ -1,5 +1,5 @@
 /* Definitions for option handling for IA-32.
-   Copyright (C) 1988-2014 Free Software Foundation, Inc.
+   Copyright (C) 1988-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -75,6 +75,12 @@ enum cmodel {
 enum pmode {
   PMODE_SI,	/* Pmode == SImode. */
   PMODE_DI 	/* Pmode == DImode. */
+};
+
+enum ix86_align_data {
+  ix86_align_data_type_compat,
+  ix86_align_data_type_abi,
+  ix86_align_data_type_cacheline
 };
 
 enum asm_dialect {

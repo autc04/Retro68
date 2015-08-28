@@ -1,5 +1,5 @@
 /* Code for RTL register eliminations.
-   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+   Copyright (C) 2010-2015 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -65,8 +65,33 @@ along with GCC; see the file COPYING3.	If not see
 #include "output.h"
 #include "addresses.h"
 #include "target.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "machmode.h"
+#include "input.h"
 #include "function.h"
+#include "symtab.h"
+#include "flags.h"
+#include "statistics.h"
+#include "double-int.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "alias.h"
+#include "wide-int.h"
+#include "inchash.h"
+#include "tree.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
 #include "expr.h"
+#include "predict.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "except.h"
 #include "optabs.h"
@@ -77,7 +102,7 @@ along with GCC; see the file COPYING3.	If not see
 
 /* This structure is used to record information about hard register
    eliminations.  */
-struct elim_table
+struct lra_elim_table
 {
   /* Hard register number to be eliminated.  */
   int from;
@@ -105,7 +130,7 @@ struct elim_table
    of eliminating a register in favor of another.  If there is more
    than one way of eliminating a particular register, the most
    preferred should be specified first.	 */
-static struct elim_table *reg_eliminate = 0;
+static struct lra_elim_table *reg_eliminate = 0;
 
 /* This is an intermediate structure to initialize the table.  It has
    exactly the members provided by ELIMINABLE_REGS.  */
@@ -131,7 +156,7 @@ static const struct elim_table_1
 static void
 print_elim_table (FILE *f)
 {
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
 
   for (ep = reg_eliminate; ep < &reg_eliminate[NUM_ELIMINABLE_REGS]; ep++)
     fprintf (f, "%s eliminate %d to %d (offset=" HOST_WIDE_INT_PRINT_DEC
@@ -151,24 +176,26 @@ lra_debug_elim_table (void)
    VALUE.  Setup FRAME_POINTER_NEEDED if elimination from frame
    pointer to stack pointer is not possible anymore.  */
 static void
-setup_can_eliminate (struct elim_table *ep, bool value)
+setup_can_eliminate (struct lra_elim_table *ep, bool value)
 {
   ep->can_eliminate = ep->prev_can_eliminate = value;
   if (! value
       && ep->from == FRAME_POINTER_REGNUM && ep->to == STACK_POINTER_REGNUM)
     frame_pointer_needed = 1;
+  if (!frame_pointer_needed)
+    REGNO_POINTER_ALIGN (HARD_FRAME_POINTER_REGNUM) = 0;
 }
 
 /* Map: eliminable "from" register -> its current elimination,
    or NULL if none.  The elimination table may contain more than
    one elimination for the same hard register, but this map specifies
    the one that we are currently using.  */
-static struct elim_table *elimination_map[FIRST_PSEUDO_REGISTER];
+static struct lra_elim_table *elimination_map[FIRST_PSEUDO_REGISTER];
 
 /* When an eliminable hard register becomes not eliminable, we use the
    following special structure to restore original offsets for the
    register.  */
-static struct elim_table self_elim_table;
+static struct lra_elim_table self_elim_table;
 
 /* Offsets should be used to restore original offsets for eliminable
    hard register which just became not eliminable.  Zero,
@@ -184,7 +211,7 @@ static void
 setup_elimination_map (void)
 {
   int i;
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
 
   for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
     elimination_map[i] = NULL;
@@ -205,7 +232,7 @@ static rtx
 form_sum (rtx x, rtx y)
 {
   rtx tem;
-  enum machine_mode mode = GET_MODE (x);
+  machine_mode mode = GET_MODE (x);
 
   if (mode == VOIDmode)
     mode = GET_MODE (y);
@@ -249,7 +276,7 @@ form_sum (rtx x, rtx y)
 int
 lra_get_elimination_hard_regno (int hard_regno)
 {
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
 
   if (hard_regno < 0 || hard_regno >= FIRST_PSEUDO_REGISTER)
     return hard_regno;
@@ -260,11 +287,11 @@ lra_get_elimination_hard_regno (int hard_regno)
 
 /* Return elimination which will be used for hard reg REG, NULL
    otherwise.  */
-static struct elim_table *
+static struct lra_elim_table *
 get_elimination (rtx reg)
 {
   int hard_regno;
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
   HOST_WIDE_INT offset;
 
   lra_assert (REG_P (reg));
@@ -290,7 +317,10 @@ get_elimination (rtx reg)
    a change in the offset between the eliminable register and its
    substitution if UPDATE_P, or the full offset if FULL_P, or
    otherwise zero.  If FULL_P, we also use the SP offsets for
-   elimination to SP.
+   elimination to SP.  If UPDATE_P, use UPDATE_SP_OFFSET for updating
+   offsets of register elimnable to SP.  If UPDATE_SP_OFFSET is
+   non-zero, don't use difference of the offset and the previous
+   offset.
 
    MEM_MODE is the mode of an enclosing MEM.  We need this to know how
    much to adjust a register for, e.g., PRE_DEC.  Also, if we are
@@ -302,17 +332,19 @@ get_elimination (rtx reg)
    If we make full substitution to SP for non-null INSN, add the insn
    sp offset.  */
 rtx
-lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
-		      bool subst_p, bool update_p, bool full_p)
+lra_eliminate_regs_1 (rtx_insn *insn, rtx x, machine_mode mem_mode,
+		      bool subst_p, bool update_p,
+		      HOST_WIDE_INT update_sp_offset, bool full_p)
 {
   enum rtx_code code = GET_CODE (x);
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
   rtx new_rtx;
   int i, j;
   const char *fmt;
   int copied = 0;
 
-  gcc_assert (!update_p || !full_p);
+  lra_assert (!update_p || !full_p);
+  lra_assert (update_sp_offset == 0 || (!subst_p && update_p && !full_p));
   if (! current_function_decl)
     return x;
 
@@ -337,7 +369,13 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 	{
 	  rtx to = subst_p ? ep->to_rtx : ep->from_rtx;
 
-	  if (update_p)
+	  if (update_sp_offset != 0)
+	    {
+	      if (ep->to_rtx == stack_pointer_rtx)
+		return plus_constant (Pmode, to, update_sp_offset);
+	      return to;
+	    }
+	  else if (update_p)
 	    return plus_constant (Pmode, to, ep->offset - ep->previous_offset);
 	  else if (full_p)
 	    return plus_constant (Pmode, to,
@@ -363,13 +401,15 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 
 	      if (! update_p && ! full_p)
 		return gen_rtx_PLUS (Pmode, to, XEXP (x, 1));
-
-	      offset = (update_p
-			? ep->offset - ep->previous_offset : ep->offset);
+	      
+	      if (update_sp_offset != 0)
+		offset = ep->to_rtx == stack_pointer_rtx ? update_sp_offset : 0;
+	      else
+		offset = (update_p
+			  ? ep->offset - ep->previous_offset : ep->offset);
 	      if (full_p && insn != NULL_RTX && ep->to_rtx == stack_pointer_rtx)
 		offset -= lra_get_insn_recog_data (insn)->sp_offset;
-	      if (CONST_INT_P (XEXP (x, 1))
-		  && INTVAL (XEXP (x, 1)) == -offset)
+	      if (CONST_INT_P (XEXP (x, 1)) && INTVAL (XEXP (x, 1)) == -offset)
 		return to;
 	      else
 		return gen_rtx_PLUS (Pmode, to,
@@ -394,9 +434,11 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 
       {
 	rtx new0 = lra_eliminate_regs_1 (insn, XEXP (x, 0), mem_mode,
-					 subst_p, update_p, full_p);
+					 subst_p, update_p,
+					 update_sp_offset, full_p);
 	rtx new1 = lra_eliminate_regs_1 (insn, XEXP (x, 1), mem_mode,
-					 subst_p, update_p, full_p);
+					 subst_p, update_p,
+					 update_sp_offset, full_p);
 
 	if (new0 != XEXP (x, 0) || new1 != XEXP (x, 1))
 	  return form_sum (new0, new1);
@@ -414,12 +456,19 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 	{
 	  rtx to = subst_p ? ep->to_rtx : ep->from_rtx;
 
-	  if (update_p)
-	    return
-	      plus_constant (Pmode,
-			     gen_rtx_MULT (Pmode, to, XEXP (x, 1)),
-			     (ep->offset - ep->previous_offset)
-			     * INTVAL (XEXP (x, 1)));
+	  if (update_sp_offset != 0)
+	    {
+	      if (ep->to_rtx == stack_pointer_rtx)
+		return plus_constant (Pmode,
+				      gen_rtx_MULT (Pmode, to, XEXP (x, 1)),
+				      update_sp_offset * INTVAL (XEXP (x, 1)));
+	      return gen_rtx_MULT (Pmode, to, XEXP (x, 1));
+	    }
+	  else if (update_p)
+	    return plus_constant (Pmode,
+				  gen_rtx_MULT (Pmode, to, XEXP (x, 1)),
+				  (ep->offset - ep->previous_offset)
+				  * INTVAL (XEXP (x, 1)));
 	  else if (full_p)
 	    {
 	      HOST_WIDE_INT offset = ep->offset;
@@ -451,10 +500,12 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
     case LE:	   case LT:	  case LEU:    case LTU:
       {
 	rtx new0 = lra_eliminate_regs_1 (insn, XEXP (x, 0), mem_mode,
-					 subst_p, update_p, full_p);
+					 subst_p, update_p, 
+					 update_sp_offset, full_p);
 	rtx new1 = XEXP (x, 1)
 		   ? lra_eliminate_regs_1 (insn, XEXP (x, 1), mem_mode,
-					   subst_p, update_p, full_p) : 0;
+					   subst_p, update_p,
+					   update_sp_offset, full_p) : 0;
 
 	if (new0 != XEXP (x, 0) || new1 != XEXP (x, 1))
 	  return gen_rtx_fmt_ee (code, GET_MODE (x), new0, new1);
@@ -467,7 +518,8 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
       if (XEXP (x, 0))
 	{
 	  new_rtx = lra_eliminate_regs_1 (insn, XEXP (x, 0), mem_mode,
-					  subst_p, update_p, full_p);
+					  subst_p, update_p,
+					  update_sp_offset, full_p);
 	  if (new_rtx != XEXP (x, 0))
 	    {
 	      /* If this is a REG_DEAD note, it is not valid anymore.
@@ -476,7 +528,8 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 	      if (REG_NOTE_KIND (x) == REG_DEAD)
 		return (XEXP (x, 1)
 			? lra_eliminate_regs_1 (insn, XEXP (x, 1), mem_mode,
-						subst_p, update_p, full_p)
+						subst_p, update_p,
+						update_sp_offset, full_p)
 			: NULL_RTX);
 
 	      x = alloc_reg_note (REG_NOTE_KIND (x), new_rtx, XEXP (x, 1));
@@ -493,7 +546,8 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
       if (XEXP (x, 1))
 	{
 	  new_rtx = lra_eliminate_regs_1 (insn, XEXP (x, 1), mem_mode,
-					  subst_p, update_p, full_p);
+					  subst_p, update_p,
+					  update_sp_offset, full_p);
 	  if (new_rtx != XEXP (x, 1))
 	    return
 	      gen_rtx_fmt_ee (GET_CODE (x), GET_MODE (x),
@@ -520,8 +574,8 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 	  && XEXP (XEXP (x, 1), 0) == XEXP (x, 0))
 	{
 	  rtx new_rtx = lra_eliminate_regs_1 (insn, XEXP (XEXP (x, 1), 1),
-					      mem_mode,
-					      subst_p, update_p, full_p);
+					      mem_mode, subst_p, update_p,
+					      update_sp_offset, full_p);
 
 	  if (new_rtx != XEXP (XEXP (x, 1), 1))
 	    return gen_rtx_fmt_ee (code, GET_MODE (x), XEXP (x, 0),
@@ -545,14 +599,16 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
     case PARITY:
     case BSWAP:
       new_rtx = lra_eliminate_regs_1 (insn, XEXP (x, 0), mem_mode,
-				      subst_p, update_p, full_p);
+				      subst_p, update_p,
+				      update_sp_offset, full_p);
       if (new_rtx != XEXP (x, 0))
 	return gen_rtx_fmt_e (code, GET_MODE (x), new_rtx);
       return x;
 
     case SUBREG:
       new_rtx = lra_eliminate_regs_1 (insn, SUBREG_REG (x), mem_mode,
-				      subst_p, update_p, full_p);
+				      subst_p, update_p,
+				      update_sp_offset, full_p);
 
       if (new_rtx != SUBREG_REG (x))
 	{
@@ -590,12 +646,12 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 	replace_equiv_address_nv
 	(x,
 	 lra_eliminate_regs_1 (insn, XEXP (x, 0), GET_MODE (x),
-			       subst_p, update_p, full_p));
+			       subst_p, update_p, update_sp_offset, full_p));
 
     case USE:
       /* Handle insn_list USE that a call to a pure function may generate.  */
       new_rtx = lra_eliminate_regs_1 (insn, XEXP (x, 0), VOIDmode,
-				      subst_p, update_p, full_p);
+				      subst_p, update_p, update_sp_offset, full_p);
       if (new_rtx != XEXP (x, 0))
 	return gen_rtx_USE (GET_MODE (x), new_rtx);
       return x;
@@ -616,7 +672,8 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
       if (*fmt == 'e')
 	{
 	  new_rtx = lra_eliminate_regs_1 (insn, XEXP (x, i), mem_mode,
-					  subst_p, update_p, full_p);
+					  subst_p, update_p,
+					  update_sp_offset, full_p);
 	  if (new_rtx != XEXP (x, i) && ! copied)
 	    {
 	      x = shallow_copy_rtx (x);
@@ -630,7 +687,8 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 	  for (j = 0; j < XVECLEN (x, i); j++)
 	    {
 	      new_rtx = lra_eliminate_regs_1 (insn, XVECEXP (x, i, j), mem_mode,
-					      subst_p, update_p, full_p);
+					      subst_p, update_p,
+					      update_sp_offset, full_p);
 	      if (new_rtx != XVECEXP (x, i, j) && ! copied_vec)
 		{
 		  rtvec new_v = gen_rtvec_v (XVECLEN (x, i),
@@ -654,10 +712,10 @@ lra_eliminate_regs_1 (rtx insn, rtx x, enum machine_mode mem_mode,
 /* This function is used externally in subsequent passes of GCC.  It
    always does a full elimination of X.	 */
 rtx
-lra_eliminate_regs (rtx x, enum machine_mode mem_mode,
+lra_eliminate_regs (rtx x, machine_mode mem_mode,
 		    rtx insn ATTRIBUTE_UNUSED)
 {
-  return lra_eliminate_regs_1 (NULL_RTX, x, mem_mode, true, false, true);
+  return lra_eliminate_regs_1 (NULL, x, mem_mode, true, false, 0, true);
 }
 
 /* Stack pointer offset before the current insn relative to one at the
@@ -671,10 +729,10 @@ static HOST_WIDE_INT curr_sp_change;
    MEM_MODE is the mode of an enclosing MEM rtx, or VOIDmode if not
    within a MEM.  */
 static void
-mark_not_eliminable (rtx x, enum machine_mode mem_mode)
+mark_not_eliminable (rtx x, machine_mode mem_mode)
 {
   enum rtx_code code = GET_CODE (x);
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
   int i, j;
   const char *fmt;
 
@@ -842,13 +900,16 @@ remove_reg_equal_offset_note (rtx insn, rtx what)
 
    If REPLACE_P is false, just update the offsets while keeping the
    base register the same.  If FIRST_P, use the sp offset for
-   elimination to sp.  Attach the note about used elimination for
-   insns setting frame pointer to update elimination easy (without
+   elimination to sp.  Otherwise, use UPDATE_SP_OFFSET for this.  If
+   UPDATE_SP_OFFSET is non-zero, don't use difference of the offset
+   and the previous offset.  Attach the note about used elimination
+   for insns setting frame pointer to update elimination easy (without
    parsing already generated elimination insns to find offset
    previously used) in future.  */
 
-static void
-eliminate_regs_in_insn (rtx insn, bool replace_p, bool first_p)
+void
+eliminate_regs_in_insn (rtx_insn *insn, bool replace_p, bool first_p,
+			HOST_WIDE_INT update_sp_offset)
 {
   int icode = recog_memoized (insn);
   rtx old_set = single_set (insn);
@@ -856,7 +917,7 @@ eliminate_regs_in_insn (rtx insn, bool replace_p, bool first_p)
   int i;
   rtx substed_operand[MAX_RECOG_OPERANDS];
   rtx orig_operand[MAX_RECOG_OPERANDS];
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
   rtx plus_src, plus_cst_src;
   lra_insn_recog_data_t id;
   struct lra_static_insn_data *static_id;
@@ -890,6 +951,10 @@ eliminate_regs_in_insn (rtx insn, bool replace_p, bool first_p)
 	      {
 		rtx src = SET_SRC (old_set);
 		rtx off = remove_reg_equal_offset_note (insn, ep->to_rtx);
+		
+		/* We should never process such insn with non-zero
+		   UPDATE_SP_OFFSET.  */
+		lra_assert (update_sp_offset == 0);
 		
 		if (off != NULL_RTX
 		    || src == ep->to_rtx
@@ -977,9 +1042,15 @@ eliminate_regs_in_insn (rtx insn, bool replace_p, bool first_p)
 
 	  if (! replace_p)
 	    {
-	      offset += (ep->offset - ep->previous_offset);
-	      if (first_p && ep->to_rtx == stack_pointer_rtx)
-		offset -= lra_get_insn_recog_data (insn)->sp_offset;
+	      if (update_sp_offset == 0)
+		offset += (ep->offset - ep->previous_offset);
+	      if (ep->to_rtx == stack_pointer_rtx)
+		{
+		  if (first_p)
+		    offset -= lra_get_insn_recog_data (insn)->sp_offset;
+		  else
+		    offset += update_sp_offset;
+		}
 	      offset = trunc_int_for_mode (offset, GET_MODE (plus_cst_src));
 	    }
 
@@ -1053,7 +1124,7 @@ eliminate_regs_in_insn (rtx insn, bool replace_p, bool first_p)
 	  substed_operand[i]
 	    = lra_eliminate_regs_1 (insn, *id->operand_loc[i], VOIDmode,
 				    replace_p, ! replace_p && ! first_p,
-				    first_p);
+				    update_sp_offset, first_p);
 	  if (substed_operand[i] != orig_operand[i])
 	    validate_p = true;
 	}
@@ -1086,7 +1157,7 @@ spill_pseudos (HARD_REG_SET set)
 {
   int i;
   bitmap_head to_process;
-  rtx insn;
+  rtx_insn *insn;
 
   if (hard_reg_set_empty_p (set))
     return;
@@ -1130,7 +1201,7 @@ static bool
 update_reg_eliminate (bitmap insns_with_changed_offsets)
 {
   bool prev, result;
-  struct elim_table *ep, *ep1;
+  struct lra_elim_table *ep, *ep1;
   HARD_REG_SET temp_hard_reg_set;
 
   /* Clear self elimination offsets.  */
@@ -1164,7 +1235,9 @@ update_reg_eliminate (bitmap insns_with_changed_offsets)
 		     ep->from, ep->to);
 	  /* If after processing RTL we decides that SP can be used as
 	     a result of elimination, it can not be changed.  */
-	  gcc_assert (ep->to_rtx != stack_pointer_rtx);
+	  gcc_assert ((ep->to_rtx != stack_pointer_rtx)
+		      || (ep->from < FIRST_PSEUDO_REGISTER
+			  && fixed_regs [ep->from]));
 	  /* Mark that is not eliminable anymore.  */
 	  elimination_map[ep->from] = NULL;
 	  for (ep1 = ep + 1; ep1 < &reg_eliminate[NUM_ELIMINABLE_REGS]; ep1++)
@@ -1235,14 +1308,14 @@ update_reg_eliminate (bitmap insns_with_changed_offsets)
 static void
 init_elim_table (void)
 {
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
 #ifdef ELIMINABLE_REGS
   bool value_p;
   const struct elim_table_1 *ep1;
 #endif
 
   if (!reg_eliminate)
-    reg_eliminate = XCNEWVEC (struct elim_table, NUM_ELIMINABLE_REGS);
+    reg_eliminate = XCNEWVEC (struct lra_elim_table, NUM_ELIMINABLE_REGS);
 
   memset (self_elim_offsets, 0, sizeof (self_elim_offsets));
   /* Initiate member values which will be never changed.  */
@@ -1290,8 +1363,8 @@ init_elimination (void)
 {
   bool stop_to_sp_elimination_p;
   basic_block bb;
-  rtx insn;
-  struct elim_table *ep;
+  rtx_insn *insn;
+  struct lra_elim_table *ep;
 
   init_elim_table ();
   FOR_EACH_BB_FN (bb, cfun)
@@ -1325,7 +1398,7 @@ void
 lra_eliminate_reg_if_possible (rtx *loc)
 {
   int regno;
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
 
   lra_assert (REG_P (*loc));
   if ((regno = REGNO (*loc)) >= FIRST_PSEUDO_REGISTER
@@ -1339,9 +1412,9 @@ lra_eliminate_reg_if_possible (rtx *loc)
    the insn for subsequent processing in the constraint pass, update
    the insn info.  */
 static void
-process_insn_for_elimination (rtx insn, bool final_p, bool first_p)
+process_insn_for_elimination (rtx_insn *insn, bool final_p, bool first_p)
 {
-  eliminate_regs_in_insn (insn, final_p, first_p);
+  eliminate_regs_in_insn (insn, final_p, first_p, 0);
   if (! final_p)
     {
       /* Check that insn changed its code.  This is a case when a move
@@ -1369,7 +1442,7 @@ lra_eliminate (bool final_p, bool first_p)
   unsigned int uid;
   bitmap_head insns_with_changed_offsets;
   bitmap_iterator bi;
-  struct elim_table *ep;
+  struct lra_elim_table *ep;
 
   gcc_assert (! final_p || ! first_p);
 

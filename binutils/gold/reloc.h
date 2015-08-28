@@ -1,6 +1,6 @@
 // reloc.h -- relocate input files for gold   -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -37,7 +37,7 @@ namespace gold
 class General_options;
 class Object;
 class Relobj;
-class Read_relocs_data;
+struct Read_relocs_data;
 class Symbol;
 class Layout;
 class Output_data;
@@ -47,7 +47,7 @@ template<int size>
 class Sized_symbol;
 
 template<int size, bool big_endian>
-class Sized_relobj;
+class Sized_relobj_file;
 
 template<int size>
 class Symbol_value;
@@ -62,13 +62,13 @@ class Output_data_reloc;
 class Read_relocs : public Task
 {
  public:
-  // SYMTAB_LOCK is used to lock the symbol table.  BLOCKER should be
-  // unblocked when the Scan_relocs task completes.
-  Read_relocs(const General_options& options, Symbol_table* symtab,
-	      Layout* layout, Relobj* object, Task_token* symtab_lock,
-	      Task_token* blocker)
-    : options_(options), symtab_(symtab), layout_(layout), object_(object),
-      symtab_lock_(symtab_lock), blocker_(blocker)
+  //   THIS_BLOCKER and NEXT_BLOCKER are passed along to a Scan_relocs
+  // or Gc_process_relocs task, so that they run in a deterministic
+  // order.
+  Read_relocs(Symbol_table* symtab, Layout* layout, Relobj* object,
+	      Task_token* this_blocker, Task_token* next_blocker)
+    : symtab_(symtab), layout_(layout), object_(object),
+      this_blocker_(this_blocker), next_blocker_(next_blocker)
   { }
 
   // The standard Task methods.
@@ -86,12 +86,11 @@ class Read_relocs : public Task
   get_name() const;
 
  private:
-  const General_options& options_;
   Symbol_table* symtab_;
   Layout* layout_;
   Relobj* object_;
-  Task_token* symtab_lock_;
-  Task_token* blocker_;
+  Task_token* this_blocker_;
+  Task_token* next_blocker_;
 };
 
 // Process the relocs to figure out which sections are garbage.
@@ -100,14 +99,17 @@ class Read_relocs : public Task
 class Gc_process_relocs : public Task
 {
  public:
-  // SYMTAB_LOCK is used to lock the symbol table.  BLOCKER should be
-  // unblocked when the task completes.
-  Gc_process_relocs(const General_options& options, Symbol_table* symtab,
-	      Layout* layout, Relobj* object, Read_relocs_data* rd,
-	      Task_token* symtab_lock, Task_token* blocker)
-    : options_(options), symtab_(symtab), layout_(layout), object_(object),
-      rd_(rd), symtab_lock_(symtab_lock), blocker_(blocker)
+  // THIS_BLOCKER prevents this task from running until the previous
+  // one is finished.  NEXT_BLOCKER prevents the next task from
+  // running.
+  Gc_process_relocs(Symbol_table* symtab, Layout* layout, Relobj* object,
+		    Read_relocs_data* rd, Task_token* this_blocker,
+		    Task_token* next_blocker)
+    : symtab_(symtab), layout_(layout), object_(object), rd_(rd),
+      this_blocker_(this_blocker), next_blocker_(next_blocker)
   { }
+
+  ~Gc_process_relocs();
 
   // The standard Task methods.
 
@@ -124,13 +126,12 @@ class Gc_process_relocs : public Task
   get_name() const;
 
  private:
-  const General_options& options_;
   Symbol_table* symtab_;
   Layout* layout_;
   Relobj* object_;
   Read_relocs_data* rd_;
-  Task_token* symtab_lock_;
-  Task_token* blocker_;
+  Task_token* this_blocker_;
+  Task_token* next_blocker_;
 };
 
 // Scan the relocations for an object to see if they require any
@@ -139,14 +140,17 @@ class Gc_process_relocs : public Task
 class Scan_relocs : public Task
 {
  public:
-  // SYMTAB_LOCK is used to lock the symbol table.  BLOCKER should be
-  // unblocked when the task completes.
-  Scan_relocs(const General_options& options, Symbol_table* symtab,
-	      Layout* layout, Relobj* object, Read_relocs_data* rd,
-	      Task_token* symtab_lock, Task_token* blocker)
-    : options_(options), symtab_(symtab), layout_(layout), object_(object),
-      rd_(rd), symtab_lock_(symtab_lock), blocker_(blocker)
+  // THIS_BLOCKER prevents this task from running until the previous
+  // one is finished.  NEXT_BLOCKER prevents the next task from
+  // running.
+  Scan_relocs(Symbol_table* symtab, Layout* layout, Relobj* object,
+	      Read_relocs_data* rd, Task_token* this_blocker,
+	      Task_token* next_blocker)
+    : symtab_(symtab), layout_(layout), object_(object), rd_(rd),
+      this_blocker_(this_blocker), next_blocker_(next_blocker)
   { }
+
+  ~Scan_relocs();
 
   // The standard Task methods.
 
@@ -163,13 +167,12 @@ class Scan_relocs : public Task
   get_name() const;
 
  private:
-  const General_options& options_;
   Symbol_table* symtab_;
   Layout* layout_;
   Relobj* object_;
   Read_relocs_data* rd_;
-  Task_token* symtab_lock_;
-  Task_token* blocker_;
+  Task_token* this_blocker_;
+  Task_token* next_blocker_;
 };
 
 // A class to perform all the relocations for an object file.
@@ -177,12 +180,12 @@ class Scan_relocs : public Task
 class Relocate_task : public Task
 {
  public:
-  Relocate_task(const General_options& options, const Symbol_table* symtab,
-		const Layout* layout, Relobj* object, Output_file* of,
+  Relocate_task(const Symbol_table* symtab, const Layout* layout,
+		Relobj* object, Output_file* of,
 		Task_token* input_sections_blocker,
 		Task_token* output_sections_blocker, Task_token* final_blocker)
-    : options_(options), symtab_(symtab), layout_(layout), object_(object),
-      of_(of), input_sections_blocker_(input_sections_blocker),
+    : symtab_(symtab), layout_(layout), object_(object), of_(of),
+      input_sections_blocker_(input_sections_blocker),
       output_sections_blocker_(output_sections_blocker),
       final_blocker_(final_blocker)
   { }
@@ -202,7 +205,6 @@ class Relocate_task : public Task
   get_name() const;
 
  private:
-  const General_options& options_;
   const Symbol_table* symtab_;
   const Layout* layout_;
   Relobj* object_;
@@ -245,6 +247,8 @@ class Relocatable_relocs
     RELOC_ADJUST_FOR_SECTION_2,
     RELOC_ADJUST_FOR_SECTION_4,
     RELOC_ADJUST_FOR_SECTION_8,
+    // Like RELOC_ADJUST_FOR_SECTION_4 but for unaligned relocs.
+    RELOC_ADJUST_FOR_SECTION_4_UNALIGNED,
     // Discard the input reloc--process it completely when relocating
     // the data section contents.
     RELOC_DISCARD,
@@ -329,13 +333,25 @@ private:
     elfcpp::Swap<valsize, big_endian>::writeval(wv, x + value);
   }
 
+  // Like the above but for relocs at unaligned addresses.
+  template<int valsize>
+  static inline void
+  rel_unaligned(unsigned char* view,
+	        typename elfcpp::Swap<valsize, big_endian>::Valtype value)
+  {
+    typedef typename elfcpp::Swap_unaligned<valsize, big_endian>::Valtype
+	Valtype;
+    Valtype x = elfcpp::Swap_unaligned<valsize, big_endian>::readval(view);
+    elfcpp::Swap_unaligned<valsize, big_endian>::writeval(view, x + value);
+  }
+
   // Do a simple relocation using a Symbol_value with the addend in
   // the section contents.  VALSIZE is the size of the value to
   // relocate.
   template<int valsize>
   static inline void
   rel(unsigned char* view,
-      const Sized_relobj<size, big_endian>* object,
+      const Sized_relobj_file<size, big_endian>* object,
       const Symbol_value<size>* psymval)
   {
     typedef typename elfcpp::Swap<valsize, big_endian>::Valtype Valtype;
@@ -343,6 +359,20 @@ private:
     Valtype x = elfcpp::Swap<valsize, big_endian>::readval(wv);
     x = psymval->value(object, x);
     elfcpp::Swap<valsize, big_endian>::writeval(wv, x);
+  }
+
+  // Like the above but for relocs at unaligned addresses.
+  template<int valsize>
+  static inline void
+  rel_unaligned(unsigned char* view,
+                const Sized_relobj_file<size, big_endian>* object,
+                const Symbol_value<size>* psymval)
+  {
+    typedef typename elfcpp::Swap_unaligned<valsize, big_endian>::Valtype
+        Valtype;
+    Valtype x = elfcpp::Swap_unaligned<valsize, big_endian>::readval(view);
+    x = psymval->value(object, x);
+    elfcpp::Swap_unaligned<valsize, big_endian>::writeval(view, x);
   }
 
   // Do a simple relocation with the addend in the relocation.
@@ -363,7 +393,7 @@ private:
   template<int valsize>
   static inline void
   rela(unsigned char* view,
-       const Sized_relobj<size, big_endian>* object,
+       const Sized_relobj_file<size, big_endian>* object,
        const Symbol_value<size>* psymval,
        typename elfcpp::Swap<valsize, big_endian>::Valtype addend)
   {
@@ -387,13 +417,26 @@ private:
     elfcpp::Swap<valsize, big_endian>::writeval(wv, x + value - address);
   }
 
+  // Like the above but for relocs at unaligned addresses.
+  template<int valsize>
+  static inline void
+  pcrel_unaligned(unsigned char* view,
+		  typename elfcpp::Swap<valsize, big_endian>::Valtype value,
+		  typename elfcpp::Elf_types<size>::Elf_Addr address)
+  {
+    typedef typename elfcpp::Swap<valsize, big_endian>::Valtype Valtype;
+    Valtype x = elfcpp::Swap_unaligned<valsize, big_endian>::readval(view);
+    elfcpp::Swap_unaligned<valsize, big_endian>::writeval(view,
+							  x + value - address);
+  }
+
   // Do a simple PC relative relocation with a Symbol_value with the
   // addend in the section contents.  VALSIZE is the size of the
   // value.
   template<int valsize>
   static inline void
   pcrel(unsigned char* view,
-	const Sized_relobj<size, big_endian>* object,
+	const Sized_relobj_file<size, big_endian>* object,
 	const Symbol_value<size>* psymval,
 	typename elfcpp::Elf_types<size>::Elf_Addr address)
   {
@@ -423,7 +466,7 @@ private:
   template<int valsize>
   static inline void
   pcrela(unsigned char* view,
-	 const Sized_relobj<size, big_endian>* object,
+	 const Sized_relobj_file<size, big_endian>* object,
 	 const Symbol_value<size>* psymval,
 	 typename elfcpp::Swap<valsize, big_endian>::Valtype addend,
 	 typename elfcpp::Elf_types<size>::Elf_Addr address)
@@ -445,7 +488,7 @@ public:
 
   static inline void
   rel8(unsigned char* view,
-       const Sized_relobj<size, big_endian>* object,
+       const Sized_relobj_file<size, big_endian>* object,
        const Symbol_value<size>* psymval)
   { This::template rel<8>(view, object, psymval); }
 
@@ -456,7 +499,7 @@ public:
 
   static inline void
   rela8(unsigned char* view,
-	const Sized_relobj<size, big_endian>* object,
+	const Sized_relobj_file<size, big_endian>* object,
 	const Symbol_value<size>* psymval,
 	unsigned char addend)
   { This::template rela<8>(view, object, psymval, addend); }
@@ -470,7 +513,7 @@ public:
 
   static inline void
   pcrel8(unsigned char* view,
-	 const Sized_relobj<size, big_endian>* object,
+	 const Sized_relobj_file<size, big_endian>* object,
 	 const Symbol_value<size>* psymval,
 	 typename elfcpp::Elf_types<size>::Elf_Addr address)
   { This::template pcrel<8>(view, object, psymval, address); }
@@ -484,7 +527,7 @@ public:
 
   static inline void
   pcrela8(unsigned char* view,
-	  const Sized_relobj<size, big_endian>* object,
+	  const Sized_relobj_file<size, big_endian>* object,
 	  const Symbol_value<size>* psymval,
 	  unsigned char addend,
 	  typename elfcpp::Elf_types<size>::Elf_Addr address)
@@ -498,7 +541,7 @@ public:
 
   static inline void
   rel16(unsigned char* view,
-	const Sized_relobj<size, big_endian>* object,
+	const Sized_relobj_file<size, big_endian>* object,
 	const Symbol_value<size>* psymval)
   { This::template rel<16>(view, object, psymval); }
 
@@ -509,7 +552,7 @@ public:
 
   static inline void
   rela16(unsigned char* view,
-	 const Sized_relobj<size, big_endian>* object,
+	 const Sized_relobj_file<size, big_endian>* object,
 	 const Symbol_value<size>* psymval,
 	 elfcpp::Elf_Half addend)
   { This::template rela<16>(view, object, psymval, addend); }
@@ -523,7 +566,7 @@ public:
 
   static inline void
   pcrel16(unsigned char* view,
-	  const Sized_relobj<size, big_endian>* object,
+	  const Sized_relobj_file<size, big_endian>* object,
 	  const Symbol_value<size>* psymval,
 	  typename elfcpp::Elf_types<size>::Elf_Addr address)
   { This::template pcrel<16>(view, object, psymval, address); }
@@ -538,7 +581,7 @@ public:
 
   static inline void
   pcrela16(unsigned char* view,
-	   const Sized_relobj<size, big_endian>* object,
+	   const Sized_relobj_file<size, big_endian>* object,
 	   const Symbol_value<size>* psymval,
 	   elfcpp::Elf_Half addend,
 	   typename elfcpp::Elf_types<size>::Elf_Addr address)
@@ -550,11 +593,23 @@ public:
   rel32(unsigned char* view, elfcpp::Elf_Word value)
   { This::template rel<32>(view, value); }
 
+  // Like above but for relocs at unaligned addresses.
+  static inline void
+  rel32_unaligned(unsigned char* view, elfcpp::Elf_Word value)
+  { This::template rel_unaligned<32>(view, value); }
+
   static inline void
   rel32(unsigned char* view,
-	const Sized_relobj<size, big_endian>* object,
+	const Sized_relobj_file<size, big_endian>* object,
 	const Symbol_value<size>* psymval)
   { This::template rel<32>(view, object, psymval); }
+
+  // Like above but for relocs at unaligned addresses.
+  static inline void
+  rel32_unaligned(unsigned char* view,
+	          const Sized_relobj_file<size, big_endian>* object,
+	          const Symbol_value<size>* psymval)
+  { This::template rel_unaligned<32>(view, object, psymval); }
 
   // Do an 32-bit RELA relocation with the addend in the relocation.
   static inline void
@@ -563,7 +618,7 @@ public:
 
   static inline void
   rela32(unsigned char* view,
-	 const Sized_relobj<size, big_endian>* object,
+	 const Sized_relobj_file<size, big_endian>* object,
 	 const Symbol_value<size>* psymval,
 	 elfcpp::Elf_Word addend)
   { This::template rela<32>(view, object, psymval, addend); }
@@ -575,9 +630,15 @@ public:
 	  typename elfcpp::Elf_types<size>::Elf_Addr address)
   { This::template pcrel<32>(view, value, address); }
 
+  // Unaligned version of the above.
+  static inline void
+  pcrel32_unaligned(unsigned char* view, elfcpp::Elf_Word value,
+		    typename elfcpp::Elf_types<size>::Elf_Addr address)
+  { This::template pcrel_unaligned<32>(view, value, address); }
+
   static inline void
   pcrel32(unsigned char* view,
-	  const Sized_relobj<size, big_endian>* object,
+	  const Sized_relobj_file<size, big_endian>* object,
 	  const Symbol_value<size>* psymval,
 	  typename elfcpp::Elf_types<size>::Elf_Addr address)
   { This::template pcrel<32>(view, object, psymval, address); }
@@ -592,7 +653,7 @@ public:
 
   static inline void
   pcrela32(unsigned char* view,
-	   const Sized_relobj<size, big_endian>* object,
+	   const Sized_relobj_file<size, big_endian>* object,
 	   const Symbol_value<size>* psymval,
 	   elfcpp::Elf_Word addend,
 	   typename elfcpp::Elf_types<size>::Elf_Addr address)
@@ -606,7 +667,7 @@ public:
 
   static inline void
   rel64(unsigned char* view,
-	const Sized_relobj<size, big_endian>* object,
+	const Sized_relobj_file<size, big_endian>* object,
 	const Symbol_value<size>* psymval)
   { This::template rel<64>(view, object, psymval); }
 
@@ -618,7 +679,7 @@ public:
 
   static inline void
   rela64(unsigned char* view,
-	 const Sized_relobj<size, big_endian>* object,
+	 const Sized_relobj_file<size, big_endian>* object,
 	 const Symbol_value<size>* psymval,
 	 elfcpp::Elf_Xword addend)
   { This::template rela<64>(view, object, psymval, addend); }
@@ -632,7 +693,7 @@ public:
 
   static inline void
   pcrel64(unsigned char* view,
-	  const Sized_relobj<size, big_endian>* object,
+	  const Sized_relobj_file<size, big_endian>* object,
 	  const Symbol_value<size>* psymval,
 	  typename elfcpp::Elf_types<size>::Elf_Addr address)
   { This::template pcrel<64>(view, object, psymval, address); }
@@ -647,11 +708,127 @@ public:
 
   static inline void
   pcrela64(unsigned char* view,
-	   const Sized_relobj<size, big_endian>* object,
+	   const Sized_relobj_file<size, big_endian>* object,
 	   const Symbol_value<size>* psymval,
 	   elfcpp::Elf_Xword addend,
 	   typename elfcpp::Elf_types<size>::Elf_Addr address)
   { This::template pcrela<64>(view, object, psymval, addend, address); }
+};
+
+// Integer manipulation functions used by various targets when
+// performing relocations.
+
+template<int bits>
+class Bits
+{
+ public:
+  // Sign extend an n-bit unsigned integer stored in a uint32_t into
+  // an int32_t.  BITS must be between 1 and 32.
+  static inline int32_t
+  sign_extend32(uint32_t val)
+  {
+    gold_assert(bits > 0 && bits <= 32);
+    if (bits == 32)
+      return static_cast<int32_t>(val);
+    uint32_t mask = (~static_cast<uint32_t>(0)) >> (32 - bits);
+    val &= mask;
+    uint32_t top_bit = 1U << (bits - 1);
+    int32_t as_signed = static_cast<int32_t>(val);
+    if ((val & top_bit) != 0)
+      as_signed -= static_cast<int32_t>(top_bit * 2);
+    return as_signed;    
+  }
+
+  // Return true if VAL (stored in a uint32_t) has overflowed a signed
+  // value with BITS bits.
+  static inline bool
+  has_overflow32(uint32_t val)
+  {
+    gold_assert(bits > 0 && bits <= 32);
+    if (bits == 32)
+      return false;
+    int32_t max = (1 << (bits - 1)) - 1;
+    int32_t min = -(1 << (bits - 1));
+    int32_t as_signed = static_cast<int32_t>(val);
+    return as_signed > max || as_signed < min;
+  }
+
+  // Return true if VAL (stored in a uint32_t) has overflowed both a
+  // signed and an unsigned value.  E.g.,
+  // Bits<8>::has_signed_unsigned_overflow32 would check -128 <= VAL <
+  // 255.
+  static inline bool
+  has_signed_unsigned_overflow32(uint32_t val)
+  {
+    gold_assert(bits > 0 && bits <= 32);
+    if (bits == 32)
+      return false;
+    int32_t max = static_cast<int32_t>((1U << bits) - 1);
+    int32_t min = -(1 << (bits - 1));
+    int32_t as_signed = static_cast<int32_t>(val);
+    return as_signed > max || as_signed < min;
+  }
+
+  // Select bits from A and B using bits in MASK.  For each n in
+  // [0..31], the n-th bit in the result is chosen from the n-th bits
+  // of A and B.  A zero selects A and a one selects B.
+  static inline uint32_t
+  bit_select32(uint32_t a, uint32_t b, uint32_t mask)
+  { return (a & ~mask) | (b & mask); }
+
+  // Sign extend an n-bit unsigned integer stored in a uint64_t into
+  // an int64_t.  BITS must be between 1 and 64.
+  static inline int64_t
+  sign_extend(uint64_t val)
+  {
+    gold_assert(bits > 0 && bits <= 64);
+    if (bits == 64)
+      return static_cast<int64_t>(val);
+    uint64_t mask = (~static_cast<uint64_t>(0)) >> (64 - bits);
+    val &= mask;
+    uint64_t top_bit = static_cast<uint64_t>(1) << (bits - 1);
+    int64_t as_signed = static_cast<int64_t>(val);
+    if ((val & top_bit) != 0)
+      as_signed -= static_cast<int64_t>(top_bit * 2);
+    return as_signed;    
+  }
+
+  // Return true if VAL (stored in a uint64_t) has overflowed a signed
+  // value with BITS bits.
+  static inline bool
+  has_overflow(uint64_t val)
+  {
+    gold_assert(bits > 0 && bits <= 64);
+    if (bits == 64)
+      return false;
+    int64_t max = (static_cast<int64_t>(1) << (bits - 1)) - 1;
+    int64_t min = -(static_cast<int64_t>(1) << (bits - 1));
+    int64_t as_signed = static_cast<int64_t>(val);
+    return as_signed > max || as_signed < min;
+  }
+
+  // Return true if VAL (stored in a uint64_t) has overflowed both a
+  // signed and an unsigned value.  E.g.,
+  // Bits<8>::has_signed_unsigned_overflow would check -128 <= VAL <
+  // 255.
+  static inline bool
+  has_signed_unsigned_overflow64(uint64_t val)
+  {
+    gold_assert(bits > 0 && bits <= 64);
+    if (bits == 64)
+      return false;
+    int64_t max = static_cast<int64_t>((static_cast<uint64_t>(1) << bits) - 1);
+    int64_t min = -(static_cast<int64_t>(1) << (bits - 1));
+    int64_t as_signed = static_cast<int64_t>(val);
+    return as_signed > max || as_signed < min;
+  }
+
+  // Select bits from A and B using bits in MASK.  For each n in
+  // [0..31], the n-th bit in the result is chosen from the n-th bits
+  // of A and B.  A zero selects A and a one selects B.
+  static inline uint64_t
+  bit_select64(uint64_t a, uint64_t b, uint64_t mask)
+  { return (a & ~mask) | (b & mask); }
 };
 
 // Track relocations while reading a section.  This lets you ask for
@@ -676,7 +853,7 @@ class Track_relocs
 	     unsigned int reloc_type);
 
   // Return the offset in the data section to which the next reloc
-  // applies.  THis returns -1 if there is no next reloc.
+  // applies.  This returns -1 if there is no next reloc.
   off_t
   next_offset() const;
 
@@ -685,10 +862,25 @@ class Track_relocs
   unsigned int
   next_symndx() const;
 
+  // Return the addend of the next reloc.  This returns 0 if there is
+  // no next reloc.
+  uint64_t
+  next_addend() const;
+
   // Advance to OFFSET within the data section, and return the number
   // of relocs which would be skipped.
   int
   advance(off_t offset);
+
+  // Checkpoint the current position in the reloc section.
+  section_size_type
+  checkpoint() const
+  { return this->pos_; }
+
+  // Reset the position to CHECKPOINT.
+  void
+  reset(section_size_type checkpoint)
+  { this->pos_ = checkpoint; }
 
  private:
   // The contents of the input object's reloc section.

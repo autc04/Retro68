@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -837,7 +837,7 @@ void init_unformatted (variable * v)
     }
   else
     {
-      elist = xmalloc (unit_count * sizeof (exception_t));
+      elist = xmallocarray (unit_count, sizeof (exception_t));
       do_count = 0;
       p = val;
       do_parse ();

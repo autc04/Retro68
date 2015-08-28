@@ -1,4 +1,4 @@
-/* Copyright 2006, 2007 Free Software Foundation, Inc.
+/* Copyright (C) 2006-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -49,6 +49,7 @@ const bfd_arch_info_type bfd_spu_arch[] =
     TRUE, 		/* the default machine for the architecture */
     spu_compatible,	/* the spu is only compatible with itself, see above */
     bfd_default_scan,
+    bfd_arch_default_fill,
     0,			/* next -- there are none! */
   }
 };

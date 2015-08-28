@@ -1,5 +1,5 @@
 /* Data dependence analysis for Graphite.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2015 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <sebastian.pop@amd.com> and
    Konrad Trifunovic <konrad.trifunovic@inria.fr>.
 
@@ -21,19 +21,35 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 
-#ifdef HAVE_cloog
+#ifdef HAVE_isl
 #include <isl/set.h>
 #include <isl/map.h>
 #include <isl/union_map.h>
 #include <isl/flow.h>
 #include <isl/constraint.h>
-#include <cloog/cloog.h>
-#include <cloog/isl/domain.h>
 #endif
 
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -49,9 +65,37 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-scalar-evolution.h"
 #include "sese.h"
 
-#ifdef HAVE_cloog
+#ifdef HAVE_isl
 #include "graphite-poly.h"
-#include "graphite-htab.h"
+
+isl_union_map *
+scop_get_dependences (scop_p scop)
+{
+  isl_union_map *dependences;
+
+  if (!scop->must_raw)
+    compute_deps (scop, SCOP_BBS (scop),
+		  &scop->must_raw, &scop->may_raw,
+		  &scop->must_raw_no_source, &scop->may_raw_no_source,
+		  &scop->must_war, &scop->may_war,
+		  &scop->must_war_no_source, &scop->may_war_no_source,
+		  &scop->must_waw, &scop->may_waw,
+		  &scop->must_waw_no_source, &scop->may_waw_no_source);
+
+  dependences = isl_union_map_copy (scop->must_raw);
+  dependences = isl_union_map_union (dependences,
+				     isl_union_map_copy (scop->must_war));
+  dependences = isl_union_map_union (dependences,
+				     isl_union_map_copy (scop->must_waw));
+  dependences = isl_union_map_union (dependences,
+				     isl_union_map_copy (scop->may_raw));
+  dependences = isl_union_map_union (dependences,
+				     isl_union_map_copy (scop->may_war));
+  dependences = isl_union_map_union (dependences,
+				     isl_union_map_copy (scop->may_waw));
+
+  return dependences;
+}
 
 /* Add the constraints from the set S to the domain of MAP.  */
 
@@ -263,6 +307,11 @@ apply_schedule_on_deps (__isl_keep isl_union_map *schedule,
   ux = isl_union_map_copy (deps);
   ux = isl_union_map_apply_domain (ux, isl_union_map_copy (trans));
   ux = isl_union_map_apply_range (ux, trans);
+  if (isl_union_map_is_empty (ux))
+    {
+      isl_union_map_free (ux);
+      return NULL;
+    }
   x = isl_map_from_union_map (ux);
 
   return x;
@@ -300,7 +349,7 @@ no_violations (__isl_keep isl_union_map *schedule,
    in which all the inputs before DEPTH occur at the same time as the
    output, and the input at DEPTH occurs before output.  */
 
-static bool
+bool
 carries_deps (__isl_keep isl_union_map *schedule,
 	      __isl_keep isl_union_map *deps,
 	      int depth)
@@ -315,6 +364,8 @@ carries_deps (__isl_keep isl_union_map *schedule,
     return false;
 
   x = apply_schedule_on_deps (schedule, deps);
+  if (x == NULL)
+    return false;
   space = isl_map_get_space (x);
   space = isl_space_range (space);
   lex = isl_map_lex_le (space);
@@ -424,24 +475,71 @@ subtract_commutative_associative_deps (scop_p scop,
 					  &x_may_waw_no_source);
 	gcc_assert (res == 0);
 
-	*must_raw = isl_union_map_subtract (*must_raw, x_must_raw);
-	*may_raw = isl_union_map_subtract (*may_raw, x_may_raw);
-	*must_raw_no_source = isl_union_map_subtract (*must_raw_no_source,
-						      x_must_raw_no_source);
-	*may_raw_no_source = isl_union_map_subtract (*may_raw_no_source,
-						     x_may_raw_no_source);
-	*must_war = isl_union_map_subtract (*must_war, x_must_war);
-	*may_war = isl_union_map_subtract (*may_war, x_may_war);
-	*must_war_no_source = isl_union_map_subtract (*must_war_no_source,
-						      x_must_war_no_source);
-	*may_war_no_source = isl_union_map_subtract (*may_war_no_source,
-						     x_may_war_no_source);
-	*must_waw = isl_union_map_subtract (*must_waw, x_must_waw);
-	*may_waw = isl_union_map_subtract (*may_waw, x_may_waw);
-	*must_waw_no_source = isl_union_map_subtract (*must_waw_no_source,
-						      x_must_waw_no_source);
-	*may_waw_no_source = isl_union_map_subtract (*may_waw_no_source,
-						     x_may_waw_no_source);
+	if (must_raw)
+	  *must_raw = isl_union_map_subtract (*must_raw, x_must_raw);
+	else
+	  isl_union_map_free (x_must_raw);
+
+	if (may_raw)
+	  *may_raw = isl_union_map_subtract (*may_raw, x_may_raw);
+	else
+	  isl_union_map_free (x_may_raw);
+
+	if (must_raw_no_source)
+	  *must_raw_no_source = isl_union_map_subtract (*must_raw_no_source,
+						        x_must_raw_no_source);
+	else
+	  isl_union_map_free (x_must_raw_no_source);
+
+	if (may_raw_no_source)
+	  *may_raw_no_source = isl_union_map_subtract (*may_raw_no_source,
+						       x_may_raw_no_source);
+	else
+	  isl_union_map_free (x_may_raw_no_source);
+
+	if (must_war)
+	  *must_war = isl_union_map_subtract (*must_war, x_must_war);
+	else
+	  isl_union_map_free (x_must_war);
+
+	if (may_war)
+	  *may_war = isl_union_map_subtract (*may_war, x_may_war);
+	else
+	  isl_union_map_free (x_may_war);
+
+	if (must_war_no_source)
+	  *must_war_no_source = isl_union_map_subtract (*must_war_no_source,
+						        x_must_war_no_source);
+	else
+	  isl_union_map_free (x_must_war_no_source);
+
+	if (may_war_no_source)
+	  *may_war_no_source = isl_union_map_subtract (*may_war_no_source,
+						       x_may_war_no_source);
+	else
+	  isl_union_map_free (x_may_war_no_source);
+
+	if (must_waw)
+	  *must_waw = isl_union_map_subtract (*must_waw, x_must_waw);
+	else
+	  isl_union_map_free (x_must_waw);
+
+	if (may_waw)
+	  *may_waw = isl_union_map_subtract (*may_waw, x_may_waw);
+	else
+	  isl_union_map_free (x_may_waw);
+
+	if (must_waw_no_source)
+	  *must_waw_no_source = isl_union_map_subtract (*must_waw_no_source,
+						        x_must_waw_no_source);
+	else
+	  isl_union_map_free (x_must_waw_no_source);
+
+	if (may_waw_no_source)
+	  *may_waw_no_source = isl_union_map_subtract (*may_waw_no_source,
+						       x_may_waw_no_source);
+	else
+	  isl_union_map_free (x_may_waw_no_source);
       }
 
   isl_union_map_free (original);
@@ -545,60 +643,6 @@ graphite_legal_transform (scop_p scop)
   timevar_pop (TV_GRAPHITE_DATA_DEPS);
 
   return res;
-}
-
-/* Return true when the loop at DEPTH carries dependences.  BODY is
-   the body of the loop.  */
-
-static bool
-loop_level_carries_dependences (scop_p scop, vec<poly_bb_p> body,
-				int depth)
-{
-  isl_union_map *transform = scop_get_transformed_schedule (scop, body);
-  isl_union_map *must_raw, *may_raw;
-  isl_union_map *must_war, *may_war;
-  isl_union_map *must_waw, *may_waw;
-  int res;
-
-  compute_deps (scop, body,
-		&must_raw, &may_raw, NULL, NULL,
-		&must_war, &may_war, NULL, NULL,
-		&must_waw, &may_waw, NULL, NULL);
-
-  res = (carries_deps (transform, must_raw, depth)
-	 || carries_deps (transform, may_raw, depth)
-	 || carries_deps (transform, must_war, depth)
-	 || carries_deps (transform, may_war, depth)
-	 || carries_deps (transform, must_waw, depth)
-	 || carries_deps (transform, may_waw, depth));
-
-  isl_union_map_free (transform);
-  isl_union_map_free (must_raw);
-  isl_union_map_free (may_raw);
-  isl_union_map_free (must_war);
-  isl_union_map_free (may_war);
-  isl_union_map_free (must_waw);
-  isl_union_map_free (may_waw);
-  return res;
-}
-
-/* Returns true when the loop L at level DEPTH is parallel.
-   BB_PBB_MAPPING is a map between a basic_block and its related
-   poly_bb_p.  */
-
-bool
-loop_is_parallel_p (loop_p loop, bb_pbb_htab_type bb_pbb_mapping, int depth)
-{
-  bool dependences;
-  scop_p scop;
-
-  timevar_push (TV_GRAPHITE_DATA_DEPS);
-  auto_vec<poly_bb_p, 3> body;
-  scop = get_loop_body_pbbs (loop, bb_pbb_mapping, &body);
-  dependences = loop_level_carries_dependences (scop, body, depth);
-  timevar_pop (TV_GRAPHITE_DATA_DEPS);
-
-  return !dependences;
 }
 
 #endif

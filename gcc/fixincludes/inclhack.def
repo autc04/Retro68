@@ -597,6 +597,56 @@ fix = {
 };
 
 /*
+ *  On AIX some headers are not properly guarded by 'extern "C"'.
+ */
+fix = {
+  hackname  = aix_externc;
+  mach      = "*-*-aix*";
+  files     = ctype.h;
+  files     = fcntl.h;
+  files     = langinfo.h;
+  files     = ldfcn.h;
+  files     = sys/localedef.h;
+  files     = sys/times.h;
+  bypass    = "extern \"C\"";
+  c_fix     = wrap;
+  c_fix_arg = "#ifdef __cplusplus\n"
+              "extern \"C\" {\n"
+              "#endif\n";
+  c_fix_arg = "#ifdef __cplusplus\n"
+              "}\n"
+              "#endif\n";
+  test_text = "extern int __n_pthreads;\n";
+};
+
+/*
+ *  On AIX sys/socket.h assumes C++.
+ */
+fix = {
+  hackname  = aix_externcpp1;
+  mach      = "*-*-aix*";
+  files     = "sys/socket.h";
+  select    = "#ifdef __cplusplus";
+  c_fix     = format;
+  c_fix_arg = "#ifdef __cplusplus\n"
+              "extern \"C++\" {";
+  test_text = "#ifdef __cplusplus";
+
+};
+
+fix = {
+  hackname  = aix_externcpp2;
+  mach      = "*-*-aix*";
+  files     = "sys/socket.h";
+  select    = "#else  /\\* __cplusplus \\*/";
+  c_fix     = format;
+  c_fix_arg = "} /* extern \"C++\" */\n"
+              "#else  /* __cplusplus */";
+  test_text = "#else  /* __cplusplus */";
+
+};
+
+/*
  *  malloc.h on AIX6 uses XLC++ specific builtin syntax
  */
 fix = {
@@ -727,7 +777,7 @@ fix = {
 fix = {
     hackname  = aix_pthread;
     files     = "pthread.h";
-    select    = "(#define [A-Za-z_0-9]+)(\\\\\n[^A-Za-z_0-9 \t\n(])";
+    select    = "(#define[\t ][A-Za-z_0-9]+)(\\\\\n[^A-Za-z_0-9 \t\n(])";
     c_fix     = format;
     c_fix_arg = "%1 %2";
     test_text = "#define PTHREAD_MUTEX_INITIALIZER\\\\\n"
@@ -839,6 +889,18 @@ fix = {
 		"#define UINT16_C(c)	c";
     test_text = "#define UINT8_C(c)	__CONCAT__(c,U)\n"
 		"#define UINT16_C(c)	__CONCAT__(c,U)";
+};
+
+/*
+ * stdlib.h on AIX 4.3 declares strtof() with a non-const first argument.
+ */
+fix = {
+    hackname  = aix_strtof_const;
+    files     = stdlib.h;
+    select    = "((extern[ \t]+)?float[ \t]+strtof)\\(char \\*, char \\*\\*\\);";
+    c_fix     = format;
+    c_fix_arg = "%1(const char *, char **);";
+    test_text = "extern float    strtof(char *, char **);";
 };
 
 /*
@@ -1137,20 +1199,6 @@ fix = {
 		'int vfscanf(FILE *, const char *, __builtin_va_list) '
 		'__asm__ (_BSD_STRING(__USER_LABEL_PREFIX__) "__svfscanf");';
     test_text = '#define  vfscanf	__svfscanf';
-};
-
-/*
- *  Old Linux kernel's <compiler.h> header breaks Traditional CPP
- */
-fix = {
-    hackname  = complier_h_tradcpp;
-    files     = linux/compiler.h;
-
-    select    = "#define __builtin_warning\\(x, y\\.\\.\\.\\) \\(1\\)";
-    c_fix     = format;
-    c_fix_arg = "/* __builtin_warning(x, y...) is obsolete */";
-
-    test_text = "#define __builtin_warning(x, y...) (1)";
 };
 
 /*
@@ -1701,7 +1749,8 @@ fix = {
  */
 fix = {
     hackname  = glibc_c99_inline_4;
-    files     = sys/sysmacros.h, '*/sys/sysmacros.h', wchar.h, '*/wchar.h';
+    files     = sys/sysmacros.h, '*/sys/sysmacros.h', wchar.h, '*/wchar.h',
+    pthread.h, '*/pthread.h';
     bypass    = "__extern_inline|__gnu_inline__";
     select    = "(^| )extern __inline";
     c_fix     = format;
@@ -2072,6 +2121,19 @@ fix = {
     c_fix     = format;
     c_fix_arg = "if !defined(_MATH_INCLUDED) || defined(__GNUG__)";
     test_text = "#ifndef _MATH_INCLUDED";
+};
+
+/*
+ *  Fix hpux11 __LWP_RWLOCK_VALID define
+ */
+fix = {
+    hackname  = hpux11_lwp_rwlock_valid;
+    mach      = "*-hp-hpux11*";
+    files     = sys/pthread.h;
+    select    = "#define __LWP_RWLOCK_VALID[ \t]*0x8c91";
+    c_fix     = format;
+    c_fix_arg = "#define __LWP_RWLOCK_VALID              -29551";
+    test_text = "#define __LWP_RWLOCK_VALID 0x8c91";
 };
 
 /*
@@ -2767,6 +2829,9 @@ fix = {
      */
     bypass    = 'We have a problem when using C\+\+|for C\+\+, '
 		'_[a-z0-9A-Z_]+_exception; for C, exception';
+    /* The Solaris 10 headers already get this right.  */
+    mach   = '*-*-solaris2.1[0-9]*';
+    not_machine = true;
     c_fix     = wrap;
 
     c_fix_arg = "#ifdef __cplusplus\n"
@@ -3407,42 +3472,6 @@ fix = {
 };
 
 /*
- * Sun Solaris up to 9 has a version of sys/int_types.h that forbids use
- * of Standard C99 64-bit types in 32-bit mode.
- */
-fix = {
-    hackname  = solaris_int_types;
-    select    = "__STDC__ - 0 == 0";
-    bypass    = "_LONGLONG_TYPE";
-    files     = sys/int_types.h;
-    c_fix     = format;
-    c_fix_arg =
-    "(defined(_STDC_C99) || !defined(_STRICT_STDC) || defined(__GNUC__))";
-    test_text =
-    "#if __STDC__ - 0 == 0 && !defined(_NO_LONGLONG)\n"
-    "typedef	long long		int64_t;\n"
-    "#endif\n\n"
-    "#if defined(_LP64) || (__STDC__ - 0 == 0 && !defined(_NO_LONGLONG))\n"
-    "typedef int64_t			intmax_t;\n"
-    "#endif";
-};
-
-/*
- *  Before Solaris 10, <iso/setjmp_iso.h> doesn't mark longjump noreturn.
- */
-fix = {
-    hackname  = solaris_longjmp_noreturn;
-    mach      = "*-*-solaris2*";
-    files     = "iso/setjmp_iso.h";
-    bypass    = "__NORETURN";
-    select    = "(.*longjmp\\(jmp_buf.*[^)]+\\));";
-    c_fix     = format;
-    c_fix_arg = "%1 __attribute__ ((__noreturn__));";
-
-    test_text = "extern void longjmp(jmp_buf, int);";
-};
-
-/*
  * Sun Solaris 10 defines several C99 math macros in terms of
  * builtins specific to the Studio compiler, in particular not
  * compatible with the GNU compiler.
@@ -3595,41 +3624,55 @@ fix = {
 };
 
 /*
- * Sun Solaris defines PTHREAD_MUTEX_INITIALIZER with a trailing
- * "0" for the last field of the pthread_mutex_t structure, which is
- * of type upad64_t, which itself is typedef'd to int64_t, but with
- * __STDC__ defined (e.g. by -ansi) it is a union. So change the
- * initializer to "{0}" instead
+ * Newer Solaris 10/11 GCC signbit implementations cause strict-aliasing
+ * warnings.
  */
 fix = {
-    hackname = solaris_mutex_init_2;
-    select = '@\(#\)pthread.h' "[ \t]+1.[0-9]+[ \t]+[0-9/]+ SMI";
-    files = pthread.h;
-    /*
-     * On Solaris 10, this fix is unnecessary because upad64_t is
-     * always defined correctly regardless of the definition of the
-     * __STDC__ macro.  The first "mach" pattern matches up to
-     * solaris9.  The second "mach" pattern will not match any two (or
-     * more) digit solaris version, but it will match e.g. 2.5.1.
-     */
-    mach = '*-*-solaris2.[0-9]', '*-*-solaris2.[0-9][!0-9]*';
+    hackname = solaris_math_11;
+    select = '@\(#\)math_c99\.h' "[ \t]+1\\.[0-9]+[ \t]+[0-9/]+ ";
+    files = iso/math_c99.h;
     c_fix = format;
-    c_fix_arg = "#if __STDC__ - 0 == 0 && !defined(_NO_LONGLONG)\n"
-                "%0\n"
-                "#else\n"
-                "%1, {0}}%4\n"
-                "#endif";
-    c_fix_arg = "(^#define[ \t]+PTHREAD_(MUTEX|COND)_INITIALIZER[ \t]+"
-                "(|/\*.*\*/[ \t]*\\\\\n[ \t]*)\\{.*)"
-                ",[ \t]*0\\}" "(|[ \t].*)$";
-    test_text =
-    '#ident "@(#)pthread.h  1.26  98/04/12 SMI"'"\n"
-    "#define PTHREAD_MUTEX_INITIALIZER\t{{{0},0}, {{{0}}}, 0}\n"
-    "#define PTHREAD_COND_INITIALIZER\t{{{0}, 0}, 0}\t/* DEFAULTCV */\n"
-    "#define	PTHREAD_MUTEX_INITIALIZER		/* = DEFAULTMUTEX */	\\\\\n"
-    "	{{0, 0, 0, DEFAULT_TYPE, _MUTEX_MAGIC}, {{{0}}}, 0}\n"
-    "#define	PTHREAD_COND_INITIALIZER		/* = DEFAULTCV */	\\\\\n"
-    "	{{{0, 0, 0, 0}, DEFAULT_TYPE, _COND_MAGIC}, 0}";
+    c_fix_arg = << _EOArg_
+#undef	signbit
+#define	signbit(x)	(sizeof(x) == sizeof(float) \
+			   ? __builtin_signbitf(x) \
+			   : sizeof(x) == sizeof(long double) \
+			     ? __builtin_signbitl(x) \
+			     : __builtin_signbit(x))
+_EOArg_;
+    c_fix_arg = << _EOArg_
+^#undef[ 	]+signbit
+#if defined\(__sparc\)
+#define[ 	]+signbit\(x\)[ 	]+__extension__\( \\
+[ 	]+\{[ 	]*__typeof\(x\)[ 	]*__x_s[ 	]*=[ 	]*\(x\);[ 	]*\\
+[ 	]+\(int\)[ 	]*\(\*\(unsigned[ 	]*\*\)[ 	]*\&__x_s[ 	]*>>[ 	]*31\);[ 	]*\}\)
+#elif defined\(__i386\) \|\| defined\(__amd64\)
+#define[ 	]+signbit\(x\)[ 	]+__extension__\( \\
+[ 	]+\{ __typeof\(x\) __x_s = \(x\); \\
+[ 	]+\(sizeof \(__x_s\) == sizeof \(float\) \? \\
+[ 	]+\(int\) \(\*\(unsigned \*\) \&__x_s >> 31\) : \\
+[ 	]+sizeof \(__x_s\) == sizeof \(double\) \? \\
+[ 	]+\(int\) \(\(\(unsigned \*\) \&__x_s\)\[1\] >> 31\) : \\
+[ 	]+\(int\) \(\(\(unsigned short \*\) \&__x_s\)\[4\] >> 15\)\); \}\)
+#endif
+_EOArg_;
+    test_text = << _EOText_
+/* @(#)math_c99.h	1.14	13/03/27 */
+#undef	signbit
+#if defined(__sparc)
+#define	signbit(x)	__extension__( \\
+				{ __typeof(x) __x_s = (x); \\
+				(int) (*(unsigned *) &__x_s >> 31); })
+#elif defined(__i386) || defined(__amd64)
+#define	signbit(x)	__extension__( \\
+			{ __typeof(x) __x_s = (x); \\
+			(sizeof (__x_s) == sizeof (float) ? \\
+			(int) (*(unsigned *) &__x_s >> 31) : \\
+			sizeof (__x_s) == sizeof (double) ? \\
+			(int) (((unsigned *) &__x_s)[1] >> 31) : \\
+			(int) (((unsigned short *) &__x_s)[4] >> 15)); })
+#endif
+_EOText_;
 };
 
 /*
@@ -3648,38 +3691,6 @@ fix = {
     test_text =
     '#pragma ident	"@(#)pthread.h	1.37	04/09/28 SMI"'"\n"
     "#define PTHREAD_ONCE_INIT\t{0, 0, 0, PTHREAD_ONCE_NOTDONE}";
-};
-
-/*
- * Sun Solaris defines PTHREAD_ONCE_INIT with a "0" for some
- *  fields of the pthread_once_t structure, which are of type
- *  upad64_t, which itself is typedef'd to int64_t, but with __STDC__
- *  defined (e.g. by -ansi) it is a union. So change the initializer
- *  to "{0}" instead.  This test relies on solaris_once_init_1.
- */
-fix = {
-    hackname = solaris_once_init_2;
-    select = '@\(#\)pthread.h' "[ \t]+1.[0-9]+[ \t]+[0-9/]+ SMI";
-    files = pthread.h;
-    /*
-     * On Solaris 10, this fix is unnecessary because upad64_t is
-     * always defined correctly regardless of the definition of the
-     * __STDC__ macro.  The first "mach" pattern matches up to
-     * solaris9.  The second "mach" pattern will not match any two (or
-     * more) digit solaris version, but it will match e.g. 2.5.1.
-     */
-    mach = '*-*-solaris2.[0-9]', '*-*-solaris2.[0-9][!0-9]*';
-    c_fix = format;
-    c_fix_arg = "#if __STDC__ - 0 == 0 && !defined(_NO_LONGLONG)\n"
-                "%0\n"
-                "#else\n"
-                "%1{0}, {0}, {0}, {%3}%4\n"
-                "#endif";
-    c_fix_arg = "(^#define[ \t]+PTHREAD_ONCE_INIT[ \t]+\\{\\{)"
-                "(0, 0, 0, )(PTHREAD_[A-Z_]+)(\\}\\})[ \t]*$";
-    test_text =
-    '#ident "@(#)pthread.h  1.26  98/04/12 SMI"'"\n"
-    "#define PTHREAD_ONCE_INIT\t{{0, 0, 0, PTHREAD_ONCE_NOTDONE}}\n";
 };
 
 /*
@@ -3777,33 +3788,6 @@ fix = {
     sed      = 's/defined(__cplusplus) && (__cplusplus < 54321L)/0/';
 
     test_text = "#if\tdefined(__cplusplus) && (__cplusplus < 54321L)";
-};
-
-/*
- * On Solaris 9, __va_list needs to become a typedef for
- * __builtin_va_list to make -Wmissing-format-attribute work.
- */
-fix = {
-    hackname = solaris_sys_va_list;
-    files    = sys/va_list.h;
-    mach     = '*-*-solaris2.9';
-    select   = "#if.*__STDC__.*\n"
-	       "typedef void \\*__va_list;\n"
-	       "#else\n"
-	       "typedef char \\*__va_list;\n"
-	       "#endif";
-
-    c_fix    = format;
-    c_fix_arg = "#ifdef __GNUC__\n"
-		"typedef __builtin_va_list __va_list;\n"
-		"#else\n"
-		"%0\n"
-		"#endif";
-    test_text = "#if defined(__STDC__) && !defined(__ia64)\n"
-    		"typedef void *__va_list;\n"
-	        "#else\n"
-	        "typedef char *__va_list;\n"
-	        "#endif";
 };
 
 /*

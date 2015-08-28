@@ -1,5 +1,5 @@
 /* Machine description for AArch64 architecture.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2015 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -108,9 +108,22 @@ enum aarch64_symbol_type
    cost models and vectors for address cost calculations, register
    move costs and memory move costs.  */
 
+/* Scaled addressing modes can vary cost depending on the mode of the
+   value to be loaded/stored.  QImode values cannot use scaled
+   addressing modes.  */
+
+struct scale_addr_mode_cost
+{
+  const int hi;
+  const int si;
+  const int di;
+  const int ti;
+};
+
 /* Additional cost for addresses.  */
 struct cpu_addrcost_table
 {
+  const struct scale_addr_mode_cost addr_scale_costs;
   const int pre_modify;
   const int post_modify;
   const int register_offset;
@@ -157,60 +170,78 @@ struct tune_params
   const struct cpu_vector_cost *const vec_costs;
   const int memmov_cost;
   const int issue_rate;
+  const unsigned int fuseable_ops;
+  const int function_align;
+  const int jump_align;
+  const int loop_align;
+  const int int_reassoc_width;
+  const int fp_reassoc_width;
+  const int vec_reassoc_width;
 };
 
 HOST_WIDE_INT aarch64_initial_elimination_offset (unsigned, unsigned);
-bool aarch64_bitmask_imm (HOST_WIDE_INT val, enum machine_mode);
-bool aarch64_cannot_change_mode_class (enum machine_mode,
-				       enum machine_mode,
-				       enum reg_class);
+int aarch64_get_condition_code (rtx);
+bool aarch64_bitmask_imm (HOST_WIDE_INT val, machine_mode);
 enum aarch64_symbol_type
 aarch64_classify_symbolic_expression (rtx, enum aarch64_symbol_context);
+bool aarch64_const_vec_all_same_int_p (rtx, HOST_WIDE_INT);
 bool aarch64_constant_address_p (rtx);
+bool aarch64_expand_movmem (rtx *);
 bool aarch64_float_const_zero_rtx_p (rtx);
 bool aarch64_function_arg_regno_p (unsigned);
 bool aarch64_gen_movmemqi (rtx *);
 bool aarch64_gimple_fold_builtin (gimple_stmt_iterator *);
-bool aarch64_is_extend_from_extract (enum machine_mode, rtx, rtx);
+bool aarch64_is_extend_from_extract (machine_mode, rtx, rtx);
 bool aarch64_is_long_call_p (rtx);
 bool aarch64_label_mentioned_p (rtx);
 bool aarch64_legitimate_pic_operand_p (rtx);
-bool aarch64_move_imm (HOST_WIDE_INT, enum machine_mode);
+bool aarch64_modes_tieable_p (machine_mode mode1,
+			      machine_mode mode2);
+bool aarch64_move_imm (HOST_WIDE_INT, machine_mode);
 bool aarch64_mov_operand_p (rtx, enum aarch64_symbol_context,
-			    enum machine_mode);
-char *aarch64_output_scalar_simd_mov_immediate (rtx, enum machine_mode);
-char *aarch64_output_simd_mov_immediate (rtx, enum machine_mode, unsigned);
-bool aarch64_pad_arg_upward (enum machine_mode, const_tree);
-bool aarch64_pad_reg_upward (enum machine_mode, const_tree, bool);
+			    machine_mode);
+int aarch64_simd_attr_length_rglist (enum machine_mode);
+rtx aarch64_reverse_mask (enum machine_mode);
+bool aarch64_offset_7bit_signed_scaled_p (machine_mode, HOST_WIDE_INT);
+char *aarch64_output_scalar_simd_mov_immediate (rtx, machine_mode);
+char *aarch64_output_simd_mov_immediate (rtx, machine_mode, unsigned);
+bool aarch64_pad_arg_upward (machine_mode, const_tree);
+bool aarch64_pad_reg_upward (machine_mode, const_tree, bool);
 bool aarch64_regno_ok_for_base_p (int, bool);
 bool aarch64_regno_ok_for_index_p (int, bool);
-bool aarch64_simd_imm_scalar_p (rtx x, enum machine_mode mode);
-bool aarch64_simd_imm_zero_p (rtx, enum machine_mode);
-bool aarch64_simd_scalar_immediate_valid_for_move (rtx, enum machine_mode);
-bool aarch64_simd_shift_imm_p (rtx, enum machine_mode, bool);
-bool aarch64_simd_valid_immediate (rtx, enum machine_mode, bool,
+bool aarch64_simd_check_vect_par_cnst_half (rtx op, machine_mode mode,
+					    bool high);
+bool aarch64_simd_imm_scalar_p (rtx x, machine_mode mode);
+bool aarch64_simd_imm_zero_p (rtx, machine_mode);
+bool aarch64_simd_scalar_immediate_valid_for_move (rtx, machine_mode);
+bool aarch64_simd_shift_imm_p (rtx, machine_mode, bool);
+bool aarch64_simd_valid_immediate (rtx, machine_mode, bool,
 				   struct simd_immediate_info *);
 bool aarch64_symbolic_address_p (rtx);
 bool aarch64_uimm12_shift (HOST_WIDE_INT);
+bool aarch64_use_return_insn_p (void);
+const char *aarch64_mangle_builtin_type (const_tree);
 const char *aarch64_output_casesi (rtx *);
 const char *aarch64_rewrite_selected_cpu (const char *name);
 
-enum aarch64_symbol_type aarch64_classify_symbol (rtx,
+enum aarch64_symbol_type aarch64_classify_symbol (rtx, rtx,
 						  enum aarch64_symbol_context);
 enum aarch64_symbol_type aarch64_classify_tls_symbol (rtx);
 enum reg_class aarch64_regno_regclass (unsigned);
 int aarch64_asm_preferred_eh_data_format (int, int);
-int aarch64_hard_regno_mode_ok (unsigned, enum machine_mode);
-int aarch64_hard_regno_nregs (unsigned, enum machine_mode);
-int aarch64_simd_attr_length_move (rtx);
+machine_mode aarch64_hard_regno_caller_save_mode (unsigned, unsigned,
+						       machine_mode);
+int aarch64_hard_regno_mode_ok (unsigned, machine_mode);
+int aarch64_hard_regno_nregs (unsigned, machine_mode);
+int aarch64_simd_attr_length_move (rtx_insn *);
 int aarch64_uxt_size (int, HOST_WIDE_INT);
 rtx aarch64_final_eh_return_addr (void);
-rtx aarch64_legitimize_reload_address (rtx *, enum machine_mode, int, int, int);
+rtx aarch64_legitimize_reload_address (rtx *, machine_mode, int, int, int);
 const char *aarch64_output_move_struct (rtx *operands);
 rtx aarch64_return_addr (int, rtx);
-rtx aarch64_simd_gen_const_vector_dup (enum machine_mode, int);
+rtx aarch64_simd_gen_const_vector_dup (machine_mode, int);
 bool aarch64_simd_mem_operand_p (rtx);
-rtx aarch64_simd_vect_par_cnst_half (enum machine_mode, bool);
+rtx aarch64_simd_vect_par_cnst_half (machine_mode, bool);
 rtx aarch64_tls_get_addr (void);
 tree aarch64_fold_builtin (tree, int, tree *, bool);
 unsigned aarch64_dbx_register_number (unsigned);
@@ -221,32 +252,28 @@ void aarch64_expand_epilogue (bool);
 void aarch64_expand_mov_immediate (rtx, rtx);
 void aarch64_expand_prologue (void);
 void aarch64_expand_vector_init (rtx, rtx);
-void aarch64_function_profiler (FILE *, int);
 void aarch64_init_cumulative_args (CUMULATIVE_ARGS *, const_tree, rtx,
 				   const_tree, unsigned);
 void aarch64_init_expanders (void);
 void aarch64_print_operand (FILE *, rtx, char);
 void aarch64_print_operand_address (FILE *, rtx);
+void aarch64_emit_call_insn (rtx);
 
 /* Initialize builtins for SIMD intrinsics.  */
 void init_aarch64_simd_builtins (void);
 
-void aarch64_simd_const_bounds (rtx, HOST_WIDE_INT, HOST_WIDE_INT);
-void aarch64_simd_disambiguate_copy (rtx *, rtx *, rtx *, unsigned int);
+void aarch64_simd_emit_reg_reg_move (rtx *, enum machine_mode, unsigned int);
 
 /* Emit code to place a AdvSIMD pair result in memory locations (with equal
    registers).  */
-void aarch64_simd_emit_pair_result_insn (enum machine_mode,
+void aarch64_simd_emit_pair_result_insn (machine_mode,
 					 rtx (*intfn) (rtx, rtx, rtx), rtx,
 					 rtx);
 
 /* Expand builtins for SIMD intrinsics.  */
 rtx aarch64_simd_expand_builtin (int, tree, rtx);
 
-void aarch64_simd_lane_bounds (rtx, HOST_WIDE_INT, HOST_WIDE_INT);
-
-/* Emit code for reinterprets.  */
-void aarch64_simd_reinterpret (rtx, rtx);
+void aarch64_simd_lane_bounds (rtx, HOST_WIDE_INT, HOST_WIDE_INT, const_tree);
 
 void aarch64_split_128bit_move (rtx, rtx);
 
@@ -261,8 +288,8 @@ bool aarch64_float_const_representable_p (rtx);
 
 #if defined (RTX_CODE)
 
-bool aarch64_legitimate_address_p (enum machine_mode, rtx, RTX_CODE, bool);
-enum machine_mode aarch64_select_cc_mode (RTX_CODE, rtx, rtx);
+bool aarch64_legitimate_address_p (machine_mode, rtx, RTX_CODE, bool);
+machine_mode aarch64_select_cc_mode (RTX_CODE, rtx, rtx);
 rtx aarch64_gen_compare_reg (RTX_CODE, rtx, rtx);
 rtx aarch64_load_tp (rtx);
 
@@ -270,13 +297,14 @@ void aarch64_expand_compare_and_swap (rtx op[]);
 void aarch64_split_compare_and_swap (rtx op[]);
 void aarch64_split_atomic_op (enum rtx_code, rtx, rtx, rtx, rtx, rtx, rtx);
 
+bool aarch64_gen_adjusted_ldpstp (rtx *, bool, enum machine_mode, RTX_CODE);
 #endif /* RTX_CODE */
 
 void aarch64_init_builtins (void);
 rtx aarch64_expand_builtin (tree exp,
 			    rtx target,
 			    rtx subtarget ATTRIBUTE_UNUSED,
-			    enum machine_mode mode ATTRIBUTE_UNUSED,
+			    machine_mode mode ATTRIBUTE_UNUSED,
 			    int ignore ATTRIBUTE_UNUSED);
 tree aarch64_builtin_decl (unsigned, bool ATTRIBUTE_UNUSED);
 
@@ -287,6 +315,14 @@ aarch64_builtin_vectorized_function (tree fndecl,
 
 extern void aarch64_split_combinev16qi (rtx operands[3]);
 extern void aarch64_expand_vec_perm (rtx target, rtx op0, rtx op1, rtx sel);
+extern bool aarch64_madd_needs_nop (rtx_insn *);
+extern void aarch64_final_prescan_insn (rtx_insn *);
 extern bool
 aarch64_expand_vec_perm_const (rtx target, rtx op0, rtx op1, rtx sel);
+void aarch64_atomic_assign_expand_fenv (tree *, tree *, tree *);
+int aarch64_ccmp_mode_to_code (enum machine_mode mode);
+
+bool extract_base_offset_in_addr (rtx mem, rtx *base, rtx *offset);
+bool aarch64_operands_ok_for_ldpstp (rtx *, bool, enum machine_mode);
+bool aarch64_operands_adjust_ok_for_ldpstp (rtx *, bool, enum machine_mode);
 #endif /* GCC_AARCH64_PROTOS_H */

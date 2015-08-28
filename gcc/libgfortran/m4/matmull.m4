@@ -1,5 +1,5 @@
 `/* Implementation of the MATMUL intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -89,7 +89,7 @@ matmul_'rtype_code` ('rtype` * const restrict retarray,
         }
           
       retarray->base_addr
-	= xmalloc (sizeof ('rtype_name`) * size0 ((array_t *) retarray));
+	= xmallocarray (size0 ((array_t *) retarray), sizeof ('rtype_name`));
       retarray->offset = 0;
     }
     else if (unlikely (compile_options.bounds_check))

@@ -1,6 +1,5 @@
 /* seh pdata/xdata coff object file format
-   Copyright 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -21,858 +20,181 @@
 
 #include "obj-coff-seh.h"
 
-/* Forward declarations.  */
-static seh_kind seh_get_target_kind (void);
-static int seh_symbol (bfd *, const char *, const char *, const char *, asection *, int, int);
-static void seh_reloc (bfd *, bfd_size_type, int, int);
-static void save_relocs (asection *sec);
-static asection *quick_section (bfd *abfd, const char *name, int flags, int align);
-static void seh_symbol_init (bfd *abfd, unsigned int added);
-static void seh_emit_rva (const char *);
-static void seh_emit_long (const char *);
-static void seh_make_globl (char *);
-static segT seh_make_section (void);
-static segT seh_make_section2 (const char *section_name, unsigned flags);
-static char *seh_make_xlbl_name (seh_context *);
-static char *make_seh_text_label (seh_context *c, symbolS **addr);
 
-static void seh_write_text_eh_data (const char *hnd, const char *hnd_data);
-static void seh_emit_rva (const char *name);
-static int seh_needed_unwind_info (seh_context *);
-static void seh_fill_pcsyms (const seh_context *c, char **, int *);
-static size_t seh_getelm_data_size (const seh_context *, int, int);
-static size_t seh_getsize_of_unwind_entry (seh_context *, int, int, int);
-static void seh_make_unwind_entry (const seh_context *, char *, int, int, int, unsigned char *, size_t *, int);
-static size_t seh_getsize_unwind_data (seh_context *);
-static void seh_create_unwind_data (seh_context *, unsigned char *, size_t);
-static void seh_make_function_entry_xdata (seh_context *, char *, char *, char *, unsigned char *, size_t *,int);
-static seh_scope_elem *seh_x64_makescope_elem (seh_context *, const char *, const char *, const char *, const char *);
+/* Private segment collection list.  */
+struct seh_seg_list {
+  segT seg;
+  int subseg;
+  char *seg_name;
+};
 
 /* Local data.  */
-static asymbol **symtab;
-static int symptr;
-static arelent *reltab = 0;
-static int relcount = 0, relsize = 0;
-
-static seh_context *seh_ctx_root = NULL;
-static seh_context *seh_ctx = NULL;
 static seh_context *seh_ctx_cur = NULL;
 
-/* Write xdata for arm, sh3, sh4, and ppc.  */
+static struct hash_control *seh_hash;
 
-static void
-seh_write_text_eh_data (const char *hnd, const char *hnd_data)
+static struct seh_seg_list *x_segcur = NULL;
+static struct seh_seg_list *p_segcur = NULL;
+
+static void write_function_xdata (seh_context *);
+static void write_function_pdata (seh_context *);
+
+
+/* Build based on segment the derived .pdata/.xdata
+   segment name containing origin segment's postfix name part.  */
+static char *
+get_pxdata_name (segT seg, const char *base_name)
 {
-  if (!hnd || *hnd==0)
-    return;
-  if (hnd[0] == '@')
-    seh_emit_long ("0");
+  const char *name,*dollar, *dot;
+  char *sname;
+
+  name = bfd_get_section_name (stdoutput, seg);
+
+  dollar = strchr (name, '$');
+  dot = strchr (name + 1, '.');
+
+  if (!dollar && !dot)
+    name = "";
+  else if (!dollar)
+    name = dot;
+  else if (!dot)
+    name = dollar;
+  else if (dot < dollar)
+    name = dot;
   else
-    seh_emit_long (hnd);
-  if (!hnd_data || hnd_data[0] == '@')
-    seh_emit_long ("0");
+    name = dollar;
+
+  sname = concat (base_name, name, NULL);
+
+  return sname;
+}
+
+/* Allocate a seh_seg_list structure.  */
+static struct seh_seg_list *
+alloc_pxdata_item (segT seg, int subseg, char *name)
+{
+  struct seh_seg_list *r;
+
+  r = (struct seh_seg_list *)
+    xmalloc (sizeof (struct seh_seg_list) + strlen (name));
+  r->seg = seg;
+  r->subseg = subseg;
+  r->seg_name = name;
+  return r;
+}
+
+/* Generate pdata/xdata segment with same linkonce properties
+   of based segment.  */
+static segT
+make_pxdata_seg (segT cseg, char *name)
+{
+  segT save_seg = now_seg;
+  int save_subseg = now_subseg;
+  segT r;
+  flagword flags;
+
+  r = subseg_new (name, 0);
+  /* Check if code segment is marked as linked once.  */
+  flags = bfd_get_section_flags (stdoutput, cseg)
+    & (SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD
+       | SEC_LINK_DUPLICATES_ONE_ONLY | SEC_LINK_DUPLICATES_SAME_SIZE
+       | SEC_LINK_DUPLICATES_SAME_CONTENTS);
+
+  /* Add standard section flags.  */
+  flags |= SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_DATA;
+
+  /* Apply possibly linked once flags to new generated segment, too.  */
+  if (!bfd_set_section_flags (stdoutput, r, flags))
+    as_bad (_("bfd_set_section_flags: %s"),
+	    bfd_errmsg (bfd_get_error ()));
+
+  /* Restore to previous segment.  */
+  subseg_set (save_seg, save_subseg);
+  return r;
+}
+
+static void
+seh_hash_insert (const char *name, struct seh_seg_list *item)
+{
+  const char *error_string;
+
+  if ((error_string = hash_jam (seh_hash, name, (char *) item)))
+    as_fatal (_("Inserting \"%s\" into structure table failed: %s"),
+	      name, error_string);
+}
+
+static struct seh_seg_list *
+seh_hash_find (char *name)
+{
+  return (struct seh_seg_list *) hash_find (seh_hash, name);
+}
+
+static struct seh_seg_list *
+seh_hash_find_or_make (segT cseg, const char *base_name)
+{
+  struct seh_seg_list *item;
+  char *name;
+
+  /* Initialize seh_hash once.  */
+  if (!seh_hash)
+    seh_hash = hash_new ();
+
+  name = get_pxdata_name (cseg, base_name);
+
+  item = seh_hash_find (name);
+  if (!item)
+    {
+      item = alloc_pxdata_item (make_pxdata_seg (cseg, name), 0, name);
+
+      seh_hash_insert (item->seg_name, item);
+    }
   else
-    seh_emit_long (hnd_data);
+    free (name);
+
+  return item;
 }
 
-/* Generate initial pdata for x64 and mips.  */
-static void
-make_function_entry_pdata (seh_context *c)
-{
-  segT sec = NULL;
-  segT current_seg = now_seg;
-  subsegT current_subseg = now_subseg;
-
-  sec = seh_make_section ();
-  switch (seh_get_target_kind ())
-    {
-    case seh_kind_x64:
-      subseg_set (sec, 0);
-      seh_emit_rva (c->func_name);
-      seh_emit_rva (c->end_symbol);
-      seh_emit_rva (c->xdata_first);
-      break;
-    case seh_kind_mips:
-      subseg_set (sec, 0);
-      seh_emit_long (c->func_name);
-      seh_emit_long (c->end_symbol);
-      if (c->handler_name == NULL)
-	seh_emit_long ("0");
-      else if (c->handler_name[0] == '@')
-	{
-	  if (strcasecmp (c->handler_name, "@1") == 0)
-	    seh_emit_long ("1");
-	  else
-	    seh_emit_long ("0");
-	}
-      else
-	seh_emit_long (c->handler_name);
-      if (c->handler_data_name == NULL || c->handler_data_name[0] == '@')
-	seh_emit_long ("0");
-      else
-	seh_emit_long (c->handler_data_name);
-      seh_emit_long (c->endprologue_symbol ? c->endprologue_symbol : c->func_name);
-      break;
-    default:
-      break;
-    }
-  subseg_set (current_seg, current_subseg);
-}
-
-static void
-seh_x64_write_xdata (void)
-{
-  seh_context *h;
-  size_t xdata_size = 0, count_syms = 0;
-  size_t xdata_offs = 0;
-  unsigned char *data;
-  segT seg_xdata;
-  bfd *abfd = stdoutput;
-
-  h = seh_ctx_root;
-  if (!h || h->done)
-    return;
-  while (h != NULL)
-    {
-      h->xdata_offset = xdata_size;
-      xdata_size += seh_getsize_unwind_data (h);
-      count_syms += h->count_syms;
-      h = h->next;
-    }
-
-  if (xdata_size == 0)
-    return;
-
-  seh_symbol_init (abfd, count_syms);
-  data = xmalloc (xdata_size);
-  seg_xdata = quick_section (abfd, ".xdata", SEC_HAS_CONTENTS, 3);
-  seg_xdata->contents = data;
-  memset (data, 0, xdata_size);
-  bfd_set_section_size (abfd, seg_xdata, xdata_size);
-  h = seh_ctx_root;
-  while (h != NULL)
-    {
-      xdata_offs = h->xdata_offset;
-      h->section = seg_xdata;
-      h->abfd = abfd;
-      if (h->done == 0)
-	{
-	  h->done = 1;
-	  seh_create_unwind_data (h, data, xdata_offs);
-	  h->done = 1;
-	}
-      h = h->next;
-    }
-  save_relocs (seg_xdata);
-  bfd_set_symtab (abfd, symtab, symptr);
-  bfd_set_section_contents (abfd, seg_xdata, data, 0, xdata_size);
-}
-
-static void
-seh_arm_create_pdata (seh_context *c, unsigned char *data, size_t pdata_offs)
-{
-  int idx;
-  unsigned int val;
-  valueT func_len = 0;
-  valueT prolog_len = 0;
-  valueT start_len = 0;
-
-  func_len = resolve_symbol_value (c->end_addr);
-  start_len = resolve_symbol_value (c->start_addr);
-  if (c->endprologue_addr)
-    prolog_len = resolve_symbol_value (c->endprologue_addr);
-  else
-    prolog_len = start_len;
-  func_len -= start_len;
-  prolog_len -= start_len;
-  if (!c || !data)
-    return;
-  /* $$$$ */
-  idx = seh_symbol (c->abfd, c->start_symbol, "", "", UNDSEC, BSF_GLOBAL, 0);
-  seh_reloc (c->abfd, pdata_offs, BFD_RELOC_32, idx);
-  val = (unsigned int) func_len;
-  val <<= 8;
-  val |= ((unsigned int) prolog_len & 0xffU);
-  if (c->use_instruction_32)
-    val |= 0x40000000U;
-  if (c->handler_written)
-    val |= 0x80000000U;
-  bfd_put_32 (c->abfd, (bfd_vma) val, data + pdata_offs + 4);
-}
-
-static void
-seh_arm_write_pdata (void)
-{
-  seh_context *h;
-  size_t pdata_size = 0, count_syms = 0;
-  size_t pdata_offs = 0;
-  unsigned char *data;
-  segT seg_pdata;
-  bfd *abfd = stdoutput;
-
-  h = seh_ctx_root;
-  if (h == NULL || h->done)
-    return;
-  while (h != NULL)
-    {
-      h->xdata_offset = pdata_size;
-      pdata_size += 8;
-      count_syms += 1;
-      h = h->next;
-    }
-
-  if (pdata_size == 0)
-    return;
-
-  seh_symbol_init (abfd, count_syms);
-  data = xmalloc (pdata_size);
-  seg_pdata = quick_section (abfd, ".pdata", SEC_HAS_CONTENTS, 3);
-  seg_pdata->contents = data;
-  memset (data, 0, pdata_size);
-  bfd_set_section_size (abfd, seg_pdata, pdata_size);
-  h = seh_ctx_root;
-  while (h != NULL)
-    {
-      pdata_offs = h->xdata_offset;
-      h->section = seg_pdata;
-      h->abfd = abfd;
-      if (h->done != 0)
-	{
-	  seh_arm_create_pdata (h, data, pdata_offs);
-	  h->done = 1;
-	}
-      h = h->next;
-    }
-  save_relocs (seg_pdata);
-  bfd_set_symtab (abfd, symtab, symptr);
-  bfd_set_section_contents (abfd, seg_pdata, data, 0, pdata_size);
-}
-
-void
-obj_coff_seh_do_final (void)
-{
-  switch (seh_get_target_kind ())
-    {
-    case seh_kind_mips:
-    default:
-      break;
-    case seh_kind_arm:
-      seh_arm_write_pdata ();
-      break;
-    case seh_kind_x64:
-      seh_x64_write_xdata ();
-      break;
-    }
-}
-
-static void
-seh_x64_make_prologue_element (int kind, int reg, bfd_vma off)
-{
-  seh_prologue_element *n;
-
-  if (seh_ctx_cur == NULL)
-    return;
-  if (seh_ctx_cur->elems_count == seh_ctx_cur->elems_max)
-    {
-      seh_ctx_cur->elems = (seh_prologue_element *)
-	xrealloc (seh_ctx_cur->elems,
-		  ((seh_ctx_cur->elems_max + 8) * sizeof (seh_prologue_element)));
-      seh_ctx_cur->elems_max += 8;
-    }
-  n = &seh_ctx_cur->elems[seh_ctx_cur->elems_count];
-  memset (n, 0, sizeof (seh_prologue_element));
-  n->kind = kind;
-  n->reg = reg;
-  n->offset = off;
-  n->pc_symbol = make_seh_text_label (seh_ctx_cur, &(n->pc_addr));
-  seh_ctx_cur->elems_count += 1;
-}
-
+/* Check if current segment has same name.  */
 static int
-seh_x64_read_reg (const char *tok, int kind, int *regno)
+seh_validate_seg (const char *directive)
 {
-  static const char *frame_regs[16] =
-    { "cfa", "rcx", "rdx", "rbx", "rsp", "rbp","rsi","rdi",
-      "r8","r9","r10","r11","r12","r13","r14","r15" };
-  static const char *int_regs[16] =
-    { "rax", "rcx", "rdx", "rbx", "rsp", "rbp","rsi","rdi",
-      "r8","r9","r10","r11","r12","r13","r14","r15" };
-  static const char *xmm_regs[16] =
-    { "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
-      "xmm8", "xmm9", "xmm10","xmm11","xmm12","xmm13","xmm14","xmm15" };
-  static const char *mm_regs[16] =
-    { "xmm0", "mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm7",
-      "xmm8", "mm9", "mm10","mm11","mm12","mm13","mm14","mm15" };
-  const char **p = NULL;
-  char name_end;
-  char *symbol_name = NULL;
-  int i;
-
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
-    input_line_pointer++;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
-    input_line_pointer++;
-  switch (kind)
-    {
-    case 0:
-      p = frame_regs;
-      break;
-    case 1:
-      p = int_regs;
-      break;
-    case 2:
-      p = mm_regs;
-      break;
-    case 3:
-      p = xmm_regs;
-      break;
-    default:
-      abort ();
-    }
-
-  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
-    return 0;
-
-  if (*input_line_pointer == '%')
-    ++input_line_pointer;
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-
-  for (i = 0; i < 16; i++)
-    if (! strcasecmp (p[i], symbol_name))
-      break;
-
-  if (i == 16)
-    as_warn (_("In %s we found the invalid register name %s.\n"),
-	     tok, symbol_name);
-
-  *input_line_pointer = name_end;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
-    input_line_pointer++;
-  if (*input_line_pointer == ',')
-    ++input_line_pointer;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
-    input_line_pointer++;
-  *regno = i;
-  return i != 16;
+  const char *cseg_name, *nseg_name;
+  if (seh_ctx_cur->code_seg == now_seg)
+    return 1;
+  cseg_name = bfd_get_section_name (stdoutput, seh_ctx_cur->code_seg);
+  nseg_name = bfd_get_section_name (stdoutput, now_seg);
+  as_bad (_("%s used in segment '%s' instead of expected '%s'"),
+  	  directive, nseg_name, cseg_name);
+  ignore_rest_of_line ();
+  return 0;
 }
 
-static int
-seh_read_offset (const char *tok, bfd_vma *off)
+/* Switch back to the code section, whatever that may be.  */
+static void
+obj_coff_seh_code (int ignored ATTRIBUTE_UNUSED)
 {
-  bfd_vma r, v = 0, base = 10;
-  int had_one = 0;
-
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
-    input_line_pointer++;
-  if (*input_line_pointer == '0')
-    {
-      ++input_line_pointer;
-      had_one = 1;
-      base = 8;
-      switch ((*input_line_pointer))
-	{
-	case 'x':
-	case 'X':
-	  base = 16;
-	  ++input_line_pointer;
-	  break;
-	case 'd':
-	case 'D':
-	  base = 10;
-	  input_line_pointer++;
-	  break;
-	case 'o':
-	case 'O':
-	  base = 8;
-	  input_line_pointer++;
-	  break;
-	}
-    }
-  while (*input_line_pointer != 0)
-    {
-      if (input_line_pointer[0] >= '0' && input_line_pointer[0] <='9')
-	r = (bfd_vma) (input_line_pointer[0] - '0');
-      else if (base == 16 && input_line_pointer[0] >= 'a' && input_line_pointer[0] <='f')
-	r = (bfd_vma) ((input_line_pointer[0] - 'a') + 10);
-      else if (base == 16 && input_line_pointer[0] >= 'A' && input_line_pointer[0] <='F')
-	r = (bfd_vma) ((input_line_pointer[0] - 'A') + 10);
-      else
-	break;
-      input_line_pointer++;
-      v *= base;
-      v += r;
-      had_one = 1;
-    }
-  *off = v;
-  if (had_one == 0)
-    {
-      as_warn (_("In %s we expect a number.\n"),
-	       tok);
-    }
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
-    input_line_pointer++;
-  if (*input_line_pointer == ',')
-    ++input_line_pointer;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
-    input_line_pointer++;
-  return had_one != 0;
+  subseg_set (seh_ctx_cur->code_seg, 0);
 }
 
 static void
-obj_coff_seh_32 (int what)
+switch_xdata (int subseg, segT code_seg)
 {
-  if (seh_ctx_cur == NULL)
-    {
-      as_fatal (_(".seh_eh requires to be in .seh_proc/.seh_endproc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  seh_ctx_cur->use_instruction_32 = (what ? 1 : 0);
-  if (seh_get_target_kind () == seh_kind_arm)
-    as_warn (_(".seh_%s32 is ignored for this target."), (what ? "" : "no"));
-  demand_empty_rest_of_line ();
+  x_segcur = seh_hash_find_or_make (code_seg, ".xdata");
+
+  subseg_set (x_segcur->seg, subseg);
 }
 
 static void
-obj_coff_seh_eh (int what ATTRIBUTE_UNUSED)
+switch_pdata (segT code_seg)
 {
-  if (seh_ctx_cur == NULL)
-    {
-      as_fatal (_(".seh_eh requires to be in .seh_proc/.seh_endproc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  if (seh_get_target_kind () == seh_kind_arm)
-    {
-      seh_ctx_cur->handler_written = 1;
-      /* write block to .text if exception handler is set.  */
-      seh_write_text_eh_data (seh_ctx_cur->handler_name, seh_ctx_cur->handler_data_name);
-    }
-  demand_empty_rest_of_line ();
+  p_segcur = seh_hash_find_or_make (code_seg, ".pdata");
+
+  subseg_set (p_segcur->seg, p_segcur->subseg);
 }
+
+/* Parsing routines.  */
 
-static void
-obj_coff_seh_handler (int what ATTRIBUTE_UNUSED)
-{
-  char *symbol_name;
-  char name_end;
-
-  if (seh_ctx_cur == NULL)
-    {
-      as_fatal (_(".seh_handler requires to be in .seh_proc/.seh_endproc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
-    {
-      as_fatal (_(".seh_handler requires a handler lable name.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-  seh_ctx->handler_name = xstrdup (symbol_name);
-  if (symbol_name[0] == '@')
-    {
-      if (strcasecmp (symbol_name, "@0") != 0 && strcasecmp (symbol_name, "@1") != 0
-	  && strcasecmp (symbol_name, "@null") != 0)
-	as_warn (_("Unknown constant value ,%s' for handler."), symbol_name);
-    }
-  *input_line_pointer = name_end;
-  seh_ctx->handler_data_name = NULL;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  symbol_name = input_line_pointer;
-  if (*input_line_pointer != '\n' && *input_line_pointer != 0)
-    {
-      name_end = get_symbol_end ();
-      seh_ctx->handler_data_name = xstrdup (symbol_name);
-      if (symbol_name[0] == '@')
-	{
-	  if (seh_get_target_kind () != seh_kind_x64)
-	    as_fatal (_("For this target .seh_handler doesn't support constant user-data."));
-	  else if (strcasecmp (symbol_name, "@unwind") != 0 &&
-	           strcasecmp (symbol_name, "@except") != 0)
-	    as_warn (_("For .seh_handler the constant ,%s' is ignored."), symbol_name);
-	}
-      *input_line_pointer = name_end;
-    }
-  if (seh_ctx_cur->handler_written)
-    as_warn (_(".seh_handler is ignored as .seh_eh was seen before."));
-  demand_empty_rest_of_line ();
-}
-
-static void
-obj_coff_seh_scope (int what ATTRIBUTE_UNUSED)
-{
-  char *symbol_name,*beg = NULL,*end = NULL, *handl = NULL, *jmp = NULL;
-  char name_end;
-
-  if (seh_ctx_cur == NULL)
-    {
-      as_fatal (_(".seh_scope requires to be in .seh_proc/.seh_endproc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
-    {
-      as_fatal (_(".seh_scope requires four symbol names.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-  beg = xstrdup (symbol_name);
-  *input_line_pointer = name_end;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
-    {
-      as_fatal (_(".seh_scope requires three more symbol names.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-  end = xstrdup (symbol_name);
-  *input_line_pointer = name_end;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
-    {
-      as_fatal (_(".seh_scope requires two more symbol names.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-  handl = xstrdup (symbol_name);
-  *input_line_pointer = name_end;
-  if (*handl == '@')
-    {
-      if (strcasecmp (handl, "@0") != 0 && strcasecmp (handl, "@1") != 0
-	  && strcasecmp (handl, "@null") != 0)
-	as_warn (_("Unknown constant for handler ,%s'."), handl);
-    }
-
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
-    {
-      as_fatal (_(".seh_scope requires one more symbol names.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-  jmp = xstrdup (symbol_name);
-  *input_line_pointer = name_end;
-  if (*jmp == '@')
-    {
-      if (strcasecmp (jmp, "@0") != 0 && strcasecmp (handl, "@null") != 0)
-	as_warn (_("Unknown constant for jump ,%s'."), jmp);
-    }
-
-  if (seh_get_target_kind () != seh_kind_x64)
-    as_warn (_(".seh_scope is ignored for this target."));
-  else
-    seh_x64_makescope_elem (seh_ctx_cur, beg, end, handl, jmp);
-  if (beg)
-    free (beg);
-  if (end)
-    free (end);
-  if (handl)
-    free (handl);
-  if (jmp)
-    free (jmp);
-  demand_empty_rest_of_line ();
-}
-
-static void
-obj_coff_seh_proc (int what ATTRIBUTE_UNUSED)
-{
-  char *symbol_name;
-  char name_end;
-
-  if (seh_ctx_cur != NULL)
-    {
-      as_warn (_(".seh_proc has to be closed by .seh_endprog\n"));
-      obj_coff_seh_endproc (0);
-    }
-
-  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
-    {
-      as_fatal (_(".seh_proc requires function lable name.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-
-  if (seh_ctx == NULL)
-    seh_ctx_root = seh_ctx = (seh_context *) xmalloc (sizeof (seh_context));
-  else
-    {
-      seh_ctx->next = (seh_context *) xmalloc (sizeof (seh_context));
-      seh_ctx = seh_ctx->next;
-    }
-  seh_ctx_cur = seh_ctx;
-  memset (seh_ctx, 0, sizeof (seh_context));
-
-  seh_ctx->func_name = xstrdup (symbol_name);
-  *input_line_pointer = name_end;
-  while (*input_line_pointer == ' ' || *input_line_pointer == '\t' || *input_line_pointer == ',')
-    input_line_pointer++;
-  seh_ctx->start_symbol = make_seh_text_label (seh_ctx_cur, &(seh_ctx_cur->start_addr));
-  demand_empty_rest_of_line ();
-}
-
-static void
-obj_coff_seh_endproc  (int what ATTRIBUTE_UNUSED)
-{
-  if (seh_ctx_cur == NULL)
-    {
-      as_warn (_(".seh_endprog without prior .seh_proc (ignored)\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  seh_ctx->end_symbol = make_seh_text_label (seh_ctx, &(seh_ctx->end_addr));
-  seh_ctx->xdata_first = seh_make_xlbl_name (seh_ctx);
-  make_function_entry_pdata (seh_ctx);
-  seh_ctx_cur = NULL;
-  demand_empty_rest_of_line ();
-}
-
-static void
-obj_coff_seh_push  (int what)
-{
-  int reg = 0;
-  int kind = -1;
-
-  if (seh_ctx_cur == NULL)
-    {
-      as_warn (_(".seh_push used outside of .seh_proc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  /* What 0:reg, 1:pushframe.  */
-  switch (what)
-    {
-    case 0:
-      if (seh_x64_read_reg (".seh_push", 1, &reg))
-	kind = UWOP_PUSH_NONVOL;
-      else
-	as_warn (_(".seh_pushreg expects register argument."));
-      break;
-    case 1:
-      kind = UWOP_PUSH_MACHFRAME;
-      break;
-    default:
-      abort ();
-    }
-  if (seh_get_target_kind () != seh_kind_x64)
-    as_warn (_(".seh_save... is ignored for this target.\n"));
-  else if (kind != -1)
-    seh_x64_make_prologue_element (kind, reg, 0);
-  demand_empty_rest_of_line ();
-}
-
-static void
-obj_coff_seh_save  (int what)
-{
-  int reg;
-  bfd_vma off;
-  int kind;
-  int ok = 1;
-
-  /* what 0:reg, 1:mm, 2:xmm.  */
-  switch (what)
-    {
-    case 0:
-      ok &= seh_x64_read_reg (".seh_savereg", 1, &reg);
-      kind = UWOP_SAVE_NONVOL;
-      break;
-    case 1:
-      ok &= seh_x64_read_reg (".seh_savemm", 2, &reg);
-      kind = UWOP_SAVE_XMM;
-      break;
-    case 2:
-      ok &= seh_x64_read_reg (".seh_savexmm", 3, &reg);
-      kind = UWOP_SAVE_XMM128;
-      break;
-    default:
-      abort ();
-    }
-  ok &= seh_read_offset (".seh_save", &off);
-  if (seh_ctx_cur == NULL)
-    {
-      as_warn (_(".seh_save used outside of .seh_proc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  if (seh_get_target_kind () != seh_kind_x64)
-    as_warn (_(".seh_save... is ignored for this target.\n"));
-  else
-    seh_x64_make_prologue_element (kind, reg, off);
-  demand_empty_rest_of_line ();
-}
-
-static void
-obj_coff_seh_endprologue (int what ATTRIBUTE_UNUSED)
-{
-  if (seh_ctx_cur == NULL)
-    {
-      as_warn (_(".seh_endprologue used outside of .seh_proc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  if (seh_ctx_cur->endprologue_symbol != NULL)
-    as_warn (_(".seh_endprologue used more then once in .seh_proc block.\n"));
-  else
-    seh_ctx_cur->endprologue_symbol = make_seh_text_label (seh_ctx_cur, &seh_ctx_cur->endprologue_addr);
-}
-
-static void
-obj_coff_seh_stack_alloc (int what ATTRIBUTE_UNUSED)
-{
-  bfd_vma size;
-
-  if (seh_ctx_cur == NULL)
-    {
-      as_warn (_(".seh_stackalloc used outside of .seh_proc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  if (seh_read_offset (".seh_stackalloc", &size))
-    {
-      if (seh_get_target_kind () != seh_kind_x64)
-	as_warn (_(".seh_stackalloc is ignored for this target.\n"));
-      else
-	seh_x64_make_prologue_element (UWOP_ALLOC_LARGE, 0, size);
-    }
-}
-
-static void
-obj_coff_seh_setframe (int what ATTRIBUTE_UNUSED)
-{
-  int reg;
-  int ok = 1;
-  bfd_vma off;
-
-  ok &= seh_x64_read_reg (".seh_setframe", 0, &reg);
-  ok &= seh_read_offset (".seh_setframe", &off);
-  if (seh_ctx_cur == NULL)
-    {
-      as_warn (_(".seh_setframe used outside of .seh_proc block.\n"));
-      demand_empty_rest_of_line ();
-      return;
-    }
-  if (ok)
-    {
-      seh_ctx_cur->framereg = reg;
-      seh_ctx_cur->frameoff = off;
-    }
-  if (seh_get_target_kind () != seh_kind_x64)
-    as_warn (_(".seh_setframe is ignored for this target.\n"));
-  demand_empty_rest_of_line ();
-}
-
-/* Misc function helpers.  */
-static void
-seh_reloc (bfd *abfd, bfd_size_type address, int which_howto, int symidx)
-{
-  if (relcount >= relsize - 1)
-    {
-      relsize += 10;
-      if (reltab)
-	reltab = xrealloc (reltab, relsize * sizeof (arelent));
-      else
-	reltab = xmalloc (relsize * sizeof (arelent));
-    }
-  reltab[relcount].address = address;
-  reltab[relcount].addend = 0;
-  reltab[relcount].howto = bfd_reloc_type_lookup (abfd, which_howto);
-  reltab[relcount].sym_ptr_ptr = symtab + symidx;
-  relcount++;
-}
-
-static void
-save_relocs (asection *sec)
-{
-  int i;
-
-  sec->relocation = reltab;
-  sec->reloc_count = relcount;
-  sec->orelocation = xmalloc ((relcount + 1) * sizeof (arelent *));
-  for (i = 0; i < relcount; i++)
-    sec->orelocation[i] = sec->relocation + i;
-  sec->orelocation[relcount] = 0;
-  sec->flags |= SEC_RELOC;
-  reltab = 0;
-  relcount = relsize = 0;
-}
-
-static void
-seh_symbol_init (bfd *abfd, unsigned int added)
-{
-  unsigned int oldcount;
-
-  oldcount = bfd_get_symcount (abfd);
-  symptr = oldcount;
-  symtab = xmalloc ((oldcount + added + 6) * sizeof (asymbol *));
-  if (oldcount > 0)
-    memcpy (symtab, bfd_get_outsymbols (abfd), sizeof (asymbol *) * oldcount);
-}
-
-static int
-seh_symbol (bfd *abfd, const char *n1, const char *n2, const char *n3,
-            asection *sec, int flags, int addr)
-{
-  asymbol *sym;
-  char *name = xmalloc (strlen (n1) + strlen (n2) + strlen (n3) + 1);
-  int ret = symptr;
-
-  strcpy (name, n1);
-  strcat (name, n2);
-  strcat (name, n3);
-  sym = bfd_make_empty_symbol (abfd);
-  sym->name = name;
-  sym->section = sec;
-  sym->flags = flags;
-  sym->value = addr;
-  symtab[symptr++] = sym;
-  return ret;
-}
-
-static asection *
-quick_section (bfd *abfd, const char *name, int flags, int align)
-{
-  asection *sec;
-  asymbol *sym;
-
-  sec = seh_make_section2 (name, flags);
-  bfd_set_section_alignment (abfd, sec, align);
-  /* Remember to undo this before trying to link internally!  */
-
-  sym = bfd_make_empty_symbol (abfd);
-  symtab[symptr++] = sym;
-  sym->name = sec->name;
-  sym->section = sec;
-  sym->flags = BSF_LOCAL;
-  sym->value = 0;
-
-  return sec;
-}
+/* Return the style of SEH unwind info to generate.  */
 
 static seh_kind
 seh_get_target_kind (void)
@@ -906,432 +228,797 @@ seh_get_target_kind (void)
   return seh_kind_unknown;
 }
 
-static void
-seh_emit_rva (const char *name)
+/* Verify that we're in the context of a seh_proc.  */
+
+static int
+verify_context (const char *directive)
 {
-  char *p = (char *) xmalloc (strlen (name) + 1);
-  char *s = input_line_pointer;
-
-  strcpy (p, name);
-  input_line_pointer = p;
-  s_rva (4);
-  input_line_pointer = s;
-}
-
-static void
-seh_emit_long (const char *name)
-{
-  char *p = (char *) xmalloc (strlen (name) + 1);
-  char *s = input_line_pointer;
-
-  strcpy (p, name);
-  input_line_pointer = p;
-  cons (4);
-  input_line_pointer = s;
-}
-
-static void
-seh_make_globl (char *sym_name)
-{
-  char *s = input_line_pointer;
-
-  input_line_pointer = sym_name;
-  s_globl (4);
-  input_line_pointer = s;
-}
-
-static segT
-seh_make_section2 (const char *section_name, unsigned flags)
-{
-  char *name;
-  segT sec;
-
-  name = xmalloc (strlen (section_name) + 1);
-  strcpy (name, section_name);
-
-  sec = subseg_new (name, (subsegT) 0);
-  bfd_set_section_flags (stdoutput, sec,
-			 ((SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_DATA | flags)
-			  & bfd_applicable_section_flags (stdoutput)));
-
-  return sec;
-}
-
-static segT
-seh_make_section (void)
-{
-  static segT seg_pdata = NULL;
-  segT sec = NULL;
-
-  if (!seg_pdata)
-    seg_pdata = seh_make_section2 (".pdata", 0);
-  sec = seg_pdata;
-  return sec;
-}
-
-static char *
-seh_make_xlbl_name (seh_context *c)
-{
-  size_t len = strlen (".seh_xlbl_") + strlen (c->func_name) + 9 + 1;
-  char *ret = (char*) xmalloc (len);
-
-  if (!ret)
-    as_fatal (_("Out of memory for xdata lable for %s"), c->func_name);
-  else
-    sprintf (ret, ".seh_xlbl_%s_%x", c->func_name, + c->xlbl_count);
-  c->xlbl_count += 1;
-  return ret;
-}
-
-static char *
-make_seh_text_label (seh_context *c, symbolS **addr)
-{
-  char *sym_name;
-  size_t len = strlen (".seh_tlbl_") + strlen (c->func_name) + 9 + 1;
-
-  sym_name = (char *) xmalloc (len);
-  if (!sym_name)
-    as_fatal (_("Allocating memory for SEH's text symbol for %s failed"), c->func_name);
-  sprintf (sym_name, ".seh_tlbl_%s_%x", c->func_name, c->tlbl_count);
-  c->tlbl_count += 1;
-  if (addr)
+  if (seh_ctx_cur == NULL)
     {
-      seh_make_globl (sym_name);
-      *addr = colon (sym_name);
+      as_bad (_("%s used outside of .seh_proc block"), directive);
+      ignore_rest_of_line ();
+      return 0;
     }
-  return sym_name;
+  return 1;
 }
 
-/* x64 secific functions.  */
+/* Similar, except we also verify the appropriate target.  */
+
+static int
+verify_context_and_target (const char *directive, seh_kind target)
+{
+  if (seh_get_target_kind () != target)
+    {
+      as_warn (_("%s ignored for this target"), directive);
+      ignore_rest_of_line ();
+      return 0;
+    }
+  return verify_context (directive);
+}
+
+/* Skip whitespace and a comma.  Error if the comma is not seen.  */
+
+static int
+skip_whitespace_and_comma (int required)
+{
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer == ',')
+    {
+      input_line_pointer++;
+      SKIP_WHITESPACE ();
+      return 1;
+    }
+  else if (required)
+    {
+      as_bad (_("missing separator"));
+      ignore_rest_of_line ();
+    }
+  else
+    demand_empty_rest_of_line ();
+  return 0;
+}
+
+/* Mark current context to use 32-bit instruction (arm).  */
 
 static void
-seh_fill_pcsyms (const seh_context *c, char **names, int *idx)
+obj_coff_seh_32 (int what)
 {
-  size_t i;
-  int count = 1;
-  valueT start_off = resolve_symbol_value (c->start_addr);
-  valueT un_off;
-  seh_prologue_element *e = c->elems;
-
-  names[0] = c->start_symbol;
-  idx[0] = 0;
-  if (c->elems_count == 0)
+  if (!verify_context_and_target ((what ? ".seh_32" : ".seh_no32"),
+				  seh_kind_arm))
     return;
-  for (i = 0; i < c->elems_count; i++)
+
+  seh_ctx_cur->use_instruction_32 = (what ? 1 : 0);
+  demand_empty_rest_of_line ();
+}
+
+/* Set for current context the handler and optional data (arm).  */
+
+static void
+obj_coff_seh_eh (int what ATTRIBUTE_UNUSED)
+{
+  if (!verify_context_and_target (".seh_eh", seh_kind_arm))
+    return;
+
+  /* Write block to .text if exception handler is set.  */
+  seh_ctx_cur->handler_written = 1;
+  emit_expr (&seh_ctx_cur->handler, 4);
+  emit_expr (&seh_ctx_cur->handler_data, 4);
+
+  demand_empty_rest_of_line ();
+}
+
+/* Set for current context the default handler (x64).  */
+
+static void
+obj_coff_seh_handler (int what ATTRIBUTE_UNUSED)
+{
+  char *symbol_name;
+  char name_end;
+
+  if (!verify_context (".seh_handler"))
+    return;
+
+  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
     {
-      un_off = resolve_symbol_value (e[i].pc_addr);
-      if ((un_off - start_off) > 255)
+      as_bad (_(".seh_handler requires a handler"));
+      demand_empty_rest_of_line ();
+      return;
+    }
+
+  SKIP_WHITESPACE ();
+
+  if (*input_line_pointer == '@')
+    {
+      symbol_name = input_line_pointer;
+      name_end = get_symbol_end ();
+
+      seh_ctx_cur->handler.X_op = O_constant;
+      seh_ctx_cur->handler.X_add_number = 0;
+
+      if (strcasecmp (symbol_name, "@0") == 0
+	  || strcasecmp (symbol_name, "@null") == 0)
+	;
+      else if (strcasecmp (symbol_name, "@1") == 0)
+	seh_ctx_cur->handler.X_add_number = 1;
+      else
+	as_bad (_("unknown constant value '%s' for handler"), symbol_name);
+
+      *input_line_pointer = name_end;
+    }
+  else
+    expression (&seh_ctx_cur->handler);
+
+  seh_ctx_cur->handler_data.X_op = O_constant;
+  seh_ctx_cur->handler_data.X_add_number = 0;
+  seh_ctx_cur->handler_flags = 0;
+
+  if (!skip_whitespace_and_comma (0))
+    return;
+
+  if (seh_get_target_kind () == seh_kind_x64)
+    {
+      do
 	{
-	  names[count] = e[i].pc_symbol;
-	  idx[count] = (int) i;
-	  count++;
-	  start_off = un_off;
+	  symbol_name = input_line_pointer;
+	  name_end = get_symbol_end ();
+
+	  if (strcasecmp (symbol_name, "@unwind") == 0)
+	    seh_ctx_cur->handler_flags |= UNW_FLAG_UHANDLER;
+	  else if (strcasecmp (symbol_name, "@except") == 0)
+	    seh_ctx_cur->handler_flags |= UNW_FLAG_EHANDLER;
+	  else
+	    as_bad (_(".seh_handler constant '%s' unknown"), symbol_name);
+
+	  *input_line_pointer = name_end;
+	}
+      while (skip_whitespace_and_comma (0));
+    }
+  else
+    {
+      expression (&seh_ctx_cur->handler_data);
+      demand_empty_rest_of_line ();
+
+      if (seh_ctx_cur->handler_written)
+	as_warn (_(".seh_handler after .seh_eh is ignored"));
+    }
+}
+
+/* Switch to subsection for handler data for exception region (x64).  */
+
+static void
+obj_coff_seh_handlerdata (int what ATTRIBUTE_UNUSED)
+{
+  if (!verify_context_and_target (".seh_handlerdata", seh_kind_x64))
+    return;
+  demand_empty_rest_of_line ();
+
+  switch_xdata (seh_ctx_cur->subsection + 1, seh_ctx_cur->code_seg);
+}
+
+/* Mark end of current context.  */
+
+static void
+do_seh_endproc (void)
+{
+  seh_ctx_cur->end_addr = symbol_temp_new_now ();
+
+  write_function_xdata (seh_ctx_cur);
+  write_function_pdata (seh_ctx_cur);
+  seh_ctx_cur = NULL;
+}
+
+static void
+obj_coff_seh_endproc (int what ATTRIBUTE_UNUSED)
+{
+  demand_empty_rest_of_line ();
+  if (seh_ctx_cur == NULL)
+    {
+      as_bad (_(".seh_endproc used without .seh_proc"));
+      return;
+    }
+  seh_validate_seg (".seh_endproc");
+  do_seh_endproc ();
+}
+
+/* Mark begin of new context.  */
+
+static void
+obj_coff_seh_proc (int what ATTRIBUTE_UNUSED)
+{
+  char *symbol_name;
+  char name_end;
+
+  if (seh_ctx_cur != NULL)
+    {
+      as_bad (_("previous SEH entry not closed (missing .seh_endproc)"));
+      do_seh_endproc ();
+    }
+
+  if (*input_line_pointer == 0 || *input_line_pointer == '\n')
+    {
+      as_bad (_(".seh_proc requires function label name"));
+      demand_empty_rest_of_line ();
+      return;
+    }
+
+  seh_ctx_cur = XCNEW (seh_context);
+
+  seh_ctx_cur->code_seg = now_seg;
+
+  if (seh_get_target_kind () == seh_kind_x64)
+    {
+      x_segcur = seh_hash_find_or_make (seh_ctx_cur->code_seg, ".xdata");
+      seh_ctx_cur->subsection = x_segcur->subseg;
+      x_segcur->subseg += 2;
+    }
+
+  SKIP_WHITESPACE ();
+
+  symbol_name = input_line_pointer;
+  name_end = get_symbol_end ();
+  seh_ctx_cur->func_name = xstrdup (symbol_name);
+  *input_line_pointer = name_end;
+
+  demand_empty_rest_of_line ();
+
+  seh_ctx_cur->start_addr = symbol_temp_new_now ();
+}
+
+/* Mark end of prologue for current context.  */
+
+static void
+obj_coff_seh_endprologue (int what ATTRIBUTE_UNUSED)
+{
+  if (!verify_context (".seh_endprologue")
+      || !seh_validate_seg (".seh_endprologue"))
+    return;
+  demand_empty_rest_of_line ();
+
+  if (seh_ctx_cur->endprologue_addr != NULL)
+    as_warn (_("duplicate .seh_endprologue in .seh_proc block"));
+  else
+    seh_ctx_cur->endprologue_addr = symbol_temp_new_now ();
+}
+
+/* End-of-file hook.  */
+
+void
+obj_coff_seh_do_final (void)
+{
+  if (seh_ctx_cur != NULL)
+    {
+      as_bad (_("open SEH entry at end of file (missing .cfi_endproc)"));
+      do_seh_endproc ();
+    }
+}
+
+/* Enter a prologue element into current context (x64).  */
+
+static void
+seh_x64_make_prologue_element (int code, int info, offsetT off)
+{
+  seh_prologue_element *n;
+
+  if (seh_ctx_cur == NULL)
+    return;
+  if (seh_ctx_cur->elems_count == seh_ctx_cur->elems_max)
+    {
+      seh_ctx_cur->elems_max += 8;
+      seh_ctx_cur->elems = XRESIZEVEC (seh_prologue_element,
+				       seh_ctx_cur->elems,
+				       seh_ctx_cur->elems_max);
+    }
+
+  n = &seh_ctx_cur->elems[seh_ctx_cur->elems_count++];
+  n->code = code;
+  n->info = info;
+  n->off = off;
+  n->pc_addr = symbol_temp_new_now ();
+}
+
+/* Helper to read a register name from input stream (x64).  */
+
+static int
+seh_x64_read_reg (const char *directive, int kind)
+{
+  static const char * const int_regs[16] =
+    { "rax", "rcx", "rdx", "rbx", "rsp", "rbp","rsi","rdi",
+      "r8","r9","r10","r11","r12","r13","r14","r15" };
+  static const char * const xmm_regs[16] =
+    { "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
+      "xmm8", "xmm9", "xmm10","xmm11","xmm12","xmm13","xmm14","xmm15" };
+
+  const char * const *regs = NULL;
+  char name_end;
+  char *symbol_name = NULL;
+  int i;
+
+  switch (kind)
+    {
+    case 0:
+    case 1:
+      regs = int_regs;
+      break;
+    case 2:
+      regs = xmm_regs;
+      break;
+    default:
+      abort ();
+    }
+
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer == '%')
+    ++input_line_pointer;
+  symbol_name = input_line_pointer;
+  name_end = get_symbol_end ();
+
+  for (i = 0; i < 16; i++)
+    if (! strcasecmp (regs[i], symbol_name))
+      break;
+
+  *input_line_pointer = name_end;
+
+  /* Error if register not found, or EAX used as a frame pointer.  */
+  if (i == 16 || (kind == 0 && i == 0))
+    {
+      as_bad (_("invalid register for %s"), directive);
+      return -1;
+    }
+
+  return i;
+}
+
+/* Add a register push-unwind token to the current context.  */
+
+static void
+obj_coff_seh_pushreg (int what ATTRIBUTE_UNUSED)
+{
+  int reg;
+
+  if (!verify_context_and_target (".seh_pushreg", seh_kind_x64)
+      || !seh_validate_seg (".seh_pushreg"))
+    return;
+
+  reg = seh_x64_read_reg (".seh_pushreg", 1);
+  demand_empty_rest_of_line ();
+
+  if (reg < 0)
+    return;
+
+  seh_x64_make_prologue_element (UWOP_PUSH_NONVOL, reg, 0);
+}
+
+/* Add a register frame-unwind token to the current context.  */
+
+static void
+obj_coff_seh_pushframe (int what ATTRIBUTE_UNUSED)
+{
+  if (!verify_context_and_target (".seh_pushframe", seh_kind_x64)
+      || !seh_validate_seg (".seh_pushframe"))
+    return;
+  demand_empty_rest_of_line ();
+
+  seh_x64_make_prologue_element (UWOP_PUSH_MACHFRAME, 0, 0);
+}
+
+/* Add a register save-unwind token to current context.  */
+
+static void
+obj_coff_seh_save (int what)
+{
+  const char *directive = (what == 1 ? ".seh_savereg" : ".seh_savexmm");
+  int code, reg, scale;
+  offsetT off;
+
+  if (!verify_context_and_target (directive, seh_kind_x64)
+      || !seh_validate_seg (directive))
+    return;
+
+  reg = seh_x64_read_reg (directive, what);
+
+  if (!skip_whitespace_and_comma (1))
+    return;
+
+  off = get_absolute_expression ();
+  demand_empty_rest_of_line ();
+
+  if (reg < 0)
+    return;
+  if (off < 0)
+    {
+      as_bad (_("%s offset is negative"), directive);
+      return;
+    }
+
+  scale = (what == 1 ? 8 : 16);
+
+  if ((off & (scale - 1)) == 0 && off <= (offsetT) (0xffff * scale))
+    {
+      code = (what == 1 ? UWOP_SAVE_NONVOL : UWOP_SAVE_XMM128);
+      off /= scale;
+    }
+  else if (off < (offsetT) 0xffffffff)
+    code = (what == 1 ? UWOP_SAVE_NONVOL_FAR : UWOP_SAVE_XMM128_FAR);
+  else
+    {
+      as_bad (_("%s offset out of range"), directive);
+      return;
+    }
+
+  seh_x64_make_prologue_element (code, reg, off);
+}
+
+/* Add a stack-allocation token to current context.  */
+
+static void
+obj_coff_seh_stackalloc (int what ATTRIBUTE_UNUSED)
+{
+  offsetT off;
+  int code, info;
+
+  if (!verify_context_and_target (".seh_stackalloc", seh_kind_x64)
+      || !seh_validate_seg (".seh_stackalloc"))
+    return;
+
+  off = get_absolute_expression ();
+  demand_empty_rest_of_line ();
+
+  if (off == 0)
+    return;
+  if (off < 0)
+    {
+      as_bad (_(".seh_stackalloc offset is negative"));
+      return;
+    }
+
+  if ((off & 7) == 0 && off <= 128)
+    code = UWOP_ALLOC_SMALL, info = (off - 8) >> 3, off = 0;
+  else if ((off & 7) == 0 && off <= (offsetT) (0xffff * 8))
+    code = UWOP_ALLOC_LARGE, info = 0, off >>= 3;
+  else if (off <= (offsetT) 0xffffffff)
+    code = UWOP_ALLOC_LARGE, info = 1;
+  else
+    {
+      as_bad (_(".seh_stackalloc offset out of range"));
+      return;
+    }
+
+  seh_x64_make_prologue_element (code, info, off);
+}
+
+/* Add a frame-pointer token to current context.  */
+
+static void
+obj_coff_seh_setframe (int what ATTRIBUTE_UNUSED)
+{
+  offsetT off;
+  int reg;
+
+  if (!verify_context_and_target (".seh_setframe", seh_kind_x64)
+      || !seh_validate_seg (".seh_setframe"))
+    return;
+
+  reg = seh_x64_read_reg (".seh_setframe", 0);
+
+  if (!skip_whitespace_and_comma (1))
+    return;
+
+  off = get_absolute_expression ();
+  demand_empty_rest_of_line ();
+
+  if (reg < 0)
+    return;
+  if (off < 0)
+    as_bad (_(".seh_setframe offset is negative"));
+  else if (off > 240)
+    as_bad (_(".seh_setframe offset out of range"));
+  else if (off & 15)
+    as_bad (_(".seh_setframe offset not a multiple of 16"));
+  else if (seh_ctx_cur->framereg != 0)
+    as_bad (_("duplicate .seh_setframe in current .seh_proc"));
+  else
+    {
+      seh_ctx_cur->framereg = reg;
+      seh_ctx_cur->frameoff = off;
+      seh_x64_make_prologue_element (UWOP_SET_FPREG, 0, 0);
+    }
+}
+
+/* Data writing routines.  */
+
+/* Output raw integers in 1, 2, or 4 bytes.  */
+
+static inline void
+out_one (int byte)
+{
+  FRAG_APPEND_1_CHAR (byte);
+}
+
+static inline void
+out_two (int data)
+{
+  md_number_to_chars (frag_more (2), data, 2);
+}
+
+static inline void
+out_four (int data)
+{
+  md_number_to_chars (frag_more (4), data, 4);
+}
+
+/* Write out prologue data for x64.  */
+
+static void
+seh_x64_write_prologue_data (const seh_context *c)
+{
+  int i;
+
+  /* We have to store in reverse order.  */
+  for (i = c->elems_count - 1; i >= 0; --i)
+    {
+      const seh_prologue_element *e = c->elems + i;
+      expressionS exp;
+
+      /* First comes byte offset in code.  */
+      exp.X_op = O_subtract;
+      exp.X_add_symbol = e->pc_addr;
+      exp.X_op_symbol = c->start_addr;
+      exp.X_add_number = 0;
+      emit_expr (&exp, 1);
+
+      /* Second comes code+info packed into a byte.  */
+      out_one ((e->info << 4) | e->code);
+
+      switch (e->code)
+	{
+	case UWOP_PUSH_NONVOL:
+	case UWOP_ALLOC_SMALL:
+	case UWOP_SET_FPREG:
+	case UWOP_PUSH_MACHFRAME:
+	  /* These have no extra data.  */
+	  break;
+
+	case UWOP_ALLOC_LARGE:
+	  if (e->info)
+	    {
+	case UWOP_SAVE_NONVOL_FAR:
+	case UWOP_SAVE_XMM128_FAR:
+	      /* An unscaled 4 byte offset.  */
+	      out_four (e->off);
+	      break;
+	    }
+	  /* FALLTHRU */
+
+	case UWOP_SAVE_NONVOL:
+	case UWOP_SAVE_XMM128:
+	  /* A scaled 2 byte offset.  */
+	  out_two (e->off);
+	  break;
+
+	default:
+	  abort ();
 	}
     }
 }
 
 static int
-seh_needed_unwind_info (seh_context *c)
+seh_x64_size_prologue_data (const seh_context *c)
 {
-  size_t i;
-  int count = 1;
-  valueT start_off = resolve_symbol_value (c->start_addr);
-  valueT un_off;
-  seh_prologue_element *e = c->elems;
+  int i, ret = 0;
 
-  if (c->elems_count == 0)
-    return count;
-  for (i = 0; i < c->elems_count; i++)
-    {
-      un_off = resolve_symbol_value (e[i].pc_addr);
-      if ((un_off - start_off) > 255)
-	{
-	  count++;
-	  start_off = un_off;
-	}
-    }
-  return count;
-}
+  for (i = c->elems_count - 1; i >= 0; --i)
+    switch (c->elems[i].code)
+      {
+      case UWOP_PUSH_NONVOL:
+      case UWOP_ALLOC_SMALL:
+      case UWOP_SET_FPREG:
+      case UWOP_PUSH_MACHFRAME:
+	ret += 1;
+	break;
 
-static size_t
-seh_getelm_data_size (const seh_context *c, int elm_start, int elm_end)
-{
-  size_t ret = PEX64_UWI_SIZEOF_UWCODE_ARRAY (elm_end - elm_start);
+      case UWOP_SAVE_NONVOL:
+      case UWOP_SAVE_XMM128:
+	ret += 2;
+	break;
 
-  while (elm_start < elm_end)
-    {
-      switch (c->elems[elm_start].kind)
-	{
-        case UWOP_PUSH_NONVOL:
-	case UWOP_PUSH_MACHFRAME:
-	  ret += 2;
-	  break;
-	case UWOP_SAVE_NONVOL:
-	case UWOP_SAVE_XMM:
-	case UWOP_SAVE_XMM128:
-	  if ((c->elems[elm_start].offset & 7) != 0 ||
-	      ((c->elems[elm_start].offset / 8) > 0xffff))
-	    ret += 6;
-	  else
-	    ret += 4;
-	  break;
-	case UWOP_ALLOC_LARGE:
-	  ret += 4;
-	  break;
-        default:
-	  break;
-	}
-      elm_start++;
-    }
+      case UWOP_SAVE_NONVOL_FAR:
+      case UWOP_SAVE_XMM128_FAR:
+	ret += 3;
+	break;
+
+      case UWOP_ALLOC_LARGE:
+	ret += (c->elems[i].info ? 3 : 2);
+	break;
+
+      default:
+	abort ();
+      }
+
   return ret;
 }
 
-static size_t
-seh_getsize_of_unwind_entry (seh_context *c, int elm_start, int elm_end, int bechain)
-{
-  size_t ret = seh_getelm_data_size(c, elm_start, elm_end);
+/* Write out the xdata information for one function (x64).  */
 
-  c->count_syms += 1;
-  if (bechain)
+static void
+seh_x64_write_function_xdata (seh_context *c)
+{
+  int flags, count_unwind_codes;
+  expressionS exp;
+
+  /* Set 4-byte alignment.  */
+  frag_align (2, 0, 0);
+
+  c->xdata_addr = symbol_temp_new_now ();
+  flags = c->handler_flags;
+  count_unwind_codes = seh_x64_size_prologue_data (c);
+
+  /* ubyte:3 version, ubyte:5 flags.  */
+  out_one ((flags << 3) | 1);
+
+  /* Size of prologue.  */
+  if (c->endprologue_addr)
     {
-      ret += 4 + 4;
-      c->count_syms += 1;
-      c->count_reloc += 1;
+      exp.X_op = O_subtract;
+      exp.X_add_symbol = c->endprologue_addr;
+      exp.X_op_symbol = c->start_addr;
+      exp.X_add_number = 0;
+      emit_expr (&exp, 1);
     }
   else
+    out_one (0);
+
+  /* Number of slots (i.e. shorts) in the unwind codes array.  */
+  if (count_unwind_codes > 255)
+    as_fatal (_("too much unwind data in this .seh_proc"));
+  out_one (count_unwind_codes);
+
+  /* ubyte:4 frame-reg, ubyte:4 frame-reg-offset.  */
+  /* Note that frameoff is already a multiple of 16, and therefore
+     the offset is already both scaled and shifted into place.  */
+  out_one (c->frameoff | c->framereg);
+
+  seh_x64_write_prologue_data (c);
+
+  /* We need to align prologue data.  */
+  if (count_unwind_codes & 1)
+    out_two (0);
+
+  if (flags & (UNW_FLAG_EHANDLER | UNW_FLAG_UHANDLER))
     {
-      ret += 4;
-      if (c->handler_name != NULL)
-	{
-	  if (c->handler_data_name != NULL
-	      && c->handler_data_name[0] != '@')
-	    {
-	      ret += 4;
-	      c->count_syms += 2;
-	      c->count_reloc += 2;
-	    }
-	  else
-	    {
-	      ret += 8 + (c->scope_count * 4) * 4;
-	      c->count_syms += (c->scope_count * 4) + 1;
-	      c->count_reloc += (c->scope_count * 4) + 1;
-	    }
-	}
+      /* Force the use of segment-relative relocations instead of absolute
+         valued expressions.  Don't adjust for constants (e.g. NULL).  */
+      if (c->handler.X_op == O_symbol)
+        c->handler.X_op = O_symbol_rva;
+      emit_expr (&c->handler, 4);
     }
-  return ret;
+
+  /* Handler data will be tacked in here by subsections.  */
 }
+
+/* Write out xdata for one function.  */
 
 static void
-seh_make_unwind_entry (const seh_context *c, char *name, int elm_start, int elm_end, int bechain,
-		       unsigned char *data, size_t *poffs, int no)
+write_function_xdata (seh_context *c)
 {
-  size_t off = *poffs;
-  size_t it;
-  valueT start_off = resolve_symbol_value (c->start_addr);
-  valueT end_prologue;
-  size_t uwcodes = seh_getelm_data_size(c, elm_start, elm_end);
-  unsigned int flag = UNW_FLAG_NHANDLER;
-  int idx;
+  segT save_seg = now_seg;
+  int save_subseg = now_subseg;
 
-  if (c->handler_name != NULL)
-    {
-      flag = UNW_FLAG_EHANDLER;
-      if (c->handler_data_name != NULL && c->handler_data_name[0] != '@')
-	flag = UNW_FLAG_FHANDLER;
-      else if (c->handler_data_name != NULL &&
-	       strcasecmp (c->handler_data_name, "@unwind") == 0)
-	flag = UNW_FLAG_UHANDLER;
-    }
-  if (!c->endprologue_addr)
-    end_prologue = start_off;
-  else
-    end_prologue = resolve_symbol_value (c->endprologue_addr);
-  seh_symbol (c->abfd, name, "", "", c->section, BSF_GLOBAL, (int) off);
-  data[off++] = (1 | ((bechain ? UNW_FLAG_CHAININFO : flag) << 3));
-  if (elm_start != 0)
-    start_off = (valueT) c->elems[elm_start].offset;
-  end_prologue -= start_off;
-  if (end_prologue > 255)
-    end_prologue = 255;
-  data[off++] = (unsigned char) end_prologue;
-  data[off++] = (unsigned char) (uwcodes / 2);
-  data[off] = (unsigned char) c->framereg;
-  data[off++] |= (unsigned char) ((c->frameoff / 16) << 4);
-  off += uwcodes;
-  if (bechain)
-    {
-      char n[100];
-
-      sprintf (n,"%x", no);
-      idx = seh_symbol (c->abfd, ".xdata_fct", c->func_name, n, UNDSEC, BSF_GLOBAL, (int) off);
-      seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-      off += 4;
-    }
-  else if (c->handler_name != NULL)
-    {
-      if (flag == UNW_FLAG_FHANDLER)
-	{
-	  if (strcasecmp (c->handler_name, "@1") == 0)
-	    bfd_put_32 (c->abfd, (bfd_vma) 1, &data[off]);
-	  else if (c->handler_name[0] != '@')
-	    {
-	      idx = seh_symbol (c->abfd, c->handler_name, "", "", UNDSEC, BSF_GLOBAL, 0);
-	      seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-	    }
-	  off += 4;
-	  idx = seh_symbol (c->abfd, c->handler_data_name, "", "", UNDSEC, BSF_GLOBAL, 0);
-	  seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-	  off += 4;
-	}
-      else if (flag == UNW_FLAG_UHANDLER || flag == UNW_FLAG_EHANDLER)
-	{
-	  if (strcasecmp (c->handler_name, "@1") == 0)
-	    bfd_put_32 (c->abfd, (bfd_vma) 1, &data[off]);
-	  else if (c->handler_name[0] != '@')
-	    {
-	      idx = seh_symbol (c->abfd, c->handler_name, "", "", UNDSEC, BSF_GLOBAL, 0);
-	      seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-	    }
-	  off += 4;
-	  bfd_put_32 (c->abfd, (bfd_vma) c->scope_count, &data[off]);
-	  off += 4;
-	  for (it = 0; it < c->scope_count; it++)
-	    {
-	      idx = seh_symbol (c->abfd, c->scopes[it].begin_addr, "", "", UNDSEC, BSF_GLOBAL, 0);
-	      seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-	      off += 4;
-	      idx = seh_symbol (c->abfd, c->scopes[it].end_addr, "", "", UNDSEC, BSF_GLOBAL, 0);
-	      seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-	      off += 4;
-	      if (c->scopes[it].handler_addr[0] == '@')
-		{
-		  if (strcasecmp (c->scopes[it].handler_addr, "@1") == 0)
-		    bfd_put_32 (c->abfd, (bfd_vma) 1, &data[off]);
-		}
-	      else
-		{
-		  idx = seh_symbol (c->abfd, c->scopes[it].handler_addr, "", "", UNDSEC, BSF_GLOBAL, 0);
-		  seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-		}
-	      off += 4;
-	      if (c->scopes[it].jump_addr[0] == '@')
-		{
-		  if (strcasecmp (c->scopes[it].jump_addr, "@1") == 0)
-		    bfd_put_32 (c->abfd, (bfd_vma) 1, &data[off]);
-		}
-	      else
-		{
-		  idx = seh_symbol (c->abfd, c->scopes[it].jump_addr, "", "", UNDSEC, BSF_GLOBAL, 0);
-		  seh_reloc (c->abfd, off, BFD_RELOC_RVA, idx);
-		}
-	      off += 4;
-	    }
-	}
-    }
-  *poffs = off;
-}
-
-static size_t
-seh_getsize_unwind_data (seh_context *c)
-{
-  int need = seh_needed_unwind_info (c);
-  int i;
-  char **names = (char **) xmalloc (sizeof (char *) * need);
-  char **pc_syms = (char **) xmalloc (sizeof (char *) * need);
-  int *elm_start = (int *) xmalloc (sizeof (int) * (need + 1));
-  size_t xdata_sz = 0;
-
-  seh_fill_pcsyms (c, pc_syms, elm_start);
-  elm_start[need] = c->elems_count;
-
-  xdata_sz += ((12 * (size_t) need));
-  c->count_syms += 5 * need;
-  xdata_sz += (seh_getsize_of_unwind_entry (c, elm_start[0], elm_start[1], 1 != need) + 7) & ~7;
-  for (i = 1; i < need; i++)
-    xdata_sz += (seh_getsize_of_unwind_entry (c, elm_start[i], elm_start[i + 1], 1 != need) + 7) & ~7;
-
-  /* Create lable names for .xdata unwind info.  */
-  names[0] = c->xdata_first;
-  for (i = 1; i < need; i++)
-    names[i] = seh_make_xlbl_name (c);
-  c->xdata_names = names;
-  c->xdata_pcsyms = pc_syms;
-  c->xdata_elm_start = elm_start;
-  c->xdata_sz = xdata_sz;
-  return xdata_sz;
-}
-
-static void
-seh_create_unwind_data (seh_context *c, unsigned char *data, size_t offs)
-{
-  int need = seh_needed_unwind_info (c);
-  int i;
-  char **names = c->xdata_names;
-  char **pc_syms = c->xdata_pcsyms;
-  int *elm_start = c->xdata_elm_start;
-
-  for (i = 1; i < need; i++)
-    seh_make_function_entry_xdata (c, pc_syms[i], c->end_symbol, names[i], data, &offs, i);
-
-  /* Generate the function entry. Remark, that just
-     first is in .pdata section and already emitted.  */
-  seh_make_unwind_entry (c, c->xdata_first, elm_start[0], elm_start[1], 1 != need, data, &offs, 1);
-  for (i = 1; i < need; i++)
-    seh_make_unwind_entry (c, names[i], elm_start[i], elm_start[i + 1], (i + 1) != need, data, &offs, i + 1);
-
-  for (i = 1; i < need; i++)
-    free (names[i]);
-  free (names);
-  free (pc_syms);
-  free (elm_start);
-  c->xdata_names = NULL;
-  c->xdata_pcsyms = NULL;
-  c->xdata_elm_start = NULL;
-}
-
-static void
-seh_make_function_entry_xdata (seh_context *c, char *pc_start, char *pc_end, char *pc_xdata, unsigned char *data, size_t *poffs,int no)
-{
-  bfd_vma addr = (bfd_vma) *poffs;
-  int idx;
-  char s[100];
-
-  if (!data)
+  /* MIPS, SH, ARM don't have xdata.  */
+  if (seh_get_target_kind () != seh_kind_x64)
     return;
-  sprintf (s,"%x",no);
-  seh_symbol (c->abfd, ".xdata_fct",c->func_name, s, c->section, BSF_GLOBAL, (int) poffs[0]);
-  idx = seh_symbol (c->abfd, pc_start,"","", UNDSEC, BSF_GLOBAL,0);
-  seh_reloc (c->abfd, addr, BFD_RELOC_RVA, idx);
-  idx = seh_symbol (c->abfd, pc_end,"","", UNDSEC, BSF_GLOBAL,0);
-  seh_reloc (c->abfd, addr + 4, BFD_RELOC_RVA, idx);
-  idx = seh_symbol (c->abfd, pc_xdata,"","", UNDSEC, BSF_GLOBAL,0);
-  seh_reloc (c->abfd, addr + 8, BFD_RELOC_RVA, idx);
-  poffs[0] += 12;
+
+  switch_xdata (c->subsection, c->code_seg);
+
+  seh_x64_write_function_xdata (c);
+
+  subseg_set (save_seg, save_subseg);
 }
 
-static seh_scope_elem *
-seh_x64_makescope_elem (seh_context *c, const char *begin, const char *end,
-			const char *handler, const char *jmp)
-{
-  seh_scope_elem *r;
+/* Write pdata section data for one function (arm).  */
 
-  if (!end || !begin)
-    return NULL;
-  if (c->scope_count >= c->scope_max)
+static void
+seh_arm_write_function_pdata (seh_context *c)
+{
+  expressionS exp;
+  unsigned int prol_len = 0, func_len = 0;
+  unsigned int val;
+
+  /* Start address of the function.  */
+  exp.X_op = O_symbol;
+  exp.X_add_symbol = c->start_addr;
+  exp.X_add_number = 0;
+  emit_expr (&exp, 4);
+
+  exp.X_op = O_subtract;
+  exp.X_add_symbol = c->end_addr;
+  exp.X_op_symbol = c->start_addr;
+  exp.X_add_number = 0;
+  if (resolve_expression (&exp) && exp.X_op == O_constant)
+    func_len = exp.X_add_number;
+  else
+    as_bad (_(".seh_endproc in a different section from .seh_proc"));
+
+  if (c->endprologue_addr)
     {
-      seh_scope_elem *h = (seh_scope_elem *) xmalloc (sizeof (seh_scope_elem) * (c->scope_max + 8));
-      memset (h, 0, sizeof (seh_scope_elem) * (c->scope_max + 8));
-      if (c->scopes != NULL)
-	memcpy (h, c->scopes, sizeof (seh_scope_elem) * c->scope_max);
-      if (c->scopes != NULL)
-	free (c->scopes);
-      c->scopes = h;
-      c->scope_max += 8;
+      exp.X_op = O_subtract;
+      exp.X_add_symbol = c->endprologue_addr;
+      exp.X_op_symbol = c->start_addr;
+      exp.X_add_number = 0;
+
+      if (resolve_expression (&exp) && exp.X_op == O_constant)
+	prol_len = exp.X_add_number;
+      else
+	as_bad (_(".seh_endprologue in a different section from .seh_proc"));
     }
-  r = &c->scopes[c->scope_count++];
-  r->begin_addr = xstrdup (begin);
-  r->end_addr = xstrdup (end);
-  r->handler_addr = (!handler ? NULL : xstrdup (handler));
-  r->jump_addr = (!jmp ? NULL : xstrdup (jmp));
-  return r;
+
+  /* Both function and prologue are in units of instructions.  */
+  func_len >>= (c->use_instruction_32 ? 2 : 1);
+  prol_len >>= (c->use_instruction_32 ? 2 : 1);
+
+  /* Assemble the second word of the pdata.  */
+  val  = prol_len & 0xff;
+  val |= (func_len & 0x3fffff) << 8;
+  if (c->use_instruction_32)
+    val |= 0x40000000U;
+  if (c->handler_written)
+    val |= 0x80000000U;
+  out_four (val);
+}
+
+/* Write out pdata for one function.  */
+
+static void
+write_function_pdata (seh_context *c)
+{
+  expressionS exp;
+  segT save_seg = now_seg;
+  int save_subseg = now_subseg;
+  memset (&exp, 0, sizeof (expressionS));
+  switch_pdata (c->code_seg);
+
+  switch (seh_get_target_kind ())
+    {
+    case seh_kind_x64:
+      exp.X_op = O_symbol_rva;
+      exp.X_add_number = 0;
+
+      exp.X_add_symbol = c->start_addr;
+      emit_expr (&exp, 4);
+      exp.X_op = O_symbol_rva;
+      exp.X_add_number = 0;
+      exp.X_add_symbol = c->end_addr;
+      emit_expr (&exp, 4);
+      exp.X_op = O_symbol_rva;
+      exp.X_add_number = 0;
+      exp.X_add_symbol = c->xdata_addr;
+      emit_expr (&exp, 4);
+      break;
+
+    case seh_kind_mips:
+      exp.X_op = O_symbol;
+      exp.X_add_number = 0;
+
+      exp.X_add_symbol = c->start_addr;
+      emit_expr (&exp, 4);
+      exp.X_add_symbol = c->end_addr;
+      emit_expr (&exp, 4);
+
+      emit_expr (&c->handler, 4);
+      emit_expr (&c->handler_data, 4);
+
+      exp.X_add_symbol = (c->endprologue_addr
+			  ? c->endprologue_addr
+			  : c->start_addr);
+      emit_expr (&exp, 4);
+      break;
+
+    case seh_kind_arm:
+      seh_arm_write_function_pdata (c);
+      break;
+
+    default:
+      abort ();
+    }
+
+  subseg_set (save_seg, save_subseg);
 }

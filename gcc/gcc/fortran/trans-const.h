@@ -1,5 +1,5 @@
 /* Header for code constant translation functions
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
 This file is part of GCC.
@@ -29,6 +29,10 @@ void gfc_conv_tree_to_mpfr (mpfr_ptr, tree);
 /* Build a tree containing a real infinity (or HUGE if infinities are
    not supported for the given type.  */
 tree gfc_build_inf_or_huge (tree, int);
+
+/* Build a tree containing a NaN for the given type, with significand
+   specified by second argument.  */
+tree gfc_build_nan (tree, const char *);
 
 /* Build a tree for a constant.  Must be an EXPR_CONSTANT gfc_expr.
    For CHARACTER literal constants, the caller still has to set the

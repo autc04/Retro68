@@ -1,5 +1,5 @@
 /* Handle exceptions for GNU compiler for the Java(TM) language.
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -25,7 +25,17 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stringpool.h"
 #include "stor-layout.h"
 #include "java-tree.h"
@@ -433,10 +443,10 @@ prepare_eh_table_type (tree type)
   return exp;
 }
 
-static int
-expand_catch_class (void **entry, void *x ATTRIBUTE_UNUSED)
+int
+expand_catch_class (treetreehash_entry **entry, int)
 {
-  struct treetreehash_entry *ite = (struct treetreehash_entry *) *entry;
+  struct treetreehash_entry *ite = *entry;
   tree addr = TREE_VALUE ((tree)ite->value);
   tree decl;
   STRIP_NOPS (addr);
@@ -452,9 +462,7 @@ void
 java_expand_catch_classes (tree this_class)
 {
   if (TYPE_TO_RUNTIME_MAP (this_class))
-    htab_traverse 
-      (TYPE_TO_RUNTIME_MAP (this_class),
-       expand_catch_class, NULL);
+    TYPE_TO_RUNTIME_MAP (this_class)->traverse<int, expand_catch_class> (0);
 }
 
 /* Build and push the variable that will hold the exception object

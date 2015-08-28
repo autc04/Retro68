@@ -27,9 +27,11 @@ SECTIONS
   .got.plt : { *(.got.plt) }
 
   . = 0xa0000;
-  _gp = . + 0x7ff0;
+  HIDDEN (_gp = . + 0x7ff0);
   .got : { *(.got) }
 
   . = 0xa1000;
   .data : { *(.data) }
+
+  /DISCARD/ : { *(.MIPS.abiflags) }
 }

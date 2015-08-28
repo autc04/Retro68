@@ -1,6 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 1991, 1993, 1994, 1997, 1999, 2000, 2001, 2002, 2003, 2005, 2007,
-#   2008, 2009 Free Software Foundation, Inc.
+#   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -204,9 +203,9 @@ hook_in_stub (struct hook_stub_info *info, lang_statement_union_type **lp)
 
 	case lang_input_section_enum:
 	  if (l->input_section.section == info->input_section
-	      || strcmp (bfd_get_section_name (output_section,
+	      || strcmp (bfd_get_section_name (l->input_section.section->owner,
 					       l->input_section.section),
-			 bfd_get_section_name (output_section,
+			 bfd_get_section_name (info->input_section->owner,
 					       info->input_section)) == 0)
 	    {
 	      /* We've found our section.  Insert the stub immediately
@@ -250,7 +249,6 @@ m68hc11elf_add_stub_section (const char *stub_sec_name,
   asection *stub_sec;
   flagword flags;
   asection *output_section;
-  const char *secname;
   lang_output_section_statement_type *os;
   struct hook_stub_info info;
 
@@ -262,8 +260,7 @@ m68hc11elf_add_stub_section (const char *stub_sec_name,
     goto err_ret;
 
   output_section = tramp_section->output_section;
-  secname = bfd_get_section_name (output_section->owner, output_section);
-  os = lang_output_section_find (secname);
+  os = lang_output_section_get (output_section);
 
   /* Try to put the new section at the same place as an existing
      .tramp section.  Such .tramp section exists in most cases and
@@ -271,7 +268,7 @@ m68hc11elf_add_stub_section (const char *stub_sec_name,
      at the correct place.  */
   info.input_section = tramp_section;
   lang_list_init (&info.add);
-  lang_add_section (&info.add, stub_sec, os);
+  lang_add_section (&info.add, stub_sec, NULL, os);
 
   if (info.add.head == NULL)
     goto err_ret;

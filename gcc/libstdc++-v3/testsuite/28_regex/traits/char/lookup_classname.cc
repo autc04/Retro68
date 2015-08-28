@@ -1,10 +1,10 @@
 // { dg-do run }
-// { dg-options "-std=c++0x" }
+// { dg-options "-std=gnu++11" }
 
 //
 // 2010-06-23  Stephen M. Webb <stephen.webb@bregmasoft.ca>
 //
-// Copyright (C) 2010-2014 Free Software Foundation, Inc.
+// Copyright (C) 2010-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -26,6 +26,7 @@
 // 28.7(9) Class template regex_traits [re.traits]
 
 #include <regex>
+#include <forward_list>
 #include <testsuite_hooks.h>
 
 void
@@ -47,8 +48,29 @@ test01()
 	VERIFY( c2 == c3 );
 }
 
+// Test forward iterator
+void
+test02()
+{
+  const char strlit[] = "upper";
+  std::forward_list<char> s(strlit, strlit + strlen(strlit));
+  std::regex_traits<char> traits;
+  VERIFY(traits.isctype('C', traits.lookup_classname(s.begin(), s.end(), false)));
+}
+
+// icase
+void
+test03()
+{
+  std::string s("lower");
+  std::regex_traits<char> traits;
+  VERIFY(traits.isctype('C', traits.lookup_classname(s.begin(), s.end(), true)));
+}
+
 int main()
 {
 	test01();
+	test02();
+	test03();
 	return 0;
 }

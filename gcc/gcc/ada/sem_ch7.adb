@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -37,6 +37,7 @@ with Errout;   use Errout;
 with Exp_Disp; use Exp_Disp;
 with Exp_Dist; use Exp_Dist;
 with Exp_Dbug; use Exp_Dbug;
+with Ghost;    use Ghost;
 with Lib;      use Lib;
 with Lib.Xref; use Lib.Xref;
 with Namet;    use Namet;
@@ -108,20 +109,6 @@ package body Sem_Ch7 is
    --  created at the beginning of the corresponding package body and inserted
    --  before other body declarations.
 
-   procedure Install_Package_Entity (Id : Entity_Id);
-   --  Supporting procedure for Install_{Visible,Private}_Declarations. Places
-   --  one entity on its visibility chain, and recurses on the visible part if
-   --  the entity is an inner package.
-
-   function Is_Private_Base_Type (E : Entity_Id) return Boolean;
-   --  True for a private type that is not a subtype
-
-   function Is_Visible_Dependent (Dep : Entity_Id) return Boolean;
-   --  If the private dependent is a private type whose full view is derived
-   --  from the parent type, its full properties are revealed only if we are in
-   --  the immediate scope of the private dependent. Should this predicate be
-   --  tightened further???
-
    procedure Declare_Inherited_Private_Subprograms (Id : Entity_Id);
    --  Called upon entering the private part of a public child package and the
    --  body of a nested package, to potentially declare certain inherited
@@ -137,10 +124,31 @@ package body Sem_Ch7 is
    --  inherited private operation has been overridden, then it's replaced by
    --  the overriding operation.
 
-   procedure Unit_Requires_Body_Info (P : Entity_Id);
-   --  Outputs info messages showing why package specification P requires a
-   --  body. Caller has checked that the switch requesting this information
-   --  is set, and that the package does indeed require a body.
+   procedure Install_Package_Entity (Id : Entity_Id);
+   --  Supporting procedure for Install_{Visible,Private}_Declarations. Places
+   --  one entity on its visibility chain, and recurses on the visible part if
+   --  the entity is an inner package.
+
+   function Is_Private_Base_Type (E : Entity_Id) return Boolean;
+   --  True for a private type that is not a subtype
+
+   function Is_Visible_Dependent (Dep : Entity_Id) return Boolean;
+   --  If the private dependent is a private type whose full view is derived
+   --  from the parent type, its full properties are revealed only if we are in
+   --  the immediate scope of the private dependent. Should this predicate be
+   --  tightened further???
+
+   function Requires_Completion_In_Body
+     (Id      : Entity_Id;
+      Pack_Id : Entity_Id) return Boolean;
+   --  Subsidiary to routines Unit_Requires_Body and Unit_Requires_Body_Info.
+   --  Determine whether entity Id declared in package spec Pack_Id requires
+   --  completion in a package body.
+
+   procedure Unit_Requires_Body_Info (Pack_Id : Entity_Id);
+   --  Outputs info messages showing why package Pack_Id requires a body. The
+   --  caller has checked that the switch requesting this information is set,
+   --  and that the package does indeed require a body.
 
    --------------------------
    -- Analyze_Package_Body --
@@ -180,9 +188,17 @@ package body Sem_Ch7 is
 
    procedure Analyze_Package_Body_Contract (Body_Id : Entity_Id) is
       Spec_Id : constant Entity_Id := Spec_Entity (Body_Id);
+      Mode    : SPARK_Mode_Type;
       Prag    : Node_Id;
 
    begin
+      --  Due to the timing of contract analysis, delayed pragmas may be
+      --  subject to the wrong SPARK_Mode, usually that of the enclosing
+      --  context. To remedy this, restore the original SPARK_Mode of the
+      --  related package body.
+
+      Save_SPARK_Mode_And_Set (Body_Id, Mode);
+
       Prag := Get_Pragma (Body_Id, Pragma_Refined_State);
 
       --  The analysis of pragma Refined_State detects whether the spec has
@@ -200,6 +216,11 @@ package body Sem_Ch7 is
       then
          Error_Msg_N ("package & requires state refinement", Spec_Id);
       end if;
+
+      --  Restore the SPARK_Mode of the enclosing context after all delayed
+      --  pragmas have been analyzed.
+
+      Restore_SPARK_Mode (Mode);
    end Analyze_Package_Body_Contract;
 
    ---------------------------------
@@ -207,18 +228,323 @@ package body Sem_Ch7 is
    ---------------------------------
 
    procedure Analyze_Package_Body_Helper (N : Node_Id) is
-      HSS              : Node_Id;
-      Body_Id          : Entity_Id;
-      Spec_Id          : Entity_Id;
-      Last_Spec_Entity : Entity_Id;
-      New_N            : Node_Id;
-      Pack_Decl        : Node_Id;
+      procedure Hide_Public_Entities (Decls : List_Id);
+      --  Attempt to hide all public entities found in declarative list Decls
+      --  by resetting their Is_Public flag to False depending on whether the
+      --  entities are not referenced by inlined or generic bodies. This kind
+      --  of processing is a conservative approximation and may still leave
+      --  certain entities externally visible.
 
       procedure Install_Composite_Operations (P : Entity_Id);
       --  Composite types declared in the current scope may depend on types
       --  that were private at the point of declaration, and whose full view
       --  is now in scope. Indicate that the corresponding operations on the
       --  composite type are available.
+
+      --------------------------
+      -- Hide_Public_Entities --
+      --------------------------
+
+      procedure Hide_Public_Entities (Decls : List_Id) is
+         function Contains_Subp_Or_Const_Refs (N : Node_Id) return Boolean;
+         --  Subsidiary to routine Has_Referencer. Determine whether a node
+         --  contains a reference to a subprogram or a non-static constant.
+         --  WARNING: this is a very expensive routine as it performs a full
+         --  tree traversal.
+
+         function Has_Referencer
+           (Decls     : List_Id;
+            Top_Level : Boolean := False) return Boolean;
+         --  A "referencer" is a construct which may reference a previous
+         --  declaration. Examine all declarations in list Decls in reverse
+         --  and determine whether once such referencer exists. All entities
+         --  in the range Last (Decls) .. Referencer are hidden from external
+         --  visibility.
+
+         ---------------------------------
+         -- Contains_Subp_Or_Const_Refs --
+         ---------------------------------
+
+         function Contains_Subp_Or_Const_Refs (N : Node_Id) return Boolean is
+            Reference_Seen : Boolean := False;
+
+            function Is_Subp_Or_Const_Ref
+              (N : Node_Id) return Traverse_Result;
+            --  Determine whether a node denotes a reference to a subprogram or
+            --  a non-static constant.
+
+            --------------------------
+            -- Is_Subp_Or_Const_Ref --
+            --------------------------
+
+            function Is_Subp_Or_Const_Ref
+              (N : Node_Id) return Traverse_Result
+            is
+               Val : Node_Id;
+
+            begin
+               --  Detect a reference of the form
+               --    Subp_Call
+
+               if Nkind (N) in N_Subprogram_Call
+                 and then Is_Entity_Name (Name (N))
+               then
+                  Reference_Seen := True;
+                  return Abandon;
+
+               --  Detect a reference of the form
+               --    Subp'Some_Attribute
+
+               elsif Nkind (N) = N_Attribute_Reference
+                 and then Is_Entity_Name (Prefix (N))
+                 and then Present (Entity (Prefix (N)))
+                 and then Is_Subprogram (Entity (Prefix (N)))
+               then
+                  Reference_Seen := True;
+                  return Abandon;
+
+               --  Detect the use of a non-static constant
+
+               elsif Is_Entity_Name (N)
+                 and then Present (Entity (N))
+                 and then Ekind (Entity (N)) = E_Constant
+               then
+                  Val := Constant_Value (Entity (N));
+
+                  if Present (Val)
+                    and then not Compile_Time_Known_Value (Val)
+                  then
+                     Reference_Seen := True;
+                     return Abandon;
+                  end if;
+               end if;
+
+               return OK;
+            end Is_Subp_Or_Const_Ref;
+
+            procedure Find_Subp_Or_Const_Ref is
+              new Traverse_Proc (Is_Subp_Or_Const_Ref);
+
+         --  Start of processing for Contains_Subp_Or_Const_Refs
+
+         begin
+            Find_Subp_Or_Const_Ref (N);
+
+            return Reference_Seen;
+         end Contains_Subp_Or_Const_Refs;
+
+         --------------------
+         -- Has_Referencer --
+         --------------------
+
+         function Has_Referencer
+           (Decls     : List_Id;
+            Top_Level : Boolean := False) return Boolean
+         is
+            Decl    : Node_Id;
+            Decl_Id : Entity_Id;
+            Spec    : Node_Id;
+
+            Has_Non_Subp_Const_Referencer : Boolean := False;
+            --  Flag set for inlined subprogram bodies that do not contain
+            --  references to other subprograms or non-static constants.
+
+         begin
+            if No (Decls) then
+               return False;
+            end if;
+
+            --  Examine all declarations in reverse order, hiding all entities
+            --  from external visibility until a referencer has been found. The
+            --  algorithm recurses into nested packages.
+
+            Decl := Last (Decls);
+            while Present (Decl) loop
+
+               --  A stub is always considered a referencer
+
+               if Nkind (Decl) in N_Body_Stub then
+                  return True;
+
+               --  Package declaration
+
+               elsif Nkind (Decl) = N_Package_Declaration
+                 and then not Has_Non_Subp_Const_Referencer
+               then
+                  Spec := Specification (Decl);
+
+                  --  Inspect the declarations of a non-generic package to try
+                  --  and hide more entities from external visibility.
+
+                  if not Is_Generic_Unit (Defining_Entity (Spec)) then
+                     if Has_Referencer (Private_Declarations (Spec))
+                       or else Has_Referencer (Visible_Declarations (Spec))
+                     then
+                        return True;
+                     end if;
+                  end if;
+
+               --  Package body
+
+               elsif Nkind (Decl) = N_Package_Body
+                 and then Present (Corresponding_Spec (Decl))
+               then
+                  Decl_Id := Corresponding_Spec (Decl);
+
+                  --  A generic package body is a referencer. It would seem
+                  --  that we only have to consider generics that can be
+                  --  exported, i.e. where the corresponding spec is the
+                  --  spec of the current package, but because of nested
+                  --  instantiations, a fully private generic body may export
+                  --  other private body entities. Furthermore, regardless of
+                  --  whether there was a previous inlined subprogram, (an
+                  --  instantiation of) the generic package may reference any
+                  --  entity declared before it.
+
+                  if Is_Generic_Unit (Decl_Id) then
+                     return True;
+
+                  --  Inspect the declarations of a non-generic package body to
+                  --  try and hide more entities from external visibility.
+
+                  elsif not Has_Non_Subp_Const_Referencer
+                    and then Has_Referencer (Declarations (Decl))
+                  then
+                     return True;
+                  end if;
+
+               --  Subprogram body
+
+               elsif Nkind (Decl) = N_Subprogram_Body then
+                  if Present (Corresponding_Spec (Decl)) then
+                     Decl_Id := Corresponding_Spec (Decl);
+
+                     --  A generic subprogram body acts as a referencer
+
+                     if Is_Generic_Unit (Decl_Id) then
+                        return True;
+                     end if;
+
+                     --  An inlined subprogram body acts as a referencer
+
+                     if Is_Inlined (Decl_Id)
+                       or else Has_Pragma_Inline (Decl_Id)
+                     then
+                        --  Inspect the statements of the subprogram body
+                        --  to determine whether the body references other
+                        --  subprograms and/or non-static constants.
+
+                        if Top_Level
+                          and then not Contains_Subp_Or_Const_Refs (Decl)
+                        then
+                           Has_Non_Subp_Const_Referencer := True;
+                        else
+                           return True;
+                        end if;
+                     end if;
+
+                  --  Otherwise this is a stand alone subprogram body
+
+                  else
+                     Decl_Id := Defining_Entity (Decl);
+
+                     --  An inlined body acts as a referencer. Note that an
+                     --  inlined subprogram remains Is_Public as gigi requires
+                     --  the flag to be set.
+
+                     --  Note that we test Has_Pragma_Inline here rather than
+                     --  Is_Inlined. We are compiling this for a client, and
+                     --  it is the client who will decide if actual inlining
+                     --  should occur, so we need to assume that the procedure
+                     --  could be inlined for the purpose of accessing global
+                     --  entities.
+
+                     if Has_Pragma_Inline (Decl_Id) then
+                        if Top_Level
+                          and then not Contains_Subp_Or_Const_Refs (Decl)
+                        then
+                           Has_Non_Subp_Const_Referencer := True;
+                        else
+                           return True;
+                        end if;
+                     else
+                        Set_Is_Public (Decl_Id, False);
+                     end if;
+                  end if;
+
+               --  Exceptions, objects and renamings do not need to be public
+               --  if they are not followed by a construct which can reference
+               --  and export them. The Is_Public flag is reset on top level
+               --  entities only as anything nested is local to its context.
+
+               elsif Nkind_In (Decl, N_Exception_Declaration,
+                                     N_Object_Declaration,
+                                     N_Object_Renaming_Declaration,
+                                     N_Subprogram_Declaration,
+                                     N_Subprogram_Renaming_Declaration)
+               then
+                  Decl_Id := Defining_Entity (Decl);
+
+                  if Top_Level
+                    and then not Is_Imported (Decl_Id)
+                    and then not Is_Exported (Decl_Id)
+                    and then No (Interface_Name (Decl_Id))
+                    and then
+                      (not Has_Non_Subp_Const_Referencer
+                        or else Nkind (Decl) = N_Subprogram_Declaration)
+                  then
+                     Set_Is_Public (Decl_Id, False);
+                  end if;
+               end if;
+
+               Prev (Decl);
+            end loop;
+
+            return Has_Non_Subp_Const_Referencer;
+         end Has_Referencer;
+
+         --  Local variables
+
+         Discard : Boolean := True;
+         pragma Unreferenced (Discard);
+
+      --  Start of processing for Hide_Public_Entities
+
+      begin
+         --  The algorithm examines the top level declarations of a package
+         --  body in reverse looking for a construct that may export entities
+         --  declared prior to it. If such a scenario is encountered, then all
+         --  entities in the range Last (Decls) .. construct are hidden from
+         --  external visibility. Consider:
+
+         --    package Pack is
+         --       generic
+         --       package Gen is
+         --       end Gen;
+         --    end Pack;
+
+         --    package body Pack is
+         --       External_Obj : ...;      --  (1)
+
+         --       package body Gen is      --  (2)
+         --          ... External_Obj ...  --  (3)
+         --       end Gen;
+
+         --       Local_Obj : ...;         --  (4)
+         --    end Pack;
+
+         --  In this example Local_Obj (4) must not be externally visible as
+         --  it cannot be exported by anything in Pack. The body of generic
+         --  package Gen (2) on the other hand acts as a "referencer" and may
+         --  export anything declared before it. Since the compiler does not
+         --  perform flow analysis, it is not possible to determine precisely
+         --  which entities will be exported when Gen is instantiated. In the
+         --  example above External_Obj (1) is exported at (3), but this may
+         --  not always be the case. The algorithm takes a conservative stance
+         --  and leaves entity External_Obj public.
+
+         Discard := Has_Referencer (Decls, Top_Level => True);
+      end Hide_Public_Entities;
 
       ----------------------------------
       -- Install_Composite_Operations --
@@ -243,6 +569,15 @@ package body Sem_Ch7 is
          end loop;
       end Install_Composite_Operations;
 
+      --  Local variables
+
+      Body_Id          : Entity_Id;
+      HSS              : Node_Id;
+      Last_Spec_Entity : Entity_Id;
+      New_N            : Node_Id;
+      Pack_Decl        : Node_Id;
+      Spec_Id          : Entity_Id;
+
    --  Start of processing for Analyze_Package_Body_Helper
 
    begin
@@ -262,7 +597,7 @@ package body Sem_Ch7 is
       --  been set.
 
       if Present (Corresponding_Spec (N)) then
-         Spec_Id := Corresponding_Spec (N);
+         Spec_Id   := Corresponding_Spec (N);
          Pack_Decl := Unit_Declaration_Node (Spec_Id);
 
       else
@@ -300,6 +635,13 @@ package body Sem_Ch7 is
             end if;
          end if;
       end if;
+
+      --  The corresponding spec of the package body may be subject to pragma
+      --  Ghost with policy Ignore. Set the mode now to ensure that any nodes
+      --  generated during analysis and expansion are properly flagged as
+      --  ignored Ghost.
+
+      Set_Ghost_Mode (N, Spec_Id);
 
       Set_Is_Compilation_Unit (Body_Id, Is_Compilation_Unit (Spec_Id));
       Style.Check_Identifier (Body_Id, Spec_Id);
@@ -349,7 +691,6 @@ package body Sem_Ch7 is
       Set_Ekind (Body_Id, E_Package_Body);
       Set_Body_Entity (Spec_Id, Body_Id);
       Set_Spec_Entity (Body_Id, Spec_Id);
-      Set_Contract    (Body_Id, Make_Contract (Sloc (Body_Id)));
 
       --  Defining name for the package body is not a visible entity: Only the
       --  defining name for the declaration is visible.
@@ -394,6 +735,19 @@ package body Sem_Ch7 is
          Set_SPARK_Aux_Pragma_Inherited (Body_Id, True);
       end if;
 
+      --  Inherit the "ghostness" of the subprogram spec. Note that this
+      --  property is not directly inherited as the body may be subject to a
+      --  different Ghost assertion policy.
+
+      if Is_Ghost_Entity (Spec_Id) or else Ghost_Mode > None then
+         Set_Is_Ghost_Entity (Body_Id);
+
+         --  The Ghost policy in effect at the point of declaration and at the
+         --  point of completion must match (SPARK RM 6.9(15)).
+
+         Check_Ghost_Completion (Spec_Id, Body_Id);
+      end if;
+
       Set_Categorization_From_Pragmas (N);
 
       Install_Visible_Declarations (Spec_Id);
@@ -425,9 +779,7 @@ package body Sem_Ch7 is
          Inspect_Deferred_Constant_Completion (Declarations (N));
       end if;
 
-      --  After declarations have been analyzed, the body has been set to have
-      --  the final value of SPARK_Mode. Check that the SPARK_Mode for the body
-      --  is consistent with the SPARK_Mode for the spec.
+      --  Verify that the SPARK_Mode of the body agrees with that of its spec
 
       if Present (SPARK_Pragma (Body_Id)) then
          if Present (SPARK_Aux_Pragma (Spec_Id)) then
@@ -547,274 +899,23 @@ package body Sem_Ch7 is
          Check_References (Spec_Id);
       end if;
 
-      --  The processing so far has made all entities of the package body
-      --  public (i.e. externally visible to the linker). This is in general
-      --  necessary, since inlined or generic bodies, for which code is
-      --  generated in other units, may need to see these entities. The
-      --  following loop runs backwards from the end of the entities of the
-      --  package body making these entities invisible until we reach a
-      --  referencer, i.e. a declaration that could reference a previous
-      --  declaration, a generic body or an inlined body, or a stub (which may
-      --  contain either of these). This is of course an approximation, but it
-      --  is conservative and definitely correct.
+      --  At this point all entities of the package body are externally visible
+      --  to the linker as their Is_Public flag is set to True. This proactive
+      --  approach is necessary because an inlined or a generic body for which
+      --  code is generated in other units may need to see these entities. Cut
+      --  down the number of global symbols that do not neet public visibility
+      --  as this has two beneficial effects:
+      --    (1) It makes the compilation process more efficient.
+      --    (2) It gives the code generatormore freedom to optimize within each
+      --        unit, especially subprograms.
 
-      --  We only do this at the outer (library) level non-generic packages.
-      --  The reason is simply to cut down on the number of global symbols
-      --  generated, which has a double effect: (1) to make the compilation
-      --  process more efficient and (2) to give the code generator more
-      --  freedom to optimize within each unit, especially subprograms.
+      --  This is done only for top level library packages or child units as
+      --  the algorithm does a top down traversal of the package body.
 
       if (Scope (Spec_Id) = Standard_Standard or else Is_Child_Unit (Spec_Id))
         and then not Is_Generic_Unit (Spec_Id)
-        and then Present (Declarations (N))
       then
-         Make_Non_Public_Where_Possible : declare
-
-            function Has_Referencer
-              (L     : List_Id;
-               Outer : Boolean) return  Boolean;
-            --  Traverse given list of declarations in reverse order. Return
-            --  True if a referencer is present. Return False if none is found.
-            --
-            --  The Outer parameter is True for the outer level call and False
-            --  for inner level calls for nested packages. If Outer is True,
-            --  then any entities up to the point of hitting a referencer get
-            --  their Is_Public flag cleared, so that the entities will be
-            --  treated as static entities in the C sense, and need not have
-            --  fully qualified names. Furthermore, if the referencer is an
-            --  inlined subprogram that doesn't reference other subprograms,
-            --  we keep clearing the Is_Public flag on subprograms. For inner
-            --  levels, we need all names to be fully qualified to deal with
-            --  the same name appearing in parallel packages (right now this
-            --  is tied to their being external).
-
-            --------------------
-            -- Has_Referencer --
-            --------------------
-
-            function Has_Referencer
-              (L     : List_Id;
-               Outer : Boolean) return  Boolean
-            is
-               Has_Referencer_Except_For_Subprograms : Boolean := False;
-
-               D : Node_Id;
-               E : Entity_Id;
-               K : Node_Kind;
-               S : Entity_Id;
-
-               function Check_Subprogram_Ref (N : Node_Id)
-                 return Traverse_Result;
-               --  Look for references to subprograms
-
-               --------------------------
-               -- Check_Subprogram_Ref --
-               --------------------------
-
-               function Check_Subprogram_Ref (N : Node_Id)
-                 return Traverse_Result
-               is
-                  V : Node_Id;
-
-               begin
-                  --  Check name of procedure or function calls
-
-                  if Nkind (N) in N_Subprogram_Call
-                    and then Is_Entity_Name (Name (N))
-                  then
-                     return Abandon;
-                  end if;
-
-                  --  Check prefix of attribute references
-
-                  if Nkind (N) = N_Attribute_Reference
-                    and then Is_Entity_Name (Prefix (N))
-                    and then Present (Entity (Prefix (N)))
-                    and then Ekind (Entity (Prefix (N))) in Subprogram_Kind
-                  then
-                     return Abandon;
-                  end if;
-
-                  --  Check value of constants
-
-                  if Nkind (N) = N_Identifier
-                    and then Present (Entity (N))
-                    and then Ekind (Entity (N)) = E_Constant
-                  then
-                     V := Constant_Value (Entity (N));
-
-                     if Present (V)
-                       and then not Compile_Time_Known_Value_Or_Aggr (V)
-                     then
-                        return Abandon;
-                     end if;
-                  end if;
-
-                  return OK;
-               end Check_Subprogram_Ref;
-
-               function Check_Subprogram_Refs is
-                 new Traverse_Func (Check_Subprogram_Ref);
-
-            --  Start of processing for Has_Referencer
-
-            begin
-               if No (L) then
-                  return False;
-               end if;
-
-               D := Last (L);
-               while Present (D) loop
-                  K := Nkind (D);
-
-                  if K in N_Body_Stub then
-                     return True;
-
-                  --  Processing for subprogram bodies
-
-                  elsif K = N_Subprogram_Body then
-                     if Acts_As_Spec (D) then
-                        E := Defining_Entity (D);
-
-                        --  An inlined body acts as a referencer. Note also
-                        --  that we never reset Is_Public for an inlined
-                        --  subprogram. Gigi requires Is_Public to be set.
-
-                        --  Note that we test Has_Pragma_Inline here rather
-                        --  than Is_Inlined. We are compiling this for a
-                        --  client, and it is the client who will decide if
-                        --  actual inlining should occur, so we need to assume
-                        --  that the procedure could be inlined for the purpose
-                        --  of accessing global entities.
-
-                        if Has_Pragma_Inline (E) then
-                           if Outer
-                             and then Check_Subprogram_Refs (D) = OK
-                           then
-                              Has_Referencer_Except_For_Subprograms := True;
-                           else
-                              return True;
-                           end if;
-                        else
-                           Set_Is_Public (E, False);
-                        end if;
-
-                     else
-                        E := Corresponding_Spec (D);
-
-                        if Present (E) then
-
-                           --  A generic subprogram body acts as a referencer
-
-                           if Is_Generic_Unit (E) then
-                              return True;
-                           end if;
-
-                           if Has_Pragma_Inline (E) or else Is_Inlined (E) then
-                              if Outer
-                                and then Check_Subprogram_Refs (D) = OK
-                              then
-                                 Has_Referencer_Except_For_Subprograms := True;
-                              else
-                                 return True;
-                              end if;
-                           end if;
-                        end if;
-                     end if;
-
-                  --  Processing for package bodies
-
-                  elsif K = N_Package_Body
-                    and then Present (Corresponding_Spec (D))
-                  then
-                     E := Corresponding_Spec (D);
-
-                     --  Generic package body is a referencer. It would seem
-                     --  that we only have to consider generics that can be
-                     --  exported, i.e. where the corresponding spec is the
-                     --  spec of the current package, but because of nested
-                     --  instantiations, a fully private generic body may
-                     --  export other private body entities. Furthermore,
-                     --  regardless of whether there was a previous inlined
-                     --  subprogram, (an instantiation of) the generic package
-                     --  may reference any entity declared before it.
-
-                     if Is_Generic_Unit (E) then
-                        return True;
-
-                     --  For non-generic package body, recurse into body unless
-                     --  this is an instance, we ignore instances since they
-                     --  cannot have references that affect outer entities.
-
-                     elsif not Is_Generic_Instance (E)
-                       and then not Has_Referencer_Except_For_Subprograms
-                     then
-                        if Has_Referencer
-                             (Declarations (D), Outer => False)
-                        then
-                           return True;
-                        end if;
-                     end if;
-
-                  --  Processing for package specs, recurse into declarations.
-                  --  Again we skip this for the case of generic instances.
-
-                  elsif K = N_Package_Declaration
-                    and then not Has_Referencer_Except_For_Subprograms
-                  then
-                     S := Specification (D);
-
-                     if not Is_Generic_Unit (Defining_Entity (S)) then
-                        if Has_Referencer
-                             (Private_Declarations (S), Outer => False)
-                        then
-                           return True;
-                        elsif Has_Referencer
-                               (Visible_Declarations (S), Outer => False)
-                        then
-                           return True;
-                        end if;
-                     end if;
-
-                  --  Objects and exceptions need not be public if we have not
-                  --  encountered a referencer so far. We only reset the flag
-                  --  for outer level entities that are not imported/exported,
-                  --  and which have no interface name.
-
-                  elsif Nkind_In (K, N_Object_Declaration,
-                                     N_Exception_Declaration,
-                                     N_Subprogram_Declaration)
-                  then
-                     E := Defining_Entity (D);
-
-                     if Outer
-                       and then (not Has_Referencer_Except_For_Subprograms
-                                  or else K = N_Subprogram_Declaration)
-                       and then not Is_Imported (E)
-                       and then not Is_Exported (E)
-                       and then No (Interface_Name (E))
-                     then
-                        Set_Is_Public (E, False);
-                     end if;
-                  end if;
-
-                  Prev (D);
-               end loop;
-
-               return Has_Referencer_Except_For_Subprograms;
-            end Has_Referencer;
-
-         --  Start of processing for Make_Non_Public_Where_Possible
-
-         begin
-            declare
-               Discard : Boolean;
-               pragma Warnings (Off, Discard);
-
-            begin
-               Discard := Has_Referencer (Declarations (N), Outer => True);
-            end;
-         end Make_Non_Public_Where_Possible;
+         Hide_Public_Entities (Declarations (N));
       end if;
 
       --  If expander is not active, then here is where we turn off the
@@ -839,9 +940,17 @@ package body Sem_Ch7 is
    ------------------------------
 
    procedure Analyze_Package_Contract (Pack_Id : Entity_Id) is
+      Mode : SPARK_Mode_Type;
       Prag : Node_Id;
 
    begin
+      --  Due to the timing of contract analysis, delayed pragmas may be
+      --  subject to the wrong SPARK_Mode, usually that of the enclosing
+      --  context. To remedy this, restore the original SPARK_Mode of the
+      --  related package.
+
+      Save_SPARK_Mode_And_Set (Pack_Id, Mode);
+
       --  Analyze the initialization related pragmas. Initializes must come
       --  before Initial_Condition due to item dependencies.
 
@@ -867,6 +976,11 @@ package body Sem_Ch7 is
             Check_Missing_Part_Of (Pack_Id);
          end if;
       end if;
+
+      --  Restore the SPARK_Mode of the enclosing context after all delayed
+      --  pragmas have been analyzed.
+
+      Restore_SPARK_Mode (Mode);
    end Analyze_Package_Contract;
 
    ---------------------------------
@@ -895,11 +1009,16 @@ package body Sem_Ch7 is
          Indent;
       end if;
 
+      --  The package declaration may be subject to pragma Ghost with policy
+      --  Ignore. Set the mode now to ensure that any nodes generated during
+      --  analysis and expansion are properly flagged as ignored Ghost.
+
+      Set_Ghost_Mode (N);
+
       Generate_Definition (Id);
       Enter_Name (Id);
-      Set_Ekind    (Id, E_Package);
-      Set_Etype    (Id, Standard_Void_Type);
-      Set_Contract (Id, Make_Contract (Sloc (Id)));
+      Set_Ekind  (Id, E_Package);
+      Set_Etype  (Id, Standard_Void_Type);
 
       --  Set SPARK_Mode from context only for non-generic package
 
@@ -917,7 +1036,7 @@ package body Sem_Ch7 is
          Analyze_Aspect_Specifications (N, Id);
       end if;
 
-      --  Ada 2005 (AI-217): Check if the package has been erroneously named
+      --  Ada 2005 (AI-217): Check if the package has been illegally named
       --  in a limited-with clause of its own context. In this case the error
       --  has been previously notified by Analyze_Context.
 
@@ -1070,7 +1189,7 @@ package body Sem_Ch7 is
 
                   else
                      Error_Msg_Sloc := Sloc (Previous);
-                     Check_SPARK_Restriction
+                     Check_SPARK_05_Restriction
                        ("at most one tagged type or type extension allowed",
                         "\\ previous declaration#",
                         Decl);
@@ -1327,8 +1446,9 @@ package body Sem_Ch7 is
          Analyze_Declarations (Vis_Decls);
       end if;
 
-      --  Verify that incomplete types have received full declarations and
-      --  also build invariant procedures for any types with invariants.
+      --  Inspect the entities defined in the package and ensure that all
+      --  incomplete types have received full declarations. Build default
+      --  initial condition and invariant procedures for all qualifying types.
 
       E := First_Entity (Id);
       while Present (E) loop
@@ -1344,10 +1464,33 @@ package body Sem_Ch7 is
             Error_Msg_N ("no declaration in visible part for incomplete}", E);
          end if;
 
-         --  Build invariant procedures
+         if Is_Type (E) then
 
-         if Is_Type (E) and then Has_Invariants (E) then
-            Build_Invariant_Procedure (E, N);
+            --  Each private type subject to pragma Default_Initial_Condition
+            --  declares a specialized procedure which verifies the assumption
+            --  of the pragma. The declaration appears in the visible part of
+            --  the package to allow for being called from the outside.
+
+            if Has_Default_Init_Cond (E) then
+               Build_Default_Init_Cond_Procedure_Declaration (E);
+
+            --  A private extension inherits the default initial condition
+            --  procedure from its parent type.
+
+            elsif Has_Inherited_Default_Init_Cond (E) then
+               Inherit_Default_Init_Cond_Procedure (E);
+            end if;
+
+            --  If invariants are present, build the invariant procedure for a
+            --  private type, but not any of its subtypes or interface types.
+
+            if Has_Invariants (E) then
+               if Ekind (E) = E_Private_Subtype then
+                  null;
+               else
+                  Build_Invariant_Procedure (E, N);
+               end if;
+            end if;
          end if;
 
          Next_Entity (E);
@@ -1522,23 +1665,42 @@ package body Sem_Ch7 is
          if Is_Type (E)
            and then Has_Private_Declaration (E)
            and then Nkind (Parent (E)) = N_Full_Type_Declaration
-           and then Has_Aspects (Parent (E))
          then
             declare
-               ASN : Node_Id;
+               IP_Built : Boolean := False;
 
             begin
-               ASN := First (Aspect_Specifications (Parent (E)));
-               while Present (ASN) loop
-                  if Nam_In (Chars (Identifier (ASN)), Name_Invariant,
-                                                       Name_Type_Invariant)
-                  then
-                     Build_Invariant_Procedure (E, N);
-                     exit;
-                  end if;
+               if Has_Aspects (Parent (E)) then
+                  declare
+                     ASN : Node_Id;
 
-                  Next (ASN);
-               end loop;
+                  begin
+                     ASN := First (Aspect_Specifications (Parent (E)));
+                     while Present (ASN) loop
+                        if Nam_In (Chars (Identifier (ASN)),
+                             Name_Invariant,
+                             Name_Type_Invariant)
+                        then
+                           Build_Invariant_Procedure (E, N);
+                           IP_Built := True;
+                           exit;
+                        end if;
+
+                        Next (ASN);
+                     end loop;
+                  end;
+               end if;
+
+               --  Invariants may have been inherited from progenitors
+
+               if not IP_Built
+                 and then Has_Interfaces (E)
+                 and then Has_Inheritable_Invariants (E)
+                 and then not Is_Interface (E)
+                 and then not Is_Class_Wide_Type (E)
+               then
+                  Build_Invariant_Procedure (E, N);
+               end if;
             end;
          end if;
 
@@ -1632,6 +1794,12 @@ package body Sem_Ch7 is
       Id : constant Entity_Id := Defining_Identifier (N);
 
    begin
+      --  The private type declaration may be subject to pragma Ghost with
+      --  policy Ignore. Set the mode now to ensure that any nodes generated
+      --  during analysis and expansion are properly flagged as ignored Ghost.
+
+      Set_Ghost_Mode (N);
+
       Generate_Definition (Id);
       Set_Is_Pure         (Id, PF);
       Init_Size_Align     (Id);
@@ -1644,6 +1812,13 @@ package body Sem_Ch7 is
 
       New_Private_Type (N, Id, N);
       Set_Depends_On_Private (Id);
+
+      --  A type declared within a Ghost region is automatically Ghost
+      --  (SPARK RM 6.9(2)).
+
+      if Ghost_Mode > None then
+         Set_Is_Ghost_Entity (Id);
+      end if;
 
       if Has_Aspects (N) then
          Analyze_Aspect_Specifications (N, Id);
@@ -1831,7 +2006,7 @@ package body Sem_Ch7 is
                        and then Present (DTC_Entity (Alias (Prim_Op)))
                      then
                         Set_DTC_Entity_Value (E, New_Op);
-                        Set_DT_Position (New_Op,
+                        Set_DT_Position_Value (New_Op,
                           DT_Position (Alias (Prim_Op)));
                      end if;
 
@@ -1864,7 +2039,7 @@ package body Sem_Ch7 is
                end if;
 
             else
-               --  Non-tagged type, scan forward to locate inherited hidden
+               --  For untagged type, scan forward to locate inherited hidden
                --  operations.
 
                Prim_Op := Next_Entity (E);
@@ -1956,10 +2131,19 @@ package body Sem_Ch7 is
             Write_Eol;
          end if;
 
-         if not Is_Child_Unit (Id) then
+         if Is_Child_Unit (Id) then
+            null;
+
+         --  Do not enter implicitly inherited non-overridden subprograms of
+         --  a tagged type back into visibility if they have non-conformant
+         --  homographs (Ada RM 8.3 12.3/2).
+
+         elsif Is_Hidden_Non_Overridden_Subpgm (Id) then
+            null;
+
+         else
             Set_Is_Immediately_Visible (Id);
          end if;
-
       end if;
    end Install_Package_Entity;
 
@@ -1996,8 +2180,7 @@ package body Sem_Ch7 is
             --  field. This field will be empty if the entity has already been
             --  installed due to a previous call.
 
-            if Present (Full_View (Priv))
-              and then Is_Visible_Dependent (Priv)
+            if Present (Full_View (Priv)) and then Is_Visible_Dependent (Priv)
             then
                if Is_Private_Type (Priv) then
                   Deps := Private_Dependents (Priv);
@@ -2047,8 +2230,8 @@ package body Sem_Ch7 is
       Id := First_Entity (P);
       while Present (Id) and then Id /= First_Private_Entity (P) loop
          if Is_Private_Base_Type (Id)
-           and then Comes_From_Source (Full_View (Id))
            and then Present (Full_View (Id))
+           and then Comes_From_Source (Full_View (Id))
            and then Scope (Full_View (Id)) = Scope (Id)
            and then Ekind (Full_View (Id)) /= E_Incomplete_Type
          then
@@ -2293,6 +2476,83 @@ package body Sem_Ch7 is
       end if;
    end New_Private_Type;
 
+   ---------------------------------
+   -- Requires_Completion_In_Body --
+   ---------------------------------
+
+   function Requires_Completion_In_Body
+     (Id      : Entity_Id;
+      Pack_Id : Entity_Id) return Boolean
+   is
+   begin
+      --  Always ignore child units. Child units get added to the entity list
+      --  of a parent unit, but are not original entities of the parent, and
+      --  so do not affect whether the parent needs a body.
+
+      if Is_Child_Unit (Id) then
+         return False;
+
+      --  Ignore formal packages and their renamings
+
+      elsif Ekind (Id) = E_Package
+        and then Nkind (Original_Node (Unit_Declaration_Node (Id))) =
+                                                   N_Formal_Package_Declaration
+      then
+         return False;
+
+      --  A Ghost entity declared in a non-Ghost package does not force the
+      --  need for a body (SPARK RM 6.9(11)).
+
+      elsif not Is_Ghost_Entity (Pack_Id) and then Is_Ghost_Entity (Id) then
+         return False;
+
+      --  Otherwise test to see if entity requires a completion. Note that
+      --  subprogram entities whose declaration does not come from source are
+      --  ignored here on the basis that we assume the expander will provide an
+      --  implicit completion at some point.
+
+      elsif (Is_Overloadable (Id)
+              and then Ekind (Id) /= E_Enumeration_Literal
+              and then Ekind (Id) /= E_Operator
+              and then not Is_Abstract_Subprogram (Id)
+              and then not Has_Completion (Id)
+              and then Comes_From_Source (Parent (Id)))
+
+        or else
+          (Ekind (Id) = E_Package
+            and then Id /= Pack_Id
+            and then not Has_Completion (Id)
+            and then Unit_Requires_Body (Id))
+
+        or else
+          (Ekind (Id) = E_Incomplete_Type
+            and then No (Full_View (Id))
+            and then not Is_Generic_Type (Id))
+
+        or else
+          (Ekind_In (Id, E_Task_Type, E_Protected_Type)
+            and then not Has_Completion (Id))
+
+        or else
+          (Ekind (Id) = E_Generic_Package
+            and then Id /= Pack_Id
+            and then not Has_Completion (Id)
+            and then Unit_Requires_Body (Id))
+
+        or else
+          (Is_Generic_Subprogram (Id)
+            and then not Has_Completion (Id))
+
+      then
+         return True;
+
+      --  Otherwise the entity does not require completion in a package body
+
+      else
+         return False;
+      end if;
+   end Requires_Completion_In_Body;
+
    ----------------------------
    -- Uninstall_Declarations --
    ----------------------------
@@ -2343,11 +2603,14 @@ package body Sem_Ch7 is
 
          if Priv_Is_Base_Type then
             Set_Is_Controlled (Priv, Is_Controlled (Base_Type (Full)));
-            Set_Finalize_Storage_Only (Priv, Finalize_Storage_Only
-                                                           (Base_Type (Full)));
-            Set_Has_Task (Priv, Has_Task (Base_Type (Full)));
-            Set_Has_Controlled_Component (Priv, Has_Controlled_Component
-                                                           (Base_Type (Full)));
+            Set_Finalize_Storage_Only
+                              (Priv, Finalize_Storage_Only
+                                                   (Base_Type (Full)));
+            Set_Has_Task      (Priv, Has_Task      (Base_Type (Full)));
+            Set_Has_Protected (Priv, Has_Protected (Base_Type (Full)));
+            Set_Has_Controlled_Component
+                              (Priv, Has_Controlled_Component
+                                                   (Base_Type (Full)));
          end if;
 
          Set_Freeze_Node (Priv, Freeze_Node (Full));
@@ -2431,9 +2694,9 @@ package body Sem_Ch7 is
               or else Type_In_Use (Etype (Id))
               or else Type_In_Use (Etype (First_Formal (Id)))
               or else (Present (Next_Formal (First_Formal (Id)))
-                         and then
-                           Type_In_Use
-                             (Etype (Next_Formal (First_Formal (Id))))));
+                        and then
+                          Type_In_Use
+                            (Etype (Next_Formal (First_Formal (Id))))));
          else
             if In_Use (P) and then not Is_Hidden (Id) then
 
@@ -2614,7 +2877,7 @@ package body Sem_Ch7 is
             --  The following test may be redundant, as this is already
             --  diagnosed in sem_ch3. ???
 
-            if  Is_Indefinite_Subtype (Full)
+            if Is_Indefinite_Subtype (Full)
               and then not Is_Indefinite_Subtype (Id)
             then
                Error_Msg_Sloc := Sloc (Parent (Id));
@@ -2739,7 +3002,7 @@ package body Sem_Ch7 is
    ------------------------
 
    function Unit_Requires_Body
-     (P                     : Entity_Id;
+     (Pack_Id               : Entity_Id;
       Ignore_Abstract_State : Boolean := False) return Boolean
    is
       E : Entity_Id;
@@ -2749,30 +3012,30 @@ package body Sem_Ch7 is
       --  be imported, but perhaps in the future we will allow import of
       --  packages.
 
-      if Is_Imported (P) then
+      if Is_Imported (Pack_Id) then
          return False;
 
       --  Body required if library package with pragma Elaborate_Body
 
-      elsif Has_Pragma_Elaborate_Body (P) then
+      elsif Has_Pragma_Elaborate_Body (Pack_Id) then
          return True;
 
       --  Body required if subprogram
 
-      elsif Is_Subprogram (P) or else Is_Generic_Subprogram (P) then
+      elsif Is_Subprogram_Or_Generic_Subprogram (Pack_Id) then
          return True;
 
       --  Treat a block as requiring a body
 
-      elsif Ekind (P) = E_Block then
+      elsif Ekind (Pack_Id) = E_Block then
          return True;
 
-      elsif Ekind (P) = E_Package
-        and then Nkind (Parent (P)) = N_Package_Specification
-        and then Present (Generic_Parent (Parent (P)))
+      elsif Ekind (Pack_Id) = E_Package
+        and then Nkind (Parent (Pack_Id)) = N_Package_Specification
+        and then Present (Generic_Parent (Parent (Pack_Id)))
       then
          declare
-            G_P : constant Entity_Id := Generic_Parent (Parent (P));
+            G_P : constant Entity_Id := Generic_Parent (Parent (Pack_Id));
          begin
             if Has_Pragma_Elaborate_Body (G_P) then
                return True;
@@ -2786,79 +3049,21 @@ package body Sem_Ch7 is
       --  provided). If Ignore_Abstract_State is True, we don't do this check
       --  (so we can use Unit_Requires_Body to check for some other reason).
 
-      elsif Ekind_In (P, E_Generic_Package, E_Package)
+      elsif Ekind_In (Pack_Id, E_Generic_Package, E_Package)
         and then not Ignore_Abstract_State
-        and then Present (Abstract_States (P))
-        and then
-            not Is_Null_State (Node (First_Elmt (Abstract_States (P))))
+        and then Present (Abstract_States (Pack_Id))
+        and then not Is_Null_State
+                       (Node (First_Elmt (Abstract_States (Pack_Id))))
       then
          return True;
       end if;
 
       --  Otherwise search entity chain for entity requiring completion
 
-      E := First_Entity (P);
+      E := First_Entity (Pack_Id);
       while Present (E) loop
-
-         --  Always ignore child units. Child units get added to the entity
-         --  list of a parent unit, but are not original entities of the
-         --  parent, and so do not affect whether the parent needs a body.
-
-         if Is_Child_Unit (E) then
-            null;
-
-         --  Ignore formal packages and their renamings
-
-         elsif Ekind (E) = E_Package
-           and then Nkind (Original_Node (Unit_Declaration_Node (E))) =
-                                                N_Formal_Package_Declaration
-         then
-            null;
-
-         --  Otherwise test to see if entity requires a completion.
-         --  Note that subprogram entities whose declaration does not come
-         --  from source are ignored here on the basis that we assume the
-         --  expander will provide an implicit completion at some point.
-
-         elsif (Is_Overloadable (E)
-                 and then Ekind (E) /= E_Enumeration_Literal
-                 and then Ekind (E) /= E_Operator
-                 and then not Is_Abstract_Subprogram (E)
-                 and then not Has_Completion (E)
-                 and then Comes_From_Source (Parent (E)))
-
-           or else
-             (Ekind (E) = E_Package
-               and then E /= P
-               and then not Has_Completion (E)
-               and then Unit_Requires_Body (E))
-
-           or else
-             (Ekind (E) = E_Incomplete_Type
-               and then No (Full_View (E))
-               and then not Is_Generic_Type (E))
-
-           or else
-             (Ekind_In (E, E_Task_Type, E_Protected_Type)
-               and then not Has_Completion (E))
-
-           or else
-             (Ekind (E) = E_Generic_Package
-               and then E /= P
-               and then not Has_Completion (E)
-               and then Unit_Requires_Body (E))
-
-           or else
-             (Is_Generic_Subprogram (E)
-               and then not Has_Completion (E))
-
-         then
+         if Requires_Completion_In_Body (E, Pack_Id) then
             return True;
-
-         --  Entity that does not require completion
-
-         else
-            null;
          end if;
 
          Next_Entity (E);
@@ -2871,41 +3076,40 @@ package body Sem_Ch7 is
    -- Unit_Requires_Body_Info --
    -----------------------------
 
-   procedure Unit_Requires_Body_Info (P : Entity_Id) is
+   procedure Unit_Requires_Body_Info (Pack_Id : Entity_Id) is
       E : Entity_Id;
 
    begin
-      --  Imported entity never requires body. Right now, only subprograms can
-      --  be imported, but perhaps in the future we will allow import of
+      --  An imported entity never requires body. Right now, only subprograms
+      --  can be imported, but perhaps in the future we will allow import of
       --  packages.
 
-      if Is_Imported (P) then
+      if Is_Imported (Pack_Id) then
          return;
 
       --  Body required if library package with pragma Elaborate_Body
 
-      elsif Has_Pragma_Elaborate_Body (P) then
-         Error_Msg_N
-           ("?Y?info: & requires body (Elaborate_Body)", P);
+      elsif Has_Pragma_Elaborate_Body (Pack_Id) then
+         Error_Msg_N ("info: & requires body (Elaborate_Body)?Y?", Pack_Id);
 
       --  Body required if subprogram
 
-      elsif Is_Subprogram (P) or else Is_Generic_Subprogram (P) then
-         Error_Msg_N ("?Y?info: & requires body (subprogram case)", P);
+      elsif Is_Subprogram_Or_Generic_Subprogram (Pack_Id) then
+         Error_Msg_N ("info: & requires body (subprogram case)?Y?", Pack_Id);
 
       --  Body required if generic parent has Elaborate_Body
 
-      elsif Ekind (P) = E_Package
-        and then Nkind (Parent (P)) = N_Package_Specification
-        and then Present (Generic_Parent (Parent (P)))
+      elsif Ekind (Pack_Id) = E_Package
+        and then Nkind (Parent (Pack_Id)) = N_Package_Specification
+        and then Present (Generic_Parent (Parent (Pack_Id)))
       then
          declare
-            G_P : constant Entity_Id := Generic_Parent (Parent (P));
+            G_P : constant Entity_Id := Generic_Parent (Parent (Pack_Id));
          begin
             if Has_Pragma_Elaborate_Body (G_P) then
                Error_Msg_N
-                 ("?Y?info: & requires body (generic parent Elaborate_Body)",
-                  P);
+                 ("info: & requires body (generic parent Elaborate_Body)?Y?",
+                  Pack_Id);
             end if;
          end;
 
@@ -2916,82 +3120,24 @@ package body Sem_Ch7 is
       --  provided). If Ignore_Abstract_State is True, we don't do this check
       --  (so we can use Unit_Requires_Body to check for some other reason).
 
-      elsif Ekind_In (P, E_Generic_Package, E_Package)
-        and then Present (Abstract_States (P))
-        and then
-          not Is_Null_State (Node (First_Elmt (Abstract_States (P))))
+      elsif Ekind_In (Pack_Id, E_Generic_Package, E_Package)
+        and then Present (Abstract_States (Pack_Id))
+        and then not Is_Null_State
+                       (Node (First_Elmt (Abstract_States (Pack_Id))))
       then
          Error_Msg_N
-           ("?Y?info: & requires body (non-null abstract state aspect)", P);
+           ("info: & requires body (non-null abstract state aspect)?Y?",
+            Pack_Id);
       end if;
 
       --  Otherwise search entity chain for entity requiring completion
 
-      E := First_Entity (P);
+      E := First_Entity (Pack_Id);
       while Present (E) loop
-
-         --  Always ignore child units. Child units get added to the entity
-         --  list of a parent unit, but are not original entities of the
-         --  parent, and so do not affect whether the parent needs a body.
-
-         if Is_Child_Unit (E) then
-            null;
-
-         --  Ignore formal packages and their renamings
-
-         elsif Ekind (E) = E_Package
-           and then Nkind (Original_Node (Unit_Declaration_Node (E))) =
-                                                N_Formal_Package_Declaration
-         then
-            null;
-
-         --  Otherwise test to see if entity requires a completion.
-         --  Note that subprogram entities whose declaration does not come
-         --  from source are ignored here on the basis that we assume the
-         --  expander will provide an implicit completion at some point.
-
-         elsif (Is_Overloadable (E)
-                 and then Ekind (E) /= E_Enumeration_Literal
-                 and then Ekind (E) /= E_Operator
-                 and then not Is_Abstract_Subprogram (E)
-                 and then not Has_Completion (E)
-                 and then Comes_From_Source (Parent (E)))
-
-           or else
-             (Ekind (E) = E_Package
-               and then E /= P
-               and then not Has_Completion (E)
-               and then Unit_Requires_Body (E))
-
-           or else
-             (Ekind (E) = E_Incomplete_Type
-               and then No (Full_View (E))
-               and then not Is_Generic_Type (E))
-
-           or else
-             (Ekind_In (E, E_Task_Type, E_Protected_Type)
-               and then not Has_Completion (E))
-
-           or else
-             (Ekind (E) = E_Generic_Package
-               and then E /= P
-               and then not Has_Completion (E)
-               and then Unit_Requires_Body (E))
-
-           or else
-             (Is_Generic_Subprogram (E)
-               and then not Has_Completion (E))
-
-         then
+         if Requires_Completion_In_Body (E, Pack_Id) then
             Error_Msg_Node_2 := E;
             Error_Msg_NE
-              ("?Y?info: & requires body (& requires completion)",
-               E, P);
-
-         --  Entity that does not require completion
-
-         else
-            null;
+              ("info: & requires body (& requires completion)?Y?", E, Pack_Id);
          end if;
 
          Next_Entity (E);

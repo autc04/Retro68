@@ -1,10 +1,30 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-04-22  Release Manager
 
-	* GCC 4.9.0 released.
+	* GCC 5.1.0 released.
+
+2015-01-09  Michael Collison  <michael.collison@linaro.org>
+
+	* objcp-decl.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, options, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* objcp-lang.c: Ditto.
+
+2014-12-31  Iain Sandoe  <iain@codesourcery.com>
+
+	* config-lang.in (gtfiles): Update list.
+
+2014-05-17  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* objcp-decl.h: Adjust.
+
+2014-04-14  Paolo Carlini  <paolo.carlini@oracle.com>
+
+	* objcp-decl.h (OBJC_TYPE_NAME, OBJC_SET_TYPE_NAME): Use
+	TYPE_IDENTIFIER.
 
 2014-01-02  Richard Sandiford  <rdsandiford@googlemail.com>
 
@@ -462,7 +482,7 @@
 	* objcp-lang.c: Likewise.
 
 
-Copyright (C) 2005-2014 Free Software Foundation, Inc.
+Copyright (C) 2005-2015 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

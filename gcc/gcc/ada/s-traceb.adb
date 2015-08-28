@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -44,11 +44,9 @@ package body System.Traceback is
 
    function C_Call_Chain
      (Traceback : System.Address;
-      Max_Len   : Natural)
-      return      Natural
+      Max_Len   : Natural) return Natural
    is
       Val : Natural;
-
    begin
       Call_Chain (Traceback, Max_Len, Val);
       return Val;
@@ -88,6 +86,24 @@ package body System.Traceback is
                         Exclude_Min => Exclude_Min,
                         Exclude_Max => Exclude_Max,
                         Skip_Frames => Skip_Frames + 1);
+   end Call_Chain;
+
+   procedure Call_Chain
+     (Traceback   : in out System.Traceback_Entries.Tracebacks_Array;
+      Max_Len     : Natural;
+      Len         : out Natural;
+      Exclude_Min : System.Address := System.Null_Address;
+      Exclude_Max : System.Address := System.Null_Address;
+      Skip_Frames : Natural := 1)
+   is
+   begin
+      Call_Chain
+        (Traceback'Address, Max_Len, Len,
+         Exclude_Min, Exclude_Max,
+
+         --  Skip one extra frame to skip the other Call_Chain entry as well
+
+         Skip_Frames => Skip_Frames + 1);
    end Call_Chain;
 
 end System.Traceback;

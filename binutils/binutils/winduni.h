@@ -1,6 +1,5 @@
 /* winduni.h -- header file for unicode support for windres program.
-   Copyright 1997, 1998, 2002, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
 
@@ -126,6 +125,7 @@ extern const local_iconv_map *wind_find_codepage_info (unsigned);
 
 /* Convert an Codepage string to a unicode string.  */
 extern void unicode_from_codepage (rc_uint_type *, unichar **, const char *, rc_uint_type);
+extern void unicode_from_ascii_len (rc_uint_type *, unichar **, const char *, rc_uint_type );
 
 /* Convert an unicode string to an codepage string.  */
 extern void codepage_from_unicode (rc_uint_type *, const unichar *, char **, rc_uint_type);

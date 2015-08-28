@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler. NEC V850 series
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2015 Free Software Foundation, Inc.
    Contributed by Jeff Law (law@cygnus.com).
 
    This file is part of GCC.
@@ -111,6 +111,8 @@ extern GTY(()) rtx v850_compare_op1;
 #define ASM_SPEC "%{m850es:-mv850e1}%{!mv850es:%{mv*:-mv%*}} \
 %{mrelax:-mrelax} \
 %{m8byte-align:-m8byte-align} \
+%{msoft-float:-msoft-float} \
+%{mhard-float:-mhard-float} \
 %{mgcc-abi:-mgcc-abi}"
 
 #define LINK_SPEC "%{mgcc-abi:-m v850}"
@@ -916,7 +918,7 @@ typedef enum
    For the *normal* section kinds (like .data, .text, etc.) we do not
    want to explicitly force the name of these sections, but would rather
    let the linker (or at least the back end) choose the name of the 
-   section, UNLESS the user has force a specific name for these section
+   section, UNLESS the user has forced a specific name for these section
    kinds.  To accomplish this set the name in ghs_default_section_names
    to null.  */
 
@@ -952,8 +954,8 @@ typedef struct data_area_stack_element
 extern data_area_stack_element * data_area_stack;
 
 /* Names of the various data areas used on the v850.  */
-extern tree GHS_default_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
-extern tree GHS_current_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
+extern const char * GHS_default_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
+extern const char * GHS_current_section_names [(int) COUNT_OF_GHS_SECTION_KINDS];
 
 /* The assembler op to start the file.  */
 

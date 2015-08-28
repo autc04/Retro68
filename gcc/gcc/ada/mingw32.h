@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 2002-2011, Free Software Foundation, Inc.         *
+ *          Copyright (C) 2002-2014, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -49,8 +49,25 @@
 #define _WIN32_WINNT 0x0501
 #endif
 
+#ifndef __CYGWIN__
 #include <tchar.h>
+#endif
+#if defined (__CYGWIN__) && !defined (__CYGWIN32__) && !defined (IN_RTS)
+/* Note: windows.h on cygwin-64 includes x86intrin.h which uses malloc.
+   That fails to compile, if malloc is poisoned, i.e. if !IN_RTS.  */
+#define _X86INTRIN_H_INCLUDED
+#endif
 #include <windows.h>
+
+#ifndef _O_U8TEXT
+#define _O_U8TEXT _O_TEXT
+#endif
+#ifndef _O_U16TEXT
+#define _O_U16TEXT _O_TEXT
+#endif
+#ifndef _O_WTEXT
+#define _O_WTEXT _O_TEXT
+#endif
 
 /* After including this file it is possible to use the character t as prefix
    to routines. If GNAT_UNICODE_SUPPORT is defined then the unicode enabled
@@ -62,6 +79,7 @@
 #ifdef GNAT_UNICODE_SUPPORT
 
 extern UINT CurrentCodePage;
+extern UINT CurrentCCSEncoding;
 
 /*  Macros to convert to/from the code page specified in CurrentCodePage.  */
 #define S2WSC(wstr,str,len) \

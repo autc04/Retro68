@@ -1,5 +1,5 @@
 /* Random host-dependent support code.
-   Copyright 1995, 1997, 2000, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1995-2014 Free Software Foundation, Inc.
    Written by Ken Raeburn.
 
    This file is part of the GNU opcodes library.
@@ -27,6 +27,10 @@
    trying to replace often did that.  If it can be dropped from this
    file (check in a non-ANSI environment!), it should be.  */
 
+#ifdef PACKAGE
+#error sysdep.h must be included in lieu of config.h
+#endif
+
 #include "config.h"
 
 #include "ansidecl.h"
@@ -35,6 +39,10 @@
 #include <stdlib.h>
 #endif
 
+#ifdef STRING_WITH_STRINGS
+#include <string.h>
+#include <strings.h>
+#else
 #ifdef HAVE_STRING_H
 #include <string.h>
 #else
@@ -42,7 +50,22 @@
 #include <strings.h>
 #endif
 #endif
+#endif
 
 #if !HAVE_DECL_STPCPY
 extern char *stpcpy (char *__dest, const char *__src);
+#endif
+
+/* Use sigsetjmp/siglongjmp without saving the signal mask if possible.
+   It is faster than setjmp/longjmp on systems where the signal mask is
+   saved.  */
+
+#if defined(HAVE_SIGSETJMP)
+#define OPCODES_SIGJMP_BUF		sigjmp_buf
+#define OPCODES_SIGSETJMP(buf)		sigsetjmp((buf), 0)
+#define OPCODES_SIGLONGJMP(buf,val)	siglongjmp((buf), (val))
+#else
+#define OPCODES_SIGJMP_BUF		jmp_buf
+#define OPCODES_SIGSETJMP(buf)		setjmp(buf)
+#define OPCODES_SIGLONGJMP(buf,val)	longjmp((buf), (val))
 #endif

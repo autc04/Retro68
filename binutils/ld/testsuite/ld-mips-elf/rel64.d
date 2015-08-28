@@ -1,6 +1,6 @@
 #name: MIPS rel64 n64
 #source: rel64.s
-#as: -KPIC -EB -64
+#as: -march=from-abi -KPIC -EB -64
 #readelf: -x .text -r
 #ld: -shared -melf64btsmip
 

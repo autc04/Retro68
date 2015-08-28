@@ -1,6 +1,6 @@
 // workqueue.h -- the work queue for gold   -*- C++ -*-
 
-// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -152,7 +152,7 @@ class Task_function : public Task
   Task_function(Task_function_runner* runner, Task_token* blocker,
 		const char* name)
     : runner_(runner), blocker_(blocker), name_(name)
-  { }
+  { gold_assert(blocker != NULL); }
 
   ~Task_function()
   {
@@ -268,7 +268,7 @@ class Workqueue
 
   // Return whether to cancel this thread.
   bool
-  should_cancel_thread();
+  should_cancel_thread(int thread_number);
 
   // Master Workqueue lock.  This controls access to the following
   // member variables.

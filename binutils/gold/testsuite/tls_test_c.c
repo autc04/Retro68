@@ -1,6 +1,6 @@
 /* tls_test_c.c -- test TLS common symbol
 
-   Copyright 2008 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>
 
    This file is part of gold.
@@ -23,8 +23,8 @@
 /* The only way I know to get gcc to generate a TLS common symbol is
    to use a C file and an OpenMP directive.  */
 
-#include <stdio.h>
 #include "config.h"
+#include <stdio.h>
 
 #define CHECK_EQ_OR_RETURN(var, expected)				\
   do									\

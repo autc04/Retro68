@@ -2,11 +2,13 @@
 /* { dg-skip-if "" { powerpc*-*-darwin* } { "*" } { "" } } */
 /* { dg-skip-if "" { powerpc*-*-*spe* } { "*" } { "" } } */
 /* { dg-require-effective-target p8vector_hw } */
+/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
 /* { dg-options "-mcpu=power8 -O2" } */
 
 #include <stddef.h>
 #include <stdlib.h>
 #include <altivec.h>
+#include <string.h>
 
 #ifdef DEBUG
 #include <stdio.h>

@@ -14,7 +14,7 @@
 ------------------------------------------------------------------------------
 
 pragma Warnings (Off);
---  Turn of categorization warnings
+--  Turn off categorization warnings
 
 generic
    type T (<>) is abstract tagged limited private;
@@ -25,9 +25,5 @@ generic
 function Ada.Tags.Generic_Dispatching_Constructor
   (The_Tag : Tag;
    Params  : not null access Parameters) return T'Class;
-pragma Preelaborate_05 (Generic_Dispatching_Constructor);
+pragma Preelaborate (Generic_Dispatching_Constructor);
 pragma Import (Intrinsic, Generic_Dispatching_Constructor);
---  Note: the reason that we use Preelaborate_05 here is so that this will
---  compile fine during the normal build procedures. In Ada 2005 mode (which
---  is required for this package anyway), this will be treated as Preelaborate
---  so everything will be fine.

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2001-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -171,12 +171,16 @@ package Prj.Env is
    No_Project_Search_Path : constant Project_Search_Path;
 
    procedure Initialize_Default_Project_Path
-     (Self        : in out Project_Search_Path;
-      Target_Name : String);
-   --  Initialize Self. It will then contain the default project path on the
-   --  given target (including directories specified by the environment
-   --  variables ADA_PROJECT_PATH and GPR_PROJECT_PATH). This does nothing if
-   --  Self has already been initialized.
+     (Self         : in out Project_Search_Path;
+      Target_Name  : String;
+      Runtime_Name : String := "");
+   --  Initialize Self. It will then contain the default project path on
+   --  the given target and runtime (including directories specified by the
+   --  environment variables GPR_PROJECT_PATH_FILE, GPR_PROJECT_PATH and
+   --  ADA_PROJECT_PATH). If one of the directory or Target_Name is "-", then
+   --  the path contains only those directories specified by the environment
+   --  variables (except "-"). This does nothing if Self has already been
+   --  initialized.
 
    procedure Copy (From : Project_Search_Path; To : out Project_Search_Path);
    --  Copy From into To
@@ -243,10 +247,8 @@ package Prj.Env is
    function Get_Runtime_Path
      (Self : Project_Search_Path;
       Name : String) return String_Access;
-   --  Compute the full path for the project-based runtime name.  It first
-   --  checks that name is not a simple name (must has a path separator in it),
-   --  and returns null in case of failure.  This check might be removed in the
-   --  future.  The name is simply searched on the project path.
+   --  Compute the full path for the project-based runtime name.
+   --  Name is simply searched on the project path.
 
 private
    package Projects_Paths is new GNAT.Dynamic_HTables.Simple_HTable

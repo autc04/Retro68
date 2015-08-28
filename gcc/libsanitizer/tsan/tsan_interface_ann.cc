@@ -31,22 +31,17 @@ class ScopedAnnotation {
  public:
   ScopedAnnotation(ThreadState *thr, const char *aname, const char *f, int l,
                    uptr pc)
-      : thr_(thr)
-      , in_rtl_(thr->in_rtl) {
-    CHECK_EQ(thr_->in_rtl, 0);
+      : thr_(thr) {
     FuncEntry(thr_, pc);
-    thr_->in_rtl++;
     DPrintf("#%d: annotation %s() %s:%d\n", thr_->tid, aname, f, l);
   }
 
   ~ScopedAnnotation() {
-    thr_->in_rtl--;
-    CHECK_EQ(in_rtl_, thr_->in_rtl);
     FuncExit(thr_);
+    CheckNoLocks(thr_);
   }
  private:
   ThreadState *const thr_;
-  const int in_rtl_;
 };
 
 #define SCOPED_ANNOTATION(typ) \
@@ -56,8 +51,8 @@ class ScopedAnnotation {
     const uptr caller_pc = (uptr)__builtin_return_address(0); \
     StatInc(thr, StatAnnotation); \
     StatInc(thr, Stat##typ); \
-    ScopedAnnotation sa(thr, __FUNCTION__, f, l, caller_pc); \
-    const uptr pc = __sanitizer::StackTrace::GetCurrentPc(); \
+    ScopedAnnotation sa(thr, __func__, f, l, caller_pc); \
+    const uptr pc = StackTrace::GetCurrentPc(); \
     (void)pc; \
 /**/
 
@@ -129,8 +124,6 @@ static ExpectRace *FindRace(ExpectRace *list, uptr addr, uptr size) {
 
 static bool CheckContains(ExpectRace *list, uptr addr, uptr size) {
   ExpectRace *race = FindRace(list, addr, size);
-  if (race == 0 && AlternativeAddress(addr))
-    race = FindRace(list, AlternativeAddress(addr), size);
   if (race == 0)
     return false;
   DPrintf("Hit expected/benign race: %s addr=%zx:%d %s:%d\n",
@@ -309,7 +302,7 @@ void INTERFACE_ATTRIBUTE AnnotateFlushExpectedRaces(char *f, int l) {
   while (dyn_ann_ctx->expect.next != &dyn_ann_ctx->expect) {
     ExpectRace *race = dyn_ann_ctx->expect.next;
     if (race->hitcount == 0) {
-      CTX()->nmissed_expected++;
+      ctx->nmissed_expected++;
       ReportMissedExpectedRace(race);
     }
     race->prev->next = race->next;
@@ -459,4 +452,6 @@ const char INTERFACE_ATTRIBUTE* ThreadSanitizerQuery(const char *query) {
 
 void INTERFACE_ATTRIBUTE
 AnnotateMemoryIsInitialized(char *f, int l, uptr mem, uptr sz) {}
+void INTERFACE_ATTRIBUTE
+AnnotateMemoryIsUninitialized(char *f, int l, uptr mem, uptr sz) {}
 }  // extern "C"

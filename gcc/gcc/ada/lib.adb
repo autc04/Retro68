@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -106,7 +106,7 @@ package body Lib is
       return Units.Table (U).Expected_Unit;
    end Expected_Unit;
 
-   function Fatal_Error (U : Unit_Number_Type) return Boolean is
+   function Fatal_Error (U : Unit_Number_Type) return Fatal_Type is
    begin
       return Units.Table (U).Fatal_Error;
    end Fatal_Error;
@@ -116,20 +116,10 @@ package body Lib is
       return Units.Table (U).Generate_Code;
    end Generate_Code;
 
-   function Has_Allocator (U : Unit_Number_Type) return Boolean is
-   begin
-      return Units.Table (U).Has_Allocator;
-   end Has_Allocator;
-
    function Has_RACW (U : Unit_Number_Type) return Boolean is
    begin
       return Units.Table (U).Has_RACW;
    end Has_RACW;
-
-   function Is_Compiler_Unit (U : Unit_Number_Type) return Boolean is
-   begin
-      return Units.Table (U).Is_Compiler_Unit;
-   end Is_Compiler_Unit;
 
    function Ident_String (U : Unit_Number_Type) return Node_Id is
    begin
@@ -155,6 +145,11 @@ package body Lib is
    begin
       return Units.Table (U).Munit_Index;
    end Munit_Index;
+
+   function No_Elab_Code_All (U : Unit_Number_Type) return Boolean is
+   begin
+      return Units.Table (U).No_Elab_Code_All;
+   end No_Elab_Code_All;
 
    function OA_Setting (U : Unit_Number_Type) return Character is
    begin
@@ -201,9 +196,9 @@ package body Lib is
       Units.Table (U).Error_Location := W;
    end Set_Error_Location;
 
-   procedure Set_Fatal_Error (U : Unit_Number_Type; B : Boolean := True) is
+   procedure Set_Fatal_Error (U : Unit_Number_Type; V : Fatal_Type) is
    begin
-      Units.Table (U).Fatal_Error := B;
+      Units.Table (U).Fatal_Error := V;
    end Set_Fatal_Error;
 
    procedure Set_Generate_Code (U : Unit_Number_Type; B : Boolean := True) is
@@ -211,23 +206,10 @@ package body Lib is
       Units.Table (U).Generate_Code := B;
    end Set_Generate_Code;
 
-   procedure Set_Has_Allocator (U : Unit_Number_Type; B : Boolean := True) is
-   begin
-      Units.Table (U).Has_Allocator := B;
-   end Set_Has_Allocator;
-
    procedure Set_Has_RACW (U : Unit_Number_Type; B : Boolean := True) is
    begin
       Units.Table (U).Has_RACW := B;
    end Set_Has_RACW;
-
-   procedure Set_Is_Compiler_Unit
-     (U : Unit_Number_Type;
-      B : Boolean := True)
-   is
-   begin
-      Units.Table (U).Is_Compiler_Unit := B;
-   end Set_Is_Compiler_Unit;
 
    procedure Set_Ident_String (U : Unit_Number_Type; N : Node_Id) is
    begin
@@ -248,6 +230,14 @@ package body Lib is
    begin
       Units.Table (U).Main_Priority := P;
    end Set_Main_Priority;
+
+   procedure Set_No_Elab_Code_All
+     (U : Unit_Number_Type;
+      B : Boolean := True)
+   is
+   begin
+      Units.Table (U).No_Elab_Code_All := B;
+   end Set_No_Elab_Code_All;
 
    procedure Set_OA_Setting (U : Unit_Number_Type; C : Character) is
    begin
@@ -1069,8 +1059,17 @@ package body Lib is
    ----------------
 
    procedure Store_Note (N : Node_Id) is
+      Sfile : constant Source_File_Index := Get_Source_File_Index (Sloc (N));
+
    begin
-      Notes.Append ((Pragma_Node => N, Unit => Current_Sem_Unit));
+      --  Notes for a generic are emitted when processing the template, never
+      --  in instances.
+
+      if In_Extended_Main_Code_Unit (N)
+        and then Instance (Sfile) = No_Instance_Id
+      then
+         Notes.Append (N);
+      end if;
    end Store_Note;
 
    -------------------------------

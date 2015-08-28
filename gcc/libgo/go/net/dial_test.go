@@ -58,7 +58,7 @@ func TestDialTimeout(t *testing.T) {
 				errc <- err
 			}()
 		}
-	case "darwin", "windows":
+	case "darwin", "plan9", "windows":
 		// At least OS X 10.7 seems to accept any number of
 		// connections, ignoring listen's backlog, so resort
 		// to connecting to a hopefully-dead 127/8 address.
@@ -119,6 +119,7 @@ func TestSelfConnect(t *testing.T) {
 		// TODO(brainman): do not know why it hangs.
 		t.Skip("skipping known-broken test on windows")
 	}
+
 	// Test that Dial does not honor self-connects.
 	// See the comment in DialTCP.
 
@@ -149,8 +150,12 @@ func TestSelfConnect(t *testing.T) {
 	for i := 0; i < n; i++ {
 		c, err := DialTimeout("tcp", addr, time.Millisecond)
 		if err == nil {
+			if c.LocalAddr().String() == addr {
+				t.Errorf("#%d: Dial %q self-connect", i, addr)
+			} else {
+				t.Logf("#%d: Dial %q succeeded - possibly racing with other listener", i, addr)
+			}
 			c.Close()
-			t.Errorf("#%d: Dial %q succeeded", i, addr)
 		}
 	}
 }
@@ -334,6 +339,8 @@ func numTCP() (ntcp, nopen, nclose int, err error) {
 }
 
 func TestDialMultiFDLeak(t *testing.T) {
+	t.Skip("flaky test - golang.org/issue/8764")
+
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("neither ipv4 nor ipv6 is supported")
 	}
@@ -425,60 +432,6 @@ func numFD() int {
 	panic("numFDs not implemented on " + runtime.GOOS)
 }
 
-// Assert that a failed Dial attempt does not leak
-// runtime.PollDesc structures
-func TestDialFailPDLeak(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode")
-	}
-	if runtime.GOOS == "windows" && runtime.GOARCH == "386" {
-		// Just skip the test because it takes too long.
-		t.Skipf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
-	}
-
-	maxprocs := runtime.GOMAXPROCS(0)
-	loops := 10 + maxprocs
-	// 500 is enough to turn over the chunk of pollcache.
-	// See allocPollDesc in runtime/netpoll.goc.
-	const count = 500
-	var old runtime.MemStats // used by sysdelta
-	runtime.ReadMemStats(&old)
-	sysdelta := func() uint64 {
-		var new runtime.MemStats
-		runtime.ReadMemStats(&new)
-		delta := old.Sys - new.Sys
-		old = new
-		return delta
-	}
-	d := &Dialer{Timeout: time.Nanosecond} // don't bother TCP with handshaking
-	failcount := 0
-	for i := 0; i < loops; i++ {
-		var wg sync.WaitGroup
-		for i := 0; i < count; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if c, err := d.Dial("tcp", "127.0.0.1:1"); err == nil {
-					t.Error("dial should not succeed")
-					c.Close()
-				}
-			}()
-		}
-		wg.Wait()
-		if t.Failed() {
-			t.FailNow()
-		}
-		if delta := sysdelta(); delta > 0 {
-			failcount++
-		}
-		// there are always some allocations on the first loop
-		if failcount > maxprocs+2 {
-			t.Error("detected possible memory leak in runtime")
-			t.FailNow()
-		}
-	}
-}
-
 func TestDialer(t *testing.T) {
 	ln, err := Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
@@ -514,6 +467,11 @@ func TestDialer(t *testing.T) {
 }
 
 func TestDialDualStackLocalhost(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	if ips, err := LookupIP("localhost"); err != nil {
 		t.Fatalf("LookupIP failed: %v", err)
 	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {
@@ -542,7 +500,7 @@ func TestDialDualStackLocalhost(t *testing.T) {
 	}
 
 	d := &Dialer{DualStack: true}
-	for _ = range dss.lns {
+	for range dss.lns {
 		if c, err := d.Dial("tcp", "localhost:"+dss.port); err != nil {
 			t.Errorf("Dial failed: %v", err)
 		} else {
@@ -552,6 +510,39 @@ func TestDialDualStackLocalhost(t *testing.T) {
 				dss.teardownNetwork("tcp6")
 			}
 			c.Close()
+		}
+	}
+}
+
+func TestDialerKeepAlive(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+	defer func() {
+		testHookSetKeepAlive = func() {}
+	}()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+	for _, keepAlive := range []bool{false, true} {
+		got := false
+		testHookSetKeepAlive = func() { got = true }
+		var d Dialer
+		if keepAlive {
+			d.KeepAlive = 30 * time.Second
+		}
+		c, err := d.Dial("tcp", ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.Close()
+		if got != keepAlive {
+			t.Errorf("Dialer.KeepAlive = %v: SetKeepAlive called = %v, want %v", d.KeepAlive, got, !got)
 		}
 	}
 }

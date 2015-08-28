@@ -1,6 +1,5 @@
 /* SEC_MERGE support.
-   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -136,12 +135,12 @@ static struct sec_merge_hash_entry *
 sec_merge_hash_lookup (struct sec_merge_hash *table, const char *string,
 		       unsigned int alignment, bfd_boolean create)
 {
-  register const unsigned char *s;
-  register unsigned long hash;
-  register unsigned int c;
+  const unsigned char *s;
+  unsigned long hash;
+  unsigned int c;
   struct sec_merge_hash_entry *hashp;
   unsigned int len, i;
-  unsigned int index;
+  unsigned int _index;
 
   hash = 0;
   len = 0;
@@ -192,8 +191,8 @@ sec_merge_hash_lookup (struct sec_merge_hash *table, const char *string,
       len = table->entsize;
     }
 
-  index = hash % table->table.size;
-  for (hashp = (struct sec_merge_hash_entry *) table->table.table[index];
+  _index = hash % table->table.size;
+  for (hashp = (struct sec_merge_hash_entry *) table->table.table[_index];
        hashp != NULL;
        hashp = (struct sec_merge_hash_entry *) hashp->root.next)
     {
@@ -263,7 +262,7 @@ static struct sec_merge_hash_entry *
 sec_merge_add (struct sec_merge_hash *tab, const char *str,
 	       unsigned int alignment, struct sec_merge_sec_info *secinfo)
 {
-  register struct sec_merge_hash_entry *entry;
+  struct sec_merge_hash_entry *entry;
 
   entry = sec_merge_hash_lookup (tab, str, alignment, TRUE);
   if (entry == NULL)
@@ -348,6 +347,7 @@ _bfd_add_merge_section (bfd *abfd, void **psinfo, asection *sec,
   struct sec_merge_sec_info *secinfo;
   unsigned int align;
   bfd_size_type amt;
+  bfd_byte *contents;
 
   if ((abfd->flags & DYNAMIC) != 0
       || (sec->flags & SEC_MERGE) == 0)
@@ -432,8 +432,8 @@ _bfd_add_merge_section (bfd *abfd, void **psinfo, asection *sec,
   sec->rawsize = sec->size;
   if (sec->flags & SEC_STRINGS)
     memset (secinfo->contents + sec->size, 0, sec->entsize);
-  if (! bfd_get_section_contents (sec->owner, sec, secinfo->contents,
-				  0, sec->size))
+  contents = secinfo->contents;
+  if (! bfd_get_full_section_contents (sec->owner, sec, &contents))
     goto error_return;
 
   return TRUE;
@@ -883,4 +883,18 @@ _bfd_merged_section_offset (bfd *output_bfd ATTRIBUTE_UNUSED, asection **psec,
 
   *psec = entry->secinfo->sec;
   return entry->u.index + (secinfo->contents + offset - p);
+}
+
+/* Tidy up when done.  */
+
+void
+_bfd_merge_sections_free (void *xsinfo)
+{
+  struct sec_merge_info *sinfo;
+
+  for (sinfo = (struct sec_merge_info *) xsinfo; sinfo; sinfo = sinfo->next)
+    {
+      bfd_hash_table_free (&sinfo->htab->table);
+      free (sinfo->htab);
+    }
 }

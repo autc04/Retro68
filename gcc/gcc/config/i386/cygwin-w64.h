@@ -1,7 +1,7 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows 32/64 via Cygwin runtime, using GNU tools and
    the Windows API Library.
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -66,7 +66,8 @@ along with GCC; see the file COPYING3.  If not see
   %{static:-Bstatic} %{!static:-Bdynamic} \
   %{shared|mdll: " SUB_LINK_ENTRY " --enable-auto-image-base} \
   %(shared_libgcc_undefs) \
-  --dll-search-prefix=cyg -tsaware"
+  --dll-search-prefix=cyg \
+  %{!shared: %{!mdll: %{" SPEC_32 ":--large-address-aware} --tsaware}}"
 
 /* Cygwin64 will have a 64-bit long type. */
 #undef LONG_TYPE_SIZE

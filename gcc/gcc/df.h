@@ -1,6 +1,6 @@
 /* Form lists of pseudo register references for autoinc optimization
    for GNU compiler.  This is part of flow optimization.
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2015 Free Software Foundation, Inc.
    Originally contributed by Michael P. Hayes
              (m.hayes@elec.canterbury.ac.nz, mhayes@redhat.com)
    Major rewrite contributed by Danny Berlin (dberlin@dberlin.org)
@@ -28,7 +28,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "bitmap.h"
 #include "regset.h"
 #include "sbitmap.h"
-#include "basic-block.h"
+#include "predict.h"
+#include "vec.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
 #include "alloc-pool.h"
 #include "timevar.h"
 
@@ -239,7 +247,7 @@ typedef void (*df_dump_problem_function) (FILE *);
 typedef void (*df_dump_bb_problem_function) (basic_block, FILE *);
 
 /* Function to dump before or after an insn to FILE.  */
-typedef void (*df_dump_insn_problem_function) (const_rtx, FILE *);
+typedef void (*df_dump_insn_problem_function) (const rtx_insn *, FILE *);
 
 /* Function to dump top or bottom of basic block results to FILE.  */
 typedef void (*df_verify_solution_start) (void);
@@ -339,6 +347,7 @@ struct dataflow
    REG_UNUSED notes.  */
 struct df_mw_hardreg
 {
+  df_mw_hardreg *next;		/* Next entry for this instruction.  */
   rtx mw_reg;                   /* The multiword hardreg.  */
   /* These two bitfields are intentionally oversized, in the hope that
      accesses to 16-bit fields will usually be quicker.  */
@@ -365,6 +374,7 @@ struct df_base_ref
   int flags : 16;		/* Various df_ref_flags.  */
   unsigned int regno;		/* The register number referenced.  */
   rtx reg;			/* The register referenced.  */
+  union df_ref_d *next_loc;	/* Next ref for same insn or bb.  */
   struct df_link *chain;	/* Head of def-use, use-def.  */
   /* Pointer to the insn info of the containing instruction.  FIXME!
      Currently this is NULL for artificial refs but this will be used
@@ -419,12 +429,12 @@ typedef union df_ref_d *df_ref;
 /* One of these structures is allocated for every insn.  */
 struct df_insn_info
 {
-  rtx insn;                     /* The insn this info comes from.  */
-  df_ref *defs;	                /* Head of insn-def chain.  */
-  df_ref *uses;	                /* Head of insn-use chain.  */
+  rtx_insn *insn;	        /* The insn this info comes from.  */
+  df_ref defs;	                /* Head of insn-def chain.  */
+  df_ref uses;	                /* Head of insn-use chain.  */
   /* Head of insn-use chain for uses in REG_EQUAL/EQUIV notes.  */
-  df_ref *eq_uses;
-  struct df_mw_hardreg **mw_hardregs;
+  df_ref eq_uses;
+  struct df_mw_hardreg *mw_hardregs;
   /* The logical uid of the insn in the basic block.  This is valid
      after any call to df_analyze but may rot after insns are added,
      deleted or moved. */
@@ -665,6 +675,7 @@ struct df_d
 #define DF_REF_REG_MARK(REF) (DF_REF_FLAGS_SET ((REF),DF_REF_REG_MARKER))
 #define DF_REF_REG_UNMARK(REF) (DF_REF_FLAGS_CLEAR ((REF),DF_REF_REG_MARKER))
 #define DF_REF_IS_REG_MARKED(REF) (DF_REF_FLAGS_IS_SET ((REF),DF_REF_REG_MARKER))
+#define DF_REF_NEXT_LOC(REF) ((REF)->base.next_loc)
 #define DF_REF_NEXT_REG(REF) ((REF)->base.next_reg)
 #define DF_REF_PREV_REG(REF) ((REF)->base.prev_reg)
 /* The following two macros may only be applied if one of
@@ -675,14 +686,15 @@ struct df_d
 
 /* Macros to determine the reference type.  */
 #define DF_REF_REG_DEF_P(REF) (DF_REF_TYPE (REF) == DF_REF_REG_DEF)
-#define DF_REF_REG_USE_P(REF) ((REF) && !DF_REF_REG_DEF_P (REF))
+#define DF_REF_REG_USE_P(REF) (!DF_REF_REG_DEF_P (REF))
 #define DF_REF_REG_MEM_STORE_P(REF) (DF_REF_TYPE (REF) == DF_REF_REG_MEM_STORE)
 #define DF_REF_REG_MEM_LOAD_P(REF) (DF_REF_TYPE (REF) == DF_REF_REG_MEM_LOAD)
 #define DF_REF_REG_MEM_P(REF) (DF_REF_REG_MEM_STORE_P (REF) \
                                || DF_REF_REG_MEM_LOAD_P (REF))
 
 #define DF_MWS_REG_DEF_P(MREF) (DF_MWS_TYPE (MREF) == DF_REF_REG_DEF)
-#define DF_MWS_REG_USE_P(MREF) ((MREF) && !DF_MWS_REG_DEF_P (MREF))
+#define DF_MWS_REG_USE_P(MREF) (!DF_MWS_REG_DEF_P (MREF))
+#define DF_MWS_NEXT(MREF) ((MREF)->next)
 #define DF_MWS_TYPE(MREF) ((MREF)->type)
 
 /* Macros to get the refs out of def_info or use_info refs table.  If
@@ -736,6 +748,7 @@ struct df_d
 #define DF_INSN_INFO_DEFS(II) ((II)->defs)
 #define DF_INSN_INFO_USES(II) ((II)->uses)
 #define DF_INSN_INFO_EQ_USES(II) ((II)->eq_uses)
+#define DF_INSN_INFO_MWS(II) ((II)->mw_hardregs)
 
 #define DF_INSN_LUID(INSN) (DF_INSN_INFO_LUID (DF_INSN_INFO_GET (INSN)))
 #define DF_INSN_DEFS(INSN) (DF_INSN_INFO_DEFS (DF_INSN_INFO_GET (INSN)))
@@ -752,6 +765,35 @@ struct df_d
 #define DF_INSN_UID_USES(INSN) (DF_INSN_UID_GET (INSN)->uses)
 #define DF_INSN_UID_EQ_USES(INSN) (DF_INSN_UID_GET (INSN)->eq_uses)
 #define DF_INSN_UID_MWS(INSN) (DF_INSN_UID_GET (INSN)->mw_hardregs)
+
+#define FOR_EACH_INSN_INFO_DEF(ITER, INSN) \
+  for (ITER = DF_INSN_INFO_DEFS (INSN); ITER; ITER = DF_REF_NEXT_LOC (ITER))
+
+#define FOR_EACH_INSN_INFO_USE(ITER, INSN) \
+  for (ITER = DF_INSN_INFO_USES (INSN); ITER; ITER = DF_REF_NEXT_LOC (ITER))
+
+#define FOR_EACH_INSN_INFO_EQ_USE(ITER, INSN) \
+  for (ITER = DF_INSN_INFO_EQ_USES (INSN); ITER; ITER = DF_REF_NEXT_LOC (ITER))
+
+#define FOR_EACH_INSN_INFO_MW(ITER, INSN) \
+  for (ITER = DF_INSN_INFO_MWS (INSN); ITER; ITER = DF_MWS_NEXT (ITER))
+
+#define FOR_EACH_INSN_DEF(ITER, INSN) \
+  FOR_EACH_INSN_INFO_DEF(ITER, DF_INSN_INFO_GET (INSN))
+
+#define FOR_EACH_INSN_USE(ITER, INSN) \
+  FOR_EACH_INSN_INFO_USE(ITER, DF_INSN_INFO_GET (INSN))
+
+#define FOR_EACH_INSN_EQ_USE(ITER, INSN) \
+  FOR_EACH_INSN_INFO_EQ_USE(ITER, DF_INSN_INFO_GET (INSN))
+
+#define FOR_EACH_ARTIFICIAL_USE(ITER, BB_INDEX) \
+  for (ITER = df_get_artificial_uses (BB_INDEX); ITER; \
+       ITER = DF_REF_NEXT_LOC (ITER))
+
+#define FOR_EACH_ARTIFICIAL_DEF(ITER, BB_INDEX) \
+  for (ITER = df_get_artificial_defs (BB_INDEX); ITER; \
+       ITER = DF_REF_NEXT_LOC (ITER))
 
 /* An obstack for bitmap not related to specific dataflow problems.
    This obstack should e.g. be used for bitmaps with a short life time
@@ -772,13 +814,13 @@ struct df_scan_bb_info
 
      Blocks that are the targets of non-local goto's have the hard
      frame pointer defined at the top of the block.  */
-  df_ref *artificial_defs;
+  df_ref artificial_defs;
 
   /* Blocks that are targets of exception edges may have some
      artificial uses.  These are logically at the top of the block.
 
      Most blocks have artificial uses at the bottom of the block.  */
-  df_ref *artificial_uses;
+  df_ref artificial_uses;
 };
 
 
@@ -919,10 +961,10 @@ extern void df_check_cfg_clean (void);
 #endif
 extern df_ref df_bb_regno_first_def_find (basic_block, unsigned int);
 extern df_ref df_bb_regno_last_def_find (basic_block, unsigned int);
-extern df_ref df_find_def (rtx, rtx);
-extern bool df_reg_defined (rtx, rtx);
-extern df_ref df_find_use (rtx, rtx);
-extern bool df_reg_used (rtx, rtx);
+extern df_ref df_find_def (rtx_insn *, rtx);
+extern bool df_reg_defined (rtx_insn *, rtx);
+extern df_ref df_find_use (rtx_insn *, rtx);
+extern bool df_reg_used (rtx_insn *, rtx);
 extern void df_worklist_dataflow (struct dataflow *,bitmap, int *, int);
 extern void df_print_regset (FILE *file, bitmap r);
 extern void df_print_word_regset (FILE *file, bitmap r);
@@ -931,15 +973,15 @@ extern void df_dump_region (FILE *);
 extern void df_dump_start (FILE *);
 extern void df_dump_top (basic_block, FILE *);
 extern void df_dump_bottom (basic_block, FILE *);
-extern void df_dump_insn_top (const_rtx, FILE *);
-extern void df_dump_insn_bottom (const_rtx, FILE *);
-extern void df_refs_chain_dump (df_ref *, bool, FILE *);
+extern void df_dump_insn_top (const rtx_insn *, FILE *);
+extern void df_dump_insn_bottom (const rtx_insn *, FILE *);
+extern void df_refs_chain_dump (df_ref, bool, FILE *);
 extern void df_regs_chain_dump (df_ref,  FILE *);
-extern void df_insn_debug (rtx, bool, FILE *);
-extern void df_insn_debug_regno (rtx, FILE *);
+extern void df_insn_debug (rtx_insn *, bool, FILE *);
+extern void df_insn_debug_regno (rtx_insn *, FILE *);
 extern void df_regno_debug (unsigned int, FILE *);
 extern void df_ref_debug (df_ref, FILE *);
-extern void debug_df_insn (rtx);
+extern void debug_df_insn (rtx_insn *);
 extern void debug_df_regno (unsigned int);
 extern void debug_df_reg (rtx);
 extern void debug_df_defno (unsigned int);
@@ -957,7 +999,7 @@ extern void df_chain_dump (struct df_link *, FILE *);
 extern void df_print_bb_index (basic_block bb, FILE *file);
 extern void df_rd_add_problem (void);
 extern void df_rd_simulate_artificial_defs_at_top (basic_block, bitmap);
-extern void df_rd_simulate_one_insn (basic_block, rtx, bitmap);
+extern void df_rd_simulate_one_insn (basic_block, rtx_insn *, bitmap);
 extern void df_lr_add_problem (void);
 extern void df_lr_verify_transfer_functions (void);
 extern void df_live_verify_transfer_functions (void);
@@ -966,26 +1008,28 @@ extern void df_live_set_all_dirty (void);
 extern void df_chain_add_problem (unsigned int);
 extern void df_word_lr_add_problem (void);
 extern bool df_word_lr_mark_ref (df_ref, bool, bitmap);
-extern bool df_word_lr_simulate_defs (rtx, bitmap);
-extern void df_word_lr_simulate_uses (rtx, bitmap);
+extern bool df_word_lr_simulate_defs (rtx_insn *, bitmap);
+extern void df_word_lr_simulate_uses (rtx_insn *, bitmap);
 extern void df_word_lr_simulate_artificial_refs_at_top (basic_block, bitmap);
 extern void df_word_lr_simulate_artificial_refs_at_end (basic_block, bitmap);
 extern void df_note_add_problem (void);
 extern void df_md_add_problem (void);
 extern void df_md_simulate_artificial_defs_at_top (basic_block, bitmap);
-extern void df_md_simulate_one_insn (basic_block, rtx, bitmap);
-extern void df_simulate_find_noclobber_defs (rtx, bitmap);
-extern void df_simulate_find_defs (rtx, bitmap);
-extern void df_simulate_defs (rtx, bitmap);
-extern void df_simulate_uses (rtx, bitmap);
+extern void df_md_simulate_one_insn (basic_block, rtx_insn *, bitmap);
+extern void df_simulate_find_noclobber_defs (rtx_insn *, bitmap);
+extern void df_simulate_find_defs (rtx_insn *, bitmap);
+extern void df_simulate_defs (rtx_insn *, bitmap);
+extern void df_simulate_uses (rtx_insn *, bitmap);
 extern void df_simulate_initialize_backwards (basic_block, bitmap);
-extern void df_simulate_one_insn_backwards (basic_block, rtx, bitmap);
+extern void df_simulate_one_insn_backwards (basic_block, rtx_insn *, bitmap);
 extern void df_simulate_finalize_backwards (basic_block, bitmap);
 extern void df_simulate_initialize_forwards (basic_block, bitmap);
-extern void df_simulate_one_insn_forwards (basic_block, rtx, bitmap);
+extern void df_simulate_one_insn_forwards (basic_block, rtx_insn *, bitmap);
 extern void simulate_backwards_to_point (basic_block, regset, rtx);
-extern bool can_move_insns_across (rtx, rtx, rtx, rtx, basic_block, regset,
-				   regset, rtx *);
+extern bool can_move_insns_across (rtx_insn *, rtx_insn *,
+				   rtx_insn *, rtx_insn *,
+				   basic_block, regset,
+				   regset, rtx_insn **);
 /* Functions defined in df-scan.c.  */
 
 extern void df_scan_alloc (bitmap);
@@ -993,23 +1037,20 @@ extern void df_scan_add_problem (void);
 extern void df_grow_reg_info (void);
 extern void df_grow_insn_info (void);
 extern void df_scan_blocks (void);
-extern df_ref df_ref_create (rtx, rtx *, rtx,basic_block,
-			     enum df_ref_type, int ref_flags);
-extern void df_uses_create (rtx *, rtx, int);
-extern void df_ref_remove (df_ref);
-extern struct df_insn_info * df_insn_create_insn_record (rtx);
-extern void df_insn_delete (rtx);
+extern void df_uses_create (rtx *, rtx_insn *, int);
+extern struct df_insn_info * df_insn_create_insn_record (rtx_insn *);
+extern void df_insn_delete (rtx_insn *);
 extern void df_bb_refs_record (int, bool);
-extern bool df_insn_rescan (rtx);
-extern bool df_insn_rescan_debug_internal (rtx);
+extern bool df_insn_rescan (rtx_insn *);
+extern bool df_insn_rescan_debug_internal (rtx_insn *);
 extern void df_insn_rescan_all (void);
 extern void df_process_deferred_rescans (void);
 extern void df_recompute_luids (basic_block);
-extern void df_insn_change_bb (rtx, basic_block);
+extern void df_insn_change_bb (rtx_insn *, basic_block);
 extern void df_maybe_reorganize_use_refs (enum df_ref_order);
 extern void df_maybe_reorganize_def_refs (enum df_ref_order);
 extern void df_ref_change_reg_with_loc (int, int, rtx);
-extern void df_notes_rescan (rtx);
+extern void df_notes_rescan (rtx_insn *);
 extern void df_hard_reg_init (void);
 extern void df_update_entry_block_defs (void);
 extern void df_update_exit_block_uses (void);
@@ -1116,7 +1157,7 @@ df_get_live_in (basic_block bb)
 /* Get basic block info.  */
 /* Get the artificial defs for a basic block.  */
 
-static inline df_ref *
+static inline df_ref
 df_get_artificial_defs (unsigned int bb_index)
 {
   return df_scan_get_bb_info (bb_index)->artificial_defs;
@@ -1125,29 +1166,50 @@ df_get_artificial_defs (unsigned int bb_index)
 
 /* Get the artificial uses for a basic block.  */
 
-static inline df_ref *
+static inline df_ref
 df_get_artificial_uses (unsigned int bb_index)
 {
   return df_scan_get_bb_info (bb_index)->artificial_uses;
 }
 
+/* If INSN defines exactly one register, return the associated reference,
+   otherwise return null.  */
+
+static inline df_ref
+df_single_def (const df_insn_info *info)
+{
+  df_ref defs = DF_INSN_INFO_DEFS (info);
+  return defs && !DF_REF_NEXT_LOC (defs) ? defs : NULL;
+}
+
+/* If INSN uses exactly one register, return the associated reference,
+   otherwise return null.  */
+
+static inline df_ref
+df_single_use (const df_insn_info *info)
+{
+  df_ref uses = DF_INSN_INFO_USES (info);
+  return uses && !DF_REF_NEXT_LOC (uses) ? uses : NULL;
+}
 
 /* web */
 
-/* This entry is allocated for each reference in the insn stream.  */
-struct web_entry
+class web_entry_base
 {
-  /* Pointer to the parent in the union/find tree.  */
-  struct web_entry *pred;
-  /* Newly assigned register to the entry.  Set only for roots.  */
-  rtx reg;
-  void* extra_info;
-};
+ private:
+  /* Reference to the parent in the union/find tree.  */
+  web_entry_base *pred_pvt;
 
-extern struct web_entry *unionfind_root (struct web_entry *);
-extern bool unionfind_union (struct web_entry *, struct web_entry *);
-extern void union_defs (df_ref, struct web_entry *,
-			unsigned int *used, struct web_entry *,
-			bool (*fun) (struct web_entry *, struct web_entry *));
+ public:
+  /* Accessors.  */
+  web_entry_base *pred () { return pred_pvt; }
+  void set_pred (web_entry_base *p) { pred_pvt = p; }
+
+  /* Find representative in union-find tree.  */
+  web_entry_base *unionfind_root ();
+
+  /* Union with another set, returning TRUE if they are already unioned.  */
+  friend bool unionfind_union (web_entry_base *first, web_entry_base *second);
+};
 
 #endif /* GCC_DF_H */

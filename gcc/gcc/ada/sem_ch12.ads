@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,6 +36,23 @@ package Sem_Ch12 is
    procedure Analyze_Formal_Type_Declaration            (N : Node_Id);
    procedure Analyze_Formal_Subprogram_Declaration      (N : Node_Id);
    procedure Analyze_Formal_Package_Declaration         (N : Node_Id);
+
+   function Build_Function_Wrapper
+     (Formal_Subp : Entity_Id;
+      Actual_Subp : Entity_Id) return Node_Id;
+   --  In GNATprove mode, create a wrapper function for actuals that are
+   --  functions with any number of formal parameters, in order to propagate
+   --  their contract to the renaming declarations generated for them. This
+   --  is called after the renaming declaration created for the formal in the
+   --  instance has been analyzed, and the actual is known.
+
+   function Build_Operator_Wrapper
+     (Formal_Subp : Entity_Id;
+      Actual_Subp : Entity_Id) return Node_Id;
+   --  In GNATprove mode, create a wrapper function for actuals that are
+   --  operators, in order to propagate their contract to the renaming
+   --  declarations generated for them. The types are (the instances of)
+   --  the types of the formal subprogram.
 
    procedure Start_Generic;
    --  Must be invoked before starting to process a generic spec or body
@@ -134,6 +151,9 @@ package Sem_Ch12 is
    --  involving the actuals and other data-structures, must be saved and
    --  restored in stack-like fashion. Front-end inlining also uses these
    --  structures for the management of private/full views.
+
+   procedure Save_Global_References_In_Aspects (N : Node_Id);
+   --  Save all global references in the aspect specifications of node N
 
    procedure Set_Copied_Sloc_For_Inlined_Body (N : Node_Id; E : Entity_Id);
    --  This procedure is used when a subprogram body is inlined. This process

@@ -1,6 +1,5 @@
 /* tc-mips.h -- header file for tc-mips.c.
-   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008  Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
    Contributed by the OSF and Ralph Campbell.
    Written by Keith Knowles and Ralph Campbell, working independently.
    Modified for ECOFF support by Ian Lance Taylor of Cygnus Support.
@@ -42,6 +41,9 @@ struct expressionS;
 #define MAX_RELOC_EXPANSION 3
 #define LOCAL_LABELS_FB 1
 
+#define TC_ADDRESS_BYTES mips_address_bytes
+extern int mips_address_bytes (void);
+
 /* Maximum symbol offset that can be encoded in a BFD_RELOC_GPREL16
    relocation.  */
 #define MAX_GPREL_OFFSET (0x7FF0)
@@ -59,12 +61,13 @@ extern char mips_nop_opcode (void);
 extern void mips_handle_align (struct frag *);
 #define HANDLE_ALIGN(fragp)  mips_handle_align (fragp)
 
-#define MAX_MEM_FOR_RS_ALIGN_CODE  (1 + 2)
+#define MAX_MEM_FOR_RS_ALIGN_CODE  (3 + 4)
 
 struct insn_label_list;
 struct mips_segment_info {
   struct insn_label_list *labels;
   unsigned int mips16 : 1;
+  unsigned int micromips : 1;
 };
 #define TC_SEGMENT_INFO_TYPE struct mips_segment_info
 
@@ -109,6 +112,9 @@ extern int mips_parse_long_option (const char *);
 #define tc_frob_label(sym) mips_define_label (sym)
 extern void mips_define_label (symbolS *);
 
+#define tc_new_dot_label(sym) mips_add_dot_label (sym)
+extern void mips_add_dot_label (symbolS *);
+
 #define tc_frob_file_before_adjust() mips_frob_file_before_adjust ()
 extern void mips_frob_file_before_adjust (void);
 
@@ -130,8 +136,6 @@ extern int mips_fix_adjustable (struct fix *);
 #define EXTERN_FORCE_RELOC			\
   (OUTPUT_FLAVOR == bfd_target_elf_flavour)
 
-/* When generating NEWABI code, we may need to have to keep combined
-   relocations which don't have symbols.  */
 #define TC_FORCE_RELOCATION(FIX) mips_force_relocation (FIX)
 extern int mips_force_relocation (struct fix *);
 
@@ -162,9 +166,13 @@ extern void mips_emit_delays (void);
 extern void mips_enable_auto_align (void);
 #define md_elf_section_change_hook()	mips_enable_auto_align()
 
+#ifdef TE_IRIX
 enum dwarf2_format;
 extern enum dwarf2_format mips_dwarf2_format (asection *);
-#define DWARF2_FORMAT(SEC) mips_dwarf2_format (SEC)
+# define DWARF2_FORMAT(SEC) mips_dwarf2_format (SEC)
+#else
+/* Use GAS' defaults.  */
+#endif
 
 extern int mips_dwarf2_addr_size (void);
 #define DWARF2_ADDR_SIZE(bfd) mips_dwarf2_addr_size ()
@@ -180,5 +188,13 @@ extern int tc_mips_regname_to_dw2regnum (char *regname);
 
 #define DWARF2_DEFAULT_RETURN_COLUMN 31
 #define DWARF2_CIE_DATA_ALIGNMENT (-4)
+
+#define DIFF_EXPR_OK
+/* We define DIFF_EXPR_OK because of R_MIPS_PC32, but we have no
+   64-bit form for n64 CFIs.  */
+#define CFI_DIFF_EXPR_OK 0
+
+#define CONVERT_SYMBOLIC_ATTRIBUTE(name) mips_convert_symbolic_attribute (name)
+extern int mips_convert_symbolic_attribute (const char *);
 
 #endif /* TC_MIPS */

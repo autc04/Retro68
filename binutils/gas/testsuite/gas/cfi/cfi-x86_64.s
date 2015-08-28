@@ -4,7 +4,6 @@
 #; - function with a space on the stack 
 #;   allocated for local variables
 
-	.type	func_locvars,@function
 func_locvars:
 	.cfi_startproc
 	
@@ -25,7 +24,6 @@ func_locvars:
 #; - functions that begins with standard
 #;   prologue: "pushq %rbp; movq %rsp,%rbp"
 
-	.type	func_prologue,@function
 func_prologue:
 	.cfi_startproc
 	
@@ -53,7 +51,6 @@ func_prologue:
 #;   another register (r12) and then allocates 
 #;   a space for local variables
 
-	.type	func_otherreg,@function
 func_otherreg:
 	.cfi_startproc
 
@@ -78,7 +75,6 @@ func_otherreg:
 
 #; main
 #; - typical function
-	.type	main,@function
 main:
 	.cfi_startproc
 	
@@ -93,7 +89,6 @@ main:
 #; _start
 #; - standard entry point
 
-	.type	_start,@function
 	.globl	_start
 _start:
 	.cfi_startproc
@@ -108,7 +103,6 @@ _start:
 #; - test for all .cfi directives. 
 #;   This function is never called and the CFI info doesn't make sense.
 
-	.type	func_alldirectives,@function
 func_alldirectives:
 	.cfi_startproc simple
 	.cfi_def_cfa	rsp,8
@@ -139,7 +133,6 @@ func_alldirectives:
 #; - test for all .cfi register numbers. 
 #;   This function is never called and the CFI info doesn't make sense.
 
-	.type	func_all_registers,@function
 func_all_registers:
 	.cfi_startproc simple
 
@@ -210,5 +203,31 @@ func_all_registers:
 	.cfi_undefined mm5	; nop
 	.cfi_undefined mm6	; nop
 	.cfi_undefined mm7	; nop
+
+	.cfi_undefined xmm16	; nop
+	.cfi_undefined xmm17	; nop
+	.cfi_undefined xmm18	; nop
+	.cfi_undefined xmm19	; nop
+	.cfi_undefined xmm20	; nop
+	.cfi_undefined xmm21	; nop
+	.cfi_undefined xmm22	; nop
+	.cfi_undefined xmm23	; nop
+	.cfi_undefined xmm24	; nop
+	.cfi_undefined xmm25	; nop
+	.cfi_undefined xmm26	; nop
+	.cfi_undefined xmm27	; nop
+	.cfi_undefined xmm28	; nop
+	.cfi_undefined xmm29	; nop
+	.cfi_undefined xmm30	; nop
+	.cfi_undefined xmm31	; nop
+
+	.cfi_undefined k0	; nop
+	.cfi_undefined k1	; nop
+	.cfi_undefined k2	; nop
+	.cfi_undefined k3	; nop
+	.cfi_undefined k4	; nop
+	.cfi_undefined k5	; nop
+	.cfi_undefined k6	; nop
+	.cfi_undefined k7	; nop
 
 	.cfi_endproc

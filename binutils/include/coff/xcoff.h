@@ -1,14 +1,13 @@
 /* Internal format of XCOFF object file data structures for BFD.
 
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005,
-   2009 Free Software Foundation, Inc.
+   Copyright (C) 1995-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
    
    This program is distributed in the hope that it will be useful,
@@ -18,10 +17,28 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #ifndef _INTERNAL_XCOFF_H
 #define _INTERNAL_XCOFF_H
+
+/* XCOFF specific f_flags.  */
+
+/* File was profiled with fdpr.  */
+#define F_FDPR_PROF 0x0010
+
+/* File was reordered with fdpr.  */
+#define F_FDPR_OPTI 0x0020
+
+/* File use very large program support.  */
+#define F_DSA       0x0040
+
+/* One aux header specifying medium page sizes is non-zero.  */
+#define F_VARPG     0x0100
+
+/* Read/write sections are non-executable.  */
+#define F_NONEXEC   0x8000
 
 /* Linker */
 
@@ -34,24 +51,43 @@
 #define _EXCEPT ".except"
 #define _TYPCHK ".typchk"
 
+/* XCOFF uses special .dwXXX sections with the type STYP_DWARF.  */
+#define STYP_DWARF  0x0010
+
+/* High-order 16-bits dwarf subtypes.  */
+#define SSUBTYP_DWINFO  0x10000
+#define SSUBTYP_DWLINE  0x20000
+#define SSUBTYP_DWPBNMS 0x30000
+#define SSUBTYP_DWPBTYP 0x40000
+#define SSUBTYP_DWARNGE 0x50000
+#define SSUBTYP_DWABREV 0x60000
+#define SSUBTYP_DWSTR   0x70000
+#define SSUBTYP_DWRNGES 0x80000
+
 /* XCOFF uses a special .loader section with type STYP_LOADER.  */
 #define STYP_LOADER 0x1000
-
-/* XCOFF uses a special .debug section with type STYP_DEBUG.  */
-#define STYP_DEBUG 0x2000
-
-/* XCOFF handles line number or relocation overflow by creating
-   another section header with STYP_OVRFLO set.  */
-#define STYP_OVRFLO 0x8000
 
 /* Specifies an exception section.  A section of this type provides 
    information to identify the reason that a trap or ececptin occured within 
    and executable object program */
 #define STYP_EXCEPT 0x0100
 
+/* Specifies an initialized thread-local data section.  */
+#define STYP_TDATA  0x0400
+
+/* Specifies an uninitialized thread-local data section.  */
+#define STYP_TBSS   0x0800
+
+/* XCOFF uses a special .debug section with type STYP_DEBUG.  */
+#define STYP_DEBUG  0x2000
+
 /* Specifies a type check section.  A section of this type contains parameter 
    argument type check strings used by the AIX binder.  */
 #define STYP_TYPCHK 0x4000
+
+/* XCOFF handles line number or relocation overflow by creating
+   another section header with STYP_OVRFLO set.  */
+#define STYP_OVRFLO 0x8000
 
 #define	RS6K_AOUTHDR_OMAGIC 0x0107 /* old: text & data writeable */
 #define	RS6K_AOUTHDR_NMAGIC 0x0108 /* new: text r/o, data r/w */
@@ -83,12 +119,23 @@
 #define R_RBAC  (0x19)
 #define R_RBR   (0x1a)
 #define R_RBRC  (0x1b)
+#define R_TLS   (0x20)
+#define R_TLS_IE (0x21)
+#define R_TLS_LD (0x22)
+#define R_TLS_LE (0x23)
+#define R_TLSM  (0x24)
+#define R_TLSML (0x25)
+#define R_TOCU  (0x30)
+#define R_TOCL  (0x31)
 
 /* Storage class #defines, from /usr/include/storclass.h that are not already 
    defined in internal.h */
 
 /* Comment string in .info section */
 #define	C_INFO		110	
+
+/* Dwarf symbol.  */
+#define C_DWARF		112
 
 /* Auxillary Symbol Entries  */
 
@@ -123,6 +170,10 @@
 #define XMC_TD	16		/* Read-write data in TOC */
 #define	XMC_SV64   17		/* Read-only 64 bit supervisor call */
 #define	XMC_SV3264 18		/* Read-only 32 or 64 bit supervisor call */
+/*                19   ??? */
+#define XMC_TL     20          /* Read-write initialized TLS data */
+#define XMC_TU     21          /* Read-write uninitialized TLS data */
+#define XMC_TE     22          /* Same as XMC_TC but mapped after it */
 
 /* The ldhdr structure.  This appears at the start of the .loader
    section.  */

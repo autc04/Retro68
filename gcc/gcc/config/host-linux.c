@@ -1,5 +1,5 @@
 /* Linux host-specific hook definitions.
-   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+   Copyright (C) 2004-2015 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -86,6 +86,8 @@
 # define TRY_EMPTY_VM_SPACE	0x60000000
 #elif defined(__mc68000__)
 # define TRY_EMPTY_VM_SPACE	0x40000000
+#elif defined(__aarch64__) && defined(__ILP32__)
+# define TRY_EMPTY_VM_SPACE	0x60000000
 #elif defined(__aarch64__)
 # define TRY_EMPTY_VM_SPACE	0x1000000000
 #elif defined(__ARM_EABI__)

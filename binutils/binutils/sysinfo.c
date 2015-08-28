@@ -436,9 +436,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,    54,    54,    54,    92,    93,    98,    97,   175,   176,
-     177,   178,   182,   181,   229,   228,   256,   255,   363,   364,
-     368,   373,   379,   380,   383,   384,   386,   388
+       0,    54,    54,    54,    92,    93,    98,    97,   169,   170,
+     171,   172,   176,   175,   223,   222,   250,   249,   357,   358,
+     362,   367,   373,   374,   377,   378,   380,   382
 };
 #endif
 
@@ -1416,45 +1416,39 @@ yyreduce:
 	  case 'd':
 	    printf("\n\n\n#define IT_%s_CODE 0x%x\n", it,code);
 	    printf("struct IT_%s;\n", it);
-	    printf("extern void sysroff_swap_%s_in PARAMS ((struct IT_%s *));\n",
+	    printf("extern void sysroff_swap_%s_in (struct IT_%s *);\n",
 		   (yyvsp[(2) - (3)].s), it);
-	    printf("extern void sysroff_swap_%s_out PARAMS ((FILE *, struct IT_%s *));\n",
+	    printf("extern void sysroff_swap_%s_out (FILE *, struct IT_%s *);\n",
 		   (yyvsp[(2) - (3)].s), it);
-	    printf("extern void sysroff_print_%s_out PARAMS ((struct IT_%s *));\n",
+	    printf("extern void sysroff_print_%s_out (struct IT_%s *);\n",
 		   (yyvsp[(2) - (3)].s), it);
 	    printf("struct IT_%s { \n", it);
 	    break;
 	  case 'i':
-	    printf("void sysroff_swap_%s_in(ptr)\n",(yyvsp[(2) - (3)].s));
-	    printf("struct IT_%s *ptr;\n", it);
-	    printf("{\n");
-	    printf("unsigned char raw[255];\n");
-	    printf("\tint idx = 0 ;\n");
-	    printf("\tint size;\n");
-	    printf("memset(raw,0,255);\n");	
-	    printf("memset(ptr,0,sizeof(*ptr));\n");
-	    printf("size = fillup(raw);\n");
-	    break;
-	  case 'g':
-	    printf("void sysroff_swap_%s_out(file,ptr)\n",(yyvsp[(2) - (3)].s));
-	    printf("FILE * file;\n");
-	    printf("struct IT_%s *ptr;\n", it);
+	    printf("void sysroff_swap_%s_in (struct IT_%s * ptr)\n",(yyvsp[(2) - (3)].s),it);
 	    printf("{\n");
 	    printf("\tunsigned char raw[255];\n");
-	    printf("\tint idx = 16 ;\n");
+	    printf("\tint idx = 0;\n");
+	    printf("\tint size;\n");
+	    printf("\tmemset(raw,0,255);\n");	
+	    printf("\tmemset(ptr,0,sizeof(*ptr));\n");
+	    printf("\tsize = fillup(raw);\n");
+	    break;
+	  case 'g':
+	    printf("void sysroff_swap_%s_out (FILE * ffile, struct IT_%s * ptr)\n",(yyvsp[(2) - (3)].s),it);
+	    printf("{\n");
+	    printf("\tunsigned char raw[255];\n");
+	    printf("\tint idx = 16;\n");
 	    printf("\tmemset (raw, 0, 255);\n");
 	    printf("\tcode = IT_%s_CODE;\n", it);
 	    break;
 	  case 'o':
-	    printf("void sysroff_swap_%s_out(abfd,ptr)\n",(yyvsp[(2) - (3)].s));
-	    printf("bfd * abfd;\n");
-	    printf("struct IT_%s *ptr;\n",it);
+	    printf("void sysroff_swap_%s_out (bfd * abfd, struct IT_%s * ptr)\n",(yyvsp[(2) - (3)].s), it);
 	    printf("{\n");
-	    printf("int idx = 0 ;\n");
+	    printf("\tint idx = 0;\n");
 	    break;
 	  case 'c':
-	    printf("void sysroff_print_%s_out(ptr)\n",(yyvsp[(2) - (3)].s));
-	    printf("struct IT_%s *ptr;\n", it);
+	    printf("void sysroff_print_%s_out (struct IT_%s *ptr)\n",(yyvsp[(2) - (3)].s),it);
 	    printf("{\n");
 	    printf("itheader(\"%s\", IT_%s_CODE);\n",(yyvsp[(2) - (3)].s),(yyvsp[(2) - (3)].s));
 	    break;
@@ -1467,14 +1461,14 @@ yyreduce:
     break;
 
   case 7:
-#line 155 "sysinfo.y"
+#line 149 "sysinfo.y"
     {
   switch (writecode) {
   case 'd': 
     printf("};\n");
     break;
   case 'g':
-    printf("\tchecksum(file,raw, idx, IT_%s_CODE);\n", it);
+    printf("\tchecksum(ffile,raw, idx, IT_%s_CODE);\n", it);
     
   case 'i':
 
@@ -1486,7 +1480,7 @@ yyreduce:
     break;
 
   case 12:
-#line 182 "sysinfo.y"
+#line 176 "sysinfo.y"
     {
 	  rdepth++;
 	  switch (writecode) 
@@ -1517,7 +1511,7 @@ yyreduce:
     break;
 
   case 13:
-#line 212 "sysinfo.y"
+#line 206 "sysinfo.y"
     {
 	  repeat = oldrepeat;
 	  oldrepeat =0;
@@ -1534,7 +1528,7 @@ yyreduce:
     break;
 
   case 14:
-#line 229 "sysinfo.y"
+#line 223 "sysinfo.y"
     {
 	  switch (writecode) 
 	    {
@@ -1549,7 +1543,7 @@ yyreduce:
     break;
 
   case 15:
-#line 242 "sysinfo.y"
+#line 236 "sysinfo.y"
     {
 	  switch (writecode)
 	    {
@@ -1563,12 +1557,12 @@ yyreduce:
     break;
 
   case 16:
-#line 256 "sysinfo.y"
+#line 250 "sysinfo.y"
     {name = (yyvsp[(7) - (7)].s); }
     break;
 
   case 17:
-#line 258 "sysinfo.y"
+#line 252 "sysinfo.y"
     {
 	  char *desc = (yyvsp[(2) - (10)].s);
 	  char *type = (yyvsp[(4) - (10)].s);
@@ -1588,7 +1582,7 @@ char *ptr = pnames[rdepth];
 
 		}
 	      else {
-		printf("\twrite%s(ptr->%s%s,raw,&idx,%d,file);\n",
+		printf("\twrite%s(ptr->%s%s,raw,&idx,%d,ffile);\n",
 		       type,
 		       id,
 		       names[rdepth],size/8);
@@ -1672,37 +1666,37 @@ char *ptr = pnames[rdepth];
     break;
 
   case 18:
-#line 363 "sysinfo.y"
+#line 357 "sysinfo.y"
     { (yyval.s) = (yyvsp[(1) - (1)].s); }
     break;
 
   case 19:
-#line 364 "sysinfo.y"
+#line 358 "sysinfo.y"
     { (yyval.s) = "INT";}
     break;
 
   case 20:
-#line 369 "sysinfo.y"
+#line 363 "sysinfo.y"
     { (yyval.s) = (yyvsp[(2) - (3)].s); }
     break;
 
   case 21:
-#line 374 "sysinfo.y"
+#line 368 "sysinfo.y"
     { (yyval.i) = (yyvsp[(1) - (2)].i) * (yyvsp[(2) - (2)].i); }
     break;
 
   case 22:
-#line 379 "sysinfo.y"
+#line 373 "sysinfo.y"
     { (yyval.s) = (yyvsp[(2) - (3)].s); }
     break;
 
   case 23:
-#line 380 "sysinfo.y"
+#line 374 "sysinfo.y"
     { (yyval.s) = "dummy";}
     break;
 
   case 27:
-#line 388 "sysinfo.y"
+#line 382 "sysinfo.y"
     { 
 	  switch (writecode) 
 	    {
@@ -1717,7 +1711,7 @@ char *ptr = pnames[rdepth];
 
 
 /* Line 1267 of yacc.c.  */
-#line 1721 "sysinfo.c"
+#line 1715 "sysinfo.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1931,7 +1925,7 @@ yyreturn:
 }
 
 
-#line 403 "sysinfo.y"
+#line 397 "sysinfo.y"
 
 /* four modes
 

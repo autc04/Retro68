@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,7 +16,7 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do compile }
-// { dg-options "-std=c++11" }
+// { dg-options "-std=gnu++11" }
 
 #include <unordered_set>
 #include <testsuite_allocator.h>
@@ -75,4 +75,11 @@ void test03()
   test_type v2(alloc_type(2));
   static_assert( noexcept( v1 = std::move(v2) ), "Move assign cannot throw" );
   static_assert( !noexcept( v1.swap(v2) ), "Swap can throw" );
+}
+
+void test04()
+{
+  typedef std::unordered_multiset<int> test_type;
+  static_assert( noexcept( test_type() ), "Default constructor do not throw" );
+  static_assert( noexcept( test_type(test_type()) ), "Move constructor do not throw" );
 }

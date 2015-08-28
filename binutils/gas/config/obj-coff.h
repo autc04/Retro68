@@ -1,7 +1,5 @@
 /* coff object file format
-   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -77,11 +75,6 @@
 #endif
 #endif
 
-#ifdef TC_OR32
-#include "coff/or32.h"
-#define TARGET_FORMAT "coff-or32-big"
-#endif
-
 #ifdef TC_I960
 #include "coff/i960.h"
 #define TARGET_FORMAT "coff-Intel-little"
@@ -105,11 +98,6 @@
 #ifdef TC_H8500
 #include "coff/h8500.h"
 #define TARGET_FORMAT "coff-h8500"
-#endif
-
-#ifdef TC_MAXQ20
-#include "coff/maxq.h"
-#define TARGET_FORMAT "coff-maxq"
 #endif
 
 #ifdef TC_SH
@@ -186,7 +174,7 @@
 #endif
 
 #define OBJ_SYMFIELD_TYPE	unsigned long
-#define sy_obj			sy_flags
+#define sy_obj			sy_obj_flags
 
 /* We can't use the predefined section symbols in bfd/section.c, as
    COFF symbols have extra fields.  See bfd/libcoff.h:coff_symbol_type.  */

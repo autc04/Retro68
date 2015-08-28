@@ -1,6 +1,6 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -101,10 +101,19 @@ test02()
 	  == tracker_allocator_counter::get_deallocation_count() );
 }
 
+void
+test03()
+{
+  __gnu_test::CustomPointerAlloc<int> alloc;
+  auto p = std::allocate_shared<int>(alloc, 1);
+  VERIFY( *p == 1 );
+}
+
 int
 main()
 {
   test01();
   test02();
+  test03();
   return 0;
 }

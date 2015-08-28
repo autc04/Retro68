@@ -1,6 +1,6 @@
 // Core algorithmic facilities -*- C++ -*-
 
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -190,6 +190,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  preprocessor macro.
   */
   template<typename _Tp>
+    _GLIBCXX14_CONSTEXPR
     inline const _Tp&
     min(const _Tp& __a, const _Tp& __b)
     {
@@ -213,6 +214,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  preprocessor macro.
   */
   template<typename _Tp>
+    _GLIBCXX14_CONSTEXPR
     inline const _Tp&
     max(const _Tp& __a, const _Tp& __b)
     {
@@ -236,6 +238,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  once, unlike a preprocessor macro.
   */
   template<typename _Tp, typename _Compare>
+    _GLIBCXX14_CONSTEXPR
     inline const _Tp&
     min(const _Tp& __a, const _Tp& __b, _Compare __comp)
     {
@@ -257,6 +260,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  once, unlike a preprocessor macro.
   */
   template<typename _Tp, typename _Compare>
+    _GLIBCXX14_CONSTEXPR
     inline const _Tp&
     max(const _Tp& __a, const _Tp& __b, _Compare __comp)
     {
@@ -711,8 +715,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     __fill_a(_Tp* __first, _Tp* __last, const _Tp& __c)
     {
       const _Tp __tmp = __c;
-      __builtin_memset(__first, static_cast<unsigned char>(__tmp),
-		       __last - __first);
+      if (const size_t __len = __last - __first)
+	__builtin_memset(__first, static_cast<unsigned char>(__tmp), __len);
     }
 
   /**
@@ -818,8 +822,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
         static bool
         equal(const _Tp* __first1, const _Tp* __last1, const _Tp* __first2)
         {
-	  return !__builtin_memcmp(__first1, __first2, sizeof(_Tp)
-				   * (__last1 - __first1));
+	  if (const size_t __len = (__last1 - __first1))
+	    return !__builtin_memcmp(__first1, __first2, sizeof(_Tp) * __len);
+	  return true;
 	}
     };
 
@@ -923,9 +928,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{
 	  const size_t __len1 = __last1 - __first1;
 	  const size_t __len2 = __last2 - __first2;
-	  const int __result = __builtin_memcmp(__first1, __first2,
-						std::min(__len1, __len2));
-	  return __result != 0 ? __result < 0 : __len1 < __len2;
+	  if (const size_t __len = std::min(__len1, __len2))
+	    if (int __result = __builtin_memcmp(__first1, __first2, __len))
+	      return __result < 0;
+	  return __len1 < __len2;
 	}
     };
 
@@ -1091,6 +1097,9 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
     }
 
 #if __cplusplus > 201103L
+
+#define __cpp_lib_robust_nonmodifying_seq_ops 201304
+
   /**
    *  @brief Tests a range for element-wise equality.
    *  @ingroup non_mutating_algorithms

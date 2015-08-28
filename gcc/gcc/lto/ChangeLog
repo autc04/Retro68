@@ -1,15 +1,469 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Jan Hubicka  <hubicka@ucw.cz>
+2015-04-22  Release Manager
+
+	* GCC 5.1.0 released.
+
+2015-03-27  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (lto_read_decls): Move code registering odr types out
+	of TYPE_CANONICAL conditional and also register polymorphic types.
+
+2015-03-26  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto-symtab.c (lto_symtab_merge_decls_2): Silence warning on
+	DECL_ARTIFICAL symbols.
+
+2015-03-26  Jan Hubicka  <hubicka@ucw.cz>
+
+	PR lto/65536
+	* lto.c (unify_scc): Revert location cache when unification
+	suceeded.
+	(lto_read_decls): Accept location cache after sucess;
+	apply location cache before calling debug hooks.
+
+2015-03-10  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (read_cgraph_and_symbols): Do not do merging
+	at ltrans stage.
+
+2015-02-26  Jakub Jelinek  <jakub@redhat.com>
+
+	* lto.c (lto_mode_identity_table): New variable.
+	(lto_read_decls): Add mode_table argument to the lto_input_block
+	constructor.
+	(lto_file_finalize): Initialize mode_table.
+	(lto_init): Initialize lto_mode_identity_table.
+
+2015-02-24  Thomas Schwinge  <thomas@codesourcery.com>
+
+	PR libgomp/64625
+	* lto-lang.c (DEF_FUNCTION_TYPE_VAR_8, DEF_FUNCTION_TYPE_VAR_12):
+	Remove macros.
+	(DEF_FUNCTION_TYPE_VAR_7, DEF_FUNCTION_TYPE_VAR_11): New macros.
+
+2015-02-03  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto-symtab.c (lto_cgraph_replace_node): Maintain merged flag.
+
+2015-01-30  Joseph Myers  <joseph@codesourcery.com>
+
+	* lto-object.c, lto-symtab.c, lto.c: All callers of fatal_error
+	changed to pass input_location as first argument.
+
+2014-12-11  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto-symtab.c (lto_varpool_replace_node): Merge TLS models.
+
+2014-12-11  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (compare_tree_sccs_1): Add comparsion of
+	DECL_FUNCTION_SPECIFIC_TARGET
+
+2015-01-15  Thomas Schwinge  <thomas@codesourcery.com>
+	    James Norris  <jnorris@codesourcery.com>
+
+	* lto-lang.c (DEF_FUNCTION_TYPE_VAR_8, DEF_FUNCTION_TYPE_VAR_12):
+	New macros.
+	* lto.c: Include "gomp-constants.h".
+
+2015-01-14  Ilya Verbin  <ilya.verbin@intel.com>
+
+	* lto-partition.c (lto_promote_cross_file_statics): Remove argument
+	from select_what_to_stream.
+
+2015-01-09  Bernd Schmidt  <bernds@codesourcery.com>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/64412
+	* lto.c (read_cgraph_and_symbols): Set lto_stream_offload_p
+	if ACCEL_COMPILER.
+
+2015-01-09  Michael Collison  <michael.collison@linaro.org>
+
+	* lto.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, options, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* lto-lang.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* lto-object.c: Include hash-set.h, machmode.h, vec.h, double-int.h,
+	input.h, alias.h, symtab.h, options, fold-const.h,
+	wide-int.h, and inchash.h due to flattening of tree.h.
+	* lto-partition.c: Ditto.
+	* lto-symtab.c: Ditto.
+
+2015-01-05  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2014-12-22  Martin Liska  <mliska@suse.cz>
+
+	* lto-partition.c (add_symbol_to_partition_1): New inline_summaries
+	is used.
+	(undo_partition): Likewise.
+	(lto_balanced_map): Likewise.
+
+2014-12-22  Martin Liska  <mliska@suse.cz>
+
+	* lto-partition.c: Include of symbol-summary.h is added.
+	* lto-symtab.c: Likewise.
+	* lto.c: Likewise.
+
+2014-12-11  Jan Hubicka  <hubicka@ucw.cz>
+
+	PR ipa/61324
+	* lto.c (read_cgraph_and_symbols): Update call of
+	remove_unreachable_nodes.
+	(do_whole_program_analysis): Remove call of
+	symtab->remove_unreachable_nodes
+
+2014-12-08  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* lto.c (read_cgraph_and_symbols): allocate gimple_canonical_types
+	htab with malloc instead of ggc.
+
+2014-11-20  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* lto.c: Replace htab with hash_table.
+
+2014-11-20  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* lto.c (lto_read_in_decl_state): Adjust.
+	(lto_fixup_state): Likewise.
+
+2014-11-17  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (lto_read_decls): Do not rebuild DECL_FUNCTION_SPECIFIC_TARGET.
+
+2014-11-14  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (compare_tree_sccs_1): Compare cl_target_option_eq.
+
+2014-11-13  Ilya Verbin  <ilya.verbin@intel.com>
+	    Bernd Schmidt  <bernds@codesourcery.com>
+	    Andrey Turetskiy  <andrey.turetskiy@intel.com>
+	    Michael Zolotukhin  <michael.v.zolotukhin@intel.com>
+
+	* lto/lto.c (read_cgraph_and_symbols): Call input_offload_tables.
+
+2014-11-13  Ilya Verbin  <ilya.verbin@intel.com>
+	    Ilya Tocar  <ilya.tocar@intel.com>
+	    Andrey Turetskiy  <andrey.turetskiy@intel.com>
+	    Bernd Schmidt  <bernds@codesourcery.com>
+
+	* lto-object.c (lto_obj_add_section): Use section_name_prefix instead of
+	LTO_SECTION_NAME_PREFIX.
+	* lto-partition.c (lto_promote_cross_file_statics): Call
+	select_what_to_stream.
+	* lto.c (lto_section_with_id): Use section_name_prefix instead of
+	LTO_SECTION_NAME_PREFIX.
+	(read_cgraph_and_symbols): Read OFFLOAD_SECTION_NAME_PREFIX sections, if
+	being built as an offload compiler.
+
+2014-10-29  Richard Sandiford  <richard.sandiford@arm.com>
+
+	* lto-lang.c: Remove redundant enum from machine_mode.
+
+2014-10-28  Andrew MacLeod  <amacleod@redhat.com>
+
+	* lto.c: Adjust include files.
+	* lto-lang.c: Ditto.
+	* lto-object.c: Ditto.
+	* lto-partition.c: Ditto.
+	* lto-symtab.c: Ditto.
+
+2014-10-27  Andrew MacLeod  <amacleod@redhat.com>
+
+	* lto-lang.c: Adjust include files.
+	* lto-object.c: Ditto.
+	* lto-partition.c: Ditto.
+	* lto-symtab.c: Ditto.
+	* lto.c: Ditto.
+
+2014-10-16  DJ Delorie  <dj@redhat.com>
+
+	* lto-object.c (lto_obj_begin_section): In the event that pointer
+	sizes aren't powers of two, choose a more suitable alignment
+	than (unsigned)(-1).
+
+2014-10-14  DJ Delorie  <dj@redhat.com>
+
+	* lto-lang.c (lto_build_c_type_nodes): Check intN types for
+	size-type as well.
+	(lto_init): Initialize all intN types, not just int128.
+
+2014-10-06  Martin Liska  <mliska@suse.cz>
+
+	* lto.c (stream_out): ARG_UNUSED added for last argument.
+
+2014-09-24  Aldy Hernandez  <aldyh@redhat.com>
+
+	* lto-symtab.c, lto.c: Rename all instances of DECL_ABSTRACT to
+	DECL_ABSTRACT_P.
+
+2014-09-23  Andi Kleen  <ak@linux.intel.com>
+
+	* lto-partition.c (node_cmp): Update comment.
+	(varpool_node_cmp): Use symtab_node for comparison.
+	(add_sorted_nodes): New function.
+	(lto_balanced_map): Change to keep ordered queue
+	of ordered node. Handle no_reorder attribute.
+
+2014-09-11  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (lto_read_decls): Register ODR types.
+
+2014-08-20  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (read_cgraph_and_symbols): Fix symtab_remove_unreachable_nodes
+	call.
+	(do_whole_program_analysis): Only sanity check that IPA passes cleans up.
+
+2014-08-14  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto-symtab.c (lto_varpool_replace_node): Call compare_virtual_tables.
+
+2014-08-14  Richard Biener  <rguenther@suse.de>
+
+	PR lto/62067
+	* lto-lang.c (def_fn_type): Fix error handling wrt va_end.
+
+2014-08-08  Richard Biener  <rguenther@suse.de>
+
+	* lto.c (lto_read_decls): Adjust for lto_input_block changes.
+
+2014-08-08  Bin Cheng  <bin.cheng@arm.com>
+
+	PR lto/62032
+	* lto-lang.c (lto_init): Switch mis-matched arguments.
+
+2014-08-07  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* lto-partition.c, lto.c: Use hash_map instead of pointer_map.
+
+2014-08-02  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* lto-partition.c, lto-partition.h: Use hash_set instead of
+	pointer_set.
+
+2014-07-31  Andi Kleen  <ak@linux.intel.com>
+
+	* lto.c (hash_canonical_type): Use inchash::hash
+	and use inchash::add_expr.
+	(iterative_hash_canonical_type): Dito.
+
+2014-07-30  Richard Biener  <rguenther@suse.de>
+
+	* lto-streamer.h (lto_write_data): New function.
+	* langhooks.c (lhd_append_data): Do not free block.
+	* lto-section-out.c (lto_write_data): New function writing
+	raw data to the current section.
+	(lto_write_stream): Adjust for langhook semantic change.
+	(lto_destroy_simple_output_block): Write header directly.
+	* lto-opts.c (lto_write_options): Write options directly.
+	* lto-streamer-out.c (produce_asm): Write heaeder directly.
+	(lto_output_toplevel_asms): Likewise.
+	(copy_function_or_variable): Copy data directly.
+	(write_global_references): Output index table directly.
+	(lto_output_decl_state_refs): Likewise.
+	(write_symbol): Write data directly.
+	(produce_symtab): Adjust.
+	(produce_asm_for_decls): Output header and refs directly.
+
+2014-07-25  Andi Kleen  <ak@linux.intel.com>
+
+	* lto.c (hash_canonical_type): Call iterative_hstate_expr.
+
+2014-07-25  Andi Kleen  <ak@linux.intel.com>
+
+	* lto.c (hash_canonical_type): Convert to inchash.
+	(iterative_hash_canonical_type): Dito.
+
+2014-07-25  Andi Kleen  <ak@linux.intel.com>
+
+	* lto.c: Include inchash.h
+
+2014-07-14  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (mentions_vars_p_decl_non_common): Skip
+	DECL_ARGUMENT_FLD.
+	mentions_vars_p_function): Do DECL_ARGUMENTS.
+	(lto_fixup_prevailing_decls): Update.
+
+2014-07-12  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (read_cgraph_and_symbols): Do not push DECL_INIT_IO
+	timevar
+	(materialize_cgraph): Do not push GIMPLE_IN timevar.
+
+2014-07-11  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto-partition.c (add_references_to_partition): Use 
+	varpool_ctor_useable_for_folding_p.
+	* lto.c (lto_read_in_decl_state): Update sanity check.
+
+2014-07-01  Martin Liska  <mliska@suse.cz>
+
+	IPA REF alias refactoring
+	* lto-partition.c (add_symbol_to_partition_1): Usage of
+	FOR_EACH_ALIAS added.
+
+2014-06-28  Jan Hubicka  <hubicka@ucw.cz>
+
+	Revert:
+	* lto.c (lto_copy_fields_not_streamed): New function.
+	(compare_tree_sccs_1): Do not compare fields shared in between type
+	and variant.
+	(lto_read_decls): Fixup types first before inserting into hash.
+
+2014-06-28  Andrew Pinski  <apinski@cavium.com>
+
+	* lto.c (lto_read_decls): Fix comment in comment.
+
+2014-06-28  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (lto_copy_fields_not_streamed): New function.
+	(compare_tree_sccs_1): Do not compare fields shared in between type
+	and variant.
+	(lto_read_decls): Fixup types first before inserting into hash.
+
+2014-06-25  Martin Liska  <mliska@suse.cz>
+
+	* lto/lto-partition.c (add_references_to_partition): New IPA REF function
+	used.
+	(add_symbol_to_partition_1): Likewise.
+	(lto_balanced_map): Likewise.
+	* lto/lto-symtab.c (lto_cgraph_replace_node): Likewise.
+
+2014-06-24  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (mentions_vars_p_decl_non_common): Move DECL_VINDEX check to ..
+	(mentions_vars_p_function): ... here.
+	(compare_tree_sccs_1): Update VINDEX checks.
+	(lto_fixup_prevailing_decls): Likewise.
+
+2014-06-24  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* lto.c (canonical_type_hash_cache): Use hash_map instead of
+	pointer_map.
+
+2014-06-24  Trevor Saunders  <tsaunders@mozilla.com>
+
+	* lto.c: Adjust.
+
+2014-06-20  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto-symtab.c (lto_varpool_replace_node): Report TLS model conflicts.
+
+2014-06-20  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (compare_tree_sccs_1): Do not compare priorities.
+
+2014-06-15  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (compare_tree_sccs_1): Do not compare DECL_TLS_MODEL.
+
+2014-06-10  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (read_cgraph_and_symbols): Remove unreachable symbols.
+	(do_whole_program_analysis): Use verify_symtab.
+
+2014-06-07  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (mentions_vars_p_decl_with_vis, compare_tree_sccs_1,
+	lto_fixup_prevailing_decls): Skip section names.
+
+2014-06-02  Andrew MacLeod  <amacleod@redhat.com>
+
+	* lto-symtab.c: Include builtins.h.
+
+2014-05-26  Richard Biener  <rguenther@suse.de>
+
+	* lto.c (lto_parse_hex): Use int64_t.
+	(lto_resolution_read): Likewise.
+
+2014-05-23  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c (read_cgraph_and_symbols): Grow ggc memory after streaming.
+
+2014-05-23  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto-symtab.c (lto_symtab_merge_symbols): Update code setting
+	symtab pointer.
+	* lto.c (compare_tree_sccs_1): Do not compare comdat groups.
+
+2014-05-22  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* lto-lang.c (DEF_FUNCTION_TYPE_0, DEF_FUNCTION_TYPE_6)
+	(DEF_FUNCTION_TYPE_7, DEF_FUNCTION_TYPE_8)
+	(DEF_FUNCTION_TYPE_VAR_5): Cosmetic fixes.
+
+2012-05-22  Bernd Schmidt  <bernds@codesourcery.com>
+
+	* lto-object.c: Include "lto-section-names.h".
+	(LTO_SEGMENT_NAME): Don't define.
+	* lto.c: Include "lto-section-names.h".
+
+2014-05-17  Jan Hubicka  <hubicka@ucw.cz>
 
 	PR lto/61012
-	* lto-symtab.c (lto_symtab_merge_decls_1):
+	* lto-symtab.c (lto_symtab_merge_decls_1): Do not ICE on undefined externals
+	mixed with variables.
 
-2014-04-22  Release Manager
+2014-05-17  Trevor Saunders  <tsaunders@mozilla.com>
 
-	* GCC 4.9.0 released.
+	* lto-tree.h: Don't use variable_size gty attribute.
+	* lto.c (lto_read_in_decl_state): Adjust.
+	(create_subid_section_table): Likewise.
+	(lto_flatten_files): Likewise.
+	(read_cgraph_and_symbols): Likewise.
+
+2014-05-06  Kenneth Zadeck  <zadeck@naturalbridge.com>
+	    Mike Stump  <mikestump@comcast.net>
+	    Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* lto.c (compare_tree_sccs_1): Use wide-int interfaces.
+	* lto-lang.c (get_nonnull_operand): Likewise.
+
+2014-04-28  Richard Biener  <rguenther@suse.de>
+
+	PR middle-end/60092
+	* lto-lang.c: Define flag_isoc11.
+
+2014-04-23  David Malcolm  <dmalcolm@redhat.com>
+
+	* lto-partition.c (add_references_to_partition): Update for
+	removal of implicit pointer from the is-a.h API.
+	(add_symbol_to_partition_1): Likewise.
+	(contained_in_symbol): Likewise.
+	(undo_partition): Likewise.
+	(lto_balanced_map): Likewise.
+	(promote_symbol): Likewise.
+	* lto-symtab.c (lto_symtab_merge_symbols_1): Likewise.
+	(lto_symtab_merge_symbols): Likewise.
+	* lto.c (lto_wpa_write_files): Likewise.
+
+2014-04-15  Richard Biener  <rguenther@suse.de>
+
+	* lto.c: Include params.h.
+	(do_whole_program_analysis): Switch on flag_lto_partition value,
+	add support for LTO_PARTITION_ONE.
+	* lto-partition.h (lto_balanced_map): Adjust.
+	* lto-partition.c (lto_balanced_map): Get number of desired
+	partitions as argument to support -flto-partition=one.
+
+2014-04-14  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto/lto-symtab.c (lto_cgraph_replace_node): Don't re-merge
+	tp_first_run.
+
+2014-03-19  Jan Hubicka  <hubicka@ucw.cz>
+
+	* lto.c: Include ipa-inline.h
+	(do_whole_program_analysis): Free inline summary after partitioning.
 
 2014-03-19  Richard Biener  <rguenther@suse.de>
 

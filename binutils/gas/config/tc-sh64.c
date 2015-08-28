@@ -1,6 +1,5 @@
 /* tc-sh64.c -- Assemble code for the SuperH SH SHcompact and SHmedia.
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -3273,9 +3272,9 @@ sh64_consume_datalabel (const char *name, expressionS *exp,
 	  else
 	    {
 	      symbolS *dl_symp;
-	      const char *name = S_GET_NAME (symp);
+	      const char * sname = S_GET_NAME (symp);
 	      char *dl_name
-		= xmalloc (strlen (name) + sizeof (DATALABEL_SUFFIX));
+		= xmalloc (strlen (sname) + sizeof (DATALABEL_SUFFIX));
 
 	      /* Now we copy the datalabel-qualified symbol into a symbol
 		 with the same name, but with " DL" appended.  We mark the
@@ -3283,13 +3282,13 @@ sh64_consume_datalabel (const char *name, expressionS *exp,
 		 the main symbol, so we don't have to inspect all symbol
 		 names.  Note that use of "datalabel" is not expected to
 		 be a common case.  */
-	      strcpy (dl_name, name);
+	      strcpy (dl_name, sname);
 	      strcat (dl_name, DATALABEL_SUFFIX);
 
 	      /* A FAKE_LABEL_NAME marks "$" or ".".  There can be any
 		 number of them and all have the same (faked) name; we
 		 must make a new one each time.  */
-	      if (strcmp (name, FAKE_LABEL_NAME) == 0)
+	      if (strcmp (sname, FAKE_LABEL_NAME) == 0)
 		dl_symp = symbol_make (dl_name);
 	      else
 		dl_symp = symbol_find_or_make (dl_name);

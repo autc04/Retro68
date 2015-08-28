@@ -1,5 +1,5 @@
 /* Default language-specific hooks.
-   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+   Copyright (C) 2001-2015 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva  <aoliva@redhat.com>
 
 This file is part of GCC.
@@ -24,6 +24,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "intl.h"
 #include "tm.h"
 #include "toplev.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
 #include "stringpool.h"
 #include "attribs.h"
@@ -37,6 +46,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "langhooks-def.h"
 #include "diagnostic.h"
 #include "tree-diagnostic.h"
+#include "hash-map.h"
+#include "is-a.h"
+#include "plugin-api.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "ipa-ref.h"
 #include "cgraph.h"
 #include "timevar.h"
 #include "output.h"
@@ -146,6 +162,11 @@ void
 lhd_set_decl_assembler_name (tree decl)
 {
   tree id;
+
+  /* set_decl_assembler_name may be called on TYPE_DECL to record ODR
+     name for C++ types.  By default types have no ODR names.  */
+  if (TREE_CODE (decl) == TYPE_DECL)
+    return;
 
   /* The language-independent code should never use the
      DECL_ASSEMBLER_NAME for lots of DECLs.  Only FUNCTION_DECLs and
@@ -320,7 +341,7 @@ write_global_declarations (void)
   timevar_start (TV_PHASE_OPT_GEN);
   /* This lang hook is dual-purposed, and also finalizes the
      compilation unit.  */
-  finalize_compilation_unit ();
+  symtab->finalize_compilation_unit ();
   timevar_stop (TV_PHASE_OPT_GEN);
 
   timevar_start (TV_PHASE_DBGINFO);
@@ -655,20 +676,19 @@ lhd_begin_section (const char *name)
     saved_section = text_section;
 
   /* Create a new section and switch to it.  */
-  section = get_section (name, SECTION_DEBUG, NULL);
+  section = get_section (name, SECTION_DEBUG | SECTION_EXCLUDE, NULL);
   switch_to_section (section);
 }
 
 
 /* Write DATA of length LEN to the current LTO output section.  This default
-   implementation just calls assemble_string and frees BLOCK.  */
+   implementation just calls assemble_string.  */
 
 void
-lhd_append_data (const void *data, size_t len, void *block)
+lhd_append_data (const void *data, size_t len, void *)
 {
   if (data)
     assemble_string ((const char *)data, len);
-  free (block);
 }
 
 
@@ -684,4 +704,38 @@ lhd_end_section (void)
       switch_to_section (saved_section);
       saved_section = NULL;
     }
+}
+
+/* Default implementation of enum_underlying_base_type using type_for_size.  */
+
+tree
+lhd_enum_underlying_base_type (const_tree enum_type)
+{
+  return lang_hooks.types.type_for_size (TYPE_PRECISION (enum_type),
+					 TYPE_UNSIGNED (enum_type));
+}
+
+/* Returns true if the current lang_hooks represents the GNU C frontend.  */
+
+bool
+lang_GNU_C (void)
+{
+  return (strncmp (lang_hooks.name, "GNU C", 5) == 0
+	  && (lang_hooks.name[5] == '\0' || ISDIGIT (lang_hooks.name[5])));
+}
+
+/* Returns true if the current lang_hooks represents the GNU C++ frontend.  */
+
+bool
+lang_GNU_CXX (void)
+{
+  return strncmp (lang_hooks.name, "GNU C++", 7) == 0;
+}
+
+/* Returns true if the current lang_hooks represents the GNU Fortran frontend.  */
+
+bool
+lang_GNU_Fortran (void)
+{
+  return strncmp (lang_hooks.name, "GNU Fortran", 11) == 0;
 }

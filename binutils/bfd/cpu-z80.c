@@ -1,5 +1,5 @@
 /* BFD library support routines for the Z80 architecture.
-   Copyright 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Arnold Metselaar <arnold_m@operamail.com>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -42,7 +42,7 @@ compatible (const bfd_arch_info_type *a, const bfd_arch_info_type *b)
 
 #define N(name,print,default,next)  \
 { 16, 16, 8, bfd_arch_z80, name, "z80", print, 0, default, \
-    compatible, bfd_default_scan, next }
+  compatible, bfd_default_scan, bfd_arch_default_fill, next }
 
 #define M(n) &arch_info_struct[n]
 

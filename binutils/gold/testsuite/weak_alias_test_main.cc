@@ -1,6 +1,6 @@
 // weak_alias_test_main.cc -- test weak aliases for gold
 
-// Copyright 2008 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -39,7 +39,12 @@ int weak_aliased_2 = 6;
 extern int strong_aliased_3;
 extern int weak_aliased_4;
 
+// Defined in weak_alias_test_5.cc
+extern int versioned_symbol;
+extern int versioned_alias;
+
 extern bool t1();
+extern bool t2();
 
 int
 main()
@@ -64,4 +69,12 @@ main()
 
   // Make sure the symbols look right from a shared library.
   assert(t1());
+
+  // versioned_symbol comes from weak_alias_test_5.cc.
+  assert(versioned_symbol == 1);
+  // So does versioned_alias.
+  assert(versioned_alias == 1);
+
+  // Make sure the versioned symbols look right from a shared library.
+  assert(t2());
 }

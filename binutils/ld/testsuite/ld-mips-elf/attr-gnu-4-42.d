@@ -1,6 +1,6 @@
-#source: attr-gnu-4-4.s
+#source: attr-gnu-4-4.s -W
 #source: attr-gnu-4-2.s
-#as: -EB -32
-#ld: -r -melf32btsmip
-#warning: Warning: .* uses -mips32r2 -mfp64
-#target: mips*-*-*
+#ld: -r
+#error: \A[^\n]*: Warning: .* uses -mips32r2 -mfp64 \(12 callee-saved\) \(set by .*\), .* uses -msingle-float\n
+#error:   [^\n]*: [^\n]* linking -mfp32 module with previous -mfp64 modules\n
+#error:   [^\n]*: failed to merge target specific data of file [^\n]*\.o\Z

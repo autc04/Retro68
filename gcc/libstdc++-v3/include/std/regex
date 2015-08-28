@@ -1,6 +1,6 @@
 // <regex> -*- C++ -*-
 
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -50,14 +50,15 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 #include <cstring>
 
 #include <bits/regex_constants.h>
 #include <bits/regex_error.h>
 #include <bits/regex_automaton.h>
-#include <bits/regex.h>
 #include <bits/regex_scanner.h>
 #include <bits/regex_compiler.h>
+#include <bits/regex.h>
 #include <bits/regex_executor.h>
 
 #endif // C++11

@@ -1,5 +1,5 @@
 /* Disassembler code for CRX.
-   Copyright 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
    Contributed by Tomer Levi, NSC, Israel.
    Written by Tomer Levi.
 
@@ -20,8 +20,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "dis-asm.h"
 #include "sysdep.h"
+#include "dis-asm.h"
 #include "opcode/crx.h"
 
 /* String to print when opcode was not matched.  */
@@ -155,12 +155,12 @@ getargtype (operand_type op)
    This routine is used when disassembling the 'excp' instruction.  */
 
 static char *
-gettrapstring (unsigned int index)
+gettrapstring (unsigned int trap_index)
 {
   const trap_entry *trap;
 
   for (trap = crx_traps; trap < crx_traps + NUMTRAPS; trap++)
-    if (trap->entry == index)
+    if (trap->entry == trap_index)
       return trap->name;
 
   return ILLEGAL;
@@ -186,12 +186,12 @@ getcinvstring (unsigned int num)
 char *
 getregname (reg r)
 {
-  const reg_entry *reg = &crx_regtab[r];
+  const reg_entry * regentry = &crx_regtab[r];
 
-  if (reg->type != CRX_R_REGTYPE)
+  if (regentry->type != CRX_R_REGTYPE)
     return ILLEGAL;
   else
-    return reg->name;
+    return regentry->name;
 }
 
 /* Given a coprocessor register enum value, retrieve its name.  */
@@ -199,28 +199,28 @@ getregname (reg r)
 char *
 getcopregname (copreg r, reg_type type)
 {
-  const reg_entry *reg;
+  const reg_entry * regentry;
 
   if (type == CRX_C_REGTYPE)
-    reg = &crx_copregtab[r];
+    regentry = &crx_copregtab[r];
   else if (type == CRX_CS_REGTYPE)
-    reg = &crx_copregtab[r+(cs0-c0)];
+    regentry = &crx_copregtab[r+(cs0-c0)];
   else
     return ILLEGAL;
 
-  return reg->name;
+  return regentry->name;
 }
 
 
 /* Getting a processor register name.  */
 
 static char *
-getprocregname (int index)
+getprocregname (int reg_index)
 {
   const reg_entry *r;
 
   for (r = crx_regtab; r < crx_regtab + NUMREGS; r++)
-    if (r->image == index)
+    if (r->image == reg_index)
       return r->name;
 
   return "ILLEGAL REGISTER";
@@ -548,7 +548,7 @@ print_arg (argument *a, bfd_vma memaddr, struct disassemble_info *info)
 		    func (stream, "%s", string);
 		  }
 		else
-		  func (stream, "$0x%lx", a->constant);
+		  func (stream, "$0x%lx", a->constant & 0xffffffff);
 	    }
 	  else
             {
@@ -557,12 +557,12 @@ print_arg (argument *a, bfd_vma memaddr, struct disassemble_info *info)
             }
         }
       else
-	func (stream, "$0x%lx", a->constant);
+	func (stream, "$0x%lx", a->constant & 0xffffffff);
       break;
 
     case arg_idxr:
-      func (stream, "0x%lx(%s,%s,%d)", a->constant, getregname (a->r),
-	    getregname (a->i_r), powerof2 (a->scale));
+      func (stream, "0x%lx(%s,%s,%d)", a->constant & 0xffffffff,
+	    getregname (a->r), getregname (a->i_r), powerof2 (a->scale));
       break;
 
     case arg_rbase:
@@ -570,7 +570,7 @@ print_arg (argument *a, bfd_vma memaddr, struct disassemble_info *info)
       break;
 
     case arg_cr:
-      func (stream, "0x%lx(%s)", a->constant, getregname (a->r));
+      func (stream, "0x%lx(%s)", a->constant & 0xffffffff, getregname (a->r));
 
       if (IS_INSN_TYPE (LD_STOR_INS_INC))
 	func (stream, "+");
@@ -634,17 +634,17 @@ print_arg (argument *a, bfd_vma memaddr, struct disassemble_info *info)
 /* Print all the arguments of CURRINSN instruction.  */
 
 static void
-print_arguments (ins *currInsn, bfd_vma memaddr, struct disassemble_info *info)
+print_arguments (ins *currentInsn, bfd_vma memaddr, struct disassemble_info *info)
 {
   int i;
 
-  for (i = 0; i < currInsn->nargs; i++)
+  for (i = 0; i < currentInsn->nargs; i++)
     {
       processing_argument_number = i;
 
-      print_arg (&currInsn->arg[i], memaddr, info);
+      print_arg (&currentInsn->arg[i], memaddr, info);
 
-      if (i != currInsn->nargs - 1)
+      if (i != currentInsn->nargs - 1)
 	info->fprintf_func (info->stream, ", ");
     }
 }

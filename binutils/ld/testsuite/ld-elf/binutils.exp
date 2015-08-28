@@ -1,5 +1,5 @@
 # Expect script for binutils tests
-#   Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2006-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,8 +23,9 @@
 
 # Make sure that binutils can correctly handle ld output in ELF.
 
-# Run on Linux only.
-if { ![istarget *-*-linux*] } {
+if { ![istarget *-*-linux*]
+     && ![istarget *-*-nacl*]
+     && ![istarget *-*-gnu*]} {
     return
 }
 
@@ -33,7 +34,13 @@ if { [istarget *-*-linux*aout*]
     return
 }
 
-proc binutils_test { prog_name ld_options test } {
+# The optional test_name argument provides a mechanism for the caller
+# to hardwire the test name. This is important if ld_options contains
+# absolute path names because the default test name is constructed
+# from the prog_name and ld_options and we do not want absolute paths
+# to appear in the test_name.  The optional readelf_options can be
+# used to specify different options for readelf.
+proc binutils_test { prog_name ld_options test {test_name ""} {readelf_options "-l"}} {
     global as
     global ld
     global READELF
@@ -44,16 +51,20 @@ proc binutils_test { prog_name ld_options test } {
     global link_output
 
     eval set prog \$$prog_name
-    set test_name "$prog_name $ld_options ($test)"
+
+    if { "$test_name" == "" } {
+      set test_name "$prog_name $ld_options ($test)"
+    }
 
     if { ![ld_assemble $as $srcdir/$subdir/$test.s tmpdir/$test.o ] } {
 	unresolved "$test_name"
 	return
     }
 
-    if { ![ld_simple_link $ld tmpdir/$test "$ld_options tmpdir/$test.o"] } {
+    if { ![ld_simple_link $ld tmpdir/$test "$ld_options -z stack-size=0 tmpdir/$test.o"] } {
 	if { [string match "*not supported*" $link_output]
-	     || [string match "*unrecognized option*" $link_output] } {
+	     || [string match "*unrecognized option*" $link_output]
+	     || [string match "*-z relro ignored*" $link_output] } {
 	    unsupported "$ld_options is not supported by this target"
 	} else {
 	    unresolved "$test_name"
@@ -61,12 +72,36 @@ proc binutils_test { prog_name ld_options test } {
 	return
     }
 
-    send_log "$READELF -l --wide tmpdir/$test > tmpdir/$test.exp\n"
-    set got [remote_exec host "$READELF -l --wide tmpdir/$test" "" "/dev/null" "tmpdir/$test.exp"]
+    send_log "$READELF $readelf_options --wide tmpdir/$test > tmpdir/$test.exp\n"
+    set got [remote_exec host "$READELF $readelf_options --wide tmpdir/$test" "" "/dev/null" "tmpdir/$test.exp"]
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	send_log "$got\n"
 	unresolved "$test_name"
 	return
+    }
+
+    if [string match "*-z relro*" $ld_options] {
+	# Check if GNU_RELRO segment is generated.
+	set got [remote_exec host "grep GNU_RELRO tmpdir/$test.exp"]
+	if { ![string match "*GNU_RELRO*" $got] } then {
+	    set got [remote_exec host "cat tmpdir/$test.exp"]
+	    if { [string match "*.data.rel.ro*" $got]
+		 || [string match "*.dynamic*" $got]
+		 || [string match "*.got*" $got]
+		 || [string match "*.eh_frame*" $got]
+		 || [string match "*.gcc_except_table*" $got]
+		 || [string match "*.exception_ranges*" $got]
+		 || [string match "*.ctors*" $got]
+		 || [string match "*.dtors*" $got]
+		 || [string match "*.tdata*" $got]
+		 || [string match "*.preinit_array*" $got]
+		 || [string match "*.init_array*" $got]
+		 || [string match "*.fini_array*" $got] } then {
+		# Fail if GNU_RELRO segment isn't generated, but should.
+		fail "$test_name"
+		return
+	    }
+	}
     }
 
     send_log "$prog tmpdir/$test\n"
@@ -77,8 +112,8 @@ proc binutils_test { prog_name ld_options test } {
 	return
     }
 
-    send_log "$READELF -l --wide tmpdir/$test > tmpdir/$test.out\n"
-    set got [remote_exec host "$READELF -l --wide tmpdir/$test" "" "/dev/null" "tmpdir/$test.out"]
+    send_log "$READELF $readelf_options --wide tmpdir/$test > tmpdir/$test.out\n"
+    set got [remote_exec host "$READELF $readelf_options --wide tmpdir/$test" "" "/dev/null" "tmpdir/$test.out"]
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	send_log "$got\n"
 	unresolved "$test_name"
@@ -108,40 +143,39 @@ binutils_test strip "-z relro" relro1
 binutils_test strip "-z relro -shared" relro1
 binutils_test objcopy "-z relro" relro1
 binutils_test objcopy "-z relro -shared" relro1
-if { ([istarget "i?86-*-elf*"]		
-      || ([istarget "i?86-*-linux*"]
+if { ([istarget "i?86-*-elf*"]
+      || (([istarget "i?86-*-linux*"]
+	   || [istarget "i?86-*-gnu*"])
 	  && ![istarget "*-*-*aout*"]
 	  && ![istarget "*-*-*oldld*"])
       || [istarget "x86_64-*-linux*"]
-      || [istarget "amd64-*-linux*"]) } {
+      || [istarget "amd64-*-linux*"]
+      || [istarget "i?86-*nacl*"]
+      || [istarget "x86_64-*nacl*"]) } {
     binutils_test strip "-z relro -shared" relro2
     binutils_test objcopy "-z relro -shared" relro2
 }
 
-binutils_test strip "-T ${srcdir}/${subdir}/lma.lnk" lma
+binutils_test strip "-T ${srcdir}/${subdir}/lma.lnk" lma "strip -T lma.lnk"
 
-binutils_test objcopy "" tbss1
-binutils_test objcopy "-z relro" tbss1
-binutils_test objcopy "-shared" tbss1
-binutils_test objcopy "-shared -z relro" tbss1
-binutils_test objcopy "-z max-page-size=0x100000" tbss1
-binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tbss1
-binutils_test objcopy "" tdata1
-binutils_test objcopy "-z relro" tdata1
-binutils_test objcopy "-shared" tdata1
-binutils_test objcopy "-shared -z relro" tdata1
-binutils_test objcopy "-z max-page-size=0x100000" tdata1
-binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tdata1
-binutils_test objcopy "" tbss2
-binutils_test objcopy "-z relro" tbss2
-binutils_test objcopy "-shared" tbss2
-binutils_test objcopy "-shared -z relro" tbss2
-binutils_test objcopy "-z max-page-size=0x100000" tbss2
-binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tbss2
+set tls_tests { "tdata1" "tdata2" }
+# hppa64 has its own .tbss section, with different flags.
+if { ![istarget "hppa64-*-*"] } {
+    lappend tls_tests "tdata3" "tbss1" "tbss2" "tbss3"
+}
+set tls_opts {
+    ""
+    "-z relro"
+    "-shared"
+    "-shared -z relro"
+    "-z max-page-size=0x100000"
+    "-z max-page-size=0x100000 -z common-page-size=0x1000"
+}
 
-binutils_test objcopy "" tdata2
-binutils_test objcopy "-z relro" tdata2
-binutils_test objcopy "-shared" tdata2
-binutils_test objcopy "-shared -z relro" tdata2
-binutils_test objcopy "-z max-page-size=0x100000" tdata2
-binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tdata2
+foreach testitem $tls_tests {
+    foreach testopt $tls_opts {
+	binutils_test objcopy $testopt $testitem
+    }
+}
+
+binutils_test strip "-s" gap "" "-lS"

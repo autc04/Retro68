@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2015 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -19,9 +19,9 @@
 # The default build is mips32r2, hard-float big-endian.  Add mips32,
 # soft-float, and little-endian variations.
 
-MULTILIB_OPTIONS = mips32/mips64/mips64r2 mips16/mmicromips mabi=64 EL msoft-float/mfp64 mnan=2008
-MULTILIB_DIRNAMES = mips32 mips64 mips64r2 mips16 micromips 64 el sof fp64 nan2008
-MULTILIB_MATCHES = EL=mel EB=meb
+MULTILIB_OPTIONS = mips32/mips64/mips64r2 mips16/mmicromips mabi=64 EL msoft-float mnan=2008
+MULTILIB_DIRNAMES = mips32 mips64 mips64r2 mips16 micromips 64 el sof nan2008
+MULTILIB_MATCHES = EL=mel EB=meb mips32r2=mips32r3 mips32r2=mips32r5 mips64r2=mips64r3 mips64r2=mips64r5
 
 # The 64 bit ABI is not supported on the mips32 architecture.
 MULTILIB_EXCEPTIONS += *mips32*/*mabi=64*
@@ -41,10 +41,8 @@ MULTILIB_EXCEPTIONS += *mips32/mmicromips*
 MULTILIB_EXCEPTIONS += *mips64*/mmicromips*
 MULTILIB_EXCEPTIONS += *mmicromips/mabi=64*
 
-# We do not want nan2008 libraries for soft-float.
+# We do not want nan2008 libraries for soft-float,
+# mips32[r1], or mips64[r1].
 MULTILIB_EXCEPTIONS += *msoft-float*/*mnan=2008*
-
-# -mfp64 libraries are only built for mips32r2 and not in mips16 mode.
-MULTILIB_EXCEPTIONS += *mips32/*mfp64*
-MULTILIB_EXCEPTIONS += *mips64*/*mfp64*
-MULTILIB_EXCEPTIONS += *mips16*/*mfp64*
+MULTILIB_EXCEPTIONS += *mips32/*mnan=2008*
+MULTILIB_EXCEPTIONS += *mips64/*mnan=2008*

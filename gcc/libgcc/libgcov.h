@@ -1,5 +1,5 @@
 /* Header file for libgcov-*.c.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2015 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -32,6 +32,10 @@
 #ifndef xcalloc
 #define xcalloc calloc
 #endif
+
+#ifndef IN_GCOV_TOOL
+/* About the target.  */
+/* This path will be used by libgcov runtime.  */
 
 #include "tconfig.h"
 #include "tsystem.h"
@@ -79,15 +83,6 @@ typedef unsigned gcov_type_unsigned __attribute__ ((mode (QI)));
 #define GCOV_LOCKED 0
 #endif
 
-#if defined(inhibit_libc)
-#define IN_LIBGCOV (-1)
-#else
-#define IN_LIBGCOV 1
-#if defined(L_gcov)
-#define GCOV_LINKAGE /* nothing */
-#endif
-#endif
-
 /* In libgcov we need these functions to be extern, so prefix them with
    __gcov.  In libgcov they must also be hidden so that the instance in
    the executable is not also used in a DSO.  */
@@ -105,6 +100,51 @@ typedef unsigned gcov_type_unsigned __attribute__ ((mode (QI)));
 #define gcov_read_unsigned __gcov_read_unsigned
 #define gcov_read_counter __gcov_read_counter
 #define gcov_read_summary __gcov_read_summary
+#define gcov_sort_n_vals __gcov_sort_n_vals
+
+#else /* IN_GCOV_TOOL */
+/* About the host.  */
+/* This path will be compiled for the host and linked into
+   gcov-tool binary.  */
+
+#include "config.h"
+#include "system.h"
+#include "coretypes.h"
+#include "tm.h"
+
+typedef unsigned gcov_unsigned_t;
+typedef unsigned gcov_position_t;
+/* gcov_type is typedef'd elsewhere for the compiler */
+#if defined (HOST_HAS_F_SETLKW)
+#define GCOV_LOCKED 1
+#else
+#define GCOV_LOCKED 0
+#endif
+
+/* Some Macros specific to gcov-tool.  */
+
+#define L_gcov 1
+#define L_gcov_merge_add 1
+#define L_gcov_merge_single 1
+#define L_gcov_merge_delta 1
+#define L_gcov_merge_ior 1
+#define L_gcov_merge_time_profile 1
+#define L_gcov_merge_icall_topn 1
+
+extern gcov_type gcov_read_counter_mem ();
+extern unsigned gcov_get_merge_weight ();
+extern struct gcov_info *gcov_list;
+
+#endif /* !IN_GCOV_TOOL */
+
+#if defined(inhibit_libc)
+#define IN_LIBGCOV (-1)
+#else
+#define IN_LIBGCOV 1
+#if defined(L_gcov)
+#define GCOV_LINKAGE /* nothing */
+#endif
+#endif
 
 /* Poison these, so they don't accidentally slip in.  */
 #pragma GCC poison gcov_write_string gcov_write_tag gcov_write_length
@@ -140,7 +180,7 @@ struct gcov_fn_info
   gcov_unsigned_t ident;		/* unique ident of function */
   gcov_unsigned_t lineno_checksum;	/* function lineo_checksum */
   gcov_unsigned_t cfg_checksum;		/* function cfg checksum */
-  struct gcov_ctr_info ctrs[0];		/* instrumented counters */
+  struct gcov_ctr_info ctrs[1];		/* instrumented counters */
 };
 
 /* Type of function used to merge counters.  */
@@ -159,9 +199,38 @@ struct gcov_info
 					  unused) */
   
   unsigned n_functions;		/* number of functions */
+
+#ifndef IN_GCOV_TOOL
   const struct gcov_fn_info *const *functions; /* pointer to pointers
-					          to function information  */
+                                                  to function information  */
+#else
+  const struct gcov_fn_info **functions;
+#endif /* !IN_GCOV_TOOL */
 };
+
+/* Root of a program/shared-object state */
+struct gcov_root
+{
+  struct gcov_info *list;
+  unsigned dumped : 1;	/* counts have been dumped.  */
+  unsigned run_counted : 1;  /* run has been accounted for.  */
+  struct gcov_root *next;
+  struct gcov_root *prev;
+};
+
+extern struct gcov_root __gcov_root ATTRIBUTE_HIDDEN;
+
+struct gcov_master
+{
+  gcov_unsigned_t version;
+  struct gcov_root *root;
+};
+  
+/* Exactly one of these will be active in the process.  */
+extern struct gcov_master __gcov_master;
+
+/* Dump a set of gcov objects.  */
+extern void __gcov_dump_one (struct gcov_root *) ATTRIBUTE_HIDDEN;
 
 /* Register a new object file module.  */
 extern void __gcov_init (struct gcov_info *) ATTRIBUTE_HIDDEN;
@@ -169,11 +238,14 @@ extern void __gcov_init (struct gcov_info *) ATTRIBUTE_HIDDEN;
 /* Called before fork, to avoid double counting.  */
 extern void __gcov_flush (void) ATTRIBUTE_HIDDEN;
 
-/* Function to reset all counters to 0.  */
+/* Function to reset all counters to 0.  Both externally visible (and
+   overridable) and internal version.  */
 extern void __gcov_reset (void);
+extern void __gcov_reset_int (void) ATTRIBUTE_HIDDEN;
 
-/* Function to enable early write of profile information so far.  */
+/* User function to enable early write of profile information so far.  */
 extern void __gcov_dump (void);
+extern void __gcov_dump_int (void) ATTRIBUTE_HIDDEN;
 
 /* The merge function that just sums the counters.  */
 extern void __gcov_merge_add (gcov_type *, unsigned) ATTRIBUTE_HIDDEN;
@@ -191,6 +263,9 @@ extern void __gcov_merge_delta (gcov_type *, unsigned) ATTRIBUTE_HIDDEN;
 /* The merge function that just ors the counters together.  */
 extern void __gcov_merge_ior (gcov_type *, unsigned) ATTRIBUTE_HIDDEN;
 
+/* The merge function is used for topn indirect call counters.  */
+extern void __gcov_merge_icall_topn (gcov_type *, unsigned) ATTRIBUTE_HIDDEN;
+
 /* The profiler functions.  */
 extern void __gcov_interval_profiler (gcov_type *, gcov_type, int, unsigned);
 extern void __gcov_pow2_profiler (gcov_type *, gcov_type);
@@ -201,6 +276,8 @@ extern void __gcov_indirect_call_profiler_v2 (gcov_type, void *);
 extern void __gcov_time_profiler (gcov_type *);
 extern void __gcov_average_profiler (gcov_type *, gcov_type);
 extern void __gcov_ior_profiler (gcov_type *, gcov_type);
+extern void __gcov_indirect_call_topn_profiler (gcov_type, void *);
+extern void gcov_sort_n_vals (gcov_type *, int);
 
 #ifndef inhibit_libc
 /* The wrappers around some library functions..  */
@@ -222,7 +299,47 @@ GCOV_LINKAGE void gcov_write_summary (gcov_unsigned_t /*tag*/,
                                       const struct gcov_summary *)
     ATTRIBUTE_HIDDEN;
 GCOV_LINKAGE void gcov_seek (gcov_position_t /*position*/) ATTRIBUTE_HIDDEN;
-GCOV_LINKAGE inline void gcov_rewrite (void);
+GCOV_LINKAGE void gcov_rewrite (void) ATTRIBUTE_HIDDEN;
+
+/* "Counts" stored in gcda files can be a real counter value, or
+   an target address. When differentiate these two types because
+   when manipulating counts, we should only change real counter values,
+   rather target addresses.  */
+
+static inline gcov_type
+gcov_get_counter (void)
+{
+#ifndef IN_GCOV_TOOL
+  /* This version is for reading count values in libgcov runtime:
+     we read from gcda files.  */
+
+  return gcov_read_counter ();
+#else
+  /* This version is for gcov-tool. We read the value from memory and
+     multiply it by the merge weight.  */
+
+  return gcov_read_counter_mem () * gcov_get_merge_weight ();
+#endif
+}
+
+/* Similar function as gcov_get_counter(), but handles target address
+   counters.  */
+
+static inline gcov_type
+gcov_get_counter_target (void)
+{
+#ifndef IN_GCOV_TOOL
+  /* This version is for reading count target values in libgcov runtime:
+     we read from gcda files.  */
+
+  return gcov_read_counter ();
+#else
+  /* This version is for gcov-tool.  We read the value from memory and we do NOT
+     multiply it by the merge weight.  */
+
+  return gcov_read_counter_mem ();
+#endif
+}
 
 #endif /* !inhibit_libc */
 

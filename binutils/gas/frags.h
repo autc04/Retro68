@@ -1,6 +1,5 @@
 /* frags.h - Header file for the frag concept.
-   Copyright 1987, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -68,6 +67,10 @@ struct frag {
   struct list_info_struct *line;
 #endif
 
+  /* A serial number for a sequence of frags having at most one alignment
+     or org frag, and that at the tail of the sequence.  */
+  unsigned int region:16;
+
   /* Flipped each relax pass so we can easily determine whether
      fr_address has been adjusted.  */
   unsigned int relax_marker:1;
@@ -96,6 +99,9 @@ struct frag {
 #ifdef TC_FRAG_TYPE
   TC_FRAG_TYPE tc_frag_data;
 #endif
+#ifdef OBJ_FRAG_TYPE
+  OBJ_FRAG_TYPE obj_frag_data;
+#endif
 
   /* Data begins here.  */
   char fr_literal[1];
@@ -114,40 +120,42 @@ extern addressT frag_now_fix_octets (void);
 
 /* For foreign-segment symbol fixups.  */
 COMMON fragS zero_address_frag;
-/* For local common (N_BSS segment) fixups.  */
-COMMON fragS bss_address_frag;
+COMMON fragS predefined_address_frag;
 
 extern void frag_append_1_char (int);
 #define FRAG_APPEND_1_CHAR(X) frag_append_1_char (X)
 
 void frag_init (void);
 fragS *frag_alloc (struct obstack *);
-void frag_grow (unsigned int nchars);
-char *frag_more (int nchars);
+void frag_grow (size_t nchars);
+char *frag_more (size_t nchars);
 void frag_align (int alignment, int fill_character, int max);
 void frag_align_pattern (int alignment, const char *fill_pattern,
-			 int n_fill, int max);
+			 size_t n_fill, int max);
 void frag_align_code (int alignment, int max);
-void frag_new (int old_frags_var_max_size);
+void frag_new (size_t old_frags_var_max_size);
 void frag_wane (fragS * fragP);
-int frag_room (void);
+size_t frag_room (void);
 
 char *frag_variant (relax_stateT type,
-		    int max_chars,
-		    int var,
+		    size_t max_chars,
+		    size_t var,
 		    relax_substateT subtype,
 		    symbolS * symbol,
 		    offsetT offset,
 		    char *opcode);
 
 char *frag_var (relax_stateT type,
-		int max_chars,
-		int var,
+		size_t max_chars,
+		size_t var,
 		relax_substateT subtype,
 		symbolS * symbol,
 		offsetT offset,
 		char *opcode);
 
-bfd_boolean frag_offset_fixed_p (const fragS *, const fragS *, bfd_vma *);
+bfd_boolean frag_offset_fixed_p (const fragS *, const fragS *, offsetT *);
+
+int get_frag_count (void);
+void clear_frag_count (void);
 
 #endif /* FRAGS_H */

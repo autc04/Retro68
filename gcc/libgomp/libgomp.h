@@ -1,7 +1,8 @@
-/* Copyright (C) 2005-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2015 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
-   This file is part of the GNU OpenMP Library (libgomp).
+   This file is part of the GNU Offloading and Multi Processing Library
+   (libgomp).
 
    Libgomp is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by
@@ -23,9 +24,10 @@
    <http://www.gnu.org/licenses/>.  */
 
 /* This file contains data types and function declarations that are not
-   part of the official OpenMP user interface.  There are declarations
-   in here that are part of the GNU OpenMP ABI, in that the compiler is
-   required to know about them and use them.
+   part of the official OpenACC or OpenMP user interfaces.  There are
+   declarations in here that are part of the GNU Offloading and Multi
+   Processing ABI, in that the compiler is required to know about them
+   and use them.
 
    The convention is that the all caps prefix "GOMP" is used group items
    that are part of the external ABI, and the lower case prefix "gomp"
@@ -36,10 +38,12 @@
 
 #include "config.h"
 #include "gstdint.h"
+#include "libgomp-plugin.h"
 
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #ifdef HAVE_ATTRIBUTE_VISIBILITY
 # pragma GCC visibility push(hidden)
@@ -253,6 +257,9 @@ extern char *gomp_bind_var_list;
 extern unsigned long gomp_bind_var_list_len;
 extern void **gomp_places_list;
 extern unsigned long gomp_places_list_len;
+extern int gomp_debug_var;
+extern int goacc_device_num;
+extern char *goacc_device_type;
 
 enum gomp_task_kind
 {
@@ -274,6 +281,7 @@ struct gomp_task_depend_entry
   struct gomp_task *task;
   bool is_in;
   bool redundant;
+  bool redundant_out;
 };
 
 struct gomp_dependers_vec
@@ -281,6 +289,17 @@ struct gomp_dependers_vec
   size_t n_elem;
   size_t allocated;
   struct gomp_task *elem[];
+};
+
+/* Used when in GOMP_taskwait or in gomp_task_maybe_wait_for_dependencies.  */
+
+struct gomp_taskwait
+{
+  bool in_taskwait;
+  bool in_depend_wait;
+  size_t n_depend;
+  struct gomp_task *last_parent_depends_on;
+  gomp_sem_t taskwait_sem;
 };
 
 /* This structure describes a "task" to be run by a thread.  */
@@ -298,17 +317,17 @@ struct gomp_task
   struct gomp_taskgroup *taskgroup;
   struct gomp_dependers_vec *dependers;
   struct htab *depend_hash;
+  struct gomp_taskwait *taskwait;
   size_t depend_count;
   size_t num_dependees;
   struct gomp_task_icv icv;
   void (*fn) (void *);
   void *fn_data;
   enum gomp_task_kind kind;
-  bool in_taskwait;
   bool in_tied_task;
   bool final_task;
   bool copy_ctors_done;
-  gomp_sem_t taskwait_sem;
+  bool parent_depends_on;
   struct gomp_task_depend_entry depend[];
 };
 
@@ -459,7 +478,7 @@ enum gomp_cancel_kind
 
 /* ... and here is that TLS data.  */
 
-#ifdef HAVE_TLS
+#if defined HAVE_TLS || defined USE_EMUTLS
 extern __thread struct gomp_thread gomp_tls_data;
 static inline struct gomp_thread *gomp_thread (void)
 {
@@ -520,10 +539,26 @@ extern void *gomp_realloc (void *, size_t);
 
 /* error.c */
 
+extern void gomp_vdebug (int, const char *, va_list);
+extern void gomp_debug (int, const char *, ...)
+	__attribute__ ((format (printf, 2, 3)));
+#define gomp_vdebug(KIND, FMT, VALIST) \
+  do { \
+    if (__builtin_expect (gomp_debug_var, 0)) \
+      (gomp_vdebug) ((KIND), (FMT), (VALIST)); \
+  } while (0)
+#define gomp_debug(KIND, ...) \
+  do { \
+    if (__builtin_expect (gomp_debug_var, 0)) \
+      (gomp_debug) ((KIND), __VA_ARGS__); \
+  } while (0)
+extern void gomp_verror (const char *, va_list);
 extern void gomp_error (const char *, ...)
-	__attribute__((format (printf, 1, 2)));
+	__attribute__ ((format (printf, 1, 2)));
+extern void gomp_vfatal (const char *, va_list)
+	__attribute__ ((noreturn));
 extern void gomp_fatal (const char *, ...)
-	__attribute__((noreturn, format (printf, 1, 2)));
+	__attribute__ ((noreturn, format (printf, 1, 2)));
 
 /* iter.c */
 
@@ -582,7 +617,6 @@ gomp_finish_task (struct gomp_task *task)
 {
   if (__builtin_expect (task->depend_hash != NULL, 0))
     free (task->depend_hash);
-  gomp_sem_destroy (&task->taskwait_sem);
 }
 
 /* team.c */
@@ -595,7 +629,156 @@ extern void gomp_free_thread (void *);
 
 /* target.c */
 
+extern void gomp_init_targets_once (void);
 extern int gomp_get_num_devices (void);
+
+typedef struct splay_tree_node_s *splay_tree_node;
+typedef struct splay_tree_s *splay_tree;
+typedef struct splay_tree_key_s *splay_tree_key;
+
+struct target_mem_desc {
+  /* Reference count.  */
+  uintptr_t refcount;
+  /* All the splay nodes allocated together.  */
+  splay_tree_node array;
+  /* Start of the target region.  */
+  uintptr_t tgt_start;
+  /* End of the targer region.  */
+  uintptr_t tgt_end;
+  /* Handle to free.  */
+  void *to_free;
+  /* Previous target_mem_desc.  */
+  struct target_mem_desc *prev;
+  /* Number of items in following list.  */
+  size_t list_count;
+
+  /* Corresponding target device descriptor.  */
+  struct gomp_device_descr *device_descr;
+
+  /* List of splay keys to remove (or decrease refcount)
+     at the end of region.  */
+  splay_tree_key list[];
+};
+
+struct splay_tree_key_s {
+  /* Address of the host object.  */
+  uintptr_t host_start;
+  /* Address immediately after the host object.  */
+  uintptr_t host_end;
+  /* Descriptor of the target memory.  */
+  struct target_mem_desc *tgt;
+  /* Offset from tgt->tgt_start to the start of the target object.  */
+  uintptr_t tgt_offset;
+  /* Reference count.  */
+  uintptr_t refcount;
+  /* Asynchronous reference count.  */
+  uintptr_t async_refcount;
+  /* True if data should be copied from device to host at the end.  */
+  bool copy_from;
+};
+
+#include "splay-tree.h"
+
+typedef struct acc_dispatch_t
+{
+  /* This is a linked list of data mapped using the
+     acc_map_data/acc_unmap_data or "acc enter data"/"acc exit data" pragmas.
+     Unlike mapped_data in the goacc_thread struct, unmapping can
+     happen out-of-order with respect to mapping.  */
+  /* This is guarded by the lock in the "outer" struct gomp_device_descr.  */
+  struct target_mem_desc *data_environ;
+
+  /* Execute.  */
+  void (*exec_func) (void (*) (void *), size_t, void **, void **, size_t *,
+		     unsigned short *, int, int, int, int, void *);
+
+  /* Async cleanup callback registration.  */
+  void (*register_async_cleanup_func) (void *);
+
+  /* Asynchronous routines.  */
+  int (*async_test_func) (int);
+  int (*async_test_all_func) (void);
+  void (*async_wait_func) (int);
+  void (*async_wait_async_func) (int, int);
+  void (*async_wait_all_func) (void);
+  void (*async_wait_all_async_func) (int);
+  void (*async_set_async_func) (int);
+
+  /* Create/destroy TLS data.  */
+  void *(*create_thread_data_func) (int);
+  void (*destroy_thread_data_func) (void *);
+
+  /* NVIDIA target specific routines.  */
+  struct {
+    void *(*get_current_device_func) (void);
+    void *(*get_current_context_func) (void);
+    void *(*get_stream_func) (int);
+    int (*set_stream_func) (int, void *);
+  } cuda;
+} acc_dispatch_t;
+
+/* This structure describes accelerator device.
+   It contains name of the corresponding libgomp plugin, function handlers for
+   interaction with the device, ID-number of the device, and information about
+   mapped memory.  */
+struct gomp_device_descr
+{
+  /* Immutable data, which is only set during initialization, and which is not
+     guarded by the lock.  */
+
+  /* The name of the device.  */
+  const char *name;
+
+  /* Capabilities of device (supports OpenACC, OpenMP).  */
+  unsigned int capabilities;
+
+  /* This is the ID number of device among devices of the same type.  */
+  int target_id;
+
+  /* This is the TYPE of device.  */
+  enum offload_target_type type;
+
+  /* Function handlers.  */
+  const char *(*get_name_func) (void);
+  unsigned int (*get_caps_func) (void);
+  int (*get_type_func) (void);
+  int (*get_num_devices_func) (void);
+  void (*init_device_func) (int);
+  void (*fini_device_func) (int);
+  int (*load_image_func) (int, void *, struct addr_pair **);
+  void (*unload_image_func) (int, void *);
+  void *(*alloc_func) (int, size_t);
+  void (*free_func) (int, void *);
+  void *(*dev2host_func) (int, void *, const void *, size_t);
+  void *(*host2dev_func) (int, void *, const void *, size_t);
+  void (*run_func) (int, void *, void *);
+
+  /* Splay tree containing information about mapped memory regions.  */
+  struct splay_tree_s mem_map;
+
+  /* Mutex for the mutable data.  */
+  gomp_mutex_t lock;
+
+  /* Set to true when device is initialized.  */
+  bool is_initialized;
+
+  /* OpenACC-specific data and functions.  */
+  /* This is mutable because of its mutable data_environ and target_data
+     members.  */
+  acc_dispatch_t openacc;
+};
+
+extern void gomp_acc_insert_pointer (size_t, void **, size_t *, void *);
+extern void gomp_acc_remove_pointer (void *, bool, int, int);
+
+extern struct target_mem_desc *gomp_map_vars (struct gomp_device_descr *,
+					      size_t, void **, void **,
+					      size_t *, void *, bool, bool);
+extern void gomp_copy_from_async (struct target_mem_desc *);
+extern void gomp_unmap_vars (struct target_mem_desc *, bool);
+extern void gomp_init_device (struct gomp_device_descr *);
+extern void gomp_free_memmap (struct splay_tree_s *);
+extern void gomp_fini_device (struct gomp_device_descr *);
 
 /* work.c */
 

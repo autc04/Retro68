@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,7 +24,7 @@ var _ = log.Printf
 // interface, just for testing.
 //
 // It speaks a query language that's semantically similar to but
-// syntantically different and simpler than SQL.  The syntax is as
+// syntactically different and simpler than SQL.  The syntax is as
 // follows:
 //
 //   WIPE
@@ -124,6 +125,29 @@ var fdriver driver.Driver = &fakeDriver{}
 
 func init() {
 	Register("test", fdriver)
+}
+
+func contains(list []string, y string) bool {
+	for _, x := range list {
+		if x == y {
+			return true
+		}
+	}
+	return false
+}
+
+type Dummy struct {
+	driver.Driver
+}
+
+func TestDrivers(t *testing.T) {
+	unregisterAllDrivers()
+	Register("test", fdriver)
+	Register("invalid", Dummy{})
+	all := Drivers()
+	if len(all) < 2 || !sort.StringsAreSorted(all) || !contains(all, "test") || !contains(all, "invalid") {
+		t.Fatalf("Drivers = %v, want sorted list with at least [invalid, test]", all)
+	}
 }
 
 // Supports dsn forms:
@@ -433,11 +457,19 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 	return stmt, nil
 }
 
+// hook to simulate broken connections
+var hookPrepareBadConn func() bool
+
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 	c.numPrepare++
 	if c.db == nil {
 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
 	}
+
+	if hookPrepareBadConn != nil && hookPrepareBadConn() {
+		return nil, driver.ErrBadConn
+	}
+
 	parts := strings.Split(query, "|")
 	if len(parts) < 1 {
 		return nil, errf("empty query")
@@ -489,10 +521,18 @@ func (s *fakeStmt) Close() error {
 
 var errClosed = errors.New("fakedb: statement has been closed")
 
+// hook to simulate broken connections
+var hookExecBadConn func() bool
+
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 	if s.closed {
 		return nil, errClosed
 	}
+
+	if hookExecBadConn != nil && hookExecBadConn() {
+		return nil, driver.ErrBadConn
+	}
+
 	err := checkSubsetTypes(args)
 	if err != nil {
 		return nil, err
@@ -565,10 +605,18 @@ func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result
 	return driver.RowsAffected(1), nil
 }
 
+// hook to simulate broken connections
+var hookQueryBadConn func() bool
+
 func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 	if s.closed {
 		return nil, errClosed
 	}
+
+	if hookQueryBadConn != nil && hookQueryBadConn() {
+		return nil, driver.ErrBadConn
+	}
+
 	err := checkSubsetTypes(args)
 	if err != nil {
 		return nil, err
@@ -686,7 +734,13 @@ func (rc *rowsCursor) Columns() []string {
 	return rc.cols
 }
 
+var rowsCursorNextHook func(dest []driver.Value) error
+
 func (rc *rowsCursor) Next(dest []driver.Value) error {
+	if rowsCursorNextHook != nil {
+		return rowsCursorNextHook(dest)
+	}
+
 	if rc.closed {
 		return errors.New("fakedb: cursor is closed")
 	}

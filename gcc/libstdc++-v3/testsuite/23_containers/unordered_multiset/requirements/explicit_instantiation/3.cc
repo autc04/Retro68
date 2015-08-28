@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 // { dg-do compile }
 
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,4 +21,5 @@
 #include <unordered_set>
 
 using namespace std;
-template class unordered_multiset<int, hash<int>, equal_to<int>, allocator<char>>;
+template class std::unordered_multiset<int, hash<int>, equal_to<int>,
+                                       allocator<char>>;

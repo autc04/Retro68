@@ -1,5 +1,5 @@
 /* Definitions for C parsing and type checking.
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -56,6 +56,9 @@ along with GCC; see the file COPYING3.  If not see
    This is used for -Wc++-compat. */
 #define C_TYPE_DEFINED_IN_STRUCT(TYPE) TYPE_LANG_FLAG_2 (TYPE)
 
+/* Record whether an "incomplete type" error was given for the type.  */
+#define C_TYPE_ERROR_REPORTED(TYPE) TYPE_LANG_FLAG_3 (TYPE)
+
 /* Record whether a typedef for type `int' was actually `signed int'.  */
 #define C_TYPEDEF_EXPLICITLY_SIGNED(EXP) DECL_LANG_FLAG_1 (EXP)
 
@@ -65,6 +68,9 @@ along with GCC; see the file COPYING3.  If not see
 
 /* For a FUNCTION_DECL, nonzero if it was an implicit declaration.  */
 #define C_DECL_IMPLICIT(EXP) DECL_LANG_FLAG_2 (EXP)
+
+/* For a PARM_DECL, nonzero if it was declared as an array.  */
+#define C_ARRAY_PARAMETER(NODE) DECL_LANG_FLAG_0 (NODE)
 
 /* For FUNCTION_DECLs, evaluates true if the decl is built-in but has
    been declared.  */
@@ -199,7 +205,7 @@ enum c_typespec_keyword {
   cts_char,
   cts_int,
   cts_float,
-  cts_int128,
+  cts_int_n,
   cts_double,
   cts_dfloat32,
   cts_dfloat64,
@@ -266,6 +272,8 @@ struct c_declspecs {
      specifier, in bytes, or -1 if no such specifiers with nonzero
      alignment.  */
   int align_log;
+  /* For the __intN declspec, this stores the index into the int_n_* arrays.  */
+  int int_n_idx;
   /* The storage class specifier, or csc_none if none.  */
   enum c_storage_class storage_class;
   /* Any type specifier keyword used such as "int", not reflecting
@@ -602,21 +610,20 @@ extern tree build_compound_expr (location_t, tree, tree);
 extern tree c_cast_expr (location_t, struct c_type_name *, tree);
 extern tree build_c_cast (location_t, tree, tree);
 extern void store_init_value (location_t, tree, tree, tree);
-extern void error_init (const char *);
-extern void pedwarn_init (location_t, int opt, const char *);
-extern void maybe_warn_string_init (tree, struct c_expr);
+extern void maybe_warn_string_init (location_t, tree, struct c_expr);
 extern void start_init (tree, tree, int);
 extern void finish_init (void);
 extern void really_start_incremental_init (tree);
-extern void push_init_level (int, struct obstack *);
-extern struct c_expr pop_init_level (int, struct obstack *);
-extern void set_init_index (tree, tree, struct obstack *);
-extern void set_init_label (tree, struct obstack *);
-extern void process_init_element (struct c_expr, bool, struct obstack *);
+extern void push_init_level (location_t, int, struct obstack *);
+extern struct c_expr pop_init_level (location_t, int, struct obstack *);
+extern void set_init_index (location_t, tree, tree, struct obstack *);
+extern void set_init_label (location_t, tree, struct obstack *);
+extern void process_init_element (location_t, struct c_expr, bool,
+				  struct obstack *);
 extern tree build_compound_literal (location_t, tree, tree, bool);
 extern void check_compound_literal_type (location_t, struct c_type_name *);
-extern tree c_start_case (location_t, location_t, tree);
-extern void c_finish_case (tree);
+extern tree c_start_case (location_t, location_t, tree, bool);
+extern void c_finish_case (tree, tree);
 extern tree build_asm_expr (location_t, tree, tree, tree, tree, tree, bool);
 extern tree build_asm_stmt (tree, tree);
 extern int c_types_compatible_p (tree, tree);
@@ -633,6 +640,9 @@ extern tree c_finish_bc_stmt (location_t, tree *, bool);
 extern tree c_finish_goto_label (location_t, tree);
 extern tree c_finish_goto_ptr (location_t, tree);
 extern tree c_expr_to_decl (tree, bool *, bool *);
+extern tree c_finish_oacc_parallel (location_t, tree, tree);
+extern tree c_finish_oacc_kernels (location_t, tree, tree);
+extern tree c_finish_oacc_data (location_t, tree, tree);
 extern tree c_begin_omp_parallel (void);
 extern tree c_finish_omp_parallel (location_t, tree, tree);
 extern tree c_begin_omp_task (void);
@@ -661,20 +671,42 @@ extern int current_function_returns_null;
 
 extern int current_function_returns_abnormally;
 
-/* Mode used to build pointers (VOIDmode means ptr_mode).  */
-
-extern enum machine_mode c_default_pointer_mode;
-
 /* In c-decl.c */
+
+/* Tell the binding oracle what kind of binding we are looking for.  */
+
+enum c_oracle_request
+{
+  C_ORACLE_SYMBOL,
+  C_ORACLE_TAG,
+  C_ORACLE_LABEL
+};
+
+/* If this is non-NULL, then it is a "binding oracle" which can lazily
+   create bindings when needed by the C compiler.  The oracle is told
+   the name and type of the binding to create.  It can call pushdecl
+   or the like to ensure the binding is visible; or do nothing,
+   leaving the binding untouched.  c-decl.c takes note of when the
+   oracle has been called and will not call it again if it fails to
+   create a given binding.  */
+
+typedef void c_binding_oracle_function (enum c_oracle_request, tree identifier);
+
+extern c_binding_oracle_function *c_binding_oracle;
+
 extern void c_finish_incomplete_decl (tree);
 extern void c_write_global_declarations (void);
 extern tree c_omp_reduction_id (enum tree_code, tree);
 extern tree c_omp_reduction_decl (tree);
 extern tree c_omp_reduction_lookup (tree, tree);
 extern tree c_check_omp_declare_reduction_r (tree *, int *, void *);
+extern void c_pushtag (location_t, tree, tree);
+extern void c_bind (location_t, tree, bool);
 
 /* In c-errors.c */
-extern void pedwarn_c90 (location_t, int opt, const char *, ...) ATTRIBUTE_GCC_DIAG(3,4);
-extern void pedwarn_c99 (location_t, int opt, const char *, ...) ATTRIBUTE_GCC_DIAG(3,4);
+extern void pedwarn_c90 (location_t, int opt, const char *, ...)
+    ATTRIBUTE_GCC_DIAG(3,4);
+extern bool pedwarn_c99 (location_t, int opt, const char *, ...)
+    ATTRIBUTE_GCC_DIAG(3,4);
 
 #endif /* ! GCC_C_TREE_H */

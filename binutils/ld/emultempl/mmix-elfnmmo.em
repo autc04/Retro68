@@ -1,6 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -42,7 +41,7 @@ mmix_before_allocation (void)
 
   /* Force -relax on (regardless of whether we're doing a relocatable
      link).  */
-  command_line.relax = TRUE;
+  ENABLE_RELAXATION;
 
   if (!_bfd_mmix_before_linker_allocation (link_info.output_bfd, &link_info))
     einfo ("%X%P: Internal problems setting up section %s",
@@ -102,7 +101,7 @@ mmix_after_allocation (void)
      This section is only present when there are register symbols.  */
   sec = bfd_get_section_by_name (link_info.output_bfd, MMIX_REG_SECTION_NAME);
   if (sec != NULL)
-    bfd_set_section_vma (abfd, sec, 0);
+    bfd_set_section_vma (sec->owner, sec, 0);
 
   if (!_bfd_mmix_after_linker_allocation (link_info.output_bfd, &link_info))
     {

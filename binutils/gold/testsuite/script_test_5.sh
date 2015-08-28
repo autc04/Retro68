@@ -2,7 +2,7 @@
 
 # script_test_5.sh -- test linker script with uncovered sections
 
-# Copyright 2009 Free Software Foundation, Inc.
+# Copyright (C) 2009-2014 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@google.com>.
 
 # This file is part of gold.
@@ -39,5 +39,5 @@ check_count()
     fi
 }
 
-check_count script_test_5.stdout ".text " 1
-check_count script_test_5.stdout ".text.foo " 1
+check_count script_test_5.stdout " .text " 1
+check_count script_test_5.stdout " .text.foo " 1

@@ -1,7 +1,7 @@
 // { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 
-// Copyright (C) 2008-2014 Free Software Foundation, Inc.
+// Copyright (C) 2008-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,7 +46,6 @@ void
 test03()
 {
   std::unique_ptr<int[2]> p1(new int[3]); // { dg-error "no match" }
-  // { dg-error "candidate" "candidate-note" { target *-*-* } 48 }
   std::unique_ptr<int[2]> p2 = p1; // { dg-error "deleted" }
 }
 

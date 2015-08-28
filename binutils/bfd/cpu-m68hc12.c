@@ -1,5 +1,5 @@
 /* BFD support for the Motorola 68HC12 processor
-   Copyright 1999, 2000, 2002, 2003, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -35,6 +35,7 @@ const bfd_arch_info_type bfd_m68hc12s_arch =
     TRUE,
     bfd_default_compatible,
     bfd_default_scan,
+    bfd_arch_default_fill,
     0,
 };
 
@@ -51,5 +52,6 @@ const bfd_arch_info_type bfd_m68hc12_arch =
     TRUE,
     bfd_default_compatible,
     bfd_default_scan,
+    bfd_arch_default_fill,
     &bfd_m68hc12s_arch,
 };

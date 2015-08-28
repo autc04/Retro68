@@ -1,5 +1,5 @@
 /* Chains of recurrences.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <pop@cri.ensmp.fr>
 
 This file is part of GCC.
@@ -26,9 +26,28 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
+#include "real.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "tree-pretty-print.h"
 #include "cfgloop.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
 #include "basic-block.h"
 #include "gimple-expr.h"
 #include "tree-ssa-loop-ivopts.h"
@@ -59,8 +78,8 @@ chrec_fold_poly_cst (enum tree_code code,
   gcc_assert (poly);
   gcc_assert (cst);
   gcc_assert (TREE_CODE (poly) == POLYNOMIAL_CHREC);
-  gcc_assert (!is_not_constant_evolution (cst));
-  gcc_assert (type == chrec_type (poly));
+  gcc_checking_assert (!is_not_constant_evolution (cst));
+  gcc_checking_assert (useless_type_conversion_p (type, chrec_type (poly)));
 
   switch (code)
     {
@@ -105,10 +124,11 @@ chrec_fold_plus_poly_poly (enum tree_code code,
   gcc_assert (TREE_CODE (poly0) == POLYNOMIAL_CHREC);
   gcc_assert (TREE_CODE (poly1) == POLYNOMIAL_CHREC);
   if (POINTER_TYPE_P (chrec_type (poly0)))
-    gcc_assert (ptrofftype_p (chrec_type (poly1)));
+    gcc_checking_assert (ptrofftype_p (chrec_type (poly1))
+			 && useless_type_conversion_p (type, chrec_type (poly0)));
   else
-    gcc_assert (chrec_type (poly0) == chrec_type (poly1));
-  gcc_assert (type == chrec_type (poly0));
+    gcc_checking_assert (useless_type_conversion_p (type, chrec_type (poly0))
+			 && useless_type_conversion_p (type, chrec_type (poly1)));
 
   /*
     {a, +, b}_1 + {c, +, d}_2  ->  {{a, +, b}_1 + c, +, d}_2,
@@ -189,8 +209,8 @@ chrec_fold_multiply_poly_poly (tree type,
   gcc_assert (poly1);
   gcc_assert (TREE_CODE (poly0) == POLYNOMIAL_CHREC);
   gcc_assert (TREE_CODE (poly1) == POLYNOMIAL_CHREC);
-  gcc_assert (chrec_type (poly0) == chrec_type (poly1));
-  gcc_assert (type == chrec_type (poly0));
+  gcc_checking_assert (useless_type_conversion_p (type, chrec_type (poly0))
+		       && useless_type_conversion_p (type, chrec_type (poly1)));
 
   /* {a, +, b}_1 * {c, +, d}_2  ->  {c*{a, +, b}_1, +, d}_2,
      {a, +, b}_2 * {c, +, d}_1  ->  {a*{c, +, d}_1, +, b}_2,
@@ -480,7 +500,6 @@ chrec_fold_multiply (tree type,
 static tree
 tree_fold_binomial (tree type, tree n, unsigned int k)
 {
-  double_int num, denom, idx, di_res;
   bool overflow;
   unsigned int i;
   tree res;
@@ -491,21 +510,18 @@ tree_fold_binomial (tree type, tree n, unsigned int k)
   if (k == 1)
     return fold_convert (type, n);
 
-  /* Numerator = n.  */
-  num = TREE_INT_CST (n);
-
   /* Check that k <= n.  */
-  if (num.ult (double_int::from_uhwi (k)))
+  if (wi::ltu_p (n, k))
     return NULL_TREE;
 
   /* Denominator = 2.  */
-  denom = double_int::from_uhwi (2);
+  wide_int denom = wi::two (TYPE_PRECISION (TREE_TYPE (n)));
 
   /* Index = Numerator-1.  */
-  idx = num - double_int_one;
+  wide_int idx = wi::sub (n, 1);
 
   /* Numerator = Numerator*Index = n*(n-1).  */
-  num = num.mul_with_sign (idx, false, &overflow);
+  wide_int num = wi::smul (n, idx, &overflow);
   if (overflow)
     return NULL_TREE;
 
@@ -515,17 +531,17 @@ tree_fold_binomial (tree type, tree n, unsigned int k)
       --idx;
 
       /* Numerator *= Index.  */
-      num = num.mul_with_sign (idx, false, &overflow);
+      num = wi::smul (num, idx, &overflow);
       if (overflow)
 	return NULL_TREE;
 
       /* Denominator *= i.  */
-      denom *= double_int::from_uhwi (i);
+      denom *= i;
     }
 
   /* Result = Numerator / Denominator.  */
-  di_res = num.div (denom, true, EXACT_DIV_EXPR);
-  res = build_int_cst_wide (type, di_res.low, di_res.high);
+  wide_int di_res = wi::udiv_trunc (num, denom);
+  res = wide_int_to_tree (type, di_res);
   return int_fits_type_p (res, type) ? res : NULL_TREE;
 }
 
@@ -1337,7 +1353,7 @@ chrec_convert_1 (tree type, tree chrec, gimple at_stmt,
     return chrec;
 
   ct = chrec_type (chrec);
-  if (ct == type)
+  if (useless_type_conversion_p (type, ct))
     return chrec;
 
   if (!evolution_function_is_affine_p (chrec))

@@ -1,22 +1,23 @@
 /* m68hc11.h -- Header file for Motorola 68HC11 & 68HC12 opcode table
-   Copyright 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Written by Stephane Carrez (stcarrez@nerim.fr)
 
-This file is part of GDB, GAS, and the GNU binutils.
+   This file is part of GDB, GAS, and the GNU binutils.
 
-GDB, GAS, and the GNU binutils are free software; you can redistribute
-them and/or modify them under the terms of the GNU General Public
-License as published by the Free Software Foundation; either version
-1, or (at your option) any later version.
+   GDB, GAS, and the GNU binutils are free software; you can redistribute
+   them and/or modify them under the terms of the GNU General Public
+   License as published by the Free Software Foundation; either version 3,
+   or (at your option) any later version.
 
-GDB, GAS, and the GNU binutils are distributed in the hope that they
-will be useful, but WITHOUT ANY WARRANTY; without even the implied
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
-the GNU General Public License for more details.
+   GDB, GAS, and the GNU binutils are distributed in the hope that they
+   will be useful, but WITHOUT ANY WARRANTY; without even the implied
+   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+   the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this file; see the file COPYING3.  If not, write to the Free
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #ifndef _OPCODE_M68HC11_H
 #define _OPCODE_M68HC11_H
@@ -36,8 +37,7 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
    of the M6811_INIT register.  At init time, the I/O registers are
    mapped at 0x1000.  Address of registers is then:
 
-   0x1000 + M6811_xxx
-*/
+   0x1000 + M6811_xxx.  */
 #define M6811_PORTA     0x00	/* Port A register */
 #define M6811__RES1	0x01	/* Unused/Reserved */
 #define M6811_PIOC	0x02	/* Parallel I/O Control register */
@@ -363,6 +363,26 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define M6812_INDEXED         0x20000000 /* n,r    n = 5, 9 or 16-bits	    */
 #define M6812_OP_IDX_P2       0x40000000
 
+/* XGATE defines.
+   These overlap with HC11/12 as above but not used at the same time.  */
+#define M68XG_OP_NONE           0x0001
+#define M68XG_OP_IMM3           0x0002
+#define M68XG_OP_R              0x0004
+#define M68XG_OP_R_R            0x0008
+#define M68XG_OP_R_IMM4         0x0010
+#define M68XG_OP_R_R_R          0x0020
+#define M68XG_OP_REL9           0x0040
+#define M68XG_OP_REL10          0x0080
+#define M68XG_OP_R_R_OFFS5      0x0100
+#define M68XG_OP_RD_RB_RI       0x0200
+#define M68XG_OP_RD_RB_RIp      0x0400
+#define M68XG_OP_RD_RB_mRI      0x0800
+#define M68XG_OP_R_IMM8         0x1000
+#define M68XG_OP_R_IMM16        0x2000
+#define M68XG_OP_REG            0x4000   /* Register operand 1.  */
+#define M68XG_OP_REG_2          0x8000   /* Register operand 2.  */
+#define M68XG_MAX_OPERANDS      3        /* Max operands of triadic r1, r2, r3.  */
+
 /* Markers to identify some instructions.  */
 #define M6812_OP_EXG_MARKER   0x01000000 /* exg r1,r2 */
 #define M6812_OP_TFR_MARKER   0x02000000 /* tfr r1,r2 */
@@ -373,35 +393,43 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define M6812_OP_IBCC_MARKER  0x02000000 /* ibeq/ibne */
 #define M6812_OP_TBCC_MARKER  0x01000000
 
+/* XGATE markers.  */
+#define M68XG_OP_B_MARKER     0x04000000 /* bXX rel9 */
+#define M68XG_OP_BRA_MARKER   0x02000000 /* bra rel10 */
+
 #define M6812_OP_TRAP_ID      0x80000000 /* trap #N */
 
 #define M6811_OP_HIGH_ADDR    0x01000000 /* Used internally by gas.  */
 #define M6811_OP_LOW_ADDR     0x02000000
 
-#define M68HC12_BANK_VIRT 0x010000
-#define M68HC12_BANK_MASK 0x00003fff
-#define M68HC12_BANK_BASE 0x00008000
-#define M68HC12_BANK_SHIFT 14
-#define M68HC12_BANK_PAGE_MASK 0x0ff
+#define M68HC12_BANK_VIRT       0x010000
+#define M68HC12_BANK_MASK     0x00003fff
+#define M68HC12_BANK_BASE     0x00008000
+#define M68HC12_BANK_SHIFT            14
+#define M68HC12_BANK_PAGE_MASK     0x0ff
 
 
 /* CPU identification.  */
 #define cpu6811 0x01
 #define cpu6812 0x02
 #define cpu6812s 0x04
+#define cpu9s12x 0x08  /* 9S12X main cpu.  */
+#define cpuxgate 0x10  /* The XGATE module itself.  */
 
 /* The opcode table is an array of struct m68hc11_opcode.  */
-struct m68hc11_opcode {
-  const char*    name;     /* Op-code name */
+struct m68hc11_opcode
+{
+  const char *   name;     /* Op-code name.  */
   long           format;
   unsigned char  size;
-  unsigned char  opcode;
+  unsigned int   opcode;
   unsigned char  cycles_low;
   unsigned char  cycles_high;
   unsigned char  set_flags_mask;
   unsigned char  clr_flags_mask;
   unsigned char  chg_flags_mask;
   unsigned char  arch;
+  unsigned int   xg_mask; /* Mask with zero in register place for xgate.  */
 };
 
 /* Alias definition for 68HC12.  */

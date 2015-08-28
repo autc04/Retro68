@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -67,15 +67,18 @@ generic
 
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
-package Ada.Containers.Formal_Hashed_Sets is
+package Ada.Containers.Formal_Hashed_Sets with
+  Pure,
+  SPARK_Mode
+is
    pragma Annotate (GNATprove, External_Axiomatization);
-   pragma Pure;
 
    type Set (Capacity : Count_Type; Modulus : Hash_Type) is private with
      Iterable => (First       => First,
                   Next        => Next,
                   Has_Element => Has_Element,
-                  Element     => Element);
+                  Element     => Element),
+     Default_Initial_Condition => Is_Empty (Set);
    pragma Preelaborable_Initialization (Set);
 
    type Cursor is private;
@@ -307,6 +310,7 @@ package Ada.Containers.Formal_Hashed_Sets is
    end Generic_Keys;
 
    function Strict_Equal (Left, Right : Set) return Boolean with
+     Ghost,
      Global => null;
    --  Strict_Equal returns True if the containers are physically equal, i.e.
    --  they are structurally equal (function "=" returns True) and that they
@@ -314,10 +318,13 @@ package Ada.Containers.Formal_Hashed_Sets is
 
    function First_To_Previous  (Container : Set; Current : Cursor) return Set
    with
+     Ghost,
      Global => null,
      Pre    => Has_Element (Container, Current) or else Current = No_Element;
+
    function Current_To_Last (Container : Set; Current : Cursor) return Set
    with
+     Ghost,
      Global => null,
      Pre    => Has_Element (Container, Current) or else Current = No_Element;
    --  First_To_Previous returns a container containing all elements preceding
@@ -329,6 +336,7 @@ package Ada.Containers.Formal_Hashed_Sets is
    --  scanned yet.
 
 private
+   pragma SPARK_Mode (Off);
 
    pragma Inline (Next);
 
@@ -343,7 +351,7 @@ private
      Ada.Containers.Hash_Tables.Generic_Bounded_Hash_Table_Types (Node_Type);
 
    type Set (Capacity : Count_Type; Modulus : Hash_Type) is
-      new HT_Types.Hash_Table_Type (Capacity, Modulus) with null record;
+     new HT_Types.Hash_Table_Type (Capacity, Modulus) with null record;
 
    use HT_Types;
 

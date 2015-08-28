@@ -1,13 +1,13 @@
 This is gprof.info, produced by makeinfo version 4.8 from gprof.texi.
 
+INFO-DIR-SECTION Software development
 START-INFO-DIR-ENTRY
 * gprof: (gprof).                Profiling your program's execution
 END-INFO-DIR-ENTRY
 
    This file documents the gprof profiler of the GNU system.
 
-   Copyright (C) 1988, 92, 97, 98, 99, 2000, 2001, 2003, 2007, 2008,
-2009 Free Software Foundation, Inc.
+   Copyright (C) 1988-2014 Free Software Foundation, Inc.
 
    Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -27,7 +27,7 @@ to determine which parts of a program are taking most of the execution
 time.  We assume that you know how to write, compile, and execute
 programs.  GNU `gprof' was written by Jay Fenlason.
 
-   This manual is for `gprof' (GNU Binutils) version 2.20.
+   This manual is for `gprof' (GNU Binutils) version 2.25.
 
    This document is distributed under the terms of the GNU Free
 Documentation License version 1.3.  A copy of the license is included
@@ -527,6 +527,11 @@ File: gprof.info,  Node: Analysis Options,  Next: Miscellaneous Options,  Prev: 
      statistical inaccuracies.  *Note Statistical Sampling Error:
      Sampling Error.
 
+`--inline-file-names'
+     This option causes `gprof' to print the source file after each
+     symbol in both the flat profile and the call graph. The full path
+     to the file is printed if used with the `-L' option.
+
 `-m NUM'
 `--min-count=NUM'
      This option affects execution count output only.  Symbols that are
@@ -603,8 +608,7 @@ File: gprof.info,  Node: Deprecated Options,  Next: Symspecs,  Prev: Miscellaneo
 4.4 Deprecated Options
 ======================
 
-     These options have been replaced with newer versions that use
-     symspecs.
+These options have been replaced with newer versions that use symspecs.
 
 `-e FUNCTION_NAME'
      The `-e FUNCTION' option tells `gprof' to not print information
@@ -1390,7 +1394,12 @@ twice.
 
    By contrast, the number-of-calls and basic-block figures are derived
 by counting, not sampling.  They are completely accurate and will not
-vary from run to run if your program is deterministic.
+vary from run to run if your program is deterministic and single
+threaded.  In multi-threaded applications, or single threaded
+applications that link with multi-threaded libraries, the counts are
+only deterministic if the counting function is thread-safe.  (Note:
+beware that the mcount counting function in glibc is _not_
+thread-safe).  *Note Implementation of Profiling: Implementation.
 
    The "sampling period" that is printed at the beginning of the flat
 profile says how often samples are taken.  The rule of thumb is that a
@@ -2435,35 +2444,35 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top731
-Node: Introduction2054
-Node: Compiling4546
-Node: Executing8602
-Node: Invoking11390
-Node: Output Options12805
-Node: Analysis Options19894
-Node: Miscellaneous Options23592
-Node: Deprecated Options24847
-Node: Symspecs26926
-Node: Output28752
-Node: Flat Profile29792
-Node: Call Graph34745
-Node: Primary37977
-Node: Callers40565
-Node: Subroutines42682
-Node: Cycles44523
-Node: Line-by-line51300
-Node: Annotated Source55373
-Node: Inaccuracy58372
-Node: Sampling Error58630
-Node: Assumptions61200
-Node: How do I?62670
-Node: Incompatibilities64224
-Node: Details65718
-Node: Implementation66111
-Node: File Format72008
-Node: Internals76298
-Node: Debugging84793
-Node: GNU Free Documentation License86394
+Node: Top722
+Node: Introduction2045
+Node: Compiling4537
+Node: Executing8593
+Node: Invoking11381
+Node: Output Options12796
+Node: Analysis Options19885
+Node: Miscellaneous Options23803
+Node: Deprecated Options25058
+Node: Symspecs27127
+Node: Output28953
+Node: Flat Profile29993
+Node: Call Graph34946
+Node: Primary38178
+Node: Callers40766
+Node: Subroutines42883
+Node: Cycles44724
+Node: Line-by-line51501
+Node: Annotated Source55574
+Node: Inaccuracy58573
+Node: Sampling Error58831
+Node: Assumptions61735
+Node: How do I?63205
+Node: Incompatibilities64759
+Node: Details66253
+Node: Implementation66646
+Node: File Format72543
+Node: Internals76833
+Node: Debugging85328
+Node: GNU Free Documentation License86929
 
 End Tag Table

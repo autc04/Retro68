@@ -1,4 +1,4 @@
-# Copyright (C) 1997-2014 Free Software Foundation, Inc.
+# Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -137,12 +137,6 @@ set DEFAULT_VECTCFLAGS $SAVED_DEFAULT_VECTCFLAGS
 lappend DEFAULT_VECTCFLAGS "-ftrapv"
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/trapv-*.\[cS\]]]  \
 	"" $DEFAULT_VECTCFLAGS
-
-# -fdump-tree-dceloop-details tests
-set DEFAULT_VECTCFLAGS $SAVED_DEFAULT_VECTCFLAGS
-lappend DEFAULT_VECTCFLAGS "-fdump-tree-dceloop-details"
-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/dump-tree-dceloop-*.\[cS\]]]  \
-        "" $DEFAULT_VECTCFLAGS
 
 # -fno-tree-dce tests
 set DEFAULT_VECTCFLAGS $SAVED_DEFAULT_VECTCFLAGS

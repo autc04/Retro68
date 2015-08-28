@@ -1,7 +1,5 @@
 /* tc-h8300.c -- Assemble code for the Renesas H8/300
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -139,6 +137,48 @@ pint (int arg ATTRIBUTE_UNUSED)
   cons (Hmode ? 4 : 2);
 }
 
+/* Like obj_elf_section, but issues a warning for new
+   sections which do not have an attribute specification.  */
+
+static void
+h8300_elf_section (int push)
+{
+  static const char * known_data_sections [] = { ".rodata", ".tdata", ".tbss" };
+  static const char * known_data_prefixes [] = { ".debug", ".zdebug", ".gnu.warning" };
+  char * saved_ilp = input_line_pointer;
+  char * name;
+
+  name = obj_elf_section_name ();
+  if (name == NULL)
+    return;
+
+  if (* input_line_pointer != ','
+      && bfd_get_section_by_name (stdoutput, name) == NULL)
+    {
+      signed int i;
+
+      /* Ignore this warning for well known data sections.  */
+      for (i = ARRAY_SIZE (known_data_sections); i--;)
+	if (strcmp (name, known_data_sections[i]) == 0)
+	  break;
+
+      if (i < 0)
+	for (i = ARRAY_SIZE (known_data_prefixes); i--;)
+	  if (strncmp (name, known_data_prefixes[i],
+		       strlen (known_data_prefixes[i])) == 0)
+	    break;
+
+      if (i < 0)
+	as_warn (_("new section '%s' defined without attributes - this might cause problems"), name);
+    }
+
+  /* FIXME: We ought to free the memory allocated by obj_elf_section_name()
+     for 'name', but we do not know if it was taken from the obstack, via
+     demand_copy_C_string(), or xmalloc()ed.  */
+  input_line_pointer = saved_ilp;
+  obj_elf_section (push);
+}
+
 /* This table describes all the machine specific pseudo-ops the assembler
    has to support.  The fields are:
    pseudo-op name without dot
@@ -165,6 +205,14 @@ const pseudo_typeS md_pseudo_table[] =
   {"import",  s_ignore, 0},
   {"page",    listing_eject, 0},
   {"program", s_ignore, 0},
+
+#ifdef OBJ_ELF
+  {"section",   h8300_elf_section, 0},
+  {"section.s", h8300_elf_section, 0},
+  {"sect",      h8300_elf_section, 0},
+  {"sect.s",    h8300_elf_section, 0},
+#endif
+
   {0, 0, 0}
 };
 
@@ -309,7 +357,6 @@ static int parse_reg (char *, op_type *, unsigned *, int);
 static char *skip_colonthing (char *, int *);
 static char *parse_exp (char *, struct h8_op *);
 
-static int constant_fits_width_p (struct h8_op *, unsigned int);
 static int constant_fits_size_p (struct h8_op *, int, int);
 
 /*
@@ -506,19 +553,23 @@ skip_colonthing (char *src, int *mode)
    @@aa[:8]		memory indirect.  */
 
 static int
-constant_fits_width_p (struct h8_op *operand, unsigned int width)
+constant_fits_width_p (struct h8_op *operand, offsetT width)
 {
-  return ((operand->exp.X_add_number & ~width) == 0
-	  || (operand->exp.X_add_number | width) == (unsigned)(~0));
+  offsetT num;
+
+  num = ((operand->exp.X_add_number & 0xffffffff) ^ 0x80000000) - 0x80000000;
+  return (num & ~width) == 0 || (num | width) == ~0;
 }
 
 static int
 constant_fits_size_p (struct h8_op *operand, int size, int no_symbols)
 {
-  offsetT num = operand->exp.X_add_number;
+  offsetT num;
+
   if (no_symbols
       && (operand->exp.X_add_symbol != 0 || operand->exp.X_op_symbol != 0))
     return 0;
+  num = operand->exp.X_add_number & 0xffffffff;
   switch (size)
     {
     case L_2:
@@ -532,11 +583,13 @@ constant_fits_size_p (struct h8_op *operand, int size, int no_symbols)
     case L_5:
       return num >= 1 && num < 32;
     case L_8:
-      return (num & ~0xFF) == 0 || ((unsigned)num | 0x7F) == ~0u;
+      num = (num ^ 0x80000000) - 0x80000000;
+      return (num & ~0xFF) == 0 || (num | 0x7F) == ~0;
     case L_8U:
       return (num & ~0xFF) == 0;
     case L_16:
-      return (num & ~0xFFFF) == 0 || ((unsigned)num | 0x7FFF) == ~0u;
+      num = (num ^ 0x80000000) - 0x80000000;
+      return (num & ~0xFFFF) == 0 || (num | 0x7FFF) == ~0;
     case L_16U:
       return (num & ~0xFFFF) == 0;
     case L_32:
@@ -1134,7 +1187,7 @@ get_specific (const struct h8_instruction *instruction,
 		}
 	      else if (x_mode == IMM && op_mode != IMM)
 		{
-		  offsetT num = operands[i].exp.X_add_number;
+		  offsetT num = operands[i].exp.X_add_number & 0xffffffff;
 		  if (op_mode == KBIT || op_mode == DBIT)
 		    /* This is ok if the immediate value is sensible.  */;
 		  else if (op_mode == CONST_2)
@@ -1341,7 +1394,12 @@ do_a_fix_imm (int offset, int nibble, struct h8_op *operand, int relaxmode, cons
 	  bytes[3] |= operand->exp.X_add_number >> 0;
 	  if (relaxmode != 0)
 	    {
-	      idx = (relaxmode == 2) ? R_MOV24B1 : R_MOVL1;
+#ifdef OBJ_ELF
+	      if ((operand->mode & MODE) == DISP && relaxmode == 1)
+		idx = BFD_RELOC_H8_DISP32A16;
+	      else
+#endif
+		idx = (relaxmode == 2) ? R_MOV24B1 : R_MOVL1;
 	      fix_new_exp (frag_now, offset, 4, &operand->exp, 0, idx);
 	    }
 	  break;
@@ -1355,6 +1413,11 @@ do_a_fix_imm (int offset, int nibble, struct h8_op *operand, int relaxmode, cons
 	case L_32:
 	  size = 4;
 	  where = (operand->mode & SIZE) == L_24 ? -1 : 0;
+#ifdef OBJ_ELF
+	  if ((operand->mode & MODE) == DISP && relaxmode == 1)
+	    idx = BFD_RELOC_H8_DISP32A16;
+	  else
+#endif
 	  if (relaxmode == 2)
 	    idx = R_MOV24B1;
 	  else if (relaxmode == 1)
@@ -1561,7 +1624,7 @@ build_bytes (const struct h8_instruction *this_try, struct h8_op *operand)
   for (i = 0; i < this_try->length; i++)
     output[i] = (asnibbles[i * 2] << 4) | asnibbles[i * 2 + 1];
 
-  /* Note if this is a movb or a bit manipulation instruction
+  /* Note if this is a mov.b or a bit manipulation instruction
      there is a special relaxation which only applies.  */
   if (   this_try->opcode->how == O (O_MOV,   SB)
       || this_try->opcode->how == O (O_BCLR,  SB)
@@ -1587,10 +1650,17 @@ build_bytes (const struct h8_instruction *this_try, struct h8_op *operand)
       int x_mode = x & MODE;
 
       if (x_mode == IMM || x_mode == DISP)
-	do_a_fix_imm (output - frag_now->fr_literal + op_at[i] / 2,
-		      op_at[i] & 1, operand + i, (x & MEMRELAX) != 0,
-		      this_try);
-
+	{
+#ifndef OBJ_ELF
+	  /* Remove MEMRELAX flag added in h8300.h on mov with
+	     addressing mode "register indirect with displacement".  */
+	  if (x_mode == DISP)
+	    x &= ~MEMRELAX;
+#endif
+	  do_a_fix_imm (output - frag_now->fr_literal + op_at[i] / 2,
+			op_at[i] & 1, operand + i, (x & MEMRELAX) != 0,
+			this_try);
+	}
       else if (x_mode == ABS)
 	do_a_fix_imm (output - frag_now->fr_literal + op_at[i] / 2,
 		      op_at[i] & 1, operand + i,
@@ -1816,8 +1886,8 @@ fix_operand_size (struct h8_op *operand, int size)
 	   necessary.  */
 	if (Hmode
 	    && !Nmode 
-	    && (operand->exp.X_add_number < -32768
-		|| operand->exp.X_add_number > 32767
+	    && ((((addressT) operand->exp.X_add_number + 0x8000)
+		 & 0xffffffff) > 0xffff
 		|| operand->exp.X_add_symbol != 0
 		|| operand->exp.X_op_symbol != 0))
 	  operand->mode |= L_24;
@@ -1826,9 +1896,8 @@ fix_operand_size (struct h8_op *operand, int size)
 	break;
 
       case PCREL:
-	/* This condition is long standing, though somewhat suspect.  */
-	if (operand->exp.X_add_number > -128
-	    && operand->exp.X_add_number < 127)
+	if ((((addressT) operand->exp.X_add_number + 0x80)
+	     & 0xffffffff) <= 0xff)
 	  {
 	    if (operand->exp.X_add_symbol != NULL)
 	      operand->mode |= bsize;
@@ -2139,9 +2208,11 @@ md_number_to_chars (char *ptr, valueT use, int nbytes)
 }
 
 long
-md_pcrel_from (fixS *fixP ATTRIBUTE_UNUSED)
+md_pcrel_from (fixS *fixp)
 {
-  abort ();
+  as_bad_where (fixp->fx_file, fixp->fx_line,
+		_("Unexpected reference to a symbol in a non-code section"));
+  return 0;
 }
 
 arelent *

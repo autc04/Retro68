@@ -1,6 +1,6 @@
 /* Infineon XC16X-specific support for 16-bit ELF.
-   Copyright 2006, 2007, 2009  Free Software Foundation, Inc.
-   Contributed by KPIT Cummins Infosystems 
+   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Contributed by KPIT Cummins Infosystems
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -32,11 +32,11 @@ static reloc_howto_type xc16x_elf_howto_table [] =
   /* This reloc does nothing.  */
   HOWTO (R_XC16X_NONE,		/* type */
 	 0,			/* rightshift */
-	 1,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_XC16X_NONE",	/* name */
 	 FALSE,			/* partial_inplace */
@@ -358,7 +358,6 @@ elf32_xc16x_relocate_section (bfd *output_bfd,
       asection *sec;
       struct elf_link_hash_entry *h;
       bfd_vma relocation;
-      bfd_reloc_status_type r;
 
       /* This is a final link.  */
       r_symndx = ELF32_R_SYM (rel->r_info);
@@ -374,35 +373,33 @@ elf32_xc16x_relocate_section (bfd *output_bfd,
 	}
       else
 	{
-	  bfd_boolean unresolved_reloc, warned;
+	  bfd_boolean unresolved_reloc, warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	}
 
-      if (sec != NULL && elf_discarded_section (sec))
+      if (sec != NULL && discarded_section (sec))
 	{
 	  /* For relocs against symbols from removed linkonce sections,
 	     or sections discarded by a linker script, we just want the
-	     section contents zeroed.  Avoid any special processing.  */
+	     section contents cleared.  Avoid any special processing.  */
 	  reloc_howto_type *howto;
 	  howto = xc16x_reloc_type_lookup (input_bfd, r_type);
-	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
-	  rel->r_info = 0;
-	  rel->r_addend = 0;
-	  continue;
+	  RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
+					   rel, 1, relend, howto, 0, contents);
 	}
 
       if (info->relocatable)
 	continue;
 
-      r = elf32_xc16x_final_link_relocate (r_type, input_bfd, output_bfd,
-					   input_section,
-					   contents, rel->r_offset,
-					   relocation, rel->r_addend,
-					   info, sec, h == NULL);
+      elf32_xc16x_final_link_relocate (r_type, input_bfd, output_bfd,
+				       input_section,
+				       contents, rel->r_offset,
+				       relocation, rel->r_addend,
+				       info, sec, h == NULL);
     }
 
   return TRUE;
@@ -436,11 +433,11 @@ elf32_xc16x_final_write_processing (bfd *abfd,
 
 static unsigned long
 elf32_xc16x_mach (flagword flags)
-{  
+{
   switch (flags)
     {
     case 0x1000:
-    default: 
+    default:
       return bfd_mach_xc16x;
 
     case 0x1001:
@@ -465,7 +462,7 @@ elf32_xc16x_object_p (bfd *abfd)
 #define ELF_MACHINE_CODE	EM_XC16X
 #define ELF_MAXPAGESIZE		0x100
 
-#define TARGET_LITTLE_SYM       bfd_elf32_xc16x_vec
+#define TARGET_LITTLE_SYM       xc16x_elf32_vec
 #define TARGET_LITTLE_NAME	"elf32-xc16x"
 #define elf_backend_final_write_processing	elf32_xc16x_final_write_processing
 #define elf_backend_object_p   		elf32_xc16x_object_p

@@ -1,7 +1,7 @@
 /* Tree lowering to gimple for middle end use only.  
    This converts the GENERIC functions-as-trees tree representation into
    the GIMPLE form.
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2015 Free Software Foundation, Inc.
    Major work done by Sebastian Pop <s.pop@laposte.net>,
    Diego Novillo <dnovillo@redhat.com> and Jason Merrill <jason@redhat.com>.
 
@@ -24,9 +24,25 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
 #include "stmt.h"
 #include "stor-layout.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -69,7 +85,7 @@ force_gimple_operand_1 (tree expr, gimple_seq *stmts,
   if (var)
     {
       if (gimple_in_ssa_p (cfun) && is_gimple_reg (var))
-	var = make_ssa_name (var, NULL);
+	var = make_ssa_name (var);
       expr = build2 (MODIFY_EXPR, TREE_TYPE (var), var, expr);
     }
 
@@ -168,22 +184,27 @@ gimple_regimplify_operands (gimple stmt, gimple_stmt_iterator *gsi_p)
   switch (gimple_code (stmt))
     {
     case GIMPLE_COND:
-      gimplify_expr (gimple_cond_lhs_ptr (stmt), &pre, NULL,
-		     is_gimple_val, fb_rvalue);
-      gimplify_expr (gimple_cond_rhs_ptr (stmt), &pre, NULL,
-		     is_gimple_val, fb_rvalue);
+      {
+	gcond *cond_stmt = as_a <gcond *> (stmt);
+	gimplify_expr (gimple_cond_lhs_ptr (cond_stmt), &pre, NULL,
+		       is_gimple_val, fb_rvalue);
+	gimplify_expr (gimple_cond_rhs_ptr (cond_stmt), &pre, NULL,
+		       is_gimple_val, fb_rvalue);
+      }
       break;
     case GIMPLE_SWITCH:
-      gimplify_expr (gimple_switch_index_ptr (stmt), &pre, NULL,
-		     is_gimple_val, fb_rvalue);
+      gimplify_expr (gimple_switch_index_ptr (as_a <gswitch *> (stmt)),
+		     &pre, NULL, is_gimple_val, fb_rvalue);
       break;
     case GIMPLE_OMP_ATOMIC_LOAD:
-      gimplify_expr (gimple_omp_atomic_load_rhs_ptr (stmt), &pre, NULL,
-		     is_gimple_val, fb_rvalue);
+      gimplify_expr (gimple_omp_atomic_load_rhs_ptr (
+		       as_a <gomp_atomic_load *> (stmt)),
+		     &pre, NULL, is_gimple_val, fb_rvalue);
       break;
     case GIMPLE_ASM:
       {
-	size_t i, noutputs = gimple_asm_noutputs (stmt);
+	gasm *asm_stmt = as_a <gasm *> (stmt);
+	size_t i, noutputs = gimple_asm_noutputs (asm_stmt);
 	const char *constraint, **oconstraints;
 	bool allows_mem, allows_reg, is_inout;
 
@@ -191,7 +212,7 @@ gimple_regimplify_operands (gimple stmt, gimple_stmt_iterator *gsi_p)
 	  = (const char **) alloca ((noutputs) * sizeof (const char *));
 	for (i = 0; i < noutputs; i++)
 	  {
-	    tree op = gimple_asm_output_op (stmt, i);
+	    tree op = gimple_asm_output_op (asm_stmt, i);
 	    constraint = TREE_STRING_POINTER (TREE_VALUE (TREE_PURPOSE (op)));
 	    oconstraints[i] = constraint;
 	    parse_output_constraint (&constraint, i, 0, 0, &allows_mem,
@@ -200,9 +221,9 @@ gimple_regimplify_operands (gimple stmt, gimple_stmt_iterator *gsi_p)
 			   is_inout ? is_gimple_min_lval : is_gimple_lvalue,
 			   fb_lvalue | fb_mayfail);
 	  }
-	for (i = 0; i < gimple_asm_ninputs (stmt); i++)
+	for (i = 0; i < gimple_asm_ninputs (asm_stmt); i++)
 	  {
-	    tree op = gimple_asm_input_op (stmt, i);
+	    tree op = gimple_asm_input_op (asm_stmt, i);
 	    constraint = TREE_STRING_POINTER (TREE_VALUE (TREE_PURPOSE (op)));
 	    parse_input_constraint (&constraint, 0, 0, noutputs, 0,
 				    oconstraints, &allows_mem, &allows_reg);
@@ -299,9 +320,9 @@ gimple_regimplify_operands (gimple stmt, gimple_stmt_iterator *gsi_p)
 	    }
 	  if (need_temp)
 	    {
-	      tree temp = create_tmp_reg (TREE_TYPE (lhs), NULL);
+	      tree temp = create_tmp_reg (TREE_TYPE (lhs));
 	      if (gimple_in_ssa_p (cfun))
-		temp = make_ssa_name (temp, NULL);
+		temp = make_ssa_name (temp);
 	      gimple_set_lhs (stmt, temp);
 	      post_stmt = gimple_build_assign (lhs, temp);
 	    }

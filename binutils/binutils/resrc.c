@@ -1,6 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
 
@@ -32,11 +31,6 @@
 #include "windres.h"
 
 #include <assert.h>
-#include <errno.h>
-#include <sys/stat.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -281,7 +275,7 @@ run_cmd (char *cmd, const char *redir)
 
   if (pid == -1)
     {
-      fatal (_("%s %s: %s"), errmsg_fmt, errmsg_arg, strerror (errno));
+      fatal ("%s %s: %s", errmsg_fmt, errmsg_arg, strerror (errno));
       return 1;
     }
 
@@ -328,7 +322,7 @@ open_input_stream (char *cmd)
       if (run_cmd (cmd, cpp_temp_file))
 	fatal (_("can't execute `%s': %s"), cmd, strerror (errno));
 
-      cpp_pipe = fopen (cpp_temp_file, FOPEN_RT);;
+      cpp_pipe = fopen (cpp_temp_file, FOPEN_RT);
       if (cpp_pipe == NULL)
 	fatal (_("can't open temporary file `%s': %s"),
 	       cpp_temp_file, strerror (errno));
@@ -628,7 +622,7 @@ yyerror (const char *msg)
 void
 rcparse_warning (const char *msg)
 {
-  fprintf (stderr, _("%s:%d: %s\n"), rc_filename, rc_lineno, msg);
+  fprintf (stderr, "%s:%d: %s\n", rc_filename, rc_lineno, msg);
 }
 
 /* Die if we get an unexpected end of file.  */
@@ -1591,8 +1585,9 @@ define_rcdata_number (rc_uint_type val, int dword)
 
 void
 define_stringtable (const rc_res_res_info *resinfo,
-		    rc_uint_type stringid, const unichar *string)
+		    rc_uint_type stringid, const unichar *string, int len)
 {
+  unichar *h;
   rc_res_id id;
   rc_res_resource *r;
 
@@ -1616,9 +1611,12 @@ define_stringtable (const rc_res_res_info *resinfo,
 
       r->res_info = *resinfo;
     }
-
-  r->u.stringtable->strings[stringid & 0xf].length = unichar_len (string);
-  r->u.stringtable->strings[stringid & 0xf].string = unichar_dup (string);
+  h = (unichar *) res_alloc ((len + 1) * sizeof (unichar));
+  if (len)
+    memcpy (h, string, len * sizeof (unichar));
+  h[len] = 0;
+  r->u.stringtable->strings[stringid & 0xf].length = (rc_uint_type) len;
+  r->u.stringtable->strings[stringid & 0xf].string = h;
 }
 
 void
@@ -1803,22 +1801,40 @@ define_versioninfo (rc_res_id id, rc_uint_type language,
 /* Add string version info to a list of version information.  */
 
 rc_ver_info *
-append_ver_stringfileinfo (rc_ver_info *verinfo, const char *language,
-			   rc_ver_stringinfo *strings)
+append_ver_stringfileinfo (rc_ver_info *verinfo,
+			   rc_ver_stringtable *stringtables)
 {
   rc_ver_info *vi, **pp;
 
   vi = (rc_ver_info *) res_alloc (sizeof (rc_ver_info));
   vi->next = NULL;
   vi->type = VERINFO_STRING;
-  unicode_from_ascii ((rc_uint_type *) NULL, &vi->u.string.language, language);
-  vi->u.string.strings = strings;
+  vi->u.string.stringtables = stringtables;
 
   for (pp = &verinfo; *pp != NULL; pp = &(*pp)->next)
     ;
   *pp = vi;
 
   return verinfo;
+}
+
+rc_ver_stringtable *
+append_ver_stringtable (rc_ver_stringtable *stringtable,
+			const char *language,
+			rc_ver_stringinfo *strings)
+{
+  rc_ver_stringtable *vst, **pp;
+
+  vst = (rc_ver_stringtable *) res_alloc (sizeof (rc_ver_stringtable));
+  vst->next = NULL;
+  unicode_from_ascii ((rc_uint_type *) NULL, &vst->language, language);
+  vst->strings = strings;
+
+  for (pp = &stringtable; *pp != NULL; pp = &(*pp)->next)
+    ;
+  *pp = vst;
+
+  return stringtable;
 }
 
 /* Add variable version info to a list of version information.  */
@@ -1926,7 +1942,7 @@ indent (FILE *e, int c)
    without the need to store it somewhere externally.  */
 
 void
-write_rc_file (const char *filename, const rc_res_directory *resources)
+write_rc_file (const char *filename, const rc_res_directory *res_dir)
 {
   FILE *e;
   rc_uint_type language;
@@ -1941,7 +1957,7 @@ write_rc_file (const char *filename, const rc_res_directory *resources)
     }
 
   language = (rc_uint_type) ((bfd_signed_vma) -1);
-  write_rc_directory (e, resources, (const rc_res_id *) NULL,
+  write_rc_directory (e, res_dir, (const rc_res_id *) NULL,
 		      (const rc_res_id *) NULL, &language, 1);
 }
 
@@ -2633,7 +2649,13 @@ write_rc_dialog_control (FILE *e, const rc_dialog_control *control)
       ci = NULL;
     }
 
-  if (control->text.named || control->text.u.id != 0)
+  /* For EDITTEXT, COMBOBOX, LISTBOX, and SCROLLBAR don't dump text.  */
+  if ((control->text.named || control->text.u.id != 0)
+      && (!ci
+          || (ci->class != CTL_EDIT
+              && ci->class != CTL_COMBOBOX
+              && ci->class != CTL_LISTBOX
+              && ci->class != CTL_SCROLLBAR)))
     {
       fprintf (e, " ");
       res_id_print (e, control->text, 1);
@@ -2901,6 +2923,7 @@ write_rc_messagetable (FILE *e, rc_uint_type length, const bfd_byte *data)
 {
   int has_error = 0;
   const struct bin_messagetable *mt;
+
   fprintf (e, "BEGIN\n");
 
   write_rc_datablock (e, length, data, 0, 0, 0);
@@ -2910,53 +2933,68 @@ write_rc_messagetable (FILE *e, rc_uint_type length, const bfd_byte *data)
   if (length < BIN_MESSAGETABLE_SIZE)
     has_error = 1;
   else
-    do {
-      rc_uint_type m, i;
-      mt = (const struct bin_messagetable *) data;
-      m = windres_get_32 (&wrtarget, mt->cblocks, length);
-      if (length < (BIN_MESSAGETABLE_SIZE + m * BIN_MESSAGETABLE_BLOCK_SIZE))
-	{
-	  has_error = 1;
-	  break;
-	}
-      for (i = 0; i < m; i++)
-	{
-	  rc_uint_type low, high, offset;
-	  const struct bin_messagetable_item *mti;
+    do
+      {
+	rc_uint_type m, i;
 
-	  low = windres_get_32 (&wrtarget, mt->items[i].lowid, 4);
-	  high = windres_get_32 (&wrtarget, mt->items[i].highid, 4);
-	  offset = windres_get_32 (&wrtarget, mt->items[i].offset, 4);
-	  while (low <= high)
-	    {
-	      rc_uint_type elen, flags;
-	      if ((offset + BIN_MESSAGETABLE_ITEM_SIZE) > length)
-		{
-		  has_error = 1;
-	  break;
-		}
-	      mti = (const struct bin_messagetable_item *) &data[offset];
-	      elen = windres_get_16 (&wrtarget, mti->length, 2);
-	      flags = windres_get_16 (&wrtarget, mti->flags, 2);
-	      if ((offset + elen) > length)
-		{
-		  has_error = 1;
-		  break;
-		}
-	      wr_printcomment (e, "MessageId = 0x%x", low);
-	      wr_printcomment (e, "");
-	      if ((flags & MESSAGE_RESOURCE_UNICODE) == MESSAGE_RESOURCE_UNICODE)
-		unicode_print (e, (const unichar *) mti->data,
-			       (elen - BIN_MESSAGETABLE_ITEM_SIZE) / 2);
-	      else
-		ascii_print (e, (const char *) mti->data,
-			     (elen - BIN_MESSAGETABLE_ITEM_SIZE));
-	      wr_printcomment (e,"");
-	      ++low;
-	      offset += elen;
-	    }
-	}
-    } while (0);
+	mt = (const struct bin_messagetable *) data;
+	m = windres_get_32 (&wrtarget, mt->cblocks, length);
+
+	if (length < (BIN_MESSAGETABLE_SIZE + m * BIN_MESSAGETABLE_BLOCK_SIZE))
+	  {
+	    has_error = 1;
+	    break;
+	  }
+	for (i = 0; i < m; i++)
+	  {
+	    rc_uint_type low, high, offset;
+	    const struct bin_messagetable_item *mti;
+
+	    low = windres_get_32 (&wrtarget, mt->items[i].lowid, 4);
+	    high = windres_get_32 (&wrtarget, mt->items[i].highid, 4);
+	    offset = windres_get_32 (&wrtarget, mt->items[i].offset, 4);
+
+	    while (low <= high)
+	      {
+		rc_uint_type elen, flags;
+		if ((offset + BIN_MESSAGETABLE_ITEM_SIZE) > length)
+		  {
+		    has_error = 1;
+		    break;
+		  }
+		mti = (const struct bin_messagetable_item *) &data[offset];
+		elen = windres_get_16 (&wrtarget, mti->length, 2);
+		flags = windres_get_16 (&wrtarget, mti->flags, 2);
+		if ((offset + elen) > length)
+		  {
+		    has_error = 1;
+		    break;
+		  }
+		wr_printcomment (e, "MessageId = 0x%x", low);
+		wr_printcomment (e, "");
+
+		if ((flags & MESSAGE_RESOURCE_UNICODE) == MESSAGE_RESOURCE_UNICODE)
+		  {
+		    /* PR 17512: file: 5c3232dc.  */
+		    if (elen > BIN_MESSAGETABLE_ITEM_SIZE * 2)
+		      unicode_print (e, (const unichar *) mti->data,
+				     (elen - BIN_MESSAGETABLE_ITEM_SIZE) / 2);
+		  }
+		else
+		  {
+		    if (elen > BIN_MESSAGETABLE_ITEM_SIZE)
+		      ascii_print (e, (const char *) mti->data,
+				   (elen - BIN_MESSAGETABLE_ITEM_SIZE));
+		  }
+
+		wr_printcomment (e,"");
+		++low;
+		offset += elen;
+	      }
+	  }
+      }
+    while (0);
+
   if (has_error)
     wr_printcomment (e, "Illegal data");
   wr_print_flush (e);
@@ -2973,7 +3011,7 @@ write_rc_datablock (FILE *e, rc_uint_type length, const bfd_byte *data, int has_
     fprintf (e, "BEGIN\n");
 
   if (show_comment == -1)
-	  {
+    {
       if (test_rc_datablock_text(length, data))
 	{
 	  rc_uint_type i, c;
@@ -2986,7 +3024,7 @@ write_rc_datablock (FILE *e, rc_uint_type length, const bfd_byte *data, int has_
 		;
 	      if (i < length && data[i] == '\n')
 		++i, ++c;
-	      ascii_print (e, (const char *) &data[i - c], c);
+	      ascii_print(e, (const char *) &data[i - c], c);
 	    fprintf (e, "\"");
 	      if (i < length)
 		fprintf (e, "\n");
@@ -3264,25 +3302,31 @@ write_rc_versioninfo (FILE *e, const rc_versioninfo *versioninfo)
 	{
 	case VERINFO_STRING:
 	  {
+	    const rc_ver_stringtable *vst;
 	    const rc_ver_stringinfo *vs;
 
 	    fprintf (e, "  BLOCK \"StringFileInfo\"\n");
 	    fprintf (e, "  BEGIN\n");
-	    fprintf (e, "    BLOCK ");
-	    unicode_print_quoted (e, vi->u.string.language, -1);
-	    fprintf (e, "\n");
-	    fprintf (e, "    BEGIN\n");
 
-	    for (vs = vi->u.string.strings; vs != NULL; vs = vs->next)
+	    for (vst = vi->u.string.stringtables; vst != NULL; vst = vst->next)
 	      {
-		fprintf (e, "      VALUE ");
-		unicode_print_quoted (e, vs->key, -1);
-		fprintf (e, ", ");
-		unicode_print_quoted (e, vs->value, -1);
-		fprintf (e, "\n");
-	      }
+		fprintf (e, "    BLOCK ");
+		unicode_print_quoted (e, vst->language, -1);
 
-	    fprintf (e, "    END\n");
+		fprintf (e, "\n");
+		fprintf (e, "    BEGIN\n");
+
+		for (vs = vst->strings; vs != NULL; vs = vs->next)
+		  {
+		    fprintf (e, "      VALUE ");
+		    unicode_print_quoted (e, vs->key, -1);
+		    fprintf (e, ", ");
+		    unicode_print_quoted (e, vs->value, -1);
+		    fprintf (e, "\n");
+		  }
+
+		fprintf (e, "    END\n");
+	      }
 	    fprintf (e, "  END\n");
 	    break;
 	  }

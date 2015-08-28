@@ -1,7 +1,5 @@
 /* Assorted BFD support routines, only used internally.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -150,6 +148,16 @@ _bfd_nocore_core_file_failing_signal (bfd *ignore_abfd ATTRIBUTE_UNUSED)
   return 0;
 }
 
+/* Routine to handle the core_file_pid entry point for targets without
+   core file support.  */
+
+int
+_bfd_nocore_core_file_pid (bfd *ignore_abfd ATTRIBUTE_UNUSED)
+{
+  bfd_set_error (bfd_error_invalid_operation);
+  return 0;
+}
+
 const bfd_target *
 _bfd_dummy_target (bfd *ignore_abfd ATTRIBUTE_UNUSED)
 {
@@ -163,15 +171,18 @@ void *
 bfd_malloc (bfd_size_type size)
 {
   void *ptr;
+  size_t sz = (size_t) size;
 
-  if (size != (size_t) size)
+  if (size != sz
+      /* This is to pacify memory checkers like valgrind.  */
+      || ((signed long) sz) < 0)
     {
       bfd_set_error (bfd_error_no_memory);
       return NULL;
     }
 
-  ptr = malloc ((size_t) size);
-  if (ptr == NULL && (size_t) size != 0)
+  ptr = malloc (sz);
+  if (ptr == NULL && sz != 0)
     bfd_set_error (bfd_error_no_memory);
 
   return ptr;
@@ -182,8 +193,6 @@ bfd_malloc (bfd_size_type size)
 void *
 bfd_malloc2 (bfd_size_type nmemb, bfd_size_type size)
 {
-  void *ptr;
-
   if ((nmemb | size) >= HALF_BFD_SIZE_TYPE
       && size != 0
       && nmemb > ~(bfd_size_type) 0 / size)
@@ -192,19 +201,7 @@ bfd_malloc2 (bfd_size_type nmemb, bfd_size_type size)
       return NULL;
     }
 
-  size *= nmemb;
-
-  if (size != (size_t) size)
-    {
-      bfd_set_error (bfd_error_no_memory);
-      return NULL;
-    }
-
-  ptr = malloc ((size_t) size);
-  if (ptr == NULL && (size_t) size != 0)
-    bfd_set_error (bfd_error_no_memory);
-
-  return ptr;
+  return bfd_malloc (size * nmemb);
 }
 
 /* Reallocate memory using realloc.  */
@@ -213,19 +210,22 @@ void *
 bfd_realloc (void *ptr, bfd_size_type size)
 {
   void *ret;
+  size_t sz = (size_t) size;
 
-  if (size != (size_t) size)
+  if (ptr == NULL)
+    return bfd_malloc (size);
+
+  if (size != sz
+      /* This is to pacify memory checkers like valgrind.  */
+      || ((signed long) sz) < 0)
     {
       bfd_set_error (bfd_error_no_memory);
       return NULL;
     }
 
-  if (ptr == NULL)
-    ret = malloc ((size_t) size);
-  else
-    ret = realloc (ptr, (size_t) size);
+  ret = realloc (ptr, sz);
 
-  if (ret == NULL && (size_t) size != 0)
+  if (ret == NULL && sz != 0)
     bfd_set_error (bfd_error_no_memory);
 
   return ret;
@@ -236,8 +236,6 @@ bfd_realloc (void *ptr, bfd_size_type size)
 void *
 bfd_realloc2 (void *ptr, bfd_size_type nmemb, bfd_size_type size)
 {
-  void *ret;
-
   if ((nmemb | size) >= HALF_BFD_SIZE_TYPE
       && size != 0
       && nmemb > ~(bfd_size_type) 0 / size)
@@ -246,23 +244,7 @@ bfd_realloc2 (void *ptr, bfd_size_type nmemb, bfd_size_type size)
       return NULL;
     }
 
-  size *= nmemb;
-
-  if (size != (size_t) size)
-    {
-      bfd_set_error (bfd_error_no_memory);
-      return NULL;
-    }
-
-  if (ptr == NULL)
-    ret = malloc ((size_t) size);
-  else
-    ret = realloc (ptr, (size_t) size);
-
-  if (ret == NULL && (size_t) size != 0)
-    bfd_set_error (bfd_error_no_memory);
-
-  return ret;
+  return bfd_realloc (ptr, size * nmemb);
 }
 
 /* Reallocate memory using realloc.
@@ -271,24 +253,10 @@ bfd_realloc2 (void *ptr, bfd_size_type nmemb, bfd_size_type size)
 void *
 bfd_realloc_or_free (void *ptr, bfd_size_type size)
 {
-  size_t amount = (size_t) size;
-  void *ret;
+  void *ret = bfd_realloc (ptr, size);
 
-  if (size != amount)
-    ret = NULL;
-  else if (ptr == NULL)
-    ret = malloc (amount);
-  else
-    ret = realloc (ptr, amount);
-
-  if (ret == NULL)
-    {
-      if (amount > 0)
-	bfd_set_error (bfd_error_no_memory);
-
-      if (ptr != NULL)
-	free (ptr);
-    }
+  if (ret == NULL && ptr != NULL)
+    free (ptr);
 
   return ret;
 }
@@ -298,23 +266,10 @@ bfd_realloc_or_free (void *ptr, bfd_size_type size)
 void *
 bfd_zmalloc (bfd_size_type size)
 {
-  void *ptr;
+  void *ptr = bfd_malloc (size);
 
-  if (size != (size_t) size)
-    {
-      bfd_set_error (bfd_error_no_memory);
-      return NULL;
-    }
-
-  ptr = malloc ((size_t) size);
-
-  if ((size_t) size != 0)
-    {
-      if (ptr == NULL)
-	bfd_set_error (bfd_error_no_memory);
-      else
-	memset (ptr, 0, (size_t) size);
-    }
+  if (ptr != NULL && size > 0)
+    memset (ptr, 0, (size_t) size);
 
   return ptr;
 }
@@ -325,32 +280,14 @@ bfd_zmalloc (bfd_size_type size)
 void *
 bfd_zmalloc2 (bfd_size_type nmemb, bfd_size_type size)
 {
-  void *ptr;
+  void *ptr = bfd_malloc2 (nmemb, size);
 
-  if ((nmemb | size) >= HALF_BFD_SIZE_TYPE
-      && size != 0
-      && nmemb > ~(bfd_size_type) 0 / size)
+  if (ptr != NULL)
     {
-      bfd_set_error (bfd_error_no_memory);
-      return NULL;
-    }
+      size_t sz = nmemb * size;
 
-  size *= nmemb;
-
-  if (size != (size_t) size)
-    {
-      bfd_set_error (bfd_error_no_memory);
-      return NULL;
-    }
-
-  ptr = malloc ((size_t) size);
-
-  if ((size_t) size != 0)
-    {
-      if (ptr == NULL)
-	bfd_set_error (bfd_error_no_memory);
-      else
-	memset (ptr, 0, (size_t) size);
+      if (sz > 0)
+	memset (ptr, 0, sz);
     }
 
   return ptr;
@@ -421,9 +358,9 @@ DESCRIPTION
 .#define bfd_put_signed_8 \
 .  bfd_put_8
 .#define bfd_get_8(abfd, ptr) \
-.  (*(unsigned char *) (ptr) & 0xff)
+.  (*(const unsigned char *) (ptr) & 0xff)
 .#define bfd_get_signed_8(abfd, ptr) \
-.  (((*(unsigned char *) (ptr) & 0xff) ^ 0x80) - 0x80)
+.  (((*(const unsigned char *) (ptr) & 0xff) ^ 0x80) - 0x80)
 .
 .#define bfd_put_16(abfd, val, ptr) \
 .  BFD_SEND (abfd, bfd_putx16, ((val),(ptr)))
@@ -540,11 +477,10 @@ DESCRIPTION
 .*/
 
 /* Sign extension to bfd_signed_vma.  */
-#define COERCE16(x) (((bfd_signed_vma) (x) ^ 0x8000) - 0x8000)
-#define COERCE32(x) (((bfd_signed_vma) (x) ^ 0x80000000) - 0x80000000)
-#define EIGHT_GAZILLION ((bfd_int64_t) 1 << 63)
+#define COERCE16(x) (((bfd_vma) (x) ^ 0x8000) - 0x8000)
+#define COERCE32(x) (((bfd_vma) (x) ^ 0x80000000) - 0x80000000)
 #define COERCE64(x) \
-  (((bfd_int64_t) (x) ^ EIGHT_GAZILLION) - EIGHT_GAZILLION)
+  (((bfd_uint64_t) (x) ^ ((bfd_uint64_t) 1 << 63)) - ((bfd_uint64_t) 1 << 63))
 
 bfd_vma
 bfd_getb16 (const void *p)
@@ -804,9 +740,9 @@ bfd_put_bits (bfd_uint64_t data, void *p, int bits, bfd_boolean big_p)
   bytes = bits / 8;
   for (i = 0; i < bytes; i++)
     {
-      int index = big_p ? bytes - i - 1 : i;
+      int addr_index = big_p ? bytes - i - 1 : i;
 
-      addr[index] = data & 0xff;
+      addr[addr_index] = data & 0xff;
       data >>= 8;
     }
 }
@@ -826,9 +762,9 @@ bfd_get_bits (const void *p, int bits, bfd_boolean big_p)
   bytes = bits / 8;
   for (i = 0; i < bytes; i++)
     {
-      int index = big_p ? i : bytes - i - 1;
+      int addr_index = big_p ? i : bytes - i - 1;
 
-      data = (data << 8) | addr[index];
+      data = (data << 8) | addr[addr_index];
     }
 
   return data;
@@ -847,7 +783,24 @@ _bfd_generic_get_section_contents (bfd *abfd,
   if (count == 0)
     return TRUE;
 
-  sz = section->rawsize ? section->rawsize : section->size;
+  if (section->compress_status != COMPRESS_SECTION_NONE)
+    {
+      (*_bfd_error_handler)
+	(_("%B: unable to get decompressed section %A"),
+	 abfd, section);
+      bfd_set_error (bfd_error_invalid_operation);
+      return FALSE;
+    }
+
+  /* We do allow reading of a section after bfd_final_link has
+     written the contents out to disk.  In that situation, rawsize is
+     just a stale version of size, so ignore it.  Otherwise we must be
+     reading an input section, where rawsize, if different to size,
+     is the on-disk size.  */
+  if (abfd->direction != write_direction && section->rawsize != 0)
+    sz = section->rawsize;
+  else
+    sz = section->size;
   if (offset + count < count
       || offset + count > sz)
     {
@@ -900,7 +853,10 @@ _bfd_generic_get_section_contents_in_window
       w->data = w->i->data;
       return bfd_get_section_contents (abfd, section, w->data, offset, count);
     }
-  sz = section->rawsize ? section->rawsize : section->size;
+  if (abfd->direction != write_direction && section->rawsize != 0)
+    sz = section->rawsize;
+  else
+    sz = section->size;
   if (offset + count > sz
       || ! bfd_get_file_window (abfd, section->filepos + offset, count, w,
 				TRUE))
@@ -949,8 +905,12 @@ bfd_log2 (bfd_vma x)
 {
   unsigned int result = 0;
 
-  while ((x = (x >> 1)) != 0)
+  if (x <= 1)
+    return result;
+  --x;
+  do
     ++result;
+  while ((x >>= 1) != 0);
   return result;
 }
 
@@ -1002,6 +962,7 @@ warn_deprecated (const char *what,
 
   if (~(size_t) func & ~mask)
     {
+      fflush (stdout);
       /* Note: separate sentences in order to allow
 	 for translation into other languages.  */
       if (func)
@@ -1009,6 +970,7 @@ warn_deprecated (const char *what,
 		 what, file, line, func);
       else
 	fprintf (stderr, _("Deprecated %s called\n"), what);
+      fflush (stderr);
       mask |= ~(size_t) func;
     }
 }
@@ -1041,6 +1003,45 @@ read_unsigned_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
   return result;
 }
 
+/* Read in a LEB128 encoded value from ABFD starting at DATA.
+   If SIGN is true, return a signed LEB128 value.
+   If LENGTH_RETURN is not NULL, return in it the number of bytes read.
+   No bytes will be read at address END or beyond.  */
+
+bfd_vma
+safe_read_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
+		  bfd_byte *data,
+		  unsigned int *length_return,
+		  bfd_boolean sign,
+		  const bfd_byte * const end)
+{
+  bfd_vma result = 0;
+  unsigned int num_read = 0;
+  unsigned int shift = 0;
+  unsigned char byte = 0;
+
+  while (data < end)
+    {
+      byte = bfd_get_8 (abfd, data);
+      data++;
+      num_read++;
+
+      result |= ((bfd_vma) (byte & 0x7f)) << shift;
+
+      shift += 7;
+      if ((byte & 0x80) == 0)
+	break;
+    }
+
+  if (length_return != NULL)
+    *length_return = num_read;
+
+  if (sign && (shift < 8 * sizeof (result)) && (byte & 0x40))
+    result |= (bfd_vma) -1 << shift;
+
+  return result;
+}
+
 /* Helper function for reading sleb128 encoded data.  */
 
 bfd_signed_vma
@@ -1069,16 +1070,6 @@ read_signed_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
     result |= (((bfd_vma) -1) << shift);
   *bytes_read_ptr = num_read;
   return result;
-}
-
-bfd_boolean
-_bfd_generic_find_line (bfd *abfd ATTRIBUTE_UNUSED,
-		       asymbol **symbols ATTRIBUTE_UNUSED,
-		       asymbol *symbol ATTRIBUTE_UNUSED,
-		       const char **filename_ptr ATTRIBUTE_UNUSED,
-		       unsigned int *linenumber_ptr ATTRIBUTE_UNUSED)
-{
-  return FALSE;
 }
 
 bfd_boolean

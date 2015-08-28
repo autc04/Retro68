@@ -168,6 +168,15 @@ func BenchmarkIndex(b *testing.B) {
 	}
 }
 
+func BenchmarkLastIndex(b *testing.B) {
+	if got := Index(benchmarkString, "v"); got != 17 {
+		b.Fatalf("wrong index: expected 17, got=%d", got)
+	}
+	for i := 0; i < b.N; i++ {
+		LastIndex(benchmarkString, "v")
+	}
+}
+
 func BenchmarkIndexByte(b *testing.B) {
 	if got := IndexByte(benchmarkString, 'v'); got != 17 {
 		b.Fatalf("wrong index: expected 17, got=%d", got)
@@ -652,7 +661,7 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
 	e1 := Split(s1, "")
 	e2 := Split(s2, "")
 	for i, c1 := range e1 {
-		if i > len(e2) {
+		if i >= len(e2) {
 			break
 		}
 		r1, _ := utf8.DecodeRuneInString(c1)
@@ -858,6 +867,32 @@ func TestReadRune(t *testing.T) {
 	}
 }
 
+var UnreadRuneErrorTests = []struct {
+	name string
+	f    func(*Reader)
+}{
+	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
+	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
+	{"WriteTo", func(r *Reader) { r.WriteTo(&bytes.Buffer{}) }},
+}
+
+func TestUnreadRuneError(t *testing.T) {
+	for _, tt := range UnreadRuneErrorTests {
+		reader := NewReader("0123456789")
+		if _, _, err := reader.ReadRune(); err != nil {
+			// should not happen
+			t.Fatal(err)
+		}
+		tt.f(reader)
+		err := reader.UnreadRune()
+		if err == nil {
+			t.Errorf("Unreading after %s: expected error", tt.name)
+		}
+	}
+}
+
 var ReplaceTests = []struct {
 	in       string
 	old, new string
@@ -903,6 +938,8 @@ var TitleTests = []struct {
 	{"123a456", "123a456"},
 	{"double-blind", "Double-Blind"},
 	{"ÿøû", "Ÿøû"},
+	{"with_underscore", "With_underscore"},
+	{"unicode \xe2\x80\xa8 line separator", "Unicode \xe2\x80\xa8 Line Separator"},
 }
 
 func TestTitle(t *testing.T) {
@@ -1041,8 +1078,11 @@ func makeBenchInputHard() string {
 		"hello", "world",
 	}
 	x := make([]byte, 0, 1<<20)
-	for len(x) < 1<<20 {
+	for {
 		i := rand.Intn(len(tokens))
+		if len(x)+len(tokens[i]) >= 1<<20 {
+			break
+		}
 		x = append(x, tokens[i]...)
 	}
 	return string(x)
@@ -1056,6 +1096,12 @@ func benchmarkIndexHard(b *testing.B, sep string) {
 	}
 }
 
+func benchmarkLastIndexHard(b *testing.B, sep string) {
+	for i := 0; i < b.N; i++ {
+		LastIndex(benchInputHard, sep)
+	}
+}
+
 func benchmarkCountHard(b *testing.B, sep string) {
 	for i := 0; i < b.N; i++ {
 		Count(benchInputHard, sep)
@@ -1065,6 +1111,10 @@ func benchmarkCountHard(b *testing.B, sep string) {
 func BenchmarkIndexHard1(b *testing.B) { benchmarkIndexHard(b, "<>") }
 func BenchmarkIndexHard2(b *testing.B) { benchmarkIndexHard(b, "</pre>") }
 func BenchmarkIndexHard3(b *testing.B) { benchmarkIndexHard(b, "<b>hello world</b>") }
+
+func BenchmarkLastIndexHard1(b *testing.B) { benchmarkLastIndexHard(b, "<>") }
+func BenchmarkLastIndexHard2(b *testing.B) { benchmarkLastIndexHard(b, "</pre>") }
+func BenchmarkLastIndexHard3(b *testing.B) { benchmarkLastIndexHard(b, "<b>hello world</b>") }
 
 func BenchmarkCountHard1(b *testing.B) { benchmarkCountHard(b, "<>") }
 func BenchmarkCountHard2(b *testing.B) { benchmarkCountHard(b, "</pre>") }
@@ -1144,5 +1194,11 @@ func BenchmarkSplit2(b *testing.B) {
 func BenchmarkSplit3(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Split(benchInputHard, "hello")
+	}
+}
+
+func BenchmarkRepeat(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Repeat("-", 80)
 	}
 }

@@ -1,7 +1,5 @@
 /* read.h - of read.c
-   Copyright 1986, 1990, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -95,6 +93,11 @@ enum linkonce_type {
 extern char original_case_string[];
 #endif
 
+#ifndef TC_PARSE_CONS_RETURN_TYPE
+#define TC_PARSE_CONS_RETURN_TYPE bfd_reloc_code_real_type
+#define TC_PARSE_CONS_RETURN_NONE BFD_RELOC_NONE
+#endif
+
 extern void pop_insert (const pseudo_typeS *);
 extern unsigned int get_stab_string_offset
   (const char *string, const char *stabstr_secname);
@@ -111,7 +114,10 @@ extern void add_include_dir (char *path);
 extern void cons (int nbytes);
 extern void demand_empty_rest_of_line (void);
 extern void emit_expr (expressionS *exp, unsigned int nbytes);
-extern void emit_expr_fix (expressionS *, unsigned int, fragS *, char *);
+extern void emit_expr_with_reloc (expressionS *exp, unsigned int nbytes,
+				  TC_PARSE_CONS_RETURN_TYPE);
+extern void emit_expr_fix (expressionS *, unsigned int, fragS *, char *,
+			   TC_PARSE_CONS_RETURN_TYPE);
 extern void equals (char *sym_name, int reassign);
 extern void float_cons (int float_type);
 extern void ignore_rest_of_line (void);
@@ -127,6 +133,7 @@ extern void stabs_generate_asm_lineno (void);
 extern void stabs_generate_asm_func (const char *, const char *);
 extern void stabs_generate_asm_endfunc (const char *, const char *);
 extern void do_repeat (int,const char *,const char *);
+extern void do_repeat_with_expander (int, const char *, const char *, const char *);
 extern void end_repeat (int);
 extern void do_parse_cons_expression (expressionS *, int);
 
@@ -142,6 +149,9 @@ extern symbolS *s_lcomm_internal (int, symbolS *, addressT);
 extern void s_app_file_string (char *, int);
 extern void s_app_file (int);
 extern void s_app_line (int);
+extern void s_bundle_align_mode (int);
+extern void s_bundle_lock (int);
+extern void s_bundle_unlock (int);
 extern void s_comm (int);
 extern void s_data (int);
 extern void s_desc (int);
@@ -186,5 +196,4 @@ extern void stringer (int append_zero);
 extern void s_xstab (int what);
 extern void s_rva (int);
 extern void s_incbin (int);
-extern int s_vendor_attribute (int);
 extern void s_weakref (int);

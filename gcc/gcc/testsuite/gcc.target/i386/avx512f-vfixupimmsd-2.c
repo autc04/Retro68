@@ -6,7 +6,7 @@
 #include "avx512f-check.h"
 #include "avx512f-helper.h"
 #include <math.h>
-#include <values.h>
+#include <float.h>
 #include "avx512f-mask-type.h"
 
 void
@@ -57,23 +57,23 @@ compute_fixupimmpd (double *r, double src, long long tbl)
       *r = M_PI_2;
       break;
     case 14:
-      *r = MAXDOUBLE;
+      *r = DBL_MAX;
       break;
     case 15:
-      *r = -MAXDOUBLE;
+      *r = -DBL_MAX;
       break;
     default:
       abort ();
     }
 }
 
-void static
+void
 avx512f_test (void)
 {
   union128d s1, res1, res2, res3;
   union128i_q s2;
   double res_ref[2];
-  int i, j, k;
+  int i, j;
 
   float vals[2] = { -10, 10 };
   int controls[10] = { 0x11111111,

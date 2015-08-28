@@ -1,5 +1,5 @@
 `/* Specific implementation of the PACK intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -168,8 +168,8 @@ pack_'rtype_code` ('rtype` *ret, const 'rtype` *array,
 
 	  ret->offset = 0;
 
-	  /* xmalloc allocates a single byte for zero size.  */
-	  ret->base_addr = xmalloc (sizeof ('rtype_name`) * total);
+	  /* xmallocarray allocates a single byte for zero size.  */
+	  ret->base_addr = xmallocarray (total, sizeof ('rtype_name`));
 
 	  if (total == 0)
 	    return;

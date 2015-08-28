@@ -1,7 +1,5 @@
 /* BFD back-end for MIPS PE COFF files.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Modified from coff-i386.c by DJ Delorie, dj@cygnus.com
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -341,6 +339,8 @@ static reloc_howto_type howto_table[] =
 	 FALSE),                /* Pcrel_offset. */
 };
 
+#define NUM_HOWTOS (sizeof (howto_table) / sizeof (howto_table[0]))
+
 /* Turn a howto into a reloc nunmber.  */
 
 #define SELECT_RELOC(x, howto) { x.r_type = howto->type; }
@@ -349,8 +349,11 @@ static reloc_howto_type howto_table[] =
 /* Customize coffcode.h.  */
 #define MIPS 1
 
-#define RTYPE2HOWTO(cache_ptr, dst) \
-	    (cache_ptr)->howto = howto_table + (dst)->r_type;
+#define RTYPE2HOWTO(cache_ptr, dst)				\
+  ((cache_ptr)->howto =						\
+   ((dst)->r_type < NUM_HOWTOS					\
+    ? howto_table + (dst)->r_type				\
+    : NULL))
 
 /* Compute the addend of a reloc.  If the reloc is to a common symbol,
    the object file contains the value of the common symbol.  By the
@@ -381,7 +384,8 @@ static reloc_howto_type howto_table[] =
       cache_ptr->addend = - (ptr->section->vma + ptr->value);	\
     else							\
       cache_ptr->addend = 0;					\
-    if (ptr && howto_table[reloc.r_type].pc_relative)		\
+    if (ptr && reloc.r_type < NUM_HOWTOS			\
+	&& howto_table[reloc.r_type].pc_relative)		\
       cache_ptr->addend += asect->vma;				\
   }
 
@@ -511,9 +515,7 @@ coff_mips_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 {
   unsigned int i;
 
-  for (i = 0;
-       i < sizeof (howto_table) / sizeof (howto_table[0]);
-       i++)
+  for (i = 0; i < NUM_HOWTOS; i++)
     if (howto_table[i].name != NULL
 	&& strcasecmp (howto_table[i].name, r_name) == 0)
       return &howto_table[i];
@@ -552,7 +554,6 @@ mips_swap_reloc_in (bfd * abfd, void * src, void * dst)
 static unsigned int
 mips_swap_reloc_out (bfd * abfd, void * src, void * dst)
 {
-  static int prev_offset = 1;
   static bfd_vma prev_addr = 0;
   struct internal_reloc *reloc_src = (struct internal_reloc *)src;
   struct external_reloc *reloc_dst = (struct external_reloc *)dst;
@@ -561,7 +562,6 @@ mips_swap_reloc_out (bfd * abfd, void * src, void * dst)
     {
     case MIPS_R_REFHI:
       prev_addr = reloc_src->r_vaddr;
-      prev_offset = reloc_src->r_offset;
       break;
     case MIPS_R_REFLO:
       if (reloc_src->r_vaddr == prev_addr)
@@ -599,13 +599,9 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
 			       struct internal_syment *syms,
 			       asection **sections)
 {
-  bfd_vma gp;
-  bfd_boolean gp_undefined;
-  size_t adjust;
   struct internal_reloc *rel;
   struct internal_reloc *rel_end;
   unsigned int i;
-  bfd_boolean got_lo;
 
   if (info->relocatable)
     {
@@ -618,10 +614,6 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
   BFD_ASSERT (input_bfd->xvec->byteorder
 	      == output_bfd->xvec->byteorder);
 
-  gp = _bfd_get_gp_value (output_bfd);
-  gp_undefined = (gp == 0) ? TRUE : FALSE;
-  got_lo = FALSE;
-  adjust = 0;
   rel = relocs;
   rel_end = rel + input_section->reloc_count;
 
@@ -868,7 +860,7 @@ const bfd_target
 #ifdef TARGET_SYM
   TARGET_SYM =
 #else
-  mipslpe_vec =
+  mips_pe_le_vec =
 #endif
 {
 #ifdef TARGET_NAME
@@ -900,6 +892,7 @@ const bfd_target
 #endif
   '/',				/* AR_pad_char.  */
   15,				/* AR_max_namelen.  */
+  0,				/* match priority.  */
 
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,

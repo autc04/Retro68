@@ -6,7 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_platform.h"
-#if SANITIZER_LINUX
+#if SANITIZER_FREEBSD || SANITIZER_LINUX
 
 #include "sanitizer_libignore.h"
 #include "sanitizer_flags.h"
@@ -74,9 +74,10 @@ void LibIgnore::OnLibraryLoaded(const char *name) {
         loaded = true;
         if (lib->loaded)
           continue;
-        if (common_flags()->verbosity)
-          Report("Matched called_from_lib suppression '%s' against library"
-              " '%s'\n", lib->templ, module.data());
+        VReport(1,
+                "Matched called_from_lib suppression '%s' against library"
+                " '%s'\n",
+                lib->templ, module.data());
         lib->loaded = true;
         lib->name = internal_strdup(module.data());
         const uptr idx = atomic_load(&loaded_count_, memory_order_relaxed);
@@ -100,4 +101,4 @@ void LibIgnore::OnLibraryUnloaded() {
 
 }  // namespace __sanitizer
 
-#endif  // #if SANITIZER_LINUX
+#endif  // #if SANITIZER_FREEBSD || SANITIZER_LINUX

@@ -253,7 +253,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 			}
 			if tag == zip64ExtraId {
 				// update directory values from the zip64 extra block
-				eb := readBuf(b)
+				eb := readBuf(b[:size])
 				if len(eb) >= 8 {
 					f.UncompressedSize64 = eb.uint64()
 				}
@@ -267,8 +267,13 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 			b = b[size:]
 		}
 		// Should have consumed the whole header.
-		if len(b) != 0 {
-			return ErrFormat
+		// But popular zip & JAR creation tools are broken and
+		// may pad extra zeros at the end, so accept those
+		// too. See golang.org/issue/8186.
+		for _, v := range b {
+			if v != 0 {
+				return ErrFormat
+			}
 		}
 	}
 	return nil

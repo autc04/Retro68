@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,6 +36,7 @@ with Exp_Dbug; use Exp_Dbug;
 with Exp_Tss;  use Exp_Tss;
 with Exp_Util; use Exp_Util;
 with Freeze;   use Freeze;
+with Ghost;    use Ghost;
 with Itypes;   use Itypes;
 with Layout;   use Layout;
 with Nlists;   use Nlists;
@@ -63,7 +64,6 @@ with Stringt;  use Stringt;
 with SCIL_LL;  use SCIL_LL;
 with Targparm; use Targparm;
 with Tbuild;   use Tbuild;
-with Uintp;    use Uintp;
 
 package body Exp_Disp is
 
@@ -75,12 +75,6 @@ package body Exp_Disp is
    --  Ada 2005 (AI-251): Returns the fixed position in the dispatch table
    --  of the default primitive operations.
 
-   function Find_Specific_Type (CW : Entity_Id) return Entity_Id;
-   --  Find specific type of a class-wide type, and handle the case of an
-   --  incomplete type coming either from a limited_with clause or from an
-   --  incomplete type declaration. Shouldn't this be in Sem_Util? It seems
-   --  like a general purpose semantic routine ???
-
    function Has_DT (Typ : Entity_Id) return Boolean;
    pragma Inline (Has_DT);
    --  Returns true if we generate a dispatch table for tagged type Typ
@@ -90,13 +84,13 @@ package body Exp_Disp is
    --  an alias of a predefined dispatching primitive (i.e. through a renaming)
 
    function New_Value (From : Node_Id) return Node_Id;
-   --  From is the original Expression. New_Value is equivalent to a call
-   --  to Duplicate_Subexpr with an explicit dereference when From is an
-   --  access parameter.
+   --  From is the original Expression. New_Value is equivalent to a call to
+   --  Duplicate_Subexpr with an explicit dereference when From is an access
+   --  parameter.
 
    function Original_View_In_Visible_Part (Typ : Entity_Id) return Boolean;
-   --  Check if the type has a private view or if the public view appears
-   --  in the visible part of a package spec.
+   --  Check if the type has a private view or if the public view appears in
+   --  the visible part of a package spec.
 
    function Prim_Op_Kind
      (Prim : Entity_Id;
@@ -131,10 +125,10 @@ package body Exp_Disp is
          return;
       end if;
 
-      --  Apply_Tag_Checks is called directly from the semantics, so we need
-      --  a check to see whether expansion is active before proceeding. In
-      --  addition, there is no need to expand the call when compiling under
-      --  restriction No_Dispatching_Calls; the semantic analyzer has
+      --  Apply_Tag_Checks is called directly from the semantics, so we
+      --  need a check to see whether expansion is active before proceeding.
+      --  In addition, there is no need to expand the call when compiling
+      --  under restriction No_Dispatching_Calls; the semantic analyzer has
       --  previously notified the violation of this restriction.
 
       if not Expander_Active
@@ -221,11 +215,10 @@ package body Exp_Disp is
             elsif Find_Controlling_Arg (Param) = Ctrl_Arg then
                null;
 
-            --  "=" is the only dispatching operation allowed to get
-            --  operands with incompatible tags (it just returns false).
-            --  We use Duplicate_Subexpr_Move_Checks instead of calling
-            --  Relocate_Node because the value will be duplicated to
-            --  check the tags.
+            --  "=" is the only dispatching operation allowed to get operands
+            --  with incompatible tags (it just returns false). We use
+            --  Duplicate_Subexpr_Move_Checks instead of calling Relocate_Node
+            --  because the value will be duplicated to check the tags.
 
             elsif Subp = Eq_Prim_Op then
                null;
@@ -251,6 +244,7 @@ package body Exp_Disp is
 
             else
                --  Generate code for tag equality check
+
                --  Perhaps should have Checks.Apply_Tag_Equality_Check???
 
                Insert_Action (Ctrl_Arg,
@@ -347,8 +341,8 @@ package body Exp_Disp is
                Build_Dispatch_Tables
                  (Declarations (Proper_Body (Unit (Library_Unit (D)))));
 
-            --  Handle full type declarations and derivations of library
-            --  level tagged types
+            --  Handle full type declarations and derivations of library level
+            --  tagged types
 
             elsif Nkind_In (D, N_Full_Type_Declaration,
                                N_Derived_Type_Definition)
@@ -497,7 +491,7 @@ package body Exp_Disp is
       Set_Can_Never_Be_Null (Anon_Type);
 
       --  Decorate the size and alignment attributes of the anonymous access
-      --  type, as required by gigi.
+      --  type, as required by the back end.
 
       Layout_Type (Anon_Type);
 
@@ -537,8 +531,7 @@ package body Exp_Disp is
          CPP_Typ  := Enclosing_CPP_Parent (Typ);
          Tag_Comp := First_Tag_Component (CPP_Typ);
 
-         --  If the number of primitives is already set in the tag component
-         --  then use it
+         --  If number of primitives already set in the tag component, use it
 
          if Present (Tag_Comp)
            and then DT_Entry_Count (Tag_Comp) /= No_Uint
@@ -693,8 +686,8 @@ package body Exp_Disp is
          return;
       end if;
 
-      --  Expand_Dispatching_Call is called directly from the semantics,
-      --  so we only proceed if the expander is active.
+      --  Expand_Dispatching_Call is called directly from the semantics, so we
+      --  only proceed if the expander is active.
 
       if not Expander_Active
 
@@ -1069,8 +1062,8 @@ package body Exp_Disp is
          Set_SCIL_Node (SCIL_Related_Node, SCIL_Node);
       end if;
 
-      --  Suppress all checks during the analysis of the expanded code
-      --  to avoid the generation of spurious warnings under ZFP run-time.
+      --  Suppress all checks during the analysis of the expanded code to avoid
+      --  the generation of spurious warnings under ZFP run-time.
 
       Analyze_And_Resolve (Call_Node, Call_Typ, Suppress => All_Checks);
    end Expand_Dispatching_Call;
@@ -1145,6 +1138,25 @@ package body Exp_Disp is
          Operand_Typ := Base_Type (Corresponding_Record_Type (Operand_Typ));
       end if;
 
+      --  No displacement of the pointer to the object needed when the type of
+      --  the operand is not an interface type and the interface is one of
+      --  its parent types (since they share the primary dispatch table).
+
+      declare
+         Opnd : Entity_Id := Operand_Typ;
+
+      begin
+         if Is_Access_Type (Opnd) then
+            Opnd := Designated_Type (Opnd);
+         end if;
+
+         if not Is_Interface (Opnd)
+           and then Is_Ancestor (Iface_Typ, Opnd, Use_Full_View => True)
+         then
+            return;
+         end if;
+      end;
+
       --  Evaluate if we can statically displace the pointer to the object
 
       declare
@@ -1191,6 +1203,19 @@ package body Exp_Disp is
             Analyze (N);
          end if;
 
+         return;
+
+      --  A static conversion to an interface type that is not classwide is
+      --  curious but legal if the interface operation is a null procedure.
+      --  If the operation is abstract it will be rejected later.
+
+      elsif Is_Static
+        and then Is_Interface (Etype (N))
+        and then not Is_Class_Wide_Type (Etype (N))
+        and then Comes_From_Source (N)
+      then
+         Rewrite (N, Unchecked_Convert_To (Etype (N), N));
+         Analyze (N);
          return;
       end if;
 
@@ -1246,9 +1271,8 @@ package body Exp_Disp is
 
          Analyze (N);
 
-         --  If the target is a class-wide interface we change the type of the
-         --  data returned by IW_Convert to indicate that this is a dispatching
-         --  call.
+         --  If target is a class-wide interface, change the type of the data
+         --  returned by IW_Convert to indicate this is a dispatching call.
 
          declare
             New_Itype : Entity_Id;
@@ -1277,8 +1301,8 @@ package body Exp_Disp is
 
       if not Is_Access_Type (Etype (N)) then
 
-         --  Statically displace the pointer to the object to reference
-         --  the component containing the secondary dispatch table.
+         --  Statically displace the pointer to the object to reference the
+         --  component containing the secondary dispatch table.
 
          Rewrite (N,
            Convert_Tag_To_Interface (Class_Wide_Type (Iface_Typ),
@@ -1337,9 +1361,9 @@ package body Exp_Disp is
               Make_Simple_Return_Statement (Loc,
                 Unchecked_Convert_To (Etype (N),
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       Make_Selected_Component (Loc,
-                        Prefix =>
+                        Prefix        =>
                           Unchecked_Convert_To
                             (Defining_Identifier (New_Typ_Decl),
                              Make_Identifier (Loc, Name_uO)),
@@ -1360,8 +1384,7 @@ package body Exp_Disp is
                                        (RTE (RE_Null_Address), Loc)),
 
                  Then_Statements => New_List (
-                   Make_Simple_Return_Statement (Loc,
-                     Make_Null (Loc))),
+                   Make_Simple_Return_Statement (Loc, Make_Null (Loc))),
                  Else_Statements => Stats));
             end if;
 
@@ -1398,11 +1421,16 @@ package body Exp_Disp is
 
             if Is_Access_Type (Etype (Expression (N))) then
 
+               Apply_Accessibility_Check
+                 (N           => Expression (N),
+                  Typ         => Etype (N),
+                  Insert_Node => N);
+
                --  Generate: Func (Address!(Expression))
 
                Rewrite (N,
                  Make_Function_Call (Loc,
-                   Name => New_Occurrence_Of (Fent, Loc),
+                   Name                   => New_Occurrence_Of (Fent, Loc),
                    Parameter_Associations => New_List (
                      Unchecked_Convert_To (RTE (RE_Address),
                        Relocate_Node (Expression (N))))));
@@ -1412,7 +1440,7 @@ package body Exp_Disp is
 
                Rewrite (N,
                  Make_Function_Call (Loc,
-                   Name => New_Occurrence_Of (Fent, Loc),
+                   Name                   => New_Occurrence_Of (Fent, Loc),
                    Parameter_Associations => New_List (
                      Make_Attribute_Reference (Loc,
                        Prefix  => Unchecked_Convert_To (Operand_Typ,
@@ -1496,8 +1524,8 @@ package body Exp_Disp is
             if Actual_Typ = Formal_Typ then
                null;
 
-            --  No need to displace the pointer if the interface type is
-            --  a parent of the type of the actual because in this case the
+            --  No need to displace the pointer if the interface type is a
+            --  parent of the type of the actual because in this case the
             --  interface primitives are located in the primary dispatch table.
 
             elsif Is_Ancestor (Formal_Typ, Actual_Typ,
@@ -1505,8 +1533,8 @@ package body Exp_Disp is
             then
                null;
 
-            --  Implicit conversion to the class-wide formal type to force
-            --  the displacement of the pointer.
+            --  Implicit conversion to the class-wide formal type to force the
+            --  displacement of the pointer.
 
             else
                --  Normally, expansion of actuals for calls to build-in-place
@@ -1571,10 +1599,11 @@ package body Exp_Disp is
 
                if From_Limited_With (Actual_Typ) then
 
-                  --  If the type of the actual parameter comes from a limited
-                  --  with-clause and the non-limited view is already available
-                  --  we replace the anonymous access type by a duplicate
-                  --  declaration whose designated type is the non-limited view
+                  --  If the type of the actual parameter comes from a
+                  --  limited with-clause and the non-limited view is already
+                  --  available, we replace the anonymous access type by
+                  --  a duplicate declaration whose designated type is the
+                  --  non-limited view.
 
                   if Ekind (Actual_DDT) = E_Incomplete_Type
                     and then Present (Non_Limited_View (Actual_DDT))
@@ -1962,12 +1991,12 @@ package body Exp_Disp is
 
             Thunk_Code :=
               Make_Subprogram_Body (Loc,
-                Specification =>
+                Specification              =>
                   Make_Function_Specification (Loc,
                     Defining_Unit_Name       => Thunk_Id,
                     Parameter_Specifications => Formals,
                     Result_Definition        => Result_Def),
-                Declarations => Decl,
+                Declarations               => Decl,
                 Handled_Statement_Sequence =>
                   Make_Handled_Sequence_Of_Statements (Loc,
                     Statements => New_List (
@@ -1975,25 +2004,6 @@ package body Exp_Disp is
          end;
       end if;
    end Expand_Interface_Thunk;
-
-   ------------------------
-   -- Find_Specific_Type --
-   ------------------------
-
-   function Find_Specific_Type (CW : Entity_Id) return Entity_Id is
-      Typ : Entity_Id := Root_Type (CW);
-
-   begin
-      if Ekind (Typ) = E_Incomplete_Type then
-         if From_Limited_With (Typ) then
-            Typ := Non_Limited_View (Typ);
-         else
-            Typ := Full_View (Typ);
-         end if;
-      end if;
-
-      return Typ;
-   end Find_Specific_Type;
 
    --------------------------
    -- Has_CPP_Constructors --
@@ -2007,9 +2017,7 @@ package body Exp_Disp is
 
       E := Next_Entity (Typ);
       while Present (E) loop
-         if Ekind (E) = E_Function
-           and then Is_Constructor (E)
-         then
+         if Ekind (E) = E_Function and then Is_Constructor (E) then
             return True;
          end if;
 
@@ -2026,7 +2034,7 @@ package body Exp_Disp is
    function Has_DT (Typ : Entity_Id) return Boolean is
    begin
       return not Is_Interface (Typ)
-               and then not Restriction_Active (No_Dispatching_Calls);
+        and then not Restriction_Active (No_Dispatching_Calls);
    end Has_DT;
 
    ----------------------------------
@@ -2143,15 +2151,15 @@ package body Exp_Disp is
    begin
       --  In VM targets we don't restrict the functionality of this test to
       --  compiling in Ada 2005 mode since in VM targets any tagged type has
-      --  these primitives
+      --  these primitives.
 
       return (Ada_Version >= Ada_2005 or else not Tagged_Type_Expansion)
-        and then (Chars (E) = Name_uDisp_Asynchronous_Select or else
-                  Chars (E) = Name_uDisp_Conditional_Select  or else
-                  Chars (E) = Name_uDisp_Get_Prim_Op_Kind    or else
-                  Chars (E) = Name_uDisp_Get_Task_Id         or else
-                  Chars (E) = Name_uDisp_Requeue             or else
-                  Chars (E) = Name_uDisp_Timed_Select);
+        and then Nam_In (Chars (E), Name_uDisp_Asynchronous_Select,
+                                    Name_uDisp_Conditional_Select,
+                                    Name_uDisp_Get_Prim_Op_Kind,
+                                    Name_uDisp_Get_Task_Id,
+                                    Name_uDisp_Requeue,
+                                    Name_uDisp_Timed_Select);
    end Is_Predefined_Interface_Primitive;
 
    ----------------------------------------
@@ -2234,13 +2242,15 @@ package body Exp_Disp is
       if Is_Interface (Typ) then
          return
            Make_Subprogram_Body (Loc,
-             Specification => Make_Disp_Asynchronous_Select_Spec (Typ),
-             Declarations  => New_List,
+             Specification              =>
+               Make_Disp_Asynchronous_Select_Spec (Typ),
+             Declarations               => New_List,
              Handled_Statement_Sequence =>
                Make_Handled_Sequence_Of_Statements (Loc,
-                 New_List (Make_Assignment_Statement (Loc,
-                   Name       => Make_Identifier (Loc, Name_uF),
-                   Expression => New_Occurrence_Of (Standard_False, Loc)))));
+                 New_List (
+                   Make_Assignment_Statement (Loc,
+                     Name       => Make_Identifier (Loc, Name_uF),
+                     Expression => New_Occurrence_Of (Standard_False, Loc)))));
       end if;
 
       if Is_Concurrent_Record_Type (Typ) then
@@ -2261,7 +2271,7 @@ package body Exp_Disp is
          else
             Tag_Node :=
               Make_Attribute_Reference (Loc,
-                Prefix => New_Occurrence_Of (Typ, Loc),
+                Prefix         => New_Occurrence_Of (Typ, Loc),
                 Attribute_Name => Name_Tag);
          end if;
 
@@ -2269,16 +2279,14 @@ package body Exp_Disp is
            Make_Object_Declaration (Loc,
              Defining_Identifier =>
                Make_Defining_Identifier (Loc, Name_uI),
-             Object_Definition =>
+             Object_Definition   =>
                New_Occurrence_Of (Standard_Integer, Loc),
-             Expression =>
+             Expression          =>
                Make_Function_Call (Loc,
-                 Name =>
+                 Name                   =>
                    New_Occurrence_Of (RTE (RE_Get_Entry_Index), Loc),
                  Parameter_Associations =>
-                   New_List (
-                     Tag_Node,
-                     Make_Identifier (Loc, Name_uS)))));
+                   New_List (Tag_Node, Make_Identifier (Loc, Name_uS)))));
 
          if Ekind (Conc_Typ) = E_Protected_Type then
 
@@ -2288,9 +2296,8 @@ package body Exp_Disp is
             Com_Block := Make_Temporary (Loc, 'B');
             Append_To (Decls,
               Make_Object_Declaration (Loc,
-                Defining_Identifier =>
-                  Com_Block,
-                Object_Definition =>
+                Defining_Identifier => Com_Block,
+                Object_Definition   =>
                   New_Occurrence_Of (RTE (RE_Communication_Block), Loc)));
 
             --  Build T._object'Access for calls below
@@ -2320,7 +2327,7 @@ package body Exp_Disp is
 
                   Append_To (Stmts,
                     Make_Procedure_Call_Statement (Loc,
-                      Name =>
+                      Name                   =>
                         New_Occurrence_Of (RTE (RE_Protected_Entry_Call), Loc),
                       Parameter_Associations =>
                         New_List (
@@ -2351,10 +2358,9 @@ package body Exp_Disp is
                 Expression =>
                   Make_Unchecked_Type_Conversion (Loc,
                     Subtype_Mark =>
-                      New_Occurrence_Of (
-                        RTE (RE_Dummy_Communication_Block), Loc),
-                    Expression =>
-                      New_Occurrence_Of (Com_Block, Loc))));
+                      New_Occurrence_Of
+                        (RTE (RE_Dummy_Communication_Block), Loc),
+                    Expression   => New_Occurrence_Of (Com_Block, Loc))));
 
             --  Generate:
             --    F := False;
@@ -2380,7 +2386,7 @@ package body Exp_Disp is
 
             Append_To (Stmts,
               Make_Procedure_Call_Statement (Loc,
-                Name =>
+                Name                   =>
                   New_Occurrence_Of (RTE (RE_Task_Entry_Call), Loc),
                 Parameter_Associations =>
                   New_List (
@@ -2391,7 +2397,7 @@ package body Exp_Disp is
                     Make_Unchecked_Type_Conversion (Loc,  --  entry index
                       Subtype_Mark =>
                         New_Occurrence_Of (RTE (RE_Task_Entry_Index), Loc),
-                      Expression => Make_Identifier (Loc, Name_uI)),
+                      Expression   => Make_Identifier (Loc, Name_uI)),
 
                     Make_Identifier (Loc, Name_uP),       --  parameter block
                     New_Occurrence_Of                     --  Asynchronous_Call
@@ -2442,38 +2448,29 @@ package body Exp_Disp is
       Append_List_To (Params, New_List (
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uT),
-          Parameter_Type =>
-            New_Occurrence_Of (Typ, Loc),
-          In_Present  => True,
-          Out_Present => True),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uT),
+          Parameter_Type      => New_Occurrence_Of (Typ, Loc),
+          In_Present          => True,
+          Out_Present         => True),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uS),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Integer, Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uS),
+          Parameter_Type      => New_Occurrence_Of (Standard_Integer, Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uP),
-          Parameter_Type =>
-            New_Occurrence_Of (RTE (RE_Address), Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uP),
+          Parameter_Type      => New_Occurrence_Of (RTE (RE_Address), Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uB),
-          Parameter_Type =>
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uB),
+          Parameter_Type      =>
             New_Occurrence_Of (RTE (RE_Dummy_Communication_Block), Loc),
-          Out_Present => True),
+          Out_Present         => True),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uF),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Boolean, Loc),
-          Out_Present => True)));
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uF),
+          Parameter_Type      => New_Occurrence_Of (Standard_Boolean, Loc),
+          Out_Present         => True)));
 
       return
         Make_Procedure_Specification (Loc,
@@ -2573,10 +2570,9 @@ package body Exp_Disp is
       if Is_Interface (Typ) then
          return
            Make_Subprogram_Body (Loc,
-             Specification =>
+             Specification              =>
                Make_Disp_Conditional_Select_Spec (Typ),
-             Declarations =>
-               No_List,
+             Declarations               => No_List,
              Handled_Statement_Sequence =>
                Make_Handled_Sequence_Of_Statements (Loc,
                  New_List (Make_Assignment_Statement (Loc,
@@ -2595,9 +2591,8 @@ package body Exp_Disp is
 
          Append_To (Decls,
            Make_Object_Declaration (Loc,
-             Defining_Identifier =>
-               Make_Defining_Identifier (Loc, Name_uI),
-             Object_Definition =>
+             Defining_Identifier => Make_Defining_Identifier (Loc, Name_uI),
+             Object_Definition   =>
                New_Occurrence_Of (Standard_Integer, Loc)));
 
          --  Generate:
@@ -2622,9 +2617,8 @@ package body Exp_Disp is
          Blk_Nam := Make_Temporary (Loc, 'B');
          Append_To (Decls,
            Make_Object_Declaration (Loc,
-             Defining_Identifier =>
-               Blk_Nam,
-             Object_Definition =>
+             Defining_Identifier => Blk_Nam,
+             Object_Definition   =>
                New_Occurrence_Of (RTE (RE_Communication_Block), Loc)));
 
          --  Generate:
@@ -2641,21 +2635,20 @@ package body Exp_Disp is
          else
             Tag_Node :=
               Make_Attribute_Reference (Loc,
-                Prefix => New_Occurrence_Of (Typ, Loc),
+                Prefix         => New_Occurrence_Of (Typ, Loc),
                 Attribute_Name => Name_Tag);
          end if;
 
          Append_To (Stmts,
            Make_Assignment_Statement (Loc,
-             Name => Make_Identifier (Loc, Name_uI),
+             Name       => Make_Identifier (Loc, Name_uI),
              Expression =>
                Make_Function_Call (Loc,
-                 Name =>
+                 Name                   =>
                    New_Occurrence_Of (RTE (RE_Get_Entry_Index), Loc),
-                 Parameter_Associations =>
-                   New_List (
-                     Tag_Node,
-                     Make_Identifier (Loc, Name_uS)))));
+                 Parameter_Associations => New_List (
+                   Tag_Node,
+                   Make_Identifier (Loc, Name_uS)))));
 
          if Ekind (Conc_Typ) = E_Protected_Type then
 
@@ -2684,10 +2677,9 @@ package body Exp_Disp is
 
                   Append_To (Stmts,
                     Make_Procedure_Call_Statement (Loc,
-                      Name =>
+                      Name                   =>
                         New_Occurrence_Of (RTE (RE_Protected_Entry_Call), Loc),
-                      Parameter_Associations =>
-                        New_List (
+                      Parameter_Associations => New_List (
                           Obj_Ref,
 
                           Make_Unchecked_Type_Conversion (Loc,  --  entry index
@@ -2710,11 +2702,10 @@ package body Exp_Disp is
 
                   Append_To (Stmts,
                     Make_Procedure_Call_Statement (Loc,
-                      Name =>
+                      Name                   =>
                         New_Occurrence_Of
                           (RTE (RE_Protected_Single_Entry_Call), Loc),
-                      Parameter_Associations =>
-                        New_List (
+                      Parameter_Associations => New_List (
                           Obj_Ref,
 
                           Make_Attribute_Reference (Loc,
@@ -2740,10 +2731,9 @@ package body Exp_Disp is
                   Make_Op_Not (Loc,
                     Right_Opnd =>
                       Make_Function_Call (Loc,
-                        Name =>
+                        Name                   =>
                           New_Occurrence_Of (RTE (RE_Cancelled), Loc),
-                        Parameter_Associations =>
-                          New_List (
+                        Parameter_Associations => New_List (
                             New_Occurrence_Of (Blk_Nam, Loc))))));
          else
             pragma Assert (Ekind (Conc_Typ) = E_Task_Type);
@@ -2761,10 +2751,9 @@ package body Exp_Disp is
 
             Append_To (Stmts,
               Make_Procedure_Call_Statement (Loc,
-                Name =>
+                Name                   =>
                   New_Occurrence_Of (RTE (RE_Task_Entry_Call), Loc),
-                Parameter_Associations =>
-                  New_List (
+                Parameter_Associations => New_List (
 
                     Make_Selected_Component (Loc,         -- T._task_id
                       Prefix        => Make_Identifier (Loc, Name_uT),
@@ -2828,38 +2817,29 @@ package body Exp_Disp is
       Append_List_To (Params, New_List (
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uT),
-          Parameter_Type =>
-            New_Occurrence_Of (Typ, Loc),
-          In_Present  => True,
-          Out_Present => True),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uT),
+          Parameter_Type      => New_Occurrence_Of (Typ, Loc),
+          In_Present          => True,
+          Out_Present         => True),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uS),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Integer, Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uS),
+          Parameter_Type      => New_Occurrence_Of (Standard_Integer, Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uP),
-          Parameter_Type =>
-            New_Occurrence_Of (RTE (RE_Address), Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uP),
+          Parameter_Type      => New_Occurrence_Of (RTE (RE_Address), Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uC),
-          Parameter_Type =>
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uC),
+          Parameter_Type      =>
             New_Occurrence_Of (RTE (RE_Prim_Op_Kind), Loc),
-          Out_Present => True),
+          Out_Present         => True),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uF),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Boolean, Loc),
-          Out_Present => True)));
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uF),
+          Parameter_Type      => New_Occurrence_Of (Standard_Boolean, Loc),
+          Out_Present         => True)));
 
       return
         Make_Procedure_Specification (Loc,
@@ -2871,9 +2851,7 @@ package body Exp_Disp is
    -- Make_Disp_Get_Prim_Op_Kind_Body --
    -------------------------------------
 
-   function Make_Disp_Get_Prim_Op_Kind_Body
-     (Typ : Entity_Id) return Node_Id
-   is
+   function Make_Disp_Get_Prim_Op_Kind_Body (Typ : Entity_Id) return Node_Id is
       Loc      : constant Source_Ptr := Sloc (Typ);
       Tag_Node : Node_Id;
 
@@ -2883,10 +2861,9 @@ package body Exp_Disp is
       if Is_Interface (Typ) then
          return
            Make_Subprogram_Body (Loc,
-             Specification =>
+             Specification              =>
                Make_Disp_Get_Prim_Op_Kind_Spec (Typ),
-             Declarations =>
-               New_List,
+             Declarations               => New_List,
              Handled_Statement_Sequence =>
                Make_Handled_Sequence_Of_Statements (Loc,
                  New_List (Make_Null_Statement (Loc))));
@@ -2907,22 +2884,20 @@ package body Exp_Disp is
       else
          Tag_Node :=
            Make_Attribute_Reference (Loc,
-             Prefix => New_Occurrence_Of (Typ, Loc),
+             Prefix         => New_Occurrence_Of (Typ, Loc),
              Attribute_Name => Name_Tag);
       end if;
 
       return
         Make_Subprogram_Body (Loc,
-          Specification =>
+          Specification              =>
             Make_Disp_Get_Prim_Op_Kind_Spec (Typ),
-          Declarations =>
-            New_List,
+          Declarations               => New_List,
           Handled_Statement_Sequence =>
             Make_Handled_Sequence_Of_Statements (Loc,
               New_List (
                 Make_Assignment_Statement (Loc,
-                  Name =>
-                    Make_Identifier (Loc, Name_uC),
+                  Name       => Make_Identifier (Loc, Name_uC),
                   Expression =>
                     Make_Function_Call (Loc,
                       Name =>
@@ -2941,8 +2916,7 @@ package body Exp_Disp is
    is
       Loc    : constant Source_Ptr := Sloc (Typ);
       Def_Id : constant Node_Id    :=
-                 Make_Defining_Identifier (Loc,
-                   Name_uDisp_Get_Prim_Op_Kind);
+                 Make_Defining_Identifier (Loc, Name_uDisp_Get_Prim_Op_Kind);
       Params : constant List_Id    := New_List;
 
    begin
@@ -2955,25 +2929,20 @@ package body Exp_Disp is
       Append_List_To (Params, New_List (
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uT),
-          Parameter_Type =>
-            New_Occurrence_Of (Typ, Loc),
-          In_Present  => True,
-          Out_Present => True),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uT),
+          Parameter_Type      => New_Occurrence_Of (Typ, Loc),
+          In_Present          => True,
+          Out_Present         => True),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uS),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Integer, Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uS),
+          Parameter_Type      => New_Occurrence_Of (Standard_Integer, Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uC),
-          Parameter_Type =>
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uC),
+          Parameter_Type      =>
             New_Occurrence_Of (RTE (RE_Prim_Op_Kind), Loc),
-          Out_Present => True)));
+          Out_Present         => True)));
 
       return
         Make_Procedure_Specification (Loc,
@@ -3004,9 +2973,8 @@ package body Exp_Disp is
            Make_Simple_Return_Statement (Loc,
              Expression =>
                Make_Unchecked_Type_Conversion (Loc,
-                 Subtype_Mark =>
-                   New_Occurrence_Of (RTE (RE_Address), Loc),
-                 Expression =>
+                 Subtype_Mark => New_Occurrence_Of (RTE (RE_Address), Loc),
+                 Expression   =>
                    Make_Selected_Component (Loc,
                      Prefix        => Make_Identifier (Loc, Name_uT),
                      Selector_Name => Make_Identifier (Loc, Name_uTask_Id))));
@@ -3019,19 +2987,15 @@ package body Exp_Disp is
 
          Ret :=
            Make_Simple_Return_Statement (Loc,
-             Expression =>
-               New_Occurrence_Of (RTE (RE_Null_Address), Loc));
+             Expression => New_Occurrence_Of (RTE (RE_Null_Address), Loc));
       end if;
 
       return
         Make_Subprogram_Body (Loc,
-          Specification =>
-            Make_Disp_Get_Task_Id_Spec (Typ),
-          Declarations =>
-            New_List,
+          Specification              => Make_Disp_Get_Task_Id_Spec (Typ),
+          Declarations               => New_List,
           Handled_Statement_Sequence =>
-            Make_Handled_Sequence_Of_Statements (Loc,
-              New_List (Ret)));
+            Make_Handled_Sequence_Of_Statements (Loc, New_List (Ret)));
    end Make_Disp_Get_Task_Id_Body;
 
    --------------------------------
@@ -3048,15 +3012,13 @@ package body Exp_Disp is
 
       return
         Make_Function_Specification (Loc,
-          Defining_Unit_Name =>
+          Defining_Unit_Name       =>
             Make_Defining_Identifier (Loc, Name_uDisp_Get_Task_Id),
           Parameter_Specifications => New_List (
             Make_Parameter_Specification (Loc,
-              Defining_Identifier =>
-                Make_Defining_Identifier (Loc, Name_uT),
-              Parameter_Type =>
-                New_Occurrence_Of (Typ, Loc))),
-          Result_Definition =>
+              Defining_Identifier => Make_Defining_Identifier (Loc, Name_uT),
+              Parameter_Type      => New_Occurrence_Of (Typ, Loc))),
+          Result_Definition        =>
             New_Occurrence_Of (RTE (RE_Address), Loc));
    end Make_Disp_Get_Task_Id_Spec;
 
@@ -3082,10 +3044,8 @@ package body Exp_Disp is
       then
          return
            Make_Subprogram_Body (Loc,
-             Specification =>
-               Make_Disp_Requeue_Spec (Typ),
-             Declarations =>
-               No_List,
+             Specification              => Make_Disp_Requeue_Spec (Typ),
+             Declarations               => No_List,
              Handled_Statement_Sequence =>
                Make_Handled_Sequence_Of_Statements (Loc,
                  New_List (Make_Null_Statement (Loc))));
@@ -3125,8 +3085,8 @@ package body Exp_Disp is
 
                     Make_Procedure_Call_Statement (Loc,
                       Name =>
-                        New_Occurrence_Of (
-                          RTE (RE_Requeue_Protected_Entry), Loc),
+                        New_Occurrence_Of
+                          (RTE (RE_Requeue_Protected_Entry), Loc),
                       Parameter_Associations =>
                         New_List (
 
@@ -3140,7 +3100,7 @@ package body Exp_Disp is
                           Make_Attribute_Reference (Loc,      -- O._object'Acc
                             Attribute_Name =>
                               Name_Unchecked_Access,
-                            Prefix =>
+                            Prefix         =>
                               Make_Selected_Component (Loc,
                                 Prefix        =>
                                   Make_Identifier (Loc, Name_uO),
@@ -3149,8 +3109,8 @@ package body Exp_Disp is
 
                           Make_Unchecked_Type_Conversion (Loc,  -- entry index
                             Subtype_Mark =>
-                              New_Occurrence_Of (
-                                RTE (RE_Protected_Entry_Index), Loc),
+                              New_Occurrence_Of
+                                (RTE (RE_Protected_Entry_Index), Loc),
                             Expression => Make_Identifier (Loc, Name_uI)),
 
                           Make_Identifier (Loc, Name_uA)))),   -- abort status
@@ -3162,30 +3122,29 @@ package body Exp_Disp is
 
                     Make_Procedure_Call_Statement (Loc,
                       Name =>
-                        New_Occurrence_Of (
-                          RTE (RE_Requeue_Task_To_Protected_Entry), Loc),
+                        New_Occurrence_Of
+                          (RTE (RE_Requeue_Task_To_Protected_Entry), Loc),
                       Parameter_Associations =>
                         New_List (
 
                           Make_Attribute_Reference (Loc,     -- O._object'Acc
-                            Attribute_Name =>
-                              Name_Unchecked_Access,
-                            Prefix =>
+                            Attribute_Name => Name_Unchecked_Access,
+                            Prefix         =>
                               Make_Selected_Component (Loc,
-                                Prefix =>
+                                Prefix        =>
                                   Make_Identifier (Loc, Name_uO),
                                 Selector_Name =>
                                   Make_Identifier (Loc, Name_uObject))),
 
                           Make_Unchecked_Type_Conversion (Loc, -- entry index
                             Subtype_Mark =>
-                              New_Occurrence_Of (
-                                RTE (RE_Protected_Entry_Index), Loc),
-                            Expression =>
-                              Make_Identifier (Loc, Name_uI)),
+                              New_Occurrence_Of
+                                (RTE (RE_Protected_Entry_Index), Loc),
+                            Expression   => Make_Identifier (Loc, Name_uI)),
 
                           Make_Identifier (Loc, Name_uA)))))); -- abort status
          end if;
+
       else
          pragma Assert (Is_Task_Type (Conc_Typ));
 
@@ -3240,7 +3199,8 @@ package body Exp_Disp is
                --  Call to Requeue_Task_Entry
 
                Make_Procedure_Call_Statement (Loc,
-                 Name => New_Occurrence_Of (RTE (RE_Requeue_Task_Entry), Loc),
+                 Name                   =>
+                   New_Occurrence_Of (RTE (RE_Requeue_Task_Entry), Loc),
 
                  Parameter_Associations => New_List (
 
@@ -3261,10 +3221,8 @@ package body Exp_Disp is
 
       return
         Make_Subprogram_Body (Loc,
-          Specification =>
-            Make_Disp_Requeue_Spec (Typ),
-          Declarations =>
-            New_List,
+          Specification              => Make_Disp_Requeue_Spec (Typ),
+          Declarations               => New_List,
           Handled_Statement_Sequence =>
             Make_Handled_Sequence_Of_Statements (Loc, Stmts));
    end Make_Disp_Requeue_Body;
@@ -3296,39 +3254,38 @@ package body Exp_Disp is
           Defining_Unit_Name =>
             Make_Defining_Identifier (Loc, Name_uDisp_Requeue),
 
-          Parameter_Specifications =>
-            New_List (
+          Parameter_Specifications => New_List (
 
               Make_Parameter_Specification (Loc,             --  O
                 Defining_Identifier =>
                   Make_Defining_Identifier (Loc, Name_uO),
-                Parameter_Type =>
+                Parameter_Type      =>
                   New_Occurrence_Of (Typ, Loc),
-                In_Present  => True,
-                Out_Present => True),
+                In_Present          => True,
+                Out_Present         => True),
 
               Make_Parameter_Specification (Loc,             --  F
                 Defining_Identifier =>
                   Make_Defining_Identifier (Loc, Name_uF),
-                Parameter_Type =>
+                Parameter_Type      =>
                   New_Occurrence_Of (Standard_Boolean, Loc)),
 
               Make_Parameter_Specification (Loc,             --  P
                 Defining_Identifier =>
                   Make_Defining_Identifier (Loc, Name_uP),
-                Parameter_Type =>
+                Parameter_Type      =>
                   New_Occurrence_Of (RTE (RE_Address), Loc)),
 
               Make_Parameter_Specification (Loc,             --  I
                 Defining_Identifier =>
                   Make_Defining_Identifier (Loc, Name_uI),
-                Parameter_Type =>
+                Parameter_Type      =>
                   New_Occurrence_Of (Standard_Integer, Loc)),
 
               Make_Parameter_Specification (Loc,             --  A
                 Defining_Identifier =>
                   Make_Defining_Identifier (Loc, Name_uA),
-                Parameter_Type =>
+                Parameter_Type      =>
                   New_Occurrence_Of (Standard_Boolean, Loc))));
    end Make_Disp_Requeue_Spec;
 
@@ -3429,10 +3386,8 @@ package body Exp_Disp is
       if Is_Interface (Typ) then
          return
            Make_Subprogram_Body (Loc,
-             Specification =>
-               Make_Disp_Timed_Select_Spec (Typ),
-             Declarations =>
-               New_List,
+             Specification              => Make_Disp_Timed_Select_Spec (Typ),
+             Declarations               => New_List,
              Handled_Statement_Sequence =>
                Make_Handled_Sequence_Of_Statements (Loc,
                  New_List (
@@ -3493,10 +3448,9 @@ package body Exp_Disp is
              Expression =>
                Make_Function_Call (Loc,
                  Name => New_Occurrence_Of (RTE (RE_Get_Entry_Index), Loc),
-                 Parameter_Associations =>
-                   New_List (
-                     Tag_Node,
-                     Make_Identifier (Loc, Name_uS)))));
+                 Parameter_Associations => New_List (
+                   Tag_Node,
+                   Make_Identifier (Loc, Name_uS)))));
 
          --  Protected case
 
@@ -3539,21 +3493,19 @@ package body Exp_Disp is
                       Name =>
                         New_Occurrence_Of
                           (RTE (RE_Timed_Protected_Entry_Call), Loc),
-                      Parameter_Associations =>
-                        New_List (
-                          Obj_Ref,
+                      Parameter_Associations => New_List (
+                        Obj_Ref,
 
-                          Make_Unchecked_Type_Conversion (Loc,  --  entry index
-                            Subtype_Mark =>
-                              New_Occurrence_Of
-                                (RTE (RE_Protected_Entry_Index), Loc),
-                            Expression =>
-                              Make_Identifier (Loc, Name_uI)),
+                        Make_Unchecked_Type_Conversion (Loc,  --  entry index
+                          Subtype_Mark =>
+                            New_Occurrence_Of
+                              (RTE (RE_Protected_Entry_Index), Loc),
+                          Expression   => Make_Identifier (Loc, Name_uI)),
 
-                          Make_Identifier (Loc, Name_uP),   --  parameter block
-                          Make_Identifier (Loc, Name_uD),   --  delay
-                          Make_Identifier (Loc, Name_uM),   --  delay mode
-                          Make_Identifier (Loc, Name_uF)))); --  status flag
+                        Make_Identifier (Loc, Name_uP),   --  parameter block
+                        Make_Identifier (Loc, Name_uD),   --  delay
+                        Make_Identifier (Loc, Name_uM),   --  delay mode
+                        Make_Identifier (Loc, Name_uF)))); --  status flag
 
                when others =>
                   raise Program_Error;
@@ -3579,24 +3531,23 @@ package body Exp_Disp is
 
             Append_To (Stmts,
               Make_Procedure_Call_Statement (Loc,
-                Name =>
+                Name                   =>
                   New_Occurrence_Of (RTE (RE_Timed_Task_Entry_Call), Loc),
-                Parameter_Associations =>
-                  New_List (
 
-                    Make_Selected_Component (Loc,         --  T._task_id
-                      Prefix        => Make_Identifier (Loc, Name_uT),
-                      Selector_Name => Make_Identifier (Loc, Name_uTask_Id)),
+                Parameter_Associations => New_List (
+                  Make_Selected_Component (Loc,         --  T._task_id
+                    Prefix        => Make_Identifier (Loc, Name_uT),
+                    Selector_Name => Make_Identifier (Loc, Name_uTask_Id)),
 
-                    Make_Unchecked_Type_Conversion (Loc,  --  entry index
-                      Subtype_Mark =>
-                        New_Occurrence_Of (RTE (RE_Task_Entry_Index), Loc),
-                      Expression   => Make_Identifier (Loc, Name_uI)),
+                  Make_Unchecked_Type_Conversion (Loc,  --  entry index
+                    Subtype_Mark =>
+                      New_Occurrence_Of (RTE (RE_Task_Entry_Index), Loc),
+                    Expression   => Make_Identifier (Loc, Name_uI)),
 
-                    Make_Identifier (Loc, Name_uP),       --  parameter block
-                    Make_Identifier (Loc, Name_uD),       --  delay
-                    Make_Identifier (Loc, Name_uM),       --  delay mode
-                    Make_Identifier (Loc, Name_uF))));    --  status flag
+                  Make_Identifier (Loc, Name_uP),       --  parameter block
+                  Make_Identifier (Loc, Name_uD),       --  delay
+                  Make_Identifier (Loc, Name_uM),       --  delay mode
+                  Make_Identifier (Loc, Name_uF))));    --  status flag
          end if;
 
       else
@@ -3647,51 +3598,38 @@ package body Exp_Disp is
       Append_List_To (Params, New_List (
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uT),
-          Parameter_Type =>
-            New_Occurrence_Of (Typ, Loc),
-          In_Present  => True,
-          Out_Present => True),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uT),
+          Parameter_Type      => New_Occurrence_Of (Typ, Loc),
+          In_Present          => True,
+          Out_Present         => True),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uS),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Integer, Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uS),
+          Parameter_Type      => New_Occurrence_Of (Standard_Integer, Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uP),
-          Parameter_Type =>
-            New_Occurrence_Of (RTE (RE_Address), Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uP),
+          Parameter_Type      => New_Occurrence_Of (RTE (RE_Address), Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uD),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Duration, Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uD),
+          Parameter_Type      => New_Occurrence_Of (Standard_Duration, Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uM),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Integer, Loc)),
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uM),
+          Parameter_Type      => New_Occurrence_Of (Standard_Integer, Loc)),
 
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uC),
-          Parameter_Type =>
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uC),
+          Parameter_Type      =>
             New_Occurrence_Of (RTE (RE_Prim_Op_Kind), Loc),
-          Out_Present => True)));
+          Out_Present         => True)));
 
       Append_To (Params,
         Make_Parameter_Specification (Loc,
-          Defining_Identifier =>
-            Make_Defining_Identifier (Loc, Name_uF),
-          Parameter_Type =>
-            New_Occurrence_Of (Standard_Boolean, Loc),
-          Out_Present => True));
+          Defining_Identifier => Make_Defining_Identifier (Loc, Name_uF),
+          Parameter_Type      => New_Occurrence_Of (Standard_Boolean, Loc),
+          Out_Present         => True));
 
       return
         Make_Procedure_Specification (Loc,
@@ -3704,17 +3642,17 @@ package body Exp_Disp is
    -------------
 
    --  The frontend supports two models for expanding dispatch tables
-   --  associated with library-level defined tagged types: statically
-   --  and non-statically allocated dispatch tables. In the former case
-   --  the object containing the dispatch table is constant and it is
-   --  initialized by means of a positional aggregate. In the latter case,
-   --  the object containing the dispatch table is a variable which is
-   --  initialized by means of assignments.
+   --  associated with library-level defined tagged types: statically and
+   --  non-statically allocated dispatch tables. In the former case the object
+   --  containing the dispatch table is constant and it is initialized by means
+   --  of a positional aggregate. In the latter case, the object containing
+   --  the dispatch table is a variable which is initialized by means of
+   --  assignments.
 
    --  In case of locally defined tagged types, the object containing the
-   --  object containing the dispatch table is always a variable (instead
-   --  of a constant). This is currently required to give support to late
-   --  overriding of primitives. For example:
+   --  object containing the dispatch table is always a variable (instead of a
+   --  constant). This is currently required to give support to late overriding
+   --  of primitives. For example:
 
    --     procedure Example is
    --        package Pkg is
@@ -3730,6 +3668,10 @@ package body Exp_Disp is
    --     end;
 
    function Make_DT (Typ : Entity_Id; N : Node_Id := Empty) return List_Id is
+      GM : constant Ghost_Mode_Type := Ghost_Mode;
+      --  Save the current Ghost mode in effect in case the tagged type sets a
+      --  different mode.
+
       Loc : constant Source_Ptr := Sloc (Typ);
 
       Max_Predef_Prims : constant Int :=
@@ -3746,18 +3688,17 @@ package body Exp_Disp is
         (Subp        : Entity_Id;
          Tagged_Type : Entity_Id;
          Typ         : Entity_Id);
-      --  Verify that all non-tagged types in the profile of a subprogram
-      --  are frozen at the point the subprogram is frozen. This enforces
-      --  the rule on RM 13.14 (14) as modified by AI05-019. At the point a
-      --  subprogram is frozen, enough must be known about it to build the
-      --  activation record for it, which requires at least that the size of
-      --  all parameters be known. Controlling arguments are by-reference,
-      --  and therefore the rule only applies to non-tagged types.
-      --  Typical violation of the rule involves an object declaration that
-      --  freezes a tagged type, when one of its primitive operations has a
-      --  type in its profile whose full view has not been analyzed yet.
-      --  More complex cases involve composite types that have one private
-      --  unfrozen subcomponent.
+      --  Verify that all untagged types in the profile of a subprogram are
+      --  frozen at the point the subprogram is frozen. This enforces the rule
+      --  on RM 13.14 (14) as modified by AI05-019. At the point a subprogram
+      --  is frozen, enough must be known about it to build the activation
+      --  record for it, which requires at least that the size of all
+      --  parameters be known. Controlling arguments are by-reference,
+      --  and therefore the rule only applies to untagged types. Typical
+      --  violation of the rule involves an object declaration that freezes a
+      --  tagged type, when one of its primitive operations has a type in its
+      --  profile whose full view has not been analyzed yet. More complex cases
+      --  involve composite types that have one private unfrozen subcomponent.
 
       procedure Export_DT (Typ : Entity_Id; DT : Entity_Id; Index : Nat := 0);
       --  Export the dispatch table DT of tagged type Typ. Required to generate
@@ -3793,6 +3734,9 @@ package body Exp_Disp is
       --  this secondary dispatch table by Make_Tags when its unique external
       --  name was generated.
 
+      procedure Restore_Globals;
+      --  Restore the values of all saved global variables
+
       ------------------------------
       -- Check_Premature_Freezing --
       ------------------------------
@@ -3826,7 +3770,6 @@ package body Exp_Disp is
               or else not Used_As_Generic_Actual (T)
             then
                return False;
-
             else
                Gen_Par := Generic_Parent (Parent (Current_Scope));
             end if;
@@ -3834,7 +3777,7 @@ package body Exp_Disp is
             F :=
               First
                 (Generic_Formal_Declarations
-                     (Unit_Declaration_Node (Gen_Par)));
+                   (Unit_Declaration_Node (Gen_Par)));
             while Present (F) loop
                if Ekind (Defining_Identifier (F)) = E_Incomplete_Type then
                   return True;
@@ -3864,8 +3807,8 @@ package body Exp_Disp is
             Error_Msg_NE
               ("declaration must appear after completion of type &", N, Typ);
             Error_Msg_NE
-              ("\which is an untagged type in the profile of"
-               & " primitive operation & declared#", N, Subp);
+              ("\which is an untagged type in the profile of "
+               & "primitive operation & declared#", N, Subp);
 
          else
             Comp := Private_Component (Typ);
@@ -3873,19 +3816,18 @@ package body Exp_Disp is
             if not Is_Tagged_Type (Typ)
               and then Present (Comp)
               and then not Is_Frozen (Comp)
-              and then
-                not Is_Actual_For_Formal_Incomplete_Type (Comp)
+              and then not Is_Actual_For_Formal_Incomplete_Type (Comp)
             then
                Error_Msg_Sloc := Sloc (Subp);
                Error_Msg_Node_2 := Subp;
                Error_Msg_Name_1 := Chars (Tagged_Type);
                Error_Msg_NE
                  ("declaration must appear after completion of type &",
-                   N, Comp);
+                  N, Comp);
                Error_Msg_NE
-                 ("\which is a component of untagged type& in the profile of"
-               & " primitive & of type % that is frozen by the declaration ",
-                   N, Typ);
+                 ("\which is a component of untagged type& in the profile "
+                  & "of primitive & of type % that is frozen by the "
+                  & "declaration ", N, Typ);
             end if;
          end if;
       end Check_Premature_Freezing;
@@ -4081,8 +4023,7 @@ package body Exp_Disp is
             end loop;
 
             New_Node :=
-              Make_Aggregate (Loc,
-                Expressions => Prim_Ops_Aggr_List);
+              Make_Aggregate (Loc, Expressions => Prim_Ops_Aggr_List);
 
             --  Remember aggregates initializing dispatch tables
 
@@ -4162,7 +4103,7 @@ package body Exp_Disp is
 
          Append_To (DT_Aggr_List,
            Make_Attribute_Reference (Loc,
-             Prefix => New_Occurrence_Of (Predef_Prims, Loc),
+             Prefix         => New_Occurrence_Of (Predef_Prims, Loc),
              Attribute_Name => Name_Address));
 
          --  Note: The correct value of Offset_To_Top will be set by the init
@@ -4224,7 +4165,7 @@ package body Exp_Disp is
 
                         Append_To (OSD_Aggr_List,
                           Make_Component_Association (Loc,
-                            Choices => New_List (
+                            Choices    => New_List (
                               Make_Integer_Literal (Loc,
                                 DT_Position (Prim_Alias))),
                             Expression =>
@@ -4249,7 +4190,7 @@ package body Exp_Disp is
                   Make_Subtype_Indication (Loc,
                     Subtype_Mark =>
                       New_Occurrence_Of (RTE (RE_Object_Specific_Data), Loc),
-                    Constraint =>
+                    Constraint   =>
                       Make_Index_Or_Discriminant_Constraint (Loc,
                         Constraints => New_List (
                           Make_Integer_Literal (Loc, Nb_Prim)))),
@@ -4258,14 +4199,14 @@ package body Exp_Disp is
                   Make_Aggregate (Loc,
                     Component_Associations => New_List (
                       Make_Component_Association (Loc,
-                        Choices => New_List (
+                        Choices    => New_List (
                           New_Occurrence_Of
                             (RTE_Record_Component (RE_OSD_Num_Prims), Loc)),
                         Expression =>
                           Make_Integer_Literal (Loc, Nb_Prim)),
 
                       Make_Component_Association (Loc,
-                        Choices => New_List (
+                        Choices    => New_List (
                           New_Occurrence_Of
                             (RTE_Record_Component (RE_OSD_Table), Loc)),
                         Expression => Make_Aggregate (Loc,
@@ -4277,7 +4218,7 @@ package body Exp_Disp is
                 Chars      => Name_Alignment,
                 Expression =>
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                     Attribute_Name => Name_Alignment)));
 
@@ -4286,7 +4227,7 @@ package body Exp_Disp is
 
             Append_To (DT_Aggr_List,
               Make_Attribute_Reference (Loc,
-                Prefix => New_Occurrence_Of (OSD, Loc),
+                Prefix         => New_Occurrence_Of (OSD, Loc),
                 Attribute_Name => Name_Address));
          end if;
 
@@ -4480,6 +4421,15 @@ package body Exp_Disp is
          Append_Elmt (Iface_DT, DT_Decl);
       end Make_Secondary_DT;
 
+      ---------------------
+      -- Restore_Globals --
+      ---------------------
+
+      procedure Restore_Globals is
+      begin
+         Ghost_Mode := GM;
+      end Restore_Globals;
+
       --  Local variables
 
       Elab_Code          : constant List_Id := New_List;
@@ -4550,6 +4500,13 @@ package body Exp_Disp is
    begin
       pragma Assert (Is_Frozen (Typ));
 
+      --  The tagged type for which the dispatch table is being build may be
+      --  subject to pragma Ghost with policy Ignore. Set the mode now to
+      --  ensure that any nodes generated during freezing are properly flagged
+      --  as ignored Ghost.
+
+      Set_Ghost_Mode_For_Freeze (Typ, Typ);
+
       --  Handle cases in which there is no need to build the dispatch table
 
       if Has_Dispatch_Table (Typ)
@@ -4558,10 +4515,12 @@ package body Exp_Disp is
         or else Convention (Typ) = Convention_CIL
         or else Convention (Typ) = Convention_Java
       then
+         Restore_Globals;
          return Result;
 
       elsif No_Run_Time_Mode then
          Error_Msg_CRT ("tagged types", Typ);
+         Restore_Globals;
          return Result;
 
       elsif not RTE_Available (RE_Tag) then
@@ -4577,6 +4536,7 @@ package body Exp_Disp is
 
          Analyze_List (Result, Suppress => All_Checks);
          Error_Msg_CRT ("tagged types", Typ);
+         Restore_Globals;
          return Result;
       end if;
 
@@ -4587,12 +4547,14 @@ package body Exp_Disp is
       if RTE_Available (RE_Interface_Data) then
          if Max_Predef_Prims /= 15 then
             Error_Msg_N ("run-time library configuration error", Typ);
+            Restore_Globals;
             return Result;
          end if;
       else
          if Max_Predef_Prims /= 9 then
             Error_Msg_N ("run-time library configuration error", Typ);
             Error_Msg_CRT ("tagged types", Typ);
+            Restore_Globals;
             return Result;
          end if;
       end if;
@@ -4675,15 +4637,16 @@ package body Exp_Disp is
             --  Build the secondary table containing pointers to thunks
 
             Make_Secondary_DT
-             (Typ             => Typ,
-              Iface           => Base_Type (Related_Type (Node (AI_Tag_Comp))),
-              Suffix_Index    => Suffix_Index,
-              Num_Iface_Prims => UI_To_Int
-                                   (DT_Entry_Count (Node (AI_Tag_Comp))),
-              Iface_DT_Ptr    => Node (AI_Tag_Elmt),
+             (Typ              => Typ,
+              Iface            => Base_Type
+                                    (Related_Type (Node (AI_Tag_Comp))),
+              Suffix_Index     => Suffix_Index,
+              Num_Iface_Prims  => UI_To_Int
+                                    (DT_Entry_Count (Node (AI_Tag_Comp))),
+              Iface_DT_Ptr     => Node (AI_Tag_Elmt),
               Predef_Prims_Ptr => Node (Next_Elmt (AI_Tag_Elmt)),
-              Build_Thunks    => True,
-              Result          => Result);
+              Build_Thunks     => True,
+              Result           => Result);
 
             --  Skip secondary dispatch table referencing thunks to predefined
             --  primitives.
@@ -4762,7 +4725,7 @@ package body Exp_Disp is
                 Chars      => Name_Alignment,
                 Expression =>
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                     Attribute_Name => Name_Alignment)));
 
@@ -4774,12 +4737,12 @@ package body Exp_Disp is
                 Expression =>
                   Unchecked_Convert_To (RTE (RE_Tag),
                     Make_Attribute_Reference (Loc,
-                      Prefix =>
+                      Prefix         =>
                         Make_Selected_Component (Loc,
-                          Prefix => New_Occurrence_Of (DT, Loc),
-                        Selector_Name =>
-                          New_Occurrence_Of
-                            (RTE_Record_Component (RE_NDT_Prims_Ptr), Loc)),
+                          Prefix        => New_Occurrence_Of (DT, Loc),
+                          Selector_Name =>
+                            New_Occurrence_Of
+                              (RTE_Record_Component (RE_NDT_Prims_Ptr), Loc)),
                       Attribute_Name => Name_Address))));
 
             Set_Is_Statically_Allocated (DT_Ptr,
@@ -4821,8 +4784,9 @@ package body Exp_Disp is
                   Make_Subtype_Indication (Loc,
                     Subtype_Mark =>
                       New_Occurrence_Of (RTE (RE_Dispatch_Table_Wrapper), Loc),
-                    Constraint => Make_Index_Or_Discriminant_Constraint (Loc,
-                                    Constraints => DT_Constr_List))));
+                    Constraint   =>
+                      Make_Index_Or_Discriminant_Constraint (Loc,
+                        Constraints => DT_Constr_List))));
 
             Append_To (Result,
               Make_Attribute_Definition_Clause (Loc,
@@ -4830,7 +4794,7 @@ package body Exp_Disp is
                 Chars      => Name_Alignment,
                 Expression =>
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                     Attribute_Name => Name_Alignment)));
 
@@ -4842,12 +4806,12 @@ package body Exp_Disp is
                 Expression =>
                   Unchecked_Convert_To (RTE (RE_Tag),
                     Make_Attribute_Reference (Loc,
-                      Prefix =>
+                      Prefix         =>
                         Make_Selected_Component (Loc,
-                          Prefix => New_Occurrence_Of (DT, Loc),
-                        Selector_Name =>
-                          New_Occurrence_Of
-                            (RTE_Record_Component (RE_Prims_Ptr), Loc)),
+                          Prefix        => New_Occurrence_Of (DT, Loc),
+                          Selector_Name =>
+                            New_Occurrence_Of
+                              (RTE_Record_Component (RE_Prims_Ptr), Loc)),
                       Attribute_Name => Name_Address))));
 
             Set_Is_Statically_Allocated (DT_Ptr,
@@ -4868,16 +4832,16 @@ package body Exp_Disp is
                 Defining_Identifier =>
                   Node (Next_Elmt (First_Elmt (Access_Disp_Table (Typ)))),
                 Constant_Present    => True,
-                Object_Definition   => New_Occurrence_Of
-                                            (RTE (RE_Address), Loc),
+                Object_Definition   =>
+                  New_Occurrence_Of (RTE (RE_Address), Loc),
                 Expression =>
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       Make_Selected_Component (Loc,
-                        Prefix => New_Occurrence_Of (DT, Loc),
-                      Selector_Name =>
-                        New_Occurrence_Of
-                          (RTE_Record_Component (RE_Predef_Prims), Loc)),
+                        Prefix        => New_Occurrence_Of (DT, Loc),
+                        Selector_Name =>
+                          New_Occurrence_Of
+                            (RTE_Record_Component (RE_Predef_Prims), Loc)),
                     Attribute_Name => Name_Address)));
          end if;
       end if;
@@ -4893,8 +4857,7 @@ package body Exp_Disp is
           Object_Definition   => New_Occurrence_Of (Standard_String, Loc),
           Expression =>
             Make_String_Literal (Loc,
-              Fully_Qualified_Name_String (First_Subtype (Typ)))));
-
+              Strval => Fully_Qualified_Name_String (First_Subtype (Typ)))));
       Set_Is_Statically_Allocated (Exname);
       Set_Is_True_Constant (Exname);
 
@@ -4977,7 +4940,7 @@ package body Exp_Disp is
       else
          Append_To (TSD_Aggr_List,
            Make_Attribute_Reference (Loc,
-             Prefix => New_Occurrence_Of (Typ, Loc),
+             Prefix         => New_Occurrence_Of (Typ, Loc),
              Attribute_Name => Name_Alignment));
       end if;
 
@@ -5020,14 +4983,13 @@ package body Exp_Disp is
         and then not Has_External_Tag_Rep_Clause (Typ)
       then
          declare
-            Exname      : constant Entity_Id :=
-                            Make_Defining_Identifier (Loc,
-                              New_External_Name (Tname, 'A'));
-
-            Full_Name   : constant String_Id :=
+            Exname    : constant Entity_Id :=
+                          Make_Defining_Identifier (Loc,
+                            Chars => New_External_Name (Tname, 'A'));
+            Full_Name : constant String_Id :=
                             Fully_Qualified_Name_String (First_Subtype (Typ));
-            Str1_Id     : String_Id;
-            Str2_Id     : String_Id;
+            Str1_Id   : String_Id;
+            Str2_Id   : String_Id;
 
          begin
             --  Generate:
@@ -5058,11 +5020,10 @@ package body Exp_Disp is
                                             (Standard_String, Loc),
                    Expression =>
                      Make_Op_Concat (Loc,
-                       Left_Opnd =>
-                         Make_String_Literal (Loc, Str1_Id),
+                       Left_Opnd  => Make_String_Literal (Loc, Str1_Id),
                        Right_Opnd =>
                          Make_Op_Concat (Loc,
-                           Left_Opnd =>
+                           Left_Opnd  =>
                              Make_Function_Call (Loc,
                                Name =>
                                  New_Occurrence_Of
@@ -5078,20 +5039,18 @@ package body Exp_Disp is
                  Make_Object_Declaration (Loc,
                    Defining_Identifier => Exname,
                    Constant_Present    => True,
-                   Object_Definition   => New_Occurrence_Of
-                                            (Standard_String, Loc),
-                   Expression =>
+                   Object_Definition   =>
+                     New_Occurrence_Of (Standard_String, Loc),
+                   Expression          =>
                      Make_Op_Concat (Loc,
-                       Left_Opnd =>
-                         Make_String_Literal (Loc, Str1_Id),
-                       Right_Opnd =>
-                         Make_String_Literal (Loc, Str2_Id))));
+                       Left_Opnd  => Make_String_Literal (Loc, Str1_Id),
+                       Right_Opnd => Make_String_Literal (Loc, Str2_Id))));
             end if;
 
             New_Node :=
               Unchecked_Convert_To (RTE (RE_Cstring_Ptr),
                 Make_Attribute_Reference (Loc,
-                  Prefix => New_Occurrence_Of (Exname, Loc),
+                  Prefix         => New_Occurrence_Of (Exname, Loc),
                   Attribute_Name => Name_Address));
          end;
 
@@ -5160,7 +5119,7 @@ package body Exp_Disp is
                New_Node :=
                  Unchecked_Convert_To (RTE (RE_Cstring_Ptr),
                    Make_Attribute_Reference (Loc,
-                     Prefix => New_Occurrence_Of (E, Loc),
+                     Prefix         => New_Occurrence_Of (E, Loc),
                      Attribute_Name => Name_Address));
             end if;
          end;
@@ -5174,7 +5133,7 @@ package body Exp_Disp is
          Append_To (TSD_Aggr_List,
            Unchecked_Convert_To (RTE (RE_Tag_Ptr),
              Make_Attribute_Reference (Loc,
-               Prefix => New_Occurrence_Of (HT_Link, Loc),
+               Prefix         => New_Occurrence_Of (HT_Link, Loc),
                Attribute_Name => Name_Address)));
       else
          Append_To (TSD_Aggr_List,
@@ -5195,7 +5154,7 @@ package body Exp_Disp is
                 or else Is_Shared_Passive (Typ)
                 or else
                   ((Is_Remote_Types (Typ)
-                      or else Is_Remote_Call_Interface (Typ))
+                     or else Is_Remote_Call_Interface (Typ))
                    and then Original_View_In_Visible_Part (Typ))
                 or else not Comes_From_Source (Typ));
 
@@ -5209,13 +5168,10 @@ package body Exp_Disp is
       if RTE_Record_Component_Available (RE_Type_Is_Abstract) then
          declare
             Type_Is_Abstract : Entity_Id;
-
          begin
-            Type_Is_Abstract :=
-              Boolean_Literals (Is_Abstract_Type (Typ));
-
+            Type_Is_Abstract := Boolean_Literals (Is_Abstract_Type (Typ));
             Append_To (TSD_Aggr_List,
-               New_Occurrence_Of (Type_Is_Abstract, Loc));
+              New_Occurrence_Of (Type_Is_Abstract, Loc));
          end;
       end if;
 
@@ -5224,7 +5180,6 @@ package body Exp_Disp is
 
       declare
          Needs_Fin : Entity_Id;
-
       begin
          Needs_Fin := Boolean_Literals (Needs_Finalization (Typ));
          Append_To (TSD_Aggr_List, New_Occurrence_Of (Needs_Fin, Loc));
@@ -5267,7 +5222,7 @@ package body Exp_Disp is
                         Size_Comp :=
                           Unchecked_Convert_To (RTE (RE_Size_Ptr),
                             Make_Attribute_Reference (Loc,
-                              Prefix => New_Occurrence_Of (Prim, Loc),
+                              Prefix         => New_Occurrence_Of (Prim, Loc),
                               Attribute_Name => Name_Unrestricted_Access));
                      end if;
 
@@ -5395,16 +5350,15 @@ package body Exp_Disp is
                      Make_Subtype_Indication (Loc,
                        Subtype_Mark =>
                          New_Occurrence_Of (RTE (RE_Interface_Data), Loc),
-                       Constraint => Make_Index_Or_Discriminant_Constraint
-                         (Loc,
-                          Constraints => New_List (
-                            Make_Integer_Literal (Loc, Num_Ifaces)))),
+                       Constraint   =>
+                         Make_Index_Or_Discriminant_Constraint (Loc,
+                           Constraints => New_List (
+                             Make_Integer_Literal (Loc, Num_Ifaces)))),
 
-                   Expression => Make_Aggregate (Loc,
+                   Expression           => Make_Aggregate (Loc,
                      Expressions => New_List (
                        Make_Integer_Literal (Loc, Num_Ifaces),
-                       Make_Aggregate (Loc,
-                         Expressions => TSD_Ifaces_List)))));
+                       Make_Aggregate (Loc, TSD_Ifaces_List)))));
 
                Append_To (Result,
                  Make_Attribute_Definition_Clause (Loc,
@@ -5412,7 +5366,7 @@ package body Exp_Disp is
                    Chars      => Name_Alignment,
                    Expression =>
                      Make_Attribute_Reference (Loc,
-                       Prefix =>
+                       Prefix         =>
                          New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                        Attribute_Name => Name_Alignment)));
 
@@ -5460,7 +5414,7 @@ package body Exp_Disp is
                 Chars      => Name_Alignment,
                 Expression =>
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                     Attribute_Name => Name_Alignment)));
 
@@ -5469,7 +5423,7 @@ package body Exp_Disp is
 
             Append_To (TSD_Aggr_List,
               Make_Attribute_Reference (Loc,
-                Prefix => New_Occurrence_Of (SSD, Loc),
+                Prefix         => New_Occurrence_Of (SSD, Loc),
                 Attribute_Name => Name_Unchecked_Access));
          else
             Append_To (TSD_Aggr_List, Make_Null (Loc));
@@ -5572,7 +5526,8 @@ package body Exp_Disp is
           Chars      => Name_Alignment,
           Expression =>
             Make_Attribute_Reference (Loc,
-              Prefix => New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
+              Prefix         =>
+                New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
               Attribute_Name => Name_Alignment)));
 
       --  Initialize or declare the dispatch table object
@@ -5585,7 +5540,7 @@ package body Exp_Disp is
 
          New_Node :=
            Make_Attribute_Reference (Loc,
-             Prefix => New_Occurrence_Of (TSD, Loc),
+             Prefix         => New_Occurrence_Of (TSD, Loc),
              Attribute_Name => Name_Address);
 
          Append_To (DT_Constr_List, New_Node);
@@ -5601,9 +5556,8 @@ package body Exp_Disp is
          if not Building_Static_DT (Typ) then
             Append_To (Result,
               Make_Assignment_Statement (Loc,
-                Name => New_Occurrence_Of (DT, Loc),
-                Expression => Make_Aggregate (Loc,
-                  Expressions => DT_Aggr_List)));
+                Name       => New_Occurrence_Of (DT, Loc),
+                Expression => Make_Aggregate (Loc, DT_Aggr_List)));
 
          --  In case of library level tagged types we declare and export now
          --  the constant object containing the dummy dispatch table. There
@@ -5623,8 +5577,7 @@ package body Exp_Disp is
                 Constant_Present    => True,
                 Object_Definition   =>
                   New_Occurrence_Of (RTE (RE_No_Dispatch_Table_Wrapper), Loc),
-                Expression => Make_Aggregate (Loc,
-                  Expressions => DT_Aggr_List)));
+                Expression          => Make_Aggregate (Loc, DT_Aggr_List)));
 
             Append_To (Result,
               Make_Attribute_Definition_Clause (Loc,
@@ -5632,7 +5585,7 @@ package body Exp_Disp is
                 Chars      => Name_Alignment,
                 Expression =>
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                     Attribute_Name => Name_Alignment)));
 
@@ -5725,7 +5678,8 @@ package body Exp_Disp is
                      New_Node :=
                        Unchecked_Convert_To (RTE (RE_Prim_Ptr),
                          Make_Attribute_Reference (Loc,
-                           Prefix => New_Occurrence_Of (Prim_Table (J), Loc),
+                           Prefix         =>
+                             New_Occurrence_Of (Prim_Table (J), Loc),
                            Attribute_Name => Name_Unrestricted_Access));
                   else
                      New_Node := Make_Null (Loc);
@@ -5751,8 +5705,8 @@ package body Exp_Disp is
                    Defining_Identifier => Predef_Prims,
                    Aliased_Present     => True,
                    Constant_Present    => Building_Static_DT (Typ),
-                   Object_Definition   => New_Occurrence_Of
-                                           (Defining_Identifier (Decl), Loc),
+                   Object_Definition   =>
+                     New_Occurrence_Of (Defining_Identifier (Decl), Loc),
                    Expression => New_Node));
 
                --  Remember aggregates initializing dispatch tables
@@ -5765,7 +5719,7 @@ package body Exp_Disp is
                    Chars      => Name_Alignment,
                    Expression =>
                      Make_Attribute_Reference (Loc,
-                       Prefix =>
+                       Prefix         =>
                          New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                        Attribute_Name => Name_Alignment)));
             end;
@@ -5805,7 +5759,7 @@ package body Exp_Disp is
 
          Append_To (DT_Aggr_List,
            Make_Attribute_Reference (Loc,
-             Prefix => New_Occurrence_Of (Predef_Prims, Loc),
+             Prefix         => New_Occurrence_Of (Predef_Prims, Loc),
              Attribute_Name => Name_Address));
 
          --  Offset_To_Top
@@ -5816,7 +5770,7 @@ package body Exp_Disp is
 
          Append_To (DT_Aggr_List,
            Make_Attribute_Reference (Loc,
-             Prefix => New_Occurrence_Of (TSD, Loc),
+             Prefix         => New_Occurrence_Of (TSD, Loc),
              Attribute_Name => Name_Address));
 
          --  Stage 2: Initialize the table of user-defined primitive operations
@@ -5883,7 +5837,8 @@ package body Exp_Disp is
                      New_Node :=
                        Unchecked_Convert_To (RTE (RE_Prim_Ptr),
                          Make_Attribute_Reference (Loc,
-                           Prefix => New_Occurrence_Of (Prim_Table (J), Loc),
+                           Prefix         =>
+                             New_Occurrence_Of (Prim_Table (J), Loc),
                            Attribute_Name => Name_Unrestricted_Access));
                   else
                      New_Node := Make_Null (Loc);
@@ -5911,9 +5866,8 @@ package body Exp_Disp is
          if not Building_Static_DT (Typ) then
             Append_To (Result,
               Make_Assignment_Statement (Loc,
-                Name => New_Occurrence_Of (DT, Loc),
-                Expression => Make_Aggregate (Loc,
-                  Expressions => DT_Aggr_List)));
+                Name       => New_Occurrence_Of (DT, Loc),
+                Expression => Make_Aggregate (Loc, DT_Aggr_List)));
 
          --  In case of library level tagged types we declare now and export
          --  the constant object containing the dispatch table.
@@ -5930,8 +5884,7 @@ package body Exp_Disp is
                                       (RTE (RE_Dispatch_Table_Wrapper), Loc),
                     Constraint   => Make_Index_Or_Discriminant_Constraint (Loc,
                                       Constraints => DT_Constr_List)),
-                Expression => Make_Aggregate (Loc,
-                  Expressions => DT_Aggr_List)));
+                Expression          => Make_Aggregate (Loc, DT_Aggr_List)));
 
             Append_To (Result,
               Make_Attribute_Definition_Clause (Loc,
@@ -5939,7 +5892,7 @@ package body Exp_Disp is
                 Chars      => Name_Alignment,
                 Expression =>
                   Make_Attribute_Reference (Loc,
-                    Prefix =>
+                    Prefix         =>
                       New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
                     Attribute_Name => Name_Alignment)));
 
@@ -5956,12 +5909,11 @@ package body Exp_Disp is
       then
          Append_To (Result,
            Make_Assignment_Statement (Loc,
-             Name =>
+             Name       =>
                Make_Indexed_Component (Loc,
-                 Prefix =>
+                 Prefix      =>
                    Make_Selected_Component (Loc,
-                     Prefix =>
-                       New_Occurrence_Of (TSD, Loc),
+                     Prefix        => New_Occurrence_Of (TSD, Loc),
                      Selector_Name =>
                        New_Occurrence_Of
                          (RTE_Record_Component (RE_Tags_Table), Loc)),
@@ -6011,15 +5963,15 @@ package body Exp_Disp is
                       Old_Tag_Node =>
                         New_Occurrence_Of
                           (Node
-                           (Next_Elmt
-                            (First_Elmt
-                             (Access_Disp_Table (Parent_Typ)))), Loc),
+                            (Next_Elmt
+                              (First_Elmt
+                                (Access_Disp_Table (Parent_Typ)))), Loc),
                       New_Tag_Node =>
                         New_Occurrence_Of
                           (Node
-                           (Next_Elmt
-                            (First_Elmt
-                             (Access_Disp_Table (Typ)))), Loc)));
+                            (Next_Elmt
+                              (First_Elmt
+                                (Access_Disp_Table (Typ)))), Loc)));
 
                   if Nb_Prims /= 0 then
                      Append_To (Elab_Code,
@@ -6028,8 +5980,8 @@ package body Exp_Disp is
                          Old_Tag_Node =>
                            New_Occurrence_Of
                              (Node
-                              (First_Elmt
-                               (Access_Disp_Table (Parent_Typ))), Loc),
+                               (First_Elmt
+                                 (Access_Disp_Table (Parent_Typ))), Loc),
                          New_Tag_Node => New_Occurrence_Of (DT_Ptr, Loc),
                          Num_Prims    => Nb_Prims));
                   end if;
@@ -6042,14 +5994,15 @@ package body Exp_Disp is
                declare
                   Sec_DT_Ancestor : Elmt_Id :=
                                       Next_Elmt
-                                       (Next_Elmt
-                                        (First_Elmt
-                                          (Access_Disp_Table (Parent_Typ))));
+                                        (Next_Elmt
+                                           (First_Elmt
+                                              (Access_Disp_Table
+                                                 (Parent_Typ))));
                   Sec_DT_Typ      : Elmt_Id :=
                                       Next_Elmt
-                                       (Next_Elmt
-                                         (First_Elmt
-                                           (Access_Disp_Table (Typ))));
+                                        (Next_Elmt
+                                           (First_Elmt
+                                              (Access_Disp_Table (Typ))));
 
                   procedure Copy_Secondary_DTs (Typ : Entity_Id);
                   --  Local procedure required to climb through the ancestors
@@ -6209,9 +6162,8 @@ package body Exp_Disp is
          end if;
       end if;
 
-      --  If the type has a representation clause which specifies its external
-      --  tag then generate code to check if the external tag of this type is
-      --  the same as the external tag of some other declaration.
+      --  Generate code to check if the external tag of this type is the same
+      --  as the external tag of some other declaration.
 
       --     Check_TSD (TSD'Unrestricted_Access);
 
@@ -6226,16 +6178,16 @@ package body Exp_Disp is
 
       if not No_Run_Time_Mode
         and then Ada_Version >= Ada_2005
-        and then Has_External_Tag_Rep_Clause (Typ)
         and then RTE_Available (RE_Check_TSD)
-        and then not Debug_Flag_QQ
+        and then not Duplicated_Tag_Checks_Suppressed (Typ)
       then
          Append_To (Elab_Code,
            Make_Procedure_Call_Statement (Loc,
-             Name => New_Occurrence_Of (RTE (RE_Check_TSD), Loc),
+             Name                   =>
+               New_Occurrence_Of (RTE (RE_Check_TSD), Loc),
              Parameter_Associations => New_List (
                Make_Attribute_Reference (Loc,
-                 Prefix => New_Occurrence_Of (TSD, Loc),
+                 Prefix         => New_Occurrence_Of (TSD, Loc),
                  Attribute_Name => Name_Unchecked_Access))));
       end if;
 
@@ -6257,7 +6209,8 @@ package body Exp_Disp is
       then
          Append_To (Elab_Code,
            Make_Procedure_Call_Statement (Loc,
-             Name => New_Occurrence_Of (RTE (RE_Register_Tag), Loc),
+             Name                   =>
+               New_Occurrence_Of (RTE (RE_Register_Tag), Loc),
              Parameter_Associations =>
                New_List (New_Occurrence_Of (DT_Ptr, Loc))));
       end if;
@@ -6322,6 +6275,7 @@ package body Exp_Disp is
 
       Register_CG_Node (Typ);
 
+      Restore_Globals;
       return Result;
    end Make_DT;
 
@@ -6440,7 +6394,7 @@ package body Exp_Disp is
 
                         Append_To (OSD_Aggr_List,
                           Make_Component_Association (Loc,
-                            Choices => New_List (
+                            Choices    => New_List (
                               Make_Integer_Literal (Loc,
                                 DT_Position (Prim_Alias))),
                             Expression =>
@@ -6453,6 +6407,7 @@ package body Exp_Disp is
 
                   Next_Elmt (Prim_Elmt);
                end loop;
+
                pragma Assert (Count = Nb_Prim);
             end;
 
@@ -6467,7 +6422,7 @@ package body Exp_Disp is
                   Make_Subtype_Indication (Loc,
                     Subtype_Mark =>
                       New_Occurrence_Of (RTE (RE_Object_Specific_Data), Loc),
-                    Constraint =>
+                    Constraint   =>
                       Make_Index_Or_Discriminant_Constraint (Loc,
                         Constraints => New_List (
                           Make_Integer_Literal (Loc, Nb_Prim)))),
@@ -6476,14 +6431,14 @@ package body Exp_Disp is
                   Make_Aggregate (Loc,
                     Component_Associations => New_List (
                       Make_Component_Association (Loc,
-                        Choices => New_List (
+                        Choices    => New_List (
                           New_Occurrence_Of
                             (RTE_Record_Component (RE_OSD_Num_Prims), Loc)),
                         Expression =>
                           Make_Integer_Literal (Loc, Nb_Prim)),
 
                       Make_Component_Association (Loc,
-                        Choices => New_List (
+                        Choices    => New_List (
                           New_Occurrence_Of
                             (RTE_Record_Component (RE_OSD_Table), Loc)),
                         Expression => Make_Aggregate (Loc,
@@ -6810,14 +6765,12 @@ package body Exp_Disp is
             Expressions => TSD_Aggr_List)));
 
       --  Generate:
-      --     Check_TSD
-      --       (TSD => TSD'Unrestricted_Access);
+      --     Check_TSD (TSD => TSD'Unrestricted_Access);
 
       if Ada_Version >= Ada_2005
         and then Is_Library_Level_Entity (Typ)
-        and then Has_External_Tag_Rep_Clause (Typ)
         and then RTE_Available (RE_Check_TSD)
-        and then not Debug_Flag_QQ
+        and then not Duplicated_Tag_Checks_Suppressed (Typ)
       then
          Append_To (Result,
            Make_Procedure_Call_Statement (Loc,
@@ -7174,11 +7127,7 @@ package body Exp_Disp is
       Set_Ekind        (DT_Ptr, E_Variable);
       Set_Related_Type (DT_Ptr, Typ);
 
-      --  Ensure that entities Prim_Ptr and Predef_Prims_Table_Ptr have
-      --  the decoration required by the backend.
-
-      --  Odd comment, the back end cannot require anything not properly
-      --  documented in einfo. ???
+      --  Notify back end that the types are associated with a dispatch table
 
       Set_Is_Dispatch_Table_Entity (RTE (RE_Prim_Ptr));
       Set_Is_Dispatch_Table_Entity (RTE (RE_Predef_Prims_Table_Ptr));
@@ -7313,9 +7262,8 @@ package body Exp_Disp is
 
          Suffix_Index := 1;
 
-         --  Note: The value of Suffix_Index must be in sync with the
-         --  Suffix_Index values of secondary dispatch tables generated
-         --  by Make_DT.
+         --  Note: The value of Suffix_Index must be in sync with the values of
+         --  Suffix_Index in secondary dispatch tables generated by Make_DT.
 
          if Is_CPP_Class (Typ) then
             AI_Tag_Comp := First_Elmt (Typ_Comps);
@@ -7324,8 +7272,7 @@ package body Exp_Disp is
                  (Typ, Related_Type (Node (AI_Tag_Comp)), Suffix_Index);
                Typ_Name := Name_Find;
 
-               --  Declare variables that will store the copy of the C++
-               --  secondary tags.
+               --  Declare variables to store copy of the C++ secondary tags
 
                Iface_DT_Ptr :=
                  Make_Defining_Identifier (Loc,
@@ -7534,6 +7481,7 @@ package body Exp_Disp is
             --  Add the freezing nodes of these declarations; required to avoid
             --  generating these freezing nodes in wrong scopes (for example in
             --  the IC routine of a derivation of Typ).
+
             --  What is an "IC routine"? Is "init_proc" meant here???
 
             Append_List_To (Result, Freeze_Entity (DT_Prims, Typ));
@@ -7579,9 +7527,7 @@ package body Exp_Disp is
       Res : constant Node_Id := Duplicate_Subexpr (From);
    begin
       if Is_Access_Type (Etype (From)) then
-         return
-           Make_Explicit_Dereference (Sloc (From),
-             Prefix => Res);
+         return Make_Explicit_Dereference (Sloc (From), Prefix => Res);
       else
          return Res;
       end if;
@@ -7792,6 +7738,7 @@ package body Exp_Disp is
          end if;
 
       --  Ada 2005 (AI-251): Primitive associated with an interface type
+
       --  Generate the code of the thunk only if the interface type is not an
       --  immediate ancestor of Typ; otherwise the dispatch table associated
       --  with the interface is the primary dispatch table and we have nothing
@@ -7920,9 +7867,8 @@ package body Exp_Disp is
       --  predefined primitives
 
       procedure Validate_Position (Prim : Entity_Id);
-      --  Check that the position assigned to Prim is completely safe
-      --  (it has not been assigned to a previously defined primitive
-      --   operation of Typ)
+      --  Check that position assigned to Prim is completely safe (it has not
+      --  been assigned to a previously defined primitive operation of Typ).
 
       ------------------------
       -- In_Predef_Prims_DT --
@@ -8017,7 +7963,6 @@ package body Exp_Disp is
                and then not Is_Predefined_Dispatching_Alias (Op)
                and then not Is_Predefined_Dispatching_Alias (Prim)
             then
-
                --  Handle aliased subprograms
 
                declare
@@ -8080,9 +8025,8 @@ package body Exp_Disp is
       --  Set the DT_Position for each primitive operation. Perform some sanity
       --  checks to avoid building inconsistent dispatch tables.
 
-      --  First stage: Set the DTC entity of all the primitive operations. This
-      --  is required to properly read the DT_Position attribute in the latter
-      --  stages.
+      --  First stage: Set DTC entity of all the primitive operations. This is
+      --  required to properly read the DT_Position attribute in latter stages.
 
       Prim_Elmt  := First_Prim;
       Count_Prim := 0;
@@ -8101,7 +8045,7 @@ package body Exp_Disp is
          --  way we ensure that the final position of all the primitives is
          --  established by the following stages of this algorithm.
 
-         Set_DT_Position (Prim, No_Uint);
+         Set_DT_Position_Value (Prim, No_Uint);
 
          Next_Elmt (Prim_Elmt);
       end loop;
@@ -8159,8 +8103,9 @@ package body Exp_Disp is
                      if Chars (Node (Op_Elmt_2)) = Chars (Parent_Subp)
                        and then Type_Conformant (Prim_Op, Node (Op_Elmt_2))
                      then
-                        Set_DT_Position (Prim_Op, DT_Position (Parent_Subp));
-                        Set_DT_Position (Node (Op_Elmt_2),
+                        Set_DT_Position_Value (Prim_Op,
+                          DT_Position (Parent_Subp));
+                        Set_DT_Position_Value (Node (Op_Elmt_2),
                           DT_Position (Parent_Subp));
                         Set_Fixed_Prim (UI_To_Int (DT_Position (Prim_Op)));
 
@@ -8218,10 +8163,11 @@ package body Exp_Disp is
 
             if In_Predef_Prims_DT (Prim) then
                if Is_Predefined_Dispatching_Operation (Prim) then
-                  Set_DT_Position (Prim, Default_Prim_Op_Position (Prim));
+                  Set_DT_Position_Value (Prim,
+                    Default_Prim_Op_Position (Prim));
 
                else pragma Assert (Present (Alias (Prim)));
-                  Set_DT_Position (Prim,
+                  Set_DT_Position_Value (Prim,
                     Default_Prim_Op_Position (Ultimate_Alias (Prim)));
                end if;
 
@@ -8236,12 +8182,12 @@ package body Exp_Disp is
                  and then Present (DTC_Entity (Interface_Alias (Prim))));
 
                E := Interface_Alias (Prim);
-               Set_DT_Position (Prim, DT_Position (E));
+               Set_DT_Position_Value (Prim, DT_Position (E));
 
                pragma Assert
                  (DT_Position (Alias (Prim)) = No_Uint
                     or else DT_Position (Alias (Prim)) = DT_Position (E));
-               Set_DT_Position (Alias (Prim), DT_Position (E));
+               Set_DT_Position_Value (Alias (Prim), DT_Position (E));
                Set_Fixed_Prim (UI_To_Int (DT_Position (Prim)));
 
             --  Overriding primitives must use the same entry as the
@@ -8257,7 +8203,7 @@ package body Exp_Disp is
               and then Present (DTC_Entity (Alias (Prim)))
             then
                E := Alias (Prim);
-               Set_DT_Position (Prim, DT_Position (E));
+               Set_DT_Position_Value (Prim, DT_Position (E));
 
                if not Is_Predefined_Dispatching_Alias (E) then
                   Set_Fixed_Prim (UI_To_Int (DT_Position (E)));
@@ -8267,9 +8213,9 @@ package body Exp_Disp is
             Next_Elmt (Prim_Elmt);
          end loop;
 
-         --  Third stage: Fix the position of all the new primitives.
-         --  Entries associated with primitives covering interfaces
-         --  are handled in a latter round.
+         --  Third stage: Fix the position of all the new primitives. Entries
+         --  associated with primitives covering interfaces are handled in a
+         --  latter round.
 
          Prim_Elmt := First_Prim;
          while Present (Prim_Elmt) loop
@@ -8294,7 +8240,7 @@ package body Exp_Disp is
                   exit when not Fixed_Prim (Nb_Prim);
                end loop;
 
-               Set_DT_Position (Prim, UI_From_Int (Nb_Prim));
+               Set_DT_Position_Value (Prim, UI_From_Int (Nb_Prim));
                Set_Fixed_Prim (Nb_Prim);
             end if;
 
@@ -8303,8 +8249,8 @@ package body Exp_Disp is
       end;
 
       --  Fourth stage: Complete the decoration of primitives covering
-      --  interfaces (that is, propagate the DT_Position attribute
-      --  from the aliased primitive)
+      --  interfaces (that is, propagate the DT_Position attribute from
+      --  the aliased primitive)
 
       Prim_Elmt := First_Prim;
       while Present (Prim_Elmt) loop
@@ -8323,14 +8269,14 @@ package body Exp_Disp is
                   Use_Full_View => True)
             then
                pragma Assert (DT_Position (Alias (Prim)) /= No_Uint);
-               Set_DT_Position (Prim, DT_Position (Alias (Prim)));
+               Set_DT_Position_Value (Prim, DT_Position (Alias (Prim)));
 
             --  Otherwise it will be placed in the secondary DT
 
             else
                pragma Assert
                  (DT_Position (Interface_Alias (Prim)) /= No_Uint);
-               Set_DT_Position (Prim,
+               Set_DT_Position_Value (Prim,
                  DT_Position (Interface_Alias (Prim)));
             end if;
          end if;
@@ -8338,10 +8284,10 @@ package body Exp_Disp is
          Next_Elmt (Prim_Elmt);
       end loop;
 
-      --  Generate listing showing the contents of the dispatch tables.
-      --  This action is done before some further static checks because
-      --  in case of critical errors caused by a wrong dispatch table
-      --  we need to see the contents of such table.
+      --  Generate listing showing the contents of the dispatch tables. This
+      --  action is done before some further static checks because in case of
+      --  critical errors caused by a wrong dispatch table we need to see the
+      --  contents of such table.
 
       if Debug_Flag_ZZ then
          Write_DT (Typ);
@@ -8355,8 +8301,8 @@ package body Exp_Disp is
       while Present (Prim_Elmt) loop
          Prim := Node (Prim_Elmt);
 
-         --  At this point all the primitives MUST have a position
-         --  in the dispatch table.
+         --  At this point all the primitives MUST have a position in the
+         --  dispatch table.
 
          if DT_Position (Prim) = No_Uint then
             raise Program_Error;
@@ -8370,8 +8316,8 @@ package body Exp_Disp is
             DT_Length := UI_To_Int (DT_Position (Prim));
          end if;
 
-         --  Ensure that the assigned position to non-predefined
-         --  dispatching operations in the dispatch table is correct.
+         --  Ensure that the assigned position to non-predefined dispatching
+         --  operations in the dispatch table is correct.
 
          if not Is_Predefined_Dispatching_Operation (Prim)
            and then not Is_Predefined_Dispatching_Alias (Prim)
@@ -8397,8 +8343,8 @@ package body Exp_Disp is
          --  excluded from this check because interfaces must be visible in
          --  the public and private part (RM 7.3 (7.3/2))
 
-         --  We disable this check in Relaxed_RM_Semantics mode, to
-         --  accommodate legacy Ada code.
+         --  We disable this check in Relaxed_RM_Semantics mode, to accommodate
+         --  legacy Ada code.
 
          if not Relaxed_RM_Semantics
            and then Is_Abstract_Type (Typ)
@@ -8415,9 +8361,8 @@ package body Exp_Disp is
            and then Original_View_In_Visible_Part (Typ)
          then
             --  We exclude Input and Output stream operations because
-            --  Limited_Controlled inherits useless Input and Output
-            --  stream operations from Root_Controlled, which can
-            --  never be overridden.
+            --  Limited_Controlled inherits useless Input and Output stream
+            --  operations from Root_Controlled, which can never be overridden.
 
             if not Is_TSS (Prim, TSS_Stream_Input)
                  and then
@@ -8469,6 +8414,10 @@ package body Exp_Disp is
       function Gen_Parameters_Profile (E : Entity_Id) return List_Id;
       --  Duplicate the parameters profile of the imported C++ constructor
       --  adding an access to the object as an additional parameter.
+
+      ----------------------------
+      -- Gen_Parameters_Profile --
+      ----------------------------
 
       function Gen_Parameters_Profile (E : Entity_Id) return List_Id is
          Loc   : constant Source_Ptr := Sloc (E);
@@ -8531,10 +8480,10 @@ package body Exp_Disp is
               Make_Defining_Identifier (Loc,
                 Chars => Make_Init_Proc_Name (Typ));
 
-            --  Case 1: Constructor of non-tagged type
+            --  Case 1: Constructor of untagged type
 
             --  If the C++ class has no virtual methods then the matching Ada
-            --  type is a non-tagged record type. In such case there is no need
+            --  type is an untagged record type. In such case there is no need
             --  to generate a wrapper of the C++ constructor because the _tag
             --  component is not available.
 
@@ -8688,10 +8637,10 @@ package body Exp_Disp is
                end;
             end if;
 
-            --  If this constructor has parameters and all its parameters
-            --  have defaults then it covers the default constructor. The
-            --  semantic analyzer ensures that only one constructor with
-            --  defaults covers the default constructor.
+            --  If this constructor has parameters and all its parameters have
+            --  defaults then it covers the default constructor. The semantic
+            --  analyzer ensures that only one constructor with defaults covers
+            --  the default constructor.
 
             if Present (Parameter_Specifications (Parent (E)))
               and then Needs_No_Actuals (E)
@@ -8765,6 +8714,25 @@ package body Exp_Disp is
       end if;
    end Set_CPP_Constructors;
 
+   ---------------------------
+   -- Set_DT_Position_Value --
+   ---------------------------
+
+   procedure Set_DT_Position_Value (Prim : Entity_Id; Value : Uint) is
+   begin
+      Set_DT_Position (Prim, Value);
+
+      --  Propagate the value to the wrapped subprogram (if one is present)
+
+      if Ekind_In (Prim, E_Function, E_Procedure)
+        and then Is_Primitive_Wrapper (Prim)
+        and then Present (Wrapped_Entity (Prim))
+        and then Is_Dispatching_Operation (Wrapped_Entity (Prim))
+      then
+         Set_DT_Position (Wrapped_Entity (Prim), Value);
+      end if;
+   end Set_DT_Position_Value;
+
    --------------------------
    -- Set_DTC_Entity_Value --
    --------------------------
@@ -8785,6 +8753,16 @@ package body Exp_Disp is
       else
          Set_DTC_Entity (Prim,
            First_Tag_Component (Tagged_Type));
+      end if;
+
+      --  Propagate the value to the wrapped subprogram (if one is present)
+
+      if Ekind_In (Prim, E_Function, E_Procedure)
+        and then Is_Primitive_Wrapper (Prim)
+        and then Present (Wrapped_Entity (Prim))
+        and then Is_Dispatching_Operation (Wrapped_Entity (Prim))
+      then
+         Set_DTC_Entity (Wrapped_Entity (Prim), DTC_Entity (Prim));
       end if;
    end Set_DTC_Entity_Value;
 
@@ -8941,7 +8919,7 @@ package body Exp_Disp is
          end if;
 
          --  Display the final position of this primitive in its associated
-         --  (primary or secondary) dispatch table
+         --  (primary or secondary) dispatch table.
 
          if Present (DTC_Entity (Prim))
            and then DT_Position (Prim) /= No_Uint

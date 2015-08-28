@@ -1,7 +1,5 @@
 /* tc-i386.h -- Header file for tc-i386.c
-   Copyright 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -61,6 +59,15 @@ extern unsigned long i386_mach (void);
 #define ELF_TARGET_FORMAT64	"elf64-x86-64-freebsd"
 #elif defined (TE_VXWORKS)
 #define ELF_TARGET_FORMAT	"elf32-i386-vxworks"
+#elif defined (TE_NACL)
+#define ELF_TARGET_FORMAT	"elf32-i386-nacl"
+#define ELF_TARGET_FORMAT32	"elf32-x86-64-nacl"
+#define ELF_TARGET_FORMAT64	"elf64-x86-64-nacl"
+#endif
+
+#ifdef TE_SOLARIS
+#define ELF_TARGET_FORMAT	"elf32-i386-sol2"
+#define ELF_TARGET_FORMAT64	"elf64-x86-64-sol2"
 #endif
 
 #ifndef ELF_TARGET_FORMAT
@@ -71,8 +78,16 @@ extern unsigned long i386_mach (void);
 #define ELF_TARGET_FORMAT64	"elf64-x86-64"
 #endif
 
+#ifndef ELF_TARGET_FORMAT32
+#define ELF_TARGET_FORMAT32	"elf32-x86-64"
+#endif
+
 #ifndef ELF_TARGET_L1OM_FORMAT
 #define ELF_TARGET_L1OM_FORMAT	"elf64-l1om"
+#endif
+
+#ifndef ELF_TARGET_K1OM_FORMAT
+#define ELF_TARGET_K1OM_FORMAT	"elf64-k1om"
 #endif
 
 #if ((defined (OBJ_MAYBE_COFF) && defined (OBJ_MAYBE_AOUT)) \
@@ -116,12 +131,16 @@ extern const char *i386_comment_chars;
 
 #if (defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && !defined (LEX_AT)
 #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
-extern void x86_cons (expressionS *, int);
 #endif
+extern bfd_reloc_code_real_type x86_cons (expressionS *, int);
 
-#define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
+#define TC_CONS_FIX_NEW(FRAG, OFF, LEN, EXP, RELOC)	\
+  x86_cons_fix_new(FRAG, OFF, LEN, EXP, RELOC)
 extern void x86_cons_fix_new
-  (fragS *, unsigned int, unsigned int, expressionS *);
+(fragS *, unsigned int, unsigned int, expressionS *, bfd_reloc_code_real_type);
+
+#define TC_ADDRESS_BYTES x86_address_bytes
+extern int x86_address_bytes (void);
 
 #define DIFF_EXPR_OK    /* foo-. gets turned into PC relative relocs */
 
@@ -149,15 +168,14 @@ extern int tc_i386_fix_adjustable (struct fix *);
 /* This expression evaluates to true if the relocation is for a local
    object for which we still want to do the relocation at runtime.
    False if we are willing to perform this relocation while building
-   the .o file.  GOTOFF does not need to be checked here because it is
-   not pcrel.  I am not sure if some of the others are ever used with
-   pcrel, but it is easier to be safe than sorry.  */
+   the .o file.  GOTOFF and GOT32 do not need to be checked here because
+   they are not pcrel.  .*/
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
   (!(FIX)->fx_pcrel					\
    || (FIX)->fx_r_type == BFD_RELOC_386_PLT32		\
-   || (FIX)->fx_r_type == BFD_RELOC_386_GOT32		\
    || (FIX)->fx_r_type == BFD_RELOC_386_GOTPC		\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCREL	\
    || TC_FORCE_RELOCATION (FIX))
 
 extern int i386_parse_name (char *, expressionS *, char *);
@@ -201,6 +219,9 @@ if (fragP->fr_type == rs_align_code) 					\
 void i386_print_statistics (FILE *);
 #define tc_print_statistics i386_print_statistics
 
+extern unsigned int i386_frag_max_var (fragS *);
+#define md_frag_max_var i386_frag_max_var
+
 #define md_number_to_chars number_to_chars_littleendian
 
 enum processor_type
@@ -216,12 +237,15 @@ enum processor_type
   PROCESSOR_CORE2,
   PROCESSOR_COREI7,
   PROCESSOR_L1OM,
+  PROCESSOR_K1OM,
   PROCESSOR_K6,
   PROCESSOR_ATHLON,
   PROCESSOR_K8,
   PROCESSOR_GENERIC32,
   PROCESSOR_GENERIC64,
-  PROCESSOR_AMDFAM10
+  PROCESSOR_AMDFAM10,
+  PROCESSOR_BD,
+  PROCESSOR_BT
 };
 
 extern enum processor_type cpu_arch_tune;
@@ -265,6 +289,9 @@ extern unsigned int x86_dwarf2_return_column;
 extern int x86_cie_data_alignment;
 #define DWARF2_CIE_DATA_ALIGNMENT x86_cie_data_alignment
 
+extern int x86_dwarf2_addr_size (void);
+#define DWARF2_ADDR_SIZE(bfd) x86_dwarf2_addr_size ()
+
 #define tc_parse_to_dw2regnum tc_x86_parse_to_dw2regnum
 extern void tc_x86_parse_to_dw2regnum (expressionS *);
 
@@ -296,5 +323,19 @@ void tc_pe_dwarf2_emit_offset (symbolS *, unsigned int);
 
 /* X_add_symbol:X_op_symbol (Intel mode only) */
 #define O_full_ptr O_md2
+
+#ifdef OBJ_MACH_O
+
+#define TC_FORCE_RELOCATION(FIX) (obj_mach_o_force_reloc (FIX))
+
+#define TC_FORCE_RELOCATION_SUB_SAME(FIX,SEG) \
+	  (obj_mach_o_force_reloc_sub_same (FIX, SEG))
+
+#define TC_FORCE_RELOCATION_SUB_LOCAL(FIX,SEG) \
+	(obj_mach_o_force_reloc_sub_local (FIX, SEG))
+
+#define TC_VALIDATE_FIX_SUB(FIX, SEG) 1
+
+#endif /* OBJ_MACH_O */
 
 #endif /* TC_I386 */

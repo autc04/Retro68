@@ -140,6 +140,9 @@ func (f *File) Write(b []byte) (n int, err error) {
 	if n < 0 {
 		n = 0
 	}
+	if n != len(b) {
+		err = io.ErrShortWrite
+	}
 
 	epipecheck(f, e)
 
@@ -247,3 +250,17 @@ func Create(name string) (file *File, err error) {
 
 // lstat is overridden in tests.
 var lstat = Lstat
+
+// Rename renames (moves) a file. OS-specific restrictions might apply.
+func Rename(oldpath, newpath string) error {
+	return rename(oldpath, newpath)
+}
+
+// Many functions in package syscall return a count of -1 instead of 0.
+// Using fixCount(call()) instead of call() corrects the count.
+func fixCount(n int, err error) (int, error) {
+	if n < 0 {
+		n = 0
+	}
+	return n, err
+}

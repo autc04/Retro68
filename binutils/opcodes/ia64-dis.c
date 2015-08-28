@@ -1,6 +1,5 @@
 /* ia64-dis.c -- Disassemble ia64 instructions
-   Copyright 1998, 1999, 2000, 2002, 2005, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of the GNU opcodes library.
@@ -20,8 +19,8 @@
    Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
+#include "sysdep.h"
 #include <assert.h>
-#include <string.h>
 
 #include "dis-asm.h"
 #include "opcode/ia64.h"

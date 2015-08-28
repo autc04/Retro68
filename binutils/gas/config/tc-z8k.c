@@ -1,6 +1,5 @@
 /* tc-z8k.c -- Assemble code for the Zilog Z800n
-   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001, 2002, 2003,
-   2005, 2006, 2007, 2009  Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -34,7 +33,8 @@ extern int machine;
 extern int coff_flags;
 int segmented_mode;
 
-/* This is non-zero if target was set from the command line.  */
+/* This is non-zero if target was set from the command line.
+   If non-zero, 1 means Z8002 (non-segmented), 2 means Z8001 (segmented).  */
 static int z8k_target_from_cmdline;
 
 static void
@@ -156,8 +156,7 @@ md_begin (void)
     }
 
   /* Default to z8002.  */
-  if (! z8k_target_from_cmdline)
-    s_segm (0);
+  s_segm (z8k_target_from_cmdline ? z8k_target_from_cmdline - 1 : 0);
 
   /* Insert the pseudo ops, too.  */
   for (idx = 0; md_pseudo_table[idx].poc_name; idx++)
@@ -203,7 +202,7 @@ static int the_interrupt;
    number.  */
 
 static char *
-whatreg (unsigned int *reg, char *src)
+whatreg (unsigned int *preg, char *src)
 {
   unsigned int new_reg;
 
@@ -222,7 +221,7 @@ whatreg (unsigned int *reg, char *src)
   if (src[0] != 0 && src[0] != ',' && src[0] != '(' && src[0] != ')')
     return NULL;
 
-  *reg = new_reg;
+  *preg = new_reg;
   return src;
 }
 
@@ -244,7 +243,7 @@ whatreg (unsigned int *reg, char *src)
    in SRC after the reg name.  */
 
 static char *
-parse_reg (char *src, int *mode, unsigned int *reg)
+parse_reg (char *src, int *mode, unsigned int *preg)
 {
   char *res = NULL;
   char regno;
@@ -257,12 +256,12 @@ parse_reg (char *src, int *mode, unsigned int *reg)
       if (segmented_mode)
 	{
 	  *mode = CLASS_REG_LONG;
-	  *reg = 14;
+	  *preg = 14;
 	}
       else
 	{
 	  *mode = CLASS_REG_WORD;
-	  *reg = 15;
+	  *preg = 15;
 	}
       return src + 2;
     }
@@ -274,10 +273,10 @@ parse_reg (char *src, int *mode, unsigned int *reg)
 	  if (src[2] < '0' || src[2] > '9')
 	    return NULL;	/* Assume no register name but a label starting with 'rr'.  */
 	  *mode = CLASS_REG_LONG;
-	  res = whatreg (reg, src + 2);
+	  res = whatreg (preg, src + 2);
 	  if (res == NULL)
 	    return NULL;	/* Not a valid register name.  */
-	  regno = *reg;
+	  regno = *preg;
 	  if (regno > 14)
 	    as_bad (_("register rr%d out of range"), regno);
 	  if (regno & 1)
@@ -288,10 +287,10 @@ parse_reg (char *src, int *mode, unsigned int *reg)
 	  if (src[2] < '0' || src[2] > '9')
 	    return NULL;	/* Assume no register name but a label starting with 'rh'.  */
 	  *mode = CLASS_REG_BYTE;
-	  res = whatreg (reg, src + 2);
+	  res = whatreg (preg, src + 2);
 	  if (res == NULL)
 	    return NULL;	/* Not a valid register name.  */
-	  regno = *reg;
+	  regno = *preg;
 	  if (regno > 7)
 	    as_bad (_("register rh%d out of range"), regno);
 	}
@@ -300,23 +299,23 @@ parse_reg (char *src, int *mode, unsigned int *reg)
 	  if (src[2] < '0' || src[2] > '9')
 	    return NULL;	/* Assume no register name but a label starting with 'rl'.  */
 	  *mode = CLASS_REG_BYTE;
-	  res = whatreg (reg, src + 2);
+	  res = whatreg (preg, src + 2);
 	  if (res == NULL)
 	    return NULL;	/* Not a valid register name.  */
-	  regno = *reg;
+	  regno = *preg;
 	  if (regno > 7)
 	    as_bad (_("register rl%d out of range"), regno);
-	  *reg += 8;
+	  *preg += 8;
 	}
       else if (src[1] == 'q' || src[1] == 'Q')
 	{
 	  if (src[2] < '0' || src[2] > '9')
 	    return NULL;	/* Assume no register name but a label starting with 'rq'.  */
 	  *mode = CLASS_REG_QUAD;
-	  res = whatreg (reg, src + 2);
+	  res = whatreg (preg, src + 2);
 	  if (res == NULL)
 	    return NULL;	/* Not a valid register name.  */
-	  regno = *reg;
+	  regno = *preg;
 	  if (regno > 12)
 	    as_bad (_("register rq%d out of range"), regno);
 	  if (regno & 3)
@@ -327,10 +326,10 @@ parse_reg (char *src, int *mode, unsigned int *reg)
 	  if (src[1] < '0' || src[1] > '9')
 	    return NULL;	/* Assume no register name but a label starting with 'r'.  */
 	  *mode = CLASS_REG_WORD;
-	  res = whatreg (reg, src + 1);
+	  res = whatreg (preg, src + 1);
 	  if (res == NULL)
 	    return NULL;	/* Not a valid register name.  */
-	  regno = *reg;
+	  regno = *preg;
 	  if (regno > 15)
 	    as_bad (_("register r%d out of range"), regno);
 	}
@@ -1310,15 +1309,14 @@ md_parse_option (int c, char *arg)
     {
     case 'z':
       if (!strcmp (arg, "8001"))
-	s_segm (1);
+	z8k_target_from_cmdline = 2;
       else if (!strcmp (arg, "8002"))
-	s_segm (0);
+	z8k_target_from_cmdline = 1;
       else
 	{
 	  as_bad (_("invalid architecture -z%s"), arg);
 	  return 0;
 	}
-      z8k_target_from_cmdline = 1;
       break;
 
     case OPTION_RELAX:

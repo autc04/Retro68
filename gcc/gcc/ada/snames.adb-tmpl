@@ -29,6 +29,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Debug; use Debug;
 with Opt;   use Opt;
 with Table;
 with Types; use Types;
@@ -155,7 +156,6 @@ package body Snames is
          when Name_COBOL                 => return Convention_COBOL;
          when Name_CPP                   => return Convention_CPP;
          when Name_Fortran               => return Convention_Fortran;
-         when Name_Ghost                 => return Convention_Ghost;
          when Name_Intrinsic             => return Convention_Intrinsic;
          when Name_Java                  => return Convention_Java;
          when Name_Stdcall               => return Convention_Stdcall;
@@ -193,7 +193,6 @@ package body Snames is
          when Convention_CPP                   => return Name_CPP;
          when Convention_Entry                 => return Name_Entry;
          when Convention_Fortran               => return Name_Fortran;
-         when Convention_Ghost                 => return Name_Ghost;
          when Convention_Intrinsic             => return Name_Intrinsic;
          when Convention_Java                  => return Name_Java;
          when Convention_Protected             => return Name_Protected;
@@ -217,33 +216,32 @@ package body Snames is
 
    function Get_Pragma_Id (N : Name_Id) return Pragma_Id is
    begin
-      if N = Name_AST_Entry then
-         return Pragma_AST_Entry;
-      elsif N = Name_CPU then
-         return Pragma_CPU;
-      elsif N = Name_Dispatching_Domain then
-         return Pragma_Dispatching_Domain;
-      elsif N = Name_Fast_Math then
-         return Pragma_Fast_Math;
-      elsif N = Name_Interface then
-         return Pragma_Interface;
-      elsif N = Name_Interrupt_Priority then
-         return Pragma_Interrupt_Priority;
-      elsif N = Name_Lock_Free then
-         return Pragma_Lock_Free;
-      elsif N = Name_Priority then
-         return Pragma_Priority;
-      elsif N = Name_Relative_Deadline then
-         return Pragma_Relative_Deadline;
-      elsif N = Name_Storage_Size then
-         return Pragma_Storage_Size;
-      elsif N = Name_Storage_Unit then
-         return Pragma_Storage_Unit;
-      elsif N not in First_Pragma_Name .. Last_Pragma_Name then
-         return Unknown_Pragma;
-      else
-         return Pragma_Id'Val (N - First_Pragma_Name);
-      end if;
+      case N is
+         when Name_CPU                              =>
+            return Pragma_CPU;
+         when Name_Default_Scalar_Storage_Order     =>
+            return Pragma_Default_Scalar_Storage_Order;
+         when Name_Dispatching_Domain               =>
+            return Pragma_Dispatching_Domain;
+         when Name_Fast_Math                        =>
+            return Pragma_Fast_Math;
+         when Name_Interface                        =>
+            return Pragma_Interface;
+         when Name_Interrupt_Priority               =>
+            return Pragma_Interrupt_Priority;
+         when Name_Lock_Free                        =>
+            return Pragma_Lock_Free;
+         when Name_Priority                         =>
+            return Pragma_Priority;
+         when Name_Storage_Size                     =>
+            return Pragma_Storage_Size;
+         when Name_Storage_Unit                     =>
+            return Pragma_Storage_Unit;
+         when First_Pragma_Name .. Last_Pragma_Name =>
+            return Pragma_Id'Val (N - First_Pragma_Name);
+         when others                                =>
+            return Unknown_Pragma;
+      end case;
    end Get_Pragma_Id;
 
    ---------------------------
@@ -338,6 +336,7 @@ package body Snames is
    function Is_Configuration_Pragma_Name (N : Name_Id) return Boolean is
    begin
       return N in First_Pragma_Name .. Last_Configuration_Pragma_Name
+        or else N = Name_Default_Scalar_Storage_Order
         or else N = Name_Fast_Math;
    end Is_Configuration_Pragma_Name;
 
@@ -397,7 +396,11 @@ package body Snames is
         and then (Ada_Version >= Ada_95
                    or else N not in Ada_95_Reserved_Words)
         and then (Ada_Version >= Ada_2005
-                   or else N not in Ada_2005_Reserved_Words)
+                   or else N not in Ada_2005_Reserved_Words
+                   or else (Debug_Flag_Dot_DD and then N = Name_Overriding))
+                   --  Accept 'overriding' keywords if -gnatd.D is used,
+                   --  for compatibility with Ada 95 compilers implementing
+                   --  only this Ada 2005 extension.
         and then (Ada_Version >= Ada_2012
                    or else N not in Ada_2012_Reserved_Words);
    end Is_Keyword_Name;
@@ -449,8 +452,8 @@ package body Snames is
    function Is_Pragma_Name (N : Name_Id) return Boolean is
    begin
       return N in First_Pragma_Name .. Last_Pragma_Name
-        or else N = Name_AST_Entry
         or else N = Name_CPU
+        or else N = Name_Default_Scalar_Storage_Order
         or else N = Name_Dispatching_Domain
         or else N = Name_Fast_Math
         or else N = Name_Interface

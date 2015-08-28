@@ -1,6 +1,6 @@
 // workqueue-internal.h -- internal work queue header for gold   -*- C++ -*-
 
-// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -56,7 +56,7 @@ class Workqueue_threader
 
   // Return whether to cancel the current thread.
   virtual bool
-  should_cancel_thread() = 0;
+  should_cancel_thread(int thread_number) = 0;
 
  protected:
   // Get the Workqueue.
@@ -84,7 +84,7 @@ class Workqueue_threader_threadpool : public Workqueue_threader
 
   // Return whether to cancel a thread.
   bool
-  should_cancel_thread();
+  should_cancel_thread(int thread_number);
 
   // Process all tasks.  This keeps running until told to cancel.
   void

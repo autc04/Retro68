@@ -5,6 +5,7 @@
 package filepath_test
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"testing"
 )
+
+var supportsSymlinks = true
 
 type PathTest struct {
 	path, result string
@@ -461,6 +464,63 @@ func TestWalk(t *testing.T) {
 	}
 }
 
+func touch(t *testing.T, name string) {
+	f, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWalkFileError(t *testing.T) {
+	td, err := ioutil.TempDir("", "walktest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(td)
+
+	touch(t, filepath.Join(td, "foo"))
+	touch(t, filepath.Join(td, "bar"))
+	dir := filepath.Join(td, "dir")
+	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	touch(t, filepath.Join(dir, "baz"))
+	touch(t, filepath.Join(dir, "stat-error"))
+	defer func() {
+		*filepath.LstatP = os.Lstat
+	}()
+	statErr := errors.New("some stat error")
+	*filepath.LstatP = func(path string) (os.FileInfo, error) {
+		if strings.HasSuffix(path, "stat-error") {
+			return nil, statErr
+		}
+		return os.Lstat(path)
+	}
+	got := map[string]error{}
+	err = filepath.Walk(td, func(path string, fi os.FileInfo, err error) error {
+		rel, _ := filepath.Rel(td, path)
+		got[filepath.ToSlash(rel)] = err
+		return nil
+	})
+	if err != nil {
+		t.Errorf("Walk error: %v", err)
+	}
+	want := map[string]error{
+		".":              nil,
+		"foo":            nil,
+		"bar":            nil,
+		"dir":            nil,
+		"dir/baz":        nil,
+		"dir/stat-error": statErr,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Walked %#v; want %#v", got, want)
+	}
+}
+
 var basetests = []PathTest{
 	{"", "."},
 	{".", "."},
@@ -571,6 +631,8 @@ var winisabstests = []IsAbsTest{
 	{`\`, false},
 	{`\Windows`, false},
 	{`c:a\b`, false},
+	{`c:\a\b`, true},
+	{`c:/a/b`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
 }
@@ -636,8 +698,9 @@ func simpleJoin(dir, path string) string {
 }
 
 func TestEvalSymlinks(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("Skipping test: symlinks don't exist under Plan 9")
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
 	tmpDir, err := ioutil.TempDir("", "evalsymlink")
@@ -660,7 +723,7 @@ func TestEvalSymlinks(t *testing.T) {
 		if d.dest == "" {
 			err = os.Mkdir(path, 0755)
 		} else {
-			if runtime.GOOS != "windows" {
+			if supportsSymlinks {
 				err = os.Symlink(d.dest, path)
 			}
 		}
@@ -670,7 +733,9 @@ func TestEvalSymlinks(t *testing.T) {
 	}
 
 	var tests []EvalSymlinksTest
-	if runtime.GOOS == "windows" {
+	if supportsSymlinks {
+		tests = EvalSymlinksTests
+	} else {
 		for _, d := range EvalSymlinksTests {
 			if d.path == d.dest {
 				// will test only real files and directories
@@ -683,15 +748,13 @@ func TestEvalSymlinks(t *testing.T) {
 				tests = append(tests, d2)
 			}
 		}
-	} else {
-		tests = EvalSymlinksTests
 	}
 
 	// Evaluate the symlink farm.
 	for _, d := range tests {
 		path := simpleJoin(tmpDir, d.path)
 		dest := simpleJoin(tmpDir, d.dest)
-		if filepath.IsAbs(d.dest) {
+		if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
 			dest = d.dest
 		}
 		if p, err := filepath.EvalSymlinks(path); err != nil {
@@ -726,12 +789,6 @@ var absTests = []string{
 }
 
 func TestAbs(t *testing.T) {
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Getwd failed: ", err)
-	}
-	defer os.Chdir(oldwd)
-
 	root, err := ioutil.TempDir("", "TestAbs")
 	if err != nil {
 		t.Fatal("TempDir failed: ", err)
@@ -753,6 +810,19 @@ func TestAbs(t *testing.T) {
 		if err != nil {
 			t.Fatal("Mkdir failed: ", err)
 		}
+	}
+
+	if runtime.GOOS == "windows" {
+		vol := filepath.VolumeName(root)
+		var extra []string
+		for _, path := range absTests {
+			if strings.Index(path, "$") != -1 {
+				continue
+			}
+			path = vol + path
+			extra = append(extra, path)
+		}
+		absTests = append(absTests, extra...)
 	}
 
 	err = os.Chdir(absTestDirs[0])

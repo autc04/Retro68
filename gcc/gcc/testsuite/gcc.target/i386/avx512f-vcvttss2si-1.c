@@ -1,11 +1,11 @@
 /* { dg-do compile } */
 /* { dg-options "-O2 -mavx512f" } */
-/* { dg-final { scan-assembler-times "vcvttss2si\[ \\t\]+\[^\n\]*%xmm\[0-9\]"  2 } } */
-/* { dg-final { scan-assembler-times "vcvttss2si\[ \\t\]+\[^\n\]*\{sae\}\[^\n\]*%xmm\[0-9\]" 1 } } */
+/* { dg-final { scan-assembler-times "vcvttss2si\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+.{6}(?:\n|\[ \\t\]+#)" 1 } } */
+/* { dg-final { scan-assembler-times "vcvttss2si\[ \\t\]+\[^\{\n\]*\{sae\}\[^\n\]*%xmm\[0-9\]+.{6}(?:\n|\[ \\t\]+#)" 1 } } */
 #include <immintrin.h>
 
 volatile __m128 x;
-volatile y;
+volatile int y;
 
 void extern
 avx512f_test (void)

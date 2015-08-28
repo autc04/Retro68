@@ -1,6 +1,5 @@
 %{/* nlmheader.y - parse NLM header specification keywords.
-     Copyright 1993, 1994, 1995, 1997, 1998, 2001, 2002, 2003, 2005, 2007
-     Free Software Foundation, Inc.
+     Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
      This file is part of GNU Binutils.
 
@@ -117,7 +116,7 @@ static char *xstrdup (const char *);
 
 /* The reserved words.  */
 
-%token CHECK CODESTART COPYRIGHT CUSTOM DATE DEBUG DESCRIPTION EXIT
+%token CHECK CODESTART COPYRIGHT CUSTOM DATE DEBUG_K DESCRIPTION EXIT
 %token EXPORT FLAG_ON FLAG_OFF FULLMAP HELP IMPORT INPUT MAP MESSAGES
 %token MODULE MULTIPLE OS_DOMAIN OUTPUT PSEUDOPREEMPTION REENTRANT
 %token SCREENNAME SHARELIB STACK START SYNCHRONIZE
@@ -202,7 +201,7 @@ command:
 	    if (version_hdr->year < 1900 || version_hdr->year > 3000)
 	      nlmheader_warn (_("illegal year"), -1);
 	  }
-	| DEBUG
+	| DEBUG_K
 	  {
 	    debug_info = TRUE;
 	  }
@@ -494,7 +493,7 @@ string_list:
 /* If strerror is just a macro, we want to use the one from libiberty
    since it will handle undefined values.  */
 #undef strerror
-extern char *strerror PARAMS ((int));
+extern char *strerror (int);
 
 /* The lexer is simple, too simple for flex.  Keywords are only
    recognized at the start of lines.  Everything else must be an
@@ -593,7 +592,7 @@ static struct keyword_tokens_struct keyword_tokens[] =
   { "COPYRIGHT", COPYRIGHT },
   { "CUSTOM", CUSTOM },
   { "DATE", DATE },
-  { "DEBUG", DEBUG },
+  { "DEBUG", DEBUG_K },
   { "DESCRIPTION", DESCRIPTION },
   { "EXIT", EXIT },
   { "EXPORT", EXPORT },

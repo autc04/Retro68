@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2015 Free Software Foundation, Inc.
    Contributed by Janne Blomqvist
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -58,6 +58,9 @@ internal_proto(fbuf_alloc);
 
 extern int fbuf_flush (gfc_unit *, unit_mode);
 internal_proto(fbuf_flush);
+
+extern int fbuf_flush_list (gfc_unit *, unit_mode);
+internal_proto(fbuf_flush_list);
 
 extern int fbuf_seek (gfc_unit *, int, int);
 internal_proto(fbuf_seek);

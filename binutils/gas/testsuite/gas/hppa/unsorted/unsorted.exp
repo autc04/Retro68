@@ -1,5 +1,4 @@
-# Copyright (C) 1993, 1997, 1999, 2000, 2002, 2004, 2005, 2007
-# Free Software Foundation, Inc.
+# Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -245,11 +244,13 @@ if [istarget hppa*-*-*] then {
     # Test bug where switching between subspaces creates bogus alignments
     do_align4_test
 
-    # Test a problem where $global$ is defined, then used within the
-    # same source file.
-    setup_xfail hppa*-*-*
-    gas_test "globalbug.s" "" "" "Use \$global\$ in file which defines it"
-
+    if { ([istarget *-*-osf*] || [istarget *-*-hpux*] || [istarget *-*-bsd*]
+	  || [istarget *-*-mpeix*] || [istarget *-*-hiux*])
+	 && ![istarget hppa*64*-*-hpux11*] } {
+	# Test a problem where $global$ is defined, then used within the
+	# same source file.
+	gas_test "globalbug.s" "" "" "Use \$global\$ in file which defines it"
+    }
     # Test that importing a defined symbol doesn't screw up the symbol's
     # space/subspace.
     do_import_test

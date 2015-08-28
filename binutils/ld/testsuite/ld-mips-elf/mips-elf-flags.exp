@@ -1,4 +1,4 @@
-#   Copyright 2003, 2005, 2007 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -28,6 +28,10 @@ if {[istarget mips*-*-irix6*]} {
     set ldemul "-melf32ltsmip"
 } elseif {[istarget mips*-*-linux*]} {
     set ldemul "-melf32btsmip"
+} elseif {[istarget mips*el-*-*freebsd*]} {
+    set ldemul "-melf32ltsmip_fbsd"
+} elseif {[istarget mips*-*-*freebsd*]} {
+    set ldemul "-melf32btsmip_fbsd"
 } else {
     set ldemul ""
 }

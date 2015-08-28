@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2007 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,6 +29,6 @@ static void
 gldnetbsd_before_parse (void)
 {
   gld${EMULATION_NAME}_before_parse ();
-  link_info.common_skip_ar_aymbols = bfd_link_common_skip_text;
+  link_info.common_skip_ar_symbols = bfd_link_common_skip_text;
 }
 EOF

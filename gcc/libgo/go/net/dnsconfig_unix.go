@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Read system DNS config from /etc/resolv.conf
 
@@ -20,19 +20,17 @@ type dnsConfig struct {
 // See resolv.conf(5) on a Linux machine.
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
-// We assume it's in resolv.conf anyway.
-func dnsReadConfig() (*dnsConfig, error) {
-	file, err := open("/etc/resolv.conf")
+func dnsReadConfig(filename string) (*dnsConfig, error) {
+	file, err := open(filename)
 	if err != nil {
 		return nil, &DNSConfigError{err}
 	}
-	conf := new(dnsConfig)
-	conf.servers = make([]string, 3)[0:0] // small, but the standard limit
-	conf.search = make([]string, 0)
-	conf.ndots = 1
-	conf.timeout = 5
-	conf.attempts = 2
-	conf.rotate = false
+	defer file.close()
+	conf := &dnsConfig{
+		ndots:    1,
+		timeout:  5,
+		attempts: 2,
+	}
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		f := getFields(line)
 		if len(f) < 1 {
@@ -40,30 +38,20 @@ func dnsReadConfig() (*dnsConfig, error) {
 		}
 		switch f[0] {
 		case "nameserver": // add one name server
-			a := conf.servers
-			n := len(a)
-			if len(f) > 1 && n < cap(a) {
+			if len(f) > 1 && len(conf.servers) < 3 { // small, but the standard limit
 				// One more check: make sure server name is
 				// just an IP address.  Otherwise we need DNS
 				// to look it up.
-				name := f[1]
-				switch len(ParseIP(name)) {
-				case 16:
-					name = "[" + name + "]"
-					fallthrough
-				case 4:
-					a = a[0 : n+1]
-					a[n] = name
-					conf.servers = a
+				if parseIPv4(f[1]) != nil {
+					conf.servers = append(conf.servers, f[1])
+				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
+					conf.servers = append(conf.servers, f[1])
 				}
 			}
 
 		case "domain": // set search path to just this domain
 			if len(f) > 1 {
-				conf.search = make([]string, 1)
-				conf.search[0] = f[1]
-			} else {
-				conf.search = make([]string, 0)
+				conf.search = []string{f[1]}
 			}
 
 		case "search": // set search path to given servers
@@ -76,19 +64,19 @@ func dnsReadConfig() (*dnsConfig, error) {
 			for i := 1; i < len(f); i++ {
 				s := f[i]
 				switch {
-				case len(s) >= 6 && s[0:6] == "ndots:":
+				case hasPrefix(s, "ndots:"):
 					n, _, _ := dtoi(s, 6)
 					if n < 1 {
 						n = 1
 					}
 					conf.ndots = n
-				case len(s) >= 8 && s[0:8] == "timeout:":
+				case hasPrefix(s, "timeout:"):
 					n, _, _ := dtoi(s, 8)
 					if n < 1 {
 						n = 1
 					}
 					conf.timeout = n
-				case len(s) >= 8 && s[0:9] == "attempts:":
+				case hasPrefix(s, "attempts:"):
 					n, _, _ := dtoi(s, 9)
 					if n < 1 {
 						n = 1
@@ -100,7 +88,9 @@ func dnsReadConfig() (*dnsConfig, error) {
 			}
 		}
 	}
-	file.close()
-
 	return conf, nil
+}
+
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }

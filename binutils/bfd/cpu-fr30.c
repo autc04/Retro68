@@ -1,5 +1,5 @@
 /* BFD support for the FR30 processor.
-   Copyright 1998, 2002, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -35,5 +35,6 @@ const bfd_arch_info_type bfd_fr30_arch =
   TRUE,				/* the default ? */
   bfd_default_compatible,	/* architecture comparison fn */
   bfd_default_scan,		/* string to architecture convert fn */
+  bfd_arch_default_fill,	/* Default fill.  */
   NULL				/* next in list */
 };

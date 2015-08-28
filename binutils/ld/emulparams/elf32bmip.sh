@@ -17,7 +17,8 @@ if test -z "${CREATE_SHLIB}"; then
   INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
 fi
 INITIAL_READONLY_SECTIONS="${INITIAL_READONLY_SECTIONS}
-  .reginfo      ${RELOCATING-0} : { *(.reginfo) }
+  .MIPS.abiflags ${RELOCATING-0} : { *(.MIPS.abiflags) }
+  .reginfo       ${RELOCATING-0} : { *(.reginfo) }
 "
 OTHER_TEXT_SECTIONS='*(.mips16.fn.*) *(.mips16.call.*)'
 # Unlike most targets, the MIPS backend puts all dynamic relocations
@@ -33,7 +34,7 @@ OTHER_GOT_RELOC_SECTIONS="
 # of .got.
 OTHER_GOT_SYMBOLS='
   . = .;
-  _gp = ALIGN(16) + 0x7ff0;
+  HIDDEN (_gp = ALIGN (16) + 0x7ff0);
 '
 # .got.plt is only used for the PLT psABI extension.  It should not be
 # included in the .sdata block with .got, as there is no need to access
@@ -64,14 +65,14 @@ OTHER_BSS_SYMBOLS='_fbss = .;'
 OTHER_SECTIONS='
   .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
   .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }
-  .mdebug.abi32 : { KEEP(*(.mdebug.abi32)) }
-  .mdebug.abiN32 : { KEEP(*(.mdebug.abiN32)) }
-  .mdebug.abi64 : { KEEP(*(.mdebug.abi64)) }
-  .mdebug.abiO64 : { KEEP(*(.mdebug.abiO64)) }
-  .mdebug.eabi32 : { KEEP(*(.mdebug.eabi32)) }
-  .mdebug.eabi64 : { KEEP(*(.mdebug.eabi64)) }
-  .gcc_compiled_long32 : { KEEP(*(.gcc_compiled_long32)) }
-  .gcc_compiled_long64 : { KEEP(*(.gcc_compiled_long64)) }
+  .mdebug.abi32 0 : { KEEP(*(.mdebug.abi32)) }
+  .mdebug.abiN32 0 : { KEEP(*(.mdebug.abiN32)) }
+  .mdebug.abi64 0 : { KEEP(*(.mdebug.abi64)) }
+  .mdebug.abiO64 0 : { KEEP(*(.mdebug.abiO64)) }
+  .mdebug.eabi32 0 : { KEEP(*(.mdebug.eabi32)) }
+  .mdebug.eabi64 0 : { KEEP(*(.mdebug.eabi64)) }
+  .gcc_compiled_long32 0 : { KEEP(*(.gcc_compiled_long32)) }
+  .gcc_compiled_long64 0 : { KEEP(*(.gcc_compiled_long64)) }
 '
 ARCH=mips
 MACHINE=

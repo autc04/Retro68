@@ -1052,8 +1052,8 @@ AC_DEFUN([GLIBCXX_ENABLE_C99], [
 	vscanf("%i", args);
 	vsnprintf(fmt, 0, "%i", args);
 	vsscanf(fmt, "%i", args);
-      }],
-     [snprintf("12", 0, "%i");],
+	snprintf(fmt, 0, "%i");
+      }], [],
      [glibcxx_cv_c99_stdio=yes], [glibcxx_cv_c99_stdio=no])
   ])
   AC_MSG_RESULT($glibcxx_cv_c99_stdio)
@@ -1221,7 +1221,7 @@ AC_DEFUN([GLIBCXX_ENABLE_LIBSTDCXX_TIME], [
         ac_has_nanosleep=yes
         ac_has_sched_yield=yes
         ;;
-      freebsd*|netbsd*)
+      freebsd*|netbsd*|dragonfly*)
         ac_has_clock_monotonic=yes
         ac_has_clock_realtime=yes
         ac_has_nanosleep=yes
@@ -1777,7 +1777,7 @@ AC_DEFUN([GLIBCXX_CHECK_C99_TR1], [
 	      <tr1/cinttypes> in namespace std::tr1.])
   fi
 
-  # Check for the existence of whcar_t <inttypes.h> functions (NB: doesn't
+  # Check for the existence of wchar_t <inttypes.h> functions (NB: doesn't
   # make sense if the glibcxx_cv_c99_stdint_tr1 check fails, per C99, 7.8/1).
   ac_c99_inttypes_wchar_t_tr1=no;
   if test x"$glibcxx_cv_c99_stdint_tr1" = x"yes"; then
@@ -1989,6 +1989,9 @@ AC_DEFUN([GLIBCXX_ENABLE_CLOCALE], [
       darwin* | freebsd*)
 	enable_clocale_flag=darwin
 	;;
+      dragonfly*)
+	enable_clocale_flag=dragonfly
+	;;
       openbsd*)
 	enable_clocale_flag=newlib
 	;;
@@ -2072,6 +2075,23 @@ AC_DEFUN([GLIBCXX_ENABLE_CLOCALE], [
       CCODECVT_CC=config/locale/generic/codecvt_members.cc
       CCOLLATE_CC=config/locale/generic/collate_members.cc
       CCTYPE_CC=config/locale/darwin/ctype_members.cc
+      CMESSAGES_H=config/locale/generic/messages_members.h
+      CMESSAGES_CC=config/locale/generic/messages_members.cc
+      CMONEY_CC=config/locale/generic/monetary_members.cc
+      CNUMERIC_CC=config/locale/generic/numeric_members.cc
+      CTIME_H=config/locale/generic/time_members.h
+      CTIME_CC=config/locale/generic/time_members.cc
+      CLOCALE_INTERNAL_H=config/locale/generic/c++locale_internal.h
+      ;;
+
+    dragonfly)
+      AC_MSG_RESULT(dragonfly)
+
+      CLOCALE_H=config/locale/generic/c_locale.h
+      CLOCALE_CC=config/locale/dragonfly/c_locale.cc
+      CCODECVT_CC=config/locale/generic/codecvt_members.cc
+      CCOLLATE_CC=config/locale/generic/collate_members.cc
+      CCTYPE_CC=config/locale/dragonfly/ctype_members.cc
       CMESSAGES_H=config/locale/generic/messages_members.h
       CMESSAGES_CC=config/locale/generic/messages_members.cc
       CMONEY_CC=config/locale/generic/monetary_members.cc
@@ -2300,8 +2320,17 @@ AC_DEFUN([GLIBCXX_ENABLE_VTABLE_VERIFY], [
   AC_MSG_CHECKING([for vtable verify support])
   AC_MSG_RESULT([$enable_vtable_verify])
 
+  vtv_cygmin=no
   if test $enable_vtable_verify = yes; then
-    VTV_CXXFLAGS="-fvtable-verify=std -Wl,-u_vtable_map_vars_start,-u_vtable_map_vars_end"
+    case ${target_os} in
+      cygwin*|mingw32*)
+        VTV_CXXFLAGS="-fvtable-verify=std -Wl,-lvtv,-u_vtable_map_vars_start,-u_vtable_map_vars_end"
+        vtv_cygmin=yes
+        ;;
+      *)
+        VTV_CXXFLAGS="-fvtable-verify=std -Wl,-u_vtable_map_vars_start,-u_vtable_map_vars_end"
+        ;;
+    esac
     VTV_PCH_CXXFLAGS="-fvtable-verify=std"
     VTV_CXXLINKFLAGS="-L${toplevel_builddir}/libvtv/.libs -Wl,--rpath -Wl,${toplevel_builddir}/libvtv/.libs"		
   else
@@ -2313,6 +2342,7 @@ AC_DEFUN([GLIBCXX_ENABLE_VTABLE_VERIFY], [
   AC_SUBST(VTV_CXXFLAGS)
   AC_SUBST(VTV_PCH_CXXFLAGS)
   AC_SUBST(VTV_CXXLINKFLAGS)
+  AM_CONDITIONAL(VTV_CYGMIN, test x$vtv_cygmin = xyes)
   GLIBCXX_CONDITIONAL(ENABLE_VTABLE_VERIFY, test $enable_vtable_verify = yes)
 ])
 
@@ -3353,7 +3383,7 @@ changequote([,])dnl
 fi
 
 # For libtool versioning info, format is CURRENT:REVISION:AGE
-libtool_VERSION=6:20:0
+libtool_VERSION=6:21:0
 
 # Everything parsed; figure out what files and settings to use.
 case $enable_symvers in
@@ -3523,25 +3553,7 @@ AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
       #ifndef __GTHREADS_CXX0X
       #error
       #endif
-    ], [case $target_os in
-	  # gthreads support breaks symbol versioning on Solaris 9 (PR
-	  # libstdc++/52189).
-          solaris2.9*)
-	    if test x$enable_symvers = xno; then
-	      ac_has_gthreads=yes
-	    elif test x$enable_libstdcxx_threads = xyes; then
-	      AC_MSG_WARN([You have requested C++11 threads support, but])
-	      AC_MSG_WARN([this breaks symbol versioning.])
-	      ac_has_gthreads=yes
-	    else
-	      ac_has_gthreads=no
-	    fi
-	    ;;
-	  *)
-	    ac_has_gthreads=yes
-	    ;;
-        esac],
-       [ac_has_gthreads=no])
+    ], [ac_has_gthreads=yes], [ac_has_gthreads=no])
   else
     ac_has_gthreads=no
   fi
@@ -3551,6 +3563,13 @@ AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
   if test x"$ac_has_gthreads" = x"yes"; then
     AC_DEFINE(_GLIBCXX_HAS_GTHREADS, 1,
 	      [Define if gthreads library is available.])
+
+    # Also check for pthread_rwlock_t for std::shared_timed_mutex in C++14
+    AC_CHECK_TYPE([pthread_rwlock_t],
+            [AC_DEFINE([_GLIBCXX_USE_PTHREAD_RWLOCK_T], 1,
+            [Define if POSIX read/write locks are available in <gthr.h>.])],
+            [],
+            [#include "gthr.h"])
   fi
 
   CXXFLAGS="$ac_save_CXXFLAGS"
@@ -3804,7 +3823,7 @@ dnl Check to see if sys/sdt.h exists and that it is suitable for use.
 dnl Some versions of sdt.h were not compatible with C++11.
 dnl
 AC_DEFUN([GLIBCXX_CHECK_SDT_H], [
-  AC_MSG_RESULT([for suitable sys/sdt.h])
+  AC_MSG_CHECKING([for suitable sys/sdt.h])
   # Note that this test has to be run with the C language.
   # Otherwise, sdt.h will try to include some headers from
   # libstdc++ itself.
@@ -3828,6 +3847,64 @@ AC_DEFUN([GLIBCXX_CHECK_SDT_H], [
   fi
   AC_MSG_RESULT($glibcxx_cv_sys_sdt_h)
 ])
+
+dnl
+dnl Control whether the library should define symbols for old and new ABIs.
+dnl This affects definitions of strings, stringstreams and locale facets.
+dnl
+dnl --disable-libstdcxx-dual-abi will use old ABI for all types.
+dnl
+dnl Defines:
+dnl  _GLIBCXX_USE_DUAL_ABI (always defined, either to 1 or 0)
+dnl
+AC_DEFUN([GLIBCXX_ENABLE_LIBSTDCXX_DUAL_ABI], [
+  GLIBCXX_ENABLE(libstdcxx-dual-abi,$1,,[support two versions of std::string])
+  if test x$enable_symvers = xgnu-versioned-namespace; then
+    # gnu-versioned-namespace is incompatible with the dual ABI.
+    enable_libstdcxx_dual_abi="no"
+  fi
+  if test x"$enable_libstdcxx_dual_abi" != xyes; then
+    AC_MSG_NOTICE([dual ABI is disabled])
+    default_libstdcxx_abi="gcc4-compatible"
+  fi
+  GLIBCXX_CONDITIONAL(ENABLE_DUAL_ABI, test $enable_libstdcxx_dual_abi = yes)
+])
+
+dnl
+dnl Check to see which ABI should be enabled by default.
+dnl
+dnl --with-default-libstdcxx-abi={gcc4-compatible,new}
+dnl
+dnl Defines:
+dnl  _GLIBCXX_USE_CXX11_ABI (always defined, either to 1 or 0)
+dnl
+AC_DEFUN([GLIBCXX_DEFAULT_ABI], [
+  if test x$enable_libstdcxx_dual_abi = xyes; then
+  AC_MSG_CHECKING([for default std::string ABI to use])
+  AC_ARG_WITH([default-libstdcxx-abi],
+    AS_HELP_STRING([--with-default-libstdcxx-abi],
+                   [set the std::string ABI to use by default]),
+    [case "$withval" in
+      gcc4-compatible)  default_libstdcxx_abi="gcc4-compatible" ;;
+      new|cxx11)  default_libstdcxx_abi="new" ;;
+      c++*|gnu++*) AC_MSG_ERROR([Supported arguments for --with-default-libstdcxx-abi have changed, use "new" or "gcc4-compatible"]) ;;
+      *) AC_MSG_ERROR([Invalid argument for --with-default-libstdcxx-abi]) ;;
+     esac
+     ],
+    [default_libstdcxx_abi="new"])
+  AC_MSG_RESULT(${default_libstdcxx_abi})
+  fi
+  if test $default_libstdcxx_abi = "new"; then
+    glibcxx_cxx11_abi=1
+    glibcxx_cxx98_abi=0
+  else
+    glibcxx_cxx11_abi=0
+    glibcxx_cxx98_abi=1
+  fi
+  AC_SUBST(glibcxx_cxx98_abi)
+  GLIBCXX_CONDITIONAL(ENABLE_CXX11_ABI, test $glibcxx_cxx11_abi = 1)
+])
+
 
 # Macros from the top-level gcc directory.
 m4_include([../config/gc++filt.m4])

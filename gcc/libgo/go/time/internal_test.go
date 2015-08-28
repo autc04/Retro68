@@ -4,11 +4,6 @@
 
 package time
 
-import (
-	"errors"
-	"runtime"
-)
-
 func init() {
 	// force US/Pacific for time zone tests
 	ForceUSPacificForTesting()
@@ -17,31 +12,25 @@ func init() {
 var Interrupt = interrupt
 var DaysIn = daysIn
 
-func empty(now int64, arg interface{}) {}
+func empty(arg interface{}, seq uintptr) {}
 
 // Test that a runtimeTimer with a duration so large it overflows
 // does not cause other timers to hang.
 //
 // This test has to be in internal_test.go since it fiddles with
 // unexported data structures.
-func CheckRuntimeTimerOverflow() error {
+func CheckRuntimeTimerOverflow() {
 	// We manually create a runtimeTimer to bypass the overflow
 	// detection logic in NewTimer: we're testing the underlying
 	// runtime.addtimer function.
 	r := &runtimeTimer{
-		when: nano() + (1<<63 - 1),
+		when: runtimeNano() + (1<<63 - 1),
 		f:    empty,
 		arg:  nil,
 	}
 	startTimer(r)
 
-	timeout := 100 * Millisecond
-	if runtime.GOOS == "windows" {
-		// Allow more time for gobuilder to succeed.
-		timeout = Second
-	}
-
-	// Start a goroutine that should send on t.C before the timeout.
+	// Start a goroutine that should send on t.C right away.
 	t := NewTimer(1)
 
 	defer func() {
@@ -60,21 +49,11 @@ func CheckRuntimeTimerOverflow() error {
 		startTimer(r)
 	}()
 
-	// Try to receive from t.C before the timeout. It will succeed
-	// iff the previous sleep was able to finish. We're forced to
-	// spin and yield after trying to receive since we can't start
-	// any more timers (they might hang due to the same bug we're
-	// now testing).
-	stop := Now().Add(timeout)
-	for {
-		select {
-		case <-t.C:
-			return nil // It worked!
-		default:
-			if Now().After(stop) {
-				return errors.New("runtime timer stuck: overflow in addtimer")
-			}
-			runtime.Gosched()
-		}
-	}
+	// If the test fails, we will hang here until the timeout in the testing package
+	// fires, which is 10 minutes. It would be nice to catch the problem sooner,
+	// but there is no reliable way to guarantee that timerproc schedules without
+	// doing something involving timerproc itself. Previous failed attempts have
+	// tried calling runtime.Gosched and runtime.GC, but neither is reliable.
+	// So we fall back to hope: We hope we don't hang here.
+	<-t.C
 }

@@ -1,5 +1,5 @@
 /* Helper function for repacking arrays.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -76,7 +76,7 @@ internal_pack_16 (gfc_array_i16 * source)
     return source->base_addr;
 
   /* Allocate storage for the destination.  */
-  destptr = (GFC_INTEGER_16 *)xmalloc (ssize * sizeof (GFC_INTEGER_16));
+  destptr = xmallocarray (ssize, sizeof (GFC_INTEGER_16));
   dest = destptr;
   src = source->base_addr;
   stride0 = stride[0];

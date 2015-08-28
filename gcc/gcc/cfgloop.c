@@ -1,5 +1,5 @@
 /* Natural loop discovery code for GNU compiler.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,13 +22,25 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "rtl.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "symtab.h"
+#include "inchash.h"
+#include "machmode.h"
+#include "hard-reg-set.h"
+#include "input.h"
 #include "function.h"
+#include "predict.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfganal.h"
 #include "basic-block.h"
 #include "cfgloop.h"
 #include "diagnostic-core.h"
 #include "flags.h"
 #include "tree.h"
-#include "pointer-set.h"
+#include "fold-const.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
 #include "gimple-expr.h"
@@ -331,12 +343,13 @@ flow_loop_tree_node_remove (struct loop *loop)
 struct loop *
 alloc_loop (void)
 {
-  struct loop *loop = ggc_alloc_cleared_loop ();
+  struct loop *loop = ggc_cleared_alloc<struct loop> ();
 
-  loop->exits = ggc_alloc_cleared_loop_exit ();
+  loop->exits = ggc_cleared_alloc<loop_exit> ();
   loop->exits->next = loop->exits->prev = loop->exits;
   loop->can_be_parallel = false;
-
+  loop->nb_iterations_upper_bound = 0;
+  loop->nb_iterations_estimate = 0;
   return loop;
 }
 
@@ -414,7 +427,7 @@ flow_loops_find (struct loops *loops)
 
   if (!loops)
     {
-      loops = ggc_alloc_cleared_loops ();
+      loops = ggc_cleared_alloc<struct loops> ();
       init_loops_structure (cfun, loops, 1);
     }
 
@@ -577,8 +590,8 @@ find_subloop_latch_edge_by_ivs (struct loop *loop ATTRIBUTE_UNUSED, vec<edge> la
 {
   edge e, latch = latches[0];
   unsigned i;
-  gimple phi;
-  gimple_stmt_iterator psi;
+  gphi *phi;
+  gphi_iterator psi;
   tree lop;
   basic_block bb;
 
@@ -596,7 +609,7 @@ find_subloop_latch_edge_by_ivs (struct loop *loop ATTRIBUTE_UNUSED, vec<edge> la
      a subloop.  */
   for (psi = gsi_start_phis (loop->header); !gsi_end_p (psi); gsi_next (&psi))
     {
-      phi = gsi_stmt (psi);
+      phi = psi.phi ();
       lop = PHI_ARG_DEF_FROM_EDGE (phi, latch);
 
       /* Ignore the values that are not changed inside the subloop.  */
@@ -649,11 +662,11 @@ find_subloop_latch_edge (struct loop *loop)
 /* Callback for make_forwarder_block.  Returns true if the edge E is marked
    in the set MFB_REIS_SET.  */
 
-static struct pointer_set_t *mfb_reis_set;
+static hash_set<edge> *mfb_reis_set;
 static bool
 mfb_redirect_edges_in_set (edge e)
 {
-  return pointer_set_contains (mfb_reis_set, e);
+  return mfb_reis_set->contains (e);
 }
 
 /* Creates a subloop of LOOP with latch edge LATCH.  */
@@ -665,15 +678,15 @@ form_subloop (struct loop *loop, edge latch)
   edge e, new_entry;
   struct loop *new_loop;
 
-  mfb_reis_set = pointer_set_create ();
+  mfb_reis_set = new hash_set<edge>;
   FOR_EACH_EDGE (e, ei, loop->header->preds)
     {
       if (e != latch)
-	pointer_set_insert (mfb_reis_set, e);
+	mfb_reis_set->add (e);
     }
   new_entry = make_forwarder_block (loop->header, mfb_redirect_edges_in_set,
 				    NULL);
-  pointer_set_destroy (mfb_reis_set);
+  delete mfb_reis_set;
 
   loop->header = new_entry->src;
 
@@ -704,12 +717,12 @@ merge_latch_edges (struct loop *loop)
       if (dump_file)
 	fprintf (dump_file, "Merged latch edges of loop %d\n", loop->num);
 
-      mfb_reis_set = pointer_set_create ();
+      mfb_reis_set = new hash_set<edge>;
       FOR_EACH_VEC_ELT (latches, i, e)
-	pointer_set_insert (mfb_reis_set, e);
+	mfb_reis_set->add (e);
       latch = make_forwarder_block (loop->header, mfb_redirect_edges_in_set,
 				    NULL);
-      pointer_set_destroy (mfb_reis_set);
+      delete mfb_reis_set;
 
       loop->header = latch->dest;
       loop->latch = latch->src;
@@ -957,31 +970,26 @@ get_loop_body_in_bfs_order (const struct loop *loop)
 
 /* Hash function for struct loop_exit.  */
 
-static hashval_t
-loop_exit_hash (const void *ex)
+hashval_t
+loop_exit_hasher::hash (loop_exit *exit)
 {
-  const struct loop_exit *const exit = (const struct loop_exit *) ex;
-
   return htab_hash_pointer (exit->e);
 }
 
 /* Equality function for struct loop_exit.  Compares with edge.  */
 
-static int
-loop_exit_eq (const void *ex, const void *e)
+bool
+loop_exit_hasher::equal (loop_exit *exit, edge e)
 {
-  const struct loop_exit *const exit = (const struct loop_exit *) ex;
-
   return exit->e == e;
 }
 
 /* Frees the list of loop exit descriptions EX.  */
 
-static void
-loop_exit_free (void *ex)
+void
+loop_exit_hasher::remove (loop_exit *exit)
 {
-  struct loop_exit *exit = (struct loop_exit *) ex, *next;
-
+  loop_exit *next;
   for (; exit; exit = next)
     {
       next = exit->next_e;
@@ -998,8 +1006,7 @@ loop_exit_free (void *ex)
 static struct loop_exit *
 get_exit_descriptions (edge e)
 {
-  return (struct loop_exit *) htab_find_with_hash (current_loops->exits, e,
-			                           htab_hash_pointer (e));
+  return current_loops->exits->find_with_hash (e, htab_hash_pointer (e));
 }
 
 /* Updates the lists of loop exits in that E appears.
@@ -1011,7 +1018,6 @@ get_exit_descriptions (edge e)
 void
 rescan_loop_exit (edge e, bool new_edge, bool removed)
 {
-  void **slot;
   struct loop_exit *exits = NULL, *exit;
   struct loop *aloop, *cloop;
 
@@ -1028,7 +1034,7 @@ rescan_loop_exit (edge e, bool new_edge, bool removed)
 	   aloop != cloop;
 	   aloop = loop_outer (aloop))
 	{
-	  exit = ggc_alloc_loop_exit ();
+	  exit = ggc_alloc<loop_exit> ();
 	  exit->e = e;
 
 	  exit->next = aloop->exits->next;
@@ -1044,20 +1050,20 @@ rescan_loop_exit (edge e, bool new_edge, bool removed)
   if (!exits && new_edge)
     return;
 
-  slot = htab_find_slot_with_hash (current_loops->exits, e,
-				   htab_hash_pointer (e),
-				   exits ? INSERT : NO_INSERT);
+  loop_exit **slot
+    = current_loops->exits->find_slot_with_hash (e, htab_hash_pointer (e),
+						 exits ? INSERT : NO_INSERT);
   if (!slot)
     return;
 
   if (exits)
     {
       if (*slot)
-	loop_exit_free (*slot);
+	loop_exit_hasher::remove (*slot);
       *slot = exits;
     }
   else
-    htab_clear_slot (current_loops->exits, slot);
+    current_loops->exits->clear_slot (slot);
 }
 
 /* For each loop, record list of exit edges, and start maintaining these
@@ -1078,9 +1084,8 @@ record_loop_exits (void)
   loops_state_set (LOOPS_HAVE_RECORDED_EXITS);
 
   gcc_assert (current_loops->exits == NULL);
-  current_loops->exits = htab_create_ggc (2 * number_of_loops (cfun),
-					  loop_exit_hash, loop_exit_eq,
-					  loop_exit_free);
+  current_loops->exits
+    = hash_table<loop_exit_hasher>::create_ggc (2 * number_of_loops (cfun));
 
   FOR_EACH_BB_FN (bb, cfun)
     {
@@ -1094,17 +1099,17 @@ record_loop_exits (void)
 /* Dumps information about the exit in *SLOT to FILE.
    Callback for htab_traverse.  */
 
-static int
-dump_recorded_exit (void **slot, void *file)
+int
+dump_recorded_exit (loop_exit **slot, FILE *file)
 {
-  struct loop_exit *exit = (struct loop_exit *) *slot;
+  struct loop_exit *exit = *slot;
   unsigned n = 0;
   edge e = exit->e;
 
   for (; exit != NULL; exit = exit->next_e)
     n++;
 
-  fprintf ((FILE*) file, "Edge %d->%d exits %u loops\n",
+  fprintf (file, "Edge %d->%d exits %u loops\n",
 	   e->src->index, e->dest->index, n);
 
   return 1;
@@ -1118,7 +1123,7 @@ dump_recorded_exits (FILE *file)
 {
   if (!current_loops->exits)
     return;
-  htab_traverse (current_loops->exits, dump_recorded_exit, file);
+  current_loops->exits->traverse<FILE *, dump_recorded_exit> (file);
 }
 
 /* Releases lists of loop exits.  */
@@ -1127,7 +1132,7 @@ void
 release_recorded_exits (void)
 {
   gcc_assert (loops_state_satisfies_p (LOOPS_HAVE_RECORDED_EXITS));
-  htab_delete (current_loops->exits);
+  current_loops->exits->empty ();
   current_loops->exits = NULL;
   loops_state_clear (LOOPS_HAVE_RECORDED_EXITS);
 }
@@ -1622,7 +1627,7 @@ verify_loop_structure (void)
 	    }
 	}
 
-      if (n_exits != htab_elements (current_loops->exits))
+      if (n_exits != current_loops->exits->elements ())
 	{
 	  error ("too many loop exits recorded");
 	  err = 1;
@@ -1735,7 +1740,7 @@ loop_exits_from_bb_p (struct loop *loop, basic_block bb)
 location_t
 get_loop_location (struct loop *loop)
 {
-  rtx insn = NULL;
+  rtx_insn *insn = NULL;
   struct niter_desc *desc = NULL;
   edge exit;
 
@@ -1787,21 +1792,21 @@ get_loop_location (struct loop *loop)
    I_BOUND times.  */
 
 void
-record_niter_bound (struct loop *loop, double_int i_bound, bool realistic,
-		    bool upper)
+record_niter_bound (struct loop *loop, const widest_int &i_bound,
+		    bool realistic, bool upper)
 {
   /* Update the bounds only when there is no previous estimation, or when the
      current estimation is smaller.  */
   if (upper
       && (!loop->any_upper_bound
-	  || i_bound.ult (loop->nb_iterations_upper_bound)))
+	  || wi::ltu_p (i_bound, loop->nb_iterations_upper_bound)))
     {
       loop->any_upper_bound = true;
       loop->nb_iterations_upper_bound = i_bound;
     }
   if (realistic
       && (!loop->any_estimate
-	  || i_bound.ult (loop->nb_iterations_estimate)))
+	  || wi::ltu_p (i_bound, loop->nb_iterations_estimate)))
     {
       loop->any_estimate = true;
       loop->nb_iterations_estimate = i_bound;
@@ -1811,7 +1816,8 @@ record_niter_bound (struct loop *loop, double_int i_bound, bool realistic,
      number of iterations, use the upper bound instead.  */
   if (loop->any_upper_bound
       && loop->any_estimate
-      && loop->nb_iterations_upper_bound.ult (loop->nb_iterations_estimate))
+      && wi::ltu_p (loop->nb_iterations_upper_bound,
+		    loop->nb_iterations_estimate))
     loop->nb_iterations_estimate = loop->nb_iterations_upper_bound;
 }
 
@@ -1822,13 +1828,13 @@ record_niter_bound (struct loop *loop, double_int i_bound, bool realistic,
 HOST_WIDE_INT
 get_estimated_loop_iterations_int (struct loop *loop)
 {
-  double_int nit;
+  widest_int nit;
   HOST_WIDE_INT hwi_nit;
 
   if (!get_estimated_loop_iterations (loop, &nit))
     return -1;
 
-  if (!nit.fits_shwi ())
+  if (!wi::fits_shwi_p (nit))
     return -1;
   hwi_nit = nit.to_shwi ();
 
@@ -1859,7 +1865,7 @@ max_stmt_executions_int (struct loop *loop)
    returns true.  */
 
 bool
-get_estimated_loop_iterations (struct loop *loop, double_int *nit)
+get_estimated_loop_iterations (struct loop *loop, widest_int *nit)
 {
   /* Even if the bound is not recorded, possibly we can derrive one from
      profile.  */
@@ -1867,7 +1873,7 @@ get_estimated_loop_iterations (struct loop *loop, double_int *nit)
     {
       if (loop->header->count)
 	{
-          *nit = gcov_type_to_double_int
+          *nit = gcov_type_to_wide_int
 		   (expected_loop_iterations_unbounded (loop) + 1);
 	  return true;
 	}
@@ -1883,7 +1889,7 @@ get_estimated_loop_iterations (struct loop *loop, double_int *nit)
    false, otherwise returns true.  */
 
 bool
-get_max_loop_iterations (struct loop *loop, double_int *nit)
+get_max_loop_iterations (struct loop *loop, widest_int *nit)
 {
   if (!loop->any_upper_bound)
     return false;
@@ -1899,13 +1905,13 @@ get_max_loop_iterations (struct loop *loop, double_int *nit)
 HOST_WIDE_INT
 get_max_loop_iterations_int (struct loop *loop)
 {
-  double_int nit;
+  widest_int nit;
   HOST_WIDE_INT hwi_nit;
 
   if (!get_max_loop_iterations (loop, &nit))
     return -1;
 
-  if (!nit.fits_shwi ())
+  if (!wi::fits_shwi_p (nit))
     return -1;
   hwi_nit = nit.to_shwi ();
 
@@ -1918,4 +1924,17 @@ int
 bb_loop_depth (const_basic_block bb)
 {
   return bb->loop_father ? loop_depth (bb->loop_father) : 0;
+}
+
+/* Marks LOOP for removal and sets LOOPS_NEED_FIXUP.  */
+
+void
+mark_loop_for_removal (loop_p loop)
+{
+  if (loop->header == NULL)
+    return;
+  loop->former_header = loop->header;
+  loop->header = NULL;
+  loop->latch = NULL;
+  loops_state_set (LOOPS_NEED_FIXUP);
 }

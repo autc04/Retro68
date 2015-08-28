@@ -128,6 +128,31 @@ if test $cross_compiling = no && test $multilib = yes \
    cross_compiling=maybe
 fi
 
+# We may wish to install the target headers somewhere.
+AC_MSG_CHECKING([whether to install libiberty headers and static library])
+dnl install-libiberty is disabled by default
+
+AC_ARG_ENABLE(install-libiberty,
+[  --enable-install-libiberty       Install headers and library for end users],
+enable_install_libiberty=$enableval,
+enable_install_libiberty=no)dnl
+
+# Option parsed, now set things appropriately.
+case x"$enable_install_libiberty" in
+  xyes|x)
+    target_header_dir=libiberty
+    ;;
+  xno)   
+    target_header_dir=
+    ;;
+  *) 
+    # This could be sanity-checked in various ways...
+    target_header_dir="${enable_install_libiberty}"
+    ;;
+esac
+AC_MSG_RESULT($enable_install_libiberty)
+AC_MSG_NOTICE([target_header_dir = $target_header_dir])
+
 GCC_NO_EXECUTABLES
 AC_PROG_CC
 AC_SYS_LARGEFILE
@@ -191,6 +216,8 @@ if [[ -n "${frag}" ]]; then
   frag=${libiberty_topdir}/libiberty/config/$frag
 fi
 
+GCC_PICFLAG
+
 # If they didn't specify --enable-shared, don't generate shared libs.
 case "${enable_shared}" in
   yes) shared=yes ;;
@@ -198,28 +225,22 @@ case "${enable_shared}" in
   "") shared=no ;;
   *) shared=yes ;;
 esac
-if [[ "${shared}" = "yes" ]]; then
-  case "${host}" in
-    *-*-cygwin*)	;;
-    alpha*-*-linux*)	PICFLAG=-fPIC ;;
-    arm*-*-*)		PICFLAG=-fPIC ;;
-    hppa*-*-*)		PICFLAG=-fPIC ;;
-    i370-*-*)		PICFLAG=-fPIC ;;
-    ia64-*-*)		PICFLAG=-fpic ;;
-    i[[34567]]86-*-* | x86_64-*-*)
-			PICFLAG=-fpic ;;
-    m68k-*-*)		PICFLAG=-fpic ;;
-    mips*-*-linux*)	PICFLAG=-fPIC ;;
-    powerpc*-*-aix*)	;;
-    powerpc*-*-*)	PICFLAG=-fPIC ;;
-    sparc*-*-*)		case "${CFLAGS}" in
-			  *-fpic* ) PICFLAG=-fpic ;;
-			  * ) PICFLAG=-fPIC ;;
-			esac ;;
-    s390*-*-*)		PICFLAG=-fpic ;;
-  esac
+
+# ...unless --enable-host-shared was passed from top-level config:
+if [[ "${enable_host_shared}" = "yes" ]]; then
+  shared=yes
+fi
+
+if [[ "${shared}" != "yes" ]]; then
+  PICFLAG=
 fi
 AC_SUBST(PICFLAG)
+
+NOASANFLAG=
+case " ${CFLAGS} " in
+  *\ -fsanitize=address\ *) NOASANFLAG=-fno-sanitize=address ;;
+esac
+AC_SUBST(NOASANFLAG)
 
 echo "# Warning: this fragment is automatically generated" > temp-frag
 
@@ -245,7 +266,7 @@ AC_SUBST_FILE(host_makefile_frag)
 # It's OK to check for header files.  Although the compiler may not be
 # able to link anything, it had better be able to at least compile
 # something.
-AC_CHECK_HEADERS(sys/file.h sys/param.h limits.h stdlib.h malloc.h string.h unistd.h strings.h sys/time.h time.h sys/resource.h sys/stat.h sys/mman.h fcntl.h alloca.h sys/pstat.h sys/sysmp.h sys/sysinfo.h machine/hal_sysinfo.h sys/table.h sys/sysctl.h sys/systemcfg.h stdint.h stdio_ext.h)
+AC_CHECK_HEADERS(sys/file.h sys/param.h limits.h stdlib.h malloc.h string.h unistd.h strings.h sys/time.h time.h sys/resource.h sys/stat.h sys/mman.h fcntl.h alloca.h sys/pstat.h sys/sysmp.h sys/sysinfo.h machine/hal_sysinfo.h sys/table.h sys/sysctl.h sys/systemcfg.h stdint.h stdio_ext.h process.h sys/prctl.h)
 AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
 
@@ -253,9 +274,6 @@ libiberty_AC_DECLARE_ERRNO
 
 # Determine the size of an int for struct fibnode.
 AC_CHECK_SIZEOF([int])
-
-AC_CHECK_TYPE(intptr_t, long)
-AC_CHECK_TYPE(uintptr_t, unsigned long)
 
 # Look for a 64-bit type.
 AC_MSG_CHECKING([for a 64-bit type])
@@ -289,6 +307,10 @@ if test "$liberty_cv_uint64" != none; then
   AC_DEFINE_UNQUOTED(UNSIGNED_64BIT_TYPE, $liberty_cv_uint64,
                      [Define to an unsigned 64-bit type available in the compiler.])
 fi
+
+AC_TYPE_INTPTR_T
+AC_TYPE_UINTPTR_T
+AC_TYPE_SSIZE_T
 
 # Given the above check, we always have uintptr_t or a fallback
 # definition.  So define HAVE_UINTPTR_T in case any imported code
@@ -337,6 +359,7 @@ funcs="$funcs strchr"
 funcs="$funcs strdup"
 funcs="$funcs strncasecmp"
 funcs="$funcs strndup"
+funcs="$funcs strnlen"
 funcs="$funcs strrchr"
 funcs="$funcs strstr"
 funcs="$funcs strtod"
@@ -350,28 +373,39 @@ funcs="$funcs vprintf"
 funcs="$funcs vsnprintf"
 funcs="$funcs vsprintf"
 funcs="$funcs waitpid"
+funcs="$funcs setproctitle"
 
 # Also in the old function.def file: alloca, vfork, getopt.
 
 vars="sys_errlist sys_nerr sys_siglist"
 
-checkfuncs="getrusage on_exit psignal strerror strsignal sysconf times sbrk gettimeofday"
-checkfuncs="$checkfuncs realpath canonicalize_file_name pstat_getstatic pstat_getdynamic sysmp"
-checkfuncs="$checkfuncs getsysinfo table sysctl wait3 wait4 __fsetlocking"
+checkfuncs="__fsetlocking canonicalize_file_name dup3 getrlimit getrusage \
+ getsysinfo gettimeofday on_exit psignal pstat_getdynamic pstat_getstatic \
+ realpath setrlimit sbrk spawnve spawnvpe strerror strsignal sysconf sysctl \
+ sysmp table times wait3 wait4"
 
 # These are neither executed nor required, but they help keep
 # autoheader happy without adding a bunch of text to acconfig.h.
 if test "x" = "y"; then
-  AC_CHECK_FUNCS(asprintf atexit basename bcmp bcopy bsearch bzero calloc clock \
-  getcwd getpagesize gettimeofday index insque mkstemps memchr memcmp memcpy \
-  memmem memmove mempcpy memset putenv random rename rindex sigsetmask \
-  strcasecmp setenv stpcpy stpncpy strchr strdup strncasecmp strndup strrchr strstr \
-  strtod strtol strtoul strverscmp tmpnam vasprintf vfprintf vprintf \
-  vsprintf waitpid getrusage on_exit psignal strerror strsignal \
-  sysconf times sbrk gettimeofday ffs snprintf vsnprintf \
-  pstat_getstatic pstat_getdynamic sysmp getsysinfo table sysctl wait3 wait4 \
-  realpath canonicalize_file_name __fsetlocking)
-  AC_CHECK_DECLS([basename, ffs, asprintf, vasprintf, snprintf, vsnprintf])
+  AC_CHECK_FUNCS(asprintf atexit \
+    basename bcmp bcopy bsearch bzero \
+    calloc canonicalize_file_name clock \
+    dup3 \
+    ffs __fsetlocking \
+    getcwd getpagesize getrlimit getrusage getsysinfo gettimeofday \
+    index insque \
+    memchr memcmp memcpy memmem memmove memset mkstemps \
+    on_exit \
+    psignal pstat_getdynamic pstat_getstatic putenv \
+    random realpath rename rindex \
+    sbrk setenv setproctitle setrlimit sigsetmask snprintf spawnve spawnvpe \
+     stpcpy stpncpy strcasecmp strchr strdup \
+     strerror strncasecmp strndup strnlen strrchr strsignal strstr strtod \
+     strtol strtoul strverscmp sysconf sysctl sysmp \
+    table times tmpnam \
+    vasprintf vfprintf vprintf vsprintf \
+    wait3 wait4 waitpid)
+  AC_CHECK_DECLS([basename(char *), ffs, asprintf, vasprintf, snprintf, vsnprintf])
   AC_DEFINE(HAVE_SYS_ERRLIST, 1, [Define if you have the sys_errlist variable.])
   AC_DEFINE(HAVE_SYS_NERR,    1, [Define if you have the sys_nerr variable.])
   AC_DEFINE(HAVE_SYS_SIGLIST, 1, [Define if you have the sys_siglist variable.])
@@ -383,7 +417,6 @@ fi
 
 setobjs=
 CHECK=
-target_header_dir=
 if test -n "${with_target_subdir}"; then
 
   # We are being configured as a target library.  AC_REPLACE_FUNCS
@@ -446,13 +479,14 @@ if test -n "${with_target_subdir}"; then
     AC_LIBOBJ([stpcpy])
     AC_LIBOBJ([stpncpy])
     AC_LIBOBJ([strndup])
+    AC_LIBOBJ([strnlen])
     AC_LIBOBJ([strverscmp])
     AC_LIBOBJ([vasprintf])
     AC_LIBOBJ([waitpid])
 
     for f in $funcs; do
       case "$f" in
-	asprintf | basename | bcmp | bcopy | bzero | clock | ffs | getpagesize | index | insque | mempcpy | mkstemps | random | rindex | sigsetmask | stpcpy | stpncpy | strdup | strndup | strverscmp | vasprintf | waitpid)
+	asprintf | basename | bcmp | bcopy | bzero | clock | ffs | getpagesize | index | insque | mempcpy | mkstemps | random | rindex | sigsetmask | stpcpy | stpncpy | strdup | strndup | strnlen | strverscmp | vasprintf | waitpid)
 	  ;;
 	*)
 	  n=HAVE_`echo $f | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
@@ -493,27 +527,6 @@ if test -n "${with_target_subdir}"; then
     ;;
 
   esac
-
-  # We may wish to install the target headers somewhere.
-  AC_ARG_ENABLE(install-libiberty,
-  [  --enable-install-libiberty       Install headers for end users],
-  enable_install_libiberty=$enableval,
-  enable_install_libiberty=no)dnl
-  
-  # Option parsed, now set things appropriately.
-  case x"$enable_install_libiberty" in
-    xyes|x)
-      target_header_dir=libiberty
-      ;;
-    xno)   
-      target_header_dir=
-      ;;
-    *) 
-      # This could be sanity-checked in various ways...
-      target_header_dir="${enable_install_libiberty}"
-      ;;
-  esac
-
 
 else
 
@@ -655,7 +668,7 @@ if test -z "${setobjs}"; then
     [AC_MSG_RESULT([no])])
 
   AC_CHECK_FUNCS($checkfuncs)
-  AC_CHECK_DECLS([basename, ffs, asprintf, vasprintf, snprintf, vsnprintf])
+  AC_CHECK_DECLS([basename(char *), ffs, asprintf, vasprintf, snprintf, vsnprintf])
   AC_CHECK_DECLS([calloc, getenv, getopt, malloc, realloc, sbrk])
   AC_CHECK_DECLS([strverscmp])
   libiberty_NEED_DECLARATION(canonicalize_file_name)
@@ -663,10 +676,10 @@ fi
 
 # Figure out which version of pexecute to use.
 case "${host}" in
-     *-*-mingw* | *-*-winnt*)	pexecute=./pex-win32.o  ;;
-     *-*-msdosdjgpp*)		pexecute=./pex-djgpp.o  ;;
-     *-*-msdos*)		pexecute=./pex-msdos.o  ;;
-     *)				pexecute=./pex-unix.o   ;;
+     *-*-mingw* | *-*-winnt*)	pexecute=pex-win32  ;;
+     *-*-msdosdjgpp*)		pexecute=pex-djgpp  ;;
+     *-*-msdos*)		pexecute=pex-msdos  ;;
+     *)				pexecute=pex-unix   ;;
 esac
 AC_SUBST(pexecute)
 

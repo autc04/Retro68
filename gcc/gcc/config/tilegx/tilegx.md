@@ -1,5 +1,5 @@
 ;; Machine description for Tilera TILE-Gx chip for GCC.
-;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2015 Free Software Foundation, Inc.
 ;; Contributed by Walter Lee (walt@tilera.com)
 ;;
 ;; This file is part of GCC.
@@ -2434,7 +2434,7 @@
      rtx s0;
      rtx bcomp;
      rtx loc_ref;
-     enum machine_mode mode = GET_MODE (operands[0]);
+     machine_mode mode = GET_MODE (operands[0]);
 
      /* only deal with loop counters in SImode or DImode  */
      if (mode != SImode && mode != DImode)

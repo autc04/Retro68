@@ -1,6 +1,7 @@
 /* unwind-ia64.c -- utility routines to dump IA-64 unwind info for readelf.
-   Copyright 2000, 2001, 2002, 2003, 2005, 2007 Free Software Foundation, Inc.
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+
+   Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GNU Binutils.
 
@@ -19,6 +20,7 @@
    Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
+#include "config.h"
 #include "unwind-ia64.h"
 #include <stdio.h>
 #include <string.h>
@@ -112,7 +114,7 @@ unw_print_frmask (char *cp, unsigned int mask)
 static void
 unw_print_abreg (char *cp, unsigned int abreg)
 {
-  static const char *special_reg[16] =
+  static const char * const special_reg[16] =
   {
     "pr", "psp", "@priunat", "rp", "ar.bsp", "ar.bspstore", "ar.rnat",
     "ar.unat", "ar.fpsr", "ar.pfs", "ar.lc",
@@ -303,7 +305,7 @@ typedef bfd_vma unw_word;
 #define UNW_DEC_ABI(fmt, abi, context, arg)			\
   do								\
     {								\
-      static const char *abiname[] =				\
+      static const char * const abiname[] =			\
       {								\
 	"@svr4", "@hpux", "@nt"					\
       };							\
@@ -1044,7 +1046,7 @@ unw_decode_b3_x4 (const unsigned char *dp, unsigned int code, void *arg)
 typedef const unsigned char *(*unw_decoder)
      (const unsigned char *, unsigned int, void *);
 
-static unw_decoder unw_decode_table[2][8] =
+static const unw_decoder unw_decode_table[2][8] =
   {
     /* prologue table: */
     {

@@ -1,7 +1,5 @@
 /* BFD back-end for ARM COFF files.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -549,7 +547,6 @@ coff_arm_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 	osect_vma = h->root.u.def.section->output_section->vma;
       else
 	{
-	  asection *sec;
 	  int i;
 
 	  /* Sigh, the only way to get the section to offset against
@@ -600,7 +597,7 @@ aoutarm_fix_pcrel_26 (bfd *abfd,
   bfd_reloc_status_type flag = bfd_reloc_ok;
 
   /* If this is an undefined symbol, return error.  */
-  if (symbol->section == &bfd_und_section
+  if (bfd_is_und_section (symbol->section)
       && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_continue : bfd_reloc_undefined;
 
@@ -688,7 +685,7 @@ coff_thumb_pcrel_common (bfd *abfd,
     }
 
   /* If this is an undefined symbol, return error.  */
-  if (symbol->section == &bfd_und_section
+  if (bfd_is_und_section (symbol->section)
       && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_continue : bfd_reloc_undefined;
 
@@ -818,7 +815,7 @@ coff_arm_reloc_type_lookup (bfd * abfd, bfd_reloc_code_real_type code)
 #define ASTD(i,j)       case i: return aoutarm_std_reloc_howto + j
 
   if (code == BFD_RELOC_CTOR)
-    switch (bfd_get_arch_info (abfd)->bits_per_address)
+    switch (bfd_arch_bits_per_address (abfd))
       {
       case 32:
         code = BFD_RELOC_32;
@@ -919,7 +916,7 @@ coff_arm_link_hash_table_create (bfd * abfd)
   struct coff_arm_link_hash_table * ret;
   bfd_size_type amt = sizeof (struct coff_arm_link_hash_table);
 
-  ret = bfd_malloc (amt);
+  ret = bfd_zmalloc (amt);
   if (ret == NULL)
     return NULL;
 
@@ -931,10 +928,6 @@ coff_arm_link_hash_table_create (bfd * abfd)
       free (ret);
       return NULL;
     }
-
-  ret->thumb_glue_size   = 0;
-  ret->arm_glue_size     = 0;
-  ret->bfd_of_glue_owner = NULL;
 
   return & ret->root.root;
 }
@@ -2535,13 +2528,13 @@ coff_arm_final_link_postscript (bfd * abfd ATTRIBUTE_UNUSED,
 #include "coffcode.h"
 
 #ifndef TARGET_LITTLE_SYM
-#define TARGET_LITTLE_SYM armcoff_little_vec
+#define TARGET_LITTLE_SYM arm_coff_le_vec
 #endif
 #ifndef TARGET_LITTLE_NAME
 #define TARGET_LITTLE_NAME "coff-arm-little"
 #endif
 #ifndef TARGET_BIG_SYM
-#define TARGET_BIG_SYM armcoff_big_vec
+#define TARGET_BIG_SYM arm_coff_be_vec
 #endif
 #ifndef TARGET_BIG_NAME
 #define TARGET_BIG_NAME "coff-arm-big"

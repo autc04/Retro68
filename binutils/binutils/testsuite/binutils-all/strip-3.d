@@ -1,9 +1,9 @@
 #PROG: strip
 #source: empty.s
-#strip: -R .text -R .data -R .bss -R .ARM.attributes -R .reginfo -R .pdr -R .xtensa.info
+#strip: -R .text -R .data -R .bss -R .ARM.attributes -R .reginfo -R .gnu.attributes -R .MIPS.abiflags -R .pdr -R .xtensa.info
 #readelf: -S --wide
 #name: strip empty file
-#target: *-*-linux*
+#target: *-*-linux* *-*-gnu*
 
 #...
   \[[ 0]+\][ \t]+NULL[ \t]+.*

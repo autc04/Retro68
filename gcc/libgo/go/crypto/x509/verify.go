@@ -116,10 +116,9 @@ func (e UnknownAuthorityError) Error() string {
 }
 
 // SystemRootsError results when we fail to load the system root certificates.
-type SystemRootsError struct {
-}
+type SystemRootsError struct{}
 
-func (e SystemRootsError) Error() string {
+func (SystemRootsError) Error() string {
 	return "x509: failed to load system roots and no roots provided"
 }
 
@@ -205,6 +204,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // certificate in opts.Roots, using certificates in opts.Intermediates if
 // needed. If successful, it returns one or more chains where the first
 // element of the chain is c and the last element is from opts.Roots.
+//
+// If opts.Roots is nil and system roots are unavailable the returned error
+// will be of type SystemRootsError.
 //
 // WARNING: this doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
@@ -425,6 +427,7 @@ func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
 	// by each certificate. If we cross out all the usages, then the chain
 	// is unacceptable.
 
+NextCert:
 	for i := len(chain) - 1; i >= 0; i-- {
 		cert := chain[i]
 		if len(cert.ExtKeyUsage) == 0 && len(cert.UnknownExtKeyUsage) == 0 {
@@ -435,7 +438,7 @@ func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
 		for _, usage := range cert.ExtKeyUsage {
 			if usage == ExtKeyUsageAny {
 				// The certificate is explicitly good for any usage.
-				continue
+				continue NextCert
 			}
 		}
 

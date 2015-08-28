@@ -1,8 +1,8 @@
-// { dg-options "-std=c++0x" }
+// { dg-options "-std=gnu++11" }
 //
 // 2009-06-17  Stephen M. Webb  <stephen.webb@xandros.com>
 //
-// Copyright (C) 2009-2014 Free Software Foundation, Inc.
+// Copyright (C) 2009-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

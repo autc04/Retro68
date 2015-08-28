@@ -7,7 +7,7 @@
 // This program generates md5block.go
 // Invoke as
 //
-//	go run gen.go [-full] |gofmt >md5block.go
+//	go run gen.go [-full] -output md5block.go
 //
 // The -full flag causes the generated code to do a full
 // (16x) unrolling instead of a 4x unrolling.
@@ -15,18 +15,33 @@
 package main
 
 import (
+	"bytes"
 	"flag"
+	"go/format"
+	"io/ioutil"
 	"log"
-	"os"
 	"strings"
 	"text/template"
 )
 
+var filename = flag.String("output", "md5block.go", "output file name")
+
 func main() {
 	flag.Parse()
 
+	var buf bytes.Buffer
+
 	t := template.Must(template.New("main").Funcs(funcs).Parse(program))
-	if err := t.Execute(os.Stdout, data); err != nil {
+	if err := t.Execute(&buf, data); err != nil {
+		log.Fatal(err)
+	}
+
+	data, err := format.Source(buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(*filename, data, 0644)
+	if err != nil {
 		log.Fatal(err)
 	}
 }
@@ -160,11 +175,12 @@ var data = Data{
 	},
 }
 
-var program = `
-// DO NOT EDIT.
-// Generate with: go run gen.go{{if .Full}} -full{{end}} | gofmt >md5block.go
+var program = `// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
-// +build !amd64,!386,!arm
+// DO NOT EDIT.
+// Generate with: go run gen.go{{if .Full}} -full{{end}} -output md5block.go
 
 package md5
 
@@ -201,7 +217,7 @@ func init() {
 	littleEndian = *(*[4]byte)(unsafe.Pointer(&x)) == y
 }
 
-func block(dig *digest, p []byte) {
+func blockGeneric(dig *digest, p []byte) {
 	a := dig.s[0]
 	b := dig.s[1]
 	c := dig.s[2]

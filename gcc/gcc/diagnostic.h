@@ -1,5 +1,5 @@
 /* Various declarations for language-independent diagnostics subroutines.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2015 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@codesourcery.com>
 
 This file is part of GCC.
@@ -104,6 +104,9 @@ struct diagnostic_context
 
   /* Maximum width of the source line printed.  */
   int caret_max_width;
+
+  /* Character used for caret diagnostics.  */
+  char caret_char;
 
   /* True if we should print the command line option which controls
      each diagnostic, if known.  */
@@ -263,6 +266,7 @@ extern diagnostic_context *global_dc;
 
 /* Diagnostic related functions.  */
 extern void diagnostic_initialize (diagnostic_context *, int);
+extern void diagnostic_color_init (diagnostic_context *, int value = -1);
 extern void diagnostic_finish (diagnostic_context *);
 extern void diagnostic_report_current_module (diagnostic_context *, location_t);
 extern void diagnostic_show_locus (diagnostic_context *, const diagnostic_info *);
@@ -290,10 +294,28 @@ extern char *diagnostic_build_prefix (diagnostic_context *, const diagnostic_inf
 void default_diagnostic_starter (diagnostic_context *, diagnostic_info *);
 void default_diagnostic_finalizer (diagnostic_context *, diagnostic_info *);
 void diagnostic_set_caret_max_width (diagnostic_context *context, int value);
+void diagnostic_action_after_output (diagnostic_context *, diagnostic_t);
 
 void diagnostic_file_cache_fini (void);
 
+int get_terminal_width (void);
+
+/* Expand the location of this diagnostic. Use this function for consistency. */
+
+static inline expanded_location
+diagnostic_expand_location (const diagnostic_info * diagnostic)
+{
+  expanded_location s
+    = expand_location_to_spelling_point (diagnostic->location);
+  if (diagnostic->override_column)
+    s.column = diagnostic->override_column;
+  return s;
+}
+
 /* Pure text formatting support functions.  */
 extern char *file_name_as_prefix (diagnostic_context *, const char *);
+
+extern char *build_message_string (const char *, ...) ATTRIBUTE_PRINTF_1;
+
 
 #endif /* ! GCC_DIAGNOSTIC_H */

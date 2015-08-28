@@ -1,5 +1,5 @@
 ;;  Machine Description for Renesas RL78 processors
-;;  Copyright (C) 2011-2014 Free Software Foundation, Inc.
+;;  Copyright (C) 2011-2015 Free Software Foundation, Inc.
 ;;  Contributed by Red Hat.
 
 ;; This file is part of GCC.
@@ -87,7 +87,21 @@
 	(match_operand:HI 4 "general_operand"))
    (set (match_operand:HI 3 "nonimmediate_operand")
 	(match_operand:HI 5 "general_operand"))]
-  "rl78_split_movsi (operands);"
+  "rl78_split_movsi (operands, SImode);"
+  [(set_attr "valloc" "op1")]
+)
+
+(define_insn_and_split "movsf"
+  [(set (match_operand:SF 0 "nonimmediate_operand" "=vYS,v,Wfr")
+	(match_operand:SF 1 "general_operand" "viYS,Wfr,v"))]
+  ""
+  "#"
+  ""
+  [(set (match_operand:HI 2 "nonimmediate_operand")
+	(match_operand:HI 4 "general_operand"))
+   (set (match_operand:HI 3 "nonimmediate_operand")
+	(match_operand:HI 5 "general_operand"))]
+  "rl78_split_movsi (operands, SFmode);"
   [(set_attr "valloc" "op1")]
 )
 
@@ -145,14 +159,14 @@
   [(set (match_operand:HI 0 "register_operand")
         (mult:HI (zero_extend:HI (match_operand:QI 1 "register_operand"))
                  (zero_extend:HI (match_operand:QI 2 "register_operand"))))]
-  ""
+  "!TARGET_G10"
   ""
 )
 
 (define_expand "andqi3"
-  [(set (match_operand:QI         0 "nonimmediate_operand")
-	(and:QI (match_operand:QI 1 "general_operand")
-		(match_operand:QI 2 "general_operand")))
+  [(set (match_operand:QI         0 "rl78_nonimmediate_operand")
+	(and:QI (match_operand:QI 1 "rl78_general_operand")
+		(match_operand:QI 2 "rl78_general_operand")))
    ]
   ""
   "if (rl78_force_nonfar_3 (operands, gen_andqi3))
@@ -160,9 +174,9 @@
 )
 
 (define_expand "iorqi3"
-  [(set (match_operand:QI         0 "nonimmediate_operand")
-	(ior:QI (match_operand:QI 1 "general_operand")
-		(match_operand:QI 2 "general_operand")))
+  [(set (match_operand:QI         0 "rl78_nonimmediate_operand")
+	(ior:QI (match_operand:QI 1 "rl78_general_operand")
+		(match_operand:QI 2 "rl78_general_operand")))
    ]
   ""
   "if (rl78_force_nonfar_3 (operands, gen_iorqi3))
@@ -170,9 +184,9 @@
 )
 
 (define_expand "xorqi3"
-  [(set (match_operand:QI         0 "nonimmediate_operand")
-	(xor:QI (match_operand:QI 1 "general_operand")
-		(match_operand:QI 2 "general_operand")))
+  [(set (match_operand:QI         0 "rl78_nonimmediate_operand")
+	(xor:QI (match_operand:QI 1 "rl78_general_operand")
+		(match_operand:QI 2 "rl78_general_operand")))
    ]
   ""
   "if (rl78_force_nonfar_3 (operands, gen_xorqi3))

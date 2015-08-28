@@ -1,6 +1,6 @@
 ; Options for the IA-32 and AMD64 ports of the compiler.
 
-; Copyright (C) 2005-2014 Free Software Foundation, Inc.
+; Copyright (C) 2005-2015 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -59,6 +59,10 @@ const char *x_ix86_tune_string
 ;; CPU schedule model
 TargetSave
 unsigned char schedule
+
+;; True if processor has SSE prefetch instruction.
+TargetSave
+unsigned char prefetch_sse
 
 ;; branch cost
 TargetSave
@@ -220,6 +224,23 @@ Loop code aligned to this power of 2
 malign-stringops
 Target RejectNegative Report InverseMask(NO_ALIGN_STRINGOPS, ALIGN_STRINGOPS) Save
 Align destination of the string operations
+
+malign-data=
+Target RejectNegative Joined Var(ix86_align_data_type) Enum(ix86_align_data) Init(ix86_align_data_type_compat)
+Use the given data alignment
+
+Enum
+Name(ix86_align_data) Type(enum ix86_align_data)
+Known data alignment choices (for use with the -malign-data= option):
+
+EnumValue
+Enum(ix86_align_data) String(compat) Value(ix86_align_data_type_compat)
+
+EnumValue
+Enum(ix86_align_data) String(abi) Value(ix86_align_data_type_abi)
+
+EnumValue
+Enum(ix86_align_data) String(cacheline) Value(ix86_align_data_type_cacheline)
 
 march=
 Target RejectNegative Joined Var(ix86_arch_string)
@@ -641,6 +662,26 @@ mavx512cd
 Target Report Mask(ISA_AVX512CD) Var(ix86_isa_flags) Save
 Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512CD built-in functions and code generation
 
+mavx512dq
+Target Report Mask(ISA_AVX512DQ) Var(ix86_isa_flags) Save
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512DQ built-in functions and code generation
+
+mavx512bw
+Target Report Mask(ISA_AVX512BW) Var(ix86_isa_flags) Save
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512BW built-in functions and code generation
+
+mavx512vl
+Target Report Mask(ISA_AVX512VL) Var(ix86_isa_flags) Save
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512VL built-in functions and code generation
+
+mavx512ifma
+Target Report Mask(ISA_AVX512IFMA) Var(ix86_isa_flags) Save
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512IFMA built-in functions and code generation
+
+mavx512vbmi
+Target Report Mask(ISA_AVX512VBMI) Var(ix86_isa_flags) Save
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512VBMI built-in functions and code generation
+
 mfma
 Target Report Mask(ISA_FMA) Var(ix86_isa_flags) Save
 Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX and FMA built-in functions and code generation
@@ -697,6 +738,18 @@ madx
 Target Report Mask(ISA_ADX) Var(ix86_isa_flags) Save
 Support flag-preserving add-carry instructions
 
+mclflushopt
+Target Report Mask(ISA_CLFLUSHOPT) Var(ix86_isa_flags) Save
+Support CLFLUSHOPT instructions
+
+mclwb
+Target Report Mask(ISA_CLWB) Var(ix86_isa_flags) Save
+Support CLWB instruction
+
+mpcommit
+Target Report Mask(ISA_PCOMMIT) Var(ix86_isa_flags) Save
+Support PCOMMIT instruction
+
 mfxsr
 Target Report Mask(ISA_FXSR) Var(ix86_isa_flags) Save
 Support FXSAVE and FXRSTOR instructions
@@ -708,6 +761,14 @@ Support XSAVE and XRSTOR instructions
 mxsaveopt
 Target Report Mask(ISA_XSAVEOPT) Var(ix86_isa_flags) Save
 Support XSAVEOPT instruction
+
+mxsavec
+Target Report Mask(ISA_XSAVEC) Var(ix86_isa_flags) Save
+Support XSAVEC instructions
+
+mxsaves
+Target Report Mask(ISA_XSAVES) Var(ix86_isa_flags) Save
+Support XSAVES and XRSTORS instructions
 
 mtbm
 Target Report Mask(ISA_TBM) Var(ix86_isa_flags) Save
@@ -765,6 +826,19 @@ mfentry
 Target Report Var(flag_fentry) Init(-1)
 Emit profiling counter call at function entry before prologue.
 
+mrecord-mcount
+Target Report Var(flag_record_mcount) Init(0)
+Generate __mcount_loc section with all mcount or __fentry__ calls.
+
+mnop-mcount
+Target Report Var(flag_nop_mcount) Init(0)
+Generate mcount/__fentry__ calls as nops. To activate they need to be
+patched in.
+
+mskip-rax-setup
+Target Report Var(flag_skip_rax_setup) Init(0)
+Skip setting up RAX register when passing variable arguments.
+
 m8bit-idiv
 Target Report Mask(USE_8BIT_IDIV) Save
 Expand 32bit/64bit integer divide into 8bit unsigned integer divide with run-time check
@@ -780,6 +854,14 @@ Split 32-byte AVX unaligned store
 mrtm
 Target Report Mask(ISA_RTM) Var(ix86_isa_flags) Save
 Support RTM built-in functions and code generation
+
+mmpx
+Target Report Mask(ISA_MPX) Var(ix86_isa_flags) Save
+Support MPX code generation
+
+mmwaitx
+Target Report Mask(ISA_MWAITX) Var(ix86_isa_flags) Save
+Support MWAITX and MONITORX built-in functions and code generation
 
 mstack-protector-guard=
 Target RejectNegative Joined Enum(stack_protector_guard) Var(ix86_stack_protector_guard) Init(SSP_TLS)

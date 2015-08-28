@@ -1,6 +1,6 @@
 /* Command line option handling.  Code involving global state that
    should not be shared with the driver.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,7 +24,22 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "opts.h"
 #include "flags.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h" /* Required by langhooks.h.  */
+#include "fold-const.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -32,16 +47,20 @@ along with GCC; see the file COPYING3.  If not see
 #include "is-a.h"
 #include "gimple.h"
 #include "langhooks.h"
-#include "tm.h" /* Required by rtl.h.  */
 #include "rtl.h"
 #include "dbgcnt.h"
 #include "debug.h"
+#include "hash-map.h"
+#include "plugin-api.h"
+#include "ipa-ref.h"
+#include "cgraph.h"
 #include "lto-streamer.h"
 #include "output.h"
 #include "plugin.h"
 #include "toplev.h"
 #include "tree-pass.h"
 #include "context.h"
+#include "asan.h"
 
 typedef const char *const_char_p; /* For DEF_VEC_P.  */
 
@@ -119,7 +138,7 @@ complain_wrong_lang (const struct cl_decoded_option *decoded,
    we only complain about unknown -Wno-* options if they may have
    prevented a diagnostic. Otherwise, we just ignore them.  Note that
    if we do complain, it is only as a warning, not an error; passing
-   the compiler an unrecognised -Wno-* option should never change
+   the compiler an unrecognized -Wno-* option should never change
    whether the compilation succeeds or fails.  */
 
 static void
@@ -139,7 +158,7 @@ print_ignored_options (void)
 
       opt = ignored_options.pop ();
       warning_at (UNKNOWN_LOCATION, 0,
-		  "unrecognized command line option \"%s\"", opt);
+		  "unrecognized command line option %qs", opt);
     }
 }
 
@@ -248,6 +267,11 @@ init_options_once (void)
   initial_lang_mask = lang_hooks.option_lang_mask ();
 
   lang_hooks.initialize_diagnostics (global_dc);
+  /* ??? Ideally, we should do this earlier and the FEs will override
+     it if desired (none do it so far).  However, the way the FEs
+     construct their pretty-printers means that all previous settings
+     are overriden.  */
+  diagnostic_color_init (global_dc);
 }
 
 /* Decode command-line options to an array, like
@@ -424,6 +448,14 @@ handle_common_deferred_options (void)
 
 	case OPT_fstack_limit_symbol_:
 	  stack_limit_rtx = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (opt->arg));
+	  break;
+
+	case OPT_fasan_shadow_offset_:
+	  if (!(flag_sanitize & SANITIZE_KERNEL_ADDRESS))
+	    error ("-fasan-shadow-offset should only be used "
+		   "with -fsanitize=kernel-address");
+	  if (!set_asan_shadow_offset (opt->arg))
+	     error ("unrecognized shadow offset %qs", opt->arg);
 	  break;
 
 	default:

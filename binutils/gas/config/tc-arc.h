@@ -1,6 +1,5 @@
 /* tc-arc.h - Macros and type defines for the ARC.
-   Copyright 1994, 1995, 1997, 2000, 2001, 2002, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -55,13 +54,15 @@ extern const char * arc_target_format;
 
 /* The ARC needs to parse reloc specifiers in .word.  */
 
-extern void arc_parse_cons_expression (struct expressionS *, unsigned);
+extern bfd_reloc_code_real_type arc_parse_cons_expression (struct expressionS *,
+							   unsigned);
 #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) \
   arc_parse_cons_expression (EXP, NBYTES)
 
-extern void arc_cons_fix_new (struct frag *, int, int, struct expressionS *);
-#define TC_CONS_FIX_NEW(FRAG, WHERE, NBYTES, EXP) \
-  arc_cons_fix_new (FRAG, WHERE, NBYTES, EXP)
+extern void arc_cons_fix_new (struct frag *, int, int, struct expressionS *,
+			      bfd_reloc_code_real_type);
+#define TC_CONS_FIX_NEW(FRAG, WHERE, NBYTES, EXP, RELOC)	\
+  arc_cons_fix_new (FRAG, WHERE, NBYTES, EXP, RELOC)
 
 #define DWARF2_LINE_MIN_INSN_LENGTH 4
 

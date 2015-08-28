@@ -1,3 +1,192 @@
+2014-07-20  Stefan Kristiansson  <stefan.kristiansson@saunalahti.fi>
+
+	* or1korbis.cpu (l-msync, l-psync, l-csync): New instructions.
+
+2014-06-12  Alan Modra  <amodra@gmail.com>
+
+	* or1k.opc: Whitespace fixes.
+
+2014-05-08  Stefan Kristiansson  <stefan.kristiansson@saunalahti.fi>
+
+	* or1korbis.cpu (h-atomic-reserve): New hardware.
+	(h-atomic-address): Likewise.
+	(insn-opcode): Add opcodes for LWA and SWA.
+	(atomic-reserve): New operand.
+	(atomic-address): Likewise.
+	(l-lwa, l-swa): New instructions.
+	(l-lbs): Fix typo in comment.
+	(store-insn): Clear atomic reserve on store to atomic-address.
+	Fix register names in fmt field.
+
+2014-04-22  Christian Svensson  <blue@cmd.nu>
+
+	* openrisc.cpu: Delete.
+	* openrisc.opc: Delete.
+	* or1k.cpu: New file.
+	* or1k.opc: New file.
+	* or1kcommon.cpu: New file.
+	* or1korbis.cpu: New file.
+	* or1korfpx.cpu: New file.
+
+2013-12-07  Mike Frysinger  <vapier@gentoo.org>
+
+	* epiphany.opc: Remove +x file mode.
+
+2013-03-08  Yann Sionneau  <yann.sionneau@gmail.com>
+
+	PR binutils/15241
+	* lm32.cpu (Control and status registers): Add CFG2, PSW,
+	TLBVADDR, TLBPADDR and TLBBADVADDR.
+
+2012-11-30  Oleg Raikhman  <oleg@adapteva.com>
+	    Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* epiphany.cpu (keyword gr-names): Move sb/sl/ip after r9/r10/r12.
+	(load_insn): Add NO-DIS attribute to x, p, d, dpm, dl0, dl0.l.
+	(testset-insn): Add NO_DIS attribute to t.l.
+	(store-insn): Add NO-DIS attribute to x.l, p.l, d.l, dpm.l, dl0.l.
+	(move-insns): Add NO-DIS attribute to cmov.l.
+	(op-mmr-movts): Add NO-DIS attribute to movts.l.
+	(op-mmr-movfs): Add NO-DIS attribute to movfs.l.
+	(op-rrr): Add NO-DIS attribute to .l.
+	(shift-rrr): Add NO-DIS attribute to .l.
+	(op-shift-rri): Add NO-DIS attribute to i32.l.
+	(bitrl, movtl): Add NO-DIS attribute.
+	(op-iextrrr): Add NO-DIS attribute to .l
+	(op-two_operands-float, op-fabs-float): Add NO-DIS attribute to f32.l.
+	(op-fix2float-float, op-float2fix-float, op-fextop-float): Likewise.
+
+2012-02-27  Alan Modra  <amodra@gmail.com>
+
+	* mt.opc (print_dollarhex): Trim values to 32 bits.
+
+2011-12-15  Nick Clifton  <nickc@redhat.com>
+
+	* frv.opc (parse_uhi16): Fix handling of %hi operator on 64-bit
+	hosts.
+
+2011-10-26  Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* epiphany.opc (parse_branch_addr): Fix type of valuep.
+	Cast value before printing it as a long.
+	(parse_postindex): Fix type of valuep.
+
+2011-10-25  Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* cpu/epiphany.cpu: New file.
+	* cpu/epiphany.opc: New file.
+
+2011-08-22  Nick Clifton  <nickc@redhat.com>
+
+	* fr30.cpu: Newly contributed file.
+	* fr30.opc: Likewise.
+	* ip2k.cpu: Likewise.
+	* ip2k.opc: Likewise.
+	* mep-avc.cpu: Likewise.
+	* mep-avc2.cpu: Likewise.
+	* mep-c5.cpu: Likewise.
+	* mep-core.cpu: Likewise.
+	* mep-default.cpu: Likewise.
+	* mep-ext-cop.cpu: Likewise.
+	* mep-fmax.cpu: Likewise.
+	* mep-h1.cpu: Likewise.
+	* mep-ivc2.cpu: Likewise.
+	* mep-rhcop.cpu: Likewise.
+	* mep-sample-ucidsp.cpu: Likewise.
+	* mep.cpu: Likewise.
+	* mep.opc: Likewise.
+	* openrisc.cpu: Likewise.
+	* openrisc.opc: Likewise.
+	* xstormy16.cpu: Likewise.
+	* xstormy16.opc: Likewise.
+
+2010-10-08  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* frv.opc: #undef DEBUG.
+
+2010-07-03  DJ Delorie  <dj@delorie.com>
+
+	* m32c.cpu (f-dsp-8-s24): Mask high byte after shifting it.
+
+2010-02-11  Doug Evans  <dje@sebabeach.org>
+
+	* m32r.cpu (HASH-PREFIX): Delete.
+	(duhpo, dshpo): New pmacros.
+	(simm8, simm16): Delete HASH-PREFIX attribute, define with dshpo.
+	(uimm3, uimm4, uimm5, uimm8, uimm16, imm1): Delete HASH-PREFIX
+	attribute, define with dshpo.
+	(uimm24): Delete HASH-PREFIX attribute.
+	* m32r.opc (CGEN_PRINT_NORMAL): Delete.
+	(print_signed_with_hash_prefix): New function.
+	(print_unsigned_with_hash_prefix): New function.
+	* xc16x.cpu (dowh): New pmacro.
+	(upof16): Define with dowh, specify print handler.
+	(qbit, qlobit, qhibit): Ditto.
+	(upag16): Ditto.
+	* xc16x.opc (CGEN_PRINT_NORMAL): Delete.
+	(print_with_dot_prefix): New functions.
+	(print_with_pof_prefix, print_with_pag_prefix): New functions.
+
+2010-01-24  Doug Evans  <dje@sebabeach.org>
+
+	* frv.cpu (floating-point-conversion): Update call to fp conv op.
+	(floating-point-dual-conversion, ne-floating-point-dual-conversion,
+	conditional-floating-point-conversion, ne-floating-point-conversion,
+	float-parallel-mul-add-double-semantics): Ditto.
+
+2010-01-05  Doug Evans  <dje@sebabeach.org>
+
+	* m32c.cpu (f-dsp-32-u24): Fix mode of extract handler.
+	(f-dsp-40-u20, f-dsp-40-u24): Ditto.
+
+2010-01-02  Doug Evans  <dje@sebabeach.org>
+
+	* m32c.opc (parse_signed16): Fix typo.
+
+2009-12-11  Nick Clifton  <nickc@redhat.com>
+
+	* frv.opc: Fix shadowed variable warnings.
+	* m32c.opc: Fix shadowed variable warnings.
+
+2009-11-14  Doug Evans  <dje@sebabeach.org>
+
+	Must use VOID expression in VOID context.
+	* xc16x.cpu (mov4): Fix mode of `sequence'.
+	(mov9, mov10): Ditto.
+	(movbsrr, moveb1, jmprel, jmpseg, jmps): Fix mode of `if'.
+	(callr, callseg, calls, trap, rets, reti): Ditto.
+	(jb, jbc, jnb, jnbs): Fix mode of `if'.  Comment out no-op `sll'.
+	(atomic, extr, extp, extp1, extpg1, extpr, extpr1): Fix mode of `cond'.
+	(exts, exts1, extsr, extsr1, prior): Ditto.
+
+2009-10-23  Doug Evans  <dje@sebabeach.org>
+
+	* m32c.opc (opc.h): cgen-types.h -> cgen/basic-modes.h.
+	cgen-ops.h -> cgen/basic-ops.h.
+
+2009-09-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* m32r.cpu (stb-plus): Typo fix.
+
+2009-09-23  Doug Evans  <dje@sebabeach.org>
+
+	* m32r.cpu (sth-plus): Fix address mode and calculation.
+	(stb-plus): Ditto.
+	(clrpsw): Fix mask calculation.
+	(bset, bclr, btst): Make mode in bit calculation match expression.
+
+	* xc16x.cpu (rtl-version): Set to 0.8.
+	(gr-names, ext-names,psw-names): Update, print-name -> enum-prefix,
+	make uppercase.  Remove unnecessary name-prefix spec.
+	(grb-names, conditioncode-names, extconditioncode-names): Ditto.
+	(grb8-names, r8-names, regmem8-names, regdiv8-names): Ditto.
+	(reg0-name, reg0-name1, regbmem8-names, memgr8-names): Ditto.
+	(h-cr): New hardware.
+	(muls): Comment out parts that won't compile, add fixme.
+	(mulu, divl, divlu, jmpabs, jmpa-, jmprel, jbc, jnbs, callr): Ditto.
+	(scxti, scxtmg, scxtm, bclear, bclr18, bset19, bitset, bmov): Ditto.
+	(bmovn, band, bor, bxor, bcmp, bfldl, bfldh): Ditto.
+
 2009-07-16  Doug Evans  <dje@sebabeach.org>
 
 	* cpu/simplify.inc (*): One line doc strings don't need \n.
@@ -676,6 +865,12 @@
 	* New file.
 
 
+Copyright (C) 2003-2012 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
 Local Variables:
 mode: change-log
 left-margin: 8

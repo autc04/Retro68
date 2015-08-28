@@ -6,11 +6,12 @@
 
 package time
 
+#include <sys/time.h>
+
 #include "runtime.h"
 #include "defs.h"
 #include "arch.h"
 #include "malloc.h"
-#include "race.h"
 
 enum {
 	debug = 0,
@@ -20,10 +21,18 @@ static Timers timers;
 static void addtimer(Timer*);
 static void dumptimers(const char*);
 
+// nacl fake time support. 
+int64 runtime_timens;
+
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
 
 // time.now is implemented in assembly.
+
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+func runtimeNano() (ns int64) {
+	ns = runtime_nanotime();
+}
 
 // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
 func Sleep(ns int64) {
@@ -32,8 +41,6 @@ func Sleep(ns int64) {
 
 // startTimer adds t to the timer heap.
 func startTimer(t *Timer) {
-	if(raceenabled)
-		runtime_racerelease(t);
 	runtime_addtimer(t);
 }
 
@@ -45,15 +52,23 @@ func stopTimer(t *Timer) (stopped bool) {
 
 // C runtime.
 
+int64 runtime_unixnanotime(void)
+{
+	struct time_now_ret r;
+
+	r = now();
+	return r.sec*1000000000 + r.nsec;
+}
+
 static void timerproc(void*);
 static void siftup(int32);
 static void siftdown(int32);
 
 // Ready the goroutine e.data.
 static void
-ready(int64 now, Eface e)
+ready(Eface e, uintptr seq)
 {
-	USED(now);
+	USED(seq);
 
 	runtime_ready(e.__object);
 }
@@ -76,9 +91,10 @@ runtime_tsleep(int64 ns, const char *reason)
 	t.period = 0;
 	t.fv = &readyv;
 	t.arg.__object = g;
+	t.seq = 0;
 	runtime_lock(&timers);
 	addtimer(&t);
-	runtime_park(runtime_unlock, &timers, reason);
+	runtime_parkunlock(&timers, reason);
 }
 
 void
@@ -187,8 +203,10 @@ timerproc(void* dummy __attribute__ ((unused)))
 {
 	int64 delta, now;
 	Timer *t;
-	void (*f)(int64, Eface);
+	FuncVal *fv;
+	void (*f)(Eface, uintptr);
 	Eface arg;
+	uintptr seq;
 
 	for(;;) {
 		runtime_lock(&timers);
@@ -214,19 +232,28 @@ timerproc(void* dummy __attribute__ ((unused)))
 				siftdown(0);
 				t->i = -1;  // mark as removed
 			}
+			fv = t->fv;
 			f = (void*)t->fv->fn;
 			arg = t->arg;
+			seq = t->seq;
 			runtime_unlock(&timers);
-			if(raceenabled)
-				runtime_raceacquire(t);
-			__go_set_closure(t->fv);
-			f(now, arg);
+			__builtin_call_with_static_chain(f(arg, seq), fv);
+
+			// clear f and arg to avoid leak while sleeping for next timer
+			f = nil;
+			USED(f);
+			arg.__type_descriptor = nil;
+			arg.__object = nil;
+			USED(&arg);
+
 			runtime_lock(&timers);
 		}
 		if(delta < 0) {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true;
-			runtime_park(runtime_unlock, &timers, "timer goroutine (idle)");
+			runtime_g()->isbackground = true;
+			runtime_parkunlock(&timers, "timer goroutine (idle)");
+			runtime_g()->isbackground = false;
 			continue;
 		}
 		// At least one timer pending.  Sleep until then.
@@ -320,7 +347,7 @@ dumptimers(const char *msg)
 }
 
 void
-runtime_time_scan(void (*addroot)(Obj))
+runtime_time_scan(struct Workbuf** wbufp, void (*enqueue1)(struct Workbuf**, Obj))
 {
-	addroot((Obj){(byte*)&timers, sizeof timers, 0});
+	enqueue1(wbufp, (Obj){(byte*)&timers, sizeof timers, 0});
 }

@@ -1,6 +1,6 @@
 // protected_main_1.cc -- a test case for gold
 
-// Copyright 2008 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -28,9 +28,13 @@
 extern bool t1();
 extern bool t2();
 
+extern "C" int f2();
+extern int (*get_f2_addr()) ();
+
 int
 main()
 {
   assert(t1());
   assert(t2());
+  assert(&f2 == get_f2_addr());
 }

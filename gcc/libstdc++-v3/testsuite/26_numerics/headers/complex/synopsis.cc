@@ -1,6 +1,6 @@
 // { dg-do compile }
 
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -72,7 +72,7 @@ namespace std {
   template<class T> T arg(const complex<T>&);
   template<class T> T norm(const complex<T>&);
   template<class T> complex<T> conj(const complex<T>&);
-  template<class T> complex<T> polar(const T& rho, const T& theta = 0);
+  template<class T> complex<T> polar(const T& rho, const T& theta);
 
   // 26.2.8 transcendentals:
   template<class T> complex<T> cos(const  complex<T>&);

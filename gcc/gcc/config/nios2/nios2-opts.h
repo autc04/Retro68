@@ -1,5 +1,5 @@
 /* Definitions for option handling for Nios II.
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -19,6 +19,18 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef NIOS2_OPTS_H
 #define NIOS2_OPTS_H
+
+/* Enumerate the possible -mgpopt choices.  */
+enum nios2_gpopt_type
+{
+  gpopt_unspecified = -1,
+  gpopt_none,
+  gpopt_local,
+  gpopt_global,
+  gpopt_data,
+  gpopt_all
+};
+
 
 /* Enumeration of all FPU insn codes.  */
 #define N2FPU_ALL_CODES							\
@@ -42,7 +54,7 @@ along with GCC; see the file COPYING3.  If not see
   									\
   N2FPU_CODE(floatis) N2FPU_CODE(floatus)				\
   N2FPU_CODE(floatid) N2FPU_CODE(floatud)				\
-  N2FPU_CODE(fixsi) N2FPU_CODE(fixsu)					\
+  N2FPU_CODE(round) N2FPU_CODE(fixsi) N2FPU_CODE(fixsu)			\
   N2FPU_CODE(fixdi) N2FPU_CODE(fixdu)					\
   N2FPU_CODE(fextsd) N2FPU_CODE(ftruncds)				\
 									\

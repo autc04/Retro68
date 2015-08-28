@@ -3,9 +3,7 @@
 text_label:	
 	bc1f	text_label
 	bc1f	$fcc1,text_label
-	bc1fl	$fcc1,text_label
 	bc1t	$fcc1,text_label
-	bc1tl	$fcc2,text_label
 	c.f.d	$f4,$f6
 	c.f.d	$fcc1,$f4,$f6
 	ldxc1	$f2,$4($5)
@@ -38,7 +36,6 @@ text_label:
 	sdxc1	$f4,$4($5)
 	swxc1	$f4,$4($5)
 
-# Round to a 16 byte boundary, for ease in testing multiple targets.
-	nop
-	nop
-	nop
+# Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
+	.align	2
+	.space	8

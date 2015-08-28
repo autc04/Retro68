@@ -55,6 +55,8 @@ AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
 AUX val     0 prmhsh 0 snhsh 0 typ 0 algn 0 clss 0 stb 0 snstb 0
 \[ 36\]\(sec  0\)\(fl 0x00\)\(ty   0\)\(scl   2\) \(nx 1\) 0x00000000 esym1
 AUX val     0 prmhsh 0 snhsh 0 typ 0 algn 0 clss 0 stb 0 snstb 0
+\[ 38\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl   3\) \(nx 1\) 0x00000000 \.text
+AUX scnlen 0x68 nreloc 7 nlnno 0
 
 
 Disassembly of section \.text:
@@ -67,7 +69,7 @@ Disassembly of section \.text:
    8:	80 63 00 00 	l       r3,0\(r3\)
    c:	80 63 00 04 	l       r3,4\(r3\)
   10:	80 63 00 04 	l       r3,4\(r3\)
-  14:	80 63 00 00 	l       r3,0\(r3\)
+  14:	80 63 00 08 	l       r3,8\(r3\)
 
 0+0018 <dubious_references_to_default_RW_csect>:
   18:	80 63 00 00 	l       r3,0\(r3\)
@@ -77,17 +79,17 @@ Disassembly of section \.text:
 
 0+0028 <reference_via_toc>:
   28:	80 62 00 00 	l       r3,0\(r2\)
-			2a: R_TOC	ignored0\+0xf+ff8c
+			2a: R_TOC	ignored0-0x74
   2c:	80 62 00 04 	l       r3,4\(r2\)
-			2e: R_TOC	ignored1\+0xf+ff88
+			2e: R_TOC	ignored1-0x78
   30:	80 62 00 08 	l       r3,8\(r2\)
-			32: R_TOC	ignored2\+0xf+ff84
+			32: R_TOC	ignored2-0x7c
   34:	80 62 00 0c 	l       r3,12\(r2\)
-			36: R_TOC	ignored3\+0xf+ff80
+			36: R_TOC	ignored3-0x80
   38:	80 62 00 10 	l       r3,16\(r2\)
-			3a: R_TOC	ignored4\+0xf+ff7c
+			3a: R_TOC	ignored4-0x84
   3c:	80 62 00 14 	l       r3,20\(r2\)
-			3e: R_TOC	ignored5\+0xf+ff78
+			3e: R_TOC	ignored5-0x88
 
 0+0040 <subtract_symbols>:
   40:	38 60 00 04 	lil     r3,4
@@ -102,7 +104,7 @@ Disassembly of section \.text:
   5c:	38 60 00 00 	lil     r3,0
   60:	38 60 00 04 	lil     r3,4
   64:	38 62 00 18 	cal     r3,24\(r2\)
-			66: R_TOC	ignored6\+0xf+ff74
+			66: R_TOC	ignored6-0x8c
 Disassembly of section \.data:
 
 0+0068 <TOC-0xc>:
@@ -112,19 +114,19 @@ Disassembly of section \.data:
 
 0+0074 <TOC>:
   74:	00 00 00 68 	\.long 0x68
-			74: R_POS	\.data\+0xf+ff98
+			74: R_POS	\.data-0x68
 
 0+0078 <ignored1>:
   78:	00 00 00 6c 	\.long 0x6c
-			78: R_POS	\.data\+0xf+ff98
+			78: R_POS	\.data-0x68
 
 0+007c <ignored2>:
   7c:	00 00 00 6c 	\.long 0x6c
-			7c: R_POS	\.data\+0xf+ff98
+			7c: R_POS	\.data-0x68
 
 0+0080 <ignored3>:
   80:	00 00 00 70 	\.long 0x70
-			80: R_POS	\.data\+0xf+ff98
+			80: R_POS	\.data-0x68
 
 0+0084 <ignored4>:
   84:	00 00 00 00 	\.long 0x0
@@ -136,4 +138,4 @@ Disassembly of section \.data:
 
 0+008c <ignored6>:
   8c:	00 00 00 00 	\.long 0x0
-			8c: R_POS	\.crazy_table
+			8c: R_POS	\.text

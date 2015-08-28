@@ -1,7 +1,5 @@
 /* chew
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
-   2002, 2003, 2005, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Contributed by steve chamberlain @cygnus
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -130,7 +128,7 @@ init_string_with_size (buffer, size)
 {
   buffer->write_idx = 0;
   buffer->size = size;
-  buffer->ptr = malloc (size);
+  buffer->ptr = (char *) malloc (size);
 }
 
 static void
@@ -201,7 +199,7 @@ catchar (buffer, ch)
   if (buffer->write_idx == buffer->size)
     {
       buffer->size *= 2;
-      buffer->ptr = realloc (buffer->ptr, buffer->size);
+      buffer->ptr = (char *) realloc (buffer->ptr, buffer->size);
     }
 
   buffer->ptr[buffer->write_idx++] = ch;
@@ -228,7 +226,7 @@ catbuf (buffer, buf, len)
     {
       while (buffer->write_idx + len >= buffer->size)
 	buffer->size *= 2;
-      buffer->ptr = realloc (buffer->ptr, buffer->size);
+      buffer->ptr = (char *) realloc (buffer->ptr, buffer->size);
     }
   memcpy (buffer->ptr + buffer->write_idx, buf, len);
   buffer->write_idx += len;
@@ -264,6 +262,19 @@ skip_white_and_stars (src, idx)
 	     && at (src, idx +1) != '/'
 	     && at (src, idx -1) != '\n'))
     idx++;
+  return idx;
+}
+
+static unsigned int
+skip_past_newline_1 (ptr, idx)
+     string_type *ptr;
+     unsigned int idx;
+{
+  while (at (ptr, idx)
+	 && at (ptr, idx) != '\n')
+    idx++;
+  if (at (ptr, idx) == '\n')
+    return idx + 1;
   return idx;
 }
 
@@ -476,8 +487,10 @@ remove_noncomments (src, dst)
 static void
 print_stack_level ()
 {
-  fprintf (stderr, "current string stack depth = %d, ", tos - stack);
-  fprintf (stderr, "current integer stack depth = %d\n", isp - istack);
+  fprintf (stderr, "current string stack depth = %ld, ",
+	   (long) (tos - stack));
+  fprintf (stderr, "current integer stack depth = %ld\n",
+	   (long) (isp - istack));
   pc++;
 }
 
@@ -603,10 +616,12 @@ outputdots ()
 
   while (at (tos, idx))
     {
-      if (at (tos, idx) == '\n' && at (tos, idx + 1) == '.')
+      /* Every iteration begins at the start of a line.  */
+      if (at (tos, idx) == '.')
 	{
 	  char c;
-	  idx += 2;
+
+	  idx++;
 
 	  while ((c = at (tos, idx)) && c != '\n')
 	    {
@@ -626,11 +641,13 @@ outputdots ()
 		  idx++;
 		}
 	    }
+	  if (c == '\n')
+	    idx++;
 	  catchar (&out, '\n');
 	}
       else
 	{
-	  idx++;
+	  idx = skip_past_newline_1 (tos, idx);
 	}
     }
 
@@ -1095,10 +1112,7 @@ icatstr ()
 static void
 skip_past_newline ()
 {
-  while (at (ptr, idx)
-	 && at (ptr, idx) != '\n')
-    idx++;
-  idx++;
+  idx = skip_past_newline_1 (ptr, idx);
   pc++;
 }
 
@@ -1177,7 +1191,7 @@ nextword (string, word)
 	}
     }
 
-  *word = malloc (length + 1);
+  *word = (char *) malloc (length + 1);
 
   dst = *word;
   src = word_start;
@@ -1256,7 +1270,7 @@ perform ()
 		fprintf (stderr, "warning, %s is not recognised\n", next);
 	      skip_past_newline ();
 	    }
-
+	  free (next);
 	}
       else
 	skip_past_newline ();
@@ -1563,8 +1577,8 @@ main (ac, av)
   write_buffer (stack + 0, stdout);
   if (tos != stack)
     {
-      fprintf (stderr, "finishing with current stack level %d\n",
-	       tos - stack);
+      fprintf (stderr, "finishing with current stack level %ld\n",
+	       (long) (tos - stack));
       return 1;
     }
   return 0;

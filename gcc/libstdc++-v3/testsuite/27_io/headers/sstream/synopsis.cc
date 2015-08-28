@@ -1,6 +1,6 @@
 // { dg-do compile }
 
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,7 @@
 #include <sstream>
 
 namespace std {
+_GLIBCXX_BEGIN_NAMESPACE_CXX11
   template <class charT, class traits, class Allocator>
     class basic_stringbuf;
   typedef basic_stringbuf<char>     stringbuf;
@@ -39,4 +40,5 @@ namespace std {
     class basic_stringstream;
   typedef basic_stringstream<char>     stringstream;
   typedef basic_stringstream<wchar_t> wstringstream;
+_GLIBCXX_END_NAMESPACE_CXX11
 }

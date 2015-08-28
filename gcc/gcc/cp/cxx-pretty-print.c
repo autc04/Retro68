@@ -1,5 +1,5 @@
 /* Implementation of subroutines for the GNU C++ pretty-printer.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -388,7 +388,6 @@ pp_cxx_userdef_literal (cxx_pretty_printer *pp, tree t)
      __is_abstract ( type-id )
      __is_base_of ( type-id , type-id )
      __is_class ( type-id )
-     __is_convertible_to ( type-id , type-id )     
      __is_empty ( type-id )
      __is_enum ( type-id )
      __is_literal_type ( type-id )
@@ -403,6 +402,7 @@ cxx_pretty_printer::primary_expression (tree t)
 {
   switch (TREE_CODE (t))
     {
+    case VOID_CST:
     case INTEGER_CST:
     case REAL_CST:
     case COMPLEX_CST:
@@ -690,7 +690,7 @@ pp_cxx_new_expression (cxx_pretty_printer *pp, tree t)
 	  pp_left_paren (pp);
 	  if (TREE_CODE (init) == TREE_LIST)
 	    pp_c_expression_list (pp, init);
-	  else if (init == void_zero_node)
+	  else if (init == void_node)
 	    ;			/* OK, empty initializer list.  */
 	  else
 	    pp->expression (init);
@@ -1028,6 +1028,7 @@ cxx_pretty_printer::expression (tree t)
   switch (TREE_CODE (t))
     {
     case STRING_CST:
+    case VOID_CST:
     case INTEGER_CST:
     case REAL_CST:
     case COMPLEX_CST:
@@ -2371,9 +2372,6 @@ pp_cxx_trait_expression (cxx_pretty_printer *pp, tree t)
     case CPTK_IS_CLASS:
       pp_cxx_ws_string (pp, "__is_class");
       break;
-    case CPTK_IS_CONVERTIBLE_TO:
-      pp_cxx_ws_string (pp, "__is_convertible_to");
-      break;
     case CPTK_IS_EMPTY:
       pp_cxx_ws_string (pp, "__is_empty");
       break;
@@ -2395,6 +2393,15 @@ pp_cxx_trait_expression (cxx_pretty_printer *pp, tree t)
     case CPTK_IS_TRIVIAL:
       pp_cxx_ws_string (pp, "__is_trivial");
       break;
+    case CPTK_IS_TRIVIALLY_ASSIGNABLE:
+      pp_cxx_ws_string (pp, "__is_trivially_assignable");
+      break;
+    case CPTK_IS_TRIVIALLY_CONSTRUCTIBLE:
+      pp_cxx_ws_string (pp, "__is_trivially_constructible");
+      break;
+    case CPTK_IS_TRIVIALLY_COPYABLE:
+      pp_cxx_ws_string (pp, "__is_trivially_copyable");
+      break;
     case CPTK_IS_UNION:
       pp_cxx_ws_string (pp, "__is_union");
       break;
@@ -2409,7 +2416,7 @@ pp_cxx_trait_expression (cxx_pretty_printer *pp, tree t)
   pp_cxx_left_paren (pp);
   pp->type_id (TRAIT_EXPR_TYPE1 (t));
 
-  if (kind == CPTK_IS_BASE_OF || kind == CPTK_IS_CONVERTIBLE_TO)
+  if (kind == CPTK_IS_BASE_OF)
     {
       pp_cxx_separate_with (pp, ',');
       pp->type_id (TRAIT_EXPR_TYPE2 (t));
@@ -2426,8 +2433,6 @@ cxx_pretty_printer::cxx_pretty_printer ()
   : c_pretty_printer (),
     enclosing_scope (global_namespace)
 {
-  pp_set_line_maximum_length (this, 0);
-
   type_specifier_seq = (pp_fun) pp_cxx_type_specifier_seq;
   parameter_list = (pp_fun) pp_cxx_parameter_declaration_clause;
 }

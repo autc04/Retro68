@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2009 Free Software Foundation, Inc.
+Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -25,16 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef MEP_CPU_H
 #define MEP_CPU_H
 
-#include "opcode/cgen-bitset.h"
-
 #define CGEN_ARCH mep
 
 /* Given symbol S, return mep_cgen_<S>.  */
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define CGEN_SYM(s) mep##_cgen_##s
-#else
-#define CGEN_SYM(s) mep/**/_cgen_/**/s
-#endif
 
 
 /* Selected cpu families.  */
@@ -135,12 +129,12 @@ typedef enum cgen_ifld_attr {
 /* cgen_ifld attribute accessor macros.  */
 #define CGEN_ATTR_CGEN_IFLD_MACH_VALUE(attrs) ((attrs)->nonbool[CGEN_IFLD_MACH-CGEN_IFLD_START_NBOOLS-1].nonbitset)
 #define CGEN_ATTR_CGEN_IFLD_ISA_VALUE(attrs) ((attrs)->nonbool[CGEN_IFLD_ISA-CGEN_IFLD_START_NBOOLS-1].bitset)
-#define CGEN_ATTR_CGEN_IFLD_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_PCREL_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_PCREL_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_ABS_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_ABS_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_RESERVED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_RESERVED)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_SIGN_OPT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_SIGN_OPT)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_SIGNED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_SIGNED)) != 0)
+#define CGEN_ATTR_CGEN_IFLD_VIRTUAL_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_IFLD_VIRTUAL)) != 0)
+#define CGEN_ATTR_CGEN_IFLD_PCREL_ADDR_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_IFLD_PCREL_ADDR)) != 0)
+#define CGEN_ATTR_CGEN_IFLD_ABS_ADDR_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_IFLD_ABS_ADDR)) != 0)
+#define CGEN_ATTR_CGEN_IFLD_RESERVED_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_IFLD_RESERVED)) != 0)
+#define CGEN_ATTR_CGEN_IFLD_SIGN_OPT_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_IFLD_SIGN_OPT)) != 0)
+#define CGEN_ATTR_CGEN_IFLD_SIGNED_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_IFLD_SIGNED)) != 0)
 
 /* Enum declaration for mep ifield types.  */
 typedef enum ifield_type {
@@ -203,11 +197,11 @@ typedef enum cgen_hw_attr {
 /* cgen_hw attribute accessor macros.  */
 #define CGEN_ATTR_CGEN_HW_MACH_VALUE(attrs) ((attrs)->nonbool[CGEN_HW_MACH-CGEN_HW_START_NBOOLS-1].nonbitset)
 #define CGEN_ATTR_CGEN_HW_ISA_VALUE(attrs) ((attrs)->nonbool[CGEN_HW_ISA-CGEN_HW_START_NBOOLS-1].bitset)
-#define CGEN_ATTR_CGEN_HW_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_HW_CACHE_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_CACHE_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_HW_PC_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_PC)) != 0)
-#define CGEN_ATTR_CGEN_HW_PROFILE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_PROFILE)) != 0)
-#define CGEN_ATTR_CGEN_HW_IS_FLOAT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_IS_FLOAT)) != 0)
+#define CGEN_ATTR_CGEN_HW_VIRTUAL_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_HW_VIRTUAL)) != 0)
+#define CGEN_ATTR_CGEN_HW_CACHE_ADDR_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_HW_CACHE_ADDR)) != 0)
+#define CGEN_ATTR_CGEN_HW_PC_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_HW_PC)) != 0)
+#define CGEN_ATTR_CGEN_HW_PROFILE_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_HW_PROFILE)) != 0)
+#define CGEN_ATTR_CGEN_HW_IS_FLOAT_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_HW_IS_FLOAT)) != 0)
 
 /* Enum declaration for mep hardware types.  */
 typedef enum cgen_hw_type {
@@ -237,15 +231,15 @@ typedef enum cgen_operand_attr {
 #define CGEN_ATTR_CGEN_OPERAND_ISA_VALUE(attrs) ((attrs)->nonbool[CGEN_OPERAND_ISA-CGEN_OPERAND_START_NBOOLS-1].bitset)
 #define CGEN_ATTR_CGEN_OPERAND_CDATA_VALUE(attrs) ((attrs)->nonbool[CGEN_OPERAND_CDATA-CGEN_OPERAND_START_NBOOLS-1].nonbitset)
 #define CGEN_ATTR_CGEN_OPERAND_ALIGN_VALUE(attrs) ((attrs)->nonbool[CGEN_OPERAND_ALIGN-CGEN_OPERAND_START_NBOOLS-1].nonbitset)
-#define CGEN_ATTR_CGEN_OPERAND_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_PCREL_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_PCREL_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_ABS_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_ABS_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_SIGN_OPT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_SIGN_OPT)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_SIGNED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_SIGNED)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_NEGATIVE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_NEGATIVE)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_RELAX_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_RELAX)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_SEM_ONLY_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_SEM_ONLY)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_RELOC_IMPLIES_OVERFLOW_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_RELOC_IMPLIES_OVERFLOW)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_VIRTUAL_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_VIRTUAL)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_PCREL_ADDR_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_PCREL_ADDR)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_ABS_ADDR_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_ABS_ADDR)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_SIGN_OPT_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_SIGN_OPT)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_SIGNED_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_SIGNED)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_NEGATIVE_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_NEGATIVE)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_RELAX_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_RELAX)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_SEM_ONLY_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_SEM_ONLY)) != 0)
+#define CGEN_ATTR_CGEN_OPERAND_RELOC_IMPLIES_OVERFLOW_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_OPERAND_RELOC_IMPLIES_OVERFLOW)) != 0)
 
 /* Enum declaration for mep operand types.  */
 typedef enum cgen_operand_type {
@@ -322,38 +316,38 @@ typedef enum cgen_insn_attr {
 #define CGEN_ATTR_CGEN_INSN_LATENCY_VALUE(attrs) ((attrs)->nonbool[CGEN_INSN_LATENCY-CGEN_INSN_START_NBOOLS-1].nonbitset)
 #define CGEN_ATTR_CGEN_INSN_CONFIG_VALUE(attrs) ((attrs)->nonbool[CGEN_INSN_CONFIG-CGEN_INSN_START_NBOOLS-1].nonbitset)
 #define CGEN_ATTR_CGEN_INSN_SLOTS_VALUE(attrs) ((attrs)->nonbool[CGEN_INSN_SLOTS-CGEN_INSN_START_NBOOLS-1].nonbitset)
-#define CGEN_ATTR_CGEN_INSN_ALIAS_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_ALIAS)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_INSN_UNCOND_CTI_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_UNCOND_CTI)) != 0)
-#define CGEN_ATTR_CGEN_INSN_COND_CTI_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_COND_CTI)) != 0)
-#define CGEN_ATTR_CGEN_INSN_SKIP_CTI_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_SKIP_CTI)) != 0)
-#define CGEN_ATTR_CGEN_INSN_DELAY_SLOT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_DELAY_SLOT)) != 0)
-#define CGEN_ATTR_CGEN_INSN_RELAXABLE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_RELAXABLE)) != 0)
-#define CGEN_ATTR_CGEN_INSN_RELAXED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_RELAXED)) != 0)
-#define CGEN_ATTR_CGEN_INSN_NO_DIS_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_NO_DIS)) != 0)
-#define CGEN_ATTR_CGEN_INSN_PBB_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_PBB)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_BIT_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_BIT_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_MUL_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_MUL_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_DIV_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_DIV_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_DEBUG_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_DEBUG_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_LDZ_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_LDZ_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_ABS_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_ABS_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_AVE_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_AVE_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_MINMAX_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_MINMAX_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_CLIP_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_CLIP_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_SAT_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_SAT_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_UCI_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_UCI_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_DSP_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_DSP_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_CP_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_CP_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_CP64_INSN_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_CP64_INSN)) != 0)
-#define CGEN_ATTR_CGEN_INSN_OPTIONAL_VLIW64_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_OPTIONAL_VLIW64)) != 0)
-#define CGEN_ATTR_CGEN_INSN_MAY_TRAP_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_MAY_TRAP)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VLIW_ALONE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VLIW_ALONE)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VLIW_NO_CORE_NOP_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VLIW_NO_CORE_NOP)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VLIW_NO_COP_NOP_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VLIW_NO_COP_NOP)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VLIW64_NO_MATCHING_NOP_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VLIW64_NO_MATCHING_NOP)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VLIW32_NO_MATCHING_NOP_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VLIW32_NO_MATCHING_NOP)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VOLATILE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VOLATILE)) != 0)
+#define CGEN_ATTR_CGEN_INSN_ALIAS_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_ALIAS)) != 0)
+#define CGEN_ATTR_CGEN_INSN_VIRTUAL_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_VIRTUAL)) != 0)
+#define CGEN_ATTR_CGEN_INSN_UNCOND_CTI_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_UNCOND_CTI)) != 0)
+#define CGEN_ATTR_CGEN_INSN_COND_CTI_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_COND_CTI)) != 0)
+#define CGEN_ATTR_CGEN_INSN_SKIP_CTI_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_SKIP_CTI)) != 0)
+#define CGEN_ATTR_CGEN_INSN_DELAY_SLOT_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_DELAY_SLOT)) != 0)
+#define CGEN_ATTR_CGEN_INSN_RELAXABLE_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_RELAXABLE)) != 0)
+#define CGEN_ATTR_CGEN_INSN_RELAXED_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_RELAXED)) != 0)
+#define CGEN_ATTR_CGEN_INSN_NO_DIS_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_NO_DIS)) != 0)
+#define CGEN_ATTR_CGEN_INSN_PBB_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_PBB)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_BIT_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_BIT_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_MUL_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_MUL_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_DIV_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_DIV_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_DEBUG_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_DEBUG_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_LDZ_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_LDZ_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_ABS_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_ABS_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_AVE_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_AVE_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_MINMAX_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_MINMAX_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_CLIP_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_CLIP_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_SAT_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_SAT_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_UCI_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_UCI_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_DSP_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_DSP_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_CP_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_CP_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_CP64_INSN_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_CP64_INSN)) != 0)
+#define CGEN_ATTR_CGEN_INSN_OPTIONAL_VLIW64_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_OPTIONAL_VLIW64)) != 0)
+#define CGEN_ATTR_CGEN_INSN_MAY_TRAP_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_MAY_TRAP)) != 0)
+#define CGEN_ATTR_CGEN_INSN_VLIW_ALONE_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_VLIW_ALONE)) != 0)
+#define CGEN_ATTR_CGEN_INSN_VLIW_NO_CORE_NOP_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_VLIW_NO_CORE_NOP)) != 0)
+#define CGEN_ATTR_CGEN_INSN_VLIW_NO_COP_NOP_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_VLIW_NO_COP_NOP)) != 0)
+#define CGEN_ATTR_CGEN_INSN_VLIW64_NO_MATCHING_NOP_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_VLIW64_NO_MATCHING_NOP)) != 0)
+#define CGEN_ATTR_CGEN_INSN_VLIW32_NO_MATCHING_NOP_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_VLIW32_NO_MATCHING_NOP)) != 0)
+#define CGEN_ATTR_CGEN_INSN_VOLATILE_VALUE(attrs) (((attrs)->bool_ & (1 << CGEN_INSN_VOLATILE)) != 0)
 
 /* cgen.h uses things we just defined.  */
 #include "opcode/cgen.h"

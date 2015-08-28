@@ -1,7 +1,5 @@
 /* IBM RS/6000 "XCOFF" back-end for BFD.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Written by Metin G. Ozisik, Mimi Phuong-Thao Vo, and John Gilmore.
    Archive support from Damon A. Permezel.
    Contributed by IBM Corporation and Cygnus Support.
@@ -585,7 +583,7 @@ rs6000coff_core_p (bfd *abfd)
 	  {
 	    ldi_core = ldinfo.l32.ldinfo_core;
 	    ldi_datasize = ldinfo.l32.ldinfo_datasize;
-	    ldi_dataorg = (bfd_vma) (long) ldinfo.l32.ldinfo_dataorg;
+	    ldi_dataorg = (bfd_vma) (ptr_to_uint) ldinfo.l32.ldinfo_dataorg;
 	    ldi_next = ldinfo.l32.ldinfo_next;
 	  }
 
@@ -627,7 +625,7 @@ rs6000coff_core_p (bfd *abfd)
 	      }
 	    else
 	      {
-		vminfo_addr = (bfd_vma) (long) vminfo.old.vminfo_addr;
+		vminfo_addr = (bfd_vma) (ptr_to_uint) vminfo.old.vminfo_addr;
 		vminfo_size = vminfo.old.vminfo_size;
 		vminfo_offset = vminfo.old.vminfo_offset;
 	      }

@@ -9,11 +9,20 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	. "time"
 )
+
+// Go runtime uses different Windows timers for time.Now and sleeping.
+// These can tick at different frequencies and can arrive out of sync.
+// The effect can be seen, for example, as time.Sleep(100ms) is actually
+// shorter then 100ms when measured as difference between time.Now before and
+// after time.Sleep call. This was observed on Windows XP SP3 (windows/386).
+// windowsInaccuracy is to ignore such errors.
+const windowsInaccuracy = 17 * Millisecond
 
 func TestSleep(t *testing.T) {
 	const delay = 100 * Millisecond
@@ -23,8 +32,12 @@ func TestSleep(t *testing.T) {
 	}()
 	start := Now()
 	Sleep(delay)
+	delayadj := delay
+	if runtime.GOOS == "windows" {
+		delayadj -= windowsInaccuracy
+	}
 	duration := Now().Sub(start)
-	if duration < delay {
+	if duration < delayadj {
 		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
 	}
 }
@@ -74,26 +87,13 @@ func benchmark(b *testing.B, bench func(n int)) {
 	for i := 0; i < len(garbage); i++ {
 		garbage[i] = AfterFunc(Hour, nil)
 	}
-
-	const batch = 1000
-	P := runtime.GOMAXPROCS(-1)
-	N := int32(b.N / batch)
-
 	b.ResetTimer()
 
-	var wg sync.WaitGroup
-	wg.Add(P)
-
-	for p := 0; p < P; p++ {
-		go func() {
-			for atomic.AddInt32(&N, -1) >= 0 {
-				bench(batch)
-			}
-			wg.Done()
-		}()
-	}
-
-	wg.Wait()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			bench(1000)
+		}
+	})
 
 	b.StopTimer()
 	for i := 0; i < len(garbage); i++ {
@@ -163,10 +163,14 @@ func TestAfter(t *testing.T) {
 	const delay = 100 * Millisecond
 	start := Now()
 	end := <-After(delay)
-	if duration := Now().Sub(start); duration < delay {
+	delayadj := delay
+	if runtime.GOOS == "windows" {
+		delayadj -= windowsInaccuracy
+	}
+	if duration := Now().Sub(start); duration < delayadj {
 		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
 	}
-	if min := start.Add(delay); end.Before(min) {
+	if min := start.Add(delayadj); end.Before(min) {
 		t.Fatalf("After(%s) expect >= %s, got %s", delay, min, end)
 	}
 }
@@ -361,19 +365,18 @@ func TestReset(t *testing.T) {
 // Test that sleeping for an interval so large it overflows does not
 // result in a short sleep duration.
 func TestOverflowSleep(t *testing.T) {
-	const timeout = 25 * Millisecond
 	const big = Duration(int64(1<<63 - 1))
 	select {
 	case <-After(big):
 		t.Fatalf("big timeout fired")
-	case <-After(timeout):
+	case <-After(25 * Millisecond):
 		// OK
 	}
 	const neg = Duration(-1 << 63)
 	select {
 	case <-After(neg):
 		// OK
-	case <-After(timeout):
+	case <-After(1 * Second):
 		t.Fatalf("negative timeout didn't fire")
 	}
 }
@@ -399,7 +402,30 @@ func TestIssue5745(t *testing.T) {
 }
 
 func TestOverflowRuntimeTimer(t *testing.T) {
-	if err := CheckRuntimeTimerOverflow(); err != nil {
-		t.Fatalf(err.Error())
+	if testing.Short() {
+		t.Skip("skipping in short mode, see issue 6874")
 	}
+	// This may hang forever if timers are broken. See comment near
+	// the end of CheckRuntimeTimerOverflow in internal_test.go.
+	CheckRuntimeTimerOverflow()
+}
+
+func checkZeroPanicString(t *testing.T) {
+	e := recover()
+	s, _ := e.(string)
+	if want := "called on uninitialized Timer"; !strings.Contains(s, want) {
+		t.Errorf("panic = %v; want substring %q", e, want)
+	}
+}
+
+func TestZeroTimerResetPanics(t *testing.T) {
+	defer checkZeroPanicString(t)
+	var tr Timer
+	tr.Reset(1)
+}
+
+func TestZeroTimerStopPanics(t *testing.T) {
+	defer checkZeroPanicString(t)
+	var tr Timer
+	tr.Stop()
 }

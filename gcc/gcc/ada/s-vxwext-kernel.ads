@@ -6,7 +6,7 @@
 --                                                                          --
 --                                   S p e c                                --
 --                                                                          --
---            Copyright (C) 2008-2011, Free Software Foundation, Inc.       --
+--            Copyright (C) 2008-2015, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNARL is free software;  you can redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -53,7 +53,7 @@ package System.VxWorks.Ext is
    function Int_Lock return int;
    pragma Convention (C, Int_Lock);
 
-   function Int_Unlock return int;
+   function Int_Unlock (Old : int) return int;
    pragma Convention (C, Int_Unlock);
 
    function Interrupt_Connect
@@ -73,7 +73,7 @@ package System.VxWorks.Ext is
    pragma Convention (C, semDelete);
 
    function Task_Cont (tid : t_id) return int;
-   pragma Import (C, Task_Cont, "taskCont");
+   pragma Convention (C, Task_Cont);
 
    function Task_Stop (tid : t_id) return int;
    pragma Convention (C, Task_Stop);

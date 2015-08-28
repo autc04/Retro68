@@ -1,4 +1,4 @@
-	.section	".text"
+	.text
 power7:
 	lxvd2x    3,4,5
 	lxvd2x    43,4,5
@@ -22,12 +22,6 @@ power7:
 	xvcpsgndp 43,44,44
 	xvcpsgndp 3,4,5
 	xvcpsgndp 43,44,45
-	wait
-	wait 0
-	waitrsv
-	wait 1
-	waitimpl
-	wait 2
 	doze
 	nap
 	sleep
@@ -83,14 +77,6 @@ power7:
 	dcbtstt   8,9
 	dcffix    10,12
 	dcffix.   20,22
-	lbarx     10,11,12
-	lbarx     10,11,12,0
-	lbarx     10,11,12,1
-	lharx     20,21,22
-	lharx     20,21,22,0
-	lharx     20,21,22,1
-	stbcx.    10,11,12
-	sthcx.    10,11,12
 	fre       14,15
 	fre.      14,15
 	fres      14,15
@@ -100,5 +86,16 @@ power7:
 	frsqrtes  14,15
 	frsqrtes. 14,15
 	isel	  2,3,4,28
+	yield
+	or	  27,27,27
 	ori	  2,2,0
 	.p2align 4,,15
+	mdoio
+	or	  29,29,29
+	mdoom
+	or	  30,30,30
+	mfppr	  10
+	mfppr32	  11
+	mtppr	  12
+	mtppr32	  13
+	tlbie     10,11

@@ -1,10 +1,97 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-05-22  David Edelsohn  <dje.gcc@gmail.com>
 
-	* GCC 4.9.0 released.
+	Backport from mainline.
+	2015-05-21  David Edelsohn  <dje.gcc@gmail.com>
+
+	* inclhack.def (aix_externc): New fix.
+	(aix_externcpp[12]): New fix.
+	* fixincl.x: Regenerate.
+	* test/base/ctype.h [AIX_EXTERNC_CHECK]: New test.
+	* test/base/sys/socket.h [AIX_EXTERNCPP[12]_CHECK]: New test.
+	* test/base/fcntl.h: New file.
+
+2015-04-22  Release Manager
+
+	* GCC 5.1.0 released.
+
+2015-03-28  John David Anglin  <danglin@gcc.gnu.org>
+
+	PR libstdc++/65500
+	* inclhack.def (hpux11_lwp_rwlock_valid): New fix.
+	* fixincl.x: Regenerate.
+	* tests/base/sys/pthread.h [HPUX11_LWP_RWLOCK_VALID_CHECK]: New test.
+
+2015-02-16  Daniel Richard G.  <skunk@iskunk.org>
+
+	PR bootstrap/48009
+	PR bootstrap/53348
+	* inclhack.def (aix_strtof_const): New fix.
+	* fixincl.x: Regenerate.
+	* tests/base/stdlib.h: New test.
+
+2015-02-10  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* inclhack.def (solaris_math_11): New fix.
+	* fixincl.x: Regenerate.
+	* tests/base/iso/math_c99.h [SOLARIS_MATH_11_CHECK]: New test.
+
+2015-02-06  David Edelsohn  <dje.gcc@gmail.com>
+
+	PR bootstrap/53348
+	* inclhack.def (aix_pthread): Accept tab after define.
+	* fixincl.x: Regenerate.
+
+2015-01-24  Bruce Korb  <bkorb@gnu.org>
+
+	* README: add some clarification on use of test_text
+
+2014-12-21  Bruce Korb  <bkorb@gnu.org>
+
+	* fixincludes/fixincl.tpl: add handling for "sum" selection
+	criteria and clean up layout
+	* fixincludes/fixlib.h: enumerate TT_CKSUM test type
+	* fixincludes/fixincl.c (fix_applies): add code to handle
+	the new test type
+	(cksum_test): function to handle it
+	* fixincludes/README: doc it and remove explanations from
+	more than a decade ago.
+
+2014-12-15  Uros Bizjak  <ubizjak@gmail.com>
+
+	* server.c (server_setup): Check return value of
+	getcwd and in case of error set buff[0] to 0.
+
+2014-10-21  Uros Bizjak  <ubizjak@gmail.com>
+
+	* inclhack.def (glibc_c99_inline_4): Add pthread.h to files.
+	* fixincl.x: Regenerate.
+
+2014-08-04  Alexander Ivchenko  <alexander.ivchenko@intel.com>
+
+	* inclhack.def (complier_h_tradcpp): Remove.
+	* fixincl.x: Regenerate.
+	* tests/base/linux/compiler.h: Remove.
+
+2014-04-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* inclhack.def (math_exception): Bypass on *-*-solaris2.1[0-9]*.
+	(solaris_int_types): Remove.
+	(solaris_longjmp_noreturn): Remove.
+	(solaris_mutex_init_2): Remove.
+	(solaris_once_init_2): Remove.
+	(solaris_sys_va_list): Remove.
+	* fixincl.x: Regenerate.
+	* tests/base/iso/setjmp_iso.h: Remove.
+	* tests/base/pthread.h [SOLARIS_MUTEX_INIT_2_CHECK]: Remove.
+	[SOLARIS_ONCE_INIT_1_CHECK]: Remove wrapping done by
+	solaris_once_init_2.
+	[SOLARIS_ONCE_INIT_2_CHECK]: Remove.
+	* tests/base/sys/int_types.h: Remove.
+	* tests/base/sys/va_list.h: Remove.
 
 2013-12-20  Bernhard Reutner-Fischer  <aldot@gcc.gnu.org>
 

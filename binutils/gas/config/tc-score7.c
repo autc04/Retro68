@@ -1,5 +1,5 @@
 /* tc-score7.c -- Assembler for Score7
-   Copyright 2009 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
    Contributed by:
    Brain.lin (brain.lin@sunplusct.com)
    Mei Ligang (ligang@sunnorth.com.cn)
@@ -1260,12 +1260,12 @@ static int
 s7_my_get_expression (expressionS * ep, char **str)
 {
   char *save_in;
-  segT seg;
 
   save_in = input_line_pointer;
   input_line_pointer = *str;
   s7_in_my_get_expression = 1;
-  seg = expression (ep);
+
+  (void) expression (ep);
   s7_in_my_get_expression = 0;
 
   if (ep->X_op == O_illegal)
@@ -2795,7 +2795,7 @@ s7_parse_16_32_inst (char *insnstr, bfd_boolean gen_frag_p)
   *p = c;
 
   memset (&s7_inst, '\0', sizeof (s7_inst));
-  sprintf (s7_inst.str, "%s", insnstr);
+  strcpy (s7_inst.str, insnstr);
   if (opcode)
     {
       s7_inst.instruction = opcode->value;
@@ -2804,7 +2804,7 @@ s7_parse_16_32_inst (char *insnstr, bfd_boolean gen_frag_p)
       s7_inst.size = s7_GET_INSN_SIZE (s7_inst.type);
       s7_inst.relax_size = 0;
       s7_inst.bwarn = 0;
-      sprintf (s7_inst.name, "%s", opcode->template_name);
+      strcpy (s7_inst.name, opcode->template_name);
       strcpy (s7_inst.reg, "");
       s7_inst.error = NULL;
       s7_inst.reloc.type = BFD_RELOC_NONE;
@@ -3096,14 +3096,12 @@ s7_do_ldst_insn (char *str)
   int conflict_reg;
   int value;
   char * temp;
-  char *strbak;
   char *dataptr;
   int reg;
   int ldst_idx = 0;
 
   int hex_p = 0;
 
-  strbak = str;
   s7_skip_whitespace (str);
 
   if (((conflict_reg = s7_reg_required_here (&str, 20, s7_REG_TYPE_SCORE)) == (int) s7_FAIL)
@@ -3306,7 +3304,6 @@ s7_do_ldst_insn (char *str)
 
           if (s7_inst.reloc.exp.X_op == O_constant)
             {
-              int value;
               unsigned int data_type;
 
               if (pre_inc == 1)
@@ -5093,7 +5090,7 @@ s7_build_score_ops_hsh (void)
   for (i = 0; i < sizeof (s7_score_insns) / sizeof (struct s7_asm_opcode); i++)
     {
       const struct s7_asm_opcode *insn = s7_score_insns + i;
-      unsigned len = strlen (insn->template_name);
+      size_t len = strlen (insn->template_name);
       struct s7_asm_opcode *new_opcode;
       char *template_name;
       new_opcode = (struct s7_asm_opcode *)
@@ -5122,7 +5119,7 @@ s7_build_dependency_insn_hsh (void)
   for (i = 0; i < ARRAY_SIZE (s7_insn_to_dependency_table); i++)
     {
       const struct s7_insn_to_dependency *tmp = s7_insn_to_dependency_table + i;
-      unsigned len = strlen (tmp->insn_name);
+      size_t len = strlen (tmp->insn_name);
       struct s7_insn_to_dependency *new_i2d;
 
       new_i2d = (struct s7_insn_to_dependency *)
@@ -5203,10 +5200,10 @@ s7_pic_need_relax (symbolS *sym, asection *segtype)
     }
 
   /* This must duplicate the test in adjust_reloc_syms.  */
-  return (symsec != &bfd_und_section
-	    && symsec != &bfd_abs_section
-	  && ! bfd_is_com_section (symsec)
-	    && !linkonce
+  return (!bfd_is_und_section (symsec)
+	  && !bfd_is_abs_section (symsec)
+	  && !bfd_is_com_section (symsec)
+	  && !linkonce
 #ifdef OBJ_ELF
 	  /* A global or weak symbol is treated as external.  */
 	  && (OUTPUT_FLAVOR != bfd_target_elf_flavour
@@ -5245,8 +5242,6 @@ s7_b32_relax_to_b16 (fragS * fragp)
 {
   int grows = 0;
   int relaxable_p = 0;
-  int r_old;
-  int r_new;
   int frag_addr = fragp->fr_address + fragp->insn_addr;
 
   addressT symbol_address = 0;
@@ -5260,8 +5255,6 @@ s7_b32_relax_to_b16 (fragS * fragp)
      so in relax stage , it may be wrong to calculate the symbol's offset when the frag's section
      is different from the symbol's.  */
 
-  r_old = s7_RELAX_OLD (fragp->fr_subtype);
-  r_new = s7_RELAX_NEW (fragp->fr_subtype);
   relaxable_p = s7_RELAX_OPT (fragp->fr_subtype);
 
   s = fragp->fr_symbol;
@@ -5270,8 +5263,8 @@ s7_b32_relax_to_b16 (fragS * fragp)
     frag_addr = 0;
   else
     {
-      if (s->bsym != 0)
-	symbol_address = (addressT) s->sy_frag->fr_address;
+      if (s->bsym != NULL)
+	symbol_address = (addressT) symbol_get_frag (s)->fr_address;
     }
 
   value = s7_md_chars_to_number (fragp->fr_literal, s7_INSN_SIZE);
@@ -5315,12 +5308,12 @@ s7_parse_pce_inst (char *insnstr)
   p = strstr (insnstr, "||");
   c = *p;
   *p = '\0';
-  sprintf (first, "%s", insnstr);
+  strcpy (first, insnstr);
 
   /* Get second part string of PCE.  */
   *p = c;
   p += 2;
-  sprintf (second, "%s", p);
+  strcpy (second, p);
 
   s7_parse_16_32_inst (first, FALSE);
   if (s7_inst.error)
@@ -5344,7 +5337,7 @@ s7_parse_pce_inst (char *insnstr)
       || ((pec_part_1.size == s7_INSN16_SIZE) && (s7_inst.size == s7_INSN_SIZE)))
     {
       s7_inst.error = _("pce instruction error (16 bit || 16 bit)'");
-      sprintf (s7_inst.str, insnstr);
+      strcpy (s7_inst.str, insnstr);
       return;
     }
 
@@ -5649,7 +5642,6 @@ s7_s_score_end (int x ATTRIBUTE_UNUSED)
   /* Generate a .pdr section.  */
   segT saved_seg = now_seg;
   subsegT saved_subseg = now_subseg;
-  valueT dot;
   expressionS exp;
   char *fragp;
 
@@ -5700,7 +5692,7 @@ s7_s_score_end (int x ATTRIBUTE_UNUSED)
 
   else
     {
-      dot = frag_now_fix ();
+      (void) frag_now_fix ();
       gas_assert (s7_pdr_seg);
       subseg_set (s7_pdr_seg, 0);
       /* Write the symbol.  */
@@ -6194,11 +6186,11 @@ s7_assemble (char *str)
    instruction in the error message.  */
 
 static void
-s7_operand (expressionS * expr)
+s7_operand (expressionS * exp)
 {
   if (s7_in_my_get_expression)
     {
-      expr->X_op = O_illegal;
+      exp->X_op = O_illegal;
       if (s7_inst.error == NULL)
         {
           s7_inst.error = _("bad expression");
@@ -6377,7 +6369,6 @@ s7_relax_frag (asection * sec ATTRIBUTE_UNUSED,
 {
   int grows = 0;
   int insn_size;
-  int insn_relax_size;
   int do_relax_p = 0;           /* Indicate doing relaxation for this frag.  */
   int relaxable_p = 0;
   bfd_boolean word_align_p = FALSE;
@@ -6397,15 +6388,9 @@ s7_relax_frag (asection * sec ATTRIBUTE_UNUSED,
 
   /* Get instruction size and relax size after the last relaxation.  */
   if (fragp->fr_opcode)
-    {
-      insn_size = s7_RELAX_NEW (fragp->fr_subtype);
-      insn_relax_size = s7_RELAX_OLD (fragp->fr_subtype);
-    }
+    insn_size = s7_RELAX_NEW (fragp->fr_subtype);
   else
-    {
-      insn_size = s7_RELAX_OLD (fragp->fr_subtype);
-      insn_relax_size = s7_RELAX_NEW (fragp->fr_subtype);
-    }
+    insn_size = s7_RELAX_OLD (fragp->fr_subtype);
 
   /* Handle specially for s7_GP instruction.  for, s7_judge_size_before_relax() has already determine
      whether the s7_GP instruction should do relax.  */
@@ -6892,9 +6877,6 @@ s7_gen_reloc (asection * section ATTRIBUTE_UNUSED, fixS * fixp)
   arelent *reloc;
   bfd_reloc_code_real_type code;
   char *type;
-  fragS *f;
-  symbolS *s;
-  expressionS e;
 
   reloc = retval[0] = xmalloc (sizeof (arelent));
   retval[1] = NULL;
@@ -6932,10 +6914,6 @@ s7_gen_reloc (asection * section ATTRIBUTE_UNUSED, fixS * fixp)
       retval[1]->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
       *retval[1]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
       retval[1]->address = (reloc->address + s7_RELAX_RELOC2 (fixp->fx_frag->fr_subtype));
-
-      f = fixp->fx_frag;
-      s = f->fr_symbol;
-      e = s->sy_value;
 
       retval[1]->addend = 0;
       retval[1]->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_LO16);

@@ -22,7 +22,7 @@ SECTIONS
   .rld_map : { *(.rld_map) }
 
   . = 0xa0000;
-  _gp = . + 0x7ff0;
+  HIDDEN (_gp = . + 0x7ff0);
   .got : { *(.got) }
 
   . = 0xa1000;
@@ -30,4 +30,6 @@ SECTIONS
 
   . = 0xa2000;
   .bss : { *(.dynbss) }
+
+  /DISCARD/ : { *(.MIPS.abiflags) }
 }

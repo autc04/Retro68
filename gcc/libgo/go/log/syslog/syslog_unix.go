@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows,!plan9
+// +build !windows,!nacl,!plan9
 
 package syslog
 
@@ -16,7 +16,7 @@ import (
 
 func unixSyslog() (conn serverConn, err error) {
 	logTypes := []string{"unixgram", "unix"}
-	logPaths := []string{"/dev/log", "/var/run/syslog"}
+	logPaths := []string{"/dev/log", "/var/run/syslog", "/var/run/log"}
 	for _, network := range logTypes {
 		for _, path := range logPaths {
 			conn, err := net.Dial(network, path)

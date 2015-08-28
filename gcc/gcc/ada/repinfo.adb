@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -166,7 +166,8 @@ package body Repinfo is
    procedure List_Scalar_Storage_Order
      (Ent              : Entity_Id;
       Bytes_Big_Endian : Boolean);
-   --  List scalar storage order information for record or array type Ent
+   --  List scalar storage order information for record or array type Ent.
+   --  Also includes bit order information for record types, if necessary.
 
    procedure List_Type_Info (Ent : Entity_Id);
    --  List type info for type Ent
@@ -719,8 +720,6 @@ package body Repinfo is
             Write_Line ("Intrinsic");
          when Convention_Entry                 =>
             Write_Line ("Entry");
-         when Convention_Ghost                 =>
-            Write_Line ("Ghost");
          when Convention_Protected             =>
             Write_Line ("Protected");
          when Convention_Assembler             =>
@@ -848,36 +847,48 @@ package body Repinfo is
 
       Comp := First_Component_Or_Discriminant (Ent);
       while Present (Comp) loop
-         Get_Decoded_Name_String (Chars (Comp));
-         Max_Name_Length := Natural'Max (Max_Name_Length, Name_Len);
 
-         Cfbit := Component_Bit_Offset (Comp);
+         --  Skip discriminant in unchecked union (since it is not there!)
 
-         if Rep_Not_Constant (Cfbit) then
-            UI_Image_Length := 2;
+         if Ekind (Comp) = E_Discriminant
+           and then Is_Unchecked_Union (Ent)
+         then
+            null;
+
+         --  All other cases
 
          else
-            --  Complete annotation in case not done
+            Get_Decoded_Name_String (Chars (Comp));
+            Max_Name_Length := Natural'Max (Max_Name_Length, Name_Len);
 
-            Set_Normalized_Position (Comp, Cfbit / SSU);
-            Set_Normalized_First_Bit (Comp, Cfbit mod SSU);
+            Cfbit := Component_Bit_Offset (Comp);
 
-            Sunit := Cfbit / SSU;
-            UI_Image (Sunit);
+            if Rep_Not_Constant (Cfbit) then
+               UI_Image_Length := 2;
+
+            else
+               --  Complete annotation in case not done
+
+               Set_Normalized_Position (Comp, Cfbit / SSU);
+               Set_Normalized_First_Bit (Comp, Cfbit mod SSU);
+
+               Sunit := Cfbit / SSU;
+               UI_Image (Sunit);
+            end if;
+
+            --  If the record is not packed, then we know that all fields
+            --  whose position is not specified have a starting normalized
+            --  bit position of zero.
+
+            if Unknown_Normalized_First_Bit (Comp)
+              and then not Is_Packed (Ent)
+            then
+               Set_Normalized_First_Bit (Comp, Uint_0);
+            end if;
+
+            Max_Suni_Length :=
+              Natural'Max (Max_Suni_Length, UI_Image_Length);
          end if;
-
-         --  If the record is not packed, then we know that all fields whose
-         --  position is not specified have a starting normalized bit position
-         --  of zero.
-
-         if Unknown_Normalized_First_Bit (Comp)
-           and then not Is_Packed (Ent)
-         then
-            Set_Normalized_First_Bit (Comp, Uint_0);
-         end if;
-
-         Max_Suni_Length :=
-           Natural'Max (Max_Suni_Length, UI_Image_Length);
 
          Next_Component_Or_Discriminant (Comp);
       end loop;
@@ -886,6 +897,17 @@ package body Repinfo is
 
       Comp := First_Component_Or_Discriminant (Ent);
       while Present (Comp) loop
+
+         --  Skip discriminant in unchecked union (since it is not there!)
+
+         if Ekind (Comp) = E_Discriminant
+           and then Is_Unchecked_Union (Ent)
+         then
+            goto Continue;
+         end if;
+
+         --  All other cases
+
          declare
             Esiz : constant Uint := Esize (Comp);
             Bofs : constant Uint := Component_Bit_Offset (Comp);
@@ -946,11 +968,11 @@ package body Repinfo is
             UI_Write (Fbit);
             Write_Str (" .. ");
 
-            --  Allowing Uint_0 here is a kludge, really this should be a
-            --  fine Esize value but currently it means unknown, except that
-            --  we know after gigi has back annotated that a size of zero is
-            --  real, since otherwise gigi back annotates using No_Uint as
-            --  the value to indicate unknown).
+            --  Allowing Uint_0 here is an annoying special case. Really this
+            --  should be a fine Esize value but currently it means unknown,
+            --  except that we know after gigi has back annotated that a size
+            --  of zero is real, since otherwise gigi back annotates using
+            --  No_Uint as the value to indicate unknown).
 
             if (Esize (Comp) = Uint_0 or else Known_Static_Esize (Comp))
               and then Known_Static_Normalized_First_Bit (Comp)
@@ -963,10 +985,11 @@ package body Repinfo is
 
                UI_Write (Lbit);
 
-            --  The test for Esize (Comp) not being Uint_0 here is a kludge.
-            --  Officially a value of zero for Esize means unknown, but here
-            --  we use the fact that we know that gigi annotates Esize with
-            --  No_Uint, not Uint_0. Really everyone should use No_Uint???
+            --  The test for Esize (Comp) not Uint_0 here is an annoying
+            --  special case. Officially a value of zero for Esize means
+            --  unknown, but here we use the fact that we know that gigi
+            --  annotates Esize with No_Uint, not Uint_0. Really everyone
+            --  should use No_Uint???
 
             elsif List_Representation_Info < 3
               or else (Esize (Comp) /= Uint_0 and then Unknown_Esize (Comp))
@@ -1066,20 +1089,22 @@ package body Repinfo is
      (Ent              : Entity_Id;
       Bytes_Big_Endian : Boolean)
    is
-      procedure List_Attr (Attr_Name : String);
-      --  Show attribute definition clause for Attr_Name
+      procedure List_Attr (Attr_Name : String; Is_Reversed : Boolean);
+      --  Show attribute definition clause for Attr_Name (an endianness
+      --  attribute), depending on whether or not the endianness is reversed
+      --  compared to native endianness.
 
       ---------------
       -- List_Attr --
       ---------------
 
-      procedure List_Attr (Attr_Name : String) is
+      procedure List_Attr (Attr_Name : String; Is_Reversed : Boolean) is
       begin
          Write_Str ("for ");
          List_Name (Ent);
          Write_Str ("'" & Attr_Name & " use System.");
 
-         if Bytes_Big_Endian xor Reverse_Storage_Order (Ent) then
+         if Bytes_Big_Endian xor Is_Reversed then
             Write_Str ("High");
          else
             Write_Str ("Low");
@@ -1088,19 +1113,32 @@ package body Repinfo is
          Write_Line ("_Order_First;");
       end List_Attr;
 
+      List_SSO : constant Boolean :=
+                   Has_Rep_Item (Ent, Name_Scalar_Storage_Order)
+                     or else SSO_Set_Low_By_Default  (Ent)
+                     or else SSO_Set_High_By_Default (Ent);
+      --  Scalar_Storage_Order is displayed if specified explicitly
+      --  or set by Default_Scalar_Storage_Order.
+
    --  Start of processing for List_Scalar_Storage_Order
 
    begin
-      if Has_Rep_Item (Ent, Name_Scalar_Storage_Order) then
+      --  For record types, list Bit_Order if not default, or if SSO is shown
 
-         --  For a record type with explicitly specified scalar storage order,
-         --  also display explicit Bit_Order.
+      if Is_Record_Type (Ent)
+        and then (List_SSO or else Reverse_Bit_Order (Ent))
+      then
+         List_Attr ("Bit_Order", Reverse_Bit_Order (Ent));
+      end if;
 
-         if Is_Record_Type (Ent) then
-            List_Attr ("Bit_Order");
-         end if;
+      --  List SSO if required. If not, then storage is supposed to be in
+      --  native order.
 
-         List_Attr ("Scalar_Storage_Order");
+      if List_SSO then
+         List_Attr ("Scalar_Storage_Order", Reverse_Storage_Order (Ent));
+      else
+         pragma Assert (not Reverse_Storage_Order (Ent));
+         null;
       end if;
    end List_Scalar_Storage_Order;
 
@@ -1471,30 +1509,6 @@ package body Repinfo is
 
          when -2 =>
             Write_Str ("reference");
-
-         when -3 =>
-            Write_Str ("descriptor");
-
-         when -4 =>
-            Write_Str ("descriptor (UBS)");
-
-         when -5 =>
-            Write_Str ("descriptor (UBSB)");
-
-         when -6 =>
-            Write_Str ("descriptor (UBA)");
-
-         when -7 =>
-            Write_Str ("descriptor (S)");
-
-         when -8 =>
-            Write_Str ("descriptor (SB)");
-
-         when -9 =>
-            Write_Str ("descriptor (A)");
-
-         when -10 =>
-            Write_Str ("descriptor (NCA)");
 
          when others =>
             raise Program_Error;

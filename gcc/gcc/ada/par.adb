@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -611,7 +611,12 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       function P_Pragma (Skipping : Boolean := False) return Node_Id;
       --  Scan out a pragma. If Skipping is True, then the caller is skipping
       --  the pragma in the context of illegal placement (this is used to avoid
-      --  some junk cascaded messages).
+      --  some junk cascaded messages). Some pragmas must be dealt with during
+      --  the parsing phase (e.g. pragma Page, since we can generate a listing
+      --  in syntax only mode). It is possible that the parser uses the rescan
+      --  logic (using Save/Restore_Scan_State) with the effect of calling this
+      --  procedure more than once for the same pragma. All parse-time pragma
+      --  handling must be prepared to handle such multiple calls correctly.
 
       function P_Identifier (C : Id_Check := None) return Node_Id;
       --  Scans out an identifier. The parameter C determines the treatment
@@ -946,12 +951,9 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  permitted). Note: this routine never checks the terminator token
       --  for aspects so it does not matter whether the aspect specifications
       --  are terminated by semicolon or some other character.
-
-      function Get_Aspect_Specifications
-        (Semicolon : Boolean := True) return List_Id;
-      --  Parse a list of aspects but do not attach them to a declaration node.
-      --  Subsidiary to the following procedure. Used when parsing a subprogram
-      --  specification that may be a declaration or a body.
+      --
+      --  Note: This function also handles the case of WHEN used where WITH
+      --  was intended, and in that case posts an error and returns True.
 
       procedure P_Aspect_Specifications
         (Decl      : Node_Id;
@@ -961,21 +963,30 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  argument is False, the scan pointer is left pointing past the aspects
       --  and the caller must check for a proper terminator.
       --
-      --  P_Aspect_Specifications is called with the current token pointing to
-      --  either a WITH keyword starting an aspect specification, or an
-      --  instance of the terminator token. In the former case, the aspect
-      --  specifications are scanned out including the terminator token if it
-      --  it is a semicolon, and the Has_Aspect_Specifications flag is set in
-      --  the given declaration node. A list of aspects is built and stored for
-      --  this declaration node using a call to Set_Aspect_Specifications. If
-      --  no WITH keyword is present, then this call has no effect other than
-      --  scanning out the terminator if it is a semicolon.
+      --  P_Aspect_Specifications is called with the current token pointing
+      --  to either a WITH keyword starting an aspect specification, or an
+      --  instance of what shpould be a terminator token. In the former case,
+      --  the aspect specifications are scanned out including the terminator
+      --  token if it it is a semicolon, and the Has_Aspect_Specifications
+      --  flag is set in the given declaration node. A list of aspects
+      --  is built and stored for this declaration node using a call to
+      --  Set_Aspect_Specifications. If no WITH keyword is present, then this
+      --  call has no effect other than scanning out the terminator if it is a
+      --  semicolon (with the exception that it detects WHEN used in place of
+      --  WITH).
 
       --  If Decl is Error on entry, any scanned aspect specifications are
       --  ignored and a message is output saying aspect specifications not
       --  permitted here. If Decl is Empty, then scanned aspect specifications
       --  are also ignored, but no error message is given (this is used when
       --  the caller has already taken care of the error message).
+
+      function Get_Aspect_Specifications
+        (Semicolon : Boolean := True) return List_Id;
+      --  Parse a list of aspects but do not attach them to a declaration node.
+      --  Subsidiary to P_Aspect_Specifications procedure. Used when parsing
+      --  a subprogram specification that may be a declaration or a body.
+      --  Semicolon has the same meaning as for P_Aspect_Specifications above.
 
       function P_Code_Statement (Subtype_Mark : Node_Id) return Node_Id;
       --  Function to parse a code statement. The caller has scanned out
@@ -1563,9 +1574,7 @@ begin
                --  mode, check that language-defined units are compiled in GNAT
                --  mode. For this purpose we do NOT consider renamings in annex
                --  J as predefined. That allows users to compile their own
-               --  versions of these files, and in particular, in the VMS
-               --  implementation, the DEC versions can be substituted for the
-               --  standard Ada 95 versions. Another exception is System.RPC
+               --  versions of these files. Another exception is System.RPC
                --  and its children. This allows a user to supply their own
                --  communication layer.
 
@@ -1654,7 +1663,7 @@ begin
       --  Here we make the SCO table entries for the main unit
 
       if Generate_SCO then
-         SCO_Record (Main_Unit);
+         SCO_Record_Raw (Main_Unit);
       end if;
 
       --  Remaining steps are to create implicit label declarations and to load

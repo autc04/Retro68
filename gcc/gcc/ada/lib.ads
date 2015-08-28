@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -279,9 +279,9 @@ package Lib is
    --      This is the number of the unit within the generated dependency
    --      lines (D lines in the ALI file) which are sorted into alphabetical
    --      order. The number is ones origin, so a value of 2 refers to the
-   --      second generated D line. The Dependency_Number values are set
-   --      as the D lines are generated, and are used to generate proper
-   --      unit references in the generated xref information and SCO output.
+   --      second generated D line. The Dependency_Num values are set as the
+   --      D lines are generated, and are used to generate proper unit
+   --      references in the generated xref information and SCO output.
 
    --    Dynamic_Elab
    --      A flag indicating if this unit was compiled with dynamic elaboration
@@ -302,7 +302,7 @@ package Lib is
    --      No_Name for the main unit.
 
    --    Fatal_Error
-   --      A flag that is initialized to False, and gets set to True if a fatal
+   --      A flag that is initialized to None and gets set to Errorif a fatal
    --      error occurs during the processing of a unit. A fatal error is one
    --      defined as serious enough to stop the next phase of the compiler
    --      from running (i.e. fatal error during parsing stops semantics,
@@ -310,25 +310,18 @@ package Lib is
    --      currently, errors of any kind cause Fatal_Error to be set, but
    --      eventually perhaps only errors labeled as fatal errors should be
    --      this severe if we decide to try Sem on sources with minor errors.
+   --      There are three settings (see declaration of Fatal_Type).
 
    --    Generate_Code
    --      This flag is set True for all units in the current file for which
    --      code is to be generated. This includes the unit explicitly compiled,
    --      together with its specification, and any subunits.
 
-   --    Has_Allocator
-   --      This flag is set if a subprogram unit has an allocator after the
-   --      BEGIN (it is used to set the AB flag in the M ALI line).
-
    --    Has_RACW
    --      A Boolean flag, initially set to False when a unit entry is created,
    --      and set to True if the unit defines a remote access to class wide
    --      (RACW) object. This is used for controlling generation of the RA
    --      attribute in the ali file.
-
-   --    Is_Compiler_Unit
-   --      A Boolean flag, initially set False by default, set to True if a
-   --      pragma Compiler_Unit_Warning appears in the unit.
 
    --    Ident_String
    --      N_String_Literal node from a valid pragma Ident that applies to
@@ -354,6 +347,11 @@ package Lib is
    --    Munit_Index
    --      The index of the unit within the file for multiple unit per file
    --      mode. Set to zero in normal single unit per file mode.
+
+   --    No_Elab_Code_All
+   --      A flag set when a pragma or aspect No_Elaboration_Code_All applies
+   --      to the unit. This is used to implement the transitive WITH rules
+   --      (and for no other purpose).
 
    --    OA_Setting
    --      This is a character field containing L if Optimize_Alignment mode
@@ -404,65 +402,125 @@ package Lib is
    Default_Main_CPU : constant Int := -1;
    --  Value used in Main_CPU field to indicate default main affinity
 
+   --  The following defines settings for the Fatal_Error field
+
+   type Fatal_Type is (
+      None,
+      --  No error detected for this unit
+
+      Error_Detected,
+      --  Fatal error detected that prevents moving to the next phase. For
+      --  example, a fatal error during parsing inhibits semantic analysis.
+
+      Error_Ignored);
+      --  A fatal error was detected, but we are in Try_Semantics mode (as set
+      --  by -gnatq or -gnatQ). This does not stop the compiler from proceding,
+      --  but tools can use this status (e.g. ASIS looking at the generated
+      --  tree) to know that a fatal error was detected.
+
    function Cunit             (U : Unit_Number_Type) return Node_Id;
    function Cunit_Entity      (U : Unit_Number_Type) return Entity_Id;
    function Dependency_Num    (U : Unit_Number_Type) return Nat;
    function Dynamic_Elab      (U : Unit_Number_Type) return Boolean;
    function Error_Location    (U : Unit_Number_Type) return Source_Ptr;
    function Expected_Unit     (U : Unit_Number_Type) return Unit_Name_Type;
-   function Fatal_Error       (U : Unit_Number_Type) return Boolean;
+   function Fatal_Error       (U : Unit_Number_Type) return Fatal_Type;
    function Generate_Code     (U : Unit_Number_Type) return Boolean;
    function Ident_String      (U : Unit_Number_Type) return Node_Id;
-   function Has_Allocator     (U : Unit_Number_Type) return Boolean;
    function Has_RACW          (U : Unit_Number_Type) return Boolean;
-   function Is_Compiler_Unit  (U : Unit_Number_Type) return Boolean;
    function Loading           (U : Unit_Number_Type) return Boolean;
    function Main_CPU          (U : Unit_Number_Type) return Int;
    function Main_Priority     (U : Unit_Number_Type) return Int;
    function Munit_Index       (U : Unit_Number_Type) return Nat;
+   function No_Elab_Code_All  (U : Unit_Number_Type) return Boolean;
    function OA_Setting        (U : Unit_Number_Type) return Character;
    function Source_Index      (U : Unit_Number_Type) return Source_File_Index;
    function Unit_File_Name    (U : Unit_Number_Type) return File_Name_Type;
    function Unit_Name         (U : Unit_Number_Type) return Unit_Name_Type;
    --  Get value of named field from given units table entry
 
-   procedure Set_Cunit             (U : Unit_Number_Type; N : Node_Id);
-   procedure Set_Cunit_Entity      (U : Unit_Number_Type; E : Entity_Id);
-   procedure Set_Dynamic_Elab      (U : Unit_Number_Type; B : Boolean := True);
-   procedure Set_Error_Location    (U : Unit_Number_Type; W : Source_Ptr);
-   procedure Set_Fatal_Error       (U : Unit_Number_Type; B : Boolean := True);
-   procedure Set_Generate_Code     (U : Unit_Number_Type; B : Boolean := True);
-   procedure Set_Has_RACW          (U : Unit_Number_Type; B : Boolean := True);
-   procedure Set_Has_Allocator     (U : Unit_Number_Type; B : Boolean := True);
-   procedure Set_Is_Compiler_Unit  (U : Unit_Number_Type; B : Boolean := True);
-   procedure Set_Ident_String      (U : Unit_Number_Type; N : Node_Id);
-   procedure Set_Loading           (U : Unit_Number_Type; B : Boolean := True);
-   procedure Set_Main_CPU          (U : Unit_Number_Type; P : Int);
-   procedure Set_Main_Priority     (U : Unit_Number_Type; P : Int);
-   procedure Set_OA_Setting        (U : Unit_Number_Type; C : Character);
-   procedure Set_Unit_Name         (U : Unit_Number_Type; N : Unit_Name_Type);
+   procedure Set_Cunit            (U : Unit_Number_Type; N : Node_Id);
+   procedure Set_Cunit_Entity     (U : Unit_Number_Type; E : Entity_Id);
+   procedure Set_Dynamic_Elab     (U : Unit_Number_Type; B : Boolean := True);
+   procedure Set_Error_Location   (U : Unit_Number_Type; W : Source_Ptr);
+   procedure Set_Fatal_Error      (U : Unit_Number_Type; V : Fatal_Type);
+   procedure Set_Generate_Code    (U : Unit_Number_Type; B : Boolean := True);
+   procedure Set_Has_RACW         (U : Unit_Number_Type; B : Boolean := True);
+   procedure Set_Ident_String     (U : Unit_Number_Type; N : Node_Id);
+   procedure Set_Loading          (U : Unit_Number_Type; B : Boolean := True);
+   procedure Set_Main_CPU         (U : Unit_Number_Type; P : Int);
+   procedure Set_No_Elab_Code_All (U : Unit_Number_Type; B : Boolean := True);
+   procedure Set_Main_Priority    (U : Unit_Number_Type; P : Int);
+   procedure Set_OA_Setting       (U : Unit_Number_Type; C : Character);
+   procedure Set_Unit_Name        (U : Unit_Number_Type; N : Unit_Name_Type);
    --  Set value of named field for given units table entry. Note that we
    --  do not have an entry for each possible field, since some of the fields
    --  can only be set by specialized interfaces (defined below).
 
-   function Version_Get (U : Unit_Number_Type) return Word_Hex_String;
-   --  Returns the version as a string with 8 hex digits (upper case letters)
+   function Compilation_Switches_Last return Nat;
+   --  Return the count of stored compilation switches
 
-   function Last_Unit return Unit_Number_Type;
-   --  Unit number of last allocated unit
+   procedure Disable_Switch_Storing;
+   --  Disable registration of switches by Store_Compilation_Switch. Used to
+   --  avoid registering switches added automatically by the gcc driver at the
+   --  end of the command line.
 
-   function Num_Units return Nat;
-   --  Number of units currently in unit table
+   function Earlier_In_Extended_Unit (S1, S2 : Source_Ptr) return Boolean;
+   --  Given two Sloc values for which In_Same_Extended_Unit is true, determine
+   --  if S1 appears before S2. Returns True if S1 appears before S2, and False
+   --  otherwise. The result is undefined if S1 and S2 are not in the same
+   --  extended unit. Note: this routine will not give reliable results if
+   --  called after Sprint has been called with -gnatD set.
 
-   procedure Remove_Unit (U : Unit_Number_Type);
-   --  Remove unit U from unit table. Currently this is effective only
-   --  if U is the last unit currently stored in the unit table.
+   procedure Enable_Switch_Storing;
+   --  Enable registration of switches by Store_Compilation_Switch. Used to
+   --  avoid registering switches added automatically by the gcc driver at the
+   --  beginning of the command line.
 
    function Entity_Is_In_Main_Unit (E : Entity_Id) return Boolean;
    --  Returns True if the entity E is declared in the main unit, or, in
    --  its corresponding spec, or one of its subunits. Entities declared
    --  within generic instantiations return True if the instantiation is
    --  itself "in the main unit" by this definition. Otherwise False.
+
+   function Exact_Source_Name (Loc : Source_Ptr) return String;
+   --  Return name of entity at location Loc exactly as written in the source.
+   --  this includes copying the wide character encodings exactly as they were
+   --  used in the source, so the caller must be aware of the possibility of
+   --  such encodings.
+
+   function Get_Compilation_Switch (N : Pos) return String_Ptr;
+   --  Return the Nth stored compilation switch, or null if less than N
+   --  switches have been stored. Used by ASIS and back ends written in Ada.
+
+   function Generic_May_Lack_ALI (Sfile : File_Name_Type) return Boolean;
+   --  Generic units must be separately compiled. Since we always use
+   --  macro substitution for generics, the resulting object file is a dummy
+   --  one with no code, but the ALI file has the normal form, and we need
+   --  this ALI file so that the binder can work out a correct order of
+   --  elaboration.
+   --
+   --  However, ancient versions of GNAT used to not generate code or ALI
+   --  files for generic units, and this would yield complex order of
+   --  elaboration issues. These were fixed in GNAT 3.10. The support for not
+   --  compiling language-defined library generics was retained nonetheless
+   --  to facilitate bootstrap. Specifically, it is convenient to have
+   --  the same list of files to be compiled for all stages. So, if the
+   --  bootstrap compiler does not generate code for a given file, then
+   --  the stage1 compiler (and binder) also must deal with the case of
+   --  that file not being compiled. The predicate Generic_May_Lack_ALI is
+   --  True for those generic units for which missing ALI files are allowed.
+
+   function Get_Cunit_Unit_Number (N : Node_Id) return Unit_Number_Type;
+   --  Return unit number of the unit whose N_Compilation_Unit node is the
+   --  one passed as an argument. This must always succeed since the node
+   --  could not have been built without making a unit table entry.
+
+   function Get_Cunit_Entity_Unit_Number
+     (E : Entity_Id) return Unit_Number_Type;
+   --  Return unit number of the unit whose compilation unit spec entity is
+   --  the one passed as an argument. This must always succeed since the
+   --  entity could not have been built without making a unit table entry.
 
    function Get_Source_Unit (N : Node_Or_Entity_Id) return Unit_Number_Type;
    pragma Inline (Get_Source_Unit);
@@ -482,34 +540,6 @@ package Lib is
    --  it uses the location of the top level instantiation, rather than the
    --  template, so it returns the unit number containing the code that
    --  corresponds to the node N, or the source location S.
-
-   function In_Same_Source_Unit (N1, N2 : Node_Or_Entity_Id) return Boolean;
-   pragma Inline (In_Same_Source_Unit);
-   --  Determines if the two nodes or entities N1 and N2 are in the same
-   --  source unit, the criterion being that Get_Source_Unit yields the
-   --  same value for each argument.
-
-   function In_Same_Code_Unit (N1, N2 : Node_Or_Entity_Id) return Boolean;
-   pragma Inline (In_Same_Code_Unit);
-   --  Determines if the two nodes or entities N1 and N2 are in the same
-   --  code unit, the criterion being that Get_Code_Unit yields the same
-   --  value for each argument.
-
-   function In_Same_Extended_Unit (N1, N2 : Node_Or_Entity_Id) return Boolean;
-   pragma Inline (In_Same_Extended_Unit);
-   --  Determines if two nodes or entities N1 and N2 are in the same
-   --  extended unit, where an extended unit is defined as a unit and all
-   --  its subunits (considered recursively, i.e. subunits of subunits are
-   --  included). Returns true if S1 and S2 are in the same extended unit
-   --  and False otherwise.
-
-   function In_Same_Extended_Unit (S1, S2 : Source_Ptr) return Boolean;
-   pragma Inline (In_Same_Extended_Unit);
-   --  Determines if the two source locations S1 and S2 are in the same
-   --  extended unit, where an extended unit is defined as a unit and all
-   --  its subunits (considered recursively, i.e. subunits of subunits are
-   --  included). Returns true if S1 and S2 are in the same extended unit
-   --  and False otherwise.
 
    function In_Extended_Main_Code_Unit
      (N : Node_Or_Entity_Id) return Boolean;
@@ -555,48 +585,67 @@ package Lib is
    function In_Predefined_Unit (S : Source_Ptr) return Boolean;
    --  Same function as above but argument is a source pointer
 
-   function Earlier_In_Extended_Unit (S1, S2 : Source_Ptr) return Boolean;
-   --  Given two Sloc values for which In_Same_Extended_Unit is true, determine
-   --  if S1 appears before S2. Returns True if S1 appears before S2, and False
-   --  otherwise. The result is undefined if S1 and S2 are not in the same
-   --  extended unit. Note: this routine will not give reliable results if
-   --  called after Sprint has been called with -gnatD set.
+   function In_Same_Code_Unit (N1, N2 : Node_Or_Entity_Id) return Boolean;
+   pragma Inline (In_Same_Code_Unit);
+   --  Determines if the two nodes or entities N1 and N2 are in the same
+   --  code unit, the criterion being that Get_Code_Unit yields the same
+   --  value for each argument.
 
-   function Exact_Source_Name (Loc : Source_Ptr) return String;
-   --  Return name of entity at location Loc exactly as written in the source.
-   --  this includes copying the wide character encodings exactly as they were
-   --  used in the source, so the caller must be aware of the possibility of
-   --  such encodings.
+   function In_Same_Extended_Unit (N1, N2 : Node_Or_Entity_Id) return Boolean;
+   pragma Inline (In_Same_Extended_Unit);
+   --  Determines if two nodes or entities N1 and N2 are in the same
+   --  extended unit, where an extended unit is defined as a unit and all
+   --  its subunits (considered recursively, i.e. subunits of subunits are
+   --  included). Returns true if S1 and S2 are in the same extended unit
+   --  and False otherwise.
 
-   function Compilation_Switches_Last return Nat;
-   --  Return the count of stored compilation switches
+   function In_Same_Extended_Unit (S1, S2 : Source_Ptr) return Boolean;
+   pragma Inline (In_Same_Extended_Unit);
+   --  Determines if the two source locations S1 and S2 are in the same
+   --  extended unit, where an extended unit is defined as a unit and all
+   --  its subunits (considered recursively, i.e. subunits of subunits are
+   --  included). Returns true if S1 and S2 are in the same extended unit
+   --  and False otherwise.
 
-   function Get_Compilation_Switch (N : Pos) return String_Ptr;
-   --  Return the Nth stored compilation switch, or null if less than N
-   --  switches have been stored. Used by ASIS and back ends written in Ada.
-
-   function Get_Cunit_Unit_Number (N : Node_Id) return Unit_Number_Type;
-   --  Return unit number of the unit whose N_Compilation_Unit node is the
-   --  one passed as an argument. This must always succeed since the node
-   --  could not have been built without making a unit table entry.
-
-   function Get_Cunit_Entity_Unit_Number
-     (E : Entity_Id) return Unit_Number_Type;
-   --  Return unit number of the unit whose compilation unit spec entity is
-   --  the one passed as an argument. This must always succeed since the
-   --  entity could not have been built without making a unit table entry.
+   function In_Same_Source_Unit (N1, N2 : Node_Or_Entity_Id) return Boolean;
+   pragma Inline (In_Same_Source_Unit);
+   --  Determines if the two nodes or entities N1 and N2 are in the same
+   --  source unit, the criterion being that Get_Source_Unit yields the
+   --  same value for each argument.
 
    function Increment_Serial_Number return Nat;
    --  Increment Serial_Number field for current unit, and return the
    --  incremented value.
 
-   procedure Synchronize_Serial_Number;
-   --  This function increments the Serial_Number field for the current unit
-   --  but does not return the incremented value. This is used when there
-   --  is a situation where one path of control increments a serial number
-   --  (using Increment_Serial_Number), and the other path does not and it is
-   --  important to keep the serial numbers synchronized in the two cases (e.g.
-   --  when the references in a package and a client must be kept consistent).
+   procedure Initialize;
+   --  Initialize internal tables
+
+   function Is_Loaded (Uname : Unit_Name_Type) return Boolean;
+   --  Determines if unit with given name is already loaded, i.e. there is
+   --  already an entry in the file table with this unit name for which the
+   --  corresponding file was found and parsed. Note that the Fatal_Error value
+   --  of this entry must be checked before proceeding with further processing.
+
+   function Last_Unit return Unit_Number_Type;
+   --  Unit number of last allocated unit
+
+   procedure List (File_Names_Only : Boolean := False);
+   --  Lists units in active library (i.e. generates output consisting of a
+   --  sorted listing of the units represented in File table, except for the
+   --  main unit). If File_Names_Only is set to True, then the list includes
+   --  only file names, and no other information. Otherwise the unit name and
+   --  time stamp are also output. File_Names_Only also restricts the list to
+   --  exclude any predefined files.
+
+   procedure Lock;
+   --  Lock internal tables before calling back end
+
+   function Num_Units return Nat;
+   --  Number of units currently in unit table
+
+   procedure Remove_Unit (U : Unit_Number_Type);
+   --  Remove unit U from unit table. Currently this is effective only if U is
+   --  the last unit currently stored in the unit table.
 
    procedure Replace_Linker_Option_String
      (S            : String_Id;
@@ -609,16 +658,6 @@ package Lib is
    --  which may influence the generated output file(s). Switch is the text of
    --  the switch to store (except that -fRTS gets changed back to --RTS).
 
-   procedure Enable_Switch_Storing;
-   --  Enable registration of switches by Store_Compilation_Switch. Used to
-   --  avoid registering switches added automatically by the gcc driver at the
-   --  beginning of the command line.
-
-   procedure Disable_Switch_Storing;
-   --  Disable registration of switches by Store_Compilation_Switch. Used to
-   --  avoid registering switches added automatically by the gcc driver at the
-   --  end of the command line.
-
    procedure Store_Linker_Option_String (S : String_Id);
    --  This procedure is called to register the string from a pragma
    --  Linker_Option. The argument is the Id of the string to register.
@@ -627,14 +666,13 @@ package Lib is
    --  This procedure is called to register a pragma N for which a notes
    --  entry is required.
 
-   procedure Initialize;
-   --  Initialize internal tables
-
-   procedure Lock;
-   --  Lock internal tables before calling back end
-
-   procedure Unlock;
-   --  Unlock internal tables, in cases where the back end needs to modify them
+   procedure Synchronize_Serial_Number;
+   --  This function increments the Serial_Number field for the current unit
+   --  but does not return the incremented value. This is used when there
+   --  is a situation where one path of control increments a serial number
+   --  (using Increment_Serial_Number), and the other path does not and it is
+   --  important to keep the serial numbers synchronized in the two cases (e.g.
+   --  when the references in a package and a client must be kept consistent).
 
    procedure Tree_Read;
    --  Initializes internal tables from current tree file using the relevant
@@ -644,42 +682,16 @@ package Lib is
    --  Writes out internal tables to current tree file using the relevant
    --  Table.Tree_Write routines.
 
-   function Is_Loaded (Uname : Unit_Name_Type) return Boolean;
-   --  Determines if unit with given name is already loaded, i.e. there is
-   --  already an entry in the file table with this unit name for which the
-   --  corresponding file was found and parsed. Note that the Fatal_Error flag
-   --  of this entry must be checked before proceeding with further processing.
+   procedure Unlock;
+   --  Unlock internal tables, in cases where the back end needs to modify them
+
+   function Version_Get (U : Unit_Number_Type) return Word_Hex_String;
+   --  Returns the version as a string with 8 hex digits (upper case letters)
 
    procedure Version_Referenced (S : String_Id);
    --  This routine is called from Exp_Attr to register the use of a Version
    --  or Body_Version attribute. The argument is the external name used to
    --  access the version string.
-
-   procedure List (File_Names_Only : Boolean := False);
-   --  Lists units in active library (i.e. generates output consisting of a
-   --  sorted listing of the units represented in File table, except for the
-   --  main unit). If File_Names_Only is set to True, then the list includes
-   --  only file names, and no other information. Otherwise the unit name and
-   --  time stamp are also output. File_Names_Only also restricts the list to
-   --  exclude any predefined files.
-
-   function Generic_May_Lack_ALI (Sfile : File_Name_Type) return Boolean;
-   --  Generic units must be separately compiled. Since we always use
-   --  macro substitution for generics, the resulting object file is a dummy
-   --  one with no code, but the ALI file has the normal form, and we need
-   --  this ALI file so that the binder can work out a correct order of
-   --  elaboration.
-   --
-   --  However, ancient versions of GNAT used to not generate code or ALI
-   --  files for generic units, and this would yield complex order of
-   --  elaboration issues. These were fixed in GNAT 3.10. The support for not
-   --  compiling language-defined library generics was retained nonetheless
-   --  to facilitate bootstrap. Specifically, it is convenient to have
-   --  the same list of files to be compiled for all stages. So, if the
-   --  bootstrap compiler does not generate code for a given file, then
-   --  the stage1 compiler (and binder) also must deal with the case of
-   --  that file not being compiled. The predicate Generic_May_Lack_ALI is
-   --  True for those generic units for which missing ALI files are allowed.
 
    procedure Write_Unit_Info
      (Unit_Num : Unit_Number_Type;
@@ -732,29 +744,30 @@ private
    pragma Inline (Dependency_Num);
    pragma Inline (Fatal_Error);
    pragma Inline (Generate_Code);
-   pragma Inline (Has_Allocator);
    pragma Inline (Has_RACW);
-   pragma Inline (Is_Compiler_Unit);
    pragma Inline (Increment_Serial_Number);
    pragma Inline (Loading);
    pragma Inline (Main_CPU);
    pragma Inline (Main_Priority);
    pragma Inline (Munit_Index);
+   pragma Inline (No_Elab_Code_All);
    pragma Inline (OA_Setting);
    pragma Inline (Set_Cunit);
    pragma Inline (Set_Cunit_Entity);
    pragma Inline (Set_Fatal_Error);
    pragma Inline (Set_Generate_Code);
-   pragma Inline (Set_Has_Allocator);
    pragma Inline (Set_Has_RACW);
    pragma Inline (Set_Loading);
    pragma Inline (Set_Main_CPU);
    pragma Inline (Set_Main_Priority);
+   pragma Inline (Set_No_Elab_Code_All);
    pragma Inline (Set_OA_Setting);
    pragma Inline (Set_Unit_Name);
    pragma Inline (Source_Index);
    pragma Inline (Unit_File_Name);
    pragma Inline (Unit_Name);
+
+   --  The Units Table
 
    type Unit_Record is record
       Unit_File_Name    : File_Name_Type;
@@ -771,13 +784,13 @@ private
       Serial_Number     : Nat;
       Version           : Word;
       Error_Location    : Source_Ptr;
-      Fatal_Error       : Boolean;
+      Fatal_Error       : Fatal_Type;
       Generate_Code     : Boolean;
       Has_RACW          : Boolean;
-      Is_Compiler_Unit  : Boolean;
       Dynamic_Elab      : Boolean;
+      No_Elab_Code_All  : Boolean;
+      Filler            : Boolean;
       Loading           : Boolean;
-      Has_Allocator     : Boolean;
       OA_Setting        : Character;
       SPARK_Mode_Pragma : Node_Id;
    end record;
@@ -805,10 +818,10 @@ private
       Generate_Code     at 57 range 0 ..  7;
       Has_RACW          at 58 range 0 ..  7;
       Dynamic_Elab      at 59 range 0 ..  7;
-      Is_Compiler_Unit  at 60 range 0 ..  7;
-      OA_Setting        at 61 range 0 ..  7;
-      Loading           at 62 range 0 ..  7;
-      Has_Allocator     at 63 range 0 ..  7;
+      No_Elab_Code_All  at 60 range 0 ..  7;
+      Filler            at 61 range 0 ..  7;
+      OA_Setting        at 62 range 0 ..  7;
+      Loading           at 63 range 0 ..  7;
       SPARK_Mode_Pragma at 64 range 0 .. 31;
    end record;
 
@@ -843,13 +856,8 @@ private
 
    --  The following table stores references to pragmas that generate Notes
 
-   type Notes_Entry is record
-      Pragma_Node : Node_Id;
-      Unit        : Unit_Number_Type;
-   end record;
-
    package Notes is new Table.Table (
-     Table_Component_Type => Notes_Entry,
+     Table_Component_Type => Node_Id,
      Table_Index_Type     => Integer,
      Table_Low_Bound      => 1,
      Table_Initial        => Alloc.Notes_Initial,

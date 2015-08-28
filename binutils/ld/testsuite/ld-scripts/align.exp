@@ -1,7 +1,6 @@
 # Test ALIGN in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright 2004, 2005, 2006, 2007
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -46,11 +45,7 @@ if ![ld_simple_link $ld tmpdir/align "$LDFLAGS -T $srcdir/$subdir/align.t tmpdir
 }
 
 if ![is_aout_format] {
-    # The z80-coff port defaults to a "binary" like output
-    # file format which does not include a data section.
-    setup_xfail "z80-*-coff"
     run_dump_test align2a
-    setup_xfail "z80-*-coff"
     run_dump_test align2b
 }
 run_dump_test align2c

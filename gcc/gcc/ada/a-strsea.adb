@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2010, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -203,7 +203,17 @@ package body Ada.Strings.Search is
       Last   : out Natural)
    is
    begin
-      for J in From .. Source'Last loop
+      --  AI05-031: Raise Index error if Source non-empty and From not in range
+
+      if Source'Length /= 0 and then From not in Source'Range then
+         raise Index_Error;
+      end if;
+
+      --  If Source is the empty string, From may still be out of its
+      --  range.  The following ensures that in all cases there is no
+      --  possible erroneous access to a non-existing character.
+
+      for J in Integer'Max (From, Source'First) .. Source'Last loop
          if Belongs (Source (J), Set, Test) then
             First := J;
 
@@ -257,8 +267,18 @@ package body Ada.Strings.Search is
 
       --  Here if no token found
 
-      First := Source'First;
-      Last  := 0;
+      --  RM 2005 A.4.3 (68/1) specifies that an exception must be raised if
+      --  Source'First is not positive and is assigned to First. Formulation
+      --  is slightly different in RM 2012, but the intent seems similar, so
+      --  we check explicitly for that condition.
+
+      if Source'First not in Positive then
+         raise Constraint_Error;
+
+      else
+         First := Source'First;
+         Last  := 0;
+      end if;
    end Find_Token;
 
    -----------
@@ -481,7 +501,13 @@ package body Ada.Strings.Search is
       Mapping : Maps.Character_Mapping := Maps.Identity) return Natural
    is
    begin
-      if Going = Forward then
+
+      --  AI05-056: If source is empty result is always zero
+
+      if Source'Length = 0 then
+         return 0;
+
+      elsif Going = Forward then
          if From < Source'First then
             raise Index_Error;
          end if;
@@ -507,7 +533,13 @@ package body Ada.Strings.Search is
       Mapping : Maps.Character_Mapping_Function) return Natural
    is
    begin
-      if Going = Forward then
+
+      --  AI05-056: If source is empty result is always zero
+
+      if Source'Length = 0 then
+         return 0;
+
+      elsif Going = Forward then
          if From < Source'First then
             raise Index_Error;
          end if;
@@ -533,7 +565,13 @@ package body Ada.Strings.Search is
       Going   : Direction := Forward) return Natural
    is
    begin
-      if Going = Forward then
+
+      --  AI05-056 : if source is empty result is always 0.
+
+      if Source'Length = 0 then
+         return 0;
+
+      elsif Going = Forward then
          if From < Source'First then
             raise Index_Error;
          end if;

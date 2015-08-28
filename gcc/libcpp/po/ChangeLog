@@ -1,10 +1,66 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-05-01  Joseph Myers  <joseph@codesourcery.com>
 
-	* GCC 4.9.0 released.
+	* sv.po: Update.
+
+2015-04-30  Joseph Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, eo.po, es.po, fi.po, fr.po,
+	id.po, ja.po, nl.po, pr_BR.po, ru.po, sr.po, sv.po, tr.po, uk.po,
+	vi.po, zh_CN.po, zh_TW.po: Update.
+
+2015-04-22  Release Manager
+
+	* GCC 5.1.0 released.
+
+2015-04-13  Joseph Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2015-04-12  Joseph Myers  <joseph@codesourcery.com>
+
+	* sr.po: Update.
+
+2015-04-11  Joseph Myers  <joseph@codesourcery.com>
+
+	* fr.po: Update.
+
+2015-04-10  Joseph Myers  <joseph@codesourcery.com>
+
+	* fr.po: Update.
+
+2015-04-07  Joseph Myers  <joseph@codesourcery.com>
+
+	* da.po: Update.
+
+2015-04-07  Joseph Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2015-03-24  Joseph Myers  <joseph@codesourcery.com>
+
+	* fr.po: Update.
+
+2015-03-23  Joseph Myers  <joseph@codesourcery.com>
+
+	* fr.po: Update.
+
+2015-02-25  Joseph Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, eo.po, es.po, fi.po, fr.po,
+	id.po, ja.po, nl.po, pr_BR.po, ru.po, sr.po, sv.po, tr.po, uk.po,
+	vi.po, zh_CN.po, zh_TW.po: Update.
+
+2015-02-02  Joseph Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2014-11-07  Joseph Myers  <joseph@codesourcery.com>
+
+	* ja.po: Update.
 
 2014-03-18  Joseph Myers  <joseph@codesourcery.com>
 

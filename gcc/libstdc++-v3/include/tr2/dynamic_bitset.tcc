@@ -1,6 +1,6 @@
 // TR2 <dynamic_bitset> -*- C++ -*-
 
-// Copyright (C) 2009-2014 Free Software Foundation, Inc.
+// Copyright (C) 2009-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -195,14 +195,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       }
 
   /**
-   *  @defgroup Global I/O operators for bitsets.
-   *  @{
-   *  @brief Global I/O operators for bitsets.
+   *  @brief Stream input operator for dynamic_bitset.
+   *  @ingroup dynamic_bitset
    *
-   *  Direct I/O between streams and bitsets is supported.  Output is
-   *  straightforward.  Input will skip whitespace and only accept '0'
-   *  and '1' characters.  The %dynamic_bitset will grow as necessary
-   *  to hold the string of bits.
+   *  Input will skip whitespace and only accept '0' and '1' characters.
+   *  The %dynamic_bitset will grow as necessary to hold the string of bits.
    */
   template<typename _CharT, typename _Traits,
 	   typename _WordT, typename _Alloc>
@@ -275,9 +272,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__is.setstate(__state);
       return __is;
     }
-  /**
-   *  @}
-   */
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // tr2

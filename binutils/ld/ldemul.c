@@ -1,7 +1,5 @@
 /* ldemul.c -- clearing house for ld emulation states
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2005, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -219,7 +217,7 @@ after_parse_default (void)
 	  is_vma = *send == '\0';
 	}
       if (!is_vma)
-	ldlang_add_undef (entry_symbol.name);
+	ldlang_add_undef (entry_symbol.name, entry_from_cmdline);
     }
 }
 
@@ -262,13 +260,13 @@ set_output_arch_default (void)
 void
 syslib_default (char *ignore ATTRIBUTE_UNUSED)
 {
-  info_msg (_("%S SYSLIB ignored\n"));
+  info_msg (_("%S SYSLIB ignored\n"), NULL);
 }
 
 void
 hll_default (char *ignore ATTRIBUTE_UNUSED)
 {
-  info_msg (_("%S HLL ignored\n"));
+  info_msg (_("%S HLL ignored\n"), NULL);
 }
 
 ld_emulation_xfer_type *ld_emulations[] = { EMULATION_LIST };
@@ -349,4 +347,11 @@ ldemul_new_vers_pattern (struct bfd_elf_version_expr *entry)
   if (ld_emulation->new_vers_pattern)
     entry = (*ld_emulation->new_vers_pattern) (entry);
   return entry;
+}
+
+void
+ldemul_extra_map_file_text (bfd *abfd, struct bfd_link_info *info, FILE *mapf)
+{
+  if (ld_emulation->extra_map_file_text)
+    ld_emulation->extra_map_file_text (abfd, info, mapf);
 }

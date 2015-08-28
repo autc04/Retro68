@@ -1,5 +1,5 @@
 ;; ARM Cortex-A53 pipeline description
-;; Copyright (C) 2013-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015 Free Software Foundation, Inc.
 ;;
 ;; Contributed by ARM Ltd.
 ;;
@@ -73,9 +73,9 @@
 (define_insn_reservation "cortex_a53_alu" 2
   (and (eq_attr "tune" "cortexa53")
        (eq_attr "type" "alu_imm,alus_imm,logic_imm,logics_imm,\
-                        alu_reg,alus_reg,logic_reg,logics_reg,\
+                        alu_sreg,alus_sreg,logic_reg,logics_reg,\
                         adc_imm,adcs_imm,adc_reg,adcs_reg,\
-                        adr,bfm,csel,rev,\
+                        adr,bfm,csel,clz,rbit,rev,alu_dsp_reg,\
                         shift_imm,shift_reg,\
                         mov_imm,mov_reg,mvn_imm,mvn_reg,\
                         mrs,multiple,no_insn"))
@@ -84,8 +84,8 @@
 (define_insn_reservation "cortex_a53_alu_shift" 2
   (and (eq_attr "tune" "cortexa53")
        (eq_attr "type" "alu_shift_imm,alus_shift_imm,\
-                        logic_shift_imm,logics_shift_imm,\
-                        alu_shift_reg,alus_shift_reg,\
+                        crc,logic_shift_imm,logics_shift_imm,\
+                        alu_ext,alus_ext,alu_shift_reg,alus_shift_reg,\
                         logic_shift_reg,logics_shift_reg,\
                         extend,mov_shift,mov_shift_reg,\
                         mvn_shift,mvn_shift_reg"))
@@ -216,7 +216,8 @@
   (and (eq_attr "tune" "cortexa53")
        (eq_attr "type" "ffariths, fadds, ffarithd, faddd, fmov, fmuls,\
                         f_cvt,f_cvtf2i,f_cvti2f,\
-			fcmps, fcmpd, fcsel"))
+                        fcmps, fcmpd, fcsel, f_rints, f_rintd, f_minmaxs,\
+                        f_minmaxd"))
   "cortex_a53_slot0+cortex_a53_fpadd_pipe")
 
 (define_insn_reservation "cortex_a53_fconst" 2

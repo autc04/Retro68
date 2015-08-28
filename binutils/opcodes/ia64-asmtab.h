@@ -1,5 +1,5 @@
 /* ia64-asmtab.h -- Header for compacted IA-64 opcode tables.
-   Copyright 1999, 2000, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Bob Manson of Cygnus Support <manson@cygnus.com>
 
    This file is part of the GNU opcodes library.
@@ -131,7 +131,7 @@ struct ia64_dis_names
      bits.
 
      There is always at least one 1 bit. */
-  unsigned int completer_index : 20;
+  unsigned int completer_index ;
 
   /* The index in the main_table[] array for the instruction. */
   unsigned short insn_index : 11;

@@ -1,12 +1,11 @@
 /* ix86 ELF support for BFD.
-   Copyright 1998, 1999, 2000, 2002, 2004, 2005, 2006, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -62,7 +61,7 @@ START_RELOC_NUMBERS (elf_i386_reloc_type)
      RELOC_NUMBER (R_386_TLS_DTPMOD32, 35)
      RELOC_NUMBER (R_386_TLS_DTPOFF32, 36)
      RELOC_NUMBER (R_386_TLS_TPOFF32,  37)
-/* 38 */
+     RELOC_NUMBER (R_386_SIZE32,       38) /* 32-bit symbol size */
      RELOC_NUMBER (R_386_TLS_GOTDESC,  39)
      RELOC_NUMBER (R_386_TLS_DESC_CALL,40)
      RELOC_NUMBER (R_386_TLS_DESC,     41)

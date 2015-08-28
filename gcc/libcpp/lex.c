@@ -1,5 +1,5 @@
 /* CPP Library - lexical analysis.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2015 Free Software Foundation, Inc.
    Contributed by Per Bothner, 1994-95.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -263,16 +263,14 @@ search_line_acc_char (const uchar *s, const uchar *end ATTRIBUTE_UNUSED)
     }
 }
 
-/* Disable on Solaris 2/x86 until the following problems can be properly
+/* Disable on Solaris 2/x86 until the following problem can be properly
    autoconfed:
 
-   The Solaris 9 assembler cannot assemble SSE4.2 insns.
-   Before Solaris 9 Update 6, SSE insns cannot be executed.
    The Solaris 10+ assembler tags objects with the instruction set
    extensions used, so SSE4.2 executables cannot run on machines that
    don't support that extension.  */
 
-#if (GCC_VERSION >= 4005) && (defined(__i386__) || defined(__x86_64__)) && !(defined(__sun__) && defined(__svr4__))
+#if (GCC_VERSION >= 4005) && (__GNUC__ >= 5 || !defined(__PIC__)) && (defined(__i386__) || defined(__x86_64__)) && !(defined(__sun__) && defined(__svr4__))
 
 /* Replicated character data to be shared between implementations.
    Recall that outside of a context with vector support we can't
@@ -515,9 +513,112 @@ init_vectorized_lexer (void)
   search_line_fast = impl;
 }
 
-#elif (GCC_VERSION >= 4005) && defined(__ALTIVEC__)
+#elif defined(_ARCH_PWR8) && defined(__ALTIVEC__)
 
-/* A vection of the fast scanner using AltiVec vectorized byte compares.  */
+/* A vection of the fast scanner using AltiVec vectorized byte compares
+   and VSX unaligned loads (when VSX is available).  This is otherwise
+   the same as the pre-GCC 5 version.  */
+
+ATTRIBUTE_NO_SANITIZE_UNDEFINED
+static const uchar *
+search_line_fast (const uchar *s, const uchar *end ATTRIBUTE_UNUSED)
+{
+  typedef __attribute__((altivec(vector))) unsigned char vc;
+
+  const vc repl_nl = {
+    '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n', 
+    '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'
+  };
+  const vc repl_cr = {
+    '\r', '\r', '\r', '\r', '\r', '\r', '\r', '\r', 
+    '\r', '\r', '\r', '\r', '\r', '\r', '\r', '\r'
+  };
+  const vc repl_bs = {
+    '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\', 
+    '\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\'
+  };
+  const vc repl_qm = {
+    '?', '?', '?', '?', '?', '?', '?', '?', 
+    '?', '?', '?', '?', '?', '?', '?', '?', 
+  };
+  const vc zero = { 0 };
+
+  vc data, t;
+
+  /* Main loop processing 16 bytes at a time.  */
+  do
+    {
+      vc m_nl, m_cr, m_bs, m_qm;
+
+      data = *((const vc *)s);
+      s += 16;
+
+      m_nl = (vc) __builtin_vec_cmpeq(data, repl_nl);
+      m_cr = (vc) __builtin_vec_cmpeq(data, repl_cr);
+      m_bs = (vc) __builtin_vec_cmpeq(data, repl_bs);
+      m_qm = (vc) __builtin_vec_cmpeq(data, repl_qm);
+      t = (m_nl | m_cr) | (m_bs | m_qm);
+
+      /* T now contains 0xff in bytes for which we matched one of the relevant
+	 characters.  We want to exit the loop if any byte in T is non-zero.
+	 Below is the expansion of vec_any_ne(t, zero).  */
+    }
+  while (!__builtin_vec_vcmpeq_p(/*__CR6_LT_REV*/3, t, zero));
+
+  /* Restore s to to point to the 16 bytes we just processed.  */
+  s -= 16;
+
+  {
+#define N  (sizeof(vc) / sizeof(long))
+
+    union {
+      vc v;
+      /* Statically assert that N is 2 or 4.  */
+      unsigned long l[(N == 2 || N == 4) ? N : -1];
+    } u;
+    unsigned long l, i = 0;
+
+    u.v = t;
+
+    /* Find the first word of T that is non-zero.  */
+    switch (N)
+      {
+      case 4:
+	l = u.l[i++];
+	if (l != 0)
+	  break;
+	s += sizeof(unsigned long);
+	l = u.l[i++];
+	if (l != 0)
+	  break;
+	s += sizeof(unsigned long);
+      case 2:
+	l = u.l[i++];
+	if (l != 0)
+	  break;
+	s += sizeof(unsigned long);
+	l = u.l[i];
+      }
+
+    /* L now contains 0xff in bytes for which we matched one of the
+       relevant characters.  We can find the byte index by finding
+       its bit index and dividing by 8.  */
+#ifdef __BIG_ENDIAN__
+    l = __builtin_clzl(l) >> 3;
+#else
+    l = __builtin_ctzl(l) >> 3;
+#endif
+    return s + l;
+
+#undef N
+  }
+}
+
+#elif (GCC_VERSION >= 4005) && defined(__ALTIVEC__) && defined (__BIG_ENDIAN__)
+
+/* A vection of the fast scanner using AltiVec vectorized byte compares.
+   This cannot be used for little endian because vec_lvsl/lvsr are
+   deprecated for little endian and the code won't work properly.  */
 /* ??? Unfortunately, attribute(target("altivec")) is not yet supported,
    so we can't compile this function without -maltivec on the command line
    (or implied by some other switch).  */
@@ -559,13 +660,8 @@ search_line_fast (const uchar *s, const uchar *end ATTRIBUTE_UNUSED)
      beginning with all ones and shifting in zeros according to the
      mis-alignment.  The LVSR instruction pulls the exact shift we
      want from the address.  */
-#ifdef __BIG_ENDIAN__
   mask = __builtin_vec_lvsr(0, s);
   mask = __builtin_vec_perm(zero, ones, mask);
-#else
-  mask = __builtin_vec_lvsl(0, s);
-  mask = __builtin_vec_perm(ones, zero, mask);
-#endif
   data &= mask;
 
   /* While altivec loads mask addresses, we still need to align S so
@@ -629,18 +725,14 @@ search_line_fast (const uchar *s, const uchar *end ATTRIBUTE_UNUSED)
     /* L now contains 0xff in bytes for which we matched one of the
        relevant characters.  We can find the byte index by finding
        its bit index and dividing by 8.  */
-#ifdef __BIG_ENDIAN__
     l = __builtin_clzl(l) >> 3;
-#else
-    l = __builtin_ctzl(l) >> 3;
-#endif
     return s + l;
 
 #undef N
   }
 }
 
-#elif defined (__ARM_NEON__)
+#elif defined (__ARM_NEON)
 #include "arm_neon.h"
 
 static const uchar *
@@ -1177,9 +1269,16 @@ lex_identifier_intern (cpp_reader *pfile, const uchar *base)
 	 replacement list of a variadic macro.  */
       if (result == pfile->spec_nodes.n__VA_ARGS__
 	  && !pfile->state.va_args_ok)
-	cpp_error (pfile, CPP_DL_PEDWARN,
-		   "__VA_ARGS__ can only appear in the expansion"
-		   " of a C99 variadic macro");
+	{
+	  if (CPP_OPTION (pfile, cplusplus))
+	    cpp_error (pfile, CPP_DL_PEDWARN,
+		       "__VA_ARGS__ can only appear in the expansion"
+		       " of a C++11 variadic macro");
+	  else
+	    cpp_error (pfile, CPP_DL_PEDWARN,
+		       "__VA_ARGS__ can only appear in the expansion"
+		       " of a C99 variadic macro");
+	}
 
       /* For -Wc++-compat, warn about use of C++ named operators.  */
       if (result->flags & NODE_WARN_OPERATOR)
@@ -1204,7 +1303,7 @@ _cpp_lex_identifier (cpp_reader *pfile, const char *name)
 /* Lex an identifier starting at BUFFER->CUR - 1.  */
 static cpp_hashnode *
 lex_identifier (cpp_reader *pfile, const uchar *base, bool starts_ucn,
-		struct normalize_state *nst)
+		struct normalize_state *nst, cpp_hashnode **spelling)
 {
   cpp_hashnode *result;
   const uchar *cur;
@@ -1234,6 +1333,7 @@ lex_identifier (cpp_reader *pfile, const uchar *base, bool starts_ucn,
       } while (forms_identifier_p (pfile, false, nst));
       result = _cpp_interpret_identifier (pfile, base,
 					  pfile->buffer->cur - base);
+      *spelling = cpp_lookup (pfile, base, pfile->buffer->cur - base);
     }
   else
     {
@@ -1242,6 +1342,7 @@ lex_identifier (cpp_reader *pfile, const uchar *base, bool starts_ucn,
 
       result = CPP_HASHNODE (ht_lookup_with_hash (pfile->hash_table,
 						  base, len, hash, HT_ALLOC));
+      *spelling = result;
     }
 
   /* Rarely, identifiers require diagnostics when lexed.  */
@@ -1257,9 +1358,16 @@ lex_identifier (cpp_reader *pfile, const uchar *base, bool starts_ucn,
 	 replacement list of a variadic macro.  */
       if (result == pfile->spec_nodes.n__VA_ARGS__
 	  && !pfile->state.va_args_ok)
-	cpp_error (pfile, CPP_DL_PEDWARN,
-		   "__VA_ARGS__ can only appear in the expansion"
-		   " of a C99 variadic macro");
+	{
+	  if (CPP_OPTION (pfile, cplusplus))
+	    cpp_error (pfile, CPP_DL_PEDWARN,
+		       "__VA_ARGS__ can only appear in the expansion"
+		       " of a C++11 variadic macro");
+	  else
+	    cpp_error (pfile, CPP_DL_PEDWARN,
+		       "__VA_ARGS__ can only appear in the expansion"
+		       " of a C99 variadic macro");
+	}
 
       /* For -Wc++-compat, warn about use of C++ named operators.  */
       if (result->flags & NODE_WARN_OPERATOR)
@@ -1292,6 +1400,9 @@ lex_number (cpp_reader *pfile, cpp_string *number,
 	  NORMALIZE_STATE_UPDATE_IDNUM (nst, *cur);
 	  cur++;
 	}
+      /* A number can't end with a digit separator.  */
+      while (cur > pfile->buffer->cur && DIGIT_SEP (cur[-1]))
+	--cur;
 
       pfile->buffer->cur = cur;
     }
@@ -1969,16 +2080,26 @@ cpp_peek_token (cpp_reader *pfile, int index)
   count = index;
   pfile->keep_tokens++;
 
+  /* For peeked tokens temporarily disable line_change reporting,
+     until the tokens are parsed for real.  */
+  void (*line_change) (cpp_reader *, const cpp_token *, int)
+    = pfile->cb.line_change;
+  pfile->cb.line_change = NULL;
+
   do
     {
       peektok = _cpp_lex_token (pfile);
       if (peektok->type == CPP_EOF)
-	return peektok;
+	{
+	  index--;
+	  break;
+	}
     }
   while (index--);
 
-  _cpp_backup_tokens_direct (pfile, count + 1);
+  _cpp_backup_tokens_direct (pfile, count - index);
   pfile->keep_tokens--;
+  pfile->cb.line_change = line_change;
 
   return peektok;
 }
@@ -2283,7 +2404,8 @@ _cpp_lex_direct (cpp_reader *pfile)
       {
 	struct normalize_state nst = INITIAL_NORMALIZE_STATE;
 	result->val.node.node = lex_identifier (pfile, buffer->cur - 1, false,
-						&nst);
+						&nst,
+						&result->val.node.spelling);
 	warn_about_normalization (pfile, result, &nst);
       }
 
@@ -2310,13 +2432,16 @@ _cpp_lex_direct (cpp_reader *pfile)
 	  if (_cpp_skip_block_comment (pfile))
 	    cpp_error (pfile, CPP_DL_ERROR, "unterminated comment");
 	}
-      else if (c == '/' && (CPP_OPTION (pfile, cplusplus_comments)
-			    || cpp_in_system_header (pfile)))
+      else if (c == '/' && ! CPP_OPTION (pfile, traditional))
 	{
-	  /* Warn about comments only if pedantically GNUC89, and not
+	  /* Don't warn for system headers.  */
+	  if (cpp_in_system_header (pfile))
+	    ;
+	  /* Warn about comments if pedantically GNUC89, and not
 	     in system headers.  */
-	  if (CPP_OPTION (pfile, lang) == CLK_GNUC89 && CPP_PEDANTIC (pfile)
-	      && ! buffer->warned_cplusplus_comments)
+	  else if (CPP_OPTION (pfile, lang) == CLK_GNUC89
+		   && CPP_PEDANTIC (pfile)
+		   && ! buffer->warned_cplusplus_comments)
 	    {
 	      cpp_error (pfile, CPP_DL_PEDWARN,
 			 "C++ style comments are not allowed in ISO C90");
@@ -2324,7 +2449,42 @@ _cpp_lex_direct (cpp_reader *pfile)
 			 "(this will be reported only once per input file)");
 	      buffer->warned_cplusplus_comments = 1;
 	    }
-
+	  /* Or if specifically desired via -Wc90-c99-compat.  */
+	  else if (CPP_OPTION (pfile, cpp_warn_c90_c99_compat) > 0
+		   && ! CPP_OPTION (pfile, cplusplus)
+		   && ! buffer->warned_cplusplus_comments)
+	    {
+	      cpp_error (pfile, CPP_DL_WARNING,
+			 "C++ style comments are incompatible with C90");
+	      cpp_error (pfile, CPP_DL_WARNING,
+			 "(this will be reported only once per input file)");
+	      buffer->warned_cplusplus_comments = 1;
+	    }
+	  /* In C89/C94, C++ style comments are forbidden.  */
+	  else if ((CPP_OPTION (pfile, lang) == CLK_STDC89
+		    || CPP_OPTION (pfile, lang) == CLK_STDC94))
+	    {
+	      /* But don't be confused about valid code such as
+	         - // immediately followed by *,
+		 - // in a preprocessing directive,
+		 - // in an #if 0 block.  */
+	      if (buffer->cur[1] == '*'
+		  || pfile->state.in_directive
+		  || pfile->state.skipping)
+		{
+		  result->type = CPP_DIV;
+		  break;
+		}
+	      else if (! buffer->warned_cplusplus_comments)
+		{
+		  cpp_error (pfile, CPP_DL_ERROR,
+			     "C++ style comments are not allowed in ISO C90");
+		  cpp_error (pfile, CPP_DL_ERROR,
+			     "(this will be reported only once per input "
+			     "file)");
+		  buffer->warned_cplusplus_comments = 1;
+		}
+	    }
 	  if (skip_line_comment (pfile) && CPP_OPTION (pfile, warn_comments))
 	    cpp_warning (pfile, CPP_W_COMMENTS, "multi-line comment");
 	}
@@ -2523,7 +2683,8 @@ _cpp_lex_direct (cpp_reader *pfile)
 	if (forms_identifier_p (pfile, true, &nst))
 	  {
 	    result->type = CPP_NAME;
-	    result->val.node.node = lex_identifier (pfile, base, true, &nst);
+	    result->val.node.node = lex_identifier (pfile, base, true, &nst,
+						    &result->val.node.spelling);
 	    warn_about_normalization (pfile, result, &nst);
 	    break;
 	  }
@@ -2597,11 +2758,35 @@ cpp_digraph2name (enum cpp_ttype type)
   return digraph_spellings[(int) type - (int) CPP_FIRST_DIGRAPH];
 }
 
+/* Write the spelling of an identifier IDENT, using UCNs, to BUFFER.
+   The buffer must already contain the enough space to hold the
+   token's spelling.  Returns a pointer to the character after the
+   last character written.  */
+unsigned char *
+_cpp_spell_ident_ucns (unsigned char *buffer, cpp_hashnode *ident)
+{
+  size_t i;
+  const unsigned char *name = NODE_NAME (ident);
+	  
+  for (i = 0; i < NODE_LEN (ident); i++)
+    if (name[i] & ~0x7F)
+      {
+	i += utf8_to_ucn (buffer, name + i) - 1;
+	buffer += 10;
+      }
+    else
+      *buffer++ = name[i];
+
+  return buffer;
+}
+
 /* Write the spelling of a token TOKEN to BUFFER.  The buffer must
    already contain the enough space to hold the token's spelling.
    Returns a pointer to the character after the last character written.
    FORSTRING is true if this is to be the spelling after translation
-   phase 1 (this is different for UCNs).
+   phase 1 (with the original spelling of extended identifiers), false
+   if extended identifiers should always be written using UCNs (there is
+   no option for always writing them in the internal UTF-8 form).
    FIXME: Would be nice if we didn't need the PFILE argument.  */
 unsigned char *
 cpp_spell_token (cpp_reader *pfile, const cpp_token *token,
@@ -2630,24 +2815,12 @@ cpp_spell_token (cpp_reader *pfile, const cpp_token *token,
     case SPELL_IDENT:
       if (forstring)
 	{
-	  memcpy (buffer, NODE_NAME (token->val.node.node),
-		  NODE_LEN (token->val.node.node));
-	  buffer += NODE_LEN (token->val.node.node);
+	  memcpy (buffer, NODE_NAME (token->val.node.spelling),
+		  NODE_LEN (token->val.node.spelling));
+	  buffer += NODE_LEN (token->val.node.spelling);
 	}
       else
-	{
-	  size_t i;
-	  const unsigned char * name = NODE_NAME (token->val.node.node);
-	  
-	  for (i = 0; i < NODE_LEN (token->val.node.node); i++)
-	    if (name[i] & ~0x7F)
-	      {
-		i += utf8_to_ucn (buffer, name + i) - 1;
-		buffer += 10;
-	      }
-	    else
-	      *buffer++ = NODE_NAME (token->val.node.node)[i];
-	}
+	buffer = _cpp_spell_ident_ucns (buffer, token->val.node.node);
       break;
 
     case SPELL_LITERAL:
@@ -2761,9 +2934,11 @@ _cpp_equiv_tokens (const cpp_token *a, const cpp_token *b)
 	return (a->type != CPP_PASTE || a->val.token_no == b->val.token_no);
       case SPELL_NONE:
 	return (a->type != CPP_MACRO_ARG
-		|| a->val.macro_arg.arg_no == b->val.macro_arg.arg_no);
+		|| (a->val.macro_arg.arg_no == b->val.macro_arg.arg_no
+		    && a->val.macro_arg.spelling == b->val.macro_arg.spelling));
       case SPELL_IDENT:
-	return a->val.node.node == b->val.node.node;
+	return (a->val.node.node == b->val.node.node
+		&& a->val.node.spelling == b->val.node.spelling);
       case SPELL_LITERAL:
 	return (a->val.str.len == b->val.str.len
 		&& !memcmp (a->val.str.text, b->val.str.text,

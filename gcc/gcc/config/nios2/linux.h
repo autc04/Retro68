@@ -1,6 +1,6 @@
 /* Definitions of target support for Altera Nios II systems
    running GNU/Linux with ELF format.
-   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+   Copyright (C) 2012-2015 Free Software Foundation, Inc.
    Contributed by Mentor Graphics, Inc.
 
    This file is part of GCC.
@@ -25,6 +25,9 @@
       GNU_USER_TARGET_OS_CPP_BUILTINS();           \
     }                                           \
   while (0)
+
+#undef CPP_SPEC
+#define CPP_SPEC "%{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
 
 #define GLIBC_DYNAMIC_LINKER "/lib/ld-linux-nios2.so.1"
 

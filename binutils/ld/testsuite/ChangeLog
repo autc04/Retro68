@@ -1,1400 +1,1398 @@
-2010-02-19  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
+2015-07-10  Alan Modra  <amodra@gmail.com>
 
-	2010-02-15  Matthew Gretton-Dann <matthew.gretton-dann@arm.com>
-	* ld-arm/jump-reloc-veneers-long.d: Correct testcase for
-	arm-none-eabi target.
-	* ld-arm/jump-reloc-veneers-short1.d: Likewise
-	* ld-arm/jump-reloc-veneers-short2.d: Likewise
+	Apply from master
+	2015-07-05  Richard Sandiford  <richard.sandiford@arm.com>
+	* ld-powerpc/tocopt6-inc.s, ld-powerpc/tocopt6a.s,
+	ld-powerpc/tocopt6b.s, ld-powerpc/tocopt6c.s,
+	ld-powerpc/tocopt6.d: New test.
+	* ld-powerpc/powerpc.exp (ppc64elftests): Add it.
 
-	2010-02-01  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
-	* ld-arm/jump-reloc-veneers-long.d: New test.
-	* ld-arm/jump-reloc-veneers-short1.d: Likewise.
-	* ld-arm/jump-reloc-veneers-short2.d: Likewise.
-	* ld-arm/jump-reloc-veneers.s: Likewise.
-	* ld-arm/arm-elf.exp (armelftests): Run them.
+	2015-06-16  Alan Modra  <amodra@gmail.com>
+	* ld-powerpc/ppc476-shared.s: Repeat dynamic reloc generating insns.
+	* ld-powerpc/ppc476-shared.d: Update.
+	* ld-powerpc/ppc476-shared2.d: Update.
 
-2010-01-30  Richard Sandiford  <r.sandiford@uk.ibm.com>
+	2015-06-05  Alan Modra  <amodra@gmail.com>
+	* ld-powerpc/ppc476-shared.s,
+	* ld-powerpc/ppc476-shared.lnk,
+	* ld-powerpc/ppc476-shared.d,
+	* ld-powerpc/ppc476-shared2.d: New tests.
+	* ld-powerpc/powerpc.exp: Run them.
 
-	* ld-powerpc/aix-ref-1-32.od, ld-powerpc/aix-ref-1-64.od,
-	ld-powerpc/aix-ref-1.s: New tests.
-	* ld-powerpc/aix52.exp: Run them.
-
-2009-10-19  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-cris/tls-e-20.d, ld-cris/tls-e-20a.d, ld-cris/tls-e-22.d,
-	ld-cris/tls-e-80.d, ld-cris/tls-e-dtpoffd1.d,
-	ld-cris/tls-e-dtpoffd3.d, ld-cris/tls-ldgde-14.d,
-	ld-cris/tls-ldgde-15.d, ld-cris/tls-ldgdex-14.d,
-	ld-cris/tls-ldgdex-15.d: Adjust for change in non-shared
-	R_CRIS_32_DTPREL and R_CRIS_16_DTPREL relocations.
-
-2009-10-03  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-powerpc/tlsexe.d: Update.
-	* ld-powerpc/tlsexe.r: Update.
-	* ld-powerpc/tlsexetoc.d: Update.
-	* ld-powerpc/tlsexetoc.r: Update.
-	* ld-powerpc/tlsso.d: Update.
-	* ld-powerpc/tlsso.r: Update.
-	* ld-powerpc/tlstocso.d: Update.
-	* ld-powerpc/tlstocso.r: Update.
-
-2009-10-02  Alan Modra  <amodra@bigpond.net.au>
-
-	* lib/ld-lib.exp (ld_simple_link_defsyms): New proc, adding
-	powerpc-*-rtems to code setting symbols, extracted from..
-	* ld-srec/srec.exp (run_srec_test): ..here.  Correct flags for sh64.
-	* ld-gc/gc.exp (test_gc): Use ld_simple_link_defsyms.
-
-2009-10-01  Ulrich Weigand  <uweigand@de.ibm.com>
-
-	* ld-spu/icache1.d: Update to new section layout.
-
-2009-09-28  Nick Clifton  <nickc@redhat.com>
-
-	* ld-mips-elf/mips-elf.exp: Only run attribute tests on Linux
-	targets.
-
-2009-09-23  Jie Zhang  <jie.zhang@analog.com>
-
-	* ld-srec/srec.exp: Add xfails for bfin-*-linux-uclibc.
-
-2009-09-21  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-powerpc/tlslib.s: Delete dot-symbol entry syms.  Add
-	__tls_get_addr_opt.
-	* ld-powerpc/tlslib32.s: Add __tls_get_addr_opt.
-	* ld-powerpc/oldtlslib.s: New file, old-abi version of tlslib.s.
-	* ld-powerpc/powerpc.exp: Build old-abi library and use it in
-	two new link tests.
-	* ld-powerpc/tlsexe.d: Update for new __tls_get_addr stub.
-	* ld-powerpc/tlsexe.g, * ld-powerpc/tlsexe.r, *ld-powerpc/tlsexe32.d,
-	* ld-powerpc/tlsexe32.g, * ld-powerpc/tlsexe32.r, 
-	* ld-powerpc/tlsexetoc.d, * ld-powerpc/tlsexetoc.g,
+	2015-04-23  Alan Modra  <amodra@gmail.com>
+	* ld-powerpc/ambiguousv1.d: Update for aligned .got.
+	* ld-powerpc/ambiguousv1b.d: Likewise.
+	* ld-powerpc/ambiguousv2.d: Likewise.
+	* ld-powerpc/defsym.d: Likewise.
+	* ld-powerpc/elfv2-2exe.d: Likewise.
+	* ld-powerpc/elfv2exe.d: Likewise.
+	* ld-powerpc/elfv2so.d: Likewise.
+	* ld-powerpc/relbrlt.d: Likewise.
+	* ld-powerpc/tls.g: Likewise.
+	* ld-powerpc/tlsexe.d: Likewise.
+	* ld-powerpc/tlsexe.g: Likewise.
+	* ld-powerpc/tlsexe.r: Likewise.
+	* ld-powerpc/tlsexetoc.d: Likewise.
+	* ld-powerpc/tlsexetoc.g: Likewise.
 	* ld-powerpc/tlsexetoc.r: Likewise.
+	* ld-powerpc/tlsso.d: Likewise.
+	* ld-powerpc/tlsso.g: Likewise.
+	* ld-powerpc/tlsso.r: Likewise.
+	* ld-powerpc/tlstoc.g: Likewise.
+	* ld-powerpc/tlstocso.d: Likewise.
+	* ld-powerpc/tlstocso.g: Likewise.
+	* ld-powerpc/tlstocso.r: Likewise.
+	* ld-powerpc/tocopt.d: Likewise.
+	* ld-powerpc/tocopt2.d: Likewise.
+	* ld-powerpc/tocopt3.d: Likewise.
+	* ld-powerpc/tocopt4.d: Likewise.
+	* ld-powerpc/tocopt5.d: Likewise.
 
-2009-09-20  Richard Sandiford  <rdsandiford@googlemail.com>
+2015-06-23  Jiong Wang  <jiong.wang@arm.com>
 
-	* ld-mips-elf/elf-rel-got-n64-linux.d: Expect BALs.
-	* ld-mips-elf/elf-rel-xgot-n64-linux.d: Likewise.
+	Apply from master:
+	2015-06-23  Jiong. Wang  <jiong.wang@arm.com>
 
-2009-09-18  Alan Modra  <amodra@bigpond.net.au>
+	* ld-aarch64/dt_textrel.s: New testcase.
+	* ld-aarch64/dt_textrel.d: New expectation file.
+	* ld-aarch64/aarch64-elf.exp: Run new testcase.
 
-	* ld-powerpc/tlsso.d: Update.
-	* ld-powerpc/tlsso.r: Update.
-	* ld-powerpc/tlstocso.d: Update.
-	* ld-powerpc/tlstocso.r: Update.
+2015-06-17  Renlin Li  <renlin.li@arm.com>
 
-2009-09-15  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+	Applied from master.
+	2015-04-29  Renlin Li  <renlin.li@arm.com>
 
-	* ld-elfcomm/elfcomm.exp: Add appropriate emulation option
-	for sh64*-*-*.
-	* ld-gc/gc.exp (test_gc): Likewise.
+	* ld-arm/ifunc-10.dd: Adjust the desired output.
+	* ld-arm/ifunc-2.dd: Likewise.
 
-2009-09-14  Richard Sandiford  <rdsandiford@googlemail.com>
+2015-05-05  Jiong Wang  <jiong.wang@arm.com>
 
-	* ld-mips-elf/eh-frame1-n32.d: Change "the section \.eh_frame"
-	to "the \.eh_frame section".
+	Apply from master:
+
+	2015-04-24  Jiong. Wang  <jiong.wang@arm.com>
+
+	* ld-aarch64/pcrel.s: New testcase.
+	* ld-aarch64/pcrel_pic_defiend_local.d: New expect file.
+	* ld-aarch64/pcrel_pic_undefined.d: Ditto.
+	* ld-aarch64/aarch64-elf.exp: Run them.
+
+2015-04-10  Alan Modra  <amodra@gmail.com>
+
+	Revert 2015-03-06  H.J. Lu  <hongjiu.lu@intel.com>
+	PR ld/pr15228
+	PR ld/pr17709
+	* ld-i386/i386.exp (i386tests): Remove test for PR ld/17709.
+	* ld-i386/pr17709-nacl.rd: Delete.
+	* ld-i386/pr17709.rd: Likewise.
+	* ld-i386/pr17709a.s: Likewise.
+	* ld-i386/pr17709b.s: Likewise.
+	* ld-i386/protected3.d: Updated.
+	* ld-i386/protected3.s: Likewise.
+	* ld-x86-64/pr17709-nacl.rd: Delete.
+	* ld-x86-64/pr17709.rd: Likewise.
+	* ld-x86-64/pr17709a.s: Likewise.
+	* ld-x86-64/pr17709b.s: Likewise.
+	* ld-x86-64/protected3.d: Updated.
+	* ld-x86-64/protected3.s: Likewise.
+	* ld-x86-64/x86-64.exp (x86_64tests): Remove test for PR ld/17709.
+
+2015-03-26  Tejas Belagod  <tejas.belagod@arm.com>
+
+	* ld-aarch64/farcall-back-be.d: New.
+
+2015-03-18  Alan Modra  <amodra@gmail.com>
+
+	Apply from master
+	2015-03-11  Alan Modra  <amodra@gmail.com>
+	* ld-powerpc/tls32.s: Add GOT pointer setup.
+	* ld-powerpc/tls32.d: Update.
+	* ld-powerpc/tls32.g: Update.
+	* ld-powerpc/tls32.t: Update.
+	* ld-powerpc/tlsexe.d: Update.
+	* ld-powerpc/tlsexe32.d: Update.
+	* ld-powerpc/tlsexe32.g: Update.
+	* ld-powerpc/tlsexe32.r: Update.
+	* ld-powerpc/tlsexetoc.d: Update.
+	* ld-powerpc/tlsso32.d: Update.
+	* ld-powerpc/tlsso32.g: Update.
+	* ld-powerpc/tlsso32.r: Update.
+
+2015-03-06  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Backport from master
+	2015-03-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/pr15228
+	PR ld/pr17709
+	* ld-i386/i386.exp (i386tests): Add a test for PR ld/17709.
+	* ld-i386/pr17709-nacl.rd: New file.
+	* ld-i386/pr17709.rd: Likewise.
+	* ld-i386/pr17709a.s: Likewise.
+	* ld-i386/pr17709b.s: Likewise.
+	* ld-i386/protected3.d: Updated.
+	* ld-i386/protected3.s: Likewise.
+	* ld-x86-64/pr17709-nacl.rd: New file.
+	* ld-x86-64/pr17709.rd: Likewise.
+	* ld-x86-64/pr17709a.s: Likewise.
+	* ld-x86-64/pr17709b.s: Likewise.
+	* ld-x86-64/protected3.d: Updated.
+	* ld-x86-64/protected3.s: Likewise.
+	* ld-x86-64/x86-64.exp (x86_64tests): Add a test for PR ld/17709.
+
+2015-02-11  Alan Modra  <amodra@gmail.com>
+
+	Apply from master.
+	2015-01-29  Alan Modra  <amodra@gmail.com>
+	* ld-powerpc/tlsld.d, * ld-powerpc/tlsld.s: New test.
+	* ld-powerpc/tlsld32.d, * ld-powerpc/tlsld32.s: New test.
+	* ld-powerpc/powerpc.exp: Run them.
+
+	2015-01-20  Andrew Burgess  <andrew.burgess@embecosm.com>
+	* ld-scripts/provide-4-map.d: Update expected output.
+	* ld-scripts/provide-5-map.d: Likewise.
+
+	2015-01-20  Andrew Burgess  <andrew.burgess@embecosm.com>
+	* ld-scripts/provide-4.d: New file.
+	* ld-scripts/provide-4-map.d: New file.
+	* ld-scripts/provide-4.t: New file.
+	* ld-scripts/provide-5.d: New file.
+	* ld-scripts/provide-5.s: New file.
+	* ld-scripts/provide-5-map.d: New file.
+	* ld-scripts/provide-5.t: New file.
+	* ld-scripts/provide.exp: Run the provide-4.d and provide-5.d
+	tests.
+
+	2015-01-20  Andrew Burgess  <andrew.burgess@embecosm.com>
+	* ld-scripts/overlay-size.d: Add 'map' option.
+	* ld-scripts/overlay-size.exp: Remove manual check of mapfile.
+	* lib/ld-lib.exp (run_dump_test): Add support for new 'map'
+	option, checking linker mapfile output.
+
+	2015-01-19  Alan Modra  <amodra@gmail.com>
+	* ld-gc/pr14265.d,
+	* ld-cris/tls-gc-68.d,
+	* ld-cris/tls-gc-69.d,
+	* ld-cris/tls-gc-70.d,
+	* ld-cris/tls-gc-71.d,
+	* ld-cris/tls-gc-75.d,
+	* ld-cris/tls-gc-76.d,
+	* ld-cris/tls-gc-79.d,
+	* ld-mmix/bpo-10.d,
+	* ld-mmix/bpo-11.d: Update.
+
+	2014-12-23  Alan Modra  <amodra@gmail.com>
+	* ld-powerpc/sdabase.s,
+	* ld-powerpc/sdabase.t,
+	* ld-powerpc/sdabase.d: New test.
+	* ld-powerpc/sdabase2.t,
+	* ld-powerpc/sdabase2.d: New test.
+	* ld-powerpc/powerpc.exp: Run them.
+
+	2014-12-23  Alan Modra  <amodra@gmail.com>
+	* ld-elf/endsym.s, *ld-elf/endsym.d: New test.
+
+	2014-12-04  Alan Modra  <amodra@gmail.com>
+	* ld-powerpc/vxworks-relax.rd: Update for reloc sorting.
+	* ld-powerpc/vxworks-relax-2.rd: Likewise.
+	* ld-sh/sh64/reldl32.rd: Likewise.
+	* ld-sh/sh64/reldl64.rd: Likewise.
+
+2015-01-22  Thomas Preud'homme  <thomas.preudhomme@arm.com>
+
+	Backport from mainline
+	2015-01-13  Thomas Preud'homme <thomas.preudhomme@arm.com>
+
+	* elfnn-aarch64.c (elfNN_aarch64_final_link_relocate): Use SYMBOLIC_BIND
+	to check if a symbol should be bound symbolically.
+
+2015-01-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/17827
+	* ld-x86-64/pr17689.out: Updated.
+	* ld-x86-64/pr17689b.S: Likewise.
+
+	* ld-x86-64/pr17827.rd: New file.
+
+	* ld-x86-64/x86-64.exp: Run PR ld/17827 test.
+
+2015-01-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/17773
+	* ld-elf/binutils.exp (binutils_test): Add an optional
+	readelf_options.  Replace -l with $readelf_options.  Add a
+	gap test.
+	* ld/testsuite/ld-elf/gap.s: New file.
+
+2014-12-19  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* ld-mips-elf/attr-gnu-4-00.d: Relax check for ISA extension.
+	* ld-mips-elf/attr-gnu-4-01.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-02.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-03.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-08.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-10.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-11.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-18.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-20.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-22.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-28.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-30.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-33.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-38.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-44.d: Likewise.
+
+2014-12-19  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* ld-mips-elf/mips-elf.exp: Update undefweak-overflow tests.
+	* ld-mips-elf/undefweak-overflow-n32.d: Remove.
+	* ld-mips-elf/undefweak-overflow-n64.d: Likewise.
+	* ld-mips-elf/undefweak-overflow.s: Set mips64r6, noreorder and
+	add a label to mark the micromips region.
+	* ld-mips-elf/undefweak-overflow.d: Update expected output.
+
+2014-12-19  Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* ld-mips-elf/mips-elf.exp: Add undefined weak overflow
+	tests for o32, n32 and n64.
+	* ld-mips-elf/undefweak-overflow.s: New test.
+	* ld-mips-elf/undefweak-overflow.d: New test.
+	* ld-mips-elf/undefweak-overflow-n32.d: New test.
+	* ld-mips-elf/undefweak-overflow-n64.d: New test.
+
+2014-12-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/17689
+	* ld-x86-64/pr17689.out: New file.
+	* ld-x86-64/pr17689.rd: Likewise.
+	* ld-x86-64/pr17689a.c: Likewise.
+	* ld-x86-64/pr17689b.S: Likewise.
+
+	* ld-x86-64/x86-64.exp: Run PR ld/17689 tests.
+
+2014-12-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-x86-64/copyreloc-main.c: Removed.
+	* ld-x86-64/copyreloc-main.S: New.
+	* ld-x86-64/x86-64.exp: Replace copyreloc-main.c with
+	copyreloc-main.S.
+
+2014-12-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-x86-64/copyreloc-lib.c: New file.
+	* ld-x86-64/copyreloc-main.c: Likewise.
+	* ld-x86-64/copyreloc-main.out: Likewise.
+	* ld-x86-64/copyreloc-main1.rd: Likewise.
+	* ld-x86-64/copyreloc-main2.rd: Likewise.
+
+	* ld-x86-64/x86-64.exp: Run copyreloc tests.
+
+2014-12-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16452
+	PR ld/16457
+	* ld-elf/pr16452.map: New file.
+	* ld-elf/pr16452.od: Likewise.
+	* ld-elf/pr16452a.c: Likewise.
+	* ld-elf/pr16452b.c: Likewise.
+	* ld-elf/pr16457.od: Likewise.
+
+	* ld-elf/shared.exp (build_tests): Add tests for PR ld/16452 and
+	PR ld/16457.
+
+2014-11-18  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-x86-64/mpx.exp: Always run mpx3 and mpx4 tests in 64-bit.
+
+2014-11-18  Igor Zamyatin  <igor.zamyatin@intel.com>
+
+	* ld-x86-64/bnd-ifunc-1.d: Add bndplt option.
+	* ld-x86-64/bnd-ifunc-2.d: Likewise.
+	* ld-x86-64/bnd-plt-1.d: Likewise.  Update dissassembly sections.
+	* ld-x86-64/mpx.exp: Handle mpx3 and mpx4 tests.
+	* ld-x86-64/mpx1a.rd: Remove _BND from relocation name.
+	* ld-x86-64/mpx1c.rd: Likewise.
+	* ld-x86-64/mpx2a.rd: Likewise.
+	* ld-x86-64/mpx2c.rd: Likewise.
+	* ld-x86-64/mpx3.dd: New file.
+	* ld-x86-64/mpx3a.s: Likewise.
+	* ld-x86-64/mpx3b.s: Likewise.
+	* ld-x86-64/mpx4.dd: Likewise.
+	* ld-x86-64/mpx4a.s: Likewise.
+	* ld-x86-64/mpx4b.s: Likewise.
+
+2014-11-10  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	Apply trunk patch:
+	* ld-mips-elf/abiflags-strip10-ph.d: New file.
+	* ld-mips-elf/mips-eld.exp: Run the new test.
+
+2014-11-07  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Apply trunk patch:
+	2014-11-07  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/17482
+	* ld-x86-64/tlsie4.dd: Updated.
+
+2014-10-24  Tejas Belagod  <tejas.belagod@arm.com>
+
+	* ld-aarch64/aarch64-elf.exp (aarch64elftests): Drive erratum
+	835769 tests.
+	* ld-aarch64/erratum835769.d: New.
+	* ld-aarch64/erratum835769.s: New.
+
+2014-10-17  Hans-Peter Nilsson  <hp@axis.com>
+
+	Backport from master
+	* ld-scripts/sysroot-prefix.exp: Log $ld_sysroot.  Handle sysroot
+	== "/" as a separate sysroot-configuration with separable
+	test-types.
+	(sysroot_prefix_tests): Include all existing sysroot tests in
+	sysroot == "/" tests except exclude those where a --sysroot option
+	is not specified.
+	* lib/ld-lib.exp (check_sysroot_available): Rewrite to use
+	--print-sysroot instead of relying on error code from using
+	--sysroot=...  Also, set $ld_sysroot.
+
+2014-10-15  Hans-Peter Nilsson  <hp@axis.com>
+
+	Backport "="-ldscript-path-prefix changes from master.
+	* ld-scripts/sysroot-prefix.exp, ld-scripts/sysroot-prefix-x.s,
+	ld-scripts/sysroot-prefix-y.s: New files.
+	* lib/ld-lib.exp (check_sysroot_available): New proc.
+
+2014-10-04  Alan Modra  <amodra@gmail.com>
+
+	* ld-elf/eh1.s: Don't create FDEs with zero address ranges.
+	* ld-elf/eh3.s: Likewise.
+	* ld-elf/eh1.d, * ld-elf/eh2.d, * ld-elf/eh3.d: Adjust.
+	* ld-mips-elf/eh-frame1-n32.d: Warning match update.
 	* ld-mips-elf/eh-frame1-n64.d: Likewise.
 	* ld-mips-elf/eh-frame2-n32.d: Likewise.
 	* ld-mips-elf/eh-frame2-n64.d: Likewise.
-	* ld-mips-elf/eh-frame3.d: Likewise.
-	* ld-mips-elf/eh-frame4.d: Likewise.
-	* ld-mips-elf/elf-rel-got-n32.d: Expect bals.
+
+2014-09-22  Alan Modra  <amodra@gmail.com>
+
+	* ld-plugin/lto.exp: Use both --print-file-name and --print-prog-name
+	when looking for lto plugin.
+
+2014-09-16  Terry Guo  <terry.guo@arm.com>
+
+	* ld-arm/attr-merge-arch-2.d: New test case.
+	* ld-arm/attr-merge-arch-2a.s: New test case source file.
+	* ld-arm/attr-merge-arch-2b.s: Likewise.
+	* ld-arm/arm-elf.exp: Run new test case.
+
+2014-09-12  Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* ld-mips-elf/mips-elf.exp: Add support for mips*-img-elf* target
+	triple.
+
+2014-09-10  Alan Modra  <amodra@gmail.com>
+
+	* ld-aarch64/emit-relocs-local-addend.d: Adjust for changed
+	section header placement.
+	* ld-aarch64/local-addend-r.d: Likewise.
+	* ld-mmix/bspec1.d: Likewise.
+	* ld-mmix/bspec2.d: Likewise.
+	* ld-mmix/local1.d: Likewise.
+	* ld-mmix/local3.d: Likewise.
+	* ld-mmix/local5.d: Likewise.
+	* ld-mmix/local7.d: Likewise.
+	* ld-mmix/undef-3.d: Likewise.
+	* ld-sh/sh64/crange3-cmpct.rd: Likewise.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+	* ld-sh/sh64/crangerel1.rd: Likewise.
+	* ld-sh/sh64/crangerel2.rd: Likewise.
+	* ld-tic6x/common.d: Likewise.
+	* ld-tic6x/shlib-1.rd: Likewise.
+	* ld-tic6x/shlib-1b.rd: Likewise.
+	* ld-tic6x/shlib-1r.rd: Likewise.
+	* ld-tic6x/shlib-1rb.rd: Likewise.
+	* ld-tic6x/shlib-app-1.rd: Likewise.
+	* ld-tic6x/shlib-app-1b.rd: Likewise.
+	* ld-tic6x/shlib-app-1r.rd: Likewise.
+	* ld-tic6x/shlib-app-1rb.rd: Likewise.
+	* ld-tic6x/shlib-noindex.rd: Likewise.
+	* ld-tic6x/static-app-1.rd: Likewise.
+	* ld-tic6x/static-app-1b.rd: Likewise.
+	* ld-tic6x/static-app-1r.rd: Likewise.
+	* ld-tic6x/static-app-1rb.rd: Likewise.
+	* ld-x86-64/ilp32-4.d: Likewise.
+	* ld-x86-64/split-by-file-nacl.rd: Likewise.
+	* ld-x86-64/split-by-file.rd: Likewise.
+
+2014-09-06  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* ld-mips-elf/abiflags-strip1-ph.d: Ignore big/little endian
+	differences. Ignore program headers other than PT_MIPS_ABIFLAGS.
+	Do not force -32, -EB and ld emulation but instead rely on the
+	test driver to build for some form of O32.
+	* ld-mips-elf/abiflags-strip2-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip3-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip4-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip5-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip6-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip7-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip8-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip9-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-0-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-05.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-06.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-07.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-1-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-10.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-15.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-16.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-17.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-2-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-25.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-26.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-27.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-3-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-35.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-36.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-37.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-4-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-45.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-46.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-47.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-5-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-50.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-51.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-52.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-53.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-54.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-55.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-56.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-57.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-58.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-6-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-60.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-61.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-62.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-63.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-64.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-65.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-66.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-67.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-68.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-7-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-70.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-71.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-72.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-73.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-74.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-75.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-76.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-77.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-78.d: Likewise.
+	* ld-mips-elf/mips-elf.exp: Update default abi_asflags(o32) to explicitly
+	pass -32 for the 'no abi' configurations.  Modify the way attr-gnu* tests
+	are run to use O32 flags appropriate for the current target.
+
+2014-08-29  Alan Modra  <amodra@gmail.com>
+
+	* lib/ld-lib.exp (ld_simple_link_defsyms): Provide both __main
+	and ___main for windows targets.
+
+2014-08-27  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/17306
+	* ld-i386/i386.exp (i386tests): Add tests for PR ld/17306.
+	* ld-x86-64/x86-64.exp (x86_64tests): Likewise.
+
+	* ld-i386/pr17306a.s: New file.
+	* ld-i386/pr17306b.s: Likewise.
+	* ld-x86-64/pr17306a.s: Likewise.
+	* ld-x86-64/pr17306b.s: Likewise.
+
+2014-08-27  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/17313
+	* ld-i386/i386.exp (i386tests): Add tests for PR ld/17313.
+	* ld-x86-64/x86-64.exp (x86_64tests): Likewise.
+
+2014-08-26  Jiong Wang  <jiong.wang@arm.com>
+
+	* ld-aarch64/copy-relocs-so.s: New test file.
+	* ld-aarch64/copy-relocs-exe.s: Likewise.
+	* ld-aarch64/copy-relocs.d: New expectation file.
+	* ld-aarch64/emit-relocs-264-bad.d: New test file.
+	* ld-aarch64/emit-relocs-266-bad.d: Likewise.
+	* ld-aarch64/emit-relocs-268-bad.d: Likewise.
+	* ld-aarch64/emit-relocs-269-bad.d: Likewise.
+	* ld-aarch64/aarch64-elf.exp: Run new added test.
+
+2014-08-26  Nick Clifton  <nickc@redhat.com>
+
+	* ld-aarch64/eh-frame-foo.s: Use 8-byte offset for X30.
+	* ld-aarch64/eh-frame-bar.s: Likewise.
+	* ld-aarch64/eh-frame.d: Updated to match current readelf output.
+	* ld-elf/eh5.d: Allow any register names.
+
+2014-08-22  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* ld-powerpc/apuinfo-vle.rd: New test.
+	* ld-powerpc/apuinfo-vle.s: New test source.
+	* ld-powerpc/apuinfo.rd: Adjust according to GAS PPC_APUINFO_VLE
+	handling change.
+	* ld-powerpc/powerpc.exp: Run the new test.
+
+2014-08-21  Tony Wang  <tony.wang@arm.com>
+
+	* ld-arm/jump-reloc-veneers-cond.s: New test.
+	* ld-arm/farcall-cond-thumb-arm.s: Ditto.
+	* ld-arm/jump-reloc-veneers-cond-short.d: Expected output
+	for target without a veneer generation.
+	* ld-arm/jump-reloc-veneers-cond-long.d: Expected output
+	for target with a veneer generation.
+	* ld-arm/farcall-cond-thumb-arm.d: Expected output for
+	inter working veneer generation.
+	* ld-arm/arm-elf.exp: Add tests for conditional branch veneer.
+
+2014-08-20  Roland McGrath  <mcgrathr@google.com>
+
+	PR ld/17277
+	* ld-arm/pcrel-shared.s: New file.
+	* ld-arm/pcrel-shared.rd: New file.
+	* ld-arm/arm-elf.exp (armelftests_common): Add it.
+
+2014-08-18  Alan Modra  <amodra@gmail.com>
+
+	* ld-plugin/lto.exp: Use gcc -print-file-name to find lto plugin.
+
+2014-08-18  Alan Modra  <amodra@gmail.com>
+
+	* ld-plugin/needed3.c: New file.
+	* ld-elf/shared.exp: Add needed3 test.
+
+2014-08-12  Alan Modra  <amodra@gmail.com>
+
+	* lib/ld-lib.exp (check_plugin_api_available): Match "-plugin PLUGIN".
+
+2014-08-07  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16746
+	* ld-plugin/lto.exp: Add 4 tests for PR ld/16746.
+	* ld-plugin/pr16746a.c: New file.
+	* ld-plugin/pr16746b.c: Likewise.
+	* ld-plugin/pr16746c.c: Likewise.
+	* ld-plugin/pr16746d.c: Likewise.
+
+2014-08-06  Alan Modra  <amodra@gmail.com>
+
+	* lib/ld-lib.exp (check_lto_fat_available): New.
+	(check_lto_available): Remove -ffat-lto-objects test.
+	* ld-plugin/lto.exp: Use [list ] rather than { } to set up list
+	variables, allowing substition of vars.  Set lto_fat and plug_opt
+	and add to various tests.
+
+2014-08-01  Takashi Yoshii  <yoshii.takashi@renesas.com>
+
+	PR 10373
+	* ld-sh/sh1.s: Add jmp relaxing test.
+	* ld-sh/sh.exp: Likewise.
+
+2014-08-01  Takashi Yoshii  <yoshii.takashi@renesas.com>
+
+	PR 10378
+	* ld-sh/adjsw8.s: New.
+	* ld-sh/sh.exp: Add switch8 adjustment test.
+
+2014-07-29  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* ld-mips-elf/abiflags-strip1-ph.d: New.
+	* ld-mips-elf/abiflags-strip2-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip3-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip4-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip5-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip6-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip7-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip8-ph.d: Likewise.
+	* ld-mips-elf/abiflags-strip9-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-0-n32-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-0-n64-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-0-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-06.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-07.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-08.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-1-n32-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-1-n64-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-1-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-16.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-17.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-18.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-2-n32-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-2-n64-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-2-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-26.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-27.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-28.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-3-n32-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-3-n64-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-3-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-36.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-37.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-38.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-4-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-46.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-47.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-48.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-5-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-50.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-52.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-53.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-54.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-55.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-56.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-57.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-58.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-6-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-6.s: Likewise.
+	* ld-mips-elf/attr-gnu-4-60.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-61.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-62.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-63.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-64.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-65.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-66.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-67.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-68.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-7-ph.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-7.s: Likewise.
+	* ld-mips-elf/attr-gnu-4-70.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-71.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-72.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-73.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-74.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-75.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-76.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-77.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-78.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-8.s: Likewise.
+	* ld-mips-elf/attr-gnu-4-81.d: Likewise.
+	* ld-mips-elf/empty.s: Likewise.
+	* ld-mips-elf/attr-gnu-4-00.d: Adjust expected output.
+	* ld-mips-elf/attr-gnu-4-01.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-02.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-03.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-04.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-05.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-10.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-11.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-14.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-15.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-2.s: Likewise.
+	* ld-mips-elf/attr-gnu-4-20.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-22.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-24.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-25.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-3.s: Likewise.
+	* ld-mips-elf/attr-gnu-4-30.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-33.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-34.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-35.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-40.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-41.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-42.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-43.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-44.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-45.d: Likewise.
+	* ld-mips-elf/attr-gnu-4-5.s: Likewise.
+	* ld-mips-elf/attr-gnu-4-51.d: Likewise.
+	* ld-mips-elf/attr-gnu-8-00.d: Likewise.
+	* ld-mips-elf/attr-gnu-8-01.d: Likewise.
+	* ld-mips-elf/attr-gnu-8-02.d: Likewise.
+	* ld-mips-elf/attr-gnu-8-10.d: Likewise.
+	* ld-mips-elf/attr-gnu-8-11.d: Likewise.
+	* ld-mips-elf/attr-gnu-8-20.d: Likewise.
+	* ld-mips-elf/attr-gnu-8-22.d: Likewise.
+	* ld-mips-elf/jalx-2.dd: Likewise.
+	* ld-mips-elf/mips16-pic-1.gd: Likewise.
+	* ld-mips-elf/mips16-pic-2.gd: Likewise.
+	* ld-mips-elf/mips16-pic-3.gd: Likewise.
+	* ld-mips-elf/mips16-pic-4a.gd: Likewise.
+	* ld-mips-elf/multi-got-no-shared.d: Likewise.
+	* ld-mips-elf/nan-2008.d: Likewise.
+	* ld-mips-elf/nan-legacy.d: Rework test.
+	* ld-mips-elf/pic-and-nonpic-3a.gd: Likewise.
+	* ld-mips-elf/pic-and-nonpic-3b.gd: Likewise.
+	* ld-mips-elf/pic-and-nonpic-5b.gd: Likewise.
+	* ld-mips-elf/pic-and-nonpic-6.ld: Likewise.
+	* ld-mips-elf/rel32-n32.d: Likewise.
+	* ld-mips-elf/rel32-o32.d: Likewise.
+	* ld-mips-elf/rel64.d: Likewise.
+	* ld-mips-elf/tls-multi-got-1.r: Likewise.
+	* ld-elf/group.ld: Discard .MIPS.abiflags and .gnu.attributes.
+	* ld-elf/orphan-region.ld: Likewise.
+	* ld-elf/orphan.ld: Likewise.
+	* ld-mips-elf/compressed-plt-1.ld: Likewise.
+	* ld-mips-elf/dyn-sec64.ld: Likewise.
+	* ld-mips-elf/got-dump-1.ld: Likewise.
+	* ld-mips-elf/got-dump-2.ld: Likewise.
+	* ld-mips-elf/got-page-1.ld: Likewise.
+	* ld-mips-elf/mips-dyn.ld: Likewise.
+	* ld-mips-elf/mips-lib.ld: Likewise.
+	* ld-mips-elf/pic-and-nonpic-3a.ld: Likewise.
+	* ld-mips-elf/pic-and-nonpic-3b.ld: Likewise.
+	* ld-mips-elf/pic-and-nonpic-4b.ld: Likewise.
+	* ld-mips-elf/pic-and-nonpic-5b.ld: Likewise.
+	* ld-mips-elf/region1.t: Likewise.
+	* ld-mips-elf/stub-dynsym-1.ld: Likewise.
+	* ld-mips-elf/tls-hidden3.ld: Likewise.
+	* ld-mips-elf/vxworks1.ld: Likewise.
+	* ld-scripts/overlay-size.t: Likewise.
+	* ld-mips-elf/elf-rel-got-n32-embed.d: Remove .MIPS.abiflags from
+	objects.
+	* ld-mips-elf/elf-rel-got-n32.d: Likewise.
+	* ld-mips-elf/elf-rel-got-n64-embed.d: Likewise.
+	* ld-mips-elf/elf-rel-got-n64-linux.d: Likewise.
+	* ld-mips-elf/elf-rel-got-n64.d: Likewise.
 	* ld-mips-elf/elf-rel-xgot-n32.d: Likewise.
-	* ld-mips-elf/mips-elf.exp: Force the MIPS16 PIC tests to use -mips1.
-
-2009-09-14  Daniel Jacobowitz  <dan@codesourcery.com>
-
-	* ld-arm/farcall-mixed-lib.d: Update.
-
-2009-09-11  Jie Zhang  <jie.zhang@analog.com>
-
-	* ld-elf/warn2.d: `Foo' appears in section 3 when target
-	is bfin-*-linux-uclibc.
-
-2009-09-09  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-elf/sec64k.exp: For frv-linux use "aw" sections.
-	* ld-elf/seg.d: Cater for GNU_STACK segment.
-	* ld-elf/symbol1ref.s: Use data section.
-	* ld-elf/symbol2ref.s: Likewise.
-	* ld-scripts/empty-address-1.d: Don't run on frv-linux.
-	* ld-scripts/empty-address-2a.d: Likewise.
-	* ld-scripts/empty-address-2b.d: Likewise.
-	* ld-scripts/empty-aligned.d: Likewise.
-	* ld-elf/extract-symbol-1sym.d: Tolerate extra target supplied syms.
-	* ld-scripts/sort_b_a-1.d: Likewise.
-	* ld-scripts/sort_b_a.d: Likewise.
-	* ld-scripts/sort_b_a_a-1.d: Likewise.
-	* ld-scripts/sort_b_a_a-2.d: Likewise.
-	* ld-scripts/sort_b_a_a-3.d: Likewise.
-	* ld-scripts/sort_b_a_n-1.d: Likewise.
-	* ld-scripts/sort_b_a_n-2.d: Likewise.
-	* ld-scripts/sort_b_a_n-3.d: Likewise.
-	* ld-scripts/sort_b_n-1.d: Likewise.
-	* ld-scripts/sort_b_n.d: Likewise.
-	* ld-scripts/sort_b_n_a-1.d: Likewise.
-	* ld-scripts/sort_b_n_a-2.d: Likewise.
-	* ld-scripts/sort_b_n_a-3.d: Likewise.
-	* ld-scripts/sort_b_n_n-1.d: Likewise.
-	* ld-scripts/sort_b_n_n-2.d: Likewise.
-	* ld-scripts/sort_b_n_n-3.d: Likewise.
-	* ld-scripts/sort_no-1.d: Likewise.
-	* ld-scripts/sort_no-2.d: Likewise.
-
-2009-09-08  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-elf/eh5.d: Don't run on hppa64.  Allow non-pcrel encoding.
-	Skip extra CIEs emitted on embedded targets and adjust FDE
-	matches to suit.
-
-2009-09-05  Jie Zhang  <jie.zhang@analog.com>
-
-	* ld-elf/sec64k.exp: Use ".set" instead of "=" for bfin-*-*.
-
-2009-09-03  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/longsecn.d: Adjusted to match new .text section merging
-	in default PE linker scripts.
-	* ld-pe/longsecn-1.d: Likewise.
-	* ld-pe/longsecn-2.d: Likewise.
-
-2009-08-31  Jie Zhang  <jie.zhang@analog.com>
-
-	* lib/ld-lib.exp (is_elf_format): Return 1 for bfin-*-uclinux.
-
-2009-08-31  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-ifunc/ifunc.exp: Match R_PPC64_JUMP_IREL.
-
-2009-08-30  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/10569
-	* ld-elf/commonpage2.d: New.
-	* ld-elf/maxpage4.d: Likewise.
-	* ld-elf/maxpage4.t: Likewise.
-
-2009-08-26  Maxim Kuvyrkov  <maxim@codesourcery.com>
-
-	* ld-m68k/tls-def-1.s: New file.
-	* ld-m68k/tls-def-1.d: New file.
-	* ld-m68k/tls-gd-1.d2: New file.
-	* ld-m68k/tls-gd-1.d3: New file.
-	* ld-m68k/tls-main-1.s: New file.
-	* ld-m68k/tls-main-1.d: New file.
-	* ld-m68k/m68k.exp: Run new TLS tests.
-
-2009-08-23  Andreas Schwab  <schwab@linux-m68k.org>
-
-	* ld-powerpc/powerpc.exp: Move relaxing and relocatable relaxing
-	tests from ppc64elftest to ppcelftest and pass -a32 to assembler.
-
-	* ld-powerpc/relax.d: Fix whitespace.
-	* ld-powerpc/relaxr.d: Likewise.
-
-2009-08-21  Daniel Gutson  <dgutson@codesourcery.com>
-
-	* ld-arm/callweak.d: Opcodes updated.
-	* ld-arm/callweak.s: Architecture specified.
-	* ld-arm/callweak-2.d: New test case.
-	* ld-arm/callweak-2.s: New file.
-
-2009-08-17  Nick Clifton  <nickc@redhat.com>
-
-	* ld-elf/linkonce1.d: Accept "UNUSED" as part of the name of an
-	unused reloc.
-	* ld-elf/linkonce2.d: Likewise.
-
-2009-08-10  Jan Kratochvil  <jan.kratochvil@redhat.com>
-
-	Test go32 stub preservation by objcopy.
-	* ld-i386/i386.exp (go32 stub, go32 stub patch the source)
-	(go32 stub objcopy, go32 stub comparison after objcopy): New.
-
-2009-08-10  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-powerpc/relax.s: New.
-	* ld-powerpc/relax.d: New.
-	* ld-powerpc/relaxr.d: New.
-	* ld-powerpc/powerpc.exp: Add new tests.
-
-2009-08-06  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-arm/arm-elf.exp: Add new test.
-	* ld-arm/cortex-a8-fix-hdr.d: New.
-	* ld-arm/cortex-a8-fix-hdr.s: New.
-	* ld-arm/cortex-a8-fix-hdr.t: New.
-
-2009-08-05  Trevor Smigiel  <Trevor_Smigiel@playstation.sony.com>
-
-	* ld-spu/fixup.d: New.
-	* ld-spu/fixup.s: New.
-
-2009-08-05  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-arm/cortex-a8-far-1.s: New.
-	* ld-arm/cortex-a8-far-2.s: New.
-	* ld-arm/cortex-a8-far.d: New.
-	* ld-arm/arm-elf.exp: Add new test.
-
-2009-08-02  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/6443
-	* ld-i386/i386.exp: Run tlspie1.
-	* ld-x86-64/x86-64.exp: tlspie1.
-
-	* ld-i386/tlspie1.d: New.
-	* ld-i386/tlspie1.s: Likewise.
-	* ld-x86-64/tlspie1.d: Likewise.
-	* ld-x86-64/tlspie1.s: Likewise.
-
-2009-07-31  Hans-Peter Nilsson  <hp@bitrange.com>
-
-	* ld-mmix/x.s, ld-mmix/y.s, ld-mmix/zeroeh.ld,
-	ld-mmix/zeroehelf.d, ld-mmix/zeroehmmo.d: Use .gcc_except_table,
-	not .eh_frame.
-
-2009-07-30  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-elf/shared.exp: Comment out dl3b.
-
-2009-07-30  Hans-Peter Nilsson  <hp@bitrange.com>
-
-	* ld-scripts/empty-address-3a.d, ld-scripts/empty-address-3b.d:
-	Skip for mmix-knuth-mmixware.
-
-2009-07-29  Hans-Peter Nilsson  <hp@bitrange.com>
-
-	* ld-scripts/default-script.s (text): Globalize.
-	* ld-scripts/default-script1.d, ld-scripts/default-script2.d,
-	ld-scripts/default-script3.d, ld-scripts/default-script4.d: Adjust
-	accordingly.
-
-2009-07-25  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-x86-64/abs-l1om.d: New.
-	* ld-x86-64/protected2-l1om.d: Likewise.
-	* ld-x86-64/protected3-l1om.d: Likewise.
-
-	* ld-x86-64/x86-64.exp: Run abs-l1om, protected2-l1om and
-	protected3-l1om.
-
-2009-07-24  Trevor Smigiel  <Trevor_Smigiel@playstation.sony.com>
-	    Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-spu/pic.d: New.
-	* ld-spu/pic.s: New.
-	* ld-spu/picdef.s: New.
-
-2009-07-23  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/10434
-	* ld-x86-64/tlsle1.d: New.
-	* ld-x86-64/tlsle1.s: Likewise.
-
-	* ld-x86-64/x86-64.exp: Run tlsle1.
-
-2009-07-21  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/10426
-	* ld-ifunc/ifunc.exp: Check test-1 and libtest-2.so.  Updated.
-
-	* ld-ifunc/test-1.c: New.
-	* ld-ifunc/test-2.c: Likewise.
-
-2009-07-17  Chao-ying Fu  <fu@mips.com>
-
-	* ld-mips-elf/pic-and-nonpic-3b.dd: Updated to use new PLT
-	entries.
-	* ld-mips-elf/pic-and-nonpic-5b.dd: Likewise.
-	* ld-mips-elf/pic-and-nonpic-6-o32.dd: Likewise.
-	* ld-mips-elf/pic-and-nonpic-6-n32.dd: Likewise.
-	* ld-mips-elf/pic-and-nonpic-6-n64.dd: Likewise.
-
-2009-07-16  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc-5r-local-i386.d: New.
-	* ld-ifunc/ifunc-5r-local-x86-64.d: Likewise.
-
-2009-07-16  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-arm/arm-target2.s: Add addend cases.
-	* ld-arm/arm-target2-rel.d: Adjust.
-	* ld-arm/arm-target2-abs.d: Adjust.
-	* ld-arm/arm-target2-got-rel.d: Adjust.
-
-2009-07-13  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc.exp: Don't use -shared/-static to build object
-	files.  Use ld_simple_link to build static non-ifunc-using
-	executable.  Re-enable static non-ifunc-using executable check.
-
-2009-07-10  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc.exp: Don't check static non-ifunc-using
-	executable.
-
-2009-07-10  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc-1-local-x86.d: Updated.
-	* ld-ifunc/ifunc-1-x86.d: Likewise.
-	* ld-ifunc/ifunc-3a-x86.d: Likewise.
-
-2009-07-10  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc-1-local-x86.d: Updated.
-	* ld-ifunc/ifunc-1-x86.d: Likewise.
-	* ld-ifunc/ifunc-2-local-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-2-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-3a-x86.d: Likewise.
-
-2009-07-10  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-ifunc/ifunc.exp: Run for powerpc.  Really generate static
-	executables, renaming the existing dynamic but local tests.
-
-2009-07-08  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-selective/selective.exp: Remove check that $CC contains the
-	string "gcc".  Do -dumpversion for $CXX.
-
-2009-06-30  Nick Clifton  <nickc@redhat.com>
-
-	PR 10288
-	* ld-arm/arm-app.d: Update expcted disassembly.
-	* ld-arm/arm-be8.d: Likewise.
-	* ld-arm/arm-call.d: Likewise.
-	* ld-arm/arm-lib-plt32.d: Likewise.
-	* ld-arm/arm-lib.d: Likewise.
-	* ld-arm/arm-movwt.d: Likewise.
-	* ld-arm/arm-pic-veneer.d: Likewise.
-	* ld-arm/armthumb-lib.d: Likewise.
-	* ld-arm/armv4-bx.d: Likewise.
-	* ld-arm/cortex-a8-fix-b-rel-arm.d: Likewise.
-	* ld-arm/farcall-mixed-app-v5.d: Likewise.
-	* ld-arm/farcall-mixed-app.d: Likewise.
-	* ld-arm/farcall-mixed-lib.d: Likewise.
-	* ld-arm/farcall-thumb-arm-pic-veneer.d: Likewise.
-	* ld-arm/farcall-thumb-arm-short.d: Likewise.
-	* ld-arm/farcall-thumb-arm.d: Likewise.
-	* ld-arm/farcall-thumb-thumb-m-pic-veneer.d: Likewise.
-	* ld-arm/farcall-thumb-thumb-m.d: Likewise.
-	* ld-arm/farcall-thumb-thumb-pic-veneer.d: Likewise.
-	* ld-arm/farcall-thumb-thumb.d: Likewise.
-	* ld-arm/group-relocs.d: Likewise.
-	* ld-arm/mixed-app-v5.d: Likewise.
-	* ld-arm/mixed-app.d: Likewise.
-	* ld-arm/mixed-lib.d: Likewise.
-	* ld-arm/movw-merge.d: Likewise.
-	* ld-arm/thumb2-b-interwork.d: Likewise.
-	* ld-arm/tls-app.d: Likewise.
-	* ld-arm/tls-lib.d: Likewise.
-
-2009-06-29  Nick Clifton  <nickc@redhat.com>
-
-	PR 10288
-	* ld-arm/arm-app-abs32.d: Update expected disassembly.
+	* ld-mips-elf/elf-rel-xgot-n32-embed.d: Likewise.
+	* ld-mips-elf/elf-rel-xgot-n64.d: Likewise.
+	* ld-mips-elf/elf-rel-xgot-n64-linux.d: Likewise.
+	* ld-mips-elf/elf-rel-xgot-n64-embed.d: Likewise.
+	* ld-mips-elf/mips-elf.exp: Add new tests.
+
+2014-07-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/17154
+	* ld-ifunc/pr17154-i386.d: New file.
+	* ld-ifunc/pr17154-x86-64.d: Likewise.
+	* ld-ifunc/pr17154-x86.s: Likewise.
+	* ld-x86-64/bnd-ifunc-2.d: Likewise.
+	* ld-x86-64/bnd-ifunc-2.s: Likewise.
+	* ld-x86-64/mpx.exp: Run bnd-ifunc-2.
+	* ld-x86-64/tlsdesc-nacl.pd: Updated.
+	* ld-x86-64/tlsdesc.pd: Likewise.
+
+2014-07-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/17057
+	* ld-i386/i386.exp: Run pr17057.
+	* ld-i386/pr17057.d: New file.
+	* ld-i386/pr17057.s: Likewise.
+
+2014-07-15  Jiong Wang  <jiong.wang@arm.com>
+
+	* ld-aarch64/emit-relocs-local-addend.d: Use target linker script.
+
+2014-07-10  Will Newton  <will.newton@linaro.org>
+
+	* ld-arm/arm-elf.exp (armelftests_nonacl): Move Cortex-A8 fix
+	tests, IFUNC tests and other EABI requiring tests to...
+	(armeabitests_nonacl): ...here.
+	* ld-arm/arm-app-abs32.d: Loosen regex for architecture type
+	to allow test to pass on configurations without an attributes
+	section.
 	* ld-arm/arm-app.d: Likewise.
 	* ld-arm/arm-lib-plt32.d: Likewise.
 	* ld-arm/arm-lib.d: Likewise.
-	* ld-arm/arm-pic-veneer.d: Likewise.
+	* ld-arm/arm-static-app.d: Likewise.
 	* ld-arm/armthumb-lib.d: Likewise.
+	* ld-arm/cortex-a8-far.d: Likewise.
+	* ld-arm/farcall-mixed-app.d: Likewise.
+	* ld-arm/farcall-mixed-lib-v4t.d: Likewise.
+	* ld-arm/farcall-mixed-lib.d: Likewise.
+	* ld-arm/mixed-app-v5.d: Likewise.
+	* ld-arm/mixed-app.d: Likewise.
+	* ld-arm/mixed-lib.d: Likewise.
+	* ld-arm/tls-app.d: Likewise.
+	* ld-arm/tls-descrelax-be32.d: Likewise.
+	* ld-arm/tls-descrelax.d: Likewise.
+	* ld-arm/tls-descseq.d: Likewise.
+	* ld-arm/tls-gdesc-got.d: Likewise.
+	* ld-arm/tls-gdesc.d: Likewise.
+	* ld-arm/tls-gdierelax.d: Likewise.
+	* ld-arm/tls-gdierelax2.d: Likewise.
+	* ld-arm/tls-gdlerelax.d: Likewise.
+	* ld-arm/tls-lib-loc.d: Likewise.
+	* ld-arm/tls-lib.d: Likewise.
+	* ld-arm/tls-thumb1.d: Likewise.
+
+	* ld-elfvers/vers.exp: Set pic to yes for ARM targets.
+
+2014-07-08  Will Newton  <will.newton@linaro.org>
+
+	* ld-arm/arm-lib.ld: Increase MAXPAGESIZE value to
+	match bfd.
+	* ld-arm/cortex-a8-fix-bl-rel-plt.d: Update offsets to
+	take into account increased segment alignment.
+	* ld-arm/ifunc-gdesc.r: Likewise.
+	* ld-arm/tls-lib.d: Likewise.
+
+2014-07-08  Jiong Wang  <jiong.wang@arm.com>
+
+	* ld-aarch64/emit-relocs-local-addend-bar.s: New source file.
+	* ld-aarch64/emit-relocs-local-addend-foo.s: Likewise.
+	* ld-aarch64/emit-relocs-local-addend.d: New testcase.
+	* ld-aarch64/local-addend-r.d: Likewise.
+
+2014-07-08  Alan Modra  <amodra@gmail.com>
+
+	* ld-powerpc/defsym.s, * ld-powerpc/defsym.d: New test.
+	* ld-powerpc/powerpc.exp: Run it.
+
+2014-07-08  Alan Modra  <amodra@gmail.com>
+
+	PR 17112
+	* ld-plugin/lto.exp: When building liblti-11.a, pass
+	--plugin path_to_gcc/liblto_plugin.so to ar.
+
+2014-07-07  Alan Modra  <amodra@gmail.com>
+
+	* lib/ld-lib.exp (check_lto_shared_available): Reinstate compiler
+	check here too.
+
+2014-07-07  Nick Clifton  <nickc@redhat.com>
+
+	* lib/ld-lib.exp (check_lto_available): Check that a compiler is
+	available before testing for LTO support.
+
+2014-07-07  Alan Modra  <amodra@gmail.com>
+
+	* config/default.exp: Don't make tmpdir/gas.  Put as symlink into
+	tmpdir/ld.
+	(gcc_gas_flag, gcc_ld_flag): Delete.
+	(gcc_B_opt, ld_L_opt): New globals.
+	ld-elf/shared.exp: Remove all refs to gcc_gas_flag and gcc_ld_flag.
+	ld-plugin/lto.exp: Likewise.
+	lib/ld-lib.exp (run_host_cmd): Add gcc_B_opt and ld_L_opt here.
+	(ld_simple_link): Remove -B handling now that this is done in
+	run_host_cmd.  Simplify.
+	(default_ld_compile): Simplify.
+	(check_lto_available): Use run_host_cmd_yesno.
+	(check_lto_shared_available): Likewise.
+
+2014-07-05  Alan Modra  <amodra@gmail.com>
+
+	* lib/ld-lib.exp (run_ld_link_tests): Stop after assembling objects
+	if binfile is empty.
+	(run_ld_link_exec_tests, run_cc_link_tests): Likewise.  Tidy
+	status checks.
+	* ld-plugin/lto.exp: Don't use libdummy.a trick to compile objects.
+	Instead use an empty output file.
+
+2014-07-03  Alan Modra  <amodra@gmail.com>
+
+	* ld-elf/pr17068.s: New.
+	* ld-elf/pr17068a.s: New.
+	* ld-elf/pr17068b.s: New.
+	* ld-elf/pr17068c.s: New.
+	* ld-elf/pr17068d.s: New.
+	* ld-elf/pr17068e.s: New.
+	* ld-elf/pr17068ez.s: New.
+	* ld-elf/elf.exp: Run new test.
+
+2014-07-02  Alan Modra  <amodra@gmail.com>
+
+	* ld-powerpc/ambiguousv1.d: Match symbol table too.
+	* ld-powerpc/ambiguousv2.d: Likewise.
+	* ld-powerpc/ambiguousv1b.d: New.
+	* ld-powerpc/ambiguousv2b.d: New.
+	* ld-powerpc/powerpc.exp: Run new tests.
+
+2014-06-25  Kyle McMartin  <kyle@redhat.com>
+
+	* ld-arm/tls-gdierelax2.d: Fix expected offsets.
+
+2014-06-16  Will Newton  <will.newton@linaro.org>
+
+	* ld-arm/arm-elf.exp: Add ifunc-gdesc test.
+	* ld-arm/ifunc-gdesc.r: New file.
+	* ld-arm/ifunc-gdesc.s: Likewise.
+	* ld-arm/ifunc-gdesc.ver: Likewise.
+
+2014-06-09  Ryan Mansfield  <rmansfield@qnx.com>
+
+	* config/default.exp (GASP): Remove.
+
+2014-06-03  Alan Modra  <amodra@gmail.com>
+
+	* ld-powerpc/elfv2exe.d: Update for changed plt call stubs.
+
+2014-05-28  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* lib/ld-lib.exp: Add objcopy_objects command to run_dump_test.
+	This allows each input object to be optionally run through
+	objcopy before linking.
+
+2014-05-20  Will Newton  <will.newton@linaro.org>
+
+	* ld-shared/shared.exp: Mark non-PIC shared object tests
+	as xfail on aarch64.
+
+2014-05-19  Andreas Tobler  <andreast@fgznet.ch>
+
+	* ld-elf/shared.exp: Introduce the extralibs variable to control
+	the libraries to be linked. Don't link -ldl on *-*-freebsd*.
+
+	* ld-bootstrap/bootstrap.exp: Do not add -ldl to the extralibs on
+	*-*-freebsd*.
+
+2014-05-10  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/wrap1.d, ld-mmix/wrap1a.s, ld-mmix/wrap1b.s,
+	ld-mmix/wrap1c.s, ld-mmix/wrap2.d, ld-mmix/wrap3.d,
+	ld-mmix/wrap3a.s, ld-mmix/wrap3b.s, ld-mmix/wrap4.d: New
+	tests.
+
+2014-05-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-x86-64/tlsbin.dd: Replace data32 with data16.
+	* ld-x86-64/tlsdesc-nacl.pd: Likewise.
+	* ld-x86-64/tlsgdesc.dd: Likewise.
+	* ld-x86-64/tlsld1.dd: Likewise.
+	* ld-x86-64/tlsld3.dd: Likewise.
+	* ld-x86-64/tlspic.dd: Likewise.
+
+2014-05-02  Max Filippov  <jcmvbkbc@gmail.com>
+
+	* ld-xtensa/diff_overflow.exp, * ld-xtensa/diff_overflow1.s,
+	* ld-xtensa/diff_overflow2.s: Add test for DIFF* relocation
+	signedness and overflow checking.
+
+2014-05-01  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/sec-11.d, ld-mmix/sec-11.ld, ld-mmix/sec-10.s,
+	ld-mmix/sec-10.d, ld-mmix/b-offlocmis.s, ld-mmix/sec-12.d: New
+	tests.
+	* ld-mmix/b-offloc.s: Correct address in comment.
+
+2014-04-23  Will Newton  <will.newton@linaro.org>
+
+	* ld-arm/arm-no-rel-plt.ld: Remove OUTPUT_FORMAT and
+	SEARCH_DIR commands.
+	* ld-arm/arm-rel32.d: Update regexps to allow test to
+	pass on armeb-linux-eabi configuration.
+	* ld-arm/data-only-map.d: Likewise.
+	* ld-arm/fix-arm1176-off.d: Likewise.
+	* ld-arm/fix-arm1176-on.d: Likewise.
+	* ld-arm/ifunc-1.gd: Likewise.
+	* ld-arm/ifunc-10.gd: Likewise.
+	* ld-arm/ifunc-11.gd: Likewise.
+	* ld-arm/ifunc-12.gd: Likewise.
+	* ld-arm/ifunc-13.gd: Likewise.
+	* ld-arm/ifunc-14.gd: Likewise.
+	* ld-arm/ifunc-15.gd: Likewise.
+	* ld-arm/ifunc-16.gd: Likewise.
+	* ld-arm/ifunc-17.gd: Likewise.
+	* ld-arm/ifunc-2.gd: Likewise.
+	* ld-arm/ifunc-3.gd: Likewise.
+	* ld-arm/ifunc-4.gd: Likewise.
+	* ld-arm/ifunc-5.gd: Likewise.
+	* ld-arm/ifunc-6.gd: Likewise.
+	* ld-arm/ifunc-7.gd: Likewise.
+	* ld-arm/ifunc-8.gd: Likewise.
+	* ld-arm/ifunc-9.gd: Likewise.
+	* ld-arm/jump-reloc-veneers-long.d: Likewise.
+	* ld-arm/reloc-boundaries.d: Likewise.
+
+2014-04-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16846
+	* ld-plugin/lto.exp (lto_link_tests): Add tests for PR ld/16846.
+	* ld-plugin/pr16846a.c: New file.
+	* ld-plugin/pr16846b.c: Likewise.
+	* ld-plugin/pr16846c.c: Likewise.
+
+2014-04-22  Christian Svensson  <blue@cmd.nu>
+
+	* ld-discard/extern.d: Remove openrisc and or32 support.  Add
+	support for or1k.
+	* ld-discard/start.d: Likewise.
+	* ld-discard/static.d: Likewise.
+	* ld-elf/group1.d: Likewise.
+	* ld-elf/group3b.d: Likewise.
+	* ld-elf/group8a.d: Likewise.
+	* ld-elf/group8b.d: Likewise.
+	* ld-elf/group9a.d: Likewise.
+	* ld-elf/group9b.d: Likewise.
+	* ld-elf/linkonce2.d: Likewise.
+	* ld-elf/merge.d: Likewise.
+	* ld-elf/merge2.d: Likewise.
+	* ld-elf/orphan-region.d: Likewise.
+	* ld-elf/orphan.d: Likewise.
+	* ld-elf/orphan3.d: Likewise.
+	* ld-elf/pr12851.d: Likewise.
+	* ld-elf/pr12975.d: Likewise.
+	* ld-elf/pr13177.d: Likewise.
+	* ld-elf/pr13195.d: Likewise.
+	* ld-elf/pr349.d: Likewise.
+	* ld-elf/sec64k.exp: Likewise.
+	* ld-elf/warn1.d: Likewise.
+	* ld-elf/warn2.d: Likewise.
+	* ld-elf/warn3.d: Likewise.
+	* ld-scripts/weak.exp: Likewise.
+	* lib/ld-lib.exp: Likewise.
+
+2014-04-17  Kwok Cheung Yeung  <kcy@codesourcery.com>
+
+	* ld-mips-elf/elf-rel-xgot-n32.d: Update for new GOT layout.
+	* ld-mips-elf/elf-rel-xgot-n32-embed.d: Likewise.
+	* ld-mips-elf/elf-rel-xgot-n64.d: Likewise.
+	* ld-mips-elf/elf-rel-xgot-n64-embed.d: Likewise.
+	* ld-mips-elf/elf-rel-xgot-n64-linux.d: Likewise.
+
+2014-04-15  Marcus Shawcroft  <marcus.shawcroft@arm.com>
+
+	* ld-aarch64/tls-relax-gdesc-ie.s (var): Adjust test case
+	to include all 5 bits of LDR destination register.
+
+2014-04-10  Senthil Kumar Selvaraj  <senthil_kumar.selvaraj@atmel.com>
+
+	* ld-avr/norelax_diff.d: New testcase.
+	* ld-avr/relax_diff.d: Likewise.
+	* ld-avr/relax.s: Likewise.
+
+2014-04-05  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* ld-plugin/lto.exp: Make "-Wp," prefix optional when filtering
+	out _FORTIFY_SOURCE.
+	("Build libdummy.a 9", "PR ld/12696"): Mark as c++.
+
+2014-04-04  Alan Modra  <amodra@gmail.com>
+
+	* ld-scripts/fill.d, * ld-scripts/fill.t, * ld-scripts/fill_0.s,
+	* ld-scripts/fill_1.s, * ld-scripts/fill_2.s: New test.
+	* ld-scripts/data.exp: Run it.
+
+2014-03-31  Marcus Shawcroft  <marcus.shawcroft@arm.com>
+
+	* ld-aarch64/eh-frame.d: Adjust FDE pc address.
+
+2014-03-27  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16756
+	* ld-plugin/lto.exp: Expect filename and line number for PR
+	ld/12760 test.
+
+2014-03-27  Yury Gribov  <y.gribov@samsung.com>
+	    Pavel Fedin  <p.fedin@samsung.com>
+
+	* ld-arm/arm-app-abs32.d: Update expected disassembly, taking into
+	account the pretty printing of PLT entries.
+	* ld-arm/arm-app.d: Likewise.
+	* ld-arm/arm-lib-plt32.d: Likewise.
+	* ld-arm/arm-lib.d: Likewise.
+	* ld-arm/armthumb-lib.d: Likewise.
+	* ld-arm/cortex-a8-fix-b-plt.d: Likewise.
+	* ld-arm/cortex-a8-fix-bcc-plt.d: Likewise.
+	* ld-arm/cortex-a8-fix-bl-plt.d: Likewise.
+	* ld-arm/cortex-a8-fix-bl-rel-plt.d: Likewise.
+	* ld-arm/cortex-a8-fix-blx-plt.d: Likewise.
 	* ld-arm/farcall-mixed-app-v5.d: Likewise.
 	* ld-arm/farcall-mixed-app.d: Likewise.
+	* ld-arm/farcall-mixed-lib-v4t.d: Likewise.
 	* ld-arm/farcall-mixed-lib.d: Likewise.
-	* ld-arm/group-relocs.d: Likewise.
+	* ld-arm/ifunc-10.dd: Likewise.
+	* ld-arm/ifunc-14.dd: Likewise.
+	* ld-arm/ifunc-15.dd: Likewise.
+	* ld-arm/ifunc-3.dd: Likewise.
+	* ld-arm/ifunc-4.dd: Likewise.
+	* ld-arm/ifunc-7.dd: Likewise.
+	* ld-arm/ifunc-8.dd: Likewise.
+	* ld-arm/ifunc-9.dd: Likewise.
+	* ld-arm/long-plt-format.d: Likewise.
 	* ld-arm/mixed-app-v5.d: Likewise.
 	* ld-arm/mixed-app.d: Likewise.
 	* ld-arm/mixed-lib.d: Likewise.
 	* ld-arm/thumb2-bl-undefweak.d: Likewise.
+	* ld-arm/thumb2-bl-undefweak1.d: Likewise.
 
-2009-06-27  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/10337
-	* ld-ifunc/binutils.exp: New.
-
-2009-06-25  Kai Tietz  <kai.tietz@onevision.com>
-
-	* ld-pe/aligncomm-1.c (size_t): Add typedef.
-	(main): Use it for casting pointer to scalar.
-	* ld-pe/aligncomm-2.c: Likewise.
-	* ld-pe/aligncomm-3.c: Likewise.
-	* ld-pe/aligncomm-4.c: Likewise.
-	* ld-scripts/empty-address.exp: Make sure that for x86_64-*-mingw*
-	target imagebase is set to zero.
-	* ld-scripts/weak.exp: Don't fail for x86_64-*-mingw* target.
+2014-03-26  Alan Modra  <amodra@gmail.com>
 
-2009-06-22  Christophe Lyon  <christophe.lyon@st.com>
-
-	ld/testsuite:
-	* ld-arm/farcall-mixed-app.s: Add new references to check more
-	modes switching.
-	* ld-arm/farcall-mixed-lib1.s: Likewise.
-	* ld-arm/farcall-mixed-app-v5.d: Update expected result.
-	* farcall-mixed-app.d: Likewise.
-	* ld-arm/farcall-mixed-lib.d: Likewise.
-
-2009-06-22  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/pe-run.exp (proc test_direct_link_dll):  Fix incorrect
-	line-wrapping.
-
-2009-06-19  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-i386/i386.exp: Run tlsgd2.
-
-	* ld-i386/tlsgd2.d: New.
-	* ld-i386/tlsgd2.s: Likewise.
-
-	* ld-x86-64/tlsgd3.d: Updated.
-
-2009-06-18  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/pe-run.exp (proc test_direct_link_dll):  Always pass
-	--enable-auto-import to the linker.
-	* ld-pe/vers-script-1.d:  Replace '\$' by '_' in all symbol names.
-	* ld-pe/vers-script-3.d:  Likewise.
-	* ld-pe/vers-script-4.d:  Likewise.
-	* ld-pe/vers-script-dll.c:  Likewise.
-	* lib/ld-lib.exp (proc is_pecoff_format):  Also return true for
-	"*-*-cegcc*" targets.
-
-2009-06-15  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc-9-x86.d: Fix a typo.
-
-2009-06-14  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/10270
-	* ld-ifunc/ifunc-9-x86.d: New.
-	* ld-ifunc/ifunc-9-x86.s: Likewise.
-
-2009-06-13  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/10269
-	* ld-ifunc/ifunc-1-local-x86.d: New.
-	* ld-ifunc/ifunc-1-local-x86.s: Likewise.
-	* ld-ifunc/ifunc-2-local-i386.d: Likewise.
-	* ld-ifunc/ifunc-2-local-i386.s: Likewise.
-	* ld-ifunc/ifunc-2-local-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-2-local-x86-64.s: Likewise.
-	* ld-ifunc/ifunc-4-local-x86.d: Likewise.
-	* ld-ifunc/ifunc-4-local-x86.s: Likewise.
-	* ld-ifunc/ifunc-5-local-i386.s: Likewise.
-	* ld-ifunc/ifunc-5-local-x86-64.s: Likewise.
-	* ld-ifunc/ifunc-5a-local-i386.d: Likewise.
-	* ld-ifunc/ifunc-5a-local-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-5b-local-i386.d: Likewise.
-	* ld-ifunc/ifunc-5b-local-x86-64.d: Likewise.
-
-2009-06-03  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc-2-x86-64.d: Pass --64 to as and -melf_x86_64 to
-	ld.
-	* ld-ifunc/ifunc-5a-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-5b-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-6a-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-6b-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-7a-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-7b-x86-64.d: Likewise.
-
-	* ld-ifunc/ifunc-8a-i386.s: New.
-	* ld-ifunc/ifunc-8a-x86-64.s: Likewise.
-	* ld-ifunc/ifunc-8b-i386.s: Likewise.
-	* ld-ifunc/ifunc-8b-x86-64.s: Likewise.
-	* ld-ifunc/ifunc-8-i386.d: Likewise.
-	* ld-ifunc/ifunc-8-x86-64.d: Likewise.
-
-2009-06-02  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-glink-3.s, ld-powerpc/aix-glink-3a.s,
-	ld-powerpc/aix-glink-3b.s, ld-powerpc/aix-glink-3.dd,
-	ld-powerpc/aix-glink-3-32.d, ld-powerpc/aix-glink-3-64.d: New tests.
-	* ld-powerpc/aix52.exp: Run them.  Move the lineno tests to maintain
-	alphabetical order.
-
-2009-06-02  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-ifunc/ifunc-5-i386.d: Renamed to ...
-	* ld-ifunc/ifunc-5a-i386.d: This.
-
-	* ld-ifunc/ifunc-5-x86-64.d: Renamed to ...
-	* ld-ifunc/ifunc-5a-x86-64.d: This.
-
-	* ld-ifunc/ifunc-5b-i386.d: New.
-	* ld-ifunc/ifunc-5b-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-6a-i386.d: Likewise.
-	* ld-ifunc/ifunc-6a-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-6b-i386.d: Likewise.
-	* ld-ifunc/ifunc-6b-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-6-i386.s: Likewise.
-	* ld-ifunc/ifunc-6-x86-64.s: Likewise.
-	* ld-ifunc/ifunc-7a-i386.d: Likewise.
-	* ld-ifunc/ifunc-7a-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-7b-i386.d: Likewise.
-	* ld-ifunc/ifunc-7b-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-7-i386.s: Likewise.
-	* ld-ifunc/ifunc-7-x86-64.s: Likewise.
-
-2009-06-01  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/10205
-	* ld-ifunc/ifunc.exp (contains_irelative_reloc): New.
-	Use it on executable and shared library.
-	Run *.d.
-
-	* ld-ifunc/lib.c: Add a hidden alias, __GI_library_func2, for
-	library_func2.
-	(library_func): New.
-
-	* ld-ifunc/ifunc-1-x86.d: New.
-	* ld-ifunc/ifunc-1-x86.s: Likewise.
-	* ld-ifunc/ifunc-2-i386.d: Likewise.
-	* ld-ifunc/ifunc-2-i386.s: Likewise.
-	* ld-ifunc/ifunc-2-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-2-x86-64.s: Likewise.
-	* ld-ifunc/ifunc-3a-x86.d: Likewise.
-	* ld-ifunc/ifunc-3b-x86.d: Likewise.
-	* ld-ifunc/ifunc-3-x86.s: Likewise.
-	* ld-ifunc/ifunc-4-x86.d: Likewise.
-	* ld-ifunc/ifunc-4-x86.s: Likewise.
-	* ld-ifunc/ifunc-5-i386.d: Likewise.
-	* ld-ifunc/ifunc-5-i386.s: Likewise.
-	* ld-ifunc/ifunc-5-x86-64.d: Likewise.
-	* ld-ifunc/ifunc-5-x86-64.s: Likewise.
-
-2009-05-27  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/non-c-lang-syms.c:  New dump test source file.
-	* ld-pe/non-c-lang-syms.d:  New dump test pattern file.
-	* ld-pe/pe.exp:  Run new "foreign symbol" test.
-
-2009-05-26  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-powerpc/vxworks-relax-2.s: New.
-	* ld-powerpc/vxworks-relax-2.rd: New.
-	* ld-powerpc/powerpc.exp: Add it.
-
-2009-05-22  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-scripts/rgn-over7.d: Adjust expected message for recent change.
-
-2009-05-22  Julian Brown  <julian@codesourcery.com>
-
-	* ld-arm/cortex-a8-arm-target.s: New.
-	* ld-arm/cortex-a8-thumb-target.s: New.
-	* ld-arm/cortex-a8-fix-b-rel.s: New.
-	* ld-arm/cortex-a8-fix-b-rel-arm.d: New.
-	* ld-arm/cortex-a8-fix-b-rel-thumb.d: New.
-	* ld-arm/cortex-a8-fix-b.s: New.
-	* ld-arm/cortex-a8-fix-b.d: New.
-	* ld-arm/cortex-a8-fix-bl-rel.s: New.
-	* ld-arm/cortex-a8-fix-bl-rel-arm.d: New.
-	* ld-arm/cortex-a8-fix-bl-rel-thumb.d: New.
-	* ld-arm/cortex-a8-fix-bl.s: New.
-	* ld-arm/cortex-a8-fix-bl.d: New.
-	* ld-arm/cortex-a8-fix-bcc-rel.s: New.
-	* ld-arm/cortex-a8-fix-bcc-rel-thumb.d: New.
-	* ld-arm/cortex-a8-fix-bcc.s: New.
-	* ld-arm/cortex-a8-fix-bcc.d: New.
-	* ld-arm/cortex-a8-fix-blx-rel.s: New.
-	* ld-arm/cortex-a8-fix-blx-rel-arm.d: New.
-	* ld-arm/cortex-a8-fix-blx-rel-thumb.d: New.
-	* ld-arm/cortex-a8-fix-blx.s: New.
-	* ld-arm/cortex-a8-fix-blx.d: New.
-	* ld-arm/arm-elf.exp: Add new tests.
-
-2009-05-22  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-scripts/rgn-at4.t: New.
-	* ld-scripts/rgn-at4.d: New.
-
-2009-05-21  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/aligncomm-1.c (_alloca):  Add dummy definition to
-	satisfy final link on Windows targets when using gcc-3.
-	* ld-pe/aligncomm-2.c (_alloca):  Likewise.
-	* ld-pe/aligncomm-3.c (_alloca):  Likewise.
-	* ld-pe/aligncomm-4.c (_alloca):  Likewise.
-
-2009-05-20  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* lib/ld-lib.exp (run_ld_link_tests):  Filter test names against
-	runtests list.
-
-2009-05-19  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/aligncomm-1.c:  New test source file.
-	* ld-pe/aligncomm-2.c:  Likewise.
-	* ld-pe/aligncomm-3.c:  Likewise.
-	* ld-pe/aligncomm-4.c:  Likewise.
-	* ld-pe/aligncomm.d:  New test pattern file.
-
-	* ld-pe/direct.exp:  Deleted, and content moved into ...
-	* ld-pe/pe-run.exp:  ... New common file for all PE run tests.
-
-	* ld-pe/vers-script.exp:  Deleted, and content merged into ...
-	* ld-pe/pe-compile.exp:  ... New common file for PE tests needing
-	a compiler, adding aligned common tests.
-
-	* ld-pe/pe.exp:  Update header comment.
-
-2009-05-17  Aaron W. LaFramboise  <aaron98wiridge9@aaronwl.com>
-
-	* ld-pe/exports.d: New file.
-	* ld-pe/exports.s: New file.
-	* ld-pe/pe.exp: New test for empty export table.
-
-2009-05-16  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-elf/orphan3.d, * ld-elf/orphan3a.s, * ld-elf/orphan3b.s,
-	* ld-elf/orphan3c.s, * ld-elf/orphan3d.s, * ld-elf/orphan3e.s,
-	* ld-elf/orphan3f.s: Increase section size to 16.
-	* ld-pe/orphan.d, * ld-pe/orphana.s, * ld-pe/orphanb.s,
-	* ld-pe/orphand.s, * ld-pe/orphane.s: Likewise.
-
-2009-05-15  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-elf/orphan3.d, * ld-elf/orphan3a.s, * ld-elf/orphan3b.s,
-	* ld-elf/orphan3c.s, * ld-elf/orphan3d.s, * ld-elf/orphan3e.s,
-	* ld-elf/orphan3f.s: New test.
-	* ld-pe/orphan.d, * ld-pe/orphana.s, * ld-pe/orphanb.s,
-	* ld-pe/orphand.s, * ld-pe/orphane.s: New test.
-	* ld-pe/direct.exp: Use is_pecoff_format.
-	* ld-pe/longsecn.exp: Delete.
-	* ld-pe/pe.exp: Run new test and longsecn tests.
-
-2009-05-15  Andrew Stubbs  <ams@codesourcery.com>
-	Paul Brook  <paul@codesourcery.com>
+	* ld-powerpc/startv1.s, * ld-powerpc/startv2.s, * ld-powerpc/funref.s,
+	* ld-powerpc/funv1.s, * ld-powerpc/funv2.s,
+	* ld-powerpc/ambiguousv1.d, * ld-powerpc/ambiguousv2.d: New test files.
+	* ld-powerpc/powerpc.exp: Run new tests.
 
-	* ld-arm/arm-elf.exp: Add unwind-5.
-	* ld-arm/discard-unwind.ld: New file.
-	* ld-arm/unwind-5.d: New test.
-	* ld-arm/unwind-5.s: New test.
+2014-03-25  Will Newton  <will.newton@linaro.org>
 
-2009-05-14  Ulrich Weigand  <uweigand@de.ibm.com>
+	 * ld-aarch64/aarch64-elf.exp: Add relasz dump test.
+	 * ld-aarch64/relasz.d: New file.
+	 * ld-aarch64/relasz.s: Likewise.
 
-	* ld-spu/icache1.d: Update for compact stubs.
+2014-03-20  Richard Sandiford  <rdsandiford@googlemail.com>
 
-2009-05-14  Ulrich Weigand  <uweigand@de.ibm.com>
+	* ld-elf/merge.d: Remove MIPS XFAIL.
 
-	* ld-spu/icache1.d: Update all addresses to accomodate icache
-	buffer shifted down 0x800 bytes.
+2014-03-20  Will Newton  <will.newton@linaro.org>
 
-2009-05-14  Ulrich Weigand  <uweigand@de.ibm.com>
+	* ld-arm/ifunc-14.rd: Update symbol values.
 
-	* ld-spu/icache.d: Update file offsets.
-	* ld-spu/ovl.d: Likewise.
-	* ld-spu/ovl1.d: Likewise.
+2014-03-19  Nick Clifton  <nickc@redhat.com>
 
-2009-05-14  Alan Modra  <amodra@bigpond.net.au>
+	* config/default.exp (ASFLAGS): For the RX target add:
+	-muse-conventional-section-names.
 
-	* ld-spu/icache1.d: Update for changed overlay manager placement.
-	* ld-spu/ovl.d: Likewise.
-	* ld-spu/ovl2.d: Likewise.
+2014-03-15  Alan Modra  <amodra@gmail.com>
 
-2009-05-05  Paul Brook  <paul@codesourcery.com>
+	* ld-powerpc/vle-reloc-3.d: Remove addresses.
 
-	* ld-arm/arm.ld: Add .ARM.exidx and .ARM.extab.
-	* ld-arm/arm-elf.exp: Add unwind-[1-4].
-	* ld-arm/unwind-1.d: New test.
-	* ld-arm/unwind-1.s: New test.
-	* ld-arm/unwind-2.d: New test.
-	* ld-arm/unwind-2.s: New test.
-	* ld-arm/unwind-3.d: New test.
-	* ld-arm/unwind-3.s: New test.
-	* ld-arm/unwind-4.d: New test.
-	* ld-arm/unwind-4.s: New test.
+2014-03-14  Alan Modra  <amodra@gmail.com>
 
-2009-05-01  Julian Brown  <julian@codesourcery.com>
+	* ld-powerpc/vle.ld: Place .PPC.EMB.sdata0 within 32k of 0.
+	* ld-powerpc/vle-reloc-3.d: Update.
 
-	* ld-arm/arm-elf.exp (armeabitests): Add thumb2-bl-blx-interwork test.
-	* ld-arm/thumb2-bl-blx-interwork.s: New.
-	* ld-arm/thumb2-bl-blx-interwork.d: New.  
+2014-03-06  Roland McGrath  <mcgrathr@google.com>
 
-2009-04-30  Nick Clifton  <nickc@redhat.com>
+	* ld-arm/gc-hidden-1.d: Remove target, add not-target to match
+	other ELF-only tests in this directory.  Loosen regexps so they
+	don't care what the exact addresses are.
 
-	* ld-ifunc: New directory.
-	* ld-ifunc/ifunc.exp: New file: Run the IFUNC tests.
-	* ld-ifunc/prog.c: New file.
-	* ld-ifunc/lib.c: New file.
+2014-03-06  Roland McGrath  <mcgrathr@google.com>
 
-2009-04-30  Joseph Myers  <joseph@codesourcery.com>
+	* ld-arm/arm-elf.exp (armelftests_common): Move long-plt case ...
+	(armelftests_nonacl): ... here.
 
-	* ld-arm/movw-shared-1.d, ld-arm/movw-shared-1.s,
-	ld-arm/movw-shared-2.d, ld-arm/movw-shared-2.s,
-	ld-arm/movw-shared-3.d, ld-arm/movw-shared-3.s,
-	ld-arm/movw-shared-4.d, ld-arm/movw-shared-4.s: New tests.
-	* ld-arm/arm-elf.exp: Run these new tests.
+2014-03-05  Alan Modra  <amodra@gmail.com>
 
-2009-04-29  Chris Demetriou  <cgd@google.com>
+	Update copyright years.
 
-	* ld-elfvers/vers.exp (vers4b): New test to verify that
-	--no-export-dynamic undoes --export-dynamic.
+2014-03-05  Alan Modra  <amodra@gmail.com>
 
-2009-04-28  Nathan Sidwell  <nathan@codesourcery.com>
+	* ld-powerpc/elfv2-2a.s, ld-powerpc/elfv2-2b.s: New files.
+	* ld-powerpc/elfv2-2exe.d, ld-powerpc/elfv2-2so.d: New files.
+	* ld-powerpc/powerpc.exp: Run new test.
 
-	* ld-i386/vxworks1-lib.dd: Adjust expected disassembly.
-	* ld-i386/vxworks1.dd: Adjust expected disassembly.
-	* ld-i386/vxworks1-lib.rd: Sections are swapped.
+2014-03-03  Alan Modra  <amodra@gmail.com>
 
-2009-04-22  Christophe Lyon  <christophe.lyon@st.com>
+	* ld-scripts/phdrs2.exp: Correct copyright punctuation.
+	* ld-v850/v850.exp: Correct copyright typo.
 
-	PR9743
-	* ld-arm/arm-call.d: Update expected result.
-	* ld-arm/arm-pic-veneer.d: Likewise.
-	* ld-arm/thumb2-b-interwork.d: Likewise.
+2014-03-01  Yuri Gribov  <y.gribov@samsung.com>
 
-2009-04-22  Nathan Sidwell  <nathan@codesourcery.com>
+	* ld-arm/long-plt-format.d, ld-arm/arm-elf.exp: Adjust for arm-eabi.
 
-	* ld-scripts/rgn-at1.d: Cope with larger padding on sections.
-	* ld-scripts/rgn-at2.d: Likewise.
-	* ld-scripts/rgn-at3.d: Likewise.
+2014-02-27  Yuri Gribov  <y.gribov@samsung.com>
 
-2009-04-21  Daniel Jacobowitz  <dan@codesourcery.com>
+	* ld-arm/long-plt-format.s: New test case.
+	* ld-arm/long-plt-format.d: Expected disassembly.
+	* ld-arm/arm-elf.exp: Run the new test.
 
-	* ld-arm/farcall-mix.d, ld-arm/farcall-mix2.d,
-	ld-arm/farcall-group-size2.d, ld-arm/farcall-group.d,
-	ld-arm/farcall-mixed-lib.d: Update for linker changes.
+2014-02-27  Nick Clifton  <nickc@redhat.com>
 
-2009-04-17  Christophe Lyon  <christophe.lyon@st.com>
+	* ld-pe/longsecn-1.d: Allow for extra sections.
+	* ld-pe/longsecn-2.d: Likewise.
+	* ld-pe/longsecn.d: Likewise.
+	* ld-pe/secrel.d: Likewise.
 
-	* ld-arm/arm-elf.exp: Add new test farcall-mixed-lib.
-	* ld-arm/farcall-mixed-lib.d: Update expected output.
-	* ld-arm/farcall-mixed-lib1.s: New file.
-	* ld-arm/farcall-mixed-lib2.s: New file.
+2014-02-21  Alan Modra  <amodra@gmail.com>
 
-2009-04-16  Richard Sandiford  <r.sandiford@uk.ibm.com>
+	* ld-bootstrap/bootstrap.exp: Add ppc476 workaround test.
+	* ld-bootstrap/ppc476.t: New file.
 
-	* ld-powerpc/aix-export-2.s, ld-powerpc/aix-export-2.nd: New test.
-	* ld-powerpc/aix52.exp: Run it.
+2014-02-19  Igor Zamyatin  <igor.zamyatin@intel.com>
+	    H.J. Lu  <hongjiu.lu@intel.com>
 
-2009-04-16  Alan Modra  <amodra@bigpond.net.au>
+	* ld-x86-64/mpx.exp: Run bnd-ifunc-1 and bnd-plt-1.
+	* ld-x86-64/bnd-ifunc-1.d: New file.
+	* ld-x86-64/bnd-ifunc-1.s: Likewise.
+	* ld-x86-64/bnd-plt-1.d: Likewise.
 
-	* ld-libs/lib-1.s: Use "==" instead of ".set".
-	* ld-libs/lib-2.s: Likewise.
-	* ld-scripts/defined.s: Likewise.
+2014-02-18  Jack Carter  <jack.carter@imgtec.com>
 
-2009-04-15  Christophe Lyon  <christophe.lyon@st.com>
+	* ld-mips-elf/pic-and-nonpic-3a.sd: Check DYNAMIC segment flags.
 
-	* ld-arm/arm-elf.exp: Add 1 more test to check undef weak
-	reference with PLT in ARM mode.
-	* ld-arm/thumb2-bl-undefweak1.d, ld-arm/thumb2-bl-undefweak1.s:
-	New files.
+2014-02-16  Thomas Schwinge  <thomas@codesourcery.com>
 
-2009-04-08  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-i386/abs.d: Add  --32 for assembler and -melf_i386 for
-	linker.
-
-2009-04-03  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-scripts/rgn-at.s: Use explicit .section pseudos.
-
-2009-04-03  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/image_size.d (#target):  Also run test on Cygwin and x86_64
-	MinGW targets.
-
-2009-04-03  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-scripts/rgn-at.exp: New.
-	* ld-scripts/rgn-at.s: New.
-	* ld-scripts/rgn-at1.d: New.
-	* ld-scripts/rgn-at1.t: New.
-	* ld-scripts/rgn-at2.d: New.
-	* ld-scripts/rgn-at2.t: New.
-	* ld-scripts/rgn-at3.d: New.
-	* ld-scripts/rgn-at3.t: New.
-
-2009-04-03  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/export_dynamic_warning.s:  Make dummy code portable.
-
-2009-04-02  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/export_dynamic_warning.d (#warning):  Fix regex pattern.
-
-2009-04-02  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	PR ld/6744
-	* ld-pe/export_dynamic_warning.d:  New test control file.
-	* ld-pe/export_dynamic_warning.s:  New test source file.
-	* ld-pe/pe.exp:  Also run export_dynamic_warning dump test.
-
-2009-04-02  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/farcall-thumb-thumb-pic-veneer.d: Update expected
-	results.
-	* ld-arm/farcall-thumb-thumb.d: Likewise.
-
-2009-04-02  Nick Clifton  <nickc@redhat.com>
-
-	PR 9987
-	* lib/ld-lib.exp (check_gc_sections_available): Do not run garbage
-	collection tests for cygwin targets.
-
-2009-04-01  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-gc-1.nd: New test.
-	* ld-powerpc/aix52.exp: Run it.
-
-2009-04-01  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-rel-1.s, ld-powerpc/aix-rel-1.od: New test.
-	* ld-powerpc/aix52.exp: Run it.
-
-2009-04-01  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-cygwin/exe-export.exp:  Add "-lkernel32" when linking test exe.
-	* ld-cygwin/testexe.c (testexe_main):  Indicate whether global_a
-	was set to correct final value using error return status.
-	(testexe_dummy):  Dummy function calls an import from kernel32.dll
-	to ensure it is mapped into the process space at runtime.
-
-2009-04-01  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/arm-elf.exp: BE8 tests expect the same output as the
-	default ones.
-	* ld-arm/arm-be8.d: Print opcodes in little endian.
-	* ld-arm/farcall-thumb-arm-be8.d: Removed useless expected result.
-	* ld-arm/farcall-arm-arm-be8.d: Likewise.
-
-2009-03-25  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-cris/tls-e-dtpoffd3.d, ld-cris/tls-e-tpoffcomm1.d,
-	ld-cris/tls-e-tpoffcomm1.s: New tests.
-
-2009-03-24  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-cris/tls-commx.s, ld-cris/tls-dso-dtpoffd2.d,
-	ld-cris/tls-dso-dtpoffd4.d, ld-cris/tls-dtpoffdx.s,
-	ld-cris/tls-e-dtpoffd1.d: New tests.
-
-	* ld-cris/tls-e-20.d, ld-cris/tls-e-20a.d, ld-cris/tls-e-21.d,
-	ld-cris/tls-e-80.d, ld-cris/tls-gd-3.d, ld-cris/tls-gd-3h.d,
-	ld-cris/tls-global-74.d, ld-cris/tls-ldgde-14.d,
-	ld-cris/tls-ldgde-15.d, ld-cris/tls-legd-16.d,
-	ld-cris/tls-legd-17.d, ld-cris/tls-local-57.d,
-	ld-cris/tls-local-58.d, ld-cris/tls-local-59.d: Adjust for BFD
-	change in link-time known GOT contents for GD relocations.
-
-2009-03-20  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/9970
-	* ld-pie/pie.exp: Use -fpie to compile.  Run *.d tests.
-
-	* ld-pie/start.d: New.
-	* ld-pie/start.s: Likewise.
-
-2009-03-18  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/6766
-	* ld-undefined/dummy.s: New.
-	* ld-undefined/entry-1.d: Likewise.
-	* ld-undefined/entry-2.d: Likewise.
-	* ld-undefined/entry-3.d: Likewise.
-	* ld-undefined/entry-4.d: Likewise.
-	* ld-undefined/entry-5.d: Likewise.
-	* ld-undefined/entry-6.d: Likewise.
-	* ld-undefined/entry.exp: Likewise.
-	* ld-undefined/entry.s: Likewise.
-
-2009-03-17  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-spu/icache1.d: Update for fixed set_id, new manager entry, and
-	reduced data.
-
-2009-03-17  Alan Modra  <amodra@bigpond.net.au>
-
-	* config/default.exp (get_link_files): Replace double dollars with
-	single dollars.
-
-2009-03-17  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-bootstrap/bootstrap.exp: Use DO_COMPARE.  Remove unnecessary
-	cleanup and log output.
-
-2009-03-16  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-bootstrap/bootstrap.exp:  Also pass '-liconv' to linker when
-	linking statically on Cygwin, necessitated by '-lintl'.
-
-2009-03-15  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-auto-import/auto-import.exp:  Add missing dll entrypoint.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-export-1-all.dd, ld-powerpc/aix-export-1-full.dd,
-	ld-powerpc/aix-export-1a.s, ld-powerpc/aix-export-1b.s: New tests.
-	* ld-powerpc/aix52.exp: Run them.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-gc-1.s, ld-powerpc/aix-gc-1.ex,
-	ld-powerpc/aix-gc-1-32.dd, ld-powerpc/aix-gc-1-64.dd,
-	ld-powerpc/aix-weak-1-gcdso.dnd, ld-powerpc/aix-weak-1-gcdso.hd,
-	ld-powerpc/aix-weak-1-gcdso.nd: New tests.
-	* ld-powerpc/aix52.exp: Run them.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-glink-2a.s, ld-powerpc/aix-glink-2a.ex,
-	ld-powerpc/aix-glink-2b.s, ld-powerpc/aix-glink-2c.s,
-	ld-powerpc/aix-glink-2c.ex, ld-powerpc/aix-glink-2d.s,
-	ld-powerpc/aix-glink-2-32.dd, ld-powerpc/aix-glink-2-64.dd,
-	ld-powerpc/aix-weak-1a.s, ld-powerpc/aix-weak-1b.s,
-	ld-powerpc/aix-weak-1-rel.hd, ld-powerpc/aix-weak-1-rel.nd,
-	ld-powerpc/aix-weak-1-dso.hd, ld-powerpc/aix-weak-1-dso.nd,
-	ld-powerpc/aix-weak-1-dso.dnd, ld-powerpc/aix-weak-1.ex,
-	ld-powerpc/aix-weak-2a.s, ld-powerpc/aix-weak-2a.ex,
-	ld-powerpc/aix-weak-2a.nd, ld-powerpc/aix-weak-2b.s,
-	ld-powerpc/aix-weak-2b.nd, ld-powerpc/aix-weak-2c.s,
-	ld-powerpc/aix-weak-2c.ex, ld-powerpc/aix-weak-2c.nd,
-	ld-powerpc/aix-weak-2c.od, ld-powerpc/aix-weak-3a.s,
-	ld-powerpc/aix-weak-3a.ex, ld-powerpc/aix-weak-3b.s,
-	ld-powerpc/aix-weak-3b.ex, ld-powerpc/aix-weak-3-32.d,
-	ld-powerpc/aix-weak-3-32.dd, ld-powerpc/aix-weak-3-64.d,
-	ld-powerpc/aix-weak-3-64.dd: New tests.
-	* ld-powerpc/aix52.exp: Run them.  Replace tmp/aix-* with
-	tmp/aix64-* in 64-bit ld options.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-no-dup-syms-1a.s, ld-powerpc/aix-no-dup-syms-1b.s,
-	ld-powerpc/aix-no-dup-syms-1.ex, ld-powerpc/aix-no-dup-syms-1.im,
-	ld-powerpc/aix-no-dup-syms-1-dso.dnd,
-	ld-powerpc/aix-no-dup-syms-1-dso.drd,
-	ld-powerpc/aix-no-dup-syms-1-dso.nd,
-	ld-powerpc/aix-no-dup-syms-1-dso.rd,
-	ld-powerpc/aix-no-dup-syms-1-rel.nd,
-	ld-powerpc/aix-no-dup-syms-1-rel.rd: New tests.
-	* ld-powerpc/aix52.exp: Run them.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-abs-branch-1.nd,
-	ld-powerpc/aix-abs-reloc-1.nd: New tests.
-	* ld-powerpc/aix52.exp: Run them.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-lineno-1.s, ld-powerpc/aix-lineno-1.txt,
-	ld-powerpc/aix-lineno-1a.dd, ld-powerpc/aix-lineno-1a.nd,
-	ld-powerpc/aix-lineno-1b.dd, ld-powerpc/aix-lineno-1b.nd: New tests.
-	* ld-powerpc/aix52.exp: Run them.  Copy aix-lineno-1.txt to tmpdir.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-toc-1.ex, ld-powerpc/aix-toc-1a.s,
-	ld-powerpc/aix-toc-1b.s, ld-powerpc/aix-toc-1-32.dd,
-	ld-powerpc/aix-toc-1-64.dd: New tests.
-	* ld-powerpc/aix52.exp: Run them.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-glink-1.ex, ld-powerpc/aix-glink-1.s,
-	ld-powerpc/aix-glink-1-32.dd, ld-powerpc/aix-glink-1-64.dd,
-	ld-powerpc/aix-glink-1-32.d, ld-powerpc/aix-glink-1-64.d: New tests.
-	* ld-powerpc/aix52.exp: Run them.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-abs-branch-1.im, ld-powerpc/aix-abs-branch-1.ex,
-	ld-powerpc/aix-abs-branch-1.s,
-	ld-powerpc/aix-abs-branch-1.dd: New test.
-	* ld-powerpc/aix52.exp: Run it.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-abs-reloc-1.ex, ld-powerpc/aix-abs-reloc-1.im,
-	ld-powerpc/aix-abs-reloc-1.od, ld-powerpc/aix-abs-reloc-1.s: New test.
-	* ld-powerpc/aix52.exp: Run it.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* ld-powerpc/aix-core-sec-1.s, ld-powerpc/aix-core-sec-1.ex,
-	ld-powerpc/aix-core-sec-1.hd, ld-powerpc/aix-core-sec-2.s,
-	ld-powerpc/aix-core-sec-2.ex, ld-powerpc/aix-core-sec-2.hd,
-	ld-powerpc/aix-core-sec-3.s, ld-powerpc/aix-core-sec-3.ex,
-	ld-powerpc/aix-core-sec-3.hd: New tests.
-	* ld-powerpc/aix52.exp: New harness.
-
-2009-03-14  Richard Sandiford  <r.sandiford@uk.ibm.com>
-
-	* lib/ld-lib.exp (ar_simple_create): Add an "aropts" parameter.
-	(run_ld_link_tests): Treat the second list element as "ar" options
-	when creating an archive.  Don't run the linker in this case.
-	(run_cc_link_tests): Likewise.
-
-2009-03-13  Nick Clifton  <nickc@redhat.com>
-
-	* lib/ld-lib.exp (run_dump_test): Add verbose to list of globals.
-	Replace call to verbose_eval with a test of verbose level.  If
-	greater than 2 always dump the contents of the dumpfile.  If equal
-	to 2 only dump the contents if the regexp diff failed.
-	(proc verbose_eval): Delete.
-
-2009-03-07  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
-
-	* ld-elf/empty2.d: Remove xfail for hppa*-*-*.
-	* ld-elf/merge.d: Change xfail for hppa to hppa*64*-*-*.
-
-2009-03-05  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/arm-elf.exp: Add new farcall-group-limit test.
-	* ld-arm/farcall-group-limit.d: New file.
-	* ld-arm/farcall-group3.s: New file.
-	* ld-arm/farcall-group4.s: New file.
-
-2009-03-05  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/arm-elf.exp: Add 2 more tests to check long branch stubs
-	in PLT context.
-	* ld-arm/farcall-mixed-app-v5.d: New file.
-	* ld-arm/farcall-mixed-app.d: Likewise.
-	* ld-arm/farcall-mixed-app.r: Likewise.
-	* ld-arm/farcall-mixed-app.s: Likewise.
-	* ld-arm/farcall-mixed-app.sym: Likewise.
-	* ld-arm/farcall-mixed-lib.d: Likewise.
-	* ld-arm/farcall-mixed-lib.r: Likewise.
-
-2009-03-04  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-powerpc/tlsmark.s, * ld-powerpc/tlsmark.d: New test.
-	* ld-powerpc/tlsmark32.s, * ld-powerpc/tlsmark32.d: New test.
-	* ld-powerpc/powerpc.exp: Run them.
-
-2009-03-02  Sebastian Huber  <sebastian.huber@embedded-brains.de>
-
-	* ld-scripts/regions-alias-1.t: New file.
-	* ld-scripts/regions-alias-2.t: New file.
-	* ld-scripts/regions-alias-3.t: New file.
-	* ld-scripts/regions-alias-4.t: New file.
-	* ld-scripts/script.exp: Run region alias tests.
-
-2009-02-27  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/pe.exp:  Disable auto-import when linking on Cygwin.
-
-2009-02-26  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/arm-elf.exp: Add 3 tests for the 3 new stubs.
-	* ld-arm/farcall-thumb-arm-pic-veneer.d: New expected result, the
-	test is now expected to pass.
-	* ld-arm/farcall-thumb-thumb-m-pic-veneer.d: Likewise.
-	* ld-arm/farcall-thumb-thumb-pic-veneer.d: Likewise.
-
-2009-02-25  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/thumb2-bl-as-thumb1-bad-noeabi.d: Update expected result,
-	as stubs are now generated and the end of the .text section.
-	* ld-arm/thumb2-bl-bad-noeabi.d: Likewise.
-
-2009-02-24  Daniel Jacobowitz  <dan@codesourcery.com>
-
-	* ld-arm/farcall-arm-thumb-blx-pic-veneer.d,
-	ld-arm/farcall-arm-thumb-pic-veneer.d,
-	ld-arm/farcall-thumb-thumb-blx-pic-veneer.d: Update for fixed
-	Thumb PIC stub.
-
-2009-02-24  Daniel Jacobowitz  <dan@codesourcery.com>
-
-	* ld-arm/arm-elf.exp (armeabitests): Update duplicate test names.
-	Use normal output files for big-endian.
-	* ld-arm/farcall-arm-arm-be.d, ld-arm/farcall-thumb-arm-be.d: Delete.
-	* ld-arm/farcall-arm-arm-be8.d, ld-arm/farcall-arm-arm-pic-veneer.d,
-	ld-arm/farcall-arm-arm.d, ld-arm/farcall-arm-thumb-blx-pic-veneer.d,
-	ld-arm/farcall-arm-thumb-blx.d, ld-arm/farcall-arm-thumb-pic-veneer.d,
-	ld-arm/farcall-arm-thumb.d, ld-arm/farcall-group-size2.d,
-	ld-arm/farcall-group.d, ld-arm/farcall-mix.d, ld-arm/farcall-mix2.d,
-	ld-arm/farcall-thumb-arm-be8.d,
-	ld-arm/farcall-thumb-arm-blx-pic-veneer.d,
-	ld-arm/farcall-thumb-arm-blx.d, ld-arm/farcall-thumb-arm-short.d,
-	ld-arm/farcall-thumb-arm.d,
-	ld-arm/farcall-thumb-thumb-blx-pic-veneer.d,
-	ld-arm/farcall-thumb-thumb-blx.d, ld-arm/farcall-thumb-thumb-m.d,
-	ld-arm/farcall-thumb-thumb.d, ld-arm/thumb2-bl-as-thumb1-bad.d,
-	ld-arm/thumb2-bl-bad.d: Update for moved stubs.
-
-2009-02-23  Daniel Jacobowitz  <dan@codesourcery.com>
-
-	* ld-arm/arm-elf.exp (armeabitests): Run new tests.  Correct BE8 output
-	filename.
-	* ld-arm/farcall-arm-arm-be.d, ld-arm/farcall-thumb-arm-be.d: New.
-
-2009-02-23  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/arm-elf.exp: Add new farcall-thumb-arm-be8 test.
-	* ld-arm/farcall-thumb-arm-be8.d: New expected result.
-	* ld-arm/farcall-arm-arm-be8.d: Replace wildcards by instructions.
-
-2009-02-23  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/arm-elf.exp: Rewrite non-EABI variants of
-	thumb2-bl-as-thumb1-bad and thumb2-bl-bad tests, which now
-	pass. farcall-thumb-thumb now passes in EABI mode.
-	* ld-arm/farcall-thumb-arm-pic-veneer.d: Fixed name, source, as
-	and ld flags to match intended test.
-	* ld-arm/farcall-thumb-arm.d: New expected result.
-	* ld-arm/farcall-thumb-thumb-m.d: Likewise.
-	* ld-arm/farcall-thumb-thumb-m-pic-veneer.d: Fixed name and ld
-	flags.
-	* ld-arm/farcall-thumb-thumb-pic-veneer.d: Likewise.
-	* ld-arm/farcall-thumb-thumb.d: New expected result, this test is
-	now expected to pass.
-	* ld-arm/thumb2-bl-as-thumb1-bad-noeabi.d: Likewise.
-	* ld-arm/thumb2-bl-bad-noeabi.d: Likewise.
-	* ld-arm/thumb2-bl-as-thumb1-bad.d: Update addresses according to
-	new use.
-	* ld-arm/thumb2-bl-as-thumb1-bad.s: Update comment.
-
-2009-18-02  Dave Korn  <dave.korn.cygwin@gmail.com>
-
-	* ld-pe/longsecn-1.d:  New test file.
-	* ld-pe/longsecn-2.d:  Likewise.
-	* ld-pe/longsecn-3.d:  Likewise.
-	* ld-pe/longsecn-4.d:  Likewise.
-	* ld-pe/longsecn-5.d:  Likewise.
-	* ld-pe/longsecn.d:  Likewise.
-	* ld-pe/longsecn.exp:  New test control script.
-	* ld-pe/longsecn.s:  New test source file.
-
-2009-02-18  Christophe Lyon  <christophe.lyon@st.com>
-
-	* ld-arm/farcall-arm-arm-pic-veneer.d,
-	ld-arm/farcall-arm-thumb-blx-pic-veneer.d,
-	ld-arm/farcall-arm-thumb-pic-veneer.d,
-	ld-arm/farcall-thumb-arm-blx-pic-veneer.d,
-	ld-arm/farcall-thumb-thumb-blx-pic-veneer.d: Fix expected stub
-	target.
-
-2009-02-06  Joseph Myers  <joseph@codesourcery.com>
-
-	* lib/ld-lib.exp (check_gc_sections_available): Return 0 for
-	*-*-mingw*.
-
-2009-02-05  Joseph Myers  <joseph@codesourcery.com>
-
-	* ld-arm/arm-elf.exp (armeabitests): Restore thumb2-b-interwork.
-
-2009-02-03  Maxim Kuvyrkov  <maxim@codesourcery.com>
-
-	* ld-m68k/got-multigot-12-13-14-34-35-ok.d: Update.
-	* ld-m68k/got-multigot-14-ok.d: Update.
-	* ld-m68k/m68k-got.exp: Update.
-	* ld-m68k/got-negative-12-13-14-34-ok.d: Update.
-	* ld-m68k/got-negative-14-ok.d: Update.
-	* ld-m68k/tls-gd-1.d, ld-m68k/tls-gd-2.d: New tests.
-	* ld-m68k/tls-gd-ie-1.d, ld-m68k/tls-ie-1.d: New tests.
-	* ld-m68k/tls-ld-1.d, ld-m68k/tls-ld-2.d: New tests.
-	* ld-m68k/tls-ld-1.s, ld-m68k/tls-ld-2.s, ld-m68k/tls-le-1.s:
-	New test sources.
-	* ld-m68k/tls-no-1.s, ld-m68k/tls-gd-ie-1.s, ld-m68k/tls-gd-1.s:
-	New test sources.
-	* ld-m68k/tls-gd-2.s, ld-m68k/tls-ie-1.s: New test sources.
-	* ld-m68k/m68k.exp: Run new tests.
-	(merge isa-a isa-a:nodiv): Fix.
-
-2009-02-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
-
-	* ld-elf/eh-group2.s: New `.cfi_lsda' referencing `.gcc_except_table'.
-	* ld-elf/eh-group.exp: New test and conditional defininiton of `ELF64'.
-
-2009-01-29  Nick Clifton  <nickc@redhat.com>
-
-	* lib/ld-lib.exp (check_gc_sections_available): Add MeP to list of
-	targets which do not support garbage collection.
-	* ld-srec/srec.exp (run_srec_test): Expect tests to fail for MeP.
-	* ld-elf/group8a.d: Likewise.
-	* ld-elf/group8b.d: Likewise.
-	* ld-elf/group9a.d: Likewise.
-	* ld-elf/group9b.d: Likewise.
-
-2009-01-27  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-cris/tls-tbss64.s, ld-cris/tls-e-80.d: New test.
-
-	* ld-cris/tls-e-20.d, ld-cris/tls-e-20a.d, ld-cris/tls-e-22.d,
-	ld-cris/tls-ldgde-14.d, ld-cris/tls-ldgde-15.d,
-	ld-cris/tls-ldgdex-14.d, ld-cris/tls-ldgdex-15.d: Adjust for
-	change in relocation values.
-
-	* ld-cris/weakhiddso.d, ld-cris/weakhid.s: New test.
-
-2009-01-26  Nathan Sidwell  <nathan@codesourcery.com>
-
-	* ld-powerpc/powerpc.exp: Add vxworks relax testcase.
-	* ld-powerpc/vxworks-relax.s, ld-powerpc/vxworks-relax.rd: New.
-	* ld-powerpc/vxworks1.ld: Add .pad and .far input sections.
-	* ld-powerpc/vxworks1.rd: Correct regexp for undefined symbols.
-
-2009-01-26  Andrew Stubbs  <ams@codesourcery.com>
-
-	* ld-arm/attr-merge-3.attr: Update following gas change.
-	* ld-arm/attr-merge-2.attr: Update Tag_ARM_ISA_use and
-	Tag_THUMB_ISA_use following gas changes.
-	* ld-arm/attr-merge-4.attr: Likewise.
-	* ld-arm/attr-merge-5.attr: Likewise.
-	* ld-arm/attr-merge-arch-1.attr: Likewise.
-	* ld-arm/attr-merge-arch-2.attr: Likewise.
-	* ld-arm/attr-merge-unknown-2.d: Likewise.
-	* ld-arm/attr-merge-unknown-2r.d: Likewise.
-	* ld-arm/attr-merge-unknown-3.d: Likewise.
-	* ld-arm/attr-merge-wchar-00-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-00.d: Likewise.
-	* ld-arm/attr-merge-wchar-02-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-02.d: Likewise.
-	* ld-arm/attr-merge-wchar-04-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-04.d: Likewise.
-	* ld-arm/attr-merge-wchar-20-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-20.d: Likewise.
-	* ld-arm/attr-merge-wchar-22-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-22.d: Likewise.
-	* ld-arm/attr-merge-wchar-24-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-40-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-40.d: Likewise.
-	* ld-arm/attr-merge-wchar-42-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-44-nowarn.d: Likewise.
-	* ld-arm/attr-merge-wchar-44.d: Likewise.
-	* ld-arm/attr-merge.attr: Likewise.
-
-2009-01-21  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-spu/icache1.d: Add --non-ia-text to ld options.
-
-2009-01-19  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-cris/expdref3.s, ld-cris/expdref4.s, ld-cris/weakref3.d,
-	ld-cris/weakref4.d: New tests.
-	* ld-cris/libdso-15b.d: Adjust for recent weakref fix.
-
-2009-01-19  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-elf/group9.s: Replace .byte with .long.
-
-2009-01-19  Andrew Stubbs  <ams@codesourcery.com>
-
-	* ld-arm/arm-elf.exp (armeabitests): Add EABI attribute merging 3,
-	EABI attribute merging 4, and EABI attribute merging 5,
-	EABI attribute arch merging 1, EABI attribute arch merging 1 reversed,
-	EABI attribute arch merging 2, EABI attribute arch merging 2 reversed.
-	Add attr-merge-unknown-1, attr-merge-unknown-2, attr-merge-unknown-2r,
-	and attr-merge-unknown-3 dump tests.
-	* ld-arm/arch-v6.s: New file.
-	* ld-arm/arch-v6k.s: New file.
-	* ld-arm/arch-v6t2.s: New file.
-	* ld-arm/attr-merge-3.attr: New file.
-	* ld-arm/attr-merge-3a.s: New file.
-	* ld-arm/attr-merge-3b.s: New file.
-	* ld-arm/attr-merge-4.attr: New file.
-	* ld-arm/attr-merge-4a.s: New file.
-	* ld-arm/attr-merge-4b.s: New file.
-	* ld-arm/attr-merge-5.attr: New file.
-	* ld-arm/attr-merge-5.s: New file.
-	* ld-arm/attr-merge-arch-1.attr: New file.
-	* ld-arm/attr-merge-arch-2.attr: New file.
-	* ld-arm/attr-merge-unknown-1.d: New file.
-	* ld-arm/attr-merge-unknown-1.s: New file.
-	* ld-arm/attr-merge-unknown-2.d: New file.
-	* ld-arm/attr-merge-unknown-2.s: New file.
-	* ld-arm/attr-merge-unknown-2r.d: New file.
-	* ld-arm/attr-merge-unknown-3.d: New file.
-	* ld-arm/blank.s: New file.
-
-2009-01-16  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* ld-elf/textaddr1.d: New.
-	* ld-elf/textaddr2.d: Likewise.
-
-2009-01-14  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/9727
-	* ld-elf/group8.s: New.
-	* ld-elf/group8a.d: Likewise.
-	* ld-elf/group8b.d: Likewise.
-	* ld-elf/group9.s: Likewise.
-	* ld-elf/group9a.d: Likewise.
-	* ld-elf/group9b.d: Likewise.
-
-2009-01-13  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-spu/icache1.s: New file.
-	* ld-spu/icache1.d: New file.
-
-2009-01-13  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-elf/elf.exp: Save and restore LDFLAGS.
-	* ld-scripts/default-script.exp: Likewise.
-	* ld-scripts/empty-orphan.exp: Likewise, and add to LDFLAGS rather
-	than replacing.
-	* ld-scripts/include.exp: Set --local-store for SPU.
-
-2009-01-12  Alan Modra  <amodra@bigpond.net.au>
-
-	* ld-spu/ovl.d: Allow for absolute branches in stubs.
-	* ld-spu/ovl2.d: Likewise.
-
-2009-01-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
-
-	* ld-elf/linkoncerdiff.d, ld-elf/linkoncerdiff1.s,
-	ld-elf/linkoncerdiff2.s: New.
-
-2009-01-07  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-cris/tls-e-20.d, ld-cris/tls-e-20a.d, ld-cris/tls-e-21.d,
-	ld-cris/tls-e-23.d, ld-cris/tls-e-66.d, ld-cris/tls-gd-3.d,
-	ld-cris/tls-gd-3h.d, ld-cris/tls-global-74.d,
-	ld-cris/tls-ie-8e1.d, ld-cris/tls-ldgde-14.d,
-	ld-cris/tls-ldgde-15.d, ld-cris/tls-le-12.d, ld-cris/tls-le-13.d,
-	ld-cris/tls-le-13s.d, ld-cris/tls-legd-16.d,
-	ld-cris/tls-legd-17.d, ld-cris/tls-legdx-16.d,
-	ld-cris/tls-legdx-17.d, ld-cris/tls-leie-18.d,
-	ld-cris/tls-leie-19.d, ld-cris/tls-local-57.d,
-	ld-cris/tls-local-58.d, ld-cris/tls-local-59.d: Adjust for
-	relocation value now offset by negative program TLS block size.
-	* ld-cris/tls-le-12s.d: Ditto.  Move 128-byte tls-data to last.
-	Adjust accordingly.
-	* ld-cris/tls-le-12s.s: Use movs, not movu, for sign-extended
-	always-negative relocation.
-	* ld-cris/tls-tprelm.s: Move filler data to after symbol for
-	tested relocation.
-	* ld-cris/tls-ok-36.d: Adjust accordingly.
-
-2009-01-03  Hans-Peter Nilsson  <hp@axis.com>
-
-	* ld-cris/tls-js1.d: New test.
-
-2009-01-02  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/9679
-	* ld-elf/pr9679-1.c: New.
-	* ld-elf/pr9679-2.c: Likewise.
-	* ld-elf/pr9679.rd: Likewise.
-
-	* ld-elf/shared.exp (build_tests): Add test for libpr9679.so.
-
-2009-01-02  H.J. Lu  <hongjiu.lu@intel.com>
-
-	PR ld/9676
-	* ld-elf/pr9676-1.c: New.
-	* ld-elf/pr9676-2.c: Likewiswe.
-	* ld-elf/pr9676-3.c: Likewiswe.
-	* ld-elf/pr9676-4.c: Likewiswe.
-	* ld-elf/pr9676.rd: Likewiswe.
-
-	* ld-elf/shared.exp (build_tests): Add tests for libpr9676-1.a,
-	libpr9676-2.a, libpr9676-3.so, libpr9676-4.so and
-	libpr9676-4a.so.
-
-	* lib/ld-lib.exp (ar_simple_create): New.
-	(run_ld_link_tests): Support archive.
-	(run_cc_link_tests): Likewiswe.
-
-For older changes see ChangeLog-2008
+	* ld-elfweak/elfweak.exp (setup_xfail_gnu_hurd): Remove function
+	and all usage of it.
+
+2014-02-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR gold/16530
+	* ld-elf/dynamic-1.c: New file.
+	* ld-elf/dynamic-1.rd: Likewise.
+	* ld-elf/dynamic-1.syms: Likewise.
+
+	* ld-elf/shared.exp (build_tests): Add dynamic-1.
+
+2014-02-02  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+
+	* ld-scripts/rgn-at9.d: New file.
+	* ld-scripts/rgn-at9.t: Likewise.
+	* ld-scripts/rgn-at10.d: Likewise.
+	* ld-scripts/rgn-at10.s: Likewise.
+	* ld-scripts/rgn-at10.t: Likewise.
+	* ld-scripts/rgn-at11.d: Likewise.
+	* ld-scripts/rgn-at11.t: Likewise.
+
+2014-01-30  Sandra Loosemore  <sandra@codesourcery.com>
+
+	* ld-nios2/relax_call26.s: New.
+	* ld-nios2/relax_call26_boundary.ld: New.
+	* ld-nios2/relax_call26_boundary.s: New.
+	* ld-nios2/relax_call26_boundary_c8.d: New.
+	* ld-nios2/relax_call26_boundary_cc.d: New.
+	* ld-nios2/relax_call26_boundary_d0.d: New.
+	* ld-nios2/relax_call26_boundary_d4.d: New.
+	* ld-nios2/relax_call26_boundary_d8.d: New.
+	* ld-nios2/relax_call26_boundary_dc.d: New.
+	* ld-nios2/relax_call26_boundary_f0.d: New.
+	* ld-nios2/relax_call26_boundary_f4.d: New.
+	* ld-nios2/relax_call26_boundary_f8.d: New.
+	* ld-nios2/relax_call26_boundary_fc.d: New.
+	* ld-nios2/relax_call26_cache.d: New.
+	* ld-nios2/relax_call26_cache.ld: New.
+	* ld-nios2/relax_call26_cache.s: New.
+	* ld-nios2/relax_call26_multi.d: New.
+	* ld-nios2/relax_call26_multi.ld: New.
+	* ld-nios2/relax_call26_norelax.d: New.
+	* ld-nios2/relax_call26_shared.d: New.
+	* ld-nios2/relax_call26_shared.ld: New.
+
+2014-01-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/rdynamic-1.c: New file.
+	* ld-elf/rdynamic-1.rd: Likewise.
+
+	* ld-elf/shared.exp (build_tests): Add rdynamic-1.
+
+2014-01-28  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/16317
+	* ld-tic6x/shlib-1.rd: Expect I attribute with RELA sections.
+	* ld-tic6x/shlib-1b.rd: Likewise.
+	* ld-tic6x/shlib-1r.rd: Likewise.
+	* ld-tic6x/shlib-1rb.rd: Likewise.
+	* ld-tic6x/shlib-app-1rd: Likewise.
+	* ld-tic6x/shlib-app-1b.rd: Likewise.
+	* ld-tic6x/shlib-app-1r.rd: Likewise.
+	* ld-tic6x/shlib-app-1rb.rd: Likewise.
+	* ld-tic6x/shlib-noindex.rd: Likewise.
+	* ld-tic6x/static-app-1.rd: Likewise.
+	* ld-tic6x/static-app-1b.rd: Likewise.
+	* ld-tic6x/static-app-1r.rd: Likewise.
+	* ld-tic6x/static-app-1rb.rd: Likewise.
+	PR binutils/16318
+	* ld-tic6x/tic6x.exp: Expect C6000 osabi value in relocatable
+	objects.
+
+2014-01-24  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/pr16498a.s: Replace .align with .p2align.
+
+2014-01-24  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16498
+	* ld-elf/pr16498b.d: New file.
+	* ld-elf/pr16498b.t: Likewise.
+
+2014-01-24  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16498
+	* ld-elf/pr16498a.d: New file.
+	* ld-elf/pr16498a.s: Likewise.
+	* ld-elf/pr16498a.t: Likewise.
+
+2014-01-22  Alan Modra  <amodra@gmail.com>
+
+	* ld-scripts/pr14962-2.d: Correct target triple.
+
+2014-01-22  Alan Modra  <amodra@gmail.com>
+
+	* ld-shared/elf-offset.ld: Align end of .bss with canonical form
+	of ALIGN that allows an empty .bss to be removed.
+	* ld-arm/arm-dyn.ld: Likewise.
+	* ld-arm/arm-lib.ld: Likewise.
+	* ld-elfvsb/elf-offset.ld: Likewise.
+	* ld-mips-elf/mips-dyn.ld: Likewise.
+	* ld-mips-elf/mips-lib.ld: Likewise.
+	* ld-arm/arm-no-rel-plt.ld: Remove duplicate ALIGN.
+	* ld-powerpc/vle-multiseg-1.ld: Remove ALIGN at start of section.
+	ALIGN address of section instead.
+	* ld-powerpc/vle-multiseg-2.ld: Likewise.
+	* ld-powerpc/vle-multiseg-3.ld: Likewise.
+	* ld-powerpc/vle-multiseg-4.ld: Likewise.
+	* ld-powerpc/vle-multiseg-6.ld: Likewise.
+	* ld-scripts/empty-aligned.d: Check section headers not program
+	headers.  Remove xfail and notarget.
+	* ld-scripts/empty-aligned.t: Use canonical ALIGN for end of .text2.
+
+2014-01-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16467
+	* ld-ifunc/dummy.c: New file.
+	* ld-ifunc/pr16467.out: Likewise.
+	* ld-ifunc/pr16467a.c: Likewise.
+	* ld-ifunc/pr16467a.map: Likewise.
+	* ld-ifunc/pr16467b.c: Likewise.
+	* ld-ifunc/pr16467b.map: Likewise.
+	* ld-ifunc/pr16467c.c: Likewise.
+
+	* ld-ifunc/ifunc.exp (run_cc_link_tests): New.
+	(run_ld_link_exec_tests): Run pr16467.
+
+2014-01-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/2404
+	* ld-elf/shared.exp: Add a PIE test for PR ld/2404.
+
+2014-01-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/2404
+	* ld-elf/pr2404.out: New file.
+	* ld-elf/pr2404a.c: Likewise.
+	* ld-elf/pr2404b.c: Likewise.
+
+	* ld-elf/shared.exp (build_tests): Build libpr2404a.so and
+	libpr2404b.a.
+	(run_tests): Run pr2404.
+
+2014-01-20  Alan Modra  <amodra@gmail.com>
+
+	* ld-scripts/pr14962-2.d,
+	* ld-scripts/pr14962-2.t: New test.
+	* ld-scripts/expr.exp: Run it.
+
+2014-01-15  Alan Modra  <amodra@gmail.com>
+
+	* ld-elf/ehdr_start-shared.d: New.
+	* ld-elf/ehdr_start-userdef.d: xfail frv.
+	* ld-elf/ehdr_start-weak.d: Likewise.
+	* ld-elf/ehdr_start.d: Likewise.
+
+2014-01-14  Vidya Praveen  <vidyapraveen@arm.com>
+
+	* lib/ld-lib.exp (default_ld_link): Remove support for ldflags.
+	(default_ld_simple_link): Likewise.
+
+2014-01-10  Alan Modra  <amodra@gmail.com>
+
+	* ld-x86-64/pr14207.d: Adjust.
+
+2014-01-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/binutils.exp (binutils_test): Check if GNU_RELRO segment
+	is generated.
+
+2014-01-09  Vidya Praveen  <vidyapraveen@arm.com>
+
+	* lib/ld-lib.exp (check_lto_shared_available): New check.
+	* ld-plugin/lto.exp: Use check_lto_shared_available.
+
+2014-01-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/14207
+	PR ld/16322
+	PR binutils/16323
+	* ld-elf/pr16322.d: New file.
+	* ld-elf/pr16322.s: Likewise.
+
+	* ld-x86-64/pr14207.d: Expect PT_GNU_RELRO segment.
+
+For older changes see ChangeLog-2013
 
+Copyright (C) 2014 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
 Local Variables:
 mode: change-log
 left-margin: 8

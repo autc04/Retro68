@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -57,6 +57,10 @@ package body Sprint is
    --  Debug_Generated_Code mode, Dump_Node is set to the current node
    --  requiring Sloc fixup, until Set_Debug_Sloc is called to set the proper
    --  value. The call clears it back to Empty.
+
+   First_Debug_Sloc : Source_Ptr;
+   --  Sloc of first byte of the current output file if we are generating a
+   --  source debug file.
 
    Debug_Sloc : Source_Ptr;
    --  Sloc of first byte of line currently being written if we are
@@ -305,8 +309,9 @@ package body Sprint is
    --  characters {} if the Do_Overflow flag is set on the node N.
 
    procedure Write_Param_Specs (N : Node_Id);
-   --  Output parameter specifications for node (which is either a function
-   --  or procedure specification with a Parameter_Specifications field)
+   --  Output parameter specifications for node N (which is a subprogram, or
+   --  entry or entry family or access-subprogram-definition, all of which
+   --  have a Parameter_Specificatioons field).
 
    procedure Write_Rewrite_Str (S : String);
    --  Writes out a string (typically containing <<< or >>>}) for a node
@@ -512,7 +517,46 @@ package body Sprint is
    procedure Set_Debug_Sloc is
    begin
       if Debug_Generated_Code and then Present (Dump_Node) then
-         Set_Sloc (Dump_Node, Debug_Sloc + Source_Ptr (Column - 1));
+         declare
+            Loc : constant Source_Ptr := Sloc (Dump_Node);
+
+         begin
+            --  Do not change the location of nodes defined in package Standard
+            --  and nodes of pragmas scanned by Targparm.
+
+            if Loc <= Standard_Location then
+               null;
+
+            --  Update the location of a node which is part of the current .dg
+            --  output. This situation occurs in comma separated parameter
+            --  declarations since each parameter references the same parameter
+            --  type node (ie. obj1, obj2 : <param-type>).
+
+            --  Note: This case is needed here since we cannot use the routine
+            --  In_Extended_Main_Code_Unit with nodes whose location is a .dg
+            --  file.
+
+            elsif Loc >= First_Debug_Sloc then
+               Set_Sloc (Dump_Node, Debug_Sloc + Source_Ptr (Column - 1));
+
+            --  Do not change the location of nodes which are not part of the
+            --  generated code
+
+            elsif not In_Extended_Main_Code_Unit (Loc) then
+               null;
+
+            else
+               Set_Sloc (Dump_Node, Debug_Sloc + Source_Ptr (Column - 1));
+            end if;
+         end;
+
+         --  We do not know the actual end location in the generated code and
+         --  it could be much closer than in the source code, so play safe.
+
+         if Nkind_In (Dump_Node, N_Case_Statement, N_If_Statement) then
+            Set_End_Location (Dump_Node, Debug_Sloc + Source_Ptr (Column - 1));
+         end if;
+
          Dump_Node := Empty;
       end if;
    end Set_Debug_Sloc;
@@ -573,6 +617,7 @@ package body Sprint is
          Debug_Flag_G := False;
          Debug_Flag_O := False;
          Debug_Flag_S := False;
+         First_Debug_Sloc := No_Location;
 
          --  Dump requested units
 
@@ -590,6 +635,7 @@ package body Sprint is
                if Debug_Generated_Code then
                   Set_Special_Output (Print_Debug_Line'Access);
                   Create_Debug_Source (Source_Index (U), Debug_Sloc);
+                  First_Debug_Sloc := Debug_Sloc;
                   Write_Source_Line (1);
                   Last_Line_Printed := 1;
                   Sprint_Node (Cunit (U));
@@ -1326,6 +1372,13 @@ package body Sprint is
                Sprint_Node (Variant_Part (Node));
             end if;
 
+         when N_Compound_Statement =>
+            Write_Indent_Str ("do");
+            Indent_Begin;
+            Sprint_Node_List (Actions (Node));
+            Indent_End;
+            Write_Indent_Str ("end;");
+
          when N_Conditional_Entry_Call =>
             Write_Indent_Str_Sloc ("select");
             Indent_Begin;
@@ -1343,10 +1396,55 @@ package body Sprint is
             Sprint_Node (Component_Definition (Node));
 
          --  A contract node should not appear in the tree. It is a semantic
-         --  node attached to entry and [generic] subprogram entities.
+         --  node attached to entry and [generic] subprogram entities. But we
+         --  still provide meaningful output, in case called from the debugger.
 
          when N_Contract =>
-            raise Program_Error;
+            declare
+               P : Node_Id;
+
+            begin
+               Indent_Begin;
+               Write_Str ("N_Contract node");
+               Write_Eol;
+
+               Write_Indent_Str ("Pre_Post_Conditions");
+               Indent_Begin;
+
+               P := Pre_Post_Conditions (Node);
+               while Present (P) loop
+                  Sprint_Node (P);
+                  P := Next_Pragma (P);
+               end loop;
+
+               Write_Eol;
+               Indent_End;
+
+               Write_Indent_Str ("Contract_Test_Cases");
+               Indent_Begin;
+
+               P := Contract_Test_Cases (Node);
+               while Present (P) loop
+                  Sprint_Node (P);
+                  P := Next_Pragma (P);
+               end loop;
+
+               Write_Eol;
+               Indent_End;
+
+               Write_Indent_Str ("Classifications");
+               Indent_Begin;
+
+               P := Classifications (Node);
+               while Present (P) loop
+                  Sprint_Node (P);
+                  P := Next_Pragma (P);
+               end loop;
+
+               Write_Eol;
+               Indent_End;
+               Indent_End;
+            end;
 
          when N_Decimal_Fixed_Point_Definition =>
             Write_Str_With_Col_Check_Sloc (" delta ");
@@ -2240,7 +2338,33 @@ package body Sprint is
                      Write_Str_With_Col_Check ("not null ");
                   end if;
 
-                  Sprint_Node (Object_Definition (Node));
+                  --  Print type. We used to print the Object_Definition from
+                  --  the node, but it is much more useful to print the Etype
+                  --  of the defining identifier for the case where the nominal
+                  --  type is an unconstrained array type. For example, this
+                  --  will be a clear reference to the Itype with the bounds
+                  --  in the case of a type like String. The object after
+                  --  all is constrained, even if its nominal subtype is
+                  --  unconstrained.
+
+                  declare
+                     Odef : constant Node_Id := Object_Definition (Node);
+
+                  begin
+                     if Nkind (Odef) = N_Identifier
+                       and then Present (Etype (Odef))
+                       and then Is_Array_Type (Etype (Odef))
+                       and then not Is_Constrained (Etype (Odef))
+                       and then Present (Etype (Def_Id))
+                     then
+                        Sprint_Node (Etype (Def_Id));
+
+                     --  In other cases, the nominal type is fine to print
+
+                     else
+                        Sprint_Node (Odef);
+                     end if;
+                  end;
 
                   if Present (Expression (Node)) then
                      Write_Str (" := ");
@@ -2580,10 +2704,13 @@ package body Sprint is
                --  it is emitted when the access definition is displayed.
 
                if Null_Exclusion_Present (Node)
-                 and then Nkind (Parameter_Type (Node))
-                   /= N_Access_Definition
+                 and then Nkind (Parameter_Type (Node)) /= N_Access_Definition
                then
                   Write_Str ("not null ");
+               end if;
+
+               if Aliased_Present (Node) then
+                  Write_Str ("aliased ");
                end if;
 
                Sprint_Node (Parameter_Type (Node));
@@ -2877,6 +3004,12 @@ package body Sprint is
          when N_Raise_Statement =>
             Write_Indent_Str_Sloc ("raise ");
             Sprint_Node (Name (Node));
+
+            if Present (Expression (Node)) then
+               Write_Str_With_Col_Check_Sloc (" with ");
+               Sprint_Node (Expression (Node));
+            end if;
+
             Write_Char (';');
 
          when N_Range =>
@@ -3300,7 +3433,7 @@ package body Sprint is
             --  correspond to the non-existent children of Text_IO.
 
             if Dump_Original_Only
-              and then Is_Text_IO_Kludge_Unit (Name (Node))
+              and then Is_Text_IO_Special_Unit (Name (Node))
             then
                null;
 
@@ -4051,7 +4184,7 @@ package body Sprint is
 
                   --  Array types and string types
 
-                  when E_Array_Type | E_String_Type =>
+                  when E_Array_Type =>
                      Write_Header;
                      Write_Str ("array (");
 
@@ -4290,6 +4423,7 @@ package body Sprint is
                         Len : constant Uint :=
                                 String_Literal_Length (Typ);
                      begin
+                        Write_Header (False);
                         Write_Str ("String (");
                         Write_Int (UI_To_Int (LB));
                         Write_Str (" .. ");
@@ -4421,17 +4555,25 @@ package body Sprint is
    -----------------------
 
    procedure Write_Param_Specs (N : Node_Id) is
-      Specs  : List_Id;
+      Specs         : constant List_Id := Parameter_Specifications (N);
+      Specs_Present : constant Boolean := Is_Non_Empty_List (Specs);
+
+      Ent    : Entity_Id;
+      Extras : Node_Id;
       Spec   : Node_Id;
       Formal : Node_Id;
 
+      Output : Boolean := False;
+      --  Set true if we output at least one parameter
+
    begin
-      Specs := Parameter_Specifications (N);
+      --  Write out explicit specs from Parameter_Speficiations list
 
-      if Is_Non_Empty_List (Specs) then
+      if Specs_Present then
          Write_Str_With_Col_Check (" (");
-         Spec := First (Specs);
+         Output := True;
 
+         Spec := First (Specs);
          loop
             Sprint_Node (Spec);
             Formal := Defining_Identifier (Spec);
@@ -4446,17 +4588,42 @@ package body Sprint is
                Write_Str ("; ");
             end if;
          end loop;
+      end if;
 
-         --  Write out any extra formals
+      --  See if we have extra formals
 
-         while Present (Extra_Formal (Formal)) loop
-            Formal := Extra_Formal (Formal);
-            Write_Str ("; ");
-            Write_Name_With_Col_Check (Chars (Formal));
-            Write_Str (" : ");
-            Write_Name_With_Col_Check (Chars (Etype (Formal)));
-         end loop;
+      if Nkind_In (N, N_Function_Specification,
+                      N_Procedure_Specification)
+      then
+         Ent := Defining_Entity (N);
 
+         --  Loop to write extra formals (if any)
+
+         if Present (Ent) and then Is_Subprogram (Ent) then
+            Extras := Extra_Formals (Ent);
+
+            if Present (Extras) then
+               if not Specs_Present then
+                  Write_Str_With_Col_Check (" (");
+                  Output := True;
+               end if;
+
+               Formal := Extras;
+               while Present (Formal) loop
+                  if Specs_Present or else Formal /= Extras then
+                     Write_Str ("; ");
+                  end if;
+
+                  Write_Name_With_Col_Check (Chars (Formal));
+                  Write_Str (" : ");
+                  Write_Name_With_Col_Check (Chars (Etype (Formal)));
+                  Formal := Extra_Formal (Formal);
+               end loop;
+            end if;
+         end if;
+      end if;
+
+      if Output then
          Write_Char (')');
       end if;
    end Write_Param_Specs;

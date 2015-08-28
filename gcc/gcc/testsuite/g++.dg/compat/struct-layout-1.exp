@@ -1,4 +1,4 @@
-# Copyright (C) 2002-2014 Free Software Foundation, Inc.
+# Copyright (C) 2002-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ proc compat-use-alt-compiler { } {
 	set ALWAYS_CXXFLAGS ""
 	set ld_library_path $alt_ld_library_path
 	set_ld_library_path_env_vars
+	restore_gcc_exec_prefix_env_var
     }
 }
 
@@ -88,6 +89,9 @@ proc compat-use-tst-compiler { } {
 # Load the language-independent compabibility support procedures.
 # This must be done after the compat-use-*-compiler definitions.
 load_lib compat.exp
+
+# Provide the g++-dg-prune routine (gcc-dp.exp is loaded by compat.exp)
+load_lib g++-dg.exp
 
 g++_init
 

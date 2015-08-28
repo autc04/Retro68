@@ -1,6 +1,5 @@
 /* Disassemble WDC 65816 instructions.
-   Copyright 1995, 1998, 2000, 2001, 2002, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1995-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -19,8 +18,9 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include <stdio.h>
 #include "sysdep.h"
+#include <stdio.h>
+
 #define STATIC_TABLE
 #define DEFINE_TABLE
 

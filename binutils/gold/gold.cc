@@ -1,6 +1,6 @@
 // gold.cc -- main linker functions
 
-// Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -30,6 +30,7 @@
 #include "libiberty.h"
 
 #include "options.h"
+#include "target-select.h"
 #include "debug.h"
 #include "workqueue.h"
 #include "dirsearch.h"
@@ -44,22 +45,30 @@
 #include "gc.h"
 #include "icf.h"
 #include "incremental.h"
+#include "timer.h"
 
 namespace gold
 {
 
+class Object;
+
 const char* program_name;
 
+static Task*
+process_incremental_input(Incremental_binary*, unsigned int, Input_objects*,
+			  Symbol_table*, Layout*, Dirsearch*, Mapfile*,
+			  Task_token*, Task_token*);
+
 void
-gold_exit(bool status)
+gold_exit(Exit_status status)
 {
   if (parameters != NULL
       && parameters->options_valid()
       && parameters->options().has_plugins())
     parameters->options().plugins()->cleanup();
-  if (!status && parameters != NULL && parameters->options_valid())
+  if (status != GOLD_OK && parameters != NULL && parameters->options_valid())
     unlink_if_ordinary(parameters->options().output_file_name());
-  exit(status ? EXIT_SUCCESS : EXIT_FAILURE);
+  exit(status);
 }
 
 void
@@ -80,7 +89,7 @@ gold_nomem()
       const char* const s = ": out of memory\n";
       len = write(2, s, strlen(s));
     }
-  gold_exit(false);
+  gold_exit(GOLD_ERR);
 }
 
 // Handle an unreachable case.
@@ -90,7 +99,7 @@ do_gold_unreachable(const char* filename, int lineno, const char* function)
 {
   fprintf(stderr, _("%s: internal error in %s, at %s:%d\n"),
 	  program_name, function, filename, lineno);
-  gold_exit(false);
+  gold_exit(GOLD_ERR);
 }
 
 // This class arranges to run the functions done in the middle of the
@@ -127,7 +136,7 @@ Middle_runner::run(Workqueue* workqueue, const Task* task)
 
 // This class arranges the tasks to process the relocs for garbage collection.
 
-class Gc_runner : public Task_function_runner 
+class Gc_runner : public Task_function_runner
 {
   public:
    Gc_runner(const General_options& options,
@@ -152,9 +161,9 @@ class Gc_runner : public Task_function_runner
 void
 Gc_runner::run(Workqueue* workqueue, const Task* task)
 {
-  queue_middle_gc_tasks(this->options_, task, this->input_objects_, 
-                        this->symtab_, this->layout_, workqueue, 
-                        this->mapfile_);
+  queue_middle_gc_tasks(this->options_, task, this->input_objects_,
+			this->symtab_, this->layout_, workqueue,
+			this->mapfile_);
 }
 
 // Queue up the initial set of tasks for this link job.
@@ -168,8 +177,16 @@ queue_initial_tasks(const General_options& options,
 {
   if (cmdline.begin() == cmdline.end())
     {
+      bool is_ok = false;
       if (options.printed_version())
-	gold_exit(true);
+	is_ok = true;
+      if (options.print_output_format())
+	{
+	  print_output_format();
+	  is_ok = true;
+	}
+      if (is_ok)
+	gold_exit(GOLD_OK);
       gold_fatal(_("no input files"));
     }
 
@@ -178,19 +195,32 @@ queue_initial_tasks(const General_options& options,
     thread_count = cmdline.number_of_input_files();
   workqueue->set_thread_count(thread_count);
 
-  if (cmdline.options().incremental())
+  // For incremental links, the base output file.
+  Incremental_binary* ibase = NULL;
+
+  if (parameters->incremental_update())
     {
-      Incremental_checker incremental_checker(
-          parameters->options().output_file_name(),
-          layout->incremental_inputs());
-      if (incremental_checker.can_incrementally_link_output_file())
-        {
-          // TODO: remove when incremental linking implemented.
-          printf("Incremental linking might be possible "
-              "(not implemented yet)\n");
-        }
-      // TODO: If we decide on an incremental build, fewer tasks
-      // should be scheduled.
+      Output_file* of = new Output_file(options.output_file_name());
+      if (of->open_base_file(options.incremental_base(), true))
+	{
+	  ibase = open_incremental_binary(of);
+	  if (ibase != NULL
+	      && ibase->check_inputs(cmdline, layout->incremental_inputs()))
+	    ibase->init_layout(layout);
+	  else
+	    {
+	      delete ibase;
+	      ibase = NULL;
+	      of->close();
+	    }
+	}
+      if (ibase == NULL)
+	{
+	  if (set_parameters_incremental_full())
+	    gold_info(_("linking with --incremental-full"));
+	  else
+	    gold_fallback(_("restart link with --incremental-full"));
+	}
     }
 
   // Read the input files.  We have to add the symbols to the symbol
@@ -198,16 +228,45 @@ queue_initial_tasks(const General_options& options,
   // each input file.  We associate the blocker with the following
   // input file, to give us a convenient place to delete it.
   Task_token* this_blocker = NULL;
-  for (Command_line::const_iterator p = cmdline.begin();
-       p != cmdline.end();
-       ++p)
+  if (ibase == NULL)
     {
-      Task_token* next_blocker = new Task_token(true);
-      next_blocker->add_blocker();
-      workqueue->queue(new Read_symbols(input_objects, symtab, layout,
-					&search_path, 0, mapfile, &*p, NULL,
-					this_blocker, next_blocker));
-      this_blocker = next_blocker;
+      // Normal link.  Queue a Read_symbols task for each input file
+      // on the command line.
+      for (Command_line::const_iterator p = cmdline.begin();
+	   p != cmdline.end();
+	   ++p)
+	{
+	  Task_token* next_blocker = new Task_token(true);
+	  next_blocker->add_blocker();
+	  workqueue->queue(new Read_symbols(input_objects, symtab, layout,
+					    &search_path, 0, mapfile, &*p, NULL,
+					    NULL, this_blocker, next_blocker));
+	  this_blocker = next_blocker;
+	}
+    }
+  else
+    {
+      // Incremental update link.  Process the list of input files
+      // stored in the base file, and queue a task for each file:
+      // a Read_symbols task for a changed file, and an Add_symbols task
+      // for an unchanged file.  We need to mark all the space used by
+      // unchanged files before we can start any tasks running.
+      unsigned int input_file_count = ibase->input_file_count();
+      std::vector<Task*> tasks;
+      tasks.reserve(input_file_count);
+      for (unsigned int i = 0; i < input_file_count; ++i)
+	{
+	  Task_token* next_blocker = new Task_token(true);
+	  next_blocker->add_blocker();
+	  Task* t = process_incremental_input(ibase, i, input_objects, symtab,
+					      layout, &search_path, mapfile,
+					      this_blocker, next_blocker);
+	  tasks.push_back(t);
+	  this_blocker = next_blocker;
+	}
+      // Now we can queue the tasks.
+      for (unsigned int i = 0; i < tasks.size(); i++)
+	workqueue->queue(tasks[i]);
     }
 
   if (options.has_plugins())
@@ -220,31 +279,152 @@ queue_initial_tasks(const General_options& options,
       this_blocker = next_blocker;
     }
 
-  if (parameters->options().relocatable()
-      && (parameters->options().gc_sections()
-	  || parameters->options().icf_enabled()))
+  if (options.relocatable()
+      && (options.gc_sections() || options.icf_enabled()))
     gold_error(_("cannot mix -r with --gc-sections or --icf"));
 
-  if (parameters->options().gc_sections()
-      || parameters->options().icf_enabled())
+  if (options.gc_sections() || options.icf_enabled())
     {
       workqueue->queue(new Task_function(new Gc_runner(options,
-                                                       input_objects,
-                                                       symtab,
-                                                       layout,
-                                                       mapfile),
-                                         this_blocker,
-                                         "Task_function Gc_runner"));
+						       input_objects,
+						       symtab,
+						       layout,
+						       mapfile),
+					 this_blocker,
+					 "Task_function Gc_runner"));
     }
   else
     {
       workqueue->queue(new Task_function(new Middle_runner(options,
-                                                           input_objects,
-                                                           symtab,
-                                                           layout,
-                                                           mapfile),
-                                         this_blocker,
-                                         "Task_function Middle_runner"));
+							   input_objects,
+							   symtab,
+							   layout,
+							   mapfile),
+					 this_blocker,
+					 "Task_function Middle_runner"));
+    }
+}
+
+// Process an incremental input file: if it is unchanged from the previous
+// link, return a task to add its symbols from the base file's incremental
+// info; if it has changed, return a normal Read_symbols task.  We create a
+// task for every input file, if only to report the file for rebuilding the
+// incremental info.
+
+static Task*
+process_incremental_input(Incremental_binary* ibase,
+			  unsigned int input_file_index,
+			  Input_objects* input_objects,
+			  Symbol_table* symtab,
+			  Layout* layout,
+			  Dirsearch* search_path,
+			  Mapfile* mapfile,
+			  Task_token* this_blocker,
+			  Task_token* next_blocker)
+{
+  const Incremental_binary::Input_reader* input_reader =
+      ibase->get_input_reader(input_file_index);
+  Incremental_input_type input_type = input_reader->type();
+
+  // Get the input argument corresponding to this input file, matching on
+  // the argument serial number.  If the input file cannot be matched
+  // to an existing input argument, synthesize a new one.
+  const Input_argument* input_argument =
+      ibase->get_input_argument(input_file_index);
+  if (input_argument == NULL)
+    {
+      Input_file_argument file(input_reader->filename(),
+			       Input_file_argument::INPUT_FILE_TYPE_FILE,
+			       "", false, parameters->options());
+      Input_argument* arg = new Input_argument(file);
+      arg->set_script_info(ibase->get_script_info(input_file_index));
+      input_argument = arg;
+    }
+
+  gold_debug(DEBUG_INCREMENTAL, "Incremental object: %s, type %d",
+	     input_reader->filename(), input_type);
+
+  if (input_type == INCREMENTAL_INPUT_SCRIPT)
+    {
+      // Incremental_binary::check_inputs should have cancelled the
+      // incremental update if the script has changed.
+      gold_assert(!ibase->file_has_changed(input_file_index));
+      return new Check_script(layout, ibase, input_file_index, input_reader,
+			      this_blocker, next_blocker);
+    }
+
+  if (input_type == INCREMENTAL_INPUT_ARCHIVE)
+    {
+      Incremental_library* lib = ibase->get_library(input_file_index);
+      gold_assert(lib != NULL);
+      if (lib->filename() == "/group/"
+	  || !ibase->file_has_changed(input_file_index))
+	{
+	  // Queue a task to check that no references have been added to any
+	  // of the library's unused symbols.
+	  return new Check_library(symtab, layout, ibase, input_file_index,
+				   input_reader, this_blocker, next_blocker);
+	}
+      else
+	{
+	  // Queue a Read_symbols task to process the archive normally.
+	  return new Read_symbols(input_objects, symtab, layout, search_path,
+				  0, mapfile, input_argument, NULL, NULL,
+				  this_blocker, next_blocker);
+	}
+    }
+
+  if (input_type == INCREMENTAL_INPUT_ARCHIVE_MEMBER)
+    {
+      // For archive members, check the timestamp of the containing archive.
+      Incremental_library* lib = ibase->get_library(input_file_index);
+      gold_assert(lib != NULL);
+      // Process members of a --start-lib/--end-lib group as normal objects.
+      if (lib->filename() != "/group/")
+	{
+	  if (ibase->file_has_changed(lib->input_file_index()))
+	    {
+	      return new Read_member(input_objects, symtab, layout, mapfile,
+				     input_reader, this_blocker, next_blocker);
+	    }
+	  else
+	    {
+	      // The previous contributions from this file will be kept.
+	      // Mark the pieces of output sections contributed by this
+	      // object.
+	      ibase->reserve_layout(input_file_index);
+	      Object* obj = make_sized_incremental_object(ibase,
+							  input_file_index,
+							  input_type,
+							  input_reader);
+	      return new Add_symbols(input_objects, symtab, layout,
+				     search_path, 0, mapfile, input_argument,
+				     obj, lib, NULL, this_blocker,
+				     next_blocker);
+	    }
+	}
+    }
+
+  // Normal object file or shared library.  Check if the file has changed
+  // since the last incremental link.
+  if (ibase->file_has_changed(input_file_index))
+    {
+      return new Read_symbols(input_objects, symtab, layout, search_path, 0,
+			      mapfile, input_argument, NULL, NULL,
+			      this_blocker, next_blocker);
+    }
+  else
+    {
+      // The previous contributions from this file will be kept.
+      // Mark the pieces of output sections contributed by this object.
+      ibase->reserve_layout(input_file_index);
+      Object* obj = make_sized_incremental_object(ibase,
+						  input_file_index,
+						  input_type,
+						  input_reader);
+      return new Add_symbols(input_objects, symtab, layout, search_path, 0,
+			     mapfile, input_argument, obj, NULL, NULL,
+			     this_blocker, next_blocker);
     }
 }
 
@@ -265,26 +445,34 @@ queue_middle_gc_tasks(const General_options& options,
 {
   // Read_relocs for all the objects must be done and processed to find
   // unused sections before any scanning of the relocs can take place.
-  Task_token* blocker = new Task_token(true);
-  Task_token* symtab_lock = new Task_token(false);
+  Task_token* this_blocker = NULL;
   for (Input_objects::Relobj_iterator p = input_objects->relobj_begin();
        p != input_objects->relobj_end();
        ++p)
     {
-      // We can read and process the relocations in any order.  
-      blocker->add_blocker();
-      workqueue->queue(new Read_relocs(options, symtab, layout, *p,
-				       symtab_lock, blocker));
+      Task_token* next_blocker = new Task_token(true);
+      next_blocker->add_blocker();
+      workqueue->queue(new Read_relocs(symtab, layout, *p, this_blocker,
+				       next_blocker));
+      this_blocker = next_blocker;
     }
 
-  Task_token* this_blocker = new Task_token(true);
+  // If we are given only archives in input, we have no regular
+  // objects and THIS_BLOCKER is NULL here.  Create a dummy
+  // blocker here so that we can run the middle tasks immediately.
+  if (this_blocker == NULL)
+    {
+      gold_assert(input_objects->number_of_relobjs() == 0);
+      this_blocker = new Task_token(true);
+    }
+
   workqueue->queue(new Task_function(new Middle_runner(options,
-                                                       input_objects,
-                                                       symtab,
-                                                       layout,
-                                                       mapfile),
-                                     this_blocker,
-                                     "Task_function Middle_runner"));
+						       input_objects,
+						       symtab,
+						       layout,
+						       mapfile),
+				     this_blocker,
+				     "Task_function Middle_runner"));
 }
 
 // Queue up the middle set of tasks.  These are the tasks which run
@@ -300,59 +488,60 @@ queue_middle_tasks(const General_options& options,
 		   Workqueue* workqueue,
 		   Mapfile* mapfile)
 {
+  Timer* timer = parameters->timer();
+  if (timer != NULL)
+    timer->stamp(0);
+
   // Add any symbols named with -u options to the symbol table.
-  symtab->add_undefined_symbols_from_command_line();
+  symtab->add_undefined_symbols_from_command_line(layout);
 
   // If garbage collection was chosen, relocs have been read and processed
-  // at this point by pre_middle_tasks.  Layout can then be done for all 
+  // at this point by pre_middle_tasks.  Layout can then be done for all
   // objects.
   if (parameters->options().gc_sections())
     {
       // Find the start symbol if any.
-      Symbol* start_sym;
-      if (parameters->options().entry())
-        start_sym = symtab->lookup(parameters->options().entry());
-      else
-        start_sym = symtab->lookup("_start");
-      if (start_sym !=NULL)
-        {
-          bool is_ordinary;
-          unsigned int shndx = start_sym->shndx(&is_ordinary);
-          if (is_ordinary) 
-            {
-              symtab->gc()->worklist().push(
-                Section_id(start_sym->object(), shndx));
-            }
-        }
+      Symbol* sym = symtab->lookup(parameters->entry());
+      if (sym != NULL)
+	symtab->gc_mark_symbol(sym);
+      sym = symtab->lookup(parameters->options().init());
+      if (sym != NULL && sym->is_defined() && !sym->is_from_dynobj())
+	symtab->gc_mark_symbol(sym);
+      sym = symtab->lookup(parameters->options().fini());
+      if (sym != NULL && sym->is_defined() && !sym->is_from_dynobj())
+	symtab->gc_mark_symbol(sym);
       // Symbols named with -u should not be considered garbage.
-      symtab->gc_mark_undef_symbols();
+      symtab->gc_mark_undef_symbols(layout);
       gold_assert(symtab->gc() != NULL);
       // Do a transitive closure on all references to determine the worklist.
       symtab->gc()->do_transitive_closure();
     }
 
-  // If identical code folding (--icf) is chosen it makes sense to do it 
-  // only after garbage collection (--gc-sections) as we do not want to 
+  // If identical code folding (--icf) is chosen it makes sense to do it
+  // only after garbage collection (--gc-sections) as we do not want to
   // be folding sections that will be garbage.
   if (parameters->options().icf_enabled())
     {
       symtab->icf()->find_identical_sections(input_objects, symtab);
     }
 
-  // Call Object::layout for the second time to determine the 
-  // output_sections for all referenced input sections.  When 
-  // --gc-sections or --icf is turned on, Object::layout is 
-  // called twice.  It is called the first time when the 
-  // symbols are added.
+  // Call Object::layout for the second time to determine the
+  // output_sections for all referenced input sections.  When
+  // --gc-sections or --icf is turned on, or when certain input
+  // sections have to be mapped to unique segments, Object::layout
+  // is called twice.  It is called the first time when symbols
+  // are added.
   if (parameters->options().gc_sections()
-      || parameters->options().icf_enabled())
+      || parameters->options().icf_enabled()
+      || layout->is_unique_segment_for_sections_specified())
     {
       for (Input_objects::Relobj_iterator p = input_objects->relobj_begin();
-           p != input_objects->relobj_end();
-           ++p)
-        {
-          (*p)->layout(symtab, layout, NULL);
-        }
+	   p != input_objects->relobj_end();
+	   ++p)
+	{
+	  Task_lock_obj<Object> tlo(task, *p);
+	  (*p)->layout(symtab, layout, NULL);
+	}
     }
 
   // Layout deferred objects due to plugins.
@@ -361,33 +550,48 @@ queue_middle_tasks(const General_options& options,
       Plugin_manager* plugins = parameters->options().plugins();
       gold_assert(plugins != NULL);
       plugins->layout_deferred_objects();
-    }     
+    }
+
+  /* If plugins have specified a section order, re-arrange input sections
+     according to a specified section order.  If --section-ordering-file is
+     also specified, do not do anything here.  */
+  if (parameters->options().has_plugins()
+      && layout->is_section_ordering_specified()
+      && !parameters->options().section_ordering_file ())
+    {
+      for (Layout::Section_list::const_iterator p
+	     = layout->section_list().begin();
+	   p != layout->section_list().end();
+	   ++p)
+	(*p)->update_section_layout(layout->get_section_order_map());
+    }
 
   if (parameters->options().gc_sections()
       || parameters->options().icf_enabled())
     {
       for (Input_objects::Relobj_iterator p = input_objects->relobj_begin();
-           p != input_objects->relobj_end();
-           ++p)
-        {
-          // Update the value of output_section stored in rd.
-          Read_relocs_data *rd = (*p)->get_relocs_data();
-          for (Read_relocs_data::Relocs_list::iterator q = rd->relocs.begin();
-               q != rd->relocs.end();
-               ++q)
-            {
-              q->output_section = (*p)->output_section(q->data_shndx);
-              q->needs_special_offset_handling = 
-                      (*p)->is_output_section_offset_invalid(q->data_shndx);
-            }
-        }
+	   p != input_objects->relobj_end();
+	   ++p)
+	{
+	  // Update the value of output_section stored in rd.
+	  Read_relocs_data* rd = (*p)->get_relocs_data();
+	  for (Read_relocs_data::Relocs_list::iterator q = rd->relocs.begin();
+	       q != rd->relocs.end();
+	       ++q)
+	    {
+	      q->output_section = (*p)->output_section(q->data_shndx);
+	      q->needs_special_offset_handling =
+		      (*p)->is_output_section_offset_invalid(q->data_shndx);
+	    }
+	}
     }
 
   // We have to support the case of not seeing any input objects, and
   // generate an empty file.  Existing builds depend on being able to
   // pass an empty archive to the linker and get an empty object file
   // out.  In order to do this we need to use a default target.
-  if (input_objects->number_of_input_objects() == 0)
+  if (input_objects->number_of_input_objects() == 0
+      && layout->incremental_base() == NULL)
     parameters_force_valid_target();
 
   int thread_count = options.thread_count_middle();
@@ -432,6 +636,15 @@ queue_middle_tasks(const General_options& options,
 	}
     }
 
+  // For incremental updates, record the existing GOT and PLT entries,
+  // and the COPY relocations.
+  if (parameters->incremental_update())
+    {
+      Incremental_binary* ibase = layout->incremental_base();
+      ibase->process_got_plt(symtab, layout);
+      ibase->emit_copy_relocs(symtab);
+    }
+
   if (is_debugging_enabled(DEBUG_SCRIPT))
     layout->script_options()->print(stderr);
 
@@ -439,9 +652,12 @@ queue_middle_tasks(const General_options& options,
   // dynamic objects that it depends upon.
   input_objects->check_dynamic_dependencies();
 
-  // See if any of the input definitions violate the One Definition Rule.
-  // TODO: if this is too slow, do this as a task, rather than inline.
-  symtab->detect_odr_violations(task, options.output_file_name());
+  // Do the --no-undefined-version check.
+  if (!parameters->options().undefined_version())
+    {
+      Script_options* so = layout->script_options();
+      so->version_script_info()->check_unmatched_names(symtab);
+    }
 
   // Create any automatic note sections.
   layout->create_notes();
@@ -456,8 +672,11 @@ queue_middle_tasks(const General_options& options,
   // Define symbols from any linker scripts.
   layout->define_script_symbols(symtab);
 
+  // TODO(csilvers): figure out a more principled way to get the target
+  Target* target = const_cast<Target*>(&parameters->target());
+
   // Attach sections to segments.
-  layout->attach_sections_to_segments();
+  layout->attach_sections_to_segments(target);
 
   if (!parameters->options().relocatable())
     {
@@ -467,13 +686,26 @@ queue_middle_tasks(const General_options& options,
       // Define __start and __stop symbols for output sections where
       // appropriate.
       layout->define_section_symbols(symtab);
+
+      // Define target-specific symbols.
+      target->define_standard_symbols(symtab, layout);
     }
 
   // Make sure we have symbols for any required group signatures.
   layout->define_group_signatures(symtab);
 
-  Task_token* blocker = new Task_token(true);
-  Task_token* symtab_lock = new Task_token(false);
+  Task_token* this_blocker = NULL;
+
+  // Allocate common symbols.  We use a blocker to run this before the
+  // Scan_relocs tasks, because it writes to the symbol table just as
+  // they do.
+  if (parameters->options().define_common())
+    {
+      this_blocker = new Task_token(true);
+      this_blocker->add_blocker();
+      workqueue->queue(new Allocate_commons_task(symtab, layout, mapfile,
+						 this_blocker));
+    }
 
   // If doing garbage collection, the relocations have already been read.
   // Otherwise, read and scan the relocations.
@@ -481,13 +713,16 @@ queue_middle_tasks(const General_options& options,
       || parameters->options().icf_enabled())
     {
       for (Input_objects::Relobj_iterator p = input_objects->relobj_begin();
-           p != input_objects->relobj_end();
-           ++p)
-        {
-          blocker->add_blocker();
-          workqueue->queue(new Scan_relocs(options, symtab, layout, *p, 
-                           (*p)->get_relocs_data(),symtab_lock, blocker));
-        }
+	   p != input_objects->relobj_end();
+	   ++p)
+	{
+	  Task_token* next_blocker = new Task_token(true);
+	  next_blocker->add_blocker();
+	  workqueue->queue(new Scan_relocs(symtab, layout, *p,
+					   (*p)->get_relocs_data(),
+					   this_blocker, next_blocker));
+	  this_blocker = next_blocker;
+	}
     }
   else
     {
@@ -503,40 +738,45 @@ queue_middle_tasks(const General_options& options,
       // some of the sections, and thus change our minds about the types
       // of references made to the symbols.
       for (Input_objects::Relobj_iterator p = input_objects->relobj_begin();
-           p != input_objects->relobj_end();
-           ++p)
-        {
-          // We can read and process the relocations in any order.  But we
-          // only want one task to write to the symbol table at a time.
-          // So we queue up a task for each object to read the
-          // relocations.  That task will in turn queue a task to wait
-          // until it can write to the symbol table.
-          blocker->add_blocker();
-          workqueue->queue(new Read_relocs(options, symtab, layout, *p,
-                   symtab_lock, blocker));
-        }
+	   p != input_objects->relobj_end();
+	   ++p)
+	{
+	  Task_token* next_blocker = new Task_token(true);
+	  next_blocker->add_blocker();
+	  workqueue->queue(new Read_relocs(symtab, layout, *p, this_blocker,
+					   next_blocker));
+	  this_blocker = next_blocker;
+	}
     }
 
-  // Allocate common symbols.  This requires write access to the
-  // symbol table, but is independent of the relocation processing.
-  if (parameters->options().define_common())
+  if (this_blocker == NULL)
     {
-      blocker->add_blocker();
-      workqueue->queue(new Allocate_commons_task(symtab, layout, mapfile,
-						 symtab_lock, blocker));
+      if (input_objects->number_of_relobjs() == 0)
+	{
+	  // If we are given only archives in input, we have no regular
+	  // objects and THIS_BLOCKER is NULL here.  Create a dummy
+	  // blocker here so that we can run the layout task immediately.
+	  this_blocker = new Task_token(true);
+	}
+      else
+	{
+	  // If we failed to open any input files, it's possible for
+	  // THIS_BLOCKER to be NULL here.  There's no real point in
+	  // continuing if that happens.
+	  gold_assert(parameters->errors()->error_count() > 0);
+	  gold_exit(GOLD_ERR);
+	}
     }
 
   // When all those tasks are complete, we can start laying out the
   // output file.
-  // TODO(csilvers): figure out a more principled way to get the target
-  Target* target = const_cast<Target*>(&parameters->target());
   workqueue->queue(new Task_function(new Layout_task_runner(options,
 							    input_objects,
 							    symtab,
-                                                            target,
+							    target,
 							    layout,
 							    mapfile),
-				     blocker,
+				     this_blocker,
 				     "Task_function Layout_task_runner"));
 }
 
@@ -551,6 +791,10 @@ queue_final_tasks(const General_options& options,
 		  Workqueue* workqueue,
 		  Output_file* of)
 {
+  Timer* timer = parameters->timer();
+  if (timer != NULL)
+    timer->stamp(1);
+
   int thread_count = options.thread_count_final();
   if (thread_count == 0)
     thread_count = std::max(2, input_objects->number_of_input_objects());
@@ -562,17 +806,28 @@ queue_final_tasks(const General_options& options,
   // written out.
   Task_token* input_sections_blocker = NULL;
   if (!any_postprocessing_sections)
-    input_sections_blocker = new Task_token(true);
+    {
+      input_sections_blocker = new Task_token(true);
+      // Write_symbols_task, Relocate_tasks.
+      input_sections_blocker->add_blocker();
+      input_sections_blocker->add_blockers(input_objects->number_of_relobjs());
+    }
 
   // Use a blocker to block any objects which have to wait for the
   // output sections to complete before they can apply relocations.
   Task_token* output_sections_blocker = new Task_token(true);
+  output_sections_blocker->add_blocker();
 
   // Use a blocker to block the final cleanup task.
   Task_token* final_blocker = new Task_token(true);
+  // Write_symbols_task, Write_sections_task, Write_data_task,
+  // Relocate_tasks.
+  final_blocker->add_blockers(3);
+  final_blocker->add_blockers(input_objects->number_of_relobjs());
+  if (!any_postprocessing_sections)
+    final_blocker->add_blocker();
 
   // Queue a task to write out the symbol table.
-  final_blocker->add_blocker();
   workqueue->queue(new Write_symbols_task(layout,
 					  symtab,
 					  input_objects,
@@ -582,13 +837,11 @@ queue_final_tasks(const General_options& options,
 					  final_blocker));
 
   // Queue a task to write out the output sections.
-  output_sections_blocker->add_blocker();
-  final_blocker->add_blocker();
   workqueue->queue(new Write_sections_task(layout, of, output_sections_blocker,
+					   input_sections_blocker,
 					   final_blocker));
 
   // Queue a task to write out everything else.
-  final_blocker->add_blocker();
   workqueue->queue(new Write_data_task(layout, symtab, of, final_blocker));
 
   // Queue a task for each input object to relocate the sections and
@@ -596,15 +849,10 @@ queue_final_tasks(const General_options& options,
   for (Input_objects::Relobj_iterator p = input_objects->relobj_begin();
        p != input_objects->relobj_end();
        ++p)
-    {
-      if (input_sections_blocker != NULL)
-	input_sections_blocker->add_blocker();
-      final_blocker->add_blocker();
-      workqueue->queue(new Relocate_task(options, symtab, layout, *p, of,
-					 input_sections_blocker,
-					 output_sections_blocker,
-					 final_blocker));
-    }
+    workqueue->queue(new Relocate_task(symtab, layout, *p, of,
+				       input_sections_blocker,
+				       output_sections_blocker,
+				       final_blocker));
 
   // Queue a task to write out the output sections which depend on
   // input sections.  If there are any sections which require
@@ -612,7 +860,6 @@ queue_final_tasks(const General_options& options,
   // the output file.
   if (!any_postprocessing_sections)
     {
-      final_blocker->add_blocker();
       Task* t = new Write_after_input_sections_task(layout, of,
 						    input_sections_blocker,
 						    final_blocker);
@@ -620,7 +867,7 @@ queue_final_tasks(const General_options& options,
     }
   else
     {
-      Task_token *new_final_blocker = new Task_token(true);
+      Task_token* new_final_blocker = new Task_token(true);
       new_final_blocker->add_blocker();
       Task* t = new Write_after_input_sections_task(layout, of,
 						    final_blocker,
@@ -628,6 +875,9 @@ queue_final_tasks(const General_options& options,
       workqueue->queue(t);
       final_blocker = new_final_blocker;
     }
+
+  // Create tasks for tree-style build ID computation, if necessary.
+  final_blocker = layout->queue_build_id_tasks(workqueue, final_blocker, of);
 
   // Queue a task to close the output file.  This will be blocked by
   // FINAL_BLOCKER.

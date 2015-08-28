@@ -1,6 +1,5 @@
 /* SOM object file format.
-   Copyright 1993, 1994, 1998, 2000, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009  Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -25,7 +24,6 @@
 #include "as.h"
 #include "subsegs.h"
 #include "aout/stab_gnu.h"
-#include "obstack.h"
 
 static int version_seen = 0;
 static int copyright_seen = 0;

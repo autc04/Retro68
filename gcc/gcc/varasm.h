@@ -1,5 +1,5 @@
 /* Declarations for varasm.h.
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,7 +32,7 @@ extern void notice_global_symbol (tree);
 extern void set_user_assembler_name (tree, const char *);
 extern void process_pending_assemble_externals (void);
 extern bool decl_replaceable_p (tree);
-extern bool decl_binds_to_current_def_p (tree);
+extern bool decl_binds_to_current_def_p (const_tree);
 extern enum tls_model decl_default_tls_model (const_tree);
 
 /* Declare DECL to be a weak symbol.  */
@@ -65,5 +65,11 @@ extern bool initializer_constant_valid_for_bitfield_p (tree);
    and has been exposed to let other functions like categorize_ctor_elements
    evaluate the property while walking a constructor for other purposes.  */
 extern bool constructor_static_from_elts_p (const_tree);
+
+extern void init_varasm_status (void);
+
+extern rtx assemble_static_space (unsigned HOST_WIDE_INT);
+
+extern rtx assemble_trampoline_template (void);
 
 #endif  // GCC_VARASM_H

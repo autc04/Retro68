@@ -10,7 +10,7 @@
 #define SIZE (AVX512F_LEN / 32)
 #include "avx512f-mask-type.h"
 #include "math.h"
-#include "values.h"
+#include "float.h"
 
 static void
 CALC (float *r, float src, int tbl)
@@ -60,10 +60,10 @@ CALC (float *r, float src, int tbl)
       *r = M_PI_2;
       break;
     case 14:
-      *r = MAXFLOAT;
+      *r = FLT_MAX;
       break;
     case 15:
-      *r = -MAXFLOAT;
+      *r = -FLT_MAX;
       break;
     default:
       abort ();
@@ -71,10 +71,10 @@ CALC (float *r, float src, int tbl)
 }
 
 
-void static
+void
 TEST (void)
 {
-  int i, j, k;
+  int i, j;
   UNION_TYPE (AVX512F_LEN,) res1, res2, res3, s1;
   UNION_TYPE (AVX512F_LEN, i_d) s2;
   float res_ref[SIZE];

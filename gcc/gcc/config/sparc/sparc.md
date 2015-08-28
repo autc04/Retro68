@@ -1,5 +1,5 @@
 ;; Machine description for SPARC chip for GCC
-;;  Copyright (C) 1987-2014 Free Software Foundation, Inc.
+;;  Copyright (C) 1987-2015 Free Software Foundation, Inc.
 ;;  Contributed by Michael Tiemann (tiemann@cygnus.com)
 ;;  64-bit SPARC-V9 support by Michael Tiemann, Jim Wilson, and Doug Evans,
 ;;  at Cygnus Support.
@@ -221,6 +221,7 @@
    hypersparc,
    leon,
    leon3,
+   leon3v7,
    sparclite,
    f930,
    f934,
@@ -1891,7 +1892,7 @@
   emit_insn (gen_movsi (gen_lowpart (SImode, operands[0]),
 			operands[1]));
 #else
-  unsigned int low, high;
+  HOST_WIDE_INT low, high;
 
   low = trunc_int_for_mode (INTVAL (operands[1]), SImode);
   high = trunc_int_for_mode (INTVAL (operands[1]) >> 32, SImode);
@@ -2370,14 +2371,14 @@
 #if HOST_BITS_PER_WIDE_INT == 32
       gcc_unreachable ();
 #else
-      enum machine_mode mode = GET_MODE (operands[1]);
+      machine_mode mode = GET_MODE (operands[1]);
       rtx tem = simplify_subreg (DImode, operands[1], mode, 0);
       emit_insn (gen_movdi (operands[0], tem));
 #endif
     }
   else
     {
-      enum machine_mode mode = GET_MODE (operands[1]);
+      machine_mode mode = GET_MODE (operands[1]);
       rtx hi = simplify_subreg (SImode, operands[1], mode, 0);
       rtx lo = simplify_subreg (SImode, operands[1], mode, 4);
 
@@ -3044,30 +3045,10 @@
   "! TARGET_ARCH64"
   "#"
   "&& reload_completed"
-  [(set (match_dup 2) (match_dup 3))
-   (set (match_dup 4) (match_dup 5))]
-{
-  rtx dest1, dest2;
-
-  dest1 = gen_highpart (SImode, operands[0]);
-  dest2 = gen_lowpart (SImode, operands[0]);
-
-  /* Swap the order in case of overlap.  */
-  if (REGNO (dest1) == REGNO (operands[1]))
-    {
-      operands[2] = dest2;
-      operands[3] = operands[1];
-      operands[4] = dest1;
-      operands[5] = const0_rtx;
-    }
-  else
-    {
-      operands[2] = dest1;
-      operands[3] = const0_rtx;
-      operands[4] = dest2;
-      operands[5] = operands[1];
-    }
-}
+  [(set (match_dup 2) (match_dup 1))
+   (set (match_dup 3) (const_int 0))]
+  "operands[2] = gen_lowpart (SImode, operands[0]);
+   operands[3] = gen_highpart (SImode, operands[0]);"
   [(set_attr "length" "2")])
 
 ;; Simplify comparisons of extended values.
@@ -3759,7 +3740,7 @@
                                (ltu:SI (reg:CC_NOOV CC_REG) (const_int 0))))
    (set (match_dup 4) (const_int 0))]
   "operands[3] = gen_lowpart (SImode, operands[0]);
-   operands[4] = gen_highpart_mode (SImode, DImode, operands[1]);"
+   operands[4] = gen_highpart (SImode, operands[0]);"
   [(set_attr "length" "2")])
 
 (define_insn "*addx_extend_sp64"
@@ -3781,7 +3762,7 @@
   [(set_attr "type" "ialuX")])
 
 (define_insn_and_split "*adddi3_extend_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
         (plus:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "r"))
                  (match_operand:DI 2 "register_operand" "r")))
    (clobber (reg:CC CC_REG))]
@@ -3880,7 +3861,7 @@
 })
 
 (define_insn_and_split "*subdi3_insn_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
 	(minus:DI (match_operand:DI 1 "register_operand" "r")
 		  (match_operand:DI 2 "arith_double_operand" "rHI")))
    (clobber (reg:CC CC_REG))]
@@ -3936,7 +3917,7 @@
   "subx\t%r1, %2, %0"
   [(set_attr "type" "ialuX")])
 
-(define_insn_and_split "*subx_extend"
+(define_insn_and_split "*subx_extend_sp32"
   [(set (match_operand:DI 0 "register_operand" "=r")
 	(zero_extend:DI (minus:SI (minus:SI (match_operand:SI 1 "register_or_zero_operand" "rJ")
                                             (match_operand:SI 2 "arith_operand" "rI"))
@@ -3952,7 +3933,7 @@
   [(set_attr "length" "2")])
 
 (define_insn_and_split "*subdi3_extend_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
       (minus:DI (match_operand:DI 1 "register_operand" "r")
                 (zero_extend:DI (match_operand:SI 2 "register_operand" "r"))))
    (clobber (reg:CC CC_REG))]
@@ -4756,7 +4737,7 @@
 })
 
 (define_insn_and_split "*and_not_di_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
 	(and:DI (not:DI (match_operand:DI 1 "register_operand" "%r"))
 		(match_operand:DI 2 "register_operand" "r")))]
   "! TARGET_ARCH64"
@@ -4829,11 +4810,11 @@
   [(set (match_dup 3) (match_dup 4))
    (set (match_dup 0) (ior:SI (not:SI (match_dup 3)) (match_dup 1)))]
 {
-  operands[4] = GEN_INT (~INTVAL (operands[2]));
+  operands[4] = gen_int_mode (~INTVAL (operands[2]), SImode);
 })
 
 (define_insn_and_split "*or_not_di_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
 	(ior:DI (not:DI (match_operand:DI 1 "register_operand" "r"))
 		(match_operand:DI 2 "register_operand" "r")))]
   "! TARGET_ARCH64"
@@ -4906,7 +4887,7 @@
   [(set (match_dup 3) (match_dup 4))
    (set (match_dup 0) (not:SI (xor:SI (match_dup 3) (match_dup 1))))]
 {
-  operands[4] = GEN_INT (~INTVAL (operands[2]));
+  operands[4] = gen_int_mode (~INTVAL (operands[2]), SImode);
 })
 
 (define_split
@@ -4918,7 +4899,7 @@
   [(set (match_dup 3) (match_dup 4))
    (set (match_dup 0) (xor:SI (match_dup 3) (match_dup 1)))]
 {
-  operands[4] = GEN_INT (~INTVAL (operands[2]));
+  operands[4] = gen_int_mode (~INTVAL (operands[2]), SImode);
 })
 
 ;; Split DImode logical operations requiring two instructions.
@@ -4958,7 +4939,7 @@
 ;; xnor patterns.  Note that (a ^ ~b) == (~a ^ b) == ~(a ^ b).
 ;; Combine now canonicalizes to the rightmost expression.
 (define_insn_and_split "*xor_not_di_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
 	(not:DI (xor:DI (match_operand:DI 1 "register_operand" "r")
 			(match_operand:DI 2 "register_operand" "r"))))]
   "! TARGET_ARCH64"
@@ -5161,7 +5142,7 @@
 })
 
 (define_insn_and_split "*negdi2_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
 	(neg:DI (match_operand:DI 1 "register_operand" "r")))
    (clobber (reg:CC CC_REG))]
   "! TARGET_ARCH64"
@@ -5236,7 +5217,7 @@
   "")
 
 (define_insn_and_split "*one_cmpldi2_sp32"
-  [(set (match_operand:DI 0 "register_operand" "=r")
+  [(set (match_operand:DI 0 "register_operand" "=&r")
 	(not:DI (match_operand:DI 1 "register_operand" "r")))]
   "! TARGET_ARCH64"
   "#"

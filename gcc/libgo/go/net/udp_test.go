@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestResolveUDPAddr(t *testing.T) {
@@ -31,6 +32,46 @@ func TestResolveUDPAddr(t *testing.T) {
 				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q] = %#v, want %#v", net, str, tt.litAddrOrName, addr1, addr)
 			}
 		}
+	}
+}
+
+func TestReadFromUDP(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("skipping test on %q, see issue 8916", runtime.GOOS)
+	}
+
+	ra, err := ResolveUDPAddr("udp", "127.0.0.1:7")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	la, err := ResolveUDPAddr("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c, err := ListenUDP("udp", la)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	_, err = c.WriteToUDP([]byte("a"), ra)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := make([]byte, 1)
+	_, _, err = c.ReadFromUDP(b)
+	if err == nil {
+		t.Fatal("ReadFromUDP should fail")
+	} else if !isTimeout(err) {
+		t.Fatal(err)
 	}
 }
 
@@ -200,6 +241,10 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
 	var tests = []test{
 		{"udp", "[" + laddr + "%" + ifi.Name + "]:0", false},
 		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
+	}
+	// The first udp test fails on DragonFly - see issue 7473.
+	if runtime.GOOS == "dragonfly" {
+		tests = tests[1:]
 	}
 	switch runtime.GOOS {
 	case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":

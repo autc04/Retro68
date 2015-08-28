@@ -1,5 +1,5 @@
 /* Calculate (post)dominators in slightly super-linear time.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2015 Free Software Foundation, Inc.
    Contributed by Michael Matz (matz@ifh.de).
 
    This file is part of GCC.
@@ -39,11 +39,21 @@
 #include "rtl.h"
 #include "hard-reg-set.h"
 #include "obstack.h"
+#include "predict.h"
+#include "vec.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfganal.h"
 #include "basic-block.h"
 #include "diagnostic-core.h"
 #include "et-forest.h"
 #include "timevar.h"
-#include "pointer-set.h"
+#include "hash-map.h"
 #include "graphds.h"
 #include "bitmap.h"
 
@@ -681,24 +691,30 @@ calculate_dominance_info (enum cdi_direction dir)
 
 /* Free dominance information for direction DIR.  */
 void
-free_dominance_info (enum cdi_direction dir)
+free_dominance_info (function *fn, enum cdi_direction dir)
 {
   basic_block bb;
   unsigned int dir_index = dom_convert_dir_to_idx (dir);
 
-  if (!dom_info_available_p (dir))
+  if (!dom_info_available_p (fn, dir))
     return;
 
-  FOR_ALL_BB_FN (bb, cfun)
+  FOR_ALL_BB_FN (bb, fn)
     {
       et_free_tree_force (bb->dom[dir_index]);
       bb->dom[dir_index] = NULL;
     }
   et_free_pools ();
 
-  n_bbs_in_dom_tree[dir_index] = 0;
+  fn->cfg->x_n_bbs_in_dom_tree[dir_index] = 0;
 
-  dom_computed[dir_index] = DOM_NONE;
+  fn->cfg->x_dom_computed[dir_index] = DOM_NONE;
+}
+
+void
+free_dominance_info (enum cdi_direction dir)
+{
+  free_dominance_info (cfun, dir);
 }
 
 /* Return the immediate dominator of basic block BB.  */
@@ -966,7 +982,7 @@ nearest_common_dominator_for_set (enum cdi_direction dir, bitmap blocks)
 
    A_Dominated_by_B (node A, node B)
    {
-     return DFS_Number_In(A) >= DFS_Number_In(A)
+     return DFS_Number_In(A) >= DFS_Number_In(B)
             && DFS_Number_Out (A) <= DFS_Number_Out(B);
    }  */
 
@@ -1252,7 +1268,6 @@ iterate_fix_dominators (enum cdi_direction dir, vec<basic_block> bbs,
   size_t dom_i;
   edge e;
   edge_iterator ei;
-  pointer_map<int> *map;
   int *parent, *son, *brother;
   unsigned int dir_index = dom_convert_dir_to_idx (dir);
 
@@ -1340,15 +1355,15 @@ iterate_fix_dominators (enum cdi_direction dir, vec<basic_block> bbs,
     }
 
   /* Construct the graph G.  */
-  map = new pointer_map<int>;
+  hash_map<basic_block, int> map (251);
   FOR_EACH_VEC_ELT (bbs, i, bb)
     {
       /* If the dominance tree is conservatively correct, split it now.  */
       if (conservative)
 	set_immediate_dominator (CDI_DOMINATORS, bb, NULL);
-      *map->insert (bb) = i;
+      map.put (bb, i);
     }
-  *map->insert (ENTRY_BLOCK_PTR_FOR_FN (cfun)) = n;
+  map.put (ENTRY_BLOCK_PTR_FOR_FN (cfun), n);
 
   g = new_graph (n + 1);
   for (y = 0; y < g->n_vertices; y++)
@@ -1361,7 +1376,7 @@ iterate_fix_dominators (enum cdi_direction dir, vec<basic_block> bbs,
 	  if (dom == bb)
 	    continue;
 
-	  dom_i = *map->contains (dom);
+	  dom_i = *map.get (dom);
 
 	  /* Do not include parallel edges to G.  */
 	  if (!bitmap_set_bit ((bitmap) g->vertices[dom_i].data, i))
@@ -1372,7 +1387,6 @@ iterate_fix_dominators (enum cdi_direction dir, vec<basic_block> bbs,
     }
   for (y = 0; y < g->n_vertices; y++)
     BITMAP_FREE (g->vertices[y].data);
-  delete map;
 
   /* Find the dominator tree of G.  */
   son = XNEWVEC (int, n + 1);
@@ -1461,11 +1475,19 @@ next_dom_son (enum cdi_direction dir, basic_block bb)
 /* Return dominance availability for dominance info DIR.  */
 
 enum dom_state
+dom_info_state (function *fn, enum cdi_direction dir)
+{
+  if (!fn->cfg)
+    return DOM_NONE;
+
+  unsigned int dir_index = dom_convert_dir_to_idx (dir);
+  return fn->cfg->x_dom_computed[dir_index];
+}
+
+enum dom_state
 dom_info_state (enum cdi_direction dir)
 {
-  unsigned int dir_index = dom_convert_dir_to_idx (dir);
-
-  return dom_computed[dir_index];
+  return dom_info_state (cfun, dir);
 }
 
 /* Set the dominance availability for dominance info DIR to NEW_STATE.  */
@@ -1481,11 +1503,15 @@ set_dom_info_availability (enum cdi_direction dir, enum dom_state new_state)
 /* Returns true if dominance information for direction DIR is available.  */
 
 bool
+dom_info_available_p (function *fn, enum cdi_direction dir)
+{
+  return dom_info_state (fn, dir) != DOM_NONE;
+}
+
+bool
 dom_info_available_p (enum cdi_direction dir)
 {
-  unsigned int dir_index = dom_convert_dir_to_idx (dir);
-
-  return dom_computed[dir_index] != DOM_NONE;
+  return dom_info_available_p (cfun, dir);
 }
 
 DEBUG_FUNCTION void

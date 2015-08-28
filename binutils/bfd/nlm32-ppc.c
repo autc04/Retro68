@@ -1,6 +1,5 @@
 /* Support for 32-bit PowerPC NLM (NetWare Loadable Module)
-   Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007 Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -19,8 +18,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 /* The format of a PowerPC NLM changed.  Define OLDFORMAT to get the
@@ -981,7 +980,7 @@ static const struct nlm_backend_data nlm32_powerpc_backend =
 };
 
 #define TARGET_BIG_NAME			"nlm32-powerpc"
-#define TARGET_BIG_SYM			nlmNAME (powerpc_vec)
+#define TARGET_BIG_SYM			powerpc_nlm32_vec
 #define TARGET_BACKEND_DATA		& nlm32_powerpc_backend
 
 #include "nlm-target.h"

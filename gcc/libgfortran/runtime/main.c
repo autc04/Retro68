@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught and Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -26,6 +26,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <errno.h>
 
 
 #ifdef HAVE_UNISTD_H
@@ -70,23 +71,18 @@ static int argc_save;
 static char **argv_save;
 
 static const char *exe_path;
-static int please_free_exe_path_when_done;
+static bool please_free_exe_path_when_done;
 
 /* Save the path under which the program was called, for use in the
    backtrace routines.  */
 void
 store_exe_path (const char * argv0)
 {
-#ifndef PATH_MAX
-#define PATH_MAX 1024
-#endif
-
 #ifndef DIR_SEPARATOR   
 #define DIR_SEPARATOR '/'
 #endif
 
-  char buf[PATH_MAX], *path;
-  const char *cwd;
+  char *cwd, *path;
 
   /* This can only happen if store_exe_path is called multiple times.  */
   if (please_free_exe_path_when_done)
@@ -95,13 +91,27 @@ store_exe_path (const char * argv0)
   /* Reading the /proc/self/exe symlink is Linux-specific(?), but if
      it works it gives the correct answer.  */
 #ifdef HAVE_READLINK
-  int len;
-  if ((len = readlink ("/proc/self/exe", buf, sizeof (buf) - 1)) != -1)
+  ssize_t len, psize = 256;
+  while (1)
     {
-      buf[len] = '\0';
-      exe_path = strdup (buf);
-      please_free_exe_path_when_done = 1;
-      return;
+      path = xmalloc (psize);
+      len = readlink ("/proc/self/exe", path, psize);
+      if (len < 0)
+	{
+	  free (path);
+	  break;
+	}
+      else if (len < psize)
+	{
+	  path[len] = '\0';
+	  exe_path = strdup (path);
+	  free (path);
+	  please_free_exe_path_when_done = true;
+	  return;
+	}
+      /* The remaining option is len == psize.  */
+      free (path);
+      psize *= 4;
     }
 #endif
 
@@ -117,12 +127,29 @@ store_exe_path (const char * argv0)
 #endif
     {
       exe_path = argv0;
-      please_free_exe_path_when_done = 0;
+      please_free_exe_path_when_done = false;
       return;
     }
 
 #ifdef HAVE_GETCWD
-  cwd = getcwd (buf, sizeof (buf));
+  size_t cwdsize = 256;
+  while (1)
+    {
+      cwd = xmalloc (cwdsize);
+      if (getcwd (cwd, cwdsize))
+	break;
+      else if (errno == ERANGE)
+	{
+	  free (cwd);
+	  cwdsize *= 4;
+	}
+      else
+	{
+	  free (cwd);
+	  cwd = NULL;
+	  break;
+	}
+    }
 #else
   cwd = NULL;
 #endif
@@ -130,7 +157,7 @@ store_exe_path (const char * argv0)
   if (!cwd)
     {
       exe_path = argv0;
-      please_free_exe_path_when_done = 0;
+      please_free_exe_path_when_done = false;
       return;
     }
 
@@ -138,10 +165,11 @@ store_exe_path (const char * argv0)
      if the executable is not in the cwd, but at this point we're out
      of better ideas.  */
   size_t pathlen = strlen (cwd) + 1 + strlen (argv0) + 1;
-  path = malloc (pathlen);
+  path = xmalloc (pathlen);
   snprintf (path, pathlen, "%s%c%s", cwd, DIR_SEPARATOR, argv0);
+  free (cwd);
   exe_path = path;
-  please_free_exe_path_when_done = 1;
+  please_free_exe_path_when_done = true;
 }
 
 
@@ -153,6 +181,16 @@ full_exe_path (void)
 }
 
 
+#ifndef HAVE_STRTOK_R
+static char*
+gfstrtok_r (char *str, const char *delim, 
+	    char **saveptr __attribute__ ((unused)))
+{
+  return strtok (str, delim);
+}
+#define strtok_r gfstrtok_r
+#endif
+
 char *addr2line_path;
 
 /* Find addr2line and store the path.  */
@@ -161,30 +199,32 @@ void
 find_addr2line (void)
 {
 #ifdef HAVE_ACCESS
-#define A2L_LEN 10
+#define A2L_LEN 11
   char *path = secure_getenv ("PATH");
   if (!path)
     return;
+  char *tp = strdup (path);
+  if (!tp)
+    return;
   size_t n = strlen (path);
-  char ap[n + 1 + A2L_LEN];
-  size_t ai = 0;
-  for (size_t i = 0; i < n; i++)
+  char *ap = xmalloc (n + A2L_LEN);
+  char *saveptr;
+  for (char *str = tp;; str = NULL)
     {
-      if (path[i] != ':')
-	ap[ai++] = path[i];
-      else
+      char *token = strtok_r (str, ":", &saveptr);
+      if (!token)
+	break;
+      size_t toklen = strlen (token);
+      memcpy (ap, token, toklen);
+      memcpy (ap + toklen, "/addr2line", A2L_LEN);
+      if (access (ap, R_OK|X_OK) == 0)
 	{
-	  ap[ai++] = '/';
-	  memcpy (ap + ai, "addr2line", A2L_LEN);
-	  if (access (ap, R_OK|X_OK) == 0)
-	    {
-	      addr2line_path = strdup (ap);
-	      return;
-	    }
-	  else
-	    ai = 0;
+	  addr2line_path = strdup (ap);
+	  break;
 	}
     }
+  free (tp);
+  free (ap);
 #endif
 }
 

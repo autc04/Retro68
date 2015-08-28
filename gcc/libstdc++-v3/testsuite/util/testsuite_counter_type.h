@@ -1,6 +1,6 @@
 // -*- C++ -*-
 //
-// Copyright (C) 2012-2014 Free Software Foundation, Inc.
+// Copyright (C) 2012-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -95,7 +95,10 @@ namespace __gnu_test
     { return val == rhs.val; }
 
     bool operator<(const counter_type& rhs) const
-    { return val < rhs.val; }
+    {
+      ++less_compare_count;
+      return val < rhs.val;
+    }
   };
 
   int counter_type::default_count = 0;

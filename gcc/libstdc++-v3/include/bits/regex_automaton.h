@@ -1,6 +1,6 @@
 // class template regex -*- C++ -*-
 
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,6 +28,11 @@
  *  Do not attempt to use it directly. @headername{regex}
  */
 
+// This macro defines the maximal state number a NFA can have.
+#ifndef _GLIBCXX_REGEX_STATE_LIMIT
+#define _GLIBCXX_REGEX_STATE_LIMIT 100000
+#endif
+
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 namespace __detail
@@ -52,6 +57,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   {
       _S_opcode_unknown,
       _S_opcode_alternative,
+      _S_opcode_repeat,
       _S_opcode_backref,
       _S_opcode_line_begin_assertion,
       _S_opcode_line_end_assertion,
@@ -74,9 +80,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       size_t _M_backref_index;  // for _S_opcode_backref
       struct
       {
-	// for _S_opcode_alternative.
-	_StateIdT  _M_quant_index;
-	// for _S_opcode_alternative or _S_opcode_subexpr_lookahead
+	// for _S_opcode_alternative, _S_opcode_repeat and
+	// _S_opcode_subexpr_lookahead
 	_StateIdT  _M_alt;
 	// for _S_opcode_word_boundary or _S_opcode_subexpr_lookahead or
 	// quantifiers (ungreedy if set true)
@@ -120,7 +125,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     explicit
     _NFA_base(_FlagT __f)
     : _M_flags(__f), _M_start_state(0), _M_subexpr_count(0),
-    _M_quant_count(0), _M_has_backref(false)
+    _M_has_backref(false)
     { }
 
     _NFA_base(_NFA_base&&) = default;
@@ -145,7 +150,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     _FlagT                    _M_flags;
     _StateIdT                 _M_start_state;
     _SizeT                    _M_subexpr_count;
-    _SizeT                    _M_quant_count;
     bool                      _M_has_backref;
   };
 
@@ -156,7 +160,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef _State<_TraitsT>				_StateT;
       typedef _Matcher<typename _TraitsT::char_type>	_MatcherT;
 
-      using _NFA_base::_NFA_base;
+      _NFA(const typename _TraitsT::locale_type& __loc, _FlagT __flags)
+      : _NFA_base(__flags)
+      { _M_traits.imbue(__loc); }
 
       // for performance reasons _NFA objects should only be moved not copied
       _NFA(const _NFA&) = delete;
@@ -175,7 +181,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_StateT __tmp(_S_opcode_alternative);
 	// It labels every quantifier to make greedy comparison easier in BFS
 	// approach.
-	__tmp._M_quant_index = this->_M_quant_count++;
+	__tmp._M_next = __next;
+	__tmp._M_alt = __alt;
+	return _M_insert_state(std::move(__tmp));
+      }
+
+      _StateIdT
+      _M_insert_repeat(_StateIdT __next, _StateIdT __alt, bool __neg)
+      {
+	_StateT __tmp(_S_opcode_repeat);
+	// It labels every quantifier to make greedy comparison easier in BFS
+	// approach.
 	__tmp._M_next = __next;
 	__tmp._M_alt = __alt;
 	__tmp._M_neg = __neg;
@@ -245,6 +261,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _M_insert_state(_StateT __s)
       {
 	this->push_back(std::move(__s));
+	if (this->size() > _GLIBCXX_REGEX_STATE_LIMIT)
+	  __throw_regex_error(regex_constants::error_space);
 	return this->size()-1;
       }
 
@@ -256,6 +274,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       std::ostream&
       _M_dot(std::ostream& __ostr) const;
 #endif
+    public:
+      _TraitsT                  _M_traits;
     };
 
   /// Describes a sequence of one or more %_State, its current start

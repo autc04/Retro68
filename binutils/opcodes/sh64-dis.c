@@ -1,5 +1,5 @@
 /* Disassemble SH64 instructions.
-   Copyright 2000, 2001, 2002, 2003, 2005, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -18,10 +18,9 @@
    Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include <stdio.h>
-
-#include "dis-asm.h"
 #include "sysdep.h"
+#include <stdio.h>
+#include "dis-asm.h"
 #include "sh64-opc.h"
 #include "libiberty.h"
 /* We need to refer to the ELF header structure.  */
@@ -195,8 +194,6 @@ print_insn_shmedia (bfd_vma memaddr, struct disassemble_info *info)
      can get as .byte:s.  */
   if (status != 0)
     {
-      int i;
-
       for (i = 0; i < 3; i++)
 	{
 	  status = info->read_memory_func (memaddr + i, insn, 1, info);

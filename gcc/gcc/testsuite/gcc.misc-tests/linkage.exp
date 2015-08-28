@@ -1,4 +1,4 @@
-# Copyright (C) 1988-2014 Free Software Foundation, Inc.
+# Copyright (C) 1988-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,17 @@
 # was written by Rob Savoye. (rob@cygnus.com)
 # All the other tests driven by that file have since been moved elsewhere.
 
+load_lib gcc-defs.exp
+
+# These tests don't run runtest_file_p consistently if it
+# doesn't return the same values, so disable parallelization
+# of this *.exp file.  The first parallel runtest to reach
+# this will run all the tests serially.
+if ![gcc_parallel_test_run_p linkage] {
+    return
+}
+gcc_parallel_test_enable 0
+
 if { [isnative] && ![is_remote host] } then {
     set lines [gcc_target_compile "$srcdir/$subdir/linkage-x.c" "linkage-x.o" object {additional_flags="-w"}]
     if ![string match "" $lines] then {
@@ -33,8 +44,7 @@ if { [isnative] && ![is_remote host] } then {
 		set native_cflags "-xarch=v9"
 	    }
 	}
-	if  {[istarget "i?86*-*-solaris2*"]
-	     || [istarget "x86_64-*-solaris2.1\[0-9\]*"]} {
+	if  {[istarget "i?86*-*-solaris2*"] || [istarget "x86_64-*-solaris2.1\[0-9\]*"]} {
 	    set file_string [exec file "linkage-x.o"]
 	    if [ string match "*64*" $file_string ] {
 		set native_cflags "-xarch=amd64"
@@ -48,9 +58,8 @@ if { [isnative] && ![is_remote host] } then {
 	    if [ string match "*64-bit*" $file_string ] {
 		set native_cflags "-m64"
 	    }
-	} elseif {[istarget "i*86-*-linux*"]
-		  || [istarget "i*86-*-gnu*"]
-		  || [istarget "x86_64-*-linux*"]} then {
+	} elseif {[istarget "i?86-*-linux*"] || [istarget "x86_64-*-linux*"]
+		  || [istarget "i?86-*-gnu*"] || [istarget "x86_64-*-gnu*"] } then {
 	    set file_string [exec file "linkage-x.o"]
 	    if [ string match "*32-bit*" $file_string ] {
 		set native_cflags "-m32"
@@ -117,3 +126,5 @@ if { [isnative] && ![is_remote host] } then {
 	file delete "linkage-x.o"
     }
 }
+
+gcc_parallel_test_enable 1

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -128,6 +128,60 @@ package body Rtsfind is
    --  The field First_Implicit_With in the unit table record are used to
    --  avoid creating duplicate with_clauses.
 
+   ----------------------------------------------
+   -- Table of Predefined RE_Id Error Messages --
+   ----------------------------------------------
+
+   --  If an attempt is made to load an entity, given an RE_Id value, and the
+   --  entity is not available in the current configuration, an error message
+   --  is given (see Entity_Not_Defined below). The general form of such an
+   --  error message is for example:
+
+   --    entity "System.Pack_43.Bits_43" not defined
+
+   --  The following table defines a set of RE_Id image values for which this
+   --  error message is specialized and replaced by specific text indicating
+   --  the exact message to be output. For example, in the case above, for the
+   --  RE_Id value RE_Bits_43, we do indeed specialize the message, and the
+   --  above generic message is replaced by:
+
+   --    packed component size of 43 is not supported
+
+   type CString_Ptr is access constant String;
+
+   type PRE_Id_Entry is record
+      Str : CString_Ptr;
+      --  Pointer to string with the RE_Id image. The sequence ?? may appear
+      --  in which case it will match any characters in the RE_Id image value.
+      --  This is used to avoid the need for dozens of entries for RE_Bits_??.
+
+      Msg : CString_Ptr;
+      --  Pointer to string with the corresponding error text. The sequence
+      --  ?? may appear, in which case, it is replaced by the corresponding
+      --  sequence ?? in the Str value (if the first ? is zero, then it is
+      --  omitted from the message).
+   end record;
+
+   Str1 : aliased constant String := "RE_BITS_??";
+   Str2 : aliased constant String := "RE_GET_??";
+   Str3 : aliased constant String := "RE_SET_??";
+   Str4 : aliased constant String := "RE_CALL_SIMPLE";
+
+   MsgPack : aliased constant String :=
+              "packed component size of ?? is not supported";
+   MsgRV   : aliased constant String :=
+              "task rendezvous is not supported";
+
+   PRE_Id_Table : constant array (Natural range <>) of PRE_Id_Entry :=
+                    (1 => (Str1'Access, MsgPack'Access),
+                     2 => (Str2'Access, MsgPack'Access),
+                     3 => (Str3'Access, MsgPack'Access),
+                     4 => (Str4'Access, MsgRV'Access));
+   --  We will add entries to this table as we find cases where it is a good
+   --  idea to do so. By no means all the RE_Id values need entries, because
+   --  the expander often gives clear messages before it makes the Rtsfind
+   --  call expecting to find the entity.
+
    -----------------------
    -- Local Subprograms --
    -----------------------
@@ -141,7 +195,8 @@ package body Rtsfind is
    procedure Entity_Not_Defined (Id : RE_Id);
    --  Outputs error messages for an entity that is not defined in the run-time
    --  library (the form of the error message is tailored for no run time or
-   --  configurable run time mode as required).
+   --  configurable run time mode as required). See also table of pre-defined
+   --  messages for entities above (RE_Id_Messages).
 
    function Get_Unit_Name (U_Id : RTU_Id) return Unit_Name_Type;
    --  Retrieves the Unit Name given a unit id represented by its enumeration
@@ -173,9 +228,9 @@ package body Rtsfind is
    --  for the Is_Potentially_Use_Visible flag of the entity for the loaded
    --  unit (if it is indeed loaded). A value of False means nothing special
    --  need be done. A value of True indicates that this flag must be set to
-   --  True. It is needed only in the Text_IO_Kludge procedure, which may
-   --  materialize an entity of Text_IO (or [Wide_]Wide_Text_IO) that was
-   --  previously unknown. Id is the RE_Id value of the entity which was
+   --  True. It is needed only in the Check_Text_IO_Special_Unit procedure,
+   --  which may materialize an entity of Text_IO (or [Wide_]Wide_Text_IO) that
+   --  was previously unknown. Id is the RE_Id value of the entity which was
    --  originally requested. Id is used only for error message detail, and if
    --  it is RE_Null, then the attempt to output the entity name is ignored.
 
@@ -191,8 +246,7 @@ package body Rtsfind is
 
    procedure Output_Entity_Name (Id : RE_Id; Msg : String);
    --  Output continuation error message giving qualified name of entity
-   --  corresponding to Id, appending the string given by Msg. This call
-   --  is only effective in All_Errors mode.
+   --  corresponding to Id, appending the string given by Msg.
 
    function RE_Chars (E : RE_Id) return Name_Id;
    --  Given a RE_Id value returns the Chars of the corresponding entity
@@ -264,6 +318,144 @@ package body Rtsfind is
       end if;
    end Check_CRT;
 
+   --------------------------------
+   -- Check_Text_IO_Special_Unit --
+   --------------------------------
+
+   procedure Check_Text_IO_Special_Unit (Nam : Node_Id) is
+      Chrs : Name_Id;
+
+      type Name_Map_Type is array (Text_IO_Package_Name) of RTU_Id;
+
+      Name_Map : constant Name_Map_Type := Name_Map_Type'(
+        Name_Decimal_IO     => Ada_Text_IO_Decimal_IO,
+        Name_Enumeration_IO => Ada_Text_IO_Enumeration_IO,
+        Name_Fixed_IO       => Ada_Text_IO_Fixed_IO,
+        Name_Float_IO       => Ada_Text_IO_Float_IO,
+        Name_Integer_IO     => Ada_Text_IO_Integer_IO,
+        Name_Modular_IO     => Ada_Text_IO_Modular_IO);
+
+      Wide_Name_Map : constant Name_Map_Type := Name_Map_Type'(
+        Name_Decimal_IO     => Ada_Wide_Text_IO_Decimal_IO,
+        Name_Enumeration_IO => Ada_Wide_Text_IO_Enumeration_IO,
+        Name_Fixed_IO       => Ada_Wide_Text_IO_Fixed_IO,
+        Name_Float_IO       => Ada_Wide_Text_IO_Float_IO,
+        Name_Integer_IO     => Ada_Wide_Text_IO_Integer_IO,
+        Name_Modular_IO     => Ada_Wide_Text_IO_Modular_IO);
+
+      Wide_Wide_Name_Map : constant Name_Map_Type := Name_Map_Type'(
+        Name_Decimal_IO     => Ada_Wide_Wide_Text_IO_Decimal_IO,
+        Name_Enumeration_IO => Ada_Wide_Wide_Text_IO_Enumeration_IO,
+        Name_Fixed_IO       => Ada_Wide_Wide_Text_IO_Fixed_IO,
+        Name_Float_IO       => Ada_Wide_Wide_Text_IO_Float_IO,
+        Name_Integer_IO     => Ada_Wide_Wide_Text_IO_Integer_IO,
+        Name_Modular_IO     => Ada_Wide_Wide_Text_IO_Modular_IO);
+
+      To_Load : RTU_Id;
+      --  Unit to be loaded, from one of the above maps
+
+   begin
+      --  Nothing to do if name is not an identifier or a selected component
+      --  whose selector_name is an identifier.
+
+      if Nkind (Nam) = N_Identifier then
+         Chrs := Chars (Nam);
+
+      elsif Nkind (Nam) = N_Selected_Component
+        and then Nkind (Selector_Name (Nam)) = N_Identifier
+      then
+         Chrs := Chars (Selector_Name (Nam));
+
+      else
+         return;
+      end if;
+
+      --  Nothing to do if name is not one of the Text_IO subpackages
+      --  Otherwise look through loaded units, and if we find Text_IO
+      --  or [Wide_]Wide_Text_IO already loaded, then load the proper child.
+
+      if Chrs in Text_IO_Package_Name then
+         for U in Main_Unit .. Last_Unit loop
+            Get_Name_String (Unit_File_Name (U));
+
+            if Name_Len = 12 then
+
+               --  Here is where we do the loads if we find one of the units
+               --  Ada.Text_IO or Ada.[Wide_]Wide_Text_IO. An interesting
+               --  detail is that these units may already be used (i.e. their
+               --  In_Use flags may be set). Normally when the In_Use flag is
+               --  set, the Is_Potentially_Use_Visible flag of all entities in
+               --  the package is set, but the new entity we are mysteriously
+               --  adding was not there to have its flag set at the time. So
+               --  that's why we pass the extra parameter to RTU_Find, to make
+               --  sure the flag does get set now. Given that those generic
+               --  packages are in fact child units, we must indicate that
+               --  they are visible.
+
+               if Name_Buffer (1 .. 12) = "a-textio.ads" then
+                  To_Load := Name_Map (Chrs);
+
+               elsif Name_Buffer (1 .. 12) = "a-witeio.ads" then
+                  To_Load := Wide_Name_Map (Chrs);
+
+               elsif Name_Buffer (1 .. 12) = "a-ztexio.ads" then
+                  To_Load := Wide_Wide_Name_Map (Chrs);
+
+               else
+                  goto Continue;
+               end if;
+
+               Load_RTU (To_Load, Use_Setting => In_Use (Cunit_Entity (U)));
+               Set_Is_Visible_Lib_Unit (RT_Unit_Table (To_Load).Entity);
+
+               --  Prevent creation of an implicit 'with' from (for example)
+               --  Ada.Wide_Text_IO.Integer_IO to Ada.Text_IO.Integer_IO,
+               --  because these could create cycles. First check whether the
+               --  simple names match ("integer_io" = "integer_io"), and then
+               --  check whether the parent is indeed one of the
+               --  [[Wide_]Wide_]Text_IO packages.
+
+               if Chrs = Chars (Cunit_Entity (Current_Sem_Unit)) then
+                  declare
+                     Parent_Name : constant Unit_Name_Type :=
+                       Get_Parent_Spec_Name
+                         (Unit_Name (Current_Sem_Unit));
+
+                  begin
+                     if Parent_Name /= No_Unit_Name then
+                        Get_Name_String (Parent_Name);
+
+                        declare
+                           P : String renames Name_Buffer (1 .. Name_Len);
+                        begin
+                           if P = "ada.text_io%s"      or else
+                             P = "ada.wide_text_io%s" or else
+                             P = "ada.wide_wide_text_io%s"
+                           then
+                              goto Continue;
+                           end if;
+                        end;
+                     end if;
+                  end;
+               end if;
+
+               --  Add an implicit with clause from the current unit to the
+               --  [[Wide_]Wide_]Text_IO child (if necessary).
+
+               Maybe_Add_With (RT_Unit_Table (To_Load));
+            end if;
+
+            <<Continue>> null;
+         end loop;
+      end if;
+
+   exception
+         --  Generate error message if run-time unit not available
+
+      when RE_Not_Available =>
+         Error_Msg_N ("& not available", Nam);
+   end Check_Text_IO_Special_Unit;
+
    ------------------------
    -- Entity_Not_Defined --
    ------------------------
@@ -293,6 +485,54 @@ package body Rtsfind is
       else
          RTE_Error_Msg ("run-time configuration error");
       end if;
+
+      --  See if this entry is to be found in the PRE_Id table that provides
+      --  specialized messages for some RE_Id values.
+
+      for J in PRE_Id_Table'Range loop
+         declare
+            TStr : constant String := PRE_Id_Table (J).Str.all;
+            RStr : constant String := RE_Id'Image (Id);
+            TMsg : String          := PRE_Id_Table (J).Msg.all;
+            LMsg : Natural         := TMsg'Length;
+
+         begin
+            if TStr'Length = RStr'Length then
+               for J in TStr'Range loop
+                  if TStr (J) /= RStr (J) and then TStr (J) /= '?' then
+                     goto Continue;
+                  end if;
+               end loop;
+
+               for J in TMsg'First .. TMsg'Last - 1 loop
+                  if TMsg (J) = '?' then
+                     for K in 1 .. TStr'Last loop
+                        if TStr (K) = '?' then
+                           if RStr (K) = '0' then
+                              TMsg (J) := RStr (K + 1);
+                              TMsg (J + 1 .. LMsg - 1) := TMsg (J + 2 .. LMsg);
+                              LMsg := LMsg - 1;
+                           else
+                              TMsg (J .. J + 1) := RStr (K .. K + 1);
+                           end if;
+
+                           exit;
+                        end if;
+                     end loop;
+                  end if;
+               end loop;
+
+               RTE_Error_Msg (TMsg (1 .. LMsg));
+               return;
+            end if;
+         end;
+
+         <<Continue>> null;
+      end loop;
+
+      --  We did not find an entry in the table, so output the generic entity
+      --  not found message, where the name of the entity corresponds to the
+      --  given RE_Id value.
 
       Output_Entity_Name (Id, "not defined");
    end Entity_Not_Defined;
@@ -515,11 +755,11 @@ package body Rtsfind is
       return Present (E) and then E = Ent;
    end Is_RTU;
 
-   ----------------------------
-   -- Is_Text_IO_Kludge_Unit --
-   ----------------------------
+   -----------------------------
+   -- Is_Text_IO_Special_Unit --
+   -----------------------------
 
-   function Is_Text_IO_Kludge_Unit (Nam : Node_Id) return Boolean is
+   function Is_Text_IO_Special_Unit (Nam : Node_Id) return Boolean is
       Prf : Node_Id;
       Sel : Node_Id;
 
@@ -549,7 +789,7 @@ package body Rtsfind is
                                  Name_Wide_Wide_Text_IO)
           and then Nkind (Sel) = N_Identifier
           and then Chars (Sel) in Text_IO_Package_Name;
-   end Is_Text_IO_Kludge_Unit;
+   end Is_Text_IO_Special_Unit;
 
    ---------------
    -- Load_Fail --
@@ -683,6 +923,12 @@ package body Rtsfind is
          end loop;
       end Save_Private_Visibility;
 
+      --  Local variables
+
+      GM : constant Ghost_Mode_Type := Ghost_Mode;
+      --  Save the current Ghost mode in effect to ensure a clean environment
+      --  when analyzing the unit.
+
    --  Start of processing for Load_RTU
 
    begin
@@ -691,6 +937,10 @@ package body Rtsfind is
       if Present (U.Entity) then
          return;
       end if;
+
+      --  Provide a clean environment for the unit
+
+      Ghost_Mode := None;
 
       --  Note if secondary stack is used
 
@@ -729,7 +979,7 @@ package body Rtsfind is
 
       if U.Unum = No_Unit then
          Load_Fail ("not found", U_Id, Id);
-      elsif Fatal_Error (U.Unum) then
+      elsif Fatal_Error (U.Unum) = Error_Detected then
          Load_Fail ("had parser errors", U_Id, Id);
       end if;
 
@@ -775,7 +1025,7 @@ package body Rtsfind is
                Semantics (Cunit (U.Unum));
                Restore_Private_Visibility;
 
-               if Fatal_Error (U.Unum) then
+               if Fatal_Error (U.Unum) = Error_Detected then
                   Load_Fail ("had semantic errors", U_Id, Id);
                end if;
             end if;
@@ -792,6 +1042,10 @@ package body Rtsfind is
       if Use_Setting then
          Set_Is_Potentially_Use_Visible (U.Entity, True);
       end if;
+
+      --  Restore the original Ghost mode now that analysis has taken place
+
+      Ghost_Mode := GM;
    end Load_RTU;
 
    --------------------
@@ -988,10 +1242,10 @@ package body Rtsfind is
 
       procedure Check_RPC;
       --  Reject programs that make use of distribution features not supported
-      --  on the current target. Also check that the PCS is compatible with
-      --  the code generator version. On such targets (VMS, Vxworks, others?)
-      --  we provide a minimal body for System.Rpc that only supplies an
-      --  implementation of Partition_Id.
+      --  on the current target. Also check that the PCS is compatible with the
+      --  code generator version. On such targets (Vxworks, others?) we provide
+      --  a minimal body for System.Rpc that only supplies an implementation of
+      --  Partition_Id.
 
       function Find_Local_Entity (E : RE_Id) return Entity_Id;
       --  This function is used when entity E is in this compilation's main
@@ -1069,7 +1323,7 @@ package body Rtsfind is
            RE_Str (RE_Str'First + 3 .. RE_Str'Last);
 
          Nam := Name_Find;
-         Ent := Entity_Id (Get_Name_Table_Info (Nam));
+         Ent := Entity_Id (Get_Name_Table_Int (Nam));
 
          Name_Len := Save_Nam'Length;
          Name_Buffer (1 .. Name_Len) := Save_Nam;
@@ -1380,143 +1634,5 @@ package body Rtsfind is
          end if;
       end loop;
    end Set_RTU_Loaded;
-
-   --------------------
-   -- Text_IO_Kludge --
-   --------------------
-
-   procedure Text_IO_Kludge (Nam : Node_Id) is
-      Chrs : Name_Id;
-
-      type Name_Map_Type is array (Text_IO_Package_Name) of RTU_Id;
-
-      Name_Map : constant Name_Map_Type := Name_Map_Type'(
-        Name_Decimal_IO     => Ada_Text_IO_Decimal_IO,
-        Name_Enumeration_IO => Ada_Text_IO_Enumeration_IO,
-        Name_Fixed_IO       => Ada_Text_IO_Fixed_IO,
-        Name_Float_IO       => Ada_Text_IO_Float_IO,
-        Name_Integer_IO     => Ada_Text_IO_Integer_IO,
-        Name_Modular_IO     => Ada_Text_IO_Modular_IO);
-
-      Wide_Name_Map : constant Name_Map_Type := Name_Map_Type'(
-        Name_Decimal_IO     => Ada_Wide_Text_IO_Decimal_IO,
-        Name_Enumeration_IO => Ada_Wide_Text_IO_Enumeration_IO,
-        Name_Fixed_IO       => Ada_Wide_Text_IO_Fixed_IO,
-        Name_Float_IO       => Ada_Wide_Text_IO_Float_IO,
-        Name_Integer_IO     => Ada_Wide_Text_IO_Integer_IO,
-        Name_Modular_IO     => Ada_Wide_Text_IO_Modular_IO);
-
-      Wide_Wide_Name_Map : constant Name_Map_Type := Name_Map_Type'(
-        Name_Decimal_IO     => Ada_Wide_Wide_Text_IO_Decimal_IO,
-        Name_Enumeration_IO => Ada_Wide_Wide_Text_IO_Enumeration_IO,
-        Name_Fixed_IO       => Ada_Wide_Wide_Text_IO_Fixed_IO,
-        Name_Float_IO       => Ada_Wide_Wide_Text_IO_Float_IO,
-        Name_Integer_IO     => Ada_Wide_Wide_Text_IO_Integer_IO,
-        Name_Modular_IO     => Ada_Wide_Wide_Text_IO_Modular_IO);
-
-      To_Load : RTU_Id;
-      --  Unit to be loaded, from one of the above maps
-
-   begin
-      --  Nothing to do if name is not an identifier or a selected component
-      --  whose selector_name is an identifier.
-
-      if Nkind (Nam) = N_Identifier then
-         Chrs := Chars (Nam);
-
-      elsif Nkind (Nam) = N_Selected_Component
-        and then Nkind (Selector_Name (Nam)) = N_Identifier
-      then
-         Chrs := Chars (Selector_Name (Nam));
-
-      else
-         return;
-      end if;
-
-      --  Nothing to do if name is not one of the Text_IO subpackages
-      --  Otherwise look through loaded units, and if we find Text_IO
-      --  or [Wide_]Wide_Text_IO already loaded, then load the proper child.
-
-      if Chrs in Text_IO_Package_Name then
-         for U in Main_Unit .. Last_Unit loop
-            Get_Name_String (Unit_File_Name (U));
-
-            if Name_Len = 12 then
-
-               --  Here is where we do the loads if we find one of the units
-               --  Ada.Text_IO or Ada.[Wide_]Wide_Text_IO. An interesting
-               --  detail is that these units may already be used (i.e. their
-               --  In_Use flags may be set). Normally when the In_Use flag is
-               --  set, the Is_Potentially_Use_Visible flag of all entities in
-               --  the package is set, but the new entity we are mysteriously
-               --  adding was not there to have its flag set at the time. So
-               --  that's why we pass the extra parameter to RTU_Find, to make
-               --  sure the flag does get set now. Given that those generic
-               --  packages are in fact child units, we must indicate that
-               --  they are visible.
-
-               if Name_Buffer (1 .. 12) = "a-textio.ads" then
-                  To_Load := Name_Map (Chrs);
-
-               elsif Name_Buffer (1 .. 12) = "a-witeio.ads" then
-                  To_Load := Wide_Name_Map (Chrs);
-
-               elsif Name_Buffer (1 .. 12) = "a-ztexio.ads" then
-                  To_Load := Wide_Wide_Name_Map (Chrs);
-
-               else
-                  goto Continue;
-               end if;
-
-               Load_RTU (To_Load, Use_Setting => In_Use (Cunit_Entity (U)));
-               Set_Is_Visible_Lib_Unit (RT_Unit_Table (To_Load).Entity);
-
-               --  Prevent creation of an implicit 'with' from (for example)
-               --  Ada.Wide_Text_IO.Integer_IO to Ada.Text_IO.Integer_IO,
-               --  because these could create cycles. First check whether the
-               --  simple names match ("integer_io" = "integer_io"), and then
-               --  check whether the parent is indeed one of the
-               --  [[Wide_]Wide_]Text_IO packages.
-
-               if Chrs = Chars (Cunit_Entity (Current_Sem_Unit)) then
-                  declare
-                     Parent_Name : constant Unit_Name_Type :=
-                                     Get_Parent_Spec_Name
-                                       (Unit_Name (Current_Sem_Unit));
-
-                  begin
-                     if Parent_Name /= No_Unit_Name then
-                        Get_Name_String (Parent_Name);
-
-                        declare
-                           P : String renames Name_Buffer (1 .. Name_Len);
-                        begin
-                           if P = "ada.text_io%s"      or else
-                              P = "ada.wide_text_io%s" or else
-                              P = "ada.wide_wide_text_io%s"
-                           then
-                              goto Continue;
-                           end if;
-                        end;
-                     end if;
-                  end;
-               end if;
-
-               --  Add an implicit with clause from the current unit to the
-               --  [[Wide_]Wide_]Text_IO child (if necessary).
-
-               Maybe_Add_With (RT_Unit_Table (To_Load));
-            end if;
-
-            <<Continue>> null;
-         end loop;
-      end if;
-
-   exception
-      --  Generate error message if run-time unit not available
-
-      when RE_Not_Available =>
-         Error_Msg_N ("& not available", Nam);
-   end Text_IO_Kludge;
 
 end Rtsfind;

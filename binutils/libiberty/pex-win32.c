@@ -78,7 +78,7 @@ backslashify (char *s)
 }
 
 static int pex_win32_open_read (struct pex_obj *, const char *, int);
-static int pex_win32_open_write (struct pex_obj *, const char *, int);
+static int pex_win32_open_write (struct pex_obj *, const char *, int, int);
 static pid_t pex_win32_exec_child (struct pex_obj *, int, const char *,
 				  char * const *, char * const *,
                                   int, int, int, int,
@@ -126,10 +126,12 @@ pex_win32_open_read (struct pex_obj *obj ATTRIBUTE_UNUSED, const char *name,
 
 static int
 pex_win32_open_write (struct pex_obj *obj ATTRIBUTE_UNUSED, const char *name,
-		      int binary)
+		      int binary, int append)
 {
   /* Note that we can't use O_EXCL here because gcc may have already
      created the temporary file via make_temp_file.  */
+  if (append)
+    return -1;
   return _open (name,
 		(_O_WRONLY | _O_CREAT | _O_TRUNC
 		 | (binary ? _O_BINARY : _O_TEXT)),
@@ -210,10 +212,8 @@ mingw_rootify (const char *executable)
   if (!namebuf || !foundbuf)
     {
       RegCloseKey (hKey);
-      if (namebuf)
-	free (namebuf);
-      if (foundbuf)
-	free (foundbuf);
+      free (namebuf);
+      free (foundbuf);
       return executable;
     }
 
@@ -315,8 +315,7 @@ msys_rootify (const char *executable)
     return tack_on_executable (buf, executable);
 
   /* failed */
-  if (buf)
-    free (buf);
+  free (buf);
   return executable;
 }
 #endif
@@ -343,17 +342,25 @@ argv_to_cmdline (char *const *argv)
   char *p;
   size_t cmdline_len;
   int i, j, k;
+  int needs_quotes;
 
   cmdline_len = 0;
   for (i = 0; argv[i]; i++)
     {
-      /* We quote every last argument.  This simplifies the problem;
-	 we need only escape embedded double-quotes and immediately
+      /* We only quote arguments that contain spaces, \t or " characters to
+	 prevent wasting 2 chars per argument of the CreateProcess 32k char
+	 limit.  We need only escape embedded double-quotes and immediately
 	 preceeding backslash characters.  A sequence of backslach characters
 	 that is not follwed by a double quote character will not be
 	 escaped.  */
+      needs_quotes = 0;
       for (j = 0; argv[i][j]; j++)
 	{
+	  if (argv[i][j] == ' ' || argv[i][j] == '\t' || argv[i][j] == '"')
+	    {
+	      needs_quotes = 1;
+	    }
+
 	  if (argv[i][j] == '"')
 	    {
 	      /* Escape preceeding backslashes.  */
@@ -365,16 +372,33 @@ argv_to_cmdline (char *const *argv)
 	}
       /* Trailing backslashes also need to be escaped because they will be
          followed by the terminating quote.  */
-      for (k = j - 1; k >= 0 && argv[i][k] == '\\'; k--)
-	cmdline_len++;
+      if (needs_quotes)
+        {
+          for (k = j - 1; k >= 0 && argv[i][k] == '\\'; k--)
+            cmdline_len++;
+        }
       cmdline_len += j;
-      cmdline_len += 3;  /* for leading and trailing quotes and space */
+      /* for leading and trailing quotes and space */
+      cmdline_len += needs_quotes * 2 + 1;
     }
   cmdline = XNEWVEC (char, cmdline_len);
   p = cmdline;
   for (i = 0; argv[i]; i++)
     {
-      *p++ = '"';
+      needs_quotes = 0;
+      for (j = 0; argv[i][j]; j++)
+        {
+          if (argv[i][j] == ' ' || argv[i][j] == '\t' || argv[i][j] == '"')
+            {
+              needs_quotes = 1;
+              break;
+            }
+        }
+
+      if (needs_quotes)
+        {
+          *p++ = '"';
+        }
       for (j = 0; argv[i][j]; j++)
 	{
 	  if (argv[i][j] == '"')
@@ -385,9 +409,12 @@ argv_to_cmdline (char *const *argv)
 	    }
 	  *p++ = argv[i][j];
 	}
-      for (k = j - 1; k >= 0 && argv[i][k] == '\\'; k--)
-	*p++ = '\\';
-      *p++ = '"';
+      if (needs_quotes)
+        {
+          for (k = j - 1; k >= 0 && argv[i][k] == '\\'; k--)
+            *p++ = '\\';
+          *p++ = '"';
+        }
       *p++ = ' ';
     }
   p[-1] = '\0';
@@ -607,8 +634,7 @@ win32_spawn (const char *executable,
 		      si,
 		      pi))
     {
-      if (env_block)
-        free (env_block);
+      free (env_block);
 
       free (full_executable);
 
@@ -618,18 +644,14 @@ win32_spawn (const char *executable,
   /* Clean up.  */
   CloseHandle (pi->hThread);
   free (full_executable);
-  if (env_block)
-    free (env_block);
+  free (env_block);
 
   return (pid_t) pi->hProcess;
 
  error:
-  if (env_block)
-    free (env_block);
-  if (cmdline)
-    free (cmdline);
-  if (full_executable)
-    free (full_executable);
+  free (env_block);
+  free (cmdline);
+  free (full_executable);
 
   return (pid_t) -1;
 }
@@ -749,24 +771,17 @@ pex_win32_exec_child (struct pex_obj *obj ATTRIBUTE_UNUSED, int flags,
   int orig_out, orig_in, orig_err;
   BOOL separate_stderr = !(flags & PEX_STDERR_TO_STDOUT);
 
-  /* Ensure we have inheritable descriptors to pass to the child, and close the
-     original descriptors.  */
+  /* Ensure we have inheritable descriptors to pass to the child.  */
   orig_in = in;
   in = _dup (orig_in);
-  if (orig_in != STDIN_FILENO)
-    _close (orig_in);
   
   orig_out = out;
   out = _dup (orig_out);
-  if (orig_out != STDOUT_FILENO)
-    _close (orig_out);
   
   if (separate_stderr)
     {
       orig_err = errdes;
       errdes = _dup (orig_err);
-      if (orig_err != STDERR_FILENO)
-	_close (orig_err);
     }
 
   stdin_handle = INVALID_HANDLE_VALUE;
@@ -842,6 +857,22 @@ pex_win32_exec_child (struct pex_obj *obj ATTRIBUTE_UNUSED, int flags,
     {
       *err = ENOENT;
       *errmsg = "CreateProcess";
+    }
+
+  /* If the child was created successfully, close the original file
+     descriptors.  If the process creation fails, these are closed by
+     pex_run_in_environment instead.  We must not close them twice as
+     that seems to cause a Windows exception.  */
+     
+  if (pid != (pid_t) -1)
+    {
+      if (orig_in != STDIN_FILENO)
+	_close (orig_in);
+      if (orig_out != STDOUT_FILENO)
+	_close (orig_out);
+      if (separate_stderr
+	  && orig_err != STDERR_FILENO)
+	_close (orig_err);
     }
 
   /* Close the standard input, standard output and standard error handles

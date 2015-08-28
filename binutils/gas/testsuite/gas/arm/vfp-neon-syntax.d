@@ -45,14 +45,14 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> ee210b42 	(vnmul\.f64|fnmuld)	d0, d1, d2
 0[0-9a-f]+ <[^>]+> 0e200ac1 	(vnmuleq\.f32|fnmulseq)	s0, s1, s2
 0[0-9a-f]+ <[^>]+> 0e210b42 	(vnmuleq\.f64|fnmuldeq)	d0, d1, d2
-0[0-9a-f]+ <[^>]+> ee000ac1 	(vmls\.f32|fnmacs)	s0, s1, s2
-0[0-9a-f]+ <[^>]+> ee010b42 	(vmls\.f64|fnmacd)	d0, d1, d2
-0[0-9a-f]+ <[^>]+> 0e000ac1 	(vmlseq\.f32|fnmacseq)	s0, s1, s2
-0[0-9a-f]+ <[^>]+> 0e010b42 	(vmlseq\.f64|fnmacdeq)	d0, d1, d2
-0[0-9a-f]+ <[^>]+> ee100ac1 	(vnmla\.f32|fnmscs)	s0, s1, s2
-0[0-9a-f]+ <[^>]+> ee110b42 	(vnmla\.f64|fnmscd)	d0, d1, d2
-0[0-9a-f]+ <[^>]+> 0e100ac1 	(vnmlaeq\.f32|fnmscseq)	s0, s1, s2
-0[0-9a-f]+ <[^>]+> 0e110b42 	(vnmlaeq\.f64|fnmscdeq)	d0, d1, d2
+0[0-9a-f]+ <[^>]+> ee100ac1 	(vnmla\.f32|fnmacs)	s0, s1, s2
+0[0-9a-f]+ <[^>]+> ee110b42 	(vnmla\.f64|fnmacd)	d0, d1, d2
+0[0-9a-f]+ <[^>]+> 0e100ac1 	(vnmlaeq\.f32|fnmacseq)	s0, s1, s2
+0[0-9a-f]+ <[^>]+> 0e110b42 	(vnmlaeq\.f64|fnmacdeq)	d0, d1, d2
+0[0-9a-f]+ <[^>]+> ee100a81 	(vnmls\.f32|fnmscs)	s0, s1, s2
+0[0-9a-f]+ <[^>]+> ee110b02 	(vnmls\.f64|fnmscd)	d0, d1, d2
+0[0-9a-f]+ <[^>]+> 0e100a81 	(vnmlseq\.f32|fnmscseq)	s0, s1, s2
+0[0-9a-f]+ <[^>]+> 0e110b02 	(vnmlseq\.f64|fnmscdeq)	d0, d1, d2
 0[0-9a-f]+ <[^>]+> ee200a81 	(vmul\.f32|fmuls)	s0, s1, s2
 0[0-9a-f]+ <[^>]+> ee210b02 	(vmul\.f64|fmuld)	d0, d1, d2
 0[0-9a-f]+ <[^>]+> 0e200a81 	(vmuleq\.f32|fmulseq)	s0, s1, s2
@@ -61,10 +61,10 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> ee010b02 	(vmla\.f64|fmacd)	d0, d1, d2
 0[0-9a-f]+ <[^>]+> 0e000a81 	(vmlaeq\.f32|fmacseq)	s0, s1, s2
 0[0-9a-f]+ <[^>]+> 0e010b02 	(vmlaeq\.f64|fmacdeq)	d0, d1, d2
-0[0-9a-f]+ <[^>]+> ee100a81 	(vnmls\.f32|fmscs)	s0, s1, s2
-0[0-9a-f]+ <[^>]+> ee110b02 	(vnmls\.f64|fmscd)	d0, d1, d2
-0[0-9a-f]+ <[^>]+> 0e100a81 	(vnmlseq\.f32|fmscseq)	s0, s1, s2
-0[0-9a-f]+ <[^>]+> 0e110b02 	(vnmlseq\.f64|fmscdeq)	d0, d1, d2
+0[0-9a-f]+ <[^>]+> ee000ac1 	(vmls\.f32|fmscs)	s0, s1, s2
+0[0-9a-f]+ <[^>]+> ee010b42 	(vmls\.f64|fmscd)	d0, d1, d2
+0[0-9a-f]+ <[^>]+> 0e000ac1 	(vmlseq\.f32|fmscseq)	s0, s1, s2
+0[0-9a-f]+ <[^>]+> 0e010b42 	(vmlseq\.f64|fmscdeq)	d0, d1, d2
 0[0-9a-f]+ <[^>]+> ee300a81 	(vadd\.f32|fadds)	s0, s1, s2
 0[0-9a-f]+ <[^>]+> ee310b02 	(vadd\.f64|faddd)	d0, d1, d2
 0[0-9a-f]+ <[^>]+> 0e300a81 	(vaddeq\.f32|faddseq)	s0, s1, s2
@@ -93,24 +93,24 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> 0ebc0ae0 	(vcvteq\.u32\.f32|ftouizseq)	s0, s1
 0[0-9a-f]+ <[^>]+> 0ebd0bc1 	(vcvteq\.s32\.f64|ftosizdeq)	s0, d1
 0[0-9a-f]+ <[^>]+> 0ebc0bc1 	(vcvteq\.u32\.f64|ftouizdeq)	s0, d1
-0[0-9a-f]+ <[^>]+> eebd0a60 	(vcvtr\.s32\.f32|ftosis)	s0, s1
-0[0-9a-f]+ <[^>]+> eebc0a60 	(vcvtr\.u32\.f32|ftouis)	s0, s1
+0[0-9a-f]+ <[^>]+> eebd0ae0 	(vcvt\.s32\.f32|ftosis)	s0, s1
+0[0-9a-f]+ <[^>]+> eebc0ae0 	(vcvt\.u32\.f32|ftouis)	s0, s1
 0[0-9a-f]+ <[^>]+> eeb80ae0 	(vcvt\.f32\.s32|fsitos)	s0, s1
 0[0-9a-f]+ <[^>]+> eeb80a60 	(vcvt\.f32\.u32|fuitos)	s0, s1
 0[0-9a-f]+ <[^>]+> eeb70bc1 	(vcvt\.f32\.f64|fcvtsd)	s0, d1
 0[0-9a-f]+ <[^>]+> eeb70ae0 	(vcvt\.f64\.f32|fcvtds)	d0, s1
-0[0-9a-f]+ <[^>]+> eebd0b41 	(vcvtr\.s32\.f64|ftosid)	s0, d1
-0[0-9a-f]+ <[^>]+> eebc0b41 	(vcvtr\.u32\.f64|ftouid)	s0, d1
+0[0-9a-f]+ <[^>]+> eebd0bc1 	(vcvt\.s32\.f64|ftosid)	s0, d1
+0[0-9a-f]+ <[^>]+> eebc0bc1 	(vcvt\.u32\.f64|ftouid)	s0, d1
 0[0-9a-f]+ <[^>]+> eeb80be0 	(vcvt\.f64\.s32|fsitod)	d0, s1
 0[0-9a-f]+ <[^>]+> eeb80b60 	(vcvt\.f64\.u32|fuitod)	d0, s1
-0[0-9a-f]+ <[^>]+> 0ebd0a60 	(vcvtreq\.s32\.f32|ftosiseq)	s0, s1
-0[0-9a-f]+ <[^>]+> 0ebc0a60 	(vcvtreq\.u32\.f32|ftouiseq)	s0, s1
+0[0-9a-f]+ <[^>]+> 0ebd0ae0 	(vcvteq\.s32\.f32|ftosiseq)	s0, s1
+0[0-9a-f]+ <[^>]+> 0ebc0ae0 	(vcvteq\.u32\.f32|ftouiseq)	s0, s1
 0[0-9a-f]+ <[^>]+> 0eb80ae0 	(vcvteq\.f32\.s32|fsitoseq)	s0, s1
 0[0-9a-f]+ <[^>]+> 0eb80a60 	(vcvteq\.f32\.u32|fuitoseq)	s0, s1
 0[0-9a-f]+ <[^>]+> 0eb70bc1 	(vcvteq\.f32\.f64|fcvtsdeq)	s0, d1
 0[0-9a-f]+ <[^>]+> 0eb70ae0 	(vcvteq\.f64\.f32|fcvtdseq)	d0, s1
-0[0-9a-f]+ <[^>]+> 0ebd0b41 	(vcvtreq\.s32\.f64|ftosideq)	s0, d1
-0[0-9a-f]+ <[^>]+> 0ebc0b41 	(vcvtreq\.u32\.f64|ftouideq)	s0, d1
+0[0-9a-f]+ <[^>]+> 0ebd0bc1 	(vcvteq\.s32\.f64|ftosideq)	s0, d1
+0[0-9a-f]+ <[^>]+> 0ebc0bc1 	(vcvteq\.u32\.f64|ftouideq)	s0, d1
 0[0-9a-f]+ <[^>]+> 0eb80be0 	(vcvteq\.f64\.s32|fsitodeq)	d0, s1
 0[0-9a-f]+ <[^>]+> 0eb80b60 	(vcvteq\.f64\.u32|fuitodeq)	d0, s1
 0[0-9a-f]+ <[^>]+> eebe0aef 	(vcvt\.s32\.f32	s0, s0, #1|ftosls	s0, #1)

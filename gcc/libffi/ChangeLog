@@ -1,10 +1,140 @@
-2014-07-16  Release Manager
+2015-07-16  Release Manager
 
-	* GCC 4.9.1 released.
+	* GCC 5.2.0 released.
 
-2014-04-22  Release Manager
+2015-04-22  Release Manager
 
-	* GCC 4.9.0 released.
+	* GCC 5.1.0 released.
+
+2015-03-29  John David Anglin  <danglin@gcc.gnu.org>
+
+	PR libffi/65567
+	* testsuite/lib/libffi.exp (libffi_feature_test): Use split to ensure
+	lindex is applied to a list.
+
+2015-02-10  Andrew Pinski  <apinski@cavium.com>
+
+	* src/aarch64/ffitarget.h (ffi_arg): Use unsigned long long for ILP32.
+	(FFI_SIZEOF_ARG): Define to 64 for ILP32.
+	(ffi_sarg): Use signed long long for ILP32.
+
+	* src/aarch64/sysv.S (PTR_REG): New macro.
+	(PTR_SIZE): New macro.
+	(ffi_closure_SYSV): Load cif, fn and user_data using PTR_REG.
+	(ffi_go_closure_SYSV): Load cif and fn using PTR_REG.
+
+2015-01-29  Jack Howarth  <howarth.at.gcc@gmail.com>
+
+	PR libffi/64855
+	* testsuite/lib/libffi.exp: Don't set targetabis on darwin.
+
+2015-01-28  Richard Henderson  <rth@redhat.com>
+
+	PR libffi/64779
+	PR libffi/64799
+	* Merge to upstream commit db1b34b7e1f5e473d17557e454a29933dfecd1af.
+
+2015-01-27  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* testsuite/lib/libffi.exp: Load target-supports.exp.
+	(run-many-tests): Only set targetabis for ia32.
+
+2015-01-19  Richard Henderson  <rth@redhat.com>
+
+	PR libffi/64581
+	* testsuite/lib/libffi.exp (libffi_target_compile): Don't switch
+	to C++ mode when compiling C++ source code.
+
+2015-01-19  Richard Henderson  <rth@redhat.com>
+
+	* Merge to upstream commit 3ac1610aa33c887ea9b14935208943925714a33e.
+
+2015-01-19  Richard Henderson  <rth@redhat.com>
+
+	PR libffi/64607
+	* testsuite/lib/libffi.exp (libffi-init): Append -L for the
+	just built libstdc++.
+
+2015-01-15  Dominique d'Humieres  <dominiq@lps.ens.fr>
+	    Richard Henderson  <rth@redhat.com>
+
+	PR libffi/64607
+	* Makefile.am (AM_MAKEFLAGS): Use double quotes on subvariables.
+	* Makefile.in: Rebuilt.
+
+2015-01-15  Richard Henderson  <rth@redhat.com>
+
+	PR libffi/64572
+	* include/ffi.h.in (FFI_TYPE_LAST): Set to COMPLEX only if complex
+	numbers are supported by the backend.
+
+2015-01-13  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	* configure.host: Remove extra brackets for sh.
+
+2015-01-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/64575
+	* configure.host (TARGET): Set to X86_64 if __x86_64__ is defined.
+
+2015-01-12  Richard Henderson  <rth@redhat.com>
+
+	PR libffi/64572
+	* src/x86/ffitarget.h (FFI_GO_CLOSURES): Do not define for darwin.
+	(FFI_TARGET_HAS_COMPLEX_TYPE): Likewise.
+
+2015-01-12  Richard Henderson  <rth@redhat.com>
+
+	* src/x86/ffi.c (ffi_raw_call): Fill in frame.
+
+2015-01-12  Richard Henderson  <rth@redhat.com>
+
+	Merge to upstream commit c82cc159426d8d4402375fa1ae3f045b9cf82e16.
+
+2014-11-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/63784
+	* configure: Regenerated.
+
+2014-11-11  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
+
+	PR target/63610
+	* configure: Regenerate.
+
+2014-10-15  Ian Lance Taylor  <iant@google.com>
+
+	* configure.ac: If the compiler supports -Qunused-arguments, use
+	it when running the compiler on .s files.
+	* configure: Regenerated.
+
+2014-09-11  Jakub Jelinek  <jakub@redhat.com>
+
+	* src/powerpc/linux64.S: Emit .note.GNU-stack even when
+	POWERPC64 is not defined.
+	* src/powerpc/linux64_closure.S: Likewise.  Also test _CALL_ELF == 2.
+
+2014-07-21  Uros Bizjak  <ubizjak@gmail.com>
+
+	* src/alpha/ffi.c: Do not include stdlib.h.
+	(ffi_closure_osf_inner) <default>: Use FFI_ASSERT instead of abort.
+
+2014-07-04  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* testsuite/lib/libffi.exp (libffi-dg-runtest): Change interface
+	match to dg-runtest's.
+
+2014-05-20  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+
+	* testsuite/lib/libffi.exp (load_gcc_lib): Register loaded libs.
+
+2014-05-13  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	Fix current cygwin-64 build problems.
+	* src/java_raw_api.c: Remove if !defined(FFI_NO_RAW_API).
+	* src/x86/ffi.c: Add if defined(__CYGWIN__).
+	* src/x86/win64.S (ffi_closure_win64, ffi_call_win64): Added
+	handling for FFI_TYPE_UINT64, FFI_TYPE_POINTER and FFI_TYPE_INT.
+	Added SEH information.  Fixed formatting.
 
 2014-04-22  Jakub Jelinek  <jakub@redhat.com>
 

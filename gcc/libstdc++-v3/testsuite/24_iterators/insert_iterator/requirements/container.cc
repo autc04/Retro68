@@ -1,7 +1,7 @@
 // { dg-do compile }
 // 2001-06-21  Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2001-2014 Free Software Foundation, Inc.
+// Copyright (C) 2001-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -26,9 +26,9 @@
 // Check data member 'container' accessible.
 class test_dm : public std::insert_iterator<std::list<int> >
 {
-  container_type l;
-  container_type::iterator i;
+  container_type& l();
+  container_type::iterator i();
   container_type* p;
 public:
-  test_dm(): std::insert_iterator<std::list<int> >(l, i), p(container) { }
+  test_dm(): std::insert_iterator<std::list<int> >(l(), i()), p(container) { }
 };

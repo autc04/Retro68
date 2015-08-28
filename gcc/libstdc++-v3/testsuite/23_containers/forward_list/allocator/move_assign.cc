@@ -1,4 +1,4 @@
-// Copyright (C) 2012-2014 Free Software Foundation, Inc.
+// Copyright (C) 2012-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 
 #include <forward_list>
 #include <testsuite_hooks.h>
@@ -46,11 +46,13 @@ void test02()
   typedef std::forward_list<T, alloc_type> test_type;
   test_type v1(alloc_type(1));
   v1.push_front(T());
+  auto it = v1.begin();
   test_type v2(alloc_type(2));
   v2.push_front(T());
   v2 = std::move(v1);
   VERIFY(0 == v1.get_allocator().get_personality());
   VERIFY(1 == v2.get_allocator().get_personality());
+  VERIFY( it == v2.begin() );
 }
 
 int main()

@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2009 Free Software Foundation, Inc.
+Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -148,7 +148,7 @@ mep_cgen_insn_supported (CGEN_CPU_DESC cd, const CGEN_INSN *insn)
 
   /* If the insn has an option bit set that we don't want,
      reject it.  */
-  if (CGEN_INSN_ATTRS (insn)->bool & OPTION_MASK & ~MEP_OMASK)
+  if (CGEN_INSN_ATTRS (insn)->bool_ & OPTION_MASK & ~MEP_OMASK)
     return 0;
 
   /* If attributes are absent, assume no restriction. */
@@ -167,7 +167,7 @@ mep_cgen_insn_supported (CGEN_CPU_DESC cd, const CGEN_INSN *insn)
 int
 mep_cgen_insn_supported_asm (CGEN_CPU_DESC cd, const CGEN_INSN *insn)
 {
-#ifdef ISA_EXT_COP1_64
+#ifdef MEP_IVC2_SUPPORTED
   /* If we're assembling VLIW packets, ignore the 12-bit BSR as we
      can't relax that.  The 24-bit BSR is matched instead.  */
   if (insn->base->num == MEP_INSN_BSR12
@@ -187,11 +187,7 @@ static unsigned int dis_hash_insn (const char *, CGEN_INSN_INT);
 
 /* Instruction formats.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define F(f) & mep_cgen_ifld_table[MEP_##f]
-#else
-#define F(f) & mep_cgen_ifld_table[MEP_/**/f]
-#endif
 static const CGEN_IFMT ifmt_empty ATTRIBUTE_UNUSED = {
   0, 0, 0x0, { { 0 } }
 };
@@ -586,16 +582,8 @@ static const CGEN_IFMT ifmt_cpfmulia1u_b_P1 ATTRIBUTE_UNUSED = {
 
 #undef F
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_INSN_##a)
-#else
-#define A(a) (1 << CGEN_INSN_/**/a)
-#endif
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define OPERAND(op) MEP_OPERAND_##op
-#else
-#define OPERAND(op) MEP_OPERAND_/**/op
-#endif
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 
@@ -6094,11 +6082,7 @@ static const CGEN_OPCODE mep_cgen_insn_opcode_table[MAX_INSNS] =
 
 /* Formats for ALIAS macro-insns.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define F(f) & mep_cgen_ifld_table[MEP_##f]
-#else
-#define F(f) & mep_cgen_ifld_table[MEP_/**/f]
-#endif
 static const CGEN_IFMT ifmt_nop ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_MAJOR) }, { F (F_RN) }, { F (F_RM) }, { F (F_SUB4) }, { 0 } }
 };
@@ -6155,16 +6139,8 @@ static const CGEN_IFMT ifmt_lmcp16_0 ATTRIBUTE_UNUSED = {
 
 /* Each non-simple macro entry points to an array of expansion possibilities.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_INSN_##a)
-#else
-#define A(a) (1 << CGEN_INSN_/**/a)
-#endif
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define OPERAND(op) MEP_OPERAND_##op
-#else
-#define OPERAND(op) MEP_OPERAND_/**/op
-#endif
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 

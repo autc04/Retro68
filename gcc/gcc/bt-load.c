@@ -1,6 +1,6 @@
 
 /* Perform branch target register load optimizations.
-   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+   Copyright (C) 2001-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -25,19 +25,49 @@ along with GCC; see the file COPYING3.  If not see
 #include "rtl.h"
 #include "hard-reg-set.h"
 #include "regs.h"
-#include "fibheap.h"
 #include "target.h"
-#include "expr.h"
-#include "flags.h"
-#include "insn-attr.h"
+#include "symtab.h"
+#include "hashtab.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "machmode.h"
+#include "input.h"
 #include "function.h"
+#include "flags.h"
+#include "statistics.h"
+#include "double-int.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "alias.h"
+#include "wide-int.h"
+#include "inchash.h"
+#include "tree.h"
+#include "insn-config.h"
+#include "expmed.h"
+#include "dojump.h"
+#include "explow.h"
+#include "calls.h"
+#include "emit-rtl.h"
+#include "varasm.h"
+#include "stmt.h"
+#include "expr.h"
+#include "insn-attr.h"
 #include "except.h"
 #include "tm_p.h"
 #include "diagnostic-core.h"
 #include "tree-pass.h"
 #include "recog.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfgrtl.h"
+#include "cfganal.h"
+#include "cfgcleanup.h"
+#include "predict.h"
+#include "basic-block.h"
 #include "df.h"
 #include "cfgloop.h"
+#include "rtl-iter.h"
+#include "fibonacci_heap.h"
 
 /* Target register optimizations - these are performed after reload.  */
 
@@ -53,7 +83,7 @@ typedef struct btr_user_s
   struct btr_user_s *next;
   basic_block bb;
   int luid;
-  rtx insn;
+  rtx_insn *insn;
   /* If INSN has a single use of a single branch register, then
      USE points to it within INSN.  If there is more than
      one branch register use, or the use is in some way ambiguous,
@@ -79,7 +109,7 @@ typedef struct btr_def_s
   struct btr_def_s *next_this_group;
   basic_block bb;
   int luid;
-  rtx insn;
+  rtx_insn *insn;
   int btr;
   int cost;
   /* For a branch register setting insn that has a constant
@@ -109,26 +139,26 @@ typedef struct btr_def_s
   bitmap live_range;
 } *btr_def;
 
+typedef fibonacci_heap <long, btr_def_s> btr_heap_t;
+typedef fibonacci_node <long, btr_def_s> btr_heap_node_t;
+
 static int issue_rate;
 
 static int basic_block_freq (const_basic_block);
-static int insn_sets_btr_p (const_rtx, int, int *);
-static rtx *find_btr_use (rtx);
-static int btr_referenced_p (rtx, rtx *);
-static int find_btr_reference (rtx *, void *);
+static int insn_sets_btr_p (const rtx_insn *, int, int *);
 static void find_btr_def_group (btr_def_group *, btr_def);
-static btr_def add_btr_def (fibheap_t, basic_block, int, rtx,
+static btr_def add_btr_def (btr_heap_t *, basic_block, int, rtx_insn *,
 			    unsigned int, int, btr_def_group *);
-static btr_user new_btr_user (basic_block, int, rtx);
+static btr_user new_btr_user (basic_block, int, rtx_insn *);
 static void dump_hard_reg_set (HARD_REG_SET);
 static void dump_btrs_live (int);
 static void note_other_use_this_block (unsigned int, btr_user);
-static void compute_defs_uses_and_gen (fibheap_t, btr_def *,btr_user *,
+static void compute_defs_uses_and_gen (btr_heap_t *, btr_def *,btr_user *,
 				       sbitmap *, sbitmap *, HARD_REG_SET *);
 static void compute_kill (sbitmap *, sbitmap *, HARD_REG_SET *);
 static void compute_out (sbitmap *bb_out, sbitmap *, sbitmap *, int);
 static void link_btr_uses (btr_def *, btr_user *, sbitmap *, sbitmap *, int);
-static void build_btr_def_use_webs (fibheap_t);
+static void build_btr_def_use_webs (btr_heap_t *);
 static int block_at_edge_of_live_range_p (int, btr_def);
 static void clear_btr_from_live_range (btr_def def);
 static void add_btr_to_live_range (btr_def, int);
@@ -140,7 +170,7 @@ static void btr_def_live_range (btr_def, HARD_REG_SET *);
 static void move_btr_def (basic_block, int, btr_def, bitmap, HARD_REG_SET *);
 static int migrate_btr_def (btr_def, int);
 static void migrate_btr_defs (enum reg_class, int);
-static int can_move_up (const_basic_block, const_rtx, int);
+static int can_move_up (const_basic_block, const rtx_insn *, int);
 static void note_btr_set (rtx, const_rtx, void *);
 
 /* The following code performs code motion of target load instructions
@@ -184,37 +214,27 @@ basic_block_freq (const_basic_block bb)
   return bb->frequency;
 }
 
-static rtx *btr_reference_found;
-
-/* A subroutine of btr_referenced_p, called through for_each_rtx.
-   PREG is a pointer to an rtx that is to be excluded from the
-   traversal.  If we find a reference to a target register anywhere
-   else, return 1, and put a pointer to it into btr_reference_found.  */
-static int
-find_btr_reference (rtx *px, void *preg)
+/* If X references (sets or reads) any branch target register, return one
+   such register.  If EXCLUDEP is set, disregard any references within
+   that location.  */
+static rtx *
+find_btr_use (rtx x, rtx *excludep = 0)
 {
-  rtx x;
-
-  if (px == preg)
-    return -1;
-  x = *px;
-  if (!REG_P (x))
-    return 0;
-  if (overlaps_hard_reg_set_p (all_btrs, GET_MODE (x), REGNO (x)))
+  subrtx_ptr_iterator::array_type array;
+  FOR_EACH_SUBRTX_PTR (iter, array, &x, NONCONST)
     {
-      btr_reference_found = px;
-      return 1;
+      rtx *loc = *iter;
+      if (loc == excludep)
+	iter.skip_subrtxes ();
+      else
+	{
+	  const_rtx x = *loc;
+	  if (REG_P (x)
+	      && overlaps_hard_reg_set_p (all_btrs, GET_MODE (x), REGNO (x)))
+	    return loc;
+	}
     }
-  return -1;
-}
-
-/* Return nonzero if X references (sets or reads) any branch target register.
-   If EXCLUDEP is set, disregard any references within the rtx pointed to
-   by it.  If returning nonzero, also set btr_reference_found as above.  */
-static int
-btr_referenced_p (rtx x, rtx *excludep)
-{
-  return for_each_rtx (&x, find_btr_reference, excludep);
+  return 0;
 }
 
 /* Return true if insn is an instruction that sets a target register.
@@ -222,7 +242,7 @@ btr_referenced_p (rtx x, rtx *excludep)
    If such a set is found and REGNO is nonzero, assign the register number
    of the destination register to *REGNO.  */
 static int
-insn_sets_btr_p (const_rtx insn, int check_const, int *regno)
+insn_sets_btr_p (const rtx_insn *insn, int check_const, int *regno)
 {
   rtx set;
 
@@ -238,7 +258,7 @@ insn_sets_btr_p (const_rtx insn, int check_const, int *regno)
       if (REG_P (dest)
 	  && TEST_HARD_REG_BIT (all_btrs, REGNO (dest)))
 	{
-	  gcc_assert (!btr_referenced_p (src, NULL));
+	  gcc_assert (!find_btr_use (src));
 
 	  if (!check_const || CONSTANT_P (src))
 	    {
@@ -249,13 +269,6 @@ insn_sets_btr_p (const_rtx insn, int check_const, int *regno)
 	}
     }
   return 0;
-}
-
-/* Find and return a use of a target register within an instruction INSN.  */
-static rtx *
-find_btr_use (rtx insn)
-{
-  return btr_referenced_p (insn, NULL) ? btr_reference_found : NULL;
 }
 
 /* Find the group that the target register definition DEF belongs
@@ -297,7 +310,8 @@ find_btr_def_group (btr_def_group *all_btr_def_groups, btr_def def)
    block BB, instruction INSN, and insert it into ALL_BTR_DEFS.  Return
    the new definition.  */
 static btr_def
-add_btr_def (fibheap_t all_btr_defs, basic_block bb, int insn_luid, rtx insn,
+add_btr_def (btr_heap_t *all_btr_defs, basic_block bb, int insn_luid,
+	     rtx_insn *insn,
 	     unsigned int dest_reg, int other_btr_uses_before_def,
 	     btr_def_group *all_btr_def_groups)
 {
@@ -316,7 +330,7 @@ add_btr_def (fibheap_t all_btr_defs, basic_block bb, int insn_luid, rtx insn,
   this_def->live_range = NULL;
   find_btr_def_group (all_btr_def_groups, this_def);
 
-  fibheap_insert (all_btr_defs, -this_def->cost, this_def);
+  all_btr_defs->insert (-this_def->cost, this_def);
 
   if (dump_file)
     fprintf (dump_file,
@@ -330,7 +344,7 @@ add_btr_def (fibheap_t all_btr_defs, basic_block bb, int insn_luid, rtx insn,
 /* Create a new target register user structure, for a use in block BB,
    instruction INSN.  Return the new user.  */
 static btr_user
-new_btr_user (basic_block bb, int insn_luid, rtx insn)
+new_btr_user (basic_block bb, int insn_luid, rtx_insn *insn)
 {
   /* This instruction reads target registers.  We need
      to decide whether we can replace all target register
@@ -347,7 +361,7 @@ new_btr_user (basic_block bb, int insn_luid, rtx insn)
       /* We want to ensure that USE is the only use of a target
 	 register in INSN, so that we know that to rewrite INSN to use
 	 a different target register, all we have to do is replace USE.  */
-      unambiguous_single_use = !btr_referenced_p (PATTERN (insn), usep);
+      unambiguous_single_use = !find_btr_use (PATTERN (insn), usep);
       if (!unambiguous_single_use)
 	usep = NULL;
     }
@@ -442,7 +456,7 @@ note_btr_set (rtx dest, const_rtx set ATTRIBUTE_UNUSED, void *data)
 }
 
 static void
-compute_defs_uses_and_gen (fibheap_t all_btr_defs, btr_def *def_array,
+compute_defs_uses_and_gen (btr_heap_t *all_btr_defs, btr_def *def_array,
 			   btr_user *use_array, sbitmap *btr_defset,
 			   sbitmap *bb_gen, HARD_REG_SET *btrs_written)
 {
@@ -463,8 +477,8 @@ compute_defs_uses_and_gen (fibheap_t all_btr_defs, btr_def *def_array,
       basic_block bb = BASIC_BLOCK_FOR_FN (cfun, i);
       int reg;
       btr_def defs_this_bb = NULL;
-      rtx insn;
-      rtx last;
+      rtx_insn *insn;
+      rtx_insn *last;
       int can_throw = 0;
 
       info.users_this_bb = NULL;
@@ -523,7 +537,7 @@ compute_defs_uses_and_gen (fibheap_t all_btr_defs, btr_def *def_array,
 		}
 	      else
 		{
-		  if (btr_referenced_p (PATTERN (insn), NULL))
+		  if (find_btr_use (PATTERN (insn)))
 		    {
 		      btr_user user = new_btr_user (bb, insn_luid, insn);
 
@@ -536,8 +550,7 @@ compute_defs_uses_and_gen (fibheap_t all_btr_defs, btr_def *def_array,
 			  int reg;
 			  for (reg = first_btr; reg <= last_btr; reg++)
 			    if (TEST_HARD_REG_BIT (all_btrs, reg)
-				&& refers_to_regno_p (reg, reg + 1, user->insn,
-						      NULL))
+				&& refers_to_regno_p (reg, user->insn))
 			      {
 				note_other_use_this_block (reg,
 							   info.users_this_bb);
@@ -600,7 +613,7 @@ compute_defs_uses_and_gen (fibheap_t all_btr_defs, btr_def *def_array,
 	  int regno;
 
 	  for (regno = first_btr; regno <= last_btr; regno++)
-	    if (refers_to_regno_p (regno, regno+1, insn, NULL))
+	    if (refers_to_regno_p (regno, insn))
 	      SET_HARD_REG_BIT (btrs_live_at_end[i], regno);
 	}
 
@@ -671,8 +684,8 @@ link_btr_uses (btr_def *def_array, btr_user *use_array, sbitmap *bb_out,
   for (i = NUM_FIXED_BLOCKS; i < last_basic_block_for_fn (cfun); i++)
     {
       basic_block bb = BASIC_BLOCK_FOR_FN (cfun, i);
-      rtx insn;
-      rtx last;
+      rtx_insn *insn;
+      rtx_insn *last;
 
       bitmap_union_of_preds (reaching_defs, bb_out, BASIC_BLOCK_FOR_FN (cfun, i));
       for (insn = BB_HEAD (bb), last = NEXT_INSN (BB_END (bb));
@@ -713,8 +726,7 @@ link_btr_uses (btr_def *def_array, btr_user *use_array, sbitmap *bb_out,
 		      bitmap_clear (reaching_defs_of_reg);
 		      for (reg = first_btr; reg <= last_btr; reg++)
 			if (TEST_HARD_REG_BIT (all_btrs, reg)
-			    && refers_to_regno_p (reg, reg + 1, user->insn,
-						  NULL))
+			    && refers_to_regno_p (reg, user->insn))
 			  bitmap_or_and (reaching_defs_of_reg,
 			    reaching_defs_of_reg,
 			    reaching_defs,
@@ -773,7 +785,7 @@ link_btr_uses (btr_def *def_array, btr_user *use_array, sbitmap *bb_out,
 }
 
 static void
-build_btr_def_use_webs (fibheap_t all_btr_defs)
+build_btr_def_use_webs (btr_heap_t *all_btr_defs)
 {
   const int max_uid = get_max_uid ();
   btr_def  *def_array   = XCNEWVEC (btr_def, max_uid);
@@ -1154,12 +1166,12 @@ move_btr_def (basic_block new_def_bb, int btr, btr_def def, bitmap live_range,
      Replace all uses of the old target register definition by
      uses of the new definition.  Delete the old definition.  */
   basic_block b = new_def_bb;
-  rtx insp = BB_HEAD (b);
-  rtx old_insn = def->insn;
+  rtx_insn *insp = BB_HEAD (b);
+  rtx_insn *old_insn = def->insn;
   rtx src;
   rtx btr_rtx;
-  rtx new_insn;
-  enum machine_mode btr_mode;
+  rtx_insn *new_insn;
+  machine_mode btr_mode;
   btr_user user;
   rtx set;
 
@@ -1200,7 +1212,7 @@ move_btr_def (basic_block new_def_bb, int btr, btr_def def, bitmap live_range,
   btr_mode = GET_MODE (SET_DEST (set));
   btr_rtx = gen_rtx_REG (btr_mode, btr);
 
-  new_insn = gen_move_insn (btr_rtx, src);
+  new_insn = as_a <rtx_insn *> (gen_move_insn (btr_rtx, src));
 
   /* Insert target register initialization at head of basic block.  */
   def->insn = emit_insn_after (new_insn, insp);
@@ -1236,7 +1248,7 @@ move_btr_def (basic_block new_def_bb, int btr, btr_def def, bitmap live_range,
 /* We anticipate intra-block scheduling to be done.  See if INSN could move
    up within BB by N_INSNS.  */
 static int
-can_move_up (const_basic_block bb, const_rtx insn, int n_insns)
+can_move_up (const_basic_block bb, const rtx_insn *insn, int n_insns)
 {
   while (insn != BB_HEAD (bb) && n_insns > 0)
     {
@@ -1399,7 +1411,7 @@ migrate_btr_def (btr_def def, int min_cost)
 static void
 migrate_btr_defs (enum reg_class btr_class, int allow_callee_save)
 {
-  fibheap_t all_btr_defs = fibheap_new ();
+  btr_heap_t all_btr_defs (LONG_MIN);
   int reg;
 
   gcc_obstack_init (&migrate_btrl_obstack);
@@ -1411,9 +1423,9 @@ migrate_btr_defs (enum reg_class btr_class, int allow_callee_save)
 	{
 	  basic_block bb = BASIC_BLOCK_FOR_FN (cfun, i);
 	  fprintf (dump_file,
-		   "Basic block %d: count = " HOST_WIDEST_INT_PRINT_DEC
+		   "Basic block %d: count = %" PRId64
 		   " loop-depth = %d idom = %d\n",
-		   i, (HOST_WIDEST_INT) bb->count, bb_loop_depth (bb),
+		   i, (int64_t) bb->count, bb_loop_depth (bb),
 		   get_immediate_dominator (CDI_DOMINATORS, bb)->index);
 	}
     }
@@ -1433,15 +1445,15 @@ migrate_btr_defs (enum reg_class btr_class, int allow_callee_save)
   btrs_live = XCNEWVEC (HARD_REG_SET, last_basic_block_for_fn (cfun));
   btrs_live_at_end = XCNEWVEC (HARD_REG_SET, last_basic_block_for_fn (cfun));
 
-  build_btr_def_use_webs (all_btr_defs);
+  build_btr_def_use_webs (&all_btr_defs);
 
-  while (!fibheap_empty (all_btr_defs))
+  while (!all_btr_defs.empty ())
     {
-      btr_def def = (btr_def) fibheap_extract_min (all_btr_defs);
-      int min_cost = -fibheap_min_key (all_btr_defs);
+      int min_cost = -all_btr_defs.min_key ();
+      btr_def def = all_btr_defs.extract_min ();
       if (migrate_btr_def (def, min_cost))
 	{
-	  fibheap_insert (all_btr_defs, -def->cost, (void *) def);
+	  all_btr_defs.insert (-def->cost, def);
 	  if (dump_file)
 	    {
 	      fprintf (dump_file,
@@ -1456,7 +1468,6 @@ migrate_btr_defs (enum reg_class btr_class, int allow_callee_save)
   free (btrs_live);
   free (btrs_live_at_end);
   obstack_free (&migrate_btrl_obstack, NULL);
-  fibheap_delete (all_btr_defs);
 }
 
 static void
@@ -1494,20 +1505,6 @@ branch_target_load_optimize (bool after_prologue_epilogue_gen)
     }
 }
 
-static bool
-gate_handle_branch_target_load_optimize1 (void)
-{
-  return flag_branch_target_load_optimize;
-}
-
-
-static unsigned int
-rest_of_handle_branch_target_load_optimize1 (void)
-{
-  branch_target_load_optimize (epilogue_completed);
-  return 0;
-}
-
 namespace {
 
 const pass_data pass_data_branch_target_load_optimize1 =
@@ -1515,14 +1512,12 @@ const pass_data pass_data_branch_target_load_optimize1 =
   RTL_PASS, /* type */
   "btl1", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
   TV_NONE, /* tv_id */
   0, /* properties_required */
   0, /* properties_provided */
   0, /* properties_destroyed */
   0, /* todo_flags_start */
-  TODO_verify_rtl_sharing, /* todo_flags_finish */
+  0, /* todo_flags_finish */
 };
 
 class pass_branch_target_load_optimize1 : public rtl_opt_pass
@@ -1533,10 +1528,12 @@ public:
   {}
 
   /* opt_pass methods: */
-  bool gate () { return gate_handle_branch_target_load_optimize1 (); }
-  unsigned int execute () {
-    return rest_of_handle_branch_target_load_optimize1 ();
-  }
+  virtual bool gate (function *) { return flag_branch_target_load_optimize; }
+  virtual unsigned int execute (function *)
+    {
+      branch_target_load_optimize (epilogue_completed);
+      return 0;
+    }
 
 }; // class pass_branch_target_load_optimize1
 
@@ -1548,34 +1545,6 @@ make_pass_branch_target_load_optimize1 (gcc::context *ctxt)
   return new pass_branch_target_load_optimize1 (ctxt);
 }
 
-static bool
-gate_handle_branch_target_load_optimize2 (void)
-{
-  return (optimize > 0 && flag_branch_target_load_optimize2);
-}
-
-
-static unsigned int
-rest_of_handle_branch_target_load_optimize2 (void)
-{
-  static int warned = 0;
-
-  /* Leave this a warning for now so that it is possible to experiment
-     with running this pass twice.  In 3.6, we should either make this
-     an error, or use separate dump files.  */
-  if (flag_branch_target_load_optimize
-      && flag_branch_target_load_optimize2
-      && !warned)
-    {
-      warning (0, "branch target register load optimization is not intended "
-		  "to be run twice");
-
-      warned = 1;
-    }
-
-  branch_target_load_optimize (epilogue_completed);
-  return 0;
-}
 
 namespace {
 
@@ -1584,8 +1553,6 @@ const pass_data pass_data_branch_target_load_optimize2 =
   RTL_PASS, /* type */
   "btl2", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
   TV_NONE, /* tv_id */
   0, /* properties_required */
   0, /* properties_provided */
@@ -1602,12 +1569,36 @@ public:
   {}
 
   /* opt_pass methods: */
-  bool gate () { return gate_handle_branch_target_load_optimize2 (); }
-  unsigned int execute () {
-    return rest_of_handle_branch_target_load_optimize2 ();
-  }
+  virtual bool gate (function *)
+    {
+      return (optimize > 0 && flag_branch_target_load_optimize2);
+    }
+
+  virtual unsigned int execute (function *);
 
 }; // class pass_branch_target_load_optimize2
+
+unsigned int
+pass_branch_target_load_optimize2::execute (function *)
+{
+  static int warned = 0;
+
+  /* Leave this a warning for now so that it is possible to experiment
+     with running this pass twice.  In 3.6, we should either make this
+     an error, or use separate dump files.  */
+  if (flag_branch_target_load_optimize
+      && flag_branch_target_load_optimize2
+      && !warned)
+    {
+      warning (0, "branch target register load optimization is not intended "
+	       "to be run twice");
+
+      warned = 1;
+    }
+
+  branch_target_load_optimize (epilogue_completed);
+  return 0;
+}
 
 } // anon namespace
 

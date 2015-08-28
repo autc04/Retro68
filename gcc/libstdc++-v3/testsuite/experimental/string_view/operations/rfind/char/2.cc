@@ -1,6 +1,6 @@
-// { dg-options "-std=gnu++1y" }
+// { dg-options "-std=gnu++14" }
 
-// Copyright (C) 2013-2014 Free Software Foundation, Inc.
+// Copyright (C) 2013-2015 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -12,7 +12,7 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// { dg-options "-std=gnu++1y" }
+// { dg-options "-std=gnu++14" }
 
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING3.  If not see

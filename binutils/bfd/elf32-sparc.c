@@ -1,6 +1,5 @@
 /* SPARC-specific support for 32-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -40,16 +39,16 @@ elf32_sparc_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
       return FALSE;
 
     case 260:			/* Solaris prpsinfo_t.  */
-      elf_tdata (abfd)->core_program
+      elf_tdata (abfd)->core->program
 	= _bfd_elfcore_strndup (abfd, note->descdata + 84, 16);
-      elf_tdata (abfd)->core_command
+      elf_tdata (abfd)->core->command
 	= _bfd_elfcore_strndup (abfd, note->descdata + 100, 80);
       break;
 
     case 336:			/* Solaris psinfo_t.  */
-      elf_tdata (abfd)->core_program
+      elf_tdata (abfd)->core->program
 	= _bfd_elfcore_strndup (abfd, note->descdata + 88, 16);
-      elf_tdata (abfd)->core_command
+      elf_tdata (abfd)->core->command
 	= _bfd_elfcore_strndup (abfd, note->descdata + 104, 80);
       break;
     }
@@ -110,7 +109,7 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
       return FALSE;
     }
 
-  return TRUE;
+  return _bfd_sparc_elf_merge_private_bfd_data (ibfd, obfd);
 }
 
 /* The final processing done just before writing out the object file.
@@ -152,7 +151,9 @@ elf32_sparc_final_write_processing (bfd *abfd,
 }
 
 static enum elf_reloc_type_class
-elf32_sparc_reloc_type_class (const Elf_Internal_Rela *rela)
+elf32_sparc_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			      const asection *rel_sec ATTRIBUTE_UNUSED,
+			      const Elf_Internal_Rela *rela)
 {
   switch ((int) ELF32_R_TYPE (rela->r_info))
     {
@@ -167,9 +168,30 @@ elf32_sparc_reloc_type_class (const Elf_Internal_Rela *rela)
     }
 }
 
-#define TARGET_BIG_SYM	bfd_elf32_sparc_vec
+/* Hook called by the linker routine which adds symbols from an object
+   file.  */
+
+static bfd_boolean
+elf32_sparc_add_symbol_hook (bfd * abfd,
+			     struct bfd_link_info * info,
+			     Elf_Internal_Sym * sym,
+			     const char ** namep ATTRIBUTE_UNUSED,
+			     flagword * flagsp ATTRIBUTE_UNUSED,
+			     asection ** secp ATTRIBUTE_UNUSED,
+			     bfd_vma * valp ATTRIBUTE_UNUSED)
+{
+  if ((ELF_ST_TYPE (sym->st_info) == STT_GNU_IFUNC
+       || ELF_ST_BIND (sym->st_info) == STB_GNU_UNIQUE)
+      && (abfd->flags & DYNAMIC) == 0
+      && bfd_get_flavour (info->output_bfd) == bfd_target_elf_flavour)
+    elf_tdata (info->output_bfd)->has_gnu_symbols = TRUE;
+  return TRUE;
+}
+
+#define TARGET_BIG_SYM	sparc_elf32_vec
 #define TARGET_BIG_NAME	"elf32-sparc"
 #define ELF_ARCH	bfd_arch_sparc
+#define ELF_TARGET_ID	SPARC_ELF_DATA
 #define ELF_MACHINE_CODE EM_SPARC
 #define ELF_MACHINE_ALT1 EM_SPARC32PLUS
 #define ELF_MAXPAGESIZE 0x10000
@@ -220,6 +242,25 @@ elf32_sparc_reloc_type_class (const Elf_Internal_Rela *rela)
 #define elf_backend_got_header_size 4
 #define elf_backend_rela_normal 1
 
+#define elf_backend_add_symbol_hook		elf32_sparc_add_symbol_hook
+
+#include "elf32-target.h"
+
+/* Solaris 2.  */
+
+#undef	TARGET_BIG_SYM
+#define	TARGET_BIG_SYM				sparc_elf32_sol2_vec
+#undef	TARGET_BIG_NAME
+#define	TARGET_BIG_NAME				"elf32-sparc-sol2"
+
+#undef elf32_bed
+#define elf32_bed				elf32_sparc_sol2_bed
+
+/* The 32-bit static TLS arena size is rounded to the nearest 8-byte
+   boundary.  */
+#undef elf_backend_static_tls_alignment
+#define elf_backend_static_tls_alignment	8
+
 #include "elf32-target.h"
 
 /* A wrapper around _bfd_sparc_elf_link_hash_table_create that identifies
@@ -252,7 +293,7 @@ elf32_sparc_vxworks_final_write_processing (bfd *abfd, bfd_boolean linker)
 }
 
 #undef TARGET_BIG_SYM
-#define TARGET_BIG_SYM	bfd_elf32_sparc_vxworks_vec
+#define TARGET_BIG_SYM	sparc_elf32_vxworks_vec
 #undef TARGET_BIG_NAME
 #define TARGET_BIG_NAME	"elf32-sparc-vxworks"
 
@@ -281,6 +322,7 @@ elf32_sparc_vxworks_final_write_processing (bfd *abfd, bfd_boolean linker)
 #undef elf_backend_final_write_processing
 #define elf_backend_final_write_processing \
   elf32_sparc_vxworks_final_write_processing
+#undef elf_backend_static_tls_alignment
 
 #undef elf32_bed
 #define elf32_bed				sparc_elf_vxworks_bed

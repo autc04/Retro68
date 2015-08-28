@@ -15,17 +15,17 @@ CALC (double *s, unsigned *r)
 {
   int i;
 
-  for (i = 0; i < DST_SIZE; i++)
-    {
+  for (i = 0; i < SRC_SIZE; i++)
       r[i] = (unsigned) s[i];
-    }
+  for (i = SRC_SIZE; i < DST_SIZE; i++)
+      r[i] = 0;
 }
 
-static void
+void
 TEST (void)
 {
   UNION_TYPE (AVX512F_LEN, d) s;
-  UNION_TYPE (AVX512F_LEN_HALF, i_d) res1, res2, res3;
+  UNION_TYPE (AVX512F_LEN_HALF, i_ud) res1, res2, res3;
   MASK_TYPE mask = MASK_VALUE;
   unsigned res_ref[DST_SIZE] = { 0 };
   int i;
@@ -44,14 +44,14 @@ TEST (void)
 
   CALC (s.a, res_ref);
 
-  if (UNION_CHECK (AVX512F_LEN_HALF, i_d) (res1, res_ref))
+  if (UNION_CHECK (AVX512F_LEN_HALF, i_ud) (res1, res_ref))
     abort ();
 
-  MASK_MERGE (i_d) (res_ref, mask, SRC_SIZE);
-  if (UNION_CHECK (AVX512F_LEN_HALF, i_d) (res2, res_ref))
+  MASK_MERGE (i_ud) (res_ref, mask, SRC_SIZE);
+  if (UNION_CHECK (AVX512F_LEN_HALF, i_ud) (res2, res_ref))
     abort ();
 
-  MASK_ZERO (i_d) (res_ref, mask, SRC_SIZE);
-  if (UNION_CHECK (AVX512F_LEN_HALF, i_d) (res3, res_ref))
+  MASK_ZERO (i_ud) (res_ref, mask, SRC_SIZE);
+  if (UNION_CHECK (AVX512F_LEN_HALF, i_ud) (res3, res_ref))
     abort ();
 }

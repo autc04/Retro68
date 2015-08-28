@@ -1,5 +1,5 @@
 /* Implementation of the MINLOC intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran 95 runtime library (libgfortran).
@@ -58,7 +58,7 @@ minloc0_8_r10 (gfc_array_i8 * const restrict retarray,
       GFC_DIMENSION_SET(retarray->dim[0], 0, rank-1, 1);
       retarray->dtype = (retarray->dtype & ~GFC_DTYPE_RANK_MASK) | 1;
       retarray->offset = 0;
-      retarray->base_addr = xmalloc (sizeof (GFC_INTEGER_8) * rank);
+      retarray->base_addr = xmallocarray (rank, sizeof (GFC_INTEGER_8));
     }
   else
     {
@@ -199,7 +199,7 @@ mminloc0_8_r10 (gfc_array_i8 * const restrict retarray,
       GFC_DIMENSION_SET(retarray->dim[0], 0, rank - 1, 1);
       retarray->dtype = (retarray->dtype & ~GFC_DTYPE_RANK_MASK) | 1;
       retarray->offset = 0;
-      retarray->base_addr = xmalloc (sizeof (GFC_INTEGER_8) * rank);
+      retarray->base_addr = xmallocarray (rank, sizeof (GFC_INTEGER_8));
     }
   else
     {
@@ -367,7 +367,7 @@ sminloc0_8_r10 (gfc_array_i8 * const restrict retarray,
       GFC_DIMENSION_SET(retarray->dim[0], 0, rank-1, 1);
       retarray->dtype = (retarray->dtype & ~GFC_DTYPE_RANK_MASK) | 1;
       retarray->offset = 0;
-      retarray->base_addr = xmalloc (sizeof (GFC_INTEGER_8) * rank);
+      retarray->base_addr = xmallocarray (rank, sizeof (GFC_INTEGER_8));
     }
   else if (unlikely (compile_options.bounds_check))
     {

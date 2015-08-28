@@ -7,7 +7,7 @@
 --                                   S p e c                                --
 --                                                                          --
 --            Copyright (C) 1991-1994, Florida State University             --
---          Copyright (C) 1995-2011, Free Software Foundation, Inc.         --
+--          Copyright (C) 1995-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,8 +32,8 @@
 
 --  This is the VxWorks version of this package
 
---  This package encapsulates all direct interfaces to OS services
---  that are needed by the tasking run-time (libgnarl).
+--  This package encapsulates all direct interfaces to OS services that are
+--  needed by the tasking run-time (libgnarl).
 
 --  PLEASE DO NOT add any with-clauses to this package or remove the pragma
 --  Preelaborate. This package is designed to be a bottom-level (leaf) package.
@@ -192,9 +192,6 @@ package System.OS_Interface is
    function c_signal (sig : Signal; handler : isr_address) return isr_address;
    pragma Import (C, c_signal, "signal");
 
-   function sigwait (set : access sigset_t; sig : access Signal) return int;
-   pragma Inline (sigwait);
-
    function pthread_sigmask
      (how  : int;
       set  : access sigset_t;
@@ -203,6 +200,10 @@ package System.OS_Interface is
 
    subtype t_id is System.VxWorks.Ext.t_id;
    subtype Thread_Id is t_id;
+   --  Thread_Id and t_id are VxWorks identifiers for tasks. This value,
+   --  although represented as a Long_Integer, is in fact an address. With
+   --  some BSPs, this address can have a value sufficiently high that the
+   --  Thread_Id becomes negative: this should not be considered as an error.
 
    function kill (pid : t_id; sig : Signal) return int;
    pragma Inline (kill);
@@ -211,25 +212,26 @@ package System.OS_Interface is
 
    function Task_Stop (tid : t_id) return int
      renames System.VxWorks.Ext.Task_Stop;
-   --  If we are in the kernel space, stop the task whose t_id is
-   --  given in parameter in such a way that it can be examined by the
-   --  debugger. This typically maps to taskSuspend on VxWorks 5 and
-   --  to taskStop on VxWorks 6.
+   --  If we are in the kernel space, stop the task whose t_id is given in
+   --  parameter in such a way that it can be examined by the debugger. This
+   --  typically maps to taskSuspend on VxWorks 5 and to taskStop on VxWorks 6.
 
    function Task_Cont (tid : t_id) return int
      renames System.VxWorks.Ext.Task_Cont;
-   --  If we are in the kernel space, continue the task whose t_id is
-   --  given in parameter if it has been stopped previously to be examined
-   --  by the debugger (e.g. by taskStop). It typically maps to taskResume
-   --  on VxWorks 5 and to taskCont on VxWorks 6.
+   --  If we are in the kernel space, continue the task whose t_id is given
+   --  in parameter if it has been stopped previously to be examined by the
+   --  debugger (e.g. by taskStop). It typically maps to taskResume on VxWorks
+   --  5 and to taskCont on VxWorks 6.
 
    function Int_Lock return int renames System.VxWorks.Ext.Int_Lock;
    --  If we are in the kernel space, lock interrupts. It typically maps to
    --  intLock.
 
-   function Int_Unlock return int renames System.VxWorks.Ext.Int_Unlock;
+   function Int_Unlock (Old : int) return int
+     renames System.VxWorks.Ext.Int_Unlock;
    --  If we are in the kernel space, unlock interrupts. It typically maps to
-   --  intUnlock.
+   --  intUnlock. The parameter Old is only used on PowerPC where it contains
+   --  the returned value from Int_Lock (the old MPSR).
 
    ----------
    -- Time --
@@ -250,6 +252,12 @@ package System.OS_Interface is
 
    function To_Timespec (D : Duration) return timespec;
    pragma Inline (To_Timespec);
+   --  Convert a Duration value to a timespec value. Note that in VxWorks,
+   --  timespec is always non-negative (since time_t is defined above as
+   --  unsigned long). This means that there is a potential problem if a
+   --  negative argument is passed for D. However, in actual usage, the
+   --  value of the input argument D is always non-negative, so no problem
+   --  arises in practice.
 
    function To_Clock_Ticks (D : Duration) return int;
    --  Convert a duration value (in seconds) into clock ticks
@@ -325,6 +333,7 @@ package System.OS_Interface is
    pragma Import (C, taskVarGet, "taskVarGet");
 
    --  VxWorks 6.x specific functions
+
    --  Can only be called from the VxWorks 6 run-time libary that supports
    --  tlsLib, and not by the VxWorks 6.6 SMP library
 
@@ -469,9 +478,9 @@ package System.OS_Interface is
       Handler   : Interrupt_Handler;
       Parameter : System.Address := System.Null_Address) return int;
    pragma Inline (Interrupt_Connect);
-   --  Use this to set up an user handler. The routine installs a user
-   --  handler which is invoked after the OS has saved enough context for a
-   --  high-level language routine to be safely invoked.
+   --  Use this to set up an user handler. The routine installs a user handler
+   --  which is invoked after the OS has saved enough context for a high-level
+   --  language routine to be safely invoked.
 
    function Interrupt_Context return int;
    pragma Inline (Interrupt_Context);

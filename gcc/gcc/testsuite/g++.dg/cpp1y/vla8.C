@@ -1,5 +1,6 @@
 // PR c++/55149
-// { dg-do compile { target c++1y } }
+// { dg-do compile { target c++11 } }
+// { dg-options "-Wno-vla" }
 
 template<unsigned int TA>
  struct SA

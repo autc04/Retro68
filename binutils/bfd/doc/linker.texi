@@ -176,27 +176,22 @@ archive, it must look through the symbols defined by the
 archive and decide which elements of the archive should be
 included in the link.  For each such element it must call the
 @code{add_archive_element} linker callback, and it must add the
-symbols from the object file to the linker hash table.
+symbols from the object file to the linker hash table.  (The
+callback may in fact indicate that a replacement BFD should be
+used, in which case the symbols from that BFD should be added
+to the linker hash table instead.)
 
 @findex _bfd_generic_link_add_archive_symbols
 In most cases the work of looking through the symbols in the
 archive should be done by the
-@code{_bfd_generic_link_add_archive_symbols} function.  This
-function builds a hash table from the archive symbol table and
-looks through the list of undefined symbols to see which
-elements should be included.
+@code{_bfd_generic_link_add_archive_symbols} function.
 @code{_bfd_generic_link_add_archive_symbols} is passed a function
 to call to make the final decision about adding an archive
 element to the link and to do the actual work of adding the
-symbols to the linker hash table.
-
-The function passed to
-@code{_bfd_generic_link_add_archive_symbols} must read the
-symbols of the archive element and decide whether the archive
-element should be included in the link.  If the element is to
+symbols to the linker hash table.  If the element is to
 be included, the @code{add_archive_element} linker callback
 routine must be called with the element as an argument, and
-the elements symbols must be added to the linker hash table
+the element's symbols must be added to the linker hash table
 just as though the element had itself been passed to the
 @code{_bfd_link_add_symbols} function.
 
@@ -210,7 +205,8 @@ non-common, definition for a previously undefined or common
 symbol) it calls the @code{add_archive_element} callback and then
 @code{aout_link_check_archive_element} calls
 @code{aout_link_add_symbols} to actually add the symbols to the
-linker hash table.
+linker hash table - possibly those of a substitute BFD, if the
+@code{add_archive_element} callback avails itself of that option.
 
 The ECOFF back end is unusual in that it does not normally
 call @code{_bfd_generic_link_add_archive_symbols}, because ECOFF
@@ -254,7 +250,7 @@ it sets up some data structures for the function to use.
 
 The @code{input_bfds} field of the @code{bfd_link_info} structure
 will point to a list of all the input files included in the
-link.  These files are linked through the @code{link_next} field
+link.  These files are linked through the @code{link.next} field
 of the @code{bfd} structure.
 
 Each section in the output file will have a list of
@@ -367,12 +363,13 @@ reloceatable or final link.
 @subsubsection @code{bfd_section_already_linked}
 @strong{Synopsis}
 @example
-void bfd_section_already_linked (bfd *abfd, asection *sec,
+bfd_boolean bfd_section_already_linked (bfd *abfd,
+    asection *sec,
     struct bfd_link_info *info);
 @end example
 @strong{Description}@*
-Check if @var{sec} has been already linked during a reloceatable
-or final link.
+Check if @var{data} has been already linked during a reloceatable
+or final link.  Return TRUE if it has.
 @example
 #define bfd_section_already_linked(abfd, sec, info) \
        BFD_SEND (abfd, _section_already_linked, (abfd, sec, info))
@@ -396,8 +393,8 @@ Return TRUE on success and FALSE on failure.
 
 @end example
 
-@findex bfd_find_version_for_sym 
-@subsubsection @code{bfd_find_version_for_sym }
+@findex bfd_find_version_for_sym
+@subsubsection @code{bfd_find_version_for_sym}
 @strong{Synopsis}
 @example
 struct bfd_elf_version_tree * bfd_find_version_for_sym
@@ -409,4 +406,15 @@ Search an elf version script tree for symbol versioning
 info and export / don't-export status for a given symbol.
 Return non-NULL on success and NULL on failure; also sets
 the output @samp{hide} boolean parameter.
+
+@findex bfd_hide_sym_by_version
+@subsubsection @code{bfd_hide_sym_by_version}
+@strong{Synopsis}
+@example
+bfd_boolean bfd_hide_sym_by_version
+   (struct bfd_elf_version_tree *verdefs, const char *sym_name);
+@end example
+@strong{Description}@*
+Search an elf version script tree for symbol versioning
+info for a given symbol.  Return TRUE if the symbol is hidden.
 

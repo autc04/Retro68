@@ -1,7 +1,5 @@
 /* This is the Assembler Pre-Processor
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -160,7 +158,10 @@ do_scrub_begin (int m68k_mri ATTRIBUTE_UNUSED)
   for (p = line_comment_chars; *p; p++)
     lex[(unsigned char) *p] = LEX_IS_LINE_COMMENT_START;
 
-  for (p = line_separator_chars; *p; p++)
+#ifndef tc_line_separator_chars
+#define tc_line_separator_chars line_separator_chars
+#endif
+  for (p = tc_line_separator_chars; *p; p++)
     lex[(unsigned char) *p] = LEX_IS_LINE_SEPARATOR;
 
 #ifdef tc_parallel_separator_chars
@@ -214,7 +215,7 @@ static char *out_string;
 static char out_buf[20];
 static int add_newlines;
 static char *saved_input;
-static int saved_input_len;
+static size_t saved_input_len;
 static char input_buffer[32 * 1024];
 static const char *mri_state;
 static char mri_last_ch;
@@ -232,7 +233,7 @@ struct app_save
   char         out_buf[sizeof (out_buf)];
   int          add_newlines;
   char *       saved_input;
-  int          saved_input_len;
+  size_t       saved_input_len;
 #ifdef TC_M68K
   int          scrub_m68k_mri;
 #endif
@@ -275,6 +276,7 @@ app_push (void)
 
   state = 0;
   saved_input = NULL;
+  add_newlines = 0;
 
   return (char *) saved;
 }
@@ -294,7 +296,7 @@ app_pop (char *arg)
     saved_input = NULL;
   else
     {
-      gas_assert (saved->saved_input_len <= (int) (sizeof input_buffer));
+      gas_assert (saved->saved_input_len <= sizeof (input_buffer));
       memcpy (input_buffer, saved->saved_input, saved->saved_input_len);
       saved_input = input_buffer;
       saved_input_len = saved->saved_input_len;
@@ -350,14 +352,14 @@ process_escape (int ch)
    machine, and saves its state so that it may return at any point.
    This is the way the old code used to work.  */
 
-int
-do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
+size_t
+do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 {
   char *to = tostart;
   char *toend = tostart + tolen;
   char *from;
   char *fromend;
-  int fromlen;
+  size_t fromlen;
   register int ch, ch2 = 0;
   /* Character that started the string we're working on.  */
   static char quotechar;
@@ -384,11 +386,11 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	 13: After seeing a vertical bar, looking for a second
 	     vertical bar as a parallel expression separator.
 #endif
-#ifdef TC_IA64
-	 14: After seeing a `(' at state 0, looking for a `)' as
-	     predicate.
-	 15: After seeing a `(' at state 1, looking for a `)' as
-	     predicate.
+#ifdef TC_PREDICATE_START_CHAR
+	 14: After seeing a predicate start character at state 0, looking
+	     for a predicate end character as predicate.
+	 15: After seeing a predicate start character at state 1, looking
+	     for a predicate end character as predicate.
 #endif
 #ifdef TC_Z80
 	 16: After seeing an 'a' or an 'A' at the start of a symbol
@@ -547,7 +549,7 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	     GET and PUT macros.  */
 	  {
 	    char *s;
-	    int len;
+	    ptrdiff_t len;
 
 	    for (s = from; s < fromend; s++)
 	      {
@@ -667,13 +669,23 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	     line from just after the first white space.  */
 	  state = 1;
 	  PUT ('|');
+#ifdef TC_TIC6X
+	  /* "||^" is used for SPMASKed instructions.  */
+	  ch = GET ();
+	  if (ch == EOF)
+	    goto fromeof;
+	  else if (ch == '^')
+	    PUT ('^');
+	  else
+	    UNGET (ch);
+#endif
 	  continue;
 #endif
 #ifdef TC_Z80
 	case 16:
 	  /* We have seen an 'a' at the start of a symbol, look for an 'f'.  */
 	  ch = GET ();
-	  if (ch == 'f' || ch == 'F') 
+	  if (ch == 'f' || ch == 'F')
 	    {
 	      state = 17;
 	      PUT (ch);
@@ -702,8 +714,8 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
       /* flushchar: */
       ch = GET ();
 
-#ifdef TC_IA64
-      if (ch == '(' && (state == 0 || state == 1))
+#ifdef TC_PREDICATE_START_CHAR
+      if (ch == TC_PREDICATE_START_CHAR && (state == 0 || state == 1))
 	{
 	  state += 14;
 	  PUT (ch);
@@ -711,7 +723,7 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	}
       else if (state == 14 || state == 15)
 	{
-	  if (ch == ')')
+	  if (ch == TC_PREDICATE_END_CHAR)
 	    {
 	      state -= 14;
 	      PUT (ch);
@@ -905,7 +917,11 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      PUT (' ');
 	      break;
 	    case 3:
+#ifndef TC_KEEP_OPERAND_SPACES
+	      /* For TI C6X, we keep these spaces as they may separate
+		 functional unit specifiers from operands.  */
 	      if (scrub_m68k_mri)
+#endif
 		{
 		  /* In MRI mode, we keep these spaces.  */
 		  UNGET (ch);
@@ -915,7 +931,9 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      goto recycle;	/* Sp in operands */
 	    case 9:
 	    case 10:
+#ifndef TC_KEEP_OPERAND_SPACES
 	      if (scrub_m68k_mri)
+#endif
 		{
 		  /* In MRI mode, we keep these spaces.  */
 		  state = 3;
@@ -1200,9 +1218,16 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 		  while (ch != EOF && !IS_NEWLINE (ch))
 		    ch = GET ();
 		  if (ch == EOF)
-		    as_warn (_("end of file in comment; newline inserted"));
+		    {
+		      as_warn (_("end of file in comment; newline inserted"));
+		      PUT ('\n');
+		    }
+		  else /* IS_NEWLINE (ch) */
+		    {
+		      /* To process non-zero add_newlines.  */
+		      UNGET (ch);
+		    }
 		  state = 0;
-		  PUT ('\n');
 		  break;
 		}
 	      /* Looks like `# 123 "filename"' from cpp.  */
@@ -1313,12 +1338,12 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 
 #ifdef TC_Z80
 	  /* "af'" is a symbol containing '\''.  */
-	  if (state == 3 && (ch == 'a' || ch == 'A')) 
+	  if (state == 3 && (ch == 'a' || ch == 'A'))
 	    {
 	      state = 16;
 	      PUT (ch);
 	      ch = GET ();
-	      if (ch == 'f' || ch == 'F') 
+	      if (ch == 'f' || ch == 'F')
 		{
 		  state = 17;
 		  PUT (ch);
@@ -1327,7 +1352,7 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      else
 		{
 		  state = 9;
-		  if (!IS_SYMBOL_COMPONENT (ch)) 
+		  if (ch == EOF || !IS_SYMBOL_COMPONENT (ch))
 		    {
 		      if (ch != EOF)
 			UNGET (ch);
@@ -1349,7 +1374,7 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      )
 	    {
 	      char *s;
-	      int len;
+	      ptrdiff_t len;
 
 	      for (s = from; s < fromend; s++)
 		{

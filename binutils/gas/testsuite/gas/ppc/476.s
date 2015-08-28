@@ -1,4 +1,4 @@
-	.section        ".text"
+	.text
 ppc476:
 	add	3,4,5
 	add.	3,4,5
@@ -93,6 +93,10 @@ ppc476:
 	dcbtstls 10, 11, 12
 	dcbz	1,2
 	dcbz	5,6
+	dccci
+	dci
+	dci	0
+	dci	1
 	divw	10,11,12
 	divw.	11,12,13
 	divwo	10,11,12
@@ -192,6 +196,7 @@ ppc476:
 	icblc	16, 17, 18
 	icbt	5, 8, 9	
 	icbtls	13, 14, 15
+	iccci
 	ici
 	ici	0
 	ici	1
@@ -222,7 +227,7 @@ ppc476:
 	lhzux	20,22,24
 	lhzx	23,24,25
 	lmw	3,-16(1)
-	lswi	3,4,16
+	lswi	5,4,16
 	lswx	3,4,5
 	lwarx	3,4,5
 	lwarx	3,4,5,0

@@ -1,6 +1,5 @@
 /* budbg.c -- Interfaces to the generic debugging information routines.
-   Copyright 1995, 1996, 2002, 2003, 2005, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1995-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -23,8 +22,6 @@
 #ifndef BUDBG_H
 #define BUDBG_H
 
-#include <stdio.h>
-
 /* Routine used to read generic debugging information.  */
 
 extern void *read_debugging_info (bfd *, asymbol **, long, bfd_boolean);
@@ -32,7 +29,8 @@ extern void *read_debugging_info (bfd *, asymbol **, long, bfd_boolean);
 /* Routine used to print generic debugging information.  */
 
 extern bfd_boolean print_debugging_info
-  (FILE *, void *, bfd *, asymbol **, void *, bfd_boolean);
+  (FILE *, void *, bfd *, asymbol **,
+   char * (*) (struct bfd *, const char *, int), bfd_boolean);
 
 /* Routines used to read and write stabs information.  */
 

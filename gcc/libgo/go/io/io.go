@@ -62,8 +62,11 @@ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
 // allowed EOF behaviors.
 //
 // Implementations of Read are discouraged from returning a
-// zero byte count with a nil error, and callers should treat
-// that situation as a no-op.
+// zero byte count with a nil error, except when len(p) == 0.
+// Callers should treat a return of 0 and nil as indicating that
+// nothing happened; in particular it does not indicate EOF.
+//
+// Implementations must not retain p.
 type Reader interface {
 	Read(p []byte) (n int, err error)
 }
@@ -74,6 +77,9 @@ type Reader interface {
 // It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early.
 // Write must return a non-nil error if it returns n < len(p).
+// Write must not modify the slice data, even temporarily.
+//
+// Implementations must not retain p.
 type Writer interface {
 	Write(p []byte) (n int, err error)
 }
@@ -191,6 +197,8 @@ type WriterTo interface {
 //
 // Clients of ReadAt can execute parallel ReadAt calls on the
 // same input source.
+//
+// Implementations must not retain p.
 type ReaderAt interface {
 	ReadAt(p []byte, off int64) (n int, err error)
 }
@@ -208,6 +216,8 @@ type ReaderAt interface {
 //
 // Clients of WriteAt can execute parallel WriteAt calls on the same
 // destination if the ranges do not overlap.
+//
+// Implementations must not retain p.
 type WriterAt interface {
 	WriteAt(p []byte, off int64) (n int, err error)
 }

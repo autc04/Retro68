@@ -1,6 +1,5 @@
 /* tc-v850.h -- Header file for tc-v850.c.
-   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -26,10 +25,12 @@
 #define TARGET_BYTES_BIG_ENDIAN 0
 
 /* The target BFD architecture.  */
-#define TARGET_ARCH 		bfd_arch_v850
+#define TARGET_ARCH 		v850_target_arch
+extern int v850_target_arch;
 
 /* The target BFD format.  */
-#define TARGET_FORMAT 		"elf32-v850"
+#define TARGET_FORMAT 		v850_target_format
+extern const char * v850_target_format;
 
 #define md_operand(x)
 
@@ -57,10 +58,11 @@ extern int v850_force_relocation (struct fix *);
 /* We need to handle lo(), hi(), etc etc in .hword, .word, etc
    directives, so we have to parse "cons" expressions ourselves.  */
 #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) parse_cons_expression_v850 (EXP)
-extern void parse_cons_expression_v850 (expressionS *);
+extern bfd_reloc_code_real_type parse_cons_expression_v850 (expressionS *);
 
 #define TC_CONS_FIX_NEW cons_fix_new_v850
-extern void cons_fix_new_v850 (fragS *, int, int, expressionS *);
+extern void cons_fix_new_v850 (fragS *, int, int, expressionS *,
+			       bfd_reloc_code_real_type);
 
 #define TC_GENERIC_RELAX_TABLE md_relax_table
 extern const struct relax_type md_relax_table[];
@@ -69,6 +71,9 @@ extern const struct relax_type md_relax_table[];
    relocations for alignment directives.  */
 #define HANDLE_ALIGN(frag) v850_handle_align (frag)
 extern void v850_handle_align (fragS *);
+
+/* We need space in a frag's fixed size to allow for alignment when relaxing.  */
+#define TC_FX_SIZE_SLACK(FIX) 2
 
 #define MD_PCREL_FROM_SECTION(FIX, SEC) v850_pcrel_from_section (FIX, SEC)
 extern long v850_pcrel_from_section (struct fix *, asection *);

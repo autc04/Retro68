@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -89,6 +89,26 @@ __gthread_mutex_t unit_lock;
 static char stdin_name[] = "stdin";
 static char stdout_name[] = "stdout";
 static char stderr_name[] = "stderr";
+
+
+#ifdef HAVE_NEWLOCALE
+locale_t c_locale;
+#else
+/* If we don't have POSIX 2008 per-thread locales, we need to use the
+   traditional setlocale().  To prevent multiple concurrent threads
+   doing formatted I/O from messing up the locale, we need to store a
+   global old_locale, and a counter keeping track of how many threads
+   are currently doing formatted I/O.  The first thread saves the old
+   locale, and the last one restores it.  */
+char *old_locale;
+int old_locale_ctr;
+#ifdef __GTHREAD_MUTEX_INIT
+__gthread_mutex_t old_locale_lock = __GTHREAD_MUTEX_INIT;
+#else
+__gthread_mutex_t old_locale_lock;
+#endif
+#endif
+
 
 /* This implementation is based on Stefan Nilsson's article in the
  * July 1997 Doctor Dobb's Journal, "Treaps in Java". */
@@ -454,7 +474,7 @@ get_internal_unit (st_parameter_dt *dtp)
     {
       iunit->rank = GFC_DESCRIPTOR_RANK (dtp->internal_unit_desc);
       iunit->ls = (array_loop_spec *)
-	xmalloc (iunit->rank * sizeof (array_loop_spec));
+	xmallocarray (iunit->rank, sizeof (array_loop_spec));
       dtp->internal_unit_len *=
 	init_loop_spec (dtp->internal_unit_desc, iunit->ls, &start_record);
 
@@ -561,6 +581,14 @@ init_units (void)
   gfc_unit *u;
   unsigned int i;
 
+#ifdef HAVE_NEWLOCALE
+  c_locale = newlocale (0, "C", 0);
+#else
+#ifndef __GTHREAD_MUTEX_INIT
+  __GTHREAD_MUTEX_INIT_FUNCTION (&old_locale_lock);
+#endif
+#endif
+
 #ifndef __GTHREAD_MUTEX_INIT
   __GTHREAD_MUTEX_INIT_FUNCTION (&unit_lock);
 #endif
@@ -580,6 +608,7 @@ init_units (void)
       u->flags.position = POSITION_ASIS;
       u->flags.sign = SIGN_SUPPRESS;
       u->flags.decimal = DECIMAL_POINT;
+      u->flags.delim = DELIM_UNSPECIFIED;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;
       u->flags.round = ROUND_UNSPECIFIED;
@@ -587,9 +616,7 @@ init_units (void)
       u->recl = options.default_recl;
       u->endfile = NO_ENDFILE;
 
-      u->file_len = strlen (stdin_name);
-      u->file = xmalloc (u->file_len);
-      memmove (u->file, stdin_name, u->file_len);
+      u->filename = strdup (stdin_name);
 
       fbuf_init (u, 0);
     
@@ -618,9 +645,7 @@ init_units (void)
       u->recl = options.default_recl;
       u->endfile = AT_ENDFILE;
     
-      u->file_len = strlen (stdout_name);
-      u->file = xmalloc (u->file_len);
-      memmove (u->file, stdout_name, u->file_len);
+      u->filename = strdup (stdout_name);
       
       fbuf_init (u, 0);
 
@@ -648,9 +673,7 @@ init_units (void)
       u->recl = options.default_recl;
       u->endfile = AT_ENDFILE;
 
-      u->file_len = strlen (stderr_name);
-      u->file = xmalloc (u->file_len);
-      memmove (u->file, stderr_name, u->file_len);
+      u->filename = strdup (stderr_name);
       
       fbuf_init (u, 256);  /* 256 bytes should be enough, probably not doing
                               any kind of exotic formatting to stderr.  */
@@ -689,9 +712,8 @@ close_unit_1 (gfc_unit *u, int locked)
 
   delete_unit (u);
 
-  free (u->file);
-  u->file = NULL;
-  u->file_len = 0;
+  free (u->filename);
+  u->filename = NULL;
 
   free_format_hash_table (u);  
   fbuf_destroy (u);
@@ -742,6 +764,10 @@ close_units (void)
   while (unit_root != NULL)
     close_unit_1 (unit_root, 1);
   __gthread_mutex_unlock (&unit_lock);
+
+#ifdef HAVE_FREELOCALE
+  freelocale (c_locale);
+#endif
 }
 
 
@@ -786,7 +812,6 @@ unit_truncate (gfc_unit * u, gfc_offset pos, st_parameter_common * common)
 char *
 filename_from_unit (int n)
 {
-  char *filename;
   gfc_unit *u;
   int c;
 
@@ -804,12 +829,8 @@ filename_from_unit (int n)
     }
 
   /* Get the filename.  */
-  if (u != NULL)
-    {
-      filename = (char *) xmalloc (u->file_len + 1);
-      unpack_filename (filename, u->file, u->file_len);
-      return filename;
-    }
+  if (u != NULL && u->filename != NULL)
+    return strdup (u->filename);
   else
     return (char *) NULL;
 }

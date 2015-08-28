@@ -65,3 +65,6 @@ Disassembly of section \.data:
 .*[ 	]+R_386_PC16[ 	]+xtrn
 .*[ 	]+R_386_8[ 	]+xtrn
 .*[ 	]+R_386_PC8[ 	]+xtrn
+#...
+.*[ 	]+R_386_GOT32[ 	]+xtrn
+.*[ 	]+R_386_GOT32[ 	]+xtrn

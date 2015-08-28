@@ -1,6 +1,6 @@
 /* relro_test.t -- relro script test for gold
 
-   Copyright 2008 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>.
 
    This file is part of gold.
@@ -45,6 +45,8 @@ SECTIONS
   .got : { *(.got) }
 
   . = DATA_SEGMENT_RELRO_END(0, .);
+
+  .got.plt : { *(.got.plt) }
 
   .data : { *(.data .data.* .gnu.linkonce.d.*) }
 

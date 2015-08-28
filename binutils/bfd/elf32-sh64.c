@@ -1,6 +1,5 @@
 /* SuperH SH64-specific support for 32-bit ELF
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -104,7 +103,8 @@ static void sh64_find_section_for_address
 /* This COFF-only function (only compiled with COFF support, making
    ELF-only chains problematic) returns TRUE early for SH4, so let's just
    define it TRUE here.  */
-#define _bfd_sh_align_load_span(a,b,c,d,e,f,g,h,i,j) TRUE
+#define _bfd_sh_align_load_span(a,b,c,d,e,f,g,h,i,j) \
+  ((void) f, (void) h, (void) i, TRUE)
 
 #define GOT_BIAS (-((long)-32768))
 #define INCLUDE_SHMEDIA
@@ -198,7 +198,8 @@ sh64_elf_copy_private_data (bfd * ibfd, bfd * obfd)
 		  == elf_elfheader (ibfd)->e_flags));
 
   elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
-  return TRUE;
+
+  return _bfd_elf_copy_private_bfd_data (ibfd, obfd);
 }
 
 static bfd_boolean
@@ -765,11 +766,11 @@ static const struct bfd_elf_special_section sh64_elf_special_sections[] =
 };
 
 #undef	TARGET_BIG_SYM
-#define	TARGET_BIG_SYM		bfd_elf32_sh64_vec
+#define	TARGET_BIG_SYM		sh64_elf32_vec
 #undef	TARGET_BIG_NAME
 #define	TARGET_BIG_NAME		"elf32-sh64"
 #undef	TARGET_LITTLE_SYM
-#define	TARGET_LITTLE_SYM	bfd_elf32_sh64l_vec
+#define	TARGET_LITTLE_SYM	sh64_elf32_le_vec
 #undef	TARGET_LITTLE_NAME
 #define	TARGET_LITTLE_NAME	"elf32-sh64l"
 
@@ -777,11 +778,11 @@ static const struct bfd_elf_special_section sh64_elf_special_sections[] =
 
 /* NetBSD support.  */
 #undef	TARGET_BIG_SYM
-#define	TARGET_BIG_SYM		bfd_elf32_sh64nbsd_vec
+#define	TARGET_BIG_SYM		sh64_elf32_nbsd_vec
 #undef	TARGET_BIG_NAME
 #define	TARGET_BIG_NAME		"elf32-sh64-nbsd"
 #undef	TARGET_LITTLE_SYM
-#define	TARGET_LITTLE_SYM	bfd_elf32_sh64lnbsd_vec
+#define	TARGET_LITTLE_SYM	sh64_elf32_nbsd_le_vec
 #undef	TARGET_LITTLE_NAME
 #define	TARGET_LITTLE_NAME	"elf32-sh64l-nbsd"
 #undef	ELF_MAXPAGESIZE
@@ -796,11 +797,11 @@ static const struct bfd_elf_special_section sh64_elf_special_sections[] =
 
 /* Linux support.  */
 #undef	TARGET_BIG_SYM
-#define	TARGET_BIG_SYM		bfd_elf32_sh64blin_vec
+#define	TARGET_BIG_SYM		sh64_elf32_linux_be_vec
 #undef	TARGET_BIG_NAME
 #define	TARGET_BIG_NAME		"elf32-sh64big-linux"
 #undef	TARGET_LITTLE_SYM
-#define	TARGET_LITTLE_SYM	bfd_elf32_sh64lin_vec
+#define	TARGET_LITTLE_SYM	sh64_elf32_linux_vec
 #undef	TARGET_LITTLE_NAME
 #define	TARGET_LITTLE_NAME	"elf32-sh64-linux"
 #undef	elf32_bed

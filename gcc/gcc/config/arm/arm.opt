@@ -1,6 +1,6 @@
 ; Options for the ARM port of the compiler.
 
-; Copyright (C) 2005-2014 Free Software Foundation, Inc.
+; Copyright (C) 2005-2015 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -143,10 +143,6 @@ mfpu=
 Target RejectNegative Joined Enum(arm_fpu) Var(arm_fpu_index)
 Specify the name of the target floating point hardware/format
 
-mlra
-Target Report Var(arm_lra_flag) Init(1) Save
-Use LRA instead of reload (transitional)
-
 mhard-float
 Target RejectNegative Alias(mfloat-abi=, hard) Undocumented
 
@@ -226,14 +222,16 @@ mtune=
 Target RejectNegative ToLower Joined Enum(processor_type) Var(arm_tune_option) Init(arm_none)
 Tune code for the given processor
 
+mprint-tune-info
+Target Report RejectNegative Var(print_tune_info) Init(0)
+Print CPU tuning information as comment in assembler file.  This is
+an option used only for regression testing of the compiler and not
+intended for ordinary use in compiling code.
+
 ; Other processor_type values are loaded from arm-tables.opt
 ; but that is a generated file and this is an odd-one-out.
 EnumValue
 Enum(processor_type) String(native) Value(-1) DriverOnly
-
-mwords-little-endian
-Target Report RejectNegative Mask(LITTLE_WORDS)
-Assume big endian bytes, little endian words.  This option is deprecated.
 
 mvectorize-with-neon-quad
 Target Report RejectNegative InverseMask(NEON_VECTORIZE_DOUBLE)
@@ -275,3 +273,7 @@ Use Neon to perform 64-bits operations rather than core registers.
 mslow-flash-data
 Target Report Var(target_slow_flash_data) Init(0)
 Assume loading data from flash is slower than fetching instructions.
+
+masm-syntax-unified
+Target Report Var(inline_asm_unified) Init(0)
+Assume unified syntax for Thumb inline assembly code.

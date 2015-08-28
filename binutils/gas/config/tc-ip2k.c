@@ -1,6 +1,5 @@
 /* tc-ip2k.c -- Assembler for the Scenix IP2xxx.
-   Copyright (C) 2000, 2002, 2003, 2005, 2006, 2007, 2009
-   Free Software Foundation. Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 

@@ -1,6 +1,8 @@
 	.text
 	.type foo, %function
 foo:
+	.align 2
+	.fill 0, 0, 0
 	nop
 	.ascii "abcd"
 	nop
@@ -34,3 +36,11 @@ foo:
 	nop
 	.incbin "mapmisc.dat"
 	nop
+	.fill 0, 0, 0
+	nop
+# This test should always be at the end.  Check that a trailing align does
+# not cause the literal pool to be emitted with a code mapping symbol.
+	ldr r0,=string
+string:
+	.ascii "abc"
+	.align 2

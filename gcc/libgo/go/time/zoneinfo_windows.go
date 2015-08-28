@@ -11,6 +11,8 @@ import (
 	"unsafe"
 )
 
+//go:generate go run genzabbrs.go -output zoneinfo_abbrs_windows.go
+
 // TODO(rsc): Fall back to copy of zoneinfo files.
 
 // BUG(brainman,rsc): On Windows, the operating system does not provide complete
@@ -54,7 +56,7 @@ func matchZoneKey(zones syscall.Handle, kname string, stdname, dstname string) (
 	if err != nil {
 		return false, err
 	}
-	if s != dstname {
+	if s != dstname && dstname != stdname {
 		return false, nil
 	}
 	return true, nil
@@ -90,7 +92,7 @@ func toEnglishName(stdname, dstname string) (string, error) {
 	return "", errors.New(`English name for time zone "` + stdname + `" not found in registry`)
 }
 
-// extractCAPS exracts capital letters from description desc.
+// extractCAPS extracts capital letters from description desc.
 func extractCAPS(desc string) string {
 	var short []rune
 	for _, c := range desc {
@@ -165,8 +167,8 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 	if nzone == 1 {
 		// No daylight savings.
 		std.offset = -int(i.Bias) * 60
-		l.cacheStart = -1 << 63
-		l.cacheEnd = 1<<63 - 1
+		l.cacheStart = alpha
+		l.cacheEnd = omega
 		l.cacheZone = std
 		l.tx = make([]zoneTrans, 1)
 		l.tx[0].when = l.cacheStart

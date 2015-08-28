@@ -11,13 +11,13 @@ Disassembly of section .text:
   4000e4:	03a0f021 	move	s8,sp
   4000e8:	afbc0000 	sw	gp,0\(sp\)
   4000ec:	8f998018 	lw	t9,-32744\(gp\)
-  4000f0:	27848028 	addiu	a0,gp,-32728
+  4000f0:	27848020 	addiu	a0,gp,-32736
   4000f4:	0320f809 	jalr	t9
   4000f8:	00000000 	nop
   4000fc:	8fdc0000 	lw	gp,0\(s8\)
   400100:	00000000 	nop
   400104:	8f998018 	lw	t9,-32744\(gp\)
-  400108:	27848020 	addiu	a0,gp,-32736
+  400108:	27848028 	addiu	a0,gp,-32728
   40010c:	0320f809 	jalr	t9
   400110:	00000000 	nop
   400114:	8fdc0000 	lw	gp,0\(s8\)

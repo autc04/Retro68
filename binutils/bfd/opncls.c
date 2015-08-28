@@ -1,7 +1,5 @@
 /* opncls.c -- open and close a BFD.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
 
    Written by Cygnus Support.
 
@@ -38,9 +36,17 @@
 #define S_IXOTH 0001	/* Execute by others.  */
 #endif
 
-/* Counter used to initialize the bfd identifier.  */
+/* Counters used to initialize the bfd identifier.  */
 
-static unsigned int _bfd_id_counter = 0;
+static unsigned int bfd_id_counter = 0;
+static unsigned int bfd_reserved_id_counter = 0;
+
+/*
+CODE_FRAGMENT
+.{* Set to N to open the next N BFDs using an alternate id space.  *}
+.extern unsigned int bfd_use_reserved_id;
+*/
+unsigned int bfd_use_reserved_id = 0;
 
 /* fdopen is a loser -- we should use stdio exclusively.  Unfortunately
    if we do that we can't use fcntl.  */
@@ -56,7 +62,13 @@ _bfd_new_bfd (void)
   if (nbfd == NULL)
     return NULL;
 
-  nbfd->id = _bfd_id_counter++;
+  if (bfd_use_reserved_id)
+    {
+      nbfd->id = --bfd_reserved_id_counter;
+      --bfd_use_reserved_id;
+    }
+  else
+    nbfd->id = bfd_id_counter++;
 
   nbfd->memory = objalloc_create ();
   if (nbfd->memory == NULL)
@@ -68,30 +80,17 @@ _bfd_new_bfd (void)
 
   nbfd->arch_info = &bfd_default_arch_struct;
 
-  nbfd->direction = no_direction;
-  nbfd->iostream = NULL;
-  nbfd->where = 0;
   if (!bfd_hash_table_init_n (& nbfd->section_htab, bfd_section_hash_newfunc,
-			      sizeof (struct section_hash_entry), 251))
+			      sizeof (struct section_hash_entry), 13))
     {
       free (nbfd);
       return NULL;
     }
-  nbfd->sections = NULL;
-  nbfd->section_last = NULL;
-  nbfd->format = bfd_unknown;
-  nbfd->my_archive = NULL;
-  nbfd->origin = 0;
-  nbfd->opened_once = FALSE;
-  nbfd->output_has_begun = FALSE;
-  nbfd->section_count = 0;
-  nbfd->usrdata = NULL;
-  nbfd->cacheable = FALSE;
-  nbfd->flags = BFD_NO_FLAGS;
-  nbfd->mtime_set = FALSE;
 
   return nbfd;
 }
+
+static const struct bfd_iovec opncls_iovec;
 
 /* Allocate a new BFD as a member of archive OBFD.  */
 
@@ -105,6 +104,8 @@ _bfd_new_bfd_contained_in (bfd *obfd)
     return NULL;
   nbfd->xvec = obfd->xvec;
   nbfd->iovec = obfd->iovec;
+  if (obfd->iovec == &opncls_iovec)
+    nbfd->iostream = obfd->iostream;
   nbfd->my_archive = obfd;
   nbfd->direction = read_direction;
   nbfd->target_defaulted = obfd->target_defaulted;
@@ -113,7 +114,7 @@ _bfd_new_bfd_contained_in (bfd *obfd)
 
 /* Delete a BFD.  */
 
-void
+static void
 _bfd_delete_bfd (bfd *abfd)
 {
   if (abfd->memory)
@@ -121,6 +122,10 @@ _bfd_delete_bfd (bfd *abfd)
       bfd_hash_table_free (&abfd->section_htab);
       objalloc_free ((struct objalloc *) abfd->memory);
     }
+
+  if (abfd->filename)
+    free ((char *) abfd->filename);
+  free (abfd->arelt_data);
   free (abfd);
 }
 
@@ -166,7 +171,7 @@ DESCRIPTION
 	Return a pointer to the created BFD.  If @var{fd} is not -1,
 	then <<fdopen>> is used to open the file; otherwise, <<fopen>>
 	is used.  @var{mode} is passed directly to <<fopen>> or
-	<<fdopen>>. 
+	<<fdopen>>.
 
 	Calls <<bfd_find_target>>, so @var{target} is interpreted as by
 	that function.
@@ -176,6 +181,11 @@ DESCRIPTION
 	If <<NULL>> is returned then an error has occured.   Possible errors
 	are <<bfd_error_no_memory>>, <<bfd_error_invalid_target>> or
 	<<system_call>> error.
+
+	On error, @var{fd} is always closed.
+
+	A copy of the @var{filename} argument is stored in the newly created
+	BFD.  It can be accessed via the bfd_get_filename() macro.
 */
 
 bfd *
@@ -186,15 +196,21 @@ bfd_fopen (const char *filename, const char *target, const char *mode, int fd)
 
   nbfd = _bfd_new_bfd ();
   if (nbfd == NULL)
-    return NULL;
+    {
+      if (fd != -1)
+	close (fd);
+      return NULL;
+    }
 
   target_vec = bfd_find_target (target, nbfd);
   if (target_vec == NULL)
     {
+      if (fd != -1)
+	close (fd);
       _bfd_delete_bfd (nbfd);
       return NULL;
     }
-  
+
 #ifdef HAVE_FDOPEN
   if (fd != -1)
     nbfd->iostream = fdopen (fd, mode);
@@ -209,11 +225,14 @@ bfd_fopen (const char *filename, const char *target, const char *mode, int fd)
     }
 
   /* OK, put everything where it belongs.  */
-  nbfd->filename = filename;
+
+  /* PR 11983: Do not cache the original filename, but
+     rather make a copy - the original might go away.  */
+  nbfd->filename = xstrdup (filename);
 
   /* Figure out whether the user is opening the file for reading,
      writing, or both, by looking at the MODE argument.  */
-  if ((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') 
+  if ((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a')
       && mode[1] == '+')
     nbfd->direction = both_direction;
   else if (mode[0] == 'r')
@@ -227,12 +246,13 @@ bfd_fopen (const char *filename, const char *target, const char *mode, int fd)
       return NULL;
     }
   nbfd->opened_once = TRUE;
+
   /* If we opened the file by name, mark it cacheable; we can close it
      and reopen it later.  However, if a file descriptor was provided,
      then it may have been opened with special flags that make it
      unsafe to close and reopen the file.  */
   if (fd == -1)
-    bfd_set_cacheable (nbfd, TRUE);
+    (void) bfd_set_cacheable (nbfd, TRUE);
 
   return nbfd;
 }
@@ -254,6 +274,9 @@ DESCRIPTION
 	If <<NULL>> is returned then an error has occured.   Possible errors
 	are <<bfd_error_no_memory>>, <<bfd_error_invalid_target>> or
 	<<system_call>> error.
+
+	A copy of the @var{filename} argument is stored in the newly created
+	BFD.  It can be accessed via the bfd_get_filename() macro.
 */
 
 bfd *
@@ -293,6 +316,11 @@ DESCRIPTION
 
 	Possible errors are <<bfd_error_no_memory>>,
 	<<bfd_error_invalid_target>> and <<bfd_error_system_call>>.
+
+	On error, @var{fd} is closed.
+
+	A copy of the @var{filename} argument is stored in the newly created
+	BFD.  It can be accessed via the bfd_get_filename() macro.
 */
 
 bfd *
@@ -309,6 +337,10 @@ bfd_fdopenr (const char *filename, const char *target, int fd)
   fdflags = fcntl (fd, F_GETFL, NULL);
   if (fdflags == -1)
     {
+      int save = errno;
+
+      close (fd);
+      errno = save;
       bfd_set_error (bfd_error_system_call);
       return NULL;
     }
@@ -331,12 +363,15 @@ FUNCTION
 	bfd_openstreamr
 
 SYNOPSIS
-	bfd *bfd_openstreamr (const char *, const char *, void *);
+	bfd *bfd_openstreamr (const char * filename, const char * target, void * stream);
 
 DESCRIPTION
 
 	Open a BFD for read access on an existing stdio stream.  When
 	the BFD is passed to <<bfd_close>>, the stream will be closed.
+
+	A copy of the @var{filename} argument is stored in the newly created
+	BFD.  It can be accessed via the bfd_get_filename() macro.
 */
 
 bfd *
@@ -358,7 +393,9 @@ bfd_openstreamr (const char *filename, const char *target, void *streamarg)
     }
 
   nbfd->iostream = stream;
-  nbfd->filename = filename;
+  /* PR 11983: Do not cache the original filename, but
+     rather make a copy - the original might go away.  */
+  nbfd->filename = xstrdup (filename);
   nbfd->direction = read_direction;
 
   if (! bfd_cache_init (nbfd))
@@ -376,53 +413,55 @@ FUNCTION
 
 SYNOPSIS
         bfd *bfd_openr_iovec (const char *filename, const char *target,
-                              void *(*open) (struct bfd *nbfd,
-                                             void *open_closure),
+                              void *(*open_func) (struct bfd *nbfd,
+                                                  void *open_closure),
                               void *open_closure,
-                              file_ptr (*pread) (struct bfd *nbfd,
-                                                 void *stream,
-                                                 void *buf,
-                                                 file_ptr nbytes,
-                                                 file_ptr offset),
-                              int (*close) (struct bfd *nbfd,
-                                            void *stream),
-			      int (*stat) (struct bfd *abfd,
-					   void *stream,
-					   struct stat *sb));
+                              file_ptr (*pread_func) (struct bfd *nbfd,
+                                                      void *stream,
+                                                      void *buf,
+                                                      file_ptr nbytes,
+                                                      file_ptr offset),
+                              int (*close_func) (struct bfd *nbfd,
+                                                 void *stream),
+			      int (*stat_func) (struct bfd *abfd,
+					        void *stream,
+					        struct stat *sb));
 
 DESCRIPTION
 
         Create and return a BFD backed by a read-only @var{stream}.
-        The @var{stream} is created using @var{open}, accessed using
-        @var{pread} and destroyed using @var{close}.
+        The @var{stream} is created using @var{open_func}, accessed using
+        @var{pread_func} and destroyed using @var{close_func}.
 
 	Calls <<bfd_find_target>>, so @var{target} is interpreted as by
 	that function.
 
-	Calls @var{open} (which can call <<bfd_zalloc>> and
+	Calls @var{open_func} (which can call <<bfd_zalloc>> and
 	<<bfd_get_filename>>) to obtain the read-only stream backing
-	the BFD.  @var{open} either succeeds returning the
+	the BFD.  @var{open_func} either succeeds returning the
 	non-<<NULL>> @var{stream}, or fails returning <<NULL>>
 	(setting <<bfd_error>>).
 
-	Calls @var{pread} to request @var{nbytes} of data from
+	Calls @var{pread_func} to request @var{nbytes} of data from
 	@var{stream} starting at @var{offset} (e.g., via a call to
-	<<bfd_read>>).  @var{pread} either succeeds returning the
+	<<bfd_read>>).  @var{pread_func} either succeeds returning the
 	number of bytes read (which can be less than @var{nbytes} when
 	end-of-file), or fails returning -1 (setting <<bfd_error>>).
 
-	Calls @var{close} when the BFD is later closed using
-	<<bfd_close>>.  @var{close} either succeeds returning 0, or
+	Calls @var{close_func} when the BFD is later closed using
+	<<bfd_close>>.  @var{close_func} either succeeds returning 0, or
 	fails returning -1 (setting <<bfd_error>>).
 
-	Calls @var{stat} to fill in a stat structure for bfd_stat,
-	bfd_get_size, and bfd_get_mtime calls.  @var{stat} returns 0
+	Calls @var{stat_func} to fill in a stat structure for bfd_stat,
+	bfd_get_size, and bfd_get_mtime calls.  @var{stat_func} returns 0
 	on success, or returns -1 on failure (setting <<bfd_error>>).
 
 	If <<bfd_openr_iovec>> returns <<NULL>> then an error has
 	occurred.  Possible errors are <<bfd_error_no_memory>>,
 	<<bfd_error_invalid_target>> and <<bfd_error_system_call>>.
 
+	A copy of the @var{filename} argument is stored in the newly created
+	BFD.  It can be accessed via the bfd_get_filename() macro.
 */
 
 struct opncls
@@ -511,7 +550,9 @@ opncls_bmmap (struct bfd *abfd ATTRIBUTE_UNUSED,
 	      bfd_size_type len ATTRIBUTE_UNUSED,
 	      int prot ATTRIBUTE_UNUSED,
 	      int flags ATTRIBUTE_UNUSED,
-	      file_ptr offset ATTRIBUTE_UNUSED)
+	      file_ptr offset ATTRIBUTE_UNUSED,
+              void **map_addr ATTRIBUTE_UNUSED,
+              bfd_size_type *map_len ATTRIBUTE_UNUSED)
 {
   return (void *) -1;
 }
@@ -523,19 +564,12 @@ static const struct bfd_iovec opncls_iovec = {
 
 bfd *
 bfd_openr_iovec (const char *filename, const char *target,
-		 void *(*open) (struct bfd *nbfd,
-				void *open_closure),
+		 void *(*open_p) (struct bfd *, void *),
 		 void *open_closure,
-		 file_ptr (*pread) (struct bfd *abfd,
-				    void *stream,
-				    void *buf,
-				    file_ptr nbytes,
-				    file_ptr offset),
-		 int (*close) (struct bfd *nbfd,
-			       void *stream),
-		 int (*stat) (struct bfd *abfd,
-			      void *stream,
-			      struct stat *sb))
+		 file_ptr (*pread_p) (struct bfd *, void *, void *,
+				      file_ptr, file_ptr),
+		 int (*close_p) (struct bfd *, void *),
+		 int (*stat_p) (struct bfd *, void *, struct stat *))
 {
   bfd *nbfd;
   const bfd_target *target_vec;
@@ -553,11 +587,13 @@ bfd_openr_iovec (const char *filename, const char *target,
       return NULL;
     }
 
-  nbfd->filename = filename;
+  /* PR 11983: Do not cache the original filename, but
+     rather make a copy - the original might go away.  */
+  nbfd->filename = xstrdup (filename);
   nbfd->direction = read_direction;
 
-  /* `open (...)' would get expanded by an the open(2) syscall macro.  */
-  stream = (*open) (nbfd, open_closure);
+  /* `open_p (...)' would get expanded by an the open(2) syscall macro.  */
+  stream = (*open_p) (nbfd, open_closure);
   if (stream == NULL)
     {
       _bfd_delete_bfd (nbfd);
@@ -566,9 +602,9 @@ bfd_openr_iovec (const char *filename, const char *target,
 
   vec = (struct opncls *) bfd_zalloc (nbfd, sizeof (struct opncls));
   vec->stream = stream;
-  vec->pread = pread;
-  vec->close = close;
-  vec->stat = stat;
+  vec->pread = pread_p;
+  vec->close = close_p;
+  vec->stat = stat_p;
 
   nbfd->iovec = &opncls_iovec;
   nbfd->iostream = vec;
@@ -594,6 +630,9 @@ DESCRIPTION
 
 	Possible errors are <<bfd_error_system_call>>, <<bfd_error_no_memory>>,
 	<<bfd_error_invalid_target>>.
+
+	A copy of the @var{filename} argument is stored in the newly created
+	BFD.  It can be accessed via the bfd_get_filename() macro.
 */
 
 bfd *
@@ -615,7 +654,9 @@ bfd_openw (const char *filename, const char *target)
       return NULL;
     }
 
-  nbfd->filename = filename;
+  /* PR 11983: Do not cache the original filename, but
+     rather make a copy - the original might go away.  */
+  nbfd->filename = xstrdup (filename);
   nbfd->direction = write_direction;
 
   if (bfd_open_file (nbfd) == NULL)
@@ -684,8 +725,6 @@ bfd_boolean
 bfd_close (bfd *abfd)
 {
   bfd_boolean ret;
-  bfd *nbfd;
-  bfd *next;
 
   if (bfd_write_p (abfd))
     {
@@ -693,30 +732,10 @@ bfd_close (bfd *abfd)
 	return FALSE;
     }
 
-  /* Close nested archives (if this bfd is a thin archive).  */
-  for (nbfd = abfd->nested_archives; nbfd; nbfd = next)
-    {
-      next = nbfd->archive_next;
-      bfd_close (nbfd);
-    }
-
   if (! BFD_SEND (abfd, _close_and_cleanup, (abfd)))
     return FALSE;
 
-  if ((abfd->flags & BFD_IN_MEMORY) != 0)
-    {
-      /* FIXME: cagney/2004-02-15: Need to implement a BFD_IN_MEMORY io
-	 vector.
-	 Until that's done, at least don't leak memory.  */
-      struct bfd_in_memory *bim = (struct bfd_in_memory *) abfd->iostream;
-
-      if (bim->buffer != NULL)
-	free (bim->buffer);
-      free (bim);
-      ret = TRUE;
-    }
-  else
-    ret = abfd->iovec->bclose (abfd);
+  ret = abfd->iovec->bclose (abfd) == 0;
 
   if (ret)
     _maybe_make_executable (abfd);
@@ -773,7 +792,10 @@ SYNOPSIS
 DESCRIPTION
 	Create a new BFD in the manner of <<bfd_openw>>, but without
 	opening a file. The new BFD takes the target from the target
-	used by @var{template}. The format is always set to <<bfd_object>>.
+	used by @var{templ}. The format is always set to <<bfd_object>>.
+
+	A copy of the @var{filename} argument is stored in the newly created
+	BFD.  It can be accessed via the bfd_get_filename() macro.
 */
 
 bfd *
@@ -784,7 +806,9 @@ bfd_create (const char *filename, bfd *templ)
   nbfd = _bfd_new_bfd ();
   if (nbfd == NULL)
     return NULL;
-  nbfd->filename = filename;
+  /* PR 11983: Do not cache the original filename, but
+     rather make a copy - the original might go away.  */
+  nbfd->filename = xstrdup (filename);
   if (templ)
     nbfd->xvec = templ->xvec;
   nbfd->direction = no_direction;
@@ -830,6 +854,8 @@ bfd_make_writable (bfd *abfd)
   bim->buffer = 0;
 
   abfd->flags |= BFD_IN_MEMORY;
+  abfd->iovec = &_bfd_memory_iovec;
+  abfd->origin = 0;
   abfd->direction = write_direction;
   abfd->where = 0;
 
@@ -868,7 +894,6 @@ bfd_make_readable (bfd *abfd)
   if (! BFD_SEND (abfd, _close_and_cleanup, (abfd)))
     return FALSE;
 
-
   abfd->arch_info = &bfd_default_arch_struct;
 
   abfd->where = 0;
@@ -880,7 +905,7 @@ bfd_make_readable (bfd *abfd)
   abfd->section_count = 0;
   abfd->usrdata = NULL;
   abfd->cacheable = FALSE;
-  abfd->flags = BFD_IN_MEMORY;
+  abfd->flags |= BFD_IN_MEMORY;
   abfd->mtime_set = FALSE;
 
   abfd->target_defaulted = TRUE;
@@ -897,7 +922,7 @@ bfd_make_readable (bfd *abfd)
 }
 
 /*
-INTERNAL_FUNCTION
+FUNCTION
 	bfd_alloc
 
 SYNOPSIS
@@ -912,14 +937,23 @@ void *
 bfd_alloc (bfd *abfd, bfd_size_type size)
 {
   void *ret;
+  unsigned long ul_size = (unsigned long) size;
 
-  if (size != (unsigned long) size)
+  if (size != ul_size
+      /* Note - although objalloc_alloc takes an unsigned long as its
+	 argument, internally the size is treated as a signed long.  This can
+	 lead to problems where, for example, a request to allocate -1 bytes
+	 can result in just 1 byte being allocated, rather than
+	 ((unsigned long) -1) bytes.  Also memory checkers will often
+	 complain about attempts to allocate a negative amount of memory.
+	 So to stop these problems we fail if the size is negative.  */
+      || ((signed long) ul_size) < 0)
     {
       bfd_set_error (bfd_error_no_memory);
       return NULL;
     }
 
-  ret = objalloc_alloc ((struct objalloc *) abfd->memory, (unsigned long) size);
+  ret = objalloc_alloc ((struct objalloc *) abfd->memory, ul_size);
   if (ret == NULL)
     bfd_set_error (bfd_error_no_memory);
   return ret;
@@ -940,8 +974,6 @@ DESCRIPTION
 void *
 bfd_alloc2 (bfd *abfd, bfd_size_type nmemb, bfd_size_type size)
 {
-  void *ret;
-
   if ((nmemb | size) >= HALF_BFD_SIZE_TYPE
       && size != 0
       && nmemb > ~(bfd_size_type) 0 / size)
@@ -950,22 +982,11 @@ bfd_alloc2 (bfd *abfd, bfd_size_type nmemb, bfd_size_type size)
       return NULL;
     }
 
-  size *= nmemb;
-
-  if (size != (unsigned long) size)
-    {
-      bfd_set_error (bfd_error_no_memory);
-      return NULL;
-    }
-
-  ret = objalloc_alloc ((struct objalloc *) abfd->memory, (unsigned long) size);
-  if (ret == NULL)
-    bfd_set_error (bfd_error_no_memory);
-  return ret;
+  return bfd_alloc (abfd, size * nmemb);
 }
 
 /*
-INTERNAL_FUNCTION
+FUNCTION
 	bfd_zalloc
 
 SYNOPSIS
@@ -1041,10 +1062,11 @@ bfd_release (bfd *abfd, void *block)
 
    This facilitates "optional" provision of debugging information, without
    having to provide two complete copies of every binary object (with and
-   without debug symbols).
-*/
+   without debug symbols).  */
 
-#define GNU_DEBUGLINK	".gnu_debuglink"
+#define GNU_DEBUGLINK		".gnu_debuglink"
+#define GNU_DEBUGALTLINK	".gnu_debugaltlink"
+
 /*
 FUNCTION
 	bfd_calc_gnu_debuglink_crc32
@@ -1127,30 +1149,32 @@ bfd_calc_gnu_debuglink_crc32 (unsigned long crc,
   crc = ~crc & 0xffffffff;
   for (end = buf + len; buf < end; ++ buf)
     crc = crc32_table[(crc ^ *buf) & 0xff] ^ (crc >> 8);
-  return ~crc & 0xffffffff;;
+  return ~crc & 0xffffffff;
 }
 
 
 /*
-INTERNAL_FUNCTION
-	get_debug_link_info
+FUNCTION
+	bfd_get_debug_link_info
 
 SYNOPSIS
-	char *get_debug_link_info (bfd *abfd, unsigned long *crc32_out);
+	char *bfd_get_debug_link_info (bfd *abfd, unsigned long *crc32_out);
 
 DESCRIPTION
-	fetch the filename and CRC32 value for any separate debuginfo
-	associated with @var{abfd}. Return NULL if no such info found,
-	otherwise return filename and update @var{crc32_out}.
+	Fetch the filename and CRC32 value for any separate debuginfo
+	associated with @var{abfd}.  Return NULL if no such info found,
+	otherwise return filename and update @var{crc32_out}.  The
+	returned filename is allocated with @code{malloc}; freeing it
+	is the responsibility of the caller.
 */
 
-static char *
-get_debug_link_info (bfd *abfd, unsigned long *crc32_out)
+char *
+bfd_get_debug_link_info (bfd *abfd, unsigned long *crc32_out)
 {
   asection *sect;
   unsigned long crc32;
   bfd_byte *contents;
-  int crc_offset;
+  unsigned int crc_offset;
   char *name;
 
   BFD_ASSERT (abfd);
@@ -1168,14 +1192,73 @@ get_debug_link_info (bfd *abfd, unsigned long *crc32_out)
       return NULL;
     }
 
-  /* Crc value is stored after the filename, aligned up to 4 bytes.  */
+  /* CRC value is stored after the filename, aligned up to 4 bytes.  */
   name = (char *) contents;
-  crc_offset = strlen (name) + 1;
+  /* PR 17597: avoid reading off the end of the buffer.  */
+  crc_offset = strnlen (name, bfd_get_section_size (sect)) + 1;
   crc_offset = (crc_offset + 3) & ~3;
+  if (crc_offset >= bfd_get_section_size (sect))
+    return NULL;
 
   crc32 = bfd_get_32 (abfd, contents + crc_offset);
 
   *crc32_out = crc32;
+  return name;
+}
+
+/*
+FUNCTION
+	bfd_get_alt_debug_link_info
+
+SYNOPSIS
+	char *bfd_get_alt_debug_link_info (bfd * abfd,
+					   bfd_size_type *buildid_len,
+			                   bfd_byte **buildid_out);
+
+DESCRIPTION
+	Fetch the filename and BuildID value for any alternate debuginfo
+	associated with @var{abfd}.  Return NULL if no such info found,
+	otherwise return filename and update @var{buildid_len} and
+	@var{buildid_out}.  The returned filename and build_id are
+	allocated with @code{malloc}; freeing them is the
+	responsibility of the caller.
+*/
+
+char *
+bfd_get_alt_debug_link_info (bfd * abfd, bfd_size_type *buildid_len,
+			     bfd_byte **buildid_out)
+{
+  asection *sect;
+  bfd_byte *contents;
+  unsigned int buildid_offset;
+  char *name;
+
+  BFD_ASSERT (abfd);
+  BFD_ASSERT (buildid_len);
+  BFD_ASSERT (buildid_out);
+
+  sect = bfd_get_section_by_name (abfd, GNU_DEBUGALTLINK);
+
+  if (sect == NULL)
+    return NULL;
+
+  if (!bfd_malloc_and_get_section (abfd, sect, & contents))
+    {
+      if (contents != NULL)
+	free (contents);
+      return NULL;
+    }
+
+  /* BuildID value is stored after the filename.  */
+  name = (char *) contents;
+  buildid_offset = strnlen (name, bfd_get_section_size (sect)) + 1;
+  if (buildid_offset >= bfd_get_section_size (sect))
+    return NULL;
+
+  *buildid_len = bfd_get_section_size (sect) - buildid_offset;
+  *buildid_out = bfd_malloc (*buildid_len);
+  memcpy (*buildid_out, contents + buildid_offset, *buildid_len);
+
   return name;
 }
 
@@ -1214,6 +1297,37 @@ separate_debug_file_exists (const char *name, const unsigned long crc)
   return crc == file_crc;
 }
 
+/*
+INTERNAL_FUNCTION
+	separate_alt_debug_file_exists
+
+SYNOPSIS
+	bfd_boolean separate_alt_debug_file_exists
+	  (char *name, unsigned long crc32);
+
+DESCRIPTION
+	Checks to see if @var{name} is a file and if its BuildID
+	matches @var{buildid}.
+*/
+
+static bfd_boolean
+separate_alt_debug_file_exists (const char *name,
+				const unsigned long buildid ATTRIBUTE_UNUSED)
+{
+  FILE *f;
+
+  BFD_ASSERT (name);
+
+  f = real_fopen (name, FOPEN_RB);
+  if (f == NULL)
+    return FALSE;
+
+  /* FIXME: Add code to check buildid.  */
+
+  fclose (f);
+
+  return TRUE;
+}
 
 /*
 INTERNAL_FUNCTION
@@ -1223,18 +1337,26 @@ SYNOPSIS
 	char *find_separate_debug_file (bfd *abfd);
 
 DESCRIPTION
-	Searches @var{abfd} for a reference to separate debugging
-	information, scans various locations in the filesystem, including
-	the file tree rooted at @var{debug_file_directory}, and returns a
-	filename of such debugging information if the file is found and has
-	matching CRC32.  Returns NULL if no reference to debugging file
-	exists, or file cannot be found.
+	Searches @var{abfd} for a section called @var{section_name} which
+	is expected to contain a reference to a file containing separate
+	debugging information.  The function scans various locations in
+	the filesystem, including the file tree rooted at
+	@var{debug_file_directory}, and returns the first matching
+	filename that it finds.  If @var{check_crc} is TRUE then the
+	contents of the file must also match the CRC value contained in
+	@var{section_name}.  Returns NULL if no valid file could be found.
 */
 
+typedef char *      (* get_func_type) (bfd *, unsigned long *);
+typedef bfd_boolean (* check_func_type) (const char *, const unsigned long);
+
 static char *
-find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
+find_separate_debug_file (bfd *           abfd,
+			  const char *    debug_file_directory,
+			  get_func_type   get_func,
+			  check_func_type check_func)
 {
-  char *basename;
+  char *base;
   char *dir;
   char *debugfile;
   char *canon_dir;
@@ -1253,13 +1375,14 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
       return NULL;
     }
 
-  basename = get_debug_link_info (abfd, & crc32);
-  if (basename == NULL)
+  base = get_func (abfd, & crc32);
+    
+  if (base == NULL)
     return NULL;
 
-  if (basename[0] == '\0')
+  if (base[0] == '\0')
     {
-      free (basename);
+      free (base);
       bfd_set_error (bfd_error_no_debug_section);
       return NULL;
     }
@@ -1271,7 +1394,7 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
   dir = (char *) bfd_malloc (dirlen + 1);
   if (dir == NULL)
     {
-      free (basename);
+      free (base);
       return NULL;
     }
   memcpy (dir, abfd->filename, dirlen);
@@ -1289,40 +1412,25 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
       bfd_malloc (strlen (debug_file_directory) + 1
                   + (canon_dirlen > dirlen ? canon_dirlen : dirlen)
                   + strlen (".debug/")
-                  + strlen (basename)
+                  + strlen (base)
                   + 1);
   if (debugfile == NULL)
-    {
-      free (basename);
-      free (dir);
-      free (canon_dir);
-      return NULL;
-    }
+    goto found; /* Actually this returns NULL.  */
 
   /* First try in the same directory as the original file:  */
   strcpy (debugfile, dir);
-  strcat (debugfile, basename);
+  strcat (debugfile, base);
 
-  if (separate_debug_file_exists (debugfile, crc32))
-    {
-      free (basename);
-      free (dir);
-      free (canon_dir);
-      return debugfile;
-    }
+  if (check_func (debugfile, crc32))
+    goto found;
 
   /* Then try in a subdirectory called .debug.  */
   strcpy (debugfile, dir);
   strcat (debugfile, ".debug/");
-  strcat (debugfile, basename);
+  strcat (debugfile, base);
 
-  if (separate_debug_file_exists (debugfile, crc32))
-    {
-      free (basename);
-      free (dir);
-      free (canon_dir);
-      return debugfile;
-    }
+  if (check_func (debugfile, crc32))
+    goto found;
 
   /* Then try in the global debugfile directory.  */
   strcpy (debugfile, debug_file_directory);
@@ -1332,21 +1440,20 @@ find_separate_debug_file (bfd *abfd, const char *debug_file_directory)
       && canon_dir[0] != '/')
     strcat (debugfile, "/");
   strcat (debugfile, canon_dir);
-  strcat (debugfile, basename);
+  strcat (debugfile, base);
 
-  if (separate_debug_file_exists (debugfile, crc32))
-    {
-      free (basename);
-      free (dir);
-      free (canon_dir);
-      return debugfile;
-    }
+  if (check_func (debugfile, crc32))
+    goto found;
 
+  /* Failed to find the file.  */
   free (debugfile);
-  free (basename);
+  debugfile = NULL;
+
+ found:
+  free (base);
   free (dir);
   free (canon_dir);
-  return NULL;
+  return debugfile;
 }
 
 
@@ -1379,7 +1486,61 @@ RETURNS
 char *
 bfd_follow_gnu_debuglink (bfd *abfd, const char *dir)
 {
-  return find_separate_debug_file (abfd, dir);
+  return find_separate_debug_file (abfd, dir,
+				   bfd_get_debug_link_info,
+				   separate_debug_file_exists);
+}
+
+/* Helper for bfd_follow_gnu_debugaltlink.  It just pretends to return
+   a CRC.  .gnu_debugaltlink supplies a build-id, which is different,
+   but this is ok because separate_alt_debug_file_exists ignores the
+   CRC anyway.  */
+
+static char *
+get_alt_debug_link_info_shim (bfd * abfd, unsigned long *crc32_out)
+{
+  bfd_size_type len;
+  bfd_byte *buildid = NULL;
+  char *result = bfd_get_alt_debug_link_info (abfd, &len, &buildid);
+
+  *crc32_out = 0;
+  free (buildid);
+
+  return result;
+}
+
+/*
+FUNCTION
+	bfd_follow_gnu_debugaltlink
+
+SYNOPSIS
+	char *bfd_follow_gnu_debugaltlink (bfd *abfd, const char *dir);
+
+DESCRIPTION
+
+	Takes a BFD and searches it for a .gnu_debugaltlink section.  If this
+	section is found, it examines the section for the name of a file
+	containing auxiliary debugging information.  It	then searches the
+	filesystem for this file in a set of standard locations, including
+	the directory tree rooted at @var{dir}, and if found returns the
+	full filename.
+
+	If @var{dir} is NULL, it will search a default path configured into
+	libbfd at build time.  [FIXME: This feature is not currently
+	implemented].
+
+RETURNS
+	<<NULL>> on any errors or failure to locate the debug file,
+	otherwise a pointer to a heap-allocated string containing the
+	filename.  The caller is responsible for freeing this string.
+*/
+
+char *
+bfd_follow_gnu_debugaltlink (bfd *abfd, const char *dir)
+{
+  return find_separate_debug_file (abfd, dir,
+				   get_alt_debug_link_info_shim,
+				   separate_alt_debug_file_exists);
 }
 
 /*

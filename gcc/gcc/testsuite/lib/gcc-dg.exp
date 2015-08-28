@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,7 +72,14 @@ if [info exists ADDITIONAL_TORTURE_OPTIONS] {
 	[concat $DG_TORTURE_OPTIONS $ADDITIONAL_TORTURE_OPTIONS]
 }
 
-set LTO_TORTURE_OPTIONS ""
+global orig_environment_saved
+
+# This file may be sourced, so don't override environment settings
+# that have been previously setup.
+if { $orig_environment_saved == 0 } {
+    append ld_library_path [gcc-set-multilib-library-path $GCC_UNDER_TEST]
+    set_ld_library_path_env_vars
+}
 
 # Some torture-options cause intermediate code output, unusable for
 # testing using e.g. scan-assembler.  In this variable are the options
@@ -80,6 +87,7 @@ set LTO_TORTURE_OPTIONS ""
 global gcc_force_conventional_output
 set gcc_force_conventional_output ""
 
+set LTO_TORTURE_OPTIONS ""
 if [check_effective_target_lto] {
     # When having plugin test both slim and fat LTO and plugin/nonplugin
     # path.
@@ -95,15 +103,6 @@ if [check_effective_target_lto] {
 	  { -O2 -flto }
       ]
     }
-}
-
-global orig_environment_saved
-
-# This file may be sourced, so don't override environment settings
-# that have been previously setup.
-if { $orig_environment_saved == 0 } {
-    append ld_library_path [gcc-set-multilib-library-path $GCC_UNDER_TEST]
-    set_ld_library_path_env_vars
 }
 
 # Define gcc callbacks for dg.exp.
@@ -233,6 +232,11 @@ proc gcc-dg-prune { system text } {
 	return "::unsupported::memory full"
     }
 
+    if { [regexp "(^|\n)\[^\n\]*: relocation truncated to fit" $text]
+          && [check_effective_target_tiny] } {
+        return "::unsupported::memory full"
+    }
+
     # Likewise, if we see ".text exceeds local store range" or
     # similar.
     if {[string match "spu-*" $system] && \
@@ -276,6 +280,8 @@ if { [info procs ${tool}_load] != [list] \
 	    }
 	    set result [list $status [lindex $result 1]]
 	}
+
+	set result [list [lindex $result 0] [prune_file_path [lindex $result 1]]]
 	return $result
     }
 }
@@ -295,8 +301,8 @@ proc set-target-env-var { } {
     foreach env_var $set_target_env_var {
 	set var [lindex $env_var 0]
 	set value [lindex $env_var 1]
-	if [info exists env($var)] {
-	    lappend saved_target_env_var [list $var 1 $env($var)]
+	if [info exists ::env($var)] {
+	    lappend saved_target_env_var [list $var 1 $::env($var)]
 	} else {
 	    lappend saved_target_env_var [list $var 0]
 	}
@@ -337,7 +343,7 @@ proc search_for { file pattern } {
 
 # Modified dg-runtest that can cycle through a list of optimization options
 # as c-torture does.
-proc gcc-dg-runtest { testcases default-extra-flags } {
+proc gcc-dg-runtest { testcases flags default-extra-flags } {
     global runtests
 
     # Some callers set torture options themselves; don't override those.
@@ -367,9 +373,9 @@ proc gcc-dg-runtest { testcases default-extra-flags } {
 
 	set nshort [file tail [file dirname $test]]/[file tail $test]
 
-	foreach flags $option_list {
-	    verbose "Testing $nshort, $flags" 1
-	    dg-test $test $flags ${default-extra-flags}
+	foreach flags_t $option_list {
+	    verbose "Testing $nshort, $flags $flags_t" 1
+	    dg-test $test "$flags $flags_t" ${default-extra-flags}
 	}
     }
 
@@ -489,14 +495,15 @@ proc cleanup-profile-file { } {
 
 # Remove compiler-generated coverage files for the current test.
 proc cleanup-coverage-files { } {
+    global additional_sources_used
     set testcase [testname-for-summary]
     # The name might include a list of options; extract the file name.
     set testcase [lindex $testcase 0]
     remove-build-file "[file rootname [file tail $testcase]].gc??"
 
     # Clean up coverage files for additional source files.
-    if [info exists additional_sources] {
-	foreach srcfile $additional_sources {
+    if [info exists additional_sources_used] {
+	foreach srcfile $additional_sources_used {
 	    remove-build-file "[file rootname [file tail $srcfile]].gc??"
 	}
     }
@@ -504,6 +511,7 @@ proc cleanup-coverage-files { } {
 
 # Remove compiler-generated files from -repo for the current test.
 proc cleanup-repo-files { } {
+    global additional_sources_used
     set testcase [testname-for-summary]
     # The name might include a list of options; extract the file name.
     set testcase [lindex $testcase 0]
@@ -511,8 +519,8 @@ proc cleanup-repo-files { } {
     remove-build-file "[file rootname [file tail $testcase]].rpo"
 
     # Clean up files for additional source files.
-    if [info exists additional_sources] {
-	foreach srcfile $additional_sources {
+    if [info exists additional_sources_used] {
+	foreach srcfile $additional_sources_used {
 	    remove-build-file "[file rootname [file tail $srcfile]].o"
 	    remove-build-file "[file rootname [file tail $srcfile]].rpo"
 	}
@@ -540,6 +548,21 @@ proc cleanup-ipa-dump { suffix } {
   cleanup-dump "\[0-9\]\[0-9\]\[0-9\]i.$suffix"
 }
 
+# Remove a final insns dump file for the current test.
+proc cleanup-final-insns-dump { } {
+    set testcase [testname-for-summary]
+    # The name might include a list of options; extract the file name.
+    set testcase [lindex $testcase 0]
+    remove-build-file "[file rootname [file tail $testcase]].s.gkd"
+
+    # Clean up files for additional source files.
+    if [info exists additional_sources_used] {
+	foreach srcfile $additional_sources_used {
+	    remove-build-file "[file rootname [file tail $srcfile]].s.gkd"
+	}
+    }
+}
+
 # Remove a stack usage file for the current test.
 proc cleanup-stack-usage { } {
     set testcase [testname-for-summary]
@@ -548,8 +571,8 @@ proc cleanup-stack-usage { } {
     remove-build-file "[file rootname [file tail $testcase]].su"
 
     # Clean up files for additional source files.
-    if [info exists additional_sources] {
-	foreach srcfile $additional_sources {
+    if [info exists additional_sources_used] {
+	foreach srcfile $additional_sources_used {
 	    remove-build-file "[file rootname [file tail $srcfile]].su"
 	}
     }
@@ -557,12 +580,13 @@ proc cleanup-stack-usage { } {
 
 # Remove an Ada spec file for the current test.
 proc cleanup-ada-spec { } {
+    global additional_sources_used
     set testcase [testname-for-summary]
     remove-build-file "[get_ada_spec_filename $testcase]"
 
     # Clean up files for additional source files.
-    if [info exists additional_sources] {
-	foreach srcfile $additional_sources {
+    if [info exists additional_sources_used] {
+	foreach srcfile $additional_sources_used {
 	    remove-build-file "[get_ada_spec_filename $srcfile]"
 	}
     }
@@ -570,6 +594,7 @@ proc cleanup-ada-spec { } {
 
 # Remove all dump files with the provided suffix.
 proc cleanup-dump { suffix } {
+    global additional_sources_used
     set testcase [testname-for-summary]
     # The name might include a list of options; extract the file name.
     set src [file tail [lindex $testcase 0]]
@@ -580,8 +605,8 @@ proc cleanup-dump { suffix } {
     remove-build-file "[file tail $src].gk.$suffix"
 
     # Clean up dump files for additional source files.
-    if [info exists additional_sources] {
-	foreach srcfile $additional_sources {
+    if [info exists additional_sources_used] {
+	foreach srcfile $additional_sources_used {
 	    remove-build-file "[file tail $srcfile].$suffix"
 	    remove-build-file "[file rootname [file tail $srcfile]].exe.$suffix"
 	    remove-build-file "[file rootname [file tail $srcfile]].exe.ltrans\[0-9\]*.$suffix"
@@ -597,7 +622,7 @@ proc cleanup-dump { suffix } {
 # if there are tests generating them.
 # ARGS is a list of suffixes to NOT delete.
 proc cleanup-saved-temps { args } {
-    global additional_sources
+    global additional_sources_used
     set suffixes {}
 
     # add the to-be-kept suffixes
@@ -619,8 +644,8 @@ proc cleanup-saved-temps { args } {
     }
 
     # Clean up saved temp files for additional source files.
-    if [info exists additional_sources] {
-	foreach srcfile $additional_sources {
+    if [info exists additional_sources_used] {
+	foreach srcfile $additional_sources_used {
 	    foreach suffix $suffixes {
 		remove-build-file "[file rootname [file tail $srcfile]]$suffix"
 		remove-build-file "[file rootname [file tail $srcfile]].exe$suffix"
@@ -740,6 +765,7 @@ if { [info procs saved-dg-test] == [list] } {
 	    set saved_info $errorInfo
 	    set additional_files ""
 	    set additional_sources ""
+	    set additional_sources_used ""
 	    set additional_prunes ""
 	    set shouldfail 0
 	    if [info exists compiler_conditional_xfail_data] {
@@ -753,6 +779,7 @@ if { [info procs saved-dg-test] == [list] } {
 	}
 	set additional_files ""
 	set additional_sources ""
+	set additional_sources_used ""
 	set additional_prunes ""
 	set shouldfail 0
 	if [info exists set_target_env_var] {

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,6 +42,7 @@ package body Ch4 is
       Attribute_Img          => True,
       Attribute_Loop_Entry   => True,
       Attribute_Old          => True,
+      Attribute_Result       => True,
       Attribute_Stub_Type    => True,
       Attribute_Version      => True,
       Attribute_Type_Key     => True,
@@ -376,7 +377,7 @@ package body Ch4 is
 
          --  If dot is at end of line and followed by nothing legal,
          --  then assume end of name and quit (dot will be taken as
-         --  an erroneous form of some other punctuation by our caller).
+         --  an incorrect form of some other punctuation by our caller).
 
          elsif Token_Is_At_Start_Of_Line then
             Restore_Scan_State (Scan_State);
@@ -770,11 +771,11 @@ package body Ch4 is
          Expr_Node := P_Expression_If_OK;
          goto LP_State_Expr;
 
-      --  LP_State_Call corresponds to the situation in which at least
-      --  one instance of Id => Expression has been encountered, so we
-      --  know that we do not have a name, but rather a call. We enter
-      --  it with the scan pointer pointing to the next argument to scan,
-      --  and Arg_List containing the list of arguments scanned so far.
+      --  LP_State_Call corresponds to the situation in which at least one
+      --  instance of Id => Expression has been encountered, so we know that
+      --  we do not have a name, but rather a call. We enter it with the
+      --  scan pointer pointing to the next argument to scan, and Arg_List
+      --  containing the list of arguments scanned so far.
 
       <<LP_State_Call>>
 
@@ -785,7 +786,7 @@ package body Ch4 is
             Ident_Node := Token_Node;
             Scan; -- past Id
 
-            --  Deal with => (allow := as erroneous substitute)
+            --  Deal with => (allow := as incorrect substitute)
 
             if Token = Tok_Arrow or else Token = Tok_Colon_Equal then
                Arg_Node := New_Node (N_Parameter_Association, Prev_Token_Ptr);
@@ -1707,6 +1708,48 @@ package body Ch4 is
             Node1 := New_Op_Node (Logical_Op, Op_Location);
             Set_Left_Opnd (Node1, Node2);
             Set_Right_Opnd (Node1, P_Relation);
+
+            --  Check for case of errant comma or semicolon
+
+            if Token = Tok_Comma or else Token = Tok_Semicolon then
+               declare
+                  Com        : constant Boolean := Token = Tok_Comma;
+                  Scan_State : Saved_Scan_State;
+                  Logop      : Node_Kind;
+
+               begin
+                  Save_Scan_State (Scan_State); -- at comma/semicolon
+                  Scan; -- past comma/semicolon
+
+                  --  Check for AND THEN or OR ELSE after comma/semicolon. We
+                  --  do not deal with AND/OR because those cases get mixed up
+                  --  with the select alternatives case.
+
+                  if Token = Tok_And or else Token = Tok_Or then
+                     Logop := P_Logical_Operator;
+                     Restore_Scan_State (Scan_State); -- to comma/semicolon
+
+                     if Nkind_In (Logop, N_And_Then, N_Or_Else) then
+                        Scan; -- past comma/semicolon
+
+                        if Com then
+                           Error_Msg_SP -- CODEFIX
+                             ("|extra "","" ignored");
+                        else
+                           Error_Msg_SP -- CODEFIX
+                             ("|extra "";"" ignored");
+                        end if;
+
+                     else
+                        Restore_Scan_State (Scan_State); -- to comma/semicolon
+                     end if;
+
+                  else
+                     Restore_Scan_State (Scan_State); -- to comma/semicolon
+                  end if;
+               end;
+            end if;
+
             exit when Token not in Token_Class_Logop;
          end loop;
 
@@ -1969,6 +2012,42 @@ package body Ch4 is
       Node2      : Node_Id;
       Tokptr     : Source_Ptr;
 
+      function At_Start_Of_Attribute return Boolean;
+      --  Tests if we have quote followed by attribute name, if so, return True
+      --  otherwise return False.
+
+      ---------------------------
+      -- At_Start_Of_Attribute --
+      ---------------------------
+
+      function At_Start_Of_Attribute return Boolean is
+      begin
+         if Token /= Tok_Apostrophe then
+            return False;
+
+         else
+            declare
+               Scan_State : Saved_Scan_State;
+
+            begin
+               Save_Scan_State (Scan_State);
+               Scan; -- past quote
+
+               if Token = Tok_Identifier
+                 and then Is_Attribute_Name (Chars (Token_Node))
+               then
+                  Restore_Scan_State (Scan_State);
+                  return True;
+               else
+                  Restore_Scan_State (Scan_State);
+                  return False;
+               end if;
+            end;
+         end if;
+      end At_Start_Of_Attribute;
+
+   --  Start of processing for P_Simple_Expression
+
    begin
       --  Check for cases starting with a name. There are two reasons for
       --  special casing. First speed things up by catching a common case
@@ -2069,7 +2148,7 @@ package body Ch4 is
             Node1 := New_Op_Node (P_Unary_Adding_Operator, Tokptr);
 
             if Style_Check then
-               Style.Check_Unary_Plus_Or_Minus;
+               Style.Check_Unary_Plus_Or_Minus (Inside_Depends);
             end if;
 
             Scan; -- past operator
@@ -2116,6 +2195,11 @@ package body Ch4 is
                exit when Token not in Token_Class_Binary_Addop;
                Tokptr := Token_Ptr;
                Node2 := New_Op_Node (P_Binary_Adding_Operator, Tokptr);
+
+               if Style_Check and then not Debug_Flag_Dot_QQ then
+                  Style.Check_Binary_Operator;
+               end if;
+
                Scan; -- past operator
                Set_Left_Opnd (Node2, Node1);
                Node1 := P_Term;
@@ -2255,6 +2339,18 @@ package body Ch4 is
 
          if Prev_Token = Tok_Right_Paren and then Token = Tok_Left_Paren then
             T_Comma;
+
+         --  And if we have a quote, we may have a bad attribute
+
+         elsif At_Start_Of_Attribute then
+            Error_Msg_SC ("prefix of attribute must be a name");
+
+            if Ada_Version >= Ada_2012 then
+               Error_Msg_SC ("\qualify expression to turn it into a name");
+            end if;
+
+         --  Normal case for binary operator expected message
+
          else
             Error_Msg_AP ("binary operator expected");
          end if;
@@ -2358,6 +2454,11 @@ package body Ch4 is
          exit when Token not in Token_Class_Mulop;
          Tokptr := Token_Ptr;
          Node2 := New_Op_Node (P_Multiplying_Operator, Tokptr);
+
+         if Style_Check and then not Debug_Flag_Dot_QQ then
+            Style.Check_Binary_Operator;
+         end if;
+
          Scan; -- past operator
          Set_Left_Opnd (Node2, Node1);
          Set_Right_Opnd (Node2, P_Factor);

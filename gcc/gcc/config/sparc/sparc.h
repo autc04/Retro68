@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for Sun SPARC.
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2015 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com).
    64-bit SPARC-V9 support by Michael Tiemann, Jim Wilson, and Doug Evans,
    at Cygnus Support.
@@ -137,21 +137,22 @@ extern enum cmodel sparc_cmodel;
 #define TARGET_CPU_hypersparc	3
 #define TARGET_CPU_leon		4
 #define TARGET_CPU_leon3	5
-#define TARGET_CPU_sparclite	6
-#define TARGET_CPU_f930		6       /* alias */
-#define TARGET_CPU_f934		6       /* alias */
-#define TARGET_CPU_sparclite86x	7
-#define TARGET_CPU_sparclet	8
-#define TARGET_CPU_tsc701	8       /* alias */
-#define TARGET_CPU_v9		9	/* generic v9 implementation */
-#define TARGET_CPU_sparcv9	9	/* alias */
-#define TARGET_CPU_sparc64	9	/* alias */
-#define TARGET_CPU_ultrasparc	10
-#define TARGET_CPU_ultrasparc3	11
-#define TARGET_CPU_niagara	12
-#define TARGET_CPU_niagara2	13
-#define TARGET_CPU_niagara3	14
-#define TARGET_CPU_niagara4	15
+#define TARGET_CPU_leon3v7	6
+#define TARGET_CPU_sparclite	7
+#define TARGET_CPU_f930		7       /* alias */
+#define TARGET_CPU_f934		7       /* alias */
+#define TARGET_CPU_sparclite86x	8
+#define TARGET_CPU_sparclet	9
+#define TARGET_CPU_tsc701	9       /* alias */
+#define TARGET_CPU_v9		10	/* generic v9 implementation */
+#define TARGET_CPU_sparcv9	10	/* alias */
+#define TARGET_CPU_sparc64	10	/* alias */
+#define TARGET_CPU_ultrasparc	11
+#define TARGET_CPU_ultrasparc3	12
+#define TARGET_CPU_niagara	13
+#define TARGET_CPU_niagara2	14
+#define TARGET_CPU_niagara3	15
+#define TARGET_CPU_niagara4	16
 
 #if TARGET_CPU_DEFAULT == TARGET_CPU_v9 \
  || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc \
@@ -239,6 +240,11 @@ extern enum cmodel sparc_cmodel;
 #define ASM_CPU32_DEFAULT_SPEC AS_LEON_FLAG
 #endif
 
+#if TARGET_CPU_DEFAULT == TARGET_CPU_leon3v7
+#define CPP_CPU32_DEFAULT_SPEC "-D__leon__"
+#define ASM_CPU32_DEFAULT_SPEC AS_LEONV7_FLAG
+#endif
+
 #endif
 
 #if !defined(CPP_CPU32_DEFAULT_SPEC) || !defined(CPP_CPU64_DEFAULT_SPEC)
@@ -285,6 +291,7 @@ extern enum cmodel sparc_cmodel;
 %{mcpu=hypersparc:-D__hypersparc__ -D__sparc_v8__} \
 %{mcpu=leon:-D__leon__ -D__sparc_v8__} \
 %{mcpu=leon3:-D__leon__ -D__sparc_v8__} \
+%{mcpu=leon3v7:-D__leon__} \
 %{mcpu=v9:-D__sparc_v9__} \
 %{mcpu=ultrasparc:-D__sparc_v9__} \
 %{mcpu=ultrasparc3:-D__sparc_v9__} \
@@ -334,6 +341,7 @@ extern enum cmodel sparc_cmodel;
 %{mcpu=hypersparc:-Av8} \
 %{mcpu=leon:" AS_LEON_FLAG "} \
 %{mcpu=leon3:" AS_LEON_FLAG "} \
+%{mcpu=leon3v7:" AS_LEONV7_FLAG "} \
 %{mv8plus:-Av8plus} \
 %{mcpu=v9:-Av9} \
 %{mcpu=ultrasparc:%{!mv8plus:-Av9a}} \
@@ -418,22 +426,20 @@ extern enum cmodel sparc_cmodel;
 #define WCHAR_TYPE_SIZE 16
 
 /* Mask of all CPU selection flags.  */
-#define MASK_ISA \
-(MASK_V8 + MASK_SPARCLITE + MASK_SPARCLET + MASK_V9 + MASK_DEPRECATED_V8_INSNS)
+#define MASK_ISA					\
+  (MASK_SPARCLITE + MASK_SPARCLET			\
+   + MASK_V8 + MASK_V9 + MASK_DEPRECATED_V8_INSNS)
 
-/* TARGET_HARD_MUL: Use hardware multiply instructions but not %y.
-   TARGET_HARD_MUL32: Use hardware multiply instructions with rd %y
-   to get high 32 bits.  False in V8+ or V9 because multiply stores
+/* TARGET_HARD_MUL: Use 32-bit hardware multiply instructions but not %y.  */
+#define TARGET_HARD_MUL				\
+  (TARGET_SPARCLITE || TARGET_SPARCLET		\
+   || TARGET_V8 || TARGET_DEPRECATED_V8_INSNS)
+
+/* TARGET_HARD_MUL32: Use 32-bit hardware multiply instructions with %y
+   to get high 32 bits.  False in 64-bit or V8+ because multiply stores
    a 64-bit result in a register.  */
-
-#define TARGET_HARD_MUL32				\
-  ((TARGET_V8 || TARGET_SPARCLITE			\
-    || TARGET_SPARCLET || TARGET_DEPRECATED_V8_INSNS)	\
-   && ! TARGET_V8PLUS && TARGET_ARCH32)
-
-#define TARGET_HARD_MUL					\
-  (TARGET_V8 || TARGET_SPARCLITE || TARGET_SPARCLET	\
-   || TARGET_DEPRECATED_V8_INSNS || TARGET_V8PLUS)
+#define TARGET_HARD_MUL32 \
+  (TARGET_HARD_MUL && TARGET_ARCH32 && !TARGET_V8PLUS)
 
 /* MASK_APP_REGS must always be the default because that's what
    FIXED_REGISTERS is set to and -ffixed- is processed before
@@ -1287,7 +1293,7 @@ do {									\
    access it from the current frame pointer.  We can access it from the
    previous frame pointer though by reading a value from the register window
    save area.  */
-#define RETURN_ADDR_IN_PREVIOUS_FRAME
+#define RETURN_ADDR_IN_PREVIOUS_FRAME 1
 
 /* This is the offset of the return address to the true next instruction to be
    executed for the current function.  */
@@ -1760,8 +1766,10 @@ extern int sparc_indent_opcode;
 
 #ifdef HAVE_AS_LEON
 #define AS_LEON_FLAG "-Aleon"
+#define AS_LEONV7_FLAG "-Aleon"
 #else
 #define AS_LEON_FLAG "-Av8"
+#define AS_LEONV7_FLAG "-Av7"
 #endif
 
 /* We use gcc _mcount for profiling.  */

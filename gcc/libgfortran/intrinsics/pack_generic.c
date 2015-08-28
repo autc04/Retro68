@@ -1,5 +1,5 @@
 /* Generic implementation of the PACK intrinsic
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -152,8 +152,8 @@ pack_internal (gfc_array_char *ret, const gfc_array_char *array,
 	  GFC_DIMENSION_SET(ret->dim[0], 0, total-1, 1);
 
 	  ret->offset = 0;
-	  /* xmalloc allocates a single byte for zero size.  */
-	  ret->base_addr = xmalloc (size * total);
+	  /* xmallocarray allocates a single byte for zero size.  */
+	  ret->base_addr = xmallocarray (total, size);
 
 	  if (total == 0)
 	    return;      /* In this case, nothing remains to be done.  */
@@ -463,6 +463,9 @@ pack_s_internal (gfc_array_char *ret, const gfc_array_char *array,
   index_type total;
 
   dim = GFC_DESCRIPTOR_RANK (array);
+  /* Initialize sstride[0] to avoid -Wmaybe-uninitialized
+     complaints.  */
+  sstride[0] = size;
   ssize = 1;
   for (n = 0; n < dim; n++)
     {
@@ -519,7 +522,7 @@ pack_s_internal (gfc_array_char *ret, const gfc_array_char *array,
 
       ret->offset = 0;
 
-      ret->base_addr = xmalloc (size * total);
+      ret->base_addr = xmallocarray (total, size);
 
       if (total == 0)
 	return;

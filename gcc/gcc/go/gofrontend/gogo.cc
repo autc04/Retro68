@@ -41,6 +41,9 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
     pkgpath_(),
     pkgpath_symbol_(),
     prefix_(),
+    zero_value_(NULL),
+    zero_value_size_(0),
+    zero_value_align_(0),
     pkgpath_set_(false),
     pkgpath_from_option_(false),
     prefix_from_option_(false),
@@ -255,10 +258,7 @@ Gogo::pkgpath_for_symbol(const std::string& pkgpath)
       char c = s[i];
       if ((c >= 'a' && c <= 'z')
 	  || (c >= 'A' && c <= 'Z')
-	  || (c >= '0' && c <= '9')
-	  || c == '_'
-	  || c == '.'
-	  || c == '$')
+	  || (c >= '0' && c <= '9'))
 	;
       else
 	s[i] = '_';
@@ -341,22 +341,28 @@ Gogo::set_package_name(const std::string& package_name,
   // Now that we know the name of the package we are compiling, set
   // the package path to use for reflect.Type.PkgPath and global
   // symbol names.
-  if (!this->pkgpath_set_)
+  if (this->pkgpath_set_)
+    this->pkgpath_symbol_ = Gogo::pkgpath_for_symbol(this->pkgpath_);
+  else
     {
       if (!this->prefix_from_option_ && package_name == "main")
-	this->pkgpath_ = package_name;
+	{
+	  this->pkgpath_ = package_name;
+	  this->pkgpath_symbol_ = Gogo::pkgpath_for_symbol(package_name);
+	}
       else
 	{
 	  if (!this->prefix_from_option_)
 	    this->prefix_ = "go";
 	  this->pkgpath_ = this->prefix_ + '.' + package_name;
+	  this->pkgpath_symbol_ = (Gogo::pkgpath_for_symbol(this->prefix_) + '.'
+				   + Gogo::pkgpath_for_symbol(package_name));
 	}
       this->pkgpath_set_ = true;
     }
 
-  this->pkgpath_symbol_ = Gogo::pkgpath_for_symbol(this->pkgpath_);
-
-  this->package_ = this->register_package(this->pkgpath_, location);
+  this->package_ = this->register_package(this->pkgpath_,
+					  this->pkgpath_symbol_, location);
   this->package_->set_package_name(package_name, location);
 
   if (this->is_main_package())
@@ -470,7 +476,7 @@ Gogo::import_package(const std::string& filename,
 		 bindings->begin_declarations();
 	       p != bindings->end_declarations();
 	       ++p)
-	    this->add_named_object(p->second);
+	    this->add_dot_import_object(p->second);
 	}
       else if (ln == "_")
 	package->set_uses_sink_alias();
@@ -575,6 +581,870 @@ Gogo::current_bindings() const
     return this->globals_;
 }
 
+// Return the special variable used as the zero value of types.
+
+Named_object*
+Gogo::zero_value(Type *type)
+{
+  if (this->zero_value_ == NULL)
+    {
+      Location bloc = Linemap::predeclared_location();
+
+      // We will change the type later, when we know the size.
+      Type* byte_type = this->lookup_global("byte")->type_value();
+
+      Expression* zero = Expression::make_integer_ul(0, NULL, bloc);
+      Type* array_type = Type::make_array_type(byte_type, zero);
+
+      Variable* var = new Variable(array_type, NULL, true, false, false, bloc);
+      this->zero_value_ = Named_object::make_variable("go$zerovalue", NULL,
+						      var);
+    }
+
+  // The zero value will be the maximum required size.
+  int64_t size;
+  bool ok = type->backend_type_size(this, &size);
+  if (!ok) {
+    go_assert(saw_errors());
+    size = 4;
+  }
+  if (size > this->zero_value_size_)
+    this->zero_value_size_ = size;
+
+  int64_t align;
+  ok = type->backend_type_align(this, &align);
+  if (!ok) {
+    go_assert(saw_errors());
+    align = 4;
+  }
+  if (align > this->zero_value_align_)
+    this->zero_value_align_ = align;
+
+  return this->zero_value_;
+}
+
+// Return whether V is the zero value variable.
+
+bool
+Gogo::is_zero_value(Variable* v) const
+{
+  return this->zero_value_ != NULL && this->zero_value_->var_value() == v;
+}
+
+// Return the backend variable for the special zero value, or NULL if
+// it is not needed.
+
+Bvariable*
+Gogo::backend_zero_value()
+{
+  if (this->zero_value_ == NULL)
+    return NULL;
+
+  Type* byte_type = this->lookup_global("byte")->type_value();
+  Btype* bbtype_type = byte_type->get_backend(this);
+
+  Type* int_type = this->lookup_global("int")->type_value();
+
+  Expression* e = Expression::make_integer_int64(this->zero_value_size_,
+						 int_type,
+						 Linemap::unknown_location());
+  Translate_context context(this, NULL, NULL, NULL);
+  Bexpression* blength = e->get_backend(&context);
+
+  Btype* barray_type = this->backend()->array_type(bbtype_type, blength);
+
+  std::string zname = this->zero_value_->name();
+  Bvariable* zvar =
+    this->backend()->implicit_variable(zname, barray_type, false,
+				       true, true, this->zero_value_align_);
+  this->backend()->implicit_variable_set_init(zvar, zname, barray_type,
+					      false, true, true, NULL);
+  return zvar;
+}
+
+// Add statements to INIT_STMTS which run the initialization
+// functions for imported packages.  This is only used for the "main"
+// package.
+
+void
+Gogo::init_imports(std::vector<Bstatement*>& init_stmts)
+{
+  go_assert(this->is_main_package());
+
+  if (this->imported_init_fns_.empty())
+    return;
+
+  Location unknown_loc = Linemap::unknown_location();
+  Function_type* func_type =
+      Type::make_function_type(NULL, NULL, NULL, unknown_loc);
+  Btype* fntype = func_type->get_backend_fntype(this);
+
+  // We must call them in increasing priority order.
+  std::vector<Import_init> v;
+  for (std::set<Import_init>::const_iterator p =
+	 this->imported_init_fns_.begin();
+       p != this->imported_init_fns_.end();
+       ++p)
+    v.push_back(*p);
+  std::sort(v.begin(), v.end());
+
+  // We build calls to the init functions, which take no arguments.
+  std::vector<Bexpression*> empty_args;
+  for (std::vector<Import_init>::const_iterator p = v.begin();
+       p != v.end();
+       ++p)
+    {
+      std::string user_name = p->package_name() + ".init";
+      const std::string& init_name(p->init_name());
+
+      Bfunction* pfunc = this->backend()->function(fntype, user_name, init_name,
+                                                   true, true, true, false,
+                                                   false, unknown_loc);
+      Bexpression* pfunc_code =
+          this->backend()->function_code_expression(pfunc, unknown_loc);
+      Bexpression* pfunc_call =
+	this->backend()->call_expression(pfunc_code, empty_args,
+					 NULL, unknown_loc);
+      init_stmts.push_back(this->backend()->expression_statement(pfunc_call));
+    }
+}
+
+// Register global variables with the garbage collector.  We need to
+// register all variables which can hold a pointer value.  They become
+// roots during the mark phase.  We build a struct that is easy to
+// hook into a list of roots.
+
+// struct __go_gc_root_list
+// {
+//   struct __go_gc_root_list* __next;
+//   struct __go_gc_root
+//   {
+//     void* __decl;
+//     size_t __size;
+//   } __roots[];
+// };
+
+// The last entry in the roots array has a NULL decl field.
+
+void
+Gogo::register_gc_vars(const std::vector<Named_object*>& var_gc,
+		       std::vector<Bstatement*>& init_stmts)
+{
+  if (var_gc.empty())
+    return;
+
+  Type* pvt = Type::make_pointer_type(Type::make_void_type());
+  Type* uint_type = Type::lookup_integer_type("uint");
+  Struct_type* root_type = Type::make_builtin_struct_type(2,
+                                                          "__decl", pvt,
+                                                          "__size", uint_type);
+
+  Location builtin_loc = Linemap::predeclared_location();
+  Expression* length = Expression::make_integer_ul(var_gc.size(), NULL,
+						   builtin_loc);
+
+  Array_type* root_array_type = Type::make_array_type(root_type, length);
+  Type* ptdt = Type::make_type_descriptor_ptr_type();
+  Struct_type* root_list_type =
+      Type::make_builtin_struct_type(2,
+                                     "__next", ptdt,
+                                     "__roots", root_array_type);
+
+  // Build an initializer for the __roots array.
+
+  Expression_list* roots_init = new Expression_list();
+
+  size_t i = 0;
+  for (std::vector<Named_object*>::const_iterator p = var_gc.begin();
+       p != var_gc.end();
+       ++p, ++i)
+    {
+      Expression_list* init = new Expression_list();
+
+      Location no_loc = (*p)->location();
+      Expression* decl = Expression::make_var_reference(*p, no_loc);
+      Expression* decl_addr =
+          Expression::make_unary(OPERATOR_AND, decl, no_loc);
+      init->push_back(decl_addr);
+
+      Expression* decl_size =
+          Expression::make_type_info(decl->type(), Expression::TYPE_INFO_SIZE);
+      init->push_back(decl_size);
+
+      Expression* root_ctor =
+          Expression::make_struct_composite_literal(root_type, init, no_loc);
+      roots_init->push_back(root_ctor);
+    }
+
+  // The list ends with a NULL entry.
+
+  Expression_list* null_init = new Expression_list();
+  Expression* nil = Expression::make_nil(builtin_loc);
+  null_init->push_back(nil);
+
+  Expression *zero = Expression::make_integer_ul(0, NULL, builtin_loc);
+  null_init->push_back(zero);
+
+  Expression* null_root_ctor =
+      Expression::make_struct_composite_literal(root_type, null_init,
+                                                builtin_loc);
+  roots_init->push_back(null_root_ctor);
+
+  // Build a constructor for the struct.
+
+  Expression_list* root_list_init = new Expression_list();
+  root_list_init->push_back(nil);
+
+  Expression* roots_ctor =
+      Expression::make_array_composite_literal(root_array_type, roots_init,
+                                               builtin_loc);
+  root_list_init->push_back(roots_ctor);
+
+  Expression* root_list_ctor =
+      Expression::make_struct_composite_literal(root_list_type, root_list_init,
+                                                builtin_loc);
+
+  Expression* root_addr = Expression::make_unary(OPERATOR_AND, root_list_ctor,
+                                                 builtin_loc);
+  root_addr->unary_expression()->set_is_gc_root();
+  Expression* register_roots = Runtime::make_call(Runtime::REGISTER_GC_ROOTS,
+                                                  builtin_loc, 1, root_addr);
+
+  Translate_context context(this, NULL, NULL, NULL);
+  Bexpression* bcall = register_roots->get_backend(&context);
+  init_stmts.push_back(this->backend()->expression_statement(bcall));
+}
+
+// Get the name to use for the import control function.  If there is a
+// global function or variable, then we know that that name must be
+// unique in the link, and we use it as the basis for our name.
+
+const std::string&
+Gogo::get_init_fn_name()
+{
+  if (this->init_fn_name_.empty())
+    {
+      go_assert(this->package_ != NULL);
+      if (this->is_main_package())
+	{
+	  // Use a name which the runtime knows.
+	  this->init_fn_name_ = "__go_init_main";
+	}
+      else
+	{
+	  std::string s = this->pkgpath_symbol();
+	  s.append("..import");
+	  this->init_fn_name_ = s;
+	}
+    }
+
+  return this->init_fn_name_;
+}
+
+// Build the decl for the initialization function.
+
+Named_object*
+Gogo::initialization_function_decl()
+{
+  std::string name = this->get_init_fn_name();
+  Location loc = this->package_->location();
+
+  Function_type* fntype = Type::make_function_type(NULL, NULL, NULL, loc);
+  Function* initfn = new Function(fntype, NULL, NULL, loc);
+  return Named_object::make_function(name, NULL, initfn);
+}
+
+// Create the magic initialization function.  CODE_STMT is the
+// code that it needs to run.
+
+Named_object*
+Gogo::create_initialization_function(Named_object* initfn,
+				     Bstatement* code_stmt)
+{
+  // Make sure that we thought we needed an initialization function,
+  // as otherwise we will not have reported it in the export data.
+  go_assert(this->is_main_package() || this->need_init_fn_);
+
+  if (initfn == NULL)
+    initfn = this->initialization_function_decl();
+
+  // Bind the initialization function code to a block.
+  Bfunction* fndecl = initfn->func_value()->get_or_make_decl(this, initfn);
+  Location pkg_loc = this->package_->location();
+  std::vector<Bvariable*> vars;
+  this->backend()->block(fndecl, NULL, vars, pkg_loc, pkg_loc);
+
+  if (!this->backend()->function_set_body(fndecl, code_stmt))
+    {
+      go_assert(saw_errors());
+      return NULL;
+    }
+  return initfn;
+}
+
+// Search for references to VAR in any statements or called functions.
+
+class Find_var : public Traverse
+{
+ public:
+  // A hash table we use to avoid looping.  The index is the name of a
+  // named object.  We only look through objects defined in this
+  // package.
+  typedef Unordered_set(const void*) Seen_objects;
+
+  Find_var(Named_object* var, Seen_objects* seen_objects)
+    : Traverse(traverse_expressions),
+      var_(var), seen_objects_(seen_objects), found_(false)
+  { }
+
+  // Whether the variable was found.
+  bool
+  found() const
+  { return this->found_; }
+
+  int
+  expression(Expression**);
+
+ private:
+  // The variable we are looking for.
+  Named_object* var_;
+  // Names of objects we have already seen.
+  Seen_objects* seen_objects_;
+  // True if the variable was found.
+  bool found_;
+};
+
+// See if EXPR refers to VAR, looking through function calls and
+// variable initializations.
+
+int
+Find_var::expression(Expression** pexpr)
+{
+  Expression* e = *pexpr;
+
+  Var_expression* ve = e->var_expression();
+  if (ve != NULL)
+    {
+      Named_object* v = ve->named_object();
+      if (v == this->var_)
+	{
+	  this->found_ = true;
+	  return TRAVERSE_EXIT;
+	}
+
+      if (v->is_variable() && v->package() == NULL)
+	{
+	  Expression* init = v->var_value()->init();
+	  if (init != NULL)
+	    {
+	      std::pair<Seen_objects::iterator, bool> ins =
+		this->seen_objects_->insert(v);
+	      if (ins.second)
+		{
+		  // This is the first time we have seen this name.
+		  if (Expression::traverse(&init, this) == TRAVERSE_EXIT)
+		    return TRAVERSE_EXIT;
+		}
+	    }
+	}
+    }
+
+  // We traverse the code of any function or bound method we see.  Note that
+  // this means that we will traverse the code of a function or bound method
+  // whose address is taken even if it is not called.
+  Func_expression* fe = e->func_expression();
+  Bound_method_expression* bme = e->bound_method_expression();
+  if (fe != NULL || bme != NULL)
+    {
+      const Named_object* f = fe != NULL ? fe->named_object() : bme->function();
+      if (f->is_function() && f->package() == NULL)
+	{
+	  std::pair<Seen_objects::iterator, bool> ins =
+	    this->seen_objects_->insert(f);
+	  if (ins.second)
+	    {
+	      // This is the first time we have seen this name.
+	      if (f->func_value()->block()->traverse(this) == TRAVERSE_EXIT)
+		return TRAVERSE_EXIT;
+	    }
+	}
+    }
+
+  Temporary_reference_expression* tre = e->temporary_reference_expression();
+  if (tre != NULL)
+    {
+      Temporary_statement* ts = tre->statement();
+      Expression* init = ts->init();
+      if (init != NULL)
+	{
+	  std::pair<Seen_objects::iterator, bool> ins =
+	    this->seen_objects_->insert(ts);
+	  if (ins.second)
+	    {
+	      // This is the first time we have seen this temporary
+	      // statement.
+	      if (Expression::traverse(&init, this) == TRAVERSE_EXIT)
+		return TRAVERSE_EXIT;
+	    }
+	}
+    }
+
+  return TRAVERSE_CONTINUE;
+}
+
+// Return true if EXPR, PREINIT, or DEP refers to VAR.
+
+static bool
+expression_requires(Expression* expr, Block* preinit, Named_object* dep,
+		    Named_object* var)
+{
+  Find_var::Seen_objects seen_objects;
+  Find_var find_var(var, &seen_objects);
+  if (expr != NULL)
+    Expression::traverse(&expr, &find_var);
+  if (preinit != NULL)
+    preinit->traverse(&find_var);
+  if (dep != NULL)
+    {
+      Expression* init = dep->var_value()->init();
+      if (init != NULL)
+	Expression::traverse(&init, &find_var);
+      if (dep->var_value()->has_pre_init())
+	dep->var_value()->preinit()->traverse(&find_var);
+    }
+
+  return find_var.found();
+}
+
+// Sort variable initializations.  If the initialization expression
+// for variable A refers directly or indirectly to the initialization
+// expression for variable B, then we must initialize B before A.
+
+class Var_init
+{
+ public:
+  Var_init()
+    : var_(NULL), init_(NULL), dep_count_(0)
+  { }
+
+  Var_init(Named_object* var, Bstatement* init)
+    : var_(var), init_(init), dep_count_(0)
+  { }
+
+  // Return the variable.
+  Named_object*
+  var() const
+  { return this->var_; }
+
+  // Return the initialization expression.
+  Bstatement*
+  init() const
+  { return this->init_; }
+
+  // Return the number of remaining dependencies.
+  size_t
+  dep_count() const
+  { return this->dep_count_; }
+
+  // Increment the number of dependencies.
+  void
+  add_dependency()
+  { ++this->dep_count_; }
+
+  // Decrement the number of dependencies.
+  void
+  remove_dependency()
+  { --this->dep_count_; }
+
+ private:
+  // The variable being initialized.
+  Named_object* var_;
+  // The initialization statement.
+  Bstatement* init_;
+  // The number of initializations this is dependent on.  A variable
+  // initialization should not be emitted if any of its dependencies
+  // have not yet been resolved.
+  size_t dep_count_;
+};
+
+// For comparing Var_init keys in a map.
+
+inline bool
+operator<(const Var_init& v1, const Var_init& v2)
+{ return v1.var()->name() < v2.var()->name(); }
+
+typedef std::list<Var_init> Var_inits;
+
+// Sort the variable initializations.  The rule we follow is that we
+// emit them in the order they appear in the array, except that if the
+// initialization expression for a variable V1 depends upon another
+// variable V2 then we initialize V1 after V2.
+
+static void
+sort_var_inits(Gogo* gogo, Var_inits* var_inits)
+{
+  if (var_inits->empty())
+    return;
+
+  typedef std::pair<Named_object*, Named_object*> No_no;
+  typedef std::map<No_no, bool> Cache;
+  Cache cache;
+
+  // A mapping from a variable initialization to a set of
+  // variable initializations that depend on it.
+  typedef std::map<Var_init, std::set<Var_init*> > Init_deps;
+  Init_deps init_deps;
+  bool init_loop = false;
+  for (Var_inits::iterator p1 = var_inits->begin();
+       p1 != var_inits->end();
+       ++p1)
+    {
+      Named_object* var = p1->var();
+      Expression* init = var->var_value()->init();
+      Block* preinit = var->var_value()->preinit();
+      Named_object* dep = gogo->var_depends_on(var->var_value());
+
+      // Start walking through the list to see which variables VAR
+      // needs to wait for.
+      for (Var_inits::iterator p2 = var_inits->begin();
+	   p2 != var_inits->end();
+	   ++p2)
+	{
+	  if (var == p2->var())
+	    continue;
+
+	  Named_object* p2var = p2->var();
+	  No_no key(var, p2var);
+	  std::pair<Cache::iterator, bool> ins =
+	    cache.insert(std::make_pair(key, false));
+	  if (ins.second)
+	    ins.first->second = expression_requires(init, preinit, dep, p2var);
+	  if (ins.first->second)
+	    {
+	      // VAR depends on P2VAR.
+	      init_deps[*p2].insert(&(*p1));
+	      p1->add_dependency();
+
+	      // Check for cycles.
+	      key = std::make_pair(p2var, var);
+	      ins = cache.insert(std::make_pair(key, false));
+	      if (ins.second)
+		ins.first->second =
+		  expression_requires(p2var->var_value()->init(),
+				      p2var->var_value()->preinit(),
+				      gogo->var_depends_on(p2var->var_value()),
+				      var);
+	      if (ins.first->second)
+		{
+		  error_at(var->location(),
+			   ("initialization expressions for %qs and "
+			    "%qs depend upon each other"),
+			   var->message_name().c_str(),
+			   p2var->message_name().c_str());
+		  inform(p2->var()->location(), "%qs defined here",
+			 p2var->message_name().c_str());
+		  init_loop = true;
+		  break;
+		}
+	    }
+	}
+    }
+
+  // If there are no dependencies then the declaration order is sorted.
+  if (!init_deps.empty() && !init_loop)
+    {
+      // Otherwise, sort variable initializations by emitting all variables with
+      // no dependencies in declaration order. VAR_INITS is already in
+      // declaration order.
+      Var_inits ready;
+      while (!var_inits->empty())
+	{
+	  Var_inits::iterator v1;;
+	  for (v1 = var_inits->begin(); v1 != var_inits->end(); ++v1)
+	    {
+	      if (v1->dep_count() == 0)
+		break;
+	    }
+	  go_assert(v1 != var_inits->end());
+
+	  // V1 either has no dependencies or its dependencies have already
+	  // been emitted, add it to READY next.  When V1 is emitted, remove
+	  // a dependency from each V that depends on V1.
+	  ready.splice(ready.end(), *var_inits, v1);
+
+	  Init_deps::iterator p1 = init_deps.find(*v1);
+	  if (p1 != init_deps.end())
+	    {
+	      std::set<Var_init*> resolved = p1->second;
+	      for (std::set<Var_init*>::iterator pv = resolved.begin();
+		   pv != resolved.end();
+		   ++pv)
+		(*pv)->remove_dependency();
+	      init_deps.erase(p1);
+	    }
+	}
+      var_inits->swap(ready);
+      go_assert(init_deps.empty());
+    }
+
+  // VAR_INITS is in the correct order.  For each VAR in VAR_INITS,
+  // check for a loop of VAR on itself.  We only do this if
+  // INIT is not NULL and there is no dependency; when INIT is
+  // NULL, it means that PREINIT sets VAR, which we will
+  // interpret as a loop.
+  for (Var_inits::const_iterator p = var_inits->begin();
+       p != var_inits->end();
+       ++p)
+    {
+      Named_object* var = p->var();
+      Expression* init = var->var_value()->init();
+      Block* preinit = var->var_value()->preinit();
+      Named_object* dep = gogo->var_depends_on(var->var_value());
+      if (init != NULL && dep == NULL
+	  && expression_requires(init, preinit, NULL, var))
+	error_at(var->location(),
+		 "initialization expression for %qs depends upon itself",
+		 var->message_name().c_str());
+    }
+}
+
+// Write out the global definitions.
+
+void
+Gogo::write_globals()
+{
+  this->build_interface_method_tables();
+
+  Bindings* bindings = this->current_bindings();
+
+  for (Bindings::const_declarations_iterator p = bindings->begin_declarations();
+       p != bindings->end_declarations();
+       ++p)
+    {
+      // If any function declarations needed a descriptor, make sure
+      // we build it.
+      Named_object* no = p->second;
+      if (no->is_function_declaration())
+	no->func_declaration_value()->build_backend_descriptor(this);
+    }
+
+  // Lists of globally declared types, variables, constants, and functions
+  // that must be defined.
+  std::vector<Btype*> type_decls;
+  std::vector<Bvariable*> var_decls;
+  std::vector<Bexpression*> const_decls;
+  std::vector<Bfunction*> func_decls;
+
+  // The init function declaration, if necessary.
+  Named_object* init_fndecl = NULL;
+
+  std::vector<Bstatement*> init_stmts;
+  std::vector<Bstatement*> var_init_stmts;
+
+  if (this->is_main_package())
+    this->init_imports(init_stmts);
+
+  // A list of variable initializations.
+  Var_inits var_inits;
+
+  // A list of variables which need to be registered with the garbage
+  // collector.
+  size_t count_definitions = bindings->size_definitions();
+  std::vector<Named_object*> var_gc;
+  var_gc.reserve(count_definitions);
+
+  for (Bindings::const_definitions_iterator p = bindings->begin_definitions();
+       p != bindings->end_definitions();
+       ++p)
+    {
+      Named_object* no = *p;
+      go_assert(!no->is_type_declaration() && !no->is_function_declaration());
+
+      // There is nothing to do for a package.
+      if (no->is_package())
+        continue;
+
+      // There is nothing to do for an object which was imported from
+      // a different package into the global scope.
+      if (no->package() != NULL)
+        continue;
+
+      // Skip blank named functions and constants.
+      if ((no->is_function() && no->func_value()->is_sink())
+	  || (no->is_const() && no->const_value()->is_sink()))
+        continue;
+
+      // There is nothing useful we can output for constants which
+      // have ideal or non-integral type.
+      if (no->is_const())
+        {
+          Type* type = no->const_value()->type();
+          if (type == NULL)
+            type = no->const_value()->expr()->type();
+          if (type->is_abstract() || !type->is_numeric_type())
+            continue;
+        }
+
+      if (!no->is_variable())
+        no->get_backend(this, const_decls, type_decls, func_decls);
+      else
+	{
+          Variable* var = no->var_value();
+	  Bvariable* bvar = no->get_backend_variable(this, NULL);
+          var_decls.push_back(bvar);
+
+	  // Check for a sink variable, which may be used to run an
+	  // initializer purely for its side effects.
+	  bool is_sink = no->name()[0] == '_' && no->name()[1] == '.';
+
+          Bstatement* var_init_stmt = NULL;
+	  if (!var->has_pre_init())
+	    {
+              // If the backend representation of the variable initializer is
+              // constant, we can just set the initial value using
+              // global_var_set_init instead of during the init() function.
+              // The initializer is constant if it is the zero-value of the
+              // variable's type or if the initial value is an immutable value
+              // that is not copied to the heap.
+              bool is_constant_initializer = false;
+              if (var->init() == NULL)
+                is_constant_initializer = true;
+              else
+                {
+                  Type* var_type = var->type();
+                  Expression* init = var->init();
+                  Expression* init_cast =
+                      Expression::make_cast(var_type, init, var->location());
+                  is_constant_initializer =
+                      init_cast->is_immutable() && !var_type->has_pointer();
+                }
+
+	      // Non-constant variable initializations might need to create
+	      // temporary variables, which will need the initialization
+	      // function as context.
+              if (!is_constant_initializer && init_fndecl == NULL)
+		init_fndecl = this->initialization_function_decl();
+              Bexpression* var_binit = var->get_init(this, init_fndecl);
+
+              if (var_binit == NULL)
+		;
+	      else if (is_constant_initializer)
+		{
+		  if (expression_requires(var->init(), NULL,
+					  this->var_depends_on(var), no))
+		    error_at(no->location(),
+			     "initialization expression for %qs depends "
+			     "upon itself",
+			     no->message_name().c_str());
+		  this->backend()->global_variable_set_init(bvar, var_binit);
+		}
+	      else if (is_sink)
+	        var_init_stmt =
+                    this->backend()->expression_statement(var_binit);
+	      else
+                {
+                  Location loc = var->location();
+                  Bexpression* var_expr =
+                      this->backend()->var_expression(bvar, loc);
+                  var_init_stmt =
+                      this->backend()->assignment_statement(var_expr, var_binit,
+                                                            loc);
+                }
+	    }
+	  else
+	    {
+	      // We are going to create temporary variables which
+	      // means that we need an fndecl.
+              if (init_fndecl == NULL)
+		init_fndecl = this->initialization_function_decl();
+
+	      Bvariable* var_decl = is_sink ? NULL : bvar;
+	      var_init_stmt = var->get_init_block(this, init_fndecl, var_decl);
+	    }
+
+	  if (var_init_stmt != NULL)
+	    {
+	      if (var->init() == NULL && !var->has_pre_init())
+                var_init_stmts.push_back(var_init_stmt);
+	      else
+                var_inits.push_back(Var_init(no, var_init_stmt));
+	    }
+	  else if (this->var_depends_on(var) != NULL)
+	    {
+	      // This variable is initialized from something that is
+	      // not in its init or preinit.  This variable needs to
+	      // participate in dependency analysis sorting, in case
+	      // some other variable depends on this one.
+              Btype* btype = no->var_value()->type()->get_backend(this);
+              Bexpression* zero = this->backend()->zero_expression(btype);
+              Bstatement* zero_stmt =
+                  this->backend()->expression_statement(zero);
+	      var_inits.push_back(Var_init(no, zero_stmt));
+	    }
+
+	  if (!is_sink && var->type()->has_pointer())
+	    var_gc.push_back(no);
+	}
+    }
+
+  // Register global variables with the garbage collector.
+  this->register_gc_vars(var_gc, init_stmts);
+
+  // Simple variable initializations, after all variables are
+  // registered.
+  init_stmts.push_back(this->backend()->statement_list(var_init_stmts));
+
+  // Complete variable initializations, first sorting them into a
+  // workable order.
+  if (!var_inits.empty())
+    {
+      sort_var_inits(this, &var_inits);
+      for (Var_inits::const_iterator p = var_inits.begin();
+           p != var_inits.end();
+           ++p)
+        init_stmts.push_back(p->init());
+    }
+
+  // After all the variables are initialized, call the init
+  // functions if there are any.  Init functions take no arguments, so
+  // we pass in EMPTY_ARGS to call them.
+  std::vector<Bexpression*> empty_args;
+  for (std::vector<Named_object*>::const_iterator p =
+           this->init_functions_.begin();
+       p != this->init_functions_.end();
+       ++p)
+    {
+      Location func_loc = (*p)->location();
+      Function* func = (*p)->func_value();
+      Bfunction* initfn = func->get_or_make_decl(this, *p);
+      Bexpression* func_code =
+          this->backend()->function_code_expression(initfn, func_loc);
+      Bexpression* call = this->backend()->call_expression(func_code,
+                                                           empty_args,
+							   NULL, func_loc);
+      init_stmts.push_back(this->backend()->expression_statement(call));
+    }
+
+  // Set up a magic function to do all the initialization actions.
+  // This will be called if this package is imported.
+  Bstatement* init_fncode = this->backend()->statement_list(init_stmts);
+  if (this->need_init_fn_ || this->is_main_package())
+    {
+      init_fndecl =
+	this->create_initialization_function(init_fndecl, init_fncode);
+      if (init_fndecl != NULL)
+	func_decls.push_back(init_fndecl->func_value()->get_decl());
+    }
+
+  // We should not have seen any new bindings created during the conversion.
+  go_assert(count_definitions == this->current_bindings()->size_definitions());
+
+  // Define all globally declared values.
+  if (!saw_errors())
+    this->backend()->write_global_definitions(type_decls, const_decls,
+					      func_decls, var_decls);
+}
+
 // Return the current block.
 
 Block*
@@ -618,7 +1488,7 @@ Gogo::lookup(const std::string& name, Named_object** pfunction) const
       if (ret != NULL)
 	{
 	  if (ret->package() != NULL)
-	    ret->package()->set_used();
+	    ret->package()->note_usage();
 	  return ret;
 	}
     }
@@ -659,10 +1529,11 @@ Gogo::add_imported_package(const std::string& real_name,
 			   const std::string& alias_arg,
 			   bool is_alias_exported,
 			   const std::string& pkgpath,
+			   const std::string& pkgpath_symbol,
 			   Location location,
 			   bool* padd_to_globals)
 {
-  Package* ret = this->register_package(pkgpath, location);
+  Package* ret = this->register_package(pkgpath, pkgpath_symbol, location);
   ret->set_package_name(real_name, location);
 
   *padd_to_globals = false;
@@ -691,10 +1562,13 @@ Gogo::add_imported_package(const std::string& real_name,
 // Register a package.  This package may or may not be imported.  This
 // returns the Package structure for the package, creating if it
 // necessary.  LOCATION is the location of the import statement that
-// led us to see this package.
+// led us to see this package.  PKGPATH_SYMBOL is the symbol to use
+// for names in the package; it may be the empty string, in which case
+// we either get it later or make a guess when we need it.
 
 Package*
-Gogo::register_package(const std::string& pkgpath, Location location)
+Gogo::register_package(const std::string& pkgpath,
+		       const std::string& pkgpath_symbol, Location location)
 {
   Package* package = NULL;
   std::pair<Packages::iterator, bool> ins =
@@ -704,13 +1578,15 @@ Gogo::register_package(const std::string& pkgpath, Location location)
       // We have seen this package name before.
       package = ins.first->second;
       go_assert(package != NULL && package->pkgpath() == pkgpath);
+      if (!pkgpath_symbol.empty())
+	package->set_pkgpath_symbol(pkgpath_symbol);
       if (Linemap::is_unknown_location(package->location()))
 	package->set_location(location);
     }
   else
     {
       // First time we have seen this package name.
-      package = new Package(pkgpath, location);
+      package = new Package(pkgpath, pkgpath_symbol, location);
       go_assert(ins.first->second == NULL);
       ins.first->second = package;
     }
@@ -1005,6 +1881,10 @@ Label*
 Gogo::add_label_definition(const std::string& label_name,
 			   Location location)
 {
+  // A label with a blank identifier is never declared or defined.
+  if (label_name == "_")
+    return NULL;
+
   go_assert(!this->functions_.empty());
   Function* func = this->functions_.back().function->func_value();
   Label* label = func->add_label_definition(this, label_name, location);
@@ -1162,11 +2042,32 @@ Gogo::add_sink()
   return Named_object::make_sink();
 }
 
-// Add a named object.
+// Add a named object for a dot import.
 
 void
-Gogo::add_named_object(Named_object* no)
+Gogo::add_dot_import_object(Named_object* no)
 {
+  // If the name already exists, then it was defined in some file seen
+  // earlier.  If the earlier name is just a declaration, don't add
+  // this name, because that will cause the previous declaration to
+  // merge to this imported name, which should not happen.  Just add
+  // this name to the list of file block names to get appropriate
+  // errors if we see a later definition.
+  Named_object* e = this->package_->bindings()->lookup(no->name());
+  if (e != NULL && e->package() == NULL)
+    {
+      if (e->is_unknown())
+	e = e->resolve();
+      if (e->package() == NULL
+	  && (e->is_type_declaration()
+	      || e->is_function_declaration()
+	      || e->is_unknown()))
+	{
+	  this->add_file_block_name(no->name(), no->location());
+	  return;
+	}
+    }
+
   this->current_bindings()->add_named_object(no);
 }
 
@@ -3028,6 +3929,7 @@ Build_recover_thunks::function(Named_object* orig_no)
       Variable* orig_closure_var = orig_closure_no->var_value();
       Variable* new_var = new Variable(orig_closure_var->type(), NULL, false,
 				       false, false, location);
+      new_var->set_is_closure();
       snprintf(buf, sizeof buf, "closure.%u", count);
       ++count;
       Named_object* new_closure_no = Named_object::make_variable(buf, NULL,
@@ -3200,10 +4102,7 @@ Build_recover_thunks::can_recover_arg(Location location)
   Expression* fn = Expression::make_func_reference(builtin_return_address,
 						   NULL, location);
 
-  mpz_t zval;
-  mpz_init_set_ui(zval, 0UL);
-  Expression* zexpr = Expression::make_integer(&zval, NULL, location);
-  mpz_clear(zval);
+  Expression* zexpr = Expression::make_integer_ul(0, NULL, location);
   Expression_list *args = new Expression_list();
   args->push_back(zexpr);
 
@@ -3238,10 +4137,8 @@ Expression*
 Gogo::runtime_error(int code, Location location)
 {
   Type* int32_type = Type::lookup_integer_type("int32");
-  mpz_t val;
-  mpz_init_set_ui(val, code);
-  Expression* code_expr = Expression::make_integer(&val, int32_type, location);
-  mpz_clear(val);
+  Expression* code_expr = Expression::make_integer_ul(code, int32_type,
+						      location);
   return Runtime::make_call(Runtime::RUNTIME_ERROR, location, 1, code_expr);
 }
 
@@ -3330,6 +4227,7 @@ Build_method_tables::type(Type* type)
   Struct_type* st = type->struct_type();
   if (nt != NULL || st != NULL)
     {
+      Translate_context context(this->gogo_, NULL, NULL, NULL);
       for (std::vector<Interface_type*>::const_iterator p =
 	     this->interfaces_.begin();
 	   p != this->interfaces_.end();
@@ -3343,8 +4241,8 @@ Build_method_tables::type(Type* type)
 	      if ((*p)->implements_interface(Type::make_pointer_type(nt),
 					     NULL))
 		{
-		  nt->interface_method_table(this->gogo_, *p, false);
-		  nt->interface_method_table(this->gogo_, *p, true);
+		  nt->interface_method_table(*p, false)->get_backend(&context);
+                  nt->interface_method_table(*p, true)->get_backend(&context);
 		}
 	    }
 	  else
@@ -3352,13 +4250,32 @@ Build_method_tables::type(Type* type)
 	      if ((*p)->implements_interface(Type::make_pointer_type(st),
 					     NULL))
 		{
-		  st->interface_method_table(this->gogo_, *p, false);
-		  st->interface_method_table(this->gogo_, *p, true);
+		  st->interface_method_table(*p, false)->get_backend(&context);
+		  st->interface_method_table(*p, true)->get_backend(&context);
 		}
 	    }
 	}
     }
   return TRAVERSE_CONTINUE;
+}
+
+// Return an expression which allocates memory to hold values of type TYPE.
+
+Expression*
+Gogo::allocate_memory(Type* type, Location location)
+{
+  Expression* td = Expression::make_type_descriptor(type, location);
+  Expression* size =
+    Expression::make_type_info(type, Expression::TYPE_INFO_SIZE);
+
+  // If this package imports unsafe, then it may play games with
+  // pointers that look like integers.  We should be able to determine
+  // whether or not to use new pointers in libgo/go-new.c.  FIXME.
+  bool use_new_pointers = this->imported_unsafe_ || type->has_pointer();
+  return Runtime::make_call((use_new_pointers
+			     ? Runtime::NEW
+			     : Runtime::NEW_NOPOINTERS),
+			    location, 2, td, size);
 }
 
 // Traversal class used to check for return statements.
@@ -3427,11 +4344,26 @@ Gogo::do_exports()
   // support streaming to a separate file.
   Stream_to_section stream;
 
+  // Write out either the prefix or pkgpath depending on how we were
+  // invoked.
+  std::string prefix;
+  std::string pkgpath;
+  if (this->pkgpath_from_option_)
+    pkgpath = this->pkgpath_;
+  else if (this->prefix_from_option_)
+    prefix = this->prefix_;
+  else if (this->is_main_package())
+    pkgpath = "main";
+  else
+    prefix = "go";
+
   Export exp(&stream);
   exp.register_builtin_types(this);
   exp.export_globals(this->package_name(),
-		     this->pkgpath(),
+		     prefix,
+		     pkgpath,
 		     this->package_priority(),
+		     this->packages_,
 		     this->imports_,
 		     (this->need_init_fn_ && !this->is_main_package()
 		      ? this->get_init_fn_name()
@@ -3531,6 +4463,7 @@ Function::Function(Function_type* type, Function* enclosing, Block* block,
     is_sink_(false), results_are_named_(false), nointerface_(false),
     is_unnamed_type_stub_method_(false), calls_recover_(false),
     is_recover_thunk_(false), has_recover_thunk_(false),
+    calls_defer_retaddr_(false), is_type_specific_function_(false),
     in_unique_section_(false)
 {
 }
@@ -3615,6 +4548,7 @@ Function::closure_var()
       Variable* var = new Variable(Type::make_pointer_type(struct_type),
 				   NULL, false, false, false, loc);
       var->set_is_used();
+      var->set_is_closure();
       this->closure_var_ = Named_object::make_variable("$closure", NULL, var);
       // Note that the new variable is not in any binding contour.
     }
@@ -4044,7 +4978,12 @@ Function::get_or_make_decl(Gogo* gogo, Named_object* no)
         ;
       else if (Gogo::unpack_hidden_name(no->name()) == "init"
                && !this->type_->is_method())
-        ;
+	;
+      else if (no->name() == gogo->get_init_fn_name())
+	{
+	  is_visible = true;
+	  asm_name = no->name();
+	}
       else if (Gogo::unpack_hidden_name(no->name()) == "main"
                && gogo->is_main_package())
         is_visible = true;
@@ -4089,6 +5028,14 @@ Function::get_or_make_decl(Gogo* gogo, Named_object* no)
       // our return address comparison.
       bool is_inlinable = !(this->calls_recover_ || this->is_recover_thunk_);
 
+      // If a function calls __go_set_defer_retaddr, then mark it as
+      // uninlinable.  This prevents the GCC backend from splitting
+      // the function; splitting the function is a bad idea because we
+      // want the return address label to be in the same function as
+      // the call.
+      if (this->calls_defer_retaddr_)
+	is_inlinable = false;
+
       // If this is a thunk created to call a function which calls
       // the predeclared recover function, we need to disable
       // stack splitting for the thunk.
@@ -4109,6 +5056,358 @@ Function::get_or_make_decl(Gogo* gogo, Named_object* no)
 				    this->location());
     }
   return this->fndecl_;
+}
+
+// Get the backend representation.
+
+Bfunction*
+Function_declaration::get_or_make_decl(Gogo* gogo, Named_object* no)
+{
+  if (this->fndecl_ == NULL)
+    {
+      // Let Go code use an asm declaration to pick up a builtin
+      // function.
+      if (!this->asm_name_.empty())
+	{
+	  Bfunction* builtin_decl =
+	    gogo->backend()->lookup_builtin(this->asm_name_);
+	  if (builtin_decl != NULL)
+	    {
+	      this->fndecl_ = builtin_decl;
+	      return this->fndecl_;
+	    }
+	}
+
+      std::string asm_name;
+      if (this->asm_name_.empty())
+        {
+          asm_name = (no->package() == NULL
+                                  ? gogo->pkgpath_symbol()
+                                  : no->package()->pkgpath_symbol());
+          asm_name.append(1, '.');
+          asm_name.append(Gogo::unpack_hidden_name(no->name()));
+          if (this->fntype_->is_method())
+            {
+              asm_name.append(1, '.');
+              Type* rtype = this->fntype_->receiver()->type();
+              asm_name.append(rtype->mangled_name(gogo));
+            }
+        }
+
+      Btype* functype = this->fntype_->get_backend_fntype(gogo);
+      this->fndecl_ =
+          gogo->backend()->function(functype, no->get_id(gogo), asm_name,
+                                    true, true, true, false, false,
+                                    this->location());
+    }
+
+  return this->fndecl_;
+}
+
+// Build the descriptor for a function declaration.  This won't
+// necessarily happen if the package has just a declaration for the
+// function and no other reference to it, but we may still need the
+// descriptor for references from other packages.
+void
+Function_declaration::build_backend_descriptor(Gogo* gogo)
+{
+  if (this->descriptor_ != NULL)
+    {
+      Translate_context context(gogo, NULL, NULL, NULL);
+      this->descriptor_->get_backend(&context);
+    }
+}
+
+// Return the function's decl after it has been built.
+
+Bfunction*
+Function::get_decl() const
+{
+  go_assert(this->fndecl_ != NULL);
+  return this->fndecl_;
+}
+
+// Build the backend representation for the function code.
+
+void
+Function::build(Gogo* gogo, Named_object* named_function)
+{
+  Translate_context context(gogo, named_function, NULL, NULL);
+
+  // A list of parameter variables for this function.
+  std::vector<Bvariable*> param_vars;
+
+  // Variables that need to be declared for this function and their
+  // initial values.
+  std::vector<Bvariable*> vars;
+  std::vector<Bexpression*> var_inits;
+  for (Bindings::const_definitions_iterator p =
+	 this->block_->bindings()->begin_definitions();
+       p != this->block_->bindings()->end_definitions();
+       ++p)
+    {
+      Location loc = (*p)->location();
+      if ((*p)->is_variable() && (*p)->var_value()->is_parameter())
+	{
+	  Bvariable* bvar = (*p)->get_backend_variable(gogo, named_function);
+          Bvariable* parm_bvar = bvar;
+
+	  // We always pass the receiver to a method as a pointer.  If
+	  // the receiver is declared as a non-pointer type, then we
+	  // copy the value into a local variable.
+	  if ((*p)->var_value()->is_receiver()
+	      && (*p)->var_value()->type()->points_to() == NULL)
+	    {
+	      std::string name = (*p)->name() + ".pointer";
+	      Type* var_type = (*p)->var_value()->type();
+	      Variable* parm_var =
+		  new Variable(Type::make_pointer_type(var_type), NULL, false,
+			       true, false, loc);
+	      Named_object* parm_no =
+                  Named_object::make_variable(name, NULL, parm_var);
+              parm_bvar = parm_no->get_backend_variable(gogo, named_function);
+
+              vars.push_back(bvar);
+	      Expression* parm_ref =
+                  Expression::make_var_reference(parm_no, loc);
+	      parm_ref = Expression::make_unary(OPERATOR_MULT, parm_ref, loc);
+	      if ((*p)->var_value()->is_in_heap())
+		parm_ref = Expression::make_heap_expression(parm_ref, loc);
+              var_inits.push_back(parm_ref->get_backend(&context));
+	    }
+	  else if ((*p)->var_value()->is_in_heap())
+	    {
+	      // If we take the address of a parameter, then we need
+	      // to copy it into the heap.
+	      std::string parm_name = (*p)->name() + ".param";
+	      Variable* parm_var = new Variable((*p)->var_value()->type(), NULL,
+						false, true, false, loc);
+	      Named_object* parm_no =
+		  Named_object::make_variable(parm_name, NULL, parm_var);
+	      parm_bvar = parm_no->get_backend_variable(gogo, named_function);
+
+              vars.push_back(bvar);
+	      Expression* var_ref =
+		  Expression::make_var_reference(parm_no, loc);
+	      var_ref = Expression::make_heap_expression(var_ref, loc);
+              var_inits.push_back(var_ref->get_backend(&context));
+	    }
+          param_vars.push_back(parm_bvar);
+	}
+      else if ((*p)->is_result_variable())
+	{
+	  Bvariable* bvar = (*p)->get_backend_variable(gogo, named_function);
+
+	  Type* type = (*p)->result_var_value()->type();
+	  Bexpression* init;
+	  if (!(*p)->result_var_value()->is_in_heap())
+	    {
+	      Btype* btype = type->get_backend(gogo);
+	      init = gogo->backend()->zero_expression(btype);
+	    }
+	  else
+	    init = Expression::make_allocation(type,
+					       loc)->get_backend(&context);
+
+          vars.push_back(bvar);
+          var_inits.push_back(init);
+	}
+    }
+  if (!gogo->backend()->function_set_parameters(this->fndecl_, param_vars))
+    {
+      go_assert(saw_errors());
+      return;
+    }
+
+  // If we need a closure variable, make sure to create it.
+  // It gets installed in the function as a side effect of creation.
+  if (this->closure_var_ != NULL)
+    {
+      go_assert(this->closure_var_->var_value()->is_closure());
+      this->closure_var_->get_backend_variable(gogo, named_function);
+    }
+
+  if (this->block_ != NULL)
+    {
+      // Declare variables if necessary.
+      Bblock* var_decls = NULL;
+
+      Bstatement* defer_init = NULL;
+      if (!vars.empty() || this->defer_stack_ != NULL)
+	{
+          var_decls =
+              gogo->backend()->block(this->fndecl_, NULL, vars,
+                                     this->block_->start_location(),
+                                     this->block_->end_location());
+
+	  if (this->defer_stack_ != NULL)
+	    {
+	      Translate_context dcontext(gogo, named_function, this->block_,
+                                         var_decls);
+              defer_init = this->defer_stack_->get_backend(&dcontext);
+	    }
+	}
+
+      // Build the backend representation for all the statements in the
+      // function.
+      Translate_context context(gogo, named_function, NULL, NULL);
+      Bblock* code_block = this->block_->get_backend(&context);
+
+      // Initialize variables if necessary.
+      std::vector<Bstatement*> init;
+      go_assert(vars.size() == var_inits.size());
+      for (size_t i = 0; i < vars.size(); ++i)
+	{
+          Bstatement* init_stmt =
+              gogo->backend()->init_statement(vars[i], var_inits[i]);
+          init.push_back(init_stmt);
+	}
+      if (defer_init != NULL)
+	init.push_back(defer_init);
+      Bstatement* var_init = gogo->backend()->statement_list(init);
+
+      // Initialize all variables before executing this code block.
+      Bstatement* code_stmt = gogo->backend()->block_statement(code_block);
+      code_stmt = gogo->backend()->compound_statement(var_init, code_stmt);
+
+      // If we have a defer stack, initialize it at the start of a
+      // function.
+      Bstatement* except = NULL;
+      Bstatement* fini = NULL;
+      if (defer_init != NULL)
+	{
+	  // Clean up the defer stack when we leave the function.
+	  this->build_defer_wrapper(gogo, named_function, &except, &fini);
+
+          // Wrap the code for this function in an exception handler to handle
+          // defer calls.
+          code_stmt =
+              gogo->backend()->exception_handler_statement(code_stmt,
+                                                           except, fini,
+                                                           this->location_);
+	}
+
+      // Stick the code into the block we built for the receiver, if
+      // we built one.
+      if (var_decls != NULL)
+        {
+          std::vector<Bstatement*> code_stmt_list(1, code_stmt);
+          gogo->backend()->block_add_statements(var_decls, code_stmt_list);
+          code_stmt = gogo->backend()->block_statement(var_decls);
+        }
+
+      if (!gogo->backend()->function_set_body(this->fndecl_, code_stmt))
+        {
+          go_assert(saw_errors());
+          return;
+        }
+    }
+
+  // If we created a descriptor for the function, make sure we emit it.
+  if (this->descriptor_ != NULL)
+    {
+      Translate_context context(gogo, NULL, NULL, NULL);
+      this->descriptor_->get_backend(&context);
+    }
+}
+
+// Build the wrappers around function code needed if the function has
+// any defer statements.  This sets *EXCEPT to an exception handler
+// and *FINI to a finally handler.
+
+void
+Function::build_defer_wrapper(Gogo* gogo, Named_object* named_function,
+			      Bstatement** except, Bstatement** fini)
+{
+  Location end_loc = this->block_->end_location();
+
+  // Add an exception handler.  This is used if a panic occurs.  Its
+  // purpose is to stop the stack unwinding if a deferred function
+  // calls recover.  There are more details in
+  // libgo/runtime/go-unwind.c.
+
+  std::vector<Bstatement*> stmts;
+  Expression* call = Runtime::make_call(Runtime::CHECK_DEFER, end_loc, 1,
+					this->defer_stack(end_loc));
+  Translate_context context(gogo, named_function, NULL, NULL);
+  Bexpression* defer = call->get_backend(&context);
+  stmts.push_back(gogo->backend()->expression_statement(defer));
+
+  Bstatement* ret_bstmt = this->return_value(gogo, named_function, end_loc);
+  if (ret_bstmt != NULL)
+    stmts.push_back(ret_bstmt);
+
+  go_assert(*except == NULL);
+  *except = gogo->backend()->statement_list(stmts);
+
+  call = Runtime::make_call(Runtime::CHECK_DEFER, end_loc, 1,
+                            this->defer_stack(end_loc));
+  defer = call->get_backend(&context);
+
+  call = Runtime::make_call(Runtime::UNDEFER, end_loc, 1,
+        		    this->defer_stack(end_loc));
+  Bexpression* undefer = call->get_backend(&context);
+  Bstatement* function_defer =
+      gogo->backend()->function_defer_statement(this->fndecl_, undefer, defer,
+                                                end_loc);
+  stmts = std::vector<Bstatement*>(1, function_defer);
+  if (this->type_->results() != NULL
+      && !this->type_->results()->empty()
+      && !this->type_->results()->front().name().empty())
+    {
+      // If the result variables are named, and we are returning from
+      // this function rather than panicing through it, we need to
+      // return them again, because they might have been changed by a
+      // defer function.  The runtime routines set the defer_stack
+      // variable to true if we are returning from this function.
+
+      ret_bstmt = this->return_value(gogo, named_function, end_loc);
+      Bexpression* nil = Expression::make_nil(end_loc)->get_backend(&context);
+      Bexpression* ret =
+          gogo->backend()->compound_expression(ret_bstmt, nil, end_loc);
+      Expression* ref =
+	Expression::make_temporary_reference(this->defer_stack_, end_loc);
+      Bexpression* bref = ref->get_backend(&context);
+      ret = gogo->backend()->conditional_expression(NULL, bref, ret, NULL,
+                                                    end_loc);
+      stmts.push_back(gogo->backend()->expression_statement(ret));
+    }
+
+  go_assert(*fini == NULL);
+  *fini = gogo->backend()->statement_list(stmts);
+}
+
+// Return the statement that assigns values to this function's result struct.
+
+Bstatement*
+Function::return_value(Gogo* gogo, Named_object* named_function,
+		       Location location) const
+{
+  const Typed_identifier_list* results = this->type_->results();
+  if (results == NULL || results->empty())
+    return NULL;
+
+  go_assert(this->results_ != NULL);
+  if (this->results_->size() != results->size())
+    {
+      go_assert(saw_errors());
+      return gogo->backend()->error_statement();
+    }
+
+  std::vector<Bexpression*> vals(results->size());
+  for (size_t i = 0; i < vals.size(); ++i)
+    {
+      Named_object* no = (*this->results_)[i];
+      Bvariable* bvar = no->get_backend_variable(gogo, named_function);
+      Bexpression* val = gogo->backend()->var_expression(bvar, location);
+      if (no->result_var_value()->is_in_heap())
+	{
+	  Btype* bt = no->result_var_value()->type()->get_backend(gogo);
+	  val = gogo->backend()->indirect_expression(bt, val, true, location);
+	}
+      vals[i] = val;
+    }
+  return gogo->backend()->return_statement(this->fndecl_, vals, location);
 }
 
 // Class Block.
@@ -4333,13 +5632,9 @@ Block::get_backend(Translate_context* context)
 	vars.push_back((*pv)->get_backend_variable(gogo, function));
     }
 
-  // FIXME: Permitting FUNCTION to be NULL here is a temporary measure
-  // until we have a proper representation of the init function.
-  Bfunction* bfunction;
-  if (function == NULL)
-    bfunction = NULL;
-  else
-    bfunction = tree_to_function(function->func_value()->get_decl());
+  go_assert(function != NULL);
+  Bfunction* bfunction =
+    function->func_value()->get_or_make_decl(gogo, function);
   Bblock* ret = context->backend()->block(bfunction, context->bblock(),
 					  vars, this->start_location_,
 					  this->end_location_);
@@ -4463,7 +5758,8 @@ Variable::Variable(Type* type, Expression* init, bool is_global,
 		   Location location)
   : type_(type), init_(init), preinit_(NULL), location_(location),
     backend_(NULL), is_global_(is_global), is_parameter_(is_parameter),
-    is_receiver_(is_receiver), is_varargs_parameter_(false), is_used_(false),
+    is_closure_(false), is_receiver_(is_receiver),
+    is_varargs_parameter_(false), is_used_(false),
     is_address_taken_(false), is_non_escaping_address_taken_(false),
     seen_(false), init_is_lowered_(false), init_is_flattened_(false),
     type_from_init_tuple_(false), type_from_range_index_(false),
@@ -4559,6 +5855,21 @@ Variable::flatten_init_expression(Gogo* gogo, Named_object* function,
 	}
 
       gogo->flatten_expression(function, inserter, &this->init_);
+
+      // If an interface conversion is needed, we need a temporary
+      // variable.
+      if (this->type_ != NULL
+	  && !Type::are_identical(this->type_, this->init_->type(), false,
+				  NULL)
+	  && this->init_->type()->interface_type() != NULL
+	  && !this->init_->is_variable())
+	{
+	  Temporary_statement* temp =
+	    Statement::make_temporary(NULL, this->init_, this->location_);
+	  inserter->insert(temp);
+	  this->init_ = Expression::make_temporary_reference(temp,
+							     this->location_);
+	}
 
       this->seen_ = false;
       this->init_is_flattened_ = true;
@@ -4719,6 +6030,7 @@ Variable::type()
   Type* type = this->type_;
   Expression* init = this->init_;
   if (this->is_type_switch_var_
+      && type != NULL
       && this->type_->is_nil_constant_as_type())
     {
       Type_guard_expression* tge = this->init_->type_guard_expression();
@@ -4792,7 +6104,9 @@ Variable::determine_type()
   // type here.  It will have an initializer which is a type guard.
   // We want to initialize it to the value without the type guard, and
   // use the type of that value as well.
-  if (this->is_type_switch_var_ && this->type_->is_nil_constant_as_type())
+  if (this->is_type_switch_var_
+      && this->type_ != NULL
+      && this->type_->is_nil_constant_as_type())
     {
       Type_guard_expression* tge = this->init_->type_guard_expression();
       go_assert(tge != NULL);
@@ -4857,6 +6171,72 @@ Variable::determine_type()
     }
 }
 
+// Get the initial value of a variable.  This does not
+// consider whether the variable is in the heap--it returns the
+// initial value as though it were always stored in the stack.
+
+Bexpression*
+Variable::get_init(Gogo* gogo, Named_object* function)
+{
+  go_assert(this->preinit_ == NULL);
+  Location loc = this->location();
+  if (this->init_ == NULL)
+    {
+      go_assert(!this->is_parameter_);
+      if (this->is_global_ || this->is_in_heap())
+	return NULL;
+      Btype* btype = this->type()->get_backend(gogo);
+      return gogo->backend()->zero_expression(btype);
+    }
+  else
+    {
+      Translate_context context(gogo, function, NULL, NULL);
+      Expression* init = Expression::make_cast(this->type(), this->init_, loc);
+      return init->get_backend(&context);
+    }
+}
+
+// Get the initial value of a variable when a block is required.
+// VAR_DECL is the decl to set; it may be NULL for a sink variable.
+
+Bstatement*
+Variable::get_init_block(Gogo* gogo, Named_object* function,
+                         Bvariable* var_decl)
+{
+  go_assert(this->preinit_ != NULL);
+
+  // We want to add the variable assignment to the end of the preinit
+  // block.
+
+  Translate_context context(gogo, function, NULL, NULL);
+  Bblock* bblock = this->preinit_->get_backend(&context);
+
+  // It's possible to have pre-init statements without an initializer
+  // if the pre-init statements set the variable.
+  Bstatement* decl_init = NULL;
+  if (this->init_ != NULL)
+    {
+      if (var_decl == NULL)
+        {
+          Bexpression* init_bexpr = this->init_->get_backend(&context);
+          decl_init = gogo->backend()->expression_statement(init_bexpr);
+        }
+      else
+	{
+          Location loc = this->location();
+          Expression* val_expr =
+              Expression::make_cast(this->type(), this->init_, loc);
+          Bexpression* val = val_expr->get_backend(&context);
+          Bexpression* var_ref = gogo->backend()->var_expression(var_decl, loc);
+          decl_init = gogo->backend()->assignment_statement(var_ref, val, loc);
+	}
+    }
+  Bstatement* block_stmt = gogo->backend()->block_statement(bblock);
+  if (decl_init != NULL)
+    block_stmt = gogo->backend()->compound_statement(block_stmt, decl_init);
+  return block_stmt;
+}
+
 // Export the variable
 
 void
@@ -4911,7 +6291,9 @@ Variable::get_backend_variable(Gogo* gogo, Named_object* function,
 	  Btype* btype = type->get_backend(gogo);
 
 	  Bvariable* bvar;
-	  if (this->is_global_)
+	  if (gogo->is_zero_value(this))
+	    bvar = gogo->backend_zero_value();
+	  else if (this->is_global_)
 	    bvar = backend->global_variable((package == NULL
 					     ? gogo->package_name()
 					     : package->package_name()),
@@ -4931,11 +6313,13 @@ Variable::get_backend_variable(Gogo* gogo, Named_object* function,
 	    }
 	  else
 	    {
-	      tree fndecl = function->func_value()->get_decl();
-	      Bfunction* bfunction = tree_to_function(fndecl);
+	      Bfunction* bfunction = function->func_value()->get_decl();
 	      bool is_address_taken = (this->is_non_escaping_address_taken_
 				       && !this->is_in_heap());
-	      if (is_parameter)
+	      if (this->is_closure())
+		bvar = backend->static_chain_variable(bfunction, n, btype,
+						      this->location_);
+	      else if (is_parameter)
 		bvar = backend->parameter_variable(bfunction, n, btype,
 						   is_address_taken,
 						   this->location_);
@@ -4969,8 +6353,7 @@ Result_variable::get_backend_variable(Gogo* gogo, Named_object* function,
 	  if (this->is_in_heap())
 	    type = Type::make_pointer_type(type);
 	  Btype* btype = type->get_backend(gogo);
-	  tree fndecl = function->func_value()->get_decl();
-	  Bfunction* bfunction = tree_to_function(fndecl);
+	  Bfunction* bfunction = function->func_value()->get_decl();
 	  std::string n = Gogo::unpack_hidden_name(name);
 	  bool is_address_taken = (this->is_non_escaping_address_taken_
 				   && !this->is_in_heap());
@@ -5060,6 +6443,32 @@ Named_constant::import_const(Import* imp, std::string* pname, Type** ptype,
   imp->require_c_string(";\n");
 }
 
+// Get the backend representation.
+
+Bexpression*
+Named_constant::get_backend(Gogo* gogo, Named_object* const_no)
+{
+  if (this->bconst_ == NULL)
+    {
+      Translate_context subcontext(gogo, NULL, NULL, NULL);
+      Type* type = this->type();
+      Location loc = this->location();
+
+      Expression* const_ref = Expression::make_const_reference(const_no, loc);
+      Bexpression* const_decl = const_ref->get_backend(&subcontext);
+      if (type != NULL && type->is_numeric_type())
+	{
+	  Btype* btype = type->get_backend(gogo);
+	  std::string name = const_no->get_id(gogo);
+	  const_decl =
+	    gogo->backend()->named_constant_expression(btype, name,
+						       const_decl, loc);
+	}
+      this->bconst_ = const_decl;
+    }
+  return this->bconst_;
+}
+
 // Add a method.
 
 Named_object*
@@ -5130,8 +6539,7 @@ Unknown_name::set_real_named_object(Named_object* no)
 Named_object::Named_object(const std::string& name,
 			   const Package* package,
 			   Classification classification)
-  : name_(name), package_(package), classification_(classification),
-    tree_(NULL)
+  : name_(name), package_(package), classification_(classification)
 {
   if (Gogo::is_sink_name(name))
     go_assert(classification == NAMED_OBJECT_SINK);
@@ -5504,6 +6912,74 @@ Named_object::get_id(Gogo* gogo)
 	}
     }
   return decl_name;
+}
+
+// Get the backend representation for this named object.
+
+void
+Named_object::get_backend(Gogo* gogo, std::vector<Bexpression*>& const_decls,
+                          std::vector<Btype*>& type_decls,
+                          std::vector<Bfunction*>& func_decls)
+{
+  switch (this->classification_)
+    {
+    case NAMED_OBJECT_CONST:
+      if (!Gogo::is_erroneous_name(this->name_))
+	const_decls.push_back(this->u_.const_value->get_backend(gogo, this));
+      break;
+
+    case NAMED_OBJECT_TYPE:
+      {
+        Named_type* named_type = this->u_.type_value;
+	if (!Gogo::is_erroneous_name(this->name_))
+	  type_decls.push_back(named_type->get_backend(gogo));
+
+        // We need to produce a type descriptor for every named
+        // type, and for a pointer to every named type, since
+        // other files or packages might refer to them.  We need
+        // to do this even for hidden types, because they might
+        // still be returned by some function.  Simply calling the
+        // type_descriptor method is enough to create the type
+        // descriptor, even though we don't do anything with it.
+        if (this->package_ == NULL)
+          {
+            named_type->
+                type_descriptor_pointer(gogo, Linemap::predeclared_location());
+	    named_type->gc_symbol_pointer(gogo);
+            Type* pn = Type::make_pointer_type(named_type);
+            pn->type_descriptor_pointer(gogo, Linemap::predeclared_location());
+	    pn->gc_symbol_pointer(gogo);
+          }
+      }
+      break;
+
+    case NAMED_OBJECT_TYPE_DECLARATION:
+      error("reference to undefined type %qs",
+	    this->message_name().c_str());
+      return;
+
+    case NAMED_OBJECT_VAR:
+    case NAMED_OBJECT_RESULT_VAR:
+    case NAMED_OBJECT_SINK:
+      go_unreachable();
+
+    case NAMED_OBJECT_FUNC:
+      {
+	Function* func = this->u_.func_value;
+	if (!Gogo::is_erroneous_name(this->name_))
+	  func_decls.push_back(func->get_or_make_decl(gogo, this));
+
+	if (func->block() != NULL)
+	  func->build(gogo, this);
+      }
+      break;
+
+    case NAMED_OBJECT_ERRONEOUS:
+      break;
+
+    default:
+      go_unreachable();
+    }
 }
 
 // Class Bindings.
@@ -5978,8 +7454,7 @@ Label::get_backend_label(Translate_context* context)
   if (this->blabel_ == NULL)
     {
       Function* function = context->function()->func_value();
-      tree fndecl = function->get_decl();
-      Bfunction* bfunction = tree_to_function(fndecl);
+      Bfunction* bfunction = function->get_decl();
       this->blabel_ = context->backend()->label(bfunction, this->name_,
 						this->location_);
     }
@@ -6005,8 +7480,7 @@ Unnamed_label::get_blabel(Translate_context* context)
   if (this->blabel_ == NULL)
     {
       Function* function = context->function()->func_value();
-      tree fndecl = function->get_decl();
-      Bfunction* bfunction = tree_to_function(fndecl);
+      Bfunction* bfunction = function->get_decl();
       this->blabel_ = context->backend()->label(bfunction, "",
 						this->location_);
     }
@@ -6033,8 +7507,9 @@ Unnamed_label::get_goto(Translate_context* context, Location location)
 
 // Class Package.
 
-Package::Package(const std::string& pkgpath, Location location)
-  : pkgpath_(pkgpath), pkgpath_symbol_(Gogo::pkgpath_for_symbol(pkgpath)),
+Package::Package(const std::string& pkgpath,
+		 const std::string& pkgpath_symbol, Location location)
+  : pkgpath_(pkgpath), pkgpath_symbol_(pkgpath_symbol),
     package_name_(), bindings_(new Bindings(NULL)), priority_(0),
     location_(location), used_(false), is_imported_(false),
     uses_sink_alias_(false)
@@ -6058,6 +7533,29 @@ Package::set_package_name(const std::string& package_name, Location location)
 	     package_name.c_str());
 }
 
+// Return the pkgpath symbol, which is a prefix for symbols defined in
+// this package.
+
+std::string
+Package::pkgpath_symbol() const
+{
+  if (this->pkgpath_symbol_.empty())
+    return Gogo::pkgpath_for_symbol(this->pkgpath_);
+  return this->pkgpath_symbol_;
+}
+
+// Set the package path symbol.
+
+void
+Package::set_pkgpath_symbol(const std::string& pkgpath_symbol)
+{
+  go_assert(!pkgpath_symbol.empty());
+  if (this->pkgpath_symbol_.empty())
+    this->pkgpath_symbol_ = pkgpath_symbol;
+  else
+    go_assert(this->pkgpath_symbol_ == pkgpath_symbol);
+}
+
 // Set the priority.  We may see multiple priorities for an imported
 // package; we want to use the largest one.
 
@@ -6066,6 +7564,36 @@ Package::set_priority(int priority)
 {
   if (priority > this->priority_)
     this->priority_ = priority;
+}
+
+// Forget a given usage.  If forgetting this usage means this package becomes
+// unused, report that error.
+
+void
+Package::forget_usage(Expression* usage) const
+{
+  if (this->fake_uses_.empty())
+    return;
+
+  std::set<Expression*>::iterator p = this->fake_uses_.find(usage);
+  go_assert(p != this->fake_uses_.end());
+  this->fake_uses_.erase(p);
+
+  if (this->fake_uses_.empty())
+    error_at(this->location(), "imported and not used: %s",
+	     Gogo::message_name(this->package_name()).c_str());
+}
+
+// Clear the used field for the next file.  If the only usages of this package
+// are possibly fake, keep the fake usages for lowering.
+
+void
+Package::clear_used()
+{
+  if (this->used_ > this->fake_uses_.size())
+    this->fake_uses_.clear();
+
+  this->used_ = 0;
 }
 
 // Determine types of constants.  Everything else in a package

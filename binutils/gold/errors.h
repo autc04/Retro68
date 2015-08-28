@@ -1,6 +1,6 @@
 // errors.h -- handle errors for gold  -*- C++ -*-
 
-// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -48,6 +48,12 @@ class Errors
   // Report a fatal error.  After printing the error, this must exit.
   void
   fatal(const char* format, va_list) ATTRIBUTE_NORETURN;
+
+  // Report a fallback error.  After printing the error, this must exit
+  // with a special status code indicating that fallback to
+  // --incremental-full is required.
+  void
+  fallback(const char* format, va_list) ATTRIBUTE_NORETURN;
 
   // Report an error and continue.
   void

@@ -1,5 +1,5 @@
 /* Definitions for option handling for SPARC.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2015 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -31,6 +31,7 @@ enum processor_type {
   PROCESSOR_HYPERSPARC,
   PROCESSOR_LEON,
   PROCESSOR_LEON3,
+  PROCESSOR_LEON3V7,
   PROCESSOR_SPARCLITE,
   PROCESSOR_F930,
   PROCESSOR_F934,

@@ -1,5 +1,5 @@
 /* Implementation of the STOP statement.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -83,8 +83,7 @@ report_exception (void)
 
 /* A numeric STOP statement.  */
 
-extern void stop_numeric (GFC_INTEGER_4)
-  __attribute__ ((noreturn));
+extern _Noreturn void stop_numeric (GFC_INTEGER_4);
 export_proto(stop_numeric);
 
 void
@@ -102,8 +101,7 @@ stop_numeric (GFC_INTEGER_4 code)
 
 /* A Fortran 2008 numeric STOP statement.  */
 
-extern void stop_numeric_f08 (GFC_INTEGER_4)
-  __attribute__ ((noreturn));
+extern _Noreturn void stop_numeric_f08 (GFC_INTEGER_4);
 export_proto(stop_numeric_f08);
 
 void
@@ -136,8 +134,7 @@ stop_string (const char *string, GFC_INTEGER_4 len)
    initiates error termination of execution."  Thus, error_stop_string returns
    a nonzero exit status code.  */
 
-extern void error_stop_string (const char *, GFC_INTEGER_4)
-  __attribute__ ((noreturn));
+extern _Noreturn void error_stop_string (const char *, GFC_INTEGER_4);
 export_proto(error_stop_string);
 
 void
@@ -154,8 +151,7 @@ error_stop_string (const char *string, GFC_INTEGER_4 len)
 
 /* A numeric ERROR STOP statement.  */
 
-extern void error_stop_numeric (GFC_INTEGER_4)
-  __attribute__ ((noreturn));
+extern _Noreturn void error_stop_numeric (GFC_INTEGER_4);
 export_proto(error_stop_numeric);
 
 void

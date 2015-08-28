@@ -37,12 +37,42 @@ typedef union
   double a[8];
 } union512d;
 
+typedef union
+{
+  __m512i x;
+  unsigned char a[64];
+} union512i_ub;
+          
+typedef union
+{
+ __m512i x;
+ unsigned short a[32];
+ } union512i_uw;
+                      
+typedef union
+{
+ __m512i x;
+ unsigned int a[16];
+} union512i_ud;
+                  
+typedef union
+{
+ __m512i x;
+ unsigned long long a[8];
+} union512i_uq;
+                                    
+
 CHECK_EXP (union512i_b, char, "%d")
 CHECK_EXP (union512i_w, short, "%d")
 CHECK_EXP (union512i_d, int, "0x%x")
 CHECK_EXP (union512i_q, long long, "0x%llx")
 CHECK_EXP (union512, float, "%f")
 CHECK_EXP (union512d, double, "%f")
+CHECK_EXP (union512i_ub, unsigned char, "%d")
+CHECK_EXP (union512i_uw, unsigned short, "%d")
+CHECK_EXP (union512i_ud, unsigned int, "0x%x")
+CHECK_EXP (union512i_uq, unsigned long long, "0x%llx")
+     
 
 CHECK_FP_EXP (union512, float, ESP_FLOAT, "%f")
 CHECK_FP_EXP (union512d, double, ESP_DOUBLE, "%f")
@@ -81,3 +111,7 @@ check_rough_##UINON_TYPE (UINON_TYPE u, const VALUE_TYPE *v,	\
 
 CHECK_ROUGH_EXP (union512, float, "%f")
 CHECK_ROUGH_EXP (union512d, double, "%f")
+CHECK_ROUGH_EXP (union256, float, "%f")
+CHECK_ROUGH_EXP (union256d, double, "%f")
+CHECK_ROUGH_EXP (union128, float, "%f")
+CHECK_ROUGH_EXP (union128d, double, "%f")

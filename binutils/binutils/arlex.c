@@ -46,6 +46,7 @@ typedef int16_t flex_int16_t;
 typedef uint16_t flex_uint16_t;
 typedef int32_t flex_int32_t;
 typedef uint32_t flex_uint32_t;
+typedef uint64_t flex_uint64_t;
 #else
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
@@ -354,7 +355,7 @@ static void yy_fatal_error (yyconst char msg[]  );
  */
 #define YY_DO_BEFORE_ACTION \
 	(yytext_ptr) = yy_bp; \
-	yyleng = (size_t) (yy_cp - yy_bp); \
+	yyleng = (yy_size_t) (yy_cp - yy_bp); \
 	(yy_hold_char) = *yy_cp; \
 	*yy_cp = '\0'; \
 	(yy_c_buf_p) = yy_cp;
@@ -555,11 +556,11 @@ int yy_flex_debug = 0;
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
 #line 1 "arlex.l"
-#line 2 "arlex.l"
+#define YY_NO_INPUT 1
+#line 4 "arlex.l"
 /* arlex.l - Strange script language lexer */
 
-/* Copyright 1992, 1997, 2000, 2001, 2002, 2003, 2004, 2005, 2007
-   Free Software Foundation, Inc.
+/* Copyright (C) 1992-2014 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -586,12 +587,14 @@ char *yytext;
 #include "libiberty.h"
 #include "arparse.h"
 
+#ifndef YY_NO_UNPUT
 #define YY_NO_UNPUT
-
+#endif
+ 
 extern int yylex (void);
 
 int linenumber;
-#line 595 "arlex.c"
+#line 598 "arlex.c"
 
 #define INITIAL 0
 
@@ -650,8 +653,6 @@ extern int yywrap (void );
 #endif
 #endif
 
-    static void yyunput (int c,char *buf_ptr  );
-    
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char *,yyconst char *,int );
 #endif
@@ -773,10 +774,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 42 "arlex.l"
+#line 45 "arlex.l"
 
 
-#line 780 "arlex.c"
+#line 781 "arlex.c"
 
 	if ( !(yy_init) )
 		{
@@ -861,178 +862,178 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 44 "arlex.l"
+#line 47 "arlex.l"
 { return ADDLIB; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 45 "arlex.l"
+#line 48 "arlex.l"
 { return ADDMOD; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 46 "arlex.l"
+#line 49 "arlex.l"
 { return CLEAR; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 47 "arlex.l"
+#line 50 "arlex.l"
 { return CREATE; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 48 "arlex.l"
+#line 51 "arlex.l"
 { return DELETE; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 49 "arlex.l"
+#line 52 "arlex.l"
 { return DIRECTORY; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 50 "arlex.l"
+#line 53 "arlex.l"
 { return END; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 51 "arlex.l"
+#line 54 "arlex.l"
 { return EXTRACT; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 52 "arlex.l"
+#line 55 "arlex.l"
 { return FULLDIR; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 53 "arlex.l"
+#line 56 "arlex.l"
 { return HELP; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 54 "arlex.l"
+#line 57 "arlex.l"
 { return LIST; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 55 "arlex.l"
+#line 58 "arlex.l"
 { return OPEN; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 56 "arlex.l"
+#line 59 "arlex.l"
 { return REPLACE; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 57 "arlex.l"
+#line 60 "arlex.l"
 { return VERBOSE; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 58 "arlex.l"
+#line 61 "arlex.l"
 { return SAVE; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 59 "arlex.l"
+#line 62 "arlex.l"
 { return ADDLIB; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 60 "arlex.l"
+#line 63 "arlex.l"
 { return ADDMOD; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 61 "arlex.l"
+#line 64 "arlex.l"
 { return CLEAR; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 62 "arlex.l"
+#line 65 "arlex.l"
 { return CREATE; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 63 "arlex.l"
+#line 66 "arlex.l"
 { return DELETE; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 64 "arlex.l"
+#line 67 "arlex.l"
 { return DIRECTORY; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 65 "arlex.l"
+#line 68 "arlex.l"
 { return END; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 66 "arlex.l"
+#line 69 "arlex.l"
 { return EXTRACT; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 67 "arlex.l"
+#line 70 "arlex.l"
 { return FULLDIR; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 68 "arlex.l"
+#line 71 "arlex.l"
 { return HELP; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 69 "arlex.l"
+#line 72 "arlex.l"
 { return LIST; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 70 "arlex.l"
+#line 73 "arlex.l"
 { return OPEN; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 71 "arlex.l"
+#line 74 "arlex.l"
 { return REPLACE; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 72 "arlex.l"
+#line 75 "arlex.l"
 { return VERBOSE; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 73 "arlex.l"
+#line 76 "arlex.l"
 { return SAVE; }
 	YY_BREAK
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 74 "arlex.l"
+#line 77 "arlex.l"
 { linenumber ++; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 75 "arlex.l"
+#line 78 "arlex.l"
 { return '('; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 76 "arlex.l"
+#line 79 "arlex.l"
 { return ')'; }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 77 "arlex.l"
+#line 80 "arlex.l"
 { return ','; }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 78 "arlex.l"
+#line 81 "arlex.l"
 { 	
 		yylval.name =  xstrdup (yytext);
 		return FILENAME;
@@ -1040,31 +1041,31 @@ YY_RULE_SETUP
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 82 "arlex.l"
+#line 85 "arlex.l"
 { }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 83 "arlex.l"
+#line 86 "arlex.l"
 { }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 84 "arlex.l"
+#line 87 "arlex.l"
 { }
 	YY_BREAK
 case 39:
 /* rule 39 can match eol */
 YY_RULE_SETUP
-#line 85 "arlex.l"
+#line 88 "arlex.l"
 { linenumber ++; return NEWLINE; }	
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 87 "arlex.l"
+#line 90 "arlex.l"
 ECHO;
 	YY_BREAK
-#line 1068 "arlex.c"
+#line 1069 "arlex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1391,43 +1392,6 @@ static int yy_get_next_buffer (void)
 	yy_is_jam = (yy_current_state == 176);
 
 	return yy_is_jam ? 0 : yy_current_state;
-}
-
-    static void yyunput (int c, register char * yy_bp )
-{
-	register char *yy_cp;
-    
-    yy_cp = (yy_c_buf_p);
-
-	/* undo effects of setting up yytext */
-	*yy_cp = (yy_hold_char);
-
-	if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
-		{ /* need to shift things up to make room */
-		/* +2 for EOB chars. */
-		register yy_size_t number_to_move = (yy_n_chars) + 2;
-		register char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
-					YY_CURRENT_BUFFER_LVALUE->yy_buf_size + 2];
-		register char *source =
-				&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move];
-
-		while ( source > YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
-			*--dest = *--source;
-
-		yy_cp += (int) (dest - source);
-		yy_bp += (int) (dest - source);
-		YY_CURRENT_BUFFER_LVALUE->yy_n_chars =
-			(yy_n_chars) = YY_CURRENT_BUFFER_LVALUE->yy_buf_size;
-
-		if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
-			YY_FATAL_ERROR( "flex scanner push-back overflow" );
-		}
-
-	*--yy_cp = (char) c;
-
-	(yytext_ptr) = yy_bp;
-	(yy_hold_char) = *yy_cp;
-	(yy_c_buf_p) = yy_cp;
 }
 
 #ifndef YY_NO_INPUT
@@ -2061,7 +2025,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 87 "arlex.l"
+#line 90 "arlex.l"
 
 
 #ifndef yywrap

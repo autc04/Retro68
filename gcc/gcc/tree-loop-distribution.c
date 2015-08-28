@@ -1,5 +1,5 @@
 /* Loop distribution.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2015 Free Software Foundation, Inc.
    Contributed by Georges-Andre Silber <Georges-Andre.Silber@ensmp.fr>
    and Sebastian Pop <sebastian.pop@amd.com>.
 
@@ -44,7 +44,26 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "hash-set.h"
+#include "machmode.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "options.h"
+#include "wide-int.h"
+#include "inchash.h"
 #include "tree.h"
+#include "fold-const.h"
+#include "predict.h"
+#include "tm.h"
+#include "hard-reg-set.h"
+#include "input.h"
+#include "function.h"
+#include "dominance.h"
+#include "cfg.h"
+#include "cfganal.h"
 #include "basic-block.h"
 #include "tree-ssa-alias.h"
 #include "internal-fn.h"
@@ -228,7 +247,7 @@ DEBUG_FUNCTION void
 dot_rdg (struct graph *rdg)
 {
   /* When debugging, you may want to enable the following code.  */
-#if 1
+#ifdef HAVE_POPEN
   FILE *file = popen ("dot -Tx11", "w");
   if (!file)
     return;
@@ -393,16 +412,16 @@ stmts_from_loop (struct loop *loop, vec<gimple> *stmts)
   for (i = 0; i < loop->num_nodes; i++)
     {
       basic_block bb = bbs[i];
-      gimple_stmt_iterator bsi;
-      gimple stmt;
 
-      for (bsi = gsi_start_phis (bb); !gsi_end_p (bsi); gsi_next (&bsi))
-	if (!virtual_operand_p (gimple_phi_result (gsi_stmt (bsi))))
-	  stmts->safe_push (gsi_stmt (bsi));
+      for (gphi_iterator bsi = gsi_start_phis (bb); !gsi_end_p (bsi);
+	   gsi_next (&bsi))
+	if (!virtual_operand_p (gimple_phi_result (bsi.phi ())))
+	  stmts->safe_push (bsi.phi ());
 
-      for (bsi = gsi_start_bb (bb); !gsi_end_p (bsi); gsi_next (&bsi))
+      for (gimple_stmt_iterator bsi = gsi_start_bb (bb); !gsi_end_p (bsi);
+	   gsi_next (&bsi))
 	{
-	  stmt = gsi_stmt (bsi);
+	  gimple stmt = gsi_stmt (bsi);
 	  if (gimple_code (stmt) != GIMPLE_LABEL && !is_gimple_debug (stmt))
 	    stmts->safe_push (stmt);
 	}
@@ -620,7 +639,6 @@ generate_loops_for_partition (struct loop *loop, partition_t partition,
 			      bool copy_p)
 {
   unsigned i;
-  gimple_stmt_iterator bsi;
   basic_block *bbs;
 
   if (copy_p)
@@ -639,15 +657,16 @@ generate_loops_for_partition (struct loop *loop, partition_t partition,
       {
 	basic_block bb = bbs[i];
 
-	for (bsi = gsi_start_phis (bb); !gsi_end_p (bsi); gsi_next (&bsi))
+	for (gphi_iterator bsi = gsi_start_phis (bb); !gsi_end_p (bsi);
+	     gsi_next (&bsi))
 	  {
-	    gimple phi = gsi_stmt (bsi);
+	    gphi *phi = bsi.phi ();
 	    if (!virtual_operand_p (gimple_phi_result (phi))
 		&& !bitmap_bit_p (partition->stmts, gimple_uid (phi)))
 	      reset_debug_uses (phi);
 	  }
 
-	for (bsi = gsi_start_bb (bb); !gsi_end_p (bsi); gsi_next (&bsi))
+	for (gimple_stmt_iterator bsi = gsi_start_bb (bb); !gsi_end_p (bsi); gsi_next (&bsi))
 	  {
 	    gimple stmt = gsi_stmt (bsi);
 	    if (gimple_code (stmt) != GIMPLE_LABEL
@@ -661,9 +680,9 @@ generate_loops_for_partition (struct loop *loop, partition_t partition,
     {
       basic_block bb = bbs[i];
 
-      for (bsi = gsi_start_phis (bb); !gsi_end_p (bsi);)
+      for (gphi_iterator bsi = gsi_start_phis (bb); !gsi_end_p (bsi);)
 	{
-	  gimple phi = gsi_stmt (bsi);
+	  gphi *phi = bsi.phi ();
 	  if (!virtual_operand_p (gimple_phi_result (phi))
 	      && !bitmap_bit_p (partition->stmts, gimple_uid (phi)))
 	    remove_phi_node (&bsi, true);
@@ -671,7 +690,7 @@ generate_loops_for_partition (struct loop *loop, partition_t partition,
 	    gsi_next (&bsi);
 	}
 
-      for (bsi = gsi_start_bb (bb); !gsi_end_p (bsi);)
+      for (gimple_stmt_iterator bsi = gsi_start_bb (bb); !gsi_end_p (bsi);)
 	{
 	  gimple stmt = gsi_stmt (bsi);
 	  if (gimple_code (stmt) != GIMPLE_LABEL
@@ -680,15 +699,16 @@ generate_loops_for_partition (struct loop *loop, partition_t partition,
 	    {
 	      /* Choose an arbitrary path through the empty CFG part
 		 that this unnecessary control stmt controls.  */
-	      if (gimple_code (stmt) == GIMPLE_COND)
+	      if (gcond *cond_stmt = dyn_cast <gcond *> (stmt))
 		{
-		  gimple_cond_make_false (stmt);
+		  gimple_cond_make_false (cond_stmt);
 		  update_stmt (stmt);
 		}
 	      else if (gimple_code (stmt) == GIMPLE_SWITCH)
 		{
+		  gswitch *switch_stmt = as_a <gswitch *> (stmt);
 		  gimple_switch_set_index
-		      (stmt, CASE_LOW (gimple_switch_label (stmt, 1)));
+		      (switch_stmt, CASE_LOW (gimple_switch_label (switch_stmt, 1)));
 		  update_stmt (stmt);
 		}
 	      else
@@ -809,9 +829,8 @@ generate_memset_builtin (struct loop *loop, partition_t partition)
     val = fold_convert (integer_type_node, val);
   else if (!useless_type_conversion_p (integer_type_node, TREE_TYPE (val)))
     {
-      gimple cstmt;
-      tree tem = make_ssa_name (integer_type_node, NULL);
-      cstmt = gimple_build_assign_with_ops (NOP_EXPR, tem, val, NULL_TREE);
+      tree tem = make_ssa_name (integer_type_node);
+      gimple cstmt = gimple_build_assign (tem, NOP_EXPR, val);
       gsi_insert_after (&gsi, cstmt, GSI_CONTINUE_LINKING);
       val = tem;
     }
@@ -901,14 +920,15 @@ destroy_loop (struct loop *loop)
 	 Make sure we replace all uses of virtual defs that will remain
 	 outside of the loop with the bare symbol as delete_basic_block
 	 will release them.  */
-      gimple_stmt_iterator gsi;
-      for (gsi = gsi_start_phis (bbs[i]); !gsi_end_p (gsi); gsi_next (&gsi))
+      for (gphi_iterator gsi = gsi_start_phis (bbs[i]); !gsi_end_p (gsi);
+	   gsi_next (&gsi))
 	{
-	  gimple phi = gsi_stmt (gsi);
+	  gphi *phi = gsi.phi ();
 	  if (virtual_operand_p (gimple_phi_result (phi)))
 	    mark_virtual_phi_result_for_renaming (phi);
 	}
-      for (gsi = gsi_start_bb (bbs[i]); !gsi_end_p (gsi); gsi_next (&gsi))
+      for (gimple_stmt_iterator gsi = gsi_start_bb (bbs[i]); !gsi_end_p (gsi);
+	   gsi_next (&gsi))
 	{
 	  gimple stmt = gsi_stmt (gsi);
 	  tree vdef = gimple_vdef (stmt);
@@ -1342,6 +1362,7 @@ pg_add_dependence_edges (struct graph *rdg, vec<loop_p> loops, int dir,
   for (int ii = 0; drs1.iterate (ii, &dr1); ++ii)
     for (int jj = 0; drs2.iterate (jj, &dr2); ++jj)
       {
+	data_reference_p saved_dr1 = dr1;
 	int this_dir = 1;
 	ddr_p ddr;
 	/* Re-shuffle data-refs to be in dominator order.  */
@@ -1387,6 +1408,8 @@ pg_add_dependence_edges (struct graph *rdg, vec<loop_p> loops, int dir,
 	  dir = this_dir;
 	else if (dir != this_dir)
 	  return 2;
+	/* Shuffle "back" dr1.  */
+	dr1 = saved_dr1;
       }
   return dir;
 }
@@ -1669,15 +1692,48 @@ distribute_loop (struct loop *loop, vec<gimple> stmts,
 
 /* Distribute all loops in the current function.  */
 
-static unsigned int
-tree_loop_distribution (void)
+namespace {
+
+const pass_data pass_data_loop_distribution =
+{
+  GIMPLE_PASS, /* type */
+  "ldist", /* name */
+  OPTGROUP_LOOP, /* optinfo_flags */
+  TV_TREE_LOOP_DISTRIBUTION, /* tv_id */
+  ( PROP_cfg | PROP_ssa ), /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  0, /* todo_flags_finish */
+};
+
+class pass_loop_distribution : public gimple_opt_pass
+{
+public:
+  pass_loop_distribution (gcc::context *ctxt)
+    : gimple_opt_pass (pass_data_loop_distribution, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  virtual bool gate (function *)
+    {
+      return flag_tree_loop_distribution
+	|| flag_tree_loop_distribute_patterns;
+    }
+
+  virtual unsigned int execute (function *);
+
+}; // class pass_loop_distribution
+
+unsigned int
+pass_loop_distribution::execute (function *fun)
 {
   struct loop *loop;
   bool changed = false;
   basic_block bb;
   control_dependences *cd = NULL;
 
-  FOR_ALL_BB_FN (bb, cfun)
+  FOR_ALL_BB_FN (bb, fun)
     {
       gimple_stmt_iterator gsi;
       for (gsi = gsi_start_phis (bb); !gsi_end_p (gsi); gsi_next (&gsi))
@@ -1708,24 +1764,27 @@ tree_loop_distribution (void)
       bbs = get_loop_body_in_dom_order (loop);
       for (i = 0; i < loop->num_nodes; ++i)
 	{
-	  gimple_stmt_iterator gsi;
-	  for (gsi = gsi_start_phis (bbs[i]); !gsi_end_p (gsi); gsi_next (&gsi))
+	  for (gphi_iterator gsi = gsi_start_phis (bbs[i]);
+	       !gsi_end_p (gsi);
+	       gsi_next (&gsi))
 	    {
-	      gimple phi = gsi_stmt (gsi);
+	      gphi *phi = gsi.phi ();
 	      if (virtual_operand_p (gimple_phi_result (phi)))
 		continue;
 	      /* Distribute stmts which have defs that are used outside of
-	         the loop.  */
+		 the loop.  */
 	      if (!stmt_has_scalar_dependences_outside_loop (loop, phi))
 		continue;
 	      work_list.safe_push (phi);
 	    }
-	  for (gsi = gsi_start_bb (bbs[i]); !gsi_end_p (gsi); gsi_next (&gsi))
+	  for (gimple_stmt_iterator gsi = gsi_start_bb (bbs[i]);
+	       !gsi_end_p (gsi);
+	       gsi_next (&gsi))
 	    {
 	      gimple stmt = gsi_stmt (gsi);
 
 	      /* If there is a stmt with side-effects bail out - we
-	         cannot and should not distribute this loop.  */
+		 cannot and should not distribute this loop.  */
 	      if (gimple_has_side_effects (stmt))
 		{
 		  work_list.truncate (0);
@@ -1733,7 +1792,7 @@ tree_loop_distribution (void)
 		}
 
 	      /* Distribute stmts which have defs that are used outside of
-	         the loop.  */
+		 the loop.  */
 	      if (stmt_has_scalar_dependences_outside_loop (loop, stmt))
 		;
 	      /* Otherwise only distribute stores for now.  */
@@ -1779,7 +1838,10 @@ out:
 
   if (changed)
     {
-      mark_virtual_operands_for_renaming (cfun);
+      /* Cached scalar evolutions now may refer to wrong or non-existing
+	 loops.  */
+      scev_reset_htab ();
+      mark_virtual_operands_for_renaming (fun);
       rewrite_into_loop_closed_ssa (NULL, TODO_update_ssa);
     }
 
@@ -1789,43 +1851,6 @@ out:
 
   return 0;
 }
-
-static bool
-gate_tree_loop_distribution (void)
-{
-  return flag_tree_loop_distribution
-    || flag_tree_loop_distribute_patterns;
-}
-
-namespace {
-
-const pass_data pass_data_loop_distribution =
-{
-  GIMPLE_PASS, /* type */
-  "ldist", /* name */
-  OPTGROUP_LOOP, /* optinfo_flags */
-  true, /* has_gate */
-  true, /* has_execute */
-  TV_TREE_LOOP_DISTRIBUTION, /* tv_id */
-  ( PROP_cfg | PROP_ssa ), /* properties_required */
-  0, /* properties_provided */
-  0, /* properties_destroyed */
-  0, /* todo_flags_start */
-  TODO_verify_ssa, /* todo_flags_finish */
-};
-
-class pass_loop_distribution : public gimple_opt_pass
-{
-public:
-  pass_loop_distribution (gcc::context *ctxt)
-    : gimple_opt_pass (pass_data_loop_distribution, ctxt)
-  {}
-
-  /* opt_pass methods: */
-  bool gate () { return gate_tree_loop_distribution (); }
-  unsigned int execute () { return tree_loop_distribution (); }
-
-}; // class pass_loop_distribution
 
 } // anon namespace
 

@@ -1,7 +1,6 @@
 /* CGEN generic opcode support.
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2005, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -19,8 +18,8 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "alloca-conf.h"
 #include "sysdep.h"
+#include "alloca-conf.h"
 #include <stdio.h>
 #include "ansidecl.h"
 #include "libiberty.h"
@@ -376,10 +375,11 @@ cgen_get_insn_value (CGEN_CPU_DESC cd, unsigned char *buf, int length)
 
       for (i = 0; i < length; i += insn_chunk_bitsize) /* NB: i == bits */
 	{
-	  int index;
+	  int bit_index;
 	  bfd_vma this_value;
-	  index = i; /* NB: not dependent on endianness; opposite of cgen_put_insn_value! */
-	  this_value = bfd_get_bits (& buf[index / 8], insn_chunk_bitsize, big_p);
+
+	  bit_index = i; /* NB: not dependent on endianness; opposite of cgen_put_insn_value! */
+	  this_value = bfd_get_bits (& buf[bit_index / 8], insn_chunk_bitsize, big_p);
 	  value = (value << insn_chunk_bitsize) | this_value;
 	}
     }
@@ -414,9 +414,10 @@ cgen_put_insn_value (CGEN_CPU_DESC cd,
 
       for (i = 0; i < length; i += insn_chunk_bitsize) /* NB: i == bits */
 	{
-	  int index;
-	  index = (length - insn_chunk_bitsize - i); /* NB: not dependent on endianness! */
-	  bfd_put_bits ((bfd_vma) value, & buf[index / 8], insn_chunk_bitsize, big_p);
+	  int bit_index;
+
+	  bit_index = (length - insn_chunk_bitsize - i); /* NB: not dependent on endianness! */
+	  bfd_put_bits ((bfd_vma) value, & buf[bit_index / 8], insn_chunk_bitsize, big_p);
 	  value >>= insn_chunk_bitsize;
 	}
     }

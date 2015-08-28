@@ -1,6 +1,6 @@
 // tls_test.cc -- test TLS variables for gold
 
-// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -44,8 +44,8 @@
 // last  Verify that the above tests left the variables set correctly.
 
 
-#include <cstdio>
 #include "config.h"
+#include <cstdio>
 #include "tls_test.h"
 
 #define CHECK_EQ_OR_RETURN(var, expected)				\
