@@ -1,7 +1,6 @@
 # Test expressions in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright 2006, 2007, 2010
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2006-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -25,3 +24,4 @@ run_dump_test expr2
 run_dump_test sane1
 run_dump_test assign-loc
 run_dump_test pr14962
+run_dump_test pr14962-2

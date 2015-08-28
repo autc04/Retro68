@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 1991-2013 Free Software Foundation, Inc.
+#   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -28,10 +28,10 @@ fragment <<EOF
 #include "ldctor.h"
 #include "elf/arm.h"
 
-static char *thumb_entry_symbol = NULL;
+static char * thumb_entry_symbol = NULL;
 static int byteswap_code = 0;
 static int target1_is_rel = 0${TARGET1_IS_REL};
-static char *target2_type = "${TARGET2_TYPE}";
+static char * target2_type = "${TARGET2_TYPE}";
 static int fix_v4bx = 0;
 static int use_blx = 0;
 static bfd_arm_vfp11_fix vfp11_denorm_fix = BFD_ARM_VFP11_FIX_DEFAULT;
@@ -189,7 +189,6 @@ elf32_arm_add_stub_section (const char * stub_sec_name,
   asection *stub_sec;
   flagword flags;
   asection *output_section;
-  const char *secname;
   lang_output_section_statement_type *os;
   struct hook_stub_info info;
 
@@ -203,8 +202,7 @@ elf32_arm_add_stub_section (const char * stub_sec_name,
   bfd_set_section_alignment (stub_file->the_bfd, stub_sec, alignment_power);
 
   output_section = input_section->output_section;
-  secname = bfd_get_section_name (output_section->owner, output_section);
-  os = lang_output_section_find (secname);
+  os = lang_output_section_get (output_section);
 
   info.input_section = input_section;
   lang_list_init (&info.add);
@@ -273,6 +271,8 @@ compare_output_sec_vma (const void *a, const void *b)
 static void
 gld${EMULATION_NAME}_after_allocation (void)
 {
+  int ret;
+
   if (!link_info.relocatable)
     {
       /* Build a sorted list of input text sections, then use that to process
@@ -327,15 +327,20 @@ gld${EMULATION_NAME}_after_allocation (void)
      ie. doesn't affect any code, so we can delay resizing the
      sections.  It's likely we'll resize everything in the process of
      adding stubs.  */
-  if (bfd_elf_discard_info (link_info.output_bfd, & link_info))
+  ret = bfd_elf_discard_info (link_info.output_bfd, & link_info);
+  if (ret < 0)
+    {
+      einfo ("%X%P: .eh_frame/.stab edit: %E\n");
+      return;
+    }
+  else if (ret > 0)
     need_laying_out = 1;
 
   /* If generating a relocatable output file, then we don't
      have to examine the relocs.  */
   if (stub_file != NULL && !link_info.relocatable)
     {
-      int  ret = elf32_arm_setup_section_lists (link_info.output_bfd, & link_info);
-
+      ret = elf32_arm_setup_section_lists (link_info.output_bfd, &link_info);
       if (ret != 0)
 	{
 	  if (ret < 0)
@@ -526,13 +531,14 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_NO_ENUM_SIZE_WARNING	309
 #define OPTION_PIC_VENEER		310
 #define OPTION_FIX_V4BX_INTERWORKING	311
-#define OPTION_STUBGROUP_SIZE           312
+#define OPTION_STUBGROUP_SIZE		312
 #define OPTION_NO_WCHAR_SIZE_WARNING	313
 #define OPTION_FIX_CORTEX_A8		314
 #define OPTION_NO_FIX_CORTEX_A8		315
-#define OPTION_NO_MERGE_EXIDX_ENTRIES   316
+#define OPTION_NO_MERGE_EXIDX_ENTRIES	316
 #define OPTION_FIX_ARM1176		317
 #define OPTION_NO_FIX_ARM1176		318
+#define OPTION_LONG_PLT			319
 '
 
 PARSE_AND_LIST_SHORTOPTS=p
@@ -557,6 +563,7 @@ PARSE_AND_LIST_LONGOPTS='
   { "no-merge-exidx-entries", no_argument, NULL, OPTION_NO_MERGE_EXIDX_ENTRIES },
   { "fix-arm1176", no_argument, NULL, OPTION_FIX_ARM1176 },
   { "no-fix-arm1176", no_argument, NULL, OPTION_NO_FIX_ARM1176 },
+  { "long-plt", no_argument, NULL, OPTION_LONG_PLT },
 '
 
 PARSE_AND_LIST_OPTIONS='
@@ -574,6 +581,8 @@ PARSE_AND_LIST_OPTIONS='
   fprintf (file, _("  --no-wchar-size-warning     Don'\''t warn about objects with incompatible\n"
 		   "                                wchar_t sizes\n"));
   fprintf (file, _("  --pic-veneer                Always generate PIC interworking veneers\n"));
+  fprintf (file, _("  --long-plt                  Generate long .plt entries\n"
+           "                              to handle large .plt/.got displacements\n"));
   fprintf (file, _("\
   --stub-group-size=N         Maximum size of a group of input sections that\n\
                                can be handled by one stub section.  A negative\n\
@@ -676,6 +685,10 @@ PARSE_AND_LIST_ARGS_CASES='
 
    case OPTION_NO_FIX_ARM1176:
       fix_arm1176 = 0;
+      break;
+
+   case OPTION_LONG_PLT:
+      bfd_elf32_arm_use_long_plt ();
       break;
 '
 

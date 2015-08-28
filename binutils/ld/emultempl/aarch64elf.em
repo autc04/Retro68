@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2009-2012  Free Software Foundation, Inc.
+#   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 #   Contributed by ARM Ltd.
 #
 # This file is part of the GNU Binutils.
@@ -30,6 +30,7 @@ fragment <<EOF
 static int no_enum_size_warning = 0;
 static int no_wchar_size_warning = 0;
 static int pic_veneer = 0;
+static int fix_erratum_835769 = 0;
 
 static void
 gld${EMULATION_NAME}_before_parse (void)
@@ -159,7 +160,6 @@ elf${ELFSIZE}_aarch64_add_stub_section (const char *stub_sec_name,
   asection *stub_sec;
   flagword flags;
   asection *output_section;
-  const char *secname;
   lang_output_section_statement_type *os;
   struct hook_stub_info info;
 
@@ -173,8 +173,7 @@ elf${ELFSIZE}_aarch64_add_stub_section (const char *stub_sec_name,
   bfd_set_section_alignment (stub_file->the_bfd, stub_sec, 3);
 
   output_section = input_section->output_section;
-  secname = bfd_get_section_name (output_section->owner, output_section);
-  os = lang_output_section_find (secname);
+  os = lang_output_section_get (output_section);
 
   info.input_section = input_section;
   lang_list_init (&info.add);
@@ -221,20 +220,27 @@ build_section_lists (lang_statement_union_type *statement)
 static void
 gld${EMULATION_NAME}_after_allocation (void)
 {
+  int ret;
+
   /* bfd_elf32_discard_info just plays with debugging sections,
      ie. doesn't affect any code, so we can delay resizing the
      sections.  It's likely we'll resize everything in the process of
      adding stubs.  */
-  if (bfd_elf_discard_info (link_info.output_bfd, & link_info))
+  ret = bfd_elf_discard_info (link_info.output_bfd, & link_info);
+  if (ret < 0)
+    {
+      einfo ("%X%P: .eh_frame/.stab edit: %E\n");
+      return;
+    }
+  else if (ret > 0)
     need_laying_out = 1;
 
   /* If generating a relocatable output file, then we don't
      have to examine the relocs.  */
   if (stub_file != NULL && !link_info.relocatable)
     {
-      int ret = elf${ELFSIZE}_aarch64_setup_section_lists (link_info.output_bfd,
-						   & link_info);
-
+      ret = elf${ELFSIZE}_aarch64_setup_section_lists (link_info.output_bfd,
+						       &link_info);
       if (ret != 0)
 	{
 	  if (ret < 0)
@@ -297,7 +303,7 @@ aarch64_elf_create_output_section_statements (void)
   bfd_elf${ELFSIZE}_aarch64_set_options (link_info.output_bfd, &link_info,
 				 no_enum_size_warning,
 				 no_wchar_size_warning,
-				 pic_veneer);
+				 pic_veneer, fix_erratum_835769);
 
   stub_file = lang_add_input_file ("linker stubs",
 				   lang_input_file_is_fake_enum,
@@ -346,6 +352,7 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_PIC_VENEER		310
 #define OPTION_STUBGROUP_SIZE           311
 #define OPTION_NO_WCHAR_SIZE_WARNING	312
+#define OPTION_FIX_ERRATUM_835769	313
 '
 
 PARSE_AND_LIST_SHORTOPTS=p
@@ -356,6 +363,7 @@ PARSE_AND_LIST_LONGOPTS='
   { "pic-veneer", no_argument, NULL, OPTION_PIC_VENEER},
   { "stub-group-size", required_argument, NULL, OPTION_STUBGROUP_SIZE },
   { "no-wchar-size-warning", no_argument, NULL, OPTION_NO_WCHAR_SIZE_WARNING},
+  { "fix-cortex-a53-835769", no_argument, NULL, OPTION_FIX_ERRATUM_835769},
 '
 
 PARSE_AND_LIST_OPTIONS='
@@ -373,6 +381,7 @@ PARSE_AND_LIST_OPTIONS='
                            after each stub section.  Values of +/-1 indicate\n\
                            the linker should choose suitable defaults.\n"
 		   ));
+  fprintf (file, _("  --fix-cortex-a53-835769      Fix erratum 835769\n"));
 '
 
 PARSE_AND_LIST_ARGS_CASES='
@@ -390,6 +399,10 @@ PARSE_AND_LIST_ARGS_CASES='
 
     case OPTION_PIC_VENEER:
       pic_veneer = 1;
+      break;
+
+    case OPTION_FIX_ERRATUM_835769:
+      fix_erratum_835769 = 1;
       break;
 
     case OPTION_STUBGROUP_SIZE:

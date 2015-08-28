@@ -1,6 +1,6 @@
 /* crc32.s Test file for AArch64 CRC-32 and CRC-32C checksum instructions.
 
-   Copyright 2013 Free Software Foundation, Inc.
+   Copyright (C) 2013-2014 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.

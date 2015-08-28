@@ -1,7 +1,6 @@
 // i386.cc -- i386 target support for gold.
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013
-// Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -48,6 +47,32 @@ namespace
 
 using namespace gold;
 
+// A class to handle the .got.plt section.
+
+class Output_data_got_plt_i386 : public Output_section_data_build
+{
+ public:
+  Output_data_got_plt_i386(Layout* layout)
+    : Output_section_data_build(4),
+      layout_(layout)
+  { }
+
+ protected:
+  // Write out the PLT data.
+  void
+  do_write(Output_file*);
+
+  // Write to a map file.
+  void
+  do_print_to_mapfile(Mapfile* mapfile) const
+  { mapfile->print_output_data(this, "** GOT PLT"); }
+
+ private:
+  // A pointer to the Layout class, so that we can find the .dynamic
+  // section when we write out the GOT PLT section.
+  Layout* layout_;
+};
+
 // A class to handle the PLT data.
 // This is an abstract base class that handles most of the linker details
 // but does not know the actual contents of PLT entries.  The derived
@@ -59,7 +84,7 @@ class Output_data_plt_i386 : public Output_section_data
   typedef Output_data_reloc<elfcpp::SHT_REL, true, 32, false> Reloc_section;
 
   Output_data_plt_i386(Layout*, uint64_t addralign,
-		       Output_data_space*, Output_data_space*);
+		       Output_data_got_plt_i386*, Output_data_space*);
 
   // Add an entry to the PLT.
   void
@@ -202,9 +227,6 @@ class Output_data_plt_i386 : public Output_section_data
     unsigned int got_offset;
   };
 
-  // A pointer to the Layout class, so that we can find the .dynamic
-  // section when we write out the GOT PLT section.
-  Layout* layout_;
   // The reloc section.
   Reloc_section* rel_;
   // The TLS_DESC relocations, if necessary.  These must follow the
@@ -214,7 +236,7 @@ class Output_data_plt_i386 : public Output_section_data
   // regular relocatoins and the TLS_DESC relocations.
   Reloc_section* irelative_rel_;
   // The .got.plt section.
-  Output_data_space* got_plt_;
+  Output_data_got_plt_i386* got_plt_;
   // The part of the .got.plt section used for IRELATIVE relocs.
   Output_data_space* got_irelative_;
   // The number of PLT entries.
@@ -237,7 +259,7 @@ class Output_data_plt_i386_standard : public Output_data_plt_i386
 {
  public:
   Output_data_plt_i386_standard(Layout* layout,
-				Output_data_space* got_plt,
+				Output_data_got_plt_i386* got_plt,
 				Output_data_space* got_irelative)
     : Output_data_plt_i386(layout, plt_entry_size, got_plt, got_irelative)
   { }
@@ -268,7 +290,7 @@ class Output_data_plt_i386_exec : public Output_data_plt_i386_standard
 {
 public:
   Output_data_plt_i386_exec(Layout* layout,
-			    Output_data_space* got_plt,
+			    Output_data_got_plt_i386* got_plt,
 			    Output_data_space* got_irelative)
     : Output_data_plt_i386_standard(layout, got_plt, got_irelative)
   { }
@@ -299,7 +321,7 @@ class Output_data_plt_i386_dyn : public Output_data_plt_i386_standard
 {
  public:
   Output_data_plt_i386_dyn(Layout* layout,
-			   Output_data_space* got_plt,
+			   Output_data_got_plt_i386* got_plt,
 			   Output_data_space* got_irelative)
     : Output_data_plt_i386_standard(layout, got_plt, got_irelative)
   { }
@@ -507,14 +529,14 @@ class Target_i386 : public Sized_target<32, false>
   // This chooses the right PLT flavor for an executable or a shared object.
   Output_data_plt_i386*
   make_data_plt(Layout* layout,
-		Output_data_space* got_plt,
+		Output_data_got_plt_i386* got_plt,
 		Output_data_space* got_irelative,
 		bool dyn)
   { return this->do_make_data_plt(layout, got_plt, got_irelative, dyn); }
 
   virtual Output_data_plt_i386*
   do_make_data_plt(Layout* layout,
-		   Output_data_space* got_plt,
+		   Output_data_got_plt_i386* got_plt,
 		   Output_data_space* got_irelative,
 		   bool dyn)
   {
@@ -721,7 +743,7 @@ class Target_i386 : public Sized_target<32, false>
   got_section(Symbol_table*, Layout*);
 
   // Get the GOT PLT section.
-  Output_data_space*
+  Output_data_got_plt_i386*
   got_plt_section() const
   {
     gold_assert(this->got_plt_ != NULL);
@@ -814,7 +836,7 @@ class Target_i386 : public Sized_target<32, false>
   // The PLT section.
   Output_data_plt_i386* plt_;
   // The GOT PLT section.
-  Output_data_space* got_plt_;
+  Output_data_got_plt_i386* got_plt_;
   // The GOT section for IRELATIVE relocations.
   Output_data_space* got_irelative_;
   // The GOT section for TLSDESC relocations.
@@ -886,7 +908,7 @@ Target_i386::got_section(Symbol_table* symtab, Layout* layout)
 				       | elfcpp::SHF_WRITE),
 				      this->got_, got_order, true);
 
-      this->got_plt_ = new Output_data_space(4, "** GOT PLT");
+      this->got_plt_ = new Output_data_got_plt_i386(layout);
       layout->add_output_section_data(".got.plt", elfcpp::SHT_PROGBITS,
 				      (elfcpp::SHF_ALLOC
 				       | elfcpp::SHF_WRITE),
@@ -973,18 +995,39 @@ Target_i386::rel_irelative_section(Layout* layout)
   return this->rel_irelative_;
 }
 
+// Write the first three reserved words of the .got.plt section.
+// The remainder of the section is written while writing the PLT
+// in Output_data_plt_i386::do_write.
+
+void
+Output_data_got_plt_i386::do_write(Output_file* of)
+{
+  // The first entry in the GOT is the address of the .dynamic section
+  // aka the PT_DYNAMIC segment.  The next two entries are reserved.
+  // We saved space for them when we created the section in
+  // Target_i386::got_section.
+  const off_t got_file_offset = this->offset();
+  gold_assert(this->data_size() >= 12);
+  unsigned char* const got_view = of->get_output_view(got_file_offset, 12);
+  Output_section* dynamic = this->layout_->dynamic_section();
+  uint32_t dynamic_addr = dynamic == NULL ? 0 : dynamic->address();
+  elfcpp::Swap<32, false>::writeval(got_view, dynamic_addr);
+  memset(got_view + 4, 0, 8);
+  of->write_output_view(got_file_offset, 12, got_view);
+}
+
 // Create the PLT section.  The ordinary .got section is an argument,
 // since we need to refer to the start.  We also create our own .got
 // section just for PLT entries.
 
 Output_data_plt_i386::Output_data_plt_i386(Layout* layout,
 					   uint64_t addralign,
-					   Output_data_space* got_plt,
+					   Output_data_got_plt_i386* got_plt,
 					   Output_data_space* got_irelative)
   : Output_section_data(addralign),
-    layout_(layout), tls_desc_rel_(NULL),
-    irelative_rel_(NULL), got_plt_(got_plt), got_irelative_(got_irelative),
-    count_(0), irelative_count_(0), global_ifuncs_(), local_ifuncs_()
+    tls_desc_rel_(NULL), irelative_rel_(NULL), got_plt_(got_plt),
+    got_irelative_(got_irelative), count_(0), irelative_count_(0),
+    global_ifuncs_(), local_ifuncs_()
 {
   this->rel_ = new Reloc_section(false);
   layout->add_output_section_data(".rel.plt", elfcpp::SHT_REL,
@@ -1324,6 +1367,7 @@ Output_data_plt_i386::do_write(Output_file* of)
   const section_size_type got_size =
     convert_to_section_size_type(this->got_plt_->data_size()
 				 + this->got_irelative_->data_size());
+
   unsigned char* const got_view = of->get_output_view(got_file_offset,
 						      got_size);
 
@@ -1335,18 +1379,9 @@ Output_data_plt_i386::do_write(Output_file* of)
   this->fill_first_plt_entry(pov, got_address);
   pov += this->get_plt_entry_size();
 
-  unsigned char* got_pov = got_view;
-
-  // The first entry in the GOT is the address of the .dynamic section
-  // aka the PT_DYNAMIC segment.  The next two entries are reserved.
-  // We saved space for them when we created the section in
-  // Target_i386::got_section.
-  Output_section* dynamic = this->layout_->dynamic_section();
-  uint32_t dynamic_addr = dynamic == NULL ? 0 : dynamic->address();
-  elfcpp::Swap<32, false>::writeval(got_pov, dynamic_addr);
-  got_pov += 4;
-  memset(got_pov, 0, 8);
-  got_pov += 8;
+  // The first three entries in the GOT are reserved, and are written
+  // by Output_data_got_plt_i386::do_write.
+  unsigned char* got_pov = got_view + 12;
 
   const int rel_size = elfcpp::Elf_sizes<32>::rel_size;
 
@@ -2114,7 +2149,8 @@ Target_i386::Scan::global(Symbol_table* symtab,
 	// Make a dynamic relocation if necessary.
 	if (gsym->needs_dynamic_reloc(Scan::get_reference_flags(r_type)))
 	  {
-	    if (gsym->may_need_copy_reloc())
+	    if (!parameters->options().output_is_position_independent()
+		&& gsym->may_need_copy_reloc())
 	      {
 		target->copy_reloc(symtab, layout, object,
 				   data_shndx, output_section, gsym, reloc);
@@ -2175,7 +2211,8 @@ Target_i386::Scan::global(Symbol_table* symtab,
 	// Make a dynamic relocation if necessary.
 	if (gsym->needs_dynamic_reloc(Scan::get_reference_flags(r_type)))
 	  {
-	    if (gsym->may_need_copy_reloc())
+	    if (parameters->options().output_is_executable()
+		&& gsym->may_need_copy_reloc())
 	      {
 		target->copy_reloc(symtab, layout, object,
 				   data_shndx, output_section, gsym, reloc);
@@ -3835,7 +3872,7 @@ class Output_data_plt_i386_nacl : public Output_data_plt_i386
 {
  public:
   Output_data_plt_i386_nacl(Layout* layout,
-			    Output_data_space* got_plt,
+			    Output_data_got_plt_i386* got_plt,
 			    Output_data_space* got_irelative)
     : Output_data_plt_i386(layout, plt_entry_size, got_plt, got_irelative)
   { }
@@ -3864,7 +3901,7 @@ class Output_data_plt_i386_nacl_exec : public Output_data_plt_i386_nacl
 {
 public:
   Output_data_plt_i386_nacl_exec(Layout* layout,
-				 Output_data_space* got_plt,
+				 Output_data_got_plt_i386* got_plt,
 				 Output_data_space* got_irelative)
     : Output_data_plt_i386_nacl(layout, got_plt, got_irelative)
   { }
@@ -3893,7 +3930,7 @@ class Output_data_plt_i386_nacl_dyn : public Output_data_plt_i386_nacl
 {
  public:
   Output_data_plt_i386_nacl_dyn(Layout* layout,
-				Output_data_space* got_plt,
+				Output_data_got_plt_i386* got_plt,
 				Output_data_space* got_irelative)
     : Output_data_plt_i386_nacl(layout, got_plt, got_irelative)
   { }
@@ -3927,7 +3964,7 @@ class Target_i386_nacl : public Target_i386
  protected:
   virtual Output_data_plt_i386*
   do_make_data_plt(Layout* layout,
-		   Output_data_space* got_plt,
+		   Output_data_got_plt_i386* got_plt,
 		   Output_data_space* got_irelative,
 		   bool dyn)
   {

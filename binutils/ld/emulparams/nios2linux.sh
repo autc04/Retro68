@@ -1,13 +1,13 @@
 SCRIPT_NAME=elf
 TEMPLATE_NAME=elf32
-EXTRA_EM_FILE=
+EXTRA_EM_FILE="nios2elf"
 OUTPUT_FORMAT="elf32-littlenios2"
 LITTLE_OUTPUT_FORMAT="elf32-littlenios2"
 BIG_OUTPUT_FORMAT="elf32-bignios2"
 TEXT_START_ADDR=0x2000
 OTHER_GOT_SYMBOLS='
-  _gp = ALIGN(16) + 0x7ff0;
-  PROVIDE(gp = _gp);
+  HIDDEN (_gp = ALIGN(16) + 0x7ff0);
+  PROVIDE_HIDDEN (gp = _gp);
 '
 ARCH=nios2
 MACHINE=

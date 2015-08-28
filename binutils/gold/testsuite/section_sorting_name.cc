@@ -1,6 +1,6 @@
 // section_sorting_name.cc -- a test case for gold
 
-// Copyright 2013 Free Software Foundation, Inc.
+// Copyright (C) 2013-2014 Free Software Foundation, Inc.
 // Written by Alexander Ivchenko <alexander.ivchenko@intel.com>.
 
 // This file is part of gold.

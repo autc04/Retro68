@@ -240,7 +240,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 69 "rcparse.y"
+#line 68 "rcparse.y"
 {
   rc_accelerator acc;
   rc_accelerator *pacc;

@@ -106,7 +106,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 29 "defparse.y"
+#line 28 "defparse.y"
 {
   char *id;
   const char *id_const;

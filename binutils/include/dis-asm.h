@@ -1,7 +1,6 @@
 /* Interface between the opcode library and its callers.
 
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2009, 2010,
-   2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,7 +226,6 @@ extern int print_insn_bfin		(bfd_vma, disassemble_info *);
 extern int print_insn_big_arm		(bfd_vma, disassemble_info *);
 extern int print_insn_big_mips		(bfd_vma, disassemble_info *);
 extern int print_insn_big_nios2		(bfd_vma, disassemble_info *);
-extern int print_insn_big_or32		(bfd_vma, disassemble_info *);
 extern int print_insn_big_powerpc	(bfd_vma, disassemble_info *);
 extern int print_insn_big_score         (bfd_vma, disassemble_info *);
 extern int print_insn_cr16              (bfd_vma, disassemble_info *);
@@ -255,7 +253,6 @@ extern int print_insn_iq2000		(bfd_vma, disassemble_info *);
 extern int print_insn_little_arm	(bfd_vma, disassemble_info *);
 extern int print_insn_little_mips	(bfd_vma, disassemble_info *);
 extern int print_insn_little_nios2	(bfd_vma, disassemble_info *);
-extern int print_insn_little_or32	(bfd_vma, disassemble_info *);
 extern int print_insn_little_powerpc	(bfd_vma, disassemble_info *);
 extern int print_insn_little_score      (bfd_vma, disassemble_info *); 
 extern int print_insn_lm32		(bfd_vma, disassemble_info *);
@@ -277,8 +274,9 @@ extern int print_insn_mn10300		(bfd_vma, disassemble_info *);
 extern int print_insn_moxie		(bfd_vma, disassemble_info *);
 extern int print_insn_msp430		(bfd_vma, disassemble_info *);
 extern int print_insn_mt                (bfd_vma, disassemble_info *);
+extern int print_insn_nds32		(bfd_vma, disassemble_info *);
 extern int print_insn_ns32k		(bfd_vma, disassemble_info *);
-extern int print_insn_openrisc		(bfd_vma, disassemble_info *);
+extern int print_insn_or1k		(bfd_vma, disassemble_info *);
 extern int print_insn_pdp11		(bfd_vma, disassemble_info *);
 extern int print_insn_pj		(bfd_vma, disassemble_info *);
 extern int print_insn_rs6000		(bfd_vma, disassemble_info *);

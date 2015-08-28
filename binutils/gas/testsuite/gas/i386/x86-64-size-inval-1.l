@@ -19,7 +19,7 @@ GAS LISTING .*
 [ 	]*9[ 	]+\.data
 [ 	]*10[ 	]+\?\?\?\? 5E000000 		\.long	xxx@SIZE \+ 100
 [ 	]*11[ 	]+\?\?\?\? ECFFFFFF 		\.long	yyy@SIZE - 100
-\*\*\*\*  Error:symbol size computation overflow
-\*\*\*\*  Error:symbol size computation overflow
-\*\*\*\*  Error:symbol size computation overflow
-\*\*\*\*  Error:symbol size computation overflow
+.*  Error: symbol size computation overflow
+.*  Error: symbol size computation overflow
+.*  Error: symbol size computation overflow
+.*  Error: symbol size computation overflow

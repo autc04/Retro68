@@ -1,7 +1,6 @@
 // target-reloc.h -- target specific relocation support  -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013
-// Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -185,7 +184,7 @@ issue_undefined_symbol_error(const Symbol* sym)
     return false;
 
   // We don't report weak symbols.
-  if (sym->binding() == elfcpp::STB_WEAK)
+  if (sym->is_weak_undefined())
     return false;
 
   // We don't report symbols defined in discarded sections.
@@ -210,6 +209,10 @@ issue_undefined_symbol_error(const Symbol* sym)
       if (strcmp(u, "ignore-in-shared-libs") == 0 && !sym->in_reg())
 	return false;
     }
+
+  // If the symbol is hidden, report it.
+  if (sym->visibility() == elfcpp::STV_HIDDEN)
+    return true;
 
   // When creating a shared library, only report unresolved symbols if
   // -z defs was used.
@@ -411,16 +414,10 @@ relocate_section(
 	}
 
       if (issue_undefined_symbol_error(sym))
-	{
-	  gold_undefined_symbol_at_location(sym, relinfo, i, offset);
-	  if (sym->is_cxx_vtable())
-	    gold_info(_("%s: the vtable symbol may be undefined because "
-			"the class is missing its key function"),
-		      program_name);
-	}
+	gold_undefined_symbol_at_location(sym, relinfo, i, offset);
       else if (sym != NULL
 	       && sym->visibility() != elfcpp::STV_DEFAULT
-	       && (sym->is_undefined() || sym->is_from_dynobj()))
+	       && (sym->is_strong_undefined() || sym->is_from_dynobj()))
 	visibility_error(sym);
 
       if (sym != NULL && sym->has_warning())

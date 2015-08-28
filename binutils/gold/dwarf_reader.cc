@@ -1,6 +1,6 @@
 // dwarf_reader.cc -- parse dwarf2/3 debug information
 
-// Copyright 2007, 2008, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2007-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -23,6 +23,7 @@
 #include "gold.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "elfcpp_swap.h"
@@ -180,7 +181,7 @@ Dwarf_abbrev_table::do_read_abbrevs(
       for (unsigned int i = 1; i < object->shnum(); ++i)
 	{
 	  std::string name = object->section_name(i);
-	  if (name == ".debug_abbrev")
+	  if (name == ".debug_abbrev" || name == ".zdebug_abbrev")
 	    {
 	      abbrev_shndx = i;
 	      // Correct the offset.  For incremental update links, we have a
@@ -317,7 +318,7 @@ Dwarf_ranges_table::read_ranges_table(
       for (unsigned int i = 1; i < object->shnum(); ++i)
 	{
 	  std::string name = object->section_name(i);
-	  if (name == ".debug_ranges")
+	  if (name == ".debug_ranges" || name == ".zdebug_ranges")
 	    {
 	      ranges_shndx = i;
 	      this->output_section_offset_ = object->output_section_offset(i);
@@ -486,23 +487,35 @@ Dwarf_pubnames_table::read_section(Relobj* object, const unsigned char* symtab,
 {
   section_size_type buffer_size;
   unsigned int shndx = 0;
+  const char* name = this->is_pubtypes_ ? "pubtypes" : "pubnames";
+  const char* gnu_name = (this->is_pubtypes_
+			  ? "gnu_pubtypes"
+			  : "gnu_pubnames");
 
-  // Find the .debug_pubnames/pubtypes section.
-  const char* name = (this->is_pubtypes_
-                      ? ".debug_pubtypes"
-                      : ".debug_pubnames");
   for (unsigned int i = 1; i < object->shnum(); ++i)
     {
-      if (object->section_name(i) == name)
+      std::string section_name = object->section_name(i);
+      const char* section_name_suffix = section_name.c_str();
+      if (is_prefix_of(".debug_", section_name_suffix))
+	section_name_suffix += 7;
+      else if (is_prefix_of(".zdebug_", section_name_suffix))
+	section_name_suffix += 8;
+      else
+	continue;
+      if (strcmp(section_name_suffix, name) == 0)
         {
           shndx = i;
-          this->output_section_offset_ = object->output_section_offset(i);
+          break;
+        }
+      else if (strcmp(section_name_suffix, gnu_name) == 0)
+        {
+          shndx = i;
+          this->is_gnu_style_ = true;
           break;
         }
     }
   if (shndx == 0)
     return false;
-
 
   this->buffer_ = object->decompressed_section_contents(shndx,
 							&buffer_size,
@@ -545,11 +558,6 @@ Dwarf_pubnames_table::read_header(off_t offset)
   // Make sure we have actually read the section.
   gold_assert(this->buffer_ != NULL);
 
-  // Correct the offset.  For incremental update links, we have a
-  // relocated offset that is relative to the output section, but
-  // here we need an offset relative to the input section.
-  offset -= this->output_section_offset_;
-
   if (offset < 0 || offset + 14 >= this->buffer_end_ - this->buffer_)
     return false;
 
@@ -570,6 +578,13 @@ Dwarf_pubnames_table::read_header(off_t offset)
       this->unit_length_ = unit_length + 4;
       this->offset_size_ = 4;
     }
+  this->end_of_table_ = pinfo + unit_length;
+
+  // If unit_length is too big, maybe we should reject the whole table,
+  // but in cases we know about, it seems OK to assume that the table
+  // is valid through the actual end of the section.
+  if (this->end_of_table_ > this->buffer_end_)
+    this->end_of_table_ = this->buffer_end_;
 
   // Check the version.
   unsigned int version = this->dwinfo_->read_from_pointer<16>(pinfo);
@@ -593,19 +608,26 @@ Dwarf_pubnames_table::read_header(off_t offset)
 // Read the next name from the set.
 
 const char*
-Dwarf_pubnames_table::next_name()
+Dwarf_pubnames_table::next_name(uint8_t* flag_byte)
 {
   const unsigned char* pinfo = this->pinfo_;
 
-  // Read the offset within the CU.  If this is zero, we have reached
-  // the end of the list.
-  uint32_t offset;
-  if (this->offset_size_ == 4)
-    offset = this->dwinfo_->read_from_pointer<32>(&pinfo);
-  else
-    offset = this->dwinfo_->read_from_pointer<64>(&pinfo);
-  if (offset == 0)
+  // Check for end of list.  The table should be terminated by an
+  // entry containing nothing but a DIE offset of 0.
+  if (pinfo + this->offset_size_ >= this->end_of_table_)
     return NULL;
+
+  // Skip the offset within the CU.  If this is zero, but we're not
+  // at the end of the table, then we have a real pubnames entry
+  // whose DIE offset is 0 (likely to be a GCC bug).  Since we
+  // don't actually use the DIE offset in building .gdb_index,
+  // it's harmless.
+  pinfo += this->offset_size_;
+
+  if (this->is_gnu_style_)
+    *flag_byte = *pinfo++;
+  else
+    *flag_byte = 0;
 
   // Return a pointer to the string at the current location,
   // and advance the pointer to the next entry.
@@ -1334,7 +1356,8 @@ Dwarf_info_reader::do_parse()
 	  // Visit the CU or TU.
 	  if (this->is_type_unit_)
 	    this->visit_type_unit(section_offset + this->cu_offset_,
-				  type_offset, signature, &root_die);
+				  cu_end - cu_start, type_offset, signature,
+				  &root_die);
 	  else
 	    this->visit_compilation_unit(section_offset + this->cu_offset_,
 					 cu_end - cu_start, &root_die);
@@ -1365,7 +1388,7 @@ Dwarf_info_reader::do_read_string_table(unsigned int string_shndx)
       for (unsigned int i = 1; i < this->object_->shnum(); ++i)
 	{
 	  std::string name = object->section_name(i);
-	  if (name == ".debug_str")
+	  if (name == ".debug_str" || name == ".zdebug_str")
 	    {
 	      string_shndx = i;
 	      this->string_output_section_offset_ =
@@ -1477,7 +1500,7 @@ Dwarf_info_reader::visit_compilation_unit(off_t, off_t, Dwarf_die*)
 // Process a type unit and parse its child DIE.
 
 void
-Dwarf_info_reader::visit_type_unit(off_t, off_t, uint64_t, Dwarf_die*)
+Dwarf_info_reader::visit_type_unit(off_t, off_t, off_t, uint64_t, Dwarf_die*)
 {
 }
 

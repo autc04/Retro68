@@ -1,6 +1,6 @@
 /* Xilinx MicroBlaze-specific support for 32-bit ELF
 
-   Copyright 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -44,11 +44,11 @@ static reloc_howto_type microblaze_elf_howto_raw[] =
    /* This reloc does nothing.  */
    HOWTO (R_MICROBLAZE_NONE,	/* Type.  */
           0,			/* Rightshift.  */
-          2,			/* Size (0 = byte, 1 = short, 2 = long).  */
-          32,			/* Bitsize.  */
+          3,			/* Size (0 = byte, 1 = short, 2 = long).  */
+          0,			/* Bitsize.  */
           FALSE,		/* PC_relative.  */
           0,			/* Bitpos.  */
-          complain_overflow_bitfield,  /* Complain on overflow.  */
+          complain_overflow_dont,/* Complain on overflow.  */
           NULL,                  /* Special Function.  */
           "R_MICROBLAZE_NONE", 	/* Name.  */
           FALSE,		/* Partial Inplace.  */
@@ -179,11 +179,11 @@ static reloc_howto_type microblaze_elf_howto_raw[] =
    /* This reloc does nothing.  Used for relaxation.  */
    HOWTO (R_MICROBLAZE_64_NONE,	/* Type.  */
           0,			/* Rightshift.  */
-          2,			/* Size (0 = byte, 1 = short, 2 = long).  */
-          32,			/* Bitsize.  */
+          3,			/* Size (0 = byte, 1 = short, 2 = long).  */
+          0,			/* Bitsize.  */
           TRUE,			/* PC_relative.  */
           0,			/* Bitpos.  */
-          complain_overflow_bitfield,  /* Complain on overflow.  */
+          complain_overflow_dont,/* Complain on overflow.  */
           NULL,                  /* Special Function.  */
           "R_MICROBLAZE_64_NONE",/* Name.  */
           FALSE,		/* Partial Inplace.  */
@@ -643,13 +643,22 @@ microblaze_elf_info_to_howto (bfd * abfd ATTRIBUTE_UNUSED,
 			      arelent * cache_ptr,
 			      Elf_Internal_Rela * dst)
 {
+  unsigned int r_type;
+
   if (!microblaze_elf_howto_table [R_MICROBLAZE_32])
     /* Initialize howto table if needed.  */
     microblaze_elf_howto_init ();
 
-  BFD_ASSERT (ELF32_R_TYPE (dst->r_info) < (unsigned int) R_MICROBLAZE_max);
+  r_type = ELF32_R_TYPE (dst->r_info);
+  if (r_type >= R_MICROBLAZE_max)
+    {
+      (*_bfd_error_handler) (_("%B: unrecognised MicroBlaze reloc number: %d"),
+			     abfd, r_type);
+      bfd_set_error (bfd_error_bad_value);
+      r_type = R_MICROBLAZE_NONE;
+    }
 
-  cache_ptr->howto = microblaze_elf_howto_table [ELF32_R_TYPE (dst->r_info)];
+  cache_ptr->howto = microblaze_elf_howto_table [r_type];
 }
 
 /* Microblaze ELF local labels start with 'L.' or '$L', not '.L'.  */
@@ -1023,11 +1032,12 @@ microblaze_elf_relocate_section (bfd *output_bfd,
 	    {
 	      /* External symbol.  */
 	      bfd_boolean warned ATTRIBUTE_UNUSED;
+	      bfd_boolean ignored ATTRIBUTE_UNUSED;
 
 	      RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				       r_symndx, symtab_hdr, sym_hashes,
 				       h, sec, relocation,
-				       unresolved_reloc, warned);
+				       unresolved_reloc, warned, ignored);
 	      sym_name = h->root.root.string;
 	    }
 
@@ -2972,7 +2982,7 @@ microblaze_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 
   /* Set up .got offsets for local syms, and space for local dynamic
      relocs.  */
-  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link_next)
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
     {
       bfd_signed_vma *local_got;
       bfd_signed_vma *end_local_got;
@@ -3465,10 +3475,10 @@ microblaze_elf_add_symbol_hook (bfd *abfd,
   return TRUE;
 }
 
-#define TARGET_LITTLE_SYM      bfd_elf32_microblazeel_vec
+#define TARGET_LITTLE_SYM      microblaze_elf32_le_vec
 #define TARGET_LITTLE_NAME     "elf32-microblazeel"
 
-#define TARGET_BIG_SYM          bfd_elf32_microblaze_vec
+#define TARGET_BIG_SYM          microblaze_elf32_vec
 #define TARGET_BIG_NAME		"elf32-microblaze"
 
 #define ELF_ARCH		bfd_arch_microblaze

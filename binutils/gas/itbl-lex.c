@@ -491,8 +491,7 @@ int yy_flex_debug = 0;
 char *yytext;
 #line 1 "itbl-lex.l"
 /* itbl-lex.l
-   Copyright 1997, 1998, 2001, 2002, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -510,7 +509,7 @@ char *yytext;
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
-#line 23 "itbl-lex.l"
+#line 22 "itbl-lex.l"
 #include "as.h"
 #include "itbl-lex.h"
 #include <itbl-parse.h>
@@ -524,7 +523,7 @@ char *yytext;
 #endif
 
 int insntbl_line = 1;
-#line 528 "itbl-lex.c"
+#line 527 "itbl-lex.c"
 
 #define INITIAL 0
 
@@ -706,10 +705,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 43 "itbl-lex.l"
+#line 42 "itbl-lex.l"
 
 
-#line 713 "itbl-lex.c"
+#line 712 "itbl-lex.c"
 
 	if ( !(yy_init) )
 		{
@@ -794,49 +793,49 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 45 "itbl-lex.l"
+#line 44 "itbl-lex.l"
 {
     return CREG;
   }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 48 "itbl-lex.l"
+#line 47 "itbl-lex.l"
 {
     return DREG;
   }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 51 "itbl-lex.l"
+#line 50 "itbl-lex.l"
 {
     return GREG;
   }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 54 "itbl-lex.l"
+#line 53 "itbl-lex.l"
 {
     return IMMED;
   }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 57 "itbl-lex.l"
+#line 56 "itbl-lex.l"
 {
     return ADDR;
   }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 60 "itbl-lex.l"
+#line 59 "itbl-lex.l"
 {
     return INSN;
   }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 63 "itbl-lex.l"
+#line 62 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.processor = strtoul (yytext+1, 0, 0);
@@ -845,7 +844,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 68 "itbl-lex.l"
+#line 67 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.num = strtoul (yytext, 0, 0);
@@ -854,7 +853,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 73 "itbl-lex.l"
+#line 72 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.num = strtoul (yytext, 0, 0);
@@ -863,7 +862,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 78 "itbl-lex.l"
+#line 77 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.str = strdup (yytext);
@@ -872,7 +871,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 83 "itbl-lex.l"
+#line 82 "itbl-lex.l"
 {
     int c;
     while ((c = input ()) !=  EOF) 
@@ -888,7 +887,7 @@ YY_RULE_SETUP
 case 12:
 /* rule 12 can match eol */
 YY_RULE_SETUP
-#line 94 "itbl-lex.l"
+#line 93 "itbl-lex.l"
 { 
     insntbl_line++; 
     MDBG (("in lex, NL = %d (x%x)\n", NL, NL));
@@ -897,13 +896,13 @@ YY_RULE_SETUP
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 99 "itbl-lex.l"
+#line 98 "itbl-lex.l"
 { 
   }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 101 "itbl-lex.l"
+#line 100 "itbl-lex.l"
 {
     MDBG (("char = %x, %d\n", yytext[0], yytext[0]));
     return yytext[0];
@@ -911,10 +910,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 105 "itbl-lex.l"
+#line 104 "itbl-lex.l"
 ECHO;
 	YY_BREAK
-#line 918 "itbl-lex.c"
+#line 917 "itbl-lex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1911,7 +1910,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 105 "itbl-lex.l"
+#line 104 "itbl-lex.l"
 
 
 

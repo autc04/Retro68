@@ -1,6 +1,5 @@
 /* Ubicom IP2xxx specific support for 32-bit ELF
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -142,7 +141,7 @@ static reloc_howto_type ip2k_elf_howto_table [] =
           pr)                   /* pcrel_offset */
 
   /* This reloc does nothing.  */
-  IP2K_HOWTO (R_IP2K_NONE, 0,2,32, FALSE, 0, "R_IP2K_NONE", 0, 0),
+  IP2K_HOWTO (R_IP2K_NONE, 0,3,0, FALSE, 0, "R_IP2K_NONE", 0, 0),
   /* A 16 bit absolute relocation.  */
   IP2K_HOWTO (R_IP2K_16, 0,1,16, FALSE, 0, "R_IP2K_16", 0, 0xffff),
   /* A 32 bit absolute relocation.  */
@@ -1240,6 +1239,11 @@ ip2k_info_to_howto_rela (bfd * abfd ATTRIBUTE_UNUSED,
   unsigned int r_type;
 
   r_type = ELF32_R_TYPE (dst->r_info);
+  if (r_type >= (unsigned int) R_IP2K_max)
+    {
+      _bfd_error_handler (_("%B: invalid IP2K reloc number: %d"), abfd, r_type);
+      r_type = 0;
+    }
   cache_ptr->howto = & ip2k_elf_howto_table [r_type];
 }
 
@@ -1425,13 +1429,13 @@ ip2k_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	}
       else
 	{
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 	  bfd_boolean unresolved_reloc;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 
 	  name = h->root.root.string;
 	}
@@ -1496,7 +1500,7 @@ ip2k_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
   return TRUE;
 }
 
-#define TARGET_BIG_SYM	 bfd_elf32_ip2k_vec
+#define TARGET_BIG_SYM	 ip2k_elf32_vec
 #define TARGET_BIG_NAME  "elf32-ip2k"
 
 #define ELF_ARCH	 bfd_arch_ip2k

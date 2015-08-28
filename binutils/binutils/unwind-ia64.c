@@ -1,6 +1,5 @@
 /* unwind-ia64.c -- utility routines to dump IA-64 unwind info for readelf.
-   Copyright 2000, 2001, 2002, 2003, 2005, 2007, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 

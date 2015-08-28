@@ -1,6 +1,5 @@
 /* addr2line.c -- convert addresses to line number and function name
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2007, 2009  Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Contributed by Ulrich Lauther <Ulrich.Lauther@mchp.siemens.de>
 
    This file is part of GNU Binutils.
@@ -140,6 +139,14 @@ slurp_symtab (bfd *abfd)
       free (syms);
       syms = xmalloc (storage);
       symcount = bfd_canonicalize_dynamic_symtab (abfd, syms);
+    }
+
+  /* PR 17512: file: 2a1d3b5b.
+     Do not pretend that we have some symbols when we don't.  */
+  if (symcount <= 0)
+    {
+      free (syms);
+      syms = NULL;
     }
 }
 
@@ -424,6 +431,7 @@ main (int argc, char **argv)
 
   program_name = *argv;
   xmalloc_set_program_name (program_name);
+  bfd_set_error_program_name (program_name);
 
   expandargv (&argc, &argv);
 

@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2009, 2011  Free Software Foundation, Inc.
+#   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -24,6 +24,8 @@
 #
 test -z "$TARGET2_TYPE" && TARGET2_TYPE="rel"
 fragment <<EOF
+
+#include "elf32-rx.h"
 
 static bfd_boolean no_flag_mismatch_warnings = TRUE;
 static bfd_boolean ignore_lma = TRUE;
@@ -86,3 +88,5 @@ PARSE_AND_LIST_ARGS_CASES='
 '
 
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=rx_elf_create_output_section_statements
+
+LDEMUL_EXTRA_MAP_FILE_TEXT=rx_additional_link_map_text

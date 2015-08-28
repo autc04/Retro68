@@ -1,5 +1,5 @@
 /* A YACC grammar to parse a superset of the AT&T linker scripting language.
-   Copyright 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
    This file is part of the GNU Binutils.
@@ -365,38 +365,43 @@ ifile_p1:
 	;
 
 input_list:
+		{ ldlex_inputlist(); }
+		input_list1
+		{ ldlex_popstate(); }
+
+input_list1:
 		NAME
 		{ lang_add_input_file($1,lang_input_file_is_search_file_enum,
 				 (char *)NULL); }
-	|	input_list ',' NAME
+	|	input_list1 ',' NAME
 		{ lang_add_input_file($3,lang_input_file_is_search_file_enum,
 				 (char *)NULL); }
-	|	input_list NAME
+	|	input_list1 NAME
 		{ lang_add_input_file($2,lang_input_file_is_search_file_enum,
 				 (char *)NULL); }
 	|	LNAME
 		{ lang_add_input_file($1,lang_input_file_is_l_enum,
 				 (char *)NULL); }
-	|	input_list ',' LNAME
+	|	input_list1 ',' LNAME
 		{ lang_add_input_file($3,lang_input_file_is_l_enum,
 				 (char *)NULL); }
-	|	input_list LNAME
+	|	input_list1 LNAME
 		{ lang_add_input_file($2,lang_input_file_is_l_enum,
 				 (char *)NULL); }
 	|	AS_NEEDED '('
 		  { $<integer>$ = input_flags.add_DT_NEEDED_for_regular;
 		    input_flags.add_DT_NEEDED_for_regular = TRUE; }
-		     input_list ')'
+		     input_list1 ')'
 		  { input_flags.add_DT_NEEDED_for_regular = $<integer>3; }
-	|	input_list ',' AS_NEEDED '('
+	|	input_list1 ',' AS_NEEDED '('
 		  { $<integer>$ = input_flags.add_DT_NEEDED_for_regular;
 		    input_flags.add_DT_NEEDED_for_regular = TRUE; }
-		     input_list ')'
+		     input_list1 ')'
 		  { input_flags.add_DT_NEEDED_for_regular = $<integer>5; }
-	|	input_list AS_NEEDED '('
+	|	input_list1 AS_NEEDED '('
 		  { $<integer>$ = input_flags.add_DT_NEEDED_for_regular;
 		    input_flags.add_DT_NEEDED_for_regular = TRUE; }
-		     input_list ')'
+		     input_list1 ')'
 		  { input_flags.add_DT_NEEDED_for_regular = $<integer>4; }
 	;
 

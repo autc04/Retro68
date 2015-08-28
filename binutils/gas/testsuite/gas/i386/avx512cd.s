@@ -64,34 +64,6 @@ _start:
 	vplzcntq	-1024(%edx){1to8}, %zmm6	 # AVX512CD Disp8
 	vplzcntq	-1032(%edx){1to8}, %zmm6	 # AVX512CD
 
-	vptestnmd	%zmm4, %zmm5, %k5	 # AVX512CD
-	vptestnmd	%zmm4, %zmm5, %k5{%k7}	 # AVX512CD
-	vptestnmd	(%ecx), %zmm5, %k5	 # AVX512CD
-	vptestnmd	-123456(%esp,%esi,8), %zmm5, %k5	 # AVX512CD
-	vptestnmd	(%eax){1to16}, %zmm5, %k5	 # AVX512CD
-	vptestnmd	8128(%edx), %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmd	8192(%edx), %zmm5, %k5	 # AVX512CD
-	vptestnmd	-8192(%edx), %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmd	-8256(%edx), %zmm5, %k5	 # AVX512CD
-	vptestnmd	508(%edx){1to16}, %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmd	512(%edx){1to16}, %zmm5, %k5	 # AVX512CD
-	vptestnmd	-512(%edx){1to16}, %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmd	-516(%edx){1to16}, %zmm5, %k5	 # AVX512CD
-
-	vptestnmq	%zmm4, %zmm5, %k5	 # AVX512CD
-	vptestnmq	%zmm4, %zmm5, %k5{%k7}	 # AVX512CD
-	vptestnmq	(%ecx), %zmm5, %k5	 # AVX512CD
-	vptestnmq	-123456(%esp,%esi,8), %zmm5, %k5	 # AVX512CD
-	vptestnmq	(%eax){1to8}, %zmm5, %k5	 # AVX512CD
-	vptestnmq	8128(%edx), %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmq	8192(%edx), %zmm5, %k5	 # AVX512CD
-	vptestnmq	-8192(%edx), %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmq	-8256(%edx), %zmm5, %k5	 # AVX512CD
-	vptestnmq	1016(%edx){1to8}, %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmq	1024(%edx){1to8}, %zmm5, %k5	 # AVX512CD
-	vptestnmq	-1024(%edx){1to8}, %zmm5, %k5	 # AVX512CD Disp8
-	vptestnmq	-1032(%edx){1to8}, %zmm5, %k5	 # AVX512CD
-
 	vpbroadcastmw2d	%k6, %zmm6	 # AVX512CD
 
 	vpbroadcastmb2q	%k6, %zmm6	 # AVX512CD
@@ -156,34 +128,6 @@ _start:
 	vplzcntq	zmm6, [edx+1024]{1to8}	 # AVX512CD
 	vplzcntq	zmm6, [edx-1024]{1to8}	 # AVX512CD Disp8
 	vplzcntq	zmm6, [edx-1032]{1to8}	 # AVX512CD
-
-	vptestnmd	k5, zmm5, zmm4	 # AVX512CD
-	vptestnmd	k5{k7}, zmm5, zmm4	 # AVX512CD
-	vptestnmd	k5, zmm5, ZMMWORD PTR [ecx]	 # AVX512CD
-	vptestnmd	k5, zmm5, ZMMWORD PTR [esp+esi*8-123456]	 # AVX512CD
-	vptestnmd	k5, zmm5, [eax]{1to16}	 # AVX512CD
-	vptestnmd	k5, zmm5, ZMMWORD PTR [edx+8128]	 # AVX512CD Disp8
-	vptestnmd	k5, zmm5, ZMMWORD PTR [edx+8192]	 # AVX512CD
-	vptestnmd	k5, zmm5, ZMMWORD PTR [edx-8192]	 # AVX512CD Disp8
-	vptestnmd	k5, zmm5, ZMMWORD PTR [edx-8256]	 # AVX512CD
-	vptestnmd	k5, zmm5, [edx+508]{1to16}	 # AVX512CD Disp8
-	vptestnmd	k5, zmm5, [edx+512]{1to16}	 # AVX512CD
-	vptestnmd	k5, zmm5, [edx-512]{1to16}	 # AVX512CD Disp8
-	vptestnmd	k5, zmm5, [edx-516]{1to16}	 # AVX512CD
-
-	vptestnmq	k5, zmm5, zmm4	 # AVX512CD
-	vptestnmq	k5{k7}, zmm5, zmm4	 # AVX512CD
-	vptestnmq	k5, zmm5, ZMMWORD PTR [ecx]	 # AVX512CD
-	vptestnmq	k5, zmm5, ZMMWORD PTR [esp+esi*8-123456]	 # AVX512CD
-	vptestnmq	k5, zmm5, [eax]{1to8}	 # AVX512CD
-	vptestnmq	k5, zmm5, ZMMWORD PTR [edx+8128]	 # AVX512CD Disp8
-	vptestnmq	k5, zmm5, ZMMWORD PTR [edx+8192]	 # AVX512CD
-	vptestnmq	k5, zmm5, ZMMWORD PTR [edx-8192]	 # AVX512CD Disp8
-	vptestnmq	k5, zmm5, ZMMWORD PTR [edx-8256]	 # AVX512CD
-	vptestnmq	k5, zmm5, [edx+1016]{1to8}	 # AVX512CD Disp8
-	vptestnmq	k5, zmm5, [edx+1024]{1to8}	 # AVX512CD
-	vptestnmq	k5, zmm5, [edx-1024]{1to8}	 # AVX512CD Disp8
-	vptestnmq	k5, zmm5, [edx-1032]{1to8}	 # AVX512CD
 
 	vpbroadcastmw2d	zmm6, k6	 # AVX512CD
 

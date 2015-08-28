@@ -139,7 +139,7 @@ Disassembly of section \.text:
  160:	d41fffe1 	svc	#0xffff
  164:	f8500420 	ldr	x0, \[x1\],#-256
  168:	f8500c20 	ldr	x0, \[x1,#-256\]!
- 16c:	f8500020 	ldr	x0, \[x1,#-256\]
+ 16c:	f8500020 	ldur	x0, \[x1,#-256\]
  170:	f97ffc20 	ldr	x0, \[x1,#32760\]
  174:	79400000 	ldrh	w0, \[x0\]
 			174: R_AARCH64_LDST16_ABS_LO12_NC	\.text\+0x194

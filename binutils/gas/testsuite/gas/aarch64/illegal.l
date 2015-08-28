@@ -519,7 +519,7 @@
 [^:]*:494: Error: .*`bfi x3,x7,#31,#48'
 [^:]*:496: Error: .*`str x1,page_table_count'
 [^:]*:498: Error: .*`prfm PLDL3KEEP,\[x9,x15,sxtx#2\]'
-[^:]*:500: Error: .*`mrs x5,S1_0_C13_C8_0'
+[^:]*:500: Error: .*`mrs x5,S1_0_C17_C8_0'
 [^:]*:502: Error: .*`msr S3_1_C11_C15_-1,x7'
 [^:]*:503: Error: .*`msr S3_1_11_15_1,x7'
 [^:]*:506: Error: .*`movi w1,#15'
@@ -562,4 +562,9 @@
 [^:]*:561: Error: .*`csetm w0,nv'
 [^:]*:562: Error: .*`cneg w0,w1,al'
 [^:]*:563: Error: .*`cneg w0,w1,nv'
-[^:]*:563: Error: .*
+[^:]*:565: Error: .*`mrs x5,S4_0_C12_C8_0'
+[^:]*:566: Error: .*`mrs x6,S0_8_C11_C7_5'
+[^:]*:567: Error: .*`mrs x7,S1_1_C16_C6_6'
+[^:]*:568: Error: .*`mrs x8,S2_2_C15_C16_7'
+[^:]*:569: Error: .*`mrs x9,S3_3_C14_C15_8'
+[^:]*:569: Error: .*

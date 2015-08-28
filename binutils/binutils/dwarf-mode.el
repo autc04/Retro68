@@ -2,7 +2,7 @@
 
 ;; Version: 1.2
 
-;; Copyright (C) 2012, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 ;; This file is not part of GNU Emacs, but is distributed under the
 ;; same terms:

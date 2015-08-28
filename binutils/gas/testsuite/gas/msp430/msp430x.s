@@ -259,3 +259,19 @@ foo:
 	rrax.a	r5
 	rpt	r5
 	rrax.a	r5
+
+	;; The following are all aliases for similarly named instructions
+	;; without the period.  Eg: add.a -> adda
+	add.a	r1, r2
+	br.a	r1
+	call.a	r1
+	clr.a	r1
+	cmp.a	r1, r2
+	decd.a	r1
+	incd.a	r1
+	mov.a	r1, r2
+	ret.a
+	sub.a	r1, r2
+	tst.a	fooz
+	
+	

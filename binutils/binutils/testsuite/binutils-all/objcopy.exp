@@ -1,6 +1,4 @@
-#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-#   2004, 2006, 2007, 2009, 2010, 2011
-#   Free Software Foundation, Inc.
+#   Copyright (C) 1994-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,7 +84,6 @@ proc objcopy_test {testname srcfile} {
 	setup_xfail "m68*-*-*coff" "m68*-*-hpux*" "m68*-*-lynxos*"
 	setup_xfail "m68*-*-sysv*" "m68*-apple-aux*"
 	setup_xfail "m8*-*"
-	setup_xfail "or32-*-rtems*" "or32-*-coff"
 	setup_xfail "sh-*-coff*"
 	setup_xfail "tic80-*-*" "w65-*"
 
@@ -956,10 +953,18 @@ if [is_elf_format] {
     run_dump_test "strip-7"
     run_dump_test "strip-8"
     run_dump_test "strip-9"
+    # Non-EABI ARM targets will set OSABI to ARM
     if { ![istarget "*-*-hpux*"]
-	 && ![istarget "msp*-*-*"] } {
+	 && ![istarget "msp*-*-*"]
+         && !([istarget "arm*-*-*"] && ![istarget "arm-*-*eabi*"])} {
 	run_dump_test "strip-10"
     }
+    set extra_strip11 ""
+    if { [istarget "sh64*-*"] } {
+	# pr17755 testcase
+	set extra_strip11 { { "as" "--isa=SHmedia --abi=64" } }
+    }
+    run_dump_test "strip-11" $extra_strip11
 
     if { [istarget "i*86-*"] || [istarget "x86_64-*-*"] } {
 	# Check to make sure we don't strip a symbol named in relocations.
@@ -983,12 +988,14 @@ if [is_elf_format] {
     # The symbol table for some MIPS targets is sorted differently than
     # the ELF canonical order, so the regexps in localize-hidden-1.d fail
     # to match.  These tests must be matched to targets for which
-    # targ_defvec=bfd_elf32_bigmips_vec,
-    # targ_defvec=bfd_elf32_littlemips_vec,
-    # targ_defvec=bfd_elf32_nbigmips_vec or
-    # targ_defvec=bfd_elf32_nlittlemips_vec in config.bfd.  When syncing,
+    # targ_defvec=mips_elf32_be_vec,
+    # targ_defvec=mips_elf32_le_vec,
+    # targ_defvec=mips_elf32_n_be_vec or
+    # targ_defvec=mips_elf32_n_le_vec in config.bfd.  When syncing,
     # don't forget that earlier case-matches trump later ones.
-    if { ![istarget "mips*-sde-elf*"] && ![istarget "mips64*-*-openbsd*"] } {
+    if { ![istarget "mips*-sde-elf*"] && ![istarget "mips*-mti-elf*"]
+	 && ![istarget "mips*-img-elf*"]
+         && ![istarget "mips64*-*-openbsd*"] } {
 	setup_xfail "mips*-*-irix5*" "mips*-*-irix6*" "mips*-*-elf*" \
 	    "mips*-*-rtems*" "mips*-*-windiss" "mips*-*-none" \
 	    "mips*-*-openbsd*" "mips*-*-chorus*"

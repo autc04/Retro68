@@ -1,6 +1,6 @@
 // ehframe.h -- handle exception frame sections for gold  -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -211,8 +211,8 @@ class Fde
   // FDE in EH_FRAME_HDR.  Return the new offset.
   template<int size, bool big_endian>
   section_offset_type
-  write(unsigned char* oview, section_offset_type offset,
-	uint64_t address, unsigned int addralign,
+  write(unsigned char* oview, section_offset_type output_section_offset,
+	section_offset_type offset, uint64_t address, unsigned int addralign,
 	section_offset_type cie_offset, unsigned char fde_encoding,
 	Eh_frame_hdr* eh_frame_hdr);
 
@@ -317,7 +317,8 @@ class Cie
   // writing.  Return the new offset.
   template<int size, bool big_endian>
   section_offset_type
-  write(unsigned char* oview, section_offset_type offset, uint64_t address,
+  write(unsigned char* oview, section_offset_type output_section_offset,
+	section_offset_type offset, uint64_t address,
 	unsigned int addralign, Eh_frame_hdr* eh_frame_hdr,
 	Post_fdes* post_fdes);
 

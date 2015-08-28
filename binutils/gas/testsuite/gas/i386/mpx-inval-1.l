@@ -22,34 +22,35 @@ GAS LISTING .*
 [ 	]*4[ 	]+\.extern xxx
 [ 	]*5[ 	]+foo:
 [ 	]*6[ 	]+\?\?\?\? F201C3   		bnd add %eax, %ebx  		\# Bad
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+.*  Error: expecting valid branch instruction after `bnd'
 [ 	]*7[ 	]+\?\?\?\? 66F2AB   		bnd stosw \(%edi\)    		\# Bad
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+.*  Error: expecting valid branch instruction after `bnd'
 [ 	]*8[ 	]+\?\?\?\? 9A000000 		bnd lcall \$0x1234,\$xxx
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
-\*\*\*\*  Warning:skipping prefixes on this instruction
+.*  Error: expecting valid branch instruction after `bnd'
+.*  Warning: skipping prefixes on this instruction
 [ 	]*8[ 	]+003412
 [ 	]*9[ 	]+\?\?\?\? EA000000 		bnd ljmp \$0x1234,\$xxx
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
-\*\*\*\*  Warning:skipping prefixes on this instruction
+.*  Error: expecting valid branch instruction after `bnd'
+.*  Warning: skipping prefixes on this instruction
 [ 	]*9[ 	]+003412
-[ 	]*10[ 	]+\?\?\?\? F2E200   		bnd loop foo
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
-[ 	]*11[ 	]+\?\?\?\? 67F2E300 		bnd jcxz foo
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+[ 	]*10[ 	]+\?\?\?\? F2E2E9   		bnd loop foo
+.*  Error: expecting valid branch instruction after `bnd'
+[ 	]*11[ 	]+\?\?\?\? 67F2E3E5 		bnd jcxz foo
+.*  Error: expecting valid branch instruction after `bnd'
 [ 	]*12[ 	]+
 [ 	]*13[ 	]+\.intel_syntax noprefix
 [ 	]*14[ 	]+\?\?\?\? F201C3   		bnd add ebx, eax		\# Bad
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+.*  Error: expecting valid branch instruction after `bnd'
 [ 	]*15[ 	]+\?\?\?\? 66F2AB   		bnd stos WORD PTR\[edi]		\# Bad
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+.*  Error: expecting valid branch instruction after `bnd'
 [ 	]*16[ 	]+\?\?\?\? 9A000000 		bnd lcall 0x1234,xxx
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+.*  Error: expecting valid branch instruction after `bnd'
 [ 	]*16[ 	]+003412
 [ 	]*17[ 	]+\?\?\?\? EA000000 		bnd ljmp 0x1234,xxx
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+.*  Error: expecting valid branch instruction after `bnd'
 [ 	]*17[ 	]+003412
-[ 	]*18[ 	]+\?\?\?\? F2E200   		bnd loop foo
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
-[ 	]*19[ 	]+\?\?\?\? 67F2E300 		bnd jcxz foo
-\*\*\*\*  Error:expecting valid branch instruction after `bnd'
+[ 	]*18[ 	]+\?\?\?\? F2E2CE   		bnd loop foo
+.*  Error: expecting valid branch instruction after `bnd'
+[ 	]*19[ 	]+\?\?\?\? 67F2E3CA 		bnd jcxz foo
+.*  Error: expecting valid branch instruction after `bnd'
+#pass

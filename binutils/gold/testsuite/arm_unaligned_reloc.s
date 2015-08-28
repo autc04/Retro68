@@ -15,7 +15,7 @@ x:
 	.word	1
 
 	.section	.data.1,"aw",%progbits
-	.align	2
+	.align	12
 
 # This causes following relocations to be unaligned.
 	.global	padding

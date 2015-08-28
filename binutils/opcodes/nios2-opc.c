@@ -1,5 +1,5 @@
 /* Altera Nios II opcode list.
-   Copyright (C) 2012, 2013 Free Software Foundation, Inc.
+   Copyright (C) 2012-2014 Free Software Foundation, Inc.
    Contributed by Nigel Gray (ngray@altera.com).
    Contributed by Mentor Graphics, Inc.
 
@@ -58,7 +58,7 @@ const struct nios2_reg nios2_builtin_regs[] = {
   {"sp", 27},			/* stack pointer */
   {"fp", 28},			/* frame pointer */
   {"ea", 29},			/* exception return address */
-  {"ba", 30},			/* breakpoint return address */
+  {"sstatus", 30},		/* saved processor status */
   {"ra", 31},			/* return address */
 
   /* Alternative names for special registers.  */
@@ -71,7 +71,7 @@ const struct nios2_reg nios2_builtin_regs[] = {
   {"r28", 28},
   {"r29", 29},
   {"r30", 30},
-  {"sstatus", 30},
+  {"ba", 30},			/* breakpoint return address */
   {"r31", 31},
 
   /* Control register names.  */

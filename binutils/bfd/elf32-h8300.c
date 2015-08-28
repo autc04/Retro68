@@ -1,5 +1,5 @@
 /* BFD back-end for Renesas H8/300 ELF binaries.
-   Copyright 1993-2013 Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -61,7 +61,7 @@ static reloc_howto_type h8_elf_howto_table[] =
 #define R_H8_NONE_X 0
   HOWTO (R_H8_NONE,		/* type */
 	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
 	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
@@ -468,12 +468,12 @@ elf32_h8_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	}
       else
 	{
-	  bfd_boolean unresolved_reloc, warned;
+	  bfd_boolean unresolved_reloc, warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	}
 
       if (sec != NULL && discarded_section (sec))
@@ -1705,7 +1705,7 @@ elf32_h8_get_relocated_section_contents (bfd *output_bfd,
 }
 
 
-#define TARGET_BIG_SYM			bfd_elf32_h8300_vec
+#define TARGET_BIG_SYM			h8300_elf32_vec
 #define TARGET_BIG_NAME			"elf32-h8300"
 #define ELF_ARCH			bfd_arch_h8300
 #define ELF_MACHINE_CODE		EM_H8_300

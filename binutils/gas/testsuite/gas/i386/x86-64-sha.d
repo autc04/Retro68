@@ -70,3 +70,4 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:	0f 38 cd 10          	sha256msg2 \(%rax\),%xmm2
 [ 	]*[a-f0-9]+:	0f 38 cd 58 12       	sha256msg2 0x12\(%rax\),%xmm3
 [ 	]*[a-f0-9]+:	0f 38 cd 24 58       	sha256msg2 \(%rax,%rbx,2\),%xmm4
+#pass

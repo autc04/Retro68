@@ -1,4 +1,8 @@
-#!/bin/sh
+# Copyright (C) 2014 Free Software Foundation, Inc.
+# 
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 
 HEAP_SECTION_MSP430=" "
 HEAP_MEMORY_MSP430=" "
@@ -19,6 +23,12 @@ fi
 
 
 cat <<EOF
+/* Copyright (C) 2014 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("${OUTPUT_FORMAT}","${OUTPUT_FORMAT}","${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})
 
@@ -222,8 +232,8 @@ SECTIONS
     ${RELOCATING+ _vectors_end = . ; }
   } ${RELOCATING+ > vectors}
 
-  .data ${RELOCATING-0} : ${RELOCATING+AT (ADDR (.text) + SIZEOF (.text) + SIZEOF (.rodata))}
-  {  
+  .data ${RELOCATING-0} :
+  {
     ${RELOCATING+ PROVIDE (__data_start = .) ; }
     ${RELOCATING+ PROVIDE (__datastart = .) ; }
     ${RELOCATING+. = ALIGN(2);}
@@ -242,7 +252,7 @@ SECTIONS
     *(.sdata .sdata.* .gnu.linkonce.s.*)
     ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ _edata = . ; }
-  } ${RELOCATING+ > data}
+  } ${RELOCATING+ > data ${RELOCATING+AT> text}}
   
   .bss ${RELOCATING+ SIZEOF(.data) + ADDR(.data)} :
   {

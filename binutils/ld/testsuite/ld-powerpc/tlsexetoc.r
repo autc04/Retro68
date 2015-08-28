@@ -21,7 +21,7 @@ Section Headers:
  +\[[ 0-9]+\] \.tbss +NOBITS .* 0+38 0+ WAT +0 +0 +8
  +\[[ 0-9]+\] \.dynamic +DYNAMIC .* 0+160 10 +WA +4 +0 +8
  +\[[ 0-9]+\] \.opd .*
- +\[[ 0-9]+\] \.got +PROGBITS .* 0+58 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] \.got +PROGBITS .* 0+58 08 +WA +0 +0 +256
  +\[[ 0-9]+\] \.plt +.*
  +\[[ 0-9]+\] \.shstrtab +.*
  +\[[ 0-9]+\] \.symtab +.*

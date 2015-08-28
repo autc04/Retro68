@@ -1,7 +1,5 @@
 /* Renesas / SuperH SH specific support for 32-bit ELF
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013
-   Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -90,11 +88,11 @@ static bfd_boolean
 vxworks_object_p (bfd *abfd ATTRIBUTE_UNUSED)
 {
 #if !defined INCLUDE_SHMEDIA && !defined SH_TARGET_ALREADY_DEFINED
-  extern const bfd_target bfd_elf32_shlvxworks_vec;
-  extern const bfd_target bfd_elf32_shvxworks_vec;
+  extern const bfd_target sh_elf32_vxworks_le_vec;
+  extern const bfd_target sh_elf32_vxworks_vec;
 
-  return (abfd->xvec == &bfd_elf32_shlvxworks_vec
-	  || abfd->xvec == &bfd_elf32_shvxworks_vec);
+  return (abfd->xvec == &sh_elf32_vxworks_le_vec
+	  || abfd->xvec == &sh_elf32_vxworks_vec);
 #else
   return FALSE;
 #endif
@@ -106,11 +104,11 @@ static bfd_boolean
 fdpic_object_p (bfd *abfd ATTRIBUTE_UNUSED)
 {
 #if !defined INCLUDE_SHMEDIA && !defined SH_TARGET_ALREADY_DEFINED
-  extern const bfd_target bfd_elf32_shfd_vec;
-  extern const bfd_target bfd_elf32_shbfd_vec;
+  extern const bfd_target sh_elf32_fdpic_le_vec;
+  extern const bfd_target sh_elf32_fdpic_be_vec;
 
-  return (abfd->xvec == &bfd_elf32_shfd_vec
-	  || abfd->xvec == &bfd_elf32_shbfd_vec);
+  return (abfd->xvec == &sh_elf32_fdpic_le_vec
+	  || abfd->xvec == &sh_elf32_fdpic_be_vec);
 #else
   return FALSE;
 #endif
@@ -256,6 +254,11 @@ sh_elf_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol_in,
   if (symbol_in != NULL
       && bfd_is_und_section (symbol_in->section))
     return bfd_reloc_undefined;
+
+  /* PR 17512: file: 9891ca98.  */
+  if (addr * bfd_octets_per_byte (abfd) + bfd_get_reloc_size (reloc_entry->howto)
+      > bfd_get_section_limit_octets (abfd, input_section))
+    return bfd_reloc_outofrange;
 
   if (bfd_is_com_section (symbol_in->section))
     sym_value = 0;
@@ -476,13 +479,19 @@ sh_elf_info_to_howto (bfd *abfd, arelent *cache_ptr, Elf_Internal_Rela *dst)
 
   r = ELF32_R_TYPE (dst->r_info);
 
-  BFD_ASSERT (r < (unsigned int) R_SH_max);
-  BFD_ASSERT (r < R_SH_FIRST_INVALID_RELOC || r > R_SH_LAST_INVALID_RELOC);
-  BFD_ASSERT (r < R_SH_FIRST_INVALID_RELOC_2 || r > R_SH_LAST_INVALID_RELOC_2);
-  BFD_ASSERT (r < R_SH_FIRST_INVALID_RELOC_3 || r > R_SH_LAST_INVALID_RELOC_3);
-  BFD_ASSERT (r < R_SH_FIRST_INVALID_RELOC_4 || r > R_SH_LAST_INVALID_RELOC_4);
-  BFD_ASSERT (r < R_SH_FIRST_INVALID_RELOC_5 || r > R_SH_LAST_INVALID_RELOC_5);
-  BFD_ASSERT (r < R_SH_FIRST_INVALID_RELOC_6 || r > R_SH_LAST_INVALID_RELOC_6);
+  if (r >= R_SH_max
+      || (r >= R_SH_FIRST_INVALID_RELOC   && r <= R_SH_LAST_INVALID_RELOC)
+      || (r >= R_SH_FIRST_INVALID_RELOC_2 && r <= R_SH_LAST_INVALID_RELOC_2)
+      || (r >= R_SH_FIRST_INVALID_RELOC_3 && r <= R_SH_LAST_INVALID_RELOC_3)
+      || (r >= R_SH_FIRST_INVALID_RELOC_4 && r <= R_SH_LAST_INVALID_RELOC_4)
+      || (r >= R_SH_FIRST_INVALID_RELOC_5 && r <= R_SH_LAST_INVALID_RELOC_5)
+      || (r >= R_SH_FIRST_INVALID_RELOC_6 && r <= R_SH_LAST_INVALID_RELOC_6))
+    {
+      (*_bfd_error_handler) (_("%B: unrecognised SH reloc number: %d"),
+			     abfd, r);
+      bfd_set_error (bfd_error_bad_value);
+      r = R_SH_NONE;
+    }
 
   cache_ptr->howto = get_howto_table (abfd) + r;
 }
@@ -704,10 +713,10 @@ sh_elf_relax_section (bfd *abfd, asection *sec,
       elf_section_data (sec)->this_hdr.contents = contents;
       symtab_hdr->contents = (unsigned char *) isymbuf;
 
-      /* Replace the jsr with a bsr.  */
+      /* Replace the jmp/jsr with a bra/bsr.  */
 
       /* Change the R_SH_USES reloc into an R_SH_IND12W reloc, and
-	 replace the jsr with a bsr.  */
+	 replace the jmp/jsr with a bra/bsr.  */
       irel->r_info = ELF32_R_INFO (ELF32_R_SYM (irelfn->r_info), R_SH_IND12W);
       /* We used to test (ELF32_R_SYM (irelfn->r_info) < symtab_hdr->sh_info)
 	 here, but that only checks if the symbol is an external symbol,
@@ -718,7 +727,10 @@ sh_elf_relax_section (bfd *abfd, asection *sec,
       /* We can't fully resolve this yet, because the external
 	 symbol value may be changed by future relaxing.  We let
 	 the final link phase handle it.  */
-      bfd_put_16 (abfd, (bfd_vma) 0xb000, contents + irel->r_offset);
+      if (bfd_get_16 (abfd, contents + irel->r_offset) & 0x0020)
+	bfd_put_16 (abfd, (bfd_vma) 0xa000, contents + irel->r_offset);
+      else
+	bfd_put_16 (abfd, (bfd_vma) 0xb000, contents + irel->r_offset);
 
       irel->r_addend = -4;
 
@@ -2918,7 +2930,7 @@ sh_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
       h->needs_copy = 1;
     }
 
-  return _bfd_elf_adjust_dynamic_copy (h, s);
+  return _bfd_elf_adjust_dynamic_copy (info, h, s);
 }
 
 /* Allocate space in .plt, .got and associated reloc sections for
@@ -3343,7 +3355,7 @@ sh_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 
   /* Set up .got offsets for local syms, and space for local dynamic
      relocs.  */
-  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link_next)
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
     {
       bfd_signed_vma *local_got;
       bfd_signed_vma *end_local_got;
@@ -3678,7 +3690,9 @@ sh_elf_osec_to_segment (bfd *output_bfd, asection *osec)
 {
   Elf_Internal_Phdr *p = NULL;
 
-  if (output_bfd->xvec->flavour == bfd_target_elf_flavour)
+  if (output_bfd->xvec->flavour == bfd_target_elf_flavour
+      /* PR ld/17110: Do not look for output segments in an input bfd.  */
+      && output_bfd->direction != read_direction)
     p = _bfd_elf_find_segment_containing_section (output_bfd, osec);
 
   /* FIXME: Nothing ever says what this index is relative to.  The kernel
@@ -6582,34 +6596,19 @@ sh_elf_get_flags_from_mach (unsigned long mach)
 }
 #endif /* not sh_elf_set_mach_from_flags */
 
-#ifndef sh_elf_set_private_flags
-/* Function to keep SH specific file flags.  */
-
-static bfd_boolean
-sh_elf_set_private_flags (bfd *abfd, flagword flags)
-{
-  BFD_ASSERT (! elf_flags_init (abfd)
-	      || elf_elfheader (abfd)->e_flags == flags);
-
-  elf_elfheader (abfd)->e_flags = flags;
-  elf_flags_init (abfd) = TRUE;
-  return sh_elf_set_mach_from_flags (abfd);
-}
-#endif /* not sh_elf_set_private_flags */
-
 #ifndef sh_elf_copy_private_data
 /* Copy backend specific data from one object module to another */
 
 static bfd_boolean
 sh_elf_copy_private_data (bfd * ibfd, bfd * obfd)
 {
-  /* Copy object attributes.  */
-  _bfd_elf_copy_obj_attributes (ibfd, obfd);
-
   if (! is_sh_elf (ibfd) || ! is_sh_elf (obfd))
     return TRUE;
 
-  return sh_elf_set_private_flags (obfd, elf_elfheader (ibfd)->e_flags);
+  if (! _bfd_elf_copy_private_bfd_data (ibfd, obfd))
+    return FALSE;
+
+  return sh_elf_set_mach_from_flags (obfd);
 }
 #endif /* not sh_elf_copy_private_data */
 
@@ -7420,9 +7419,9 @@ sh_elf_encode_eh_address (bfd *abfd,
 }
 
 #if !defined SH_TARGET_ALREADY_DEFINED
-#define TARGET_BIG_SYM		bfd_elf32_sh_vec
+#define TARGET_BIG_SYM		sh_elf32_vec
 #define TARGET_BIG_NAME		"elf32-sh"
-#define TARGET_LITTLE_SYM	bfd_elf32_shl_vec
+#define TARGET_LITTLE_SYM	sh_elf32_le_vec
 #define TARGET_LITTLE_NAME	"elf32-shl"
 #endif
 
@@ -7447,8 +7446,6 @@ sh_elf_encode_eh_address (bfd *abfd,
 					sh_elf_get_relocated_section_contents
 #define bfd_elf32_mkobject		sh_elf_mkobject
 #define elf_backend_object_p		sh_elf_object_p
-#define bfd_elf32_bfd_set_private_bfd_flags \
-					sh_elf_set_private_flags
 #define bfd_elf32_bfd_copy_private_bfd_data \
 					sh_elf_copy_private_data
 #define bfd_elf32_bfd_merge_private_bfd_data \
@@ -7497,11 +7494,11 @@ sh_elf_encode_eh_address (bfd *abfd,
 
 /* NetBSD support.  */
 #undef	TARGET_BIG_SYM
-#define	TARGET_BIG_SYM			bfd_elf32_shnbsd_vec
+#define	TARGET_BIG_SYM			sh_elf32_nbsd_vec
 #undef	TARGET_BIG_NAME
 #define	TARGET_BIG_NAME			"elf32-sh-nbsd"
 #undef	TARGET_LITTLE_SYM
-#define	TARGET_LITTLE_SYM		bfd_elf32_shlnbsd_vec
+#define	TARGET_LITTLE_SYM		sh_elf32_nbsd_le_vec
 #undef	TARGET_LITTLE_NAME
 #define	TARGET_LITTLE_NAME		"elf32-shl-nbsd"
 #undef	ELF_MAXPAGESIZE
@@ -7517,11 +7514,11 @@ sh_elf_encode_eh_address (bfd *abfd,
 
 /* Linux support.  */
 #undef	TARGET_BIG_SYM
-#define	TARGET_BIG_SYM			bfd_elf32_shblin_vec
+#define	TARGET_BIG_SYM			sh_elf32_linux_be_vec
 #undef	TARGET_BIG_NAME
 #define	TARGET_BIG_NAME			"elf32-shbig-linux"
 #undef	TARGET_LITTLE_SYM
-#define	TARGET_LITTLE_SYM		bfd_elf32_shlin_vec
+#define	TARGET_LITTLE_SYM		sh_elf32_linux_vec
 #undef	TARGET_LITTLE_NAME
 #define	TARGET_LITTLE_NAME		"elf32-sh-linux"
 #undef	ELF_COMMONPAGESIZE
@@ -7539,11 +7536,11 @@ sh_elf_encode_eh_address (bfd *abfd,
 
 /* FDPIC support.  */
 #undef	TARGET_BIG_SYM
-#define	TARGET_BIG_SYM			bfd_elf32_shbfd_vec
+#define	TARGET_BIG_SYM			sh_elf32_fdpic_be_vec
 #undef	TARGET_BIG_NAME
 #define	TARGET_BIG_NAME			"elf32-shbig-fdpic"
 #undef	TARGET_LITTLE_SYM
-#define	TARGET_LITTLE_SYM		bfd_elf32_shfd_vec
+#define	TARGET_LITTLE_SYM		sh_elf32_fdpic_le_vec
 #undef	TARGET_LITTLE_NAME
 #define	TARGET_LITTLE_NAME		"elf32-sh-fdpic"
 
@@ -7556,11 +7553,11 @@ sh_elf_encode_eh_address (bfd *abfd,
 
 /* VxWorks support.  */
 #undef	TARGET_BIG_SYM
-#define	TARGET_BIG_SYM			bfd_elf32_shvxworks_vec
+#define	TARGET_BIG_SYM			sh_elf32_vxworks_vec
 #undef	TARGET_BIG_NAME
 #define	TARGET_BIG_NAME			"elf32-sh-vxworks"
 #undef	TARGET_LITTLE_SYM
-#define	TARGET_LITTLE_SYM		bfd_elf32_shlvxworks_vec
+#define	TARGET_LITTLE_SYM		sh_elf32_vxworks_le_vec
 #undef	TARGET_LITTLE_NAME
 #define	TARGET_LITTLE_NAME		"elf32-shl-vxworks"
 #undef	elf32_bed

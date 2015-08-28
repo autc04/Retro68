@@ -1,4 +1,4 @@
-/* Copyright 2001, 2003, 2005, 2007, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
    This file is part of GNU binutils.

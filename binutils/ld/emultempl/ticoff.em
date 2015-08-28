@@ -3,8 +3,7 @@
 (echo;echo;echo;echo)>e${EMULATION_NAME}.c # there, now line numbers match ;-)
 fragment <<EOF
 /* This file is part of GLD, the Gnu Linker.
-   Copyright 1999, 2000, 2002, 2003, 2004, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -106,7 +105,7 @@ gld_${EMULATION_NAME}_before_parse(void)
 static char *
 gld_${EMULATION_NAME}_get_script (int *isfile)
 EOF
-if test -n "$COMPILE_IN"
+if test x"$COMPILE_IN" = xyes
 then
 # Scripts compiled in.
 
@@ -181,6 +180,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   gld_${EMULATION_NAME}_list_options,
   NULL, /* recognized file */
   NULL,	/* find_potential_libraries */
-  NULL	/* new_vers_pattern */
+  NULL,	/* new_vers_pattern */
+  NULL  /* extra_map_file_text */
 };
 EOF

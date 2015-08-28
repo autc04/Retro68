@@ -1,5 +1,5 @@
 /* Main program of GNU linker.
-   Copyright 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
    This file is part of the GNU Binutils.
@@ -137,7 +137,7 @@ static bfd_boolean unattached_reloc
   (struct bfd_link_info *, const char *, bfd *, asection *, bfd_vma);
 static bfd_boolean notice
   (struct bfd_link_info *, struct bfd_link_hash_entry *,
-   bfd *, asection *, bfd_vma, flagword, const char *);
+   struct bfd_link_hash_entry *, bfd *, asection *, bfd_vma, flagword);
 
 static struct bfd_link_callbacks link_callbacks =
 {
@@ -297,6 +297,7 @@ main (int argc, char **argv)
   config.maxpagesize = bfd_emul_get_maxpagesize (default_target);
   config.commonpagesize = bfd_emul_get_commonpagesize (default_target);
   lang_init ();
+  ldexp_init ();
   ldemul_before_parse ();
   lang_has_input_file = FALSE;
   parse_args (argc, argv);
@@ -378,6 +379,13 @@ main (int argc, char **argv)
 
   lang_final ();
 
+  /* If the only command line argument has been -v or --version or --verbose
+     then ignore any input files provided by linker scripts and exit now.
+     We do not want to create an output file when the linker is just invoked
+     to provide version information.  */
+  if (argc == 2 && version_printed)
+    xexit (0);
+
   if (!lang_has_input_file)
     {
       if (version_printed || command_line.print_output_format)
@@ -425,7 +433,15 @@ main (int argc, char **argv)
     output_cref (config.map_file != NULL ? config.map_file : stdout);
   if (nocrossref_list != NULL)
     check_nocrossrefs ();
+#if 0
+  {
+    struct bfd_link_hash_entry * h;
 
+    h = bfd_link_hash_lookup (link_info.hash, "__image_base__", 0,0,1);
+    fprintf (stderr, "lookup = %p val %lx\n", h, h ? h->u.def.value : 1);
+  }
+#endif
+  ldexp_finish ();
   lang_finish ();
 
   /* Even if we're producing relocatable output, some non-fatal errors should
@@ -597,8 +613,10 @@ get_emulation (int argc, char **argv)
 		   || strcmp (argv[i], "-mips5") == 0
 		   || strcmp (argv[i], "-mips32") == 0
 		   || strcmp (argv[i], "-mips32r2") == 0
+		   || strcmp (argv[i], "-mips32r6") == 0
 		   || strcmp (argv[i], "-mips64") == 0
-		   || strcmp (argv[i], "-mips64r2") == 0)
+		   || strcmp (argv[i], "-mips64r2") == 0
+		   || strcmp (argv[i], "-mips64r6") == 0)
 	    {
 	      /* FIXME: The arguments -mips1, -mips2, -mips3, etc. are
 		 passed to the linker by some MIPS compilers.  They
@@ -744,6 +762,7 @@ add_keepsyms_file (const char *filename)
 
   free (buf);
   link_info.strip = strip_some;
+  fclose (file);
 }
 
 /* Callbacks from the BFD linker routines.  */
@@ -840,7 +859,8 @@ add_archive_element (struct bfd_link_info *info,
 	{
 	  char buf[100];
 
-	  sprintf (buf, _("Archive member included because of file (symbol)\n\n"));
+	  sprintf (buf, _("Archive member included "
+			  "to satisfy reference by file (symbol)\n\n"));
 	  minfo ("%s", buf);
 	  header_printed = TRUE;
 	}
@@ -1148,6 +1168,25 @@ struct warning_callback_info
   asymbol **asymbols;
 };
 
+/* Look through the relocs to see if we can find a plausible address
+   for SYMBOL in ABFD.  Return TRUE if found.  Otherwise return FALSE.  */
+
+static bfd_boolean
+symbol_warning (const char *warning, const char *symbol, bfd *abfd)
+{
+  struct warning_callback_info cinfo;
+
+  if (!bfd_generic_link_read_symbols (abfd))
+    einfo (_("%B%F: could not read symbols: %E\n"), abfd);
+
+  cinfo.found = FALSE;
+  cinfo.warning = warning;
+  cinfo.symbol = symbol;
+  cinfo.asymbols = bfd_get_outsymbols (abfd);
+  bfd_map_over_sections (abfd, warning_find_reloc, &cinfo);
+  return cinfo.found;
+}
+
 /* This is called when there is a reference to a warning symbol.  */
 
 static bfd_boolean
@@ -1170,24 +1209,14 @@ warning_callback (struct bfd_link_info *info ATTRIBUTE_UNUSED,
     einfo ("%P: %s%s\n", _("warning: "), warning);
   else if (symbol == NULL)
     einfo ("%B: %s%s\n", abfd, _("warning: "), warning);
-  else
+  else if (! symbol_warning (warning, symbol, abfd))
     {
-      struct warning_callback_info cinfo;
-
-      /* Look through the relocs to see if we can find a plausible
-	 address.  */
-
-      if (!bfd_generic_link_read_symbols (abfd))
-	einfo (_("%B%F: could not read symbols: %E\n"), abfd);
-
-      cinfo.found = FALSE;
-      cinfo.warning = warning;
-      cinfo.symbol = symbol;
-      cinfo.asymbols = bfd_get_outsymbols (abfd);
-      bfd_map_over_sections (abfd, warning_find_reloc, &cinfo);
-
-      if (! cinfo.found)
-	einfo ("%B: %s%s\n", abfd, _("warning: "), warning);
+      bfd *b;
+      /* Search all input files for a reference to SYMBOL.  */
+      for (b = info->input_bfds; b; b = b->link.next)
+	if (b != abfd && symbol_warning (warning, symbol, b))
+	  return TRUE;
+      einfo ("%B: %s%s\n", abfd, _("warning: "), warning);
     }
 
   return TRUE;
@@ -1436,11 +1465,11 @@ unattached_reloc (struct bfd_link_info *info ATTRIBUTE_UNUSED,
 static bfd_boolean
 notice (struct bfd_link_info *info,
 	struct bfd_link_hash_entry *h,
+	struct bfd_link_hash_entry *inh ATTRIBUTE_UNUSED,
 	bfd *abfd,
 	asection *section,
 	bfd_vma value,
-	flagword flags ATTRIBUTE_UNUSED,
-	const char *string ATTRIBUTE_UNUSED)
+	flagword flags ATTRIBUTE_UNUSED)
 {
   const char *name;
 

@@ -1,5 +1,5 @@
 /* tc-ia64.c -- Assembler for the HP/Intel IA-64 architecture.
-   Copyright 1998-2013 Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -4466,14 +4466,15 @@ dot_endp (int dummy ATTRIBUTE_UNUSED)
 					  symbol_get_frag (unwind.proc_pending.sym));
       else
 	e.X_add_symbol = unwind.proc_pending.sym;
-      ia64_cons_fix_new (frag_now, where, bytes_per_address, &e);
+      ia64_cons_fix_new (frag_now, where, bytes_per_address, &e,
+			 BFD_RELOC_NONE);
 
       e.X_op = O_pseudo_fixup;
       e.X_op_symbol = pseudo_func[FUNC_SEG_RELATIVE].u.sym;
       e.X_add_number = 0;
       e.X_add_symbol = proc_end;
       ia64_cons_fix_new (frag_now, where + bytes_per_address,
-			 bytes_per_address, &e);
+			 bytes_per_address, &e, BFD_RELOC_NONE);
 
       if (unwind.info)
 	{
@@ -4482,7 +4483,7 @@ dot_endp (int dummy ATTRIBUTE_UNUSED)
 	  e.X_add_number = 0;
 	  e.X_add_symbol = unwind.info;
 	  ia64_cons_fix_new (frag_now, where + (bytes_per_address * 2),
-			     bytes_per_address, &e);
+			     bytes_per_address, &e, BFD_RELOC_NONE);
 	}
     }
   subseg_set (saved_seg, saved_subseg);
@@ -11056,9 +11057,9 @@ ia64_dwarf2_emit_offset (symbolS *symbol, unsigned int size)
    fixup.  We pick the right reloc code depending on the byteorder
    currently in effect.  */
 void
-ia64_cons_fix_new (fragS *f, int where, int nbytes, expressionS *exp)
+ia64_cons_fix_new (fragS *f, int where, int nbytes, expressionS *exp,
+		   bfd_reloc_code_real_type code)
 {
-  bfd_reloc_code_real_type code;
   fixS *fix;
 
   switch (nbytes)

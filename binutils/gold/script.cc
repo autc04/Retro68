@@ -1,6 +1,6 @@
 // script.cc -- handle linker scripts for gold.
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -980,12 +980,19 @@ Symbol_assignment::sized_finalize(Symbol_table* symtab, const Layout* layout,
 				  Output_section* dot_section)
 {
   Output_section* section;
+  elfcpp::STT type = elfcpp::STT_NOTYPE;
+  elfcpp::STV vis = elfcpp::STV_DEFAULT;
+  unsigned char nonvis = 0;
   uint64_t final_val = this->val_->eval_maybe_dot(symtab, layout, true,
 						  is_dot_available,
 						  dot_value, dot_section,
-						  &section, NULL, false);
+						  &section, NULL, &type,
+						  &vis, &nonvis, false);
   Sized_symbol<size>* ssym = symtab->get_sized_symbol<size>(this->sym_);
   ssym->set_value(final_val);
+  ssym->set_type(type);
+  ssym->set_visibility(vis);
+  ssym->set_nonvis(nonvis);
   if (section != NULL)
     ssym->set_output_section(section);
 }
@@ -1005,7 +1012,7 @@ Symbol_assignment::set_if_absolute(Symbol_table* symtab, const Layout* layout,
   uint64_t val = this->val_->eval_maybe_dot(symtab, layout, false,
 					    is_dot_available, dot_value,
 					    dot_section, &val_section, NULL,
-					    false);
+					    NULL, NULL, NULL, false);
   if (val_section != NULL && val_section != dot_section)
     return;
 

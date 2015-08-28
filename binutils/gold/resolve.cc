@@ -1,6 +1,6 @@
 // resolve.cc -- symbol resolution for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -303,14 +303,32 @@ Symbol_table::resolve(Sized_symbol<size>* to,
 
   // If we're processing replacement files, allow new symbols to override
   // the placeholders from the plugin objects.
+  // Treat common symbols specially since it is possible that an ELF
+  // file increased the size of the alignment.
   if (to->source() == Symbol::FROM_OBJECT)
     {
       Pluginobj* obj = to->object()->pluginobj();
       if (obj != NULL
           && parameters->options().plugins()->in_replacement_phase())
         {
-          this->override(to, sym, st_shndx, is_ordinary, object, version);
-          return;
+	  bool adjust_common = false;
+	  typename Sized_symbol<size>::Size_type tosize = 0;
+	  typename Sized_symbol<size>::Value_type tovalue = 0;
+	  if (to->is_common() && !is_ordinary && st_shndx == elfcpp::SHN_COMMON)
+	    {
+	      adjust_common = true;
+	      tosize = to->symsize();
+	      tovalue = to->value();
+	    }
+	  this->override(to, sym, st_shndx, is_ordinary, object, version);
+	  if (adjust_common)
+	    {
+	      if (tosize > to->symsize())
+		to->set_symsize(tosize);
+	      if (tovalue > to->value())
+		to->set_value(tovalue);
+	    }
+	  return;
         }
     }
 
@@ -914,6 +932,10 @@ Symbol::override_base_with_special(const Symbol* from)
 {
   bool same_name = this->name_ == from->name_;
   gold_assert(same_name || this->has_alias());
+
+  // If we are overriding an undef, remember the original binding.
+  if (this->is_undefined())
+    this->set_undef_binding(this->binding_);
 
   this->source_ = from->source_;
   switch (from->source_)

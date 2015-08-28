@@ -7234,6 +7234,34 @@ _start:
 	vpermi2pd	-1024(%edx){1to8}, %zmm5, %zmm6	 # AVX512F Disp8
 	vpermi2pd	-1032(%edx){1to8}, %zmm5, %zmm6	 # AVX512F
 
+	vptestnmd	%zmm4, %zmm5, %k5	 # AVX512F
+	vptestnmd	%zmm4, %zmm5, %k5{%k7}	 # AVX512F
+	vptestnmd	(%ecx), %zmm5, %k5	 # AVX512F
+	vptestnmd	-123456(%esp,%esi,8), %zmm5, %k5	 # AVX512F
+	vptestnmd	(%eax){1to16}, %zmm5, %k5	 # AVX512F
+	vptestnmd	8128(%edx), %zmm5, %k5	 # AVX512F Disp8
+	vptestnmd	8192(%edx), %zmm5, %k5	 # AVX512F
+	vptestnmd	-8192(%edx), %zmm5, %k5	 # AVX512F Disp8
+	vptestnmd	-8256(%edx), %zmm5, %k5	 # AVX512F
+	vptestnmd	508(%edx){1to16}, %zmm5, %k5	 # AVX512F Disp8
+	vptestnmd	512(%edx){1to16}, %zmm5, %k5	 # AVX512F
+	vptestnmd	-512(%edx){1to16}, %zmm5, %k5	 # AVX512F Disp8
+	vptestnmd	-516(%edx){1to16}, %zmm5, %k5	 # AVX512F
+
+	vptestnmq	%zmm4, %zmm5, %k5	 # AVX512F
+	vptestnmq	%zmm4, %zmm5, %k5{%k7}	 # AVX512F
+	vptestnmq	(%ecx), %zmm5, %k5	 # AVX512F
+	vptestnmq	-123456(%esp,%esi,8), %zmm5, %k5	 # AVX512F
+	vptestnmq	(%eax){1to8}, %zmm5, %k5	 # AVX512F
+	vptestnmq	8128(%edx), %zmm5, %k5	 # AVX512F Disp8
+	vptestnmq	8192(%edx), %zmm5, %k5	 # AVX512F
+	vptestnmq	-8192(%edx), %zmm5, %k5	 # AVX512F Disp8
+	vptestnmq	-8256(%edx), %zmm5, %k5	 # AVX512F
+	vptestnmq	1016(%edx){1to8}, %zmm5, %k5	 # AVX512F Disp8
+	vptestnmq	1024(%edx){1to8}, %zmm5, %k5	 # AVX512F
+	vptestnmq	-1024(%edx){1to8}, %zmm5, %k5	 # AVX512F Disp8
+	vptestnmq	-1032(%edx){1to8}, %zmm5, %k5	 # AVX512F
+
 	.intel_syntax noprefix
 	vaddpd	zmm6, zmm5, zmm4	 # AVX512F
 	vaddpd	zmm6{k7}, zmm5, zmm4	 # AVX512F
@@ -11091,10 +11119,10 @@ _start:
 	vgatherqpd	zmm6{k1}, ZMMWORD PTR [eax+zmm7+256]	 # AVX512F
 	vgatherqpd	zmm6{k1}, ZMMWORD PTR [ecx+zmm7*4+1024]	 # AVX512F
 
-	vgatherqps	ymm6{k1}, ZMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
-	vgatherqps	ymm6{k1}, ZMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
-	vgatherqps	ymm6{k1}, zMMWORD PTR [eax+zmm7+256]	 # AVX512F
-	vgatherqps	ymm6{k1}, ZMMWORD PTR [ecx+zmm7*4+1024]	 # AVX512F
+	vgatherqps	ymm6{k1}, YMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
+	vgatherqps	ymm6{k1}, YMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
+	vgatherqps	ymm6{k1}, YMMWORD PTR [eax+zmm7+256]	 # AVX512F
+	vgatherqps	ymm6{k1}, YMMWORD PTR [ecx+zmm7*4+1024]	 # AVX512F
 
 	vgetexppd	zmm6, zmm5	 # AVX512F
 	vgetexppd	zmm6{k7}, zmm5	 # AVX512F
@@ -12378,10 +12406,10 @@ _start:
 	vpgatherdq	zmm6{k1}, ZMMWORD PTR [eax+ymm7+256]	 # AVX512F
 	vpgatherdq	zmm6{k1}, ZMMWORD PTR [ecx+ymm7*4+1024]	 # AVX512F
 
-	vpgatherqd	ymm6{k1}, ZMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
-	vpgatherqd	ymm6{k1}, ZMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
-	vpgatherqd	ymm6{k1}, ZMMWORD PTR [eax+zmm7+256]	 # AVX512F
-	vpgatherqd	ymm6{k1}, ZMMWORD PTR [ecx+zmm7*4+1024]	 # AVX512F
+	vpgatherqd	ymm6{k1}, YMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
+	vpgatherqd	ymm6{k1}, YMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
+	vpgatherqd	ymm6{k1}, YMMWORD PTR [eax+zmm7+256]	 # AVX512F
+	vpgatherqd	ymm6{k1}, YMMWORD PTR [ecx+zmm7*4+1024]	 # AVX512F
 
 	vpgatherqq	zmm6{k1}, ZMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
 	vpgatherqq	zmm6{k1}, ZMMWORD PTR [ebp+zmm7*8-123]	 # AVX512F
@@ -12683,10 +12711,10 @@ _start:
 	vpscatterdq	ZMMWORD PTR [eax+ymm7+256]{k1}, zmm6	 # AVX512F
 	vpscatterdq	ZMMWORD PTR [ecx+ymm7*4+1024]{k1}, zmm6	 # AVX512F
 
-	vpscatterqd	ZMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
-	vpscatterqd	ZMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
-	vpscatterqd	ZMMWORD PTR [eax+zmm7+256]{k1}, ymm6	 # AVX512F
-	vpscatterqd	ZMMWORD PTR [ecx+zmm7*4+1024]{k1}, ymm6	 # AVX512F
+	vpscatterqd	YMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
+	vpscatterqd	YMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
+	vpscatterqd	YMMWORD PTR [eax+zmm7+256]{k1}, ymm6	 # AVX512F
+	vpscatterqd	YMMWORD PTR [ecx+zmm7*4+1024]{k1}, ymm6	 # AVX512F
 
 	vpscatterqq	ZMMWORD PTR [ebp+zmm7*8-123]{k1}, zmm6	 # AVX512F
 	vpscatterqq	ZMMWORD PTR [ebp+zmm7*8-123]{k1}, zmm6	 # AVX512F
@@ -13144,10 +13172,10 @@ _start:
 	vscatterqpd	ZMMWORD PTR [eax+zmm7+256]{k1}, zmm6	 # AVX512F
 	vscatterqpd	ZMMWORD PTR [ecx+zmm7*4+1024]{k1}, zmm6	 # AVX512F
 
-	vscatterqps	ZMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
-	vscatterqps	ZMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
-	vscatterqps	ZMMWORD PTR [eax+zmm7+256]{k1}, ymm6	 # AVX512F
-	vscatterqps	ZMMWORD PTR [ecx+zmm7*4+1024]{k1}, ymm6	 # AVX512F
+	vscatterqps	YMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
+	vscatterqps	YMMWORD PTR [ebp+zmm7*8-123]{k1}, ymm6	 # AVX512F
+	vscatterqps	YMMWORD PTR [eax+zmm7+256]{k1}, ymm6	 # AVX512F
+	vscatterqps	YMMWORD PTR [ecx+zmm7*4+1024]{k1}, ymm6	 # AVX512F
 
 	vshufpd	zmm6, zmm5, zmm4, 0xab	 # AVX512F
 	vshufpd	zmm6{k7}, zmm5, zmm4, 0xab	 # AVX512F
@@ -14465,3 +14493,30 @@ _start:
 	vpermi2pd	zmm6, zmm5, [edx-1024]{1to8}	 # AVX512F Disp8
 	vpermi2pd	zmm6, zmm5, [edx-1032]{1to8}	 # AVX512F
 
+	vptestnmd	k5, zmm5, zmm4	 # AVX512F
+	vptestnmd	k5{k7}, zmm5, zmm4	 # AVX512F
+	vptestnmd	k5, zmm5, ZMMWORD PTR [ecx]	 # AVX512F
+	vptestnmd	k5, zmm5, ZMMWORD PTR [esp+esi*8-123456]	 # AVX512F
+	vptestnmd	k5, zmm5, [eax]{1to16}	 # AVX512F
+	vptestnmd	k5, zmm5, ZMMWORD PTR [edx+8128]	 # AVX512F Disp8
+	vptestnmd	k5, zmm5, ZMMWORD PTR [edx+8192]	 # AVX512F
+	vptestnmd	k5, zmm5, ZMMWORD PTR [edx-8192]	 # AVX512F Disp8
+	vptestnmd	k5, zmm5, ZMMWORD PTR [edx-8256]	 # AVX512F
+	vptestnmd	k5, zmm5, [edx+508]{1to16}	 # AVX512F Disp8
+	vptestnmd	k5, zmm5, [edx+512]{1to16}	 # AVX512F
+	vptestnmd	k5, zmm5, [edx-512]{1to16}	 # AVX512F Disp8
+	vptestnmd	k5, zmm5, [edx-516]{1to16}	 # AVX512F
+
+	vptestnmq	k5, zmm5, zmm4	 # AVX512F
+	vptestnmq	k5{k7}, zmm5, zmm4	 # AVX512F
+	vptestnmq	k5, zmm5, ZMMWORD PTR [ecx]	 # AVX512F
+	vptestnmq	k5, zmm5, ZMMWORD PTR [esp+esi*8-123456]	 # AVX512F
+	vptestnmq	k5, zmm5, [eax]{1to8}	 # AVX512F
+	vptestnmq	k5, zmm5, ZMMWORD PTR [edx+8128]	 # AVX512F Disp8
+	vptestnmq	k5, zmm5, ZMMWORD PTR [edx+8192]	 # AVX512F
+	vptestnmq	k5, zmm5, ZMMWORD PTR [edx-8192]	 # AVX512F Disp8
+	vptestnmq	k5, zmm5, ZMMWORD PTR [edx-8256]	 # AVX512F
+	vptestnmq	k5, zmm5, [edx+1016]{1to8}	 # AVX512F Disp8
+	vptestnmq	k5, zmm5, [edx+1024]{1to8}	 # AVX512F
+	vptestnmq	k5, zmm5, [edx-1024]{1to8}	 # AVX512F Disp8
+	vptestnmq	k5, zmm5, [edx-1032]{1to8}	 # AVX512F

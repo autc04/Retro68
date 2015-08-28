@@ -1,3 +1,8 @@
+# Copyright (C) 2014 Free Software Foundation, Inc.
+# 
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 
 CTOR=".ctors ${CONSTRUCTING-0} : 
   {
@@ -38,6 +43,12 @@ DTOR="  .dtors	${CONSTRUCTING-0} :
   } ${RELOCATING+ > ${DATA_MEMORY}}"
 
 cat <<EOF
+/* Copyright (C) 2014 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})
 

@@ -1,5 +1,5 @@
 /* tc-score.c -- Assembler for Score
-   Copyright 2006, 2007, 2008, 2009, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 2006-2014 Free Software Foundation, Inc.
    Contributed by:
    Brain.lin (brain.lin@sunplusct.com)
    Mei Ligang (ligang@sunnorth.com.cn)
@@ -5363,7 +5363,7 @@ s3_parse_pce_inst (char *insnstr)
 	 || ((pec_part_1.size == s3_INSN16_SIZE) && (s3_inst.size == s3_INSN_SIZE)))
     {
       s3_inst.error = _("pce instruction error (16 bit || 16 bit)'");
-      sprintf (s3_inst.str, insnstr);
+      sprintf (s3_inst.str, "%s", insnstr);
       return;
     }
 
@@ -6315,7 +6315,7 @@ s3_build_score_ops_hsh (void)
   for (i = 0; i < sizeof (s3_score_insns) / sizeof (struct s3_asm_opcode); i++)
     {
       const struct s3_asm_opcode *insn = s3_score_insns + i;
-      unsigned len = strlen (insn->template_name);
+      size_t len = strlen (insn->template_name);
       struct s3_asm_opcode *new_opcode;
       char *template_name;
       new_opcode = (struct s3_asm_opcode *)
@@ -6344,7 +6344,7 @@ s3_build_dependency_insn_hsh (void)
   for (i = 0; i < sizeof (s3_insn_to_dependency_table) / sizeof (s3_insn_to_dependency_table[0]); i++)
     {
       const struct s3_insn_to_dependency *tmp = s3_insn_to_dependency_table + i;
-      unsigned len = strlen (tmp->insn_name);
+      size_t len = strlen (tmp->insn_name);
       struct s3_insn_to_dependency *new_i2n;
 
       new_i2n = (struct s3_insn_to_dependency *)
@@ -6854,8 +6854,8 @@ s3_relax_branch_inst16 (fragS * fragp)
     frag_addr = 0;
   else
     {
-      if (s->bsym != 0)
-        symbol_address = (addressT) s->sy_frag->fr_address;
+      if (s->bsym != NULL)
+        symbol_address = (addressT) symbol_get_frag (s)->fr_address;
     }
 
   inst_value = s3_md_chars_to_number (fragp->fr_literal, s3_INSN16_SIZE);
@@ -6901,8 +6901,8 @@ s3_relax_cmpbranch_inst32 (fragS * fragp)
     frag_addr = 0;
   else
     {
-      if (s->bsym != 0)
-        symbol_address = (addressT) s->sy_frag->fr_address;
+      if (s->bsym != NULL)
+	symbol_address = (addressT) symbol_get_frag (s)->fr_address;
     }
 
   inst_value = s3_md_chars_to_number (fragp->fr_literal, s3_INSN_SIZE);

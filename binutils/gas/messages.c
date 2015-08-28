@@ -1,7 +1,5 @@
 /* messages.c - error reporter -
-   Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
    GAS is free software; you can redistribute it and/or modify
@@ -153,13 +151,12 @@ as_warn_internal (char *file, unsigned int line, char *buffer)
   if (file)
     {
       if (line != 0)
-	fprintf (stderr, "%s:%u: ", file, line);
+	fprintf (stderr, "%s:%u: %s%s\n", file, line, _("Warning: "), buffer);
       else
-	fprintf (stderr, "%s: ", file);
+	fprintf (stderr, "%s: %s%s\n", file, _("Warning: "), buffer);
     }
-  fprintf (stderr, _("Warning: "));
-  fputs (buffer, stderr);
-  (void) putc ('\n', stderr);
+  else
+    fprintf (stderr, "%s%s\n", _("Warning: "), buffer);
 #ifndef NO_LISTING
   listing_warning (buffer);
 #endif
@@ -219,13 +216,12 @@ as_bad_internal (char *file, unsigned int line, char *buffer)
   if (file)
     {
       if (line != 0)
-	fprintf (stderr, "%s:%u: ", file, line);
+	fprintf (stderr, "%s:%u: %s%s\n", file, line, _("Error: "), buffer);
       else
-	fprintf (stderr, "%s: ", file);
+	fprintf (stderr, "%s: %s%s\n", file, _("Error: "), buffer);
     }
-  fprintf (stderr, _("Error: "));
-  fputs (buffer, stderr);
-  (void) putc ('\n', stderr);
+  else
+    fprintf (stderr, "%s%s\n", _("Error: "), buffer);
 #ifndef NO_LISTING
   listing_error (buffer);
 #endif

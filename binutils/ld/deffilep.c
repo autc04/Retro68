@@ -133,8 +133,7 @@
 #line 1 "deffilep.y"
  /* deffilep.y - parser for .def files */
 
-/*   Copyright 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006,
-     2007, 2009 Free Software Foundation, Inc.
+/*   Copyright (C) 1995-2014 Free Software Foundation, Inc.
 
      This file is part of GNU Binutils.
 
@@ -264,7 +263,7 @@ static const char *lex_parse_string_end = 0;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 114 "deffilep.y"
+#line 113 "deffilep.y"
 {
   char *id;
   const char *id_const;
@@ -273,7 +272,7 @@ typedef union YYSTYPE
   char *digits;
 }
 /* Line 193 of yacc.c.  */
-#line 277 "deffilep.c"
+#line 276 "deffilep.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -286,7 +285,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 290 "deffilep.c"
+#line 289 "deffilep.c"
 
 #ifdef short
 # undef short
@@ -606,16 +605,16 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   139,   139,   140,   144,   145,   146,   147,   148,   149,
-     150,   151,   152,   153,   154,   155,   156,   157,   161,   163,
-     164,   171,   178,   179,   182,   183,   184,   185,   186,   187,
-     188,   189,   192,   193,   197,   199,   201,   203,   205,   207,
-     212,   213,   217,   218,   222,   223,   227,   228,   230,   231,
-     235,   236,   237,   238,   242,   243,   244,   245,   246,   247,
-     248,   249,   250,   251,   252,   253,   260,   261,   262,   263,
-     264,   265,   266,   267,   268,   269,   272,   273,   279,   285,
-     291,   299,   300,   303,   304,   308,   309,   313,   314,   317,
-     318,   321,   322,   328,   336,   337,   340,   341,   344,   346
+       0,   138,   138,   139,   143,   144,   145,   146,   147,   148,
+     149,   150,   151,   152,   153,   154,   155,   156,   160,   162,
+     163,   170,   177,   178,   181,   182,   183,   184,   185,   186,
+     187,   188,   191,   192,   196,   198,   200,   202,   204,   206,
+     211,   212,   216,   217,   221,   222,   226,   227,   229,   230,
+     234,   235,   236,   237,   241,   242,   243,   244,   245,   246,
+     247,   248,   249,   250,   251,   252,   259,   260,   261,   262,
+     263,   264,   265,   266,   267,   268,   271,   272,   278,   284,
+     290,   298,   299,   302,   303,   307,   308,   312,   313,   316,
+     317,   320,   321,   327,   335,   336,   339,   340,   343,   345
 };
 #endif
 
@@ -1616,312 +1615,312 @@ yyreduce:
   switch (yyn)
     {
         case 4:
-#line 144 "deffilep.y"
+#line 143 "deffilep.y"
     { def_image_name ((yyvsp[(2) - (3)].id), (yyvsp[(3) - (3)].vma), 0); }
     break;
 
   case 5:
-#line 145 "deffilep.y"
+#line 144 "deffilep.y"
     { def_image_name ((yyvsp[(2) - (3)].id), (yyvsp[(3) - (3)].vma), 1); }
     break;
 
   case 6:
-#line 146 "deffilep.y"
+#line 145 "deffilep.y"
     { def_description ((yyvsp[(2) - (2)].id));}
     break;
 
   case 7:
-#line 147 "deffilep.y"
+#line 146 "deffilep.y"
     { def_stacksize ((yyvsp[(2) - (3)].number), (yyvsp[(3) - (3)].number));}
     break;
 
   case 8:
-#line 148 "deffilep.y"
+#line 147 "deffilep.y"
     { def_heapsize ((yyvsp[(2) - (3)].number), (yyvsp[(3) - (3)].number));}
     break;
 
   case 9:
-#line 149 "deffilep.y"
+#line 148 "deffilep.y"
     { def_section ("CODE", (yyvsp[(2) - (2)].number));}
     break;
 
   case 10:
-#line 150 "deffilep.y"
+#line 149 "deffilep.y"
     { def_section ("DATA", (yyvsp[(2) - (2)].number));}
     break;
 
   case 14:
-#line 154 "deffilep.y"
+#line 153 "deffilep.y"
     { def_version ((yyvsp[(2) - (2)].number), 0);}
     break;
 
   case 15:
-#line 155 "deffilep.y"
+#line 154 "deffilep.y"
     { def_version ((yyvsp[(2) - (4)].number), (yyvsp[(4) - (4)].number));}
     break;
 
   case 16:
-#line 156 "deffilep.y"
+#line 155 "deffilep.y"
     { def_directive ((yyvsp[(2) - (2)].id));}
     break;
 
   case 17:
-#line 157 "deffilep.y"
+#line 156 "deffilep.y"
     { def_aligncomm ((yyvsp[(2) - (4)].id), (yyvsp[(4) - (4)].number));}
     break;
 
   case 21:
-#line 172 "deffilep.y"
+#line 171 "deffilep.y"
     { def_exports ((yyvsp[(1) - (7)].id), (yyvsp[(2) - (7)].id), (yyvsp[(3) - (7)].number), (yyvsp[(5) - (7)].number), (yyvsp[(7) - (7)].id)); }
     break;
 
   case 22:
-#line 178 "deffilep.y"
+#line 177 "deffilep.y"
     { (yyval.number) = (yyvsp[(1) - (3)].number) | (yyvsp[(3) - (3)].number); }
     break;
 
   case 23:
-#line 179 "deffilep.y"
+#line 178 "deffilep.y"
     { (yyval.number) = 0; }
     break;
 
   case 24:
-#line 182 "deffilep.y"
+#line 181 "deffilep.y"
     { (yyval.number) = 1; }
     break;
 
   case 25:
-#line 183 "deffilep.y"
+#line 182 "deffilep.y"
     { (yyval.number) = 1; }
     break;
 
   case 26:
-#line 184 "deffilep.y"
+#line 183 "deffilep.y"
     { (yyval.number) = 2; }
     break;
 
   case 27:
-#line 185 "deffilep.y"
+#line 184 "deffilep.y"
     { (yyval.number) = 2; }
     break;
 
   case 28:
-#line 186 "deffilep.y"
+#line 185 "deffilep.y"
     { (yyval.number) = 4; }
     break;
 
   case 29:
-#line 187 "deffilep.y"
+#line 186 "deffilep.y"
     { (yyval.number) = 4; }
     break;
 
   case 30:
-#line 188 "deffilep.y"
+#line 187 "deffilep.y"
     { (yyval.number) = 8; }
     break;
 
   case 31:
-#line 189 "deffilep.y"
+#line 188 "deffilep.y"
     { (yyval.number) = 8; }
     break;
 
   case 34:
-#line 198 "deffilep.y"
+#line 197 "deffilep.y"
     { def_import ((yyvsp[(1) - (8)].id), (yyvsp[(3) - (8)].id), (yyvsp[(5) - (8)].id), (yyvsp[(7) - (8)].id), -1, (yyvsp[(8) - (8)].id)); }
     break;
 
   case 35:
-#line 200 "deffilep.y"
+#line 199 "deffilep.y"
     { def_import ((yyvsp[(1) - (8)].id), (yyvsp[(3) - (8)].id), (yyvsp[(5) - (8)].id),  0, (yyvsp[(7) - (8)].number), (yyvsp[(8) - (8)].id)); }
     break;
 
   case 36:
-#line 202 "deffilep.y"
+#line 201 "deffilep.y"
     { def_import ((yyvsp[(1) - (6)].id), (yyvsp[(3) - (6)].id),  0, (yyvsp[(5) - (6)].id), -1, (yyvsp[(6) - (6)].id)); }
     break;
 
   case 37:
-#line 204 "deffilep.y"
+#line 203 "deffilep.y"
     { def_import ((yyvsp[(1) - (6)].id), (yyvsp[(3) - (6)].id),  0,  0, (yyvsp[(5) - (6)].number), (yyvsp[(6) - (6)].id)); }
     break;
 
   case 38:
-#line 206 "deffilep.y"
+#line 205 "deffilep.y"
     { def_import( 0, (yyvsp[(1) - (6)].id), (yyvsp[(3) - (6)].id), (yyvsp[(5) - (6)].id), -1, (yyvsp[(6) - (6)].id)); }
     break;
 
   case 39:
-#line 208 "deffilep.y"
+#line 207 "deffilep.y"
     { def_import ( 0, (yyvsp[(1) - (4)].id),  0, (yyvsp[(3) - (4)].id), -1, (yyvsp[(4) - (4)].id)); }
     break;
 
   case 42:
-#line 217 "deffilep.y"
+#line 216 "deffilep.y"
     { def_section ((yyvsp[(1) - (2)].id), (yyvsp[(2) - (2)].number));}
     break;
 
   case 43:
-#line 218 "deffilep.y"
+#line 217 "deffilep.y"
     { def_section_alt ((yyvsp[(1) - (2)].id), (yyvsp[(2) - (2)].id));}
     break;
 
   case 44:
-#line 222 "deffilep.y"
+#line 221 "deffilep.y"
     { (yyval.number) = (yyvsp[(1) - (3)].number) | (yyvsp[(3) - (3)].number); }
     break;
 
   case 45:
-#line 223 "deffilep.y"
+#line 222 "deffilep.y"
     { (yyval.number) = (yyvsp[(1) - (1)].number); }
     break;
 
   case 48:
-#line 230 "deffilep.y"
+#line 229 "deffilep.y"
     { (yyval.number)=(yyvsp[(2) - (2)].number);}
     break;
 
   case 49:
-#line 231 "deffilep.y"
+#line 230 "deffilep.y"
     { (yyval.number)=-1;}
     break;
 
   case 50:
-#line 235 "deffilep.y"
+#line 234 "deffilep.y"
     { (yyval.number) = 1;}
     break;
 
   case 51:
-#line 236 "deffilep.y"
+#line 235 "deffilep.y"
     { (yyval.number) = 2;}
     break;
 
   case 52:
-#line 237 "deffilep.y"
+#line 236 "deffilep.y"
     { (yyval.number)=4;}
     break;
 
   case 53:
-#line 238 "deffilep.y"
+#line 237 "deffilep.y"
     { (yyval.number)=8;}
     break;
 
   case 54:
-#line 242 "deffilep.y"
+#line 241 "deffilep.y"
     { (yyval.id_const) = "BASE"; }
     break;
 
   case 55:
-#line 243 "deffilep.y"
+#line 242 "deffilep.y"
     { (yyval.id_const) = "CODE"; }
     break;
 
   case 56:
-#line 244 "deffilep.y"
+#line 243 "deffilep.y"
     { (yyval.id_const) = "CONSTANT"; }
     break;
 
   case 57:
-#line 245 "deffilep.y"
+#line 244 "deffilep.y"
     { (yyval.id_const) = "constant"; }
     break;
 
   case 58:
-#line 246 "deffilep.y"
+#line 245 "deffilep.y"
     { (yyval.id_const) = "DATA"; }
     break;
 
   case 59:
-#line 247 "deffilep.y"
+#line 246 "deffilep.y"
     { (yyval.id_const) = "data"; }
     break;
 
   case 60:
-#line 248 "deffilep.y"
+#line 247 "deffilep.y"
     { (yyval.id_const) = "DESCRIPTION"; }
     break;
 
   case 61:
-#line 249 "deffilep.y"
+#line 248 "deffilep.y"
     { (yyval.id_const) = "DIRECTIVE"; }
     break;
 
   case 62:
-#line 250 "deffilep.y"
+#line 249 "deffilep.y"
     { (yyval.id_const) = "EXECUTE"; }
     break;
 
   case 63:
-#line 251 "deffilep.y"
+#line 250 "deffilep.y"
     { (yyval.id_const) = "EXPORTS"; }
     break;
 
   case 64:
-#line 252 "deffilep.y"
+#line 251 "deffilep.y"
     { (yyval.id_const) = "HEAPSIZE"; }
     break;
 
   case 65:
-#line 253 "deffilep.y"
+#line 252 "deffilep.y"
     { (yyval.id_const) = "IMPORTS"; }
     break;
 
   case 66:
-#line 260 "deffilep.y"
+#line 259 "deffilep.y"
     { (yyval.id_const) = "NAME"; }
     break;
 
   case 67:
-#line 261 "deffilep.y"
+#line 260 "deffilep.y"
     { (yyval.id_const) = "NONAME"; }
     break;
 
   case 68:
-#line 262 "deffilep.y"
+#line 261 "deffilep.y"
     { (yyval.id_const) = "noname"; }
     break;
 
   case 69:
-#line 263 "deffilep.y"
+#line 262 "deffilep.y"
     { (yyval.id_const) = "PRIVATE"; }
     break;
 
   case 70:
-#line 264 "deffilep.y"
+#line 263 "deffilep.y"
     { (yyval.id_const) = "private"; }
     break;
 
   case 71:
-#line 265 "deffilep.y"
+#line 264 "deffilep.y"
     { (yyval.id_const) = "READ"; }
     break;
 
   case 72:
-#line 266 "deffilep.y"
+#line 265 "deffilep.y"
     { (yyval.id_const) = "SHARED"; }
     break;
 
   case 73:
-#line 267 "deffilep.y"
+#line 266 "deffilep.y"
     { (yyval.id_const) = "STACKSIZE"; }
     break;
 
   case 74:
-#line 268 "deffilep.y"
+#line 267 "deffilep.y"
     { (yyval.id_const) = "VERSION"; }
     break;
 
   case 75:
-#line 269 "deffilep.y"
+#line 268 "deffilep.y"
     { (yyval.id_const) = "WRITE"; }
     break;
 
   case 76:
-#line 272 "deffilep.y"
+#line 271 "deffilep.y"
     { (yyval.id) = (yyvsp[(1) - (1)].id); }
     break;
 
   case 77:
-#line 274 "deffilep.y"
+#line 273 "deffilep.y"
     {
 	    char *name = xmalloc (strlen ((yyvsp[(2) - (2)].id_const)) + 2);
 	    sprintf (name, ".%s", (yyvsp[(2) - (2)].id_const));
@@ -1930,7 +1929,7 @@ yyreduce:
     break;
 
   case 78:
-#line 280 "deffilep.y"
+#line 279 "deffilep.y"
     {
 	    char *name = def_pool_alloc (strlen ((yyvsp[(2) - (2)].id)) + 2);
 	    sprintf (name, ".%s", (yyvsp[(2) - (2)].id));
@@ -1939,7 +1938,7 @@ yyreduce:
     break;
 
   case 79:
-#line 286 "deffilep.y"
+#line 285 "deffilep.y"
     {
 	    char *name = def_pool_alloc (strlen ((yyvsp[(1) - (3)].id_const)) + 1 + strlen ((yyvsp[(3) - (3)].id)) + 1);
 	    sprintf (name, "%s.%s", (yyvsp[(1) - (3)].id_const), (yyvsp[(3) - (3)].id));
@@ -1948,7 +1947,7 @@ yyreduce:
     break;
 
   case 80:
-#line 292 "deffilep.y"
+#line 291 "deffilep.y"
     {
 	    char *name = def_pool_alloc (strlen ((yyvsp[(1) - (3)].id)) + 1 + strlen ((yyvsp[(3) - (3)].id)) + 1);
 	    sprintf (name, "%s.%s", (yyvsp[(1) - (3)].id), (yyvsp[(3) - (3)].id));
@@ -1957,62 +1956,62 @@ yyreduce:
     break;
 
   case 81:
-#line 299 "deffilep.y"
+#line 298 "deffilep.y"
     { (yyval.id) = (yyvsp[(1) - (1)].id); }
     break;
 
   case 82:
-#line 300 "deffilep.y"
+#line 299 "deffilep.y"
     { (yyval.id) = ""; }
     break;
 
   case 83:
-#line 303 "deffilep.y"
+#line 302 "deffilep.y"
     { (yyval.id) = (yyvsp[(2) - (2)].id); }
     break;
 
   case 84:
-#line 304 "deffilep.y"
+#line 303 "deffilep.y"
     { (yyval.id) = 0; }
     break;
 
   case 85:
-#line 308 "deffilep.y"
+#line 307 "deffilep.y"
     { (yyval.number) = (yyvsp[(2) - (2)].number);}
     break;
 
   case 86:
-#line 309 "deffilep.y"
+#line 308 "deffilep.y"
     { (yyval.number) = -1;}
     break;
 
   case 87:
-#line 313 "deffilep.y"
+#line 312 "deffilep.y"
     { (yyval.id) = (yyvsp[(2) - (2)].id); }
     break;
 
   case 88:
-#line 314 "deffilep.y"
+#line 313 "deffilep.y"
     { (yyval.id) =  0; }
     break;
 
   case 89:
-#line 317 "deffilep.y"
+#line 316 "deffilep.y"
     { (yyval.vma) = (yyvsp[(3) - (3)].vma);}
     break;
 
   case 90:
-#line 318 "deffilep.y"
+#line 317 "deffilep.y"
     { (yyval.vma) = (bfd_vma) -1;}
     break;
 
   case 91:
-#line 321 "deffilep.y"
+#line 320 "deffilep.y"
     { (yyval.id) = (yyvsp[(1) - (1)].id); }
     break;
 
   case 92:
-#line 323 "deffilep.y"
+#line 322 "deffilep.y"
     {
 	    char *id = def_pool_alloc (strlen ((yyvsp[(2) - (2)].id)) + 2);
 	    sprintf (id, ".%s", (yyvsp[(2) - (2)].id));
@@ -2021,7 +2020,7 @@ yyreduce:
     break;
 
   case 93:
-#line 329 "deffilep.y"
+#line 328 "deffilep.y"
     {
 	    char *id = def_pool_alloc (strlen ((yyvsp[(1) - (4)].id)) + 1 + strlen ((yyvsp[(3) - (4)].digits)) + strlen ((yyvsp[(4) - (4)].id)) + 1);
 	    sprintf (id, "%s.%s%s", (yyvsp[(1) - (4)].id), (yyvsp[(3) - (4)].digits), (yyvsp[(4) - (4)].id));
@@ -2030,38 +2029,38 @@ yyreduce:
     break;
 
   case 94:
-#line 336 "deffilep.y"
+#line 335 "deffilep.y"
     { (yyval.digits) = (yyvsp[(1) - (1)].digits); }
     break;
 
   case 95:
-#line 337 "deffilep.y"
+#line 336 "deffilep.y"
     { (yyval.digits) = ""; }
     break;
 
   case 96:
-#line 340 "deffilep.y"
+#line 339 "deffilep.y"
     { (yyval.id) = (yyvsp[(1) - (1)].id); }
     break;
 
   case 97:
-#line 341 "deffilep.y"
+#line 340 "deffilep.y"
     { (yyval.id) = ""; }
     break;
 
   case 98:
-#line 344 "deffilep.y"
+#line 343 "deffilep.y"
     { (yyval.number) = strtoul ((yyvsp[(1) - (1)].digits), 0, 0); }
     break;
 
   case 99:
-#line 346 "deffilep.y"
+#line 345 "deffilep.y"
     { (yyval.vma) = (bfd_vma) strtoull ((yyvsp[(1) - (1)].digits), 0, 0); }
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 2065 "deffilep.c"
+#line 2064 "deffilep.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2275,7 +2274,7 @@ yyreturn:
 }
 
 
-#line 348 "deffilep.y"
+#line 347 "deffilep.y"
 
 
 /*****************************************************************************

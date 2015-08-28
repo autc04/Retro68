@@ -35,28 +35,28 @@ Contents of the .[z]?debug_info section:
    Abbrev Offset: 0x0
    Pointer Size:  4
  <0><b>: Abbrev Number: 1 \(DW_TAG_compile_unit\)
-    <c>   DW_AT_producer    : \(indirect string, offset: 0x0\): GNU C 4.4.4	
+    <c>   DW_AT_producer    : \(indirect string, offset: 0x0\): GNU C 4.4.4
     <10>   DW_AT_language    : 1	\(ANSI C\)
-    <11>   DW_AT_name        : \(indirect string, offset: 0x18\): compressed-1.c	
-    <15>   DW_AT_comp_dir    : \(indirect string, offset: 0x16\): .	
-    <19>   DW_AT_low_pc      : 0x0	
-    <1d>   DW_AT_high_pc     : 0x1b	
-    <21>   DW_AT_stmt_list   : 0x0	
+    <11>   DW_AT_name        : \(indirect string, offset: 0x18\): compressed-1.c
+    <15>   DW_AT_comp_dir    : \(indirect string, offset: 0x16\): .
+    <19>   DW_AT_low_pc      : 0x0
+    <1d>   DW_AT_high_pc     : 0x1b
+    <21>   DW_AT_stmt_list   : 0x0
  <1><25>: Abbrev Number: 2 \(DW_TAG_subprogram\)
-    <26>   DW_AT_external    : 1	
-    <27>   DW_AT_name        : \(indirect string, offset: 0xc\): foo2	
-    <2b>   DW_AT_decl_file   : 1	
-    <2c>   DW_AT_decl_line   : 10	
-    <2d>   DW_AT_low_pc      : 0x0	
-    <31>   DW_AT_high_pc     : 0x2	
+    <26>   DW_AT_external    : 1
+    <27>   DW_AT_name        : \(indirect string, offset: 0xc\): foo2
+    <2b>   DW_AT_decl_file   : 1
+    <2c>   DW_AT_decl_line   : 10
+    <2d>   DW_AT_low_pc      : 0x0
+    <31>   DW_AT_high_pc     : 0x2
     <35>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
  <1><37>: Abbrev Number: 2 \(DW_TAG_subprogram\)
-    <38>   DW_AT_external    : 1	
-    <39>   DW_AT_name        : \(indirect string, offset: 0x11\): foo1	
-    <3d>   DW_AT_decl_file   : 1	
-    <3e>   DW_AT_decl_line   : 4	
-    <3f>   DW_AT_low_pc      : 0x10	
-    <43>   DW_AT_high_pc     : 0x1b	
+    <38>   DW_AT_external    : 1
+    <39>   DW_AT_name        : \(indirect string, offset: 0x11\): foo1
+    <3d>   DW_AT_decl_file   : 1
+    <3e>   DW_AT_decl_line   : 4
+    <3f>   DW_AT_low_pc      : 0x10
+    <43>   DW_AT_high_pc     : 0x1b
     <47>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
  <1><49>: Abbrev Number: 0
 

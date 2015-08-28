@@ -1,6 +1,5 @@
 # Expect script for tests for >64k sections
-#   Copyright 2002, 2003, 2005, 2006, 2007, 2008
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -35,7 +34,7 @@ if { [istarget "arc-*-*"]
      || [istarget "dlx-*-*"]
      || [istarget "i960-*-*"]
      || [istarget "msp430*-*-*"]
-     || [istarget "or32-*-*"]
+     || [istarget "or1k*-*-*"]
      || [istarget "pj*-*-*"]
      || [istarget "m32r-*-*"] } {
     return

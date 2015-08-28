@@ -1,7 +1,5 @@
 /* ELF object file format
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -268,7 +266,7 @@ elf_file_symbol (const char *s, int appfile)
       || (symbol_rootP->bsym->flags & BSF_FILE) == 0)
     {
       symbolS *sym;
-      unsigned int name_length;
+      size_t name_length;
 
       sym = symbol_new (s, absolute_section, 0, NULL);
       symbol_set_frag (sym, &zero_address_frag);
@@ -1460,6 +1458,62 @@ skip_past_char (char ** str, char c)
 }
 #define skip_past_comma(str) skip_past_char (str, ',')
 
+/* A list of attributes that have been explicitly set by the assembly code.
+   VENDOR is the vendor id, BASE is the tag shifted right by the number
+   of bits in MASK, and bit N of MASK is set if tag BASE+N has been set.  */
+struct recorded_attribute_info {
+  struct recorded_attribute_info *next;
+  int vendor;
+  unsigned int base;
+  unsigned long mask;
+};
+static struct recorded_attribute_info *recorded_attributes;
+
+/* Record that we have seen an explicit specification of attribute TAG
+   for vendor VENDOR.  */
+
+static void
+record_attribute (int vendor, unsigned int tag)
+{
+  unsigned int base;
+  unsigned long mask;
+  struct recorded_attribute_info *rai;
+
+  base = tag / (8 * sizeof (rai->mask));
+  mask = 1UL << (tag % (8 * sizeof (rai->mask)));
+  for (rai = recorded_attributes; rai; rai = rai->next)
+    if (rai->vendor == vendor && rai->base == base)
+      {
+	rai->mask |= mask;
+	return;
+      }
+
+  rai = XNEW (struct recorded_attribute_info);
+  rai->next = recorded_attributes;
+  rai->vendor = vendor;
+  rai->base = base;
+  rai->mask = mask;
+  recorded_attributes = rai;
+}
+
+/* Return true if we have seen an explicit specification of attribute TAG
+   for vendor VENDOR.  */
+
+bfd_boolean
+obj_elf_seen_attribute (int vendor, unsigned int tag)
+{
+  unsigned int base;
+  unsigned long mask;
+  struct recorded_attribute_info *rai;
+
+  base = tag / (8 * sizeof (rai->mask));
+  mask = 1UL << (tag % (8 * sizeof (rai->mask)));
+  for (rai = recorded_attributes; rai; rai = rai->next)
+    if (rai->vendor == vendor && rai->base == base)
+      return (rai->mask & mask) != 0;
+  return FALSE;
+}
+
 /* Parse an attribute directive for VENDOR.
    Returns the attribute number read, or zero on error.  */
 
@@ -1542,6 +1596,7 @@ obj_elf_vendor_attribute (int vendor)
       s = demand_copy_C_string (&len);
     }
 
+  record_attribute (vendor, tag);
   switch (type & 3)
     {
     case 3:
@@ -2065,7 +2120,9 @@ elf_frob_symbol (symbolS *symp, int *puntp)
       char *p;
 
       p = strchr (sy_obj->versioned_name, ELF_VER_CHR);
-      know (p != NULL);
+      if (p == NULL)
+	/* We will have already reported an error about a missing version.  */
+	*puntp = TRUE;
 
       /* This symbol was given a new name with the .symver directive.
 
@@ -2078,14 +2135,15 @@ elf_frob_symbol (symbolS *symp, int *puntp)
 	 symbol.  However, it's not clear whether it is the best
 	 approach.  */
 
-      if (! S_IS_DEFINED (symp))
+      else if (! S_IS_DEFINED (symp))
 	{
 	  /* Verify that the name isn't using the @@ syntax--this is
 	     reserved for definitions of the default version to link
 	     against.  */
 	  if (p[1] == ELF_VER_CHR)
 	    {
-	      as_bad (_("invalid attempt to declare external version name as default in symbol `%s'"),
+	      as_bad (_("invalid attempt to declare external version name"
+			" as default in symbol `%s'"),
 		      sy_obj->versioned_name);
 	      *puntp = TRUE;
 	    }
@@ -2348,8 +2406,7 @@ elf_frob_file_before_adjust (void)
 
 		p = strchr (symbol_get_obj (symp)->versioned_name,
 			    ELF_VER_CHR);
-		know (p != NULL);
-		if (p[1] == ELF_VER_CHR && p[2] == ELF_VER_CHR)
+		if (p != NULL && p[1] == ELF_VER_CHR && p[2] == ELF_VER_CHR)
 		  {
 		    size_t l = strlen (&p[3]) + 1;
 		    memmove (&p[1], &p[3], l);

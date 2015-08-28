@@ -1,7 +1,5 @@
 /* ld.h -- general linker header file
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -103,23 +101,6 @@ struct wildcard_list {
   struct wildcard_list *next;
   struct wildcard_spec spec;
 };
-
-struct map_symbol_def {
-  struct bfd_link_hash_entry *entry;
-  struct map_symbol_def *next;
-};
-
-/* The initial part of fat_user_section_struct has to be idential with
-   lean_user_section_struct.  */
-typedef struct fat_user_section_struct {
-  /* For input sections, when writing a map file: head / tail of a linked
-     list of hash table entries for symbols defined in this section.  */
-  struct map_symbol_def *map_symbol_def_head;
-  struct map_symbol_def **map_symbol_def_tail;
-  unsigned long map_symbol_def_count;
-} fat_section_userdata_type;
-
-#define get_userdata(x) ((x)->userdata)
 
 #define BYTE_SIZE	(1)
 #define SHORT_SIZE	(2)

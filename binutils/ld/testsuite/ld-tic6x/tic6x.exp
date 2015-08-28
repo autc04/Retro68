@@ -1,6 +1,6 @@
 # Expect script for ld-tic6x tests
 #
-#   Copyright 2012 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -194,8 +194,6 @@ check_osabi_tic6x "C6X shared library OSABI, LE" tmpdir/libtest.so
 check_osabi_tic6x "C6X shared library OSABI, BE" tmpdir/libtestb.so
 check_osabi_tic6x "C6X dynamic app OSABI, LE" tmpdir/dynapp-1
 check_osabi_tic6x "C6X dynamic app OSABI, BE" tmpdir/dynapp-1b
-
-set expected_osabi "UNIX - System V"
 
 check_osabi_tic6x "C6X relocatable link OSABI, LE" tmpdir/shlib.o
 check_osabi_tic6x "C6X relocatable link OSABI, BE" tmpdir/shlibb.o

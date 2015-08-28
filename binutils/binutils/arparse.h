@@ -84,7 +84,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 38 "arparse.y"
+#line 37 "arparse.y"
 {
   char *name;
 struct list *list ;

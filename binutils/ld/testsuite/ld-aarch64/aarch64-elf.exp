@@ -1,5 +1,5 @@
 # Expect script for various AARCH64 ELF tests.
-# Copyright 2009-2013 Free Software Foundation, Inc.
+# Copyright (C) 2009-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -35,6 +35,14 @@ if { ![is_elf_format] || ![istarget "aarch64*-*-*"] } {
 set aarch64elftests {
     {"EH Frame merge" "-Ttext 0x8000" "" "" {eh-frame-bar.s eh-frame-foo.s}
 	{{objdump --dwarf=frames eh-frame.d}} "eh-frame"}
+    {"Erratum 835769 dump test"
+     "--fix-cortex-a53-835769" "" "" {erratum835769.s}
+     {{objdump -dr erratum835769.d}}
+     "erratum835769"}
+    {"Erratum 835769 dump test -shared"
+     "--fix-cortex-a53-835769 -shared" "" "" {erratum835769.s}
+     {{objdump -dr erratum835769.d}}
+     "erratum835769"}
 }
 
 run_ld_link_tests $aarch64elftests
@@ -51,11 +59,15 @@ run_dump_test "emit-relocs-260-be"
 run_dump_test "emit-relocs-262"
 run_dump_test "emit-relocs-263"
 run_dump_test "emit-relocs-264"
+run_dump_test "emit-relocs-264-bad"
 run_dump_test "emit-relocs-265"
 run_dump_test "emit-relocs-266"
+run_dump_test "emit-relocs-266-bad"
 run_dump_test "emit-relocs-267"
 run_dump_test "emit-relocs-268"
+run_dump_test "emit-relocs-268-bad"
 run_dump_test "emit-relocs-269"
+run_dump_test "emit-relocs-269-bad"
 run_dump_test "emit-relocs-270"
 run_dump_test "emit-relocs-270-bad"
 run_dump_test "emit-relocs-271"
@@ -87,6 +99,14 @@ run_dump_test "emit-relocs-309-low-bad"
 run_dump_test "emit-relocs-311"
 run_dump_test "emit-relocs-312"
 
+# test addend correctness when --emit-relocs specified for non-relocatable obj.
+run_dump_test "emit-relocs-local-addend"
+# test addend correctness when -r specified.
+run_dump_test "local-addend-r"
+
+# test error handling on pcrel relocation for shared libraries.
+run_dump_test "pcrel_pic_undefined"
+run_dump_test "pcrel_pic_defined_local"
 
 run_dump_test "limit-b"
 run_dump_test "limit-bl"
@@ -155,3 +175,19 @@ run_dump_test "ifunc-18b"
 run_dump_test "ifunc-19a"
 run_dump_test "ifunc-19b"
 run_dump_test "ifunc-20"
+run_dump_test "ifunc-21"
+run_dump_test "ifunc-22"
+
+run_dump_test "relasz"
+run_dump_test "relocs-257-symbolic-func"
+
+run_dump_test "dt_textrel"
+
+set aarch64elflinktests {
+  {"ld-aarch64/so with global symbol" "-shared" "" "" {copy-reloc-so.s}
+  {} "copy-reloc-so.so"}
+  {"ld-aarch64/exe with copy relocation" "-e0 tmpdir/copy-reloc-so.so" "" ""
+  {copy-reloc-exe.s} {{objdump -R copy-reloc.d}} "copy-reloc"}
+}
+
+run_ld_link_tests $aarch64elflinktests

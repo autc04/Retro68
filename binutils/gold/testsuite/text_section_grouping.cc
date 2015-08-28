@@ -1,6 +1,6 @@
 // text_section_grouping.cc -- a test case for gold
 
-// Copyright 2012 Free Software Foundation, Inc.
+// Copyright (C) 2012-2014 Free Software Foundation, Inc.
 // Written by Sriraman Tallam <tmsriram@google.com>.
 
 // This file is part of gold.

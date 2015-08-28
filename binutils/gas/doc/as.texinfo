@@ -1,5 +1,5 @@
 \input texinfo @c                               -*-Texinfo-*-
-@c  Copyright 1991-2013 Free Software Foundation, Inc.
+@c  Copyright (C) 1991-2014 Free Software Foundation, Inc.
 @c UPDATE!!  On future updates--
 @c   (1)   check for new machine-dep cmdline options in
 @c         md_parse_option definitions in config/tc-*.c
@@ -100,7 +100,7 @@
 This file documents the GNU Assembler "@value{AS}".
 
 @c man begin COPYRIGHT
-Copyright @copyright{} 1991-2013 Free Software Foundation, Inc.
+Copyright @copyright{} 1991-2014 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
@@ -149,7 +149,7 @@ done.
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991-2013 Free Software Foundation, Inc.
+Copyright @copyright{} 1991-2014 Free Software Foundation, Inc.
 
       Permission is granted to copy, distribute and/or modify this document
       under the terms of the GNU Free Documentation License, Version 1.3
@@ -399,9 +399,12 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-g}[@var{debug level}]] [@b{-G} @var{num}] [@b{-KPIC}] [@b{-call_shared}]
    [@b{-non_shared}] [@b{-xgot} [@b{-mvxworks-pic}]
    [@b{-mabi}=@var{ABI}] [@b{-32}] [@b{-n32}] [@b{-64}] [@b{-mfp32}] [@b{-mgp32}]
+   [@b{-mfp64}] [@b{-mgp64}] [@b{-mfpxx}]
+   [@b{-modd-spreg}] [@b{-mno-odd-spreg}]
    [@b{-march}=@var{CPU}] [@b{-mtune}=@var{CPU}] [@b{-mips1}] [@b{-mips2}]
    [@b{-mips3}] [@b{-mips4}] [@b{-mips5}] [@b{-mips32}] [@b{-mips32r2}]
-   [@b{-mips64}] [@b{-mips64r2}]
+   [@b{-mips32r3}] [@b{-mips32r5}] [@b{-mips32r6}] [@b{-mips64}] [@b{-mips64r2}]
+   [@b{-mips64r3}] [@b{-mips64r5}] [@b{-mips64r6}]
    [@b{-construct-floats}] [@b{-no-construct-floats}]
    [@b{-mnan=@var{encoding}}]
    [@b{-trap}] [@b{-no-break}] [@b{-break}] [@b{-no-trap}]
@@ -412,10 +415,13 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-mdmx}] [@b{-no-mdmx}]
    [@b{-mdsp}] [@b{-mno-dsp}]
    [@b{-mdspr2}] [@b{-mno-dspr2}]
+   [@b{-mmsa}] [@b{-mno-msa}]
+   [@b{-mxpa}] [@b{-mno-xpa}]
    [@b{-mmt}] [@b{-mno-mt}]
    [@b{-mmcu}] [@b{-mno-mcu}]
    [@b{-minsn32}] [@b{-mno-insn32}]
    [@b{-mfix7000}] [@b{-mno-fix7000}]
+   [@b{-mfix-rm7000}] [@b{-mno-fix-rm7000}]
    [@b{-mfix-vr4120}] [@b{-mno-fix-vr4120}]
    [@b{-mfix-vr4130}] [@b{-mno-fix-vr4130}]
    [@b{-mdebug}] [@b{-no-mdebug}]
@@ -434,6 +440,18 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @emph{Target Nios II options:}
    [@b{-relax-all}] [@b{-relax-section}] [@b{-no-relax}]
    [@b{-EB}] [@b{-EL}]
+@end ifset
+@ifset NDS32
+
+@emph{Target NDS32 options:}
+    [@b{-EL}] [@b{-EB}] [@b{-O}] [@b{-Os}] [@b{-mcpu=@var{cpu}}]
+    [@b{-misa=@var{isa}}] [@b{-mabi=@var{abi}}] [@b{-mall-ext}]
+    [@b{-m[no-]16-bit}]  [@b{-m[no-]perf-ext}] [@b{-m[no-]perf2-ext}]
+    [@b{-m[no-]string-ext}] [@b{-m[no-]dsp-ext}] [@b{-m[no-]mac}] [@b{-m[no-]div}]
+    [@b{-m[no-]audio-isa-ext}] [@b{-m[no-]fpu-sp-ext}] [@b{-m[no-]fpu-dp-ext}]
+    [@b{-m[no-]fpu-fma}] [@b{-mfpu-freg=@var{FREG}}] [@b{-mreduced-regs}]
+    [@b{-mfull-regs}] [@b{-m[no-]dx-regs}] [@b{-mpic}] [@b{-mno-relax}]
+    [@b{-mb2bb}]
 @end ifset
 @ifset PDP11
 
@@ -462,6 +480,12 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-mlittle}|@b{-mlittle-endian}|@b{-le}|@b{-mbig}|@b{-mbig-endian}|@b{-be}]
    [@b{-msolaris}|@b{-mno-solaris}]
    [@b{-nops=@var{count}}]
+@end ifset
+@ifset RL78
+
+@emph{Target RL78 options:}
+   [@b{-mg10}]
+   [@b{-m32bit-doubles}|@b{-m64bit-doubles}]
 @end ifset
 @ifset RX
 
@@ -529,6 +553,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
  [@b{--[no-]target-align}] [@b{--[no-]longcalls}]
  [@b{--[no-]transform}]
  [@b{--rename-section} @var{oldname}=@var{newname}]
+ [@b{--[no-]trampolines}]
 @end ifset
 
 @ifset Z80
@@ -834,6 +859,8 @@ Select either big-endian (-EB) or little-endian (-EL) output.
 @item -mthumb-interwork
 Specify that the code has been generated with interworking between Thumb and
 ARM code in mind.
+@item -mccs
+Turns on CodeComposer Studio assembly syntax compatibility mode.
 @item -k
 Specify that PIC code has been generated.
 @end table
@@ -1248,15 +1275,24 @@ Generate ``little endian'' format output.
 @itemx -mips5
 @itemx -mips32
 @itemx -mips32r2
+@itemx -mips32r3
+@itemx -mips32r5
+@itemx -mips32r6
 @itemx -mips64
 @itemx -mips64r2
+@itemx -mips64r3
+@itemx -mips64r5
+@itemx -mips64r6
 Generate code for a particular MIPS Instruction Set Architecture level.
 @samp{-mips1} is an alias for @samp{-march=r3000}, @samp{-mips2} is an
 alias for @samp{-march=r6000}, @samp{-mips3} is an alias for
 @samp{-march=r4000} and @samp{-mips4} is an alias for @samp{-march=r8000}.
-@samp{-mips5}, @samp{-mips32}, @samp{-mips32r2}, @samp{-mips64}, and
-@samp{-mips64r2} correspond to generic MIPS V, MIPS32, MIPS32 Release 2,
-MIPS64, and MIPS64 Release 2 ISA processors, respectively.
+@samp{-mips5}, @samp{-mips32}, @samp{-mips32r2}, @samp{-mips32r3},
+@samp{-mips32r5}, @samp{-mips32r6}, @samp{-mips64}, @samp{-mips64r2},
+@samp{-mips64r3}, @samp{-mips64r5}, and @samp{-mips64r6} correspond to generic
+MIPS V, MIPS32, MIPS32 Release 2, MIPS32 Release 3, MIPS32 Release 5, MIPS32
+Release 6, MIPS64, MIPS64 Release 2, MIPS64 Release 3, MIPS64 Release 5, and
+MIPS64 Release 6 ISA processors, respectively.
 
 @item -march=@var{cpu}
 Generate code for a particular MIPS CPU.
@@ -1268,6 +1304,11 @@ Schedule and tune for a particular MIPS CPU.
 @itemx -mno-fix7000
 Cause nops to be inserted if the read of the destination register
 of an mfhi or mflo instruction occurs in the following two instructions.
+
+@item -mfix-rm7000
+@itemx -mno-fix-rm7000
+Cause nops to be inserted if a dmult or dmultu instruction is
+followed by a load instruction.
 
 @item -mdebug
 @itemx -no-mdebug
@@ -1284,6 +1325,25 @@ The register sizes are normally inferred from the ISA and ABI, but these
 flags force a certain group of registers to be treated as 32 bits wide at
 all times.  @samp{-mgp32} controls the size of general-purpose registers
 and @samp{-mfp32} controls the size of floating-point registers.
+
+@item -mgp64
+@itemx -mfp64
+The register sizes are normally inferred from the ISA and ABI, but these
+flags force a certain group of registers to be treated as 64 bits wide at
+all times.  @samp{-mgp64} controls the size of general-purpose registers
+and @samp{-mfp64} controls the size of floating-point registers.
+
+@item -mfpxx
+The register sizes are normally inferred from the ISA and ABI, but using
+this flag in combination with @samp{-mabi=32} enables an ABI variant
+which will operate correctly with floating-point registers which are
+32 or 64 bits wide.
+
+@item -modd-spreg
+@itemx -mno-odd-spreg
+Enable use of floating-point operations on odd-numbered single-precision
+registers when supported by the ISA.  @samp{-mfpxx} implies
+@samp{-mno-odd-spreg}, otherwise the default is @samp{-modd-spreg}.
 
 @item -mips16
 @itemx -no-mips16
@@ -1328,6 +1388,18 @@ Generate code for the DSP Release 2 Application Specific Extension.
 This option implies -mdsp.
 This tells the assembler to accept DSP Release 2 instructions.
 @samp{-mno-dspr2} turns off this option.
+
+@item -mmsa
+@itemx -mno-msa
+Generate code for the MIPS SIMD Architecture Extension.
+This tells the assembler to accept MSA instructions.
+@samp{-mno-msa} turns off this option.
+
+@item -mxpa
+@itemx -mno-xpa
+Generate code for the MIPS eXtended Physical Address (XPA) Extension.
+This tells the assembler to accept XPA instructions.
+@samp{-mno-xpa} turns off this option.
 
 @item -mmt
 @itemx -mno-mt
@@ -1456,6 +1528,25 @@ Meta processor.
 @c man begin OPTIONS
 @ifset MMIX
 See the info pages for documentation of the MMIX-specific options.
+@end ifset
+
+@ifset NDS32
+
+@ifclear man
+@xref{NDS32 Options}, for the options available when @value{AS} is configured
+for a NDS32 processor.
+@end ifclear
+@c ended inside the included file
+@end ifset
+
+@ifset man
+@c man begin OPTIONS
+The following options are available when @value{AS} is configured for a
+NDS32 processor.
+@c man end
+@c man begin INCLUDE
+@include c-nds32.texi
+@c ended inside the included file
 @end ifset
 
 @c man end
@@ -4303,7 +4394,7 @@ required alignment; this can be useful if you want the alignment to be filled
 with no-op instructions when appropriate.
 
 The way the required alignment is specified varies from system to system.
-For the arc, hppa, i386 using ELF, i860, iq2000, m68k, or32,
+For the arc, hppa, i386 using ELF, i860, iq2000, m68k, or1k,
 s390, sparc, tic4x, tic80 and xtensa, the first expression is the
 alignment request in bytes.  For example @samp{.align 8} advances
 the location counter until it is a multiple of 8.  If the location counter
@@ -6939,16 +7030,27 @@ The floating-point ABI used by this object file.  The value will be:
 @item
 0 for files not affected by the floating-point ABI.
 @item
-1 for files using the hardware floating-point with a standard double-precision
-FPU.
+1 for files using the hardware floating-point ABI with a standard
+double-precision FPU.
 @item
 2 for files using the hardware floating-point ABI with a single-precision FPU.
 @item
 3 for files using the software floating-point ABI.
 @item
-4 for files using the hardware floating-point ABI with 64-bit wide
-double-precision floating-point registers and 32-bit wide general
-purpose registers.
+4 for files using the deprecated hardware floating-point ABI which used 64-bit
+floating-point registers, 32-bit general-purpose registers and increased the
+number of callee-saved floating-point registers.
+@item
+5 for files using the hardware floating-point ABI with a double-precision FPU
+with either 32-bit or 64-bit floating-point registers and 32-bit
+general-purpose registers.
+@item
+6 for files using the hardware floating-point ABI with 64-bit floating-point
+registers and 32-bit general-purpose registers.
+@item
+7 for files using the hardware floating-point ABI with 64-bit floating-point
+registers, 32-bit general-purpose registers and a rule that forbids the
+direct use of odd-numbered single-precision floating-point registers.
 @end itemize
 @end table
 
@@ -7113,6 +7215,9 @@ subject, see the hardware manufacturer's manual.
 @end ifset
 @ifset MSP430
 * MSP430-Dependent::		MSP430 Dependent Features
+@end ifset
+@ifset NDS32
+* NDS32-Dependent::             Andes NDS32 Dependent Features
 @end ifset
 @ifset NIOSII
 * NiosII-Dependent::            Altera Nios II Dependent Features
@@ -7326,6 +7431,10 @@ family.
 
 @ifset MSP430
 @include c-msp430.texi
+@end ifset
+
+@ifset NDS32
+@include c-nds32.texi
 @end ifset
 
 @ifset NIOSII

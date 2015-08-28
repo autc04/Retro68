@@ -36,7 +36,7 @@ Disassembly of section .text:
 0+006c <[^>]*> 06c01ec4 	movi	sp,123
 0+0070 <[^>]*> 07001ec4 	movi	fp,123
 0+0074 <[^>]*> 07401ec4 	movi	ea,123
-0+0078 <[^>]*> 07801ec4 	movi	ba,123
+0+0078 <[^>]*> 07801ec4 	movi	sstatus,123
 0+007c <[^>]*> 07c01ec4 	movi	ra,123
 0+0080 <[^>]*> 00001ec4 	movi	zero,123
 0+0084 <[^>]*> 00401ec4 	movi	at,123
@@ -46,6 +46,6 @@ Disassembly of section .text:
 0+0094 <[^>]*> 06c01ec4 	movi	sp,123
 0+0098 <[^>]*> 07001ec4 	movi	fp,123
 0+009c <[^>]*> 07401ec4 	movi	ea,123
-0+00a0 <[^>]*> 07801ec4 	movi	ba,123
-0+00a4 <[^>]*> 07801ec4 	movi	ba,123
+0+00a0 <[^>]*> 07801ec4 	movi	sstatus,123
+0+00a4 <[^>]*> 07801ec4 	movi	sstatus,123
 0+00a8 <[^>]*> 07c01ec4 	movi	ra,123

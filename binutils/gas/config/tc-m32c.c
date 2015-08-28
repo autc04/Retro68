@@ -1,5 +1,5 @@
 /* tc-m32c.c -- Assembler for the Renesas M32C.
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by RedHat.
 
    This file is part of GAS, the GNU Assembler.
@@ -1019,10 +1019,9 @@ void
 m32c_cons_fix_new (fragS *	frag,
 		   int		where,
 		   int		size,
-		   expressionS *exp)
+		   expressionS *exp,
+		   bfd_reloc_code_real_type type)
 {
-  bfd_reloc_code_real_type type;
-
   switch (size)
     {
     case 1:

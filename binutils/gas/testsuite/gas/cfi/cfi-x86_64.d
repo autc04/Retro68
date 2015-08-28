@@ -269,8 +269,4 @@ Contents of the .eh_frame section:
   DW_CFA_advance_loc: 1 to 0+00ae
   DW_CFA_undefined: r125 \(k7\)
   DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
 #pass

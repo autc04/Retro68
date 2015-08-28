@@ -1,3 +1,8 @@
+# Copyright (C) 2014 Free Software Foundation, Inc.
+# 
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 #
 # Unusual variables checked by this code:
 #	NOP - four byte opcode for no-op (defaults to 0)
@@ -17,7 +22,7 @@
 #
 # When adding sections, do note that the names of some sections are used
 # when specifying the start address of the next.
-#
+
 test -z "$ENTRY" && ENTRY=_start
 test -z "${BIG_OUTPUT_FORMAT}" && BIG_OUTPUT_FORMAT=${OUTPUT_FORMAT}
 test -z "${LITTLE_OUTPUT_FORMAT}" && LITTLE_OUTPUT_FORMAT=${OUTPUT_FORMAT}
@@ -158,6 +163,12 @@ SOFT_REGS_RELOC="
 "
 
 cat <<EOF
+/* Copyright (C) 2014 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 ${RELOCATING+/* Linker script for 68HC11 executable (PROM).  */}
 ${RELOCATING-/* Linker script for 68HC11 object file (ld -r).  */}
 

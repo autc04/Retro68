@@ -1,7 +1,5 @@
 /* tc-sh.c -- Assemble code for the Renesas / SuperH SH
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -767,9 +765,10 @@ sh_check_fixup (expressionS *main_exp, bfd_reloc_code_real_type *r_type_p)
 /* Add expression EXP of SIZE bytes to offset OFF of fragment FRAG.  */
 
 void
-sh_cons_fix_new (fragS *frag, int off, int size, expressionS *exp)
+sh_cons_fix_new (fragS *frag, int off, int size, expressionS *exp,
+		 bfd_reloc_code_real_type r_type)
 {
-  bfd_reloc_code_real_type r_type = BFD_RELOC_UNUSED;
+  r_type = BFD_RELOC_UNUSED;
 
   if (sh_check_fixup (exp, &r_type))
     as_bad (_("Invalid PIC expression."));
@@ -4436,7 +4435,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   if (SWITCH_TABLE (fixp))
     {
       *rel->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_subsy);
-      rel->addend = 0;
+      rel->addend = rel->address - S_GET_VALUE(fixp->fx_subsy);
       if (r_type == BFD_RELOC_16)
 	r_type = BFD_RELOC_SH_SWITCH16;
       else if (r_type == BFD_RELOC_8)

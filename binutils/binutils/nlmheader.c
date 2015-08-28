@@ -146,8 +146,7 @@
 /* Copy the first part of user declarations.  */
 #line 1 "nlmheader.y"
 /* nlmheader.y - parse NLM header specification keywords.
-     Copyright 1993, 1994, 1995, 1997, 1998, 2001, 2002, 2003, 2005, 2007,
-     2010 Free Software Foundation, Inc.
+     Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
      This file is part of GNU Binutils.
 
@@ -276,13 +275,13 @@ static char *xstrdup (const char *);
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 113 "nlmheader.y"
+#line 112 "nlmheader.y"
 {
   char *string;
   struct string_list *list;
 }
 /* Line 193 of yacc.c.  */
-#line 286 "nlmheader.c"
+#line 285 "nlmheader.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -295,7 +294,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 299 "nlmheader.c"
+#line 298 "nlmheader.c"
 
 #ifdef short
 # undef short
@@ -598,12 +597,12 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   144,   144,   149,   151,   157,   161,   166,   183,   187,
-     205,   209,   225,   230,   229,   237,   242,   247,   252,   257,
-     262,   261,   269,   273,   277,   281,   285,   289,   293,   297,
-     304,   308,   312,   328,   332,   337,   341,   345,   361,   366,
-     370,   394,   410,   420,   423,   434,   438,   442,   446,   455,
-     466,   483,   486
+       0,   143,   143,   148,   150,   156,   160,   165,   182,   186,
+     204,   208,   224,   229,   228,   236,   241,   246,   251,   256,
+     261,   260,   268,   272,   276,   280,   284,   288,   292,   296,
+     303,   307,   311,   327,   331,   336,   340,   344,   360,   365,
+     369,   393,   409,   419,   422,   433,   437,   441,   445,   454,
+     465,   482,   485
 };
 #endif
 
@@ -1560,14 +1559,14 @@ yyreduce:
   switch (yyn)
     {
         case 5:
-#line 158 "nlmheader.y"
+#line 157 "nlmheader.y"
     {
 	    check_procedure = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 6:
-#line 162 "nlmheader.y"
+#line 161 "nlmheader.y"
     {
 	    nlmheader_warn (_("CODESTART is not implemented; sorry"), -1);
 	    free ((yyvsp[(2) - (2)].string));
@@ -1575,7 +1574,7 @@ yyreduce:
     break;
 
   case 7:
-#line 167 "nlmheader.y"
+#line 166 "nlmheader.y"
     {
 	    int len;
 
@@ -1595,14 +1594,14 @@ yyreduce:
     break;
 
   case 8:
-#line 184 "nlmheader.y"
+#line 183 "nlmheader.y"
     {
 	    custom_file = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 9:
-#line 188 "nlmheader.y"
+#line 187 "nlmheader.y"
     {
 	    /* We don't set the version stamp here, because we use the
 	       version stamp to detect whether the required VERSION
@@ -1623,14 +1622,14 @@ yyreduce:
     break;
 
   case 10:
-#line 206 "nlmheader.y"
+#line 205 "nlmheader.y"
     {
 	    debug_info = TRUE;
 	  }
     break;
 
   case 11:
-#line 210 "nlmheader.y"
+#line 209 "nlmheader.y"
     {
 	    int len;
 
@@ -1649,28 +1648,28 @@ yyreduce:
     break;
 
   case 12:
-#line 226 "nlmheader.y"
+#line 225 "nlmheader.y"
     {
 	    exit_procedure = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 13:
-#line 230 "nlmheader.y"
+#line 229 "nlmheader.y"
     {
 	    symbol_prefix = NULL;
 	  }
     break;
 
   case 14:
-#line 234 "nlmheader.y"
+#line 233 "nlmheader.y"
     {
 	    export_symbols = string_list_append (export_symbols, (yyvsp[(3) - (3)].list));
 	  }
     break;
 
   case 15:
-#line 238 "nlmheader.y"
+#line 237 "nlmheader.y"
     {
 	    fixed_hdr->flags |= nlmlex_get_number ((yyvsp[(2) - (2)].string));
 	    free ((yyvsp[(2) - (2)].string));
@@ -1678,7 +1677,7 @@ yyreduce:
     break;
 
   case 16:
-#line 243 "nlmheader.y"
+#line 242 "nlmheader.y"
     {
 	    fixed_hdr->flags &=~ nlmlex_get_number ((yyvsp[(2) - (2)].string));
 	    free ((yyvsp[(2) - (2)].string));
@@ -1686,7 +1685,7 @@ yyreduce:
     break;
 
   case 17:
-#line 248 "nlmheader.y"
+#line 247 "nlmheader.y"
     {
 	    map_file = "";
 	    full_map = TRUE;
@@ -1694,7 +1693,7 @@ yyreduce:
     break;
 
   case 18:
-#line 253 "nlmheader.y"
+#line 252 "nlmheader.y"
     {
 	    map_file = (yyvsp[(2) - (2)].string);
 	    full_map = TRUE;
@@ -1702,77 +1701,77 @@ yyreduce:
     break;
 
   case 19:
-#line 258 "nlmheader.y"
+#line 257 "nlmheader.y"
     {
 	    help_file = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 20:
-#line 262 "nlmheader.y"
+#line 261 "nlmheader.y"
     {
 	    symbol_prefix = NULL;
 	  }
     break;
 
   case 21:
-#line 266 "nlmheader.y"
+#line 265 "nlmheader.y"
     {
 	    import_symbols = string_list_append (import_symbols, (yyvsp[(3) - (3)].list));
 	  }
     break;
 
   case 22:
-#line 270 "nlmheader.y"
+#line 269 "nlmheader.y"
     {
 	    input_files = string_list_append (input_files, (yyvsp[(2) - (2)].list));
 	  }
     break;
 
   case 23:
-#line 274 "nlmheader.y"
+#line 273 "nlmheader.y"
     {
 	    map_file = "";
 	  }
     break;
 
   case 24:
-#line 278 "nlmheader.y"
+#line 277 "nlmheader.y"
     {
 	    map_file = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 25:
-#line 282 "nlmheader.y"
+#line 281 "nlmheader.y"
     {
 	    message_file = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 26:
-#line 286 "nlmheader.y"
+#line 285 "nlmheader.y"
     {
 	    modules = string_list_append (modules, (yyvsp[(2) - (2)].list));
 	  }
     break;
 
   case 27:
-#line 290 "nlmheader.y"
+#line 289 "nlmheader.y"
     {
 	    fixed_hdr->flags |= 0x2;
 	  }
     break;
 
   case 28:
-#line 294 "nlmheader.y"
+#line 293 "nlmheader.y"
     {
 	    fixed_hdr->flags |= 0x10;
 	  }
     break;
 
   case 29:
-#line 298 "nlmheader.y"
+#line 297 "nlmheader.y"
     {
 	    if (output_file == NULL)
 	      output_file = (yyvsp[(2) - (2)].string);
@@ -1782,21 +1781,21 @@ yyreduce:
     break;
 
   case 30:
-#line 305 "nlmheader.y"
+#line 304 "nlmheader.y"
     {
 	    fixed_hdr->flags |= 0x8;
 	  }
     break;
 
   case 31:
-#line 309 "nlmheader.y"
+#line 308 "nlmheader.y"
     {
 	    fixed_hdr->flags |= 0x1;
 	  }
     break;
 
   case 32:
-#line 313 "nlmheader.y"
+#line 312 "nlmheader.y"
     {
 	    int len;
 
@@ -1815,14 +1814,14 @@ yyreduce:
     break;
 
   case 33:
-#line 329 "nlmheader.y"
+#line 328 "nlmheader.y"
     {
 	    sharelib_file = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 34:
-#line 333 "nlmheader.y"
+#line 332 "nlmheader.y"
     {
 	    var_hdr->stackSize = nlmlex_get_number ((yyvsp[(2) - (2)].string));
 	    free ((yyvsp[(2) - (2)].string));
@@ -1830,21 +1829,21 @@ yyreduce:
     break;
 
   case 35:
-#line 338 "nlmheader.y"
+#line 337 "nlmheader.y"
     {
 	    start_procedure = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 36:
-#line 342 "nlmheader.y"
+#line 341 "nlmheader.y"
     {
 	    fixed_hdr->flags |= 0x4;
 	  }
     break;
 
   case 37:
-#line 346 "nlmheader.y"
+#line 345 "nlmheader.y"
     {
 	    int len;
 
@@ -1863,7 +1862,7 @@ yyreduce:
     break;
 
   case 38:
-#line 362 "nlmheader.y"
+#line 361 "nlmheader.y"
     {
 	    fixed_hdr->moduleType = nlmlex_get_number ((yyvsp[(2) - (2)].string));
 	    free ((yyvsp[(2) - (2)].string));
@@ -1871,14 +1870,14 @@ yyreduce:
     break;
 
   case 39:
-#line 367 "nlmheader.y"
+#line 366 "nlmheader.y"
     {
 	    verbose = TRUE;
 	  }
     break;
 
   case 40:
-#line 371 "nlmheader.y"
+#line 370 "nlmheader.y"
     {
 	    long val;
 
@@ -1905,7 +1904,7 @@ yyreduce:
     break;
 
   case 41:
-#line 395 "nlmheader.y"
+#line 394 "nlmheader.y"
     {
 	    long val;
 
@@ -1924,56 +1923,56 @@ yyreduce:
     break;
 
   case 42:
-#line 411 "nlmheader.y"
+#line 410 "nlmheader.y"
     {
 	    rpc_file = (yyvsp[(2) - (2)].string);
 	  }
     break;
 
   case 43:
-#line 420 "nlmheader.y"
+#line 419 "nlmheader.y"
     {
 	    (yyval.list) = NULL;
 	  }
     break;
 
   case 44:
-#line 424 "nlmheader.y"
+#line 423 "nlmheader.y"
     {
 	    (yyval.list) = (yyvsp[(1) - (1)].list);
 	  }
     break;
 
   case 45:
-#line 435 "nlmheader.y"
+#line 434 "nlmheader.y"
     {
 	    (yyval.list) = string_list_cons ((yyvsp[(1) - (1)].string), NULL);
 	  }
     break;
 
   case 46:
-#line 439 "nlmheader.y"
+#line 438 "nlmheader.y"
     {
 	    (yyval.list) = NULL;
 	  }
     break;
 
   case 47:
-#line 443 "nlmheader.y"
+#line 442 "nlmheader.y"
     {
 	    (yyval.list) = string_list_append1 ((yyvsp[(1) - (2)].list), (yyvsp[(2) - (2)].string));
 	  }
     break;
 
   case 48:
-#line 447 "nlmheader.y"
+#line 446 "nlmheader.y"
     {
 	    (yyval.list) = (yyvsp[(1) - (2)].list);
 	  }
     break;
 
   case 49:
-#line 456 "nlmheader.y"
+#line 455 "nlmheader.y"
     {
 	    if (symbol_prefix != NULL)
 	      free (symbol_prefix);
@@ -1982,7 +1981,7 @@ yyreduce:
     break;
 
   case 50:
-#line 467 "nlmheader.y"
+#line 466 "nlmheader.y"
     {
 	    if (symbol_prefix == NULL)
 	      (yyval.string) = (yyvsp[(1) - (1)].string);
@@ -1996,14 +1995,14 @@ yyreduce:
     break;
 
   case 51:
-#line 483 "nlmheader.y"
+#line 482 "nlmheader.y"
     {
 	    (yyval.list) = NULL;
 	  }
     break;
 
   case 52:
-#line 487 "nlmheader.y"
+#line 486 "nlmheader.y"
     {
 	    (yyval.list) = string_list_cons ((yyvsp[(1) - (2)].string), (yyvsp[(2) - (2)].list));
 	  }
@@ -2011,7 +2010,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 2015 "nlmheader.c"
+#line 2014 "nlmheader.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2225,13 +2224,13 @@ yyreturn:
 }
 
 
-#line 492 "nlmheader.y"
+#line 491 "nlmheader.y"
 
 
 /* If strerror is just a macro, we want to use the one from libiberty
    since it will handle undefined values.  */
 #undef strerror
-extern char *strerror PARAMS ((int));
+extern char *strerror (int);
 
 /* The lexer is simple, too simple for flex.  Keywords are only
    recognized at the start of lines.  Everything else must be an

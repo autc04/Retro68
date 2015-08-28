@@ -1,6 +1,6 @@
 // symtab.cc -- the gold symbol table
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -334,7 +334,7 @@ Sized_symbol<size>::allocate_common(Output_data* od, Value_type value)
 // Return true if this symbol should be added to the dynamic symbol
 // table.
 
-inline bool
+bool
 Symbol::should_add_dynsym_entry(Symbol_table* symtab) const
 {
   // If the symbol is only present on plugin files, the plugin decided we
@@ -525,6 +525,30 @@ Symbol::set_output_section(Output_section* os)
     default:
       gold_unreachable();
     }
+}
+
+// Set the symbol's output segment.  This is used for pre-defined
+// symbols whose segments aren't known until after layout is done
+// (e.g., __ehdr_start).
+
+void
+Symbol::set_output_segment(Output_segment* os, Segment_offset_base base)
+{
+  gold_assert(this->is_predefined_);
+  this->source_ = IN_OUTPUT_SEGMENT;
+  this->u_.in_output_segment.output_segment = os;
+  this->u_.in_output_segment.offset_base = base;
+}
+
+// Set the symbol to undefined.  This is used for pre-defined
+// symbols whose segments aren't known until after layout is done
+// (e.g., __ehdr_start).
+
+void
+Symbol::set_undefined()
+{
+  this->source_ = IS_UNDEFINED;
+  this->is_predefined_ = false;
 }
 
 // Class Symbol_table.
@@ -955,7 +979,8 @@ Symbol_table::add_from_object(Object* object,
       gold_assert(ret != NULL);
 
       was_undefined = ret->is_undefined();
-      was_common = ret->is_common();
+      // Commons from plugins are just placeholders.
+      was_common = ret->is_common() && ret->object()->pluginobj() == NULL;
 
       this->resolve(ret, sym, st_shndx, is_ordinary, orig_st_shndx, object,
 		    version);
@@ -978,7 +1003,8 @@ Symbol_table::add_from_object(Object* object,
 	  ret = this->get_sized_symbol<size>(insdefault.first->second);
 
 	  was_undefined = ret->is_undefined();
-	  was_common = ret->is_common();
+	  // Commons from plugins are just placeholders.
+	  was_common = ret->is_common() && ret->object()->pluginobj() == NULL;
 
 	  this->resolve(ret, sym, st_shndx, is_ordinary, orig_st_shndx, object,
 			version);
@@ -1041,8 +1067,10 @@ Symbol_table::add_from_object(Object* object,
     }
 
   // Keep track of common symbols, to speed up common symbol
-  // allocation.
-  if (!was_common && ret->is_common())
+  // allocation.  Don't record commons from plugin objects;
+  // we need to wait until we see the real symbol in the
+  // replacement file.
+  if (!was_common && ret->is_common() && ret->object()->pluginobj() == NULL)
     {
       if (ret->type() == elfcpp::STT_TLS)
 	this->tls_commons_.push_back(ret);
@@ -1107,6 +1135,10 @@ Symbol_table::add_from_relobj(
 	}
 
       const char* name = sym_names + st_name;
+
+      if (strcmp (name, "__gnu_lto_slim") == 0)
+        gold_info(_("%s: plugin needed to handle lto object"),
+		  relobj->name().c_str());
 
       bool is_ordinary;
       unsigned int st_shndx = relobj->adjust_sym_shndx(i + symndx_offset,
@@ -1258,7 +1290,8 @@ Symbol_table::add_from_relobj(
 	  && res->is_externally_visible()
 	  && !res->is_from_dynobj()
           && (parameters->options().shared()
-	      || parameters->options().export_dynamic()))
+	      || parameters->options().export_dynamic()
+	      || parameters->options().in_dynamic_list(res->name())))
         this->gc_mark_symbol(res);
 
       if (is_defined_in_discarded_section)
@@ -2370,6 +2403,25 @@ Symbol_table::set_dynsym_indexes(unsigned int index,
 {
   std::vector<Symbol*> as_needed_sym;
 
+  // Allow a target to set dynsym indexes.
+  if (parameters->target().has_custom_set_dynsym_indexes())
+    {
+      std::vector<Symbol*> dyn_symbols;
+      for (Symbol_table_type::iterator p = this->table_.begin();
+           p != this->table_.end();
+           ++p)
+        {
+          Symbol* sym = p->second;
+          if (!sym->should_add_dynsym_entry(this))
+            sym->set_dynsym_index(-1U);
+          else
+            dyn_symbols.push_back(sym);
+        }
+
+      return parameters->target().set_dynsym_indexes(&dyn_symbols, index, syms,
+                                                     dynpool, versions, this);
+    }
+
   for (Symbol_table_type::iterator p = this->table_.begin();
        p != this->table_.end();
        ++p)
@@ -2992,6 +3044,8 @@ Symbol_table::sized_write_globals(const Stringpool* sympool,
 	  unsigned char* pd = dynamic_view + (dynsym_index * sym_size);
 	  this->sized_write_symbol<size, big_endian>(sym, dynsym_value, shndx,
 						     binding, dynpool, pd);
+          // Allow a target to adjust dynamic symbol value.
+          parameters->target().adjust_dyn_symbol(sym, pd);
 	}
     }
 
@@ -3620,6 +3674,32 @@ Symbol_table::define_with_copy_reloc<64>(
     Sized_symbol<64>* sym,
     Output_data* posd,
     elfcpp::Elf_types<64>::Elf_Addr value);
+#endif
+
+#if defined(HAVE_TARGET_32_LITTLE) || defined(HAVE_TARGET_32_BIG)
+template
+void
+Sized_symbol<32>::init_output_data(const char* name, const char* version,
+				   Output_data* od, Value_type value,
+				   Size_type symsize, elfcpp::STT type,
+				   elfcpp::STB binding,
+				   elfcpp::STV visibility,
+				   unsigned char nonvis,
+				   bool offset_is_from_end,
+				   bool is_predefined);
+#endif
+
+#if defined(HAVE_TARGET_64_LITTLE) || defined(HAVE_TARGET_64_BIG)
+template
+void
+Sized_symbol<64>::init_output_data(const char* name, const char* version,
+				   Output_data* od, Value_type value,
+				   Size_type symsize, elfcpp::STT type,
+				   elfcpp::STB binding,
+				   elfcpp::STV visibility,
+				   unsigned char nonvis,
+				   bool offset_is_from_end,
+				   bool is_predefined);
 #endif
 
 #ifdef HAVE_TARGET_32_LITTLE

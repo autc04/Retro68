@@ -1,5 +1,5 @@
 /* tc-sparc.c -- Assemble for the SPARC
-   Copyright 1989-2013 Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
    GAS is free software; you can redistribute it and/or modify
@@ -77,11 +77,11 @@ static enum { MM_TSO, MM_PSO, MM_RMO } sparc_memory_model = MM_RMO;
 #ifndef TE_SOLARIS
 /* Bitmask of instruction types seen so far, used to populate the
    GNU attributes section with hwcap information.  */
-static int hwcap_seen;
+static bfd_uint64_t hwcap_seen;
 #endif
 #endif
 
-static int hwcap_allowed;
+static bfd_uint64_t hwcap_allowed;
 
 static int architecture_requested;
 static int warn_on_bump;
@@ -221,6 +221,25 @@ static void output_insn (const struct sparc_opcode *, struct sparc_it *);
 enum sparc_arch_types {v6, v7, v8, leon, sparclet, sparclite, sparc86x, v8plus,
 		       v8plusa, v9, v9a, v9b, v9_64};
 
+/* Hardware capability sets, used to keep sparc_arch_table easy to
+   read.  */
+#define HWS_V8 HWCAP_MUL32 | HWCAP_DIV32 | HWCAP_FSMULD
+#define HWS_V9 HWS_V8 | HWCAP_POPC
+#define HWS_VA HWS_V9 | HWCAP_VIS
+#define HWS_VB HWS_VA | HWCAP_VIS2
+#define HWS_VC HWS_VB | HWCAP_ASI_BLK_INIT
+#define HWS_VD HWS_VC | HWCAP_FMAF | HWCAP_VIS3 | HWCAP_HPC
+#define HWS_VE HWS_VD                                                   \
+  | HWCAP_AES | HWCAP_DES | HWCAP_KASUMI | HWCAP_CAMELLIA               \
+  | HWCAP_MD5 | HWCAP_SHA1 | HWCAP_SHA256 |HWCAP_SHA512 | HWCAP_MPMUL   \
+  | HWCAP_MONT | HWCAP_CRC32C | HWCAP_CBCOND | HWCAP_PAUSE
+#define HWS_VV HWS_VE | HWCAP_FJFMAU | HWCAP_IMA
+#define HWS_VM HWS_VV
+
+#define HWS2_VM							\
+  HWCAP2_VIS3B | HWCAP2_ADP | HWCAP2_SPARC5 | HWCAP2_MWAIT	\
+  | HWCAP2_XMPMUL | HWCAP2_XMONT
+
 static struct sparc_arch {
   char *name;
   char *opcode_arch;
@@ -231,41 +250,50 @@ static struct sparc_arch {
   /* Allowable arg to -A?  */
   int user_option_p;
   int hwcap_allowed;
+  int hwcap2_allowed;
 } sparc_arch_table[] = {
-  { "v6", "v6", v6, 0, 1, 0 },
-  { "v7", "v7", v7, 0, 1, 0 },
-  { "v8", "v8", v8, 32, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD },
-  { "v8a", "v8", v8, 32, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD },
-  { "sparc", "v9", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS },
-  { "sparcvis", "v9a", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS },
-  { "sparcvis2", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2 },
-  { "sparcfmaf", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_FMAF },
-  { "sparcima", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_FMAF|HWCAP_IMA },
-  { "sparcvis3", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC },
-  { "sparcvis3r", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC|HWCAP_RANDOM|HWCAP_TRANS|HWCAP_FJFMAU },
-  { "sparc4", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC|HWCAP_RANDOM|HWCAP_TRANS|HWCAP_FJFMAU|HWCAP_AES|HWCAP_DES|HWCAP_KASUMI|HWCAP_CAMELLIA|HWCAP_MD5|HWCAP_SHA1|HWCAP_SHA256|HWCAP_SHA512|HWCAP_MPMUL|HWCAP_MONT|HWCAP_CRC32C|HWCAP_CBCOND|HWCAP_PAUSE },
-  { "leon", "leon", leon, 32, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD },
-  { "sparclet", "sparclet", sparclet, 32, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD },
-  { "sparclite", "sparclite", sparclite, 32, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD },
-  { "sparc86x", "sparclite", sparc86x, 32, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD },
-  { "v8plus", "v9", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS },
-  { "v8plusa", "v9a", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS|HWCAP_VIS },
-  { "v8plusb", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS|HWCAP_VIS|HWCAP_VIS2 },
-  { "v8plusc", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT },
-  { "v8plusd", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC },
-  { "v8pluse", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC|HWCAP_AES|HWCAP_DES|HWCAP_KASUMI|HWCAP_CAMELLIA|HWCAP_MD5|HWCAP_SHA1|HWCAP_SHA256|HWCAP_SHA512|HWCAP_MPMUL|HWCAP_MONT|HWCAP_CRC32C|HWCAP_CBCOND|HWCAP_PAUSE },
-  { "v8plusv", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_V8PLUS|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC|HWCAP_RANDOM|HWCAP_TRANS|HWCAP_FJFMAU|HWCAP_IMA|HWCAP_ASI_CACHE_SPARING|HWCAP_AES|HWCAP_DES|HWCAP_KASUMI|HWCAP_CAMELLIA|HWCAP_MD5|HWCAP_SHA1|HWCAP_SHA256|HWCAP_SHA512|HWCAP_MPMUL|HWCAP_MONT|HWCAP_CRC32C|HWCAP_CBCOND|HWCAP_PAUSE },
-  { "v9", "v9", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC },
-  { "v9a", "v9a", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS },
-  { "v9b", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2 },
-  { "v9c", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT },
-  { "v9d", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC },
-  { "v9e", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC|HWCAP_AES|HWCAP_DES|HWCAP_KASUMI|HWCAP_CAMELLIA|HWCAP_MD5|HWCAP_SHA1|HWCAP_SHA256|HWCAP_SHA512|HWCAP_MPMUL|HWCAP_MONT|HWCAP_CRC32C|HWCAP_CBCOND|HWCAP_PAUSE },
-  { "v9v", "v9b", v9, 0, 1, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC|HWCAP_VIS|HWCAP_VIS2|HWCAP_ASI_BLK_INIT|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC|HWCAP_RANDOM|HWCAP_TRANS|HWCAP_FJFMAU|HWCAP_IMA|HWCAP_ASI_CACHE_SPARING|HWCAP_AES|HWCAP_DES|HWCAP_KASUMI|HWCAP_CAMELLIA|HWCAP_MD5|HWCAP_SHA1|HWCAP_SHA256|HWCAP_SHA512|HWCAP_MPMUL|HWCAP_MONT|HWCAP_CRC32C|HWCAP_CBCOND|HWCAP_PAUSE },
-  /* This exists to allow configure.in/Makefile.in to pass one
+  { "v6",         "v6",  v6,  0, 1, 0, 0 },
+  { "v7",         "v7",  v7,  0, 1, 0, 0 },
+  { "v8",         "v8",  v8, 32, 1, HWS_V8, 0 },
+  { "v8a",        "v8",  v8, 32, 1, HWS_V8, 0 },
+  { "sparc",      "v9",  v9,  0, 1, HWCAP_V8PLUS|HWS_V9, 0 },
+  { "sparcvis",   "v9a", v9,  0, 1, HWS_VA, 0 },
+  { "sparcvis2",  "v9b", v9,  0, 1, HWS_VB, 0 },
+  { "sparcfmaf",  "v9b", v9,  0, 1, HWS_VB|HWCAP_FMAF, 0 },
+  { "sparcima",   "v9b", v9,  0, 1, HWS_VB|HWCAP_FMAF|HWCAP_IMA, 0 },
+  { "sparcvis3",  "v9b", v9,  0, 1, HWS_VB|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC, 0 },
+  { "sparcvis3r", "v9b", v9,  0, 1, HWS_VB|HWCAP_FMAF|HWCAP_VIS3|HWCAP_HPC|HWCAP_FJFMAU, 0 },
+
+  { "sparc4",     "v9b", v9,  0, 1, HWS_VV, 0 },
+  { "sparc5",     "v9b", v9,  0, 1, HWS_VM, HWS2_VM },
+
+  { "leon",      "leon",      leon,      32, 1, HWS_V8, 0 },
+  { "sparclet",  "sparclet",  sparclet,  32, 1, HWS_V8, 0 },
+  { "sparclite", "sparclite", sparclite, 32, 1, HWS_V8, 0 },
+  { "sparc86x",  "sparclite", sparc86x,  32, 1, HWS_V8, 0 },
+
+  { "v8plus",  "v9",  v9,  0, 1, HWCAP_V8PLUS|HWS_V9, 0 },
+  { "v8plusa", "v9a", v9,  0, 1, HWCAP_V8PLUS|HWS_VA, 0 },
+  { "v8plusb", "v9b", v9,  0, 1, HWCAP_V8PLUS|HWS_VB, 0 },
+  { "v8plusc", "v9b", v9,  0, 1, HWCAP_V8PLUS|HWS_VC, 0 },
+  { "v8plusd", "v9b", v9,  0, 1, HWCAP_V8PLUS|HWS_VD, 0 },
+  { "v8pluse", "v9b", v9,  0, 1, HWCAP_V8PLUS|HWS_VE, 0 },
+  { "v8plusv", "v9b", v9,  0, 1, HWCAP_V8PLUS|HWS_VV, 0 },
+  { "v8plusm", "v9b", v9,  0, 1, HWCAP_V8PLUS|HWS_VM, 0 },
+  
+  { "v9",      "v9",  v9,  0, 1, HWS_V9, 0 },
+  { "v9a",     "v9a", v9,  0, 1, HWS_VA, 0 },
+  { "v9b",     "v9b", v9,  0, 1, HWS_VB, 0 },
+  { "v9c",     "v9b", v9,  0, 1, HWS_VC, 0 },
+  { "v9d",     "v9b", v9,  0, 1, HWS_VD, 0 },
+  { "v9e",     "v9b", v9,  0, 1, HWS_VE, 0 },
+  { "v9v",     "v9b", v9,  0, 1, HWS_VV, 0 },
+  { "v9m",     "v9b", v9,  0, 1, HWS_VM, HWS2_VM },
+
+  /* This exists to allow configure.tgt to pass one
      value to specify both the default machine and default word size.  */
-  { "v9-64", "v9", v9, 64, 0, HWCAP_MUL32|HWCAP_DIV32|HWCAP_FSMULD|HWCAP_POPC },
-  { NULL, NULL, v8, 0, 0, 0 }
+  { "v9-64",   "v9",  v9, 64, 0, HWS_V9, 0 },
+  { NULL, NULL, v8, 0, 0, 0, 0 }
 };
 
 /* Variant of default_arch */
@@ -516,7 +544,8 @@ md_parse_option (int c, char *arg)
 	if (!architecture_requested
 	    || opcode_arch > max_architecture)
 	  max_architecture = opcode_arch;
-	hwcap_allowed |= sa->hwcap_allowed;
+	hwcap_allowed
+          |= (((bfd_uint64_t) sa->hwcap2_allowed) << 32) | sa->hwcap_allowed;
 	architecture_requested = 1;
       }
       break;
@@ -787,6 +816,8 @@ struct priv_reg_entry hpriv_reg_table[] =
   {"hintp", 3},
   {"htba", 5},
   {"hver", 6},
+  {"hstick_offset", 28},
+  {"hstick_enable", 29},
   {"hstick_cmpr", 31},
   {"", -1},			/* End marker.  */
 };
@@ -808,9 +839,9 @@ struct priv_reg_entry v9a_asr_table[] =
   {"pause", 27},
   {"pic", 17},
   {"pcr", 16},
+  {"mwait", 28},
   {"gsr", 19},
   {"dcr", 18},
-  {"cps", 28},
   {"cfr", 26},
   {"clear_softint", 21},
   {"", -1},			/* End marker.  */
@@ -914,16 +945,24 @@ md_begin (void)
       /* `max_architecture' records the requested architecture.
 	 Issue warnings if we go above it.  */
       warn_after_architecture = max_architecture;
-
-      /* Find the highest architecture level that doesn't conflict with
-	 the requested one.  */
-      for (max_architecture = SPARC_OPCODE_ARCH_MAX;
-	   max_architecture > warn_after_architecture;
-	   --max_architecture)
-	if (! SPARC_OPCODE_CONFLICT_P (max_architecture,
-				       warn_after_architecture))
-	  break;
     }
+
+  /* Find the highest architecture level that doesn't conflict with
+     the requested one.  */
+
+  if (warn_on_bump
+      || !architecture_requested)
+  {
+    enum sparc_opcode_arch_val current_max_architecture
+      = max_architecture;
+
+    for (max_architecture = SPARC_OPCODE_ARCH_MAX;
+	 max_architecture > warn_after_architecture;
+	 --max_architecture)
+      if (! SPARC_OPCODE_CONFLICT_P (max_architecture,
+				     current_max_architecture))
+	break;
+  }
 }
 
 /* Called after all assembly has been done.  */
@@ -932,6 +971,9 @@ void
 sparc_md_end (void)
 {
   unsigned long mach = bfd_mach_sparc;
+#if defined(OBJ_ELF) && !defined(TE_SOLARIS)
+  int hwcaps, hwcaps2;
+#endif
 
   if (sparc_arch_size == 64)
     switch (current_architecture)
@@ -955,8 +997,13 @@ sparc_md_end (void)
   bfd_set_arch_mach (stdoutput, bfd_arch_sparc, mach);
 
 #if defined(OBJ_ELF) && !defined(TE_SOLARIS)
-  if (hwcap_seen)
-    bfd_elf_add_obj_attr_int (stdoutput, OBJ_ATTR_GNU, Tag_GNU_Sparc_HWCAPS, hwcap_seen);
+  hwcaps = hwcap_seen & U0xffffffff;
+  hwcaps2 = hwcap_seen >> 32;
+
+  if (hwcaps)
+    bfd_elf_add_obj_attr_int (stdoutput, OBJ_ATTR_GNU, Tag_GNU_Sparc_HWCAPS, hwcaps);
+  if (hwcaps2)
+    bfd_elf_add_obj_attr_int (stdoutput, OBJ_ATTR_GNU, Tag_GNU_Sparc_HWCAPS2, hwcaps2);
 #endif
 }
 
@@ -1412,7 +1459,7 @@ md_assemble (char *str)
 }
 
 static const char *
-get_hwcap_name (int mask)
+get_hwcap_name (bfd_uint64_t mask)
 {
   if (mask & HWCAP_MUL32)
     return "mul32";
@@ -1472,6 +1519,25 @@ get_hwcap_name (int mask)
     return "cbcond";
   if (mask & HWCAP_CRC32C)
     return "crc32c";
+
+  mask = mask >> 32;
+  if (mask & HWCAP2_FJATHPLUS)
+    return "fjathplus";
+  if (mask & HWCAP2_VIS3B)
+    return "vis3b";
+  if (mask & HWCAP2_ADP)
+    return "adp";
+  if (mask & HWCAP2_SPARC5)
+    return "sparc5";
+  if (mask & HWCAP2_MWAIT)
+    return "mwait";
+  if (mask & HWCAP2_XMPMUL)
+    return "xmpmul";
+  if (mask & HWCAP2_XMONT)
+    return "xmont";
+  if (mask & HWCAP2_NSEC)
+    return "nsec";
+
   return "UNKNOWN";
 }
 
@@ -2296,6 +2362,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	    case 'g':
 	    case 'H':
 	    case 'J':
+	    case '}':
 	      {
 		char format;
 
@@ -2358,6 +2425,13 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 		    break;
 		  }	/* if not an 'f' register.  */
 
+		if (*args == '}' && mask != RS2 (opcode))
+		  {
+		    error_message
+		      = _(": Instruction requires frs2 and frsd must be the same register");
+		    goto error;
+		  }
+
 		switch (*args)
 		  {
 		  case 'v':
@@ -2380,6 +2454,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 		  case 'g':
 		  case 'H':
 		  case 'J':
+		  case '}':
 		    opcode |= RD (mask);
 		    continue;
 		  }		/* Pack it in.  */
@@ -2833,6 +2908,12 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      s += 5;
 	      continue;
 
+	    case '{':
+	      if (strncmp (s, "%mcdper",7) != 0)
+		break;
+	      s += 7;
+	      continue;
+
 	    case 'E':
 	      if (strncmp (s, "%ccr", 4) != 0)
 		break;
@@ -2923,7 +3004,8 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	{
 	  /* We have a match.  Now see if the architecture is OK.  */
 	  int needed_arch_mask = insn->architecture;
-	  int hwcaps = insn->hwcaps;
+	  bfd_uint64_t hwcaps
+	    = (((bfd_uint64_t) insn->hwcaps2) << 32) | insn->hwcaps;
 
 #if defined(OBJ_ELF) && !defined(TE_SOLARIS)
 	  if (hwcaps)
@@ -2961,6 +3043,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 		  warn_after_architecture = needed_architecture;
 		}
 	      current_architecture = needed_architecture;
+	      hwcap_allowed |= hwcaps;
 	    }
 	  /* Conflict.  */
 	  /* ??? This seems to be a bit fragile.  What if the next entry in
@@ -4266,11 +4349,6 @@ s_proc (int ignore ATTRIBUTE_UNUSED)
 
 static int sparc_no_align_cons = 0;
 
-/* This static variable is set by sparc_cons to emit requested types
-   of relocations in cons_fix_new_sparc.  */
-
-static const char *sparc_cons_special_reloc;
-
 /* This handles the unaligned space allocation pseudo-ops, such as
    .uaword.  .uaword is just like .word, but the value does not need
    to be aligned.  */
@@ -4538,13 +4616,13 @@ sparc_elf_final_processing (void)
     elf_elfheader (stdoutput)->e_flags |= EF_SPARC_SUN_US1|EF_SPARC_SUN_US3;
 }
 
-void
+const char *
 sparc_cons (expressionS *exp, int size)
 {
   char *save;
+  const char *sparc_cons_special_reloc = NULL;
 
   SKIP_WHITESPACE ();
-  sparc_cons_special_reloc = NULL;
   save = input_line_pointer;
   if (input_line_pointer[0] == '%'
       && input_line_pointer[1] == 'r'
@@ -4671,6 +4749,7 @@ sparc_cons (expressionS *exp, int size)
     }
   if (sparc_cons_special_reloc == NULL)
     expression (exp);
+  return sparc_cons_special_reloc;
 }
 
 #endif
@@ -4683,7 +4762,8 @@ void
 cons_fix_new_sparc (fragS *frag,
 		    int where,
 		    unsigned int nbytes,
-		    expressionS *exp)
+		    expressionS *exp,
+		    const char *sparc_cons_special_reloc)
 {
   bfd_reloc_code_real_type r;
 
@@ -4732,7 +4812,6 @@ cons_fix_new_sparc (fragS *frag,
    }
 
   fix_new_exp (frag, where, (int) nbytes, exp, 0, r);
-  sparc_cons_special_reloc = NULL;
 }
 
 void
@@ -4786,9 +4865,7 @@ sparc_regname_to_dw2regnum (char *regname)
 void
 sparc_cfi_emit_pcrel_expr (expressionS *exp, unsigned int nbytes)
 {
-  sparc_cons_special_reloc = "disp";
   sparc_no_align_cons = 1;
-  emit_expr (exp, nbytes);
+  emit_expr_with_reloc (exp, nbytes, "disp");
   sparc_no_align_cons = 0;
-  sparc_cons_special_reloc = NULL;
 }

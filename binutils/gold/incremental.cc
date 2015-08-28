@@ -1,6 +1,6 @@
 // inremental.cc -- incremental linking support for gold
 
-// Copyright 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 // Written by Mikolaj Zalewski <mikolajz@google.com>.
 
 // This file is part of gold.
@@ -2270,10 +2270,10 @@ Sized_relobj_incr<size, big_endian>::do_section_size(unsigned int)
 
 template<int size, bool big_endian>
 std::string
-Sized_relobj_incr<size, big_endian>::do_section_name(unsigned int shndx)
+Sized_relobj_incr<size, big_endian>::do_section_name(unsigned int shndx) const
 {
-  Output_sections& out_sections(this->output_sections());
-  Output_section* os = out_sections[shndx];
+  const Output_sections& out_sections(this->output_sections());
+  const Output_section* os = out_sections[shndx];
   if (os == NULL)
     return NULL;
   return os->name();
@@ -2858,7 +2858,7 @@ Sized_incr_dynobj<size, big_endian>::do_section_size(unsigned int)
 
 template<int size, bool big_endian>
 std::string
-Sized_incr_dynobj<size, big_endian>::do_section_name(unsigned int)
+Sized_incr_dynobj<size, big_endian>::do_section_name(unsigned int) const
 {
   gold_unreachable();
 }

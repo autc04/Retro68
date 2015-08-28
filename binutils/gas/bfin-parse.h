@@ -390,7 +390,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 448 "bfin-parse.y"
+#line 446 "bfin-parse.y"
 {
   INSTR_T instr;
   Expr_Node *expr;

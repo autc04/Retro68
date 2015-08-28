@@ -1,4 +1,132 @@
-2013-10-12  H.J. Lu  <hongjiu.lu@intel.com>
+2015-03-11  Jiong Wang  <jiong.wang@arm.com>
+
+	* binutils-all/arm/rvct_symbol.s: New testcase.
+	* binutils-all/arm/objdump.exp: Run it.
+
+2015-02-11  Alan Modra  <amodra@gmail.com>
+
+	Apply from master.
+	2014-12-26  Alan Modra  <amodra@gmail.com>
+	* binutils-all/strip-11.d: New test.
+	* binutils-all/objcopy.exp: Run it.
+
+2014-09-12  Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* binutils-all/objcopy.exp: Add mips*-img-elf* target triple.
+	* binutils-all/readelf.exp: Likewise
+
+2014-09-06  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* binutils-all/readelf.ss-mips: Account for new sections.
+
+2014-07-29  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* binutils-all/readelf.s: Account for .MIPS.abiflags and
+	.gnu.attributes.
+	* binutils-all/readelf.ss-tmips: Likewise.
+	* binutils-all/strip-3.d: Likewise.
+
+2014-07-10  Will Newton  <will.newton@linaro.org>
+
+	* binutils-all/objcopy.exp: Disable the strip-10 test on
+	non-EABI ARM configurations.
+
+2014-06-03  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/ar.exp: Skip tests involving bfdtest1 and bfdtest2
+	if these executables are not present.
+
+2014-04-30  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/debug_str.s: New test.
+	* binutils-all/debug_str.d: New test control file.
+	* binutils-all/compress.exp: Run debug_str test.
+
+2014-04-22  Christian Svensson  <blue@cmd.nu>
+
+	* binutils-all/objcopy.exp: Remove openrisc and or32 support.  Add
+	support for or1k.
+	* binutils-all/objdump.exp: Likewise.
+	* binutils-all/dw2-decodedline-1.S: Likewise.
+
+2014-03-26  Jiong Wang  <jiong.wang@arm.com>
+
+	* binutils-all/aarch64/aarch64.exp: New test driver for AArch64.
+	* binutils-all/aarch64/unallocated-encoding.s: New testcase.
+	* binutils-all/aarch64/unallocated-encoding.d: Ditto.
+
+2014-03-17  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/readelf.ss: Add skip of MSP430 defined symbols.
+
+2014-01-29  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/16318
+	* binutils-all/strip-10.d: Revert previous delta.
+
+2014-01-28  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/16318
+	* binutils-all/strip-10.d: Allow "System V" in the osabi field.
+
+2013-12-20  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/16218
+	* binutils-all/dw2-1.W:	Update expected objdump output.
+	* binutils-all/i386/compressed-1a.d: Likewise.
+	* binutils-all/objdump.W: Likewise.
+	* binutils-all/x86-64/compressed-1a.d: Likewise.
+
+2013-12-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/16317
+	* binutils-all/readelf.s: Updated.
+	* binutils-all/readelf.s-64: Likewise.
+
+2013-12-13  Kuan-Lin Chen  <kuanlinchentw@gmail.com>
+	    Wei-Cheng Wang  <cole945@gmail.com>
+
+	* binutils-all/objdump.exp: Add NDS32 cpu.
+	* binutils-all/readelf.r: Skip extra reloc created by NDS32.
+
+2013-12-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/16318
+	* binutils-all/strip-10.d: Check OS/ABI.
+
+2013-12-07  Mike Frysinger  <vapier@gentoo.org>
+
+	* binutils-all/windres/escapex-2.rc: Remove +x file mode.
+	* binutils-all/windres/version_small.rc: Likewise.
+	* binutils-all/windres/version_small.rsd: Likewise.
+
+2013-12-03  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/windres/windres.exp: Run for x86_64-pc-cygwin.
+	Add test of "objump -p" output.
+
+2013-11-27  Matthew Fortune <matthew.fortune@imgtec.com>
+
+	* binutils-all/objcopy.exp: Consider mips-mti-elf the same as
+	mips-sde-elf
+	* binutils-all/readelf.exp: Likewise
+
+2013-11-21  Tristan Gingold  <gingold@adacore.com>
+
+	* binutils-all/dlltool.exp: Add dlltool_gas_flag to version.dll test.
+
+2013-11-02  Alan Modra  <amodra@gmail.com>
+
+	* binutils-all/x86-64/compressed-1a.d: Allow wide display of addresses.
+
+	* binutils-all/dw2-1.S: Use .4byte rather than .int.
+	* binutils-all/dw2-2.S: Likewise.
+
+2013-10-24  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/objdump.exp (cps_expected): Add MSP430 to list.
+
+2013-09-27  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* binutils-all/x86-64/compressed-1a.d: Updated for 64-bit addresses.
 
@@ -244,7 +372,7 @@
 
 For older changes see ChangeLog-0411
 
-Copyright (C) 2012 Free Software Foundation, Inc.
+Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

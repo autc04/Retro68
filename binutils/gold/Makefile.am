@@ -1,18 +1,17 @@
 ## Process this file with automake to generate Makefile.in
 #
-#  Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013
-#  Free Software Foundation, Inc.
+#  Copyright (C) 2006-2014 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; see the file COPYING3.  If not see
 # <http://www.gnu.org/licenses/>.
@@ -107,6 +106,7 @@ CCFILES = \
 
 HFILES = \
 	arm-reloc-property.h \
+	aarch64-reloc-property.h \
 	archive.h \
 	attributes.h \
 	binary.h \
@@ -159,16 +159,18 @@ HFILES = \
 YFILES = \
 	yyscript.y
 
-DEFFILES = arm-reloc.def
+DEFFILES = arm-reloc.def aarch64-reloc.def
 
 EXTRA_DIST = yyscript.c yyscript.h
 
 TARGETSOURCES = \
-	i386.cc x86_64.cc sparc.cc powerpc.cc arm.cc arm-reloc-property.cc tilegx.cc
+	i386.cc x86_64.cc sparc.cc powerpc.cc arm.cc arm-reloc-property.cc tilegx.cc \
+	mips.cc aarch64.cc aarch64-reloc-property.cc
 
 ALL_TARGETOBJS = \
 	i386.$(OBJEXT) x86_64.$(OBJEXT) sparc.$(OBJEXT) powerpc.$(OBJEXT) \
-	arm.$(OBJEXT) arm-reloc-property.$(OBJEXT) tilegx.$(OBJEXT)
+	arm.$(OBJEXT) arm-reloc-property.$(OBJEXT) tilegx.$(OBJEXT) \
+	mips.$(OBJEXT) aarch64.$(OBJEXT) aarch64-reloc-property.$(OBJEXT)
 
 libgold_a_SOURCES = $(CCFILES) $(HFILES) $(YFILES) $(DEFFILES)
 libgold_a_LIBADD = $(LIBOBJS)
@@ -198,6 +200,8 @@ dwp_LDADD = libgold.a $(LIBIBERTY) $(GOLD_LDADD) $(LIBINTL) $(THREADSLIB) \
 	$(LIBDL)
 dwp_LDFLAGS = $(GOLD_LDFLAGS)
 
+CONFIG_STATUS_DEPENDENCIES = $(srcdir)/../bfd/development.sh
+
 # Use an explicit dependency for the bison generated header file.
 expression.$(OBJEXT): yyscript.h
 script-sections.$(OBJEXT): yyscript.h
@@ -211,21 +215,22 @@ check: libgold.a
 install-exec-local: ld-new$(EXEEXT)
 	$(mkinstalldirs) $(DESTDIR)$(bindir) $(DESTDIR)$(tooldir)/bin
 	n=`echo $(installed_linker) | sed '$(transform)'`; \
-	$(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(bindir)/$${n}$(EXEEXT); \
+	$(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) \
+	  ld-new$(EXEEXT) $(DESTDIR)$(bindir)/$${n}$(EXEEXT); \
 	if test "$(bindir)" != "$(tooldir)/bin"; then \
 	  rm -f $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT); \
 	  ln $(DESTDIR)$(bindir)/$${n}$(EXEEXT) $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT) >/dev/null 2>/dev/null \
-	  || $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT); \
+	  || $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT); \
 	fi; \
 	if test "x$(install_as_default)" = "xyes"; then \
 	  ld=`echo ld | sed '$(transform)'`; \
 	  rm -f $(DESTDIR)$(bindir)/$${ld}$(EXEEXT); \
 	  ln $(DESTDIR)$(bindir)/$${n}$(EXEEXT) $(DESTDIR)$(bindir)/$${ld}$(EXEEXT) >/dev/null 2>/dev/null \
-	  || $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(bindir)/$${ld}$(EXEEXT); \
+	  || $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(bindir)/$${ld}$(EXEEXT); \
 	  if test "$(bindir)" != "$(tooldir)/bin"; then \
 	    rm -f $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT); \
 	    ln $(DESTDIR)$(bindir)/$${n}$(EXEEXT) $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT) >/dev/null 2>/dev/null \
-	    || $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT); \
+	    || $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT); \
 	  fi; \
 	fi
 

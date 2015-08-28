@@ -1,6 +1,5 @@
 /* rl78-defs.h Renesas RL78 internal definitions
-   Copyright 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -25,6 +24,9 @@
 /* Third operand to rl78_op.  */
 #define RL78REL_DATA		0
 #define RL78REL_PCREL		1
+
+#define RL78_RELAX_NONE		0
+#define RL78_RELAX_BRANCH	1
 
 extern int    rl78_error (const char *);
 extern void   rl78_lex_init (char *, char *);

@@ -2,6 +2,12 @@
 # OS, where a separate postlinker will operated on the generated
 # executable or shared object.  See elf.sc for configuration variables
 # that apply; only BPABI-specific variables will be noted here.
+#
+# Copyright (C) 2014 Free Software Foundation, Inc.
+# 
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 
 test -z "$ENTRY" && ENTRY=_start
 test -z "${BIG_OUTPUT_FORMAT}" && BIG_OUTPUT_FORMAT=${OUTPUT_FORMAT}
@@ -129,7 +135,7 @@ SHLIB_TEXT_START_ADDR="SEGMENT_START(\"text\", ${SHLIB_TEXT_START_ADDR:-0})"
 DATA_ADDR="SEGMENT_START(\"data\", ${DATA_ADDR-${DATA_SEGMENT_ALIGN}})"
 SHLIB_DATA_ADDR="SEGMENT_START(\"data\", ${SHLIB_DATA_ADDR-${DATA_SEGMENT_ALIGN}})"
 
-# if this is for an embedded system, don't add SIZEOF_HEADERS.
+# If this is for an embedded system, don't add SIZEOF_HEADERS.
 if [ -z "$EMBEDDED" ]; then
    test -z "${TEXT_BASE_ADDRESS}" && TEXT_BASE_ADDRESS="${TEXT_START_ADDR} + SIZEOF_HEADERS"
    SHLIB_BASE_ADDRESS="${SHLIB_TEXT_START_ADDR} + SIZEOF_HEADERS"
@@ -139,6 +145,12 @@ else
 fi
 
 cat <<EOF
+/* Copyright (C) 2014 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("${OUTPUT_FORMAT}", "${BIG_OUTPUT_FORMAT}",
 	      "${LITTLE_OUTPUT_FORMAT}")
 OUTPUT_ARCH(${OUTPUT_ARCH})

@@ -1,5 +1,4 @@
-#   Copyright 2010, 2012
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -174,3 +173,13 @@ if ![string match "" $got] then {
 	fail "objcopy ($testname)"
     }
 }
+
+if ![is_remote host] {
+    set tempfile tmpdir/debug_str.o
+    set copyfile tmpdir/debug_str.copy
+} else {
+    set tempfile [remote_download host tmpdir/debug_str.o]
+    set copyfile debug_str.copy
+}
+
+run_dump_test "debug_str"

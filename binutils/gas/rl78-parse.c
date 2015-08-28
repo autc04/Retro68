@@ -2534,32 +2534,32 @@ yyreduce:
 
   case 33:
 #line 293 "rl78-parse.y"
-    { B1 (0xdc); PC1 ((yyvsp[(3) - (3)].exp)); }
+    { B1 (0xdc); PC1 ((yyvsp[(3) - (3)].exp)); rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 34:
 #line 296 "rl78-parse.y"
-    { B1 (0xde); PC1 ((yyvsp[(3) - (3)].exp)); }
+    { B1 (0xde); PC1 ((yyvsp[(3) - (3)].exp)); rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 35:
 #line 299 "rl78-parse.y"
-    { B1 (0xdd); PC1 ((yyvsp[(3) - (3)].exp)); }
+    { B1 (0xdd); PC1 ((yyvsp[(3) - (3)].exp)); rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 36:
 #line 302 "rl78-parse.y"
-    { B1 (0xdf); PC1 ((yyvsp[(3) - (3)].exp)); }
+    { B1 (0xdf); PC1 ((yyvsp[(3) - (3)].exp)); rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 37:
 #line 305 "rl78-parse.y"
-    { B2 (0x61, 0xc3); PC1 ((yyvsp[(3) - (3)].exp)); }
+    { B2 (0x61, 0xc3); PC1 ((yyvsp[(3) - (3)].exp)); rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 38:
 #line 308 "rl78-parse.y"
-    { B2 (0x61, 0xd3); PC1 ((yyvsp[(3) - (3)].exp)); }
+    { B2 (0x61, 0xd3); PC1 ((yyvsp[(3) - (3)].exp)); rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 39:
@@ -4007,7 +4007,7 @@ yyreduce:
 
   case 303:
 #line 1156 "rl78-parse.y"
-    { (yyval.regno) = 0x06; rl78_bit_insn = 1;}
+    { (yyval.regno) = 0x06; rl78_bit_insn = 1; }
     break;
 
   case 304:
@@ -4017,12 +4017,12 @@ yyreduce:
 
   case 305:
 #line 1160 "rl78-parse.y"
-    { (yyval.regno) = 0x02;    rl78_bit_insn = 1;}
+    { (yyval.regno) = 0x02;    rl78_bit_insn = 1; rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 306:
 #line 1161 "rl78-parse.y"
-    { (yyval.regno) = 0x04;    rl78_bit_insn = 1; }
+    { (yyval.regno) = 0x04;    rl78_bit_insn = 1; rl78_relax (RL78_RELAX_BRANCH, 0); }
     break;
 
   case 307:

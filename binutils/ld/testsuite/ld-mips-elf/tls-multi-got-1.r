@@ -15,7 +15,7 @@ Dynamic section at offset .* contains 18 entries:
  0x70000006 \(MIPS_BASE_ADDRESS\)          0x0
  0x7000000a \(MIPS_LOCAL_GOTNO\)           2
  0x70000011 \(MIPS_SYMTABNO\)              20011
- 0x70000012 \(MIPS_UNREFEXTNO\)            10
+ 0x70000012 \(MIPS_UNREFEXTNO\)            11
  0x70000013 \(MIPS_GOTSYM\)                0xb
  0x0000001e \(FLAGS\)                      STATIC_TLS
  0x00000000 \(NULL\)                       0x0

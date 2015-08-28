@@ -1,6 +1,5 @@
 /* This file is tc-avr.h
-   Copyright 1999, 2000, 2001, 2002, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    Contributed by Denis Chertykov <denisc@overta.ru>
 
@@ -51,16 +50,36 @@
    will point to the start of the expression.  */
 #define md_operand(x)
 
+typedef struct
+{
+  /* Name of the expression modifier allowed with .byte, .word, etc.  */
+  const char *name;
+
+  /* Only allowed with n bytes of data.  */
+  int nbytes;
+
+  /* Associated RELOC.  */
+  bfd_reloc_code_real_type reloc;
+
+  /* Part of the error message.  */
+  const char *error;
+} exp_mod_data_t;
+
+extern const exp_mod_data_t exp_mod_data[];
+#define TC_PARSE_CONS_RETURN_TYPE const exp_mod_data_t *
+#define TC_PARSE_CONS_RETURN_NONE exp_mod_data
+
 /* You may define this macro to parse an expression used in a data
    allocation pseudo-op such as `.word'.  You can use this to
    recognize relocation directives that may appear in such directives.  */
 #define TC_PARSE_CONS_EXPRESSION(EXPR,N) avr_parse_cons_expression (EXPR, N)
-extern void avr_parse_cons_expression (expressionS *, int);
+extern const exp_mod_data_t *avr_parse_cons_expression (expressionS *, int);
 
 /* You may define this macro to generate a fixup for a data
    allocation pseudo-op.  */
-#define TC_CONS_FIX_NEW(FRAG,WHERE,N,EXP) avr_cons_fix_new (FRAG, WHERE, N, EXP)
-extern void avr_cons_fix_new (fragS *,int, int, expressionS *);
+#define TC_CONS_FIX_NEW avr_cons_fix_new
+extern void avr_cons_fix_new (fragS *,int, int, expressionS *,
+			      const exp_mod_data_t *);
 
 /* This should just call either `number_to_chars_bigendian' or
    `number_to_chars_littleendian', whichever is appropriate.  On
@@ -92,6 +111,18 @@ extern void avr_cons_fix_new (fragS *,int, int, expressionS *);
 /* No shared lib support, so we don't need to ensure externally
    visible symbols can be overridden.  */
 #define EXTERN_FORCE_RELOC 0
+
+/* If defined, this macro allows control over whether fixups for a
+   given section will be processed when the linkrelax variable is
+   set. Define it to zero and handle things in md_apply_fix instead.*/
+#define TC_LINKRELAX_FIXUP(SEG) 0
+
+/* If this macro returns non-zero, it guarantees that a relocation will be emitted
+   even when the value can be resolved locally. Do that if linkrelax is turned on */
+#define TC_FORCE_RELOCATION(fix)	avr_force_relocation (fix)
+#define TC_FORCE_RELOCATION_SUB_SAME(fix, seg) \
+  (! SEG_NORMAL (seg) || avr_force_relocation (fix))
+extern int avr_force_relocation (struct fix *);
 
 /* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
@@ -150,6 +181,12 @@ extern long md_pcrel_from_section (struct fix *, segT);
       goto SKIP;					     \
     }
 
+/* This macro is evaluated for any fixup with a fx_subsy that
+   fixup_segment cannot reduce to a number.  If the macro returns
+   false an error will be reported. */
+#define TC_VALIDATE_FIX_SUB(fix, seg)   avr_validate_fix_sub (fix)
+extern int avr_validate_fix_sub (struct fix *);
+
 /* This target is buggy, and sets fix size too large.  */
 #define TC_FX_SIZE_SLACK(FIX) 2
 
@@ -171,3 +208,8 @@ extern long md_pcrel_from_section (struct fix *, segT);
 /* Define a hook to setup initial CFI state.  */
 extern void tc_cfi_frame_initial_instructions (void);
 #define tc_cfi_frame_initial_instructions tc_cfi_frame_initial_instructions
+
+/* The difference between same-section symbols may be affected by linker
+   relaxation, so do not resolve such expressions in the assembler.  */
+#define md_allow_local_subtract(l,r,s) avr_allow_local_subtract (l, r, s)
+extern bfd_boolean avr_allow_local_subtract (expressionS *, expressionS *, segT);

@@ -156,10 +156,10 @@ target_libraries="target-libgcc \
 		target-libgloss \
 		target-newlib \
 		target-libgomp \
+		target-libcilkrts \
 		target-libatomic \
 		target-libitm \
 		target-libstdc++-v3 \
-		target-libmudflap \
 		target-libsanitizer \
 		target-libvtv \
 		target-libssp \
@@ -331,7 +331,8 @@ case "${ENABLE_GOLD}" in
     if test "$is_elf" = "yes"; then
       # Check for target supported by gold.
       case "${target}" in
-        i?86-*-* | x86_64-*-* | sparc*-*-* | powerpc*-*-* | arm*-*-* | tilegx*-*-*)
+        i?86-*-* | x86_64-*-* | sparc*-*-* | powerpc*-*-* | arm*-*-* \
+        | aarch64*-*-* | tilegx*-*-*)
 	  configdirs="$configdirs gold"
 	  if test x${ENABLE_GOLD} = xdefault; then
 	    default_ld=gold
@@ -473,22 +474,6 @@ if test x$enable_static_libjava != xyes ; then
 fi
 AC_SUBST(EXTRA_CONFIGARGS_LIBJAVA)
 
-# Disable libmudflap on some systems.
-if test x$enable_libmudflap = x ; then
-    case "${target}" in
-    *-*-linux* | *-*-gnu* | *-*-k*bsd*-gnu | bfin*-*-uclinux* | *-*-kopensolaris*-gnu)
-        # Enable libmudflap by default in GNU and friends.
-	;;
-    *-*-freebsd*)
-        # Enable libmudflap by default in FreeBSD.
-	;;
-    *)
-        # Disable it by default everywhere else.
-	noconfigdirs="$noconfigdirs target-libmudflap"
-	;;
-    esac
-fi
-
 # Disable libgomp on non POSIX hosted systems.
 if test x$enable_libgomp = x ; then
     # Enable libgomp by default on hosted POSIX systems.
@@ -517,6 +502,22 @@ if test -d ${srcdir}/libatomic; then
 	then
 	    AC_MSG_RESULT([no])
 	    noconfigdirs="$noconfigdirs target-libatomic"
+	else
+	    AC_MSG_RESULT([yes])
+	fi
+    fi
+fi
+
+# Disable libcilkrts on unsupported systems.
+if test -d ${srcdir}/libcilkrts; then
+    if test x$enable_libcilkrts = x; then
+	AC_MSG_CHECKING([for libcilkrts support])
+	if (srcdir=${srcdir}/libcilkrts; \
+		. ${srcdir}/configure.tgt; \
+		test -n "$UNSUPPORTED")
+	then
+	    AC_MSG_RESULT([no])
+	    noconfigdirs="$noconfigdirs target-libcilkrts"
 	else
 	    AC_MSG_RESULT([yes])
 	fi
@@ -931,6 +932,10 @@ case "${target}" in
     ;;
   *-*-rtems*)
     noconfigdirs="$noconfigdirs target-libgloss"
+    # this is not caught below because this stanza matches earlier
+    case $target in
+      or1k*-*-*) noconfigdirs="$noconfigdirs gdb" ;;
+    esac
     ;;
     # The tpf target doesn't support gdb yet.
   *-*-tpf*)
@@ -956,7 +961,7 @@ case "${target}" in
   sh*-*-pe|mips*-*-pe|*arm-wince-pe)
     noconfigdirs="$noconfigdirs tcl tk itcl libgui sim"
     ;;
-  arc-*-*)
+  arc-*-*|arceb-*-*)
     noconfigdirs="$noconfigdirs target-libgloss"
     ;;
   arm-*-pe*)
@@ -1106,7 +1111,7 @@ case "${target}" in
   microblaze*)
     noconfigdirs="$noconfigdirs gprof"
     ;;
-  mips*-sde-elf* | mips*-mti-elf*)
+  mips*-sde-elf* | mips*-mti-elf* | mips*-img-elf*)
     if test x$with_newlib = xyes; then
       noconfigdirs="$noconfigdirs gprof"
     fi
@@ -1129,6 +1134,12 @@ case "${target}" in
   mips*-*-*)
     noconfigdirs="$noconfigdirs gprof"
     ;;
+  nds32*-*-*)
+    noconfigdirs="$noconfigdirs gdb"
+    ;;
+  or1k*-*-*)
+    noconfigdirs="$noconfigdirs gdb"
+    ;;
   sh-*-* | sh64-*-*)
     case "${target}" in
       sh*-*-elf)
@@ -1145,7 +1156,7 @@ case "${target}" in
   tic6x-*-*)
     noconfigdirs="$noconfigdirs sim"
     ;;
-  tilepro-*-* | tilegx-*-*)
+  tilepro*-*-* | tilegx*-*-*)
     noconfigdirs="$noconfigdirs sim"
     ;;
   v810-*-*)
@@ -1653,6 +1664,9 @@ if test "x$with_isl" != "xno" &&
   ISL_CHECK_VERSION(0,10)
   if test "${gcc_cv_isl}" = no ; then
     ISL_CHECK_VERSION(0,11)
+    if test "${gcc_cv_isl}" = no ; then
+      ISL_CHECK_VERSION(0,12)
+    fi
   fi
   dnl Only execute fail-action, if ISL has been requested.
   ISL_IF_FAILED([
@@ -2058,7 +2072,7 @@ esac
 case ,${enable_languages}, in
   *,c++,*) ;;
   *)
-    noconfigdirs="$noconfigdirs target-libitm target-libsanitizer target-libvtv"
+    noconfigdirs="$noconfigdirs target-libcilkrts target-libitm target-libsanitizer target-libvtv"
     ;;
 esac
 
@@ -2358,7 +2372,7 @@ case "${target}" in
   spu-*-*)
     target_makefile_frag="config/mt-spu"
     ;;
-  mips*-sde-elf* | mips*-mti-elf*)
+  mips*-sde-elf* | mips*-mti-elf* | mips*-img-elf*)
     target_makefile_frag="config/mt-sde"
     ;;
   mipsisa*-*-elfoabi*)
@@ -2366,6 +2380,9 @@ case "${target}" in
     ;;
   mips*-*-*linux* | mips*-*-gnu*)
     target_makefile_frag="config/mt-mips-gnu"
+    ;;
+  nios2-*-elf*)
+    target_makefile_frag="config/mt-nios2-elf"
     ;;
   *-*-linux* | *-*-gnu* | *-*-k*bsd*-gnu | *-*-kopensolaris*-gnu)
     target_makefile_frag="config/mt-gnu"
@@ -2469,23 +2486,87 @@ else
   GCC_SHLIB_SUBDIR=
 fi
 
+# Adjust the toplevel makefile according to whether bootstrap was selected.
+case $enable_bootstrap in
+  yes)
+    bootstrap_suffix=bootstrap
+    BUILD_CONFIG=bootstrap-debug
+    ;;
+  no)
+    bootstrap_suffix=no-bootstrap
+    BUILD_CONFIG=
+    ;;
+esac
+
+AC_MSG_CHECKING(for default BUILD_CONFIG)
+
+AC_ARG_WITH([build-config],
+  [AS_HELP_STRING([--with-build-config='NAME NAME2...'],
+		  [use config/NAME.mk build configuration])],
+  [case $with_build_config in
+   yes) with_build_config= ;;
+   no) with_build_config= BUILD_CONFIG= ;;
+   esac])
+
+if test "x${with_build_config}" != x; then
+  BUILD_CONFIG=$with_build_config
+else
+  case $BUILD_CONFIG in
+  bootstrap-debug)
+    if echo "int f (void) { return 0; }" > conftest.c &&
+       ${CC} -c conftest.c &&
+       mv conftest.o conftest.o.g0 &&
+       ${CC} -c -g conftest.c &&
+       mv conftest.o conftest.o.g &&
+       ${srcdir}/contrib/compare-debug conftest.o.g0 conftest.o.g > /dev/null 2>&1; then
+      :
+    else
+      BUILD_CONFIG=
+    fi
+    rm -f conftest.c conftest.o conftest.o.g0 conftest.o.g
+    ;;
+  esac
+fi
+AC_MSG_RESULT($BUILD_CONFIG)
+AC_SUBST(BUILD_CONFIG)
+
+# Use same top-level configure hooks in libgcc/libstdc++/libvtv.
+AC_MSG_CHECKING([for --enable-vtable-verify])
+AC_ARG_ENABLE(vtable-verify,
+[  --enable-vtable-verify    Enable vtable verification feature ],
+[case "$enableval" in
+ yes) enable_vtable_verify=yes ;;
+ no)  enable_vtable_verify=no ;;
+ *)   enable_vtable_verify=no;;
+ esac],
+[enable_vtable_verify=no])
+AC_MSG_RESULT($enable_vtable_verify)
+
 # Record target_configdirs and the configure arguments for target and
 # build configuration in Makefile.
 target_configdirs=`echo "${target_configdirs}" | sed -e 's/target-//g'`
 build_configdirs=`echo "${build_configdirs}" | sed -e 's/build-//g'`
+bootstrap_fixincludes=no
 
 # If we are building libgomp, bootstrap it.
 if echo " ${target_configdirs} " | grep " libgomp " > /dev/null 2>&1 ; then
   bootstrap_target_libs=${bootstrap_target_libs}target-libgomp,
 fi
 
-# If we are building libsanitizer, bootstrap it.
-if echo " ${target_configdirs} " | grep " libsanitizer " > /dev/null 2>&1 ; then
-  bootstrap_target_libs=${bootstrap_target_libs}target-libsanitizer,
+# If we are building libsanitizer and $BUILD_CONFIG contains bootstrap-asan
+# or bootstrap-ubsan, bootstrap it.
+if echo " ${target_configdirs} " | grep " libsanitizer " > /dev/null 2>&1; then
+  case "$BUILD_CONFIG" in
+    *bootstrap-asan* | *bootstrap-ubsan* )
+      bootstrap_target_libs=${bootstrap_target_libs}target-libsanitizer,
+      bootstrap_fixincludes=yes
+      ;;
+  esac
 fi
 
-# If we are building libvtv, bootstrap it.
-if echo " ${target_configdirs} " | grep " libvtv " > /dev/null 2>&1 ; then
+# If we are building libvtv and --enable-vtable-verify, bootstrap it.
+if echo " ${target_configdirs} " | grep " libvtv " > /dev/null 2>&1 &&
+   test "$enable_vtable_verify" != no; then
   bootstrap_target_libs=${bootstrap_target_libs}target-libvtv,
 fi
 
@@ -2538,50 +2619,6 @@ case "$enable_bootstrap:$ENABLE_GOLD: $configdirs :,$stage1_languages," in
     ;;
 esac
 
-# Adjust the toplevel makefile according to whether bootstrap was selected.
-case $enable_bootstrap in
-  yes)
-    bootstrap_suffix=bootstrap
-    BUILD_CONFIG=bootstrap-debug
-    ;;
-  no)
-    bootstrap_suffix=no-bootstrap
-    BUILD_CONFIG=
-    ;;
-esac
-
-AC_MSG_CHECKING(for default BUILD_CONFIG)
-
-AC_ARG_WITH([build-config],
-  [AS_HELP_STRING([--with-build-config='NAME NAME2...'],
-		  [use config/NAME.mk build configuration])],
-  [case $with_build_config in
-   yes) with_build_config= ;;
-   no) with_build_config= BUILD_CONFIG= ;;
-   esac])
-
-if test "x${with_build_config}" != x; then
-  BUILD_CONFIG=$with_build_config
-else
-  case $BUILD_CONFIG in
-  bootstrap-debug)
-    if echo "int f (void) { return 0; }" > conftest.c &&
-       ${CC} -c conftest.c &&
-       mv conftest.o conftest.o.g0 &&
-       ${CC} -c -g conftest.c &&
-       mv conftest.o conftest.o.g &&
-       ${srcdir}/contrib/compare-debug conftest.o.g0 conftest.o.g > /dev/null 2>&1; then
-      :
-    else
-      BUILD_CONFIG=
-    fi
-    rm -f conftest.c conftest.o conftest.o.g0 conftest.o.g
-    ;;
-  esac
-fi
-AC_MSG_RESULT($BUILD_CONFIG)
-AC_SUBST(BUILD_CONFIG)
-
 extrasub_build=
 for module in ${build_configdirs} ; do
   if test -z "${no_recursion}" \
@@ -2605,11 +2642,15 @@ for module in ${configdirs} ; do
       fi
     done
   fi
+  case ${module},${bootstrap_fixincludes} in
+    fixincludes,no) host_bootstrap_suffix=no-bootstrap ;;
+    *) host_bootstrap_suffix=$bootstrap_suffix ;;
+  esac
   extrasub_host="$extrasub_host
 /^@if $module\$/d
 /^@endif $module\$/d
-/^@if $module-$bootstrap_suffix\$/d
-/^@endif $module-$bootstrap_suffix\$/d"
+/^@if $module-$host_bootstrap_suffix\$/d
+/^@endif $module-$host_bootstrap_suffix\$/d"
 done
 extrasub_target=
 for module in ${target_configdirs} ; do
@@ -2875,6 +2916,26 @@ target_configargs="$target_configargs ${tbaseargs}"
 if test x${is_cross_compiler} = xyes ; then
   target_configargs="--with-cross-host=${host_noncanonical} ${target_configargs}"
 fi
+
+# Special user-friendly check for native x86_64-linux build, if
+# multilib is not explicitly enabled.
+case "$target:$have_compiler:$host:$target:$enable_multilib" in
+  x86_64-*linux*:yes:$build:$build:)
+    # Make sure we have a developement environment that handles 32-bit
+    dev64=no
+    echo "int main () { return 0; }" > conftest.c
+    ${CC} -m32 -o conftest ${CFLAGS} ${CPPFLAGS} ${LDFLAGS} conftest.c
+    if test $? = 0 ; then
+      if test -s conftest || test -s conftest.exe ; then
+	dev64=yes
+      fi
+    fi 
+    rm -f conftest*
+    if test x${dev64} != xyes ; then
+      AC_MSG_ERROR([I suspect your system does not have 32-bit developement libraries (libc and headers). If you have them, rerun configure with --enable-multilib. If you do not have them, and want to build a 64-bit-only compiler, rerun configure with --disable-multilib.])
+    fi
+    ;;
+esac
 
 # Default to --enable-multilib.
 if test x${enable_multilib} = x ; then
@@ -3297,6 +3358,13 @@ case ${enable_werror} in
   *) stage2_werror_flag="" ;;
 esac
 AC_SUBST(stage2_werror_flag)
+
+# Enable --enable-host-shared.
+AC_ARG_ENABLE(host-shared,
+[AS_HELP_STRING([--enable-host-shared],
+		[build host code as shared libraries])],
+[host_shared=$enableval], [host_shared=no])
+AC_SUBST(host_shared)
 
 # Specify what files to not compare during bootstrap.
 

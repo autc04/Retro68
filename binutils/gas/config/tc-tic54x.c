@@ -1,6 +1,5 @@
 /* tc-tic54x.c -- Assembly code for the Texas Instruments TMS320C54X
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2012  Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Timothy Wall (twall@cygnus.com)
 
    This file is part of GAS, the GNU Assembler.
@@ -2369,13 +2368,13 @@ tic54x_mlib (int ignore ATTRIBUTE_UNUSED)
       FILE *ftmp;
 
       /* We're not sure how big it is, but it will be smaller than "size".  */
-      bfd_bread (buf, size, mbfd);
+      size = bfd_bread (buf, size, mbfd);
 
       /* Write to a temporary file, then use s_include to include it
 	 a bit of a hack.  */
       ftmp = fopen (fname, "w+b");
       fwrite ((void *) buf, size, 1, ftmp);
-      if (buf[size - 1] != '\n')
+      if (size == 0 || buf[size - 1] != '\n')
 	fwrite ("\n", 1, 1, ftmp);
       fclose (ftmp);
       free (buf);
@@ -4778,7 +4777,7 @@ tic54x_start_line_hook (void)
   line[endp - input_line_pointer] = 0;
 
   /* Scan ahead for parallel insns.  */
-  parallel_on_next_line_hint = next_line_shows_parallel (endp + 1);
+  parallel_on_next_line_hint = next_line_shows_parallel (endp);
 
   /* If within a macro, first process forced replacements.  */
   if (macro_level > 0)
@@ -5122,10 +5121,9 @@ tc_gen_reloc (asection *section, fixS *fixP)
 /* Handle cons expressions.  */
 
 void
-tic54x_cons_fix_new (fragS *frag, int where, int octets, expressionS *expn)
+tic54x_cons_fix_new (fragS *frag, int where, int octets, expressionS *expn,
+		     bfd_reloc_code_real_type r)
 {
-  bfd_reloc_code_real_type r;
-
   switch (octets)
     {
     default:

@@ -1,6 +1,6 @@
 // cref.cc -- cross reference for gold
 
-// Copyright 2008, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.

@@ -1,5 +1,5 @@
 /* Plugin control for the GNU linker.
-   Copyright 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -65,8 +65,5 @@ extern void plugin_call_cleanup (void);
    that symbols can be added to it; it must be made readable after the
    add_symbols hook has been called so that it can be read when linking.  */
 extern bfd *plugin_get_ir_dummy_bfd (const char *name, bfd *template);
-
-/* Return true if bfd is a dynamic library that should be reloaded.  */
-extern bfd_boolean plugin_should_reload (bfd *);
 
 #endif /* !def GLD_PLUGIN_H */

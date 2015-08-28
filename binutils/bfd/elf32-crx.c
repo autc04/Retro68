@@ -1,6 +1,5 @@
 /* BFD back-end for National Semiconductor's CRX ELF
-   Copyright 2004, 2005, 2006, 2007, 2009, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
    Written by Tomer Levi, NSC, Israel.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -83,8 +82,8 @@ static reloc_howto_type crx_elf_howto_table[] =
 {
   HOWTO (R_CRX_NONE,		/* type */
 	 0,			/* rightshift */
-	 2,			/* size */
-	 32,			/* bitsize */
+	 3,			/* size */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont,/* complain_on_overflow */
@@ -424,7 +423,13 @@ elf_crx_info_to_howto (bfd *abfd ATTRIBUTE_UNUSED, arelent *cache_ptr,
 		       Elf_Internal_Rela *dst)
 {
   unsigned int r_type = ELF32_R_TYPE (dst->r_info);
-  BFD_ASSERT (r_type < (unsigned int) R_CRX_MAX);
+  if (r_type >= R_CRX_MAX)
+    {
+      (*_bfd_error_handler) (_("%B: unrecognised CRX reloc number: %d"),
+			     abfd, r_type);
+      bfd_set_error (bfd_error_bad_value);
+      r_type = R_CRX_NONE;
+    }
   cache_ptr->howto = &crx_elf_howto_table[r_type];
 }
 
@@ -865,12 +870,12 @@ elf32_crx_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	}
       else
 	{
-	  bfd_boolean unresolved_reloc, warned;
+	  bfd_boolean unresolved_reloc, warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	}
 
       if (sec != NULL && discarded_section (sec))
@@ -1309,7 +1314,7 @@ elf32_crx_relax_section (bfd *abfd, asection *sec,
 }
 
 /* Definitions for setting CRX target vector.  */
-#define TARGET_LITTLE_SYM		bfd_elf32_crx_vec
+#define TARGET_LITTLE_SYM		crx_elf32_vec
 #define TARGET_LITTLE_NAME		"elf32-crx"
 #define ELF_ARCH			bfd_arch_crx
 #define ELF_MACHINE_CODE		EM_CRX

@@ -4,7 +4,7 @@
 #as: -march=from-abi -EB -64 --defsym alignment=3 --defsym fill=0x40
 #readelf: --relocs -wf
 #ld: -shared -melf64btsmip -Teh-frame1.ld
-#warning: fde encoding in.*prevents \.eh_frame_hdr table being created.
+#warning: FDE encoding in.*prevents \.eh_frame_hdr table being created.
 
 Relocation section '\.rel\.dyn' .*:
  *Offset .*

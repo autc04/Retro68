@@ -1,5 +1,4 @@
-# Copyright 2012
-# Free Software Foundation, Inc.
+# Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -100,8 +99,8 @@ case $target_triplet in {
     default {
 	# Some targets don't manage to resolve BFD_RELOC_8 for constants.
 	setup_xfail "alpha*-*-*" "*c30*-*-*" "*c4x*-*-*" \
-	    "d\[13\]0v*-*-*" "i860-*-*" "mips*-*-*" \
-	    "pdp11-*-*" "xtensa*-*-*"
+	    "d\[13\]0v*-*-*" "i860-*-*" \
+	    "nds32*-*-*" "pdp11-*-*" "xtensa*-*-*"
 	run_dump_test forward
     }
 }
@@ -118,6 +117,7 @@ if { ![is_aout_format] } {
 	{ hppa*-*-hpux* } { }
 	{ mep-*-* } { }
 	{ mmix-*-* } { }
+	{ nds32*-*-* } { }
 	{ tic30*-*-* } { }
 	{ tic4x*-*-* } { }
 	{ tic54x*-*-* } { }
@@ -140,6 +140,7 @@ case $target_triplet in {
     { mn10200-*-* } { }
     { mn10300-*-* } { }
     { msp430*-*-* } { }
+    { nds32*-*-* } { }
     { pdp11-*-* } { }
     { tic30*-*-* } { }
     { tic4x*-*-* } { }
@@ -162,7 +163,7 @@ case $target_triplet in {
 	# These targets fail redef3 because section contents for the
 	# word referencing the .comm sym is not zero and/or its reloc
 	# has a non-zero addend.  Relaxing the test would hide real
-	# failures such as or32-elf.
+	# failures.
 	setup_xfail "bfin-*-*" "i\[3-7\]86-*-*coff" \
 	    "i\[3-7\]86-*-*pe" "i\[3-7\]86-*-go32*" \
 	    "i\[3-7\]86-*-cygwin*" "i\[3-7\]86-*-mingw*" "x86_64-*-mingw*"
@@ -366,12 +367,13 @@ if {  ([istarget "i*86-*-*pe*"] && ![istarget "i*86-*-openbsd*"]) \
   gas_test "fastcall.s" ""   "" "fastcall labels"
 }
 
-if { ![istarget "bfin-*-*"] } then {
+if { ![istarget "bfin-*-*"] && ![istarget "nds32*-*-*"] } then {
     run_dump_test assign
 }
 run_dump_test sleb128
 run_dump_test sleb128-2
 run_dump_test sleb128-3
+setup_xfail "nds32*-*-*"
 run_dump_test sleb128-4
 run_dump_test sleb128-5
 # .byte is not 8 bits on either tic4x or tic54x
@@ -414,6 +416,7 @@ case $target_triplet in {
     { *c54x*-*-* } { }
     { z80-*-* } { }
     default {
+	setup_xfail "nds32*-*-*"
 	run_dump_test weakref1
 	run_dump_test weakref1g
 	run_dump_test weakref1l

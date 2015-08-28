@@ -1,6 +1,6 @@
 // arm.cc -- arm target support for gold.
 
-// Copyright 2009, 2010, 2011, 2012, 2013 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com> based on the i386 code
 // by Ian Lance Taylor <iant@google.com>.
 // This file also contains borrowed and adapted code from
@@ -6683,7 +6683,7 @@ void
 Arm_relobj<big_endian>::do_read_symbols(Read_symbols_data* sd)
 {
   // Call parent class to read symbol information.
-  Sized_relobj_file<32, big_endian>::do_read_symbols(sd);
+  this->base_read_symbols(sd);
 
   // If this input file is a binary file, it has no processor
   // specific flags and attributes section.
@@ -6974,7 +6974,7 @@ void
 Arm_dynobj<big_endian>::do_read_symbols(Read_symbols_data* sd)
 {
   // Call parent class to read symbol information.
-  Sized_dynobj<32, big_endian>::do_read_symbols(sd);
+  this->base_read_symbols(sd);
 
   // Read processor-specific flags in ELF file header.
   const unsigned char* pehdr = this->get_view(elfcpp::file_header_offset,
@@ -8301,7 +8301,8 @@ Target_arm<big_endian>::Scan::global(Symbol_table* symtab,
 	// Make a dynamic relocation if necessary.
 	if (gsym->needs_dynamic_reloc(Scan::get_reference_flags(r_type)))
 	  {
-	    if (gsym->may_need_copy_reloc())
+	    if (!parameters->options().output_is_position_independent()
+		&& gsym->may_need_copy_reloc())
 	      {
 		target->copy_reloc(symtab, layout, object,
 				   data_shndx, output_section, gsym, reloc);
@@ -8382,7 +8383,8 @@ Target_arm<big_endian>::Scan::global(Symbol_table* symtab,
 	// Make a dynamic relocation if necessary.
 	if (gsym->needs_dynamic_reloc(Scan::get_reference_flags(r_type)))
 	  {
-	    if (target->may_need_copy_reloc(gsym))
+	    if (parameters->options().output_is_executable()
+		&& target->may_need_copy_reloc(gsym))
 	      {
 		target->copy_reloc(symtab, layout, object,
 				   data_shndx, output_section, gsym, reloc);

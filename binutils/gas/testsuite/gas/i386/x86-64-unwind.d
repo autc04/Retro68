@@ -1,7 +1,7 @@
 #readelf: -S
 #name: x86-64 unwind
 
-There are 8 section headers, starting at offset 0x80:
+There are 8 section headers, starting at offset 0x100:
 
 Section Headers:
   \[Nr\] Name              Type             Address           Offset
@@ -18,9 +18,9 @@ Section Headers:
        0000000000000008  0000000000000000   A       0     0     1
   \[ 5\] \.shstrtab         STRTAB           0000000000000000  00000048
        0000000000000036  0000000000000000           0     0     1
-  \[ 6\] \.symtab           SYMTAB           0000000000000000  00000280
+  \[ 6\] \.symtab           SYMTAB           0000000000000000  00000080
        0000000000000078  0000000000000018           7     5     8
-  \[ 7\] \.strtab           STRTAB           0000000000000000  000002f8
+  \[ 7\] \.strtab           STRTAB           0000000000000000  000000f8
        0000000000000001  0000000000000000           0     0     1
 Key to Flags:
 #...

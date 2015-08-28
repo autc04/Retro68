@@ -1,6 +1,5 @@
 %{ /* rcparse.y -- parser for Windows rc files
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007, 2008,
-   2011  Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Extended by Kai Tietz, Onevision.
 
@@ -1426,15 +1425,15 @@ fixedverinfo:
 	| fixedverinfo FILEVERSION numexpr optcnumexpr optcnumexpr
 	  optcnumexpr
 	  {
-	    $1->file_version_ms = ($3 << 16) | $4;
-	    $1->file_version_ls = ($5 << 16) | $6;
+	    $1->file_version_ms = ($3 << 16) | ($4 & 0xffff);
+	    $1->file_version_ls = ($5 << 16) | ($6 & 0xffff);
 	    $$ = $1;
 	  }
 	| fixedverinfo PRODUCTVERSION numexpr optcnumexpr optcnumexpr
 	  optcnumexpr
 	  {
-	    $1->product_version_ms = ($3 << 16) | $4;
-	    $1->product_version_ls = ($5 << 16) | $6;
+	    $1->product_version_ms = ($3 << 16) | ($4 & 0xffff);
+	    $1->product_version_ls = ($5 << 16) | ($6 & 0xffff);
 	    $$ = $1;
 	  }
 	| fixedverinfo FILEFLAGSMASK numexpr
@@ -1888,12 +1887,12 @@ sizednumexpr:
 	  }
 	| sizednumexpr '/' sizednumexpr
 	  {
-	    $$.val = $1.val / $3.val;
+	    $$.val = $1.val / ($3.val ? $3.val : 1);
 	    $$.dword = $1.dword || $3.dword;
 	  }
 	| sizednumexpr '%' sizednumexpr
 	  {
-	    $$.val = $1.val % $3.val;
+	    $$.val = $1.val % ($3.val ? $3.val : 1);
 	    $$.dword = $1.dword || $3.dword;
 	  }
 	| sizednumexpr '+' sizednumexpr
@@ -1967,12 +1966,13 @@ sizedposnumexpr:
 	  }
 	| sizedposnumexpr '/' sizednumexpr
 	  {
-	    $$.val = $1.val / $3.val;
+	    $$.val = $1.val / ($3.val ? $3.val : 1);
 	    $$.dword = $1.dword || $3.dword;
 	  }
 	| sizedposnumexpr '%' sizednumexpr
 	  {
-	    $$.val = $1.val % $3.val;
+	    /* PR 17512: file: 89105a25.  */
+	    $$.val = $1.val % ($3.val ? $3.val : 1);
 	    $$.dword = $1.dword || $3.dword;
 	  }
 	| sizedposnumexpr '+' sizednumexpr

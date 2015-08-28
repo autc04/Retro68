@@ -1,6 +1,6 @@
 // dwp_test.h -- a test case for dwp, header file  -*- C++ -*-
 
-// Copyright 2012 Free Software Foundation, Inc.
+// Copyright (C) 2012-2014 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.

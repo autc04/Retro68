@@ -1,6 +1,6 @@
 /* tc-microblaze.c -- Assemble code for Xilinx MicroBlaze
 
-   Copyright 2009, 2010, 2012 Free Software Foundation.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -802,7 +802,7 @@ check_got (int * got_type, int * got_len)
   return tmpbuf;
 }
 
-extern void
+extern bfd_reloc_code_real_type
 parse_cons_expression_microblaze (expressionS *exp, int size)
 {
   if (size == 4)
@@ -828,6 +828,7 @@ parse_cons_expression_microblaze (expressionS *exp, int size)
     }
   else
     expression (exp);
+  return BFD_RELOC_NONE;
 }
 
 /* This is the guts of the machine-dependent assembler.  STR points to a
@@ -2485,11 +2486,9 @@ void
 cons_fix_new_microblaze (fragS * frag,
 			 int where,
 			 int size,
-			 expressionS *exp)
+			 expressionS *exp,
+			 bfd_reloc_code_real_type r)
 {
-
-  bfd_reloc_code_real_type r;
-
   if ((exp->X_op == O_subtract) && (exp->X_add_symbol) &&
       (exp->X_op_symbol) && (now_seg != absolute_section) && (size == 4)
       && (!S_IS_LOCAL (exp->X_op_symbol)))

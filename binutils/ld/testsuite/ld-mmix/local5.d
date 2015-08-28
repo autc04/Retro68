@@ -9,7 +9,7 @@
 
 # Like local1, but with two checks for a local register.
 
-There are 6 section headers, starting at offset 0xc8:
+There are 6 section headers, starting at offset .*:
 
 Section Headers:
  +\[Nr\] Name +Type +Address +Offset
@@ -38,7 +38,6 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* 0+fd +0 +NOTYPE +LOCAL +DEFAULT +PRC\[0xff00\] lsym
 .* 0+ +0 +FILE +LOCAL +DEFAULT +ABS .*
 .* 0+fe +0 +NOTYPE +LOCAL +DEFAULT +PRC\[0xff00\] lsym
-.* 0+ +0 +FILE +LOCAL +DEFAULT +ABS .*
 .* 0+fc +0 +NOTYPE +GLOBAL +DEFAULT +PRC\[0xff00\] ext1
 .* 0+8 +0 +NOTYPE +GLOBAL +DEFAULT +1 _start
 #...

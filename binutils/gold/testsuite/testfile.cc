@@ -1,6 +1,6 @@
 // testfile.cc -- Dummy ELF objects for testing purposes.
 
-// Copyright 2006, 2007, 2008, 2009, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.

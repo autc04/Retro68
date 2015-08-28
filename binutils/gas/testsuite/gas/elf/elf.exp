@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Free Software Foundation, Inc.
+# Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -77,15 +77,7 @@ if { [is_elf_format] } then {
 	set target_machine -rx
     }
     if {[istarget "arm*-*-*"]} {
-
-	if { ([istarget "*-*-*eabi"]
-	      || [istarget "*-*-linux-*"]
-	      || [istarget "*-*-nacl*"]
-	      || [istarget "*-*-symbianelf"])} then {
-	    set target_machine -armeabi
-	} else {
-	    set target_machine -armelf
-	}
+	set target_machine -arm
     }
 
     # The MN10300 and Xtensa ports disable the assembler's call frame
@@ -94,6 +86,7 @@ if { [is_elf_format] } then {
     if {![istarget "mn10300-*-*"]
 	&& ![istarget "xtensa*-*-*"]
 	&& ![istarget "msp430*-*-*"]
+	&& ![istarget "nds32*-*-*"]
 	&& ![istarget "am3*-*-*"]} then {
       run_dump_test "ehopt0"
     }
@@ -111,11 +104,13 @@ if { [is_elf_format] } then {
 	    run_dump_test "file"
 	}
     }
+    setup_xfail "nds32*-*-*"
     run_dump_test "group0a"
     run_dump_test "group0b"
     run_dump_test "group0c"
     run_dump_test "group1a"
     run_dump_test "group1b"
+    run_dump_test "group2"
     case $target_triplet in {
 	{ hppa64*-*-hpux* } { }
 	default {

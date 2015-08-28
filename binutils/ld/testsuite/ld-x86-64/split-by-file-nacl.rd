@@ -1,4 +1,4 @@
-There are 9 section headers, starting at offset 0x80:
+There are 9 section headers, starting at offset .*:
 
 Section Headers:
   \[Nr\] Name              Type            Address          Off    Size   ES Flg Lk Inf Al

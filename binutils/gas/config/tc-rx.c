@@ -1,5 +1,5 @@
 /* tc-rx.c -- Assembler for the Renesas RX
-   Copyright 2008-2013 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -20,7 +20,6 @@
 
 #include "as.h"
 #include "struc-symbol.h"
-#include "obstack.h"
 #include "safe-ctype.h"
 #include "dwarf2dbg.h"
 #include "libbfd.h"
@@ -244,7 +243,7 @@ rx_include (int ignore)
   char * path;
   char * filename;
   char * current_filename;
-  char * eof;
+  char * last_char;
   char * p;
   char * d;
   char * f;
@@ -263,17 +262,17 @@ rx_include (int ignore)
 
   /* Get the filename.  Spaces are allowed, NUL characters are not.  */
   filename = input_line_pointer;
-  eof = find_end_of_line (filename, FALSE);
-  input_line_pointer = eof;
+  last_char = find_end_of_line (filename, FALSE);
+  input_line_pointer = last_char;
 
-  while (eof >= filename && (* eof == ' ' || * eof == '\n'))
-    -- eof;
-  end_char = *(++ eof);
-  * eof = 0;
-  if (eof == filename)
+  while (last_char >= filename && (* last_char == ' ' || * last_char == '\n'))
+    -- last_char;
+  end_char = *(++ last_char);
+  * last_char = 0;
+  if (last_char == filename)
     {
       as_bad (_("no filename following .INCLUDE pseudo-op"));
-      * eof = end_char;
+      * last_char = end_char;
       return;
     }
 
@@ -385,7 +384,7 @@ rx_include (int ignore)
       input_scrub_insert_file (path);
     }
 
-  * eof = end_char;
+  * last_char = end_char;
 }
 
 static void
@@ -2170,10 +2169,9 @@ void
 rx_cons_fix_new (fragS *	frag,
 		 int		where,
 		 int		size,
-		 expressionS *  exp)
+		 expressionS *  exp,
+		 bfd_reloc_code_real_type type)
 {
-  bfd_reloc_code_real_type type;
-
   switch (size)
     {
     case 1:

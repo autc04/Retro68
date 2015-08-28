@@ -2,7 +2,7 @@
 
 # plugin_test_tls.sh -- a test case for the plugin API.
 
-# Copyright 2013 Free Software Foundation, Inc.
+# Copyright (C) 2013-2014 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@google.com>.
 
 # This file is part of gold.

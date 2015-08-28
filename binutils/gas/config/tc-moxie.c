@@ -1,6 +1,5 @@
 /* tc-moxie.c -- Assemble code for moxie
-   Copyright 2009, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -47,7 +46,6 @@ static valueT md_chars_to_number (char * buf, int n);
 
 /* Byte order.  */
 extern int target_big_endian;
-const char *moxie_target_format = DEFAULT_TARGET_FORMAT;
 
 void
 md_operand (expressionS *op __attribute__((unused)))
@@ -75,6 +73,8 @@ md_begin (void)
 
   for (count = 0, opcode = moxie_form3_opc_info; count++ < 10; opcode++)
     hash_insert (opcode_hash_control, opcode->name, (char *) opcode);
+
+  target_big_endian = TARGET_BYTES_BIG_ENDIAN;
 
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, 0);
 }
@@ -618,11 +618,9 @@ md_parse_option (int c ATTRIBUTE_UNUSED, char *arg ATTRIBUTE_UNUSED)
     {
     case OPTION_EB: 
       target_big_endian = 1; 
-      moxie_target_format = "elf32-bigmoxie";
       break;
     case OPTION_EL: 
       target_big_endian = 0;
-      moxie_target_format = "elf32-littlemoxie";
       break;
     default:        
       return 0;

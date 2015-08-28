@@ -16,7 +16,7 @@
 @SET_MAKE@
 
 #
-#   Copyright 2012 Free Software Foundation
+#   Copyright (C) 2012-2014 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -74,7 +74,8 @@ am__aclocal_m4_deps = $(top_srcdir)/../bfd/warning.m4 \
 	$(top_srcdir)/../config/progtest.m4 \
 	$(top_srcdir)/../libtool.m4 $(top_srcdir)/../ltoptions.m4 \
 	$(top_srcdir)/../ltsugar.m4 $(top_srcdir)/../ltversion.m4 \
-	$(top_srcdir)/../lt~obsolete.m4 $(top_srcdir)/configure.in
+	$(top_srcdir)/../lt~obsolete.m4 \
+	$(top_srcdir)/../bfd/version.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -323,9 +324,8 @@ noinst_HEADERS = \
 BUILT_SOURCES = flat_bl.c bsd_callg_bl.c fsf_callg_bl.c
 EXTRA_DIST = $(BUILT_SOURCES) bbconv.pl $(man_MANS)
 
-# We extract version from bfd/configure.in, make sure to rerun configure
-# when BFD's version changes.
-CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/configure.in
+# development.sh is used to determine -Werror default.
+CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/development.sh
 POTFILES = $(sources) $(noinst_HEADERS)
 MANCONF = -Dman
 TEXI2POD = perl $(srcdir)/../etc/texi2pod.pl $(AM_MAKEINFOFLAGS)
@@ -1042,9 +1042,9 @@ diststuff: $(BUILT_SOURCES) info $(man_MANS)
 %.o:%.m
 
 .m.c:
-	awk -f $(srcdir)/gen-c-prog.awk > ./$*.c \
+	awk -f $(srcdir)/gen-c-prog.awk > $@ \
 	    FUNCTION=`(echo $*|sed -e 's,.*/,,g' -e 's/_bl//')`_blurb \
-	    FILE=$*.m $(srcdir)/$*.m
+	    FILE=$*.m $<
 po/POTFILES.in: @MAINT@ Makefile
 	for f in $(POTFILES); do echo $$f; done | LC_ALL=C sort > tmp \
 	  && mv tmp $(srcdir)/po/POTFILES.in

@@ -1,7 +1,5 @@
 # Expect script for ld-shared tests
-#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-#   2004, 2005, 2007, 2008, 2009, 2010, 2012
-#   Free Software Foundation, Inc.
+#   Copyright (C) 1994-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -246,6 +244,7 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
 	if [ string match $shared_needs_pic "yes" ] {
 	    setup_xfail "arm*-*-linux*"
 	}
+	setup_xfail "aarch64*-*-linux*"
 	shared_test shnp "shared (non PIC)" mainnp.o sh1np.o sh2np.o shared
 
 	# Test ELF shared library relocations with a non-zero load
@@ -272,6 +271,7 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
 	if [ string match $shared_needs_pic "yes" ] {
 	    setup_xfail "arm*-*-linux*"
 	}
+	setup_xfail "aarch64*-*-linux*"
 	shared_test shnp "shared (non PIC, load offset)" \
 		mainnp.o sh1np.o sh2np.o shared \
 		"-T $srcdir/$subdir/elf-offset.ld"
@@ -328,6 +328,7 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/m
 	    if [ string match $shared_needs_pic "yes" ] {
 		setup_xfail "arm*-*-linux*"
 	    }
+	    setup_xfail "aarch64*-*-linux*"
 	    shared_test shmpnp "shared (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o shared
 	}
     } else {

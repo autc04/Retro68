@@ -1,4 +1,4 @@
-/* config.in.  Generated from configure.in by autoheader.  */
+/* config.in.  Generated from configure.ac by autoheader.  */
 
 /* Check that config.h is #included before system headers
    (this works only for glibc, but that should be enough).  */
@@ -47,17 +47,8 @@
    */
 #undef HAVE_DIRENT_H
 
-/* Define to 1 if you have the `dlclose' function. */
-#undef HAVE_DLCLOSE
-
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
-
-/* Define to 1 if you have the `dlopen' function. */
-#undef HAVE_DLOPEN
-
-/* Define to 1 if you have the `dlsym' function. */
-#undef HAVE_DLSYM
 
 /* Define to 1 if you have the <elf-hints.h> header file. */
 #undef HAVE_ELF_HINTS_H

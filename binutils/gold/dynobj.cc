@@ -1,6 +1,6 @@
 // dynobj.cc -- dynamic object support for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -335,6 +335,17 @@ Sized_dynobj<size, big_endian>::read_dynamic(const unsigned char* pshdrs,
 template<int size, bool big_endian>
 void
 Sized_dynobj<size, big_endian>::do_read_symbols(Read_symbols_data* sd)
+{
+  this->base_read_symbols(sd);
+}
+
+// Read the symbols and sections from a dynamic object.  We read the
+// dynamic symbols, not the normal symbols.  This is common code for
+// all target-specific overrides of do_read_symbols().
+
+template<int size, bool big_endian>
+void
+Sized_dynobj<size, big_endian>::base_read_symbols(Read_symbols_data* sd)
 {
   this->read_section_data(&this->elf_file_, sd);
 

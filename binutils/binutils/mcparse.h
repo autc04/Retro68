@@ -84,7 +84,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 45 "mcparse.y"
+#line 44 "mcparse.y"
 {
   rc_uint_type ival;
   unichar *ustr;

@@ -1,4 +1,16 @@
+# Copyright (C) 2014 Free Software Foundation, Inc.
+# 
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
+
 cat <<EOF
+/* Copyright (C) 2014 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("${OUTPUT_FORMAT}","${OUTPUT_FORMAT}","${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})
 
@@ -163,13 +175,10 @@ SECTIONS
     ${RELOCATING+ _etext = . ; }
   } ${RELOCATING+ > text}
 
-  .data	${RELOCATING-0} : ${RELOCATING+AT (ADDR (.text) + SIZEOF (.text))}
+  .data        ${RELOCATING-0} :
   {
     ${RELOCATING+ PROVIDE (__data_start = .) ; }
-    /* --gc-sections will delete empty .data. This leads to wrong start
-       addresses for subsequent sections because -Tdata= from the command
-       line will have no effect, see PR13697.  Thus, keep .data  */
-    KEEP (*(.data))    
+    *(.data)
     ${RELOCATING+ *(.data*)}
     *(.rodata)  /* We need to include .rodata here if gcc is used */
     ${RELOCATING+ *(.rodata*)} /* with -fdata-sections.  */
@@ -177,9 +186,9 @@ SECTIONS
     ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ _edata = . ; }
     ${RELOCATING+ PROVIDE (__data_end = .) ; }
-  } ${RELOCATING+ > data}
+  } ${RELOCATING+ > data ${RELOCATING+AT> text}}
 
-  .bss ${RELOCATING-0} :${RELOCATING+ AT (ADDR (.bss))}
+  .bss ${RELOCATING+ ADDR(.data) + SIZEOF (.data)} ${RELOCATING-0} :${RELOCATING+ AT (ADDR (.bss))}
   {
     ${RELOCATING+ PROVIDE (__bss_start = .) ; }
     *(.bss)

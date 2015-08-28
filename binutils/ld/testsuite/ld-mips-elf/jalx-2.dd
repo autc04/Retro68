@@ -28,7 +28,7 @@ Disassembly of section \.text:
  4400034:	f89e 0020 	sw	a0,32\(s8\)
  4400038:	f8be 0024 	sw	a1,36\(s8\)
  440003c:	41a2 0440 	lui	v0,0x440
- 4400040:	3082 0260 	addiu	a0,v0,608
+ 4400040:	3082 0280 	addiu	a0,v0,640
  4400044:	f620 004c 	jal	4400098 <printf@micromipsplt>
  4400048:	0000 0000 	nop
  440004c:	f620 0010 	jal	4400020 <internal_function>

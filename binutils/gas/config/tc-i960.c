@@ -1,7 +1,5 @@
 /* tc-i960.c - All the i80960-specific stuff
-   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -66,7 +64,6 @@
 #include "as.h"
 
 #include "safe-ctype.h"
-#include "obstack.h"
 
 #include "opcode/i960.h"
 

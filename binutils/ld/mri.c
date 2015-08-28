@@ -1,6 +1,5 @@
 /* mri.c -- handle MRI style linker scripts
-   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2007, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain <sac@cygnus.com>.
 
    This file is part of the GNU Binutils.
@@ -45,6 +44,8 @@ struct section_name_struct {
 };
 
 static unsigned int symbol_truncate = 10000;
+static etree_type *base; /* Relocation base - or null */
+
 static struct section_name_struct *order;
 static struct section_name_struct *only_load;
 static struct section_name_struct *address;

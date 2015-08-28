@@ -1,6 +1,6 @@
 // expression.cc -- expressions in linker scripts for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -68,6 +68,12 @@ struct Expression::Expression_eval_info
   Output_section** result_section_pointer;
   // Pointer to where the alignment of the result should be stored.
   uint64_t* result_alignment_pointer;
+  // Pointer to where the type of the symbol on the RHS should be stored.
+  elfcpp::STT* type_pointer;
+  // Pointer to where the visibility of the symbol on the RHS should be stored.
+  elfcpp::STV* vis_pointer;
+  // Pointer to where the rest of the symbol's st_other field should be stored.
+  unsigned char* nonvis_pointer;
 };
 
 // Evaluate an expression.
@@ -76,8 +82,8 @@ uint64_t
 Expression::eval(const Symbol_table* symtab, const Layout* layout,
 		 bool check_assertions)
 {
-  return this->eval_maybe_dot(symtab, layout, check_assertions,
-			      false, 0, NULL, NULL, NULL, false);
+  return this->eval_maybe_dot(symtab, layout, check_assertions, false, 0,
+			      NULL, NULL, NULL, NULL, NULL, NULL, false);
 }
 
 // Evaluate an expression which may refer to the dot symbol.
@@ -92,7 +98,7 @@ Expression::eval_with_dot(const Symbol_table* symtab, const Layout* layout,
 {
   return this->eval_maybe_dot(symtab, layout, check_assertions, true,
 			      dot_value, dot_section, result_section_pointer,
-			      result_alignment_pointer,
+			      result_alignment_pointer, NULL, NULL, NULL,
 			      is_section_dot_assignment);
 }
 
@@ -105,6 +111,9 @@ Expression::eval_maybe_dot(const Symbol_table* symtab, const Layout* layout,
 			   uint64_t dot_value, Output_section* dot_section,
 			   Output_section** result_section_pointer,
 			   uint64_t* result_alignment_pointer,
+			   elfcpp::STT* type_pointer,
+			   elfcpp::STV* vis_pointer,
+			   unsigned char* nonvis_pointer,
 			   bool is_section_dot_assignment)
 {
   Expression_eval_info eei;
@@ -120,6 +129,12 @@ Expression::eval_maybe_dot(const Symbol_table* symtab, const Layout* layout,
   if (result_section_pointer != NULL)
     *result_section_pointer = NULL;
   eei.result_section_pointer = result_section_pointer;
+
+  // For symbol=symbol assignments, we need to track the type, visibility,
+  // and remaining st_other bits.
+  eei.type_pointer = type_pointer;
+  eei.vis_pointer = vis_pointer;
+  eei.nonvis_pointer = nonvis_pointer;
 
   eei.result_alignment_pointer = result_alignment_pointer;
 
@@ -196,6 +211,12 @@ Symbol_expression::value(const Expression_eval_info* eei)
 
   if (eei->result_section_pointer != NULL)
     *eei->result_section_pointer = sym->output_section();
+  if (eei->type_pointer != NULL)
+    *eei->type_pointer = sym->type();
+  if (eei->vis_pointer != NULL)
+    *eei->vis_pointer = sym->visibility();
+  if (eei->nonvis_pointer != NULL)
+    *eei->nonvis_pointer = sym->nonvis();
 
   if (parameters->target().get_size() == 32)
     return eei->symtab->get_sized_symbol<32>(sym)->value();
@@ -271,6 +292,9 @@ class Unary_expression : public Expression
 				      eei->dot_section,
 				      arg_section_pointer,
 				      eei->result_alignment_pointer,
+				      NULL,
+				      NULL,
+				      NULL,
 				      false);
   }
 
@@ -351,6 +375,9 @@ class Binary_expression : public Expression
 				       eei->dot_section,
 				       section_pointer,
 				       alignment_pointer,
+				       NULL,
+				       NULL,
+				       NULL,
 				       false);
   }
 
@@ -366,6 +393,9 @@ class Binary_expression : public Expression
 					eei->dot_section,
 					section_pointer,
 					alignment_pointer,
+					NULL,
+					NULL,
+					NULL,
 					false);
   }
 
@@ -517,6 +547,9 @@ class Trinary_expression : public Expression
 				       eei->dot_section,
 				       section_pointer,
 				       NULL,
+				       NULL,
+				       NULL,
+				       NULL,
 				       false);
   }
 
@@ -532,6 +565,9 @@ class Trinary_expression : public Expression
 				       eei->dot_section,
 				       section_pointer,
 				       alignment_pointer,
+				       NULL,
+				       NULL,
+				       NULL,
 				       false);
   }
 
@@ -547,6 +583,9 @@ class Trinary_expression : public Expression
 				       eei->dot_section,
 				       section_pointer,
 				       alignment_pointer,
+				       NULL,
+				       NULL,
+				       NULL,
 				       false);
   }
 

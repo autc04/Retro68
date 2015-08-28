@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-# Copyright 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2007-2014 Free Software Foundation, Inc.
 # Contributed by M R Swami Reddy <MR.Swami.Reddy@nsc.com>
 #
 # This file is part of the GNU Binutils.
@@ -47,7 +47,7 @@ cr16_elf_after_open (void)
 	 input file with a nonzero .data section.  The BFD backend will fill in
 	 these sections with magic numbers which can be used to relocate the
 	 data section at run time.  */
-      for (abfd = link_info.input_bfds; abfd != NULL; abfd = abfd->link_next)
+      for (abfd = link_info.input_bfds; abfd != NULL; abfd = abfd->link.next)
 	{
 	  asection *datasec;
 
@@ -139,7 +139,7 @@ cr16elf_before_allocation (void)
 
    /* If we are generating embedded relocs, call a special BFD backend
 	 routine to do the work.  */
-   for (abfd = link_info.input_bfds; abfd != NULL; abfd = abfd->link_next)
+   for (abfd = link_info.input_bfds; abfd != NULL; abfd = abfd->link.next)
       {
 	  asection *datasec, *relsec;
 	  char *errmsg;

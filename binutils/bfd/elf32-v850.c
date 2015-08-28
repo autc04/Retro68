@@ -1,5 +1,5 @@
 /* V850-specific support for 32-bit ELF
-   Copyright 1996-2013 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -494,7 +494,7 @@ v850_elf_perform_relocation (bfd *abfd,
     {
     default:
 #ifdef DEBUG
-      fprintf (stderr, "reloc number %d not recognised\n", r_type);
+      fprintf (stderr, "%B: reloc number %d not recognised\n", abfd, r_type);
 #endif
       return bfd_reloc_notsupported;
 
@@ -895,11 +895,11 @@ static reloc_howto_type v850_elf_howto_table[] =
   /* This reloc does nothing.  */
   HOWTO (R_V850_NONE,			/* Type.  */
 	 0,				/* Rightshift.  */
-	 2,				/* Size (0 = byte, 1 = short, 2 = long).  */
-	 32,				/* Bitsize.  */
+	 3,				/* Size (0 = byte, 1 = short, 2 = long).  */
+	 0,				/* Bitsize.  */
 	 FALSE,				/* PC_relative.  */
 	 0,				/* Bitpos.  */
-	 complain_overflow_bitfield,	/* Complain_on_overflow.  */
+	 complain_overflow_dont,	/* Complain_on_overflow.  */
 	 bfd_elf_generic_reloc,		/* Special_function.  */
 	 "R_V850_NONE",			/* Name.  */
 	 FALSE,				/* Partial_inplace.  */
@@ -1896,7 +1896,11 @@ v850_elf_info_to_howto_rel (bfd *abfd ATTRIBUTE_UNUSED,
   unsigned int r_type;
 
   r_type = ELF32_R_TYPE (dst->r_info);
-  BFD_ASSERT (r_type < (unsigned int) R_V850_max);
+  if (r_type >= (unsigned int) R_V850_max)
+    {
+      _bfd_error_handler (_("%B: invalid V850 reloc number: %d"), abfd, r_type);
+      r_type = 0;
+    }
   cache_ptr->howto = &v850_elf_howto_table[r_type];
 }
 
@@ -1910,7 +1914,11 @@ v850_elf_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
   unsigned int r_type;
 
   r_type = ELF32_R_TYPE (dst->r_info);
-  BFD_ASSERT (r_type < (unsigned int) R_V850_max);
+  if (r_type >= (unsigned int) R_V850_max)
+    {
+      _bfd_error_handler (_("%B: invalid V850 reloc number: %d"), abfd, r_type);
+      r_type = 0;
+    }
   cache_ptr->howto = &v850_elf_howto_table[r_type];
 }
 
@@ -2139,7 +2147,7 @@ v850_elf_final_link_relocate (reloc_howto_type *howto,
 
     default:
 #ifdef DEBUG
-      fprintf (stderr, "reloc number %d not recognised\n", r_type);
+      fprintf (stderr, "%B: reloc number %d not recognised\n", input_bfd, r_type);
 #endif
       return bfd_reloc_notsupported;
     }
@@ -2211,7 +2219,7 @@ v850_elf_relocate_section (bfd *output_bfd,
 	}
       else
 	{
-	  bfd_boolean unresolved_reloc, warned;
+	  bfd_boolean unresolved_reloc, warned, ignored;
 
 	  /* Note - this check is delayed until now as it is possible and
 	     valid to have a file without any symbols but with relocs that
@@ -2228,7 +2236,7 @@ v850_elf_relocate_section (bfd *output_bfd,
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	}
 
       if (sec != NULL && discarded_section (sec))
@@ -3770,7 +3778,7 @@ static const struct bfd_elf_special_section v850_elf_special_sections[] =
   { NULL,                     0,           0, 0,                0 }
 };
 
-#define TARGET_LITTLE_SYM			bfd_elf32_v850_vec
+#define TARGET_LITTLE_SYM			v850_elf32_vec
 #define TARGET_LITTLE_NAME			"elf32-v850"
 #define ELF_ARCH				bfd_arch_v850
 #define ELF_MACHINE_CODE			EM_V850
@@ -3905,7 +3913,7 @@ v800_elf_info_to_howto (bfd *               abfd,
 
 
 #undef  TARGET_LITTLE_SYM
-#define TARGET_LITTLE_SYM			bfd_elf32_v850_rh850_vec
+#define TARGET_LITTLE_SYM			v800_elf32_vec
 #undef  TARGET_LITTLE_NAME
 #define TARGET_LITTLE_NAME			"elf32-v850-rh850"
 #undef  ELF_ARCH

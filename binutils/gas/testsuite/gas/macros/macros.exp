@@ -1,5 +1,4 @@
-# Copyright 2012
-# Free Software Foundation, Inc.
+# Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,13 +20,13 @@ if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
     run_dump_test test1
 }
 
-if { ![istarget *c54x*-*-*] && ![istarget *c4x*-*-*] } {
+if { ![istarget *c54x*-*-*] && ![istarget *c4x*-*-*] && ![istarget "nds32*-*-*"] } {
     run_dump_test test2
 }
 
 run_dump_test test3
 
-if { ![istarget *c54x*-*-*] && ![istarget *c4x*-*-*] } {
+if { ![istarget *c54x*-*-*] && ![istarget *c4x*-*-*] && ![istarget "nds32*-*-*"] } {
     run_dump_test irp
     run_dump_test rept
     run_dump_test repeat

@@ -12,3 +12,7 @@
 .*:55: Error: r15 not allowed here -- `addeq r0,pc,pc'
 .*:58: Warning: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
 .*:58: Error: r15 not allowed here -- `addeq pc,r0,r0'
+.*:61: Warning: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: ADD/SUB sp, sp #imm
+.*:65: Warning: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: ADD/SUB sp, sp #imm
+.*:68: Warning: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: ADD/SUB sp, sp #imm
+.*:72: Warning: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: ADD/SUB sp, sp #imm

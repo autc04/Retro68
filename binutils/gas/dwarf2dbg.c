@@ -1,5 +1,5 @@
 /* dwarf2dbg.c - DWARF2 debug support
-   Copyright 1999-2013 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -158,6 +158,10 @@
 /* The maximum address skip amount that can be encoded with a special op.  */
 #define MAX_SPECIAL_ADDR_DELTA		SPECIAL_ADDR(255)
 
+#ifndef TC_PARSE_CONS_RETURN_NONE
+#define TC_PARSE_CONS_RETURN_NONE BFD_RELOC_NONE
+#endif
+
 struct line_entry {
   struct line_entry *next;
   symbolS *label;
@@ -182,9 +186,6 @@ struct line_seg {
 
 /* Collects data for all line table entries during assembly.  */
 static struct line_seg *all_segs;
-/* Hash used to quickly lookup a segment by name, avoiding the need to search
-   through the all_segs list.  */
-static struct hash_control *all_segs_hash;
 static struct line_seg **last_seg_ptr;
 
 struct file_entry {
@@ -244,17 +245,9 @@ generic_dwarf2_emit_offset (symbolS *symbol, unsigned int size)
 static struct line_subseg *
 get_line_subseg (segT seg, subsegT subseg, bfd_boolean create_p)
 {
-  static segT last_seg;
-  static subsegT last_subseg;
-  static struct line_subseg *last_line_subseg;
-
-  struct line_seg *s;
+  struct line_seg *s = seg_info (seg)->dwarf2_line_seg;
   struct line_subseg **pss, *lss;
 
-  if (seg == last_seg && subseg == last_subseg)
-    return last_line_subseg;
-
-  s = (struct line_seg *) hash_find (all_segs_hash, seg->name);
   if (s == NULL)
     {
       if (!create_p)
@@ -266,7 +259,7 @@ get_line_subseg (segT seg, subsegT subseg, bfd_boolean create_p)
       s->head = NULL;
       *last_seg_ptr = s;
       last_seg_ptr = &s->next;
-      hash_insert (all_segs_hash, seg->name, s);
+      seg_info (seg)->dwarf2_line_seg = s;
     }
   gas_assert (seg == s->seg);
 
@@ -287,10 +280,6 @@ get_line_subseg (segT seg, subsegT subseg, bfd_boolean create_p)
   *pss = lss;
 
  found_subseg:
-  last_seg = seg;
-  last_subseg = subseg;
-  last_line_subseg = lss;
-
   return lss;
 }
 
@@ -1144,13 +1133,13 @@ emit_fixed_inc_line_addr (int line_delta, addressT addr_delta, fragS *frag,
       exp.X_op = O_symbol;
       exp.X_add_symbol = to_sym;
       exp.X_add_number = 0;
-      emit_expr_fix (&exp, sizeof_address, frag, p);
+      emit_expr_fix (&exp, sizeof_address, frag, p, TC_PARSE_CONS_RETURN_NONE);
       p += sizeof_address;
     }
   else
     {
       *p++ = DW_LNS_fixed_advance_pc;
-      emit_expr_fix (pexp, 2, frag, p);
+      emit_expr_fix (pexp, 2, frag, p, TC_PARSE_CONS_RETURN_NONE);
       p += 2;
     }
 
@@ -1515,7 +1504,7 @@ static void
 out_debug_line (segT line_seg)
 {
   expressionS exp;
-  symbolS *prologue_end;
+  symbolS *prologue_start, *prologue_end;
   symbolS *line_end;
   struct line_seg *s;
   int sizeof_offset;
@@ -1527,10 +1516,14 @@ out_debug_line (segT line_seg)
   out_two (DWARF2_LINE_VERSION);
 
   /* Length of the prologue following this length.  */
+  prologue_start = symbol_temp_make ();
   prologue_end = symbol_temp_make ();
+  exp.X_op = O_subtract;
   exp.X_add_symbol = prologue_end;
-  exp.X_add_number = - (4 + 2 + 4);
+  exp.X_op_symbol = prologue_start;
+  exp.X_add_number = 0;
   emit_expr (&exp, sizeof_offset);
+  symbol_set_value_now (prologue_start);
 
   /* Parameters of the state machine.  */
   out_byte (DWARF2_LINE_MIN_INSN_LENGTH);
@@ -1839,7 +1832,6 @@ out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg, segT ranges_seg)
 void
 dwarf2_init (void)
 {
-  all_segs_hash = hash_new ();
   last_seg_ptr = &all_segs;
 }
 

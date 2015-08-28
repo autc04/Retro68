@@ -1,6 +1,6 @@
 ## Process this file with automake to generate Makefile.in
 #
-#   Copyright 2012 Free Software Foundation
+#   Copyright (C) 2012-2014 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,9 +19,6 @@
 
 AUTOMAKE_OPTIONS = 1.11 no-dist foreign
 ACLOCAL_AMFLAGS = -I . -I .. -I ../config
-
-# Uncomment the following line when doing a release.
-RELEASE=y
 
 INCDIR = $(srcdir)/../include
 CSEARCH = -I. -I$(srcdir) -I$(INCDIR)
@@ -136,10 +133,10 @@ ALL_MACHINES = \
 	cpu-moxie.lo \
 	cpu-msp430.lo \
 	cpu-mt.lo \
+	cpu-nds32.lo \
 	cpu-nios2.lo \
 	cpu-ns32k.lo \
-	cpu-openrisc.lo \
-	cpu-or32.lo \
+	cpu-or1k.lo \
 	cpu-pdp11.lo \
 	cpu-pj.lo \
 	cpu-plugin.lo \
@@ -220,10 +217,10 @@ ALL_MACHINES_CFILES = \
 	cpu-moxie.c \
 	cpu-msp430.c \
 	cpu-mt.c \
+	cpu-nds32.c \
 	cpu-ns32k.c \
 	cpu-nios2.c \
-	cpu-openrisc.c \
-	cpu-or32.c \
+	cpu-or1k.c \
 	cpu-pdp11.c \
 	cpu-pj.c \
 	cpu-plugin.c \
@@ -282,7 +279,6 @@ BFD32_BACKENDS = \
 	coff-m68k.lo \
 	coff-m88k.lo \
 	coff-mips.lo \
-	coff-or32.lo \
 	coff-rs6000.lo \
 	coff-sh.lo \
 	coff-sparc.lo \
@@ -349,9 +345,9 @@ BFD32_BACKENDS = \
 	elf32-moxie.lo \
 	elf32-msp430.lo \
 	elf32-mt.lo \
+	elf32-nds32.lo \
 	elf32-nios2.lo \
-	elf32-openrisc.lo \
-	elf32-or32.lo \
+	elf32-or1k.lo \
 	elf32-pj.lo \
 	elf32-ppc.lo \
 	elf32-rl78.lo \
@@ -470,7 +466,6 @@ BFD32_BACKENDS_CFILES = \
 	coff-m68k.c \
 	coff-m88k.c \
 	coff-mips.c \
-	coff-or32.c \
 	coff-rs6000.c \
 	coff-sh.c \
 	coff-sparc.c \
@@ -537,9 +532,9 @@ BFD32_BACKENDS_CFILES = \
 	elf32-moxie.c \
 	elf32-msp430.c \
 	elf32-mt.c \
+	elf32-nds32.c \
 	elf32-nios2.c \
-	elf32-openrisc.c \
-	elf32-or32.c \
+	elf32-or1k.c \
 	elf32-pj.c \
 	elf32-ppc.c \
 	elf32-rl78.c \
@@ -737,15 +732,14 @@ OPTIONAL_BACKENDS_CFILES = \
 	sco5-core.c \
 	trad-core.c
 
-# We want to rerun configure if configure.in, config.bfd or
-# configure.host change. configure.in is needed since the version
-# number in Makefile comes from configure.in.
+# Reconfigure if config.bfd or configure.host changes.
+# development.sh is used to determine -Werror default.
 CONFIG_STATUS_DEPENDENCIES = \
-	$(srcdir)/configure.in \
 	$(srcdir)/config.bfd \
-	$(srcdir)/configure.host
+	$(srcdir)/configure.host \
+	$(srcdir)/development.sh
 
-# These are defined by configure.in:
+# These are defined by configure:
 WORDSIZE = @wordsize@
 ALL_BACKENDS = @all_backends@
 BFD_BACKENDS = @bfd_backends@
@@ -1028,14 +1022,15 @@ CLEANFILES = bfd.h dep.sed stmp-bfd-h DEP DEPA DEP1 DEP2 libbfd.a stamp-lib \
 
 DISTCLEANFILES = $(BUILD_CFILES) $(BUILD_HFILES) libtool-soversion
 
-bfdver.h: $(srcdir)/version.h $(srcdir)/Makefile.in
+bfdver.h: $(srcdir)/version.h $(srcdir)/development.sh $(srcdir)/Makefile.in
 	@echo "creating $@"
 	@bfd_version=`echo "$(VERSION)" | sed -e 's/\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\).*/\1.00\2.00\3.00\4.00\5/' -e 's/\([^\.]*\)\..*\(..\)\..*\(..\)\..*\(..\)\..*\(..\)$$/\1\2\3\4\5/'` ;\
 	bfd_version_string="\"$(VERSION)\"" ;\
 	bfd_soversion="$(VERSION)" ;\
 	bfd_version_package="\"$(PKGVERSION)\"" ;\
 	report_bugs_to="\"$(REPORT_BUGS_TO)\"" ;\
-	if test "x$(RELEASE)" = x ; then \
+	. $(srcdir)/development.sh ;\
+	if test "$$development" = true ; then \
 	  bfd_version_date=`sed -n -e 's/.*DATE //p' < $(srcdir)/version.h` ;\
 	  bfd_version_string="\"$(VERSION).$${bfd_version_date}\"" ;\
 	  bfd_soversion="$(VERSION).$${bfd_version_date}" ;\

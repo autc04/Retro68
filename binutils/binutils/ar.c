@@ -1,5 +1,5 @@
 /* ar.c - Archive modify and extract.
-   Copyright 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -138,7 +138,11 @@ static int show_version = 0;
 
 static int show_help = 0;
 
+#if BFD_SUPPORTS_PLUGINS
+static const char *plugin_target = "plugin";
+#else
 static const char *plugin_target = NULL;
+#endif
 
 static const char *target = NULL;
 
@@ -571,7 +575,6 @@ decode_options (int argc, char **argv)
           break;
 	case OPTION_PLUGIN:
 #if BFD_SUPPORTS_PLUGINS
-	  plugin_target = "plugin";
 	  bfd_plugin_set_plugin (optarg);
 #else
 	  fprintf (stderr, _("sorry - this program has been built without plugin support\n"));
@@ -632,7 +635,6 @@ ranlib_main (int argc, char **argv)
 	  /* PR binutils/13493: Support plugins.  */
 	case OPTION_PLUGIN:
 #if BFD_SUPPORTS_PLUGINS
-	  plugin_target = "plugin";
 	  bfd_plugin_set_plugin (optarg);
 #else
 	  fprintf (stderr, _("sorry - this program has been built without plugin support\n"));
@@ -689,6 +691,7 @@ main (int argc, char **argv)
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
+  bfd_set_error_program_name (program_name);
 #if BFD_SUPPORTS_PLUGINS
   bfd_plugin_set_program_name (program_name);
 #endif
@@ -737,6 +740,7 @@ main (int argc, char **argv)
 
   if (mri_mode)
     {
+      default_deterministic ();
       mri_emul ();
     }
   else
@@ -1030,6 +1034,15 @@ extract_file (bfd *abfd)
   bfd_size_type ncopied = 0;
   bfd_size_type size;
   struct stat buf;
+
+  /* PR binutils/17533: Do not allow directory traversal
+     outside of the current directory tree.  */
+  if (! is_valid_archive_path (bfd_get_filename (abfd)))
+    {
+      non_fatal (_("illegal pathname found in archive member: %s"),
+		 bfd_get_filename (abfd));
+      return;
+    }
 
   if (bfd_stat_arch_elt (abfd, &buf) != 0)
     /* xgettext:c-format */

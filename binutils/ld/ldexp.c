@@ -1,5 +1,5 @@
 /* This module handles expression trees.
-   Copyright 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
    This file is part of the GNU Binutils.
@@ -47,6 +47,19 @@ static bfd_vma align_n (bfd_vma, bfd_vma);
 segment_type *segments;
 
 struct ldexp_control expld;
+
+/* This structure records symbols for which we need to keep track of
+   definedness for use in the DEFINED () test.  */
+
+struct definedness_hash_entry
+{
+  struct bfd_hash_entry root;
+  unsigned int by_object : 1;
+  unsigned int by_script : 1;
+  unsigned int iteration : 1;
+};
+
+static struct bfd_hash_table definedness_table;
 
 /* Print the string representation of the given token.  Surround it
    with spaces if INFIX_P is TRUE.  */
@@ -242,6 +255,64 @@ new_rel_from_abs (bfd_vma value)
   expld.result.value = value - s->vma;
   expld.result.str = NULL;
   expld.result.section = s;
+}
+
+/* New-function for the definedness hash table.  */
+
+static struct bfd_hash_entry *
+definedness_newfunc (struct bfd_hash_entry *entry,
+		     struct bfd_hash_table *table ATTRIBUTE_UNUSED,
+		     const char *name ATTRIBUTE_UNUSED)
+{
+  struct definedness_hash_entry *ret = (struct definedness_hash_entry *) entry;
+
+  if (ret == NULL)
+    ret = (struct definedness_hash_entry *)
+      bfd_hash_allocate (table, sizeof (struct definedness_hash_entry));
+
+  if (ret == NULL)
+    einfo (_("%P%F: bfd_hash_allocate failed creating symbol %s\n"), name);
+
+  ret->by_object = 0;
+  ret->by_script = 0;
+  ret->iteration = 0;
+  return &ret->root;
+}
+
+/* Called during processing of linker script script expressions.
+   For symbols assigned in a linker script, return a struct describing
+   where the symbol is defined relative to the current expression,
+   otherwise return NULL.  */
+
+static struct definedness_hash_entry *
+symbol_defined (const char *name)
+{
+  return ((struct definedness_hash_entry *)
+	  bfd_hash_lookup (&definedness_table, name, FALSE, FALSE));
+}
+
+/* Update the definedness state of NAME.  */
+
+static void
+update_definedness (const char *name, struct bfd_link_hash_entry *h)
+{
+  struct definedness_hash_entry *defentry
+    = (struct definedness_hash_entry *)
+    bfd_hash_lookup (&definedness_table, name, TRUE, FALSE);
+
+  if (defentry == NULL)
+    einfo (_("%P%F: bfd_hash_lookup failed creating symbol %s\n"), name);
+
+  /* If the symbol was already defined, and not by a script, then it
+     must be defined by an object file or by the linker target code.  */
+  if (!defentry->by_script
+      && (h->type == bfd_link_hash_defined
+	  || h->type == bfd_link_hash_defweak
+	  || h->type == bfd_link_hash_common))
+    defentry->by_object = 1;
+
+  defentry->by_script = 1;
+  defentry->iteration = lang_statement_iteration;
 }
 
 static void
@@ -494,7 +565,6 @@ fold_binary (etree_type *tree)
 		  else if (expld.dataseg.phase == exp_dataseg_none)
 		    {
 		      expld.dataseg.phase = exp_dataseg_align_seen;
-		      expld.dataseg.min_base = expld.dot;
 		      expld.dataseg.base = expld.result.value;
 		      expld.dataseg.pagesize = commonpage;
 		      expld.dataseg.maxpagesize = maxpage;
@@ -508,6 +578,7 @@ fold_binary (etree_type *tree)
 
 	case DATA_SEGMENT_RELRO_END:
 	  expld.dataseg.relro = exp_dataseg_relro_end;
+	  expld.dataseg.relro_offset = expld.result.value;
 	  if (expld.phase == lang_first_phase_enum
 	      || expld.section != bfd_abs_section_ptr)
 	    expld.result.valid_p = FALSE;
@@ -575,13 +646,10 @@ fold_name (etree_type *tree)
       break;
 
     case DEFINED:
-      if (expld.phase == lang_first_phase_enum)
-	lang_track_definedness (tree->name.name);
-      else
+      if (expld.phase != lang_first_phase_enum)
 	{
 	  struct bfd_link_hash_entry *h;
-	  int def_iteration
-	    = lang_symbol_definition_iteration (tree->name.name);
+	  struct definedness_hash_entry *def;
 
 	  h = bfd_wrapped_link_hash_lookup (link_info.output_bfd,
 					    &link_info,
@@ -591,15 +659,33 @@ fold_name (etree_type *tree)
 		      && (h->type == bfd_link_hash_defined
 			  || h->type == bfd_link_hash_defweak
 			  || h->type == bfd_link_hash_common)
-		      && (def_iteration == lang_statement_iteration
-			  || def_iteration == -1));
+		      && ((def = symbol_defined (tree->name.name)) == NULL
+			  || def->by_object
+			  || def->iteration == (lang_statement_iteration & 1)));
 	}
       break;
 
     case NAME:
       if (expld.assign_name != NULL
 	  && strcmp (expld.assign_name, tree->name.name) == 0)
-	expld.assign_name = NULL;
+	{
+	  /* Self-assignment is only allowed for absolute symbols
+	     defined in a linker script.  */
+	  struct bfd_link_hash_entry *h;
+	  struct definedness_hash_entry *def;
+
+	  h = bfd_wrapped_link_hash_lookup (link_info.output_bfd,
+					    &link_info,
+					    tree->name.name,
+					    FALSE, FALSE, TRUE);
+	  if (!(h != NULL
+		&& (h->type == bfd_link_hash_defined
+		    || h->type == bfd_link_hash_defweak)
+		&& h->u.def.section == bfd_abs_section_ptr
+		&& (def = symbol_defined (tree->name.name)) != NULL
+		&& def->iteration == (lang_statement_iteration & 1)))
+	    expld.assign_name = NULL;
+	}
       if (expld.phase == lang_first_phase_enum)
 	;
       else if (tree->name.name[0] == '.' && tree->name.name[1] == 0)
@@ -775,6 +861,89 @@ fold_name (etree_type *tree)
     }
 }
 
+/* Return true if TREE is '.'.  */
+ 
+static bfd_boolean
+is_dot (const etree_type *tree)
+{
+  return (tree->type.node_class == etree_name
+	  && tree->type.node_code == NAME
+	  && tree->name.name[0] == '.'
+	  && tree->name.name[1] == 0);
+}
+
+/* Return true if TREE is a constant equal to VAL.  */
+
+static bfd_boolean
+is_value (const etree_type *tree, bfd_vma val)
+{
+  return (tree->type.node_class == etree_value
+	  && tree->value.value == val);
+}
+
+/* Return true if TREE is an absolute symbol equal to VAL defined in
+   a linker script.  */
+
+static bfd_boolean
+is_sym_value (const etree_type *tree, bfd_vma val)
+{
+  struct bfd_link_hash_entry *h;
+  struct definedness_hash_entry *def;
+
+  return (tree->type.node_class == etree_name
+	  && tree->type.node_code == NAME
+	  && (def = symbol_defined (tree->name.name)) != NULL
+	  && def->by_script
+	  && def->iteration == (lang_statement_iteration & 1)
+	  && (h = bfd_wrapped_link_hash_lookup (link_info.output_bfd,
+						&link_info,
+						tree->name.name,
+						FALSE, FALSE, TRUE)) != NULL
+	  && h->type == bfd_link_hash_defined
+	  && h->u.def.section == bfd_abs_section_ptr
+	  && h->u.def.value == val);
+}
+
+/* Return true if TREE is ". != 0".  */
+
+static bfd_boolean
+is_dot_ne_0 (const etree_type *tree)
+{
+  return (tree->type.node_class == etree_binary
+	  && tree->type.node_code == NE
+	  && is_dot (tree->binary.lhs)
+	  && is_value (tree->binary.rhs, 0));
+}
+
+/* Return true if TREE is ". = . + 0" or ". = . + sym" where sym is an
+   absolute constant with value 0 defined in a linker script.  */
+
+static bfd_boolean
+is_dot_plus_0 (const etree_type *tree)
+{
+  return (tree->type.node_class == etree_binary
+	  && tree->type.node_code == '+'
+	  && is_dot (tree->binary.lhs)
+	  && (is_value (tree->binary.rhs, 0)
+	      || is_sym_value (tree->binary.rhs, 0)));
+}
+
+/* Return true if TREE is "ALIGN (. != 0 ? some_expression : 1)".  */
+
+static bfd_boolean
+is_align_conditional (const etree_type *tree)
+{
+  if (tree->type.node_class == etree_unary
+      && tree->type.node_code == ALIGN_K)
+    {
+      tree = tree->unary.child;
+      return (tree->type.node_class == etree_trinary
+	      && is_dot_ne_0 (tree->trinary.cond)
+	      && is_value (tree->trinary.rhs, 1));
+    }
+  return 0;
+}
+
 static void
 exp_fold_tree_1 (etree_type *tree)
 {
@@ -839,6 +1008,20 @@ exp_fold_tree_1 (etree_type *tree)
 	      exp_fold_tree_1 (tree->assign.src);
 	      expld.assigning_to_dot = FALSE;
 
+	      /* If we are assigning to dot inside an output section
+		 arrange to keep the section, except for certain
+		 expressions that evaluate to zero.  We ignore . = 0,
+		 . = . + 0, and . = ALIGN (. != 0 ? expr : 1).  */
+	      if (expld.phase == lang_mark_phase_enum
+		  && expld.section != bfd_abs_section_ptr
+		  && !(expld.result.valid_p
+		       && expld.result.value == 0
+		       && (is_value (tree->assign.src, 0)
+			   || is_sym_value (tree->assign.src, 0)
+			   || is_dot_plus_0 (tree->assign.src)
+			   || is_align_conditional (tree->assign.src))))
+		expld.section->flags |= SEC_KEEP;
+
 	      if (!expld.result.valid_p)
 		{
 		  if (expld.phase != lang_mark_phase_enum)
@@ -887,12 +1070,13 @@ exp_fold_tree_1 (etree_type *tree)
 	      h = bfd_link_hash_lookup (link_info.hash, tree->assign.dst,
 					FALSE, FALSE, TRUE);
 	      if (h == NULL
-		  || (h->type != bfd_link_hash_new
-		      && h->type != bfd_link_hash_undefined
-		      && h->type != bfd_link_hash_common))
+		  || !(h->type == bfd_link_hash_new
+		       || h->type == bfd_link_hash_undefined
+		       || h->linker_def))
 		{
-		  /* Do nothing.  The symbol was never referenced, or was
-		     defined by some object.  */
+		  /* Do nothing.  The symbol was never referenced, or
+		     was defined in some object file.  Undefined weak
+		     symbols stay undefined.  */
 		  break;
 		}
 	    }
@@ -926,7 +1110,7 @@ exp_fold_tree_1 (etree_type *tree)
 
 	      /* FIXME: Should we worry if the symbol is already
 		 defined?  */
-	      lang_update_definedness (tree->assign.dst, h);
+	      update_definedness (tree->assign.dst, h);
 	      h->type = bfd_link_hash_defined;
 	      h->u.def.value = expld.result.value;
 	      if (expld.result.section == NULL)
@@ -1354,4 +1538,22 @@ align_n (bfd_vma value, bfd_vma align)
 
   value = (value + align - 1) / align;
   return value * align;
+}
+
+void
+ldexp_init (void)
+{
+  /* The value "13" is ad-hoc, somewhat related to the expected number of
+     assignments in a linker script.  */
+  if (!bfd_hash_table_init_n (&definedness_table,
+			      definedness_newfunc,
+			      sizeof (struct definedness_hash_entry),
+			      13))
+    einfo (_("%P%F: can not create hash table: %E\n"));
+}
+
+void
+ldexp_finish (void)
+{
+  bfd_hash_table_free (&definedness_table);
 }

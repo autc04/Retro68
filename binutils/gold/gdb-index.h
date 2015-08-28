@@ -1,6 +1,6 @@
 // gdb-index.h -- generate .gdb_index section for fast debug lookup  -*- C++ -*-
 
-// Copyright 2012 Free Software Foundation, Inc.
+// Copyright (C) 2012-2014 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.
@@ -89,9 +89,10 @@ class Gdb_index : public Output_section_data
     this->ranges_.push_back(Per_cu_range_list(object, cu_index, ranges));
   }
 
-  // Add a symbol.
+  // Add a symbol.  FLAGS are the gdb_index version 7 flags to be stored in
+  // the high-byte of the cu_index field.
   void
-  add_symbol(int cu_index, const char* sym_name);
+  add_symbol(int cu_index, const char* sym_name, uint8_t flags);
 
   // Return the offset into the pubnames table for the cu at the given
   // offset.
@@ -213,7 +214,7 @@ class Gdb_index : public Output_section_data
     { return this->name_key == symbol->name_key; }
   };
 
-  typedef std::vector<int> Cu_vector;
+  typedef std::vector<std::pair<int, uint8_t> > Cu_vector;
 
   typedef Unordered_map<off_t, off_t> Pubname_offset_map;
   Pubname_offset_map cu_pubname_map_;

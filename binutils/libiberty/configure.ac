@@ -225,10 +225,22 @@ case "${enable_shared}" in
   "") shared=no ;;
   *) shared=yes ;;
 esac
+
+# ...unless --enable-host-shared was passed from top-level config:
+if [[ "${enable_host_shared}" = "yes" ]]; then
+  shared=yes
+fi
+
 if [[ "${shared}" != "yes" ]]; then
   PICFLAG=
 fi
 AC_SUBST(PICFLAG)
+
+NOASANFLAG=
+case " ${CFLAGS} " in
+  *\ -fsanitize=address\ *) NOASANFLAG=-fno-sanitize=address ;;
+esac
+AC_SUBST(NOASANFLAG)
 
 echo "# Warning: this fragment is automatically generated" > temp-frag
 
@@ -405,7 +417,6 @@ fi
 
 setobjs=
 CHECK=
-target_header_dir=
 if test -n "${with_target_subdir}"; then
 
   # We are being configured as a target library.  AC_REPLACE_FUNCS

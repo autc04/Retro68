@@ -1,5 +1,6 @@
 #name: Valid v8-a+simdv3
 #objdump: -dr --prefix-addresses --show-raw-insn
+#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .*: +file format .*arm.*
 

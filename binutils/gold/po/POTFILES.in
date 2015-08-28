@@ -1,3 +1,6 @@
+aarch64-reloc-property.cc
+aarch64-reloc-property.h
+aarch64.cc
 archive.cc
 archive.h
 arm-reloc-property.cc
@@ -53,6 +56,7 @@ mapfile.cc
 mapfile.h
 merge.cc
 merge.h
+mips.cc
 nacl.cc
 nacl.h
 object.cc

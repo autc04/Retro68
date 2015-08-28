@@ -1,7 +1,6 @@
 // output.cc -- manage the output file for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013
-// Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -1797,6 +1796,10 @@ Output_data_dynamic::Dynamic_entry::write(
       val = pool->get_offset(this->u_.str);
       break;
 
+    case DYNAMIC_CUSTOM:
+      val = parameters->target().dynamic_tag_custom_value(this->tag_);
+      break;
+
     default:
       val = this->u_.od->address() + this->offset_;
       break;
@@ -3203,18 +3206,17 @@ class Output_section::Input_section_sort_entry
 {
  public:
   Input_section_sort_entry()
-    : input_section_(), index_(-1U), section_has_name_(false),
-      section_name_()
+    : input_section_(), index_(-1U), section_name_()
   { }
 
   Input_section_sort_entry(const Input_section& input_section,
 			   unsigned int index,
-			   bool must_sort_attached_input_sections)
-    : input_section_(input_section), index_(index),
-      section_has_name_(input_section.is_input_section()
-			|| input_section.is_relaxed_input_section())
+			   bool must_sort_attached_input_sections,
+			   const char* output_section_name)
+    : input_section_(input_section), index_(index), section_name_()
   {
-    if (this->section_has_name_
+    if ((input_section.is_input_section()
+	 || input_section.is_relaxed_input_section())
 	&& must_sort_attached_input_sections)
       {
 	// This is only called single-threaded from Layout::finalize,
@@ -3229,6 +3231,12 @@ class Output_section::Input_section_sort_entry
 	// This is a slow operation, which should be cached in
 	// Layout::layout if this becomes a speed problem.
 	this->section_name_ = obj->section_name(input_section.shndx());
+      }
+    else if (input_section.is_output_section_data()
+    	     && must_sort_attached_input_sections)
+      {
+	// For linker-generated sections, use the output section name.
+	this->section_name_.assign(output_section_name);
       }
   }
 
@@ -3249,16 +3257,10 @@ class Output_section::Input_section_sort_entry
     return this->index_;
   }
 
-  // Whether there is a section name.
-  bool
-  section_has_name() const
-  { return this->section_has_name_; }
-
   // The section name.
   const std::string&
   section_name() const
   {
-    gold_assert(this->section_has_name_);
     return this->section_name_;
   }
 
@@ -3267,7 +3269,6 @@ class Output_section::Input_section_sort_entry
   bool
   has_priority() const
   {
-    gold_assert(this->section_has_name_);
     return this->section_name_.find('.', 1) != std::string::npos;
   }
 
@@ -3277,7 +3278,6 @@ class Output_section::Input_section_sort_entry
   unsigned int
   get_priority() const
   {
-    gold_assert(this->section_has_name_);
     bool is_ctors;
     if (is_prefix_of(".ctors.", this->section_name_.c_str())
 	|| is_prefix_of(".dtors.", this->section_name_.c_str()))
@@ -3336,9 +3336,6 @@ class Output_section::Input_section_sort_entry
   Input_section input_section_;
   // The index of this Input_section in the original list.
   unsigned int index_;
-  // Whether this Input_section has a section name--it won't if this
-  // is some random Output_section_data.
-  bool section_has_name_;
   // The section name if there is one.
   std::string section_name_;
 };
@@ -3374,16 +3371,6 @@ Output_section::Input_section_sort_compare::operator()(
       return s1.index() < s2.index();
     }
 
-  // We sort all the sections with no names to the end.
-  if (!s1.section_has_name() || !s2.section_has_name())
-    {
-      if (s1.section_has_name())
-	return true;
-      if (s2.section_has_name())
-	return false;
-      return s1.index() < s2.index();
-    }
-
   // A section with a priority follows a section without a priority.
   bool s1_has_priority = s1.has_priority();
   bool s2_has_priority = s2.has_priority();
@@ -3415,16 +3402,6 @@ Output_section::Input_section_sort_init_fini_compare::operator()(
     const Output_section::Input_section_sort_entry& s1,
     const Output_section::Input_section_sort_entry& s2) const
 {
-  // We sort all the sections with no names to the end.
-  if (!s1.section_has_name() || !s2.section_has_name())
-    {
-      if (s1.section_has_name())
-	return true;
-      if (s2.section_has_name())
-	return false;
-      return s1.index() < s2.index();
-    }
-
   // A section without a priority follows a section with a priority.
   // This is the reverse of .ctors and .dtors sections.
   bool s1_has_priority = s1.has_priority();
@@ -3500,16 +3477,6 @@ Output_section::Input_section_sort_section_prefix_special_ordering_compare
     const Output_section::Input_section_sort_entry& s1,
     const Output_section::Input_section_sort_entry& s2) const
 {
-  // We sort all the sections with no names to the end.
-  if (!s1.section_has_name() || !s2.section_has_name())
-    {
-      if (s1.section_has_name())
-	return true;
-      if (s2.section_has_name())
-	return false;
-      return s1.index() < s2.index();
-    }
-
   // Some input section names have special ordering requirements.
   int o1 = Layout::special_ordering_of_input_section(s1.section_name().c_str());
   int o2 = Layout::special_ordering_of_input_section(s2.section_name().c_str());
@@ -3536,16 +3503,6 @@ Output_section::Input_section_sort_section_name_compare
     const Output_section::Input_section_sort_entry& s1,
     const Output_section::Input_section_sort_entry& s2) const
 {
-  // We sort all the sections with no names to the end.
-  if (!s1.section_has_name() || !s2.section_has_name())
-    {
-      if (s1.section_has_name())
-	return true;
-      if (s2.section_has_name())
-	return false;
-      return s1.index() < s2.index();
-    }
-
   // We sort by name.
   int compare = s1.section_name().compare(s2.section_name());
   if (compare != 0)
@@ -3613,7 +3570,8 @@ Output_section::sort_attached_input_sections()
        p != this->input_sections_.end();
        ++p, ++i)
       sort_list.push_back(Input_section_sort_entry(*p, i,
-			    this->must_sort_attached_input_sections()));
+			    this->must_sort_attached_input_sections(),
+			    this->name()));
 
   // Sort the input sections.
   if (this->must_sort_attached_input_sections())

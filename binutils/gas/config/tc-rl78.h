@@ -1,5 +1,5 @@
 /* tc-rl78.h - header file for Renesas RL78
-   Copyright 2011-2013 Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -49,6 +49,9 @@ extern int target_little_endian;
 #define md_end rl78_md_end
 extern void rl78_md_end (void);
 
+#define md_relax_frag rl78_relax_frag
+extern int rl78_relax_frag (segT, fragS *, long);
+
 #define TC_FRAG_TYPE struct rl78_bytesT *
 #define TC_FRAG_INIT rl78_frag_init
 extern void rl78_frag_init (fragS *);
@@ -64,7 +67,7 @@ extern long md_pcrel_from_section (struct fix *, segT);
   rl78_validate_fix_sub (FIX)
 extern int rl78_validate_fix_sub (struct fix *);
 
-#define TC_CONS_FIX_NEW(FRAG, WHERE, NBYTES, EXP) \
+#define TC_CONS_FIX_NEW(FRAG, WHERE, NBYTES, EXP, RET)	\
   rl78_cons_fix_new (FRAG, WHERE, NBYTES, EXP)
 extern void rl78_cons_fix_new (fragS *, int, int, expressionS *);
 

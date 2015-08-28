@@ -1,6 +1,5 @@
 /* ldexp.h -
-   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2007, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -157,7 +156,7 @@ struct ldexp_control {
   struct {
     enum phase_enum phase;
 
-    bfd_vma base, min_base, relro_end, end, pagesize, maxpagesize;
+    bfd_vma base, relro_offset, relro_end, end, pagesize, maxpagesize;
 
     enum relro_enum relro;
 
@@ -222,5 +221,7 @@ fill_type *exp_get_fill
   (etree_type *, fill_type *, char *);
 bfd_vma exp_get_abs_int
   (etree_type *, int, char *);
+void ldexp_init (void);
+void ldexp_finish (void);
 
 #endif

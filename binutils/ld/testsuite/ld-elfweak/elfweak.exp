@@ -1,6 +1,5 @@
 # Expect script for ld-weak tests
-#   Copyright 2001, 2002, 2003, 2004, 2005, 2007, 2010, 2012
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -70,17 +69,6 @@ set DOBJDUMP_FLAGS --dynamic-syms
 set SOBJDUMP_FLAGS --syms
 set shared "--shared -Wl,--no-as-needed"
 
-
-# <http://www.gnu.org/software/hurd/open_issues/binutils.html#weak>
-proc setup_xfail_gnu_hurd {} {
-    global target_triplet
-    # Be cautious to not XFAIL for *-*-linux-gnu*, *-*-kfreebsd-gnu*, etc.
-    switch -regexp $target_triplet {
-	^\[^-\]*-\[^-\]*-gnu.*$ {
-	    setup_xfail "*-*-*"
-	}
-    }
-}
 
 #
 # objdump_symstuff
@@ -468,9 +456,7 @@ build_lib "ELF DSO weak func first DSO" libfoo "foo.o libbar.so" dsow.dsym
 build_lib "ELF DSO weak func last DSO" libfoo "libbar.so foo.o" dsow.dsym
 build_exec "ELF weak func first" foo "main.o bar.o" "" strong "" strong.sym
 build_exec "ELF weak func last" foo "bar.o main.o" "" strong "" strong.sym
-setup_xfail_gnu_hurd
 build_exec "ELF weak func first DSO" foo "main.o libbar.so" "-Wl,-rpath,.,--no-as-needed" weak weak.dsym ""
-setup_xfail_gnu_hurd
 build_exec "ELF weak func last DSO" foo "libbar.so main.o" "-Wl,-rpath,.,--no-as-needed" weak weak.dsym ""
 
 build_lib "ELF DSO weak data first" libfoo "bar1a.o foo1a.o" dsodata.dsym
@@ -483,13 +469,9 @@ build_exec "ELF weak data first" foo "main1.o bar1a.o foo1a.o" "" strongdata "" 
 build_exec "ELF weak data last" foo "foo1a.o main1.o bar1a.o" "" strongdata "" strongdata.sym
 build_exec "ELF weak data first common" foo "main1.o bar1a.o foo1b.o" "" strongdata "" strongcomm.sym
 build_exec "ELF weak data last common" foo "foo1b.o main1.o bar1a.o" "" strongdata "" strongcomm.sym
-setup_xfail_gnu_hurd
 build_exec "ELF weak data first DSO" foo "main1.o libbar1a.so libfoo1a.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
-setup_xfail_gnu_hurd
 build_exec "ELF weak data last DSO" foo "libfoo1a.so main1.o libbar1a.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
-setup_xfail_gnu_hurd
 build_exec "ELF weak data first DSO common" foo "main1.o libbar1a.so libfoo1b.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
-setup_xfail_gnu_hurd
 build_exec "ELF weak data last DSO common" foo "libfoo1b.so main1.o libbar1a.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
 
 if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/size_foo.c $tmpdir/size_foo.o] {

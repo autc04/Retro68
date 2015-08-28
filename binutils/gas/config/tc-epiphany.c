@@ -1,5 +1,5 @@
 /* tc-epiphany.c -- Assembler for the Adapteva EPIPHANY
-   Copyright 2009, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
    Contributed by Embecosm on behalf of Adapteva, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -900,6 +900,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
     case EPIPHANY_RELAX_LDST_IMM3:
       addend = ((addend & 7) << 5) | opcode[0];
       opindx = EPIPHANY_OPERAND_DISP3;
+      break;
 
     case EPIPHANY_RELAX_BRANCH_SHORT:
       addend >>= 1;		/* Convert to a word offset.  */

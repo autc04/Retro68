@@ -1,5 +1,6 @@
 #name: Valid v8-a+fp
 #objdump: -dr --prefix-addresses --show-raw-insn
+#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .*: +file format .*arm.*
 
@@ -32,8 +33,8 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> fefd0ae0 	vcvtn.s32.f32	s1, s1
 0[0-9a-f]+ <[^>]+> febefa4f 	vcvtp.u32.f32	s30, s30
 0[0-9a-f]+ <[^>]+> fefffa6f 	vcvtm.u32.f32	s31, s31
-0[0-9a-f]+ <[^>]+> febc0b40 	vcvta.u32.f64	s0, d0
-0[0-9a-f]+ <[^>]+> fefd0b60 	vcvtn.u32.f64	s1, d16
+0[0-9a-f]+ <[^>]+> febc0bc0 	vcvta.s32.f64	s0, d0
+0[0-9a-f]+ <[^>]+> fefd0be0 	vcvtn.s32.f64	s1, d16
 0[0-9a-f]+ <[^>]+> febefb4f 	vcvtp.u32.f64	s30, d15
 0[0-9a-f]+ <[^>]+> fefffb6f 	vcvtm.u32.f64	s31, d31
 0[0-9a-f]+ <[^>]+> eeb60ac0 	vrintz.f32	s0, s0
@@ -86,8 +87,8 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> fefd 0ae0 	vcvtn.s32.f32	s1, s1
 0[0-9a-f]+ <[^>]+> febe fa4f 	vcvtp.u32.f32	s30, s30
 0[0-9a-f]+ <[^>]+> feff fa6f 	vcvtm.u32.f32	s31, s31
-0[0-9a-f]+ <[^>]+> febc 0b40 	vcvta.u32.f64	s0, d0
-0[0-9a-f]+ <[^>]+> fefd 0b60 	vcvtn.u32.f64	s1, d16
+0[0-9a-f]+ <[^>]+> febc 0bc0 	vcvta.s32.f64	s0, d0
+0[0-9a-f]+ <[^>]+> fefd 0be0 	vcvtn.s32.f64	s1, d16
 0[0-9a-f]+ <[^>]+> febe fb4f 	vcvtp.u32.f64	s30, d15
 0[0-9a-f]+ <[^>]+> feff fb6f 	vcvtm.u32.f64	s31, d31
 0[0-9a-f]+ <[^>]+> eeb6 0ac0 	vrintz.f32	s0, s0

@@ -115,14 +115,14 @@ config/tc-msp430.c
 config/tc-msp430.h
 config/tc-mt.c
 config/tc-mt.h
+config/tc-nds32.c
+config/tc-nds32.h
 config/tc-nios2.c
 config/tc-nios2.h
 config/tc-ns32k.c
 config/tc-ns32k.h
-config/tc-openrisc.c
-config/tc-openrisc.h
-config/tc-or32.c
-config/tc-or32.h
+config/tc-or1k.c
+config/tc-or1k.h
 config/tc-pdp11.c
 config/tc-pdp11.h
 config/tc-pj.c
@@ -176,6 +176,8 @@ config/tc-z8k.h
 config/te-386bsd.h
 config/te-aix5.h
 config/te-armeabi.h
+config/te-armfbsdeabi.h
+config/te-armfbsdvfp.h
 config/te-armlinuxeabi.h
 config/te-dynix.h
 config/te-epoc-pe.h

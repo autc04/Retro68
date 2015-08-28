@@ -35,28 +35,28 @@ Contents of the .[z]?debug_info section:
    Abbrev Offset: 0x0
    Pointer Size:  8
  <0><b>: Abbrev Number: 1 \(DW_TAG_compile_unit\)
-    <c>   DW_AT_producer    : \(indirect string, offset: 0x0\): GNU C 4.4.4	
+    <c>   DW_AT_producer    : \(indirect string, offset: 0x0\): GNU C 4.4.4
     <10>   DW_AT_language    : 1	\(ANSI C\)
-    <11>   DW_AT_name        : \(indirect string, offset: 0x18\): compressed-1.c	
-    <15>   DW_AT_comp_dir    : \(indirect string, offset: 0x16\): .	
-    <19>   DW_AT_low_pc      : 0x0	
-    <21>   DW_AT_high_pc     : 0x15	
-    <29>   DW_AT_stmt_list   : 0x0	
+    <11>   DW_AT_name        : \(indirect string, offset: 0x18\): compressed-1.c
+    <15>   DW_AT_comp_dir    : \(indirect string, offset: 0x16\): .
+    <19>   DW_AT_low_pc      : 0x0
+    <21>   DW_AT_high_pc     : 0x15
+    <29>   DW_AT_stmt_list   : 0x0
  <1><2d>: Abbrev Number: 2 \(DW_TAG_subprogram\)
-    <2e>   DW_AT_external    : 1	
-    <2f>   DW_AT_name        : \(indirect string, offset: 0xc\): foo2	
-    <33>   DW_AT_decl_file   : 1	
-    <34>   DW_AT_decl_line   : 10	
-    <35>   DW_AT_low_pc      : 0x0	
-    <3d>   DW_AT_high_pc     : 0x2	
+    <2e>   DW_AT_external    : 1
+    <2f>   DW_AT_name        : \(indirect string, offset: 0xc\): foo2
+    <33>   DW_AT_decl_file   : 1
+    <34>   DW_AT_decl_line   : 10
+    <35>   DW_AT_low_pc      : 0x0
+    <3d>   DW_AT_high_pc     : 0x2
     <45>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
  <1><47>: Abbrev Number: 2 \(DW_TAG_subprogram\)
-    <48>   DW_AT_external    : 1	
-    <49>   DW_AT_name        : \(indirect string, offset: 0x11\): foo1	
-    <4d>   DW_AT_decl_file   : 1	
-    <4e>   DW_AT_decl_line   : 4	
-    <4f>   DW_AT_low_pc      : 0x10	
-    <57>   DW_AT_high_pc     : 0x15	
+    <48>   DW_AT_external    : 1
+    <49>   DW_AT_name        : \(indirect string, offset: 0x11\): foo1
+    <4d>   DW_AT_decl_file   : 1
+    <4e>   DW_AT_decl_line   : 4
+    <4f>   DW_AT_low_pc      : 0x10
+    <57>   DW_AT_high_pc     : 0x15
     <5f>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
  <1><61>: Abbrev Number: 0
 
@@ -135,7 +135,7 @@ Contents of the .[z]?debug_str section:
 
 Contents of the .[z]?debug_frame section:
 
-00000000 0+014 ffffffff CIE
+0+ 0+14 0*ffffffff CIE
   Version:               1
   Augmentation:          ""
   Code alignment factor: 1
@@ -151,7 +151,7 @@ Contents of the .[z]?debug_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-00000018 0+014 00000000 FDE cie=00000000 pc=0+0000..0+0002
+0+18 0+14 0+ FDE cie=0+ pc=0+..0+2
 
-00000030 0+014 00000000 FDE cie=00000000 pc=0+0010..0+0015
+0+30 0+14 0+ FDE cie=0+ pc=0+10..0+15
 

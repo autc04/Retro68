@@ -72,8 +72,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f2 7d 49 c7 b4 fd 7b 00 00 00 	vscatterpf1qps 0x7b\(%ebp,%zmm7,8\)\{%k1\}
 [ 	]*[a-f0-9]+:	62 f2 7d 49 c7 74 38 40 	vscatterpf1qps 0x100\(%eax,%zmm7,1\)\{%k1\}
 [ 	]*[a-f0-9]+:	62 f2 7d 49 c7 b4 b9 00 04 00 00 	vscatterpf1qps 0x400\(%ecx,%zmm7,4\)\{%k1\}
-[ 	]*[a-f0-9]+:	0f 0d 11             	prefetchwt1 \(%ecx\)
-[ 	]*[a-f0-9]+:	0f 0d 94 f4 c0 1d fe ff 	prefetchwt1 -0x1e240\(%esp,%esi,8\)
 [ 	]*[a-f0-9]+:	62 f2 fd 49 c6 8c fd 85 ff ff ff 	vgatherpf0dpd -0x7b\(%ebp,%ymm7,8\)\{%k1\}
 [ 	]*[a-f0-9]+:	62 f2 fd 49 c6 8c fd 85 ff ff ff 	vgatherpf0dpd -0x7b\(%ebp,%ymm7,8\)\{%k1\}
 [ 	]*[a-f0-9]+:	62 f2 fd 49 c6 4c 38 20 	vgatherpf0dpd 0x100\(%eax,%ymm7,1\)\{%k1\}
@@ -138,6 +136,4 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f2 7d 49 c7 b4 fd 85 ff ff ff 	vscatterpf1qps -0x7b\(%ebp,%zmm7,8\)\{%k1\}
 [ 	]*[a-f0-9]+:	62 f2 7d 49 c7 74 38 40 	vscatterpf1qps 0x100\(%eax,%zmm7,1\)\{%k1\}
 [ 	]*[a-f0-9]+:	62 f2 7d 49 c7 b4 b9 00 04 00 00 	vscatterpf1qps 0x400\(%ecx,%zmm7,4\)\{%k1\}
-[ 	]*[a-f0-9]+:	0f 0d 11             	prefetchwt1 \(%ecx\)
-[ 	]*[a-f0-9]+:	0f 0d 94 f4 c0 1d fe ff 	prefetchwt1 -0x1e240\(%esp,%esi,8\)
 #pass

@@ -1,5 +1,5 @@
 /* tc-mt.c -- Assembler for the Morpho Technologies mt .
-   Copyright (C) 2005, 2006, 2007, 2010 Free Software Foundation.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 

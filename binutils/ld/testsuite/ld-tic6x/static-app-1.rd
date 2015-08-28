@@ -1,4 +1,4 @@
-There are 15 section headers, starting at offset 0x2180:
+There are 15 section headers, starting at offset .*:
 
 Section Headers:
   \[Nr\] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
@@ -6,8 +6,8 @@ Section Headers:
   \[ 1\] \.hash             HASH            00008000 001000 00003c 04   A  2   0  4
   \[ 2\] \.dynsym           DYNSYM          0000803c 00103c 0000a0 10   A  3   5  4
   \[ 3\] \.dynstr           STRTAB          000080dc 0010dc 00001d 00   A  0   0  1
-  \[ 4\] \.rela\.got         RELA            000080fc 0010fc 000024 0c   A  2   8  4
-  \[ 5\] \.rela\.neardata    RELA            00008120 001120 000030 0c   A  2   9  4
+  \[ 4\] \.rela\.got         RELA            000080fc 0010fc 000024 0c  AI  2   8  4
+  \[ 5\] \.rela\.neardata    RELA            00008120 001120 000030 0c  AI  2   9  4
   \[ 6\] \.dynamic          DYNAMIC         00008150 001150 000090 08  WA  3   0  4
   \[ 7\] \.text             PROGBITS        10000000 002000 0000c0 00  AX  0   0 32
   \[ 8\] \.got              PROGBITS        100000c0 0020c0 000020 00  WA  0   0  4

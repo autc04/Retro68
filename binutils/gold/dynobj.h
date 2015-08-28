@@ -1,6 +1,6 @@
 // dynobj.h -- dynamic object support for gold   -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011  Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -203,7 +203,7 @@ class Sized_dynobj : public Dynobj
 
   // Get the name of a section.
   std::string
-  do_section_name(unsigned int shndx)
+  do_section_name(unsigned int shndx) const
   { return this->elf_file_.section_name(shndx); }
 
   // Return a view of the contents of a section.  Set *PLEN to the
@@ -269,6 +269,12 @@ class Sized_dynobj : public Dynobj
   const Symbols*
   do_get_global_symbols() const
   { return this->symbols_; }
+
+ protected:
+  // Read the symbols.  This is common code for all target-specific
+  // overrides of do_read_symbols().
+  void
+  base_read_symbols(Read_symbols_data*);
 
  private:
   // For convenience.

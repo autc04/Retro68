@@ -1,6 +1,5 @@
 /* M16C/M32C specific support for 32-bit ELF.
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -41,6 +40,8 @@ void dump_symtab (bfd *, void *, void *);
 #endif
 static bfd_boolean m32c_elf_relax_section
 (bfd *abfd, asection *sec, struct bfd_link_info *link_info, bfd_boolean *again);
+static bfd_reloc_status_type m32c_apply_reloc_24
+  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 
 
 static reloc_howto_type m32c_elf_howto_table [] =
@@ -48,11 +49,11 @@ static reloc_howto_type m32c_elf_howto_table [] =
   /* This reloc does nothing.  */
   HOWTO (R_M32C_NONE,		/* type */
 	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_M32C_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
@@ -84,7 +85,7 @@ static reloc_howto_type m32c_elf_howto_table [] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 bfd_elf_generic_reloc,	/* special_function */
+	 m32c_apply_reloc_24,	/* special_function */
 	 "R_M32C_24",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -265,7 +266,7 @@ m32c_reloc_type_lookup
 {
   unsigned int i;
 
-  for (i = ARRAY_SIZE (m32c_reloc_map); --i;)
+  for (i = ARRAY_SIZE (m32c_reloc_map); i--;)
     if (m32c_reloc_map [i].bfd_reloc_val == code)
       return & m32c_elf_howto_table [m32c_reloc_map[i].m32c_reloc_val];
 
@@ -298,11 +299,57 @@ m32c_info_to_howto_rela
   unsigned int r_type;
 
   r_type = ELF32_R_TYPE (dst->r_info);
-  BFD_ASSERT (r_type < (unsigned int) R_M32C_max);
+  if (r_type >= (unsigned int) R_M32C_max)
+    {
+      _bfd_error_handler (_("%B: invalid M32C reloc number: %d"), abfd, r_type);
+      r_type = 0;
+    }
   cache_ptr->howto = & m32c_elf_howto_table [r_type];
 }
 
 
+
+/* Apply R_M32C_24 relocations.  We have to do this because it's not a
+   power-of-two size, and the generic code may think it overruns the
+   section if it's right at the end.
+
+   Must return something other than bfd_reloc_continue to avoid the
+   above problem.  Typical return values include bfd_reloc_ok or
+   bfd_reloc_overflow.
+*/
+
+static bfd_reloc_status_type m32c_apply_reloc_24 (bfd *abfd ATTRIBUTE_UNUSED,
+						  arelent *reloc_entry,
+						  asymbol *symbol,
+						  void *vdata_start ATTRIBUTE_UNUSED,
+						  asection *input_section,
+						  bfd *ibfd ATTRIBUTE_UNUSED,
+						  char **error_msg ATTRIBUTE_UNUSED)
+{
+  bfd_vma relocation;
+  bfd_reloc_status_type s;
+
+  s = bfd_elf_generic_reloc (abfd, reloc_entry, symbol,
+			     vdata_start,
+			     input_section, ibfd, error_msg);
+  if (s != bfd_reloc_continue)
+    return s;
+
+  /* Get symbol value.  (Common symbols are special.)  */
+  if (bfd_is_com_section (symbol->section))
+    relocation = 0;
+  else
+    relocation = symbol->value;
+
+  relocation += symbol->section->output_offset;
+
+  /* Add in supplied addend.  */
+  relocation += reloc_entry->addend;
+
+  reloc_entry->addend = relocation;
+  reloc_entry->address += input_section->output_offset;
+  return bfd_reloc_ok;
+}
 
 /* Relocate an M32C ELF section.
    There is some attempt to make this function usable for many architectures,
@@ -408,6 +455,11 @@ m32c_elf_relocate_section
       else
 	{
 	  h = sym_hashes [r_symndx - symtab_hdr->sh_info];
+
+	  if (info->wrap_hash != NULL
+	      && (input_section->flags & SEC_DEBUGGING) != 0)
+	    h = ((struct elf_link_hash_entry *)
+		 unwrap_hash_lookup (info, input_bfd, &h->root));
 
 	  while (h->root.type == bfd_link_hash_indirect
 		 || h->root.type == bfd_link_hash_warning)
@@ -527,9 +579,32 @@ m32c_elf_relocate_section
 	printf ("\n");
       }
 #endif
-      r = _bfd_final_link_relocate (howto, input_bfd, input_section,
-                                    contents, rel->r_offset, relocation,
-                                    rel->r_addend);
+      switch (ELF32_R_TYPE(rel->r_info))
+	{
+	case R_M32C_24:
+	  /* Like m32c_apply_reloc_24, we must handle this one separately.  */
+	  relocation += rel->r_addend;
+
+	  /* Sanity check the address.  */
+	  if (rel->r_offset + 3
+	      > bfd_get_section_limit_octets (input_bfd, input_section))
+	    r = bfd_reloc_outofrange;
+	  else
+	    {
+	      bfd_put_8 (input_bfd, relocation & 0xff, contents + rel->r_offset);
+	      bfd_put_8 (input_bfd, (relocation >> 8) & 0xff, contents + rel->r_offset + 1);
+	      bfd_put_8 (input_bfd, (relocation >> 16) & 0xff, contents + rel->r_offset + 2);
+	      r = bfd_reloc_ok;
+	    }
+
+	  break;
+
+	default:
+	  r = _bfd_final_link_relocate (howto, input_bfd, input_section,
+					contents, rel->r_offset, relocation,
+					rel->r_addend);
+	  break;
+	}
 
       if (r != bfd_reloc_ok)
 	{
@@ -921,32 +996,78 @@ dump_symtab (bfd * abfd, void *internal_syms, void *external_syms)
     {
       switch (ELF_ST_TYPE (isym->st_info))
 	{
-	case STT_FUNC: st_info_str = "STT_FUNC";
-	case STT_SECTION: st_info_str = "STT_SECTION";
-	case STT_FILE: st_info_str = "STT_FILE";
-	case STT_OBJECT: st_info_str = "STT_OBJECT";
-	case STT_TLS: st_info_str = "STT_TLS";
-	default: st_info_str = "";
+	case STT_FUNC:
+	  st_info_str = "STT_FUNC";
+	  break;
+
+	case STT_SECTION:
+	  st_info_str = "STT_SECTION";
+	  break;
+
+	case STT_FILE:
+	  st_info_str = "STT_FILE";
+	  break;
+
+	case STT_OBJECT:
+	  st_info_str = "STT_OBJECT";
+	  break;
+
+	case STT_TLS:
+	  st_info_str = "STT_TLS";
+	  break;
+
+	default:
+	  st_info_str = "";
 	}
+
       switch (ELF_ST_BIND (isym->st_info))
 	{
-	case STB_LOCAL: st_info_stb_str = "STB_LOCAL";
-	case STB_GLOBAL: st_info_stb_str = "STB_GLOBAL";
-	default: st_info_stb_str = "";
+	case STB_LOCAL:
+	  st_info_stb_str = "STB_LOCAL";
+	  break;
+
+	case STB_GLOBAL:
+	  st_info_stb_str = "STB_GLOBAL";
+	  break;
+
+	default:
+	  st_info_stb_str = "";
 	}
+
       switch (ELF_ST_VISIBILITY (isym->st_other))
 	{
-	case STV_DEFAULT: st_other_str = "STV_DEFAULT";
-	case STV_INTERNAL: st_other_str = "STV_INTERNAL";
-	case STV_PROTECTED: st_other_str = "STV_PROTECTED";
-	default: st_other_str = "";
+	case STV_DEFAULT:
+	  st_other_str = "STV_DEFAULT";
+	  break;
+
+	case STV_INTERNAL:
+	  st_other_str = "STV_INTERNAL";
+	  break;
+
+	case STV_PROTECTED:
+	  st_other_str = "STV_PROTECTED";
+	  break;
+
+	default:
+	  st_other_str = "";
 	}
+
       switch (isym->st_shndx)
 	{
-	case SHN_ABS: st_shndx_str = "SHN_ABS";
-	case SHN_COMMON: st_shndx_str = "SHN_COMMON";
-	case SHN_UNDEF: st_shndx_str = "SHN_UNDEF";
-	default: st_shndx_str = "";
+	case SHN_ABS:
+	  st_shndx_str = "SHN_ABS";
+	  break;
+
+	case SHN_COMMON:
+	  st_shndx_str = "SHN_COMMON";
+	  break;
+
+	case SHN_UNDEF:
+	  st_shndx_str = "SHN_UNDEF";
+	  break;
+
+	default:
+	  st_shndx_str = "";
 	}
 
       printf ("isym = %p st_value = %lx st_size = %lx st_name = (%lu) %s "
@@ -1060,7 +1181,7 @@ m32c_elf_relax_plt_section (asection *splt,
 
   /* Likewise for local symbols, though that's somewhat less convenient
      as we have to walk the list of input bfds and swap in symbol data.  */
-  for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link_next)
+  for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link.next)
     {
       bfd_vma *local_plt_offsets = elf_local_got_offsets (ibfd);
       Elf_Internal_Shdr *symtab_hdr;
@@ -1134,7 +1255,7 @@ m32c_elf_relax_plt_section (asection *splt,
       elf_link_hash_traverse (elf_hash_table (info),
 			      m32c_relax_plt_realloc, &entry);
 
-      for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link_next)
+      for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link.next)
 	{
 	  bfd_vma *local_plt_offsets = elf_local_got_offsets (ibfd);
 	  unsigned int nlocals = elf_tdata (ibfd)->symtab_hdr.sh_info;
@@ -1998,10 +2119,10 @@ _bfd_m32c_elf_eh_frame_address_size (bfd *abfd, asection *sec ATTRIBUTE_UNUSED)
 #define ELF_MAXPAGESIZE		0x100
 
 #if 0
-#define TARGET_BIG_SYM		bfd_elf32_m32c_vec
+#define TARGET_BIG_SYM		m32c_elf32_vec
 #define TARGET_BIG_NAME		"elf32-m32c"
 #else
-#define TARGET_LITTLE_SYM		bfd_elf32_m32c_vec
+#define TARGET_LITTLE_SYM		m32c_elf32_vec
 #define TARGET_LITTLE_NAME		"elf32-m32c"
 #endif
 

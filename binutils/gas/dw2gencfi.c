@@ -1,6 +1,5 @@
 /* dw2gencfi.c - Support for generating Dwarf2 CFI information.
-   Copyright 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
    Contributed by Michal Ludvig <mludvig@suse.cz>
 
    This file is part of GAS, the GNU Assembler.
@@ -188,8 +187,8 @@ make_debug_seg (segT cseg, char *name, int sflags)
   else
     flags = bfd_get_section_flags (stdoutput, cseg)
       & (SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD
-         | SEC_LINK_DUPLICATES_ONE_ONLY | SEC_LINK_DUPLICATES_SAME_SIZE
-         | SEC_LINK_DUPLICATES_SAME_CONTENTS);
+	 | SEC_LINK_DUPLICATES_ONE_ONLY | SEC_LINK_DUPLICATES_SAME_SIZE
+	 | SEC_LINK_DUPLICATES_SAME_CONTENTS);
 
   /* Add standard section flags.  */
   flags |= sflags;
@@ -1000,7 +999,7 @@ dot_cfi_val_encoded_addr (int ignored ATTRIBUTE_UNUSED)
       break;
     case O_constant:
       if ((encoding & 0x70) != DW_EH_PE_pcrel)
-        break;
+	break;
     default:
       encoding = DW_EH_PE_omit;
       break;
@@ -1331,15 +1330,15 @@ output_cfi_insn (struct cfi_insn_data *insn)
 
     case CFI_val_encoded_addr:
       {
-        unsigned encoding = insn->u.ea.encoding;
-        offsetT encoding_size;
+	unsigned encoding = insn->u.ea.encoding;
+	offsetT encoding_size;
 
 	if (encoding == DW_EH_PE_omit)
 	  break;
 	out_one (DW_CFA_val_expression);
 	out_uleb128 (insn->u.ea.reg);
 
-        switch (encoding & 0x7)
+	switch (encoding & 0x7)
 	  {
 	  case DW_EH_PE_absptr:
 	    encoding_size = DWARF2_ADDR_SIZE (stdoutput);
@@ -1522,7 +1521,7 @@ output_cie (struct cie_entry *cie, bfd_boolean eh_frame, int align)
   if (cie->first)
     {
       for (i = cie->first; i != cie->last; i = i->next)
-        {
+	{
 	  if (CUR_SEG (i) != CUR_SEG (cie))
 	    continue;
 	  output_cfi_insn (i);
@@ -1780,7 +1779,7 @@ cfi_change_reg_numbers (struct cfi_insn_data *insn, segT ccseg)
   for (; insn; insn = insn->next)
     {
       if (CUR_SEG (insn) != ccseg)
-        continue;
+	continue;
       switch (insn->insn)
 	{
 	case DW_CFA_advance_loc:
@@ -1875,7 +1874,7 @@ cfi_finish (void)
 	}
 
       do
-        {
+	{
 	  ccseg = NULL;
 	  seek_next_seg = 0;
 
@@ -1945,7 +1944,7 @@ cfi_finish (void)
 		     alignment);
 
       do
-        {
+	{
 	  ccseg = NULL;
 	  seek_next_seg = 0;
 

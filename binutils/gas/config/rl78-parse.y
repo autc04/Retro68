@@ -1,5 +1,5 @@
 /* rl78-parse.y  Renesas RL78 parser
-   Copyright 2011-2013 Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -290,22 +290,22 @@ statement :
 /* ---------------------------------------------------------------------- */
 
 	| BC '$' EXPR
-	  { B1 (0xdc); PC1 ($3); }
+	  { B1 (0xdc); PC1 ($3); rl78_relax (RL78_RELAX_BRANCH, 0); }
 
 	| BNC '$' EXPR
-	  { B1 (0xde); PC1 ($3); }
+	  { B1 (0xde); PC1 ($3); rl78_relax (RL78_RELAX_BRANCH, 0); }
 
 	| BZ '$' EXPR
-	  { B1 (0xdd); PC1 ($3); }
+	  { B1 (0xdd); PC1 ($3); rl78_relax (RL78_RELAX_BRANCH, 0); }
 
 	| BNZ '$' EXPR
-	  { B1 (0xdf); PC1 ($3); }
+	  { B1 (0xdf); PC1 ($3); rl78_relax (RL78_RELAX_BRANCH, 0); }
 
 	| BH '$' EXPR
-	  { B2 (0x61, 0xc3); PC1 ($3); }
+	  { B2 (0x61, 0xc3); PC1 ($3); rl78_relax (RL78_RELAX_BRANCH, 0); }
 
 	| BNH '$' EXPR
-	  { B2 (0x61, 0xd3); PC1 ($3); }
+	  { B2 (0x61, 0xd3); PC1 ($3); rl78_relax (RL78_RELAX_BRANCH, 0); }
 
 /* ---------------------------------------------------------------------- */
 
@@ -1153,12 +1153,12 @@ addsubw	: ADDW  { $$ = 0x00; }
 	;
 
 andor1	: AND1 { $$ = 0x05; rl78_bit_insn = 1; }
-	| OR1  { $$ = 0x06; rl78_bit_insn = 1;}
+	| OR1  { $$ = 0x06; rl78_bit_insn = 1; }
 	| XOR1 { $$ = 0x07; rl78_bit_insn = 1; }
 	;
 
-bt_bf	: BT { $$ = 0x02;    rl78_bit_insn = 1;}
-	| BF { $$ = 0x04;    rl78_bit_insn = 1; }
+bt_bf	: BT { $$ = 0x02;    rl78_bit_insn = 1; rl78_relax (RL78_RELAX_BRANCH, 0); }
+	| BF { $$ = 0x04;    rl78_bit_insn = 1; rl78_relax (RL78_RELAX_BRANCH, 0); }
 	| BTCLR { $$ = 0x00; rl78_bit_insn = 1; }
 	;
 

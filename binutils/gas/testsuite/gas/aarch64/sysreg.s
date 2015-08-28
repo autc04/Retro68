@@ -16,6 +16,7 @@
 	mrs x0, id_mmfr1_el1
 	mrs x0, id_mmfr2_el1
 	mrs x0, id_mmfr3_el1
+	mrs x0, id_mmfr4_el1
 	mrs x0, id_isar0_el1
 	mrs x0, id_isar1_el1
 	mrs x0, id_isar2_el1

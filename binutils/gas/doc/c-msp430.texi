@@ -1,4 +1,4 @@
-@c Copyright 2002-2013 Free Software Foundation, Inc.
+@c Copyright (C) 2002-2014 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -29,13 +29,12 @@
 @table @code
 
 @item -mmcu
-selects the mpu arch.  If the architecture is 430Xv2 then this also
-enables NOP generation unless the @option{-mN} is also specified.
+selects the mcu architecture.  If the architecture is 430Xv2 then this
+also enables NOP generation unless the @option{-mN} is also specified.
 
 @item -mcpu
 selects the cpu architecture.  If the architecture is 430Xv2 then this
-also enables NOP generation unless the @option{-mN} is also
-specified.
+also enables NOP generation unless the @option{-mN} is also specified.
 
 @item -mP
 enables polymorph instructions handler.
@@ -46,16 +45,33 @@ enables relaxation at assembly time. DANGEROUS!
 @item -ml
 indicates that the input uses the large code model.
 
+@item -mn
+enables the generation of a NOP instruction following any instruction
+that might change the interrupts enabled/disabled state.  The
+pipelined nature of the MSP430 core means that any instruction that
+changes the interrupt state (@code{EINT}, @code{DINT}, @code{BIC #8,
+SR}, @code{BIS #8, SR} or @code{MOV.W <>, SR}) must be 
+followed by a NOP instruction in order to ensure the correct
+processing of interrupts.  By default it is up to the programmer to
+supply these NOP instructions, but this command line option enables
+the automatic insertion by the assembler, if they are missing.
+
 @item -mN
 disables the generation of a NOP instruction following any instruction
-that might change the interrupts enabled/disabled state.  For the
-430Xv2 architecture the instructions: @code{EINT}, @code{DINT},
-@code{BIC #8, SR}, @code{BIS #8, SR} and @code{MOV.W <>, SR} must be
-followed by a NOP instruction in order to ensure the correct
-processing of interrupts.  By default generation of the NOP
-instruction happens automatically, but this command line option
-disables this behaviour.  It is then up to the programmer to ensure
-that interrupts are enabled and disabled correctly.
+that might change the interrupts enabled/disabled state.  This is the
+default behaviour.
+
+@item -my
+tells the assembler to generate a warning message if a NOP does not
+immediately forllow an instruction that enables or disables
+interrupts.  This is the default.
+
+Note that this option can be stacked with the @option{-mn} option so
+that the assembler will both warn about missing NOP instructions and
+then insert them automatically.
+
+@item -mY
+disables warnings about missing NOP instructions.
 
 @item -md
 mark the object file as one that requires data to copied from ROM to
@@ -253,6 +269,15 @@ command line option.
 @cindex @code{profiler} directive, MSP 430
 @item .profiler
 This directive instructs assembler to add new profile entry to the object file.
+
+@cindex @code{refsym} directive, MSP 430
+@item .refsym
+This directive instructs assembler to add an undefined reference to
+the symbol following the directive.  The maximum symbol name length is
+1023 characters.  No relocation is created for this symbol; it will
+exist purely for pulling in object files from archives.  Note that
+this reloc is not sufficient to prevent garbage collection; use a
+KEEP() directive in the linker file to preserve such objects.
 
 @end table
 

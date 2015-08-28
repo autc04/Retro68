@@ -1,5 +1,5 @@
 /* This file is tc-msp430.h
-   Copyright (C) 2002-2013 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    Contributed by Dmitry Diky <diwil@mail.ru>
 
@@ -119,6 +119,10 @@ extern long msp430_relax_frag (segT, fragS *, long);
 #define TC_FORCE_RELOCATION_LOCAL(FIX)	\
    msp430_force_relocation_local (FIX)
 extern int msp430_force_relocation_local (struct fix *);
+
+/* We need to add reference symbols for .data/.bss.  */
+#define tc_frob_section(sec) msp430_frob_section (sec)
+extern void msp430_frob_section (asection *);
 
 extern int msp430_enable_relax;
 extern int msp430_enable_polys;

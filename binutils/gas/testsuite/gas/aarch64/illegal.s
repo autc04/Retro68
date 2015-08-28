@@ -1,7 +1,7 @@
 /* illegal.s Test file for AArch64 instructions that should be rejected
    by the assembler.
 
-   Copyright 2011, 2012 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 
@@ -497,7 +497,7 @@
 
 	prfm    PLDL3KEEP, [x9, x15, sxtx #2]
 
-	mrs	x5, S1_0_C13_C8_0
+	mrs	x5, S1_0_C17_C8_0
 	msr	S3_1_C13_C15_1, x7
 	msr	S3_1_C11_C15_-1, x7
 	msr	S3_1_11_15_1, x7
@@ -561,3 +561,9 @@ one_label:
 	csetm	w0, nv
 	cneg	w0, w1, al
 	cneg	w0, w1, nv
+
+	mrs	x5, S4_0_C12_C8_0
+	mrs	x6, S0_8_C11_C7_5
+	mrs	x7, S1_1_C16_C6_6
+	mrs	x8, S2_2_C15_C16_7
+	mrs	x9, S3_3_C14_C15_8

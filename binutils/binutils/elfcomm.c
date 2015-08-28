@@ -1,5 +1,5 @@
 /* elfcomm.c -- common code for ELF format file.
-   Copyright 2010-2013 Free Software Foundation, Inc.
+   Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
    Originally developed by Eric Youngdale <eric@andante.jic.com>
    Modifications by Nick Clifton <nickc@redhat.com>
@@ -51,7 +51,7 @@ warn (const char *message, ...)
 
   /* Try to keep warning messages in sync with the program's normal output.  */
   fflush (stdout);
-  
+
   va_start (args, message);
   fprintf (stderr, _("%s: Warning: "), program_name);
   vfprintf (stderr, message, args);
@@ -386,10 +386,11 @@ byte_get_64 (unsigned char *field, elf_vma *high, elf_vma *low)
 
 char *
 adjust_relative_path (const char *file_name, const char *name,
-		      int name_len)
+		      unsigned long name_len)
 {
   char * member_file_name;
   const char * base_name = lbasename (file_name);
+  size_t amt;
 
   /* This is a proxy entry for a thin archive member.
      If the extended name table contains an absolute path
@@ -399,7 +400,10 @@ adjust_relative_path (const char *file_name, const char *name,
      archive is located.  */
   if (IS_ABSOLUTE_PATH (name) || base_name == file_name)
     {
-      member_file_name = (char *) malloc (name_len + 1);
+      amt = name_len + 1;
+      if (amt == 0)
+	return NULL;
+      member_file_name = (char *) malloc (amt);
       if (member_file_name == NULL)
         {
           error (_("Out of memory\n"));
@@ -413,7 +417,18 @@ adjust_relative_path (const char *file_name, const char *name,
       /* Concatenate the path components of the archive file name
          to the relative path name from the extended name table.  */
       size_t prefix_len = base_name - file_name;
-      member_file_name = (char *) malloc (prefix_len + name_len + 1);
+
+      amt = prefix_len + name_len + 1;
+      /* PR 17531: file: 2896dc8b
+	 Catch wraparound.  */
+      if (amt < prefix_len || amt < name_len)
+	{
+	  error (_("Abnormal length of thin archive member name: %lx\n"),
+		 name_len);
+	  return NULL;
+	}
+
+      member_file_name = (char *) malloc (amt);
       if (member_file_name == NULL)
         {
           error (_("Out of memory\n"));
@@ -445,6 +460,14 @@ process_archive_index_and_symbols (struct archive_info *  arch,
   unsigned long size;
 
   size = strtoul (arch->arhdr.ar_size, NULL, 10);
+  /* PR 17531: file: 912bd7de.  */
+  if ((signed long) size < 0)
+    {
+      error (_("%s: invalid archive header size: %ld\n"),
+	     arch->file_name, size);
+      return FALSE;
+    }
+
   size = size + (size & 1);
 
   arch->next_arhdr_offset += sizeof arch->arhdr + size;
@@ -468,7 +491,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
       unsigned char * index_buffer;
 
       assert (sizeof_ar_index <= sizeof integer_buffer);
-  
+
       /* Check the size of the archive index.  */
       if (size < sizeof_ar_index)
 	{
@@ -487,9 +510,11 @@ process_archive_index_and_symbols (struct archive_info *  arch,
       arch->index_num = byte_get_big_endian (integer_buffer, sizeof_ar_index);
       size -= sizeof_ar_index;
 
-      if (size < arch->index_num * sizeof_ar_index)
+      if (size < arch->index_num * sizeof_ar_index
+	  /* PR 17531: file: 585515d1.  */
+	  || size < arch->index_num)
 	{
-	  error (_("%s: the archive index is supposed to have %ld entries of %d bytes, but the size is only %ld\n"),
+	  error (_("%s: the archive index is supposed to have 0x%lx entries of %d bytes, but the size is only 0x%lx\n"),
 		 arch->file_name, (long) arch->index_num, sizeof_ar_index, size);
 	  return FALSE;
 	}
@@ -623,9 +648,25 @@ setup_archive (struct archive_info *arch, const char *file_name,
     {
       /* This is the archive string table holding long member names.  */
       arch->longnames_size = strtoul (arch->arhdr.ar_size, NULL, 10);
+      /* PR 17531: file: 01068045.  */
+      if (arch->longnames_size < 8)
+	{
+	  error (_("%s: long name table is too small, (size = %ld)\n"),
+		 file_name, arch->longnames_size);
+	  return 1;
+	}
+      /* PR 17531: file: 639d6a26.  */
+      if ((signed long) arch->longnames_size < 0)
+	{
+	  error (_("%s: long name table is too big, (size = 0x%lx)\n"),
+		 file_name, arch->longnames_size);
+	  return 1;
+	}
+
       arch->next_arhdr_offset += sizeof arch->arhdr + arch->longnames_size;
 
-      arch->longnames = (char *) malloc (arch->longnames_size);
+      /* Plus one to allow for a string terminator.  */
+      arch->longnames = (char *) malloc (arch->longnames_size + 1);
       if (arch->longnames == NULL)
 	{
 	  error (_("Out of memory reading long symbol names in archive\n"));
@@ -643,6 +684,8 @@ setup_archive (struct archive_info *arch, const char *file_name,
 
       if ((arch->longnames_size & 1) != 0)
 	getc (file);
+
+      arch->longnames[arch->longnames_size] = 0;
     }
 
   return 0;
@@ -713,22 +756,36 @@ get_archive_member_name (struct archive_info *arch,
 	  error (_("Archive member uses long names, but no longname table found\n"));
 	  return NULL;
 	}
-      
+
       arch->nested_member_origin = 0;
       k = j = strtoul (arch->arhdr.ar_name + 1, &endp, 10);
       if (arch->is_thin_archive && endp != NULL && * endp == ':')
         arch->nested_member_origin = strtoul (endp + 1, NULL, 10);
 
+      if (j > arch->longnames_size)
+	{
+	  error (_("Found long name index (%ld) beyond end of long name table\n"),j);
+	  return NULL;
+	}
       while ((j < arch->longnames_size)
              && (arch->longnames[j] != '\n')
              && (arch->longnames[j] != '\0'))
         j++;
-      if (arch->longnames[j-1] == '/')
+      if (j > 0 && arch->longnames[j-1] == '/')
         j--;
+      if (j > arch->longnames_size)
+	j = arch->longnames_size;
       arch->longnames[j] = '\0';
 
       if (!arch->is_thin_archive || arch->nested_member_origin == 0)
         return arch->longnames + k;
+
+      /* PR 17531: file: 2896dc8b.  */
+      if (k >= j)
+	{
+	  error (_("Invalid Thin archive member name\n"));
+	  return NULL;
+	}
 
       /* This is a proxy for a member of a nested archive.
          Find the name of the member in that archive.  */

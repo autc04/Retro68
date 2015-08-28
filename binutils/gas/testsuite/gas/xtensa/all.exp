@@ -1,5 +1,4 @@
-# Copyright 2012
-# Free Software Foundation, Inc.
+# Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -99,6 +98,8 @@ if [istarget xtensa*-*-*] then {
     run_dump_test "pcrel"
     run_dump_test "weak-call"
     run_dump_test "jlong"
+    run_dump_test "trampoline"
+    run_dump_test "first_frag_align"
 }
 
 if [info exists errorInfo] then {

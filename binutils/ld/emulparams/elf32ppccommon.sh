@@ -13,8 +13,6 @@ ARCH=powerpc:common
 MACHINE=
 EXECUTABLE_SYMBOLS='PROVIDE (__stack = 0); PROVIDE (___stack = 0);'
 if test -z "${CREATE_SHLIB}"; then
-  SDATA_START_SYMBOLS="PROVIDE (_SDA_BASE_ = 32768);"
-  SDATA2_START_SYMBOLS="PROVIDE (_SDA2_BASE_ = 32768);"
   SBSS_START_SYMBOLS="PROVIDE (__sbss_start = .); PROVIDE (___sbss_start = .);"
   SBSS_END_SYMBOLS="PROVIDE (__sbss_end = .); PROVIDE (___sbss_end = .);"
 else

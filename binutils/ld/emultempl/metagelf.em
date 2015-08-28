@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2013 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2014 Free Software Foundation, Inc.
 #
 # This file is part of GNU Binutils.
 #
@@ -45,9 +45,9 @@ static bfd_signed_vma group_size = 1;
 static void
 metagelf_create_output_section_statements (void)
 {
-  extern const bfd_target bfd_elf32_metag_vec;
+  extern const bfd_target metag_elf32_vec;
 
-  if (link_info.output_bfd->xvec != &bfd_elf32_metag_vec)
+  if (link_info.output_bfd->xvec != &metag_elf32_vec)
     return;
 
   stub_file = lang_add_input_file ("linker stubs",
@@ -154,7 +154,6 @@ metagelf_add_stub_section (const char *stub_sec_name, asection *input_section)
   asection *stub_sec;
   flagword flags;
   asection *output_section;
-  const char *secname;
   lang_output_section_statement_type *os;
   struct hook_stub_info info;
 
@@ -166,8 +165,7 @@ metagelf_add_stub_section (const char *stub_sec_name, asection *input_section)
     goto err_ret;
 
   output_section = input_section->output_section;
-  secname = bfd_get_section_name (output_section->owner, output_section);
-  os = lang_output_section_find (secname);
+  os = lang_output_section_get (output_section);
 
   info.input_section = input_section;
   lang_list_init (&info.add);
@@ -221,20 +219,26 @@ build_section_lists (lang_statement_union_type *statement)
 static void
 gld${EMULATION_NAME}_after_allocation (void)
 {
+  int ret;
+
   /* bfd_elf_discard_info just plays with data and debugging sections,
      ie. doesn't affect code size, so we can delay resizing the
      sections.  It's likely we'll resize everything in the process of
      adding stubs.  */
-  if (bfd_elf_discard_info (link_info.output_bfd, &link_info))
+  ret = bfd_elf_discard_info (link_info.output_bfd, &link_info);
+  if (ret < 0)
+    {
+      einfo ("%X%P: .eh_frame/.stab edit: %E\n");
+      return;
+    }
+  else if (ret > 0)
     need_laying_out = 1;
 
   /* If generating a relocatable output file, then we don't
      have to examine the relocs.  */
   if (stub_file != NULL && !link_info.relocatable)
     {
-      int ret = elf_metag_setup_section_lists (link_info.output_bfd,
-					       &link_info);
-
+      ret = elf_metag_setup_section_lists (link_info.output_bfd, &link_info);
       if (ret != 0)
 	{
 	  if (ret < 0)

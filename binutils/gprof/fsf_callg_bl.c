@@ -92,7 +92,7 @@ fsf_callg_blurb (file)
   fputs (" for that member, how many times it was called from other members of\n", file);
   fputs (" the cycle.\n", file);
   fputs ("\n", file);
-  fputs ("Copyright (C) 2012 Free Software Foundation, Inc.\n", file);
+  fputs ("Copyright (C) 2012-2014 Free Software Foundation, Inc.\n", file);
   fputs ("\n", file);
   fputs ("Copying and distribution of this file, with or without modification,\n", file);
   fputs ("are permitted in any medium without royalty provided the copyright\n", file);

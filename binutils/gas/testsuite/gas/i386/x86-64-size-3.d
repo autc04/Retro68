@@ -3,7 +3,7 @@
 #readelf: -r
 
 
-Relocation section '.rela.text' at offset 0x490 contains 6 entries:
+Relocation section '.rela.text' at offset .* contains 6 entries:
   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
 0+1  000600000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 0
 0+6  000600000020 R_X86_64_SIZE32   0000000000000000 xxx - 8
@@ -12,7 +12,7 @@ Relocation section '.rela.text' at offset 0x490 contains 6 entries:
 0+15  000700000020 R_X86_64_SIZE32   0000000000000000 yyy - 10
 0+1a  000700000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 10
 
-Relocation section '.rela.tdata' at offset 0x520 contains 2 entries:
+Relocation section '.rela.tdata' at offset .* contains 2 entries:
   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
 0+50  000600000020 R_X86_64_SIZE32   0000000000000000 xxx - 1
 0+54  000700000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 2

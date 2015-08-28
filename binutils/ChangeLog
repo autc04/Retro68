@@ -1,6 +1,198 @@
+2014-10-15  Tristan Gingold  <gingold@adacore.com>
+
+	* src-release.sh (do_proto_toplev): Configure with --target.
+
+2014-10-03  Jing Yu  <jingyu@google.com>
+
+	* configure.ac: Add aarch64 to list of targets that support gold.
+	* configure: Regenerate.
+
+2014-09-12  Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* configure.ac: Add mips*-img-elf* target triple.
+	* configure: Regenerate.
+
+2014-09-06  Kuan-Lin Chen  <kuanlinchentw@gmail.com>
+	* configure: Disable gdb for nds32*-*-* until supported.
+	* configure.ac: Disable gdb for nds32*-*-* until supported.
+
+2014-09-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* configure: Regenerate.
+
+2014-08-27  Will Newton  <will.newton@linaro.org>
+
+	* src-release.sh: New file.
+	* src-release: Remove file.
+
+2014-07-27  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	GDB not supported for or1k*-*-rtems*
+	* configure.ac (or1k*-*-rtems*): gdb not supported.  The ordering
+	of the stanzas results in this not being caught by or1k*-*-* later.
+	* configure. Regenerated.
+
+2014-07-25  Samuel Bronson  <naesten@gmail.com>
+
+	* .gitattributes: New file for use with git-merge-changelog.
+
+2014-07-21  Joel Sherrill  <joel.sherrill@oarcorp.com>
+
+	Disable gdb for or1k*-*-* until supported
+	* configure.ac (or1k*-*-*): Disable gdb.
+	* configure: Regenerated.
+
+2014-05-14  Sandra Loosemore  <sandra@codesourcery.com>
+
+	* configure.ac (target_makefile_frag): Set for nios2-*-elf*.
+	* configure: Regenerated.
+
+2014-03-26  Jakub Jelinek  <jakub@redhat.com>
+
+	PR sanitizer/56781
+	* Makefile.def: Set bootstrap=true; for host fixincludes.
+	* configure.ac: Don't bootstrap host fixincludes unless
+	--with-build-config=bootstrap-{a,ub}san.
+	* Makefile.in: Regenerated.
+	* configure: Regenerated.
+
+2014-03-21  Jakub Jelinek  <jakub@redhat.com>
+
+	* configure.ac: Move BUILD_CONFIG set up earlier.  Add
+	--enable-vtable-verify option parsing.  Don't add
+	target-libsanitizer to bootstrap_target_libs unless
+	--with-build-config=bootstrap-asan or
+	--with-build-config=bootstrap-ubsan.  Don't add target-libvtv
+	to bootstrap_target_libs unless --enable-vtable-verify.
+	* configure: Regenerated.
+
+2014-03-07  Jakub Jelinek  <jakub@redhat.com>
+
+	PR bootstrap/58572
+	* Makefile.tpl (POSTSTAGE1_CXX_EXPORT): Use -isystem instead of
+	-I for libstdc++-v3 includes if $(LEAN).
+	* Makefile.in: Regenerated.
+
+2014-02-24  Walter Lee  <walt@tilera.com>
+
+	* configure.ac (tilepro-*-*) Change to tilepro*-*-*.
+	(tilegx-*-*): Change to tilegx*-*-*.
+	* configure: Regenerate.
+
+2014-05-01  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* config.sub, config.guess: Import from upstream.
+
+2014-04-04  Eric Botcazou  <ebotcazou@adacore.com>
+
+	PR bootstrap/60620
+	* Makefile.def (dependencies): Make gnattools depend on libstdc++-v3. 
+	* Makefile.in: Regenerate.
+
+2014-03-28  Yaakov Selkowitz  <yselkowitz@users.sourceforge.net>
+
+	* Makefile.def (dependencies): Make all-ld depend on all-binutils
+	for WINDRES_FOR_TARGET in default-manifest.o rule.
+	* Makefile.in: Regenerate.
+
+2014-02-04  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR target/59788
+	* ltmain.sh (opt_duplicate_compiler_generated_deps): Enable on
+	*solaris2*.
+
+2013-12-19  Keven Boell  <keven.boell@intel.com>
+
+	* cp-namespace.c (cp_lookup_nested_symbol): Enable
+	nested lookups for fortran modules.
+	* dwarf2read.c (read_module): Add fortran module to
+	the symbol table.
+	(add_partial_symbol, add_partial_module): Add fortran
+	module to the partial symbol table.
+	(new_symbol_full): Create full symbol for fortran module.
+	* f-exp.y (yylex): Add new module domain to be parsed.
+	* symtab.h: New domain for fortran modules.
+
+2013-12-19  Keven Boell  <keven.boell@intel.com>
+
+	* f-exp.y (yylex): Add domain array to enable lookup
+	in multiple domains. Loop over lookup domains and try
+	to find requested symbol. Add STRUCT_DOMAIN to lookup
+	domains to be able to query for user defined types.
+
+2013-12-13  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
+
+	* configure.ac: Add user-friendly check for native x86_64-linux
+	multilibs.
+	* configure: Regenerate.
+
 2013-11-23  Alan Modra  <amodra@gmail.com>
 
 	* config.sub, config.guess: Import from upstream.
+
+2013-11-07  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* Makefile.in: Regenerate.
+
+	* Makefile.tpl: Fix typo.
+	* Makefile.in: Regenerate partially.
+
+2013-11-04  Balaji V. Iyer  <balaji.v.iyer@intel.com>
+
+	* configure.ac: Added libcilkrts to noconfig list when C++ is not
+	supported.
+	* configure: Regenerated.
+
+2013-10-30  Jason Merrill  <jason@redhat.com>
+
+	* Makefile.tpl (STAGE1_CONFIGURE_FLAGS): Pass
+	--disable-build-format-warnings.
+
+2013-10-29  Balaji V. Iyer  <balaji.v.iyer@intel.com>
+
+	* Makefile.def: Add libcilkrts to target_modules.  Make libcilkrts
+	depend on libstdc++ and libgcc.
+	* configure: Regenerate.
+	* configure.ac: Added libcilkrts to target binaries.  Also, restrict
+	libcilkrts for POSIX and i*86, and x86_64 architectures.
+	* Makefile.in: Added libcilkrts related fields to support building it.
+
+2013-10-26  Jeff Law  <law@redhat.com>
+
+	* Makefile.def (target_modules): Remove libmudflap
+	(languages): Remove check-target-libmudflap).
+	* Makefile.in: Rebuilt.
+	* Makefile.tpl (check-target-libmudflap-c++): Remove.
+	* configure.ac (target_libraries): Remove target-libmudflap.
+	Remove checks which disabled libmudflap on some systems.
+	* configure: Rebuilt.
+	* libmudflap: Directory removed.
+
+2013-10-16  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* configure.ac: Update from GCC.
+	* configure: Regenerate.
+
+2013-10-15  Hans-Peter Nilsson  <hp@axis.com>
+
+	* src-release (do-proto-toplevel): Support subdir-path-prefixed
+	files in SUPPORT_FILES.
+	(SIM_SUPPORT_DIRS): New variable.
+	(sim.tar.bz2): New rule.
+
+2013-10-08  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* configure.ac: Update from GCC.
+	* configure: Regenerate.
+
+2013-10-01  Jeff Johnston  <jjohnstn@redhat.com>
+
+	* COPYING.NEWLIB: Update with new copyright.
+
+2013-09-21  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* configure.ac: Update from GCC.
+	* configure: Regenerate.
 
 2013-09-20  Alan Modra  <amodra@gmail.com>
 
@@ -563,7 +755,7 @@
 
 	* config.sub: Import these changes from the config project:
 
-	2011-10-08  Joern Rennecke <joern.rennecke@embecosm.com>
+	2011-10-08  Joern Rennecke  <joern.rennecke@embecosm.com>
 	    Ben Elliston  <bje@gnu.org>
 
 	* config.sub (epiphany): New.

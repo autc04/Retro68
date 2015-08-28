@@ -1,6 +1,5 @@
 # Expect script for various ELF tests.
-#   Copyright 2002, 2003, 2005, 2007, 2009, 2010, 2011, 2012
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -78,13 +77,12 @@ if { ![istarget hppa64*-hpux*] } {
     }
 }
 
-# Run a test to check linking a shared library with a broken linker
-# script that accidentally marks dynamic sections as notes.  The
-# resulting executable is not expected to work, but the linker
-# should not seg-fault whilst creating the binary.
-#
-# Only run the test on targets thats support creating shared libraries.
+# Only run these tests on targets thats support creating shared libraries.
 if { [check_shared_lib_support] } then {
+    # Run a test to check linking a shared library with a broken linker
+    # script that accidentally marks dynamic sections as notes.  The
+    # resulting executable is not expected to work, but the linker
+    # should not seg-fault whilst creating the binary.
     setup_xfail "tic6x-*-*"
     run_ld_link_tests {
 	{"Build shared library for next test"
@@ -93,6 +91,21 @@ if { [check_shared_lib_support] } then {
 	    "--script note-3.t tmpdir/note-3.so" "" "" ""
 	    { { ld "note-3.l" } }
 	    "a.out" }
+    }
+    setup_xfail "tic6x-*-*"
+    run_ld_link_tests {
+	{"Build pr17068.so"
+	    "-shared" "" ""
+	    {pr17068d.s} {} "pr17068.so"}
+	{"Build pr17068a.a"
+	    "" "" ""
+	    {pr17068a.s pr17068c.s pr17068ez.s} {} "pr17068a.a"}
+	{"Build pr17068b.a"
+	    "" "" ""
+	    {pr17068b.s pr17068e.s} {} "pr17068b.a"}
+	{"pr17068 link --as-needed lib in group"
+	    "--as-needed" "--start-group tmpdir/pr17068a.a tmpdir/pr17068.so tmpdir/pr17068b.a --end-group" ""
+	    {start.s pr17068.s} {} "pr17068"}
     }
 }
 

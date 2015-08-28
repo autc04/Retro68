@@ -2,7 +2,7 @@
 #readelf: -r
 
 
-Relocation section '.rel.text' at offset 0x2dc contains 9 entries:
+Relocation section '.rel.text' at offset .* contains 9 entries:
  Offset     Info    Type            Sym.Value  Sym. Name
 0+1  00000426 R_386_SIZE32      00000000   xxx
 0+6  00000426 R_386_SIZE32      00000000   xxx
@@ -14,7 +14,7 @@ Relocation section '.rel.text' at offset 0x2dc contains 9 entries:
 0+24  00000626 R_386_SIZE32      00000020   zzz
 0+29  00000626 R_386_SIZE32      00000020   zzz
 
-Relocation section '.rel.data' at offset 0x324 contains 3 entries:
+Relocation section '.rel.data' at offset .* contains 3 entries:
  Offset     Info    Type            Sym.Value  Sym. Name
 0+50  00000426 R_386_SIZE32      00000000   xxx
 0+54  00000526 R_386_SIZE32      00000000   yyy

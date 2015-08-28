@@ -7632,6 +7632,34 @@ _start:
 	vpermi2pd	-1024(%rdx){1to8}, %zmm29, %zmm30	 # AVX512F Disp8
 	vpermi2pd	-1032(%rdx){1to8}, %zmm29, %zmm30	 # AVX512F
 
+	vptestnmd	%zmm28, %zmm29, %k5	 # AVX512CD
+	vptestnmd	%zmm28, %zmm29, %k5{%k7}	 # AVX512CD
+	vptestnmd	(%rcx), %zmm29, %k5	 # AVX512CD
+	vptestnmd	0x123(%rax,%r14,8), %zmm29, %k5	 # AVX512CD
+	vptestnmd	(%rcx){1to16}, %zmm29, %k5	 # AVX512CD
+	vptestnmd	8128(%rdx), %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmd	8192(%rdx), %zmm29, %k5	 # AVX512CD
+	vptestnmd	-8192(%rdx), %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmd	-8256(%rdx), %zmm29, %k5	 # AVX512CD
+	vptestnmd	508(%rdx){1to16}, %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmd	512(%rdx){1to16}, %zmm29, %k5	 # AVX512CD
+	vptestnmd	-512(%rdx){1to16}, %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmd	-516(%rdx){1to16}, %zmm29, %k5	 # AVX512CD
+
+	vptestnmq	%zmm28, %zmm29, %k5	 # AVX512CD
+	vptestnmq	%zmm28, %zmm29, %k5{%k7}	 # AVX512CD
+	vptestnmq	(%rcx), %zmm29, %k5	 # AVX512CD
+	vptestnmq	0x123(%rax,%r14,8), %zmm29, %k5	 # AVX512CD
+	vptestnmq	(%rcx){1to8}, %zmm29, %k5	 # AVX512CD
+	vptestnmq	8128(%rdx), %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmq	8192(%rdx), %zmm29, %k5	 # AVX512CD
+	vptestnmq	-8192(%rdx), %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmq	-8256(%rdx), %zmm29, %k5	 # AVX512CD
+	vptestnmq	1016(%rdx){1to8}, %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmq	1024(%rdx){1to8}, %zmm29, %k5	 # AVX512CD
+	vptestnmq	-1024(%rdx){1to8}, %zmm29, %k5	 # AVX512CD Disp8
+	vptestnmq	-1032(%rdx){1to8}, %zmm29, %k5	 # AVX512CD
+
 	.intel_syntax noprefix
 	vaddpd	zmm30, zmm29, zmm28	 # AVX512F
 	vaddpd	zmm30{k7}, zmm29, zmm28	 # AVX512F
@@ -11603,10 +11631,10 @@ _start:
 	vgatherqpd	zmm30{k1}, ZMMWORD PTR [r9+zmm31+256]	 # AVX512F
 	vgatherqpd	zmm30{k1}, ZMMWORD PTR [rcx+zmm31*4+1024]	 # AVX512F
 
-	vgatherqps	ymm30{k1}, ZMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
-	vgatherqps	ymm30{k1}, ZMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
-	vgatherqps	ymm30{k1}, ZMMWORD PTR [r9+zmm31+256]	 # AVX512F
-	vgatherqps	ymm30{k1}, ZMMWORD PTR [rcx+zmm31*4+1024]	 # AVX512F
+	vgatherqps	ymm30{k1}, YMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
+	vgatherqps	ymm30{k1}, YMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
+	vgatherqps	ymm30{k1}, YMMWORD PTR [r9+zmm31+256]	 # AVX512F
+	vgatherqps	ymm30{k1}, YMMWORD PTR [rcx+zmm31*4+1024]	 # AVX512F
 
 	vgetexppd	zmm30, zmm29	 # AVX512F
 	vgetexppd	zmm30{k7}, zmm29	 # AVX512F
@@ -13000,10 +13028,10 @@ _start:
 	vpgatherdq	zmm30{k1}, ZMMWORD PTR [r9+ymm31+256]	 # AVX512F
 	vpgatherdq	zmm30{k1}, ZMMWORD PTR [rcx+ymm31*4+1024]	 # AVX512F
 
-	vpgatherqd	ymm30{k1}, ZMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
-	vpgatherqd	ymm30{k1}, ZMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
-	vpgatherqd	ymm30{k1}, ZMMWORD PTR [r9+zmm31+256]	 # AVX512F
-	vpgatherqd	ymm30{k1}, ZMMWORD PTR [rcx+zmm31*4+1024]	 # AVX512F
+	vpgatherqd	ymm30{k1}, YMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
+	vpgatherqd	ymm30{k1}, YMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
+	vpgatherqd	ymm30{k1}, YMMWORD PTR [r9+zmm31+256]	 # AVX512F
+	vpgatherqd	ymm30{k1}, YMMWORD PTR [rcx+zmm31*4+1024]	 # AVX512F
 
 	vpgatherqq	zmm30{k1}, ZMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
 	vpgatherqq	zmm30{k1}, ZMMWORD PTR [r14+zmm31*8-123]	 # AVX512F
@@ -13305,10 +13333,10 @@ _start:
 	vpscatterdq	ZMMWORD PTR [r9+ymm31+256]{k1}, zmm30	 # AVX512F
 	vpscatterdq	ZMMWORD PTR [rcx+ymm31*4+1024]{k1}, zmm30	 # AVX512F
 
-	vpscatterqd	ZMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
-	vpscatterqd	ZMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
-	vpscatterqd	ZMMWORD PTR [r9+zmm31+256]{k1}, ymm30	 # AVX512F
-	vpscatterqd	ZMMWORD PTR [rcx+zmm31*4+1024]{k1}, ymm30	 # AVX512F
+	vpscatterqd	YMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
+	vpscatterqd	YMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
+	vpscatterqd	YMMWORD PTR [r9+zmm31+256]{k1}, ymm30	 # AVX512F
+	vpscatterqd	YMMWORD PTR [rcx+zmm31*4+1024]{k1}, ymm30	 # AVX512F
 
 	vpscatterqq	ZMMWORD PTR [r14+zmm31*8-123]{k1}, zmm30	 # AVX512F
 	vpscatterqq	ZMMWORD PTR [r14+zmm31*8-123]{k1}, zmm30	 # AVX512F
@@ -13766,10 +13794,10 @@ _start:
 	vscatterqpd	ZMMWORD PTR [r9+zmm31+256]{k1}, zmm30	 # AVX512F
 	vscatterqpd	ZMMWORD PTR [rcx+zmm31*4+1024]{k1}, zmm30	 # AVX512F
 
-	vscatterqps	ZMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
-	vscatterqps	ZMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
-	vscatterqps	ZMMWORD PTR [r9+zmm31+256]{k1}, ymm30	 # AVX512F
-	vscatterqps	ZMMWORD PTR [rcx+zmm31*4+1024]{k1}, ymm30	 # AVX512F
+	vscatterqps	YMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
+	vscatterqps	YMMWORD PTR [r14+zmm31*8-123]{k1}, ymm30	 # AVX512F
+	vscatterqps	YMMWORD PTR [r9+zmm31+256]{k1}, ymm30	 # AVX512F
+	vscatterqps	YMMWORD PTR [rcx+zmm31*4+1024]{k1}, ymm30	 # AVX512F
 
 	vshufpd	zmm30, zmm29, zmm28, 0xab	 # AVX512F
 	vshufpd	zmm30{k7}, zmm29, zmm28, 0xab	 # AVX512F
@@ -15261,3 +15289,30 @@ _start:
 	vpermi2pd	zmm30, zmm29, [rdx-1024]{1to8}	 # AVX512F Disp8
 	vpermi2pd	zmm30, zmm29, [rdx-1032]{1to8}	 # AVX512F
 
+	vptestnmd	k5, zmm29, zmm28	 # AVX512CD
+	vptestnmd	k5{k7}, zmm29, zmm28	 # AVX512CD
+	vptestnmd	k5, zmm29, ZMMWORD PTR [rcx]	 # AVX512CD
+	vptestnmd	k5, zmm29, ZMMWORD PTR [rax+r14*8+0x1234]	 # AVX512CD
+	vptestnmd	k5, zmm29, [rcx]{1to16}	 # AVX512CD
+	vptestnmd	k5, zmm29, ZMMWORD PTR [rdx+8128]	 # AVX512CD Disp8
+	vptestnmd	k5, zmm29, ZMMWORD PTR [rdx+8192]	 # AVX512CD
+	vptestnmd	k5, zmm29, ZMMWORD PTR [rdx-8192]	 # AVX512CD Disp8
+	vptestnmd	k5, zmm29, ZMMWORD PTR [rdx-8256]	 # AVX512CD
+	vptestnmd	k5, zmm29, [rdx+508]{1to16}	 # AVX512CD Disp8
+	vptestnmd	k5, zmm29, [rdx+512]{1to16}	 # AVX512CD
+	vptestnmd	k5, zmm29, [rdx-512]{1to16}	 # AVX512CD Disp8
+	vptestnmd	k5, zmm29, [rdx-516]{1to16}	 # AVX512CD
+
+	vptestnmq	k5, zmm29, zmm28	 # AVX512CD
+	vptestnmq	k5{k7}, zmm29, zmm28	 # AVX512CD
+	vptestnmq	k5, zmm29, ZMMWORD PTR [rcx]	 # AVX512CD
+	vptestnmq	k5, zmm29, ZMMWORD PTR [rax+r14*8+0x1234]	 # AVX512CD
+	vptestnmq	k5, zmm29, [rcx]{1to8}	 # AVX512CD
+	vptestnmq	k5, zmm29, ZMMWORD PTR [rdx+8128]	 # AVX512CD Disp8
+	vptestnmq	k5, zmm29, ZMMWORD PTR [rdx+8192]	 # AVX512CD
+	vptestnmq	k5, zmm29, ZMMWORD PTR [rdx-8192]	 # AVX512CD Disp8
+	vptestnmq	k5, zmm29, ZMMWORD PTR [rdx-8256]	 # AVX512CD
+	vptestnmq	k5, zmm29, [rdx+1016]{1to8}	 # AVX512CD Disp8
+	vptestnmq	k5, zmm29, [rdx+1024]{1to8}	 # AVX512CD
+	vptestnmq	k5, zmm29, [rdx-1024]{1to8}	 # AVX512CD Disp8
+	vptestnmq	k5, zmm29, [rdx-1032]{1to8}	 # AVX512CD

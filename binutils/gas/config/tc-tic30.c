@@ -1,6 +1,5 @@
 /* tc-c30.c -- Assembly code for the Texas Instruments TMS320C30
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2014 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of GAS, the GNU Assembler.
@@ -85,11 +84,11 @@ debug (const char *string, ...)
   if (flag_debug)
     {
       char str[100];
+      va_list argptr;
 
-      VA_OPEN (argptr, string);
-      VA_FIXEDARG (argptr, const char *, string);
+      va_start (argptr, string);
       vsprintf (str, string, argptr);
-      VA_CLOSE (argptr);
+      va_end (argptr);
       if (str[0] == '\0')
 	return (0);
       fputs (str, USE_STDOUT ? stdout : stderr);

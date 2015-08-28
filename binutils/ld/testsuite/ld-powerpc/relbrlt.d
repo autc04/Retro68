@@ -22,7 +22,7 @@ Disassembly of section \.text:
 	\.\.\.
 
 [0-9a-f	 ]*<.*plt_branch.*>:
-[0-9a-f	 ]*:	(e9 82 80 00|00 80 82 e9) 	ld      r12,-32768\(r2\)
+[0-9a-f	 ]*:	(e9 82 80 e8|e8 80 82 e9) 	ld      r12,-32536\(r2\)
 [0-9a-f	 ]*: R_PPC64_TOC16_DS	\*ABS\*\+0x157f00e8
 [0-9a-f	 ]*:	(7d 89 03 a6|a6 03 89 7d) 	mtctr   r12
 [0-9a-f	 ]*:	(4e 80 04 20|20 04 80 4e) 	bctr
@@ -32,7 +32,7 @@ Disassembly of section \.text:
 [0-9a-f	 ]*: R_PPC64_REL24	\*ABS\*\+0x137e00fc
 
 [0-9a-f	 ]*<.*plt_branch.*>:
-[0-9a-f	 ]*:	(e9 82 80 08|08 80 82 e9) 	ld      r12,-32760\(r2\)
+[0-9a-f	 ]*:	(e9 82 80 f0|f0 80 82 e9) 	ld      r12,-32528\(r2\)
 [0-9a-f	 ]*: R_PPC64_TOC16_DS	\*ABS\*\+0x157f00f0
 [0-9a-f	 ]*:	(7d 89 03 a6|a6 03 89 7d) 	mtctr   r12
 [0-9a-f	 ]*:	(4e 80 04 20|20 04 80 4e) 	bctr

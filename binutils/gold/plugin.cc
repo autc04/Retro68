@@ -1,6 +1,6 @@
 // plugin.cc -- plugin manager for gold      -*- C++ -*-
 
-// Copyright 2008, 2009, 2010, 2011, 2012, 2013 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.
@@ -1053,8 +1053,6 @@ Sized_pluginobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
   elfcpp::Sym<size, big_endian> sym(symbuf);
   elfcpp::Sym_write<size, big_endian> osym(symbuf);
 
-  typedef typename elfcpp::Elf_types<size>::Elf_WXword Elf_size_type;
-
   this->symbols_.resize(this->nsyms_);
 
   for (int i = 0; i < this->nsyms_; ++i)
@@ -1125,7 +1123,7 @@ Sized_pluginobj<size, big_endian>::do_add_symbols(Symbol_table* symtab,
 
       osym.put_st_name(0);
       osym.put_st_value(0);
-      osym.put_st_size(static_cast<Elf_size_type>(isym->size));
+      osym.put_st_size(0);
       osym.put_st_info(bind, elfcpp::STT_NOTYPE);
       osym.put_st_other(vis, 0);
       osym.put_st_shndx(shndx);
@@ -1209,7 +1207,7 @@ Sized_pluginobj<size, big_endian>::do_section_size(unsigned int)
 
 template<int size, bool big_endian>
 std::string
-Sized_pluginobj<size, big_endian>::do_section_name(unsigned int)
+Sized_pluginobj<size, big_endian>::do_section_name(unsigned int) const
 {
   gold_unreachable();
   return std::string();

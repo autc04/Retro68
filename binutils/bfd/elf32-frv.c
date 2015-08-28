@@ -1,6 +1,5 @@
 /* FRV-specific support for 32-bit ELF.
-   Copyright 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -35,11 +34,11 @@ static reloc_howto_type elf32_frv_howto_table [] =
   /* This reloc does nothing.  */
   HOWTO (R_FRV_NONE,		/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_FRV_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
@@ -797,8 +796,8 @@ static reloc_howto_type elf32_frv_rel_tlsoff_howto =
 
 
 
-extern const bfd_target bfd_elf32_frvfdpic_vec;
-#define IS_FDPIC(bfd) ((bfd)->xvec == &bfd_elf32_frvfdpic_vec)
+extern const bfd_target frv_elf32_fdpic_vec;
+#define IS_FDPIC(bfd) ((bfd)->xvec == &frv_elf32_fdpic_vec)
 
 /* An extension of the elf hash table data structure, containing some
    additional FRV-specific data.  */
@@ -2558,6 +2557,11 @@ frv_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
       break;
 
     default:
+      if (r_type >= (unsigned int) R_FRV_max)
+	{
+	  _bfd_error_handler (_("%B: invalid FRV reloc number: %d"), abfd, r_type);
+	  r_type = 0;
+	}
       cache_ptr->howto = & elf32_frv_howto_table [r_type];
       break;
     }
@@ -2735,13 +2739,13 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	}
       else
 	{
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 	  bfd_boolean unresolved_reloc;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	  osec = sec;
 	  name = h->root.root.string;
 	}
@@ -6313,27 +6317,6 @@ frv_elf_set_private_flags (bfd *abfd, flagword flags)
   return TRUE;
 }
 
-/* Copy backend specific data from one object module to another.  */
-
-static bfd_boolean
-frv_elf_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
-{
-  if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
-      || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
-    return TRUE;
-
-  BFD_ASSERT (!elf_flags_init (obfd)
-	      || elf_elfheader (obfd)->e_flags == elf_elfheader (ibfd)->e_flags);
-
-  elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
-  elf_flags_init (obfd) = TRUE;
-
-  /* Copy object attributes.  */
-  _bfd_elf_copy_obj_attributes (ibfd, obfd);
-
-  return TRUE;
-}
-
 /* Return true if the architecture described by elf header flag
    EXTENSION is an extension of the architecture described by BASE.  */
 
@@ -6359,23 +6342,6 @@ frv_elf_arch_extension_p (flagword base, flagword extension)
       return TRUE;
 
   return FALSE;
-}
-
-static bfd_boolean
-elf32_frvfdpic_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
-{
-  if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
-      || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
-    return TRUE;
-
-  if (! frv_elf_copy_private_bfd_data (ibfd, obfd))
-    return FALSE;
-
-  if (! elf_tdata (ibfd) || ! elf_tdata (ibfd)->phdr
-      || ! elf_tdata (obfd) || ! elf_tdata (obfd)->phdr)
-    return TRUE;
-
-  return TRUE;
 }
 
 /* Merge backend specific data from an object file to the output
@@ -6816,7 +6782,7 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define ELF_MACHINE_CODE	EM_CYGNUS_FRV
 #define ELF_MAXPAGESIZE		0x1000
 
-#define TARGET_BIG_SYM          bfd_elf32_frv_vec
+#define TARGET_BIG_SYM          frv_elf32_vec
 #define TARGET_BIG_NAME		"elf32-frv"
 
 #define elf_info_to_howto			frv_info_to_howto_rela
@@ -6833,7 +6799,6 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define bfd_elf32_bfd_reloc_type_lookup		frv_reloc_type_lookup
 #define bfd_elf32_bfd_reloc_name_lookup	frv_reloc_name_lookup
 #define bfd_elf32_bfd_set_private_flags		frv_elf_set_private_flags
-#define bfd_elf32_bfd_copy_private_bfd_data	frv_elf_copy_private_bfd_data
 #define bfd_elf32_bfd_merge_private_bfd_data	frv_elf_merge_private_bfd_data
 #define bfd_elf32_bfd_print_private_bfd_data	frv_elf_print_private_bfd_data
 
@@ -6856,7 +6821,7 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define ELF_MAXPAGESIZE		0x4000
 
 #undef TARGET_BIG_SYM
-#define TARGET_BIG_SYM          bfd_elf32_frvfdpic_vec
+#define TARGET_BIG_SYM          frv_elf32_fdpic_vec
 #undef TARGET_BIG_NAME
 #define TARGET_BIG_NAME		"elf32-frvfdpic"
 #undef	elf32_bed
@@ -6871,9 +6836,6 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #undef elf_backend_always_size_sections
 #define elf_backend_always_size_sections \
 		elf32_frvfdpic_always_size_sections
-#undef bfd_elf32_bfd_copy_private_bfd_data
-#define bfd_elf32_bfd_copy_private_bfd_data \
-		elf32_frvfdpic_copy_private_bfd_data
 
 #undef elf_backend_create_dynamic_sections
 #define elf_backend_create_dynamic_sections \

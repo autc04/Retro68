@@ -1,7 +1,5 @@
 /* This is the Assembler Pre-Processor
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -160,7 +158,10 @@ do_scrub_begin (int m68k_mri ATTRIBUTE_UNUSED)
   for (p = line_comment_chars; *p; p++)
     lex[(unsigned char) *p] = LEX_IS_LINE_COMMENT_START;
 
-  for (p = line_separator_chars; *p; p++)
+#ifndef tc_line_separator_chars
+#define tc_line_separator_chars line_separator_chars
+#endif
+  for (p = tc_line_separator_chars; *p; p++)
     lex[(unsigned char) *p] = LEX_IS_LINE_SEPARATOR;
 
 #ifdef tc_parallel_separator_chars
@@ -1217,9 +1218,16 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 		  while (ch != EOF && !IS_NEWLINE (ch))
 		    ch = GET ();
 		  if (ch == EOF)
-		    as_warn (_("end of file in comment; newline inserted"));
+		    {
+		      as_warn (_("end of file in comment; newline inserted"));
+		      PUT ('\n');
+		    }
+		  else /* IS_NEWLINE (ch) */
+		    {
+		      /* To process non-zero add_newlines.  */
+		      UNGET (ch);
+		    }
 		  state = 0;
-		  PUT ('\n');
 		  break;
 		}
 	      /* Looks like `# 123 "filename"' from cpp.  */

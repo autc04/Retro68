@@ -1,5 +1,5 @@
 /* tc-arm.c -- Assemble for the ARM
-   Copyright 1994-2013 Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 	Modified by David Taylor (dtaylor@armltd.co.uk)
 	Cirrus coprocessor mods by Aldy Hernandez (aldyh@redhat.com)
@@ -137,6 +137,8 @@ static int fix_v4bx	     = FALSE;
 /* Warn on using deprecated features.  */
 static int warn_on_deprecated = TRUE;
 
+/* Understand CodeComposer Studio assembly syntax.  */
+bfd_boolean codecomposer_syntax = FALSE;
 
 /* Variables that we set while parsing command-line options.  Once all
    options have been read we re-process these values to set the real
@@ -246,6 +248,8 @@ static int mfloat_abi_opt = -1;
 static arm_feature_set selected_cpu = ARM_ARCH_NONE;
 /* Must be long enough to hold any of the names in arm_cpus.  */
 static char selected_cpu_name[16];
+
+extern FLONUM_TYPE generic_floating_point_number;
 
 /* Return if no cpu was selected on command-line.  */
 static bfd_boolean
@@ -628,6 +632,7 @@ struct asm_opcode
 #define LITERAL_MASK	0xf000f000
 #define OPCODE_MASK	0xfe1fffff
 #define V4_STR_BIT	0x00000020
+#define VLDR_VMOV_SAME	0x0040f000
 
 #define T2_SUBS_PC_LR	0xf3de8f00
 
@@ -790,10 +795,20 @@ typedef struct literal_pool
   struct dwarf2_line_info locs [MAX_LITERAL_POOL_SIZE];
 #endif
   struct literal_pool *  next;
+  unsigned int		 alignment;
 } literal_pool;
 
 /* Pointer to a linked list of literal pools.  */
 literal_pool * list_of_pools = NULL;
+
+typedef enum asmfunc_states
+{
+  OUTSIDE_ASMFUNC,
+  WAITING_ASMFUNC_NAME,
+  WAITING_ENDASMFUNC
+} asmfunc_states;
+
+static asmfunc_states asmfunc_state = OUTSIDE_ASMFUNC;
 
 #ifdef OBJ_ELF
 #  define now_it seg_info (now_seg)->tc_segment_info_data.current_it
@@ -853,7 +868,7 @@ static void it_fsm_post_encode (void);
 
 /* This array holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful.	 */
-const char comment_chars[] = "@";
+char arm_comment_chars[] = "@";
 
 /* This array holds the chars that only start a comment at the beginning of
    a line.  If the line seems to have the form '# 123 filename'
@@ -864,7 +879,7 @@ const char comment_chars[] = "@";
 /* Also note that comments like this one will always work.  */
 const char line_comment_chars[] = "#";
 
-const char line_separator_chars[] = ";";
+char arm_line_separator_chars[] = ";";
 
 /* Chars that can be used to separate mant
    from exp in floating point numbers.	*/
@@ -3012,6 +3027,104 @@ s_even (int ignore ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
+/* Directives: CodeComposer Studio.  */
+
+/*  .ref  (for CodeComposer Studio syntax only).  */
+static void
+s_ccs_ref (int unused ATTRIBUTE_UNUSED)
+{
+  if (codecomposer_syntax)
+    ignore_rest_of_line ();
+  else
+    as_bad (_(".ref pseudo-op only available with -mccs flag."));
+}
+
+/*  If name is not NULL, then it is used for marking the beginning of a
+    function, wherease if it is NULL then it means the function end.  */
+static void
+asmfunc_debug (const char * name)
+{
+  static const char * last_name = NULL;
+
+  if (name != NULL)
+    {
+      gas_assert (last_name == NULL);
+      last_name = name;
+
+      if (debug_type == DEBUG_STABS)
+         stabs_generate_asm_func (name, name);
+    }
+  else
+    {
+      gas_assert (last_name != NULL);
+
+      if (debug_type == DEBUG_STABS)
+        stabs_generate_asm_endfunc (last_name, last_name);
+
+      last_name = NULL;
+    }
+}
+
+static void
+s_ccs_asmfunc (int unused ATTRIBUTE_UNUSED)
+{
+  if (codecomposer_syntax)
+    {
+      switch (asmfunc_state)
+	{
+	case OUTSIDE_ASMFUNC:
+	  asmfunc_state = WAITING_ASMFUNC_NAME;
+	  break;
+
+	case WAITING_ASMFUNC_NAME:
+	  as_bad (_(".asmfunc repeated."));
+	  break;
+
+	case WAITING_ENDASMFUNC:
+	  as_bad (_(".asmfunc without function."));
+	  break;
+	}
+      demand_empty_rest_of_line ();
+    }
+  else
+    as_bad (_(".asmfunc pseudo-op only available with -mccs flag."));
+}
+
+static void
+s_ccs_endasmfunc (int unused ATTRIBUTE_UNUSED)
+{
+  if (codecomposer_syntax)
+    {
+      switch (asmfunc_state)
+	{
+	case OUTSIDE_ASMFUNC:
+	  as_bad (_(".endasmfunc without a .asmfunc."));
+	  break;
+
+	case WAITING_ASMFUNC_NAME:
+	  as_bad (_(".endasmfunc without function."));
+	  break;
+
+	case WAITING_ENDASMFUNC:
+	  asmfunc_state = OUTSIDE_ASMFUNC;
+	  asmfunc_debug (NULL);
+	  break;
+	}
+      demand_empty_rest_of_line ();
+    }
+  else
+    as_bad (_(".endasmfunc pseudo-op only available with -mccs flag."));
+}
+
+static void
+s_ccs_def (int name)
+{
+  if (codecomposer_syntax)
+    s_globl (name);
+  else
+    as_bad (_(".def pseudo-op only available with -mccs flag."));
+}
+
 /* Directives: Literal pools.  */
 
 static literal_pool *
@@ -3050,6 +3163,7 @@ find_or_make_literal_pool (void)
       pool->sub_section	    = now_subseg;
       pool->next	    = list_of_pools;
       pool->symbol	    = NULL;
+      pool->alignment	    = 2;
 
       /* Add it to the list.  */
       list_of_pools = pool;
@@ -3071,33 +3185,74 @@ find_or_make_literal_pool (void)
    structure to the relevant literal pool.  */
 
 static int
-add_to_lit_pool (void)
+add_to_lit_pool (unsigned int nbytes)
 {
+#define PADDING_SLOT 0x1
+#define LIT_ENTRY_SIZE_MASK 0xFF
   literal_pool * pool;
-  unsigned int entry;
+  unsigned int entry, pool_size = 0;
+  bfd_boolean padding_slot_p = FALSE;
+  unsigned imm1 = 0;
+  unsigned imm2 = 0;
+
+  if (nbytes == 8)
+    {
+      imm1 = inst.operands[1].imm;
+      imm2 = (inst.operands[1].regisimm ? inst.operands[1].reg
+	       : inst.reloc.exp.X_unsigned ? 0
+	       : ((bfd_int64_t) inst.operands[1].imm) >> 32);
+      if (target_big_endian)
+	{
+	  imm1 = imm2;
+	  imm2 = inst.operands[1].imm;
+	}
+    }
 
   pool = find_or_make_literal_pool ();
 
   /* Check if this literal value is already in the pool.  */
   for (entry = 0; entry < pool->next_free_entry; entry ++)
     {
-      if ((pool->literals[entry].X_op == inst.reloc.exp.X_op)
-	  && (inst.reloc.exp.X_op == O_constant)
-	  && (pool->literals[entry].X_add_number
-	      == inst.reloc.exp.X_add_number)
-	  && (pool->literals[entry].X_unsigned
-	      == inst.reloc.exp.X_unsigned))
+      if (nbytes == 4)
+	{
+	  if ((pool->literals[entry].X_op == inst.reloc.exp.X_op)
+	      && (inst.reloc.exp.X_op == O_constant)
+	      && (pool->literals[entry].X_add_number
+		  == inst.reloc.exp.X_add_number)
+	      && (pool->literals[entry].X_md == nbytes)
+	      && (pool->literals[entry].X_unsigned
+		  == inst.reloc.exp.X_unsigned))
+	    break;
+
+	  if ((pool->literals[entry].X_op == inst.reloc.exp.X_op)
+	      && (inst.reloc.exp.X_op == O_symbol)
+	      && (pool->literals[entry].X_add_number
+		  == inst.reloc.exp.X_add_number)
+	      && (pool->literals[entry].X_add_symbol
+		  == inst.reloc.exp.X_add_symbol)
+	      && (pool->literals[entry].X_op_symbol
+		  == inst.reloc.exp.X_op_symbol)
+	      && (pool->literals[entry].X_md == nbytes))
+	    break;
+	}
+      else if ((nbytes == 8)
+	       && !(pool_size & 0x7)
+	       && ((entry + 1) != pool->next_free_entry)
+	       && (pool->literals[entry].X_op == O_constant)
+	       && (pool->literals[entry].X_add_number == (offsetT) imm1)
+	       && (pool->literals[entry].X_unsigned
+		   == inst.reloc.exp.X_unsigned)
+	       && (pool->literals[entry + 1].X_op == O_constant)
+	       && (pool->literals[entry + 1].X_add_number == (offsetT) imm2)
+	       && (pool->literals[entry + 1].X_unsigned
+		   == inst.reloc.exp.X_unsigned))
 	break;
 
-      if ((pool->literals[entry].X_op == inst.reloc.exp.X_op)
-	  && (inst.reloc.exp.X_op == O_symbol)
-	  && (pool->literals[entry].X_add_number
-	      == inst.reloc.exp.X_add_number)
-	  && (pool->literals[entry].X_add_symbol
-	      == inst.reloc.exp.X_add_symbol)
-	  && (pool->literals[entry].X_op_symbol
-	      == inst.reloc.exp.X_op_symbol))
+      padding_slot_p = ((pool->literals[entry].X_md >> 8) == PADDING_SLOT);
+      if (padding_slot_p && (nbytes == 4))
 	break;
+
+      pool_size += 4;
     }
 
   /* Do we need to create a new entry?	*/
@@ -3109,7 +3264,64 @@ add_to_lit_pool (void)
 	  return FAIL;
 	}
 
-      pool->literals[entry] = inst.reloc.exp;
+      if (nbytes == 8)
+	{
+	  /* For 8-byte entries, we align to an 8-byte boundary,
+	     and split it into two 4-byte entries, because on 32-bit
+	     host, 8-byte constants are treated as big num, thus
+	     saved in "generic_bignum" which will be overwritten
+	     by later assignments.
+
+	     We also need to make sure there is enough space for
+	     the split.
+
+	     We also check to make sure the literal operand is a
+	     constant number.  */
+	  if (!(inst.reloc.exp.X_op == O_constant
+	        || inst.reloc.exp.X_op == O_big))
+	    {
+	      inst.error = _("invalid type for literal pool");
+	      return FAIL;
+	    }
+	  else if (pool_size & 0x7)
+	    {
+	      if ((entry + 2) >= MAX_LITERAL_POOL_SIZE)
+		{
+		  inst.error = _("literal pool overflow");
+		  return FAIL;
+		}
+
+	      pool->literals[entry] = inst.reloc.exp;
+	      pool->literals[entry].X_add_number = 0;
+	      pool->literals[entry++].X_md = (PADDING_SLOT << 8) | 4;
+	      pool->next_free_entry += 1;
+	      pool_size += 4;
+	    }
+	  else if ((entry + 1) >= MAX_LITERAL_POOL_SIZE)
+	    {
+	      inst.error = _("literal pool overflow");
+	      return FAIL;
+	    }
+
+	  pool->literals[entry] = inst.reloc.exp;
+	  pool->literals[entry].X_op = O_constant;
+	  pool->literals[entry].X_add_number = imm1;
+	  pool->literals[entry].X_unsigned = inst.reloc.exp.X_unsigned;
+	  pool->literals[entry++].X_md = 4;
+	  pool->literals[entry] = inst.reloc.exp;
+	  pool->literals[entry].X_op = O_constant;
+	  pool->literals[entry].X_add_number = imm2;
+	  pool->literals[entry].X_unsigned = inst.reloc.exp.X_unsigned;
+	  pool->literals[entry].X_md = 4;
+	  pool->alignment = 3;
+	  pool->next_free_entry += 1;
+	}
+      else
+	{
+	  pool->literals[entry] = inst.reloc.exp;
+	  pool->literals[entry].X_md = 4;
+	}
+
 #ifdef OBJ_ELF
       /* PR ld/12974: Record the location of the first source line to reference
 	 this entry in the literal pool.  If it turns out during linking that the
@@ -3120,12 +3332,43 @@ add_to_lit_pool (void)
 #endif
       pool->next_free_entry += 1;
     }
+  else if (padding_slot_p)
+    {
+      pool->literals[entry] = inst.reloc.exp;
+      pool->literals[entry].X_md = nbytes;
+    }
 
   inst.reloc.exp.X_op	      = O_symbol;
-  inst.reloc.exp.X_add_number = ((int) entry) * 4;
+  inst.reloc.exp.X_add_number = pool_size;
   inst.reloc.exp.X_add_symbol = pool->symbol;
 
   return SUCCESS;
+}
+
+bfd_boolean
+tc_start_label_without_colon (char unused1 ATTRIBUTE_UNUSED, const char * rest)
+{
+  bfd_boolean ret = TRUE;
+
+  if (codecomposer_syntax && asmfunc_state == WAITING_ASMFUNC_NAME)
+    {
+      const char *label = rest;
+
+      while (!is_end_of_line[(int) label[-1]])
+	--label;
+
+      if (*label == '.')
+	{
+	  as_bad (_("Invalid label '%s'"), label);
+	  ret = FALSE;
+	}
+
+      asmfunc_debug (label);
+
+      asmfunc_state = WAITING_ENDASMFUNC;
+    }
+
+  return ret;
 }
 
 /* Can't use symbol_new here, so have to create a symbol and then at
@@ -3138,7 +3381,7 @@ symbol_locate (symbolS *    symbolP,
 	       valueT	    valu,	/* Symbol value.  */
 	       fragS *	    frag)	/* Associated fragment.	 */
 {
-  unsigned int name_length;
+  size_t name_length;
   char * preserved_copy_of_name;
 
   name_length = strlen (name) + 1;   /* +1 for \0.  */
@@ -3179,7 +3422,6 @@ symbol_locate (symbolS *    symbolP,
 #endif /* DEBUG_SYMS  */
 }
 
-
 static void
 s_ltorg (int ignored ATTRIBUTE_UNUSED)
 {
@@ -3193,15 +3435,17 @@ s_ltorg (int ignored ATTRIBUTE_UNUSED)
       || pool->next_free_entry == 0)
     return;
 
-  mapping_state (MAP_DATA);
-
   /* Align pool as you have word accesses.
      Only make a frag if we have to.  */
   if (!need_pass_2)
-    frag_align (2, 0, 0);
+    frag_align (pool->alignment, 0, 0);
 
   record_alignment (now_seg, 2);
 
+#ifdef OBJ_ELF
+  seg_info (now_seg)->tc_segment_info_data.mapstate = MAP_DATA;
+  make_mapping_symbol (MAP_DATA, (valueT) frag_now_fix (), frag_now);
+#endif
   sprintf (sym_name, "$$lit_\002%x", pool->id);
 
   symbol_locate (pool->symbol, sym_name, now_seg,
@@ -3221,7 +3465,8 @@ s_ltorg (int ignored ATTRIBUTE_UNUSED)
 	dwarf2_gen_line_info (frag_now_fix (), pool->locs + entry);
 #endif
       /* First output the expression in the instruction to the pool.  */
-      emit_expr (&(pool->literals[entry]), 4); /* .word  */
+      emit_expr (&(pool->literals[entry]),
+		 pool->literals[entry].X_md & LIT_ENTRY_SIZE_MASK);
     }
 
   /* Mark the pool as empty.  */
@@ -3316,7 +3561,8 @@ s_arm_elf_cons (int nbytes)
 		  memcpy (base, save_buf, p - base);
 
 		  offset = nbytes - size;
-		  p = frag_more ((int) nbytes);
+		  p = frag_more (nbytes);
+		  memset (p, 0, nbytes);
 		  fix_new_exp (frag_now, p - frag_now->fr_literal + offset,
 			       size, &exp, 0, (enum bfd_reloc_code_real) reloc);
 		}
@@ -4134,15 +4380,24 @@ s_arm_unwind_save (int arch_v6)
       s_arm_unwind_save_fpa (reg->number);
       return;
 
-    case REG_TYPE_RN:	  s_arm_unwind_save_core ();   return;
+    case REG_TYPE_RN:
+      s_arm_unwind_save_core ();
+      return;
+
     case REG_TYPE_VFD:
       if (arch_v6)
 	s_arm_unwind_save_vfp_armv6 ();
       else
 	s_arm_unwind_save_vfp ();
       return;
-    case REG_TYPE_MMXWR:  s_arm_unwind_save_mmxwr ();  return;
-    case REG_TYPE_MMXWCG: s_arm_unwind_save_mmxwcg (); return;
+
+    case REG_TYPE_MMXWR:
+      s_arm_unwind_save_mmxwr ();
+      return;
+
+    case REG_TYPE_MMXWCG:
+      s_arm_unwind_save_mmxwcg ();
+      return;
 
     default:
       as_bad (_(".unwind_save does not support this kind of register"));
@@ -4477,6 +4732,13 @@ const pseudo_typeS md_pseudo_table[] =
 #ifdef TE_PE
   {"secrel32", pe_directive_secrel, 0},
 #endif
+
+  /* These are for compatibility with CodeComposer Studio.  */
+  {"ref",          s_ccs_ref,        0},
+  {"def",          s_ccs_def,        0},
+  {"asmfunc",      s_ccs_asmfunc,    0},
+  {"endasmfunc",   s_ccs_endasmfunc, 0},
+
   { 0, 0, 0 }
 };
 
@@ -4515,28 +4777,31 @@ parse_immediate (char **str, int *val, int min, int max,
    instructions. Puts the result directly in inst.operands[i].  */
 
 static int
-parse_big_immediate (char **str, int i)
+parse_big_immediate (char **str, int i, expressionS *in_exp,
+		     bfd_boolean allow_symbol_p)
 {
   expressionS exp;
+  expressionS *exp_p = in_exp ? in_exp : &exp;
   char *ptr = *str;
 
-  my_get_expression (&exp, &ptr, GE_OPT_PREFIX_BIG);
+  my_get_expression (exp_p, &ptr, GE_OPT_PREFIX_BIG);
 
-  if (exp.X_op == O_constant)
+  if (exp_p->X_op == O_constant)
     {
-      inst.operands[i].imm = exp.X_add_number & 0xffffffff;
+      inst.operands[i].imm = exp_p->X_add_number & 0xffffffff;
       /* If we're on a 64-bit host, then a 64-bit number can be returned using
 	 O_constant.  We have to be careful not to break compilation for
 	 32-bit X_add_number, though.  */
-      if ((exp.X_add_number & ~(offsetT)(0xffffffffU)) != 0)
+      if ((exp_p->X_add_number & ~(offsetT)(0xffffffffU)) != 0)
 	{
-	  /* X >> 32 is illegal if sizeof (exp.X_add_number) == 4.  */
-	  inst.operands[i].reg = ((exp.X_add_number >> 16) >> 16) & 0xffffffff;
+	  /* X >> 32 is illegal if sizeof (exp_p->X_add_number) == 4.  */
+	  inst.operands[i].reg = (((exp_p->X_add_number >> 16) >> 16)
+				  & 0xffffffff);
 	  inst.operands[i].regisimm = 1;
 	}
     }
-  else if (exp.X_op == O_big
-	   && LITTLENUM_NUMBER_OF_BITS * exp.X_add_number > 32)
+  else if (exp_p->X_op == O_big
+	   && LITTLENUM_NUMBER_OF_BITS * exp_p->X_add_number > 32)
     {
       unsigned parts = 32 / LITTLENUM_NUMBER_OF_BITS, j, idx = 0;
 
@@ -4549,7 +4814,7 @@ parse_big_immediate (char **str, int i)
 	 PR 11972: Bignums can now be sign-extended to the
 	 size of a .octa so check that the out of range bits
 	 are all zero or all one.  */
-      if (LITTLENUM_NUMBER_OF_BITS * exp.X_add_number > 64)
+      if (LITTLENUM_NUMBER_OF_BITS * exp_p->X_add_number > 64)
 	{
 	  LITTLENUM_TYPE m = -1;
 
@@ -4557,7 +4822,7 @@ parse_big_immediate (char **str, int i)
 	      && generic_bignum[parts * 2] != m)
 	    return FAIL;
 
-	  for (j = parts * 2 + 1; j < (unsigned) exp.X_add_number; j++)
+	  for (j = parts * 2 + 1; j < (unsigned) exp_p->X_add_number; j++)
 	    if (generic_bignum[j] != generic_bignum[j-1])
 	      return FAIL;
 	}
@@ -4572,7 +4837,7 @@ parse_big_immediate (char **str, int i)
 				<< (LITTLENUM_NUMBER_OF_BITS * j);
       inst.operands[i].regisimm = 1;
     }
-  else
+  else if (!(exp_p->X_op == O_symbol && allow_symbol_p))
     return FAIL;
 
   *str = ptr;
@@ -4679,6 +4944,41 @@ is_quarter_float (unsigned imm)
 {
   int bs = (imm & 0x20000000) ? 0x3e000000 : 0x40000000;
   return (imm & 0x7ffff) == 0 && ((imm & 0x7e000000) ^ bs) == 0;
+}
+
+
+/* Detect the presence of a floating point or integer zero constant,
+   i.e. #0.0 or #0.  */
+
+static bfd_boolean
+parse_ifimm_zero (char **in)
+{
+  int error_code;
+
+  if (!is_immediate_prefix (**in))
+    return FALSE;
+
+  ++*in;
+
+  /* Accept #0x0 as a synonym for #0.  */
+  if (strncmp (*in, "0x", 2) == 0)
+    {
+      int val;
+      if (parse_immediate (in, &val, 0, 0, TRUE) == FAIL)
+	return FALSE;
+      return TRUE;
+    }
+
+  error_code = atof_generic (in, ".", EXP_CHARS,
+                             &generic_floating_point_number);
+
+  if (!error_code
+      && generic_floating_point_number.sign == '+'
+      && (generic_floating_point_number.low
+          > generic_floating_point_number.leader))
+    return TRUE;
+
+  return FALSE;
 }
 
 /* Parse an 8-bit "quarter-precision" floating point number of the form:
@@ -5165,10 +5465,12 @@ parse_address_main (char **str, int i, int group_relocations,
 	  inst.operands[i].reg = REG_PC;
 	  inst.operands[i].isreg = 1;
 	  inst.operands[i].preind = 1;
-	}
-      /* Otherwise a load-constant pseudo op, no special treatment needed here.  */
 
-      if (my_get_expression (&inst.reloc.exp, &p, GE_NO_PREFIX))
+	  if (my_get_expression (&inst.reloc.exp, &p, GE_OPT_PREFIX_BIG))
+	    return PARSE_OPERAND_FAIL;
+	}
+      else if (parse_big_immediate (&p, i, &inst.reloc.exp,
+				    /*allow_symbol_p=*/TRUE))
 	return PARSE_OPERAND_FAIL;
 
       *str = p;
@@ -5998,7 +6300,8 @@ parse_neon_mov (char **str, int *which_operand)
 	     Case 10: VMOV.F32 <Sd>, #<imm>
 	     Case 11: VMOV.F64 <Dd>, #<imm>  */
 	inst.operands[i].immisfloat = 1;
-      else if (parse_big_immediate (&ptr, i) == SUCCESS)
+      else if (parse_big_immediate (&ptr, i, NULL, /*allow_symbol_p=*/FALSE)
+	       == SUCCESS)
 	  /* Case 2: VMOV<c><q>.<dt> <Qd>, #<imm>
 	     Case 3: VMOV<c><q>.<dt> <Dd>, #<imm>  */
 	;
@@ -6151,6 +6454,7 @@ enum operand_parse_code
 
   OP_RNDQ_I0,   /* Neon D or Q reg, or immediate zero.  */
   OP_RVSD_I0,	/* VFP S or D reg, or immediate zero.  */
+  OP_RSVD_FI0, /* VFP S or D reg, or floating point immediate zero.  */
   OP_RR_RNSC,   /* ARM reg or Neon scalar.  */
   OP_RNSDQ_RNSC, /* Vector S, D or Q reg, or Neon scalar.  */
   OP_RNDQ_RNSC, /* Neon D or Q reg, or Neon scalar.  */
@@ -6434,6 +6738,22 @@ parse_operands (char *str, const unsigned int *pattern, bfd_boolean thumb)
 	  po_reg_or_goto (REG_TYPE_VFSD, try_imm0);
 	  break;
 
+	case OP_RSVD_FI0:
+	  {
+	    po_reg_or_goto (REG_TYPE_VFSD, try_ifimm0);
+	    break;
+	    try_ifimm0:
+	    if (parse_ifimm_zero (&str))
+	      inst.operands[i].imm = 0;
+	    else
+	    {
+	      inst.error
+	        = _("only floating point zero is allowed as immediate value");
+	      goto failure;
+	    }
+	  }
+	  break;
+
 	case OP_RR_RNSC:
 	  {
 	    po_scalar_or_goto (8, try_rr);
@@ -6483,7 +6803,8 @@ parse_operands (char *str, const unsigned int *pattern, bfd_boolean thumb)
 	    try_immbig:
 	    /* There's a possibility of getting a 64-bit immediate here, so
 	       we need special handling.  */
-	    if (parse_big_immediate (&str, i) == FAIL)
+	    if (parse_big_immediate (&str, i, NULL, /*allow_symbol_p=*/FALSE)
+		== FAIL)
 	      {
 		inst.error = _("immediate value is out of range");
 		goto failure;
@@ -7224,6 +7545,328 @@ encode_arm_addr_mode_3 (int i, bfd_boolean is_t)
     }
 }
 
+/* Write immediate bits [7:0] to the following locations:
+
+  |28/24|23     19|18 16|15                    4|3     0|
+  |  a  |x x x x x|b c d|x x x x x x x x x x x x|e f g h|
+
+  This function is used by VMOV/VMVN/VORR/VBIC.  */
+
+static void
+neon_write_immbits (unsigned immbits)
+{
+  inst.instruction |= immbits & 0xf;
+  inst.instruction |= ((immbits >> 4) & 0x7) << 16;
+  inst.instruction |= ((immbits >> 7) & 0x1) << (thumb_mode ? 28 : 24);
+}
+
+/* Invert low-order SIZE bits of XHI:XLO.  */
+
+static void
+neon_invert_size (unsigned *xlo, unsigned *xhi, int size)
+{
+  unsigned immlo = xlo ? *xlo : 0;
+  unsigned immhi = xhi ? *xhi : 0;
+
+  switch (size)
+    {
+    case 8:
+      immlo = (~immlo) & 0xff;
+      break;
+
+    case 16:
+      immlo = (~immlo) & 0xffff;
+      break;
+
+    case 64:
+      immhi = (~immhi) & 0xffffffff;
+      /* fall through.  */
+
+    case 32:
+      immlo = (~immlo) & 0xffffffff;
+      break;
+
+    default:
+      abort ();
+    }
+
+  if (xlo)
+    *xlo = immlo;
+
+  if (xhi)
+    *xhi = immhi;
+}
+
+/* True if IMM has form 0bAAAAAAAABBBBBBBBCCCCCCCCDDDDDDDD for bits
+   A, B, C, D.  */
+
+static int
+neon_bits_same_in_bytes (unsigned imm)
+{
+  return ((imm & 0x000000ff) == 0 || (imm & 0x000000ff) == 0x000000ff)
+	 && ((imm & 0x0000ff00) == 0 || (imm & 0x0000ff00) == 0x0000ff00)
+	 && ((imm & 0x00ff0000) == 0 || (imm & 0x00ff0000) == 0x00ff0000)
+	 && ((imm & 0xff000000) == 0 || (imm & 0xff000000) == 0xff000000);
+}
+
+/* For immediate of above form, return 0bABCD.  */
+
+static unsigned
+neon_squash_bits (unsigned imm)
+{
+  return (imm & 0x01) | ((imm & 0x0100) >> 7) | ((imm & 0x010000) >> 14)
+	 | ((imm & 0x01000000) >> 21);
+}
+
+/* Compress quarter-float representation to 0b...000 abcdefgh.  */
+
+static unsigned
+neon_qfloat_bits (unsigned imm)
+{
+  return ((imm >> 19) & 0x7f) | ((imm >> 24) & 0x80);
+}
+
+/* Returns CMODE. IMMBITS [7:0] is set to bits suitable for inserting into
+   the instruction. *OP is passed as the initial value of the op field, and
+   may be set to a different value depending on the constant (i.e.
+   "MOV I64, 0bAAAAAAAABBBB..." which uses OP = 1 despite being MOV not
+   MVN).  If the immediate looks like a repeated pattern then also
+   try smaller element sizes.  */
+
+static int
+neon_cmode_for_move_imm (unsigned immlo, unsigned immhi, int float_p,
+			 unsigned *immbits, int *op, int size,
+			 enum neon_el_type type)
+{
+  /* Only permit float immediates (including 0.0/-0.0) if the operand type is
+     float.  */
+  if (type == NT_float && !float_p)
+    return FAIL;
+
+  if (type == NT_float && is_quarter_float (immlo) && immhi == 0)
+    {
+      if (size != 32 || *op == 1)
+	return FAIL;
+      *immbits = neon_qfloat_bits (immlo);
+      return 0xf;
+    }
+
+  if (size == 64)
+    {
+      if (neon_bits_same_in_bytes (immhi)
+	  && neon_bits_same_in_bytes (immlo))
+	{
+	  if (*op == 1)
+	    return FAIL;
+	  *immbits = (neon_squash_bits (immhi) << 4)
+		     | neon_squash_bits (immlo);
+	  *op = 1;
+	  return 0xe;
+	}
+
+      if (immhi != immlo)
+	return FAIL;
+    }
+
+  if (size >= 32)
+    {
+      if (immlo == (immlo & 0x000000ff))
+	{
+	  *immbits = immlo;
+	  return 0x0;
+	}
+      else if (immlo == (immlo & 0x0000ff00))
+	{
+	  *immbits = immlo >> 8;
+	  return 0x2;
+	}
+      else if (immlo == (immlo & 0x00ff0000))
+	{
+	  *immbits = immlo >> 16;
+	  return 0x4;
+	}
+      else if (immlo == (immlo & 0xff000000))
+	{
+	  *immbits = immlo >> 24;
+	  return 0x6;
+	}
+      else if (immlo == ((immlo & 0x0000ff00) | 0x000000ff))
+	{
+	  *immbits = (immlo >> 8) & 0xff;
+	  return 0xc;
+	}
+      else if (immlo == ((immlo & 0x00ff0000) | 0x0000ffff))
+	{
+	  *immbits = (immlo >> 16) & 0xff;
+	  return 0xd;
+	}
+
+      if ((immlo & 0xffff) != (immlo >> 16))
+	return FAIL;
+      immlo &= 0xffff;
+    }
+
+  if (size >= 16)
+    {
+      if (immlo == (immlo & 0x000000ff))
+	{
+	  *immbits = immlo;
+	  return 0x8;
+	}
+      else if (immlo == (immlo & 0x0000ff00))
+	{
+	  *immbits = immlo >> 8;
+	  return 0xa;
+	}
+
+      if ((immlo & 0xff) != (immlo >> 8))
+	return FAIL;
+      immlo &= 0xff;
+    }
+
+  if (immlo == (immlo & 0x000000ff))
+    {
+      /* Don't allow MVN with 8-bit immediate.  */
+      if (*op == 1)
+	return FAIL;
+      *immbits = immlo;
+      return 0xe;
+    }
+
+  return FAIL;
+}
+
+enum lit_type
+{
+  CONST_THUMB,
+  CONST_ARM,
+  CONST_VEC
+};
+
+/* inst.reloc.exp describes an "=expr" load pseudo-operation.
+   Determine whether it can be performed with a move instruction; if
+   it can, convert inst.instruction to that move instruction and
+   return TRUE; if it can't, convert inst.instruction to a literal-pool
+   load and return FALSE.  If this is not a valid thing to do in the
+   current context, set inst.error and return TRUE.
+
+   inst.operands[i] describes the destination register.	 */
+
+static bfd_boolean
+move_or_literal_pool (int i, enum lit_type t, bfd_boolean mode_3)
+{
+  unsigned long tbit;
+  bfd_boolean thumb_p = (t == CONST_THUMB);
+  bfd_boolean arm_p   = (t == CONST_ARM);
+  bfd_boolean vec64_p = (t == CONST_VEC) && !inst.operands[i].issingle;
+
+  if (thumb_p)
+    tbit = (inst.instruction > 0xffff) ? THUMB2_LOAD_BIT : THUMB_LOAD_BIT;
+  else
+    tbit = LOAD_BIT;
+
+  if ((inst.instruction & tbit) == 0)
+    {
+      inst.error = _("invalid pseudo operation");
+      return TRUE;
+    }
+  if (inst.reloc.exp.X_op != O_constant
+      && inst.reloc.exp.X_op != O_symbol
+      && inst.reloc.exp.X_op != O_big)
+    {
+      inst.error = _("constant expression expected");
+      return TRUE;
+    }
+  if ((inst.reloc.exp.X_op == O_constant
+       || inst.reloc.exp.X_op == O_big)
+      && !inst.operands[i].issingle)
+    {
+      if (thumb_p && inst.reloc.exp.X_op == O_constant)
+	{
+	  if (!unified_syntax && (inst.reloc.exp.X_add_number & ~0xFF) == 0)
+	    {
+	      /* This can be done with a mov(1) instruction.  */
+	      inst.instruction	= T_OPCODE_MOV_I8 | (inst.operands[i].reg << 8);
+	      inst.instruction |= inst.reloc.exp.X_add_number;
+	      return TRUE;
+	    }
+	}
+      else if (arm_p && inst.reloc.exp.X_op == O_constant)
+	{
+	  int value = encode_arm_immediate (inst.reloc.exp.X_add_number);
+	  if (value != FAIL)
+	    {
+	      /* This can be done with a mov instruction.  */
+	      inst.instruction &= LITERAL_MASK;
+	      inst.instruction |= INST_IMMEDIATE | (OPCODE_MOV << DATA_OP_SHIFT);
+	      inst.instruction |= value & 0xfff;
+	      return TRUE;
+	    }
+
+	  value = encode_arm_immediate (~inst.reloc.exp.X_add_number);
+	  if (value != FAIL)
+	    {
+	      /* This can be done with a mvn instruction.  */
+	      inst.instruction &= LITERAL_MASK;
+	      inst.instruction |= INST_IMMEDIATE | (OPCODE_MVN << DATA_OP_SHIFT);
+	      inst.instruction |= value & 0xfff;
+	      return TRUE;
+	    }
+	}
+      else if (vec64_p)
+	{
+	  int op = 0;
+	  unsigned immbits = 0;
+	  unsigned immlo = inst.operands[1].imm;
+	  unsigned immhi = inst.operands[1].regisimm
+			   ? inst.operands[1].reg
+			   : inst.reloc.exp.X_unsigned
+			     ? 0
+			     : ((bfd_int64_t)((int) immlo)) >> 32;
+	  int cmode = neon_cmode_for_move_imm (immlo, immhi, FALSE, &immbits,
+					       &op, 64, NT_invtype);
+
+	  if (cmode == FAIL)
+	    {
+	      neon_invert_size (&immlo, &immhi, 64);
+	      op = !op;
+	      cmode = neon_cmode_for_move_imm (immlo, immhi, FALSE, &immbits,
+					       &op, 64, NT_invtype);
+	    }
+	  if (cmode != FAIL)
+	    {
+	      inst.instruction = (inst.instruction & VLDR_VMOV_SAME)
+				  | (1 << 23)
+				  | (cmode << 8)
+				  | (op << 5)
+				  | (1 << 4);
+	      /* Fill other bits in vmov encoding for both thumb and arm.  */
+	      if (thumb_mode)
+		inst.instruction |= (0x7 << 29) | (0xF << 24);
+	      else
+		inst.instruction |= (0xF << 28) | (0x1 << 25);
+	      neon_write_immbits (immbits);
+	      return TRUE;
+	    }
+	}
+    }
+
+  if (add_to_lit_pool ((!inst.operands[i].isvec
+			|| inst.operands[i].issingle) ? 4 : 8) == FAIL)
+    return TRUE;
+
+  inst.operands[1].reg = REG_PC;
+  inst.operands[1].isreg = 1;
+  inst.operands[1].preind = 1;
+  inst.reloc.pc_rel = 1;
+  inst.reloc.type = (thumb_p
+		     ? BFD_RELOC_ARM_THUMB_OFFSET
+		     : (mode_3
+			? BFD_RELOC_ARM_HWLITERAL
+			: BFD_RELOC_ARM_LITERAL));
+  return FALSE;
+}
+
 /* inst.operands[i] was set up by parse_address.  Encode it into an
    ARM-format instruction.  Reject all forms which cannot be encoded
    into a coprocessor load/store instruction.  If wb_ok is false,
@@ -7235,6 +7878,13 @@ encode_arm_addr_mode_3 (int i, bfd_boolean is_t)
 static int
 encode_arm_cp_address (int i, int wb_ok, int unind_ok, int reloc_override)
 {
+  if (!inst.operands[i].isreg)
+    {
+      gas_assert (inst.operands[0].isvec);
+      if (move_or_literal_pool (0, CONST_VEC, /*mode_3=*/FALSE))
+	return SUCCESS;
+    }
+
   inst.instruction |= inst.operands[i].reg << 16;
 
   gas_assert (!(inst.operands[i].preind && inst.operands[i].postind));
@@ -7287,88 +7937,6 @@ encode_arm_cp_address (int i, int wb_ok, int unind_ok, int reloc_override)
     inst.instruction |= INDEX_UP;
 
   return SUCCESS;
-}
-
-/* inst.reloc.exp describes an "=expr" load pseudo-operation.
-   Determine whether it can be performed with a move instruction; if
-   it can, convert inst.instruction to that move instruction and
-   return TRUE; if it can't, convert inst.instruction to a literal-pool
-   load and return FALSE.  If this is not a valid thing to do in the
-   current context, set inst.error and return TRUE.
-
-   inst.operands[i] describes the destination register.	 */
-
-static bfd_boolean
-move_or_literal_pool (int i, bfd_boolean thumb_p, bfd_boolean mode_3)
-{
-  unsigned long tbit;
-
-  if (thumb_p)
-    tbit = (inst.instruction > 0xffff) ? THUMB2_LOAD_BIT : THUMB_LOAD_BIT;
-  else
-    tbit = LOAD_BIT;
-
-  if ((inst.instruction & tbit) == 0)
-    {
-      inst.error = _("invalid pseudo operation");
-      return TRUE;
-    }
-  if (inst.reloc.exp.X_op != O_constant && inst.reloc.exp.X_op != O_symbol)
-    {
-      inst.error = _("constant expression expected");
-      return TRUE;
-    }
-  if (inst.reloc.exp.X_op == O_constant)
-    {
-      if (thumb_p)
-	{
-	  if (!unified_syntax && (inst.reloc.exp.X_add_number & ~0xFF) == 0)
-	    {
-	      /* This can be done with a mov(1) instruction.  */
-	      inst.instruction	= T_OPCODE_MOV_I8 | (inst.operands[i].reg << 8);
-	      inst.instruction |= inst.reloc.exp.X_add_number;
-	      return TRUE;
-	    }
-	}
-      else
-	{
-	  int value = encode_arm_immediate (inst.reloc.exp.X_add_number);
-	  if (value != FAIL)
-	    {
-	      /* This can be done with a mov instruction.  */
-	      inst.instruction &= LITERAL_MASK;
-	      inst.instruction |= INST_IMMEDIATE | (OPCODE_MOV << DATA_OP_SHIFT);
-	      inst.instruction |= value & 0xfff;
-	      return TRUE;
-	    }
-
-	  value = encode_arm_immediate (~inst.reloc.exp.X_add_number);
-	  if (value != FAIL)
-	    {
-	      /* This can be done with a mvn instruction.  */
-	      inst.instruction &= LITERAL_MASK;
-	      inst.instruction |= INST_IMMEDIATE | (OPCODE_MVN << DATA_OP_SHIFT);
-	      inst.instruction |= value & 0xfff;
-	      return TRUE;
-	    }
-	}
-    }
-
-  if (add_to_lit_pool () == FAIL)
-    {
-      inst.error = _("literal pool insertion failed");
-      return TRUE;
-    }
-  inst.operands[1].reg = REG_PC;
-  inst.operands[1].isreg = 1;
-  inst.operands[1].preind = 1;
-  inst.reloc.pc_rel = 1;
-  inst.reloc.type = (thumb_p
-		     ? BFD_RELOC_ARM_THUMB_OFFSET
-		     : (mode_3
-			? BFD_RELOC_ARM_HWLITERAL
-			: BFD_RELOC_ARM_LITERAL));
-  return FALSE;
 }
 
 /* Functions for instruction encoding, sorted by sub-architecture.
@@ -8101,7 +8669,7 @@ do_ldst (void)
 {
   inst.instruction |= inst.operands[0].reg << 12;
   if (!inst.operands[1].isreg)
-    if (move_or_literal_pool (0, /*thumb_p=*/FALSE, /*mode_3=*/FALSE))
+    if (move_or_literal_pool (0, CONST_ARM, /*mode_3=*/FALSE))
       return;
   encode_arm_addr_mode_2 (1, /*is_t=*/FALSE);
   check_ldr_r15_aligned ();
@@ -8134,7 +8702,7 @@ do_ldstv4 (void)
   constraint (inst.operands[0].reg == REG_PC, BAD_PC);
   inst.instruction |= inst.operands[0].reg << 12;
   if (!inst.operands[1].isreg)
-    if (move_or_literal_pool (0, /*thumb_p=*/FALSE, /*mode_3=*/TRUE))
+    if (move_or_literal_pool (0, CONST_ARM, /*mode_3=*/TRUE))
       return;
   encode_arm_addr_mode_3 (1, /*is_t=*/FALSE);
 }
@@ -10678,7 +11246,7 @@ do_t_ldst (void)
 	{
 	  if (opcode <= 0xffff)
 	    inst.instruction = THUMB_OP32 (opcode);
-	  if (move_or_literal_pool (0, /*thumb_p=*/TRUE, /*mode_3=*/FALSE))
+	  if (move_or_literal_pool (0, CONST_THUMB, /*mode_3=*/FALSE))
 	    return;
 	}
       if (inst.operands[1].isreg
@@ -10784,7 +11352,7 @@ do_t_ldst (void)
 
   inst.instruction = THUMB_OP16 (inst.instruction);
   if (!inst.operands[1].isreg)
-    if (move_or_literal_pool (0, /*thumb_p=*/TRUE, /*mode_3=*/FALSE))
+    if (move_or_literal_pool (0, CONST_THUMB, /*mode_3=*/FALSE))
       return;
 
   constraint (!inst.operands[1].preind
@@ -11267,7 +11835,8 @@ do_t_mvn_tst (void)
 	  || inst.operands[1].shifted
 	  || Rn > 7 || Rm > 7)
 	narrow = FALSE;
-      else if (inst.instruction == T_MNEM_cmn)
+      else if (inst.instruction == T_MNEM_cmn
+	       || inst.instruction == T_MNEM_tst)
 	narrow = TRUE;
       else if (THUMB_SETS_FLAGS (inst.instruction))
 	narrow = !in_it_block ();
@@ -11671,12 +12240,11 @@ do_t_push_pop (void)
 	      _("expression too complex"));
 
   mask = inst.operands[0].imm;
-  if ((mask & ~0xff) == 0)
+  if (inst.size_req != 4 && (mask & ~0xff) == 0)
     inst.instruction = THUMB_OP16 (inst.instruction) | mask;
-  else if ((inst.instruction == T_MNEM_push
-	    && (mask & ~0xff) == 1 << REG_LR)
-	   || (inst.instruction == T_MNEM_pop
-	       && (mask & ~0xff) == 1 << REG_PC))
+  else if (inst.size_req != 4
+	   && (mask & ~0xff) == (1 << (inst.instruction == T_MNEM_push
+				       ? REG_LR : REG_PC)))
     {
       inst.instruction = THUMB_OP16 (inst.instruction);
       inst.instruction |= THUMB_PP_PC_LR;
@@ -13665,197 +14233,6 @@ neon_cmode_for_logic_imm (unsigned immediate, unsigned *immbits, int size)
   return FAIL;
 }
 
-/* True if IMM has form 0bAAAAAAAABBBBBBBBCCCCCCCCDDDDDDDD for bits
-   A, B, C, D.  */
-
-static int
-neon_bits_same_in_bytes (unsigned imm)
-{
-  return ((imm & 0x000000ff) == 0 || (imm & 0x000000ff) == 0x000000ff)
-	 && ((imm & 0x0000ff00) == 0 || (imm & 0x0000ff00) == 0x0000ff00)
-	 && ((imm & 0x00ff0000) == 0 || (imm & 0x00ff0000) == 0x00ff0000)
-	 && ((imm & 0xff000000) == 0 || (imm & 0xff000000) == 0xff000000);
-}
-
-/* For immediate of above form, return 0bABCD.  */
-
-static unsigned
-neon_squash_bits (unsigned imm)
-{
-  return (imm & 0x01) | ((imm & 0x0100) >> 7) | ((imm & 0x010000) >> 14)
-	 | ((imm & 0x01000000) >> 21);
-}
-
-/* Compress quarter-float representation to 0b...000 abcdefgh.  */
-
-static unsigned
-neon_qfloat_bits (unsigned imm)
-{
-  return ((imm >> 19) & 0x7f) | ((imm >> 24) & 0x80);
-}
-
-/* Returns CMODE. IMMBITS [7:0] is set to bits suitable for inserting into
-   the instruction. *OP is passed as the initial value of the op field, and
-   may be set to a different value depending on the constant (i.e.
-   "MOV I64, 0bAAAAAAAABBBB..." which uses OP = 1 despite being MOV not
-   MVN).  If the immediate looks like a repeated pattern then also
-   try smaller element sizes.  */
-
-static int
-neon_cmode_for_move_imm (unsigned immlo, unsigned immhi, int float_p,
-			 unsigned *immbits, int *op, int size,
-			 enum neon_el_type type)
-{
-  /* Only permit float immediates (including 0.0/-0.0) if the operand type is
-     float.  */
-  if (type == NT_float && !float_p)
-    return FAIL;
-
-  if (type == NT_float && is_quarter_float (immlo) && immhi == 0)
-    {
-      if (size != 32 || *op == 1)
-	return FAIL;
-      *immbits = neon_qfloat_bits (immlo);
-      return 0xf;
-    }
-
-  if (size == 64)
-    {
-      if (neon_bits_same_in_bytes (immhi)
-	  && neon_bits_same_in_bytes (immlo))
-	{
-	  if (*op == 1)
-	    return FAIL;
-	  *immbits = (neon_squash_bits (immhi) << 4)
-		     | neon_squash_bits (immlo);
-	  *op = 1;
-	  return 0xe;
-	}
-
-      if (immhi != immlo)
-	return FAIL;
-    }
-
-  if (size >= 32)
-    {
-      if (immlo == (immlo & 0x000000ff))
-	{
-	  *immbits = immlo;
-	  return 0x0;
-	}
-      else if (immlo == (immlo & 0x0000ff00))
-	{
-	  *immbits = immlo >> 8;
-	  return 0x2;
-	}
-      else if (immlo == (immlo & 0x00ff0000))
-	{
-	  *immbits = immlo >> 16;
-	  return 0x4;
-	}
-      else if (immlo == (immlo & 0xff000000))
-	{
-	  *immbits = immlo >> 24;
-	  return 0x6;
-	}
-      else if (immlo == ((immlo & 0x0000ff00) | 0x000000ff))
-	{
-	  *immbits = (immlo >> 8) & 0xff;
-	  return 0xc;
-	}
-      else if (immlo == ((immlo & 0x00ff0000) | 0x0000ffff))
-	{
-	  *immbits = (immlo >> 16) & 0xff;
-	  return 0xd;
-	}
-
-      if ((immlo & 0xffff) != (immlo >> 16))
-	return FAIL;
-      immlo &= 0xffff;
-    }
-
-  if (size >= 16)
-    {
-      if (immlo == (immlo & 0x000000ff))
-	{
-	  *immbits = immlo;
-	  return 0x8;
-	}
-      else if (immlo == (immlo & 0x0000ff00))
-	{
-	  *immbits = immlo >> 8;
-	  return 0xa;
-	}
-
-      if ((immlo & 0xff) != (immlo >> 8))
-	return FAIL;
-      immlo &= 0xff;
-    }
-
-  if (immlo == (immlo & 0x000000ff))
-    {
-      /* Don't allow MVN with 8-bit immediate.  */
-      if (*op == 1)
-	return FAIL;
-      *immbits = immlo;
-      return 0xe;
-    }
-
-  return FAIL;
-}
-
-/* Write immediate bits [7:0] to the following locations:
-
-  |28/24|23     19|18 16|15                    4|3     0|
-  |  a  |x x x x x|b c d|x x x x x x x x x x x x|e f g h|
-
-  This function is used by VMOV/VMVN/VORR/VBIC.  */
-
-static void
-neon_write_immbits (unsigned immbits)
-{
-  inst.instruction |= immbits & 0xf;
-  inst.instruction |= ((immbits >> 4) & 0x7) << 16;
-  inst.instruction |= ((immbits >> 7) & 0x1) << 24;
-}
-
-/* Invert low-order SIZE bits of XHI:XLO.  */
-
-static void
-neon_invert_size (unsigned *xlo, unsigned *xhi, int size)
-{
-  unsigned immlo = xlo ? *xlo : 0;
-  unsigned immhi = xhi ? *xhi : 0;
-
-  switch (size)
-    {
-    case 8:
-      immlo = (~immlo) & 0xff;
-      break;
-
-    case 16:
-      immlo = (~immlo) & 0xffff;
-      break;
-
-    case 64:
-      immhi = (~immhi) & 0xffffffff;
-      /* fall through.  */
-
-    case 32:
-      immlo = (~immlo) & 0xffffffff;
-      break;
-
-    default:
-      abort ();
-    }
-
-  if (xlo)
-    *xlo = immlo;
-
-  if (xhi)
-    *xhi = immhi;
-}
-
 static void
 do_neon_logic (void)
 {
@@ -14671,7 +15048,7 @@ do_vfp_nsyn_cvt_fpv8 (enum neon_cvt_flavour flavour,
     {
     case neon_cvt_flavour_s32_f64:
       sz = 1;
-      op = 0;
+      op = 1;
       break;
     case neon_cvt_flavour_s32_f32:
       sz = 0;
@@ -17112,6 +17489,9 @@ static const struct depr_insn_mask depr_it_insns[] = {
   { 0x4800, 0xf800, N_("Literal loads") },
   { 0x4478, 0xf478, N_("Hi-register ADD, MOV, CMP, BX, BLX using pc") },
   { 0x4487, 0xfc87, N_("Hi-register ADD, MOV, CMP using pc") },
+  /* NOTE: 0x00dd is not the real encoding, instead, it is the 'tvalue'
+     field in asm_opcode. 'tvalue' is used at the stage this check happen.  */
+  { 0x00dd, 0x7fff, N_("ADD/SUB sp, sp #imm") },
   { 0, 0, NULL }
 };
 
@@ -19217,8 +19597,8 @@ static const struct asm_opcode insns[] =
  nCE(vnmul,     _vnmul,   3, (RVSD, RVSD, RVSD), vfp_nsyn_nmul),
  nCE(vnmla,     _vnmla,   3, (RVSD, RVSD, RVSD), vfp_nsyn_nmul),
  nCE(vnmls,     _vnmls,   3, (RVSD, RVSD, RVSD), vfp_nsyn_nmul),
- nCE(vcmp,      _vcmp,    2, (RVSD, RVSD_I0),    vfp_nsyn_cmp),
- nCE(vcmpe,     _vcmpe,   2, (RVSD, RVSD_I0),    vfp_nsyn_cmp),
+ nCE(vcmp,      _vcmp,    2, (RVSD, RSVD_FI0),    vfp_nsyn_cmp),
+ nCE(vcmpe,     _vcmpe,   2, (RVSD, RSVD_FI0),    vfp_nsyn_cmp),
  NCE(vpush,     0,       1, (VRSDLST),          vfp_nsyn_push),
  NCE(vpop,      0,       1, (VRSDLST),          vfp_nsyn_pop),
  NCE(vcvtz,     0,       2, (RVSD, RVSD),       vfp_nsyn_cvtz),
@@ -20478,7 +20858,8 @@ arm_handle_align (fragS * fragP)
 
   if (fragP->tc_frag_data.thumb_mode & (~ MODE_RECORDED))
     {
-      if (ARM_CPU_HAS_FEATURE (selected_cpu, arm_ext_v6t2))
+      if (ARM_CPU_HAS_FEATURE (selected_cpu_name[0]
+			       ? selected_cpu : arm_arch_none, arm_ext_v6t2))
 	{
 	  narrow_noop = thumb_noop[1][target_big_endian];
 	  noop = wide_thumb_noop[target_big_endian];
@@ -20492,7 +20873,9 @@ arm_handle_align (fragS * fragP)
     }
   else
     {
-      noop = arm_noop[ARM_CPU_HAS_FEATURE (selected_cpu, arm_ext_v6k) != 0]
+      noop = arm_noop[ARM_CPU_HAS_FEATURE (selected_cpu_name[0]
+					   ? selected_cpu : arm_arch_none,
+					   arm_ext_v6k) != 0]
 		     [target_big_endian];
       noop_size = 4;
 #ifdef OBJ_ELF
@@ -20587,27 +20970,29 @@ arm_init_frag (fragS * fragP, int max_chars ATTRIBUTE_UNUSED)
 void
 arm_init_frag (fragS * fragP, int max_chars)
 {
+  int frag_thumb_mode;
   /* If the current ARM vs THUMB mode has not already
      been recorded into this frag then do so now.  */
   if ((fragP->tc_frag_data.thumb_mode & MODE_RECORDED) == 0)
-    {
-      fragP->tc_frag_data.thumb_mode = thumb_mode | MODE_RECORDED;
+    fragP->tc_frag_data.thumb_mode = thumb_mode | MODE_RECORDED;
 
-      /* Record a mapping symbol for alignment frags.  We will delete this
-	 later if the alignment ends up empty.  */
-      switch (fragP->fr_type)
-	{
-	  case rs_align:
-	  case rs_align_test:
-	  case rs_fill:
-	    mapping_state_2 (MAP_DATA, max_chars);
-	    break;
-	  case rs_align_code:
-	    mapping_state_2 (thumb_mode ? MAP_THUMB : MAP_ARM, max_chars);
-	    break;
-	  default:
-	    break;
-	}
+  frag_thumb_mode = fragP->tc_frag_data.thumb_mode ^ MODE_RECORDED;
+
+
+  /* Record a mapping symbol for alignment frags.  We will delete this
+     later if the alignment ends up empty.  */
+  switch (fragP->fr_type)
+    {
+    case rs_align:
+    case rs_align_test:
+    case rs_fill:
+      mapping_state_2 (MAP_DATA, max_chars);
+      break;
+    case rs_align_code:
+      mapping_state_2 (frag_thumb_mode ? MAP_THUMB : MAP_ARM, max_chars);
+      break;
+    default:
+      break;
     }
 }
 
@@ -20841,7 +21226,7 @@ start_unwind_section (const segT text_seg, int idx)
 
 /* Start an unwind table entry.	 HAVE_DATA is nonzero if we have additional
    personality routine data.  Returns zero, or the index table value for
-   and inline entry.  */
+   an inline entry.  */
 
 static valueT
 create_unwind_entry (int have_data)
@@ -20912,7 +21297,12 @@ create_unwind_entry (int have_data)
     }
   else
     {
-      gas_assert (unwind.personality_index == -1);
+      /* PR 16765: Missing or misplaced unwind directives can trigger this.  */
+      if (unwind.personality_index != -1)
+	{
+	  as_bad (_("attempt to recreate an unwind entry"));
+	  return 1;
+	}
 
       /* An extra byte is required for the opcode count.	*/
       size = unwind.opcode_count + 1;
@@ -21019,11 +21409,19 @@ int
 tc_arm_regname_to_dw2regnum (char *regname)
 {
   int reg = arm_reg_parse (&regname, REG_TYPE_RN);
+  if (reg != FAIL)
+    return reg;
 
-  if (reg == FAIL)
-    return -1;
+  /* PR 16694: Allow VFP registers as well.  */
+  reg = arm_reg_parse (&regname, REG_TYPE_VFS);
+  if (reg != FAIL)
+    return 64 + reg;
 
-  return reg;
+  reg = arm_reg_parse (&regname, REG_TYPE_VFD);
+  if (reg != FAIL)
+    return reg + 256;
+
+  return -1;
 }
 
 #ifdef TE_PE
@@ -22218,7 +22616,7 @@ md_apply_fix (fixS *	fixP,
 
     case BFD_RELOC_8:
       if (fixP->fx_done || !seg->use_rela_p)
-	md_number_to_chars (buf, value, 1);
+	*buf = value;
       break;
 
     case BFD_RELOC_16:
@@ -22231,9 +22629,6 @@ md_apply_fix (fixS *	fixP,
     case BFD_RELOC_ARM_THM_TLS_CALL:
     case BFD_RELOC_ARM_TLS_DESCSEQ:
     case BFD_RELOC_ARM_THM_TLS_DESCSEQ:
-      S_SET_THREAD_LOCAL (fixP->fx_addsy);
-      break;
-
     case BFD_RELOC_ARM_TLS_GOTDESC:
     case BFD_RELOC_ARM_TLS_GD32:
     case BFD_RELOC_ARM_TLS_LE32:
@@ -22241,12 +22636,10 @@ md_apply_fix (fixS *	fixP,
     case BFD_RELOC_ARM_TLS_LDM32:
     case BFD_RELOC_ARM_TLS_LDO32:
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
-      /* fall through */
+      break;
 
     case BFD_RELOC_ARM_GOT32:
     case BFD_RELOC_ARM_GOTOFF:
-      if (fixP->fx_done || !seg->use_rela_p)
-	md_number_to_chars (buf, 0, 4);
       break;
 
     case BFD_RELOC_ARM_GOT_PREL:
@@ -22854,7 +23247,6 @@ tc_gen_reloc (asection *section, fixS *fixp)
     case BFD_RELOC_ARM_SBREL32:
     case BFD_RELOC_ARM_PREL31:
     case BFD_RELOC_ARM_TARGET2:
-    case BFD_RELOC_ARM_TLS_LE32:
     case BFD_RELOC_ARM_TLS_LDO32:
     case BFD_RELOC_ARM_PCREL_CALL:
     case BFD_RELOC_ARM_PCREL_JUMP:
@@ -22892,6 +23284,7 @@ tc_gen_reloc (asection *section, fixS *fixp)
 
     case BFD_RELOC_ARM_TLS_GOTDESC:
     case BFD_RELOC_ARM_TLS_GD32:
+    case BFD_RELOC_ARM_TLS_LE32:
     case BFD_RELOC_ARM_TLS_IE32:
     case BFD_RELOC_ARM_TLS_LDM32:
       /* BFD will include the symbol's address in the addend.
@@ -22995,9 +23388,9 @@ void
 cons_fix_new_arm (fragS *	frag,
 		  int		where,
 		  int		size,
-		  expressionS * exp)
+		  expressionS * exp,
+		  bfd_reloc_code_real_type reloc)
 {
-  bfd_reloc_code_real_type type;
   int pcrel = 0;
 
   /* Pick a reloc.
@@ -23005,17 +23398,17 @@ cons_fix_new_arm (fragS *	frag,
   switch (size)
     {
     case 1:
-      type = BFD_RELOC_8;
+      reloc = BFD_RELOC_8;
       break;
     case 2:
-      type = BFD_RELOC_16;
+      reloc = BFD_RELOC_16;
       break;
     case 4:
     default:
-      type = BFD_RELOC_32;
+      reloc = BFD_RELOC_32;
       break;
     case 8:
-      type = BFD_RELOC_64;
+      reloc = BFD_RELOC_64;
       break;
     }
 
@@ -23023,11 +23416,11 @@ cons_fix_new_arm (fragS *	frag,
   if (exp->X_op == O_secrel)
   {
     exp->X_op = O_symbol;
-    type = BFD_RELOC_32_SECREL;
+    reloc = BFD_RELOC_32_SECREL;
   }
 #endif
 
-  fix_new_exp (frag, where, (int) size, exp, pcrel, type);
+  fix_new_exp (frag, where, size, exp, pcrel, reloc);
 }
 
 #if defined (OBJ_COFF)
@@ -24011,10 +24404,14 @@ static const struct arm_cpu_option_table arm_cpus[] =
 								  "Cortex-A12"),
   ARM_CPU_OPT ("cortex-a15",	ARM_ARCH_V7VE,   FPU_ARCH_NEON_VFP_V4,
 								  "Cortex-A15"),
+  ARM_CPU_OPT ("cortex-a17",	ARM_ARCH_V7VE,   FPU_ARCH_NEON_VFP_V4,
+								  "Cortex-A17"),
   ARM_CPU_OPT ("cortex-a53",    ARM_ARCH_V8A,    FPU_ARCH_CRYPTO_NEON_VFP_ARMV8,
 								  "Cortex-A53"),
   ARM_CPU_OPT ("cortex-a57",    ARM_ARCH_V8A,    FPU_ARCH_CRYPTO_NEON_VFP_ARMV8,
 								  "Cortex-A57"),
+  ARM_CPU_OPT ("cortex-a72",    ARM_ARCH_V8A,    FPU_ARCH_CRYPTO_NEON_VFP_ARMV8,
+								  "Cortex-A72"),
   ARM_CPU_OPT ("cortex-r4",	ARM_ARCH_V7R,	 FPU_NONE,	  "Cortex-R4"),
   ARM_CPU_OPT ("cortex-r4f",	ARM_ARCH_V7R,	 FPU_ARCH_VFP_V3D16,
 								  "Cortex-R4F"),
@@ -24028,6 +24425,9 @@ static const struct arm_cpu_option_table arm_cpus[] =
   ARM_CPU_OPT ("cortex-m1",	ARM_ARCH_V6SM,	 FPU_NONE,	  "Cortex-M1"),
   ARM_CPU_OPT ("cortex-m0",	ARM_ARCH_V6SM,	 FPU_NONE,	  "Cortex-M0"),
   ARM_CPU_OPT ("cortex-m0plus",	ARM_ARCH_V6SM,	 FPU_NONE,	  "Cortex-M0+"),
+  ARM_CPU_OPT ("exynos-m1",	ARM_ARCH_V8A,	 FPU_ARCH_CRYPTO_NEON_VFP_ARMV8,
+								  "Samsung " \
+								  "Exynos M1"),
   /* ??? XSCALE is really an architecture.  */
   ARM_CPU_OPT ("xscale",	ARM_ARCH_XSCALE, FPU_ARCH_VFP_V2, NULL),
   /* ??? iwmmxt is not a processor.  */
@@ -24506,6 +24906,15 @@ arm_parse_it_mode (char * str)
   return ret;
 }
 
+static bfd_boolean
+arm_ccs_mode (char * unused ATTRIBUTE_UNUSED)
+{
+  codecomposer_syntax = TRUE;
+  arm_comment_chars[0] = ';';
+  arm_line_separator_chars[0] = 0;
+  return TRUE;
+}
+
 struct arm_long_option_table arm_long_opts[] =
 {
   {"mcpu=", N_("<cpu name>\t  assemble for CPU <cpu name>"),
@@ -24522,6 +24931,8 @@ struct arm_long_option_table arm_long_opts[] =
 #endif
   {"mimplicit-it=", N_("<mode>\t  controls implicit insertion of IT instructions"),
    arm_parse_it_mode, NULL},
+  {"mccs", N_("\t\t\t  TI CodeComposer Studio syntax compatibility mode"),
+   arm_ccs_mode, NULL},
   {NULL, NULL, 0, NULL}
 };
 
@@ -24719,6 +25130,8 @@ aeabi_set_public_attributes (void)
 
   if (ARM_CPU_HAS_FEATURE (thumb_arch_used, arm_arch_any))
     ARM_MERGE_FEATURE_SETS (flags, flags, arm_ext_v4t);
+
+  selected_cpu = flags;
 
   /* Allow the user to override the reported architecture.  */
   if (object_arch)

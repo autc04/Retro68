@@ -1,4 +1,10 @@
 # Linker script for PE.
+#
+# Copyright (C) 2014 Free Software Foundation, Inc.
+# 
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 
 if test -z "${RELOCATEABLE_OUTPUT_FORMAT}"; then
   RELOCATEABLE_OUTPUT_FORMAT=${OUTPUT_FORMAT}
@@ -39,12 +45,14 @@ if test "${RELOCATING}"; then
   R_CRT_XP='*(SORT(.CRT$XP*))  /* Pre-termination */'
   R_CRT_XT='*(SORT(.CRT$XT*))  /* Termination */'
   R_TLS='
-    *(.tls$AAA)    
+    *(.tls$AAA)
     *(.tls)
     *(.tls$)
     *(SORT(.tls$*))
     *(.tls$ZZZ)'
-  R_RSRC='*(SORT(.rsrc$*))'
+  R_RSRC='
+    *(.rsrc)
+    *(.rsrc$*)'
 else
   R_TEXT=
   R_DATA=
@@ -53,10 +61,16 @@ else
   R_IDATA5=
   R_IDATA67=
   R_CRT=
-  R_RSRC=
+  R_RSRC='*(.rsrc)'
 fi
 
 cat <<EOF
+/* Copyright (C) 2014 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 ${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
 ${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
 ${OUTPUT_ARCH+OUTPUT_ARCH(${OUTPUT_ARCH})}
@@ -69,7 +83,7 @@ SECTIONS
   ${RELOCATING+   lower than the target page size. */}
   ${RELOCATING+. = SIZEOF_HEADERS;}
   ${RELOCATING+. = ALIGN(__section_alignment__);}
-  .text ${RELOCATING+ __image_base__ + ( __section_alignment__ < ${TARGET_PAGE_SIZE} ? . : __section_alignment__ )} : 
+  .text ${RELOCATING+ __image_base__ + ( __section_alignment__ < ${TARGET_PAGE_SIZE} ? . : __section_alignment__ )} :
   {
     ${RELOCATING+ *(.init)}
     *(.text)
@@ -78,9 +92,9 @@ SECTIONS
     ${RELOCATING+ *(.gnu.linkonce.t.*)}
     *(.glue_7t)
     *(.glue_7)
-    ${CONSTRUCTING+ ___CTOR_LIST__ = .; __CTOR_LIST__ = . ; 
+    ${CONSTRUCTING+ ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
 			LONG (-1);*(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); }
-    ${CONSTRUCTING+ ___DTOR_LIST__ = .; __DTOR_LIST__ = . ; 
+    ${CONSTRUCTING+ ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
 			LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); }
     ${RELOCATING+ *(.fini)}
     /* ??? Why is .gcc_exc here?  */
@@ -96,7 +110,7 @@ SECTIONS
      breaks building the cygwin32 dll.  Instead, we name the section
      ".data_cygwin_nocopy" and explicitly include it after __data_end__. */
 
-  .data ${RELOCATING+BLOCK(__section_alignment__)} : 
+  .data ${RELOCATING+BLOCK(__section_alignment__)} :
   {
     ${RELOCATING+__data_start__ = . ;}
     *(.data)
@@ -201,14 +215,13 @@ SECTIONS
     ${RELOCATING+ __end__ = .;}
   }
 
-  .rsrc ${RELOCATING+BLOCK(__section_alignment__)} :
-  { 					
-    *(.rsrc)
+  .rsrc ${RELOCATING+BLOCK(__section_alignment__)} : SUBALIGN(4)
+  {
     ${R_RSRC}
   }
 
   .reloc ${RELOCATING+BLOCK(__section_alignment__)} :
-  { 					
+  {
     *(.reloc)
   }
 
@@ -226,7 +239,7 @@ SECTIONS
      Symbols in the DWARF debugging sections are relative to the beginning
      of the section.  Unlike other targets that fake this by putting the
      section VMA at 0, the PE format will not allow it.  */
-     
+
   /* DWARF 1.1 and DWARF 2.  */
   .debug_aranges ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {

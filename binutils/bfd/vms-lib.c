@@ -1,6 +1,6 @@
 /* BFD back-end for VMS archive files.
 
-   Copyright 2010, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 2010-2014 Free Software Foundation, Inc.
    Written by Tristan Gingold <gingold@adacore.com>, AdaCore.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -25,6 +25,7 @@
 #include "libbfd.h"
 #include "safe-ctype.h"
 #include "bfdver.h"
+#include "libiberty.h"
 #include "vms.h"
 #include "vms/lbr.h"
 #include "vms/dcx.h"
@@ -1376,7 +1377,7 @@ _bfd_vms_lib_get_module (bfd *abfd, unsigned int modidx)
     default:
       break;
     }
-  res->filename = name;
+  res->filename = xstrdup (name);
 
   tdata->cache[modidx] = res;
 
@@ -2310,7 +2311,7 @@ _bfd_vms_lib_write_archive_contents (bfd *arch)
 /* Add a target for text library.  This costs almost nothing and is useful to
    read VMS library on the host.  */
 
-const bfd_target vms_lib_txt_vec =
+const bfd_target alpha_vms_lib_txt_vec =
 {
   "vms-libtxt",			/* Name.  */
   bfd_target_unknown_flavour,

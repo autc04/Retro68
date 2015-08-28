@@ -1,7 +1,5 @@
 /* write.h
-   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000, 2001,
-   2002, 2003, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -171,7 +169,6 @@ extern struct reloc_list* reloc_list;
 extern void append (char **charPP, char *fromP, unsigned long length);
 extern void record_alignment (segT seg, int align);
 extern int get_recorded_alignment (segT seg);
-extern void subsegs_finish (void);
 extern void write_object_file (void);
 extern long relax_frag (segT, fragS *, long);
 extern int relax_segment (struct frag *, segT, int);

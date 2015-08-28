@@ -142,3 +142,5 @@ power8:
 	xscvspdpn    59,26
 	fmrgow       24,14,2
 	fmrgew       22,7,5
+	msgsnd       14
+	msgclr       23

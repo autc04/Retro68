@@ -1,4 +1,10 @@
 # Linker Script for National Semiconductor's CRX-ELF32.
+#
+# Copyright (C) 2014 Free Software Foundation, Inc.
+# 
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 
 # The next line should be uncommented if it is desired to link
 # without libstart.o and directly enter main.
@@ -8,7 +14,14 @@
 test -z "$ENTRY" && ENTRY=_start
 cat <<EOF
 
-/* Example Linker Script for linking NS CRX elf32 files. */
+/* Example Linker Script for linking NS CRX elf32 files.
+
+   Copyright (C) 2014 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 
 OUTPUT_FORMAT("${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})

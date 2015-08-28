@@ -14,6 +14,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 c2 55 1f 3b f4    	vpminud %zmm12,%zmm5,%zmm22\{%k7\}
 [ 	]*[a-f0-9]+:	62 f2 7e 48 31 72 7f 	vpmovdb %zmm6,0x7f0\(%rdx\)
 [ 	]*[a-f0-9]+:	62                   	vpmovdb %zmm6,\(bad\)
-[ 	]*[a-f0-9]+:	f2 7e 58             	bnd jle 0x7d
+[ 	]*[a-f0-9]+:	f2 7e 58             	bnd jle (0x7d|7d <.text\+0x7d>)
 [ 	]*[a-f0-9]+:	31 72 7f             	xor    %esi,0x7f\(%rdx\)
 #pass

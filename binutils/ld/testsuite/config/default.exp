@@ -1,6 +1,5 @@
 # Basic expect script for LD Regression Tests
-#   Copyright 1993, 1994, 1995, 1997, 1998, 1999, 2001, 2003, 2005, 2007, 2009
-#   2011, 2012 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -52,31 +51,24 @@ if ![info exists strip] then {
 
 remote_exec host "mkdir -p tmpdir"
 
-# Make a symlink from tmpdir/as to the assembler in the build tree, so
-# that we can use a -B option to gcc to force it to use the newly
-# built assembler.
-if {![file isdirectory tmpdir/gas]} then {
-    catch "exec mkdir tmpdir/gas" status
-    catch "exec ln -s ../../../gas/as-new tmpdir/gas/as" status
-}
-set gcc_gas_flag "-B[pwd]/tmpdir/gas/"
-
-# Make a symlink from tmpdir/ld to the linker in the build tree, so
-# that we can use a -B option to gcc to force it to use the newly
-# built linker. 
+# Make symlinks from tmpdir/ld to the linker and assembler in the
+# build tree, so that we can use a -B option to gcc to force it to use
+# the newly built linker and assembler. 
 if {![file isdirectory tmpdir/ld]} then {
     catch "exec mkdir tmpdir/ld" status
     catch "exec ln -s ../../ld-new tmpdir/ld/ld" status
     catch "exec ln -s ld tmpdir/ld/collect-ld" status
+    catch "exec ln -s ../../../gas/as-new tmpdir/ld/as" status
 }
-set gcc_ld_flag "-B[pwd]/tmpdir/ld/"
+set gcc_B_opt "-B[pwd]/tmpdir/ld/"
 
 # load the linker path
+set ld_L_opt ""
 if {[file exists tmpdir/libpath.exp]} {
     load_lib tmpdir/libpath.exp
 
     foreach dir $libpath {
-	set gcc_ld_flag "$gcc_ld_flag -L$dir"
+	append ld_L_opt " -L$dir"
     }
 }
 
@@ -104,7 +96,12 @@ if {[istarget mips64*-*-linux*] &&
     (![board_info [target_info name] exists multilib_flags] ||
      ![string match "*-mabi" [board_info [target_info name] multilib_flags]])
    } {
-    append gcc_gas_flag " -mabi=n32"
+    append gcc_B_opt " -mabi=n32"
+}
+
+if { [istarget rx-*-*] } {
+    global ASFLAGS
+    set ASFLAGS "-muse-conventional-section-names"
 }
 
 # load the utility procedures
@@ -139,11 +136,11 @@ proc get_target_emul {} {
 }
 
 if [isnative] {
-    foreach x {HOSTING_CRT0 HOSTING_SCRT0 HOSTING_LIBS} {
+    foreach x {HOSTING_CRT0 HOSTING_SCRT0 HOSTING_LIBS HOSTING_SLIBS} {
 	get_link_files $x
     }
 } else {
-    foreach x {HOSTING_CRT0 HOSTING_SCRT0 HOSTING_LIBS} { set $x "" }
+    foreach x {HOSTING_CRT0 HOSTING_SCRT0 HOSTING_LIBS HOSTING_SLIBS} { set $x "" }
 }
 if ![info exists HOSTING_EMU] { set HOSTING_EMU "-m [get_target_emul]" }
 
@@ -236,10 +233,6 @@ proc ld_exec { target output } {
 # From gas-defs.exp, to support run_dump_test.
 if ![info exists AS] then {
     set AS $as
-}
-
-if ![info exists GASP] then {
-    set GASP [findfile $base_dir/../gas/gasp-new $base_dir/../gas/gasp-new [transform gasp]]
 }
 
 if ![info exists ASFLAGS] then {

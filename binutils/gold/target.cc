@@ -1,6 +1,6 @@
 // target.cc -- target support for gold.
 
-// Copyright 2009, 2010, 2011, 2013 Free Software Foundation, Inc.
+// Copyright (C) 2009-2014 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com>.
 
 // This file is part of gold.

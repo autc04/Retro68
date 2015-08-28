@@ -1,6 +1,5 @@
 /* IBM S/390-specific support for 32-bit ELF
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Carl B. Pedersen and Martin Schwidefsky.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -40,7 +39,7 @@ static reloc_howto_type elf_howto_table[] =
 {
   HOWTO (R_390_NONE,		/* type */
 	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = 2 byte, 2 = 4 byte) */
+	 3,			/* size (0 = byte, 1 = 2 byte, 2 = 4 byte) */
 	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
@@ -1251,6 +1250,12 @@ elf_s390_check_relocs (bfd *abfd,
 	  /* Fall through.  */
 
 	case R_390_TLS_LE32:
+	  /* For static linking and executables this reloc will be
+	     calculated at linktime otherwise a TLS_TPOFF runtime
+	     reloc will be generated.  */
+	  if (r_type == R_390_TLS_LE32 && info->pie)
+	    break;
+
 	  if (!info->shared)
 	    break;
 	  info->flags |= DF_STATIC_TLS;
@@ -1757,7 +1762,7 @@ elf_s390_adjust_dynamic_symbol (struct bfd_link_info *info,
 
   s = htab->sdynbss;
 
-  return _bfd_elf_adjust_dynamic_copy (h, s);
+  return _bfd_elf_adjust_dynamic_copy (info, h, s);
 }
 
 /* Allocate space in .plt, .got and associated reloc sections for
@@ -2046,7 +2051,7 @@ elf_s390_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 
   /* Set up .got offsets for local syms, and space for local dynamic
      relocs.  */
-  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link_next)
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
     {
       bfd_signed_vma *local_got;
       bfd_signed_vma *end_local_got;
@@ -2415,11 +2420,12 @@ elf_s390_relocate_section (bfd *output_bfd,
       else
 	{
 	  bfd_boolean warned ATTRIBUTE_UNUSED;
+	  bfd_boolean ignored ATTRIBUTE_UNUSED;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	}
 
       if (sec != NULL && discarded_section (sec))
@@ -3104,7 +3110,7 @@ elf_s390_relocate_section (bfd *output_bfd,
 	  break;
 
 	case R_390_TLS_LE32:
-	  if (info->shared)
+	  if (info->shared && !info->pie)
 	    {
 	      /* Linking a shared library with non-fpic code requires
 		 a R_390_TLS_TPOFF relocation.  */
@@ -3903,7 +3909,7 @@ elf_s390_finish_dynamic_sections (bfd *output_bfd,
 	->this_hdr.sh_entsize = 4;
     }
   /* Finish dynamic symbol for local IFUNC symbols.  */
-  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link_next)
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
     {
       struct plt_entry *local_plt;
       Elf_Internal_Sym *isym;
@@ -3982,7 +3988,7 @@ elf32_s390_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 }
 
 
-#define TARGET_BIG_SYM	bfd_elf32_s390_vec
+#define TARGET_BIG_SYM	s390_elf32_vec
 #define TARGET_BIG_NAME	"elf32-s390"
 #define ELF_ARCH	bfd_arch_s390
 #define ELF_TARGET_ID	S390_ELF_DATA
@@ -4022,6 +4028,7 @@ elf32_s390_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 #define elf_backend_grok_prstatus	      elf_s390_grok_prstatus
 #define elf_backend_plt_sym_val		      elf_s390_plt_sym_val
 #define elf_backend_add_symbol_hook           elf_s390_add_symbol_hook
+#define elf_backend_sort_relocs_p             elf_s390_elf_sort_relocs_p
 
 #define bfd_elf32_mkobject		elf_s390_mkobject
 #define elf_backend_object_p		elf_s390_object_p

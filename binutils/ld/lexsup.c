@@ -1,7 +1,5 @@
 /* Parse options for the GNU linker.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -381,6 +379,8 @@ static const struct ld_option ld_options[] =
     EXACTLY_TWO_DASHES },
   { {"print-output-format", no_argument, NULL, OPTION_PRINT_OUTPUT_FORMAT},
     '\0', NULL, N_("Print default output format"), TWO_DASHES },
+  { {"print-sysroot", no_argument, NULL, OPTION_PRINT_SYSROOT},
+    '\0', NULL, N_("Print current sysroot"), TWO_DASHES },
   { {"qmagic", no_argument, NULL, OPTION_IGNORE},
     '\0', NULL, N_("Ignored for Linux compatibility"), ONE_DASH },
   { {"reduce-memory-overheads", no_argument, NULL,
@@ -507,6 +507,12 @@ static const struct ld_option ld_options[] =
     OPTION_IGNORE_UNRESOLVED_SYMBOL},
     '\0', N_("SYMBOL"),
     N_("Unresolved SYMBOL will not cause an error or warning"), TWO_DASHES },
+  { {"push-state", no_argument, NULL, OPTION_PUSH_STATE},
+    '\0', NULL, N_("Push state of flags governing input file handling"),
+    TWO_DASHES },
+  { {"pop-state", no_argument, NULL, OPTION_POP_STATE},
+    '\0', NULL, N_("Pop state of flags governing input file handling"),
+    TWO_DASHES },
 };
 
 #define OPTION_COUNT ARRAY_SIZE (ld_options)
@@ -956,6 +962,11 @@ parse_args (unsigned argc, char **argv)
 	case OPTION_OFORMAT:
 	  lang_add_output_format (optarg, NULL, NULL, 0);
 	  break;
+	case OPTION_PRINT_SYSROOT:
+	  if (*ld_sysroot)
+	    puts (ld_sysroot);
+	  xexit (0);
+	  break;
 	case OPTION_PRINT_OUTPUT_FORMAT:
 	  command_line.print_output_format = TRUE;
 	  break;
@@ -1109,7 +1120,11 @@ parse_args (unsigned argc, char **argv)
 	  break;
 	case 'h':		/* Used on Solaris.  */
 	case OPTION_SONAME:
-	  command_line.soname = optarg;
+	  if (optarg[0] == '\0' && command_line.soname
+	      && command_line.soname[0])
+	    einfo (_("%P: SONAME must not be empty string; keeping previous one\n"));
+	  else
+	    command_line.soname = optarg;
 	  break;
 	case OPTION_SORT_COMMON:
 	  if (optarg == NULL
@@ -1442,7 +1457,30 @@ parse_args (unsigned argc, char **argv)
               einfo (_("%P%X: --hash-size needs a numeric argument\n"));
           }
           break;
+
+	case OPTION_PUSH_STATE:
+	  input_flags.pushed = xmemdup (&input_flags,
+					sizeof (input_flags),
+					sizeof (input_flags));
+	  break;
+
+	case OPTION_POP_STATE:
+	  if (input_flags.pushed == NULL)
+	    einfo (_("%P%F: no state pushed before popping\n"));
+	  else
+	    {
+	      struct lang_input_statement_flags *oldp = input_flags.pushed;
+	      memcpy (&input_flags, oldp, sizeof (input_flags));
+	      free (oldp);
+	    }
+	  break;
 	}
+    }
+
+  if (command_line.soname && command_line.soname[0] == '\0')
+    {
+      einfo (_("%P: SONAME must not be empty string; ignored\n"));
+      command_line.soname = NULL;
     }
 
   while (ingroup)

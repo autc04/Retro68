@@ -1,7 +1,5 @@
 /* expr.c -operands, expressions-
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2011,
-   2012 Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -29,7 +27,6 @@
 
 #include "as.h"
 #include "safe-ctype.h"
-#include "obstack.h"
 
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
@@ -1024,7 +1021,8 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	    /* input_line_pointer -> char after operand.  */
 	    if (c == '-')
 	      {
-		expressionP->X_add_number = - expressionP->X_add_number;
+		expressionP->X_add_number
+		  = - (addressT) expressionP->X_add_number;
 		/* Notice: '-' may overflow: no warning is given.
 		   This is compatible with other people's
 		   assemblers.  Sigh.  */

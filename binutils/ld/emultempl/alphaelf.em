@@ -1,6 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2003, 2004, 2005, 2007, 2008, 2009
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -73,6 +72,7 @@ alpha_after_open (void)
 static void
 alpha_after_parse (void)
 {
+  link_info.relax_pass = 2;
   if (limit_32bit && !link_info.shared && !link_info.relocatable)
     lang_section_start (".interp",
 			exp_binop ('+',

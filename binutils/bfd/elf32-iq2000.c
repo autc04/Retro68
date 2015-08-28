@@ -1,6 +1,5 @@
 /* IQ2000-specific support for 32-bit ELF.
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -35,11 +34,11 @@ static reloc_howto_type iq2000_elf_howto_table [] =
 
   HOWTO (R_IQ2000_NONE,		     /* type */
 	 0,			     /* rightshift */
-	 2,			     /* size (0 = byte, 1 = short, 2 = long) */
-	 32,			     /* bitsize */
+	 3,			     /* size (0 = byte, 1 = short, 2 = long) */
+	 0,			     /* bitsize */
 	 FALSE,			     /* pc_relative */
 	 0,			     /* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont,     /* complain_on_overflow */
 	 bfd_elf_generic_reloc,	     /* special_function */
 	 "R_IQ2000_NONE",	     /* name */
 	 FALSE,			     /* partial_inplace */
@@ -436,6 +435,11 @@ iq2000_info_to_howto_rela (bfd * abfd ATTRIBUTE_UNUSED,
       break;
 
     default:
+      if (r_type >= (unsigned int) R_IQ2000_max)
+	{
+	  _bfd_error_handler (_("%B: invalid IQ2000 reloc number: %d"), abfd, r_type);
+	  r_type = 0;
+	}
       cache_ptr->howto = & iq2000_elf_howto_table [r_type];
       break;
     }
@@ -627,12 +631,12 @@ iq2000_elf_relocate_section (bfd *		     output_bfd ATTRIBUTE_UNUSED,
       else
 	{
 	  bfd_boolean unresolved_reloc;
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 
 	  name = h->root.root.string;
 	}
@@ -760,27 +764,6 @@ iq2000_elf_set_private_flags (bfd *abfd, flagword flags)
 {
   elf_elfheader (abfd)->e_flags = flags;
   elf_flags_init (abfd) = TRUE;
-  return TRUE;
-}
-
-/* Copy backend specific data from one object module to another.  */
-
-static bfd_boolean
-iq2000_elf_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
-{
-  if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
-      || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
-    return TRUE;
-
-  BFD_ASSERT (!elf_flags_init (obfd)
-	      || elf_elfheader (obfd)->e_flags == elf_elfheader (ibfd)->e_flags);
-
-  elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
-  elf_flags_init (obfd) = TRUE;
-
-  /* Copy object attributes.  */
-  _bfd_elf_copy_obj_attributes (ibfd, obfd);
-
   return TRUE;
 }
 
@@ -915,7 +898,7 @@ iq2000_elf_object_p (bfd *abfd)
 #define ELF_MACHINE_CODE	EM_IQ2000
 #define ELF_MAXPAGESIZE		0x1000
 
-#define TARGET_BIG_SYM		bfd_elf32_iq2000_vec
+#define TARGET_BIG_SYM		iq2000_elf32_vec
 #define TARGET_BIG_NAME		"elf32-iq2000"
 
 #define elf_info_to_howto_rel			NULL
@@ -931,7 +914,6 @@ iq2000_elf_object_p (bfd *abfd)
 #define bfd_elf32_bfd_reloc_type_lookup		iq2000_reloc_type_lookup
 #define bfd_elf32_bfd_reloc_name_lookup	iq2000_reloc_name_lookup
 #define bfd_elf32_bfd_set_private_flags		iq2000_elf_set_private_flags
-#define bfd_elf32_bfd_copy_private_bfd_data	iq2000_elf_copy_private_bfd_data
 #define bfd_elf32_bfd_merge_private_bfd_data	iq2000_elf_merge_private_bfd_data
 #define bfd_elf32_bfd_print_private_bfd_data	iq2000_elf_print_private_bfd_data
 

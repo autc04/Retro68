@@ -3,7 +3,7 @@
 #readelf: -d -S --wide
 #target: x86_64-*-linux*
 
-There are 9 section headers, starting at offset 0x1d4:
+There are 9 section headers, starting at offset .*:
 
 Section Headers:
   \[Nr\] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al

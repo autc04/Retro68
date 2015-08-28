@@ -1,6 +1,5 @@
 /* tc-tic4x.c -- Assemble for the Texas Instruments TMS320C[34]x.
-   Copyright (C) 1997,1998, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010,
-   2012 Free Software Foundation. Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
    Contributed by Michael P. Hayes (m.hayes@elec.canterbury.ac.nz)
 
@@ -44,7 +43,6 @@
 #include "safe-ctype.h"
 #include "opcode/tic4x.h"
 #include "subsegs.h"
-#include "obstack.h"
 
 /* OK, we accept a syntax similar to the other well known C30
    assembly tools.  With TIC4X_ALT_SYNTAX defined we are more
@@ -82,7 +80,7 @@ static unsigned long tic4x_oplevel = 0;   /* Opcode level */
 #define OPTION_ENHANCED (OPTION_MD_BASE + 7)
 #define OPTION_REV      (OPTION_MD_BASE + 8)
 
-CONST char *md_shortopts = "bm:prs";
+const char *md_shortopts = "bm:prs";
 struct option md_longopts[] =
 {
   { "mcpu",   required_argument, NULL, OPTION_CPU },
@@ -2458,7 +2456,7 @@ md_assemble (char *str)
       if (*s)			/* Null terminate for hash_find.  */
 	*s++ = '\0';		/* and skip past null.  */
       strcat (insn->name, "_");
-      strncat (insn->name, str, TIC4X_NAME_MAX - strlen (insn->name));
+      strncat (insn->name, str, TIC4X_NAME_MAX - 1 - strlen (insn->name));
 
       insn->operands[insn->num_operands++].mode = M_PARALLEL;
 

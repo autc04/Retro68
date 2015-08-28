@@ -1,6 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2006-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -90,9 +89,9 @@ static const struct _ovl_stream icache_mgr_stream = {
 static int
 is_spu_target (void)
 {
-  extern const bfd_target bfd_elf32_spu_vec;
+  extern const bfd_target spu_elf32_vec;
 
-  return link_info.output_bfd->xvec == &bfd_elf32_spu_vec;
+  return link_info.output_bfd->xvec == &spu_elf32_vec;
 }
 
 /* Create our note section.  */
@@ -138,8 +137,9 @@ spu_place_special_section (asection *s, asection *o, const char *output_name)
   lang_output_section_statement_type *os;
 
   if (o != NULL)
-    output_name = o->name;
-  os = lang_output_section_find (output_name);
+    os = lang_output_section_get (o);
+  else
+    os = lang_output_section_find (output_name);
   if (os == NULL)
     {
       os = gld${EMULATION_NAME}_place_orphan (s, output_name, 0);
@@ -447,7 +447,7 @@ EOF
 
 if grep -q 'ld_elf.*ppc.*_emulation' ldemul-list.h; then
   fragment <<EOF
-#include <errno.h>
+#include "safe-ctype.h"
 #include "filenames.h"
 #include "libiberty.h"
 

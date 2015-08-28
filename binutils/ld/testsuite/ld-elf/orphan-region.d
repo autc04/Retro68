@@ -2,7 +2,7 @@
 #ld: -T orphan-region.ld -N -z stack-size=0
 #readelf: -S -l --wide
 #xfail: arc-*-* d30v-*-* dlx-*-* fr30-*-* frv-*-elf i860-*-* i960-*-*
-#xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* or32-*-* pj*-*-*
+#xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* pj*-*-*
 #xfail: spu-*-* hppa*64*-*-* *-*-nacl*
 # if not using elf32.em, you don't get fancy orphan handling
 # spu twiddles LOAD range, hppa64 adds PHDR, nacl splits to two segments

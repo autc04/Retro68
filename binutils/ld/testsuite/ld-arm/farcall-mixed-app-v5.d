@@ -6,15 +6,17 @@ start address 0x.*
 
 Disassembly of section .plt:
 
-.* <.plt>:
+.* <lib_func2@plt-0x14>:
  .*:	e52de004 	push	{lr}		; \(str lr, \[sp, #-4\]!\)
- .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <_start-0x28>
+ .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <lib_func2@plt-0x4>
  .*:	e08fe00e 	add	lr, pc, lr
  .*:	e5bef008 	ldr	pc, \[lr, #8\]!
  .*:	.*
+.* <lib_func2@plt>:
  .*:	e28fc6.* 	add	ip, pc, #.*
  .*:	e28cca.* 	add	ip, ip, #.*	; 0x.*
  .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!.*
+.* <lib_func1@plt>:
  .*:	e28fc6.* 	add	ip, pc, #.*
  .*:	e28cca.* 	add	ip, ip, #.*	; 0x.*
  .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!.*
@@ -25,15 +27,15 @@ Disassembly of section .text:
  .*:	e1a0c00d 	mov	ip, sp
  .*:	e92dd800 	push	{fp, ip, lr, pc}
  .*:	eb000008 	bl	.* <__app_func_veneer>
- .*:	ebfffff5 	bl	.* <_start-0x18>
- .*:	ebfffff1 	bl	.* <_start-0x24>
+ .*:	ebfffff5 	bl	.* <lib_func1@plt>
+ .*:	ebfffff1 	bl	.* <lib_func2@plt>
  .*:	e89d6800 	ldm	sp, {fp, sp, lr}
  .*:	e12fff1e 	bx	lr
  .*:	e1a00000 	nop			; \(mov r0, r0\)
 
 .* <app_tfunc_close>:
  .*:	b500      	push	{lr}
- .*:	f7ff efdc 	blx	.* <_start-0x24>
+ .*:	f7ff efdc 	blx	.* <lib_func2@plt>
  .*:	bd00      	pop	{pc}
  .*:	4770      	bx	lr
  .*:	46c0      	nop			; \(mov r8, r8\)

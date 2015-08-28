@@ -1,6 +1,5 @@
 /* tc-mn10300.c -- Assembler code for the Matsushita 10300
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1014,7 +1013,8 @@ mn10300_check_fixup (struct mn10300_fixup *fixup)
 }
 
 void
-mn10300_cons_fix_new (fragS *frag, int off, int size, expressionS *exp)
+mn10300_cons_fix_new (fragS *frag, int off, int size, expressionS *exp,
+		      bfd_reloc_code_real_type r ATTRIBUTE_UNUSED)
 {
   struct mn10300_fixup fixup;
 

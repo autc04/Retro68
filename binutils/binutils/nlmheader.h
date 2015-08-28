@@ -118,7 +118,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 113 "nlmheader.y"
+#line 112 "nlmheader.y"
 {
   char *string;
   struct string_list *list;

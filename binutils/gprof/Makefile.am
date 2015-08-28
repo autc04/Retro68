@@ -1,6 +1,6 @@
 ## Process this file with automake to generate Makefile.in
 #
-#   Copyright 2012 Free Software Foundation
+#   Copyright (C) 2012-2014 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,17 +58,16 @@ EXTRA_DIST    = $(BUILT_SOURCES) bbconv.pl $(man_MANS)
 
 diststuff: $(BUILT_SOURCES) info $(man_MANS)
 
-# We extract version from bfd/configure.in, make sure to rerun configure
-# when BFD's version changes.
-CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/configure.in
+# development.sh is used to determine -Werror default.
+CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/development.sh
 
 # This empty rule is a hack against gmake patched by Apple.
 %.o:%.m
 
 .m.c:
-	awk -f $(srcdir)/gen-c-prog.awk > ./$*.c \
+	awk -f $(srcdir)/gen-c-prog.awk > $@ \
 	    FUNCTION=`(echo $*|sed -e 's,.*/,,g' -e 's/_bl//')`_blurb \
-	    FILE=$*.m $(srcdir)/$*.m
+	    FILE=$*.m $<
 
 POTFILES = $(sources) $(noinst_HEADERS)
 po/POTFILES.in: @MAINT@ Makefile

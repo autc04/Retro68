@@ -1,5 +1,5 @@
 /* moxie-opc.c -- Definitions for moxie opcodes.
-   Copyright 2009 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
    Contributed by Anthony Green (green@moxielogic.com).
 
    This file is part of the GNU opcodes library.
@@ -68,8 +68,8 @@ const moxie_opc_info_t moxie_form1_opc_info[128] =
     { 0x0d, MOXIE_F1_AiB4, "sto.l" },
     { 0x0e, MOXIE_F1_AB,   "cmp" },
     { 0x0f, MOXIE_F1_NARG, "nop" },
-    { 0x10, MOXIE_BAD,     "bad" },
-    { 0x11, MOXIE_BAD,     "bad" },
+    { 0x10, MOXIE_F1_AB,   "sex.b" },
+    { 0x11, MOXIE_F1_AB,   "sex.s" },
     { 0x12, MOXIE_BAD,     "bad" },
     { 0x13, MOXIE_BAD,     "bad" },
     { 0x14, MOXIE_BAD,     "bad" },

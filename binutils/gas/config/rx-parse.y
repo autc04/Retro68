@@ -1,5 +1,5 @@
 /* rx-parse.y  Renesas RX parser
-   Copyright 2008-2013 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -636,13 +636,13 @@ statement :
 	| BNOT REG ',' REG
 	  { id24 (1, 0x6f, 0x00); F ($4, 16, 4); F ($2, 20, 4); }
 
-	| BSET REG ',' disp '[' REG ']' DOT_B
+	| BSET REG ',' disp '[' REG ']' opt_b
 	  { id24 (1, 0x60, 0x00); F ($6, 16, 4); F ($2, 20, 4); DSP ($4, 14, BSIZE); }
-	| BCLR REG ',' disp '[' REG ']' DOT_B
+	| BCLR REG ',' disp '[' REG ']' opt_b
 	  { id24 (1, 0x64, 0x00); F ($6, 16, 4); F ($2, 20, 4); DSP ($4, 14, BSIZE); }
-	| BTST REG ',' disp '[' REG ']' DOT_B
+	| BTST REG ',' disp '[' REG ']' opt_b
 	  { id24 (1, 0x68, 0x00); F ($6, 16, 4); F ($2, 20, 4); DSP ($4, 14, BSIZE); }
-	| BNOT REG ',' disp '[' REG ']' DOT_B
+	| BNOT REG ',' disp '[' REG ']' opt_b
 	  { id24 (1, 0x6c, 0x00); F ($6, 16, 4); F ($2, 20, 4); DSP ($4, 14, BSIZE); }
 
 /* ---------------------------------------------------------------------- */
@@ -664,13 +664,13 @@ statement :
 
 /* ---------------------------------------------------------------------- */
 
-	| BMCND '#' EXPR ',' disp '[' REG ']' DOT_B
+	| BMCND '#' EXPR ',' disp '[' REG ']' opt_b
 	  { id24 (1, 0xe0, 0x00); F ($1, 20, 4); FE ($3, 11, 3);
 	      F ($7, 16, 4); DSP ($5, 14, BSIZE); }
 
 /* ---------------------------------------------------------------------- */
 
-	| BNOT '#' EXPR ',' disp '[' REG ']' DOT_B
+	| BNOT '#' EXPR ',' disp '[' REG ']' opt_b
 	  { id24 (1, 0xe0, 0x0f); FE ($3, 11, 3); F ($7, 16, 4);
 	      DSP ($5, 14, BSIZE); }
 
@@ -928,6 +928,10 @@ bw	:       { $$ = 1; }
 
 opt_l	: 	{}
 	| DOT_L {}
+	;
+
+opt_b	: 	{}
+	| DOT_B {}
 	;
 
 %%

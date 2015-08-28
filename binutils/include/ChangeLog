@@ -1,3 +1,158 @@
+2015-02-11  Alan Modra  <amodra@gmail.com>
+
+	Apply from master.
+	2014-12-23  Alan Modra  <amodra@gmail.com>
+	* bfdlink.h (struct bfd_link_hash_entry): Comment non_ir_ref.  Add
+	linker_def.
+
+	2014-11-24  Mark Wielaard  <mjw@redhat.com>
+	* dwarf2.h: Add DW_LANG_C_plus_plus_11, DW_LANG_C11 and
+	DW_LANG_C_plus_plus_14.
+
+2014-11-18  Igor Zamyatin  <igor.zamyatin@intel.com>
+
+	* bfdlink.h (struct bfd_link_info): Add bndplt.
+
+2014-10-28  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	Apply trunk patches
+	2014-10-22  Matthew Fortune  <matthew.fortune@imgtec.com>
+	* elf/mips.h (AFL_ASE_MASK): Define.
+
+2014-09-26  Max Ostapenko  <m.ostapenko@partner.samsung.com>
+
+	* libiberty.h (PEX_STDOUT_APPEND): New flag.
+	(PEX_STDERR_APPEND): Likewise.
+
+2014-09-23  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	* demangle.h (DMGL_DLANG): New macro.
+	(DMGL_STYLE_MASK): Add DMGL_DLANG.
+	(demangling_styles): Add dlang_demangling.
+	(DLANG_DEMANGLING_STYLE_STRING): New macro.
+	(DLANG_DEMANGLING): New macro.
+	(dlang_demangle): New prototype.
+
+2014-09-15  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* longlong.h: Add __udiv_w_sdiv prototype.
+
+2014-08-12  Alan Modra  <amodra@gmail.com>
+
+	* bfdlink.h (struct bfd_link_callbacks <notice>): Remove "string"
+	param, add "inh".
+
+2014-08-12  Alan Modra  <amodra@gmail.com>
+
+	* bfdlink.h (struct bfd_link_info): Add lto_plugin_active.
+
+2014-07-29  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* elf/mips.h (PT_MIPS_ABIFLAGS, SHT_MIPS_ABIFLAGS): Define.
+	(Val_GNU_MIPS_ABI_FP_OLD_64): Rename from Val_GNU_MIPS_ABI_FP_64.
+	(Val_GNU_MIPS_ABI_FP_64): Redefine.
+	(Val_GNU_MIPS_ABI_FP_XX): Define.
+	(Elf_External_ABIFlags_v0, Elf_Internal_ABIFlags_v0): New structures.
+	(AFL_REG_NONE, AFL_REG_32, AFL_REG_64, AFL_REG_128): Define.
+	(AFL_ASE_DSP, AFL_ASE_DSPR2, AFL_ASE_EVA, AFL_ASE_MCU): Likewise.
+	(AFL_ASE_MDMX, AFL_ASE_MIPS3D, AFL_ASE_MT, AFL_ASE_SMARTMIPS): Likewise.
+	(AFL_ASE_VIRT, AFL_ASE_MSA, AFL_ASE_MIPS16): Likewise.
+	(AFL_ASE_MICROMIPS, AFL_ASE_XPA): Likewise.
+	(AFL_EXT_XLR, AFL_EXT_OCTEON2, AFL_EXT_OCTEONP): Likewise.
+	(AFL_EXT_LOONGSON_3A, AFL_EXT_OCTEON, AFL_EXT_5900): Likewise.
+	(AFL_EXT_4650, AFL_EXT_4010, AFL_EXT_4100, AFL_EXT_3900): Likewise.
+	(AFL_EXT_10000, AFL_EXT_SB1, AFL_EXT_4111, AFL_EXT_4120): Likewise.
+	(AFL_EXT_5400, AFL_EXT_5500, AFL_EXT_LOONGSON_2E): Likewise.
+	(AFL_EXT_LOONGSON_2F): Likewise.
+	(bfd_mips_elf_swap_abiflags_v0_in): Prototype.
+	(bfd_mips_elf_swap_abiflags_v0_out): Likewise.
+	(bfd_mips_isa_ext): Likewise.
+
+2014-06-13  Alan Modra  <amodra@gmail.com>
+
+	* bfdlink.h (struct bfd_link_hash_table): Add hash_table_free field.
+
+2014-06-13  Alan Modra  <amodra@gmail.com>
+
+	* bfdlink.h: Update for bfd.link_next change.
+
+2014-06-10  Alan Modra  <amodra@gmail.com>
+
+	PR ld/16910
+	* bfdlink.h (unwrap_hash_lookup): Declare.
+
+2014-05-01  Steve Ellcey  <sellcey@mips.com>
+
+	* include/longlong.h: Import latest version from GCC tree.
+
+2014-04-23  Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* opcode/mips.h (ASE_XPA): New define.
+
+2014-04-22  Christian Svensson  <blue@cmd.nu>
+
+	* dis-asm.h: Remove openrisc and or32 support.  Add support for or1k.
+
+2014-04-10  Senthil Kumar Selvaraj  <senthil_kumar.selvaraj@atmel.com>
+
+	* elf/avr.h: Add new DIFF relocs.
+
+2014-03-05  Alan Modra  <amodra@gmail.com>
+
+	Update copyright years.
+
+2014-01-21  Tom Tromey  <tromey@redhat.com>
+
+	* ansidecl.h (ANSI_PROTOTYPES, PTRCONST, LONG_DOUBLE, PARAMS)
+	(VPARAMS, VA_START, VA_OPEN, VA_CLOSE, VA_FIXEDARG, CONST)
+	(VOLATILE, SIGNED, PROTO, EXFUN, DEFUN, DEFUN_VOID, AND, DOTS)
+	(NOARGS): Don't define.
+	* libiberty.h (expandargv, writeargv): Don't use PARAMS.
+
+2014-01-09  Tom Tromey  <tromey@redhat.com>
+
+	* gdbm.h: Remove.
+
+2013-12-23  Bill Maddox  <maddox@google.com>
+
+	* demangle.h (enum gnu_v3_ctor_kinds):
+	Added literal gnu_v3_unified_ctor.
+	(enum gnu_v3_ctor_kinds):
+	Added literal gnu_v3_unified_dtor.
+
+2013-12-13  Kuan-Lin Chen  <kuanlinchentw@gmail.com>
+	    Wei-Cheng Wang  <cole945@gmail.com>
+
+	* dis-asm.h (print_insn_nds32): Add nds32 target.
+
+2013-12-04  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* longlong.h: New file.
+
+2013-11-11  Catherine Moore  <clm@codesourcery.com>
+
+	* opcode/mips.h (INSN_LOAD_MEMORY_DELAY): Rename to...
+	(INSN_LOAD_MEMORY): ...this.
+
+2013-10-29  Marc Glisse  <marc.glisse@inria.fr>
+
+	PR tree-optimization/58689
+	* ansidecl.h (ATTRIBUTE_RETURNS_NONNULL): New macro.
+	* libiberty.h (basename, lbasename, dos_lbasename, unix_lbasename,
+	concat_copy): Mark with attributes nonnull(1) and returns_nonnull.
+	(concat, reconcat, concat_copy2, choose_temp_base, xstrerror,
+	xmalloc, xrealloc, xcalloc, xstrdup, xstrndup, xmemdup, pex_init):
+	Mark with attribute returns_nonnull.
+
+2013-10-22  Sterling Augustine  <saugustine@google.com>
+
+	* gdb/gdb-index.h: Merge from gdb tree.
+
+2013-10-10  Sean Keys <skeys@ipdatasys.com>
+
+	* xgate.h : Cleanup after opcode
+        table modification..
+
 2013-08-20  Alan Modra  <amodra@gmail.com>
 
 	* floatformat.h (floatformat_ibm_long_double): Delete.
@@ -116,8 +271,8 @@
 	* demangle.h (enum demangle_component_type): Add
 	DEMANGLE_COMPONENT_TAGGED_NAME.
 
-2012-10-29  Sterling Augustine <saugustine@google.com>
-            Cary Coutant <ccoutant@google.com>
+2012-10-29  Sterling Augustine  <saugustine@google.com>
+            Cary Coutant  <ccoutant@google.com>
 
 	* dwarf2.h (dwarf_location_list_entry_type): New enum with fields
 	DW_LLE_GNU_end_of_list_entry, DW_LLE_GNU_base_address_selection_entry,
@@ -633,7 +788,7 @@
 	Apply LD plugin patch series (part 1/6).
 	* plugin-api.h (LDPT_GNU_LD_VERSION): New ld_plugin_tag enum member.
 
-2010-10-06  Andi Kleen <ak@linux.intel.com>
+2010-10-06  Andi Kleen  <ak@linux.intel.com>
 
 	* libiberty.h (setproctitle): Add prototype.
 

@@ -1,6 +1,5 @@
 /* BFD back-end for HP/Intel IA-64 COFF files.
-   Copyright 1999, 2000, 2001, 2002, 2005, 2007, 2008, 2009, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by David Mosberger <davidm@hpl.hp.com>
 
    This file is part of BFD, the Binary File Descriptor library.

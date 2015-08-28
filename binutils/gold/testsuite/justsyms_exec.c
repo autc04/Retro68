@@ -1,6 +1,6 @@
 // justsyms_exec.c -- test --just-symbols for gold
 
-// Copyright 2011 Free Software Foundation, Inc.
+// Copyright (C) 2011-2014 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.

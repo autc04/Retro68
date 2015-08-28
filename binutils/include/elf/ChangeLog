@@ -1,29 +1,108 @@
+2015-07-10  Alan Modra  <amodra@gmail.com>
+
+	Apply from master
+	2015-04-24  Alan Modra  <amodra@gmail.com>
+	* internal.h (ELF_SECTION_IN_SEGMENT_1): Ensure PT_LOAD and
+	similar segments only contain alloc sections.
+
+2014-10-09  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* sparc.h (Tag_GNU_Sparc_HWCAPS2): New object attribute.
+	(ELF_SPARC_HWCAP2_FJATHPLUS): New HWCAP2 bitmask value.
+	(ELF_SPARC_HWCAP2_VIS3B): Likewise.
+	(ELF_SPARC_HWCAP2_ADP): Likewise.
+	(ELF_SPARC_HWCAP2_SPARC5): Likewise.
+	(ELF_SPARC_HWCAP2_MWAIT): Likewise.
+	(ELF_SPARC_HWCAP2_XMPMUL): Likewise.
+	(ELF_SPARC_HWCAP2_XMONT): Likewise.
+	(ELF_SPARC_HWCAP2_NSEC): Likewise.
+	(ELF_SPARC_HWCAP2_FJATHHPC): Likewise.
+	(ELF_SPARC_HWCAP2_FJDES): Likewise.
+	(ELF_SPARC_HWCAP2_FJAES): Likewise.
+
+2014-10-08  Will Newton  <will.newton@linaro.org>
+
+	* aarch64.h: Sync up relocations with ABI release 1.0.
+
+2014-09-16  Kuan-Lin Chen  <kuanlinchentw@gmail.com>
+
+	* nds32.h: Declare new relocations.
+
+2014-09-15  Andrew Bennett  <andrew.bennett@imgtec.com>
+	    Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* mips.h: Add relocs: R_MIPS_PC21_S2, R_MIPS_PC26_S2, R_MIPS_PC18_S3,
+	R_MIPS_PC19_S2, R_MIPS_PCHI16 and R_MIPS_PCLO16.
+	(E_MIPS_ARCH_32R6): New define.
+	(E_MIPS_ARCH_64R6): New define.
+
+2014-08-26  DJ Delorie  <dj@redhat.com>
+
+	* rl78.h (RL78_RELAXA_MASK): New.  Relax types are enums, not bits
+
+2014-07-07  Barney Stratford  <barney_stratford@fastmail.fm>
+
+	* avr.h: Add R_AVR_PORT5 and R_AVR_PORT6.
+
+2014-07-01  Barney Stratford   <barney_stratford@fastmail.fm>
+            Senthil Kumar Selvaraj  <senthil_kumar.selvaraj@atmel.com>
+            Pitchumani Sivanupandi  <pitchumani.s@atmel.com>
+            Soundararajan  <Sounderarajan.D@atmel.com>
+
+	* avr.h (E_AVR_MACH_AVRTINY): Define avrtiny machine number.
+	(R_AVR_LDS_STS_16): Define 16 bit lds/sts reloc number.
+	* include/opcode/avr.h (AVR_ISA_TINY): Define avrtiny specific ISA.
+	(AVR_ISA_2xxxa): Define ISA without LPM.
+	(AVR_ISA_AVRTINY): Define avrtiny arch ISA.
+	Add doc for contraint used in 16 bit lds/sts.
+	Adjust ISA group for icall, ijmp, pop and push.
+	Add 16 bit lds/sts encoding and update 32 bit lds/sts constraints.
+
+2014-04-22  Christian Svensson  <blue@cmd.nu>
+
+	* common.h: Remove openrisc and or32 support.  Add support for or1k.
+	* or1k.h: New file.
+	* openrisc.h: Delete.
+	* or32.h: Delete.
+
+2014-03-05  Alan Modra  <amodra@gmail.com>
+
+	Update copyright years.
+
+2014-03-05  Alan Modra  <amodra@gmail.com>
+
+	* ppc64.h (R_PPC64_REL24_NOTOC, R_PPC64_ADDR64_LOCAL): Define.
+
+2014-02-06  Andrew Pinski  <apinski@cavium.com>
+
+	* mips.h (E_MIPS_MACH_OCTEON3): New machine flag.
+
+2014-02-03  Sandra Loosemore  <sandra@codesourcery.com>
+
+	* nios2.h (R_NIOS2_GOT_LO, R_NIOS2_GOT_HA): New.
+	(R_NIOS2_CALL_LO, R_NIOS2_CALL_HA): New.
+	(R_NIOS2_ILLEGAL): Adjust.
+
+2014-01-30  Sandra Loosemore  <sandra@codesourcery.com>
+
+	* nios2.h (elf_nios2_reloc_type): Add R_NIOS2_CALL26_NOAT.
+
+2014-01-30  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* common.h (AT_HWCAP2): Define.
+
+2013-12-13  Kuan-Lin Chen  <kuanlinchentw@gmail.com>
+	    Wei-Cheng Wang  <cole945@gmail.com>
+
+	* nds32.h: New file for Andes NDS32.
+
+2013-12-07  Mike Frysinger  <vapier@gentoo.org>
+
+	* epiphany.h: Remove +x file mode.
+
 2013-11-17  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* x86-64.h: Add R_X86_64_PC32_BND and R_X86_64_PLT32_BND.
-
-2013-11-15  Alan Modra  <amodra@gmail.com>
-
-	Apply changes from mainline to 2.24
-	2013-10-30  Alan Modra  <amodra@gmail.com>
-	* ppc.h (DT_PPC_TLSOPT): Delete.
-	(DT_PPC_OPT, PPC_OPT_TLS): Define.
-	* ppc64.h (DT_PPC64_TLSOPT): Delete.
-	(DT_PPC64_OPT, PPC64_OPT_TLS, PPC64_OPT_MULTI_TOC): Define.
-
-	2013-10-30  Alan Modra  <amodra@gmail.com>
-	* ppc64.h (STO_PPC64_LOCAL_BIT, STO_PPC64_LOCAL_MASK): Define.
-	(ppc64_decode_local_entry, ppc64_encode_local_entry): New functions.
-	(PPC64_LOCAL_ENTRY_OFFSET, PPC64_SET_LOCAL_ENTRY_OFFSET): Define.
-
-	2013-10-30  Alan Modra  <amodra@gmail.com>
-	* ppc64.h (EF_PPC64_ABI): Define.
-
-	2013-10-30  Alan Modra  <amodra@gmail.com>
-	* ppc64.h (R_PPC64_ADDR16_HIGH, R_PPC64_ADDR16_HIGHA,
-	R_PPC64_TPREL16_HIGH, R_PPC64_TPREL16_HIGHA,
-	R_PPC64_DTPREL16_HIGH, R_PPC64_DTPREL16_HIGHA): New.
-	(IS_PPC64_TLS_RELOC): Match new tls relocs.
 
 2013-11-13  Yufeng Zhang  <yufeng.zhang@arm.com>
 
@@ -31,6 +110,35 @@
 	R_AARCH64_TLS_DTPREL64 and R_AARCH64_TLS_TPREL64; guard
 	R_AARCH64_TLS_DTPMOD, R_AARCH64_TLS_DTPREL and
 	R_AARCH64_TLS_TPREL with RELOC_MACROS_GEN_FUNC.
+
+2013-10-30  Alan Modra  <amodra@gmail.com>
+
+	* ppc.h (DT_PPC_TLSOPT): Delete.
+	(DT_PPC_OPT, PPC_OPT_TLS): Define.
+	* ppc64.h (DT_PPC64_TLSOPT): Delete.
+	(DT_PPC64_OPT, PPC64_OPT_TLS, PPC64_OPT_MULTI_TOC): Define.
+
+2013-10-30  Alan Modra  <amodra@gmail.com>
+
+	* ppc64.h (STO_PPC64_LOCAL_BIT, STO_PPC64_LOCAL_MASK): Define.
+	(ppc64_decode_local_entry, ppc64_encode_local_entry): New functions.
+	(PPC64_LOCAL_ENTRY_OFFSET, PPC64_SET_LOCAL_ENTRY_OFFSET): Define.
+
+2013-10-30  Alan Modra  <amodra@gmail.com>
+
+	* ppc64.h (EF_PPC64_ABI): Define.
+
+2013-10-30  Alan Modra  <amodra@gmail.com>
+
+	* ppc64.h (R_PPC64_ADDR16_HIGH, R_PPC64_ADDR16_HIGHA,
+	R_PPC64_TPREL16_HIGH, R_PPC64_TPREL16_HIGHA,
+	R_PPC64_DTPREL16_HIGH, R_PPC64_DTPREL16_HIGHA): New.
+	(IS_PPC64_TLS_RELOC): Match new tls relocs.
+
+2013-10-14  Chao-ying Fu  <Chao-ying.Fu@imgtec.com>
+
+	* mips.h (enum): Add Tag_GNU_MIPS_ABI_MSA.
+	(enum): Add Val_GNU_MIPS_ABI_MSA_ANY and Val_GNU_MIPS_ABI_MSA_128.
 
 2013-09-17  Doug Gilmore  <Doug.Gilmore@imgtec.com>
 
@@ -1907,7 +2015,7 @@
 
 For older changes see ChangeLog-9103
 
-Copyright (C) 2004-2012 Free Software Foundation, Inc.
+Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

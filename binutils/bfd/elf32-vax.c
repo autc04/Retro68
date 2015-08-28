@@ -1,7 +1,5 @@
 /* VAX series support for 32-bit ELF
-   Copyright 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
    Contributed by Matt Thomas <matt@3am-software.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -58,7 +56,7 @@ static bfd_boolean elf32_vax_print_private_bfd_data (bfd *, void *);
 static reloc_howto_type howto_table[] = {
   HOWTO (R_VAX_NONE,		/* type */
 	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
 	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
@@ -282,11 +280,19 @@ static reloc_howto_type howto_table[] = {
 };
 
 static void
-rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED, arelent *cache_ptr,
-		Elf_Internal_Rela *dst)
+rtype_to_howto (bfd *abfd, arelent *cache_ptr, Elf_Internal_Rela *dst)
 {
-  BFD_ASSERT (ELF32_R_TYPE(dst->r_info) < (unsigned int) R_VAX_max);
-  cache_ptr->howto = &howto_table[ELF32_R_TYPE(dst->r_info)];
+  unsigned int r_type;
+
+  r_type = ELF32_R_TYPE (dst->r_info);
+  if (r_type >= R_VAX_max)
+    {
+      (*_bfd_error_handler) (_("%B: unrecognised VAX reloc number: %d"),
+			     abfd, r_type);
+      bfd_set_error (bfd_error_bad_value);
+      r_type = R_VAX_NONE;
+    }
+  cache_ptr->howto = &howto_table[r_type];
 }
 
 #define elf_info_to_howto rtype_to_howto
@@ -1045,7 +1051,7 @@ elf_vax_adjust_dynamic_symbol (struct bfd_link_info *info,
       h->needs_copy = 1;
     }
 
-  return _bfd_elf_adjust_dynamic_copy (h, s);
+  return _bfd_elf_adjust_dynamic_copy (info, h, s);
 }
 
 /* This function is called via elf_link_hash_traverse.  It resets GOT
@@ -1223,7 +1229,7 @@ elf_vax_size_dynamic_sections (bfd *output_bfd, struct bfd_link_info *info)
 	continue;
 
       /* Allocate memory for the section contents.  */
-      s->contents = (bfd_byte *) bfd_alloc (dynobj, s->size);
+      s->contents = (bfd_byte *) bfd_zalloc (dynobj, s->size);
       if (s->contents == NULL)
 	return FALSE;
     }
@@ -1408,12 +1414,12 @@ elf_vax_relocate_section (bfd *output_bfd,
       else
 	{
 	  bfd_boolean unresolved_reloc;
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 
 	  if ((h->root.type == bfd_link_hash_defined
 	      || h->root.type == bfd_link_hash_defweak)
@@ -2020,7 +2026,7 @@ elf_vax_plt_sym_val (bfd_vma i, const asection *plt,
   return plt->vma + (i + 1) * PLT_ENTRY_SIZE;
 }
 
-#define TARGET_LITTLE_SYM		bfd_elf32_vax_vec
+#define TARGET_LITTLE_SYM		vax_elf32_vec
 #define TARGET_LITTLE_NAME		"elf32-vax"
 #define ELF_MACHINE_CODE		EM_VAX
 #define ELF_MAXPAGESIZE			0x1000

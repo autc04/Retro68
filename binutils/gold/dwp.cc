@@ -1,6 +1,6 @@
 // dwp.cc -- DWARF packaging utility
 
-// Copyright 2012 Free Software Foundation, Inc.
+// Copyright (C) 2012-2014 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of dwp, the DWARF packaging utility.
@@ -38,6 +38,7 @@
 
 #include "elfcpp.h"
 #include "elfcpp_file.h"
+#include "dwarf.h"
 #include "dirsearch.h"
 #include "fileread.h"
 #include "object.h"
@@ -59,7 +60,44 @@ template <int size, bool big_endian>
 class Sized_relobj_dwo;
 
 // List of .dwo files to process.
-typedef std::vector<std::string> File_list;
+struct Dwo_file_entry
+{
+  Dwo_file_entry(uint64_t id, std::string name)
+    : dwo_id(id), dwo_name(name)
+  { }
+  uint64_t dwo_id;
+  std::string dwo_name;
+};
+typedef std::vector<Dwo_file_entry> File_list;
+
+// Type to hold the offset and length of an input section
+// within an output section.
+
+struct Section_bounds
+{
+  section_offset_type offset;
+  section_size_type size;
+
+  Section_bounds()
+    : offset(0), size(0)
+  { }
+
+  Section_bounds(section_offset_type o, section_size_type s)
+    : offset(o), size(s)
+  { }
+};
+
+// A set of sections for a compilation unit or type unit.
+
+struct Unit_set
+{
+  uint64_t signature;
+  Section_bounds sections[elfcpp::DW_SECT_MAX + 1];
+
+  Unit_set()
+    : signature(0), sections()
+  { }
+};
 
 // An input file.
 // This class may represent a .dwo file, a .dwp file
@@ -71,7 +109,7 @@ class Dwo_file
  public:
   Dwo_file(const char* name)
     : name_(name), obj_(NULL), input_file_(NULL), is_compressed_(),
-      str_offset_map_()
+      sect_offsets_(), str_offset_map_()
   { }
 
   ~Dwo_file();
@@ -84,6 +122,12 @@ class Dwo_file
   // Read the input file and send its contents to OUTPUT_FILE.
   void
   read(Dwp_output_file* output_file);
+
+  // Verify a .dwp file given a list of .dwo files referenced by the
+  // corresponding executable file.  Returns true if no problems
+  // were found.
+  bool
+  verify(const File_list& files);
 
  private:
   // Types for mapping input string offsets to output string offsets.
@@ -133,32 +177,35 @@ class Dwo_file
   section_contents(unsigned int shndx, section_size_type* plen, bool* is_new)
   { return this->obj_->decompressed_section_contents(shndx, plen, is_new); }
 
-  // Read the .debug_cu_index section of a .dwp file,
-  // and process the CU sets.
+  // Read the .debug_cu_index or .debug_tu_index section of a .dwp file,
+  // and process the CU or TU sets.
   void
-  read_compunit_index(unsigned int, Dwp_output_file*);
+  read_unit_index(unsigned int, unsigned int *, Dwp_output_file*,
+		  bool is_tu_index);
 
   template <bool big_endian>
   void
-  sized_read_compunit_index(unsigned int, Dwp_output_file*);
+  sized_read_unit_index(unsigned int, unsigned int *, Dwp_output_file*,
+			bool is_tu_index);
 
-  // Read the .debug_tu_index section of a .dwp file,
-  // and process the TU sets.
-  void
-  read_typeunit_index(unsigned int, Dwp_output_file*);
+  // Verify the .debug_cu_index section of a .dwp file, comparing it
+  // against the list of .dwo files referenced by the corresponding
+  // executable file.
+  bool
+  verify_dwo_list(unsigned int, const File_list& files);
 
   template <bool big_endian>
-  void
-  sized_read_typeunit_index(unsigned int, Dwp_output_file*);
+  bool
+  sized_verify_dwo_list(unsigned int, const File_list& files);
 
   // Merge the input string table section into the output file.
   void
   add_strings(Dwp_output_file*, unsigned int);
 
   // Copy a section from the input file to the output file.
-  unsigned int
+  Section_bounds
   copy_section(Dwp_output_file* output_file, unsigned int shndx,
-	       const char* section_name, bool is_str_offsets);
+	       elfcpp::DW_SECT section_id);
 
   // Remap the string offsets in the .debug_str_offsets.dwo section.
   const unsigned char*
@@ -173,26 +220,11 @@ class Dwo_file
   unsigned int
   remap_str_offset(section_offset_type val);
 
-  // Add a set of .debug_info and related sections to OUTPUT_FILE.
+  // Add a set of .debug_info.dwo or .debug_types.dwo and related sections
+  // to OUTPUT_FILE.
   void
-  add_cu_set(Dwp_output_file* output_file,
-	     uint64_t dwo_id,
-	     unsigned int debug_info,
-	     unsigned int debug_abbrev,
-	     unsigned int debug_line,
-	     unsigned int debug_loc,
-	     unsigned int debug_str_offsets,
-	     unsigned int debug_macinfo,
-	     unsigned int debug_macro);
-
-  // Add a set of .debug_types and related sections to OUTPUT_FILE.
-  void
-  add_tu_set(Dwp_output_file* output_file,
-	     uint64_t type_sig,
-	     unsigned int debug_types,
-	     unsigned int debug_abbrev,
-	     unsigned int debug_line,
-	     unsigned int debug_str_offsets);
+  add_unit_set(Dwp_output_file* output_file, unsigned int *debug_shndx,
+	       bool is_debug_types);
 
   // The filename.
   const char* name_;
@@ -202,8 +234,8 @@ class Dwo_file
   Input_file* input_file_;
   // Flags indicating which sections are compressed.
   std::vector<bool> is_compressed_;
-  // Map input section index onto output section index.
-  std::vector<unsigned int> shndx_map_;
+  // Map input section index onto output section offset and size.
+  std::vector<Section_bounds> sect_offsets_;
   // Map input string offsets to output string offsets.
   Str_offset_map str_offset_map_;
 };
@@ -240,7 +272,7 @@ class Sized_relobj_dwo : public Sized_relobj<size, big_endian>
 
   // Get the name of a section.
   std::string
-  do_section_name(unsigned int shndx)
+  do_section_name(unsigned int shndx) const
   { return this->elf_file_.section_name(shndx); }
 
   // Get the size of a section.
@@ -426,10 +458,11 @@ class Dwp_output_file
   Dwp_output_file(const char* name)
     : name_(name), machine_(0), size_(0), big_endian_(false), osabi_(0),
       abiversion_(0), fd_(NULL), next_file_offset_(0), shnum_(1), sections_(),
-      shoff_(0), shstrndx_(0), have_strings_(false), stringpool_(),
-      shstrtab_(), cu_index_(), tu_index_(), last_type_sig_(0),
+      section_id_map_(), shoff_(0), shstrndx_(0), have_strings_(false),
+      stringpool_(), shstrtab_(), cu_index_(), tu_index_(), last_type_sig_(0),
       last_tu_slot_(0)
   {
+    this->section_id_map_.resize(elfcpp::DW_SECT_MAX + 1);
     this->stringpool_.set_no_zero_null();
   }
 
@@ -442,17 +475,14 @@ class Dwp_output_file
   section_offset_type
   add_string(const char* str, size_t len);
 
-  // Add a section to the output file, and return the new section index.
-  unsigned int
-  add_section(const char* section_name, const unsigned char* contents,
-	      section_size_type len, int align);
+  // Add a section to the output file, and return the new section offset.
+  section_offset_type
+  add_contribution(elfcpp::DW_SECT section_id, const unsigned char* contents,
+		   section_size_type len, int align);
 
   // Add a set of .debug_info and related sections to the output file.
   void
-  add_cu_set(uint64_t dwo_id, unsigned int debug_info,
-	     unsigned int debug_abbrev, unsigned int debug_line,
-	     unsigned int debug_loc, unsigned int debug_str_offsets,
-	     unsigned int debug_macinfo, unsigned int debug_macro);
+  add_cu_set(Unit_set* cu_set);
 
   // Lookup a type signature and return TRUE if we have already seen it.
   bool
@@ -460,9 +490,7 @@ class Dwp_output_file
 
   // Add a set of .debug_types and related sections to the output file.
   void
-  add_tu_set(uint64_t type_sig, unsigned int debug_types,
-	     unsigned int debug_abbrev, unsigned int debug_line,
-	     unsigned int debug_str_offsets);
+  add_tu_set(Unit_set* tu_set);
 
   // Finalize the file, write the string tables and index sections,
   // and close the file.
@@ -470,6 +498,14 @@ class Dwp_output_file
   finalize();
 
  private:
+  // Contributions to output sections.
+  struct Contribution
+  {
+    section_offset_type output_offset;
+    section_size_type size;
+    const unsigned char* contents;
+  };
+
   // Sections in the output file.
   struct Section
   {
@@ -477,30 +513,23 @@ class Dwp_output_file
     off_t offset;
     section_size_type size;
     int align;
-  };
+    std::vector<Contribution> contributions;
 
-  // A set of sections for a compilation unit or type unit.
-  struct Cu_or_tu_set
-  {
-    uint64_t signature;
-    unsigned int debug_info_or_types;
-    unsigned int debug_abbrev;
-    unsigned int debug_line;
-    unsigned int debug_loc;
-    unsigned int debug_str_offsets;
-    unsigned int debug_macinfo;
-    unsigned int debug_macro;
+    Section(const char* n, int a)
+      : name(n), offset(0), size(0), align(a), contributions()
+    { }
   };
 
   // The index sections defined by the DWARF Package File Format spec.
   class Dwp_index
   {
    public:
-    // Vector for the section index pool.
-    typedef std::vector<unsigned int> Shndx_pool;
+    // Vector for the section table.
+    typedef std::vector<const Unit_set*> Section_table;
 
     Dwp_index()
-      : capacity_(0), used_(0), hash_table_(NULL), shndx_pool_()
+      : capacity_(0), used_(0), hash_table_(NULL), section_table_(),
+        section_mask_(0)
     { }
 
     ~Dwp_index()
@@ -513,7 +542,7 @@ class Dwp_output_file
 
     // Enter a CU or TU set at the given SLOT in the hash table.
     void
-    enter_set(unsigned int slot, const Cu_or_tu_set& set);
+    enter_set(unsigned int slot, const Unit_set* set);
 
     // Return the contents of the given SLOT in the hash table of signatures.
     uint64_t
@@ -537,18 +566,24 @@ class Dwp_output_file
     { return this->used_; }
 
     // Return an iterator into the shndx pool.
-    Shndx_pool::const_iterator
-    shndx_pool() const
-    { return this->shndx_pool_.begin(); }
+    Section_table::const_iterator
+    section_table() const
+    { return this->section_table_.begin(); }
 
-    Shndx_pool::const_iterator
-    shndx_pool_end() const
-    { return this->shndx_pool_.end(); }
+    Section_table::const_iterator
+    section_table_end() const
+    { return this->section_table_.end(); }
 
-    // Return the number of entries in the shndx pool.
+    // Return the number of rows in the section table.
     unsigned int
-    shndx_pool_size() const
-    { return this->shndx_pool_.size(); }
+    section_table_rows() const
+    { return this->section_table_.size(); }
+
+    // Return the mask indicating which columns will be used
+    // in the section table.
+    int
+    section_table_cols() const
+    { return this->section_mask_; }
 
    private:
     // Initialize the hash table.
@@ -568,13 +603,20 @@ class Dwp_output_file
     uint64_t* hash_table_;
     // The storage for the parallel table of shndx pool indexes.
     uint32_t* index_table_;
-    // The pool of section indexes.
-    Shndx_pool shndx_pool_;
+    // The table of section offsets and sizes.
+    Section_table section_table_;
+    // Bit mask to indicate which debug sections are present in the file.
+    int section_mask_;
   };  // End class Dwp_output_file::Dwp_index.
 
-  // Initialize the output file.
+  // Add a new output section and return the section index.
+  unsigned int
+  add_output_section(const char* section_name, int align);
+
+  // Write a new section to the output file.
   void
-  initialize();
+  write_new_section(const char* section_name, const unsigned char* contents,
+		    section_size_type len, int align);
 
   // Write the ELF header.
   void
@@ -598,6 +640,10 @@ class Dwp_output_file
 		   unsigned int link, unsigned int info,
 		   unsigned int align, unsigned int ent_size);
 
+  // Write the contributions to an output section.
+  void
+  write_contributions(const Section& sect);
+
   // Write a CU or TU index section.
   template<bool big_endian>
   void
@@ -619,6 +665,8 @@ class Dwp_output_file
   unsigned int shnum_;
   // Section table. The first entry is shndx 1.
   std::vector<Section> sections_;
+  // Section id map. This maps a DW_SECT enum to an shndx.
+  std::vector<unsigned int> section_id_map_;
   // File offset of the section header table.
   off_t shoff_;
   // Section index of the section string table.
@@ -671,43 +719,23 @@ class Dwo_name_info_reader : public Dwarf_info_reader
   File_list* files_;
 };
 
-// A specialization of Dwarf_info_reader, for reading dwo_ids and
-// type signatures from DWARF CUs and TUs.
+// A specialization of Dwarf_info_reader, for reading DWARF CUs and TUs
+// and adding them to the output file.
 
-class Dwo_id_info_reader : public Dwarf_info_reader
+class Unit_reader : public Dwarf_info_reader
 {
  public:
-  Dwo_id_info_reader(bool is_type_unit,
-		     Relobj* object,
-		     unsigned int shndx)
+  Unit_reader(bool is_type_unit, Relobj* object, unsigned int shndx)
     : Dwarf_info_reader(is_type_unit, object, NULL, 0, shndx, 0, 0),
-      dwo_id_found_(false), dwo_id_(0), type_sig_found_(false), type_sig_(0)
+      output_file_(NULL), sections_(NULL)
   { }
 
-  ~Dwo_id_info_reader()
+  ~Unit_reader()
   { }
 
-  // Return the dwo_id from a DWARF compilation unit DIE in *DWO_ID.
-  bool
-  get_dwo_id(uint64_t* dwo_id)
-  {
-    this->parse();
-    if (!this->dwo_id_found_)
-      return false;
-    *dwo_id = this->dwo_id_;
-    return true;
-  }
-
-  // Return the type signature from a DWARF type unit DIE in *TYPE_SIG.
-  bool
-  get_type_sig(uint64_t* type_sig)
-  {
-    this->parse();
-    if (!this->type_sig_found_)
-      return false;
-    *type_sig = this->type_sig_;
-    return true;
-  }
+  // Read the CUs or TUs and add them to the output file.
+  void
+  add_units(Dwp_output_file*, unsigned int debug_abbrev, Section_bounds*);
 
  protected:
   // Visit a compilation unit.
@@ -716,19 +744,34 @@ class Dwo_id_info_reader : public Dwarf_info_reader
 
   // Visit a type unit.
   virtual void
-  visit_type_unit(off_t tu_offset, off_t type_offset, uint64_t signature,
-		  Dwarf_die*);
+  visit_type_unit(off_t tu_offset, off_t tu_length, off_t type_offset,
+		  uint64_t signature, Dwarf_die*);
 
  private:
-  // TRUE if we found a dwo_id.
-  bool dwo_id_found_;
-  // The dwo_id.
-  uint64_t dwo_id_;
-  // TRUE if we found a type signature.
-  bool type_sig_found_;
-  // The type signature.
-  uint64_t type_sig_;
+  Dwp_output_file* output_file_;
+  Section_bounds* sections_;
 };
+
+// Return the name of a DWARF .dwo section.
+
+static const char*
+get_dwarf_section_name(elfcpp::DW_SECT section_id)
+{
+  static const char* dwarf_section_names[] = {
+    NULL, // unused
+    ".debug_info.dwo",         // DW_SECT_INFO = 1
+    ".debug_types.dwo",        // DW_SECT_TYPES = 2
+    ".debug_abbrev.dwo",       // DW_SECT_ABBREV = 3
+    ".debug_line.dwo",         // DW_SECT_LINE = 4
+    ".debug_loc.dwo",          // DW_SECT_LOC = 5
+    ".debug_str_offsets.dwo",  // DW_SECT_STR_OFFSETS = 6
+    ".debug_macinfo.dwo",      // DW_SECT_MACINFO = 7
+    ".debug_macro.dwo",        // DW_SECT_MACRO = 8
+  };
+
+  gold_assert(section_id > 0 && section_id <= elfcpp::DW_SECT_MAX);
+  return dwarf_section_names[section_id];
+}
 
 // Class Sized_relobj_dwo.
 
@@ -819,7 +862,7 @@ Dwo_file::read_executable(File_list* files)
 
   unsigned int shnum = this->shnum();
   this->is_compressed_.resize(shnum);
-  this->shndx_map_.resize(shnum);
+  this->sect_offsets_.resize(shnum);
 
   unsigned int debug_info = 0;
   unsigned int debug_abbrev = 0;
@@ -864,22 +907,111 @@ Dwo_file::read(Dwp_output_file* output_file)
 
   unsigned int shnum = this->shnum();
   this->is_compressed_.resize(shnum);
-  this->shndx_map_.resize(shnum);
+  this->sect_offsets_.resize(shnum);
 
   typedef std::vector<unsigned int> Types_list;
   Types_list debug_types;
-  unsigned int debug_info = 0;
-  unsigned int debug_abbrev = 0;
-  unsigned int debug_line = 0;
-  unsigned int debug_loc = 0;
+  unsigned int debug_shndx[elfcpp::DW_SECT_MAX + 1];
+  for (unsigned int i = 0; i <= elfcpp::DW_SECT_MAX; i++)
+    debug_shndx[i] = 0;
   unsigned int debug_str = 0;
-  unsigned int debug_str_offsets = 0;
-  unsigned int debug_macinfo = 0;
-  unsigned int debug_macro = 0;
   unsigned int debug_cu_index = 0;
   unsigned int debug_tu_index = 0;
 
-  // Scan the section table and look for .dwp index sections.
+  // Scan the section table and collect debug sections.
+  // (Section index 0 is a dummy section; skip it.)
+  for (unsigned int i = 1; i < shnum; i++)
+    {
+      if (this->section_type(i) != elfcpp::SHT_PROGBITS)
+	continue;
+      std::string sect_name = this->section_name(i);
+      const char* suffix = sect_name.c_str();
+      if (is_prefix_of(".debug_", suffix))
+	suffix += 7;
+      else if (is_prefix_of(".zdebug_", suffix))
+	{
+	  this->is_compressed_[i] = true;
+	  suffix += 8;
+	}
+      else
+	continue;
+      if (strcmp(suffix, "info.dwo") == 0)
+	debug_shndx[elfcpp::DW_SECT_INFO] = i;
+      else if (strcmp(suffix, "types.dwo") == 0)
+	debug_types.push_back(i);
+      else if (strcmp(suffix, "abbrev.dwo") == 0)
+	debug_shndx[elfcpp::DW_SECT_ABBREV] = i;
+      else if (strcmp(suffix, "line.dwo") == 0)
+	debug_shndx[elfcpp::DW_SECT_LINE] = i;
+      else if (strcmp(suffix, "loc.dwo") == 0)
+	debug_shndx[elfcpp::DW_SECT_LOC] = i;
+      else if (strcmp(suffix, "str.dwo") == 0)
+	debug_str = i;
+      else if (strcmp(suffix, "str_offsets.dwo") == 0)
+	debug_shndx[elfcpp::DW_SECT_STR_OFFSETS] = i;
+      else if (strcmp(suffix, "macinfo.dwo") == 0)
+	debug_shndx[elfcpp::DW_SECT_MACINFO] = i;
+      else if (strcmp(suffix, "macro.dwo") == 0)
+	debug_shndx[elfcpp::DW_SECT_MACRO] = i;
+      else if (strcmp(suffix, "cu_index") == 0)
+	debug_cu_index = i;
+      else if (strcmp(suffix, "tu_index") == 0)
+	debug_tu_index = i;
+    }
+
+  // Merge the input string table into the output string table.
+  this->add_strings(output_file, debug_str);
+
+  // If we found any .dwp index sections, read those and add the section
+  // sets to the output file.
+  if (debug_cu_index > 0 || debug_tu_index > 0)
+    {
+      if (debug_cu_index > 0)
+	this->read_unit_index(debug_cu_index, debug_shndx, output_file, false);
+      if (debug_tu_index > 0)
+        {
+	  if (debug_types.size() > 1)
+	    gold_fatal(_("%s: .dwp file must have no more than one "
+			 ".debug_types.dwo section"), this->name_);
+          if (debug_types.size() == 1)
+            debug_shndx[elfcpp::DW_SECT_TYPES] = debug_types[0];
+          else
+            debug_shndx[elfcpp::DW_SECT_TYPES] = 0;
+	  this->read_unit_index(debug_tu_index, debug_shndx, output_file, true);
+	}
+      return;
+    }
+
+  // If we found no index sections, this is a .dwo file.
+  if (debug_shndx[elfcpp::DW_SECT_INFO] > 0)
+    this->add_unit_set(output_file, debug_shndx, false);
+
+  debug_shndx[elfcpp::DW_SECT_INFO] = 0;
+  for (Types_list::const_iterator tp = debug_types.begin();
+       tp != debug_types.end();
+       ++tp)
+    {
+      debug_shndx[elfcpp::DW_SECT_TYPES] = *tp;
+      this->add_unit_set(output_file, debug_shndx, true);
+    }
+}
+
+// Verify a .dwp file given a list of .dwo files referenced by the
+// corresponding executable file.  Returns true if no problems
+// were found.
+
+bool
+Dwo_file::verify(const File_list& files)
+{
+  this->obj_ = this->make_object(NULL);
+
+  unsigned int shnum = this->shnum();
+  this->is_compressed_.resize(shnum);
+  this->sect_offsets_.resize(shnum);
+
+  unsigned int debug_cu_index = 0;
+
+  // Scan the section table and collect debug sections.
   // (Section index 0 is a dummy section; skip it.)
   for (unsigned int i = 1; i < shnum; i++)
     {
@@ -898,88 +1030,12 @@ Dwo_file::read(Dwp_output_file* output_file)
 	continue;
       if (strcmp(suffix, "cu_index") == 0)
 	debug_cu_index = i;
-      else if (strcmp(suffix, "tu_index") == 0)
-	debug_tu_index = i;
-      else if (strcmp(suffix, "str.dwo") == 0)
-	debug_str = i;
     }
 
-  // Merge the input string table into the output string table.
-  this->add_strings(output_file, debug_str);
+  if (debug_cu_index == 0)
+    gold_fatal(_("%s: no .debug_cu_index section found"), this->name_);
 
-  // If we found any .dwp index sections, read those and add the section
-  // sets to the output file.
-  if (debug_cu_index > 0 || debug_tu_index > 0)
-    {
-      if (debug_cu_index > 0)
-	this->read_compunit_index(debug_cu_index, output_file);
-      if (debug_tu_index > 0)
-	this->read_typeunit_index(debug_tu_index, output_file);
-      return;
-    }
-
-  // If we found no index sections, this is a .dwo file.
-  // Scan the section table and collect the debug sections.
-  for (unsigned int i = 1; i < shnum; i++)
-    {
-      if (this->section_type(i) != elfcpp::SHT_PROGBITS)
-	continue;
-      std::string sect_name = this->section_name(i);
-      const char* suffix = sect_name.c_str();
-      if (is_prefix_of(".debug_", suffix))
-	suffix += 7;
-      else if (is_prefix_of(".zdebug_", suffix))
-	suffix += 8;
-      else
-	continue;
-      // TODO: Check for one of each section (except .debug_types).
-      if (strcmp(suffix, "info.dwo") == 0)
-	debug_info = i;
-      else if (strcmp(suffix, "types.dwo") == 0)
-	debug_types.push_back(i);
-      else if (strcmp(suffix, "abbrev.dwo") == 0)
-	debug_abbrev = i;
-      else if (strcmp(suffix, "line.dwo") == 0)
-	debug_line = i;
-      else if (strcmp(suffix, "loc.dwo") == 0)
-	debug_loc = i;
-      else if (strcmp(suffix, "str_offsets.dwo") == 0)
-	debug_str_offsets = i;
-      else if (strcmp(suffix, "macinfo.dwo") == 0)
-	debug_macinfo = i;
-      else if (strcmp(suffix, "macro.dwo") == 0)
-	debug_macro = i;
-    }
-
-  if (debug_info > 0)
-    {
-      // Extract the dwo_id from .debug_info.dwo section.
-      uint64_t dwo_id;
-      Dwo_id_info_reader dwarf_reader(false, this->obj_, debug_info);
-      dwarf_reader.set_abbrev_shndx(debug_abbrev);
-      if (!dwarf_reader.get_dwo_id(&dwo_id))
-	gold_fatal(_("%s: .debug_info.dwo section does not have DW_AT_GNU_dwo_id "
-		     "attribute"), this->name_);
-      this->add_cu_set(output_file, dwo_id, debug_info, debug_abbrev,
-		       debug_line, debug_loc, debug_str_offsets,
-		       debug_macinfo, debug_macro);
-    }
-
-  for (Types_list::const_iterator tp = debug_types.begin();
-       tp != debug_types.end();
-       ++tp)
-    {
-      // Extract the type signature from .debug_types.dwo section.
-      uint64_t type_sig;
-      gold_assert(*tp > 0);
-      Dwo_id_info_reader dwarf_reader(true, this->obj_, *tp);
-      dwarf_reader.set_abbrev_shndx(debug_abbrev);
-      if (!dwarf_reader.get_type_sig(&type_sig))
-	gold_fatal(_("%s: .debug_types.dwo section does not have type signature"),
-		   this->name_);
-      this->add_tu_set(output_file, type_sig, *tp, debug_abbrev, debug_line,
-		       debug_str_offsets);
-    }
+  return this->verify_dwo_list(debug_cu_index, files);
 }
 
 // Create a Sized_relobj_dwo of the given size and endianness,
@@ -1074,38 +1130,60 @@ Dwo_file::sized_make_object(const unsigned char* p, Input_file* input_file,
   return obj;
 }
 
-// Read the .debug_cu_index section of a .dwp file,
-// and process the CU sets.
+// Read the .debug_cu_index or .debug_tu_index section of a .dwp file,
+// and process the CU or TU sets.
 
 void
-Dwo_file::read_compunit_index(unsigned int shndx, Dwp_output_file* output_file)
+Dwo_file::read_unit_index(unsigned int shndx, unsigned int *debug_shndx,
+			  Dwp_output_file* output_file, bool is_tu_index)
 {
   if (this->obj_->is_big_endian())
-    this->sized_read_compunit_index<true>(shndx, output_file);
+    this->sized_read_unit_index<true>(shndx, debug_shndx, output_file,
+				      is_tu_index);
   else
-    this->sized_read_compunit_index<false>(shndx, output_file);
+    this->sized_read_unit_index<false>(shndx, debug_shndx, output_file,
+				       is_tu_index);
 }
 
 template <bool big_endian>
 void
-Dwo_file::sized_read_compunit_index(unsigned int shndx,
-				    Dwp_output_file* output_file)
+Dwo_file::sized_read_unit_index(unsigned int shndx,
+				unsigned int *debug_shndx,
+				Dwp_output_file* output_file,
+				bool is_tu_index)
 {
-  section_size_type len;
-  bool is_new;
-  const unsigned char* contents = this->section_contents(shndx, &len, &is_new);
+  elfcpp::DW_SECT info_sect = (is_tu_index
+			       ? elfcpp::DW_SECT_TYPES
+			       : elfcpp::DW_SECT_INFO);
+  unsigned int info_shndx = debug_shndx[info_sect];
+
+  gold_assert(shndx > 0);
+
+  section_size_type index_len;
+  bool index_is_new;
+  const unsigned char* contents =
+      this->section_contents(shndx, &index_len, &index_is_new);
 
   unsigned int version =
       elfcpp::Swap_unaligned<32, big_endian>::readval(contents);
-  if (version != 1)
-    gold_fatal(_("%s: .debug_cu_index has unsupported version number %d"),
-	       this->name_, version);
 
+  // We don't support version 1 anymore because it was experimental
+  // and because in normal use, dwp is not expected to read .dwp files
+  // produced by an earlier version of the tool.
+  if (version != 2)
+    gold_fatal(_("%s: section %s has unsupported version number %d"),
+	       this->name_, this->section_name(shndx).c_str(), version);
+
+  unsigned int ncols =
+      elfcpp::Swap_unaligned<32, big_endian>::readval(contents
+						      + sizeof(uint32_t));
   unsigned int nused =
       elfcpp::Swap_unaligned<32, big_endian>::readval(contents
 						      + 2 * sizeof(uint32_t));
-  if (nused == 0)
+  if (ncols == 0 || nused == 0)
     return;
+
+  gold_assert(info_shndx > 0);
 
   unsigned int nslots =
       elfcpp::Swap_unaligned<32, big_endian>::readval(contents
@@ -1113,113 +1191,139 @@ Dwo_file::sized_read_compunit_index(unsigned int shndx,
 
   const unsigned char* phash = contents + 4 * sizeof(uint32_t);
   const unsigned char* pindex = phash + nslots * sizeof(uint64_t);
-  const unsigned char* shndx_pool = pindex + nslots * sizeof(uint32_t);
-  const unsigned char* limit = contents + len;
+  const unsigned char* pcolhdrs = pindex + nslots * sizeof(uint32_t);
+  const unsigned char* poffsets = pcolhdrs + ncols * sizeof(uint32_t);
+  const unsigned char* psizes = poffsets + nused * ncols * sizeof(uint32_t);
+  const unsigned char* pend = psizes + nused * ncols * sizeof(uint32_t);
 
-  if (shndx_pool >= limit)
-    gold_fatal(_("%s: .debug_cu_index is corrupt"), this->name_);
+  if (pend > contents + index_len)
+    gold_fatal(_("%s: section %s is corrupt"), this->name_,
+	       this->section_name(shndx).c_str());
+
+  // Copy the related sections and track the section offsets and sizes.
+  Section_bounds sections[elfcpp::DW_SECT_MAX + 1];
+  for (int i = elfcpp::DW_SECT_ABBREV; i <= elfcpp::DW_SECT_MAX; ++i)
+    {
+      if (debug_shndx[i] > 0)
+	sections[i] = this->copy_section(output_file, debug_shndx[i],
+					 static_cast<elfcpp::DW_SECT>(i));
+    }
+
+  // Get the contents of the .debug_info.dwo or .debug_types.dwo section.
+  section_size_type info_len;
+  bool info_is_new;
+  const unsigned char* info_contents =
+      this->section_contents(info_shndx, &info_len, &info_is_new);
 
   // Loop over the slots of the hash table.
   for (unsigned int i = 0; i < nslots; ++i)
     {
-      uint64_t dwo_id =
+      uint64_t signature =
           elfcpp::Swap_unaligned<64, big_endian>::readval(phash);
-      if (dwo_id != 0)
+      unsigned int index =
+	  elfcpp::Swap_unaligned<32, big_endian>::readval(pindex);
+      if (index != 0 && (!is_tu_index || !output_file->lookup_tu(signature)))
 	{
-	  unsigned int index =
-	      elfcpp::Swap_unaligned<32, big_endian>::readval(pindex);
-	  const unsigned char* shndx_list =
-	      shndx_pool + index * sizeof(uint32_t);
+	  Unit_set* unit_set = new Unit_set();
+	  unit_set->signature = signature;
+	  const unsigned char* pch = pcolhdrs;
+	  const unsigned char* porow =
+	      poffsets + (index - 1) * ncols * sizeof(uint32_t);
+	  const unsigned char* psrow =
+	      psizes + (index - 1) * ncols * sizeof(uint32_t);
 
-	  // Collect the debug sections for this compilation unit set.
-	  unsigned int debug_info = 0;
-	  unsigned int debug_abbrev = 0;
-	  unsigned int debug_line = 0;
-	  unsigned int debug_loc = 0;
-	  unsigned int debug_str_offsets = 0;
-	  unsigned int debug_macinfo = 0;
-	  unsigned int debug_macro = 0;
-	  for (;;)
+	  // Adjust the offset of each contribution within the input section
+	  // by the offset of the input section within the output section.
+	  for (unsigned int j = 0; j <= ncols; j++)
 	    {
-	      if (shndx_list >= limit)
-		gold_fatal(_("%s: .debug_cu_index is corrupt"),
-			   this->name_);
-	      unsigned int shndx =
-		  elfcpp::Swap_unaligned<32, big_endian>::readval(shndx_list);
-	      if (shndx == 0)
-	        break;
-	      if (shndx > this->shnum())
-		gold_fatal(_("%s: .debug_cu_index has bad shndx"),
-			   this->name_);
-	      std::string sect_name = this->section_name(shndx);
-	      const char* suffix = sect_name.c_str();
-	      if (is_prefix_of(".debug_", suffix))
-		suffix += 7;
-	      else if (is_prefix_of(".zdebug_", suffix))
-		suffix += 8;
-	      else
-		gold_fatal(_("%s: .debug_cu_index refers to "
-			     "non-debug section"), this->name_);
-	      if (strcmp(suffix, "info.dwo") == 0)
-		debug_info = shndx;
-	      else if (strcmp(suffix, "abbrev.dwo") == 0)
-		debug_abbrev = shndx;
-	      else if (strcmp(suffix, "line.dwo") == 0)
-		debug_line = shndx;
-	      else if (strcmp(suffix, "loc.dwo") == 0)
-		debug_loc = shndx;
-	      else if (strcmp(suffix, "str_offsets.dwo") == 0)
-		debug_str_offsets = shndx;
-	      else if (strcmp(suffix, "macinfo.dwo") == 0)
-		debug_macinfo = shndx;
-	      else if (strcmp(suffix, "macro.dwo") == 0)
-		debug_macro = shndx;
-	      shndx_list += sizeof(uint32_t);
+	      unsigned int dw_sect =
+		  elfcpp::Swap_unaligned<64, big_endian>::readval(pch);
+	      unsigned int offset =
+		  elfcpp::Swap_unaligned<64, big_endian>::readval(porow);
+	      unsigned int size =
+		  elfcpp::Swap_unaligned<64, big_endian>::readval(psrow);
+	      unit_set->sections[dw_sect].offset = (sections[dw_sect].offset
+						    + offset);
+	      unit_set->sections[dw_sect].size = size;
+	      pch += sizeof(uint32_t);
+	      porow += sizeof(uint32_t);
+	      psrow += sizeof(uint32_t);
 	    }
-	  this->add_cu_set(output_file, dwo_id, debug_info, debug_abbrev,
-			   debug_line, debug_loc, debug_str_offsets,
-			   debug_macinfo, debug_macro);
+
+	  const unsigned char* unit_start =
+	      info_contents + unit_set->sections[info_sect].offset;
+	  section_size_type unit_length = unit_set->sections[info_sect].size;
+
+	  // Dwp_output_file::add_contribution writes the .debug_info.dwo
+	  // section directly to the output file, so we only need to
+	  // duplicate contributions for .debug_types.dwo section.
+	  if (is_tu_index)
+	    {
+	      unsigned char *copy = new unsigned char[unit_length];
+	      memcpy(copy, unit_start, unit_length);
+	      unit_start = copy;
+	    }
+	  section_offset_type off =
+	      output_file->add_contribution(info_sect, unit_start,
+					    unit_length, 1);
+	  unit_set->sections[info_sect].offset = off;
+	  if (is_tu_index)
+	    output_file->add_tu_set(unit_set);
+	  else
+	    output_file->add_cu_set(unit_set);
 	}
       phash += sizeof(uint64_t);
       pindex += sizeof(uint32_t);
     }
 
-  if (is_new)
+  if (index_is_new)
     delete[] contents;
+  if (info_is_new)
+    delete[] info_contents;
 }
 
-// Read the .debug_tu_index section of a .dwp file,
-// and process the TU sets.
+// Verify the .debug_cu_index section of a .dwp file, comparing it
+// against the list of .dwo files referenced by the corresponding
+// executable file.
 
-void
-Dwo_file::read_typeunit_index(unsigned int shndx, Dwp_output_file* output_file)
+bool
+Dwo_file::verify_dwo_list(unsigned int shndx, const File_list& files)
 {
   if (this->obj_->is_big_endian())
-    this->sized_read_typeunit_index<true>(shndx, output_file);
+    return this->sized_verify_dwo_list<true>(shndx, files);
   else
-    this->sized_read_typeunit_index<false>(shndx, output_file);
+    return this->sized_verify_dwo_list<false>(shndx, files);
 }
 
 template <bool big_endian>
-void
-Dwo_file::sized_read_typeunit_index(unsigned int shndx,
-				    Dwp_output_file* output_file)
+bool
+Dwo_file::sized_verify_dwo_list(unsigned int shndx, const File_list& files)
 {
-  section_size_type len;
-  bool is_new;
-  const unsigned char* contents = this->section_contents(shndx, &len, &is_new);
+  gold_assert(shndx > 0);
+
+  section_size_type index_len;
+  bool index_is_new;
+  const unsigned char* contents =
+      this->section_contents(shndx, &index_len, &index_is_new);
 
   unsigned int version =
       elfcpp::Swap_unaligned<32, big_endian>::readval(contents);
-  if (version != 1)
-    gold_fatal(_("%s: .debug_tu_index has unsupported version number %d"),
-	       this->name_, version);
 
+  // We don't support version 1 anymore because it was experimental
+  // and because in normal use, dwp is not expected to read .dwp files
+  // produced by an earlier version of the tool.
+  if (version != 2)
+    gold_fatal(_("%s: section %s has unsupported version number %d"),
+	       this->name_, this->section_name(shndx).c_str(), version);
+
+  unsigned int ncols =
+      elfcpp::Swap_unaligned<32, big_endian>::readval(contents
+						      + sizeof(uint32_t));
   unsigned int nused =
       elfcpp::Swap_unaligned<32, big_endian>::readval(contents
 						      + 2 * sizeof(uint32_t));
-  if (nused == 0)
-    return;
+  if (ncols == 0 || nused == 0)
+    return true;
 
   unsigned int nslots =
       elfcpp::Swap_unaligned<32, big_endian>::readval(contents
@@ -1227,69 +1331,51 @@ Dwo_file::sized_read_typeunit_index(unsigned int shndx,
 
   const unsigned char* phash = contents + 4 * sizeof(uint32_t);
   const unsigned char* pindex = phash + nslots * sizeof(uint64_t);
-  const unsigned char* shndx_pool = pindex + nslots * sizeof(uint32_t);
-  const unsigned char* limit = contents + len;
+  const unsigned char* pcolhdrs = pindex + nslots * sizeof(uint32_t);
+  const unsigned char* poffsets = pcolhdrs + ncols * sizeof(uint32_t);
+  const unsigned char* psizes = poffsets + nused * ncols * sizeof(uint32_t);
+  const unsigned char* pend = psizes + nused * ncols * sizeof(uint32_t);
 
-  if (shndx_pool >= limit)
-    gold_fatal(_("%s: .debug_tu_index is corrupt"), this->name_);
+  if (pend > contents + index_len)
+    gold_fatal(_("%s: section %s is corrupt"), this->name_,
+	       this->section_name(shndx).c_str());
 
-  // Loop over the slots of the hash table.
-  for (unsigned int i = 0; i < nslots; ++i)
+  int nmissing = 0;
+  for (File_list::const_iterator f = files.begin(); f != files.end(); ++f)
     {
-      uint64_t type_sig =
-          elfcpp::Swap_unaligned<64, big_endian>::readval(phash);
-      if (type_sig != 0)
+      uint64_t dwo_id = f->dwo_id;
+      unsigned int slot = static_cast<unsigned int>(dwo_id) & (nslots - 1);
+      const unsigned char* ph = phash + slot * sizeof(uint64_t);
+      const unsigned char* pi = pindex + slot * sizeof(uint32_t);
+      uint64_t probe = elfcpp::Swap_unaligned<64, big_endian>::readval(ph);
+      uint32_t row_index = elfcpp::Swap_unaligned<32, big_endian>::readval(pi);
+      if (row_index != 0 && probe != dwo_id)
 	{
-	  unsigned int index =
-	      elfcpp::Swap_unaligned<32, big_endian>::readval(pindex);
-	  const unsigned char* shndx_list =
-	      shndx_pool + index * sizeof(uint32_t);
-
-	  // Collect the debug sections for this type unit set.
-	  unsigned int debug_types = 0;
-	  unsigned int debug_abbrev = 0;
-	  unsigned int debug_line = 0;
-	  unsigned int debug_str_offsets = 0;
-	  for (;;)
+	  unsigned int h2 = ((static_cast<unsigned int>(dwo_id >> 32)
+			      & (nslots - 1)) | 1);
+	  do
 	    {
-	      if (shndx_list >= limit)
-		gold_fatal(_("%s: .debug_tu_index is corrupt"),
-			   this->name_);
-	      unsigned int shndx =
-		  elfcpp::Swap_unaligned<32, big_endian>::readval(shndx_list);
-	      if (shndx == 0)
-	        break;
-	      if (shndx > this->shnum())
-		gold_fatal(_("%s: .debug_tu_index has bad shndx"),
-			   this->name_);
-	      std::string sect_name = this->section_name(shndx);
-	      const char* suffix = sect_name.c_str();
-	      if (is_prefix_of(".debug_", suffix))
-		suffix += 7;
-	      else if (is_prefix_of(".zdebug_", suffix))
-		suffix += 8;
-	      else
-		gold_fatal(_("%s: .debug_tu_index refers to "
-			     "non-debug section"), this->name_);
-	      if (strcmp(suffix, "types.dwo") == 0)
-		debug_types = shndx;
-	      else if (strcmp(suffix, "abbrev.dwo") == 0)
-		debug_abbrev = shndx;
-	      else if (strcmp(suffix, "line.dwo") == 0)
-		debug_line = shndx;
-	      else if (strcmp(suffix, "str_offsets.dwo") == 0)
-		debug_str_offsets = shndx;
-	      shndx_list += sizeof(uint32_t);
-	    }
-	  this->add_tu_set(output_file, type_sig, debug_types, debug_abbrev,
-			   debug_line, debug_str_offsets);
+	      slot = (slot + h2) & (nslots - 1);
+	      ph = phash + slot * sizeof(uint64_t);
+	      pi = pindex + slot * sizeof(uint32_t);
+	      probe = elfcpp::Swap_unaligned<64, big_endian>::readval(ph);
+	      row_index = elfcpp::Swap_unaligned<32, big_endian>::readval(pi);
+	    } while (row_index != 0 && probe != dwo_id);
 	}
-      phash += sizeof(uint64_t);
-      pindex += sizeof(uint32_t);
+      if (row_index == 0)
+	{
+	  printf(_("missing .dwo file: %016llx %s\n"),
+		 static_cast<long long>(dwo_id), f->dwo_name.c_str());
+	  ++nmissing;
+	}
     }
 
-  if (is_new)
+  gold_info(_("Found %d missing .dwo files"), nmissing);
+
+  if (index_is_new)
     delete[] contents;
+
+  return nmissing == 0;
 }
 
 // Merge the input string table section into the output file.
@@ -1335,37 +1421,51 @@ Dwo_file::add_strings(Dwp_output_file* output_file, unsigned int debug_str)
 }
 
 // Copy a section from the input file to the output file.
-// If IS_STR_OFFSETS is true, remap the string offsets for the
-// output string table.
+// Return the offset and length of this input section's contribution
+// in the output section.  If copying .debug_str_offsets.dwo, remap
+// the string offsets for the output string table.
 
-unsigned int
+Section_bounds
 Dwo_file::copy_section(Dwp_output_file* output_file, unsigned int shndx,
-		       const char* section_name, bool is_str_offsets)
+		       elfcpp::DW_SECT section_id)
 {
   // Some sections may be referenced from more than one set.
   // Don't copy a section more than once.
-  if (this->shndx_map_[shndx] > 0)
-    return this->shndx_map_[shndx];
+  if (this->sect_offsets_[shndx].size > 0)
+    return this->sect_offsets_[shndx];
 
+  // Get the section contents. Upon return, if IS_NEW is true, the memory
+  // has been allocated via new; if false, the memory is part of the mapped
+  // input file, and we will need to duplicate it so that it will persist
+  // after we close the input file.
   section_size_type len;
   bool is_new;
   const unsigned char* contents = this->section_contents(shndx, &len, &is_new);
 
-  if (is_str_offsets)
+  if (section_id == elfcpp::DW_SECT_STR_OFFSETS)
     {
       const unsigned char* remapped = this->remap_str_offsets(contents, len);
       if (is_new)
 	delete[] contents;
       contents = remapped;
-      is_new = true;
+    }
+  else if (!is_new)
+    {
+      unsigned char* copy = new unsigned char[len];
+      memcpy(copy, contents, len);
+      contents = copy;
     }
 
-  this->shndx_map_[shndx] = output_file->add_section(section_name, contents,
-						     len, 1);
-  if (is_new)
-    delete[] contents;
+  // Add the contents of the input section to the output section.
+  // The output file takes ownership of the memory pointed to by CONTENTS.
+  section_offset_type off = output_file->add_contribution(section_id, contents,
+							  len, 1);
 
-  return this->shndx_map_[shndx];
+  // Store the output section bounds.
+  Section_bounds bounds(off, len);
+  this->sect_offsets_[shndx] = bounds;
+
+  return bounds;
 }
 
 // Remap the 
@@ -1425,85 +1525,36 @@ Dwo_file::remap_str_offset(section_offset_type val)
   return p->second + (val - p->first);
 }
 
-// Add a set of .debug_info and related sections to OUTPUT_FILE.
+// Add a set of .debug_info.dwo or .debug_types.dwo and related sections
+// to OUTPUT_FILE.
 
 void
-Dwo_file::add_cu_set(Dwp_output_file* output_file,
-		     uint64_t dwo_id,
-		     unsigned int debug_info,
-		     unsigned int debug_abbrev,
-		     unsigned int debug_line,
-		     unsigned int debug_loc,
-		     unsigned int debug_str_offsets,
-		     unsigned int debug_macinfo,
-		     unsigned int debug_macro)
+Dwo_file::add_unit_set(Dwp_output_file* output_file, unsigned int *debug_shndx,
+		       bool is_debug_types)
 {
-  if (debug_info == 0)
-    gold_fatal(_("%s: no .debug_info.dwo section found"), this->name_);
-  if (debug_abbrev == 0)
+  unsigned int shndx = (is_debug_types
+			? debug_shndx[elfcpp::DW_SECT_TYPES]
+			: debug_shndx[elfcpp::DW_SECT_INFO]);
+
+  gold_assert(shndx != 0);
+
+  if (debug_shndx[elfcpp::DW_SECT_ABBREV] == 0)
     gold_fatal(_("%s: no .debug_abbrev.dwo section found"), this->name_);
 
-  debug_abbrev = this->copy_section(output_file, debug_abbrev,
-				    ".debug_abbrev.dwo", false);
-  if (debug_line > 0)
-    debug_line = this->copy_section(output_file, debug_line,
-				    ".debug_line.dwo", false);
-  if (debug_loc > 0)
-    debug_loc = this->copy_section(output_file, debug_loc, ".debug_loc.dwo",
-				   false);
-  if (debug_macinfo > 0)
-    debug_macinfo = this->copy_section(output_file, debug_macinfo,
-				       ".debug_macinfo.dwo", false);
-  if (debug_macro > 0)
-    debug_macro = this->copy_section(output_file, debug_macro,
-				     ".debug_macro.dwo", false);
+  // Copy the related sections and track the section offsets and sizes.
+  Section_bounds sections[elfcpp::DW_SECT_MAX + 1];
+  for (int i = elfcpp::DW_SECT_ABBREV; i <= elfcpp::DW_SECT_MAX; ++i)
+    {
+      if (debug_shndx[i] > 0)
+	sections[i] = this->copy_section(output_file, debug_shndx[i],
+					 static_cast<elfcpp::DW_SECT>(i));
+    }
 
-  if (debug_str_offsets > 0)
-    debug_str_offsets = this->copy_section(output_file, debug_str_offsets,
-					   ".debug_str_offsets.dwo", true);
-
-  debug_info = this->copy_section(output_file, debug_info, ".debug_info.dwo",
-				  false);
-
-  output_file->add_cu_set(dwo_id, debug_info, debug_abbrev, debug_line,
-			  debug_loc, debug_str_offsets, debug_macinfo,
-			  debug_macro);
-}
-
-// Add a set of .debug_types and related sections to OUTPUT_FILE.
-
-void
-Dwo_file::add_tu_set(Dwp_output_file* output_file,
-		     uint64_t type_sig,
-		     unsigned int debug_types,
-		     unsigned int debug_abbrev,
-		     unsigned int debug_line,
-		     unsigned int debug_str_offsets)
-{
-  if (debug_types == 0)
-    gold_fatal(_("%s: no .debug_types.dwo section found"), this->name_);
-  if (debug_abbrev == 0)
-    gold_fatal(_("%s: no .debug_abbrev.dwo section found"), this->name_);
-
-  // Ignore duplicate type signatures.
-  if (output_file->lookup_tu(type_sig))
-    return;
-
-  debug_abbrev = this->copy_section(output_file, debug_abbrev,
-				    ".debug_abbrev.dwo", false);
-  if (debug_line > 0)
-    debug_line = this->copy_section(output_file, debug_line,
-				    ".debug_line.dwo", false);
-
-  if (debug_str_offsets > 0)
-    debug_str_offsets = this->copy_section(output_file, debug_str_offsets,
-					   ".debug_str_offsets.dwo", true);
-
-  debug_types = this->copy_section(output_file, debug_types,
-				   ".debug_types.dwo", false);
-
-  output_file->add_tu_set(type_sig, debug_types, debug_abbrev, debug_line,
-			  debug_str_offsets);
+  // Parse the .debug_info or .debug_types section and add each compilation
+  // or type unit to the output file, along with the contributions to the
+  // related sections.
+  Unit_reader reader(is_debug_types, this->obj_, shndx);
+  reader.add_units(output_file, debug_shndx[elfcpp::DW_SECT_ABBREV], sections);
 }
 
 // Class Dwp_output_file.
@@ -1568,48 +1619,99 @@ align_offset(off_t off, int align)
   return (off + align - 1) & ~(align - 1);
 }
 
-// Add a section to the output file, and return the new section index.
+// Add a new output section and return the section index.
 
 unsigned int
-Dwp_output_file::add_section(const char* section_name,
-			     const unsigned char* contents,
-			     section_size_type len,
-			     int align)
+Dwp_output_file::add_output_section(const char* section_name, int align)
 {
-  off_t file_offset = this->next_file_offset_;
-  gold_assert(this->size_ > 0 && file_offset > 0);
-
-  file_offset = align_offset(file_offset, align);
-
-  ::fseek(this->fd_, file_offset, SEEK_SET);
-  if (::fwrite(contents, 1, len, this->fd_) < len)
-    gold_fatal(_("%s: error writing section '%s'"), this->name_, section_name);
-
-  section_name = this->shstrtab_.add_with_length(section_name,
-						 strlen(section_name),
-						 false, NULL);
-  Section sect = { section_name, file_offset, len, align };
+  Section sect(section_name, align);
   this->sections_.push_back(sect);
-
-  this->next_file_offset_ = file_offset + len;
   return this->shnum_++;
+}
+
+// Add a contribution to a section in the output file, and return the offset
+// of the contribution within the output section.  The .debug_info.dwo section
+// is expected to be the largest one, so we will write the contents of this
+// section directly to the output file as we receive contributions, allowing
+// us to free that memory as soon as possible. We will save the remaining
+// contributions until we finalize the layout of the output file.
+
+section_offset_type
+Dwp_output_file::add_contribution(elfcpp::DW_SECT section_id,
+				  const unsigned char* contents,
+				  section_size_type len,
+				  int align)
+{
+  const char* section_name = get_dwarf_section_name(section_id);
+  gold_assert(static_cast<size_t>(section_id) < this->section_id_map_.size());
+  unsigned int shndx = this->section_id_map_[section_id];
+
+  // Create the section if necessary.
+  if (shndx == 0)
+    {
+      section_name = this->shstrtab_.add_with_length(section_name,
+						     strlen(section_name),
+						     false, NULL);
+      shndx = this->add_output_section(section_name, align);
+      this->section_id_map_[section_id] = shndx;
+    }
+
+  Section& section = this->sections_[shndx - 1];
+
+  section_offset_type section_offset;
+
+  if (section_id == elfcpp::DW_SECT_INFO)
+    {
+      // Write the .debug_info.dwo section directly.
+      // We do not need to free the memory in this case.
+      off_t file_offset = this->next_file_offset_;
+      gold_assert(this->size_ > 0 && file_offset > 0);
+
+      file_offset = align_offset(file_offset, align);
+      if (section.offset == 0)
+	section.offset = file_offset;
+
+      if (align > section.align)
+	{
+	  // Since we've already committed to the layout for this
+	  // section, an unexpected large alignment boundary may
+	  // be impossible to honor.
+	  if (align_offset(section.offset, align) != section.offset)
+	    gold_fatal(_("%s: alignment (%d) for section '%s' "
+			 "cannot be honored"),
+		       this->name_, align, section_name);
+	  section.align = align;
+	}
+
+      section_offset = file_offset - section.offset;
+      section.size = file_offset + len - section.offset;
+
+      ::fseek(this->fd_, file_offset, SEEK_SET);
+      if (::fwrite(contents, 1, len, this->fd_) < len)
+	gold_fatal(_("%s: error writing section '%s'"), this->name_,
+		   section_name);
+      this->next_file_offset_ = file_offset + len;
+    }
+  else
+    {
+      // Collect the contributions and keep track of the total size.
+      if (align > section.align)
+	section.align = align;
+      section_offset = align_offset(section.size, align);
+      section.size = section_offset + len;
+      Contribution contrib = { section_offset, len, contents };
+      section.contributions.push_back(contrib);
+    }
+
+  return section_offset;
 }
 
 // Add a set of .debug_info and related sections to the output file.
 
 void
-Dwp_output_file::add_cu_set(uint64_t dwo_id,
-			    unsigned int debug_info,
-			    unsigned int debug_abbrev,
-			    unsigned int debug_line,
-			    unsigned int debug_loc,
-			    unsigned int debug_str_offsets,
-			    unsigned int debug_macinfo,
-			    unsigned int debug_macro)
+Dwp_output_file::add_cu_set(Unit_set* cu_set)
 {
-  Cu_or_tu_set cu_set = { dwo_id, debug_info, debug_abbrev, debug_line,
-			  debug_loc, debug_str_offsets, debug_macinfo,
-			  debug_macro };
+  uint64_t dwo_id = cu_set->signature;
   unsigned int slot;
   if (!this->cu_index_.find_or_add(dwo_id, &slot))
     this->cu_index_.enter_set(slot, cu_set);
@@ -1629,14 +1731,9 @@ Dwp_output_file::lookup_tu(uint64_t type_sig)
 // Add a set of .debug_types and related sections to the output file.
 
 void
-Dwp_output_file::add_tu_set(uint64_t type_sig,
-			    unsigned int debug_types,
-			    unsigned int debug_abbrev,
-			    unsigned int debug_line,
-			    unsigned int debug_str_offsets)
+Dwp_output_file::add_tu_set(Unit_set* tu_set)
 {
-  Cu_or_tu_set tu_set = { type_sig, debug_types, debug_abbrev, debug_line,
-			  0, debug_str_offsets, 0, 0 };
+  uint64_t type_sig = tu_set->signature;
   unsigned int slot;
   if (type_sig == this->last_type_sig_)
     slot = this->last_tu_slot_;
@@ -1658,7 +1755,8 @@ Dwp_output_file::Dwp_index::find_or_add(uint64_t signature,
       static_cast<unsigned int>(signature) & (this->capacity_ - 1);
   unsigned int secondary_hash;
   uint64_t probe = this->hash_table_[slot];
-  if (probe != 0 && probe != signature)
+  uint32_t row_index = this->index_table_[slot];
+  if (row_index != 0 && probe != signature)
     {
       secondary_hash = (static_cast<unsigned int>(signature >> 32)
 			& (this->capacity_ - 1)) | 1;
@@ -1666,42 +1764,34 @@ Dwp_output_file::Dwp_index::find_or_add(uint64_t signature,
 	{
 	  slot = (slot + secondary_hash) & (this->capacity_ - 1);
 	  probe = this->hash_table_[slot];
-	} while (probe != 0 && probe != signature);
+	  row_index = this->index_table_[slot];
+	} while (row_index != 0 && probe != signature);
     }
   *slotp = slot;
-  return (probe != 0);
+  return (row_index != 0);
 }
 
 // Enter a CU or TU set at the given SLOT in the hash table.
 
 void
 Dwp_output_file::Dwp_index::enter_set(unsigned int slot,
-				      const Cu_or_tu_set& set)
+				      const Unit_set* set)
 {
   gold_assert(slot < this->capacity_);
-  gold_assert(set.debug_info_or_types > 0);
-  gold_assert(set.debug_abbrev > 0);
 
-  // Add the section indexes to the pool.
-  uint32_t pool_index = this->shndx_pool_.size();
-  this->shndx_pool_.push_back(set.debug_info_or_types);
-  this->shndx_pool_.push_back(set.debug_abbrev);
-  if (set.debug_line > 0)
-    this->shndx_pool_.push_back(set.debug_line);
-  if (set.debug_loc > 0)
-    this->shndx_pool_.push_back(set.debug_loc);
-  if (set.debug_str_offsets > 0)
-    this->shndx_pool_.push_back(set.debug_str_offsets);
-  if (set.debug_macinfo > 0)
-    this->shndx_pool_.push_back(set.debug_macinfo);
-  if (set.debug_macro > 0)
-    this->shndx_pool_.push_back(set.debug_macro);
-  this->shndx_pool_.push_back(0);
+  // Add a row to the offsets and sizes tables.
+  this->section_table_.push_back(set);
+  uint32_t row_index = this->section_table_rows();
+
+  // Mark the sections used in this set.
+  for (unsigned int i = 1; i <= elfcpp::DW_SECT_MAX; i++)
+    if (set->sections[i].size > 0)
+      this->section_mask_ |= 1 << i;
 
   // Enter the signature and pool index into the hash table.
   gold_assert(this->hash_table_[slot] == 0);
-  this->hash_table_[slot] = set.signature;
-  this->index_table_[slot] = pool_index;
+  this->hash_table_[slot] = set->signature;
+  this->index_table_[slot] = row_index;
   ++this->used_;
 
   // Grow the hash table when we exceed 2/3 capacity.
@@ -1741,13 +1831,14 @@ Dwp_output_file::Dwp_index::grow()
   for (unsigned int i = 0; i < old_capacity; ++i)
     {
       uint64_t signature = old_hash_table[i];
-      if (signature != 0)
+      uint32_t row_index = old_index_table[i];
+      if (row_index != 0)
         {
 	  unsigned int slot;
 	  bool found = this->find_or_add(signature, &slot);
 	  gold_assert(!found);
 	  this->hash_table_[slot] = signature;
-	  this->index_table_[slot] = old_index_table[i];
+	  this->index_table_[slot] = row_index;
 	  ++this->used_;
         }
     }
@@ -1755,16 +1846,6 @@ Dwp_output_file::Dwp_index::grow()
 
   delete[] old_hash_table;
   delete[] old_index_table;
-}
-
-// Initialize the output file.
-
-void
-Dwp_output_file::initialize()
-{
-  // We can't initialize the output file until we've recorded the
-  // target info from the first input file.
-  gold_assert(this->size_ > 0);
 }
 
 // Finalize the file, write the string tables and index sections,
@@ -1775,6 +1856,20 @@ Dwp_output_file::finalize()
 {
   unsigned char* buf;
 
+  // Write the accumulated output sections.
+  for (unsigned int i = 0; i < this->sections_.size(); i++)
+    {
+      Section& sect = this->sections_[i];
+      // If the offset has already been assigned, the section has been written.
+      if (sect.offset > 0 || sect.size == 0)
+	continue;
+      off_t file_offset = this->next_file_offset_;
+      file_offset = align_offset(file_offset, sect.align);
+      sect.offset = file_offset;
+      this->write_contributions(sect);
+      this->next_file_offset_ = file_offset + sect.size;
+    }
+
   // Write the debug string table.
   if (this->have_strings_)
     {
@@ -1782,7 +1877,7 @@ Dwp_output_file::finalize()
       section_size_type len = this->stringpool_.get_strtab_size();
       buf = new unsigned char[len];
       this->stringpool_.write_to_buffer(buf, len);
-      this->add_section(".debug_str.dwo", buf, len, 1);
+      this->write_new_section(".debug_str.dwo", buf, len, 1);
       delete[] buf;
     }
 
@@ -1803,9 +1898,8 @@ Dwp_output_file::finalize()
   // Write the section string table.
   this->shstrndx_ = this->shnum_++;
   const char* shstrtab_name =
-      this->shstrtab_.add_with_length(".shstrtab",
-					   sizeof(".shstrtab") - 1,
-					   false, NULL);
+      this->shstrtab_.add_with_length(".shstrtab", sizeof(".shstrtab") - 1,
+				      false, NULL);
   this->shstrtab_.set_string_offsets();
   section_size_type shstrtab_len = this->shstrtab_.get_strtab_size();
   buf = new unsigned char[shstrtab_len];
@@ -1851,18 +1945,64 @@ Dwp_output_file::finalize()
   this->fd_ = NULL;
 }
 
+// Write the contributions to an output section.
+
+void
+Dwp_output_file::write_contributions(const Section& sect)
+{
+  for (unsigned int i = 0; i < sect.contributions.size(); ++i)
+    {
+      const Contribution& c = sect.contributions[i];
+      ::fseek(this->fd_, sect.offset + c.output_offset, SEEK_SET);
+      if (::fwrite(c.contents, 1, c.size, this->fd_) < c.size)
+	gold_fatal(_("%s: error writing section '%s'"), this->name_, sect.name);
+      delete[] c.contents;
+    }
+}
+
+// Write a new section to the output file.
+
+void
+Dwp_output_file::write_new_section(const char* section_name,
+				   const unsigned char* contents,
+				   section_size_type len, int align)
+{
+  section_name = this->shstrtab_.add_with_length(section_name,
+						 strlen(section_name),
+						 false, NULL);
+  unsigned int shndx = this->add_output_section(section_name, align);
+  Section& section = this->sections_[shndx - 1];
+  off_t file_offset = this->next_file_offset_;
+  file_offset = align_offset(file_offset, align);
+  section.offset = file_offset;
+  section.size = len;
+  ::fseek(this->fd_, file_offset, SEEK_SET);
+  if (::fwrite(contents, 1, len, this->fd_) < len)
+    gold_fatal(_("%s: error writing section '%s'"), this->name_, section_name);
+  this->next_file_offset_ = file_offset + len;
+}
+
 // Write a CU or TU index section.
+
 template<bool big_endian>
 void
 Dwp_output_file::write_index(const char* sect_name, const Dwp_index& index)
 {
   const unsigned int nslots = index.hash_table_total_slots();
   const unsigned int nused = index.hash_table_used_slots();
-  const unsigned int npool = index.shndx_pool_size();
+  const unsigned int nrows = index.section_table_rows();
+
+  int column_mask = index.section_table_cols();
+  unsigned int ncols = 0;
+  for (unsigned int c = 1; c <= elfcpp::DW_SECT_MAX; ++c)
+    if (column_mask & (1 << c))
+      ncols++;
+  const unsigned int ntable = (nrows * 2 + 1) * ncols;
+
   const section_size_type index_size = (4 * sizeof(uint32_t)
 					+ nslots * sizeof(uint64_t)
 					+ nslots * sizeof(uint32_t)
-					+ npool * sizeof(uint32_t));
+					+ ntable * sizeof(uint32_t));
 
   // Allocate a buffer for the section contents.
   unsigned char* buf = new unsigned char[index_size];
@@ -1870,9 +2010,9 @@ Dwp_output_file::write_index(const char* sect_name, const Dwp_index& index)
 
   // Write the section header: version number, padding,
   // number of used slots and total number of slots.
-  elfcpp::Swap_unaligned<32, big_endian>::writeval(p, 1);
+  elfcpp::Swap_unaligned<32, big_endian>::writeval(p, 2);
   p += sizeof(uint32_t);
-  elfcpp::Swap_unaligned<32, big_endian>::writeval(p, 0);
+  elfcpp::Swap_unaligned<32, big_endian>::writeval(p, ncols);
   p += sizeof(uint32_t);
   elfcpp::Swap_unaligned<32, big_endian>::writeval(p, nused);
   p += sizeof(uint32_t);
@@ -1893,19 +2033,59 @@ Dwp_output_file::write_index(const char* sect_name, const Dwp_index& index)
       p += sizeof(uint32_t);
     }
 
-  // Write the section index pool.
-  Dwp_index::Shndx_pool::const_iterator pool = index.shndx_pool();
-  for (unsigned int i = 0; i < npool; ++i)
+  // Write the first row of the table of section offsets.
+  for (unsigned int c = 1; c <= elfcpp::DW_SECT_MAX; ++c)
     {
-      gold_assert(pool != index.shndx_pool_end());
-      elfcpp::Swap_unaligned<32, big_endian>::writeval(p, *pool);
-      p += sizeof(uint32_t);
-      ++pool;
+      if (column_mask & (1 << c))
+	{
+	  elfcpp::Swap_unaligned<32, big_endian>::writeval(p, c);
+	  p += sizeof(uint32_t);
+	}
+    }
+
+  // Write the table of section offsets.
+  Dwp_index::Section_table::const_iterator tbl = index.section_table();
+  for (unsigned int r = 0; r < nrows; ++r)
+    {
+      gold_assert(tbl != index.section_table_end());
+      const Section_bounds* sects = (*tbl)->sections;
+      for (unsigned int c = 1; c <= elfcpp::DW_SECT_MAX; ++c)
+	{
+	  if (column_mask & (1 << c))
+	    {
+	      section_offset_type offset = sects[c].offset;
+	      elfcpp::Swap_unaligned<32, big_endian>::writeval(p, offset);
+	      p += sizeof(uint32_t);
+	    }
+	  else
+	    gold_assert(sects[c].size == 0);
+	}
+      ++tbl;
+    }
+
+  // Write the table of section sizes.
+  tbl = index.section_table();
+  for (unsigned int r = 0; r < nrows; ++r)
+    {
+      gold_assert(tbl != index.section_table_end());
+      const Section_bounds* sects = (*tbl)->sections;
+      for (unsigned int c = 1; c <= elfcpp::DW_SECT_MAX; ++c)
+	{
+	  if (column_mask & (1 << c))
+	    {
+	      section_size_type size = sects[c].size;
+	      elfcpp::Swap_unaligned<32, big_endian>::writeval(p, size);
+	      p += sizeof(uint32_t);
+	    }
+	  else
+	    gold_assert(sects[c].size == 0);
+	}
+      ++tbl;
     }
 
   gold_assert(p == buf + index_size);
 
-  this->add_section(sect_name, buf, index_size, sizeof(uint64_t));
+  this->write_new_section(sect_name, buf, index_size, sizeof(uint64_t));
 
   delete[] buf;
 }
@@ -2050,29 +2230,76 @@ Dwo_name_info_reader::visit_compilation_unit(off_t, off_t, Dwarf_die* die)
 {
   const char* dwo_name = die->string_attribute(elfcpp::DW_AT_GNU_dwo_name);
   if (dwo_name != NULL)
-      this->files_->push_back(dwo_name);
+    {
+      uint64_t dwo_id = die->uint_attribute(elfcpp::DW_AT_GNU_dwo_id);
+      this->files_->push_back(Dwo_file_entry(dwo_id, dwo_name));
+    }
 }
 
-// Class Dwo_id_info_reader.
+// Class Unit_reader.
+
+// Read the CUs or TUs and add them to the output file.
+
+void
+Unit_reader::add_units(Dwp_output_file* output_file,
+		       unsigned int debug_abbrev,
+		       Section_bounds* sections)
+{
+  this->output_file_ = output_file;
+  this->sections_ = sections;
+  this->set_abbrev_shndx(debug_abbrev);
+  this->parse();
+}
 
 // Visit a compilation unit.
 
 void
-Dwo_id_info_reader::visit_compilation_unit(off_t, off_t, Dwarf_die* die)
+Unit_reader::visit_compilation_unit(off_t, off_t cu_length, Dwarf_die* die)
 {
-  this->dwo_id_ = die->uint_attribute(elfcpp::DW_AT_GNU_dwo_id);
-  if (this->dwo_id_ != 0)
-    this->dwo_id_found_ = true;
+  if (cu_length == 0)
+    return;
+
+  Unit_set* unit_set = new Unit_set();
+  unit_set->signature = die->uint_attribute(elfcpp::DW_AT_GNU_dwo_id);
+  for (unsigned int i = elfcpp::DW_SECT_ABBREV; i <= elfcpp::DW_SECT_MAX; ++i)
+    unit_set->sections[i] = this->sections_[i];
+
+  // Dwp_output_file::add_contribution writes the .debug_info.dwo section
+  // directly to the output file, so we do not need to duplicate the
+  // section contents, and add_contribution does not need to free the memory.
+  section_offset_type off =
+      this->output_file_->add_contribution(elfcpp::DW_SECT_INFO,
+					   this->buffer_at_offset(0),
+					   cu_length, 1);
+  Section_bounds bounds(off, cu_length);
+  unit_set->sections[elfcpp::DW_SECT_INFO] = bounds;
+  this->output_file_->add_cu_set(unit_set);
 }
 
 // Visit a type unit.
 
 void
-Dwo_id_info_reader::visit_type_unit(off_t, off_t, uint64_t signature,
-				    Dwarf_die*)
+Unit_reader::visit_type_unit(off_t, off_t tu_length, off_t,
+			     uint64_t signature, Dwarf_die*)
 {
-  this->type_sig_ = signature;
-  this->type_sig_found_ = true;
+  if (tu_length == 0)
+    return;
+  if (this->output_file_->lookup_tu(signature))
+    return;
+
+  Unit_set* unit_set = new Unit_set();
+  unit_set->signature = signature;
+  for (unsigned int i = elfcpp::DW_SECT_ABBREV; i <= elfcpp::DW_SECT_MAX; ++i)
+    unit_set->sections[i] = this->sections_[i];
+
+  unsigned char* contents = new unsigned char[tu_length];
+  memcpy(contents, this->buffer_at_offset(0), tu_length);
+  section_offset_type off =
+      this->output_file_->add_contribution(elfcpp::DW_SECT_TYPES, contents,
+					   tu_length, 1);
+  Section_bounds bounds(off, tu_length);
+  unit_set->sections[elfcpp::DW_SECT_TYPES] = bounds;
+  this->output_file_->add_tu_set(unit_set);
 }
 
 }; // End namespace gold
@@ -2081,12 +2308,17 @@ using namespace gold;
 
 // Options.
 
+enum Dwp_options {
+  VERIFY_ONLY = 0x101,
+};
+
 struct option dwp_options[] =
   {
     { "exec", required_argument, NULL, 'e' },
     { "help", no_argument, NULL, 'h' },
     { "output", required_argument, NULL, 'o' },
     { "verbose", no_argument, NULL, 'v' },
+    { "verify-only", no_argument, NULL, VERIFY_ONLY },
     { "version", no_argument, NULL, 'V' },
     { NULL, 0, NULL, 0 }
   };
@@ -2099,9 +2331,11 @@ usage(FILE* fd, int exit_status)
   fprintf(fd, _("Usage: %s [options] [file...]\n"), program_name);
   fprintf(fd, _("  -h, --help               Print this help message\n"));
   fprintf(fd, _("  -e EXE, --exec EXE       Get list of dwo files from EXE"
-		" (defaults output to EXE.dwp)\n"));
+					   " (defaults output to EXE.dwp)\n"));
   fprintf(fd, _("  -o FILE, --output FILE   Set output dwp file name\n"));
   fprintf(fd, _("  -v, --verbose            Verbose output\n"));
+  fprintf(fd, _("  --verify-only            Verify output file against"
+					   " exec file\n"));
   fprintf(fd, _("  -V, --version            Print version number\n"));
 
   // REPORT_BUGS_TO is defined in bfd/bfdver.h.
@@ -2118,7 +2352,7 @@ print_version()
 {
   // This output is intended to follow the GNU standards.
   printf("GNU dwp %s\n", BFD_VERSION_STRING);
-  printf(_("Copyright 2012 Free Software Foundation, Inc.\n"));
+  printf(_("Copyright (C) 2014 Free Software Foundation, Inc.\n"));
   printf(_("\
 This program is free software; you may redistribute it under the terms of\n\
 the GNU General Public License version 3 or (at your option) any later version.\n\
@@ -2161,6 +2395,7 @@ main(int argc, char** argv)
   std::string output_filename;
   const char* exe_filename = NULL;
   bool verbose = false;
+  bool verify_only = false;
   int c;
   while ((c = getopt_long(argc, argv, "e:ho:vV", dwp_options, NULL)) != -1)
     {
@@ -2176,6 +2411,9 @@ main(int argc, char** argv)
 	    break;
 	  case 'v':
 	    verbose = true;
+	    break;
+	  case VERIFY_ONLY:
+	    verify_only = true;
 	    break;
 	  case 'V':
 	    print_version();
@@ -2193,8 +2431,6 @@ main(int argc, char** argv)
       output_filename.append(".dwp");
     }
 
-  Dwp_output_file output_file(output_filename.c_str());
-
   // Get list of .dwo files from the executable.
   if (exe_filename != NULL)
     {
@@ -2204,20 +2440,29 @@ main(int argc, char** argv)
 
   // Add any additional files listed on command line.
   for (int i = optind; i < argc; ++i)
-    files.push_back(argv[i]);
+    files.push_back(Dwo_file_entry(0, argv[i]));
 
   if (exe_filename == NULL && files.empty())
     gold_fatal(_("no input files and no executable specified"));
 
+  if (verify_only)
+    {
+      // Get list of DWO files in the DWP file and compare with
+      // references found in the EXE file.
+      Dwo_file dwp_file(output_filename.c_str());
+      bool ok = dwp_file.verify(files);
+      return ok ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
+
   // Process each file, adding its contents to the output file.
+  Dwp_output_file output_file(output_filename.c_str());
   for (File_list::const_iterator f = files.begin(); f != files.end(); ++f)
     {
       if (verbose)
-        fprintf(stderr, "%s\n", f->c_str());
-      Dwo_file dwo_file(f->c_str());
+	fprintf(stderr, "%s\n", f->dwo_name.c_str());
+      Dwo_file dwo_file(f->dwo_name.c_str());
       dwo_file.read(&output_file);
     }
-
   output_file.finalize();
 
   return EXIT_SUCCESS;

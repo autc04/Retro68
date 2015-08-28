@@ -2,7 +2,7 @@
 
 # gdb_index_test_comm.sh -- common code for --gdb-index tests.
 
-# Copyright 2012 Free Software Foundation, Inc.
+# Copyright (C) 2012-2014 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@google.com>.
 
 # This file is part of gold.
@@ -37,7 +37,7 @@ check()
 
 STDOUT="$1"
 
-check $STDOUT "^Version [45]"
+check $STDOUT "^Version [4-7]"
 
 # Look for the symbols we know should be in the symbol table.
 

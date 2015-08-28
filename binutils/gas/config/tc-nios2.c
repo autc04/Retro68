@@ -1,5 +1,5 @@
 /* Altera Nios II assembler.
-   Copyright (C) 2012, 2013 Free Software Foundation, Inc.
+   Copyright (C) 2012-2014 Free Software Foundation, Inc.
    Contributed by Nigel Gray (ngray@altera.com).
    Contributed by Mentor Graphics, Inc.
 
@@ -1164,6 +1164,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 		  || fixP->fx_r_type == BFD_RELOC_NIOS2_TLS_LE16
 		  || fixP->fx_r_type == BFD_RELOC_NIOS2_GOTOFF
 		  || fixP->fx_r_type == BFD_RELOC_NIOS2_TLS_DTPREL
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_CALL26_NOAT
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_GOT_LO
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_GOT_HA
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_CALL_LO
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_CALL_HA
 		  /* Add other relocs here as we generate them.  */
 		  ));
 
@@ -1300,21 +1305,28 @@ struct nios2_special_relocS
   bfd_reloc_code_real_type reloc_type;
 };
 
+/* This table is sorted so that prefix strings are listed after the longer
+   strings that include them -- e.g., %got after %got_hiadj, etc.  */
+
 struct nios2_special_relocS nios2_special_reloc[] = {
   {"%hiadj", BFD_RELOC_NIOS2_HIADJ16},
   {"%hi", BFD_RELOC_NIOS2_HI16},
   {"%lo", BFD_RELOC_NIOS2_LO16},
   {"%gprel", BFD_RELOC_NIOS2_GPREL},
+  {"%call_lo", BFD_RELOC_NIOS2_CALL_LO},
+  {"%call_hiadj", BFD_RELOC_NIOS2_CALL_HA},
   {"%call", BFD_RELOC_NIOS2_CALL16},
   {"%gotoff_lo", BFD_RELOC_NIOS2_GOTOFF_LO},
   {"%gotoff_hiadj", BFD_RELOC_NIOS2_GOTOFF_HA},
+  {"%gotoff", BFD_RELOC_NIOS2_GOTOFF},
+  {"%got_hiadj", BFD_RELOC_NIOS2_GOT_HA},
+  {"%got_lo", BFD_RELOC_NIOS2_GOT_LO},
+  {"%got", BFD_RELOC_NIOS2_GOT16},
   {"%tls_gd", BFD_RELOC_NIOS2_TLS_GD16},
   {"%tls_ldm", BFD_RELOC_NIOS2_TLS_LDM16},
   {"%tls_ldo", BFD_RELOC_NIOS2_TLS_LDO16},
   {"%tls_ie", BFD_RELOC_NIOS2_TLS_IE16},
   {"%tls_le", BFD_RELOC_NIOS2_TLS_LE16},
-  {"%gotoff", BFD_RELOC_NIOS2_GOTOFF},
-  {"%got", BFD_RELOC_NIOS2_GOT16}
 };
 
 #define NIOS2_NUM_SPECIAL_RELOCS \
@@ -1595,7 +1607,10 @@ nios2_assemble_args_m (nios2_insn_infoS *insn_info)
       unsigned long immed
 	= nios2_assemble_expression (insn_info->insn_tokens[1], insn_info,
 				     insn_info->insn_reloc,
-				     BFD_RELOC_NIOS2_CALL26, 0);
+				     (nios2_as_options.noat
+				      ? BFD_RELOC_NIOS2_CALL26_NOAT
+				      : BFD_RELOC_NIOS2_CALL26),
+				     0);
 
       SET_INSN_FIELD (IMM26, insn_info->insn_code, immed);
       nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[2]);
@@ -1951,15 +1966,17 @@ nios2_consume_arg (nios2_insn_infoS *insn, char *argstr, const char *parsestr)
       /* And whether we are using oci registers.  */
       if (!nios2_as_options.nobreak
 	  && (regno == 25 || strprefix (argstr, "bt")))
-	as_warn (_("The debugger will corrupt bt (r25). If you don't need to "
-		   "debug this\n"
-		   "code then use .set nobreak to turn off this warning."));
+	as_warn (_("The debugger will corrupt bt (r25).\n"
+		   "If you don't need to debug this "
+		   "code use .set nobreak to turn off this warning."));
 	
       if (!nios2_as_options.nobreak
-	  && (regno == 30 || strprefix (argstr, "ba")))
-	as_warn (_("The debugger will corrupt ba (r30). If you don't need to "
-		   "debug this\n"
-		   "code then use .set nobreak to turn off this warning."));
+	  && (regno == 30
+	      || strprefix (argstr, "ba")
+	      || strprefix (argstr, "sstatus")))
+	as_warn (_("The debugger will corrupt sstatus/ba (r30).\n"
+		   "If you don't need to debug this "
+		   "code use .set nobreak to turn off this warning."));
       break;
     case 'i':
     case 'u':
@@ -1989,6 +2006,7 @@ nios2_consume_arg (nios2_insn_infoS *insn, char *argstr, const char *parsestr)
 	as_bad (_("badly formed expression near %s"), argstr);
       break;
     case 'o':
+    case 'E':
       break;
     default:
       BAD_CASE (*parsestr);
@@ -2726,7 +2744,10 @@ md_assemble (char *op_str)
 		   && !nios2_as_options.noat
 		   && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CALL
 		   && insn->insn_reloc
-		   && insn->insn_reloc->reloc_type == BFD_RELOC_NIOS2_CALL26)
+		   && ((insn->insn_reloc->reloc_type
+			== BFD_RELOC_NIOS2_CALL26)
+		       || (insn->insn_reloc->reloc_type
+			   == BFD_RELOC_NIOS2_CALL26_NOAT)))
 	    output_call (insn);
 	  else if (insn->insn_nios2_opcode->pinfo & NIOS2_INSN_ANDI)
 	    output_andi (insn);
@@ -2815,7 +2836,12 @@ nios2_fix_adjustable (fixS *fixp)
       || fixp->fx_r_type == BFD_RELOC_NIOS2_TLS_DTPMOD
       || fixp->fx_r_type == BFD_RELOC_NIOS2_TLS_DTPREL
       || fixp->fx_r_type == BFD_RELOC_NIOS2_TLS_TPREL
-      || fixp->fx_r_type == BFD_RELOC_NIOS2_GOTOFF)
+      || fixp->fx_r_type == BFD_RELOC_NIOS2_GOTOFF
+      || fixp->fx_r_type == BFD_RELOC_NIOS2_GOT_LO
+      || fixp->fx_r_type == BFD_RELOC_NIOS2_GOT_HA
+      || fixp->fx_r_type == BFD_RELOC_NIOS2_CALL_LO
+      || fixp->fx_r_type == BFD_RELOC_NIOS2_CALL_HA
+      )
     return 0;
 
   return 1;
@@ -2978,12 +3004,10 @@ nios2_elf_section_flags (flagword flags, int attr, int type ATTRIBUTE_UNUSED)
 }
 
 /* Implement TC_PARSE_CONS_EXPRESSION to handle %tls_ldo(...) */
-static int nios2_tls_ldo_reloc;
-
-void
+bfd_reloc_code_real_type
 nios2_cons (expressionS *exp, int size)
 {
-  nios2_tls_ldo_reloc = 0;
+  bfd_reloc_code_real_type nios2_tls_ldo_reloc = BFD_RELOC_NONE;
 
   SKIP_WHITESPACE ();
   if (input_line_pointer[0] == '%')
@@ -2996,10 +3020,10 @@ nios2_cons (expressionS *exp, int size)
 	  else
 	    {
 	      input_line_pointer += 8;
-	      nios2_tls_ldo_reloc = 1;
+	      nios2_tls_ldo_reloc = BFD_RELOC_NIOS2_TLS_DTPREL;
 	    }
 	}
-      if (nios2_tls_ldo_reloc)
+      if (nios2_tls_ldo_reloc != BFD_RELOC_NONE)
 	{
 	  SKIP_WHITESPACE ();
 	  if (input_line_pointer[0] != '(')
@@ -3041,26 +3065,9 @@ nios2_cons (expressionS *exp, int size)
 	    }
 	}
     }
-  if (!nios2_tls_ldo_reloc)
+  if (nios2_tls_ldo_reloc == BFD_RELOC_NONE)
     expression (exp);
-}
-
-/* Implement TC_CONS_FIX_NEW.  */
-void
-nios2_cons_fix_new (fragS *frag, int where, unsigned int nbytes,
-		    expressionS *exp)
-{
-  bfd_reloc_code_real_type r;
-
-  r = (nbytes == 1 ? BFD_RELOC_8
-       : (nbytes == 2 ? BFD_RELOC_16
-	  : (nbytes == 4 ? BFD_RELOC_32 : BFD_RELOC_64)));
-
-  if (nios2_tls_ldo_reloc)
-    r = BFD_RELOC_NIOS2_TLS_DTPREL;
-
-  fix_new_exp (frag, where, (int) nbytes, exp, 0, r);
-  nios2_tls_ldo_reloc = 0;
+  return nios2_tls_ldo_reloc;
 }
 
 /* Implement HANDLE_ALIGN.  */

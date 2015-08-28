@@ -1,7 +1,6 @@
 /* tc-i370.c -- Assembler for the IBM 360/370/390 instruction set.
    Loosely based on the ppc files by Linas Vepstas <linas@linas.org> 1998, 99
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2009, 2010  Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.

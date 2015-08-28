@@ -1,5 +1,19 @@
 -*- text -*-
 
+Changes in 2.25:
+
+* PE binaries now once again contain real timestamps by default.  To disable
+  the inclusion of a timestamp in a PE binary, use the --no-insert-timestamp
+  command line option.
+
+* Replace support for openrisc and or32 with support for or1k.
+
+* Add support for the --build-id command line option to COFF based targets.
+
+* x86/x86_64 pe-coff now supports the --build-id option.
+
+* Add support for the Andes NDS32.
+
 Changes in 2.24:
 
 * Add LOG2CEIL() builtin function to the linker script language
@@ -578,7 +592,7 @@ Changes in version 2.1:
   other utilities should work on Risc/Ultrix and Irix.
 
 
-Copyright (C) 2012 Free Software Foundation, Inc.
+Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

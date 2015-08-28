@@ -3,7 +3,7 @@ $! This file sets things up to build gas on a VMS system to generate object
 $! files for a VMS system.  We do not use the configure script, since we
 $! do not have /bin/sh to execute it.
 $!	
-$!   Copyright 2012 Free Software Foundation
+$!   Copyright (C) 2012-2014 Free Software Foundation, Inc.
 $!
 $! This file is free software; you can redistribute it and/or modify
 $! it under the terms of the GNU General Public License as published by
@@ -185,17 +185,17 @@ $  create config-vms.in
 
 /* Version number of package */
 $!
-$! Get VERSION from ../bfd/configure.in
+$! Get VERSION from ../bfd/version.m4
 $!
 $ edit/tpu/nojournal/nosection/nodisplay/command=sys$input
 $DECK
    set (success, off);
-   mfile := CREATE_BUFFER("mfile", "[-.bfd]configure.in");
-   match_pos := SEARCH_QUIETLY('AM_INIT_AUTOMAKE(bfd, ', FORWARD, EXACT, mfile);
+   mfile := CREATE_BUFFER("mfile", "[-.bfd]version.m4");
+   match_pos := SEARCH_QUIETLY('m4_define([BFD_VERSION], [', FORWARD, EXACT, mfile);
    IF match_pos <> 0 THEN;
      POSITION(BEGINNING_OF(match_pos));
      ERASE(match_pos);
-     vers := CURRENT_LINE-")";
+     vers := CURRENT_LINE-"])";
    ELSE;
      vers := "unknown";
    ENDIF;

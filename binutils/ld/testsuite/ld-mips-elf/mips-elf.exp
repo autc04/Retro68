@@ -1,6 +1,5 @@
 # Expect script for MIPS ELF linker tests
-#   Copyright 2002, 2003, 2004, 2005, 2006, 2007, 2008
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -55,12 +54,14 @@ if {![istarget mips*-*-*] || ![is_elf_format]} {
 
 set has_newabi [expr [istarget *-*-irix6*] \
 		     || [istarget mips*-*-linux*] \
-		     || [istarget mips*-sde-elf*]]
+		     || [istarget mips*-sde-elf*] \
+		     || [istarget mips*-mti-elf*] \
+		     || [istarget mips*-img-elf*]]
 set linux_gnu [expr [istarget mips*-*-linux*]]
 set embedded_elf [expr [istarget mips*-*-elf]]
 
 # Set defaults.
-set abi_asflags(o32) ""
+set abi_asflags(o32) "-32"
 set abi_asflags(n32) "-march=from-abi -n32 -EB"
 set abi_asflags(n64) "-march=from-abi -64 -EB"
 set abi_ldflags(o32) ""
@@ -78,7 +79,8 @@ if { [istarget *-*-irix6*] } {
     set abi_asflags(o32) "-32 -EB"
     set abi_ldflags(o32) -melf32btsmip_fbsd
 }
-if { [istarget mips*-*-linux*] || [istarget mips*-sde-elf*] } {
+if { [istarget mips*-*-linux*] || [istarget mips*-sde-elf*]
+     || [istarget mips*-mti-elf*] || [istarget mips*-img-elf*]} {
     set abi_ldflags(n32) -melf32btsmipn32
     set abi_ldflags(n64) -melf64btsmip
 } elseif { [istarget mips64*-*freebsd*] } {
@@ -432,6 +434,16 @@ if {$linux_gnu} {
 
 run_dump_test "jaloverflow"
 run_dump_test "jaloverflow-2"
+run_dump_test "undefweak-overflow" [list [list as $abi_asflags(o32)] \
+					 [list ld $abi_ldflags(o32)]]
+
+if {$has_newabi} {
+    run_dump_test "undefweak-overflow" [list [list as $abi_asflags(n32)] \
+					     [list ld $abi_ldflags(n32)]]
+    run_dump_test "undefweak-overflow" [list [list as $abi_asflags(n64)] \
+					     [list ld $abi_ldflags(n64)]]
+}
+
 if {$has_newabi} {
     run_dump_test "jalbal" [list [list ld $abi_ldflags(n32)]]
 }
@@ -633,37 +645,66 @@ run_ld_link_tests $mips16_intermix_test
 
 run_dump_test "mips16-local-stubs-1"
 
-run_dump_test "attr-gnu-4-00"
-run_dump_test "attr-gnu-4-01"
-run_dump_test "attr-gnu-4-02"
-run_dump_test "attr-gnu-4-03"
-run_dump_test "attr-gnu-4-04"
-run_dump_test "attr-gnu-4-05"
-run_dump_test "attr-gnu-4-10"
-run_dump_test "attr-gnu-4-11"
-run_dump_test "attr-gnu-4-12"
-run_dump_test "attr-gnu-4-13"
-run_dump_test "attr-gnu-4-14"
-run_dump_test "attr-gnu-4-15"
-run_dump_test "attr-gnu-4-20"
-run_dump_test "attr-gnu-4-21"
-run_dump_test "attr-gnu-4-22"
-run_dump_test "attr-gnu-4-23"
-run_dump_test "attr-gnu-4-24"
-run_dump_test "attr-gnu-4-25"
-run_dump_test "attr-gnu-4-30"
-run_dump_test "attr-gnu-4-31"
-run_dump_test "attr-gnu-4-32"
-run_dump_test "attr-gnu-4-33"
-run_dump_test "attr-gnu-4-34"
-run_dump_test "attr-gnu-4-35"
-run_dump_test "attr-gnu-4-40"
-run_dump_test "attr-gnu-4-41"
-run_dump_test "attr-gnu-4-42"
-run_dump_test "attr-gnu-4-43"
-run_dump_test "attr-gnu-4-44"
-run_dump_test "attr-gnu-4-45"
-run_dump_test "attr-gnu-4-51"
+set o32flagslist [list [list as $abi_asflags(o32)] [list ld $abi_ldflags(o32)]]
+
+foreach firstfpabi [list 0 1 2 3 4 5 6 7 ] {
+  foreach secondfpabi [list 4 5 6 7 ] {
+    run_dump_test "attr-gnu-4-${firstfpabi}${secondfpabi}" $o32flagslist
+  }
+}
+foreach firstfpabi [list 4 5 6 7 ] {
+  foreach secondfpabi [list 0 1 2 3 8] {
+    run_dump_test "attr-gnu-4-${firstfpabi}${secondfpabi}" $o32flagslist
+  }
+}
+foreach firstfpabi [list 0 1 2 3 ] {
+  foreach secondfpabi [list 0 1 2 3 8] {
+    run_dump_test "attr-gnu-4-${firstfpabi}${secondfpabi}"
+  }
+}
+
+run_dump_test "attr-gnu-4-81"
+
+run_dump_test "attr-gnu-8-00"
+run_dump_test "attr-gnu-8-01"
+run_dump_test "attr-gnu-8-02"
+run_dump_test "attr-gnu-8-10"
+run_dump_test "attr-gnu-8-11"
+run_dump_test "attr-gnu-8-12"
+run_dump_test "attr-gnu-8-20"
+run_dump_test "attr-gnu-8-21"
+run_dump_test "attr-gnu-8-22"
+
+run_dump_test "attr-gnu-4-0-ph" $o32flagslist
+run_dump_test "attr-gnu-4-1-ph" $o32flagslist
+run_dump_test "attr-gnu-4-2-ph" $o32flagslist
+run_dump_test "attr-gnu-4-3-ph" $o32flagslist
+run_dump_test "attr-gnu-4-4-ph" $o32flagslist
+run_dump_test "attr-gnu-4-5-ph" $o32flagslist
+run_dump_test "attr-gnu-4-6-ph" $o32flagslist
+run_dump_test "attr-gnu-4-7-ph" $o32flagslist
+
+if $has_newabi {
+  run_dump_test "attr-gnu-4-0-n32-ph"
+  run_dump_test "attr-gnu-4-1-n32-ph"
+  run_dump_test "attr-gnu-4-2-n32-ph"
+  run_dump_test "attr-gnu-4-3-n32-ph"
+  run_dump_test "attr-gnu-4-0-n64-ph"
+  run_dump_test "attr-gnu-4-1-n64-ph"
+  run_dump_test "attr-gnu-4-2-n64-ph"
+  run_dump_test "attr-gnu-4-3-n64-ph"
+}
+
+run_dump_test "abiflags-strip1-ph" $o32flagslist
+run_dump_test "abiflags-strip2-ph" $o32flagslist
+run_dump_test "abiflags-strip3-ph" $o32flagslist
+run_dump_test "abiflags-strip4-ph" $o32flagslist
+run_dump_test "abiflags-strip5-ph" $o32flagslist
+run_dump_test "abiflags-strip6-ph" $o32flagslist
+run_dump_test "abiflags-strip7-ph" $o32flagslist
+run_dump_test "abiflags-strip8-ph" $o32flagslist
+run_dump_test "abiflags-strip9-ph" $o32flagslist
+run_dump_test "abiflags-strip10-ph" $o32flagslist
 
 run_dump_test "nan-legacy"
 run_dump_test "nan-2008"
@@ -750,4 +791,80 @@ foreach { abi } $abis {
 	    [list ../../../gas/testsuite/gas/mips/jalr3.s] \
 	    [list "objdump -d jalr3.dd"] \
 	    "jalr3-${abi}"]]
+}
+
+proc build_mips_plt_lib { abi } {
+    global abi_asflags
+    global abi_ldflags
+
+    run_ld_link_tests [list \
+	[list "Shared $abi library for compressed PLT tests" \
+	      "-shared $abi_ldflags($abi)" "" \
+	      "$abi_asflags($abi)" \
+	      { compressed-plt-1-dyn.s } \
+	      {} \
+	      "compressed-plt-1-${abi}-dyn.so"]]
+}
+
+proc run_mips_plt_test { name abi filter micromips suffix {extra {}} } {
+    global abi_asflags
+    global abi_ldflags
+
+    set as_flags "$abi_asflags($abi) --defsym filter=$filter"
+    append as_flags " --defsym micromips=$micromips --defsym $abi=1"
+    if {[string equal $abi o32]} {
+	append as_flags " -march=mips2"
+    }
+    set ld_flags "$abi_ldflags($abi) -T compressed-plt-1.ld"
+    set dynobj "tmpdir/compressed-plt-1-${abi}-dyn.so"
+    set files [list]
+    if { $filter & 3 } {
+	lappend files compressed-plt-1a.s
+    }
+    if { $filter & 12 } {
+	lappend files compressed-plt-1b.s
+    }
+    if { $filter & 16 } {
+	lappend files compressed-plt-1c.s
+    }
+    eval [list lappend files] $extra
+    set readelf_flags "-A --syms --relocs -d"
+    if { [string match "*word*" $suffix] } {
+	append readelf_flags " -x.data"
+    }
+    set objdump_flags "-d -Mgpr-names=numeric"
+    set basename "compressed-plt-1-${abi}-${suffix}"
+    run_ld_link_tests [list \
+	[list "$name" $ld_flags $dynobj \
+	      "$as_flags" $files \
+	      [list [list readelf $readelf_flags ${basename}.rd] \
+		    [list objdump $objdump_flags ${basename}.od]] \
+	      $basename]]
+}
+
+if { $linux_gnu } {
+    build_mips_plt_lib o32
+    run_mips_plt_test "o32 PLTs for standard encoding" o32 28 0 se
+    run_mips_plt_test "o32 PLTs for MIPS16 encoding" o32 19 0 mips16-only
+    run_mips_plt_test "o32 PLTs for microMIPS encoding" o32 19 1 umips-only
+    run_mips_plt_test "o32 PLTs for mixed MIPS and MIPS16" \
+	o32 -1 0 mips16
+    run_mips_plt_test "o32 PLTs for mixed MIPS and MIPS16 with %got" \
+	o32 -1 0 mips16-got compressed-plt-1d.s
+    run_mips_plt_test "o32 PLTs for mixed MIPS and MIPS16 with .word" \
+	o32 -1 0 mips16-word compressed-plt-1e.s
+    run_mips_plt_test "o32 PLTs for mixed MIPS and microMIPS" \
+	o32 -1 1 umips
+    run_mips_plt_test "o32 PLTs for mixed MIPS and microMIPS with %got" \
+	o32 -1 1 umips-got compressed-plt-1d.s
+    run_mips_plt_test "o32 PLTs for mixed MIPS and microMIPS with .word" \
+	o32 -1 1 umips-word compressed-plt-1e.s
+
+    if $has_newabi {
+	build_mips_plt_lib n32
+	run_mips_plt_test "n32 PLTs for mixed MIPS and MIPS16" \
+	    n32 -1 0 mips16
+	run_mips_plt_test "n32 PLTs for mixed MIPS and microMIPS" \
+	    n32 -1 1 umips
+    }
 }

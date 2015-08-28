@@ -27,9 +27,9 @@ Disassembly of section \.text:
   44:	(60 42 00 00|00 00 42 60) 	ori     r2,r2,0
   48:	(60 00 00 00|00 00 00 60) 	nop
   4c:	(60 42 00 00|00 00 42 60) 	ori     r2,r2,0
-  50:	(4c 00 01 24|24 01 00 4c) 	rfebb   
-  54:	(4c 00 01 24|24 01 00 4c) 	rfebb   
-  58:	(4c 00 09 24|24 09 00 4c) 	rfebb   1
+  50:	(4c 00 01 24|24 01 00 4c) 	rfebb   0
+  54:	(4c 00 09 24|24 09 00 4c) 	rfebb   
+  58:	(4c 00 09 24|24 09 00 4c) 	rfebb   
   5c:	(4d 95 04 60|60 04 95 4d) 	bctar-  12,4\*cr5\+gt
   60:	(4c 87 04 61|61 04 87 4c) 	bctarl- 4,4\*cr1\+so
   64:	(4d ac 04 60|60 04 ac 4d) 	bctar\+  12,4\*cr3\+lt
@@ -150,4 +150,6 @@ Disassembly of section \.text:
  230:	(f3 60 d5 2d|2d d5 60 f3) 	xscvspdpn vs59,vs26
  234:	(ff 0e 16 8c|8c 16 0e ff) 	fmrgow  f24,f14,f2
  238:	(fe c7 2f 8c|8c 2f c7 fe) 	fmrgew  f22,f7,f5
+ 23c:	(7c 00 71 9c|9c 71 00 7c) 	msgsnd  r14
+ 240:	(7c 00 b9 dc|dc b9 00 7c) 	msgclr  r23
 #pass

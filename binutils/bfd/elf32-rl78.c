@@ -1,5 +1,5 @@
 /* Renesas RL78 specific support for 32-bit ELF.
-   Copyright (C) 2011-2013 Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -37,7 +37,7 @@
 
 static reloc_howto_type rl78_elf_howto_table [] =
 {
-  RL78REL (NONE,         0,  0, 0, dont,     FALSE),
+  RL78REL (NONE,         3,  0, 0, dont,     FALSE),
   RL78REL (DIR32,        2, 32, 0, signed,   FALSE),
   RL78REL (DIR24S,       2, 24, 0, signed,   FALSE),
   RL78REL (DIR16,        1, 16, 0, dont,     FALSE),
@@ -246,7 +246,7 @@ rl78_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
   if (code == BFD_RELOC_RL78_32_OP)
     return rl78_elf_howto_table + R_RL78_DIR32;
 
-  for (i = ARRAY_SIZE (rl78_reloc_map); --i;)
+  for (i = ARRAY_SIZE (rl78_reloc_map); i--;)
     if (rl78_reloc_map [i].bfd_reloc_val == code)
       return rl78_elf_howto_table + rl78_reloc_map[i].rl78_reloc_val;
 
@@ -276,7 +276,11 @@ rl78_info_to_howto_rela (bfd *               abfd ATTRIBUTE_UNUSED,
   unsigned int r_type;
 
   r_type = ELF32_R_TYPE (dst->r_info);
-  BFD_ASSERT (r_type < (unsigned int) R_RL78_max);
+  if (r_type >= (unsigned int) R_RL78_max)
+    {
+      _bfd_error_handler (_("%B: invalid RL78 reloc number: %d"), abfd, r_type);
+      r_type = 0;
+    }
   cache_ptr->howto = rl78_elf_howto_table + r_type;
 }
 
@@ -460,12 +464,13 @@ rl78_elf_relocate_section
 	}
       else
 	{
-	  bfd_boolean warned;
+	  bfd_boolean warned ATTRIBUTE_UNUSED;
+	  bfd_boolean ignored ATTRIBUTE_UNUSED;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes, h,
 				   sec, relocation, unresolved_reloc,
-				   warned);
+				   warned, ignored);
 
 	  name = h->root.root.string;
 	}
@@ -1048,6 +1053,19 @@ rl78_elf_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
 	    (*_bfd_error_handler) (_("- %s is G10, %s is not"),
 				   bfd_get_filename (ibfd), bfd_get_filename (obfd));
 	}
+
+      if (changed_flags & E_FLAG_RL78_64BIT_DOUBLES)
+	{
+	  (*_bfd_error_handler)
+	    (_("RL78 merge conflict: cannot link 32-bit and 64-bit objects together"));
+
+	  if (old_flags & E_FLAG_RL78_64BIT_DOUBLES)
+	    (*_bfd_error_handler) (_("- %s is 64-bit, %s is not"),
+				   bfd_get_filename (obfd), bfd_get_filename (ibfd));
+	  else
+	    (*_bfd_error_handler) (_("- %s is 64-bit, %s is not"),
+				   bfd_get_filename (ibfd), bfd_get_filename (obfd));
+	}    
     }
 
   return !error;
@@ -1069,6 +1087,9 @@ rl78_elf_print_private_bfd_data (bfd * abfd, void * ptr)
 
   if (flags & E_FLAG_RL78_G10)
     fprintf (file, _(" [G10]"));
+
+  if (flags & E_FLAG_RL78_64BIT_DOUBLES)
+    fprintf (file, _(" [64-bit doubles]"));
 
   fputc ('\n', file);
   return TRUE;
@@ -1092,90 +1113,6 @@ rl78_elf_object_p (bfd * abfd)
 			     elf32_rl78_machine (abfd));
   return TRUE;
 }
- 
-#ifdef DEBUG
-void
-rl78_dump_symtab (bfd * abfd, void * internal_syms, void * external_syms)
-{
-  size_t locsymcount;
-  Elf_Internal_Sym * isymbuf;
-  Elf_Internal_Sym * isymend;
-  Elf_Internal_Sym * isym;
-  Elf_Internal_Shdr * symtab_hdr;
-  bfd_boolean free_internal = FALSE, free_external = FALSE;
-  char * st_info_str;
-  char * st_info_stb_str;
-  char * st_other_str;
-  char * st_shndx_str;
-
-  if (! internal_syms)
-    {
-      internal_syms = bfd_malloc (1000);
-      free_internal = 1;
-    }
-  if (! external_syms)
-    {
-      external_syms = bfd_malloc (1000);
-      free_external = 1;
-    }
-
-  symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
-  locsymcount = symtab_hdr->sh_size / get_elf_backend_data (abfd)->s->sizeof_sym;
-  if (free_internal)
-    isymbuf = bfd_elf_get_elf_syms (abfd, symtab_hdr,
-				    symtab_hdr->sh_info, 0,
-				    internal_syms, external_syms, NULL);
-  else
-    isymbuf = internal_syms;
-  isymend = isymbuf + locsymcount;
-
-  for (isym = isymbuf ; isym < isymend ; isym++)
-    {
-      switch (ELF_ST_TYPE (isym->st_info))
-	{
-	case STT_FUNC: st_info_str = "STT_FUNC";
-	case STT_SECTION: st_info_str = "STT_SECTION";
-	case STT_FILE: st_info_str = "STT_FILE";
-	case STT_OBJECT: st_info_str = "STT_OBJECT";
-	case STT_TLS: st_info_str = "STT_TLS";
-	default: st_info_str = "";
-	}
-      switch (ELF_ST_BIND (isym->st_info))
-	{
-	case STB_LOCAL: st_info_stb_str = "STB_LOCAL";
-	case STB_GLOBAL: st_info_stb_str = "STB_GLOBAL";
-	default: st_info_stb_str = "";
-	}
-      switch (ELF_ST_VISIBILITY (isym->st_other))
-	{
-	case STV_DEFAULT: st_other_str = "STV_DEFAULT";
-	case STV_INTERNAL: st_other_str = "STV_INTERNAL";
-	case STV_PROTECTED: st_other_str = "STV_PROTECTED";
-	default: st_other_str = "";
-	}
-      switch (isym->st_shndx)
-	{
-	case SHN_ABS: st_shndx_str = "SHN_ABS";
-	case SHN_COMMON: st_shndx_str = "SHN_COMMON";
-	case SHN_UNDEF: st_shndx_str = "SHN_UNDEF";
-	default: st_shndx_str = "";
-	}
-    }
-  if (free_internal)
-    free (internal_syms);
-  if (free_external)
-    free (external_syms);
-}
-
-char *
-rl78_get_reloc (long reloc)
-{
-  if (0 <= reloc && reloc < R_RL78_max)
-    return rl78_elf_howto_table[reloc].name;
-  return "";
-}
-#endif /* DEBUG */
-
 
 /* support PLT for 16-bit references to 24-bit functions.  */
 
@@ -1437,7 +1374,7 @@ rl78_elf_relax_plt_section (bfd *dynobj,
 
   /* Likewise for local symbols, though that's somewhat less convenient
      as we have to walk the list of input bfds and swap in symbol data.  */
-  for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link_next)
+  for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link.next)
     {
       bfd_vma *local_plt_offsets = elf_local_got_offsets (ibfd);
       Elf_Internal_Shdr *symtab_hdr;
@@ -1511,7 +1448,7 @@ rl78_elf_relax_plt_section (bfd *dynobj,
       elf_link_hash_traverse (elf_hash_table (info),
 			      rl78_relax_plt_realloc, &entry);
 
-      for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link_next)
+      for (ibfd = info->input_bfds; ibfd ; ibfd = ibfd->link.next)
 	{
 	  bfd_vma *local_plt_offsets = elf_local_got_offsets (ibfd);
 	  unsigned int nlocals = elf_tdata (ibfd)->symtab_hdr.sh_info;
@@ -1564,6 +1501,12 @@ elf32_rl78_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count
     toaddr = alignment_rel->r_offset;
 
   irel = elf_section_data (sec)->relocs;
+  if (irel == NULL)
+    {
+      _bfd_elf_link_read_relocs (sec->owner, sec, NULL, NULL, TRUE);
+      irel = elf_section_data (sec)->relocs;
+    }
+
   irelend = irel + sec->reloc_count;
 
   /* Actually delete the bytes.  */
@@ -1579,7 +1522,7 @@ elf32_rl78_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count
     memset (contents + toaddr - count, 0x03, count);
 
   /* Adjust all the relocs.  */
-  for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
+  for (; irel && irel < irelend; irel++)
     {
       /* Get the new reloc address.  */
       if (irel->r_offset > addr
@@ -2260,7 +2203,7 @@ rl78_elf_relax_section
 	 61 F3 EF ad	SKNH ; BR $rel8
        */
 
-      if (irel->r_addend & RL78_RELAXA_BRA)
+      if ((irel->r_addend & RL78_RELAXA_MASK) == RL78_RELAXA_BRA)
 	{
 	  /* SKIP opcodes that skip non-branches will have a relax tag
 	     but no corresponding symbol to relax against; we just
@@ -2395,7 +2338,7 @@ rl78_elf_relax_section
 
 	}
 
-      if (irel->r_addend & RL78_RELAXA_ADDR16)
+      if ((irel->r_addend &  RL78_RELAXA_MASK) == RL78_RELAXA_ADDR16)
 	{
 	  /*----------------------------------------------------------------------*/
 	  /* Some insns have both a 16-bit address operand and an 8-bit
@@ -2494,7 +2437,7 @@ rl78_elf_relax_section
 #define ELF_MACHINE_CODE	EM_RL78
 #define ELF_MAXPAGESIZE		0x1000
 
-#define TARGET_LITTLE_SYM	bfd_elf32_rl78_vec
+#define TARGET_LITTLE_SYM	rl78_elf32_vec
 #define TARGET_LITTLE_NAME	"elf32-rl78"
 
 #define elf_info_to_howto_rel			NULL

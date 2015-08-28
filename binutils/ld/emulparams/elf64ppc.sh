@@ -23,7 +23,7 @@ OTHER_PLT_RELOC_SECTIONS="
 
 if test x${RELOCATING+set} = xset; then
   GOT="
-  .got		: ALIGN(8) { *(.got .toc) }"
+  .got		: ALIGN(256) { *(.got .toc) }"
 else
   GOT="
   .got		0 : { *(.got) }

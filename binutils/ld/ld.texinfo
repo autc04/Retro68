@@ -1,6 +1,6 @@
 \input texinfo
 @setfilename ld.info
-@c Copyright 1991-2013 Free Software Foundation, Inc.
+@c Copyright (C) 1991-2014 Free Software Foundation, Inc.
 @syncodeindex ky cp
 @c man begin INCLUDE
 @include configdoc.texi
@@ -29,6 +29,8 @@
 @set MIPS
 @set MMIX
 @set MSP430
+@set NDS32
+@set NIOSII
 @set POWERPC
 @set POWERPC64
 @set Renesas
@@ -53,7 +55,7 @@ This file documents the @sc{gnu} linker LD
 @end ifset
 version @value{VERSION}.
 
-Copyright @copyright{} 1991-2013 Free Software Foundation, Inc.
+Copyright @copyright{} 1991-2014 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
@@ -90,7 +92,7 @@ section entitled ``GNU Free Documentation License''.
 
 @vskip 0pt plus 1filll
 @c man begin COPYRIGHT
-Copyright @copyright{} 1991-2013 Free Software Foundation, Inc.
+Copyright @copyright{} 1991-2014 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
@@ -704,7 +706,8 @@ how @command{ld} searches for a linker script unless @option{-T}
 option is specified.
 
 If @var{searchdir} begins with @code{=}, then the @code{=} will be replaced
-by the @dfn{sysroot prefix}, a path specified when the linker is configured.
+by the @dfn{sysroot prefix}, controlled by the @samp{--sysroot} option, or
+specified when the linker is configured.
 
 @ifset UsesEnvVars
 The default set of paths searched (without being specified with
@@ -824,6 +827,34 @@ option only affects ELF shared library generation.  Future releases of
 the linker may make more use of this option.  Also currently there is
 no difference in the linker's behaviour for different non-zero values
 of this option.  Again this may change with future releases.
+
+@kindex --push-state
+@cindex push state governing input file handling
+@item --push-state
+The @option{--push-state} allows to preserve the current state of the
+flags which govern the input file handling so that they can all be
+restored with one corresponding @option{--pop-state} option.
+
+The option which are covered are: @option{-Bdynamic}, @option{-Bstatic},
+@option{-dn}, @option{-dy}, @option{-call_shared}, @option{-non_shared},
+@option{-static}, @option{-N}, @option{-n}, @option{--whole-archive},
+@option{--no-whole-archive}, @option{-r}, @option{-Ur},
+@option{--copy-dt-needed-entries}, @option{--no-copy-dt-needed-entries},
+@option{--as-needed}, @option{--no-as-needed}, and @option{-a}.
+
+One target for this option are specifications for @file{pkg-config}.  When
+used with the @option{--libs} option all possibly needed libraries are
+listed and then possibly linked with all the time.  It is better to return
+something as follows:
+
+@smallexample
+-Wl,--push-state,--as-needed -libone -libtwo -Wl,--pop-state
+@end smallexample
+
+@kindex --pop-state
+@cindex pop state governing input file handling
+Undoes the effect of --push-state, restores the previous values of the
+flags governing input file handling.
 
 @kindex -q
 @kindex --emit-relocs
@@ -1102,6 +1133,9 @@ Specify a stack size for in an ELF @code{PT_GNU_STACK} segment.
 Specifying zero will override any default non-zero sized
 @code{PT_GNU_STACK} segment creation.
 
+@item bndplt
+Always generate BND prefix in PLT entries. Supported for Linux/x86_64.
+
 @end table
 
 Other keywords are ignored for Solaris compatibility.
@@ -1149,8 +1183,8 @@ on the command line, regardless of whether the library is actually
 needed or not.  @option{--as-needed} causes a DT_NEEDED tag to only be
 emitted for a library that @emph{at that point in the link} satisfies a
 non-weak undefined symbol reference from a regular object file or, if
-the library is not found in the DT_NEEDED lists of other libraries, a
-non-weak undefined symbol reference from another dynamic library.
+the library is not found in the DT_NEEDED lists of other needed libraries, a
+non-weak undefined symbol reference from another needed dynamic library.
 Object files or libraries appearing on the command line @emph{after}
 the library in question do not affect whether the library is seen as
 needed.  This is similar to the rules for extraction of object files
@@ -1604,6 +1638,9 @@ This option is only supported on a few targets.
 @ifset M68HC11
 @xref{M68HC11/68HC12,,@command{ld} and the 68HC11 and 68HC12}.
 @end ifset
+@ifset NIOSII
+@xref{Nios II,,@command{ld} and the Altera Nios II}.
+@end ifset
 @ifset POWERPC
 @xref{PowerPC ELF32,,@command{ld} and PowerPC 32-bit ELF Support}.
 @end ifset
@@ -1838,8 +1875,8 @@ Same as @option{--section-start}, with @code{.bss}, @code{.data} or
 @kindex -Ttext-segment=@var{org}
 @item -Ttext-segment=@var{org}
 @cindex text segment origin, cmd line
-When creating an ELF executable or shared object, it will set the address
-of the first byte of the text segment.
+When creating an ELF executable, it will set the address of the first
+byte of the text segment.
 
 @kindex -Trodata-segment=@var{org}
 @item -Trodata-segment=@var{org}
@@ -2155,16 +2192,16 @@ enable other tradeoffs in future versions of the linker.
 @kindex --build-id=@var{style}
 @item --build-id
 @itemx --build-id=@var{style}
-Request creation of @code{.note.gnu.build-id} ELF note section.
-The contents of the note are unique bits identifying this linked
-file.  @var{style} can be @code{uuid} to use 128 random bits,
-@code{sha1} to use a 160-bit @sc{SHA1} hash on the normative
-parts of the output contents, @code{md5} to use a 128-bit
-@sc{MD5} hash on the normative parts of the output contents, or
-@code{0x@var{hexstring}} to use a chosen bit string specified as
-an even number of hexadecimal digits (@code{-} and @code{:}
-characters between digit pairs are ignored).  If @var{style} is
-omitted, @code{sha1} is used.
+Request the creation of a @code{.note.gnu.build-id} ELF note section
+or a @code{.build-id} COFF section.  The contents of the note are
+unique bits identifying this linked file.  @var{style} can be
+@code{uuid} to use 128 random bits, @code{sha1} to use a 160-bit
+@sc{SHA1} hash on the normative parts of the output contents,
+@code{md5} to use a 128-bit @sc{MD5} hash on the normative parts of
+the output contents, or @code{0x@var{hexstring}} to use a chosen bit
+string specified as an even number of hexadecimal digits (@code{-} and
+@code{:} characters between digit pairs are ignored).  If @var{style}
+is omitted, @code{sha1} is used.
 
 The @code{md5} and @code{sha1} styles produces an identifier
 that is always the same in an identical output file, but will be
@@ -2410,11 +2447,12 @@ creation step.
 
 @kindex --enable-auto-image-base
 @item --enable-auto-image-base
-Automatically choose the image base for DLLs, unless one is specified
-using the @code{--image-base} argument.  By using a hash generated
-from the dllname to create unique image bases for each DLL, in-memory
-collisions and relocations which can delay program execution are
-avoided.
+@itemx --enable-auto-image-base=@var{value}
+Automatically choose the image base for DLLs, optionally starting with base
+@var{value}, unless one is specified using the @code{--image-base} argument.
+By using a hash generated from the dllname to create unique image bases
+for each DLL, in-memory collisions and relocations which can delay program
+execution are avoided.
 [This option is specific to the i386 PE targeted port of the linker]
 
 @kindex --disable-auto-image-base
@@ -2621,6 +2659,11 @@ The following options set flags in the @code{DllCharacteristics} field
 of the PE file header:
 [These options are specific to PE targeted ports of the linker]
 
+@kindex --high-entropy-va
+@item --high-entropy-va
+Image is compatible with 64-bit address space layout randomization
+(ASLR).
+
 @kindex --dynamicbase
 @item --dynamicbase
 The image base address may be relocated using address space layout
@@ -2659,9 +2702,15 @@ The image is Terminal Server aware.
 
 @kindex --insert-timestamp
 @item --insert-timestamp
-Insert a real timestamp into the image, rather than the default value
-of zero.  This will result in a slightly different results with each
-invocation, which could be helpful for distributing unique images.
+@itemx --no-insert-timestamp
+Insert a real timestamp into the image.  This is the default behaviour
+as it matches legacy code and it means that the image will work with
+other, proprietary tools.  The problem with this default is that it
+will result in slightly different images being produced each tiem the
+same sources are linked.  The option @option{--no-insert-timestamp}
+can be used to insert a zero value for the timestamp, this ensuring
+that binaries produced from indentical sources will compare
+identically.
 @end table
 
 @c man end
@@ -3097,7 +3146,9 @@ with the @samp{/} character, and the script being processed was
 located inside the @dfn{sysroot prefix}, the filename will be looked
 for in the @dfn{sysroot prefix}.  Otherwise, the linker will try to
 open the file in the current directory.  If it is not found, the
-linker will search through the archive library search path.  See the
+linker will search through the archive library search path.
+The @dfn{sysroot prefix} can also be forced by specifying @code{=}
+as the first character in the filename path.  See also the
 description of @samp{-L} in @ref{Options,,Command Line Options}.
 
 If you use @samp{INPUT (-l@var{file})}, @command{ld} will transform the
@@ -3782,7 +3833,7 @@ The full description of an output section looks like this:
     @var{output-section-command}
     @var{output-section-command}
     @dots{}
-  @} [>@var{region}] [AT>@var{lma_region}] [:@var{phdr} :@var{phdr} @dots{}] [=@var{fillexp}]
+  @} [>@var{region}] [AT>@var{lma_region}] [:@var{phdr} :@var{phdr} @dots{}] [=@var{fillexp}] [,]
 @end group
 @end smallexample
 
@@ -3790,6 +3841,8 @@ Most output sections do not use most of the optional section attributes.
 
 The whitespace around @var{section} is required, so that the section
 name is unambiguous.  The colon and the curly braces are also required.
+The comma at the end may be required if a @var{fillexp} is used and
+the next @var{sections-command} looks like a continuation of the expression.
 The line breaks and other white space are optional.
 
 Each @var{output-section-command} may be one of the following:
@@ -4405,9 +4458,9 @@ scripts.
 @cindex discarding sections
 @cindex sections, discarding
 @cindex removing sections
-The linker will not create output sections with no contents.  This is
-for convenience when referring to input sections that may or may not
-be present in any of the input files.  For example:
+The linker will not normally create output sections with no contents.
+This is for convenience when referring to input sections that may or
+may not be present in any of the input files.  For example:
 @smallexample
 .foo : @{ *(.foo) @}
 @end smallexample
@@ -4415,7 +4468,12 @@ be present in any of the input files.  For example:
 will only create a @samp{.foo} section in the output file if there is a
 @samp{.foo} section in at least one input file, and if the input
 sections are not all empty.  Other link script directives that allocate
-space in an output section will also create the output section.
+space in an output section will also create the output section.  So
+too will assignments to dot even if the assignment does not create
+space, except for @samp{. = 0}, @samp{. = . + 0}, @samp{. = sym},
+@samp{. = . + sym} and @samp{. = ALIGN (. != 0, expr, 1)} when
+@samp{sym} is an absolute symbol of value 0 defined in the script.
+This allows you to force output of an empty section with @samp{. = .}.
 
 The linker will ignore address assignments (@pxref{Output Section Address})
 on discarded output sections, except when the linker script defines
@@ -4599,10 +4657,8 @@ for (dst = &_bstart; dst< &_bend; dst++)
 @cindex forcing output section alignment
 @cindex output section alignment
 You can increase an output section's alignment by using ALIGN.  As an
-alternative you can force the output section alignment to the maximum alignment
-of all its input sections with ALIGN_WITH_INPUT.  The alignment forced by
-ALIGN_WITH_INPUT is used even in case the load and virtual memory regions are
-different.
+alternative you can enforce that the difference between the VMA and LMA remains
+intact throughout this output section with the ALIGN_WITH_INPUT attribute.
 
 @node Forced Input Alignment
 @subsubsection Forced Input Alignment
@@ -4720,7 +4776,7 @@ OVERLAY [@var{start}] : [NOCROSSREFS] [AT ( @var{ldaddr} )]
         @dots{}
       @} [:@var{phdr}@dots{}] [=@var{fill}]
     @dots{}
-  @} [>@var{region}] [:@var{phdr}@dots{}] [=@var{fill}]
+  @} [>@var{region}] [:@var{phdr}@dots{}] [=@var{fill}] [,]
 @end group
 @end smallexample
 
@@ -4730,6 +4786,9 @@ section definitions within the @code{OVERLAY} construct are identical to
 those within the general @code{SECTIONS} construct (@pxref{SECTIONS}),
 except that no addresses and no memory regions may be defined for
 sections within an @code{OVERLAY}.
+
+The comma at the end may be required if a @var{fill} is used and
+the next @var{sections-command} looks like a continuation of the expression.
 
 The sections are all defined with the same starting address.  The load
 addresses of the sections are arranged such that they are consecutive in
@@ -5915,13 +5974,15 @@ evaluation purposes.
 @item DATA_SEGMENT_RELRO_END(@var{offset}, @var{exp})
 @kindex DATA_SEGMENT_RELRO_END(@var{offset}, @var{exp})
 This defines the end of the @code{PT_GNU_RELRO} segment when
-@samp{-z relro} option is used.  Second argument is returned.
+@samp{-z relro} option is used.
 When @samp{-z relro} option is not present, @code{DATA_SEGMENT_RELRO_END}
 does nothing, otherwise @code{DATA_SEGMENT_ALIGN} is padded so that
 @var{exp} + @var{offset} is aligned to the most commonly used page
 boundary for particular target.  If present in the linker script,
 it must always come in between @code{DATA_SEGMENT_ALIGN} and
-@code{DATA_SEGMENT_END}.
+@code{DATA_SEGMENT_END}.  Evaluates to the second argument plus any
+padding needed at the end of the @code{PT_GNU_RELRO} segment due to
+section alignment.
 
 @smallexample
   . = DATA_SEGMENT_RELRO_END(24, .);
@@ -6094,6 +6155,12 @@ functionality are not listed.
 @ifset MSP430
 * MSP430::			@command{ld} and MSP430
 @end ifset
+@ifset NDS32
+* NDS32::			@command{ld} and NDS32
+@end ifset
+@ifset NIOSII
+* Nios II::			@command{ld} and the Altera Nios II
+@end ifset
 @ifset POWERPC
 * PowerPC ELF32::		@command{ld} and PowerPC 32-bit ELF Support
 @end ifset
@@ -6240,17 +6307,6 @@ instructions, respectively.  @command{ld} also turns @code{cal}
 instructions into @code{bal} instructions when it determines that the
 target subroutine is a leaf routine (that is, the target subroutine does
 not itself call any subroutines).
-
-@cindex Cortex-A8 erratum workaround
-@kindex --fix-cortex-a8
-@kindex --no-fix-cortex-a8
-The @samp{--fix-cortex-a8} switch enables a link-time workaround for an erratum in certain Cortex-A8 processors.  The workaround is enabled by default if you are targeting the ARM v7-A architecture profile.  It can be enabled otherwise by specifying @samp{--fix-cortex-a8}, or disabled unconditionally by specifying @samp{--no-fix-cortex-a8}.
-
-The erratum only affects Thumb-2 code.  Please contact ARM for further details.
-
-@kindex --merge-exidx-entries
-@kindex --no-merge-exidx-entries
-The @samp{--no-merge-exidx-entries} switch disables the merging of adjacent exidx entries in debuginfo.
 
 @ifclear GENERIC
 @lowersections
@@ -6510,6 +6566,31 @@ Farcalls stubs insertion is fully supported for the ARM-EABI target
 only, because it relies on object files properties not present
 otherwise.
 
+@cindex Cortex-A8 erratum workaround
+@kindex --fix-cortex-a8
+@kindex --no-fix-cortex-a8
+The @samp{--fix-cortex-a8} switch enables a link-time workaround for an erratum in certain Cortex-A8 processors.  The workaround is enabled by default if you are targeting the ARM v7-A architecture profile.  It can be enabled otherwise by specifying @samp{--fix-cortex-a8}, or disabled unconditionally by specifying @samp{--no-fix-cortex-a8}.
+
+The erratum only affects Thumb-2 code.  Please contact ARM for further details.
+
+@cindex Cortex-A53 erratum 835769 workaround
+@kindex --fix-cortex-a53-835769
+@kindex --no-fix-cortex-a53-835769
+The @samp{--fix-cortex-a53-835769} switch enables a link-time workaround for erratum 835769 present on certain early revisions of Cortex-A53 processors.  The workaround is disabled by default.  It can be enabled by specifying @samp{--fix-cortex-a53-835769}, or disabled unconditionally by specifying @samp{--no-fix-cortex-a53-835769}.
+
+Please contact ARM for further details.
+
+@kindex --merge-exidx-entries
+@kindex --no-merge-exidx-entries
+@cindex Merging exidx entries
+The @samp{--no-merge-exidx-entries} switch disables the merging of adjacent exidx entries in debuginfo.
+
+@kindex --long-plt
+@cindex 32-bit PLT entries
+The @samp{--long-plt} option enables the use of 16 byte PLT entries
+which support up to 4Gb of code.  The default is to use 12 byte PLT
+entries which only support 512Mb of code.
+
 @ifclear GENERIC
 @lowersections
 @end ifclear
@@ -6678,6 +6759,91 @@ Denotes a portion of RAM located above @samp{.bss} section.
 
 The last two sections are used by gcc.
 @end table
+
+@ifclear GENERIC
+@lowersections
+@end ifclear
+@end ifset
+
+@ifset NDS32
+@ifclear GENERIC
+@raisesections
+@end ifclear
+
+@node NDS32
+@section @code{ld} and NDS32
+@kindex relaxing on NDS32
+For NDS32, there are some options to select relaxation behavior.  The linker
+relaxes objects according to these options.
+
+@table @code
+@item @samp{--m[no-]fp-as-gp}
+Disable/enable fp-as-gp relaxation.
+
+@item @samp{--mexport-symbols=FILE}
+Exporting symbols and their address into FILE as linker script.
+
+@item @samp{--m[no-]ex9}
+Disable/enable link-time EX9 relaxation.
+
+@item @samp{--mexport-ex9=FILE}
+Export the EX9 table after linking.
+
+@item @samp{--mimport-ex9=FILE}
+Import the Ex9 table for EX9 relaxation.
+
+@item @samp{--mupdate-ex9}
+Update the existing EX9 table.
+
+@item @samp{--mex9-limit=NUM}
+Maximum number of entries in the ex9 table.
+
+@item @samp{--mex9-loop-aware}
+Avoid generating the EX9 instruction inside the loop.
+
+@item @samp{--m[no-]ifc}
+Disable/enable the link-time IFC optimization.
+
+@item @samp{--mifc-loop-aware}
+Avoid generating the IFC instruction inside the loop.
+@end table
+
+@ifclear GENERIC
+@lowersections
+@end ifclear
+@end ifset
+
+@ifset NIOSII
+@ifclear GENERIC
+@raisesections
+@end ifclear
+
+@node Nios II
+@section @command{ld} and the Altera Nios II
+@cindex Nios II call relaxation
+@kindex --relax on Nios II
+
+Call and immediate jump instructions on Nios II processors are limited to
+transferring control to addresses in the same 256MB memory segment,
+which may result in @command{ld} giving
+@samp{relocation truncated to fit} errors with very large programs.
+The command-line option @option{--relax} enables the generation of
+trampolines that can access the entire 32-bit address space for calls
+outside the normal @code{call} and @code{jmpi} address range.  These
+trampolines are inserted at section boundaries, so may not themselves
+be reachable if an input section and its associated call trampolines are
+larger than 256MB.
+
+The @option{--relax} option is enabled by default unless @option{-r}
+is also specified.  You can disable trampoline generation by using the
+@option{--no-relax} linker option.  You can also disable this optimization
+locally by using the @samp{set .noat} directive in assembly-language
+source files, as the linker-inserted trampolines use the @code{at}
+register as a temporary.
+
+Note that the linker @option{--relax} option is independent of assembler
+relaxation options, and that using the GNU assembler's @option{-relax-all}
+option interferes with the linker's more selective call instruction relaxation.
 
 @ifclear GENERIC
 @lowersections
@@ -6886,9 +7052,10 @@ off this feature.
 @item --plt-align
 @itemx --no-plt-align
 Use these options to control whether individual PLT call stubs are
-aligned to a 32-byte boundary, or to the specified power of two
-boundary when using @code{--plt-align=}.  By default PLT call stubs
-are packed tightly.
+padded so that they don't cross a 32-byte boundary, or to the
+specified power of two boundary when using @code{--plt-align=}.  Note
+that this isn't alignment in the usual sense.  By default PLT call
+stubs are packed tightly.
 
 @cindex PowerPC64 PLT call stub static chain
 @kindex --plt-static-chain
@@ -7484,6 +7651,7 @@ by @command{ld} and respected when laying out the common symbols.  Native
 tools will be able to process object files employing this GNU extension,
 but will fail to respect the alignment instructions, and may issue noisy
 warnings about unknown linker directives.
+
 @end table
 
 @ifclear GENERIC

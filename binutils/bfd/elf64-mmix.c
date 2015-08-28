@@ -1,7 +1,5 @@
 /* MMIX-specific support for 64-bit ELF.
-   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2011,
-   2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
    Contributed by Hans-Peter Nilsson <hp@bitrange.com>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -194,11 +192,11 @@ static reloc_howto_type elf_mmix_howto_table[] =
   /* This reloc does nothing.  */
   HOWTO (R_MMIX_NONE,		/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_MMIX_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
@@ -1261,7 +1259,11 @@ mmix_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
   unsigned int r_type;
 
   r_type = ELF64_R_TYPE (dst->r_info);
-  BFD_ASSERT (r_type < (unsigned int) R_MMIX_max);
+  if (r_type >= (unsigned int) R_MMIX_max)
+    {
+      _bfd_error_handler (_("%B: invalid MMIX reloc number: %d"), abfd, r_type);
+      r_type = 0;
+    }
   cache_ptr->howto = &elf_mmix_howto_table[r_type];
 }
 
@@ -1413,12 +1415,13 @@ mmix_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	}
       else
 	{
-	  bfd_boolean unresolved_reloc;
+	  bfd_boolean unresolved_reloc, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, undefined_signalled);
+				   unresolved_reloc, undefined_signalled,
+				   ignored);
 	  name = h->root.root.string;
 	}
 
@@ -2323,7 +2326,7 @@ _bfd_mmix_before_linker_allocation (bfd *abfd ATTRIBUTE_UNUSED,
   bfd *ibfd;
 
   /* Set the initial size of sections.  */
-  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link_next)
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
     bfd_map_over_sections (ibfd, mmix_set_relaxable_size, info);
 
   /* The bpo_greg_owner bfd is supposed to have been set by
@@ -2903,7 +2906,7 @@ mmix_elf_relax_section (bfd *abfd,
    alignment.  */
 #define ELF_MAXPAGESIZE 0x100
 
-#define TARGET_BIG_SYM		bfd_elf64_mmix_vec
+#define TARGET_BIG_SYM		mmix_elf64_vec
 #define TARGET_BIG_NAME		"elf64-mmix"
 
 #define elf_info_to_howto_rel		NULL

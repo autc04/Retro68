@@ -1,5 +1,5 @@
 /* od-xcoff.c -- dump information about an xcoff object file.
-   Copyright 2011-2013 Free Software Foundation, Inc.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Written by Tristan Gingold, Adacore.
 
    This file is part of GNU Binutils.

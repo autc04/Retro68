@@ -16,6 +16,7 @@ GENERATE_SHLIB_SCRIPT=yes
 TEXT_START_ADDR=0x80000
 
 MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
+COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 
 # We don't do the hoops through DEFINED to provide [_]*start, as it
 # doesn't work with --gc-sections, and the start-name is pretty fixed

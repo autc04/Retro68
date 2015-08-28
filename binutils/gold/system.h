@@ -1,6 +1,6 @@
 // system.h -- general definitions for gold   -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -57,8 +57,21 @@
 
 // Figure out how to get a hash set and a hash map.
 
-#if defined(HAVE_TR1_UNORDERED_SET) && defined(HAVE_TR1_UNORDERED_MAP) \
-    && defined(HAVE_TR1_UNORDERED_MAP_REHASH)
+#if defined(HAVE_UNORDERED_SET) && defined(HAVE_UNORDERED_MAP)
+
+#include <unordered_set>
+#include <unordered_map>
+
+// We need a template typedef here.
+
+#define Unordered_set std::unordered_set
+#define Unordered_map std::unordered_map
+#define Unordered_multimap std::unordered_multimap
+
+#define reserve_unordered_map(map, n) ((map)->rehash(n))
+
+#elif defined(HAVE_TR1_UNORDERED_SET) && defined(HAVE_TR1_UNORDERED_MAP) \
+      && defined(HAVE_TR1_UNORDERED_MAP_REHASH)
 
 #include <tr1/unordered_set>
 #include <tr1/unordered_map>

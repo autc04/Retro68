@@ -1,10 +1,10 @@
 # Test HPC/VIS3 instructions
 	.text
-	rd	%cps, %g1
-	wr	%g2, 0x3, %cps
+	nop 
+	nop 
 	ldx	[%g3], %efsr
-	chkpt	1f
-1:	commit
+	nop
+1:	nop
 	fnadds	%f1, %f2, %f3
 	fnaddd	%f2, %f4, %f6
 	fnmuls	%f3, %f5, %f7
@@ -34,7 +34,7 @@
 	fnumaddd %f4, %f6, %f8, %f10
 	addxc	%g5, %g6, %g7
 	addxccc	%o1, %o2, %o3
-	random	%f6
+	nop
 	umulxhi	%o5, %o6, %o7
 	lzcnt	%i1, %i2
 	cmask8	%i3

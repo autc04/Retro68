@@ -1,7 +1,5 @@
 /* coff object file format
-   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -24,7 +22,6 @@
 
 #include "as.h"
 #include "safe-ctype.h"
-#include "obstack.h"
 #include "subsegs.h"
 #include "struc-symbol.h"
 
@@ -390,6 +387,7 @@ coff_obj_symbol_new_hook (symbolS *symbolP)
 
   memset (s, 0, sz);
   coffsymbol (symbol_get_bfdsym (symbolP))->native = (combined_entry_type *) s;
+  coffsymbol (symbol_get_bfdsym (symbolP))->native->is_sym = TRUE;
 
   S_SET_DATA_TYPE (symbolP, T_NULL);
   S_SET_STORAGE_CLASS (symbolP, 0);

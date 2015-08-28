@@ -1,5 +1,5 @@
 /* Mach-O object file format
-   Copyright 2009, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1013,7 +1013,6 @@ obj_mach_o_set_symbol_qualifier (symbolS *sym, int type)
   bfd_mach_o_asymbol *s = (bfd_mach_o_asymbol *) symbol_get_bfdsym (sym);
   bfd_mach_o_section *sec;
   int sectype = -1;
-  int err = 0;
 
   /* If the symbol is defined, then we can do more rigorous checking on
      the validity of the qualifiers.  Otherwise, we are stuck with waiting 
@@ -1041,7 +1040,8 @@ obj_mach_o_set_symbol_qualifier (symbolS *sym, int type)
 	    as_bad (_("'%s' previously declared as '%s'."), s->symbol.name,
 		      (s->n_type & BFD_MACH_O_N_PEXT) ? "private extern"
 						      : "global" );
-	    err = 1;
+	    s->symbol.udata.i = SYM_MACHO_FIELDS_UNSET;
+	    return 1;
 	  }
 	else
 	  {
@@ -1092,7 +1092,8 @@ obj_mach_o_set_symbol_qualifier (symbolS *sym, int type)
 	    as_bad (_("'%s' can't be a weak_definition (currently only"
 		      " supported in sections of type coalesced)"),
 		      s->symbol.name);
-	    err = 1;
+	    s->symbol.udata.i = SYM_MACHO_FIELDS_UNSET;
+	    return 1;
 	  }
 	else
 	  s->n_desc |= BFD_MACH_O_N_WEAK_DEF;
@@ -1111,7 +1112,7 @@ obj_mach_o_set_symbol_qualifier (symbolS *sym, int type)
     /* We've seen some kind of qualifier - check validity if or when the entity
      is defined.  */
   s->symbol.udata.i = SYM_MACHO_FIELDS_NOT_VALIDATED;
-  return err;
+  return 0;
 }
 
 /* Respond to symbol qualifiers.
@@ -1409,8 +1410,12 @@ void obj_mach_o_frob_label (struct symbol *sp)
     {
       if ((s->n_desc & BFD_MACH_O_N_WEAK_DEF)
 	  && sectype != BFD_MACH_O_S_COALESCED)
-	as_bad (_("'%s' can't be a weak_definition (currently only supported"
-		  " in sections of type coalesced)"), s->symbol.name);
+	{
+	  as_bad (_("'%s' can't be a weak_definition (currently only supported"
+		    " in sections of type coalesced)"), s->symbol.name);
+	  /* Don't cascade errors.  */
+	  s->symbol.udata.i = SYM_MACHO_FIELDS_UNSET;
+	}
 
       /* Have we changed from an undefined to defined ref? */
       s->n_desc &= ~(REFE | LAZY);
@@ -1480,7 +1485,6 @@ obj_mach_o_frob_symbol (struct symbol *sp)
     {
       /* Anything here that should be added that is non-standard.  */
       s->n_desc &= ~BFD_MACH_O_REFERENCE_MASK;
-      s->symbol.udata.i = SYM_MACHO_FIELDS_NOT_VALIDATED;
     }    
   else if (s->symbol.udata.i == SYM_MACHO_FIELDS_NOT_VALIDATED)
     {

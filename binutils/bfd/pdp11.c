@@ -1,6 +1,5 @@
 /* BFD back-end for PDP-11 a.out binaries.
-   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -252,7 +251,7 @@ HOWTO( 1,	       0,  1,  16,  TRUE,  0, complain_overflow_signed,0,"DISP16",	TRU
 #define TABLE_SIZE(TABLE)	(sizeof(TABLE)/sizeof(TABLE[0]))
 
 
-static bfd_boolean aout_link_check_archive_element (bfd *, struct bfd_link_info *, bfd_boolean *);
+static bfd_boolean aout_link_check_archive_element (bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *, const char *, bfd_boolean *);
 static bfd_boolean aout_link_add_object_symbols    (bfd *, struct bfd_link_info *);
 static bfd_boolean aout_link_add_symbols           (bfd *, struct bfd_link_info *);
 static bfd_boolean aout_link_write_symbols         (struct aout_final_link_info *, bfd *);
@@ -1173,6 +1172,14 @@ NAME (aout, set_section_contents) (bfd *abfd,
       if (bfd_seek (abfd, section->filepos + offset, SEEK_SET) != 0
 	  || bfd_bwrite (location, count, abfd) != count)
 	return FALSE;
+
+      /* If necessary, pad the section to its aligned size.  */
+      if ((section == obj_datasec (abfd)
+	   || section == obj_textsec (abfd))
+	  && count < section->size
+	  && (bfd_seek (abfd, section->filepos + offset + section->size - 1, SEEK_SET) != 0
+	      || bfd_bwrite ("", 1, abfd) != 1))
+	return FALSE;
     }
 
   return TRUE;
@@ -1189,6 +1196,14 @@ aout_get_external_symbols (bfd *abfd)
       struct external_nlist *syms;
 
       count = exec_hdr (abfd)->a_syms / EXTERNAL_NLIST_SIZE;
+
+      /* PR 17512: file: 011f5a08.  */
+      if (count == 0)
+	{
+	  obj_aout_external_syms (abfd) = NULL;
+	  obj_aout_external_sym_count (abfd) = count;
+	  return TRUE;
+	}
 
 #ifdef USE_MMAP
       if (! bfd_get_file_window (abfd, obj_sym_filepos (abfd),
@@ -2183,12 +2198,13 @@ NAME (aout, minisymbol_to_symbol) (bfd *abfd,
 
 bfd_boolean
 NAME (aout, find_nearest_line) (bfd *abfd,
-				asection *section,
 				asymbol **symbols,
+				asection *section,
 				bfd_vma offset,
 				const char **filename_ptr,
 				const char **functionname_ptr,
-				unsigned int *line_ptr)
+				unsigned int *line_ptr,
+				unsigned int *discriminator_ptr)
 {
   /* Run down the file looking for the filename, function and linenumber.  */
   asymbol **p;
@@ -2205,6 +2221,8 @@ NAME (aout, find_nearest_line) (bfd *abfd,
   *filename_ptr = abfd->filename;
   *functionname_ptr = 0;
   *line_ptr = 0;
+  if (discriminator_ptr)
+    *discriminator_ptr = 0;
 
   if (symbols != NULL)
     {
@@ -2680,6 +2698,8 @@ aout_link_check_ar_symbols (bfd *abfd,
 static bfd_boolean
 aout_link_check_archive_element (bfd *abfd,
 				 struct bfd_link_info *info,
+				 struct bfd_link_hash_entry *h ATTRIBUTE_UNUSED,
+				 const char *name ATTRIBUTE_UNUSED,
 				 bfd_boolean *pneeded)
 {
   bfd *oldbfd;
@@ -3148,7 +3168,7 @@ aout_link_reloc_link_order (struct aout_final_link_info *flaginfo,
 
       size = bfd_get_reloc_size (howto);
       buf = bfd_zmalloc (size);
-      if (buf == NULL)
+      if (buf == NULL && size != 0)
 	return FALSE;
       r = MY_relocate_contents (howto, flaginfo->output_bfd,
 				pr->addend, buf);
@@ -3639,7 +3659,7 @@ aout_link_input_bfd (struct aout_final_link_info *flaginfo, bfd *input_bfd)
 
 /* Do the final link step.  This is called on the output BFD.  The
    INFO structure should point to a list of BFDs linked through the
-   link_next field which can be used to find each BFD which takes part
+   link.next field which can be used to find each BFD which takes part
    in the output.  Also, each section in ABFD should point to a list
    of bfd_link_order structures which list all the input sections for
    the output section.  */
@@ -3686,7 +3706,7 @@ NAME (aout, final_link) (bfd *abfd,
   max_contents_size = 0;
   max_relocs_size = 0;
   max_sym_count = 0;
-  for (sub = info->input_bfds; sub != NULL; sub = sub->link_next)
+  for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
     {
       size_t sz;
 
@@ -3824,7 +3844,7 @@ NAME (aout, final_link) (bfd *abfd,
 
      We use the output_has_begun field of the input BFDs to see
      whether we have already handled it.  */
-  for (sub = info->input_bfds; sub != NULL; sub = sub->link_next)
+  for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
     sub->output_has_begun = FALSE;
 
   /* Mark all sections which are to be included in the link.  This

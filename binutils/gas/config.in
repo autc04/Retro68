@@ -1,4 +1,4 @@
-/* config.in.  Generated from configure.in by autoheader.  */
+/* config.in.  Generated from configure.ac by autoheader.  */
 
 /* Check that config.h is #included before system headers
    (this works only for glibc, but that should be enough).  */
@@ -154,6 +154,9 @@
 /* Define to 1 if you have the `unlink' function. */
 #undef HAVE_UNLINK
 
+/* Define to 1 if you have the <windows.h> header file. */
+#undef HAVE_WINDOWS_H
+
 /* Define to 1 if you have the <zlib.h> header file. */
 #undef HAVE_ZLIB_H
 
@@ -178,6 +181,24 @@
 
 /* Choose a default ABI for MIPS targets. */
 #undef MIPS_DEFAULT_ABI
+
+/* Define value for nds32_arch_name */
+#undef NDS32_DEFAULT_ARCH_NAME
+
+/* Define default value for nds32_audio_ext */
+#undef NDS32_DEFAULT_AUDIO_EXT
+
+/* Define default value for nds32_dx_regs */
+#undef NDS32_DEFAULT_DX_REGS
+
+/* Define default value for nds32_perf_ext */
+#undef NDS32_DEFAULT_PERF_EXT
+
+/* Define default value for nds32_perf_ext2 */
+#undef NDS32_DEFAULT_PERF_EXT2
+
+/* Define default value for nds32_string_ext */
+#undef NDS32_DEFAULT_STRING_EXT
 
 /* Define if environ is not declared in system header files. */
 #undef NEED_DECLARATION_ENVIRON

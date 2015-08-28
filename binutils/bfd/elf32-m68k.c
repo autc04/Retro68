@@ -1,7 +1,5 @@
 /* Motorola 68k series support for 32-bit ELF
-   Copyright 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -33,7 +31,7 @@ elf_m68k_discard_copies (struct elf_link_hash_entry *, void *);
 
 static reloc_howto_type howto_table[] =
 {
-  HOWTO(R_68K_NONE,       0, 0, 0, FALSE,0, complain_overflow_dont,     bfd_elf_generic_reloc, "R_68K_NONE",      FALSE, 0, 0x00000000,FALSE),
+  HOWTO(R_68K_NONE,       0, 3, 0, FALSE,0, complain_overflow_dont,     bfd_elf_generic_reloc, "R_68K_NONE",      FALSE, 0, 0x00000000,FALSE),
   HOWTO(R_68K_32,         0, 2,32, FALSE,0, complain_overflow_bitfield, bfd_elf_generic_reloc, "R_68K_32",        FALSE, 0, 0xffffffff,FALSE),
   HOWTO(R_68K_16,         0, 1,16, FALSE,0, complain_overflow_bitfield, bfd_elf_generic_reloc, "R_68K_16",        FALSE, 0, 0x0000ffff,FALSE),
   HOWTO(R_68K_8,          0, 0, 8, FALSE,0, complain_overflow_bitfield, bfd_elf_generic_reloc, "R_68K_8",         FALSE, 0, 0x000000ff,FALSE),
@@ -942,6 +940,23 @@ elf_m68k_link_hash_newfunc (struct bfd_hash_entry *entry,
   return ret;
 }
 
+/* Destroy an m68k ELF linker hash table.  */
+
+static void
+elf_m68k_link_hash_table_free (bfd *obfd)
+{
+  struct elf_m68k_link_hash_table *htab;
+
+  htab = (struct elf_m68k_link_hash_table *) obfd->link.hash;
+
+  if (htab->multi_got_.bfd2got != NULL)
+    {
+      htab_delete (htab->multi_got_.bfd2got);
+      htab->multi_got_.bfd2got = NULL;
+    }
+  _bfd_elf_link_hash_table_free (obfd);
+}
+
 /* Create an m68k ELF linker hash table.  */
 
 static struct bfd_link_hash_table *
@@ -962,27 +977,11 @@ elf_m68k_link_hash_table_create (bfd *abfd)
       free (ret);
       return NULL;
     }
+  ret->root.root.hash_table_free = elf_m68k_link_hash_table_free;
 
   ret->multi_got_.global_symndx = 1;
 
   return &ret->root.root;
-}
-
-/* Destruct local data.  */
-
-static void
-elf_m68k_link_hash_table_free (struct bfd_link_hash_table *_htab)
-{
-  struct elf_m68k_link_hash_table *htab;
-
-  htab = (struct elf_m68k_link_hash_table *) _htab;
-
-  if (htab->multi_got_.bfd2got != NULL)
-    {
-      htab_delete (htab->multi_got_.bfd2got);
-      htab->multi_got_.bfd2got = NULL;
-    }
-  _bfd_elf_link_hash_table_free (_htab);
 }
 
 /* Set the right machine number.  */
@@ -3238,7 +3237,7 @@ elf_m68k_adjust_dynamic_symbol (struct bfd_link_info *info,
       h->needs_copy = 1;
     }
 
-  return _bfd_elf_adjust_dynamic_copy (h, s);
+  return _bfd_elf_adjust_dynamic_copy (info, h, s);
 }
 
 /* Set the sizes of the dynamic sections.  */
@@ -3367,7 +3366,7 @@ elf_m68k_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 #define add_dynamic_entry(TAG, VAL) \
   _bfd_elf_add_dynamic_entry (info, TAG, VAL)
 
-      if (!info->shared)
+      if (info->executable)
 	{
 	  if (!add_dynamic_entry (DT_DEBUG, 0))
 	    return FALSE;
@@ -3669,12 +3668,12 @@ elf_m68k_relocate_section (bfd *output_bfd,
 	}
       else
 	{
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	}
 
       if (sec != NULL && discarded_section (sec))
@@ -4831,7 +4830,28 @@ elf_m68k_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
   return TRUE;
 }
 
-#define TARGET_BIG_SYM			bfd_elf32_m68k_vec
+/* Hook called by the linker routine which adds symbols from an object
+   file.  */
+
+static bfd_boolean
+elf_m68k_add_symbol_hook (bfd *abfd,
+			  struct bfd_link_info *info,
+			  Elf_Internal_Sym *sym,
+			  const char **namep ATTRIBUTE_UNUSED,
+			  flagword *flagsp ATTRIBUTE_UNUSED,
+			  asection **secp ATTRIBUTE_UNUSED,
+			  bfd_vma *valp ATTRIBUTE_UNUSED)
+{
+  if ((ELF_ST_TYPE (sym->st_info) == STT_GNU_IFUNC
+       || ELF_ST_BIND (sym->st_info) == STB_GNU_UNIQUE)
+      && (abfd->flags & DYNAMIC) == 0
+      && bfd_get_flavour (info->output_bfd) == bfd_target_elf_flavour)
+    elf_tdata (info->output_bfd)->has_gnu_symbols = TRUE;
+
+  return TRUE;
+}
+
+#define TARGET_BIG_SYM			m68k_elf32_vec
 #define TARGET_BIG_NAME			"elf32-m68k"
 #define ELF_MACHINE_CODE		EM_68K
 #define ELF_MAXPAGESIZE			0x2000
@@ -4839,9 +4859,6 @@ elf_m68k_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 					_bfd_elf_create_dynamic_sections
 #define bfd_elf32_bfd_link_hash_table_create \
 					elf_m68k_link_hash_table_create
-/* ??? Should it be this macro or bfd_elfNN_bfd_link_hash_table_create?  */
-#define bfd_elf32_bfd_link_hash_table_free \
-					elf_m68k_link_hash_table_free
 #define bfd_elf32_bfd_final_link	bfd_elf_final_link
 
 #define elf_backend_check_relocs	elf_m68k_check_relocs
@@ -4872,6 +4889,7 @@ elf_m68k_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_object_p		elf32_m68k_object_p
 #define elf_backend_grok_prstatus	elf_m68k_grok_prstatus
 #define elf_backend_grok_psinfo		elf_m68k_grok_psinfo
+#define elf_backend_add_symbol_hook	elf_m68k_add_symbol_hook
 
 #define elf_backend_can_gc_sections 1
 #define elf_backend_can_refcount 1

@@ -35,7 +35,7 @@ foo:
 	movi sp, 123
 	movi fp, 123
 	movi ea, 123
-	movi ba, 123
+	movi sstatus, 123
 	movi ra, 123
 # Alternative names for special registers
 	movi r0, 123
@@ -47,5 +47,5 @@ foo:
 	movi r28, 123
 	movi r29, 123
 	movi r30, 123
-	movi sstatus, 123
+	movi ba, 123
 	movi r31, 123

@@ -88,6 +88,7 @@ if test -z "${CREATE_SHLIB}"; then
   INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
 fi
 INITIAL_READONLY_SECTIONS="${INITIAL_READONLY_SECTIONS}
+  .MIPS.abiflags      ${RELOCATING-0} : { *(.MIPS.abiflags) }
   .reginfo      ${RELOCATING-0} : { *(.reginfo) }"
 # Discard any .MIPS.content* or .MIPS.events* sections.  The linker
 # doesn't know how to adjust them.

@@ -1,7 +1,6 @@
 // options.h -- handle command line options for gold  -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2013
-// Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -973,9 +972,11 @@ class General_options
 	      N_("(ARM only) Ignore for backward compatibility"), NULL);
 
   DEFINE_bool(pie, options::ONE_DASH, '\0', false,
-	      N_("Create a position independent executable"), NULL);
+	      N_("Create a position independent executable"),
+	      N_("Do not create a position independent executable"));
   DEFINE_bool_alias(pic_executable, pie, options::TWO_DASHES, '\0',
-		    N_("Create a position independent executable"), NULL,
+		    N_("Create a position independent executable"),
+		    N_("Do not create a position independent executable"),
 		    false);
 
   DEFINE_bool(pipeline_knowledge, options::ONE_DASH, '\0', false,
@@ -1438,6 +1439,11 @@ class General_options
   in_dynamic_list(const char* symbol) const
   { return this->dynamic_list_.version_script_info()->symbol_is_local(symbol); }
 
+  // True if a --dynamic-list script was provided.
+  bool
+  have_dynamic_list() const
+  { return this->have_dynamic_list_; }
+
   // Finalize the dynamic list.
   void
   finalize_dynamic_list()
@@ -1591,6 +1597,8 @@ class General_options
   // script.cc, we store this as a Script_options object, even though
   // we only use a single Version_tree from it.
   Script_options dynamic_list_;
+  // Whether a --dynamic-list file was provided.
+  bool have_dynamic_list_;
   // The incremental linking mode.
   Incremental_mode incremental_mode_;
   // The disposition given by the --incremental-changed,

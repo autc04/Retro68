@@ -1,6 +1,5 @@
 /* PEF support for BFD.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2011  Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -42,6 +41,7 @@
 #define bfd_pef_bfd_is_target_special_symbol ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
 #define bfd_pef_get_lineno                          _bfd_nosymbols_get_lineno
 #define bfd_pef_find_nearest_line                   _bfd_nosymbols_find_nearest_line
+#define bfd_pef_find_line                           _bfd_nosymbols_find_line
 #define bfd_pef_find_inliner_info                   _bfd_nosymbols_find_inliner_info
 #define bfd_pef_bfd_make_debug_symbol               _bfd_nosymbols_bfd_make_debug_symbol
 #define bfd_pef_read_minisymbols                    _bfd_generic_read_minisymbols
@@ -59,7 +59,6 @@
 #define bfd_pef_section_already_linked	            _bfd_generic_section_already_linked
 #define bfd_pef_bfd_define_common_symbol            bfd_generic_define_common_symbol
 #define bfd_pef_bfd_link_hash_table_create          _bfd_generic_link_hash_table_create
-#define bfd_pef_bfd_link_hash_table_free            _bfd_generic_link_hash_table_free
 #define bfd_pef_bfd_link_add_symbols                _bfd_generic_link_add_symbols
 #define bfd_pef_bfd_link_just_syms                  _bfd_generic_link_just_syms
 #define bfd_pef_bfd_copy_link_hash_symbol_type \
@@ -1065,11 +1064,11 @@ const bfd_target pef_vec =
 static int
 bfd_pef_xlib_read_header (bfd *abfd, bfd_pef_xlib_header *header)
 {
-  unsigned char buf[76];
+  unsigned char buf[80];
 
   bfd_seek (abfd, 0, SEEK_SET);
 
-  if (bfd_bread ((void *) buf, 76, abfd) != 76)
+  if (bfd_bread ((void *) buf, sizeof buf, abfd) != sizeof buf)
     return -1;
 
   header->tag1 = bfd_getb32 (buf);

@@ -1,6 +1,5 @@
 /* tc-arc.c -- Assembler for the ARC
-   Copyright 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2009, 2011  Free Software Foundation, Inc.
+   Copyright (C) 1994-2014 Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -1161,7 +1160,7 @@ md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
    Values for the status register are specified with %st(label).
    `label' will be right shifted by 2.  */
 
-void
+bfd_reloc_code_real_type
 arc_parse_cons_expression (expressionS *exp,
 			   unsigned int nbytes ATTRIBUTE_UNUSED)
 {
@@ -1180,6 +1179,7 @@ arc_parse_cons_expression (expressionS *exp,
       arc_code_symbol (exp);
       input_line_pointer = p;
     }
+  return BFD_RELOC_NONE;
 }
 
 /* Record a fixup for a cons expression.  */
@@ -1188,7 +1188,8 @@ void
 arc_cons_fix_new (fragS *frag,
 		  int where,
 		  int nbytes,
-		  expressionS *exp)
+		  expressionS *exp,
+		  bfd_reloc_code_real_type r ATTRIBUTE_UNUSED)
 {
   if (nbytes == 4)
     {

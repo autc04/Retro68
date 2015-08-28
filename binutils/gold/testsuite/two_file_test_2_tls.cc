@@ -1,6 +1,6 @@
 // two_file_test_2_tls.cc -- a two file test case for gold, with a TLS symbol
 
-// Copyright 2006, 2007, 2008, 2013 Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.

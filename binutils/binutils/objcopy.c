@@ -1,5 +1,5 @@
 /* objcopy.c -- copy object file from input to output, optionally massaging it.
-   Copyright 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -186,6 +186,9 @@ struct section_add
 /* List of sections to add to the output BFD.  */
 static struct section_add *add_sections;
 
+/* List of sections to dump from the output BFD.  */
+static struct section_add *dump_sections;
+
 /* If non-NULL the argument to --add-gnu-debuglink.
    This should be the filename to store in the .gnu_debuglink section.  */
 static const char * gnu_debuglink_filename = NULL;
@@ -259,6 +262,7 @@ static enum long_section_name_handling long_section_names = KEEP;
 enum command_line_switch
   {
     OPTION_ADD_SECTION=150,
+    OPTION_DUMP_SECTION,
     OPTION_CHANGE_ADDRESSES,
     OPTION_CHANGE_LEADING_CHAR,
     OPTION_CHANGE_START,
@@ -377,6 +381,7 @@ static struct option copy_options[] =
   {"disable-deterministic-archives", no_argument, 0, 'U'},
   {"discard-all", no_argument, 0, 'x'},
   {"discard-locals", no_argument, 0, 'X'},
+  {"dump-section", required_argument, 0, OPTION_DUMP_SECTION},
   {"enable-deterministic-archives", no_argument, 0, 'D'},
   {"extract-dwo", no_argument, 0, OPTION_EXTRACT_DWO},
   {"extract-symbol", no_argument, 0, OPTION_EXTRACT_SYMBOL},
@@ -548,6 +553,7 @@ copy_usage (FILE *stream, int exit_status)
      --set-section-flags <name>=<flags>\n\
                                    Set section <name>'s properties to <flags>\n\
      --add-section <name>=<file>   Add section <name> found in <file> to output\n\
+     --dump-section <name>=<file>  Dump the contents of section <name> into <file>\n\
      --rename-section <old>=<new>[,<flags>] Rename section <old> to <new>\n\
      --long-section-names {enable|disable|keep}\n\
                                    Handle long section names in Coff objects.\n\
@@ -1135,6 +1141,24 @@ is_strip_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sec)
   return FALSE;
 }
 
+static bfd_boolean
+is_nondebug_keep_contents_section (bfd *ibfd, asection *isection)
+{
+  /* Always keep ELF note sections.  */
+  if (ibfd->xvec->flavour == bfd_target_elf_flavour)
+    return (elf_section_type (isection) == SHT_NOTE);
+
+  /* Always keep the .buildid section for PE/COFF.
+
+     Strictly, this should be written "always keep the section storing the debug
+     directory", but that may be the .text section for objects produced by some
+     tools, which it is not sensible to keep.  */
+  if (ibfd->xvec->flavour == bfd_target_coff_flavour)
+    return (strcmp (bfd_get_section_name (ibfd, isection), ".buildid") == 0);
+
+  return FALSE;
+}
+
 /* Return true if SYM is a hidden symbol.  */
 
 static bfd_boolean
@@ -1592,6 +1616,13 @@ copy_object (bfd *ibfd, bfd *obfd, const bfd_arch_info_type *input_arch)
       return FALSE;
     }
 
+  if (ibfd->sections == NULL)
+    {
+      non_fatal (_("error: the input file '%s' has no sections"),
+		 bfd_get_archive_filename (ibfd));
+      return FALSE;
+    }
+
   if (verbose)
     printf (_("copy from `%s' [%s] to `%s' [%s]\n"),
 	    bfd_get_archive_filename (ibfd), bfd_get_target (ibfd),
@@ -1745,6 +1776,14 @@ copy_object (bfd *ibfd, bfd *obfd, const bfd_arch_info_type *input_arch)
       bfd_nonfatal_message (NULL, ibfd, NULL, NULL);
       return FALSE;
     }
+  /* PR 17512: file:  d6323821
+     If the symbol table could not be loaded do not pretend that we have
+     any symbols.  This trips us up later on when we load the relocs.  */
+  if (symcount == 0)
+    {
+      free (isympp);
+      osympp = isympp = NULL;
+    }
 
   /* BFD mandates that all output sections be created and sizes set before
      any output is done.  Thus, we traverse all sections multiple times.  */
@@ -1826,6 +1865,64 @@ copy_object (bfd *ibfd, bfd *obfd, const bfd_arch_info_type *input_arch)
 	}
     }
 
+  if (dump_sections != NULL)
+    {
+      struct section_add * pdump;
+
+      for (pdump = dump_sections; pdump != NULL; pdump = pdump->next)
+	{
+	  asection * sec;
+
+	  sec = bfd_get_section_by_name (ibfd, pdump->name);
+	  if (sec == NULL)
+	    {
+	      bfd_nonfatal_message (NULL, ibfd, NULL,
+				    _("can't dump section '%s' - it does not exist"),
+				    pdump->name);
+	      continue;
+	    }
+
+	  if ((bfd_get_section_flags (ibfd, sec) & SEC_HAS_CONTENTS) == 0)
+	    {
+	      bfd_nonfatal_message (NULL, ibfd, sec,
+				    _("can't dump section - it has no contents"));
+	      continue;
+	    }
+	  
+	  bfd_size_type size = bfd_get_section_size (sec);
+	  if (size == 0)
+	    {
+	      bfd_nonfatal_message (NULL, ibfd, sec,
+				    _("can't dump section - it is empty"));
+	      continue;
+	    }
+
+	  FILE * f;
+	  f = fopen (pdump->filename, FOPEN_WB);
+	  if (f == NULL)
+	    {
+	      bfd_nonfatal_message (pdump->filename, NULL, NULL,
+				    _("could not open section dump file"));
+	      continue;
+	    }
+
+	  bfd_byte * contents = xmalloc (size);
+	  if (bfd_get_section_contents (ibfd, sec, contents, 0, size))
+	    {
+	      if (fwrite (contents, 1, size, f) != size)
+		fatal (_("error writing section contents to %s (error: %s)"),
+		       pdump->filename,
+		       strerror (errno));
+	    }
+	  else
+	    bfd_nonfatal_message (NULL, ibfd, sec,
+				  _("could not retrieve section contents"));
+
+	  fclose (f);
+	  free (contents);
+	}
+    }
+  
   if (gnu_debuglink_filename != NULL)
     {
       /* PR 15125: Give a helpful warning message if
@@ -2206,6 +2303,16 @@ copy_archive (bfd *ibfd, bfd *obfd, const char *output_target,
       bfd_boolean del = TRUE;
       bfd_boolean ok_object;
 
+      /* PR binutils/17533: Do not allow directory traversal
+	 outside of the current directory tree by archive members.  */
+      if (! is_valid_archive_path (bfd_get_filename (this_element)))
+	{
+	  non_fatal (_("illegal pathname found in archive member: %s"),
+		     bfd_get_filename (this_element));
+	  status = 1;
+	  goto cleanup_and_exit;
+	}
+
       /* Create an output file for this member.  */
       output_name = concat (dir, "/",
 			    bfd_get_filename (this_element), (char *) 0);
@@ -2215,8 +2322,12 @@ copy_archive (bfd *ibfd, bfd *obfd, const char *output_target,
 	{
 	  output_name = make_tempdir (output_name);
 	  if (output_name == NULL)
-	    fatal (_("cannot create tempdir for archive copying (error: %s)"),
-		   strerror (errno));
+	    {
+	      non_fatal (_("cannot create tempdir for archive copying (error: %s)"),
+			 strerror (errno));
+	      status = 1;
+	      goto cleanup_and_exit;
+	    }
 
 	  l = (struct name_list *) xmalloc (sizeof (struct name_list));
 	  l->name = output_name;
@@ -2258,7 +2369,7 @@ copy_archive (bfd *ibfd, bfd *obfd, const char *output_target,
 	{
 	  bfd_nonfatal_message (output_name, NULL, NULL, NULL);
 	  status = 1;
-	  return;
+	  goto cleanup_and_exit;
 	}
 
       if (ok_object)
@@ -2319,7 +2430,6 @@ copy_archive (bfd *ibfd, bfd *obfd, const char *output_target,
     {
       status = 1;
       bfd_nonfatal_message (filename, NULL, NULL, NULL);
-      return;
     }
 
   filename = bfd_get_filename (ibfd);
@@ -2327,9 +2437,9 @@ copy_archive (bfd *ibfd, bfd *obfd, const char *output_target,
     {
       status = 1;
       bfd_nonfatal_message (filename, NULL, NULL, NULL);
-      return;
     }
 
+ cleanup_and_exit:
   /* Delete all the files that we opened.  */
   for (l = list; l != NULL; l = l->next)
     {
@@ -2450,7 +2560,11 @@ copy_file (const char *input_filename, const char *output_filename,
       if (! copy_object (ibfd, obfd, input_arch))
 	status = 1;
 
-      if (!bfd_close (obfd))
+      /* PR 17512: file: 0f15796a.
+	 If the file could not be copied it may not be in a writeable
+	 state.  So use bfd_close_all_done to avoid the possibility of
+	 writing uninitialised data into the file.  */
+      if (! (status ? bfd_close_all_done (obfd) : bfd_close (obfd)))
 	{
 	  status = 1;
 	  bfd_nonfatal_message (output_filename, NULL, NULL, NULL);
@@ -2624,8 +2738,7 @@ setup_section (bfd *ibfd, sec_ptr isection, void *obfdarg)
     flags = p->flags | (flags & (SEC_HAS_CONTENTS | SEC_RELOC));
   else if (strip_symbols == STRIP_NONDEBUG
 	   && (flags & (SEC_ALLOC | SEC_GROUP)) != 0
-	   && !(ibfd->xvec->flavour == bfd_target_elf_flavour
-		&& elf_section_type (isection) == SHT_NOTE))
+           && !is_nondebug_keep_contents_section (ibfd, isection))
     {
       flags &= ~(SEC_HAS_CONTENTS | SEC_LOAD | SEC_GROUP);
       if (obfd->xvec->flavour == bfd_target_elf_flavour)
@@ -2847,9 +2960,13 @@ copy_relocations_in_section (bfd *ibfd, sec_ptr isection, void *obfdarg)
 
 	  temp_relpp = (arelent **) xmalloc (relsize);
 	  for (i = 0; i < relcount; i++)
-	    if (is_specified_symbol (bfd_asymbol_name (*relpp[i]->sym_ptr_ptr),
-				     keep_specific_htab))
-	      temp_relpp [temp_relcount++] = relpp [i];
+	    {
+	      /* PR 17512: file: 9e907e0c.  */
+	      if (relpp[i]->sym_ptr_ptr)
+		if (is_specified_symbol (bfd_asymbol_name (*relpp[i]->sym_ptr_ptr),
+					 keep_specific_htab))
+		  temp_relpp [temp_relcount++] = relpp [i];
+	    }
 	  relcount = temp_relcount;
 	  free (relpp);
 	  relpp = temp_relpp;
@@ -3653,6 +3770,25 @@ copy_main (int argc, char *argv[])
 	  }
 	  break;
 
+	case OPTION_DUMP_SECTION:
+	  {
+	    const char *s;
+	    struct section_add *pa;
+
+	    s = strchr (optarg, '=');
+
+	    if (s == NULL)
+	      fatal (_("bad format for %s"), "--dump-section");
+
+	    pa = (struct section_add *) xmalloc (sizeof * pa);
+	    pa->name = xstrndup (optarg, s - optarg);
+	    pa->filename = s + 1;
+	    pa->next = dump_sections;
+	    pa->contents = NULL;
+	    dump_sections = pa;
+	  }
+	  break;
+	  
 	case OPTION_CHANGE_START:
 	  change_start = parse_vma (optarg, "--change-start");
 	  break;
@@ -4278,6 +4414,9 @@ main (int argc, char *argv[])
     }
 
   create_symbol_htabs ();
+
+  if (argv != NULL)
+    bfd_set_error_program_name (argv[0]);
 
   if (is_strip)
     strip_main (argc, argv);

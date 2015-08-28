@@ -1,7 +1,6 @@
 /* corefile.c
 
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009,
-   2010, 2011, 2012  Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -164,6 +163,8 @@ read_function_mappings (const char *filename)
       symbol_map[i].is_first = 1;
 
   qsort (symbol_map, symbol_map_count, sizeof (struct function_map), cmp_symbol_map);
+
+  fclose (file);
 }
 
 void

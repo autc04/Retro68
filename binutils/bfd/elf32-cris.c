@@ -1,6 +1,5 @@
 /* CRIS-specific support for 32-bit ELF.
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010, 2011, 2012 Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Axis Communications AB.
    Written by Hans-Peter Nilsson, based on elf32-fr30.c
    PIC and shlib bits based primarily on elf32-m68k.c and elf32-i386.c.
@@ -41,11 +40,11 @@ static reloc_howto_type cris_elf_howto_table [] =
   /* This reloc does nothing.  */
   HOWTO (R_CRIS_NONE,		/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_CRIS_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
@@ -462,7 +461,11 @@ cris_info_to_howto_rela (bfd * abfd ATTRIBUTE_UNUSED,
   enum elf_cris_reloc_type r_type;
 
   r_type = ELF32_R_TYPE (dst->r_info);
-  BFD_ASSERT (r_type < (unsigned int) R_CRIS_max);
+  if (r_type >= R_CRIS_max)
+    {
+      _bfd_error_handler (_("%B: invalid CRIS reloc number: %d"), abfd, r_type);
+      r_type = 0;
+    }
   cache_ptr->howto = & cris_elf_howto_table [r_type];
 }
 
@@ -1040,13 +1043,13 @@ cris_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	}
       else
 	{
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 	  bfd_boolean unresolved_reloc;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 
 	  symname = h->root.root.string;
 
@@ -3055,7 +3058,7 @@ elf_cris_adjust_dynamic_symbol (struct bfd_link_info *info,
       h->needs_copy = 1;
     }
 
-  return _bfd_elf_adjust_dynamic_copy (h, s);
+  return _bfd_elf_adjust_dynamic_copy (info, h, s);
 }
 
 /* Adjust our "subclass" elements for an indirect symbol.  */
@@ -3236,15 +3239,20 @@ cris_elf_check_relocs (bfd *abfd,
 		     abfd, sec);
 		  return FALSE;
 		}
-
-	      /* Create the .got section, so we can assume it's always
-		 present whenever there's a dynobj.  */
-	      if (!_bfd_elf_create_got_section (dynobj, info))
-		return FALSE;
 	    }
 
 	  if (sgot == NULL)
-	    sgot = bfd_get_linker_section (dynobj, ".got");
+	    {
+	      /* We may have a dynobj but no .got section, if machine-
+		 independent parts of the linker found a reason to create
+		 a dynobj.  We want to create the .got section now, so we
+		 can assume it's always present whenever there's a dynobj.
+		 It's ok to call this function more than once.  */
+	      if (!_bfd_elf_create_got_section (dynobj, info))
+		return FALSE;
+
+	      sgot = bfd_get_linker_section (dynobj, ".got");
+	    }
 
 	  if (local_got_refcounts == NULL)
 	    {
@@ -4330,7 +4338,7 @@ elf_cris_got_elt_size (bfd *abfd ATTRIBUTE_UNUSED,
 #define ELF_MACHINE_CODE	EM_CRIS
 #define ELF_MAXPAGESIZE		0x2000
 
-#define TARGET_LITTLE_SYM	bfd_elf32_cris_vec
+#define TARGET_LITTLE_SYM	cris_elf32_vec
 #define TARGET_LITTLE_NAME	"elf32-cris"
 #define elf_symbol_leading_char 0
 
@@ -4399,7 +4407,7 @@ elf_cris_got_elt_size (bfd *abfd ATTRIBUTE_UNUSED,
 #undef TARGET_LITTLE_NAME
 #undef elf_symbol_leading_char
 
-#define TARGET_LITTLE_SYM bfd_elf32_us_cris_vec
+#define TARGET_LITTLE_SYM cris_elf32_us_vec
 #define TARGET_LITTLE_NAME "elf32-us-cris"
 #define elf_symbol_leading_char '_'
 #undef elf32_bed

@@ -38,3 +38,4 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	67 0f 1b 14 1d 03 00 00 00 	addr32 bndstx %bnd2,0x3\(,%rbx,1\)
 [ 	]*[a-f0-9]+:	67 0f 1a 44 18 03    	addr32 bndldx 0x3\(%rax,%rbx,1\),%bnd0
 [ 	]*[a-f0-9]+:	67 0f 1a 14 1d 03 00 00 00 	addr32 bndldx 0x3\(,%rbx,1\),%bnd2
+#pass

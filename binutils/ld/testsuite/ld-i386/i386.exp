@@ -1,6 +1,5 @@
 # Expect script for ld-i386 tests
-#   Copyright (C) 2002, 2005, 2006, 2007, 2008, 2009, 2010, 2012
-#   Free Software Foundation
+#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -184,6 +183,14 @@ set i386tests {
     {"TLS IE->LE transition" "-melf_i386" ""
      "--32" {tlsie1.s}
      {{objdump -dwr tlsie1.dd}} "tlsie1"}
+    {"PR ld/17313 (1)" "-melf_i386" ""
+     "--32" {zero.s} {} ""}
+    {"PR ld/17313 (2)" "-melf_i386 -shared --just-symbols=tmpdir/zero.o" ""
+     "--32" {lea1.s} {} "libpr17313.so"}
+    {"PR ld/17306 (1)" "-melf_i386" ""
+     "--32" {pr17306b.s} {} ""}
+    {"PR ld/17306 (2)" "-melf_i386 -shared -Bsymbolic --just-symbols=tmpdir/pr17306b.o" ""
+     "--32" {pr17306a.s} {} "libpr17306.so"}
 }
 
 # So as to avoid rewriting every last test case here in a nacl variant,
@@ -255,3 +262,4 @@ run_dump_test "compressed1"
 run_dump_test "pr12627"
 run_dump_test "pr13302"
 run_dump_test "pr14215"
+run_dump_test "pr17057"

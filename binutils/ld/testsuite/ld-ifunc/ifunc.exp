@@ -1,6 +1,6 @@
 # Expect script for linker support of IFUNC symbols and relocations.
 #
-#   Copyright 2009, 2010, 2012 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 #   Contributed by Red Hat.
 #
 # This file is part of the GNU Binutils.
@@ -349,6 +349,42 @@ if { $verbose < 1 } {
     remote_file host delete "tmpdir/static_nonifunc_prog"
 }
 
+run_cc_link_tests [list \
+    [list \
+	"Build libpr16467a.so" \
+	"-shared -Wl,--version-script=pr16467a.map" \
+	"-fPIC" \
+	{ pr16467a.c } \
+	{} \
+	"libpr16467a.so" \
+    ] \
+    [list \
+	"Build libpr16467b.a" \
+	"" \
+	"-fPIC" \
+	{ pr16467b.c } \
+	{} \
+	"libpr16467b.a" \
+    ] \
+    [list \
+	"Build libpr16467b.so" \
+	"-shared tmpdir/pr16467b.o tmpdir/libpr16467a.so \
+	 -Wl,--version-script=pr16467b.map" \
+	"-fPIC" \
+	{ dummy.c } \
+	{} \
+	"libpr16467b.so" \
+    ] \
+    [list \
+	"Build libpr16467c.a" \
+	"" \
+	"" \
+	{ pr16467c.c } \
+	{} \
+	"libpr16467c.a" \
+    ] \
+]
+
 run_ld_link_exec_tests [] [list \
     [list \
 	"Common symbol override ifunc test 1a" \
@@ -367,6 +403,15 @@ run_ld_link_exec_tests [] [list \
 	"ifunc-common-1b" \
 	"ifunc-common-1.out" \
 	"-g" \
+    ] \
+    [list \
+	"Run pr16467" \
+	"tmpdir/pr16467c.o tmpdir/libpr16467b.so tmpdir/libpr16467a.so" \
+	"" \
+	{ dummy.c } \
+	"pr16467" \
+	"pr16467.out" \
+	"" \
     ] \
 ]
 

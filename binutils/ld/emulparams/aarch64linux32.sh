@@ -41,7 +41,9 @@ PLT=".plt          ${RELOCATING-0} : ALIGN(16) { *(.plt)${IREL_IN_PLT+ *(.iplt)}
 case "$target" in
   aarch64*-linux*)
     case "$EMULATION_NAME" in
-      aarch64linux*) LIBPATH_SUFFIX=32 ;;
+      aarch64linux*) LIBPATH_SUFFIX=ilp32 ;;
     esac
     ;;
 esac
+
+ELF_INTERPRETER_NAME=\"/lib/ld-linux-aarch64_ilp32.so.1\"

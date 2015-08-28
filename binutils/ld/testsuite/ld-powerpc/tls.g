@@ -8,5 +8,5 @@
 .*
 
 Contents of section \.got:
- 100101f8 (00000000|f8810110) (100181f8|00000000) (ffffffff|1880ffff) (ffff8018|ffffffff)  .*
- 10010208 (ffffffff|5880ffff) (ffff8058|ffffffff)                    .*
+ 10010200 (00000000|00820110) (10018200|00000000) (ffffffff|1880ffff) (ffff8018|ffffffff)  .*
+.* (ffffffff|5880ffff) (ffff8058|ffffffff)                    .*

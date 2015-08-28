@@ -7,7 +7,7 @@
 
 Disassembly of section .text:
 
-0+ <foo-0x14>:
+0+ <.*>:
 [ 	]*[a-f0-9]+:	f2 e8 0e 00 00 00    	bnd call 14 <foo>
 [ 	]*[a-f0-9]+:	f2 ff 10             	bnd call \*\(%eax\)
 [ 	]*[a-f0-9]+:	f2 74 08             	bnd je 14 <foo>

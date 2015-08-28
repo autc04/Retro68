@@ -1,6 +1,5 @@
 # Expect script for ld-powerpc tests
-#   Copyright 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-#   Free Software Foundation
+#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -103,10 +102,13 @@ set ppcelftests {
      {{objdump -hw reloc.d}} "reloc.so"}
     {"APUinfo section processing" "-melf32ppc" ""
      "-a32 -me500" {apuinfo1.s apuinfo-nul.s apuinfo2.s}
-    {{readelf -x2 apuinfo.rd}} "apuinfo"}
+     {{readelf -x2 apuinfo.rd}} "apuinfo"}
+    {"APUinfo VLE section processing" "-melf32ppc" ""
+     "-a32 -me500 -mvle" {apuinfo1.s apuinfo-vle.s apuinfo2.s}
+     {{readelf -x2 apuinfo-vle.rd}} "apuinfo-vle"}
     {"APUinfo NULL section processing" "-melf32ppc" ""
      "-a32 -me500" {apuinfo-nul1.s apuinfo-nul.s}
-    {{readelf -x2 apuinfo-nul.rd}} "apuinfo"}
+     {{readelf -x2 apuinfo-nul.rd}} "apuinfo"}
     {"TLS32 static exec" "-melf32ppc" "" "-a32"  {tls32.s tlslib32.s}
      {{objdump -dr tls32.d} {objdump -sj.got tls32.g}
       {objdump -sj.tdata tls32.t}}
@@ -213,6 +215,10 @@ set ppc64elftests {
         {tocopt4a.s tocopt4b.s} {{objdump -s tocopt4.d}} "tocopt4"}
     {"TOC opt5" "-melf64ppc" "" "-a64"  {tocopt5.s}
 	{{objdump -s tocopt5.d}} "tocopt5"}
+    {"TOC opt6" "-melf64ppc" "" "-a64"  {tocopt6a.s tocopt6b.s tocopt6c.s}
+	{{objdump -d tocopt6.d}} "tocopt6"}
+    {"ambig shared v1" "-shared -melf64ppc" "" "-a64" {funv1.s} {} "funv1.so"}
+    {"ambig shared v2" "-shared -melf64ppc" "" "-a64" {funv2.s} {} "funv2.so"}
 }
 
 set ppceabitests {
@@ -271,13 +277,25 @@ if [ supports_ppc64 ] then {
     run_dump_test "relbrlt"
     run_dump_test "elfv2so"
     run_dump_test "elfv2exe"
+    run_dump_test "elfv2-2so"
+    run_dump_test "elfv2-2exe"
+    run_dump_test "ambiguousv1"
+    run_dump_test "ambiguousv1b"
+    run_dump_test "ambiguousv2"
+    run_dump_test "ambiguousv2b"
+    run_dump_test "defsym"
+    run_dump_test "tlsld"
 }
+
+run_dump_test "tlsld32"
 
 if { [istarget "powerpc*-eabi*"] } {
     run_ld_link_tests $ppceabitests
 }
 
 run_dump_test "plt1"
+run_dump_test "sdabase"
+run_dump_test "sdabase2"
 
 run_dump_test "attr-gnu-4-00"
 run_dump_test "attr-gnu-4-01"
@@ -307,3 +325,6 @@ run_dump_test "attr-gnu-12-11"
 run_dump_test "attr-gnu-12-21"
 
 run_dump_test "vle-multiseg-6"
+
+run_dump_test "ppc476-shared"
+run_dump_test "ppc476-shared2"

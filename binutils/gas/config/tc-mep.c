@@ -1,6 +1,5 @@
 /* tc-mep.c -- Assembler for the Toshiba Media Processor.
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2009, 2012
-   Free Software Foundation. Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -487,12 +486,12 @@ md_begin ()
   mep_cop = mep_config_map[mep_config_index].cpu_flag & EF_MEP_COP_MASK;
 
   /* Set the machine number and endian.  */
-  gas_cgen_cpu_desc = mep_cgen_cpu_open (CGEN_CPU_OPEN_MACHS, 0,
+  gas_cgen_cpu_desc = mep_cgen_cpu_open (CGEN_CPU_OPEN_MACHS, 0U,
 					 CGEN_CPU_OPEN_ENDIAN,
 					 target_big_endian
 					 ? CGEN_ENDIAN_BIG
 					 : CGEN_ENDIAN_LITTLE,
-					 CGEN_CPU_OPEN_ISAS, 0,
+					 CGEN_CPU_OPEN_ISAS, (CGEN_BITSET *) 0,
 					 CGEN_CPU_OPEN_END);
   mep_cgen_init_asm (gas_cgen_cpu_desc);
 
