@@ -91,12 +91,11 @@ Disassembly of section \.text:
    44090:	3c02000a 	lui	v0,0xa
    44094:	24422018 	addiu	v0,v0,8216
 	\.\.\.
-
 Disassembly of section \.MIPS\.stubs:
 
-000440a0 <_MIPS_STUBS_>:
+000440a0 <\.MIPS\.stubs>:
    440a0:	8f998010 	lw	t9,-32752\(gp\)
    440a4:	03e07821 	move	t7,ra
    440a8:	0320f809 	jalr	t9
-   440ac:	24180008 	li	t8,8
+   440ac:	2418000a 	li	t8,10
 	\.\.\.

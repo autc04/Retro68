@@ -3,7 +3,7 @@
 # objdump: -dr --prefix-addresses --show-raw-insn
 # The arm-aout and arm-pe ports do not support Thumb branch relocations.
 # EABI targets have their own variant.
-# not-target: *-*-*aout* *-*-pe *-*-*eabi* *-*-symbianelf *-*-nacl*
+# not-target: *-*-*aout* *-*-pe *-*-*eabi *-*-symbianelf
 
 .*: +file format .*arm.*
 
@@ -11,9 +11,9 @@ Disassembly of section \.text:
 0+000 <[^>]+> 00ca      	lsls	r2, r1, #3
 0+002 <[^>]+> 0fe3      	lsrs	r3, r4, #31
 0+004 <[^>]+> 1147      	asrs	r7, r0, #5
-0+006 <[^>]+> 0011      	movs	r1, r2
-0+008 <[^>]+> 0023      	movs	r3, r4
-0+00a <[^>]+> 002c      	movs	r4, r5
+0+006 <[^>]+> 0011      	lsls	r1, r2, #0
+0+008 <[^>]+> 0023      	lsls	r3, r4, #0
+0+00a <[^>]+> 002c      	lsls	r4, r5, #0
 0+00c <[^>]+> 083e      	lsrs	r6, r7, #32
 0+00e <[^>]+> 1008      	asrs	r0, r1, #32
 0+010 <[^>]+> 18d1      	adds	r1, r2, r3
@@ -161,5 +161,5 @@ Disassembly of section \.text:
 0+93e <[^>]+> 4801      	ldr	r0, \[pc, #4\]	; \(0+944 <[^>]+>\)
 0+940 <[^>]+> 4801      	ldr	r0, \[pc, #4\]	; \(0+948 <[^>]+>\)
 0+942 <[^>]+> 4801      	ldr	r0, \[pc, #4\]	; \(0+948 <[^>]+>\)
-0+944 <[^>]+> 1c08      	adds	r0, r1, #0
+0+944 <[^>]+> 46c0      	nop			; \(mov r8, r8\)
 0+946 <[^>]+> 46c0      	nop			; \(mov r8, r8\)

@@ -1,4 +1,3 @@
-. ${srcdir}/emulparams/plt_unwind.sh
 SCRIPT_NAME=elf_chaos
 OUTPUT_FORMAT="elf32-i386"
 TEXT_START_ADDR=0x40000000

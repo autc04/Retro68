@@ -1,5 +1,5 @@
 /* tc-mep.c -- Assembler for the Toshiba Media Processor.
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2009, 2012
+   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2009
    Free Software Foundation. Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -19,8 +19,8 @@
    the Free Software Foundation, 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-#include "as.h"
 #include <stdio.h>
+#include "as.h"
 #include "dwarf2dbg.h"
 #include "subsegs.h"
 #include "symcat.h"
@@ -80,6 +80,8 @@ static void mep_noregerr (int);
 const pseudo_typeS md_pseudo_table[] =
 {
   { "word",	cons,	                        4 },
+  { "file",	(void (*) (int)) dwarf2_directive_file,   	0 },
+  { "loc",	dwarf2_directive_loc,   	0 },
   { "vliw", 	mep_switch_to_vliw_mode,	0 },
   { "core", 	mep_switch_to_core_mode,	0 },
   { "vtext", 	mep_s_vtext,             	0 },
@@ -2086,8 +2088,8 @@ mep_elf_section_letter (int letter, char **ptrmsg)
   if (letter == 'v')
     return SHF_MEP_VLIW;
 
-  *ptrmsg = _("bad .section directive: want a,v,w,x,M,S in string");
-  return -1;
+  *ptrmsg = _("Bad .section directive: want a,v,w,x,M,S in string");
+  return 0;
 }
 
 flagword

@@ -1,10 +1,6 @@
 archive.cc
 archive.h
-arm-reloc-property.cc
-arm-reloc-property.h
 arm.cc
-attributes.cc
-attributes.h
 binary.cc
 binary.h
 common.cc
@@ -35,8 +31,6 @@ fileread.h
 freebsd.h
 gc.cc
 gc.h
-gdb-index.cc
-gdb-index.h
 gold-threads.cc
 gold-threads.h
 gold.cc
@@ -45,16 +39,12 @@ i386.cc
 icf.cc
 icf.h
 incremental.cc
-int_encoding.cc
-int_encoding.h
 layout.cc
 layout.h
 mapfile.cc
 mapfile.h
 merge.cc
 merge.h
-nacl.cc
-nacl.h
 object.cc
 object.h
 options.cc
@@ -89,9 +79,6 @@ target-select.cc
 target-select.h
 target.cc
 target.h
-tilegx.cc
-timer.cc
-timer.h
 tls.h
 token.h
 version.cc

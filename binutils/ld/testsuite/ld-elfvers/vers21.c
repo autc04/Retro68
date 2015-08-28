@@ -1,9 +1,7 @@
-#include "vers.h"
-
-SYMVER(_old_foo, foo@VERS.0);
-SYMVER(_old_bar, bar@VERS.0);
-SYMVER(_old_foobar, foobar@VERS.0);
-__asm__(".weak " SYMPFX(_old_bar));
+__asm__(".symver _old_foo,foo@VERS.0");
+__asm__(".symver _old_bar,bar@VERS.0");
+__asm__(".symver _old_foobar,foobar@VERS.0");
+__asm__(".weak  _old_bar");
 
 int
 bar () 

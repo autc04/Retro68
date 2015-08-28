@@ -1,5 +1,5 @@
 /* sb.c - string buffer manipulation routines
-   Copyright 1994, 1995, 2000, 2003, 2005, 2006, 2007, 2009, 2012
+   Copyright 1994, 1995, 2000, 2003, 2005, 2006, 2007, 2009
    Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
@@ -25,13 +25,6 @@
 #include "as.h"
 #include "sb.h"
 
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-#ifndef CHAR_BIT
-#define CHAR_BIT 8
-#endif
-
 /* These routines are about manipulating strings.
 
    They are managed in things called `sb's which is an abbreviation
@@ -46,29 +39,53 @@
    use foo->ptr[*];
    sb_kill (&foo);  */
 
-/* Buffers start at INIT_ALLOC size, and roughly double each time we
-   go over the current allocation.  MALLOC_OVERHEAD is a guess at the
-   system malloc overhead.  We aim to not waste any memory in the
-   underlying page/chunk allocated by the system malloc.  */
-#define MALLOC_OVERHEAD (2 * sizeof (size_t))
-#define INIT_ALLOC (64 - MALLOC_OVERHEAD - 1)
+static int dsize = 5;
+static void sb_check (sb *, int);
 
-static void sb_check (sb *, size_t);
+/* Statistics of sb structures.  */
+static int string_count[sb_max_power_two];
+
+/* Free list of sb structures.  */
+static struct
+{
+  sb_element *size[sb_max_power_two];
+} free_list;
 
 /* Initializes an sb.  */
 
-void
-sb_build (sb *ptr, size_t size)
+static void
+sb_build (sb *ptr, int size)
 {
-  ptr->ptr = xmalloc (size + 1);
-  ptr->max = size;
+  /* See if we can find one to allocate.  */
+  sb_element *e;
+
+  gas_assert (size < sb_max_power_two);
+
+  e = free_list.size[size];
+  if (!e)
+    {
+      /* Nothing there, allocate one and stick into the free list.  */
+      e = (sb_element *) xmalloc (sizeof (sb_element) + (1 << size));
+      e->next = free_list.size[size];
+      e->size = 1 << size;
+      free_list.size[size] = e;
+      string_count[size]++;
+    }
+
+  /* Remove from free list.  */
+  free_list.size[size] = e->next;
+
+  /* Copy into callers world.  */
+  ptr->ptr = e->data;
+  ptr->pot = size;
   ptr->len = 0;
+  ptr->item = e;
 }
 
 void
 sb_new (sb *ptr)
 {
-  sb_build (ptr, INIT_ALLOC);
+  sb_build (ptr, dsize);
 }
 
 /* Deallocate the sb at ptr.  */
@@ -76,7 +93,9 @@ sb_new (sb *ptr)
 void
 sb_kill (sb *ptr)
 {
-  free (ptr->ptr);
+  /* Return item to free list.  */
+  ptr->item->next = free_list.size[ptr->pot];
+  free_list.size[ptr->pot] = ptr->item;
 }
 
 /* Add the sb at s to the end of the sb at ptr.  */
@@ -93,10 +112,10 @@ sb_add_sb (sb *ptr, sb *s)
 
 static sb *sb_to_scrub;
 static char *scrub_position;
-static size_t
-scrub_from_sb (char *buf, size_t buflen)
+static int
+scrub_from_sb (char *buf, int buflen)
 {
-  size_t copy;
+  int copy;
   copy = sb_to_scrub->len - (scrub_position - sb_to_scrub->ptr);
   if (copy > buflen)
     copy = buflen;
@@ -113,7 +132,7 @@ sb_scrub_and_add_sb (sb *ptr, sb *s)
 {
   sb_to_scrub = s;
   scrub_position = s->ptr;
-
+  
   sb_check (ptr, s->len);
   ptr->len += do_scrub_chars (scrub_from_sb, ptr->ptr + ptr->len, s->len);
 
@@ -125,30 +144,19 @@ sb_scrub_and_add_sb (sb *ptr, sb *s)
    and grow it if it doesn't.  */
 
 static void
-sb_check (sb *ptr, size_t len)
+sb_check (sb *ptr, int len)
 {
-  size_t want = ptr->len + len;
-
-  if (want > ptr->max)
+  if (ptr->len + len >= 1 << ptr->pot)
     {
-      size_t max;
+      sb tmp;
+      int pot = ptr->pot;
 
-      want += MALLOC_OVERHEAD + 1;
-      if ((ssize_t) want < 0)
-	as_fatal ("string buffer overflow");
-#if GCC_VERSION >= 3004
-      max = (size_t) 1 << (CHAR_BIT * sizeof (want)
-			   - (sizeof (want) <= sizeof (long)
-			      ? __builtin_clzl ((long) want)
-			      : __builtin_clzll ((long long) want)));
-#else
-      max = 128;
-      while (want > max)
-	max <<= 1;
-#endif
-      max -= MALLOC_OVERHEAD + 1;
-      ptr->max = max;
-      ptr->ptr = xrealloc (ptr->ptr, max + 1);
+      while (ptr->len + len >= 1 << pot)
+	pot++;
+      sb_build (&tmp, pot);
+      sb_add_sb (&tmp, ptr);
+      sb_kill (ptr);
+      *ptr = tmp;
     }
 }
 
@@ -163,7 +171,7 @@ sb_reset (sb *ptr)
 /* Add character c to the end of the sb at ptr.  */
 
 void
-sb_add_char (sb *ptr, size_t c)
+sb_add_char (sb *ptr, int c)
 {
   sb_check (ptr, 1);
   ptr->ptr[ptr->len++] = c;
@@ -174,7 +182,7 @@ sb_add_char (sb *ptr, size_t c)
 void
 sb_add_string (sb *ptr, const char *s)
 {
-  size_t len = strlen (s);
+  int len = strlen (s);
   sb_check (ptr, len);
   memcpy (ptr->ptr + ptr->len, s, len);
   ptr->len += len;
@@ -183,27 +191,28 @@ sb_add_string (sb *ptr, const char *s)
 /* Add string at s of length len to sb at ptr */
 
 void
-sb_add_buffer (sb *ptr, const char *s, size_t len)
+sb_add_buffer (sb *ptr, const char *s, int len)
 {
   sb_check (ptr, len);
   memcpy (ptr->ptr + ptr->len, s, len);
   ptr->len += len;
 }
 
-/* Write terminating NUL and return string.  */
+/* Like sb_name, but don't include the null byte in the string.  */
 
 char *
 sb_terminate (sb *in)
 {
-  in->ptr[in->len] = 0;
+  sb_add_char (in, 0);
+  --in->len;
   return in->ptr;
 }
 
 /* Start at the index idx into the string in sb at ptr and skip
    whitespace. return the index of the first non whitespace character.  */
 
-size_t
-sb_skip_white (size_t idx, sb *ptr)
+int
+sb_skip_white (int idx, sb *ptr)
 {
   while (idx < ptr->len
 	 && (ptr->ptr[idx] == ' '
@@ -216,8 +225,8 @@ sb_skip_white (size_t idx, sb *ptr)
    a comma and any following whitespace. returns the index of the
    next character.  */
 
-size_t
-sb_skip_comma (size_t idx, sb *ptr)
+int
+sb_skip_comma (int idx, sb *ptr)
 {
   while (idx < ptr->len
 	 && (ptr->ptr[idx] == ' '

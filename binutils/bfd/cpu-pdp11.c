@@ -34,8 +34,7 @@ const bfd_arch_info_type bfd_pdp11_arch =
     1,		/* aligment = 16 bit */
     TRUE, /* the one and only */
     bfd_default_compatible,
-    bfd_default_scan,
-    bfd_arch_default_fill,
+    bfd_default_scan ,
     0,
   };
 

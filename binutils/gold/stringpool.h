@@ -1,6 +1,6 @@
 // stringpool.h -- a string pool for gold    -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -31,28 +31,6 @@ namespace gold
 {
 
 class Output_file;
-
-// Return the length of a string in units of Char_type.
-
-template<typename Char_type>
-inline size_t
-string_length(const Char_type* p)
-{
-  size_t len = 0;
-  for (; *p != 0; ++p)
-    ++len;
-  return len;
-}
-
-// Specialize string_length for char.  Maybe we could just use
-// std::char_traits<>::length?
-
-template<>
-inline size_t
-string_length(const char* p)
-{
-  return strlen(p);
-}
 
 // A Stringpool is a pool of unique strings.  It provides the
 // following features:
@@ -99,50 +77,48 @@ class Chunked_vector
 {
  public:
   Chunked_vector()
-    : chunks_(), size_(0)
+    : chunks_()
   { }
 
   // Clear the elements.
   void
   clear()
-  {
-    this->chunks_.clear();
-    this->size_ = 0;
-  }
+  { this->chunks_.clear(); }
 
   // Reserve elements.
   void
   reserve(unsigned int n)
   {
-    if (n > this->chunks_.size() * chunk_size)
+    n += chunk_size - 1;
+    while (n >= chunk_size)
       {
-	this->chunks_.resize((n + chunk_size - 1) / chunk_size);
-	// We need to call reserve() of all chunks since changing
-	// this->chunks_ casues Element_vectors to be copied.  The
-	// reserved capacity of an Element_vector may be lost in copying.
-	for (size_t i = 0; i < this->chunks_.size(); ++i)
-	  this->chunks_[i].reserve(chunk_size);
+	this->chunks_.push_back(Element_vector());
+	this->chunks_.back().reserve(chunk_size);
+	n -= chunk_size;
       }
   }
 
   // Get the number of elements.
   size_t
   size() const
-  { return this->size_; }
+  {
+    if (this->chunks_.empty())
+      return 0;
+    else
+      return ((this->chunks_.size() - 1) * chunk_size
+	      + this->chunks_.back().size());
+  }
 
   // Push a new element on the back of the vector.
   void
   push_back(const Element& element)
   {
-    size_t chunk_index = this->size_ / chunk_size;
-    if (chunk_index >= this->chunks_.size())
+    if (this->chunks_.empty() || this->chunks_.back().size() == chunk_size)
       {
 	this->chunks_.push_back(Element_vector());
 	this->chunks_.back().reserve(chunk_size);
-	gold_assert(chunk_index < this->chunks_.size());
       }
-    this->chunks_[chunk_index].push_back(element);
-    this->size_++;
+    this->chunks_.back().push_back(element);
   }
 
   // Return a reference to an entry in the vector.
@@ -161,7 +137,6 @@ class Chunked_vector
   typedef std::vector<Element_vector> Chunk_vector;
 
   Chunk_vector chunks_;
-  size_t size_;
 };
 
 
@@ -180,7 +155,7 @@ class Stringpool_template
   typedef size_t Key;
 
   // Create a Stringpool.
-  Stringpool_template(uint64_t addralign = 1);
+  Stringpool_template();
 
   ~Stringpool_template();
 
@@ -199,12 +174,7 @@ class Stringpool_template
   // should not be called for a proper ELF SHT_STRTAB section.
   void
   set_no_zero_null()
-  {
-    gold_assert(this->string_set_.empty()
-		&& this->offset_ == sizeof(Stringpool_char));
-    this->zero_null_ = false;
-    this->offset_ = 0;
-  }
+  { this->zero_null_ = false; }
 
   // Indicate that this string pool should be optimized, even if not
   // running with -O2.
@@ -218,11 +188,6 @@ class Stringpool_template
   // *PKEY to the key for the string.
   const Stringpool_char*
   add(const Stringpool_char* s, bool copy, Key* pkey);
-
-  // Add the string S to the pool.
-  const Stringpool_char*
-  add(const std::basic_string<Stringpool_char>& s, bool copy, Key* pkey)
-  { return this->add_with_length(s.data(), s.size(), copy, pkey); }
 
   // Add string S of length LEN characters to the pool.  If COPY is
   // true, S need not be null terminated.
@@ -293,6 +258,10 @@ class Stringpool_template
   Stringpool_template(const Stringpool_template&);
   Stringpool_template& operator=(const Stringpool_template&);
 
+  // Return the length of a string in units of Stringpool_char.
+  static size_t
+  string_length(const Stringpool_char*);
+
   // Return whether two strings are equal.
   static bool
   string_equal(const Stringpool_char*, const Stringpool_char*);
@@ -312,10 +281,6 @@ class Stringpool_template
     // Buffer.
     char data[1];
   };
-
-  // Add a new key offset entry.
-  void
-  new_key_offset(size_t);
 
   // Copy a string into the buffers, returning a canonical string.
   const Stringpool_char*
@@ -407,10 +372,6 @@ class Stringpool_template
   bool zero_null_;
   // Whether to optimize the string table.
   bool optimize_;
-  // offset of the next string.
-  section_offset_type offset_;
-  // The alignment of strings in the stringpool.
-  uint64_t addralign_;
 };
 
 // The most common type of Stringpool.

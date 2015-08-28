@@ -1,6 +1,6 @@
 // testfile.cc -- Dummy ELF objects for testing purposes.
 
-// Copyright 2006, 2007, 2008, 2009, 2011, 2012 Free Software Foundation, Inc.
+// Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -44,16 +44,17 @@ class Target_test : public Sized_target<size, big_endian>
   { }
 
   void
-  gc_process_relocs(Symbol_table*, Layout*,
-		    Sized_relobj_file<size, big_endian>*,
-		    unsigned int, unsigned int, const unsigned char*, size_t,
-		    Output_section*, bool, size_t, const unsigned char*)
+  gc_process_relocs(const General_options&, Symbol_table*, Layout*,
+                    Sized_relobj<size, big_endian>*, unsigned int,
+                    unsigned int, const unsigned char*, size_t, Output_section*,
+                    bool, size_t, const unsigned char*)
   { ERROR("call to Target_test::gc_process_relocs"); }
 
   void
-  scan_relocs(Symbol_table*, Layout*, Sized_relobj_file<size, big_endian>*,
-	      unsigned int, unsigned int, const unsigned char*, size_t,
-	      Output_section*, bool, size_t, const unsigned char*)
+  scan_relocs(const General_options&, Symbol_table*, Layout*,
+	      Sized_relobj<size, big_endian>*, unsigned int,
+	      unsigned int, const unsigned char*, size_t, Output_section*,
+	      bool, size_t, const unsigned char*)
   { ERROR("call to Target_test::scan_relocs"); }
 
   void
@@ -64,22 +65,22 @@ class Target_test : public Sized_target<size, big_endian>
   { ERROR("call to Target_test::relocate_section"); }
 
   void
-  scan_relocatable_relocs(Symbol_table*, Layout*,
-			  Sized_relobj_file<size, big_endian>*, unsigned int,
+  scan_relocatable_relocs(const General_options&, Symbol_table*, Layout*,
+			  Sized_relobj<size, big_endian>*, unsigned int,
 			  unsigned int, const unsigned char*,
 			  size_t, Output_section*, bool, size_t,
 			  const unsigned char*, Relocatable_relocs*)
   { ERROR("call to Target_test::scan_relocatable_relocs"); }
 
   void
-  relocate_relocs(const Relocate_info<size, big_endian>*,
-		  unsigned int, const unsigned char*, size_t,
-		  Output_section*, typename elfcpp::Elf_types<size>::Elf_Off,
-                  const Relocatable_relocs*, unsigned char*,
-		  typename elfcpp::Elf_types<size>::Elf_Addr,
-		  section_size_type, unsigned char*,
-		  section_size_type)
-  { ERROR("call to Target_test::relocate_relocs"); }
+  relocate_for_relocatable(const Relocate_info<size, big_endian>*,
+			   unsigned int, const unsigned char*, size_t,
+			   Output_section*, off_t, const Relocatable_relocs*,
+			   unsigned char*,
+			   typename elfcpp::Elf_types<size>::Elf_Addr,
+			   section_size_type, unsigned char*,
+			   section_size_type)
+  { ERROR("call to Target_test::relocate_for_relocatable"); }
 
   static const Target::Target_info test_target_info;
 };
@@ -94,21 +95,15 @@ const Target::Target_info Target_test<size, big_endian>::test_target_info =
   false,				// has_resolve
   false,				// has_code_fill
   false,				// is_default_stack_executable
-  false,				// can_icf_inline_merge_sections
   '\0',					// wrap_char
   "/dummy",				// dynamic_linker
   0x08000000,				// default_text_segment_address
   0x1000,				// abi_pagesize
   0x1000,				// common_pagesize
-  false,                                // isolate_execinstr
-  0,                                    // rosegment_gap
   elfcpp::SHN_UNDEF,			// small_common_shndx
   elfcpp::SHN_UNDEF,			// large_common_shndx
   0,					// small_common_section_flags
-  0,					// large_common_section_flags
-  NULL,					// attributes_section
-  NULL,					// attributes_vendor
-  "_start"		// entry_symbol_name
+  0					// large_common_section_flags
 };
 
 // The test targets.
@@ -154,18 +149,18 @@ class Target_selector_test : public Target_selector
 {
  public:
   Target_selector_test()
-    : Target_selector(0xffff, size, big_endian, NULL, NULL)
+    : Target_selector(0xffff, size, big_endian, NULL)
   { }
 
-  virtual Target*
+  Target*
   do_instantiate_target()
   {
     gold_unreachable();
     return NULL;
   }
 
-  virtual Target*
-  do_recognize(Input_file*, off_t, int, int, int)
+  Target*
+  do_recognize(int, int, int)
   {
     if (size == 32)
       {
@@ -201,11 +196,11 @@ class Target_selector_test : public Target_selector
     return NULL;
   }
 
-  virtual Target*
+  Target*
   do_recognize_by_name(const char*)
   { return NULL; }
 
-  virtual void
+  void
   do_supported_names(std::vector<const char*>*)
   { }
 };

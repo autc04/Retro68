@@ -1,5 +1,5 @@
-#as: -KPIC -32 -relax-branch
-#objdump: -dr --prefix-addresses
+#as: -KPIC -mips3 -32 -relax-branch
+#objdump: -dr --prefix-addresses -mmips:4000
 #name: MIPS relax
 #stderr: relax.l
 
@@ -393,4 +393,3 @@ Disassembly of section \.text:
 			20494: R_MIPS_LO16	\.text
 00020498 <bar\+0x248> jalr	at
 0002049c <bar\+0x24c> nop
-	\.\.\.

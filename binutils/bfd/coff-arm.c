@@ -1,6 +1,6 @@
 /* BFD back-end for ARM COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -549,6 +549,7 @@ coff_arm_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 	osect_vma = h->root.u.def.section->output_section->vma;
       else
 	{
+	  asection *sec;
 	  int i;
 
 	  /* Sigh, the only way to get the section to offset against
@@ -599,7 +600,7 @@ aoutarm_fix_pcrel_26 (bfd *abfd,
   bfd_reloc_status_type flag = bfd_reloc_ok;
 
   /* If this is an undefined symbol, return error.  */
-  if (bfd_is_und_section (symbol->section)
+  if (symbol->section == &bfd_und_section
       && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_continue : bfd_reloc_undefined;
 
@@ -687,7 +688,7 @@ coff_thumb_pcrel_common (bfd *abfd,
     }
 
   /* If this is an undefined symbol, return error.  */
-  if (bfd_is_und_section (symbol->section)
+  if (symbol->section == &bfd_und_section
       && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_continue : bfd_reloc_undefined;
 
@@ -817,7 +818,7 @@ coff_arm_reloc_type_lookup (bfd * abfd, bfd_reloc_code_real_type code)
 #define ASTD(i,j)       case i: return aoutarm_std_reloc_howto + j
 
   if (code == BFD_RELOC_CTOR)
-    switch (bfd_arch_bits_per_address (abfd))
+    switch (bfd_get_arch_info (abfd)->bits_per_address)
       {
       case 32:
         code = BFD_RELOC_32;
@@ -918,7 +919,7 @@ coff_arm_link_hash_table_create (bfd * abfd)
   struct coff_arm_link_hash_table * ret;
   bfd_size_type amt = sizeof (struct coff_arm_link_hash_table);
 
-  ret = bfd_zmalloc (amt);
+  ret = bfd_malloc (amt);
   if (ret == NULL)
     return NULL;
 
@@ -930,6 +931,10 @@ coff_arm_link_hash_table_create (bfd * abfd)
       free (ret);
       return NULL;
     }
+
+  ret->thumb_glue_size   = 0;
+  ret->arm_glue_size     = 0;
+  ret->bfd_of_glue_owner = NULL;
 
   return & ret->root.root;
 }

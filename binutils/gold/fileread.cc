@@ -1,7 +1,6 @@
 // fileread.cc -- read files for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012
-// Free Software Foundation, Inc.
+// Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -25,18 +24,10 @@
 
 #include <cstring>
 #include <cerrno>
-#include <climits>
 #include <fcntl.h>
 #include <unistd.h>
-
-#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
-#endif
-
-#ifdef HAVE_READV
 #include <sys/uio.h>
-#endif
-
 #include <sys/stat.h>
 #include "filenames.h"
 
@@ -47,45 +38,10 @@
 #include "target.h"
 #include "binary.h"
 #include "descriptors.h"
-#include "gold-threads.h"
 #include "fileread.h"
 
-// For systems without mmap support.
-#ifndef HAVE_MMAP
-# define mmap gold_mmap
-# define munmap gold_munmap
-# ifndef MAP_FAILED
-#  define MAP_FAILED (reinterpret_cast<void*>(-1))
-# endif
-# ifndef PROT_READ
-#  define PROT_READ 0
-# endif
-# ifndef MAP_PRIVATE
-#  define MAP_PRIVATE 0
-# endif
-
-# ifndef ENOSYS
-#  define ENOSYS EINVAL
-# endif
-
-static void *
-gold_mmap(void *, size_t, int, int, int, off_t)
-{
-  errno = ENOSYS;
-  return MAP_FAILED;
-}
-
-static int
-gold_munmap(void *, size_t)
-{
-  errno = ENOSYS;
-  return -1;
-}
-
-#endif
-
 #ifndef HAVE_READV
-struct iovec { void* iov_base; size_t iov_len; };
+struct iovec { void* iov_base; size_t iov_len };
 ssize_t
 readv(int, const iovec*, int)
 {
@@ -96,60 +52,19 @@ readv(int, const iovec*, int)
 namespace gold
 {
 
-// Get the last modified time of an unopened file.
-
-bool
-get_mtime(const char* filename, Timespec* mtime)
-{
-  struct stat file_stat;
-
-  if (stat(filename, &file_stat) < 0)
-    return false;
-#ifdef HAVE_STAT_ST_MTIM
-  mtime->seconds = file_stat.st_mtim.tv_sec;
-  mtime->nanoseconds = file_stat.st_mtim.tv_nsec;
-#else
-  mtime->seconds = file_stat.st_mtime;
-  mtime->nanoseconds = 0;
-#endif
-  return true;
-}
-
-// Class File_read.
-
-// A lock for the File_read static variables.
-static Lock* file_counts_lock = NULL;
-static Initialize_lock file_counts_initialize_lock(&file_counts_lock);
-
-// The File_read static variables.
-unsigned long long File_read::total_mapped_bytes;
-unsigned long long File_read::current_mapped_bytes;
-unsigned long long File_read::maximum_mapped_bytes;
-
 // Class File_read::View.
 
 File_read::View::~View()
 {
   gold_assert(!this->is_locked());
-  switch (this->data_ownership_)
+  if (!this->mapped_)
+    delete[] this->data_;
+  else
     {
-    case DATA_ALLOCATED_ARRAY:
-      free(const_cast<unsigned char*>(this->data_));
-      break;
-    case DATA_MMAPPED:
       if (::munmap(const_cast<unsigned char*>(this->data_), this->size_) != 0)
-	gold_warning(_("munmap failed: %s"), strerror(errno));
-      if (!parameters->options_valid() || parameters->options().stats())
-	{
-	  file_counts_initialize_lock.initialize();
-	  Hold_optional_lock hl(file_counts_lock);
-	  File_read::current_mapped_bytes -= this->size_;
-	}
-      break;
-    case DATA_NOT_OWNED:
-      break;
-    default:
-      gold_unreachable();
+        gold_warning(_("munmap failed: %s"), strerror(errno));
+
+      File_read::current_mapped_bytes -= this->size_;
     }
 }
 
@@ -174,6 +89,11 @@ File_read::View::is_locked()
 
 // Class File_read.
 
+// The File_read static variables.
+unsigned long long File_read::total_mapped_bytes;
+unsigned long long File_read::current_mapped_bytes;
+unsigned long long File_read::maximum_mapped_bytes;
+
 File_read::~File_read()
 {
   gold_assert(this->token_.is_writable());
@@ -184,7 +104,7 @@ File_read::~File_read()
       this->is_descriptor_opened_ = false;
     }
   this->name_.clear();
-  this->clear_views(CLEAR_VIEWS_ALL);
+  this->clear_views(true);
 }
 
 // Open the file.
@@ -210,7 +130,8 @@ File_read::open(const Task* task, const std::string& name)
 		   this->name_.c_str(), strerror(errno));
       this->size_ = s.st_size;
       gold_debug(DEBUG_FILES, "Attempt to open %s succeeded",
-		 this->name_.c_str());
+                 this->name_.c_str());
+
       this->token_.add_writer(task);
     }
 
@@ -228,9 +149,7 @@ File_read::open(const Task* task, const std::string& name,
 	      && !this->is_descriptor_opened_
 	      && this->name_.empty());
   this->name_ = name;
-  this->whole_file_view_ = new View(0, size, contents, 0, false,
-				    View::DATA_NOT_OWNED);
-  this->add_view(this->whole_file_view_);
+  this->contents_ = contents;
   this->size_ = size;
   this->token_.add_writer(task);
   return true;
@@ -260,24 +179,18 @@ File_read::release()
 {
   gold_assert(this->is_locked());
 
-  if (!parameters->options_valid() || parameters->options().stats())
-    {
-      file_counts_initialize_lock.initialize();
-      Hold_optional_lock hl(file_counts_lock);
-      File_read::total_mapped_bytes += this->mapped_bytes_;
-      File_read::current_mapped_bytes += this->mapped_bytes_;
-      if (File_read::current_mapped_bytes > File_read::maximum_mapped_bytes)
-	File_read::maximum_mapped_bytes = File_read::current_mapped_bytes;
-    }
-
+  File_read::total_mapped_bytes += this->mapped_bytes_;
+  File_read::current_mapped_bytes += this->mapped_bytes_;
   this->mapped_bytes_ = 0;
+  if (File_read::current_mapped_bytes > File_read::maximum_mapped_bytes)
+    File_read::maximum_mapped_bytes = File_read::current_mapped_bytes;
 
   // Only clear views if there is only one attached object.  Otherwise
   // we waste time trying to clear cached archive views.  Similarly
   // for releasing the descriptor.
   if (this->object_count_ <= 1)
     {
-      this->clear_views(CLEAR_VIEWS_NORMAL);
+      this->clear_views(false);
       if (this->is_descriptor_opened_)
 	{
 	  release_descriptor(this->descriptor_, false);
@@ -330,18 +243,8 @@ inline File_read::View*
 File_read::find_view(off_t start, section_size_type size,
 		     unsigned int byteshift, File_read::View** vshifted) const
 {
-  gold_assert(start <= this->size_
-	      && (static_cast<unsigned long long>(size)
-		  <= static_cast<unsigned long long>(this->size_ - start)));
-
   if (vshifted != NULL)
     *vshifted = NULL;
-
-  // If we have the whole file mmapped, and the alignment is right,
-  // we can return it.
-  if (this->whole_file_view_)
-    if (byteshift == -1U || byteshift == 0)
-      return this->whole_file_view_;
 
   off_t page = File_read::page_offset(start);
 
@@ -378,38 +281,28 @@ void
 File_read::do_read(off_t start, section_size_type size, void* p)
 {
   ssize_t bytes;
-  if (this->whole_file_view_ != NULL)
+  if (this->contents_ != NULL)
     {
       bytes = this->size_ - start;
       if (static_cast<section_size_type>(bytes) >= size)
 	{
-	  memcpy(p, this->whole_file_view_->data() + start, size);
+	  memcpy(p, this->contents_ + start, size);
 	  return;
 	}
     }
   else
     {
       this->reopen_descriptor();
+      bytes = ::pread(this->descriptor_, p, size, start);
+      if (static_cast<section_size_type>(bytes) == size)
+	return;
 
-      char *read_ptr = static_cast<char *>(p);
-      off_t read_pos = start;
-      size_t to_read = size;
-      do
+      if (bytes < 0)
 	{
-	  bytes = ::pread(this->descriptor_, read_ptr, to_read, read_pos);
-	  if (bytes < 0)
-	    gold_fatal(_("%s: pread failed: %s"),
-		       this->filename().c_str(), strerror(errno));
-
-	  read_pos += bytes;
-	  read_ptr += bytes;
-	  to_read -= bytes;
-	  if (to_read == 0)
-	    return;
+	  gold_fatal(_("%s: pread failed: %s"),
+		     this->filename().c_str(), strerror(errno));
+	  return;
 	}
-      while (bytes > 0);
-
-      bytes = size - to_read;
     }
 
   gold_fatal(_("%s: file too short: read only %lld of %lld bytes at %lld"),
@@ -471,9 +364,16 @@ File_read::make_view(off_t start, section_size_type size,
 		     unsigned int byteshift, bool cache)
 {
   gold_assert(size > 0);
-  gold_assert(start <= this->size_
-	      && (static_cast<unsigned long long>(size)
-		  <= static_cast<unsigned long long>(this->size_ - start)));
+
+  // Check that start and end of the view are within the file.
+  if (start > this->size_
+      || (static_cast<unsigned long long>(size)
+          > static_cast<unsigned long long>(this->size_ - start)))
+    gold_fatal(_("%s: attempt to map %lld bytes at offset %lld exceeds "
+                 "size of file; the file may be corrupt"),
+		   this->filename().c_str(),
+		   static_cast<long long>(size),
+		   static_cast<long long>(start));
 
   off_t poff = File_read::page_offset(start);
 
@@ -485,39 +385,31 @@ File_read::make_view(off_t start, section_size_type size,
       gold_assert(psize >= size);
     }
 
-  void* p;
-  View::Data_ownership ownership;
-  if (byteshift != 0)
+  File_read::View* v;
+  if (this->contents_ != NULL || byteshift != 0)
     {
-      p = malloc(psize + byteshift);
-      if (p == NULL)
-	gold_nomem();
+      unsigned char* p = new unsigned char[psize + byteshift];
       memset(p, 0, byteshift);
-      this->do_read(poff, psize, static_cast<unsigned char*>(p) + byteshift);
-      ownership = View::DATA_ALLOCATED_ARRAY;
+      this->do_read(poff, psize, p + byteshift);
+      v = new File_read::View(poff, psize, p, byteshift, cache, false);
     }
   else
     {
       this->reopen_descriptor();
-      p = ::mmap(NULL, psize, PROT_READ, MAP_PRIVATE, this->descriptor_, poff);
-      if (p != MAP_FAILED)
-	{
-	  ownership = View::DATA_MMAPPED;
-	  this->mapped_bytes_ += psize;
-	}
-      else
-	{
-	  p = malloc(psize);
-	  if (p == NULL)
-	    gold_nomem();
-	  this->do_read(poff, psize, p);
-	  ownership = View::DATA_ALLOCATED_ARRAY;
-	}
-    }
+      void* p = ::mmap(NULL, psize, PROT_READ, MAP_PRIVATE,
+                       this->descriptor_, poff);
+      if (p == MAP_FAILED)
+	gold_fatal(_("%s: mmap offset %lld size %lld failed: %s"),
+		   this->filename().c_str(),
+		   static_cast<long long>(poff),
+		   static_cast<long long>(psize),
+		   strerror(errno));
 
-  const unsigned char* pbytes = static_cast<const unsigned char*>(p);
-  File_read::View* v = new File_read::View(poff, psize, pbytes, byteshift,
-					   cache, ownership);
+      this->mapped_bytes_ += psize;
+
+      const unsigned char* pbytes = static_cast<const unsigned char*>(p);
+      v = new File_read::View(poff, psize, pbytes, 0, cache, true);
+    }
 
   this->add_view(v);
 
@@ -531,16 +423,6 @@ File_read::View*
 File_read::find_or_make_view(off_t offset, off_t start,
 			     section_size_type size, bool aligned, bool cache)
 {
-  // Check that start and end of the view are within the file.
-  if (start > this->size_
-      || (static_cast<unsigned long long>(size)
-	  > static_cast<unsigned long long>(this->size_ - start)))
-    gold_fatal(_("%s: attempt to map %lld bytes at offset %lld exceeds "
-		 "size of file; the file may be corrupt"),
-		   this->filename().c_str(),
-		   static_cast<long long>(size),
-		   static_cast<long long>(start));
-
   unsigned int byteshift;
   if (offset == 0)
     byteshift = 0;
@@ -557,15 +439,6 @@ File_read::find_or_make_view(off_t offset, off_t start,
       if (byteshift != 0)
 	byteshift = (target_size / 8) - byteshift;
     }
-
-  // If --map-whole-files is set, make sure we have a
-  // whole file view.  Options may not yet be ready, e.g.,
-  // when reading a version script.  We then default to
-  // --no-map-whole-files.
-  if (this->whole_file_view_ == NULL
-      && parameters->options_valid()
-      && parameters->options().map_whole_files())
-    this->whole_file_view_ = this->make_view(0, this->size_, 0, cache);
 
   // Try to find a View with the required BYTESHIFT.
   File_read::View* vshifted;
@@ -586,16 +459,13 @@ File_read::find_or_make_view(off_t offset, off_t start,
     {
       gold_assert(aligned);
 
-      unsigned char* pbytes;
-      pbytes = static_cast<unsigned char*>(malloc(v->size() + byteshift));
-      if (pbytes == NULL)
-	gold_nomem();
+      unsigned char* pbytes = new unsigned char[v->size() + byteshift];
       memset(pbytes, 0, byteshift);
       memcpy(pbytes + byteshift, v->data() + v->byteshift(), v->size());
 
-      File_read::View* shifted_view =
-	  new File_read::View(v->start(), v->size(), pbytes, byteshift,
-			      cache, View::DATA_ALLOCATED_ARRAY);
+      File_read::View* shifted_view = new File_read::View(v->start(), v->size(),
+							  pbytes, byteshift,
+							  cache, false);
 
       this->add_view(shifted_view);
       return shifted_view;
@@ -689,22 +559,11 @@ File_read::do_readv(off_t base, const Read_multiple& rm, size_t start,
 	       got, want, static_cast<long long>(base + first_offset));
 }
 
-// Portable IOV_MAX.
-
-#if !defined(HAVE_READV)
-#define GOLD_IOV_MAX 1
-#elif defined(IOV_MAX)
-#define GOLD_IOV_MAX IOV_MAX
-#else
-#define GOLD_IOV_MAX (File_read::max_readv_entries * 2)
-#endif
-
 // Read several pieces of data from the file.
 
 void
 File_read::read_multiple(off_t base, const Read_multiple& rm)
 {
-  static size_t iov_max = GOLD_IOV_MAX;
   size_t count = rm.size();
   size_t i = 0;
   while (i < count)
@@ -717,7 +576,7 @@ File_read::read_multiple(off_t base, const Read_multiple& rm)
       size_t j;
       for (j = i + 1; j < count; ++j)
 	{
-	  if (j - i >= File_read::max_readv_entries || j - i >= iov_max / 2)
+	  if (j - i >= File_read::max_readv_entries)
 	    break;
 	  const Read_multiple_entry& j_entry(rm[j]);
 	  off_t j_off = j_entry.file_offset;
@@ -746,10 +605,10 @@ File_read::read_multiple(off_t base, const Read_multiple& rm)
 		{
 		  const Read_multiple_entry& k_entry(rm[k]);
 		  gold_assert((convert_to_section_size_type(k_entry.file_offset
-							   - i_off)
-			       + k_entry.size)
+                                                           - i_off)
+                               + k_entry.size)
 			      <= convert_to_section_size_type(end_off
-							      - i_off));
+                                                              - i_off));
 		  memcpy(k_entry.buffer,
 			 v + (k_entry.file_offset - i_off),
 			 k_entry.size);
@@ -788,33 +647,25 @@ File_read::clear_view_cache_marks()
 // the next object.
 
 void
-File_read::clear_views(Clear_views_mode mode)
+File_read::clear_views(bool destroying)
 {
-  bool keep_files_mapped = (parameters->options_valid()
-			    && parameters->options().keep_files_mapped());
   Views::iterator p = this->views_.begin();
   while (p != this->views_.end())
     {
       bool should_delete;
-      if (p->second->is_locked() || p->second->is_permanent_view())
+      if (p->second->is_locked())
 	should_delete = false;
-      else if (mode == CLEAR_VIEWS_ALL)
+      else if (destroying)
 	should_delete = true;
-      else if ((p->second->should_cache()
-		|| p->second == this->whole_file_view_)
-	       && keep_files_mapped)
+      else if (p->second->should_cache())
 	should_delete = false;
-      else if (this->object_count_ > 1
-	       && p->second->accessed()
-	       && mode != CLEAR_VIEWS_ARCHIVE)
+      else if (this->object_count_ > 1 && p->second->accessed())
 	should_delete = false;
       else
 	should_delete = true;
 
       if (should_delete)
 	{
-	  if (p->second == this->whole_file_view_)
-	    this->whole_file_view_ = NULL;
 	  delete p->second;
 
 	  // map::erase invalidates only the iterator to the deleted
@@ -825,6 +676,7 @@ File_read::clear_views(Clear_views_mode mode)
 	}
       else
 	{
+	  gold_assert(!destroying);
 	  p->second->clear_accessed();
 	  ++p;
 	}
@@ -840,7 +692,7 @@ File_read::clear_views(Clear_views_mode mode)
 	}
       else
 	{
-	  gold_assert(mode != CLEAR_VIEWS_ALL);
+	  gold_assert(!destroying);
 	  ++q;
 	}
     }
@@ -867,16 +719,6 @@ File_view::~File_view()
 
 // Class Input_file.
 
-// Create a file given just the filename.
-
-Input_file::Input_file(const char* name)
-  : found_name_(), file_(), is_in_sysroot_(false), format_(FORMAT_NONE)
-{
-  this->input_argument_ =
-    new Input_file_argument(name, Input_file_argument::INPUT_FILE_TYPE_FILE,
-			    "", false, Position_dependent_options());
-}
-
 // Create a file for testing.
 
 Input_file::Input_file(const Task* task, const char* name,
@@ -885,7 +727,7 @@ Input_file::Input_file(const Task* task, const char* name,
 {
   this->input_argument_ =
     new Input_file_argument(name, Input_file_argument::INPUT_FILE_TYPE_FILE,
-			    "", false, Position_dependent_options());
+                            "", false, Position_dependent_options());
   bool ok = this->file_.open(task, name, contents, size);
   gold_assert(ok);
 }
@@ -944,43 +786,17 @@ File_read::get_mtime()
 {
   struct stat file_stat;
   this->reopen_descriptor();
-
+  
   if (fstat(this->descriptor_, &file_stat) < 0)
     gold_fatal(_("%s: stat failed: %s"), this->name_.c_str(),
 	       strerror(errno));
-#ifdef HAVE_STAT_ST_MTIM
-  return Timespec(file_stat.st_mtim.tv_sec, file_stat.st_mtim.tv_nsec);
-#else
+  // TODO: do a configure check if st_mtim is present and get the
+  // nanoseconds part if it is.
   return Timespec(file_stat.st_mtime, 0);
-#endif
 }
 
-// Try to find a file in the extra search dirs.  Returns true on success.
+// Open the file.
 
-bool
-Input_file::try_extra_search_path(int* pindex,
-				  const Input_file_argument* input_argument,
-				  std::string filename, std::string* found_name,
-				  std::string* namep)
-{
-  if (input_argument->extra_search_path() == NULL)
-    return false;
-
-  std::string name = input_argument->extra_search_path();
-  if (!IS_DIR_SEPARATOR(name[name.length() - 1]))
-    name += '/';
-  name += filename;
-
-  struct stat dummy_stat;
-  if (*pindex > 0 || ::stat(name.c_str(), &dummy_stat) < 0)
-    return false;
-
-  *found_name = filename;
-  *namep = name;
-  return true;
-}
-
-// Find the actual file.
 // If the filename is not absolute, we assume it is in the current
 // directory *except* when:
 //    A) input_argument_->is_lib() is true;
@@ -990,103 +806,85 @@ Input_file::try_extra_search_path(int* pindex,
 // the file location, rather than the current directory.
 
 bool
-Input_file::find_file(const Dirsearch& dirpath, int* pindex,
-		      const Input_file_argument* input_argument,
-		      bool* is_in_sysroot,
-		      std::string* found_name, std::string* namep)
+Input_file::open(const Dirsearch& dirpath, const Task* task, int *pindex)
 {
   std::string name;
 
   // Case 1: name is an absolute file, just try to open it
   // Case 2: name is relative but is_lib is false, is_searched_file is false,
   //         and extra_search_path is empty
-  if (IS_ABSOLUTE_PATH(input_argument->name())
-      || (!input_argument->is_lib()
-	  && !input_argument->is_searched_file()
-	  && input_argument->extra_search_path() == NULL))
+  if (IS_ABSOLUTE_PATH(this->input_argument_->name())
+      || (!this->input_argument_->is_lib()
+	  && !this->input_argument_->is_searched_file()
+	  && this->input_argument_->extra_search_path() == NULL))
     {
-      name = input_argument->name();
-      *found_name = name;
-      *namep = name;
-      return true;
+      name = this->input_argument_->name();
+      this->found_name_ = name;
     }
   // Case 3: is_lib is true or is_searched_file is true
-  else if (input_argument->is_lib()
-	   || input_argument->is_searched_file())
+  else if (this->input_argument_->is_lib()
+	   || this->input_argument_->is_searched_file())
     {
-      std::vector<std::string> names;
-      names.reserve(2);
-      if (input_argument->is_lib())
+      // We don't yet support extra_search_path with -l.
+      gold_assert(this->input_argument_->extra_search_path() == NULL);
+      std::string n1, n2;
+      if (this->input_argument_->is_lib())
 	{
-	  std::string prefix = "lib";
-	  prefix += input_argument->name();
+	  n1 = "lib";
+	  n1 += this->input_argument_->name();
 	  if (parameters->options().is_static()
-	      || !input_argument->options().Bdynamic())
-	    names.push_back(prefix + ".a");
+	      || !this->input_argument_->options().Bdynamic())
+	    n1 += ".a";
 	  else
 	    {
-	      names.push_back(prefix + ".so");
-	      names.push_back(prefix + ".a");
+	      n2 = n1 + ".a";
+	      n1 += ".so";
 	    }
 	}
       else
-	names.push_back(input_argument->name());
-
-      for (std::vector<std::string>::const_iterator n = names.begin();
-	   n != names.end();
-	   ++n)
-	if (Input_file::try_extra_search_path(pindex, input_argument, *n,
-					      found_name, namep))
-	  return true;
-
-      // It is not in the extra_search_path.
-      name = dirpath.find(names, is_in_sysroot, pindex, found_name);
+	n1 = this->input_argument_->name();
+      name = dirpath.find(n1, n2, &this->is_in_sysroot_, pindex);
       if (name.empty())
 	{
 	  gold_error(_("cannot find %s%s"),
-		     input_argument->is_lib() ? "-l" : "",
-		     input_argument->name());
+	             this->input_argument_->is_lib() ? "-l" : "",
+		     this->input_argument_->name());
 	  return false;
 	}
-      *namep = name;
-      return true;
+      if (n2.empty() || name[name.length() - 1] == 'o')
+	this->found_name_ = n1;
+      else
+	this->found_name_ = n2;
     }
   // Case 4: extra_search_path is not empty
   else
     {
-      gold_assert(input_argument->extra_search_path() != NULL);
+      gold_assert(this->input_argument_->extra_search_path() != NULL);
 
-      if (try_extra_search_path(pindex, input_argument, input_argument->name(),
-				found_name, namep))
-	return true;
-
-      // extra_search_path failed, so check the normal search-path.
-      int index = *pindex;
-      if (index > 0)
-	--index;
-      name = dirpath.find(std::vector<std::string>(1, input_argument->name()),
-			  is_in_sysroot, &index, found_name);
-      if (name.empty())
-	{
-	  gold_error(_("cannot find %s"),
-		     input_argument->name());
-	  return false;
-	}
-      *namep = name;
-      *pindex = index + 1;
-      return true;
+      // First, check extra_search_path.
+      name = this->input_argument_->extra_search_path();
+      if (!IS_DIR_SEPARATOR (name[name.length() - 1]))
+        name += '/';
+      name += this->input_argument_->name();
+      struct stat dummy_stat;
+      if (*pindex > 0 || ::stat(name.c_str(), &dummy_stat) < 0)
+        {
+          // extra_search_path failed, so check the normal search-path.
+	  int index = *pindex;
+	  if (index > 0)
+	    --index;
+          name = dirpath.find(this->input_argument_->name(), "",
+			      &this->is_in_sysroot_, &index);
+          if (name.empty())
+            {
+              gold_error(_("cannot find %s"),
+			 this->input_argument_->name());
+	      return false;
+            }
+	  *pindex = index + 1;
+        }
+      this->found_name_ = this->input_argument_->name();
     }
-}
-
-// Open the file.
-
-bool
-Input_file::open(const Dirsearch& dirpath, const Task* task, int* pindex)
-{
-  std::string name;
-  if (!Input_file::find_file(dirpath, pindex, this->input_argument_,
-			     &this->is_in_sysroot_, &this->found_name_, &name))
-    return false;
 
   // Now that we've figured out where the file lives, try to open it.
 
@@ -1094,22 +892,17 @@ Input_file::open(const Dirsearch& dirpath, const Task* task, int* pindex)
     this->input_argument_->options().format_enum();
   bool ok;
   if (format == General_options::OBJECT_FORMAT_ELF)
-    {
-      ok = this->file_.open(task, name);
-      this->format_ = FORMAT_ELF;
-    }
+    ok = this->file_.open(task, name);
   else
     {
       gold_assert(format == General_options::OBJECT_FORMAT_BINARY);
       ok = this->open_binary(task, name);
-      this->format_ = FORMAT_BINARY;
     }
 
   if (!ok)
     {
       gold_error(_("cannot open %s: %s"),
 		 name.c_str(), strerror(errno));
-      this->format_ = FORMAT_NONE;
       return false;
     }
 

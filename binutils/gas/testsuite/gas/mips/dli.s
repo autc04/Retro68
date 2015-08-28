@@ -62,4 +62,6 @@ foo:
 	dli	$4,0x003ffc03ffffc000
 
 # Round to a 16 byte boundary, for ease in testing multiple targets.
-	.p2align 4
+	nop
+	nop
+	nop

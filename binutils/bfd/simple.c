@@ -1,5 +1,5 @@
 /* simple.c -- BFD simple client routines
-   Copyright 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
+   Copyright 2002, 2003, 2004, 2005, 2007, 2008, 2009
    Free Software Foundation, Inc.
    Contributed by MontaVista Software, Inc.
 
@@ -82,7 +82,10 @@ simple_dummy_unattached_reloc (struct bfd_link_info *link_info ATTRIBUTE_UNUSED,
 
 static bfd_boolean
 simple_dummy_multiple_definition (struct bfd_link_info *link_info ATTRIBUTE_UNUSED,
-				  struct bfd_link_hash_entry *h ATTRIBUTE_UNUSED,
+				  const char *name ATTRIBUTE_UNUSED,
+				  bfd *obfd ATTRIBUTE_UNUSED,
+				  asection *osec ATTRIBUTE_UNUSED,
+				  bfd_vma oval ATTRIBUTE_UNUSED,
 				  bfd *nbfd ATTRIBUTE_UNUSED,
 				  asection *nsec ATTRIBUTE_UNUSED,
 				  bfd_vma nval ATTRIBUTE_UNUSED)
@@ -164,9 +167,17 @@ bfd_simple_get_relocated_section_contents (bfd *abfd,
   if ((abfd->flags & (HAS_RELOC | EXEC_P | DYNAMIC)) != HAS_RELOC
       || ! (sec->flags & SEC_RELOC))
     {
-      contents = outbuf;
-      if (!bfd_get_full_section_contents (abfd, sec, &contents))
-	return NULL;
+      bfd_size_type amt = sec->rawsize > sec->size ? sec->rawsize : sec->size;
+      bfd_size_type size = sec->rawsize ? sec->rawsize : sec->size;
+
+      if (outbuf == NULL)
+	contents = (bfd_byte *) bfd_malloc (amt);
+      else
+	contents = outbuf;
+
+      if (contents)
+	bfd_get_section_contents (abfd, sec, contents, 0, size);
+
       return contents;
     }
 

@@ -1,5 +1,5 @@
 /* windmc.c -- a program to compile Windows message files.
-   Copyright 2007, 2008, 2009, 2010, 2011
+   Copyright 2007, 2008
    Free Software Foundation, Inc.
    Written by Kai Tietz, Onevision.
 
@@ -50,6 +50,11 @@ typedef struct mc_msg_item
   rc_uint_type res_off;
   struct bin_messagetable_item *res;
 } mc_msg_item;
+
+/* Defined in bfd/binary.c.  Used to set architecture and machine of input
+   binary files.  */
+extern enum bfd_architecture  bfd_external_binary_architecture;
+extern unsigned long          bfd_external_machine;
 
 int target_is_bigendian = 0;
 const char *def_target_arch;
@@ -187,7 +192,7 @@ mc_create_path_text_file (const char *path, const char *ext)
   sprintf (hsz, "%s%s%s", (path != NULL ? path : ""), mcset_mc_basename,
     (ext != NULL ? ext : ""));
   if ((ret = fopen (hsz, "wb")) == NULL)
-    fatal (_("can't create %s file `%s' for output.\n"), (ext ? ext : "text"), hsz);
+    fatal (_("can't create %s file ,%s' for output.\n"), (ext ? ext : "text"), hsz);
   free (hsz);
   return ret;
 }
@@ -205,7 +210,7 @@ usage (FILE *stream, int status)
   -C --codepage_in=<val>       Set codepage when reading mc text file\n\
   -d --decimal_values          Print values to text files decimal\n\
   -e --extension=<extension>   Set header extension used on export header file\n\
-  -F --target <target>         Specify output target for endianness.\n\
+  -F --target <target>         Specify output target for endianess.\n\
   -h --headerdir=<directory>   Set the export directory for headers\n\
   -u --unicode_in              Read input file as UTF16 file\n\
   -U --unicode_out             Write binary messages as UFT16\n\
@@ -231,17 +236,47 @@ usage (FILE *stream, int status)
 }
 
 static void
-set_endianness (bfd *abfd, const char *target)
+set_endianess (bfd *abfd, const char *target)
 {
   const bfd_target *target_vec;
 
   def_target_arch = NULL;
-  target_vec = bfd_get_target_info (target, abfd, &target_is_bigendian, NULL,
-				   &def_target_arch);
+  target_vec = bfd_find_target (target, abfd);
   if (! target_vec)
-    fatal ("Can't detect target endianness and architecture.");
-  if (! def_target_arch)
-    fatal ("Can't detect architecture.");
+    fatal ("Can't detect target endianess and architecture.");
+  target_is_bigendian = ((target_vec->byteorder == BFD_ENDIAN_BIG) ? 1 : 0);
+
+  {
+    const char *  tname = target_vec->name;
+    const char ** arches = bfd_arch_list ();
+
+    if (arches && tname)
+      {
+	const char ** arch = arches;
+
+	if (strchr (tname, '-') != NULL)
+	  tname = strchr (tname, '-') + 1;
+
+	while (*arch != NULL)
+	  {
+	    const char *in_a = strstr (*arch, tname);
+	    char end_ch = (in_a ? in_a[strlen (tname)] : 0);
+
+	    if (in_a && (in_a == *arch || in_a[-1] == ':')
+	        && end_ch == 0)
+	      {
+		def_target_arch = *arch;
+		break;
+	      }
+	    arch++;
+	  }
+      }
+
+    free (arches);
+
+    if (! def_target_arch)
+      fatal ("Can't detect architecture.");
+  }
 }
 
 static int
@@ -259,7 +294,7 @@ probe_codepage (rc_uint_type *cp, int *is_uni, const char *pswitch, int defmode)
       if (*cp != 0 && *cp != CP_UTF16)
 	{
 	  fprintf (stderr, _("%s: warning: "), program_name);
-	  fprintf (stderr, _("A codepage was specified switch `%s' and UTF16.\n"), pswitch);
+	  fprintf (stderr, _("A codepage was specified switch ,%s' and UTF16.\n"), pswitch);
 	  fprintf (stderr, _("\tcodepage settings are ignored.\n"));
 	}
       *cp = CP_UTF16;
@@ -1054,7 +1089,7 @@ main (int argc, char **argv)
       ++optind;
     }
 
-  set_endianness (NULL, target);
+  set_endianess (NULL, target);
 
   if (input_filename == NULL)
     {
@@ -1113,7 +1148,7 @@ main (int argc, char **argv)
     FILE *fp = fopen (input_filename, "rb");
 
     if (!fp)
-      fatal (_("unable to open file `%s' for input.\n"), input_filename);
+      fatal (_("unable to open file ,%s' for input.\n"), input_filename);
 
     fseek (fp, 0, SEEK_END);
     flen = ftell (fp);

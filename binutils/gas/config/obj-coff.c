@@ -1,6 +1,6 @@
 /* coff object file format
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -26,14 +26,9 @@
 #include "safe-ctype.h"
 #include "obstack.h"
 #include "subsegs.h"
-#include "struc-symbol.h"
 
 #ifdef TE_PE
 #include "coff/pe.h"
-#endif
-
-#ifdef OBJ_XCOFF
-#include "coff/xcoff.h"
 #endif
 
 #define streq(a,b)     (strcmp ((a), (b)) == 0)
@@ -223,10 +218,10 @@ obj_coff_common_parse (int ignore ATTRIBUTE_UNUSED, symbolS *symbolP, addressT s
 	}
 
       /* Emit a string.  Note no NUL-termination.  */
-      pfxlen = strlen (" -aligncomm:") + 2 + strlen (S_GET_NAME (symbolP)) + 1;
+      pfxlen = strlen (" -aligncomm:") + strlen (S_GET_NAME (symbolP)) + 1;
       numlen = snprintf (numbuff, sizeof (numbuff), "%d", (int) align);
       frag = frag_more (pfxlen + numlen);
-      (void) sprintf (frag, " -aligncomm:\"%s\",", S_GET_NAME (symbolP));
+      (void) sprintf (frag, " -aligncomm:%s,", S_GET_NAME (symbolP));
       memcpy (frag + pfxlen, numbuff, numlen);
       /* Restore original subseg. */
       subseg_set (current_seg, current_subseg);
@@ -627,11 +622,14 @@ obj_coff_def (int what ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
+unsigned int dim_index;
+
 static void
 obj_coff_endef (int ignore ATTRIBUTE_UNUSED)
 {
   symbolS *symbolP = NULL;
 
+  dim_index = 0;
   if (def_symbol_in_progress == NULL)
     {
       as_warn (_(".endef pseudo-op used outside of .def/.endef: ignored."));
@@ -864,7 +862,7 @@ obj_coff_endef (int ignore ATTRIBUTE_UNUSED)
 static void
 obj_coff_dim (int ignore ATTRIBUTE_UNUSED)
 {
-  int d_index;
+  int dim_index;
 
   if (def_symbol_in_progress == NULL)
     {
@@ -875,10 +873,10 @@ obj_coff_dim (int ignore ATTRIBUTE_UNUSED)
 
   S_SET_NUMBER_AUXILIARY (def_symbol_in_progress, 1);
 
-  for (d_index = 0; d_index < DIMNUM; d_index++)
+  for (dim_index = 0; dim_index < DIMNUM; dim_index++)
     {
       SKIP_WHITESPACES ();
-      SA_SET_SYM_DIMEN (def_symbol_in_progress, d_index,
+      SA_SET_SYM_DIMEN (def_symbol_in_progress, dim_index,
 			get_absolute_expression ());
 
       switch (*input_line_pointer)
@@ -892,7 +890,7 @@ obj_coff_dim (int ignore ATTRIBUTE_UNUSED)
 	  /* Fall through.  */
 	case '\n':
 	case ';':
-	  d_index = DIMNUM;
+	  dim_index = DIMNUM;
 	  break;
 	}
     }
@@ -1100,8 +1098,15 @@ weak_name2altname (const char * name)
 static const char *
 weak_altname2name (const char * name)
 {
+  char * weak_name;
+  char * dot;
+
   gas_assert (weak_is_altname (name));
-  return xstrdup (name + 6);
+
+  weak_name = xstrdup (name + 6);
+  if ((dot = strchr (weak_name, '.')))
+    *dot = 0;
+  return weak_name;
 }
 
 /* Make a weak symbol name unique by
@@ -1118,6 +1123,9 @@ weak_uniquify (const char * name)
     unique = an_external_name;
 #endif
   gas_assert (weak_is_altname (name));
+
+  if (strchr (name + sizeof (weak_altprefix), '.'))
+    return name;
 
   ret = xmalloc (strlen (name) + strlen (unique) + 2);
   strcpy (ret, name);
@@ -1360,8 +1368,7 @@ coff_frob_symbol (symbolS *symp, int *punt)
 		}
 	    }
 
-	  if (coff_last_function == 0 && SF_GET_FUNCTION (symp)
-	      && S_IS_DEFINED (symp))
+	  if (coff_last_function == 0 && SF_GET_FUNCTION (symp))
 	    {
 	      union internal_auxent *auxp;
 
@@ -1373,8 +1380,7 @@ coff_frob_symbol (symbolS *symp, int *punt)
 		      sizeof (auxp->x_sym.x_fcnary.x_ary.x_dimen));
 	    }
 
-	  if (S_GET_STORAGE_CLASS (symp) == C_EFCN
-	      && S_IS_DEFINED (symp))
+	  if (S_GET_STORAGE_CLASS (symp) == C_EFCN)
 	    {
 	      if (coff_last_function == 0)
 		as_fatal (_("C_EFCN symbol for %s out of scope"),
@@ -1534,7 +1540,6 @@ coff_frob_file_after_relocs (void)
                                                  'o' for over
                                                  'w' for data
   						 'd' (apparently m88k for data)
-						 'e' for exclude
                                                  'x' for text
   						 'r' for read-only data
   						 's' for shared data (PE)
@@ -1602,11 +1607,6 @@ obj_coff_section (int ignore ATTRIBUTE_UNUSED)
 		}
 	      switch (attr)
 		{
-		case 'e':
-		  /* Exclude section from linking.  */
-		  flags |= SEC_EXCLUDE;
-		  break;
-
 		case 'b':
 		  /* Uninitialised data section.  */
 		  flags |= SEC_ALLOC;
@@ -1681,7 +1681,6 @@ obj_coff_section (int ignore ATTRIBUTE_UNUSED)
     }
 
   sec = subseg_new (name, (subsegT) exp);
-
   if (alignment >= 0)
     sec->alignment_power = alignment;
 
@@ -1734,18 +1733,17 @@ coff_frob_section (segT sec)
   segT strsec;
   char *p;
   fragS *fragp;
-  bfd_vma n_entries;
+  bfd_vma size, n_entries, mask;
+  bfd_vma align_power = (bfd_vma)sec->alignment_power + OCTETS_PER_BYTE_POWER;
 
   /* The COFF back end in BFD requires that all section sizes be
      rounded up to multiples of the corresponding section alignments,
      supposedly because standard COFF has no other way of encoding alignment
      for sections.  If your COFF flavor has a different way of encoding
      section alignment, then skip this step, as TICOFF does.  */
-  bfd_vma size = bfd_get_section_size (sec);
+  size = bfd_get_section_size (sec);
+  mask = ((bfd_vma) 1 << align_power) - 1;
 #if !defined(TICOFF)
-  bfd_vma align_power = (bfd_vma) sec->alignment_power + OCTETS_PER_BYTE_POWER;
-  bfd_vma mask = ((bfd_vma) 1 << align_power) - 1;
-
   if (size & mask)
     {
       bfd_vma new_size;
@@ -1776,13 +1774,8 @@ coff_frob_section (segT sec)
 #endif
     {
       symbolS *secsym = section_symbol (sec);
-      unsigned char sclass = C_STAT;
 
-#ifdef OBJ_XCOFF
-      if (bfd_get_section_flags (stdoutput, sec) & SEC_DEBUGGING)
-        sclass = C_DWARF;
-#endif
-      S_SET_STORAGE_CLASS (secsym, sclass);
+      S_SET_STORAGE_CLASS (secsym, C_STAT);
       S_SET_NUMBER_AUXILIARY (secsym, 1);
       SF_SET_STATICS (secsym);
       SA_SET_SCN_SCNLEN (secsym, size);
@@ -1838,15 +1831,11 @@ obj_coff_init_stab_section (segT seg)
 }
 
 #ifdef DEBUG
-const char * s_get_name (symbolS *);
-
 const char *
 s_get_name (symbolS *s)
 {
   return ((s == NULL) ? "(NULL)" : S_GET_NAME (s));
 }
-
-void symbol_dump (void);
 
 void
 symbol_dump (void)
@@ -1951,7 +1940,5 @@ const struct format_ops coff_format_ops =
   coff_pop_insert,
   0,	/* ecoff_set_ext */
   coff_obj_read_begin_hook,
-  coff_obj_symbol_new_hook,
-  coff_obj_symbol_clone_hook,
-  coff_adjust_symtab
+  coff_obj_symbol_new_hook
 };

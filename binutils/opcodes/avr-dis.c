@@ -1,5 +1,5 @@
 /* Disassemble AVR instructions.
-   Copyright 1999, 2000, 2002, 2004, 2005, 2006, 2007, 2008, 2012
+   Copyright 1999, 2000, 2002, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    Contributed by Denis Chertykov <denisc@overta.ru>
@@ -21,8 +21,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include <assert.h>
+#include "sysdep.h"
 #include "dis-asm.h"
 #include "opintl.h"
 #include "libiberty.h"
@@ -50,7 +50,7 @@ static const char * comment_start = "0x";
 
 static int
 avr_operand (unsigned int insn, unsigned int insn2, unsigned int pc, int constraint,
-             char *opcode_str, char *buf, char *comment, int regs, int *sym, bfd_vma *sym_addr)
+             char *buf, char *comment, int regs, int *sym, bfd_vma *sym_addr)
 {
   int ok = 1;
   *sym = 0;
@@ -118,19 +118,8 @@ avr_operand (unsigned int insn, unsigned int insn2, unsigned int pc, int constra
 
     case 'z':
       *buf++ = 'Z';
-
-      /* Check for post-increment. */
-      char *s;
-      for (s = opcode_str; *s; ++s)
-        {
-          if (*s == '+')
-            {
-	      if (insn & (1 << (15 - (s - opcode_str))))
-		*buf++ = '+';
-              break;
-            }
-        }
-
+      if (insn & 0x1)
+	*buf++ = '+';
       *buf = '\0';
       if (AVR_UNDEF_P (insn))
 	sprintf (comment, _("undefined"));
@@ -238,10 +227,6 @@ avr_operand (unsigned int insn, unsigned int insn2, unsigned int pc, int constra
       }
       break;
       
-    case 'E':
-      sprintf (buf, "%d", (insn >> 4) & 15);
-      break;
-      
     case '?':
       *buf = '\0';
       break;
@@ -346,8 +331,7 @@ print_insn_avr (bfd_vma addr, disassemble_info *info)
 
   if (opcode->name)
     {
-      char *constraints = opcode->constraints;
-      char *opcode_str = opcode->opcode;
+      char *op = opcode->constraints;
 
       insn2 = 0;
       ok = 1;
@@ -358,14 +342,14 @@ print_insn_avr (bfd_vma addr, disassemble_info *info)
 	  cmd_len = 4;
 	}
 
-      if (*constraints && *constraints != '?')
+      if (*op && *op != '?')
 	{
-	  int regs = REGISTER_P (*constraints);
+	  int regs = REGISTER_P (*op);
 
-	  ok = avr_operand (insn, insn2, addr, *constraints, opcode_str, op1, comment1, 0, &sym_op1, &sym_addr1);
+	  ok = avr_operand (insn, insn2, addr, *op, op1, comment1, 0, &sym_op1, &sym_addr1);
 
-	  if (ok && *(++constraints) == ',')
-	    ok = avr_operand (insn, insn2, addr, *(++constraints), opcode_str, op2,
+	  if (ok && *(++op) == ',')
+	    ok = avr_operand (insn, insn2, addr, *(++op), op2,
 			      *comment1 ? comment2 : comment1, regs, &sym_op2, &sym_addr2);
 	}
     }

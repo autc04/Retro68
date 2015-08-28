@@ -1,6 +1,5 @@
 /* BFD back-end for TMS320C30 a.out binaries.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2009,
-   2010, 2011, 2012
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2009
    Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
@@ -189,7 +188,7 @@ tic30_aout_fix_16 (bfd *abfd,
   bfd_vma relocation;
 
   /* Make sure that the symbol's section is defined.  */
-  if (bfd_is_und_section (symbol->section) && (symbol->flags & BSF_WEAK) == 0)
+  if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
   /* Get the size of the input section and turn it into the TMS320C30
      32-bit address format.  */
@@ -214,7 +213,7 @@ tic30_aout_fix_32 (bfd *abfd,
   bfd_vma relocation;
 
   /* Make sure that the symbol's section is defined.  */
-  if (bfd_is_und_section (symbol->section) && (symbol->flags & BSF_WEAK) == 0)
+  if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
   /* Get the size of the input section and turn it into the TMS320C30
      32-bit address format.  */
@@ -297,7 +296,7 @@ tic30_aout_reloc_howto (bfd *abfd,
 {
   unsigned int r_length;
   unsigned int r_pcrel_done;
-  int howto_index;
+  int index;
 
   *r_pcrel = 0;
   if (bfd_header_big_endian (abfd))
@@ -314,8 +313,8 @@ tic30_aout_reloc_howto (bfd *abfd,
       r_pcrel_done = (0 != (relocs->r_type[0] & RELOC_STD_BITS_PCREL_LITTLE));
       r_length = ((relocs->r_type[0] & RELOC_STD_BITS_LENGTH_LITTLE) >> RELOC_STD_BITS_LENGTH_SH_LITTLE);
     }
-  howto_index = r_length + 4 * r_pcrel_done;
-  return tic30_aout_howto_table + howto_index;
+  index = r_length + 4 * r_pcrel_done;
+  return tic30_aout_howto_table + index;
 }
 
 /* These macros will get 24-bit values from the bfd definition.
@@ -701,7 +700,7 @@ MY_final_link_callback (bfd *abfd,
 
   *ptreloff = obj_datasec (abfd)->filepos + execp->a_data;
   *pdreloff = *ptreloff + execp->a_trsize;
-  *psymoff = *pdreloff + execp->a_drsize;
+  *psymoff = *pdreloff + execp->a_drsize;;
 }
 
 #endif
@@ -838,9 +837,6 @@ tic30_aout_set_arch_mach (bfd *abfd,
 #ifndef MY_read_ar_hdr
 #define MY_read_ar_hdr			_bfd_generic_read_ar_hdr
 #endif
-#ifndef MY_write_ar_hdr
-#define MY_write_ar_hdr			_bfd_generic_write_ar_hdr
-#endif
 #ifndef	MY_truncate_arname
 #define	MY_truncate_arname		bfd_bsd_truncate_arname
 #endif
@@ -858,9 +854,6 @@ tic30_aout_set_arch_mach (bfd *abfd,
 #ifndef	MY_core_file_matches_executable_p
 #define	MY_core_file_matches_executable_p	\
 				_bfd_nocore_core_file_matches_executable_p
-#endif
-#ifndef	MY_core_file_pid
-#define	MY_core_file_pid  		_bfd_nocore_core_file_pid
 #endif
 #ifndef	MY_core_file_p
 #define	MY_core_file_p			_bfd_dummy_target
@@ -944,9 +937,6 @@ tic30_aout_set_arch_mach (bfd *abfd,
 #ifndef MY_bfd_gc_sections
 #define MY_bfd_gc_sections bfd_generic_gc_sections
 #endif
-#ifndef MY_bfd_lookup_section_flags
-#define MY_bfd_lookup_section_flags bfd_generic_lookup_section_flags
-#endif
 #ifndef MY_bfd_merge_sections
 #define MY_bfd_merge_sections bfd_generic_merge_sections
 #endif
@@ -989,10 +979,6 @@ tic30_aout_set_arch_mach (bfd *abfd,
 #endif
 #ifndef MY_bfd_link_just_syms
 #define MY_bfd_link_just_syms _bfd_generic_link_just_syms
-#endif
-#ifndef MY_bfd_copy_link_hash_symbol_type
-#define MY_bfd_copy_link_hash_symbol_type \
-  _bfd_generic_copy_link_hash_symbol_type
 #endif
 #ifndef MY_bfd_link_split_section
 #define MY_bfd_link_split_section  _bfd_generic_link_split_section
@@ -1083,7 +1069,6 @@ const bfd_target tic30_aout_vec =
   MY_symbol_leading_char,
   AR_PAD_CHAR,			/* AR_pad_char.  */
   15,				/* AR_max_namelen.  */
-  0,				/* match priority.  */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */

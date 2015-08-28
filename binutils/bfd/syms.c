@@ -1,6 +1,6 @@
 /* Generic symbol-table support for the BFD library.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2012
+   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -77,7 +77,7 @@ SUBSECTION
 |
 |	  if (storage_needed == 0)
 |	    return;
-|
+|	  
 |	  symbol_table = xmalloc (storage_needed);
 |	    ...
 |	  number_of_symbols =
@@ -107,7 +107,6 @@ SUBSECTION
 	which has been created using <<bfd_make_empty_symbol>>.  Here is an
 	example showing the creation of a symbol table with only one element:
 
-|	#include "sysdep.h"
 |	#include "bfd.h"
 |	int main (void)
 |	{
@@ -934,7 +933,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
   struct stab_find_info *info;
   bfd_size_type stabsize, strsize;
   bfd_byte *stab, *str;
-  bfd_byte *last_stab, *last_str;
+  bfd_byte *last_stab = NULL;
   bfd_size_type stroff;
   struct indexentry *indexentry;
   char *file_name;
@@ -1008,7 +1007,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	  /* Try SOM section names.  */
 	  info->stabsec = bfd_get_section_by_name (abfd, "$GDB_SYMBOLS$");
 	  info->strsec  = bfd_get_section_by_name (abfd, "$GDB_STRINGS$");
-
+  
 	  if (info->stabsec == NULL || info->strsec == NULL)
 	    {
 	      /* No stabs debugging information.  Set *pinfo so that we
@@ -1147,9 +1146,8 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
       file_name = NULL;
       directory_name = NULL;
       saw_fun = 1;
-      stroff = 0;
 
-      for (i = 0, last_stab = stab = info->stabs, last_str = str = info->strs;
+      for (i = 0, stroff = 0, stab = info->stabs, str = info->strs;
 	   i < info->indextablesize && stab < info->stabs + stabsize;
 	   stab += STABSIZE)
 	{
@@ -1175,7 +1173,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 		{
 		  info->indextable[i].val = bfd_get_32 (abfd, last_stab + VALOFF);
 		  info->indextable[i].stab = last_stab;
-		  info->indextable[i].str = last_str;
+		  info->indextable[i].str = str;
 		  info->indextable[i].directory_name = directory_name;
 		  info->indextable[i].file_name = file_name;
 		  info->indextable[i].function_name = NULL;
@@ -1193,7 +1191,6 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	      else
 		{
 		  last_stab = stab;
-		  last_str = str;
 		  if (stab + STABSIZE >= info->stabs + stabsize
 		      || *(stab + STABSIZE + TYPEOFF) != (bfd_byte) N_SO)
 		    {
@@ -1244,7 +1241,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	{
 	  info->indextable[i].val = bfd_get_32 (abfd, last_stab + VALOFF);
 	  info->indextable[i].stab = last_stab;
-	  info->indextable[i].str = last_str;
+	  info->indextable[i].str = str;
 	  info->indextable[i].directory_name = directory_name;
 	  info->indextable[i].file_name = file_name;
 	  info->indextable[i].function_name = NULL;
@@ -1389,8 +1386,8 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 
       dirlen = strlen (directory_name);
       if (info->filename == NULL
-	  || filename_ncmp (info->filename, directory_name, dirlen) != 0
-	  || filename_cmp (info->filename + dirlen, file_name) != 0)
+	  || strncmp (info->filename, directory_name, dirlen) != 0
+	  || strcmp (info->filename + dirlen, file_name) != 0)
 	{
 	  size_t len;
 

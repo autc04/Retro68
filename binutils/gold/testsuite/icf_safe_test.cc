@@ -22,10 +22,8 @@
 
 // The goal of this program is to verify if identical code folding
 // in safe mode correctly folds only ctors and dtors. kept_func_1 must
-// not be folded into kept_func_2 other than for X86 (32 and 64 bit)
-// which can use relocation types to determine if function pointers are
-// taken.  kept_func_3 should never be folded as its pointer is taken.
-// The ctor and dtor of class A must be folded.
+// not be folded into kept_func_2.  The ctor and dtor of class A must
+// be folded.
 
 class A
 {
@@ -50,14 +48,7 @@ int kept_func_2()
   return 1;
 }
 
-int kept_func_3()
-{
-  return 1;
-}
-
 int main()
 {
-  int (*p)() = kept_func_3;
-  p();
   return 0;
 }

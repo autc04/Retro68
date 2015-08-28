@@ -1,6 +1,7 @@
 # Test basic linker script functionality
 # By Ian Lance Taylor, Cygnus Support
-#   Copyright 1999-2013 Free Software Foundation, Inc.
+#   Copyright 1999, 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2009
+#   Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -126,10 +127,12 @@ if ![ld_simple_link $ld tmpdir/script "$flags -T $srcdir/$subdir/memory.t tmpdir
     check_script
 }
 
-set test_script_list [lsort [glob $srcdir/$subdir/region-alias-*.t]]
+set test_script_list [glob $srcdir/$subdir/region-alias-*.t]
 
 foreach test_script $test_script_list {
-    run_dump_test [string range $test_script 0 end-2]
+    if ![ld_simple_link $ld tmpdir/script "$flags -T $test_script tmpdir/script.o"] {
+        xfail "REGION_ALIAS: $test_script"
+    } else {
+        xpass "REGION_ALIAS: $test_script"
+    }
 }
-
-run_dump_test "align-with-input"

@@ -1,166 +1,79 @@
-# Mensajes en espa√±ol para gold 2.22.90.
-# Copyright (C) 2008, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+# Mensajes en espaÒol para gold 2.19.90.
+# Copyright (C) 2008, 2009 Free Software Foundation, Inc.
 # This file is distributed under the same license as the binutils package.
-# Cristian Oth√≥n Mart√≠nez Vera <cfuga@cfuga.mx>, 2008, 2009, 2010, 2011, 2012.
+# Cristian OthÛn MartÌnez Vera <cfuga@itam.mx>, 2008, 2009
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gold 2.22.90\n"
-"Report-Msgid-Bugs-To: bug-binutils@gnu.org\n"
-"POT-Creation-Date: 2010-03-03 15:08+0100\n"
-"PO-Revision-Date: 2012-07-27 17:14-0500\n"
-"Last-Translator: Cristian Oth√≥n Mart√≠nez Vera <cfuga@cfuga.mx>\n"
+"Project-Id-Version: gold 2.19.90\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-09-09 17:16+0930\n"
+"PO-Revision-Date: 2009-09-17 14:37-0500\n"
+"Last-Translator: Cristian OthÛn MartÌnez Vera <cfuga@itam.mx>\n"
 "Language-Team: Spanish <es@li.org>\n"
-"Language: es\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=ISO-8859-1\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: archive.cc:119
+#: archive.cc:107
 #, c-format
 msgid "%s: no archive symbol table (run ranlib)"
-msgstr "%s: no existe la tabla de s√≠mbolos de archivo (ejecute ranlib)"
+msgstr "%s: no existe la tabla de sÌmbolos de archivo (ejecute ranlib)"
 
-#: archive.cc:204
+#: archive.cc:189
 #, c-format
 msgid "%s: bad archive symbol table names"
-msgstr "%s: nombres de tabla de s√≠mbolos de archivo err√≥neos"
+msgstr "%s: nombres de tabla de sÌmbolos de archivo errÛneos"
 
-#: archive.cc:236
+#: archive.cc:221
 #, c-format
 msgid "%s: malformed archive header at %zu"
 msgstr "%s: encabezado de archivo mal formado en %zu"
 
-#: archive.cc:256
+#: archive.cc:241
 #, c-format
 msgid "%s: malformed archive header size at %zu"
-msgstr "%s: tama√±o de encabezado de archivo mal formado en %zu"
+msgstr "%s: tamaÒo de encabezado de archivo mal formado en %zu"
 
-#: archive.cc:267
+#: archive.cc:252
 #, c-format
 msgid "%s: malformed archive header name at %zu"
 msgstr "%s: nombre de encabezado de archivo mal formado en %zu"
 
-#: archive.cc:297
+#: archive.cc:282
 #, c-format
 msgid "%s: bad extended name index at %zu"
-msgstr "%s: √≠ndice de nombre extendido err√≥neo en %zu"
+msgstr "%s: Ìndice de nombre extendido errÛneo en %zu"
 
-#: archive.cc:307
+#: archive.cc:292
 #, c-format
 msgid "%s: bad extended name entry at header %zu"
-msgstr "%s: entrada de nombre extendida err√≥nea en el encabezado %zu"
+msgstr "%s: entrada de nombre extendida errÛnea en el encabezado %zu"
 
-#: archive.cc:404
+#: archive.cc:389
 #, c-format
 msgid "%s: short archive header at %zu"
 msgstr "%s: encabezado de archivo corto en %zu"
 
-#: archive.cc:560
+#: archive.cc:530 archive.cc:545
 #, c-format
 msgid "%s: member at %zu is not an ELF object"
 msgstr "%s: el miembro en %zu no es un objeto ELF"
 
-#: archive.cc:879
+#: archive.cc:775
 #, c-format
 msgid "%s: archive libraries: %u\n"
 msgstr "%s: bibliotecas de archivo: %u\n"
 
-#: archive.cc:881
+#: archive.cc:777
 #, c-format
 msgid "%s: total archive members: %u\n"
 msgstr "%s: miembros de archivo totales: %u\n"
 
-#: archive.cc:883
+#: archive.cc:779
 #, c-format
 msgid "%s: loaded archive members: %u\n"
 msgstr "%s: miembros de archivo cargados: %u\n"
-
-#: arm.cc:1149 i386.cc:536 sparc.cc:1087 x86_64.cc:565
-msgid "** PLT"
-msgstr "** PLT"
-
-#: arm.cc:1364 i386.cc:880 powerpc.cc:1014 sparc.cc:1502 x86_64.cc:955
-#: x86_64.cc:1265
-#, c-format
-msgid "%s: unsupported reloc %u against local symbol"
-msgstr "%s: no se admite la reubicaci√≥n %u contra el s√≠mbolo local"
-
-#: arm.cc:1404 powerpc.cc:1105 sparc.cc:1592 x86_64.cc:992
-msgid "requires unsupported dynamic reloc; recompile with -fPIC"
-msgstr "se requiere una reubicaci√≥n din√°mica no admitida; recompile con -fPIC"
-
-#. These are relocations which should only be seen by the
-#. dynamic linker, and should never be seen here.
-#: arm.cc:1519 arm.cc:1739 arm.cc:2354 i386.cc:1002 i386.cc:1334
-#: powerpc.cc:1223 powerpc.cc:1432 sparc.cc:1877 sparc.cc:2238 x86_64.cc:1145
-#: x86_64.cc:1453
-#, c-format
-msgid "%s: unexpected reloc %u in object file"
-msgstr "%s: reubicaci√≥n %u inesperada en el fichero objeto"
-
-#: arm.cc:1538 i386.cc:1171 powerpc.cc:1242 sparc.cc:1896 x86_64.cc:1279
-#: x86_64.cc:1571
-#, c-format
-msgid "%s: unsupported reloc %u against global symbol %s"
-msgstr "%s: no se admite la reubicaci√≥n %u contra el s√≠mbolo global %s"
-
-#: arm.cc:1804 i386.cc:1542
-#, c-format
-msgid "%s: unsupported RELA reloc section"
-msgstr "%s: no se admite la secci√≥n de reubicaci√≥n RELA"
-
-#: arm.cc:2047
-msgid "relocation R_ARM_MOVW_ABS_NC cannot be used when makinga shared object; recompile with -fPIC"
-msgstr "no se puede usar la reubicaci√≥n R_ARM_MOVW_ABS_NC cuando se hace un objeto compartido; recompile con -fPIC"
-
-#: arm.cc:2056
-msgid "relocation R_ARM_MOVT_ABS cannot be used when makinga shared object; recompile with -fPIC"
-msgstr "no se puede usar la reubicaci√≥n R_ARM_MOVT_ABS cundo se hace un objeto compartido; recompile con -fPIC"
-
-#: arm.cc:2067
-msgid "relocation R_ARM_THM_MOVW_ABS_NC cannot be used whenmaking a shared object; recompile with -fPIC"
-msgstr "no se puede usar la reubicaci√≥n R_ARM_THM_MOVW_ABS_NC cuando se hace un objeto compartido; recompile con -fPIC"
-
-#: arm.cc:2077
-msgid "relocation R_ARM_THM_MOVT_ABS cannot be used whenmaking a shared object; recompile with -fPIC"
-msgstr "no se puede usar la reubicaci√≥n R_ARM_THM_MOVT_ABS cuando se hace un objeto compartido; recompile con -fPIC"
-
-#: arm.cc:2141
-msgid "cannot find origin of R_ARM_BASE_PREL"
-msgstr "no se puede encontrar el origen de R_ARM_BASE_PREL"
-
-#: arm.cc:2169
-msgid "cannot find origin of R_ARM_BASE_ABS"
-msgstr "no se puede encontrar el origen de R_ARM_BASE_ABS"
-
-#: arm.cc:2230 i386.cc:1820 i386.cc:2521 powerpc.cc:1798 sparc.cc:2711
-#: x86_64.cc:1935 x86_64.cc:2518
-#, c-format
-msgid "unexpected reloc %u in object file"
-msgstr "reubicaci√≥n %u inesperada en el fichero objeto"
-
-#: arm.cc:2236 i386.cc:1852 i386.cc:1931 i386.cc:1983 i386.cc:2014
-#: i386.cc:2076 powerpc.cc:1804 sparc.cc:2717 sparc.cc:2900 sparc.cc:2961
-#: sparc.cc:3068 x86_64.cc:1956 x86_64.cc:2039 x86_64.cc:2094 x86_64.cc:2119
-#, c-format
-msgid "unsupported reloc %u"
-msgstr "no se admite la reubicaci√≥n %u"
-
-#: arm.cc:2248
-#, c-format
-msgid "relocation overflow in relocation %u"
-msgstr "desbordamiento de reubicaci√≥n en la reubicaci√≥n %u"
-
-#: arm.cc:2256
-#, c-format
-msgid "unexpected opcode while processing relocation %u"
-msgstr "c√≥digo de operaci√≥n inesperado al procesar la reubicaci√≥n %u"
-
-#: arm.cc:2359 i386.cc:2535
-#, c-format
-msgid "unsupported reloc %u in object file"
-msgstr "no se admite la reubicaci√≥n %u en el fichero objeto"
 
 #: binary.cc:129
 #, c-format
@@ -169,23 +82,23 @@ msgstr "no se puede abrir %s: %s"
 
 #: compressed_output.cc:128
 msgid "not compressing section data: zlib error"
-msgstr "no se comprime la secci√≥n de datos: erro de zlib"
+msgstr "no se comprime la secciÛn de datos: erro de zlib"
 
 #: cref.cc:244
 #, c-format
 msgid "cannot open symbol count file %s: %s"
-msgstr "no se puede abrir el fichero de cuenta de s√≠mbolos %s: %s"
+msgstr "no se puede abrir el fichero de cuenta de sÌmbolos %s: %s"
 
-#: descriptors.cc:116
+#: descriptors.cc:94
 #, c-format
 msgid "file %s was removed during the link"
-msgstr "se borr√≥ el fichero %s durante el enlace"
+msgstr "se borrÛ el fichero %s durante el enlace"
 
-#: descriptors.cc:169
+#: descriptors.cc:133
 msgid "out of file descriptors and couldn't close any"
 msgstr "descriptores de fichero agotados y no se pudo cerrar alguno"
 
-#: descriptors.cc:190 descriptors.cc:226
+#: descriptors.cc:154 descriptors.cc:189
 #, c-format
 msgid "while closing %s: %s"
 msgstr "al cerrar %s: %s"
@@ -197,120 +110,120 @@ msgstr "%s: no se puede leer el directorio: %s"
 
 #: dwarf_reader.cc:53 dwarf_reader.cc:84
 msgid "Unusually large LEB128 decoded, debug information may be corrupted"
-msgstr "Se decodific√≥ un LEB128 inusualmente grande, la informaci√≥n de depuraci√≥n puede estar corrupta"
+msgstr "Se decodificÛ un LEB128 inusualmente grande, la informaciÛn de depuraciÛn puede estar corrupta"
 
-#: dynobj.cc:164
+#: dynobj.cc:169
 #, c-format
 msgid "unexpected duplicate type %u section: %u, %u"
-msgstr "duplicado inesperado tipo %u secci√≥n: %u, %u"
+msgstr "duplicado inesperado tipo %u secciÛn: %u, %u"
 
-#: dynobj.cc:200
+#: dynobj.cc:205
 #, c-format
 msgid "unexpected link in section %u header: %u != %u"
-msgstr "enlace inesperado en la secci√≥n %u encabezado: %u != %u"
+msgstr "enlace inesperado en la secciÛn %u encabezado: %u != %u"
 
-#: dynobj.cc:236
+#: dynobj.cc:241
 #, c-format
 msgid "DYNAMIC section %u link out of range: %u"
-msgstr "enlace de la secci√≥n DYNAMIC %u fuera de rango: %u"
+msgstr "enlace de la secciÛn DYNAMIC %u fuera de rango: %u"
 
-#: dynobj.cc:244
+#: dynobj.cc:249
 #, c-format
 msgid "DYNAMIC section %u link %u is not a strtab"
-msgstr "secci√≥n DYNAMIC %u enlace %u no es un strtab"
+msgstr "secciÛn DYNAMIC %u enlace %u no es un strtab"
 
-#: dynobj.cc:273
+#: dynobj.cc:278
 #, c-format
 msgid "DT_SONAME value out of range: %lld >= %lld"
 msgstr "valor de DT_SONAME fuera de rango: %lld >= %lld"
 
-#: dynobj.cc:285
+#: dynobj.cc:290
 #, c-format
 msgid "DT_NEEDED value out of range: %lld >= %lld"
 msgstr "valor de DT_NEEDED fuera de rango: %lld >= %lld"
 
-#: dynobj.cc:298
+#: dynobj.cc:303
 msgid "missing DT_NULL in dynamic segment"
-msgstr "falta DT_NULL en el segmento din√°mico"
+msgstr "falta DT_NULL en el segmento din·mico"
 
-#: dynobj.cc:344
+#: dynobj.cc:349
 #, c-format
 msgid "invalid dynamic symbol table name index: %u"
-msgstr "√≠ndice de nombre de tabla de s√≠mbolos din√°micos inv√°lido: %u"
+msgstr "Ìndice de nombre de tabla de sÌmbolos din·micos inv·lido: %u"
 
-#: dynobj.cc:351
+#: dynobj.cc:356
 #, c-format
 msgid "dynamic symbol table name section has wrong type: %u"
-msgstr "la secci√≥n de nombre de tabla de s√≠mbolos din√°micos tiene un tipo err√≥neo: %u"
+msgstr "la secciÛn de nombre de tabla de sÌmbolos din·micos tiene un tipo errÛneo: %u"
 
-#: dynobj.cc:438 object.cc:463 object.cc:1106
+#: dynobj.cc:443 object.cc:376 object.cc:884
 #, c-format
 msgid "bad section name offset for section %u: %lu"
-msgstr "desplazamiento de nombre de secci√≥n err√≥neo para la secci√≥n %u: %lu"
+msgstr "desplazamiento de nombre de secciÛn errÛneo para la secciÛn %u: %lu"
 
-#: dynobj.cc:468
+#: dynobj.cc:472
 #, c-format
 msgid "duplicate definition for version %u"
-msgstr "definici√≥n duplicada para la versi√≥n %u"
+msgstr "definiciÛn duplicada para la versiÛn %u"
 
-#: dynobj.cc:497
+#: dynobj.cc:501
 #, c-format
 msgid "unexpected verdef version %u"
-msgstr "versi√≥n verdef %u inesperada"
+msgstr "versiÛn verdef %u inesperada"
 
-#: dynobj.cc:513
+#: dynobj.cc:517
 #, c-format
 msgid "verdef vd_cnt field too small: %u"
-msgstr "campo vd_cnt verdef demasiado peque√±o: %u"
+msgstr "campo vd_cnt verdef demasiado pequeÒo: %u"
 
-#: dynobj.cc:521
+#: dynobj.cc:525
 #, c-format
 msgid "verdef vd_aux field out of range: %u"
 msgstr "campo vd_aux verder fuera de rango: %u"
 
-#: dynobj.cc:532
+#: dynobj.cc:536
 #, c-format
 msgid "verdaux vda_name field out of range: %u"
 msgstr "campo vda_name verdaux fuera de rango: %u"
 
-#: dynobj.cc:542
+#: dynobj.cc:546
 #, c-format
 msgid "verdef vd_next field out of range: %u"
 msgstr "campo vd_next verdef fuera de rango: %u"
 
-#: dynobj.cc:576
+#: dynobj.cc:580
 #, c-format
 msgid "unexpected verneed version %u"
-msgstr "versi√≥n verneed %u inesperada"
+msgstr "versiÛn verneed %u inesperada"
 
-#: dynobj.cc:585
+#: dynobj.cc:589
 #, c-format
 msgid "verneed vn_aux field out of range: %u"
 msgstr "campo vn_aux verneed fuera de rango: %u"
 
-#: dynobj.cc:599
+#: dynobj.cc:603
 #, c-format
 msgid "vernaux vna_name field out of range: %u"
 msgstr "campo vna_name vernaux fuera de rango: %u"
 
-#: dynobj.cc:610
+#: dynobj.cc:614
 #, c-format
 msgid "verneed vna_next field out of range: %u"
 msgstr "campo vna_next verneed fuera de rango: %u"
 
-#: dynobj.cc:621
+#: dynobj.cc:625
 #, c-format
 msgid "verneed vn_next field out of range: %u"
 msgstr "campo vn_next verneed fuera de rango: %u"
 
-#: dynobj.cc:670
+#: dynobj.cc:673
 msgid "size of dynamic symbols is not multiple of symbol size"
-msgstr "el tama√±o de los s√≠mbolos din√°micos no es un m√∫ltiplo del tama√±o de s√≠mbolo"
+msgstr "el tamaÒo de los sÌmbolos din·micos no es un m˙ltiplo del tamaÒo de sÌmbolo"
 
-#: dynobj.cc:1435
+#: dynobj.cc:1425
 #, c-format
 msgid "symbol %s has undefined version %s"
-msgstr "el s√≠mbolo %s tiene la versi√≥n sin definir %s"
+msgstr "el sÌmbolo %s tiene la versiÛn sin definir %s"
 
 #: ehframe.h:82
 msgid "** eh_frame_hdr"
@@ -320,42 +233,27 @@ msgstr "** eh_frame_hdr"
 msgid "** eh_frame"
 msgstr "** eh_frame"
 
-#: errors.cc:81
-#, c-format
-msgid "%s: fatal error: "
-msgstr "%s: error fatal: "
-
-#: errors.cc:92
-#, c-format
-msgid "%s: error: "
-msgstr "%s: error: "
-
-#: errors.cc:104
+#: errors.cc:106
 #, c-format
 msgid "%s: warning: "
 msgstr "%s: aviso: "
 
-#: errors.cc:128
-#, c-format
-msgid "%s: %s: error: "
-msgstr "%s: %s: error: "
-
-#: errors.cc:144
+#: errors.cc:146
 #, c-format
 msgid "%s: %s: warning: "
 msgstr "%s: %s: aviso: "
 
-#: errors.cc:167
-#, c-format
-msgid "%s: %s: error: undefined reference to '%s'\n"
-msgstr "%s: %s: error: referencia a '%s' sin definir\n"
-
 #: errors.cc:172
 #, c-format
-msgid "%s: %s: error: undefined reference to '%s', version '%s'\n"
-msgstr "%s: %s: error: referencia a '%s' sin definir, versi√≥n '%s'\n"
+msgid "%s: %s: undefined reference to '%s'\n"
+msgstr "%s: %s: referencia a '%s' sin definir\n"
 
-#: errors.cc:182
+#: errors.cc:176
+#, c-format
+msgid "%s: %s: undefined reference to '%s', version '%s'\n"
+msgstr "%s: %s: referencia a '%s' sin definir, versiÛn '%s'\n"
+
+#: errors.cc:186
 #, c-format
 msgid "%s: "
 msgstr "%s: "
@@ -363,17 +261,21 @@ msgstr "%s: "
 #: expression.cc:172
 #, c-format
 msgid "undefined symbol '%s' referenced in expression"
-msgstr "se hace referencia al s√≠mbolo sin definir '%s' en la expresi√≥n"
+msgstr "se hace referencia al sÌmbolo sin definir '%s' en la expresiÛn"
 
 #: expression.cc:209
 msgid "invalid reference to dot symbol outside of SECTIONS clause"
-msgstr "referencia inv√°lida al s√≠mbolo dot fuera de la cl√°usula SECTIONS"
+msgstr "referencia inv·lida al sÌmbolo dot fuera de la cl·usula SECTIONS"
 
 #. Handle unary operators.  We use a preprocessor macro as a hack to
 #. capture the C operator.
 #: expression.cc:278
 msgid "unary "
 msgstr "unario "
+
+#: expression.cc:278 expression.cc:400
+msgid " applied to section relative value"
+msgstr " se aplica al valor relativo a la secciÛn"
 
 #. Handle binary operators.  We use a preprocessor macro as a hack to
 #. capture the C operator.  KEEP_LEFT means that if the left operand
@@ -393,15 +295,15 @@ msgstr " por cero"
 
 #: expression.cc:575
 msgid "max applied to section relative value"
-msgstr "se aplic√≥ max al valor relativo de la secci√≥n"
+msgstr "se aplicÛ max al valor relativo de la secciÛn"
 
 #: expression.cc:610
 msgid "min applied to section relative value"
-msgstr "se aplic√≥ min al valor relativo de la secci√≥n"
+msgstr "se aplicÛ min al valor relativo de la secciÛn"
 
 #: expression.cc:740
 msgid "aligning to section relative value"
-msgstr "se alinea al valor relativo de la secci√≥n"
+msgstr "se alinea al valor relativo de la secciÛn"
 
 #: expression.cc:895
 #, c-format
@@ -420,82 +322,72 @@ msgstr "no se admite ORIGIN"
 msgid "LENGTH not implemented"
 msgstr "no se admite LENGTH"
 
-#: fileread.cc:65
+#: fileread.cc:55
 #, c-format
 msgid "munmap failed: %s"
-msgstr "fall√≥ munmap: %s"
+msgstr "fallÛ munmap: %s"
 
-#: fileread.cc:129
+#: fileread.cc:119
 #, c-format
 msgid "%s: fstat failed: %s"
-msgstr "%s: fall√≥ fstat: %s"
+msgstr "%s: fallÛ fstat: %s"
 
-#: fileread.cc:169
+#: fileread.cc:159
 #, c-format
 msgid "could not reopen file %s"
 msgstr "no se puede reabrir el fichero %s"
 
-#: fileread.cc:302
+#: fileread.cc:292
 #, c-format
 msgid "%s: pread failed: %s"
-msgstr "%s: fall√≥ pread: %s"
+msgstr "%s: fallÛ pread: %s"
 
-#: fileread.cc:308
+#: fileread.cc:298
 #, c-format
 msgid "%s: file too short: read only %lld of %lld bytes at %lld"
-msgstr "%s: el fichero era demasiado peque√±o: s√≥lo se leyeron %lld de %lld bytes en %lld"
+msgstr "%s: el fichero era demasiado pequeÒo: sÛlo se leyeron %lld de %lld bytes en %lld"
 
-#: fileread.cc:372
-#, c-format
-msgid "%s: attempt to map %lld bytes at offset %lld exceeds size of file; the file may be corrupt"
-msgstr "%s: al intentar mapear %lld bytes en el desplazamiento %lld se excedi√≥ el tama√±o del fichero; el fichero tal vez se corrompi√≥"
-
-#: fileread.cc:402
+#: fileread.cc:382
 #, c-format
 msgid "%s: mmap offset %lld size %lld failed: %s"
-msgstr "%s: fall√≥ el desplazamiento mmap %lld tama√±o %lld: %s"
+msgstr "%s: fallÛ el desplazamiento mmap %lld tamaÒo %lld: %s"
 
-#: fileread.cc:548
+#: fileread.cc:528
 #, c-format
 msgid "%s: lseek failed: %s"
-msgstr "%s: fall√≥ lseek: %s"
+msgstr "%s: fallÛ lseek: %s"
 
-#: fileread.cc:554
+#: fileread.cc:534
 #, c-format
 msgid "%s: readv failed: %s"
-msgstr "%s: fall√≥ readv: %s"
+msgstr "%s: fallÛ readv: %s"
 
-#: fileread.cc:557
+#: fileread.cc:537
 #, c-format
 msgid "%s: file too short: read only %zd of %zd bytes at %lld"
-msgstr "%s: el fichero era demasiado peque√±o: s√≥lo se leyeron %zd de %zd bytes en %lld"
+msgstr "%s: el fichero era demasiado pequeÒo: sÛlo se leyeron %zd de %zd bytes en %lld"
 
-#: fileread.cc:706
+#: fileread.cc:686
 #, c-format
 msgid "%s: total bytes mapped for read: %llu\n"
 msgstr "%s: total de bytes mapeados para lectura: %llu\n"
 
-#: fileread.cc:708
+#: fileread.cc:688
 #, c-format
 msgid "%s: maximum bytes mapped for read at one time: %llu\n"
-msgstr "%s: m√°ximo de bytes mapeados para lectura de una sola vez: %llu\n"
+msgstr "%s: m·ximo de bytes mapeados para lectura de una sola vez: %llu\n"
 
-#: fileread.cc:791
+#: fileread.cc:783
 #, c-format
-msgid "%s: stat failed: %s"
-msgstr "%s: fall√≥ stat: %s"
+msgid "cannot find -l%s"
+msgstr "no se puede encontrar -l%s"
 
-#: fileread.cc:849
-#, c-format
-msgid "cannot find %s%s"
-msgstr "no se puede encontrar %s%s"
-
-#: fileread.cc:880
+#: fileread.cc:810
 #, c-format
 msgid "cannot find %s"
 msgstr "no se puede encontrar %s"
 
-#: fileread.cc:904
+#: fileread.cc:833
 #, c-format
 msgid "cannot open %s: %s"
 msgstr "no se puede abrir %s: %s"
@@ -503,213 +395,177 @@ msgstr "no se puede abrir %s: %s"
 #: gold-threads.cc:103
 #, c-format
 msgid "pthead_mutextattr_init failed: %s"
-msgstr "fall√≥ pthread_mutextattr_init: %s"
+msgstr "fallÛ pthread_mutextattr_init: %s"
 
 #: gold-threads.cc:107
 #, c-format
 msgid "pthread_mutextattr_settype failed: %s"
-msgstr "fall√≥ pthread_mutextattr_settype: %s"
+msgstr "fallÛ pthread_mutextattr_settype: %s"
 
 #: gold-threads.cc:112
 #, c-format
 msgid "pthread_mutex_init failed: %s"
-msgstr "fall√≥ pthread_mutex_init: %s"
+msgstr "fallÛ pthread_mutex_init: %s"
 
 #: gold-threads.cc:116
 #, c-format
 msgid "pthread_mutexattr_destroy failed: %s"
-msgstr "fall√≥ pthread_mutexattr_destroy: %s"
+msgstr "fallÛ pthread_mutexattr_destroy: %s"
 
 #: gold-threads.cc:123
 #, c-format
 msgid "pthread_mutex_destroy failed: %s"
-msgstr "fall√≥ pthread_mutex_destroy: %s"
+msgstr "fallÛ pthread_mutex_destroy: %s"
 
-#: gold-threads.cc:131 gold-threads.cc:382
+#: gold-threads.cc:131
 #, c-format
 msgid "pthread_mutex_lock failed: %s"
-msgstr "fall√≥ pthread_mutex_lock: %s"
+msgstr "fallÛ pthread_mutex_lock: %s"
 
-#: gold-threads.cc:139 gold-threads.cc:394
+#: gold-threads.cc:139
 #, c-format
 msgid "pthread_mutex_unlock failed: %s"
-msgstr "fall√≥ pthread_mutex_unlock: %s"
+msgstr "fallÛ pthread_mutex_unlock: %s"
 
 #: gold-threads.cc:220
 #, c-format
 msgid "pthread_cond_init failed: %s"
-msgstr "fall√≥ pthread_cond_init: %s"
+msgstr "fallÛ pthread_cond_init: %s"
 
 #: gold-threads.cc:227
 #, c-format
 msgid "pthread_cond_destroy failed: %s"
-msgstr "fall√≥ pthread_cond_destroy: %s"
+msgstr "fallÛ pthread_cond_destroy: %s"
 
 #: gold-threads.cc:236
 #, c-format
 msgid "pthread_cond_wait failed: %s"
-msgstr "fall√≥ pthread_cond_wait: %s"
+msgstr "fallÛ pthread_cond_wait: %s"
 
 #: gold-threads.cc:244
 #, c-format
 msgid "pthread_cond_signal failed: %s"
-msgstr "fall√≥ pthread_cond_signal: %s"
+msgstr "fallÛ pthread_cond_signal: %s"
 
 #: gold-threads.cc:252
 #, c-format
 msgid "pthread_cond_broadcast failed: %s"
-msgstr "fall√≥ pthread_cond_broadcast: %s"
+msgstr "fallÛ pthread_cond_broadcast: %s"
 
-#: gold-threads.cc:388
-#, c-format
-msgid "pthread_once failed: %s"
-msgstr "fall√≥ pthread_once: %s"
-
-#: gold.cc:91
+#: gold.cc:83
 #, c-format
 msgid "%s: internal error in %s, at %s:%d\n"
 msgstr "%s: error interno en %s, en %s:%d\n"
 
-#: gold.cc:173
+#: gold.cc:130
 msgid "no input files"
 msgstr "no hay ficheros de entrada"
 
-#: gold.cc:226
-msgid "cannot mix -r with --gc-sections or --icf"
-msgstr "no se puede mezclar -r con --gc-sections o --icf"
-
-#: gold.cc:407
+#. We print out just the first .so we see; there may be others.
+#: gold.cc:195
 #, c-format
 msgid "cannot mix -static with dynamic object %s"
-msgstr "no se puede mezclar -static con el objeto din√°mico %s"
+msgstr "no se puede mezclar -static con el objeto din·mico %s"
 
-#: gold.cc:411
+#: gold.cc:199
 #, c-format
 msgid "cannot mix -r with dynamic object %s"
-msgstr "no se puede mezclar -r con el objeto din√°mico %s"
+msgstr "no se puede mezclar -r con el objeto din·mico %s"
 
-#: gold.cc:415
+#: gold.cc:203
 #, c-format
 msgid "cannot use non-ELF output format with dynamic object %s"
-msgstr "no se puede usar un formato de salida diferente a ELF con el objeto din√°mico %s"
-
-#: gold.cc:427
-#, c-format
-msgid "cannot mix split-stack '%s' and non-split-stack '%s' when using -r"
-msgstr "no se puede mezclar la divisi√≥n-pila '%s' y la no-divisi√≥n-pila '%s' al usar -r"
+msgstr "no se puede usar un formato de salida diferente a ELF con el objeto din·mico %s"
 
 #. FIXME: This needs to specify the location somehow.
-#: i386.cc:232 i386.cc:1669 sparc.cc:234 sparc.cc:2395 x86_64.cc:237
-#: x86_64.cc:1732
+#: i386.cc:193 i386.cc:1588 sparc.cc:211 sparc.cc:2322 x86_64.cc:208
+#: x86_64.cc:1656
 msgid "missing expected TLS relocation"
-msgstr "falta la reubicaci√≥n TLS esperada"
+msgstr "falta la reubicaciÛn TLS esperada"
 
-#: i386.cc:944 x86_64.cc:1068
+#: i386.cc:503 sparc.cc:1066 x86_64.cc:533
+msgid "** PLT"
+msgstr "** PLT"
+
+#: i386.cc:843 powerpc.cc:996 sparc.cc:1480 x86_64.cc:921 x86_64.cc:1230
+#, c-format
+msgid "%s: unsupported reloc %u against local symbol"
+msgstr "%s: no se admite la reubicaciÛn %u contra el sÌmbolo local"
+
+#: i386.cc:907 x86_64.cc:1033
 #, c-format
 msgid "section symbol %u has bad shndx %u"
-msgstr "el s√≠mbolo de secci√≥n %u tiene shndx %u err√≥neo"
+msgstr "el sÌmbolo de secciÛn %u tiene shndx %u errÛneo"
 
-#: i386.cc:1036 i386.cc:1060 sparc.cc:1777 x86_64.cc:1176 x86_64.cc:1204
+#: i386.cc:965 i386.cc:1297 powerpc.cc:1204 powerpc.cc:1413 sparc.cc:1852
+#: sparc.cc:2204 x86_64.cc:1110 x86_64.cc:1418
+#, c-format
+msgid "%s: unexpected reloc %u in object file"
+msgstr "%s: reubicaciÛn %u inesperada en el fichero objeto"
+
+#: i386.cc:999 i386.cc:1023 sparc.cc:1753 x86_64.cc:1141 x86_64.cc:1169
 #, c-format
 msgid "local symbol %u has bad shndx %u"
-msgstr "el s√≠mbolo local %u tiene shndx %u err√≥neo"
+msgstr "el sÌmbolo local %u tiene shndx %u errÛneo"
 
-#: i386.cc:1991
+#: i386.cc:1134 powerpc.cc:1223 sparc.cc:1871 x86_64.cc:1244 x86_64.cc:1536
+#, c-format
+msgid "%s: unsupported reloc %u against global symbol %s"
+msgstr "%s: no se admite la reubicaciÛn %u contra el sÌmbolo global %s"
+
+#: i386.cc:1473
+#, c-format
+msgid "%s: unsupported RELA reloc section"
+msgstr "%s: no se admite la secciÛn de reubicaciÛn RELA"
+
+#: i386.cc:1735 i386.cc:2429 powerpc.cc:1740 sparc.cc:2637 x86_64.cc:1859
+#: x86_64.cc:2435
+#, c-format
+msgid "unexpected reloc %u in object file"
+msgstr "reubicaciÛn %u inesperada en el fichero objeto"
+
+#: i386.cc:1767 i386.cc:1846 i386.cc:1898 i386.cc:1929 i386.cc:1986
+#: powerpc.cc:1746 sparc.cc:2643 sparc.cc:2826 sparc.cc:2887 sparc.cc:2994
+#: x86_64.cc:1880 x86_64.cc:1963 x86_64.cc:2018 x86_64.cc:2043
+#, c-format
+msgid "unsupported reloc %u"
+msgstr "no se admite la reubicaciÛn %u"
+
+#: i386.cc:1906
 msgid "both SUN and GNU model TLS relocations"
 msgstr "reubicaciones TLS tanto de modelo GNU como SUN"
 
-#: i386.cc:2730 x86_64.cc:2719
+#: i386.cc:2443
 #, c-format
-msgid "failed to match split-stack sequence at section %u offset %0zx"
-msgstr "fall√≥ al coincidir la secuencia dividir-pila en la secci√≥n %u desplazamiento %0zx"
+msgid "unsupported reloc %u in object file"
+msgstr "no se admite la reubicaciÛn %u en el fichero objeto"
 
-#: icf.cc:616
-#, c-format
-msgid "%s: ICF Converged after %u iteration(s)"
-msgstr "%s: Convergi√≥ ICF despu√©s de %u iteracion(es)"
-
-#: icf.cc:619
-#, c-format
-msgid "%s: ICF stopped after %u iteration(s)"
-msgstr "%s: Se detiene ICF despu√©s de %u iteracion(es)"
-
-#: icf.cc:633
-#, c-format
-msgid "Could not find symbol %s to unfold\n"
-msgstr "No se puede encontrar el s√≠mbolo %s para desincorporar\n"
-
-#: incremental.cc:242
-#, c-format
-msgid "the link might take longer: cannot perform incremental link: %s"
-msgstr "el enlazado puede tardar m√°s: no se puede realizar el enlazado incremental: %s"
-
-#: incremental.cc:302
-msgid "no incremental data from previous build"
-msgstr "no se encontraron datos incrementales de la compilaci√≥n anterior"
-
-#: incremental.cc:309 incremental.cc:332
-msgid "invalid incremental build data"
-msgstr "datos de compilaci√≥n incremental inv√°lidos"
-
-#: incremental.cc:321
-msgid "different version of incremental build data"
-msgstr "versi√≥n diferente de datos de compilaci√≥n incremental"
-
-#: incremental.cc:338
-msgid "command line changed"
-msgstr "cambi√≥ la l√≠nea de √≥rdenes"
-
-#: incremental.cc:362
-#, c-format
-msgid "unsupported ELF machine number %d"
-msgstr "no se admite el n√∫mero de m√°quina ELF %d"
-
-#: incremental.cc:387
-msgid "output is not an ELF file."
-msgstr "la salida no es un fichero ELF."
-
-#: incremental.cc:410
-msgid "unsupported file: 32-bit, big-endian"
-msgstr "no se admite el fichero: 32-bit, big-endian"
-
-#: incremental.cc:419
-msgid "unsupported file: 32-bit, little-endian"
-msgstr "no se admite el fichero: 32-bit, little-endian"
-
-#: incremental.cc:431
-msgid "unsupported file: 64-bit, big-endian"
-msgstr "no se admite el fichero: 64-bit, big-endian"
-
-#: incremental.cc:440
-msgid "unsupported file: 64-bit, little-endian"
-msgstr "no se admite el fichero: 64-bit, little-endian"
-
-#: layout.cc:1887
+#: layout.cc:1511
 #, c-format
 msgid "--build-id=uuid failed: could not open /dev/urandom: %s"
-msgstr "fall√≥ --build-id=uuid: no se puede abrir /dev/urandom: %s"
+msgstr "fallÛ --build-id=uuid: no se puede abrir /dev/urandom: %s"
 
-#: layout.cc:1894
+#: layout.cc:1518
 #, c-format
 msgid "/dev/urandom: read failed: %s"
-msgstr "/dev/urandom: fall√≥ la lectura: %s"
+msgstr "/dev/urandom: fallÛ la lectura: %s"
 
-#: layout.cc:1896
+#: layout.cc:1520
 #, c-format
 msgid "/dev/urandom: expected %zu bytes, got %zd bytes"
 msgstr "/dev/urandom: se esperaban %zu bytes, se obtuvieron %zd bytes"
 
-#: layout.cc:1918
+#: layout.cc:1542
 #, c-format
 msgid "--build-id argument '%s' not a valid hex number"
-msgstr "el argumento '%s' de --build-id no es un n√∫mero hexadecimal v√°lido"
+msgstr "el argumento '%s' de --build-id no es un n˙mero hexadecimal v·lido"
 
-#: layout.cc:1924
+#: layout.cc:1548
 #, c-format
 msgid "unrecognized --build-id argument '%s'"
 msgstr "no se reconoce el argumento '%s' de --build-id"
 
-#: layout.cc:2337
+#: layout.cc:1866
 #, c-format
 msgid "load segment overlap [0x%llx -> 0x%llx] and [0x%llx -> 0x%llx]"
 msgstr "traslape en el segmento de carga [0x%llx -> 0x%llx] y [0x%llx -> 0x%llx]"
@@ -730,7 +586,7 @@ msgid ""
 "Archive member included because of file (symbol)\n"
 "\n"
 msgstr ""
-"Se incluy√≥ el miembro del archivo debido al fichero (s√≠mbolo)\n"
+"Se incluyÛ el miembro del archivo debido al fichero (sÌmbolo)\n"
 "\n"
 
 #: mapfile.cc:159
@@ -740,7 +596,7 @@ msgid ""
 "Allocating common symbols\n"
 msgstr ""
 "\n"
-"Se asignan los s√≠mbolos comunes\n"
+"Se asignan los sÌmbolos comunes\n"
 
 #: mapfile.cc:161
 #, c-format
@@ -748,7 +604,7 @@ msgid ""
 "Common symbol       size              file\n"
 "\n"
 msgstr ""
-"S√≠mbolo com√∫n       tama√±o            fichero\n"
+"SÌmbolo com˙n       tamaÒo            fichero\n"
 "\n"
 
 #: mapfile.cc:195
@@ -773,162 +629,185 @@ msgstr ""
 "Secciones de salida descartadas\n"
 "\n"
 
-#: merge.cc:455
+#: merge.cc:449
 #, c-format
 msgid "%s: %s merged constants size: %lu; input: %zu; output: %zu\n"
-msgstr "%s: %s constantes mezcladas tama√±o: %lu; entrada: %zu; salida: %zu\n"
+msgstr "%s: %s constantes mezcladas tamaÒo: %lu; entrada: %zu; salida: %zu\n"
 
-#: merge.cc:478
+#: merge.cc:472
 msgid "mergeable string section length not multiple of character size"
-msgstr "la longitud de la secci√≥n de cadenas mezclables no es un m√∫ltiplo del tama√±o de car√°cter"
+msgstr "la longitud de la secciÛn de cadenas mezclables no es un m˙ltiplo del tamaÒo de car·cter"
 
-#: merge.cc:494
-#, c-format
-msgid "%s: last entry in mergeable string section '%s' not null terminated"
-msgstr "%s: la √∫ltima entrada en la secci√≥n de cadenas mezclables '%s' no est√° terminada con null"
+#: merge.cc:488
+msgid "entry in mergeable string section not null terminated"
+msgstr "una entrada en la secciÛn de cadenas mezclables no est· terminada con null"
 
-#: merge.cc:613
+#: merge.cc:605
 #, c-format
 msgid "%s: %s input: %zu\n"
 msgstr "%s: %s entrada: %zu\n"
 
-#: merge.h:300
+#: merge.h:289
 msgid "** merge constants"
 msgstr "** mezclar constantes"
 
-#: merge.h:422
+#: merge.h:411
 msgid "** merge strings"
 msgstr "** mezclar cadenas"
 
-#: object.cc:75
+#: object.cc:73
 msgid "missing SHT_SYMTAB_SHNDX section"
-msgstr "falta la secci√≥n SHT_SYMTAB_SHNDX"
+msgstr "falta la secciÛn SHT_SYMTAB_SHNDX"
 
-#: object.cc:119
+#: object.cc:117
 #, c-format
 msgid "symbol %u out of range for SHT_SYMTAB_SHNDX section"
-msgstr "el s√≠mbolo %u est√° fuera de rango para la secci√≥n SHT_SYMTAB_SHNDX"
+msgstr "el sÌmbolo %u est· fuera de rango para la secciÛn SHT_SYMTAB_SHNDX"
 
-#: object.cc:126
+#: object.cc:124
 #, c-format
 msgid "extended index for symbol %u out of range: %u"
-msgstr "el √≠ndice extendido para el s√≠mbolo %u est√° fuera de rango: %u"
+msgstr "el Ìndice extendido para el sÌmbolo %u est· fuera de rango: %u"
 
-#: object.cc:148 object.cc:2331 output.cc:4052
+#: object.cc:141
+#, c-format
+msgid "%s: unsupported ELF machine number %d"
+msgstr "%s: no se admite el n˙mero de m·quina ELF %d"
+
+#: object.cc:159
 #, c-format
 msgid "%s: %s"
 msgstr "%s: %s"
 
-#: object.cc:190
+#: object.cc:196
 #, c-format
 msgid "section name section has wrong type: %u"
-msgstr "la secci√≥n de nombre de secci√≥n tiene tipo err√≥neo: %u"
+msgstr "la secciÛn de nombre de secciÛn tiene tipo errÛneo: %u"
 
-#: object.cc:546
+#: object.cc:459
 #, c-format
 msgid "invalid symbol table name index: %u"
-msgstr "√≠ndice de nombre de tabla de s√≠mbolos err√≥neo: %u"
+msgstr "Ìndice de nombre de tabla de sÌmbolos errÛneo: %u"
 
-#: object.cc:552
+#: object.cc:465
 #, c-format
 msgid "symbol table name section has wrong type: %u"
-msgstr "la secci√≥n de nombre de tabla de s√≠mbolos tiene tipo err√≥neo: %u"
+msgstr "la secciÛn de nombre de tabla de sÌmbolos tiene tipo errÛneo: %u"
 
-#: object.cc:641
+#: object.cc:554
 #, c-format
 msgid "section group %u info %u out of range"
-msgstr "la secci√≥n grupo %u info %u est√° fuera de rango"
+msgstr "la secciÛn grupo %u info %u est· fuera de rango"
 
-#: object.cc:660
+#: object.cc:573
 #, c-format
 msgid "symbol %u name offset %u out of range"
-msgstr "el s√≠mbolo %u nombre desplazamiento %u est√° fuera de rango"
+msgstr "el sÌmbolo %u nombre desplazamiento %u est· fuera de rango"
 
-#: object.cc:678
+#: object.cc:591
 #, c-format
 msgid "symbol %u invalid section index %u"
-msgstr "el s√≠mbolo %u tiene un √≠ndice de secci√≥n %u inv√°lido"
+msgstr "el sÌmbolo %u tiene un Ìndice de secciÛn %u inv·lido"
 
-#: object.cc:723
+#: object.cc:644
 #, c-format
 msgid "section %u in section group %u out of range"
-msgstr "la secci√≥n %u en el grupo de secci√≥n %u est√° fuera de rango"
+msgstr "la secciÛn %u en el grupo de secciÛn %u est· fuera de rango"
 
-#: object.cc:731
+#: object.cc:652
 #, c-format
 msgid "invalid section group %u refers to earlier section %u"
-msgstr "el grupo de secci√≥n %u inv√°lido se refiere a la secci√≥n %u anterior"
+msgstr "el grupo de secciÛn %u inv·lido se refiere a la secciÛn %u anterior"
 
-#: object.cc:1037 reloc.cc:271 reloc.cc:838
+#: object.cc:827 reloc.cc:215 reloc.cc:723
 #, c-format
 msgid "relocation section %u has bad info %u"
-msgstr "la secci√≥n de reubicaci√≥n %u tiene informaci√≥n %u err√≥nea"
+msgstr "la secciÛn de reubicaciÛn %u tiene informaciÛn %u errÛnea"
 
-#: object.cc:1231
-#, c-format
-msgid "%s: removing unused section from '%s' in file '%s'"
-msgstr "%s: se borra la secci√≥n sin usar de '%s' en el fichero '%s'"
-
-#: object.cc:1257
-#, c-format
-msgid "%s: ICF folding section '%s' in file '%s'into '%s' in file '%s'"
-msgstr "%s: la secci√≥n de incorporaci√≥n ICF '%s' en el fichero '%s' dentro de '%s' en el fichero '%s'"
-
-#: object.cc:1454
+#: object.cc:1080
 msgid "size of symbols is not multiple of symbol size"
-msgstr "el tama√±o de los s√≠mbolos no es un m√∫ltiplo del tama√±o de s√≠mbolo"
+msgstr "el tamaÒo de los sÌmbolos no es un m˙ltiplo del tamaÒo de sÌmbolo"
 
-#: object.cc:1563
+#: object.cc:1187
 #, c-format
 msgid "local symbol %u section name out of range: %u >= %u"
-msgstr "el nombre de secci√≥n del s√≠mbolo local %u est√° fuera de rango: %u >= %u"
+msgstr "el nombre de secciÛn del sÌmbolo local %u est· fuera de rango: %u >= %u"
 
-#: object.cc:1652
+#: object.cc:1245
 #, c-format
 msgid "unknown section index %u for local symbol %u"
-msgstr "√≠ndice de secci√≥n %u desconocido para el s√≠mbolo local %u"
+msgstr "Ìndice de secciÛn %u desconocido para el sÌmbolo local %u"
 
-#: object.cc:1661
+#: object.cc:1254
 #, c-format
 msgid "local symbol %u section index %u out of range"
-msgstr "el s√≠mbolo local %u √≠ndice de secci√≥n %u est√° fuera de rango"
+msgstr "el sÌmbolo local %u Ìndice de secciÛn %u est· fuera de rango"
 
-#: object.cc:2169
+#: object.cc:1619
+msgid "incompatible target"
+msgstr "objetivo incompatible"
+
+#: object.cc:1816
 #, c-format
-msgid "%s is not supported but is required for %s in %s"
-msgstr "no se admite %s pero se requiere para %s en %s"
+msgid "%s: unsupported ELF file type %d"
+msgstr "%s: no se admite el tipo de fichero ELF %d"
 
-#: object.cc:2273
+#: object.cc:1835 object.cc:1881 object.cc:1915
 #, c-format
-msgid "%s: unsupported ELF machine number %d"
-msgstr "%s: no se admite el n√∫mero de m√°quina ELF %d"
+msgid "%s: ELF file too short"
+msgstr "%s: el fichero ELF es demasiado corto"
 
-#: object.cc:2283
+#: object.cc:1843
 #, c-format
-msgid "%s: incompatible target"
-msgstr "%s: objetivo incompatible"
+msgid "%s: invalid ELF version 0"
+msgstr "%s: versiÛn ELF 0 inv·lida"
 
-#: object.cc:2347 plugin.cc:1019
+#: object.cc:1845
+#, c-format
+msgid "%s: unsupported ELF version %d"
+msgstr "%s: no se admite la versiÛn ELF %d"
+
+#: object.cc:1852
+#, c-format
+msgid "%s: invalid ELF class 0"
+msgstr "%s: clase ELF 0 inv·lida"
+
+#: object.cc:1858
+#, c-format
+msgid "%s: unsupported ELF class %d"
+msgstr "%s: no se admite la clase ELF %d"
+
+#: object.cc:1865
+#, c-format
+msgid "%s: invalid ELF data encoding"
+msgstr "%s: codificaciÛn de datos ELF inv·lida"
+
+#: object.cc:1871
+#, c-format
+msgid "%s: unsupported ELF data encoding %d"
+msgstr "%s: no se admite la codificaciÛn de datos ELF %d"
+
+#: object.cc:1891
 #, c-format
 msgid "%s: not configured to support 32-bit big-endian object"
-msgstr "%s: no se configur√≥ para admitir objetos big-endian de 32-bit"
+msgstr "%s: no se configurÛ para admitir objetos big-endian de 32-bit"
 
-#: object.cc:2363 plugin.cc:1028
+#: object.cc:1904
 #, c-format
 msgid "%s: not configured to support 32-bit little-endian object"
-msgstr "%s: no se configur√≥ para admitir objetos little-endian de 32-bit"
+msgstr "%s: no se configurÛ para admitir objetos little-endian de 32-bit"
 
-#: object.cc:2382 plugin.cc:1040
+#: object.cc:1925
 #, c-format
 msgid "%s: not configured to support 64-bit big-endian object"
-msgstr "%s: no se configur√≥ para admitir objetos big-endian de 64-bit"
+msgstr "%s: no se configurÛ para admitir objetos big-endian de 64-bit"
 
-#: object.cc:2398 plugin.cc:1049
+#: object.cc:1938
 #, c-format
 msgid "%s: not configured to support 64-bit little-endian object"
-msgstr "%s: no se configur√≥ para admitir objetos little-endian de 64-bit"
+msgstr "%s: no se configurÛ para admitir objetos little-endian de 64-bit"
 
-#: options.cc:156
+#: options.cc:142
 #, c-format
 msgid ""
 "Usage: %s [options] file...\n"
@@ -939,1348 +818,1050 @@ msgstr ""
 
 #. config.guess and libtool.m4 look in ld --help output for the
 #. string "supported targets".
-#: options.cc:164
+#: options.cc:150
 #, c-format
 msgid "%s: supported targets:"
 msgstr "%s: objetivos admitidos:"
 
-#: options.cc:176
+#: options.cc:162
 #, c-format
 msgid "Report bugs to %s\n"
 msgstr "Reporte bichos a %s\n"
 
-#: options.cc:193 options.cc:203 options.cc:213
+#: options.cc:179 options.cc:189
 #, c-format
 msgid "%s: invalid option value (expected an integer): %s"
-msgstr "%s: valor de opci√≥n inv√°lido (se esperaba un entero): %s"
+msgstr "%s: valor de opciÛn inv·lido (se esperaba un entero): %s"
 
-#: options.cc:223
+#: options.cc:199
 #, c-format
 msgid "%s: invalid option value (expected a floating point number): %s"
-msgstr "%s: valor de opci√≥n inv√°lido (se esperaba un n√∫mero de coma flotante): %s"
+msgstr "%s: valor de opciÛn inv·lido (se esperaba un n˙mero de coma flotante): %s"
 
-#: options.cc:232
+#: options.cc:208
 #, c-format
 msgid "%s: must take a non-empty argument"
-msgstr "%s: debe tomar un argumento que no est√© vac√≠o"
+msgstr "%s: debe tomar un argumento que no estÈ vacÌo"
 
-#: options.cc:273
+#: options.cc:249
 #, c-format
 msgid "%s: must take one of the following arguments: %s"
 msgstr "%s: debe tomar uno de los siguientes argumentos: %s"
 
-#: options.cc:300
+#: options.cc:275
 #, c-format
 msgid "  Supported targets:\n"
 msgstr "  Objetivos admitidos:\n"
 
-#: options.cc:409
+#: options.cc:329
 #, c-format
 msgid "unable to parse script file %s"
-msgstr "no se puede decodificar el fichero de gui√≥n %s"
+msgstr "no se puede decodificar el fichero de guiÛn %s"
 
-#: options.cc:417
+#: options.cc:337
 #, c-format
 msgid "unable to parse version script file %s"
-msgstr "no se puede decodificar el fichero de gui√≥n de versi√≥n %s"
+msgstr "no se puede decodificar el fichero de guiÛn de versiÛn %s"
 
-#: options.cc:425
-#, c-format
-msgid "unable to parse dynamic-list script file %s"
-msgstr "no se puede decodificar el fichero de gui√≥n de lista din√°mica %s"
-
-#: options.cc:522
-#, c-format
-msgid "format '%s' not supported; treating as elf (supported formats: elf, binary)"
-msgstr "no se admite el formato '%s'; se trata como elf (formatos admitidos: elf, binary)"
-
-#: options.cc:538
+#: options.cc:363
 #, c-format
 msgid "%s: use the --help option for usage information\n"
-msgstr "%s: use la opci√≥n --help para informaci√≥n de modo de empleo\n"
+msgstr "%s: use la opciÛn --help para informaciÛn de modo de empleo\n"
 
-#: options.cc:547
+#: options.cc:372
 #, c-format
 msgid "%s: %s: %s\n"
 msgstr "%s: %s: %s\n"
 
-#: options.cc:651
+#: options.cc:393
+#, c-format
+msgid "format '%s' not supported; treating as elf (supported formats: elf, binary)"
+msgstr "no se admite el formato '%s'; se trata como elf (formatos admitidos: elf, binary)"
+
+#: options.cc:499
 msgid "unexpected argument"
 msgstr "argumento inesperado"
 
-#: options.cc:664 options.cc:725
+#: options.cc:512 options.cc:573
 msgid "missing argument"
 msgstr "falta un argumento"
 
-#: options.cc:736
+#: options.cc:584
 msgid "unknown -z option"
-msgstr "opci√≥n -z desconocida"
+msgstr "opciÛn -z desconocida"
 
-#: options.cc:935
+#: options.cc:727
 #, c-format
 msgid "ignoring --threads: %s was compiled without thread support"
-msgstr "se descarta --threads: %s se compil√≥ sin soporte para hilos"
+msgstr "se descarta --threads: %s se compilÛ sin soporte para hilos"
 
-#: options.cc:942
+#: options.cc:734
 #, c-format
 msgid "ignoring --thread-count: %s was compiled without thread support"
-msgstr "se descarta --thread-count: %s se compil√≥ sin soporte para hilos"
+msgstr "se descarta --thread-count: %s se compilÛ sin soporte para hilos"
 
-#: options.cc:981
-#, c-format
-msgid "unable to open -retain-symbols-file file %s: %s"
-msgstr "no se puede abrir el fichero -retain-symbols-file %s: %s"
-
-#: options.cc:1003
-msgid "-shared and -static are incompatible"
-msgstr "-shared y -static son incompatibles"
-
-#: options.cc:1005
-msgid "-shared and -pie are incompatible"
-msgstr "-shared y -pie son incompatibles"
-
-#: options.cc:1008
+#: options.cc:776
 msgid "-shared and -r are incompatible"
 msgstr "-shared y -r son incompatibles"
 
-#: options.cc:1010
-msgid "-pie and -r are incompatible"
-msgstr "-pie y -r son incompatibles"
+#: options.cc:780
+msgid "binary output format not compatible with -shared or -r"
+msgstr "el formato de salida binary no es compatible con -shared o -r"
 
-#: options.cc:1014
-msgid "-retain-symbols-file does not yet work with -r"
-msgstr "-retain-symbols-file a√∫n no funciona con -r"
-
-#: options.cc:1020
-msgid "binary output format not compatible with -shared or -pie or -r"
-msgstr "el formato de salida binario no es compatible con -shared o -pie o -r"
-
-#: options.cc:1026
+#: options.cc:785
 #, c-format
 msgid "--hash-bucket-empty-fraction value %g out of range [0.0, 1.0)"
-msgstr "el valor %g de --hash-bucket-empty-fraction est√° fuera de rango [0.0, 1.0]"
+msgstr "el valor %g de --hash-bucket-empty-fraction est· fuera de rango [0.0, 1.0]"
 
-#: options.cc:1031
-msgid "Options --incremental-changed, --incremental-unchanged, --incremental-unknown require the use of --incremental"
-msgstr "Las opciones --incremental-changed, --incremental-unchanged, --incremental-unknown requieren el uso de --incremental"
-
-#: options.cc:1097
+#: options.cc:852
 msgid "May not nest groups"
 msgstr "No se deben anidar grupos"
 
-#: options.cc:1109
+#: options.cc:864
 msgid "Group end without group start"
 msgstr "Fin de grupo sin inicio de grupo"
 
 #. I guess it's neither a long option nor a short option.
-#: options.cc:1174
+#: options.cc:922
 msgid "unknown option"
-msgstr "opci√≥n desconocida"
+msgstr "opciÛn desconocida"
 
-#: options.cc:1201
+#: options.cc:948
 #, c-format
 msgid "%s: missing group end\n"
 msgstr "%s: falta el fin de grupo\n"
 
-#: options.h:571
+#: options.h:536
 msgid "Report usage information"
-msgstr "Muestra la informaci√≥n de uso"
+msgstr "Muestra la informaciÛn de uso"
 
-#: options.h:573
+#: options.h:538
 msgid "Report version information"
-msgstr "Muestra la informaci√≥n de la versi√≥n"
+msgstr "Muestra la informaciÛn de la versiÛn"
 
-#: options.h:575
+#: options.h:540
 msgid "Report version and target information"
-msgstr "Muestra la informaci√≥n de la versi√≥n y el objetivo"
+msgstr "Muestra la informaciÛn de la versiÛn y el objetivo"
 
-#: options.h:584 options.h:635
-msgid "Not supported"
-msgstr "No se admite"
-
-#: options.h:585 options.h:636
-msgid "Do not copy DT_NEEDED tags from shared libraries"
-msgstr "No copiar las etiquetas DT_NEEDED desde bibliotecas compartidas"
-
-#: options.h:588
+#: options.h:549
 msgid "Allow unresolved references in shared libraries"
 msgstr "Permite referencias sin resolver en bibliotecas compartidas"
 
-#: options.h:589
+#: options.h:550
 msgid "Do not allow unresolved references in shared libraries"
 msgstr "No permite referencias sin resolver en bibliotecas compartidas"
 
-#: options.h:592
-msgid "Only set DT_NEEDED for shared libraries if used"
-msgstr "S√≥lo establece DT_NEEDED para las bibliotecas compartidas si se usan"
+#: options.h:553
+msgid "Only set DT_NEEDED for dynamic libs if used"
+msgstr "SÛlo establece DT_NEEDED para las bibliotecas din·micas si se usan"
 
-#: options.h:593
-msgid "Always DT_NEEDED for shared libraries"
-msgstr "Siempre establece DT_NEEDED para las bibliotecas compartidas"
+#: options.h:554
+msgid "Always DT_NEEDED for dynamic libs"
+msgstr "Siempre establece DT_NEEDED para las bibliotecas din·micas"
 
-#: options.h:600
+#: options.h:561
 msgid "Set input format"
 msgstr "Establece el formato de salida"
 
-#: options.h:603
+#: options.h:564
 msgid "-l searches for shared libraries"
 msgstr "-l busca bibliotecas compartidas"
 
-#: options.h:605
+#: options.h:566
 msgid "-l does not search for shared libraries"
 msgstr "-l no busca bibliotecas compartidas"
 
-#: options.h:609
+#: options.h:570
 msgid "Bind defined symbols locally"
-msgstr "Enlaza los s√≠mbolos definidos localmente"
+msgstr "Enlaza los sÌmbolos definidos localmente"
 
-#: options.h:612
+#: options.h:573
 msgid "Bind defined function symbols locally"
-msgstr "Enlaza los s√≠mbolos de funci√≥n localmente"
+msgstr "Enlaza los sÌmbolos de funciÛn localmente"
 
-#: options.h:615
+#: options.h:576
 msgid "Generate build ID note"
 msgstr "Genera una nota de ID de build"
 
-#: options.h:616 options.h:655
+#: options.h:577 options.h:612
 msgid "[=STYLE]"
 msgstr "[=ESTILO]"
 
-#: options.h:619
+#: options.h:580
 msgid "Check segment addresses for overlaps (default)"
 msgstr "Revisa las direcciones de segmento por traslapes (por defecto)"
 
-#: options.h:620
+#: options.h:581
 msgid "Do not check segment addresses for overlaps"
 msgstr "No revisa las direcciones de segmento por traslapes"
 
-#: options.h:624 options.h:629
+#: options.h:585 options.h:590
 msgid "Compress .debug_* sections in the output file"
 msgstr "Comprime las secciones .debug_* en el fichero de salida"
 
-#: options.h:630
+#: options.h:591
 msgid "[none]"
 msgstr "[ninguno]"
 
-#: options.h:639
+#: options.h:596
 msgid "Define common symbols"
-msgstr "Define s√≠mbolos comunes"
+msgstr "Define sÌmbolos comunes"
 
-#: options.h:640
+#: options.h:597
 msgid "Do not define common symbols"
-msgstr "No define s√≠mbolos comunes"
+msgstr "No define sÌmbolos comunes"
 
-#: options.h:642 options.h:644
+#: options.h:599 options.h:601
 msgid "Alias for -d"
 msgstr "Igual que -d"
 
-#: options.h:647
+#: options.h:604
 msgid "Turn on debugging"
-msgstr "Activa la depuraci√≥n"
+msgstr "Activa la depuraciÛn"
 
-#: options.h:648
+#: options.h:605
 msgid "[all,files,script,task][,...]"
 msgstr "[all,files,script,task][,...]"
 
-#: options.h:651
+#: options.h:608
 msgid "Define a symbol"
-msgstr "Define un s√≠mbolo"
+msgstr "Define un sÌmbolo"
 
-#: options.h:651
+#: options.h:608
 msgid "SYMBOL=EXPRESSION"
-msgstr "S√çMBOLO=EXPRESI√ìN"
+msgstr "SÕMBOLO=EXPRESI”N"
 
-#: options.h:654
+#: options.h:611
 msgid "Demangle C++ symbols in log messages"
-msgstr "Desenreda los s√≠mbolos C++ en los mensajes de registro"
+msgstr "Desenreda los sÌmbolos C++ en los mensajes de registro"
 
-#: options.h:658
+#: options.h:615
 msgid "Do not demangle C++ symbols in log messages"
-msgstr "No desenreda los s√≠mbolos C++ en los mensajes de registro"
+msgstr "No desenreda los sÌmbolos C++ en los mensajes de registro"
 
-#: options.h:662
+#: options.h:619
 msgid "Try to detect violations of the One Definition Rule"
-msgstr "Trata de detectar las violaciones de la Regla de Una Definici√≥n"
+msgstr "Trata de detectar las violaciones de la Regla de Una DefiniciÛn"
 
-#: options.h:666
-msgid "Delete all temporary local symbols"
-msgstr "Borra todos los s√≠mbolos locales temporales"
-
-#: options.h:669
-msgid "Add data symbols to dynamic symbols"
-msgstr "Agrega los s√≠mbolos de datos a los s√≠mbolos din√°micos"
-
-#: options.h:672
-msgid "Add C++ operator new/delete to dynamic symbols"
-msgstr "Agrega el operador de C++ new/delete a los s√≠mbolos din√°micos"
-
-#: options.h:675
-msgid "Add C++ typeinfo to dynamic symbols"
-msgstr "Agrega la informaci√≥n de tipo C++ a los s√≠mbolos din√°micos"
-
-#: options.h:678
-msgid "Read a list of dynamic symbols"
-msgstr "Lee una lista de s√≠mbolos din√°micos"
-
-#: options.h:678 options.h:732 options.h:766 options.h:893 options.h:921
-msgid "FILE"
-msgstr "FICHERO"
-
-#: options.h:681
+#: options.h:623
 msgid "Set program start address"
-msgstr "Establece la direcci√≥n de inicio del programa"
+msgstr "Establece la direcciÛn de inicio del programa"
 
-#: options.h:681 options.h:908 options.h:910 options.h:912
+#: options.h:623 options.h:766 options.h:768 options.h:770
 msgid "ADDRESS"
-msgstr "DIRECCI√ìN"
+msgstr "DIRECCI”N"
 
-#: options.h:684
-msgid "Exclude libraries from automatic export"
-msgstr "Excluye las bibliotecas de la exportaci√≥n autom√°tica"
-
-#: options.h:688
+#: options.h:626
 msgid "Export all dynamic symbols"
-msgstr "Exporta todos los s√≠mbolos din√°micos"
+msgstr "Exporta todos los sÌmbolos din·micos"
 
-#: options.h:689
-msgid "Do not export all dynamic symbols (default)"
-msgstr "No exporta todos los s√≠mbolos din√°micos (por defecto)"
-
-#: options.h:692
+#: options.h:629
 msgid "Create exception frame header"
-msgstr "Crea un encabezado de marco de excepci√≥n"
+msgstr "Crea un encabezado de marco de excepciÛn"
 
-#: options.h:695
+#: options.h:632
 msgid "Treat warnings as errors"
 msgstr "Trata los avisos como errores"
 
-#: options.h:696
+#: options.h:633
 msgid "Do not treat warnings as errors"
 msgstr "No trata los avisos como errores"
 
-#: options.h:699
-msgid "Call SYMBOL at unload-time"
-msgstr "Llama a SYMBOL al momento de descarga"
-
-#: options.h:699 options.h:729 options.h:873 options.h:915 options.h:936
-#: options.h:939
-msgid "SYMBOL"
-msgstr "S√çMBOLO"
-
-#: options.h:702
+#: options.h:636
 msgid "Set shared library name"
 msgstr "Establece el nombre de la biblioteca compartida"
 
-#: options.h:702 options.h:792
+#: options.h:636 options.h:696
 msgid "FILENAME"
 msgstr "FICHERO"
 
-#: options.h:705
+#: options.h:639
 msgid "Min fraction of empty buckets in dynamic hash"
-msgstr "Fracci√≥n m√≠nima de las cubos vac√≠os en la asociaci√≥n din√°mica"
+msgstr "FracciÛn mÌnima de las cubos vacÌos en la asociaciÛn din·mica"
 
-#: options.h:706
+#: options.h:640
 msgid "FRACTION"
-msgstr "FRACCI√ìN"
+msgstr "FRACCI”N"
 
-#: options.h:709
+#: options.h:643
 msgid "Dynamic hash style"
-msgstr "Estilo de asociaci√≥n din√°mica"
+msgstr "Estilo de asociaciÛn din·mica"
 
-#: options.h:709
+#: options.h:643
 msgid "[sysv,gnu,both]"
 msgstr "[sysv,gnu,both]"
 
-#: options.h:713
+#: options.h:647
 msgid "Set dynamic linker path"
-msgstr "Establece la ruta del enlazador din√°mico"
+msgstr "Establece la ruta del enlazador din·mico"
 
-#: options.h:713
+#: options.h:647
 msgid "PROGRAM"
 msgstr "PROGRAMA"
 
-#: options.h:716
-msgid "Work in progress; do not use"
-msgstr "Trabajo en progreso; no usar"
-
-#: options.h:717
-msgid "Do a full build"
-msgstr "Hace una compilaci√≥n completa"
-
-#: options.h:720
-msgid "Assume files changed"
-msgstr "Asume que los ficheros cambiaron"
-
-#: options.h:723
-msgid "Assume files didn't change"
-msgstr "Asume que los ficheros no cambiaron"
-
-#: options.h:726
-msgid "Use timestamps to check files (default)"
-msgstr "Usa marcas de tiempo para verificar los ficheros (por defecto)"
-
-#: options.h:729
-msgid "Call SYMBOL at load-time"
-msgstr "Llama a SYMBOL al momento de cargar"
-
-#: options.h:732
+#: options.h:650
 msgid "Read only symbol values from FILE"
-msgstr "Lee s√≥lo valores de s√≠mbolos del FICHERO"
+msgstr "Lee sÛlo valores de sÌmbolos del FICHERO"
 
-#: options.h:735
+#: options.h:650 options.h:684 options.h:751 options.h:779
+msgid "FILE"
+msgstr "FICHERO"
+
+#: options.h:653
 msgid "Search for library LIBNAME"
 msgstr "Busca la biblioteca NOMBREBIB"
 
-#: options.h:735
+#: options.h:653
 msgid "LIBNAME"
 msgstr "NOMBREBIB"
 
-#: options.h:738
+#: options.h:656
 msgid "Add directory to search path"
-msgstr "Agrega el directorio a la ruta de b√∫squeda"
+msgstr "Agrega el directorio a la ruta de b˙squeda"
 
-#: options.h:738 options.h:813 options.h:816 options.h:820 options.h:887
+#: options.h:656 options.h:714 options.h:717 options.h:721 options.h:745
 msgid "DIR"
 msgstr "DIR"
 
-#: options.h:741
+#: options.h:659
 msgid "Ignored for compatibility"
 msgstr "Se descarta por compatibilidad"
 
-#: options.h:741
+#: options.h:659
 msgid "EMULATION"
-msgstr "EMULACI√ìN"
+msgstr "EMULACI”N"
 
-#: options.h:744
+#: options.h:662
 msgid "Write map file on standard output"
-msgstr "Escribe el fichero mapa en la salida est√°ndar"
+msgstr "Escribe el fichero mapa en la salida est·ndar"
 
-#: options.h:745
+#: options.h:663
 msgid "Write map file"
 msgstr "Escribe un fichero mapa"
 
-#: options.h:746
+#: options.h:664
 msgid "MAPFILENAME"
 msgstr "FICHEROMAPA"
 
-#: options.h:749
+#: options.h:667
 msgid "Do not page align data"
 msgstr "No pagina los datos alineados"
 
-#: options.h:751
+#: options.h:669
 msgid "Do not page align data, do not make text readonly"
-msgstr "No pagina los datos alineados, no hace el texto de s√≥lo lectura"
+msgstr "No pagina los datos alineados, no hace el texto de sÛlo lectura"
 
-#: options.h:752
+#: options.h:670
 msgid "Page align data, make text readonly"
-msgstr "Pagina los datos alineados, hace el texto de s√≥lo lectura"
+msgstr "Pagina los datos alineados, hace el texto de sÛlo lectura"
 
-#: options.h:755
+#: options.h:673
 msgid "Enable use of DT_RUNPATH and DT_FLAGS"
 msgstr "Activa el uso de DT_RUNPATH y DT_FLAGS"
 
-#: options.h:756
+#: options.h:674
 msgid "Disable use of DT_RUNPATH and DT_FLAGS"
 msgstr "Desactiva el uso de DT_RUNPATH y DT_FLAGS"
 
-#: options.h:759
+#: options.h:677
 msgid "Create an output file even if errors occur"
-msgstr "Crea un fichero de salida a√∫n si ocurren errores"
+msgstr "Crea un fichero de salida a˙n si ocurren errores"
 
-#: options.h:762 options.h:958
+#: options.h:680 options.h:808
 msgid "Report undefined symbols (even with --shared)"
-msgstr "Reporta s√≠mbolos sin definir (a√∫n con --shared)"
+msgstr "Reporta sÌmbolos sin definir (a˙n con --shared)"
 
-#: options.h:766
+#: options.h:684
 msgid "Set output file name"
 msgstr "Establece el nombre del fichero de salida"
 
-#: options.h:769
+#: options.h:687
 msgid "Optimize output file size"
-msgstr "Optimiza el tama√±o del fichero de salida"
+msgstr "Optimiza el tamaÒo del fichero de salida"
 
-#: options.h:769
+#: options.h:687
 msgid "LEVEL"
 msgstr "NIVEL"
 
-#: options.h:772
+#: options.h:690
 msgid "Set output format"
 msgstr "Establece el formato de salida"
 
-#: options.h:772
+#: options.h:690
 msgid "[binary]"
 msgstr "[binary]"
 
-#: options.h:775 options.h:777
-msgid "Create a position independent executable"
-msgstr "Crea un ejecutable independiente de posici√≥n"
-
-#: options.h:782
-msgid "Load a plugin library"
-msgstr "Carga una biblioteca de plugin"
-
-#: options.h:782
-msgid "PLUGIN"
-msgstr "PLUGIN"
-
-#: options.h:784
-msgid "Pass an option to the plugin"
-msgstr "Pasa una opci√≥n al plugin"
-
-#: options.h:784
-msgid "OPTION"
-msgstr "OPCI√ìN"
-
-#: options.h:788
+#: options.h:693
 msgid "Preread archive symbols when multi-threaded"
-msgstr "Prelee los s√≠mbolos de archivo cuando es multi-hilos"
+msgstr "Prelee los sÌmbolos de archivo cuando es multi-hilos"
 
-#: options.h:791
+#: options.h:695
 msgid "Print symbols defined and used for each input"
-msgstr "Muestra los s√≠mbolos definidos y usados por cada entrada"
+msgstr "Muestra los sÌmbolos definidos y usados por cada entrada"
 
-#: options.h:795
+#: options.h:699
 msgid "Ignored for SVR4 compatibility"
 msgstr "Se descarta por compatibilidad con SVR4"
 
-#: options.h:798
+#: options.h:702
 msgid "Generate relocations in output"
 msgstr "Genera reubicaciones en la salida"
 
-#: options.h:801
+#: options.h:705
 msgid "Generate relocatable output"
 msgstr "Genera salida reubicable"
 
-#: options.h:804
+#: options.h:708
 msgid "Relax branches on certain targets"
 msgstr "Relaja ramificaciones en ciertos objetivos"
 
-#: options.h:807
-msgid "keep only symbols listed in this file"
-msgstr "mantiene s√≥lo los s√≠mbolos enlistados en este fichero"
-
-#: options.h:807
-msgid "[file]"
-msgstr "[fichero]"
-
-#: options.h:813 options.h:816
+#: options.h:714 options.h:717
 msgid "Add DIR to runtime search path"
-msgstr "Agrega el DIRectorio a la ruta de b√∫squeda de tiempo de ejecuci√≥n"
+msgstr "Agrega el DIRectorio a la ruta de b˙squeda de tiempo de ejecuciÛn"
 
-#: options.h:819
+#: options.h:720
 msgid "Add DIR to link time shared library search path"
-msgstr "Agrega el DIRectorio a la ruta de b√∫squeda de bibliotecas compartidas en tiempo de enlace"
+msgstr "Agrega el DIRectorio a la ruta de b˙squeda de bibliotecas compartidas en tiempo de enlace"
 
-#: options.h:823
+#: options.h:724
 msgid "Strip all symbols"
-msgstr "Descarta todos los s√≠mbolos"
+msgstr "Descarta todos los sÌmbolos"
 
-#: options.h:825
+#: options.h:726
 msgid "Strip debugging information"
-msgstr "Descarta la informaci√≥n de depuraci√≥n"
+msgstr "Descarta la informaciÛn de depuraciÛn"
 
-#: options.h:827
+#: options.h:728
 msgid "Emit only debug line number information"
-msgstr "S√≥lo emite la informaci√≥n de n√∫mero de l√≠nea de depuraci√≥n"
+msgstr "SÛlo emite la informaciÛn de n˙mero de lÌnea de depuraciÛn"
 
-#: options.h:829
+#: options.h:730
 msgid "Strip debug symbols that are unused by gdb (at least versions <= 6.7)"
-msgstr "Descarta los s√≠mbolos de depuraci√≥n que no usa gdb (por lo menos las versiones <= 6.7)"
+msgstr "Descarta los sÌmbolos de depuraciÛn que no usa gdb (por lo menos las versiones <= 6.7)"
 
-#: options.h:832
-msgid "Strip LTO intermediate code sections"
-msgstr "Descarta las secciones de c√≥digo intermedio LTO"
-
-#: options.h:835
-msgid "(ARM only) The maximum distance from instructions in a group of sections to their stubs.  Negative values mean stubs are always after the group. 1 means using default size.\n"
-msgstr "(S√≥lo ARM) La distancia m√°xima de las instrucciones en un grupo de secciones a sus cabos.  Los valores negativos significan que los cabos siempre van despu√©s del grupo. 1 significa usar el tama√±o por defecto.\n"
-
-#: options.h:838 options.h:852 options.h:956 options.h:975
-msgid "SIZE"
-msgstr "TAMA√ëO"
-
-#: options.h:841
-msgid "Use less memory and more disk I/O (included only for compatibility with GNU ld)"
-msgstr "Usa menos memoria y m√°s E/S de disco (s√≥lo se incluye por compatibilidad con ld de GNU)"
-
-#: options.h:845 options.h:848
+#: options.h:734
 msgid "Generate shared library"
 msgstr "Genera una biblioteca compartida"
 
-#: options.h:851
-msgid "Stack size when -fsplit-stack function calls non-split"
-msgstr "Tama√±o de la pila cuando la funci√≥n -fsplit-stack llama a algo que no est√° dividido"
-
-#: options.h:857
+#: options.h:739
 msgid "Do not link against shared libraries"
 msgstr "No enlaza contra bibliotecas compartidas"
 
-#: options.h:860
-msgid "Identical Code Folding. '--icf=safe' folds only ctors and dtors."
-msgstr "Incorporaci√≥n de C√≥digo Id√©ntico (ICF por sus siglas en ingl√©s).  '--icf=safe' s√≥lo incorpora ctors y dtors."
-
-#: options.h:866
-msgid "Number of iterations of ICF (default 2)"
-msgstr "N√∫mero de iteraciones de ICF (por defecto 2)"
-
-#: options.h:866 options.h:899 options.h:901 options.h:903 options.h:905
-msgid "COUNT"
-msgstr "CUENTA"
-
-#: options.h:869
-msgid "List folded identical sections on stderr"
-msgstr "Enlista las secciones id√©nticas incorporadas en la salida de error est√°ndar"
-
-#: options.h:870
-msgid "Do not list folded identical sections"
-msgstr "No enlista las secciones id√©nticas incorporadas"
-
-#: options.h:873
-msgid "Do not fold this symbol during ICF"
-msgstr "No incorpora este s√≠mbolo durante ICF"
-
-#: options.h:876
-msgid "Remove unused sections"
-msgstr "Borra las secciones sin uso"
-
-#: options.h:877
-msgid "Don't remove unused sections (default)"
-msgstr "No borra las secciones sin uso (por defecto)"
-
-#: options.h:880
-msgid "List removed unused sections on stderr"
-msgstr "Enlista las secciones sin uso borradas en la salida de error est√°ndar"
-
-#: options.h:881
-msgid "Do not list removed unused sections"
-msgstr "No enlista las secciones sin uso borradas"
-
-#: options.h:884
+#: options.h:742
 msgid "Print resource usage statistics"
-msgstr "Muestra las estad√≠sticas de uso de recursos"
+msgstr "Muestra las estadÌsticas de uso de recursos"
 
-#: options.h:887
+#: options.h:745
 msgid "Set target system root directory"
-msgstr "Establece el directorio ra√≠z del sistema objetivo"
+msgstr "Establece el directorio raÌz del sistema objetivo"
 
-#: options.h:890
+#: options.h:748
 msgid "Print the name of each input file"
 msgstr "Muestra el nombre de cada fichero de entrada"
 
-#: options.h:893
+#: options.h:751
 msgid "Read linker script"
-msgstr "Lee el gui√≥n del enlazador"
+msgstr "Lee el guiÛn del enlazador"
 
-#: options.h:896
+#: options.h:754
 msgid "Run the linker multi-threaded"
 msgstr "Ejecuta el enlazador multi-hilos"
 
-#: options.h:897
+#: options.h:755
 msgid "Do not run the linker multi-threaded"
 msgstr "No ejecuta el enlazador multi-hilos"
 
-#: options.h:899
+#: options.h:757
 msgid "Number of threads to use"
-msgstr "N√∫mero de hilos a usar"
+msgstr "N˙mero de hilos a usar"
 
-#: options.h:901
+#: options.h:757 options.h:759 options.h:761 options.h:763
+msgid "COUNT"
+msgstr "CUENTA"
+
+#: options.h:759
 msgid "Number of threads to use in initial pass"
-msgstr "N√∫mero de hilos a usar en el paso inicial"
+msgstr "N˙mero de hilos a usar en el paso inicial"
 
-#: options.h:903
+#: options.h:761
 msgid "Number of threads to use in middle pass"
-msgstr "N√∫mero de hilos a usar en el paso medio"
+msgstr "N˙mero de hilos a usar en el paso medio"
 
-#: options.h:905
+#: options.h:763
 msgid "Number of threads to use in final pass"
-msgstr "N√∫mero de hilos a usar en el paso final"
+msgstr "N˙mero de hilos a usar en el paso final"
 
-#: options.h:908
+#: options.h:766
 msgid "Set the address of the bss segment"
-msgstr "Establece la direcci√≥n del segmento bss"
+msgstr "Establece la direcciÛn del segmento bss"
 
-#: options.h:910
+#: options.h:768
 msgid "Set the address of the data segment"
-msgstr "Establece la direcci√≥n del segmento data"
+msgstr "Establece la direcciÛn del segmento data"
 
-#: options.h:912
+#: options.h:770
 msgid "Set the address of the text segment"
-msgstr "Establece la direcci√≥n del segmento text"
+msgstr "Establece la direcciÛn del segmento text"
 
-#: options.h:915
+#: options.h:773
 msgid "Create undefined reference to SYMBOL"
-msgstr "Crea una referencia sin definir hacia el S√çMBOLO"
+msgstr "Crea una referencia sin definir hacia el SÕMBOLO"
 
-#: options.h:918
+#: options.h:773 options.h:786 options.h:789
+msgid "SYMBOL"
+msgstr "SÕMBOLO"
+
+#: options.h:776
 msgid "Synonym for --debug=files"
-msgstr "Sin√≥nimo para --debug=files"
+msgstr "SinÛnimo para --debug=files"
 
-#: options.h:921
+#: options.h:779
 msgid "Read version script"
-msgstr "Lee el gui√≥n de versi√≥n"
+msgstr "Lee el guiÛn de versiÛn"
 
-#: options.h:924
-msgid "Warn about duplicate common symbols"
-msgstr "Avisa sobre s√≠mbolos comunes duplicados"
-
-#: options.h:925
-msgid "Do not warn about duplicate common symbols (default)"
-msgstr "No avisa sobre s√≠mbolos comunes duplicados (por defecto)"
-
-#: options.h:928
-msgid "Warn when skipping an incompatible library"
-msgstr "Avisa cuando se salta una biblioteca incompatible"
-
-#: options.h:929
-msgid "Don't warn when skipping an incompatible library"
-msgstr "No avisa cuando se salta una biblioteca incompatible"
-
-#: options.h:932
+#: options.h:782
 msgid "Include all archive contents"
 msgstr "Incluye todos los contenidos del archivo"
 
-#: options.h:933
+#: options.h:783
 msgid "Include only needed archive contents"
-msgstr "Incluye s√≥lo los contenidos del archivo necesarios"
+msgstr "Incluye sÛlo los contenidos del archivo necesarios"
 
-#: options.h:936
+#: options.h:786
 msgid "Use wrapper functions for SYMBOL"
-msgstr "Usa funciones de envoltura para el S√çMBOLO"
+msgstr "Usa funciones de envoltura para el SÕMBOLO"
 
-#: options.h:939
+#: options.h:789
 msgid "Trace references to symbol"
-msgstr "Rastrea las referencias al s√≠mbolo"
+msgstr "Rastrea las referencias al sÌmbolo"
 
-#: options.h:942
+#: options.h:792
 msgid "Default search path for Solaris compatibility"
-msgstr "Ruta de b√∫squeda por defecto para compatibilidad con Solaris"
+msgstr "Ruta de b˙squeda por defecto para compatibilidad con Solaris"
 
-#: options.h:943
+#: options.h:793
 msgid "PATH"
 msgstr "RUTA"
 
-#: options.h:946
+#: options.h:796
 msgid "Start a library search group"
-msgstr "Inicia un grupo de b√∫squeda de bibliotecas"
+msgstr "Inicia un grupo de b˙squeda de bibliotecas"
 
-#: options.h:948
+#: options.h:798
 msgid "End a library search group"
-msgstr "Termina un grupo de b√∫squeda de bibliotecas"
+msgstr "Termina un grupo de b˙squeda de bibliotecas"
 
-#: options.h:953
+#: options.h:803
 msgid "Sort dynamic relocs"
-msgstr "Ordena las reubicaciones din√°micas"
+msgstr "Ordena las reubicaciones din·micas"
 
-#: options.h:954
+#: options.h:804
 msgid "Do not sort dynamic relocs"
-msgstr "No ordena las reubicaciones din√°micas"
+msgstr "No ordena las reubicaciones din·micas"
 
-#: options.h:956
+#: options.h:806
 msgid "Set common page size to SIZE"
-msgstr "Establece el tama√±o de p√°gina com√∫n a TAMA√ëO"
+msgstr "Establece el tamaÒo de p·gina com˙n a TAMA—O"
 
-#: options.h:961
+#: options.h:806 options.h:813
+msgid "SIZE"
+msgstr "TAMA—O"
+
+#: options.h:811
 msgid "Mark output as requiring executable stack"
 msgstr "Marca la salida para requerir pila ejecutable"
 
-#: options.h:963
-msgid "Mark DSO to be initialized first at runtime"
-msgstr "Marca el DSO para inicializarse primero en tiempo de ejecuci√≥n"
-
-#: options.h:966
-msgid "Mark object to interpose all DSOs but executable"
-msgstr "Marca el objeto para interponer todos los DSOs pero ejecutable"
-
-#: options.h:969
-msgid "Mark object for lazy runtime binding (default)"
-msgstr "Marca el objeto para enlazado en tiempo de ejecuci√≥n laxo (por defecto)"
-
-#: options.h:972
-msgid "Mark object requiring immediate process"
-msgstr "Marca el objeto para requerir proceso inmediato"
-
-#: options.h:975
+#: options.h:813
 msgid "Set maximum page size to SIZE"
-msgstr "Establece el tama√±o m√°ximo de p√°gina a TAMA√ëO"
+msgstr "Establece el tamaÒo m·ximo de p·gina a TAMA—O"
 
-#: options.h:978
-msgid "Do not create copy relocs"
-msgstr "No crea reubicaciones de copia"
-
-#: options.h:980
-msgid "Mark object not to use default search paths"
-msgstr "Marca el objeto para no usar las rutas de b√∫squeda por defecto"
-
-#: options.h:983
-msgid "Mark DSO non-deletable at runtime"
-msgstr "Marca el DSO como no eliminable en tiempo de ejecuci√≥n"
-
-#: options.h:986
-msgid "Mark DSO not available to dlopen"
-msgstr "Marca el DSO como no disponible para dlopen"
-
-#: options.h:989
-msgid "Mark DSO not available to dldump"
-msgstr "Marca el DSO como no disponible para dldump"
-
-#: options.h:992
+#: options.h:815
 msgid "Mark output as not requiring executable stack"
 msgstr "Marca la salida para no requerir pila ejecutable"
 
-#: options.h:994
-msgid "Mark object for immediate function binding"
-msgstr "Marca el objeto para enlace de funci√≥n inmediato"
+#: options.h:817
+msgid "Mark DSO to be initialized first at runtime"
+msgstr "Marca el DSO para inicializarse primero en tiempo de ejecuciÛn"
 
-#: options.h:997
-msgid "Mark DSO to indicate that needs immediate $ORIGIN processing at runtime"
-msgstr "Marca el DSO para indicar que requiere procesamiento de $ORIGIN inmediato en tiempo de ejecuci√≥n"
+#: options.h:820
+msgid "Mark object to interpose all DSOs but executable"
+msgstr "Marca el objeto para interponer todos los DSOs pero ejecutable"
 
-#: options.h:1000
+#: options.h:823
+msgid "Mark object requiring immediate process"
+msgstr "Marca el objeto para requerir proceso inmediato"
+
+#: options.h:826
+msgid "Mark object not to use default search paths"
+msgstr "Marca el objeto para no usar las rutas de b˙squeda por defecto"
+
+#: options.h:829
+msgid "Mark DSO non-deletable at runtime"
+msgstr "Marca el DSO como no eliminable en tiempo de ejecuciÛn"
+
+#: options.h:832
+msgid "Mark DSO not available to dlopen"
+msgstr "Marca el DSO como no disponible para dlopen"
+
+#: options.h:835
+msgid "Mark DSO not available to dldump"
+msgstr "Marca el DSO como no disponible para dldump"
+
+#: options.h:838
 msgid "Where possible mark variables read-only after relocation"
-msgstr "Marca las variables como s√≥lo lectura despu√©s de la reubicaci√≥n cuando es posible"
+msgstr "Marca las variables como sÛlo lectura despuÈs de la reubicaciÛn cuando es posible"
 
-#: options.h:1001
+#: options.h:839
 msgid "Don't mark variables read-only after relocation"
-msgstr "No marca las variables como s√≥lo lectura despu√©s de la reubicaci√≥n"
+msgstr "No marca las variables como sÛlo lectura despuÈs de la reubicaciÛn"
 
-#: output.cc:1132
+#: output.cc:1098
 msgid "section group retained but group element discarded"
-msgstr "se retiene el grupo de secci√≥n pero se descarta el elemento de grupo"
+msgstr "se retiene el grupo de secciÛn pero se descarta el elemento de grupo"
 
-#: output.cc:1860
+#: output.cc:1800
 #, c-format
 msgid "invalid alignment %lu for section \"%s\""
-msgstr "alineaci√≥n %lu inv√°lida para la secci√≥n \"%s\""
+msgstr "alineaciÛn %lu inv·lida para la secciÛn \"%s\""
 
-#: output.cc:3573
-#, c-format
-msgid "dot moves backward in linker script from 0x%llx to 0x%llx"
-msgstr "el punto se mueve hacia atr√°s en el gui√≥n del enlazador de 0x%llx a 0x%llx"
-
-#: output.cc:3576
-#, c-format
-msgid "address of section '%s' moves backward from 0x%llx to 0x%llx"
-msgstr "la direcci√≥n de la secci√≥n '%s' se mueve hacia atr√°s de 0x%llx a 0x%llx"
-
-#: output.cc:3755
+#: output.cc:3159
 #, c-format
 msgid "nobits section %s may not precede progbits section %s in same segment"
-msgstr "la secci√≥n nobits %s puede no preceder a la secci√≥n progbits %s en el mismo segmento"
+msgstr "la secciÛn nobits %s puede no preceder a la secciÛn progbits %s en el mismo segmento"
 
-#: output.cc:3907 output.cc:3975
+#: output.cc:3329
 #, c-format
 msgid "%s: open: %s"
 msgstr "%s: open: %s"
 
-#: output.cc:3996
+#: output.cc:3350
 #, c-format
 msgid "%s: mremap: %s"
 msgstr "%s: mremap: %s"
 
-#: output.cc:4005
+#: output.cc:3387
 #, c-format
-msgid "%s: mmap: %s"
-msgstr "%s: mmap: %s"
+msgid "%s: lseek: %s"
+msgstr "%s: lseek: %s"
 
-#: output.cc:4085
-#, c-format
-msgid "%s: mmap: failed to allocate %lu bytes for output file: %s"
-msgstr "%s: mmap: fall√≥ al reservar %lu bytes para el fichero de salida: %s"
-
-#: output.cc:4096
-#, c-format
-msgid "%s: munmap: %s"
-msgstr "%s: munmap: %s"
-
-#: output.cc:4115
-#, c-format
-msgid "%s: write: unexpected 0 return-value"
-msgstr "%s: wirte: valor de devoluci√≥n 0 inesperado"
-
-#: output.cc:4117
+#: output.cc:3390 output.cc:3427
 #, c-format
 msgid "%s: write: %s"
 msgstr "%s: write: %s"
 
-#: output.cc:4132
+#: output.cc:3398
+#, c-format
+msgid "%s: mmap: %s"
+msgstr "%s: mmap: %s"
+
+#: output.cc:3408
+#, c-format
+msgid "%s: munmap: %s"
+msgstr "%s: munmap: %s"
+
+#: output.cc:3425
+#, c-format
+msgid "%s: write: unexpected 0 return-value"
+msgstr "%s: wirte: valor de devoluciÛn 0 inesperado"
+
+#: output.cc:3439
 #, c-format
 msgid "%s: close: %s"
 msgstr "%s: close: %s"
 
-#: output.h:520
+#: output.h:415
 msgid "** section headers"
-msgstr "** encabezados de secci√≥n"
+msgstr "** encabezados de secciÛn"
 
-#: output.h:565
+#: output.h:451
 msgid "** segment headers"
 msgstr "** encabezados de segmento"
 
-#: output.h:613
+#: output.h:490
 msgid "** file header"
 msgstr "** encabezado de fichero"
 
-#: output.h:833
+#: output.h:696
 msgid "** fill"
 msgstr "** relleno"
 
-#: output.h:987
+#: output.h:850
 msgid "** string table"
 msgstr "** tabla de cadenas"
 
-#: output.h:1300
+#: output.h:1161
 msgid "** dynamic relocs"
-msgstr "** reubicaciones din√°micas"
+msgstr "** reubicaciones din·micas"
 
-#: output.h:1301 output.h:1637
+#: output.h:1162 output.h:1498
 msgid "** relocs"
 msgstr "** reubicaciones"
 
-#: output.h:1662
+#: output.h:1523
 msgid "** group"
 msgstr "** grupo"
 
-#: output.h:1774
+#: output.h:1630
 msgid "** GOT"
 msgstr "** GOT"
 
-#: output.h:1916
+#: output.h:1772
 msgid "** dynamic"
-msgstr "** din√°mico"
+msgstr "** din·mico"
 
-#: output.h:2039
+#: output.h:1890
 msgid "** symtab xindex"
 msgstr "** xindex symtab"
 
-#: parameters.cc:172
+#: parameters.cc:87
 #, c-format
 msgid "unrecognized output format %s"
 msgstr "no se reconoce el formato de salida %s"
 
-#: plugin.cc:106
-#, c-format
-msgid "%s: could not load plugin library"
-msgstr "%s: no se puede cargar la biblioteca de plugin"
+#: powerpc.cc:1086 sparc.cc:1569 x86_64.cc:957
+msgid "requires unsupported dynamic reloc; recompile with -fPIC"
+msgstr "se requiere una reubicaciÛn din·mica no admitida; recompile con -fPIC"
 
-#: plugin.cc:116
-#, c-format
-msgid "%s: could not find onload entry point"
-msgstr "%s: no se puede encontrar el punto de entrada de carga"
-
-#: plugin.cc:426
-msgid "Input files added by plug-ins in --incremental mode not supported yet.\n"
-msgstr "A√∫n no se admiten los ficheros de entrada agregados por plug-ins en el modo --incremental.\n"
-
-#: powerpc.cc:1502 sparc.cc:2307 x86_64.cc:1632
+#: powerpc.cc:1447 sparc.cc:2237 x86_64.cc:1561
 #, c-format
 msgid "%s: unsupported REL reloc section"
-msgstr "%s: no se admite la secci√≥n de reubicaci√≥n REL"
+msgstr "%s: no se admite la secciÛn de reubicaciÛn REL"
 
-#: readsyms.cc:191
+#: readsyms.cc:150
 #, c-format
 msgid "%s: file is empty"
-msgstr "%s: el fichero est√° vac√≠o"
+msgstr "%s: el fichero est· vacÌo"
 
 #. Here we have to handle any other input file types we need.
-#: readsyms.cc:575
+#: readsyms.cc:471
 #, c-format
 msgid "%s: not an object or archive"
 msgstr "%s: no es un objeto o un archivo"
 
-#: reduced_debug_output.cc:236
+#: reduced_debug_output.cc:240
 msgid "Debug abbreviations extend beyond .debug_abbrev section; failed to reduce debug abbreviations"
-msgstr "Las abreviaciones de depuraci√≥n se extienden m√°s all√° de la secci√≥n .debug_abbrev; fall√≥ al reducir las abreviaciones de depuraci√≥n"
+msgstr "Las abreviaciones de depuraciÛn se extienden m·s all· de la secciÛn .debug_abbrev; fallÛ al reducir las abreviaciones de depuraciÛn"
 
-#: reduced_debug_output.cc:322
+#: reduced_debug_output.cc:326
 msgid "Extremely large compile unit in debug info; failed to reduce debug info"
-msgstr "Unidad de compilaci√≥n extremadamente grande en la informaci√≥n de depuraci√≥n; fall√≥ al reducir la informaci√≥n de depuraci√≥n"
+msgstr "Unidad de compilaciÛn extremadamente grande en la informaciÛn de depuraciÛn; fallÛ al reducir la informaciÛn de depuraciÛn"
 
-#: reduced_debug_output.cc:330
+#: reduced_debug_output.cc:334
 msgid "Debug info extends beyond .debug_info section;failed to reduce debug info"
-msgstr "La informaci√≥n de depuraci√≥n se extiende m√°s all√° de la secci√≥n .debug_info; fall√≥ al reducir la informaci√≥n de depuraci√≥n"
+msgstr "La informaciÛn de depuraciÛn se extiende m·s all· de la secciÛn .debug_info; fallÛ al reducir la informaciÛn de depuraciÛn"
 
-#: reduced_debug_output.cc:350 reduced_debug_output.cc:392
+#: reduced_debug_output.cc:354 reduced_debug_output.cc:396
 msgid "Invalid DIE in debug info; failed to reduce debug info"
-msgstr "DIE inv√°lido en la informaci√≥n de depuraci√≥n; fall√≥ al reducir la informaci√≥n de depuraci√≥n"
+msgstr "DIE inv·lido en la informaciÛn de depuraciÛn; fallÛ al reducir la informaciÛn de depuraciÛn"
 
-#: reduced_debug_output.cc:373
+#: reduced_debug_output.cc:377
 msgid "Debug info extends beyond .debug_info section; failed to reduce debug info"
-msgstr "La informaci√≥n de depuraci√≥n se extiende m√°s all√° de la secci√≥n .debug_info; fall√≥ al reducir la informaci√≥n de depuraci√≥n"
+msgstr "La informaciÛn de depuraciÛn se extiende m·s all· de la secciÛn .debug_info; fallÛ al reducir la informaciÛn de depuraciÛn"
 
-#: reloc.cc:297 reloc.cc:858
+#: reloc.cc:239 reloc.cc:743
 #, c-format
 msgid "relocation section %u uses unexpected symbol table %u"
-msgstr "la secci√≥n de reubicaci√≥n %u usa la tabla de s√≠mbolos inesperada %u"
+msgstr "la secciÛn de reubicaciÛn %u usa la tabla de sÌmbolos inesperada %u"
 
-#: reloc.cc:312 reloc.cc:875
+#: reloc.cc:254 reloc.cc:761
 #, c-format
 msgid "unexpected entsize for reloc section %u: %lu != %u"
-msgstr "tama√±o de entidad inesperado para la secci√≥n de reubicaci√≥n %u: %lu != %u"
+msgstr "tamaÒo de entidad inesperado para la secciÛn de reubicaciÛn %u: %lu != %u"
 
-#: reloc.cc:321 reloc.cc:884
+#: reloc.cc:263 reloc.cc:770
 #, c-format
 msgid "reloc section %u size %lu uneven"
-msgstr "secci√≥n de reubicaci√≥n %u tama√±o %lu disparejo"
+msgstr "secciÛn de reubicaciÛn %u tamaÒo %lu disparejo"
 
-#: reloc.cc:1203
-#, c-format
-msgid "could not convert call to '%s' to '%s'"
-msgstr "no se puede convertir la llamada de '%s' a '%s'"
-
-#: reloc.cc:1343
+#: reloc.cc:992
 #, c-format
 msgid "reloc section size %zu is not a multiple of reloc size %d\n"
-msgstr "el tama√±o de la secci√≥n de reubicaci√≥n %zu no es un m√∫ltiplo del tama√±o de reubicaci√≥n %d\n"
+msgstr "el tamaÒo de la secciÛn de reubicaciÛn %zu no es un m˙ltiplo del tamaÒo de reubicaciÛn %d\n"
 
 #. We should only see externally visible symbols in the symbol
 #. table.
-#: resolve.cc:191
+#: resolve.cc:170
 msgid "invalid STB_LOCAL symbol in external symbols"
-msgstr "s√≠mbolo STB_LOCAL inv√°lido en s√≠mbolos externos"
+msgstr "sÌmbolo STB_LOCAL inv·lido en sÌmbolos externos"
 
 #. Any target which wants to handle STB_LOOS, etc., needs to
 #. define a resolve method.
-#: resolve.cc:197
+#: resolve.cc:176
 msgid "unsupported symbol binding"
-msgstr "no se admite el enlace de s√≠mbolos"
+msgstr "no se admite el enlace de sÌmbolos"
 
-#. A dynamic object cannot reference a hidden or internal symbol
-#. defined in another object.
-#: resolve.cc:266
+#. FIXME: Do a better job of reporting locations.
+#: resolve.cc:367
 #, c-format
-msgid "%s symbol '%s' in %s is referenced by DSO %s"
-msgstr "%s s√≠mbolo '%s' en %s es referenciado por el DSO %s"
+msgid "%s: multiple definition of %s"
+msgstr "%s: definiciones m˙ltiples de %s"
 
-#: resolve.cc:326
-#, c-format
-msgid "common of '%s' overriding smaller common"
-msgstr "el com√∫n de '%s' sobreescribe un com√∫n m√°s peque√±o"
-
-#: resolve.cc:331
-#, c-format
-msgid "common of '%s' overidden by larger common"
-msgstr "el com√∫n de '%s' es sobreescrito por un com√∫n m√°s grande"
-
-#: resolve.cc:336
-#, c-format
-msgid "multiple common of '%s'"
-msgstr "comunes m√∫ltiples de '%s'"
-
-#: resolve.cc:442
-#, c-format
-msgid "multiple definition of '%s'"
-msgstr "definici√≥n m√∫ltiple de '%s'"
-
-#: resolve.cc:481
-#, c-format
-msgid "definition of '%s' overriding common"
-msgstr "la definici√≥n de '%s' sobreescribe el com√∫n"
-
-#: resolve.cc:516
-#, c-format
-msgid "definition of '%s' overriding dynamic common definition"
-msgstr "la definici√≥n de '%s' sobreescribe la definici√≥n com√∫n din√°mica"
-
-#: resolve.cc:636
-#, c-format
-msgid "common '%s' overridden by previous definition"
-msgstr "el com√∫n '%s' se sobreescribe por la definici√≥n previa"
-
-#: resolve.cc:766 resolve.cc:778
+#: resolve.cc:368 resolve.cc:373
 msgid "command line"
-msgstr "l√≠nea de √≥rdenes"
+msgstr "lÌnea de Ûrdenes"
 
-#: script-sections.cc:690
+#: resolve.cc:370
+#, c-format
+msgid "%s: previous definition here"
+msgstr "%s: primero se definiÛ aquÌ"
+
+#: script-sections.cc:432
 msgid "dot may not move backward"
-msgstr "dot tal vez mueve hacia atr√°s"
+msgstr "dot tal vez mueve hacia atr·s"
 
-#: script-sections.cc:757
+#: script-sections.cc:498
 msgid "** expression"
-msgstr "** expresi√≥n"
+msgstr "** expresiÛn"
 
-#: script-sections.cc:941
+#: script-sections.cc:684
 msgid "fill value is not absolute"
 msgstr "el valor de relleno no es absoluto"
 
-#: script-sections.cc:1913
+#: script-sections.cc:1693
 #, c-format
 msgid "alignment of section %s is not absolute"
-msgstr "la alineaci√≥n de la secci√≥n %s no es absoluta"
+msgstr "la alineaciÛn de la secciÛn %s no es absoluta"
 
-#: script-sections.cc:1957
+#: script-sections.cc:1737
 #, c-format
 msgid "subalign of section %s is not absolute"
-msgstr "la subalineaci√≥n de la secci√≥n %s no es absoluta"
+msgstr "la subalineaciÛn de la secciÛn %s no es absoluta"
 
-#: script-sections.cc:1972
+#: script-sections.cc:1752
 #, c-format
 msgid "fill of section %s is not absolute"
-msgstr "el relleno de la secci√≥n %s no es absoluto"
+msgstr "el relleno de la secciÛn %s no es absoluto"
 
-#: script-sections.cc:2048
+#: script-sections.cc:1828
 msgid "SPECIAL constraints are not implemented"
 msgstr "no se admiten las restricciones SPECIAL"
 
-#: script-sections.cc:2090
+#: script-sections.cc:1870
 msgid "mismatched definition for constrained sections"
-msgstr "no coincide la definici√≥n para las secciones restringidas"
+msgstr "no coincide la definiciÛn para las secciones restringidas"
 
-#: script-sections.cc:2634
+#: script-sections.cc:2395
 msgid "DATA_SEGMENT_ALIGN may only appear once in a linker script"
-msgstr "DATA_SEGMENT_ALIGN s√≥lo puede aparecer una vez en un gui√≥n de enlazado"
+msgstr "DATA_SEGMENT_ALIGN sÛlo puede aparecer una vez en un guiÛn de enlazado"
 
-#: script-sections.cc:2649
+#: script-sections.cc:2406
 msgid "DATA_SEGMENT_RELRO_END may only appear once in a linker script"
-msgstr "DATA_SEGMENT_RELRO_END s√≥lo puede aparecer una vez en un gui√≥n de enlazado"
+msgstr "DATA_SEGMENT_RELRO_END sÛlo puede aparecer una vez en un guiÛn de enlazado"
 
-#: script-sections.cc:2654
+#: script-sections.cc:2411
 msgid "DATA_SEGMENT_RELRO_END must follow DATA_SEGMENT_ALIGN"
 msgstr "DATA_SEGMENT_RELRO_END debe seguir a DATA_SEGMENT_ALIGN"
 
-#: script-sections.cc:2826
+#: script-sections.cc:2570
 msgid "no matching section constraint"
-msgstr "no coincide la restricci√≥n de secci√≥n"
+msgstr "no coincide la restricciÛn de secciÛn"
 
-#: script-sections.cc:3151
+#: script-sections.cc:2890
 msgid "TLS sections are not adjacent"
 msgstr "las secciones TLS no son adyacentes"
 
-#: script-sections.cc:3280
+#: script-sections.cc:3016
 msgid "allocated section not in any segment"
-msgstr "la secci√≥n alojada no est√° en ning√∫n segmento"
+msgstr "la secciÛn alojada no est· en ning˙n segmento"
 
-#: script-sections.cc:3309
+#: script-sections.cc:3048
 #, c-format
 msgid "no segment %s"
 msgstr "no existe el segmento %s"
 
-#: script-sections.cc:3323
+#: script-sections.cc:3058
 msgid "section in two PT_LOAD segments"
-msgstr "secci√≥n en dos segmentos PT_LOAD"
+msgstr "secciÛn en dos segmentos PT_LOAD"
 
-#: script-sections.cc:3330
+#: script-sections.cc:3065
 msgid "allocated section not in any PT_LOAD segment"
-msgstr "la secci√≥n alojada no est√° en ning√∫n segmento PT_LOAD"
+msgstr "la secciÛn alojada no est· en ning˙n segmento PT_LOAD"
 
-#: script-sections.cc:3358
+#: script-sections.cc:3093
 msgid "may only specify load address for PT_LOAD segment"
-msgstr "s√≥lo se puede especificar direcci√≥n de carga para un segmento PT_LOAD"
+msgstr "sÛlo se puede especificar direcciÛn de carga para un segmento PT_LOAD"
 
-#: script-sections.cc:3382
+#: script-sections.cc:3117
 #, c-format
 msgid "PHDRS load address overrides section %s load address"
-msgstr "la direcci√≥n de carga PHDRS sobreescribe la direcci√≥n de carga de la secci√≥n %s"
+msgstr "la direcciÛn de carga PHDRS sobreescribe la direcciÛn de carga de la secciÛn %s"
 
 #. We could support this if we wanted to.
-#: script-sections.cc:3393
+#: script-sections.cc:3128
 msgid "using only one of FILEHDR and PHDRS is not currently supported"
-msgstr "no se admite s√≥lo usar uno de FILEHDR y PHDRS"
+msgstr "no se admite sÛlo usar uno de FILEHDR y PHDRS"
 
-#: script-sections.cc:3408
+#: script-sections.cc:3143
 msgid "sections loaded on first page without room for file and program headers are not supported"
-msgstr "no se admiten las secciones cargadas en la primera p√°gina sin espacio para ficheros y encabezados de programa"
+msgstr "no se admiten las secciones cargadas en la primera p·gina sin espacio para ficheros y encabezados de programa"
 
-#: script-sections.cc:3414
+#: script-sections.cc:3149
 msgid "using FILEHDR and PHDRS on more than one PT_LOAD segment is not currently supported"
-msgstr "no se admite usar FILEHDR y PHDRS en m√°s de un segmento PT_LOAD"
+msgstr "no se admite usar FILEHDR y PHDRS en m·s de un segmento PT_LOAD"
 
-#: script.cc:1072
+#: script.cc:1063
 msgid "invalid use of PROVIDE for dot symbol"
-msgstr "uso inv√°lido de PROVIDE para el s√≠mbolo dot"
+msgstr "uso inv·lido de PROVIDE para el sÌmbolo dot"
 
-#: script.cc:2132
+#: script.cc:1065
+msgid "invalid assignment to dot outside of SECTIONS"
+msgstr "asignaciÛn inv·lida a dot fuera de SECTIONS"
+
+#: script.cc:1995
 #, c-format
 msgid "%s:%d:%d: %s"
 msgstr "%s:%d:%d: %s"
 
 #. There are some options that we could handle here--e.g.,
 #. -lLIBRARY.  Should we bother?
-#: script.cc:2297
+#: script.cc:2143
 #, c-format
 msgid "%s:%d:%d: ignoring command OPTION; OPTION is only valid for scripts specified via -T/--script"
-msgstr "%s:%d:%d se descarta la orden OPTION; OPTION s√≥lo es v√°lido para guiones especificados a trav√©s de -T/--script"
+msgstr "%s:%d:%d se descarta la orden OPTION; OPTION sÛlo es v·lido para guiones especificados a travÈs de -T/--script"
 
-#: script.cc:2362
+#: script.cc:2168
 #, c-format
 msgid "%s:%d:%d: ignoring SEARCH_DIR; SEARCH_DIR is only valid for scripts specified via -T/--script"
-msgstr "%s:%d:%d: se descarta SEARCH_DIR; SEARCH_DIR s√≥lo es v√°lido para guiones especificados a trav√©s de -T/--script"
+msgstr "%s:%d:%d: se descarta SEARCH_DIR; SEARCH_DIR sÛlo es v·lido para guiones especificados a travÈs de -T/--script"
 
-#: script.cc:2606 script.cc:2620
+#: script.cc:2411 script.cc:2425
 #, c-format
 msgid "%s:%d:%d: DATA_SEGMENT_ALIGN not in SECTIONS clause"
-msgstr "%s:%d:%d: DATA_SEGMENT_ALIGN no est√° en la cl√°usula SECTIONS"
+msgstr "%s:%d:%d: DATA_SEGMENT_ALIGN no est· en la cl·usula SECTIONS"
 
-#: script.cc:2739
+#: script.cc:2543
 msgid "unknown PHDR type (try integer)"
 msgstr "tipo PHDR desconocido (pruebe con entero)"
 
-#: stringpool.cc:528
+#: stringpool.cc:526
 #, c-format
 msgid "%s: %s entries: %zu; buckets: %zu\n"
 msgstr "%s: entradas %s: %zu: cubos: %zu\n"
 
-#: stringpool.cc:532
+#: stringpool.cc:530
 #, c-format
 msgid "%s: %s entries: %zu\n"
 msgstr "%s: entradas %s: %zu\n"
 
-#: stringpool.cc:535
+#: stringpool.cc:533
 #, c-format
 msgid "%s: %s Stringdata structures: %zu\n"
 msgstr "%s: estructuras Stringdata %s: %zu\n"
 
-#: symtab.cc:857
+#: symtab.cc:623
 #, c-format
 msgid "%s: reference to %s"
 msgstr "%s: referencia a %s"
 
-#: symtab.cc:859
+#: symtab.cc:625
 #, c-format
 msgid "%s: definition of %s"
-msgstr "%s: definici√≥n de '%s'"
+msgstr "%s: definiciÛn de '%s'"
 
-#: symtab.cc:1052
+#: symtab.cc:860
 #, c-format
 msgid "bad global symbol name offset %u at %zu"
-msgstr "desplazamiento de nombres de s√≠mbol global %u err√≥neo en %zu"
+msgstr "desplazamiento de nombres de sÌmbol global %u errÛneo en %zu"
 
-#: symtab.cc:1278
+#: symtab.cc:999
 msgid "--just-symbols does not make sense with a shared object"
 msgstr "--just-symbols no tiene sentido con un objeto compartido"
 
-#: symtab.cc:1284
+#: symtab.cc:1005
 msgid "too few symbol versions"
-msgstr "faltan versiones de s√≠mbolo"
+msgstr "faltan versiones de sÌmbolo"
 
-#: symtab.cc:1333
+#: symtab.cc:1054
 #, c-format
 msgid "bad symbol name offset %u at %zu"
-msgstr "desplazamiento de nombre de s√≠mbolo %u err√≥neno en %zu"
+msgstr "desplazamiento de nombre de sÌmbolo %u errÛneno en %zu"
 
-#: symtab.cc:1396
+#: symtab.cc:1117
 #, c-format
 msgid "versym for symbol %zu out of range: %u"
-msgstr "versym para el s√≠mbolo %zu est√° fuera de rango: %u"
+msgstr "versym para el sÌmbolo %zu est· fuera de rango: %u"
 
-#: symtab.cc:1404
+#: symtab.cc:1125
 #, c-format
 msgid "versym for symbol %zu has no name: %u"
-msgstr "versym para el s√≠mbolo %zu no tienen nombre: %u"
+msgstr "versym para el sÌmbolo %zu no tienen nombre: %u"
 
-#: symtab.cc:2549 symtab.cc:2681
+#: symtab.cc:2035 symtab.cc:2251
 #, c-format
 msgid "%s: unsupported symbol section 0x%x"
-msgstr "%s: no se admitide la secci√≥n de s√≠mbolo 0x%x"
+msgstr "%s: no se admitide la secciÛn de sÌmbolo 0x%x"
 
-#: symtab.cc:2933
+#: symtab.cc:2409
+#, c-format
+msgid "%s: undefined reference to '%s', version '%s'"
+msgstr "%s: referencia a '%s' sin definir, versiÛn '%s'"
+
+#: symtab.cc:2414
+#, c-format
+msgid "%s: undefined reference to '%s'"
+msgstr "%s: referencia a '%s' sin definir"
+
+#: symtab.cc:2498
 #, c-format
 msgid "%s: symbol table entries: %zu; buckets: %zu\n"
-msgstr "%s: entradas de tabla de s√≠mbolos: %zu; cubos: %zu\n"
+msgstr "%s: entradas de tabla de sÌmbolos: %zu; cubos: %zu\n"
 
-#: symtab.cc:2936
+#: symtab.cc:2501
 #, c-format
 msgid "%s: symbol table entries: %zu\n"
-msgstr "%s: entradas de tabla de s√≠mbolo: %zu\n"
+msgstr "%s: entradas de tabla de sÌmbolo: %zu\n"
 
-#: symtab.cc:3007
+#: symtab.cc:2572
 #, c-format
 msgid "while linking %s: symbol '%s' defined in multiple places (possible ODR violation):"
-msgstr "al enlazar %s: se defini√≥ el s√≠mbolo '%s' en varios lugares (posible violaci√≥n ODR):"
+msgstr "al enlazar %s: se definiÛ el sÌmbolo '%s' en varios lugares (posible violaciÛn ODR):"
 
-#: target-reloc.h:259
-msgid "relocation refers to discarded comdat section"
-msgstr "la reubicaci√≥n se refiere a la secci√≥n comdat descartada"
+#: target-reloc.h:247
+msgid "Relocation refers to discarded comdat section"
+msgstr "La reubicaciÛn se refiere a la secciÛn comdat descartada"
 
-#: target-reloc.h:298
+#: target-reloc.h:278
 #, c-format
 msgid "reloc has bad offset %zu"
-msgstr "la reubicaci√≥n tiene un desplazamiento %zu err√≥neo"
-
-#: target.cc:90
-#, c-format
-msgid "%s: unsupported ELF file type %d"
-msgstr "%s: no se admite el tipo de fichero ELF %d"
-
-#: target.cc:157
-#, c-format
-msgid "linker does not include stack split support required by %s"
-msgstr "el enlazador no incluye el soporte de divisi√≥n de pila requerido por %s"
+msgstr "la reubicaciÛn tiene un desplazamiento %zu errÛneo"
 
 #: tls.h:59
 msgid "TLS relocation out of range"
-msgstr "reubicaci√≥n TLS fuera de rango"
+msgstr "reubicaciÛn TLS fuera de rango"
 
 #: tls.h:73
 msgid "TLS relocation against invalid instruction"
-msgstr "reubicaci√≥n TLS contra una instrucci√≥n inv√°lida"
+msgstr "reubicaciÛn TLS contra una instrucciÛn inv·lida"
 
 #. This output is intended to follow the GNU standards.
-#: version.cc:65
+#: version.cc:64
 #, c-format
 msgid "Copyright 2008 Free Software Foundation, Inc.\n"
 msgstr "Copyright 2008 Free Software Foundation, Inc.\n"
 
-#: version.cc:66
+#: version.cc:65
 #, c-format
 msgid ""
 "This program is free software; you may redistribute it under the terms of\n"
 "the GNU General Public License version 3 or (at your option) a later version.\n"
 "This program has absolutely no warranty.\n"
 msgstr ""
-"Este programa es software libre; se puede redistribuir bajo los t√©rminos de\n"
-"la Licencia P√∫blica General de GNU versi√≥n 3 o (a su elecci√≥n) una versi√≥n\n"
+"Este programa es software libre; se puede redistribuir bajo los tÈrminos de\n"
+"la Licencia P˙blica General de GNU versiÛn 3 o (a su elecciÛn) una versiÛn\n"
 "posterior.\n"
-"Este programa no tiene absolutamente ninguna garant√≠a.\n"
+"Este programa no tiene absolutamente ninguna garantÌa.\n"
 
 #: workqueue-threads.cc:106
 #, c-format
 msgid "%s failed: %s"
-msgstr "fall√≥ %s: %s"
+msgstr "fallÛ %s: %s"
 
-#: x86_64.cc:2184
+#: x86_64.cc:2104
 #, c-format
 msgid "unsupported reloc type %u"
-msgstr "no se admite el tipo de reubicaci√≥n %u"
+msgstr "no se admite el tipo de reubicaciÛn %u"
 
-#: x86_64.cc:2524
+#: x86_64.cc:2441
 #, c-format
 msgid "unsupported reloc %u against local symbol"
-msgstr "no se admite la reubicaci√≥n %u contra un s√≠mbolo local"
-
-#~ msgid " applied to section relative value"
-#~ msgstr " se aplica al valor relativo a la secci√≥n"
-
-#~ msgid "cannot find -l%s"
-#~ msgstr "no se puede encontrar -l%s"
-
-#~ msgid "%s: ELF file too short"
-#~ msgstr "%s: el fichero ELF es demasiado corto"
-
-#~ msgid "%s: invalid ELF version 0"
-#~ msgstr "%s: versi√≥n ELF 0 inv√°lida"
-
-#~ msgid "%s: unsupported ELF version %d"
-#~ msgstr "%s: no se admite la versi√≥n ELF %d"
-
-#~ msgid "%s: invalid ELF class 0"
-#~ msgstr "%s: clase ELF 0 inv√°lida"
-
-#~ msgid "%s: unsupported ELF class %d"
-#~ msgstr "%s: no se admite la clase ELF %d"
-
-#~ msgid "%s: invalid ELF data encoding"
-#~ msgstr "%s: codificaci√≥n de datos ELF inv√°lida"
-
-#~ msgid "%s: unsupported ELF data encoding %d"
-#~ msgstr "%s: no se admite la codificaci√≥n de datos ELF %d"
-
-#~ msgid "%s: lseek: %s"
-#~ msgstr "%s: lseek: %s"
-
-#~ msgid "invalid assignment to dot outside of SECTIONS"
-#~ msgstr "asignaci√≥n inv√°lida a dot fuera de SECTIONS"
-
-#~ msgid "%s: undefined reference to '%s', version '%s'"
-#~ msgstr "%s: referencia a '%s' sin definir, versi√≥n '%s'"
-
-#~ msgid "%s: undefined reference to '%s'"
-#~ msgstr "%s: referencia a '%s' sin definir"
+msgstr "no se admite la reubicaciÛn %u contra un sÌmbolo local"

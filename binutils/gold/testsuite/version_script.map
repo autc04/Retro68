@@ -29,6 +29,7 @@ V2 {
            otherns::stuff;
         };
         blaz*;
+	foo;
    local:
 	_[^A-Z]*;
 } V1;

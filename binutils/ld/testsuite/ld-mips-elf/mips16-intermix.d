@@ -1,5 +1,5 @@
 
-.*: +file format .*
+.*: +file format elf.*mips
 
 SYMBOL TABLE:
 #...

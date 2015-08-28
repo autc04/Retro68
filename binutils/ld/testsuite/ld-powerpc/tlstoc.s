@@ -19,13 +19,8 @@ ie4:	.quad 0x56789abcdef01234
 le4:	.quad 0x6789abcdef012345
 le5:	.quad 0x789abcdef0123456
 
-	.section ".opd","aw",@progbits
-	.p2align 3
-_start:
-	.quad	.L_start,.TOC.@tocbase,0
-
 	.text
-.L_start:
+_start:
 #extern syms
 #GD
  addi 3,2,.Lgd@toc

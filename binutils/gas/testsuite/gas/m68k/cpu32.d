@@ -1,5 +1,5 @@
 #name: cpu32
-#objdump: --architecture=m68k:cpu32 -d
+#objdump: -d
 #as: -mcpu32
 
 .*:     file format .*

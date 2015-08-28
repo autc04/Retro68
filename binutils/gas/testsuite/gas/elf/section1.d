@@ -1,8 +1,5 @@
 #objdump: -s
 #name: elf section1
-# The h8300 port issues a warning message for
-# new sections created without atrributes.
-#skip: h8300-*
 
 .*: +file format .*
 

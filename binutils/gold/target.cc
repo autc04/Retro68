@@ -1,6 +1,6 @@
-// target.cc -- target support for gold.
+// target.cc
 
-// Copyright 2009, 2010, 2011, 2013 Free Software Foundation, Inc.
+// Copyright 2009 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com>.
 
 // This file is part of gold.
@@ -21,22 +21,21 @@
 // MA 02110-1301, USA.
 
 #include "gold.h"
-#include "elfcpp.h"
-#include "dynobj.h"
-#include "symtab.h"
-#include "output.h"
 #include "target.h"
+#include "dynobj.h"
+#include "output.h"
+#include "elfcpp.h"
 
 namespace gold
 {
 
 // Return whether NAME is a local label name.  This is used to implement the
-// --discard-locals options and can be overridden by child classes to
+// --discard-locals options and can be overriden by children classes to
 // implement system-specific behaviour.  The logic here is the same as that
 // in _bfd_elf_is_local_label_name().
 
 bool
-Target::do_is_local_label_name(const char* name) const
+Target::do_is_local_label_name (const char* name) const
 {
   // Normal local symbols start with ``.L''.
   if (name[0] == '.' && name[1] == 'L')
@@ -72,13 +71,10 @@ Target::do_make_elf_object_implementation(
     const elfcpp::Ehdr<size, big_endian>& ehdr)
 {
   int et = ehdr.get_e_type();
-  // ET_EXEC files are valid input for --just-symbols/-R,
-  // and we treat them as relocatable objects.
-  if (et == elfcpp::ET_REL
-      || (et == elfcpp::ET_EXEC && input_file->just_symbols()))
+  if (et == elfcpp::ET_REL)
     {
-      Sized_relobj_file<size, big_endian>* obj =
-	new Sized_relobj_file<size, big_endian>(name, input_file, offset, ehdr);
+      Sized_relobj<size, big_endian>* obj =
+	new Sized_relobj<size, big_endian>(name, input_file, offset, ehdr);
       obj->setup();
       return obj;
     }
@@ -148,15 +144,6 @@ Target::do_make_output_section(const char* name, elfcpp::Elf_Word type,
   return new Output_section(name, type, flags);
 }
 
-// Default for whether a reloc is a call to a non-split function is
-// whether the symbol is a function.
-
-bool
-Target::do_is_call_to_non_split(const Symbol* sym, unsigned int) const
-{
-  return sym->type() == elfcpp::STT_FUNC;
-}
-
 // Default conversion for -fsplit-stack is to give an error.
 
 void
@@ -202,59 +189,5 @@ Target::set_view_to_nop(unsigned char* view, section_size_type view_size,
       memcpy(view + offset, fill.data(), len);
     }
 }
-
-// Return address and size to plug into eh_frame FDEs associated with a PLT.
-void
-Target::do_plt_fde_location(const Output_data* plt, unsigned char*,
-			    uint64_t* address, off_t* len) const
-{
-  *address = plt->address();
-  *len = plt->data_size();
-}
-
-// Class Sized_target.
-
-// Set the EI_OSABI field of the ELF header if requested.
-
-template<int size, bool big_endian>
-void
-Sized_target<size, big_endian>::do_adjust_elf_header(unsigned char* view,
-						     int len)
-{
-  elfcpp::ELFOSABI osabi = this->osabi();
-  if (osabi != elfcpp::ELFOSABI_NONE)
-    {
-      gold_assert(len == elfcpp::Elf_sizes<size>::ehdr_size);
-
-      elfcpp::Ehdr<size, big_endian> ehdr(view);
-      unsigned char e_ident[elfcpp::EI_NIDENT];
-      memcpy(e_ident, ehdr.get_e_ident(), elfcpp::EI_NIDENT);
-
-      e_ident[elfcpp::EI_OSABI] = osabi;
-
-      elfcpp::Ehdr_write<size, big_endian> oehdr(view);
-      oehdr.put_e_ident(e_ident);
-    }
-}
-
-#ifdef HAVE_TARGET_32_LITTLE
-template
-class Sized_target<32, false>;
-#endif
-
-#ifdef HAVE_TARGET_32_BIG
-template
-class Sized_target<32, true>;
-#endif
-
-#ifdef HAVE_TARGET_64_LITTLE
-template
-class Sized_target<64, false>;
-#endif
-
-#ifdef HAVE_TARGET_64_BIG
-template
-class Sized_target<64, true>;
-#endif
 
 } // End namespace gold.

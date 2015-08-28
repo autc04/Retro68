@@ -1,5 +1,5 @@
 /* tc-moxie.c -- Assemble code for moxie
-   Copyright 2009, 2012
+   Copyright 2009
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -43,11 +43,7 @@ const pseudo_typeS md_pseudo_table[] =
 const char FLT_CHARS[] = "rRsSfFdDxXpP";
 const char EXP_CHARS[] = "eE";
 
-static valueT md_chars_to_number (char * buf, int n);
-
-/* Byte order.  */
-extern int target_big_endian;
-const char *moxie_target_format = DEFAULT_TARGET_FORMAT;
+static int md_chars_to_number (char *val, int n);
 
 void
 md_operand (expressionS *op __attribute__((unused)))
@@ -207,7 +203,7 @@ md_assemble (char *str)
 	op_end++;
 	op_end = parse_exp_save_ilp (op_end, &arg);
 	fix_new_exp (frag_now,
-		     ((p + (target_big_endian ? 1 : 0)) - frag_now->fr_literal),
+		     ((p+1) - frag_now->fr_literal),
 		     1,
 		     &arg,
 		     0,
@@ -593,50 +589,26 @@ md_atof (int type, char *litP, int *sizeP)
 
   return NULL;
 }
-
-enum options
-{
-  OPTION_EB = OPTION_MD_BASE,
-  OPTION_EL,
-};
-
-struct option md_longopts[] =
-{
-  { "EB",          no_argument, NULL, OPTION_EB},
-  { "EL",          no_argument, NULL, OPTION_EL},
-  { NULL,          no_argument, NULL, 0}
-};
-
-size_t md_longopts_size = sizeof (md_longopts);
 
 const char *md_shortopts = "";
 
+struct option md_longopts[] =
+{
+  {NULL, no_argument, NULL, 0}
+};
+size_t md_longopts_size = sizeof (md_longopts);
+
+/* We have no target specific options yet, so these next
+   two functions are empty.  */
 int
 md_parse_option (int c ATTRIBUTE_UNUSED, char *arg ATTRIBUTE_UNUSED)
 {
-  switch (c)
-    {
-    case OPTION_EB: 
-      target_big_endian = 1; 
-      moxie_target_format = "elf32-bigmoxie";
-      break;
-    case OPTION_EL: 
-      target_big_endian = 0;
-      moxie_target_format = "elf32-littlemoxie";
-      break;
-    default:        
-      return 0;
-    }
-
-  return 1;
+  return 0;
 }
 
 void
 md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 {
-  fprintf (stream, _("\
-  -EB                     assemble for a big endian system (default)\n\
-  -EL                     assemble for a little endian system\n"));
 }
 
 /* Apply a fixup to the object file.  */
@@ -649,40 +621,22 @@ md_apply_fix (fixS *fixP ATTRIBUTE_UNUSED,
   long val = *valP;
   long newval;
   long max, min;
+  int shift;
 
   max = min = 0;
+  shift = 0;
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_32:
-      if (target_big_endian)
-	{
-	  buf[0] = val >> 24;
-	  buf[1] = val >> 16;
-	  buf[2] = val >> 8;
-	  buf[3] = val >> 0;
-	}
-      else
-	{
-	  buf[3] = val >> 24;
-	  buf[2] = val >> 16;
-	  buf[1] = val >> 8;
-	  buf[0] = val >> 0;
-	}
-      buf += 4;
+      *buf++ = val >> 24;
+      *buf++ = val >> 16;
+      *buf++ = val >> 8;
+      *buf++ = val >> 0;
       break;
 
     case BFD_RELOC_16:
-      if (target_big_endian)
-	{
-	  buf[0] = val >> 8;
-	  buf[1] = val >> 0;
-	}
-      else
-	{
-	  buf[1] = val >> 8;
-	  buf[0] = val >> 0;
-	}
-      buf += 2;
+      *buf++ = val >> 8;
+      *buf++ = val >> 0;
       break;
 
     case BFD_RELOC_8:
@@ -713,43 +667,28 @@ md_apply_fix (fixS *fixP ATTRIBUTE_UNUSED,
     fixP->fx_done = 1;
 }
 
-/* Put number into target byte order.  */
+/* Put number into target byte order (big endian).  */
 
 void
-md_number_to_chars (char * ptr, valueT use, int nbytes)
+md_number_to_chars (char *ptr, valueT use, int nbytes)
 {
-  if (target_big_endian)
-    number_to_chars_bigendian (ptr, use, nbytes);
-  else
-    number_to_chars_littleendian (ptr, use, nbytes);
+  number_to_chars_bigendian (ptr, use, nbytes);
 }
 
 /* Convert from target byte order to host byte order.  */
 
-static valueT
-md_chars_to_number (char * buf, int n)
+static int
+md_chars_to_number (char *val, int n)
 {
-  valueT result = 0;
-  unsigned char * where = (unsigned char *) buf;
+  int retval = 0;
 
-  if (target_big_endian)
+  while (n--)
     {
-      while (n--)
-	{
-	  result <<= 8;
-	  result |= (*where++ & 255);
-	}
-    }
-  else
-    {
-      while (n--)
-	{
-	  result <<= 8;
-	  result |= (where[n] & 255);
-	}
+      retval <<= 8;
+      retval |= (*val++ & 255);
     }
 
-  return result;
+  return retval;
 }
 
 /* Generate a machine-dependent relocation.  */
@@ -837,8 +776,7 @@ md_pcrel_from (fixS *fixP)
     case BFD_RELOC_32:
       return addr + 4;
     case BFD_RELOC_MOXIE_10_PCREL:
-      /* Offset is from the end of the instruction.  */
-      return addr + 2;
+      return addr;
     default:
       abort ();
       return addr;

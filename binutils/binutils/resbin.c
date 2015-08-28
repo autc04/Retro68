@@ -1,5 +1,5 @@
 /* resbin.c -- manipulate the Windows binary resource format.
-   Copyright 1997, 1998, 1999, 2002, 2003, 2005, 2006, 2007, 2009, 2010, 2011
+   Copyright 1997, 1998, 1999, 2002, 2003, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
@@ -227,7 +227,7 @@ bin_to_res_menu (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type length)
 {
   rc_res_resource *r;
   rc_menu *m;
-  rc_uint_type version, got;
+  rc_uint_type version, read;
 
   r = (rc_res_resource *) res_alloc (sizeof *r);
   r->type = RES_TYPE_MENU;
@@ -245,7 +245,7 @@ bin_to_res_menu (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type length)
       if (length < 4)
 	toosmall (_("menu header"));
       m->help = 0;
-      m->items = bin_to_res_menuitems (wrbfd, data + 4, length - 4, &got);
+      m->items = bin_to_res_menuitems (wrbfd, data + 4, length - 4, &read);
     }
   else if (version == 1)
     {
@@ -258,7 +258,7 @@ bin_to_res_menu (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type length)
       if (offset + 4 >= length)
 	toosmall (_("menuex offset"));
       m->items = bin_to_res_menuexitems (wrbfd, data + 4 + offset,
-					 length - (4 + offset), &got);
+					 length - (4 + offset), &read);
     }
   else
     fatal (_("unsupported menu version %d"), (int) version);
@@ -270,14 +270,14 @@ bin_to_res_menu (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type length)
 
 static rc_menuitem *
 bin_to_res_menuitems (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type length,
-		      rc_uint_type *got)
+		      rc_uint_type *read)
 {
   rc_menuitem *first, **pp;
 
   first = NULL;
   pp = &first;
 
-  *got = 0;
+  *read = 0;
 
   while (length > 0)
     {
@@ -334,7 +334,7 @@ bin_to_res_menuitems (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type len
 
       data += itemlen;
       length -= itemlen;
-      *got += itemlen;
+      *read += itemlen;
 
       if ((flags & MENUITEM_ENDMENU) != 0)
 	return first;
@@ -347,14 +347,14 @@ bin_to_res_menuitems (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type len
 
 static rc_menuitem *
 bin_to_res_menuexitems (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type length,
-			rc_uint_type *got)
+			rc_uint_type *read)
 {
   rc_menuitem *first, **pp;
 
   first = NULL;
   pp = &first;
 
-  *got = 0;
+  *read = 0;
 
   while (length > 0)
     {
@@ -408,7 +408,7 @@ bin_to_res_menuexitems (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type l
 
       data += itemlen;
       length -= itemlen;
-      *got += itemlen;
+      *read += itemlen;
 
       if ((flags & 0x80) != 0)
 	return first;
@@ -909,7 +909,7 @@ get_version_header (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type lengt
   if (length < 8)
     toosmall (key);
 
-  *len = (windres_get_16 (wrbfd, data, 2) + 3) & ~3;
+  *len = windres_get_16 (wrbfd, data, 2);
   *vallen = windres_get_16 (wrbfd, data + 2, 2);
   *type = windres_get_16 (wrbfd, data + 4, 2);
 
@@ -1027,7 +1027,7 @@ bin_to_res_version (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type lengt
 
       if (ch == 'S')
 	{
-	  rc_ver_stringtable **ppvst;
+	  rc_ver_stringinfo **ppvs;
 
 	  vi->type = VERINFO_STRING;
 
@@ -1041,78 +1041,60 @@ bin_to_res_version (windres_bfd *wrbfd, const bfd_byte *data, rc_uint_type lengt
 	  data += off;
 	  length -= off;
 
+	  get_version_header (wrbfd, data, length, (const char *) NULL,
+			      &vi->u.string.language, &verlen, &vallen,
+			      &type, &off);
+
+	  if (vallen != 0)
+	    fatal (_("unexpected version stringtable value length %ld"), (long) vallen);
+
+	  data += off;
+	  length -= off;
 	  verlen -= off;
 
-	  vi->u.string.stringtables = NULL;
-	  ppvst = &vi->u.string.stringtables;
+	  vi->u.string.strings = NULL;
+	  ppvs = &vi->u.string.strings;
+
+	  /* It's convenient to round verlen to a 4 byte alignment,
+             since we round the subvariables in the loop.  */
+	  verlen = (verlen + 3) &~ 3;
 
 	  while (verlen > 0)
 	    {
-	      rc_ver_stringtable *vst;
-	      rc_uint_type stverlen;
-	      rc_ver_stringinfo **ppvs;
-
-	      if (length < 8)
-		toosmall (_("version stringtable"));
-
-	      vst = (rc_ver_stringtable *) res_alloc (sizeof (rc_ver_stringtable));
-
-	      get_version_header (wrbfd, data, length, (const char *) NULL,
-				  &vst->language, &stverlen, &vallen, &type, &off);
-
-	      if (vallen != 0)
-		fatal (_("unexpected version stringtable value length %ld"), (long) vallen);
-
-	      data += off;
-	      length -= off;
-	      verlen -= off;
-
-	  stverlen -= off;
- 
-	  vst->strings = NULL;
-	  ppvs = &vst->strings;
-
-	  while (stverlen > 0)
-	    {
 	      rc_ver_stringinfo *vs;
-	      rc_uint_type sverlen, vslen, valoff;
+	      rc_uint_type subverlen, vslen, valoff;
 
-	      if (length < 8)
-		toosmall (_("version string"));
+	      vs = (rc_ver_stringinfo *) res_alloc (sizeof *vs);
 
-	      vs = (rc_ver_stringinfo *) res_alloc (sizeof (rc_ver_stringinfo));
+	      get_version_header (wrbfd, data, length,
+				  (const char *) NULL, &vs->key, &subverlen,
+				  &vallen, &type, &off);
 
-	      get_version_header (wrbfd, data, length, (const char *) NULL,
-				  &vs->key, &sverlen, &vallen, &type, &off);
+	      subverlen = (subverlen + 3) &~ 3;
 
 	      data += off;
 	      length -= off;
 
 	      vs->value = get_unicode (wrbfd, data, length, &vslen);
 	      valoff = vslen * 2 + 2;
-	      valoff = (valoff + 3) & ~3;
+	      valoff = (valoff + 3) &~ 3;
 
-	      if (off + valoff != sverlen)
+	      if (off + valoff != subverlen)
 		fatal (_("unexpected version string length %ld != %ld + %ld"),
-		       (long) sverlen, (long) off, (long) valoff);
-
-	      data += valoff;
-	      length -= valoff;
-
-	      if (stverlen < sverlen)
-		fatal (_("unexpected version string length %ld < %ld"),
-		       (long) verlen, (long) sverlen);
-	      stverlen -= sverlen;
-	      verlen -= sverlen;
+		       (long) subverlen, (long) off, (long) valoff);
 
 	      vs->next = NULL;
 	      *ppvs = vs;
 	      ppvs = &vs->next;
-	    }
 
-	  vst->next = NULL;
-	  *ppvst = vst;
-	  ppvst = &vst->next;
+	      data += valoff;
+	      length -= valoff;
+
+	      if (verlen < subverlen)
+		fatal (_("unexpected version string length %ld < %ld"),
+		       (long) verlen, (long) subverlen);
+
+	      verlen -= subverlen;
 	    }
 	}
       else if (ch == 'V')
@@ -1375,7 +1357,11 @@ static rc_uint_type
 res_to_bin_accelerator (windres_bfd *wrbfd, rc_uint_type off,
 			const rc_accelerator *accelerators)
 {
+  bindata *first, **pp;
   const rc_accelerator *a;
+
+  first = NULL;
+  pp = &first;
 
   for (a = accelerators; a != NULL; a = a->next)
     {
@@ -1885,7 +1871,6 @@ res_to_bin_stringtable (windres_bfd *wrbfd, rc_uint_type off,
       unichar *s;
 
       slen = (rc_uint_type) st->strings[i].length;
-      if (slen == 0xffffffff) slen = 0;
       s = st->strings[i].string;
 
       length = 2 + slen * 2;
@@ -2023,61 +2008,51 @@ res_to_bin_versioninfo (windres_bfd *wrbfd, rc_uint_type off,
 	  abort ();
 	case VERINFO_STRING:
 	  {
-	    const rc_ver_stringtable *vst;
+	    struct bin_ver_info bvsd;
+	    rc_uint_type vs_off;
+	    const rc_ver_stringinfo *vs;
 
 	    off = string_to_unicode_bin (wrbfd, off, "StringFileInfo");
+	    off += (4 - ((off - off_delta) & 3)) & 3;
 
-	    if (!vi->u.string.stringtables)
-	      off += (4 - ((off - off_delta) & 3)) & 3;
+	    vs_off = off;
 
-	    for (vst = vi->u.string.stringtables; vst != NULL; vst = vst->next)
+	    off += BIN_VER_INFO_SIZE;
+
+	    off = unicode_to_bin (wrbfd, off, vi->u.string.language);
+
+	    for (vs = vi->u.string.strings; vs != NULL; vs = vs->next)
 	      {
-		struct bin_ver_info bvst;
-		rc_uint_type vst_off;
-		const rc_ver_stringinfo *vs;
+		struct bin_ver_info bvss;
+		rc_uint_type vss_off,str_off;
 
 		off += (4 - ((off - off_delta) & 3)) & 3;
 
-		vst_off = off;
+		vss_off = off;
 		off += BIN_VER_INFO_SIZE;
 
-		off = unicode_to_bin (wrbfd, off, vst->language);
+		off = unicode_to_bin (wrbfd, off, vs->key);
 
-		for (vs = vst->strings; vs != NULL; vs = vs->next)
-		  {
-		    struct bin_ver_info bvs;
-		    rc_uint_type vs_off, str_off;
+		off += (4 - ((off - off_delta) & 3)) & 3;
 
-		    off += (4 - ((off - off_delta) & 3)) & 3;
-
-		    vs_off = off;
-		    off += BIN_VER_INFO_SIZE;
-
-		    off = unicode_to_bin (wrbfd, off, vs->key);
-
-		    off += (4 - ((off - off_delta) & 3)) & 3;
-
-		    str_off = off;
-		    off = unicode_to_bin (wrbfd, off, vs->value);
-
-		    if (wrbfd)
-		      {
-			windres_put_16 (wrbfd, bvs.size, off - vs_off);
-			windres_put_16 (wrbfd, bvs.sig1, (off - str_off) / 2);
-			windres_put_16 (wrbfd, bvs.sig2, 1);
-			set_windres_bfd_content (wrbfd, &bvs, vs_off,
-						 BIN_VER_INFO_SIZE);
-		      }
-		  }
-
+		str_off = off;
+		off = unicode_to_bin (wrbfd, off, vs->value);
 		if (wrbfd)
 		  {
-		    windres_put_16 (wrbfd, bvst.size, off - vst_off);
-		    windres_put_16 (wrbfd, bvst.sig1, 0);
-		    windres_put_16 (wrbfd, bvst.sig2, 1);
-		    set_windres_bfd_content (wrbfd, &bvst, vst_off,
-					     BIN_VER_INFO_SIZE);
+		    windres_put_16 (wrbfd, bvss.size, off - vss_off);
+		    windres_put_16 (wrbfd, bvss.sig1, (off - str_off) / 2);
+		    windres_put_16 (wrbfd, bvss.sig2, 1);
+		    set_windres_bfd_content (wrbfd, &bvss, vss_off,
+		    			     BIN_VER_INFO_SIZE);
 		  }
+	      }
+	    if (wrbfd)
+	      {
+		windres_put_16 (wrbfd, bvsd.size, off - vs_off);
+		windres_put_16 (wrbfd, bvsd.sig1, 0);
+		windres_put_16 (wrbfd, bvsd.sig2, 0);
+		set_windres_bfd_content (wrbfd, &bvsd, vs_off,
+					 BIN_VER_INFO_SIZE);
 	      }
 	    break;
 	  }
@@ -2128,9 +2103,9 @@ res_to_bin_versioninfo (windres_bfd *wrbfd, rc_uint_type off,
 
       if (wrbfd)
 	{
-	  windres_put_16 (wrbfd, bv.size, off - bv_off);
+	  windres_put_16 (wrbfd, bv.size, off-bv_off);
 	  windres_put_16 (wrbfd, bv.sig1, 0);
-	  windres_put_16 (wrbfd, bv.sig2, 1);
+	  windres_put_16 (wrbfd, bv.sig2, 0);
 	  set_windres_bfd_content (wrbfd, &bv, bv_off,
 	  			   BIN_VER_INFO_SIZE);
 	}

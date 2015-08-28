@@ -39,6 +39,3 @@ test:
 	.long _GLOBAL_OFFSET_TABLE_+[.-test]
 	.long _GLOBAL_OFFSET_TABLE_@GOTOFF
 	movl _GLOBAL_OFFSET_TABLE_@GOTOFF (%ebx), %eax
-
-	.intel_syntax noprefix
-	add	ebx, OFFSET FLAT:_GLOBAL_OFFSET_TABLE_

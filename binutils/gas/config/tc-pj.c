@@ -1,5 +1,5 @@
 /* tc-pj.c -- Assemble code for Pico Java
-   Copyright 1999, 2000, 2001, 2002, 2003, 2005, 2007, 2009, 2010
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005, 2007, 2009
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -286,7 +286,7 @@ md_assemble (char *str)
 	    op_end++;
 
 	  if (*op_end == 0)
-	    as_bad (_("expected expression"));
+	    as_bad (_("expected expresssion"));
 
 	  op_end = parse_exp_save_ilp (op_end, &arg);
 
@@ -366,8 +366,10 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
   long val = *valP;
   long max, min;
+  int shift;
 
   max = min = 0;
+  shift = 0;
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_VTABLE_INHERIT:

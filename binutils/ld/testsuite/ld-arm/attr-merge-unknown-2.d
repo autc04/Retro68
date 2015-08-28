@@ -11,3 +11,4 @@ Attribute Section: aeabi
 File Attributes
   Tag_ARM_ISA_use: Yes
   Tag_THUMB_ISA_use: Thumb-1
+

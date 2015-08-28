@@ -9,8 +9,6 @@
 	jmp	*%ax
 	jmpw	*%ax
 	jmpw	*(%rax)
-	call	0x100040
-	jmp	0x100040
 
 	.intel_syntax noprefix
 	call	rax
@@ -23,5 +21,3 @@
 	jmp	ax
 	jmpw	ax
 	jmpw	[rax]
-	call	0x100040
-	jmp	0x100040

@@ -40,13 +40,10 @@ int i1 = 1;
 static int i2 = 2;
 
 // P1 is a global relro variable.
-int* const p1 __attribute__ ((aligned(64))) = &i1;
+int* const p1 = &i1;
 
 // P2 is a local relro variable.
-int* const p2 __attribute__ ((aligned(64))) = &i2;
-
-// Add a TLS variable to make sure -z relro works correctly with TLS.
-__thread int i3 = 1;
+int* const p2 = &i2;
 
 // Test symbol addresses.
 
@@ -79,7 +76,6 @@ t1()
   assert(i1page != p2page);
   assert(i2page != p1page);
   assert(i2page != p2page);
-  assert(i3 == 1);
 
   return true;
 }

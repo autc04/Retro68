@@ -1,6 +1,6 @@
 // cref.h -- cross reference reports for gold   -*- C++ -*-
 
-// Copyright 2008, 2010 Free Software Foundation, Inc.
+// Copyright 2008 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -22,8 +22,6 @@
 
 #ifndef GOLD_CREF_H
 #define GOLD_CREF_H
-
-#include <cstdio>
 
 namespace gold
 {
@@ -62,10 +60,6 @@ class Cref
   // Print symbol counts.
   void
   print_symbol_counts(const Symbol_table*) const;
-
-  // Print a cross reference table.
-  void
-  print_cref(const Symbol_table*, FILE*) const;
 
  private:
   void

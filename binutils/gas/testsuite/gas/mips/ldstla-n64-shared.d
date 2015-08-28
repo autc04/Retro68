@@ -1,9 +1,9 @@
 #objdump: -d
-#as: -march=from-abi -KPIC -64
+#as: -KPIC -64
 #name: MIPS ld-st-la constants (ABI n64, shared)
 #source: ldstla-n64.s
 
-.*: +file format .*
+.*: +file format elf64-.*mips
 
 Disassembly of section \.text:
 

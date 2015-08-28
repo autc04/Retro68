@@ -1,33 +1,23 @@
 #
-# Makefile for binutils under openVMS (Alpha and Itanium)
+# Makefile for binutils under openVMS (Alpha and Vax)
 #
 # For use with gnu-make for vms
 #
-# Created by Klaus Kaempf, kkaempf@rmi.de
+# Created by Klaus K"ampf, kkaempf@rmi.de
 #
-#   Copyright 2012 Free Software Foundation
-#
-# This file is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING3.  If not see
-# <http://www.gnu.org/licenses/>.
 #
 
-DEFS=/define=("OBJDUMP_PRIVATE_VECTORS=")
+ifeq ($(CC),gcc)
+DEFS=
+CFLAGS=/include=([],[-.include],[-.bfd])$(DEFS)
+LIBS=,gnu_cc_library:libgcc/lib,sys$$library:vaxcrtl.olb/lib,gnu_cc_library:crt0.obj
+else
+DEFS=
 OPT=/noopt/debug
 CFLAGS=$(OPT)/include=([],"../include",[-.bfd])$(DEFS)\
  /name=(as_is,shortened)\
- /prefix=(all,except=("getopt","optarg","optopt","optind","opterr"))\
- /warns=(info=(ptrmismatch,shiftcount))
+ /prefix=(all,except=("getopt","optarg","optopt","optind","opterr"))
+endif
 
 LIBBFD = [-.bfd]libbfd.olb/lib
 LIBBFD_DEP = [-.bfd]libbfd.olb
@@ -36,8 +26,7 @@ LIBIBERTY = [-.libiberty]libiberty.olb/lib
 OPCODES_DEP = [-.opcodes]libopcodes.olb
 OPCODES = [-.opcodes]libopcodes.olb/lib
 
-DEBUG_OBJS = rddbg.obj,debug.obj,stabs.obj,ieee.obj,rdcoff.obj,dwarf.obj,\
-  elfcomm.obj
+DEBUG_OBJS = rddbg.obj,debug.obj,stabs.obj,ieee.obj,rdcoff.obj,dwarf.obj
 
 BULIBS = bucomm.obj,version.obj,filemode.obj
 
@@ -54,8 +43,6 @@ ADDR2LINEOBJS = $(ADDL_DEPS),addr2line.obj
 
 OBJDUMPOBJS = objdump.obj,prdbg.obj,$(DEBUG_OBJS),$(ADDL_DEPS),$(OPCODES_DEP)
 
-READELFOBJS = readelf.obj,dwarf.obj,unwind-ia64.obj,$(ADDL_DEPS)
-
 all: config.h size.exe strings.exe objdump.exe nm.exe addr2line.exe
 
 size.exe: $(SIZEOBJS)
@@ -71,10 +58,7 @@ addr2line.exe: $(ADDR2LINEOBJS)
 	link/exe=$@ addr2line.obj,$(ADDL_LIBS)
 
 objdump.exe: $(OBJDUMPOBJS)
-	link/exe=$@ objdump.obj,prdbg.obj,$(DEBUG_OBJS),$(ADDL_LIBS),$(OPCODES)
-
-readelf.exe: $(READELFOBJS)
-	link/exe=$@ readelf.obj,dwarf.obj,unwind-ia64.obj,$(ADDL_LIBS)
+	link/exe=$@ objdump.obj,prdbg.obj,$(DEBUG_OBJS),$(ADDL_LIBS),$(LIBBFD),$(OPCODES)
 
 config.h:
 	$$ @configure

@@ -1,6 +1,6 @@
 /* ldmisc.c
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011, 2012, 2013
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
@@ -25,7 +25,6 @@
 #include "bfd.h"
 #include "bfdlink.h"
 #include "libiberty.h"
-#include "filenames.h"
 #include "demangle.h"
 #include <stdarg.h>
 #include "ld.h"
@@ -47,11 +46,10 @@
  %E current bfd error or errno
  %F error is fatal
  %G like %D, but only function name
- %H like %C but in addition emit section+offset
  %I filename from a lang_input_statement_type
  %P print program name
  %R info about a relent
- %S print script file and linenumber from etree_type.
+ %S print script file and linenumber
  %T symbol name
  %V hex bfd_vma
  %W hex bfd_vma with 0x with no leading zeros taking up 8 spaces
@@ -59,27 +57,23 @@
  %d integer, like printf
  %ld long, like printf
  %lu unsigned long, like printf
- %p native (host) void* pointer, like printf
  %s arbitrary string, like printf
  %u integer, like printf
  %v hex bfd_vma, no leading zeros
 */
 
-void
+static void
 vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 {
   bfd_boolean fatal = FALSE;
 
   while (*fmt != '\0')
     {
-      const char *str = fmt;
       while (*fmt != '%' && *fmt != '\0')
-	fmt++;
-      if (fmt != str)
-	if (fwrite (str, 1, fmt - str, fp))
-	  {
-	    /* Ignore.  */
-	  }
+	{
+	  putc (*fmt, fp);
+	  fmt++;
+	}
 
       if (*fmt == '%')
 	{
@@ -236,26 +230,19 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 			   bfd_get_filename (bfd_my_archive (i->the_bfd)));
 		fprintf (fp, "%s", i->local_sym_name);
 		if (bfd_my_archive (i->the_bfd) == NULL
-		    && filename_cmp (i->local_sym_name, i->filename) != 0)
+		    && strcmp (i->local_sym_name, i->filename) != 0)
 		  fprintf (fp, " (%s)", i->filename);
 	      }
 	      break;
 
 	    case 'S':
 	      /* Print script file and linenumber.  */
-	      {
-		etree_type node;
-		etree_type *tp = va_arg (arg, etree_type *);
-
-		if (tp == NULL)
-		  {
-		    tp = &node;
-		    tp->type.filename = ldlex_filename ();
-		    tp->type.lineno = lineno;
-		  }
-		if (tp->type.filename != NULL)
-		  fprintf (fp, "%s:%u", tp->type.filename, tp->type.lineno);
-	      }
+	      if (parsing_defsym)
+		fprintf (fp, "--defsym %s", lex_string);
+	      else if (ldfile_input_filename != NULL)
+		fprintf (fp, "%s:%u", ldfile_input_filename, lineno);
+	      else
+		fprintf (fp, _("built in linker script:%u"), lineno);
 	      break;
 
 	    case 'R':
@@ -273,7 +260,6 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 	    case 'C':
 	    case 'D':
 	    case 'G':
-	    case 'H':
 	      /* Clever filename:linenumber with function name if possible.
 		 The arguments are a BFD, a section, and an offset.  */
 	      {
@@ -288,7 +274,6 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 		const char *functionname;
 		unsigned int linenumber;
 		bfd_boolean discard_last;
-		bfd_boolean done;
 
 		abfd = va_arg (arg, bfd *);
 		section = va_arg (arg, asection *);
@@ -304,20 +289,19 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 
 		/* The GNU Coding Standard requires that error messages
 		   be of the form:
-
+		   
 		     source-file-name:lineno: message
 
 		   We do not always have a line number available so if
 		   we cannot find them we print out the section name and
-		   offset instead.  */
+		   offset instread.  */
 		discard_last = TRUE;
 		if (abfd != NULL
 		    && bfd_find_nearest_line (abfd, section, asymbols, offset,
 					      &filename, &functionname,
 					      &linenumber))
 		  {
-		    if (functionname != NULL
-			&& (fmt[-1] == 'C' || fmt[-1] == 'H'))
+		    if (functionname != NULL && fmt[-1] == 'C')
 		      {
 			/* Detect the case where we are printing out a
 			   message for the same function as the last
@@ -333,7 +317,7 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 			    || last_function == NULL
 			    || last_bfd != abfd
 			    || (filename != NULL
-				&& filename_cmp (last_file, filename) != 0)
+				&& strcmp (last_file, filename) != 0)
 			    || strcmp (last_function, functionname) != 0)
 			  {
 			    lfinfo (fp, _("%B: In function `%T':\n"),
@@ -357,21 +341,15 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 		    if (filename != NULL)
 		      fprintf (fp, "%s:", filename);
 
-		    done = fmt[-1] != 'H';
 		    if (functionname != NULL && fmt[-1] == 'G')
 		      lfinfo (fp, "%T", functionname);
 		    else if (filename != NULL && linenumber != 0)
-		      fprintf (fp, "%u%s", linenumber, done ? "" : ":");
+		      fprintf (fp, "%u", linenumber);
 		    else
-		      done = FALSE;
+		      lfinfo (fp, "(%A+0x%v)", section, offset);
 		  }
 		else
-		  {
-		    lfinfo (fp, "%B:", abfd);
-		    done = FALSE;
-		  }
-		if (!done)
-		  lfinfo (fp, "(%A+0x%v)", section, offset);
+		  lfinfo (fp, "%B:(%A+0x%v)", abfd, section, offset);
 
 		if (discard_last)
 		  {
@@ -388,11 +366,6 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 		      }
 		  }
 	      }
-	      break;
-
-	    case 'p':
-	      /* native (host) void* pointer, like printf */
-	      fprintf (fp, "%p", va_arg (arg, void *));
 	      break;
 
 	    case 's':
@@ -461,11 +434,9 @@ einfo (const char *fmt, ...)
 {
   va_list arg;
 
-  fflush (stdout);
   va_start (arg, fmt);
   vfinfo (stderr, fmt, arg, TRUE);
   va_end (arg);
-  fflush (stderr);
 }
 
 void

@@ -10,7 +10,7 @@ A:
 BOTTOM:
       .balign 0x8
       add     D0,D1
-      .size   _func, .-_func
+      .size   _func, .-func
 
       .data
 L001:

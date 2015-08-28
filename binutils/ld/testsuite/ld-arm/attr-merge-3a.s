@@ -36,4 +36,3 @@
 	.eabi_attribute Tag_conformance, "0"
 	.eabi_attribute Tag_Virtualization_use, 0
 	.eabi_attribute Tag_MPextension_use, 0
-        .eabi_attribute Tag_DIV_use, 0

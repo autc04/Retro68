@@ -1,6 +1,6 @@
 /* tc-vax.c - vax-specific -
    Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1998, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+   2003, 2004, 2005, 2006, 2007, 2008, 2009
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -1271,8 +1271,10 @@ vip_op (char *optext, struct vop *vopP)
      get the types wrong below, we lose at compile time rather than at
      lint or run time.  */
   char access_mode;		/* vop_access.  */
+  char width;			/* vop_width.  */
 
   access_mode = vopP->vop_access;
+  width = vopP->vop_width;
   /* None of our code bugs (yet), no user text errors, no warnings
      even.  */
   err = wrn = 0;

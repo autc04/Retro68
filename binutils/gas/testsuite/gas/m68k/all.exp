@@ -1,20 +1,3 @@
-# Copyright 2012
-# Free Software Foundation, Inc.
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
-
 #
 # Some generic m68k tests
 #
@@ -44,7 +27,7 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
 
     # Reloc types etc. need changing for aout and coff to pass.
     setup_xfail "*-*"
-    clear_xfail "*-*-*elf*" "*-*-sysv4*" "*-*-rtems*" "*-*-*linux*" "*-*-*gnu*" "*-*-psos*"
+    clear_xfail "*-*-*elf*" "*-*-sysv4*" "*-*-rtems" "*-*-*gnu*" "*-*-psos*"
     run_dump_test pcrel
 
     # Since fido is basically CPU32, it does not support those
@@ -68,9 +51,6 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
     run_dump_test mcf-mov3q
     run_dump_test mcf-movsr
     run_dump_test mode5
-    run_dump_test mode5 "{name {cf}} {as {-mcpu=5200}}"
-    run_dump_test movem-offset
-    run_dump_test movem-offset "{name {cf}} {as {-mcpu=5485}}"
     run_dump_test mcf-mac
     run_dump_test mcf-emac
     run_dump_test mcf-coproc
@@ -89,12 +69,8 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
     run_dump_test ctrl-1
     run_dump_test ctrl-2
 
-    gas_test_error "p11673.s" "-march=isab" "movel immediate with offset unsupported on isab"
-
-    if { [istarget *-*-*aout] || [istarget *-*-netbsd] || [istarget *-*-openbsd*] } then {
+    if { [istarget *-*-netbsd] } then {
       run_dump_test p3041
-      run_dump_test p3041data
-      run_dump_test p3041pcrel
     }
 
     set testname "68000 operands"
@@ -114,13 +90,6 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
     if { [istarget m68k-*-linux*] } then {
       run_dump_test tls-gd-3
     }
-
-    if { ! [istarget fido-*-*] } then {
-      # The testcase uses an invalid instruction for this architecture.
-      run_dump_test pr11676
-    }
-
-    run_dump_test pmove
 }
 if [info exists errorInfo] then {
     unset errorInfo

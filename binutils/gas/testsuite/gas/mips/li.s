@@ -8,6 +8,5 @@ foo:
 	li	$4,0x10000
 	li	$4,0x1a5a5
 
-# Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
-	.align	2
-	.space	8
+# Round to a 16 byte boundary, for ease in testing multiple targets.
+	nop

@@ -1,6 +1,6 @@
 /* nm.c -- Describe symbol table of a rel file.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011, 2012
+   2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -164,11 +164,7 @@ static char value_format_32bit[] = "%08lx";
 #if BFD_HOST_64BIT_LONG
 static char value_format_64bit[] = "%016lx";
 #elif BFD_HOST_64BIT_LONG_LONG
-#ifndef __MSVCRT__
 static char value_format_64bit[] = "%016llx";
-#else
-static char value_format_64bit[] = "%016I64x";
-#endif
 #endif
 static int print_width = 0;
 static int print_radix = 16;
@@ -177,15 +173,13 @@ static char other_format[] = "%02x";
 static char desc_format[] = "%04x";
 
 static char *target = NULL;
-static char *plugin_target = NULL;
 
 /* Used to cache the line numbers for a BFD.  */
 static bfd *lineno_cache_bfd;
 static bfd *lineno_cache_rel_bfd;
 
 #define OPTION_TARGET 200
-#define OPTION_PLUGIN (OPTION_TARGET + 1)
-#define OPTION_SIZE_SORT (OPTION_PLUGIN + 1)
+#define OPTION_PLUGIN 201
 
 static struct option long_options[] =
 {
@@ -198,8 +192,8 @@ static struct option long_options[] =
   {"line-numbers", no_argument, 0, 'l'},
   {"no-cplus", no_argument, &do_demangle, 0},  /* Linux compatibility.  */
   {"no-demangle", no_argument, &do_demangle, 0},
-  {"no-sort", no_argument, 0, 'p'},
-  {"numeric-sort", no_argument, 0, 'n'},
+  {"no-sort", no_argument, &no_sort, 1},
+  {"numeric-sort", no_argument, &sort_numerically, 1},
   {"plugin", required_argument, 0, OPTION_PLUGIN},
   {"portability", no_argument, 0, 'P'},
   {"print-armap", no_argument, &print_armap, 1},
@@ -207,7 +201,7 @@ static struct option long_options[] =
   {"print-size", no_argument, 0, 'S'},
   {"radix", required_argument, 0, 't'},
   {"reverse-sort", no_argument, &reverse_sort, 1},
-  {"size-sort", no_argument, 0, OPTION_SIZE_SORT},
+  {"size-sort", no_argument, &sort_by_size, 1},
   {"special-syms", no_argument, &allow_special_symbols, 1},
   {"stats", no_argument, &show_stats, 1},
   {"synthetic", no_argument, &show_synthetic, 1},
@@ -252,7 +246,7 @@ usage (FILE *stream, int status)
       --plugin NAME      Load the specified plugin\n"));
 #endif
   fprintf (stream, _("\
-  -S, --print-size       Print size of defined symbols\n\
+  -S, --print-size       Print size of defined symbols\n		\
   -s, --print-armap      Include index for symbols from archive members\n\
       --size-sort        Sort symbols by size\n\
       --special-syms     Include special symbols in the output\n\
@@ -290,11 +284,7 @@ set_print_radix (char *radix)
 #if BFD_HOST_64BIT_LONG
       value_format_64bit[5] = *radix;
 #elif BFD_HOST_64BIT_LONG_LONG
-#ifndef __MSVCRT__
       value_format_64bit[6] = *radix;
-#else
-      value_format_64bit[7] = *radix;
-#endif
 #endif
       other_format[3] = desc_format[3] = *radix;
       break;
@@ -353,11 +343,11 @@ get_symbol_type (unsigned int type)
     }
 }
 
-/* Print symbol name NAME, read from ABFD, with printf format FORM,
+/* Print symbol name NAME, read from ABFD, with printf format FORMAT,
    demangling it if requested.  */
 
 static void
-print_symname (const char *form, const char *name, bfd *abfd)
+print_symname (const char *format, const char *name, bfd *abfd)
 {
   if (do_demangle && *name)
     {
@@ -365,13 +355,13 @@ print_symname (const char *form, const char *name, bfd *abfd)
 
       if (res != NULL)
 	{
-	  printf (form, res);
+	  printf (format, res);
 	  free (res);
 	  return;
 	}
     }
 
-  printf (form, name);
+  printf (format, name);
 }
 
 static void
@@ -407,7 +397,7 @@ print_symdef_entry (bfd *abfd)
    Return the number of symbols to be printed.  */
 
 static long
-filter_symbols (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
+filter_symbols (bfd *abfd, bfd_boolean dynamic, void *minisyms,
 		long symcount, unsigned int size)
 {
   bfd_byte *from, *fromend, *to;
@@ -428,17 +418,15 @@ filter_symbols (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
 
       PROGRESS (1);
 
-      sym = bfd_minisymbol_to_symbol (abfd, is_dynamic, (const void *) from, store);
+      sym = bfd_minisymbol_to_symbol (abfd, dynamic, (const void *) from, store);
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
 
       if (undefined_only)
 	keep = bfd_is_und_section (sym->section);
       else if (external_only)
-	/* PR binutls/12753: Unique symbols are global too.  */
-	keep = ((sym->flags & (BSF_GLOBAL
-			       | BSF_WEAK
-			       | BSF_GNU_UNIQUE)) != 0
+	keep = ((sym->flags & BSF_GLOBAL) != 0
+		|| (sym->flags & BSF_WEAK) != 0
 		|| bfd_is_und_section (sym->section)
 		|| bfd_is_com_section (sym->section));
       else
@@ -671,7 +659,7 @@ size_forward2 (const void *P_x, const void *P_y)
    size.  */
 
 static long
-sort_symbols_by_size (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
+sort_symbols_by_size (bfd *abfd, bfd_boolean dynamic, void *minisyms,
 		      long symcount, unsigned int size,
 		      struct size_sym **symsizesp)
 {
@@ -698,7 +686,7 @@ sort_symbols_by_size (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
 
   if (from < fromend)
     {
-      sym = bfd_minisymbol_to_symbol (abfd, is_dynamic, (const void *) from,
+      sym = bfd_minisymbol_to_symbol (abfd, dynamic, (const void *) from,
 				      store_sym);
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
@@ -714,7 +702,7 @@ sort_symbols_by_size (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
       if (from + size < fromend)
 	{
 	  next = bfd_minisymbol_to_symbol (abfd,
-					   is_dynamic,
+					   dynamic,
 					   (const void *) (from + size),
 					   store_next);
 	  if (next == NULL)
@@ -873,7 +861,7 @@ print_symbol (bfd *abfd, asymbol *sym, bfd_vma ssize, bfd *archive_bfd)
 
 	  if (relocs == NULL)
 	    {
-	      struct get_relocs_info rinfo;
+	      struct get_relocs_info info;
 
 	      seccount = bfd_count_sections (abfd);
 
@@ -881,11 +869,11 @@ print_symbol (bfd *abfd, asymbol *sym, bfd_vma ssize, bfd *archive_bfd)
 	      relocs = (arelent ***) xmalloc (seccount * sizeof *relocs);
 	      relcount = (long *) xmalloc (seccount * sizeof *relcount);
 
-	      rinfo.secs = secs;
-	      rinfo.relocs = relocs;
-	      rinfo.relcount = relcount;
-	      rinfo.syms = syms;
-	      bfd_map_over_sections (abfd, get_relocs, (void *) &rinfo);
+	      info.secs = secs;
+	      info.relocs = relocs;
+	      info.relcount = relcount;
+	      info.syms = syms;
+	      bfd_map_over_sections (abfd, get_relocs, (void *) &info);
 	      lineno_cache_rel_bfd = abfd;
 	    }
 
@@ -935,7 +923,7 @@ print_symbol (bfd *abfd, asymbol *sym, bfd_vma ssize, bfd *archive_bfd)
 /* Print the symbols when sorting by size.  */
 
 static void
-print_size_symbols (bfd *abfd, bfd_boolean is_dynamic,
+print_size_symbols (bfd *abfd, bfd_boolean dynamic,
 		    struct size_sym *symsizes, long symcount,
 		    bfd *archive_bfd)
 {
@@ -951,12 +939,19 @@ print_size_symbols (bfd *abfd, bfd_boolean is_dynamic,
   for (; from < fromend; from++)
     {
       asymbol *sym;
+      bfd_vma ssize;
 
-      sym = bfd_minisymbol_to_symbol (abfd, is_dynamic, from->minisym, store);
+      sym = bfd_minisymbol_to_symbol (abfd, dynamic, from->minisym, store);
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
 
-      print_symbol (abfd, sym, from->size, archive_bfd);
+      /* For elf we have already computed the correct symbol size.  */
+      if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+	ssize = from->size;
+      else
+	ssize = from->size - bfd_section_vma (abfd, bfd_get_section (sym));
+
+      print_symbol (abfd, sym, ssize, archive_bfd);
     }
 }
 
@@ -965,7 +960,7 @@ print_size_symbols (bfd *abfd, bfd_boolean is_dynamic,
    containing ABFD.  */
 
 static void
-print_symbols (bfd *abfd, bfd_boolean is_dynamic, void *minisyms, long symcount,
+print_symbols (bfd *abfd, bfd_boolean dynamic, void *minisyms, long symcount,
 	       unsigned int size, bfd *archive_bfd)
 {
   asymbol *store;
@@ -981,7 +976,7 @@ print_symbols (bfd *abfd, bfd_boolean is_dynamic, void *minisyms, long symcount,
     {
       asymbol *sym;
 
-      sym = bfd_minisymbol_to_symbol (abfd, is_dynamic, from, store);
+      sym = bfd_minisymbol_to_symbol (abfd, dynamic, from, store);
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
 
@@ -1010,15 +1005,7 @@ display_rel_file (bfd *abfd, bfd *archive_bfd)
 
   symcount = bfd_read_minisymbols (abfd, dynamic, &minisyms, &size);
   if (symcount < 0)
-    {
-      if (dynamic && bfd_get_error () == bfd_error_no_symbols)
-	{
-	  non_fatal (_("%s: no symbols"), bfd_get_filename (abfd));
-	  return;
-	}
-      
-      bfd_fatal (bfd_get_filename (abfd));
-    }
+    bfd_fatal (bfd_get_filename (abfd));
 
   if (symcount == 0)
     {
@@ -1105,7 +1092,6 @@ display_rel_file (bfd *abfd, bfd *archive_bfd)
     print_size_symbols (abfd, dynamic, symsizes, symcount, archive_bfd);
 
   free (minisyms);
-  free (symsizes);
 }
 
 static void
@@ -1197,16 +1183,12 @@ display_file (char *filename)
   if (get_file_size (filename) < 1)
     return FALSE;
 
-  file = bfd_openr (filename, target ? target : plugin_target);
+  file = bfd_openr (filename, target);
   if (file == NULL)
     {
       bfd_nonfatal (filename);
       return FALSE;
     }
-
-  /* If printing line numbers, decompress the debug sections.  */
-  if (line_numbers)
-    file->flags |= BFD_DECOMPRESS;
 
   if (bfd_check_format (file, bfd_archive))
     {
@@ -1595,19 +1577,10 @@ main (int argc, char **argv)
 	  break;
 	case 'n':
 	case 'v':
-	  no_sort = 0;
 	  sort_numerically = 1;
-	  sort_by_size = 0;
 	  break;
 	case 'p':
 	  no_sort = 1;
-	  sort_numerically = 0;
-	  sort_by_size = 0;
-	  break;
-	case OPTION_SIZE_SORT:
-	  no_sort = 0;
-	  sort_numerically = 0;
-	  sort_by_size = 1;
 	  break;
 	case 'P':
 	  set_output_format ("posix");
@@ -1648,7 +1621,6 @@ main (int argc, char **argv)
 
 	case OPTION_PLUGIN:	/* --plugin */
 #if BFD_SUPPORTS_PLUGINS
-	  plugin_target = "plugin";
 	  bfd_plugin_set_plugin (optarg);
 #else
 	  fatal (_("sorry - this program has been built without plugin support\n"));

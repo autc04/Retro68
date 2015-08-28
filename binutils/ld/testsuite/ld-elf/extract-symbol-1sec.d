@@ -3,12 +3,11 @@
 #ld: -Textract-symbol-1.ld
 #objcopy_linked_file: --extract-symbol
 #objdump: --headers
-#xfail: "hppa*-*-*" "rx-*-*"
-# FAILS on the RX because the linker has to set LMA == VMA for the Renesas loader.
+#xfail: "hppa*-*-*"
 #...
 Sections:
  *Idx +Name +Size +VMA +LMA .*
- *0 +\.foo +0+ +0+10000 +0+10000 .*
+ *0 +\.foo +0+ +0+10000 +0+ .*
  *CONTENTS, ALLOC, LOAD, CODE
  *1 +\.bar +0+ +0+20000 +0+10000 .*
  *ALLOC, READONLY, CODE

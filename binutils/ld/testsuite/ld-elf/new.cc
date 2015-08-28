@@ -1,4 +1,5 @@
 #include <new>
+#include <exception_defines.h>
 
 using std::bad_alloc;
 

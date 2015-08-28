@@ -1,6 +1,6 @@
 /* stabs.c -- Parse stabs debugging information
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010, 2011  Free Software Foundation, Inc.
+   2005, 2006, 2007, 2008  Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -677,7 +677,7 @@ parse_stab (void *dhandle, void *handle, int type, int desc, bfd_vma value,
 
 static bfd_boolean
 parse_stab_string (void *dhandle, struct stab_handle *info, int stabtype,
-		   int desc ATTRIBUTE_UNUSED, bfd_vma value, const char *string)
+		   int desc, bfd_vma value, const char *string)
 {
   const char *p;
   char *name;
@@ -685,6 +685,7 @@ parse_stab_string (void *dhandle, struct stab_handle *info, int stabtype,
   debug_type dtype;
   bfd_boolean synonym;
   bfd_boolean self_crossref;
+  unsigned int lineno;
   debug_type *slot;
 
   p = strchr (string, ':');
@@ -701,6 +702,14 @@ parse_stab_string (void *dhandle, struct stab_handle *info, int stabtype,
 	  return FALSE;
 	}
     }
+
+  /* GCC 2.x puts the line number in desc.  SunOS apparently puts in
+     the number of bytes occupied by a type or object, which we
+     ignore.  */
+  if (info->gcc_compiled >= 2)
+    lineno = desc;
+  else
+    lineno = 0;
 
   /* FIXME: Sometimes the special C++ names start with '.'.  */
   name = NULL;
@@ -1980,9 +1989,6 @@ parse_stab_enum_type (void *dhandle, const char **pp)
       if (**pp != ',')
 	{
 	  bad_stab (orig);
-	  free (name);
-	  free (names);
-	  free (values);
 	  return DEBUG_TYPE_NULL;
 	}
       ++*pp;
@@ -2022,13 +2028,16 @@ parse_stab_struct_type (void *dhandle, struct stab_handle *info,
 			const char *tagname, const char **pp,
 			bfd_boolean structp, const int *typenums)
 {
+  const char *orig;
   bfd_vma size;
   debug_baseclass *baseclasses;
-  debug_field *fields = NULL;
+  debug_field *fields;
   bfd_boolean statics;
   debug_method *methods;
   debug_type vptrbase;
   bfd_boolean ownvptr;
+
+  orig = *pp;
 
   /* Get the size.  */
   size = parse_number (pp, (bfd_boolean *) NULL);
@@ -2039,11 +2048,7 @@ parse_stab_struct_type (void *dhandle, struct stab_handle *info,
       || ! parse_stab_members (dhandle, info, tagname, pp, typenums, &methods)
       || ! parse_stab_tilde_field (dhandle, info, pp, typenums, &vptrbase,
 				   &ownvptr))
-    {
-      if (fields != NULL)
-	free (fields);
-      return DEBUG_TYPE_NULL;
-    }
+    return DEBUG_TYPE_NULL;
 
   if (! statics
       && baseclasses == NULL
@@ -2247,10 +2252,7 @@ parse_stab_struct_fields (void *dhandle, struct stab_handle *info,
 	{
 	  ++*pp;
 	  if (! parse_stab_cpp_abbrev (dhandle, info, pp, fields + c))
-	    {
-	      free (fields);
-	      return FALSE;
-	    }
+	    return FALSE;
 	  ++c;
 	  continue;
 	}
@@ -2264,7 +2266,6 @@ parse_stab_struct_fields (void *dhandle, struct stab_handle *info,
       if (p == NULL)
 	{
 	  bad_stab (orig);
-	  free (fields);
 	  return FALSE;
 	}
 
@@ -2426,10 +2427,7 @@ parse_stab_one_struct_field (void *dhandle, struct stab_handle *info,
   type = parse_stab_type (dhandle, info, (const char *) NULL, pp,
 			  (debug_type **) NULL);
   if (type == DEBUG_TYPE_NULL)
-    {
-      free (name);
-      return FALSE;
-    }
+    return FALSE;
 
   if (**pp == ':')
     {
@@ -2441,7 +2439,6 @@ parse_stab_one_struct_field (void *dhandle, struct stab_handle *info,
       if (p == NULL)
 	{
 	  bad_stab (orig);
-	  free (name);
 	  return FALSE;
 	}
 
@@ -2459,7 +2456,6 @@ parse_stab_one_struct_field (void *dhandle, struct stab_handle *info,
   if (**pp != ',')
     {
       bad_stab (orig);
-      free (name);
       return FALSE;
     }
   ++*pp;
@@ -2468,7 +2464,6 @@ parse_stab_one_struct_field (void *dhandle, struct stab_handle *info,
   if (**pp != ',')
     {
       bad_stab (orig);
-      free (name);
       return FALSE;
     }
   ++*pp;
@@ -2477,7 +2472,6 @@ parse_stab_one_struct_field (void *dhandle, struct stab_handle *info,
   if (**pp != ';')
     {
       bad_stab (orig);
-      free (name);
       return FALSE;
     }
   ++*pp;
@@ -2529,9 +2523,6 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
   debug_method *methods;
   unsigned int c;
   unsigned int alloc;
-  char *name = NULL;
-  debug_method_variant *variants = NULL;
-  char *argtypes = NULL;
 
   *retp = NULL;
 
@@ -2544,6 +2535,8 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
   while (**pp != ';')
     {
       const char *p;
+      char *name;
+      debug_method_variant *variants;
       unsigned int cvars;
       unsigned int allocvars;
       debug_type look_ahead_type;
@@ -2572,7 +2565,7 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 	  if (*p != '.')
 	    {
 	      bad_stab (orig);
-	      goto fail;
+	      return FALSE;
 	    }
 	  name = savestring (*pp, p - *pp);
 	  *pp = p + 1;
@@ -2589,6 +2582,7 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 	{
 	  debug_type type;
 	  bfd_boolean stub;
+	  char *argtypes;
 	  enum debug_visibility visibility;
 	  bfd_boolean constp, volatilep, staticp;
 	  bfd_vma voffset;
@@ -2607,12 +2601,11 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 	      type = parse_stab_type (dhandle, info, (const char *) NULL, pp,
 				      (debug_type **) NULL);
 	      if (type == DEBUG_TYPE_NULL)
-		goto fail;
-
+		return FALSE;
 	      if (**pp != ':')
 		{
 		  bad_stab (orig);
-		  goto fail;
+		  return FALSE;
 		}
 	    }
 
@@ -2621,7 +2614,7 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 	  if (p == NULL)
 	    {
 	      bad_stab (orig);
-	      goto fail;
+	      return FALSE;
 	    }
 
 	  stub = FALSE;
@@ -2692,7 +2685,7 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 	      if (**pp != ';')
 		{
 		  bad_stab (orig);
-		  goto fail;
+		  return FALSE;
 		}
 	      ++*pp;
 	      voffset &= 0x7fffffff;
@@ -2723,7 +2716,7 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 		      if (**pp != ';')
 			{
 			  bad_stab (orig);
-			  goto fail;
+			  return FALSE;
 			}
 		      ++*pp;
 		    }
@@ -2758,25 +2751,26 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
              argtypes string is the mangled form of the argument
              types, and the full type and the physical name must be
              extracted from them.  */
-	  physname = argtypes;
-	  if (stub)
+	  if (! stub)
+	    physname = argtypes;
+	  else
 	    {
 	      debug_type class_type, return_type;
 
 	      class_type = stab_find_type (dhandle, info, typenums);
 	      if (class_type == DEBUG_TYPE_NULL)
-		goto fail;
+		return FALSE;
 	      return_type = debug_get_return_type (dhandle, type);
 	      if (return_type == DEBUG_TYPE_NULL)
 		{
 		  bad_stab (orig);
-		  goto fail;
+		  return FALSE;
 		}
 	      type = parse_stab_argtypes (dhandle, info, class_type, name,
 					  tagname, return_type, argtypes,
 					  constp, volatilep, &physname);
 	      if (type == DEBUG_TYPE_NULL)
-		goto fail;
+		return FALSE;
 	    }
 
 	  if (cvars + 1 >= allocvars)
@@ -2800,7 +2794,7 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 								constp,
 								volatilep);
 	  if (variants[cvars] == DEBUG_METHOD_VARIANT_NULL)
-	    goto fail;
+	    return FALSE;
 
 	  ++cvars;
 	}
@@ -2829,15 +2823,6 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
   *retp = methods;
 
   return TRUE;
-
- fail:
-  if (name != NULL)
-    free (name);
-  if (variants != NULL)
-    free (variants);
-  if (argtypes != NULL)
-    free (argtypes);
-  return FALSE;
 }
 
 /* Parse a string representing argument types for a method.  Stabs
@@ -2878,7 +2863,9 @@ parse_stab_argtypes (void *dhandle, struct stab_handle *info,
 		   || CONST_STRNEQ (argtypes, "__dt"));
   is_v3 = argtypes[0] == '_' && argtypes[1] == 'Z';
 
-  if (!(is_destructor || is_full_physname_constructor || is_v3))
+  if (is_destructor || is_full_physname_constructor || is_v3)
+    *pphysname = argtypes;
+  else
     {
       unsigned int len;
       const char *const_prefix;
@@ -3290,26 +3277,26 @@ static debug_type *
 stab_find_slot (struct stab_handle *info, const int *typenums)
 {
   int filenum;
-  int tindex;
+  int index;
   struct stab_types **ps;
 
   filenum = typenums[0];
-  tindex = typenums[1];
+  index = typenums[1];
 
   if (filenum < 0 || (unsigned int) filenum >= info->files)
     {
       fprintf (stderr, _("Type file number %d out of range\n"), filenum);
       return NULL;
     }
-  if (tindex < 0)
+  if (index < 0)
     {
-      fprintf (stderr, _("Type index number %d out of range\n"), tindex);
+      fprintf (stderr, _("Type index number %d out of range\n"), index);
       return NULL;
     }
 
   ps = info->file_types + filenum;
 
-  while (tindex >= STAB_TYPES_SLOTS)
+  while (index >= STAB_TYPES_SLOTS)
     {
       if (*ps == NULL)
 	{
@@ -3317,7 +3304,7 @@ stab_find_slot (struct stab_handle *info, const int *typenums)
 	  memset (*ps, 0, sizeof **ps);
 	}
       ps = &(*ps)->next;
-      tindex -= STAB_TYPES_SLOTS;
+      index -= STAB_TYPES_SLOTS;
     }
   if (*ps == NULL)
     {
@@ -3325,7 +3312,7 @@ stab_find_slot (struct stab_handle *info, const int *typenums)
       memset (*ps, 0, sizeof **ps);
     }
 
-  return (*ps)->types + tindex;
+  return (*ps)->types + index;
 }
 
 /* Find a type given a type number.  If the type has not been
@@ -4133,10 +4120,7 @@ stab_demangle_qualified (struct stab_demangle_info *minfo, const char **pp,
 
 		      ft = debug_get_field_type (minfo->dhandle, *fields);
 		      if (ft == NULL)
-			{
-			  free (name);
-			  return FALSE;
-			}
+			return FALSE;
 		      dn = debug_get_type_name (minfo->dhandle, ft);
 		      if (dn != NULL && strcmp (dn, name) == 0)
 			{
@@ -4683,7 +4667,7 @@ stab_demangle_type (struct stab_demangle_info *minfo, const char **pp,
     case 'M':
     case 'O':
       {
-	bfd_boolean memberp;
+	bfd_boolean memberp, constp, volatilep;
 	debug_type class_type = DEBUG_TYPE_NULL;
 	debug_type *args;
 	bfd_boolean varargs;
@@ -4691,6 +4675,8 @@ stab_demangle_type (struct stab_demangle_info *minfo, const char **pp,
 	const char *name;
 
 	memberp = **pp == 'M';
+	constp = FALSE;
+	volatilep = FALSE;
 	args = NULL;
 	varargs = FALSE;
 
@@ -4734,10 +4720,12 @@ stab_demangle_type (struct stab_demangle_info *minfo, const char **pp,
 	  {
 	    if (**pp == 'C')
 	      {
+		constp = TRUE;
 		++*pp;
 	      }
 	    else if (**pp == 'V')
 	      {
+		volatilep = TRUE;
 		++*pp;
 	      }
 	    if (**pp != 'F')
@@ -4798,6 +4786,9 @@ stab_demangle_type (struct stab_demangle_info *minfo, const char **pp,
 
     case 'Q':
       {
+	const char *hold;
+
+	hold = *pp;
 	if (! stab_demangle_qualified (minfo, pp, ptype))
 	  return FALSE;
       }
@@ -5166,11 +5157,6 @@ stab_demangle_v3_arglist (void *dhandle, struct stab_handle *info,
 	  return NULL;
 	}
 
-      /* PR 13925: Cope if the demangler returns an empty
-	 context for a function with no arguments.  */
-      if (dc->u.s_binary.left == NULL)
-	break;
- 
       arg = stab_demangle_v3_arg (dhandle, info, dc->u.s_binary.left,
 				  NULL, &varargs);
       if (arg == NULL)

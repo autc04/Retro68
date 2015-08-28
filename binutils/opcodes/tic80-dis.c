@@ -1,6 +1,5 @@
 /* Print TI TMS320C80 (MVP) instructions
-   Copyright 1996, 1997, 1998, 2000, 2005, 2007, 2012
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000, 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -19,8 +18,9 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include <stdio.h>
+
+#include "sysdep.h"
 #include "opcode/tic80.h"
 #include "dis-asm.h"
 

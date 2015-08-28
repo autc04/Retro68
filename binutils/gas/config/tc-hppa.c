@@ -1,7 +1,6 @@
 /* tc-hppa.c -- Assemble for the PA
    Copyright 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012
-   Free Software Foundation, Inc.
+   2003, 2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1402,8 +1401,7 @@ tc_gen_reloc (asection *section, fixS *fixp)
   /* ??? It might be better to hide this +8 stuff in tc_cfi_emit_pcrel_expr,
      undefine DIFF_EXPR_OK, and let these sorts of complex expressions fail
      when R_HPPA_COMPLEX == R_PARISC_UNIMPLEMENTED.  */
-  if (fixp->fx_r_type == (bfd_reloc_code_real_type) R_HPPA_COMPLEX
-      && fixp->fx_pcrel)
+  if (fixp->fx_r_type == R_HPPA_COMPLEX && fixp->fx_pcrel)
     {
       fixp->fx_r_type = R_HPPA_PCREL_CALL;
       fixp->fx_offset += 8;
@@ -2207,7 +2205,7 @@ pa_parse_number (char **s, int is_float)
 		 register, so...  */
 	      have_prefix = TRUE;
 	    }
-	  else if (S_GET_SEGMENT (sym) == bfd_abs_section_ptr)
+	  else if (S_GET_SEGMENT (sym) == &bfd_abs_section)
 	    num = S_GET_VALUE (sym);
 	  else if (!strict)
 	    {
@@ -2552,54 +2550,51 @@ pa_get_absolute_expression (struct pa_it *insn, char **strp)
   save_in = input_line_pointer;
   input_line_pointer = *strp;
   expression (&insn->exp);
-  expr_end = input_line_pointer;
-  input_line_pointer = save_in;
-  if (insn->exp.X_op != O_constant)
+  /* This is not perfect, but is a huge improvement over doing nothing.
+
+     The PA assembly syntax is ambiguous in a variety of ways.  Consider
+     this string "4 %r5"  Is that the number 4 followed by the register
+     r5, or is that 4 MOD r5?
+
+     If we get a modulo expression when looking for an absolute, we try
+     again cutting off the input string at the first whitespace character.  */
+  if (insn->exp.X_op == O_modulus)
     {
-      /* We have a non-match in strict mode.  */
-      if (!strict)
-	as_bad (_("Bad segment (should be absolute)."));
+      char *s, c;
+      int retval;
+
+      input_line_pointer = *strp;
+      s = *strp;
+      while (*s != ',' && *s != ' ' && *s != '\t')
+	s++;
+
+      c = *s;
+      *s = 0;
+
+      retval = pa_get_absolute_expression (insn, strp);
+
+      input_line_pointer = save_in;
+      *s = c;
+      return evaluate_absolute (insn);
+    }
+  /* When in strict mode we have a non-match, fix up the pointers
+     and return to our caller.  */
+  if (insn->exp.X_op != O_constant && strict)
+    {
+      expr_end = input_line_pointer;
+      input_line_pointer = save_in;
       return 0;
     }
-  return evaluate_absolute (insn);
-}
-
-/* Get an absolute number.  The input string is terminated at the
-   first whitespace character.  */
-
-static int
-pa_get_number (struct pa_it *insn, char **strp)
-{
-  char *save_in;
-  char *s, c;
-  int result;
-
-  save_in = input_line_pointer;
-  input_line_pointer = *strp;
-
-  /* The PA assembly syntax is ambiguous in a variety of ways.  Consider
-     this string "4 %r5"  Is that the number 4 followed by the register
-     r5, or is that 4 MOD r5?  This situation occurs for example in the
-     coprocessor load and store instructions.  Previously, calling
-     pa_get_absolute_expression directly results in r5 being entered
-     in the symbol table.
-
-     So, when looking for an absolute number, we cut off the input string
-     at the first whitespace character.  Thus, expressions should generally
-     contain no whitespace.  */
-
-  s = *strp;
-  while (*s != ',' && *s != ' ' && *s != '\t')
-    s++;
-
-  c = *s;
-  *s = 0;
-
-  result = pa_get_absolute_expression (insn, strp);
-
+  if (insn->exp.X_op != O_constant)
+    {
+      as_bad (_("Bad segment (should be absolute)."));
+      expr_end = input_line_pointer;
+      input_line_pointer = save_in;
+      return 0;
+    }
+  expr_end = input_line_pointer;
   input_line_pointer = save_in;
-  *s = c;
-  return result;
+  return evaluate_absolute (insn);
 }
 
 /* Given an argument location specification return the associated
@@ -3208,7 +3203,7 @@ pa_ip (char *str)
   const char *args;
   int match = FALSE;
   int comma = 0;
-  int cmpltr, nullif, flag, cond, need_cond, num;
+  int cmpltr, nullif, flag, cond, num;
   int immediate_check = 0, pos = -1, len = -1;
   unsigned long opcode;
   struct pa_opcode *insn;
@@ -3268,7 +3263,6 @@ pa_ip (char *str)
       opcode = insn->match;
       strict = (insn->flags & FLAG_STRICT);
       memset (&the_insn, 0, sizeof (the_insn));
-      need_cond = 1;
 
       the_insn.reloc = R_HPPA_NONE;
 
@@ -3763,8 +3757,6 @@ pa_ip (char *str)
 		  else
 		    break;
 
-		  /* Condition is not required with "dc".  */
-		  need_cond = 0;
 		  INSERT_FIELD_AND_CONTINUE (opcode, flag, 11);
 
 		/* Handle 32 bit carry for ADD.  */
@@ -3833,8 +3825,6 @@ pa_ip (char *str)
 		  else
 		    break;
 
-		  /* Condition is not required with "db".  */
-		  need_cond = 0;
 		  INSERT_FIELD_AND_CONTINUE (opcode, flag, 11);
 
 		/* Handle 32 bit borrow for SUB.  */
@@ -4060,11 +4050,6 @@ pa_ip (char *str)
 			  as_bad (_("Invalid Add Condition: %s"), name);
 			*s = c;
 		      }
-		    /* Except with "dc", we have a match failure with
-		       'A' if we don't have a doubleword condition.  */
-		    else if (*args == 'A' && need_cond)
-		      break;
-
 		    opcode |= cmpltr << 13;
 		    INSERT_FIELD_AND_CONTINUE (opcode, flag, 12);
 
@@ -4144,11 +4129,8 @@ pa_ip (char *str)
 			    s += 2;
 			  }
 			else
-			  as_bad (_("Invalid Branch On Bit Condition: %c"), *s);
+			  as_bad (_("Invalid Bit Branch Condition: %c"), *s);
 		      }
-		    else
-		      as_bad (_("Missing Branch On Bit Condition"));
-
 		    INSERT_FIELD_AND_CONTINUE (opcode, cmpltr, 15);
 
 		  /* Handle a compare/subtract condition.  */
@@ -4236,11 +4218,6 @@ pa_ip (char *str)
 				  name);
 			*s = c;
 		      }
-		    /* Except with "db", we have a match failure with
-		       'S' if we don't have a doubleword condition.  */
-		    else if (*args == 'S' && need_cond)
-		      break;
-
 		    opcode |= cmpltr << 13;
 		    INSERT_FIELD_AND_CONTINUE (opcode, flag, 12);
 
@@ -4299,7 +4276,7 @@ pa_ip (char *str)
 
 		    INSERT_FIELD_AND_CONTINUE (opcode, cmpltr, 13);
 
-		  /* Handle a logical instruction condition.  */
+		    /* Handle a logical instruction condition.  */
 		  case 'L':
 		  case 'l':
 		    cmpltr = 0;
@@ -4363,10 +4340,6 @@ pa_ip (char *str)
 			  as_bad (_("Invalid Logical Instruction Condition."));
 			*s = c;
 		      }
-		    /* 32-bit is default for no condition.  */
-		    else if (*args == 'L')
-		      break;
-
 		    opcode |= cmpltr << 13;
 		    INSERT_FIELD_AND_CONTINUE (opcode, flag, 12);
 
@@ -4425,7 +4398,6 @@ pa_ip (char *str)
 			  as_bad (_("Invalid Shift/Extract/Deposit Condition."));
 			*s = c;
 		      }
-
 		    INSERT_FIELD_AND_CONTINUE (opcode, cmpltr, 13);
 
 		  /* Handle a unit instruction condition.  */
@@ -4435,7 +4407,6 @@ pa_ip (char *str)
 		    flag = 0;
 		    if (*s == ',')
 		      {
-			int uxor;
 			s++;
 
 			/* 64 bit conditions.  */
@@ -4449,9 +4420,6 @@ pa_ip (char *str)
 			else if (*s == '*')
 			  break;
 
-			/* The uxor instruction only supports unit conditions
-			   not involving carries.  */
-			uxor = (opcode & 0xfc000fc0) == 0x08000380;
 			if (strncasecmp (s, "sbz", 3) == 0)
 			  {
 			    cmpltr = 2;
@@ -4462,17 +4430,17 @@ pa_ip (char *str)
 			    cmpltr = 3;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "sdc", 3) == 0)
+			else if (strncasecmp (s, "sdc", 3) == 0)
 			  {
 			    cmpltr = 4;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "sbc", 3) == 0)
+			else if (strncasecmp (s, "sbc", 3) == 0)
 			  {
 			    cmpltr = 6;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "shc", 3) == 0)
+			else if (strncasecmp (s, "shc", 3) == 0)
 			  {
 			    cmpltr = 7;
 			    s += 3;
@@ -4495,19 +4463,19 @@ pa_ip (char *str)
 			    flag = 1;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "ndc", 3) == 0)
+			else if (strncasecmp (s, "ndc", 3) == 0)
 			  {
 			    cmpltr = 4;
 			    flag = 1;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "nbc", 3) == 0)
+			else if (strncasecmp (s, "nbc", 3) == 0)
 			  {
 			    cmpltr = 6;
 			    flag = 1;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "nhc", 3) == 0)
+			else if (strncasecmp (s, "nhc", 3) == 0)
 			  {
 			    cmpltr = 7;
 			    flag = 1;
@@ -4519,7 +4487,7 @@ pa_ip (char *str)
 			    flag = 0;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "swc", 3) == 0)
+			else if (strncasecmp (s, "swc", 3) == 0)
 			  {
 			    cmpltr = 5;
 			    flag = 0;
@@ -4531,7 +4499,7 @@ pa_ip (char *str)
 			    flag = 1;
 			    s += 3;
 			  }
-			else if (!uxor && strncasecmp (s, "nwc", 3) == 0)
+			else if (strncasecmp (s, "nwc", 3) == 0)
 			  {
 			    cmpltr = 5;
 			    flag = 1;
@@ -4541,10 +4509,6 @@ pa_ip (char *str)
 			else if (*args != 'U' || (*s != ' ' && *s != '\t'))
 			  as_bad (_("Invalid Unit Instruction Condition."));
 		      }
-		    /* 32-bit is default for no condition.  */
-		    else if (*args == 'U')
-		      break;
-
 		    opcode |= cmpltr << 13;
 		    INSERT_FIELD_AND_CONTINUE (opcode, flag, 12);
 
@@ -5296,7 +5260,7 @@ pa_ip (char *str)
 	    case 'v':
 	      if (*s++ != ',')
 		as_bad (_("Invalid SFU identifier"));
-	      num = pa_get_number (&the_insn, &s);
+	      num = pa_get_absolute_expression (&the_insn, &s);
 	      if (strict && the_insn.exp.X_op != O_constant)
 		break;
 	      s = expr_end;
@@ -5305,7 +5269,7 @@ pa_ip (char *str)
 
 	    /* Handle a 20 bit SOP field for spop0.  */
 	    case 'O':
-	      num = pa_get_number (&the_insn, &s);
+	      num = pa_get_absolute_expression (&the_insn, &s);
 	      if (strict && the_insn.exp.X_op != O_constant)
 		break;
 	      s = expr_end;
@@ -5315,7 +5279,7 @@ pa_ip (char *str)
 
 	    /* Handle a 15bit SOP field for spop1.  */
 	    case 'o':
-	      num = pa_get_number (&the_insn, &s);
+	      num = pa_get_absolute_expression (&the_insn, &s);
 	      if (strict && the_insn.exp.X_op != O_constant)
 		break;
 	      s = expr_end;
@@ -5324,7 +5288,7 @@ pa_ip (char *str)
 
 	    /* Handle a 10bit SOP field for spop3.  */
 	    case '0':
-	      num = pa_get_number (&the_insn, &s);
+	      num = pa_get_absolute_expression (&the_insn, &s);
 	      if (strict && the_insn.exp.X_op != O_constant)
 		break;
 	      s = expr_end;
@@ -5334,7 +5298,7 @@ pa_ip (char *str)
 
 	    /* Handle a 15 bit SOP field for spop2.  */
 	    case '1':
-	      num = pa_get_number (&the_insn, &s);
+	      num = pa_get_absolute_expression (&the_insn, &s);
 	      if (strict && the_insn.exp.X_op != O_constant)
 		break;
 	      s = expr_end;
@@ -5346,7 +5310,7 @@ pa_ip (char *str)
 	    case 'u':
 	      if (*s++ != ',')
 		as_bad (_("Invalid COPR identifier"));
-	      num = pa_get_number (&the_insn, &s);
+	      num = pa_get_absolute_expression (&the_insn, &s);
 	      if (strict && the_insn.exp.X_op != O_constant)
 		break;
 	      s = expr_end;
@@ -5355,7 +5319,7 @@ pa_ip (char *str)
 
 	    /* Handle a 22bit SOP field for copr.  */
 	    case '2':
-	      num = pa_get_number (&the_insn, &s);
+	      num = pa_get_absolute_expression (&the_insn, &s);
 	      if (strict && the_insn.exp.X_op != O_constant)
 		break;
 	      s = expr_end;
@@ -5486,10 +5450,7 @@ pa_ip (char *str)
 		case 't':
 		  if (!pa_parse_number (&s, 3))
 		    break;
-		  /* RSEL should not be set.  */
-		  if (pa_number & FP_REG_RSEL)
-		    break;
-		  num = pa_number - FP_REG_BASE;
+		  num = (pa_number & ~FP_REG_RSEL) - FP_REG_BASE;
 		  CHECK_FIELD (num, 31, 0, 0);
 		  INSERT_FIELD_AND_CONTINUE (opcode, num, 0);
 
@@ -6000,44 +5961,12 @@ pa_build_unwind_subspace (struct call_info *call_info)
   subsegT save_subseg;
   unsigned int unwind;
   int reloc;
-  char *name, *p;
-  symbolS *symbolP;
+  char *p;
 
   if ((bfd_get_section_flags (stdoutput, now_seg)
        & (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
       != (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
     return;
-
-  if (call_info->start_symbol == NULL)
-    /* This can happen if there were errors earlier on in the assembly.  */
-    return;
-
-  /* Replace the start symbol with a local symbol that will be reduced
-     to a section offset.  This avoids problems with weak functions with
-     multiple definitions, etc.  */
-  name = xmalloc (strlen ("L$\001start_")
-		  + strlen (S_GET_NAME (call_info->start_symbol))
-		  + 1);
-  strcpy (name, "L$\001start_");
-  strcat (name, S_GET_NAME (call_info->start_symbol));
-
-  /* If we have a .procend preceded by a .exit, then the symbol will have
-     already been defined.  In that case, we don't want another unwind
-     entry.  */
-  symbolP = symbol_find (name);
-  if (symbolP)
-    {
-      xfree (name);
-      return;
-    }
-  else
-    {
-      symbolP = symbol_new (name, now_seg,
-			    S_GET_VALUE (call_info->start_symbol), frag_now);
-      gas_assert (symbolP);
-      S_CLEAR_EXTERNAL (symbolP);
-      symbol_table_insert (symbolP);
-    }
 
   reloc = R_PARISC_SEGREL32;
   save_seg = now_seg;
@@ -6064,7 +5993,7 @@ pa_build_unwind_subspace (struct call_info *call_info)
   /* Relocation info. for start offset of the function.  */
   md_number_to_chars (p, 0, 4);
   fix_new_hppa (frag_now, p - frag_now->fr_literal, 4,
-		symbolP, (offsetT) 0,
+		call_info->start_symbol, (offsetT) 0,
 		(expressionS *) NULL, 0, reloc,
 		e_fsel, 32, 0, 0);
 
@@ -6535,7 +6464,6 @@ process_exit (void)
   /* Mark the end of the function, stuff away the location of the frag
      for the end of the function, and finally call pa_build_unwind_subspace
      to add an entry in the unwind table.  */
-  (void) where;
   hppa_elf_mark_end_of_function ();
   pa_build_unwind_subspace (last_call_info);
 #else
@@ -6677,8 +6605,6 @@ pa_type_args (symbolS *symbolP, int is_export)
      to the SOM BFD backend.  */
 #ifdef obj_set_symbol_type
   obj_set_symbol_type (bfdsym, (int) type);
-#else
-  (void) type;
 #endif
 
   /* Now that the type of the exported symbol has been handled,
@@ -6701,8 +6627,6 @@ pa_type_args (symbolS *symbolP, int is_export)
 	  arg_reloc = pa_align_arg_reloc (temp, pa_build_arg_reloc (name));
 #if defined (OBJ_SOM) || defined (ELF_ARG_RELOC)
 	  symbol_arg_reloc_info (symbolP) |= arg_reloc;
-#else
-	  (void) arg_reloc;
 #endif
 	  *input_line_pointer = c;
 	}
@@ -6717,8 +6641,6 @@ pa_type_args (symbolS *symbolP, int is_export)
 	  arg_reloc = pa_build_arg_reloc (name);
 #if defined (OBJ_SOM) || defined (ELF_ARG_RELOC)
 	  symbol_arg_reloc_info (symbolP) |= arg_reloc;
-#else
-	  (void) arg_reloc;
 #endif
 	  *input_line_pointer = c;
 	}
@@ -7419,7 +7341,7 @@ pa_subspace (int create_new)
 {
   char *name, *ss_name, c;
   char loadable, code_only, comdat, common, dup_common, zero, sort;
-  int i, access_ctr, space_index, alignment, quadrant, applicable, flags;
+  int i, access, space_index, alignment, quadrant, applicable, flags;
   sd_chain_struct *space;
   ssd_chain_struct *ssd;
   asection *section;
@@ -7442,7 +7364,7 @@ pa_subspace (int create_new)
 
       /* Load default values.  */
       sort = 0;
-      access_ctr = 0x7f;
+      access = 0x7f;
       loadable = 1;
       comdat = 0;
       common = 0;
@@ -7487,7 +7409,7 @@ pa_subspace (int create_new)
 		  space_index = pa_def_subspaces[i].space_index;
 		  alignment = pa_def_subspaces[i].alignment;
 		  quadrant = pa_def_subspaces[i].quadrant;
-		  access_ctr = pa_def_subspaces[i].access;
+		  access = pa_def_subspaces[i].access;
 		  sort = pa_def_subspaces[i].sort;
 		  break;
 		}
@@ -7525,7 +7447,7 @@ pa_subspace (int create_new)
 		{
 		  *input_line_pointer = c;
 		  input_line_pointer++;
-		  access_ctr = get_absolute_expression ();
+		  access = get_absolute_expression ();
 		}
 	      else if ((strncasecmp (name, "sort", 4) == 0))
 		{
@@ -7633,14 +7555,14 @@ pa_subspace (int create_new)
 
 	current_subspace = update_subspace (space, ss_name, loadable,
 					    code_only, comdat, common,
-					    dup_common, sort, zero, access_ctr,
+					    dup_common, sort, zero, access,
 					    space_index, alignment, quadrant,
 					    section);
       else
 	current_subspace = create_new_subspace (space, ss_name, loadable,
 						code_only, comdat, common,
 						dup_common, zero, sort,
-						access_ctr, space_index,
+						access, space_index,
 						alignment, quadrant, section);
 
       demand_empty_rest_of_line ();
@@ -7871,7 +7793,7 @@ create_new_subspace (sd_chain_struct *space,
 		     int dup_common,
 		     int is_zero ATTRIBUTE_UNUSED,
 		     int sort,
-		     int access_ctr,
+		     int access,
 		     int space_index ATTRIBUTE_UNUSED,
 		     int alignment ATTRIBUTE_UNUSED,
 		     int quadrant,
@@ -7926,7 +7848,7 @@ create_new_subspace (sd_chain_struct *space,
     }
 
 #ifdef obj_set_subsection_attributes
-  obj_set_subsection_attributes (seg, space->sd_seg, access_ctr, sort,
+  obj_set_subsection_attributes (seg, space->sd_seg, access, sort,
 				 quadrant, comdat, common, dup_common);
 #endif
 
@@ -7946,7 +7868,7 @@ update_subspace (sd_chain_struct *space,
 		 int dup_common,
 		 int sort,
 		 int zero ATTRIBUTE_UNUSED,
-		 int access_ctr,
+		 int access,
 		 int space_index ATTRIBUTE_UNUSED,
 		 int alignment ATTRIBUTE_UNUSED,
 		 int quadrant,
@@ -7957,7 +7879,7 @@ update_subspace (sd_chain_struct *space,
   chain_entry = is_defined_subspace (name);
 
 #ifdef obj_set_subsection_attributes
-  obj_set_subsection_attributes (section, space->sd_seg, access_ctr, sort,
+  obj_set_subsection_attributes (section, space->sd_seg, access, sort,
 				 quadrant, comdat, common, dup_common);
 #endif
 

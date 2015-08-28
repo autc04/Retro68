@@ -1,5 +1,4 @@
-/* Copyright 2001, 2002, 2003, 2005, 2007, 2009, 2012
-   Free Software Foundation, Inc.
+/* Copyright 2001, 2002, 2003, 2005, 2007, 2009 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -18,10 +17,10 @@
    Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-/* This program generates z8k-opc.h.  */
+/* This program generates z8k-opc.h.  Compile with -fwritable-strings.  */
 
-#include "sysdep.h"
 #include <stdio.h>
+#include "sysdep.h"
 #include "libiberty.h"
 
 #define BYTE_INFO_LEN 10
@@ -33,8 +32,7 @@ struct op
   char type;
   char *bits;
   char *name;
-  /* Unique number for stable sorting.  */
-  int id;
+  char *flavor;
 };
 
 #define iswhite(x) ((x) == ' ' || (x) == '\t')
@@ -514,14 +512,15 @@ static struct op opt[] =
   {"-ZS---", 17, 32, "0101 1100 ddN0 1000 address_dst", "testl address_dst(rd)", 0},
   {"-ZS---", 13, 32, "1001 1100 dddd 1000", "testl rrd", 0},
 
-  {"---V--", 25, 8, "1011 1000 ddN0 1000 0000 rrrr ssN0 0000", "trdb @rd,@rs,rr", 0},
-  {"---V--", 25, 8, "1011 1000 ddN0 1100 0000 rrrr ssN0 0000", "trdrb @rd,@rs,rr", 0},
-  {"---V--", 25, 8, "1011 1000 ddN0 0000 0000 rrrr ssN0 0000", "trib @rd,@rs,rr", 0},
-  {"---V--", 25, 8, "1011 1000 ddN0 0100 0000 rrrr ssN0 0000", "trirb @rd,@rs,rr", 0},
-  {"-Z-V--", 25, 8, "1011 1000 aaN0 1010 0000 rrrr bbN0 0000", "trtdb @ra,@rb,rr", 0},
-  {"-Z-V--", 25, 8, "1011 1000 aaN0 1110 0000 rrrr bbN0 1110", "trtdrb @ra,@rb,rr", 0},
-  {"-Z-V--", 25, 8, "1011 1000 aaN0 0010 0000 rrrr bbN0 0000", "trtib @ra,@rb,rr", 0},
-  {"-Z-V--", 25, 8, "1011 1000 aaN0 0110 0000 rrrr bbN0 1110", "trtirb @ra,@rb,rr", 0},
+  {"-ZSV--", 25, 8, "1011 1000 ddN0 1000 0000 aaaa ssN0 0000", "trdb @rd,@rs,rba", 0},
+  {"-ZSV--", 25, 8, "1011 1000 ddN0 1100 0000 aaaa ssN0 0000", "trdrb @rd,@rs,rba", 0},
+  {"-ZSV--", 25, 8, "1011 1000 ddN0 0000 0000 rrrr ssN0 0000", "trib @rd,@rs,rbr", 0},
+  {"-ZSV--", 25, 8, "1011 1000 ddN0 0100 0000 rrrr ssN0 0000", "trirb @rd,@rs,rbr", 0},
+  {"-ZSV--", 25, 8, "1011 1000 aaN0 1010 0000 rrrr bbN0 0000", "trtdb @ra,@rb,rbr", 0},
+  {"-ZSV--", 25, 8, "1011 1000 aaN0 1110 0000 rrrr bbN0 1110", "trtdrb @ra,@rb,rbr", 0},
+  {"-ZSV--", 25, 8, "1011 1000 aaN0 0010 0000 rrrr bbN0 0000", "trtib @ra,@rb,rbr", 0},
+  {"-ZSV--", 25, 8, "1011 1000 aaN0 0110 0000 rrrr bbN0 1110", "trtirb @ra,@rb,rbr", 0},
+  {"-ZSV--", 25, 8, "1011 1000 aaN0 1010 0000 rrrr bbN0 0000", "trtrb @ra,@rb,rbr", 0},
 
   {"--S---", 11, 16, "0000 1101 ddN0 0110", "tset @rd", 0},
   {"--S---", 14, 16, "0100 1101 0000 0110 address_dst", "tset address_dst", 0},
@@ -548,6 +547,7 @@ static struct op opt[] =
   {"------", 7, 32, "1000 1100 dddd 0001", "ldctlb rbd,ctrl", 0},
   {"CZSVDH", 7, 32, "1000 1100 ssss 1001", "ldctlb ctrl,rbs", 0},
 
+  {"*", 4, 8, "1000 1000 ssss dddd", "xorb rbd,rbs", 0},
   {"*", 0, 0, 0, 0, 0}
 };
 
@@ -574,7 +574,7 @@ func (const void *p1, const void *p2)
   int ret = strcmp (a->name, b->name);
   if (ret != 0)
     return ret;
-  return a->id > b->id ? 1 : -1;
+  return p1 > p2 ? 1 : -1;
 }
 
 
@@ -826,12 +826,9 @@ chewname (char **name)
   return nargs;
 }
 
-static char *
+static void
 sub (char *x, char c)
 {
-  /* Create copy.  */
-  char *ret = xstrdup (x);
-  x = ret;
   while (*x)
     {
       if (x[0] == c && x[1] == c &&
@@ -842,7 +839,6 @@ sub (char *x, char c)
 	}
       x++;
     }
-  return ret;
 }
 
 
@@ -913,14 +909,9 @@ static void
 internal (void)
 {
   int c = count ();
-  int id;
-  struct op *new_op = xmalloc (sizeof (struct op) * (c + 1));
+  struct op *new_op = xmalloc (sizeof (struct op) * c);
   struct op *p = opt;
-  memcpy (new_op, p, (c + 1) * sizeof (struct op));
-
-  /* Assign unique id.  */
-  for (id = 0; id < c; id++)
-    new_op[id].id = id;
+  memcpy (new_op, p, c * sizeof (struct op));
 
   /* Sort all names in table alphabetically.  */
   qsort (new_op, c, sizeof (struct op), func);
@@ -946,15 +937,15 @@ internal (void)
 	  /* Skip the r and sub the string.  */
 	  s++;
 	  c = s[1];
-	  p->bits = sub (p->bits, c);
+	  sub (p->bits, c);
 	}
 	if (s[0] == '(' && s[3] == ')')
 	{
-	  p->bits = sub (p->bits, s[2]);
+	  sub (p->bits, s[2]);
 	}
 	if (s[0] == '(')
 	{
-	  p->bits = sub (p->bits, s[-1]);
+	  sub (p->bits, s[-1]);
 	}
 
 	s++;
@@ -971,17 +962,12 @@ static void
 gas (void)
 {
   int c = count ();
-  int id;
   struct op *p = opt;
   int idx = -1;
   char *oldname = "";
-  struct op *new_op = xmalloc (sizeof (struct op) * (c + 1));
+  struct op *new_op = xmalloc (sizeof (struct op) * c);
 
-  memcpy (new_op, p, (c + 1) * sizeof (struct op));
-
-  /* Assign unique id.  */
-  for (id = 0; id < c; id++)
-    new_op[id].id = id;
+  memcpy (new_op, p, c * sizeof (struct op));
 
   /* Sort all names in table alphabetically.  */
   qsort (new_op, c, sizeof (struct op), func);
@@ -1298,7 +1284,7 @@ gas (void)
   printf ("#ifdef DEFINE_TABLE\n");
   printf ("const opcode_entry_type z8k_table[] = {\n");
 
-  while (new_op->flags && new_op->flags[0] != '*')
+  while (new_op->flags && new_op->flags[0])
     {
       int nargs;
       int length;

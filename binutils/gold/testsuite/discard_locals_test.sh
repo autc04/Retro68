@@ -27,12 +27,11 @@
 # the resulting executable and check that symbols from two test library
 # archives are correctly hidden or left unmodified.
 
-check_discarded()
+check()
 {
     file=$1
-    sym=$2
 
-    found=`egrep $sym $file`
+    found=`egrep "should_be_discarded" $file`
     if test -n "$found"; then
 	echo "These local symbols are not discarded in $file:"
 	echo "$found"
@@ -40,24 +39,6 @@ check_discarded()
     fi
 }
 
-check_non_discarded()
-{
-    file=$1
-    sym=$2
-
-    found=`egrep $sym $file`
-    if test -z "$found"; then
-	echo "This local symbol is discarded in $file:"
-	echo "$2"
-	exit 1
-    fi
-}
-
-check_discarded     "discard_locals_test.syms" "should_be_discarded"
-
-check_non_discarded "discard_locals_relocatable_test1.syms" ".LC0"
-check_discarded     "discard_locals_relocatable_test1.syms" "should_be_discarded"
-check_non_discarded "discard_locals_relocatable_test2.syms" ".LC0"
-check_discarded     "discard_locals_relocatable_test2.syms" "should_be_discarded"
+check "discard_locals_test.syms"
 
 exit 0

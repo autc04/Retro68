@@ -1,5 +1,5 @@
 /* Plugin support for BFD.
-   Copyright 2009, 2010, 2011, 2012
+   Copyright 2009
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,56 +19,16 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
-#include "bfd.h"
-
-#if BFD_SUPPORTS_PLUGINS
-
+#include "config.h"
 #include <assert.h>
-#ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
-#elif defined (HAVE_WINDOWS_H)
-#include <windows.h>
-#else
-#error Unknown how to handle dynamic-load-libraries.
-#endif
 #include <stdarg.h>
 #include "plugin-api.h"
+#include "sysdep.h"
 #include "plugin.h"
 #include "libbfd.h"
 #include "libiberty.h"
 #include <dirent.h>
-
-#if !defined (HAVE_DLFCN_H) && defined (HAVE_WINDOWS_H)
-
-#define RTLD_NOW 0      /* Dummy value.  */
-
-static void *
-dlopen (const char *file, int mode ATTRIBUTE_UNUSED)
-{
-  return LoadLibrary (file);
-}
-
-static void *
-dlsym (void *handle, const char *name)
-{
-  return GetProcAddress (handle, name);
-}
-
-static int ATTRIBUTE_UNUSED
-dlclose (void *handle)
-{
-  FreeLibrary (handle);
-  return 0;
-}
-
-static const char *
-dlerror (void)
-{
-  return "Unable to load DLL.";
-}
-
-#endif /* !defined (HAVE_DLFCN_H) && defined (HAVE_WINDOWS_H)  */
 
 #define bfd_plugin_close_and_cleanup                  _bfd_generic_close_and_cleanup
 #define bfd_plugin_bfd_free_cached_info               _bfd_generic_bfd_free_cached_info
@@ -99,13 +59,11 @@ dlerror (void)
 #define bfd_plugin_bfd_final_link                     _bfd_generic_final_link
 #define bfd_plugin_bfd_link_split_section             _bfd_generic_link_split_section
 #define bfd_plugin_bfd_gc_sections                    bfd_generic_gc_sections
-#define bfd_plugin_bfd_lookup_section_flags           bfd_generic_lookup_section_flags
 #define bfd_plugin_bfd_merge_sections                 bfd_generic_merge_sections
 #define bfd_plugin_bfd_is_group_section               bfd_generic_is_group_section
 #define bfd_plugin_bfd_discard_group                  bfd_generic_discard_group
 #define bfd_plugin_section_already_linked             _bfd_generic_section_already_linked
 #define bfd_plugin_bfd_define_common_symbol           bfd_generic_define_common_symbol
-#define bfd_plugin_bfd_copy_link_hash_symbol_type     _bfd_generic_copy_link_hash_symbol_type
 
 static enum ld_plugin_status
 message (int level ATTRIBUTE_UNUSED,
@@ -115,7 +73,6 @@ message (int level ATTRIBUTE_UNUSED,
   va_start (args, format);
   printf ("bfd plugin: ");
   vprintf (format, args);
-  putchar ('\n');
   va_end (args);
   return LDPS_OK;
 }
@@ -137,7 +94,7 @@ add_symbols (void * handle,
 {
   bfd *abfd = handle;
   struct plugin_data_struct *plugin_data =
-    bfd_alloc (abfd, sizeof (plugin_data_struct));
+    bfd_alloc (abfd, sizeof (plugin_data_struct));;
 
   plugin_data->nsyms = nsyms;
   plugin_data->syms = syms;
@@ -269,51 +226,30 @@ static const bfd_target *
 bfd_plugin_object_p (bfd *abfd)
 {
   int claimed = 0;
+  int t = load_plugin ();
   struct ld_plugin_input_file file;
-  bfd *iobfd;
-  static int have_loaded = 0;
-  static int have_plugin = 0;
-
-  if (!have_loaded)
-    {
-      have_loaded = 1;
-      have_plugin = load_plugin ();
-    }
-  if (!have_plugin)
+  if (!t)
     return NULL;
 
   file.name = abfd->filename;
 
-  if (abfd->my_archive)
+  if (abfd->iostream)
     {
-      iobfd = abfd->my_archive;
-      file.offset = abfd->origin;
-      file.filesize = arelt_size (abfd);
+      file.fd = fileno (abfd->iostream);
+      file.offset = 0;
+      file.filesize = 0; /*FIXME*/
     }
   else
     {
-      iobfd = abfd;
-      file.offset = 0;
-      file.filesize = 0;
+      bfd *archive = abfd->my_archive;
+      BFD_ASSERT (archive);
+      file.fd = fileno (archive->iostream);
+      file.offset = abfd->origin;
+      file.filesize = arelt_size (abfd);
+
     }
-
-  if (!iobfd->iostream && !bfd_open_file (iobfd))
-    return NULL;
-
-  file.fd = fileno ((FILE *) iobfd->iostream);
-
-  if (!abfd->my_archive)
-    {
-      struct stat stat_buf;
-      if (fstat (file.fd, &stat_buf))
-        return NULL;
-      file.filesize = stat_buf.st_size;
-    }
-
   file.handle = abfd;
-  off_t cur_offset = lseek(file.fd, 0, SEEK_CUR);
   claim_file (&file, &claimed);
-  lseek(file.fd, cur_offset, SEEK_SET);
   if (!claimed)
     return NULL;
 
@@ -378,13 +314,6 @@ bfd_plugin_core_file_failing_signal (bfd *abfd ATTRIBUTE_UNUSED)
   return 0;
 }
 
-static int
-bfd_plugin_core_file_pid (bfd *abfd ATTRIBUTE_UNUSED)
-{
-  BFD_ASSERT (0);
-  return 0;
-}
-
 static long
 bfd_plugin_get_symtab_upper_bound (bfd *abfd)
 {
@@ -400,7 +329,7 @@ static flagword
 convert_flags (const struct ld_plugin_symbol *sym)
 {
  switch (sym->def)
-   {
+   { 
    case LDPK_DEF:
    case LDPK_COMMON:
    case LDPK_UNDEF:
@@ -432,7 +361,7 @@ bfd_plugin_canonicalize_symtab (bfd *abfd,
 
   for (i = 0; i < nsyms; i++)
     {
-      asymbol *s = bfd_alloc (abfd, sizeof (asymbol));
+      asymbol *s = bfd_alloc (abfd, sizeof (asymbol)); 
 
       BFD_ASSERT (s);
       alocation[i] = s;
@@ -501,6 +430,13 @@ bfd_plugin_sizeof_headers (bfd *a ATTRIBUTE_UNUSED,
   return 0;
 }
 
+static bfd_boolean
+bfd_plugin_mkobject (bfd *abfd ATTRIBUTE_UNUSED)
+{
+  BFD_ASSERT (0);
+  return 0;
+}
+
 const bfd_target plugin_vec =
 {
   "plugin",			/* Name.  */
@@ -515,7 +451,6 @@ const bfd_target plugin_vec =
   0,				/* symbol_leading_char.  */
   '/',				/* ar_pad_char.  */
   15,				/* ar_max_namelen.  */
-  0,				/* match priority.  */
 
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
@@ -532,7 +467,7 @@ const bfd_target plugin_vec =
   },
   {				/* bfd_set_format.  */
     bfd_false,
-    bfd_false,
+    bfd_plugin_mkobject,
     _bfd_generic_mkarchive,
     bfd_false,
   },
@@ -557,4 +492,3 @@ const bfd_target plugin_vec =
 
   NULL  			/* backend_data.  */
 };
-#endif /* BFD_SUPPORTS_PLUGIN */

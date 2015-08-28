@@ -1,5 +1,5 @@
 /* tc-m32c.c -- Assembler for the Renesas M32C.
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation.
+   Copyright (C) 2005, 2006, 2007, 2008, 2009 Free Software Foundation.
    Contributed by RedHat.
 
    This file is part of GAS, the GNU Assembler.
@@ -159,6 +159,9 @@ const pseudo_typeS md_pseudo_table[] =
   { "bss",	s_bss, 		0},
   { "3byte",	cons,		3 },
   { "word",	cons,		4 },
+  {"file",	(void (*) (int)) dwarf2_directive_file, 0},
+  {"loc",	dwarf2_directive_loc, 0},
+  {"loc_mark_labels", dwarf2_directive_loc_mark_labels, 0},
   { NULL, 	NULL, 		0 }
 };
 
@@ -359,7 +362,6 @@ md_assemble (char * str)
 
   last_insn_had_delay_slot
     = CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_DELAY_SLOT);
-  (void) last_insn_had_delay_slot;
   insn_size = CGEN_INSN_BITSIZE(insn.insn);
 
   rl_type = rl_for (insn);
@@ -624,20 +626,27 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
 {
   int addend;
   int operand;
+  int new_insn;
   int where = fragP->fr_opcode - fragP->fr_literal;
   int rl_where = fragP->fr_opcode - fragP->fr_literal;
   unsigned char *op = (unsigned char *)fragP->fr_opcode;
+  int op_base = 0;
+  int op_op = 0;
   int rl_addend = 0;
 
   addend = target_address_for (fragP) - (fragP->fr_address + where);
+  new_insn = subtype_mappings[fragP->fr_subtype].insn;
 
   fragP->fr_fix = where + subtype_mappings[fragP->fr_subtype].bytes;
+
+  op_base = 0;
 
   switch (subtype_mappings[fragP->fr_subtype].insn)
     {
     case M32C_INSN_JCND16_5:
       op[1] = addend - 1;
       operand = M32C_OPERAND_LAB_8_8;
+      op_op = 1;
       rl_addend = 0x21;
       break;
 
@@ -649,6 +658,9 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[4] = (addend - 3) >> 8;
       operand = M32C_OPERAND_LAB_8_16;
       where += 2;
+      new_insn = M32C_INSN_JMP16_W;
+      op_base = 2;
+      op_op = 3;
       rl_addend = 0x51;
       break;
 
@@ -658,6 +670,9 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[2] = 0xfc;
       operand = M32C_OPERAND_LAB_8_24;
       where += 2;
+      new_insn = M32C_INSN_JMP16_A;
+      op_base = 2;
+      op_op = 3;
       rl_addend = 0x61;
       break;
 
@@ -665,6 +680,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
     case M32C_INSN_JCND16:
       op[2] = addend - 2;
       operand = M32C_OPERAND_LAB_16_8;
+      op_base = 0;
+      op_op = 2;
       rl_addend = 0x31;
       break;
 
@@ -676,6 +693,9 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[5] = (addend - 4) >> 8;
       operand = M32C_OPERAND_LAB_8_16;
       where += 3;
+      new_insn = M32C_INSN_JMP16_W;
+      op_base = 3;
+      op_op = 4;
       rl_addend = 0x61;
       break;
 
@@ -685,12 +705,17 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[3] = 0xfc;
       operand = M32C_OPERAND_LAB_8_24;
       where += 3;
+      new_insn = M32C_INSN_JMP16_A;
+      op_base = 3;
+      op_op = 4;
       rl_addend = 0x71;
       break;
 
     case M32C_INSN_JMP16_S:
       op[0] = 0x60 | ((addend-2) & 0x07);
       operand = M32C_OPERAND_LAB_5_3;
+      op_base = 0;
+      op_op = 0;
       rl_addend = 0x10;
       break;
 
@@ -698,6 +723,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[0] = 0xfe;
       op[1] = addend - 1;
       operand = M32C_OPERAND_LAB_8_8;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x21;
       break;
 
@@ -706,6 +733,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[1] = addend - 1;
       op[2] = (addend - 1) >> 8;
       operand = M32C_OPERAND_LAB_8_16;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x31;
       break;
 
@@ -715,12 +744,16 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[2] = 0;
       op[3] = 0;
       operand = M32C_OPERAND_LAB_8_24;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x41;
       break;
 
     case M32C_INSN_JCND32:
       op[1] = addend - 1;
       operand = M32C_OPERAND_LAB_8_8;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x21;
       break;
 
@@ -732,6 +765,9 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[4] = (addend - 3) >> 8;
       operand = M32C_OPERAND_LAB_8_16;
       where += 2;
+      new_insn = M32C_INSN_JMP32_W;
+      op_base = 2;
+      op_op = 3;
       rl_addend = 0x51;
       break;
 
@@ -741,13 +777,20 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[2] = 0xcc;
       operand = M32C_OPERAND_LAB_8_24;
       where += 2;
+      new_insn = M32C_INSN_JMP32_A;
+      op_base = 2;
+      op_op = 3;
       rl_addend = 0x61;
       break;
+
+
 
     case M32C_INSN_JMP32_S:
       addend = ((addend-2) & 0x07);
       op[0] = 0x4a | (addend & 0x01) | ((addend << 3) & 0x30);
       operand = M32C_OPERAND_LAB32_JMP_S;
+      op_base = 0;
+      op_op = 0;
       rl_addend = 0x10;
       break;
 
@@ -755,6 +798,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[0] = 0xbb;
       op[1] = addend - 1;
       operand = M32C_OPERAND_LAB_8_8;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x21;
       break;
 
@@ -763,6 +808,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[1] = addend - 1;
       op[2] = (addend - 1) >> 8;
       operand = M32C_OPERAND_LAB_8_16;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x31;
       break;
 
@@ -772,6 +819,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[2] = 0;
       op[3] = 0;
       operand = M32C_OPERAND_LAB_8_24;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x41;
       break;
 
@@ -781,6 +830,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[1] = addend - 1;
       op[2] = (addend - 1) >> 8;
       operand = M32C_OPERAND_LAB_8_16;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x31;
       break;
 
@@ -790,6 +841,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[2] = 0;
       op[3] = 0;
       operand = M32C_OPERAND_LAB_8_24;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x41;
       break;
 
@@ -798,6 +851,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[1] = addend - 1;
       op[2] = (addend - 1) >> 8;
       operand = M32C_OPERAND_LAB_8_16;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x31;
       break;
 
@@ -807,6 +862,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       op[2] = 0;
       op[3] = 0;
       operand = M32C_OPERAND_LAB_8_24;
+      op_base = 0;
+      op_op = 1;
       rl_addend = 0x41;
       break;
 
@@ -831,6 +888,7 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       operand = M32C_OPERAND_LAB_40_8;
       break;
 
+
     default:
       printf("\nHey!  Need more opcode converters! missing: %d %s\n\n",
 	     fragP->fr_subtype,
@@ -854,16 +912,16 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       || (m32c_relax && (operand != M32C_OPERAND_LAB_5_3
 			 && operand != M32C_OPERAND_LAB32_JMP_S)))
     {
+      fixS *fixP;
       gas_assert (fragP->fr_cgen.insn != 0);
-      gas_cgen_record_fixup (fragP,
-			     where,
-			     fragP->fr_cgen.insn,
-			     (fragP->fr_fix - where) * 8,
-			     cgen_operand_lookup_by_num (gas_cgen_cpu_desc,
-							 operand),
-			     fragP->fr_cgen.opinfo,
-			     fragP->fr_symbol,
-			     fragP->fr_offset);
+      fixP = gas_cgen_record_fixup (fragP,
+				    where,
+				    fragP->fr_cgen.insn,
+				    (fragP->fr_fix - where) * 8,
+				    cgen_operand_lookup_by_num (gas_cgen_cpu_desc,
+								operand),
+				    fragP->fr_cgen.opinfo,
+				    fragP->fr_symbol, fragP->fr_offset);
     }
 }
 

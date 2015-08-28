@@ -259,18 +259,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e2 7d 0f 21       	vtestpd ymm4,YMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c4 e2 7d 0e f4       	vtestps ymm6,ymm4
 [ 	]*[a-f0-9]+:	c4 e2 7d 0e 21       	vtestps ymm4,YMMWORD PTR \[ecx\]
-[ 	]*[a-f0-9]+:	c5 fd 28 f4          	vmovapd ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fd 29 21          	vmovapd YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fc 28 f4          	vmovaps ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fc 29 21          	vmovaps YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fd 6f f4          	vmovdqa ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fd 7f 21          	vmovdqa YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fe 6f f4          	vmovdqu ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fe 7f 21          	vmovdqu YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fd 10 f4          	vmovupd ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fd 11 21          	vmovupd YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fc 10 f4          	vmovups ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fc 11 21          	vmovups YMMWORD PTR \[ecx\],ymm4
 [ 	]*[a-f0-9]+:	c5 ff f0 21          	vlddqu ymm4,\[ecx\]
 [ 	]*[a-f0-9]+:	c5 fd e7 21          	vmovntdq YMMWORD PTR \[ecx\],ymm4
 [ 	]*[a-f0-9]+:	c5 fd 2b 21          	vmovntpd YMMWORD PTR \[ecx\],ymm4
@@ -1041,8 +1029,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e3 79 16 21 07    	vpextrd DWORD PTR \[ecx\],xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 17 e1 07    	vextractps ecx,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 17 21 07    	vextractps DWORD PTR \[ecx\],xmm4,0x7
-[ 	]*[a-f0-9]+:	c4 e3 59 22 f1 07    	vpinsrd xmm6,xmm4,ecx,0x7
-[ 	]*[a-f0-9]+:	c4 e3 59 22 31 07    	vpinsrd xmm6,xmm4,DWORD PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 db 2a f1          	vcvtsi2sd xmm6,xmm4,ecx
 [ 	]*[a-f0-9]+:	c5 db 2a 31          	vcvtsi2sd xmm6,xmm4,DWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 da 2a f1          	vcvtsi2ss xmm6,xmm4,ecx
@@ -1067,6 +1053,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e3 59 20 f1 07    	vpinsrb xmm6,xmm4,ecx,0x7
 [ 	]*[a-f0-9]+:	c4 e3 59 20 31 07    	vpinsrb xmm6,xmm4,BYTE PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 14 21 07    	vpextrb BYTE PTR \[ecx\],xmm4,0x7
+[ 	]*[a-f0-9]+:	c4 e3 59 20 f1 07    	vpinsrb xmm6,xmm4,ecx,0x7
+[ 	]*[a-f0-9]+:	c4 e3 59 20 31 07    	vpinsrb xmm6,xmm4,BYTE PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 f9 f7 f4          	vmaskmovdqu xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 fa 7e f4          	vmovq  xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 f9 50 cc          	vmovmskpd ecx,xmm4
@@ -1704,24 +1692,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e2 7d 0e f4       	vtestps ymm6,ymm4
 [ 	]*[a-f0-9]+:	c4 e2 7d 0e 21       	vtestps ymm4,YMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c4 e2 7d 0e 21       	vtestps ymm4,YMMWORD PTR \[ecx\]
-[ 	]*[a-f0-9]+:	c5 fd 28 f4          	vmovapd ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fd 29 21          	vmovapd YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fd 29 21          	vmovapd YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fc 28 f4          	vmovaps ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fc 29 21          	vmovaps YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fc 29 21          	vmovaps YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fd 6f f4          	vmovdqa ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fd 7f 21          	vmovdqa YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fd 7f 21          	vmovdqa YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fe 6f f4          	vmovdqu ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fe 7f 21          	vmovdqu YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fe 7f 21          	vmovdqu YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fd 10 f4          	vmovupd ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fd 11 21          	vmovupd YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fd 11 21          	vmovupd YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fc 10 f4          	vmovups ymm6,ymm4
-[ 	]*[a-f0-9]+:	c5 fc 11 21          	vmovups YMMWORD PTR \[ecx\],ymm4
-[ 	]*[a-f0-9]+:	c5 fc 11 21          	vmovups YMMWORD PTR \[ecx\],ymm4
 [ 	]*[a-f0-9]+:	c5 ff f0 21          	vlddqu ymm4,\[ecx\]
 [ 	]*[a-f0-9]+:	c5 ff f0 21          	vlddqu ymm4,\[ecx\]
 [ 	]*[a-f0-9]+:	c5 fd e7 21          	vmovntdq YMMWORD PTR \[ecx\],ymm4
@@ -2891,9 +2861,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e3 79 17 e1 07    	vextractps ecx,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 17 21 07    	vextractps DWORD PTR \[ecx\],xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 17 21 07    	vextractps DWORD PTR \[ecx\],xmm4,0x7
-[ 	]*[a-f0-9]+:	c4 e3 59 22 f1 07    	vpinsrd xmm6,xmm4,ecx,0x7
-[ 	]*[a-f0-9]+:	c4 e3 59 22 31 07    	vpinsrd xmm6,xmm4,DWORD PTR \[ecx\],0x7
-[ 	]*[a-f0-9]+:	c4 e3 59 22 31 07    	vpinsrd xmm6,xmm4,DWORD PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 db 2a f1          	vcvtsi2sd xmm6,xmm4,ecx
 [ 	]*[a-f0-9]+:	c5 db 2a 31          	vcvtsi2sd xmm6,xmm4,DWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 db 2a 31          	vcvtsi2sd xmm6,xmm4,DWORD PTR \[ecx\]
@@ -2931,6 +2898,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e3 59 20 31 07    	vpinsrb xmm6,xmm4,BYTE PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 14 21 07    	vpextrb BYTE PTR \[ecx\],xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 14 21 07    	vpextrb BYTE PTR \[ecx\],xmm4,0x7
+[ 	]*[a-f0-9]+:	c4 e3 59 20 f1 07    	vpinsrb xmm6,xmm4,ecx,0x7
+[ 	]*[a-f0-9]+:	c4 e3 59 20 31 07    	vpinsrb xmm6,xmm4,BYTE PTR \[ecx\],0x7
+[ 	]*[a-f0-9]+:	c4 e3 59 20 31 07    	vpinsrb xmm6,xmm4,BYTE PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 f9 f7 f4          	vmaskmovdqu xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 fa 7e f4          	vmovq  xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 f9 50 cc          	vmovmskpd ecx,xmm4

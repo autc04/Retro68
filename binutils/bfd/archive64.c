@@ -1,5 +1,6 @@
-/* Support for 64-bit ELF archives.
-   Copyright 1996-2013 Free Software Foundation, Inc.
+/* MIPS-specific support for 64-bit ELF
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007
+   Free Software Foundation, Inc.
    Ian Lance Taylor, Cygnus Support
    Linker support added by Mark Mitchell, CodeSourcery, LLC.
    <mark@codesourcery.com>
@@ -42,6 +43,7 @@ bfd_elf64_archive_slurp_armap (bfd *abfd)
 {
   struct artdata *ardata = bfd_ardata (abfd);
   char nextname[17];
+  file_ptr arhdrpos;
   bfd_size_type i, parsed_size, nsymz, stringsize, carsym_size, ptrsize;
   struct areltdata *mapdata;
   bfd_byte int_buf[8];
@@ -53,6 +55,7 @@ bfd_elf64_archive_slurp_armap (bfd *abfd)
   ardata->symdefs = NULL;
 
   /* Get the name of the first element.  */
+  arhdrpos = bfd_tell (abfd);
   i = bfd_bread (nextname, 16, abfd);
   if (i == 0)
     return TRUE;
@@ -76,7 +79,7 @@ bfd_elf64_archive_slurp_armap (bfd *abfd)
   if (mapdata == NULL)
     return FALSE;
   parsed_size = mapdata->parsed_size;
-  free (mapdata);
+  bfd_release (abfd, mapdata);
 
   if (bfd_bread (int_buf, 8, abfd) != 8)
     {
@@ -168,8 +171,8 @@ bfd_elf64_archive_write_armap (bfd *arch,
 
   memset (&hdr, ' ', sizeof (struct ar_hdr));
   memcpy (hdr.ar_name, "/SYM64/", strlen ("/SYM64/"));
-  if (!_bfd_ar_sizepad (hdr.ar_size, sizeof (hdr.ar_size), mapsize))
-    return FALSE;
+  _bfd_ar_spacepad (hdr.ar_size, sizeof (hdr.ar_size), "%-10ld",
+                    mapsize);
   _bfd_ar_spacepad (hdr.ar_date, sizeof (hdr.ar_date), "%ld",
                     time (NULL));
   /* This, at least, is what Intel coff sets the values to.: */
@@ -193,29 +196,27 @@ bfd_elf64_archive_write_armap (bfd *arch,
 
   /* Write out the file offset for the file associated with each
      symbol, and remember to keep the offsets padded out.  */
+
+  current = arch->archive_head;
   count = 0;
-  for (current = arch->archive_head;
-       current != NULL && count < symbol_count;
-       current = current->archive_next)
+  while (current != NULL && count < symbol_count)
     {
       /* For each symbol which is used defined in this object, write out
-	 the object file's address in the archive.  */
+	 the object file's address in the archive */
 
-      for (;
-	   count < symbol_count && map[count].u.abfd == current;
-	   count++)
+      while (map[count].u.abfd == current)
 	{
 	  bfd_putb64 ((bfd_vma) archive_member_file_ptr, buf);
 	  if (bfd_bwrite (buf, 8, arch) != 8)
 	    return FALSE;
+	  count++;
 	}
-
       /* Add size of this archive entry */
-      archive_member_file_ptr += sizeof (struct ar_hdr);
-      if (! bfd_is_thin_archive (arch))
-	archive_member_file_ptr += arelt_size (current);
+      archive_member_file_ptr += (arelt_size (current)
+				  + sizeof (struct ar_hdr));
       /* remember about the even alignment */
       archive_member_file_ptr += archive_member_file_ptr % 2;
+      current = current->archive_next;
     }
 
   /* now write the strings themselves */

@@ -300,7 +300,8 @@ sha1_process_block (const void *buffer, size_t len, struct sha1_ctx *ctx)
      length of the file up to 2^64 bits.  Here we only compute the
      number of bytes.  Do a double word increment.  */
   ctx->total[0] += len;
-  ctx->total[1] += ((len >> 31) >> 1) + (ctx->total[0] < len);
+  if (ctx->total[0] < len)
+    ++ctx->total[1];
 
 #define rol(x, n) (((x) << (n)) | ((sha1_uint32) (x) >> (32 - (n))))
 

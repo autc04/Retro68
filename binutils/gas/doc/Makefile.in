@@ -14,24 +14,6 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
-
-#
-#   Copyright 2012 Free Software Foundation
-#
-# This file is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING3.  If not see
-# <http://www.gnu.org/licenses/>.
-#
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -57,16 +39,12 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(as_TEXINFOS)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../bfd/acinclude.m4 \
-	$(top_srcdir)/../config/zlib.m4 \
-	$(top_srcdir)/../bfd/warning.m4 $(top_srcdir)/../config/acx.m4 \
+	$(top_srcdir)/../bfd/warning.m4 \
 	$(top_srcdir)/../config/depstand.m4 \
 	$(top_srcdir)/../config/gettext-sister.m4 \
-	$(top_srcdir)/../config/largefile.m4 \
-	$(top_srcdir)/../config/lcmessage.m4 \
 	$(top_srcdir)/../config/lead-dot.m4 \
 	$(top_srcdir)/../config/nls.m4 \
 	$(top_srcdir)/../config/override.m4 \
-	$(top_srcdir)/../config/plugins.m4 \
 	$(top_srcdir)/../config/po.m4 \
 	$(top_srcdir)/../config/progtest.m4 \
 	$(top_srcdir)/../libtool.m4 $(top_srcdir)/../ltoptions.m4 \
@@ -245,6 +223,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 obj_format = @obj_format@
@@ -279,7 +258,7 @@ POD2MAN = pod2man --center="GNU Development Tools" \
 	--release="binutils-$(VERSION)" --section=1
 
 man_MANS = as.1
-info_TEXINFOS = as.texinfo
+info_TEXINFOS = as.texinfo 
 as_TEXINFOS = asconfig.texi $(CPU_DOCS)
 AM_MAKEINFOFLAGS = -I "$(srcdir)" -I "$(top_srcdir)/../libiberty" \
 		   -I "$(top_srcdir)/../bfd/doc" -I ../../bfd/doc
@@ -288,16 +267,14 @@ TEXI2DVI = texi2dvi -I "$(srcdir)" -I "$(top_srcdir)/../libiberty" \
 		   -I "$(top_srcdir)/../bfd/doc" -I ../../bfd/doc
 
 CPU_DOCS = \
-	c-aarch64.texi \
 	c-alpha.texi \
 	c-arc.texi \
 	c-arm.texi \
 	c-avr.texi \
 	c-bfin.texi \
 	c-cr16.texi \
-	c-cris.texi \
 	c-d10v.texi \
-	c-epiphany.texi \
+	c-cris.texi \
 	c-h8300.texi \
 	c-hppa.texi \
 	c-i370.texi \
@@ -310,32 +287,23 @@ CPU_DOCS = \
 	c-m32r.texi \
 	c-m68hc11.texi \
 	c-m68k.texi \
-	c-metag.texi \
 	c-microblaze.texi \
 	c-mips.texi \
 	c-mmix.texi \
 	c-mt.texi \
 	c-msp430.texi \
-	c-nios2.texi \
 	c-ns32k.texi \
 	c-pdp11.texi \
 	c-pj.texi \
 	c-ppc.texi \
-	c-rl78.texi \
-	c-rx.texi \
 	c-s390.texi \
 	c-score.texi \
 	c-sh.texi \
 	c-sh64.texi \
 	c-sparc.texi \
         c-tic54x.texi \
-        c-tic6x.texi \
-	c-tilegx.texi \
-	c-tilepro.texi \
 	c-vax.texi \
 	c-v850.texi \
-	c-xgate.texi \
-	c-xstormy16.texi \
 	c-xtensa.texi \
 	c-z80.texi \
 	c-z8k.texi

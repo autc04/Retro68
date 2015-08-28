@@ -84,31 +84,6 @@ bfd_core_file_failing_signal (bfd *abfd)
 
 /*
 FUNCTION
-	bfd_core_file_pid
-
-SYNOPSIS
-	int bfd_core_file_pid (bfd *abfd);
-
-DESCRIPTION
-
-	Returns the PID of the process the core dump the BFD
-	@var{abfd} is attached to was generated from.
-*/
-
-int
-bfd_core_file_pid (bfd *abfd)
-{
-  if (abfd->format != bfd_core)
-    {
-      bfd_set_error (bfd_error_invalid_operation);
-      return 0;
-    }
-  return BFD_SEND (abfd, _core_file_pid, (abfd));
-}
-
-
-/*
-FUNCTION
 	core_file_matches_executable_p
 
 SYNOPSIS
@@ -169,7 +144,7 @@ generic_core_file_matches_executable_p (bfd *core_bfd, bfd *exec_bfd)
      of the const char * returned by bfd_core_file_failing_command to a
      non-const char *.  In this case, the assignement does not lead to
      breaking the const, as we're only reading the string.  */
-
+     
   core = (char *) bfd_core_file_failing_command (core_bfd);
   if (core == NULL)
     return TRUE;
@@ -185,7 +160,7 @@ generic_core_file_matches_executable_p (bfd *core_bfd, bfd *exec_bfd)
   last_slash = strrchr (exec, '/');
   if (last_slash != NULL)
     exec = last_slash + 1;
-
-  return filename_cmp (exec, core) == 0;
+  
+  return strcmp (exec, core) == 0;
 }
 

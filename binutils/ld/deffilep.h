@@ -64,9 +64,8 @@
      NONAMEU = 280,
      NONAMEL = 281,
      DIRECTIVE = 282,
-     EQUAL = 283,
-     ID = 284,
-     DIGITS = 285
+     ID = 283,
+     DIGITS = 284
    };
 #endif
 /* Tokens.  */
@@ -95,25 +94,22 @@
 #define NONAMEU 280
 #define NONAMEL 281
 #define DIRECTIVE 282
-#define EQUAL 283
-#define ID 284
-#define DIGITS 285
+#define ID 283
+#define DIGITS 284
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 114 "deffilep.y"
+#line 103 "deffilep.y"
 {
   char *id;
-  const char *id_const;
   int number;
-  bfd_vma vma;
   char *digits;
 }
 /* Line 1529 of yacc.c.  */
-#line 117 "deffilep.h"
+#line 113 "deffilep.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

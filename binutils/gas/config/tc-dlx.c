@@ -1,5 +1,5 @@
-/* tc-dlx.c -- Assemble for the DLX
-   Copyright 2002, 2003, 2004, 2005, 2007, 2009, 2010, 2012
+/* tc-ldx.c -- Assemble for the DLX
+   Copyright 2002, 2003, 2004, 2005, 2007, 2009
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,8 +21,8 @@
 
 /* Initially created by Kuang Hwa Lin, 3/20/2002.  */
 
-#include "as.h"
 #include "safe-ctype.h"
+#include "as.h"
 #include "tc-dlx.h"
 #include "opcode/dlx.h"
 
@@ -245,12 +245,7 @@ s_proc (int end_p)
 	  /* Missing entry point, use function's name with the leading
 	     char prepended.  */
 	  if (leading_char)
-	    {
-	      unsigned len = strlen (name) + 1;
-	      label = xmalloc (len + 1);
-	      label[0] = leading_char;
-	      memcpy (label + 1, name, len);
-	    }
+	    asprintf (&label, "%c%s", leading_char, name);
 	  else
 	    label = name;
 	}
@@ -662,6 +657,7 @@ machine_ip (char *str)
   char *s;
   const char *args;
   struct machine_opcode *insn;
+  char *argsStart;
   unsigned long opcode;
   expressionS the_operand;
   expressionS *operand = &the_operand;
@@ -710,6 +706,7 @@ machine_ip (char *str)
       return;
     }
 
+  argsStart = s;
   opcode = insn->opcode;
   memset (&the_insn, '\0', sizeof (the_insn));
   the_insn.reloc = NO_RELOC;

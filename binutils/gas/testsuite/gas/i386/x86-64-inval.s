@@ -1,5 +1,4 @@
 	.text
-	.allow_index_reg
 # All the following should be illegal for x86-64
         aaa		# illegal
         aad		# illegal
@@ -63,22 +62,6 @@ foo:	jcxz foo	# No prefix exists to select CX as a counter
 movzxl (%rax),%rax
 movnti %ax, (%rax)
 movntiw %ax, (%rax)
-
-mov 0x80000000(%rax),%ebx
-mov 0x80000000,%ebx
-
-	add (%rip,%rsi), %eax
-	add (%rsi,%rip), %eax
-	add (,%rip), %eax
-	add (%eip,%esi), %eax
-	add (%esi,%eip), %eax
-	add (,%eip), %eax
-	add (%rsi,%esi), %eax
-	add (%esi,%rsi), %eax
-	add (%eiz), %eax
-	add (%riz), %eax
-	add (%rax), %riz
-	add (%rax), %eiz
 
 	.intel_syntax noprefix
 	cmpxchg16b dword ptr [rax] # Must be oword

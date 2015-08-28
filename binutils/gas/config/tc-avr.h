@@ -125,9 +125,9 @@ extern long md_pcrel_from_section (struct fix *, segT);
 /* We don't want gas to fixup the following program memory related relocations.
    We will need them in case that we want to do linker relaxation.
    We could in principle keep these fixups in gas when not relaxing.
-   However, there is no serious performance penalty when making the linker
+   However, there is no serious performance penilty when making the linker
    make the fixup work.  Check also that fx_addsy is not NULL, in order to make
-   sure that the fixup refers to some sort of label.  */
+   sure that the fixup refers to some sort of lable.  */
 #define TC_VALIDATE_FIX(FIXP,SEG,SKIP)                       \
   if (   (FIXP->fx_r_type == BFD_RELOC_AVR_7_PCREL           \
        || FIXP->fx_r_type == BFD_RELOC_AVR_13_PCREL          \
@@ -139,35 +139,11 @@ extern long md_pcrel_from_section (struct fix *, segT);
        || FIXP->fx_r_type == BFD_RELOC_AVR_LO8_LDI_PM_NEG    \
        || FIXP->fx_r_type == BFD_RELOC_AVR_HI8_LDI_PM_NEG    \
        || FIXP->fx_r_type == BFD_RELOC_AVR_HH8_LDI_PM_NEG    \
-       || FIXP->fx_r_type == BFD_RELOC_AVR_8_LO              \
-       || FIXP->fx_r_type == BFD_RELOC_AVR_8_HI              \
-       || FIXP->fx_r_type == BFD_RELOC_AVR_8_HLO             \
        || FIXP->fx_r_type == BFD_RELOC_AVR_16_PM)            \
-      && FIXP->fx_addsy != NULL				     \
-      && FIXP->fx_subsy == NULL)			     \
-    {							     \
-      symbol_mark_used_in_reloc (FIXP->fx_addsy);	     \
-      goto SKIP;					     \
-    }
+      && (FIXP->fx_addsy))			             \
+    {                                                        \
+      goto SKIP;                                             \
+   }
 
 /* This target is buggy, and sets fix size too large.  */
 #define TC_FX_SIZE_SLACK(FIX) 2
-
-/* AVR instructions are 2 or 4 bytes long.  */
-#define DWARF2_LINE_MIN_INSN_LENGTH 	2
-
-/* 32 bits pseudo-addresses are used on AVR.  */
-#define DWARF2_ADDR_SIZE(bfd) 4
-
-/* Enable cfi directives.  */
-#define TARGET_USE_CFIPOP 1
-
-/* The stack grows down, and is only byte aligned.  */
-#define DWARF2_CIE_DATA_ALIGNMENT -1
-
-/* Define the column that represents the PC.  */
-#define DWARF2_DEFAULT_RETURN_COLUMN  36
-
-/* Define a hook to setup initial CFI state.  */
-extern void tc_cfi_frame_initial_instructions (void);
-#define tc_cfi_frame_initial_instructions tc_cfi_frame_initial_instructions

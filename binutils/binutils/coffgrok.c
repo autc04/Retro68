@@ -1,6 +1,6 @@
 /* coffgrok.c
-   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007, 2009  Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -96,11 +96,10 @@ empty_symbol (void)
 
 /*int l;*/
 static void
-push_scope (int slink)
+push_scope (int link)
 {
   struct coff_scope *n = empty_scope ();
-
-  if (slink)
+  if (link)
     {
       if (top_scope)
 	{
@@ -736,7 +735,7 @@ coff_grok (bfd *inabfd)
   if (symcount < 0)
     bfd_fatal (abfd->filename);
   rawsyms = obj_raw_syments (abfd);
-  rawcount = obj_raw_syment_count (abfd);
+  rawcount = obj_raw_syment_count (abfd);;
   tindex = (struct coff_symbol **) (xcalloc (sizeof (struct coff_symbol *), rawcount));
 
   p = doit ();

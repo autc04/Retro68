@@ -6,6 +6,7 @@ text_label:
 	# It used to be disabled due to a clash with lwc3.
 	pref	4,0($4)
 
-# Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
-	.align	2
-	.space	8
+# Round to a 16 byte boundary, for ease in testing multiple targets.
+	nop
+	nop
+	nop

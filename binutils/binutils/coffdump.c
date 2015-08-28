@@ -1,6 +1,6 @@
 /* Coff file dumper.
-   Copyright 1994, 1995, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007,
-   2011 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -27,7 +27,6 @@
 
 #include "sysdep.h"
 #include "bfd.h"
-#include "bfd_stdint.h"
 #include "libiberty.h"
 #include "bucomm.h"
 
@@ -127,56 +126,56 @@ static void
 dump_coff_type (struct coff_type *p)
 {
   tab (1);
-  printf (_("size %d "), p->size);
+  printf ("size %d ", p->size);
 
   switch (p->type)
     {
     case coff_secdef_type:
-      printf (_("section definition at %x size %x\n"),
+      printf ("section definition at %x size %x\n",
 	      p->u.asecdef.address,
 	      p->u.asecdef.size);
       nl ();
       break;
     case coff_pointer_type:
-      printf (_("pointer to"));
+      printf ("pointer to");
       nl ();
       dump_coff_type (p->u.pointer.points_to);
       break;
     case coff_array_type:
-      printf (_("array [%d] of"), p->u.array.dim);
+      printf ("array [%d] of", p->u.array.dim);
       nl ();
       dump_coff_type (p->u.array.array_of);
       break;
     case coff_function_type:
-      printf (_("function returning"));
+      printf ("function returning");
       nl ();
       dump_coff_type (p->u.function.function_returns);
       dump_coff_lines (p->u.function.lines);
-      printf (_("arguments"));
+      printf ("arguments");
       nl ();
       dump_coff_scope (p->u.function.parameters);
       tab (0);
-      printf (_("code"));
+      printf ("code");
       nl ();
       dump_coff_scope (p->u.function.code);
       tab(0);
       break;
     case coff_structdef_type:
-      printf (_("structure definition"));
+      printf ("structure definition");
       nl ();
       dump_coff_scope (p->u.astructdef.elements);
       break;
     case coff_structref_type:
       if (!p->u.aenumref.ref)
-	printf (_("structure ref to UNKNOWN struct"));
+	printf ("structure ref to UNKNOWN struct");
       else
-	printf (_("structure ref to %s"), p->u.aenumref.ref->name);
+	printf ("structure ref to %s", p->u.aenumref.ref->name);
       break;
     case coff_enumref_type:
-      printf (_("enum ref to %s"), p->u.astructref.ref->name);
+      printf ("enum ref to %s", p->u.astructref.ref->name);
       break;
     case coff_enumdef_type:
-      printf (_("enum definition"));
+      printf ("enum definition");
       nl ();
       dump_coff_scope (p->u.aenumdef.elements);
       break;
@@ -249,22 +248,22 @@ dump_coff_where (struct coff_where *p)
   switch (p->where)
     {
     case coff_where_stack:
-      printf (_("Stack offset %x"), p->offset);
+      printf ("Stack offset %x", p->offset);
       break;
     case coff_where_memory:
-      printf (_("Memory section %s+%x"), p->section->name, p->offset);
+      printf ("Memory section %s+%x", p->section->name, p->offset);
       break;
     case coff_where_register:
-      printf (_("Register %d"), p->offset);
+      printf ("Register %d", p->offset);
       break;
     case coff_where_member_of_struct:
-      printf (_("Struct Member offset %x"), p->offset);
+      printf ("Struct Member offset %x", p->offset);
       break;
     case coff_where_member_of_enum:
-      printf (_("Enum Member offset %x"), p->offset);
+      printf ("Enum Member offset %x", p->offset);
       break;
     case coff_where_unknown:
-      printf (_("Undefined symbol"));
+      printf ("Undefined symbol");
       break;
     case coff_where_strtag:
       printf ("STRTAG");
@@ -331,27 +330,27 @@ static void
 dump_coff_symbol (struct coff_symbol *p)
 {
   tab (1);
-  printf (_("List of symbols"));
+  printf ("List of symbols");
   nl ();
 
   while (p)
     {
       tab (1);
       tab (1);
-      printf (_("Symbol  %s, tag %d, number %d"), p->name, p->tag, p->number);
+      printf ("Symbol  %s, tag %d, number %d", p->name, p->tag, p->number);
       nl ();
       tab (-1);
       tab (1);
-      printf (_("Type"));
+      printf ("Type");
       nl ();
       dump_coff_type (p->type);
       tab (-1);
       tab (1);
-      printf (_("Where"));
+      printf ("Where");
       dump_coff_where (p->where);
       tab (-1);
       tab (1);
-      printf (_("Visible"));
+      printf ("Visible");
       dump_coff_visible (p->visible);
       tab (-1);
       p = p->next;
@@ -366,8 +365,7 @@ dump_coff_scope (struct coff_scope *p)
   if (p)
     {
       tab (1);
-      printf ("%s %" BFD_VMA_FMT "x ",
-	      _("List of blocks "), (bfd_vma) (uintptr_t) p);
+      printf ("List of blocks %lx ",(unsigned long) p);
 
       if (p->sec)
 	printf( "  %s %x..%x",  p->sec->name,p->offset, p->offset + p->size -1);
@@ -380,10 +378,10 @@ dump_coff_scope (struct coff_scope *p)
       while (p)
 	{
 	  tab (0);
-	  printf (_("vars %d"), p->nvars);
+	  printf ("vars %d", p->nvars);
 	  nl ();
 	  dump_coff_symbol (p->vars_head);
-	  printf (_("blocks"));
+	  printf ("blocks");
 	  nl ();
 	  dump_coff_scope (p->list_head);
 	  nl ();
@@ -401,13 +399,13 @@ static void
 dump_coff_sfile (struct coff_sfile *p)
 {
   tab (1);
-  printf (_("List of source files"));
+  printf ("List of source files");
   nl ();
 
   while (p)
     {
       tab (0);
-      printf (_("Source file %s"), p->name);
+      printf ("Source file %s", p->name);
       nl ();
       dump_coff_scope (p->scope);
       p = p->next;
@@ -421,7 +419,7 @@ dump_coff_section (struct coff_section *ptr)
   int i;
 
   tab (1);
-  printf (_("section %s %d %d address %x size %x number %d nrelocs %d"),
+  printf ("section %s %d %d address %x size %x number %d nrelocs %d",
 	  ptr->name, ptr->code, ptr->data, ptr->address,ptr->size,
 	  ptr->number, ptr->nrelocs);
   nl ();
@@ -446,7 +444,7 @@ coff_dump (struct coff_ofile *ptr)
 
   printf ("Coff dump");
   nl ();
-  printf (_("#sources %d"), ptr->nsources);
+  printf ("#souces %d", ptr->nsources);
   nl ();
   dump_coff_sfile (ptr->source_head);
 
@@ -460,7 +458,7 @@ static void
 show_usage (FILE *file, int status)
 {
   fprintf (file, _("Usage: %s [option(s)] in-file\n"), program_name);
-  fprintf (file, _(" Print a human readable interpretation of a COFF object file\n"));
+  fprintf (file, _(" Print a human readable interpretation of a SYSROFF object file\n"));
   fprintf (file, _(" The options are:\n\
   @<file>                Read options from <file>\n\
   -h --help              Display this information\n\

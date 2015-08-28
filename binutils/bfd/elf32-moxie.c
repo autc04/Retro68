@@ -1,5 +1,5 @@
 /* moxie-specific support for 32-bit ELF.
-   Copyright 2009, 2010, 2012 Free Software Foundation, Inc.
+   Copyright 2009 Free Software Foundation, Inc.
 
    Copied from elf32-fr30.c which is..
    Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
@@ -222,8 +222,10 @@ moxie_elf_relocate_section (bfd *output_bfd,
       int r_type;
 
       r_type = ELF32_R_TYPE (rel->r_info);
+
       r_symndx = ELF32_R_SYM (rel->r_info);
-      howto  = moxie_elf_howto_table + r_type;
+
+      howto  = moxie_elf_howto_table + ELF32_R_TYPE (rel->r_info);
       h      = NULL;
       sym    = NULL;
       sec    = NULL;
@@ -250,9 +252,16 @@ moxie_elf_relocate_section (bfd *output_bfd,
 	  name = h->root.root.string;
 	}
 
-      if (sec != NULL && discarded_section (sec))
-	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
-					 rel, 1, relend, howto, 0, contents);
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
 
       if (info->relocatable)
 	continue;
@@ -356,10 +365,6 @@ moxie_elf_check_relocs (bfd *abfd,
 	  while (h->root.type == bfd_link_hash_indirect
 		 || h->root.type == bfd_link_hash_warning)
 	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
-	  /* PR15323, ref flags aren't set for references in the same
-	     object.  */
-	  h->root.non_ir_ref = 1;
 	}
     }
 
@@ -370,10 +375,8 @@ moxie_elf_check_relocs (bfd *abfd,
 #define ELF_MACHINE_CODE	EM_MOXIE
 #define ELF_MAXPAGESIZE		0x1
 
-#define TARGET_BIG_SYM          bfd_elf32_bigmoxie_vec
-#define TARGET_BIG_NAME		"elf32-bigmoxie"
-#define TARGET_LITTLE_SYM       bfd_elf32_littlemoxie_vec
-#define TARGET_LITTLE_NAME	"elf32-littlemoxie"
+#define TARGET_BIG_SYM          bfd_elf32_moxie_vec
+#define TARGET_BIG_NAME		"elf32-moxie"
 
 #define elf_info_to_howto_rel			NULL
 #define elf_info_to_howto			moxie_info_to_howto_rela

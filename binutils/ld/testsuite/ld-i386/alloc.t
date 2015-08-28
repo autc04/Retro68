@@ -1,3 +1,4 @@
+OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
 PHDRS {
  text PT_LOAD FLAGS(5); /* R_E */

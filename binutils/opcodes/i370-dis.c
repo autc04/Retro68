@@ -1,6 +1,5 @@
 /* i370-dis.c -- Disassemble Instruction 370 (ESA/390) instructions
-   Copyright 1994, 2000, 2003, 2005, 2007, 2012
-   Free Software Foundation, Inc.
+   Copyright 1994, 2000, 2003, 2005, 2007  Free Software Foundation, Inc.
    PowerPC version written by Ian Lance Taylor, Cygnus Support
    Rewritten for i370 ESA/390 support by Linas Vepstas <linas@linas.org>
 
@@ -21,8 +20,8 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include <stdio.h>
+#include "sysdep.h"
 #include "dis-asm.h"
 #include "opcode/i370.h"
 

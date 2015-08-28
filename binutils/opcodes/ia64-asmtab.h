@@ -131,7 +131,7 @@ struct ia64_dis_names
      bits.
 
      There is always at least one 1 bit. */
-  unsigned int completer_index ;
+  unsigned int completer_index : 20;
 
   /* The index in the main_table[] array for the instruction. */
   unsigned short insn_index : 11;

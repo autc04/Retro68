@@ -1,6 +1,6 @@
 /* BFD backend for core files which use the ptrace_user structure
    Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2012  Free Software Foundation, Inc.
+   2005, 2006, 2007  Free Software Foundation, Inc.
    The structure of this file is based on trad-core.c written by John Gilmore
    of Cygnus Support.
    Modified to work with the ptrace_user structure by Kevin A. Buettner.
@@ -35,29 +35,30 @@
 #include <sys/ptrace.h>
 
 struct trad_core_struct
-{
-  asection *data_section;
-  asection *stack_section;
-  asection *reg_section;
-  struct ptrace_user u;
-};
+  {
+    asection *data_section;
+    asection *stack_section;
+    asection *reg_section;
+    struct ptrace_user u;
+  };
 
-#define core_upage(bfd)  (&((bfd)->tdata.trad_core_data->u))
-#define core_datasec(bfd)  ((bfd)->tdata.trad_core_data->data_section)
+#define core_upage(bfd) (&((bfd)->tdata.trad_core_data->u))
+#define core_datasec(bfd) ((bfd)->tdata.trad_core_data->data_section)
 #define core_stacksec(bfd) ((bfd)->tdata.trad_core_data->stack_section)
-#define core_regsec(bfd)   ((bfd)->tdata.trad_core_data->reg_section)
+#define core_regsec(bfd) ((bfd)->tdata.trad_core_data->reg_section)
 
 /* forward declarations */
 
-const bfd_target *ptrace_unix_core_file_p (bfd *abfd);
-char * ptrace_unix_core_file_failing_command (bfd *abfd);
-int ptrace_unix_core_file_failing_signal (bfd *abfd);
+const bfd_target *ptrace_unix_core_file_p PARAMS ((bfd *abfd));
+char * ptrace_unix_core_file_failing_command PARAMS ((bfd *abfd));
+int ptrace_unix_core_file_failing_signal PARAMS ((bfd *abfd));
 #define ptrace_unix_core_file_matches_executable_p generic_core_file_matches_executable_p
-#define ptrace_unix_core_file_pid _bfd_nocore_core_file_pid
-static void swap_abort (void);
+static void swap_abort PARAMS ((void));
 
 const bfd_target *
-ptrace_unix_core_file_p (bfd *abfd)
+ptrace_unix_core_file_p (abfd)
+     bfd *abfd;
+
 {
   int val;
   struct ptrace_user u;
@@ -135,10 +136,10 @@ ptrace_unix_core_file_p (bfd *abfd)
 }
 
 char *
-ptrace_unix_core_file_failing_command (bfd *abfd)
+ptrace_unix_core_file_failing_command (abfd)
+     bfd *abfd;
 {
   char *com = abfd->tdata.trad_core_data->u.pt_comm;
-
   if (*com)
     return com;
   else
@@ -146,14 +147,15 @@ ptrace_unix_core_file_failing_command (bfd *abfd)
 }
 
 int
-ptrace_unix_core_file_failing_signal (bfd *abfd)
+ptrace_unix_core_file_failing_signal (abfd)
+     bfd *abfd;
 {
   return abfd->tdata.trad_core_data->u.pt_sigframe.sig_num;
 }
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
 static void
-swap_abort (void)
+swap_abort ()
 {
   abort (); /* This way doesn't require any declaration for ANSI to fuck up */
 }
@@ -212,7 +214,7 @@ const bfd_target ptrace_core_vec =
 
     NULL,
 
-    NULL			/* backend_data */
+    (PTR) 0			/* backend_data */
   };
 
 #endif /* PTRACE_CORE */

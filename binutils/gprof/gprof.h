@@ -29,15 +29,19 @@
 #ifndef gprof_h
 #define gprof_h
 
+#include "gconfig.h"
+
+#undef PACKAGE
+
 /* Include the BFD sysdep.h file.  */
 #include "sysdep.h"
 #include "bfd.h"
 
+/* Undefine the BFD PACKAGE and VERSION macros before including the
+   gprof config.h file.  */
 #undef PACKAGE
-#undef PACKAGE_NAME
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-#undef PACKAGE_VERSION
+#undef VERSION
+
 #include "gconfig.h"
 
 #ifndef MIN

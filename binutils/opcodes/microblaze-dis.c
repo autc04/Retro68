@@ -1,6 +1,6 @@
 /* Disassemble Xilinx microblaze instructions.
 
-   Copyright 2009, 2012 Free Software Foundation, Inc.
+   Copyright 2009 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -24,18 +24,15 @@
 #define STATIC_TABLE
 #define DEFINE_TABLE
 
+#include "microblaze-opc.h"
 #include "dis-asm.h"
 #include <strings.h>
-#include "microblaze-opc.h"
-#include "microblaze-dis.h"
 
 #define get_field_rd(instr)        get_field (instr, RD_MASK, RD_LOW)
 #define get_field_r1(instr)        get_field (instr, RA_MASK, RA_LOW)
 #define get_field_r2(instr)        get_field (instr, RB_MASK, RB_LOW)
 #define get_int_field_imm(instr)   ((instr & IMM_MASK) >> IMM_LOW)
 #define get_int_field_r1(instr)    ((instr & RA_MASK) >> RA_LOW)
-
-
 
 static char *
 get_field (long instr, long mask, unsigned short low)
@@ -62,15 +59,6 @@ get_field_imm5 (long instr)
 
   sprintf (tmpstr, "%d", (short)((instr & IMM5_MASK) >> IMM_LOW));
   return (strdup (tmpstr));
-}
-
-static char *
-get_field_imm5_mbar (long instr)
-{
-  char tmpstr[25];
-
-  sprintf(tmpstr, "%d", (short)((instr & IMM5_MBAR_MASK) >> IMM_MBAR));
-  return(strdup(tmpstr));
 }
 
 static char *
@@ -139,12 +127,6 @@ get_field_special (long instr, struct op_code_struct * op)
     case REG_TLBSX_MASK :
       strcpy (spr, "tlbsx");
       break;
-    case REG_SHR_MASK :
-      strcpy (spr, "shr");
-      break;
-    case REG_SLR_MASK :
-      strcpy (spr, "slr");
-      break;
     default :
       if (((((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask) & 0xE000)
           == REG_PVR_MASK)
@@ -201,7 +183,7 @@ read_insn_microblaze (bfd_vma memaddr,
 int
 print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 {
-  fprintf_ftype       print_func = info->fprintf_func;
+  fprintf_ftype       fprintf = info->fprintf_func;
   void *              stream = info->stream;
   unsigned long       inst, prev_inst;
   struct op_code_struct * op, *pop;
@@ -242,19 +224,19 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
   prev_insn_vma = curr_insn_vma;
 
   if (op->name == NULL)
-    print_func (stream, ".short 0x%04x", (unsigned int) inst);
+    fprintf (stream, ".short 0x%04x", inst);
   else
     {
-      print_func (stream, "%s", op->name);
+      fprintf (stream, "%s", op->name);
 
       switch (op->inst_type)
 	{
         case INST_TYPE_RD_R1_R2:
-          print_func (stream, "\t%s, %s, %s", get_field_rd (inst),
+          fprintf (stream, "\t%s, %s, %s", get_field_rd (inst),
 		   get_field_r1(inst), get_field_r2 (inst));
           break;
         case INST_TYPE_RD_R1_IMM:
-	  print_func (stream, "\t%s, %s, %s", get_field_rd (inst),
+	  fprintf (stream, "\t%s, %s, %s", get_field_rd (inst),
 		   get_field_r1(inst), get_field_imm (inst));
 	  if (info->print_address_func && get_int_field_r1 (inst) == 0
 	      && info->symbol_at_address_func)
@@ -269,37 +251,37 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 	        }
 	      if (immval > 0 && info->symbol_at_address_func (immval, info))
 		{
-	          print_func (stream, "\t// ");
+	          fprintf (stream, "\t// ");
 	          info->print_address_func (immval, info);
 	        }
 	    }
 	  break;
 	case INST_TYPE_RD_R1_IMM5:
-	  print_func (stream, "\t%s, %s, %s", get_field_rd (inst),
+	  fprintf (stream, "\t%s, %s, %s", get_field_rd (inst),
 	           get_field_r1(inst), get_field_imm5 (inst));
 	  break;
 	case INST_TYPE_RD_RFSL:
-	  print_func (stream, "\t%s, %s", get_field_rd (inst), get_field_rfsl (inst));
+	  fprintf (stream, "\t%s, %s", get_field_rd (inst), get_field_rfsl (inst));
 	  break;
 	case INST_TYPE_R1_RFSL:
-	  print_func (stream, "\t%s, %s", get_field_r1 (inst), get_field_rfsl (inst));
+	  fprintf (stream, "\t%s, %s", get_field_r1 (inst), get_field_rfsl (inst));
 	  break;
 	case INST_TYPE_RD_SPECIAL:
-	  print_func (stream, "\t%s, %s", get_field_rd (inst),
+	  fprintf (stream, "\t%s, %s", get_field_rd (inst),
 		   get_field_special (inst, op));
 	  break;
 	case INST_TYPE_SPECIAL_R1:
-	  print_func (stream, "\t%s, %s", get_field_special (inst, op),
+	  fprintf (stream, "\t%s, %s", get_field_special (inst, op),
 		   get_field_r1(inst));
 	  break;
 	case INST_TYPE_RD_R1:
-	  print_func (stream, "\t%s, %s", get_field_rd (inst), get_field_r1 (inst));
+	  fprintf (stream, "\t%s, %s", get_field_rd (inst), get_field_r1 (inst));
 	  break;
 	case INST_TYPE_R1_R2:
-	  print_func (stream, "\t%s, %s", get_field_r1 (inst), get_field_r2 (inst));
+	  fprintf (stream, "\t%s, %s", get_field_r1 (inst), get_field_r2 (inst));
 	  break;
 	case INST_TYPE_R1_IMM:
-	  print_func (stream, "\t%s, %s", get_field_r1 (inst), get_field_imm (inst));
+	  fprintf (stream, "\t%s, %s", get_field_r1 (inst), get_field_imm (inst));
 	  /* The non-pc relative instructions are returns, which shouldn't
 	     have a label printed.  */
 	  if (info->print_address_func && op->inst_offset_type == INST_PC_OFFSET
@@ -316,18 +298,18 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 	      immval += memaddr;
 	      if (immval > 0 && info->symbol_at_address_func (immval, info))
 		{
-	          print_func (stream, "\t// ");
+	          fprintf (stream, "\t// ");
 	          info->print_address_func (immval, info);
 	        }
 	      else
 		{
-	          print_func (stream, "\t\t// ");
-	          print_func (stream, "%x", immval);
+	          fprintf (stream, "\t\t// ");
+	          fprintf (stream, "%x", immval);
 	        }
 	    }
 	  break;
         case INST_TYPE_RD_IMM:
-	  print_func (stream, "\t%s, %s", get_field_rd (inst), get_field_imm (inst));
+	  fprintf (stream, "\t%s, %s", get_field_rd (inst), get_field_imm (inst));
 	  if (info->print_address_func && info->symbol_at_address_func)
 	    {
 	    if (immfound)
@@ -342,13 +324,13 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 	      immval += (int) memaddr;
 	    if (info->symbol_at_address_func (immval, info))
 	      {
-	        print_func (stream, "\t// ");
+	        fprintf (stream, "\t// ");
 	        info->print_address_func (immval, info);
 	      }
 	    }
 	  break;
         case INST_TYPE_IMM:
-	  print_func (stream, "\t%s", get_field_imm (inst));
+	  fprintf (stream, "\t%s", get_field_imm (inst));
 	  if (info->print_address_func && info->symbol_at_address_func
 	      && op->instr != imm)
 	    {
@@ -364,48 +346,41 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 	        immval += (int) memaddr;
 	      if (immval > 0 && info->symbol_at_address_func (immval, info))
 		{
-	          print_func (stream, "\t// ");
+	          fprintf (stream, "\t// ");
 	          info->print_address_func (immval, info);
 	        }
 	      else if (op->inst_offset_type == INST_PC_OFFSET)
 		{
-	          print_func (stream, "\t\t// ");
-	          print_func (stream, "%x", immval);
+	          fprintf (stream, "\t\t// ");
+	          fprintf (stream, "%x", immval);
 	        }
 	    }
 	  break;
         case INST_TYPE_RD_R2:
-	  print_func (stream, "\t%s, %s", get_field_rd (inst), get_field_r2 (inst));
+	  fprintf (stream, "\t%s, %s", get_field_rd (inst), get_field_r2 (inst));
 	  break;
 	case INST_TYPE_R2:
-	  print_func (stream, "\t%s", get_field_r2 (inst));
+	  fprintf (stream, "\t%s", get_field_r2 (inst));
 	  break;
 	case INST_TYPE_R1:
-	  print_func (stream, "\t%s", get_field_r1 (inst));
+	  fprintf (stream, "\t%s", get_field_r1 (inst));
 	  break;
-	case INST_TYPE_R1_R2_SPECIAL:
-	  print_func (stream, "\t%s, %s", get_field_r1 (inst), get_field_r2 (inst));
+	case INST_TYPE_RD_R1_SPECIAL:
+	  fprintf (stream, "\t%s, %s", get_field_rd (inst), get_field_r2 (inst));
 	  break;
 	case INST_TYPE_RD_IMM15:
-	  print_func (stream, "\t%s, %s", get_field_rd (inst), get_field_imm15 (inst));
+	  fprintf (stream, "\t%s, %s", get_field_rd (inst), get_field_imm15 (inst));
 	  break;
-        /* For mbar insn.  */
-        case INST_TYPE_IMM5:
-          print_func (stream, "\t%s", get_field_imm5_mbar (inst));
-          break;
-        /* For mbar 16 or sleep insn.  */
-        case INST_TYPE_NONE:
-          break;
 	/* For tuqula instruction */
 	case INST_TYPE_RD:
-	  print_func (stream, "\t%s", get_field_rd (inst));
+	  fprintf (stream, "\t%s", get_field_rd (inst));
 	  break;
 	case INST_TYPE_RFSL:
-	  print_func (stream, "\t%s", get_field_rfsl (inst));
+	  fprintf (stream, "\t%s", get_field_rfsl (inst));
 	  break;
 	default:
 	  /* If the disassembler lags the instruction set.  */
-	  print_func (stream, "\tundecoded operands, inst is 0x%04x", (unsigned int) inst);
+	  fprintf (stream, "\tundecoded operands, inst is 0x%04x", inst);
 	  break;
 	}
     }
@@ -413,8 +388,8 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
   /* Say how many bytes we consumed.  */
   return 4;
 }
-
-enum microblaze_instr
+#if 0
+static enum microblaze_instr
 get_insn_microblaze (long inst,
   		     bfd_boolean *isunsignedimm,
   		     enum microblaze_instr_type *insn_type,
@@ -439,8 +414,23 @@ get_insn_microblaze (long inst,
     }
 }
 
+short
+get_delay_slots_microblaze (long inst)
+{
+  bfd_boolean isunsignedimm;
+  enum microblaze_instr_type insn_type;
+  enum microblaze_instr op;
+  short delay_slots;
+
+  op = get_insn_microblaze (inst, &isunsignedimm, &insn_type, &delay_slots);
+  if (op == invalid_inst)
+    return 0;
+  else
+    return delay_slots;
+}
+
 enum microblaze_instr
-microblaze_decode_insn (long insn, int *rd, int *ra, int *rb, int *immed)
+microblaze_decode_insn (long insn, int *rd, int *ra, int *rb, int *imm)
 {
   enum microblaze_instr op;
   bfd_boolean t1;
@@ -452,7 +442,7 @@ microblaze_decode_insn (long insn, int *rd, int *ra, int *rb, int *immed)
   *ra = (insn & RA_MASK) >> RA_LOW;
   *rb = (insn & RB_MASK) >> RB_LOW;
   t3 = (insn & IMM_MASK) >> IMM_LOW;
-  *immed = (int) t3;
+  *imm = (int) t3;
   return (op);
 }
 
@@ -534,3 +524,4 @@ microblaze_get_target_address (long inst, bfd_boolean immfound, int immval,
     *targetvalid = FALSE;
   return targetaddr;
 }
+#endif

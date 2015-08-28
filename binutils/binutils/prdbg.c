@@ -1,6 +1,6 @@
 /* prdbg.c -- Print out generic debugging information.
-   Copyright 1995, 1996, 1999, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2011  Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999, 2002, 2003, 2004, 2005, 2006, 2007, 2008
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
    Tags style generation written by Salvador E. Tropea <set@computer.org>.
 
@@ -731,16 +731,10 @@ pr_function_type (void *p, int argcount, bfd_boolean varargs)
       for (i = argcount - 1; i >= 0; i--)
 	{
 	  if (! substitute_type (info, ""))
-	    {
-	      free (arg_types);
-	      return FALSE;
-	    }
+	    return FALSE;
 	  arg_types[i] = pop_type (info);
 	  if (arg_types[i] == NULL)
-	    {
-	      free (arg_types);
-	      return FALSE;
-	    }
+	    return FALSE;
 	  len += strlen (arg_types[i]) + 2;
 	}
       if (varargs)
@@ -958,16 +952,10 @@ pr_method_type (void *p, bfd_boolean domain, int argcount, bfd_boolean varargs)
       for (i = argcount - 1; i >= 0; i--)
 	{
 	  if (! substitute_type (info, ""))
-	    {
-	      free (arg_types);
-	      return FALSE;
-	    }
+	    return FALSE;
 	  arg_types[i] = pop_type (info);
 	  if (arg_types[i] == NULL)
-	    {
-	      free (arg_types);
-	      return FALSE;
-	    }
+	    return FALSE;
 	  len += strlen (arg_types[i]) + 2;
 	}
       if (varargs)
@@ -1959,13 +1947,13 @@ translate_addresses (bfd *abfd, char *addr_hex, FILE *f, asymbol **syms)
 /* Start a new compilation unit.  */
 
 static bfd_boolean
-tg_start_compilation_unit (void * p, const char *fname ATTRIBUTE_UNUSED)
+tg_start_compilation_unit (void * p, const char *filename ATTRIBUTE_UNUSED)
 {
   struct pr_handle *info = (struct pr_handle *) p;
 
   free (info->filename);
   /* Should it be relative? best way to do it here?.  */
-  info->filename = strdup (fname);
+  info->filename = strdup (filename);
 
   return TRUE;
 }
@@ -1973,13 +1961,13 @@ tg_start_compilation_unit (void * p, const char *fname ATTRIBUTE_UNUSED)
 /* Start a source file within a compilation unit.  */
 
 static bfd_boolean
-tg_start_source (void *p, const char *fname)
+tg_start_source (void *p, const char *filename)
 {
   struct pr_handle *info = (struct pr_handle *) p;
 
   free (info->filename);
   /* Should it be relative? best way to do it here?.  */
-  info->filename = strdup (fname);
+  info->filename = strdup (filename);
 
   return TRUE;
 }
@@ -2187,30 +2175,17 @@ tg_class_static_member (void *p, const char *name,
   sprintf (full_name, "%s::%s", info->stack->next->type, name);
 
   if (! substitute_type (info, full_name))
-    {
-      free (full_name);
-      return FALSE;
-    }
+    return FALSE;
 
   if (! prepend_type (info, "static "))
-    {
-      free (full_name);
-      return FALSE;
-    }
+    return FALSE;
 
   t = pop_type (info);
   if (t == NULL)
-    {
-      free (full_name);
-      return FALSE;
-    }
+    return FALSE;
 
   if (! tg_fix_visibility (info, visibility))
-    {
-      free (t);
-      free (full_name);
-      return FALSE;
-    }
+    return FALSE;
 
   fprintf (info->f, "%s\t%s\t0;\"\tkind:x\ttype:%s\tclass:%s\taccess:%s\n",
 	   name, info->filename, t, info->stack->type,
@@ -2320,18 +2295,12 @@ tg_class_method_variant (void *p, const char *physname ATTRIBUTE_UNUSED,
 
   /* Stick the name of the method into its type.  */
   if (! substitute_type (info, method_name))
-    {
-      free (method_name);
-      return FALSE;
-    }
+    return FALSE;
 
   /* Get the type.  */
   method_type = pop_type (info);
   if (method_type == NULL)
-    {
-      free (method_name);
-      return FALSE;
-    }
+    return FALSE;
 
   /* Pull off the context type if there is one.  */
   if (! context)
@@ -2340,21 +2309,12 @@ tg_class_method_variant (void *p, const char *physname ATTRIBUTE_UNUSED,
     {
       context_type = pop_type (info);
       if (context_type == NULL)
-	{
-	  free (method_type);
-	  free (method_name);
-	  return FALSE;
-	}
+	return FALSE;
     }
 
   /* Now the top of the stack is the class.  */
   if (! tg_fix_visibility (info, visibility))
-    {
-      free (method_type);
-      free (method_name);
-      free (context_type);
-      return FALSE;
-    }
+    return FALSE;
 
   fprintf (info->f, "%s\t%s\t0;\"\tkind:p\ttype:%s\tclass:%s\n",
 	   method_name, info->filename, method_type, info->stack->type);
@@ -2400,26 +2360,16 @@ tg_class_static_method_variant (void *p,
   method_name = strdup (info->stack->next->method);
   /* Stick the name of the method into its type.  */
   if (! substitute_type (info, info->stack->next->method))
-    {
-      free (method_name);
-      return FALSE;
-    }
+    return FALSE;
 
   /* Get the type.  */
   method_type = pop_type (info);
   if (method_type == NULL)
-    {
-      free (method_name);
-      return FALSE;
-    }
+    return FALSE;
 
   /* Now the top of the stack is the class.  */
   if (! tg_fix_visibility (info, visibility))
-    {
-      free (method_type);
-      free (method_name);
-      return FALSE;
-    }
+    return FALSE;
 
   fprintf (info->f, "%s\t%s\t0;\"\tkind:p\ttype:%s\tclass:%s\taccess:%s\n",
 	   method_name, info->filename, method_type, info->stack->type,
@@ -2794,7 +2744,7 @@ tg_start_block (void *p, bfd_vma addr)
 /* Write out line number information.  */
 
 static bfd_boolean
-tg_lineno (void *p ATTRIBUTE_UNUSED, const char *fname ATTRIBUTE_UNUSED,
+tg_lineno (void *p ATTRIBUTE_UNUSED, const char *filename ATTRIBUTE_UNUSED,
 	   unsigned long lineno ATTRIBUTE_UNUSED,
 	   bfd_vma addr ATTRIBUTE_UNUSED)
 {

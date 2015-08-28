@@ -15,24 +15,6 @@
 
 @SET_MAKE@
 
-#
-#   Copyright 2012 Free Software Foundation
-#
-# This file is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING3.  If not see
-# <http://www.gnu.org/licenses/>.
-#
-
 
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
@@ -65,11 +47,9 @@ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../bfd/warning.m4 \
 	$(top_srcdir)/../config/depstand.m4 \
 	$(top_srcdir)/../config/gettext-sister.m4 \
-	$(top_srcdir)/../config/largefile.m4 \
 	$(top_srcdir)/../config/lead-dot.m4 \
 	$(top_srcdir)/../config/nls.m4 \
 	$(top_srcdir)/../config/override.m4 \
-	$(top_srcdir)/../config/plugins.m4 \
 	$(top_srcdir)/../config/po.m4 \
 	$(top_srcdir)/../config/progtest.m4 \
 	$(top_srcdir)/../libtool.m4 $(top_srcdir)/../ltoptions.m4 \
@@ -92,8 +72,7 @@ am__objects_1 = basic_blocks.$(OBJEXT) call_graph.$(OBJEXT) \
 	hertz.$(OBJEXT) hist.$(OBJEXT) source.$(OBJEXT) \
 	search_list.$(OBJEXT) symtab.$(OBJEXT) sym_ids.$(OBJEXT) \
 	utils.$(OBJEXT) i386.$(OBJEXT) alpha.$(OBJEXT) vax.$(OBJEXT) \
-	tahoe.$(OBJEXT) sparc.$(OBJEXT) mips.$(OBJEXT) \
-	aarch64.$(OBJEXT)
+	tahoe.$(OBJEXT) sparc.$(OBJEXT) mips.$(OBJEXT)
 am_gprof_OBJECTS = $(am__objects_1) flat_bl.$(OBJEXT) \
 	bsd_callg_bl.$(OBJEXT) fsf_callg_bl.$(OBJEXT)
 gprof_OBJECTS = $(am_gprof_OBJECTS)
@@ -113,7 +92,7 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(gprof_SOURCES)
 INFO_DEPS = gprof.info
-am__TEXINFO_TEX_DIR = $(srcdir)/../texinfo
+am__TEXINFO_TEX_DIR = $(srcdir)/$(top_srcdir)/../texinfo
 DVIS = gprof.dvi
 PDFS = gprof.pdf
 PSS = gprof.ps
@@ -275,6 +254,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -296,7 +276,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = 1.11 foreign no-dist no-texinfo.tex
 ACLOCAL_AMFLAGS = -I .. -I ../config -I ../bfd
-TEXINFO_TEX = ../texinfo/texinfo.tex
+TEXINFO_TEX = $(top_srcdir)/../texinfo/texinfo.tex
 SUFFIXES = .m
 SUBDIRS = po
 BASEDIR = $(srcdir)/..
@@ -310,7 +290,7 @@ AM_CPPFLAGS = -DDEBUG -I../bfd -I$(srcdir)/../include \
 sources = basic_blocks.c call_graph.c cg_arcs.c cg_dfn.c \
 	cg_print.c corefile.c gmon_io.c gprof.c hertz.c hist.c source.c \
 	search_list.c symtab.c sym_ids.c utils.c \
-	i386.c alpha.c vax.c tahoe.c sparc.c mips.c aarch64.c
+	i386.c alpha.c vax.c tahoe.c sparc.c mips.c
 
 gprof_SOURCES = $(sources) flat_bl.c bsd_callg_bl.c fsf_callg_bl.c
 gprof_DEPENDENCIES = ../bfd/libbfd.la ../libiberty/libiberty.a $(LIBINTL_DEP)
@@ -322,10 +302,6 @@ noinst_HEADERS = \
 
 BUILT_SOURCES = flat_bl.c bsd_callg_bl.c fsf_callg_bl.c
 EXTRA_DIST = $(BUILT_SOURCES) bbconv.pl $(man_MANS)
-
-# We extract version from bfd/configure.in, make sure to rerun configure
-# when BFD's version changes.
-CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/configure.in
 POTFILES = $(sources) $(noinst_HEADERS)
 MANCONF = -Dman
 TEXI2POD = perl $(srcdir)/../etc/texi2pod.pl $(AM_MAKEINFOFLAGS)
@@ -452,7 +428,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aarch64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/alpha.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basic_blocks.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsd_callg_bl.Po@am__quote@

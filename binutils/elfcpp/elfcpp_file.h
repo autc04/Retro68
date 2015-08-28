@@ -60,8 +60,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "elfcpp.h"
-
 namespace elfcpp
 {
 

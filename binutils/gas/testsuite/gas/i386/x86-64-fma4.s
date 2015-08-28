@@ -8,8 +8,6 @@ _start:
 	vfmaddpd (%rcx),%ymm6,%ymm2,%ymm7
 	vfmaddps %ymm4,%ymm6,%ymm2,%ymm7
 	vfmaddps (%rcx),%ymm6,%ymm2,%ymm7
-	vfmaddps %xmm4,0x01(%rdx,%rbx,8),%xmm7,%xmm11
-	vfmaddps %xmm8,0x80(%rcx,%rax,4),%xmm6,%xmm4
 	vfmaddsubpd %ymm4,%ymm6,%ymm2,%ymm7
 	vfmaddsubpd (%rcx),%ymm6,%ymm2,%ymm7
 	vfmaddsubps %ymm4,%ymm6,%ymm2,%ymm7
@@ -63,7 +61,4 @@ _start:
 	vfnmaddss %xmm4,(%rcx),%xmm2,%xmm7
 	vfnmsubss %xmm4,%xmm6,%xmm2,%xmm7
 	vfnmsubss (%rcx),%xmm6,%xmm2,%xmm7
-	vfmaddpd (%r13,%rcx),%xmm11,%xmm3,%xmm4
-	vfmaddpd 0xbe(%r9,%rax,8),%xmm9,%xmm1,%xmm7
-	vfmsubpd (%r13,%rcx),%xmm11,%xmm3,%xmm4
 

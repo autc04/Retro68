@@ -5,7 +5,7 @@ File Attributes
   Tag_CPU_arch: v5T
   Tag_ARM_ISA_use: Yes
   Tag_THUMB_ISA_use: Thumb-2
-  Tag_FP_arch: VFPv3
+  Tag_VFP_arch: VFPv3
   Tag_WMMX_arch: WMMXv2
   Tag_Advanced_SIMD_arch: NEONv1
   Tag_PCS_config: Linux application
@@ -19,14 +19,13 @@ File Attributes
   Tag_ABI_FP_exceptions: Needed
   Tag_ABI_FP_user_exceptions: Needed
   Tag_ABI_FP_number_model: IEEE 754
-  Tag_ABI_align_needed: 8-byte
-  Tag_ABI_align_preserved: 8-byte, except leaf SP
+  Tag_ABI_align8_needed: Yes
+  Tag_ABI_align8_preserved: Yes, except leaf SP
   Tag_ABI_enum_size: small
   Tag_ABI_HardFP_use: SP and DP
   Tag_ABI_VFP_args: VFP registers
   Tag_CPU_unaligned_access: v6
-  Tag_FP_HP_extension: Allowed
-  Tag_MPextension_use: Allowed
-  Tag_DIV_use: Not allowed
+  Tag_VFP_HP_extension: Allowed
   Tag_T2EE_use: Allowed
-  Tag_Virtualization_use: TrustZone
+  Tag_Virtualization_use: Allowed
+  Tag_MPextension_use: Allowed

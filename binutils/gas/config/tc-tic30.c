@@ -34,7 +34,7 @@
 static char operand_special_chars[] = "%$-+(,)*._~/<>&^!:[@]";
 static char *ordinal_names[] =
 {
-  N_("first"), N_("second"), N_("third"), N_("fourth"), N_("fifth")
+  "first", "second", "third", "fourth", "fifth"
 };
 
 const char comment_chars[]        = ";";
@@ -327,19 +327,19 @@ tic30_find_parallel_insn (char *current_line, char *next_line)
 
   {
     int i;
-    char *op, *operands, *line;
+    char *opcode, *operands, *line;
 
     for (i = 0; i < 2; i++)
       {
 	if (i == 0)
 	  {
-	    op = &first_opcode[0];
+	    opcode = &first_opcode[0];
 	    operands = &first_operands[0];
 	    line = current_line;
 	  }
 	else
 	  {
-	    op = &second_opcode[0];
+	    opcode = &second_opcode[0];
 	    operands = &second_operands[0];
 	    line = next_line;
 	  }
@@ -353,14 +353,14 @@ tic30_find_parallel_insn (char *current_line, char *next_line)
 	    {
 	      if (is_opcode_char (c) && search_status == NONE)
 		{
-		  op[char_ptr++] = TOLOWER (c);
+		  opcode[char_ptr++] = TOLOWER (c);
 		  search_status = START_OPCODE;
 		}
 	      else if (is_opcode_char (c) && search_status == START_OPCODE)
-		op[char_ptr++] = TOLOWER (c);
+		opcode[char_ptr++] = TOLOWER (c);
 	      else if (!is_opcode_char (c) && search_status == START_OPCODE)
 		{
-		  op[char_ptr] = '\0';
+		  opcode[char_ptr] = '\0';
 		  char_ptr = 0;
 		  search_status = END_OPCODE;
 		}
@@ -620,6 +620,8 @@ tic30_operand (char *token)
 	    }
 	  else
 	    {
+	      unsigned count;
+
 	      debug ("Found a number or displacement\n");
 	      for (count = 0; count < strlen (token); count++)
 		if (*(token + count) == '.')
@@ -1305,42 +1307,42 @@ md_atof (int what_statement_type,
 	}
       if (prec == 2)
 	{
-	  long expon, mantis;
+	  long exp, mant;
 
 	  if (tmsfloat == 0x80000000)
 	    value = 0x8000;
 	  else
 	    {
 	      value = 0;
-	      expon = (tmsfloat & 0xFF000000);
-	      expon >>= 24;
-	      mantis = tmsfloat & 0x007FFFFF;
+	      exp = (tmsfloat & 0xFF000000);
+	      exp >>= 24;
+	      mant = tmsfloat & 0x007FFFFF;
 	      if (tmsfloat & 0x00800000)
 		{
-		  mantis |= 0xFF000000;
-		  mantis += 0x00000800;
-		  mantis >>= 12;
-		  mantis |= 0x00000800;
-		  mantis &= 0x0FFF;
-		  if (expon > 7)
+		  mant |= 0xFF000000;
+		  mant += 0x00000800;
+		  mant >>= 12;
+		  mant |= 0x00000800;
+		  mant &= 0x0FFF;
+		  if (exp > 7)
 		    value = 0x7800;
 		}
 	      else
 		{
-		  mantis |= 0x00800000;
-		  mantis += 0x00000800;
-		  expon += (mantis >> 24);
-		  mantis >>= 12;
-		  mantis &= 0x07FF;
-		  if (expon > 7)
+		  mant |= 0x00800000;
+		  mant += 0x00000800;
+		  exp += (mant >> 24);
+		  mant >>= 12;
+		  mant &= 0x07FF;
+		  if (exp > 7)
 		    value = 0x77FF;
 		}
-	      if (expon < -8)
+	      if (exp < -8)
 		value = 0x8000;
 	      if (value == 0)
 		{
-		  mantis = (expon << 12) | mantis;
-		  value = mantis & 0xFFFF;
+		  mant = (exp << 12) | mant;
+		  value = mant & 0xFFFF;
 		}
 	    }
 	}
@@ -1414,7 +1416,7 @@ md_operand (expressionS *expressionP ATTRIBUTE_UNUSED)
 void
 md_assemble (char *line)
 {
-  insn_template *op;
+  insn_template *opcode;
   char *current_posn;
   char *token_start;
   char save_char;
@@ -1462,11 +1464,11 @@ md_assemble (char *line)
     /* Find instruction.  */
     save_char = *current_posn;
     *current_posn = '\0';
-    op = (insn_template *) hash_find (op_hash, token_start);
-    if (op)
+    opcode = (insn_template *) hash_find (op_hash, token_start);
+    if (opcode)
       {
-	debug ("Found instruction %s\n", op->name);
-	insn.tm = op;
+	debug ("Found instruction %s\n", opcode->name);
+	insn.tm = opcode;
       }
     else
       {

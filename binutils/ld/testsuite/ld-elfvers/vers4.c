@@ -5,7 +5,6 @@
  * -export-dynamic.
  */
 #include <stdio.h>
-#include "vers.h"
 
 extern int foo ();
 
@@ -22,7 +21,7 @@ new_foo()
 
 }
 
-SYMVER(new_foo, foo@@VERS_2.0);
+__asm__(".symver new_foo,foo@@VERS_2.0");
 
 int
 main()

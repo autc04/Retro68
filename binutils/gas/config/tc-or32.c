@@ -1,5 +1,5 @@
 /* Assembly backend for the OpenRISC 1000.
-   Copyright (C) 2002, 2003, 2005, 2007, 2009, 2010, 2012
+   Copyright (C) 2002, 2003, 2005, 2007, 2009
    Free Software Foundation, Inc.
    Contributed by Damjan Lampret <lampret@opencores.org>.
    Modified bu Johan Rydberg, <johan.rydberg@netinsight.se>.
@@ -24,8 +24,8 @@
 
 /* tc-a29k.c used as a template.  */
 
-#include "as.h"
 #include "safe-ctype.h"
+#include "as.h"
 #include "opcode/or32.h"
 #include "elf/or32.h"
 
@@ -333,6 +333,7 @@ machine_ip (char *str)
   char *s;
   const char *args;
   const struct machine_opcode *insn;
+  char *argsStart;
   unsigned long opcode;
   expressionS the_operand;
   expressionS *operand = &the_operand;
@@ -368,6 +369,7 @@ machine_ip (char *str)
       return;
     }
 
+  argsStart = s;
   opcode = 0;
   memset (&the_insn, '\0', sizeof (the_insn));
   the_insn.reloc = BFD_RELOC_NONE;

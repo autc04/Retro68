@@ -136,11 +136,6 @@ typedef struct expressionS {
      when performing arithmetic on these values).
      FIXME: This field is not set very reliably.  */
   unsigned int X_unsigned : 1;
-  /* This is used to implement "word size + 1 bit" arithmetic, so that e.g.
-     expressions used with .sleb128 directives can use the full range available
-     for an unsigned word, but can also properly represent all values of a
-     signed word.  */
-  unsigned int X_extrabit : 1;
 
   /* 7 additional bits can be defined if needed.  */
 
@@ -175,13 +170,10 @@ extern char get_symbol_end (void);
 extern void expr_begin (void);
 extern void expr_set_precedence (void);
 extern void expr_set_rank (operatorT, operator_rankT);
-extern void add_to_result (expressionS *, offsetT, int);
-extern void subtract_from_result (expressionS *, offsetT, int);
 extern segT expr (int, expressionS *, enum expr_mode);
 extern unsigned int get_single_number (void);
 extern symbolS *make_expr_symbol (expressionS * expressionP);
 extern int expr_symbol_where (symbolS *, char **, unsigned int *);
-extern void current_location (expressionS *);
 
 extern symbolS *expr_build_uconstant (offsetT);
 extern symbolS *expr_build_dot (void);

@@ -4,5 +4,5 @@ SECTIONS
   .data : { *(.data) }
   .bss : { *(.bss) *(COMMON) }
   .note : { *(.note) }
-  /DISCARD/ : { *(.reginfo) *(.trampolines) }
+  .reginfo : { *(.reginfo) }
 }

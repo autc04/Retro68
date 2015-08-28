@@ -1,20 +1,3 @@
-# Copyright 2012
-# Free Software Foundation, Inc.
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
-
 # Some generic SPARC and SPARC64 tests
 
 # FIXME: The tests here aren't really bullet proof.  A mistake in the opcode
@@ -67,26 +50,12 @@ if [istarget sparc*-*-*] {
 	run_dump_test "plt64"
 	run_dump_test "gotop64"
     }
-    run_dump_test "imm-plus-rreg"
-    run_dump_test "ticc-imm-reg"
-    run_dump_test "v8-movwr-imm"
-    run_dump_test "save-args"
     run_dump_test "v9branch1"
     run_dump_test "v9branch2"
     run_dump_test "v9branch3"
     run_dump_test "v9branch4"
     run_dump_test "v9branch5"
     run_dump_test "pc2210"
-    run_dump_test "hpcvis3"
-    run_dump_test "ima"
-    run_dump_test "crypto"
-    run_dump_test "cbcond"
-    run_dump_test "pause"
-    run_dump_test "cfr"
-    run_dump_test "ldtw_sttw"
-    run_dump_test "ldd_std"
-    run_dump_test "edge"
-    run_dump_test "flush"
 
     run_list_test "pr4587" ""
 }

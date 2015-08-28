@@ -254,7 +254,6 @@ typedef union YYSTYPE
   rc_rcdata_item *rcdata_item;
   rc_fixed_versioninfo *fixver;
   rc_ver_info *verinfo;
-  rc_ver_stringtable *verstringtable;
   rc_ver_stringinfo *verstring;
   rc_ver_varinfo *vervar;
   rc_toolbar_item *toobar_item;
@@ -287,7 +286,7 @@ typedef union YYSTYPE
   } suni;
 }
 /* Line 1529 of yacc.c.  */
-#line 291 "rcparse.h"
+#line 290 "rcparse.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

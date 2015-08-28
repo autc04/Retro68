@@ -1,5 +1,3 @@
-#!/bin/sh
-
 # icf_safe_test.sh -- test --icf=safe
 
 # Copyright 2009 Free Software Foundation, Inc.
@@ -24,8 +22,7 @@
 
 # The goal of this program is to verify if --icf=safe  works as expected.
 # File icf_safe_test.cc is in this test. This program checks if only
-# ctors and dtors are folded, except for x86 (32 and 64 bit), which
-# uses relocation types to detect if function pointers are taken.
+# ctors and dtors are folded.
 
 check_nofold()
 {
@@ -40,34 +37,14 @@ check_nofold()
 
 check_fold()
 {
-    awk "
-BEGIN { discard = 0; }
-/^Discarded input/ { discard = 1; }
-/^Memory map/ { discard = 0; }
-/.*\\.text\\..*($2|$3).*/ { act[discard] = act[discard] \" \" \$0; }
-END {
-      # printf \"kept\" act[0] \"\\nfolded\" act[1] \"\\n\";
-      if (length(act[0]) == 0 || length(act[1]) == 0)
-	{
-	  printf \"Safe Identical Code Folding did not fold $2 and $3\\n\"
-	  exit 1;
-	}
-    }" $1
-}
-
-arch_specific_safe_fold()
-{
-    grep_x86=`grep -q -e "Advanced Micro Devices X86-64" -e "Intel 80386" -e "ARM" -e "TILE" -e "PowerPC" $2`
-    if [ $? -eq 0 ];
+    func_addr_1=`grep $2 $1 | awk '{print $1}'`
+    func_addr_2=`grep $3 $1 | awk '{print $1}'`
+    if [ $func_addr_1 != $func_addr_2 ]
     then
-      check_fold $3 $4 $5
-    else
-      check_nofold $1 $4 $5
+        echo "Safe Identical Code Folding did not fold " $2 "and" $3
+	exit 1
     fi
 }
 
-arch_specific_safe_fold icf_safe_test_1.stdout icf_safe_test_2.stdout \
-  icf_safe_test.map "kept_func_1" "kept_func_2"
-check_fold   icf_safe_test.map "_ZN1AD2Ev" "_ZN1AC2Ev"
-check_nofold icf_safe_test_1.stdout "kept_func_3" "kept_func_1"
-check_nofold icf_safe_test_1.stdout "kept_func_3" "kept_func_2"
+check_nofold icf_safe_test.stdout "kept_func_1" "kept_func_2"
+check_fold   icf_safe_test.stdout "_ZN1AD1Ev" "_ZN1AC1Ev"

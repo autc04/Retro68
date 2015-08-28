@@ -1,6 +1,6 @@
 /* ELF executable support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -87,7 +87,6 @@
 #define elf_core_file_failing_signal	NAME(bfd_elf,core_file_failing_signal)
 #define elf_core_file_matches_executable_p \
   NAME(bfd_elf,core_file_matches_executable_p)
-#define elf_core_file_pid		NAME(bfd_elf,core_file_pid)
 #define elf_object_p			NAME(bfd_elf,object_p)
 #define elf_core_file_p			NAME(bfd_elf,core_file_p)
 #define elf_get_symtab_upper_bound	NAME(bfd_elf,get_symtab_upper_bound)
@@ -198,7 +197,6 @@ elf_swap_symbol_in (bfd *abfd,
     }
   else if (dst->st_shndx >= (SHN_LORESERVE & 0xffff))
     dst->st_shndx += SHN_LORESERVE - (SHN_LORESERVE & 0xffff);
-  dst->st_target_internal = 0;
   return TRUE;
 }
 
@@ -281,10 +279,7 @@ elf_swap_ehdr_out (bfd *abfd,
   H_PUT_32 (abfd, src->e_flags, dst->e_flags);
   H_PUT_16 (abfd, src->e_ehsize, dst->e_ehsize);
   H_PUT_16 (abfd, src->e_phentsize, dst->e_phentsize);
-  tmp = src->e_phnum;
-  if (tmp > PN_XNUM)
-    tmp = PN_XNUM;
-  H_PUT_16 (abfd, tmp, dst->e_phnum);
+  H_PUT_16 (abfd, src->e_phnum, dst->e_phnum);
   H_PUT_16 (abfd, src->e_shentsize, dst->e_shentsize);
   tmp = src->e_shnum;
   if (tmp >= (SHN_LORESERVE & 0xffff))
@@ -495,9 +490,13 @@ elf_object_p (bfd *abfd)
   Elf_Internal_Shdr *i_shdrp;	/* Section header table, internal form */
   unsigned int shindex;
   const struct elf_backend_data *ebd;
+  struct bfd_preserve preserve;
   asection *s;
   bfd_size_type amt;
   const bfd_target *target;
+  const bfd_target * const *target_ptr;
+
+  preserve.marker = NULL;
 
   /* Read in the ELF header in external format.  */
 
@@ -536,6 +535,9 @@ elf_object_p (bfd *abfd)
       goto got_wrong_format_error;
     }
 
+  if (!bfd_preserve_save (abfd, &preserve))
+    goto got_no_match;
+
   target = abfd->xvec;
 
   /* Allocate an instance of the elf_obj_tdata structure and hook it up to
@@ -543,6 +545,7 @@ elf_object_p (bfd *abfd)
 
   if (! (*target->_bfd_set_format[bfd_object]) (abfd))
     goto got_no_match;
+  preserve.marker = elf_tdata (abfd);
 
   /* Now that we know the byte order, swap in the rest of the header */
   i_ehdrp = elf_elfheader (abfd);
@@ -580,9 +583,34 @@ elf_object_p (bfd *abfd)
       && (ebd->elf_machine_alt1 == 0
 	  || i_ehdrp->e_machine != ebd->elf_machine_alt1)
       && (ebd->elf_machine_alt2 == 0
-	  || i_ehdrp->e_machine != ebd->elf_machine_alt2)
-      && ebd->elf_machine_code != EM_NONE)
-    goto got_wrong_format_error;
+	  || i_ehdrp->e_machine != ebd->elf_machine_alt2))
+    {
+      if (ebd->elf_machine_code != EM_NONE)
+	goto got_wrong_format_error;
+
+      /* This is the generic ELF target.  Let it match any ELF target
+	 for which we do not have a specific backend.  */
+      for (target_ptr = bfd_target_vector; *target_ptr != NULL; target_ptr++)
+	{
+	  const struct elf_backend_data *back;
+
+	  if ((*target_ptr)->flavour != bfd_target_elf_flavour)
+	    continue;
+	  back = xvec_get_elf_backend_data (*target_ptr);
+	  if (back->s->arch_size != ARCH_SIZE)
+	    continue;
+	  if (back->elf_machine_code == i_ehdrp->e_machine
+	      || (back->elf_machine_alt1 != 0
+		  && back->elf_machine_alt1 == i_ehdrp->e_machine)
+	      || (back->elf_machine_alt2 != 0
+		  && back->elf_machine_alt2 == i_ehdrp->e_machine))
+	    {
+	      /* target_ptr is an ELF backend which matches this
+		 object file, so reject the generic ELF target.  */
+	      goto got_wrong_format_error;
+	    }
+	}
+    }
 
   if (i_ehdrp->e_type == ET_EXEC)
     abfd->flags |= EXEC_P;
@@ -600,9 +628,43 @@ elf_object_p (bfd *abfd)
     }
 
   if (ebd->elf_machine_code != EM_NONE
-      && i_ehdrp->e_ident[EI_OSABI] != ebd->elf_osabi
-      && ebd->elf_osabi != ELFOSABI_NONE)
-    goto got_wrong_format_error;
+      && i_ehdrp->e_ident[EI_OSABI] != ebd->elf_osabi)
+    {
+      if (ebd->elf_osabi != ELFOSABI_NONE)
+	goto got_wrong_format_error;
+
+      /* This is an ELFOSABI_NONE ELF target.  Let it match any ELF
+	 target of the compatible machine for which we do not have a
+	 backend with matching ELFOSABI.  */
+      for (target_ptr = bfd_target_vector;
+	   *target_ptr != NULL;
+	   target_ptr++)
+	{
+	  const struct elf_backend_data *back;
+
+	  /* Skip this target and targets with incompatible byte
+	     order.  */
+	  if (*target_ptr == target
+	      || (*target_ptr)->flavour != bfd_target_elf_flavour
+	      || (*target_ptr)->byteorder != target->byteorder
+	      || ((*target_ptr)->header_byteorder
+		  != target->header_byteorder))
+	    continue;
+
+	  back = xvec_get_elf_backend_data (*target_ptr);
+	  if (back->elf_osabi == i_ehdrp->e_ident[EI_OSABI]
+	      && (back->elf_machine_code == i_ehdrp->e_machine
+		  || (back->elf_machine_alt1 != 0
+		      && back->elf_machine_alt1 == i_ehdrp->e_machine)
+		  || (back->elf_machine_alt2 != 0
+		      && back->elf_machine_alt2 == i_ehdrp->e_machine)))
+	    {
+	      /* target_ptr is an ELF backend which matches this
+		 object file, so reject the ELFOSABI_NONE ELF target.  */
+	      goto got_wrong_format_error;
+	    }
+	}
+    }
 
   if (i_ehdrp->e_shoff != 0)
     {
@@ -626,9 +688,8 @@ elf_object_p (bfd *abfd)
       if (i_ehdrp->e_shnum == SHN_UNDEF)
 	{
 	  i_ehdrp->e_shnum = i_shdr.sh_size;
-	  if (i_ehdrp->e_shnum >= SHN_LORESERVE
-	      || i_ehdrp->e_shnum != i_shdr.sh_size
-	      || i_ehdrp->e_shnum  == 0)
+	  if (i_ehdrp->e_shnum != i_shdr.sh_size
+	      || i_ehdrp->e_shnum == 0)
 	    goto got_wrong_format_error;
 	}
 
@@ -637,14 +698,6 @@ elf_object_p (bfd *abfd)
 	{
 	  i_ehdrp->e_shstrndx = i_shdr.sh_link;
 	  if (i_ehdrp->e_shstrndx != i_shdr.sh_link)
-	    goto got_wrong_format_error;
-	}
-
-      /* And program headers.  */
-      if (i_ehdrp->e_phnum == PN_XNUM && i_shdr.sh_info != 0)
-	{
-	  i_ehdrp->e_phnum = i_shdr.sh_info;
-	  if (i_ehdrp->e_phnum != i_shdr.sh_info)
 	    goto got_wrong_format_error;
 	}
 
@@ -708,13 +761,10 @@ elf_object_p (bfd *abfd)
 	  /* Sanity check sh_link and sh_info.  */
 	  if (i_shdrp[shindex].sh_link >= num_sec)
 	    {
-	      /* PR 10478: Accept Solaris binaries with a sh_link
+	      /* PR 10478: Accept sparc binaries with a sh_link
 		 field set to SHN_BEFORE or SHN_AFTER.  */
 	      switch (ebd->elf_machine_code)
 		{
-		case EM_386:
-		case EM_486:
-		case EM_X86_64:
 		case EM_OLD_SPARCV9:
 		case EM_SPARC32PLUS:
 		case EM_SPARCV9:
@@ -835,12 +885,25 @@ elf_object_p (bfd *abfd)
 	    s->flags |= SEC_DEBUGGING;
 	}
     }
+
+  bfd_preserve_finish (abfd, &preserve);
   return target;
 
  got_wrong_format_error:
+  /* There is way too much undoing of half-known state here.  The caller,
+     bfd_check_format_matches, really shouldn't iterate on live bfd's to
+     check match/no-match like it does.  We have to rely on that a call to
+     bfd_default_set_arch_mach with the previously known mach, undoes what
+     was done by the first bfd_default_set_arch_mach (with mach 0) here.
+     For this to work, only elf-data and the mach may be changed by the
+     target-specific elf_backend_object_p function.  Note that saving the
+     whole bfd here and restoring it would be even worse; the first thing
+     you notice is that the cached bfd file position gets out of sync.  */
   bfd_set_error (bfd_error_wrong_format);
 
  got_no_match:
+  if (preserve.marker != NULL)
+    bfd_preserve_restore (abfd, &preserve);
   return NULL;
 }
 
@@ -881,9 +944,7 @@ elf_write_relocs (bfd *abfd, asection *sec, void *data)
   if (sec->orelocation == NULL)
     return;
 
-  rela_hdr = elf_section_data (sec)->rela.hdr;
-  if (rela_hdr == NULL)
-    rela_hdr = elf_section_data (sec)->rel.hdr;
+  rela_hdr = &elf_section_data (sec)->rel_hdr;
 
   rela_hdr->sh_size = rela_hdr->sh_entsize * sec->reloc_count;
   rela_hdr->contents = (unsigned char *) bfd_alloc (abfd, rela_hdr->sh_size);
@@ -1008,8 +1069,6 @@ elf_write_shdrs_and_ehdr (bfd *abfd)
 
   /* Some fields in the first section header handle overflow of ehdr
      fields.  */
-  if (i_ehdrp->e_phnum >= PN_XNUM)
-    i_shdrp[0]->sh_info = i_ehdrp->e_phnum;
   if (i_ehdrp->e_shnum >= (SHN_LORESERVE & 0xffff))
     i_shdrp[0]->sh_size = i_ehdrp->e_shnum;
   if (i_ehdrp->e_shstrndx >= (SHN_LORESERVE & 0xffff))
@@ -1071,7 +1130,6 @@ elf_checksum_contents (bfd *abfd,
     {
       Elf_Internal_Shdr i_shdr;
       Elf_External_Shdr x_shdr;
-      bfd_byte *contents, *free_contents;
 
       i_shdr = *i_shdrp[count];
       i_shdr.sh_offset = 0;
@@ -1079,36 +1137,8 @@ elf_checksum_contents (bfd *abfd,
       elf_swap_shdr_out (abfd, &i_shdr, &x_shdr);
       (*process) (&x_shdr, sizeof x_shdr, arg);
 
-      /* Process the section's contents, if it has some.
-	 PR ld/12451: Read them in if necessary.  */
-      if (i_shdr.sh_type == SHT_NOBITS)
-	continue;
-      free_contents = NULL;
-      contents = i_shdr.contents;
-      if (contents == NULL)
-	{
-	  asection *sec;
-
-	  sec = bfd_section_from_elf_index (abfd, count);
-	  if (sec != NULL)
-	    {
-	      contents = sec->contents;
-	      if (contents == NULL)
-		{
-		  /* Force rereading from file.  */
-		  sec->flags &= ~SEC_IN_MEMORY;
-		  if (!bfd_malloc_and_get_section (abfd, sec, &free_contents))
-		    continue;
-		  contents = free_contents;
-		}
-	    }
-	}
-      if (contents != NULL)
-	{
-	  (*process) (contents, i_shdr.sh_size, arg);
-	  if (free_contents != NULL)
-	    free (free_contents);
-	}
+      if (i_shdr.contents)
+	(*process) (i_shdr.contents, i_shdr.sh_size, arg);
     }
 
   return TRUE;
@@ -1152,9 +1182,9 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bfd_boolean dynamic)
 	verhdr = NULL;
       else
 	verhdr = &elf_tdata (abfd)->dynversym_hdr;
-      if ((elf_dynverdef (abfd) != 0
+      if ((elf_tdata (abfd)->dynverdef_section != 0
 	   && elf_tdata (abfd)->verdef == NULL)
-	  || (elf_dynverref (abfd) != 0
+	  || (elf_tdata (abfd)->dynverref_section != 0
 	      && elf_tdata (abfd)->verref == NULL))
 	{
 	  if (!_bfd_elf_slurp_version_tables (abfd, FALSE))
@@ -1232,20 +1262,6 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bfd_boolean dynamic)
 	  else if (isym->st_shndx == SHN_COMMON)
 	    {
 	      sym->symbol.section = bfd_com_section_ptr;
-	      if ((abfd->flags & BFD_PLUGIN) != 0)
-		{
-		  asection *xc = bfd_get_section_by_name (abfd, "COMMON");
-
-		  if (xc == NULL)
-		    {
-		      flagword flags = (SEC_ALLOC | SEC_IS_COMMON | SEC_KEEP
-					| SEC_EXCLUDE);
-		      xc = bfd_make_section_with_flags (abfd, "COMMON", flags);
-		      if (xc == NULL)
-			goto error_return;
-		    }
-		  sym->symbol.section = xc;
-		}
 	      /* Elf puts the alignment into the `value' field, and
 		 the size into the `size' field.  BFD wants to see the
 		 size in the value field, and doesn't care (at the
@@ -1433,14 +1449,14 @@ elf_slurp_reloc_table_from_section (bfd *abfd,
       else
 	relent->address = rela.r_offset - asect->vma;
 
-      if (ELF_R_SYM (rela.r_info) == STN_UNDEF)
+      if (ELF_R_SYM (rela.r_info) == 0)
 	relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
       else if (ELF_R_SYM (rela.r_info) > symcount)
 	{
 	  (*_bfd_error_handler)
 	    (_("%s(%s): relocation %d has invalid symbol index %ld"),
 	     abfd->filename, asect->name, i, ELF_R_SYM (rela.r_info));
-	  relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
+	  relent->sym_ptr_ptr = bfd_abs_section.symbol_ptr_ptr;
 	}
       else
 	{
@@ -1497,13 +1513,13 @@ elf_slurp_reloc_table (bfd *abfd,
 	  || asect->reloc_count == 0)
 	return TRUE;
 
-      rel_hdr = d->rel.hdr;
-      reloc_count = rel_hdr ? NUM_SHDR_ENTRIES (rel_hdr) : 0;
-      rel_hdr2 = d->rela.hdr;
-      reloc_count2 = rel_hdr2 ? NUM_SHDR_ENTRIES (rel_hdr2) : 0;
+      rel_hdr = &d->rel_hdr;
+      reloc_count = NUM_SHDR_ENTRIES (rel_hdr);
+      rel_hdr2 = d->rel_hdr2;
+      reloc_count2 = (rel_hdr2 ? NUM_SHDR_ENTRIES (rel_hdr2) : 0);
 
       BFD_ASSERT (asect->reloc_count == reloc_count + reloc_count2);
-      BFD_ASSERT ((rel_hdr && asect->rel_filepos == rel_hdr->sh_offset)
+      BFD_ASSERT (asect->rel_filepos == rel_hdr->sh_offset
 		  || (rel_hdr2 && asect->rel_filepos == rel_hdr2->sh_offset));
 
     }
@@ -1527,11 +1543,10 @@ elf_slurp_reloc_table (bfd *abfd,
   if (relents == NULL)
     return FALSE;
 
-  if (rel_hdr
-      && !elf_slurp_reloc_table_from_section (abfd, asect,
-					      rel_hdr, reloc_count,
-					      relents,
-					      symbols, dynamic))
+  if (!elf_slurp_reloc_table_from_section (abfd, asect,
+					   rel_hdr, reloc_count,
+					   relents,
+					   symbols, dynamic))
     return FALSE;
 
   if (rel_hdr2
@@ -1605,7 +1620,7 @@ NAME(_bfd_elf,bfd_from_remote_memory)
   (bfd *templ,
    bfd_vma ehdr_vma,
    bfd_vma *loadbasep,
-   int (*target_read_memory) (bfd_vma, bfd_byte *, bfd_size_type))
+   int (*target_read_memory) (bfd_vma, bfd_byte *, int))
 {
   Elf_External_Ehdr x_ehdr;	/* Elf file header, external form */
   Elf_Internal_Ehdr i_ehdr;	/* Elf file header, internal form */
@@ -1810,8 +1825,6 @@ NAME(_bfd_elf,bfd_from_remote_memory)
   bim->buffer = contents;
   nbfd->iostream = bim;
   nbfd->flags = BFD_IN_MEMORY;
-  nbfd->iovec = &_bfd_memory_iovec;
-  nbfd->origin = 0;
   nbfd->direction = read_direction;
   nbfd->mtime = time (NULL);
   nbfd->mtime_set = TRUE;
@@ -1819,22 +1832,6 @@ NAME(_bfd_elf,bfd_from_remote_memory)
   if (loadbasep)
     *loadbasep = loadbase;
   return nbfd;
-}
-
-/* Function for ELF_R_INFO.  */
-
-bfd_vma
-NAME(elf,r_info) (bfd_vma sym, bfd_vma type)
-{
-  return ELF_R_INFO (sym, type);
-}
-
-/* Function for ELF_R_SYM.  */
-
-bfd_vma
-NAME(elf,r_sym) (bfd_vma r_info)
-{
-  return ELF_R_SYM (r_info);
 }
 
 #include "elfcore.h"

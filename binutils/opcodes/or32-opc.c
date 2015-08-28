@@ -1,6 +1,5 @@
 /* Table of opcodes for the OpenRISC 1000 ISA.
-   Copyright 2002, 2004, 2005, 2007, 2008, 2009, 2012
-   Free Software Foundation, Inc.
+   Copyright 2002, 2004, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
    Contributed by Damjan Lampret (lampret@opencores.org).
    
    This file is part of the GNU opcodes library.
@@ -20,16 +19,17 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
+/* We treat all letters the same in encode/decode routines so
+   we need to assign some characteristics to them like signess etc.  */
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "safe-ctype.h"
 #include "ansidecl.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 #include "opcode/or32.h"
-
-/* We treat all letters the same in encode/decode routines so
-   we need to assign some characteristics to them like signess etc.  */
 
 const struct or32_letter or32_letters[] =
 {
@@ -345,7 +345,7 @@ const unsigned int or32_num_opcodes = ((sizeof(or32_opcodes)) / (sizeof(struct o
 /* Calculates instruction length in bytes. Always 4 for OR32.  */
 
 int
-insn_len (int i_index ATTRIBUTE_UNUSED)
+insn_len (int insn_index ATTRIBUTE_UNUSED)
 {
   return 4;
 }
@@ -409,10 +409,10 @@ insn_index (char *insn)
 }
 
 const char *
-insn_name (int op_index)
+insn_name (int index)
 {
-  if (op_index >= 0 && op_index < (int) or32_num_opcodes)
-    return or32_opcodes[op_index].name;
+  if (index >= 0 && index < (int) or32_num_opcodes)
+    return or32_opcodes[index].name;
   else
     return "???";
 }
@@ -898,7 +898,7 @@ or32_extract (char param_ch, char *enc_initial, unsigned long insn)
           {
             unsigned long tmp = strtol (enc, NULL, 16);
 #if DEBUG
-            printf (" enc=%s, tmp=%lx ", enc, tmp);
+            printf (" enc=%s, tmp=%x ", enc, tmp);
 #endif
             if (param_ch == '0')
               tmp = 15 - tmp;
@@ -918,7 +918,7 @@ or32_extract (char param_ch, char *enc_initial, unsigned long insn)
         opc_pos--;
         param_pos--;
 #if DEBUG
-        printf ("\n  ret=%lx opc_pos=%x, param_pos=%x\n", ret, opc_pos, param_pos);
+        printf ("\n  ret=%x opc_pos=%x, param_pos=%x\n", ret, opc_pos, param_pos);
 #endif  
         if (ISLOWER (param_ch))
           ret -= ((insn >> opc_pos) & 0x1) << param_pos;
@@ -940,7 +940,7 @@ or32_extract (char param_ch, char *enc_initial, unsigned long insn)
       enc++;
 
 #if DEBUG
-  printf ("ret=%lx\n", ret);
+  printf ("ret=%x\n", ret);
 #endif
   return ret;
 }
@@ -985,12 +985,12 @@ or32_print_immediate (char param_ch, char *encoding, unsigned long insn)
 int
 disassemble_insn (unsigned long insn)
 {
-  int op_index;
-  op_index = insn_decode (insn);
+  int index;
+  index = insn_decode (insn);
 
-  if (op_index >= 0)
+  if (index >= 0)
     {
-      struct or32_opcode const *opcode = &or32_opcodes[op_index];
+      struct or32_opcode const *opcode = &or32_opcodes[index];
       char *s;
 
       sprintf (disassembled, "%s ", opcode->name);

@@ -3,8 +3,7 @@
 
 /*
 
-@deftypefn Supplemental int strncmp (const char *@var{s1}, @
-  const char *@var{s2}, size_t @var{n})
+@deftypefn Supplemental int strncmp (const char *@var{s1}, const char *@var{s2}, size_t @var{n})
 
 Compares the first @var{n} bytes of two strings, returning a value as
 @code{strcmp}.

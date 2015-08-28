@@ -19,10 +19,19 @@ text_label:
 	ble	$0,$5,text_label
 	ble	$4,0,text_label
 
+# Sanity test bltl and blel
+	.set	mips2
+	bltl	$4,$5,text_label
+	blel	$4,$5,text_label
+
 # Branch to an external label.
 	blt	$4,$5,external_label
 	ble	$4,$5,external_label
+	bltl	$4,$5,external_label
+	blel	$4,$5,external_label
 
-# Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
-	.align	2
-	.space	8
+# Round to a 16 byte boundary, for ease in testing multiple targets.
+	nop
+	nop
+	nop
+	nop

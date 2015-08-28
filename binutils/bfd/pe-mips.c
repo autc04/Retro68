@@ -1,6 +1,6 @@
 /* BFD back-end for MIPS PE COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
+   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
    Free Software Foundation, Inc.
    Modified from coff-i386.c by DJ Delorie, dj@cygnus.com
 
@@ -552,6 +552,7 @@ mips_swap_reloc_in (bfd * abfd, void * src, void * dst)
 static unsigned int
 mips_swap_reloc_out (bfd * abfd, void * src, void * dst)
 {
+  static int prev_offset = 1;
   static bfd_vma prev_addr = 0;
   struct internal_reloc *reloc_src = (struct internal_reloc *)src;
   struct external_reloc *reloc_dst = (struct external_reloc *)dst;
@@ -560,6 +561,7 @@ mips_swap_reloc_out (bfd * abfd, void * src, void * dst)
     {
     case MIPS_R_REFHI:
       prev_addr = reloc_src->r_vaddr;
+      prev_offset = reloc_src->r_offset;
       break;
     case MIPS_R_REFLO:
       if (reloc_src->r_vaddr == prev_addr)
@@ -597,9 +599,13 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
 			       struct internal_syment *syms,
 			       asection **sections)
 {
+  bfd_vma gp;
+  bfd_boolean gp_undefined;
+  size_t adjust;
   struct internal_reloc *rel;
   struct internal_reloc *rel_end;
   unsigned int i;
+  bfd_boolean got_lo;
 
   if (info->relocatable)
     {
@@ -612,6 +618,10 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
   BFD_ASSERT (input_bfd->xvec->byteorder
 	      == output_bfd->xvec->byteorder);
 
+  gp = _bfd_get_gp_value (output_bfd);
+  gp_undefined = (gp == 0) ? TRUE : FALSE;
+  got_lo = FALSE;
+  adjust = 0;
   rel = relocs;
   rel_end = rel + input_section->reloc_count;
 
@@ -890,7 +900,6 @@ const bfd_target
 #endif
   '/',				/* AR_pad_char.  */
   15,				/* AR_max_namelen.  */
-  0,				/* match priority.  */
 
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,

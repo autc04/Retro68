@@ -198,6 +198,5 @@ forwardonly:
 	ldr	r0, [pc, #4]
 	ldr	r0, [pc, #4]
 .target:
-baz:
-	mov	r0, r1
+	nop	@ pad for a.out
 	nop

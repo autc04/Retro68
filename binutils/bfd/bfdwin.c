@@ -1,5 +1,5 @@
 /* Support for memory-mapped windows into a BFD.
-   Copyright 1995, 1996, 2001, 2002, 2003, 2005, 2007, 2008, 2009, 2011
+   Copyright 1995, 1996, 2001, 2002, 2003, 2005, 2007, 2008, 2009
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -128,16 +128,17 @@ bfd_get_file_window (bfd *abfd,
   if (pagesize == 0)
     abort ();
 
-  if (i == NULL)
+  if (i == 0)
     {
       i = bfd_zmalloc (sizeof (bfd_window_internal));
-      if (i == NULL)
+      windowp->i = i;
+      if (i == 0)
 	return FALSE;
-      i->data = NULL;
+      i->data = 0;
     }
 #ifdef HAVE_MMAP
   if (ok_to_map
-      && (i->data == NULL || i->mapped == 1)
+      && (i->data == 0 || i->mapped == 1)
       && (abfd->flags & BFD_IN_MEMORY) == 0)
     {
       file_ptr file_offset, offset2;
@@ -155,9 +156,9 @@ bfd_get_file_window (bfd *abfd,
       if (abfd->iostream == NULL
 	  && (abfd->iovec == NULL
 	      || abfd->iovec->bseek (abfd, offset, SEEK_SET) != 0))
-	goto free_and_fail;
-
+	return FALSE;
       fd = fileno ((FILE *) abfd->iostream);
+
       /* Compute offsets and size for mmap and for the user's data.  */
       offset2 = offset % pagesize;
       if (offset2 < 0)
@@ -168,10 +169,10 @@ bfd_get_file_window (bfd *abfd,
       real_size -= real_size % pagesize;
 
       /* If we're re-using a memory region, make sure it's big enough.  */
-      if (i->data != NULL && i->size < size)
+      if (i->data && i->size < size)
 	{
 	  munmap (i->data, i->size);
-	  i->data = NULL;
+	  i->data = 0;
 	}
       i->data = mmap (i->data, real_size,
 		      writable ? PROT_WRITE | PROT_READ : PROT_READ,
@@ -184,10 +185,11 @@ bfd_get_file_window (bfd *abfd,
 	  /* An error happened.  Report it, or try using malloc, or
 	     something.  */
 	  bfd_set_error (bfd_error_system_call);
+	  i->data = 0;
 	  windowp->data = 0;
 	  if (debug_windows)
 	    fprintf (stderr, "\t\tmmap failed!\n");
-	  goto free_and_fail;
+	  return FALSE;
 	}
       if (debug_windows)
 	fprintf (stderr, "\n\tmapped %ld at %p, offset is %ld\n",
@@ -196,8 +198,6 @@ bfd_get_file_window (bfd *abfd,
       windowp->data = (bfd_byte *) i->data + offset2;
       windowp->size = size;
       i->mapped = 1;
-      i->refcount = 1;
-      windowp->i = i;
       return TRUE;
     }
   else if (debug_windows)
@@ -228,18 +228,15 @@ bfd_get_file_window (bfd *abfd,
   if (i->data == NULL)
     {
       if (size_to_alloc == 0)
-	{
-	  windowp->i = i;
-	  return TRUE;
-	}
-      goto free_and_fail;
+	return TRUE;
+      return FALSE;
     }
   i->refcount = 1;
   if (bfd_seek (abfd, offset, SEEK_SET) != 0)
-    goto free_and_fail;
+    return FALSE;
   i->size = bfd_bread (i->data, size, abfd);
   if (i->size != size)
-    goto free_and_fail;
+    return FALSE;
   i->mapped = 0;
 #ifdef HAVE_MPROTECT
   if (!writable)
@@ -252,13 +249,7 @@ bfd_get_file_window (bfd *abfd,
 #endif
   windowp->data = i->data;
   windowp->size = i->size;
-  windowp->i = i;
   return TRUE;
-
- free_and_fail:
-  /* We have a bfd_window_internal, but an error occurred.  Free it. */
-  free (i);
-  return FALSE;
 }
 
 #endif /* USE_MMAP */

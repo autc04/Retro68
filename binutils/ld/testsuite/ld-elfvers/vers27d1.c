@@ -1,8 +1,6 @@
-#include "vers.h"
-
 void
 foo ()
 {
 }
 
-SYMVER(foo, foo@VERS.0);
+asm (".symver foo,foo@VERS.0");

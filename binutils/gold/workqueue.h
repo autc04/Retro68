@@ -152,7 +152,7 @@ class Task_function : public Task
   Task_function(Task_function_runner* runner, Task_token* blocker,
 		const char* name)
     : runner_(runner), blocker_(blocker), name_(name)
-  { gold_assert(blocker != NULL); }
+  { }
 
   ~Task_function()
   {
@@ -268,7 +268,7 @@ class Workqueue
 
   // Return whether to cancel this thread.
   bool
-  should_cancel_thread(int thread_number);
+  should_cancel_thread();
 
   // Master Workqueue lock.  This controls access to the following
   // member variables.

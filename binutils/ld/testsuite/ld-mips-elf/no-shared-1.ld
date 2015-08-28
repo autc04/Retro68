@@ -6,6 +6,6 @@ SECTIONS
 
   . = 0x60000;
   .data : { *(.data) }
-  HIDDEN (_gp = ALIGN (16) + 0x7ff0);
+  _gp = ALIGN (16) + 0x7ff0;
   .got : { *(.got) }
 }

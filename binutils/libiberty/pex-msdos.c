@@ -310,8 +310,10 @@ pex_msdos_cleanup (struct pex_obj  *obj)
 
   ms = (struct pex_msdos *) obj->sysdep;
   for (i = 0; i < PEX_MSDOS_FILE_COUNT; ++i)
-    free (msdos->files[i]);
-  free (msdos->statuses);
+    if (msdos->files[i] != NULL)
+      free (msdos->files[i]);
+  if (msdos->statuses != NULL)
+    free (msdos->statuses);
   free (msdos);
   obj->sysdep = NULL;
 }

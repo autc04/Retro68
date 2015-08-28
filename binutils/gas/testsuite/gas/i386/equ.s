@@ -39,9 +39,6 @@ _start:
 	fadd	x
  .equ x, st(7)
 	fadd	x
- .equ r, edx + 4
-	mov	eax, [r]
-	mov	eax, [r]
 
  .if s <> gs
  .err

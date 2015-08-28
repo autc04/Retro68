@@ -4,7 +4,7 @@
    - the resultant file is machine generated, cgen-ibld.in isn't
 
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005, 2006, 2007,
-   2008, 2010  Free Software Foundation, Inc.
+   2008  Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -33,7 +33,6 @@
 #include "symcat.h"
 #include "xstormy16-desc.h"
 #include "xstormy16-opc.h"
-#include "cgen/basic-modes.h"
 #include "opintl.h"
 #include "safe-ctype.h"
 
@@ -138,7 +137,7 @@ insert_normal (CGEN_CPU_DESC cd,
   if (length == 0)
     return NULL;
 
-  if (word_length > 8 * sizeof (CGEN_INSN_INT))
+  if (word_length > 32)
     abort ();
 
   /* For architectures with insns smaller than the base-insn-bitsize,
@@ -442,7 +441,7 @@ extract_normal (CGEN_CPU_DESC cd,
       return 1;
     }
 
-  if (word_length > 8 * sizeof (CGEN_INSN_INT))
+  if (word_length > 32)
     abort ();
 
   /* For architectures with insns smaller than the insn-base-bitsize,
@@ -469,7 +468,7 @@ extract_normal (CGEN_CPU_DESC cd,
     {
       unsigned char *bufp = ex_info->insn_bytes + word_offset / 8;
 
-      if (word_length > 8 * sizeof (CGEN_INSN_INT))
+      if (word_length > 32)
 	abort ();
 
       if (fill_cache (cd, ex_info, word_offset / 8, word_length / 8, pc) == 0)
@@ -588,7 +587,7 @@ xstormy16_cgen_insert_operand (CGEN_CPU_DESC cd,
       {
 {
   FLD (f_abs24_1) = ((FLD (f_abs24)) & (255));
-  FLD (f_abs24_2) = ((UINT) (FLD (f_abs24)) >> (8));
+  FLD (f_abs24_2) = ((unsigned int) (FLD (f_abs24)) >> (8));
 }
         errmsg = insert_normal (cd, fields->f_abs24_1, 0, 0, 8, 8, 32, total_length, buffer);
         if (errmsg)
@@ -648,7 +647,7 @@ xstormy16_cgen_insert_operand (CGEN_CPU_DESC cd,
     case XSTORMY16_OPERAND_REL12A :
       {
         long value = fields->f_rel12a;
-        value = ((SI) (((value) - (((pc) + (2))))) >> (1));
+        value = ((int) (((value) - (((pc) + (2))))) >> (1));
         errmsg = insert_normal (cd, value, 0|(1<<CGEN_IFLD_SIGNED)|(1<<CGEN_IFLD_PCREL_ADDR), 0, 4, 11, 32, total_length, buffer);
       }
       break;

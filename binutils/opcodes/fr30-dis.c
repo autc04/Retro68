@@ -5,7 +5,7 @@
    - the resultant file is machine generated, cgen-dis.in isn't
 
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007,
-   2008, 2010  Free Software Foundation, Inc.
+   2008  Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -67,7 +67,7 @@ print_register_list (void * dis_info,
 {
   disassemble_info *info = dis_info;
   int mask;
-  int reg_index = 0;
+  int index = 0;
   char * comma = "";
 
   if (load_store)
@@ -77,11 +77,11 @@ print_register_list (void * dis_info,
 
   if (value & mask)
     {
-      (*info->fprintf_func) (info->stream, "r%li", reg_index + offset);
+      (*info->fprintf_func) (info->stream, "r%li", index + offset);
       comma = ",";
     }
     
-  for (reg_index = 1; reg_index <= 7; ++reg_index)
+  for (index = 1; index <= 7; ++index)
     {
       if (load_store)
 	mask >>= 1;
@@ -90,7 +90,7 @@ print_register_list (void * dis_info,
 
       if (value & mask)
 	{
-	  (*info->fprintf_func) (info->stream, "%sr%li", comma, reg_index + offset);
+	  (*info->fprintf_func) (info->stream, "%sr%li", comma, index + offset);
 	  comma = ",";
 	}
     }
@@ -330,6 +330,10 @@ print_normal (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 {
   disassemble_info *info = (disassemble_info *) dis_info;
 
+#ifdef CGEN_PRINT_NORMAL
+  CGEN_PRINT_NORMAL (cd, info, value, attrs, pc, length);
+#endif
+
   /* Print the operand as directed by the attributes.  */
   if (CGEN_BOOL_ATTR (attrs, CGEN_OPERAND_SEM_ONLY))
     ; /* nothing to do */
@@ -350,6 +354,10 @@ print_address (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 	       int length ATTRIBUTE_UNUSED)
 {
   disassemble_info *info = (disassemble_info *) dis_info;
+
+#ifdef CGEN_PRINT_ADDRESS
+  CGEN_PRINT_ADDRESS (cd, info, value, attrs, pc, length);
+#endif
 
   /* Print the operand as directed by the attributes.  */
   if (CGEN_BOOL_ATTR (attrs, CGEN_OPERAND_SEM_ONLY))

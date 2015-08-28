@@ -10,8 +10,7 @@ fragment <<EOF
 
 /* SunOS emulation code for ${EMULATION_NAME}
    Copyright 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006, 2007, 2008, 2012
-   Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
    SunOS shared library support by Ian Lance Taylor <ian@cygnus.com>
 
@@ -86,7 +85,7 @@ static void
 gld${EMULATION_NAME}_before_parse (void)
 {
   ldfile_set_output_arch ("${OUTPUT_ARCH}", bfd_arch_`echo ${ARCH} | sed -e 's/:.*//'`);
-  input_flags.dynamic = TRUE;
+  config.dynamic_link = TRUE;
   config.has_shared = TRUE;
 }
 
@@ -157,9 +156,9 @@ gld${EMULATION_NAME}_find_so (lang_input_statement_type *inp)
   char *alc;
   struct stat st;
 
-  if (! inp->flags.search_dirs
-      || ! inp->flags.maybe_archive
-      || ! inp->flags.dynamic)
+  if (! inp->search_dirs_flag
+      || ! inp->is_archive
+      || ! inp->dynamic)
     return;
 
   ASSERT (CONST_STRNEQ (inp->local_sym_name, "-l"));
@@ -189,7 +188,7 @@ gld${EMULATION_NAME}_find_so (lang_input_statement_type *inp)
 
   /* Turn off the search_dirs_flag to prevent ldfile_open_file from
      searching for this file again.  */
-  inp->flags.search_dirs = FALSE;
+  inp->search_dirs_flag = FALSE;
 
   free (found);
 
@@ -367,8 +366,6 @@ gld${EMULATION_NAME}_after_open (void)
 {
   struct bfd_link_needed_list *needed, *l;
 
-  after_open_default ();
-
   /* We only need to worry about this when doing a final link.  */
   if (link_info.relocatable || link_info.shared)
     return;
@@ -429,7 +426,7 @@ gld${EMULATION_NAME}_after_open (void)
 	    {
 	      /* We've found the needed dynamic object.  */
 	      if (! bfd_link_add_symbols (abfd, &link_info))
-		einfo ("%F%B: error adding symbols: %E\n", abfd);
+		einfo ("%F%B: could not read symbols: %E\n", abfd);
 	    }
 	  else
 	    {
@@ -576,7 +573,7 @@ gld${EMULATION_NAME}_try_needed (const char *dir, const char *name)
 
   /* Add this file into the symbol table.  */
   if (! bfd_link_add_symbols (abfd, &link_info))
-    einfo ("%F%B: error adding symbols: %E\n", abfd);
+    einfo ("%F%B: could not read symbols: %E\n", abfd);
 
   return TRUE;
 }
@@ -892,7 +889,7 @@ gld${EMULATION_NAME}_count_need (lang_input_statement_type *inp)
     {
       ++need_entries;
       need_size += NEED_ENTRY_SIZE;
-      if (! inp->flags.maybe_archive)
+      if (! inp->is_archive)
 	need_size += strlen (inp->filename) + 1;
       else
 	{
@@ -920,7 +917,7 @@ gld${EMULATION_NAME}_set_need (lang_input_statement_type *inp)
 	 referential locality.  */
       bfd_put_32 (link_info.output_bfd, need_pnames - need_contents,
 		  need_pinfo);
-      if (! inp->flags.maybe_archive)
+      if (! inp->is_archive)
 	{
 	  bfd_put_32 (link_info.output_bfd, (bfd_vma) 0, need_pinfo + 4);
 	  bfd_put_16 (link_info.output_bfd, (bfd_vma) 0, need_pinfo + 8);

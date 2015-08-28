@@ -9,10 +9,3 @@ _start:
 	rep stosl
 	rep lodsq
 	rep stosq
-
-	rep bsf %ecx, %eax
-	rep bsr %ecx, %eax
-
-	rep ret
-
-	rep nop

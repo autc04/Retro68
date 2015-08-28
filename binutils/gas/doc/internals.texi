@@ -252,8 +252,8 @@ Indicate that the symbol is a forward reference, that is its value must only
 be determined upon use.
 
 @item S_GET_TYPE
-@itemx S_GET_DESC
-@itemx S_GET_OTHER
+@item S_GET_DESC
+@item S_GET_OTHER
 @cindex S_GET_TYPE
 @cindex S_GET_DESC
 @cindex S_GET_OTHER
@@ -262,8 +262,8 @@ are only defined for object file formats for which they make sense (primarily
 a.out).
 
 @item S_SET_TYPE
-@itemx S_SET_DESC
-@itemx S_SET_OTHER
+@item S_SET_DESC
+@item S_SET_OTHER
 @cindex S_SET_TYPE
 @cindex S_SET_DESC
 @cindex S_SET_OTHER
@@ -1250,7 +1250,7 @@ It may also create any necessary relocations.
 @cindex TC_FINALIZE_SYMS_BEFORE_SIZE_SEG
 Specifies the value to be assigned to @code{finalize_syms} before the function
 @code{size_segs} is called.  Since @code{size_segs} calls @code{cvt_frag_to_fill}
-which can call @code{md_convert_frag}, this constant governs whether the symbols
+which can call @code{md_convert_frag}, this constant governs whether the symbols 
 accessed in @code{md_convert_frag} will be fully resolved.  In particular it
 governs whether local symbols will have been resolved, and had their frag
 information removed.  Depending upon the processing performed by
@@ -1306,7 +1306,8 @@ This macro controls resolution of fixup expressions involving the
 difference of two symbols in the same section.  If this macro returns zero,
 the subtrahend will be resolved and @code{fx_subsy} set to @code{NULL} for
 @code{md_apply_fix}.  If undefined, the default of
-@w{@code{! SEG_NORMAL (@var{seg})}} will be used.
+@w{@code{! SEG_NORMAL (@var{seg}) || TC_FORCE_RELOCATION (@var{fix})}} will
+be used.
 
 @item TC_FORCE_RELOCATION_SUB_ABS (@var{fix}, @var{seg})
 @cindex TC_FORCE_RELOCATION_SUB_ABS
@@ -1393,11 +1394,6 @@ that @code{md_pcrel_from} does not take a section argument.
 @item tc_frob_label
 @cindex tc_frob_label
 If you define this macro, GAS will call it each time a label is defined.
-
-@item tc_new_dot_label
-@cindex tc_new_dot_label
-If you define this macro, GAS will call it each time a fake label is created
-off the special dot symbol.
 
 @item md_section_align
 @cindex md_section_align

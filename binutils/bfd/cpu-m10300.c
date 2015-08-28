@@ -36,7 +36,6 @@ const bfd_arch_info_type bfd_am33_2_arch =
     FALSE,
     bfd_default_compatible,
     bfd_default_scan,
-    bfd_arch_default_fill,
     0,
   };
 
@@ -53,7 +52,6 @@ const bfd_arch_info_type bfd_am33_arch =
     FALSE,
     bfd_default_compatible,
     bfd_default_scan,
-    bfd_arch_default_fill,
     &bfd_am33_2_arch,
   };
 
@@ -70,6 +68,5 @@ const bfd_arch_info_type bfd_mn10300_arch =
     TRUE, /* the one and only */
     bfd_default_compatible,
     bfd_default_scan,
-    bfd_arch_default_fill,
     &bfd_am33_arch,
   };

@@ -1,6 +1,6 @@
 // merge.cc -- handle section merging for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -26,7 +26,6 @@
 #include <algorithm>
 
 #include "merge.h"
-#include "compressed_output.h"
 
 namespace gold
 {
@@ -145,7 +144,7 @@ bool
 Object_merge_map::get_output_offset(const Merge_map* merge_map,
 				    unsigned int shndx,
 				    section_offset_type input_offset,
-				    section_offset_type* output_offset)
+				    section_offset_type *output_offset)
 {
   Input_merge_map* map = this->get_input_merge_map(shndx);
   if (map == NULL
@@ -242,7 +241,6 @@ Merge_map::add_mapping(Relobj* object, unsigned int shndx,
 		       section_offset_type offset, section_size_type length,
 		       section_offset_type output_offset)
 {
-  gold_assert(object != NULL);
   Object_merge_map* object_merge_map = object->merge_map();
   if (object_merge_map == NULL)
     {
@@ -304,26 +302,6 @@ Output_merge_base::do_is_merge_section_for(const Relobj* object,
 					   unsigned int shndx) const
 {
   return this->merge_map_.is_merge_section_for(object, shndx);
-}
-
-// Record a merged input section for script processing.
-
-void
-Output_merge_base::record_input_section(Relobj* relobj, unsigned int shndx)
-{
-  gold_assert(this->keeps_input_sections_ && relobj != NULL);
-  // If this is the first input section, record it.  We need do this because
-  // this->input_sections_ is unordered.
-  if (this->first_relobj_ == NULL)
-    {
-      this->first_relobj_ = relobj;
-      this->first_shndx_ = shndx;
-    }
-
-  std::pair<Input_sections::iterator, bool> result =
-    this->input_sections_.insert(Section_id(relobj, shndx));
-  // We should insert a merge section once only.
-  gold_assert(result.second);
 }
 
 // Class Output_merge_data.
@@ -406,18 +384,12 @@ bool
 Output_merge_data::do_add_input_section(Relobj* object, unsigned int shndx)
 {
   section_size_type len;
-  bool is_new;
-  const unsigned char* p = object->decompressed_section_contents(shndx, &len,
-								 &is_new);
+  const unsigned char* p = object->section_contents(shndx, &len, false);
 
   section_size_type entsize = convert_to_section_size_type(this->entsize());
 
   if (len % entsize != 0)
-    {
-      if (is_new)
-	delete[] p;
-      return false;
-    }
+    return false;
 
   this->input_count_ += len / entsize;
 
@@ -442,13 +414,6 @@ Output_merge_data::do_add_input_section(Relobj* object, unsigned int shndx)
       this->add_mapping(object, shndx, i, entsize, k);
     }
 
-  // For script processing, we keep the input sections.
-  if (this->keeps_input_sections())
-    record_input_section(object, shndx);
-
-  if (is_new)
-    delete[] p;
-
   return true;
 }
 
@@ -460,10 +425,7 @@ Output_merge_data::set_final_data_size()
 {
   // Release the memory we don't need.
   this->p_ = static_cast<unsigned char*>(realloc(this->p_, this->len_));
-  // An Output_merge_data object may be empty and realloc is allowed
-  // to return a NULL pointer in this case.  An Output_merge_data is empty
-  // if all its input sections have sizes that are not multiples of entsize.
-  gold_assert(this->p_ != NULL || this->len_ == 0);
+  gold_assert(this->p_ != NULL);
   this->set_data_size(this->len_);
 }
 
@@ -505,113 +467,52 @@ bool
 Output_merge_string<Char_type>::do_add_input_section(Relobj* object,
 						     unsigned int shndx)
 {
-  section_size_type sec_len;
-  bool is_new;
-  const unsigned char* pdata = object->decompressed_section_contents(shndx,
-								     &sec_len,
-								     &is_new);
+  section_size_type len;
+  const unsigned char* pdata = object->section_contents(shndx, &len, false);
 
   const Char_type* p = reinterpret_cast<const Char_type*>(pdata);
-  const Char_type* pend = p + sec_len / sizeof(Char_type);
-  const Char_type* pend0 = pend;
+  const Char_type* pend = p + len / sizeof(Char_type);
 
-  if (sec_len % sizeof(Char_type) != 0)
+  if (len % sizeof(Char_type) != 0)
     {
       object->error(_("mergeable string section length not multiple of "
 		      "character size"));
-      if (is_new)
-	delete[] pdata;
       return false;
     }
 
-  if (pend[-1] != 0)
-    {
-      gold_warning(_("%s: last entry in mergeable string section '%s' "
-		     "not null terminated"),
-		   object->name().c_str(),
-		   object->section_name(shndx).c_str());
-      // Find the end of the last NULL-terminated string in the buffer.
-      while (pend0 > p && pend0[-1] != 0)
-	--pend0;
-    }
-
-  Merged_strings_list* merged_strings_list =
-      new Merged_strings_list(object, shndx);
-  this->merged_strings_lists_.push_back(merged_strings_list);
-  Merged_strings& merged_strings = merged_strings_list->merged_strings;
-
-  // Count the number of non-null strings in the section and size the list.
   size_t count = 0;
-  const Char_type* pt = p;
-  while (pt < pend0)
-    {
-      size_t len = string_length(pt);
-      if (len != 0)
-	++count;
-      pt += len + 1;
-    }
-  if (pend0 < pend)
-    ++count;
-  merged_strings.reserve(count + 1);
 
   // The index I is in bytes, not characters.
   section_size_type i = 0;
-
-  // We assume here that the beginning of the section is correctly
-  // aligned, so each string within the section must retain the same
-  // modulo.
-  uintptr_t init_align_modulo = (reinterpret_cast<uintptr_t>(pdata)
-				 & (this->addralign() - 1));
-  bool has_misaligned_strings = false;
-
-  while (p < pend0)
+  while (i < len)
     {
-      size_t len = string_length(p);
-
-      // Within merge input section each string must be aligned.
-      if (len != 0
-	  && ((reinterpret_cast<uintptr_t>(p) & (this->addralign() - 1))
-	      != init_align_modulo))
-	  has_misaligned_strings = true;
+      const Char_type* pl;
+      for (pl = p; *pl != 0; ++pl)
+	{
+	  if (pl >= pend)
+	    {
+	      gold_warning(_("%s: last entry in mergeable string section '%s' "
+			     "not null terminated"),
+			   object->name().c_str(),
+			   object->section_name(shndx).c_str());
+	      break;
+	    }
+	}
 
       Stringpool::Key key;
-      this->stringpool_.add_with_length(p, len, true, &key);
+      const Char_type* str = this->stringpool_.add_with_length(p, pl - p, true,
+							       &key);
 
-      merged_strings.push_back(Merged_string(i, key));
-      p += len + 1;
-      i += (len + 1) * sizeof(Char_type);
+      section_size_type bytelen_with_null = ((pl - p) + 1) * sizeof(Char_type);
+      this->merged_strings_.push_back(Merged_string(object, shndx, i, str,
+						    bytelen_with_null, key));
+
+      p = pl + 1;
+      i += bytelen_with_null;
+      ++count;
     }
-  if (p < pend)
-    {
-      size_t len = pend - p;
-
-      Stringpool::Key key;
-      this->stringpool_.add_with_length(p, len, true, &key);
-
-      merged_strings.push_back(Merged_string(i, key));
-
-      i += (len + 1) * sizeof(Char_type);
-    }
-
-  // Record the last offset in the input section so that we can
-  // compute the length of the last string.
-  merged_strings.push_back(Merged_string(i, 0));
 
   this->input_count_ += count;
-  this->input_size_ += i;
-
-  if (has_misaligned_strings)
-    gold_warning(_("%s: section %s contains incorrectly aligned strings;"
-		   " the alignment of those strings won't be preserved"),
-		 object->name().c_str(),
-		 object->section_name(shndx).c_str());
-
-  // For script processing, we keep the input sections.
-  if (this->keeps_input_sections())
-    record_input_section(object, shndx);
-
-  if (is_new)
-    delete[] pdata;
 
   return true;
 }
@@ -625,34 +526,20 @@ Output_merge_string<Char_type>::finalize_merged_data()
 {
   this->stringpool_.set_string_offsets();
 
-  for (typename Merged_strings_lists::const_iterator l =
-	 this->merged_strings_lists_.begin();
-       l != this->merged_strings_lists_.end();
-       ++l)
+  for (typename Merged_strings::const_iterator p =
+	 this->merged_strings_.begin();
+       p != this->merged_strings_.end();
+       ++p)
     {
-      section_offset_type last_input_offset = 0;
-      section_offset_type last_output_offset = 0;
-      for (typename Merged_strings::const_iterator p =
-	     (*l)->merged_strings.begin();
-	   p != (*l)->merged_strings.end();
-	   ++p)
-	{
-	  section_size_type length = p->offset - last_input_offset;
-	  if (length > 0)
-	    this->add_mapping((*l)->object, (*l)->shndx, last_input_offset,
-	    		      length, last_output_offset);
-	  last_input_offset = p->offset;
-	  if (p->stringpool_key != 0)
-	    last_output_offset =
-	        this->stringpool_.get_offset_from_key(p->stringpool_key);
-	}
-      delete *l;
+      section_offset_type offset =
+	this->stringpool_.get_offset_from_key(p->stringpool_key);
+      this->add_mapping(p->object, p->shndx, p->offset, p->length, offset);
     }
 
   // Save some memory.  This also ensures that this function will work
   // if called twice, as may happen if Layout::set_segment_offsets
   // finds a better alignment.
-  this->merged_strings_lists_.clear();
+  this->merged_strings_.clear();
 
   return this->stringpool_.get_strtab_size();
 }
@@ -723,9 +610,7 @@ Output_merge_string<Char_type>::do_print_merge_stats(const char* section_name)
 {
   char buf[200];
   snprintf(buf, sizeof buf, "%s merged %s", section_name, this->string_name());
-  fprintf(stderr, _("%s: %s input bytes: %zu\n"),
-	  program_name, buf, this->input_size_);
-  fprintf(stderr, _("%s: %s input strings: %zu\n"),
+  fprintf(stderr, _("%s: %s input: %zu\n"),
 	  program_name, buf, this->input_count_);
   this->stringpool_.print_stats(buf);
 }

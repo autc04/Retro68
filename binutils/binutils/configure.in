@@ -1,22 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright 2012 Free Software Foundation
-dnl
-dnl This file is free software; you can redistribute it and/or modify
-dnl it under the terms of the GNU General Public License as published by
-dnl the Free Software Foundation; either version 3 of the License, or
-dnl (at your option) any later version.
-dnl 
-dnl This program is distributed in the hope that it will be useful,
-dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
-dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-dnl GNU General Public License for more details.
-dnl 
-dnl You should have received a copy of the GNU General Public License
-dnl along with this program; see the file COPYING3.  If not see
-dnl <http://www.gnu.org/licenses/>.
-dnl
-
 AC_PREREQ(2.59)
 AC_INIT
 AC_CONFIG_SRCDIR(ar.c)
@@ -25,7 +8,7 @@ AC_CANONICAL_TARGET
 AC_ISC_POSIX
 
 changequote(,)dnl
-BFD_VERSION=`${srcdir}/../bfd/configure --version | sed -n -e '1s,.* ,,p'`
+BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
 changequote([,])dnl
 AM_INIT_AUTOMAKE(binutils, ${BFD_VERSION})
 
@@ -33,7 +16,25 @@ AC_PROG_CC
 AC_GNU_SOURCE
 AC_USE_SYSTEM_EXTENSIONS
 
-ACX_LARGEFILE
+AC_PLUGINS
+
+case "${target}" in
+changequote(,)dnl
+  sparc-*-solaris*|i[3-7]86-*-solaris*)
+changequote([,])dnl
+    # See comment in bfd/configure.in for the reason for this test.
+    # PR 9992/binutils: We have to duplicate the behaviour of bfd's
+    # configure script so that the utilities in this directory agree
+    # on the size of structures used to describe files.
+    if test "${target}" = "${host}" -a "$enable_largefile" != 'yes'; then
+      if test "$plugins" = "no"; then
+        enable_largefile="no"
+      fi
+    fi
+    ;;
+esac
+
+AC_SYS_LARGEFILE
 LT_INIT
 
 AC_ARG_ENABLE(targets,
@@ -45,29 +46,9 @@ AC_ARG_ENABLE(targets,
   *)        enable_targets=$enableval ;;
 esac])dnl
 
-AC_ARG_ENABLE(deterministic-archives,
-[AS_HELP_STRING([--enable-deterministic-archives],
-		[ar and ranlib default to -D behavior])], [
-if test "${enableval}" = no; then
-  default_ar_deterministic=0
-else
-  default_ar_deterministic=1
-fi], [default_ar_deterministic=0])
-
-AC_DEFINE_UNQUOTED(DEFAULT_AR_DETERMINISTIC, $default_ar_deterministic,
-		   [Should ar and ranlib use -D behavior by default?])
-
 AM_BINUTILS_WARNINGS
-
+		   
 AC_CONFIG_HEADERS(config.h:config.in)
-
-AH_VERBATIM([00_CONFIG_H_CHECK],
-[/* Check that config.h is #included before system headers
-   (this works only for glibc, but that should be enough).  */
-#if defined(__GLIBC__) && !defined(__FreeBSD_kernel__) && !defined(__CONFIG_H__)
-#  error config.h must be #included before system headers
-#endif
-#define __CONFIG_H__ 1])
 
 if test -z "$target" ; then
     AC_MSG_ERROR(Unrecognized target system type; please check config.sub.)
@@ -79,7 +60,7 @@ fi
 AC_PROG_YACC
 AM_PROG_LEX
 
-ALL_LINGUAS="bg da es fi fr id it ja ro ru rw sk sv tr uk vi zh_CN zh_TW hr"
+ALL_LINGUAS="da es fi fr id ja ro ru rw sk sv tr uk vi zh_CN zh_TW"
 ZW_GNU_GETTEXT_SISTER_DIR
 AM_PO_SUBDIRS
 
@@ -114,30 +95,58 @@ case "${host}" in
 esac
 AC_SUBST(DEMANGLER_NAME)
 
-AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h limits.h locale.h sys/param.h wchar.h)
+AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h limits.h sys/param.h)
 AC_HEADER_SYS_WAIT
-ACX_HEADER_STRING
 AC_FUNC_ALLOCA
-AC_CHECK_FUNCS(sbrk utimes setmode getc_unlocked strcoll setlocale)
+AC_CHECK_FUNCS(sbrk utimes setmode getc_unlocked strcoll)
 AC_CHECK_FUNC([mkstemp],
 	      AC_DEFINE([HAVE_MKSTEMP], 1,
 	      [Define to 1 if you have the `mkstemp' function.]))
 AC_CHECK_FUNC([mkdtemp],
               AC_DEFINE([HAVE_MKDTEMP], 1,
               [Define to 1 if you have the `mkdtemp' function.]))
-  AC_MSG_CHECKING([for mbstate_t])
-  AC_TRY_COMPILE([#include <wchar.h>],
-  [mbstate_t teststate;],
-  have_mbstate_t=yes, have_mbstate_t=no)
-  AC_MSG_RESULT($have_mbstate_t)
-  if test x"$have_mbstate_t" = xyes; then
-    AC_DEFINE(HAVE_MBSTATE_T,1,[Define if mbstate_t exists in wchar.h.])
-  fi
+
+# Check whether fopen64 is available and whether _LARGEFILE64_SOURCE
+# needs to be defined for it
+AC_MSG_CHECKING([for fopen64])
+AC_CACHE_VAL(bu_cv_have_fopen64,
+[AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <stdio.h>], [FILE *f = fopen64 ("/tmp/foo","r");])],
+bu_cv_have_fopen64=yes,
+[saved_CPPFLAGS=$CPPFLAGS
+ CPPFLAGS="$CPPFLAGS -D_LARGEFILE64_SOURCE"
+ AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <stdio.h>], [FILE *f = fopen64 ("/tmp/foo","r");])],
+ bu_cv_have_fopen64="need -D_LARGEFILE64_SOURCE",
+ bu_cv_have_fopen64=no)
+ CPPFLAGS=$saved_CPPFLAGS])])
+AC_MSG_RESULT($bu_cv_have_fopen64)
+if test "$bu_cv_have_fopen64" != no; then
+  AC_DEFINE([HAVE_FOPEN64], 1,
+	    [Is fopen64 available?])
+fi
+AC_MSG_CHECKING([for stat64])
+AC_CACHE_VAL(bu_cv_have_stat64,
+[AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <sys/stat.h>], [struct stat64 st; stat64 ("/tmp/foo", &st);])],
+bu_cv_have_stat64=yes,
+[saved_CPPFLAGS=$CPPFLAGS
+ CPPFLAGS="$CPPFLAGS -D_LARGEFILE64_SOURCE"
+ AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <sys/stat.h>], [struct stat64 st; stat64 ("/tmp/foo", &st);])],
+ bu_cv_have_stat64="need -D_LARGEFILE64_SOURCE",
+ bu_cv_have_stat64=no)
+ CPPFLAGS=$saved_CPPFLAGS])])
+AC_MSG_RESULT($bu_cv_have_stat64)
+if test "$bu_cv_have_stat64" != no; then
+  AC_DEFINE([HAVE_STAT64], 1,
+	    [Is stat64 available?])
+fi
+if test "$bu_cv_have_fopen64" = "need -D_LARGEFILE64_SOURCE" \
+   || test "$bu_cv_have_stat64" = "need -D_LARGEFILE64_SOURCE"; then
+  AC_DEFINE([_LARGEFILE64_SOURCE], 1,
+	    [Enable LFS])
+  CPPFLAGS="$CPPFLAGS -D_LARGEFILE64_SOURCE"
+fi
 
 # Some systems have frexp only in -lm, not in -lc.
 AC_SEARCH_LIBS(frexp, m)
-
-AM_LC_MESSAGES
 
 AC_MSG_CHECKING(for time_t in time.h)
 AC_CACHE_VAL(bu_cv_decl_time_t_time_h,
@@ -185,13 +194,13 @@ if test $bu_cv_header_utime_h = yes; then
   AC_DEFINE(HAVE_GOOD_UTIME_H, 1, [Does <utime.h> define struct utimbuf?])
 fi
 
-AC_CHECK_DECLS([environ, fprintf, getc_unlocked, getenv,
-		sbrk, snprintf, stpcpy, strnlen, strstr, vsnprintf])
+AC_CHECK_DECLS([fprintf, stpcpy, strstr, sbrk, getenv, environ, getc_unlocked,
+		snprintf, vsnprintf])
 
 # Link in zlib if we can.  This allows us to read compressed debug
 # sections.  This is used only by readelf.c (objdump uses bfd for
 # reading compressed sections).
-AM_ZLIB
+AC_SEARCH_LIBS(zlibVersion, z, [AC_CHECK_HEADERS(zlib.h)])
 
 BFD_BINARY_FOPEN
 
@@ -227,9 +236,6 @@ BUILD_DLLWRAP=
 BUILD_MISC=
 BUILD_INSTALL_MISC=
 OBJDUMP_DEFS=
-OBJDUMP_PRIVATE_VECTORS=
-OBJDUMP_PRIVATE_OFILES=
-od_vectors=
 
 for targ in $target $canon_targets
 do
@@ -247,11 +253,10 @@ do
 	fi
 	DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
 	BUILD_DLLWRAP='$(DLLWRAP_PROG)$(EXEEXT)'
-	od_vectors="$od_vectors objdump_private_desc_xcoff"
     else
 	case $targ in
 changequote(,)dnl
-	i[3-7]86*-*-netware*)
+	i[3-7]86*-*-netware*) 
 changequote([,])dnl
 	  BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
 	  NLMCONV_DEFS="$NLMCONV_DEFS -DNLMCONV_I386"
@@ -269,11 +274,9 @@ changequote([,])dnl
 	  NLMCONV_DEFS="$NLMCONV_DEFS -DNLMCONV_SPARC"
 	  ;;
 	esac
-
 	case $targ in
 	*-*-hms*) BUILD_SRCONV='$(SRCONV_PROG)' ;;
 	esac
-
 	case $targ in
 	arm-epoc-pe*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
@@ -302,7 +305,16 @@ changequote([,])dnl
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  ;;
-	x86_64-*-mingw* | x86_64-*-cygwin*)
+	thumb-*-pe*)
+  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_ARM"
+	  fi
+	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
+	  ;;
+	x86_64-*-mingw*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  if test -z "$DLLTOOL_DEFAULT"; then
 	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_MX86_64"
@@ -352,10 +364,7 @@ changequote([,])dnl
 	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  ;;
 	powerpc*-*-linux* | powerpc*-*-elf* | powerpc*-*-eabi*)
-	  case "$BUILD_INSTALL_MISC" in
-	    *embedspu*) ;;
-	    *) BUILD_INSTALL_MISC="${BUILD_INSTALL_MISC} embedspu"
-	  esac
+	  BUILD_INSTALL_MISC="${BUILD_INSTALL_MISC} embedspu"
 	  ;;
 	sh*-*-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
@@ -398,49 +407,7 @@ changequote([,])dnl
 	  OBJDUMP_DEFS="-DSKIP_ZEROES=256 -DSKIP_ZEROES_AT_END=0"
 	  ;;
 	esac
-
-	# Add objdump private vectors.
-	case $targ in
-	powerpc-*-aix*)
-	  od_vectors="$od_vectors objdump_private_desc_xcoff"
-	  ;;
-        *-*-darwin*)
-	  od_vectors="$od_vectors objdump_private_desc_mach_o"
-	  ;;
-	esac
     fi
-done
-
-# Uniq objdump private vector, build objdump target ofiles.
-od_files=
-f=""
-for i in $od_vectors ; do
-    case " $f " in
-    *" $i "*) ;;
-    *)
-	f="$f $i"
-	OBJDUMP_PRIVATE_VECTORS="$OBJDUMP_PRIVATE_VECTORS &$i,"
-	case $i in
-	objdump_private_desc_xcoff)
-	    od_files="$od_files od-xcoff" ;;
-	objdump_private_desc_mach_o)
-	    od_files="$od_files od-macho" ;;
-	*) AC_MSG_ERROR(*** unknown private vector $i) ;;
-	esac
-	;;
-    esac
-done
-
-# Uniq objdump target ofiles
-f=""
-for i in $od_files ; do
-    case " $f " in
-    *" $i "*) ;;
-    *)
-	f="$f $i"
-	OBJDUMP_PRIVATE_OFILES="$OBJDUMP_PRIVATE_OFILES $i.$objext"
-	;;
-    esac
 done
 
 DLLTOOL_DEFS="$DLLTOOL_DEFS $DLLTOOL_DEFAULT"
@@ -453,8 +420,6 @@ if test "${with_windmc+set}" = set; then
 	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 fi
 
-OBJDUMP_DEFS="${OBJDUMP_DEFS} -DOBJDUMP_PRIVATE_VECTORS=\"${OBJDUMP_PRIVATE_VECTORS}\""
-
 AC_SUBST(NLMCONV_DEFS)
 AC_SUBST(BUILD_NLMCONV)
 AC_SUBST(BUILD_SRCONV)
@@ -466,7 +431,6 @@ AC_SUBST(BUILD_DLLWRAP)
 AC_SUBST(BUILD_MISC)
 AC_SUBST(BUILD_INSTALL_MISC)
 AC_SUBST(OBJDUMP_DEFS)
-AC_SUBST(OBJDUMP_PRIVATE_OFILES)
 
 AC_DEFINE_UNQUOTED(TARGET, "${target}", [Configured target name.])
 
@@ -480,11 +444,22 @@ fi
 AC_DEFINE_UNQUOTED(TARGET_PREPENDS_UNDERSCORE, $UNDERSCORE,
  [Define to 1 if user symbol names have a leading underscore, 0 if not.])
 
-# Emulation
-targ=$target
-. ${srcdir}/configure.tgt
-EMULATION=$targ_emul
-EMULATION_VECTOR=$targ_emul_vector
+# Emulation 
+for targ_alias in `echo $target_alias $enable_targets | sed 's/,/ /g'`
+do
+  # Canonicalize the secondary target names.
+ result=`$ac_config_sub $targ_alias 2>/dev/null`
+ if test -n "$result"; then
+   targ=$result
+ else
+   targ=$targ_alias
+ fi
+
+ . ${srcdir}/configure.tgt
+
+  EMULATION=$targ_emul
+  EMULATION_VECTOR=$targ_emul_vector	
+done
 
 AC_SUBST(EMULATION)
 AC_SUBST(EMULATION_VECTOR)

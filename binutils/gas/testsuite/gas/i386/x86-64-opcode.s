@@ -61,18 +61,15 @@
 	# Conditionals
 
 	# LOOP
-	LOOP .			      #	 --  --	 -- --	 E2 FE				 ; RCX used as counter.
-	LOOPq .			      #	 --  --	 -- --	 E2 FE				 ; RCX used as counter.
-	LOOPl .			      #	 --  67	 -- --	 E2 FD				 ; ECX used as counter.
 
 
 	# Jcc
-				      #	 66  --	 -- --	 77 FD				 ; O16 override: (Addr64) = ZEXT(Addr16)
-				      #	 66  --	 -- --	 0F 87 F9 FF FF FF		 ; O16 override: (Addr64) = ZEXT(Addr16)
+				      #	 66  --	 -- --	 77 FD				 ; A16 override: (Addr64) = ZEXT(Addr16)
+				      #	 66  --	 -- --	 0F 87 F9 FF FF FF		 ; A16 override: (Addr64) = ZEXT(Addr16)
 
 	# J*CXZ
-	JRCXZ .			      #	 --  --	 -- --	 E3 FE				 ; RCX used as counter.
-	JECXZ .			      #	 --  67	 -- --	 E3 FD				 ; ECX used as counter.
+				      #	 66  67	 -- --	 E3 FC				 ; ECX used as counter. A16 override: (Addr64) = ZEXT(Addr16)
+				      #	 66  --	 -- --	 E3 FD				 ; A16 override: (Addr64) = ZEXT(Addr16)
 
 
 
@@ -426,4 +423,4 @@
 
         swapgs		              #  --  --	 -- --	 0F 01 f8
 
-	pushw $0x2222
+ .p2align 4,0

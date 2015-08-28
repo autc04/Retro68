@@ -1,5 +1,5 @@
 /* ELF attributes support (based on ARM EABI attributes).
-   Copyright 2005, 2006, 2007, 2009, 2010, 2012
+   Copyright 2005, 2006, 2007, 2009
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -96,7 +96,7 @@ vendor_obj_attr_size (bfd *abfd, int vendor)
 
   attr = elf_known_obj_attributes (abfd)[vendor];
   size = 0;
-  for (i = LEAST_KNOWN_OBJ_ATTRIBUTE; i < NUM_KNOWN_OBJ_ATTRIBUTES; i++)
+  for (i = 4; i < NUM_KNOWN_OBJ_ATTRIBUTES; i++)
     size += obj_attr_size (i, &attr[i]);
 
   for (list = elf_other_obj_attributes (abfd)[vendor];
@@ -188,7 +188,7 @@ vendor_set_obj_attr_contents (bfd *abfd, bfd_byte *contents, bfd_vma size,
   p += 4;
 
   attr = elf_known_obj_attributes (abfd)[vendor];
-  for (i = LEAST_KNOWN_OBJ_ATTRIBUTE; i < NUM_KNOWN_OBJ_ATTRIBUTES; i++)
+  for (i = 4; i < NUM_KNOWN_OBJ_ATTRIBUTES; i++)
     {
       int tag = i;
       if (get_elf_backend_data (abfd)->obj_attrs_order)
@@ -347,17 +347,11 @@ _bfd_elf_copy_obj_attributes (bfd *ibfd, bfd *obfd)
   int i;
   int vendor;
 
-  if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
-      || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
-    return;
-
   for (vendor = OBJ_ATTR_FIRST; vendor <= OBJ_ATTR_LAST; vendor++)
     {
-      in_attr
-	= &elf_known_obj_attributes (ibfd)[vendor][LEAST_KNOWN_OBJ_ATTRIBUTE];
-      out_attr
-	= &elf_known_obj_attributes (obfd)[vendor][LEAST_KNOWN_OBJ_ATTRIBUTE];
-      for (i = LEAST_KNOWN_OBJ_ATTRIBUTE; i < NUM_KNOWN_OBJ_ATTRIBUTES; i++)
+      in_attr = &elf_known_obj_attributes (ibfd)[vendor][4];
+      out_attr = &elf_known_obj_attributes (obfd)[vendor][4];
+      for (i = 4; i < NUM_KNOWN_OBJ_ATTRIBUTES; i++)
 	{
 	  out_attr->type = in_attr->type;
 	  out_attr->i = in_attr->i;
@@ -432,7 +426,7 @@ _bfd_elf_parse_attributes (bfd *abfd, Elf_Internal_Shdr * hdr)
   bfd_byte *contents;
   bfd_byte *p;
   bfd_vma len;
-  const char *std_sec;
+  const char *std_section;
 
   contents = (bfd_byte *) bfd_malloc (hdr->sh_size);
   if (!contents)
@@ -444,7 +438,7 @@ _bfd_elf_parse_attributes (bfd *abfd, Elf_Internal_Shdr * hdr)
       return;
     }
   p = contents;
-  std_sec = get_elf_backend_data (abfd)->obj_attrs_vendor;
+  std_section = get_elf_backend_data (abfd)->obj_attrs_vendor;
   if (*(p++) == 'A')
     {
       len = hdr->sh_size - 1;
@@ -459,11 +453,11 @@ _bfd_elf_parse_attributes (bfd *abfd, Elf_Internal_Shdr * hdr)
 	  if (section_len > len)
 	    section_len = len;
 	  len -= section_len;
-	  namelen = strlen ((char *) p) + 1;
+	  namelen = strlen ((char *)p) + 1;
 	  section_len -= namelen + 4;
-	  if (std_sec && strcmp ((char *) p, std_sec) == 0)
+	  if (std_section && strcmp ((char *)p, std_section) == 0)
 	    vendor = OBJ_ATTR_PROC;
-	  else if (strcmp ((char *) p, "gnu") == 0)
+	  else if (strcmp ((char *)p, "gnu") == 0)
 	    vendor = OBJ_ATTR_GNU;
 	  else
 	    {
@@ -570,8 +564,7 @@ _bfd_elf_merge_object_attributes (bfd *ibfd, bfd *obfd)
       if (in_attr->i > 0 && strcmp (in_attr->s, "gnu") != 0)
 	{
 	  _bfd_error_handler
-		(_("error: %B: Object has vendor-specific contents that "
-		   "must be processed by the '%s' toolchain"),
+		(_("error: %B: Must be processed by '%s' toolchain"),
 		 ibfd, in_attr->s);
 	  return FALSE;
 	}
@@ -589,115 +582,4 @@ _bfd_elf_merge_object_attributes (bfd *ibfd, bfd *obfd)
     }
 
   return TRUE;
-}
-
-/* Merge an unknown processor-specific attribute TAG, within the range
-   of known attributes, from IBFD into OBFD; return TRUE if the link
-   is OK, FALSE if it must fail.  */
-
-bfd_boolean
-_bfd_elf_merge_unknown_attribute_low (bfd *ibfd, bfd *obfd, int tag)
-{
-  obj_attribute *in_attr;
-  obj_attribute *out_attr;
-  bfd *err_bfd = NULL;
-  bfd_boolean result = TRUE;
-
-  in_attr = elf_known_obj_attributes_proc (ibfd);
-  out_attr = elf_known_obj_attributes_proc (obfd);
-
-  if (out_attr[tag].i != 0 || out_attr[tag].s != NULL)
-    err_bfd = obfd;
-  else if (in_attr[tag].i != 0 || in_attr[tag].s != NULL)
-    err_bfd = ibfd;
-
-  if (err_bfd != NULL)
-    result
-      = get_elf_backend_data (err_bfd)->obj_attrs_handle_unknown (err_bfd, tag);
-
-  /* Only pass on attributes that match in both inputs.  */
-  if (in_attr[tag].i != out_attr[tag].i
-      || (in_attr[tag].s == NULL) != (out_attr[tag].s == NULL)
-      || (in_attr[tag].s != NULL && out_attr[tag].s != NULL
-	  && strcmp (in_attr[tag].s, out_attr[tag].s) != 0))
-    {
-      out_attr[tag].i = 0;
-      out_attr[tag].s = NULL;
-    }
-
-  return result;
-}
-
-/* Merge the lists of unknown processor-specific attributes, outside
-   the known range, from IBFD into OBFD; return TRUE if the link is
-   OK, FALSE if it must fail.  */
-
-bfd_boolean
-_bfd_elf_merge_unknown_attribute_list (bfd *ibfd, bfd *obfd)
-{
-  obj_attribute_list *in_list;
-  obj_attribute_list *out_list;
-  obj_attribute_list **out_listp;
-  bfd_boolean result = TRUE;
-
-  in_list = elf_other_obj_attributes_proc (ibfd);
-  out_listp = &elf_other_obj_attributes_proc (obfd);
-  out_list = *out_listp;
-
-  for (; in_list || out_list; )
-    {
-      bfd *err_bfd = NULL;
-      int err_tag = 0;
-
-      /* The tags for each list are in numerical order.  */
-      /* If the tags are equal, then merge.  */
-      if (out_list && (!in_list || in_list->tag > out_list->tag))
-	{
-	  /* This attribute only exists in obfd.  We can't merge, and we don't
-	     know what the tag means, so delete it.  */
-	  err_bfd = obfd;
-	  err_tag = out_list->tag;
-	  *out_listp = out_list->next;
-	  out_list = *out_listp;
-	}
-      else if (in_list && (!out_list || in_list->tag < out_list->tag))
-	{
-	  /* This attribute only exists in ibfd. We can't merge, and we don't
-	     know what the tag means, so ignore it.  */
-	  err_bfd = ibfd;
-	  err_tag = in_list->tag;
-	  in_list = in_list->next;
-	}
-      else /* The tags are equal.  */
-	{
-	  /* As present, all attributes in the list are unknown, and
-	     therefore can't be merged meaningfully.  */
-	  err_bfd = obfd;
-	  err_tag = out_list->tag;
-
-	  /*  Only pass on attributes that match in both inputs.  */
-	  if (in_list->attr.i != out_list->attr.i
-	      || (in_list->attr.s == NULL) != (out_list->attr.s == NULL)
-	      || (in_list->attr.s && out_list->attr.s
-		  && strcmp (in_list->attr.s, out_list->attr.s) != 0))
-	    {
-	      /* No match.  Delete the attribute.  */
-	      *out_listp = out_list->next;
-	      out_list = *out_listp;
-	    }
-	  else
-	    {
-	      /* Matched.  Keep the attribute and move to the next.  */
-	      out_list = out_list->next;
-	      in_list = in_list->next;
-	    }
-	}
-
-      if (err_bfd)
-	result = result
-	  && get_elf_backend_data (err_bfd)->obj_attrs_handle_unknown (err_bfd,
-								       err_tag);
-    }
-
-  return result;
 }

@@ -1,5 +1,5 @@
 /* 32-bit ELF support for S+core.
-   Copyright 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
+   Copyright 2009 Free Software Foundation, Inc.
    Contributed by
    Brain.lin (brain.lin@sunplusct.com)
    Mei Ligang (ligang@sunnorth.com.cn)
@@ -22,8 +22,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include "bfd.h"
+#include "sysdep.h"
 #include "libbfd.h"
 #include "libiberty.h"
 #include "elf-bfd.h"
@@ -33,6 +33,13 @@
 #include "hashtab.h"
 #include "elf32-score.h"
 
+
+/* Score ELF linker hash table.  */
+struct score_elf_link_hash_table
+{
+  /* The main hash table.  */
+  struct elf_link_hash_table root;
+};
 
 /* The SCORE ELF linker needs additional information for each symbol in
    the global hash table.  */
@@ -58,9 +65,13 @@ struct score_elf_link_hash_entry
 /* Traverse a score ELF linker hash table.  */
 #define score_elf_link_hash_traverse(table, func, info) \
   (elf_link_hash_traverse \
-   ((table),						     \
+   (&(table)->root, \
     (bfd_boolean (*) (struct elf_link_hash_entry *, void *)) (func), \
     (info)))
+
+/* Get the SCORE elf linker hash table from a link_info structure.  */
+#define score_elf_hash_table(info) \
+  ((struct score_elf_link_hash_table *) ((info)->hash))
 
 /* This structure is used to hold .got entries while estimating got sizes.  */
 struct score_got_entry
@@ -920,6 +931,9 @@ score_elf_sort_hash_table_f (struct score_elf_link_hash_entry *h, void *data)
 {
   struct score_elf_hash_sort_data *hsd = data;
 
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct score_elf_link_hash_entry *) h->root.root.u.i.link;
+
   /* Symbols without dynamic symbol table entries aren't interesting at all.  */
   if (h->root.dynindx == -1)
     return TRUE;
@@ -948,7 +962,7 @@ score_elf_sort_hash_table_f (struct score_elf_link_hash_entry *h, void *data)
 static asection *
 score_elf_got_section (bfd *abfd, bfd_boolean maybe_excluded)
 {
-  asection *sgot = bfd_get_linker_section (abfd, ".got");
+  asection *sgot = bfd_get_section_by_name (abfd, ".got");
 
   if (sgot == NULL || (! maybe_excluded && (sgot->flags & SEC_EXCLUDE) != 0))
     return NULL;
@@ -1006,9 +1020,10 @@ score_elf_sort_hash_table (struct bfd_link_info *info,
        too large offsets.  */
     - (g->next ? g->assigned_gotno : 0);
   hsd.max_non_got_dynindx = max_local;
-  score_elf_link_hash_traverse (elf_hash_table (info),
-				score_elf_sort_hash_table_f,
-				&hsd);
+  score_elf_link_hash_traverse (((struct score_elf_link_hash_table *)
+                                 elf_hash_table (info)),
+                                 score_elf_sort_hash_table_f,
+                                 &hsd);
 
   /* There should have been enough room in the symbol table to
      accommodate both the GOT and non-GOT symbols.  */
@@ -1021,6 +1036,36 @@ score_elf_sort_hash_table (struct bfd_link_info *info,
   g->global_gotsym = hsd.low;
 
   return TRUE;
+}
+
+/* Create an entry in an score ELF linker hash table.  */
+
+static struct bfd_hash_entry *
+score_elf_link_hash_newfunc (struct bfd_hash_entry *entry,
+                             struct bfd_hash_table *table,
+                             const char *string)
+{
+  struct score_elf_link_hash_entry *ret = (struct score_elf_link_hash_entry *) entry;
+
+  /* Allocate the structure if it has not already been allocated by a subclass.  */
+  if (ret == NULL)
+    ret = bfd_hash_allocate (table, sizeof (struct score_elf_link_hash_entry));
+  if (ret == NULL)
+    return (struct bfd_hash_entry *) ret;
+
+  /* Call the allocation method of the superclass.  */
+  ret = ((struct score_elf_link_hash_entry *)
+         _bfd_elf_link_hash_newfunc ((struct bfd_hash_entry *) ret, table, string));
+
+  if (ret != NULL)
+    {
+      ret->possibly_dynamic_relocs = 0;
+      ret->readonly_reloc = FALSE;
+      ret->no_fn_stub = FALSE;
+      ret->forced_local = FALSE;
+    }
+
+  return (struct bfd_hash_entry *) ret;
 }
 
 /* Returns the first relocation of type r_type found, beginning with
@@ -1103,16 +1148,16 @@ score_elf_rel_dyn_section (bfd *dynobj, bfd_boolean create_p)
   static const char dname[] = ".rel.dyn";
   asection *sreloc;
 
-  sreloc = bfd_get_linker_section (dynobj, dname);
+  sreloc = bfd_get_section_by_name (dynobj, dname);
   if (sreloc == NULL && create_p)
     {
-      sreloc = bfd_make_section_anyway_with_flags (dynobj, dname,
-						   (SEC_ALLOC
-						    | SEC_LOAD
-						    | SEC_HAS_CONTENTS
-						    | SEC_IN_MEMORY
-						    | SEC_LINKER_CREATED
-						    | SEC_READONLY));
+      sreloc = bfd_make_section_with_flags (dynobj, dname,
+                                            (SEC_ALLOC
+                                             | SEC_LOAD
+                                             | SEC_HAS_CONTENTS
+                                             | SEC_IN_MEMORY
+                                             | SEC_LINKER_CREATED
+                                             | SEC_READONLY));
       if (sreloc == NULL
           || ! bfd_set_section_alignment (dynobj, sreloc,
                                           SCORE_ELF_LOG_FILE_ALIGN (dynobj)))
@@ -1286,7 +1331,7 @@ score_elf_create_got_section (bfd *abfd,
 
   /* We have to use an alignment of 2**4 here because this is hardcoded
      in the function stub generation and in the linker script.  */
-  s = bfd_make_section_anyway_with_flags (abfd, ".got", flags);
+  s = bfd_make_section_with_flags (abfd, ".got", flags);
    if (s == NULL
       || ! bfd_set_section_alignment (abfd, s, 4))
     return FALSE;
@@ -1605,7 +1650,7 @@ score_elf_local_got_index (bfd *abfd, bfd *ibfd, struct bfd_link_info *info,
 static bfd_vma
 score_elf_global_got_index (bfd *abfd, struct elf_link_hash_entry *h)
 {
-  bfd_vma got_index;
+  bfd_vma index;
   asection *sgot;
   struct score_got_info *g;
   long global_got_dynindx = 0;
@@ -1619,27 +1664,26 @@ score_elf_global_got_index (bfd *abfd, struct elf_link_hash_entry *h)
      indices into the GOT.  That makes it easy to calculate the GOT
      offset.  */
   BFD_ASSERT (h->dynindx >= global_got_dynindx);
-  got_index = ((h->dynindx - global_got_dynindx + g->local_gotno) * SCORE_ELF_GOT_SIZE (abfd));
-  BFD_ASSERT (got_index < sgot->size);
+  index = ((h->dynindx - global_got_dynindx + g->local_gotno) * SCORE_ELF_GOT_SIZE (abfd));
+  BFD_ASSERT (index < sgot->size);
 
-  return got_index;
+  return index;
 }
 
 /* Returns the offset for the entry at the INDEXth position in the GOT.  */
 
 static bfd_vma
-score_elf_got_offset_from_index (bfd *dynobj,
-				 bfd *output_bfd,
-                                 bfd *input_bfd ATTRIBUTE_UNUSED,
-				 bfd_vma got_index)
+score_elf_got_offset_from_index (bfd *dynobj, bfd *output_bfd,
+                                 bfd *input_bfd ATTRIBUTE_UNUSED, bfd_vma index)
 {
   asection *sgot;
   bfd_vma gp;
+  struct score_got_info *g;
 
-  score_elf_got_info (dynobj, &sgot);
+  g = score_elf_got_info (dynobj, &sgot);
   gp = _bfd_get_gp_value (output_bfd);
 
-  return sgot->output_section->vma + sgot->output_offset + got_index - gp;
+  return sgot->output_section->vma + sgot->output_offset + index - gp;
 }
 
 /* Follow indirect and warning hash entries so that each got entry
@@ -2022,7 +2066,7 @@ score_elf_final_link_relocate (reloc_howto_type *howto,
                && h != NULL
                && h->root.def_dynamic
                && !h->root.def_regular))
-           && r_symndx != STN_UNDEF
+           && r_symndx != 0
            && (input_section->flags & SEC_ALLOC) != 0)
         {
           /* If we're creating a shared library, or this relocation is against a symbol
@@ -2035,8 +2079,8 @@ score_elf_final_link_relocate (reloc_howto_type *howto,
                                                     input_section))
             return bfd_reloc_undefined;
         }
-      else if (r_symndx == STN_UNDEF)
-        /* r_symndx will be STN_UNDEF (zero) only for relocs against symbols
+      else if (r_symndx == 0)
+        /* r_symndx will be zero only for relocs against symbols
            from removed linkonce sections, or sections discarded by
            a linker script.  */
         value = 0;
@@ -2239,6 +2283,7 @@ s7_bfd_score_elf_relocate_section (bfd *output_bfd,
                                    asection **local_sections)
 {
   Elf_Internal_Shdr *symtab_hdr;
+  struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel;
   Elf_Internal_Rela *relend;
   const char *name;
@@ -2269,6 +2314,7 @@ s7_bfd_score_elf_relocate_section (bfd *output_bfd,
 
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   extsymoff = (elf_bad_symtab (input_bfd)) ? 0 : symtab_hdr->sh_info;
+  sym_hashes = elf_sym_hashes (input_bfd);
   rel = relocs;
   relend = relocs + input_section->reloc_count;
   for (; rel < relend; rel++)
@@ -2443,9 +2489,16 @@ s7_bfd_score_elf_relocate_section (bfd *output_bfd,
             }
         }
 
-      if (sec != NULL && discarded_section (sec))
-	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
-					 rel, 1, relend, howto, 0, contents);
+      if (sec != NULL && elf_discarded_section (sec))
+        {
+          /* For relocs against symbols from removed linkonce sections,
+             or sections discarded by a linker script, we just want the
+             section contents zeroed.  Avoid any special processing.  */
+          _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+          rel->r_info = 0;
+          rel->r_addend = 0;
+          continue;
+        }
 
       if (info->relocatable)
         {
@@ -2459,6 +2512,7 @@ s7_bfd_score_elf_relocate_section (bfd *output_bfd,
 
               if (r_type == R_SCORE_GOT15)
                 {
+                  const Elf_Internal_Rela *relend;
                   const Elf_Internal_Rela *lo16_rel;
                   const struct elf_backend_data *bed;
                   bfd_vma lo_addend = 0, lo_value = 0;
@@ -2641,10 +2695,6 @@ s7_bfd_score_elf_check_relocs (bfd *abfd,
             {
               while (h->root.type == bfd_link_hash_indirect)
                 h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
-	      /* PR15323, ref flags aren't set for references in the
-		 same object.  */
-	      h->root.non_ir_ref = 1;
             }
         }
 
@@ -2932,7 +2982,7 @@ s7_bfd_score_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
       if (!h->def_regular)
         {
           /* We need .stub section.  */
-          s = bfd_get_linker_section (dynobj, SCORE_ELF_STUB_SECTION_NAME);
+          s = bfd_get_section_by_name (dynobj, SCORE_ELF_STUB_SECTION_NAME);
           BFD_ASSERT (s != NULL);
 
           h->root.u.def.section = s;
@@ -3070,7 +3120,7 @@ s7_bfd_score_elf_size_dynamic_sections (bfd *output_bfd, struct bfd_link_info *i
       /* Set the contents of the .interp section to the interpreter.  */
       if (!info->shared)
         {
-          s = bfd_get_linker_section (dynobj, ".interp");
+          s = bfd_get_section_by_name (dynobj, ".interp");
           BFD_ASSERT (s != NULL);
           s->size = strlen (ELF_DYNAMIC_INTERPRETER) + 1;
           s->contents = (bfd_byte *) ELF_DYNAMIC_INTERPRETER;
@@ -3228,7 +3278,7 @@ s7_bfd_score_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
            | SEC_LINKER_CREATED | SEC_READONLY);
 
   /* ABI requests the .dynamic section to be read only.  */
-  s = bfd_get_linker_section (abfd, ".dynamic");
+  s = bfd_get_section_by_name (abfd, ".dynamic");
   if (s != NULL)
     {
       if (!bfd_set_section_flags (abfd, s, flags))
@@ -3243,10 +3293,10 @@ s7_bfd_score_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
     return FALSE;
 
   /* Create .stub section.  */
-  if (bfd_get_linker_section (abfd, SCORE_ELF_STUB_SECTION_NAME) == NULL)
+  if (bfd_get_section_by_name (abfd, SCORE_ELF_STUB_SECTION_NAME) == NULL)
     {
-      s = bfd_make_section_anyway_with_flags (abfd, SCORE_ELF_STUB_SECTION_NAME,
-					      flags | SEC_CODE);
+      s = bfd_make_section_with_flags (abfd, SCORE_ELF_STUB_SECTION_NAME,
+                                       flags | SEC_CODE);
       if (s == NULL
           || !bfd_set_section_alignment (abfd, s, 2))
 
@@ -3301,7 +3351,7 @@ s7_bfd_score_elf_finish_dynamic_symbol (bfd *output_bfd,
       /* This symbol has a stub.  Set it up.  */
       BFD_ASSERT (h->dynindx != -1);
 
-      s = bfd_get_linker_section (dynobj, SCORE_ELF_STUB_SECTION_NAME);
+      s = bfd_get_section_by_name (dynobj, SCORE_ELF_STUB_SECTION_NAME);
       BFD_ASSERT (s != NULL);
 
       /* FIXME: Can h->dynindex be more than 64K?  */
@@ -3349,8 +3399,7 @@ s7_bfd_score_elf_finish_dynamic_symbol (bfd *output_bfd,
 
   /* Mark _DYNAMIC and _GLOBAL_OFFSET_TABLE_ as absolute.  */
   name = h->root.root.string;
-  if (h == elf_hash_table (info)->hdynamic
-      || h == elf_hash_table (info)->hgot)
+  if (strcmp (name, "_DYNAMIC") == 0 || strcmp (name, "_GLOBAL_OFFSET_TABLE_") == 0)
     sym->st_shndx = SHN_ABS;
   else if (strcmp (name, "_DYNAMIC_LINK") == 0)
     {
@@ -3382,7 +3431,7 @@ s7_bfd_score_elf_finish_dynamic_sections (bfd *output_bfd,
 
   dynobj = elf_hash_table (info)->dynobj;
 
-  sdyn = bfd_get_linker_section (dynobj, ".dynamic");
+  sdyn = bfd_get_section_by_name (dynobj, ".dynamic");
 
   sgot = score_elf_got_section (dynobj, FALSE);
   if (sgot == NULL)
@@ -3726,10 +3775,10 @@ s7_bfd_score_elf_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
     case 272:                  /* Linux/Score elf_prstatus */
 
       /* pr_cursig */
-      elf_tdata (abfd)->core->signal = bfd_get_16 (abfd, note->descdata + 12);
+      elf_tdata (abfd)->core_signal = bfd_get_16 (abfd, note->descdata + 12);
 
       /* pr_pid */
-      elf_tdata (abfd)->core->lwpid = bfd_get_32 (abfd, note->descdata + 24);
+      elf_tdata (abfd)->core_pid = bfd_get_32 (abfd, note->descdata + 24);
 
       /* pr_reg */
       offset = 72;
@@ -3741,8 +3790,7 @@ s7_bfd_score_elf_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
     }
 
   /* Make a ".reg/999" section.  */
-  return _bfd_elfcore_make_pseudosection (abfd, ".reg", raw_size,
-					  note->descpos + offset);
+  return _bfd_elfcore_make_pseudosection (abfd, ".reg", raw_size, note->descpos + offset);
 }
 
 bfd_boolean
@@ -3755,12 +3803,10 @@ s7_bfd_score_elf_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 
     case 128:                  /* Linux/Score elf_prpsinfo.  */
       /* pr_fname */
-      elf_tdata (abfd)->core->program
-	= _bfd_elfcore_strndup (abfd, note->descdata + 32, 16);
+      elf_tdata (abfd)->core_program = _bfd_elfcore_strndup (abfd, note->descdata + 32, 16);
 
       /* pr_psargs */
-      elf_tdata (abfd)->core->command
-	= _bfd_elfcore_strndup (abfd, note->descdata + 48, 80);
+      elf_tdata (abfd)->core_command = _bfd_elfcore_strndup (abfd, note->descdata + 48, 80);
       break;
     }
 
@@ -3769,7 +3815,7 @@ s7_bfd_score_elf_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
      implementations, so strip it off if it exists.  */
 
   {
-    char *command = elf_tdata (abfd)->core->command;
+    char *command = elf_tdata (abfd)->core_command;
     int n = strlen (command);
 
     if (0 < n && command[n - 1] == ' ')
@@ -3792,6 +3838,28 @@ s7_elf32_score_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED, bfd_reloc_code_rea
       return &elf32_score_howto_table[elf32_score_reloc_map[i].elf_reloc_val];
 
   return NULL;
+}
+
+/* Create a score elf linker hash table.  */
+
+struct bfd_link_hash_table *
+s7_elf32_score_link_hash_table_create (bfd *abfd)
+{
+  struct score_elf_link_hash_table *ret;
+  bfd_size_type amt = sizeof (struct score_elf_link_hash_table);
+
+  ret = bfd_malloc (amt);
+  if (ret == NULL)
+    return NULL;
+
+  if (!_bfd_elf_link_hash_table_init (&ret->root, abfd, score_elf_link_hash_newfunc,
+                                      sizeof (struct score_elf_link_hash_entry)))
+    {
+      free (ret);
+      return NULL;
+    }
+
+  return &ret->root.root;
 }
 
 bfd_boolean

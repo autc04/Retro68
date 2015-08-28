@@ -1,7 +1,0 @@
-if { ! [istarget nios2-*-*] } {
-    return
-}
-
-foreach test [lsort [glob -nocomplain $srcdir/$subdir/*.d]] {
-    run_dump_test [file rootname $test]
-}

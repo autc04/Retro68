@@ -1,6 +1,5 @@
 /* BFD back-end for AMD 64 COFF files.
-   Copyright 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright 2006, 2007, 2008, 2009  Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,7 +17,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.
-
+   
    Written by Kai Tietz, OneVision Software GmbH&CoKg.  */
 
 #ifndef COFF_WITH_pex64
@@ -193,8 +192,7 @@ coff_amd64_reloc (bfd *abfd,
 static bfd_boolean
 in_reloc_p (bfd *abfd ATTRIBUTE_UNUSED, reloc_howto_type *howto)
 {
-  return ! howto->pc_relative && howto->type != R_AMD64_IMAGEBASE
-	 && howto->type != R_AMD64_SECREL;
+  return ! howto->pc_relative && howto->type != R_AMD64_IMAGEBASE;
 }
 #endif /* COFF_WITH_PE */
 
@@ -547,21 +545,21 @@ coff_amd64_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 {
   reloc_howto_type *howto;
 
-  if (rel->r_type >= ARRAY_SIZE (howto_table))
+  if (rel->r_type > ARRAY_SIZE (howto_table))
     {
       bfd_set_error (bfd_error_bad_value);
       return NULL;
+    }
+  if (rel->r_type >= R_AMD64_PCRLONG_1 && rel->r_type <= R_AMD64_PCRLONG_5)
+    {
+      rel->r_vaddr += (bfd_vma)(rel->r_type-R_AMD64_PCRLONG);
+      rel->r_type = R_AMD64_PCRLONG;
     }
   howto = howto_table + rel->r_type;
 
 #if defined(COFF_WITH_PE)
   /* Cancel out code in _bfd_coff_generic_relocate_section.  */
   *addendp = 0;
-  if (rel->r_type >= R_AMD64_PCRLONG_1 && rel->r_type <= R_AMD64_PCRLONG_5)
-    {
-      *addendp -= (bfd_vma)(rel->r_type - R_AMD64_PCRLONG);
-      rel->r_type = R_AMD64_PCRLONG;
-    }
 #endif
 
   if (howto->pc_relative)
@@ -619,20 +617,19 @@ coff_amd64_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
     {
       bfd_vma osect_vma;
 
-      if (h && (h->root.type == bfd_link_hash_defined
-		|| h->root.type == bfd_link_hash_defweak))
+      if (h && (h->type == bfd_link_hash_defined || h->type == bfd_link_hash_defweak))
 	osect_vma = h->root.u.def.section->output_section->vma;
       else
 	{
-	  asection *s;
+	  asection *sec;
 	  int i;
 
 	  /* Sigh, the only way to get the section to offset against
 	     is to find it the hard way.  */
-	  for (s = abfd->sections, i = 1; i < sym->n_scnum; i++)
-	    s = s->next;
+	  for (sec = abfd->sections, i = 1; i < sym->n_scnum; i++)
+	    sec = sec->next;
 
-	  osect_vma = s->output_section->vma;
+	  osect_vma = sec->output_section->vma;
 	}
 
       *addendp -= osect_vma;
@@ -731,9 +728,6 @@ coff_amd64_is_local_label_name (bfd *abfd, const char *name)
 #define amd64coff_object_p coff_object_p
 #endif
 
-#define _bfd_generic_find_nearest_line_discriminator \
-	coff_find_nearest_line_discriminator
-
 const bfd_target
 #ifdef TARGET_SYM
   TARGET_SYM =
@@ -752,13 +746,13 @@ const bfd_target
 
   (HAS_RELOC | EXEC_P |		/* Object flags.  */
    HAS_LINENO | HAS_DEBUG |
-   HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED | BFD_COMPRESS | BFD_DECOMPRESS),
+   HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),
 
   (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* Section flags.  */
 #if defined(COFF_WITH_PE)
-   | SEC_LINK_ONCE | SEC_LINK_DUPLICATES | SEC_READONLY | SEC_DEBUGGING
+   | SEC_LINK_ONCE | SEC_LINK_DUPLICATES | SEC_READONLY
 #endif
-   | SEC_CODE | SEC_DATA | SEC_EXCLUDE ),
+   | SEC_CODE | SEC_DATA),
 
 #ifdef TARGET_UNDERSCORE
   TARGET_UNDERSCORE,		/* Leading underscore.  */
@@ -767,7 +761,6 @@ const bfd_target
 #endif
   '/',				/* Ar_pad_char.  */
   15,				/* Ar_max_namelen.  */
-  0,				/* match priority.  */
 
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,

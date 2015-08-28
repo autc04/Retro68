@@ -3,6 +3,7 @@
 @ Check also calls to an undef weak symbol.
 
 	.text
+	.arch armv5t
 
 	.space 0x1000000
 	.p2align 4

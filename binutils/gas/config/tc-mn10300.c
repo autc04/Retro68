@@ -1,6 +1,6 @@
 /* tc-mn10300.c -- Assembler code for the Matsushita 10300
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   2006, 2007, 2008, 2009 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -281,8 +281,6 @@ static const struct reg_name other_registers[] =
   { "pc", AM33 },
   { "psw", 0 },
   { "sp", 0 },
-  { "ssp", 0 },
-  { "usp", 0 },
 };
 
 #define OTHER_REG_NAME_CNT	ARRAY_SIZE (other_registers)
@@ -691,8 +689,6 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       fragP->fr_literal[offset] = 0xdd;
       fragP->fr_literal[offset + 5] = fragP->fr_literal[offset + 3];
       fragP->fr_literal[offset + 6] = fragP->fr_literal[offset + 4];
-      fragP->fr_literal[offset + 3] = 0;
-      fragP->fr_literal[offset + 4] = 0;
 
       fix_new (fragP, fragP->fr_fix + 1, 4, fragP->fr_symbol,
 	       fragP->fr_offset + 1, 1, BFD_RELOC_32_PCREL);
@@ -1776,6 +1772,8 @@ keep_going:
 	 that they do indeed not match.  */
       if (opcode->no_match_operands)
 	{
+	  int i;
+
 	  /* Look at each operand to see if it's marked.  */
 	  for (i = 0; i < MN10300_MAX_OPERANDS; i++)
 	    {
@@ -2058,23 +2056,18 @@ keep_going:
       for (i = 0; i < fc; i++)
 	{
 	  const struct mn10300_operand *operand;
-	  int reloc_size;
 
 	  operand = &mn10300_operands[fixups[i].opindex];
 	  if (fixups[i].reloc != BFD_RELOC_UNUSED
 	      && fixups[i].reloc != BFD_RELOC_32_GOT_PCREL
 	      && fixups[i].reloc != BFD_RELOC_32_GOTOFF
 	      && fixups[i].reloc != BFD_RELOC_32_PLT_PCREL
-	      && fixups[i].reloc != BFD_RELOC_MN10300_TLS_GD
-	      && fixups[i].reloc != BFD_RELOC_MN10300_TLS_LD
-	      && fixups[i].reloc != BFD_RELOC_MN10300_TLS_LDO
-	      && fixups[i].reloc != BFD_RELOC_MN10300_TLS_GOTIE
-	      && fixups[i].reloc != BFD_RELOC_MN10300_TLS_IE
-	      && fixups[i].reloc != BFD_RELOC_MN10300_TLS_LE
 	      && fixups[i].reloc != BFD_RELOC_MN10300_GOT32)
 	    {
 	      reloc_howto_type *reloc_howto;
+	      int size;
 	      int offset;
+	      fixS *fixP;
 
 	      reloc_howto = bfd_reloc_type_lookup (stdoutput,
 						   fixups[i].reloc);
@@ -2082,20 +2075,20 @@ keep_going:
 	      if (!reloc_howto)
 		abort ();
 
-	      reloc_size = bfd_get_reloc_size (reloc_howto);
+	      size = bfd_get_reloc_size (reloc_howto);
 
-	      if (reloc_size < 1 || reloc_size > 4)
+	      if (size < 1 || size > 4)
 		abort ();
 
 	      offset = 4 - size;
-	      fix_new_exp (frag_now, f - frag_now->fr_literal + offset,
-			   reloc_size, &fixups[i].exp,
-			   reloc_howto->pc_relative,
-			   fixups[i].reloc);
+	      fixP = fix_new_exp (frag_now, f - frag_now->fr_literal + offset,
+				  size, &fixups[i].exp,
+				  reloc_howto->pc_relative,
+				  fixups[i].reloc);
 	    }
 	  else
 	    {
-	      int reloc, pcrel, offset;
+	      int reloc, pcrel, reloc_size, offset;
 	      fixS *fixP;
 
 	      reloc = BFD_RELOC_NONE;
@@ -2199,6 +2192,8 @@ tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
       asec = S_GET_SEGMENT (fixp->fx_addsy);
       ssec = S_GET_SEGMENT (fixp->fx_subsy);
 
+      reloc->sym_ptr_ptr = NULL;
+
       /* If we have a difference between two (non-absolute) symbols we must
 	 generate two relocs (one for each symbol) and allow the linker to
 	 resolve them - relaxation may change the distances between symbols,
@@ -2218,15 +2213,10 @@ tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
 
 	  reloc->addend = fixp->fx_offset; 
 	  if (asec == absolute_section)
-	    {
-	      reloc->addend += S_GET_VALUE (fixp->fx_addsy);
-	      reloc->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
-	    }
-	  else
-	    {
-	      reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
-	      *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
-	    }
+	    reloc->addend += S_GET_VALUE (fixp->fx_addsy);
+
+	  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+	  *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
 
 	  fixp->fx_pcrel = 0;
 	  fixp->fx_done = 1;
@@ -2263,6 +2253,8 @@ tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
 	      return relocs;
 	    }
 
+	  if (reloc->sym_ptr_ptr)
+	    free (reloc->sym_ptr_ptr);
 	  free (reloc);
 	  return & no_relocs;
 	}
@@ -2509,18 +2501,6 @@ mn10300_parse_name (char const *name,
     reloc_type = BFD_RELOC_MN10300_GOT32;
   else if ((next_end = mn10300_end_of_match (next + 1, "PLT")))
     reloc_type = BFD_RELOC_32_PLT_PCREL;
-  else if ((next_end = mn10300_end_of_match (next + 1, "tlsgd")))
-    reloc_type = BFD_RELOC_MN10300_TLS_GD;
-  else if ((next_end = mn10300_end_of_match (next + 1, "tlsldm")))
-    reloc_type = BFD_RELOC_MN10300_TLS_LD;
-  else if ((next_end = mn10300_end_of_match (next + 1, "dtpoff")))
-    reloc_type = BFD_RELOC_MN10300_TLS_LDO;
-  else if ((next_end = mn10300_end_of_match (next + 1, "gotntpoff")))
-    reloc_type = BFD_RELOC_MN10300_TLS_GOTIE;
-  else if ((next_end = mn10300_end_of_match (next + 1, "indntpoff")))
-    reloc_type = BFD_RELOC_MN10300_TLS_IE;
-  else if ((next_end = mn10300_end_of_match (next + 1, "tpoff")))
-    reloc_type = BFD_RELOC_MN10300_TLS_LE;
   else
     goto no_suffix;
 

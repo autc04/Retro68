@@ -1,5 +1,5 @@
 /* DLX specific support for 32-bit ELF
-   Copyright 2002, 2003, 2004, 2005, 2006, 2007, 2011
+   Copyright 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -139,8 +139,9 @@ elf32_dlx_relocate16 (bfd *abfd,
   /* Can not support a long jump to sections other then .text.  */
   if (strcmp (input_section->name, symbol->section->output_section->name) != 0)
     {
-      (*_bfd_error_handler) (_("BFD Link Error: branch (PC rel16) to section (%s) not supported"),
-			     symbol->section->output_section->name);
+      fprintf (stderr,
+	       "BFD Link Error: branch (PC rel16) to section (%s) not supported\n",
+	       symbol->section->output_section->name);
       return bfd_reloc_undefined;
     }
 
@@ -201,8 +202,9 @@ elf32_dlx_relocate26 (bfd *abfd,
   /* Can not support a long jump to sections other then .text   */
   if (strcmp (input_section->name, symbol->section->output_section->name) != 0)
     {
-      (*_bfd_error_handler) (_("BFD Link Error: jump (PC rel26) to section (%s) not supported"),
-			     symbol->section->output_section->name);
+      fprintf (stderr,
+	       "BFD Link Error: jump (PC rel26) to section (%s) not supported\n",
+	       symbol->section->output_section->name);
       return bfd_reloc_undefined;
     }
 
@@ -451,10 +453,6 @@ elf32_dlx_check_relocs (bfd *abfd,
 	  while (h->root.type == bfd_link_hash_indirect
 		 || h->root.type == bfd_link_hash_warning)
 	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
-	  /* PR15323, ref flags aren't set for references in the same
-	     object.  */
-	  h->root.non_ir_ref = 1;
 	}
 
       switch (ELF32_R_TYPE (rel->r_info))

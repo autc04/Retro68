@@ -1,6 +1,6 @@
 /* Infineon XC16X-specific support for 16-bit ELF.
-   Copyright 2006, 2007, 2009, 2010, 2012 Free Software Foundation, Inc.
-   Contributed by KPIT Cummins Infosystems
+   Copyright 2006, 2007, 2009  Free Software Foundation, Inc.
+   Contributed by KPIT Cummins Infosystems 
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -358,6 +358,7 @@ elf32_xc16x_relocate_section (bfd *output_bfd,
       asection *sec;
       struct elf_link_hash_entry *h;
       bfd_vma relocation;
+      bfd_reloc_status_type r;
 
       /* This is a final link.  */
       r_symndx = ELF32_R_SYM (rel->r_info);
@@ -381,25 +382,27 @@ elf32_xc16x_relocate_section (bfd *output_bfd,
 				   unresolved_reloc, warned);
 	}
 
-      if (sec != NULL && discarded_section (sec))
+      if (sec != NULL && elf_discarded_section (sec))
 	{
 	  /* For relocs against symbols from removed linkonce sections,
 	     or sections discarded by a linker script, we just want the
-	     section contents cleared.  Avoid any special processing.  */
+	     section contents zeroed.  Avoid any special processing.  */
 	  reloc_howto_type *howto;
 	  howto = xc16x_reloc_type_lookup (input_bfd, r_type);
-	  RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
-					   rel, 1, relend, howto, 0, contents);
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
 	}
 
       if (info->relocatable)
 	continue;
 
-      elf32_xc16x_final_link_relocate (r_type, input_bfd, output_bfd,
-				       input_section,
-				       contents, rel->r_offset,
-				       relocation, rel->r_addend,
-				       info, sec, h == NULL);
+      r = elf32_xc16x_final_link_relocate (r_type, input_bfd, output_bfd,
+					   input_section,
+					   contents, rel->r_offset,
+					   relocation, rel->r_addend,
+					   info, sec, h == NULL);
     }
 
   return TRUE;
@@ -433,11 +436,11 @@ elf32_xc16x_final_write_processing (bfd *abfd,
 
 static unsigned long
 elf32_xc16x_mach (flagword flags)
-{
+{  
   switch (flags)
     {
     case 0x1000:
-    default:
+    default: 
       return bfd_mach_xc16x;
 
     case 0x1001:

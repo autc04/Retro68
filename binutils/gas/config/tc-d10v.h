@@ -1,6 +1,6 @@
 /* tc-d10v.h -- Header file for tc-d10v.c.
-   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2005, 2007, 2009,
-   2010, 2011 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2005, 2007, 2009
+   Free Software Foundation, Inc.
    Written by Martin Hunt, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -22,7 +22,7 @@
 
 #define TC_D10V
 
-#define TARGET_BYTES_BIG_ENDIAN 1
+#define TARGET_BYTES_BIG_ENDIAN 0
 
 /* The target BFD architecture.  */
 #define TARGET_ARCH bfd_arch_d10v
@@ -47,6 +47,7 @@ long md_pcrel_from_section (struct fix *, segT);
 
 int d10v_cleanup (void);
 void d10v_frob_label (symbolS *);
+#define md_after_pass_hook()	     d10v_cleanup ()
 #define md_cleanup()		     d10v_cleanup ()
 #define md_do_align(a,b,c,d,e)	     d10v_cleanup ()
 #define tc_frob_label(sym)	     d10v_frob_label (sym)

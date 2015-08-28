@@ -1,21 +1,21 @@
 /* Blackfin ELF support for BFD.
-   Copyright (C) 2005, 2006, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
 
-   This file is part of BFD, the Binary File Descriptor library.
+This file is part of BFD, the Binary File Descriptor library.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ELF_BFIN_H
 #define _ELF_BFIN_H
@@ -87,9 +87,6 @@ END_RELOC_NUMBERS (R_BFIN_max)
 /* Processor specific flags for the ELF header e_flags field.  */
 #define EF_BFIN_PIC		0x00000001	/* -fpic */
 #define EF_BFIN_FDPIC		0x00000002      /* -mfdpic */
-
-#define EF_BFIN_CODE_IN_L1	0x00000010	/* --code-in-l1 */
-#define EF_BFIN_DATA_IN_L1	0x00000020	/* --data-in-l1 */
 
 #define	EF_BFIN_PIC_FLAGS	(EF_BFIN_PIC | EF_BFIN_FDPIC)
 #endif /* _ELF_BFIN_H */

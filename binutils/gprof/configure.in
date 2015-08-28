@@ -1,21 +1,4 @@
 dnl Process this file with autoconf to produce a configure script.
-dnl
-dnl   Copyright 2012 Free Software Foundation
-dnl
-dnl This file is free software; you can redistribute it and/or modify
-dnl it under the terms of the GNU General Public License as published by
-dnl the Free Software Foundation; either version 3 of the License, or
-dnl (at your option) any later version.
-dnl 
-dnl This program is distributed in the hope that it will be useful,
-dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
-dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-dnl GNU General Public License for more details.
-dnl 
-dnl You should have received a copy of the GNU General Public License
-dnl along with this program; see the file COPYING3.  If not see
-dnl <http://www.gnu.org/licenses/>.
-dnl
 AC_PREREQ(2.59)
 AC_INIT
 AC_CONFIG_SRCDIR([gprof.c])
@@ -24,7 +7,7 @@ AC_CANONICAL_TARGET([])
 AC_ISC_POSIX
 
 changequote(,)dnl
-BFD_VERSION=`${srcdir}/../bfd/configure --version | sed -n -e '1s,.* ,,p'`
+BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
 changequote([,])dnl
 AM_INIT_AUTOMAKE(gprof, ${BFD_VERSION})
 
@@ -37,14 +20,14 @@ AC_CONFIG_HEADERS([gconfig.h:gconfig.in])
 AC_PROG_CC
 AC_GNU_SOURCE
 AC_USE_SYSTEM_EXTENSIONS
-ACX_LARGEFILE
+AC_SYS_LARGEFILE
 AC_PROG_INSTALL
 
 LT_INIT
 
 AC_CHECK_FUNCS(setmode)
 
-ALL_LINGUAS="fr tr sv es id da pt_BR de vi rw ga ms fi nl bg eo ja sr"
+ALL_LINGUAS="fr tr sv es id da pt_BR de vi rw ga ms fi nl"
 ZW_GNU_GETTEXT_SISTER_DIR
 AM_PO_SUBDIRS
 

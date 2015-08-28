@@ -1,7 +1,7 @@
 #as: -32 -mips1
 #objdump: -dr
 
-.*: +file format .*
+.*: +file format .*mips
 
 Disassembly of section \.text:
 

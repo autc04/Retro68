@@ -371,16 +371,14 @@ ldst:
 	pld	1f
 	pld	1b
 1:
-	nop
-here:
+
 	ldrd	r2, r3, [r5]
 	ldrd	r2, [r5, #0x30]
 	ldrd	r2, [r5, #-0x30]
-	ldrd	r4, r5, here
 	strd	r2, r3, [r5]
 	strd	r2, [r5, #0x30]
 	strd	r2, [r5, #-0x30]
-	
+
 	ldrbt	r1, [r5]
 	ldrbt	r1, [r5, #0x30]
 	ldrsbt	r1, [r5]
@@ -402,7 +400,6 @@ ldxstx:
 	strexh	r1, r2, [r4]
 	strex	r1, r2, [r4]
 	strexd	r1, r2, r3, [r4]
-	strexd	r1, r3, r3, [r4]
 
 	ldrex	r1, [r4,#516]
 	strex	r1, r2, [r4,#516]
@@ -633,8 +630,6 @@ rrx:
 	rrx	r1, r2
 	rrxs	r3, r4
 
-	.arch armv7-a
-	.arch_extension sec
 smc:
 	smc	#0
 	smc	#0xabcd

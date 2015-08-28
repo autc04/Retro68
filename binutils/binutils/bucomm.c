@@ -1,6 +1,6 @@
 /* bucomm.c -- Bin Utils COMmon code.
    Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001, 2002,
-   2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
+   2003, 2005, 2006, 2007, 2008, 2009
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -29,6 +29,7 @@
 #include "filenames.h"
 #include "libbfd.h"
 
+#include <sys/stat.h>
 #include <time.h>		/* ctime, maybe time_t */
 #include <assert.h>
 #include "bucomm.h"
@@ -51,10 +52,8 @@ char *program_name;
 void
 bfd_nonfatal (const char *string)
 {
-  const char *errmsg;
+  const char *errmsg = bfd_errmsg (bfd_get_error ());
 
-  errmsg = bfd_errmsg (bfd_get_error ());
-  fflush (stdout);
   if (string)
     fprintf (stderr, "%s: %s: %s\n", program_name, string, errmsg);
   else
@@ -71,30 +70,27 @@ bfd_nonfatal (const char *string)
    PROGRAM:file: bfd-error-message
    PROGRAM:file[section]: bfd-error-message
    PROGRAM:file: printf-message: bfd-error-message
-   PROGRAM:file[section]: printf-message: bfd-error-message.  */
+   PROGRAM:file[section]: printf-message: bfd-error-message
+*/
 
 void
 bfd_nonfatal_message (const char *filename,
-		      const bfd *abfd,
-		      const asection *section,
+		      const bfd *bfd, const asection *section,
 		      const char *format, ...)
 {
-  const char *errmsg;
-  const char *section_name;
+  const char *errmsg = bfd_errmsg (bfd_get_error ());
+  const char *section_name = NULL;
   va_list args;
 
-  errmsg = bfd_errmsg (bfd_get_error ());
-  fflush (stdout);
-  section_name = NULL;
   va_start (args, format);
   fprintf (stderr, "%s", program_name);
   
-  if (abfd)
+  if (bfd)
     {
       if (!filename)
-	filename = bfd_get_archive_filename (abfd);
+	filename = bfd_get_archive_filename (bfd);
       if (section)
-	section_name = bfd_get_section_name (abfd, section);
+	section_name = bfd_get_section_name (bfd, section);
     }
   if (section_name)
     fprintf (stderr, ":%s[%s]", filename, section_name);
@@ -120,7 +116,6 @@ bfd_fatal (const char *string)
 void
 report (const char * format, va_list args)
 {
-  fflush (stdout);
   fprintf (stderr, "%s: ", program_name);
   vfprintf (stderr, format, args);
   putc ('\n', stderr);
@@ -170,7 +165,6 @@ set_default_bfd_target (void)
 void
 list_matching_formats (char **p)
 {
-  fflush (stdout);
   fprintf (stderr, _("%s: Matching formats:"), program_name);
   while (*p)
     fprintf (stderr, " %s", *p++);
@@ -183,14 +177,13 @@ void
 list_supported_targets (const char *name, FILE *f)
 {
   int t;
-  const char **targ_names;
+  const char **targ_names = bfd_target_list ();
 
   if (name == NULL)
     fprintf (f, _("Supported targets:"));
   else
     fprintf (f, _("%s: supported targets:"), name);
 
-  targ_names = bfd_target_list ();
   for (t = 0; targ_names[t] != NULL; t++)
     fprintf (f, " %s", targ_names[t]);
   fprintf (f, "\n");
@@ -224,9 +217,9 @@ endian_string (enum bfd_endian endian)
 {
   switch (endian)
     {
-    case BFD_ENDIAN_BIG: return _("big endian");
-    case BFD_ENDIAN_LITTLE: return _("little endian");
-    default: return _("endianness unknown");
+    case BFD_ENDIAN_BIG: return "big endian";
+    case BFD_ENDIAN_LITTLE: return "little endian";
+    default: return "endianness unknown";
     }
 }
 
@@ -247,7 +240,7 @@ display_target_list (void)
       bfd *abfd = bfd_openw (dummy_name, p->name);
       int a;
 
-      printf (_("%s\n (header %s, data %s)\n"), p->name,
+      printf ("%s\n (header %s, data %s)\n", p->name,
 	      endian_string (p->header_byteorder),
 	      endian_string (p->byteorder));
 
@@ -427,18 +420,16 @@ print_arelt_descr (FILE *file, bfd *abfd, bfd_boolean verbose)
 	  char timebuf[40];
 	  time_t when = buf.st_mtime;
 	  const char *ctime_result = (const char *) ctime (&when);
-	  bfd_size_type size;
 
 	  /* POSIX format:  skip weekday and seconds from ctime output.  */
 	  sprintf (timebuf, "%.12s %.4s", ctime_result + 4, ctime_result + 20);
 
 	  mode_string (buf.st_mode, modebuf);
 	  modebuf[10] = '\0';
-	  size = buf.st_size;
 	  /* POSIX 1003.2/D11 says to skip first character (entry type).  */
-	  fprintf (file, "%s %ld/%ld %6" BFD_VMA_FMT "u %s ", modebuf + 1,
+	  fprintf (file, "%s %ld/%ld %6ld %s ", modebuf + 1,
 		   (long) buf.st_uid, (long) buf.st_gid,
-		   size, timebuf);
+		   (long) buf.st_size, timebuf);
 	}
     }
 
@@ -512,10 +503,7 @@ make_tempname (char *filename)
   fd = open (tmpname, O_RDWR | O_CREAT | O_EXCL, 0600);
 #endif
   if (fd == -1)
-    {
-      free (tmpname);
-      return NULL;
-    }
+    return NULL;
   close (fd);
   return tmpname;
 }
@@ -564,7 +552,7 @@ parse_vma (const char *s, const char *arg)
 
 /* Returns the size of the named file.  If the file does not
    exist, or if it is not a real file, then a suitable non-fatal
-   error message is printed and (off_t) -1 is returned.  */
+   error message is printed and zero is returned.  */
 
 off_t
 get_file_size (const char * file_name)
@@ -581,9 +569,6 @@ get_file_size (const char * file_name)
     }  
   else if (! S_ISREG (statbuf.st_mode))
     non_fatal (_("Warning: '%s' is not an ordinary file"), file_name);
-  else if (statbuf.st_size < 0)
-    non_fatal (_("Warning: '%s' has negative size, probably it is too large"),
-               file_name);
   else
     return statbuf.st_size;
 

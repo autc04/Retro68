@@ -53,7 +53,10 @@ spaces (int count)
 
   if (count > maxsize)
     {
-      free (buf);
+      if (buf)
+	{
+	  free (buf);
+	}
       buf = (char *) malloc (count + 1);
       if (buf == (char *) 0)
 	return 0;

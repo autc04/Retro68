@@ -1,6 +1,6 @@
 /* dllwrap.c -- wrapper for DLLTOOL and GCC to generate PE style DLLs
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2009,
-   2011, 2012 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Free Software Foundation, Inc.
    Contributed by Mumit Khan (khan@xraylith.wisc.edu).
 
    This file is part of GNU Binutils.
@@ -20,6 +20,13 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
+/* AIX requires this to be the first thing in the file.  */
+#ifndef __GNUC__
+# ifdef _AIX
+ #pragma alloca
+#endif
+#endif
+
 #include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
@@ -28,6 +35,7 @@
 #include "bucomm.h"
 
 #include <time.h>
+#include <sys/stat.h>
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -73,9 +81,6 @@ static char *dlltool_name = NULL;
 
 static char *target = TARGET;
 
-/* -1: use default, 0: no underscoring, 1: underscore.  */
-static int is_leading_underscore = -1;
-
 typedef enum {
   UNKNOWN_TARGET,
   CYGWIN_TARGET,
@@ -83,16 +88,7 @@ typedef enum {
 }
 target_type;
 
-typedef enum {
-  UNKNOWN_CPU,
-  X86_CPU,
-  X64_CPU,
-  ARM_CPU
-}
-target_cpu;
-
 static target_type which_target = UNKNOWN_TARGET;
-static target_cpu which_cpu = UNKNOWN_CPU;
 
 static int dontdeltemps = 0;
 static int dry_run = 0;
@@ -174,20 +170,20 @@ warn VPARAMS ((const char *format, ...))
    appropriate.  */
 
 static char *
-look_for_prog (const char *progname, const char *prefix, int end_prefix)
+look_for_prog (const char *prog_name, const char *prefix, int end_prefix)
 {
   struct stat s;
   char *cmd;
 
   cmd = xmalloc (strlen (prefix)
-		 + strlen (progname)
+		 + strlen (prog_name)
 #ifdef HAVE_EXECUTABLE_SUFFIX
 		 + strlen (EXECUTABLE_SUFFIX)
 #endif
 		 + 10);
   strcpy (cmd, prefix);
 
-  sprintf (cmd + end_prefix, "%s", progname);
+  sprintf (cmd + end_prefix, "%s", prog_name);
 
   if (strchr (cmd, '/') != NULL)
     {
@@ -406,7 +402,7 @@ run (const char *what, char *args)
   pid = pwait (pid, &wait_status, 0);
   if (pid == -1)
     {
-      warn (_("pwait returns: %s"), strerror (errno));
+      warn ("wait: %s", strerror (errno));
       retcode = 1;
     }
   else if (WIFSIGNALED (wait_status))
@@ -508,8 +504,6 @@ usage (FILE *file, int status)
   fprintf (file, _("   --add-stdcall-alias    Add aliases without @<n>\n"));
   fprintf (file, _("   --as <name>            Use <name> for assembler\n"));
   fprintf (file, _("   --nodelete             Keep temp files.\n"));
-  fprintf (file, _("   --no-leading-underscore  Entrypoint without underscore\n"));
-  fprintf (file, _("   --leading-underscore     Entrypoint with underscore.\n"));
   fprintf (file, _("  Rest are passed unmodified to the language driver\n"));
   fprintf (file, "\n\n");
   if (REPORT_BUGS_TO[0] && status == 0)
@@ -533,11 +527,9 @@ usage (FILE *file, int status)
 #define OPTION_IMAGE_BASE	(OPTION_ENTRY + 1)
 #define OPTION_TARGET		(OPTION_IMAGE_BASE + 1)
 #define OPTION_MNO_CYGWIN	(OPTION_TARGET + 1)
-#define OPTION_NO_LEADING_UNDERSCORE (OPTION_MNO_CYGWIN + 1)
-#define OPTION_LEADING_UNDERSCORE (OPTION_NO_LEADING_UNDERSCORE + 1)
 
 /* DLLTOOL options.  */
-#define OPTION_NODELETE		(OPTION_LEADING_UNDERSCORE + 1)
+#define OPTION_NODELETE		(OPTION_MNO_CYGWIN + 1)
 #define OPTION_DLLNAME		(OPTION_NODELETE + 1)
 #define OPTION_NO_IDATA4	(OPTION_DLLNAME + 1)
 #define OPTION_NO_IDATA5	(OPTION_NO_IDATA4 + 1)
@@ -573,8 +565,6 @@ static const struct option long_options[] =
   {"entry", required_argument, NULL, 'e'},
   {"image-base", required_argument, NULL, OPTION_IMAGE_BASE},
   {"target", required_argument, NULL, OPTION_TARGET},
-  {"no-leading-underscore", no_argument, NULL, OPTION_NO_LEADING_UNDERSCORE},
-  {"leading-underscore", no_argument, NULL, OPTION_NO_LEADING_UNDERSCORE},
 
   /* dlltool options.  */
   {"no-delete", no_argument, NULL, 'n'},
@@ -738,12 +728,6 @@ main (int argc, char **argv)
 	case OPTION_MNO_CYGWIN:
 	  target = "i386-mingw32";
 	  break;
-	case OPTION_NO_LEADING_UNDERSCORE:
-	  is_leading_underscore = 0;
-	  break;
-	case OPTION_LEADING_UNDERSCORE:
-	  is_leading_underscore = 1;
-	  break;
 	case OPTION_BASE_FILE:
 	  base_file_name = optarg;
 	  delete_base_file = 0;
@@ -835,21 +819,6 @@ Creating one, but that may not be what you want"));
   else
     which_target = UNKNOWN_TARGET;
 
-  if (! strncmp (target, "arm", 3))
-    which_cpu = ARM_CPU;
-  else if (!strncmp (target, "x86_64", 6)
-	   || !strncmp (target, "athlon64", 8)
-	   || !strncmp (target, "amd64", 5))
-    which_cpu = X64_CPU;
-  else if (target[0] == 'i' && (target[1] >= '3' && target[1] <= '6')
-	   && target[2] == '8' && target[3] == '6')
-    which_cpu = X86_CPU;
-  else
-    which_cpu = UNKNOWN_CPU;
-
-  if (is_leading_underscore == -1)
-    is_leading_underscore = (which_cpu != X64_CPU && which_cpu != ARM_CPU);
-
   /* Re-create the command lines as a string, taking care to quote stuff.  */
   dlltool_cmdline = dyn_string_new (cmdline_len);
   if (verbose)
@@ -894,38 +863,22 @@ Creating one, but that may not be what you want"));
   dyn_string_append_cstr (driver_cmdline, " -o ");
   dyn_string_append_cstr (driver_cmdline, dll_file_name);
 
-  if (is_leading_underscore == 0)
-    dyn_string_append_cstr (driver_cmdline, " --no-leading-underscore");
-  else if (is_leading_underscore == 1)
-    dyn_string_append_cstr (driver_cmdline, " --leading-underscore");
-
   if (! entry_point || strlen (entry_point) == 0)
     {
-      const char *prefix = (is_leading_underscore != 0 ? "_" : "");
-      const char *postfix = "";
-      const char *name_entry;
-
-      if (which_cpu == X86_CPU || which_cpu == UNKNOWN_CPU)
-	postfix = "@12";
-
       switch (which_target)
 	{
 	case CYGWIN_TARGET:
-	  name_entry = "_cygwin_dll_entry";
+	  entry_point = "__cygwin_dll_entry@12";
 	  break;
 
 	case MINGW_TARGET:
-	  name_entry = "DllMainCRTStartup";
+	  entry_point = "_DllMainCRTStartup@12";
 	  break;
 
 	default:
-	  name_entry = "DllMain";
+	  entry_point = "_DllMain@12";
 	  break;
 	}
-      entry_point =
-	(char *) malloc (strlen (name_entry) + strlen (prefix)
-			 + strlen (postfix) + 1);
-      sprintf (entry_point, "%s%s%s", prefix, name_entry, postfix);
     }
   dyn_string_append_cstr (driver_cmdline, " -Wl,-e,");
   dyn_string_append_cstr (driver_cmdline, entry_point);
@@ -968,6 +921,7 @@ Creating one, but that may not be what you want"));
 
   if (! def_file_seen)
     {
+      int i;
       dyn_string_t step_pre1;
 
       step_pre1 = dyn_string_new (1024);

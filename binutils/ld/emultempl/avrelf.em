@@ -71,10 +71,8 @@ avr_elf_${EMULATION_NAME}_before_allocation (void)
 
   gld${EMULATION_NAME}_before_allocation ();
 
-  /* We only need stubs for avr6, avrxmega6, and avrxmega7. */
-  if (strcmp ("${EMULATION_NAME}","avr6")
-      && strcmp ("${EMULATION_NAME}","avrxmega6")
-      && strcmp ("${EMULATION_NAME}","avrxmega7") )
+  /* We only need stubs for the avr6 family.  */
+  if (strcmp ("${EMULATION_NAME}","avr6"))
     avr_no_stubs = TRUE;
 
   avr_elf_set_global_bfd_parameters ();
@@ -148,11 +146,11 @@ avr_elf_create_output_section_statements (void)
 static void
 avr_elf_after_allocation (void)
 {
-  if (!avr_no_stubs && ! RELAXATION_ENABLED)
+  if (!avr_no_stubs && !command_line.relax)
     {
       /* If relaxing, elf32_avr_size_stubs will be called from
 	 elf32_avr_relax_section.  */
-      if (!elf32_avr_size_stubs (link_info.output_bfd, &link_info, TRUE))
+      if (!elf32_avr_size_stubs (link_info.output_bfd, &link_info, FALSE))
 	einfo ("%X%P: can not size stub section: %E\n");
     }
 
@@ -166,15 +164,6 @@ avr_elf_after_allocation (void)
     }
 }
 
-static void
-avr_elf_before_parse (void)
-{
-  /* Don't create a demand-paged executable, since this feature isn't
-     meaningful in AVR. */
-  config.magic_demand_paged = FALSE;
-
-  gld${EMULATION_NAME}_before_parse ();
-}
 
 EOF
 
@@ -271,7 +260,6 @@ PARSE_AND_LIST_ARGS_CASES='
 #
 # Put these extra avr-elf routines in ld_${EMULATION_NAME}_emulation
 #
-LDEMUL_BEFORE_PARSE=avr_elf_before_parse
 LDEMUL_BEFORE_ALLOCATION=avr_elf_${EMULATION_NAME}_before_allocation
 LDEMUL_AFTER_ALLOCATION=avr_elf_after_allocation
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=avr_elf_create_output_section_statements

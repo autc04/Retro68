@@ -5,7 +5,7 @@
 
 # Test the HI16/LO16 generation.
 
-.*:     file format .*
+.*:     file format elf.*mips
 
 RELOCATION RECORDS FOR \[\.text\]:
 OFFSET [ ]+ TYPE              VALUE 

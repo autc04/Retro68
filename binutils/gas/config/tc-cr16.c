@@ -1,6 +1,5 @@
 /* tc-cr16.c -- Assembler code for the CR16 CPU core.
-   Copyright 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright 2007, 2008, 2009 Free Software Foundation, Inc.
 
    Contributed by M R Swami Reddy <MR.Swami.Reddy@nsc.com>
 
@@ -318,12 +317,12 @@ get_cc (char *cc_name)
 static reg
 get_register (char *reg_name)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
 
-  rreg = (const reg_entry *) hash_find (reg_hash, reg_name);
+  reg = (const reg_entry *) hash_find (reg_hash, reg_name);
 
-  if (rreg != NULL)
-    return rreg->value.reg_val;
+  if (reg != NULL)
+    return reg->value.reg_val;
 
   return nullregister;
 }
@@ -332,7 +331,7 @@ get_register (char *reg_name)
 static reg
 get_register_pair (char *reg_name)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
   char tmp_rp[16]="\0";
 
   /* Add '(' and ')' to the reg pair, if its not present.  */
@@ -341,13 +340,13 @@ get_register_pair (char *reg_name)
       tmp_rp[0] = '(';
       strcat (tmp_rp, reg_name);
       strcat (tmp_rp,")");
-      rreg = (const reg_entry *) hash_find (regp_hash, tmp_rp);
+      reg = (const reg_entry *) hash_find (regp_hash, tmp_rp);
     }
   else
-    rreg = (const reg_entry *) hash_find (regp_hash, reg_name);
+    reg = (const reg_entry *) hash_find (regp_hash, reg_name);
 
-  if (rreg != NULL)
-    return rreg->value.reg_val;
+  if (reg != NULL)
+    return reg->value.reg_val;
 
   return nullregister;
 } 
@@ -357,13 +356,13 @@ get_register_pair (char *reg_name)
 static reg
 get_index_register (char *reg_name)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
 
-  rreg = (const reg_entry *) hash_find (reg_hash, reg_name);
+  reg = (const reg_entry *) hash_find (reg_hash, reg_name);
 
-  if ((rreg != NULL)
-      && ((rreg->value.reg_val == 12) || (rreg->value.reg_val == 13)))
-    return rreg->value.reg_val;
+  if ((reg != NULL)
+      && ((reg->value.reg_val == 12) || (reg->value.reg_val == 13)))
+    return reg->value.reg_val;
 
   return nullregister;
 }
@@ -372,17 +371,17 @@ get_index_register (char *reg_name)
 static reg
 get_index_register_pair (char *reg_name)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
 
-  rreg = (const reg_entry *) hash_find (regp_hash, reg_name);
+  reg = (const reg_entry *) hash_find (regp_hash, reg_name);
 
-  if (rreg != NULL)
+  if (reg != NULL)
     {
-      if ((rreg->value.reg_val != 1) || (rreg->value.reg_val != 7)
-          || (rreg->value.reg_val != 9) || (rreg->value.reg_val > 10))
-        return rreg->value.reg_val;
+      if ((reg->value.reg_val != 1) || (reg->value.reg_val != 7)
+          || (reg->value.reg_val != 9) || (reg->value.reg_val > 10))
+        return reg->value.reg_val;
 
-      as_bad (_("Unknown register pair - index relative mode: `%d'"), rreg->value.reg_val);
+      as_bad (_("Unknown register pair - index relative mode: `%d'"), reg->value.reg_val);
     }
 
   return nullregister;
@@ -393,12 +392,12 @@ get_index_register_pair (char *reg_name)
 static preg
 get_pregister (char *preg_name)
 {
-  const reg_entry *prreg;
+  const reg_entry *preg;
 
-  prreg = (const reg_entry *) hash_find (preg_hash, preg_name);
+  preg = (const reg_entry *) hash_find (preg_hash, preg_name);
 
-  if (prreg != NULL)
-    return prreg->value.preg_val;
+  if (preg != NULL)
+    return preg->value.preg_val;
 
   return nullpregister;
 }
@@ -408,12 +407,12 @@ get_pregister (char *preg_name)
 static preg
 get_pregisterp (char *preg_name)
 {
-  const reg_entry *prreg;
+  const reg_entry *preg;
 
-  prreg = (const reg_entry *) hash_find (pregp_hash, preg_name);
+  preg = (const reg_entry *) hash_find (pregp_hash, preg_name);
 
-  if (prreg != NULL)
-    return prreg->value.preg_val;
+  if (preg != NULL)
+    return preg->value.preg_val;
 
   return nullpregister;
 }
@@ -522,6 +521,7 @@ arelent *
 tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS * fixP)
 {
   arelent * reloc;
+  bfd_reloc_code_real_type code;
 
   /* If symbols are local and resolved, then no relocation needed.  */
   if ( ((fixP->fx_addsy) 
@@ -581,12 +581,14 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS * fixP)
            && GOT_symbol
 	   && fixP->fx_addsy == GOT_symbol)
 	{
+	    code = BFD_RELOC_CR16_GOT_REGREL20;
 	    reloc->addend = fixP->fx_offset = reloc->address;
 	}
       else if ((fixP->fx_r_type == BFD_RELOC_CR16_GOTC_REGREL20)
            && GOT_symbol
 	   && fixP->fx_addsy == GOT_symbol)
 	{
+	    code = BFD_RELOC_CR16_GOTC_REGREL20;
 	    reloc->addend = fixP->fx_offset = reloc->address;
 	}
 #endif
@@ -795,20 +797,20 @@ initialise_reg_hash_table (struct hash_control ** hash_table,
                            const reg_entry * register_table,
                            const unsigned int num_entries)
 {
-  const reg_entry * rreg;
+  const reg_entry * reg;
   const char *hashret;
 
   if ((* hash_table = hash_new ()) == NULL)
     as_fatal (_("Virtual memory exhausted"));
 
-  for (rreg = register_table;
-       rreg < (register_table + num_entries);
-       rreg++)
+  for (reg = register_table;
+       reg < (register_table + num_entries);
+       reg++)
     {
-      hashret = hash_insert (* hash_table, rreg->name, (char *) rreg);
+      hashret = hash_insert (* hash_table, reg->name, (char *) reg);
       if (hashret)
         as_fatal (_("Internal Error:  Can't hash %s: %s"),
-                  rreg->name, hashret);
+                  reg->name, hashret);
     }
 }
 
@@ -1103,20 +1105,20 @@ process_label_constant (char *str, ins * cr16_ins)
 static int
 getreg_image (reg r)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
   char *reg_name;
   int is_procreg = 0; /* Nonzero means argument should be processor reg.  */
 
   /* Check whether the register is in registers table.  */
   if (r < MAX_REG)
-    rreg = cr16_regtab + r;
+    reg = cr16_regtab + r;
   else /* Register not found.  */
     {
       as_bad (_("Unknown register: `%d'"), r);
       return 0;
     }
 
-  reg_name = rreg->name;
+  reg_name = reg->name;
 
 /* Issue a error message when register is illegal.  */
 #define IMAGE_ERR \
@@ -1124,16 +1126,16 @@ getreg_image (reg r)
             reg_name, ins_parse);                            \
   break;
 
-  switch (rreg->type)
+  switch (reg->type)
     {
     case CR16_R_REGTYPE:
       if (! is_procreg)
-        return rreg->image;
+        return reg->image;
       else
         IMAGE_ERR;
 
     case CR16_P_REGTYPE:
-      return rreg->image;
+      return reg->image;
       break;
 
     default:
@@ -1546,25 +1548,28 @@ is_bcc_insn (char * op)
 
 /* Cinv instruction requires special handling.  */
 
-static void
+static int
 check_cinv_options (char * operand)
 {
   char *p = operand;
+  int i_used = 0, u_used = 0, d_used = 0;
 
   while (*++p != ']')
     {
-      switch (*p)
-	{
-	case ',':
-	case ' ':
-	case 'i':
-	case 'u':
-	case 'd':
-	  break;
-	default:
-	  as_bad (_("Illegal `cinv' parameter: `%c'"), *p);
-	}
+      if (*p == ',' || *p == ' ')
+        continue;
+
+      else if (*p == 'i')
+        i_used = 1;
+      else if (*p == 'u')
+        u_used = 1;
+      else if (*p == 'd')
+        d_used = 1;
+      else
+        as_bad (_("Illegal `cinv' parameter: `%c'"), *p);
     }
+
+  return 0;
 }
 
 /* Retrieve the opcode image of a given register pair.
@@ -1574,12 +1579,12 @@ check_cinv_options (char * operand)
 static int
 getregp_image (reg r)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
   char *reg_name;
 
   /* Check whether the register is in registers table.  */
   if (r < MAX_REG)
-    rreg = cr16_regptab + r;
+    reg = cr16_regptab + r;
   /* Register not found.  */
   else
     {
@@ -1587,7 +1592,7 @@ getregp_image (reg r)
       return 0;
     }
 
-  reg_name = rreg->name;
+  reg_name = reg->name;
 
 /* Issue a error message when register  pair is illegal.  */
 #define RPAIR_IMAGE_ERR \
@@ -1595,10 +1600,10 @@ getregp_image (reg r)
             reg_name, ins_parse);                                 \
   break;
 
-  switch (rreg->type)
+  switch (reg->type)
     {
     case CR16_RP_REGTYPE:
-      return rreg->image;
+      return reg->image;
     default:
       RPAIR_IMAGE_ERR;
     }
@@ -1613,12 +1618,12 @@ getregp_image (reg r)
 static int
 getidxregp_image (reg r)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
   char *reg_name;
 
   /* Check whether the register is in registers table.  */
   if (r < MAX_REG)
-    rreg = cr16_regptab + r;
+    reg = cr16_regptab + r;
   /* Register not found.  */
   else
     {
@@ -1626,16 +1631,16 @@ getidxregp_image (reg r)
       return 0;
     }
 
-  reg_name = rreg->name;
+  reg_name = reg->name;
 
 /* Issue a error message when register  pair is illegal.  */
 #define IDX_RPAIR_IMAGE_ERR \
   as_bad (_("Illegal index register pair (`%s') in Instruction: `%s'"), \
             reg_name, ins_parse);                                       \
 
-  if (rreg->type == CR16_RP_REGTYPE)
+  if (reg->type == CR16_RP_REGTYPE)
     {
-      switch (rreg->image)
+      switch (reg->image)
         {
         case 0:  return 0; break;
         case 2:  return 1; break;
@@ -1658,14 +1663,14 @@ getidxregp_image (reg r)
    If the register is illegal for the current instruction,
    issue an error.  */
 static int
-getprocreg_image (int r)
+getprocreg_image (reg r)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
   char *reg_name;
 
   /* Check whether the register is in registers table.  */
-  if (r >= MAX_REG && r < MAX_PREG)
-    rreg = &cr16_pregtab[r - MAX_REG];
+  if (r < MAX_PREG)
+    reg = &cr16_pregtab[r - MAX_REG];
   /* Register not found.  */
   else
     {
@@ -1673,7 +1678,7 @@ getprocreg_image (int r)
       return 0;
     }
 
-  reg_name = rreg->name;
+  reg_name = reg->name;
 
 /* Issue a error message when register  pair is illegal.  */
 #define PROCREG_IMAGE_ERR \
@@ -1681,10 +1686,10 @@ getprocreg_image (int r)
             reg_name, ins_parse);                                      \
   break;
 
-  switch (rreg->type)
+  switch (reg->type)
     {
     case CR16_P_REGTYPE:
-      return rreg->image;
+      return reg->image;
     default:
       PROCREG_IMAGE_ERR;
     }
@@ -1696,14 +1701,14 @@ getprocreg_image (int r)
    If the register is illegal for the current instruction,
    issue an error.  */
 static int
-getprocregp_image (int r)
+getprocregp_image (reg r)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
   char *reg_name;
   int pregptab_disp = 0;
 
   /* Check whether the register is in registers table.  */
-  if (r >= MAX_REG && r < MAX_PREG)
+  if (r < MAX_PREG)
     {
       r = r - MAX_REG;
       switch (r)
@@ -1720,7 +1725,7 @@ getprocregp_image (int r)
           pregptab_disp = 5;  break;
         default: break;
         }
-      rreg = &cr16_pregptab[r - pregptab_disp];
+      reg = &cr16_pregptab[r - pregptab_disp];
     }
   /* Register not found.  */
   else
@@ -1729,7 +1734,7 @@ getprocregp_image (int r)
       return 0;
     }
 
-  reg_name = rreg->name;
+  reg_name = reg->name;
 
 /* Issue a error message when register  pair is illegal.  */
 #define PROCREGP_IMAGE_ERR \
@@ -1737,10 +1742,10 @@ getprocregp_image (int r)
             reg_name, ins_parse);                                              \
   break;
 
-  switch (rreg->type)
+  switch (reg->type)
     {
     case CR16_P_REGTYPE:
-      return rreg->image;
+      return reg->image;
     default:
       PROCREGP_IMAGE_ERR;
     }
@@ -2498,6 +2503,7 @@ md_assemble (char *op)
 {
   ins cr16_ins;
   char *param, param1[32];
+  char c;
 
   /* Reset global variables for a new instruction.  */
   reset_vars (op);
@@ -2505,6 +2511,7 @@ md_assemble (char *op)
   /* Strip the mnemonic.  */
   for (param = op; *param != 0 && !ISSPACE (*param); param++)
     ;
+  c = *param;
   *param++ = '\0';
 
   /* bCC instuctions and adjust the mnemonic by adding extra white spaces.  */

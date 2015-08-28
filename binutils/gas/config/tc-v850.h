@@ -1,5 +1,5 @@
 /* tc-v850.h -- Header file for tc-v850.c.
-   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2012
+   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -26,12 +26,10 @@
 #define TARGET_BYTES_BIG_ENDIAN 0
 
 /* The target BFD architecture.  */
-#define TARGET_ARCH 		v850_target_arch
-extern int v850_target_arch;
+#define TARGET_ARCH 		bfd_arch_v850
 
 /* The target BFD format.  */
-#define TARGET_FORMAT 		v850_target_format
-extern const char * v850_target_format;
+#define TARGET_FORMAT 		"elf32-v850"
 
 #define md_operand(x)
 
@@ -71,9 +69,6 @@ extern const struct relax_type md_relax_table[];
    relocations for alignment directives.  */
 #define HANDLE_ALIGN(frag) v850_handle_align (frag)
 extern void v850_handle_align (fragS *);
-
-/* We need space in a frag's fixed size to allow for alignment when relaxing.  */
-#define TC_FX_SIZE_SLACK(FIX) 2
 
 #define MD_PCREL_FROM_SECTION(FIX, SEC) v850_pcrel_from_section (FIX, SEC)
 extern long v850_pcrel_from_section (struct fix *, asection *);

@@ -1,5 +1,5 @@
 /* seh pdata/xdata coff object file format
-   Copyright 2009, 2010, 2012
+   Copyright 2009
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -45,9 +45,7 @@
   The pseudos:
   .seh_proc <fct_name>
   .seh_endprologue
-  .seh_handler <handler>[,@unwind][,@except]	(x64)
-  .seh_handler <handler>[,<handler_data>]	(others)
-  .seh_handlerdata
+  .seh_handler <handler>[,<handler-data>]]
   .seh_eh
   .seh_32/.seh_no32
   .seh_endproc
@@ -55,78 +53,106 @@
   .seh_stackalloc
   .seh_pushreg
   .seh_savereg
+  .seh_savemm
   .seh_savexmm
   .seh_pushframe
-*/
+  .seh_scope
+  */
 
 /* architecture specific pdata/xdata handling.  */
 #define SEH_CMDS \
         {"seh_proc", obj_coff_seh_proc, 0}, \
         {"seh_endproc", obj_coff_seh_endproc, 0}, \
-        {"seh_pushreg", obj_coff_seh_pushreg, 0}, \
-        {"seh_savereg", obj_coff_seh_save, 1}, \
+        {"seh_pushreg", obj_coff_seh_push, 0}, \
+        {"seh_savereg", obj_coff_seh_save, 0}, \
+        {"seh_savemm", obj_coff_seh_save, 1}, \
         {"seh_savexmm", obj_coff_seh_save, 2}, \
-        {"seh_pushframe", obj_coff_seh_pushframe, 0}, \
+        {"seh_pushframe", obj_coff_seh_push, 1}, \
         {"seh_endprologue", obj_coff_seh_endprologue, 0}, \
         {"seh_setframe", obj_coff_seh_setframe, 0}, \
-        {"seh_stackalloc", obj_coff_seh_stackalloc, 0}, \
+        {"seh_stackalloc", obj_coff_seh_stack_alloc, 0}, \
+	{"seh_handler", obj_coff_seh_handler, 0}, \
 	{"seh_eh", obj_coff_seh_eh, 0}, \
 	{"seh_32", obj_coff_seh_32, 1}, \
 	{"seh_no32", obj_coff_seh_32, 0}, \
-	{"seh_handler", obj_coff_seh_handler, 0}, \
-	{"seh_handlerdata", obj_coff_seh_handlerdata, 0},
+	{"seh_scope", obj_coff_seh_scope, 0},
 
 /* Type definitions.  */
 
 typedef struct seh_prologue_element
 {
-  int code;
-  int info;
-  offsetT off;
   symbolS *pc_addr;
+  char *pc_symbol;
+  int kind;
+  int reg;
+  bfd_vma offset;
 } seh_prologue_element;
+
+typedef struct seh_scope_elem {
+  char *begin_addr;
+  char *end_addr;
+  char *handler_addr;
+  char *jump_addr;
+} seh_scope_elem;
 
 typedef struct seh_context
 {
   struct seh_context *next;
-
-  /* Initial code-segment.  */
-  segT code_seg;
+  /* Was record alread processed.  */
+  int done;
   /* Function name.  */
   char *func_name;
   /* BeginAddress.  */
+  char *start_symbol;
   symbolS *start_addr;
+  bfd_vma start_offset;
   /* EndAddress.  */
+  char *end_symbol;
   symbolS *end_addr;
-  /* Unwind data.  */
-  symbolS *xdata_addr;
+  bfd_vma end_offset;
   /* PrologueEnd.  */
+  char *endprologue_symbol;
   symbolS *endprologue_addr;
+  bfd_vma endprologue_offset;
   /* ExceptionHandler.  */
-  expressionS handler;
-  /* ExceptionHandlerData. (arm, mips)  */
-  expressionS handler_data;
-
-  /* ARM .seh_eh directive seen.  */
+  char *handler_name;
+  /* ExceptionHandlerData.  */
+  char *handler_data_name;
   int handler_written;
-
   /* WinCE specific data.  */
   int use_instruction_32;
-  /* Was record already processed.  */
-  int done;
 
-  /* x64 flags for the xdata header.  */
-  int handler_flags;
-  int subsection;
-
+  /* the bfd to store data within.  */
+  bfd *abfd;
+  /* the current section to generate data within.  */
+  asection *section;
+  /* Relocations for section.  */
+  unsigned int count_reloc;
+  /* Symbols within section.  */
+  unsigned int count_syms;
+  /* Iterator for text lable generation.  */
+  unsigned int tlbl_count;
+  /* Iterator for xdata lable generation.  */
+  unsigned int xlbl_count;
+  /* The name of the first xdata label.  */
+  char *xdata_first;
+  /* FIelds used for x64 generation of chained information.  */
+  char **xdata_names;
+  char **xdata_pcsyms;
+  int *xdata_elm_start;
+  /* Size and offset within current generated xdata section.  */
+  size_t xdata_sz;
+  size_t xdata_offset;
   /* x64 framereg and frame offset information.  */
   int framereg;
-  int frameoff;
-
+  bfd_vma frameoff;
   /* Information about x64 specific unwind data fields.  */
-  int elems_count;
-  int elems_max;
+  size_t elems_count;
+  size_t elems_max;
   seh_prologue_element *elems;
+  size_t scope_max;
+  size_t scope_count;
+  seh_scope_elem *scopes;
 } seh_context;
 
 typedef enum seh_kind {
@@ -137,20 +163,23 @@ typedef enum seh_kind {
 } seh_kind;
 
 /* Forward declarations.  */
-static void obj_coff_seh_stackalloc (int);
+static void obj_coff_seh_stack_alloc (int);
 static void obj_coff_seh_setframe (int);
 static void obj_coff_seh_endprologue (int);
-static void obj_coff_seh_save (int);
-static void obj_coff_seh_pushreg (int);
-static void obj_coff_seh_pushframe (int);
+static void obj_coff_seh_save  (int);
+static void obj_coff_seh_push  (int);
 static void obj_coff_seh_endproc  (int);
 static void obj_coff_seh_eh (int);
 static void obj_coff_seh_32 (int);
 static void obj_coff_seh_proc  (int);
 static void obj_coff_seh_handler (int);
-static void obj_coff_seh_handlerdata (int);
+static void obj_coff_seh_scope (int);
+static int seh_read_offset (const char *, bfd_vma *);
+static int seh_x64_read_reg (const char *, int, int *);
+static void seh_x64_make_prologue_element (int, int, bfd_vma);
+static void make_function_entry_pdata (seh_context *c);
 
-#define UNDSEC bfd_und_section_ptr
+#define UNDSEC (asection *) &bfd_und_section
 
 /* Check if x64 UNW_... macros are already defined.  */
 #ifndef PEX64_FLAG_NHANDLER

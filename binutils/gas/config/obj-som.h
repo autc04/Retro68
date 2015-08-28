@@ -28,7 +28,6 @@
 #define OBJ_SOM 1
 
 #include "bfd/som.h"
-#include "som/reloc.h"
 #include "targ-cpu.h"
 
 #ifndef FALSE

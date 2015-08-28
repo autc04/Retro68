@@ -210,8 +210,8 @@ Disassembly of section .text:
  *[0-9a-f]+:	d1 90 90 90 90 90[ 	]+rcll[ 	]+-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	d2 90 90 90 90 90[ 	]+rclb[ 	]+%cl,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	d3 90 90 90 90 90[ 	]+rcll[ 	]+%cl,-0x6f6f6f70\(%eax\)
- *[0-9a-f]+:	d4 90[ 	]+aam[ 	]+\$0x90
- *[0-9a-f]+:	d5 90[ 	]+aad[ 	]+\$0x90
+ *[0-9a-f]+:	d4 90[ 	]+aam[ 	]+\$0xffffff90
+ *[0-9a-f]+:	d5 90[ 	]+aad[ 	]+\$0xffffff90
  *[0-9a-f]+:	d7[ 	]+xlat[ 	]+%ds:\(%ebx\)
  *[0-9a-f]+:	d8 90 90 90 90 90[ 	]+fcoms[ 	]+-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	d9 90 90 90 90 90[ 	]+fsts[ 	]+-0x6f6f6f70\(%eax\)
@@ -255,7 +255,7 @@ Disassembly of section .text:
  *[0-9a-f]+:	0f 06[ 	]+clts[ 	]+
  *[0-9a-f]+:	0f 08[ 	]+invd[ 	]+
  *[0-9a-f]+:	0f 09[ 	]+wbinvd 
- *[0-9a-f]+:	0f 0b[ 	]+ud2[ 	]+
+ *[0-9a-f]+:	0f 0b[ 	]+ud2a[ 	]+
  *[0-9a-f]+:	0f 20 d0[ 	]+movl[ 	]+%cr2,%eax
  *[0-9a-f]+:	0f 21 d0[ 	]+movl[ 	]+%db2,%eax
  *[0-9a-f]+:	0f 22 d0[ 	]+movl[ 	]+%eax,%cr2
@@ -358,7 +358,7 @@ Disassembly of section .text:
  *[0-9a-f]+:	0f b5 90 90 90 90 90[ 	]+lgsl[ 	]+-0x6f6f6f70\(%eax\),%edx
  *[0-9a-f]+:	0f b6 90 90 90 90 90[ 	]+movzbl -0x6f6f6f70\(%eax\),%edx
  *[0-9a-f]+:	0f b7 90 90 90 90 90[ 	]+movzwl -0x6f6f6f70\(%eax\),%edx
- *[0-9a-f]+:	0f b9[ 	]+ud1[ 	]+
+ *[0-9a-f]+:	0f b9[ 	]+ud2b[ 	]+
  *[0-9a-f]+:	0f bb 90 90 90 90 90[ 	]+btcl[ 	]+%edx,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	0f bc 90 90 90 90 90[ 	]+bsfl[ 	]+-0x6f6f6f70\(%eax\),%edx
  *[0-9a-f]+:	0f bd 90 90 90 90 90[ 	]+bsrl[ 	]+-0x6f6f6f70\(%eax\),%edx
@@ -471,12 +471,12 @@ Disassembly of section .text:
  *[0-9a-f]+:	66 62 90 90 90 90 90[ 	]+boundw %dx,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	66 68 90 90[ 	]+pushw[ 	]+\$0x9090
  *[0-9a-f]+:	66 69 90 90 90 90 90 90 90[ 	]+imulw[ 	]+\$0x9090,-0x6f6f6f70\(%eax\),%dx
- *[0-9a-f]+:	66 6a 90[ 	]+pushw[ 	]+\$0xff90
- *[0-9a-f]+:	66 6b 90 90 90 90 90 90[ 	]+imulw[ 	]+\$0xff90,-0x6f6f6f70\(%eax\),%dx
+ *[0-9a-f]+:	66 6a 90[ 	]+pushw[ 	]+\$0xffffff90
+ *[0-9a-f]+:	66 6b 90 90 90 90 90 90[ 	]+imulw[ 	]+\$0xffffff90,-0x6f6f6f70\(%eax\),%dx
  *[0-9a-f]+:	66 6d[ 	]+insw[ 	]+\(%dx\),%es:\(%edi\)
  *[0-9a-f]+:	66 6f[ 	]+outsw[ 	]+%ds:\(%esi\),\(%dx\)
  *[0-9a-f]+:	66 81 90 90 90 90 90 90 90[ 	]+adcw[ 	]+\$0x9090,-0x6f6f6f70\(%eax\)
- *[0-9a-f]+:	66 83 90 90 90 90 90 90[ 	]+adcw[ 	]+\$0xff90,-0x6f6f6f70\(%eax\)
+ *[0-9a-f]+:	66 83 90 90 90 90 90 90[ 	]+adcw[ 	]+\$0xffffff90,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	66 85 90 90 90 90 90[ 	]+testw[ 	]+%dx,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	66 87 90 90 90 90 90[ 	]+xchgw[ 	]+%dx,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	66 89 90 90 90 90 90[ 	]+movw[ 	]+%dx,-0x6f6f6f70\(%eax\)

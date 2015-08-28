@@ -1,6 +1,6 @@
 /* input_scrub.c - Break up input buffers into whole numbers of lines.
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   2000, 2001, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
+   2000, 2001, 2003, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,7 +21,6 @@
    02110-1301, USA.  */
 
 #include "as.h"
-#include "filenames.h"
 #include "input-file.h"
 #include "sb.h"
 #include "listing.h"
@@ -75,7 +74,7 @@ static char save_source[AFTER_SIZE];
 static unsigned int buffer_length;
 
 /* The index into an sb structure we are reading from.  -1 if none.  */
-static size_t sb_index = -1;
+static int sb_index = -1;
 
 /* If we are reading from an sb structure, this is it.  */
 static sb from_sb;
@@ -100,9 +99,10 @@ int macro_nest;
 static char *physical_input_file;
 static char *logical_input_file;
 
-/* 1-origin line number in a source file.  */
+typedef unsigned int line_numberT;	/* 1-origin line number in a source file.  */
 /* A line ends in '\n' or eof.  */
-static unsigned int physical_input_line;
+
+static line_numberT physical_input_line;
 static int logical_input_line;
 
 /* Struct used to save the state of the input handler during include files */
@@ -111,12 +111,12 @@ struct input_save {
   char *              partial_where;
   int                 partial_size;
   char                save_source[AFTER_SIZE];
-  size_t              buffer_length;
+  unsigned int        buffer_length;
   char *              physical_input_file;
   char *              logical_input_file;
-  unsigned int        physical_input_line;
+  line_numberT        physical_input_line;
   int                 logical_input_line;
-  size_t              sb_index;
+  int                 sb_index;
   sb                  from_sb;
   int                 from_sb_is_expansion; /* Should we do a conditional check?  */
   struct input_save * next_saved_file;	/* Chain of input_saves.  */
@@ -264,8 +264,6 @@ input_scrub_include_file (char *filename, char *position)
 void
 input_scrub_include_sb (sb *from, char *position, int is_expansion)
 {
-  int newline;
-
   if (macro_nest > max_macro_nest)
     as_fatal (_("macros nested too deeply"));
   ++macro_nest;
@@ -279,11 +277,9 @@ input_scrub_include_sb (sb *from, char *position, int is_expansion)
 
   next_saved_file = input_scrub_push (position);
 
-  /* Allocate sufficient space: from->len + optional newline.  */
-  newline = from->len >= 1 && from->ptr[0] != '\n';
-  sb_build (&from_sb, from->len + newline);
+  sb_new (&from_sb);
   from_sb_is_expansion = is_expansion;
-  if (newline)
+  if (from->len >= 1 && from->ptr[0] != '\n')
     {
       /* Add the sentinel required by read.c.  */
       sb_add_char (&from_sb, '\n');
@@ -292,7 +288,8 @@ input_scrub_include_sb (sb *from, char *position, int is_expansion)
 
   /* Make sure the parser looks at defined contents when it scans for
      e.g. end-of-line at the end of a macro.  */
-  sb_terminate (&from_sb);
+  sb_add_char (&from_sb, 0);
+  from_sb.len--;
 
   sb_index = 1;
 
@@ -306,8 +303,6 @@ void
 input_scrub_close (void)
 {
   input_file_close ();
-  physical_input_line = 0;
-  logical_input_line = -1;
 }
 
 char *
@@ -315,12 +310,13 @@ input_scrub_next_buffer (char **bufp)
 {
   register char *limit;		/*->just after last char of buffer.  */
 
-  if (sb_index != (size_t) -1)
+  if (sb_index >= 0)
     {
       if (sb_index >= from_sb.len)
 	{
 	  sb_kill (&from_sb);
-	  if (from_sb_is_expansion)
+	  if (from_sb_is_expansion
+	      )
 	    {
 	      cond_finish_check (macro_nest);
 #ifdef md_macro_end
@@ -347,8 +343,8 @@ input_scrub_next_buffer (char **bufp)
 
   if (partial_size)
     {
-      memmove (buffer_start + BEFORE_SIZE, partial_where,
-	       (unsigned int) partial_size);
+      memcpy (buffer_start + BEFORE_SIZE, partial_where,
+	      (unsigned int) partial_size);
       memcpy (buffer_start + BEFORE_SIZE, save_source, AFTER_SIZE);
     }
   limit = input_file_give_next_buffer (buffer_start
@@ -430,7 +426,7 @@ seen_at_least_1_file (void)
 void
 bump_line_counters (void)
 {
-  if (sb_index == (size_t) -1)
+  if (sb_index < 0)
     {
       ++physical_input_line;
       if (logical_input_line >= 0)
@@ -478,7 +474,7 @@ new_logical_line_flags (char *fname, /* DON'T destroy it!  We point to it!  */
 
   if (fname
       && (logical_input_file == NULL
-	  || filename_cmp (logical_input_file, fname)))
+	  || strcmp (logical_input_file, fname)))
     {
       logical_input_file = fname;
       return 1;

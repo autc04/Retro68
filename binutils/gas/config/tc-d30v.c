@@ -1,6 +1,6 @@
 /* tc-d30v.c -- Assembler code for the Mitsubishi D30V
    Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008,
-   2009, 2010 Free Software Foundation, Inc.
+   2009 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -485,7 +485,7 @@ get_operands (expressionS exp[], int cmp_hack)
 static long long
 build_insn (struct d30v_insn *opcode, expressionS *opers)
 {
-  int i, bits, shift, flags;
+  int i, length, bits, shift, flags;
   unsigned long number, id = 0;
   long long insn;
   struct d30v_opcode *op = opcode->op;
@@ -507,6 +507,7 @@ build_insn (struct d30v_insn *opcode, expressionS *opers)
       if (flags & OPERAND_SHIFT)
 	bits += 3;
 
+      length = d30v_operand_table[form->operands[i]].length;
       shift = 12 - d30v_operand_table[form->operands[i]].position;
       if (opers[i].X_op != O_symbol)
 	number = opers[i].X_add_number;
@@ -1132,26 +1133,26 @@ find_format (struct d30v_opcode *opcode,
 	     int fsize,
 	     int cmp_hack)
 {
-  int match, opcode_index, i = 0, j, k;
+  int numops, match, index, i = 0, j, k;
   struct d30v_format *fm;
 
   if (opcode == NULL)
     return NULL;
 
   /* Get all the operands and save them as expressions.  */
-  get_operands (myops, cmp_hack);
+  numops = get_operands (myops, cmp_hack);
 
-  while ((opcode_index = opcode->format[i++]) != 0)
+  while ((index = opcode->format[i++]) != 0)
     {
-      if (fsize == FORCE_SHORT && opcode_index >= LONG)
+      if (fsize == FORCE_SHORT && index >= LONG)
 	continue;
 
-      if (fsize == FORCE_LONG && opcode_index < LONG)
+      if (fsize == FORCE_LONG && index < LONG)
 	continue;
 
-      fm = (struct d30v_format *) &d30v_format_table[opcode_index];
-      k = opcode_index;
-      while (fm->form == opcode_index)
+      fm = (struct d30v_format *) &d30v_format_table[index];
+      k = index;
+      while (fm->form == index)
 	{
 	  match = 1;
 	  /* Now check the operands for compatibility.  */
@@ -1345,14 +1346,13 @@ do_assemble (char *str,
   if (!strncmp (name, "cmp", 3))
     {
       int p, i;
-      char **d30v_str = (char **) d30v_cc_names;
-
+      char **str = (char **) d30v_cc_names;
       if (name[3] == 'u')
 	p = 4;
       else
 	p = 3;
 
-      for (i = 1; *d30v_str && strncmp (*d30v_str, &name[p], 2); i++, d30v_str++)
+      for (i = 1; *str && strncmp (*str, &name[p], 2); i++, str++)
 	;
 
       /* cmpu only supports some condition codes.  */
@@ -1365,7 +1365,7 @@ do_assemble (char *str,
 	    }
 	}
 
-      if (!*d30v_str)
+      if (!*str)
 	{
 	  name[p + 2] = 0;
 	  as_bad (_("unknown condition code: %s"), &name[p]);
@@ -1883,11 +1883,6 @@ void
 d30v_cons_align (int size)
 {
   int log_size;
-
-  /* Don't specially align anything in debug sections.  */
-  if ((now_seg->flags & SEC_ALLOC) == 0
-      || strcmp (now_seg->name, ".eh_frame") == 0)
-    return;
 
   log_size = 0;
   while ((size >>= 1) != 0)

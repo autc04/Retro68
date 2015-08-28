@@ -8,11 +8,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: bug-binutils@gnu.org\n"
-"POT-Creation-Date: 2011-10-25 11:58+0100\n"
+"POT-Creation-Date: 2010-03-03 15:03+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -21,156 +20,156 @@ msgstr ""
 msgid "%B: Unknown section type in a.out.adobe file: %x\n"
 msgstr ""
 
-#: aout-cris.c:199
+#: aout-cris.c:204
 #, c-format
 msgid "%s: Invalid relocation type exported: %d"
 msgstr ""
 
-#: aout-cris.c:242
+#: aout-cris.c:247
 msgid "%B: Invalid relocation type imported: %d"
 msgstr ""
 
-#: aout-cris.c:253
+#: aout-cris.c:258
 msgid "%B: Bad relocation record imported: %d"
 msgstr ""
 
-#: aoutx.h:1273 aoutx.h:1611
+#: aoutx.h:1271 aoutx.h:1609
 #, c-format
 msgid "%s: can not represent section `%s' in a.out object file format"
 msgstr ""
 
-#: aoutx.h:1577
+#: aoutx.h:1575
 #, c-format
 msgid ""
 "%s: can not represent section for symbol `%s' in a.out object file format"
 msgstr ""
 
-#: aoutx.h:1579 vms-alpha.c:7671
+#: aoutx.h:1577
 msgid "*unknown*"
 msgstr ""
 
-#: aoutx.h:4018 aoutx.h:4344
+#: aoutx.h:3997 aoutx.h:4323
 msgid "%P: %B: unexpected relocation type\n"
 msgstr ""
 
-#: aoutx.h:5375
+#: aoutx.h:5358
 #, c-format
 msgid "%s: relocatable link from %s to %s not supported"
 msgstr ""
 
-#: archive.c:2203
+#: archive.c:2057
 msgid "Warning: writing archive was slow: rewriting timestamp\n"
 msgstr ""
 
-#: archive.c:2491
+#: archive.c:2344
 msgid "Reading archive file mod timestamp"
 msgstr ""
 
-#: archive.c:2515
+#: archive.c:2368
 msgid "Writing updated armap timestamp"
 msgstr ""
 
-#: bfd.c:398
+#: bfd.c:376
 msgid "No error"
 msgstr ""
 
-#: bfd.c:399
+#: bfd.c:377
 msgid "System call error"
 msgstr ""
 
-#: bfd.c:400
+#: bfd.c:378
 msgid "Invalid bfd target"
 msgstr ""
 
-#: bfd.c:401
+#: bfd.c:379
 msgid "File in wrong format"
 msgstr ""
 
-#: bfd.c:402
+#: bfd.c:380
 msgid "Archive object file in wrong format"
 msgstr ""
 
-#: bfd.c:403
+#: bfd.c:381
 msgid "Invalid operation"
 msgstr ""
 
-#: bfd.c:404
+#: bfd.c:382
 msgid "Memory exhausted"
 msgstr ""
 
-#: bfd.c:405
+#: bfd.c:383
 msgid "No symbols"
 msgstr ""
 
-#: bfd.c:406
+#: bfd.c:384
 msgid "Archive has no index; run ranlib to add one"
 msgstr ""
 
-#: bfd.c:407
+#: bfd.c:385
 msgid "No more archived files"
 msgstr ""
 
-#: bfd.c:408
+#: bfd.c:386
 msgid "Malformed archive"
 msgstr ""
 
-#: bfd.c:409
+#: bfd.c:387
 msgid "File format not recognized"
 msgstr ""
 
-#: bfd.c:410
+#: bfd.c:388
 msgid "File format is ambiguous"
 msgstr ""
 
-#: bfd.c:411
+#: bfd.c:389
 msgid "Section has no contents"
 msgstr ""
 
-#: bfd.c:412
+#: bfd.c:390
 msgid "Nonrepresentable section on output"
 msgstr ""
 
-#: bfd.c:413
+#: bfd.c:391
 msgid "Symbol needs debug section which does not exist"
 msgstr ""
 
-#: bfd.c:414
+#: bfd.c:392
 msgid "Bad value"
 msgstr ""
 
-#: bfd.c:415
+#: bfd.c:393
 msgid "File truncated"
 msgstr ""
 
-#: bfd.c:416
+#: bfd.c:394
 msgid "File too big"
 msgstr ""
 
-#: bfd.c:417
+#: bfd.c:395
 #, c-format
 msgid "Error reading %s: %s"
 msgstr ""
 
-#: bfd.c:418
+#: bfd.c:396
 msgid "#<Invalid error code>"
 msgstr ""
 
-#: bfd.c:945
+#: bfd.c:920
 #, c-format
 msgid "BFD %s assertion fail %s:%d"
 msgstr ""
 
-#: bfd.c:957
+#: bfd.c:932
 #, c-format
 msgid "BFD %s internal error, aborting at %s line %d in %s\n"
 msgstr ""
 
-#: bfd.c:961
+#: bfd.c:936
 #, c-format
 msgid "BFD %s internal error, aborting at %s line %d\n"
 msgstr ""
 
-#: bfd.c:963
+#: bfd.c:938
 msgid "Please report this bug.\n"
 msgstr ""
 
@@ -184,70 +183,70 @@ msgstr ""
 msgid "not mapping: env var not set\n"
 msgstr ""
 
-#: binary.c:271
+#: binary.c:284
 #, c-format
 msgid "Warning: Writing section `%s' to huge (ie negative) file offset 0x%lx."
 msgstr ""
 
-#: bout.c:1146 elf-m10300.c:2063 elf32-avr.c:1654 elf32-frv.c:5734
-#: elfxx-sparc.c:2802 reloc.c:6115 reloc16.c:162 elf32-ia64.c:360
-#: elf64-ia64.c:360
+#: bout.c:1150 elf-m10300.c:2078 elf32-avr.c:1639 elf32-frv.c:5743
+#: elfxx-sparc.c:2456 reloc.c:5386 reloc16.c:162 vms.c:1918 elf32-ia64.c:788
+#: elf64-ia64.c:788
 msgid "%P%F: --relax and -r may not be used together\n"
 msgstr ""
 
-#: cache.c:227
+#: cache.c:226
 msgid "reopening %B: %s\n"
 msgstr ""
 
-#: coff-alpha.c:491
+#: coff-alpha.c:490
 msgid ""
 "%B: Cannot handle compressed Alpha binaries.\n"
 "   Use compiler flags, or objZ, to generate uncompressed binaries."
 msgstr ""
 
-#: coff-alpha.c:648
+#: coff-alpha.c:647
 msgid "%B: unknown/unsupported relocation type %d"
 msgstr ""
 
-#: coff-alpha.c:900 coff-alpha.c:937 coff-alpha.c:2025 coff-mips.c:1003
+#: coff-alpha.c:899 coff-alpha.c:936 coff-alpha.c:2024 coff-mips.c:1003
 msgid "GP relative relocation used when GP not defined"
 msgstr ""
 
-#: coff-alpha.c:1502
+#: coff-alpha.c:1501
 msgid "using multiple gp values"
 msgstr ""
 
-#: coff-alpha.c:1561
+#: coff-alpha.c:1560
 msgid "%B: unsupported relocation: ALPHA_R_GPRELHIGH"
 msgstr ""
 
-#: coff-alpha.c:1568
+#: coff-alpha.c:1567
 msgid "%B: unsupported relocation: ALPHA_R_GPRELLOW"
 msgstr ""
 
-#: coff-alpha.c:1575 elf32-m32r.c:2484 elf64-alpha.c:4074 elf64-alpha.c:4224
-#: elf32-ia64.c:3839 elf64-ia64.c:3839
+#: coff-alpha.c:1574 elf32-m32r.c:2477 elf64-alpha.c:3943 elf64-alpha.c:4098
+#: elf32-ia64.c:4462 elf64-ia64.c:4462
 msgid "%B: unknown relocation type %d"
 msgstr ""
 
-#: coff-arm.c:1038
+#: coff-arm.c:1039
 #, c-format
 msgid "%B: unable to find THUMB glue '%s' for `%s'"
 msgstr ""
 
-#: coff-arm.c:1067
+#: coff-arm.c:1068
 #, c-format
 msgid "%B: unable to find ARM glue '%s' for `%s'"
 msgstr ""
 
-#: coff-arm.c:1369 elf32-arm.c:7023
+#: coff-arm.c:1370 elf32-arm.c:6372
 #, c-format
 msgid ""
 "%B(%s): warning: interworking not enabled.\n"
 "  first occurrence: %B: arm call to thumb"
 msgstr ""
 
-#: coff-arm.c:1459
+#: coff-arm.c:1460
 #, c-format
 msgid ""
 "%B(%s): warning: interworking not enabled.\n"
@@ -255,105 +254,105 @@ msgid ""
 "  consider relinking with --support-old-code enabled"
 msgstr ""
 
-#: coff-arm.c:1754 coff-tic80.c:695 cofflink.c:3081
+#: coff-arm.c:1755 coff-tic80.c:695 cofflink.c:3030
 msgid "%B: bad reloc address 0x%lx in section `%A'"
 msgstr ""
 
-#: coff-arm.c:2079
+#: coff-arm.c:2080
 msgid "%B: illegal symbol index in reloc: %d"
 msgstr ""
 
-#: coff-arm.c:2210
+#: coff-arm.c:2211
 #, c-format
 msgid "error: %B is compiled for APCS-%d, whereas %B is compiled for APCS-%d"
 msgstr ""
 
-#: coff-arm.c:2226 elf32-arm.c:15621
+#: coff-arm.c:2227 elf32-arm.c:10334
 #, c-format
 msgid ""
 "error: %B passes floats in float registers, whereas %B passes them in "
 "integer registers"
 msgstr ""
 
-#: coff-arm.c:2229 elf32-arm.c:15625
+#: coff-arm.c:2230 elf32-arm.c:10338
 #, c-format
 msgid ""
 "error: %B passes floats in integer registers, whereas %B passes them in "
 "float registers"
 msgstr ""
 
-#: coff-arm.c:2243
+#: coff-arm.c:2244
 #, c-format
 msgid ""
 "error: %B is compiled as position independent code, whereas target %B is "
 "absolute position"
 msgstr ""
 
-#: coff-arm.c:2246
+#: coff-arm.c:2247
 #, c-format
 msgid ""
 "error: %B is compiled as absolute position code, whereas target %B is "
 "position independent"
 msgstr ""
 
-#: coff-arm.c:2274 elf32-arm.c:15690
+#: coff-arm.c:2275 elf32-arm.c:10403
 #, c-format
 msgid "Warning: %B supports interworking, whereas %B does not"
 msgstr ""
 
-#: coff-arm.c:2277 elf32-arm.c:15696
+#: coff-arm.c:2278 elf32-arm.c:10409
 #, c-format
 msgid "Warning: %B does not support interworking, whereas %B does"
 msgstr ""
 
-#: coff-arm.c:2301
+#: coff-arm.c:2302
 #, c-format
 msgid "private flags = %x:"
 msgstr ""
 
-#: coff-arm.c:2309 elf32-arm.c:11806
+#: coff-arm.c:2310 elf32-arm.c:10460
 #, c-format
 msgid " [floats passed in float registers]"
 msgstr ""
 
-#: coff-arm.c:2311
+#: coff-arm.c:2312
 #, c-format
 msgid " [floats passed in integer registers]"
 msgstr ""
 
-#: coff-arm.c:2314 elf32-arm.c:11809
+#: coff-arm.c:2315 elf32-arm.c:10463
 #, c-format
 msgid " [position independent]"
 msgstr ""
 
-#: coff-arm.c:2316
+#: coff-arm.c:2317
 #, c-format
 msgid " [absolute position]"
 msgstr ""
 
-#: coff-arm.c:2320
+#: coff-arm.c:2321
 #, c-format
 msgid " [interworking flag not initialised]"
 msgstr ""
 
-#: coff-arm.c:2322
+#: coff-arm.c:2323
 #, c-format
 msgid " [interworking supported]"
 msgstr ""
 
-#: coff-arm.c:2324
+#: coff-arm.c:2325
 #, c-format
 msgid " [interworking not supported]"
 msgstr ""
 
-#: coff-arm.c:2370 elf32-arm.c:10841
+#: coff-arm.c:2371 elf32-arm.c:9367
 #, c-format
 msgid ""
 "Warning: Not setting interworking flag of %B since it has already been "
 "specified as non-interworking"
 msgstr ""
 
-#: coff-arm.c:2374 elf32-arm.c:10845
+#: coff-arm.c:2375 elf32-arm.c:9371
 #, c-format
 msgid "Warning: Clearing the interworking flag of %B due to outside request"
 msgstr ""
@@ -365,23 +364,43 @@ msgstr ""
 
 #: coff-i860.c:147
 #, c-format
-msgid "relocation `%s' not yet implemented"
+msgid "Relocation `%s' not yet implemented\n"
 msgstr ""
 
-#: coff-i860.c:605 coff-tic54x.c:398 coffcode.h:5198
+#: coff-i860.c:605 coff-tic54x.c:398 coffcode.h:5143
 msgid "%B: warning: illegal symbol index %ld in relocs"
 msgstr ""
 
-#: coff-i960.c:144 coff-i960.c:507
+#: coff-i960.c:143 coff-i960.c:506
 msgid "uncertain calling convention for non-COFF symbol"
 msgstr ""
 
-#: coff-m68k.c:506 elf32-bfin.c:5690 elf32-cr16.c:2897 elf32-m68k.c:4677
+#: coff-m68k.c:506 elf32-bfin.c:5691 elf32-cr16.c:2965 elf32-m68k.c:4615
 msgid "unsupported reloc type"
 msgstr ""
 
-#: coff-mips.c:688 elf32-mips.c:1516 elf32-score.c:431 elf32-score7.c:330
-#: elf64-mips.c:2618 elfn32-mips.c:2431
+#: coff-maxq.c:126
+msgid "Can't Make it a Short Jump"
+msgstr ""
+
+#: coff-maxq.c:191
+msgid "Exceeds Long Jump Range"
+msgstr ""
+
+#: coff-maxq.c:202 coff-maxq.c:276
+msgid "Absolute address Exceeds 16 bit Range"
+msgstr ""
+
+#: coff-maxq.c:240
+msgid "Absolute address Exceeds 8 bit Range"
+msgstr ""
+
+#: coff-maxq.c:333
+msgid "Unrecognized Reloc Type"
+msgstr ""
+
+#: coff-mips.c:688 elf32-mips.c:1014 elf32-score.c:441 elf32-score7.c:341
+#: elf64-mips.c:2018 elfn32-mips.c:1832
 msgid "GP relative relocation when _gp not defined"
 msgstr ""
 
@@ -389,23 +408,18 @@ msgstr ""
 msgid "Unrecognized reloc"
 msgstr ""
 
-#: coff-rs6000.c:2720
+#: coff-rs6000.c:2789
 #, c-format
 msgid "%s: unsupported relocation type 0x%02x"
 msgstr ""
 
-#: coff-rs6000.c:2805
+#: coff-rs6000.c:2882
 #, c-format
 msgid "%s: TOC reloc at 0x%x to symbol `%s' with no TOC entry"
 msgstr ""
 
-#: coff-rs6000.c:3556 coff64-rs6000.c:2111
+#: coff-rs6000.c:3648 coff64-rs6000.c:2170
 msgid "%B: symbol `%s' has unrecognized smclas %d"
-msgstr ""
-
-#: coff-sh.c:521
-#, c-format
-msgid "SH Error: unknown reloc type %d"
 msgstr ""
 
 #: coff-tic4x.c:195 coff-tic54x.c:299 coff-tic80.c:458
@@ -423,91 +437,77 @@ msgstr ""
 msgid "ignoring reloc %s\n"
 msgstr ""
 
-#: coffcode.h:997
+#: coffcode.h:960
 msgid "%B: warning: COMDAT symbol '%s' does not match section name '%s'"
 msgstr ""
 
 #. Generate a warning message rather using the 'unhandled'
 #. variable as this will allow some .sys files generate by
 #. other toolchains to be processed.  See bugzilla issue 196.
-#: coffcode.h:1221
+#: coffcode.h:1176
 msgid ""
 "%B: Warning: Ignoring section flag IMAGE_SCN_MEM_NOT_PAGED in section %s"
 msgstr ""
 
-#: coffcode.h:1288
+#: coffcode.h:1240
 msgid "%B (%s): Section flag %s (0x%x) ignored"
 msgstr ""
 
-#: coffcode.h:2430
+#: coffcode.h:2382
 #, c-format
 msgid "Unrecognized TI COFF target id '0x%x'"
 msgstr ""
 
-#: coffcode.h:2744
+#: coffcode.h:2696
 msgid "%B: reloc against a non-existant symbol index: %ld"
 msgstr ""
 
-#: coffcode.h:3302
-msgid "%B: too many sections (%d)"
-msgstr ""
-
-#: coffcode.h:3718
+#: coffcode.h:3669
 msgid "%B: section %s: string table overflow at offset %ld"
 msgstr ""
 
-#: coffcode.h:4523
+#: coffcode.h:4477
 msgid "%B: warning: line number table read failed"
 msgstr ""
 
-#: coffcode.h:4553
+#: coffcode.h:4507
 msgid "%B: warning: illegal symbol index %ld in line numbers"
 msgstr ""
 
-#: coffcode.h:4567
+#: coffcode.h:4521
 msgid "%B: warning: duplicate line number information for `%s'"
 msgstr ""
 
-#: coffcode.h:4967
+#: coffcode.h:4912
 msgid "%B: Unrecognized storage class %d for %s symbol `%s'"
 msgstr ""
 
-#: coffcode.h:5093
+#: coffcode.h:5038
 msgid "warning: %B: local symbol `%s' has no section"
 msgstr ""
 
-#: coffcode.h:5237
+#: coffcode.h:5181
 msgid "%B: illegal relocation type %d at address 0x%lx"
 msgstr ""
 
-#: coffgen.c:1595
+#: coffgen.c:1573
 msgid "%B: bad string table size %lu"
 msgstr ""
 
-#: coffgen.c:2500 elflink.c:12689 linker.c:3122
-msgid "%F%P: already_linked_table: %E\n"
-msgstr ""
-
-#: cofflink.c:533 elflink.c:4323
+#: cofflink.c:513 elflink.c:4308
 msgid "Warning: type of symbol `%s' changed from %d to %d in %B"
 msgstr ""
 
-#: cofflink.c:2329
+#: cofflink.c:2308
 msgid "%B: relocs in section `%A', but it has no contents"
 msgstr ""
 
-#: cofflink.c:2391 elflink.c:9545
-msgid ""
-"%X`%s' referenced in section `%A' of %B: defined in discarded section `%A' "
-"of %B\n"
-msgstr ""
-
-#: cofflink.c:2690 coffswap.h:826
+#: cofflink.c:2639 coffswap.h:826
 #, c-format
 msgid "%s: %s: reloc overflow: 0x%lx > 0xffff"
 msgstr ""
 
-#: cofflink.c:2699 coffswap.h:812
+#: cofflink.c:2648 coffswap.h:812
 #, c-format
 msgid "%s: warning: %s: line number overflow: 0x%lx > 0xffff"
 msgstr ""
@@ -516,149 +516,139 @@ msgstr ""
 msgid "error: %B is compiled for the EP9312, whereas %B is compiled for XScale"
 msgstr ""
 
-#: cpu-arm.c:333
+#: cpu-arm.c:332
 #, c-format
 msgid "warning: unable to update contents of %s section in %s"
 msgstr ""
 
-#: dwarf2.c:496
+#: dwarf2.c:436
 #, c-format
 msgid "Dwarf Error: Can't find %s section."
 msgstr ""
 
-#: dwarf2.c:525
+#: dwarf2.c:463
+#, c-format
+msgid "Dwarf Error: unable to decompress %s section."
+msgstr ""
+
+#: dwarf2.c:474
 #, c-format
 msgid "Dwarf Error: Offset (%lu) greater than or equal to %s size (%lu)."
 msgstr ""
 
-#: dwarf2.c:949
+#: dwarf2.c:871
 #, c-format
 msgid "Dwarf Error: Invalid or unhandled FORM value: %u."
 msgstr ""
 
-#: dwarf2.c:1200
+#: dwarf2.c:1085
 msgid "Dwarf Error: mangled line number section (bad file number)."
 msgstr ""
 
-#: dwarf2.c:1453
-#, c-format
-msgid "Dwarf Error: Unhandled .debug_line version %d."
-msgstr ""
-
-#: dwarf2.c:1475
-msgid "Dwarf Error: Invalid maximum operations per instruction."
-msgstr ""
-
-#: dwarf2.c:1662
+#: dwarf2.c:1419
 msgid "Dwarf Error: mangled line number section."
 msgstr ""
 
-#: dwarf2.c:1989 dwarf2.c:2109 dwarf2.c:2394
+#: dwarf2.c:1698 dwarf2.c:1806 dwarf2.c:2078
 #, c-format
 msgid "Dwarf Error: Could not find abbrev number %u."
 msgstr ""
 
-#: dwarf2.c:2355
+#: dwarf2.c:2039
 #, c-format
 msgid ""
-"Dwarf Error: found dwarf version '%u', this reader only handles version 2, 3 "
-"and 4 information."
+"Dwarf Error: found dwarf version '%u', this reader only handles version 2 "
+"and 3 information."
 msgstr ""
 
-#: dwarf2.c:2362
+#: dwarf2.c:2046
 #, c-format
 msgid ""
 "Dwarf Error: found address size '%u', this reader can not handle sizes "
 "greater than '%u'."
 msgstr ""
 
-#: dwarf2.c:2385
+#: dwarf2.c:2069
 #, c-format
 msgid "Dwarf Error: Bad abbrev number: %u."
 msgstr ""
 
-#: ecoff.c:1239
+#: ecoff.c:1238
 #, c-format
 msgid "Unknown basic type %d"
 msgstr ""
 
-#: ecoff.c:1496
+#: ecoff.c:1495
 #, c-format
 msgid ""
 "\n"
 "      End+1 symbol: %ld"
 msgstr ""
 
-#: ecoff.c:1503 ecoff.c:1506
+#: ecoff.c:1502 ecoff.c:1505
 #, c-format
 msgid ""
 "\n"
 "      First symbol: %ld"
 msgstr ""
 
-#: ecoff.c:1518
+#: ecoff.c:1517
 #, c-format
 msgid ""
 "\n"
 "      End+1 symbol: %-7ld   Type:  %s"
 msgstr ""
 
-#: ecoff.c:1525
+#: ecoff.c:1524
 #, c-format
 msgid ""
 "\n"
 "      Local symbol: %ld"
 msgstr ""
 
-#: ecoff.c:1533
+#: ecoff.c:1532
 #, c-format
 msgid ""
 "\n"
 "      struct; End+1 symbol: %ld"
 msgstr ""
 
-#: ecoff.c:1538
+#: ecoff.c:1537
 #, c-format
 msgid ""
 "\n"
 "      union; End+1 symbol: %ld"
 msgstr ""
 
-#: ecoff.c:1543
+#: ecoff.c:1542
 #, c-format
 msgid ""
 "\n"
 "      enum; End+1 symbol: %ld"
 msgstr ""
 
-#: ecoff.c:1549
+#: ecoff.c:1548
 #, c-format
 msgid ""
 "\n"
 "      Type: %s"
 msgstr ""
 
-#: elf-attrs.c:569
-msgid ""
-"error: %B: Object has vendor-specific contents that must be processed by the "
-"'%s' toolchain"
+#: elf-attrs.c:567
+msgid "error: %B: Must be processed by '%s' toolchain"
 msgstr ""
 
-#: elf-attrs.c:578
+#: elf-attrs.c:575
 msgid "error: %B: Object tag '%d, %s' is incompatible with tag '%d, %s'"
 msgstr ""
 
-#: elf-eh-frame.c:917
+#: elf-eh-frame.c:885
 msgid "%P: error in %B(%A); no .eh_frame_hdr table will be created.\n"
 msgstr ""
 
-#: elf-eh-frame.c:1189
+#: elf-eh-frame.c:1123
 msgid ""
 "%P: fde encoding in %B(%A) prevents .eh_frame_hdr table being created.\n"
-msgstr ""
-
-#: elf-eh-frame.c:1605
-msgid "%P: DW_EH_PE_datarel unspecified for this architecture.\n"
 msgstr ""
 
 #: elf-ifunc.c:179
@@ -668,687 +658,630 @@ msgid ""
 "pie\n"
 msgstr ""
 
-#: elf-m10200.c:450 elf-m10300.c:1563 elf32-avr.c:1221 elf32-bfin.c:3213
-#: elf32-cr16.c:1482 elf32-cr16c.c:780 elf32-cris.c:2081 elf32-crx.c:922
-#: elf32-d10v.c:509 elf32-epiphany.c:556 elf32-fr30.c:609 elf32-frv.c:4105
-#: elf32-h8300.c:509 elf32-i860.c:1211 elf32-ip2k.c:1468 elf32-iq2000.c:684
-#: elf32-lm32.c:1168 elf32-m32c.c:553 elf32-m32r.c:3106 elf32-m68hc1x.c:1138
-#: elf32-mep.c:535 elf32-microblaze.c:1231 elf32-moxie.c:282
-#: elf32-msp430.c:486 elf32-mt.c:395 elf32-openrisc.c:404 elf32-score.c:2729
-#: elf32-score7.c:2537 elf32-spu.c:5044 elf32-tilepro.c:3214 elf32-v850.c:2143
-#: elf32-xstormy16.c:935 elf64-mmix.c:1590 elfxx-tilegx.c:3577
+#: elf-m10200.c:456 elf-m10300.c:1575 elf32-avr.c:1251 elf32-bfin.c:3204
+#: elf32-cr16.c:1517 elf32-cr16c.c:790 elf32-cris.c:2084 elf32-crx.c:933
+#: elf32-d10v.c:516 elf32-fr30.c:616 elf32-frv.c:4114 elf32-h8300.c:516
+#: elf32-i860.c:1218 elf32-ip2k.c:1499 elf32-iq2000.c:691 elf32-lm32.c:1171
+#: elf32-m32c.c:560 elf32-m32r.c:3102 elf32-m68hc1x.c:1136 elf32-mep.c:541
+#: elf32-microblaze.c:1226 elf32-moxie.c:291 elf32-msp430.c:493 elf32-mt.c:402
+#: elf32-openrisc.c:411 elf32-score.c:2752 elf32-score7.c:2591
+#: elf32-spu.c:5047 elf32-v850.c:1701 elf32-xstormy16.c:948 elf64-mmix.c:1533
 msgid "internal error: out of range error"
 msgstr ""
 
-#: elf-m10200.c:454 elf-m10300.c:1567 elf32-avr.c:1225 elf32-bfin.c:3217
-#: elf32-cr16.c:1486 elf32-cr16c.c:784 elf32-cris.c:2085 elf32-crx.c:926
-#: elf32-d10v.c:513 elf32-fr30.c:613 elf32-frv.c:4109 elf32-h8300.c:513
-#: elf32-i860.c:1215 elf32-iq2000.c:688 elf32-lm32.c:1172 elf32-m32c.c:557
-#: elf32-m32r.c:3110 elf32-m68hc1x.c:1142 elf32-mep.c:539
-#: elf32-microblaze.c:1235 elf32-moxie.c:286 elf32-msp430.c:490
-#: elf32-openrisc.c:408 elf32-score.c:2733 elf32-score7.c:2541
-#: elf32-spu.c:5048 elf32-tilepro.c:3218 elf32-v850.c:2147
-#: elf32-xstormy16.c:939 elf64-mmix.c:1594 elfxx-mips.c:9465
-#: elfxx-tilegx.c:3581
+#: elf-m10200.c:460 elf-m10300.c:1579 elf32-avr.c:1255 elf32-bfin.c:3208
+#: elf32-cr16.c:1521 elf32-cr16c.c:794 elf32-cris.c:2088 elf32-crx.c:937
+#: elf32-d10v.c:520 elf32-fr30.c:620 elf32-frv.c:4118 elf32-h8300.c:520
+#: elf32-i860.c:1222 elf32-iq2000.c:695 elf32-lm32.c:1175 elf32-m32c.c:564
+#: elf32-m32r.c:3106 elf32-m68hc1x.c:1140 elf32-mep.c:545
+#: elf32-microblaze.c:1230 elf32-moxie.c:295 elf32-msp430.c:497
+#: elf32-openrisc.c:415 elf32-score.c:2756 elf32-score7.c:2595
+#: elf32-spu.c:5051 elf32-v850.c:1705 elf32-xstormy16.c:952 elf64-mmix.c:1537
+#: elfxx-mips.c:9103
 msgid "internal error: unsupported relocation error"
 msgstr ""
 
-#: elf-m10200.c:458 elf32-cr16.c:1490 elf32-cr16c.c:788 elf32-crx.c:930
-#: elf32-d10v.c:517 elf32-h8300.c:517 elf32-lm32.c:1176 elf32-m32r.c:3114
-#: elf32-m68hc1x.c:1146 elf32-microblaze.c:1239 elf32-score.c:2737
-#: elf32-score7.c:2545 elf32-spu.c:5052
+#: elf-m10200.c:464 elf32-cr16.c:1525 elf32-cr16c.c:798 elf32-crx.c:941
+#: elf32-d10v.c:524 elf32-h8300.c:524 elf32-lm32.c:1179 elf32-m32r.c:3110
+#: elf32-m68hc1x.c:1144 elf32-microblaze.c:1234 elf32-score.c:2760
+#: elf32-score7.c:2599 elf32-spu.c:5055
 msgid "internal error: dangerous error"
 msgstr ""
 
-#: elf-m10200.c:462 elf-m10300.c:1580 elf32-avr.c:1233 elf32-bfin.c:3225
-#: elf32-cr16.c:1494 elf32-cr16c.c:792 elf32-cris.c:2093 elf32-crx.c:934
-#: elf32-d10v.c:521 elf32-epiphany.c:571 elf32-fr30.c:621 elf32-frv.c:4117
-#: elf32-h8300.c:521 elf32-i860.c:1223 elf32-ip2k.c:1483 elf32-iq2000.c:696
-#: elf32-lm32.c:1180 elf32-m32c.c:565 elf32-m32r.c:3118 elf32-m68hc1x.c:1150
-#: elf32-mep.c:547 elf32-microblaze.c:1243 elf32-moxie.c:294
-#: elf32-msp430.c:498 elf32-mt.c:403 elf32-openrisc.c:416 elf32-score.c:2746
-#: elf32-score7.c:2549 elf32-spu.c:5056 elf32-tilepro.c:3226 elf32-v850.c:2167
-#: elf32-xstormy16.c:947 elf64-mmix.c:1602 elfxx-tilegx.c:3589
+#: elf-m10200.c:468 elf-m10300.c:1592 elf32-avr.c:1263 elf32-bfin.c:3216
+#: elf32-cr16.c:1529 elf32-cr16c.c:802 elf32-cris.c:2096 elf32-crx.c:945
+#: elf32-d10v.c:528 elf32-fr30.c:628 elf32-frv.c:4126 elf32-h8300.c:528
+#: elf32-i860.c:1230 elf32-ip2k.c:1514 elf32-iq2000.c:703 elf32-lm32.c:1183
+#: elf32-m32c.c:572 elf32-m32r.c:3114 elf32-m68hc1x.c:1148 elf32-mep.c:553
+#: elf32-microblaze.c:1238 elf32-moxie.c:303 elf32-msp430.c:505 elf32-mt.c:410
+#: elf32-openrisc.c:423 elf32-score.c:2769 elf32-score7.c:2603
+#: elf32-spu.c:5059 elf32-v850.c:1725 elf32-xstormy16.c:960 elf64-mmix.c:1545
 msgid "internal error: unknown error"
 msgstr ""
 
-#: elf-m10300.c:1507 elf32-arm.c:10419 elf32-i386.c:4264 elf32-m32r.c:2599
-#: elf32-m68k.c:4156 elf32-s390.c:3003 elf32-sh.c:4218 elf32-tilepro.c:3117
-#: elf32-xtensa.c:3066 elf64-s390.c:2978 elf64-sh64.c:1640 elf64-x86-64.c:4110
-#: elfxx-sparc.c:3835 elfxx-tilegx.c:3500
+#: elf-m10300.c:1512 elf32-arm.c:8970 elf32-i386.c:3986 elf32-m32r.c:2588
+#: elf32-m68k.c:4099 elf32-ppc.c:8116 elf32-s390.c:3015 elf32-sh.c:3429
+#: elf32-xtensa.c:3027 elf64-ppc.c:12252 elf64-s390.c:2974 elf64-sh64.c:1648
+#: elf64-x86-64.c:3658 elfxx-sparc.c:3317
 msgid "%B(%A+0x%lx): unresolvable %s relocation against symbol `%s'"
 msgstr ""
 
-#: elf-m10300.c:1572
+#: elf-m10300.c:1584
 msgid ""
 "error: inappropriate relocation type for shared library (did you forget -"
 "fpic?)"
 msgstr ""
 
-#: elf-m10300.c:1575
+#: elf-m10300.c:1587
 msgid "internal error: suspicious relocation type used in shared library"
 msgstr ""
 
-#: elf-m10300.c:4372 elf32-arm.c:12800 elf32-cr16.c:2451 elf32-cris.c:3057
-#: elf32-hppa.c:1894 elf32-i370.c:503 elf32-i386.c:2182 elf32-lm32.c:1868
-#: elf32-m32r.c:1927 elf32-m68k.c:3253 elf32-s390.c:1652 elf32-sh.c:2931
-#: elf32-tic6x.c:2162 elf32-tilepro.c:1940 elf32-vax.c:1041 elf64-s390.c:1635
-#: elf64-sh64.c:3381 elf64-x86-64.c:2176 elfxx-sparc.c:2119
-#: elfxx-tilegx.c:2261
+#: elf-m10300.c:4385 elf32-arm.c:11353 elf32-cr16.c:2519 elf32-cris.c:3025
+#: elf32-hppa.c:1891 elf32-i370.c:506 elf32-i386.c:1977 elf32-lm32.c:1873
+#: elf32-m32r.c:1921 elf32-m68k.c:3188 elf32-ppc.c:5026 elf32-s390.c:1650
+#: elf32-sh.c:2574 elf32-vax.c:1052 elf64-ppc.c:6394 elf64-s390.c:1623
+#: elf64-sh64.c:3396 elf64-x86-64.c:1822 elfxx-sparc.c:1802
 #, c-format
 msgid "dynamic variable `%s' is zero size"
 msgstr ""
 
-#: elf.c:334
+#: elf.c:329
 msgid "%B: invalid string offset %u >= %lu for section `%s'"
 msgstr ""
 
-#: elf.c:446
+#: elf.c:441
 msgid "%B symbol number %lu references nonexistent SHT_SYMTAB_SHNDX section"
 msgstr ""
 
-#: elf.c:602
+#: elf.c:597
 msgid "%B: Corrupt size field in group section header: 0x%lx"
 msgstr ""
 
-#: elf.c:638
+#: elf.c:633
 msgid "%B: invalid SHT_GROUP entry"
 msgstr ""
 
-#: elf.c:708
+#: elf.c:703
 msgid "%B: no group info for section %A"
 msgstr ""
 
-#: elf.c:737 elf.c:3121 elflink.c:10135
+#: elf.c:732 elf.c:2979 elflink.c:9922
 msgid "%B: warning: sh_link not set for section `%A'"
 msgstr ""
 
-#: elf.c:756
+#: elf.c:751
 msgid "%B: sh_link [%d] in section `%A' is incorrect"
 msgstr ""
 
-#: elf.c:791
+#: elf.c:786
 msgid "%B: unknown [%d] section `%s' in group [%s]"
 msgstr ""
 
-#: elf.c:1041
-msgid "%B: unable to initialize commpress status for section %s"
-msgstr ""
-
-#: elf.c:1061
-msgid "%B: unable to initialize decommpress status for section %s"
-msgstr ""
-
-#: elf.c:1181
+#: elf.c:1106
 #, c-format
 msgid ""
 "\n"
 "Program Header:\n"
 msgstr ""
 
-#: elf.c:1223
+#: elf.c:1148
 #, c-format
 msgid ""
 "\n"
 "Dynamic Section:\n"
 msgstr ""
 
-#: elf.c:1359
+#: elf.c:1284
 #, c-format
 msgid ""
 "\n"
 "Version definitions:\n"
 msgstr ""
 
-#: elf.c:1384
+#: elf.c:1309
 #, c-format
 msgid ""
 "\n"
 "Version References:\n"
 msgstr ""
 
-#: elf.c:1389
+#: elf.c:1314
 #, c-format
 msgid "  required from %s:\n"
 msgstr ""
 
-#: elf.c:1796
+#: elf.c:1718
 msgid "%B: invalid link %lu for reloc section %s (index %u)"
 msgstr ""
 
-#: elf.c:1966
+#: elf.c:1886
 msgid ""
 "%B: don't know how to handle allocated, application specific section `%s' [0x"
 "%8x]"
 msgstr ""
 
-#: elf.c:1978
+#: elf.c:1898
 msgid "%B: don't know how to handle processor specific section `%s' [0x%8x]"
 msgstr ""
 
-#: elf.c:1989
+#: elf.c:1909
 msgid "%B: don't know how to handle OS specific section `%s' [0x%8x]"
 msgstr ""
 
-#: elf.c:1999
+#: elf.c:1919
 msgid "%B: don't know how to handle section `%s' [0x%8x]"
 msgstr ""
 
-#: elf.c:2634
+#: elf.c:2517
 #, c-format
 msgid "warning: section `%A' type changed to PROGBITS"
 msgstr ""
 
-#: elf.c:3078
+#: elf.c:2936
 msgid "%B: sh_link of section `%A' points to discarded section `%A' of `%B'"
 msgstr ""
 
-#: elf.c:3101
+#: elf.c:2959
 msgid "%B: sh_link of section `%A' points to removed section `%A' of `%B'"
 msgstr ""
 
-#: elf.c:4527
+#: elf.c:4333
 msgid ""
 "%B: The first section in the PT_DYNAMIC segment is not the .dynamic section"
 msgstr ""
 
-#: elf.c:4554
+#: elf.c:4360
 msgid "%B: Not enough room for program headers, try linking with -N"
 msgstr ""
 
-#: elf.c:4641
-msgid "%B: section %A lma %#lx adjusted to %#lx"
+#: elf.c:4442
+msgid "%B: section %A vma 0x%lx overlaps previous sections"
 msgstr ""
 
-#: elf.c:4776
+#: elf.c:4537
 msgid "%B: section `%A' can't be allocated in segment %d"
 msgstr ""
 
-#: elf.c:4824
+#: elf.c:4587
 msgid "%B: warning: allocated section `%s' not in segment"
 msgstr ""
 
-#: elf.c:5324
+#: elf.c:5087
 msgid "%B: symbol `%s' required but not present"
 msgstr ""
 
-#: elf.c:5662
+#: elf.c:5426
 msgid "%B: warning: Empty loadable segment detected, is this intentional ?\n"
 msgstr ""
 
-#: elf.c:6692
+#: elf.c:6393
 #, c-format
 msgid ""
 "Unable to find equivalent output section for symbol '%s' from section '%s'"
 msgstr ""
 
-#: elf.c:7692
+#: elf.c:7382
 msgid "%B: unsupported relocation type %s"
 msgstr ""
 
-#: elf32-arm.c:3617
+#: elf32-arm.c:3149
 msgid ""
 "%B(%s): warning: interworking not enabled.\n"
 "  first occurrence: %B: Thumb call to ARM"
 msgstr ""
 
-#: elf32-arm.c:3664
+#: elf32-arm.c:3190
 msgid ""
 "%B(%s): warning: interworking not enabled.\n"
 "  first occurrence: %B: ARM call to Thumb"
 msgstr ""
 
-#: elf32-arm.c:3878 elf32-arm.c:5315
+#: elf32-arm.c:3387 elf32-arm.c:4692
 #, c-format
 msgid "%s: cannot create stub entry %s"
 msgstr ""
 
-#: elf32-arm.c:5431
+#: elf32-arm.c:4804
 #, c-format
 msgid "unable to find THUMB glue '%s' for '%s'"
 msgstr ""
 
-#: elf32-arm.c:5467
+#: elf32-arm.c:4838
 #, c-format
 msgid "unable to find ARM glue '%s' for '%s'"
 msgstr ""
 
-#: elf32-arm.c:6005
+#: elf32-arm.c:5365
 msgid "%B: BE8 images only valid in big-endian mode."
 msgstr ""
 
 #. Give a warning, but do as the user requests anyway.
-#: elf32-arm.c:6235
+#: elf32-arm.c:5590
 msgid ""
 "%B: warning: selected VFP11 erratum workaround is not necessary for target "
 "architecture"
 msgstr ""
 
-#: elf32-arm.c:6779 elf32-arm.c:6799
+#: elf32-arm.c:6130 elf32-arm.c:6150
 msgid "%B: unable to find VFP11 veneer `%s'"
 msgstr ""
 
-#: elf32-arm.c:6848
+#: elf32-arm.c:6196
 #, c-format
 msgid "Invalid TARGET2 relocation type '%s'."
 msgstr ""
 
-#: elf32-arm.c:6933
+#: elf32-arm.c:6281
 msgid ""
 "%B(%s): warning: interworking not enabled.\n"
 "  first occurrence: %B: thumb call to arm"
 msgstr ""
 
-#: elf32-arm.c:7717
-msgid "%B(%A+0x%lx):unexpected Thumb instruction '0x%x' in TLS trampoline"
-msgstr ""
-
-#: elf32-arm.c:7756
-msgid "%B(%A+0x%lx):unexpected ARM instruction '0x%x' in TLS trampoline"
-msgstr ""
-
-#: elf32-arm.c:8209
+#: elf32-arm.c:7003
 msgid "\\%B: Warning: Arm BLX instruction targets Arm function '%s'."
 msgstr ""
 
-#: elf32-arm.c:8622
+#: elf32-arm.c:7408
 msgid "%B: Warning: Thumb BLX instruction targets thumb function '%s'."
 msgstr ""
 
-#: elf32-arm.c:9460
-msgid ""
-"%B(%A+0x%lx):unexpected Thumb instruction '0x%x' referenced by TLS_GOTDESC"
-msgstr ""
-
-#: elf32-arm.c:9483
-msgid ""
-"%B(%A+0x%lx):unexpected ARM instruction '0x%x' referenced by TLS_GOTDESC"
-msgstr ""
-
-#: elf32-arm.c:9512
+#: elf32-arm.c:8092
 msgid "%B(%A+0x%lx): R_ARM_TLS_LE32 relocation not permitted in shared object"
 msgstr ""
 
-#: elf32-arm.c:9727
+#: elf32-arm.c:8307
 msgid ""
 "%B(%A+0x%lx): Only ADD or SUB instructions are allowed for ALU group "
 "relocations"
 msgstr ""
 
-#: elf32-arm.c:9767 elf32-arm.c:9854 elf32-arm.c:9937 elf32-arm.c:10022
+#: elf32-arm.c:8347 elf32-arm.c:8434 elf32-arm.c:8517 elf32-arm.c:8602
 msgid "%B(%A+0x%lx): Overflow whilst splitting 0x%lx for group relocation %s"
 msgstr ""
 
-#: elf32-arm.c:10261 elf32-sh.c:4103 elf64-sh64.c:1544
+#: elf32-arm.c:8828 elf32-sh.c:3325 elf64-sh64.c:1556
 msgid "%B(%A+0x%lx): %s relocation against SEC_MERGE section"
 msgstr ""
 
-#: elf32-arm.c:10372 elf32-m68k.c:4191 elf32-xtensa.c:2802
+#: elf32-arm.c:8946 elf32-m68k.c:4134 elf32-xtensa.c:2765 elf64-ppc.c:10939
 msgid "%B(%A+0x%lx): %s used with TLS symbol %s"
 msgstr ""
 
-#: elf32-arm.c:10373 elf32-m68k.c:4192 elf32-xtensa.c:2803
+#: elf32-arm.c:8947 elf32-m68k.c:4135 elf32-xtensa.c:2766 elf64-ppc.c:10940
 msgid "%B(%A+0x%lx): %s used with non-TLS symbol %s"
 msgstr ""
 
-#: elf32-arm.c:10453 elf32-tic6x.c:2753
+#: elf32-arm.c:9004
 msgid "out of range"
 msgstr ""
 
-#: elf32-arm.c:10457 elf32-tic6x.c:2757
+#: elf32-arm.c:9008
 msgid "unsupported relocation"
 msgstr ""
 
-#: elf32-arm.c:10465 elf32-tic6x.c:2765
+#: elf32-arm.c:9016
 msgid "unknown error"
 msgstr ""
 
-#: elf32-arm.c:10890
+#: elf32-arm.c:9416
 msgid ""
 "Warning: Clearing the interworking flag of %B because non-interworking code "
 "in %B has been linked with it"
 msgstr ""
 
-#: elf32-arm.c:10984
-msgid "%B: Unknown mandatory EABI object attribute %d"
-msgstr ""
-
-#: elf32-arm.c:10992
-msgid "Warning: %B: Unknown EABI object attribute %d"
-msgstr ""
-
-#: elf32-arm.c:11173
+#: elf32-arm.c:9659
 msgid "error: %B: Unknown CPU architecture"
 msgstr ""
 
-#: elf32-arm.c:11211
+#: elf32-arm.c:9697
 msgid "error: %B: Conflicting CPU architectures %d/%d"
 msgstr ""
 
-#: elf32-arm.c:11260
-msgid ""
-"Error: %B has both the current and legacy Tag_MPextension_use attributes"
-msgstr ""
-
-#: elf32-arm.c:11285
+#: elf32-arm.c:9754
 msgid "error: %B uses VFP register arguments, %B does not"
 msgstr ""
 
-#: elf32-arm.c:11430
-msgid "error: %B: unable to merge virtualization attributes with %B"
-msgstr ""
-
-#: elf32-arm.c:11456
+#: elf32-arm.c:9904
 msgid "error: %B: Conflicting architecture profiles %c/%c"
 msgstr ""
 
-#: elf32-arm.c:11557
+#: elf32-arm.c:9928
 msgid "Warning: %B: Conflicting platform configuration"
 msgstr ""
 
-#: elf32-arm.c:11566
+#: elf32-arm.c:9937
 msgid "error: %B: Conflicting use of R9"
 msgstr ""
 
-#: elf32-arm.c:11578
+#: elf32-arm.c:9949
 msgid "error: %B: SB relative addressing conflicts with use of R9"
 msgstr ""
 
-#: elf32-arm.c:11591
+#: elf32-arm.c:9962
 msgid ""
 "warning: %B uses %u-byte wchar_t yet the output is to use %u-byte wchar_t; "
 "use of wchar_t values across objects may fail"
 msgstr ""
 
-#: elf32-arm.c:11622
+#: elf32-arm.c:9993
 msgid ""
 "warning: %B uses %s enums yet the output is to use %s enums; use of enum "
 "values across objects may fail"
 msgstr ""
 
-#: elf32-arm.c:11634
+#: elf32-arm.c:10005
 msgid "error: %B uses iWMMXt register arguments, %B does not"
 msgstr ""
 
-#: elf32-arm.c:11651
+#: elf32-arm.c:10027
 msgid "error: fp16 format mismatch between %B and %B"
 msgstr ""
 
-#: elf32-arm.c:11675
-msgid "DIV usage mismatch between %B and %B"
+#: elf32-arm.c:10070 elf32-arm.c:10163
+msgid "%B: Unknown mandatory EABI object attribute %d"
 msgstr ""
 
-#: elf32-arm.c:11694
-msgid "%B has has both the current and legacy Tag_MPextension_use attributes"
+#: elf32-arm.c:10078 elf32-arm.c:10171
+msgid "Warning: %B: Unknown EABI object attribute %d"
+msgstr ""
+
+#: elf32-arm.c:10231
+msgid "error: %B is already in final BE8 format"
+msgstr ""
+
+#: elf32-arm.c:10307
+msgid ""
+"error: Source object %B has EABI version %d, but target %B has EABI version %"
+"d"
+msgstr ""
+
+#: elf32-arm.c:10323
+msgid "error: %B is compiled for APCS-%d, whereas target %B uses APCS-%d"
+msgstr ""
+
+#: elf32-arm.c:10348
+msgid "error: %B uses VFP instructions, whereas %B does not"
+msgstr ""
+
+#: elf32-arm.c:10352
+msgid "error: %B uses FPA instructions, whereas %B does not"
+msgstr ""
+
+#: elf32-arm.c:10362
+msgid "error: %B uses Maverick instructions, whereas %B does not"
+msgstr ""
+
+#: elf32-arm.c:10366
+msgid "error: %B does not use Maverick instructions, whereas %B does"
+msgstr ""
+
+#: elf32-arm.c:10385
+msgid "error: %B uses software FP, whereas %B uses hardware FP"
+msgstr ""
+
+#: elf32-arm.c:10389
+msgid "error: %B uses hardware FP, whereas %B uses software FP"
 msgstr ""
 
 #. Ignore init flag - it may not be set, despite the flags field
 #. containing valid data.
 #. Ignore init flag - it may not be set, despite the flags field containing valid data.
-#: elf32-arm.c:11782 elf32-bfin.c:5079 elf32-cris.c:4169 elf32-m68hc1x.c:1282
-#: elf32-m68k.c:1236 elf32-score.c:3994 elf32-score7.c:3800 elf32-vax.c:529
-#: elfxx-mips.c:14103
+#: elf32-arm.c:10436 elf32-bfin.c:5080 elf32-cris.c:4105 elf32-m68hc1x.c:1280
+#: elf32-m68k.c:1169 elf32-score.c:4039 elf32-score7.c:3876 elf32-vax.c:540
+#: elfxx-mips.c:12755
 #, c-format
 msgid "private flags = %lx:"
 msgstr ""
 
-#: elf32-arm.c:11791
+#: elf32-arm.c:10445
 #, c-format
 msgid " [interworking enabled]"
 msgstr ""
 
-#: elf32-arm.c:11799
+#: elf32-arm.c:10453
 #, c-format
 msgid " [VFP float format]"
 msgstr ""
 
-#: elf32-arm.c:11801
+#: elf32-arm.c:10455
 #, c-format
 msgid " [Maverick float format]"
 msgstr ""
 
-#: elf32-arm.c:11803
+#: elf32-arm.c:10457
 #, c-format
 msgid " [FPA float format]"
 msgstr ""
 
-#: elf32-arm.c:11812
+#: elf32-arm.c:10466
 #, c-format
 msgid " [new ABI]"
 msgstr ""
 
-#: elf32-arm.c:11815
+#: elf32-arm.c:10469
 #, c-format
 msgid " [old ABI]"
 msgstr ""
 
-#: elf32-arm.c:11818
+#: elf32-arm.c:10472
 #, c-format
 msgid " [software FP]"
 msgstr ""
 
-#: elf32-arm.c:11827
+#: elf32-arm.c:10481
 #, c-format
 msgid " [Version1 EABI]"
 msgstr ""
 
-#: elf32-arm.c:11830 elf32-arm.c:11841
+#: elf32-arm.c:10484 elf32-arm.c:10495
 #, c-format
 msgid " [sorted symbol table]"
 msgstr ""
 
-#: elf32-arm.c:11832 elf32-arm.c:11843
+#: elf32-arm.c:10486 elf32-arm.c:10497
 #, c-format
 msgid " [unsorted symbol table]"
 msgstr ""
 
-#: elf32-arm.c:11838
+#: elf32-arm.c:10492
 #, c-format
 msgid " [Version2 EABI]"
 msgstr ""
 
-#: elf32-arm.c:11846
+#: elf32-arm.c:10500
 #, c-format
 msgid " [dynamic symbols use segment index]"
 msgstr ""
 
-#: elf32-arm.c:11849
+#: elf32-arm.c:10503
 #, c-format
 msgid " [mapping symbols precede others]"
 msgstr ""
 
-#: elf32-arm.c:11856
+#: elf32-arm.c:10510
 #, c-format
 msgid " [Version3 EABI]"
 msgstr ""
 
-#: elf32-arm.c:11860
+#: elf32-arm.c:10514
 #, c-format
 msgid " [Version4 EABI]"
 msgstr ""
 
-#: elf32-arm.c:11864
+#: elf32-arm.c:10518
 #, c-format
 msgid " [Version5 EABI]"
 msgstr ""
 
-#: elf32-arm.c:11867
+#: elf32-arm.c:10521
 #, c-format
 msgid " [BE8]"
 msgstr ""
 
-#: elf32-arm.c:11870
+#: elf32-arm.c:10524
 #, c-format
 msgid " [LE8]"
 msgstr ""
 
-#: elf32-arm.c:11876
+#: elf32-arm.c:10530
 #, c-format
 msgid " <EABI version unrecognised>"
 msgstr ""
 
-#: elf32-arm.c:11883
+#: elf32-arm.c:10537
 #, c-format
 msgid " [relocatable executable]"
 msgstr ""
 
-#: elf32-arm.c:11886
+#: elf32-arm.c:10540
 #, c-format
 msgid " [has entry point]"
 msgstr ""
 
-#: elf32-arm.c:11891
+#: elf32-arm.c:10545
 #, c-format
 msgid "<Unrecognised flag bits set>"
 msgstr ""
 
-#: elf32-arm.c:12189 elf32-i386.c:1461 elf32-s390.c:1000 elf32-tic6x.c:2829
-#: elf32-tilepro.c:1336 elf32-xtensa.c:1009 elf64-s390.c:960
-#: elf64-x86-64.c:1364 elfxx-sparc.c:1371 elfxx-tilegx.c:1586
+#: elf32-arm.c:10790 elf32-i386.c:1300 elf32-s390.c:998 elf32-xtensa.c:1000
+#: elf64-s390.c:952 elf64-x86-64.c:1083 elfxx-sparc.c:1121
 msgid "%B: bad symbol index: %d"
 msgstr ""
 
-#: elf32-arm.c:12337 elf64-x86-64.c:1561 elf64-x86-64.c:1732 elfxx-mips.c:8223
+#: elf32-arm.c:10911 elf64-x86-64.c:1243 elf64-x86-64.c:1412 elfxx-mips.c:7870
 msgid ""
 "%B: relocation %s against `%s' can not be used when making a shared object; "
 "recompile with -fPIC"
 msgstr ""
 
-#: elf32-arm.c:13460
+#: elf32-arm.c:11900
 #, c-format
 msgid "Errors encountered processing file %s"
 msgstr ""
 
-#: elf32-arm.c:14837
+#: elf32-arm.c:13346
 msgid "%B: error: Cortex-A8 erratum stub is allocated in unsafe location"
 msgstr ""
 
 #. There's not much we can do apart from complain if this
 #. happens.
-#: elf32-arm.c:14864
+#: elf32-arm.c:13373
 msgid "%B: error: Cortex-A8 erratum stub out of range (input file too large)"
 msgstr ""
 
-#: elf32-arm.c:14958 elf32-arm.c:14980
+#: elf32-arm.c:13464 elf32-arm.c:13486
 msgid "%B: error: VFP11 veneer out of range"
 msgstr ""
 
-#: elf32-arm.c:15518
-msgid "error: %B is already in final BE8 format"
-msgstr ""
-
-#: elf32-arm.c:15594
-msgid ""
-"error: Source object %B has EABI version %d, but target %B has EABI version "
-"%d"
-msgstr ""
-
-#: elf32-arm.c:15610
-msgid "error: %B is compiled for APCS-%d, whereas target %B uses APCS-%d"
-msgstr ""
-
-#: elf32-arm.c:15635
-msgid "error: %B uses VFP instructions, whereas %B does not"
-msgstr ""
-
-#: elf32-arm.c:15639
-msgid "error: %B uses FPA instructions, whereas %B does not"
-msgstr ""
-
-#: elf32-arm.c:15649
-msgid "error: %B uses Maverick instructions, whereas %B does not"
-msgstr ""
-
-#: elf32-arm.c:15653
-msgid "error: %B does not use Maverick instructions, whereas %B does"
-msgstr ""
-
-#: elf32-arm.c:15672
-msgid "error: %B uses software FP, whereas %B uses hardware FP"
-msgstr ""
-
-#: elf32-arm.c:15676
-msgid "error: %B uses hardware FP, whereas %B uses software FP"
-msgstr ""
-
-#: elf32-avr.c:1229 elf32-bfin.c:3221 elf32-cris.c:2089 elf32-epiphany.c:567
-#: elf32-fr30.c:617 elf32-frv.c:4113 elf32-i860.c:1219 elf32-ip2k.c:1479
-#: elf32-iq2000.c:692 elf32-m32c.c:561 elf32-mep.c:543 elf32-moxie.c:290
-#: elf32-msp430.c:494 elf32-mt.c:399 elf32-openrisc.c:412 elf32-tilepro.c:3222
-#: elf32-v850.c:2151 elf32-xstormy16.c:943 elf64-mmix.c:1598
-#: elfxx-tilegx.c:3585
+#: elf32-avr.c:1259 elf32-bfin.c:3212 elf32-cris.c:2092 elf32-fr30.c:624
+#: elf32-frv.c:4122 elf32-i860.c:1226 elf32-ip2k.c:1510 elf32-iq2000.c:699
+#: elf32-m32c.c:568 elf32-mep.c:549 elf32-moxie.c:299 elf32-msp430.c:501
+#: elf32-mt.c:406 elf32-openrisc.c:419 elf32-v850.c:1709 elf32-xstormy16.c:956
+#: elf64-mmix.c:1541
 msgid "internal error: dangerous relocation"
 msgstr ""
 
-#: elf32-avr.c:2415 elf32-hppa.c:598 elf32-m68hc1x.c:166
+#: elf32-avr.c:2409 elf32-hppa.c:605 elf32-m68hc1x.c:165 elf64-ppc.c:4146
 msgid "%B: cannot create stub entry %s"
 msgstr ""
 
-#: elf32-bfin.c:107 elf32-bfin.c:363
-msgid "relocation should be even number"
-msgstr ""
-
-#: elf32-bfin.c:1593
+#: elf32-bfin.c:1581
 msgid "%B(%A+0x%lx): unresolvable relocation against symbol `%s'"
 msgstr ""
 
-#: elf32-bfin.c:1626 elf32-i386.c:4307 elf32-m68k.c:4233 elf32-s390.c:3055
-#: elf64-s390.c:3030 elf64-x86-64.c:4151
+#: elf32-bfin.c:1614 elf32-i386.c:4028 elf32-m68k.c:4176 elf32-s390.c:3067
+#: elf64-s390.c:3026 elf64-x86-64.c:3698
 msgid "%B(%A+0x%lx): reloc against `%s': error %d"
 msgstr ""
 
-#: elf32-bfin.c:2725
+#: elf32-bfin.c:2718
 msgid "%B: relocation at `%A+0x%x' references symbol `%s' with nonzero addend"
 msgstr ""
 
-#: elf32-bfin.c:2741
+#: elf32-bfin.c:2732 elf32-frv.c:2904
 msgid "relocation references symbol not defined in the module"
 msgstr ""
 
-#: elf32-bfin.c:2838
+#: elf32-bfin.c:2829
 msgid "R_BFIN_FUNCDESC references dynamic symbol with nonzero addend"
 msgstr ""
 
-#: elf32-bfin.c:2879 elf32-bfin.c:3002
+#: elf32-bfin.c:2870 elf32-bfin.c:2993 elf32-frv.c:3641 elf32-frv.c:3762
 msgid "cannot emit fixups in read-only section"
 msgstr ""
 
-#: elf32-bfin.c:2910 elf32-bfin.c:3040 elf32-lm32.c:1103 elf32-sh.c:5016
+#: elf32-bfin.c:2901 elf32-bfin.c:3031 elf32-frv.c:3672 elf32-frv.c:3806
+#: elf32-lm32.c:1104
 msgid "cannot emit dynamic relocations in read-only section"
 msgstr ""
 
-#: elf32-bfin.c:2960
+#: elf32-bfin.c:2951
 msgid "R_BFIN_FUNCDESC_VALUE references dynamic symbol with nonzero addend"
 msgstr ""
 
-#: elf32-bfin.c:3125
+#: elf32-bfin.c:3116
 msgid "relocations between different segments are not supported"
 msgstr ""
 
-#: elf32-bfin.c:3126
+#: elf32-bfin.c:3117
 msgid "warning: relocation references a different segment"
 msgstr ""
 
-#: elf32-bfin.c:4971
+#: elf32-bfin.c:4972 elf32-frv.c:6408
 msgid "%B: unsupported relocation type %i"
 msgstr ""
 
-#: elf32-bfin.c:5125 elf32-frv.c:6808
+#: elf32-bfin.c:5125 elf32-frv.c:6816
 #, c-format
 msgid "%s: cannot link non-fdpic object file into fdpic executable"
 msgstr ""
 
-#: elf32-bfin.c:5129 elf32-frv.c:6812
+#: elf32-bfin.c:5129 elf32-frv.c:6820
 #, c-format
 msgid "%s: cannot link fdpic object file into non-fdpic executable"
 msgstr ""
 
-#: elf32-bfin.c:5283
-#, c-format
-msgid "*** check this relocation %s"
-msgstr ""
-
-#: elf32-cris.c:1176
+#: elf32-cris.c:1169
 msgid "%B, section %A: unresolvable relocation %s against symbol `%s'"
 msgstr ""
 
@@ -1360,17 +1293,17 @@ msgstr ""
 msgid "%B, section %A: No PLT for relocation %s against symbol `%s'"
 msgstr ""
 
-#: elf32-cris.c:1246 elf32-cris.c:1379 elf32-cris.c:1639 elf32-cris.c:1722
-#: elf32-cris.c:1875 elf32-tic6x.c:2662
+#: elf32-cris.c:1246 elf32-cris.c:1379 elf32-cris.c:1641 elf32-cris.c:1725
+#: elf32-cris.c:1878
 msgid "[whose name is lost]"
 msgstr ""
 
-#: elf32-cris.c:1365 elf32-tic6x.c:2647
+#: elf32-cris.c:1365
 msgid ""
 "%B, section %A: relocation %s with non-zero addend %d against local symbol"
 msgstr ""
 
-#: elf32-cris.c:1373 elf32-cris.c:1716 elf32-cris.c:1869 elf32-tic6x.c:2655
+#: elf32-cris.c:1373 elf32-cris.c:1719 elf32-cris.c:1872
 msgid ""
 "%B, section %A: relocation %s with non-zero addend %d against symbol `%s'"
 msgstr ""
@@ -1384,212 +1317,179 @@ msgid "%B, section %A: relocation %s with no GOT created"
 msgstr ""
 
 #. We shouldn't get here for GCC-emitted code.
-#: elf32-cris.c:1630
+#: elf32-cris.c:1632
 msgid ""
 "%B, section %A: relocation %s has an undefined reference to `%s', perhaps a "
 "declaration mixup?"
 msgstr ""
 
-#: elf32-cris.c:2002
+#: elf32-cris.c:2005
 msgid ""
 "%B, section %A: relocation %s is not allowed for symbol: `%s' which is "
 "defined outside the program, perhaps a declaration mixup?"
 msgstr ""
 
-#: elf32-cris.c:2055
+#: elf32-cris.c:2058
 msgid "(too many global variables for -fpic: recompile with -fPIC)"
 msgstr ""
 
-#: elf32-cris.c:2062
+#: elf32-cris.c:2065
 msgid ""
 "(thread-local data too big for -fpic or -msmall-tls: recompile with -fPIC or "
 "-mno-small-tls)"
 msgstr ""
 
-#: elf32-cris.c:3261
+#: elf32-cris.c:3199
 msgid ""
 "%B, section %A:\n"
 "  v10/v32 compatible object %s must not contain a PIC relocation"
 msgstr ""
 
-#: elf32-cris.c:3366
+#: elf32-cris.c:3304
 msgid ""
 "%B, section %A:\n"
 "  relocation %s not valid in a shared object; typically an option mixup, "
 "recompile with -fPIC"
 msgstr ""
 
-#: elf32-cris.c:3580
+#: elf32-cris.c:3518
 msgid ""
 "%B, section %A:\n"
 "  relocation %s should not be used in a shared object; recompile with -fPIC"
 msgstr ""
 
-#: elf32-cris.c:4002
+#: elf32-cris.c:3935
 msgid ""
 "%B, section `%A', to symbol `%s':\n"
 "  relocation %s should not be used in a shared object; recompile with -fPIC"
 msgstr ""
 
-#: elf32-cris.c:4118
+#: elf32-cris.c:4054
 msgid "Unexpected machine number"
 msgstr ""
 
-#: elf32-cris.c:4172
+#: elf32-cris.c:4108
 #, c-format
 msgid " [symbols have a _ prefix]"
 msgstr ""
 
-#: elf32-cris.c:4175
+#: elf32-cris.c:4111
 #, c-format
 msgid " [v10 and v32]"
 msgstr ""
 
-#: elf32-cris.c:4178
+#: elf32-cris.c:4114
 #, c-format
 msgid " [v32]"
 msgstr ""
 
-#: elf32-cris.c:4223
+#: elf32-cris.c:4159
 msgid "%B: uses _-prefixed symbols, but writing file with non-prefixed symbols"
 msgstr ""
 
-#: elf32-cris.c:4224
+#: elf32-cris.c:4160
 msgid "%B: uses non-prefixed symbols, but writing file with _-prefixed symbols"
 msgstr ""
 
-#: elf32-cris.c:4243
+#: elf32-cris.c:4179
 msgid "%B contains CRIS v32 code, incompatible with previous objects"
 msgstr ""
 
-#: elf32-cris.c:4245
+#: elf32-cris.c:4181
 msgid "%B contains non-CRIS-v32 code, incompatible with previous objects"
 msgstr ""
 
-#: elf32-dlx.c:142
-#, c-format
-msgid "BFD Link Error: branch (PC rel16) to section (%s) not supported"
-msgstr ""
-
-#: elf32-dlx.c:204
-#, c-format
-msgid "BFD Link Error: jump (PC rel26) to section (%s) not supported"
-msgstr ""
-
-#. Only if it's not an unresolved symbol.
-#: elf32-epiphany.c:563 elf32-ip2k.c:1475
-msgid "unsupported relocation between data/insn address spaces"
-msgstr ""
-
-#: elf32-frv.c:1509 elf32-frv.c:1658
+#: elf32-frv.c:1507 elf32-frv.c:1656
 msgid "relocation requires zero addend"
 msgstr ""
 
-#: elf32-frv.c:2888
-msgid "%H: relocation to `%s+%v' may have caused the error above\n"
+#: elf32-frv.c:2891
+msgid "%B(%A+0x%x): relocation to `%s+%x' may have caused the error above"
 msgstr ""
 
-#: elf32-frv.c:2905
-msgid "%H: relocation references symbol not defined in the module\n"
-msgstr ""
-
-#: elf32-frv.c:2981
-msgid "%H: R_FRV_GETTLSOFF not applied to a call instruction\n"
+#: elf32-frv.c:2980
+msgid "R_FRV_GETTLSOFF not applied to a call instruction"
 msgstr ""
 
 #: elf32-frv.c:3022
-msgid "%H: R_FRV_GOTTLSDESC12 not applied to an lddi instruction\n"
+msgid "R_FRV_GOTTLSDESC12 not applied to an lddi instruction"
 msgstr ""
 
 #: elf32-frv.c:3093
-msgid "%H: R_FRV_GOTTLSDESCHI not applied to a sethi instruction\n"
+msgid "R_FRV_GOTTLSDESCHI not applied to a sethi instruction"
 msgstr ""
 
 #: elf32-frv.c:3130
-msgid "%H: R_FRV_GOTTLSDESCLO not applied to a setlo or setlos instruction\n"
+msgid "R_FRV_GOTTLSDESCLO not applied to a setlo or setlos instruction"
 msgstr ""
 
-#: elf32-frv.c:3177
-msgid "%H: R_FRV_TLSDESC_RELAX not applied to an ldd instruction\n"
+#: elf32-frv.c:3178
+msgid "R_FRV_TLSDESC_RELAX not applied to an ldd instruction"
 msgstr ""
 
-#: elf32-frv.c:3261
-msgid "%H: R_FRV_GETTLSOFF_RELAX not applied to a calll instruction\n"
+#: elf32-frv.c:3262
+msgid "R_FRV_GETTLSOFF_RELAX not applied to a calll instruction"
 msgstr ""
 
-#: elf32-frv.c:3315
-msgid "%H: R_FRV_GOTTLSOFF12 not applied to an ldi instruction\n"
+#: elf32-frv.c:3317
+msgid "R_FRV_GOTTLSOFF12 not applied to an ldi instruction"
 msgstr ""
 
-#: elf32-frv.c:3345
-msgid "%H: R_FRV_GOTTLSOFFHI not applied to a sethi instruction\n"
+#: elf32-frv.c:3347
+msgid "R_FRV_GOTTLSOFFHI not applied to a sethi instruction"
 msgstr ""
 
-#: elf32-frv.c:3374
-msgid "%H: R_FRV_GOTTLSOFFLO not applied to a setlo or setlos instruction\n"
+#: elf32-frv.c:3376
+msgid "R_FRV_GOTTLSOFFLO not applied to a setlo or setlos instruction"
 msgstr ""
 
-#: elf32-frv.c:3404
-msgid "%H: R_FRV_TLSOFF_RELAX not applied to an ld instruction\n"
+#: elf32-frv.c:3407
+msgid "R_FRV_TLSOFF_RELAX not applied to an ld instruction"
 msgstr ""
 
-#: elf32-frv.c:3449
-msgid "%H: R_FRV_TLSMOFFHI not applied to a sethi instruction\n"
+#: elf32-frv.c:3452
+msgid "R_FRV_TLSMOFFHI not applied to a sethi instruction"
 msgstr ""
 
-#: elf32-frv.c:3476
-msgid "R_FRV_TLSMOFFLO not applied to a setlo or setlos instruction\n"
+#: elf32-frv.c:3479
+msgid "R_FRV_TLSMOFFLO not applied to a setlo or setlos instruction"
 msgstr ""
 
-#: elf32-frv.c:3597
-msgid "%H: R_FRV_FUNCDESC references dynamic symbol with nonzero addend\n"
+#: elf32-frv.c:3600
+msgid "R_FRV_FUNCDESC references dynamic symbol with nonzero addend"
 msgstr ""
 
-#: elf32-frv.c:3638 elf32-frv.c:3760
-msgid "%H: cannot emit fixups in read-only section\n"
+#: elf32-frv.c:3720
+msgid "R_FRV_FUNCDESC_VALUE references dynamic symbol with nonzero addend"
 msgstr ""
 
-#: elf32-frv.c:3669 elf32-frv.c:3803
-msgid "%H: cannot emit dynamic relocations in read-only section\n"
+#: elf32-frv.c:3977 elf32-frv.c:4133
+msgid "%B(%A+0x%lx): reloc against `%s': %s"
 msgstr ""
 
-#: elf32-frv.c:3718
-msgid ""
-"%H: R_FRV_FUNCDESC_VALUE references dynamic symbol with nonzero addend\n"
+#: elf32-frv.c:3979 elf32-frv.c:3983
+msgid "relocation references a different segment"
 msgstr ""
 
-#: elf32-frv.c:3974
-msgid "%H: reloc against `%s' references a different segment\n"
-msgstr ""
-
-#: elf32-frv.c:4124
-msgid "%H: reloc against `%s': %s\n"
-msgstr ""
-
-#: elf32-frv.c:6400
-msgid "%B: unsupported relocation type %i\n"
-msgstr ""
-
-#: elf32-frv.c:6722
+#: elf32-frv.c:6730
 #, c-format
 msgid ""
 "%s: compiled with %s and linked with modules that use non-pic relocations"
 msgstr ""
 
-#: elf32-frv.c:6775 elf32-iq2000.c:845 elf32-m32c.c:807
+#: elf32-frv.c:6783 elf32-iq2000.c:852 elf32-m32c.c:814
 #, c-format
 msgid "%s: compiled with %s and linked with modules compiled with %s"
 msgstr ""
 
-#: elf32-frv.c:6787
+#: elf32-frv.c:6795
 #, c-format
 msgid ""
-"%s: uses different unknown e_flags (0x%lx) fields than previous modules (0x"
-"%lx)"
+"%s: uses different unknown e_flags (0x%lx) fields than previous modules (0x%"
+"lx)"
 msgstr ""
 
-#: elf32-frv.c:6837 elf32-iq2000.c:882 elf32-m32c.c:843 elf32-mt.c:576
-#: elf32-rx.c:3001
+#: elf32-frv.c:6845 elf32-iq2000.c:889 elf32-m32c.c:850 elf32-mt.c:583
 #, c-format
 msgid "private flags = 0x%lx:"
 msgstr ""
@@ -1598,134 +1498,122 @@ msgstr ""
 msgid "%B: Relocations in generic ELF (EM: %d)"
 msgstr ""
 
-#: elf32-hppa.c:850 elf32-hppa.c:3598
+#: elf32-hppa.c:854 elf32-hppa.c:3570
 msgid "%B(%A+0x%lx): cannot reach %s, recompile with -ffunction-sections"
 msgstr ""
 
-#: elf32-hppa.c:1284
+#: elf32-hppa.c:1286
 msgid ""
 "%B: relocation %s can not be used when making a shared object; recompile "
 "with -fPIC"
 msgstr ""
 
-#: elf32-hppa.c:2791
+#: elf32-hppa.c:2780
 msgid "%B: duplicate export stub %s"
 msgstr ""
 
-#: elf32-hppa.c:3437
+#: elf32-hppa.c:3406
 msgid ""
 "%B(%A+0x%lx): %s fixup for insn 0x%x is not supported in a non-shared link"
 msgstr ""
 
-#: elf32-hppa.c:4284
+#: elf32-hppa.c:4260
 msgid "%B(%A+0x%lx): cannot handle %s for %s"
 msgstr ""
 
-#: elf32-hppa.c:4603
+#: elf32-hppa.c:4567
 msgid ".got section not immediately after .plt section"
 msgstr ""
 
-#. Unknown relocation.
-#: elf32-i386.c:373 elf32-m68k.c:384 elf32-ppc.c:1676 elf32-s390.c:379
-#: elf32-tic6x.c:2684 elf64-ppc.c:2300 elf64-s390.c:403 elf64-x86-64.c:265
+#: elf32-i386.c:371 elf32-ppc.c:1674 elf32-s390.c:379 elf64-ppc.c:2283
+#: elf64-s390.c:403 elf64-x86-64.c:234
 msgid "%B: invalid relocation type %d"
 msgstr ""
 
-#: elf32-i386.c:1404 elf64-x86-64.c:1308
+#: elf32-i386.c:1246 elf64-x86-64.c:1030
 msgid ""
 "%B: TLS transition from %s to %s against `%s' at 0x%lx in section `%A' failed"
 msgstr ""
 
-#: elf32-i386.c:1549 elf32-i386.c:3244 elf64-x86-64.c:1487 elf64-x86-64.c:3125
-#: elfxx-sparc.c:3083
+#: elf32-i386.c:1387 elf32-i386.c:2972 elf64-x86-64.c:1172 elf64-x86-64.c:2681
 msgid "%B: relocation %s against STT_GNU_IFUNC symbol `%s' isn't handled by %s"
 msgstr ""
 
-#: elf32-i386.c:1711 elf32-s390.c:1182 elf32-sh.c:6362 elf32-tilepro.c:1434
-#: elf32-xtensa.c:1182 elf64-s390.c:1151 elfxx-sparc.c:1548
-#: elfxx-tilegx.c:1701
+#: elf32-i386.c:1549 elf32-s390.c:1180 elf32-sh.c:5065 elf32-xtensa.c:1173
+#: elf64-s390.c:1143 elfxx-sparc.c:1257
 msgid "%B: `%s' accessed both as normal and thread local symbol"
 msgstr ""
 
-#: elf32-i386.c:2539 elf64-x86-64.c:2506
-msgid "%P: %B: warning: relocation against `%s' in readonly section `%A'.\n"
-msgstr ""
-
-#: elf32-i386.c:2629 elf64-x86-64.c:2593
-msgid "%P: %B: warning: relocation in readonly section `%A'.\n"
-msgstr ""
-
-#: elf32-i386.c:3086 elf32-tilepro.c:2557 elfxx-tilegx.c:2871
+#: elf32-i386.c:2807
 msgid "%B: unrecognized relocation (0x%x) in section `%A'"
 msgstr ""
 
-#: elf32-i386.c:3494 elf64-x86-64.c:3513
+#: elf32-i386.c:3221 elf64-x86-64.c:3082
 msgid "hidden symbol"
 msgstr ""
 
-#: elf32-i386.c:3497 elf64-x86-64.c:3516
+#: elf32-i386.c:3224 elf64-x86-64.c:3085
 msgid "internal symbol"
 msgstr ""
 
-#: elf32-i386.c:3500 elf64-x86-64.c:3519
+#: elf32-i386.c:3227 elf64-x86-64.c:3088
 msgid "protected symbol"
 msgstr ""
 
-#: elf32-i386.c:3503 elf64-x86-64.c:3522
+#: elf32-i386.c:3230 elf64-x86-64.c:3091
 msgid "symbol"
 msgstr ""
 
-#: elf32-i386.c:3508
+#: elf32-i386.c:3235
 msgid ""
 "%B: relocation R_386_GOTOFF against undefined %s `%s' can not be used when "
 "making a shared object"
 msgstr ""
 
-#: elf32-i386.c:3518
+#: elf32-i386.c:3245
 msgid ""
 "%B: relocation R_386_GOTOFF against protected function `%s' can not be used "
 "when making a shared object"
 msgstr ""
 
-#: elf32-i386.c:4839 elf32-tilepro.c:3467 elf64-x86-64.c:4609
-#: elfxx-tilegx.c:3847
-#, c-format
-msgid "discarded output section: `%A'"
-msgstr ""
-
-#: elf32-ip2k.c:857 elf32-ip2k.c:863 elf32-ip2k.c:930 elf32-ip2k.c:936
+#: elf32-ip2k.c:868 elf32-ip2k.c:874 elf32-ip2k.c:941 elf32-ip2k.c:947
 msgid ""
 "ip2k relaxer: switch table without complete matching relocation information."
 msgstr ""
 
-#: elf32-ip2k.c:880 elf32-ip2k.c:963
+#: elf32-ip2k.c:891 elf32-ip2k.c:974
 msgid "ip2k relaxer: switch table header corrupt."
 msgstr ""
 
-#: elf32-ip2k.c:1292
+#: elf32-ip2k.c:1316
 #, c-format
 msgid "ip2k linker: missing page instruction at 0x%08lx (dest = 0x%08lx)."
 msgstr ""
 
-#: elf32-ip2k.c:1308
+#: elf32-ip2k.c:1332
 #, c-format
 msgid "ip2k linker: redundant page instruction at 0x%08lx (dest = 0x%08lx)."
 msgstr ""
 
-#: elf32-iq2000.c:858 elf32-m32c.c:819
+#. Only if it's not an unresolved symbol.
+#: elf32-ip2k.c:1506
+msgid "unsupported relocation between data/insn address spaces"
+msgstr ""
+
+#: elf32-iq2000.c:865 elf32-m32c.c:826
 #, c-format
 msgid "%s: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"
 msgstr ""
 
-#: elf32-lm32.c:706
+#: elf32-lm32.c:698
 msgid "global pointer relative relocation when _gp not defined"
 msgstr ""
 
-#: elf32-lm32.c:761
+#: elf32-lm32.c:753
 msgid "global pointer relative address out of range"
 msgstr ""
 
-#: elf32-lm32.c:1057
+#: elf32-lm32.c:1058
 msgid "internal error: addend should be zero for R_LM32_16_GOT"
 msgstr ""
 
@@ -1733,133 +1621,133 @@ msgstr ""
 msgid "SDA relocation when _SDA_BASE_ not defined"
 msgstr ""
 
-#: elf32-m32r.c:3043
+#: elf32-m32r.c:3039
 msgid "%B: The target (%s) of an %s relocation is in the wrong section (%A)"
 msgstr ""
 
-#: elf32-m32r.c:3571
+#: elf32-m32r.c:3567
 msgid "%B: Instruction set mismatch with previous modules"
 msgstr ""
 
-#: elf32-m32r.c:3592
+#: elf32-m32r.c:3588
 #, c-format
 msgid "private flags = %lx"
 msgstr ""
 
-#: elf32-m32r.c:3597
+#: elf32-m32r.c:3593
 #, c-format
 msgid ": m32r instructions"
 msgstr ""
 
-#: elf32-m32r.c:3598
+#: elf32-m32r.c:3594
 #, c-format
 msgid ": m32rx instructions"
 msgstr ""
 
-#: elf32-m32r.c:3599
+#: elf32-m32r.c:3595
 #, c-format
 msgid ": m32r2 instructions"
 msgstr ""
 
-#: elf32-m68hc1x.c:1050
+#: elf32-m68hc1x.c:1048
 #, c-format
 msgid ""
 "Reference to the far symbol `%s' using a wrong relocation may result in "
 "incorrect execution"
 msgstr ""
 
-#: elf32-m68hc1x.c:1073
+#: elf32-m68hc1x.c:1071
 #, c-format
 msgid ""
 "banked address [%lx:%04lx] (%lx) is not in the same bank as current banked "
 "address [%lx:%04lx] (%lx)"
 msgstr ""
 
-#: elf32-m68hc1x.c:1092
+#: elf32-m68hc1x.c:1090
 #, c-format
 msgid ""
-"reference to a banked address [%lx:%04lx] in the normal address space at "
-"%04lx"
+"reference to a banked address [%lx:%04lx] in the normal address space at %"
+"04lx"
 msgstr ""
 
-#: elf32-m68hc1x.c:1225
+#: elf32-m68hc1x.c:1223
 msgid ""
 "%B: linking files compiled for 16-bit integers (-mshort) and others for 32-"
 "bit integers"
 msgstr ""
 
-#: elf32-m68hc1x.c:1232
+#: elf32-m68hc1x.c:1230
 msgid ""
 "%B: linking files compiled for 32-bit double (-fshort-double) and others for "
 "64-bit double"
 msgstr ""
 
-#: elf32-m68hc1x.c:1241
+#: elf32-m68hc1x.c:1239
 msgid "%B: linking files compiled for HCS12 with others compiled for HC12"
 msgstr ""
 
-#: elf32-m68hc1x.c:1257 elf32-ppc.c:4227 elf64-sparc.c:706 elfxx-mips.c:13965
+#: elf32-m68hc1x.c:1255 elf32-ppc.c:4262 elf64-sparc.c:698 elfxx-mips.c:12617
 msgid "%B: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"
 msgstr ""
 
-#: elf32-m68hc1x.c:1285
+#: elf32-m68hc1x.c:1283
 #, c-format
 msgid "[abi=32-bit int, "
 msgstr ""
 
-#: elf32-m68hc1x.c:1287
+#: elf32-m68hc1x.c:1285
 #, c-format
 msgid "[abi=16-bit int, "
 msgstr ""
 
-#: elf32-m68hc1x.c:1290
+#: elf32-m68hc1x.c:1288
 #, c-format
 msgid "64-bit double, "
 msgstr ""
 
-#: elf32-m68hc1x.c:1292
+#: elf32-m68hc1x.c:1290
 #, c-format
 msgid "32-bit double, "
 msgstr ""
 
-#: elf32-m68hc1x.c:1295
+#: elf32-m68hc1x.c:1293
 #, c-format
 msgid "cpu=HC11]"
 msgstr ""
 
-#: elf32-m68hc1x.c:1297
+#: elf32-m68hc1x.c:1295
 #, c-format
 msgid "cpu=HCS12]"
 msgstr ""
 
-#: elf32-m68hc1x.c:1299
+#: elf32-m68hc1x.c:1297
 #, c-format
 msgid "cpu=HC12]"
 msgstr ""
 
-#: elf32-m68hc1x.c:1302
+#: elf32-m68hc1x.c:1300
 #, c-format
 msgid " [memory=bank-model]"
 msgstr ""
 
-#: elf32-m68hc1x.c:1304
+#: elf32-m68hc1x.c:1302
 #, c-format
 msgid " [memory=flat]"
 msgstr ""
 
-#: elf32-m68k.c:1251 elf32-m68k.c:1252 vms-alpha.c:7314 vms-alpha.c:7329
+#: elf32-m68k.c:1184 elf32-m68k.c:1185
 msgid "unknown"
 msgstr ""
 
-#: elf32-m68k.c:1715
+#: elf32-m68k.c:1645
 msgid "%B: GOT overflow: Number of relocations with 8-bit offset > %d"
 msgstr ""
 
-#: elf32-m68k.c:1721
+#: elf32-m68k.c:1651
 msgid "%B: GOT overflow: Number of relocations with 8- or 16-bit offset > %d"
 msgstr ""
 
-#: elf32-m68k.c:3957
+#: elf32-m68k.c:3902
 msgid "%B(%A+0x%lx): R_68K_TLS_LE32 relocation not permitted in shared object"
 msgstr ""
 
@@ -1871,278 +1759,200 @@ msgstr ""
 msgid "%B: Unknown relocation type %d\n"
 msgstr ""
 
-#. Pacify gcc -Wall.
-#: elf32-mep.c:157
-#, c-format
-msgid "mep: no reloc for code %d"
-msgstr ""
-
-#: elf32-mep.c:163
-#, c-format
-msgid "MeP: howto %d has type %d"
-msgstr ""
-
-#: elf32-mep.c:648
+#: elf32-mep.c:654
 msgid "%B and %B are for different cores"
 msgstr ""
 
-#: elf32-mep.c:665
+#: elf32-mep.c:671
 msgid "%B and %B are for different configurations"
 msgstr ""
 
-#: elf32-mep.c:702
+#: elf32-mep.c:708
 #, c-format
 msgid "private flags = 0x%lx"
 msgstr ""
 
-#: elf32-microblaze.c:742
+#: elf32-microblaze.c:737
 #, c-format
 msgid "%s: unknown relocation type %d"
 msgstr ""
 
-#: elf32-microblaze.c:867 elf32-microblaze.c:912
+#: elf32-microblaze.c:862 elf32-microblaze.c:907
 #, c-format
 msgid "%s: The target (%s) of an %s relocation is in the wrong section (%s)"
 msgstr ""
 
-#: elf32-microblaze.c:1155 elf32-tilepro.c:2891 elfxx-sparc.c:3457
-#: elfxx-tilegx.c:3230
+#: elf32-microblaze.c:1150 elfxx-sparc.c:2957
 msgid "%B: probably compiled without -fPIC?"
 msgstr ""
 
-#: elf32-microblaze.c:2074
+#: elf32-microblaze.c:2086 elflink.c:12457
 msgid "%B: bad relocation section name `%s'"
 msgstr ""
 
-#: elf32-mips.c:1549 elf64-mips.c:2683 elfn32-mips.c:2487
+#: elf32-mips.c:1045 elf64-mips.c:2083 elfn32-mips.c:1888
 msgid "literal relocation occurs for an external symbol"
 msgstr ""
 
-#: elf32-mips.c:1596 elf32-score.c:570 elf32-score7.c:469 elf64-mips.c:2726
-#: elfn32-mips.c:2528
+#: elf32-mips.c:1085 elf32-score.c:580 elf32-score7.c:480 elf64-mips.c:2126
+#: elfn32-mips.c:1929
 msgid "32bits gp relative relocation occurs for an external symbol"
 msgstr ""
 
-#: elf32-ppc.c:1741
+#: elf32-ppc.c:1739
 #, c-format
 msgid "generic linker can't handle %s"
 msgstr ""
 
-#: elf32-ppc.c:2184
-msgid "corrupt %s section in %B"
+#: elf32-ppc.c:2219
+msgid "corrupt or empty %s section in %B"
 msgstr ""
 
-#: elf32-ppc.c:2203
+#: elf32-ppc.c:2226
 msgid "unable to read in %s section from %B"
 msgstr ""
 
-#: elf32-ppc.c:2244
+#: elf32-ppc.c:2232
+msgid "corrupt %s section in %B"
+msgstr ""
+
+#: elf32-ppc.c:2275
 msgid "warning: unable to set size of %s section in %B"
 msgstr ""
 
-#: elf32-ppc.c:2294
+#: elf32-ppc.c:2323
 msgid "failed to allocate space for new APUinfo section."
 msgstr ""
 
-#: elf32-ppc.c:2313
+#: elf32-ppc.c:2342
 msgid "failed to compute new APUinfo section."
 msgstr ""
 
-#: elf32-ppc.c:2316
+#: elf32-ppc.c:2345
 msgid "failed to install new APUinfo section."
 msgstr ""
 
-#: elf32-ppc.c:3356
+#: elf32-ppc.c:3379
 msgid "%B: relocation %s cannot be used when making a shared object"
 msgstr ""
 
 #. It does not make sense to have a procedure linkage
 #. table entry for a local symbol.
-#: elf32-ppc.c:3700
-msgid "%P: %H: %s reloc against local symbol\n"
+#: elf32-ppc.c:3732
+msgid "%B(%A+0x%lx): %s reloc against local symbol"
 msgstr ""
 
-#: elf32-ppc.c:4039 elf32-ppc.c:4054 elfxx-mips.c:13651 elfxx-mips.c:13677
-#: elfxx-mips.c:13699 elfxx-mips.c:13725
+#: elf32-ppc.c:4074 elf32-ppc.c:4089 elfxx-mips.c:12324 elfxx-mips.c:12350
+#: elfxx-mips.c:12372 elfxx-mips.c:12398
 msgid "Warning: %B uses hard float, %B uses soft float"
 msgstr ""
 
-#: elf32-ppc.c:4042 elf32-ppc.c:4046
+#: elf32-ppc.c:4077 elf32-ppc.c:4081
 msgid ""
 "Warning: %B uses double-precision hard float, %B uses single-precision hard "
 "float"
 msgstr ""
 
-#: elf32-ppc.c:4050
+#: elf32-ppc.c:4085
 msgid "Warning: %B uses soft float, %B uses single-precision hard float"
 msgstr ""
 
-#: elf32-ppc.c:4057 elf32-ppc.c:4061 elfxx-mips.c:13631 elfxx-mips.c:13635
+#: elf32-ppc.c:4092 elf32-ppc.c:4096 elfxx-mips.c:12304 elfxx-mips.c:12308
 msgid "Warning: %B uses unknown floating point ABI %d"
 msgstr ""
 
-#: elf32-ppc.c:4103 elf32-ppc.c:4107
+#: elf32-ppc.c:4138 elf32-ppc.c:4142
 msgid "Warning: %B uses unknown vector ABI %d"
 msgstr ""
 
-#: elf32-ppc.c:4111
+#: elf32-ppc.c:4146
 msgid "Warning: %B uses vector ABI \"%s\", %B uses \"%s\""
 msgstr ""
 
-#: elf32-ppc.c:4128 elf32-ppc.c:4131
+#: elf32-ppc.c:4163 elf32-ppc.c:4166
 msgid "Warning: %B uses r3/r4 for small structure returns, %B uses memory"
 msgstr ""
 
-#: elf32-ppc.c:4134 elf32-ppc.c:4138
+#: elf32-ppc.c:4169 elf32-ppc.c:4173
 msgid "Warning: %B uses unknown small structure return convention %d"
 msgstr ""
 
-#: elf32-ppc.c:4192
+#: elf32-ppc.c:4227
 msgid ""
 "%B: compiled with -mrelocatable and linked with modules compiled normally"
 msgstr ""
 
-#: elf32-ppc.c:4200
+#: elf32-ppc.c:4235
 msgid ""
 "%B: compiled normally and linked with modules compiled with -mrelocatable"
 msgstr ""
 
-#: elf32-ppc.c:4309
-msgid "%P: bss-plt forced due to %B\n"
+#: elf32-ppc.c:4323
+msgid "Using bss-plt due to %B"
 msgstr ""
 
-#: elf32-ppc.c:4312
-msgid "%P: bss-plt forced by profiling\n"
+#: elf32-ppc.c:7219 elf64-ppc.c:11541
+msgid "%B: unknown relocation type %d for symbol %s"
 msgstr ""
 
-#. Uh oh, we didn't find the expected call.  We
-#. could just mark this symbol to exclude it
-#. from tls optimization but it's safer to skip
-#. the entire optimization.
-#: elf32-ppc.c:4809 elf64-ppc.c:7858
-msgid "%H arg lost __tls_get_addr, TLS optimization disabled\n"
+#: elf32-ppc.c:7480
+msgid "%B(%A+0x%lx): non-zero addend on %s reloc against `%s'"
 msgstr ""
 
-#: elf32-ppc.c:5044 elf64-ppc.c:6528
-msgid "%P: dynamic variable `%s' is zero size\n"
+#: elf32-ppc.c:7678 elf64-ppc.c:12043
+msgid "%B(%A+0x%lx): relocation %s for indirect function %s unsupported"
 msgstr ""
 
-#: elf32-ppc.c:7263 elf64-ppc.c:12675
-msgid "%P: %B: unknown relocation type %d for symbol %s\n"
-msgstr ""
-
-#: elf32-ppc.c:7524
-msgid "%P: %H: non-zero addend on %s reloc against `%s'\n"
-msgstr ""
-
-#: elf32-ppc.c:7720 elf64-ppc.c:13181
-msgid "%P: %H: relocation %s for indirect function %s unsupported\n"
-msgstr ""
-
-#: elf32-ppc.c:7948 elf32-ppc.c:7978 elf32-ppc.c:8025
+#: elf32-ppc.c:7908 elf32-ppc.c:7938 elf32-ppc.c:7985
 msgid ""
-"%P: %B: the target (%s) of a %s relocation is in the wrong output section "
-"(%s)\n"
+"%B: the target (%s) of a %s relocation is in the wrong output section (%s)"
 msgstr ""
 
-#: elf32-ppc.c:8097
-msgid "%P: %B: relocation %s is not yet supported for symbol %s\n"
+#: elf32-ppc.c:8057
+msgid "%B: relocation %s is not yet supported for symbol %s."
 msgstr ""
 
-#: elf32-ppc.c:8158 elf64-ppc.c:13467
-msgid "%P: %H: unresolvable %s relocation against symbol `%s'\n"
+#: elf32-ppc.c:8165 elf64-ppc.c:12299
+msgid "%B(%A+0x%lx): %s reloc against `%s': error %d"
 msgstr ""
 
-#: elf32-ppc.c:8205 elf64-ppc.c:13512
-msgid "%P: %H: %s reloc against `%s': error %d\n"
-msgstr ""
-
-#: elf32-ppc.c:8696
-msgid "%P: %s not defined in linker created %s\n"
-msgstr ""
-
-#: elf32-rx.c:563
-msgid "%B:%A: Warning: deprecated Red Hat reloc "
-msgstr ""
-
-#. Check for unsafe relocs in PID mode.  These are any relocs where
-#. an absolute address is being computed.  There are special cases
-#. for relocs against symbols that are known to be referenced in
-#. crt0.o before the PID base address register has been initialised.
-#: elf32-rx.c:581
-msgid "%B(%A): unsafe PID relocation %s at 0x%08lx (against %s in %s)"
-msgstr ""
-
-#: elf32-rx.c:1157
-msgid "Warning: RX_SYM reloc with an unknown symbol"
-msgstr ""
-
-#: elf32-rx.c:1324
-msgid "%B(%A): error: call to undefined function '%s'"
-msgstr ""
-
-#: elf32-rx.c:1338
-msgid "%B(%A): warning: unaligned access to symbol '%s' in the small data area"
-msgstr ""
-
-#: elf32-rx.c:1342
-msgid "%B(%A): internal error: out of range error"
-msgstr ""
-
-#: elf32-rx.c:1346
-msgid "%B(%A): internal error: unsupported relocation error"
-msgstr ""
-
-#: elf32-rx.c:1350
-msgid "%B(%A): internal error: dangerous relocation"
-msgstr ""
-
-#: elf32-rx.c:1354
-msgid "%B(%A): internal error: unknown error"
-msgstr ""
-
-#: elf32-rx.c:3004
+#: elf32-ppc.c:8656
 #, c-format
-msgid " [64-bit doubles]"
+msgid "%s not defined in linker created %s"
 msgstr ""
 
-#: elf32-rx.c:3006
-#, c-format
-msgid " [dsp]"
-msgstr ""
-
-#: elf32-s390.c:2200 elf64-s390.c:2187
+#: elf32-s390.c:2207 elf64-s390.c:2179
 msgid "%B(%A+0x%lx): invalid instruction for TLS relocation %s"
 msgstr ""
 
-#: elf32-score.c:1520 elf32-score7.c:1379 elfxx-mips.c:3435
+#: elf32-score.c:1533 elf32-score7.c:1424 elfxx-mips.c:3299
 msgid "not enough GOT space for local GOT entries"
 msgstr ""
 
-#: elf32-score.c:2742
+#: elf32-score.c:2765
 msgid "address not word align"
 msgstr ""
 
-#: elf32-score.c:2827 elf32-score7.c:2631
+#: elf32-score.c:2850 elf32-score7.c:2685
 #, c-format
 msgid "%s: Malformed reloc detected for section %s"
 msgstr ""
 
-#: elf32-score.c:2878 elf32-score7.c:2682
+#: elf32-score.c:2901 elf32-score7.c:2736
 msgid "%B: CALL15 reloc at 0x%lx not against global symbol"
 msgstr ""
 
-#: elf32-score.c:3997 elf32-score7.c:3803
+#: elf32-score.c:4042 elf32-score7.c:3879
 #, c-format
 msgid " [pic]"
 msgstr ""
 
-#: elf32-score.c:4001 elf32-score7.c:3807
+#: elf32-score.c:4046 elf32-score7.c:3883
 #, c-format
 msgid " [fix dep]"
 msgstr ""
 
-#: elf32-score.c:4043 elf32-score7.c:3849
+#: elf32-score.c:4088 elf32-score7.c:3925
 msgid "%B: warning: linking PIC files with non-PIC files"
 msgstr ""
 
@@ -2154,705 +1964,588 @@ msgstr ""
 msgid "%B: Unrecognised .directive command: %s"
 msgstr ""
 
-#: elf32-sh-symbian.c:504
+#: elf32-sh-symbian.c:503
 msgid "%B: Failed to add renamed symbol %s"
 msgstr ""
 
-#: elf32-sh.c:568
+#: elf32-sh.c:533
 msgid "%B: 0x%lx: warning: bad R_SH_USES offset"
 msgstr ""
 
-#: elf32-sh.c:580
+#: elf32-sh.c:545
 msgid "%B: 0x%lx: warning: R_SH_USES points to unrecognized insn 0x%x"
 msgstr ""
 
-#: elf32-sh.c:597
+#: elf32-sh.c:562
 msgid "%B: 0x%lx: warning: bad R_SH_USES load offset"
 msgstr ""
 
-#: elf32-sh.c:612
+#: elf32-sh.c:577
 msgid "%B: 0x%lx: warning: could not find expected reloc"
 msgstr ""
 
-#: elf32-sh.c:640
+#: elf32-sh.c:605
 msgid "%B: 0x%lx: warning: symbol in unexpected section"
 msgstr ""
 
-#: elf32-sh.c:766
+#: elf32-sh.c:731
 msgid "%B: 0x%lx: warning: could not find expected COUNT reloc"
 msgstr ""
 
-#: elf32-sh.c:775
+#: elf32-sh.c:740
 msgid "%B: 0x%lx: warning: bad count"
 msgstr ""
 
-#: elf32-sh.c:1179 elf32-sh.c:1549
+#: elf32-sh.c:1144 elf32-sh.c:1514
 msgid "%B: 0x%lx: fatal: reloc overflow while relaxing"
 msgstr ""
 
-#: elf32-sh.c:4048 elf64-sh64.c:1514
+#: elf32-sh.c:3270 elf64-sh64.c:1526
 msgid "Unexpected STO_SH5_ISA32 on local symbol is not handled"
 msgstr ""
 
-#: elf32-sh.c:4299
+#: elf32-sh.c:3507
 msgid "%B: 0x%lx: fatal: unaligned branch target for relax-support relocation"
 msgstr ""
 
-#: elf32-sh.c:4332 elf32-sh.c:4347
+#: elf32-sh.c:3540 elf32-sh.c:3555
 msgid "%B: 0x%lx: fatal: unaligned %s relocation 0x%lx"
 msgstr ""
 
-#: elf32-sh.c:4361
+#: elf32-sh.c:3569
 msgid "%B: 0x%lx: fatal: R_SH_PSHA relocation %d not in range -32..32"
 msgstr ""
 
-#: elf32-sh.c:4375
+#: elf32-sh.c:3583
 msgid "%B: 0x%lx: fatal: R_SH_PSHL relocation %d not in range -32..32"
 msgstr ""
 
-#: elf32-sh.c:4519 elf32-sh.c:4989
-msgid "%B(%A+0x%lx): cannot emit fixup to `%s' in read-only section"
-msgstr ""
-
-#: elf32-sh.c:5096
-msgid "%B(%A+0x%lx): %s relocation against external symbol \"%s\""
-msgstr ""
-
-#: elf32-sh.c:5569
-#, c-format
-msgid "%X%C: relocation to \"%s\" references a different segment\n"
-msgstr ""
-
-#: elf32-sh.c:5575
-#, c-format
-msgid "%C: warning: relocation to \"%s\" references a different segment\n"
-msgstr ""
-
-#: elf32-sh.c:6353 elf32-sh.c:6436
-msgid "%B: `%s' accessed both as normal and FDPIC symbol"
-msgstr ""
-
-#: elf32-sh.c:6358 elf32-sh.c:6440
-msgid "%B: `%s' accessed both as FDPIC and thread local symbol"
-msgstr ""
-
-#: elf32-sh.c:6388
-msgid "%B: Function descriptor relocation with non-zero addend"
-msgstr ""
-
-#: elf32-sh.c:6624 elf64-alpha.c:4652
+#: elf32-sh.c:5256 elf64-alpha.c:4525
 msgid "%B: TLS local exec code cannot be linked into shared objects"
 msgstr ""
 
-#: elf32-sh64.c:223 elf64-sh64.c:2318
+#: elf32-sh64.c:222 elf64-sh64.c:2333
 #, c-format
 msgid "%s: compiled as 32-bit object and %s is 64-bit"
 msgstr ""
 
-#: elf32-sh64.c:226 elf64-sh64.c:2321
+#: elf32-sh64.c:225 elf64-sh64.c:2336
 #, c-format
 msgid "%s: compiled as 64-bit object and %s is 32-bit"
 msgstr ""
 
-#: elf32-sh64.c:228 elf64-sh64.c:2323
+#: elf32-sh64.c:227 elf64-sh64.c:2338
 #, c-format
 msgid "%s: object size does not match that of target %s"
 msgstr ""
 
-#: elf32-sh64.c:451 elf64-sh64.c:2837
+#: elf32-sh64.c:450 elf64-sh64.c:2852
 #, c-format
 msgid "%s: encountered datalabel symbol in input"
 msgstr ""
 
-#: elf32-sh64.c:528
+#: elf32-sh64.c:527
 msgid "PTB mismatch: a SHmedia address (bit 0 == 1)"
 msgstr ""
 
-#: elf32-sh64.c:531
+#: elf32-sh64.c:530
 msgid "PTA mismatch: a SHcompact address (bit 0 == 0)"
 msgstr ""
 
-#: elf32-sh64.c:549
+#: elf32-sh64.c:548
 #, c-format
 msgid "%s: GAS error: unexpected PTB insn with R_SH_PT_16"
 msgstr ""
 
-#: elf32-sh64.c:598
+#: elf32-sh64.c:597
 msgid "%B: error: unaligned relocation type %d at %08x reloc %p\n"
 msgstr ""
 
-#: elf32-sh64.c:674
+#: elf32-sh64.c:673
 #, c-format
 msgid "%s: could not write out added .cranges entries"
 msgstr ""
 
-#: elf32-sh64.c:734
+#: elf32-sh64.c:733
 #, c-format
 msgid "%s: could not write out sorted .cranges entries"
 msgstr ""
 
-#: elf32-sparc.c:90
+#: elf32-sparc.c:89
 msgid "%B: compiled for a 64 bit system and target is 32 bit"
 msgstr ""
 
-#: elf32-sparc.c:103
+#: elf32-sparc.c:102
 msgid "%B: linking little endian files with big endian files"
 msgstr ""
 
-#: elf32-spu.c:719
+#: elf32-spu.c:713
 msgid "%X%P: overlay section %A does not start on a cache line.\n"
 msgstr ""
 
-#: elf32-spu.c:727
+#: elf32-spu.c:721
 msgid "%X%P: overlay section %A is larger than a cache line.\n"
 msgstr ""
 
-#: elf32-spu.c:747
+#: elf32-spu.c:741
 msgid "%X%P: overlay section %A is not in cache area.\n"
 msgstr ""
 
-#: elf32-spu.c:787
+#: elf32-spu.c:781
 msgid "%X%P: overlay sections %A and %A do not start at the same address.\n"
 msgstr ""
 
-#: elf32-spu.c:1011
+#: elf32-spu.c:1005
 msgid "warning: call to non-function symbol %s defined in %B"
 msgstr ""
 
-#: elf32-spu.c:1361
+#: elf32-spu.c:1355
 msgid "%A:0x%v lrlive .brinfo (%u) differs from analysis (%u)\n"
 msgstr ""
 
-#: elf32-spu.c:1880
+#: elf32-spu.c:1874
 msgid "%B is not allowed to define %s"
 msgstr ""
 
-#: elf32-spu.c:1888
+#: elf32-spu.c:1882
 #, c-format
 msgid "you are not allowed to define %s in a script"
 msgstr ""
 
-#: elf32-spu.c:1922
+#: elf32-spu.c:1916
 #, c-format
 msgid "%s in overlay section"
 msgstr ""
 
-#: elf32-spu.c:1951
+#: elf32-spu.c:1945
 msgid "overlay stub relocation overflow"
 msgstr ""
 
-#: elf32-spu.c:1960
+#: elf32-spu.c:1954 elf64-ppc.c:10637
 msgid "stubs don't match calculated size"
 msgstr ""
 
-#: elf32-spu.c:2542
+#: elf32-spu.c:2536
 #, c-format
 msgid "warning: %s overlaps %s\n"
 msgstr ""
 
-#: elf32-spu.c:2558
+#: elf32-spu.c:2552
 #, c-format
 msgid "warning: %s exceeds section size\n"
 msgstr ""
 
-#: elf32-spu.c:2589
+#: elf32-spu.c:2583
 msgid "%A:0x%v not found in function table\n"
 msgstr ""
 
-#: elf32-spu.c:2729
+#: elf32-spu.c:2723
 msgid "%B(%A+0x%v): call to non-code section %B(%A), analysis incomplete\n"
 msgstr ""
 
-#: elf32-spu.c:3297
+#: elf32-spu.c:3291
 #, c-format
 msgid "Stack analysis will ignore the call from %s to %s\n"
 msgstr ""
 
-#: elf32-spu.c:3988
+#: elf32-spu.c:3982
 msgid "  %s: 0x%v\n"
 msgstr ""
 
-#: elf32-spu.c:3989
+#: elf32-spu.c:3983
 msgid "%s: 0x%v 0x%v\n"
 msgstr ""
 
-#: elf32-spu.c:3994
+#: elf32-spu.c:3988
 msgid "  calls:\n"
 msgstr ""
 
-#: elf32-spu.c:4002
+#: elf32-spu.c:3996
 #, c-format
 msgid "   %s%s %s\n"
 msgstr ""
 
-#: elf32-spu.c:4307
+#: elf32-spu.c:4301
 #, c-format
 msgid "%s duplicated in %s\n"
 msgstr ""
 
-#: elf32-spu.c:4311
+#: elf32-spu.c:4305
 #, c-format
 msgid "%s duplicated\n"
 msgstr ""
 
-#: elf32-spu.c:4318
+#: elf32-spu.c:4312
 msgid "sorry, no support for duplicate object files in auto-overlay script\n"
 msgstr ""
 
-#: elf32-spu.c:4359
+#: elf32-spu.c:4353
 msgid ""
 "non-overlay size of 0x%v plus maximum overlay size of 0x%v exceeds local "
 "store\n"
 msgstr ""
 
-#: elf32-spu.c:4514
+#: elf32-spu.c:4509
 msgid "%B:%A%s exceeds overlay size\n"
 msgstr ""
 
-#: elf32-spu.c:4676
+#: elf32-spu.c:4671
 msgid "Stack size for call graph root nodes.\n"
 msgstr ""
 
-#: elf32-spu.c:4677
+#: elf32-spu.c:4672
 msgid ""
 "\n"
 "Stack size for functions.  Annotations: '*' max stack, 't' tail call\n"
 msgstr ""
 
-#: elf32-spu.c:4687
+#: elf32-spu.c:4682
 msgid "Maximum stack required is 0x%v\n"
 msgstr ""
 
-#: elf32-spu.c:4778
+#: elf32-spu.c:4773
 msgid "fatal error while creating .fixup"
 msgstr ""
 
-#: elf32-spu.c:5008
+#: elf32-spu.c:5011
 msgid "%B(%s+0x%lx): unresolvable %s relocation against symbol `%s'"
 msgstr ""
 
-#: elf32-tic6x.c:1602
-msgid "warning: generating a shared library containing non-PIC code"
-msgstr ""
-
-#: elf32-tic6x.c:1607
-msgid "warning: generating a shared library containing non-PID code"
-msgstr ""
-
-#: elf32-tic6x.c:2541
-msgid "%B: SB-relative relocation but __c6xabi_DSBT_BASE not defined"
-msgstr ""
-
-#: elf32-tic6x.c:2761
-msgid "dangerous relocation"
-msgstr ""
-
-#: elf32-tic6x.c:3733
-msgid "%B: error: unknown mandatory EABI object attribute %d"
-msgstr ""
-
-#: elf32-tic6x.c:3741
-msgid "%B: warning: unknown EABI object attribute %d"
-msgstr ""
-
-#: elf32-tic6x.c:3853 elf32-tic6x.c:3861
-msgid "error: %B requires more stack alignment than %B preserves"
-msgstr ""
-
-#: elf32-tic6x.c:3871 elf32-tic6x.c:3880
-msgid "error: unknown Tag_ABI_array_object_alignment value in %B"
-msgstr ""
-
-#: elf32-tic6x.c:3889 elf32-tic6x.c:3898
-msgid "error: unknown Tag_ABI_array_object_align_expected value in %B"
-msgstr ""
-
-#: elf32-tic6x.c:3906 elf32-tic6x.c:3913
-msgid "error: %B requires more array alignment than %B preserves"
-msgstr ""
-
-#: elf32-tic6x.c:3935
-msgid "warning: %B and %B differ in wchar_t size"
-msgstr ""
-
-#: elf32-tic6x.c:3953
-msgid "warning: %B and %B differ in whether code is compiled for DSBT"
-msgstr ""
-
-#: elf32-v850.c:173
+#: elf32-v850.c:163
 #, c-format
 msgid "Variable `%s' cannot occupy in multiple small data regions"
 msgstr ""
 
-#: elf32-v850.c:176
+#: elf32-v850.c:166
 #, c-format
 msgid ""
 "Variable `%s' can only be in one of the small, zero, and tiny data regions"
 msgstr ""
 
-#: elf32-v850.c:179
+#: elf32-v850.c:169
 #, c-format
 msgid ""
 "Variable `%s' cannot be in both small and zero data regions simultaneously"
 msgstr ""
 
-#: elf32-v850.c:182
+#: elf32-v850.c:172
 #, c-format
 msgid ""
 "Variable `%s' cannot be in both small and tiny data regions simultaneously"
 msgstr ""
 
-#: elf32-v850.c:185
+#: elf32-v850.c:175
 #, c-format
 msgid ""
 "Variable `%s' cannot be in both zero and tiny data regions simultaneously"
 msgstr ""
 
-#: elf32-v850.c:483
-msgid "FAILED to find previous HI16 reloc"
+#: elf32-v850.c:478
+#, c-format
+msgid "FAILED to find previous HI16 reloc\n"
 msgstr ""
 
-#: elf32-v850.c:2155
+#: elf32-v850.c:1713
 msgid "could not locate special linker symbol __gp"
 msgstr ""
 
-#: elf32-v850.c:2159
+#: elf32-v850.c:1717
 msgid "could not locate special linker symbol __ep"
 msgstr ""
 
-#: elf32-v850.c:2163
+#: elf32-v850.c:1721
 msgid "could not locate special linker symbol __ctbp"
 msgstr ""
 
-#: elf32-v850.c:2341
+#: elf32-v850.c:1871
 msgid "%B: Architecture mismatch with previous modules"
 msgstr ""
 
-#. xgettext:c-format.
-#: elf32-v850.c:2360
+#: elf32-v850.c:1890
 #, c-format
 msgid "private flags = %lx: "
 msgstr ""
 
-#: elf32-v850.c:2365
+#: elf32-v850.c:1895
 #, c-format
 msgid "v850 architecture"
 msgstr ""
 
-#: elf32-v850.c:2366
+#: elf32-v850.c:1896
 #, c-format
 msgid "v850e architecture"
 msgstr ""
 
-#: elf32-v850.c:2367
+#: elf32-v850.c:1897
 #, c-format
 msgid "v850e1 architecture"
 msgstr ""
 
-#: elf32-v850.c:2368
-#, c-format
-msgid "v850e2 architecture"
-msgstr ""
-
-#: elf32-v850.c:2369
-#, c-format
-msgid "v850e2v3 architecture"
-msgstr ""
-
-#: elf32-vax.c:532
+#: elf32-vax.c:543
 #, c-format
 msgid " [nonpic]"
 msgstr ""
 
-#: elf32-vax.c:535
+#: elf32-vax.c:546
 #, c-format
 msgid " [d-float]"
 msgstr ""
 
-#: elf32-vax.c:538
+#: elf32-vax.c:549
 #, c-format
 msgid " [g-float]"
 msgstr ""
 
-#: elf32-vax.c:655
+#: elf32-vax.c:666
 #, c-format
 msgid ""
 "%s: warning: GOT addend of %ld to `%s' does not match previous GOT addend of "
 "%ld"
 msgstr ""
 
-#: elf32-vax.c:1585
+#: elf32-vax.c:1608
 #, c-format
 msgid "%s: warning: PLT addend of %d to `%s' from %s section ignored"
 msgstr ""
 
-#: elf32-vax.c:1712
+#: elf32-vax.c:1735
 #, c-format
 msgid "%s: warning: %s relocation against symbol `%s' from %s section"
 msgstr ""
 
-#: elf32-vax.c:1718
+#: elf32-vax.c:1741
 #, c-format
 msgid "%s: warning: %s relocation to 0x%x from %s section"
 msgstr ""
 
-#: elf32-xstormy16.c:451 elf32-ia64.c:2336 elf64-ia64.c:2336
+#: elf32-xstormy16.c:451 elf32-ia64.c:2791 elf64-ia64.c:2791
 msgid "non-zero addend in @fptr reloc"
 msgstr ""
 
-#: elf32-xtensa.c:918
+#: elf32-xtensa.c:912
 msgid "%B(%A): invalid property table"
 msgstr ""
 
-#: elf32-xtensa.c:2777
+#: elf32-xtensa.c:2740
 msgid "%B(%A+0x%lx): relocation offset out of range (size=0x%x)"
 msgstr ""
 
-#: elf32-xtensa.c:2856 elf32-xtensa.c:2977
+#: elf32-xtensa.c:2819 elf32-xtensa.c:2940
 msgid "dynamic relocation in read-only section"
 msgstr ""
 
-#: elf32-xtensa.c:2953
+#: elf32-xtensa.c:2916
 msgid "TLS relocation invalid without dynamic sections"
 msgstr ""
 
-#: elf32-xtensa.c:3172
+#: elf32-xtensa.c:3133
 msgid "internal inconsistency in size of .got.loc section"
 msgstr ""
 
-#: elf32-xtensa.c:3485
+#: elf32-xtensa.c:3443
 msgid "%B: incompatible machine type. Output is 0x%x. Input is 0x%x"
 msgstr ""
 
-#: elf32-xtensa.c:4714 elf32-xtensa.c:4722
+#: elf32-xtensa.c:4672 elf32-xtensa.c:4680
 msgid "Attempt to convert L32R/CALLX to CALL failed"
 msgstr ""
 
-#: elf32-xtensa.c:6332 elf32-xtensa.c:6408 elf32-xtensa.c:7524
+#: elf32-xtensa.c:6290 elf32-xtensa.c:6366 elf32-xtensa.c:7482
 msgid ""
 "%B(%A+0x%lx): could not decode instruction; possible configuration mismatch"
 msgstr ""
 
-#: elf32-xtensa.c:7264
+#: elf32-xtensa.c:7222
 msgid ""
 "%B(%A+0x%lx): could not decode instruction for XTENSA_ASM_SIMPLIFY "
 "relocation; possible configuration mismatch"
 msgstr ""
 
-#: elf32-xtensa.c:9023
+#: elf32-xtensa.c:8983
 msgid "invalid relocation address"
 msgstr ""
 
-#: elf32-xtensa.c:9072
+#: elf32-xtensa.c:9032
 msgid "overflow after relaxation"
 msgstr ""
 
-#: elf32-xtensa.c:10204
+#: elf32-xtensa.c:10163
 msgid "%B(%A+0x%lx): unexpected fix for %s relocation"
 msgstr ""
 
-#: elf64-alpha.c:460
+#: elf64-alpha.c:452
 msgid "GPDISP relocation did not find ldah and lda instructions"
 msgstr ""
 
-#: elf64-alpha.c:2497
+#: elf64-alpha.c:2389
 msgid "%B: .got subsegment exceeds 64K (size %d)"
 msgstr ""
 
-#: elf64-alpha.c:4387 elf64-alpha.c:4399
+#: elf64-alpha.c:4269 elf64-alpha.c:4281
 msgid "%B: gp-relative relocation against dynamic symbol %s"
 msgstr ""
 
-#: elf64-alpha.c:4425 elf64-alpha.c:4565
+#: elf64-alpha.c:4307 elf64-alpha.c:4442
 msgid "%B: pc-relative relocation against dynamic symbol %s"
 msgstr ""
 
-#: elf64-alpha.c:4453
+#: elf64-alpha.c:4335
 msgid "%B: change in gp: BRSGP %s"
 msgstr ""
 
-#: elf64-alpha.c:4478
+#: elf64-alpha.c:4360
 msgid "<unknown>"
 msgstr ""
 
-#: elf64-alpha.c:4483
+#: elf64-alpha.c:4365
 msgid "%B: !samegp reloc against symbol without .prologue: %s"
 msgstr ""
 
-#: elf64-alpha.c:4540
+#: elf64-alpha.c:4417
 msgid "%B: unhandled dynamic relocation against %s"
 msgstr ""
 
-#: elf64-alpha.c:4572
+#: elf64-alpha.c:4449
 msgid "%B: pc-relative relocation against undefined weak symbol %s"
 msgstr ""
 
-#: elf64-alpha.c:4636
+#: elf64-alpha.c:4509
 msgid "%B: dtp-relative relocation against dynamic symbol %s"
 msgstr ""
 
-#: elf64-alpha.c:4659
+#: elf64-alpha.c:4532
 msgid "%B: tp-relative relocation against dynamic symbol %s"
 msgstr ""
 
-#: elf64-hppa.c:2083
+#: elf64-hppa.c:2091
 #, c-format
 msgid "stub entry for %s cannot load .plt, dp offset = %ld"
 msgstr ""
 
-#: elf64-hppa.c:3275
-msgid "%B(%A+0x"
+#: elf64-hppa.c:3273
+msgid "%B(%A+0x%lx): cannot reach %s"
 msgstr ""
 
-#: elf64-mmix.c:1034
-msgid ""
-"invalid input relocation when producing non-ELF, non-mmo format output.\n"
-" Please use the objcopy program to convert from ELF or mmo,\n"
-" or assemble using \"-no-expand\" (for gcc, \"-Wa,-no-expand\""
-msgstr ""
-
-#: elf64-mmix.c:1218
-msgid ""
-"invalid input relocation when producing non-ELF, non-mmo format output.\n"
-" Please use the objcopy program to convert from ELF or mmo,\n"
-" or compile using the gcc-option \"-mno-base-addresses\"."
-msgstr ""
-
-#: elf64-mmix.c:1244
+#: elf64-mmix.c:1177
 #, c-format
 msgid ""
 "%s: Internal inconsistency error for value for\n"
-" linker-allocated global register: linked: 0x%lx%08lx != relaxed: 0x%lx"
-"%08lx\n"
+" linker-allocated global register: linked: 0x%lx%08lx != relaxed: 0x%lx%"
+"08lx\n"
 msgstr ""
 
-#: elf64-mmix.c:1670
+#: elf64-mmix.c:1618
 #, c-format
 msgid ""
 "%s: base-plus-offset relocation against register symbol: (unknown) in %s"
 msgstr ""
 
-#: elf64-mmix.c:1675
+#: elf64-mmix.c:1623
 #, c-format
 msgid "%s: base-plus-offset relocation against register symbol: %s in %s"
 msgstr ""
 
-#: elf64-mmix.c:1719
+#: elf64-mmix.c:1667
 #, c-format
 msgid "%s: register relocation against non-register symbol: (unknown) in %s"
 msgstr ""
 
-#: elf64-mmix.c:1724
+#: elf64-mmix.c:1672
 #, c-format
 msgid "%s: register relocation against non-register symbol: %s in %s"
 msgstr ""
 
-#: elf64-mmix.c:1761
+#: elf64-mmix.c:1709
 #, c-format
 msgid "%s: directive LOCAL valid only with a register or absolute value"
 msgstr ""
 
-#: elf64-mmix.c:1789
+#: elf64-mmix.c:1737
 #, c-format
 msgid ""
 "%s: LOCAL directive: Register $%ld is not a local register.  First global "
 "register is $%ld."
 msgstr ""
 
-#: elf64-mmix.c:2253
+#: elf64-mmix.c:2201
 #, c-format
 msgid ""
 "%s: Error: multiple definition of `%s'; start of %s is set in a earlier "
 "linked file\n"
 msgstr ""
 
-#: elf64-mmix.c:2311
+#: elf64-mmix.c:2259
 msgid "Register section has contents\n"
 msgstr ""
 
-#: elf64-mmix.c:2503
+#: elf64-mmix.c:2451
 #, c-format
 msgid ""
 "Internal inconsistency: remaining %u != max %u.\n"
 "  Please report this bug."
 msgstr ""
 
-#: elf64-ppc.c:4185
-msgid "%P: %B: cannot create stub entry %s\n"
+#: elf64-ppc.c:2691 libbfd.c:978
+msgid "%B: compiled for a big endian system and target is little endian"
 msgstr ""
 
-#: elf64-ppc.c:6518
+#: elf64-ppc.c:2694 libbfd.c:980
+msgid "%B: compiled for a little endian system and target is big endian"
+msgstr ""
+
+#: elf64-ppc.c:6384
+#, c-format
 msgid ""
-"%P: copy reloc against `%s' requires lazy plt linking; avoid setting "
-"LD_BIND_NOW=1 or upgrade gcc\n"
+"copy reloc against `%s' requires lazy plt linking; avoid setting "
+"LD_BIND_NOW=1 or upgrade gcc"
 msgstr ""
 
-#: elf64-ppc.c:6788
-msgid "%B: undefined symbol on R_PPC64_TOCSAVE relocation"
+#: elf64-ppc.c:6811
+msgid "dynreloc miscount for %B, section %A"
 msgstr ""
 
-#: elf64-ppc.c:6992
-msgid "%P: dynreloc miscount for %B, section %A\n"
-msgstr ""
-
-#: elf64-ppc.c:7076
+#: elf64-ppc.c:6895
 msgid "%B: .opd is not a regular array of opd entries"
 msgstr ""
 
-#: elf64-ppc.c:7085
+#: elf64-ppc.c:6904
 msgid "%B: unexpected reloc type %u in .opd section"
 msgstr ""
 
-#: elf64-ppc.c:7106
+#: elf64-ppc.c:6925
 msgid "%B: undefined sym `%s' in .opd section"
 msgstr ""
 
-#: elf64-ppc.c:7664
-msgid "%H __tls_get_addr lost arg, TLS optimization disabled\n"
-msgstr ""
-
-#: elf64-ppc.c:8003 elf64-ppc.c:8564
+#: elf64-ppc.c:7767 elf64-ppc.c:8144
 #, c-format
-msgid "%s defined on removed toc entry"
+msgid "%s defined in removed toc entry"
 msgstr ""
 
-#: elf64-ppc.c:8521
-msgid "%P: %H: %s relocation references optimized away TOC entry\n"
+#: elf64-ppc.c:9085
+#, c-format
+msgid "long branch stub `%s' offset overflow"
 msgstr ""
 
-#: elf64-ppc.c:9598
-msgid "%P: cannot find opd entry toc for %s\n"
+#: elf64-ppc.c:9144
+#, c-format
+msgid "can't find branch stub `%s'"
 msgstr ""
 
-#: elf64-ppc.c:9680
-msgid "%P: long branch stub `%s' offset overflow\n"
+#: elf64-ppc.c:9206 elf64-ppc.c:9342
+#, c-format
+msgid "linkage table error against `%s'"
 msgstr ""
 
-#: elf64-ppc.c:9739
-msgid "%P: can't find branch stub `%s'\n"
+#: elf64-ppc.c:9510
+#, c-format
+msgid "can't build branch stub `%s'"
 msgstr ""
 
-#: elf64-ppc.c:9801 elf64-ppc.c:9943
-msgid "%P: linkage table error against `%s'\n"
-msgstr ""
-
-#: elf64-ppc.c:10126
-msgid "%P: can't build branch stub `%s'\n"
-msgstr ""
-
-#: elf64-ppc.c:10941
+#: elf64-ppc.c:9995
 msgid "%B section %A exceeds stub group size"
 msgstr ""
 
-#: elf64-ppc.c:11666 elf64-ppc.c:11699
-msgid "%P: %s offset too large for .eh_frame sdata4 encoding"
-msgstr ""
-
-#: elf64-ppc.c:11744
-msgid "%P: stubs don't match calculated size\n"
-msgstr ""
-
-#: elf64-ppc.c:11756
+#: elf64-ppc.c:10649
 #, c-format
 msgid ""
 "linker stubs in %u group%s\n"
@@ -2863,495 +2556,449 @@ msgid ""
 "  plt call     %lu"
 msgstr ""
 
-#: elf64-ppc.c:12042
-msgid "%P: %H: %s used with TLS symbol %s\n"
-msgstr ""
-
-#: elf64-ppc.c:12043
-msgid "%P: %H: %s used with non-TLS symbol %s\n"
-msgstr ""
-
-#: elf64-ppc.c:12556
+#: elf64-ppc.c:11428
 msgid ""
-"%P: %H: automatic multiple TOCs not supported using your crt files; "
-"recompile with -mminimal-toc or upgrade gcc\n"
+"%B(%A+0x%lx): automatic multiple TOCs not supported using your crt files; "
+"recompile with -mminimal-toc or upgrade gcc"
 msgstr ""
 
-#: elf64-ppc.c:12562
+#: elf64-ppc.c:11436
 msgid ""
-"%P: %H: sibling call optimization to `%s' does not allow automatic multiple "
-"TOCs; recompile with -mminimal-toc or -fno-optimize-sibling-calls, or make `"
-"%s' extern\n"
+"%B(%A+0x%lx): sibling call optimization to `%s' does not allow automatic "
+"multiple TOCs; recompile with -mminimal-toc or -fno-optimize-sibling-calls, "
+"or make `%s' extern"
 msgstr ""
 
-#: elf64-ppc.c:13286
-msgid "%P: %B: relocation %s is not supported for symbol %s\n"
+#: elf64-ppc.c:12150
+msgid "%B: relocation %s is not supported for symbol %s."
 msgstr ""
 
-#: elf64-ppc.c:13446
-msgid "%P: %H: error: %s not a multiple of %u\n"
+#: elf64-ppc.c:12233
+msgid "%B: error: relocation %s not a multiple of %d"
 msgstr ""
 
-#: elf64-sh64.c:1686
+#: elf64-sh64.c:1701
 #, c-format
 msgid "%s: error: unaligned relocation type %d at %08x reloc %08x\n"
 msgstr ""
 
-#: elf64-sparc.c:446
+#: elf64-sparc.c:439
 msgid "%B: Only registers %%g[2367] can be declared using STT_REGISTER"
 msgstr ""
 
-#: elf64-sparc.c:466
+#: elf64-sparc.c:459
 msgid "Register %%g%d used incompatibly: %s in %B, previously %s in %B"
 msgstr ""
 
-#: elf64-sparc.c:489
+#: elf64-sparc.c:482
 msgid "Symbol `%s' has differing types: REGISTER in %B, previously %s in %B"
 msgstr ""
 
-#: elf64-sparc.c:534
+#: elf64-sparc.c:527
 msgid "Symbol `%s' has differing types: %s in %B, previously REGISTER in %B"
 msgstr ""
 
-#: elf64-sparc.c:687
+#: elf64-sparc.c:679
 msgid "%B: linking UltraSPARC specific with HAL specific code"
 msgstr ""
 
-#: elf64-x86-64.c:1427
-msgid "%B: relocation %s against symbol `%s' isn't supported in x32 mode"
-msgstr ""
-
-#: elf64-x86-64.c:1656
+#: elf64-x86-64.c:1338
 msgid "%B: '%s' accessed both as normal and thread local symbol"
 msgstr ""
 
-#: elf64-x86-64.c:3150
+#: elf64-x86-64.c:2702
 msgid ""
 "%B: relocation %s against STT_GNU_IFUNC symbol `%s' has non-zero addend: %d"
 msgstr ""
 
-#: elf64-x86-64.c:3411
+#: elf64-x86-64.c:2981
 msgid ""
 "%B: relocation R_X86_64_GOTOFF64 against protected function `%s' can not be "
 "used when making a shared object"
 msgstr ""
 
-#: elf64-x86-64.c:3523
+#: elf64-x86-64.c:3092
 msgid "; recompile with -fPIC"
 msgstr ""
 
-#: elf64-x86-64.c:3528
+#: elf64-x86-64.c:3097
 msgid ""
 "%B: relocation %s against %s `%s' can not be used when making a shared object"
 "%s"
 msgstr ""
 
-#: elf64-x86-64.c:3530
+#: elf64-x86-64.c:3099
 msgid ""
 "%B: relocation %s against undefined %s `%s' can not be used when making a "
 "shared object%s"
 msgstr ""
 
-#: elfcode.h:767
+#: elfcode.h:811
 #, c-format
 msgid "warning: %s has a corrupt string table index - ignoring"
 msgstr ""
 
-#: elfcode.h:1177
+#: elfcode.h:1217
 #, c-format
 msgid "%s: version count (%ld) does not match symbol count (%ld)"
 msgstr ""
 
-#: elfcode.h:1431
+#: elfcode.h:1457
 #, c-format
 msgid "%s(%s): relocation %d has invalid symbol index %ld"
 msgstr ""
 
-#: elfcore.h:312
+#: elfcore.h:251
 msgid "Warning: %B is truncated: expected core file size >= %lu, found: %lu."
 msgstr ""
 
-#: elflink.c:1117
+#: elflink.c:1113
 msgid ""
 "%s: TLS definition in %B section %A mismatches non-TLS definition in %B "
 "section %A"
 msgstr ""
 
-#: elflink.c:1121
+#: elflink.c:1117
 msgid "%s: TLS reference in %B mismatches non-TLS reference in %B"
 msgstr ""
 
-#: elflink.c:1125
+#: elflink.c:1121
 msgid "%s: TLS definition in %B section %A mismatches non-TLS reference in %B"
 msgstr ""
 
-#: elflink.c:1129
+#: elflink.c:1125
 msgid "%s: TLS reference in %B mismatches non-TLS definition in %B section %A"
 msgstr ""
 
-#: elflink.c:1762
+#: elflink.c:1764
 msgid "%B: unexpected redefinition of indirect versioned symbol `%s'"
 msgstr ""
 
-#: elflink.c:2063
+#: elflink.c:2077
 msgid "%B: version node not found for symbol %s"
 msgstr ""
 
-#: elflink.c:2154
+#: elflink.c:2167
 msgid ""
 "%B: bad reloc symbol index (0x%lx >= 0x%lx) for offset 0x%lx in section `%A'"
 msgstr ""
 
-#: elflink.c:2165
+#: elflink.c:2178
 msgid ""
 "%B: non-zero symbol index (0x%lx) for offset 0x%lx in section `%A' when the "
 "object file has no symbol table"
 msgstr ""
 
-#: elflink.c:2355
+#: elflink.c:2376
 msgid "%B: relocation size mismatch in %B section %A"
 msgstr ""
 
-#: elflink.c:2639
+#: elflink.c:2679
 #, c-format
 msgid "warning: type and size of dynamic symbol `%s' are not defined"
 msgstr ""
 
-#: elflink.c:3391
+#: elflink.c:3425
 msgid "%P: alternate ELF machine code found (%d) in %B, expecting %d\n"
 msgstr ""
 
-#: elflink.c:4037
+#: elflink.c:4033
 msgid "%B: %s: invalid version %u (max %d)"
 msgstr ""
 
-#: elflink.c:4073
+#: elflink.c:4069
 msgid "%B: %s: invalid needed version %d"
 msgstr ""
 
-#: elflink.c:4269
+#: elflink.c:4254
 msgid ""
 "Warning: alignment %u of common symbol `%s' in %B is greater than the "
 "alignment (%u) of its section %A"
 msgstr ""
 
-#: elflink.c:4275
+#: elflink.c:4260
 msgid "Warning: alignment %u of symbol `%s' in %B is smaller than %u in %B"
 msgstr ""
 
-#: elflink.c:4290
+#: elflink.c:4275
 msgid "Warning: size of symbol `%s' changed from %lu in %B to %lu in %B"
 msgstr ""
 
-#: elflink.c:4463
-msgid "%B: undefined reference to symbol '%s'"
+#: elflink.c:4440
+#, c-format
+msgid "%s: invalid DSO for symbol `%s' definition"
 msgstr ""
 
-#: elflink.c:4466
-msgid ""
-"note: '%s' is defined in DSO %B so try adding it to the linker command line"
-msgstr ""
-
-#: elflink.c:5781
+#: elflink.c:5692
 #, c-format
 msgid "%s: undefined version: %s"
 msgstr ""
 
-#: elflink.c:5849
+#: elflink.c:5760
 msgid "%B: .preinit_array section is not allowed in DSO"
 msgstr ""
 
-#: elflink.c:7604
+#: elflink.c:7493
 #, c-format
 msgid "undefined %s reference in complex symbol: %s"
 msgstr ""
 
-#: elflink.c:7758
+#: elflink.c:7647
 #, c-format
 msgid "unknown operator '%c' in complex symbol"
 msgstr ""
 
-#: elflink.c:8097 elflink.c:8114 elflink.c:8151 elflink.c:8168
+#: elflink.c:7985 elflink.c:8002 elflink.c:8039 elflink.c:8056
 msgid "%B: Unable to sort relocs - they are in more than one size"
 msgstr ""
 
-#: elflink.c:8128 elflink.c:8182
+#: elflink.c:8016 elflink.c:8070
 msgid "%B: Unable to sort relocs - they are of an unknown size"
 msgstr ""
 
-#: elflink.c:8233
+#: elflink.c:8121
 msgid "Not enough memory to sort relocations"
 msgstr ""
 
-#: elflink.c:8426
+#: elflink.c:8314
 msgid "%B: Too many sections: %d (>= %d)"
 msgstr ""
 
-#: elflink.c:8675
-msgid "%B: internal symbol `%s' in %B is referenced by DSO"
+#: elflink.c:8550
+msgid "%B: %s symbol `%s' in %B is referenced by DSO"
 msgstr ""
 
-#: elflink.c:8677
-msgid "%B: hidden symbol `%s' in %B is referenced by DSO"
-msgstr ""
-
-#: elflink.c:8679
-msgid "%B: local symbol `%s' in %B is referenced by DSO"
-msgstr ""
-
-#: elflink.c:8776
+#: elflink.c:8635
 msgid "%B: could not find output section %A for input section %A"
 msgstr ""
 
-#: elflink.c:8899
-msgid "%B: protected symbol `%s' isn't defined"
+#: elflink.c:8755
+msgid "%B: %s symbol `%s' isn't defined"
 msgstr ""
 
-#: elflink.c:8901
-msgid "%B: internal symbol `%s' isn't defined"
-msgstr ""
-
-#: elflink.c:8903
-msgid "%B: hidden symbol `%s' isn't defined"
-msgstr ""
-
-#: elflink.c:9432
-msgid "error: %B: size of section %A is not multiple of address size"
-msgstr ""
-
-#: elflink.c:9479
+#: elflink.c:9311
 msgid ""
 "error: %B contains a reloc (0x%s) for section %A that references a non-"
 "existent global symbol"
 msgstr ""
 
-#: elflink.c:10214
+#: elflink.c:9376
+msgid ""
+"%X`%s' referenced in section `%A' of %B: defined in discarded section `%A' "
+"of %B\n"
+msgstr ""
+
+#: elflink.c:10001
 msgid "%A has both ordered [`%A' in %B] and unordered [`%A' in %B] sections"
 msgstr ""
 
-#: elflink.c:10219
+#: elflink.c:10006
 #, c-format
 msgid "%A has both ordered and unordered sections"
 msgstr ""
 
-#: elflink.c:10784
-msgid "%B: file class %s incompatible with %s"
-msgstr ""
-
-#: elflink.c:11093 elflink.c:11137
+#: elflink.c:10882 elflink.c:10926
 msgid "%B: could not find output section %s"
 msgstr ""
 
-#: elflink.c:11098
+#: elflink.c:10887
 #, c-format
 msgid "warning: %s section has zero size"
 msgstr ""
 
-#: elflink.c:11143
-#, c-format
-msgid "warning: section '%s' is being made into a note"
-msgstr ""
-
-#: elflink.c:11212
-msgid "%P%X: read-only segment has dynamic relocations.\n"
-msgstr ""
-
-#: elflink.c:11215
+#: elflink.c:10992
 msgid "%P: warning: creating a DT_TEXTREL in a shared object.\n"
 msgstr ""
 
-#: elflink.c:11402
+#: elflink.c:11175
 msgid "%P%X: can not read symbols: %E\n"
 msgstr ""
 
-#: elflink.c:11792
+#: elflink.c:11494
 msgid "Removing unused section '%s' in file '%B'"
 msgstr ""
 
-#: elflink.c:11998
+#: elflink.c:11706
 msgid "Warning: gc-sections option ignored"
 msgstr ""
 
-#: elflink.c:12277
-#, c-format
-msgid "Unrecognized INPUT_SECTION_FLAG %s\n"
+#: elflink.c:12255
+msgid "%B: ignoring duplicate section `%A'"
 msgstr ""
 
-#: elfxx-mips.c:1234
+#: elflink.c:12262 elflink.c:12269
+msgid "%B: duplicate section `%A' has different size"
+msgstr ""
+
+#: elflink.c:12277 elflink.c:12282
+msgid "%B: warning: could not read contents of section `%A'"
+msgstr ""
+
+#: elflink.c:12286
+msgid "%B: warning: duplicate section `%A' has different contents"
+msgstr ""
+
+#: elflink.c:12387 linker.c:3104
+msgid "%F%P: already_linked_table: %E\n"
+msgstr ""
+
+#: elfxx-mips.c:1222
 msgid "static procedure (no name)"
 msgstr ""
 
-#: elfxx-mips.c:5259
-msgid "MIPS16 and microMIPS functions cannot call each other"
+#: elfxx-mips.c:5588
+msgid "%B: %A+0x%lx: jump to stub routine which is not jal"
 msgstr ""
 
-#: elfxx-mips.c:5856
-msgid ""
-"%B: %A+0x%lx: Direct jumps between ISA modes are not allowed; consider "
-"recompiling with interlinking enabled."
-msgstr ""
-
-#: elfxx-mips.c:6519 elfxx-mips.c:6742
+#: elfxx-mips.c:6235 elfxx-mips.c:6458
 msgid "%B: Warning: bad `%s' option size %u smaller than its header"
 msgstr ""
 
-#: elfxx-mips.c:7495 elfxx-mips.c:7620
+#: elfxx-mips.c:7205 elfxx-mips.c:7330
 msgid "%B: Warning: cannot determine the target function for stub section `%s'"
 msgstr ""
 
-#: elfxx-mips.c:7749
+#: elfxx-mips.c:7459
 msgid "%B: Malformed reloc detected for section %s"
 msgstr ""
 
-#: elfxx-mips.c:7801
+#: elfxx-mips.c:7499
 msgid "%B: GOT reloc at 0x%lx not expected in executables"
 msgstr ""
 
-#: elfxx-mips.c:7930
+#: elfxx-mips.c:7602
 msgid "%B: CALL16 reloc at 0x%lx not against global symbol"
 msgstr ""
 
-#: elfxx-mips.c:8645
+#: elfxx-mips.c:8280
 #, c-format
 msgid "non-dynamic relocations refer to dynamic symbol %s"
 msgstr ""
 
-#: elfxx-mips.c:9347
+#: elfxx-mips.c:8985
 msgid ""
-"%B: Can't find matching LO16 reloc against `%s' for %s at 0x%lx in section `"
-"%A'"
+"%B: Can't find matching LO16 reloc against `%s' for %s at 0x%lx in section `%"
+"A'"
 msgstr ""
 
-#: elfxx-mips.c:9486
+#: elfxx-mips.c:9124
 msgid ""
 "small-data section exceeds 64KB; lower small-data size limit (see option -G)"
 msgstr ""
 
-#: elfxx-mips.c:9505
-msgid "JALX to a non-word-aligned address"
-msgstr ""
-
-#: elfxx-mips.c:13266
+#: elfxx-mips.c:11940
 #, c-format
 msgid "%s: illegal section name `%s'"
 msgstr ""
 
-#: elfxx-mips.c:13645 elfxx-mips.c:13671
+#: elfxx-mips.c:12318 elfxx-mips.c:12344
 msgid "Warning: %B uses -msingle-float, %B uses -mdouble-float"
 msgstr ""
 
-#: elfxx-mips.c:13657 elfxx-mips.c:13713
+#: elfxx-mips.c:12330 elfxx-mips.c:12386
 msgid "Warning: %B uses -msingle-float, %B uses -mips32r2 -mfp64"
 msgstr ""
 
-#: elfxx-mips.c:13683 elfxx-mips.c:13719
+#: elfxx-mips.c:12356 elfxx-mips.c:12392
 msgid "Warning: %B uses -mdouble-float, %B uses -mips32r2 -mfp64"
 msgstr ""
 
-#: elfxx-mips.c:13761
+#: elfxx-mips.c:12434
 msgid "%B: endianness incompatible with that of the selected emulation"
 msgstr ""
 
-#: elfxx-mips.c:13772
+#: elfxx-mips.c:12445
 msgid "%B: ABI is incompatible with that of the selected emulation"
 msgstr ""
 
-#: elfxx-mips.c:13856
+#: elfxx-mips.c:12526
 msgid "%B: warning: linking abicalls files with non-abicalls files"
 msgstr ""
 
-#: elfxx-mips.c:13873
+#: elfxx-mips.c:12543
 msgid "%B: linking 32-bit code with 64-bit code"
 msgstr ""
 
-#: elfxx-mips.c:13901
+#: elfxx-mips.c:12571
 msgid "%B: linking %s module with previous %s modules"
 msgstr ""
 
-#: elfxx-mips.c:13924
+#: elfxx-mips.c:12594
 msgid "%B: ABI mismatch: linking %s module with previous %s modules"
 msgstr ""
 
-#: elfxx-mips.c:13948
-msgid "%B: ASE mismatch: linking %s module with previous %s modules"
-msgstr ""
-
-#: elfxx-mips.c:14106
+#: elfxx-mips.c:12758
 #, c-format
 msgid " [abi=O32]"
 msgstr ""
 
-#: elfxx-mips.c:14108
+#: elfxx-mips.c:12760
 #, c-format
 msgid " [abi=O64]"
 msgstr ""
 
-#: elfxx-mips.c:14110
+#: elfxx-mips.c:12762
 #, c-format
 msgid " [abi=EABI32]"
 msgstr ""
 
-#: elfxx-mips.c:14112
+#: elfxx-mips.c:12764
 #, c-format
 msgid " [abi=EABI64]"
 msgstr ""
 
-#: elfxx-mips.c:14114
+#: elfxx-mips.c:12766
 #, c-format
 msgid " [abi unknown]"
 msgstr ""
 
-#: elfxx-mips.c:14116
+#: elfxx-mips.c:12768
 #, c-format
 msgid " [abi=N32]"
 msgstr ""
 
-#: elfxx-mips.c:14118
+#: elfxx-mips.c:12770
 #, c-format
 msgid " [abi=64]"
 msgstr ""
 
-#: elfxx-mips.c:14120
+#: elfxx-mips.c:12772
 #, c-format
 msgid " [no abi set]"
 msgstr ""
 
-#: elfxx-mips.c:14141
+#: elfxx-mips.c:12793
 #, c-format
 msgid " [unknown ISA]"
 msgstr ""
 
-#: elfxx-mips.c:14155
+#: elfxx-mips.c:12804
 #, c-format
 msgid " [not 32bitmode]"
 msgstr ""
 
-#: elfxx-sparc.c:596
+#: elfxx-sparc.c:440
 #, c-format
 msgid "invalid relocation type %d"
 msgstr ""
 
-#: elfxx-tilegx.c:3952
-msgid "%B: Cannot link together %s and %s objects."
-msgstr ""
-
-#: i386linux.c:451 m68klinux.c:456 sparclinux.c:450
+#: i386linux.c:455 m68klinux.c:459 sparclinux.c:453
 #, c-format
 msgid "Output file requires shared library `%s'\n"
 msgstr ""
 
-#: i386linux.c:459 m68klinux.c:464 sparclinux.c:458
+#: i386linux.c:463 m68klinux.c:467 sparclinux.c:461
 #, c-format
 msgid "Output file requires shared library `%s.so.%s'\n"
 msgstr ""
 
-#: i386linux.c:648 i386linux.c:698 m68klinux.c:656 m68klinux.c:704
-#: sparclinux.c:648 sparclinux.c:698
+#: i386linux.c:652 i386linux.c:702 m68klinux.c:659 m68klinux.c:707
+#: sparclinux.c:651 sparclinux.c:701
 #, c-format
 msgid "Symbol %s not defined for fixups\n"
 msgstr ""
 
-#: i386linux.c:722 m68klinux.c:728 sparclinux.c:722
+#: i386linux.c:726 m68klinux.c:731 sparclinux.c:725
 msgid "Warning: fixup count mismatch\n"
 msgstr ""
 
@@ -3365,15 +3012,15 @@ msgstr ""
 msgid "%s: unrecognized symbol `%s' flags 0x%x"
 msgstr ""
 
-#: ieee.c:792
+#: ieee.c:788
 msgid "%B: unimplemented ATI record %u for symbol %u"
 msgstr ""
 
-#: ieee.c:816
+#: ieee.c:812
 msgid "%B: unexpected ATN type %d in external part"
 msgstr ""
 
-#: ieee.c:838
+#: ieee.c:834
 msgid "%B: unexpected type after ATN"
 msgstr ""
 
@@ -3418,174 +3065,94 @@ msgstr ""
 msgid "%s: address 0x%s out of range for Intel Hex file"
 msgstr ""
 
-#: libbfd.c:863
-msgid "%B: unable to get decompressed section %A"
-msgstr ""
-
-#: libbfd.c:1012
-msgid "%B: compiled for a big endian system and target is little endian"
-msgstr ""
-
-#: libbfd.c:1014
-msgid "%B: compiled for a little endian system and target is big endian"
-msgstr ""
-
-#: libbfd.c:1043
+#: libbfd.c:1008
 #, c-format
 msgid "Deprecated %s called at %s line %d in %s\n"
 msgstr ""
 
-#: libbfd.c:1046
+#: libbfd.c:1011
 #, c-format
 msgid "Deprecated %s called\n"
 msgstr ""
 
-#: linker.c:1872
+#: linker.c:1877
 msgid "%B: indirect symbol `%s' to `%s' is a loop"
 msgstr ""
 
-#: linker.c:2736
+#: linker.c:2744
 #, c-format
 msgid "Attempt to do relocatable link with %s input and %s output"
 msgstr ""
 
-#: linker.c:3021
-msgid "%B: ignoring duplicate section `%A'\n"
+#: linker.c:3071
+msgid "%B: warning: ignoring duplicate section `%A'\n"
 msgstr ""
 
-#: linker.c:3030 linker.c:3039
-msgid "%B: duplicate section `%A' has different size\n"
+#: linker.c:3085
+msgid "%B: warning: duplicate section `%A' has different size\n"
 msgstr ""
 
-#: linker.c:3047 linker.c:3052
-msgid "%B: could not read contents of section `%A'\n"
-msgstr ""
-
-#: linker.c:3056
-msgid "%B: duplicate section `%A' has different contents\n"
-msgstr ""
-
-#: mach-o.c:407
-msgid "bfd_mach_o_canonicalize_symtab: unable to load symbols"
-msgstr ""
-
-#: mach-o.c:1301
+#: mach-o.c:3195
 #, c-format
-msgid "unable to write unknown load command 0x%lx"
-msgstr ""
-
-#: mach-o.c:1789
-#, c-format
-msgid "bfd_mach_o_read_symtab_symbol: unable to read %d bytes at %lu"
-msgstr ""
-
-#: mach-o.c:1807
-#, c-format
-msgid "bfd_mach_o_read_symtab_symbol: name out of range (%lu >= %lu)"
-msgstr ""
-
-#: mach-o.c:1892
-#, c-format
-msgid ""
-"bfd_mach_o_read_symtab_symbol: symbol \"%s\" specified invalid section %d "
-"(max %lu): setting to undefined"
-msgstr ""
-
-#: mach-o.c:1900
-#, c-format
-msgid ""
-"bfd_mach_o_read_symtab_symbol: symbol \"%s\" is unsupported 'indirect' "
-"reference: setting to undefined"
-msgstr ""
-
-#: mach-o.c:1906
-#, c-format
-msgid ""
-"bfd_mach_o_read_symtab_symbol: symbol \"%s\" specified invalid type field 0x"
-"%x: setting to undefined"
-msgstr ""
-
-#: mach-o.c:1979
-msgid "bfd_mach_o_read_symtab_symbols: unable to allocate memory for symbols"
-msgstr ""
-
-#: mach-o.c:2014
-#, c-format
-msgid "bfd_mach_o_read_dysymtab_symbol: unable to read %lu bytes at %lu"
-msgstr ""
-
-#: mach-o.c:2734
-#, c-format
-msgid "unable to read unknown load command 0x%lx"
-msgstr ""
-
-#: mach-o.c:2915
-#, c-format
-msgid "bfd_mach_o_scan: unknown architecture 0x%lx/0x%lx"
-msgstr ""
-
-#: mach-o.c:3011
-#, c-format
-msgid "unknown header byte-order value 0x%lx"
-msgstr ""
-
-#: mach-o.c:3577
 msgid "Mach-O header:\n"
 msgstr ""
 
-#: mach-o.c:3578
+#: mach-o.c:3196
 #, c-format
 msgid " magic     : %08lx\n"
 msgstr ""
 
-#: mach-o.c:3579
+#: mach-o.c:3197
 #, c-format
 msgid " cputype   : %08lx (%s)\n"
 msgstr ""
 
-#: mach-o.c:3581
+#: mach-o.c:3199
 #, c-format
 msgid " cpusubtype: %08lx\n"
 msgstr ""
 
-#: mach-o.c:3582
+#: mach-o.c:3200
 #, c-format
 msgid " filetype  : %08lx (%s)\n"
 msgstr ""
 
-#: mach-o.c:3585
+#: mach-o.c:3203
 #, c-format
-msgid " ncmds     : %08lx (%lu)\n"
+msgid " ncmds     : %08lx\n"
 msgstr ""
 
-#: mach-o.c:3586
+#: mach-o.c:3204
 #, c-format
 msgid " sizeofcmds: %08lx\n"
 msgstr ""
 
-#: mach-o.c:3587
+#: mach-o.c:3205
 #, c-format
 msgid " flags     : %08lx ("
 msgstr ""
 
-#: mach-o.c:3589 vms-alpha.c:7674
+#: mach-o.c:3207
+#, c-format
 msgid ")\n"
 msgstr ""
 
-#: mach-o.c:3590
+#: mach-o.c:3208
 #, c-format
 msgid " reserved  : %08x\n"
 msgstr ""
 
-#: mach-o.c:3600
+#: mach-o.c:3218
+#, c-format
 msgid "Segments and Sections:\n"
 msgstr ""
 
-#: mach-o.c:3601
+#: mach-o.c:3219
+#, c-format
 msgid " #: Segment name     Section name     Address\n"
 msgstr ""
 
-#: merge.c:832
+#: merge.c:831
 #, c-format
 msgid "%s: access beyond end of merged section (%ld)"
 msgstr ""
@@ -3612,137 +3179,137 @@ msgid ""
 "starting with `%s'\n"
 msgstr ""
 
-#: mmo.c:1565
+#: mmo.c:1566
 #, c-format
 msgid "%s: invalid mmo file: unsupported lopcode `%d'\n"
 msgstr ""
 
-#: mmo.c:1575
+#: mmo.c:1576
 #, c-format
 msgid "%s: invalid mmo file: expected YZ = 1 got YZ = %d for lop_quote\n"
 msgstr ""
 
-#: mmo.c:1611
+#: mmo.c:1612
 #, c-format
 msgid "%s: invalid mmo file: expected z = 1 or z = 2, got z = %d for lop_loc\n"
 msgstr ""
 
-#: mmo.c:1657
+#: mmo.c:1658
 #, c-format
 msgid ""
 "%s: invalid mmo file: expected z = 1 or z = 2, got z = %d for lop_fixo\n"
 msgstr ""
 
-#: mmo.c:1696
+#: mmo.c:1697
 #, c-format
 msgid "%s: invalid mmo file: expected y = 0, got y = %d for lop_fixrx\n"
 msgstr ""
 
-#: mmo.c:1705
+#: mmo.c:1706
 #, c-format
 msgid ""
 "%s: invalid mmo file: expected z = 16 or z = 24, got z = %d for lop_fixrx\n"
 msgstr ""
 
-#: mmo.c:1728
+#: mmo.c:1729
 #, c-format
 msgid ""
 "%s: invalid mmo file: leading byte of operand word must be 0 or 1, got %d "
 "for lop_fixrx\n"
 msgstr ""
 
-#: mmo.c:1751
+#: mmo.c:1752
 #, c-format
 msgid "%s: cannot allocate file name for file number %d, %d bytes\n"
 msgstr ""
 
-#: mmo.c:1771
+#: mmo.c:1772
 #, c-format
 msgid ""
 "%s: invalid mmo file: file number %d `%s', was already entered as `%s'\n"
 msgstr ""
 
-#: mmo.c:1784
+#: mmo.c:1785
 #, c-format
 msgid ""
 "%s: invalid mmo file: file name for number %d was not specified before use\n"
 msgstr ""
 
-#: mmo.c:1890
+#: mmo.c:1892
 #, c-format
 msgid ""
 "%s: invalid mmo file: fields y and z of lop_stab non-zero, y: %d, z: %d\n"
 msgstr ""
 
-#: mmo.c:1926
+#: mmo.c:1928
 #, c-format
 msgid "%s: invalid mmo file: lop_end not last item in file\n"
 msgstr ""
 
-#: mmo.c:1939
+#: mmo.c:1941
 #, c-format
 msgid ""
 "%s: invalid mmo file: YZ of lop_end (%ld) not equal to the number of tetras "
 "to the preceding lop_stab (%ld)\n"
 msgstr ""
 
-#: mmo.c:2649
+#: mmo.c:2651
 #, c-format
 msgid "%s: invalid symbol table: duplicate symbol `%s'\n"
 msgstr ""
 
-#: mmo.c:2889
+#: mmo.c:2894
 #, c-format
 msgid ""
-"%s: Bad symbol definition: `Main' set to %s rather than the start address "
-"%s\n"
+"%s: Bad symbol definition: `Main' set to %s rather than the start address %"
+"s\n"
 msgstr ""
 
-#: mmo.c:2981
+#: mmo.c:2986
 #, c-format
 msgid ""
 "%s: warning: symbol table too large for mmo, larger than 65535 32-bit words: "
 "%d.  Only `Main' will be emitted.\n"
 msgstr ""
 
-#: mmo.c:3026
+#: mmo.c:3031
 #, c-format
 msgid "%s: internal error, symbol table changed size from %d to %d words\n"
 msgstr ""
 
-#: mmo.c:3078
+#: mmo.c:3083
 #, c-format
 msgid "%s: internal error, internal register section %s had contents\n"
 msgstr ""
 
-#: mmo.c:3129
+#: mmo.c:3134
 #, c-format
 msgid "%s: no initialized registers; section length 0\n"
 msgstr ""
 
-#: mmo.c:3135
+#: mmo.c:3140
 #, c-format
 msgid "%s: too many initialized registers; section length %ld\n"
 msgstr ""
 
-#: mmo.c:3140
+#: mmo.c:3145
 #, c-format
 msgid ""
-"%s: invalid start address for initialized registers of length %ld: 0x%lx"
-"%08lx\n"
+"%s: invalid start address for initialized registers of length %ld: 0x%lx%"
+"08lx\n"
 msgstr ""
 
-#: oasys.c:882
+#: oasys.c:881
 #, c-format
 msgid "%s: can not represent section `%s' in oasys"
 msgstr ""
 
-#: osf-core.c:140
+#: osf-core.c:139
 #, c-format
 msgid "Unhandled OSF/1 core file section type %d\n"
 msgstr ""
 
-#: pe-mips.c:607
+#: pe-mips.c:613
 msgid "%B: `ld -r' not supported with PE MIPS objects\n"
 msgstr ""
 
@@ -3750,37 +3317,32 @@ msgstr ""
 #. src = VMA of the memory we're fixing up
 #. mem = pointer to memory we're fixing up
 #. val = VMA of what we need to refer to.
-#: pe-mips.c:719
+#: pe-mips.c:729
 msgid "%B: unimplemented %s\n"
 msgstr ""
 
-#: pe-mips.c:745
+#: pe-mips.c:755
 msgid "%B: jump too far away\n"
 msgstr ""
 
-#: pe-mips.c:771
+#: pe-mips.c:781
 msgid "%B: bad pair/reflo after refhi\n"
 msgstr ""
 
-#: pef.c:520
-#, c-format
-msgid "bfd_pef_scan: unknown architecture 0x%lx"
-msgstr ""
-
-#: pei-x86_64.c:444
+#: pei-x86_64.c:465
 #, c-format
 msgid "warning: .pdata section size (%ld) is not a multiple of %d\n"
 msgstr ""
 
-#: pei-x86_64.c:448 peigen.c:1618 peigen.c:1801 pepigen.c:1618 pepigen.c:1801
-#: pex64igen.c:1618 pex64igen.c:1801
+#: pei-x86_64.c:469 peigen.c:1620 peigen.c:1799 pepigen.c:1620 pepigen.c:1799
+#: pex64igen.c:1620 pex64igen.c:1799
 #, c-format
 msgid ""
 "\n"
 "The Function Table (interpreted .pdata section contents)\n"
 msgstr ""
 
-#: pei-x86_64.c:450
+#: pei-x86_64.c:471
 #, c-format
 msgid "vma:\t\t\tBeginAddress\t EndAddress\t  UnwindData\n"
 msgstr ""
@@ -3798,21 +3360,21 @@ msgstr ""
 msgid "%B: Unrecognised import name type; %x"
 msgstr ""
 
-#: peicode.h:1166
+#: peicode.h:1160
 msgid "%B: Unrecognised machine type (0x%x) in Import Library Format archive"
 msgstr ""
 
-#: peicode.h:1178
+#: peicode.h:1172
 msgid ""
 "%B: Recognised but unhandled machine type (0x%x) in Import Library Format "
 "archive"
 msgstr ""
 
-#: peicode.h:1196
+#: peicode.h:1190
 msgid "%B: size field is zero in Import Library Format header"
 msgstr ""
 
-#: peicode.h:1227
+#: peicode.h:1221
 msgid "%B: string not null terminated in ILF object file."
 msgstr ""
 
@@ -3865,23 +3427,14 @@ msgstr ""
 msgid "Partition[%d] length = 0x%.8lx (%ld)\n"
 msgstr ""
 
-#: reloc.c:6160
-msgid "INPUT_SECTION_FLAGS are not supported.\n"
-msgstr ""
-
-#: rs6000-core.c:448
-#, c-format
-msgid "%s: warning core file truncated"
-msgstr ""
-
-#: som.c:5471
+#: som.c:5114
 #, c-format
 msgid ""
 "\n"
 "Exec Auxiliary Header\n"
 msgstr ""
 
-#: som.c:5776
+#: som.c:5417
 msgid "som_sizeof_headers unimplemented"
 msgstr ""
 
@@ -3901,1904 +3454,239 @@ msgstr ""
 msgid "Unsupported .stab relocation"
 msgstr ""
 
-#: vms-alpha.c:1299
+#: vms-gsd.c:350
 #, c-format
-msgid "Unknown EGSD subtype %d"
+msgid "bfd_make_section (%s) failed"
 msgstr ""
 
-#: vms-alpha.c:1330
+#: vms-gsd.c:365
 #, c-format
-msgid "Stack overflow (%d) in _bfd_vms_push"
+msgid "bfd_set_section_flags (%s, %x) failed"
 msgstr ""
 
-#: vms-alpha.c:1343
-msgid "Stack underflow in _bfd_vms_pop"
-msgstr ""
-
-#. These names have not yet been added to this switch statement.
-#: vms-alpha.c:1580
+#: vms-gsd.c:399
 #, c-format
-msgid "unknown ETIR command %d"
+msgid "Size mismatch section %s=%lx, %s=%lx"
 msgstr ""
 
-#: vms-alpha.c:1767
+#: vms-gsd.c:754
 #, c-format
-msgid "bad section index in %s"
+msgid "Unknown GSD/EGSD subtype %d"
 msgstr ""
 
-#: vms-alpha.c:1780
-#, c-format
-msgid "unsupported STA cmd %s"
-msgstr ""
-
-#. Insert field.
-#. Unsigned shift.
-#. Rotate.
-#. Redefine symbol to current location.
-#. Define a literal.
-#: vms-alpha.c:1956 vms-alpha.c:1987 vms-alpha.c:2234
-#, c-format
-msgid "%s: not supported"
-msgstr ""
-
-#: vms-alpha.c:1962
-#, c-format
-msgid "%s: not implemented"
-msgstr ""
-
-#: vms-alpha.c:2218
-#, c-format
-msgid "invalid use of %s with contexts"
-msgstr ""
-
-#: vms-alpha.c:2252
-#, c-format
-msgid "reserved cmd %d"
-msgstr ""
-
-#: vms-alpha.c:2337
+#: vms-hdr.c:364
 msgid "Object module NOT error-free !\n"
 msgstr ""
 
-#: vms-alpha.c:2766
-#, c-format
-msgid "Symbol %s replaced by %s\n"
-msgstr ""
-
-#: vms-alpha.c:3769
-#, c-format
-msgid "SEC_RELOC with no relocs in section %s"
-msgstr ""
-
-#: vms-alpha.c:3822 vms-alpha.c:4049
-#, c-format
-msgid "Size error in section %s"
-msgstr ""
-
-#: vms-alpha.c:3991
-msgid "Spurious ALPHA_R_BSR reloc"
-msgstr ""
-
-#: vms-alpha.c:4036
-#, c-format
-msgid "Unhandled relocation %s"
-msgstr ""
-
-#: vms-alpha.c:4326
+#: vms-hdr.c:878
 #, c-format
 msgid "unknown source command %d"
 msgstr ""
 
-#: vms-alpha.c:4387
-msgid "DST__K_SET_LINUM_INCR not implemented"
+#: vms-hdr.c:951
+msgid "DST_S_C_SET_LINUM_INCR not implemented"
 msgstr ""
 
-#: vms-alpha.c:4393
-msgid "DST__K_SET_LINUM_INCR_W not implemented"
+#: vms-hdr.c:957
+msgid "DST_S_C_SET_LINUM_INCR_W not implemented"
 msgstr ""
 
-#: vms-alpha.c:4399
-msgid "DST__K_RESET_LINUM_INCR not implemented"
+#: vms-hdr.c:963
+msgid "DST_S_C_RESET_LINUM_INCR not implemented"
 msgstr ""
 
-#: vms-alpha.c:4405
-msgid "DST__K_BEG_STMT_MODE not implemented"
+#: vms-hdr.c:969
+msgid "DST_S_C_BEG_STMT_MODE not implemented"
 msgstr ""
 
-#: vms-alpha.c:4411
-msgid "DST__K_END_STMT_MODE not implemented"
+#: vms-hdr.c:975
+msgid "DST_S_C_END_STMT_MODE not implemented"
 msgstr ""
 
-#: vms-alpha.c:4438
-msgid "DST__K_SET_PC not implemented"
+#: vms-hdr.c:1008
+msgid "DST_S_C_SET_PC not implemented"
 msgstr ""
 
-#: vms-alpha.c:4444
-msgid "DST__K_SET_PC_W not implemented"
+#: vms-hdr.c:1014
+msgid "DST_S_C_SET_PC_W not implemented"
 msgstr ""
 
-#: vms-alpha.c:4450
-msgid "DST__K_SET_PC_L not implemented"
+#: vms-hdr.c:1020
+msgid "DST_S_C_SET_PC_L not implemented"
 msgstr ""
 
-#: vms-alpha.c:4456
-msgid "DST__K_SET_STMTNUM not implemented"
+#: vms-hdr.c:1026
+msgid "DST_S_C_SET_STMTNUM not implemented"
 msgstr ""
 
-#: vms-alpha.c:4499
+#: vms-hdr.c:1079
 #, c-format
 msgid "unknown line command %d"
 msgstr ""
 
-#: vms-alpha.c:4953 vms-alpha.c:4970 vms-alpha.c:4984 vms-alpha.c:4999
-#: vms-alpha.c:5011 vms-alpha.c:5022 vms-alpha.c:5034
+#: vms-misc.c:588
+#, c-format
+msgid "Stack overflow (%d) in _bfd_vms_push"
+msgstr ""
+
+#: vms-misc.c:603
+msgid "Stack underflow in _bfd_vms_pop"
+msgstr ""
+
+#: vms-misc.c:844
+msgid "_bfd_vms_output_counted called with zero bytes"
+msgstr ""
+
+#: vms-misc.c:849
+msgid "_bfd_vms_output_counted called with too many bytes"
+msgstr ""
+
+#: vms-misc.c:967
+#, c-format
+msgid "Symbol %s replaced by %s\n"
+msgstr ""
+
+#: vms-misc.c:1026
+#, c-format
+msgid "failed to enter %s"
+msgstr ""
+
+#: vms-tir.c:83
+msgid "No Mem !"
+msgstr ""
+
+#. These names have not yet been added to this switch statement.
+#: vms-tir.c:346
+#, c-format
+msgid "unknown ETIR command %d"
+msgstr ""
+
+#: vms-tir.c:440
+#, c-format
+msgid "bad section index in %s"
+msgstr ""
+
+#: vms-tir.c:459
+#, c-format
+msgid "unsupported STA cmd %s"
+msgstr ""
+
+#: vms-tir.c:464 vms-tir.c:1304
+#, c-format
+msgid "reserved STA cmd %d"
+msgstr ""
+
+#. Unsigned shift.
+#. Rotate.
+#. Redefine symbol to current location.
+#. Define a literal.
+#: vms-tir.c:655 vms-tir.c:774 vms-tir.c:894 vms-tir.c:1624
+#, c-format
+msgid "%s: not supported"
+msgstr ""
+
+#: vms-tir.c:661 vms-tir.c:1481
+#, c-format
+msgid "%s: not implemented"
+msgstr ""
+
+#: vms-tir.c:666 vms-tir.c:1485
+#, c-format
+msgid "reserved STO cmd %d"
+msgstr ""
+
+#: vms-tir.c:789 vms-tir.c:1629
+#, c-format
+msgid "reserved OPR cmd %d"
+msgstr ""
+
+#: vms-tir.c:852 vms-tir.c:1693
+#, c-format
+msgid "reserved CTL cmd %d"
+msgstr ""
+
+#: vms-tir.c:966
+#, c-format
+msgid "reserved STC cmd %d"
+msgstr ""
+
+#. stack byte from image
+#. arg: none.
+#: vms-tir.c:1212
+msgid "stack-from-image not implemented"
+msgstr ""
+
+#: vms-tir.c:1230
+msgid "stack-entry-mask not fully implemented"
+msgstr ""
+
+#. compare procedure argument
+#. arg: cs	symbol name
+#. by	argument index
+#. da	argument descriptor
+#.
+#. compare argument descriptor with symbol argument (ARG$V_PASSMECH)
+#. and stack TRUE (args match) or FALSE (args dont match) value.
+#: vms-tir.c:1244
+msgid "PASSMECH not fully implemented"
+msgstr ""
+
+#: vms-tir.c:1263
+msgid "stack-local-symbol not fully implemented"
+msgstr ""
+
+#: vms-tir.c:1276
+msgid "stack-literal not fully implemented"
+msgstr ""
+
+#: vms-tir.c:1297
+msgid "stack-local-symbol-entry-point-mask not fully implemented"
+msgstr ""
+
+#: vms-tir.c:1571 vms-tir.c:1583 vms-tir.c:1595 vms-tir.c:1607 vms-tir.c:1672
+#: vms-tir.c:1680 vms-tir.c:1688
+#, c-format
+msgid "%s: not fully implemented"
+msgstr ""
+
+#: vms-tir.c:1746
+#, c-format
+msgid "obj code %d not found"
+msgstr ""
+
+#: vms-tir.c:2019
+#, c-format
+msgid "Reloc size error in section %s"
+msgstr ""
+
+#: vms-tir.c:2112 vms-tir.c:2129 vms-tir.c:2147 vms-tir.c:2159 vms-tir.c:2170
+#: vms-tir.c:2182
 #, c-format
 msgid "Unknown reloc %s + %s"
 msgstr ""
 
-#: vms-alpha.c:5089
+#: vms-tir.c:2249
 #, c-format
-msgid "Unknown reloc %s"
+msgid "Unknown symbol %s in command %s"
 msgstr ""
 
-#: vms-alpha.c:5102
-msgid "Invalid section index in ETIR"
-msgstr ""
-
-#: vms-alpha.c:5109
-msgid "Relocation for non-REL psect"
-msgstr ""
-
-#: vms-alpha.c:5156
-#, c-format
-msgid "Unknown symbol in command %s"
-msgstr ""
-
-#: vms-alpha.c:5671
-#, c-format
-msgid "  EMH %u (len=%u): "
-msgstr ""
-
-#: vms-alpha.c:5680
-#, c-format
-msgid "Module header\n"
-msgstr ""
-
-#: vms-alpha.c:5681
-#, c-format
-msgid "   structure level: %u\n"
-msgstr ""
-
-#: vms-alpha.c:5682
-#, c-format
-msgid "   max record size: %u\n"
-msgstr ""
-
-#: vms-alpha.c:5685
-#, c-format
-msgid "   module name    : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5687
-#, c-format
-msgid "   module version : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5689
-#, c-format
-msgid "   compile date   : %.17s\n"
-msgstr ""
-
-#: vms-alpha.c:5694
-#, c-format
-msgid "Language Processor Name\n"
-msgstr ""
-
-#: vms-alpha.c:5695
-#, c-format
-msgid "   language name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5702
-#, c-format
-msgid "Source Files Header\n"
-msgstr ""
-
-#: vms-alpha.c:5703
-#, c-format
-msgid "   file: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5710
-#, c-format
-msgid "Title Text Header\n"
-msgstr ""
-
-#: vms-alpha.c:5711
-#, c-format
-msgid "   title: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5718
-#, c-format
-msgid "Copyright Header\n"
-msgstr ""
-
-#: vms-alpha.c:5719
-#, c-format
-msgid "   copyright: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5725
-#, c-format
-msgid "unhandled emh subtype %u\n"
-msgstr ""
-
-#: vms-alpha.c:5735
-#, c-format
-msgid "  EEOM (len=%u):\n"
-msgstr ""
-
-#: vms-alpha.c:5736
-#, c-format
-msgid "   number of cond linkage pairs: %u\n"
-msgstr ""
-
-#: vms-alpha.c:5738
-#, c-format
-msgid "   completion code: %u\n"
-msgstr ""
-
-#: vms-alpha.c:5742
-#, c-format
-msgid "   transfer addr flags: 0x%02x\n"
-msgstr ""
-
-#: vms-alpha.c:5743
-#, c-format
-msgid "   transfer addr psect: %u\n"
-msgstr ""
-
-#: vms-alpha.c:5745
-#, c-format
-msgid "   transfer address   : 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5754
-msgid " WEAK"
-msgstr ""
-
-#: vms-alpha.c:5756
-msgid " DEF"
-msgstr ""
-
-#: vms-alpha.c:5758
-msgid " UNI"
-msgstr ""
-
-#: vms-alpha.c:5760 vms-alpha.c:5781
-msgid " REL"
-msgstr ""
-
-#: vms-alpha.c:5762
-msgid " COMM"
-msgstr ""
-
-#: vms-alpha.c:5764
-msgid " VECEP"
-msgstr ""
-
-#: vms-alpha.c:5766
-msgid " NORM"
-msgstr ""
-
-#: vms-alpha.c:5768
-msgid " QVAL"
-msgstr ""
-
-#: vms-alpha.c:5775
-msgid " PIC"
-msgstr ""
-
-#: vms-alpha.c:5777
-msgid " LIB"
-msgstr ""
-
-#: vms-alpha.c:5779
-msgid " OVR"
-msgstr ""
-
-#: vms-alpha.c:5783
-msgid " GBL"
-msgstr ""
-
-#: vms-alpha.c:5785
-msgid " SHR"
-msgstr ""
-
-#: vms-alpha.c:5787
-msgid " EXE"
-msgstr ""
-
-#: vms-alpha.c:5789
-msgid " RD"
-msgstr ""
-
-#: vms-alpha.c:5791
-msgid " WRT"
-msgstr ""
-
-#: vms-alpha.c:5793
-msgid " VEC"
-msgstr ""
-
-#: vms-alpha.c:5795
-msgid " NOMOD"
-msgstr ""
-
-#: vms-alpha.c:5797
-msgid " COM"
-msgstr ""
-
-#: vms-alpha.c:5799
-msgid " 64B"
-msgstr ""
-
-#: vms-alpha.c:5808
-#, c-format
-msgid "  EGSD (len=%u):\n"
-msgstr ""
-
-#: vms-alpha.c:5820
-#, c-format
-msgid "  EGSD entry %2u (type: %u, len: %u): "
-msgstr ""
-
-#: vms-alpha.c:5832
-#, c-format
-msgid "PSC - Program section definition\n"
-msgstr ""
-
-#: vms-alpha.c:5833 vms-alpha.c:5850
-#, c-format
-msgid "   alignment  : 2**%u\n"
-msgstr ""
-
-#: vms-alpha.c:5834 vms-alpha.c:5851
-#, c-format
-msgid "   flags      : 0x%04x"
-msgstr ""
-
-#: vms-alpha.c:5838
-#, c-format
-msgid "   alloc (len): %u (0x%08x)\n"
-msgstr ""
-
-#: vms-alpha.c:5839 vms-alpha.c:5896 vms-alpha.c:5945
-#, c-format
-msgid "   name       : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5849
-#, c-format
-msgid "SPSC - Shared Image Program section def\n"
-msgstr ""
-
-#: vms-alpha.c:5855
-#, c-format
-msgid "   alloc (len)   : %u (0x%08x)\n"
-msgstr ""
-
-#: vms-alpha.c:5856
-#, c-format
-msgid "   image offset  : 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5858
-#, c-format
-msgid "   symvec offset : 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5860
-#, c-format
-msgid "   name          : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5873
-#, c-format
-msgid "SYM - Global symbol definition\n"
-msgstr ""
-
-#: vms-alpha.c:5874 vms-alpha.c:5934 vms-alpha.c:5955 vms-alpha.c:5974
-#, c-format
-msgid "   flags: 0x%04x"
-msgstr ""
-
-#: vms-alpha.c:5877
-#, c-format
-msgid "   psect offset: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5881
-#, c-format
-msgid "   code address: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5883
-#, c-format
-msgid "   psect index for entry point : %u\n"
-msgstr ""
-
-#: vms-alpha.c:5886 vms-alpha.c:5962 vms-alpha.c:5981
-#, c-format
-msgid "   psect index : %u\n"
-msgstr ""
-
-#: vms-alpha.c:5888 vms-alpha.c:5964 vms-alpha.c:5983
-#, c-format
-msgid "   name        : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5895
-#, c-format
-msgid "SYM - Global symbol reference\n"
-msgstr ""
-
-#: vms-alpha.c:5907
-#, c-format
-msgid "IDC - Ident Consistency check\n"
-msgstr ""
-
-#: vms-alpha.c:5908
-#, c-format
-msgid "   flags         : 0x%08x"
-msgstr ""
-
-#: vms-alpha.c:5912
-#, c-format
-msgid "   id match      : %x\n"
-msgstr ""
-
-#: vms-alpha.c:5914
-#, c-format
-msgid "   error severity: %x\n"
-msgstr ""
-
-#: vms-alpha.c:5917
-#, c-format
-msgid "   entity name   : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5919
-#, c-format
-msgid "   object name   : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5922
-#, c-format
-msgid "   binary ident  : 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5925
-#, c-format
-msgid "   ascii ident   : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:5933
-#, c-format
-msgid "SYMG - Universal symbol definition\n"
-msgstr ""
-
-#: vms-alpha.c:5937
-#, c-format
-msgid "   symbol vector offset: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5939
-#, c-format
-msgid "   entry point: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5941
-#, c-format
-msgid "   proc descr : 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5943
-#, c-format
-msgid "   psect index: %u\n"
-msgstr ""
-
-#: vms-alpha.c:5954
-#, c-format
-msgid "SYMV - Vectored symbol definition\n"
-msgstr ""
-
-#: vms-alpha.c:5958
-#, c-format
-msgid "   vector      : 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5960 vms-alpha.c:5979
-#, c-format
-msgid "   psect offset: %u\n"
-msgstr ""
-
-#: vms-alpha.c:5973
-#, c-format
-msgid "SYMM - Global symbol definition with version\n"
-msgstr ""
-
-#: vms-alpha.c:5977
-#, c-format
-msgid "   version mask: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:5988
-#, c-format
-msgid "unhandled egsd entry type %u\n"
-msgstr ""
-
-#: vms-alpha.c:6022
-#, c-format
-msgid "    linkage index: %u, replacement insn: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6025
-#, c-format
-msgid "    psect idx 1: %u, offset 1: 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:6029
-#, c-format
-msgid "    psect idx 2: %u, offset 2: 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:6034
-#, c-format
-msgid "    psect idx 3: %u, offset 3: 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:6039
-#, c-format
-msgid "    global name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6049
-#, c-format
-msgid "  %s (len=%u+%u):\n"
-msgstr ""
-
-#: vms-alpha.c:6064
-#, c-format
-msgid "   (type: %3u, size: 4+%3u): "
-msgstr ""
-
-#: vms-alpha.c:6068
-#, c-format
-msgid "STA_GBL (stack global) %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6072
-#, c-format
-msgid "STA_LW (stack longword) 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6076
-#, c-format
-msgid "STA_QW (stack quadword) 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:6081
-#, c-format
-msgid "STA_PQ (stack psect base + offset)\n"
-msgstr ""
-
-#: vms-alpha.c:6082
-#, c-format
-msgid "    psect: %u, offset: 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:6088
-#, c-format
-msgid "STA_LI (stack literal)\n"
-msgstr ""
-
-#: vms-alpha.c:6091
-#, c-format
-msgid "STA_MOD (stack module)\n"
-msgstr ""
-
-#: vms-alpha.c:6094
-#, c-format
-msgid "STA_CKARG (compare procedure argument)\n"
-msgstr ""
-
-#: vms-alpha.c:6098
-#, c-format
-msgid "STO_B (store byte)\n"
-msgstr ""
-
-#: vms-alpha.c:6101
-#, c-format
-msgid "STO_W (store word)\n"
-msgstr ""
-
-#: vms-alpha.c:6104
-#, c-format
-msgid "STO_LW (store longword)\n"
-msgstr ""
-
-#: vms-alpha.c:6107
-#, c-format
-msgid "STO_QW (store quadword)\n"
-msgstr ""
-
-#: vms-alpha.c:6113
-#, c-format
-msgid "STO_IMMR (store immediate repeat) %u bytes\n"
-msgstr ""
-
-#: vms-alpha.c:6120
-#, c-format
-msgid "STO_GBL (store global) %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6124
-#, c-format
-msgid "STO_CA (store code address) %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6128
-#, c-format
-msgid "STO_RB (store relative branch)\n"
-msgstr ""
-
-#: vms-alpha.c:6131
-#, c-format
-msgid "STO_AB (store absolute branch)\n"
-msgstr ""
-
-#: vms-alpha.c:6134
-#, c-format
-msgid "STO_OFF (store offset to psect)\n"
-msgstr ""
-
-#: vms-alpha.c:6140
-#, c-format
-msgid "STO_IMM (store immediate) %u bytes\n"
-msgstr ""
-
-#: vms-alpha.c:6147
-#, c-format
-msgid "STO_GBL_LW (store global longword) %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6151
-#, c-format
-msgid "STO_OFF (store LP with procedure signature)\n"
-msgstr ""
-
-#: vms-alpha.c:6154
-#, c-format
-msgid "STO_BR_GBL (store branch global) *todo*\n"
-msgstr ""
-
-#: vms-alpha.c:6157
-#, c-format
-msgid "STO_BR_PS (store branch psect + offset) *todo*\n"
-msgstr ""
-
-#: vms-alpha.c:6161
-#, c-format
-msgid "OPR_NOP (no-operation)\n"
-msgstr ""
-
-#: vms-alpha.c:6164
-#, c-format
-msgid "OPR_ADD (add)\n"
-msgstr ""
-
-#: vms-alpha.c:6167
-#, c-format
-msgid "OPR_SUB (substract)\n"
-msgstr ""
-
-#: vms-alpha.c:6170
-#, c-format
-msgid "OPR_MUL (multiply)\n"
-msgstr ""
-
-#: vms-alpha.c:6173
-#, c-format
-msgid "OPR_DIV (divide)\n"
-msgstr ""
-
-#: vms-alpha.c:6176
-#, c-format
-msgid "OPR_AND (logical and)\n"
-msgstr ""
-
-#: vms-alpha.c:6179
-#, c-format
-msgid "OPR_IOR (logical inclusive or)\n"
-msgstr ""
-
-#: vms-alpha.c:6182
-#, c-format
-msgid "OPR_EOR (logical exclusive or)\n"
-msgstr ""
-
-#: vms-alpha.c:6185
-#, c-format
-msgid "OPR_NEG (negate)\n"
-msgstr ""
-
-#: vms-alpha.c:6188
-#, c-format
-msgid "OPR_COM (complement)\n"
-msgstr ""
-
-#: vms-alpha.c:6191
-#, c-format
-msgid "OPR_INSV (insert field)\n"
-msgstr ""
-
-#: vms-alpha.c:6194
-#, c-format
-msgid "OPR_ASH (arithmetic shift)\n"
-msgstr ""
-
-#: vms-alpha.c:6197
-#, c-format
-msgid "OPR_USH (unsigned shift)\n"
-msgstr ""
-
-#: vms-alpha.c:6200
-#, c-format
-msgid "OPR_ROT (rotate)\n"
-msgstr ""
-
-#: vms-alpha.c:6203
-#, c-format
-msgid "OPR_SEL (select)\n"
-msgstr ""
-
-#: vms-alpha.c:6206
-#, c-format
-msgid "OPR_REDEF (redefine symbol to curr location)\n"
-msgstr ""
-
-#: vms-alpha.c:6209
-#, c-format
-msgid "OPR_REDEF (define a literal)\n"
-msgstr ""
-
-#: vms-alpha.c:6213
-#, c-format
-msgid "STC_LP (store cond linkage pair)\n"
-msgstr ""
-
-#: vms-alpha.c:6217
-#, c-format
-msgid "STC_LP_PSB (store cond linkage pair + signature)\n"
-msgstr ""
-
-#: vms-alpha.c:6218
-#, c-format
-msgid "   linkage index: %u, procedure: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6221
-#, c-format
-msgid "   signature: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6224
-#, c-format
-msgid "STC_GBL (store cond global)\n"
-msgstr ""
-
-#: vms-alpha.c:6225
-#, c-format
-msgid "   linkage index: %u, global: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6229
-#, c-format
-msgid "STC_GCA (store cond code address)\n"
-msgstr ""
-
-#: vms-alpha.c:6230
-#, c-format
-msgid "   linkage index: %u, procedure name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6234
-#, c-format
-msgid "STC_PS (store cond psect + offset)\n"
-msgstr ""
-
-#: vms-alpha.c:6236
-#, c-format
-msgid "   linkage index: %u, psect: %u, offset: 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:6243
-#, c-format
-msgid "STC_NOP_GBL (store cond NOP at global addr)\n"
-msgstr ""
-
-#: vms-alpha.c:6247
-#, c-format
-msgid "STC_NOP_PS (store cond NOP at psect + offset)\n"
-msgstr ""
-
-#: vms-alpha.c:6251
-#, c-format
-msgid "STC_BSR_GBL (store cond BSR at global addr)\n"
-msgstr ""
-
-#: vms-alpha.c:6255
-#, c-format
-msgid "STC_BSR_PS (store cond BSR at psect + offset)\n"
-msgstr ""
-
-#: vms-alpha.c:6259
-#, c-format
-msgid "STC_LDA_GBL (store cond LDA at global addr)\n"
-msgstr ""
-
-#: vms-alpha.c:6263
-#, c-format
-msgid "STC_LDA_PS (store cond LDA at psect + offset)\n"
-msgstr ""
-
-#: vms-alpha.c:6267
-#, c-format
-msgid "STC_BOH_GBL (store cond BOH at global addr)\n"
-msgstr ""
-
-#: vms-alpha.c:6271
-#, c-format
-msgid "STC_BOH_PS (store cond BOH at psect + offset)\n"
-msgstr ""
-
-#: vms-alpha.c:6276
-#, c-format
-msgid "STC_NBH_GBL (store cond or hint at global addr)\n"
-msgstr ""
-
-#: vms-alpha.c:6280
-#, c-format
-msgid "STC_NBH_PS (store cond or hint at psect + offset)\n"
-msgstr ""
-
-#: vms-alpha.c:6284
-#, c-format
-msgid "CTL_SETRB (set relocation base)\n"
-msgstr ""
-
-#: vms-alpha.c:6290
-#, c-format
-msgid "CTL_AUGRB (augment relocation base) %u\n"
-msgstr ""
-
-#: vms-alpha.c:6294
-#, c-format
-msgid "CTL_DFLOC (define location)\n"
-msgstr ""
-
-#: vms-alpha.c:6297
-#, c-format
-msgid "CTL_STLOC (set location)\n"
-msgstr ""
-
-#: vms-alpha.c:6300
-#, c-format
-msgid "CTL_STKDL (stack defined location)\n"
-msgstr ""
-
-#: vms-alpha.c:6303 vms-alpha.c:6717
-#, c-format
-msgid "*unhandled*\n"
-msgstr ""
-
-#: vms-alpha.c:6333 vms-alpha.c:6372
-#, c-format
-msgid "cannot read GST record length\n"
-msgstr ""
-
-#. Ill-formed.
-#: vms-alpha.c:6354
-#, c-format
-msgid "cannot find EMH in first GST record\n"
-msgstr ""
-
-#: vms-alpha.c:6380
-#, c-format
-msgid "cannot read GST record header\n"
-msgstr ""
-
-#: vms-alpha.c:6393
-#, c-format
-msgid " corrupted GST\n"
-msgstr ""
-
-#: vms-alpha.c:6401
-#, c-format
-msgid "cannot read GST record\n"
-msgstr ""
-
-#: vms-alpha.c:6430
-#, c-format
-msgid " unhandled EOBJ record type %u\n"
-msgstr ""
-
-#: vms-alpha.c:6453
-#, c-format
-msgid "  bitcount: %u, base addr: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6466
-#, c-format
-msgid "   bitmap: 0x%08x (count: %u):\n"
-msgstr ""
-
-#: vms-alpha.c:6473
-#, c-format
-msgid " %08x"
-msgstr ""
-
-#: vms-alpha.c:6498
-#, c-format
-msgid "  image %u (%u entries)\n"
-msgstr ""
-
-#: vms-alpha.c:6503
-#, c-format
-msgid "   offset: 0x%08x, val: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6524
-#, c-format
-msgid "  image %u (%u entries), offsets:\n"
-msgstr ""
-
-#: vms-alpha.c:6531
-#, c-format
-msgid " 0x%08x"
-msgstr ""
-
-#. 64 bits.
-#: vms-alpha.c:6653
-#, c-format
-msgid "64 bits *unhandled*\n"
-msgstr ""
-
-#: vms-alpha.c:6657
-#, c-format
-msgid "class: %u, dtype: %u, length: %u, pointer: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6668
-#, c-format
-msgid "non-contiguous array of %s\n"
-msgstr ""
-
-#: vms-alpha.c:6672
-#, c-format
-msgid "dimct: %u, aflags: 0x%02x, digits: %u, scale: %u\n"
-msgstr ""
-
-#: vms-alpha.c:6676
-#, c-format
-msgid "arsize: %u, a0: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6680
-#, c-format
-msgid "Strides:\n"
-msgstr ""
-
-#: vms-alpha.c:6685
-#, c-format
-msgid "[%u]: %u\n"
-msgstr ""
-
-#: vms-alpha.c:6690
-#, c-format
-msgid "Bounds:\n"
-msgstr ""
-
-#: vms-alpha.c:6695
-#, c-format
-msgid "[%u]: Lower: %u, upper: %u\n"
-msgstr ""
-
-#: vms-alpha.c:6707
-#, c-format
-msgid "unaligned bit-string of %s\n"
-msgstr ""
-
-#: vms-alpha.c:6711
-#, c-format
-msgid "base: %u, pos: %u\n"
-msgstr ""
-
-#: vms-alpha.c:6731
-#, c-format
-msgid "vflags: 0x%02x, value: 0x%08x "
-msgstr ""
-
-#: vms-alpha.c:6737
-#, c-format
-msgid "(no value)\n"
-msgstr ""
-
-#: vms-alpha.c:6740
-#, c-format
-msgid "(not active)\n"
-msgstr ""
-
-#: vms-alpha.c:6743
-#, c-format
-msgid "(not allocated)\n"
-msgstr ""
-
-#: vms-alpha.c:6746
-#, c-format
-msgid "(descriptor)\n"
-msgstr ""
-
-#: vms-alpha.c:6750
-#, c-format
-msgid "(trailing value)\n"
-msgstr ""
-
-#: vms-alpha.c:6753
-#, c-format
-msgid "(value spec follows)\n"
-msgstr ""
-
-#: vms-alpha.c:6756
-#, c-format
-msgid "(at bit offset %u)\n"
-msgstr ""
-
-#: vms-alpha.c:6759
-#, c-format
-msgid "(reg: %u, disp: %u, indir: %u, kind: "
-msgstr ""
-
-#: vms-alpha.c:6766
-msgid "literal"
-msgstr ""
-
-#: vms-alpha.c:6769
-msgid "address"
-msgstr ""
-
-#: vms-alpha.c:6772
-msgid "desc"
-msgstr ""
-
-#: vms-alpha.c:6775
-msgid "reg"
-msgstr ""
-
-#: vms-alpha.c:6850
-#, c-format
-msgid "Debug symbol table:\n"
-msgstr ""
-
-#: vms-alpha.c:6861
-#, c-format
-msgid "cannot read DST header\n"
-msgstr ""
-
-#: vms-alpha.c:6866
-#, c-format
-msgid " type: %3u, len: %3u (at 0x%08x): "
-msgstr ""
-
-#: vms-alpha.c:6880
-#, c-format
-msgid "cannot read DST symbol\n"
-msgstr ""
-
-#: vms-alpha.c:6923
-#, c-format
-msgid "standard data: %s\n"
-msgstr ""
-
-#: vms-alpha.c:6926 vms-alpha.c:7010
-#, c-format
-msgid "    name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6933
-#, c-format
-msgid "modbeg\n"
-msgstr ""
-
-#: vms-alpha.c:6934
-#, c-format
-msgid "   flags: %d, language: %u, major: %u, minor: %u\n"
-msgstr ""
-
-#: vms-alpha.c:6940 vms-alpha.c:7206
-#, c-format
-msgid "   module name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6943
-#, c-format
-msgid "   compiler   : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6948
-#, c-format
-msgid "modend\n"
-msgstr ""
-
-#: vms-alpha.c:6955
-msgid "rtnbeg\n"
-msgstr ""
-
-#: vms-alpha.c:6956
-#, c-format
-msgid "    flags: %u, address: 0x%08x, pd-address: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6961
-#, c-format
-msgid "    routine name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:6969
-#, c-format
-msgid "rtnend: size 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6977
-#, c-format
-msgid "prolog: bkpt address 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:6985
-#, c-format
-msgid "epilog: flags: %u, count: %u\n"
-msgstr ""
-
-#: vms-alpha.c:6994
-#, c-format
-msgid "blkbeg: address: 0x%08x, name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7003
-#, c-format
-msgid "blkend: size: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7009
-#, c-format
-msgid "typspec (len: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7016
-#, c-format
-msgid "septyp, name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7025
-#, c-format
-msgid "recbeg: name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7032
-#, c-format
-msgid "recend\n"
-msgstr ""
-
-#: vms-alpha.c:7035
-#, c-format
-msgid "enumbeg, len: %u, name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7039
-#, c-format
-msgid "enumelt, name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7043
-#, c-format
-msgid "enumend\n"
-msgstr ""
-
-#: vms-alpha.c:7060
-#, c-format
-msgid "discontiguous range (nbr: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7062
-#, c-format
-msgid "    address: 0x%08x, size: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7072
-#, c-format
-msgid "line num  (len: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7089
-#, c-format
-msgid "delta_pc_w %u\n"
-msgstr ""
-
-#: vms-alpha.c:7096
-#, c-format
-msgid "incr_linum(b): +%u\n"
-msgstr ""
-
-#: vms-alpha.c:7102
-#, c-format
-msgid "incr_linum_w: +%u\n"
-msgstr ""
-
-#: vms-alpha.c:7108
-#, c-format
-msgid "incr_linum_l: +%u\n"
-msgstr ""
-
-#: vms-alpha.c:7114
-#, c-format
-msgid "set_line_num(w) %u\n"
-msgstr ""
-
-#: vms-alpha.c:7119
-#, c-format
-msgid "set_line_num_b %u\n"
-msgstr ""
-
-#: vms-alpha.c:7124
-#, c-format
-msgid "set_line_num_l %u\n"
-msgstr ""
-
-#: vms-alpha.c:7129
-#, c-format
-msgid "set_abs_pc: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7133
-#, c-format
-msgid "delta_pc_l: +0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7138
-#, c-format
-msgid "term(b): 0x%02x"
-msgstr ""
-
-#: vms-alpha.c:7140
-#, c-format
-msgid "        pc: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7145
-#, c-format
-msgid "term_w: 0x%04x"
-msgstr ""
-
-#: vms-alpha.c:7147
-#, c-format
-msgid "    pc: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7153
-#, c-format
-msgid "delta pc +%-4d"
-msgstr ""
-
-#: vms-alpha.c:7156
-#, c-format
-msgid "    pc: 0x%08x line: %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7161
-#, c-format
-msgid "    *unhandled* cmd %u\n"
-msgstr ""
-
-#: vms-alpha.c:7176
-#, c-format
-msgid "source (len: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7190
-#, c-format
-msgid "   declfile: len: %u, flags: %u, fileid: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7194
-#, c-format
-msgid "   rms: cdt: 0x%08x %08x, ebk: 0x%08x, ffb: 0x%04x, rfo: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7203
-#, c-format
-msgid "   filename   : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7212
-#, c-format
-msgid "   setfile %u\n"
-msgstr ""
-
-#: vms-alpha.c:7217 vms-alpha.c:7222
-#, c-format
-msgid "   setrec %u\n"
-msgstr ""
-
-#: vms-alpha.c:7227 vms-alpha.c:7232
-#, c-format
-msgid "   setlnum %u\n"
-msgstr ""
-
-#: vms-alpha.c:7237 vms-alpha.c:7242
-#, c-format
-msgid "   deflines %u\n"
-msgstr ""
-
-#: vms-alpha.c:7246
-#, c-format
-msgid "   formfeed\n"
-msgstr ""
-
-#: vms-alpha.c:7250
-#, c-format
-msgid "   *unhandled* cmd %u\n"
-msgstr ""
-
-#: vms-alpha.c:7262
-#, c-format
-msgid "*unhandled* dst type %u\n"
-msgstr ""
-
-#: vms-alpha.c:7294
-#, c-format
-msgid "cannot read EIHD\n"
-msgstr ""
-
-#: vms-alpha.c:7297
-#, c-format
-msgid "EIHD: (size: %u, nbr blocks: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7300
-#, c-format
-msgid " majorid: %u, minorid: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7308
-msgid "executable"
-msgstr ""
-
-#: vms-alpha.c:7311
-msgid "linkable image"
-msgstr ""
-
-#: vms-alpha.c:7317
-#, c-format
-msgid " image type: %u (%s)"
-msgstr ""
-
-#: vms-alpha.c:7323
-msgid "native"
-msgstr ""
-
-#: vms-alpha.c:7326
-msgid "CLI"
-msgstr ""
-
-#: vms-alpha.c:7332
-#, c-format
-msgid ", subtype: %u (%s)\n"
-msgstr ""
-
-#: vms-alpha.c:7338
-#, c-format
-msgid " offsets: isd: %u, activ: %u, symdbg: %u, imgid: %u, patch: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7342
-#, c-format
-msgid " fixup info rva: "
-msgstr ""
-
-#: vms-alpha.c:7344
-#, c-format
-msgid ", symbol vector rva: "
-msgstr ""
-
-#: vms-alpha.c:7347
-#, c-format
-msgid ""
-"\n"
-" version array off: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7351
-#, c-format
-msgid " img I/O count: %u, nbr channels: %u, req pri: %08x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7357
-#, c-format
-msgid " linker flags: %08x:"
-msgstr ""
-
-#: vms-alpha.c:7387
-#, c-format
-msgid " ident: 0x%08x, sysver: 0x%08x, match ctrl: %u, symvect_size: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7393
-#, c-format
-msgid " BPAGE: %u"
-msgstr ""
-
-#: vms-alpha.c:7399
-#, c-format
-msgid ", ext fixup offset: %u, no_opt psect off: %u"
-msgstr ""
-
-#: vms-alpha.c:7402
-#, c-format
-msgid ", alias: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7410
-#, c-format
-msgid "system version array information:\n"
-msgstr ""
-
-#: vms-alpha.c:7414
-#, c-format
-msgid "cannot read EIHVN header\n"
-msgstr ""
-
-#: vms-alpha.c:7424
-#, c-format
-msgid "cannot read EIHVN version\n"
-msgstr ""
-
-#: vms-alpha.c:7427
-#, c-format
-msgid "   %02u "
-msgstr ""
-
-#: vms-alpha.c:7431
-msgid "BASE_IMAGE       "
-msgstr ""
-
-#: vms-alpha.c:7434
-msgid "MEMORY_MANAGEMENT"
-msgstr ""
-
-#: vms-alpha.c:7437
-msgid "IO               "
-msgstr ""
-
-#: vms-alpha.c:7440
-msgid "FILES_VOLUMES    "
-msgstr ""
-
-#: vms-alpha.c:7443
-msgid "PROCESS_SCHED    "
-msgstr ""
-
-#: vms-alpha.c:7446
-msgid "SYSGEN           "
-msgstr ""
-
-#: vms-alpha.c:7449
-msgid "CLUSTERS_LOCKMGR "
-msgstr ""
-
-#: vms-alpha.c:7452
-msgid "LOGICAL_NAMES    "
-msgstr ""
-
-#: vms-alpha.c:7455
-msgid "SECURITY         "
-msgstr ""
-
-#: vms-alpha.c:7458
-msgid "IMAGE_ACTIVATOR  "
-msgstr ""
-
-#: vms-alpha.c:7461
-msgid "NETWORKS         "
-msgstr ""
-
-#: vms-alpha.c:7464
-msgid "COUNTERS         "
-msgstr ""
-
-#: vms-alpha.c:7467
-msgid "STABLE           "
-msgstr ""
-
-#: vms-alpha.c:7470
-msgid "MISC             "
-msgstr ""
-
-#: vms-alpha.c:7473
-msgid "CPU              "
-msgstr ""
-
-#: vms-alpha.c:7476
-msgid "VOLATILE         "
-msgstr ""
-
-#: vms-alpha.c:7479
-msgid "SHELL            "
-msgstr ""
-
-#: vms-alpha.c:7482
-msgid "POSIX            "
-msgstr ""
-
-#: vms-alpha.c:7485
-msgid "MULTI_PROCESSING "
-msgstr ""
-
-#: vms-alpha.c:7488
-msgid "GALAXY           "
-msgstr ""
-
-#: vms-alpha.c:7491
-msgid "*unknown*        "
-msgstr ""
-
-#: vms-alpha.c:7494
-#, c-format
-msgid ": %u.%u\n"
-msgstr ""
-
-#: vms-alpha.c:7507 vms-alpha.c:7766
-#, c-format
-msgid "cannot read EIHA\n"
-msgstr ""
-
-#: vms-alpha.c:7510
-#, c-format
-msgid "Image activation:  (size=%u)\n"
-msgstr ""
-
-#: vms-alpha.c:7512
-#, c-format
-msgid " First address : 0x%08x 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7515
-#, c-format
-msgid " Second address: 0x%08x 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7518
-#, c-format
-msgid " Third address : 0x%08x 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7521
-#, c-format
-msgid " Fourth address: 0x%08x 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7524
-#, c-format
-msgid " Shared image  : 0x%08x 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7535
-#, c-format
-msgid "cannot read EIHI\n"
-msgstr ""
-
-#: vms-alpha.c:7538
-#, c-format
-msgid "Image identification: (major: %u, minor: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7541
-#, c-format
-msgid " image name       : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7543
-#, c-format
-msgid " link time        : %s\n"
-msgstr ""
-
-#: vms-alpha.c:7545
-#, c-format
-msgid " image ident      : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7547
-#, c-format
-msgid " linker ident     : %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7549
-#, c-format
-msgid " image build ident: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7559
-#, c-format
-msgid "cannot read EIHS\n"
-msgstr ""
-
-#: vms-alpha.c:7562
-#, c-format
-msgid "Image symbol & debug table: (major: %u, minor: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7567
-#, c-format
-msgid " debug symbol table : vbn: %u, size: %u (0x%x)\n"
-msgstr ""
-
-#: vms-alpha.c:7571
-#, c-format
-msgid " global symbol table: vbn: %u, records: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7575
+#: vms-tir.c:2504
 #, c-format
-msgid " debug module table : vbn: %u, size: %u\n"
+msgid "SEC_RELOC with no relocs in section %s"
 msgstr ""
 
-#: vms-alpha.c:7588
+#: vms-tir.c:2556 vms-tir.c:2783
 #, c-format
-msgid "cannot read EISD\n"
+msgid "Size error in section %s"
 msgstr ""
 
-#: vms-alpha.c:7598
-#, c-format
-msgid ""
-"Image section descriptor: (major: %u, minor: %u, size: %u, offset: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7605
-#, c-format
-msgid " section: base: 0x%08x%08x size: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7610
-#, c-format
-msgid " flags: 0x%04x"
-msgstr ""
-
-#: vms-alpha.c:7647
-#, c-format
-msgid " vbn: %u, pfc: %u, matchctl: %u type: %u ("
-msgstr ""
-
-#: vms-alpha.c:7653
-msgid "NORMAL"
-msgstr ""
-
-#: vms-alpha.c:7656
-msgid "SHRFXD"
-msgstr ""
-
-#: vms-alpha.c:7659
-msgid "PRVFXD"
-msgstr ""
-
-#: vms-alpha.c:7662
-msgid "SHRPIC"
-msgstr ""
-
-#: vms-alpha.c:7665
-msgid "PRVPIC"
-msgstr ""
-
-#: vms-alpha.c:7668
-msgid "USRSTACK"
-msgstr ""
-
-#: vms-alpha.c:7676
-#, c-format
-msgid " ident: 0x%08x, name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7686
-#, c-format
-msgid "cannot read DMT\n"
-msgstr ""
-
-#: vms-alpha.c:7690
-#, c-format
-msgid "Debug module table:\n"
-msgstr ""
-
-#: vms-alpha.c:7699
-#, c-format
-msgid "cannot read DMT header\n"
-msgstr ""
-
-#: vms-alpha.c:7704
-#, c-format
-msgid " module offset: 0x%08x, size: 0x%08x, (%u psects)\n"
-msgstr ""
-
-#: vms-alpha.c:7714
-#, c-format
-msgid "cannot read DMT psect\n"
-msgstr ""
-
-#: vms-alpha.c:7717
-#, c-format
-msgid "  psect start: 0x%08x, length: %u\n"
-msgstr ""
-
-#: vms-alpha.c:7730
-#, c-format
-msgid "cannot read DST\n"
-msgstr ""
-
-#: vms-alpha.c:7740
-#, c-format
-msgid "cannot read GST\n"
-msgstr ""
-
-#: vms-alpha.c:7744
-#, c-format
-msgid "Global symbol table:\n"
-msgstr ""
-
-#: vms-alpha.c:7772
-#, c-format
-msgid "Image activator fixup: (major: %u, minor: %u)\n"
-msgstr ""
-
-#: vms-alpha.c:7775
-#, c-format
-msgid "  iaflink : 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:7778
-#, c-format
-msgid "  fixuplnk: 0x%08x %08x\n"
-msgstr ""
-
-#: vms-alpha.c:7781
-#, c-format
-msgid "  size : %u\n"
+#: vms-tir.c:2725
+msgid "Spurious ALPHA_R_BSR reloc"
 msgstr ""
 
-#: vms-alpha.c:7783
+#: vms-tir.c:2770
 #, c-format
-msgid "  flags: 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7787
-#, c-format
-msgid "  qrelfixoff: %5u, lrelfixoff: %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7791
-#, c-format
-msgid "  qdotadroff: %5u, ldotadroff: %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7795
-#, c-format
-msgid "  codeadroff: %5u, lpfixoff  : %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7798
-#, c-format
-msgid "  chgprtoff : %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7801
-#, c-format
-msgid "  shlstoff  : %5u, shrimgcnt : %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7803
-#, c-format
-msgid "  shlextra  : %5u, permctx   : %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7806
-#, c-format
-msgid "  base_va : 0x%08x\n"
-msgstr ""
-
-#: vms-alpha.c:7808
-#, c-format
-msgid "  lppsbfixoff: %5u\n"
-msgstr ""
-
-#: vms-alpha.c:7816
-#, c-format
-msgid " Shareable images:\n"
-msgstr ""
-
-#: vms-alpha.c:7820
-#, c-format
-msgid "  %u: size: %u, flags: 0x%02x, name: %.*s\n"
-msgstr ""
-
-#: vms-alpha.c:7827
-#, c-format
-msgid " quad-word relocation fixups:\n"
-msgstr ""
-
-#: vms-alpha.c:7832
-#, c-format
-msgid " long-word relocation fixups:\n"
-msgstr ""
-
-#: vms-alpha.c:7837
-#, c-format
-msgid " quad-word .address reference fixups:\n"
-msgstr ""
-
-#: vms-alpha.c:7842
-#, c-format
-msgid " long-word .address reference fixups:\n"
-msgstr ""
-
-#: vms-alpha.c:7847
-#, c-format
-msgid " Code Address Reference Fixups:\n"
-msgstr ""
-
-#: vms-alpha.c:7852
-#, c-format
-msgid " Linkage Pairs Referece Fixups:\n"
-msgstr ""
-
-#: vms-alpha.c:7861
-#, c-format
-msgid " Change Protection (%u entries):\n"
-msgstr ""
-
-#: vms-alpha.c:7866
-#, c-format
-msgid "  base: 0x%08x %08x, size: 0x%08x, prot: 0x%08x "
-msgstr ""
-
-#. FIXME: we do not yet support relocatable link.  It is not obvious
-#. how to do it for debug infos.
-#: vms-alpha.c:8706
-msgid "%P: relocatable link is not supported\n"
-msgstr ""
-
-#: vms-alpha.c:8776
-msgid "%P: multiple entry points: in modules %B and %B\n"
-msgstr ""
-
-#: vms-lib.c:1423
-#, c-format
-msgid "could not open shared image '%s' from '%s'"
-msgstr ""
-
-#: vms-misc.c:360
-msgid "_bfd_vms_output_counted called with zero bytes"
-msgstr ""
-
-#: vms-misc.c:365
-msgid "_bfd_vms_output_counted called with too many bytes"
+msgid "Unhandled relocation %s"
 msgstr ""
 
 #: xcofflink.c:836
@@ -5811,306 +3699,306 @@ msgstr ""
 msgid "%s: dynamic object with no .loader section"
 msgstr ""
 
-#: xcofflink.c:1416
+#: xcofflink.c:1415
 msgid "%B: `%s' has line numbers but no enclosing section"
 msgstr ""
 
-#: xcofflink.c:1468
+#: xcofflink.c:1467
 msgid "%B: class %d symbol `%s' has no aux entries"
 msgstr ""
 
-#: xcofflink.c:1490
+#: xcofflink.c:1489
 msgid "%B: symbol `%s' has unrecognized csect type %d"
 msgstr ""
 
-#: xcofflink.c:1502
+#: xcofflink.c:1501
 msgid "%B: bad XTY_ER symbol `%s': class %d scnum %d scnlen %d"
 msgstr ""
 
-#: xcofflink.c:1531
+#: xcofflink.c:1530
 msgid "%B: XMC_TC0 symbol `%s' is class %d scnlen %d"
 msgstr ""
 
-#: xcofflink.c:1677
+#: xcofflink.c:1676
 msgid "%B: csect `%s' not in enclosing section"
 msgstr ""
 
-#: xcofflink.c:1784
+#: xcofflink.c:1783
 msgid "%B: misplaced XTY_LD `%s'"
 msgstr ""
 
-#: xcofflink.c:2103
+#: xcofflink.c:2102
 msgid "%B: reloc %s:%d not in csect"
 msgstr ""
 
-#: xcofflink.c:3194
+#: xcofflink.c:3177
 #, c-format
 msgid "%s: no such symbol"
 msgstr ""
 
-#: xcofflink.c:3299
+#: xcofflink.c:3282
 #, c-format
 msgid "warning: attempt to export undefined symbol `%s'"
 msgstr ""
 
-#: xcofflink.c:3678
+#: xcofflink.c:3664
 msgid "error: undefined symbol __rtinit"
 msgstr ""
 
-#: xcofflink.c:4057
+#: xcofflink.c:4041
 msgid "%B: loader reloc in unrecognized section `%s'"
 msgstr ""
 
-#: xcofflink.c:4068
+#: xcofflink.c:4052
 msgid "%B: `%s' in loader reloc but not loader sym"
 msgstr ""
 
-#: xcofflink.c:4084
+#: xcofflink.c:4068
 msgid "%B: loader reloc in read-only section %A"
 msgstr ""
 
-#: xcofflink.c:5106
+#: xcofflink.c:5086
 #, c-format
 msgid "TOC overflow: 0x%lx > 0x10000; try -mminimal-toc when compiling"
 msgstr ""
 
-#: elf32-ia64.c:628 elf64-ia64.c:628
+#: elf32-ia64.c:1050 elf64-ia64.c:1050
 msgid ""
 "%B: Can't relax br at 0x%lx in section `%A'. Please use brl or indirect "
 "branch."
 msgstr ""
 
-#: elf32-ia64.c:2284 elf64-ia64.c:2284
+#: elf32-ia64.c:2739 elf64-ia64.c:2739
 msgid "@pltoff reloc against local symbol"
 msgstr ""
 
-#: elf32-ia64.c:3687 elf64-ia64.c:3687
+#: elf32-ia64.c:4314 elf64-ia64.c:4314
 #, c-format
 msgid "%s: short data segment overflowed (0x%lx >= 0x400000)"
 msgstr ""
 
-#: elf32-ia64.c:3698 elf64-ia64.c:3698
+#: elf32-ia64.c:4325 elf64-ia64.c:4325
 #, c-format
 msgid "%s: __gp does not cover short data segment"
 msgstr ""
 
-#: elf32-ia64.c:3965 elf64-ia64.c:3965
+#: elf32-ia64.c:4595 elf64-ia64.c:4595
 msgid "%B: non-pic code with imm relocation against dynamic symbol `%s'"
 msgstr ""
 
-#: elf32-ia64.c:4032 elf64-ia64.c:4032
+#: elf32-ia64.c:4662 elf64-ia64.c:4662
 msgid "%B: @gprel relocation against dynamic symbol %s"
 msgstr ""
 
-#: elf32-ia64.c:4095 elf64-ia64.c:4095
+#: elf32-ia64.c:4725 elf64-ia64.c:4725
 msgid "%B: linking non-pic code in a position independent executable"
 msgstr ""
 
-#: elf32-ia64.c:4232 elf64-ia64.c:4232
+#: elf32-ia64.c:4862 elf64-ia64.c:4862
 msgid "%B: @internal branch to dynamic symbol %s"
 msgstr ""
 
-#: elf32-ia64.c:4234 elf64-ia64.c:4234
+#: elf32-ia64.c:4864 elf64-ia64.c:4864
 msgid "%B: speculation fixup to dynamic symbol %s"
 msgstr ""
 
-#: elf32-ia64.c:4236 elf64-ia64.c:4236
+#: elf32-ia64.c:4866 elf64-ia64.c:4866
 msgid "%B: @pcrel relocation against dynamic symbol %s"
 msgstr ""
 
-#: elf32-ia64.c:4433 elf64-ia64.c:4433
+#: elf32-ia64.c:5063 elf64-ia64.c:5063
 msgid "unsupported reloc"
 msgstr ""
 
-#: elf32-ia64.c:4471 elf64-ia64.c:4471
+#: elf32-ia64.c:5101 elf64-ia64.c:5101
 msgid ""
-"%B: missing TLS section for relocation %s against `%s' at 0x%lx in section `"
-"%A'."
+"%B: missing TLS section for relocation %s against `%s' at 0x%lx in section `%"
+"A'."
 msgstr ""
 
-#: elf32-ia64.c:4486 elf64-ia64.c:4486
+#: elf32-ia64.c:5116 elf64-ia64.c:5116
 msgid ""
 "%B: Can't relax br (%s) to `%s' at 0x%lx in section `%A' with size 0x%lx (> "
 "0x1000000)."
 msgstr ""
 
-#: elf32-ia64.c:4748 elf64-ia64.c:4748
+#: elf32-ia64.c:5372 elf64-ia64.c:5372
 msgid "%B: linking trap-on-NULL-dereference with non-trapping files"
 msgstr ""
 
-#: elf32-ia64.c:4757 elf64-ia64.c:4757
+#: elf32-ia64.c:5381 elf64-ia64.c:5381
 msgid "%B: linking big-endian files with little-endian files"
 msgstr ""
 
-#: elf32-ia64.c:4766 elf64-ia64.c:4766
+#: elf32-ia64.c:5390 elf64-ia64.c:5390
 msgid "%B: linking 64-bit files with 32-bit files"
 msgstr ""
 
-#: elf32-ia64.c:4775 elf64-ia64.c:4775
+#: elf32-ia64.c:5399 elf64-ia64.c:5399
 msgid "%B: linking constant-gp files with non-constant-gp files"
 msgstr ""
 
-#: elf32-ia64.c:4785 elf64-ia64.c:4785
+#: elf32-ia64.c:5409 elf64-ia64.c:5409
 msgid "%B: linking auto-pic files with non-auto-pic files"
 msgstr ""
 
-#: peigen.c:1002 pepigen.c:1002 pex64igen.c:1002
+#: peigen.c:999 pepigen.c:999 pex64igen.c:999
 #, c-format
 msgid "%s: line number overflow: 0x%lx > 0xffff"
 msgstr ""
 
-#: peigen.c:1029 pepigen.c:1029 pex64igen.c:1029
+#: peigen.c:1026 pepigen.c:1026 pex64igen.c:1026
 msgid "Export Directory [.edata (or where ever we found it)]"
 msgstr ""
 
-#: peigen.c:1030 pepigen.c:1030 pex64igen.c:1030
+#: peigen.c:1027 pepigen.c:1027 pex64igen.c:1027
 msgid "Import Directory [parts of .idata]"
 msgstr ""
 
-#: peigen.c:1031 pepigen.c:1031 pex64igen.c:1031
+#: peigen.c:1028 pepigen.c:1028 pex64igen.c:1028
 msgid "Resource Directory [.rsrc]"
 msgstr ""
 
-#: peigen.c:1032 pepigen.c:1032 pex64igen.c:1032
+#: peigen.c:1029 pepigen.c:1029 pex64igen.c:1029
 msgid "Exception Directory [.pdata]"
 msgstr ""
 
-#: peigen.c:1033 pepigen.c:1033 pex64igen.c:1033
+#: peigen.c:1030 pepigen.c:1030 pex64igen.c:1030
 msgid "Security Directory"
 msgstr ""
 
-#: peigen.c:1034 pepigen.c:1034 pex64igen.c:1034
+#: peigen.c:1031 pepigen.c:1031 pex64igen.c:1031
 msgid "Base Relocation Directory [.reloc]"
 msgstr ""
 
-#: peigen.c:1035 pepigen.c:1035 pex64igen.c:1035
+#: peigen.c:1032 pepigen.c:1032 pex64igen.c:1032
 msgid "Debug Directory"
 msgstr ""
 
-#: peigen.c:1036 pepigen.c:1036 pex64igen.c:1036
+#: peigen.c:1033 pepigen.c:1033 pex64igen.c:1033
 msgid "Description Directory"
 msgstr ""
 
-#: peigen.c:1037 pepigen.c:1037 pex64igen.c:1037
+#: peigen.c:1034 pepigen.c:1034 pex64igen.c:1034
 msgid "Special Directory"
 msgstr ""
 
-#: peigen.c:1038 pepigen.c:1038 pex64igen.c:1038
+#: peigen.c:1035 pepigen.c:1035 pex64igen.c:1035
 msgid "Thread Storage Directory [.tls]"
 msgstr ""
 
-#: peigen.c:1039 pepigen.c:1039 pex64igen.c:1039
+#: peigen.c:1036 pepigen.c:1036 pex64igen.c:1036
 msgid "Load Configuration Directory"
 msgstr ""
 
-#: peigen.c:1040 pepigen.c:1040 pex64igen.c:1040
+#: peigen.c:1037 pepigen.c:1037 pex64igen.c:1037
 msgid "Bound Import Directory"
 msgstr ""
 
-#: peigen.c:1041 pepigen.c:1041 pex64igen.c:1041
+#: peigen.c:1038 pepigen.c:1038 pex64igen.c:1038
 msgid "Import Address Table Directory"
 msgstr ""
 
-#: peigen.c:1042 pepigen.c:1042 pex64igen.c:1042
+#: peigen.c:1039 pepigen.c:1039 pex64igen.c:1039
 msgid "Delay Import Directory"
 msgstr ""
 
-#: peigen.c:1043 pepigen.c:1043 pex64igen.c:1043
+#: peigen.c:1040 pepigen.c:1040 pex64igen.c:1040
 msgid "CLR Runtime Header"
 msgstr ""
 
-#: peigen.c:1044 pepigen.c:1044 pex64igen.c:1044
+#: peigen.c:1041 pepigen.c:1041 pex64igen.c:1041
 msgid "Reserved"
 msgstr ""
 
-#: peigen.c:1104 pepigen.c:1104 pex64igen.c:1104
+#: peigen.c:1101 pepigen.c:1101 pex64igen.c:1101
 #, c-format
 msgid ""
 "\n"
 "There is an import table, but the section containing it could not be found\n"
 msgstr ""
 
-#: peigen.c:1109 pepigen.c:1109 pex64igen.c:1109
+#: peigen.c:1106 pepigen.c:1106 pex64igen.c:1106
 #, c-format
 msgid ""
 "\n"
 "There is an import table in %s at 0x%lx\n"
 msgstr ""
 
-#: peigen.c:1151 pepigen.c:1151 pex64igen.c:1151
+#: peigen.c:1149 pepigen.c:1149 pex64igen.c:1149
 #, c-format
 msgid ""
 "\n"
 "Function descriptor located at the start address: %04lx\n"
 msgstr ""
 
-#: peigen.c:1154 pepigen.c:1154 pex64igen.c:1154
+#: peigen.c:1152 pepigen.c:1152 pex64igen.c:1152
 #, c-format
 msgid "\tcode-base %08lx toc (loadable/actual) %08lx/%08lx\n"
 msgstr ""
 
-#: peigen.c:1162 pepigen.c:1162 pex64igen.c:1162
+#: peigen.c:1160 pepigen.c:1160 pex64igen.c:1160
 #, c-format
 msgid ""
 "\n"
 "No reldata section! Function descriptor not decoded.\n"
 msgstr ""
 
-#: peigen.c:1167 pepigen.c:1167 pex64igen.c:1167
+#: peigen.c:1165 pepigen.c:1165 pex64igen.c:1165
 #, c-format
 msgid ""
 "\n"
 "The Import Tables (interpreted %s section contents)\n"
 msgstr ""
 
-#: peigen.c:1170 pepigen.c:1170 pex64igen.c:1170
+#: peigen.c:1168 pepigen.c:1168 pex64igen.c:1168
 #, c-format
 msgid ""
 " vma:            Hint    Time      Forward  DLL       First\n"
 "                 Table   Stamp     Chain    Name      Thunk\n"
 msgstr ""
 
-#: peigen.c:1218 pepigen.c:1218 pex64igen.c:1218
+#: peigen.c:1216 pepigen.c:1216 pex64igen.c:1216
 #, c-format
 msgid ""
 "\n"
 "\tDLL Name: %s\n"
 msgstr ""
 
-#: peigen.c:1229 pepigen.c:1229 pex64igen.c:1229
+#: peigen.c:1227 pepigen.c:1227 pex64igen.c:1227
 #, c-format
 msgid "\tvma:  Hint/Ord Member-Name Bound-To\n"
 msgstr ""
 
-#: peigen.c:1254 pepigen.c:1254 pex64igen.c:1254
+#: peigen.c:1252 pepigen.c:1252 pex64igen.c:1252
 #, c-format
 msgid ""
 "\n"
 "There is a first thunk, but the section containing it could not be found\n"
 msgstr ""
 
-#: peigen.c:1415 pepigen.c:1415 pex64igen.c:1415
+#: peigen.c:1417 pepigen.c:1417 pex64igen.c:1417
 #, c-format
 msgid ""
 "\n"
 "There is an export table, but the section containing it could not be found\n"
 msgstr ""
 
-#: peigen.c:1424 pepigen.c:1424 pex64igen.c:1424
+#: peigen.c:1426 pepigen.c:1426 pex64igen.c:1426
 #, c-format
 msgid ""
 "\n"
 "There is an export table in %s, but it does not fit into that section\n"
 msgstr ""
 
-#: peigen.c:1430 pepigen.c:1430 pex64igen.c:1430
+#: peigen.c:1432 pepigen.c:1432 pex64igen.c:1432
 #, c-format
 msgid ""
 "\n"
 "There is an export table in %s at 0x%lx\n"
 msgstr ""
 
-#: peigen.c:1458 pepigen.c:1458 pex64igen.c:1458
+#: peigen.c:1460 pepigen.c:1460 pex64igen.c:1460
 #, c-format
 msgid ""
 "\n"
@@ -6118,129 +4006,129 @@ msgid ""
 "\n"
 msgstr ""
 
-#: peigen.c:1462 pepigen.c:1462 pex64igen.c:1462
+#: peigen.c:1464 pepigen.c:1464 pex64igen.c:1464
 #, c-format
 msgid "Export Flags \t\t\t%lx\n"
 msgstr ""
 
-#: peigen.c:1465 pepigen.c:1465 pex64igen.c:1465
+#: peigen.c:1467 pepigen.c:1467 pex64igen.c:1467
 #, c-format
 msgid "Time/Date stamp \t\t%lx\n"
 msgstr ""
 
-#: peigen.c:1468 pepigen.c:1468 pex64igen.c:1468
+#: peigen.c:1470 pepigen.c:1470 pex64igen.c:1470
 #, c-format
 msgid "Major/Minor \t\t\t%d/%d\n"
 msgstr ""
 
-#: peigen.c:1471 pepigen.c:1471 pex64igen.c:1471
+#: peigen.c:1473 pepigen.c:1473 pex64igen.c:1473
 #, c-format
 msgid "Name \t\t\t\t"
 msgstr ""
 
-#: peigen.c:1477 pepigen.c:1477 pex64igen.c:1477
+#: peigen.c:1479 pepigen.c:1479 pex64igen.c:1479
 #, c-format
 msgid "Ordinal Base \t\t\t%ld\n"
 msgstr ""
 
-#: peigen.c:1480 pepigen.c:1480 pex64igen.c:1480
+#: peigen.c:1482 pepigen.c:1482 pex64igen.c:1482
 #, c-format
 msgid "Number in:\n"
 msgstr ""
 
-#: peigen.c:1483 pepigen.c:1483 pex64igen.c:1483
+#: peigen.c:1485 pepigen.c:1485 pex64igen.c:1485
 #, c-format
 msgid "\tExport Address Table \t\t%08lx\n"
 msgstr ""
 
-#: peigen.c:1487 pepigen.c:1487 pex64igen.c:1487
+#: peigen.c:1489 pepigen.c:1489 pex64igen.c:1489
 #, c-format
 msgid "\t[Name Pointer/Ordinal] Table\t%08lx\n"
 msgstr ""
 
-#: peigen.c:1490 pepigen.c:1490 pex64igen.c:1490
+#: peigen.c:1492 pepigen.c:1492 pex64igen.c:1492
 #, c-format
 msgid "Table Addresses\n"
 msgstr ""
 
-#: peigen.c:1493 pepigen.c:1493 pex64igen.c:1493
+#: peigen.c:1495 pepigen.c:1495 pex64igen.c:1495
 #, c-format
 msgid "\tExport Address Table \t\t"
 msgstr ""
 
-#: peigen.c:1498 pepigen.c:1498 pex64igen.c:1498
+#: peigen.c:1500 pepigen.c:1500 pex64igen.c:1500
 #, c-format
 msgid "\tName Pointer Table \t\t"
 msgstr ""
 
-#: peigen.c:1503 pepigen.c:1503 pex64igen.c:1503
+#: peigen.c:1505 pepigen.c:1505 pex64igen.c:1505
 #, c-format
 msgid "\tOrdinal Table \t\t\t"
 msgstr ""
 
-#: peigen.c:1517 pepigen.c:1517 pex64igen.c:1517
+#: peigen.c:1519 pepigen.c:1519 pex64igen.c:1519
 #, c-format
 msgid ""
 "\n"
 "Export Address Table -- Ordinal Base %ld\n"
 msgstr ""
 
-#: peigen.c:1536 pepigen.c:1536 pex64igen.c:1536
+#: peigen.c:1538 pepigen.c:1538 pex64igen.c:1538
 msgid "Forwarder RVA"
 msgstr ""
 
-#: peigen.c:1547 pepigen.c:1547 pex64igen.c:1547
+#: peigen.c:1549 pepigen.c:1549 pex64igen.c:1549
 msgid "Export RVA"
 msgstr ""
 
-#: peigen.c:1554 pepigen.c:1554 pex64igen.c:1554
+#: peigen.c:1556 pepigen.c:1556 pex64igen.c:1556
 #, c-format
 msgid ""
 "\n"
 "[Ordinal/Name Pointer] Table\n"
 msgstr ""
 
-#: peigen.c:1614 peigen.c:1797 pepigen.c:1614 pepigen.c:1797 pex64igen.c:1614
-#: pex64igen.c:1797
+#: peigen.c:1616 peigen.c:1795 pepigen.c:1616 pepigen.c:1795 pex64igen.c:1616
+#: pex64igen.c:1795
 #, c-format
 msgid "Warning, .pdata section size (%ld) is not a multiple of %d\n"
 msgstr ""
 
-#: peigen.c:1621 pepigen.c:1621 pex64igen.c:1621
+#: peigen.c:1623 pepigen.c:1623 pex64igen.c:1623
 #, c-format
 msgid " vma:\t\t\tBegin Address    End Address      Unwind Info\n"
 msgstr ""
 
-#: peigen.c:1623 pepigen.c:1623 pex64igen.c:1623
+#: peigen.c:1625 pepigen.c:1625 pex64igen.c:1625
 #, c-format
 msgid ""
 " vma:\t\tBegin    End      EH       EH       PrologEnd  Exception\n"
 "     \t\tAddress  Address  Handler  Data     Address    Mask\n"
 msgstr ""
 
-#: peigen.c:1697 pepigen.c:1697 pex64igen.c:1697
+#: peigen.c:1695 pepigen.c:1695 pex64igen.c:1695
 #, c-format
 msgid " Register save millicode"
 msgstr ""
 
-#: peigen.c:1700 pepigen.c:1700 pex64igen.c:1700
+#: peigen.c:1698 pepigen.c:1698 pex64igen.c:1698
 #, c-format
 msgid " Register restore millicode"
 msgstr ""
 
-#: peigen.c:1703 pepigen.c:1703 pex64igen.c:1703
+#: peigen.c:1701 pepigen.c:1701 pex64igen.c:1701
 #, c-format
 msgid " Glue code sequence"
 msgstr ""
 
-#: peigen.c:1803 pepigen.c:1803 pex64igen.c:1803
+#: peigen.c:1801 pepigen.c:1801 pex64igen.c:1801
 #, c-format
 msgid ""
 " vma:\t\tBegin    Prolog   Function Flags    Exception EH\n"
 "     \t\tAddress  Length   Length   32b exc  Handler   Data\n"
 msgstr ""
 
-#: peigen.c:1929 pepigen.c:1929 pex64igen.c:1929
+#: peigen.c:1933 pepigen.c:1933 pex64igen.c:1933
 #, c-format
 msgid ""
 "\n"
@@ -6248,14 +4136,14 @@ msgid ""
 "PE File Base Relocations (interpreted .reloc section contents)\n"
 msgstr ""
 
-#: peigen.c:1958 pepigen.c:1958 pex64igen.c:1958
+#: peigen.c:1963 pepigen.c:1963 pex64igen.c:1963
 #, c-format
 msgid ""
 "\n"
 "Virtual Address: %08lx Chunk size %ld (0x%lx) Number of fixups %ld\n"
 msgstr ""
 
-#: peigen.c:1971 pepigen.c:1971 pex64igen.c:1971
+#: peigen.c:1976 pepigen.c:1976 pex64igen.c:1976
 #, c-format
 msgid "\treloc %4d offset %4x [%4lx] %s"
 msgstr ""
@@ -6263,37 +4151,31 @@ msgstr ""
 #. The MS dumpbin program reportedly ands with 0xff0f before
 #. printing the characteristics field.  Not sure why.  No reason to
 #. emulate it here.
-#: peigen.c:2010 pepigen.c:2010 pex64igen.c:2010
+#: peigen.c:2015 pepigen.c:2015 pex64igen.c:2015
 #, c-format
 msgid ""
 "\n"
 "Characteristics 0x%x\n"
 msgstr ""
 
-#: peigen.c:2310 pepigen.c:2310 pex64igen.c:2310
+#: peigen.c:2292 pepigen.c:2292 pex64igen.c:2292
 msgid "%B: unable to fill in DataDictionary[1] because .idata$2 is missing"
 msgstr ""
 
-#: peigen.c:2330 pepigen.c:2330 pex64igen.c:2330
+#: peigen.c:2312 pepigen.c:2312 pex64igen.c:2312
 msgid "%B: unable to fill in DataDictionary[1] because .idata$4 is missing"
 msgstr ""
 
-#: peigen.c:2351 pepigen.c:2351 pex64igen.c:2351
+#: peigen.c:2333 pepigen.c:2333 pex64igen.c:2333
 msgid "%B: unable to fill in DataDictionary[12] because .idata$5 is missing"
 msgstr ""
 
-#: peigen.c:2371 pepigen.c:2371 pex64igen.c:2371
+#: peigen.c:2353 pepigen.c:2353 pex64igen.c:2353
 msgid ""
 "%B: unable to fill in DataDictionary[PE_IMPORT_ADDRESS_TABLE (12)] because ."
 "idata$6 is missing"
 msgstr ""
 
-#: peigen.c:2413 pepigen.c:2413 pex64igen.c:2413
-msgid ""
-"%B: unable to fill in DataDictionary[PE_IMPORT_ADDRESS_TABLE(12)] because ."
-"idata$6 is missing"
-msgstr ""
-
-#: peigen.c:2438 pepigen.c:2438 pex64igen.c:2438
+#: peigen.c:2375 pepigen.c:2375 pex64igen.c:2375
 msgid "%B: unable to fill in DataDictionary[9] because __tls_used is missing"
 msgstr ""

@@ -1,5 +1,5 @@
 /* Disassemble MN10300 instructions.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2005, 2007, 2012
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
@@ -19,8 +19,9 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include <stdio.h>
+
+#include "sysdep.h"
 #include "opcode/mn10300.h"
 #include "dis-asm.h"
 #include "opintl.h"

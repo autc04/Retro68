@@ -1,6 +1,6 @@
 /* tc-ia64.h -- Header file for tc-ia64.c.
    Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-   2009, 2010  Free Software Foundation, Inc.
+   2009  Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -78,9 +78,6 @@ extern const char *ia64_target_format (void);
 #define LEX_AT		(LEX_NAME|LEX_BEGIN_NAME) /* allow `@' inside name */
 #define LEX_QM		(LEX_NAME|LEX_BEGIN_NAME) /* allow `?' inside name */
 #define LEX_HASH	LEX_END_NAME	/* allow `#' ending a name */
-
-#define TC_PREDICATE_START_CHAR '('
-#define TC_PREDICATE_END_CHAR ')'
 
 extern const char ia64_symbol_chars[];
 #define tc_symbol_chars ia64_symbol_chars
@@ -323,9 +320,3 @@ typedef struct unwind_record
    && (!(FIX)->fx_pcrel					\
        || (FIX)->fx_r_type == BFD_RELOC_IA64_PLTOFF22	\
        || TC_FORCE_RELOCATION (FIX)))
-
-/* VMS backtraces expect dwarf version 3.  */
-#ifdef TE_VMS
-#define DWARF2_VERSION 3
-#define DWARF2_LINE_VERSION 3
-#endif

@@ -36,7 +36,6 @@
     DEFAULT,                                                  \
     bfd_default_compatible,                                   \
     bfd_default_scan,                                         \
-    bfd_arch_default_fill,				      \
     NEXT,                                                     \
   }
 

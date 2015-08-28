@@ -202,7 +202,7 @@ Mapfile::print_memory_map_header()
 template<int size, bool big_endian>
 void
 Mapfile::print_input_section_symbols(
-    const Sized_relobj_file<size, big_endian>* relobj,
+    const Sized_relobj<size, big_endian>* relobj,
     unsigned int shndx)
 {
   unsigned int symcount = relobj->symbol_count();
@@ -273,8 +273,8 @@ Mapfile::print_input_section(Relobj* relobj, unsigned int shndx)
 #ifdef HAVE_TARGET_32_LITTLE
 	case Parameters::TARGET_32_LITTLE:
 	  {
-	    const Sized_relobj_file<32, false>* sized_relobj =
-	      static_cast<Sized_relobj_file<32, false>*>(relobj);
+	    const Sized_relobj<32, false>* sized_relobj =
+	      static_cast<Sized_relobj<32, false>*>(relobj);
 	    this->print_input_section_symbols(sized_relobj, shndx);
 	  }
 	  break;
@@ -282,8 +282,8 @@ Mapfile::print_input_section(Relobj* relobj, unsigned int shndx)
 #ifdef HAVE_TARGET_32_BIG
 	case Parameters::TARGET_32_BIG:
 	  {
-	    const Sized_relobj_file<32, true>* sized_relobj =
-	      static_cast<Sized_relobj_file<32, true>*>(relobj);
+	    const Sized_relobj<32, true>* sized_relobj =
+	      static_cast<Sized_relobj<32, true>*>(relobj);
 	    this->print_input_section_symbols(sized_relobj, shndx);
 	  }
 	  break;
@@ -291,8 +291,8 @@ Mapfile::print_input_section(Relobj* relobj, unsigned int shndx)
 #ifdef HAVE_TARGET_64_LITTLE
 	case Parameters::TARGET_64_LITTLE:
 	  {
-	    const Sized_relobj_file<64, false>* sized_relobj =
-	      static_cast<Sized_relobj_file<64, false>*>(relobj);
+	    const Sized_relobj<64, false>* sized_relobj =
+	      static_cast<Sized_relobj<64, false>*>(relobj);
 	    this->print_input_section_symbols(sized_relobj, shndx);
 	  }
 	  break;
@@ -300,8 +300,8 @@ Mapfile::print_input_section(Relobj* relobj, unsigned int shndx)
 #ifdef HAVE_TARGET_64_BIG
 	case Parameters::TARGET_64_BIG:
 	  {
-	    const Sized_relobj_file<64, true>* sized_relobj =
-	      static_cast<Sized_relobj_file<64, true>*>(relobj);
+	    const Sized_relobj<64, true>* sized_relobj =
+	      static_cast<Sized_relobj<64, true>*>(relobj);
 	    this->print_input_section_symbols(sized_relobj, shndx);
 	  }
 	  break;
@@ -347,12 +347,6 @@ Mapfile::print_discarded_sections(const Input_objects* input_objects)
        ++p)
     {
       Relobj* relobj = *p;
-      // Lock the object so we can read from it.  This is only called
-      // single-threaded from Layout_task_runner, so it is OK to lock.
-      // Unfortunately we have no way to pass in a Task token.
-      const Task* dummy_task = reinterpret_cast<const Task*>(-1);
-      Task_lock_obj<Object> tl(dummy_task, relobj);
-
       unsigned int shnum = relobj->shnum();
       for (unsigned int i = 0; i < shnum; ++i)
 	{

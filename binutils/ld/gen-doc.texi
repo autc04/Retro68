@@ -1,20 +1,14 @@
-@c Copyright 2012
-@c Free Software Foundation, Inc.
-@c For copying conditions, see the file ld.texinfo.
-
 @c ------------------------------ CONFIGURATION VARS:
 @c 1. Inclusiveness of this manual
 @set GENERIC
 
 @c 2. Specific target machines
 @set ARM
-@set C6X
 @set H8300
 @set HPPA
 @set I960
 @set M68HC11
 @set M68K
-@set MIPS
 @set MMIX
 @set MSP430
 @set POWERPC

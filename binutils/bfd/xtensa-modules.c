@@ -1,11 +1,11 @@
 /* Xtensa configuration-specific ISA information.
-   Copyright 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2003, 2004, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2 of the
+   published by the Free Software Foundation; either version 3 of the
    License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -29,13 +29,6 @@ static xtensa_sysreg_internal sysregs[] = {
   { "LBEG", 0, 0 },
   { "LEND", 1, 0 },
   { "LCOUNT", 2, 0 },
-  { "BR", 4, 0 },
-  { "ACCLO", 16, 0 },
-  { "ACCHI", 17, 0 },
-  { "M0", 32, 0 },
-  { "M1", 33, 0 },
-  { "M2", 34, 0 },
-  { "M3", 35, 0 },
   { "PTEVADDR", 83, 0 },
   { "MMID", 89, 0 },
   { "DDR", 104, 0 },
@@ -80,8 +73,6 @@ static xtensa_sysreg_internal sysregs[] = {
   { "PS", 230, 0 },
   { "MISC0", 244, 0 },
   { "MISC1", 245, 0 },
-  { "MISC2", 246, 0 },
-  { "MISC3", 247, 0 },
   { "INTENABLE", 228, 0 },
   { "DBREAKA0", 144, 0 },
   { "DBREAKC0", 160, 0 },
@@ -97,14 +88,12 @@ static xtensa_sysreg_internal sysregs[] = {
   { "DTLBCFG", 92, 0 },
   { "CPENABLE", 224, 0 },
   { "SCOMPARE1", 12, 0 },
-  { "THREADPTR", 231, 1 },
-  { "FCR", 232, 1 },
-  { "FSR", 233, 1 }
+  { "THREADPTR", 231, 1 }
 };
 
-#define NUM_SYSREGS 74
-#define MAX_SPECIAL_REG 247
-#define MAX_USER_REG 233
+#define NUM_SYSREGS 63
+#define MAX_SPECIAL_REG 245
+#define MAX_USER_REG 231
 
 
 /* Processor states.  */
@@ -114,7 +103,7 @@ static xtensa_state_internal states[] = {
   { "PC", 32, 0 },
   { "ICOUNT", 32, 0 },
   { "DDR", 32, 0 },
-  { "INTERRUPT", 32, 0 },
+  { "INTERRUPT", 22, 0 },
   { "CCOUNT", 32, 0 },
   { "XTSYNC", 1, 0 },
   { "VECBASE", 22, 0 },
@@ -146,8 +135,8 @@ static xtensa_state_internal states[] = {
   { "PSEXCM", 1, 0 },
   { "DEPC", 32, 0 },
   { "EXCVADDR", 32, 0 },
-  { "WindowBase", 4, 0 },
-  { "WindowStart", 16, 0 },
+  { "WindowBase", 3, 0 },
+  { "WindowStart", 8, 0 },
   { "PSCALLINC", 2, 0 },
   { "PSOWB", 4, 0 },
   { "LBEG", 32, 0 },
@@ -158,11 +147,8 @@ static xtensa_state_internal states[] = {
   { "LITBEN", 1, 0 },
   { "MISC0", 32, 0 },
   { "MISC1", 32, 0 },
-  { "MISC2", 32, 0 },
-  { "MISC3", 32, 0 },
-  { "ACC", 40, 0 },
   { "InOCDMode", 1, 0 },
-  { "INTENABLE", 32, 0 },
+  { "INTENABLE", 22, 0 },
   { "DBREAKA0", 32, 0 },
   { "DBREAKC0", 8, 0 },
   { "DBREAKA1", 32, 0 },
@@ -182,119 +168,85 @@ static xtensa_state_internal states[] = {
   { "INSTPGSZID4", 2, 0 },
   { "DATAPGSZID4", 2, 0 },
   { "PTBASE", 10, 0 },
-  { "CPENABLE", 1, 0 },
-  { "SCOMPARE1", 32, 0 },
-  { "RoundMode", 2, 0 },
-  { "InvalidEnable", 1, 0 },
-  { "DivZeroEnable", 1, 0 },
-  { "OverflowEnable", 1, 0 },
-  { "UnderflowEnable", 1, 0 },
-  { "InexactEnable", 1, 0 },
-  { "InvalidFlag", 1, 0 },
-  { "DivZeroFlag", 1, 0 },
-  { "OverflowFlag", 1, 0 },
-  { "UnderflowFlag", 1, 0 },
-  { "InexactFlag", 1, 0 },
-  { "FPreserved20", 20, 0 },
-  { "FPreserved20a", 20, 0 },
-  { "FPreserved5", 5, 0 },
-  { "FPreserved7", 7, 0 }
+  { "CPENABLE", 8, 0 },
+  { "SCOMPARE1", 32, 0 }
 };
 
-#define NUM_STATES 89
+#define NUM_STATES 71
 
-/* Macros for xtensa_state numbers (for use in iclasses because the
-   state numbers are not available when the iclass table is generated).  */
-
-#define STATE_LCOUNT 0
-#define STATE_PC 1
-#define STATE_ICOUNT 2
-#define STATE_DDR 3
-#define STATE_INTERRUPT 4
-#define STATE_CCOUNT 5
-#define STATE_XTSYNC 6
-#define STATE_VECBASE 7
-#define STATE_EPC1 8
-#define STATE_EPC2 9
-#define STATE_EPC3 10
-#define STATE_EPC4 11
-#define STATE_EPC5 12
-#define STATE_EPC6 13
-#define STATE_EPC7 14
-#define STATE_EXCSAVE1 15
-#define STATE_EXCSAVE2 16
-#define STATE_EXCSAVE3 17
-#define STATE_EXCSAVE4 18
-#define STATE_EXCSAVE5 19
-#define STATE_EXCSAVE6 20
-#define STATE_EXCSAVE7 21
-#define STATE_EPS2 22
-#define STATE_EPS3 23
-#define STATE_EPS4 24
-#define STATE_EPS5 25
-#define STATE_EPS6 26
-#define STATE_EPS7 27
-#define STATE_EXCCAUSE 28
-#define STATE_PSINTLEVEL 29
-#define STATE_PSUM 30
-#define STATE_PSWOE 31
-#define STATE_PSRING 32
-#define STATE_PSEXCM 33
-#define STATE_DEPC 34
-#define STATE_EXCVADDR 35
-#define STATE_WindowBase 36
-#define STATE_WindowStart 37
-#define STATE_PSCALLINC 38
-#define STATE_PSOWB 39
-#define STATE_LBEG 40
-#define STATE_LEND 41
-#define STATE_SAR 42
-#define STATE_THREADPTR 43
-#define STATE_LITBADDR 44
-#define STATE_LITBEN 45
-#define STATE_MISC0 46
-#define STATE_MISC1 47
-#define STATE_MISC2 48
-#define STATE_MISC3 49
-#define STATE_ACC 50
-#define STATE_InOCDMode 51
-#define STATE_INTENABLE 52
-#define STATE_DBREAKA0 53
-#define STATE_DBREAKC0 54
-#define STATE_DBREAKA1 55
-#define STATE_DBREAKC1 56
-#define STATE_IBREAKA0 57
-#define STATE_IBREAKA1 58
-#define STATE_IBREAKENABLE 59
-#define STATE_ICOUNTLEVEL 60
-#define STATE_DEBUGCAUSE 61
-#define STATE_DBNUM 62
-#define STATE_CCOMPARE0 63
-#define STATE_CCOMPARE1 64
-#define STATE_CCOMPARE2 65
-#define STATE_ASID3 66
-#define STATE_ASID2 67
-#define STATE_ASID1 68
-#define STATE_INSTPGSZID4 69
-#define STATE_DATAPGSZID4 70
-#define STATE_PTBASE 71
-#define STATE_CPENABLE 72
-#define STATE_SCOMPARE1 73
-#define STATE_RoundMode 74
-#define STATE_InvalidEnable 75
-#define STATE_DivZeroEnable 76
-#define STATE_OverflowEnable 77
-#define STATE_UnderflowEnable 78
-#define STATE_InexactEnable 79
-#define STATE_InvalidFlag 80
-#define STATE_DivZeroFlag 81
-#define STATE_OverflowFlag 82
-#define STATE_UnderflowFlag 83
-#define STATE_InexactFlag 84
-#define STATE_FPreserved20 85
-#define STATE_FPreserved20a 86
-#define STATE_FPreserved5 87
-#define STATE_FPreserved7 88
+enum xtensa_state_id {
+  STATE_LCOUNT,
+  STATE_PC,
+  STATE_ICOUNT,
+  STATE_DDR,
+  STATE_INTERRUPT,
+  STATE_CCOUNT,
+  STATE_XTSYNC,
+  STATE_VECBASE,
+  STATE_EPC1,
+  STATE_EPC2,
+  STATE_EPC3,
+  STATE_EPC4,
+  STATE_EPC5,
+  STATE_EPC6,
+  STATE_EPC7,
+  STATE_EXCSAVE1,
+  STATE_EXCSAVE2,
+  STATE_EXCSAVE3,
+  STATE_EXCSAVE4,
+  STATE_EXCSAVE5,
+  STATE_EXCSAVE6,
+  STATE_EXCSAVE7,
+  STATE_EPS2,
+  STATE_EPS3,
+  STATE_EPS4,
+  STATE_EPS5,
+  STATE_EPS6,
+  STATE_EPS7,
+  STATE_EXCCAUSE,
+  STATE_PSINTLEVEL,
+  STATE_PSUM,
+  STATE_PSWOE,
+  STATE_PSRING,
+  STATE_PSEXCM,
+  STATE_DEPC,
+  STATE_EXCVADDR,
+  STATE_WindowBase,
+  STATE_WindowStart,
+  STATE_PSCALLINC,
+  STATE_PSOWB,
+  STATE_LBEG,
+  STATE_LEND,
+  STATE_SAR,
+  STATE_THREADPTR,
+  STATE_LITBADDR,
+  STATE_LITBEN,
+  STATE_MISC0,
+  STATE_MISC1,
+  STATE_InOCDMode,
+  STATE_INTENABLE,
+  STATE_DBREAKA0,
+  STATE_DBREAKC0,
+  STATE_DBREAKA1,
+  STATE_DBREAKC1,
+  STATE_IBREAKA0,
+  STATE_IBREAKA1,
+  STATE_IBREAKENABLE,
+  STATE_ICOUNTLEVEL,
+  STATE_DEBUGCAUSE,
+  STATE_DBNUM,
+  STATE_CCOMPARE0,
+  STATE_CCOMPARE1,
+  STATE_CCOMPARE2,
+  STATE_ASID3,
+  STATE_ASID2,
+  STATE_ASID1,
+  STATE_INSTPGSZID4,
+  STATE_DATAPGSZID4,
+  STATE_PTBASE,
+  STATE_CPENABLE,
+  STATE_SCOMPARE1
+};
 
 
 /* Field definitions.  */
@@ -303,7 +255,7 @@ static unsigned
 Field_t_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
   return tie_t;
 }
 
@@ -312,231 +264,14 @@ Field_t_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_t_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_t_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_t_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_t_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_t_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_t_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-}
-
-static unsigned
-Field_t_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_t_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-}
-
-static unsigned
-Field_t_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_t_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-}
-
-static unsigned
-Field_t_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_t_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-}
-
-static unsigned
-Field_bbi4_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  return tie_t;
-}
-
-static void
-Field_bbi4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_bbi_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_bbi_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_bbi_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_bbi_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-}
-
-static unsigned
-Field_imm12_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 12) | ((insn[0] << 8) >> 20);
-  return tie_t;
-}
-
-static void
-Field_imm12_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 20) >> 20;
-  insn[0] = (insn[0] & ~0xfff000) | (tie_t << 12);
-}
-
-static unsigned
-Field_imm8_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 8) | ((insn[0] << 8) >> 24);
-  return tie_t;
-}
-
-static void
-Field_imm8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
-  insn[0] = (insn[0] & ~0xff0000) | (tie_t << 16);
-}
-
-static unsigned
-Field_imm8_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 8) | ((insn[0] << 12) >> 24);
-  return tie_t;
-}
-
-static void
-Field_imm8_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
-  insn[0] = (insn[0] & ~0xff000) | (tie_t << 12);
-}
-
-static unsigned
-Field_imm8_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_imm8_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 24) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
 }
 
 static unsigned
 Field_s_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
   return tie_t;
 }
 
@@ -545,11 +280,11 @@ Field_s_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
+  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
-Field_s_Slot_inst16a_get (const xtensa_insnbuf insn)
+Field_r_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
   tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
@@ -557,7 +292,7 @@ Field_s_Slot_inst16a_get (const xtensa_insnbuf insn)
 }
 
 static void
-Field_s_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+Field_r_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
@@ -565,269 +300,7 @@ Field_s_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 }
 
 static unsigned
-Field_s_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_s_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_s_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_s_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_s_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_s_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_s_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_s_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_s_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_s_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_imm12b_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 8) | ((insn[0] << 8) >> 24);
-  return tie_t;
-}
-
-static void
-Field_imm12b_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
-  insn[0] = (insn[0] & ~0xff0000) | (tie_t << 16);
-  tie_t = (val << 20) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_imm12b_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  tie_t = (tie_t << 8) | ((insn[0] << 12) >> 24);
-  return tie_t;
-}
-
-static void
-Field_imm12b_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
-  insn[0] = (insn[0] & ~0xff000) | (tie_t << 12);
-  tie_t = (val << 20) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_imm12b_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 12) | ((insn[0] << 16) >> 20);
-  return tie_t;
-}
-
-static void
-Field_imm12b_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 20) >> 20;
-  insn[0] = (insn[0] & ~0xfff0) | (tie_t << 4);
-}
-
-static unsigned
-Field_imm16_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 16) | ((insn[0] << 8) >> 16);
-  return tie_t;
-}
-
-static void
-Field_imm16_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 16) >> 16;
-  insn[0] = (insn[0] & ~0xffff00) | (tie_t << 8);
-}
-
-static unsigned
-Field_imm16_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 16) | ((insn[0] << 12) >> 16);
-  return tie_t;
-}
-
-static void
-Field_imm16_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 16) >> 16;
-  insn[0] = (insn[0] & ~0xffff0) | (tie_t << 4);
-}
-
-static unsigned
-Field_m_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
-  return tie_t;
-}
-
-static void
-Field_m_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
-}
-
-static unsigned
-Field_m_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 28) >> 30);
-  return tie_t;
-}
-
-static void
-Field_m_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc) | (tie_t << 2);
-}
-
-static unsigned
-Field_n_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  return tie_t;
-}
-
-static void
-Field_n_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
-}
-
-static unsigned
-Field_n_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 30) >> 30);
-  return tie_t;
-}
-
-static void
-Field_n_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x3) | (tie_t << 0);
-}
-
-static unsigned
-Field_offset_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 18) | ((insn[0] << 8) >> 14);
-  return tie_t;
-}
-
-static void
-Field_offset_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 14) >> 14;
-  insn[0] = (insn[0] & ~0xffffc0) | (tie_t << 6);
-}
-
-static unsigned
-Field_offset_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 18) | ((insn[0] << 14) >> 14);
-  return tie_t;
-}
-
-static void
-Field_offset_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 14) >> 14;
-  insn[0] = (insn[0] & ~0x3ffff) | (tie_t << 0);
-}
-
-static unsigned
-Field_op0_Slot_inst_get (const xtensa_insnbuf insn)
+Field_op2_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
   tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
@@ -835,39 +308,7 @@ Field_op0_Slot_inst_get (const xtensa_insnbuf insn)
 }
 
 static void
-Field_op0_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-}
-
-static unsigned
-Field_op0_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_op0_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-}
-
-static unsigned
-Field_op0_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_op0_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+Field_op2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
@@ -878,7 +319,7 @@ static unsigned
 Field_op1_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
   return tie_t;
 }
 
@@ -887,27 +328,11 @@ Field_op1_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
+  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
-Field_op1_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_op1_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_op2_Slot_inst_get (const xtensa_insnbuf insn)
+Field_op0_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
   tie_t = (tie_t << 4) | ((insn[0] << 8) >> 28);
@@ -915,7 +340,7 @@ Field_op2_Slot_inst_get (const xtensa_insnbuf insn)
 }
 
 static void
-Field_op2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+Field_op0_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
@@ -923,430 +348,35 @@ Field_op2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 }
 
 static unsigned
-Field_op2_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
+Field_n_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
+  tie_t = (tie_t << 2) | ((insn[0] << 12) >> 30);
   return tie_t;
 }
 
 static void
-Field_op2_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
+Field_n_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
+  tie_t = (val << 30) >> 30;
+  insn[0] = (insn[0] & ~0xc0000) | (tie_t << 18);
 }
 
 static unsigned
-Field_op2_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
+Field_m_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  tie_t = (tie_t << 2) | ((insn[0] << 14) >> 30);
   return tie_t;
 }
 
 static void
-Field_op2_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
+Field_m_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_r_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_r_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_r_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_r_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_r_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_r_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_r_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_r_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_r_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_r_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_r_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_r_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-}
-
-static unsigned
-Field_r_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_r_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-}
-
-static unsigned
-Field_sa4_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 11) >> 31);
-  return tie_t;
-}
-
-static void
-Field_sa4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x100000) | (tie_t << 20);
-}
-
-static unsigned
-Field_sae4_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
-  return tie_t;
-}
-
-static void
-Field_sae4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
-}
-
-static unsigned
-Field_sae4_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  return tie_t;
-}
-
-static void
-Field_sae4_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_sae_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sae_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
-}
-
-static unsigned
-Field_sae_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sae_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_sae_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 15) >> 27);
-  return tie_t;
-}
-
-static void
-Field_sae_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
-  insn[0] = (insn[0] & ~0x1f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_sal_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 11) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sal_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x100000) | (tie_t << 20);
-}
-
-static unsigned
-Field_sal_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sal_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
-}
-
-static unsigned
-Field_sal_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sal_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_sargt_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 11) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sargt_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x100000) | (tie_t << 20);
-}
-
-static unsigned
-Field_sargt_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sargt_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
-}
-
-static unsigned
-Field_sargt_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 19) >> 27);
-  return tie_t;
-}
-
-static void
-Field_sargt_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
-  insn[0] = (insn[0] & ~0x1f00) | (tie_t << 8);
-}
-
-static unsigned
-Field_sargt_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 19) >> 27);
-  return tie_t;
-}
-
-static void
-Field_sargt_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
-  insn[0] = (insn[0] & ~0x1f00) | (tie_t << 8);
-}
-
-static unsigned
-Field_sas4_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
-  return tie_t;
-}
-
-static void
-Field_sas4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
-}
-
-static unsigned
-Field_sas_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sas_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
-}
-
-static unsigned
-Field_sas_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 31) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sas_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x1) | (tie_t << 0);
+  tie_t = (val << 30) >> 30;
+  insn[0] = (insn[0] & ~0x30000) | (tie_t << 16);
 }
 
 static unsigned
@@ -1369,49 +399,11 @@ Field_sr_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 }
 
 static unsigned
-Field_sr_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sr_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 24) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_sr_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_sr_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 24) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
 Field_st_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
   return tie_t;
 }
 
@@ -1420,54 +412,16 @@ Field_st_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
+  insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
   tie_t = (val << 24) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_st_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_st_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 24) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_st_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  return tie_t;
-}
-
-static void
-Field_st_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 24) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
+  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_thi3_Slot_inst_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
+  tie_t = (tie_t << 3) | ((insn[0] << 12) >> 29);
   return tie_t;
 }
 
@@ -1476,27 +430,11 @@ Field_thi3_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
+  insn[0] = (insn[0] & ~0xe0000) | (tie_t << 17);
 }
 
 static unsigned
-Field_thi3_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 28) >> 29);
-  return tie_t;
-}
-
-static void
-Field_thi3_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe) | (tie_t << 1);
-}
-
-static unsigned
-Field_imm4_Slot_inst_get (const xtensa_insnbuf insn)
+Field_op0_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
   tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
@@ -1504,7 +442,7 @@ Field_imm4_Slot_inst_get (const xtensa_insnbuf insn)
 }
 
 static void
-Field_imm4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+Field_op0_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
@@ -1512,7 +450,39 @@ Field_imm4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 }
 
 static unsigned
-Field_imm4_Slot_inst16a_get (const xtensa_insnbuf insn)
+Field_t_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  return tie_t;
+}
+
+static void
+Field_t_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
+}
+
+static unsigned
+Field_r_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_r_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_op0_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
   tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
@@ -1520,229 +490,18 @@ Field_imm4_Slot_inst16a_get (const xtensa_insnbuf insn)
 }
 
 static void
-Field_imm4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+Field_op0_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_imm4_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_imm4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_mn_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  return tie_t;
-}
-
-static void
-Field_mn_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
-  tie_t = (val << 28) >> 30;
-  insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
-}
-
-static unsigned
-Field_i_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_i_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_i_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_i_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_imm6lo_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_imm6lo_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_imm6lo_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_imm6lo_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_imm6hi_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  return tie_t;
-}
-
-static void
-Field_imm6hi_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
-}
-
-static unsigned
-Field_imm6hi_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  return tie_t;
-}
-
-static void
-Field_imm6hi_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
-}
-
-static unsigned
-Field_imm7lo_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_imm7lo_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_imm7lo_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_imm7lo_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_imm7hi_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  return tie_t;
-}
-
-static void
-Field_imm7hi_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
-}
-
-static unsigned
-Field_imm7hi_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  return tie_t;
-}
-
-static void
-Field_imm7hi_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
-}
-
-static unsigned
-Field_z_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
-  return tie_t;
-}
-
-static void
-Field_z_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
 }
 
 static unsigned
 Field_z_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
+  tie_t = (tie_t << 1) | ((insn[0] << 21) >> 31);
   return tie_t;
 }
 
@@ -1751,15 +510,640 @@ Field_z_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
+  insn[0] = (insn[0] & ~0x400) | (tie_t << 10);
+}
+
+static unsigned
+Field_i_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
+  return tie_t;
+}
+
+static void
+Field_i_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 31) >> 31;
+  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
+}
+
+static unsigned
+Field_s_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  return tie_t;
+}
+
+static void
+Field_s_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
+}
+
+static unsigned
+Field_t_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  return tie_t;
+}
+
+static void
+Field_t_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
+}
+
+static unsigned
+Field_bbi4_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 23) >> 31);
+  return tie_t;
+}
+
+static void
+Field_bbi4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 31) >> 31;
+  insn[0] = (insn[0] & ~0x100) | (tie_t << 8);
+}
+
+static unsigned
+Field_bbi_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 23) >> 31);
+  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
+  return tie_t;
+}
+
+static void
+Field_bbi_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
+  tie_t = (val << 27) >> 31;
+  insn[0] = (insn[0] & ~0x100) | (tie_t << 8);
+}
+
+static unsigned
+Field_imm12_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 12) | ((insn[0] << 20) >> 20);
+  return tie_t;
+}
+
+static void
+Field_imm12_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 20) >> 20;
+  insn[0] = (insn[0] & ~0xfff) | (tie_t << 0);
+}
+
+static unsigned
+Field_imm8_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 8) | ((insn[0] << 24) >> 24);
+  return tie_t;
+}
+
+static void
+Field_imm8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 24) >> 24;
+  insn[0] = (insn[0] & ~0xff) | (tie_t << 0);
+}
+
+static unsigned
+Field_s_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  return tie_t;
+}
+
+static void
+Field_s_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
+}
+
+static unsigned
+Field_imm12b_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  tie_t = (tie_t << 8) | ((insn[0] << 24) >> 24);
+  return tie_t;
+}
+
+static void
+Field_imm12b_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 24) >> 24;
+  insn[0] = (insn[0] & ~0xff) | (tie_t << 0);
+  tie_t = (val << 20) >> 28;
+  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+}
+
+static unsigned
+Field_imm16_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 16) | ((insn[0] << 16) >> 16);
+  return tie_t;
+}
+
+static void
+Field_imm16_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 16) >> 16;
+  insn[0] = (insn[0] & ~0xffff) | (tie_t << 0);
+}
+
+static unsigned
+Field_offset_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 18) | ((insn[0] << 14) >> 14);
+  return tie_t;
+}
+
+static void
+Field_offset_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 14) >> 14;
+  insn[0] = (insn[0] & ~0x3ffff) | (tie_t << 0);
+}
+
+static unsigned
+Field_r_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_r_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_sa4_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 31) >> 31);
+  return tie_t;
+}
+
+static void
+Field_sa4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 31) >> 31;
+  insn[0] = (insn[0] & ~0x1) | (tie_t << 0);
+}
+
+static unsigned
+Field_sae4_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
+  return tie_t;
+}
+
+static void
+Field_sae4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 31) >> 31;
+  insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
+}
+
+static unsigned
+Field_sae_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
+  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  return tie_t;
+}
+
+static void
+Field_sae_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  tie_t = (val << 27) >> 31;
+  insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
+}
+
+static unsigned
+Field_sal_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 31) >> 31);
+  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
+  return tie_t;
+}
+
+static void
+Field_sal_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
+  tie_t = (val << 27) >> 31;
+  insn[0] = (insn[0] & ~0x1) | (tie_t << 0);
+}
+
+static unsigned
+Field_sargt_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 31) >> 31);
+  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  return tie_t;
+}
+
+static void
+Field_sargt_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  tie_t = (val << 27) >> 31;
+  insn[0] = (insn[0] & ~0x1) | (tie_t << 0);
+}
+
+static unsigned
+Field_sas4_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
+  return tie_t;
+}
+
+static void
+Field_sas4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 31) >> 31;
+  insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
+}
+
+static unsigned
+Field_sas_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
+  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  return tie_t;
+}
+
+static void
+Field_sas_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  tie_t = (val << 27) >> 31;
+  insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
+}
+
+static unsigned
+Field_sr_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_sr_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+  tie_t = (val << 24) >> 28;
+  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
+}
+
+static unsigned
+Field_sr_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_sr_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+  tie_t = (val << 24) >> 28;
+  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
+}
+
+static unsigned
+Field_st_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  return tie_t;
+}
+
+static void
+Field_st_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
+  tie_t = (val << 24) >> 28;
+  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
+}
+
+static unsigned
+Field_st_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  return tie_t;
+}
+
+static void
+Field_st_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
+  tie_t = (val << 24) >> 28;
+  insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
+}
+
+static unsigned
+Field_imm4_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  return tie_t;
+}
+
+static void
+Field_imm4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
+}
+
+static unsigned
+Field_imm4_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_imm4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_imm4_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_imm4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_mn_Slot_inst_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 2) | ((insn[0] << 12) >> 30);
+  tie_t = (tie_t << 2) | ((insn[0] << 14) >> 30);
+  return tie_t;
+}
+
+static void
+Field_mn_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 30) >> 30;
+  insn[0] = (insn[0] & ~0x30000) | (tie_t << 16);
+  tie_t = (val << 28) >> 30;
+  insn[0] = (insn[0] & ~0xc0000) | (tie_t << 18);
+}
+
+static unsigned
+Field_i_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
+  return tie_t;
+}
+
+static void
+Field_i_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 31) >> 31;
+  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
+}
+
+static unsigned
+Field_imm6lo_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_imm6lo_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_imm6lo_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_imm6lo_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_imm6hi_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
+  return tie_t;
+}
+
+static void
+Field_imm6hi_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 30) >> 30;
+  insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
+}
+
+static unsigned
+Field_imm6hi_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
+  return tie_t;
+}
+
+static void
+Field_imm6hi_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 30) >> 30;
+  insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
+}
+
+static unsigned
+Field_imm7lo_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_imm7lo_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_imm7lo_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  return tie_t;
+}
+
+static void
+Field_imm7lo_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 28) >> 28;
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
+}
+
+static unsigned
+Field_imm7hi_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
+  return tie_t;
+}
+
+static void
+Field_imm7hi_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 29) >> 29;
+  insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
+}
+
+static unsigned
+Field_imm7hi_Slot_inst16b_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
+  return tie_t;
+}
+
+static void
+Field_imm7hi_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 29) >> 29;
+  insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
+}
+
+static unsigned
+Field_z_Slot_inst16a_get (const xtensa_insnbuf insn)
+{
+  unsigned tie_t = 0;
+  tie_t = (tie_t << 1) | ((insn[0] << 21) >> 31);
+  return tie_t;
+}
+
+static void
+Field_z_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
+{
+  uint32 tie_t;
+  tie_t = (val << 31) >> 31;
+  insn[0] = (insn[0] & ~0x400) | (tie_t << 10);
 }
 
 static unsigned
 Field_imm6_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
   return tie_t;
 }
 
@@ -1768,17 +1152,17 @@ Field_imm6_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
   tie_t = (val << 26) >> 30;
-  insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
+  insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
 }
 
 static unsigned
 Field_imm6_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
   return tie_t;
 }
 
@@ -1787,17 +1171,17 @@ Field_imm6_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
   tie_t = (val << 26) >> 30;
-  insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
+  insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
 }
 
 static unsigned
 Field_imm7_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
   return tie_t;
 }
 
@@ -1806,17 +1190,17 @@ Field_imm7_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
   tie_t = (val << 25) >> 29;
-  insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
+  insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
 }
 
 static unsigned
 Field_imm7_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
   unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
+  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
   return tie_t;
 }
 
@@ -1825,601 +1209,9 @@ Field_imm7_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
   tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
+  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
   tie_t = (val << 25) >> 29;
-  insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
-}
-
-static unsigned
-Field_imm7_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 7) | ((insn[0] << 25) >> 25);
-  return tie_t;
-}
-
-static void
-Field_imm7_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 25) >> 25;
-  insn[0] = (insn[0] & ~0x7f) | (tie_t << 0);
-}
-
-static unsigned
-Field_r3_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
-  return tie_t;
-}
-
-static void
-Field_r3_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
-}
-
-static unsigned
-Field_rbit2_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 17) >> 31);
-  return tie_t;
-}
-
-static void
-Field_rbit2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000) | (tie_t << 14);
-}
-
-static unsigned
-Field_rhi_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
-  return tie_t;
-}
-
-static void
-Field_rhi_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
-}
-
-static unsigned
-Field_t3_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_t3_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_tbit2_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
-  return tie_t;
-}
-
-static void
-Field_tbit2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
-}
-
-static unsigned
-Field_tlo_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  return tie_t;
-}
-
-static void
-Field_tlo_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
-}
-
-static unsigned
-Field_w_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 18) >> 30);
-  return tie_t;
-}
-
-static void
-Field_w_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x3000) | (tie_t << 12);
-}
-
-static unsigned
-Field_y_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
-  return tie_t;
-}
-
-static void
-Field_y_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
-}
-
-static unsigned
-Field_x_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 17) >> 31);
-  return tie_t;
-}
-
-static void
-Field_x_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000) | (tie_t << 14);
-}
-
-static unsigned
-Field_t2_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
-  return tie_t;
-}
-
-static void
-Field_t2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
-}
-
-static unsigned
-Field_t2_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
-  return tie_t;
-}
-
-static void
-Field_t2_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
-}
-
-static unsigned
-Field_t2_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
-  return tie_t;
-}
-
-static void
-Field_t2_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
-}
-
-static unsigned
-Field_s2_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 20) >> 29);
-  return tie_t;
-}
-
-static void
-Field_s2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe00) | (tie_t << 9);
-}
-
-static unsigned
-Field_s2_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 20) >> 29);
-  return tie_t;
-}
-
-static void
-Field_s2_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe00) | (tie_t << 9);
-}
-
-static unsigned
-Field_s2_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 20) >> 29);
-  return tie_t;
-}
-
-static void
-Field_s2_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe00) | (tie_t << 9);
-}
-
-static unsigned
-Field_r2_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
-  return tie_t;
-}
-
-static void
-Field_r2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
-}
-
-static unsigned
-Field_r2_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
-  return tie_t;
-}
-
-static void
-Field_r2_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
-}
-
-static unsigned
-Field_r2_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
-  return tie_t;
-}
-
-static void
-Field_r2_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
-}
-
-static unsigned
-Field_t4_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
-  return tie_t;
-}
-
-static void
-Field_t4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
-}
-
-static unsigned
-Field_t4_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
-  return tie_t;
-}
-
-static void
-Field_t4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
-}
-
-static unsigned
-Field_t4_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
-  return tie_t;
-}
-
-static void
-Field_t4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
-}
-
-static unsigned
-Field_s4_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
-  return tie_t;
-}
-
-static void
-Field_s4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
-}
-
-static unsigned
-Field_s4_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
-  return tie_t;
-}
-
-static void
-Field_s4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
-}
-
-static unsigned
-Field_s4_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
-  return tie_t;
-}
-
-static void
-Field_s4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
-}
-
-static unsigned
-Field_r4_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
-  return tie_t;
-}
-
-static void
-Field_r4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
-}
-
-static unsigned
-Field_r4_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
-  return tie_t;
-}
-
-static void
-Field_r4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
-}
-
-static unsigned
-Field_r4_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
-  return tie_t;
-}
-
-static void
-Field_r4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
-}
-
-static unsigned
-Field_t8_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_t8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_t8_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_t8_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_t8_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_t8_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_s8_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  return tie_t;
-}
-
-static void
-Field_s8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
-}
-
-static unsigned
-Field_s8_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  return tie_t;
-}
-
-static void
-Field_s8_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
-}
-
-static unsigned
-Field_s8_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  return tie_t;
-}
-
-static void
-Field_s8_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
-}
-
-static unsigned
-Field_r8_Slot_inst_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
-  return tie_t;
-}
-
-static void
-Field_r8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
-}
-
-static unsigned
-Field_r8_Slot_inst16a_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
-  return tie_t;
-}
-
-static void
-Field_r8_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
-}
-
-static unsigned
-Field_r8_Slot_inst16b_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
-  return tie_t;
-}
-
-static void
-Field_r8_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
+  insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
 }
 
 static unsigned
@@ -2454,1269 +1246,6 @@ Field_xt_wbr18_imm_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
   insn[0] = (insn[0] & ~0xffffc0) | (tie_t << 6);
 }
 
-static unsigned
-Field_xt_wbr18_imm_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 18) | ((insn[0] << 6) >> 14);
-  return tie_t;
-}
-
-static void
-Field_xt_wbr18_imm_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 14) >> 14;
-  insn[0] = (insn[0] & ~0x3ffff00) | (tie_t << 8);
-}
-
-static unsigned
-Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 8) >> 28);
-  return tie_t;
-}
-
-static void
-Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00000) | (tie_t << 20);
-}
-
-static unsigned
-Field_combined3e2c5767_fld7_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld7_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
-}
-
-static unsigned
-Field_combined3e2c5767_fld8_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld8_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
-}
-
-static unsigned
-Field_combined3e2c5767_fld9_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 12) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld9_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe0000) | (tie_t << 17);
-}
-
-static unsigned
-Field_combined3e2c5767_fld11_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 12) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld11_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe0000) | (tie_t << 17);
-}
-
-static unsigned
-Field_combined3e2c5767_fld49xt_flix64_slot0_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld49xt_flix64_slot0_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 24) >> 28;
-  insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
-}
-
-static unsigned
-Field_op0_s4_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 12) >> 30);
-  return tie_t;
-}
-
-static void
-Field_op0_s4_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc0000) | (tie_t << 18);
-}
-
-static unsigned
-Field_combined3e2c5767_fld16_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld16_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld19xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 14) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld19xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x20000) | (tie_t << 17);
-}
-
-static unsigned
-Field_combined3e2c5767_fld20xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 14) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld20xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x30000) | (tie_t << 16);
-}
-
-static unsigned
-Field_combined3e2c5767_fld21xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 14) >> 27);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld21xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
-  insn[0] = (insn[0] & ~0x3e000) | (tie_t << 13);
-}
-
-static unsigned
-Field_combined3e2c5767_fld22xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld22xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 26) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld23xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld23xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
-  tie_t = (val << 23) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld25xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld25xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
-  tie_t = (val << 23) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld26xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 2) | ((insn[0] << 25) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld26xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x60) | (tie_t << 5);
-  tie_t = (val << 24) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld28xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld28xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
-  tie_t = (val << 25) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld30xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld30xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
-  tie_t = (val << 24) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld32xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld32xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
-  tie_t = (val << 24) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld33xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 1) | ((insn[0] << 22) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld33xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x200) | (tie_t << 9);
-  tie_t = (val << 25) >> 26;
-  insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld35xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 14) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld35xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x38000) | (tie_t << 15);
-}
-
-static unsigned
-Field_combined3e2c5767_fld51xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld51xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_combined3e2c5767_fld52xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld52xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
-}
-
-static unsigned
-Field_combined3e2c5767_fld54xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 20) >> 27);
-  tie_t = (tie_t << 6) | ((insn[0] << 26) >> 26);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld54xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 26) >> 26;
-  insn[0] = (insn[0] & ~0x3f) | (tie_t << 0);
-  tie_t = (val << 21) >> 27;
-  insn[0] = (insn[0] & ~0xf80) | (tie_t << 7);
-}
-
-static unsigned
-Field_combined3e2c5767_fld57xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld57xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld58xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
-  tie_t = (tie_t << 1) | ((insn[0] << 23) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld58xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x100) | (tie_t << 8);
-  tie_t = (val << 29) >> 30;
-  insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
-}
-
-static unsigned
-Field_combined3e2c5767_fld60xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 5) | ((insn[0] << 27) >> 27);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld60xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
-  insn[0] = (insn[0] & ~0x1f) | (tie_t << 0);
-  tie_t = (val << 26) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-}
-
-static unsigned
-Field_combined3e2c5767_fld62xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 17) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld62xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x7000) | (tie_t << 12);
-}
-
-static unsigned
-Field_op0_s5_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
-  return tie_t;
-}
-
-static void
-Field_op0_s5_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
-}
-
-static unsigned
-Field_combined3e2c5767_fld36xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld36xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld37xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld37xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-  tie_t = (val << 30) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld39xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld39xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
-  tie_t = (val << 30) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-  tie_t = (val << 29) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld41xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld41xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
-  tie_t = (val << 30) >> 31;
-  insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-  tie_t = (val << 29) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld42xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld42xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
-  tie_t = (val << 28) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld44xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld44xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
-  tie_t = (val << 28) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld45xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 2) | ((insn[0] << 21) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld45xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x600) | (tie_t << 9);
-  tie_t = (val << 29) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld47xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 21) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld47xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x400) | (tie_t << 10);
-  tie_t = (val << 30) >> 31;
-  insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
-}
-
-static unsigned
-Field_combined3e2c5767_fld63xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 25) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld63xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x60) | (tie_t << 5);
-}
-
-static unsigned
-Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
-}
-
-static unsigned
-Field_combined3e2c5767_fld65xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 2) | ((insn[0] << 25) >> 30);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld65xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 26) >> 30;
-  insn[0] = (insn[0] & ~0x60) | (tie_t << 5);
-  tie_t = (val << 22) >> 28;
-  insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-}
-
-static unsigned
-Field_combined3e2c5767_fld66xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 23) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld66xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x100) | (tie_t << 8);
-  tie_t = (val << 30) >> 31;
-  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
-}
-
-static unsigned
-Field_combined3e2c5767_fld68xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld68xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
-  insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
-  tie_t = (val << 29) >> 31;
-  insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
-}
-
-static unsigned
-Field_op0_s6_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 0) >> 27);
-  return tie_t;
-}
-
-static void
-Field_op0_s6_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
-  insn[0] = (insn[0] & ~0xf8000000) | (tie_t << 27);
-}
-
-static unsigned
-Field_combined3e2c5767_fld70xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld70xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld72xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld72xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld73xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld73xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld74xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld74xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld75xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld75xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld76xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld76xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld77xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld77xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld78xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld78xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld79xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld79xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld80xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld80xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld81xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld81xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld82xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld82xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld83xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld83xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld84xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld84xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld85xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld85xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld86xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld86xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld87xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld87xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld88xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld88xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld89xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld89xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld90xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld90xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld91xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld91xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld92xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld92xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
-  insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_combined3e2c5767_fld93xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 27) | ((insn[0] << 5) >> 5);
-  return tie_t;
-}
-
-static void
-Field_combined3e2c5767_fld93xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 5) >> 5;
-  insn[0] = (insn[0] & ~0x7ffffff) | (tie_t << 0);
-  tie_t = (val << 2) >> 29;
-  insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
-}
-
-static unsigned
-Field_op0_xt_flix64_slot0_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
-{
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 8) >> 28);
-  return tie_t;
-}
-
-static void
-Field_op0_xt_flix64_slot0_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
-{
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
-  insn[0] = (insn[0] & ~0xf00000) | (tie_t << 20);
-}
-
 static void
 Implicit_Field_set (xtensa_insnbuf insn ATTRIBUTE_UNUSED,
 		    uint32 val ATTRIBUTE_UNUSED)
@@ -3748,53 +1277,49 @@ Implicit_Field_ar12_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
   return 12;
 }
 
-static unsigned
-Implicit_Field_mr0_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static unsigned
-Implicit_Field_mr1_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 1;
-}
-
-static unsigned
-Implicit_Field_mr2_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 2;
-}
-
-static unsigned
-Implicit_Field_mr3_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 3;
-}
-
-static unsigned
-Implicit_Field_bt16_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static unsigned
-Implicit_Field_bs16_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static unsigned
-Implicit_Field_br16_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static unsigned
-Implicit_Field_brall_get (const xtensa_insnbuf insn ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
+enum xtensa_field_id {
+  FIELD_t,
+  FIELD_bbi4,
+  FIELD_bbi,
+  FIELD_imm12,
+  FIELD_imm8,
+  FIELD_s,
+  FIELD_imm12b,
+  FIELD_imm16,
+  FIELD_m,
+  FIELD_n,
+  FIELD_offset,
+  FIELD_op0,
+  FIELD_op1,
+  FIELD_op2,
+  FIELD_r,
+  FIELD_sa4,
+  FIELD_sae4,
+  FIELD_sae,
+  FIELD_sal,
+  FIELD_sargt,
+  FIELD_sas4,
+  FIELD_sas,
+  FIELD_sr,
+  FIELD_st,
+  FIELD_thi3,
+  FIELD_imm4,
+  FIELD_mn,
+  FIELD_i,
+  FIELD_imm6lo,
+  FIELD_imm6hi,
+  FIELD_imm7lo,
+  FIELD_imm7hi,
+  FIELD_z,
+  FIELD_imm6,
+  FIELD_imm7,
+  FIELD_xt_wbr15_imm,
+  FIELD_xt_wbr18_imm,
+  FIELD__ar0,
+  FIELD__ar4,
+  FIELD__ar8,
+  FIELD__ar12
+};
 
 
 /* Functional units.  */
@@ -3806,15 +1331,12 @@ static xtensa_funcUnit_internal funcUnits[] = {
 
 /* Register files.  */
 
+enum xtensa_regfile_id {
+  REGFILE_AR
+};
+
 static xtensa_regfile_internal regfiles[] = {
-  { "AR", "a", 0, 32, 64 },
-  { "MR", "m", 1, 32, 4 },
-  { "BR", "b", 2, 1, 16 },
-  { "FR", "f", 3, 32, 16 },
-  { "BR2", "b", 2, 2, 8 },
-  { "BR4", "b", 2, 4, 4 },
-  { "BR8", "b", 2, 8, 2 },
-  { "BR16", "b", 2, 16, 1 }
+  { "AR", "a", REGFILE_AR, 32, 32 }
 };
 
 
@@ -4019,7 +1541,7 @@ static int
 Operand_ar0_encode (uint32 *valp)
 {
   int error;
-  error = (*valp & ~0x3f) != 0;
+  error = (*valp & ~0x1f) != 0;
   return error;
 }
 
@@ -4033,7 +1555,7 @@ static int
 Operand_ar4_encode (uint32 *valp)
 {
   int error;
-  error = (*valp & ~0x3f) != 0;
+  error = (*valp & ~0x1f) != 0;
   return error;
 }
 
@@ -4047,7 +1569,7 @@ static int
 Operand_ar8_encode (uint32 *valp)
 {
   int error;
-  error = (*valp & ~0x3f) != 0;
+  error = (*valp & ~0x1f) != 0;
   return error;
 }
 
@@ -4061,7 +1583,7 @@ static int
 Operand_ar12_encode (uint32 *valp)
 {
   int error;
-  error = (*valp & ~0x3f) != 0;
+  error = (*valp & ~0x1f) != 0;
   return error;
 }
 
@@ -4075,7 +1597,7 @@ static int
 Operand_ars_entry_encode (uint32 *valp)
 {
   int error;
-  error = (*valp & ~0x3f) != 0;
+  error = (*valp & ~0x1f) != 0;
   return error;
 }
 
@@ -4638,106 +2160,6 @@ Operand_uimm16x4_rtoa (uint32 *valp, uint32 pc)
 }
 
 static int
-Operand_mx_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_mx_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0x3) != 0;
-  return error;
-}
-
-static int
-Operand_my_decode (uint32 *valp)
-{
-  *valp += 2;
-  return 0;
-}
-
-static int
-Operand_my_encode (uint32 *valp)
-{
-  int error;
-  error = ((*valp & ~0x3) != 0) || ((*valp & 0x2) == 0);
-  *valp = *valp & 1;
-  return error;
-}
-
-static int
-Operand_mw_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_mw_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0x3) != 0;
-  return error;
-}
-
-static int
-Operand_mr0_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_mr0_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0x3) != 0;
-  return error;
-}
-
-static int
-Operand_mr1_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_mr1_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0x3) != 0;
-  return error;
-}
-
-static int
-Operand_mr2_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_mr2_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0x3) != 0;
-  return error;
-}
-
-static int
-Operand_mr3_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_mr3_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0x3) != 0;
-  return error;
-}
-
-static int
 Operand_immt_decode (uint32 *valp)
 {
   unsigned immt_0, t_0;
@@ -4775,256 +2197,6 @@ Operand_imms_encode (uint32 *valp)
   s_0 = imms_0 & 0xf;
   *valp = s_0;
   return 0;
-}
-
-static int
-Operand_bt_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_bt_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
-}
-
-static int
-Operand_bs_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_bs_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
-}
-
-static int
-Operand_br_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_br_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
-}
-
-static int
-Operand_bt2_decode (uint32 *valp)
-{
-  *valp = *valp << 1;
-  return 0;
-}
-
-static int
-Operand_bt2_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x7 << 1)) != 0;
-  *valp = *valp >> 1;
-  return error;
-}
-
-static int
-Operand_bs2_decode (uint32 *valp)
-{
-  *valp = *valp << 1;
-  return 0;
-}
-
-static int
-Operand_bs2_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x7 << 1)) != 0;
-  *valp = *valp >> 1;
-  return error;
-}
-
-static int
-Operand_br2_decode (uint32 *valp)
-{
-  *valp = *valp << 1;
-  return 0;
-}
-
-static int
-Operand_br2_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x7 << 1)) != 0;
-  *valp = *valp >> 1;
-  return error;
-}
-
-static int
-Operand_bt4_decode (uint32 *valp)
-{
-  *valp = *valp << 2;
-  return 0;
-}
-
-static int
-Operand_bt4_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x3 << 2)) != 0;
-  *valp = *valp >> 2;
-  return error;
-}
-
-static int
-Operand_bs4_decode (uint32 *valp)
-{
-  *valp = *valp << 2;
-  return 0;
-}
-
-static int
-Operand_bs4_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x3 << 2)) != 0;
-  *valp = *valp >> 2;
-  return error;
-}
-
-static int
-Operand_br4_decode (uint32 *valp)
-{
-  *valp = *valp << 2;
-  return 0;
-}
-
-static int
-Operand_br4_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x3 << 2)) != 0;
-  *valp = *valp >> 2;
-  return error;
-}
-
-static int
-Operand_bt8_decode (uint32 *valp)
-{
-  *valp = *valp << 3;
-  return 0;
-}
-
-static int
-Operand_bt8_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x1 << 3)) != 0;
-  *valp = *valp >> 3;
-  return error;
-}
-
-static int
-Operand_bs8_decode (uint32 *valp)
-{
-  *valp = *valp << 3;
-  return 0;
-}
-
-static int
-Operand_bs8_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x1 << 3)) != 0;
-  *valp = *valp >> 3;
-  return error;
-}
-
-static int
-Operand_br8_decode (uint32 *valp)
-{
-  *valp = *valp << 3;
-  return 0;
-}
-
-static int
-Operand_br8_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0x1 << 3)) != 0;
-  *valp = *valp >> 3;
-  return error;
-}
-
-static int
-Operand_bt16_decode (uint32 *valp)
-{
-  *valp = *valp << 4;
-  return 0;
-}
-
-static int
-Operand_bt16_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0 << 4)) != 0;
-  *valp = *valp >> 4;
-  return error;
-}
-
-static int
-Operand_bs16_decode (uint32 *valp)
-{
-  *valp = *valp << 4;
-  return 0;
-}
-
-static int
-Operand_bs16_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0 << 4)) != 0;
-  *valp = *valp >> 4;
-  return error;
-}
-
-static int
-Operand_br16_decode (uint32 *valp)
-{
-  *valp = *valp << 4;
-  return 0;
-}
-
-static int
-Operand_br16_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0 << 4)) != 0;
-  *valp = *valp >> 4;
-  return error;
-}
-
-static int
-Operand_brall_decode (uint32 *valp)
-{
-  *valp = *valp << 4;
-  return 0;
-}
-
-static int
-Operand_brall_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~(0 << 4)) != 0;
-  *valp = *valp >> 4;
-  return error;
 }
 
 static int
@@ -5115,452 +2287,274 @@ Operand_xt_wbr18_label_rtoa (uint32 *valp, uint32 pc)
   return 0;
 }
 
-static int
-Operand_cimm8x4_decode (uint32 *valp)
-{
-  unsigned cimm8x4_0, imm8_0;
-  imm8_0 = *valp & 0xff;
-  cimm8x4_0 = (imm8_0 << 2) | 0;
-  *valp = cimm8x4_0;
-  return 0;
-}
-
-static int
-Operand_cimm8x4_encode (uint32 *valp)
-{
-  unsigned imm8_0, cimm8x4_0;
-  cimm8x4_0 = *valp;
-  imm8_0 = (cimm8x4_0 >> 2) & 0xff;
-  *valp = imm8_0;
-  return 0;
-}
-
-static int
-Operand_frr_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_frr_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
-}
-
-static int
-Operand_frs_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_frs_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
-}
-
-static int
-Operand_frt_decode (uint32 *valp ATTRIBUTE_UNUSED)
-{
-  return 0;
-}
-
-static int
-Operand_frt_encode (uint32 *valp)
-{
-  int error;
-  error = (*valp & ~0xf) != 0;
-  return error;
-}
-
 static xtensa_operand_internal operands[] = {
-  { "soffsetx4", 10, -1, 0,
+  { "soffsetx4", FIELD_offset, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_soffsetx4_encode, Operand_soffsetx4_decode,
     Operand_soffsetx4_ator, Operand_soffsetx4_rtoa },
-  { "uimm12x8", 3, -1, 0,
+  { "uimm12x8", FIELD_imm12, -1, 0,
     0,
     Operand_uimm12x8_encode, Operand_uimm12x8_decode,
     0, 0 },
-  { "simm4", 26, -1, 0,
+  { "simm4", FIELD_mn, -1, 0,
     0,
     Operand_simm4_encode, Operand_simm4_decode,
     0, 0 },
-  { "arr", 14, 0, 1,
+  { "arr", FIELD_r, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER,
     Operand_arr_encode, Operand_arr_decode,
     0, 0 },
-  { "ars", 5, 0, 1,
+  { "ars", FIELD_s, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER,
     Operand_ars_encode, Operand_ars_decode,
     0, 0 },
-  { "*ars_invisible", 5, 0, 1,
+  { "*ars_invisible", FIELD_s, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
     Operand_ars_encode, Operand_ars_decode,
     0, 0 },
-  { "art", 0, 0, 1,
+  { "art", FIELD_t, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER,
     Operand_art_encode, Operand_art_decode,
     0, 0 },
-  { "ar0", 123, 0, 1,
+  { "ar0", FIELD__ar0, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
     Operand_ar0_encode, Operand_ar0_decode,
     0, 0 },
-  { "ar4", 124, 0, 1,
+  { "ar4", FIELD__ar4, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
     Operand_ar4_encode, Operand_ar4_decode,
     0, 0 },
-  { "ar8", 125, 0, 1,
+  { "ar8", FIELD__ar8, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
     Operand_ar8_encode, Operand_ar8_decode,
     0, 0 },
-  { "ar12", 126, 0, 1,
+  { "ar12", FIELD__ar12, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
     Operand_ar12_encode, Operand_ar12_decode,
     0, 0 },
-  { "ars_entry", 5, 0, 1,
+  { "ars_entry", FIELD_s, REGFILE_AR, 1,
     XTENSA_OPERAND_IS_REGISTER,
     Operand_ars_entry_encode, Operand_ars_entry_decode,
     0, 0 },
-  { "immrx4", 14, -1, 0,
+  { "immrx4", FIELD_r, -1, 0,
     0,
     Operand_immrx4_encode, Operand_immrx4_decode,
     0, 0 },
-  { "lsi4x4", 14, -1, 0,
+  { "lsi4x4", FIELD_r, -1, 0,
     0,
     Operand_lsi4x4_encode, Operand_lsi4x4_decode,
     0, 0 },
-  { "simm7", 34, -1, 0,
+  { "simm7", FIELD_imm7, -1, 0,
     0,
     Operand_simm7_encode, Operand_simm7_decode,
     0, 0 },
-  { "uimm6", 33, -1, 0,
+  { "uimm6", FIELD_imm6, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_uimm6_encode, Operand_uimm6_decode,
     Operand_uimm6_ator, Operand_uimm6_rtoa },
-  { "ai4const", 0, -1, 0,
+  { "ai4const", FIELD_t, -1, 0,
     0,
     Operand_ai4const_encode, Operand_ai4const_decode,
     0, 0 },
-  { "b4const", 14, -1, 0,
+  { "b4const", FIELD_r, -1, 0,
     0,
     Operand_b4const_encode, Operand_b4const_decode,
     0, 0 },
-  { "b4constu", 14, -1, 0,
+  { "b4constu", FIELD_r, -1, 0,
     0,
     Operand_b4constu_encode, Operand_b4constu_decode,
     0, 0 },
-  { "uimm8", 4, -1, 0,
+  { "uimm8", FIELD_imm8, -1, 0,
     0,
     Operand_uimm8_encode, Operand_uimm8_decode,
     0, 0 },
-  { "uimm8x2", 4, -1, 0,
+  { "uimm8x2", FIELD_imm8, -1, 0,
     0,
     Operand_uimm8x2_encode, Operand_uimm8x2_decode,
     0, 0 },
-  { "uimm8x4", 4, -1, 0,
+  { "uimm8x4", FIELD_imm8, -1, 0,
     0,
     Operand_uimm8x4_encode, Operand_uimm8x4_decode,
     0, 0 },
-  { "uimm4x16", 13, -1, 0,
+  { "uimm4x16", FIELD_op2, -1, 0,
     0,
     Operand_uimm4x16_encode, Operand_uimm4x16_decode,
     0, 0 },
-  { "simm8", 4, -1, 0,
+  { "simm8", FIELD_imm8, -1, 0,
     0,
     Operand_simm8_encode, Operand_simm8_decode,
     0, 0 },
-  { "simm8x256", 4, -1, 0,
+  { "simm8x256", FIELD_imm8, -1, 0,
     0,
     Operand_simm8x256_encode, Operand_simm8x256_decode,
     0, 0 },
-  { "simm12b", 6, -1, 0,
+  { "simm12b", FIELD_imm12b, -1, 0,
     0,
     Operand_simm12b_encode, Operand_simm12b_decode,
     0, 0 },
-  { "msalp32", 18, -1, 0,
+  { "msalp32", FIELD_sal, -1, 0,
     0,
     Operand_msalp32_encode, Operand_msalp32_decode,
     0, 0 },
-  { "op2p1", 13, -1, 0,
+  { "op2p1", FIELD_op2, -1, 0,
     0,
     Operand_op2p1_encode, Operand_op2p1_decode,
     0, 0 },
-  { "label8", 4, -1, 0,
+  { "label8", FIELD_imm8, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_label8_encode, Operand_label8_decode,
     Operand_label8_ator, Operand_label8_rtoa },
-  { "ulabel8", 4, -1, 0,
+  { "ulabel8", FIELD_imm8, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_ulabel8_encode, Operand_ulabel8_decode,
     Operand_ulabel8_ator, Operand_ulabel8_rtoa },
-  { "label12", 3, -1, 0,
+  { "label12", FIELD_imm12, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_label12_encode, Operand_label12_decode,
     Operand_label12_ator, Operand_label12_rtoa },
-  { "soffset", 10, -1, 0,
+  { "soffset", FIELD_offset, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_soffset_encode, Operand_soffset_decode,
     Operand_soffset_ator, Operand_soffset_rtoa },
-  { "uimm16x4", 7, -1, 0,
+  { "uimm16x4", FIELD_imm16, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_uimm16x4_encode, Operand_uimm16x4_decode,
     Operand_uimm16x4_ator, Operand_uimm16x4_rtoa },
-  { "mx", 43, 1, 1,
-    XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_UNKNOWN,
-    Operand_mx_encode, Operand_mx_decode,
-    0, 0 },
-  { "my", 42, 1, 1,
-    XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_UNKNOWN,
-    Operand_my_encode, Operand_my_decode,
-    0, 0 },
-  { "mw", 41, 1, 1,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_mw_encode, Operand_mw_decode,
-    0, 0 },
-  { "mr0", 127, 1, 1,
-    XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
-    Operand_mr0_encode, Operand_mr0_decode,
-    0, 0 },
-  { "mr1", 128, 1, 1,
-    XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
-    Operand_mr1_encode, Operand_mr1_decode,
-    0, 0 },
-  { "mr2", 129, 1, 1,
-    XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
-    Operand_mr2_encode, Operand_mr2_decode,
-    0, 0 },
-  { "mr3", 130, 1, 1,
-    XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
-    Operand_mr3_encode, Operand_mr3_decode,
-    0, 0 },
-  { "immt", 0, -1, 0,
+  { "immt", FIELD_t, -1, 0,
     0,
     Operand_immt_encode, Operand_immt_decode,
     0, 0 },
-  { "imms", 5, -1, 0,
+  { "imms", FIELD_s, -1, 0,
     0,
     Operand_imms_encode, Operand_imms_decode,
     0, 0 },
-  { "bt", 0, 2, 1,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bt_encode, Operand_bt_decode,
-    0, 0 },
-  { "bs", 5, 2, 1,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bs_encode, Operand_bs_decode,
-    0, 0 },
-  { "br", 14, 2, 1,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_br_encode, Operand_br_decode,
-    0, 0 },
-  { "bt2", 44, 2, 2,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bt2_encode, Operand_bt2_decode,
-    0, 0 },
-  { "bs2", 45, 2, 2,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bs2_encode, Operand_bs2_decode,
-    0, 0 },
-  { "br2", 46, 2, 2,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_br2_encode, Operand_br2_decode,
-    0, 0 },
-  { "bt4", 47, 2, 4,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bt4_encode, Operand_bt4_decode,
-    0, 0 },
-  { "bs4", 48, 2, 4,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bs4_encode, Operand_bs4_decode,
-    0, 0 },
-  { "br4", 49, 2, 4,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_br4_encode, Operand_br4_decode,
-    0, 0 },
-  { "bt8", 50, 2, 8,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bt8_encode, Operand_bt8_decode,
-    0, 0 },
-  { "bs8", 51, 2, 8,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bs8_encode, Operand_bs8_decode,
-    0, 0 },
-  { "br8", 52, 2, 8,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_br8_encode, Operand_br8_decode,
-    0, 0 },
-  { "bt16", 131, 2, 16,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bt16_encode, Operand_bt16_decode,
-    0, 0 },
-  { "bs16", 132, 2, 16,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_bs16_encode, Operand_bs16_decode,
-    0, 0 },
-  { "br16", 133, 2, 16,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_br16_encode, Operand_br16_decode,
-    0, 0 },
-  { "brall", 134, 2, 16,
-    XTENSA_OPERAND_IS_REGISTER | XTENSA_OPERAND_IS_INVISIBLE,
-    Operand_brall_encode, Operand_brall_decode,
-    0, 0 },
-  { "tp7", 0, -1, 0,
+  { "tp7", FIELD_t, -1, 0,
     0,
     Operand_tp7_encode, Operand_tp7_decode,
     0, 0 },
-  { "xt_wbr15_label", 53, -1, 0,
+  { "xt_wbr15_label", FIELD_xt_wbr15_imm, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_xt_wbr15_label_encode, Operand_xt_wbr15_label_decode,
     Operand_xt_wbr15_label_ator, Operand_xt_wbr15_label_rtoa },
-  { "xt_wbr18_label", 54, -1, 0,
+  { "xt_wbr18_label", FIELD_xt_wbr18_imm, -1, 0,
     XTENSA_OPERAND_IS_PCRELATIVE,
     Operand_xt_wbr18_label_encode, Operand_xt_wbr18_label_decode,
     Operand_xt_wbr18_label_ator, Operand_xt_wbr18_label_rtoa },
-  { "cimm8x4", 4, -1, 0,
-    0,
-    Operand_cimm8x4_encode, Operand_cimm8x4_decode,
-    0, 0 },
-  { "frr", 14, 3, 1,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_frr_encode, Operand_frr_decode,
-    0, 0 },
-  { "frs", 5, 3, 1,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_frs_encode, Operand_frs_decode,
-    0, 0 },
-  { "frt", 0, 3, 1,
-    XTENSA_OPERAND_IS_REGISTER,
-    Operand_frt_encode, Operand_frt_decode,
-    0, 0 },
-  { "t", 0, -1, 0, 0, 0, 0, 0, 0 },
-  { "bbi4", 1, -1, 0, 0, 0, 0, 0, 0 },
-  { "bbi", 2, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm12", 3, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm8", 4, -1, 0, 0, 0, 0, 0, 0 },
-  { "s", 5, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm12b", 6, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm16", 7, -1, 0, 0, 0, 0, 0, 0 },
-  { "m", 8, -1, 0, 0, 0, 0, 0, 0 },
-  { "n", 9, -1, 0, 0, 0, 0, 0, 0 },
-  { "offset", 10, -1, 0, 0, 0, 0, 0, 0 },
-  { "op0", 11, -1, 0, 0, 0, 0, 0, 0 },
-  { "op1", 12, -1, 0, 0, 0, 0, 0, 0 },
-  { "op2", 13, -1, 0, 0, 0, 0, 0, 0 },
-  { "r", 14, -1, 0, 0, 0, 0, 0, 0 },
-  { "sa4", 15, -1, 0, 0, 0, 0, 0, 0 },
-  { "sae4", 16, -1, 0, 0, 0, 0, 0, 0 },
-  { "sae", 17, -1, 0, 0, 0, 0, 0, 0 },
-  { "sal", 18, -1, 0, 0, 0, 0, 0, 0 },
-  { "sargt", 19, -1, 0, 0, 0, 0, 0, 0 },
-  { "sas4", 20, -1, 0, 0, 0, 0, 0, 0 },
-  { "sas", 21, -1, 0, 0, 0, 0, 0, 0 },
-  { "sr", 22, -1, 0, 0, 0, 0, 0, 0 },
-  { "st", 23, -1, 0, 0, 0, 0, 0, 0 },
-  { "thi3", 24, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm4", 25, -1, 0, 0, 0, 0, 0, 0 },
-  { "mn", 26, -1, 0, 0, 0, 0, 0, 0 },
-  { "i", 27, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm6lo", 28, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm6hi", 29, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm7lo", 30, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm7hi", 31, -1, 0, 0, 0, 0, 0, 0 },
-  { "z", 32, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm6", 33, -1, 0, 0, 0, 0, 0, 0 },
-  { "imm7", 34, -1, 0, 0, 0, 0, 0, 0 },
-  { "r3", 35, -1, 0, 0, 0, 0, 0, 0 },
-  { "rbit2", 36, -1, 0, 0, 0, 0, 0, 0 },
-  { "rhi", 37, -1, 0, 0, 0, 0, 0, 0 },
-  { "t3", 38, -1, 0, 0, 0, 0, 0, 0 },
-  { "tbit2", 39, -1, 0, 0, 0, 0, 0, 0 },
-  { "tlo", 40, -1, 0, 0, 0, 0, 0, 0 },
-  { "w", 41, -1, 0, 0, 0, 0, 0, 0 },
-  { "y", 42, -1, 0, 0, 0, 0, 0, 0 },
-  { "x", 43, -1, 0, 0, 0, 0, 0, 0 },
-  { "t2", 44, -1, 0, 0, 0, 0, 0, 0 },
-  { "s2", 45, -1, 0, 0, 0, 0, 0, 0 },
-  { "r2", 46, -1, 0, 0, 0, 0, 0, 0 },
-  { "t4", 47, -1, 0, 0, 0, 0, 0, 0 },
-  { "s4", 48, -1, 0, 0, 0, 0, 0, 0 },
-  { "r4", 49, -1, 0, 0, 0, 0, 0, 0 },
-  { "t8", 50, -1, 0, 0, 0, 0, 0, 0 },
-  { "s8", 51, -1, 0, 0, 0, 0, 0, 0 },
-  { "r8", 52, -1, 0, 0, 0, 0, 0, 0 },
-  { "xt_wbr15_imm", 53, -1, 0, 0, 0, 0, 0, 0 },
-  { "xt_wbr18_imm", 54, -1, 0, 0, 0, 0, 0, 0 },
-  { "op0_xt_flix64_slot0_s3", 55, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld7", 56, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld8", 57, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld9", 58, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld11", 59, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld49xt_flix64_slot0", 60, -1, 0, 0, 0, 0, 0, 0 },
-  { "op0_s4", 61, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld16", 62, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld19xt_flix64_slot1", 63, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld20xt_flix64_slot1", 64, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld21xt_flix64_slot1", 65, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld22xt_flix64_slot1", 66, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld23xt_flix64_slot1", 67, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld25xt_flix64_slot1", 68, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld26xt_flix64_slot1", 69, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld28xt_flix64_slot1", 70, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld30xt_flix64_slot1", 71, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld32xt_flix64_slot1", 72, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld33xt_flix64_slot1", 73, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld35xt_flix64_slot1", 74, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld51xt_flix64_slot1", 75, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld52xt_flix64_slot1", 76, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld53xt_flix64_slot1", 77, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld54xt_flix64_slot1", 78, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld57xt_flix64_slot1", 79, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld58xt_flix64_slot1", 80, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld60xt_flix64_slot1", 81, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld62xt_flix64_slot1", 82, -1, 0, 0, 0, 0, 0, 0 },
-  { "op0_s5", 83, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld36xt_flix64_slot2", 84, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld37xt_flix64_slot2", 85, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld39xt_flix64_slot2", 86, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld41xt_flix64_slot2", 87, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld42xt_flix64_slot2", 88, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld44xt_flix64_slot2", 89, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld45xt_flix64_slot2", 90, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld47xt_flix64_slot2", 91, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld63xt_flix64_slot2", 92, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld64xt_flix64_slot2", 93, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld65xt_flix64_slot2", 94, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld66xt_flix64_slot2", 95, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld68xt_flix64_slot2", 96, -1, 0, 0, 0, 0, 0, 0 },
-  { "op0_s6", 97, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld70xt_flix64_slot3", 98, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld71", 99, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld72xt_flix64_slot3", 100, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld73xt_flix64_slot3", 101, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld74xt_flix64_slot3", 102, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld75xt_flix64_slot3", 103, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld76xt_flix64_slot3", 104, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld77xt_flix64_slot3", 105, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld78xt_flix64_slot3", 106, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld79xt_flix64_slot3", 107, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld80xt_flix64_slot3", 108, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld81xt_flix64_slot3", 109, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld82xt_flix64_slot3", 110, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld83xt_flix64_slot3", 111, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld84xt_flix64_slot3", 112, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld85xt_flix64_slot3", 113, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld86xt_flix64_slot3", 114, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld87xt_flix64_slot3", 115, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld88xt_flix64_slot3", 116, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld89xt_flix64_slot3", 117, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld90xt_flix64_slot3", 118, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld91xt_flix64_slot3", 119, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld92xt_flix64_slot3", 120, -1, 0, 0, 0, 0, 0, 0 },
-  { "combined3e2c5767_fld93xt_flix64_slot3", 121, -1, 0, 0, 0, 0, 0, 0 },
-  { "op0_xt_flix64_slot0", 122, -1, 0, 0, 0, 0, 0, 0 }
+  { "t", FIELD_t, -1, 0, 0, 0, 0, 0, 0 },
+  { "bbi4", FIELD_bbi4, -1, 0, 0, 0, 0, 0, 0 },
+  { "bbi", FIELD_bbi, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm12", FIELD_imm12, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm8", FIELD_imm8, -1, 0, 0, 0, 0, 0, 0 },
+  { "s", FIELD_s, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm12b", FIELD_imm12b, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm16", FIELD_imm16, -1, 0, 0, 0, 0, 0, 0 },
+  { "m", FIELD_m, -1, 0, 0, 0, 0, 0, 0 },
+  { "n", FIELD_n, -1, 0, 0, 0, 0, 0, 0 },
+  { "offset", FIELD_offset, -1, 0, 0, 0, 0, 0, 0 },
+  { "op0", FIELD_op0, -1, 0, 0, 0, 0, 0, 0 },
+  { "op1", FIELD_op1, -1, 0, 0, 0, 0, 0, 0 },
+  { "op2", FIELD_op2, -1, 0, 0, 0, 0, 0, 0 },
+  { "r", FIELD_r, -1, 0, 0, 0, 0, 0, 0 },
+  { "sa4", FIELD_sa4, -1, 0, 0, 0, 0, 0, 0 },
+  { "sae4", FIELD_sae4, -1, 0, 0, 0, 0, 0, 0 },
+  { "sae", FIELD_sae, -1, 0, 0, 0, 0, 0, 0 },
+  { "sal", FIELD_sal, -1, 0, 0, 0, 0, 0, 0 },
+  { "sargt", FIELD_sargt, -1, 0, 0, 0, 0, 0, 0 },
+  { "sas4", FIELD_sas4, -1, 0, 0, 0, 0, 0, 0 },
+  { "sas", FIELD_sas, -1, 0, 0, 0, 0, 0, 0 },
+  { "sr", FIELD_sr, -1, 0, 0, 0, 0, 0, 0 },
+  { "st", FIELD_st, -1, 0, 0, 0, 0, 0, 0 },
+  { "thi3", FIELD_thi3, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm4", FIELD_imm4, -1, 0, 0, 0, 0, 0, 0 },
+  { "mn", FIELD_mn, -1, 0, 0, 0, 0, 0, 0 },
+  { "i", FIELD_i, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm6lo", FIELD_imm6lo, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm6hi", FIELD_imm6hi, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm7lo", FIELD_imm7lo, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm7hi", FIELD_imm7hi, -1, 0, 0, 0, 0, 0, 0 },
+  { "z", FIELD_z, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm6", FIELD_imm6, -1, 0, 0, 0, 0, 0, 0 },
+  { "imm7", FIELD_imm7, -1, 0, 0, 0, 0, 0, 0 },
+  { "xt_wbr15_imm", FIELD_xt_wbr15_imm, -1, 0, 0, 0, 0, 0, 0 },
+  { "xt_wbr18_imm", FIELD_xt_wbr18_imm, -1, 0, 0, 0, 0, 0, 0 }
+};
+
+enum xtensa_operand_id {
+  OPERAND_soffsetx4,
+  OPERAND_uimm12x8,
+  OPERAND_simm4,
+  OPERAND_arr,
+  OPERAND_ars,
+  OPERAND__ars_invisible,
+  OPERAND_art,
+  OPERAND_ar0,
+  OPERAND_ar4,
+  OPERAND_ar8,
+  OPERAND_ar12,
+  OPERAND_ars_entry,
+  OPERAND_immrx4,
+  OPERAND_lsi4x4,
+  OPERAND_simm7,
+  OPERAND_uimm6,
+  OPERAND_ai4const,
+  OPERAND_b4const,
+  OPERAND_b4constu,
+  OPERAND_uimm8,
+  OPERAND_uimm8x2,
+  OPERAND_uimm8x4,
+  OPERAND_uimm4x16,
+  OPERAND_simm8,
+  OPERAND_simm8x256,
+  OPERAND_simm12b,
+  OPERAND_msalp32,
+  OPERAND_op2p1,
+  OPERAND_label8,
+  OPERAND_ulabel8,
+  OPERAND_label12,
+  OPERAND_soffset,
+  OPERAND_uimm16x4,
+  OPERAND_immt,
+  OPERAND_imms,
+  OPERAND_tp7,
+  OPERAND_xt_wbr15_label,
+  OPERAND_xt_wbr18_label,
+  OPERAND_t,
+  OPERAND_bbi4,
+  OPERAND_bbi,
+  OPERAND_imm12,
+  OPERAND_imm8,
+  OPERAND_s,
+  OPERAND_imm12b,
+  OPERAND_imm16,
+  OPERAND_m,
+  OPERAND_n,
+  OPERAND_offset,
+  OPERAND_op0,
+  OPERAND_op1,
+  OPERAND_op2,
+  OPERAND_r,
+  OPERAND_sa4,
+  OPERAND_sae4,
+  OPERAND_sae,
+  OPERAND_sal,
+  OPERAND_sargt,
+  OPERAND_sas4,
+  OPERAND_sas,
+  OPERAND_sr,
+  OPERAND_st,
+  OPERAND_thi3,
+  OPERAND_imm4,
+  OPERAND_mn,
+  OPERAND_i,
+  OPERAND_imm6lo,
+  OPERAND_imm6hi,
+  OPERAND_imm7lo,
+  OPERAND_imm7hi,
+  OPERAND_z,
+  OPERAND_imm6,
+  OPERAND_imm7,
+  OPERAND_xt_wbr15_imm,
+  OPERAND_xt_wbr18_imm
 };
 
 
@@ -5579,8 +2573,8 @@ static xtensa_arg_internal Iclass_xt_iclass_rfde_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_call12_args[] = {
-  { { 0 /* soffsetx4 */ }, 'i' },
-  { { 10 /* ar12 */ }, 'o' }
+  { { OPERAND_soffsetx4 }, 'i' },
+  { { OPERAND_ar12 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_call12_stateArgs[] = {
@@ -5588,8 +2582,8 @@ static xtensa_arg_internal Iclass_xt_iclass_call12_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_call8_args[] = {
-  { { 0 /* soffsetx4 */ }, 'i' },
-  { { 9 /* ar8 */ }, 'o' }
+  { { OPERAND_soffsetx4 }, 'i' },
+  { { OPERAND_ar8 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_call8_stateArgs[] = {
@@ -5597,8 +2591,8 @@ static xtensa_arg_internal Iclass_xt_iclass_call8_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_call4_args[] = {
-  { { 0 /* soffsetx4 */ }, 'i' },
-  { { 8 /* ar4 */ }, 'o' }
+  { { OPERAND_soffsetx4 }, 'i' },
+  { { OPERAND_ar4 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_call4_stateArgs[] = {
@@ -5606,8 +2600,8 @@ static xtensa_arg_internal Iclass_xt_iclass_call4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_callx12_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 10 /* ar12 */ }, 'o' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_ar12 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_callx12_stateArgs[] = {
@@ -5615,8 +2609,8 @@ static xtensa_arg_internal Iclass_xt_iclass_callx12_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_callx8_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 9 /* ar8 */ }, 'o' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_ar8 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_callx8_stateArgs[] = {
@@ -5624,8 +2618,8 @@ static xtensa_arg_internal Iclass_xt_iclass_callx8_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_callx4_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 8 /* ar4 */ }, 'o' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_ar4 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_callx4_stateArgs[] = {
@@ -5633,9 +2627,9 @@ static xtensa_arg_internal Iclass_xt_iclass_callx4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_entry_args[] = {
-  { { 11 /* ars_entry */ }, 's' },
-  { { 4 /* ars */ }, 'i' },
-  { { 1 /* uimm12x8 */ }, 'i' }
+  { { OPERAND_ars_entry }, 's' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm12x8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_entry_stateArgs[] = {
@@ -5647,8 +2641,8 @@ static xtensa_arg_internal Iclass_xt_iclass_entry_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_movsp_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_movsp_stateArgs[] = {
@@ -5657,7 +2651,7 @@ static xtensa_arg_internal Iclass_xt_iclass_movsp_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rotw_args[] = {
-  { { 2 /* simm4 */ }, 'i' }
+  { { OPERAND_simm4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rotw_stateArgs[] = {
@@ -5667,7 +2661,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rotw_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_retw_args[] = {
-  { { 5 /* *ars_invisible */ }, 'i' }
+  { { OPERAND__ars_invisible }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_retw_stateArgs[] = {
@@ -5687,9 +2681,9 @@ static xtensa_arg_internal Iclass_xt_iclass_rfwou_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l32e_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 12 /* immrx4 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_immrx4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l32e_stateArgs[] = {
@@ -5698,9 +2692,9 @@ static xtensa_arg_internal Iclass_xt_iclass_l32e_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s32e_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 12 /* immrx4 */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_immrx4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s32e_stateArgs[] = {
@@ -5709,7 +2703,7 @@ static xtensa_arg_internal Iclass_xt_iclass_s32e_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_windowbase_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_windowbase_stateArgs[] = {
@@ -5719,7 +2713,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_windowbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_windowbase_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_windowbase_stateArgs[] = {
@@ -5729,7 +2723,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_windowbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_windowbase_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_windowbase_stateArgs[] = {
@@ -5739,7 +2733,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_windowbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_windowstart_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_windowstart_stateArgs[] = {
@@ -5749,7 +2743,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_windowstart_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_windowstart_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_windowstart_stateArgs[] = {
@@ -5759,7 +2753,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_windowstart_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_windowstart_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_windowstart_stateArgs[] = {
@@ -5769,50 +2763,50 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_windowstart_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_add_n_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_addi_n_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 16 /* ai4const */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_ai4const }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_bz6_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 15 /* uimm6 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm6 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_loadi4_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 13 /* lsi4x4 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_lsi4x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_mov_n_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_movi_n_args[] = {
-  { { 4 /* ars */ }, 'o' },
-  { { 14 /* simm7 */ }, 'i' }
+  { { OPERAND_ars }, 'o' },
+  { { OPERAND_simm7 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_retn_args[] = {
-  { { 5 /* *ars_invisible */ }, 'i' }
+  { { OPERAND__ars_invisible }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_storei4_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 13 /* lsi4x4 */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_lsi4x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_rur_threadptr_args[] = {
-  { { 3 /* arr */ }, 'o' }
+  { { OPERAND_arr }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_rur_threadptr_stateArgs[] = {
@@ -5820,7 +2814,7 @@ static xtensa_arg_internal Iclass_rur_threadptr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_wur_threadptr_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_wur_threadptr_stateArgs[] = {
@@ -5828,104 +2822,104 @@ static xtensa_arg_internal Iclass_wur_threadptr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_addi_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 23 /* simm8 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_simm8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_addmi_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 24 /* simm8x256 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_simm8x256 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_addsub_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_bit_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_bsi8_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 17 /* b4const */ }, 'i' },
-  { { 28 /* label8 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_b4const }, 'i' },
+  { { OPERAND_label8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_bsi8b_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 67 /* bbi */ }, 'i' },
-  { { 28 /* label8 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_bbi }, 'i' },
+  { { OPERAND_label8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_bsi8u_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 18 /* b4constu */ }, 'i' },
-  { { 28 /* label8 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_b4constu }, 'i' },
+  { { OPERAND_label8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_bst8_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' },
-  { { 28 /* label8 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_label8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_bsz12_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 30 /* label12 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_label12 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_call0_args[] = {
-  { { 0 /* soffsetx4 */ }, 'i' },
-  { { 7 /* ar0 */ }, 'o' }
+  { { OPERAND_soffsetx4 }, 'i' },
+  { { OPERAND_ar0 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_callx0_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 7 /* ar0 */ }, 'o' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_ar0 }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_exti_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 6 /* art */ }, 'i' },
-  { { 82 /* sae */ }, 'i' },
-  { { 27 /* op2p1 */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_sae }, 'i' },
+  { { OPERAND_op2p1 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_jump_args[] = {
-  { { 31 /* soffset */ }, 'i' }
+  { { OPERAND_soffset }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_jumpx_args[] = {
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l16ui_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 20 /* uimm8x2 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x2 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l16si_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 20 /* uimm8x2 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x2 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l32i_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l32r_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 32 /* uimm16x4 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_uimm16x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l32r_stateArgs[] = {
@@ -5934,14 +2928,14 @@ static xtensa_arg_internal Iclass_xt_iclass_l32r_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l8i_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 19 /* uimm8 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_loop_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 29 /* ulabel8 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_ulabel8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_loop_stateArgs[] = {
@@ -5951,8 +2945,8 @@ static xtensa_arg_internal Iclass_xt_iclass_loop_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_loopz_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 29 /* ulabel8 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_ulabel8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_loopz_stateArgs[] = {
@@ -5962,45 +2956,45 @@ static xtensa_arg_internal Iclass_xt_iclass_loopz_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_movi_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 25 /* simm12b */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_simm12b }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_movz_args[] = {
-  { { 3 /* arr */ }, 'm' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'm' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_neg_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_return_args[] = {
-  { { 5 /* *ars_invisible */ }, 'i' }
+  { { OPERAND__ars_invisible }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s16i_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 20 /* uimm8x2 */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x2 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s32i_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s8i_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 19 /* uimm8 */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sar_args[] = {
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sar_stateArgs[] = {
@@ -6008,7 +3002,7 @@ static xtensa_arg_internal Iclass_xt_iclass_sar_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sari_args[] = {
-  { { 86 /* sas */ }, 'i' }
+  { { OPERAND_sas }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sari_stateArgs[] = {
@@ -6016,8 +3010,8 @@ static xtensa_arg_internal Iclass_xt_iclass_sari_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_shifts_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_shifts_stateArgs[] = {
@@ -6025,9 +3019,9 @@ static xtensa_arg_internal Iclass_xt_iclass_shifts_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_shiftst_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_shiftst_stateArgs[] = {
@@ -6035,8 +3029,8 @@ static xtensa_arg_internal Iclass_xt_iclass_shiftst_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_shiftt_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_shiftt_stateArgs[] = {
@@ -6044,21 +3038,21 @@ static xtensa_arg_internal Iclass_xt_iclass_shiftt_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_slli_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 26 /* msalp32 */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_msalp32 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_srai_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 6 /* art */ }, 'i' },
-  { { 84 /* sargt */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_sargt }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_srli_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 6 /* art */ }, 'i' },
-  { { 70 /* s */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_s }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sync_stateArgs[] = {
@@ -6066,8 +3060,8 @@ static xtensa_arg_internal Iclass_xt_iclass_sync_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsil_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 70 /* s */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_s }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsil_stateArgs[] = {
@@ -6081,7 +3075,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsil_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_lend_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_lend_stateArgs[] = {
@@ -6089,7 +3083,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_lend_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_lend_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_lend_stateArgs[] = {
@@ -6097,7 +3091,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_lend_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_lend_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_lend_stateArgs[] = {
@@ -6105,7 +3099,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_lend_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_lcount_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_lcount_stateArgs[] = {
@@ -6113,7 +3107,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_lcount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_lcount_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_lcount_stateArgs[] = {
@@ -6122,7 +3116,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_lcount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_lcount_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_lcount_stateArgs[] = {
@@ -6131,7 +3125,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_lcount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_lbeg_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_lbeg_stateArgs[] = {
@@ -6139,7 +3133,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_lbeg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_lbeg_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_lbeg_stateArgs[] = {
@@ -6147,7 +3141,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_lbeg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_lbeg_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_lbeg_stateArgs[] = {
@@ -6155,7 +3149,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_lbeg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_sar_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_sar_stateArgs[] = {
@@ -6163,7 +3157,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_sar_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_sar_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_sar_stateArgs[] = {
@@ -6172,7 +3166,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_sar_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_sar_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_sar_stateArgs[] = {
@@ -6180,7 +3174,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_sar_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_stateArgs[] = {
@@ -6189,7 +3183,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_stateArgs[] = {
@@ -6198,7 +3192,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_stateArgs[] = {
@@ -6207,7 +3201,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_176_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_176_stateArgs[] = {
@@ -6215,8 +3209,17 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_176_stateArgs[] = {
   { { STATE_PSRING }, 'i' }
 };
 
+static xtensa_arg_internal Iclass_xt_iclass_wsr_176_args[] = {
+  { { OPERAND_art }, 'i' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_wsr_176_stateArgs[] = {
+  { { STATE_PSEXCM }, 'i' },
+  { { STATE_PSRING }, 'i' }
+};
+
 static xtensa_arg_internal Iclass_xt_iclass_rsr_208_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_208_stateArgs[] = {
@@ -6225,7 +3228,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_208_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ps_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ps_stateArgs[] = {
@@ -6239,7 +3242,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ps_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ps_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ps_stateArgs[] = {
@@ -6253,7 +3256,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ps_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ps_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ps_stateArgs[] = {
@@ -6267,7 +3270,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ps_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc1_stateArgs[] = {
@@ -6277,7 +3280,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_epc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc1_stateArgs[] = {
@@ -6287,7 +3290,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_epc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc1_stateArgs[] = {
@@ -6297,7 +3300,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_epc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave1_stateArgs[] = {
@@ -6307,7 +3310,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave1_stateArgs[] = {
@@ -6317,7 +3320,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave1_stateArgs[] = {
@@ -6327,7 +3330,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc2_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc2_stateArgs[] = {
@@ -6337,7 +3340,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_epc2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc2_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc2_stateArgs[] = {
@@ -6347,7 +3350,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_epc2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc2_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc2_stateArgs[] = {
@@ -6357,7 +3360,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_epc2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave2_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave2_stateArgs[] = {
@@ -6367,7 +3370,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave2_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave2_stateArgs[] = {
@@ -6377,7 +3380,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave2_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave2_stateArgs[] = {
@@ -6387,7 +3390,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc3_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc3_stateArgs[] = {
@@ -6397,7 +3400,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_epc3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc3_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc3_stateArgs[] = {
@@ -6407,7 +3410,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_epc3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc3_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc3_stateArgs[] = {
@@ -6417,7 +3420,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_epc3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave3_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave3_stateArgs[] = {
@@ -6427,7 +3430,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave3_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave3_stateArgs[] = {
@@ -6437,7 +3440,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave3_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave3_stateArgs[] = {
@@ -6447,7 +3450,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc4_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc4_stateArgs[] = {
@@ -6457,7 +3460,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_epc4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc4_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc4_stateArgs[] = {
@@ -6467,7 +3470,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_epc4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc4_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc4_stateArgs[] = {
@@ -6477,7 +3480,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_epc4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave4_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave4_stateArgs[] = {
@@ -6487,7 +3490,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave4_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave4_stateArgs[] = {
@@ -6497,7 +3500,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave4_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave4_stateArgs[] = {
@@ -6507,7 +3510,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc5_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc5_stateArgs[] = {
@@ -6517,7 +3520,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_epc5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc5_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc5_stateArgs[] = {
@@ -6527,7 +3530,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_epc5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc5_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc5_stateArgs[] = {
@@ -6537,7 +3540,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_epc5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave5_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave5_stateArgs[] = {
@@ -6547,7 +3550,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave5_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave5_stateArgs[] = {
@@ -6557,7 +3560,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave5_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave5_stateArgs[] = {
@@ -6567,7 +3570,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc6_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc6_stateArgs[] = {
@@ -6577,7 +3580,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_epc6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc6_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc6_stateArgs[] = {
@@ -6587,7 +3590,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_epc6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc6_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc6_stateArgs[] = {
@@ -6597,7 +3600,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_epc6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave6_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave6_stateArgs[] = {
@@ -6607,7 +3610,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave6_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave6_stateArgs[] = {
@@ -6617,7 +3620,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave6_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave6_stateArgs[] = {
@@ -6627,7 +3630,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc7_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_epc7_stateArgs[] = {
@@ -6637,7 +3640,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_epc7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc7_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_epc7_stateArgs[] = {
@@ -6647,7 +3650,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_epc7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc7_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_epc7_stateArgs[] = {
@@ -6657,7 +3660,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_epc7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave7_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave7_stateArgs[] = {
@@ -6667,7 +3670,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excsave7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave7_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave7_stateArgs[] = {
@@ -6677,7 +3680,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excsave7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave7_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave7_stateArgs[] = {
@@ -6687,7 +3690,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excsave7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps2_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps2_stateArgs[] = {
@@ -6697,7 +3700,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_eps2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps2_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps2_stateArgs[] = {
@@ -6707,7 +3710,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_eps2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps2_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps2_stateArgs[] = {
@@ -6717,7 +3720,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_eps2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps3_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps3_stateArgs[] = {
@@ -6727,7 +3730,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_eps3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps3_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps3_stateArgs[] = {
@@ -6737,7 +3740,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_eps3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps3_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps3_stateArgs[] = {
@@ -6747,7 +3750,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_eps3_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps4_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps4_stateArgs[] = {
@@ -6757,7 +3760,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_eps4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps4_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps4_stateArgs[] = {
@@ -6767,7 +3770,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_eps4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps4_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps4_stateArgs[] = {
@@ -6777,7 +3780,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_eps4_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps5_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps5_stateArgs[] = {
@@ -6787,7 +3790,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_eps5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps5_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps5_stateArgs[] = {
@@ -6797,7 +3800,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_eps5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps5_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps5_stateArgs[] = {
@@ -6807,7 +3810,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_eps5_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps6_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps6_stateArgs[] = {
@@ -6817,7 +3820,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_eps6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps6_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps6_stateArgs[] = {
@@ -6827,7 +3830,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_eps6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps6_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps6_stateArgs[] = {
@@ -6837,7 +3840,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_eps6_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps7_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_eps7_stateArgs[] = {
@@ -6847,7 +3850,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_eps7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps7_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_eps7_stateArgs[] = {
@@ -6857,7 +3860,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_eps7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps7_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_eps7_stateArgs[] = {
@@ -6867,7 +3870,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_eps7_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excvaddr_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_excvaddr_stateArgs[] = {
@@ -6877,7 +3880,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_excvaddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excvaddr_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_excvaddr_stateArgs[] = {
@@ -6887,7 +3890,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_excvaddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excvaddr_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_excvaddr_stateArgs[] = {
@@ -6897,7 +3900,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_excvaddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_depc_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_depc_stateArgs[] = {
@@ -6907,7 +3910,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_depc_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_depc_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_depc_stateArgs[] = {
@@ -6917,7 +3920,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_depc_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_depc_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_depc_stateArgs[] = {
@@ -6927,7 +3930,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_depc_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_exccause_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_exccause_stateArgs[] = {
@@ -6938,7 +3941,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_exccause_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_exccause_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_exccause_stateArgs[] = {
@@ -6948,7 +3951,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_exccause_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_exccause_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_exccause_stateArgs[] = {
@@ -6958,7 +3961,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_exccause_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_misc0_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_misc0_stateArgs[] = {
@@ -6968,7 +3971,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_misc0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_misc0_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_misc0_stateArgs[] = {
@@ -6978,7 +3981,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_misc0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_misc0_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_misc0_stateArgs[] = {
@@ -6988,7 +3991,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_misc0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_misc1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_misc1_stateArgs[] = {
@@ -6998,7 +4001,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_misc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_misc1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_misc1_stateArgs[] = {
@@ -7008,7 +4011,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_misc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_misc1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_misc1_stateArgs[] = {
@@ -7017,68 +4020,8 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_misc1_stateArgs[] = {
   { { STATE_MISC1 }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_rsr_misc2_args[] = {
-  { { 6 /* art */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_misc2_stateArgs[] = {
-  { { STATE_PSEXCM }, 'i' },
-  { { STATE_PSRING }, 'i' },
-  { { STATE_MISC2 }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_misc2_args[] = {
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_misc2_stateArgs[] = {
-  { { STATE_PSEXCM }, 'i' },
-  { { STATE_PSRING }, 'i' },
-  { { STATE_MISC2 }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_misc2_args[] = {
-  { { 6 /* art */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_misc2_stateArgs[] = {
-  { { STATE_PSEXCM }, 'i' },
-  { { STATE_PSRING }, 'i' },
-  { { STATE_MISC2 }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_misc3_args[] = {
-  { { 6 /* art */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_misc3_stateArgs[] = {
-  { { STATE_PSEXCM }, 'i' },
-  { { STATE_PSRING }, 'i' },
-  { { STATE_MISC3 }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_misc3_args[] = {
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_misc3_stateArgs[] = {
-  { { STATE_PSEXCM }, 'i' },
-  { { STATE_PSRING }, 'i' },
-  { { STATE_MISC3 }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_misc3_args[] = {
-  { { 6 /* art */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_misc3_stateArgs[] = {
-  { { STATE_PSEXCM }, 'i' },
-  { { STATE_PSRING }, 'i' },
-  { { STATE_MISC3 }, 'm' }
-};
-
 static xtensa_arg_internal Iclass_xt_iclass_rsr_prid_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_prid_stateArgs[] = {
@@ -7087,7 +4030,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_prid_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_vecbase_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_vecbase_stateArgs[] = {
@@ -7097,7 +4040,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_vecbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_vecbase_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_vecbase_stateArgs[] = {
@@ -7107,7 +4050,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_vecbase_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_vecbase_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_vecbase_stateArgs[] = {
@@ -7116,221 +4059,14 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_vecbase_stateArgs[] = {
   { { STATE_VECBASE }, 'm' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_mac16_aa_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_aa_stateArgs[] = {
-  { { STATE_ACC }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_ad_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 34 /* my */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_ad_stateArgs[] = {
-  { { STATE_ACC }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_da_args[] = {
-  { { 33 /* mx */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_da_stateArgs[] = {
-  { { STATE_ACC }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_dd_args[] = {
-  { { 33 /* mx */ }, 'i' },
-  { { 34 /* my */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_dd_stateArgs[] = {
-  { { STATE_ACC }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_aa_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_aa_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_ad_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 34 /* my */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_ad_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_da_args[] = {
-  { { 33 /* mx */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_da_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_dd_args[] = {
-  { { 33 /* mx */ }, 'i' },
-  { { 34 /* my */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16a_dd_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16al_da_args[] = {
-  { { 35 /* mw */ }, 'o' },
-  { { 4 /* ars */ }, 'm' },
-  { { 33 /* mx */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16al_da_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16al_dd_args[] = {
-  { { 35 /* mw */ }, 'o' },
-  { { 4 /* ars */ }, 'm' },
-  { { 33 /* mx */ }, 'i' },
-  { { 34 /* my */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16al_dd_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_mac16_l_args[] = {
-  { { 35 /* mw */ }, 'o' },
-  { { 4 /* ars */ }, 'm' }
-};
-
 static xtensa_arg_internal Iclass_xt_iclass_mul16_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_m0_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 36 /* mr0 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_m0_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 36 /* mr0 */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_m0_args[] = {
-  { { 6 /* art */ }, 'm' },
-  { { 36 /* mr0 */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_m1_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 37 /* mr1 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_m1_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 37 /* mr1 */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_m1_args[] = {
-  { { 6 /* art */ }, 'm' },
-  { { 37 /* mr1 */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_m2_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 38 /* mr2 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_m2_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 38 /* mr2 */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_m2_args[] = {
-  { { 6 /* art */ }, 'm' },
-  { { 38 /* mr2 */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_m3_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 39 /* mr3 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_m3_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 39 /* mr3 */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_m3_args[] = {
-  { { 6 /* art */ }, 'm' },
-  { { 39 /* mr3 */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_acclo_args[] = {
-  { { 6 /* art */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_acclo_stateArgs[] = {
-  { { STATE_ACC }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_acclo_args[] = {
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_acclo_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_acclo_args[] = {
-  { { 6 /* art */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_acclo_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_acchi_args[] = {
-  { { 6 /* art */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_rsr_acchi_stateArgs[] = {
-  { { STATE_ACC }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_acchi_args[] = {
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wsr_acchi_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_acchi_args[] = {
-  { { 6 /* art */ }, 'm' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_xsr_acchi_stateArgs[] = {
-  { { STATE_ACC }, 'm' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rfi_args[] = {
-  { { 70 /* s */ }, 'i' }
+  { { OPERAND_s }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rfi_stateArgs[] = {
@@ -7358,7 +4094,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rfi_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wait_args[] = {
-  { { 70 /* s */ }, 'i' }
+  { { OPERAND_s }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wait_stateArgs[] = {
@@ -7368,7 +4104,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wait_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_interrupt_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_interrupt_stateArgs[] = {
@@ -7378,7 +4114,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_interrupt_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_intset_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_intset_stateArgs[] = {
@@ -7389,7 +4125,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_intset_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_intclear_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_intclear_stateArgs[] = {
@@ -7400,7 +4136,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_intclear_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_intenable_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_intenable_stateArgs[] = {
@@ -7410,7 +4146,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_intenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_intenable_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_intenable_stateArgs[] = {
@@ -7420,7 +4156,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_intenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_intenable_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_intenable_stateArgs[] = {
@@ -7430,8 +4166,8 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_intenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_break_args[] = {
-  { { 41 /* imms */ }, 'i' },
-  { { 40 /* immt */ }, 'i' }
+  { { OPERAND_imms }, 'i' },
+  { { OPERAND_immt }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_break_stateArgs[] = {
@@ -7440,7 +4176,7 @@ static xtensa_arg_internal Iclass_xt_iclass_break_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_break_n_args[] = {
-  { { 41 /* imms */ }, 'i' }
+  { { OPERAND_imms }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_break_n_stateArgs[] = {
@@ -7449,7 +4185,7 @@ static xtensa_arg_internal Iclass_xt_iclass_break_n_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka0_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka0_stateArgs[] = {
@@ -7459,7 +4195,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka0_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka0_stateArgs[] = {
@@ -7470,7 +4206,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka0_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka0_stateArgs[] = {
@@ -7481,7 +4217,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc0_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc0_stateArgs[] = {
@@ -7491,7 +4227,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc0_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc0_stateArgs[] = {
@@ -7502,7 +4238,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc0_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc0_stateArgs[] = {
@@ -7513,7 +4249,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka1_stateArgs[] = {
@@ -7523,7 +4259,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreaka1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka1_stateArgs[] = {
@@ -7534,7 +4270,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreaka1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka1_stateArgs[] = {
@@ -7545,7 +4281,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreaka1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc1_stateArgs[] = {
@@ -7555,7 +4291,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_dbreakc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc1_stateArgs[] = {
@@ -7566,7 +4302,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_dbreakc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc1_stateArgs[] = {
@@ -7577,7 +4313,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_dbreakc1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka0_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka0_stateArgs[] = {
@@ -7587,7 +4323,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka0_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka0_stateArgs[] = {
@@ -7597,7 +4333,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka0_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka0_stateArgs[] = {
@@ -7607,7 +4343,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka1_stateArgs[] = {
@@ -7617,7 +4353,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreaka1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka1_stateArgs[] = {
@@ -7627,7 +4363,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreaka1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka1_stateArgs[] = {
@@ -7637,7 +4373,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreaka1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreakenable_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreakenable_stateArgs[] = {
@@ -7647,7 +4383,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ibreakenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreakenable_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreakenable_stateArgs[] = {
@@ -7657,7 +4393,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ibreakenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreakenable_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreakenable_stateArgs[] = {
@@ -7667,7 +4403,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ibreakenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_debugcause_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_debugcause_stateArgs[] = {
@@ -7678,7 +4414,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_debugcause_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_debugcause_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_debugcause_stateArgs[] = {
@@ -7689,7 +4425,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_debugcause_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_debugcause_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_debugcause_stateArgs[] = {
@@ -7700,7 +4436,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_debugcause_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_icount_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_icount_stateArgs[] = {
@@ -7710,7 +4446,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_icount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_icount_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_icount_stateArgs[] = {
@@ -7721,7 +4457,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_icount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_icount_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_icount_stateArgs[] = {
@@ -7732,7 +4468,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_icount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_icountlevel_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_icountlevel_stateArgs[] = {
@@ -7742,7 +4478,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_icountlevel_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_icountlevel_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_icountlevel_stateArgs[] = {
@@ -7752,7 +4488,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_icountlevel_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_icountlevel_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_icountlevel_stateArgs[] = {
@@ -7762,7 +4498,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_icountlevel_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ddr_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ddr_stateArgs[] = {
@@ -7772,7 +4508,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ddr_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ddr_stateArgs[] = {
@@ -7783,7 +4519,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ddr_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ddr_stateArgs[] = {
@@ -7794,7 +4530,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rfdo_args[] = {
-  { { 41 /* imms */ }, 'i' }
+  { { OPERAND_imms }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rfdo_stateArgs[] = {
@@ -7815,7 +4551,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rfdd_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_mmid_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_mmid_stateArgs[] = {
@@ -7824,50 +4560,8 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_mmid_stateArgs[] = {
   { { STATE_XTSYNC }, 'o' }
 };
 
-static xtensa_arg_internal Iclass_xt_iclass_bbool1_args[] = {
-  { { 44 /* br */ }, 'o' },
-  { { 43 /* bs */ }, 'i' },
-  { { 42 /* bt */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_bbool4_args[] = {
-  { { 42 /* bt */ }, 'o' },
-  { { 49 /* bs4 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_bbool8_args[] = {
-  { { 42 /* bt */ }, 'o' },
-  { { 52 /* bs8 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_bbranch_args[] = {
-  { { 43 /* bs */ }, 'i' },
-  { { 28 /* label8 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_bmove_args[] = {
-  { { 3 /* arr */ }, 'm' },
-  { { 4 /* ars */ }, 'i' },
-  { { 42 /* bt */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_RSR_BR_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 57 /* brall */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_WSR_BR_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 57 /* brall */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_XSR_BR_args[] = {
-  { { 6 /* art */ }, 'm' },
-  { { 57 /* brall */ }, 'm' }
-};
-
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccount_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccount_stateArgs[] = {
@@ -7877,7 +4571,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ccount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccount_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccount_stateArgs[] = {
@@ -7888,7 +4582,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ccount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccount_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccount_stateArgs[] = {
@@ -7899,7 +4593,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ccount_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare0_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare0_stateArgs[] = {
@@ -7909,7 +4603,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare0_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare0_stateArgs[] = {
@@ -7920,7 +4614,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare0_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare0_stateArgs[] = {
@@ -7931,7 +4625,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare0_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare1_stateArgs[] = {
@@ -7941,7 +4635,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare1_stateArgs[] = {
@@ -7952,7 +4646,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare1_stateArgs[] = {
@@ -7963,7 +4657,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare2_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare2_stateArgs[] = {
@@ -7973,7 +4667,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ccompare2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare2_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare2_stateArgs[] = {
@@ -7984,7 +4678,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ccompare2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare2_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare2_stateArgs[] = {
@@ -7995,13 +4689,13 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ccompare2_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_icache_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_icache_lock_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 22 /* uimm4x16 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm4x16 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_icache_lock_stateArgs[] = {
@@ -8010,8 +4704,8 @@ static xtensa_arg_internal Iclass_xt_iclass_icache_lock_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_icache_inv_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_icache_inv_stateArgs[] = {
@@ -8020,8 +4714,8 @@ static xtensa_arg_internal Iclass_xt_iclass_icache_inv_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_licx_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_licx_stateArgs[] = {
@@ -8030,8 +4724,8 @@ static xtensa_arg_internal Iclass_xt_iclass_licx_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sicx_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sicx_stateArgs[] = {
@@ -8040,13 +4734,13 @@ static xtensa_arg_internal Iclass_xt_iclass_sicx_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dcache_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dcache_ind_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 22 /* uimm4x16 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm4x16 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dcache_ind_stateArgs[] = {
@@ -8055,8 +4749,8 @@ static xtensa_arg_internal Iclass_xt_iclass_dcache_ind_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dcache_inv_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dcache_inv_stateArgs[] = {
@@ -8065,13 +4759,13 @@ static xtensa_arg_internal Iclass_xt_iclass_dcache_inv_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dpf_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dcache_lock_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 22 /* uimm4x16 */ }, 'i' }
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm4x16 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_dcache_lock_stateArgs[] = {
@@ -8080,8 +4774,8 @@ static xtensa_arg_internal Iclass_xt_iclass_dcache_lock_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sdct_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sdct_stateArgs[] = {
@@ -8090,8 +4784,8 @@ static xtensa_arg_internal Iclass_xt_iclass_sdct_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_ldct_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_ldct_stateArgs[] = {
@@ -8100,7 +4794,7 @@ static xtensa_arg_internal Iclass_xt_iclass_ldct_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ptevaddr_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_ptevaddr_stateArgs[] = {
@@ -8111,7 +4805,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_ptevaddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ptevaddr_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_ptevaddr_stateArgs[] = {
@@ -8122,7 +4816,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_ptevaddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ptevaddr_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_ptevaddr_stateArgs[] = {
@@ -8134,7 +4828,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_ptevaddr_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_rasid_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_rasid_stateArgs[] = {
@@ -8146,7 +4840,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_rasid_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_rasid_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_rasid_stateArgs[] = {
@@ -8159,7 +4853,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_rasid_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_rasid_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_rasid_stateArgs[] = {
@@ -8172,7 +4866,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_rasid_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_itlbcfg_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_itlbcfg_stateArgs[] = {
@@ -8182,7 +4876,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_itlbcfg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_itlbcfg_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_itlbcfg_stateArgs[] = {
@@ -8193,7 +4887,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_itlbcfg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_itlbcfg_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_itlbcfg_stateArgs[] = {
@@ -8204,7 +4898,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_itlbcfg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dtlbcfg_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_dtlbcfg_stateArgs[] = {
@@ -8214,7 +4908,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_dtlbcfg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dtlbcfg_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_dtlbcfg_stateArgs[] = {
@@ -8225,7 +4919,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_dtlbcfg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dtlbcfg_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_dtlbcfg_stateArgs[] = {
@@ -8236,7 +4930,7 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_dtlbcfg_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_idtlb_args[] = {
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_idtlb_stateArgs[] = {
@@ -8246,8 +4940,8 @@ static xtensa_arg_internal Iclass_xt_iclass_idtlb_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rdtlb_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rdtlb_stateArgs[] = {
@@ -8256,8 +4950,8 @@ static xtensa_arg_internal Iclass_xt_iclass_rdtlb_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wdtlb_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wdtlb_stateArgs[] = {
@@ -8267,7 +4961,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wdtlb_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_iitlb_args[] = {
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_iitlb_stateArgs[] = {
@@ -8276,8 +4970,8 @@ static xtensa_arg_internal Iclass_xt_iclass_iitlb_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_ritlb_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_ritlb_stateArgs[] = {
@@ -8286,8 +4980,8 @@ static xtensa_arg_internal Iclass_xt_iclass_ritlb_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_witlb_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_witlb_stateArgs[] = {
@@ -8309,7 +5003,7 @@ static xtensa_arg_internal Iclass_xt_iclass_hwwdtlba_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_cpenable_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_cpenable_stateArgs[] = {
@@ -8319,7 +5013,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_cpenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_cpenable_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_cpenable_stateArgs[] = {
@@ -8329,7 +5023,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_cpenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_cpenable_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_cpenable_stateArgs[] = {
@@ -8339,44 +5033,44 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_cpenable_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_clamp_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 58 /* tp7 */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_tp7 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_minmax_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_nsa_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_sx_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 58 /* tp7 */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_tp7 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_l32ai_args[] = {
-  { { 6 /* art */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_art }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s32ri_args[] = {
-  { { 6 /* art */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_art }, 'i' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s32c1i_args[] = {
-  { { 6 /* art */ }, 'm' },
-  { { 4 /* ars */ }, 'i' },
-  { { 21 /* uimm8x4 */ }, 'i' }
+  { { OPERAND_art }, 'm' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_uimm8x4 }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_s32c1i_stateArgs[] = {
@@ -8385,7 +5079,7 @@ static xtensa_arg_internal Iclass_xt_iclass_s32c1i_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_scompare1_args[] = {
-  { { 6 /* art */ }, 'o' }
+  { { OPERAND_art }, 'o' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_rsr_scompare1_stateArgs[] = {
@@ -8393,7 +5087,7 @@ static xtensa_arg_internal Iclass_xt_iclass_rsr_scompare1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_scompare1_args[] = {
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_wsr_scompare1_stateArgs[] = {
@@ -8401,7 +5095,7 @@ static xtensa_arg_internal Iclass_xt_iclass_wsr_scompare1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_scompare1_args[] = {
-  { { 6 /* art */ }, 'm' }
+  { { OPERAND_art }, 'm' }
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_xsr_scompare1_stateArgs[] = {
@@ -8409,286 +5103,15 @@ static xtensa_arg_internal Iclass_xt_iclass_xsr_scompare1_stateArgs[] = {
 };
 
 static xtensa_arg_internal Iclass_xt_iclass_div_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_arg_internal Iclass_xt_mul32_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_rur_fcr_args[] = {
-  { { 3 /* arr */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_rur_fcr_stateArgs[] = {
-  { { STATE_RoundMode }, 'i' },
-  { { STATE_InvalidEnable }, 'i' },
-  { { STATE_DivZeroEnable }, 'i' },
-  { { STATE_OverflowEnable }, 'i' },
-  { { STATE_UnderflowEnable }, 'i' },
-  { { STATE_InexactEnable }, 'i' },
-  { { STATE_FPreserved20 }, 'i' },
-  { { STATE_FPreserved5 }, 'i' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_wur_fcr_args[] = {
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_wur_fcr_stateArgs[] = {
-  { { STATE_RoundMode }, 'o' },
-  { { STATE_InvalidEnable }, 'o' },
-  { { STATE_DivZeroEnable }, 'o' },
-  { { STATE_OverflowEnable }, 'o' },
-  { { STATE_UnderflowEnable }, 'o' },
-  { { STATE_InexactEnable }, 'o' },
-  { { STATE_FPreserved20 }, 'o' },
-  { { STATE_FPreserved5 }, 'o' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_rur_fsr_args[] = {
-  { { 3 /* arr */ }, 'o' }
-};
-
-static xtensa_arg_internal Iclass_rur_fsr_stateArgs[] = {
-  { { STATE_InvalidFlag }, 'i' },
-  { { STATE_DivZeroFlag }, 'i' },
-  { { STATE_OverflowFlag }, 'i' },
-  { { STATE_UnderflowFlag }, 'i' },
-  { { STATE_InexactFlag }, 'i' },
-  { { STATE_FPreserved20a }, 'i' },
-  { { STATE_FPreserved7 }, 'i' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_wur_fsr_args[] = {
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_wur_fsr_stateArgs[] = {
-  { { STATE_InvalidFlag }, 'o' },
-  { { STATE_DivZeroFlag }, 'o' },
-  { { STATE_OverflowFlag }, 'o' },
-  { { STATE_UnderflowFlag }, 'o' },
-  { { STATE_InexactFlag }, 'o' },
-  { { STATE_FPreserved20a }, 'o' },
-  { { STATE_FPreserved7 }, 'o' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_args[] = {
-  { { 62 /* frr */ }, 'o' },
-  { { 63 /* frs */ }, 'i' },
-  { { 64 /* frt */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_stateArgs[] = {
-  { { STATE_RoundMode }, 'i' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_mac_args[] = {
-  { { 62 /* frr */ }, 'm' },
-  { { 63 /* frs */ }, 'i' },
-  { { 64 /* frt */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_mac_stateArgs[] = {
-  { { STATE_RoundMode }, 'i' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_cmov_args[] = {
-  { { 62 /* frr */ }, 'm' },
-  { { 63 /* frs */ }, 'i' },
-  { { 42 /* bt */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_cmov_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_mov_args[] = {
-  { { 62 /* frr */ }, 'm' },
-  { { 63 /* frs */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_mov_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_mov2_args[] = {
-  { { 62 /* frr */ }, 'o' },
-  { { 63 /* frs */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_mov2_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_cmp_args[] = {
-  { { 44 /* br */ }, 'o' },
-  { { 63 /* frs */ }, 'i' },
-  { { 64 /* frt */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_cmp_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_float_args[] = {
-  { { 62 /* frr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 65 /* t */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_float_stateArgs[] = {
-  { { STATE_RoundMode }, 'i' },
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_int_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 63 /* frs */ }, 'i' },
-  { { 65 /* t */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_int_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_rfr_args[] = {
-  { { 3 /* arr */ }, 'o' },
-  { { 63 /* frs */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_rfr_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_wfr_args[] = {
-  { { 62 /* frr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_wfr_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsi_args[] = {
-  { { 64 /* frt */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 61 /* cimm8x4 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsi_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsiu_args[] = {
-  { { 64 /* frt */ }, 'o' },
-  { { 4 /* ars */ }, 'm' },
-  { { 61 /* cimm8x4 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsiu_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsx_args[] = {
-  { { 62 /* frr */ }, 'o' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsx_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsxu_args[] = {
-  { { 62 /* frr */ }, 'o' },
-  { { 4 /* ars */ }, 'm' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_lsxu_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssi_args[] = {
-  { { 64 /* frt */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 61 /* cimm8x4 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssi_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssiu_args[] = {
-  { { 64 /* frt */ }, 'i' },
-  { { 4 /* ars */ }, 'm' },
-  { { 61 /* cimm8x4 */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssiu_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssx_args[] = {
-  { { 62 /* frr */ }, 'i' },
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssx_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssxu_args[] = {
-  { { 62 /* frr */ }, 'i' },
-  { { 4 /* ars */ }, 'm' },
-  { { 6 /* art */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_fp_ssxu_stateArgs[] = {
-  { { STATE_CPENABLE }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wb18_0_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 60 /* xt_wbr18_label */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wb18_1_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 17 /* b4const */ }, 'i' },
-  { { 60 /* xt_wbr18_label */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wb18_2_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 18 /* b4constu */ }, 'i' },
-  { { 60 /* xt_wbr18_label */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wb18_3_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 67 /* bbi */ }, 'i' },
-  { { 60 /* xt_wbr18_label */ }, 'i' }
-};
-
-static xtensa_arg_internal Iclass_xt_iclass_wb18_4_args[] = {
-  { { 4 /* ars */ }, 'i' },
-  { { 6 /* art */ }, 'i' },
-  { { 60 /* xt_wbr18_label */ }, 'i' }
+  { { OPERAND_arr }, 'o' },
+  { { OPERAND_ars }, 'i' },
+  { { OPERAND_art }, 'i' }
 };
 
 static xtensa_iclass_internal iclasses[] = {
@@ -8882,6 +5305,8 @@ static xtensa_iclass_internal iclasses[] = {
     2, Iclass_xt_iclass_xsr_litbase_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_rsr_176_args,
     2, Iclass_xt_iclass_rsr_176_stateArgs, 0, 0 },
+  { 1, Iclass_xt_iclass_wsr_176_args,
+    2, Iclass_xt_iclass_wsr_176_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_rsr_208_args,
     2, Iclass_xt_iclass_rsr_208_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_rsr_ps_args,
@@ -9040,18 +5465,6 @@ static xtensa_iclass_internal iclasses[] = {
     3, Iclass_xt_iclass_wsr_misc1_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_xsr_misc1_args,
     3, Iclass_xt_iclass_xsr_misc1_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_rsr_misc2_args,
-    3, Iclass_xt_iclass_rsr_misc2_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_wsr_misc2_args,
-    3, Iclass_xt_iclass_wsr_misc2_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_xsr_misc2_args,
-    3, Iclass_xt_iclass_xsr_misc2_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_rsr_misc3_args,
-    3, Iclass_xt_iclass_rsr_misc3_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_wsr_misc3_args,
-    3, Iclass_xt_iclass_wsr_misc3_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_xsr_misc3_args,
-    3, Iclass_xt_iclass_xsr_misc3_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_rsr_prid_args,
     2, Iclass_xt_iclass_rsr_prid_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_rsr_vecbase_args,
@@ -9060,66 +5473,8 @@ static xtensa_iclass_internal iclasses[] = {
     3, Iclass_xt_iclass_wsr_vecbase_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_xsr_vecbase_args,
     3, Iclass_xt_iclass_xsr_vecbase_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16_aa_args,
-    1, Iclass_xt_iclass_mac16_aa_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16_ad_args,
-    1, Iclass_xt_iclass_mac16_ad_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16_da_args,
-    1, Iclass_xt_iclass_mac16_da_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16_dd_args,
-    1, Iclass_xt_iclass_mac16_dd_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16a_aa_args,
-    1, Iclass_xt_iclass_mac16a_aa_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16a_ad_args,
-    1, Iclass_xt_iclass_mac16a_ad_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16a_da_args,
-    1, Iclass_xt_iclass_mac16a_da_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16a_dd_args,
-    1, Iclass_xt_iclass_mac16a_dd_stateArgs, 0, 0 },
-  { 4, Iclass_xt_iclass_mac16al_da_args,
-    1, Iclass_xt_iclass_mac16al_da_stateArgs, 0, 0 },
-  { 4, Iclass_xt_iclass_mac16al_dd_args,
-    1, Iclass_xt_iclass_mac16al_dd_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_mac16_l_args,
-    0, 0, 0, 0 },
   { 3, Iclass_xt_iclass_mul16_args,
     0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_rsr_m0_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_wsr_m0_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_xsr_m0_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_rsr_m1_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_wsr_m1_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_xsr_m1_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_rsr_m2_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_wsr_m2_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_xsr_m2_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_rsr_m3_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_wsr_m3_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_xsr_m3_args,
-    0, 0, 0, 0 },
-  { 1, Iclass_xt_iclass_rsr_acclo_args,
-    1, Iclass_xt_iclass_rsr_acclo_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_wsr_acclo_args,
-    1, Iclass_xt_iclass_wsr_acclo_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_xsr_acclo_args,
-    1, Iclass_xt_iclass_xsr_acclo_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_rsr_acchi_args,
-    1, Iclass_xt_iclass_rsr_acchi_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_wsr_acchi_args,
-    1, Iclass_xt_iclass_wsr_acchi_stateArgs, 0, 0 },
-  { 1, Iclass_xt_iclass_xsr_acchi_args,
-    1, Iclass_xt_iclass_xsr_acchi_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_rfi_args,
     21, Iclass_xt_iclass_rfi_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_wait_args,
@@ -9212,22 +5567,6 @@ static xtensa_iclass_internal iclasses[] = {
     1, Iclass_xt_iclass_rfdd_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_wsr_mmid_args,
     3, Iclass_xt_iclass_wsr_mmid_stateArgs, 0, 0 },
-  { 3, Iclass_xt_iclass_bbool1_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_bbool4_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_bbool8_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_bbranch_args,
-    0, 0, 0, 0 },
-  { 3, Iclass_xt_iclass_bmove_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_RSR_BR_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_WSR_BR_args,
-    0, 0, 0, 0 },
-  { 2, Iclass_xt_iclass_XSR_BR_args,
-    0, 0, 0, 0 },
   { 1, Iclass_xt_iclass_rsr_ccount_args,
     3, Iclass_xt_iclass_rsr_ccount_stateArgs, 0, 0 },
   { 1, Iclass_xt_iclass_wsr_ccount_args,
@@ -9347,61 +5686,296 @@ static xtensa_iclass_internal iclasses[] = {
   { 3, Iclass_xt_iclass_div_args,
     0, 0, 0, 0 },
   { 3, Iclass_xt_mul32_args,
-    0, 0, 0, 0 },
-  { 1, Iclass_rur_fcr_args,
-    9, Iclass_rur_fcr_stateArgs, 0, 0 },
-  { 1, Iclass_wur_fcr_args,
-    9, Iclass_wur_fcr_stateArgs, 0, 0 },
-  { 1, Iclass_rur_fsr_args,
-    8, Iclass_rur_fsr_stateArgs, 0, 0 },
-  { 1, Iclass_wur_fsr_args,
-    8, Iclass_wur_fsr_stateArgs, 0, 0 },
-  { 3, Iclass_fp_args,
-    2, Iclass_fp_stateArgs, 0, 0 },
-  { 3, Iclass_fp_mac_args,
-    2, Iclass_fp_mac_stateArgs, 0, 0 },
-  { 3, Iclass_fp_cmov_args,
-    1, Iclass_fp_cmov_stateArgs, 0, 0 },
-  { 3, Iclass_fp_mov_args,
-    1, Iclass_fp_mov_stateArgs, 0, 0 },
-  { 2, Iclass_fp_mov2_args,
-    1, Iclass_fp_mov2_stateArgs, 0, 0 },
-  { 3, Iclass_fp_cmp_args,
-    1, Iclass_fp_cmp_stateArgs, 0, 0 },
-  { 3, Iclass_fp_float_args,
-    2, Iclass_fp_float_stateArgs, 0, 0 },
-  { 3, Iclass_fp_int_args,
-    1, Iclass_fp_int_stateArgs, 0, 0 },
-  { 2, Iclass_fp_rfr_args,
-    1, Iclass_fp_rfr_stateArgs, 0, 0 },
-  { 2, Iclass_fp_wfr_args,
-    1, Iclass_fp_wfr_stateArgs, 0, 0 },
-  { 3, Iclass_fp_lsi_args,
-    1, Iclass_fp_lsi_stateArgs, 0, 0 },
-  { 3, Iclass_fp_lsiu_args,
-    1, Iclass_fp_lsiu_stateArgs, 0, 0 },
-  { 3, Iclass_fp_lsx_args,
-    1, Iclass_fp_lsx_stateArgs, 0, 0 },
-  { 3, Iclass_fp_lsxu_args,
-    1, Iclass_fp_lsxu_stateArgs, 0, 0 },
-  { 3, Iclass_fp_ssi_args,
-    1, Iclass_fp_ssi_stateArgs, 0, 0 },
-  { 3, Iclass_fp_ssiu_args,
-    1, Iclass_fp_ssiu_stateArgs, 0, 0 },
-  { 3, Iclass_fp_ssx_args,
-    1, Iclass_fp_ssx_stateArgs, 0, 0 },
-  { 3, Iclass_fp_ssxu_args,
-    1, Iclass_fp_ssxu_stateArgs, 0, 0 },
-  { 2, Iclass_xt_iclass_wb18_0_args,
-    0, 0, 0, 0 },
-  { 3, Iclass_xt_iclass_wb18_1_args,
-    0, 0, 0, 0 },
-  { 3, Iclass_xt_iclass_wb18_2_args,
-    0, 0, 0, 0 },
-  { 3, Iclass_xt_iclass_wb18_3_args,
-    0, 0, 0, 0 },
-  { 3, Iclass_xt_iclass_wb18_4_args,
     0, 0, 0, 0 }
+};
+
+enum xtensa_iclass_id {
+  ICLASS_xt_iclass_excw,
+  ICLASS_xt_iclass_rfe,
+  ICLASS_xt_iclass_rfde,
+  ICLASS_xt_iclass_syscall,
+  ICLASS_xt_iclass_simcall,
+  ICLASS_xt_iclass_call12,
+  ICLASS_xt_iclass_call8,
+  ICLASS_xt_iclass_call4,
+  ICLASS_xt_iclass_callx12,
+  ICLASS_xt_iclass_callx8,
+  ICLASS_xt_iclass_callx4,
+  ICLASS_xt_iclass_entry,
+  ICLASS_xt_iclass_movsp,
+  ICLASS_xt_iclass_rotw,
+  ICLASS_xt_iclass_retw,
+  ICLASS_xt_iclass_rfwou,
+  ICLASS_xt_iclass_l32e,
+  ICLASS_xt_iclass_s32e,
+  ICLASS_xt_iclass_rsr_windowbase,
+  ICLASS_xt_iclass_wsr_windowbase,
+  ICLASS_xt_iclass_xsr_windowbase,
+  ICLASS_xt_iclass_rsr_windowstart,
+  ICLASS_xt_iclass_wsr_windowstart,
+  ICLASS_xt_iclass_xsr_windowstart,
+  ICLASS_xt_iclass_add_n,
+  ICLASS_xt_iclass_addi_n,
+  ICLASS_xt_iclass_bz6,
+  ICLASS_xt_iclass_ill_n,
+  ICLASS_xt_iclass_loadi4,
+  ICLASS_xt_iclass_mov_n,
+  ICLASS_xt_iclass_movi_n,
+  ICLASS_xt_iclass_nopn,
+  ICLASS_xt_iclass_retn,
+  ICLASS_xt_iclass_storei4,
+  ICLASS_rur_threadptr,
+  ICLASS_wur_threadptr,
+  ICLASS_xt_iclass_addi,
+  ICLASS_xt_iclass_addmi,
+  ICLASS_xt_iclass_addsub,
+  ICLASS_xt_iclass_bit,
+  ICLASS_xt_iclass_bsi8,
+  ICLASS_xt_iclass_bsi8b,
+  ICLASS_xt_iclass_bsi8u,
+  ICLASS_xt_iclass_bst8,
+  ICLASS_xt_iclass_bsz12,
+  ICLASS_xt_iclass_call0,
+  ICLASS_xt_iclass_callx0,
+  ICLASS_xt_iclass_exti,
+  ICLASS_xt_iclass_ill,
+  ICLASS_xt_iclass_jump,
+  ICLASS_xt_iclass_jumpx,
+  ICLASS_xt_iclass_l16ui,
+  ICLASS_xt_iclass_l16si,
+  ICLASS_xt_iclass_l32i,
+  ICLASS_xt_iclass_l32r,
+  ICLASS_xt_iclass_l8i,
+  ICLASS_xt_iclass_loop,
+  ICLASS_xt_iclass_loopz,
+  ICLASS_xt_iclass_movi,
+  ICLASS_xt_iclass_movz,
+  ICLASS_xt_iclass_neg,
+  ICLASS_xt_iclass_nop,
+  ICLASS_xt_iclass_return,
+  ICLASS_xt_iclass_s16i,
+  ICLASS_xt_iclass_s32i,
+  ICLASS_xt_iclass_s8i,
+  ICLASS_xt_iclass_sar,
+  ICLASS_xt_iclass_sari,
+  ICLASS_xt_iclass_shifts,
+  ICLASS_xt_iclass_shiftst,
+  ICLASS_xt_iclass_shiftt,
+  ICLASS_xt_iclass_slli,
+  ICLASS_xt_iclass_srai,
+  ICLASS_xt_iclass_srli,
+  ICLASS_xt_iclass_memw,
+  ICLASS_xt_iclass_extw,
+  ICLASS_xt_iclass_isync,
+  ICLASS_xt_iclass_sync,
+  ICLASS_xt_iclass_rsil,
+  ICLASS_xt_iclass_rsr_lend,
+  ICLASS_xt_iclass_wsr_lend,
+  ICLASS_xt_iclass_xsr_lend,
+  ICLASS_xt_iclass_rsr_lcount,
+  ICLASS_xt_iclass_wsr_lcount,
+  ICLASS_xt_iclass_xsr_lcount,
+  ICLASS_xt_iclass_rsr_lbeg,
+  ICLASS_xt_iclass_wsr_lbeg,
+  ICLASS_xt_iclass_xsr_lbeg,
+  ICLASS_xt_iclass_rsr_sar,
+  ICLASS_xt_iclass_wsr_sar,
+  ICLASS_xt_iclass_xsr_sar,
+  ICLASS_xt_iclass_rsr_litbase,
+  ICLASS_xt_iclass_wsr_litbase,
+  ICLASS_xt_iclass_xsr_litbase,
+  ICLASS_xt_iclass_rsr_176,
+  ICLASS_xt_iclass_wsr_176,
+  ICLASS_xt_iclass_rsr_208,
+  ICLASS_xt_iclass_rsr_ps,
+  ICLASS_xt_iclass_wsr_ps,
+  ICLASS_xt_iclass_xsr_ps,
+  ICLASS_xt_iclass_rsr_epc1,
+  ICLASS_xt_iclass_wsr_epc1,
+  ICLASS_xt_iclass_xsr_epc1,
+  ICLASS_xt_iclass_rsr_excsave1,
+  ICLASS_xt_iclass_wsr_excsave1,
+  ICLASS_xt_iclass_xsr_excsave1,
+  ICLASS_xt_iclass_rsr_epc2,
+  ICLASS_xt_iclass_wsr_epc2,
+  ICLASS_xt_iclass_xsr_epc2,
+  ICLASS_xt_iclass_rsr_excsave2,
+  ICLASS_xt_iclass_wsr_excsave2,
+  ICLASS_xt_iclass_xsr_excsave2,
+  ICLASS_xt_iclass_rsr_epc3,
+  ICLASS_xt_iclass_wsr_epc3,
+  ICLASS_xt_iclass_xsr_epc3,
+  ICLASS_xt_iclass_rsr_excsave3,
+  ICLASS_xt_iclass_wsr_excsave3,
+  ICLASS_xt_iclass_xsr_excsave3,
+  ICLASS_xt_iclass_rsr_epc4,
+  ICLASS_xt_iclass_wsr_epc4,
+  ICLASS_xt_iclass_xsr_epc4,
+  ICLASS_xt_iclass_rsr_excsave4,
+  ICLASS_xt_iclass_wsr_excsave4,
+  ICLASS_xt_iclass_xsr_excsave4,
+  ICLASS_xt_iclass_rsr_epc5,
+  ICLASS_xt_iclass_wsr_epc5,
+  ICLASS_xt_iclass_xsr_epc5,
+  ICLASS_xt_iclass_rsr_excsave5,
+  ICLASS_xt_iclass_wsr_excsave5,
+  ICLASS_xt_iclass_xsr_excsave5,
+  ICLASS_xt_iclass_rsr_epc6,
+  ICLASS_xt_iclass_wsr_epc6,
+  ICLASS_xt_iclass_xsr_epc6,
+  ICLASS_xt_iclass_rsr_excsave6,
+  ICLASS_xt_iclass_wsr_excsave6,
+  ICLASS_xt_iclass_xsr_excsave6,
+  ICLASS_xt_iclass_rsr_epc7,
+  ICLASS_xt_iclass_wsr_epc7,
+  ICLASS_xt_iclass_xsr_epc7,
+  ICLASS_xt_iclass_rsr_excsave7,
+  ICLASS_xt_iclass_wsr_excsave7,
+  ICLASS_xt_iclass_xsr_excsave7,
+  ICLASS_xt_iclass_rsr_eps2,
+  ICLASS_xt_iclass_wsr_eps2,
+  ICLASS_xt_iclass_xsr_eps2,
+  ICLASS_xt_iclass_rsr_eps3,
+  ICLASS_xt_iclass_wsr_eps3,
+  ICLASS_xt_iclass_xsr_eps3,
+  ICLASS_xt_iclass_rsr_eps4,
+  ICLASS_xt_iclass_wsr_eps4,
+  ICLASS_xt_iclass_xsr_eps4,
+  ICLASS_xt_iclass_rsr_eps5,
+  ICLASS_xt_iclass_wsr_eps5,
+  ICLASS_xt_iclass_xsr_eps5,
+  ICLASS_xt_iclass_rsr_eps6,
+  ICLASS_xt_iclass_wsr_eps6,
+  ICLASS_xt_iclass_xsr_eps6,
+  ICLASS_xt_iclass_rsr_eps7,
+  ICLASS_xt_iclass_wsr_eps7,
+  ICLASS_xt_iclass_xsr_eps7,
+  ICLASS_xt_iclass_rsr_excvaddr,
+  ICLASS_xt_iclass_wsr_excvaddr,
+  ICLASS_xt_iclass_xsr_excvaddr,
+  ICLASS_xt_iclass_rsr_depc,
+  ICLASS_xt_iclass_wsr_depc,
+  ICLASS_xt_iclass_xsr_depc,
+  ICLASS_xt_iclass_rsr_exccause,
+  ICLASS_xt_iclass_wsr_exccause,
+  ICLASS_xt_iclass_xsr_exccause,
+  ICLASS_xt_iclass_rsr_misc0,
+  ICLASS_xt_iclass_wsr_misc0,
+  ICLASS_xt_iclass_xsr_misc0,
+  ICLASS_xt_iclass_rsr_misc1,
+  ICLASS_xt_iclass_wsr_misc1,
+  ICLASS_xt_iclass_xsr_misc1,
+  ICLASS_xt_iclass_rsr_prid,
+  ICLASS_xt_iclass_rsr_vecbase,
+  ICLASS_xt_iclass_wsr_vecbase,
+  ICLASS_xt_iclass_xsr_vecbase,
+  ICLASS_xt_iclass_mul16,
+  ICLASS_xt_iclass_rfi,
+  ICLASS_xt_iclass_wait,
+  ICLASS_xt_iclass_rsr_interrupt,
+  ICLASS_xt_iclass_wsr_intset,
+  ICLASS_xt_iclass_wsr_intclear,
+  ICLASS_xt_iclass_rsr_intenable,
+  ICLASS_xt_iclass_wsr_intenable,
+  ICLASS_xt_iclass_xsr_intenable,
+  ICLASS_xt_iclass_break,
+  ICLASS_xt_iclass_break_n,
+  ICLASS_xt_iclass_rsr_dbreaka0,
+  ICLASS_xt_iclass_wsr_dbreaka0,
+  ICLASS_xt_iclass_xsr_dbreaka0,
+  ICLASS_xt_iclass_rsr_dbreakc0,
+  ICLASS_xt_iclass_wsr_dbreakc0,
+  ICLASS_xt_iclass_xsr_dbreakc0,
+  ICLASS_xt_iclass_rsr_dbreaka1,
+  ICLASS_xt_iclass_wsr_dbreaka1,
+  ICLASS_xt_iclass_xsr_dbreaka1,
+  ICLASS_xt_iclass_rsr_dbreakc1,
+  ICLASS_xt_iclass_wsr_dbreakc1,
+  ICLASS_xt_iclass_xsr_dbreakc1,
+  ICLASS_xt_iclass_rsr_ibreaka0,
+  ICLASS_xt_iclass_wsr_ibreaka0,
+  ICLASS_xt_iclass_xsr_ibreaka0,
+  ICLASS_xt_iclass_rsr_ibreaka1,
+  ICLASS_xt_iclass_wsr_ibreaka1,
+  ICLASS_xt_iclass_xsr_ibreaka1,
+  ICLASS_xt_iclass_rsr_ibreakenable,
+  ICLASS_xt_iclass_wsr_ibreakenable,
+  ICLASS_xt_iclass_xsr_ibreakenable,
+  ICLASS_xt_iclass_rsr_debugcause,
+  ICLASS_xt_iclass_wsr_debugcause,
+  ICLASS_xt_iclass_xsr_debugcause,
+  ICLASS_xt_iclass_rsr_icount,
+  ICLASS_xt_iclass_wsr_icount,
+  ICLASS_xt_iclass_xsr_icount,
+  ICLASS_xt_iclass_rsr_icountlevel,
+  ICLASS_xt_iclass_wsr_icountlevel,
+  ICLASS_xt_iclass_xsr_icountlevel,
+  ICLASS_xt_iclass_rsr_ddr,
+  ICLASS_xt_iclass_wsr_ddr,
+  ICLASS_xt_iclass_xsr_ddr,
+  ICLASS_xt_iclass_rfdo,
+  ICLASS_xt_iclass_rfdd,
+  ICLASS_xt_iclass_wsr_mmid,
+  ICLASS_xt_iclass_rsr_ccount,
+  ICLASS_xt_iclass_wsr_ccount,
+  ICLASS_xt_iclass_xsr_ccount,
+  ICLASS_xt_iclass_rsr_ccompare0,
+  ICLASS_xt_iclass_wsr_ccompare0,
+  ICLASS_xt_iclass_xsr_ccompare0,
+  ICLASS_xt_iclass_rsr_ccompare1,
+  ICLASS_xt_iclass_wsr_ccompare1,
+  ICLASS_xt_iclass_xsr_ccompare1,
+  ICLASS_xt_iclass_rsr_ccompare2,
+  ICLASS_xt_iclass_wsr_ccompare2,
+  ICLASS_xt_iclass_xsr_ccompare2,
+  ICLASS_xt_iclass_icache,
+  ICLASS_xt_iclass_icache_lock,
+  ICLASS_xt_iclass_icache_inv,
+  ICLASS_xt_iclass_licx,
+  ICLASS_xt_iclass_sicx,
+  ICLASS_xt_iclass_dcache,
+  ICLASS_xt_iclass_dcache_ind,
+  ICLASS_xt_iclass_dcache_inv,
+  ICLASS_xt_iclass_dpf,
+  ICLASS_xt_iclass_dcache_lock,
+  ICLASS_xt_iclass_sdct,
+  ICLASS_xt_iclass_ldct,
+  ICLASS_xt_iclass_wsr_ptevaddr,
+  ICLASS_xt_iclass_rsr_ptevaddr,
+  ICLASS_xt_iclass_xsr_ptevaddr,
+  ICLASS_xt_iclass_rsr_rasid,
+  ICLASS_xt_iclass_wsr_rasid,
+  ICLASS_xt_iclass_xsr_rasid,
+  ICLASS_xt_iclass_rsr_itlbcfg,
+  ICLASS_xt_iclass_wsr_itlbcfg,
+  ICLASS_xt_iclass_xsr_itlbcfg,
+  ICLASS_xt_iclass_rsr_dtlbcfg,
+  ICLASS_xt_iclass_wsr_dtlbcfg,
+  ICLASS_xt_iclass_xsr_dtlbcfg,
+  ICLASS_xt_iclass_idtlb,
+  ICLASS_xt_iclass_rdtlb,
+  ICLASS_xt_iclass_wdtlb,
+  ICLASS_xt_iclass_iitlb,
+  ICLASS_xt_iclass_ritlb,
+  ICLASS_xt_iclass_witlb,
+  ICLASS_xt_iclass_ldpte,
+  ICLASS_xt_iclass_hwwitlba,
+  ICLASS_xt_iclass_hwwdtlba,
+  ICLASS_xt_iclass_rsr_cpenable,
+  ICLASS_xt_iclass_wsr_cpenable,
+  ICLASS_xt_iclass_xsr_cpenable,
+  ICLASS_xt_iclass_clamp,
+  ICLASS_xt_iclass_minmax,
+  ICLASS_xt_iclass_nsa,
+  ICLASS_xt_iclass_sx,
+  ICLASS_xt_iclass_l32ai,
+  ICLASS_xt_iclass_s32ri,
+  ICLASS_xt_iclass_s32c1i,
+  ICLASS_xt_iclass_rsr_scompare1,
+  ICLASS_xt_iclass_wsr_scompare1,
+  ICLASS_xt_iclass_xsr_scompare1,
+  ICLASS_xt_iclass_div,
+  ICLASS_xt_mul32
 };
 
 
@@ -9410,233 +5984,203 @@ static xtensa_iclass_internal iclasses[] = {
 static void
 Opcode_excw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x2080;
+  slotbuf[0] = 0x80200;
 }
 
 static void
 Opcode_rfe_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3000;
+  slotbuf[0] = 0x300;
 }
 
 static void
 Opcode_rfde_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3200;
+  slotbuf[0] = 0x2300;
 }
 
 static void
 Opcode_syscall_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x5000;
+  slotbuf[0] = 0x500;
 }
 
 static void
 Opcode_simcall_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x5100;
+  slotbuf[0] = 0x1500;
 }
 
 static void
 Opcode_call12_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x35;
+  slotbuf[0] = 0x5c0000;
 }
 
 static void
 Opcode_call8_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x25;
+  slotbuf[0] = 0x580000;
 }
 
 static void
 Opcode_call4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x15;
+  slotbuf[0] = 0x540000;
 }
 
 static void
 Opcode_callx12_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf0;
+  slotbuf[0] = 0xf0000;
 }
 
 static void
 Opcode_callx8_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xe0;
+  slotbuf[0] = 0xb0000;
 }
 
 static void
 Opcode_callx4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd0;
+  slotbuf[0] = 0x70000;
 }
 
 static void
 Opcode_entry_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x36;
+  slotbuf[0] = 0x6c0000;
 }
 
 static void
 Opcode_movsp_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x1000;
+  slotbuf[0] = 0x100;
 }
 
 static void
 Opcode_rotw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x408000;
+  slotbuf[0] = 0x804;
 }
 
 static void
 Opcode_retw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x90;
+  slotbuf[0] = 0x60000;
 }
 
 static void
 Opcode_retw_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf01d;
+  slotbuf[0] = 0xd10f;
 }
 
 static void
 Opcode_rfwo_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3400;
+  slotbuf[0] = 0x4300;
 }
 
 static void
 Opcode_rfwu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3500;
+  slotbuf[0] = 0x5300;
 }
 
 static void
 Opcode_l32e_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x90000;
+  slotbuf[0] = 0x90;
 }
 
 static void
 Opcode_s32e_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x490000;
+  slotbuf[0] = 0x94;
 }
 
 static void
 Opcode_rsr_windowbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x34800;
+  slotbuf[0] = 0x4830;
 }
 
 static void
 Opcode_wsr_windowbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x134800;
+  slotbuf[0] = 0x4831;
 }
 
 static void
 Opcode_xsr_windowbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x614800;
+  slotbuf[0] = 0x4816;
 }
 
 static void
 Opcode_rsr_windowstart_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x34900;
+  slotbuf[0] = 0x4930;
 }
 
 static void
 Opcode_wsr_windowstart_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x134900;
+  slotbuf[0] = 0x4931;
 }
 
 static void
 Opcode_xsr_windowstart_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x614900;
+  slotbuf[0] = 0x4916;
 }
 
 static void
 Opcode_add_n_Slot_inst16a_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa;
+  slotbuf[0] = 0xa000;
 }
 
 static void
 Opcode_addi_n_Slot_inst16a_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xb;
-}
-
-static void
-Opcode_addi_n_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3000;
+  slotbuf[0] = 0xb000;
 }
 
 static void
 Opcode_beqz_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x8c;
+  slotbuf[0] = 0xc800;
 }
 
 static void
 Opcode_bnez_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xcc;
+  slotbuf[0] = 0xcc00;
 }
 
 static void
 Opcode_ill_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf06d;
+  slotbuf[0] = 0xd60f;
 }
 
 static void
 Opcode_l32i_n_Slot_inst16a_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x8;
+  slotbuf[0] = 0x8000;
 }
 
 static void
 Opcode_mov_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd;
-}
-
-static void
-Opcode_mov_n_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6000;
-}
-
-static void
-Opcode_mov_n_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa3000;
-}
-
-static void
-Opcode_mov_n_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc080;
+  slotbuf[0] = 0xd000;
 }
 
 static void
 Opcode_movi_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc;
-}
-
-static void
-Opcode_movi_n_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0xc000;
 }
@@ -9644,47 +6188,35 @@ Opcode_movi_n_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_nop_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf03d;
+  slotbuf[0] = 0xd30f;
 }
 
 static void
 Opcode_ret_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf00d;
+  slotbuf[0] = 0xd00f;
 }
 
 static void
 Opcode_s32i_n_Slot_inst16a_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x9;
+  slotbuf[0] = 0x9000;
 }
 
 static void
 Opcode_rur_threadptr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xe30e70;
+  slotbuf[0] = 0x7e03e;
 }
 
 static void
 Opcode_wur_threadptr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf3e700;
+  slotbuf[0] = 0xe73f;
 }
 
 static void
 Opcode_addi_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc002;
-}
-
-static void
-Opcode_addi_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x60000;
-}
-
-static void
-Opcode_addi_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0x200c00;
 }
@@ -9692,415 +6224,235 @@ Opcode_addi_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_addmi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd002;
-}
-
-static void
-Opcode_addmi_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x70000;
-}
-
-static void
-Opcode_addmi_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
   slotbuf[0] = 0x200d00;
 }
 
 static void
 Opcode_add_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x800000;
-}
-
-static void
-Opcode_add_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x92000;
-}
-
-static void
-Opcode_add_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2000;
-}
-
-static void
-Opcode_add_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x80000;
+  slotbuf[0] = 0x8;
 }
 
 static void
 Opcode_sub_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xc00000;
-}
-
-static void
-Opcode_sub_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa8000;
-}
-
-static void
-Opcode_sub_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa000;
-}
-
-static void
-Opcode_sub_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc0000;
+  slotbuf[0] = 0xc;
 }
 
 static void
 Opcode_addx2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x900000;
-}
-
-static void
-Opcode_addx2_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x94000;
-}
-
-static void
-Opcode_addx2_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4000;
-}
-
-static void
-Opcode_addx2_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x90000;
+  slotbuf[0] = 0x9;
 }
 
 static void
 Opcode_addx4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa00000;
-}
-
-static void
-Opcode_addx4_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x98000;
-}
-
-static void
-Opcode_addx4_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x5000;
-}
-
-static void
-Opcode_addx4_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa0000;
+  slotbuf[0] = 0xa;
 }
 
 static void
 Opcode_addx8_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xb00000;
-}
-
-static void
-Opcode_addx8_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x93000;
-}
-
-static void
-Opcode_addx8_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb0000;
+  slotbuf[0] = 0xb;
 }
 
 static void
 Opcode_subx2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd00000;
-}
-
-static void
-Opcode_subx2_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xd0000;
+  slotbuf[0] = 0xd;
 }
 
 static void
 Opcode_subx4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xe00000;
-}
-
-static void
-Opcode_subx4_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xe0000;
+  slotbuf[0] = 0xe;
 }
 
 static void
 Opcode_subx8_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf00000;
-}
-
-static void
-Opcode_subx8_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xf0000;
+  slotbuf[0] = 0xf;
 }
 
 static void
 Opcode_and_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x100000;
-}
-
-static void
-Opcode_and_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x95000;
-}
-
-static void
-Opcode_and_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6000;
-}
-
-static void
-Opcode_and_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x10000;
+  slotbuf[0] = 0x1;
 }
 
 static void
 Opcode_or_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x200000;
-}
-
-static void
-Opcode_or_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9e000;
-}
-
-static void
-Opcode_or_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7000;
-}
-
-static void
-Opcode_or_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x20000;
+  slotbuf[0] = 0x2;
 }
 
 static void
 Opcode_xor_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x300000;
-}
-
-static void
-Opcode_xor_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb0000;
-}
-
-static void
-Opcode_xor_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb000;
-}
-
-static void
-Opcode_xor_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x30000;
+  slotbuf[0] = 0x3;
 }
 
 static void
 Opcode_beqi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x26;
+  slotbuf[0] = 0x680000;
 }
 
 static void
 Opcode_bnei_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x66;
+  slotbuf[0] = 0x690000;
 }
 
 static void
 Opcode_bgei_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xe6;
+  slotbuf[0] = 0x6b0000;
 }
 
 static void
 Opcode_blti_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa6;
+  slotbuf[0] = 0x6a0000;
 }
 
 static void
 Opcode_bbci_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x6007;
+  slotbuf[0] = 0x700600;
 }
 
 static void
 Opcode_bbsi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xe007;
+  slotbuf[0] = 0x700e00;
 }
 
 static void
 Opcode_bgeui_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf6;
+  slotbuf[0] = 0x6f0000;
 }
 
 static void
 Opcode_bltui_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xb6;
+  slotbuf[0] = 0x6e0000;
 }
 
 static void
 Opcode_beq_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x1007;
+  slotbuf[0] = 0x700100;
 }
 
 static void
 Opcode_bne_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x9007;
+  slotbuf[0] = 0x700900;
 }
 
 static void
 Opcode_bge_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa007;
+  slotbuf[0] = 0x700a00;
 }
 
 static void
 Opcode_blt_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x2007;
+  slotbuf[0] = 0x700200;
 }
 
 static void
 Opcode_bgeu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xb007;
+  slotbuf[0] = 0x700b00;
 }
 
 static void
 Opcode_bltu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3007;
+  slotbuf[0] = 0x700300;
 }
 
 static void
 Opcode_bany_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x8007;
+  slotbuf[0] = 0x700800;
 }
 
 static void
 Opcode_bnone_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7;
+  slotbuf[0] = 0x700000;
 }
 
 static void
 Opcode_ball_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x4007;
+  slotbuf[0] = 0x700400;
 }
 
 static void
 Opcode_bnall_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xc007;
+  slotbuf[0] = 0x700c00;
 }
 
 static void
 Opcode_bbc_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x5007;
+  slotbuf[0] = 0x700500;
 }
 
 static void
 Opcode_bbs_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd007;
+  slotbuf[0] = 0x700d00;
 }
 
 static void
 Opcode_beqz_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x16;
+  slotbuf[0] = 0x640000;
 }
 
 static void
 Opcode_bnez_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x56;
+  slotbuf[0] = 0x650000;
 }
 
 static void
 Opcode_bgez_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd6;
+  slotbuf[0] = 0x670000;
 }
 
 static void
 Opcode_bltz_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x96;
+  slotbuf[0] = 0x660000;
 }
 
 static void
 Opcode_call0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x5;
+  slotbuf[0] = 0x500000;
 }
 
 static void
 Opcode_callx0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xc0;
+  slotbuf[0] = 0x30000;
 }
 
 static void
 Opcode_extui_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x40000;
-}
-
-static void
-Opcode_extui_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40000;
-}
-
-static void
-Opcode_extui_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4000;
+  slotbuf[0] = 0x40;
 }
 
 static void
@@ -10112,35 +6464,17 @@ Opcode_ill_Slot_inst_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_j_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x6;
-}
-
-static void
-Opcode_j_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc0000;
+  slotbuf[0] = 0x600000;
 }
 
 static void
 Opcode_jx_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa0;
-}
-
-static void
-Opcode_jx_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa3010;
+  slotbuf[0] = 0xa0000;
 }
 
 static void
 Opcode_l16ui_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x1002;
-}
-
-static void
-Opcode_l16ui_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0x200100;
 }
@@ -10148,23 +6482,11 @@ Opcode_l16ui_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_l16si_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x9002;
-}
-
-static void
-Opcode_l16si_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
   slotbuf[0] = 0x200900;
 }
 
 static void
 Opcode_l32i_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2002;
-}
-
-static void
-Opcode_l32i_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0x200200;
 }
@@ -10172,23 +6494,11 @@ Opcode_l32i_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_l32r_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x1;
-}
-
-static void
-Opcode_l32r_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
   slotbuf[0] = 0x100000;
 }
 
 static void
 Opcode_l8ui_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2;
-}
-
-static void
-Opcode_l8ui_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0x200000;
 }
@@ -10196,35 +6506,23 @@ Opcode_l8ui_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_loop_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x8076;
+  slotbuf[0] = 0x6d0800;
 }
 
 static void
 Opcode_loopnez_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x9076;
+  slotbuf[0] = 0x6d0900;
 }
 
 static void
 Opcode_loopgtz_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa076;
+  slotbuf[0] = 0x6d0a00;
 }
 
 static void
 Opcode_movi_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa002;
-}
-
-static void
-Opcode_movi_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x80000;
-}
-
-static void
-Opcode_movi_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0x200a00;
 }
@@ -10232,162 +6530,53 @@ Opcode_movi_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_moveqz_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x830000;
-}
-
-static void
-Opcode_moveqz_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x96000;
-}
-
-static void
-Opcode_moveqz_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x83000;
+  slotbuf[0] = 0x38;
 }
 
 static void
 Opcode_movnez_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x930000;
-}
-
-static void
-Opcode_movnez_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9a000;
-}
-
-static void
-Opcode_movnez_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x93000;
+  slotbuf[0] = 0x39;
 }
 
 static void
 Opcode_movltz_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa30000;
-}
-
-static void
-Opcode_movltz_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x99000;
-}
-
-static void
-Opcode_movltz_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa3000;
+  slotbuf[0] = 0x3a;
 }
 
 static void
 Opcode_movgez_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xb30000;
-}
-
-static void
-Opcode_movgez_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x97000;
-}
-
-static void
-Opcode_movgez_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb3000;
+  slotbuf[0] = 0x3b;
 }
 
 static void
 Opcode_neg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x600000;
-}
-
-static void
-Opcode_neg_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa5000;
-}
-
-static void
-Opcode_neg_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xd100;
-}
-
-static void
-Opcode_neg_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x60000;
+  slotbuf[0] = 0x6;
 }
 
 static void
 Opcode_abs_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x600100;
-}
-
-static void
-Opcode_abs_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xd000;
-}
-
-static void
-Opcode_abs_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x60010;
+  slotbuf[0] = 0x1006;
 }
 
 static void
 Opcode_nop_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x20f0;
-}
-
-static void
-Opcode_nop_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa3040;
-}
-
-static void
-Opcode_nop_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc090;
-}
-
-static void
-Opcode_nop_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc8000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_nop_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x20f;
+  slotbuf[0] = 0xf0200;
 }
 
 static void
 Opcode_ret_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x80;
+  slotbuf[0] = 0x20000;
 }
 
 static void
 Opcode_s16i_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x5002;
-}
-
-static void
-Opcode_s16i_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0x200500;
 }
@@ -10395,23 +6584,11 @@ Opcode_s16i_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_s32i_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x6002;
-}
-
-static void
-Opcode_s32i_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
   slotbuf[0] = 0x200600;
 }
 
 static void
 Opcode_s8i_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4002;
-}
-
-static void
-Opcode_s8i_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 {
   slotbuf[0] = 0x200400;
 }
@@ -10419,6549 +6596,4340 @@ Opcode_s8i_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
 static void
 Opcode_ssr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x400000;
-}
-
-static void
-Opcode_ssr_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40000;
+  slotbuf[0] = 0x4;
 }
 
 static void
 Opcode_ssl_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x401000;
-}
-
-static void
-Opcode_ssl_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa3020;
-}
-
-static void
-Opcode_ssl_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40100;
+  slotbuf[0] = 0x104;
 }
 
 static void
 Opcode_ssa8l_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x402000;
-}
-
-static void
-Opcode_ssa8l_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40200;
+  slotbuf[0] = 0x204;
 }
 
 static void
 Opcode_ssa8b_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x403000;
-}
-
-static void
-Opcode_ssa8b_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40300;
+  slotbuf[0] = 0x304;
 }
 
 static void
 Opcode_ssai_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x404000;
-}
-
-static void
-Opcode_ssai_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40400;
+  slotbuf[0] = 0x404;
 }
 
 static void
 Opcode_sll_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xa10000;
-}
-
-static void
-Opcode_sll_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa6000;
-}
-
-static void
-Opcode_sll_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa1000;
+  slotbuf[0] = 0x1a;
 }
 
 static void
 Opcode_src_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x810000;
-}
-
-static void
-Opcode_src_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa2000;
-}
-
-static void
-Opcode_src_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x81000;
+  slotbuf[0] = 0x18;
 }
 
 static void
 Opcode_srl_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x910000;
-}
-
-static void
-Opcode_srl_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa5200;
-}
-
-static void
-Opcode_srl_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xd400;
-}
-
-static void
-Opcode_srl_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x91000;
+  slotbuf[0] = 0x19;
 }
 
 static void
 Opcode_sra_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xb10000;
-}
-
-static void
-Opcode_sra_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa5100;
-}
-
-static void
-Opcode_sra_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xd200;
-}
-
-static void
-Opcode_sra_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb1000;
+  slotbuf[0] = 0x1b;
 }
 
 static void
 Opcode_slli_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x10000;
-}
-
-static void
-Opcode_slli_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x90000;
-}
-
-static void
-Opcode_slli_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x1000;
+  slotbuf[0] = 0x10;
 }
 
 static void
 Opcode_srai_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x210000;
-}
-
-static void
-Opcode_srai_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa0000;
-}
-
-static void
-Opcode_srai_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xe000;
-}
-
-static void
-Opcode_srai_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x21000;
+  slotbuf[0] = 0x12;
 }
 
 static void
 Opcode_srli_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x410000;
-}
-
-static void
-Opcode_srli_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa4000;
-}
-
-static void
-Opcode_srli_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9000;
-}
-
-static void
-Opcode_srli_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x41000;
+  slotbuf[0] = 0x14;
 }
 
 static void
 Opcode_memw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x20c0;
+  slotbuf[0] = 0xc0200;
 }
 
 static void
 Opcode_extw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x20d0;
+  slotbuf[0] = 0xd0200;
 }
 
 static void
 Opcode_isync_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x2000;
+  slotbuf[0] = 0x200;
 }
 
 static void
 Opcode_rsync_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x2010;
+  slotbuf[0] = 0x10200;
 }
 
 static void
 Opcode_esync_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x2020;
+  slotbuf[0] = 0x20200;
 }
 
 static void
 Opcode_dsync_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x2030;
+  slotbuf[0] = 0x30200;
 }
 
 static void
 Opcode_rsil_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x6000;
+  slotbuf[0] = 0x600;
 }
 
 static void
 Opcode_rsr_lend_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x30100;
+  slotbuf[0] = 0x130;
 }
 
 static void
 Opcode_wsr_lend_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x130100;
+  slotbuf[0] = 0x131;
 }
 
 static void
 Opcode_xsr_lend_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x610100;
+  slotbuf[0] = 0x116;
 }
 
 static void
 Opcode_rsr_lcount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x30200;
+  slotbuf[0] = 0x230;
 }
 
 static void
 Opcode_wsr_lcount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x130200;
+  slotbuf[0] = 0x231;
 }
 
 static void
 Opcode_xsr_lcount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x610200;
+  slotbuf[0] = 0x216;
 }
 
 static void
 Opcode_rsr_lbeg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x30000;
+  slotbuf[0] = 0x30;
 }
 
 static void
 Opcode_wsr_lbeg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x130000;
+  slotbuf[0] = 0x31;
 }
 
 static void
 Opcode_xsr_lbeg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x610000;
+  slotbuf[0] = 0x16;
 }
 
 static void
 Opcode_rsr_sar_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x30300;
+  slotbuf[0] = 0x330;
 }
 
 static void
 Opcode_wsr_sar_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x130300;
+  slotbuf[0] = 0x331;
 }
 
 static void
 Opcode_xsr_sar_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x610300;
+  slotbuf[0] = 0x316;
 }
 
 static void
 Opcode_rsr_litbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x30500;
+  slotbuf[0] = 0x530;
 }
 
 static void
 Opcode_wsr_litbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x130500;
+  slotbuf[0] = 0x531;
 }
 
 static void
 Opcode_xsr_litbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x610500;
+  slotbuf[0] = 0x516;
 }
 
 static void
 Opcode_rsr_176_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b000;
+  slotbuf[0] = 0xb030;
+}
+
+static void
+Opcode_wsr_176_Slot_inst_encode (xtensa_insnbuf slotbuf)
+{
+  slotbuf[0] = 0xb031;
 }
 
 static void
 Opcode_rsr_208_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d000;
+  slotbuf[0] = 0xd030;
 }
 
 static void
 Opcode_rsr_ps_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3e600;
+  slotbuf[0] = 0xe630;
 }
 
 static void
 Opcode_wsr_ps_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e600;
+  slotbuf[0] = 0xe631;
 }
 
 static void
 Opcode_xsr_ps_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61e600;
+  slotbuf[0] = 0xe616;
 }
 
 static void
 Opcode_rsr_epc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b100;
+  slotbuf[0] = 0xb130;
 }
 
 static void
 Opcode_wsr_epc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13b100;
+  slotbuf[0] = 0xb131;
 }
 
 static void
 Opcode_xsr_epc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61b100;
+  slotbuf[0] = 0xb116;
 }
 
 static void
 Opcode_rsr_excsave1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d100;
+  slotbuf[0] = 0xd130;
 }
 
 static void
 Opcode_wsr_excsave1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13d100;
+  slotbuf[0] = 0xd131;
 }
 
 static void
 Opcode_xsr_excsave1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61d100;
+  slotbuf[0] = 0xd116;
 }
 
 static void
 Opcode_rsr_epc2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b200;
+  slotbuf[0] = 0xb230;
 }
 
 static void
 Opcode_wsr_epc2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13b200;
+  slotbuf[0] = 0xb231;
 }
 
 static void
 Opcode_xsr_epc2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61b200;
+  slotbuf[0] = 0xb216;
 }
 
 static void
 Opcode_rsr_excsave2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d200;
+  slotbuf[0] = 0xd230;
 }
 
 static void
 Opcode_wsr_excsave2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13d200;
+  slotbuf[0] = 0xd231;
 }
 
 static void
 Opcode_xsr_excsave2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61d200;
+  slotbuf[0] = 0xd216;
 }
 
 static void
 Opcode_rsr_epc3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b300;
+  slotbuf[0] = 0xb330;
 }
 
 static void
 Opcode_wsr_epc3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13b300;
+  slotbuf[0] = 0xb331;
 }
 
 static void
 Opcode_xsr_epc3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61b300;
+  slotbuf[0] = 0xb316;
 }
 
 static void
 Opcode_rsr_excsave3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d300;
+  slotbuf[0] = 0xd330;
 }
 
 static void
 Opcode_wsr_excsave3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13d300;
+  slotbuf[0] = 0xd331;
 }
 
 static void
 Opcode_xsr_excsave3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61d300;
+  slotbuf[0] = 0xd316;
 }
 
 static void
 Opcode_rsr_epc4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b400;
+  slotbuf[0] = 0xb430;
 }
 
 static void
 Opcode_wsr_epc4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13b400;
+  slotbuf[0] = 0xb431;
 }
 
 static void
 Opcode_xsr_epc4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61b400;
+  slotbuf[0] = 0xb416;
 }
 
 static void
 Opcode_rsr_excsave4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d400;
+  slotbuf[0] = 0xd430;
 }
 
 static void
 Opcode_wsr_excsave4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13d400;
+  slotbuf[0] = 0xd431;
 }
 
 static void
 Opcode_xsr_excsave4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61d400;
+  slotbuf[0] = 0xd416;
 }
 
 static void
 Opcode_rsr_epc5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b500;
+  slotbuf[0] = 0xb530;
 }
 
 static void
 Opcode_wsr_epc5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13b500;
+  slotbuf[0] = 0xb531;
 }
 
 static void
 Opcode_xsr_epc5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61b500;
+  slotbuf[0] = 0xb516;
 }
 
 static void
 Opcode_rsr_excsave5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d500;
+  slotbuf[0] = 0xd530;
 }
 
 static void
 Opcode_wsr_excsave5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13d500;
+  slotbuf[0] = 0xd531;
 }
 
 static void
 Opcode_xsr_excsave5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61d500;
+  slotbuf[0] = 0xd516;
 }
 
 static void
 Opcode_rsr_epc6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b600;
+  slotbuf[0] = 0xb630;
 }
 
 static void
 Opcode_wsr_epc6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13b600;
+  slotbuf[0] = 0xb631;
 }
 
 static void
 Opcode_xsr_epc6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61b600;
+  slotbuf[0] = 0xb616;
 }
 
 static void
 Opcode_rsr_excsave6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d600;
+  slotbuf[0] = 0xd630;
 }
 
 static void
 Opcode_wsr_excsave6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13d600;
+  slotbuf[0] = 0xd631;
 }
 
 static void
 Opcode_xsr_excsave6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61d600;
+  slotbuf[0] = 0xd616;
 }
 
 static void
 Opcode_rsr_epc7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3b700;
+  slotbuf[0] = 0xb730;
 }
 
 static void
 Opcode_wsr_epc7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13b700;
+  slotbuf[0] = 0xb731;
 }
 
 static void
 Opcode_xsr_epc7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61b700;
+  slotbuf[0] = 0xb716;
 }
 
 static void
 Opcode_rsr_excsave7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3d700;
+  slotbuf[0] = 0xd730;
 }
 
 static void
 Opcode_wsr_excsave7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13d700;
+  slotbuf[0] = 0xd731;
 }
 
 static void
 Opcode_xsr_excsave7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61d700;
+  slotbuf[0] = 0xd716;
 }
 
 static void
 Opcode_rsr_eps2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3c200;
+  slotbuf[0] = 0xc230;
 }
 
 static void
 Opcode_wsr_eps2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13c200;
+  slotbuf[0] = 0xc231;
 }
 
 static void
 Opcode_xsr_eps2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61c200;
+  slotbuf[0] = 0xc216;
 }
 
 static void
 Opcode_rsr_eps3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3c300;
+  slotbuf[0] = 0xc330;
 }
 
 static void
 Opcode_wsr_eps3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13c300;
+  slotbuf[0] = 0xc331;
 }
 
 static void
 Opcode_xsr_eps3_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61c300;
+  slotbuf[0] = 0xc316;
 }
 
 static void
 Opcode_rsr_eps4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3c400;
+  slotbuf[0] = 0xc430;
 }
 
 static void
 Opcode_wsr_eps4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13c400;
+  slotbuf[0] = 0xc431;
 }
 
 static void
 Opcode_xsr_eps4_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61c400;
+  slotbuf[0] = 0xc416;
 }
 
 static void
 Opcode_rsr_eps5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3c500;
+  slotbuf[0] = 0xc530;
 }
 
 static void
 Opcode_wsr_eps5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13c500;
+  slotbuf[0] = 0xc531;
 }
 
 static void
 Opcode_xsr_eps5_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61c500;
+  slotbuf[0] = 0xc516;
 }
 
 static void
 Opcode_rsr_eps6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3c600;
+  slotbuf[0] = 0xc630;
 }
 
 static void
 Opcode_wsr_eps6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13c600;
+  slotbuf[0] = 0xc631;
 }
 
 static void
 Opcode_xsr_eps6_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61c600;
+  slotbuf[0] = 0xc616;
 }
 
 static void
 Opcode_rsr_eps7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3c700;
+  slotbuf[0] = 0xc730;
 }
 
 static void
 Opcode_wsr_eps7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13c700;
+  slotbuf[0] = 0xc731;
 }
 
 static void
 Opcode_xsr_eps7_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61c700;
+  slotbuf[0] = 0xc716;
 }
 
 static void
 Opcode_rsr_excvaddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3ee00;
+  slotbuf[0] = 0xee30;
 }
 
 static void
 Opcode_wsr_excvaddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13ee00;
+  slotbuf[0] = 0xee31;
 }
 
 static void
 Opcode_xsr_excvaddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61ee00;
+  slotbuf[0] = 0xee16;
 }
 
 static void
 Opcode_rsr_depc_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3c000;
+  slotbuf[0] = 0xc030;
 }
 
 static void
 Opcode_wsr_depc_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13c000;
+  slotbuf[0] = 0xc031;
 }
 
 static void
 Opcode_xsr_depc_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61c000;
+  slotbuf[0] = 0xc016;
 }
 
 static void
 Opcode_rsr_exccause_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3e800;
+  slotbuf[0] = 0xe830;
 }
 
 static void
 Opcode_wsr_exccause_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e800;
+  slotbuf[0] = 0xe831;
 }
 
 static void
 Opcode_xsr_exccause_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61e800;
+  slotbuf[0] = 0xe816;
 }
 
 static void
 Opcode_rsr_misc0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3f400;
+  slotbuf[0] = 0xf430;
 }
 
 static void
 Opcode_wsr_misc0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13f400;
+  slotbuf[0] = 0xf431;
 }
 
 static void
 Opcode_xsr_misc0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61f400;
+  slotbuf[0] = 0xf416;
 }
 
 static void
 Opcode_rsr_misc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3f500;
+  slotbuf[0] = 0xf530;
 }
 
 static void
 Opcode_wsr_misc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13f500;
+  slotbuf[0] = 0xf531;
 }
 
 static void
 Opcode_xsr_misc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61f500;
-}
-
-static void
-Opcode_rsr_misc2_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3f600;
-}
-
-static void
-Opcode_wsr_misc2_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x13f600;
-}
-
-static void
-Opcode_xsr_misc2_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x61f600;
-}
-
-static void
-Opcode_rsr_misc3_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3f700;
-}
-
-static void
-Opcode_wsr_misc3_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x13f700;
-}
-
-static void
-Opcode_xsr_misc3_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x61f700;
+  slotbuf[0] = 0xf516;
 }
 
 static void
 Opcode_rsr_prid_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3eb00;
+  slotbuf[0] = 0xeb30;
 }
 
 static void
 Opcode_rsr_vecbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3e700;
+  slotbuf[0] = 0xe730;
 }
 
 static void
 Opcode_wsr_vecbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e700;
+  slotbuf[0] = 0xe731;
 }
 
 static void
 Opcode_xsr_vecbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61e700;
-}
-
-static void
-Opcode_mul_aa_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x740004;
-}
-
-static void
-Opcode_mul_aa_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x750004;
-}
-
-static void
-Opcode_mul_aa_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x760004;
-}
-
-static void
-Opcode_mul_aa_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x770004;
-}
-
-static void
-Opcode_umul_aa_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x700004;
-}
-
-static void
-Opcode_umul_aa_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x710004;
-}
-
-static void
-Opcode_umul_aa_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x720004;
-}
-
-static void
-Opcode_umul_aa_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x730004;
-}
-
-static void
-Opcode_mul_ad_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x340004;
-}
-
-static void
-Opcode_mul_ad_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x350004;
-}
-
-static void
-Opcode_mul_ad_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x360004;
-}
-
-static void
-Opcode_mul_ad_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x370004;
-}
-
-static void
-Opcode_mul_da_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x640004;
-}
-
-static void
-Opcode_mul_da_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x650004;
-}
-
-static void
-Opcode_mul_da_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x660004;
-}
-
-static void
-Opcode_mul_da_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x670004;
-}
-
-static void
-Opcode_mul_dd_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x240004;
-}
-
-static void
-Opcode_mul_dd_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x250004;
-}
-
-static void
-Opcode_mul_dd_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x260004;
-}
-
-static void
-Opcode_mul_dd_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x270004;
-}
-
-static void
-Opcode_mula_aa_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x780004;
-}
-
-static void
-Opcode_mula_aa_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x790004;
-}
-
-static void
-Opcode_mula_aa_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7a0004;
-}
-
-static void
-Opcode_mula_aa_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7b0004;
-}
-
-static void
-Opcode_muls_aa_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7c0004;
-}
-
-static void
-Opcode_muls_aa_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7d0004;
-}
-
-static void
-Opcode_muls_aa_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7e0004;
-}
-
-static void
-Opcode_muls_aa_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7f0004;
-}
-
-static void
-Opcode_mula_ad_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x380004;
-}
-
-static void
-Opcode_mula_ad_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x390004;
-}
-
-static void
-Opcode_mula_ad_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3a0004;
-}
-
-static void
-Opcode_mula_ad_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3b0004;
-}
-
-static void
-Opcode_muls_ad_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3c0004;
-}
-
-static void
-Opcode_muls_ad_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3d0004;
-}
-
-static void
-Opcode_muls_ad_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3e0004;
-}
-
-static void
-Opcode_muls_ad_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3f0004;
-}
-
-static void
-Opcode_mula_da_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x680004;
-}
-
-static void
-Opcode_mula_da_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x690004;
-}
-
-static void
-Opcode_mula_da_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6a0004;
-}
-
-static void
-Opcode_mula_da_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6b0004;
-}
-
-static void
-Opcode_muls_da_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6c0004;
-}
-
-static void
-Opcode_muls_da_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6d0004;
-}
-
-static void
-Opcode_muls_da_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6e0004;
-}
-
-static void
-Opcode_muls_da_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6f0004;
-}
-
-static void
-Opcode_mula_dd_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x280004;
-}
-
-static void
-Opcode_mula_dd_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x290004;
-}
-
-static void
-Opcode_mula_dd_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2a0004;
-}
-
-static void
-Opcode_mula_dd_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2b0004;
-}
-
-static void
-Opcode_muls_dd_ll_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2c0004;
-}
-
-static void
-Opcode_muls_dd_hl_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2d0004;
-}
-
-static void
-Opcode_muls_dd_lh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2e0004;
-}
-
-static void
-Opcode_muls_dd_hh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2f0004;
-}
-
-static void
-Opcode_mula_da_ll_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x580004;
-}
-
-static void
-Opcode_mula_da_ll_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x480004;
-}
-
-static void
-Opcode_mula_da_hl_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x590004;
-}
-
-static void
-Opcode_mula_da_hl_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x490004;
-}
-
-static void
-Opcode_mula_da_lh_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x5a0004;
-}
-
-static void
-Opcode_mula_da_lh_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4a0004;
-}
-
-static void
-Opcode_mula_da_hh_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x5b0004;
-}
-
-static void
-Opcode_mula_da_hh_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4b0004;
-}
-
-static void
-Opcode_mula_dd_ll_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x180004;
-}
-
-static void
-Opcode_mula_dd_ll_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x80004;
-}
-
-static void
-Opcode_mula_dd_hl_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x190004;
-}
-
-static void
-Opcode_mula_dd_hl_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x90004;
-}
-
-static void
-Opcode_mula_dd_lh_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x1a0004;
-}
-
-static void
-Opcode_mula_dd_lh_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa0004;
-}
-
-static void
-Opcode_mula_dd_hh_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x1b0004;
-}
-
-static void
-Opcode_mula_dd_hh_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb0004;
-}
-
-static void
-Opcode_lddec_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x900004;
-}
-
-static void
-Opcode_ldinc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x800004;
+  slotbuf[0] = 0xe716;
 }
 
 static void
 Opcode_mul16u_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xc10000;
-}
-
-static void
-Opcode_mul16u_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9b000;
-}
-
-static void
-Opcode_mul16u_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc1000;
+  slotbuf[0] = 0x1c;
 }
 
 static void
 Opcode_mul16s_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd10000;
-}
-
-static void
-Opcode_mul16s_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9c000;
-}
-
-static void
-Opcode_mul16s_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xd1000;
-}
-
-static void
-Opcode_rsr_m0_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x32000;
-}
-
-static void
-Opcode_wsr_m0_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x132000;
-}
-
-static void
-Opcode_xsr_m0_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x612000;
-}
-
-static void
-Opcode_rsr_m1_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x32100;
-}
-
-static void
-Opcode_wsr_m1_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x132100;
-}
-
-static void
-Opcode_xsr_m1_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x612100;
-}
-
-static void
-Opcode_rsr_m2_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x32200;
-}
-
-static void
-Opcode_wsr_m2_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x132200;
-}
-
-static void
-Opcode_xsr_m2_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x612200;
-}
-
-static void
-Opcode_rsr_m3_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x32300;
-}
-
-static void
-Opcode_wsr_m3_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x132300;
-}
-
-static void
-Opcode_xsr_m3_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x612300;
-}
-
-static void
-Opcode_rsr_acclo_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x31000;
-}
-
-static void
-Opcode_wsr_acclo_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x131000;
-}
-
-static void
-Opcode_xsr_acclo_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x611000;
-}
-
-static void
-Opcode_rsr_acchi_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x31100;
-}
-
-static void
-Opcode_wsr_acchi_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x131100;
-}
-
-static void
-Opcode_xsr_acchi_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x611100;
+  slotbuf[0] = 0x1d;
 }
 
 static void
 Opcode_rfi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3010;
+  slotbuf[0] = 0x10300;
 }
 
 static void
 Opcode_waiti_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7000;
+  slotbuf[0] = 0x700;
 }
 
 static void
 Opcode_rsr_interrupt_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3e200;
+  slotbuf[0] = 0xe230;
 }
 
 static void
 Opcode_wsr_intset_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e200;
+  slotbuf[0] = 0xe231;
 }
 
 static void
 Opcode_wsr_intclear_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e300;
+  slotbuf[0] = 0xe331;
 }
 
 static void
 Opcode_rsr_intenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3e400;
+  slotbuf[0] = 0xe430;
 }
 
 static void
 Opcode_wsr_intenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e400;
+  slotbuf[0] = 0xe431;
 }
 
 static void
 Opcode_xsr_intenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61e400;
+  slotbuf[0] = 0xe416;
 }
 
 static void
 Opcode_break_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x4000;
+  slotbuf[0] = 0x400;
 }
 
 static void
 Opcode_break_n_Slot_inst16b_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf02d;
+  slotbuf[0] = 0xd20f;
 }
 
 static void
 Opcode_rsr_dbreaka0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x39000;
+  slotbuf[0] = 0x9030;
 }
 
 static void
 Opcode_wsr_dbreaka0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x139000;
+  slotbuf[0] = 0x9031;
 }
 
 static void
 Opcode_xsr_dbreaka0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x619000;
+  slotbuf[0] = 0x9016;
 }
 
 static void
 Opcode_rsr_dbreakc0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3a000;
+  slotbuf[0] = 0xa030;
 }
 
 static void
 Opcode_wsr_dbreakc0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13a000;
+  slotbuf[0] = 0xa031;
 }
 
 static void
 Opcode_xsr_dbreakc0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61a000;
+  slotbuf[0] = 0xa016;
 }
 
 static void
 Opcode_rsr_dbreaka1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x39100;
+  slotbuf[0] = 0x9130;
 }
 
 static void
 Opcode_wsr_dbreaka1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x139100;
+  slotbuf[0] = 0x9131;
 }
 
 static void
 Opcode_xsr_dbreaka1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x619100;
+  slotbuf[0] = 0x9116;
 }
 
 static void
 Opcode_rsr_dbreakc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3a100;
+  slotbuf[0] = 0xa130;
 }
 
 static void
 Opcode_wsr_dbreakc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13a100;
+  slotbuf[0] = 0xa131;
 }
 
 static void
 Opcode_xsr_dbreakc1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61a100;
+  slotbuf[0] = 0xa116;
 }
 
 static void
 Opcode_rsr_ibreaka0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x38000;
+  slotbuf[0] = 0x8030;
 }
 
 static void
 Opcode_wsr_ibreaka0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x138000;
+  slotbuf[0] = 0x8031;
 }
 
 static void
 Opcode_xsr_ibreaka0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x618000;
+  slotbuf[0] = 0x8016;
 }
 
 static void
 Opcode_rsr_ibreaka1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x38100;
+  slotbuf[0] = 0x8130;
 }
 
 static void
 Opcode_wsr_ibreaka1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x138100;
+  slotbuf[0] = 0x8131;
 }
 
 static void
 Opcode_xsr_ibreaka1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x618100;
+  slotbuf[0] = 0x8116;
 }
 
 static void
 Opcode_rsr_ibreakenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x36000;
+  slotbuf[0] = 0x6030;
 }
 
 static void
 Opcode_wsr_ibreakenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x136000;
+  slotbuf[0] = 0x6031;
 }
 
 static void
 Opcode_xsr_ibreakenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x616000;
+  slotbuf[0] = 0x6016;
 }
 
 static void
 Opcode_rsr_debugcause_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3e900;
+  slotbuf[0] = 0xe930;
 }
 
 static void
 Opcode_wsr_debugcause_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e900;
+  slotbuf[0] = 0xe931;
 }
 
 static void
 Opcode_xsr_debugcause_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61e900;
+  slotbuf[0] = 0xe916;
 }
 
 static void
 Opcode_rsr_icount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3ec00;
+  slotbuf[0] = 0xec30;
 }
 
 static void
 Opcode_wsr_icount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13ec00;
+  slotbuf[0] = 0xec31;
 }
 
 static void
 Opcode_xsr_icount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61ec00;
+  slotbuf[0] = 0xec16;
 }
 
 static void
 Opcode_rsr_icountlevel_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3ed00;
+  slotbuf[0] = 0xed30;
 }
 
 static void
 Opcode_wsr_icountlevel_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13ed00;
+  slotbuf[0] = 0xed31;
 }
 
 static void
 Opcode_xsr_icountlevel_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61ed00;
+  slotbuf[0] = 0xed16;
 }
 
 static void
 Opcode_rsr_ddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x36800;
+  slotbuf[0] = 0x6830;
 }
 
 static void
 Opcode_wsr_ddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x136800;
+  slotbuf[0] = 0x6831;
 }
 
 static void
 Opcode_xsr_ddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x616800;
+  slotbuf[0] = 0x6816;
 }
 
 static void
 Opcode_rfdo_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf1e000;
+  slotbuf[0] = 0xe1f;
 }
 
 static void
 Opcode_rfdd_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf1e010;
+  slotbuf[0] = 0x10e1f;
 }
 
 static void
 Opcode_wsr_mmid_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x135900;
-}
-
-static void
-Opcode_andb_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x20000;
-}
-
-static void
-Opcode_andbc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x120000;
-}
-
-static void
-Opcode_orb_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x220000;
-}
-
-static void
-Opcode_orbc_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x320000;
-}
-
-static void
-Opcode_xorb_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x420000;
-}
-
-static void
-Opcode_any4_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x8000;
-}
-
-static void
-Opcode_all4_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9000;
-}
-
-static void
-Opcode_any8_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa000;
-}
-
-static void
-Opcode_all8_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb000;
-}
-
-static void
-Opcode_bf_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x76;
-}
-
-static void
-Opcode_bt_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x1076;
-}
-
-static void
-Opcode_movf_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc30000;
-}
-
-static void
-Opcode_movt_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xd30000;
-}
-
-static void
-Opcode_rsr_br_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x30400;
-}
-
-static void
-Opcode_wsr_br_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x130400;
-}
-
-static void
-Opcode_xsr_br_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x610400;
+  slotbuf[0] = 0x5931;
 }
 
 static void
 Opcode_rsr_ccount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3ea00;
+  slotbuf[0] = 0xea30;
 }
 
 static void
 Opcode_wsr_ccount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13ea00;
+  slotbuf[0] = 0xea31;
 }
 
 static void
 Opcode_xsr_ccount_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61ea00;
+  slotbuf[0] = 0xea16;
 }
 
 static void
 Opcode_rsr_ccompare0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3f000;
+  slotbuf[0] = 0xf030;
 }
 
 static void
 Opcode_wsr_ccompare0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13f000;
+  slotbuf[0] = 0xf031;
 }
 
 static void
 Opcode_xsr_ccompare0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61f000;
+  slotbuf[0] = 0xf016;
 }
 
 static void
 Opcode_rsr_ccompare1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3f100;
+  slotbuf[0] = 0xf130;
 }
 
 static void
 Opcode_wsr_ccompare1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13f100;
+  slotbuf[0] = 0xf131;
 }
 
 static void
 Opcode_xsr_ccompare1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61f100;
+  slotbuf[0] = 0xf116;
 }
 
 static void
 Opcode_rsr_ccompare2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3f200;
+  slotbuf[0] = 0xf230;
 }
 
 static void
 Opcode_wsr_ccompare2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13f200;
+  slotbuf[0] = 0xf231;
 }
 
 static void
 Opcode_xsr_ccompare2_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61f200;
+  slotbuf[0] = 0xf216;
 }
 
 static void
 Opcode_ipf_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x70c2;
+  slotbuf[0] = 0x2c0700;
 }
 
 static void
 Opcode_ihi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x70e2;
+  slotbuf[0] = 0x2e0700;
 }
 
 static void
 Opcode_ipfl_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x70d2;
+  slotbuf[0] = 0x2d0700;
 }
 
 static void
 Opcode_ihu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x270d2;
+  slotbuf[0] = 0x2d0720;
 }
 
 static void
 Opcode_iiu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x370d2;
+  slotbuf[0] = 0x2d0730;
 }
 
 static void
 Opcode_iii_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x70f2;
+  slotbuf[0] = 0x2f0700;
 }
 
 static void
 Opcode_lict_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf10000;
+  slotbuf[0] = 0x1f;
 }
 
 static void
 Opcode_licw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf12000;
+  slotbuf[0] = 0x21f;
 }
 
 static void
 Opcode_sict_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf11000;
+  slotbuf[0] = 0x11f;
 }
 
 static void
 Opcode_sicw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf13000;
+  slotbuf[0] = 0x31f;
 }
 
 static void
 Opcode_dhwb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7042;
+  slotbuf[0] = 0x240700;
 }
 
 static void
 Opcode_dhwbi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7052;
+  slotbuf[0] = 0x250700;
 }
 
 static void
 Opcode_diwb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x47082;
+  slotbuf[0] = 0x280740;
 }
 
 static void
 Opcode_diwbi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x57082;
+  slotbuf[0] = 0x280750;
 }
 
 static void
 Opcode_dhi_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7062;
+  slotbuf[0] = 0x260700;
 }
 
 static void
 Opcode_dii_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7072;
+  slotbuf[0] = 0x270700;
 }
 
 static void
 Opcode_dpfr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7002;
+  slotbuf[0] = 0x200700;
 }
 
 static void
 Opcode_dpfw_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7012;
+  slotbuf[0] = 0x210700;
 }
 
 static void
 Opcode_dpfro_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7022;
+  slotbuf[0] = 0x220700;
 }
 
 static void
 Opcode_dpfwo_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7032;
+  slotbuf[0] = 0x230700;
 }
 
 static void
 Opcode_dpfl_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x7082;
+  slotbuf[0] = 0x280700;
 }
 
 static void
 Opcode_dhu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x27082;
+  slotbuf[0] = 0x280720;
 }
 
 static void
 Opcode_diu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x37082;
+  slotbuf[0] = 0x280730;
 }
 
 static void
 Opcode_sdct_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf19000;
+  slotbuf[0] = 0x91f;
 }
 
 static void
 Opcode_ldct_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf18000;
+  slotbuf[0] = 0x81f;
 }
 
 static void
 Opcode_wsr_ptevaddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x135300;
+  slotbuf[0] = 0x5331;
 }
 
 static void
 Opcode_rsr_ptevaddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x35300;
+  slotbuf[0] = 0x5330;
 }
 
 static void
 Opcode_xsr_ptevaddr_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x615300;
+  slotbuf[0] = 0x5316;
 }
 
 static void
 Opcode_rsr_rasid_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x35a00;
+  slotbuf[0] = 0x5a30;
 }
 
 static void
 Opcode_wsr_rasid_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x135a00;
+  slotbuf[0] = 0x5a31;
 }
 
 static void
 Opcode_xsr_rasid_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x615a00;
+  slotbuf[0] = 0x5a16;
 }
 
 static void
 Opcode_rsr_itlbcfg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x35b00;
+  slotbuf[0] = 0x5b30;
 }
 
 static void
 Opcode_wsr_itlbcfg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x135b00;
+  slotbuf[0] = 0x5b31;
 }
 
 static void
 Opcode_xsr_itlbcfg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x615b00;
+  slotbuf[0] = 0x5b16;
 }
 
 static void
 Opcode_rsr_dtlbcfg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x35c00;
+  slotbuf[0] = 0x5c30;
 }
 
 static void
 Opcode_wsr_dtlbcfg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x135c00;
+  slotbuf[0] = 0x5c31;
 }
 
 static void
 Opcode_xsr_dtlbcfg_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x615c00;
+  slotbuf[0] = 0x5c16;
 }
 
 static void
 Opcode_idtlb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x50c000;
+  slotbuf[0] = 0xc05;
 }
 
 static void
 Opcode_pdtlb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x50d000;
+  slotbuf[0] = 0xd05;
 }
 
 static void
 Opcode_rdtlb0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x50b000;
+  slotbuf[0] = 0xb05;
 }
 
 static void
 Opcode_rdtlb1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x50f000;
+  slotbuf[0] = 0xf05;
 }
 
 static void
 Opcode_wdtlb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x50e000;
+  slotbuf[0] = 0xe05;
 }
 
 static void
 Opcode_iitlb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x504000;
+  slotbuf[0] = 0x405;
 }
 
 static void
 Opcode_pitlb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x505000;
+  slotbuf[0] = 0x505;
 }
 
 static void
 Opcode_ritlb0_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x503000;
+  slotbuf[0] = 0x305;
 }
 
 static void
 Opcode_ritlb1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x507000;
+  slotbuf[0] = 0x705;
 }
 
 static void
 Opcode_witlb_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x506000;
+  slotbuf[0] = 0x605;
 }
 
 static void
 Opcode_ldpte_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf1f000;
+  slotbuf[0] = 0xf1f;
 }
 
 static void
 Opcode_hwwitlba_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x501000;
+  slotbuf[0] = 0x105;
 }
 
 static void
 Opcode_hwwdtlba_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x509000;
+  slotbuf[0] = 0x905;
 }
 
 static void
 Opcode_rsr_cpenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x3e000;
+  slotbuf[0] = 0xe030;
 }
 
 static void
 Opcode_wsr_cpenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x13e000;
+  slotbuf[0] = 0xe031;
 }
 
 static void
 Opcode_xsr_cpenable_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x61e000;
+  slotbuf[0] = 0xe016;
 }
 
 static void
 Opcode_clamps_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x330000;
-}
-
-static void
-Opcode_clamps_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x33000;
+  slotbuf[0] = 0x33;
 }
 
 static void
 Opcode_min_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x430000;
-}
-
-static void
-Opcode_min_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x43000;
+  slotbuf[0] = 0x34;
 }
 
 static void
 Opcode_max_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x530000;
-}
-
-static void
-Opcode_max_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x53000;
+  slotbuf[0] = 0x35;
 }
 
 static void
 Opcode_minu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x630000;
-}
-
-static void
-Opcode_minu_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x63000;
+  slotbuf[0] = 0x36;
 }
 
 static void
 Opcode_maxu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x730000;
-}
-
-static void
-Opcode_maxu_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x73000;
+  slotbuf[0] = 0x37;
 }
 
 static void
 Opcode_nsa_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x40e000;
-}
-
-static void
-Opcode_nsa_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40e00;
+  slotbuf[0] = 0xe04;
 }
 
 static void
 Opcode_nsau_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x40f000;
-}
-
-static void
-Opcode_nsau_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40f00;
+  slotbuf[0] = 0xf04;
 }
 
 static void
 Opcode_sext_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x230000;
-}
-
-static void
-Opcode_sext_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9f000;
-}
-
-static void
-Opcode_sext_Slot_xt_flix64_slot2_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x8000;
-}
-
-static void
-Opcode_sext_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x23000;
+  slotbuf[0] = 0x32;
 }
 
 static void
 Opcode_l32ai_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xb002;
+  slotbuf[0] = 0x200b00;
 }
 
 static void
 Opcode_s32ri_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf002;
+  slotbuf[0] = 0x200f00;
 }
 
 static void
 Opcode_s32c1i_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xe002;
+  slotbuf[0] = 0x200e00;
 }
 
 static void
 Opcode_rsr_scompare1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x30c00;
+  slotbuf[0] = 0xc30;
 }
 
 static void
 Opcode_wsr_scompare1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x130c00;
+  slotbuf[0] = 0xc31;
 }
 
 static void
 Opcode_xsr_scompare1_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x610c00;
+  slotbuf[0] = 0xc16;
 }
 
 static void
 Opcode_quou_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xc20000;
+  slotbuf[0] = 0x2c;
 }
 
 static void
 Opcode_quos_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xd20000;
+  slotbuf[0] = 0x2d;
 }
 
 static void
 Opcode_remu_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xe20000;
+  slotbuf[0] = 0x2e;
 }
 
 static void
 Opcode_rems_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0xf20000;
+  slotbuf[0] = 0x2f;
 }
 
 static void
 Opcode_mull_Slot_inst_encode (xtensa_insnbuf slotbuf)
 {
-  slotbuf[0] = 0x820000;
-}
-
-static void
-Opcode_mull_Slot_xt_flix64_slot1_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9d000;
-}
-
-static void
-Opcode_mull_Slot_xt_flix64_slot0_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x82000;
-}
-
-static void
-Opcode_muluh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa20000;
-}
-
-static void
-Opcode_mulsh_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb20000;
-}
-
-static void
-Opcode_rur_fcr_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xe30e80;
-}
-
-static void
-Opcode_wur_fcr_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xf3e800;
-}
-
-static void
-Opcode_rur_fsr_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xe30e90;
-}
-
-static void
-Opcode_wur_fsr_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xf3e900;
-}
-
-static void
-Opcode_add_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa0000;
-}
-
-static void
-Opcode_sub_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x1a0000;
-}
-
-static void
-Opcode_mul_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2a0000;
-}
-
-static void
-Opcode_madd_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4a0000;
-}
-
-static void
-Opcode_msub_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x5a0000;
-}
-
-static void
-Opcode_movf_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xcb0000;
-}
-
-static void
-Opcode_movt_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xdb0000;
-}
-
-static void
-Opcode_moveqz_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x8b0000;
-}
-
-static void
-Opcode_movnez_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9b0000;
-}
-
-static void
-Opcode_movltz_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xab0000;
-}
-
-static void
-Opcode_movgez_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xbb0000;
-}
-
-static void
-Opcode_abs_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xfa0010;
-}
-
-static void
-Opcode_mov_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xfa0000;
-}
-
-static void
-Opcode_neg_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xfa0060;
-}
-
-static void
-Opcode_un_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x1b0000;
-}
-
-static void
-Opcode_oeq_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x2b0000;
-}
-
-static void
-Opcode_ueq_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3b0000;
-}
-
-static void
-Opcode_olt_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4b0000;
-}
-
-static void
-Opcode_ult_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x5b0000;
-}
-
-static void
-Opcode_ole_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x6b0000;
-}
-
-static void
-Opcode_ule_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x7b0000;
-}
-
-static void
-Opcode_float_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xca0000;
-}
-
-static void
-Opcode_ufloat_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xda0000;
-}
-
-static void
-Opcode_round_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x8a0000;
-}
-
-static void
-Opcode_ceil_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xba0000;
-}
-
-static void
-Opcode_floor_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xaa0000;
-}
-
-static void
-Opcode_trunc_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x9a0000;
-}
-
-static void
-Opcode_utrunc_s_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xea0000;
-}
-
-static void
-Opcode_rfr_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xfa0040;
-}
-
-static void
-Opcode_wfr_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xfa0050;
-}
-
-static void
-Opcode_lsi_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x3;
-}
-
-static void
-Opcode_lsiu_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x8003;
-}
-
-static void
-Opcode_lsx_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x80000;
-}
-
-static void
-Opcode_lsxu_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x180000;
-}
-
-static void
-Opcode_ssi_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x4003;
-}
-
-static void
-Opcode_ssiu_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc003;
-}
-
-static void
-Opcode_ssx_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x480000;
-}
-
-static void
-Opcode_ssxu_Slot_inst_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x580000;
-}
-
-static void
-Opcode_beqz_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa8000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bnez_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xc0000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bgez_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb0000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bltz_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xb8000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_beqi_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x40000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bnei_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x98000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bgei_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x50000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_blti_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x70000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bgeui_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x60000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bltui_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x80000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bbci_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x8000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bbsi_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x10000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_beq_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x38000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bne_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x90000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bge_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x48000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_blt_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x68000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bgeu_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x58000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bltu_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x78000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bany_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x20000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bnone_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0xa0000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_ball_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x18000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bnall_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x88000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bbc_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x28000000;
-  slotbuf[1] = 0;
-}
-
-static void
-Opcode_bbs_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = 0x30000000;
-  slotbuf[1] = 0;
+  slotbuf[0] = 0x28;
 }
 
 xtensa_opcode_encode_fn Opcode_excw_encode_fns[] = {
-  Opcode_excw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_excw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rfe_encode_fns[] = {
-  Opcode_rfe_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rfe_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rfde_encode_fns[] = {
-  Opcode_rfde_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rfde_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_syscall_encode_fns[] = {
-  Opcode_syscall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_syscall_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_simcall_encode_fns[] = {
-  Opcode_simcall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_simcall_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_call12_encode_fns[] = {
-  Opcode_call12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_call12_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_call8_encode_fns[] = {
-  Opcode_call8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_call8_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_call4_encode_fns[] = {
-  Opcode_call4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_call4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_callx12_encode_fns[] = {
-  Opcode_callx12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_callx12_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_callx8_encode_fns[] = {
-  Opcode_callx8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_callx8_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_callx4_encode_fns[] = {
-  Opcode_callx4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_callx4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_entry_encode_fns[] = {
-  Opcode_entry_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_entry_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_movsp_encode_fns[] = {
-  Opcode_movsp_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_movsp_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rotw_encode_fns[] = {
-  Opcode_rotw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rotw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_retw_encode_fns[] = {
-  Opcode_retw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_retw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_retw_n_encode_fns[] = {
-  0, 0, Opcode_retw_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
+  0, 0, Opcode_retw_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_rfwo_encode_fns[] = {
-  Opcode_rfwo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rfwo_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rfwu_encode_fns[] = {
-  Opcode_rfwu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rfwu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_l32e_encode_fns[] = {
-  Opcode_l32e_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_l32e_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_s32e_encode_fns[] = {
-  Opcode_s32e_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_s32e_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_windowbase_encode_fns[] = {
-  Opcode_rsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_windowbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_windowbase_encode_fns[] = {
-  Opcode_wsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_windowbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_windowbase_encode_fns[] = {
-  Opcode_xsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_windowbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_windowstart_encode_fns[] = {
-  Opcode_rsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_windowstart_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_windowstart_encode_fns[] = {
-  Opcode_wsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_windowstart_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_windowstart_encode_fns[] = {
-  Opcode_xsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_windowstart_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_add_n_encode_fns[] = {
-  0, Opcode_add_n_Slot_inst16a_encode, 0, 0, 0, 0, 0, 0
+  0, Opcode_add_n_Slot_inst16a_encode, 0
 };
 
 xtensa_opcode_encode_fn Opcode_addi_n_encode_fns[] = {
-  0, Opcode_addi_n_Slot_inst16a_encode, 0, 0, 0, 0, Opcode_addi_n_Slot_xt_flix64_slot2_encode, 0
+  0, Opcode_addi_n_Slot_inst16a_encode, 0
 };
 
 xtensa_opcode_encode_fn Opcode_beqz_n_encode_fns[] = {
-  0, 0, Opcode_beqz_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
+  0, 0, Opcode_beqz_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_bnez_n_encode_fns[] = {
-  0, 0, Opcode_bnez_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
+  0, 0, Opcode_bnez_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_ill_n_encode_fns[] = {
-  0, 0, Opcode_ill_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
+  0, 0, Opcode_ill_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_l32i_n_encode_fns[] = {
-  0, Opcode_l32i_n_Slot_inst16a_encode, 0, 0, 0, 0, 0, 0
+  0, Opcode_l32i_n_Slot_inst16a_encode, 0
 };
 
 xtensa_opcode_encode_fn Opcode_mov_n_encode_fns[] = {
-  0, 0, Opcode_mov_n_Slot_inst16b_encode, Opcode_mov_n_Slot_xt_flix64_slot0_encode, Opcode_mov_n_Slot_xt_flix64_slot0_encode, Opcode_mov_n_Slot_xt_flix64_slot1_encode, Opcode_mov_n_Slot_xt_flix64_slot2_encode, 0
+  0, 0, Opcode_mov_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_movi_n_encode_fns[] = {
-  0, 0, Opcode_movi_n_Slot_inst16b_encode, 0, 0, 0, Opcode_movi_n_Slot_xt_flix64_slot2_encode, 0
+  0, 0, Opcode_movi_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_nop_n_encode_fns[] = {
-  0, 0, Opcode_nop_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
+  0, 0, Opcode_nop_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_ret_n_encode_fns[] = {
-  0, 0, Opcode_ret_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
+  0, 0, Opcode_ret_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_s32i_n_encode_fns[] = {
-  0, Opcode_s32i_n_Slot_inst16a_encode, 0, 0, 0, 0, 0, 0
+  0, Opcode_s32i_n_Slot_inst16a_encode, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rur_threadptr_encode_fns[] = {
-  Opcode_rur_threadptr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rur_threadptr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wur_threadptr_encode_fns[] = {
-  Opcode_wur_threadptr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wur_threadptr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_addi_encode_fns[] = {
-  Opcode_addi_Slot_inst_encode, 0, 0, Opcode_addi_Slot_xt_flix64_slot0_encode, Opcode_addi_Slot_xt_flix64_slot0_encode, Opcode_addi_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_addi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_addmi_encode_fns[] = {
-  Opcode_addmi_Slot_inst_encode, 0, 0, Opcode_addmi_Slot_xt_flix64_slot0_encode, Opcode_addmi_Slot_xt_flix64_slot0_encode, Opcode_addmi_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_addmi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_add_encode_fns[] = {
-  Opcode_add_Slot_inst_encode, 0, 0, Opcode_add_Slot_xt_flix64_slot0_encode, Opcode_add_Slot_xt_flix64_slot0_encode, Opcode_add_Slot_xt_flix64_slot1_encode, Opcode_add_Slot_xt_flix64_slot2_encode, 0
+  Opcode_add_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_sub_encode_fns[] = {
-  Opcode_sub_Slot_inst_encode, 0, 0, Opcode_sub_Slot_xt_flix64_slot0_encode, Opcode_sub_Slot_xt_flix64_slot0_encode, Opcode_sub_Slot_xt_flix64_slot1_encode, Opcode_sub_Slot_xt_flix64_slot2_encode, 0
+  Opcode_sub_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_addx2_encode_fns[] = {
-  Opcode_addx2_Slot_inst_encode, 0, 0, Opcode_addx2_Slot_xt_flix64_slot0_encode, Opcode_addx2_Slot_xt_flix64_slot0_encode, Opcode_addx2_Slot_xt_flix64_slot1_encode, Opcode_addx2_Slot_xt_flix64_slot2_encode, 0
+  Opcode_addx2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_addx4_encode_fns[] = {
-  Opcode_addx4_Slot_inst_encode, 0, 0, Opcode_addx4_Slot_xt_flix64_slot0_encode, Opcode_addx4_Slot_xt_flix64_slot0_encode, Opcode_addx4_Slot_xt_flix64_slot1_encode, Opcode_addx4_Slot_xt_flix64_slot2_encode, 0
+  Opcode_addx4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_addx8_encode_fns[] = {
-  Opcode_addx8_Slot_inst_encode, 0, 0, Opcode_addx8_Slot_xt_flix64_slot0_encode, Opcode_addx8_Slot_xt_flix64_slot0_encode, Opcode_addx8_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_addx8_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_subx2_encode_fns[] = {
-  Opcode_subx2_Slot_inst_encode, 0, 0, Opcode_subx2_Slot_xt_flix64_slot0_encode, Opcode_subx2_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_subx2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_subx4_encode_fns[] = {
-  Opcode_subx4_Slot_inst_encode, 0, 0, Opcode_subx4_Slot_xt_flix64_slot0_encode, Opcode_subx4_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_subx4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_subx8_encode_fns[] = {
-  Opcode_subx8_Slot_inst_encode, 0, 0, Opcode_subx8_Slot_xt_flix64_slot0_encode, Opcode_subx8_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_subx8_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_and_encode_fns[] = {
-  Opcode_and_Slot_inst_encode, 0, 0, Opcode_and_Slot_xt_flix64_slot0_encode, Opcode_and_Slot_xt_flix64_slot0_encode, Opcode_and_Slot_xt_flix64_slot1_encode, Opcode_and_Slot_xt_flix64_slot2_encode, 0
+  Opcode_and_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_or_encode_fns[] = {
-  Opcode_or_Slot_inst_encode, 0, 0, Opcode_or_Slot_xt_flix64_slot0_encode, Opcode_or_Slot_xt_flix64_slot0_encode, Opcode_or_Slot_xt_flix64_slot1_encode, Opcode_or_Slot_xt_flix64_slot2_encode, 0
+  Opcode_or_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xor_encode_fns[] = {
-  Opcode_xor_Slot_inst_encode, 0, 0, Opcode_xor_Slot_xt_flix64_slot0_encode, Opcode_xor_Slot_xt_flix64_slot0_encode, Opcode_xor_Slot_xt_flix64_slot1_encode, Opcode_xor_Slot_xt_flix64_slot2_encode, 0
+  Opcode_xor_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_beqi_encode_fns[] = {
-  Opcode_beqi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_beqi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bnei_encode_fns[] = {
-  Opcode_bnei_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bnei_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bgei_encode_fns[] = {
-  Opcode_bgei_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bgei_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_blti_encode_fns[] = {
-  Opcode_blti_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_blti_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bbci_encode_fns[] = {
-  Opcode_bbci_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bbci_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bbsi_encode_fns[] = {
-  Opcode_bbsi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bbsi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bgeui_encode_fns[] = {
-  Opcode_bgeui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bgeui_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bltui_encode_fns[] = {
-  Opcode_bltui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bltui_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_beq_encode_fns[] = {
-  Opcode_beq_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_beq_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bne_encode_fns[] = {
-  Opcode_bne_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bne_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bge_encode_fns[] = {
-  Opcode_bge_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bge_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_blt_encode_fns[] = {
-  Opcode_blt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_blt_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bgeu_encode_fns[] = {
-  Opcode_bgeu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bgeu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bltu_encode_fns[] = {
-  Opcode_bltu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bltu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bany_encode_fns[] = {
-  Opcode_bany_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bany_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bnone_encode_fns[] = {
-  Opcode_bnone_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bnone_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ball_encode_fns[] = {
-  Opcode_ball_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ball_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bnall_encode_fns[] = {
-  Opcode_bnall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bnall_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bbc_encode_fns[] = {
-  Opcode_bbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bbc_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bbs_encode_fns[] = {
-  Opcode_bbs_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bbs_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_beqz_encode_fns[] = {
-  Opcode_beqz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_beqz_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bnez_encode_fns[] = {
-  Opcode_bnez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bnez_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bgez_encode_fns[] = {
-  Opcode_bgez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bgez_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_bltz_encode_fns[] = {
-  Opcode_bltz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_bltz_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_call0_encode_fns[] = {
-  Opcode_call0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_call0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_callx0_encode_fns[] = {
-  Opcode_callx0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_callx0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_extui_encode_fns[] = {
-  Opcode_extui_Slot_inst_encode, 0, 0, Opcode_extui_Slot_xt_flix64_slot0_encode, Opcode_extui_Slot_xt_flix64_slot0_encode, Opcode_extui_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_extui_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ill_encode_fns[] = {
-  Opcode_ill_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ill_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_j_encode_fns[] = {
-  Opcode_j_Slot_inst_encode, 0, 0, 0, 0, Opcode_j_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_j_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_jx_encode_fns[] = {
-  Opcode_jx_Slot_inst_encode, 0, 0, 0, 0, Opcode_jx_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_jx_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_l16ui_encode_fns[] = {
-  Opcode_l16ui_Slot_inst_encode, 0, 0, Opcode_l16ui_Slot_xt_flix64_slot0_encode, Opcode_l16ui_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_l16ui_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_l16si_encode_fns[] = {
-  Opcode_l16si_Slot_inst_encode, 0, 0, Opcode_l16si_Slot_xt_flix64_slot0_encode, Opcode_l16si_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_l16si_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_l32i_encode_fns[] = {
-  Opcode_l32i_Slot_inst_encode, 0, 0, Opcode_l32i_Slot_xt_flix64_slot0_encode, Opcode_l32i_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_l32i_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_l32r_encode_fns[] = {
-  Opcode_l32r_Slot_inst_encode, 0, 0, Opcode_l32r_Slot_xt_flix64_slot0_encode, Opcode_l32r_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_l32r_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_l8ui_encode_fns[] = {
-  Opcode_l8ui_Slot_inst_encode, 0, 0, Opcode_l8ui_Slot_xt_flix64_slot0_encode, Opcode_l8ui_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_l8ui_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_loop_encode_fns[] = {
-  Opcode_loop_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_loop_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_loopnez_encode_fns[] = {
-  Opcode_loopnez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_loopnez_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_loopgtz_encode_fns[] = {
-  Opcode_loopgtz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_loopgtz_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_movi_encode_fns[] = {
-  Opcode_movi_Slot_inst_encode, 0, 0, Opcode_movi_Slot_xt_flix64_slot0_encode, Opcode_movi_Slot_xt_flix64_slot0_encode, Opcode_movi_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_movi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_moveqz_encode_fns[] = {
-  Opcode_moveqz_Slot_inst_encode, 0, 0, Opcode_moveqz_Slot_xt_flix64_slot0_encode, Opcode_moveqz_Slot_xt_flix64_slot0_encode, Opcode_moveqz_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_moveqz_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_movnez_encode_fns[] = {
-  Opcode_movnez_Slot_inst_encode, 0, 0, Opcode_movnez_Slot_xt_flix64_slot0_encode, Opcode_movnez_Slot_xt_flix64_slot0_encode, Opcode_movnez_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_movnez_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_movltz_encode_fns[] = {
-  Opcode_movltz_Slot_inst_encode, 0, 0, Opcode_movltz_Slot_xt_flix64_slot0_encode, Opcode_movltz_Slot_xt_flix64_slot0_encode, Opcode_movltz_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_movltz_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_movgez_encode_fns[] = {
-  Opcode_movgez_Slot_inst_encode, 0, 0, Opcode_movgez_Slot_xt_flix64_slot0_encode, Opcode_movgez_Slot_xt_flix64_slot0_encode, Opcode_movgez_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_movgez_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_neg_encode_fns[] = {
-  Opcode_neg_Slot_inst_encode, 0, 0, Opcode_neg_Slot_xt_flix64_slot0_encode, Opcode_neg_Slot_xt_flix64_slot0_encode, Opcode_neg_Slot_xt_flix64_slot1_encode, Opcode_neg_Slot_xt_flix64_slot2_encode, 0
+  Opcode_neg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_abs_encode_fns[] = {
-  Opcode_abs_Slot_inst_encode, 0, 0, Opcode_abs_Slot_xt_flix64_slot0_encode, Opcode_abs_Slot_xt_flix64_slot0_encode, 0, Opcode_abs_Slot_xt_flix64_slot2_encode, 0
+  Opcode_abs_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_nop_encode_fns[] = {
-  Opcode_nop_Slot_inst_encode, 0, 0, Opcode_nop_Slot_xt_flix64_slot0_encode, Opcode_nop_Slot_xt_flix64_slot0_encode, Opcode_nop_Slot_xt_flix64_slot1_encode, Opcode_nop_Slot_xt_flix64_slot2_encode, Opcode_nop_Slot_xt_flix64_slot3_encode
+  Opcode_nop_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ret_encode_fns[] = {
-  Opcode_ret_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ret_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_s16i_encode_fns[] = {
-  Opcode_s16i_Slot_inst_encode, 0, 0, Opcode_s16i_Slot_xt_flix64_slot0_encode, Opcode_s16i_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_s16i_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_s32i_encode_fns[] = {
-  Opcode_s32i_Slot_inst_encode, 0, 0, Opcode_s32i_Slot_xt_flix64_slot0_encode, Opcode_s32i_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_s32i_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_s8i_encode_fns[] = {
-  Opcode_s8i_Slot_inst_encode, 0, 0, Opcode_s8i_Slot_xt_flix64_slot0_encode, Opcode_s8i_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_s8i_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ssr_encode_fns[] = {
-  Opcode_ssr_Slot_inst_encode, 0, 0, Opcode_ssr_Slot_xt_flix64_slot0_encode, Opcode_ssr_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_ssr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ssl_encode_fns[] = {
-  Opcode_ssl_Slot_inst_encode, 0, 0, Opcode_ssl_Slot_xt_flix64_slot0_encode, Opcode_ssl_Slot_xt_flix64_slot0_encode, Opcode_ssl_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_ssl_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ssa8l_encode_fns[] = {
-  Opcode_ssa8l_Slot_inst_encode, 0, 0, Opcode_ssa8l_Slot_xt_flix64_slot0_encode, Opcode_ssa8l_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_ssa8l_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ssa8b_encode_fns[] = {
-  Opcode_ssa8b_Slot_inst_encode, 0, 0, Opcode_ssa8b_Slot_xt_flix64_slot0_encode, Opcode_ssa8b_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_ssa8b_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ssai_encode_fns[] = {
-  Opcode_ssai_Slot_inst_encode, 0, 0, Opcode_ssai_Slot_xt_flix64_slot0_encode, Opcode_ssai_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_ssai_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_sll_encode_fns[] = {
-  Opcode_sll_Slot_inst_encode, 0, 0, Opcode_sll_Slot_xt_flix64_slot0_encode, Opcode_sll_Slot_xt_flix64_slot0_encode, Opcode_sll_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_sll_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_src_encode_fns[] = {
-  Opcode_src_Slot_inst_encode, 0, 0, Opcode_src_Slot_xt_flix64_slot0_encode, Opcode_src_Slot_xt_flix64_slot0_encode, Opcode_src_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_src_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_srl_encode_fns[] = {
-  Opcode_srl_Slot_inst_encode, 0, 0, Opcode_srl_Slot_xt_flix64_slot0_encode, Opcode_srl_Slot_xt_flix64_slot0_encode, Opcode_srl_Slot_xt_flix64_slot1_encode, Opcode_srl_Slot_xt_flix64_slot2_encode, 0
+  Opcode_srl_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_sra_encode_fns[] = {
-  Opcode_sra_Slot_inst_encode, 0, 0, Opcode_sra_Slot_xt_flix64_slot0_encode, Opcode_sra_Slot_xt_flix64_slot0_encode, Opcode_sra_Slot_xt_flix64_slot1_encode, Opcode_sra_Slot_xt_flix64_slot2_encode, 0
+  Opcode_sra_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_slli_encode_fns[] = {
-  Opcode_slli_Slot_inst_encode, 0, 0, Opcode_slli_Slot_xt_flix64_slot0_encode, Opcode_slli_Slot_xt_flix64_slot0_encode, Opcode_slli_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_slli_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_srai_encode_fns[] = {
-  Opcode_srai_Slot_inst_encode, 0, 0, Opcode_srai_Slot_xt_flix64_slot0_encode, Opcode_srai_Slot_xt_flix64_slot0_encode, Opcode_srai_Slot_xt_flix64_slot1_encode, Opcode_srai_Slot_xt_flix64_slot2_encode, 0
+  Opcode_srai_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_srli_encode_fns[] = {
-  Opcode_srli_Slot_inst_encode, 0, 0, Opcode_srli_Slot_xt_flix64_slot0_encode, Opcode_srli_Slot_xt_flix64_slot0_encode, Opcode_srli_Slot_xt_flix64_slot1_encode, Opcode_srli_Slot_xt_flix64_slot2_encode, 0
+  Opcode_srli_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_memw_encode_fns[] = {
-  Opcode_memw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_memw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_extw_encode_fns[] = {
-  Opcode_extw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_extw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_isync_encode_fns[] = {
-  Opcode_isync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_isync_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsync_encode_fns[] = {
-  Opcode_rsync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsync_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_esync_encode_fns[] = {
-  Opcode_esync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_esync_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dsync_encode_fns[] = {
-  Opcode_dsync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dsync_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsil_encode_fns[] = {
-  Opcode_rsil_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsil_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_lend_encode_fns[] = {
-  Opcode_rsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_lend_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_lend_encode_fns[] = {
-  Opcode_wsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_lend_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_lend_encode_fns[] = {
-  Opcode_xsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_lend_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_lcount_encode_fns[] = {
-  Opcode_rsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_lcount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_lcount_encode_fns[] = {
-  Opcode_wsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_lcount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_lcount_encode_fns[] = {
-  Opcode_xsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_lcount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_lbeg_encode_fns[] = {
-  Opcode_rsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_lbeg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_lbeg_encode_fns[] = {
-  Opcode_wsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_lbeg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_lbeg_encode_fns[] = {
-  Opcode_xsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_lbeg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_sar_encode_fns[] = {
-  Opcode_rsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_sar_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_sar_encode_fns[] = {
-  Opcode_wsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_sar_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_sar_encode_fns[] = {
-  Opcode_xsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_sar_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_litbase_encode_fns[] = {
-  Opcode_rsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_litbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_litbase_encode_fns[] = {
-  Opcode_wsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_litbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_litbase_encode_fns[] = {
-  Opcode_xsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_litbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_176_encode_fns[] = {
-  Opcode_rsr_176_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_176_Slot_inst_encode, 0, 0
+};
+
+xtensa_opcode_encode_fn Opcode_wsr_176_encode_fns[] = {
+  Opcode_wsr_176_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_208_encode_fns[] = {
-  Opcode_rsr_208_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_208_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ps_encode_fns[] = {
-  Opcode_rsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ps_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ps_encode_fns[] = {
-  Opcode_wsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ps_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ps_encode_fns[] = {
-  Opcode_xsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ps_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_epc1_encode_fns[] = {
-  Opcode_rsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_epc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_epc1_encode_fns[] = {
-  Opcode_wsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_epc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_epc1_encode_fns[] = {
-  Opcode_xsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_epc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excsave1_encode_fns[] = {
-  Opcode_rsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excsave1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excsave1_encode_fns[] = {
-  Opcode_wsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excsave1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excsave1_encode_fns[] = {
-  Opcode_xsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excsave1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_epc2_encode_fns[] = {
-  Opcode_rsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_epc2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_epc2_encode_fns[] = {
-  Opcode_wsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_epc2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_epc2_encode_fns[] = {
-  Opcode_xsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_epc2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excsave2_encode_fns[] = {
-  Opcode_rsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excsave2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excsave2_encode_fns[] = {
-  Opcode_wsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excsave2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excsave2_encode_fns[] = {
-  Opcode_xsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excsave2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_epc3_encode_fns[] = {
-  Opcode_rsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_epc3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_epc3_encode_fns[] = {
-  Opcode_wsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_epc3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_epc3_encode_fns[] = {
-  Opcode_xsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_epc3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excsave3_encode_fns[] = {
-  Opcode_rsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excsave3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excsave3_encode_fns[] = {
-  Opcode_wsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excsave3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excsave3_encode_fns[] = {
-  Opcode_xsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excsave3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_epc4_encode_fns[] = {
-  Opcode_rsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_epc4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_epc4_encode_fns[] = {
-  Opcode_wsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_epc4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_epc4_encode_fns[] = {
-  Opcode_xsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_epc4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excsave4_encode_fns[] = {
-  Opcode_rsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excsave4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excsave4_encode_fns[] = {
-  Opcode_wsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excsave4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excsave4_encode_fns[] = {
-  Opcode_xsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excsave4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_epc5_encode_fns[] = {
-  Opcode_rsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_epc5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_epc5_encode_fns[] = {
-  Opcode_wsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_epc5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_epc5_encode_fns[] = {
-  Opcode_xsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_epc5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excsave5_encode_fns[] = {
-  Opcode_rsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excsave5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excsave5_encode_fns[] = {
-  Opcode_wsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excsave5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excsave5_encode_fns[] = {
-  Opcode_xsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excsave5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_epc6_encode_fns[] = {
-  Opcode_rsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_epc6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_epc6_encode_fns[] = {
-  Opcode_wsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_epc6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_epc6_encode_fns[] = {
-  Opcode_xsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_epc6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excsave6_encode_fns[] = {
-  Opcode_rsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excsave6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excsave6_encode_fns[] = {
-  Opcode_wsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excsave6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excsave6_encode_fns[] = {
-  Opcode_xsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excsave6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_epc7_encode_fns[] = {
-  Opcode_rsr_epc7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_epc7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_epc7_encode_fns[] = {
-  Opcode_wsr_epc7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_epc7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_epc7_encode_fns[] = {
-  Opcode_xsr_epc7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_epc7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excsave7_encode_fns[] = {
-  Opcode_rsr_excsave7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excsave7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excsave7_encode_fns[] = {
-  Opcode_wsr_excsave7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excsave7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excsave7_encode_fns[] = {
-  Opcode_xsr_excsave7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excsave7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_eps2_encode_fns[] = {
-  Opcode_rsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_eps2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_eps2_encode_fns[] = {
-  Opcode_wsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_eps2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_eps2_encode_fns[] = {
-  Opcode_xsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_eps2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_eps3_encode_fns[] = {
-  Opcode_rsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_eps3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_eps3_encode_fns[] = {
-  Opcode_wsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_eps3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_eps3_encode_fns[] = {
-  Opcode_xsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_eps3_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_eps4_encode_fns[] = {
-  Opcode_rsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_eps4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_eps4_encode_fns[] = {
-  Opcode_wsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_eps4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_eps4_encode_fns[] = {
-  Opcode_xsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_eps4_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_eps5_encode_fns[] = {
-  Opcode_rsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_eps5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_eps5_encode_fns[] = {
-  Opcode_wsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_eps5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_eps5_encode_fns[] = {
-  Opcode_xsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_eps5_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_eps6_encode_fns[] = {
-  Opcode_rsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_eps6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_eps6_encode_fns[] = {
-  Opcode_wsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_eps6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_eps6_encode_fns[] = {
-  Opcode_xsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_eps6_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_eps7_encode_fns[] = {
-  Opcode_rsr_eps7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_eps7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_eps7_encode_fns[] = {
-  Opcode_wsr_eps7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_eps7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_eps7_encode_fns[] = {
-  Opcode_xsr_eps7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_eps7_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_excvaddr_encode_fns[] = {
-  Opcode_rsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_excvaddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_excvaddr_encode_fns[] = {
-  Opcode_wsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_excvaddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_excvaddr_encode_fns[] = {
-  Opcode_xsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_excvaddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_depc_encode_fns[] = {
-  Opcode_rsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_depc_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_depc_encode_fns[] = {
-  Opcode_wsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_depc_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_depc_encode_fns[] = {
-  Opcode_xsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_depc_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_exccause_encode_fns[] = {
-  Opcode_rsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_exccause_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_exccause_encode_fns[] = {
-  Opcode_wsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_exccause_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_exccause_encode_fns[] = {
-  Opcode_xsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_exccause_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_misc0_encode_fns[] = {
-  Opcode_rsr_misc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_misc0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_misc0_encode_fns[] = {
-  Opcode_wsr_misc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_misc0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_misc0_encode_fns[] = {
-  Opcode_xsr_misc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_misc0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_misc1_encode_fns[] = {
-  Opcode_rsr_misc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_misc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_misc1_encode_fns[] = {
-  Opcode_wsr_misc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_misc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_misc1_encode_fns[] = {
-  Opcode_xsr_misc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_misc2_encode_fns[] = {
-  Opcode_rsr_misc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_misc2_encode_fns[] = {
-  Opcode_wsr_misc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_misc2_encode_fns[] = {
-  Opcode_xsr_misc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_misc3_encode_fns[] = {
-  Opcode_rsr_misc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_misc3_encode_fns[] = {
-  Opcode_wsr_misc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_misc3_encode_fns[] = {
-  Opcode_xsr_misc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_misc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_prid_encode_fns[] = {
-  Opcode_rsr_prid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_prid_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_vecbase_encode_fns[] = {
-  Opcode_rsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_vecbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_vecbase_encode_fns[] = {
-  Opcode_wsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_vecbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_vecbase_encode_fns[] = {
-  Opcode_xsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_aa_ll_encode_fns[] = {
-  Opcode_mul_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_aa_hl_encode_fns[] = {
-  Opcode_mul_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_aa_lh_encode_fns[] = {
-  Opcode_mul_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_aa_hh_encode_fns[] = {
-  Opcode_mul_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_umul_aa_ll_encode_fns[] = {
-  Opcode_umul_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_umul_aa_hl_encode_fns[] = {
-  Opcode_umul_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_umul_aa_lh_encode_fns[] = {
-  Opcode_umul_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_umul_aa_hh_encode_fns[] = {
-  Opcode_umul_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_ad_ll_encode_fns[] = {
-  Opcode_mul_ad_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_ad_hl_encode_fns[] = {
-  Opcode_mul_ad_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_ad_lh_encode_fns[] = {
-  Opcode_mul_ad_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_ad_hh_encode_fns[] = {
-  Opcode_mul_ad_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_da_ll_encode_fns[] = {
-  Opcode_mul_da_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_da_hl_encode_fns[] = {
-  Opcode_mul_da_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_da_lh_encode_fns[] = {
-  Opcode_mul_da_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_da_hh_encode_fns[] = {
-  Opcode_mul_da_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_dd_ll_encode_fns[] = {
-  Opcode_mul_dd_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_dd_hl_encode_fns[] = {
-  Opcode_mul_dd_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_dd_lh_encode_fns[] = {
-  Opcode_mul_dd_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_dd_hh_encode_fns[] = {
-  Opcode_mul_dd_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_aa_ll_encode_fns[] = {
-  Opcode_mula_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_aa_hl_encode_fns[] = {
-  Opcode_mula_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_aa_lh_encode_fns[] = {
-  Opcode_mula_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_aa_hh_encode_fns[] = {
-  Opcode_mula_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_aa_ll_encode_fns[] = {
-  Opcode_muls_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_aa_hl_encode_fns[] = {
-  Opcode_muls_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_aa_lh_encode_fns[] = {
-  Opcode_muls_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_aa_hh_encode_fns[] = {
-  Opcode_muls_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_ad_ll_encode_fns[] = {
-  Opcode_mula_ad_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_ad_hl_encode_fns[] = {
-  Opcode_mula_ad_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_ad_lh_encode_fns[] = {
-  Opcode_mula_ad_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_ad_hh_encode_fns[] = {
-  Opcode_mula_ad_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_ad_ll_encode_fns[] = {
-  Opcode_muls_ad_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_ad_hl_encode_fns[] = {
-  Opcode_muls_ad_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_ad_lh_encode_fns[] = {
-  Opcode_muls_ad_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_ad_hh_encode_fns[] = {
-  Opcode_muls_ad_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_ll_encode_fns[] = {
-  Opcode_mula_da_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_hl_encode_fns[] = {
-  Opcode_mula_da_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_lh_encode_fns[] = {
-  Opcode_mula_da_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_hh_encode_fns[] = {
-  Opcode_mula_da_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_da_ll_encode_fns[] = {
-  Opcode_muls_da_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_da_hl_encode_fns[] = {
-  Opcode_muls_da_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_da_lh_encode_fns[] = {
-  Opcode_muls_da_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_da_hh_encode_fns[] = {
-  Opcode_muls_da_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_ll_encode_fns[] = {
-  Opcode_mula_dd_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_hl_encode_fns[] = {
-  Opcode_mula_dd_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_lh_encode_fns[] = {
-  Opcode_mula_dd_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_hh_encode_fns[] = {
-  Opcode_mula_dd_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_dd_ll_encode_fns[] = {
-  Opcode_muls_dd_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_dd_hl_encode_fns[] = {
-  Opcode_muls_dd_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_dd_lh_encode_fns[] = {
-  Opcode_muls_dd_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muls_dd_hh_encode_fns[] = {
-  Opcode_muls_dd_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_ll_lddec_encode_fns[] = {
-  Opcode_mula_da_ll_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_ll_ldinc_encode_fns[] = {
-  Opcode_mula_da_ll_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_hl_lddec_encode_fns[] = {
-  Opcode_mula_da_hl_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_hl_ldinc_encode_fns[] = {
-  Opcode_mula_da_hl_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_lh_lddec_encode_fns[] = {
-  Opcode_mula_da_lh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_lh_ldinc_encode_fns[] = {
-  Opcode_mula_da_lh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_hh_lddec_encode_fns[] = {
-  Opcode_mula_da_hh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_da_hh_ldinc_encode_fns[] = {
-  Opcode_mula_da_hh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_ll_lddec_encode_fns[] = {
-  Opcode_mula_dd_ll_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_ll_ldinc_encode_fns[] = {
-  Opcode_mula_dd_ll_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_hl_lddec_encode_fns[] = {
-  Opcode_mula_dd_hl_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_hl_ldinc_encode_fns[] = {
-  Opcode_mula_dd_hl_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_lh_lddec_encode_fns[] = {
-  Opcode_mula_dd_lh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_lh_ldinc_encode_fns[] = {
-  Opcode_mula_dd_lh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_hh_lddec_encode_fns[] = {
-  Opcode_mula_dd_hh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mula_dd_hh_ldinc_encode_fns[] = {
-  Opcode_mula_dd_hh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_lddec_encode_fns[] = {
-  Opcode_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ldinc_encode_fns[] = {
-  Opcode_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_vecbase_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_mul16u_encode_fns[] = {
-  Opcode_mul16u_Slot_inst_encode, 0, 0, Opcode_mul16u_Slot_xt_flix64_slot0_encode, Opcode_mul16u_Slot_xt_flix64_slot0_encode, Opcode_mul16u_Slot_xt_flix64_slot1_encode, 0, 0
+  Opcode_mul16u_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_mul16s_encode_fns[] = {
-  Opcode_mul16s_Slot_inst_encode, 0, 0, Opcode_mul16s_Slot_xt_flix64_slot0_encode, Opcode_mul16s_Slot_xt_flix64_slot0_encode, Opcode_mul16s_Slot_xt_flix64_slot1_encode, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_m0_encode_fns[] = {
-  Opcode_rsr_m0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_m0_encode_fns[] = {
-  Opcode_wsr_m0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_m0_encode_fns[] = {
-  Opcode_xsr_m0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_m1_encode_fns[] = {
-  Opcode_rsr_m1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_m1_encode_fns[] = {
-  Opcode_wsr_m1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_m1_encode_fns[] = {
-  Opcode_xsr_m1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_m2_encode_fns[] = {
-  Opcode_rsr_m2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_m2_encode_fns[] = {
-  Opcode_wsr_m2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_m2_encode_fns[] = {
-  Opcode_xsr_m2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_m3_encode_fns[] = {
-  Opcode_rsr_m3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_m3_encode_fns[] = {
-  Opcode_wsr_m3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_m3_encode_fns[] = {
-  Opcode_xsr_m3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_acclo_encode_fns[] = {
-  Opcode_rsr_acclo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_acclo_encode_fns[] = {
-  Opcode_wsr_acclo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_acclo_encode_fns[] = {
-  Opcode_xsr_acclo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_acchi_encode_fns[] = {
-  Opcode_rsr_acchi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_acchi_encode_fns[] = {
-  Opcode_wsr_acchi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_acchi_encode_fns[] = {
-  Opcode_xsr_acchi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_mul16s_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rfi_encode_fns[] = {
-  Opcode_rfi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rfi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_waiti_encode_fns[] = {
-  Opcode_waiti_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_waiti_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_interrupt_encode_fns[] = {
-  Opcode_rsr_interrupt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_interrupt_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_intset_encode_fns[] = {
-  Opcode_wsr_intset_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_intset_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_intclear_encode_fns[] = {
-  Opcode_wsr_intclear_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_intclear_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_intenable_encode_fns[] = {
-  Opcode_rsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_intenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_intenable_encode_fns[] = {
-  Opcode_wsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_intenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_intenable_encode_fns[] = {
-  Opcode_xsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_intenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_break_encode_fns[] = {
-  Opcode_break_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_break_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_break_n_encode_fns[] = {
-  0, 0, Opcode_break_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
+  0, 0, Opcode_break_n_Slot_inst16b_encode
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_dbreaka0_encode_fns[] = {
-  Opcode_rsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_dbreaka0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_dbreaka0_encode_fns[] = {
-  Opcode_wsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_dbreaka0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_dbreaka0_encode_fns[] = {
-  Opcode_xsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_dbreaka0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_dbreakc0_encode_fns[] = {
-  Opcode_rsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_dbreakc0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_dbreakc0_encode_fns[] = {
-  Opcode_wsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_dbreakc0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_dbreakc0_encode_fns[] = {
-  Opcode_xsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_dbreakc0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_dbreaka1_encode_fns[] = {
-  Opcode_rsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_dbreaka1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_dbreaka1_encode_fns[] = {
-  Opcode_wsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_dbreaka1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_dbreaka1_encode_fns[] = {
-  Opcode_xsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_dbreaka1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_dbreakc1_encode_fns[] = {
-  Opcode_rsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_dbreakc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_dbreakc1_encode_fns[] = {
-  Opcode_wsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_dbreakc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_dbreakc1_encode_fns[] = {
-  Opcode_xsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_dbreakc1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ibreaka0_encode_fns[] = {
-  Opcode_rsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ibreaka0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ibreaka0_encode_fns[] = {
-  Opcode_wsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ibreaka0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ibreaka0_encode_fns[] = {
-  Opcode_xsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ibreaka0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ibreaka1_encode_fns[] = {
-  Opcode_rsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ibreaka1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ibreaka1_encode_fns[] = {
-  Opcode_wsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ibreaka1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ibreaka1_encode_fns[] = {
-  Opcode_xsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ibreaka1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ibreakenable_encode_fns[] = {
-  Opcode_rsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ibreakenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ibreakenable_encode_fns[] = {
-  Opcode_wsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ibreakenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ibreakenable_encode_fns[] = {
-  Opcode_xsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ibreakenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_debugcause_encode_fns[] = {
-  Opcode_rsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_debugcause_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_debugcause_encode_fns[] = {
-  Opcode_wsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_debugcause_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_debugcause_encode_fns[] = {
-  Opcode_xsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_debugcause_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_icount_encode_fns[] = {
-  Opcode_rsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_icount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_icount_encode_fns[] = {
-  Opcode_wsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_icount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_icount_encode_fns[] = {
-  Opcode_xsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_icount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_icountlevel_encode_fns[] = {
-  Opcode_rsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_icountlevel_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_icountlevel_encode_fns[] = {
-  Opcode_wsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_icountlevel_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_icountlevel_encode_fns[] = {
-  Opcode_xsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_icountlevel_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ddr_encode_fns[] = {
-  Opcode_rsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ddr_encode_fns[] = {
-  Opcode_wsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ddr_encode_fns[] = {
-  Opcode_xsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rfdo_encode_fns[] = {
-  Opcode_rfdo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rfdo_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rfdd_encode_fns[] = {
-  Opcode_rfdd_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rfdd_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_mmid_encode_fns[] = {
-  Opcode_wsr_mmid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_andb_encode_fns[] = {
-  Opcode_andb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_andbc_encode_fns[] = {
-  Opcode_andbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_orb_encode_fns[] = {
-  Opcode_orb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_orbc_encode_fns[] = {
-  Opcode_orbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xorb_encode_fns[] = {
-  Opcode_xorb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_any4_encode_fns[] = {
-  Opcode_any4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_all4_encode_fns[] = {
-  Opcode_all4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_any8_encode_fns[] = {
-  Opcode_any8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_all8_encode_fns[] = {
-  Opcode_all8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_bf_encode_fns[] = {
-  Opcode_bf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_bt_encode_fns[] = {
-  Opcode_bt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_movf_encode_fns[] = {
-  Opcode_movf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_movt_encode_fns[] = {
-  Opcode_movt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rsr_br_encode_fns[] = {
-  Opcode_rsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wsr_br_encode_fns[] = {
-  Opcode_wsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_xsr_br_encode_fns[] = {
-  Opcode_xsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_mmid_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ccount_encode_fns[] = {
-  Opcode_rsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ccount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ccount_encode_fns[] = {
-  Opcode_wsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ccount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ccount_encode_fns[] = {
-  Opcode_xsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ccount_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ccompare0_encode_fns[] = {
-  Opcode_rsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ccompare0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ccompare0_encode_fns[] = {
-  Opcode_wsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ccompare0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ccompare0_encode_fns[] = {
-  Opcode_xsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ccompare0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ccompare1_encode_fns[] = {
-  Opcode_rsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ccompare1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ccompare1_encode_fns[] = {
-  Opcode_wsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ccompare1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ccompare1_encode_fns[] = {
-  Opcode_xsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ccompare1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ccompare2_encode_fns[] = {
-  Opcode_rsr_ccompare2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ccompare2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ccompare2_encode_fns[] = {
-  Opcode_wsr_ccompare2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ccompare2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ccompare2_encode_fns[] = {
-  Opcode_xsr_ccompare2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ccompare2_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ipf_encode_fns[] = {
-  Opcode_ipf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ipf_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ihi_encode_fns[] = {
-  Opcode_ihi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ihi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ipfl_encode_fns[] = {
-  Opcode_ipfl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ipfl_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ihu_encode_fns[] = {
-  Opcode_ihu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ihu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_iiu_encode_fns[] = {
-  Opcode_iiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_iiu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_iii_encode_fns[] = {
-  Opcode_iii_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_iii_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_lict_encode_fns[] = {
-  Opcode_lict_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_lict_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_licw_encode_fns[] = {
-  Opcode_licw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_licw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_sict_encode_fns[] = {
-  Opcode_sict_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_sict_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_sicw_encode_fns[] = {
-  Opcode_sicw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_sicw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dhwb_encode_fns[] = {
-  Opcode_dhwb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dhwb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dhwbi_encode_fns[] = {
-  Opcode_dhwbi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dhwbi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_diwb_encode_fns[] = {
-  Opcode_diwb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_diwb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_diwbi_encode_fns[] = {
-  Opcode_diwbi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_diwbi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dhi_encode_fns[] = {
-  Opcode_dhi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dhi_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dii_encode_fns[] = {
-  Opcode_dii_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dii_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dpfr_encode_fns[] = {
-  Opcode_dpfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dpfr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dpfw_encode_fns[] = {
-  Opcode_dpfw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dpfw_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dpfro_encode_fns[] = {
-  Opcode_dpfro_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dpfro_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dpfwo_encode_fns[] = {
-  Opcode_dpfwo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dpfwo_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dpfl_encode_fns[] = {
-  Opcode_dpfl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dpfl_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_dhu_encode_fns[] = {
-  Opcode_dhu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_dhu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_diu_encode_fns[] = {
-  Opcode_diu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_diu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_sdct_encode_fns[] = {
-  Opcode_sdct_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_sdct_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ldct_encode_fns[] = {
-  Opcode_ldct_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ldct_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_ptevaddr_encode_fns[] = {
-  Opcode_wsr_ptevaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_ptevaddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_ptevaddr_encode_fns[] = {
-  Opcode_rsr_ptevaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_ptevaddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_ptevaddr_encode_fns[] = {
-  Opcode_xsr_ptevaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_ptevaddr_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_rasid_encode_fns[] = {
-  Opcode_rsr_rasid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_rasid_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_rasid_encode_fns[] = {
-  Opcode_wsr_rasid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_rasid_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_rasid_encode_fns[] = {
-  Opcode_xsr_rasid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_rasid_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_itlbcfg_encode_fns[] = {
-  Opcode_rsr_itlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_itlbcfg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_itlbcfg_encode_fns[] = {
-  Opcode_wsr_itlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_itlbcfg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_itlbcfg_encode_fns[] = {
-  Opcode_xsr_itlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_itlbcfg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_dtlbcfg_encode_fns[] = {
-  Opcode_rsr_dtlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_dtlbcfg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_dtlbcfg_encode_fns[] = {
-  Opcode_wsr_dtlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_dtlbcfg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_dtlbcfg_encode_fns[] = {
-  Opcode_xsr_dtlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_dtlbcfg_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_idtlb_encode_fns[] = {
-  Opcode_idtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_idtlb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_pdtlb_encode_fns[] = {
-  Opcode_pdtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_pdtlb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rdtlb0_encode_fns[] = {
-  Opcode_rdtlb0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rdtlb0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rdtlb1_encode_fns[] = {
-  Opcode_rdtlb1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rdtlb1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wdtlb_encode_fns[] = {
-  Opcode_wdtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wdtlb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_iitlb_encode_fns[] = {
-  Opcode_iitlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_iitlb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_pitlb_encode_fns[] = {
-  Opcode_pitlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_pitlb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ritlb0_encode_fns[] = {
-  Opcode_ritlb0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ritlb0_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ritlb1_encode_fns[] = {
-  Opcode_ritlb1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ritlb1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_witlb_encode_fns[] = {
-  Opcode_witlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_witlb_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_ldpte_encode_fns[] = {
-  Opcode_ldpte_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_ldpte_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_hwwitlba_encode_fns[] = {
-  Opcode_hwwitlba_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_hwwitlba_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_hwwdtlba_encode_fns[] = {
-  Opcode_hwwdtlba_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_hwwdtlba_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_cpenable_encode_fns[] = {
-  Opcode_rsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_cpenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_cpenable_encode_fns[] = {
-  Opcode_wsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_cpenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_cpenable_encode_fns[] = {
-  Opcode_xsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_cpenable_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_clamps_encode_fns[] = {
-  Opcode_clamps_Slot_inst_encode, 0, 0, Opcode_clamps_Slot_xt_flix64_slot0_encode, Opcode_clamps_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_clamps_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_min_encode_fns[] = {
-  Opcode_min_Slot_inst_encode, 0, 0, Opcode_min_Slot_xt_flix64_slot0_encode, Opcode_min_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_min_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_max_encode_fns[] = {
-  Opcode_max_Slot_inst_encode, 0, 0, Opcode_max_Slot_xt_flix64_slot0_encode, Opcode_max_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_max_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_minu_encode_fns[] = {
-  Opcode_minu_Slot_inst_encode, 0, 0, Opcode_minu_Slot_xt_flix64_slot0_encode, Opcode_minu_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_minu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_maxu_encode_fns[] = {
-  Opcode_maxu_Slot_inst_encode, 0, 0, Opcode_maxu_Slot_xt_flix64_slot0_encode, Opcode_maxu_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_maxu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_nsa_encode_fns[] = {
-  Opcode_nsa_Slot_inst_encode, 0, 0, Opcode_nsa_Slot_xt_flix64_slot0_encode, Opcode_nsa_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_nsa_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_nsau_encode_fns[] = {
-  Opcode_nsau_Slot_inst_encode, 0, 0, Opcode_nsau_Slot_xt_flix64_slot0_encode, Opcode_nsau_Slot_xt_flix64_slot0_encode, 0, 0, 0
+  Opcode_nsau_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_sext_encode_fns[] = {
-  Opcode_sext_Slot_inst_encode, 0, 0, Opcode_sext_Slot_xt_flix64_slot0_encode, Opcode_sext_Slot_xt_flix64_slot0_encode, Opcode_sext_Slot_xt_flix64_slot1_encode, Opcode_sext_Slot_xt_flix64_slot2_encode, 0
+  Opcode_sext_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_l32ai_encode_fns[] = {
-  Opcode_l32ai_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_l32ai_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_s32ri_encode_fns[] = {
-  Opcode_s32ri_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_s32ri_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_s32c1i_encode_fns[] = {
-  Opcode_s32c1i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_s32c1i_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rsr_scompare1_encode_fns[] = {
-  Opcode_rsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rsr_scompare1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_wsr_scompare1_encode_fns[] = {
-  Opcode_wsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_wsr_scompare1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_xsr_scompare1_encode_fns[] = {
-  Opcode_xsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_xsr_scompare1_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_quou_encode_fns[] = {
-  Opcode_quou_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_quou_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_quos_encode_fns[] = {
-  Opcode_quos_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_quos_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_remu_encode_fns[] = {
-  Opcode_remu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_remu_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_rems_encode_fns[] = {
-  Opcode_rems_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
+  Opcode_rems_Slot_inst_encode, 0, 0
 };
 
 xtensa_opcode_encode_fn Opcode_mull_encode_fns[] = {
-  Opcode_mull_Slot_inst_encode, 0, 0, Opcode_mull_Slot_xt_flix64_slot0_encode, Opcode_mull_Slot_xt_flix64_slot0_encode, Opcode_mull_Slot_xt_flix64_slot1_encode, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_muluh_encode_fns[] = {
-  Opcode_muluh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mulsh_encode_fns[] = {
-  Opcode_mulsh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rur_fcr_encode_fns[] = {
-  Opcode_rur_fcr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wur_fcr_encode_fns[] = {
-  Opcode_wur_fcr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rur_fsr_encode_fns[] = {
-  Opcode_rur_fsr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wur_fsr_encode_fns[] = {
-  Opcode_wur_fsr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_add_s_encode_fns[] = {
-  Opcode_add_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_sub_s_encode_fns[] = {
-  Opcode_sub_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mul_s_encode_fns[] = {
-  Opcode_mul_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_madd_s_encode_fns[] = {
-  Opcode_madd_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_msub_s_encode_fns[] = {
-  Opcode_msub_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_movf_s_encode_fns[] = {
-  Opcode_movf_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_movt_s_encode_fns[] = {
-  Opcode_movt_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_moveqz_s_encode_fns[] = {
-  Opcode_moveqz_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_movnez_s_encode_fns[] = {
-  Opcode_movnez_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_movltz_s_encode_fns[] = {
-  Opcode_movltz_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_movgez_s_encode_fns[] = {
-  Opcode_movgez_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_abs_s_encode_fns[] = {
-  Opcode_abs_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_mov_s_encode_fns[] = {
-  Opcode_mov_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_neg_s_encode_fns[] = {
-  Opcode_neg_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_un_s_encode_fns[] = {
-  Opcode_un_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_oeq_s_encode_fns[] = {
-  Opcode_oeq_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ueq_s_encode_fns[] = {
-  Opcode_ueq_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_olt_s_encode_fns[] = {
-  Opcode_olt_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ult_s_encode_fns[] = {
-  Opcode_ult_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ole_s_encode_fns[] = {
-  Opcode_ole_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ule_s_encode_fns[] = {
-  Opcode_ule_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_float_s_encode_fns[] = {
-  Opcode_float_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ufloat_s_encode_fns[] = {
-  Opcode_ufloat_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_round_s_encode_fns[] = {
-  Opcode_round_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ceil_s_encode_fns[] = {
-  Opcode_ceil_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_floor_s_encode_fns[] = {
-  Opcode_floor_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_trunc_s_encode_fns[] = {
-  Opcode_trunc_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_utrunc_s_encode_fns[] = {
-  Opcode_utrunc_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_rfr_encode_fns[] = {
-  Opcode_rfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_wfr_encode_fns[] = {
-  Opcode_wfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_lsi_encode_fns[] = {
-  Opcode_lsi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_lsiu_encode_fns[] = {
-  Opcode_lsiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_lsx_encode_fns[] = {
-  Opcode_lsx_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_lsxu_encode_fns[] = {
-  Opcode_lsxu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ssi_encode_fns[] = {
-  Opcode_ssi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ssiu_encode_fns[] = {
-  Opcode_ssiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ssx_encode_fns[] = {
-  Opcode_ssx_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_ssxu_encode_fns[] = {
-  Opcode_ssxu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
-};
-
-xtensa_opcode_encode_fn Opcode_beqz_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_beqz_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bnez_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bnez_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bgez_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bgez_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bltz_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bltz_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_beqi_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_beqi_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bnei_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bnei_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bgei_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bgei_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_blti_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_blti_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bgeui_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bgeui_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bltui_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bltui_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bbci_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bbci_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bbsi_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bbsi_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_beq_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_beq_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bne_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bne_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bge_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bge_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_blt_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_blt_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bgeu_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bgeu_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bltu_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bltu_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bany_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bany_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bnone_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bnone_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_ball_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_ball_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bnall_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bnall_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bbc_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bbc_w18_Slot_xt_flix64_slot3_encode
-};
-
-xtensa_opcode_encode_fn Opcode_bbs_w18_encode_fns[] = {
-  0, 0, 0, 0, 0, 0, 0, Opcode_bbs_w18_Slot_xt_flix64_slot3_encode
+  Opcode_mull_Slot_inst_encode, 0, 0
 };
 
 
 /* Opcode table.  */
 
 static xtensa_opcode_internal opcodes[] = {
-  { "excw", 0 /* xt_iclass_excw */,
+  { "excw", ICLASS_xt_iclass_excw,
     0,
     Opcode_excw_encode_fns, 0, 0 },
-  { "rfe", 1 /* xt_iclass_rfe */,
+  { "rfe", ICLASS_xt_iclass_rfe,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_rfe_encode_fns, 0, 0 },
-  { "rfde", 2 /* xt_iclass_rfde */,
+  { "rfde", ICLASS_xt_iclass_rfde,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_rfde_encode_fns, 0, 0 },
-  { "syscall", 3 /* xt_iclass_syscall */,
+  { "syscall", ICLASS_xt_iclass_syscall,
     0,
     Opcode_syscall_encode_fns, 0, 0 },
-  { "simcall", 4 /* xt_iclass_simcall */,
+  { "simcall", ICLASS_xt_iclass_simcall,
     0,
     Opcode_simcall_encode_fns, 0, 0 },
-  { "call12", 5 /* xt_iclass_call12 */,
+  { "call12", ICLASS_xt_iclass_call12,
     XTENSA_OPCODE_IS_CALL,
     Opcode_call12_encode_fns, 0, 0 },
-  { "call8", 6 /* xt_iclass_call8 */,
+  { "call8", ICLASS_xt_iclass_call8,
     XTENSA_OPCODE_IS_CALL,
     Opcode_call8_encode_fns, 0, 0 },
-  { "call4", 7 /* xt_iclass_call4 */,
+  { "call4", ICLASS_xt_iclass_call4,
     XTENSA_OPCODE_IS_CALL,
     Opcode_call4_encode_fns, 0, 0 },
-  { "callx12", 8 /* xt_iclass_callx12 */,
+  { "callx12", ICLASS_xt_iclass_callx12,
     XTENSA_OPCODE_IS_CALL,
     Opcode_callx12_encode_fns, 0, 0 },
-  { "callx8", 9 /* xt_iclass_callx8 */,
+  { "callx8", ICLASS_xt_iclass_callx8,
     XTENSA_OPCODE_IS_CALL,
     Opcode_callx8_encode_fns, 0, 0 },
-  { "callx4", 10 /* xt_iclass_callx4 */,
+  { "callx4", ICLASS_xt_iclass_callx4,
     XTENSA_OPCODE_IS_CALL,
     Opcode_callx4_encode_fns, 0, 0 },
-  { "entry", 11 /* xt_iclass_entry */,
+  { "entry", ICLASS_xt_iclass_entry,
     0,
     Opcode_entry_encode_fns, 0, 0 },
-  { "movsp", 12 /* xt_iclass_movsp */,
+  { "movsp", ICLASS_xt_iclass_movsp,
     0,
     Opcode_movsp_encode_fns, 0, 0 },
-  { "rotw", 13 /* xt_iclass_rotw */,
+  { "rotw", ICLASS_xt_iclass_rotw,
     0,
     Opcode_rotw_encode_fns, 0, 0 },
-  { "retw", 14 /* xt_iclass_retw */,
+  { "retw", ICLASS_xt_iclass_retw,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_retw_encode_fns, 0, 0 },
-  { "retw.n", 14 /* xt_iclass_retw */,
+  { "retw.n", ICLASS_xt_iclass_retw,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_retw_n_encode_fns, 0, 0 },
-  { "rfwo", 15 /* xt_iclass_rfwou */,
+  { "rfwo", ICLASS_xt_iclass_rfwou,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_rfwo_encode_fns, 0, 0 },
-  { "rfwu", 15 /* xt_iclass_rfwou */,
+  { "rfwu", ICLASS_xt_iclass_rfwou,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_rfwu_encode_fns, 0, 0 },
-  { "l32e", 16 /* xt_iclass_l32e */,
+  { "l32e", ICLASS_xt_iclass_l32e,
     0,
     Opcode_l32e_encode_fns, 0, 0 },
-  { "s32e", 17 /* xt_iclass_s32e */,
+  { "s32e", ICLASS_xt_iclass_s32e,
     0,
     Opcode_s32e_encode_fns, 0, 0 },
-  { "rsr.windowbase", 18 /* xt_iclass_rsr.windowbase */,
+  { "rsr.windowbase", ICLASS_xt_iclass_rsr_windowbase,
     0,
     Opcode_rsr_windowbase_encode_fns, 0, 0 },
-  { "wsr.windowbase", 19 /* xt_iclass_wsr.windowbase */,
+  { "wsr.windowbase", ICLASS_xt_iclass_wsr_windowbase,
     0,
     Opcode_wsr_windowbase_encode_fns, 0, 0 },
-  { "xsr.windowbase", 20 /* xt_iclass_xsr.windowbase */,
+  { "xsr.windowbase", ICLASS_xt_iclass_xsr_windowbase,
     0,
     Opcode_xsr_windowbase_encode_fns, 0, 0 },
-  { "rsr.windowstart", 21 /* xt_iclass_rsr.windowstart */,
+  { "rsr.windowstart", ICLASS_xt_iclass_rsr_windowstart,
     0,
     Opcode_rsr_windowstart_encode_fns, 0, 0 },
-  { "wsr.windowstart", 22 /* xt_iclass_wsr.windowstart */,
+  { "wsr.windowstart", ICLASS_xt_iclass_wsr_windowstart,
     0,
     Opcode_wsr_windowstart_encode_fns, 0, 0 },
-  { "xsr.windowstart", 23 /* xt_iclass_xsr.windowstart */,
+  { "xsr.windowstart", ICLASS_xt_iclass_xsr_windowstart,
     0,
     Opcode_xsr_windowstart_encode_fns, 0, 0 },
-  { "add.n", 24 /* xt_iclass_add.n */,
+  { "add.n", ICLASS_xt_iclass_add_n,
     0,
     Opcode_add_n_encode_fns, 0, 0 },
-  { "addi.n", 25 /* xt_iclass_addi.n */,
+  { "addi.n", ICLASS_xt_iclass_addi_n,
     0,
     Opcode_addi_n_encode_fns, 0, 0 },
-  { "beqz.n", 26 /* xt_iclass_bz6 */,
+  { "beqz.n", ICLASS_xt_iclass_bz6,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_beqz_n_encode_fns, 0, 0 },
-  { "bnez.n", 26 /* xt_iclass_bz6 */,
+  { "bnez.n", ICLASS_xt_iclass_bz6,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bnez_n_encode_fns, 0, 0 },
-  { "ill.n", 27 /* xt_iclass_ill.n */,
+  { "ill.n", ICLASS_xt_iclass_ill_n,
     0,
     Opcode_ill_n_encode_fns, 0, 0 },
-  { "l32i.n", 28 /* xt_iclass_loadi4 */,
+  { "l32i.n", ICLASS_xt_iclass_loadi4,
     0,
     Opcode_l32i_n_encode_fns, 0, 0 },
-  { "mov.n", 29 /* xt_iclass_mov.n */,
+  { "mov.n", ICLASS_xt_iclass_mov_n,
     0,
     Opcode_mov_n_encode_fns, 0, 0 },
-  { "movi.n", 30 /* xt_iclass_movi.n */,
+  { "movi.n", ICLASS_xt_iclass_movi_n,
     0,
     Opcode_movi_n_encode_fns, 0, 0 },
-  { "nop.n", 31 /* xt_iclass_nopn */,
+  { "nop.n", ICLASS_xt_iclass_nopn,
     0,
     Opcode_nop_n_encode_fns, 0, 0 },
-  { "ret.n", 32 /* xt_iclass_retn */,
+  { "ret.n", ICLASS_xt_iclass_retn,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_ret_n_encode_fns, 0, 0 },
-  { "s32i.n", 33 /* xt_iclass_storei4 */,
+  { "s32i.n", ICLASS_xt_iclass_storei4,
     0,
     Opcode_s32i_n_encode_fns, 0, 0 },
-  { "rur.threadptr", 34 /* rur_threadptr */,
+  { "rur.threadptr", ICLASS_rur_threadptr,
     0,
     Opcode_rur_threadptr_encode_fns, 0, 0 },
-  { "wur.threadptr", 35 /* wur_threadptr */,
+  { "wur.threadptr", ICLASS_wur_threadptr,
     0,
     Opcode_wur_threadptr_encode_fns, 0, 0 },
-  { "addi", 36 /* xt_iclass_addi */,
+  { "addi", ICLASS_xt_iclass_addi,
     0,
     Opcode_addi_encode_fns, 0, 0 },
-  { "addmi", 37 /* xt_iclass_addmi */,
+  { "addmi", ICLASS_xt_iclass_addmi,
     0,
     Opcode_addmi_encode_fns, 0, 0 },
-  { "add", 38 /* xt_iclass_addsub */,
+  { "add", ICLASS_xt_iclass_addsub,
     0,
     Opcode_add_encode_fns, 0, 0 },
-  { "sub", 38 /* xt_iclass_addsub */,
+  { "sub", ICLASS_xt_iclass_addsub,
     0,
     Opcode_sub_encode_fns, 0, 0 },
-  { "addx2", 38 /* xt_iclass_addsub */,
+  { "addx2", ICLASS_xt_iclass_addsub,
     0,
     Opcode_addx2_encode_fns, 0, 0 },
-  { "addx4", 38 /* xt_iclass_addsub */,
+  { "addx4", ICLASS_xt_iclass_addsub,
     0,
     Opcode_addx4_encode_fns, 0, 0 },
-  { "addx8", 38 /* xt_iclass_addsub */,
+  { "addx8", ICLASS_xt_iclass_addsub,
     0,
     Opcode_addx8_encode_fns, 0, 0 },
-  { "subx2", 38 /* xt_iclass_addsub */,
+  { "subx2", ICLASS_xt_iclass_addsub,
     0,
     Opcode_subx2_encode_fns, 0, 0 },
-  { "subx4", 38 /* xt_iclass_addsub */,
+  { "subx4", ICLASS_xt_iclass_addsub,
     0,
     Opcode_subx4_encode_fns, 0, 0 },
-  { "subx8", 38 /* xt_iclass_addsub */,
+  { "subx8", ICLASS_xt_iclass_addsub,
     0,
     Opcode_subx8_encode_fns, 0, 0 },
-  { "and", 39 /* xt_iclass_bit */,
+  { "and", ICLASS_xt_iclass_bit,
     0,
     Opcode_and_encode_fns, 0, 0 },
-  { "or", 39 /* xt_iclass_bit */,
+  { "or", ICLASS_xt_iclass_bit,
     0,
     Opcode_or_encode_fns, 0, 0 },
-  { "xor", 39 /* xt_iclass_bit */,
+  { "xor", ICLASS_xt_iclass_bit,
     0,
     Opcode_xor_encode_fns, 0, 0 },
-  { "beqi", 40 /* xt_iclass_bsi8 */,
+  { "beqi", ICLASS_xt_iclass_bsi8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_beqi_encode_fns, 0, 0 },
-  { "bnei", 40 /* xt_iclass_bsi8 */,
+  { "bnei", ICLASS_xt_iclass_bsi8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bnei_encode_fns, 0, 0 },
-  { "bgei", 40 /* xt_iclass_bsi8 */,
+  { "bgei", ICLASS_xt_iclass_bsi8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bgei_encode_fns, 0, 0 },
-  { "blti", 40 /* xt_iclass_bsi8 */,
+  { "blti", ICLASS_xt_iclass_bsi8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_blti_encode_fns, 0, 0 },
-  { "bbci", 41 /* xt_iclass_bsi8b */,
+  { "bbci", ICLASS_xt_iclass_bsi8b,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bbci_encode_fns, 0, 0 },
-  { "bbsi", 41 /* xt_iclass_bsi8b */,
+  { "bbsi", ICLASS_xt_iclass_bsi8b,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bbsi_encode_fns, 0, 0 },
-  { "bgeui", 42 /* xt_iclass_bsi8u */,
+  { "bgeui", ICLASS_xt_iclass_bsi8u,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bgeui_encode_fns, 0, 0 },
-  { "bltui", 42 /* xt_iclass_bsi8u */,
+  { "bltui", ICLASS_xt_iclass_bsi8u,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bltui_encode_fns, 0, 0 },
-  { "beq", 43 /* xt_iclass_bst8 */,
+  { "beq", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_beq_encode_fns, 0, 0 },
-  { "bne", 43 /* xt_iclass_bst8 */,
+  { "bne", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bne_encode_fns, 0, 0 },
-  { "bge", 43 /* xt_iclass_bst8 */,
+  { "bge", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bge_encode_fns, 0, 0 },
-  { "blt", 43 /* xt_iclass_bst8 */,
+  { "blt", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_blt_encode_fns, 0, 0 },
-  { "bgeu", 43 /* xt_iclass_bst8 */,
+  { "bgeu", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bgeu_encode_fns, 0, 0 },
-  { "bltu", 43 /* xt_iclass_bst8 */,
+  { "bltu", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bltu_encode_fns, 0, 0 },
-  { "bany", 43 /* xt_iclass_bst8 */,
+  { "bany", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bany_encode_fns, 0, 0 },
-  { "bnone", 43 /* xt_iclass_bst8 */,
+  { "bnone", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bnone_encode_fns, 0, 0 },
-  { "ball", 43 /* xt_iclass_bst8 */,
+  { "ball", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_ball_encode_fns, 0, 0 },
-  { "bnall", 43 /* xt_iclass_bst8 */,
+  { "bnall", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bnall_encode_fns, 0, 0 },
-  { "bbc", 43 /* xt_iclass_bst8 */,
+  { "bbc", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bbc_encode_fns, 0, 0 },
-  { "bbs", 43 /* xt_iclass_bst8 */,
+  { "bbs", ICLASS_xt_iclass_bst8,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bbs_encode_fns, 0, 0 },
-  { "beqz", 44 /* xt_iclass_bsz12 */,
+  { "beqz", ICLASS_xt_iclass_bsz12,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_beqz_encode_fns, 0, 0 },
-  { "bnez", 44 /* xt_iclass_bsz12 */,
+  { "bnez", ICLASS_xt_iclass_bsz12,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bnez_encode_fns, 0, 0 },
-  { "bgez", 44 /* xt_iclass_bsz12 */,
+  { "bgez", ICLASS_xt_iclass_bsz12,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bgez_encode_fns, 0, 0 },
-  { "bltz", 44 /* xt_iclass_bsz12 */,
+  { "bltz", ICLASS_xt_iclass_bsz12,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_bltz_encode_fns, 0, 0 },
-  { "call0", 45 /* xt_iclass_call0 */,
+  { "call0", ICLASS_xt_iclass_call0,
     XTENSA_OPCODE_IS_CALL,
     Opcode_call0_encode_fns, 0, 0 },
-  { "callx0", 46 /* xt_iclass_callx0 */,
+  { "callx0", ICLASS_xt_iclass_callx0,
     XTENSA_OPCODE_IS_CALL,
     Opcode_callx0_encode_fns, 0, 0 },
-  { "extui", 47 /* xt_iclass_exti */,
+  { "extui", ICLASS_xt_iclass_exti,
     0,
     Opcode_extui_encode_fns, 0, 0 },
-  { "ill", 48 /* xt_iclass_ill */,
+  { "ill", ICLASS_xt_iclass_ill,
     0,
     Opcode_ill_encode_fns, 0, 0 },
-  { "j", 49 /* xt_iclass_jump */,
+  { "j", ICLASS_xt_iclass_jump,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_j_encode_fns, 0, 0 },
-  { "jx", 50 /* xt_iclass_jumpx */,
+  { "jx", ICLASS_xt_iclass_jumpx,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_jx_encode_fns, 0, 0 },
-  { "l16ui", 51 /* xt_iclass_l16ui */,
+  { "l16ui", ICLASS_xt_iclass_l16ui,
     0,
     Opcode_l16ui_encode_fns, 0, 0 },
-  { "l16si", 52 /* xt_iclass_l16si */,
+  { "l16si", ICLASS_xt_iclass_l16si,
     0,
     Opcode_l16si_encode_fns, 0, 0 },
-  { "l32i", 53 /* xt_iclass_l32i */,
+  { "l32i", ICLASS_xt_iclass_l32i,
     0,
     Opcode_l32i_encode_fns, 0, 0 },
-  { "l32r", 54 /* xt_iclass_l32r */,
+  { "l32r", ICLASS_xt_iclass_l32r,
     0,
     Opcode_l32r_encode_fns, 0, 0 },
-  { "l8ui", 55 /* xt_iclass_l8i */,
+  { "l8ui", ICLASS_xt_iclass_l8i,
     0,
     Opcode_l8ui_encode_fns, 0, 0 },
-  { "loop", 56 /* xt_iclass_loop */,
+  { "loop", ICLASS_xt_iclass_loop,
     XTENSA_OPCODE_IS_LOOP,
     Opcode_loop_encode_fns, 0, 0 },
-  { "loopnez", 57 /* xt_iclass_loopz */,
+  { "loopnez", ICLASS_xt_iclass_loopz,
     XTENSA_OPCODE_IS_LOOP,
     Opcode_loopnez_encode_fns, 0, 0 },
-  { "loopgtz", 57 /* xt_iclass_loopz */,
+  { "loopgtz", ICLASS_xt_iclass_loopz,
     XTENSA_OPCODE_IS_LOOP,
     Opcode_loopgtz_encode_fns, 0, 0 },
-  { "movi", 58 /* xt_iclass_movi */,
+  { "movi", ICLASS_xt_iclass_movi,
     0,
     Opcode_movi_encode_fns, 0, 0 },
-  { "moveqz", 59 /* xt_iclass_movz */,
+  { "moveqz", ICLASS_xt_iclass_movz,
     0,
     Opcode_moveqz_encode_fns, 0, 0 },
-  { "movnez", 59 /* xt_iclass_movz */,
+  { "movnez", ICLASS_xt_iclass_movz,
     0,
     Opcode_movnez_encode_fns, 0, 0 },
-  { "movltz", 59 /* xt_iclass_movz */,
+  { "movltz", ICLASS_xt_iclass_movz,
     0,
     Opcode_movltz_encode_fns, 0, 0 },
-  { "movgez", 59 /* xt_iclass_movz */,
+  { "movgez", ICLASS_xt_iclass_movz,
     0,
     Opcode_movgez_encode_fns, 0, 0 },
-  { "neg", 60 /* xt_iclass_neg */,
+  { "neg", ICLASS_xt_iclass_neg,
     0,
     Opcode_neg_encode_fns, 0, 0 },
-  { "abs", 60 /* xt_iclass_neg */,
+  { "abs", ICLASS_xt_iclass_neg,
     0,
     Opcode_abs_encode_fns, 0, 0 },
-  { "nop", 61 /* xt_iclass_nop */,
+  { "nop", ICLASS_xt_iclass_nop,
     0,
     Opcode_nop_encode_fns, 0, 0 },
-  { "ret", 62 /* xt_iclass_return */,
+  { "ret", ICLASS_xt_iclass_return,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_ret_encode_fns, 0, 0 },
-  { "s16i", 63 /* xt_iclass_s16i */,
+  { "s16i", ICLASS_xt_iclass_s16i,
     0,
     Opcode_s16i_encode_fns, 0, 0 },
-  { "s32i", 64 /* xt_iclass_s32i */,
+  { "s32i", ICLASS_xt_iclass_s32i,
     0,
     Opcode_s32i_encode_fns, 0, 0 },
-  { "s8i", 65 /* xt_iclass_s8i */,
+  { "s8i", ICLASS_xt_iclass_s8i,
     0,
     Opcode_s8i_encode_fns, 0, 0 },
-  { "ssr", 66 /* xt_iclass_sar */,
+  { "ssr", ICLASS_xt_iclass_sar,
     0,
     Opcode_ssr_encode_fns, 0, 0 },
-  { "ssl", 66 /* xt_iclass_sar */,
+  { "ssl", ICLASS_xt_iclass_sar,
     0,
     Opcode_ssl_encode_fns, 0, 0 },
-  { "ssa8l", 66 /* xt_iclass_sar */,
+  { "ssa8l", ICLASS_xt_iclass_sar,
     0,
     Opcode_ssa8l_encode_fns, 0, 0 },
-  { "ssa8b", 66 /* xt_iclass_sar */,
+  { "ssa8b", ICLASS_xt_iclass_sar,
     0,
     Opcode_ssa8b_encode_fns, 0, 0 },
-  { "ssai", 67 /* xt_iclass_sari */,
+  { "ssai", ICLASS_xt_iclass_sari,
     0,
     Opcode_ssai_encode_fns, 0, 0 },
-  { "sll", 68 /* xt_iclass_shifts */,
+  { "sll", ICLASS_xt_iclass_shifts,
     0,
     Opcode_sll_encode_fns, 0, 0 },
-  { "src", 69 /* xt_iclass_shiftst */,
+  { "src", ICLASS_xt_iclass_shiftst,
     0,
     Opcode_src_encode_fns, 0, 0 },
-  { "srl", 70 /* xt_iclass_shiftt */,
+  { "srl", ICLASS_xt_iclass_shiftt,
     0,
     Opcode_srl_encode_fns, 0, 0 },
-  { "sra", 70 /* xt_iclass_shiftt */,
+  { "sra", ICLASS_xt_iclass_shiftt,
     0,
     Opcode_sra_encode_fns, 0, 0 },
-  { "slli", 71 /* xt_iclass_slli */,
+  { "slli", ICLASS_xt_iclass_slli,
     0,
     Opcode_slli_encode_fns, 0, 0 },
-  { "srai", 72 /* xt_iclass_srai */,
+  { "srai", ICLASS_xt_iclass_srai,
     0,
     Opcode_srai_encode_fns, 0, 0 },
-  { "srli", 73 /* xt_iclass_srli */,
+  { "srli", ICLASS_xt_iclass_srli,
     0,
     Opcode_srli_encode_fns, 0, 0 },
-  { "memw", 74 /* xt_iclass_memw */,
+  { "memw", ICLASS_xt_iclass_memw,
     0,
     Opcode_memw_encode_fns, 0, 0 },
-  { "extw", 75 /* xt_iclass_extw */,
+  { "extw", ICLASS_xt_iclass_extw,
     0,
     Opcode_extw_encode_fns, 0, 0 },
-  { "isync", 76 /* xt_iclass_isync */,
+  { "isync", ICLASS_xt_iclass_isync,
     0,
     Opcode_isync_encode_fns, 0, 0 },
-  { "rsync", 77 /* xt_iclass_sync */,
+  { "rsync", ICLASS_xt_iclass_sync,
     0,
     Opcode_rsync_encode_fns, 0, 0 },
-  { "esync", 77 /* xt_iclass_sync */,
+  { "esync", ICLASS_xt_iclass_sync,
     0,
     Opcode_esync_encode_fns, 0, 0 },
-  { "dsync", 77 /* xt_iclass_sync */,
+  { "dsync", ICLASS_xt_iclass_sync,
     0,
     Opcode_dsync_encode_fns, 0, 0 },
-  { "rsil", 78 /* xt_iclass_rsil */,
+  { "rsil", ICLASS_xt_iclass_rsil,
     0,
     Opcode_rsil_encode_fns, 0, 0 },
-  { "rsr.lend", 79 /* xt_iclass_rsr.lend */,
+  { "rsr.lend", ICLASS_xt_iclass_rsr_lend,
     0,
     Opcode_rsr_lend_encode_fns, 0, 0 },
-  { "wsr.lend", 80 /* xt_iclass_wsr.lend */,
+  { "wsr.lend", ICLASS_xt_iclass_wsr_lend,
     0,
     Opcode_wsr_lend_encode_fns, 0, 0 },
-  { "xsr.lend", 81 /* xt_iclass_xsr.lend */,
+  { "xsr.lend", ICLASS_xt_iclass_xsr_lend,
     0,
     Opcode_xsr_lend_encode_fns, 0, 0 },
-  { "rsr.lcount", 82 /* xt_iclass_rsr.lcount */,
+  { "rsr.lcount", ICLASS_xt_iclass_rsr_lcount,
     0,
     Opcode_rsr_lcount_encode_fns, 0, 0 },
-  { "wsr.lcount", 83 /* xt_iclass_wsr.lcount */,
+  { "wsr.lcount", ICLASS_xt_iclass_wsr_lcount,
     0,
     Opcode_wsr_lcount_encode_fns, 0, 0 },
-  { "xsr.lcount", 84 /* xt_iclass_xsr.lcount */,
+  { "xsr.lcount", ICLASS_xt_iclass_xsr_lcount,
     0,
     Opcode_xsr_lcount_encode_fns, 0, 0 },
-  { "rsr.lbeg", 85 /* xt_iclass_rsr.lbeg */,
+  { "rsr.lbeg", ICLASS_xt_iclass_rsr_lbeg,
     0,
     Opcode_rsr_lbeg_encode_fns, 0, 0 },
-  { "wsr.lbeg", 86 /* xt_iclass_wsr.lbeg */,
+  { "wsr.lbeg", ICLASS_xt_iclass_wsr_lbeg,
     0,
     Opcode_wsr_lbeg_encode_fns, 0, 0 },
-  { "xsr.lbeg", 87 /* xt_iclass_xsr.lbeg */,
+  { "xsr.lbeg", ICLASS_xt_iclass_xsr_lbeg,
     0,
     Opcode_xsr_lbeg_encode_fns, 0, 0 },
-  { "rsr.sar", 88 /* xt_iclass_rsr.sar */,
+  { "rsr.sar", ICLASS_xt_iclass_rsr_sar,
     0,
     Opcode_rsr_sar_encode_fns, 0, 0 },
-  { "wsr.sar", 89 /* xt_iclass_wsr.sar */,
+  { "wsr.sar", ICLASS_xt_iclass_wsr_sar,
     0,
     Opcode_wsr_sar_encode_fns, 0, 0 },
-  { "xsr.sar", 90 /* xt_iclass_xsr.sar */,
+  { "xsr.sar", ICLASS_xt_iclass_xsr_sar,
     0,
     Opcode_xsr_sar_encode_fns, 0, 0 },
-  { "rsr.litbase", 91 /* xt_iclass_rsr.litbase */,
+  { "rsr.litbase", ICLASS_xt_iclass_rsr_litbase,
     0,
     Opcode_rsr_litbase_encode_fns, 0, 0 },
-  { "wsr.litbase", 92 /* xt_iclass_wsr.litbase */,
+  { "wsr.litbase", ICLASS_xt_iclass_wsr_litbase,
     0,
     Opcode_wsr_litbase_encode_fns, 0, 0 },
-  { "xsr.litbase", 93 /* xt_iclass_xsr.litbase */,
+  { "xsr.litbase", ICLASS_xt_iclass_xsr_litbase,
     0,
     Opcode_xsr_litbase_encode_fns, 0, 0 },
-  { "rsr.176", 94 /* xt_iclass_rsr.176 */,
+  { "rsr.176", ICLASS_xt_iclass_rsr_176,
     0,
     Opcode_rsr_176_encode_fns, 0, 0 },
-  { "rsr.208", 95 /* xt_iclass_rsr.208 */,
+  { "wsr.176", ICLASS_xt_iclass_wsr_176,
+    0,
+    Opcode_wsr_176_encode_fns, 0, 0 },
+  { "rsr.208", ICLASS_xt_iclass_rsr_208,
     0,
     Opcode_rsr_208_encode_fns, 0, 0 },
-  { "rsr.ps", 96 /* xt_iclass_rsr.ps */,
+  { "rsr.ps", ICLASS_xt_iclass_rsr_ps,
     0,
     Opcode_rsr_ps_encode_fns, 0, 0 },
-  { "wsr.ps", 97 /* xt_iclass_wsr.ps */,
+  { "wsr.ps", ICLASS_xt_iclass_wsr_ps,
     0,
     Opcode_wsr_ps_encode_fns, 0, 0 },
-  { "xsr.ps", 98 /* xt_iclass_xsr.ps */,
+  { "xsr.ps", ICLASS_xt_iclass_xsr_ps,
     0,
     Opcode_xsr_ps_encode_fns, 0, 0 },
-  { "rsr.epc1", 99 /* xt_iclass_rsr.epc1 */,
+  { "rsr.epc1", ICLASS_xt_iclass_rsr_epc1,
     0,
     Opcode_rsr_epc1_encode_fns, 0, 0 },
-  { "wsr.epc1", 100 /* xt_iclass_wsr.epc1 */,
+  { "wsr.epc1", ICLASS_xt_iclass_wsr_epc1,
     0,
     Opcode_wsr_epc1_encode_fns, 0, 0 },
-  { "xsr.epc1", 101 /* xt_iclass_xsr.epc1 */,
+  { "xsr.epc1", ICLASS_xt_iclass_xsr_epc1,
     0,
     Opcode_xsr_epc1_encode_fns, 0, 0 },
-  { "rsr.excsave1", 102 /* xt_iclass_rsr.excsave1 */,
+  { "rsr.excsave1", ICLASS_xt_iclass_rsr_excsave1,
     0,
     Opcode_rsr_excsave1_encode_fns, 0, 0 },
-  { "wsr.excsave1", 103 /* xt_iclass_wsr.excsave1 */,
+  { "wsr.excsave1", ICLASS_xt_iclass_wsr_excsave1,
     0,
     Opcode_wsr_excsave1_encode_fns, 0, 0 },
-  { "xsr.excsave1", 104 /* xt_iclass_xsr.excsave1 */,
+  { "xsr.excsave1", ICLASS_xt_iclass_xsr_excsave1,
     0,
     Opcode_xsr_excsave1_encode_fns, 0, 0 },
-  { "rsr.epc2", 105 /* xt_iclass_rsr.epc2 */,
+  { "rsr.epc2", ICLASS_xt_iclass_rsr_epc2,
     0,
     Opcode_rsr_epc2_encode_fns, 0, 0 },
-  { "wsr.epc2", 106 /* xt_iclass_wsr.epc2 */,
+  { "wsr.epc2", ICLASS_xt_iclass_wsr_epc2,
     0,
     Opcode_wsr_epc2_encode_fns, 0, 0 },
-  { "xsr.epc2", 107 /* xt_iclass_xsr.epc2 */,
+  { "xsr.epc2", ICLASS_xt_iclass_xsr_epc2,
     0,
     Opcode_xsr_epc2_encode_fns, 0, 0 },
-  { "rsr.excsave2", 108 /* xt_iclass_rsr.excsave2 */,
+  { "rsr.excsave2", ICLASS_xt_iclass_rsr_excsave2,
     0,
     Opcode_rsr_excsave2_encode_fns, 0, 0 },
-  { "wsr.excsave2", 109 /* xt_iclass_wsr.excsave2 */,
+  { "wsr.excsave2", ICLASS_xt_iclass_wsr_excsave2,
     0,
     Opcode_wsr_excsave2_encode_fns, 0, 0 },
-  { "xsr.excsave2", 110 /* xt_iclass_xsr.excsave2 */,
+  { "xsr.excsave2", ICLASS_xt_iclass_xsr_excsave2,
     0,
     Opcode_xsr_excsave2_encode_fns, 0, 0 },
-  { "rsr.epc3", 111 /* xt_iclass_rsr.epc3 */,
+  { "rsr.epc3", ICLASS_xt_iclass_rsr_epc3,
     0,
     Opcode_rsr_epc3_encode_fns, 0, 0 },
-  { "wsr.epc3", 112 /* xt_iclass_wsr.epc3 */,
+  { "wsr.epc3", ICLASS_xt_iclass_wsr_epc3,
     0,
     Opcode_wsr_epc3_encode_fns, 0, 0 },
-  { "xsr.epc3", 113 /* xt_iclass_xsr.epc3 */,
+  { "xsr.epc3", ICLASS_xt_iclass_xsr_epc3,
     0,
     Opcode_xsr_epc3_encode_fns, 0, 0 },
-  { "rsr.excsave3", 114 /* xt_iclass_rsr.excsave3 */,
+  { "rsr.excsave3", ICLASS_xt_iclass_rsr_excsave3,
     0,
     Opcode_rsr_excsave3_encode_fns, 0, 0 },
-  { "wsr.excsave3", 115 /* xt_iclass_wsr.excsave3 */,
+  { "wsr.excsave3", ICLASS_xt_iclass_wsr_excsave3,
     0,
     Opcode_wsr_excsave3_encode_fns, 0, 0 },
-  { "xsr.excsave3", 116 /* xt_iclass_xsr.excsave3 */,
+  { "xsr.excsave3", ICLASS_xt_iclass_xsr_excsave3,
     0,
     Opcode_xsr_excsave3_encode_fns, 0, 0 },
-  { "rsr.epc4", 117 /* xt_iclass_rsr.epc4 */,
+  { "rsr.epc4", ICLASS_xt_iclass_rsr_epc4,
     0,
     Opcode_rsr_epc4_encode_fns, 0, 0 },
-  { "wsr.epc4", 118 /* xt_iclass_wsr.epc4 */,
+  { "wsr.epc4", ICLASS_xt_iclass_wsr_epc4,
     0,
     Opcode_wsr_epc4_encode_fns, 0, 0 },
-  { "xsr.epc4", 119 /* xt_iclass_xsr.epc4 */,
+  { "xsr.epc4", ICLASS_xt_iclass_xsr_epc4,
     0,
     Opcode_xsr_epc4_encode_fns, 0, 0 },
-  { "rsr.excsave4", 120 /* xt_iclass_rsr.excsave4 */,
+  { "rsr.excsave4", ICLASS_xt_iclass_rsr_excsave4,
     0,
     Opcode_rsr_excsave4_encode_fns, 0, 0 },
-  { "wsr.excsave4", 121 /* xt_iclass_wsr.excsave4 */,
+  { "wsr.excsave4", ICLASS_xt_iclass_wsr_excsave4,
     0,
     Opcode_wsr_excsave4_encode_fns, 0, 0 },
-  { "xsr.excsave4", 122 /* xt_iclass_xsr.excsave4 */,
+  { "xsr.excsave4", ICLASS_xt_iclass_xsr_excsave4,
     0,
     Opcode_xsr_excsave4_encode_fns, 0, 0 },
-  { "rsr.epc5", 123 /* xt_iclass_rsr.epc5 */,
+  { "rsr.epc5", ICLASS_xt_iclass_rsr_epc5,
     0,
     Opcode_rsr_epc5_encode_fns, 0, 0 },
-  { "wsr.epc5", 124 /* xt_iclass_wsr.epc5 */,
+  { "wsr.epc5", ICLASS_xt_iclass_wsr_epc5,
     0,
     Opcode_wsr_epc5_encode_fns, 0, 0 },
-  { "xsr.epc5", 125 /* xt_iclass_xsr.epc5 */,
+  { "xsr.epc5", ICLASS_xt_iclass_xsr_epc5,
     0,
     Opcode_xsr_epc5_encode_fns, 0, 0 },
-  { "rsr.excsave5", 126 /* xt_iclass_rsr.excsave5 */,
+  { "rsr.excsave5", ICLASS_xt_iclass_rsr_excsave5,
     0,
     Opcode_rsr_excsave5_encode_fns, 0, 0 },
-  { "wsr.excsave5", 127 /* xt_iclass_wsr.excsave5 */,
+  { "wsr.excsave5", ICLASS_xt_iclass_wsr_excsave5,
     0,
     Opcode_wsr_excsave5_encode_fns, 0, 0 },
-  { "xsr.excsave5", 128 /* xt_iclass_xsr.excsave5 */,
+  { "xsr.excsave5", ICLASS_xt_iclass_xsr_excsave5,
     0,
     Opcode_xsr_excsave5_encode_fns, 0, 0 },
-  { "rsr.epc6", 129 /* xt_iclass_rsr.epc6 */,
+  { "rsr.epc6", ICLASS_xt_iclass_rsr_epc6,
     0,
     Opcode_rsr_epc6_encode_fns, 0, 0 },
-  { "wsr.epc6", 130 /* xt_iclass_wsr.epc6 */,
+  { "wsr.epc6", ICLASS_xt_iclass_wsr_epc6,
     0,
     Opcode_wsr_epc6_encode_fns, 0, 0 },
-  { "xsr.epc6", 131 /* xt_iclass_xsr.epc6 */,
+  { "xsr.epc6", ICLASS_xt_iclass_xsr_epc6,
     0,
     Opcode_xsr_epc6_encode_fns, 0, 0 },
-  { "rsr.excsave6", 132 /* xt_iclass_rsr.excsave6 */,
+  { "rsr.excsave6", ICLASS_xt_iclass_rsr_excsave6,
     0,
     Opcode_rsr_excsave6_encode_fns, 0, 0 },
-  { "wsr.excsave6", 133 /* xt_iclass_wsr.excsave6 */,
+  { "wsr.excsave6", ICLASS_xt_iclass_wsr_excsave6,
     0,
     Opcode_wsr_excsave6_encode_fns, 0, 0 },
-  { "xsr.excsave6", 134 /* xt_iclass_xsr.excsave6 */,
+  { "xsr.excsave6", ICLASS_xt_iclass_xsr_excsave6,
     0,
     Opcode_xsr_excsave6_encode_fns, 0, 0 },
-  { "rsr.epc7", 135 /* xt_iclass_rsr.epc7 */,
+  { "rsr.epc7", ICLASS_xt_iclass_rsr_epc7,
     0,
     Opcode_rsr_epc7_encode_fns, 0, 0 },
-  { "wsr.epc7", 136 /* xt_iclass_wsr.epc7 */,
+  { "wsr.epc7", ICLASS_xt_iclass_wsr_epc7,
     0,
     Opcode_wsr_epc7_encode_fns, 0, 0 },
-  { "xsr.epc7", 137 /* xt_iclass_xsr.epc7 */,
+  { "xsr.epc7", ICLASS_xt_iclass_xsr_epc7,
     0,
     Opcode_xsr_epc7_encode_fns, 0, 0 },
-  { "rsr.excsave7", 138 /* xt_iclass_rsr.excsave7 */,
+  { "rsr.excsave7", ICLASS_xt_iclass_rsr_excsave7,
     0,
     Opcode_rsr_excsave7_encode_fns, 0, 0 },
-  { "wsr.excsave7", 139 /* xt_iclass_wsr.excsave7 */,
+  { "wsr.excsave7", ICLASS_xt_iclass_wsr_excsave7,
     0,
     Opcode_wsr_excsave7_encode_fns, 0, 0 },
-  { "xsr.excsave7", 140 /* xt_iclass_xsr.excsave7 */,
+  { "xsr.excsave7", ICLASS_xt_iclass_xsr_excsave7,
     0,
     Opcode_xsr_excsave7_encode_fns, 0, 0 },
-  { "rsr.eps2", 141 /* xt_iclass_rsr.eps2 */,
+  { "rsr.eps2", ICLASS_xt_iclass_rsr_eps2,
     0,
     Opcode_rsr_eps2_encode_fns, 0, 0 },
-  { "wsr.eps2", 142 /* xt_iclass_wsr.eps2 */,
+  { "wsr.eps2", ICLASS_xt_iclass_wsr_eps2,
     0,
     Opcode_wsr_eps2_encode_fns, 0, 0 },
-  { "xsr.eps2", 143 /* xt_iclass_xsr.eps2 */,
+  { "xsr.eps2", ICLASS_xt_iclass_xsr_eps2,
     0,
     Opcode_xsr_eps2_encode_fns, 0, 0 },
-  { "rsr.eps3", 144 /* xt_iclass_rsr.eps3 */,
+  { "rsr.eps3", ICLASS_xt_iclass_rsr_eps3,
     0,
     Opcode_rsr_eps3_encode_fns, 0, 0 },
-  { "wsr.eps3", 145 /* xt_iclass_wsr.eps3 */,
+  { "wsr.eps3", ICLASS_xt_iclass_wsr_eps3,
     0,
     Opcode_wsr_eps3_encode_fns, 0, 0 },
-  { "xsr.eps3", 146 /* xt_iclass_xsr.eps3 */,
+  { "xsr.eps3", ICLASS_xt_iclass_xsr_eps3,
     0,
     Opcode_xsr_eps3_encode_fns, 0, 0 },
-  { "rsr.eps4", 147 /* xt_iclass_rsr.eps4 */,
+  { "rsr.eps4", ICLASS_xt_iclass_rsr_eps4,
     0,
     Opcode_rsr_eps4_encode_fns, 0, 0 },
-  { "wsr.eps4", 148 /* xt_iclass_wsr.eps4 */,
+  { "wsr.eps4", ICLASS_xt_iclass_wsr_eps4,
     0,
     Opcode_wsr_eps4_encode_fns, 0, 0 },
-  { "xsr.eps4", 149 /* xt_iclass_xsr.eps4 */,
+  { "xsr.eps4", ICLASS_xt_iclass_xsr_eps4,
     0,
     Opcode_xsr_eps4_encode_fns, 0, 0 },
-  { "rsr.eps5", 150 /* xt_iclass_rsr.eps5 */,
+  { "rsr.eps5", ICLASS_xt_iclass_rsr_eps5,
     0,
     Opcode_rsr_eps5_encode_fns, 0, 0 },
-  { "wsr.eps5", 151 /* xt_iclass_wsr.eps5 */,
+  { "wsr.eps5", ICLASS_xt_iclass_wsr_eps5,
     0,
     Opcode_wsr_eps5_encode_fns, 0, 0 },
-  { "xsr.eps5", 152 /* xt_iclass_xsr.eps5 */,
+  { "xsr.eps5", ICLASS_xt_iclass_xsr_eps5,
     0,
     Opcode_xsr_eps5_encode_fns, 0, 0 },
-  { "rsr.eps6", 153 /* xt_iclass_rsr.eps6 */,
+  { "rsr.eps6", ICLASS_xt_iclass_rsr_eps6,
     0,
     Opcode_rsr_eps6_encode_fns, 0, 0 },
-  { "wsr.eps6", 154 /* xt_iclass_wsr.eps6 */,
+  { "wsr.eps6", ICLASS_xt_iclass_wsr_eps6,
     0,
     Opcode_wsr_eps6_encode_fns, 0, 0 },
-  { "xsr.eps6", 155 /* xt_iclass_xsr.eps6 */,
+  { "xsr.eps6", ICLASS_xt_iclass_xsr_eps6,
     0,
     Opcode_xsr_eps6_encode_fns, 0, 0 },
-  { "rsr.eps7", 156 /* xt_iclass_rsr.eps7 */,
+  { "rsr.eps7", ICLASS_xt_iclass_rsr_eps7,
     0,
     Opcode_rsr_eps7_encode_fns, 0, 0 },
-  { "wsr.eps7", 157 /* xt_iclass_wsr.eps7 */,
+  { "wsr.eps7", ICLASS_xt_iclass_wsr_eps7,
     0,
     Opcode_wsr_eps7_encode_fns, 0, 0 },
-  { "xsr.eps7", 158 /* xt_iclass_xsr.eps7 */,
+  { "xsr.eps7", ICLASS_xt_iclass_xsr_eps7,
     0,
     Opcode_xsr_eps7_encode_fns, 0, 0 },
-  { "rsr.excvaddr", 159 /* xt_iclass_rsr.excvaddr */,
+  { "rsr.excvaddr", ICLASS_xt_iclass_rsr_excvaddr,
     0,
     Opcode_rsr_excvaddr_encode_fns, 0, 0 },
-  { "wsr.excvaddr", 160 /* xt_iclass_wsr.excvaddr */,
+  { "wsr.excvaddr", ICLASS_xt_iclass_wsr_excvaddr,
     0,
     Opcode_wsr_excvaddr_encode_fns, 0, 0 },
-  { "xsr.excvaddr", 161 /* xt_iclass_xsr.excvaddr */,
+  { "xsr.excvaddr", ICLASS_xt_iclass_xsr_excvaddr,
     0,
     Opcode_xsr_excvaddr_encode_fns, 0, 0 },
-  { "rsr.depc", 162 /* xt_iclass_rsr.depc */,
+  { "rsr.depc", ICLASS_xt_iclass_rsr_depc,
     0,
     Opcode_rsr_depc_encode_fns, 0, 0 },
-  { "wsr.depc", 163 /* xt_iclass_wsr.depc */,
+  { "wsr.depc", ICLASS_xt_iclass_wsr_depc,
     0,
     Opcode_wsr_depc_encode_fns, 0, 0 },
-  { "xsr.depc", 164 /* xt_iclass_xsr.depc */,
+  { "xsr.depc", ICLASS_xt_iclass_xsr_depc,
     0,
     Opcode_xsr_depc_encode_fns, 0, 0 },
-  { "rsr.exccause", 165 /* xt_iclass_rsr.exccause */,
+  { "rsr.exccause", ICLASS_xt_iclass_rsr_exccause,
     0,
     Opcode_rsr_exccause_encode_fns, 0, 0 },
-  { "wsr.exccause", 166 /* xt_iclass_wsr.exccause */,
+  { "wsr.exccause", ICLASS_xt_iclass_wsr_exccause,
     0,
     Opcode_wsr_exccause_encode_fns, 0, 0 },
-  { "xsr.exccause", 167 /* xt_iclass_xsr.exccause */,
+  { "xsr.exccause", ICLASS_xt_iclass_xsr_exccause,
     0,
     Opcode_xsr_exccause_encode_fns, 0, 0 },
-  { "rsr.misc0", 168 /* xt_iclass_rsr.misc0 */,
+  { "rsr.misc0", ICLASS_xt_iclass_rsr_misc0,
     0,
     Opcode_rsr_misc0_encode_fns, 0, 0 },
-  { "wsr.misc0", 169 /* xt_iclass_wsr.misc0 */,
+  { "wsr.misc0", ICLASS_xt_iclass_wsr_misc0,
     0,
     Opcode_wsr_misc0_encode_fns, 0, 0 },
-  { "xsr.misc0", 170 /* xt_iclass_xsr.misc0 */,
+  { "xsr.misc0", ICLASS_xt_iclass_xsr_misc0,
     0,
     Opcode_xsr_misc0_encode_fns, 0, 0 },
-  { "rsr.misc1", 171 /* xt_iclass_rsr.misc1 */,
+  { "rsr.misc1", ICLASS_xt_iclass_rsr_misc1,
     0,
     Opcode_rsr_misc1_encode_fns, 0, 0 },
-  { "wsr.misc1", 172 /* xt_iclass_wsr.misc1 */,
+  { "wsr.misc1", ICLASS_xt_iclass_wsr_misc1,
     0,
     Opcode_wsr_misc1_encode_fns, 0, 0 },
-  { "xsr.misc1", 173 /* xt_iclass_xsr.misc1 */,
+  { "xsr.misc1", ICLASS_xt_iclass_xsr_misc1,
     0,
     Opcode_xsr_misc1_encode_fns, 0, 0 },
-  { "rsr.misc2", 174 /* xt_iclass_rsr.misc2 */,
-    0,
-    Opcode_rsr_misc2_encode_fns, 0, 0 },
-  { "wsr.misc2", 175 /* xt_iclass_wsr.misc2 */,
-    0,
-    Opcode_wsr_misc2_encode_fns, 0, 0 },
-  { "xsr.misc2", 176 /* xt_iclass_xsr.misc2 */,
-    0,
-    Opcode_xsr_misc2_encode_fns, 0, 0 },
-  { "rsr.misc3", 177 /* xt_iclass_rsr.misc3 */,
-    0,
-    Opcode_rsr_misc3_encode_fns, 0, 0 },
-  { "wsr.misc3", 178 /* xt_iclass_wsr.misc3 */,
-    0,
-    Opcode_wsr_misc3_encode_fns, 0, 0 },
-  { "xsr.misc3", 179 /* xt_iclass_xsr.misc3 */,
-    0,
-    Opcode_xsr_misc3_encode_fns, 0, 0 },
-  { "rsr.prid", 180 /* xt_iclass_rsr.prid */,
+  { "rsr.prid", ICLASS_xt_iclass_rsr_prid,
     0,
     Opcode_rsr_prid_encode_fns, 0, 0 },
-  { "rsr.vecbase", 181 /* xt_iclass_rsr.vecbase */,
+  { "rsr.vecbase", ICLASS_xt_iclass_rsr_vecbase,
     0,
     Opcode_rsr_vecbase_encode_fns, 0, 0 },
-  { "wsr.vecbase", 182 /* xt_iclass_wsr.vecbase */,
+  { "wsr.vecbase", ICLASS_xt_iclass_wsr_vecbase,
     0,
     Opcode_wsr_vecbase_encode_fns, 0, 0 },
-  { "xsr.vecbase", 183 /* xt_iclass_xsr.vecbase */,
+  { "xsr.vecbase", ICLASS_xt_iclass_xsr_vecbase,
     0,
     Opcode_xsr_vecbase_encode_fns, 0, 0 },
-  { "mul.aa.ll", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_mul_aa_ll_encode_fns, 0, 0 },
-  { "mul.aa.hl", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_mul_aa_hl_encode_fns, 0, 0 },
-  { "mul.aa.lh", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_mul_aa_lh_encode_fns, 0, 0 },
-  { "mul.aa.hh", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_mul_aa_hh_encode_fns, 0, 0 },
-  { "umul.aa.ll", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_umul_aa_ll_encode_fns, 0, 0 },
-  { "umul.aa.hl", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_umul_aa_hl_encode_fns, 0, 0 },
-  { "umul.aa.lh", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_umul_aa_lh_encode_fns, 0, 0 },
-  { "umul.aa.hh", 184 /* xt_iclass_mac16_aa */,
-    0,
-    Opcode_umul_aa_hh_encode_fns, 0, 0 },
-  { "mul.ad.ll", 185 /* xt_iclass_mac16_ad */,
-    0,
-    Opcode_mul_ad_ll_encode_fns, 0, 0 },
-  { "mul.ad.hl", 185 /* xt_iclass_mac16_ad */,
-    0,
-    Opcode_mul_ad_hl_encode_fns, 0, 0 },
-  { "mul.ad.lh", 185 /* xt_iclass_mac16_ad */,
-    0,
-    Opcode_mul_ad_lh_encode_fns, 0, 0 },
-  { "mul.ad.hh", 185 /* xt_iclass_mac16_ad */,
-    0,
-    Opcode_mul_ad_hh_encode_fns, 0, 0 },
-  { "mul.da.ll", 186 /* xt_iclass_mac16_da */,
-    0,
-    Opcode_mul_da_ll_encode_fns, 0, 0 },
-  { "mul.da.hl", 186 /* xt_iclass_mac16_da */,
-    0,
-    Opcode_mul_da_hl_encode_fns, 0, 0 },
-  { "mul.da.lh", 186 /* xt_iclass_mac16_da */,
-    0,
-    Opcode_mul_da_lh_encode_fns, 0, 0 },
-  { "mul.da.hh", 186 /* xt_iclass_mac16_da */,
-    0,
-    Opcode_mul_da_hh_encode_fns, 0, 0 },
-  { "mul.dd.ll", 187 /* xt_iclass_mac16_dd */,
-    0,
-    Opcode_mul_dd_ll_encode_fns, 0, 0 },
-  { "mul.dd.hl", 187 /* xt_iclass_mac16_dd */,
-    0,
-    Opcode_mul_dd_hl_encode_fns, 0, 0 },
-  { "mul.dd.lh", 187 /* xt_iclass_mac16_dd */,
-    0,
-    Opcode_mul_dd_lh_encode_fns, 0, 0 },
-  { "mul.dd.hh", 187 /* xt_iclass_mac16_dd */,
-    0,
-    Opcode_mul_dd_hh_encode_fns, 0, 0 },
-  { "mula.aa.ll", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_mula_aa_ll_encode_fns, 0, 0 },
-  { "mula.aa.hl", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_mula_aa_hl_encode_fns, 0, 0 },
-  { "mula.aa.lh", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_mula_aa_lh_encode_fns, 0, 0 },
-  { "mula.aa.hh", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_mula_aa_hh_encode_fns, 0, 0 },
-  { "muls.aa.ll", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_muls_aa_ll_encode_fns, 0, 0 },
-  { "muls.aa.hl", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_muls_aa_hl_encode_fns, 0, 0 },
-  { "muls.aa.lh", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_muls_aa_lh_encode_fns, 0, 0 },
-  { "muls.aa.hh", 188 /* xt_iclass_mac16a_aa */,
-    0,
-    Opcode_muls_aa_hh_encode_fns, 0, 0 },
-  { "mula.ad.ll", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_mula_ad_ll_encode_fns, 0, 0 },
-  { "mula.ad.hl", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_mula_ad_hl_encode_fns, 0, 0 },
-  { "mula.ad.lh", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_mula_ad_lh_encode_fns, 0, 0 },
-  { "mula.ad.hh", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_mula_ad_hh_encode_fns, 0, 0 },
-  { "muls.ad.ll", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_muls_ad_ll_encode_fns, 0, 0 },
-  { "muls.ad.hl", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_muls_ad_hl_encode_fns, 0, 0 },
-  { "muls.ad.lh", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_muls_ad_lh_encode_fns, 0, 0 },
-  { "muls.ad.hh", 189 /* xt_iclass_mac16a_ad */,
-    0,
-    Opcode_muls_ad_hh_encode_fns, 0, 0 },
-  { "mula.da.ll", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_mula_da_ll_encode_fns, 0, 0 },
-  { "mula.da.hl", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_mula_da_hl_encode_fns, 0, 0 },
-  { "mula.da.lh", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_mula_da_lh_encode_fns, 0, 0 },
-  { "mula.da.hh", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_mula_da_hh_encode_fns, 0, 0 },
-  { "muls.da.ll", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_muls_da_ll_encode_fns, 0, 0 },
-  { "muls.da.hl", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_muls_da_hl_encode_fns, 0, 0 },
-  { "muls.da.lh", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_muls_da_lh_encode_fns, 0, 0 },
-  { "muls.da.hh", 190 /* xt_iclass_mac16a_da */,
-    0,
-    Opcode_muls_da_hh_encode_fns, 0, 0 },
-  { "mula.dd.ll", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_mula_dd_ll_encode_fns, 0, 0 },
-  { "mula.dd.hl", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_mula_dd_hl_encode_fns, 0, 0 },
-  { "mula.dd.lh", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_mula_dd_lh_encode_fns, 0, 0 },
-  { "mula.dd.hh", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_mula_dd_hh_encode_fns, 0, 0 },
-  { "muls.dd.ll", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_muls_dd_ll_encode_fns, 0, 0 },
-  { "muls.dd.hl", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_muls_dd_hl_encode_fns, 0, 0 },
-  { "muls.dd.lh", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_muls_dd_lh_encode_fns, 0, 0 },
-  { "muls.dd.hh", 191 /* xt_iclass_mac16a_dd */,
-    0,
-    Opcode_muls_dd_hh_encode_fns, 0, 0 },
-  { "mula.da.ll.lddec", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_ll_lddec_encode_fns, 0, 0 },
-  { "mula.da.ll.ldinc", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_ll_ldinc_encode_fns, 0, 0 },
-  { "mula.da.hl.lddec", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_hl_lddec_encode_fns, 0, 0 },
-  { "mula.da.hl.ldinc", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_hl_ldinc_encode_fns, 0, 0 },
-  { "mula.da.lh.lddec", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_lh_lddec_encode_fns, 0, 0 },
-  { "mula.da.lh.ldinc", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_lh_ldinc_encode_fns, 0, 0 },
-  { "mula.da.hh.lddec", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_hh_lddec_encode_fns, 0, 0 },
-  { "mula.da.hh.ldinc", 192 /* xt_iclass_mac16al_da */,
-    0,
-    Opcode_mula_da_hh_ldinc_encode_fns, 0, 0 },
-  { "mula.dd.ll.lddec", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_ll_lddec_encode_fns, 0, 0 },
-  { "mula.dd.ll.ldinc", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_ll_ldinc_encode_fns, 0, 0 },
-  { "mula.dd.hl.lddec", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_hl_lddec_encode_fns, 0, 0 },
-  { "mula.dd.hl.ldinc", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_hl_ldinc_encode_fns, 0, 0 },
-  { "mula.dd.lh.lddec", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_lh_lddec_encode_fns, 0, 0 },
-  { "mula.dd.lh.ldinc", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_lh_ldinc_encode_fns, 0, 0 },
-  { "mula.dd.hh.lddec", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_hh_lddec_encode_fns, 0, 0 },
-  { "mula.dd.hh.ldinc", 193 /* xt_iclass_mac16al_dd */,
-    0,
-    Opcode_mula_dd_hh_ldinc_encode_fns, 0, 0 },
-  { "lddec", 194 /* xt_iclass_mac16_l */,
-    0,
-    Opcode_lddec_encode_fns, 0, 0 },
-  { "ldinc", 194 /* xt_iclass_mac16_l */,
-    0,
-    Opcode_ldinc_encode_fns, 0, 0 },
-  { "mul16u", 195 /* xt_iclass_mul16 */,
+  { "mul16u", ICLASS_xt_iclass_mul16,
     0,
     Opcode_mul16u_encode_fns, 0, 0 },
-  { "mul16s", 195 /* xt_iclass_mul16 */,
+  { "mul16s", ICLASS_xt_iclass_mul16,
     0,
     Opcode_mul16s_encode_fns, 0, 0 },
-  { "rsr.m0", 196 /* xt_iclass_rsr.m0 */,
-    0,
-    Opcode_rsr_m0_encode_fns, 0, 0 },
-  { "wsr.m0", 197 /* xt_iclass_wsr.m0 */,
-    0,
-    Opcode_wsr_m0_encode_fns, 0, 0 },
-  { "xsr.m0", 198 /* xt_iclass_xsr.m0 */,
-    0,
-    Opcode_xsr_m0_encode_fns, 0, 0 },
-  { "rsr.m1", 199 /* xt_iclass_rsr.m1 */,
-    0,
-    Opcode_rsr_m1_encode_fns, 0, 0 },
-  { "wsr.m1", 200 /* xt_iclass_wsr.m1 */,
-    0,
-    Opcode_wsr_m1_encode_fns, 0, 0 },
-  { "xsr.m1", 201 /* xt_iclass_xsr.m1 */,
-    0,
-    Opcode_xsr_m1_encode_fns, 0, 0 },
-  { "rsr.m2", 202 /* xt_iclass_rsr.m2 */,
-    0,
-    Opcode_rsr_m2_encode_fns, 0, 0 },
-  { "wsr.m2", 203 /* xt_iclass_wsr.m2 */,
-    0,
-    Opcode_wsr_m2_encode_fns, 0, 0 },
-  { "xsr.m2", 204 /* xt_iclass_xsr.m2 */,
-    0,
-    Opcode_xsr_m2_encode_fns, 0, 0 },
-  { "rsr.m3", 205 /* xt_iclass_rsr.m3 */,
-    0,
-    Opcode_rsr_m3_encode_fns, 0, 0 },
-  { "wsr.m3", 206 /* xt_iclass_wsr.m3 */,
-    0,
-    Opcode_wsr_m3_encode_fns, 0, 0 },
-  { "xsr.m3", 207 /* xt_iclass_xsr.m3 */,
-    0,
-    Opcode_xsr_m3_encode_fns, 0, 0 },
-  { "rsr.acclo", 208 /* xt_iclass_rsr.acclo */,
-    0,
-    Opcode_rsr_acclo_encode_fns, 0, 0 },
-  { "wsr.acclo", 209 /* xt_iclass_wsr.acclo */,
-    0,
-    Opcode_wsr_acclo_encode_fns, 0, 0 },
-  { "xsr.acclo", 210 /* xt_iclass_xsr.acclo */,
-    0,
-    Opcode_xsr_acclo_encode_fns, 0, 0 },
-  { "rsr.acchi", 211 /* xt_iclass_rsr.acchi */,
-    0,
-    Opcode_rsr_acchi_encode_fns, 0, 0 },
-  { "wsr.acchi", 212 /* xt_iclass_wsr.acchi */,
-    0,
-    Opcode_wsr_acchi_encode_fns, 0, 0 },
-  { "xsr.acchi", 213 /* xt_iclass_xsr.acchi */,
-    0,
-    Opcode_xsr_acchi_encode_fns, 0, 0 },
-  { "rfi", 214 /* xt_iclass_rfi */,
+  { "rfi", ICLASS_xt_iclass_rfi,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_rfi_encode_fns, 0, 0 },
-  { "waiti", 215 /* xt_iclass_wait */,
+  { "waiti", ICLASS_xt_iclass_wait,
     0,
     Opcode_waiti_encode_fns, 0, 0 },
-  { "rsr.interrupt", 216 /* xt_iclass_rsr.interrupt */,
+  { "rsr.interrupt", ICLASS_xt_iclass_rsr_interrupt,
     0,
     Opcode_rsr_interrupt_encode_fns, 0, 0 },
-  { "wsr.intset", 217 /* xt_iclass_wsr.intset */,
+  { "wsr.intset", ICLASS_xt_iclass_wsr_intset,
     0,
     Opcode_wsr_intset_encode_fns, 0, 0 },
-  { "wsr.intclear", 218 /* xt_iclass_wsr.intclear */,
+  { "wsr.intclear", ICLASS_xt_iclass_wsr_intclear,
     0,
     Opcode_wsr_intclear_encode_fns, 0, 0 },
-  { "rsr.intenable", 219 /* xt_iclass_rsr.intenable */,
+  { "rsr.intenable", ICLASS_xt_iclass_rsr_intenable,
     0,
     Opcode_rsr_intenable_encode_fns, 0, 0 },
-  { "wsr.intenable", 220 /* xt_iclass_wsr.intenable */,
+  { "wsr.intenable", ICLASS_xt_iclass_wsr_intenable,
     0,
     Opcode_wsr_intenable_encode_fns, 0, 0 },
-  { "xsr.intenable", 221 /* xt_iclass_xsr.intenable */,
+  { "xsr.intenable", ICLASS_xt_iclass_xsr_intenable,
     0,
     Opcode_xsr_intenable_encode_fns, 0, 0 },
-  { "break", 222 /* xt_iclass_break */,
+  { "break", ICLASS_xt_iclass_break,
     0,
     Opcode_break_encode_fns, 0, 0 },
-  { "break.n", 223 /* xt_iclass_break.n */,
+  { "break.n", ICLASS_xt_iclass_break_n,
     0,
     Opcode_break_n_encode_fns, 0, 0 },
-  { "rsr.dbreaka0", 224 /* xt_iclass_rsr.dbreaka0 */,
+  { "rsr.dbreaka0", ICLASS_xt_iclass_rsr_dbreaka0,
     0,
     Opcode_rsr_dbreaka0_encode_fns, 0, 0 },
-  { "wsr.dbreaka0", 225 /* xt_iclass_wsr.dbreaka0 */,
+  { "wsr.dbreaka0", ICLASS_xt_iclass_wsr_dbreaka0,
     0,
     Opcode_wsr_dbreaka0_encode_fns, 0, 0 },
-  { "xsr.dbreaka0", 226 /* xt_iclass_xsr.dbreaka0 */,
+  { "xsr.dbreaka0", ICLASS_xt_iclass_xsr_dbreaka0,
     0,
     Opcode_xsr_dbreaka0_encode_fns, 0, 0 },
-  { "rsr.dbreakc0", 227 /* xt_iclass_rsr.dbreakc0 */,
+  { "rsr.dbreakc0", ICLASS_xt_iclass_rsr_dbreakc0,
     0,
     Opcode_rsr_dbreakc0_encode_fns, 0, 0 },
-  { "wsr.dbreakc0", 228 /* xt_iclass_wsr.dbreakc0 */,
+  { "wsr.dbreakc0", ICLASS_xt_iclass_wsr_dbreakc0,
     0,
     Opcode_wsr_dbreakc0_encode_fns, 0, 0 },
-  { "xsr.dbreakc0", 229 /* xt_iclass_xsr.dbreakc0 */,
+  { "xsr.dbreakc0", ICLASS_xt_iclass_xsr_dbreakc0,
     0,
     Opcode_xsr_dbreakc0_encode_fns, 0, 0 },
-  { "rsr.dbreaka1", 230 /* xt_iclass_rsr.dbreaka1 */,
+  { "rsr.dbreaka1", ICLASS_xt_iclass_rsr_dbreaka1,
     0,
     Opcode_rsr_dbreaka1_encode_fns, 0, 0 },
-  { "wsr.dbreaka1", 231 /* xt_iclass_wsr.dbreaka1 */,
+  { "wsr.dbreaka1", ICLASS_xt_iclass_wsr_dbreaka1,
     0,
     Opcode_wsr_dbreaka1_encode_fns, 0, 0 },
-  { "xsr.dbreaka1", 232 /* xt_iclass_xsr.dbreaka1 */,
+  { "xsr.dbreaka1", ICLASS_xt_iclass_xsr_dbreaka1,
     0,
     Opcode_xsr_dbreaka1_encode_fns, 0, 0 },
-  { "rsr.dbreakc1", 233 /* xt_iclass_rsr.dbreakc1 */,
+  { "rsr.dbreakc1", ICLASS_xt_iclass_rsr_dbreakc1,
     0,
     Opcode_rsr_dbreakc1_encode_fns, 0, 0 },
-  { "wsr.dbreakc1", 234 /* xt_iclass_wsr.dbreakc1 */,
+  { "wsr.dbreakc1", ICLASS_xt_iclass_wsr_dbreakc1,
     0,
     Opcode_wsr_dbreakc1_encode_fns, 0, 0 },
-  { "xsr.dbreakc1", 235 /* xt_iclass_xsr.dbreakc1 */,
+  { "xsr.dbreakc1", ICLASS_xt_iclass_xsr_dbreakc1,
     0,
     Opcode_xsr_dbreakc1_encode_fns, 0, 0 },
-  { "rsr.ibreaka0", 236 /* xt_iclass_rsr.ibreaka0 */,
+  { "rsr.ibreaka0", ICLASS_xt_iclass_rsr_ibreaka0,
     0,
     Opcode_rsr_ibreaka0_encode_fns, 0, 0 },
-  { "wsr.ibreaka0", 237 /* xt_iclass_wsr.ibreaka0 */,
+  { "wsr.ibreaka0", ICLASS_xt_iclass_wsr_ibreaka0,
     0,
     Opcode_wsr_ibreaka0_encode_fns, 0, 0 },
-  { "xsr.ibreaka0", 238 /* xt_iclass_xsr.ibreaka0 */,
+  { "xsr.ibreaka0", ICLASS_xt_iclass_xsr_ibreaka0,
     0,
     Opcode_xsr_ibreaka0_encode_fns, 0, 0 },
-  { "rsr.ibreaka1", 239 /* xt_iclass_rsr.ibreaka1 */,
+  { "rsr.ibreaka1", ICLASS_xt_iclass_rsr_ibreaka1,
     0,
     Opcode_rsr_ibreaka1_encode_fns, 0, 0 },
-  { "wsr.ibreaka1", 240 /* xt_iclass_wsr.ibreaka1 */,
+  { "wsr.ibreaka1", ICLASS_xt_iclass_wsr_ibreaka1,
     0,
     Opcode_wsr_ibreaka1_encode_fns, 0, 0 },
-  { "xsr.ibreaka1", 241 /* xt_iclass_xsr.ibreaka1 */,
+  { "xsr.ibreaka1", ICLASS_xt_iclass_xsr_ibreaka1,
     0,
     Opcode_xsr_ibreaka1_encode_fns, 0, 0 },
-  { "rsr.ibreakenable", 242 /* xt_iclass_rsr.ibreakenable */,
+  { "rsr.ibreakenable", ICLASS_xt_iclass_rsr_ibreakenable,
     0,
     Opcode_rsr_ibreakenable_encode_fns, 0, 0 },
-  { "wsr.ibreakenable", 243 /* xt_iclass_wsr.ibreakenable */,
+  { "wsr.ibreakenable", ICLASS_xt_iclass_wsr_ibreakenable,
     0,
     Opcode_wsr_ibreakenable_encode_fns, 0, 0 },
-  { "xsr.ibreakenable", 244 /* xt_iclass_xsr.ibreakenable */,
+  { "xsr.ibreakenable", ICLASS_xt_iclass_xsr_ibreakenable,
     0,
     Opcode_xsr_ibreakenable_encode_fns, 0, 0 },
-  { "rsr.debugcause", 245 /* xt_iclass_rsr.debugcause */,
+  { "rsr.debugcause", ICLASS_xt_iclass_rsr_debugcause,
     0,
     Opcode_rsr_debugcause_encode_fns, 0, 0 },
-  { "wsr.debugcause", 246 /* xt_iclass_wsr.debugcause */,
+  { "wsr.debugcause", ICLASS_xt_iclass_wsr_debugcause,
     0,
     Opcode_wsr_debugcause_encode_fns, 0, 0 },
-  { "xsr.debugcause", 247 /* xt_iclass_xsr.debugcause */,
+  { "xsr.debugcause", ICLASS_xt_iclass_xsr_debugcause,
     0,
     Opcode_xsr_debugcause_encode_fns, 0, 0 },
-  { "rsr.icount", 248 /* xt_iclass_rsr.icount */,
+  { "rsr.icount", ICLASS_xt_iclass_rsr_icount,
     0,
     Opcode_rsr_icount_encode_fns, 0, 0 },
-  { "wsr.icount", 249 /* xt_iclass_wsr.icount */,
+  { "wsr.icount", ICLASS_xt_iclass_wsr_icount,
     0,
     Opcode_wsr_icount_encode_fns, 0, 0 },
-  { "xsr.icount", 250 /* xt_iclass_xsr.icount */,
+  { "xsr.icount", ICLASS_xt_iclass_xsr_icount,
     0,
     Opcode_xsr_icount_encode_fns, 0, 0 },
-  { "rsr.icountlevel", 251 /* xt_iclass_rsr.icountlevel */,
+  { "rsr.icountlevel", ICLASS_xt_iclass_rsr_icountlevel,
     0,
     Opcode_rsr_icountlevel_encode_fns, 0, 0 },
-  { "wsr.icountlevel", 252 /* xt_iclass_wsr.icountlevel */,
+  { "wsr.icountlevel", ICLASS_xt_iclass_wsr_icountlevel,
     0,
     Opcode_wsr_icountlevel_encode_fns, 0, 0 },
-  { "xsr.icountlevel", 253 /* xt_iclass_xsr.icountlevel */,
+  { "xsr.icountlevel", ICLASS_xt_iclass_xsr_icountlevel,
     0,
     Opcode_xsr_icountlevel_encode_fns, 0, 0 },
-  { "rsr.ddr", 254 /* xt_iclass_rsr.ddr */,
+  { "rsr.ddr", ICLASS_xt_iclass_rsr_ddr,
     0,
     Opcode_rsr_ddr_encode_fns, 0, 0 },
-  { "wsr.ddr", 255 /* xt_iclass_wsr.ddr */,
+  { "wsr.ddr", ICLASS_xt_iclass_wsr_ddr,
     0,
     Opcode_wsr_ddr_encode_fns, 0, 0 },
-  { "xsr.ddr", 256 /* xt_iclass_xsr.ddr */,
+  { "xsr.ddr", ICLASS_xt_iclass_xsr_ddr,
     0,
     Opcode_xsr_ddr_encode_fns, 0, 0 },
-  { "rfdo", 257 /* xt_iclass_rfdo */,
+  { "rfdo", ICLASS_xt_iclass_rfdo,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_rfdo_encode_fns, 0, 0 },
-  { "rfdd", 258 /* xt_iclass_rfdd */,
+  { "rfdd", ICLASS_xt_iclass_rfdd,
     XTENSA_OPCODE_IS_JUMP,
     Opcode_rfdd_encode_fns, 0, 0 },
-  { "wsr.mmid", 259 /* xt_iclass_wsr.mmid */,
+  { "wsr.mmid", ICLASS_xt_iclass_wsr_mmid,
     0,
     Opcode_wsr_mmid_encode_fns, 0, 0 },
-  { "andb", 260 /* xt_iclass_bbool1 */,
-    0,
-    Opcode_andb_encode_fns, 0, 0 },
-  { "andbc", 260 /* xt_iclass_bbool1 */,
-    0,
-    Opcode_andbc_encode_fns, 0, 0 },
-  { "orb", 260 /* xt_iclass_bbool1 */,
-    0,
-    Opcode_orb_encode_fns, 0, 0 },
-  { "orbc", 260 /* xt_iclass_bbool1 */,
-    0,
-    Opcode_orbc_encode_fns, 0, 0 },
-  { "xorb", 260 /* xt_iclass_bbool1 */,
-    0,
-    Opcode_xorb_encode_fns, 0, 0 },
-  { "any4", 261 /* xt_iclass_bbool4 */,
-    0,
-    Opcode_any4_encode_fns, 0, 0 },
-  { "all4", 261 /* xt_iclass_bbool4 */,
-    0,
-    Opcode_all4_encode_fns, 0, 0 },
-  { "any8", 262 /* xt_iclass_bbool8 */,
-    0,
-    Opcode_any8_encode_fns, 0, 0 },
-  { "all8", 262 /* xt_iclass_bbool8 */,
-    0,
-    Opcode_all8_encode_fns, 0, 0 },
-  { "bf", 263 /* xt_iclass_bbranch */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bf_encode_fns, 0, 0 },
-  { "bt", 263 /* xt_iclass_bbranch */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bt_encode_fns, 0, 0 },
-  { "movf", 264 /* xt_iclass_bmove */,
-    0,
-    Opcode_movf_encode_fns, 0, 0 },
-  { "movt", 264 /* xt_iclass_bmove */,
-    0,
-    Opcode_movt_encode_fns, 0, 0 },
-  { "rsr.br", 265 /* xt_iclass_RSR.BR */,
-    0,
-    Opcode_rsr_br_encode_fns, 0, 0 },
-  { "wsr.br", 266 /* xt_iclass_WSR.BR */,
-    0,
-    Opcode_wsr_br_encode_fns, 0, 0 },
-  { "xsr.br", 267 /* xt_iclass_XSR.BR */,
-    0,
-    Opcode_xsr_br_encode_fns, 0, 0 },
-  { "rsr.ccount", 268 /* xt_iclass_rsr.ccount */,
+  { "rsr.ccount", ICLASS_xt_iclass_rsr_ccount,
     0,
     Opcode_rsr_ccount_encode_fns, 0, 0 },
-  { "wsr.ccount", 269 /* xt_iclass_wsr.ccount */,
+  { "wsr.ccount", ICLASS_xt_iclass_wsr_ccount,
     0,
     Opcode_wsr_ccount_encode_fns, 0, 0 },
-  { "xsr.ccount", 270 /* xt_iclass_xsr.ccount */,
+  { "xsr.ccount", ICLASS_xt_iclass_xsr_ccount,
     0,
     Opcode_xsr_ccount_encode_fns, 0, 0 },
-  { "rsr.ccompare0", 271 /* xt_iclass_rsr.ccompare0 */,
+  { "rsr.ccompare0", ICLASS_xt_iclass_rsr_ccompare0,
     0,
     Opcode_rsr_ccompare0_encode_fns, 0, 0 },
-  { "wsr.ccompare0", 272 /* xt_iclass_wsr.ccompare0 */,
+  { "wsr.ccompare0", ICLASS_xt_iclass_wsr_ccompare0,
     0,
     Opcode_wsr_ccompare0_encode_fns, 0, 0 },
-  { "xsr.ccompare0", 273 /* xt_iclass_xsr.ccompare0 */,
+  { "xsr.ccompare0", ICLASS_xt_iclass_xsr_ccompare0,
     0,
     Opcode_xsr_ccompare0_encode_fns, 0, 0 },
-  { "rsr.ccompare1", 274 /* xt_iclass_rsr.ccompare1 */,
+  { "rsr.ccompare1", ICLASS_xt_iclass_rsr_ccompare1,
     0,
     Opcode_rsr_ccompare1_encode_fns, 0, 0 },
-  { "wsr.ccompare1", 275 /* xt_iclass_wsr.ccompare1 */,
+  { "wsr.ccompare1", ICLASS_xt_iclass_wsr_ccompare1,
     0,
     Opcode_wsr_ccompare1_encode_fns, 0, 0 },
-  { "xsr.ccompare1", 276 /* xt_iclass_xsr.ccompare1 */,
+  { "xsr.ccompare1", ICLASS_xt_iclass_xsr_ccompare1,
     0,
     Opcode_xsr_ccompare1_encode_fns, 0, 0 },
-  { "rsr.ccompare2", 277 /* xt_iclass_rsr.ccompare2 */,
+  { "rsr.ccompare2", ICLASS_xt_iclass_rsr_ccompare2,
     0,
     Opcode_rsr_ccompare2_encode_fns, 0, 0 },
-  { "wsr.ccompare2", 278 /* xt_iclass_wsr.ccompare2 */,
+  { "wsr.ccompare2", ICLASS_xt_iclass_wsr_ccompare2,
     0,
     Opcode_wsr_ccompare2_encode_fns, 0, 0 },
-  { "xsr.ccompare2", 279 /* xt_iclass_xsr.ccompare2 */,
+  { "xsr.ccompare2", ICLASS_xt_iclass_xsr_ccompare2,
     0,
     Opcode_xsr_ccompare2_encode_fns, 0, 0 },
-  { "ipf", 280 /* xt_iclass_icache */,
+  { "ipf", ICLASS_xt_iclass_icache,
     0,
     Opcode_ipf_encode_fns, 0, 0 },
-  { "ihi", 280 /* xt_iclass_icache */,
+  { "ihi", ICLASS_xt_iclass_icache,
     0,
     Opcode_ihi_encode_fns, 0, 0 },
-  { "ipfl", 281 /* xt_iclass_icache_lock */,
+  { "ipfl", ICLASS_xt_iclass_icache_lock,
     0,
     Opcode_ipfl_encode_fns, 0, 0 },
-  { "ihu", 281 /* xt_iclass_icache_lock */,
+  { "ihu", ICLASS_xt_iclass_icache_lock,
     0,
     Opcode_ihu_encode_fns, 0, 0 },
-  { "iiu", 281 /* xt_iclass_icache_lock */,
+  { "iiu", ICLASS_xt_iclass_icache_lock,
     0,
     Opcode_iiu_encode_fns, 0, 0 },
-  { "iii", 282 /* xt_iclass_icache_inv */,
+  { "iii", ICLASS_xt_iclass_icache_inv,
     0,
     Opcode_iii_encode_fns, 0, 0 },
-  { "lict", 283 /* xt_iclass_licx */,
+  { "lict", ICLASS_xt_iclass_licx,
     0,
     Opcode_lict_encode_fns, 0, 0 },
-  { "licw", 283 /* xt_iclass_licx */,
+  { "licw", ICLASS_xt_iclass_licx,
     0,
     Opcode_licw_encode_fns, 0, 0 },
-  { "sict", 284 /* xt_iclass_sicx */,
+  { "sict", ICLASS_xt_iclass_sicx,
     0,
     Opcode_sict_encode_fns, 0, 0 },
-  { "sicw", 284 /* xt_iclass_sicx */,
+  { "sicw", ICLASS_xt_iclass_sicx,
     0,
     Opcode_sicw_encode_fns, 0, 0 },
-  { "dhwb", 285 /* xt_iclass_dcache */,
+  { "dhwb", ICLASS_xt_iclass_dcache,
     0,
     Opcode_dhwb_encode_fns, 0, 0 },
-  { "dhwbi", 285 /* xt_iclass_dcache */,
+  { "dhwbi", ICLASS_xt_iclass_dcache,
     0,
     Opcode_dhwbi_encode_fns, 0, 0 },
-  { "diwb", 286 /* xt_iclass_dcache_ind */,
+  { "diwb", ICLASS_xt_iclass_dcache_ind,
     0,
     Opcode_diwb_encode_fns, 0, 0 },
-  { "diwbi", 286 /* xt_iclass_dcache_ind */,
+  { "diwbi", ICLASS_xt_iclass_dcache_ind,
     0,
     Opcode_diwbi_encode_fns, 0, 0 },
-  { "dhi", 287 /* xt_iclass_dcache_inv */,
+  { "dhi", ICLASS_xt_iclass_dcache_inv,
     0,
     Opcode_dhi_encode_fns, 0, 0 },
-  { "dii", 287 /* xt_iclass_dcache_inv */,
+  { "dii", ICLASS_xt_iclass_dcache_inv,
     0,
     Opcode_dii_encode_fns, 0, 0 },
-  { "dpfr", 288 /* xt_iclass_dpf */,
+  { "dpfr", ICLASS_xt_iclass_dpf,
     0,
     Opcode_dpfr_encode_fns, 0, 0 },
-  { "dpfw", 288 /* xt_iclass_dpf */,
+  { "dpfw", ICLASS_xt_iclass_dpf,
     0,
     Opcode_dpfw_encode_fns, 0, 0 },
-  { "dpfro", 288 /* xt_iclass_dpf */,
+  { "dpfro", ICLASS_xt_iclass_dpf,
     0,
     Opcode_dpfro_encode_fns, 0, 0 },
-  { "dpfwo", 288 /* xt_iclass_dpf */,
+  { "dpfwo", ICLASS_xt_iclass_dpf,
     0,
     Opcode_dpfwo_encode_fns, 0, 0 },
-  { "dpfl", 289 /* xt_iclass_dcache_lock */,
+  { "dpfl", ICLASS_xt_iclass_dcache_lock,
     0,
     Opcode_dpfl_encode_fns, 0, 0 },
-  { "dhu", 289 /* xt_iclass_dcache_lock */,
+  { "dhu", ICLASS_xt_iclass_dcache_lock,
     0,
     Opcode_dhu_encode_fns, 0, 0 },
-  { "diu", 289 /* xt_iclass_dcache_lock */,
+  { "diu", ICLASS_xt_iclass_dcache_lock,
     0,
     Opcode_diu_encode_fns, 0, 0 },
-  { "sdct", 290 /* xt_iclass_sdct */,
+  { "sdct", ICLASS_xt_iclass_sdct,
     0,
     Opcode_sdct_encode_fns, 0, 0 },
-  { "ldct", 291 /* xt_iclass_ldct */,
+  { "ldct", ICLASS_xt_iclass_ldct,
     0,
     Opcode_ldct_encode_fns, 0, 0 },
-  { "wsr.ptevaddr", 292 /* xt_iclass_wsr.ptevaddr */,
+  { "wsr.ptevaddr", ICLASS_xt_iclass_wsr_ptevaddr,
     0,
     Opcode_wsr_ptevaddr_encode_fns, 0, 0 },
-  { "rsr.ptevaddr", 293 /* xt_iclass_rsr.ptevaddr */,
+  { "rsr.ptevaddr", ICLASS_xt_iclass_rsr_ptevaddr,
     0,
     Opcode_rsr_ptevaddr_encode_fns, 0, 0 },
-  { "xsr.ptevaddr", 294 /* xt_iclass_xsr.ptevaddr */,
+  { "xsr.ptevaddr", ICLASS_xt_iclass_xsr_ptevaddr,
     0,
     Opcode_xsr_ptevaddr_encode_fns, 0, 0 },
-  { "rsr.rasid", 295 /* xt_iclass_rsr.rasid */,
+  { "rsr.rasid", ICLASS_xt_iclass_rsr_rasid,
     0,
     Opcode_rsr_rasid_encode_fns, 0, 0 },
-  { "wsr.rasid", 296 /* xt_iclass_wsr.rasid */,
+  { "wsr.rasid", ICLASS_xt_iclass_wsr_rasid,
     0,
     Opcode_wsr_rasid_encode_fns, 0, 0 },
-  { "xsr.rasid", 297 /* xt_iclass_xsr.rasid */,
+  { "xsr.rasid", ICLASS_xt_iclass_xsr_rasid,
     0,
     Opcode_xsr_rasid_encode_fns, 0, 0 },
-  { "rsr.itlbcfg", 298 /* xt_iclass_rsr.itlbcfg */,
+  { "rsr.itlbcfg", ICLASS_xt_iclass_rsr_itlbcfg,
     0,
     Opcode_rsr_itlbcfg_encode_fns, 0, 0 },
-  { "wsr.itlbcfg", 299 /* xt_iclass_wsr.itlbcfg */,
+  { "wsr.itlbcfg", ICLASS_xt_iclass_wsr_itlbcfg,
     0,
     Opcode_wsr_itlbcfg_encode_fns, 0, 0 },
-  { "xsr.itlbcfg", 300 /* xt_iclass_xsr.itlbcfg */,
+  { "xsr.itlbcfg", ICLASS_xt_iclass_xsr_itlbcfg,
     0,
     Opcode_xsr_itlbcfg_encode_fns, 0, 0 },
-  { "rsr.dtlbcfg", 301 /* xt_iclass_rsr.dtlbcfg */,
+  { "rsr.dtlbcfg", ICLASS_xt_iclass_rsr_dtlbcfg,
     0,
     Opcode_rsr_dtlbcfg_encode_fns, 0, 0 },
-  { "wsr.dtlbcfg", 302 /* xt_iclass_wsr.dtlbcfg */,
+  { "wsr.dtlbcfg", ICLASS_xt_iclass_wsr_dtlbcfg,
     0,
     Opcode_wsr_dtlbcfg_encode_fns, 0, 0 },
-  { "xsr.dtlbcfg", 303 /* xt_iclass_xsr.dtlbcfg */,
+  { "xsr.dtlbcfg", ICLASS_xt_iclass_xsr_dtlbcfg,
     0,
     Opcode_xsr_dtlbcfg_encode_fns, 0, 0 },
-  { "idtlb", 304 /* xt_iclass_idtlb */,
+  { "idtlb", ICLASS_xt_iclass_idtlb,
     0,
     Opcode_idtlb_encode_fns, 0, 0 },
-  { "pdtlb", 305 /* xt_iclass_rdtlb */,
+  { "pdtlb", ICLASS_xt_iclass_rdtlb,
     0,
     Opcode_pdtlb_encode_fns, 0, 0 },
-  { "rdtlb0", 305 /* xt_iclass_rdtlb */,
+  { "rdtlb0", ICLASS_xt_iclass_rdtlb,
     0,
     Opcode_rdtlb0_encode_fns, 0, 0 },
-  { "rdtlb1", 305 /* xt_iclass_rdtlb */,
+  { "rdtlb1", ICLASS_xt_iclass_rdtlb,
     0,
     Opcode_rdtlb1_encode_fns, 0, 0 },
-  { "wdtlb", 306 /* xt_iclass_wdtlb */,
+  { "wdtlb", ICLASS_xt_iclass_wdtlb,
     0,
     Opcode_wdtlb_encode_fns, 0, 0 },
-  { "iitlb", 307 /* xt_iclass_iitlb */,
+  { "iitlb", ICLASS_xt_iclass_iitlb,
     0,
     Opcode_iitlb_encode_fns, 0, 0 },
-  { "pitlb", 308 /* xt_iclass_ritlb */,
+  { "pitlb", ICLASS_xt_iclass_ritlb,
     0,
     Opcode_pitlb_encode_fns, 0, 0 },
-  { "ritlb0", 308 /* xt_iclass_ritlb */,
+  { "ritlb0", ICLASS_xt_iclass_ritlb,
     0,
     Opcode_ritlb0_encode_fns, 0, 0 },
-  { "ritlb1", 308 /* xt_iclass_ritlb */,
+  { "ritlb1", ICLASS_xt_iclass_ritlb,
     0,
     Opcode_ritlb1_encode_fns, 0, 0 },
-  { "witlb", 309 /* xt_iclass_witlb */,
+  { "witlb", ICLASS_xt_iclass_witlb,
     0,
     Opcode_witlb_encode_fns, 0, 0 },
-  { "ldpte", 310 /* xt_iclass_ldpte */,
+  { "ldpte", ICLASS_xt_iclass_ldpte,
     0,
     Opcode_ldpte_encode_fns, 0, 0 },
-  { "hwwitlba", 311 /* xt_iclass_hwwitlba */,
+  { "hwwitlba", ICLASS_xt_iclass_hwwitlba,
     XTENSA_OPCODE_IS_BRANCH,
     Opcode_hwwitlba_encode_fns, 0, 0 },
-  { "hwwdtlba", 312 /* xt_iclass_hwwdtlba */,
+  { "hwwdtlba", ICLASS_xt_iclass_hwwdtlba,
     0,
     Opcode_hwwdtlba_encode_fns, 0, 0 },
-  { "rsr.cpenable", 313 /* xt_iclass_rsr.cpenable */,
+  { "rsr.cpenable", ICLASS_xt_iclass_rsr_cpenable,
     0,
     Opcode_rsr_cpenable_encode_fns, 0, 0 },
-  { "wsr.cpenable", 314 /* xt_iclass_wsr.cpenable */,
+  { "wsr.cpenable", ICLASS_xt_iclass_wsr_cpenable,
     0,
     Opcode_wsr_cpenable_encode_fns, 0, 0 },
-  { "xsr.cpenable", 315 /* xt_iclass_xsr.cpenable */,
+  { "xsr.cpenable", ICLASS_xt_iclass_xsr_cpenable,
     0,
     Opcode_xsr_cpenable_encode_fns, 0, 0 },
-  { "clamps", 316 /* xt_iclass_clamp */,
+  { "clamps", ICLASS_xt_iclass_clamp,
     0,
     Opcode_clamps_encode_fns, 0, 0 },
-  { "min", 317 /* xt_iclass_minmax */,
+  { "min", ICLASS_xt_iclass_minmax,
     0,
     Opcode_min_encode_fns, 0, 0 },
-  { "max", 317 /* xt_iclass_minmax */,
+  { "max", ICLASS_xt_iclass_minmax,
     0,
     Opcode_max_encode_fns, 0, 0 },
-  { "minu", 317 /* xt_iclass_minmax */,
+  { "minu", ICLASS_xt_iclass_minmax,
     0,
     Opcode_minu_encode_fns, 0, 0 },
-  { "maxu", 317 /* xt_iclass_minmax */,
+  { "maxu", ICLASS_xt_iclass_minmax,
     0,
     Opcode_maxu_encode_fns, 0, 0 },
-  { "nsa", 318 /* xt_iclass_nsa */,
+  { "nsa", ICLASS_xt_iclass_nsa,
     0,
     Opcode_nsa_encode_fns, 0, 0 },
-  { "nsau", 318 /* xt_iclass_nsa */,
+  { "nsau", ICLASS_xt_iclass_nsa,
     0,
     Opcode_nsau_encode_fns, 0, 0 },
-  { "sext", 319 /* xt_iclass_sx */,
+  { "sext", ICLASS_xt_iclass_sx,
     0,
     Opcode_sext_encode_fns, 0, 0 },
-  { "l32ai", 320 /* xt_iclass_l32ai */,
+  { "l32ai", ICLASS_xt_iclass_l32ai,
     0,
     Opcode_l32ai_encode_fns, 0, 0 },
-  { "s32ri", 321 /* xt_iclass_s32ri */,
+  { "s32ri", ICLASS_xt_iclass_s32ri,
     0,
     Opcode_s32ri_encode_fns, 0, 0 },
-  { "s32c1i", 322 /* xt_iclass_s32c1i */,
+  { "s32c1i", ICLASS_xt_iclass_s32c1i,
     0,
     Opcode_s32c1i_encode_fns, 0, 0 },
-  { "rsr.scompare1", 323 /* xt_iclass_rsr.scompare1 */,
+  { "rsr.scompare1", ICLASS_xt_iclass_rsr_scompare1,
     0,
     Opcode_rsr_scompare1_encode_fns, 0, 0 },
-  { "wsr.scompare1", 324 /* xt_iclass_wsr.scompare1 */,
+  { "wsr.scompare1", ICLASS_xt_iclass_wsr_scompare1,
     0,
     Opcode_wsr_scompare1_encode_fns, 0, 0 },
-  { "xsr.scompare1", 325 /* xt_iclass_xsr.scompare1 */,
+  { "xsr.scompare1", ICLASS_xt_iclass_xsr_scompare1,
     0,
     Opcode_xsr_scompare1_encode_fns, 0, 0 },
-  { "quou", 326 /* xt_iclass_div */,
+  { "quou", ICLASS_xt_iclass_div,
     0,
     Opcode_quou_encode_fns, 0, 0 },
-  { "quos", 326 /* xt_iclass_div */,
+  { "quos", ICLASS_xt_iclass_div,
     0,
     Opcode_quos_encode_fns, 0, 0 },
-  { "remu", 326 /* xt_iclass_div */,
+  { "remu", ICLASS_xt_iclass_div,
     0,
     Opcode_remu_encode_fns, 0, 0 },
-  { "rems", 326 /* xt_iclass_div */,
+  { "rems", ICLASS_xt_iclass_div,
     0,
     Opcode_rems_encode_fns, 0, 0 },
-  { "mull", 327 /* xt_mul32 */,
+  { "mull", ICLASS_xt_mul32,
     0,
-    Opcode_mull_encode_fns, 0, 0 },
-  { "muluh", 327 /* xt_mul32 */,
-    0,
-    Opcode_muluh_encode_fns, 0, 0 },
-  { "mulsh", 327 /* xt_mul32 */,
-    0,
-    Opcode_mulsh_encode_fns, 0, 0 },
-  { "rur.fcr", 328 /* rur_fcr */,
-    0,
-    Opcode_rur_fcr_encode_fns, 0, 0 },
-  { "wur.fcr", 329 /* wur_fcr */,
-    0,
-    Opcode_wur_fcr_encode_fns, 0, 0 },
-  { "rur.fsr", 330 /* rur_fsr */,
-    0,
-    Opcode_rur_fsr_encode_fns, 0, 0 },
-  { "wur.fsr", 331 /* wur_fsr */,
-    0,
-    Opcode_wur_fsr_encode_fns, 0, 0 },
-  { "add.s", 332 /* fp */,
-    0,
-    Opcode_add_s_encode_fns, 0, 0 },
-  { "sub.s", 332 /* fp */,
-    0,
-    Opcode_sub_s_encode_fns, 0, 0 },
-  { "mul.s", 332 /* fp */,
-    0,
-    Opcode_mul_s_encode_fns, 0, 0 },
-  { "madd.s", 333 /* fp_mac */,
-    0,
-    Opcode_madd_s_encode_fns, 0, 0 },
-  { "msub.s", 333 /* fp_mac */,
-    0,
-    Opcode_msub_s_encode_fns, 0, 0 },
-  { "movf.s", 334 /* fp_cmov */,
-    0,
-    Opcode_movf_s_encode_fns, 0, 0 },
-  { "movt.s", 334 /* fp_cmov */,
-    0,
-    Opcode_movt_s_encode_fns, 0, 0 },
-  { "moveqz.s", 335 /* fp_mov */,
-    0,
-    Opcode_moveqz_s_encode_fns, 0, 0 },
-  { "movnez.s", 335 /* fp_mov */,
-    0,
-    Opcode_movnez_s_encode_fns, 0, 0 },
-  { "movltz.s", 335 /* fp_mov */,
-    0,
-    Opcode_movltz_s_encode_fns, 0, 0 },
-  { "movgez.s", 335 /* fp_mov */,
-    0,
-    Opcode_movgez_s_encode_fns, 0, 0 },
-  { "abs.s", 336 /* fp_mov2 */,
-    0,
-    Opcode_abs_s_encode_fns, 0, 0 },
-  { "mov.s", 336 /* fp_mov2 */,
-    0,
-    Opcode_mov_s_encode_fns, 0, 0 },
-  { "neg.s", 336 /* fp_mov2 */,
-    0,
-    Opcode_neg_s_encode_fns, 0, 0 },
-  { "un.s", 337 /* fp_cmp */,
-    0,
-    Opcode_un_s_encode_fns, 0, 0 },
-  { "oeq.s", 337 /* fp_cmp */,
-    0,
-    Opcode_oeq_s_encode_fns, 0, 0 },
-  { "ueq.s", 337 /* fp_cmp */,
-    0,
-    Opcode_ueq_s_encode_fns, 0, 0 },
-  { "olt.s", 337 /* fp_cmp */,
-    0,
-    Opcode_olt_s_encode_fns, 0, 0 },
-  { "ult.s", 337 /* fp_cmp */,
-    0,
-    Opcode_ult_s_encode_fns, 0, 0 },
-  { "ole.s", 337 /* fp_cmp */,
-    0,
-    Opcode_ole_s_encode_fns, 0, 0 },
-  { "ule.s", 337 /* fp_cmp */,
-    0,
-    Opcode_ule_s_encode_fns, 0, 0 },
-  { "float.s", 338 /* fp_float */,
-    0,
-    Opcode_float_s_encode_fns, 0, 0 },
-  { "ufloat.s", 338 /* fp_float */,
-    0,
-    Opcode_ufloat_s_encode_fns, 0, 0 },
-  { "round.s", 339 /* fp_int */,
-    0,
-    Opcode_round_s_encode_fns, 0, 0 },
-  { "ceil.s", 339 /* fp_int */,
-    0,
-    Opcode_ceil_s_encode_fns, 0, 0 },
-  { "floor.s", 339 /* fp_int */,
-    0,
-    Opcode_floor_s_encode_fns, 0, 0 },
-  { "trunc.s", 339 /* fp_int */,
-    0,
-    Opcode_trunc_s_encode_fns, 0, 0 },
-  { "utrunc.s", 339 /* fp_int */,
-    0,
-    Opcode_utrunc_s_encode_fns, 0, 0 },
-  { "rfr", 340 /* fp_rfr */,
-    0,
-    Opcode_rfr_encode_fns, 0, 0 },
-  { "wfr", 341 /* fp_wfr */,
-    0,
-    Opcode_wfr_encode_fns, 0, 0 },
-  { "lsi", 342 /* fp_lsi */,
-    0,
-    Opcode_lsi_encode_fns, 0, 0 },
-  { "lsiu", 343 /* fp_lsiu */,
-    0,
-    Opcode_lsiu_encode_fns, 0, 0 },
-  { "lsx", 344 /* fp_lsx */,
-    0,
-    Opcode_lsx_encode_fns, 0, 0 },
-  { "lsxu", 345 /* fp_lsxu */,
-    0,
-    Opcode_lsxu_encode_fns, 0, 0 },
-  { "ssi", 346 /* fp_ssi */,
-    0,
-    Opcode_ssi_encode_fns, 0, 0 },
-  { "ssiu", 347 /* fp_ssiu */,
-    0,
-    Opcode_ssiu_encode_fns, 0, 0 },
-  { "ssx", 348 /* fp_ssx */,
-    0,
-    Opcode_ssx_encode_fns, 0, 0 },
-  { "ssxu", 349 /* fp_ssxu */,
-    0,
-    Opcode_ssxu_encode_fns, 0, 0 },
-  { "beqz.w18", 350 /* xt_iclass_wb18_0 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_beqz_w18_encode_fns, 0, 0 },
-  { "bnez.w18", 350 /* xt_iclass_wb18_0 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bnez_w18_encode_fns, 0, 0 },
-  { "bgez.w18", 350 /* xt_iclass_wb18_0 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bgez_w18_encode_fns, 0, 0 },
-  { "bltz.w18", 350 /* xt_iclass_wb18_0 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bltz_w18_encode_fns, 0, 0 },
-  { "beqi.w18", 351 /* xt_iclass_wb18_1 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_beqi_w18_encode_fns, 0, 0 },
-  { "bnei.w18", 351 /* xt_iclass_wb18_1 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bnei_w18_encode_fns, 0, 0 },
-  { "bgei.w18", 351 /* xt_iclass_wb18_1 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bgei_w18_encode_fns, 0, 0 },
-  { "blti.w18", 351 /* xt_iclass_wb18_1 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_blti_w18_encode_fns, 0, 0 },
-  { "bgeui.w18", 352 /* xt_iclass_wb18_2 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bgeui_w18_encode_fns, 0, 0 },
-  { "bltui.w18", 352 /* xt_iclass_wb18_2 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bltui_w18_encode_fns, 0, 0 },
-  { "bbci.w18", 353 /* xt_iclass_wb18_3 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bbci_w18_encode_fns, 0, 0 },
-  { "bbsi.w18", 353 /* xt_iclass_wb18_3 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bbsi_w18_encode_fns, 0, 0 },
-  { "beq.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_beq_w18_encode_fns, 0, 0 },
-  { "bne.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bne_w18_encode_fns, 0, 0 },
-  { "bge.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bge_w18_encode_fns, 0, 0 },
-  { "blt.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_blt_w18_encode_fns, 0, 0 },
-  { "bgeu.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bgeu_w18_encode_fns, 0, 0 },
-  { "bltu.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bltu_w18_encode_fns, 0, 0 },
-  { "bany.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bany_w18_encode_fns, 0, 0 },
-  { "bnone.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bnone_w18_encode_fns, 0, 0 },
-  { "ball.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_ball_w18_encode_fns, 0, 0 },
-  { "bnall.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bnall_w18_encode_fns, 0, 0 },
-  { "bbc.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bbc_w18_encode_fns, 0, 0 },
-  { "bbs.w18", 354 /* xt_iclass_wb18_4 */,
-    XTENSA_OPCODE_IS_BRANCH,
-    Opcode_bbs_w18_encode_fns, 0, 0 }
+    Opcode_mull_encode_fns, 0, 0 }
+};
+
+enum xtensa_opcode_id {
+  OPCODE_EXCW,
+  OPCODE_RFE,
+  OPCODE_RFDE,
+  OPCODE_SYSCALL,
+  OPCODE_SIMCALL,
+  OPCODE_CALL12,
+  OPCODE_CALL8,
+  OPCODE_CALL4,
+  OPCODE_CALLX12,
+  OPCODE_CALLX8,
+  OPCODE_CALLX4,
+  OPCODE_ENTRY,
+  OPCODE_MOVSP,
+  OPCODE_ROTW,
+  OPCODE_RETW,
+  OPCODE_RETW_N,
+  OPCODE_RFWO,
+  OPCODE_RFWU,
+  OPCODE_L32E,
+  OPCODE_S32E,
+  OPCODE_RSR_WINDOWBASE,
+  OPCODE_WSR_WINDOWBASE,
+  OPCODE_XSR_WINDOWBASE,
+  OPCODE_RSR_WINDOWSTART,
+  OPCODE_WSR_WINDOWSTART,
+  OPCODE_XSR_WINDOWSTART,
+  OPCODE_ADD_N,
+  OPCODE_ADDI_N,
+  OPCODE_BEQZ_N,
+  OPCODE_BNEZ_N,
+  OPCODE_ILL_N,
+  OPCODE_L32I_N,
+  OPCODE_MOV_N,
+  OPCODE_MOVI_N,
+  OPCODE_NOP_N,
+  OPCODE_RET_N,
+  OPCODE_S32I_N,
+  OPCODE_RUR_THREADPTR,
+  OPCODE_WUR_THREADPTR,
+  OPCODE_ADDI,
+  OPCODE_ADDMI,
+  OPCODE_ADD,
+  OPCODE_SUB,
+  OPCODE_ADDX2,
+  OPCODE_ADDX4,
+  OPCODE_ADDX8,
+  OPCODE_SUBX2,
+  OPCODE_SUBX4,
+  OPCODE_SUBX8,
+  OPCODE_AND,
+  OPCODE_OR,
+  OPCODE_XOR,
+  OPCODE_BEQI,
+  OPCODE_BNEI,
+  OPCODE_BGEI,
+  OPCODE_BLTI,
+  OPCODE_BBCI,
+  OPCODE_BBSI,
+  OPCODE_BGEUI,
+  OPCODE_BLTUI,
+  OPCODE_BEQ,
+  OPCODE_BNE,
+  OPCODE_BGE,
+  OPCODE_BLT,
+  OPCODE_BGEU,
+  OPCODE_BLTU,
+  OPCODE_BANY,
+  OPCODE_BNONE,
+  OPCODE_BALL,
+  OPCODE_BNALL,
+  OPCODE_BBC,
+  OPCODE_BBS,
+  OPCODE_BEQZ,
+  OPCODE_BNEZ,
+  OPCODE_BGEZ,
+  OPCODE_BLTZ,
+  OPCODE_CALL0,
+  OPCODE_CALLX0,
+  OPCODE_EXTUI,
+  OPCODE_ILL,
+  OPCODE_J,
+  OPCODE_JX,
+  OPCODE_L16UI,
+  OPCODE_L16SI,
+  OPCODE_L32I,
+  OPCODE_L32R,
+  OPCODE_L8UI,
+  OPCODE_LOOP,
+  OPCODE_LOOPNEZ,
+  OPCODE_LOOPGTZ,
+  OPCODE_MOVI,
+  OPCODE_MOVEQZ,
+  OPCODE_MOVNEZ,
+  OPCODE_MOVLTZ,
+  OPCODE_MOVGEZ,
+  OPCODE_NEG,
+  OPCODE_ABS,
+  OPCODE_NOP,
+  OPCODE_RET,
+  OPCODE_S16I,
+  OPCODE_S32I,
+  OPCODE_S8I,
+  OPCODE_SSR,
+  OPCODE_SSL,
+  OPCODE_SSA8L,
+  OPCODE_SSA8B,
+  OPCODE_SSAI,
+  OPCODE_SLL,
+  OPCODE_SRC,
+  OPCODE_SRL,
+  OPCODE_SRA,
+  OPCODE_SLLI,
+  OPCODE_SRAI,
+  OPCODE_SRLI,
+  OPCODE_MEMW,
+  OPCODE_EXTW,
+  OPCODE_ISYNC,
+  OPCODE_RSYNC,
+  OPCODE_ESYNC,
+  OPCODE_DSYNC,
+  OPCODE_RSIL,
+  OPCODE_RSR_LEND,
+  OPCODE_WSR_LEND,
+  OPCODE_XSR_LEND,
+  OPCODE_RSR_LCOUNT,
+  OPCODE_WSR_LCOUNT,
+  OPCODE_XSR_LCOUNT,
+  OPCODE_RSR_LBEG,
+  OPCODE_WSR_LBEG,
+  OPCODE_XSR_LBEG,
+  OPCODE_RSR_SAR,
+  OPCODE_WSR_SAR,
+  OPCODE_XSR_SAR,
+  OPCODE_RSR_LITBASE,
+  OPCODE_WSR_LITBASE,
+  OPCODE_XSR_LITBASE,
+  OPCODE_RSR_176,
+  OPCODE_WSR_176,
+  OPCODE_RSR_208,
+  OPCODE_RSR_PS,
+  OPCODE_WSR_PS,
+  OPCODE_XSR_PS,
+  OPCODE_RSR_EPC1,
+  OPCODE_WSR_EPC1,
+  OPCODE_XSR_EPC1,
+  OPCODE_RSR_EXCSAVE1,
+  OPCODE_WSR_EXCSAVE1,
+  OPCODE_XSR_EXCSAVE1,
+  OPCODE_RSR_EPC2,
+  OPCODE_WSR_EPC2,
+  OPCODE_XSR_EPC2,
+  OPCODE_RSR_EXCSAVE2,
+  OPCODE_WSR_EXCSAVE2,
+  OPCODE_XSR_EXCSAVE2,
+  OPCODE_RSR_EPC3,
+  OPCODE_WSR_EPC3,
+  OPCODE_XSR_EPC3,
+  OPCODE_RSR_EXCSAVE3,
+  OPCODE_WSR_EXCSAVE3,
+  OPCODE_XSR_EXCSAVE3,
+  OPCODE_RSR_EPC4,
+  OPCODE_WSR_EPC4,
+  OPCODE_XSR_EPC4,
+  OPCODE_RSR_EXCSAVE4,
+  OPCODE_WSR_EXCSAVE4,
+  OPCODE_XSR_EXCSAVE4,
+  OPCODE_RSR_EPC5,
+  OPCODE_WSR_EPC5,
+  OPCODE_XSR_EPC5,
+  OPCODE_RSR_EXCSAVE5,
+  OPCODE_WSR_EXCSAVE5,
+  OPCODE_XSR_EXCSAVE5,
+  OPCODE_RSR_EPC6,
+  OPCODE_WSR_EPC6,
+  OPCODE_XSR_EPC6,
+  OPCODE_RSR_EXCSAVE6,
+  OPCODE_WSR_EXCSAVE6,
+  OPCODE_XSR_EXCSAVE6,
+  OPCODE_RSR_EPC7,
+  OPCODE_WSR_EPC7,
+  OPCODE_XSR_EPC7,
+  OPCODE_RSR_EXCSAVE7,
+  OPCODE_WSR_EXCSAVE7,
+  OPCODE_XSR_EXCSAVE7,
+  OPCODE_RSR_EPS2,
+  OPCODE_WSR_EPS2,
+  OPCODE_XSR_EPS2,
+  OPCODE_RSR_EPS3,
+  OPCODE_WSR_EPS3,
+  OPCODE_XSR_EPS3,
+  OPCODE_RSR_EPS4,
+  OPCODE_WSR_EPS4,
+  OPCODE_XSR_EPS4,
+  OPCODE_RSR_EPS5,
+  OPCODE_WSR_EPS5,
+  OPCODE_XSR_EPS5,
+  OPCODE_RSR_EPS6,
+  OPCODE_WSR_EPS6,
+  OPCODE_XSR_EPS6,
+  OPCODE_RSR_EPS7,
+  OPCODE_WSR_EPS7,
+  OPCODE_XSR_EPS7,
+  OPCODE_RSR_EXCVADDR,
+  OPCODE_WSR_EXCVADDR,
+  OPCODE_XSR_EXCVADDR,
+  OPCODE_RSR_DEPC,
+  OPCODE_WSR_DEPC,
+  OPCODE_XSR_DEPC,
+  OPCODE_RSR_EXCCAUSE,
+  OPCODE_WSR_EXCCAUSE,
+  OPCODE_XSR_EXCCAUSE,
+  OPCODE_RSR_MISC0,
+  OPCODE_WSR_MISC0,
+  OPCODE_XSR_MISC0,
+  OPCODE_RSR_MISC1,
+  OPCODE_WSR_MISC1,
+  OPCODE_XSR_MISC1,
+  OPCODE_RSR_PRID,
+  OPCODE_RSR_VECBASE,
+  OPCODE_WSR_VECBASE,
+  OPCODE_XSR_VECBASE,
+  OPCODE_MUL16U,
+  OPCODE_MUL16S,
+  OPCODE_RFI,
+  OPCODE_WAITI,
+  OPCODE_RSR_INTERRUPT,
+  OPCODE_WSR_INTSET,
+  OPCODE_WSR_INTCLEAR,
+  OPCODE_RSR_INTENABLE,
+  OPCODE_WSR_INTENABLE,
+  OPCODE_XSR_INTENABLE,
+  OPCODE_BREAK,
+  OPCODE_BREAK_N,
+  OPCODE_RSR_DBREAKA0,
+  OPCODE_WSR_DBREAKA0,
+  OPCODE_XSR_DBREAKA0,
+  OPCODE_RSR_DBREAKC0,
+  OPCODE_WSR_DBREAKC0,
+  OPCODE_XSR_DBREAKC0,
+  OPCODE_RSR_DBREAKA1,
+  OPCODE_WSR_DBREAKA1,
+  OPCODE_XSR_DBREAKA1,
+  OPCODE_RSR_DBREAKC1,
+  OPCODE_WSR_DBREAKC1,
+  OPCODE_XSR_DBREAKC1,
+  OPCODE_RSR_IBREAKA0,
+  OPCODE_WSR_IBREAKA0,
+  OPCODE_XSR_IBREAKA0,
+  OPCODE_RSR_IBREAKA1,
+  OPCODE_WSR_IBREAKA1,
+  OPCODE_XSR_IBREAKA1,
+  OPCODE_RSR_IBREAKENABLE,
+  OPCODE_WSR_IBREAKENABLE,
+  OPCODE_XSR_IBREAKENABLE,
+  OPCODE_RSR_DEBUGCAUSE,
+  OPCODE_WSR_DEBUGCAUSE,
+  OPCODE_XSR_DEBUGCAUSE,
+  OPCODE_RSR_ICOUNT,
+  OPCODE_WSR_ICOUNT,
+  OPCODE_XSR_ICOUNT,
+  OPCODE_RSR_ICOUNTLEVEL,
+  OPCODE_WSR_ICOUNTLEVEL,
+  OPCODE_XSR_ICOUNTLEVEL,
+  OPCODE_RSR_DDR,
+  OPCODE_WSR_DDR,
+  OPCODE_XSR_DDR,
+  OPCODE_RFDO,
+  OPCODE_RFDD,
+  OPCODE_WSR_MMID,
+  OPCODE_RSR_CCOUNT,
+  OPCODE_WSR_CCOUNT,
+  OPCODE_XSR_CCOUNT,
+  OPCODE_RSR_CCOMPARE0,
+  OPCODE_WSR_CCOMPARE0,
+  OPCODE_XSR_CCOMPARE0,
+  OPCODE_RSR_CCOMPARE1,
+  OPCODE_WSR_CCOMPARE1,
+  OPCODE_XSR_CCOMPARE1,
+  OPCODE_RSR_CCOMPARE2,
+  OPCODE_WSR_CCOMPARE2,
+  OPCODE_XSR_CCOMPARE2,
+  OPCODE_IPF,
+  OPCODE_IHI,
+  OPCODE_IPFL,
+  OPCODE_IHU,
+  OPCODE_IIU,
+  OPCODE_III,
+  OPCODE_LICT,
+  OPCODE_LICW,
+  OPCODE_SICT,
+  OPCODE_SICW,
+  OPCODE_DHWB,
+  OPCODE_DHWBI,
+  OPCODE_DIWB,
+  OPCODE_DIWBI,
+  OPCODE_DHI,
+  OPCODE_DII,
+  OPCODE_DPFR,
+  OPCODE_DPFW,
+  OPCODE_DPFRO,
+  OPCODE_DPFWO,
+  OPCODE_DPFL,
+  OPCODE_DHU,
+  OPCODE_DIU,
+  OPCODE_SDCT,
+  OPCODE_LDCT,
+  OPCODE_WSR_PTEVADDR,
+  OPCODE_RSR_PTEVADDR,
+  OPCODE_XSR_PTEVADDR,
+  OPCODE_RSR_RASID,
+  OPCODE_WSR_RASID,
+  OPCODE_XSR_RASID,
+  OPCODE_RSR_ITLBCFG,
+  OPCODE_WSR_ITLBCFG,
+  OPCODE_XSR_ITLBCFG,
+  OPCODE_RSR_DTLBCFG,
+  OPCODE_WSR_DTLBCFG,
+  OPCODE_XSR_DTLBCFG,
+  OPCODE_IDTLB,
+  OPCODE_PDTLB,
+  OPCODE_RDTLB0,
+  OPCODE_RDTLB1,
+  OPCODE_WDTLB,
+  OPCODE_IITLB,
+  OPCODE_PITLB,
+  OPCODE_RITLB0,
+  OPCODE_RITLB1,
+  OPCODE_WITLB,
+  OPCODE_LDPTE,
+  OPCODE_HWWITLBA,
+  OPCODE_HWWDTLBA,
+  OPCODE_RSR_CPENABLE,
+  OPCODE_WSR_CPENABLE,
+  OPCODE_XSR_CPENABLE,
+  OPCODE_CLAMPS,
+  OPCODE_MIN,
+  OPCODE_MAX,
+  OPCODE_MINU,
+  OPCODE_MAXU,
+  OPCODE_NSA,
+  OPCODE_NSAU,
+  OPCODE_SEXT,
+  OPCODE_L32AI,
+  OPCODE_S32RI,
+  OPCODE_S32C1I,
+  OPCODE_RSR_SCOMPARE1,
+  OPCODE_WSR_SCOMPARE1,
+  OPCODE_XSR_SCOMPARE1,
+  OPCODE_QUOU,
+  OPCODE_QUOS,
+  OPCODE_REMU,
+  OPCODE_REMS,
+  OPCODE_MULL
 };
 
 
@@ -16987,57 +10955,57 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 		    case 0:
 		      if (Field_s_Slot_inst_get (insn) == 0 &&
 			  Field_n_Slot_inst_get (insn) == 0)
-			return 79; /* ill */
+			return OPCODE_ILL;
 		      break;
 		    case 2:
 		      switch (Field_n_Slot_inst_get (insn))
 			{
 			case 0:
-			  return 98; /* ret */
+			  return OPCODE_RET;
 			case 1:
-			  return 14; /* retw */
+			  return OPCODE_RETW;
 			case 2:
-			  return 81; /* jx */
+			  return OPCODE_JX;
 			}
 		      break;
 		    case 3:
 		      switch (Field_n_Slot_inst_get (insn))
 			{
 			case 0:
-			  return 77; /* callx0 */
+			  return OPCODE_CALLX0;
 			case 1:
-			  return 10; /* callx4 */
+			  return OPCODE_CALLX4;
 			case 2:
-			  return 9; /* callx8 */
+			  return OPCODE_CALLX8;
 			case 3:
-			  return 8; /* callx12 */
+			  return OPCODE_CALLX12;
 			}
 		      break;
 		    }
 		  break;
 		case 1:
-		  return 12; /* movsp */
+		  return OPCODE_MOVSP;
 		case 2:
 		  if (Field_s_Slot_inst_get (insn) == 0)
 		    {
 		      switch (Field_t_Slot_inst_get (insn))
 			{
 			case 0:
-			  return 116; /* isync */
+			  return OPCODE_ISYNC;
 			case 1:
-			  return 117; /* rsync */
+			  return OPCODE_RSYNC;
 			case 2:
-			  return 118; /* esync */
+			  return OPCODE_ESYNC;
 			case 3:
-			  return 119; /* dsync */
+			  return OPCODE_DSYNC;
 			case 8:
-			  return 0; /* excw */
+			  return OPCODE_EXCW;
 			case 12:
-			  return 114; /* memw */
+			  return OPCODE_MEMW;
 			case 13:
-			  return 115; /* extw */
+			  return OPCODE_EXTW;
 			case 15:
-			  return 97; /* nop */
+			  return OPCODE_NOP;
 			}
 		    }
 		  break;
@@ -17048,147 +11016,139 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 		      switch (Field_s_Slot_inst_get (insn))
 			{
 			case 0:
-			  return 1; /* rfe */
+			  return OPCODE_RFE;
 			case 2:
-			  return 2; /* rfde */
+			  return OPCODE_RFDE;
 			case 4:
-			  return 16; /* rfwo */
+			  return OPCODE_RFWO;
 			case 5:
-			  return 17; /* rfwu */
+			  return OPCODE_RFWU;
 			}
 		      break;
 		    case 1:
-		      return 316; /* rfi */
+		      return OPCODE_RFI;
 		    }
 		  break;
 		case 4:
-		  return 324; /* break */
+		  return OPCODE_BREAK;
 		case 5:
 		  switch (Field_s_Slot_inst_get (insn))
 		    {
 		    case 0:
 		      if (Field_t_Slot_inst_get (insn) == 0)
-			return 3; /* syscall */
+			return OPCODE_SYSCALL;
 		      break;
 		    case 1:
 		      if (Field_t_Slot_inst_get (insn) == 0)
-			return 4; /* simcall */
+			return OPCODE_SIMCALL;
 		      break;
 		    }
 		  break;
 		case 6:
-		  return 120; /* rsil */
+		  return OPCODE_RSIL;
 		case 7:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 317; /* waiti */
+		    return OPCODE_WAITI;
 		  break;
-		case 8:
-		  return 367; /* any4 */
-		case 9:
-		  return 368; /* all4 */
-		case 10:
-		  return 369; /* any8 */
-		case 11:
-		  return 370; /* all8 */
 		}
 	      break;
 	    case 1:
-	      return 49; /* and */
+	      return OPCODE_AND;
 	    case 2:
-	      return 50; /* or */
+	      return OPCODE_OR;
 	    case 3:
-	      return 51; /* xor */
+	      return OPCODE_XOR;
 	    case 4:
 	      switch (Field_r_Slot_inst_get (insn))
 		{
 		case 0:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 102; /* ssr */
+		    return OPCODE_SSR;
 		  break;
 		case 1:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 103; /* ssl */
+		    return OPCODE_SSL;
 		  break;
 		case 2:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 104; /* ssa8l */
+		    return OPCODE_SSA8L;
 		  break;
 		case 3:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 105; /* ssa8b */
+		    return OPCODE_SSA8B;
 		  break;
 		case 4:
 		  if (Field_thi3_Slot_inst_get (insn) == 0)
-		    return 106; /* ssai */
+		    return OPCODE_SSAI;
 		  break;
 		case 8:
 		  if (Field_s_Slot_inst_get (insn) == 0)
-		    return 13; /* rotw */
+		    return OPCODE_ROTW;
 		  break;
 		case 14:
-		  return 448; /* nsa */
+		  return OPCODE_NSA;
 		case 15:
-		  return 449; /* nsau */
+		  return OPCODE_NSAU;
 		}
 	      break;
 	    case 5:
 	      switch (Field_r_Slot_inst_get (insn))
 		{
 		case 1:
-		  return 438; /* hwwitlba */
+		  return OPCODE_HWWITLBA;
 		case 3:
-		  return 434; /* ritlb0 */
+		  return OPCODE_RITLB0;
 		case 4:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 432; /* iitlb */
+		    return OPCODE_IITLB;
 		  break;
 		case 5:
-		  return 433; /* pitlb */
+		  return OPCODE_PITLB;
 		case 6:
-		  return 436; /* witlb */
+		  return OPCODE_WITLB;
 		case 7:
-		  return 435; /* ritlb1 */
+		  return OPCODE_RITLB1;
 		case 9:
-		  return 439; /* hwwdtlba */
+		  return OPCODE_HWWDTLBA;
 		case 11:
-		  return 429; /* rdtlb0 */
+		  return OPCODE_RDTLB0;
 		case 12:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 427; /* idtlb */
+		    return OPCODE_IDTLB;
 		  break;
 		case 13:
-		  return 428; /* pdtlb */
+		  return OPCODE_PDTLB;
 		case 14:
-		  return 431; /* wdtlb */
+		  return OPCODE_WDTLB;
 		case 15:
-		  return 430; /* rdtlb1 */
+		  return OPCODE_RDTLB1;
 		}
 	      break;
 	    case 6:
 	      switch (Field_s_Slot_inst_get (insn))
 		{
 		case 0:
-		  return 95; /* neg */
+		  return OPCODE_NEG;
 		case 1:
-		  return 96; /* abs */
+		  return OPCODE_ABS;
 		}
 	      break;
 	    case 8:
-	      return 41; /* add */
+	      return OPCODE_ADD;
 	    case 9:
-	      return 43; /* addx2 */
+	      return OPCODE_ADDX2;
 	    case 10:
-	      return 44; /* addx4 */
+	      return OPCODE_ADDX4;
 	    case 11:
-	      return 45; /* addx8 */
+	      return OPCODE_ADDX8;
 	    case 12:
-	      return 42; /* sub */
+	      return OPCODE_SUB;
 	    case 13:
-	      return 46; /* subx2 */
+	      return OPCODE_SUBX2;
 	    case 14:
-	      return 47; /* subx4 */
+	      return OPCODE_SUBX4;
 	    case 15:
-	      return 48; /* subx8 */
+	      return OPCODE_SUBX8;
 	    }
 	  break;
 	case 1:
@@ -17196,188 +11156,170 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 	    {
 	    case 0:
 	    case 1:
-	      return 111; /* slli */
+	      return OPCODE_SLLI;
 	    case 2:
 	    case 3:
-	      return 112; /* srai */
+	      return OPCODE_SRAI;
 	    case 4:
-	      return 113; /* srli */
+	      return OPCODE_SRLI;
 	    case 6:
 	      switch (Field_sr_Slot_inst_get (insn))
 		{
 		case 0:
-		  return 129; /* xsr.lbeg */
+		  return OPCODE_XSR_LBEG;
 		case 1:
-		  return 123; /* xsr.lend */
+		  return OPCODE_XSR_LEND;
 		case 2:
-		  return 126; /* xsr.lcount */
+		  return OPCODE_XSR_LCOUNT;
 		case 3:
-		  return 132; /* xsr.sar */
-		case 4:
-		  return 377; /* xsr.br */
+		  return OPCODE_XSR_SAR;
 		case 5:
-		  return 135; /* xsr.litbase */
+		  return OPCODE_XSR_LITBASE;
 		case 12:
-		  return 456; /* xsr.scompare1 */
-		case 16:
-		  return 312; /* xsr.acclo */
-		case 17:
-		  return 315; /* xsr.acchi */
-		case 32:
-		  return 300; /* xsr.m0 */
-		case 33:
-		  return 303; /* xsr.m1 */
-		case 34:
-		  return 306; /* xsr.m2 */
-		case 35:
-		  return 309; /* xsr.m3 */
+		  return OPCODE_XSR_SCOMPARE1;
 		case 72:
-		  return 22; /* xsr.windowbase */
+		  return OPCODE_XSR_WINDOWBASE;
 		case 73:
-		  return 25; /* xsr.windowstart */
+		  return OPCODE_XSR_WINDOWSTART;
 		case 83:
-		  return 417; /* xsr.ptevaddr */
+		  return OPCODE_XSR_PTEVADDR;
 		case 90:
-		  return 420; /* xsr.rasid */
+		  return OPCODE_XSR_RASID;
 		case 91:
-		  return 423; /* xsr.itlbcfg */
+		  return OPCODE_XSR_ITLBCFG;
 		case 92:
-		  return 426; /* xsr.dtlbcfg */
+		  return OPCODE_XSR_DTLBCFG;
 		case 96:
-		  return 346; /* xsr.ibreakenable */
+		  return OPCODE_XSR_IBREAKENABLE;
 		case 104:
-		  return 358; /* xsr.ddr */
+		  return OPCODE_XSR_DDR;
 		case 128:
-		  return 340; /* xsr.ibreaka0 */
+		  return OPCODE_XSR_IBREAKA0;
 		case 129:
-		  return 343; /* xsr.ibreaka1 */
+		  return OPCODE_XSR_IBREAKA1;
 		case 144:
-		  return 328; /* xsr.dbreaka0 */
+		  return OPCODE_XSR_DBREAKA0;
 		case 145:
-		  return 334; /* xsr.dbreaka1 */
+		  return OPCODE_XSR_DBREAKA1;
 		case 160:
-		  return 331; /* xsr.dbreakc0 */
+		  return OPCODE_XSR_DBREAKC0;
 		case 161:
-		  return 337; /* xsr.dbreakc1 */
+		  return OPCODE_XSR_DBREAKC1;
 		case 177:
-		  return 143; /* xsr.epc1 */
+		  return OPCODE_XSR_EPC1;
 		case 178:
-		  return 149; /* xsr.epc2 */
+		  return OPCODE_XSR_EPC2;
 		case 179:
-		  return 155; /* xsr.epc3 */
+		  return OPCODE_XSR_EPC3;
 		case 180:
-		  return 161; /* xsr.epc4 */
+		  return OPCODE_XSR_EPC4;
 		case 181:
-		  return 167; /* xsr.epc5 */
+		  return OPCODE_XSR_EPC5;
 		case 182:
-		  return 173; /* xsr.epc6 */
+		  return OPCODE_XSR_EPC6;
 		case 183:
-		  return 179; /* xsr.epc7 */
+		  return OPCODE_XSR_EPC7;
 		case 192:
-		  return 206; /* xsr.depc */
+		  return OPCODE_XSR_DEPC;
 		case 194:
-		  return 185; /* xsr.eps2 */
+		  return OPCODE_XSR_EPS2;
 		case 195:
-		  return 188; /* xsr.eps3 */
+		  return OPCODE_XSR_EPS3;
 		case 196:
-		  return 191; /* xsr.eps4 */
+		  return OPCODE_XSR_EPS4;
 		case 197:
-		  return 194; /* xsr.eps5 */
+		  return OPCODE_XSR_EPS5;
 		case 198:
-		  return 197; /* xsr.eps6 */
+		  return OPCODE_XSR_EPS6;
 		case 199:
-		  return 200; /* xsr.eps7 */
+		  return OPCODE_XSR_EPS7;
 		case 209:
-		  return 146; /* xsr.excsave1 */
+		  return OPCODE_XSR_EXCSAVE1;
 		case 210:
-		  return 152; /* xsr.excsave2 */
+		  return OPCODE_XSR_EXCSAVE2;
 		case 211:
-		  return 158; /* xsr.excsave3 */
+		  return OPCODE_XSR_EXCSAVE3;
 		case 212:
-		  return 164; /* xsr.excsave4 */
+		  return OPCODE_XSR_EXCSAVE4;
 		case 213:
-		  return 170; /* xsr.excsave5 */
+		  return OPCODE_XSR_EXCSAVE5;
 		case 214:
-		  return 176; /* xsr.excsave6 */
+		  return OPCODE_XSR_EXCSAVE6;
 		case 215:
-		  return 182; /* xsr.excsave7 */
+		  return OPCODE_XSR_EXCSAVE7;
 		case 224:
-		  return 442; /* xsr.cpenable */
+		  return OPCODE_XSR_CPENABLE;
 		case 228:
-		  return 323; /* xsr.intenable */
+		  return OPCODE_XSR_INTENABLE;
 		case 230:
-		  return 140; /* xsr.ps */
+		  return OPCODE_XSR_PS;
 		case 231:
-		  return 225; /* xsr.vecbase */
+		  return OPCODE_XSR_VECBASE;
 		case 232:
-		  return 209; /* xsr.exccause */
+		  return OPCODE_XSR_EXCCAUSE;
 		case 233:
-		  return 349; /* xsr.debugcause */
+		  return OPCODE_XSR_DEBUGCAUSE;
 		case 234:
-		  return 380; /* xsr.ccount */
+		  return OPCODE_XSR_CCOUNT;
 		case 236:
-		  return 352; /* xsr.icount */
+		  return OPCODE_XSR_ICOUNT;
 		case 237:
-		  return 355; /* xsr.icountlevel */
+		  return OPCODE_XSR_ICOUNTLEVEL;
 		case 238:
-		  return 203; /* xsr.excvaddr */
+		  return OPCODE_XSR_EXCVADDR;
 		case 240:
-		  return 383; /* xsr.ccompare0 */
+		  return OPCODE_XSR_CCOMPARE0;
 		case 241:
-		  return 386; /* xsr.ccompare1 */
+		  return OPCODE_XSR_CCOMPARE1;
 		case 242:
-		  return 389; /* xsr.ccompare2 */
+		  return OPCODE_XSR_CCOMPARE2;
 		case 244:
-		  return 212; /* xsr.misc0 */
+		  return OPCODE_XSR_MISC0;
 		case 245:
-		  return 215; /* xsr.misc1 */
-		case 246:
-		  return 218; /* xsr.misc2 */
-		case 247:
-		  return 221; /* xsr.misc3 */
+		  return OPCODE_XSR_MISC1;
 		}
 	      break;
 	    case 8:
-	      return 108; /* src */
+	      return OPCODE_SRC;
 	    case 9:
 	      if (Field_s_Slot_inst_get (insn) == 0)
-		return 109; /* srl */
+		return OPCODE_SRL;
 	      break;
 	    case 10:
 	      if (Field_t_Slot_inst_get (insn) == 0)
-		return 107; /* sll */
+		return OPCODE_SLL;
 	      break;
 	    case 11:
 	      if (Field_s_Slot_inst_get (insn) == 0)
-		return 110; /* sra */
+		return OPCODE_SRA;
 	      break;
 	    case 12:
-	      return 296; /* mul16u */
+	      return OPCODE_MUL16U;
 	    case 13:
-	      return 297; /* mul16s */
+	      return OPCODE_MUL16S;
 	    case 15:
 	      switch (Field_r_Slot_inst_get (insn))
 		{
 		case 0:
-		  return 396; /* lict */
+		  return OPCODE_LICT;
 		case 1:
-		  return 398; /* sict */
+		  return OPCODE_SICT;
 		case 2:
-		  return 397; /* licw */
+		  return OPCODE_LICW;
 		case 3:
-		  return 399; /* sicw */
+		  return OPCODE_SICW;
 		case 8:
-		  return 414; /* ldct */
+		  return OPCODE_LDCT;
 		case 9:
-		  return 413; /* sdct */
+		  return OPCODE_SDCT;
 		case 14:
 		  if (Field_t_Slot_inst_get (insn) == 0)
-		    return 359; /* rfdo */
+		    return OPCODE_RFDO;
 		  if (Field_t_Slot_inst_get (insn) == 1)
-		    return 360; /* rfdd */
+		    return OPCODE_RFDD;
 		  break;
 		case 15:
-		  return 437; /* ldpte */
+		  return OPCODE_LDPTE;
 		}
 	      break;
 	    }
@@ -17385,30 +11327,16 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 	case 2:
 	  switch (Field_op2_Slot_inst_get (insn))
 	    {
-	    case 0:
-	      return 362; /* andb */
-	    case 1:
-	      return 363; /* andbc */
-	    case 2:
-	      return 364; /* orb */
-	    case 3:
-	      return 365; /* orbc */
-	    case 4:
-	      return 366; /* xorb */
 	    case 8:
-	      return 461; /* mull */
-	    case 10:
-	      return 462; /* muluh */
-	    case 11:
-	      return 463; /* mulsh */
+	      return OPCODE_MULL;
 	    case 12:
-	      return 457; /* quou */
+	      return OPCODE_QUOU;
 	    case 13:
-	      return 458; /* quos */
+	      return OPCODE_QUOS;
 	    case 14:
-	      return 459; /* remu */
+	      return OPCODE_REMU;
 	    case 15:
-	      return 460; /* rems */
+	      return OPCODE_REMS;
 	    }
 	  break;
 	case 3:
@@ -17418,1044 +11346,446 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 	      switch (Field_sr_Slot_inst_get (insn))
 		{
 		case 0:
-		  return 127; /* rsr.lbeg */
+		  return OPCODE_RSR_LBEG;
 		case 1:
-		  return 121; /* rsr.lend */
+		  return OPCODE_RSR_LEND;
 		case 2:
-		  return 124; /* rsr.lcount */
+		  return OPCODE_RSR_LCOUNT;
 		case 3:
-		  return 130; /* rsr.sar */
-		case 4:
-		  return 375; /* rsr.br */
+		  return OPCODE_RSR_SAR;
 		case 5:
-		  return 133; /* rsr.litbase */
+		  return OPCODE_RSR_LITBASE;
 		case 12:
-		  return 454; /* rsr.scompare1 */
-		case 16:
-		  return 310; /* rsr.acclo */
-		case 17:
-		  return 313; /* rsr.acchi */
-		case 32:
-		  return 298; /* rsr.m0 */
-		case 33:
-		  return 301; /* rsr.m1 */
-		case 34:
-		  return 304; /* rsr.m2 */
-		case 35:
-		  return 307; /* rsr.m3 */
+		  return OPCODE_RSR_SCOMPARE1;
 		case 72:
-		  return 20; /* rsr.windowbase */
+		  return OPCODE_RSR_WINDOWBASE;
 		case 73:
-		  return 23; /* rsr.windowstart */
+		  return OPCODE_RSR_WINDOWSTART;
 		case 83:
-		  return 416; /* rsr.ptevaddr */
+		  return OPCODE_RSR_PTEVADDR;
 		case 90:
-		  return 418; /* rsr.rasid */
+		  return OPCODE_RSR_RASID;
 		case 91:
-		  return 421; /* rsr.itlbcfg */
+		  return OPCODE_RSR_ITLBCFG;
 		case 92:
-		  return 424; /* rsr.dtlbcfg */
+		  return OPCODE_RSR_DTLBCFG;
 		case 96:
-		  return 344; /* rsr.ibreakenable */
+		  return OPCODE_RSR_IBREAKENABLE;
 		case 104:
-		  return 356; /* rsr.ddr */
+		  return OPCODE_RSR_DDR;
 		case 128:
-		  return 338; /* rsr.ibreaka0 */
+		  return OPCODE_RSR_IBREAKA0;
 		case 129:
-		  return 341; /* rsr.ibreaka1 */
+		  return OPCODE_RSR_IBREAKA1;
 		case 144:
-		  return 326; /* rsr.dbreaka0 */
+		  return OPCODE_RSR_DBREAKA0;
 		case 145:
-		  return 332; /* rsr.dbreaka1 */
+		  return OPCODE_RSR_DBREAKA1;
 		case 160:
-		  return 329; /* rsr.dbreakc0 */
+		  return OPCODE_RSR_DBREAKC0;
 		case 161:
-		  return 335; /* rsr.dbreakc1 */
+		  return OPCODE_RSR_DBREAKC1;
 		case 176:
-		  return 136; /* rsr.176 */
+		  return OPCODE_RSR_176;
 		case 177:
-		  return 141; /* rsr.epc1 */
+		  return OPCODE_RSR_EPC1;
 		case 178:
-		  return 147; /* rsr.epc2 */
+		  return OPCODE_RSR_EPC2;
 		case 179:
-		  return 153; /* rsr.epc3 */
+		  return OPCODE_RSR_EPC3;
 		case 180:
-		  return 159; /* rsr.epc4 */
+		  return OPCODE_RSR_EPC4;
 		case 181:
-		  return 165; /* rsr.epc5 */
+		  return OPCODE_RSR_EPC5;
 		case 182:
-		  return 171; /* rsr.epc6 */
+		  return OPCODE_RSR_EPC6;
 		case 183:
-		  return 177; /* rsr.epc7 */
+		  return OPCODE_RSR_EPC7;
 		case 192:
-		  return 204; /* rsr.depc */
+		  return OPCODE_RSR_DEPC;
 		case 194:
-		  return 183; /* rsr.eps2 */
+		  return OPCODE_RSR_EPS2;
 		case 195:
-		  return 186; /* rsr.eps3 */
+		  return OPCODE_RSR_EPS3;
 		case 196:
-		  return 189; /* rsr.eps4 */
+		  return OPCODE_RSR_EPS4;
 		case 197:
-		  return 192; /* rsr.eps5 */
+		  return OPCODE_RSR_EPS5;
 		case 198:
-		  return 195; /* rsr.eps6 */
+		  return OPCODE_RSR_EPS6;
 		case 199:
-		  return 198; /* rsr.eps7 */
+		  return OPCODE_RSR_EPS7;
 		case 208:
-		  return 137; /* rsr.208 */
+		  return OPCODE_RSR_208;
 		case 209:
-		  return 144; /* rsr.excsave1 */
+		  return OPCODE_RSR_EXCSAVE1;
 		case 210:
-		  return 150; /* rsr.excsave2 */
+		  return OPCODE_RSR_EXCSAVE2;
 		case 211:
-		  return 156; /* rsr.excsave3 */
+		  return OPCODE_RSR_EXCSAVE3;
 		case 212:
-		  return 162; /* rsr.excsave4 */
+		  return OPCODE_RSR_EXCSAVE4;
 		case 213:
-		  return 168; /* rsr.excsave5 */
+		  return OPCODE_RSR_EXCSAVE5;
 		case 214:
-		  return 174; /* rsr.excsave6 */
+		  return OPCODE_RSR_EXCSAVE6;
 		case 215:
-		  return 180; /* rsr.excsave7 */
+		  return OPCODE_RSR_EXCSAVE7;
 		case 224:
-		  return 440; /* rsr.cpenable */
+		  return OPCODE_RSR_CPENABLE;
 		case 226:
-		  return 318; /* rsr.interrupt */
+		  return OPCODE_RSR_INTERRUPT;
 		case 228:
-		  return 321; /* rsr.intenable */
+		  return OPCODE_RSR_INTENABLE;
 		case 230:
-		  return 138; /* rsr.ps */
+		  return OPCODE_RSR_PS;
 		case 231:
-		  return 223; /* rsr.vecbase */
+		  return OPCODE_RSR_VECBASE;
 		case 232:
-		  return 207; /* rsr.exccause */
+		  return OPCODE_RSR_EXCCAUSE;
 		case 233:
-		  return 347; /* rsr.debugcause */
+		  return OPCODE_RSR_DEBUGCAUSE;
 		case 234:
-		  return 378; /* rsr.ccount */
+		  return OPCODE_RSR_CCOUNT;
 		case 235:
-		  return 222; /* rsr.prid */
+		  return OPCODE_RSR_PRID;
 		case 236:
-		  return 350; /* rsr.icount */
+		  return OPCODE_RSR_ICOUNT;
 		case 237:
-		  return 353; /* rsr.icountlevel */
+		  return OPCODE_RSR_ICOUNTLEVEL;
 		case 238:
-		  return 201; /* rsr.excvaddr */
+		  return OPCODE_RSR_EXCVADDR;
 		case 240:
-		  return 381; /* rsr.ccompare0 */
+		  return OPCODE_RSR_CCOMPARE0;
 		case 241:
-		  return 384; /* rsr.ccompare1 */
+		  return OPCODE_RSR_CCOMPARE1;
 		case 242:
-		  return 387; /* rsr.ccompare2 */
+		  return OPCODE_RSR_CCOMPARE2;
 		case 244:
-		  return 210; /* rsr.misc0 */
+		  return OPCODE_RSR_MISC0;
 		case 245:
-		  return 213; /* rsr.misc1 */
-		case 246:
-		  return 216; /* rsr.misc2 */
-		case 247:
-		  return 219; /* rsr.misc3 */
+		  return OPCODE_RSR_MISC1;
 		}
 	      break;
 	    case 1:
 	      switch (Field_sr_Slot_inst_get (insn))
 		{
 		case 0:
-		  return 128; /* wsr.lbeg */
+		  return OPCODE_WSR_LBEG;
 		case 1:
-		  return 122; /* wsr.lend */
+		  return OPCODE_WSR_LEND;
 		case 2:
-		  return 125; /* wsr.lcount */
+		  return OPCODE_WSR_LCOUNT;
 		case 3:
-		  return 131; /* wsr.sar */
-		case 4:
-		  return 376; /* wsr.br */
+		  return OPCODE_WSR_SAR;
 		case 5:
-		  return 134; /* wsr.litbase */
+		  return OPCODE_WSR_LITBASE;
 		case 12:
-		  return 455; /* wsr.scompare1 */
-		case 16:
-		  return 311; /* wsr.acclo */
-		case 17:
-		  return 314; /* wsr.acchi */
-		case 32:
-		  return 299; /* wsr.m0 */
-		case 33:
-		  return 302; /* wsr.m1 */
-		case 34:
-		  return 305; /* wsr.m2 */
-		case 35:
-		  return 308; /* wsr.m3 */
+		  return OPCODE_WSR_SCOMPARE1;
 		case 72:
-		  return 21; /* wsr.windowbase */
+		  return OPCODE_WSR_WINDOWBASE;
 		case 73:
-		  return 24; /* wsr.windowstart */
+		  return OPCODE_WSR_WINDOWSTART;
 		case 83:
-		  return 415; /* wsr.ptevaddr */
+		  return OPCODE_WSR_PTEVADDR;
 		case 89:
-		  return 361; /* wsr.mmid */
+		  return OPCODE_WSR_MMID;
 		case 90:
-		  return 419; /* wsr.rasid */
+		  return OPCODE_WSR_RASID;
 		case 91:
-		  return 422; /* wsr.itlbcfg */
+		  return OPCODE_WSR_ITLBCFG;
 		case 92:
-		  return 425; /* wsr.dtlbcfg */
+		  return OPCODE_WSR_DTLBCFG;
 		case 96:
-		  return 345; /* wsr.ibreakenable */
+		  return OPCODE_WSR_IBREAKENABLE;
 		case 104:
-		  return 357; /* wsr.ddr */
+		  return OPCODE_WSR_DDR;
 		case 128:
-		  return 339; /* wsr.ibreaka0 */
+		  return OPCODE_WSR_IBREAKA0;
 		case 129:
-		  return 342; /* wsr.ibreaka1 */
+		  return OPCODE_WSR_IBREAKA1;
 		case 144:
-		  return 327; /* wsr.dbreaka0 */
+		  return OPCODE_WSR_DBREAKA0;
 		case 145:
-		  return 333; /* wsr.dbreaka1 */
+		  return OPCODE_WSR_DBREAKA1;
 		case 160:
-		  return 330; /* wsr.dbreakc0 */
+		  return OPCODE_WSR_DBREAKC0;
 		case 161:
-		  return 336; /* wsr.dbreakc1 */
+		  return OPCODE_WSR_DBREAKC1;
+		case 176:
+		  return OPCODE_WSR_176;
 		case 177:
-		  return 142; /* wsr.epc1 */
+		  return OPCODE_WSR_EPC1;
 		case 178:
-		  return 148; /* wsr.epc2 */
+		  return OPCODE_WSR_EPC2;
 		case 179:
-		  return 154; /* wsr.epc3 */
+		  return OPCODE_WSR_EPC3;
 		case 180:
-		  return 160; /* wsr.epc4 */
+		  return OPCODE_WSR_EPC4;
 		case 181:
-		  return 166; /* wsr.epc5 */
+		  return OPCODE_WSR_EPC5;
 		case 182:
-		  return 172; /* wsr.epc6 */
+		  return OPCODE_WSR_EPC6;
 		case 183:
-		  return 178; /* wsr.epc7 */
+		  return OPCODE_WSR_EPC7;
 		case 192:
-		  return 205; /* wsr.depc */
+		  return OPCODE_WSR_DEPC;
 		case 194:
-		  return 184; /* wsr.eps2 */
+		  return OPCODE_WSR_EPS2;
 		case 195:
-		  return 187; /* wsr.eps3 */
+		  return OPCODE_WSR_EPS3;
 		case 196:
-		  return 190; /* wsr.eps4 */
+		  return OPCODE_WSR_EPS4;
 		case 197:
-		  return 193; /* wsr.eps5 */
+		  return OPCODE_WSR_EPS5;
 		case 198:
-		  return 196; /* wsr.eps6 */
+		  return OPCODE_WSR_EPS6;
 		case 199:
-		  return 199; /* wsr.eps7 */
+		  return OPCODE_WSR_EPS7;
 		case 209:
-		  return 145; /* wsr.excsave1 */
+		  return OPCODE_WSR_EXCSAVE1;
 		case 210:
-		  return 151; /* wsr.excsave2 */
+		  return OPCODE_WSR_EXCSAVE2;
 		case 211:
-		  return 157; /* wsr.excsave3 */
+		  return OPCODE_WSR_EXCSAVE3;
 		case 212:
-		  return 163; /* wsr.excsave4 */
+		  return OPCODE_WSR_EXCSAVE4;
 		case 213:
-		  return 169; /* wsr.excsave5 */
+		  return OPCODE_WSR_EXCSAVE5;
 		case 214:
-		  return 175; /* wsr.excsave6 */
+		  return OPCODE_WSR_EXCSAVE6;
 		case 215:
-		  return 181; /* wsr.excsave7 */
+		  return OPCODE_WSR_EXCSAVE7;
 		case 224:
-		  return 441; /* wsr.cpenable */
+		  return OPCODE_WSR_CPENABLE;
 		case 226:
-		  return 319; /* wsr.intset */
+		  return OPCODE_WSR_INTSET;
 		case 227:
-		  return 320; /* wsr.intclear */
+		  return OPCODE_WSR_INTCLEAR;
 		case 228:
-		  return 322; /* wsr.intenable */
+		  return OPCODE_WSR_INTENABLE;
 		case 230:
-		  return 139; /* wsr.ps */
+		  return OPCODE_WSR_PS;
 		case 231:
-		  return 224; /* wsr.vecbase */
+		  return OPCODE_WSR_VECBASE;
 		case 232:
-		  return 208; /* wsr.exccause */
+		  return OPCODE_WSR_EXCCAUSE;
 		case 233:
-		  return 348; /* wsr.debugcause */
+		  return OPCODE_WSR_DEBUGCAUSE;
 		case 234:
-		  return 379; /* wsr.ccount */
+		  return OPCODE_WSR_CCOUNT;
 		case 236:
-		  return 351; /* wsr.icount */
+		  return OPCODE_WSR_ICOUNT;
 		case 237:
-		  return 354; /* wsr.icountlevel */
+		  return OPCODE_WSR_ICOUNTLEVEL;
 		case 238:
-		  return 202; /* wsr.excvaddr */
+		  return OPCODE_WSR_EXCVADDR;
 		case 240:
-		  return 382; /* wsr.ccompare0 */
+		  return OPCODE_WSR_CCOMPARE0;
 		case 241:
-		  return 385; /* wsr.ccompare1 */
+		  return OPCODE_WSR_CCOMPARE1;
 		case 242:
-		  return 388; /* wsr.ccompare2 */
+		  return OPCODE_WSR_CCOMPARE2;
 		case 244:
-		  return 211; /* wsr.misc0 */
+		  return OPCODE_WSR_MISC0;
 		case 245:
-		  return 214; /* wsr.misc1 */
-		case 246:
-		  return 217; /* wsr.misc2 */
-		case 247:
-		  return 220; /* wsr.misc3 */
+		  return OPCODE_WSR_MISC1;
 		}
 	      break;
 	    case 2:
-	      return 450; /* sext */
+	      return OPCODE_SEXT;
 	    case 3:
-	      return 443; /* clamps */
+	      return OPCODE_CLAMPS;
 	    case 4:
-	      return 444; /* min */
+	      return OPCODE_MIN;
 	    case 5:
-	      return 445; /* max */
+	      return OPCODE_MAX;
 	    case 6:
-	      return 446; /* minu */
+	      return OPCODE_MINU;
 	    case 7:
-	      return 447; /* maxu */
+	      return OPCODE_MAXU;
 	    case 8:
-	      return 91; /* moveqz */
+	      return OPCODE_MOVEQZ;
 	    case 9:
-	      return 92; /* movnez */
+	      return OPCODE_MOVNEZ;
 	    case 10:
-	      return 93; /* movltz */
+	      return OPCODE_MOVLTZ;
 	    case 11:
-	      return 94; /* movgez */
-	    case 12:
-	      return 373; /* movf */
-	    case 13:
-	      return 374; /* movt */
+	      return OPCODE_MOVGEZ;
 	    case 14:
-	      switch (Field_st_Slot_inst_get (insn))
-		{
-		case 231:
-		  return 37; /* rur.threadptr */
-		case 232:
-		  return 464; /* rur.fcr */
-		case 233:
-		  return 466; /* rur.fsr */
-		}
+	      if (Field_st_Slot_inst_get (insn) == 231)
+		return OPCODE_RUR_THREADPTR;
 	      break;
 	    case 15:
-	      switch (Field_sr_Slot_inst_get (insn))
-		{
-		case 231:
-		  return 38; /* wur.threadptr */
-		case 232:
-		  return 465; /* wur.fcr */
-		case 233:
-		  return 467; /* wur.fsr */
-		}
+	      if (Field_sr_Slot_inst_get (insn) == 231)
+		return OPCODE_WUR_THREADPTR;
 	      break;
 	    }
 	  break;
 	case 4:
 	case 5:
-	  return 78; /* extui */
-	case 8:
-	  switch (Field_op2_Slot_inst_get (insn))
-	    {
-	    case 0:
-	      return 500; /* lsx */
-	    case 1:
-	      return 501; /* lsxu */
-	    case 4:
-	      return 504; /* ssx */
-	    case 5:
-	      return 505; /* ssxu */
-	    }
-	  break;
+	  return OPCODE_EXTUI;
 	case 9:
 	  switch (Field_op2_Slot_inst_get (insn))
 	    {
 	    case 0:
-	      return 18; /* l32e */
+	      return OPCODE_L32E;
 	    case 4:
-	      return 19; /* s32e */
-	    }
-	  break;
-	case 10:
-	  switch (Field_op2_Slot_inst_get (insn))
-	    {
-	    case 0:
-	      return 468; /* add.s */
-	    case 1:
-	      return 469; /* sub.s */
-	    case 2:
-	      return 470; /* mul.s */
-	    case 4:
-	      return 471; /* madd.s */
-	    case 5:
-	      return 472; /* msub.s */
-	    case 8:
-	      return 491; /* round.s */
-	    case 9:
-	      return 494; /* trunc.s */
-	    case 10:
-	      return 493; /* floor.s */
-	    case 11:
-	      return 492; /* ceil.s */
-	    case 12:
-	      return 489; /* float.s */
-	    case 13:
-	      return 490; /* ufloat.s */
-	    case 14:
-	      return 495; /* utrunc.s */
-	    case 15:
-	      switch (Field_t_Slot_inst_get (insn))
-		{
-		case 0:
-		  return 480; /* mov.s */
-		case 1:
-		  return 479; /* abs.s */
-		case 4:
-		  return 496; /* rfr */
-		case 5:
-		  return 497; /* wfr */
-		case 6:
-		  return 481; /* neg.s */
-		}
-	      break;
-	    }
-	  break;
-	case 11:
-	  switch (Field_op2_Slot_inst_get (insn))
-	    {
-	    case 1:
-	      return 482; /* un.s */
-	    case 2:
-	      return 483; /* oeq.s */
-	    case 3:
-	      return 484; /* ueq.s */
-	    case 4:
-	      return 485; /* olt.s */
-	    case 5:
-	      return 486; /* ult.s */
-	    case 6:
-	      return 487; /* ole.s */
-	    case 7:
-	      return 488; /* ule.s */
-	    case 8:
-	      return 475; /* moveqz.s */
-	    case 9:
-	      return 476; /* movnez.s */
-	    case 10:
-	      return 477; /* movltz.s */
-	    case 11:
-	      return 478; /* movgez.s */
-	    case 12:
-	      return 473; /* movf.s */
-	    case 13:
-	      return 474; /* movt.s */
+	      return OPCODE_S32E;
 	    }
 	  break;
 	}
       break;
     case 1:
-      return 85; /* l32r */
+      return OPCODE_L32R;
     case 2:
       switch (Field_r_Slot_inst_get (insn))
 	{
 	case 0:
-	  return 86; /* l8ui */
+	  return OPCODE_L8UI;
 	case 1:
-	  return 82; /* l16ui */
+	  return OPCODE_L16UI;
 	case 2:
-	  return 84; /* l32i */
+	  return OPCODE_L32I;
 	case 4:
-	  return 101; /* s8i */
+	  return OPCODE_S8I;
 	case 5:
-	  return 99; /* s16i */
+	  return OPCODE_S16I;
 	case 6:
-	  return 100; /* s32i */
+	  return OPCODE_S32I;
 	case 7:
 	  switch (Field_t_Slot_inst_get (insn))
 	    {
 	    case 0:
-	      return 406; /* dpfr */
+	      return OPCODE_DPFR;
 	    case 1:
-	      return 407; /* dpfw */
+	      return OPCODE_DPFW;
 	    case 2:
-	      return 408; /* dpfro */
+	      return OPCODE_DPFRO;
 	    case 3:
-	      return 409; /* dpfwo */
+	      return OPCODE_DPFWO;
 	    case 4:
-	      return 400; /* dhwb */
+	      return OPCODE_DHWB;
 	    case 5:
-	      return 401; /* dhwbi */
+	      return OPCODE_DHWBI;
 	    case 6:
-	      return 404; /* dhi */
+	      return OPCODE_DHI;
 	    case 7:
-	      return 405; /* dii */
+	      return OPCODE_DII;
 	    case 8:
 	      switch (Field_op1_Slot_inst_get (insn))
 		{
 		case 0:
-		  return 410; /* dpfl */
+		  return OPCODE_DPFL;
 		case 2:
-		  return 411; /* dhu */
+		  return OPCODE_DHU;
 		case 3:
-		  return 412; /* diu */
+		  return OPCODE_DIU;
 		case 4:
-		  return 402; /* diwb */
+		  return OPCODE_DIWB;
 		case 5:
-		  return 403; /* diwbi */
+		  return OPCODE_DIWBI;
 		}
 	      break;
 	    case 12:
-	      return 390; /* ipf */
+	      return OPCODE_IPF;
 	    case 13:
 	      switch (Field_op1_Slot_inst_get (insn))
 		{
 		case 0:
-		  return 392; /* ipfl */
+		  return OPCODE_IPFL;
 		case 2:
-		  return 393; /* ihu */
+		  return OPCODE_IHU;
 		case 3:
-		  return 394; /* iiu */
+		  return OPCODE_IIU;
 		}
 	      break;
 	    case 14:
-	      return 391; /* ihi */
+	      return OPCODE_IHI;
 	    case 15:
-	      return 395; /* iii */
+	      return OPCODE_III;
 	    }
 	  break;
 	case 9:
-	  return 83; /* l16si */
+	  return OPCODE_L16SI;
 	case 10:
-	  return 90; /* movi */
+	  return OPCODE_MOVI;
 	case 11:
-	  return 451; /* l32ai */
+	  return OPCODE_L32AI;
 	case 12:
-	  return 39; /* addi */
+	  return OPCODE_ADDI;
 	case 13:
-	  return 40; /* addmi */
+	  return OPCODE_ADDMI;
 	case 14:
-	  return 453; /* s32c1i */
+	  return OPCODE_S32C1I;
 	case 15:
-	  return 452; /* s32ri */
-	}
-      break;
-    case 3:
-      switch (Field_r_Slot_inst_get (insn))
-	{
-	case 0:
-	  return 498; /* lsi */
-	case 4:
-	  return 502; /* ssi */
-	case 8:
-	  return 499; /* lsiu */
-	case 12:
-	  return 503; /* ssiu */
-	}
-      break;
-    case 4:
-      switch (Field_op2_Slot_inst_get (insn))
-	{
-	case 0:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 8:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 287; /* mula.dd.ll.ldinc */
-	      break;
-	    case 9:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 289; /* mula.dd.hl.ldinc */
-	      break;
-	    case 10:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 291; /* mula.dd.lh.ldinc */
-	      break;
-	    case 11:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 293; /* mula.dd.hh.ldinc */
-	      break;
-	    }
-	  break;
-	case 1:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 8:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 286; /* mula.dd.ll.lddec */
-	      break;
-	    case 9:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 288; /* mula.dd.hl.lddec */
-	      break;
-	    case 10:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 290; /* mula.dd.lh.lddec */
-	      break;
-	    case 11:
-	      if (Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 292; /* mula.dd.hh.lddec */
-	      break;
-	    }
-	  break;
-	case 2:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 4:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 242; /* mul.dd.ll */
-	      break;
-	    case 5:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 243; /* mul.dd.hl */
-	      break;
-	    case 6:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 244; /* mul.dd.lh */
-	      break;
-	    case 7:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 245; /* mul.dd.hh */
-	      break;
-	    case 8:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 270; /* mula.dd.ll */
-	      break;
-	    case 9:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 271; /* mula.dd.hl */
-	      break;
-	    case 10:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 272; /* mula.dd.lh */
-	      break;
-	    case 11:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 273; /* mula.dd.hh */
-	      break;
-	    case 12:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 274; /* muls.dd.ll */
-	      break;
-	    case 13:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 275; /* muls.dd.hl */
-	      break;
-	    case 14:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 276; /* muls.dd.lh */
-	      break;
-	    case 15:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 277; /* muls.dd.hh */
-	      break;
-	    }
-	  break;
-	case 3:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 4:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 234; /* mul.ad.ll */
-	      break;
-	    case 5:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 235; /* mul.ad.hl */
-	      break;
-	    case 6:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 236; /* mul.ad.lh */
-	      break;
-	    case 7:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 237; /* mul.ad.hh */
-	      break;
-	    case 8:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 254; /* mula.ad.ll */
-	      break;
-	    case 9:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 255; /* mula.ad.hl */
-	      break;
-	    case 10:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 256; /* mula.ad.lh */
-	      break;
-	    case 11:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 257; /* mula.ad.hh */
-	      break;
-	    case 12:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 258; /* muls.ad.ll */
-	      break;
-	    case 13:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 259; /* muls.ad.hl */
-	      break;
-	    case 14:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 260; /* muls.ad.lh */
-	      break;
-	    case 15:
-	      if (Field_r_Slot_inst_get (insn) == 0 &&
-		  Field_t3_Slot_inst_get (insn) == 0 &&
-		  Field_tlo_Slot_inst_get (insn) == 0)
-		return 261; /* muls.ad.hh */
-	      break;
-	    }
-	  break;
-	case 4:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 8:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 279; /* mula.da.ll.ldinc */
-	      break;
-	    case 9:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 281; /* mula.da.hl.ldinc */
-	      break;
-	    case 10:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 283; /* mula.da.lh.ldinc */
-	      break;
-	    case 11:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 285; /* mula.da.hh.ldinc */
-	      break;
-	    }
-	  break;
-	case 5:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 8:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 278; /* mula.da.ll.lddec */
-	      break;
-	    case 9:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 280; /* mula.da.hl.lddec */
-	      break;
-	    case 10:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 282; /* mula.da.lh.lddec */
-	      break;
-	    case 11:
-	      if (Field_r3_Slot_inst_get (insn) == 0)
-		return 284; /* mula.da.hh.lddec */
-	      break;
-	    }
-	  break;
-	case 6:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 4:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 238; /* mul.da.ll */
-	      break;
-	    case 5:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 239; /* mul.da.hl */
-	      break;
-	    case 6:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 240; /* mul.da.lh */
-	      break;
-	    case 7:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 241; /* mul.da.hh */
-	      break;
-	    case 8:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 262; /* mula.da.ll */
-	      break;
-	    case 9:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 263; /* mula.da.hl */
-	      break;
-	    case 10:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 264; /* mula.da.lh */
-	      break;
-	    case 11:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 265; /* mula.da.hh */
-	      break;
-	    case 12:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 266; /* muls.da.ll */
-	      break;
-	    case 13:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 267; /* muls.da.hl */
-	      break;
-	    case 14:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 268; /* muls.da.lh */
-	      break;
-	    case 15:
-	      if (Field_s_Slot_inst_get (insn) == 0 &&
-		  Field_w_Slot_inst_get (insn) == 0 &&
-		  Field_r3_Slot_inst_get (insn) == 0)
-		return 269; /* muls.da.hh */
-	      break;
-	    }
-	  break;
-	case 7:
-	  switch (Field_op1_Slot_inst_get (insn))
-	    {
-	    case 0:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 230; /* umul.aa.ll */
-	      break;
-	    case 1:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 231; /* umul.aa.hl */
-	      break;
-	    case 2:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 232; /* umul.aa.lh */
-	      break;
-	    case 3:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 233; /* umul.aa.hh */
-	      break;
-	    case 4:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 226; /* mul.aa.ll */
-	      break;
-	    case 5:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 227; /* mul.aa.hl */
-	      break;
-	    case 6:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 228; /* mul.aa.lh */
-	      break;
-	    case 7:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 229; /* mul.aa.hh */
-	      break;
-	    case 8:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 246; /* mula.aa.ll */
-	      break;
-	    case 9:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 247; /* mula.aa.hl */
-	      break;
-	    case 10:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 248; /* mula.aa.lh */
-	      break;
-	    case 11:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 249; /* mula.aa.hh */
-	      break;
-	    case 12:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 250; /* muls.aa.ll */
-	      break;
-	    case 13:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 251; /* muls.aa.hl */
-	      break;
-	    case 14:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 252; /* muls.aa.lh */
-	      break;
-	    case 15:
-	      if (Field_r_Slot_inst_get (insn) == 0)
-		return 253; /* muls.aa.hh */
-	      break;
-	    }
-	  break;
-	case 8:
-	  if (Field_op1_Slot_inst_get (insn) == 0 &&
-	      Field_t_Slot_inst_get (insn) == 0 &&
-	      Field_rhi_Slot_inst_get (insn) == 0)
-	    return 295; /* ldinc */
-	  break;
-	case 9:
-	  if (Field_op1_Slot_inst_get (insn) == 0 &&
-	      Field_t_Slot_inst_get (insn) == 0 &&
-	      Field_rhi_Slot_inst_get (insn) == 0)
-	    return 294; /* lddec */
-	  break;
+	  return OPCODE_S32RI;
 	}
       break;
     case 5:
       switch (Field_n_Slot_inst_get (insn))
 	{
 	case 0:
-	  return 76; /* call0 */
+	  return OPCODE_CALL0;
 	case 1:
-	  return 7; /* call4 */
+	  return OPCODE_CALL4;
 	case 2:
-	  return 6; /* call8 */
+	  return OPCODE_CALL8;
 	case 3:
-	  return 5; /* call12 */
+	  return OPCODE_CALL12;
 	}
       break;
     case 6:
       switch (Field_n_Slot_inst_get (insn))
 	{
 	case 0:
-	  return 80; /* j */
+	  return OPCODE_J;
 	case 1:
 	  switch (Field_m_Slot_inst_get (insn))
 	    {
 	    case 0:
-	      return 72; /* beqz */
+	      return OPCODE_BEQZ;
 	    case 1:
-	      return 73; /* bnez */
+	      return OPCODE_BNEZ;
 	    case 2:
-	      return 75; /* bltz */
+	      return OPCODE_BLTZ;
 	    case 3:
-	      return 74; /* bgez */
+	      return OPCODE_BGEZ;
 	    }
 	  break;
 	case 2:
 	  switch (Field_m_Slot_inst_get (insn))
 	    {
 	    case 0:
-	      return 52; /* beqi */
+	      return OPCODE_BEQI;
 	    case 1:
-	      return 53; /* bnei */
+	      return OPCODE_BNEI;
 	    case 2:
-	      return 55; /* blti */
+	      return OPCODE_BLTI;
 	    case 3:
-	      return 54; /* bgei */
+	      return OPCODE_BGEI;
 	    }
 	  break;
 	case 3:
 	  switch (Field_m_Slot_inst_get (insn))
 	    {
 	    case 0:
-	      return 11; /* entry */
+	      return OPCODE_ENTRY;
 	    case 1:
 	      switch (Field_r_Slot_inst_get (insn))
 		{
-		case 0:
-		  return 371; /* bf */
-		case 1:
-		  return 372; /* bt */
 		case 8:
-		  return 87; /* loop */
+		  return OPCODE_LOOP;
 		case 9:
-		  return 88; /* loopnez */
+		  return OPCODE_LOOPNEZ;
 		case 10:
-		  return 89; /* loopgtz */
+		  return OPCODE_LOOPGTZ;
 		}
 	      break;
 	    case 2:
-	      return 59; /* bltui */
+	      return OPCODE_BLTUI;
 	    case 3:
-	      return 58; /* bgeui */
+	      return OPCODE_BGEUI;
 	    }
 	  break;
 	}
@@ -18464,35 +11794,35 @@ Slot_inst_decode (const xtensa_insnbuf insn)
       switch (Field_r_Slot_inst_get (insn))
 	{
 	case 0:
-	  return 67; /* bnone */
+	  return OPCODE_BNONE;
 	case 1:
-	  return 60; /* beq */
+	  return OPCODE_BEQ;
 	case 2:
-	  return 63; /* blt */
+	  return OPCODE_BLT;
 	case 3:
-	  return 65; /* bltu */
+	  return OPCODE_BLTU;
 	case 4:
-	  return 68; /* ball */
+	  return OPCODE_BALL;
 	case 5:
-	  return 70; /* bbc */
+	  return OPCODE_BBC;
 	case 6:
 	case 7:
-	  return 56; /* bbci */
+	  return OPCODE_BBCI;
 	case 8:
-	  return 66; /* bany */
+	  return OPCODE_BANY;
 	case 9:
-	  return 61; /* bne */
+	  return OPCODE_BNE;
 	case 10:
-	  return 62; /* bge */
+	  return OPCODE_BGE;
 	case 11:
-	  return 64; /* bgeu */
+	  return OPCODE_BGEU;
 	case 12:
-	  return 69; /* bnall */
+	  return OPCODE_BNALL;
 	case 13:
-	  return 71; /* bbs */
+	  return OPCODE_BBS;
 	case 14:
 	case 15:
-	  return 57; /* bbsi */
+	  return OPCODE_BBSI;
 	}
       break;
     }
@@ -18508,14 +11838,14 @@ Slot_inst16b_decode (const xtensa_insnbuf insn)
       switch (Field_i_Slot_inst16b_get (insn))
 	{
 	case 0:
-	  return 33; /* movi.n */
+	  return OPCODE_MOVI_N;
 	case 1:
 	  switch (Field_z_Slot_inst16b_get (insn))
 	    {
 	    case 0:
-	      return 28; /* beqz.n */
+	      return OPCODE_BEQZ_N;
 	    case 1:
-	      return 29; /* bnez.n */
+	      return OPCODE_BNEZ_N;
 	    }
 	  break;
 	}
@@ -18524,23 +11854,23 @@ Slot_inst16b_decode (const xtensa_insnbuf insn)
       switch (Field_r_Slot_inst16b_get (insn))
 	{
 	case 0:
-	  return 32; /* mov.n */
+	  return OPCODE_MOV_N;
 	case 15:
 	  switch (Field_t_Slot_inst16b_get (insn))
 	    {
 	    case 0:
-	      return 35; /* ret.n */
+	      return OPCODE_RET_N;
 	    case 1:
-	      return 15; /* retw.n */
+	      return OPCODE_RETW_N;
 	    case 2:
-	      return 325; /* break.n */
+	      return OPCODE_BREAK_N;
 	    case 3:
 	      if (Field_s_Slot_inst16b_get (insn) == 0)
-		return 34; /* nop.n */
+		return OPCODE_NOP_N;
 	      break;
 	    case 6:
 	      if (Field_s_Slot_inst16b_get (insn) == 0)
-		return 30; /* ill.n */
+		return OPCODE_ILL_N;
 	      break;
 	    }
 	  break;
@@ -18556,509 +11886,13 @@ Slot_inst16a_decode (const xtensa_insnbuf insn)
   switch (Field_op0_Slot_inst16a_get (insn))
     {
     case 8:
-      return 31; /* l32i.n */
+      return OPCODE_L32I_N;
     case 9:
-      return 36; /* s32i.n */
+      return OPCODE_S32I_N;
     case 10:
-      return 26; /* add.n */
+      return OPCODE_ADD_N;
     case 11:
-      return 27; /* addi.n */
-    }
-  return 0;
-}
-
-static int
-Slot_xt_flix64_slot2_decode (const xtensa_insnbuf insn)
-{
-  switch (Field_combined3e2c5767_fld36xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn))
-    {
-    case 0:
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 1)
-	return 41; /* add */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 5)
-	return 42; /* sub */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 2)
-	return 43; /* addx2 */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 3)
-	return 49; /* and */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 4)
-	return 450; /* sext */
-      break;
-    case 1:
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 1)
-	return 27; /* addi.n */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 2)
-	return 44; /* addx4 */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 3)
-	return 50; /* or */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 5)
-	return 51; /* xor */
-      if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 4)
-	return 113; /* srli */
-      break;
-    }
-  if (Field_combined3e2c5767_fld37xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 0 &&
-      Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 6)
-    return 33; /* movi.n */
-  if (Field_combined3e2c5767_fld39xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 2 &&
-      Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 6 &&
-      Field_combined3e2c5767_fld63xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 0)
-    return 32; /* mov.n */
-  if (Field_combined3e2c5767_fld41xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 3 &&
-      Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 6 &&
-      Field_combined3e2c5767_fld65xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 0)
-    return 97; /* nop */
-  if (Field_combined3e2c5767_fld42xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 8 &&
-      Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 6 &&
-      Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 0)
-    return 96; /* abs */
-  if (Field_combined3e2c5767_fld44xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 9 &&
-      Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 6 &&
-      Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 0)
-    return 95; /* neg */
-  if (Field_combined3e2c5767_fld45xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 5 &&
-      Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 6 &&
-      Field_combined3e2c5767_fld66xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 0)
-    return 110; /* sra */
-  if (Field_combined3e2c5767_fld47xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 3 &&
-      Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 6 &&
-      Field_combined3e2c5767_fld68xt_flix64_slot2_Slot_xt_flix64_slot2_get (insn) == 0)
-    return 109; /* srl */
-  if (Field_op0_s5_Slot_xt_flix64_slot2_get (insn) == 7)
-    return 112; /* srai */
-  return 0;
-}
-
-static int
-Slot_xt_flix64_slot0_decode (const xtensa_insnbuf insn)
-{
-  switch (Field_op0_xt_flix64_slot0_Slot_xt_flix64_slot0_get (insn))
-    {
-    case 0:
-      if (Field_combined3e2c5767_fld7_Slot_xt_flix64_slot0_get (insn) == 2)
-	return 78; /* extui */
-      switch (Field_op1_Slot_xt_flix64_slot0_get (insn))
-	{
-	case 0:
-	  switch (Field_op2_Slot_xt_flix64_slot0_get (insn))
-	    {
-	    case 0:
-	      if (Field_r_Slot_xt_flix64_slot0_get (insn) == 2)
-		{
-		  if (Field_s_Slot_xt_flix64_slot0_get (insn) == 0)
-		    {
-		      if (Field_t_Slot_xt_flix64_slot0_get (insn) == 15)
-			return 97; /* nop */
-		    }
-		}
-	      break;
-	    case 1:
-	      return 49; /* and */
-	    case 2:
-	      return 50; /* or */
-	    case 3:
-	      return 51; /* xor */
-	    case 4:
-	      switch (Field_r_Slot_xt_flix64_slot0_get (insn))
-		{
-		case 0:
-		  if (Field_t_Slot_xt_flix64_slot0_get (insn) == 0)
-		    return 102; /* ssr */
-		  break;
-		case 1:
-		  if (Field_t_Slot_xt_flix64_slot0_get (insn) == 0)
-		    return 103; /* ssl */
-		  break;
-		case 2:
-		  if (Field_t_Slot_xt_flix64_slot0_get (insn) == 0)
-		    return 104; /* ssa8l */
-		  break;
-		case 3:
-		  if (Field_t_Slot_xt_flix64_slot0_get (insn) == 0)
-		    return 105; /* ssa8b */
-		  break;
-		case 4:
-		  if (Field_thi3_Slot_xt_flix64_slot0_get (insn) == 0)
-		    return 106; /* ssai */
-		  break;
-		case 14:
-		  return 448; /* nsa */
-		case 15:
-		  return 449; /* nsau */
-		}
-	      break;
-	    case 6:
-	      switch (Field_s_Slot_xt_flix64_slot0_get (insn))
-		{
-		case 0:
-		  return 95; /* neg */
-		case 1:
-		  return 96; /* abs */
-		}
-	      break;
-	    case 8:
-	      return 41; /* add */
-	    case 9:
-	      return 43; /* addx2 */
-	    case 10:
-	      return 44; /* addx4 */
-	    case 11:
-	      return 45; /* addx8 */
-	    case 12:
-	      return 42; /* sub */
-	    case 13:
-	      return 46; /* subx2 */
-	    case 14:
-	      return 47; /* subx4 */
-	    case 15:
-	      return 48; /* subx8 */
-	    }
-	  break;
-	case 1:
-	  if (Field_combined3e2c5767_fld11_Slot_xt_flix64_slot0_get (insn) == 1)
-	    return 112; /* srai */
-	  if (Field_combined3e2c5767_fld9_Slot_xt_flix64_slot0_get (insn) == 0)
-	    return 111; /* slli */
-	  switch (Field_op2_Slot_xt_flix64_slot0_get (insn))
-	    {
-	    case 4:
-	      return 113; /* srli */
-	    case 8:
-	      return 108; /* src */
-	    case 9:
-	      if (Field_s_Slot_xt_flix64_slot0_get (insn) == 0)
-		return 109; /* srl */
-	      break;
-	    case 10:
-	      if (Field_t_Slot_xt_flix64_slot0_get (insn) == 0)
-		return 107; /* sll */
-	      break;
-	    case 11:
-	      if (Field_s_Slot_xt_flix64_slot0_get (insn) == 0)
-		return 110; /* sra */
-	      break;
-	    case 12:
-	      return 296; /* mul16u */
-	    case 13:
-	      return 297; /* mul16s */
-	    }
-	  break;
-	case 2:
-	  if (Field_op2_Slot_xt_flix64_slot0_get (insn) == 8)
-	    return 461; /* mull */
-	  break;
-	case 3:
-	  switch (Field_op2_Slot_xt_flix64_slot0_get (insn))
-	    {
-	    case 2:
-	      return 450; /* sext */
-	    case 3:
-	      return 443; /* clamps */
-	    case 4:
-	      return 444; /* min */
-	    case 5:
-	      return 445; /* max */
-	    case 6:
-	      return 446; /* minu */
-	    case 7:
-	      return 447; /* maxu */
-	    case 8:
-	      return 91; /* moveqz */
-	    case 9:
-	      return 92; /* movnez */
-	    case 10:
-	      return 93; /* movltz */
-	    case 11:
-	      return 94; /* movgez */
-	    }
-	  break;
-	}
-      break;
-    case 2:
-      switch (Field_r_Slot_xt_flix64_slot0_get (insn))
-	{
-	case 0:
-	  return 86; /* l8ui */
-	case 1:
-	  return 82; /* l16ui */
-	case 2:
-	  return 84; /* l32i */
-	case 4:
-	  return 101; /* s8i */
-	case 5:
-	  return 99; /* s16i */
-	case 6:
-	  return 100; /* s32i */
-	case 9:
-	  return 83; /* l16si */
-	case 10:
-	  return 90; /* movi */
-	case 12:
-	  return 39; /* addi */
-	case 13:
-	  return 40; /* addmi */
-	}
-      break;
-    }
-  if (Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_get (insn) == 1)
-    return 85; /* l32r */
-  if (Field_sae4_Slot_xt_flix64_slot0_get (insn) == 0 &&
-      Field_combined3e2c5767_fld8_Slot_xt_flix64_slot0_get (insn) == 3 &&
-      Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_get (insn) == 0 &&
-      Field_combined3e2c5767_fld49xt_flix64_slot0_Slot_xt_flix64_slot0_get (insn) == 0)
-    return 32; /* mov.n */
-  return 0;
-}
-
-static int
-Slot_xt_flix64_slot1_decode (const xtensa_insnbuf insn)
-{
-  if (Field_combined3e2c5767_fld19xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 1)
-    return 78; /* extui */
-  switch (Field_combined3e2c5767_fld20xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn))
-    {
-    case 0:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 90; /* movi */
-      break;
-    case 2:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 1)
-	return 39; /* addi */
-      break;
-    case 3:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 1)
-	return 40; /* addmi */
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-	  Field_combined3e2c5767_fld16_Slot_xt_flix64_slot1_get (insn) == 0)
-	return 51; /* xor */
-      break;
-    }
-  switch (Field_combined3e2c5767_fld21xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn))
-    {
-    case 8:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 111; /* slli */
-      break;
-    case 16:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 112; /* srai */
-      break;
-    case 19:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-	  Field_combined3e2c5767_fld57xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-	return 107; /* sll */
-      break;
-    }
-  switch (Field_combined3e2c5767_fld22xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn))
-    {
-    case 18:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 41; /* add */
-      break;
-    case 19:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 45; /* addx8 */
-      break;
-    case 20:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 43; /* addx2 */
-      break;
-    case 21:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 49; /* and */
-      break;
-    case 22:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 91; /* moveqz */
-      break;
-    case 23:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 94; /* movgez */
-      break;
-    case 24:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 44; /* addx4 */
-      break;
-    case 25:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 93; /* movltz */
-      break;
-    case 26:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 92; /* movnez */
-      break;
-    case 27:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 296; /* mul16u */
-      break;
-    case 28:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 297; /* mul16s */
-      break;
-    case 29:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 461; /* mull */
-      break;
-    case 30:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 50; /* or */
-      break;
-    case 31:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 450; /* sext */
-      break;
-    case 34:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 108; /* src */
-      break;
-    case 36:
-      if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2)
-	return 113; /* srli */
-      break;
-    }
-  if (Field_combined3e2c5767_fld23xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 280 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld51xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 32; /* mov.n */
-  if (Field_combined3e2c5767_fld25xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 281 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld52xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 81; /* jx */
-  if (Field_combined3e2c5767_fld26xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 141 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld60xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 103; /* ssl */
-  if (Field_combined3e2c5767_fld28xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 71 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld54xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 97; /* nop */
-  if (Field_combined3e2c5767_fld30xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 148 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 95; /* neg */
-  if (Field_combined3e2c5767_fld32xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 149 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 110; /* sra */
-  if (Field_combined3e2c5767_fld33xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 75 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld58xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 109; /* srl */
-  if (Field_combined3e2c5767_fld35xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 5 &&
-      Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 2 &&
-      Field_combined3e2c5767_fld62xt_flix64_slot1_Slot_xt_flix64_slot1_get (insn) == 0)
-    return 42; /* sub */
-  if (Field_op0_s4_Slot_xt_flix64_slot1_get (insn) == 3)
-    return 80; /* j */
-  return 0;
-}
-
-static int
-Slot_xt_flix64_slot3_decode (const xtensa_insnbuf insn)
-{
-  switch (Field_op0_s6_Slot_xt_flix64_slot3_get (insn))
-    {
-    case 1:
-      if (Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 516; /* bbci.w18 */
-      break;
-    case 2:
-      if (Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 517; /* bbsi.w18 */
-      break;
-    case 3:
-      if (Field_combined3e2c5767_fld89xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 526; /* ball.w18 */
-      break;
-    case 4:
-      if (Field_combined3e2c5767_fld87xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 524; /* bany.w18 */
-      break;
-    case 5:
-      if (Field_combined3e2c5767_fld91xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 528; /* bbc.w18 */
-      break;
-    case 6:
-      if (Field_combined3e2c5767_fld92xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 529; /* bbs.w18 */
-      break;
-    case 7:
-      if (Field_combined3e2c5767_fld81xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 518; /* beq.w18 */
-      break;
-    case 8:
-      if (Field_combined3e2c5767_fld75xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 510; /* beqi.w18 */
-      break;
-    case 9:
-      if (Field_combined3e2c5767_fld83xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 520; /* bge.w18 */
-      break;
-    case 10:
-      if (Field_combined3e2c5767_fld77xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 512; /* bgei.w18 */
-      break;
-    case 11:
-      if (Field_combined3e2c5767_fld85xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 522; /* bgeu.w18 */
-      break;
-    case 12:
-      if (Field_combined3e2c5767_fld79xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 514; /* bgeui.w18 */
-      break;
-    case 13:
-      if (Field_combined3e2c5767_fld84xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 521; /* blt.w18 */
-      break;
-    case 14:
-      if (Field_combined3e2c5767_fld78xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 513; /* blti.w18 */
-      break;
-    case 15:
-      if (Field_combined3e2c5767_fld86xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 523; /* bltu.w18 */
-      break;
-    case 16:
-      if (Field_combined3e2c5767_fld80xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 515; /* bltui.w18 */
-      break;
-    case 17:
-      if (Field_combined3e2c5767_fld90xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 527; /* bnall.w18 */
-      break;
-    case 18:
-      if (Field_combined3e2c5767_fld82xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 519; /* bne.w18 */
-      break;
-    case 19:
-      if (Field_combined3e2c5767_fld76xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 511; /* bnei.w18 */
-      break;
-    case 20:
-      if (Field_combined3e2c5767_fld88xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 525; /* bnone.w18 */
-      break;
-    case 21:
-      if (Field_combined3e2c5767_fld70xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 506; /* beqz.w18 */
-      break;
-    case 22:
-      if (Field_combined3e2c5767_fld73xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 508; /* bgez.w18 */
-      break;
-    case 23:
-      if (Field_combined3e2c5767_fld74xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 509; /* bltz.w18 */
-      break;
-    case 24:
-      if (Field_combined3e2c5767_fld72xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 507; /* bnez.w18 */
-      break;
-    case 25:
-      if (Field_combined3e2c5767_fld93xt_flix64_slot3_Slot_xt_flix64_slot3_get (insn) == 0)
-	return 97; /* nop */
-      break;
+      return OPCODE_ADDI_N;
     }
   return 0;
 }
@@ -19070,7 +11904,6 @@ static void
 Slot_x24_Format_inst_0_get (const xtensa_insnbuf insn,
 			    xtensa_insnbuf slotbuf)
 {
-  slotbuf[1] = 0;
   slotbuf[0] = (insn[0] & 0xffffff);
 }
 
@@ -19085,110 +11918,28 @@ static void
 Slot_x16a_Format_inst16a_0_get (const xtensa_insnbuf insn,
 				xtensa_insnbuf slotbuf)
 {
-  slotbuf[1] = 0;
-  slotbuf[0] = (insn[0] & 0xffff);
+  slotbuf[0] = ((insn[0] & 0xffff00) >> 8);
 }
 
 static void
 Slot_x16a_Format_inst16a_0_set (xtensa_insnbuf insn,
 				const xtensa_insnbuf slotbuf)
 {
-  insn[0] = (insn[0] & ~0xffff) | (slotbuf[0] & 0xffff);
+  insn[0] = (insn[0] & ~0xffff00) | ((slotbuf[0] & 0xffff) << 8);
 }
 
 static void
 Slot_x16b_Format_inst16b_0_get (const xtensa_insnbuf insn,
 				xtensa_insnbuf slotbuf)
 {
-  slotbuf[1] = 0;
-  slotbuf[0] = (insn[0] & 0xffff);
+  slotbuf[0] = ((insn[0] & 0xffff00) >> 8);
 }
 
 static void
 Slot_x16b_Format_inst16b_0_set (xtensa_insnbuf insn,
 				const xtensa_insnbuf slotbuf)
 {
-  insn[0] = (insn[0] & ~0xffff) | (slotbuf[0] & 0xffff);
-}
-
-static void
-Slot_xt_format1_Format_xt_flix64_slot0_4_get (const xtensa_insnbuf insn,
-					      xtensa_insnbuf slotbuf)
-{
-  slotbuf[1] = 0;
-  slotbuf[0] = ((insn[0] & 0xffffff0) >> 4);
-}
-
-static void
-Slot_xt_format1_Format_xt_flix64_slot0_4_set (xtensa_insnbuf insn,
-					      const xtensa_insnbuf slotbuf)
-{
-  insn[0] = (insn[0] & ~0xffffff0) | ((slotbuf[0] & 0xffffff) << 4);
-}
-
-static void
-Slot_xt_format2_Format_xt_flix64_slot0_4_get (const xtensa_insnbuf insn,
-					      xtensa_insnbuf slotbuf)
-{
-  slotbuf[1] = 0;
-  slotbuf[0] = ((insn[0] & 0xffffff0) >> 4);
-}
-
-static void
-Slot_xt_format2_Format_xt_flix64_slot0_4_set (xtensa_insnbuf insn,
-					      const xtensa_insnbuf slotbuf)
-{
-  insn[0] = (insn[0] & ~0xffffff0) | ((slotbuf[0] & 0xffffff) << 4);
-}
-
-static void
-Slot_xt_format1_Format_xt_flix64_slot1_28_get (const xtensa_insnbuf insn,
-					      xtensa_insnbuf slotbuf)
-{
-  slotbuf[1] = 0;
-  slotbuf[0] = ((insn[0] & 0xf0000000) >> 28);
-  slotbuf[0] = (slotbuf[0] & ~0xffff0) | ((insn[1] & 0xffff) << 4);
-}
-
-static void
-Slot_xt_format1_Format_xt_flix64_slot1_28_set (xtensa_insnbuf insn,
-					      const xtensa_insnbuf slotbuf)
-{
-  insn[0] = (insn[0] & ~0xf0000000) | ((slotbuf[0] & 0xf) << 28);
-  insn[1] = (insn[1] & ~0xffff) | ((slotbuf[0] & 0xffff0) >> 4);
-}
-
-static void
-Slot_xt_format1_Format_xt_flix64_slot2_48_get (const xtensa_insnbuf insn,
-					      xtensa_insnbuf slotbuf)
-{
-  slotbuf[1] = 0;
-  slotbuf[0] = ((insn[1] & 0xffff0000) >> 16);
-}
-
-static void
-Slot_xt_format1_Format_xt_flix64_slot2_48_set (xtensa_insnbuf insn,
-					      const xtensa_insnbuf slotbuf)
-{
-  insn[1] = (insn[1] & ~0xffff0000) | ((slotbuf[0] & 0xffff) << 16);
-}
-
-static void
-Slot_xt_format2_Format_xt_flix64_slot3_28_get (const xtensa_insnbuf insn,
-					      xtensa_insnbuf slotbuf)
-{
-  slotbuf[0] = ((insn[0] & 0xf0000000) >> 28);
-  slotbuf[0] = (slotbuf[0] & ~0xfffffff0) | ((insn[1] & 0xfffffff) << 4);
-  slotbuf[1] = ((insn[1] & 0x70000000) >> 28);
-}
-
-static void
-Slot_xt_format2_Format_xt_flix64_slot3_28_set (xtensa_insnbuf insn,
-					      const xtensa_insnbuf slotbuf)
-{
-  insn[0] = (insn[0] & ~0xf0000000) | ((slotbuf[0] & 0xf) << 28);
-  insn[1] = (insn[1] & ~0xfffffff) | ((slotbuf[0] & 0xfffffff0) >> 4);
-  insn[1] = (insn[1] & ~0x70000000) | ((slotbuf[1] & 0x7) << 28);
+  insn[0] = (insn[0] & ~0xffff00) | ((slotbuf[0] & 0xffff) << 8);
 }
 
 static xtensa_get_field_fn
@@ -19228,106 +11979,12 @@ Slot_inst_get_field_fns[] = {
   0,
   0,
   0,
-  Field_r3_Slot_inst_get,
-  Field_rbit2_Slot_inst_get,
-  Field_rhi_Slot_inst_get,
-  Field_t3_Slot_inst_get,
-  Field_tbit2_Slot_inst_get,
-  Field_tlo_Slot_inst_get,
-  Field_w_Slot_inst_get,
-  Field_y_Slot_inst_get,
-  Field_x_Slot_inst_get,
-  Field_t2_Slot_inst_get,
-  Field_s2_Slot_inst_get,
-  Field_r2_Slot_inst_get,
-  Field_t4_Slot_inst_get,
-  Field_s4_Slot_inst_get,
-  Field_r4_Slot_inst_get,
-  Field_t8_Slot_inst_get,
-  Field_s8_Slot_inst_get,
-  Field_r8_Slot_inst_get,
   Field_xt_wbr15_imm_Slot_inst_get,
   Field_xt_wbr18_imm_Slot_inst_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
   Implicit_Field_ar0_get,
   Implicit_Field_ar4_get,
   Implicit_Field_ar8_get,
-  Implicit_Field_ar12_get,
-  Implicit_Field_mr0_get,
-  Implicit_Field_mr1_get,
-  Implicit_Field_mr2_get,
-  Implicit_Field_mr3_get,
-  Implicit_Field_bt16_get,
-  Implicit_Field_bs16_get,
-  Implicit_Field_br16_get,
-  Implicit_Field_brall_get
+  Implicit_Field_ar12_get
 };
 
 static xtensa_set_field_fn
@@ -19367,102 +12024,8 @@ Slot_inst_set_field_fns[] = {
   0,
   0,
   0,
-  Field_r3_Slot_inst_set,
-  Field_rbit2_Slot_inst_set,
-  Field_rhi_Slot_inst_set,
-  Field_t3_Slot_inst_set,
-  Field_tbit2_Slot_inst_set,
-  Field_tlo_Slot_inst_set,
-  Field_w_Slot_inst_set,
-  Field_y_Slot_inst_set,
-  Field_x_Slot_inst_set,
-  Field_t2_Slot_inst_set,
-  Field_s2_Slot_inst_set,
-  Field_r2_Slot_inst_set,
-  Field_t4_Slot_inst_set,
-  Field_s4_Slot_inst_set,
-  Field_r4_Slot_inst_set,
-  Field_t8_Slot_inst_set,
-  Field_s8_Slot_inst_set,
-  Field_r8_Slot_inst_set,
   Field_xt_wbr15_imm_Slot_inst_set,
   Field_xt_wbr18_imm_Slot_inst_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
   Implicit_Field_set,
   Implicit_Field_set,
   Implicit_Field_set,
@@ -19508,104 +12071,10 @@ Slot_inst16a_get_field_fns[] = {
   Field_imm7_Slot_inst16a_get,
   0,
   0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_t2_Slot_inst16a_get,
-  Field_s2_Slot_inst16a_get,
-  Field_r2_Slot_inst16a_get,
-  Field_t4_Slot_inst16a_get,
-  Field_s4_Slot_inst16a_get,
-  Field_r4_Slot_inst16a_get,
-  Field_t8_Slot_inst16a_get,
-  Field_s8_Slot_inst16a_get,
-  Field_r8_Slot_inst16a_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
   Implicit_Field_ar0_get,
   Implicit_Field_ar4_get,
   Implicit_Field_ar8_get,
-  Implicit_Field_ar12_get,
-  Implicit_Field_mr0_get,
-  Implicit_Field_mr1_get,
-  Implicit_Field_mr2_get,
-  Implicit_Field_mr3_get,
-  Implicit_Field_bt16_get,
-  Implicit_Field_bs16_get,
-  Implicit_Field_br16_get,
-  Implicit_Field_brall_get
+  Implicit_Field_ar12_get
 };
 
 static xtensa_set_field_fn
@@ -19647,100 +12116,6 @@ Slot_inst16a_set_field_fns[] = {
   Field_imm7_Slot_inst16a_set,
   0,
   0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_t2_Slot_inst16a_set,
-  Field_s2_Slot_inst16a_set,
-  Field_r2_Slot_inst16a_set,
-  Field_t4_Slot_inst16a_set,
-  Field_s4_Slot_inst16a_set,
-  Field_r4_Slot_inst16a_set,
-  Field_t8_Slot_inst16a_set,
-  Field_s8_Slot_inst16a_set,
-  Field_r8_Slot_inst16a_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
   Implicit_Field_set,
   Implicit_Field_set,
   Implicit_Field_set,
@@ -19786,104 +12161,10 @@ Slot_inst16b_get_field_fns[] = {
   Field_imm7_Slot_inst16b_get,
   0,
   0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_t2_Slot_inst16b_get,
-  Field_s2_Slot_inst16b_get,
-  Field_r2_Slot_inst16b_get,
-  Field_t4_Slot_inst16b_get,
-  Field_s4_Slot_inst16b_get,
-  Field_r4_Slot_inst16b_get,
-  Field_t8_Slot_inst16b_get,
-  Field_s8_Slot_inst16b_get,
-  Field_r8_Slot_inst16b_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
   Implicit_Field_ar0_get,
   Implicit_Field_ar4_get,
   Implicit_Field_ar8_get,
-  Implicit_Field_ar12_get,
-  Implicit_Field_mr0_get,
-  Implicit_Field_mr1_get,
-  Implicit_Field_mr2_get,
-  Implicit_Field_mr3_get,
-  Implicit_Field_bt16_get,
-  Implicit_Field_bs16_get,
-  Implicit_Field_br16_get,
-  Implicit_Field_brall_get
+  Implicit_Field_ar12_get
 };
 
 static xtensa_set_field_fn
@@ -19925,1212 +12206,6 @@ Slot_inst16b_set_field_fns[] = {
   Field_imm7_Slot_inst16b_set,
   0,
   0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_t2_Slot_inst16b_set,
-  Field_s2_Slot_inst16b_set,
-  Field_r2_Slot_inst16b_set,
-  Field_t4_Slot_inst16b_set,
-  Field_s4_Slot_inst16b_set,
-  Field_r4_Slot_inst16b_set,
-  Field_t8_Slot_inst16b_set,
-  Field_s8_Slot_inst16b_set,
-  Field_r8_Slot_inst16b_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set
-};
-
-static xtensa_get_field_fn
-Slot_xt_flix64_slot0_get_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot0_get,
-  0,
-  0,
-  0,
-  Field_imm8_Slot_xt_flix64_slot0_get,
-  Field_s_Slot_xt_flix64_slot0_get,
-  Field_imm12b_Slot_xt_flix64_slot0_get,
-  Field_imm16_Slot_xt_flix64_slot0_get,
-  Field_m_Slot_xt_flix64_slot0_get,
-  Field_n_Slot_xt_flix64_slot0_get,
-  0,
-  0,
-  Field_op1_Slot_xt_flix64_slot0_get,
-  Field_op2_Slot_xt_flix64_slot0_get,
-  Field_r_Slot_xt_flix64_slot0_get,
-  0,
-  Field_sae4_Slot_xt_flix64_slot0_get,
-  Field_sae_Slot_xt_flix64_slot0_get,
-  Field_sal_Slot_xt_flix64_slot0_get,
-  Field_sargt_Slot_xt_flix64_slot0_get,
-  0,
-  Field_sas_Slot_xt_flix64_slot0_get,
-  0,
-  0,
-  Field_thi3_Slot_xt_flix64_slot0_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_get,
-  Field_combined3e2c5767_fld7_Slot_xt_flix64_slot0_get,
-  Field_combined3e2c5767_fld8_Slot_xt_flix64_slot0_get,
-  Field_combined3e2c5767_fld9_Slot_xt_flix64_slot0_get,
-  Field_combined3e2c5767_fld11_Slot_xt_flix64_slot0_get,
-  Field_combined3e2c5767_fld49xt_flix64_slot0_Slot_xt_flix64_slot0_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_xt_flix64_slot0_Slot_xt_flix64_slot0_get,
-  Implicit_Field_ar0_get,
-  Implicit_Field_ar4_get,
-  Implicit_Field_ar8_get,
-  Implicit_Field_ar12_get,
-  Implicit_Field_mr0_get,
-  Implicit_Field_mr1_get,
-  Implicit_Field_mr2_get,
-  Implicit_Field_mr3_get,
-  Implicit_Field_bt16_get,
-  Implicit_Field_bs16_get,
-  Implicit_Field_br16_get,
-  Implicit_Field_brall_get
-};
-
-static xtensa_set_field_fn
-Slot_xt_flix64_slot0_set_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot0_set,
-  0,
-  0,
-  0,
-  Field_imm8_Slot_xt_flix64_slot0_set,
-  Field_s_Slot_xt_flix64_slot0_set,
-  Field_imm12b_Slot_xt_flix64_slot0_set,
-  Field_imm16_Slot_xt_flix64_slot0_set,
-  Field_m_Slot_xt_flix64_slot0_set,
-  Field_n_Slot_xt_flix64_slot0_set,
-  0,
-  0,
-  Field_op1_Slot_xt_flix64_slot0_set,
-  Field_op2_Slot_xt_flix64_slot0_set,
-  Field_r_Slot_xt_flix64_slot0_set,
-  0,
-  Field_sae4_Slot_xt_flix64_slot0_set,
-  Field_sae_Slot_xt_flix64_slot0_set,
-  Field_sal_Slot_xt_flix64_slot0_set,
-  Field_sargt_Slot_xt_flix64_slot0_set,
-  0,
-  Field_sas_Slot_xt_flix64_slot0_set,
-  0,
-  0,
-  Field_thi3_Slot_xt_flix64_slot0_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_set,
-  Field_combined3e2c5767_fld7_Slot_xt_flix64_slot0_set,
-  Field_combined3e2c5767_fld8_Slot_xt_flix64_slot0_set,
-  Field_combined3e2c5767_fld9_Slot_xt_flix64_slot0_set,
-  Field_combined3e2c5767_fld11_Slot_xt_flix64_slot0_set,
-  Field_combined3e2c5767_fld49xt_flix64_slot0_Slot_xt_flix64_slot0_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_xt_flix64_slot0_Slot_xt_flix64_slot0_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set
-};
-
-static xtensa_get_field_fn
-Slot_xt_flix64_slot1_get_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot1_get,
-  0,
-  0,
-  0,
-  Field_imm8_Slot_xt_flix64_slot1_get,
-  Field_s_Slot_xt_flix64_slot1_get,
-  Field_imm12b_Slot_xt_flix64_slot1_get,
-  0,
-  0,
-  0,
-  Field_offset_Slot_xt_flix64_slot1_get,
-  0,
-  0,
-  Field_op2_Slot_xt_flix64_slot1_get,
-  Field_r_Slot_xt_flix64_slot1_get,
-  0,
-  0,
-  Field_sae_Slot_xt_flix64_slot1_get,
-  Field_sal_Slot_xt_flix64_slot1_get,
-  Field_sargt_Slot_xt_flix64_slot1_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_s4_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld16_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld19xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld20xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld21xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld22xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld23xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld25xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld26xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld28xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld30xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld32xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld33xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld35xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld51xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld52xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld54xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld57xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld58xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld60xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  Field_combined3e2c5767_fld62xt_flix64_slot1_Slot_xt_flix64_slot1_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Implicit_Field_ar0_get,
-  Implicit_Field_ar4_get,
-  Implicit_Field_ar8_get,
-  Implicit_Field_ar12_get,
-  Implicit_Field_mr0_get,
-  Implicit_Field_mr1_get,
-  Implicit_Field_mr2_get,
-  Implicit_Field_mr3_get,
-  Implicit_Field_bt16_get,
-  Implicit_Field_bs16_get,
-  Implicit_Field_br16_get,
-  Implicit_Field_brall_get
-};
-
-static xtensa_set_field_fn
-Slot_xt_flix64_slot1_set_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot1_set,
-  0,
-  0,
-  0,
-  Field_imm8_Slot_xt_flix64_slot1_set,
-  Field_s_Slot_xt_flix64_slot1_set,
-  Field_imm12b_Slot_xt_flix64_slot1_set,
-  0,
-  0,
-  0,
-  Field_offset_Slot_xt_flix64_slot1_set,
-  0,
-  0,
-  Field_op2_Slot_xt_flix64_slot1_set,
-  Field_r_Slot_xt_flix64_slot1_set,
-  0,
-  0,
-  Field_sae_Slot_xt_flix64_slot1_set,
-  Field_sal_Slot_xt_flix64_slot1_set,
-  Field_sargt_Slot_xt_flix64_slot1_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_s4_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld16_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld19xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld20xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld21xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld22xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld23xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld25xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld26xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld28xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld30xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld32xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld33xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld35xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld51xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld52xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld54xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld57xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld58xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld60xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  Field_combined3e2c5767_fld62xt_flix64_slot1_Slot_xt_flix64_slot1_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set
-};
-
-static xtensa_get_field_fn
-Slot_xt_flix64_slot2_get_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot2_get,
-  0,
-  0,
-  0,
-  0,
-  Field_s_Slot_xt_flix64_slot2_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_r_Slot_xt_flix64_slot2_get,
-  0,
-  0,
-  0,
-  0,
-  Field_sargt_Slot_xt_flix64_slot2_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_imm7_Slot_xt_flix64_slot2_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_s5_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld36xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld37xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld39xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld41xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld42xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld44xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld45xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld47xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld63xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld65xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld66xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  Field_combined3e2c5767_fld68xt_flix64_slot2_Slot_xt_flix64_slot2_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Implicit_Field_ar0_get,
-  Implicit_Field_ar4_get,
-  Implicit_Field_ar8_get,
-  Implicit_Field_ar12_get,
-  Implicit_Field_mr0_get,
-  Implicit_Field_mr1_get,
-  Implicit_Field_mr2_get,
-  Implicit_Field_mr3_get,
-  Implicit_Field_bt16_get,
-  Implicit_Field_bs16_get,
-  Implicit_Field_br16_get,
-  Implicit_Field_brall_get
-};
-
-static xtensa_set_field_fn
-Slot_xt_flix64_slot2_set_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot2_set,
-  0,
-  0,
-  0,
-  0,
-  Field_s_Slot_xt_flix64_slot2_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_r_Slot_xt_flix64_slot2_set,
-  0,
-  0,
-  0,
-  0,
-  Field_sargt_Slot_xt_flix64_slot2_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_imm7_Slot_xt_flix64_slot2_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_s5_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld36xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld37xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld39xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld41xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld42xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld44xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld45xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld47xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld63xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld65xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld66xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  Field_combined3e2c5767_fld68xt_flix64_slot2_Slot_xt_flix64_slot2_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set
-};
-
-static xtensa_get_field_fn
-Slot_xt_flix64_slot3_get_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot3_get,
-  0,
-  Field_bbi_Slot_xt_flix64_slot3_get,
-  0,
-  0,
-  Field_s_Slot_xt_flix64_slot3_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_r_Slot_xt_flix64_slot3_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_xt_wbr18_imm_Slot_xt_flix64_slot3_get,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_s6_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld70xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld72xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld73xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld74xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld75xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld76xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld77xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld78xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld79xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld80xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld81xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld82xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld83xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld84xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld85xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld86xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld87xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld88xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld89xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld90xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld91xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld92xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  Field_combined3e2c5767_fld93xt_flix64_slot3_Slot_xt_flix64_slot3_get,
-  0,
-  Implicit_Field_ar0_get,
-  Implicit_Field_ar4_get,
-  Implicit_Field_ar8_get,
-  Implicit_Field_ar12_get,
-  Implicit_Field_mr0_get,
-  Implicit_Field_mr1_get,
-  Implicit_Field_mr2_get,
-  Implicit_Field_mr3_get,
-  Implicit_Field_bt16_get,
-  Implicit_Field_bs16_get,
-  Implicit_Field_br16_get,
-  Implicit_Field_brall_get
-};
-
-static xtensa_set_field_fn
-Slot_xt_flix64_slot3_set_field_fns[] = {
-  Field_t_Slot_xt_flix64_slot3_set,
-  0,
-  Field_bbi_Slot_xt_flix64_slot3_set,
-  0,
-  0,
-  Field_s_Slot_xt_flix64_slot3_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_r_Slot_xt_flix64_slot3_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_xt_wbr18_imm_Slot_xt_flix64_slot3_set,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Field_op0_s6_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld70xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld72xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld73xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld74xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld75xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld76xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld77xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld78xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld79xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld80xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld81xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld82xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld83xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld84xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld85xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld86xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld87xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld88xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld89xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld90xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld91xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld92xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  Field_combined3e2c5767_fld93xt_flix64_slot3_Slot_xt_flix64_slot3_set,
-  0,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
-  Implicit_Field_set,
   Implicit_Field_set,
   Implicit_Field_set,
   Implicit_Field_set,
@@ -21149,27 +12224,7 @@ static xtensa_slot_internal slots[] = {
   { "Inst16b", "x16b", 0,
     Slot_x16b_Format_inst16b_0_get, Slot_x16b_Format_inst16b_0_set,
     Slot_inst16b_get_field_fns, Slot_inst16b_set_field_fns,
-    Slot_inst16b_decode, "nop.n" },
-  { "xt_flix64_slot0", "xt_format1", 0,
-    Slot_xt_format1_Format_xt_flix64_slot0_4_get, Slot_xt_format1_Format_xt_flix64_slot0_4_set,
-    Slot_xt_flix64_slot0_get_field_fns, Slot_xt_flix64_slot0_set_field_fns,
-    Slot_xt_flix64_slot0_decode, "nop" },
-  { "xt_flix64_slot0", "xt_format2", 0,
-    Slot_xt_format2_Format_xt_flix64_slot0_4_get, Slot_xt_format2_Format_xt_flix64_slot0_4_set,
-    Slot_xt_flix64_slot0_get_field_fns, Slot_xt_flix64_slot0_set_field_fns,
-    Slot_xt_flix64_slot0_decode, "nop" },
-  { "xt_flix64_slot1", "xt_format1", 1,
-    Slot_xt_format1_Format_xt_flix64_slot1_28_get, Slot_xt_format1_Format_xt_flix64_slot1_28_set,
-    Slot_xt_flix64_slot1_get_field_fns, Slot_xt_flix64_slot1_set_field_fns,
-    Slot_xt_flix64_slot1_decode, "nop" },
-  { "xt_flix64_slot2", "xt_format1", 2,
-    Slot_xt_format1_Format_xt_flix64_slot2_48_get, Slot_xt_format1_Format_xt_flix64_slot2_48_set,
-    Slot_xt_flix64_slot2_get_field_fns, Slot_xt_flix64_slot2_set_field_fns,
-    Slot_xt_flix64_slot2_decode, "nop" },
-  { "xt_flix64_slot3", "xt_format2", 1,
-    Slot_xt_format2_Format_xt_flix64_slot3_28_get, Slot_xt_format2_Format_xt_flix64_slot3_28_set,
-    Slot_xt_flix64_slot3_get_field_fns, Slot_xt_flix64_slot3_set_field_fns,
-    Slot_xt_flix64_slot3_decode, "nop" }
+    Slot_inst16b_decode, "nop.n" }
 };
 
 
@@ -21179,35 +12234,18 @@ static void
 Format_x24_encode (xtensa_insnbuf insn)
 {
   insn[0] = 0;
-  insn[1] = 0;
 }
 
 static void
 Format_x16a_encode (xtensa_insnbuf insn)
 {
-  insn[0] = 0x8;
-  insn[1] = 0;
+  insn[0] = 0x800000;
 }
 
 static void
 Format_x16b_encode (xtensa_insnbuf insn)
 {
-  insn[0] = 0xc;
-  insn[1] = 0;
-}
-
-static void
-Format_xt_format1_encode (xtensa_insnbuf insn)
-{
-  insn[0] = 0xe;
-  insn[1] = 0;
-}
-
-static void
-Format_xt_format2_encode (xtensa_insnbuf insn)
-{
-  insn[0] = 0xf;
-  insn[1] = 0;
+  insn[0] = 0xc00000;
 }
 
 static int Format_x24_slots[] = { 0 };
@@ -21216,32 +12254,22 @@ static int Format_x16a_slots[] = { 1 };
 
 static int Format_x16b_slots[] = { 2 };
 
-static int Format_xt_format1_slots[] = { 3, 5, 6 };
-
-static int Format_xt_format2_slots[] = { 4, 7 };
-
 static xtensa_format_internal formats[] = {
   { "x24", 3, Format_x24_encode, 1, Format_x24_slots },
   { "x16a", 2, Format_x16a_encode, 1, Format_x16a_slots },
-  { "x16b", 2, Format_x16b_encode, 1, Format_x16b_slots },
-  { "xt_format1", 8, Format_xt_format1_encode, 3, Format_xt_format1_slots },
-  { "xt_format2", 8, Format_xt_format2_encode, 2, Format_xt_format2_slots }
+  { "x16b", 2, Format_x16b_encode, 1, Format_x16b_slots }
 };
 
 
 static int
 format_decoder (const xtensa_insnbuf insn)
 {
-  if ((insn[0] & 0x8) == 0 && (insn[1] & 0) == 0)
+  if ((insn[0] & 0x800000) == 0)
     return 0; /* x24 */
-  if ((insn[0] & 0xc) == 0x8 && (insn[1] & 0) == 0)
+  if ((insn[0] & 0xc00000) == 0x800000)
     return 1; /* x16a */
-  if ((insn[0] & 0xe) == 0xc && (insn[1] & 0) == 0)
+  if ((insn[0] & 0xe00000) == 0xc00000)
     return 2; /* x16b */
-  if ((insn[0] & 0xf) == 0xe && (insn[1] & 0) == 0)
-    return 3; /* xt_format1 */
-  if ((insn[0] & 0xf) == 0xf && (insn[1] & 0x80000000) == 0)
-    return 4; /* xt_format2 */
   return -1;
 }
 
@@ -21260,14 +12288,14 @@ static int length_table[16] = {
   2,
   2,
   2,
-  8,
-  8
+  -1,
+  -1
 };
 
 static int
 length_decoder (const unsigned char *insn)
 {
-  int op0 = insn[0] & 0xf;
+  int op0 = (insn[0] >> 4) & 0xf;
   return length_table[op0];
 }
 
@@ -21275,15 +12303,15 @@ length_decoder (const unsigned char *insn)
 /* Top-level ISA structure.  */
 
 xtensa_isa_internal xtensa_modules = {
-  0 /* little-endian */,
-  8 /* insn_size */, 0,
-  5, formats, format_decoder, length_decoder,
-  8, slots,
-  135 /* num_fields */,
-  188, operands,
-  355, iclasses,
-  530, opcodes, 0,
-  8, regfiles,
+  1 /* big-endian */,
+  3 /* insn_size */, 0,
+  3, formats, format_decoder, length_decoder,
+  3, slots,
+  41 /* num_fields */,
+  75, operands,
+  286, iclasses,
+  353, opcodes, 0,
+  1, regfiles,
   NUM_STATES, states, 0,
   NUM_SYSREGS, sysregs, 0,
   { MAX_SPECIAL_REG, MAX_USER_REG }, { 0, 0 },

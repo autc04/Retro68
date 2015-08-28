@@ -35,8 +35,7 @@ static const bfd_arch_info_type bfd_hppa10_arch =
   3,
   TRUE,				/* Unless we use 1.1 specific features */
   bfd_default_compatible,
-  bfd_default_scan,
-  bfd_arch_default_fill,
+  bfd_default_scan ,
   0,
 };
 
@@ -53,8 +52,7 @@ static const bfd_arch_info_type bfd_hppa20_arch =
   3,
   FALSE,			/* Unless we use 1.1 specific features */
   bfd_default_compatible,
-  bfd_default_scan,
-  bfd_arch_default_fill,
+  bfd_default_scan ,
   &bfd_hppa10_arch,
 };
 
@@ -71,8 +69,7 @@ static const bfd_arch_info_type bfd_hppa20w_arch =
   3,
   FALSE,			/* Unless we use 1.1 specific features */
   bfd_default_compatible,
-  bfd_default_scan,
-  bfd_arch_default_fill,
+  bfd_default_scan ,
   &bfd_hppa20_arch,
 };
 
@@ -88,7 +85,6 @@ const bfd_arch_info_type bfd_hppa_arch =
   3,
   FALSE,			/* 1.1 specific features used */
   bfd_default_compatible,
-  bfd_default_scan,
-  bfd_arch_default_fill,
+  bfd_default_scan ,
   &bfd_hppa20w_arch,
 };

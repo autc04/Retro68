@@ -1,11 +1,11 @@
 /* H8300/h8500 ELF support for BFD.
-   Copyright 2001-2013 Free Software Foundation, Inc.
+   Copyright 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -23,7 +23,7 @@
 #include "elf/reloc-macros.h"
 
 /* Relocations.  */
-/* Relocations 59..64 are GNU extensions.  */
+/* Relocations 59..63 are GNU extensions.  */
 START_RELOC_NUMBERS (elf_h8_reloc_type)
   RELOC_NUMBER (R_H8_NONE, 0)
   RELOC_NUMBER (R_H8_DIR32, 1)
@@ -65,7 +65,6 @@ START_RELOC_NUMBERS (elf_h8_reloc_type)
   RELOC_NUMBER (R_H8_DIR24A8, 61)
   RELOC_NUMBER (R_H8_DIR24R8, 62)
   RELOC_NUMBER (R_H8_DIR32A16, 63)
-  RELOC_NUMBER (R_H8_DISP32A16, 64)
   RELOC_NUMBER (R_H8_ABS32, 65)
   RELOC_NUMBER (R_H8_ABS32A16, 127)
   RELOC_NUMBER (R_H8_SYM, 128)

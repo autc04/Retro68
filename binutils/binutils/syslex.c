@@ -46,7 +46,6 @@ typedef int16_t flex_int16_t;
 typedef uint16_t flex_uint16_t;
 typedef int32_t flex_int32_t;
 typedef uint32_t flex_uint32_t;
-typedef uint64_t flex_uint64_t;
 #else
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
@@ -353,7 +352,7 @@ static void yy_fatal_error (yyconst char msg[]  );
  */
 #define YY_DO_BEFORE_ACTION \
 	(yytext_ptr) = yy_bp; \
-	yyleng = (yy_size_t) (yy_cp - yy_bp); \
+	yyleng = (size_t) (yy_cp - yy_bp); \
 	(yy_hold_char) = *yy_cp; \
 	*yy_cp = '\0'; \
 	(yy_c_buf_p) = yy_cp;
@@ -498,9 +497,8 @@ int yy_flex_debug = 0;
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
 #line 1 "syslex.l"
-#define YY_NO_INPUT 1
-#line 4 "syslex.l"
-/* Copyright 2001, 2003, 2005, 2007, 2011, 2012 Free Software Foundation, Inc.
+#line 2 "syslex.l"
+/* Copyright 2001, 2003, 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -519,8 +517,7 @@ char *yytext;
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-/* Note: config.h is #included via syslex_wrap.c.  */
-
+#include "config.h"
 #ifdef HAVE_STRING_H
 #include <string.h>
 #else
@@ -528,19 +525,16 @@ char *yytext;
 #include <strings.h>
 #endif
 #endif
-
 #include "sysinfo.h"
 
-#ifndef YY_NO_UNPUT
 #define YY_NO_UNPUT
-#endif
 
 #ifndef yywrap
 static int yywrap (void) { return 1; }
 #endif
 
 extern int yylex (void);
-#line 544 "syslex.c"
+#line 538 "syslex.c"
 
 #define INITIAL 0
 
@@ -599,6 +593,8 @@ extern int yywrap (void );
 #endif
 #endif
 
+    static void yyunput (int c,char *buf_ptr  );
+    
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char *,yyconst char *,int );
 #endif
@@ -720,9 +716,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 45 "syslex.l"
+#line 39 "syslex.l"
 
-#line 726 "syslex.c"
+#line 722 "syslex.c"
 
 	if ( !(yy_init) )
 		{
@@ -807,49 +803,49 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 46 "syslex.l"
+#line 40 "syslex.l"
 { return '(';}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 47 "syslex.l"
+#line 41 "syslex.l"
 { return ')';}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 48 "syslex.l"
+#line 42 "syslex.l"
 { return '[';}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 49 "syslex.l"
+#line 43 "syslex.l"
 { return ']';}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 50 "syslex.l"
+#line 44 "syslex.l"
 { ; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 51 "syslex.l"
+#line 45 "syslex.l"
 { ; } 
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 52 "syslex.l"
+#line 46 "syslex.l"
 { ; }
 	YY_BREAK
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-#line 53 "syslex.l"
+#line 47 "syslex.l"
 { ; }
 	YY_BREAK
 case 9:
 /* rule 9 can match eol */
 YY_RULE_SETUP
-#line 54 "syslex.l"
+#line 48 "syslex.l"
 {
 	yylval.s = malloc (yyleng - 1);
 	memcpy (yylval.s, yytext + 1, yyleng - 2);
@@ -859,7 +855,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 61 "syslex.l"
+#line 55 "syslex.l"
 {
         yylval.i = strtol(yytext,0,16);
 	return  NUMBER;
@@ -867,7 +863,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 66 "syslex.l"
+#line 60 "syslex.l"
 {
         yylval.i = atoi(yytext);
 	return  NUMBER;
@@ -875,75 +871,75 @@ YY_RULE_SETUP
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 72 "syslex.l"
+#line 66 "syslex.l"
 { yylval.i =1 ;return UNIT;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 73 "syslex.l"
+#line 67 "syslex.l"
 { yylval.i = 1; return UNIT;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 74 "syslex.l"
+#line 68 "syslex.l"
 { yylval.i= 8; return UNIT;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 75 "syslex.l"
+#line 69 "syslex.l"
 { yylval.i = 8; return UNIT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 77 "syslex.l"
+#line 71 "syslex.l"
 { yylval.s = "INT"; return TYPE;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 78 "syslex.l"
+#line 72 "syslex.l"
 { yylval.s = "BARRAY"; return TYPE;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 79 "syslex.l"
+#line 73 "syslex.l"
 { yylval.s = "CHARS"; return TYPE;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 80 "syslex.l"
+#line 74 "syslex.l"
 { yylval.i = 0; return NUMBER;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 81 "syslex.l"
+#line 75 "syslex.l"
 { yylval.i = -4; return NUMBER;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 82 "syslex.l"
+#line 76 "syslex.l"
 { yylval.i = -2; return NUMBER; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 83 "syslex.l"
+#line 77 "syslex.l"
 { yylval.i = -1; return NUMBER; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 84 "syslex.l"
+#line 78 "syslex.l"
 { return COND;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 85 "syslex.l"
+#line 79 "syslex.l"
 { return REPEAT;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 86 "syslex.l"
+#line 80 "syslex.l"
 ECHO;
 	YY_BREAK
-#line 947 "syslex.c"
+#line 943 "syslex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1270,6 +1266,43 @@ static int yy_get_next_buffer (void)
 	yy_is_jam = (yy_current_state == 80);
 
 	return yy_is_jam ? 0 : yy_current_state;
+}
+
+    static void yyunput (int c, register char * yy_bp )
+{
+	register char *yy_cp;
+    
+    yy_cp = (yy_c_buf_p);
+
+	/* undo effects of setting up yytext */
+	*yy_cp = (yy_hold_char);
+
+	if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
+		{ /* need to shift things up to make room */
+		/* +2 for EOB chars. */
+		register yy_size_t number_to_move = (yy_n_chars) + 2;
+		register char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
+					YY_CURRENT_BUFFER_LVALUE->yy_buf_size + 2];
+		register char *source =
+				&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move];
+
+		while ( source > YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
+			*--dest = *--source;
+
+		yy_cp += (int) (dest - source);
+		yy_bp += (int) (dest - source);
+		YY_CURRENT_BUFFER_LVALUE->yy_n_chars =
+			(yy_n_chars) = YY_CURRENT_BUFFER_LVALUE->yy_buf_size;
+
+		if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
+			YY_FATAL_ERROR( "flex scanner push-back overflow" );
+		}
+
+	*--yy_cp = (char) c;
+
+	(yytext_ptr) = yy_bp;
+	(yy_hold_char) = *yy_cp;
+	(yy_c_buf_p) = yy_cp;
 }
 
 #ifndef YY_NO_INPUT
@@ -1903,4 +1936,4 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 86 "syslex.l"
+#line 80 "syslex.l"

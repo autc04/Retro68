@@ -3,7 +3,7 @@
 #source: group0.s
 
 #...
-[ 	]*\[.*\][ 	]+\.group[ 	]+GROUP.*
+[ 	]*\[.*\][ 	]+\.foo_group[ 	]+GROUP.*
 #...
 [ 	]*\[.*\][ 	]+\.foo[ 	]+PROGBITS.*[ 	]+AXG[ 	]+.*
 [ 	]*\[.*\][ 	]+\.bar[ 	]+PROGBITS.*[ 	]+AG[ 	]+.*

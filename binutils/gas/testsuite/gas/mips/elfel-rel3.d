@@ -3,7 +3,7 @@
 #source: elf-rel3.s
 #as: -32
 
-.*:     file format .*
+.*:     file format elf.*mips
 
 RELOCATION RECORDS FOR \[\.data\]:
 OFFSET [ ]+ TYPE              VALUE 

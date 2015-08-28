@@ -1,6 +1,6 @@
 /* BFD back-end for ns32k a.out-ish binaries.
    Copyright 1990, 1991, 1992, 1994, 1995, 1996, 1998, 1999, 2000, 2001,
-   2002, 2003, 2005, 2006, 2007, 2010, 2012 Free Software Foundation, Inc.
+   2002, 2003, 2005, 2006, 2007 Free Software Foundation, Inc.
    Contributed by Ian Dall (idall@eleceng.adelaide.edu.au).
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -20,7 +20,6 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include "bfd.h"
 #include "aout/aout64.h"
 #include "ns32k.h"
@@ -215,7 +214,7 @@ MY (bfd_reloc_type_lookup) (bfd *abfd, bfd_reloc_code_real_type code)
 
   BFD_ASSERT (ext == 0);
   if (code == BFD_RELOC_CTOR)
-    switch (bfd_arch_bits_per_address (abfd))
+    switch (bfd_get_arch_info (abfd)->bits_per_address)
       {
       case 32:
 	code = BFD_RELOC_32;
@@ -304,10 +303,10 @@ MY_swap_std_reloc_out (bfd *abfd,
      from the abs section, or as a symbol which has an abs value.
      Check for that here.  */
   if (bfd_is_com_section (output_section)
-      || bfd_is_abs_section (output_section)
-      || bfd_is_und_section (output_section))
+      || output_section == &bfd_abs_section
+      || output_section == &bfd_und_section)
     {
-      if (bfd_abs_section_ptr->symbol == sym)
+      if (bfd_abs_section.symbol == sym)
 	{
 	  /* Whoops, looked like an abs symbol, but is really an offset
 	     from the abs section.  */

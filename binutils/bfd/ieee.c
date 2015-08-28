@@ -1,6 +1,6 @@
 /* BFD back-end for ieee-695 objects.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2011
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
    Free Software Foundation, Inc.
 
    Written by Steve Chamberlain of Cygnus Support.
@@ -228,7 +228,7 @@ ieee_write_expression (bfd *abfd,
 		       bfd_vma value,
 		       asymbol *symbol,
 		       bfd_boolean pcrel,
-		       unsigned int sindex)
+		       unsigned int index)
 {
   unsigned int term_count = 0;
 
@@ -297,7 +297,7 @@ ieee_write_expression (bfd *abfd,
       /* Subtract the pc from here by asking for PC of this section.  */
       if (! ieee_write_byte (abfd, ieee_variable_P_enum)
 	  || ! ieee_write_byte (abfd,
-				(bfd_byte) (sindex + IEEE_SECTION_NUMBER_BASE))
+				(bfd_byte) (index + IEEE_SECTION_NUMBER_BASE))
 	  || ! ieee_write_byte (abfd, ieee_function_minus_enum))
 	return FALSE;
     }
@@ -533,7 +533,6 @@ parse_expression (ieee_data_type *ieee,
 	    next_byte (&(ieee->h));
 	    *pcrel = TRUE;
 	    section_n = must_parse_int (&(ieee->h));
-	    (void) section_n;
 	    PUSH (NOSYMBOL, bfd_abs_section_ptr, 0);
 	    break;
 	  }
@@ -638,8 +637,6 @@ parse_expression (ieee_data_type *ieee,
       ieee_symbol_index_type sy1;
 
       POP (sy1, section1, *extra);
-      (void) section1;
-      (void) sy1;
     }
 
   POP (*symbol, dummy, *value);
@@ -779,7 +776,6 @@ ieee_slurp_external_symbols (bfd *abfd)
 	      case ieee_attribute_record_enum:
 		symbol_name_index = must_parse_int (&(ieee->h));
 		symbol_type_index = must_parse_int (&(ieee->h));
-		(void) symbol_type_index;
 		symbol_attribute_def = must_parse_int (&(ieee->h));
 		switch (symbol_attribute_def)
 		  {
@@ -854,7 +850,6 @@ ieee_slurp_external_symbols (bfd *abfd)
 	    next_byte (&(ieee->h));
 
 	    symbol_name_index = must_parse_int (&(ieee->h));
-	    (void) symbol_name_index;
 	    parse_expression (ieee,
 			      &symbol->symbol.value,
 			      &symbol_ignore,
@@ -1050,9 +1045,9 @@ ieee_canonicalize_symtab (bfd *abfd, asymbol **location)
 }
 
 static asection *
-get_section_entry (bfd *abfd, ieee_data_type *ieee, unsigned int sindex)
+get_section_entry (bfd *abfd, ieee_data_type *ieee, unsigned int index)
 {
-  if (sindex >= ieee->section_table_size)
+  if (index >= ieee->section_table_size)
     {
       unsigned int c, i;
       asection **n;
@@ -1061,7 +1056,7 @@ get_section_entry (bfd *abfd, ieee_data_type *ieee, unsigned int sindex)
       c = ieee->section_table_size;
       if (c == 0)
 	c = 20;
-      while (c <= sindex)
+      while (c <= index)
 	c *= 2;
 
       amt = c;
@@ -1077,20 +1072,20 @@ get_section_entry (bfd *abfd, ieee_data_type *ieee, unsigned int sindex)
       ieee->section_table_size = c;
     }
 
-  if (ieee->section_table[sindex] == (asection *) NULL)
+  if (ieee->section_table[index] == (asection *) NULL)
     {
       char *tmp = bfd_alloc (abfd, (bfd_size_type) 11);
       asection *section;
 
       if (!tmp)
 	return NULL;
-      sprintf (tmp, " fsec%4d", sindex);
+      sprintf (tmp, " fsec%4d", index);
       section = bfd_make_section (abfd, tmp);
-      ieee->section_table[sindex] = section;
-      section->target_index = sindex;
-      ieee->section_table[sindex] = section;
+      ieee->section_table[index] = section;
+      section->target_index = index;
+      ieee->section_table[index] = section;
     }
-  return ieee->section_table[sindex];
+  return ieee->section_table[index];
 }
 
 static void
@@ -1662,7 +1657,7 @@ ieee_slurp_section_data (bfd *abfd)
   unsigned int section_number;
   ieee_per_section_type *current_map = NULL;
   asection *s;
-
+  
   /* Seek to the start of the data area.  */
   if (ieee->read_data)
     return TRUE;
@@ -2674,7 +2669,6 @@ drop_int (struct output_buffer_struct *buf)
 	  break;
 	}
     }
-  (void) ch;
   OUT (0x84);
   buf->ptrp = output_ptr;
   buf->buffer = output_buffer;
@@ -3749,7 +3743,6 @@ ieee_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
     (bfd *, unsigned int, struct orl *, unsigned int, int)) \
    bfd_true)
 #define ieee_read_ar_hdr bfd_nullvoidptr
-#define ieee_write_ar_hdr ((bfd_boolean (*) (bfd *, bfd *)) bfd_false)
 #define ieee_update_armap_timestamp bfd_true
 #define ieee_get_elt_at_index _bfd_generic_get_elt_at_index
 
@@ -3772,7 +3765,6 @@ ieee_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
   bfd_generic_get_relocated_section_contents
 #define ieee_bfd_relax_section bfd_generic_relax_section
 #define ieee_bfd_gc_sections bfd_generic_gc_sections
-#define ieee_bfd_lookup_section_flags bfd_generic_lookup_section_flags
 #define ieee_bfd_merge_sections bfd_generic_merge_sections
 #define ieee_bfd_is_group_section bfd_generic_is_group_section
 #define ieee_bfd_discard_group bfd_generic_discard_group
@@ -3783,8 +3775,6 @@ ieee_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define ieee_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #define ieee_bfd_link_add_symbols _bfd_generic_link_add_symbols
 #define ieee_bfd_link_just_syms _bfd_generic_link_just_syms
-#define ieee_bfd_copy_link_hash_symbol_type \
-  _bfd_generic_copy_link_hash_symbol_type
 #define ieee_bfd_final_link _bfd_generic_final_link
 #define ieee_bfd_link_split_section  _bfd_generic_link_split_section
 
@@ -3802,7 +3792,6 @@ const bfd_target ieee_vec =
   '_',				/* Leading underscore.  */
   ' ',				/* AR_pad_char.  */
   16,				/* AR_max_namelen.  */
-  0,				/* match priority.  */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */

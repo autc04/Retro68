@@ -1,6 +1,5 @@
 /* tc-crx.c -- Assembler code for the CRX CPU core.
-   Copyright 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright 2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
 
    Contributed by Tomer Levi, NSC, Israel.
    Originally written for GAS 2.12 by Tomer Levi, NSC, Israel.
@@ -24,7 +23,6 @@
    MA 02110-1301, USA.  */
 
 #include "as.h"
-#include "bfd_stdint.h"
 #include "safe-ctype.h"
 #include "dwarf2dbg.h"
 #include "opcode/crx.h"
@@ -149,9 +147,9 @@ static int     get_opbits	        (operand_type);
 static int     get_opflags	        (operand_type);
 static int     get_number_of_operands   (void);
 static void    parse_operand	        (char *, ins *);
-static int     gettrap		        (const char *);
-static void    handle_LoadStor	        (const char *);
-static int     get_cinv_parameters      (const char *);
+static int     gettrap		        (char *);
+static void    handle_LoadStor	        (char *);
+static int     get_cinv_parameters      (char *);
 static long    getconstant		(long, int);
 static op_err  check_range		(long *, int, unsigned int, int);
 static int     getreg_image	        (reg);
@@ -207,12 +205,12 @@ get_opflags (operand_type op)
 static reg
 get_register (char *reg_name)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
 
-  rreg = (const reg_entry *) hash_find (reg_hash, reg_name);
+  reg = (const reg_entry *) hash_find (reg_hash, reg_name);
 
-  if (rreg != NULL)
-    return rreg->value.reg_val;
+  if (reg != NULL)
+    return reg->value.reg_val;
   else
     return nullregister;
 }
@@ -222,12 +220,12 @@ get_register (char *reg_name)
 static copreg
 get_copregister (char *copreg_name)
 {
-  const reg_entry *coreg;
+  const reg_entry *copreg;
 
-  coreg = (const reg_entry *) hash_find (copreg_hash, copreg_name);
+  copreg = (const reg_entry *) hash_find (copreg_hash, copreg_name);
 
-  if (coreg != NULL)
-    return coreg->value.copreg_val;
+  if (copreg != NULL)
+    return copreg->value.copreg_val;
   else
     return nullcopregister;
 }
@@ -988,7 +986,7 @@ parse_operands (ins * crx_ins, char *operands)
    This routine is used by assembling the 'excp' instruction.  */
 
 static int
-gettrap (const char *s)
+gettrap (char *s)
 {
   const trap_entry *trap;
 
@@ -1008,7 +1006,7 @@ gettrap (const char *s)
    Otherwise, the insn will be mistakenly identified as of type LD_STOR_INS.  */
 
 static void
-handle_LoadStor (const char *operands)
+handle_LoadStor (char *operands)
 {
   /* Post-Increment instructions precede Store-Immediate instructions in 
      CRX instruction table, hence they are handled before. 
@@ -1073,9 +1071,9 @@ parse_insn (ins *insn, char *operands)
 /* Cinv instruction requires special handling.  */
 
 static int
-get_cinv_parameters (const char *operand)
+get_cinv_parameters (char * operand)
 {
-  const char *p = operand;
+  char *p = operand;
   int d_used = 0, i_used = 0, u_used = 0, b_used = 0;
 
   while (*++p != ']')
@@ -1108,7 +1106,7 @@ get_cinv_parameters (const char *operand)
 static int
 getreg_image (reg r)
 {
-  const reg_entry *rreg;
+  const reg_entry *reg;
   char *reg_name;
   int is_procreg = 0; /* Nonzero means argument should be processor reg.  */
 
@@ -1118,10 +1116,10 @@ getreg_image (reg r)
 
   /* Check whether the register is in registers table.  */
   if (r < MAX_REG)
-    rreg = &crx_regtab[r];
+    reg = &crx_regtab[r];
   /* Check whether the register is in coprocessor registers table.  */
-  else if (r < (int) MAX_COPREG)
-    rreg = &crx_copregtab[r-MAX_REG];
+  else if (r < MAX_COPREG)
+    reg = &crx_copregtab[r-MAX_REG];
   /* Register not found.  */
   else
     {
@@ -1129,7 +1127,7 @@ getreg_image (reg r)
       return 0;
     }
 
-  reg_name = rreg->name;
+  reg_name = reg->name;
 
 /* Issue a error message when register is illegal.  */
 #define IMAGE_ERR \
@@ -1137,29 +1135,29 @@ getreg_image (reg r)
 	    reg_name, ins_parse);			     \
   break;
 
-  switch (rreg->type)
+  switch (reg->type)
   {
     case CRX_U_REGTYPE:
       if (is_procreg || (instruction->flags & USER_REG))
-	return rreg->image;
+	return reg->image;
       else
 	IMAGE_ERR;
 
     case CRX_CFG_REGTYPE:
       if (is_procreg)
-	return rreg->image;
+	return reg->image;
       else
 	IMAGE_ERR;
 
     case CRX_R_REGTYPE:
       if (! is_procreg)
-	return rreg->image;
+	return reg->image;
       else
 	IMAGE_ERR;
 
     case CRX_C_REGTYPE:
     case CRX_CS_REGTYPE:
-      return rreg->image;
+      return reg->image;
       break;
 
     default:
@@ -1174,7 +1172,9 @@ getreg_image (reg r)
 static long
 getconstant (long x, int nbits)
 {
-  return x & ((((1U << (nbits - 1)) - 1) << 1) | 1);
+  /* The following expression avoids overflow if
+     'nbits' is the number of bits in 'bfd_vma'.  */
+  return (x & ((((1 << (nbits - 1)) - 1) << 1) | 1));
 }
 
 /* Print a constant value to 'output_opcode':
@@ -1325,11 +1325,17 @@ get_number_of_operands (void)
 static op_err
 check_range (long *num, int bits, int unsigned flags, int update)
 {
-  uint32_t max;
+  long min, max;
   int retval = OP_LEGAL;
   int bin;
-  uint32_t upper_64kb = 0xffff0000;
-  uint32_t value = *num;
+  long upper_64kb = 0xFFFF0000;
+  long value = *num;
+
+  /* For hosts witah longs bigger than 32-bits make sure that the top 
+     bits of a 32-bit negative value read in by the parser are set,
+     so that the correct comparisons are made.  */
+  if (value & 0x80000000)
+    value |= (-1L << 31);
 
   /* Verify operand value is even.  */
   if (flags & OP_EVEN)
@@ -1353,12 +1359,7 @@ check_range (long *num, int bits, int unsigned flags, int update)
 
   if (flags & OP_SHIFT)
     {
-      /* All OP_SHIFT args are also OP_SIGNED, so we want to keep the
-	 sign.  However, right shift of a signed type with a negative
-	 value is implementation defined.  See ISO C 6.5.7.  So we use
-	 an unsigned type and sign extend afterwards.  */
       value >>= 1;
-      value = (value ^ 0x40000000) - 0x40000000;
       if (update)
 	*num = value;
     }
@@ -1380,14 +1381,13 @@ check_range (long *num, int bits, int unsigned flags, int update)
     {
       int is_dispu4 = 0;
 
-      uint32_t mul = (instruction->flags & DISPUB4 ? 1 
-		      : instruction->flags & DISPUW4 ? 2
-		      : instruction->flags & DISPUD4 ? 4
-		      : 0);
+      int mul = (instruction->flags & DISPUB4) ? 1 
+		: (instruction->flags & DISPUW4) ? 2
+		: (instruction->flags & DISPUD4) ? 4 : 0;
       
       for (bin = 0; bin < cst4_maps; bin++)
 	{
-	  if (value == mul * bin)
+	  if (value == (mul * bin))
 	    {
 	      is_dispu4 = 1;
 	      if (update)
@@ -1404,7 +1404,7 @@ check_range (long *num, int bits, int unsigned flags, int update)
 
       for (bin = 0; bin < cst4_maps; bin++)
 	{
-	  if (value == (uint32_t) cst4_map[bin])
+	  if (value == cst4_map[bin])
 	    {
 	      is_cst4 = 1;
 	      if (update)
@@ -1417,19 +1417,17 @@ check_range (long *num, int bits, int unsigned flags, int update)
     }
   else if (flags & OP_SIGNED)
     {
-      max = 1;
-      max = max << (bits - 1);
-      value += max;
-      max = ((max - 1) << 1) | 1;
-      if (value > max)
+      max = (1 << (bits - 1)) - 1;
+      min = - (1 << (bits - 1));
+      if ((value > max) || (value < min))
 	retval = OP_OUT_OF_RANGE;
     }
   else if (flags & OP_UNSIGNED)
     {
-      max = 1;
-      max = max << (bits - 1);
-      max = ((max - 1) << 1) | 1;
-      if (value > max)
+      max = ((((1 << (bits - 1)) - 1) << 1) | 1);
+      min = 0;
+      if (((unsigned long) value > (unsigned long) max) 
+	    || ((unsigned long) value < (unsigned long) min))
 	retval = OP_OUT_OF_RANGE;
     }
   return retval;
@@ -1988,7 +1986,6 @@ md_assemble (char *op)
   if (instruction == NULL)
     {
       as_bad (_("Unknown opcode: `%s'"), op);
-      param[-1] = c;
       return;
     }
 
@@ -2000,12 +1997,8 @@ md_assemble (char *op)
 
   /* Assemble the instruction - return upon failure.  */
   if (assemble_insn (op, &crx_ins) == 0)
-    {
-      param[-1] = c;
-      return;
-    }
+    return;
 
   /* Print the instruction.  */
-  param[-1] = c;
   print_insn (&crx_ins);
 }

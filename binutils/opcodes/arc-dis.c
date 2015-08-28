@@ -1,6 +1,6 @@
 /* Instruction printing code for the ARC.
-   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2005, 2007, 2009,
-   2010, 2012 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2005, 2007
+   Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of libopcodes.
@@ -20,12 +20,13 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
+#include "ansidecl.h"
 #include "libiberty.h"
 #include "dis-asm.h"
 #include "opcode/arc.h"
 #include "elf-bfd.h"
 #include "elf/arc.h"
+#include <string.h>
 #include "opintl.h"
 
 #include <stdarg.h>
@@ -59,14 +60,15 @@ typedef enum
 } a4_decoding_class;
 
 #define BIT(word,n)	((word) & (1 << n))
-#define BITS(word,s,e)  (((word) >> s) & ((1 << (e + 1 - s)) - 1))
+#define BITS(word,s,e)  (((word) << (31 - e)) >> (s + (31 - e)))
 #define OPCODE(word)	(BITS ((word), 27, 31))
 #define FIELDA(word)	(BITS ((word), 21, 26))
 #define FIELDB(word)	(BITS ((word), 15, 20))
 #define FIELDC(word)	(BITS ((word),  9, 14))
 
-/* FIELD D is signed.  */
-#define FIELDD(word)	((BITS ((word), 0, 8) ^ 0x100) - 0x100)
+/* FIELD D is signed in all of its uses, so we make sure argument is
+   treated as signed for bit shifting purposes:  */
+#define FIELDD(word)	(BITS (((signed int)word), 0, 8))
 
 #define PUT_NEXT_WORD_IN(a)						\
   do									\
@@ -236,6 +238,7 @@ arc_sprintf (struct arcDisState *state, char *buf, const char *format, ...)
   char *bp;
   const char *p;
   int size, leading_zero, regMap[2];
+  long auxNum;
   va_list ap;
 
   va_start (ap, format);
@@ -243,6 +246,7 @@ arc_sprintf (struct arcDisState *state, char *buf, const char *format, ...)
   bp = buf;
   *bp = 0;
   p = format;
+  auxNum = -1;
   regMap[0] = 0;
   regMap[1] = 0;
 
@@ -426,7 +430,8 @@ write_comments_(struct arcDisState * state,
 	    strcpy (state->commentBuffer, comment_prefix);
 	  else
 	    strcat (state->commentBuffer, ", ");
-	  strcat (state->commentBuffer, state->comm[i]);
+	  strncat (state->commentBuffer, state->comm[i],
+		   sizeof (state->commentBuffer));
 	}
     }
 }
@@ -1165,6 +1170,7 @@ decodeInstr (bfd_vma            address, /* Address of this instruction.  */
   struct arcDisState s;		/* ARC Disassembler state.  */
   void *stream = info->stream; 	/* Output stream.  */
   fprintf_ftype func = info->fprintf_func;
+  int bytes;
 
   memset (&s, 0, sizeof(struct arcDisState));
 
@@ -1195,7 +1201,7 @@ decodeInstr (bfd_vma            address, /* Address of this instruction.  */
   s.instName = _instName;
 
   /* Disassemble.  */
-  dsmOneArcInst (address, & s);
+  bytes = dsmOneArcInst (address, (void *)& s);
 
   /* Display the disassembly instruction.  */
   (*func) (stream, "%08lx ", s.words[0]);
@@ -1222,6 +1228,6 @@ disassembler_ftype
 arc_get_disassembler (void *ptr)
 {
   if (ptr)
-    build_ARC_extmap ((struct bfd *) ptr);
+    build_ARC_extmap (ptr);
   return decodeInstr;
 }

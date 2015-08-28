@@ -32,7 +32,6 @@ SECTIONS
   . += 0x100000;
   . = ALIGN(0x100);
   .data : { *(.data) }
-  .got : { *(.got .toc) }
   .bss : { *(.bss) }
 
   /* Now the real test.  */
@@ -50,7 +49,7 @@ SECTIONS
     /* This should match the remaining sections.  */
     *(.gold_test)
 
-    . = 60;
+    . = . + 4;
     start_data = .;
     BYTE(1)
     SHORT(2)

@@ -3,7 +3,7 @@
 # as:
 # readelf: -A
 # This test is only valid on EABI based ports.
-# target: *-*-*eabi* *-*-nacl*
+# target: *-*-*eabi
 
 Attribute Section: aeabi
 File Attributes
@@ -16,4 +16,4 @@ File Attributes
   Tag_unknown_63: "val"
   Tag_also_compatible_with: v6-M
   Tag_T2EE_use: Allowed
-  Tag_Virtualization_use: TrustZone
+  Tag_Virtualization_use: Allowed

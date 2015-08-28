@@ -1,13 +1,12 @@
 #source: eh4.s
 #source: eh4a.s
-#as: --64
-#ld: -melf_x86_64 -shared -Ttext 0x400
+#ld: -shared
 #readelf: -wf
 #target: x86_64-*-*
 
 Contents of the .eh_frame section:
 
-0+0000 0+0014 0+0000 CIE
+00000000 00000014 00000000 CIE
   Version:               1
   Augmentation:          "zR"
   Code alignment factor: 1
@@ -20,22 +19,14 @@ Contents of the .eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+0018 0+0014 0+001c FDE cie=0+0000 pc=0+0400..0+0413
-  DW_CFA_set_loc: 0+0404
+00000018 00000014 0000001c FDE cie=00000000 pc=00000400..00000413
+  DW_CFA_set_loc: 00000404
   DW_CFA_def_cfa_offset: 80
 
-0+0030 0+0014 0+0034 FDE cie=0+0000 pc=0+0413..0+0426
-  DW_CFA_set_loc: 0+0417
+00000030 00000014 00000034 FDE cie=00000000 pc=00000413..00000426
+  DW_CFA_set_loc: 00000417
   DW_CFA_def_cfa_offset: 80
 
-0+0048 0+0024 0+004c FDE cie=0+0000 pc=[0-9a-f]+\.\.[0-9a-f]+
-  DW_CFA_def_cfa_offset: 16
-  DW_CFA_advance_loc: [0-9a-f]+ to [0-9a-f]+
-  DW_CFA_def_cfa_offset: 24
-  DW_CFA_advance_loc: [0-9a-f]+ to [0-9a-f]+
-  DW_CFA_def_cfa_expression \(DW_OP_breg7 \(rsp\): 8; DW_OP_breg16 \(rip\): 0;.*
-  DW_CFA_nop
-#...
-
-[0-9a-f]+ ZERO terminator
+00000048 ZERO terminator
 #pass
+

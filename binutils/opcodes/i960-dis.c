@@ -204,7 +204,7 @@ ctrl (bfd_vma memaddr, unsigned long word1, unsigned long word2 ATTRIBUTE_UNUSED
       return;
     }
 
-  (*info->fprintf_func) (stream, "%s", ctrl_tab[i].name);
+  (*info->fprintf_func) (stream, ctrl_tab[i].name);
   if (word1 & 2)
     /* Predicts branch not taken.  */
     (*info->fprintf_func) (stream, ".f");
@@ -276,7 +276,7 @@ cobr (bfd_vma memaddr, unsigned long word1, unsigned long word2 ATTRIBUTE_UNUSED
       return;
     }
 
-  (*info->fprintf_func) (stream, "%s", cobr_tab[i].name);
+  (*info->fprintf_func) (stream, cobr_tab[i].name);
 
   /* Predicts branch not taken.  */
   if (word1 & 2)
@@ -291,7 +291,7 @@ cobr (bfd_vma memaddr, unsigned long word1, unsigned long word2 ATTRIBUTE_UNUSED
     /* M1 is 1 */
     (*info->fprintf_func) (stream, "%d", src1);
   else
-    (*info->fprintf_func) (stream, "%s", reg_names[src1]);
+    (*info->fprintf_func) (stream, reg_names[src1]);
 
   if (cobr_tab[i].numops > 1)
     {
@@ -717,7 +717,7 @@ reg (unsigned long word1)
       fp = 0;
     }
 
-  (*info->fprintf_func) (stream, "%s", mnemp);
+  (*info->fprintf_func) (stream, mnemp);
 
   s1   = (word1 >> 5)  & 1;
   s2   = (word1 >> 6)  & 1;
@@ -824,7 +824,7 @@ ea (bfd_vma memaddr, int mode, const char *reg2, const char *reg3, int word1,
 /* Register Instruction Operand.  */
 
 static void
-regop (int mode, int spec, int fp_reg, int fp)
+regop (int mode, int spec, int reg, int fp)
 {
   if (fp)
     {
@@ -832,7 +832,7 @@ regop (int mode, int spec, int fp_reg, int fp)
       if (mode == 1)
 	{
 	  /* FP operand.  */
-	  switch (fp_reg)
+	  switch (reg)
 	    {
 	    case 0:  (*info->fprintf_func) (stream, "fp0");
 	      break;
@@ -853,7 +853,7 @@ regop (int mode, int spec, int fp_reg, int fp)
       else
 	{
 	  /* Non-FP register.  */
-	  (*info->fprintf_func) (stream, "%s", reg_names[fp_reg]);
+	  (*info->fprintf_func) (stream, reg_names[reg]);
 	}
     }
   else
@@ -862,15 +862,15 @@ regop (int mode, int spec, int fp_reg, int fp)
       if (mode == 1)
 	{
 	  /* Literal.  */
-	  (*info->fprintf_func) (stream, "%d", fp_reg);
+	  (*info->fprintf_func) (stream, "%d", reg);
 	}
       else
 	{
 	  /* Register.  */
 	  if (spec == 0)
-	    (*info->fprintf_func) (stream, "%s", reg_names[fp_reg]);
+	    (*info->fprintf_func) (stream, reg_names[reg]);
 	  else
-	    (*info->fprintf_func) (stream, "sf%d", fp_reg);
+	    (*info->fprintf_func) (stream, "sf%d", reg);
 	}
     }
 }
@@ -878,15 +878,15 @@ regop (int mode, int spec, int fp_reg, int fp)
 /* Register Instruction Destination Operand.  */
 
 static void
-dstop (int mode, int dest_reg, int fp)
+dstop (int mode, int reg, int fp)
 {
   /* 'dst' operand can't be a literal. On non-FP instructions,  register
      mode is assumed and "m3" acts as if were "s3";  on FP-instructions,
      sf registers are not allowed so m3 acts normally.  */
   if (fp)
-    regop (mode, 0, dest_reg, fp);
+    regop (mode, 0, reg, fp);
   else
-    regop (0, mode, dest_reg, fp);
+    regop (0, mode, reg, fp);
 }
 
 static void

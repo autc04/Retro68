@@ -31,5 +31,3 @@ pe-dll.c
 pe-dll.h
 pep-dll.c
 pep-dll.h
-plugin.c
-plugin.h

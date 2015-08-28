@@ -1,5 +1,5 @@
 /* Disassemble h8500 instructions.
-   Copyright 1993, 1998, 2000, 2001, 2002, 2004, 2005, 2007, 2012
+   Copyright 1993, 1998, 2000, 2001, 2002, 2004, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
@@ -19,12 +19,12 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include <stdio.h>
 
 #define DISASSEMBLER_TABLE
 #define DEFINE_TABLE
 
+#include "sysdep.h"
 #include "h8500-opc.h"
 #include "dis-asm.h"
 #include "opintl.h"
@@ -97,7 +97,7 @@ print_insn_h8500 (bfd_vma addr, disassemble_info *info)
       int rd = 0;
       int rs = 0;
       int disp = 0;
-      int abs_val = 0;
+      int abs = 0;
       int imm = 0;
       int pcrel = 0;
       int qim = 0;
@@ -154,17 +154,17 @@ print_insn_h8500 (bfd_vma addr, disassemble_info *info)
 		  break;
 		case ABS24:
 		  FETCH_DATA (info, buffer + byte + 3);
-		  abs_val =
+		  abs =
 		    (buffer[byte] << 16)
 		    | (buffer[byte + 1] << 8)
 		    | (buffer[byte + 2]);
 		  break;
 		case ABS16:
 		  FETCH_DATA (info, buffer + byte + 2);
-		  abs_val = (buffer[byte] << 8) | (buffer[byte + 1]);
+		  abs = (buffer[byte] << 8) | (buffer[byte + 1]);
 		  break;
 		case ABS8:
-		  abs_val = (buffer[byte]);
+		  abs = (buffer[byte]);
 		  break;
 		case IMM16:
 		  FETCH_DATA (info, buffer + byte + 2);
@@ -265,28 +265,28 @@ print_insn_h8500 (bfd_vma addr, disassemble_info *info)
 	      func (stream, "@-sp");
 	      break;
 	    case ABS24:
-	      func (stream, "@0x%0x:24", abs_val);
+	      func (stream, "@0x%0x:24", abs);
 	      break;
 	    case ABS16:
-	      func (stream, "@0x%0x:16", abs_val & 0xffff);
+	      func (stream, "@0x%0x:16", abs & 0xffff);
 	      break;
 	    case ABS8:
-	      func (stream, "@0x%0x:8", abs_val & 0xff);
+	      func (stream, "@0x%0x:8", abs & 0xff);
 	      break;
 	    case IMM16:
 	      func (stream, "#0x%0x:16", imm & 0xffff);
 	      break;
 	    case RLIST:
 	      {
-		int j;
+		int i;
 		int nc = 0;
 
 		func (stream, "(");
-		for (j = 0; j < 8; j++)
+		for (i = 0; i < 8; i++)
 		  {
-		    if (imm & (1 << j))
+		    if (imm & (1 << i))
 		      {
-			func (stream, "r%d", j);
+			func (stream, "r%d", i);
 			if (nc)
 			  func (stream, ",");
 			nc = 1;

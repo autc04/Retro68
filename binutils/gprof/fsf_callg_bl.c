@@ -21,7 +21,7 @@ fsf_callg_blurb (file)
   fputs ("     index	A unique number given to each element of the table.\n", file);
   fputs ("		Index numbers are sorted numerically.\n", file);
   fputs ("		The index number is printed next to every function name so\n", file);
-  fputs ("		it is easier to look up where the function is in the table.\n", file);
+  fputs ("		it is easier to look up where the function in the table.\n", file);
   fputs ("\n", file);
   fputs ("     % time	This is the percentage of the `total' time that was spent\n", file);
   fputs ("		in this function and its children.  Note that due to\n", file);
@@ -91,10 +91,5 @@ fsf_callg_blurb (file)
   fputs (" were internal to the cycle, and the calls entry for each member shows,\n", file);
   fputs (" for that member, how many times it was called from other members of\n", file);
   fputs (" the cycle.\n", file);
-  fputs ("\n", file);
-  fputs ("Copyright (C) 2012 Free Software Foundation, Inc.\n", file);
   fputs ("\n", file);
-  fputs ("Copying and distribution of this file, with or without modification,\n", file);
-  fputs ("are permitted in any medium without royalty provided the copyright\n", file);
-  fputs ("notice and this notice are preserved.\n", file);
 }

@@ -481,7 +481,6 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 	  break;
 	case 0xff:
 	  opcode = 0xfe;
-	  break;
 	case 0xe8:
 	  opcode = 0xe9;
 	  break;
@@ -1242,12 +1241,12 @@ keep_going:
       for (i = 0; i < fc; i++)
 	{
 	  const struct mn10200_operand *operand;
-	  int reloc_size;
 
 	  operand = &mn10200_operands[fixups[i].opindex];
 	  if (fixups[i].reloc != BFD_RELOC_UNUSED)
 	    {
 	      reloc_howto_type *reloc_howto;
+	      int size;
 	      int offset;
 	      fixS *fixP;
 
@@ -1257,14 +1256,14 @@ keep_going:
 	      if (!reloc_howto)
 		abort ();
 
-	      reloc_size = bfd_get_reloc_size (reloc_howto);
+	      size = bfd_get_reloc_size (reloc_howto);
 
-	      if (reloc_size < 1 || reloc_size > 4)
+	      if (size < 1 || size > 4)
 		abort ();
 
-	      offset = 4 - reloc_size;
+	      offset = 4 - size;
 	      fixP = fix_new_exp (frag_now, f - frag_now->fr_literal + offset,
-				  reloc_size,
+				  size,
 				  &fixups[i].exp,
 				  reloc_howto->pc_relative,
 				  fixups[i].reloc);
@@ -1273,11 +1272,11 @@ keep_going:
 		 next instruction, not from the start of the current
 		 instruction.  */
 	      if (reloc_howto->pc_relative)
-		fixP->fx_offset += reloc_size;
+		fixP->fx_offset += size;
 	    }
 	  else
 	    {
-	      int reloc, pcrel, offset;
+	      int reloc, pcrel, reloc_size, offset;
 	      fixS *fixP;
 
 	      reloc = BFD_RELOC_NONE;

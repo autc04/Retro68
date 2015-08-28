@@ -1,14 +1,3 @@
-2010-11-20  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
-
-	* Makefile.in (install-strip): New target.
-
-2010-06-08  Nick Clifton  <nickc@redhat.com>
-
-	* standards.texi: Import current version from gnustandards
-	project.
-	* gnu-oids.texi: New file.
-	* fdl.texi: Replace with v1.3 text.
-
 2009-08-22  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
 
 	* configure: Regenerate.

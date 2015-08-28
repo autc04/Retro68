@@ -1,7 +1,7 @@
 /* tc-i370.c -- Assembler for the IBM 360/370/390 instruction set.
    Loosely based on the ppc files by Linas Vepstas <linas@linas.org> 1998, 99
    Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2009, 2010  Free Software Foundation, Inc.
+   2004, 2005, 2006, 2007, 2009  Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -900,7 +900,6 @@ i370_dc (int unused ATTRIBUTE_UNUSED)
   int nbytes=0;
   expressionS exp;
   char type=0;
-  char * clse;
 
   if (is_it_end_of_statement ())
     {
@@ -930,20 +929,24 @@ i370_dc (int unused ATTRIBUTE_UNUSED)
   /* Get rid of pesky quotes.  */
   if ('\'' == *input_line_pointer)
     {
+      char * close;
+
       ++input_line_pointer;
-      clse = strchr (input_line_pointer, '\'');
-      if (clse)
-	*clse= ' ';
+      close = strchr (input_line_pointer, '\'');
+      if (close)
+	*close= ' ';
       else
 	as_bad (_("missing end-quote"));
     }
 
   if ('\"' == *input_line_pointer)
     {
+      char * close;
+
       ++input_line_pointer;
-      clse = strchr (input_line_pointer, '\"');
-      if (clse)
-	*clse= ' ';
+      close = strchr (input_line_pointer, '\"');
+      if (close)
+	*close= ' ';
       else
 	as_bad (_("missing end-quote"));
     }
@@ -1520,23 +1523,21 @@ i370_addr_cons (expressionS *exp)
       /* Get rid of pesky quotes.  */
       if ('\'' == *input_line_pointer)
 	{
-	  char * clse;
-
+	  char * close;
 	  ++input_line_pointer;
-	  clse = strchr (input_line_pointer, '\'');
-	  if (clse)
-	    *clse= ' ';
+	  close = strchr (input_line_pointer, '\'');
+	  if (close)
+	    *close= ' ';
 	  else
 	    as_bad (_("missing end-quote"));
 	}
       if ('\"' == *input_line_pointer)
 	{
-	  char * clse;
-
+	  char * close;
 	  ++input_line_pointer;
-	  clse = strchr (input_line_pointer, '\"');
-	  if (clse)
-	    *clse= ' ';
+	  close = strchr (input_line_pointer, '\"');
+	  if (close)
+	    *close= ' ';
 	  else
 	    as_bad (_("missing end-quote"));
 	}
@@ -1894,7 +1895,7 @@ i370_macro (char *str, const struct i370_macro *macro)
 void
 md_assemble (char *str)
 {
-  char *s;
+  char *s, *opcode_str;
   const struct i370_opcode *opcode;
   i370_insn_t insn;
   const unsigned char *opindex_ptr;
@@ -1915,6 +1916,7 @@ md_assemble (char *str)
     ;
   if (*s != '\0')
     *s++ = '\0';
+  opcode_str = str;
 
   /* Look up the opcode in the hash table.  */
   opcode = (const struct i370_opcode *) hash_find (i370_hash, str);
@@ -2032,10 +2034,12 @@ md_assemble (char *str)
   for (opindex_ptr = opcode->operands; *opindex_ptr != 0; opindex_ptr++)
     {
       const struct i370_operand *operand;
+      const char *errmsg;
       char *hold;
       expressionS ex;
 
       operand = &i370_operands[*opindex_ptr];
+      errmsg = NULL;
 
       /* If this is an index operand, and we are skipping it,
 	 just insert a zero.  */

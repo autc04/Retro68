@@ -1,5 +1,5 @@
 /* tc-lm32.c - Lattice Mico32 assembler.
-   Copyright 2008, 2012   Free Software Foundation, Inc.
+   Copyright 2008   Free Software Foundation, Inc.
    Contributed by Jon Beniston <jon@beniston.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -19,9 +19,10 @@
    Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "as.h"
 #include <string.h>
 #include <stdlib.h>
+
+#include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
 #include "bfd.h"
@@ -192,9 +193,6 @@ md_begin (void)
 
   /* This is a callback from cgen to gas to parse operands.  */
   cgen_set_parse_operand_fn (gas_cgen_cpu_desc, gas_cgen_parse_operand);
-
-  if (! bfd_set_arch_mach (stdoutput, bfd_arch_lm32, bfd_mach_lm32))
-    as_warn (_("could not set architecture and machine"));
 }
 
 /* Turn an integer of n bytes (in val) into a stream of bytes appropriate

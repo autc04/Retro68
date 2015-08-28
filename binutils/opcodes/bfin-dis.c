@@ -1,6 +1,5 @@
 /* Disassemble ADI Blackfin Instructions.
-   Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -19,10 +18,21 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "sysdep.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "opcode/bfin.h"
+
+#define M_S2RND 1
+#define M_T     2
+#define M_W32   3
+#define M_FU    4
+#define M_TFU   6
+#define M_IS    8
+#define M_ISS2  9
+#define M_IH    11
+#define M_IU    12
 
 #ifndef PRINTF
 #define PRINTF printf
@@ -43,9 +53,6 @@ typedef long TIword;
 
 typedef unsigned int bu32;
 
-static char comment = 0;
-static char parallel = 0;
-
 typedef enum
 {
   c_0, c_1, c_4, c_2, c_uimm2, c_uimm3, c_imm3, c_pcrel4,
@@ -55,20 +62,20 @@ typedef enum
   c_uimm16s4d, c_uimm16, c_pcrel24, c_uimm32, c_imm32, c_huimm32, c_huimm32e,
 } const_forms_t;
 
-static const struct
+static struct
 {
-  const char *name;
-  const int nbits;
-  const char reloc;
-  const char issigned;
-  const char pcrel;
-  const char scale;
-  const char offset;
-  const char negative;
-  const char positive;
-  const char decimal;
-  const char leading;
-  const char exact;
+  char *name;
+  int nbits;
+  char reloc;
+  char issigned;
+  char pcrel;
+  char scale;
+  char offset;
+  char negative;
+  char positive;
+  char decimal;
+  char leading;
+  char exact;
 } constant_formats[] =
 {
   { "0",          0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -116,8 +123,11 @@ static const struct
   { "huimm32e",  32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 };
 
-static const char *
-fmtconst (const_forms_t cf, TIword x, bfd_vma pc, disassemble_info *outf)
+static char comment = 0;
+static char parallel = 0;
+
+static char *
+fmtconst (const_forms_t cf, TIword x, bfd_vma pc, disassemble_info * outf)
 {
   static char buf[60];
 
@@ -128,19 +138,16 @@ fmtconst (const_forms_t cf, TIword x, bfd_vma pc, disassemble_info *outf)
       if (constant_formats[cf].pcrel)
 	ea += pc;
 
-      /* truncate to 32-bits for proper symbol lookup/matching */
-      ea = (bu32)ea;
-
-      if (outf->symbol_at_address_func (ea, outf) || !constant_formats[cf].exact)
-	{
+     if (outf->symbol_at_address_func (ea, outf) || !constant_formats[cf].exact)
+       {
 	  outf->print_address_func (ea, outf);
 	  return "";
-	}
-      else
-	{
+       }
+     else
+       {
 	  sprintf (buf, "%lx", (unsigned long) x);
 	  return buf;
-	}
+       }
     }
 
   /* Negative constants have an implied sign bit.  */
@@ -161,7 +168,16 @@ fmtconst (const_forms_t cf, TIword x, bfd_vma pc, disassemble_info *outf)
     x <<= constant_formats[cf].scale;
 
   if (constant_formats[cf].decimal)
-    sprintf (buf, "%*li", constant_formats[cf].leading, x);
+    {
+      if (constant_formats[cf].leading)
+	{
+	  char ps[10];
+	  sprintf (ps, "%%%ii", constant_formats[cf].leading);
+	  sprintf (buf, ps, x);
+	}
+      else
+	sprintf (buf, "%li", x);
+    }
   else
     {
       if (constant_formats[cf].issigned && x < 0)
@@ -217,7 +233,7 @@ enum machine_registers
   REG_AZ, REG_AN, REG_AC0, REG_AC1, REG_AV0, REG_AV1, REG_AV0S, REG_AV1S,
   REG_AQ, REG_V, REG_VS,
   REG_sftreset, REG_omode, REG_excause, REG_emucause, REG_idle_req, REG_hwerrcause, REG_CC, REG_LC0,
-  REG_LC1, REG_ASTAT, REG_RETS, REG_LT0, REG_LB0, REG_LT1, REG_LB1,
+  REG_LC1, REG_GP, REG_ASTAT, REG_RETS, REG_LT0, REG_LB0, REG_LT1, REG_LB1,
   REG_CYCLES, REG_CYCLES2, REG_USP, REG_SEQSTAT, REG_SYSCFG, REG_RETI, REG_RETX, REG_RETN,
   REG_RETE, REG_EMUDAT, REG_BR0, REG_BR1, REG_BR2, REG_BR3, REG_BR4, REG_BR5, REG_BR6,
   REG_BR7, REG_PL0, REG_PL1, REG_PL2, REG_PL3, REG_PL4, REG_PL5, REG_SLP, REG_FLP,
@@ -226,7 +242,6 @@ enum machine_registers
   REG_BL0, REG_BL1, REG_BL2, REG_BL3, REG_LL0, REG_LL1, REG_LL2, REG_LL3,
   REG_IH0, REG_IH1, REG_IH2, REG_IH3, REG_MH0, REG_MH1, REG_MH2, REG_MH3,
   REG_BH0, REG_BH1, REG_BH2, REG_BH3, REG_LH0, REG_LH1, REG_LH2, REG_LH3,
-  REG_AC0_COPY, REG_V_COPY, REG_RND_MOD,
   REG_LASTREG,
 };
 
@@ -239,7 +254,7 @@ enum reg_class
   LIM_REG_CLASSES
 };
 
-static const char * const reg_names[] =
+static char *reg_names[] =
 {
   "R0.L", "R1.L", "R2.L", "R3.L", "R4.L", "R5.L", "R6.L", "R7.L",
   "R0.H", "R1.H", "R2.H", "R3.H", "R4.H", "R5.H", "R6.H", "R7.H",
@@ -252,7 +267,7 @@ static const char * const reg_names[] =
   "AZ", "AN", "AC0", "AC1", "AV0", "AV1", "AV0S", "AV1S",
   "AQ", "V", "VS",
   "sftreset", "omode", "excause", "emucause", "idle_req", "hwerrcause", "CC", "LC0",
-  "LC1", "ASTAT", "RETS", "LT0", "LB0", "LT1", "LB1",
+  "LC1", "GP", "ASTAT", "RETS", "LT0", "LB0", "LT1", "LB1",
   "CYCLES", "CYCLES2", "USP", "SEQSTAT", "SYSCFG", "RETI", "RETX", "RETN",
   "RETE", "EMUDAT",
   "R0.B", "R1.B", "R2.B", "R3.B", "R4.B", "R5.B", "R6.B", "R7.B",
@@ -262,7 +277,6 @@ static const char * const reg_names[] =
   "B0.L", "B1.L", "B2.L", "B3.L", "L0.L", "L1.L", "L2.L", "L3.L",
   "I0.H", "I1.H", "I2.H", "I3.H", "M0.H", "M1.H", "M2.H", "M3.H",
   "B0.H", "B1.H", "B2.H", "B3.H", "L0.H", "L1.H", "L2.H", "L3.H",
-  "AC0_COPY", "V_COPY", "RND_MOD",
   "LASTREG",
   0
 };
@@ -270,7 +284,7 @@ static const char * const reg_names[] =
 #define REGNAME(x) ((x) < REG_LASTREG ? (reg_names[x]) : "...... Illegal register .......")
 
 /* RL(0..7).  */
-static const enum machine_registers decode_dregs_lo[] =
+static enum machine_registers decode_dregs_lo[] =
 {
   REG_RL0, REG_RL1, REG_RL2, REG_RL3, REG_RL4, REG_RL5, REG_RL6, REG_RL7,
 };
@@ -278,7 +292,7 @@ static const enum machine_registers decode_dregs_lo[] =
 #define dregs_lo(x) REGNAME (decode_dregs_lo[(x) & 7])
 
 /* RH(0..7).  */
-static const enum machine_registers decode_dregs_hi[] =
+static enum machine_registers decode_dregs_hi[] =
 {
   REG_RH0, REG_RH1, REG_RH2, REG_RH3, REG_RH4, REG_RH5, REG_RH6, REG_RH7,
 };
@@ -286,7 +300,7 @@ static const enum machine_registers decode_dregs_hi[] =
 #define dregs_hi(x) REGNAME (decode_dregs_hi[(x) & 7])
 
 /* R(0..7).  */
-static const enum machine_registers decode_dregs[] =
+static enum machine_registers decode_dregs[] =
 {
   REG_R0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
 };
@@ -294,7 +308,7 @@ static const enum machine_registers decode_dregs[] =
 #define dregs(x) REGNAME (decode_dregs[(x) & 7])
 
 /* R BYTE(0..7).  */
-static const enum machine_registers decode_dregs_byte[] =
+static enum machine_registers decode_dregs_byte[] =
 {
   REG_BR0, REG_BR1, REG_BR2, REG_BR3, REG_BR4, REG_BR5, REG_BR6, REG_BR7,
 };
@@ -302,20 +316,20 @@ static const enum machine_registers decode_dregs_byte[] =
 #define dregs_byte(x) REGNAME (decode_dregs_byte[(x) & 7])
 
 /* P(0..5) SP FP.  */
-static const enum machine_registers decode_pregs[] =
+static enum machine_registers decode_pregs[] =
 {
   REG_P0, REG_P1, REG_P2, REG_P3, REG_P4, REG_P5, REG_SP, REG_FP,
 };
 
 #define pregs(x)	REGNAME (decode_pregs[(x) & 7])
 #define spfp(x)		REGNAME (decode_spfp[(x) & 1])
-#define dregs_hilo(x, i)	REGNAME (decode_dregs_hilo[((i) << 3) | (x)])
+#define dregs_hilo(x,i)	REGNAME (decode_dregs_hilo[((i) << 3)|x])
 #define accum_ext(x)	REGNAME (decode_accum_ext[(x) & 1])
 #define accum_word(x)	REGNAME (decode_accum_word[(x) & 1])
 #define accum(x)	REGNAME (decode_accum[(x) & 1])
 
 /* I(0..3).  */
-static const enum machine_registers decode_iregs[] =
+static enum machine_registers decode_iregs[] =
 {
   REG_I0, REG_I1, REG_I2, REG_I3,
 };
@@ -323,7 +337,7 @@ static const enum machine_registers decode_iregs[] =
 #define iregs(x) REGNAME (decode_iregs[(x) & 3])
 
 /* M(0..3).  */
-static const enum machine_registers decode_mregs[] =
+static enum machine_registers decode_mregs[] =
 {
   REG_M0, REG_M1, REG_M2, REG_M3,
 };
@@ -333,7 +347,7 @@ static const enum machine_registers decode_mregs[] =
 #define lregs(x) REGNAME (decode_lregs[(x) & 3])
 
 /* dregs pregs.  */
-static const enum machine_registers decode_dpregs[] =
+static enum machine_registers decode_dpregs[] =
 {
   REG_R0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
   REG_P0, REG_P1, REG_P2, REG_P3, REG_P4, REG_P5, REG_SP, REG_FP,
@@ -342,16 +356,16 @@ static const enum machine_registers decode_dpregs[] =
 #define dpregs(x) REGNAME (decode_dpregs[(x) & 15])
 
 /* [dregs pregs].  */
-static const enum machine_registers decode_gregs[] =
+static enum machine_registers decode_gregs[] =
 {
   REG_R0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
   REG_P0, REG_P1, REG_P2, REG_P3, REG_P4, REG_P5, REG_SP, REG_FP,
 };
 
-#define gregs(x, i) REGNAME (decode_gregs[((i) << 3) | (x)])
+#define gregs(x,i) REGNAME (decode_gregs[((i) << 3)|x])
 
 /* [dregs pregs (iregs mregs) (bregs lregs)].  */
-static const enum machine_registers decode_regs[] =
+static enum machine_registers decode_regs[] =
 {
   REG_R0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
   REG_P0, REG_P1, REG_P2, REG_P3, REG_P4, REG_P5, REG_SP, REG_FP,
@@ -359,10 +373,10 @@ static const enum machine_registers decode_regs[] =
   REG_B0, REG_B1, REG_B2, REG_B3, REG_L0, REG_L1, REG_L2, REG_L3,
 };
 
-#define regs(x, i) REGNAME (decode_regs[((i) << 3) | (x)])
+#define regs(x,i) REGNAME (decode_regs[((i) << 3)|x])
 
 /* [dregs pregs (iregs mregs) (bregs lregs) Low Half].  */
-static const enum machine_registers decode_regs_lo[] =
+static enum machine_registers decode_regs_lo[] =
 {
   REG_RL0, REG_RL1, REG_RL2, REG_RL3, REG_RL4, REG_RL5, REG_RL6, REG_RL7,
   REG_PL0, REG_PL1, REG_PL2, REG_PL3, REG_PL4, REG_PL5, REG_SLP, REG_FLP,
@@ -370,35 +384,30 @@ static const enum machine_registers decode_regs_lo[] =
   REG_BL0, REG_BL1, REG_BL2, REG_BL3, REG_LL0, REG_LL1, REG_LL2, REG_LL3,
 };
 
-#define regs_lo(x, i) REGNAME (decode_regs_lo[((i) << 3) | (x)])
-
+#define regs_lo(x,i) REGNAME (decode_regs_lo[((i) << 3)|x])
 /* [dregs pregs (iregs mregs) (bregs lregs) High Half].  */
-static const enum machine_registers decode_regs_hi[] =
+static enum machine_registers decode_regs_hi[] =
 {
   REG_RH0, REG_RH1, REG_RH2, REG_RH3, REG_RH4, REG_RH5, REG_RH6, REG_RH7,
   REG_PH0, REG_PH1, REG_PH2, REG_PH3, REG_PH4, REG_PH5, REG_SHP, REG_FHP,
-  REG_IH0, REG_IH1, REG_IH2, REG_IH3, REG_MH0, REG_MH1, REG_MH2, REG_MH3,
+  REG_IH0, REG_IH1, REG_IH2, REG_IH3, REG_MH0, REG_MH1, REG_LH2, REG_MH3,
   REG_BH0, REG_BH1, REG_BH2, REG_BH3, REG_LH0, REG_LH1, REG_LH2, REG_LH3,
 };
 
-#define regs_hi(x, i) REGNAME (decode_regs_hi[((i) << 3) | (x)])
+#define regs_hi(x,i) REGNAME (decode_regs_hi[((i) << 3)|x])
 
-static const enum machine_registers decode_statbits[] =
+static enum machine_registers decode_statbits[] =
 {
-  REG_AZ,        REG_AN,        REG_AC0_COPY,    REG_V_COPY,
-  REG_LASTREG,   REG_LASTREG,   REG_AQ,          REG_LASTREG,
-  REG_RND_MOD,   REG_LASTREG,   REG_LASTREG,     REG_LASTREG,
-  REG_AC0,       REG_AC1,       REG_LASTREG,     REG_LASTREG,
-  REG_AV0,       REG_AV0S,      REG_AV1,         REG_AV1S,
-  REG_LASTREG,   REG_LASTREG,   REG_LASTREG,     REG_LASTREG,
-  REG_V,         REG_VS,        REG_LASTREG,     REG_LASTREG,
-  REG_LASTREG,   REG_LASTREG,   REG_LASTREG,     REG_LASTREG,
+  REG_AZ, REG_AN, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_AQ, REG_LASTREG,
+  REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_AC0, REG_AC1, REG_LASTREG, REG_LASTREG,
+  REG_AV0, REG_AV0S, REG_AV1, REG_AV1S, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG,
+  REG_V, REG_VS, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG,
 };
 
 #define statbits(x) REGNAME (decode_statbits[(x) & 31])
 
 /* LC0 LC1.  */
-static const enum machine_registers decode_counters[] =
+static enum machine_registers decode_counters[] =
 {
   REG_LC0, REG_LC1,
 };
@@ -408,33 +417,28 @@ static const enum machine_registers decode_counters[] =
 
 /* [dregs pregs (iregs mregs) (bregs lregs)
    dregs2_sysregs1 open sysregs2 sysregs3].  */
-static const enum machine_registers decode_allregs[] =
+static enum machine_registers decode_allregs[] =
 {
   REG_R0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, REG_R6, REG_R7,
   REG_P0, REG_P1, REG_P2, REG_P3, REG_P4, REG_P5, REG_SP, REG_FP,
   REG_I0, REG_I1, REG_I2, REG_I3, REG_M0, REG_M1, REG_M2, REG_M3,
   REG_B0, REG_B1, REG_B2, REG_B3, REG_L0, REG_L1, REG_L2, REG_L3,
-  REG_A0x, REG_A0w, REG_A1x, REG_A1w, REG_LASTREG, REG_LASTREG, REG_ASTAT, REG_RETS,
+  REG_A0x, REG_A0w, REG_A1x, REG_A1w, REG_GP, REG_LASTREG, REG_ASTAT, REG_RETS,
   REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG, REG_LASTREG,
   REG_LC0, REG_LT0, REG_LB0, REG_LC1, REG_LT1, REG_LB1, REG_CYCLES, REG_CYCLES2,
   REG_USP, REG_SEQSTAT, REG_SYSCFG, REG_RETI, REG_RETX, REG_RETN, REG_RETE, REG_EMUDAT,
   REG_LASTREG,
 };
 
-#define IS_DREG(g,r)	((g) == 0 && (r) < 8)
-#define IS_PREG(g,r)	((g) == 1 && (r) < 8)
+#define IS_DREG(g,r)	((g) == 0)
+#define IS_PREG(g,r)	((g) == 1)
 #define IS_AREG(g,r)	((g) == 4 && (r) >= 0 && (r) < 4)
-#define IS_GENREG(g,r)	((((g) == 0 || (g) == 1) && (r) < 8) || IS_AREG (g, r))
-#define IS_DAGREG(g,r)	(((g) == 2 || (g) == 3) && (r) < 8)
+#define IS_GENREG(g,r)	((g) == 0 || (g) == 1 || IS_AREG (g, r))
+#define IS_DAGREG(g,r)	((g) == 2 || (g) == 3)
 #define IS_SYSREG(g,r) \
   (((g) == 4 && ((r) == 6 || (r) == 7)) || (g) == 6 || (g) == 7)
-#define IS_RESERVEDREG(g,r) \
-  (((r) > 7) || ((g) == 4 && ((r) == 4 || (r) == 5)) || (g) == 5)
 
-#define allreg(r,g)	(!IS_RESERVEDREG (g, r))
-#define mostreg(r,g)	(!(IS_DREG (g, r) || IS_PREG (g, r) || IS_RESERVEDREG (g, r)))
-
-#define allregs(x, i)	REGNAME (decode_allregs[((i) << 3) | (x)])
+#define allregs(x,i)	REGNAME (decode_allregs[((i) << 3) | x])
 #define uimm16s4(x)	fmtconst (c_uimm16s4, x, 0, outf)
 #define uimm16s4d(x)	fmtconst (c_uimm16s4d, x, 0, outf)
 #define pcrel4(x)	fmtconst (c_pcrel4, x, pc, outf)
@@ -480,7 +484,7 @@ static const enum machine_registers decode_allregs[] =
 
 /* (arch.pm)arch_disassembler_functions.  */
 #ifndef OUTS
-#define OUTS(p, txt) (p)->fprintf_func ((p)->stream, "%s", txt)
+#define OUTS(p, txt) ((p) ? (((txt)[0]) ? (p->fprintf_func)(p->stream, "%s", txt) :0) :0)
 #endif
 
 static void
@@ -551,9 +555,9 @@ aligndir (int r0, disassemble_info *outf)
 }
 
 static int
-decode_multfunc (int h0, int h1, int src0, int src1, disassemble_info *outf)
+decode_multfunc (int h0, int h1, int src0, int src1, disassemble_info * outf)
 {
-  const char *s0, *s1;
+  char *s0, *s1;
 
   if (h0)
     s0 = dregs_hi (src0);
@@ -572,10 +576,10 @@ decode_multfunc (int h0, int h1, int src0, int src1, disassemble_info *outf)
 }
 
 static int
-decode_macfunc (int which, int op, int h0, int h1, int src0, int src1, disassemble_info *outf)
+decode_macfunc (int which, int op, int h0, int h1, int src0, int src1, disassemble_info * outf)
 {
-  const char *a;
-  const char *sop = "<unknown op>";
+  char *a;
+  char *sop = "<unknown op>";
 
   if (which)
     a = "A1";
@@ -644,31 +648,53 @@ decode_optmode (int mod, int MM, disassemble_info *outf)
   OUTS (outf, ")");
 }
 
-static struct saved_state
+struct saved_state
 {
   bu32 dpregs[16], iregs[4], mregs[4], bregs[4], lregs[4];
-  bu32 ax[2], aw[2];
+  bu32 a0x, a0w, a1x, a1w;
   bu32 lt[2], lc[2], lb[2];
-  bu32 rets;
-} saved_state;
+  int ac0, ac0_copy, ac1, an, aq;
+  int av0, av0s, av1, av1s, az, cc, v, v_copy, vs;
+  int rnd_mod;
+  int v_internal;
+  bu32 pc, rets;
+
+  int ticks;
+  int insts;
+
+  int exception;
+
+  int end_of_registers;
+
+  int msize;
+  unsigned char *memory;
+  unsigned long bfd_mach;
+}  saved_state;
 
 #define DREG(x)         (saved_state.dpregs[x])
-#define GREG(x, i)      DPREG ((x) | ((i) << 3))
+#define GREG(x,i)       DPREG ((x) | (i << 3))
 #define DPREG(x)        (saved_state.dpregs[x])
 #define DREG(x)         (saved_state.dpregs[x])
-#define PREG(x)         (saved_state.dpregs[(x) + 8])
+#define PREG(x)         (saved_state.dpregs[x + 8])
 #define SPREG           PREG (6)
 #define FPREG           PREG (7)
 #define IREG(x)         (saved_state.iregs[x])
 #define MREG(x)         (saved_state.mregs[x])
 #define BREG(x)         (saved_state.bregs[x])
 #define LREG(x)         (saved_state.lregs[x])
-#define AXREG(x)        (saved_state.ax[x])
-#define AWREG(x)        (saved_state.aw[x])
-#define LCREG(x)        (saved_state.lc[x])
-#define LTREG(x)        (saved_state.lt[x])
-#define LBREG(x)        (saved_state.lb[x])
+#define A0XREG          (saved_state.a0x)
+#define A0WREG          (saved_state.a0w)
+#define A1XREG          (saved_state.a1x)
+#define A1WREG          (saved_state.a1w)
+#define CCREG           (saved_state.cc)
+#define LC0REG          (saved_state.lc[0])
+#define LT0REG          (saved_state.lt[0])
+#define LB0REG          (saved_state.lb[0])
+#define LC1REG          (saved_state.lc[1])
+#define LT1REG          (saved_state.lt[1])
+#define LB1REG          (saved_state.lb[1])
 #define RETSREG         (saved_state.rets)
+#define PCREG           (saved_state.pc)
 
 static bu32 *
 get_allreg (int grp, int reg)
@@ -686,29 +712,29 @@ get_allreg (int grp, int reg)
      REG_LASTREG */
   switch (fullreg >> 2)
     {
-    case 0: case 1: return &DREG (reg);
-    case 2: case 3: return &PREG (reg);
-    case 4: return &IREG (reg & 3);
-    case 5: return &MREG (reg & 3);
-    case 6: return &BREG (reg & 3);
-    case 7: return &LREG (reg & 3);
+    case 0: case 1: return &DREG (reg); break;
+    case 2: case 3: return &PREG (reg); break;
+    case 4: return &IREG (reg & 3); break;
+    case 5: return &MREG (reg & 3); break;
+    case 6: return &BREG (reg & 3); break;
+    case 7: return &LREG (reg & 3); break;
     default:
       switch (fullreg)
 	{
-	case 32: return &AXREG (0);
-	case 33: return &AWREG (0);
-	case 34: return &AXREG (1);
-	case 35: return &AWREG (1);
-	case 39: return &RETSREG;
-	case 48: return &LCREG (0);
-	case 49: return &LTREG (0);
-	case 50: return &LBREG (0);
-	case 51: return &LCREG (1);
-	case 52: return &LTREG (1);
-	case 53: return &LBREG (1);
+	case 32: return &saved_state.a0x;
+	case 33: return &saved_state.a0w;
+	case 34: return &saved_state.a1x;
+	case 35: return &saved_state.a1w;
+	case 39: return &saved_state.rets;
+	case 48: return &LC0REG;
+	case 49: return &LT0REG;
+	case 50: return &LB0REG;
+	case 51: return &LC1REG;
+	case 52: return &LT1REG;
+	case 53: return &LB1REG;
 	}
+      return 0;
     }
-  abort ();
 }
 
 static int
@@ -723,8 +749,6 @@ decode_ProgCtrl_0 (TIword iw0, disassemble_info *outf)
 
   if (prgfunc == 0 && poprnd == 0)
     OUTS (outf, "NOP");
-  else if (parallel)
-    return 0;
   else if (prgfunc == 1 && poprnd == 0)
     OUTS (outf, "RTS");
   else if (prgfunc == 1 && poprnd == 1)
@@ -743,35 +767,35 @@ decode_ProgCtrl_0 (TIword iw0, disassemble_info *outf)
     OUTS (outf, "SSYNC");
   else if (prgfunc == 2 && poprnd == 5)
     OUTS (outf, "EMUEXCPT");
-  else if (prgfunc == 3 && IS_DREG (0, poprnd))
+  else if (prgfunc == 3)
     {
       OUTS (outf, "CLI ");
       OUTS (outf, dregs (poprnd));
     }
-  else if (prgfunc == 4 && IS_DREG (0, poprnd))
+  else if (prgfunc == 4)
     {
       OUTS (outf, "STI ");
       OUTS (outf, dregs (poprnd));
     }
-  else if (prgfunc == 5 && IS_PREG (1, poprnd))
+  else if (prgfunc == 5)
     {
       OUTS (outf, "JUMP (");
       OUTS (outf, pregs (poprnd));
       OUTS (outf, ")");
     }
-  else if (prgfunc == 6 && IS_PREG (1, poprnd))
+  else if (prgfunc == 6)
     {
       OUTS (outf, "CALL (");
       OUTS (outf, pregs (poprnd));
       OUTS (outf, ")");
     }
-  else if (prgfunc == 7 && IS_PREG (1, poprnd))
+  else if (prgfunc == 7)
     {
       OUTS (outf, "CALL (PC + ");
       OUTS (outf, pregs (poprnd));
       OUTS (outf, ")");
     }
-  else if (prgfunc == 8 && IS_PREG (1, poprnd))
+  else if (prgfunc == 8)
     {
       OUTS (outf, "JUMP (PC + ");
       OUTS (outf, pregs (poprnd));
@@ -787,7 +811,7 @@ decode_ProgCtrl_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, "EXCPT ");
       OUTS (outf, uimm4 (poprnd));
     }
-  else if (prgfunc == 11 && IS_PREG (1, poprnd) && poprnd <= 5)
+  else if (prgfunc == 11)
     {
       OUTS (outf, "TESTSET (");
       OUTS (outf, pregs (poprnd));
@@ -808,9 +832,6 @@ decode_CaCTRL_0 (TIword iw0, disassemble_info *outf)
   int a   = ((iw0 >> CaCTRL_a_bits) & CaCTRL_a_mask);
   int op  = ((iw0 >> CaCTRL_op_bits) & CaCTRL_op_mask);
   int reg = ((iw0 >> CaCTRL_reg_bits) & CaCTRL_reg_mask);
-
-  if (parallel)
-    return 0;
 
   if (a == 0 && op == 0)
     {
@@ -876,15 +897,12 @@ decode_PushPopReg_0 (TIword iw0, disassemble_info *outf)
   int grp = ((iw0 >> PushPopReg_grp_bits) & PushPopReg_grp_mask);
   int reg = ((iw0 >> PushPopReg_reg_bits) & PushPopReg_reg_mask);
 
-  if (parallel)
-    return 0;
-
-  if (W == 0 && mostreg (reg, grp))
+  if (W == 0)
     {
       OUTS (outf, allregs (reg, grp));
       OUTS (outf, " = [SP++]");
     }
-  else if (W == 1 && allreg (reg, grp) && !(grp == 1 && reg == 6))
+  else if (W == 1)
     {
       OUTS (outf, "[--SP] = ");
       OUTS (outf, allregs (reg, grp));
@@ -907,12 +925,6 @@ decode_PushPopMultiple_0 (TIword iw0, disassemble_info *outf)
   int dr = ((iw0 >> PushPopMultiple_dr_bits) & PushPopMultiple_dr_mask);
   int pr = ((iw0 >> PushPopMultiple_pr_bits) & PushPopMultiple_pr_mask);
 
-  if (parallel)
-    return 0;
-
-  if (pr > 5)
-    return 0;
-
   if (W == 1 && d == 1 && p == 1)
     {
       OUTS (outf, "[--SP] = (R7:");
@@ -921,13 +933,13 @@ decode_PushPopMultiple_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, imm5d (pr));
       OUTS (outf, ")");
     }
-  else if (W == 1 && d == 1 && p == 0 && pr == 0)
+  else if (W == 1 && d == 1 && p == 0)
     {
       OUTS (outf, "[--SP] = (R7:");
       OUTS (outf, imm5d (dr));
       OUTS (outf, ")");
     }
-  else if (W == 1 && d == 0 && p == 1 && dr == 0)
+  else if (W == 1 && d == 0 && p == 1)
     {
       OUTS (outf, "[--SP] = (P5:");
       OUTS (outf, imm5d (pr));
@@ -941,13 +953,13 @@ decode_PushPopMultiple_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, imm5d (pr));
       OUTS (outf, ") = [SP++]");
     }
-  else if (W == 0 && d == 1 && p == 0 && pr == 0)
+  else if (W == 0 && d == 1 && p == 0)
     {
       OUTS (outf, "(R7:");
       OUTS (outf, imm5d (dr));
       OUTS (outf, ") = [SP++]");
     }
-  else if (W == 0 && d == 0 && p == 1 && dr == 0)
+  else if (W == 0 && d == 0 && p == 1)
     {
       OUTS (outf, "(P5:");
       OUTS (outf, imm5d (pr));
@@ -970,9 +982,6 @@ decode_ccMV_0 (TIword iw0, disassemble_info *outf)
   int T  = ((iw0 >> CCmv_T_bits) & CCmv_T_mask);
   int src = ((iw0 >> CCmv_src_bits) & CCmv_src_mask);
   int dst = ((iw0 >> CCmv_dst_bits) & CCmv_dst_mask);
-
-  if (parallel)
-    return 0;
 
   if (T == 1)
     {
@@ -1005,9 +1014,6 @@ decode_CCflag_0 (TIword iw0, disassemble_info *outf)
   int I = ((iw0 >> CCflag_I_bits) & CCflag_I_mask);
   int G = ((iw0 >> CCflag_G_bits) & CCflag_G_mask);
   int opc = ((iw0 >> CCflag_opc_bits) & CCflag_opc_mask);
-
-  if (parallel)
-    return 0;
 
   if (opc == 0 && I == 0 && G == 0)
     {
@@ -1157,13 +1163,13 @@ decode_CCflag_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, uimm3 (y));
       OUTS (outf, " (IU)");
     }
-  else if (opc == 5 && I == 0 && G == 0 && x == 0 && y == 0)
+  else if (opc == 5 && I == 0 && G == 0)
     OUTS (outf, "CC = A0 == A1");
 
-  else if (opc == 6 && I == 0 && G == 0 && x == 0 && y == 0)
+  else if (opc == 6 && I == 0 && G == 0)
     OUTS (outf, "CC = A0 < A1");
 
-  else if (opc == 7 && I == 0 && G == 0 && x == 0 && y == 0)
+  else if (opc == 7 && I == 0 && G == 0)
     OUTS (outf, "CC = A0 <= A1");
 
   else
@@ -1181,9 +1187,6 @@ decode_CC2dreg_0 (TIword iw0, disassemble_info *outf)
   int op  = ((iw0 >> CC2dreg_op_bits) & CC2dreg_op_mask);
   int reg = ((iw0 >> CC2dreg_reg_bits) & CC2dreg_reg_mask);
 
-  if (parallel)
-    return 0;
-
   if (op == 0)
     {
       OUTS (outf, dregs (reg));
@@ -1194,7 +1197,7 @@ decode_CC2dreg_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, "CC = ");
       OUTS (outf, dregs (reg));
     }
-  else if (op == 3 && reg == 0)
+  else if (op == 3)
     OUTS (outf, "CC = !CC");
   else
     return 0;
@@ -1213,62 +1216,44 @@ decode_CC2stat_0 (TIword iw0, disassemble_info *outf)
   int op   = ((iw0 >> CC2stat_op_bits) & CC2stat_op_mask);
   int cbit = ((iw0 >> CC2stat_cbit_bits) & CC2stat_cbit_mask);
 
-  const char *bitname = statbits (cbit);
-
-  if (parallel)
-    return 0;
-
-  if (decode_statbits[cbit] == REG_LASTREG)
-    {
-      /* All ASTAT bits except CC may be operated on in hardware, but may
-         not have a dedicated insn, so still decode "valid" insns.  */
-      static char bitnames[64];
-      if (cbit != 5)
-	sprintf (bitnames, "ASTAT[%i /* unused bit */]", cbit);
-      else
-	return 0;
-
-      bitname = bitnames;
-    }
-
   if (op == 0 && D == 0)
     {
       OUTS (outf, "CC = ");
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
     }
   else if (op == 1 && D == 0)
     {
       OUTS (outf, "CC |= ");
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
     }
   else if (op == 2 && D == 0)
     {
       OUTS (outf, "CC &= ");
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
     }
   else if (op == 3 && D == 0)
     {
       OUTS (outf, "CC ^= ");
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
     }
   else if (op == 0 && D == 1)
     {
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
       OUTS (outf, " = CC");
     }
   else if (op == 1 && D == 1)
     {
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
       OUTS (outf, " |= CC");
     }
   else if (op == 2 && D == 1)
     {
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
       OUTS (outf, " &= CC");
     }
   else if (op == 3 && D == 1)
     {
-      OUTS (outf, bitname);
+      OUTS (outf, statbits (cbit));
       OUTS (outf, " ^= CC");
     }
   else
@@ -1287,9 +1272,6 @@ decode_BRCC_0 (TIword iw0, bfd_vma pc, disassemble_info *outf)
   int B = ((iw0 >> BRCC_B_bits) & BRCC_B_mask);
   int T = ((iw0 >> BRCC_T_bits) & BRCC_T_mask);
   int offset = ((iw0 >> BRCC_offset_bits) & BRCC_offset_mask);
-
-  if (parallel)
-    return 0;
 
   if (T == 1 && B == 1)
     {
@@ -1328,9 +1310,6 @@ decode_UJUMP_0 (TIword iw0, bfd_vma pc, disassemble_info *outf)
      +---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---+  */
   int offset = ((iw0 >> UJump_offset_bits) & UJump_offset_mask);
 
-  if (parallel)
-    return 0;
-
   OUTS (outf, "JUMP.S 0x");
   OUTS (outf, pcrel12 (offset));
   return 2;
@@ -1348,37 +1327,19 @@ decode_REGMV_0 (TIword iw0, disassemble_info *outf)
   int src = ((iw0 >> RegMv_src_bits) & RegMv_src_mask);
   int dst = ((iw0 >> RegMv_dst_bits) & RegMv_dst_mask);
 
-  /* Reserved slots cannot be a src/dst.  */
-  if (IS_RESERVEDREG (gs, src) || IS_RESERVEDREG (gd, dst))
-    goto invalid_move;
+  if (!((IS_GENREG (gd, dst) && IS_GENREG (gs, src))
+	|| (IS_GENREG (gd, dst) && IS_DAGREG (gs, src))
+	|| (IS_DAGREG (gd, dst) && IS_GENREG (gs, src))
+	|| (IS_DAGREG (gd, dst) && IS_DAGREG (gs, src))
+	|| (IS_GENREG (gd, dst) && gs == 7 && src == 0)
+	|| (gd == 7 && dst == 0 && IS_GENREG (gs, src))
+	|| (IS_DREG (gd, dst) && IS_SYSREG (gs, src))
+	|| (IS_PREG (gd, dst) && IS_SYSREG (gs, src))
+	|| (IS_SYSREG (gd, dst) && IS_DREG (gs, src))
+	|| (IS_SYSREG (gd, dst) && IS_PREG (gs, src))
+	|| (IS_SYSREG (gd, dst) && gs == 7 && src == 0)))
+    return 0;
 
-  /* Standard register moves  */
-  if ((gs < 2) ||                               /* Dregs/Pregs as source  */
-      (gd < 2) ||                               /* Dregs/Pregs as dest    */
-      (gs == 4 && src < 4) ||                   /* Accumulators as source */
-      (gd == 4 && dst < 4 && (gs < 4)) ||       /* Accumulators as dest   */
-      (gs == 7 && src == 7 && !(gd == 4 && dst < 4)) || /* EMUDAT as src  */
-      (gd == 7 && dst == 7))                    /* EMUDAT as dest         */
-    goto valid_move;
-
-  /* dareg = dareg (IMBL) */
-  if (gs < 4 && gd < 4)
-    goto valid_move;
-
-  /* USP can be src to sysregs, but not dagregs.  */
-  if ((gs == 7 && src == 0) && (gd >= 4))
-    goto valid_move;
-
-  /* USP can move between genregs (only check Accumulators).  */
-  if (((gs == 7 && src == 0) && (gd == 4 && dst < 4)) ||
-      ((gd == 7 && dst == 0) && (gs == 4 && src < 4)))
-    goto valid_move;
-
-  /* Still here ?  Invalid reg pair.  */
- invalid_move:
-  return 0;
-
- valid_move:
   OUTS (outf, allregs (dst, gd));
   OUTS (outf, " = ");
   OUTS (outf, allregs (src, gs));
@@ -1580,9 +1541,6 @@ decode_LOGI2op_0 (TIword iw0, disassemble_info *outf)
   int opc = ((iw0 >> LOGI2op_opc_bits) & LOGI2op_opc_mask);
   int dst = ((iw0 >> LOGI2op_dst_bits) & LOGI2op_dst_mask);
 
-  if (parallel)
-    return 0;
-
   if (opc == 0)
     {
       OUTS (outf, "CC = !BITTST (");
@@ -1766,9 +1724,6 @@ decode_COMPI2opD_0 (TIword iw0, disassemble_info *outf)
 
   bu32 *pval = get_allreg (0, dst);
 
-  if (parallel)
-    return 0;
-
   /* Since we don't have 32-bit immediate loads, we allow the disassembler
      to combine them, so it prints out the right values.
      Here we keep track of the registers.  */
@@ -1823,9 +1778,6 @@ decode_COMPI2opP_0 (TIword iw0, disassemble_info *outf)
   int dst = ((iw0 >> COMPI2opP_dst_bits) & COMPI2opP_dst_mask);
 
   bu32 *pval = get_allreg (1, dst);
-
-  if (parallel)
-    return 0;
 
   if (op == 0)
     {
@@ -2010,7 +1962,7 @@ decode_dagMODim_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, " += ");
       OUTS (outf, mregs (m));
     }
-  else if (op == 1 && br == 0)
+  else if (op == 1)
     {
       OUTS (outf, iregs (i));
       OUTS (outf, " -= ");
@@ -2055,16 +2007,16 @@ decode_dagMODik_0 (TIword iw0, disassemble_info *outf)
   else
     return 0;
 
-  if (! parallel)
-    {
-      OUTS (outf, ";\t\t/* (  ");
-      if (op == 0 || op == 1)
-	OUTS (outf, "2");
-      else if (op == 2 || op == 3)
+ if (! parallel )
+   {
+     OUTS (outf, ";\t\t/* (  ");
+     if (op == 0 || op == 1)
+       OUTS (outf, "2");
+     else if (op == 2 || op == 3)
 	OUTS (outf, "4");
-      OUTS (outf, ") */");
-      comment = 1;
-    }
+     OUTS (outf, ") */");
+    comment = 1;
+  }
 
   return 2;
 }
@@ -2253,7 +2205,7 @@ decode_LDST_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, pregs (ptr));
       OUTS (outf, "++]");
     }
-  else if (aop == 0 && sz == 0 && Z == 1 && W == 0 && reg != ptr)
+  else if (aop == 0 && sz == 0 && Z == 1 && W == 0)
     {
       OUTS (outf, pregs (reg));
       OUTS (outf, " = [");
@@ -2295,7 +2247,7 @@ decode_LDST_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, pregs (ptr));
       OUTS (outf, "--]");
     }
-  else if (aop == 1 && sz == 0 && Z == 1 && W == 0 && reg != ptr)
+  else if (aop == 1 && sz == 0 && Z == 1 && W == 0)
     {
       OUTS (outf, pregs (reg));
       OUTS (outf, " = [");
@@ -2589,12 +2541,6 @@ decode_LoopSetup_0 (TIword iw0, TIword iw1, bfd_vma pc, disassemble_info *outf)
   int soffset = ((iw0 >> (LoopSetup_soffset_bits - 16)) & LoopSetup_soffset_mask);
   int eoffset = ((iw1 >> LoopSetup_eoffset_bits) & LoopSetup_eoffset_mask);
 
-  if (parallel)
-    return 0;
-
-  if (reg > 7)
-    return 0;
-
   if (rop == 0)
     {
       OUTS (outf, "LSETUP");
@@ -2653,9 +2599,6 @@ decode_LDIMMhalf_0 (TIword iw0, TIword iw1, disassemble_info *outf)
 
   bu32 *pval = get_allreg (grp, reg);
 
-  if (parallel)
-    return 0;
-
   /* Since we don't have 32-bit immediate loads, we allow the disassembler
      to combine them, so it prints out the right values.
      Here we keep track of the registers.  */
@@ -2708,7 +2651,7 @@ decode_LDIMMhalf_0 (TIword iw0, TIword iw1, disassemble_info *outf)
       OUTS (outf, " (X)");
     }
   else if (H == 0 && S == 1 && Z == 0)
-    {
+   {
       OUTS (outf, regs (reg, grp));
       OUTS (outf, " = ");
       OUTS (outf, imm16 (hword));
@@ -2765,14 +2708,14 @@ decode_LDIMMhalf_0 (TIword iw0, TIword iw1, disassemble_info *outf)
     }
   if (S == 1 || Z == 1)
     {
-      OUTS (outf, ";\t\t/*\t\t");
-      OUTS (outf, regs (reg, grp));
-      OUTS (outf, "=0x");
-      OUTS (outf, huimm32e (*pval));
-      OUTS (outf, "(");
-      OUTS (outf, imm32 (*pval));
-      OUTS (outf, ") */");
-      comment = 1;
+       OUTS (outf, ";\t\t/*\t\t");
+       OUTS (outf, regs (reg, grp));
+       OUTS (outf, "=0x");
+       OUTS (outf, huimm32e (*pval));
+       OUTS (outf, "(");
+       OUTS (outf, imm32 (*pval));
+       OUTS (outf, ") */");
+       comment = 1;
     }
   return 4;
 }
@@ -2788,9 +2731,6 @@ decode_CALLa_0 (TIword iw0, TIword iw1, bfd_vma pc, disassemble_info *outf)
   int S   = ((iw0 >> (CALLa_S_bits - 16)) & CALLa_S_mask);
   int lsw = ((iw1 >> 0) & 0xffff);
   int msw = ((iw0 >> 0) & 0xff);
-
-  if (parallel)
-    return 0;
 
   if (S == 1)
     OUTS (outf, "CALL 0x");
@@ -2925,9 +2865,6 @@ decode_linkage_0 (TIword iw0, TIword iw1, disassemble_info *outf)
   int R = ((iw0 >> (Linkage_R_bits - 16)) & Linkage_R_mask);
   int framesize = ((iw1 >> Linkage_framesize_bits) & Linkage_framesize_mask);
 
-  if (parallel)
-    return 0;
-
   if (R == 0)
     {
       OUTS (outf, "LINK ");
@@ -3000,16 +2937,13 @@ decode_dsp32mac_0 (TIword iw0, TIword iw1, disassemble_info *outf)
 	{
 	  if (MM)
 	    OUTS (outf, " (M)");
+	  MM = 0;
 	  OUTS (outf, ", ");
 	}
     }
 
   if (w0 == 1 || op0 != 3)
     {
-      /* Clear MM option since it only matters for MAC1, and if we made
-         it this far, we've already shown it or we want to ignore it.  */
-      MM = 0;
-
       if (w0)
 	OUTS (outf, P ? dregs (dst) : dregs_lo (dst));
 
@@ -3059,7 +2993,7 @@ decode_dsp32mult_0 (TIword iw0, TIword iw1, disassemble_info *outf)
 
   if (w1)
     {
-      OUTS (outf, P ? dregs (dst + 1) : dregs_hi (dst));
+      OUTS (outf, P ? dregs (dst | 1) : dregs_hi (dst));
       OUTS (outf, " = ");
       decode_multfunc (h01, h11, src0, src1, outf);
 
@@ -3074,7 +3008,7 @@ decode_dsp32mult_0 (TIword iw0, TIword iw1, disassemble_info *outf)
 
   if (w0)
     {
-      OUTS (outf, P ? dregs (dst) : dregs_lo (dst));
+      OUTS (outf, dregs (dst));
       OUTS (outf, " = ");
       decode_multfunc (h00, h10, src0, src1, outf);
     }
@@ -3348,6 +3282,74 @@ decode_dsp32alu_0 (TIword iw0, TIword iw1, disassemble_info *outf)
   else if (aop == 3 && aopcde == 11 && s == 1)
     OUTS (outf, "A0 -= A1 (W32)");
 
+  else if (aop == 3 && aopcde == 22 && HL == 1)
+    {
+      OUTS (outf, dregs (dst0));
+      OUTS (outf, " = BYTEOP2M (");
+      OUTS (outf, dregs (src0 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src0));
+      OUTS (outf, ", ");
+      OUTS (outf, dregs (src1 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src1));
+      OUTS (outf, ") (TH");
+      if (s == 1)
+	OUTS (outf, ", R)");
+      else
+	OUTS (outf, ")");
+    }
+  else if (aop == 3 && aopcde == 22 && HL == 0)
+    {
+      OUTS (outf, dregs (dst0));
+      OUTS (outf, " = BYTEOP2M (");
+      OUTS (outf, dregs (src0 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src0));
+      OUTS (outf, ", ");
+      OUTS (outf, dregs (src1 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src1));
+      OUTS (outf, ") (TL");
+      if (s == 1)
+	OUTS (outf, ", R)");
+      else
+	OUTS (outf, ")");
+    }
+  else if (aop == 2 && aopcde == 22 && HL == 1)
+    {
+      OUTS (outf, dregs (dst0));
+      OUTS (outf, " = BYTEOP2M (");
+      OUTS (outf, dregs (src0 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src0));
+      OUTS (outf, ", ");
+      OUTS (outf, dregs (src1 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src1));
+      OUTS (outf, ") (RNDH");
+      if (s == 1)
+	OUTS (outf, ", R)");
+      else
+	OUTS (outf, ")");
+    }
+  else if (aop == 2 && aopcde == 22 && HL == 0)
+    {
+      OUTS (outf, dregs (dst0));
+      OUTS (outf, " = BYTEOP2M (");
+      OUTS (outf, dregs (src0 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src0));
+      OUTS (outf, ", ");
+      OUTS (outf, dregs (src1 + 1));
+      OUTS (outf, ":");
+      OUTS (outf, imm5 (src1));
+      OUTS (outf, ") (RNDL");
+      if (s == 1)
+	OUTS (outf, ", R)");
+      else
+	OUTS (outf, ")");
+    }
   else if (aop == 1 && aopcde == 22 && HL == 1)
     {
       OUTS (outf, dregs (dst0));
@@ -3451,7 +3453,7 @@ decode_dsp32alu_0 (TIword iw0, TIword iw1, disassemble_info *outf)
       OUTS (outf, " = (A0 += A1)");
     }
   else if (aop == 3 && HL == 0 && aopcde == 16)
-    OUTS (outf, "A1 = ABS A1, A0 = ABS A0");
+    OUTS (outf, "A1 = ABS A0, A0 = ABS A0");
 
   else if (aop == 0 && aopcde == 23 && HL == 1)
     {
@@ -4052,7 +4054,7 @@ decode_dsp32shift_0 (TIword iw0, TIword iw1, disassemble_info *outf)
   else if (sop == 2 && sopcde == 2)
     {
       OUTS (outf, dregs (dst0));
-      OUTS (outf, " = LSHIFT ");
+      OUTS (outf, " = SHIFT ");
       OUTS (outf, dregs (src1));
       OUTS (outf, " BY ");
       OUTS (outf, dregs_lo (src0));
@@ -4068,7 +4070,7 @@ decode_dsp32shift_0 (TIword iw0, TIword iw1, disassemble_info *outf)
   else if (sop == 2 && sopcde == 1)
     {
       OUTS (outf, dregs (dst0));
-      OUTS (outf, " = LSHIFT ");
+      OUTS (outf, " = SHIFT ");
       OUTS (outf, dregs (src1));
       OUTS (outf, " BY ");
       OUTS (outf, dregs_lo (src0));
@@ -4336,6 +4338,7 @@ decode_dsp32shiftimm_0 (TIword iw0, TIword iw1, disassemble_info *outf)
   int sopcde   = ((iw0 >> (DSP32ShiftImm_sopcde_bits - 16)) & DSP32ShiftImm_sopcde_mask);
   int HLs      = ((iw1 >> DSP32ShiftImm_HLs_bits) & DSP32ShiftImm_HLs_mask);
 
+
   if (sop == 0 && sopcde == 0)
     {
       OUTS (outf, (HLs & 2) ? dregs_hi (dst0) : dregs_lo (dst0));
@@ -4434,7 +4437,7 @@ decode_dsp32shiftimm_0 (TIword iw0, TIword iw1, disassemble_info *outf)
       OUTS (outf, dregs (src1));
       OUTS (outf, " >>> ");
       OUTS (outf, imm5 (-immag));
-      OUTS (outf, " (V, S)");
+      OUTS (outf, " (V)");
     }
   else if (sop == 2 && sopcde == 1 && bit8 == 1)
     {
@@ -4521,9 +4524,6 @@ decode_pseudoDEBUG_0 (TIword iw0, disassemble_info *outf)
   int grp = ((iw0 >> PseudoDbg_grp_bits) & PseudoDbg_grp_mask);
   int reg = ((iw0 >> PseudoDbg_reg_bits) & PseudoDbg_reg_mask);
 
-  if (parallel)
-    return 0;
-
   if (reg == 0 && fn == 3)
     OUTS (outf, "DBG A0");
 
@@ -4550,39 +4550,21 @@ decode_pseudoDEBUG_0 (TIword iw0, disassemble_info *outf)
 
   else if (grp == 0 && fn == 2)
     {
-      OUTS (outf, "OUTC ");
+      OUTS (outf, "OUTC");
       OUTS (outf, dregs (reg));
     }
   else if (fn == 0)
     {
-      OUTS (outf, "DBG ");
+      OUTS (outf, "DBG");
       OUTS (outf, allregs (reg, grp));
     }
   else if (fn == 1)
     {
-      OUTS (outf, "PRNT ");
+      OUTS (outf, "PRNT");
       OUTS (outf, allregs (reg, grp));
     }
   else
     return 0;
-
-  return 2;
-}
-
-static int
-decode_pseudoOChar_0 (TIword iw0, disassemble_info *outf)
-{
-  /* psedoOChar
-     +---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---+
-     | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 1 |.ch............................|
-     +---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---+  */
-  int ch = ((iw0 >> PseudoChr_ch_bits) & PseudoChr_ch_mask);
-
-  if (parallel)
-    return 0;
-
-  OUTS (outf, "OUTC ");
-  OUTS (outf, uimm8 (ch));
 
   return 2;
 }
@@ -4599,9 +4581,6 @@ decode_pseudodbg_assert_0 (TIword iw0, TIword iw1, disassemble_info *outf)
   int dbgop    = ((iw0 >> (PseudoDbg_Assert_dbgop_bits - 16)) & PseudoDbg_Assert_dbgop_mask);
   int grp      = ((iw0 >> (PseudoDbg_Assert_grp_bits - 16)) & PseudoDbg_Assert_grp_mask);
   int regtest  = ((iw0 >> (PseudoDbg_Assert_regtest_bits - 16)) & PseudoDbg_Assert_regtest_mask);
-
-  if (parallel)
-    return 0;
 
   if (dbgop == 0)
     {
@@ -4650,22 +4629,13 @@ _print_insn_bfin (bfd_vma pc, disassemble_info *outf)
   int rv = 0;
 
   status = (*outf->read_memory_func) (pc & ~0x1, buf, 2, outf);
-  /* FIXME */
-  (void) status;
   status = (*outf->read_memory_func) ((pc + 2) & ~0x1, buf + 2, 2, outf);
-  /* FIXME */
-  (void) status;
 
   iw0 = bfd_getl16 (buf);
   iw1 = bfd_getl16 (buf + 2);
 
   if ((iw0 & 0xf7ff) == 0xc003 && iw1 == 0x1800)
     {
-      if (parallel)
-	{
-	  OUTS (outf, "ILLEGAL");
-	  return 0;
-	}
       OUTS (outf, "MNOP");
       return 4;
     }
@@ -4739,16 +4709,16 @@ _print_insn_bfin (bfd_vma pc, disassemble_info *outf)
     rv = decode_dsp32shiftimm_0 (iw0, iw1, outf);
   else if ((iw0 & 0xff00) == 0xf800)
     rv = decode_pseudoDEBUG_0 (iw0, outf);
+#if 0
   else if ((iw0 & 0xFF00) == 0xF900)
-    rv = decode_pseudoOChar_0 (iw0, outf);
+    rv = decode_pseudoOChar_0 (iw0, iw1, pc, outf);
+#endif
   else if ((iw0 & 0xFF00) == 0xf000 && (iw1 & 0x0000) == 0x0000)
     rv = decode_pseudodbg_assert_0 (iw0, iw1, outf);
 
-  if (rv == 0)
-    OUTS (outf, "ILLEGAL");
-
   return rv;
 }
+
 
 int
 print_insn_bfin (bfd_vma pc, disassemble_info *outf)
@@ -4759,46 +4729,29 @@ print_insn_bfin (bfd_vma pc, disassemble_info *outf)
   int count = 0;
 
   status = (*outf->read_memory_func) (pc & ~0x01, buf, 2, outf);
-  /* FIXME */
-  (void) status;
   iw0 = bfd_getl16 (buf);
 
   count += _print_insn_bfin (pc, outf);
 
   /* Proper display of multiple issue instructions.  */
 
-  if (count == 4 && (iw0 & 0xc000) == 0xc000 && (iw0 & BIT_MULTI_INS)
+  if ((iw0 & 0xc000) == 0xc000 && (iw0 & BIT_MULTI_INS)
       && ((iw0 & 0xe800) != 0xe800 /* Not Linkage.  */ ))
     {
-      int legal = 1;
-      int len;
-
       parallel = 1;
-      OUTS (outf, " || ");
-      len = _print_insn_bfin (pc + 4, outf);
-      OUTS (outf, " || ");
-      if (len != 2)
-	legal = 0;
-      len = _print_insn_bfin (pc + 6, outf);
-      if (len != 2)
-	legal = 0;
-
-      if (legal)
-	count = 8;
-      else
-	{
-	  OUTS (outf, ";\t\t/* ILLEGAL PARALLEL INSTRUCTION */");
-	  comment = 1;
-	  count = 0;
-	}
+      outf->fprintf_func (outf->stream, " || ");
+      count += _print_insn_bfin (pc + 4, outf);
+      outf->fprintf_func (outf->stream, " || ");
+      count += _print_insn_bfin (pc + 6, outf);
       parallel = 0;
     }
-
-  if (!comment)
-    OUTS (outf, ";");
-
   if (count == 0)
-    return 2;
+    {
+      outf->fprintf_func (outf->stream, "ILLEGAL");
+      return 2;
+    }
+  if (!comment)
+    outf->fprintf_func (outf->stream, ";");
 
   comment = 0;
 

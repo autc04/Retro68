@@ -1,4 +1,4 @@
-#objdump: --architecture=m68k:547x -d
+#objdump: -d
 #as: -mcpu=5475
 
 .*:     file format .*

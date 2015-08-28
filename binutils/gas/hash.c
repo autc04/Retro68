@@ -1,6 +1,6 @@
 /* hash.c -- gas hash table code
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999,
-   2000, 2001, 2002, 2003, 2005, 2007, 2008, 2009, 2011, 2013
+   2000, 2001, 2002, 2003, 2005, 2007, 2008
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -78,16 +78,40 @@ static unsigned long gas_hash_table_size = 65537;
 void
 set_gas_hash_table_size (unsigned long size)
 {
-  gas_hash_table_size = bfd_hash_set_default_size (size);
+  gas_hash_table_size = size;
+}
+
+/* FIXME: This function should be amalgmated with bfd/hash.c:bfd_hash_set_default_size().  */
+static unsigned long
+get_gas_hash_table_size (void)
+{
+  /* Extend this prime list if you want more granularity of hash table size.  */
+  static const unsigned long hash_size_primes[] =
+    {
+      1021, 4051, 8599, 16699, 65537
+    };
+  unsigned int index;
+
+  /* Work out the best prime number near the hash_size.
+     FIXME: This could be a more sophisticated algorithm,
+     but is it really worth implementing it ?   */
+  for (index = 0; index < ARRAY_SIZE (hash_size_primes) - 1; ++index)
+    if (gas_hash_table_size <= hash_size_primes[index])
+      break;
+
+  return hash_size_primes[index];
 }
 
 /* Create a hash table.  This return a control block.  */
 
 struct hash_control *
-hash_new_sized (unsigned long size)
+hash_new (void)
 {
+  unsigned long size;
   unsigned long alloc;
   struct hash_control *ret;
+
+  size = get_gas_hash_table_size ();
 
   ret = (struct hash_control *) xmalloc (sizeof *ret);
   obstack_begin (&ret->memory, chunksize);
@@ -106,12 +130,6 @@ hash_new_sized (unsigned long size)
 #endif
 
   return ret;
-}
-
-struct hash_control *
-hash_new (void)
-{
-  return hash_new_sized (gas_hash_table_size);
 }
 
 /* Delete a hash table, freeing all allocated memory.  */
@@ -139,7 +157,7 @@ hash_lookup (struct hash_control *table, const char *key, size_t len,
   unsigned long hash;
   size_t n;
   unsigned int c;
-  unsigned int hindex;
+  unsigned int index;
   struct hash_entry **list;
   struct hash_entry *p;
   struct hash_entry *prev;
@@ -161,8 +179,8 @@ hash_lookup (struct hash_control *table, const char *key, size_t len,
   if (phash != NULL)
     *phash = hash;
 
-  hindex = hash % table->size;
-  list = table->table + hindex;
+  index = hash % table->size;
+  list = table->table + index;
 
   if (plist != NULL)
     *plist = list;
@@ -205,7 +223,7 @@ hash_lookup (struct hash_control *table, const char *key, size_t len,
    hash table.  */
 
 const char *
-hash_insert (struct hash_control *table, const char *key, void *val)
+hash_insert (struct hash_control *table, const char *key, void *value)
 {
   struct hash_entry *p;
   struct hash_entry **list;
@@ -222,7 +240,7 @@ hash_insert (struct hash_control *table, const char *key, void *val)
   p = (struct hash_entry *) obstack_alloc (&table->memory, sizeof (*p));
   p->string = key;
   p->hash = hash;
-  p->data = val;
+  p->data = value;
 
   p->next = *list;
   *list = p;
@@ -235,7 +253,7 @@ hash_insert (struct hash_control *table, const char *key, void *val)
    error.  If an entry already exists, its value is replaced.  */
 
 const char *
-hash_jam (struct hash_control *table, const char *key, void *val)
+hash_jam (struct hash_control *table, const char *key, void *value)
 {
   struct hash_entry *p;
   struct hash_entry **list;
@@ -248,7 +266,7 @@ hash_jam (struct hash_control *table, const char *key, void *val)
       ++table->replacements;
 #endif
 
-      p->data = val;
+      p->data = value;
     }
   else
     {
@@ -259,7 +277,7 @@ hash_jam (struct hash_control *table, const char *key, void *val)
       p = (struct hash_entry *) obstack_alloc (&table->memory, sizeof (*p));
       p->string = key;
       p->hash = hash;
-      p->data = val;
+      p->data = value;
 
       p->next = *list;
       *list = p;

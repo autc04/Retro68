@@ -1,6 +1,5 @@
 /* Motorola 68HC11/68HC12-specific support for 32-bit ELF
-   Copyright 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2012
-   Free Software Foundation, Inc.
+   Copyright 2003, 2004, 2005, 2006, 2007, 2009 Free Software Foundation, Inc.
    Contributed by Stephane Carrez (stcarrez@nerim.fr)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -43,8 +42,8 @@ extern bfd_boolean _bfd_m68hc11_elf_print_private_bfd_data (bfd*, void*);
    The trampoline is used when a pointer to a far function is used.
    It takes care of installing the proper memory bank as well as creating
    the 'call/rtc' calling convention.  */
-struct elf32_m68hc11_stub_hash_entry
-{
+struct elf32_m68hc11_stub_hash_entry {
+
   /* Base hash table entry structure.  */
   struct bfd_hash_entry root;
 
@@ -84,8 +83,9 @@ struct elf32_m68hc11_stub_hash_entry
                         less or equal to the page size)
 
    For 68HC12, the window is at 0x8000 and the page size is 16K (full window).
-   For 68HC11 this is board specific (implemented by external hardware).  */
+   For 68HC11 this is board specific (implemented by external hardware).
 
+*/
 struct m68hc11_page_info
 {
   bfd_vma bank_virtual;
@@ -113,7 +113,7 @@ struct m68hc11_elf_link_hash_table
   asection* tramp_section;
 
   /* Linker call-backs.  */
-  asection * (*add_stub_section) (const char *, asection *);
+  asection * (*add_stub_section) PARAMS ((const char *, asection *));
 
   /* Assorted information used by elf32_hppa_size_stubs.  */
   unsigned int bfd_count;
@@ -123,15 +123,14 @@ struct m68hc11_elf_link_hash_table
   /* Small local sym cache.  */
   struct sym_cache sym_cache;
 
-  bfd_boolean (* size_one_stub)  (struct bfd_hash_entry*, void*);
-  bfd_boolean (* build_one_stub) (struct bfd_hash_entry*, void*);
+  bfd_boolean (* size_one_stub) PARAMS((struct bfd_hash_entry*, void*));
+  bfd_boolean (* build_one_stub) PARAMS((struct bfd_hash_entry*, void*));
 };
 
 /* Get the Sparc64 ELF linker hash table from a link_info structure.  */
 
 #define m68hc11_elf_hash_table(p) \
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
-  == M68HC11_ELF_DATA ? ((struct m68hc11_elf_link_hash_table *) ((p)->hash)) : NULL)
+  ((struct m68hc11_elf_link_hash_table *) ((p)->hash))
 
 /* Create a 68HC11/68HC12 ELF linker hash table.  */
 
@@ -175,10 +174,6 @@ bfd_boolean elf32_m68hc11_add_symbol_hook
    Elf_Internal_Sym *sym, const char **namep,
    flagword *flagsp, asection **secp,
    bfd_vma *valp);
-
-void elf32_m68hc11_merge_symbol_attribute
-  (struct elf_link_hash_entry *, const Elf_Internal_Sym *,
-   bfd_boolean, bfd_boolean);
 
 /* Tweak the OSABI field of the elf header.  */
 

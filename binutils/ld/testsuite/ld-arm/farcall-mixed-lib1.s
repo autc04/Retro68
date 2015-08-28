@@ -3,6 +3,7 @@
 @ Check also calls to an undef weak symbol.
 
 	.text
+	.arch armv5t
 
 	.p2align 4
 	.globl lib_func1

@@ -3,7 +3,6 @@
  * that we always get the right one.
  */
 #include <stdio.h>
-#include "vers.h"
 
 int
 foo_1()
@@ -32,6 +31,6 @@ main()
   return 0;
 }
 
-SYMVER(foo_1, show_foo@);
-SYMVER(foo_2, show_foo@VERS_1.1);
-SYMVER(foo_3, show_foo@@VERS_1.2);
+__asm__(".symver foo_1,show_foo@");
+__asm__(".symver foo_2,show_foo@VERS_1.1");
+__asm__(".symver foo_3,show_foo@@VERS_1.2");

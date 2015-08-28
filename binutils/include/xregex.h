@@ -8,7 +8,6 @@
 #  define regexec xregexec
 #  define regcomp xregcomp
 #  define regerror xregerror
-#  define regoff_t xregoff_t
 #  define re_set_registers xre_set_registers
 #  define re_match_2 xre_match_2
 #  define re_match xre_match

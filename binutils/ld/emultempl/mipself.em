@@ -27,13 +27,11 @@ fragment <<EOF
 #define is_mips_elf(bfd)				\
   (bfd_get_flavour (bfd) == bfd_target_elf_flavour	\
    && elf_tdata (bfd) != NULL				\
-   && elf_object_id (bfd) == MIPS_ELF_DATA)
+   && elf_object_id (bfd) == MIPS_ELF_TDATA)
 
 /* Fake input file for stubs.  */
 static lang_input_statement_type *stub_file;
 static bfd *stub_bfd;
-
-static bfd_boolean insn32;
 
 static void
 mips_after_parse (void)
@@ -140,11 +138,6 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
   lang_output_section_statement_type *os;
   struct hook_stub_info info;
 
-  /* PR 12845: If the input section has been garbage collected it will
-     not have its output section set to *ABS*.  */
-  if (bfd_is_abs_section (output_section))
-    return NULL;
-
   /* Create the stub file, if we haven't already.  */
   if (stub_file == NULL)
     {
@@ -182,7 +175,7 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
 
   /* Initialize a statement list that contains only the new statement.  */
   lang_list_init (&info.add);
-  lang_add_section (&info.add, stub_sec, NULL, os);
+  lang_add_section (&info.add, stub_sec, os);
   if (info.add.head == NULL)
     goto err_ret;
 
@@ -201,12 +194,6 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
 static void
 mips_create_output_section_statements (void)
 {
-  struct elf_link_hash_table *htab;
-
-  htab = elf_hash_table (&link_info);
-  if (is_elf_hash_table (htab) && is_mips_elf (link_info.output_bfd))
-    _bfd_mips_elf_insn32 (&link_info, insn32);
-
   if (is_mips_elf (link_info.output_bfd))
     _bfd_mips_elf_init_stubs (&link_info, mips_add_stub_section);
 }
@@ -248,38 +235,6 @@ mips_lang_for_each_input_file (void (*func) (lang_input_statement_type *))
 #define lang_for_each_input_file mips_lang_for_each_input_file
 
 EOF
-
-# Define some shell vars to insert bits of code into the standard elf
-# parse_args and list_options functions.
-#
-PARSE_AND_LIST_PROLOGUE='
-#define OPTION_INSN32			301
-#define OPTION_NO_INSN32		(OPTION_INSN32 + 1)
-'
-
-PARSE_AND_LIST_LONGOPTS='
-  { "insn32", no_argument, NULL, OPTION_INSN32 },
-  { "no-insn32", no_argument, NULL, OPTION_NO_INSN32 },
-'
-
-PARSE_AND_LIST_OPTIONS='
-  fprintf (file, _("\
-  --insn32                    Only generate 32-bit microMIPS instructions\n"
-		   ));
-  fprintf (file, _("\
-  --no-insn32                 Generate all microMIPS instructions\n"
-		   ));
-'
-
-PARSE_AND_LIST_ARGS_CASES='
-    case OPTION_INSN32:
-      insn32 = TRUE;
-      break;
-
-    case OPTION_NO_INSN32:
-      insn32 = FALSE;
-      break;
-'
 
 LDEMUL_AFTER_PARSE=mips_after_parse
 LDEMUL_BEFORE_ALLOCATION=mips_before_allocation

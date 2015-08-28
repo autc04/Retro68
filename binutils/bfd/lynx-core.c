@@ -53,17 +53,17 @@ struct lynx_core_struct
 #define core_command(bfd) (core_hdr(bfd)->cmd)
 
 #define lynx_core_file_matches_executable_p generic_core_file_matches_executable_p
-#define lynx_core_file_pid _bfd_nocore_core_file_pid
 
 /* Handle Lynx core dump file.  */
 
 static asection *
-make_bfd_asection (bfd *abfd,
-		   const char *name,
-		   flagword flags,
-		   bfd_size_type size,
-		   bfd_vma vma,
-		   file_ptr filepos)
+make_bfd_asection (abfd, name, flags, size, vma, filepos)
+     bfd *abfd;
+     const char *name;
+     flagword flags;
+     bfd_size_type size;
+     bfd_vma vma;
+     file_ptr filepos;
 {
   asection *asect;
   char *newname;
@@ -87,7 +87,8 @@ make_bfd_asection (bfd *abfd,
 }
 
 const bfd_target *
-lynx_core_file_p (bfd *abfd)
+lynx_core_file_p (abfd)
+     bfd *abfd;
 {
   int secnum;
   struct pssentry pss;
@@ -213,13 +214,15 @@ lynx_core_file_p (bfd *abfd)
 }
 
 char *
-lynx_core_file_failing_command (bfd *abfd)
+lynx_core_file_failing_command (abfd)
+     bfd *abfd;
 {
   return core_command (abfd);
 }
 
 int
-lynx_core_file_failing_signal (bfd *abfd)
+lynx_core_file_failing_signal (abfd)
+     bfd *abfd;
 {
   return core_signal (abfd);
 }

@@ -1,6 +1,6 @@
 /* strings -- print the strings of printable characters in files
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011, 2012
+   2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -65,6 +65,7 @@
 #include "getopt.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
+#include <sys/stat.h>
 #include "bucomm.h"
 
 #define STRING_ISGRAPHIC(c) \
@@ -78,6 +79,21 @@ extern int errno;
 
 /* The BFD section flags that identify an initialized data section.  */
 #define DATA_FLAGS (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS)
+
+#ifdef HAVE_FOPEN64
+typedef off64_t file_off;
+#define file_open(s,m) fopen64(s, m)
+#else
+typedef off_t file_off;
+#define file_open(s,m) fopen(s, m)
+#endif
+#ifdef HAVE_STAT64
+typedef struct stat64 statbuf;
+#define file_stat(f,s) stat64(f, s)
+#else
+typedef struct stat statbuf;
+#define file_stat(f,s) stat(f, s)
+#endif
 
 /* Radix for printing addresses (must be 8, 10 or 16).  */
 static int address_radix;
@@ -129,9 +145,9 @@ typedef struct
 static void strings_a_section (bfd *, asection *, void *);
 static bfd_boolean strings_object_file (const char *);
 static bfd_boolean strings_file (char *file);
-static void print_strings (const char *, FILE *, file_ptr, int, int, char *);
+static void print_strings (const char *, FILE *, file_off, int, int, char *);
 static void usage (FILE *, int);
-static long get_char (FILE *, file_ptr *, int *, char **);
+static long get_char (FILE *, file_off *, int *, char **);
 
 int main (int, char **);
 
@@ -398,11 +414,9 @@ strings_object_file (const char *file)
 static bfd_boolean
 strings_file (char *file)
 {
-  struct stat st;
+  statbuf st;
 
-  /* get_file_size does not support non-S_ISREG files.  */
-
-  if (stat (file, &st) < 0)
+  if (file_stat (file, &st) < 0)
     {
       if (errno == ENOENT)
 	non_fatal (_("'%s': No such file"), file);
@@ -420,7 +434,7 @@ strings_file (char *file)
     {
       FILE *stream;
 
-      stream = fopen (file, FOPEN_RB);
+      stream = file_open (file, FOPEN_RB);
       if (stream == NULL)
 	{
 	  fprintf (stderr, "%s: ", program_name);
@@ -428,7 +442,7 @@ strings_file (char *file)
 	  return FALSE;
 	}
 
-      print_strings (file, stream, (file_ptr) 0, 0, 0, (char *) 0);
+      print_strings (file, stream, (file_off) 0, 0, 0, (char *) 0);
 
       if (fclose (stream) == EOF)
 	{
@@ -452,10 +466,11 @@ strings_file (char *file)
    MAGICCOUNT is how many characters are in it.  */
 
 static long
-get_char (FILE *stream, file_ptr *address, int *magiccount, char **magic)
+get_char (FILE *stream, file_off *address, int *magiccount, char **magic)
 {
   int c, i;
-  long r = 0;
+  long r = EOF;
+  unsigned char buf[4];
 
   for (i = 0; i < encoding_bytes; i++)
     {
@@ -483,21 +498,33 @@ get_char (FILE *stream, file_ptr *address, int *magiccount, char **magic)
 	}
 
       (*address)++;
-      r = (r << 8) | (c & 0xff);
+      buf[i] = c;
     }
 
   switch (encoding)
     {
-    default:
+    case 'S':
+    case 's':
+      r = buf[0];
+      break;
+    case 'b':
+      r = (buf[0] << 8) | buf[1];
       break;
     case 'l':
-      r = ((r & 0xff) << 8) | ((r & 0xff00) >> 8);
+      r = buf[0] | (buf[1] << 8);
+      break;
+    case 'B':
+      r = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
+	((long) buf[2] << 8) | buf[3];
       break;
     case 'L':
-      r = (((r & 0xff) << 24) | ((r & 0xff00) << 8)
-	   | ((r & 0xff0000) >> 8) | ((r & 0xff000000) >> 24));
+      r = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
+	((long) buf[3] << 24);
       break;
     }
+
+  if (r == EOF)
+    return 0;
 
   return r;
 }
@@ -515,14 +542,14 @@ get_char (FILE *stream, file_ptr *address, int *magiccount, char **magic)
    Those characters come at address ADDRESS and the data in STREAM follow.  */
 
 static void
-print_strings (const char *filename, FILE *stream, file_ptr address,
+print_strings (const char *filename, FILE *stream, file_off address,
 	       int stop_point, int magiccount, char *magic)
 {
   char *buf = (char *) xmalloc (sizeof (char) * (string_min + 1));
 
   while (1)
     {
-      file_ptr start;
+      file_off start;
       int i;
       long c;
 
@@ -535,10 +562,7 @@ print_strings (const char *filename, FILE *stream, file_ptr address,
 	{
 	  c = get_char (stream, &address, &magiccount, &magic);
 	  if (c == EOF)
-	    {
-	      free (buf);
-	      return;
-	    }
+	    return;
 	  if (! STRING_ISGRAPHIC (c))
 	    /* Found a non-graphic.  Try again starting with next char.  */
 	    goto tryline;
@@ -627,7 +651,6 @@ print_strings (const char *filename, FILE *stream, file_ptr address,
 
       putchar ('\n');
     }
-  free (buf);
 }
 
 static void

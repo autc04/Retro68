@@ -2,7 +2,6 @@
 	.text
 	.arch armv5t
 	.global _start
-	.type _start, %function
 _start:
 	bl arm
 	bl t1

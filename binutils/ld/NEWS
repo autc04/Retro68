@@ -1,86 +1,5 @@
 -*- text -*-
 
-Changes in 2.24:
-
-* Add LOG2CEIL() builtin function to the linker script language
-
-* Add support for the Texas Instruments MSP430X processor.
-
-* Add support for Altera Nios II.
-
-* Add support for the V850E3V5 architecture.
-
-* Add support for the Imagination Technologies Meta processor.
-
-* --enable-new-dtags no longer generates old dtags in addition to new dtags.
-
-* Remove linker support for MIPS ECOFF targets.
-
-* Add ALIGN_WITH_INPUT to the linker script language to force the alignment of
-  an output section to use the maximum alignment of all its input sections.
-
-Changes in 2.23:
-
-* Enable compressed debug section feature for x86/x86_64 pe-coff.
-
-* Add support for the 64-bit ARM architecture: AArch64.
-
-* Added SORT_NONE to the linker script language to disable section sorting.
-
-* Add a linker-provided symbol when producing ELF output, '__ehdr_start'
-  to point to the ELF file header (and nearby program headers) in the
-  program's memory image.
-
-* Add support for S12X processor.
-
-* Add support for the VLE extension to the PowerPC architecture.
-
-* Add support for the Freescale XGATE architecture.
-
-* Add option -f FILE on AIX (for response file).
-
-* Add support for the Renesas RL78 architecture.
-
-* Add support for the Adapteva EPIPHANY architecture.
-
-Changes in 2.22:
-
-* --copy-dt-needed-entries is no longer enabled by default.  Instead
-  --no-copy-dt-needed-entries is the default.
-
-* INPUT_SECTION_FLAGS has been added to the linker script language
-  to allow selection of input sections by section header section flags.
-
-* Add support for the Tilera TILEPro and TILE-Gx architectures.
-
-* Added SORT_BY_INIT_PRIORITY to the linker script language to permit
-  sorting sections by numerical value of the GCC init_priority attribute
-  encoded in the section name.
-
-Changes in 2.21:
-
-* Linker script expression evaluation is somewhat more sane.  This may
-  break scripts that depend on quirks of the old expression evaluation.
-
-* Turn off underscoring for x86_64 PE+-COFF targets.  For old behavior the
-  option --enable-leading-mingw64-underscores can be used on configure of
-  bfd.
-
-* Add support for the TMS320C6000 (TI C6X) processor family.
-
-* --add-needed renamed to --copy-dt-needed-entries in order to avoid confusion
-  with --as-needed option.
-
-* Extend .def file syntax by '== <ID>' for imports and exports. This allows
-  to alias the import/export table name written in PE image.
-
-* Add --exclude-all-symbols option to PE based linkers.  This prevents all
-  symbols from automatically being exported.
-
-* Add support for the Renesas RX processor.
-
-* Add support for alpha-vms target.
-
 Changes in 2.20:
 
 * GNU/Linux targets now support the STB_GNU_UNIQUE symbol binding.  This is a
@@ -134,7 +53,7 @@ Changes in 2.20:
 
 * Add support for Lattice Mico32 (lm32) architecture.
 
-* Add CR16 ELF --embedded-relocs (used to embedded relocations into binaries
+* Add CR16 ELF --embedded-relocs (used to embedded relocations into binaries 
   for Embedded-PIC code) option.
 
 * Add to the PE/PE+ targets the support of two different kinds of
@@ -578,12 +497,6 @@ Changes in version 2.1:
   other utilities should work on Risc/Ultrix and Irix.
 
 
-Copyright (C) 2012 Free Software Foundation, Inc.
-
-Copying and distribution of this file, with or without modification,
-are permitted in any medium without royalty provided the copyright
-notice and this notice are preserved.
-
 Local variables:
 fill-column: 79
 End:

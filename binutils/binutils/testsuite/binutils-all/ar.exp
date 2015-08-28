@@ -1,4 +1,4 @@
-#   Copyright 1995, 1997, 2002, 2004, 2007, 2008, 2009, 2010, 2012
+#   Copyright 1995, 1997, 2002, 2004, 2007, 2008, 2009
 #   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -31,10 +31,9 @@ if ![is_remote host] {
 
 # Test long file name support
 
-proc long_filenames { bfdtests } {
+proc long_filenames { } {
     global AR
     global host_triplet
-    global base_dir
 
     set testname "ar long file names"
 
@@ -116,21 +115,13 @@ proc long_filenames { bfdtests } {
 	remote_file host delete $file2
     }
 
+    verbose -log "$AR x $dest"
     set exec_output [binutils_run $AR "x $dest"]
     set exec_output [prune_warnings $exec_output]
     if ![string match "" $exec_output] {
 	verbose -log $exec_output
 	fail $testname
 	return
-    }
-
-    foreach bfdtest $bfdtests {
-	set exec_output [binutils_run "$base_dir/$bfdtest" "$dest"]
-	if ![string match "" $exec_output] {
-	    verbose -log $exec_output
-	    fail "$testname ($bfdtest)"
-	    return
-	}
     }
 
     if [is_remote host] {
@@ -227,13 +218,12 @@ proc symbol_table { } {
 
 # Test building a thin archive.
 
-proc thin_archive { bfdtests } {
+proc thin_archive { } {
     global AR
     global AS
     global NM
     global srcdir
     global subdir
-    global base_dir
 
     set testname "ar thin archive"
 
@@ -259,15 +249,6 @@ proc thin_archive { bfdtests } {
 	return
     }
 
-    foreach bfdtest $bfdtests {
-	set exec_output [binutils_run "$base_dir/$bfdtest" "$archive"]
-	if ![string match "" $exec_output] {
-	    verbose -log $exec_output
-	    fail "$testname ($bfdtest)"
-	    return
-	}
-    }
-
     set got [binutils_run $NM "--print-armap $archive"]
     if { ![string match "*text_symbol in *bintest.o*" $got] \
 	 || ![string match "*data_symbol in *bintest.o*" $got] \
@@ -284,13 +265,12 @@ proc thin_archive { bfdtests } {
 
 # Test building a thin archive with a nested archive.
 
-proc thin_archive_with_nested { bfdtests } {
+proc thin_archive_with_nested { } {
     global AR
     global AS
     global NM
     global srcdir
     global subdir
-    global base_dir
 
     set testname "ar thin archive with nested archive"
 
@@ -324,22 +304,6 @@ proc thin_archive_with_nested { bfdtests } {
     if ![string match "" $got] {
 	fail $testname
 	return
-    }
-
-    foreach bfdtest $bfdtests {
-	set exec_output [binutils_run "$base_dir/$bfdtest" "$archive"]
-	if ![string match "" $exec_output] {
-	    verbose -log $exec_output
-	    fail "$testname ($bfdtest)"
-	    return
-	}
-
-	set exec_output [binutils_run "$base_dir/$bfdtest" "$archive2"]
-	if ![string match "" $exec_output] {
-	    verbose -log $exec_output
-	    fail "$testname ($bfdtest)"
-	    return
-	}
     }
 
     set got [binutils_run $NM "--print-armap $archive"]
@@ -435,141 +399,11 @@ proc deterministic_archive { } {
     pass $testname
 }
 
-proc unique_symbol { } {
-    global AR
-    global AS
-    global NM
-    global srcdir
-    global subdir
-
-    set testname "ar unique symbol in archive"
-
-    if ![binutils_assemble $srcdir/$subdir/unique.s tmpdir/unique.o] {
-	unresolved $testname
-    }
-
-    if [is_remote host] {
-	set archive artest.a
-	set objfile [remote_download host tmpdir/unique.o]
-	remote_file host delete $archive
-    } else {
-	set archive tmpdir/artest.a
-	set objfile tmpdir/unique.o
-    }
-
-    remote_file build delete tmpdir/artest.a
-
-    set got [binutils_run $AR "-s -r -c $archive ${objfile}"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    set got [binutils_run $NM "--print-armap $archive"]
-    if ![string match "*foo in *unique.o*" $got] {
-	fail $testname
-	return
-    }
-
-    pass $testname
-}
-
-# Test deleting an element.
-
-proc delete_an_element { } {
-    global AR
-    global AS
-    global srcdir
-    global subdir
-
-    set testname "ar deleting an element"
-
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
-	unresolved $testname
-	return
-    }
-
-    if [is_remote host] {
-	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.o]
-	remote_file host delete $archive
-    } else {
-	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.o
-    }
-
-    remote_file build delete tmpdir/artest.a
-
-    set got [binutils_run $AR "-r -c $archive ${objfile}"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    set got [binutils_run $AR "-d $archive ${objfile}"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    pass $testname
-}
-
-# Test moving an element.
-
-proc move_an_element { } {
-    global AR
-    global AS
-    global srcdir
-    global subdir
-
-    set testname "ar moving an element"
-
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
-	unresolved $testname
-	return
-    }
-
-    if [is_remote host] {
-	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.o]
-	remote_file host delete $archive
-    } else {
-	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.o
-    }
-
-    remote_file build delete tmpdir/artest.a
-
-    set got [binutils_run $AR "-r -c $archive ${objfile}"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    set got [binutils_run $AR "-m $archive ${objfile}"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    pass $testname
-}
-
 # Run the tests.
 
-set bfdtests [list bfdtest1 bfdtest2]
-
-long_filenames $bfdtests
+long_filenames
 symbol_table
-thin_archive $bfdtests
-thin_archive_with_nested $bfdtests
+thin_archive
+thin_archive_with_nested
 argument_parsing
 deterministic_archive
-delete_an_element
-move_an_element
-if { [is_elf_format]
-     && ![istarget "*-*-hpux*"]
-     && ![istarget "msp*-*-*"] } {
-    unique_symbol
-}

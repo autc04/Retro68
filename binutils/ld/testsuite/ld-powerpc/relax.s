@@ -4,4 +4,3 @@ _start:
 	bl far
 	bl near
 	bl far
-	b _start

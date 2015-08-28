@@ -1,6 +1,6 @@
 // expression.cc -- expressions in linker scripts for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -66,8 +66,6 @@ struct Expression::Expression_eval_info
   Output_section* dot_section;
   // Points to where the section of the result should be stored.
   Output_section** result_section_pointer;
-  // Pointer to where the alignment of the result should be stored.
-  uint64_t* result_alignment_pointer;
 };
 
 // Evaluate an expression.
@@ -76,8 +74,9 @@ uint64_t
 Expression::eval(const Symbol_table* symtab, const Layout* layout,
 		 bool check_assertions)
 {
+  Output_section* dummy;
   return this->eval_maybe_dot(symtab, layout, check_assertions,
-			      false, 0, NULL, NULL, NULL, false);
+			      false, 0, NULL, &dummy);
 }
 
 // Evaluate an expression which may refer to the dot symbol.
@@ -86,14 +85,10 @@ uint64_t
 Expression::eval_with_dot(const Symbol_table* symtab, const Layout* layout,
 			  bool check_assertions, uint64_t dot_value,
 			  Output_section* dot_section,
-			  Output_section** result_section_pointer,
-			  uint64_t* result_alignment_pointer,
-			  bool is_section_dot_assignment)
+			  Output_section** result_section_pointer)
 {
   return this->eval_maybe_dot(symtab, layout, check_assertions, true,
-			      dot_value, dot_section, result_section_pointer,
-			      result_alignment_pointer,
-			      is_section_dot_assignment);
+			      dot_value, dot_section, result_section_pointer);
 }
 
 // Evaluate an expression which may or may not refer to the dot
@@ -103,9 +98,7 @@ uint64_t
 Expression::eval_maybe_dot(const Symbol_table* symtab, const Layout* layout,
 			   bool check_assertions, bool is_dot_available,
 			   uint64_t dot_value, Output_section* dot_section,
-			   Output_section** result_section_pointer,
-			   uint64_t* result_alignment_pointer,
-			   bool is_section_dot_assignment)
+			   Output_section** result_section_pointer)
 {
   Expression_eval_info eei;
   eei.symtab = symtab;
@@ -116,24 +109,11 @@ Expression::eval_maybe_dot(const Symbol_table* symtab, const Layout* layout,
   eei.dot_section = dot_section;
 
   // We assume the value is absolute, and only set this to a section
-  // if we find a section-relative reference.
-  if (result_section_pointer != NULL)
-    *result_section_pointer = NULL;
+  // if we find a section relative reference.
+  *result_section_pointer = NULL;
   eei.result_section_pointer = result_section_pointer;
 
-  eei.result_alignment_pointer = result_alignment_pointer;
-
-  uint64_t val = this->value(&eei);
-
-  // If this is an assignment to dot within a section, and the value
-  // is absolute, treat it as a section-relative offset.
-  if (is_section_dot_assignment && *result_section_pointer == NULL)
-    {
-      gold_assert(dot_section != NULL);
-      val += dot_section->address();
-      *result_section_pointer = dot_section;
-    }
-  return val;
+  return this->value(&eei);
 }
 
 // A number.
@@ -194,8 +174,7 @@ Symbol_expression::value(const Expression_eval_info* eei)
       return 0;
     }
 
-  if (eei->result_section_pointer != NULL)
-    *eei->result_section_pointer = sym->output_section();
+  *eei->result_section_pointer = sym->output_section();
 
   if (parameters->target().get_size() == 32)
     return eei->symtab->get_sized_symbol<32>(sym)->value();
@@ -231,8 +210,7 @@ Dot_expression::value(const Expression_eval_info* eei)
 		   "SECTIONS clause"));
       return 0;
     }
-  if (eei->result_section_pointer != NULL)
-    *eei->result_section_pointer = eei->dot_section;
+  *eei->result_section_pointer = eei->dot_section;
   return eei->dot_value;
 }
 
@@ -269,9 +247,7 @@ class Unary_expression : public Expression
 				      eei->is_dot_available,
 				      eei->dot_value,
 				      eei->dot_section,
-				      arg_section_pointer,
-				      eei->result_alignment_pointer,
-				      false);
+				      arg_section_pointer);
   }
 
   void
@@ -341,32 +317,26 @@ class Binary_expression : public Expression
  protected:
   uint64_t
   left_value(const Expression_eval_info* eei,
-	     Output_section** section_pointer,
-	     uint64_t* alignment_pointer) const
+	     Output_section** section_pointer) const
   {
     return this->left_->eval_maybe_dot(eei->symtab, eei->layout,
 				       eei->check_assertions,
 				       eei->is_dot_available,
 				       eei->dot_value,
 				       eei->dot_section,
-				       section_pointer,
-				       alignment_pointer,
-				       false);
+				       section_pointer);
   }
 
   uint64_t
   right_value(const Expression_eval_info* eei,
-	      Output_section** section_pointer,
-	      uint64_t* alignment_pointer) const
+	      Output_section** section_pointer) const
   {
     return this->right_->eval_maybe_dot(eei->symtab, eei->layout,
 					eei->check_assertions,
 					eei->is_dot_available,
 					eei->dot_value,
 					eei->dot_section,
-					section_pointer,
-					alignment_pointer,
-					false);
+					section_pointer);
   }
 
   void
@@ -380,7 +350,7 @@ class Binary_expression : public Expression
   // This is a call to function FUNCTION_NAME.  Print it.  This is for
   // debugging.
   void
-  print_function(FILE* f, const char* function_name) const
+  print_function(FILE* f, const char *function_name) const
   {
     fprintf(f, "%s(", function_name);
     this->left_print(f);
@@ -415,31 +385,15 @@ class Binary_expression : public Expression
     value(const Expression_eval_info* eei)				\
     {									\
       Output_section* left_section;					\
-      uint64_t left_alignment = 0;					\
-      uint64_t left = this->left_value(eei, &left_section,		\
-				       &left_alignment);		\
+      uint64_t left = this->left_value(eei, &left_section);		\
       Output_section* right_section;					\
-      uint64_t right_alignment = 0;					\
-      uint64_t right = this->right_value(eei, &right_section,		\
-					 &right_alignment);		\
+      uint64_t right = this->right_value(eei, &right_section);		\
       if (KEEP_RIGHT && left_section == NULL && right_section != NULL)	\
-	{								\
-	  if (eei->result_section_pointer != NULL)			\
-	    *eei->result_section_pointer = right_section;		\
-	  if (eei->result_alignment_pointer != NULL			\
-	      && right_alignment > *eei->result_alignment_pointer)	\
-	    *eei->result_alignment_pointer = right_alignment;		\
-	}								\
+	*eei->result_section_pointer = right_section;			\
       else if (KEEP_LEFT						\
 	       && left_section != NULL					\
 	       && right_section == NULL)				\
-	{								\
-	  if (eei->result_section_pointer != NULL)			\
-	    *eei->result_section_pointer = left_section;		\
-	  if (eei->result_alignment_pointer != NULL			\
-	      && left_alignment > *eei->result_alignment_pointer)	\
-	    *eei->result_alignment_pointer = left_alignment;		\
-	}								\
+	*eei->result_section_pointer = left_section;			\
       else if ((WARN || left_section != right_section)			\
 	       && (left_section != NULL || right_section != NULL)	\
 	       && parameters->options().relocatable())			\
@@ -515,39 +469,31 @@ class Trinary_expression : public Expression
 				       eei->is_dot_available,
 				       eei->dot_value,
 				       eei->dot_section,
-				       section_pointer,
-				       NULL,
-				       false);
+				       section_pointer);
   }
 
   uint64_t
   arg2_value(const Expression_eval_info* eei,
-	     Output_section** section_pointer,
-	     uint64_t* alignment_pointer) const
+	     Output_section** section_pointer) const
   {
     return this->arg1_->eval_maybe_dot(eei->symtab, eei->layout,
 				       eei->check_assertions,
 				       eei->is_dot_available,
 				       eei->dot_value,
 				       eei->dot_section,
-				       section_pointer,
-				       alignment_pointer,
-				       false);
+				       section_pointer);
   }
 
   uint64_t
   arg3_value(const Expression_eval_info* eei,
-	     Output_section** section_pointer,
-	     uint64_t* alignment_pointer) const
+	     Output_section** section_pointer) const
   {
     return this->arg1_->eval_maybe_dot(eei->symtab, eei->layout,
 				       eei->check_assertions,
 				       eei->is_dot_available,
 				       eei->dot_value,
 				       eei->dot_section,
-				       section_pointer,
-				       alignment_pointer,
-				       false);
+				       section_pointer);
   }
 
   void
@@ -583,10 +529,8 @@ class Trinary_cond : public Trinary_expression
     Output_section* arg1_section;
     uint64_t arg1 = this->arg1_value(eei, &arg1_section);
     return (arg1
-	    ? this->arg2_value(eei, eei->result_section_pointer,
-			       eei->result_alignment_pointer)
-	    : this->arg3_value(eei, eei->result_section_pointer,
-			       eei->result_alignment_pointer));
+	    ? this->arg2_value(eei, eei->result_section_pointer)
+	    : this->arg3_value(eei, eei->result_section_pointer));
   }
 
   void
@@ -621,30 +565,14 @@ class Max_expression : public Binary_expression
   value(const Expression_eval_info* eei)
   {
     Output_section* left_section;
-    uint64_t left_alignment;
-    uint64_t left = this->left_value(eei, &left_section, &left_alignment);
+    uint64_t left = this->left_value(eei, &left_section);
     Output_section* right_section;
-    uint64_t right_alignment;
-    uint64_t right = this->right_value(eei, &right_section, &right_alignment);
+    uint64_t right = this->right_value(eei, &right_section);
     if (left_section == right_section)
-      {
-	if (eei->result_section_pointer != NULL)
-	  *eei->result_section_pointer = left_section;
-      }
+      *eei->result_section_pointer = left_section;
     else if ((left_section != NULL || right_section != NULL)
 	     && parameters->options().relocatable())
       gold_warning(_("max applied to section relative value"));
-    if (eei->result_alignment_pointer != NULL)
-      {
-	uint64_t ra = *eei->result_alignment_pointer;
-	if (left > right)
-	  ra = std::max(ra, left_alignment);
-	else if (right > left)
-	  ra = std::max(ra, right_alignment);
-	else
-	  ra = std::max(ra, std::max(left_alignment, right_alignment));
-	*eei->result_alignment_pointer = ra;
-      }
     return std::max(left, right);
   }
 
@@ -672,30 +600,14 @@ class Min_expression : public Binary_expression
   value(const Expression_eval_info* eei)
   {
     Output_section* left_section;
-    uint64_t left_alignment;
-    uint64_t left = this->left_value(eei, &left_section, &left_alignment);
+    uint64_t left = this->left_value(eei, &left_section);
     Output_section* right_section;
-    uint64_t right_alignment;
-    uint64_t right = this->right_value(eei, &right_section, &right_alignment);
+    uint64_t right = this->right_value(eei, &right_section);
     if (left_section == right_section)
-      {
-	if (eei->result_section_pointer != NULL)
-	  *eei->result_section_pointer = left_section;
-      }
+      *eei->result_section_pointer = left_section;
     else if ((left_section != NULL || right_section != NULL)
 	     && parameters->options().relocatable())
       gold_warning(_("min applied to section relative value"));
-    if (eei->result_alignment_pointer != NULL)
-      {
-	uint64_t ra = *eei->result_alignment_pointer;
-	if (left < right)
-	  ra = std::max(ra, left_alignment);
-	else if (right < left)
-	  ra = std::max(ra, right_alignment);
-	else
-	  ra = std::max(ra, std::max(left_alignment, right_alignment));
-	*eei->result_alignment_pointer = ra;
-      }
     return std::min(left, right);
   }
 
@@ -787,10 +699,10 @@ class Absolute_expression : public Unary_expression
   uint64_t
   value(const Expression_eval_info* eei)
   {
-    uint64_t ret = this->arg_value(eei, NULL);
+    Output_section* dummy;
+    uint64_t ret = this->arg_value(eei, &dummy);
     // Force the value to be absolute.
-    if (eei->result_section_pointer != NULL)
-      *eei->result_section_pointer = NULL;
+    *eei->result_section_pointer = NULL;
     return ret;
   }
 
@@ -822,21 +734,12 @@ class Align_expression : public Binary_expression
   value(const Expression_eval_info* eei)
   {
     Output_section* align_section;
-    uint64_t align = this->right_value(eei, &align_section, NULL);
+    uint64_t align = this->right_value(eei, &align_section);
     if (align_section != NULL
 	&& parameters->options().relocatable())
       gold_warning(_("aligning to section relative value"));
 
-    if (eei->result_alignment_pointer != NULL
-	&& align > *eei->result_alignment_pointer)
-      {
-	uint64_t a = align;
-	while ((a & (a - 1)) != 0)
-	  a &= a - 1;
-	*eei->result_alignment_pointer = a;
-      }
-
-    uint64_t value = this->left_value(eei, eei->result_section_pointer, NULL);
+    uint64_t value = this->left_value(eei, eei->result_section_pointer);
     if (align <= 1)
       return value;
     return ((value + align - 1) / align) * align;
@@ -904,8 +807,7 @@ class Addr_expression : public Section_expression
   value_from_output_section(const Expression_eval_info* eei,
 			    Output_section* os)
   {
-    if (eei->result_section_pointer != NULL)
-      *eei->result_section_pointer = os;
+    *eei->result_section_pointer = os;
     return os->address();
   }
 
@@ -1110,8 +1012,7 @@ class Loadaddr_expression : public Section_expression
       return os->load_address();
     else
       {
-	if (eei->result_section_pointer != NULL)
-	  *eei->result_section_pointer = os;
+	*eei->result_section_pointer = os;
 	return os->address();
       }
   }
@@ -1212,62 +1113,32 @@ script_exp_function_sizeof_headers()
   return new Sizeof_headers_expression();
 }
 
-// SEGMENT_START.
+// In the GNU linker SEGMENT_START basically returns the value for
+// -Ttext, -Tdata, or -Tbss.  We could implement this by copying the
+// values from General_options to Parameters.  But I doubt that
+// anybody actually uses it.  The point of it for the GNU linker was
+// because -Ttext set the address of the .text section rather than the
+// text segment.  In gold -Ttext sets the text segment address anyhow.
 
-class Segment_start_expression : public Unary_expression
+extern "C" Expression*
+script_exp_function_segment_start(const char*, size_t, Expression*)
 {
- public:
-  Segment_start_expression(const char* segment_name, size_t segment_name_len,
-			   Expression* default_value)
-    : Unary_expression(default_value),
-      segment_name_(segment_name, segment_name_len)
-  { }
+  gold_fatal(_("SEGMENT_START not implemented"));
+}
 
-  uint64_t
-  value(const Expression_eval_info*);
+// Functions for memory regions.  These can not be implemented unless
+// and until we implement memory regions.
 
-  void
-  print(FILE* f) const
-  {
-    fprintf(f, "SEGMENT_START(\"%s\", ", this->segment_name_.c_str());
-    this->arg_print(f);
-    fprintf(f, ")");
-  }
-
- private:
-  std::string segment_name_;
-};
-
-uint64_t
-Segment_start_expression::value(const Expression_eval_info* eei)
+extern "C" Expression*
+script_exp_function_origin(const char*, size_t)
 {
-  // Check for command line overrides.
-  if (parameters->options().user_set_Ttext()
-      && this->segment_name_ == ".text")
-    return parameters->options().Ttext();
-  else if (parameters->options().user_set_Tdata()
-	   && this->segment_name_ == ".data")
-    return parameters->options().Tdata();
-  else if (parameters->options().user_set_Tbss()
-	   && this->segment_name_ == ".bss")
-    return parameters->options().Tbss();
-  else
-    {
-      uint64_t ret = this->arg_value(eei, NULL);
-      // Force the value to be absolute.
-      if (eei->result_section_pointer != NULL)
-        *eei->result_section_pointer = NULL;
-      return ret;
-    }
+  gold_fatal(_("ORIGIN not implemented"));
 }
 
 extern "C" Expression*
-script_exp_function_segment_start(const char* segment_name,
-				  size_t segment_name_len,
-				  Expression* default_value)
+script_exp_function_length(const char*, size_t)
 {
-  return new Segment_start_expression(segment_name, segment_name_len,
-				      default_value);
+  gold_fatal(_("LENGTH not implemented"));
 }
 
 } // End namespace gold.

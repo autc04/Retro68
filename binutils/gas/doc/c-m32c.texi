@@ -11,7 +11,7 @@
 @node Machine Dependencies
 @chapter M32C Dependent Features
 @end ifclear
-
+ 
 @cindex M32C support
 
 @code{@value{AS}} can assemble code for several different members of
@@ -21,25 +21,25 @@ change the default to the M32C microprocessor.
 
 @menu
 * M32C-Opts::                   M32C Options
-* M32C-Syntax::                 M32C Syntax
+* M32C-Modifiers::              Symbolic Operand Modifiers
 @end menu
-
+ 
 @node M32C-Opts
 @section M32C Options
-
+ 
 @cindex options, M32C
 @cindex M32C options
-
+ 
 The Renesas M32C version of @code{@value{AS}} has these
 machine-dependent options:
-
+ 
 @table @code
 @item -m32c
 @cindex @samp{-m32c} option, M32C
 @cindex architecture options, M32C
 @cindex M32C architecture option
 Assemble M32C instructions.
-
+ 
 @item -m16c
 @cindex @samp{-m16c} option, M16C
 @cindex architecture options, M16C
@@ -52,21 +52,14 @@ Enable support for link-time relaxations.
 @item -h-tick-hex
 Support H'00 style hex constants in addition to 0x00 style.
 
-
+ 
 @end table
 
-@node M32C-Syntax
-@section M32C Syntax
-@menu
-* M32C-Modifiers::              Symbolic Operand Modifiers
-* M32C-Chars::                  Special Characters
-@end menu
-
 @node M32C-Modifiers
-@subsection Symbolic Operand Modifiers
+@section Symbolic Operand Modifiers
 
 @cindex M32C modifiers
-@cindex modifiers, M32C
+@cindex syntax, M32C
 
 The assembler supports several modifiers when using symbol addresses
 in M32C instruction operands.  The general syntax is the following:
@@ -128,22 +121,3 @@ lde.w [a1a0],r1
 @end smallexample
 
 @end table
-
-@node M32C-Chars
-@subsection Special Characters
-
-@cindex line comment character, M32C
-@cindex M32C line comment character
-The presence of a @samp{;} character on a line indicates the start of
-a comment that extends to the end of that line.
-
-If a @samp{#} appears as the first character of a line, the whole line
-is treated as a comment, but in this case the line can also be a
-logical line number directive (@pxref{Comments}) or a
-preprocessor control command (@pxref{Preprocessing}).
-
-@cindex line separator, M32C
-@cindex statement separator, M32C
-@cindex M32C line separator
-The @samp{|} character can be used to separate statements on the same
-line.

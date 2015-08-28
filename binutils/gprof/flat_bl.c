@@ -36,10 +36,4 @@ flat_blurb (file)
   fputs ("	   the function in the gprof listing. If the index is\n", file);
   fputs ("	   in parenthesis it shows where it would appear in\n", file);
   fputs ("	   the gprof listing if it were to be printed.\n", file);
-  fputs ("\n", file);
-  fputs ("Copyright (C) 2012 Free Software Foundation, Inc.\n", file);
-  fputs ("\n", file);
-  fputs ("Copying and distribution of this file, with or without modification,\n", file);
-  fputs ("are permitted in any medium without royalty provided the copyright\n", file);
-  fputs ("notice and this notice are preserved.\n", file);
 }

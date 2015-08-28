@@ -6,4 +6,3 @@
 	addr32 mov	%al,0x600898
 	addr32 mov	%ax,0x600898
 	addr32 mov	%eax,0x600898
-	addr32 movl	$0x1,(%esp)

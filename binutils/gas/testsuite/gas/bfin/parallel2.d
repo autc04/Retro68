@@ -5,9 +5,9 @@
 Disassembly of section .text:
 
 00000000 <.text>:
-   0:	08 cc 3f c0 	A0 = A1 \|\| P0 = \[SP \+ 0x14\] \|\| NOP;
+   0:	08 cc 00 c0 	A0 = A1 \|\| P0 = \[SP \+ 0x14\] \|\| NOP;
    4:	70 ad 00 00 
-   8:	08 cc 3f e0 	A1 = A0 \|\| P0 = \[P5 \+ 0x18\] \|\| NOP;
+   8:	08 cc 00 e0 	A1 = A0 \|\| P0 = \[P5 \+ 0x18\] \|\| NOP;
    c:	a8 ad 00 00 
   10:	09 cc 00 20 	A0 = R0 \|\| P0 = \[P4 \+ 0x1c\] \|\| NOP;
   14:	e0 ad 00 00 
@@ -29,9 +29,9 @@ Disassembly of section .text:
   54:	e0 af 00 00 
   58:	09 cc 10 c0 	A1.X = R2.L \|\| R0 = \[I0 \+\+ M0\] \|\| NOP;
   5c:	80 9d 00 00 
-  60:	0a cc 3f 00 	R0.L = A0.X \|\| R1 = \[I0 \+\+ M1\] \|\| NOP;
+  60:	0a cc 00 00 	R0.L = A0.X \|\| R1 = \[I0 \+\+ M1\] \|\| NOP;
   64:	a1 9d 00 00 
-  68:	0a cc 3f 4e 	R7.L = A1.X \|\| R0 = \[I0 \+\+ M2\] \|\| NOP;
+  68:	0a cc 00 4e 	R7.L = A1.X \|\| R0 = \[I0 \+\+ M2\] \|\| NOP;
   6c:	c0 9d 00 00 
   70:	09 cc 18 00 	A0.L = R3.L \|\| R0 = \[I0 \+\+ M3\] \|\| NOP;
   74:	e0 9d 00 00 
@@ -113,7 +113,7 @@ Disassembly of section .text:
  1a4:	d5 a6 00 00 
  1a8:	00 ce 16 8e 	R7.L = LSHIFT R6.L BY R2.L \|\| R5 = W\[P2 \+ 0x14\] \(Z\) \|\| NOP;
  1ac:	95 a6 00 00 
- 1b0:	02 ce 1c 8a 	R5 = LSHIFT R4 BY R3.L \|\| R4 = W\[P2 \+ 0x12\] \(Z\) \|\| NOP;
+ 1b0:	02 ce 1c 8a 	R5 = SHIFT R4 BY R3.L \|\| R4 = W\[P2 \+ 0x12\] \(Z\) \|\| NOP;
  1b4:	54 a6 00 00 
  1b8:	03 ce 30 40 	A0 = LSHIFT A0 BY R6.L \|\| R5 = W\[P2 \+ 0x10\] \(Z\) \|\| NOP;
  1bc:	15 a6 00 00 

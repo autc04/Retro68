@@ -1,6 +1,5 @@
 #objdump: -rsj .data
 #name: .equ redefinitions (3)
-#not-target: arc-*-* *-*darwin*
 
 .*: .*
 

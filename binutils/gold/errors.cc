@@ -1,6 +1,6 @@
 // errors.cc -- handle errors for gold
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright 2006, 2007, 2008 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -81,18 +81,7 @@ Errors::fatal(const char* format, va_list args)
   fprintf(stderr, _("%s: fatal error: "), this->program_name_);
   vfprintf(stderr, format, args);
   fputc('\n', stderr);
-  gold_exit(GOLD_ERR);
-}
-
-// Report a fallback error.
-
-void
-Errors::fallback(const char* format, va_list args)
-{
-  fprintf(stderr, _("%s: fatal error: "), this->program_name_);
-  vfprintf(stderr, format, args);
-  fputc('\n', stderr);
-  gold_exit(GOLD_FALLBACK);
+  gold_exit(false);
 }
 
 // Report an error.
@@ -136,7 +125,7 @@ Errors::error_at_location(const Relocate_info<size, big_endian>* relinfo,
 			  size_t relnum, off_t reloffset,
 			  const char* format, va_list args)
 {
-  fprintf(stderr, _("%s: error: "),
+  fprintf(stderr, _("%s: %s: error: "), this->program_name_,
 	  relinfo->location(relnum, reloffset).c_str());
   vfprintf(stderr, format, args);
   fputc('\n', stderr);
@@ -152,7 +141,7 @@ Errors::warning_at_location(const Relocate_info<size, big_endian>* relinfo,
 			    size_t relnum, off_t reloffset,
 			    const char* format, va_list args)
 {
-  fprintf(stderr, _("%s: warning: "), 
+  fprintf(stderr, _("%s: %s: warning: "), this->program_name_,
 	  relinfo->location(relnum, reloffset).c_str());
   vfprintf(stderr, format, args);
   fputc('\n', stderr);
@@ -167,32 +156,22 @@ Errors::undefined_symbol(const Symbol* sym, const std::string& location)
 {
   bool initialized = this->initialize_lock();
   gold_assert(initialized);
-
-  const char* zmsg;
   {
     Hold_lock h(*this->lock_);
     if (++this->undefined_symbols_[sym] >= max_undefined_error_report)
       return;
-    if (parameters->options().warn_unresolved_symbols())
-      {
-	++this->warning_count_;
-	zmsg = _("warning");
-      }
-    else
-      {
-	++this->error_count_;
-	zmsg = _("error");
-      }
+    ++this->error_count_;
   }
-
   const char* const version = sym->version();
   if (version == NULL)
-    fprintf(stderr, _("%s: %s: undefined reference to '%s'\n"),
-	    location.c_str(), zmsg, sym->demangled_name().c_str());
+    fprintf(stderr, _("%s: %s: error: undefined reference to '%s'\n"),
+	    this->program_name_, location.c_str(),
+	    sym->demangled_name().c_str());
   else
     fprintf(stderr,
-            _("%s: %s: undefined reference to '%s', version '%s'\n"),
-	    location.c_str(), zmsg, sym->demangled_name().c_str(), version);
+            _("%s: %s: error: undefined reference to '%s', version '%s'\n"),
+	    this->program_name_, location.c_str(),
+	    sym->demangled_name().c_str(), version);
 }
 
 // Issue a debugging message.
@@ -220,17 +199,6 @@ gold_fatal(const char* format, ...)
   va_list args;
   va_start(args, format);
   parameters->errors()->fatal(format, args);
-  va_end(args);
-}
-
-// Report a fallback error.
-
-void
-gold_fallback(const char* format, ...)
-{
-  va_list args;
-  va_start(args, format);
-  parameters->errors()->fallback(format, args);
   va_end(args);
 }
 

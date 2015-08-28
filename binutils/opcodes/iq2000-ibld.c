@@ -4,7 +4,7 @@
    - the resultant file is machine generated, cgen-ibld.in isn't
 
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005, 2006, 2007,
-   2008, 2010  Free Software Foundation, Inc.
+   2008  Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -33,7 +33,6 @@
 #include "symcat.h"
 #include "iq2000-desc.h"
 #include "iq2000-opc.h"
-#include "cgen/basic-modes.h"
 #include "opintl.h"
 #include "safe-ctype.h"
 
@@ -138,7 +137,7 @@ insert_normal (CGEN_CPU_DESC cd,
   if (length == 0)
     return NULL;
 
-  if (word_length > 8 * sizeof (CGEN_INSN_INT))
+  if (word_length > 32)
     abort ();
 
   /* For architectures with insns smaller than the base-insn-bitsize,
@@ -442,7 +441,7 @@ extract_normal (CGEN_CPU_DESC cd,
       return 1;
     }
 
-  if (word_length > 8 * sizeof (CGEN_INSN_INT))
+  if (word_length > 32)
     abort ();
 
   /* For architectures with insns smaller than the insn-base-bitsize,
@@ -469,7 +468,7 @@ extract_normal (CGEN_CPU_DESC cd,
     {
       unsigned char *bufp = ex_info->insn_bytes + word_offset / 8;
 
-      if (word_length > 8 * sizeof (CGEN_INSN_INT))
+      if (word_length > 32)
 	abort ();
 
       if (fill_cache (cd, ex_info, word_offset / 8, word_length / 8, pc) == 0)
@@ -614,14 +613,14 @@ iq2000_cgen_insert_operand (CGEN_CPU_DESC cd,
     case IQ2000_OPERAND_JMPTARG :
       {
         long value = fields->f_jtarg;
-        value = ((USI) (((value) & (262143))) >> (2));
+        value = ((unsigned int) (((value) & (262143))) >> (2));
         errmsg = insert_normal (cd, value, 0|(1<<CGEN_IFLD_ABS_ADDR), 0, 15, 16, 32, total_length, buffer);
       }
       break;
     case IQ2000_OPERAND_JMPTARGQ10 :
       {
         long value = fields->f_jtargq10;
-        value = ((USI) (((value) & (8388607))) >> (2));
+        value = ((unsigned int) (((value) & (8388607))) >> (2));
         errmsg = insert_normal (cd, value, 0|(1<<CGEN_IFLD_ABS_ADDR), 0, 20, 21, 32, total_length, buffer);
       }
       break;
@@ -646,7 +645,7 @@ iq2000_cgen_insert_operand (CGEN_CPU_DESC cd,
     case IQ2000_OPERAND_OFFSET :
       {
         long value = fields->f_offset;
-        value = ((SI) (((value) - (pc))) >> (2));
+        value = ((int) (((value) - (pc))) >> (2));
         errmsg = insert_normal (cd, value, 0|(1<<CGEN_IFLD_SIGNED)|(1<<CGEN_IFLD_PCREL_ADDR), 0, 15, 16, 32, total_length, buffer);
       }
       break;

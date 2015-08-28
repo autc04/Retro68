@@ -1,7 +1,7 @@
 /* Print Motorola 68k instructions.
    Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2012  Free Software Foundation, Inc.
+   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -654,7 +654,7 @@ print_insn_arg (const char *d,
       {
         static char *const cacheFieldName[] = { "nc", "dc", "ic", "bc" };
         FETCH_ARG (2, val);
-	(*info->fprintf_func) (info->stream, "%s", cacheFieldName[val]);
+	(*info->fprintf_func) (info->stream, cacheFieldName[val]);
         break;
       }
 
@@ -707,18 +707,14 @@ print_insn_arg (const char *d,
 	    {"%sfc", 0x000}, {"%dfc", 0x001}, {"%cacr", 0x002},
 	    {"%tc",  0x003}, {"%itt0",0x004}, {"%itt1", 0x005},
 	    {"%dtt0",0x006}, {"%dtt1",0x007}, {"%buscr",0x008},
-	    {"%rgpiobar", 0x009}, {"%acr4",0x00c},
-	    {"%acr5",0x00d}, {"%acr6",0x00e}, {"%acr7", 0x00f},
 	    {"%usp", 0x800}, {"%vbr", 0x801}, {"%caar", 0x802},
 	    {"%msp", 0x803}, {"%isp", 0x804},
 	    {"%pc", 0x80f},
 	    /* Reg c04 is sometimes called flashbar or rambar.
-	       Reg c05 is also sometimes called rambar.  */
+	       Rec c05 is also sometimes called rambar.  */
 	    {"%rambar0", 0xc04}, {"%rambar1", 0xc05},
 
-	    /* reg c0e is sometimes called mbar2 or secmbar.
-	       reg c0f is sometimes called mbar.  */
-	    {"%mbar0", 0xc0e}, {"%mbar1", 0xc0f},
+	    {"%mbar", 0xc0f},
 
 	    /* Should we be calling this psr like we do in case 'Y'?  */
 	    {"%mmusr",0x805},
@@ -792,7 +788,7 @@ print_insn_arg (const char *d,
 	  static char *const scalefactor_name[] = { "<<", ">>" };
 
 	  FETCH_ARG (1, val);
-	  (*info->fprintf_func) (info->stream, "%s", scalefactor_name[val]);
+	  (*info->fprintf_func) (info->stream, scalefactor_name[val]);
 	}
       else
 	{
@@ -1111,7 +1107,7 @@ print_insn_arg (const char *d,
 		  return -1;
 	      }
 	      if (flt_p)	/* Print a float? */
-		(*info->fprintf_func) (info->stream, "#0e%g", flval);
+		(*info->fprintf_func) (info->stream, "#%g", flval);
 	      else
 		(*info->fprintf_func) (info->stream, "#%d", val);
 	      break;
@@ -1232,6 +1228,7 @@ print_insn_arg (const char *d,
     case '2':
     case '3':
       {
+	int val;
 	char *name = 0;
 
 	FETCH_ARG (5, val);
@@ -1626,7 +1623,7 @@ print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
 
   if (val == 0)
     /* Handle undefined instructions.  */
-    info->fprintf_func (info->stream, ".short 0x%04x", (buffer[0] << 8) + buffer[1]);
+    info->fprintf_func (info->stream, "0%o", (buffer[0] << 8) + buffer[1]);
 
   return val ? val : 2;
 }

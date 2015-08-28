@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2010 Free Software Foundation, Inc.
+Copyright 1996-2009 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -33,9 +33,6 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 /* -- opc.c */
 #include "elf/frv.h"
 #include <stdio.h>
-
-/* DEBUG appears below as argument of OP macro.  */
-#undef DEBUG
 
 /* Returns TRUE if {MAJOR,MACH} is a major branch of the FRV
    development tree.  */
@@ -798,7 +795,7 @@ check_insn_major_constraints (FRV_VLIW *vliw,
 int
 frv_vliw_add_insn (FRV_VLIW *vliw, const CGEN_INSN *insn)
 {
-  int slot_index;
+  int index;
   CGEN_ATTR_VALUE_ENUM_TYPE major;
   CGEN_ATTR_VALUE_ENUM_TYPE unit;
   VLIW_COMBO *new_vliw;
@@ -806,8 +803,8 @@ frv_vliw_add_insn (FRV_VLIW *vliw, const CGEN_INSN *insn)
   if (vliw->constraint_violation || CGEN_INSN_INVALID_P (insn))
     return 1;
 
-  slot_index = vliw->next_slot;
-  if (slot_index >= FRV_VLIW_SIZE)
+  index = vliw->next_slot;
+  if (index >= FRV_VLIW_SIZE)
     return 1;
 
   unit = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_UNIT);
@@ -834,7 +831,7 @@ frv_vliw_add_insn (FRV_VLIW *vliw, const CGEN_INSN *insn)
       break;
     }
 
-  if (slot_index <= 0)
+  if (index <= 0)
     {
       /* Any insn can be added to slot 0.  */
       while (! match_unit (vliw, unit, (*vliw->current_vliw)[0]))
@@ -854,8 +851,8 @@ frv_vliw_add_insn (FRV_VLIW *vliw, const CGEN_INSN *insn)
       if (new_vliw && check_insn_major_constraints (vliw, major, insn))
 	{
 	  vliw->current_vliw = new_vliw;
-	  vliw->major[slot_index] = major;
-	  vliw->insn[slot_index] = insn;
+	  vliw->major[index] = major;
+	  vliw->insn[index] = insn;
 	  vliw->next_slot++;
 	  return 0;
 	}
@@ -889,7 +886,11 @@ static unsigned int dis_hash_insn (const char *, CGEN_INSN_INT);
 
 /* Instruction formats.  */
 
+#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define F(f) & frv_cgen_ifld_table[FRV_##f]
+#else
+#define F(f) & frv_cgen_ifld_table[FRV_/**/f]
+#endif
 static const CGEN_IFMT ifmt_empty ATTRIBUTE_UNUSED = {
   0, 0, 0x0, { { 0 } }
 };
@@ -1500,8 +1501,16 @@ static const CGEN_IFMT ifmt_fnop ATTRIBUTE_UNUSED = {
 
 #undef F
 
+#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_INSN_##a)
+#else
+#define A(a) (1 << CGEN_INSN_/**/a)
+#endif
+#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define OPERAND(op) FRV_OPERAND_##op
+#else
+#define OPERAND(op) FRV_OPERAND_/**/op
+#endif
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 
@@ -5980,7 +5989,11 @@ static const CGEN_OPCODE frv_cgen_insn_opcode_table[MAX_INSNS] =
 
 /* Formats for ALIAS macro-insns.  */
 
+#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define F(f) & frv_cgen_ifld_table[FRV_##f]
+#else
+#define F(f) & frv_cgen_ifld_table[FRV_/**/f]
+#endif
 static const CGEN_IFMT ifmt_nop ATTRIBUTE_UNUSED = {
   32, 32, 0x7fffffff, { { F (F_PACK) }, { F (F_GRK) }, { F (F_OP) }, { F (F_GRI) }, { F (F_D12) }, { 0 } }
 };
@@ -6013,8 +6026,16 @@ static const CGEN_IFMT ifmt_cmov ATTRIBUTE_UNUSED = {
 
 /* Each non-simple macro entry points to an array of expansion possibilities.  */
 
+#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define A(a) (1 << CGEN_INSN_##a)
+#else
+#define A(a) (1 << CGEN_INSN_/**/a)
+#endif
+#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #define OPERAND(op) FRV_OPERAND_##op
+#else
+#define OPERAND(op) FRV_OPERAND_/**/op
+#endif
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 

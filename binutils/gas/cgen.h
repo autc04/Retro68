@@ -1,5 +1,5 @@
 /* GAS cgen support.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007, 2011
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -32,9 +32,8 @@ extern CGEN_CPU_DESC gas_cgen_cpu_desc;
 #endif
 
 /* Struct defining result of gas_cgen_finish_insn.  */
-typedef struct
-{
-  /* Frag containing the insn */
+typedef struct {
+  /* frag containing the insn */
   fragS * frag;
   /* Address of insn in frag.  */
   char * addr;
@@ -81,12 +80,10 @@ extern fixS * gas_cgen_record_fixup_exp (fragS *, int, const CGEN_INSN *,
 					 int, const CGEN_OPERAND *, int,
 					 expressionS *);
 
-extern bfd_reloc_code_real_type gas_cgen_pcrel_r_type (bfd_reloc_code_real_type);
-
-/* md_apply_fix handler.  */
+/* md_apply_fix handler */
 extern void gas_cgen_md_apply_fix (fixS *, valueT *, segT);
 
-/* tc_gen_reloc handler.  */
+/* tc_gen_reloc handler */
 extern arelent *gas_cgen_tc_gen_reloc (asection *, fixS *);
 
 /* Target supplied routine to lookup a reloc.  */
