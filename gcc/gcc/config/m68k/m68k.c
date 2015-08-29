@@ -205,7 +205,6 @@ static rtx m68k_function_arg (cumulative_args_t, machine_mode,
 static bool m68k_cannot_force_const_mem (machine_mode mode, rtx x);
 static bool m68k_output_addr_const_extra (FILE *, rtx);
 static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
-static rtx m68k_function_value (const_tree, const_tree, bool);
 
 
 /* Initialize the GCC target structure.  */
@@ -1585,114 +1584,6 @@ m68k_function_arg_advance (cumulative_args_t cum_v, machine_mode mode,
 }
 
 
-/* Return libcall result in A0 instead of usual D0.  */
-static bool m68k_libcall_value_in_a0_p = false;
-
-/* Return floating point values in a 68881 register.  This makes 68881 code
-   a little bit faster.  It also makes -msoft-float code incompatible with
-   hard-float code, so people have to be careful not to mix the two.
-   For ColdFire it was decided the ABI incompatibility is undesirable.
-   If there is need for a hard-float ABI it is probably worth doing it
-   properly and also passing function arguments in FP registers.  */
-rtx
-m68k_libcall_value (enum machine_mode mode)
-{
-  switch (mode) {
-  case SFmode:
-  case DFmode:
-  case XFmode:
-    if (TARGET_68881)
-      return gen_rtx_REG (mode, FP0_REG);
-    break;
-  default:
-    break;
-  }
-
-  return gen_rtx_REG (mode, m68k_libcall_value_in_a0_p ? A0_REG : D0_REG);
-}
-
-/* Location in which function value is returned.  */
-rtx
-m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outgoing)
-{
-  enum machine_mode mode;
-
-  mode = TYPE_MODE (valtype);
-
-  if(func_decl_or_type)
-    {
-      CUMULATIVE_ARGS cum;
-      const_tree decl = func_decl_or_type;
-      const_tree type = func_decl_or_type;
-      if(TREE_CODE(type) == FUNCTION_DECL)
-        type = TREE_TYPE(type);
-      else
-        decl = NULL;
-      m68k_init_cumulative_args(&cum, type, NULL, decl, -1);
-      if(cum.regparam)
-        return gen_rtx_REG (mode, cum.arg_regs[0]);
-    }
-  return gen_rtx_REG (mode, D0_REG);
-
-  #if 0
-  switch (mode) {
-  case SFmode:
-  case DFmode:
-  case XFmode:
-    if (TARGET_68881)
-      return gen_rtx_REG (mode, FP0_REG);
-    break;
-  default:
-    break;
-  }
-
-  /* If the function returns a pointer, push that into %a0.  */
-  if (func && POINTER_TYPE_P (TREE_TYPE (TREE_TYPE (func))))
-    /* For compatibility with the large body of existing code which
-       does not always properly declare external functions returning
-       pointer types, the m68k/SVR4 convention is to copy the value
-       returned for pointer functions from a0 to d0 in the function
-       epilogue, so that callers that have neglected to properly
-       declare the callee can still find the correct return value in
-       d0.  */
-    return gen_rtx_PARALLEL
-      (mode,
-       gen_rtvec (2,
-                  gen_rtx_EXPR_LIST (VOIDmode,
-                                     gen_rtx_REG (mode, A0_REG),
-                                     const0_rtx),
-                  gen_rtx_EXPR_LIST (VOIDmode,
-                                     gen_rtx_REG (mode, D0_REG),
-                                     const0_rtx)));
-  else if (POINTER_TYPE_P (valtype))
-    return gen_rtx_REG (mode, A0_REG);
-  else
-    return gen_rtx_REG (mode, D0_REG);
-  #endif
-}
-
-/* Worker function for TARGET_RETURN_IN_MEMORY.  */
-#if M68K_HONOR_TARGET_STRICT_ALIGNMENT
-static bool
-m68k_return_in_memory (const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
-{
-  enum machine_mode mode = TYPE_MODE (type);
-
-  if (mode == BLKmode)
-    return true;
-
-  /* If TYPE's known alignment is less than the alignment of MODE that
-     would contain the structure, then return in memory.  We need to
-     do so to maintain the compatibility between code compiled with
-     -mstrict-align and that compiled with -mno-strict-align.  */
-  if (AGGREGATE_TYPE_P (type)
-      && TYPE_ALIGN (type) < GET_MODE_ALIGNMENT (mode))
-    return true;
-
-  return false;
-}
-#endif
-
 /* Convert X to a legitimate function call memory reference and return the
    result.  */
 
@@ -2737,6 +2628,9 @@ m68k_get_tls_get_addr (void)
 
   return m68k_tls_get_addr;
 }
+
+/* Return libcall result in A0 instead of usual D0.  */
+static bool m68k_libcall_value_in_a0_p = false;
 
 /* Emit instruction sequence that calls __tls_get_addr.  X is
    the TLS symbol we are referencing and RELOC is the symbol type to use
@@ -5561,11 +5455,27 @@ m68k_libcall_value (enum machine_mode mode)
    NOTE: Due to differences in ABIs, don't call this function directly,
    use FUNCTION_VALUE instead.  */
 rtx
-m68k_function_value (const_tree valtype, const_tree func ATTRIBUTE_UNUSED)
+m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outgoing)
 {
   enum machine_mode mode;
 
   mode = TYPE_MODE (valtype);
+
+  const_tree decl = NULL, type = NULL;
+  if(func_decl_or_type)
+    {
+      CUMULATIVE_ARGS cum;
+      decl = func_decl_or_type;
+      type = func_decl_or_type;
+      if(TREE_CODE(type) == FUNCTION_DECL)
+        type = TREE_TYPE(type);
+      else
+        decl = NULL;
+      m68k_init_cumulative_args(&cum, type, NULL, decl, -1);
+      if(cum.regparam)
+        return gen_rtx_REG (mode, cum.arg_regs[0]);
+    }
+
   switch (mode) {
   case SFmode:
   case DFmode:
@@ -5578,7 +5488,7 @@ m68k_function_value (const_tree valtype, const_tree func ATTRIBUTE_UNUSED)
   }
 
   /* If the function returns a pointer, push that into %a0.  */
-  if (func && POINTER_TYPE_P (TREE_TYPE (TREE_TYPE (func))))
+  if (type && POINTER_TYPE_P (TREE_TYPE (type)) && !outgoing)
     /* For compatibility with the large body of existing code which
        does not always properly declare external functions returning
        pointer types, the m68k/SVR4 convention is to copy the value

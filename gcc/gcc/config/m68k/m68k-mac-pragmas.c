@@ -6,6 +6,13 @@
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "hash-set.h"
+#include "vec.h"
+#include "double-int.h"
+#include "input.h"
+#include "alias.h"
+#include "symtab.h"
+#include "inchash.h"
 #include "tree.h"
 
 #include "c-family/c-pragma.h"

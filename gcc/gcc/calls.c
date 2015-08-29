@@ -231,9 +231,9 @@ prepare_call_address (tree fndecl_or_type, rtx funexp, rtx static_chain_value,
 #ifndef NO_FUNCTION_CSE
       int is_magic = 0;
 
-      if (fndecl)
+      if (fndecl_or_type)
         {
-          tree fntype = TREE_TYPE(fndecl);
+          tree fntype = TREE_TYPE(fndecl_or_type);
           if(fntype && lookup_attribute ("raw_inline", TYPE_ATTRIBUTES (fntype)))
             is_magic = 1;
         }
@@ -1199,7 +1199,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
   /* Count arg position in order args appear.  */
   int argpos;
 
-  int i;
+  int i, inc;
 
   args_size->constant = 0;
   args_size->var = 0;
@@ -1209,7 +1209,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
   /* In this loop, we consider args in the order they are written.
      We fill up ARGS from the back.  */
 
-  if (PUSH_ARGS_REVERSED != reverse_args)
+  if (!reverse_args)
     {
       i = num_actuals - 1, inc = -1;
       /* In this case, must reverse order of args
@@ -1231,7 +1231,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
     if (struct_value_addr_value)
       {
 	args[j].tree_value = struct_value_addr_value;
-	j--;
+	j += inc;
 
 	/* If we pass structure address then we need to
 	   create bounds for it.  Since created bounds is
@@ -1244,8 +1244,8 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 	      = chkp_make_bounds_for_struct_addr (struct_value_addr_value);
 	    expand_expr_real (args[j].tree_value, args[j].value, VOIDmode,
 			      EXPAND_NORMAL, 0, false);
-	    args[j].pointer_arg = j + 1;
-	    j--;
+	    args[j].pointer_arg = j + 1;       // ### ???
+	    j += inc;
 	  }
       }
     FOR_EACH_CALL_EXPR_ARG (arg, iter, exp)
@@ -1303,12 +1303,12 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 	  {
 	    tree subtype = TREE_TYPE (argtype);
 	    args[j].tree_value = build1 (REALPART_EXPR, subtype, arg);
-	    j--;
+	    j += inc;
 	    args[j].tree_value = build1 (IMAGPART_EXPR, subtype, arg);
 	  }
 	else
 	  args[j].tree_value = arg;
-	j--;
+	j += inc;
       }
 
     if (slots)
@@ -1318,7 +1318,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
   bitmap_obstack_release (NULL);
 
   /* I counts args in order (to be) pushed; ARGPOS counts in order written.  */
-  for (argpos = 0; argpos < num_actuals; i--, argpos++)
+  for (argpos = 0; argpos < num_actuals; i += inc, argpos++)
     {
       tree type = TREE_TYPE (args[i].tree_value);
       int unsignedp;
