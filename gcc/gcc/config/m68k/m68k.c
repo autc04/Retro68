@@ -6728,6 +6728,8 @@ m68k_epilogue_uses (int regno ATTRIBUTE_UNUSED)
 	      == m68k_fk_interrupt_handler));
 }
 
+extern int retro68_hack_asm_rts_counter;
+
 void
 m68k_write_macsbug_name(FILE *file, const char *name)
 {
@@ -6736,7 +6738,8 @@ m68k_write_macsbug_name(FILE *file, const char *name)
     len = 255;
 
   fprintf(file, "# macsbug symbol\n");
-  fprintf(file, "\trts\n");
+  if(!retro68_hack_asm_rts_counter)
+    fprintf(file, "\trts\n");
   if(len < 32)
     fprintf(file, "\t.byte %d\n", len | 0x80);
   else

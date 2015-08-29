@@ -3652,6 +3652,8 @@ do_assembler_dialects (const char *p, int *dialect)
       and print a constant expression for minus the value
       of the operand, with no other punctuation.  */
 
+int retro68_hack_asm_rts_counter = 0;
+
 void
 output_asm_insn (const char *templ, rtx *operands)
 {
@@ -3668,6 +3670,13 @@ output_asm_insn (const char *templ, rtx *operands)
      in a case where no assembler code is needed.  */
   if (*templ == 0)
     return;
+
+  /* Hack: in Retro68, we want to know whether the last
+           instruction we output was an rts, so we know
+           whether we have to output an extra one as part
+           of the MacsBug name. */
+  if(retro68_hack_asm_rts_counter)
+    retro68_hack_asm_rts_counter--;
 
   memset (opoutput, 0, sizeof opoutput);
   p = templ;

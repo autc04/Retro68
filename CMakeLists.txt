@@ -50,7 +50,6 @@ configure_file(cmake/intree.toolchain.cmake.in cmake/intree.toolchain.cmake @ONL
 
 add_subdirectory(ResourceFiles)
 add_subdirectory(MakeAPPL)
-add_subdirectory(ASFilter)
 add_subdirectory(Rez)
 
 endif()

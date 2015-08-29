@@ -99,7 +99,6 @@ Third Party Components:
 - hfsutils 3.2.6 (just for convenience)
 
 Retro68-Specific Components:
-- ASFilter
 - PrepareHeaders.hs
 - MakeAPPL
 - libretro
@@ -140,14 +139,6 @@ Included for convenience. No changes.
 
 Apply any necessary patches to Apple's headers; currently, this only modifies `ConditionalMacros.h`.
 
-### ASFilter:
-
-An evil hack. Installs a replacement for m68k-unknown-elf-as that
-runs a few regexps on generated assembly code. Two things are changed:
-
-1. Replace occurrences of the RTD instruction with something that is supported on 68000 as well. GCC currently generates this in `pascal` functions that you declare.
-2. While we're at it, remove unnecessary duplicate RTS instructions from MacsBug symbol names.
-
 ### MakeAPPL
 
 Reads a FLAT executable as output by elf2flt and converts it to
@@ -155,7 +146,9 @@ a MacBinary file containing a classic Macintosh application.
 
 ### Rez
 
-A reimplementation of Apple's Rez resource compiler. Reader `.r` files countaining textual resource descriptions and 
+A reimplementation of Apple's Rez resource compiler. Reads `.r` files
+containing textual resource descriptions and compiles them to binary
+resource files.
 
 ### libretro
 

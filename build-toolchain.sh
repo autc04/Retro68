@@ -71,12 +71,6 @@ cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX
 cd ..
 
 make -C build-host install
-if test ! -e $PREFIX/bin/m68k-unknown-elf-as.real; then
-	mv $PREFIX/bin/m68k-unknown-elf-as $PREFIX/bin/m68k-unknown-elf-as.real
-	ln -s $PREFIX/bin/asfilter $PREFIX/bin/m68k-unknown-elf-as
-	mv $PREFIX/m68k-unknown-elf/bin/as $PREFIX/m68k-unknown-elf/bin/as.real
-	ln -s $PREFIX/bin/asfilter $PREFIX/m68k-unknown-elf/bin/as
-fi
 
 	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
 $PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
