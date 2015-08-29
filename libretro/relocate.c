@@ -223,6 +223,19 @@ void Retro68CallConstructors()
 	}
 }
 
+void Retro68CallDestructors()
+{
+	char *p = (char*)&__fini_section;
+	char *e = (char*)&__fini_section_end;
+	p += 2;
+	while( p < e )
+	{
+		(*(voidFunction)(*(long*)p))();
+		p += 6;
+	}
+}
+
+
 void Retro68FreeGlobals()
 {
 	if(relocState.bssPtr != (Ptr) -1)

@@ -48,6 +48,7 @@
 
 void Retro68Relocate();
 void Retro68CallConstructors();
+void Retro68CallDestructors();
 void Retro68FreeGlobals();
 
 #define RETRO68_RELOCATE() RETRO68_CALL_UNRELOCATED(Retro68Relocate,())

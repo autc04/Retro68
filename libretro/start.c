@@ -33,6 +33,7 @@ int main(int argc, char* argv[]);
 void _start()
 {
 	RETRO68_RELOCATE();
+	atexit(&Retro68CallDestructors);
 	Retro68CallConstructors();
 
 	int result;
