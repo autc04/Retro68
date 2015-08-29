@@ -401,6 +401,7 @@ m68*-motorola-sysv*)	targ_emul=delta68 ;;
 m68*-*-aout)		targ_emul=m68kaout ;;
 m68*-*-coff)		targ_emul=m68kcoff ;;
 m68*-*-elf)		targ_emul=m68kelf ;;
+m68*-*-macos)		targ_emul=m68kelf ;;
 m68*-*-hpux*)		targ_emul=hp3hpux ;;
 m68k-*-linux*aout*)	targ_emul=m68klinux
 			targ_extra_emuls=m68kelf

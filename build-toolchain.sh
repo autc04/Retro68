@@ -24,7 +24,7 @@ set -e
 
 cd binutils-build
 export "CFLAGS=-Wno-error"
-$SRC/binutils/configure --target=m68k-unknown-elf --prefix=$PREFIX --disable-doc
+$SRC/binutils/configure --target=m68k-apple-macos --prefix=$PREFIX --disable-doc
 make -j8
 make install
 
@@ -32,7 +32,7 @@ cd ..
 
 mkdir -p gcc-build
 cd gcc-build
-$SRC/gcc/configure --target=m68k-unknown-elf --prefix=$PREFIX --enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 --disable-libssp MAKEINFO=missing
+$SRC/gcc/configure --target=m68k-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 --disable-libssp MAKEINFO=missing
 make -j8
 make install
 
@@ -44,7 +44,7 @@ cp $SRC/elf.h $PREFIX/include/
 export "CFLAGS=-I${SRC}/binutils/include -I../toolchain/include"
 mkdir -p elf2flt-build
 cd elf2flt-build
-$SRC/elf2flt/configure --target=m68k-unknown-elf --prefix=$PREFIX --with-binutils-build-dir=$BINUTILS
+$SRC/elf2flt/configure --target=m68k-apple-macos --prefix=$PREFIX --with-binutils-build-dir=$BINUTILS
 make -j8 TOOLDIR=$PREFIX/bin
 make install
 unset CFLAGS
@@ -60,10 +60,10 @@ make
 make install
 cd ..
 
-sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/m68k-unknown-elf/include
+sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/m68k-apple-macos/include
 
-mkdir -p toolchain/m68k-unknown-elf/RIncludes
-sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/m68k-unknown-elf/RIncludes
+mkdir -p toolchain/m68k-apple-macos/RIncludes
+sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/m68k-apple-macos/RIncludes
 
 mkdir -p build-host
 cd build-host
@@ -73,7 +73,7 @@ cd ..
 make -C build-host install
 
 	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
-$PREFIX/bin/m68k-unknown-elf-ar cqs $PREFIX/m68k-unknown-elf/lib/libretrocrt.a
+$PREFIX/bin/m68k-apple-macos-ar cqs $PREFIX/m68k-apple-macos/lib/libretrocrt.a
 	# the real libretrocrt.a is built and installed by `make -C build-target install` later
 
 mkdir -p build-target

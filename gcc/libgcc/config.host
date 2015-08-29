@@ -784,6 +784,10 @@ m32rle-*-linux*)
 m68k-*-elf* | fido-*-elf)
 	tmake_file="$tmake_file m68k/t-floatlib"
 	;;
+m68k-*-macos)
+	extra_parts="crtbegin.o crtend.o"
+	tmake_file="$tmake_file m68k/t-floatlib"
+	;;
 m68k*-*-netbsdelf*)
 	;;
 m68k*-*-openbsd*)

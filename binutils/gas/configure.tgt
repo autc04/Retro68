@@ -303,7 +303,9 @@ case ${generic_target} in
   m68hc12-*-* | m6812-*-*)		fmt=elf ;;
 
   m68k-*-aout)				fmt=aout bfd_gas=yes ;;
-  m68k-*-elf*)				fmt=elf ;;
+  m68k-*-elf*)        fmt=elf ;;
+  m68k-*-elf*)        fmt=elf ;;
+  m68k-*-macos*)      fmt=elf ;;
   m68k-*-sysv4*)			fmt=elf em=svr4 ;;
   m68k-*-rtems*)			fmt=elf ;;
   m68k-*-linux-*)			fmt=elf em=linux ;;
