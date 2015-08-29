@@ -92,8 +92,8 @@ projects with a few small key components added.
 
 
 Third Party Components:
-- binutils 2.20.1
-- gcc 4.9.1 with some Retro68-specific hacks
+- binutils 2.25.1
+- gcc 5.2.0 with some Retro68-specific hacks
 - newlib 2.10.1 (inside the gcc directory)
 - elf2flt (from the ucLinux project's CVS)
 - hfsutils 3.2.6 (just for convenience)
