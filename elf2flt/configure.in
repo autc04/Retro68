@@ -107,6 +107,13 @@ if test "$ac_binutils_build_dir" != "NONE"; then
 fi
 
 dnl Checks for libraries.
+
+dnl The dlopen() function is in the C library for *BSD and in
+dnl libdl on GLIBC-based systems
+AC_SEARCH_LIBS([dlopen], [dl dld], [], [
+  AC_MSG_ERROR([unable to find the dlopen() function])
+])
+
 if test "$ac_libiberty" = "NONE"; then
   AC_CHECK_LIB(iberty, objalloc_create)
   ac_libiberty=auto
@@ -202,6 +209,8 @@ AC_CHECK_FUNCS([ \
 	libintl_dgettext \
 	strsignal \
 ])
+
+
 
 test "$GCC" = yes && CFLAGS="-Wall $CFLAGS"
 
