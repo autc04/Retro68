@@ -17263,30 +17263,42 @@ cp_parser_init_declarator (cp_parser* parser,
     {
       if (function_declarator_p (declarator))
 	{
-	   if (initialization_kind == CPP_EQ)
-             {
-               if(member_p)
-                 initializer = cp_parser_pure_specifier (parser);
-               else
-                 {
-                   is_initialized = false;
-                   cp_lexer_consume_token (parser->lexer);
-                   tree rawinline_attr = cp_parser_inline_opcodes (parser);
-                   decl_attributes (&decl, rawinline_attr, 0);                   
-                 }
-             }
-	   else
-	     {
-	       /* If the declaration was erroneous, we don't really
+	  if (initialization_kind == CPP_EQ)
+            {
+              if(member_p)
+                initializer = cp_parser_pure_specifier (parser);
+              else
+                {
+                  cp_token *token;
+                  cp_lexer_consume_token (parser->lexer);
+                  token = cp_lexer_peek_token (parser->lexer);
+                  if (token->keyword == RID_DEFAULT
+                      || token->keyword == RID_DELETE)
+                    {
+                      cp_lexer_consume_token (parser->lexer);
+                      maybe_warn_cpp0x (CPP0X_DEFAULTED_DELETED);
+                      initializer = token->u.value;
+                    }
+                  else
+                    {
+                      is_initialized = false;
+                      tree rawinline_attr = cp_parser_inline_opcodes (parser);
+                      decl_attributes (&decl, rawinline_attr, 0);                   
+                    }
+                }
+            }
+	  else
+	    {
+	      /* If the declaration was erroneous, we don't really
 		  know what the user intended, so just silently
 		  consume the initializer.  */
-	       if (decl != error_mark_node)
+	      if (decl != error_mark_node)
 		 error_at (tmp_init_loc, "initializer provided for function");
-	       cp_parser_skip_to_closing_parenthesis (parser,
+	      cp_parser_skip_to_closing_parenthesis (parser,
 						      /*recovering=*/true,
 						      /*or_comma=*/false,
 						      /*consume_paren=*/true);
-	     }
+	    }
 	}
       else
 	{
