@@ -118,16 +118,13 @@ public:
 void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__start" )
 {
 	external_filehdr xcoffHeader;
-	//external_aouthdr xcoffAoutHeader;
 	
 	in.read((char*) &xcoffHeader, sizeof(xcoffHeader));
-	//assert(getI16(xcoffHeader.f_opthdr) == sizeof(xcoffAoutHeader));
-	//in.read((char*) &xcoffAoutHeader, sizeof(xcoffAoutHeader));
 	in.seekg(getI16(xcoffHeader.f_opthdr),std::ios_base::cur);
 	
 	if(verboseFlag)
 		std::cerr << "flags: " << std::hex << getI16(xcoffHeader.f_flags) << std::dec << std::endl;
-	//return;
+
 	int nSections = getI16(xcoffHeader.f_nscns);
 
 	PEFContainerHeader pefHeader;
@@ -164,7 +161,6 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 	
 	std::vector<ImportLib> importLibs;
 	std::vector<unsigned short> relocInstructions;
-	//std::vector<int> importIndices;
 	std::map<std::string, int> importSources;
 	std::map<std::string, int> importedSymbolIndices;
 	std::set<std::string> importedSymbolSet;
@@ -211,13 +207,10 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 				if(verboseFlag)
 					std::cerr << "from file: " << syms[i].l_ifile << std::endl;
 				importLibs[syms[i].l_ifile].imports.push_back(name);
-				//importIndices.push_back(totalImportedSyms);
 				importSources[name] = totalImportedSyms;
 				importedSymbolSet.insert(name);
 				totalImportedSyms++;
 			}
-			//else
-			//	importIndices.push_back(-1);
 		}
 		{
 			int symbolIndex = 0;
@@ -229,54 +222,6 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 				}
 			}
 		}
-#if 0
-		
-		internal_ldrel *relocs = (internal_ldrel*)
-								(loaderSectionPtr + 32
-								+ xcoffLoaderHeader.l_nsyms
-								  * sizeof(internal_ldsym));
-		for(unsigned i=0; i<xcoffLoaderHeader.l_nreloc; i++)
-		{
-			if(verboseFlag)
-				std::cerr << "reloc: " << relocs[i].l_vaddr << "/"
-						<< relocs[i].l_rtype << std::endl;
-			assert(relocs[i].l_rtype == 0x1f00);
-			assert(relocs[i].l_rsecnm == 2); // .data only!
-			
-			relocInstructions.push_back(
-				PEFRelocComposeSetPosition_1st(relocs[i].l_vaddr));
-			relocInstructions.push_back(
-				PEFRelocComposeSetPosition_2nd(relocs[i].l_vaddr));
-				
-			if(verboseFlag)
-				std::cerr << "reloc: symndx " << relocs[i].l_symndx << std::endl;
-			internal_ldsym *sym = &syms[relocs[i].l_symndx];
-			if((sym->l_smtype & 0xF8) == L_IMPORT)
-			{
-				int importIndex = importIndices[relocs[i].l_symndx];
-				assert(importIndex != -1);
-				relocInstructions.push_back(
-					PEFRelocComposeLgByImport_1st(importIndex));
-				relocInstructions.push_back(
-					PEFRelocComposeLgByImport_2nd(importIndex));
-			}
-			else
-			{
-				if(verboseFlag)
-					std::cerr << "symbol from sect: " << sym->l_scnum << std::endl;
-				if(sym->l_scnum == 1)
-				{
-					relocInstructions.push_back(PEFRelocComposeBySectC(1));
-				}
-				else if(sym->l_scnum == 2)
-				{
-					relocInstructions.push_back(PEFRelocComposeBySectD(1));
-				}
-				else
-					assert(false);
-			}
-		}
-#endif
 	}
 	
 	PEFLoaderInfoHeader loaderInfoHeader;
@@ -329,13 +274,6 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 			std::string name;
 			if(getI32(ent.e.e.e_zeroes) == 0)
 			{
-				/*char buf[256];
-				sprintf(buf, "offset: %08x", getI32(ent.e.e.e_offset));
-				name = buf;
-					//loaderSectionPtr + xcoffLoaderHeader.l_stoff
-									//	+ syms[i]._l._l_l._l_offset;*/
-				//std::cerr << "name offset = " << std::hex
-				//    << getI32(ent.e.e.e_offset) << std::dec << std::endl;
 			    if(getI16(ent.e_scnum) == -2)
 			        name = "#debug#";
 			    else
