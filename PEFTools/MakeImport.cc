@@ -3,12 +3,14 @@
 #include <utility>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "PEF.h"
 
@@ -81,7 +83,7 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, string libname, string name
 		
 		classesAndNamePtrs.push_back( make_pair(nameptr, symclass) );
 	}
-	sort(classesAndNamePtrs.begin(), classesAndNamePtrs.end());
+	std::sort(classesAndNamePtrs.begin(), classesAndNamePtrs.end());
 	
 	vector< pair<string, UInt8> > exportedSymbols;
 	for(UInt32 i=0; i < nSymbols; i++)
@@ -154,103 +156,6 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, string libname, string name
 		unlink("stub.c");
 		unlink((name + ".o").c_str());
 	}
-
-	/*{
-		ofstream expFile((name + ".exp").c_str());
-		ofstream cFile((name + ".stub.c").c_str());
-		for(UInt32 i=0; i< nSymbols; i++)
-		{
-			if(exportedSymbols[i].second == kPEFTVectorSymbol)
-			{
-				expFile << exportedSymbols[i].first << endl;
-				cFile << "void " << exportedSymbols[i].first << "() {}" << endl;
-			}
-			else if(exportedSymbols[i].second == kPEFDataSymbol)
-			{
-				expFile << exportedSymbols[i].first << endl;
-				cFile << "int " << exportedSymbols[i].first << " = 42;" << endl;
-			}
-		}
-		
-		system(("powerpc-apple-macos-gcc -fno-builtin -c '" + name + ".stub.c'").c_str());
-		system(("powerpc-apple-macos-ld -shared --no-check-sections '-bexport:"
-				+ name + ".exp' -o '"
-				+ name + ".o' '" + name + ".stub.o'").c_str());
-		system(("powerpc-apple-macos-ar cq lib" + libname + ".a '" + name + ".o'").c_str());
-		system(("powerpc-apple-macos-ar t lib" + libname + ".a").c_str());
-		
-		unlink((name + ".exp").c_str());
-		unlink((name + ".stub.c").c_str());
-		unlink((name + ".stub.o").c_str());
-		//unlink((name + ".o").c_str());
-	}*/
-	/*
-	{
-		ofstream expFile("shared.exp",ios_base::app | ios_base::out);
-		ofstream cFile("shared.stub.c",ios_base::app | ios_base::out);
-		for(UInt32 i=0; i< nSymbols; i++)
-		{
-			if(exportedSymbols[i].second == kPEFTVectorSymbol)
-			{
-				expFile << exportedSymbols[i].first << endl;
-				cFile << "void " << exportedSymbols[i].first << "() {}" << endl;
-			}
-			else if(exportedSymbols[i].second == kPEFDataSymbol)
-			{
-				expFile << exportedSymbols[i].first << endl;
-				cFile << "int " << exportedSymbols[i].first << " = 42;" << endl;
-			}
-		}
-		
-	}*/
-
-	/*{
-		PEFSectionHeader *lastInstantiated =
-			&sectionHeaders[eu16(containerHeader->instSectionCount)-1];
-			
-		UInt32 containerSize = eu32(lastInstantiated->containerOffset)
-							 + eu32(lastInstantiated->containerLength);
-		pefptr += containerSize;
-		pefsize -= containerSize;
-	}*/
-}
-
-bool FindPEFContainer(const char *path, const char *libname,
-						UInt32& offset, UInt32& length)
-{
-	bool found = false;
-	FSRef ref;
-	FSPathMakeRef((const UInt8*) path, &ref, NULL);
-	
-	short refnum = FSOpenResFile(&ref, fsRdPerm);
-	
-	Handle h = Get1Resource('cfrg', 0);
-	HLock(h);
-	
-	CFragResource *cfrg = (CFragResource*) *h;
-	CFragResourceMember *member = &(cfrg -> firstMember);
-	
-	for(UInt16 i = 0; i < cfrg->memberCount; i++)
-	{
-		cout << i << ": " << string(member->name+1, member->name+1+member->name[0])
-			<< endl;
-		if((member->architecture == kPowerPCCFragArch
-			|| member->architecture == kAnyCFragArch)
-			&& (string(member->name+1, member->name+1+member->name[0])
-				== libname))
-		{
-			offset = member->offset;
-			length = member->length;
-			found = true;
-			break;
-		}
-		
-		member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
-	}
-	
-	CloseResFile(refnum);
-	
-	return found;
 }
 
 void MakeImportLibraryMulti(char *file, const char *path, string libname)
@@ -300,16 +205,6 @@ void MakeImportLibraryMulti(char *file, const char *path, string libname)
 	}
 	
 	CloseResFile(refnum);
-	/*
-	system("powerpc-apple-macos-gcc -fno-builtin -c shared.stub.c");
-	system("powerpc-apple-macos-ld -shared --no-check-sections -bexport:shared.exp "
-			"-o shared.o shared.stub.o");
-	system(("powerpc-apple-macos-ar cq lib" + libname + ".a shared.o").c_str());
-	*/
-	/*unlink("shared.exp");
-	unlink("shared.stub.c");
-	unlink("shared.stub.o");
-	unlink("shared.o");*/
 }
 
 int main (int argc, char * const argv[])
@@ -332,17 +227,6 @@ int main (int argc, char * const argv[])
 	off_t filesize = sb.st_size;
 	char *p = (char*) mmap(NULL, filesize, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
 	
-	/*UInt32 offset, length;
-	if(FindPEFContainer(argv[1], argv[2], offset, length))
-	{
-		MakeImportLibrary(p+offset, length, argv[2]);
-	}
-	else
-	{
-		cerr << "No cfrg resource found or specified library not found." << endl
-			 << "Using first container." << endl;
-		MakeImportLibrary(p, filesize, argv[2]);
-	}*/
 	MakeImportLibraryMulti(p,argv[1], argv[2]);
 
 	close(fd);
