@@ -14,6 +14,8 @@
 
 #include "PEF.h"
 
+#include "ResourceFile.h"
+
 using std::cout;
 using std::cerr;
 using std::endl;
@@ -24,29 +26,53 @@ using std::string;
 using std::ofstream;
 using std::ios_base;
 
-// Change this to support little-endian hosts:
-UInt16 eu16(UInt16 x) { return x; }
-UInt32 eu32(UInt32 x) { return x; }
-SInt16 es16(SInt16 x) { return x; }
-SInt32 es32(SInt32 x) { return x; }
+UInt16 eu16(UInt16 x)
+{
+	int little = 1;
+	if(*(char*)&little)
+	{
+		return (x << 8) | (x >> 8);
+	}
+	else
+	{
+		return x;
+	}
+}
+UInt32 eu32(UInt32 x)
+{
+	int little = 1;
+	if(*(char*)&little)
+	{
+		return (x << 24)
+			 | ((x & 0xFF00) << 8)
+			 | ((x >> 8) & 0xFF00)
+			 | (x >> 24);
+	}
+	else
+	{
+		return x;
+	}
+}
+SInt16 es16(SInt16 x) { return eu16(x); }
+SInt32 es32(SInt32 x) { return eu32(x); }
 
-void MakeImportLibrary(char *pefptr, size_t pefsize, string libname, string name)
+void MakeImportLibrary(const char *pefptr, size_t pefsize, string libname, string name)
 {
 	PEFContainerHeader *containerHeader = (PEFContainerHeader*) pefptr;
 
 	assert(eu32(containerHeader->tag1) == 'Joy!');
 	assert(eu32(containerHeader->tag2) == 'peff');
 
-	PEFSectionHeader *sectionHeaders
-		= (PEFSectionHeader*) (pefptr + kPEFFirstSectionHeaderOffset);
+	const PEFSectionHeader *sectionHeaders
+		= (const PEFSectionHeader*) (pefptr + kPEFFirstSectionHeaderOffset);
 	
-	PEFSectionHeader *loaderHeader = NULL;
+	const PEFSectionHeader *loaderHeader = NULL;
 	UInt16 n = eu16(containerHeader->sectionCount);
 	for(UInt16 i=0; i < n; i++)
 		if(sectionHeaders[i].sectionKind == kPEFLoaderSection)
 			loaderHeader = &sectionHeaders[i];
 	
-	PEFLoaderInfoHeader *loaderInfoHeader
+	const PEFLoaderInfoHeader *loaderInfoHeader
 		= (PEFLoaderInfoHeader*) (pefptr + eu32(loaderHeader->containerOffset));
 		
 	
@@ -57,23 +83,23 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, string libname, string name
 	
 	UInt32 nSymbols = eu32(loaderInfoHeader->exportedSymbolCount);
 	
-	char *symbols	/* use char pointer to avoid packing issues */
+	const char *symbols	/* use char pointer to avoid packing issues */
 		=	(pefptr	+ eu32(loaderHeader->containerOffset)
 					+ eu32(loaderInfoHeader->exportHashOffset)
 					+ hashTableSize * sizeof(PEFExportedSymbolHashSlot)
 					+ nSymbols * sizeof(PEFExportedSymbolKey));
 	
-	char *stringTable = pefptr
+	const char *stringTable = pefptr
 						+ eu32(loaderHeader->containerOffset)
 						+ eu32(loaderInfoHeader->loaderStringsOffset);
-	char *stringTableEnd = pefptr
+	const char *stringTableEnd = pefptr
 					+ eu32(loaderHeader->containerOffset)
 					+ eu32(loaderInfoHeader->exportHashOffset);
 	vector< pair< const char *, UInt8 > > classesAndNamePtrs;
 	
 	for(UInt32 i=0; i < nSymbols; i++)
 	{
-		PEFExportedSymbol sym = * (PEFExportedSymbol*) (symbols + 10*i);
+		const PEFExportedSymbol sym = * (PEFExportedSymbol*) (symbols + 10*i);
 		
 		UInt8 symclass = PEFExportedSymbolClass(eu32(sym.classAndName));
 		UInt32 nameoffset = PEFExportedSymbolNameOffset(eu32(sym.classAndName));
@@ -110,7 +136,6 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, string libname, string name
 	
 	{
 		ofstream expFile("stub.exp");
-		//ofstream cFile("stub.c");
 		ofstream sFile("stub.s");
 		sFile << "\t.toc\n";
 		for(UInt32 i=0; i< nSymbols; i++)
@@ -147,46 +172,44 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, string libname, string name
 		system("powerpc-apple-macos-as stub.s -o stub.o");
 		system(("powerpc-apple-macos-ld -shared --no-check-sections "
 				"-bexport:stub.exp -o'"
-				+ name + ".o' stub.o").c_str());
-		system(("powerpc-apple-macos-ar cq '" + libname + "' '" + name + ".o'").c_str());
-		system(("powerpc-apple-macos-ar t '" + libname + "'").c_str());
+				+ libname + "' stub.o").c_str());
+		//system(("powerpc-apple-macos-ar cq '" + libname + "' '" + name + ".o'").c_str());
+		//system(("powerpc-apple-macos-ar t '" + libname + "'").c_str());
 		
 		unlink("stub.exp");
 		unlink("stub.o");
-		unlink("stub.c");
-		unlink((name + ".o").c_str());
+		unlink("stub.s");
+		//unlink((name + ".o").c_str());
 	}
 }
 
-void MakeImportLibraryMulti(char *file, const char *path, string libname)
+void MakeImportLibraryMulti(const char *path, string libname)
 {
-	FSRef ref;
-	FSPathMakeRef((const UInt8*) path, &ref, NULL);
-	
-	short refnum = FSOpenResFile(&ref, fsRdPerm);
-	
-	Handle h = Get1Resource('cfrg', 0);
-	HLock(h);
-	
+	ResourceFile resFile(path);
+	assert(resFile.read());
+
+	const char *file = resFile.data.data();
+	Resource& cfrgRes = resFile.resources.resources[ResRef("cfrg",0)];
+
 	unlink(("lib" + libname + ".a").c_str());
 	
-	CFragResource *cfrg = (CFragResource*) *h;
+	CFragResource *cfrg = (CFragResource *)cfrgRes.getData().data();
 	CFragResourceMember *member = &(cfrg -> firstMember);
 	
-	for(UInt16 i = 0; i < cfrg->memberCount; i++)
+	for(UInt16 i = 0; i < eu16(cfrg->memberCount); i++)
 	{
 		string membername =
 			string(member->name+1, member->name+1+member->name[0]);
 		cout << i << ": " << membername	<< endl;
-		if(member->architecture == kPowerPCCFragArch
-			|| member->architecture == kAnyCFragArch)
+		if(eu32(member->architecture) == kPowerPCCFragArch
+			|| eu32(member->architecture) == kAnyCFragArch)
 		{
 			if(member->usage == kStubLibraryCFrag
 				|| member->usage == kImportLibraryCFrag)
-				MakeImportLibrary(file + member->offset, member->length,
+				MakeImportLibrary(file + eu32(member->offset), eu32(member->length),
 					libname, membername);
 			else if(member->usage == kWeakStubLibraryCFrag)
-				MakeImportLibrary(file + member->offset, member->length,
+				MakeImportLibrary(file + eu32(member->offset), eu32(member->length),
 					libname, membername + "__weak");
 			else
 				std::cerr << "Inappropriate usage flag: "
@@ -201,10 +224,8 @@ void MakeImportLibraryMulti(char *file, const char *path, string libname)
 				<< string((char*) &member->architecture,
 						((char*) &member->architecture) + 4) << endl;
 		
-		member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
+		member = (CFragResourceMember*)  (((char*)member) + eu16(member->memberSize));
 	}
-	
-	CloseResFile(refnum);
 }
 
 int main (int argc, char * const argv[])
@@ -212,7 +233,7 @@ int main (int argc, char * const argv[])
 	//printf("%d\n",argc);
 	if(argc != 3)
 	{
-		cerr << "Usage: makeimport <peflib> [<libname>]" << endl;
+		cerr << "Usage: makeimport <peflib> <libname>" << endl;
 		return 1;
 	}
 	
@@ -222,12 +243,12 @@ int main (int argc, char * const argv[])
 		perror(argv[1]);
 		return 1;
 	}
-	struct stat sb;
+	/*struct stat sb;
 	fstat(fd, &sb);
 	off_t filesize = sb.st_size;
-	char *p = (char*) mmap(NULL, filesize, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
+	char *p = (char*) mmap(NULL, filesize, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);*/
 	
-	MakeImportLibraryMulti(p,argv[1], argv[2]);
+	MakeImportLibraryMulti(argv[1], argv[2]);
 
 	close(fd);
     return 0;

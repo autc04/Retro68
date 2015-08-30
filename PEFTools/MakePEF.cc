@@ -219,20 +219,26 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 		for(unsigned i=0; i<xcoffLoaderHeader.l_nsyms; i++)
 		{
 			std::string name;
-			if(syms[i]._l._l_l._l_zeroes == 0)
+			internal_ldsym sym = syms[i];
+
+			eswap(&sym, "........Ls..LL");
+			if(sym._l._l_l._l_zeroes == 0)
+			{
+				eswap(&sym._l._l_l._l_offset,"L");
 				name = loaderSectionPtr + xcoffLoaderHeader.l_stoff
-										+ syms[i]._l._l_l._l_offset;
+										+ sym._l._l_l._l_offset;
+			}
 			else
-				name = syms[i]._l._l_name;
+				name = sym._l._l_name;
 			if(verboseFlag)
 				std::cerr << "Loader Symbol: " << name << std::endl;
 			
-			if((syms[i].l_smtype & 0xF8) == L_IMPORT)
+			if((sym.l_smtype & 0xF8) == L_IMPORT)
 			{
-				assert((syms[i].l_smtype & 3) == XTY_ER);
+				assert((sym.l_smtype & 3) == XTY_ER);
 				if(verboseFlag)
-					std::cerr << "from file: " << syms[i].l_ifile << std::endl;
-				importLibs[syms[i].l_ifile].imports.push_back(name);
+					std::cerr << "from file: " << sym.l_ifile << std::endl;
+				importLibs[sym.l_ifile].imports.push_back(name);
 				importSources[name] = totalImportedSyms;
 				importedSymbolSet.insert(name);
 				totalImportedSyms++;
@@ -437,10 +443,20 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 			name = imp.mem;
 		else
 			name = imp.base;
+
+
+		if(verboseFlag)
+		{
+			std::cerr << "XCOFF name \"" << name << '"';
+		}
 		int dotIndex = name.rfind('.');
 		if(dotIndex)
+		{
 			name = name.substr(0,dotIndex);
-		
+			if(name.substr(0,3) == "lib")
+				name = name.substr(3);
+		}
+
 		if(name.length() > 6)
 		{
 			if(name.substr(name.length()-6,6) == "__weak")

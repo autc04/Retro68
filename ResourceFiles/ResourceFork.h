@@ -34,8 +34,9 @@ public:
 
 class Resources : public Fork
 {
-	std::map<ResRef, Resource> resources;
 public:
+	std::map<ResRef, Resource> resources;
+
 	Resources() {}
 	Resources(std::istream& in);
 	void writeFork(std::ostream& out) const;

@@ -11,6 +11,8 @@
 #define CALLBACK_API(ret,name) ret (*name)
 #define CALLBACK_API_C(ret,name) ret (*name)
 #define ONEWORDINLINE(x)
+#define TWOWORDINLINE(x,y)
+#define THREEWORDINLINE(x,y,z)
 #define FOUR_CHAR_CODE(x) (x)
 #define PRAGMA_STRUCT_PACKPUSH 1
 
@@ -25,7 +27,15 @@ typedef int16_t SInt16;
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
 typedef uint32_t OSType;
-
+typedef int16_t OSErr;
+typedef const unsigned char ConstStr63Param[64];
+typedef const unsigned char ConstStr255Param[256];
+typedef unsigned char Str255[256];
+typedef unsigned char *StringPtr;
+typedef struct {} FSSpec, *FSSpecPtr;
+typedef char* Ptr;
+typedef int16_t Boolean;
+typedef void *LogicalAddress;
 
 /* Definitions for PEF, from Apple's Universal Interfaces */
 #include <PEFBinaryFormat.h>
@@ -42,5 +52,9 @@ typedef uint32_t OSType;
 #define PEFRelocComposeLgByImport_2nd(fullIndex)    \
 		( (UInt16) ((UInt32)(fullIndex) & 0xFFFF) )
 #endif
+
+#define __FILES__
+
+#include <CodeFragments.h>
 
 #endif // PEF_H
