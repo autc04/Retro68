@@ -47,6 +47,7 @@ else()
 
 set(RETRO68_ROOT ${CMAKE_INSTALL_PREFIX})
 configure_file(cmake/intree.toolchain.cmake.in cmake/intree.toolchain.cmake @ONLY)
+configure_file(cmake/intreeppc.toolchain.cmake.in cmake/intreeppc.toolchain.cmake @ONLY)
 
 add_subdirectory(ResourceFiles)
 add_subdirectory(MakeAPPL)

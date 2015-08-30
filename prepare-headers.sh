@@ -15,13 +15,20 @@ cat > $OUT/ConditionalMacros.h <<END_MARKER
 #ifndef __CONDITIONALMACROS__WRAP__
 #define __CONDITIONALMACROS__WRAP__
 
+#if #cpu(powerpc)
+#define TARGET_CPU_PPC 1
+#define TARGET_OS_MAC 1
+#define TARGET_RT_MAC_CFM 1
+#define TARGET_RT_MAC_MACHO 0
+#else
 #define TARGET_CPU_68K 1
 #define TARGET_OS_MAC 1
 #define TARGET_RT_MAC_CFM 0
 #define TARGET_RT_MAC_MACHO 0
-#define TYPE_LONGLONG 1
-#define pascal __attribute__((__pascal__))
+#endif
+
 #define FUNCTION_PASCAL 1
+#define TYPE_LONGLONG 1
 #ifdef __cplusplus
 #define TYPE_BOOL 1
 #endif
