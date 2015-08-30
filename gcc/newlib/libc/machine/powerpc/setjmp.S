@@ -2,9 +2,15 @@
    Ian Lance Taylor, Cygnus Support, 9 Feb 1994.  
    Modified by Jeff Johnston, Red Hat Inc. 2 Oct 2001. */
 
-#include "ppc-asm.h"
-
-FUNC_START(setjmp)
+	.csect .text[PR]
+	.align 2
+	.globl setjmp
+	.globl .setjmp
+	.csect setjmp[DS]
+setjmp:
+	.long .setjmp, TOC[tc0], 0
+	.csect .text[PR]
+.setjmp:
 #ifdef __ALTIVEC__
 	addi	3,3,15		# align Altivec to 16 byte boundary
 	rlwinm	3,3,0,0,27
@@ -134,10 +140,16 @@ FUNC_START(setjmp)
 #endif
 	li	3,0
 	blr
-FUNC_END(setjmp)
 
-
-FUNC_START(longjmp)
+	.csect .text[PR]
+	.align 2
+	.globl longjmp
+	.globl .longjmp
+	.csect longjmp[DS]
+longjmp:
+	.long .longjmp, TOC[tc0], 0
+	.csect .text[PR]
+.longjmp:
 #ifdef __ALTIVEC__
 	addi	3,3,15		# align Altivec to 16 byte boundary
 	rlwinm	3,3,0,0,27
@@ -265,4 +277,3 @@ FUNC_START(longjmp)
 	bclr+	4,2
 	li	3,1
 	blr
-FUNC_END(longjmp)

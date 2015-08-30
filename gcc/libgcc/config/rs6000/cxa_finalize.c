@@ -29,7 +29,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "exit.h"
 
 
-static boolean_t
+static int
 catomic_compare_and_exchange_bool_acq (long *mem, long newval, long oldval)
 {
   return __atomic_compare_exchange (mem, &oldval, &newval, 0,
