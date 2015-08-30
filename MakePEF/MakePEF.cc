@@ -8,11 +8,13 @@
 #include <alloca.h>
 
 #include <assert.h>
+#include <stdint.h>
+
 #include "powerpc.h"
 
 
 	/* Provide minimal definitions from ConfitionalMacros.h.
-	 * ConditionalMacros.h can't deal with our host C compiler.9
+	 * ConditionalMacros.h can't deal with our host C compiler.
 	 */
 #define __CONDITIONALMACROS__
 #define TYPE_BOOL 1
@@ -22,6 +24,20 @@
 #define CALLBACK_API_C(ret,name) ret (*name)
 #define ONEWORDINLINE(x)
 #define FOUR_CHAR_CODE(x) (x)
+#define PRAGMA_STRUCT_PACKPUSH 1
+
+	/* Can't use MacTypes.h either,
+	 * as older versions are hardcoded to 32 bit platforms.
+	 */
+#define __MACTYPES__
+typedef uint8_t 					UInt8;
+typedef int8_t 					SInt8;
+typedef uint16_t				UInt16;
+typedef int16_t SInt16;
+typedef uint32_t UInt32;
+typedef int32_t SInt32;
+typedef uint32_t OSType;
+
 
 	/* Definitions for PEF, from Apple's Universal Interfaces */
 #include <PEFBinaryFormat.h>
@@ -90,13 +106,54 @@ bool verboseFlag = false;
 
 inline int getI16(char *x)
 {
-	return *(short*)x;
+	return (((unsigned short)x[0]) << 8) | (unsigned short)x[1];
 }
 
 inline int getI32(char *x)
 {
-	return *(int*)x;
+	return (((unsigned char)x[0]) << 24) | (((unsigned char)x[1]) << 16)
+		|  (((unsigned char)x[2]) << 8) | ((unsigned char)x[3]);
 }
+
+template <typename T>
+void eswap(T *data, const char * format)
+{
+	int endianTest = 1;
+	if(*(char*)&endianTest == 0)
+		return;
+
+	char *p = reinterpret_cast<char*>(data);
+	const char *q = format;
+	while(char c = *q++)
+	{
+		if(c == 'L')
+		{
+			std::swap(p[0], p[3]);
+			std::swap(p[1], p[2]);
+			p += 4;
+		}
+		else if(c == 's')
+		{
+			std::swap(p[0], p[1]);
+			p += 2;
+		}
+		else
+		{
+			assert(c == '.');
+			++p;
+		}
+	}
+
+	//assert(p == reinterpret_cast<char*>(data+1));
+	assert(p == reinterpret_cast<char*>(data) + sizeof(T));
+}
+
+const char *SwapPEFContainerHeader = "LLLLLLLLssL";
+const char *SwapPEFSectionHeader = "LLLLLL....";
+const char *SwapPEFLoaderInfoHeader = "LLLLLLLLLLLLLL";
+const char *SwapPEFImportedLibrary = "LLLLL..s";
+const char *SwapPEFImportedSymbol = "L";
+const char *SwapPEFLoaderRelocationHeader = "ssLL";
 
 class ImportLib
 {
@@ -124,6 +181,11 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 	
 	if(verboseFlag)
 		std::cerr << "flags: " << std::hex << getI16(xcoffHeader.f_flags) << std::dec << std::endl;
+	if(verboseFlag)
+	{
+		std::cerr << "symptr: " << getI32(xcoffHeader.f_symptr) << std::endl;
+		std::cerr << "nsyms: " << getI32(xcoffHeader.f_nsyms) << std::endl;
+	}
 
 	int nSections = getI16(xcoffHeader.f_nscns);
 
@@ -151,9 +213,13 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 		external_scnhdr xcoffSection;
 				
 		in.read((char*) &xcoffSection, sizeof(xcoffSection));
-		
+
 		if(verboseFlag)
+		{
 			std::cerr << "section: " << xcoffSection.s_name << std::endl;
+			std::cerr << "  at: " << getI32(xcoffSection.s_scnptr) << std::endl;
+			std::cerr << "  sz: " << getI32(xcoffSection.s_size) << std::endl;
+		}
 		xcoffSections[xcoffSection.s_name] = xcoffSection;
 		xcoffSectionNumbers[xcoffSection.s_name] = i+1;
 		xcoffSectionNames[i+1] = xcoffSection.s_name;
@@ -174,7 +240,8 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 		in.read(loaderSectionPtr, getI32(xcoffLoaderSection.s_size));
 		
 		xcoffLoaderHeader = *(internal_ldhdr*)loaderSectionPtr;
-		
+		eswap(&xcoffLoaderHeader, "LLLLLLLLLL");
+
 		char *p = loaderSectionPtr + xcoffLoaderHeader.l_impoff;
 		for(unsigned i=0; i<xcoffLoaderHeader.l_nimpid; i++)
 		{
@@ -232,7 +299,7 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 	loaderInfoHeader.termSection = -1;
 	
 	{
-		
+
 		in.seekg(getI32(xcoffHeader.f_symptr) +
 			getI32(xcoffHeader.f_nsyms) * sizeof(external_syment));
 		int stringTableLen = 0;
@@ -240,6 +307,8 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 		if(verboseFlag)
 			std::cerr << "tell: " << in.tellg() << std::endl;
 		in.read((char*)&stringTableLen, 4);
+		eswap(&stringTableLen, "L");
+
 		if(verboseFlag)
 			std::cerr << "string table len: " << stringTableLen << std::endl;
 		char *stringTable = new char[stringTableLen+1];
@@ -302,8 +371,9 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 			{
 				if(name == mainSymbol)
 				{
-					loaderInfoHeader.mainSection = pefSectionNumbers[xcoffSectionNames[getI16(ent.e_scnum)]];
-					loaderInfoHeader.mainOffset = getI32(ent.e_value);
+					std::string secName = xcoffSectionNames[getI16(ent.e_scnum)];
+					loaderInfoHeader.mainSection = pefSectionNumbers[secName];
+					loaderInfoHeader.mainOffset = getI32(ent.e_value) - getI32(xcoffSections[secName].s_vaddr);
 				}
 			}
 		}
@@ -486,30 +556,36 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 	
 	if(verboseFlag)
 		std::cerr << "Writing Headers..." << std::flush;
+
+	eswap(&pefHeader, SwapPEFContainerHeader);
 	out.write((char*)&pefHeader, sizeof(pefHeader));
+	eswap(&textSectionHeader, SwapPEFSectionHeader);
 	out.write((char*)&textSectionHeader, sizeof(textSectionHeader));
+	eswap(&dataSectionHeader, SwapPEFSectionHeader);
 	out.write((char*)&dataSectionHeader, sizeof(dataSectionHeader));
+	eswap(&loaderSectionHeader, SwapPEFSectionHeader);
 	out.write((char*)&loaderSectionHeader, sizeof(loaderSectionHeader));
 	if(verboseFlag)
 		std::cerr << "done.\nCopying text and data..." << std::flush;
 	{
-		char *buf = new char[textSectionHeader.containerLength];
+		char *buf = new char[textSize];
 		
 		in.seekg(getI32(xcoffSections[".text"].s_scnptr));
-		in.read(buf, textSectionHeader.containerLength);
-		out.write(buf, textSectionHeader.containerLength);
+		in.read(buf, textSize);
+		out.write(buf, textSize);
 		delete[] buf;
 	}
 	{
-		char *buf = new char[dataSectionHeader.containerLength];
+		char *buf = new char[dataSize];
 		
 		in.seekg(getI32(xcoffSections[".data"].s_scnptr));
-		in.read(buf, dataSectionHeader.containerLength);
-		out.write(buf, dataSectionHeader.containerLength);
+		in.read(buf, dataSize);
+		out.write(buf, dataSize);
 		delete[] buf;
 	}
 	if(verboseFlag)
 		std::cerr << "done.\n";
+	eswap(&loaderInfoHeader, SwapPEFLoaderInfoHeader);
 	out.write((char*)&loaderInfoHeader, sizeof(loaderInfoHeader));
 	
 	int firstImportedSymbol = 0;
@@ -528,6 +604,7 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 		if(importLibs[i].weak)
 			impLib.options = kPEFWeakImportLibMask;
 		
+		eswap(&impLib, SwapPEFImportedLibrary);
 		out.write((char*)&impLib, sizeof(impLib));
 	}
 	for(unsigned i=1;i<importLibs.size();i++)
@@ -537,6 +614,7 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 			PEFImportedSymbol sym;
 			sym.classAndName = PEFComposeImportedSymbol(kPEFTVectorSymbol /* ### */,
 									importLibs[i].symNameOffsets[j]);
+			eswap(&sym, SwapPEFImportedSymbol);
 			out.write((char*)&sym, sizeof(sym));
 		}
 	}
@@ -545,10 +623,12 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 	
 	if(verboseFlag)
 		std::cerr << "relocations..." << std::flush;
+	eswap(&dataRelocationHeader, SwapPEFLoaderRelocationHeader);
 	out.write((char*)&dataRelocationHeader, sizeof(dataRelocationHeader));
 	for(unsigned i=0;i<relocInstructions.size();i++)
 	{
 		short insn = relocInstructions[i];
+		eswap(&insn, "s");
 		out.write((char*)&insn, sizeof(insn));
 	}
 	if(verboseFlag)

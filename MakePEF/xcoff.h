@@ -132,7 +132,7 @@ struct internal_ldhdr
   /* The version number: 
      1 : 32 bit
      2 : 64 bit */
-  unsigned long l_version;
+  unsigned int/*###*/ l_version;
 
   /* The number of symbol table entries.  */
   bfd_size_type l_nsyms;
@@ -176,11 +176,11 @@ struct internal_ldsym
     struct
     {
       /* Zero if the symbol name is more than SYMNMLEN characters.  */
-	long _l_zeroes;
+	int/*###*/ _l_zeroes;
       
       /* The offset in the string table if the symbol name is more
 	 than SYMNMLEN characters.  */
-      long _l_offset;
+	  int/*###*/ _l_offset;
     } 
     _l_l;
   }
@@ -240,7 +240,7 @@ struct xcoff_link_hash_entry
 
   /* Symbol index in output file.  Set to -1 initially.  Set to -2 if
      there is a reloc against this symbol.  */
-  long indx;
+  int/*###*/ indx;
 
   /* If we have created a TOC entry for this symbol, this is the .tc
      section which holds it.  */
@@ -254,7 +254,7 @@ struct xcoff_link_hash_entry
     
     /* If the TOC entry comes from an input file, this is set to the
        symbol index of the C_HIDEXT XMC_TC or XMC_TD symbol.  */
-    long toc_indx;
+	int/*###*/ toc_indx;
   } 
   u;
 
@@ -270,10 +270,10 @@ struct xcoff_link_hash_entry
   /* If XCOFF_BUILT_LDSYM is set, this is the .loader symbol table
      index.  If XCOFF_BUILD_LDSYM is clear, and XCOFF_IMPORT is set,
      this is the l_ifile value.  */
-  long ldindx;
+  int/*###*/ ldindx;
 
   /* Some linker flags.  */
-  unsigned long flags;
+  unsigned int/*###*/ flags;
 
   /* The storage mapping class.  */
   unsigned char smclas;
@@ -363,7 +363,7 @@ struct xcoff_link_hash_table
   struct xcoff_import_file *imports;
 
   /* Required alignment of sections within the output file.  */
-  unsigned long file_align;
+  unsigned int/*###*/ file_align;
 
   /* Whether the .text section must be read-only.  */
   bfd_boolean textro;
