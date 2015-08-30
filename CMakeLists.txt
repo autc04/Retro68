@@ -52,4 +52,6 @@ add_subdirectory(ResourceFiles)
 add_subdirectory(MakeAPPL)
 add_subdirectory(Rez)
 
+add_subdirectory(MakePEF)
+
 endif()
