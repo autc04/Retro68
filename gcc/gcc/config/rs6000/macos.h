@@ -185,6 +185,11 @@
 #undef TARGET_POINTERS_TO_NESTED_FUNCTIONS
 #define TARGET_POINTERS_TO_NESTED_FUNCTIONS 0
 
+/* Type used for ptrdiff_t, as a string used in a declaration.  */
+#undef PTRDIFF_TYPE
+#define PTRDIFF_TYPE "long int"
+
+
 #if 0
 /* The AIX linker will discard static constructors in object files before
    collect has a chance to see them, so scan the object files directly.  */
