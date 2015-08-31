@@ -35,7 +35,7 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 	install(FILES Retro68Runtime.h DESTINATION include)
 	install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)
 else()
-	set(ARCH_FILES)
+	set(ARCH_FILES ppcstart.c)
 endif()
 
 add_library(retrocrt

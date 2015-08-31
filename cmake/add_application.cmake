@@ -61,19 +61,40 @@ function(add_application name)
 		set_target_properties(${name} PROPERTIES LINK_DEPENDS libretro)
 	endif(TARGET libretro)
 
-	set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
+	if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 
-	add_custom_command(
-		OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
-		#COMMAND ${MAKE_APPL} ${ARGS_MAKEAPPL_ARGS} -c "${name}.flt" -o "${name}"
-		COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/Retro68APPL.r
-				-I${REZ_INCLUDE_PATH}
-				-DFLT_FILE_NAME="\\"${name}.flt\\""
-				-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
-				-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
-				${ARGS_MAKEAPPL_ARGS}
-		DEPENDS ${name} ${rsrc_files})
-	add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
+		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
+
+		add_custom_command(
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/Retro68APPL.r
+					-I${REZ_INCLUDE_PATH}
+					-DFLT_FILE_NAME="\\"${name}.flt\\""
+					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
+					${ARGS_MAKEAPPL_ARGS}
+			DEPENDS ${name} ${rsrc_files})
+		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
+
+	elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.xcoff)
+		add_custom_command(
+			OUTPUT ${name}.pef
+			COMMAND ${MAKE_PEF} "${name}.xcoff" -o "${name}.pef"
+			DEPENDS ${name})
+
+		add_custom_command(
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/RetroPPCcfrg.r
+					-I${REZ_INCLUDE_PATH}
+					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
+					--data ${name}.pef
+					${ARGS_MAKEAPPL_ARGS}
+			DEPENDS ${name}.pef ${rsrc_files})
+		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
+	endif()
+
 endfunction()
 
 cmake_policy(POP)

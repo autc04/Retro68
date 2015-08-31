@@ -35,6 +35,7 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/libretro)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libretro)
 set(REZ_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libretro:${CMAKE_INSTALL_PREFIX}/RIncludes" )
 
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 add_subdirectory(Console)
 add_subdirectory(TestApps)
 add_subdirectory(Samples/HelloWorld)
@@ -42,6 +43,9 @@ add_subdirectory(Samples/Raytracer)
 add_subdirectory(Samples/Launcher)
 add_subdirectory(Samples/Dialog)
 add_subdirectory(Samples/SystemExtension)
+else()
+add_subdirectory(Samples/Dialog)
+endif()
 
 else()
 

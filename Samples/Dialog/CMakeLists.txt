@@ -27,3 +27,6 @@ add_application(Dialog
 	dialog.c
 	dialog.r
 	)
+if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+target_link_libraries(Dialog InterfaceLib)
+endif()
