@@ -367,7 +367,7 @@ _bfd_xcoff_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
   else
     {
       sec = coff_section_from_bfd_index (ibfd, ix->sntoc);
-      if (sec == NULL)
+      if (sec == NULL || sec->output_section == NULL)
 	ox->sntoc = 0;
       else
 	ox->sntoc = sec->output_section->target_index;
@@ -2564,8 +2564,12 @@ _bfd_xcoff_sizeof_headers (bfd *abfd,
 	 Don't try to renumber sections, just compute the upper bound.  */
       max_index = 0;
       for (s = abfd->sections; s != NULL; s = s->next)
+      {
 	if (s->index > max_index)
 	  max_index = s->index;
+      }
+      if(max_index < 32) // ###RetroPPC: apparently, the above upper bound is incorrect.
+        max_index = 32;
 
       /* Allocate the per section counters. It could be possible to use a
 	 preallocated array as the number of sections is limited on XCOFF,

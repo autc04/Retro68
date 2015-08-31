@@ -3871,7 +3871,7 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
       esym = (bfd_byte *) obj_coff_external_syms (sub);
       esymend = esym + symcount * symesz;
 
-      while (esym < esymend)
+      while (csectpp && esym < esymend)
 	{
 	  struct internal_syment sym;
 	  union internal_auxent aux;

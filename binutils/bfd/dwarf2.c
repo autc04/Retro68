@@ -3619,6 +3619,8 @@ save_section_vma (const bfd *abfd, struct dwarf2_debug *stash)
     return FALSE;
   for (i = 0, s = abfd->sections; i < abfd->section_count; i++, s = s->next)
     {
+      if(!s)     // ###RetroPPC: apparently, section_count can be wrong?.
+        break;
       if (s->output_section != NULL)
 	stash->sec_vma[i] = s->output_section->vma + s->output_offset;
       else
