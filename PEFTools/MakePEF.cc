@@ -237,7 +237,7 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 			{
 				assert((sym.l_smtype & 3) == XTY_ER);
 				if(verboseFlag)
-					std::cerr << "from file: " << sym.l_ifile << std::endl;
+					std::cerr << "... from file: " << sym.l_ifile << std::endl;
 				importLibs[sym.l_ifile].imports.push_back(name);
 				importSources[name] = totalImportedSyms;
 				importedSymbolSet.insert(name);
