@@ -23,18 +23,26 @@
 
 cmake_minimum_required(VERSION 2.8)
 
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+	set(ARCH_FILES
+		Retro68Runtime.h
+		start.c
+		relocate.c
+		glue.c
+		Retro68.r
+		Retro68APPL.r
+	)
+	install(FILES Retro68Runtime.h DESTINATION include)
+	install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)
+else()
+	set(ARCH_FILES)
+endif()
+
 add_library(retrocrt
-	Retro68Runtime.h
-	start.c
-	relocate.c
 	malloc.c
 	syscalls.c
-	glue.c
 	consolehooks.c
-	Retro68.r
-	Retro68APPL.r
+	${ARCH_FILES}
 )
 
 install(TARGETS retrocrt  DESTINATION lib)
-install(FILES Retro68Runtime.h DESTINATION include)
-install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)
