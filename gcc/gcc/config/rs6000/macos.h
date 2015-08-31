@@ -69,6 +69,8 @@
 /* Profiled library versions are used by linking with special directories.  */
 #define LIB_SPEC "-lc"
 
+#define LIBGCC_SPEC "-lretrocrt -lgcc"
+
 /* Static linking with shared libstdc++ requires libsupc++ as well.  */
 #define LIBSTDCXX_STATIC "supc++"
 
