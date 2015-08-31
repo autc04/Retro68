@@ -391,7 +391,10 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 				else if(getI16(syms[symndx].e_scnum) == xcoffSectionNumbers[".bss"])
 					relocInstructions.push_back(PEFRelocComposeBySectD(1));
 				else
-					assert(false);
+				{
+					//assert(false);
+					std::cerr << "RELOC for section " << getI16(syms[symndx].e_scnum) << std::endl;
+				}
 			}
 			delete[] relocs;
 		}
