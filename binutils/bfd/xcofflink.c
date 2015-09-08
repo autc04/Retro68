@@ -2773,8 +2773,10 @@ xcoff_mark_symbol (struct bfd_link_info *info, struct xcoff_link_hash_entry *h)
 
 	  /* Treat this symbol as undefined if the descriptor was.  */
 	  if ((hds->flags & XCOFF_WAS_UNDEFINED) != 0)
-	    h->flags |= XCOFF_WAS_UNDEFINED;
-
+          {
+            if(h->root.type != bfd_link_hash_undefweak)
+	      h->flags |= XCOFF_WAS_UNDEFINED;
+          }
 	  /* Allocate room for the global linkage code itself.  */
 	  sec = xcoff_hash_table (info)->linkage_section;
 	  h->root.type = bfd_link_hash_defined;
