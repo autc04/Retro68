@@ -21,6 +21,7 @@
 #include "MacUtils.h"
 #include "Events.h"
 #include "Fonts.h"
+#include "Processes.h"
 
 #include <algorithm>
 
@@ -30,7 +31,9 @@ Console *Console::currentInstance = NULL;
 
 Console::Console(GrafPtr port, Rect r)
 	: consolePort(port), bounds(r), dirtyRect()
-{  
+{
+	if(currentInstance == NULL)
+		currentInstance = (Console*) -1;
 	PortSetter setport(consolePort);
 	
 	InsetRect(&bounds, 2,2);
@@ -42,7 +45,9 @@ Console::Console(GrafPtr port, Rect r)
 	
 	rows = (bounds.bottom - bounds.top) / cellSizeY;
 	cols = (bounds.right - bounds.left) / cellSizeX;
+
 	chars = std::vector<char>(rows*cols, ' ');
+
 	onscreen = chars;
 
 	cursorX = cursorY = 0;

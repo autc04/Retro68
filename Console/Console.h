@@ -36,6 +36,9 @@ namespace Retro
 		std::string ReadLine();
 
 		static Console *currentInstance;
+
+		short GetRows() const { return rows; }
+		short GetCols() const { return cols; }
 	private:
 		GrafPtr consolePort;
 		Rect bounds;
