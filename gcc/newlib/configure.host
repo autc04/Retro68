@@ -703,6 +703,10 @@ case "${host}" in
 	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DHAVE_FCNTL"
 	syscall_dir=syscalls
 	;;
+  powerpc-*-macos)
+    newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DHAVE_SYSTEM -DMISSING_SYSCALL_NAMES -DMALLOC_PROVIDED"
+	syscall_dir=
+	;;
   sh*-*-*)
 	default_newlib_io_long_long="yes"
 	syscall_dir=syscalls
