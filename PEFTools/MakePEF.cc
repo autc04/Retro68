@@ -119,7 +119,8 @@ class ImportLib
 public:
 	std::string path, base, mem;
 	std::vector<std::string> imports;
-	
+	std::vector<int> xcoffImportIndices;
+
 	int nameOffset;
 	bool weak;
 	
@@ -131,12 +132,17 @@ public:
 	}
 };
 
-void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__start" )
+void mkpef(const std::string& inFn, const std::string& outFn)
 {
+	std::ifstream in(inFn);
+
 	external_filehdr xcoffHeader;
-	
+	external_aouthdr aoutHeader;
+
 	in.read((char*) &xcoffHeader, sizeof(xcoffHeader));
-	in.seekg(getI16(xcoffHeader.f_opthdr),std::ios_base::cur);
+	assert((size_t)getI16(xcoffHeader.f_opthdr) >= sizeof(aoutHeader));
+	in.read((char*)&aoutHeader, sizeof(aoutHeader));
+	in.seekg(getI16(xcoffHeader.f_opthdr) - sizeof(aoutHeader),std::ios_base::cur);
 	
 	if(verboseFlag)
 		std::cerr << "flags: " << std::hex << getI16(xcoffHeader.f_flags) << std::dec << std::endl;
@@ -184,11 +190,22 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 		xcoffSectionNames[i+1] = xcoffSection.s_name;
 	}
 	
+	PEFLoaderInfoHeader loaderInfoHeader;
+	memset(&loaderInfoHeader, 0, sizeof(loaderInfoHeader));
+
+	loaderInfoHeader.mainSection = -1;
+	loaderInfoHeader.initSection = -1;
+	loaderInfoHeader.termSection = -1;
+
+	loaderInfoHeader.mainSection = 1;
+	loaderInfoHeader.mainOffset = getI32(aoutHeader.entry);
+
 	std::vector<ImportLib> importLibs;
 	std::vector<unsigned short> relocInstructions;
 	std::map<std::string, int> importSources;
-	std::map<std::string, int> importedSymbolIndices;
+	std::map<std::string, int> importedSymbolIndicesByName;
 	std::set<std::string> importedSymbolSet;
+	std::vector<int> importedSymbolIndices;
 	int totalImportedSyms = 0;
 	{
 		external_scnhdr xcoffLoaderSection = xcoffSections[".loader"];
@@ -239,167 +256,67 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 				if(verboseFlag)
 					std::cerr << "... from file: " << sym.l_ifile << std::endl;
 				importLibs[sym.l_ifile].imports.push_back(name);
+				importLibs[sym.l_ifile].xcoffImportIndices.push_back(i);
 				importSources[name] = totalImportedSyms;
 				importedSymbolSet.insert(name);
 				totalImportedSyms++;
 			}
 		}
+		importedSymbolIndices.resize(xcoffLoaderHeader.l_nsyms);
 		{
 			int symbolIndex = 0;
 			for(unsigned i=1;i<importLibs.size();i++)
 			{
 				for(unsigned j=0;j<importLibs[i].imports.size();j++)
 				{
-					importedSymbolIndices[importLibs[i].imports[j]] = symbolIndex++;
+					importedSymbolIndicesByName[importLibs[i].imports[j]] = symbolIndex;
+					importedSymbolIndices[importLibs[i].xcoffImportIndices[j]] = symbolIndex;
+					symbolIndex++;
 				}
 			}
 		}
-	}
-	
-	PEFLoaderInfoHeader loaderInfoHeader;
-	memset(&loaderInfoHeader, 0, sizeof(loaderInfoHeader));
 
-	loaderInfoHeader.mainSection = -1;
-	loaderInfoHeader.initSection = -1;
-	loaderInfoHeader.termSection = -1;
-	
-	{
+		int xcoffDataSecNumber = xcoffSectionNumbers[".data"];
 
-		in.seekg(getI32(xcoffHeader.f_symptr) +
-			getI32(xcoffHeader.f_nsyms) * sizeof(external_syment));
-		int stringTableLen = 0;
-
-		if(verboseFlag)
-			std::cerr << "tell: " << in.tellg() << std::endl;
-		in.read((char*)&stringTableLen, 4);
-		eswap(&stringTableLen, "L");
-
-		if(verboseFlag)
-			std::cerr << "string table len: " << stringTableLen << std::endl;
-		char *stringTable = new char[stringTableLen+1];
-		if(stringTableLen != 0)
+		internal_ldrel *rels = (internal_ldrel*) (loaderSectionPtr + 32 + xcoffLoaderHeader.l_nsyms * sizeof(internal_ldsym));
+		for(unsigned i=0; i<xcoffLoaderHeader.l_nreloc; i++)
 		{
-			*(int*)stringTable = stringTableLen;
-			if(stringTableLen > 4)
-				in.read(stringTable+4, stringTableLen-5);
-			stringTable[stringTableLen-1] = 0;
-		}
-
-		if(verboseFlag)
-		{
-			std::cerr << "tell: " << in.tellg() << std::endl;
-			std::cerr << "seeking to symptr: " << getI32(xcoffHeader.f_symptr) << std::endl;
-		}
-		in.seekg(getI32(xcoffHeader.f_symptr),std::ios::beg);
-
-		if(verboseFlag)
-			std::cerr << "tell: " << in.tellg() << std::endl;
-
-		int nSymEntries = getI32(xcoffHeader.f_nsyms);
-		std::vector<external_syment> syms(nSymEntries);
-		in.read((char*) &syms[0], sizeof(external_syment)*nSymEntries);
-		
-		std::vector<std::string> symNames;
-
-		for(int i=0; i < nSymEntries; i++)
-		{
-			external_syment ent = syms[i];
-			
-			std::string name;
-			if(getI32(ent.e.e.e_zeroes) == 0)
+			internal_ldrel rel = rels[i];
+			eswap(&rel, "LLss");
+			/*
+			bfd_vma l_vaddr;
+			bfd_size_type l_symndx;
+			short l_rtype;
+			short l_rsecnm;
+			*/
+			if(verboseFlag)
 			{
-			    if(getI16(ent.e_scnum) == -2)
-			        name = "#debug#";
-			    else
-				    name = stringTable + getI32(ent.e.e.e_offset);
-				
+				std::cerr << "reloc: " << std::hex << rel.l_vaddr << " " << rel.l_symndx << " " << rel.l_rtype << " " << rel.l_rsecnm << "\n";
 			}
+			assert(rel.l_rtype == 0x1f00);
+			assert(rel.l_rsecnm == xcoffDataSecNumber);
+
+			int vaddr = rel.l_vaddr;
+
+			relocInstructions.push_back(
+				PEFRelocComposeSetPosition_1st(vaddr));
+			relocInstructions.push_back(
+				PEFRelocComposeSetPosition_2nd(vaddr));
+			if(rel.l_symndx == 0)
+				relocInstructions.push_back(PEFRelocComposeBySectC(1));
+			else if(rel.l_symndx == 1 || rel.l_symndx == 2)
+				relocInstructions.push_back(PEFRelocComposeBySectD(1));
 			else
-				name = ent.e.e_name;
-			if(verboseFlag)
 			{
-				std::cerr << "[" << i << "] Symbol: " << name << std::hex
-						<< " e_value: " << getI32(ent.e_value)
-						<< " e_scnum: " << getI16(ent.e_scnum)
-						<< " e_type: " << getI16(ent.e_type)
-						<< " e_sclass: " << (int)ent.e_sclass[0]
-						<< std::dec << std::endl;
-			}
-			symNames.push_back(name);
-			for(int j=0; j<ent.e_numaux[0]; j++)
-			{
-				i++;
-				symNames.push_back("#aux#");
-			}
-
-			if(getI16(ent.e_scnum) != 0)
-			{
-				if(name == mainSymbol)
-				{
-					std::string secName = xcoffSectionNames[getI16(ent.e_scnum)];
-					loaderInfoHeader.mainSection = pefSectionNumbers[secName];
-					loaderInfoHeader.mainOffset = getI32(ent.e_value) - getI32(xcoffSections[secName].s_vaddr);
-				}
-			}
-		}
-		
-		
-		delete[] stringTable;
-
-		{
-			external_scnhdr xcoffDataSection = xcoffSections[".data"];
-			in.seekg(getI32(xcoffDataSection.s_relptr));
-			
-			int nRelocs = getI16(xcoffDataSection.s_nreloc);
-			external_reloc *relocs = new external_reloc[nRelocs];
-			in.read((char*) relocs,sizeof(external_reloc)*nRelocs);
-			
-			if(verboseFlag)
-				std::cerr << nRelocs << " relocs\n";
-			for(int i=0;i<nRelocs;i++)
-			{
-				if(verboseFlag)
-				{
-					std::cerr << "reloc " << std::hex << getI32(relocs[i].r_vaddr)
-							<< " " << getI32(relocs[i].r_symndx)
-							<< " " << getI16(relocs[i].r_type)
-							<< std::dec << std::endl;
-				}
-				assert(getI16(relocs[i].r_type) == 0x1f00);
-				int vaddr = getI32(relocs[i].r_vaddr);
-
+				int importIndex = importedSymbolIndices[rel.l_symndx - 3];
 				relocInstructions.push_back(
-					PEFRelocComposeSetPosition_1st(vaddr));
+					PEFRelocComposeLgByImport_1st(importIndex));
 				relocInstructions.push_back(
-					PEFRelocComposeSetPosition_2nd(vaddr));
-				
-				int symndx = getI32(relocs[i].r_symndx);
-				if(importedSymbolSet.count(symNames[symndx]))
-				{
-					//int importIndex = importSources[symNames[symndx]];
-					int importIndex = importedSymbolIndices[symNames[symndx]];
-					assert(importIndex != -1);
-					relocInstructions.push_back(
-						PEFRelocComposeLgByImport_1st(importIndex));
-					relocInstructions.push_back(
-						PEFRelocComposeLgByImport_2nd(importIndex));
-				}
-				else if(getI16(syms[symndx].e_scnum) == xcoffSectionNumbers[".text"])
-					relocInstructions.push_back(PEFRelocComposeBySectC(1));
-				else if(getI16(syms[symndx].e_scnum) == xcoffSectionNumbers[".data"])
-					relocInstructions.push_back(PEFRelocComposeBySectD(1));
-				else if(getI16(syms[symndx].e_scnum) == xcoffSectionNumbers[".bss"])
-					relocInstructions.push_back(PEFRelocComposeBySectD(1));
-				else
-				{
-					//assert(false);
-					std::cerr << "RELOC for section " << getI16(syms[symndx].e_scnum) << std::endl;
-				}
+					PEFRelocComposeLgByImport_2nd(importIndex));
 			}
-			delete[] relocs;
 		}
 	}
-	
+		
 	PEFSectionHeader textSectionHeader, dataSectionHeader, loaderSectionHeader;
 	memset(&textSectionHeader, 0, sizeof(textSectionHeader));
 	memset(&dataSectionHeader, 0, sizeof(dataSectionHeader));
@@ -532,6 +449,7 @@ void mkpef(std::istream& in, std::ostream& out, std::string mainSymbol = "__star
 	loaderSectionHeader.shareKind = kPEFGlobalShare;
 	loaderSectionHeader.alignment = 2;
 	
+	std::ofstream out(outFn);
 	if(verboseFlag)
 		std::cerr << "Writing Headers..." << std::flush;
 
@@ -676,9 +594,7 @@ int main (int argc, char * const argv[]) {
 		std::cerr << "makepef: no output file specified.\n";
 		return 1;
 	}
-	std::ifstream in(inputFn.c_str());
-	std::ofstream out(outputFn.c_str());
-	mkpef(in, out);
+	mkpef(inputFn, outputFn);
     return 0;
 }
 
