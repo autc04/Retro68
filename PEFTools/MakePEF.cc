@@ -10,7 +10,6 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include "powerpc.h"
 
 #include "PEF.h"
 
@@ -25,53 +24,26 @@ typedef int asection;
 typedef int bfd_boolean;
 typedef char bfd_byte;
 
-#include "xcoff.h"
-
-																					/* n_sclass storage classes:									*/
-#define C_EFCN			0xFFU									/* 		physical end of function 		 <obsolete> */
-#define C_NULL			0U										/*    														 						*/
-#define C_AUTO			1U										/* 		automatic variable					 <obsolete> */
-#define C_EXT				2U										/* 		external symbol													*/
-#define C_STAT			3U										/* 		static symbol														*/
-#define C_REG			 	4U										/* 		register variable						 <obsolete> */
-#define C_EXTDEF	 	5U										/* 		external definition					 <obsolete> */
-#define C_LABEL		 	6U										/* 		label																		*/
-#define C_ULABEL	 	7U										/* 		undefined label							 <obsolete> */
-#define C_MOS			 	8U										/* 		structure member						 <obsolete> */
-#define C_ARG			 	9U										/* 		function argument						 <obsolete> */
-#define C_STRTAG	 10U										/* 		structure tag								 <obsolete> */
-#define C_MOU			 11U										/* 		union member								 <obsolete> */
-#define C_UNTAG		 12U										/* 		union tag										 <obsolete> */
-#define C_TPDEF		 13U										/* 		type definition							 <obsolete> */
-#define C_USTATIC	 14U										/* 		uninitialized static				 <obsolete> */
-#define C_ENTAG		 15U										/* 		enumeration tag							 <obsolete> */
-#define C_MOE			 16U										/* 		enumeration member					 <obsolete> */
-#define C_REGPARM	 17U										/* 		register argument						 <obsolete> */
-#define C_FIELD		 18U										/* 		bit field										 <obsolete> */
-#define C_BLOCK		100U										/* 		".bb" or ".eb"													*/
-#define C_FCN			101U										/* 		".bf" or ".ef"													*/
-#define C_EOS			102U										/* 		end of structure						 <obsolete> */
-#define C_FILE		103U										/* 		file name																*/
-#define C_LINE		104U										/*		utility program use (?)			 <obsolete> */
-#define C_ALIAS		105U										/* 		duplicate tag								 <obsolete> */
-#define C_HIDDEN	106U										/* 		unnamed static symbol				 <obsolete> */
-#define	C_HIDEXT	107U										/* 		unnamed external symbol									*/
-#define	C_BINCL		108U										/* 		beginning of include file								*/
-#define	C_EINCL		109U										/* 		end of include file											*/
-//#define C_INFO		110U										/*		special information											*/
-
+#define AOUTHDR external_aouthdr
+#include "rs6000.h"
 
 bool verboseFlag = false;
 
-inline int getI16(char *x)
+inline int getI16(const void *xx)
 {
-	return (((unsigned short)x[0]) << 8) | (unsigned short)x[1];
+	const unsigned char *x = (const unsigned char*)xx;
+	return (x[0] << 8) | x[1];
 }
 
-inline int getI32(char *x)
+inline int getI32(const void *xx)
 {
-	return (((unsigned char)x[0]) << 24) | (((unsigned char)x[1]) << 16)
-		|  (((unsigned char)x[2]) << 8) | ((unsigned char)x[3]);
+	const unsigned char *x = (const unsigned char*)xx;
+	return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+}
+
+inline int getI8(const void *xx)
+{
+	return *(const unsigned char*)xx;
 }
 
 template <typename T>
@@ -209,17 +181,16 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	int totalImportedSyms = 0;
 	{
 		external_scnhdr xcoffLoaderSection = xcoffSections[".loader"];
-		internal_ldhdr xcoffLoaderHeader;
+		external_ldhdr xcoffLoaderHeader;
 
 		char * loaderSectionPtr = (char*)alloca(getI32(xcoffLoaderSection.s_size));
 		in.seekg(getI32(xcoffLoaderSection.s_scnptr));
 		in.read(loaderSectionPtr, getI32(xcoffLoaderSection.s_size));
 		
-		xcoffLoaderHeader = *(internal_ldhdr*)loaderSectionPtr;
-		eswap(&xcoffLoaderHeader, "LLLLLLLLLL");
+		xcoffLoaderHeader = *(external_ldhdr*)loaderSectionPtr;
 
-		char *p = loaderSectionPtr + xcoffLoaderHeader.l_impoff;
-		for(unsigned i=0; i<xcoffLoaderHeader.l_nimpid; i++)
+		char *p = loaderSectionPtr + getI32(xcoffLoaderHeader.l_impoff);
+		for(int i=0; i<getI32(xcoffLoaderHeader.l_nimpid); i++)
 		{
 			std::string path = p;
 			p += strlen(p) + 1;
@@ -232,37 +203,35 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 				std::cerr << "Import: " << path << ", " << base << ", " << mem << '\n';
 		}
 
-		internal_ldsym *syms = (internal_ldsym*) (loaderSectionPtr + 32);
-		for(unsigned i=0; i<xcoffLoaderHeader.l_nsyms; i++)
+		external_ldsym *syms = (external_ldsym*) (loaderSectionPtr + sizeof(external_ldhdr));
+		for(int i=0; i<getI32(xcoffLoaderHeader.l_nsyms); i++)
 		{
 			std::string name;
-			internal_ldsym sym = syms[i];
+			external_ldsym& sym = syms[i];
 
-			eswap(&sym, "........Ls..LL");
-			if(sym._l._l_l._l_zeroes == 0)
+			if(getI32(sym._l._l_l._l_zeroes) == 0)
 			{
-				eswap(&sym._l._l_l._l_offset,"L");
-				name = loaderSectionPtr + xcoffLoaderHeader.l_stoff
-										+ sym._l._l_l._l_offset;
+				name = loaderSectionPtr + getI32(xcoffLoaderHeader.l_stoff)
+										+ getI32(sym._l._l_l._l_offset);
 			}
 			else
 				name = sym._l._l_name;
 			if(verboseFlag)
 				std::cerr << "Loader Symbol: " << name << std::endl;
 			
-			if((sym.l_smtype & 0xF8) == L_IMPORT)
+			if((getI8(sym.l_smtype) & 0xF8) == 0x40 /*L_IMPORT*/)
 			{
-				assert((sym.l_smtype & 3) == XTY_ER);
+				assert((getI8(sym.l_smtype) & 3) == 0 /*XTY_ER*/);
 				if(verboseFlag)
-					std::cerr << "... from file: " << sym.l_ifile << std::endl;
-				importLibs[sym.l_ifile].imports.push_back(name);
-				importLibs[sym.l_ifile].xcoffImportIndices.push_back(i);
+					std::cerr << "... from file: " << getI32(sym.l_ifile) << std::endl;
+				importLibs[getI32(sym.l_ifile)].imports.push_back(name);
+				importLibs[getI32(sym.l_ifile)].xcoffImportIndices.push_back(i);
 				importSources[name] = totalImportedSyms;
 				importedSymbolSet.insert(name);
 				totalImportedSyms++;
 			}
 		}
-		importedSymbolIndices.resize(xcoffLoaderHeader.l_nsyms);
+		importedSymbolIndices.resize(getI32(xcoffLoaderHeader.l_nsyms));
 		{
 			int symbolIndex = 0;
 			for(unsigned i=1;i<importLibs.size();i++)
@@ -278,37 +247,31 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 
 		int xcoffDataSecNumber = xcoffSectionNumbers[".data"];
 
-		internal_ldrel *rels = (internal_ldrel*) (loaderSectionPtr + 32 + xcoffLoaderHeader.l_nsyms * sizeof(internal_ldsym));
-		for(unsigned i=0; i<xcoffLoaderHeader.l_nreloc; i++)
+		external_ldrel *rels = (external_ldrel*) (loaderSectionPtr + sizeof(external_ldhdr) + getI32(xcoffLoaderHeader.l_nsyms) * sizeof(external_ldsym));
+		for(int i=0; i<getI32(xcoffLoaderHeader.l_nreloc); i++)
 		{
-			internal_ldrel rel = rels[i];
-			eswap(&rel, "LLss");
-			/*
-			bfd_vma l_vaddr;
-			bfd_size_type l_symndx;
-			short l_rtype;
-			short l_rsecnm;
-			*/
+			external_ldrel& rel = rels[i];
+
 			if(verboseFlag)
 			{
-				std::cerr << "reloc: " << std::hex << rel.l_vaddr << " " << rel.l_symndx << " " << rel.l_rtype << " " << rel.l_rsecnm << "\n";
+				std::cerr << "[" << i << "] reloc: " << std::hex << getI32(rel.l_vaddr) << " " << getI32(rel.l_symndx) << " " << getI16(rel.l_rtype) << " " << getI32(rel.l_rsecnm) << "\n";
 			}
-			assert(rel.l_rtype == 0x1f00);
-			assert(rel.l_rsecnm == xcoffDataSecNumber);
+			assert(getI16(rel.l_rtype) == 0x1f00);
+			assert(getI16(rel.l_rsecnm) == xcoffDataSecNumber);
 
-			int vaddr = rel.l_vaddr;
+			int vaddr = getI32(rel.l_vaddr);
 
 			relocInstructions.push_back(
 				PEFRelocComposeSetPosition_1st(vaddr));
 			relocInstructions.push_back(
 				PEFRelocComposeSetPosition_2nd(vaddr));
-			if(rel.l_symndx == 0)
+			if(getI32(rel.l_symndx) == 0)
 				relocInstructions.push_back(PEFRelocComposeBySectC(1));
-			else if(rel.l_symndx == 1 || rel.l_symndx == 2)
+			else if(getI32(rel.l_symndx) == 1 || getI32(rel.l_symndx) == 2)
 				relocInstructions.push_back(PEFRelocComposeBySectD(1));
 			else
 			{
-				int importIndex = importedSymbolIndices[rel.l_symndx - 3];
+				int importIndex = importedSymbolIndices[getI32(rel.l_symndx) - 3];
 				relocInstructions.push_back(
 					PEFRelocComposeLgByImport_1st(importIndex));
 				relocInstructions.push_back(
