@@ -56,7 +56,7 @@ cd ..
 # Build gcc for PPC
 mkdir -p gcc-build-ppc
 cd gcc-build-ppc
-$SRC/gcc/configure --target=powerpc-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --disable-libssp MAKEINFO=missing
+$SRC/gcc/configure --target=powerpc-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --disable-libssp --disable-lto MAKEINFO=missing
 make -j8
 make install
 cd ..
