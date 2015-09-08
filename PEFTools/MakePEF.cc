@@ -46,6 +46,18 @@ inline int getI8(const void *xx)
 	return *(const unsigned char*)xx;
 }
 
+template<typename ch, int n>
+inline int get(const ch (&x) [n])
+{
+	switch(n)
+	{
+		case 1:	return getI8(x);
+		case 2:	return getI16(x);
+		case 4:	return getI32(x);
+		default: abort();
+	}
+}
+
 template <typename T>
 void eswap(T *data, const char * format)
 {
@@ -75,16 +87,18 @@ void eswap(T *data, const char * format)
 		}
 	}
 
-	//assert(p == reinterpret_cast<char*>(data+1));
 	assert(p == reinterpret_cast<char*>(data) + sizeof(T));
 }
 
-const char *SwapPEFContainerHeader = "LLLLLLLLssL";
-const char *SwapPEFSectionHeader = "LLLLLL....";
-const char *SwapPEFLoaderInfoHeader = "LLLLLLLLLLLLLL";
-const char *SwapPEFImportedLibrary = "LLLLL..s";
-const char *SwapPEFImportedSymbol = "L";
-const char *SwapPEFLoaderRelocationHeader = "ssLL";
+#define DEFINE_ESWAP(T, S) \
+	inline void eswap(T* data) { eswap(data, S); }
+
+DEFINE_ESWAP(PEFContainerHeader, "LLLLLLLLssL")
+DEFINE_ESWAP(PEFSectionHeader, "LLLLLL....")
+DEFINE_ESWAP(PEFLoaderInfoHeader, "LLLLLLLLLLLLLL")
+DEFINE_ESWAP(PEFImportedLibrary, "LLLLL..s")
+DEFINE_ESWAP(PEFImportedSymbol, "L")
+DEFINE_ESWAP(PEFLoaderRelocationHeader, "ssLL")
 
 class ImportLib
 {
@@ -112,19 +126,19 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	external_aouthdr aoutHeader;
 
 	in.read((char*) &xcoffHeader, sizeof(xcoffHeader));
-	assert((size_t)getI16(xcoffHeader.f_opthdr) >= sizeof(aoutHeader));
+	assert((size_t)get(xcoffHeader.f_opthdr) >= sizeof(aoutHeader));
 	in.read((char*)&aoutHeader, sizeof(aoutHeader));
-	in.seekg(getI16(xcoffHeader.f_opthdr) - sizeof(aoutHeader),std::ios_base::cur);
+	in.seekg(get(xcoffHeader.f_opthdr) - sizeof(aoutHeader),std::ios_base::cur);
 	
 	if(verboseFlag)
-		std::cerr << "flags: " << std::hex << getI16(xcoffHeader.f_flags) << std::dec << std::endl;
+		std::cerr << "flags: " << std::hex << get(xcoffHeader.f_flags) << std::dec << std::endl;
 	if(verboseFlag)
 	{
-		std::cerr << "symptr: " << getI32(xcoffHeader.f_symptr) << std::endl;
-		std::cerr << "nsyms: " << getI32(xcoffHeader.f_nsyms) << std::endl;
+		std::cerr << "symptr: " << get(xcoffHeader.f_symptr) << std::endl;
+		std::cerr << "nsyms: " << get(xcoffHeader.f_nsyms) << std::endl;
 	}
 
-	int nSections = getI16(xcoffHeader.f_nscns);
+	int nSections = get(xcoffHeader.f_nscns);
 
 	PEFContainerHeader pefHeader;
 	
@@ -154,8 +168,8 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 		if(verboseFlag)
 		{
 			std::cerr << "section: " << xcoffSection.s_name << std::endl;
-			std::cerr << "  at: " << getI32(xcoffSection.s_scnptr) << std::endl;
-			std::cerr << "  sz: " << getI32(xcoffSection.s_size) << std::endl;
+			std::cerr << "  at: " << get(xcoffSection.s_scnptr) << std::endl;
+			std::cerr << "  sz: " << get(xcoffSection.s_size) << std::endl;
 		}
 		xcoffSections[xcoffSection.s_name] = xcoffSection;
 		xcoffSectionNumbers[xcoffSection.s_name] = i+1;
@@ -170,7 +184,7 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	loaderInfoHeader.termSection = -1;
 
 	loaderInfoHeader.mainSection = 1;
-	loaderInfoHeader.mainOffset = getI32(aoutHeader.entry);
+	loaderInfoHeader.mainOffset = get(aoutHeader.entry);
 
 	std::vector<ImportLib> importLibs;
 	std::vector<unsigned short> relocInstructions;
@@ -183,14 +197,14 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 		external_scnhdr xcoffLoaderSection = xcoffSections[".loader"];
 		external_ldhdr xcoffLoaderHeader;
 
-		char * loaderSectionPtr = (char*)alloca(getI32(xcoffLoaderSection.s_size));
-		in.seekg(getI32(xcoffLoaderSection.s_scnptr));
-		in.read(loaderSectionPtr, getI32(xcoffLoaderSection.s_size));
+		char * loaderSectionPtr = (char*)alloca(get(xcoffLoaderSection.s_size));
+		in.seekg(get(xcoffLoaderSection.s_scnptr));
+		in.read(loaderSectionPtr, get(xcoffLoaderSection.s_size));
 		
 		xcoffLoaderHeader = *(external_ldhdr*)loaderSectionPtr;
 
-		char *p = loaderSectionPtr + getI32(xcoffLoaderHeader.l_impoff);
-		for(int i=0; i<getI32(xcoffLoaderHeader.l_nimpid); i++)
+		char *p = loaderSectionPtr + get(xcoffLoaderHeader.l_impoff);
+		for(int i=0; i<get(xcoffLoaderHeader.l_nimpid); i++)
 		{
 			std::string path = p;
 			p += strlen(p) + 1;
@@ -204,34 +218,34 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 		}
 
 		external_ldsym *syms = (external_ldsym*) (loaderSectionPtr + sizeof(external_ldhdr));
-		for(int i=0; i<getI32(xcoffLoaderHeader.l_nsyms); i++)
+		for(int i=0; i<get(xcoffLoaderHeader.l_nsyms); i++)
 		{
 			std::string name;
 			external_ldsym& sym = syms[i];
 
-			if(getI32(sym._l._l_l._l_zeroes) == 0)
+			if(get(sym._l._l_l._l_zeroes) == 0)
 			{
-				name = loaderSectionPtr + getI32(xcoffLoaderHeader.l_stoff)
-										+ getI32(sym._l._l_l._l_offset);
+				name = loaderSectionPtr + get(xcoffLoaderHeader.l_stoff)
+										+ get(sym._l._l_l._l_offset);
 			}
 			else
 				name = sym._l._l_name;
 			if(verboseFlag)
 				std::cerr << "Loader Symbol: " << name << std::endl;
 			
-			if((getI8(sym.l_smtype) & 0xF8) == 0x40 /*L_IMPORT*/)
+			if((get(sym.l_smtype) & 0xF8) == 0x40 /*L_IMPORT*/)
 			{
-				assert((getI8(sym.l_smtype) & 3) == 0 /*XTY_ER*/);
+				assert((get(sym.l_smtype) & 3) == 0 /*XTY_ER*/);
 				if(verboseFlag)
-					std::cerr << "... from file: " << getI32(sym.l_ifile) << std::endl;
-				importLibs[getI32(sym.l_ifile)].imports.push_back(name);
-				importLibs[getI32(sym.l_ifile)].xcoffImportIndices.push_back(i);
+					std::cerr << "... from file: " << get(sym.l_ifile) << std::endl;
+				importLibs[get(sym.l_ifile)].imports.push_back(name);
+				importLibs[get(sym.l_ifile)].xcoffImportIndices.push_back(i);
 				importSources[name] = totalImportedSyms;
 				importedSymbolSet.insert(name);
 				totalImportedSyms++;
 			}
 		}
-		importedSymbolIndices.resize(getI32(xcoffLoaderHeader.l_nsyms));
+		importedSymbolIndices.resize(get(xcoffLoaderHeader.l_nsyms));
 		{
 			int symbolIndex = 0;
 			for(unsigned i=1;i<importLibs.size();i++)
@@ -247,31 +261,31 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 
 		int xcoffDataSecNumber = xcoffSectionNumbers[".data"];
 
-		external_ldrel *rels = (external_ldrel*) (loaderSectionPtr + sizeof(external_ldhdr) + getI32(xcoffLoaderHeader.l_nsyms) * sizeof(external_ldsym));
-		for(int i=0; i<getI32(xcoffLoaderHeader.l_nreloc); i++)
+		external_ldrel *rels = (external_ldrel*) (loaderSectionPtr + sizeof(external_ldhdr) + get(xcoffLoaderHeader.l_nsyms) * sizeof(external_ldsym));
+		for(int i=0; i<get(xcoffLoaderHeader.l_nreloc); i++)
 		{
 			external_ldrel& rel = rels[i];
 
 			if(verboseFlag)
 			{
-				std::cerr << "[" << i << "] reloc: " << std::hex << getI32(rel.l_vaddr) << " " << getI32(rel.l_symndx) << " " << getI16(rel.l_rtype) << " " << getI32(rel.l_rsecnm) << "\n";
+				std::cerr << "[" << i << "] reloc: " << std::hex << get(rel.l_vaddr) << " " << get(rel.l_symndx) << " " << get(rel.l_rtype) << " " << get(rel.l_rsecnm) << "\n";
 			}
-			assert(getI16(rel.l_rtype) == 0x1f00);
-			assert(getI16(rel.l_rsecnm) == xcoffDataSecNumber);
+			assert(get(rel.l_rtype) == 0x1f00);
+			assert(get(rel.l_rsecnm) == xcoffDataSecNumber);
 
-			int vaddr = getI32(rel.l_vaddr);
+			int vaddr = get(rel.l_vaddr);
 
 			relocInstructions.push_back(
 				PEFRelocComposeSetPosition_1st(vaddr));
 			relocInstructions.push_back(
 				PEFRelocComposeSetPosition_2nd(vaddr));
-			if(getI32(rel.l_symndx) == 0)
+			if(get(rel.l_symndx) == 0)
 				relocInstructions.push_back(PEFRelocComposeBySectC(1));
-			else if(getI32(rel.l_symndx) == 1 || getI32(rel.l_symndx) == 2)
+			else if(get(rel.l_symndx) == 1 || get(rel.l_symndx) == 2)
 				relocInstructions.push_back(PEFRelocComposeBySectD(1));
 			else
 			{
-				int importIndex = importedSymbolIndices[getI32(rel.l_symndx) - 3];
+				int importIndex = importedSymbolIndices[get(rel.l_symndx) - 3];
 				relocInstructions.push_back(
 					PEFRelocComposeLgByImport_1st(importIndex));
 				relocInstructions.push_back(
@@ -285,7 +299,7 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	memset(&dataSectionHeader, 0, sizeof(dataSectionHeader));
 	memset(&loaderSectionHeader, 0, sizeof(loaderSectionHeader));
 	
-	int textSize = getI32(xcoffSections[".text"].s_size);
+	int textSize = get(xcoffSections[".text"].s_size);
 	textSectionHeader.nameOffset = -1;
 	textSectionHeader.defaultAddress = 0;
 	textSectionHeader.totalLength = textSize;
@@ -296,10 +310,10 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	textSectionHeader.shareKind = kPEFGlobalShare;
 	textSectionHeader.alignment = 2;
 
-	int dataSize = getI32(xcoffSections[".data"].s_size);
+	int dataSize = get(xcoffSections[".data"].s_size);
 	dataSectionHeader.nameOffset = -1;
 	dataSectionHeader.defaultAddress = 0;
-	dataSectionHeader.totalLength = dataSize + getI32(xcoffSections[".bss"].s_size);
+	dataSectionHeader.totalLength = dataSize + get(xcoffSections[".bss"].s_size);
 	dataSectionHeader.unpackedLength = dataSize;
 	dataSectionHeader.containerLength = dataSize;
 	dataSectionHeader.containerOffset = sizeof(PEFContainerHeader) + 3*sizeof(PEFSectionHeader) + textSize;
@@ -309,9 +323,9 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 
 	if(verboseFlag)
 	{
-		std::cerr << getI32(xcoffSections[".text"].s_size) << std::endl;
-		std::cerr << getI32(xcoffSections[".data"].s_size) << std::endl;
-		std::cerr << getI32(xcoffSections[".bss"].s_size) << std::endl;
+		std::cerr << get(xcoffSections[".text"].s_size) << std::endl;
+		std::cerr << get(xcoffSections[".data"].s_size) << std::endl;
+		std::cerr << get(xcoffSections[".bss"].s_size) << std::endl;
 	}
 	
 	std::vector<std::string> loaderStringTable;
@@ -416,20 +430,20 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	if(verboseFlag)
 		std::cerr << "Writing Headers..." << std::flush;
 
-	eswap(&pefHeader, SwapPEFContainerHeader);
+	eswap(&pefHeader);
 	out.write((char*)&pefHeader, sizeof(pefHeader));
-	eswap(&textSectionHeader, SwapPEFSectionHeader);
+	eswap(&textSectionHeader);
 	out.write((char*)&textSectionHeader, sizeof(textSectionHeader));
-	eswap(&dataSectionHeader, SwapPEFSectionHeader);
+	eswap(&dataSectionHeader);
 	out.write((char*)&dataSectionHeader, sizeof(dataSectionHeader));
-	eswap(&loaderSectionHeader, SwapPEFSectionHeader);
+	eswap(&loaderSectionHeader);
 	out.write((char*)&loaderSectionHeader, sizeof(loaderSectionHeader));
 	if(verboseFlag)
 		std::cerr << "done.\nCopying text and data..." << std::flush;
 	{
 		char *buf = new char[textSize];
 		
-		in.seekg(getI32(xcoffSections[".text"].s_scnptr));
+		in.seekg(get(xcoffSections[".text"].s_scnptr));
 		in.read(buf, textSize);
 		out.write(buf, textSize);
 		delete[] buf;
@@ -437,14 +451,14 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	{
 		char *buf = new char[dataSize];
 		
-		in.seekg(getI32(xcoffSections[".data"].s_scnptr));
+		in.seekg(get(xcoffSections[".data"].s_scnptr));
 		in.read(buf, dataSize);
 		out.write(buf, dataSize);
 		delete[] buf;
 	}
 	if(verboseFlag)
 		std::cerr << "done.\n";
-	eswap(&loaderInfoHeader, SwapPEFLoaderInfoHeader);
+	eswap(&loaderInfoHeader);
 	out.write((char*)&loaderInfoHeader, sizeof(loaderInfoHeader));
 	
 	int firstImportedSymbol = 0;
@@ -463,7 +477,7 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 		if(importLibs[i].weak)
 			impLib.options = kPEFWeakImportLibMask;
 		
-		eswap(&impLib, SwapPEFImportedLibrary);
+		eswap(&impLib);
 		out.write((char*)&impLib, sizeof(impLib));
 	}
 	for(unsigned i=1;i<importLibs.size();i++)
@@ -473,7 +487,7 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 			PEFImportedSymbol sym;
 			sym.classAndName = PEFComposeImportedSymbol(kPEFTVectorSymbol /* ### */,
 									importLibs[i].symNameOffsets[j]);
-			eswap(&sym, SwapPEFImportedSymbol);
+			eswap(&sym);
 			out.write((char*)&sym, sizeof(sym));
 		}
 	}
@@ -482,7 +496,7 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	
 	if(verboseFlag)
 		std::cerr << "relocations..." << std::flush;
-	eswap(&dataRelocationHeader, SwapPEFLoaderRelocationHeader);
+	eswap(&dataRelocationHeader);
 	out.write((char*)&dataRelocationHeader, sizeof(dataRelocationHeader));
 	for(unsigned i=0;i<relocInstructions.size();i++)
 	{
