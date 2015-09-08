@@ -12075,7 +12075,8 @@ $as_echo "$as_me: WARNING: GAS support for ${generic_target} is preliminary and 
       microblaze*)
         ;;
 
-      ppc-*-aix[5-9].*)
+      ppc-*-aix[5-9].* \
+      | ppc-*-macos*)
 
 $as_echo "#define AIX_WEAK_SUPPORT 1" >>confdefs.h
 
