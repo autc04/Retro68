@@ -21,7 +21,7 @@ set -e
 SRC=$(cd `dirname $0` && pwd -P)
 PREFIX=`pwd -P`/toolchain/
 BINUTILS=`pwd -P`/binutils-build
-if false; then
+
 # Remove old install tree
 rm -rf toolchain
 mkdir -p toolchain
@@ -85,13 +85,14 @@ make
 make install
 cd ..
 
-fi
 # Install Universal Interfaces
 for arch in m68k powerpc; do
 	sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/${arch}-apple-macos/include
 	mkdir -p toolchain/${arch}-apple-macos/RIncludes
 	sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/${arch}-apple-macos/RIncludes
 done
+
+cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
 
 # Build host-based components
 mkdir -p build-host

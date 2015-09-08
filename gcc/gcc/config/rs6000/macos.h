@@ -69,7 +69,7 @@
 /* Profiled library versions are used by linking with special directories.  */
 #define LIB_SPEC "-lc"
 
-#define LIBGCC_SPEC "-lretrocrt -lgcc"
+#define LIBGCC_SPEC "-lretrocrt -lgcc -lInterfaceLib"
 
 /* Static linking with shared libstdc++ requires libsupc++ as well.  */
 #define LIBSTDCXX_STATIC "supc++"
@@ -158,12 +158,13 @@
   while (0)
 
 /* --no-check-sections  :   sections overlap on purpose!
-   --bnogc              :   something's going wrong when csects are gc'ed
+   -undefined=_consolewrite : hack to allow easy configuration of console output             
 */
 
 #define LINK_SPEC "%{!r:-btextro} -bhalt:4 -bnodelcsect \
---no-check-sections -bnogc \
+--no-check-sections -undefined=_consolewrite \
 %{shared:-bM:SRE}"
+
 
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC ""
@@ -190,7 +191,6 @@
 /* Type used for ptrdiff_t, as a string used in a declaration.  */
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "long int"
-
 
 #if 0
 /* The AIX linker will discard static constructors in object files before
