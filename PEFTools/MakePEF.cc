@@ -131,34 +131,17 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	in.seekg(get(xcoffHeader.f_opthdr) - sizeof(aoutHeader),std::ios_base::cur);
 	
 	if(verboseFlag)
-		std::cerr << "flags: " << std::hex << get(xcoffHeader.f_flags) << std::dec << std::endl;
-	if(verboseFlag)
 	{
+		std::cerr << "flags: " << std::hex << get(xcoffHeader.f_flags) << std::dec << std::endl;
 		std::cerr << "symptr: " << get(xcoffHeader.f_symptr) << std::endl;
 		std::cerr << "nsyms: " << get(xcoffHeader.f_nsyms) << std::endl;
 	}
 
-	int nSections = get(xcoffHeader.f_nscns);
 
-	PEFContainerHeader pefHeader;
-	
-	memset(&pefHeader,0,sizeof(pefHeader));
-	
-	pefHeader.tag1 = kPEFTag1;
-	pefHeader.tag2 = kPEFTag2;
-	pefHeader.architecture = 'pwpc';
-	pefHeader.formatVersion = kPEFVersion;
-	pefHeader.sectionCount = 3; // .text, .data, .loader
-	pefHeader.instSectionCount = 2; // .text, .data
-	
 	std::map<std::string,external_scnhdr> xcoffSections;
 	std::map<std::string, int> xcoffSectionNumbers;
-	std::map<int, std::string> xcoffSectionNames;
-	std::map<std::string, int> pefSectionNumbers;
-	
-	pefSectionNumbers[".text"] = 0;
-	pefSectionNumbers[".data"] = 1;
-	
+
+	int nSections = get(xcoffHeader.f_nscns);
 	for(int i=0;i<nSections;i++)
 	{
 		external_scnhdr xcoffSection;
@@ -173,26 +156,15 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 		}
 		xcoffSections[xcoffSection.s_name] = xcoffSection;
 		xcoffSectionNumbers[xcoffSection.s_name] = i+1;
-		xcoffSectionNames[i+1] = xcoffSection.s_name;
 	}
 	
-	PEFLoaderInfoHeader loaderInfoHeader;
-	memset(&loaderInfoHeader, 0, sizeof(loaderInfoHeader));
-
-	loaderInfoHeader.mainSection = -1;
-	loaderInfoHeader.initSection = -1;
-	loaderInfoHeader.termSection = -1;
-
-	loaderInfoHeader.mainSection = 1;
-	loaderInfoHeader.mainOffset = get(aoutHeader.entry);
 
 	std::vector<ImportLib> importLibs;
-	std::vector<unsigned short> relocInstructions;
-	std::map<std::string, int> importSources;
-	std::map<std::string, int> importedSymbolIndicesByName;
-	std::set<std::string> importedSymbolSet;
 	std::vector<int> importedSymbolIndices;
 	int totalImportedSyms = 0;
+
+	std::vector<unsigned short> relocInstructions;
+
 	{
 		external_scnhdr xcoffLoaderSection = xcoffSections[".loader"];
 		external_ldhdr xcoffLoaderHeader;
@@ -240,8 +212,6 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 					std::cerr << "... from file: " << get(sym.l_ifile) << std::endl;
 				importLibs[get(sym.l_ifile)].imports.push_back(name);
 				importLibs[get(sym.l_ifile)].xcoffImportIndices.push_back(i);
-				importSources[name] = totalImportedSyms;
-				importedSymbolSet.insert(name);
 				totalImportedSyms++;
 			}
 		}
@@ -250,9 +220,8 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 			int symbolIndex = 0;
 			for(unsigned i=1;i<importLibs.size();i++)
 			{
-				for(unsigned j=0;j<importLibs[i].imports.size();j++)
+				for(unsigned j=0;j<importLibs[i].xcoffImportIndices.size();j++)
 				{
-					importedSymbolIndicesByName[importLibs[i].imports[j]] = symbolIndex;
 					importedSymbolIndices[importLibs[i].xcoffImportIndices[j]] = symbolIndex;
 					symbolIndex++;
 				}
@@ -294,6 +263,28 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 		}
 	}
 		
+	PEFContainerHeader pefHeader;
+
+	memset(&pefHeader,0,sizeof(pefHeader));
+
+	pefHeader.tag1 = kPEFTag1;
+	pefHeader.tag2 = kPEFTag2;
+	pefHeader.architecture = 'pwpc';
+	pefHeader.formatVersion = kPEFVersion;
+	pefHeader.sectionCount = 3; // .text, .data, .loader
+	pefHeader.instSectionCount = 2; // .text, .data
+
+	PEFLoaderInfoHeader loaderInfoHeader;
+	memset(&loaderInfoHeader, 0, sizeof(loaderInfoHeader));
+
+	loaderInfoHeader.mainSection = -1;
+	loaderInfoHeader.initSection = -1;
+	loaderInfoHeader.termSection = -1;
+
+	loaderInfoHeader.mainSection = 1;
+	loaderInfoHeader.mainOffset = get(aoutHeader.entry);
+
+
 	PEFSectionHeader textSectionHeader, dataSectionHeader, loaderSectionHeader;
 	memset(&textSectionHeader, 0, sizeof(textSectionHeader));
 	memset(&dataSectionHeader, 0, sizeof(dataSectionHeader));
@@ -321,13 +312,6 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 	dataSectionHeader.shareKind = kPEFProcessShare;
 	dataSectionHeader.alignment = 2;
 
-	if(verboseFlag)
-	{
-		std::cerr << get(xcoffSections[".text"].s_size) << std::endl;
-		std::cerr << get(xcoffSections[".data"].s_size) << std::endl;
-		std::cerr << get(xcoffSections[".bss"].s_size) << std::endl;
-	}
-	
 	std::vector<std::string> loaderStringTable;
 	int loaderStringTableSize = 0;
 	
