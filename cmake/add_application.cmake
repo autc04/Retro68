@@ -85,8 +85,9 @@ function(add_application name)
 
 		add_custom_command(
 			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
-			COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/RetroPPCcfrg.r
+			COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/RetroPPCAPPL.r
 					-I${REZ_INCLUDE_PATH}
+					-DCFRAG_NAME="\\"${name}\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
 					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
 					--data ${name}.pef

@@ -36,7 +36,11 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 	install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)
 else()
 	enable_language(ASM)
-	set(ARCH_FILES ppcstart.c ppcfpsave.s)
+	set(ARCH_FILES
+		ppcstart.c
+		ppcfpsave.s
+		RetroPPCAPPL.r)
+	install(FILES RetroPPCAPPL.r DESTINATION RIncludes)
 endif()
 
 add_library(retrocrt
