@@ -32,9 +32,6 @@
 #include <SegLoad.h>
 #include <LowMem.h>
 
-#include <Quickdraw.h>
-QDGlobals qd;
-
 #pragma parameter __D0 _GetPtrSize(__A0)
 pascal long _GetPtrSize(Ptr ptr) = { 0xA021 };
 
