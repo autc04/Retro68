@@ -27,6 +27,7 @@ cat > $OUT/ConditionalMacros.h <<END_MARKER
 #define TARGET_RT_MAC_MACHO 0
 #endif
 
+#define PRAGMA_STRUCT_PACKPUSH 1
 #define FUNCTION_PASCAL 1
 #define TYPE_LONGLONG 1
 #ifdef __cplusplus
