@@ -3741,6 +3741,10 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
 		}
 	    }
 	}
+        // mark entry point, the XCOFF_ENTRY flag is needed later
+      if (entry != NULL
+          && !xcoff_mark_symbol_by_name (info, entry, XCOFF_ENTRY))
+        goto error_return;
     }
   else
     {
