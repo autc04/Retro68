@@ -58,47 +58,6 @@ inline int get(const ch (&x) [n])
 	}
 }
 
-template <typename T>
-void eswap(T *data, const char * format)
-{
-	int endianTest = 1;
-	if(*(char*)&endianTest == 0)
-		return;
-
-	char *p = reinterpret_cast<char*>(data);
-	const char *q = format;
-	while(char c = *q++)
-	{
-		if(c == 'L')
-		{
-			std::swap(p[0], p[3]);
-			std::swap(p[1], p[2]);
-			p += 4;
-		}
-		else if(c == 's')
-		{
-			std::swap(p[0], p[1]);
-			p += 2;
-		}
-		else
-		{
-			assert(c == '.');
-			++p;
-		}
-	}
-
-	assert(p == reinterpret_cast<char*>(data) + sizeof(T));
-}
-
-#define DEFINE_ESWAP(T, S) \
-	inline void eswap(T* data) { eswap(data, S); }
-
-DEFINE_ESWAP(PEFContainerHeader, "LLLLLLLLssL")
-DEFINE_ESWAP(PEFSectionHeader, "LLLLLL....")
-DEFINE_ESWAP(PEFLoaderInfoHeader, "LLLLLLLLLLLLLL")
-DEFINE_ESWAP(PEFImportedLibrary, "LLLLL..s")
-DEFINE_ESWAP(PEFImportedSymbol, "L")
-DEFINE_ESWAP(PEFLoaderRelocationHeader, "ssLL")
 
 class ImportLib
 {

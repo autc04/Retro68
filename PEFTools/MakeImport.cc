@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
@@ -15,6 +17,12 @@
 #include "PEF.h"
 
 #include "ResourceFile.h"
+
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+
+namespace fs = boost::filesystem;
+
 
 using std::cout;
 using std::cerr;
@@ -26,83 +34,92 @@ using std::string;
 using std::ofstream;
 using std::ios_base;
 
-UInt16 eu16(UInt16 x)
+void RunCommand(const char *command, std::vector<std::string> args)
 {
-	int little = 1;
-	if(*(char*)&little)
-	{
-		return (x << 8) | (x >> 8);
-	}
-	else
-	{
-		return x;
-	}
-}
-UInt32 eu32(UInt32 x)
-{
-	int little = 1;
-	if(*(char*)&little)
-	{
-		return (x << 24)
-			 | ((x & 0xFF00) << 8)
-			 | ((x >> 8) & 0xFF00)
-			 | (x >> 24);
-	}
-	else
-	{
-		return x;
-	}
-}
-SInt16 es16(SInt16 x) { return eu16(x); }
-SInt32 es32(SInt32 x) { return eu32(x); }
+	std::vector<const char*> ptrs;
+	ptrs.push_back(command);
+	for(auto& s : args)
+		ptrs.push_back(s.c_str());
+	ptrs.push_back(NULL);
 
-void MakeImportLibrary(const char *pefptr, size_t pefsize, string libname, string name)
+	pid_t pid = fork();
+	if(pid == -1)
+	{
+		perror(command);
+		exit(1);
+	}
+
+	if(pid)
+	{
+		int status = 0;
+		while(waitpid(pid, &status, 0) == -1 && errno == EINTR)
+			;
+		if(!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+		{
+			std::cerr << command << " failed.\n";
+			exit(1);
+		}
+	}
+	else
+	{
+		execvp(command, const_cast<char *const*>(ptrs.data()));
+		perror("exec");
+		exit(1);
+	}
+}
+
+void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmpdir)
 {
 	PEFContainerHeader *containerHeader = (PEFContainerHeader*) pefptr;
+	eswap(containerHeader);
 
-	assert(eu32(containerHeader->tag1) == 'Joy!');
-	assert(eu32(containerHeader->tag2) == 'peff');
+	assert(containerHeader->tag1 == 'Joy!');
+	assert(containerHeader->tag2 == 'peff');
 
-	const PEFSectionHeader *sectionHeaders
-		= (const PEFSectionHeader*) (pefptr + kPEFFirstSectionHeaderOffset);
-	
-	const PEFSectionHeader *loaderHeader = NULL;
-	UInt16 n = eu16(containerHeader->sectionCount);
+	PEFSectionHeader *sectionHeaders
+		= (PEFSectionHeader*) (pefptr + kPEFFirstSectionHeaderOffset);
+
+	PEFSectionHeader *loaderHeader = NULL;
+	UInt16 n = containerHeader->sectionCount;
 	for(UInt16 i=0; i < n; i++)
+	{
+		eswap(&sectionHeaders[i]);
 		if(sectionHeaders[i].sectionKind == kPEFLoaderSection)
 			loaderHeader = &sectionHeaders[i];
-	
-	const PEFLoaderInfoHeader *loaderInfoHeader
-		= (PEFLoaderInfoHeader*) (pefptr + eu32(loaderHeader->containerOffset));
-		
+	}
+
+	PEFLoaderInfoHeader *loaderInfoHeader
+		= (PEFLoaderInfoHeader*) (pefptr + loaderHeader->containerOffset);
+	eswap(loaderInfoHeader);
 	
 	UInt32 hashTableSize = 1;
-	UInt32 hashTablePower = eu32(loaderInfoHeader->exportHashTablePower);
+	UInt32 hashTablePower = loaderInfoHeader->exportHashTablePower;
 	while(hashTablePower--)
 		hashTableSize *= 2;
 	
-	UInt32 nSymbols = eu32(loaderInfoHeader->exportedSymbolCount);
+	UInt32 nSymbols = loaderInfoHeader->exportedSymbolCount;
 	
 	const char *symbols	/* use char pointer to avoid packing issues */
-		=	(pefptr	+ eu32(loaderHeader->containerOffset)
-					+ eu32(loaderInfoHeader->exportHashOffset)
+		=	(pefptr	+ loaderHeader->containerOffset
+					+ loaderInfoHeader->exportHashOffset
 					+ hashTableSize * sizeof(PEFExportedSymbolHashSlot)
 					+ nSymbols * sizeof(PEFExportedSymbolKey));
 	
 	const char *stringTable = pefptr
-						+ eu32(loaderHeader->containerOffset)
-						+ eu32(loaderInfoHeader->loaderStringsOffset);
-	const char *stringTableEnd = pefptr
-					+ eu32(loaderHeader->containerOffset)
-					+ eu32(loaderInfoHeader->exportHashOffset);
+						+ loaderHeader->containerOffset
+						+ loaderInfoHeader->loaderStringsOffset;
+	/*const char *stringTableEnd = pefptr
+					+ loaderHeader->containerOffset
+					+ loaderInfoHeader->exportHashOffset;*/
 	vector< pair< const char *, UInt8 > > classesAndNamePtrs;
 	
 	for(UInt32 i=0; i < nSymbols; i++)
 	{
-		const PEFExportedSymbol sym = * (PEFExportedSymbol*) (symbols + 10*i);
-		
-		UInt8 symclass = PEFExportedSymbolClass(eu32(sym.classAndName));
-		UInt32 nameoffset = PEFExportedSymbolNameOffset(eu32(sym.classAndName));
+		PEFExportedSymbol *sym = (PEFExportedSymbol*) (symbols + 10*i);
+		eswap(sym);
+
+		UInt8 symclass = PEFExportedSymbolClass(sym->classAndName);
+		UInt32 nameoffset = PEFExportedSymbolNameOffset(sym->classAndName);
 		
 		const char *nameptr
 			= stringTable + nameoffset;
@@ -126,17 +143,17 @@ void MakeImportLibrary(const char *pefptr, size_t pefsize, string libname, strin
 		else
 			name = string(namestart);
 			
-		//cout << (int) namestart << "-" << (int) nameend << endl;
-		 
-		//cout << (int)symclass << " " << name << endl;
-		
 		exportedSymbols.push_back( make_pair( name, symclass ) );
 	}
-	sort(exportedSymbols.begin(), exportedSymbols.end());
+	std::sort(exportedSymbols.begin(), exportedSymbols.end());
 	
+	fs::path	stub_exp(tmpdir / "__stub.exp"),
+				stub_s(tmpdir / "__stub.s"),
+				stub_o(tmpdir / "__stub.o");
+
 	{
-		ofstream expFile("stub.exp");
-		ofstream sFile("stub.s");
+		fs::ofstream expFile(stub_exp);
+		fs::ofstream sFile(stub_s);
 		sFile << "\t.toc\n";
 		for(UInt32 i=0; i< nSymbols; i++)
 		{
@@ -144,7 +161,6 @@ void MakeImportLibrary(const char *pefptr, size_t pefsize, string libname, strin
 			if(exportedSymbols[i].second == kPEFTVectorSymbol)
 			{
 				expFile << sym << endl;
-				//cFile << "void " << sym << "() {}" << endl;
 				sFile << ".text" << endl;
 				sFile << "\t.globl " << sym << endl;
 				sFile << "\t.globl ." << sym << endl;
@@ -158,7 +174,6 @@ void MakeImportLibrary(const char *pefptr, size_t pefsize, string libname, strin
 			else if(exportedSymbols[i].second == kPEFDataSymbol)
 			{
 				expFile << sym << endl;
-				//cFile << "int " << sym << " = 42;" << endl;
 				sFile << "\t.globl " << sym << endl;
 				sFile << "\t.csect .data[RW],3" << endl;
 				sFile << "\t.align 2" << endl;
@@ -167,65 +182,78 @@ void MakeImportLibrary(const char *pefptr, size_t pefsize, string libname, strin
 			}
 		}
 		
-		cerr << "Generating: " << name << " -> " << libname << endl;
-		//system("powerpc-apple-macos-gcc -fno-builtin -c stub.c");
-		system("powerpc-apple-macos-as stub.s -o stub.o");
-		system(("powerpc-apple-macos-ld -shared --no-check-sections "
-				"-bexport:stub.exp -o'"
-				+ libname + "' stub.o").c_str());
-		//system(("powerpc-apple-macos-ar cq '" + libname + "' '" + name + ".o'").c_str());
-		//system(("powerpc-apple-macos-ar t '" + libname + "'").c_str());
-		
-		unlink("stub.exp");
-		unlink("stub.o");
-		unlink("stub.s");
-		//unlink((name + ".o").c_str());
+		//cerr << "Generating: " << name << " -> " << libname << endl;
+		RunCommand("powerpc-apple-macos-as", std::vector<std::string> {
+					   stub_s.string(), "-o", stub_o.string()
+				   });
+		RunCommand("powerpc-apple-macos-ld", std::vector<std::string> {
+					   "-shared", "--no-check-sections", "-bexport:" + stub_exp.string(),
+					   "-o", dest.string(), stub_o.string()
+				   });
 	}
 }
 
-void MakeImportLibraryMulti(const char *path, string libname)
+void MakeImportLibraryMulti(fs::path path, fs::path libname)
 {
-	ResourceFile resFile(path);
+	ResourceFile resFile(path.string());
 	assert(resFile.read());
 
-	const char *file = resFile.data.data();
+	std::vector<char> data(resFile.data.begin(), resFile.data.end());
+
+	char *dataPtr = data.data();
 	Resource& cfrgRes = resFile.resources.resources[ResRef("cfrg",0)];
 
-	unlink(("lib" + libname + ".a").c_str());
-	
-	CFragResource *cfrg = (CFragResource *)cfrgRes.getData().data();
-	CFragResourceMember *member = &(cfrg -> firstMember);
-	
-	for(UInt16 i = 0; i < eu16(cfrg->memberCount); i++)
+	fs::path tmpdir = libname.parent_path() / fs::unique_path("makeimport-tmp-%%%%-%%%%-%%%%-%%%%");
+	fs::create_directory(tmpdir);
+	try
 	{
-		string membername =
-			string(member->name+1, member->name+1+member->name[0]);
-		cout << i << ": " << membername	<< endl;
-		if(eu32(member->architecture) == kPowerPCCFragArch
-			|| eu32(member->architecture) == kAnyCFragArch)
+		CFragResource *cfrg = (CFragResource *)cfrgRes.getData().data();
+		eswap(cfrg);
+
+		CFragResourceMember *member = &(cfrg -> firstMember);
+
+		fs::path archiveTmp(tmpdir / "__archive.a");
+		std::vector<string> arArguments { "cq", archiveTmp.string() };
+
+		for(UInt16 i = 0; i < cfrg->memberCount; i++)
 		{
-			if(member->usage == kStubLibraryCFrag
-				|| member->usage == kImportLibraryCFrag)
-				MakeImportLibrary(file + eu32(member->offset), eu32(member->length),
-					libname, membername);
-			else if(member->usage == kWeakStubLibraryCFrag)
-				MakeImportLibrary(file + eu32(member->offset), eu32(member->length),
-					libname, membername + "__weak");
-			else
-				std::cerr << "Inappropriate usage flag: "
-						  << (int)member->usage << endl;
-			//offset = member->offset;
-			//length = member->length;
-			//found = true;
-			//break;
+			eswap(member);
+			string membername =
+				string(member->name+1, member->name+1+member->name[0]);
+
+			if(member->architecture == kPowerPCCFragArch
+				|| member->architecture == kAnyCFragArch)
+			{
+				if(member->usage == kStubLibraryCFrag
+					|| member->usage == kImportLibraryCFrag)
+					;
+				else if(member->usage == kWeakStubLibraryCFrag)
+					membername += "__weak";
+				else
+				{
+					std::cerr << "Inappropriate usage flag: "
+							  << (int)member->usage << endl;
+					continue;
+				}
+
+				fs::path shlib_file(tmpdir / (membername + ".o"));
+				MakeImportLibrary(dataPtr + member->offset, member->length,
+									shlib_file, tmpdir);
+				arArguments.push_back(shlib_file.string());
+			}
+
+			member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
 		}
-		else
-			std::cerr << "Inappropriate arch: "
-				<< string((char*) &member->architecture,
-						((char*) &member->architecture) + 4) << endl;
-		
-		member = (CFragResourceMember*)  (((char*)member) + eu16(member->memberSize));
+
+		RunCommand("powerpc-apple-macos-ar", arArguments);
+		fs::rename(archiveTmp, libname);
 	}
+	catch(...)
+	{
+		fs::remove_all(tmpdir);
+		throw;
+	}
+	fs::remove_all(tmpdir);
 }
 
 int main (int argc, char * const argv[])
@@ -243,10 +271,6 @@ int main (int argc, char * const argv[])
 		perror(argv[1]);
 		return 1;
 	}
-	/*struct stat sb;
-	fstat(fd, &sb);
-	off_t filesize = sb.st_size;
-	char *p = (char*) mmap(NULL, filesize, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);*/
 	
 	MakeImportLibraryMulti(argv[1], argv[2]);
 

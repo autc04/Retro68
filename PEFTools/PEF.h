@@ -32,13 +32,17 @@ typedef const unsigned char ConstStr63Param[64];
 typedef const unsigned char ConstStr255Param[256];
 typedef unsigned char Str255[256];
 typedef unsigned char *StringPtr;
-typedef struct {} FSSpec, *FSSpecPtr;
 typedef char* Ptr;
 typedef int16_t Boolean;
 typedef void *LogicalAddress;
 
+#define __FILES__
+typedef struct {} FSSpec, *FSSpecPtr;
+
 /* Definitions for PEF, from Apple's Universal Interfaces */
 #include <PEFBinaryFormat.h>
+#include <CodeFragments.h>
+
 
 /* Deal with differences between versions of PEFBinaryFormat.h */
 #ifndef PEFRelocComposeSetPosition_1st
@@ -53,8 +57,55 @@ typedef void *LogicalAddress;
 		( (UInt16) ((UInt32)(fullIndex) & 0xFFFF) )
 #endif
 
-#define __FILES__
+template <typename T>
+void eswap(T *data, const char * format)
+{
+	int endianTest = 1;
+	if(*(char*)&endianTest == 0)
+		return;
 
-#include <CodeFragments.h>
+	char *p = reinterpret_cast<char*>(data);
+	const char *q = format;
+	while(char c = *q++)
+	{
+		assert(p <= reinterpret_cast<char*>(data) + sizeof(T));
+		if(c == 'L')
+		{
+			std::swap(p[0], p[3]);
+			std::swap(p[1], p[2]);
+			p += 4;
+		}
+		else if(c == 's')
+		{
+			std::swap(p[0], p[1]);
+			p += 2;
+		}
+		else if(c == '*')
+		{
+			return;
+		}
+		else
+		{
+			assert(c == '.');
+			++p;
+		}
+	}
+
+	assert(p == reinterpret_cast<char*>(data) + sizeof(T));
+}
+
+#define DEFINE_ESWAP(T, S) \
+	inline void eswap(T* data) { eswap(data, S); }
+
+DEFINE_ESWAP(PEFContainerHeader, "LLLLLLLLssL")
+DEFINE_ESWAP(PEFSectionHeader, "LLLLLL....")
+DEFINE_ESWAP(PEFLoaderInfoHeader, "LLLLLLLLLLLLLL")
+DEFINE_ESWAP(PEFImportedLibrary, "LLLLL..s")
+DEFINE_ESWAP(PEFImportedSymbol, "L")
+DEFINE_ESWAP(PEFLoaderRelocationHeader, "ssLL")
+DEFINE_ESWAP(PEFExportedSymbol, "LLs")
+
+DEFINE_ESWAP(CFragResource, "LLssLLLLss*")
+DEFINE_ESWAP(CFragResourceMember, "Ls..LLLs..LLLsss*")
 
 #endif // PEF_H
