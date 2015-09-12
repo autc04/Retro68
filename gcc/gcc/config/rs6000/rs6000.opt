@@ -600,3 +600,6 @@ Allow float/double variables in upper registers if cpu allows it
 moptimize-swaps
 Target Undocumented Var(rs6000_optimize_swaps) Init(1) Save
 Analyze and remove doubleword swaps from VSX computations.
+
+carbon
+Target RejectNegative
