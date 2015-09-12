@@ -1,7 +1,7 @@
 Retro68
 =======
 
-A GCC-based cross-compilation environment for 68K Macs.
+A GCC-based cross-compilation environment for 68K and PowerPC Macs.
 Why? Because there is no decent C++11 Compiler targetting Apple's System 6.
 If that's not a sufficient reason for you, I'm sure you will find
 someting more useful elsewhere.
@@ -9,15 +9,17 @@ someting more useful elsewhere.
 If you are crazy enough to try it out, please say hello at 
 wolfgang.thaller@gmx.net.
 
-Prerequisites
--------------
+Installing/Building
+-------------------
+
+### Prerequisites
 
 - Linux or Mac OS X
 - boost
 - CMake 2.8
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - bison version 3.0.2 or later
-- Apple Universal Interfaces (tested with version 3.1 - see below)
+- Apple Universal Interfaces (tested with versions 3.1 and 3.4 - see below)
 - An ancient Mac and/or an emulator.
 
 For Ubuntu Linux, the following should help a bit:
@@ -33,10 +35,7 @@ In that case, get the tigerbrew package manager and
 
     brew install gcc cmake
 
-
-
-Apple Universal Interfaces
---------------------------
+### Apple Universal Interfaces
 
 The Universal Interfaces used to be a free download from Apple. However,
 they have taken the site offline and the license agreement prohibits
@@ -59,8 +58,7 @@ Put the C header files into a directory called "CIncludes" at the top
 level of the Retro68 directory; likewise, the Rez includes should go into
 a directory called "RIncludes".
 
-Building
---------
+### Compiling Retro68
 
 Once you have all the prerequisites, execute these commands from the top level
 of the Retro68 directory:
@@ -82,24 +80,26 @@ Sample programs are built in several formats:
 - MacBinary files (`ApplicationName.bin`)
 - Raw HFS disk image (`ApplicationName.dsk`, containing `ApplicationName`)
 
-Look under Retro68-build/build-target/ for the compiled binaries.
+Look under Retro68-build/build-target/ (68K) and Retro68-build/build-target-ppc/ (PowerPC) for the compiled examples.
 
-Overview
---------
+Components
+----------
 
 Retro68 is an aggegation of various existing free software
-projects with a few small key components added.
+projects with a few components added.
 
 
 Third Party Components:
 - binutils 2.25.1
-- gcc 5.2.0 with some Retro68-specific hacks
+- gcc 5.2.0
 - newlib 2.10.1 (inside the gcc directory)
 - elf2flt (from the ucLinux project's CVS)
-- hfsutils 3.2.6 (just for convenience)
+- hfsutils 3.2.6
 
 Retro68-Specific Components:
-- PrepareHeaders.hs
+- ResourceFiles library
+- Rez
+- PEFTools (MakePEF and MakeImport)
 - MakeAPPL
 - libretro
 - TestApps - a few tiny test programs
@@ -107,14 +107,21 @@ Retro68-Specific Components:
 
 ### binutils
 
-Currently unmodified from the original. Configured for m68k-unknown-elf.
+Two new target platforms:
+- `m68k-apple-macos`, based on the `m68k-unknown-elf` target
+- `powerpc-apple-macos`, based on the `powerpc-ibm-aix` target
+
+The powerpc target has a few hacks to make weak symbols work as expected.
 
 ### gcc
 
-Various patches and hacks, most importantly:
+Various patches and hacks:
+- New target platforms `m68k-apple-macos` and `powerpc-apple-macos`.
+- support `"\pPascal String Literals"``
+
+68K specific:
 - Changed register usage.
 - Change the way 1-byte and 2-byte parameters are passed.
-- support `"\pPascal String Literals"``
 - added a pascal calling convention (`pascal` or `__attribute__((__pascal__))`)
 - added `__attribute__((__raw_inline__(word1, word2, word3)))` to emulate `ONEWORDINLINE` and friends
 - added `__attribute__((regparam("...")))` to specify custom register calling conventions
@@ -133,7 +140,7 @@ Minor patch: provide symbols around .init and .fini sections
 
 ### hfsutils:
 
-Included for convenience. No changes.
+No changes.
 
 ### prepare-headers.sh:
 
@@ -144,15 +151,24 @@ Apply any necessary patches to Apple's headers; currently, this only modifies `C
 Reads a FLAT executable as output by elf2flt and converts it to
 a MacBinary file containing a classic Macintosh application.
 
+### ResourceFiles
+
+A C++ Library for manipulating resource forks.
+
 ### Rez
 
 A reimplementation of Apple's Rez resource compiler. Reads `.r` files
 containing textual resource descriptions and compiles them to binary
 resource files.
 
+### PEFTools
+
+- `MakePEF`, a tool to convert xcoff files to Apple's PEF format.
+- `MakeImport`, a tool to create an xcoff import stub library from a PEF-format library.
+
 ### libretro
 
-Contains startup code (handles relocations) and implementations
+Contains startup code (handles relocations on 68K) and implementations
 for some standard library functions.
 
 ### Console
