@@ -221,13 +221,13 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 			string membername =
 				string(member->name+1, member->name+1+member->name[0]);
 
-			if(member->architecture == kPowerPCCFragArch
-				|| member->architecture == kAnyCFragArch)
+			if(member->architecture == 'pwpc'
+				|| member->architecture == '\?\?\?\?')
 			{
-				if(member->usage == kStubLibraryCFrag
-					|| member->usage == kImportLibraryCFrag)
+				if(member->usage == 0	/* import library */
+					|| member->usage == 3 /* stub library */)
 					;
-				else if(member->usage == kWeakStubLibraryCFrag)
+				else if(member->usage == 4 /* weak stub library */)
 					membername += "__weak";
 				else
 				{
