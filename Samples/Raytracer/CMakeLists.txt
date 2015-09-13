@@ -37,7 +37,7 @@ if(APPLE)
 	target_link_libraries(Raytracer2 "-framework Carbon")
 else()
 	set(CMAKE_CXX_FLAGS "-std=c++11")
-
+if(FALSE)
 		# save 200KB of code by removing unused stuff
 	set(CMAKE_EXE_LINKER_FLAGS "-Wl,-gc-sections")
 
@@ -54,5 +54,15 @@ else()
 
 	add_application(FixedBenchmark CONSOLE
 					FILES fixedbenchmark.cc fixed.h fixed.cc)
+endif()
+	set(CMAKE_EXE_LINKER_FLAGS "-Wl,-gc-sections -nostdlib")
+	add_definitions(-DRETRO_CARBON)
+	add_application(RaytracerCarbon
+		raytracer2.cc
+		fixed.h
+		fixed.cc
+		carb.r
+		)
+	target_link_libraries(RaytracerCarbon "-lstdc++" "-lc" retrocrt "-lc" "-lgcc" retrocrt "-lc" CarbonLib)
 endif()
 
