@@ -192,11 +192,11 @@
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "long int"
 
-#if 0
 /* The AIX linker will discard static constructors in object files before
    collect has a chance to see them, so scan the object files directly.  */
 #define COLLECT_EXPORT_LIST
 
+#if 0
 /* On AIX, initialisers specified with -binitfini are called in breadth-first
    order.
    e.g. if a.out depends on lib1.so, the init function for a.out is called before
