@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/time.h>
+
 #include <MacMemory.h>
 #include <Processes.h>
 
@@ -89,4 +91,40 @@ int kill(pid_t pid, int sig)
 pid_t getpid(void)
 {
 	return 42;
+}
+
+int gettimeofday(struct timeval *tp, void *__tz)
+{
+	/* Classic MacOS's GetDateTime function returns an integer.
+	 * TickCount() has a slightly higher resolution, but is independend of the real-time clock.
+	 */
+	unsigned long secs;
+	GetDateTime(&secs);
+	unsigned long ticks = TickCount();
+
+	static unsigned long savedTicks = 0, savedSecs = 0;
+	
+	if(!savedSecs)
+	{
+		savedTicks = ticks;
+		savedSecs = secs;
+	}
+	else
+	{
+		unsigned long elapsedTicks = ticks - savedTicks;
+		unsigned long elapsedSecs = secs - savedSecs;
+		unsigned long expectedTicks = elapsedSecs * 60 + elapsedSecs * 3 / 20;
+		
+		if(expectedTicks > elapsedTicks)
+			savedTicks = ticks;
+		else
+			savedTicks += expectedTicks;
+		savedSecs = secs;
+	}
+
+	if(tp)
+	{
+		tp->tv_sec = secs - 86400 * (365 * 66 + 66/4);
+		tp->tv_usec = (ticks - savedTicks) * 20000000 / 2003;
+	}
 }
