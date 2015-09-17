@@ -297,7 +297,7 @@ int main()
 		if(Button())
 			return 0;
 #if TARGET_API_MAC_CARBON
-//		QDFlushPortBuffer(GetWindowPort(win),NULL);
+		QDFlushPortBuffer(GetWindowPort(win),NULL);
 #endif
 	}
 	long endTime = TickCount();
