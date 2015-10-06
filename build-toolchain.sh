@@ -122,3 +122,11 @@ cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreeppc.toolchain.cmak
 			 -DCMAKE_BUILD_TYPE=Release
 cd ..
 make -C build-target-ppc install
+
+# Build target-based components for Carbon
+mkdir -p build-target-carbon
+cd build-target-carbon
+cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreecarbon.toolchain.cmake \
+			 -DCMAKE_BUILD_TYPE=Release
+cd ..
+make -C build-target-carbon install

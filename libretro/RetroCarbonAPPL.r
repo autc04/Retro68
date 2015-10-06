@@ -14,6 +14,12 @@ resource 'cfrg' (0) {
 	}
 };
 
+type 'carb' {
+};
+
+resource 'carb' (0) {
+};
+
 resource 'SIZE' (-1) {
 	dontSaveScreen,
 	acceptSuspendResumeEvents,
@@ -24,9 +30,10 @@ resource 'SIZE' (-1) {
 	dontGetFrontClicks,
 	ignoreChildDiedEvents,
 	is32BitCompatible,
-	reserved,
-	reserved,
-	reserved,
+
+	isHighLevelEventAware,
+	onlyLocalHLEvents,
+	notStationeryAware,
 	reserved,
 	reserved,
 	reserved,

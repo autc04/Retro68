@@ -5,7 +5,7 @@ cmake_policy(SET CMP0012 NEW)
 
 function(add_application name)
 
-	set(options DEBUGBREAK CONSOLE)
+	set(options DEBUGBREAK CONSOLE CARBON CLASSIC)
 	set(oneValueArgs TYPE CREATOR)
 	set(multiValueArgs FILES MAKEAPPL_ARGS)
 
@@ -76,7 +76,15 @@ function(add_application name)
 			DEPENDS ${name} ${rsrc_files})
 		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
 
-	elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+	elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC OR CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+		if((CMAKE_SYSTEM_NAME MATCHES RetroCarbon OR ARGS_CARBON) AND NOT ARGS_CLASSIC)
+			set(REZ_TEMPLATE "${REZ_TEMPLATES_PATH}/RetroCarbonAPPL.r")
+			target_compile_definitions(${name} PUBLIC -DTARGET_API_MAC_CARBON=1)
+			target_link_libraries(${name} -carbon)
+		else()
+			set(REZ_TEMPLATE "${REZ_TEMPLATES_PATH}/RetroPPCAPPL.r")
+		endif()
+		
 		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.xcoff)
 		add_custom_command(
 			OUTPUT ${name}.pef
@@ -85,7 +93,7 @@ function(add_application name)
 
 		add_custom_command(
 			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
-			COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/RetroPPCAPPL.r
+			COMMAND ${REZ} ${REZ_TEMPLATE}
 					-I${REZ_INCLUDE_PATH}
 					-DCFRAG_NAME="\\"${name}\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"

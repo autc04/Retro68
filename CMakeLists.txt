@@ -18,7 +18,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(Retro)
 
-if(CMAKE_SYSTEM_NAME MATCHES Retro68 OR CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
 
 
 set( REZ_TEMPLATES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libretro)
@@ -35,11 +35,14 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/libretro)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libretro)
 set(REZ_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libretro:${CMAKE_INSTALL_PREFIX}/RIncludes" )
 
+if(NOT (CMAKE_SYSTEM_NAME MATCHES RetroCarbon))
+
 add_subdirectory(Console)
 add_subdirectory(TestApps)
 add_subdirectory(Samples/HelloWorld)
-add_subdirectory(Samples/Raytracer)
 add_subdirectory(Samples/Dialog)
+endif()
+add_subdirectory(Samples/Raytracer)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 add_subdirectory(Samples/Launcher)
@@ -51,6 +54,7 @@ else()
 set(RETRO68_ROOT ${CMAKE_INSTALL_PREFIX})
 configure_file(cmake/intree.toolchain.cmake.in cmake/intree.toolchain.cmake @ONLY)
 configure_file(cmake/intreeppc.toolchain.cmake.in cmake/intreeppc.toolchain.cmake @ONLY)
+configure_file(cmake/intreecarbon.toolchain.cmake.in cmake/intreecarbon.toolchain.cmake @ONLY)
 
 add_subdirectory(ResourceFiles)
 add_subdirectory(MakeAPPL)

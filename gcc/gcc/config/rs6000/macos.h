@@ -69,7 +69,7 @@
 /* Profiled library versions are used by linking with special directories.  */
 #define LIB_SPEC "-lc"
 
-#define LIBGCC_SPEC "-lretrocrt -lgcc %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib}"
+#define LIBGCC_SPEC "-lgcc -lretrocrt -lgcc %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib}"
 
 /* Static linking with shared libstdc++ requires libsupc++ as well.  */
 #define LIBSTDCXX_STATIC "supc++"

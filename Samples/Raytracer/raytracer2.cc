@@ -22,8 +22,7 @@
 #include <ApplicationServices/ApplicationServices.h>
 #else
 
-#ifdef RETRO_CARBON
-//#define __FP__
+#ifdef TARGET_API_MAC_CARBON
 #include <math.h>
 #include <Carbon.h>
 #else
@@ -34,7 +33,6 @@
 #include <Fonts.h>
 #include <NumberFormatting.h>
 #endif
-
 
 #endif
 

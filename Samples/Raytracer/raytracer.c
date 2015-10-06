@@ -22,15 +22,16 @@
 #include <ApplicationServices/ApplicationServices.h>
 #else
 
+#ifdef TARGET_API_MAC_CARBON
+#include <math.h>
+#include <Carbon.h>
+#else
 #include <Quickdraw.h>
 #include <MacMemory.h>
 #include <Sound.h>
 #include <Events.h>
 #include <Fonts.h>
 #include <NumberFormatting.h>
-
-#ifdef __GNUC__
-QDGlobals qd;
 #endif
 
 #endif
