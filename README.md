@@ -2,9 +2,9 @@ Retro68
 =======
 
 A GCC-based cross-compilation environment for 68K and PowerPC Macs.
-Why? Because there is no decent C++11 Compiler targetting Apple's System 6.
+Why? Because there is no decent C++11 Compiler targeting Apple's System 6.
 If that's not a sufficient reason for you, I'm sure you will find
-someting more useful elsewhere.
+something more useful elsewhere.
 
 If you are crazy enough to try it out, please say hello at 
 wolfgang.thaller@gmx.net.
@@ -80,7 +80,9 @@ Sample programs are built in several formats:
 - MacBinary files (`ApplicationName.bin`)
 - Raw HFS disk image (`ApplicationName.dsk`, containing `ApplicationName`)
 
-Look under Retro68-build/build-target/ (68K) and Retro68-build/build-target-ppc/ (PowerPC) for the compiled examples.
+Look under `Retro68-build/build-target/` (68K),
+`Retro68-build/build-target-ppc/` (PowerPC Classic) and
+`Retro68-build/build-target-carbon/` (PowerPC Carbon) for the compiled examples.
 
 Components
 ----------
@@ -128,6 +130,9 @@ Various patches and hacks:
 - added `#pragma parameter` to specify custom register calling conventions
 - added support for the `= { 0x1234 }` syntax for inline machine code.
 
+PowerPC specific:
+- New flag -carbon that makes gcc link with `-lCarbonLib` instead of `-lInterfaceLib`
+
 ### newlib
 
 Standard C library. Currently unmodified. The missing platform-dependent
@@ -141,10 +146,6 @@ Minor patch: provide symbols around .init and .fini sections
 ### hfsutils:
 
 No changes.
-
-### prepare-headers.sh:
-
-Apply any necessary patches to Apple's headers; currently, this only modifies `ConditionalMacros.h`.
 
 ### MakeAPPL
 
@@ -165,6 +166,15 @@ resource files.
 
 - `MakePEF`, a tool to convert xcoff files to Apple's PEF format.
 - `MakeImport`, a tool to create an xcoff import stub library from a PEF-format library.
+
+### prepare-headers.sh:
+
+Apply any necessary patches to Apple's headers; currently, this only modifies `ConditionalMacros.h`.
+
+### ImportLibraries
+
+Import Libraries in XCOFF format. Based on the list of symbols in Apple's import
+libraries. Generated using the `MakeImport` tool.
 
 ### libretro
 
@@ -213,4 +223,3 @@ The original parts of Retro68 are licensed under GPL3+, as are
 most other parts. Some parts are licensed GPL2+ or with more
 liberal licenses. Check the copyright notices in the individual
 files.
-
