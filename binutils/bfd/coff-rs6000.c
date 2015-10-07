@@ -367,7 +367,7 @@ _bfd_xcoff_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
   else
     {
       sec = coff_section_from_bfd_index (ibfd, ix->sntoc);
-      if (sec == NULL)
+      if (sec == NULL || sec->output_section == NULL)
 	ox->sntoc = 0;
       else
 	ox->sntoc = sec->output_section->target_index;
@@ -3394,7 +3394,8 @@ xcoff_ppc_relocate_section (bfd *output_bfd,
 	  else
 	    {
 	      if (info->unresolved_syms_in_objects != RM_IGNORE
-		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0)
+		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0
+                  && h->root.type != bfd_link_hash_undefweak)
 		{
 		  if (! ((*info->callbacks->undefined_symbol)
 			 (info, h->root.root.string,
@@ -3412,13 +3413,18 @@ xcoff_ppc_relocate_section (bfd *output_bfd,
 			 + sec->output_section->vma
 			 + sec->output_offset);
 		}
-	      else if (h->root.type == bfd_link_hash_common)
-		{
-		  sec = h->root.u.c.p->section;
-		  val = (sec->output_section->vma
-			 + sec->output_offset);
+              else if (h->root.type == bfd_link_hash_common)
+                {
+                  sec = h->root.u.c.p->section;
+                  val = (sec->output_section->vma
+                         + sec->output_offset);
 
-		}
+                }
+              else if (h->root.type == bfd_link_hash_undefweak)
+                {
+                  sec = 0;
+                  val = 0;
+                }
 	      else
 		{
 		  BFD_ASSERT (info->relocatable

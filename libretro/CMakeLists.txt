@@ -23,18 +23,40 @@
 
 cmake_minimum_required(VERSION 2.8)
 
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+	set(ARCH_FILES
+		Retro68Runtime.h
+		start.c
+		relocate.c
+		glue.c
+		qdglobals.c
+		Retro68.r
+		Retro68APPL.r
+	)
+	install(FILES Retro68Runtime.h DESTINATION include)
+	install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)
+elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+	enable_language(ASM)
+	set(ARCH_FILES
+		ppcstart.c
+		ppcfpsave.s
+		qdglobals.c
+		RetroPPCAPPL.r)
+	install(FILES RetroPPCAPPL.r DESTINATION RIncludes)
+elseif(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+	enable_language(ASM)
+	set(ARCH_FILES
+		ppcstart.c
+		ppcfpsave.s
+		RetroCarbonAPPL.r)
+	install(FILES RetroCarbonAPPL.r DESTINATION RIncludes)
+endif()
+
 add_library(retrocrt
-	Retro68Runtime.h
-	start.c
-	relocate.c
 	malloc.c
 	syscalls.c
-	glue.c
 	consolehooks.c
-	Retro68.r
-	Retro68APPL.r
+	${ARCH_FILES}
 )
 
 install(TARGETS retrocrt  DESTINATION lib)
-install(FILES Retro68Runtime.h DESTINATION include)
-install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)

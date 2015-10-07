@@ -5,7 +5,7 @@ cmake_policy(SET CMP0012 NEW)
 
 function(add_application name)
 
-	set(options DEBUGBREAK CONSOLE)
+	set(options DEBUGBREAK CONSOLE CARBON CLASSIC)
 	set(oneValueArgs TYPE CREATOR)
 	set(multiValueArgs FILES MAKEAPPL_ARGS)
 
@@ -61,19 +61,49 @@ function(add_application name)
 		set_target_properties(${name} PROPERTIES LINK_DEPENDS libretro)
 	endif(TARGET libretro)
 
-	set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
+	if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 
-	add_custom_command(
-		OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
-		#COMMAND ${MAKE_APPL} ${ARGS_MAKEAPPL_ARGS} -c "${name}.flt" -o "${name}"
-		COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/Retro68APPL.r
-				-I${REZ_INCLUDE_PATH}
-				-DFLT_FILE_NAME="\\"${name}.flt\\""
-				-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
-				-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
-				${ARGS_MAKEAPPL_ARGS}
-		DEPENDS ${name} ${rsrc_files})
-	add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
+		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
+
+		add_custom_command(
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/Retro68APPL.r
+					-I${REZ_INCLUDE_PATH}
+					-DFLT_FILE_NAME="\\"${name}.flt\\""
+					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
+					${ARGS_MAKEAPPL_ARGS}
+			DEPENDS ${name} ${rsrc_files})
+		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
+
+	elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC OR CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+		if((CMAKE_SYSTEM_NAME MATCHES RetroCarbon OR ARGS_CARBON) AND NOT ARGS_CLASSIC)
+			set(REZ_TEMPLATE "${REZ_TEMPLATES_PATH}/RetroCarbonAPPL.r")
+			target_compile_definitions(${name} PUBLIC -DTARGET_API_MAC_CARBON=1)
+			target_link_libraries(${name} -carbon)
+		else()
+			set(REZ_TEMPLATE "${REZ_TEMPLATES_PATH}/RetroPPCAPPL.r")
+		endif()
+		
+		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.xcoff)
+		add_custom_command(
+			OUTPUT ${name}.pef
+			COMMAND ${MAKE_PEF} "${name}.xcoff" -o "${name}.pef"
+			DEPENDS ${name})
+
+		add_custom_command(
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			COMMAND ${REZ} ${REZ_TEMPLATE}
+					-I${REZ_INCLUDE_PATH}
+					-DCFRAG_NAME="\\"${name}\\""
+					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
+					--data ${name}.pef
+					${ARGS_MAKEAPPL_ARGS}
+			DEPENDS ${name}.pef ${rsrc_files})
+		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
+	endif()
+
 endfunction()
 
 cmake_policy(POP)

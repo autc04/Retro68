@@ -29,20 +29,26 @@ inline std::int32_t muls(std::int16_t x, std::int16_t y)
 
 inline std::uint32_t mulu(std::uint16_t x, std::uint16_t y)
 {
-	//return (std::uint32_t)x * y;
+#if TARGET_CPU_M68K
 	std::uint32_t res;
 	__asm("mulu %1, %0" : "=d"(res) : "d"(x), "0"(y));
 	return res;
+#else
+	return (std::uint32_t)x * y;
+#endif
 }
 
 inline std::int32_t mulsu(std::int16_t x, std::uint16_t y)
 {
-	//return (std::int32_t)a * (std::uint32_t)b;
+#if TARGET_CPU_M68K
 	std::int32_t res;
 	__asm("mulu %1, %0" : "=d"(res) : "d"(x), "0"(y));
 	if(x < 0)
 		res -= ((std::uint32_t)y) << 16;
 	return res;
+#else
+	return (std::int32_t)x * (std::uint32_t)y;
+#endif
 }
 
 #define COUNT_OP(var) ++var

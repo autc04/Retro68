@@ -22,7 +22,8 @@ add_application(ExceptionTest CONSOLE ExceptionTest.cc)
 add_application(InitTest CONSOLE InitTest.cc)
 add_application(EmptyTest EmptyTest.c)
 
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 enable_language(ASM)
 add_application(AsmTest AsmTest.s)
 set_target_properties(AsmTest PROPERTIES LINKER_LANGUAGE C)
-
+endif()

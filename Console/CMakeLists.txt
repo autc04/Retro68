@@ -27,3 +27,8 @@ add_library(RetroConsole
 
 install(TARGETS RetroConsole  DESTINATION lib)
 
+add_application(ConsoleTest
+	ConsoleTest.cc
+	)
+target_link_libraries(ConsoleTest RetroConsole)
+

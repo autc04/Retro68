@@ -22,15 +22,16 @@
 #include <ApplicationServices/ApplicationServices.h>
 #else
 
+#ifdef TARGET_API_MAC_CARBON
+#include <math.h>
+#include <Carbon.h>
+#else
 #include <Quickdraw.h>
 #include <MacMemory.h>
 #include <Sound.h>
 #include <Events.h>
 #include <Fonts.h>
 #include <NumberFormatting.h>
-
-#ifdef __GNUC__
-QDGlobals qd;
 #endif
 
 #endif
@@ -286,11 +287,15 @@ int main()
 		}
 		Rect r2;
 		SetRect(&r2,0,y,r.right,y+1);
+#if TARGET_API_MAC_CARBON
+		CopyBits(&line, GetPortBitMapForCopyBits(GetWindowPort(win)), &line.bounds, &r2, srcCopy, NULL);
+#else
 		CopyBits(&line, &win->portBits, &line.bounds, &r2, srcCopy, NULL);
+#endif
 		if(Button())
 			return 0;
 #if TARGET_API_MAC_CARBON
-//		QDFlushPortBuffer(GetWindowPort(win),NULL);
+		QDFlushPortBuffer(GetWindowPort(win),NULL);
 #endif
 	}
 	long endTime = TickCount();

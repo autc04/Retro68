@@ -866,8 +866,8 @@ open_inarch (const char *archive_filename, const char *file)
 
   bfd_set_error (bfd_error_no_error);
 
-  if (target == NULL)
-    target = plugin_target;
+  //if (target == NULL)
+  //  target = plugin_target;
 
   if (stat (archive_filename, &sbuf) != 0)
     {

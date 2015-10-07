@@ -163,8 +163,9 @@ for this_target in $target $canon_targets ; do
         ;;
 
 changequote(,)dnl
-      ppc-*-aix[5-9].*)
+      ppc-*-aix[5-9].* \
 changequote([,])dnl
+      | ppc-*-macos*)
 	AC_DEFINE(AIX_WEAK_SUPPORT, 1,
 		  [Define if using AIX 5.2 value for C_WEAKEXT.])
 	;;

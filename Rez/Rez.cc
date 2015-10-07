@@ -51,6 +51,7 @@ int main(int argc, const char *argv[])
 		("copy", po::value<std::vector<std::string>>(), "copy resources from other resource file")
 		("cc", po::value<std::vector<std::string>>(), "also write output to another file")
 		("debug,d", "debug logging")
+		("data", po::value<std::string>(), "copy data fork from another file")
 	;
 	po::options_description hidden, alldesc;
 	hidden.add_options()
@@ -98,6 +99,16 @@ int main(int argc, const char *argv[])
 
 		world.getResources().addResources(rsrcFile.resources);
 	}
+
+	if(options.count("data"))
+	{
+		std::string fn = options["data"].as<std::string>();
+		ResourceFile dataFile(fn);
+		if(!dataFile.read())
+			world.problem(Diagnostic(Diagnostic::error, "Could not read dataresource file " + fn, yy::location()));
+		rsrcFile.data = dataFile.data;
+	}
+
 	if(options.count("copy"))
 		for(std::string fn : options["copy"].as<std::vector<std::string>>())
 			CopyBinaryResources(world, fn);

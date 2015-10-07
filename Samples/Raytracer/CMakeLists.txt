@@ -51,8 +51,10 @@ else()
 		fixed.h
 		fixed.cc
 		)
+	if(NOT (CMAKE_SYSTEM_NAME MATCHES RetroCarbon))
 
 	add_application(FixedBenchmark CONSOLE
 					FILES fixedbenchmark.cc fixed.h fixed.cc)
+	endif()
 endif()
 

@@ -63,6 +63,8 @@ extern "C" ssize_t _consolewrite(int fd, const void *buf, size_t count)
 {
 	if(!Console::currentInstance)
 		InitConsole();
+	if(Console::currentInstance == (Console*)-1)
+		return 0;
 
 	Console::currentInstance->write((const char*)buf, count);
 	return count;
@@ -72,6 +74,8 @@ extern "C" ssize_t _consoleread(int fd, void *buf, size_t count)
 {
 	if(!Console::currentInstance)
 		InitConsole();
+	if(Console::currentInstance == (Console*)-1)
+		return 0;
 
 	static std::string consoleBuf;
 	if(consoleBuf.size() == 0)

@@ -15,32 +15,57 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-SRC=$(cd `dirname $0` && pwd -P)
-mkdir -p binutils-build
-rm -rf toolchain
-mkdir -p toolchain
-PREFIX=`pwd`/toolchain/
 set -e
 
+# Set up paths.
+SRC=$(cd `dirname $0` && pwd -P)
+PREFIX=`pwd -P`/toolchain/
+BINUTILS=`pwd -P`/binutils-build
+
+# Remove old install tree
+rm -rf toolchain
+mkdir -p toolchain
+
+
+# Build binutils for 68K
+mkdir -p binutils-build
 cd binutils-build
 export "CFLAGS=-Wno-error"
 $SRC/binutils/configure --target=m68k-apple-macos --prefix=$PREFIX --disable-doc
 make -j8
 make install
-
 cd ..
 
+# Build gcc for 68K
 mkdir -p gcc-build
 cd gcc-build
 $SRC/gcc/configure --target=m68k-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 --disable-libssp MAKEINFO=missing
 make -j8
 make install
-
 cd ..
 
-BINUTILS=$(cd binutils-build && pwd -P)
+unset CFLAGS
+# Build binutils for PPC
+mkdir -p binutils-build-ppc
+cd binutils-build-ppc
+$SRC/binutils/configure --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc
+make -j8
+make install
+cd ..
 
+# Build gcc for PPC
+mkdir -p gcc-build-ppc
+cd gcc-build-ppc
+$SRC/gcc/configure --target=powerpc-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --disable-libssp --disable-lto MAKEINFO=missing
+make -j8
+make install
+cd ..
+
+# Install elf.h (for elf2flt)
+mkdir -p $PREFIX/include
 cp $SRC/elf.h $PREFIX/include/
+
+# Build elf2flt
 export "CFLAGS=-I${SRC}/binutils/include -I../toolchain/include"
 mkdir -p elf2flt-build
 cd elf2flt-build
@@ -48,9 +73,9 @@ $SRC/elf2flt/configure --target=m68k-apple-macos --prefix=$PREFIX --with-binutil
 make -j8 TOOLDIR=$PREFIX/bin
 make install
 unset CFLAGS
-
 cd ..
 
+# Build hfsutil
 mkdir -p $PREFIX/man/man1
 rm -rf hfsutils
 cp -r $SRC/hfsutils .
@@ -60,29 +85,48 @@ make
 make install
 cd ..
 
-sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/m68k-apple-macos/include
+# Install Universal Interfaces
+for arch in m68k powerpc; do
+	sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/${arch}-apple-macos/include
+	mkdir -p toolchain/${arch}-apple-macos/RIncludes
+	sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/${arch}-apple-macos/RIncludes
+done
 
-mkdir -p toolchain/m68k-apple-macos/RIncludes
-sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/m68k-apple-macos/RIncludes
+cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
 
+# Build host-based components
 mkdir -p build-host
 cd build-host
 cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX
 cd ..
-
 make -C build-host install
 
 	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
-$PREFIX/bin/m68k-apple-macos-ar cqs $PREFIX/m68k-apple-macos/lib/libretrocrt.a
+for arch in m68k powerpc; do
+	$PREFIX/bin/${arch}-apple-macos-ar cqs $PREFIX/${arch}-apple-macos/lib/libretrocrt.a
+done
 	# the real libretrocrt.a is built and installed by `make -C build-target install` later
 
+# Build target-based components for 68K
 mkdir -p build-target
 cd build-target
 cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intree.toolchain.cmake \
-			 -DIN_RETRO68_TREE=True	\
 			 -DCMAKE_BUILD_TYPE=Release
 cd ..
-
-
-
 make -C build-target install
+
+# Build target-based components for PPC
+mkdir -p build-target-ppc
+cd build-target-ppc
+cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreeppc.toolchain.cmake \
+			 -DCMAKE_BUILD_TYPE=Release
+cd ..
+make -C build-target-ppc install
+
+# Build target-based components for Carbon
+mkdir -p build-target-carbon
+cd build-target-carbon
+cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreecarbon.toolchain.cmake \
+			 -DCMAKE_BUILD_TYPE=Release
+cd ..
+make -C build-target-carbon install

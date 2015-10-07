@@ -1280,6 +1280,8 @@ case "${targ}" in
     targ_archs="$targ_archs bfd_i386_arch"
     ;;
   powerpc-*-macos*)
+    targ_cflags=-DAIX_WEAK_SUPPORT
+    targ_selvecs=powerpc_xcoff_vec
     targ_defvec=powerpc_xcoff_vec
     ;;
   powerpc-*-lynxos*)

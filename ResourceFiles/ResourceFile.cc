@@ -173,6 +173,8 @@ bool ResourceFile::read()
 {
 	fs::path path(pathstring);
 
+	type = creator = 0x3F3F3F3F;
+
 	switch(format)
 	{
 		case Format::basilisk:
@@ -200,10 +202,12 @@ bool ResourceFile::read()
 				char finf[32];
 				int n = getxattr(path.c_str(), XATTR_FINDERINFO_NAME,
 						finf, 32, 0, 0);
-
-				std::istringstream finfIn(std::string(finf, finf+n));
-				type = ostype(finfIn);
-				creator = ostype(finfIn);
+				if(n > 0)
+				{
+					std::istringstream finfIn(std::string(finf, finf+n));
+					type = ostype(finfIn);
+					creator = ostype(finfIn);
+				}
 			}
 			break;
 #endif
