@@ -13,6 +13,13 @@ function(add_application name)
 
 	list(APPEND ARGS_FILES ${ARGS_UNPARSED_ARGUMENTS})
 
+	set(REZ_FLAGS)
+	if(CMAKE_SYSTEM_NAME MATCHES RetroPPC OR CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+		if((CMAKE_SYSTEM_NAME MATCHES RetroCarbon OR ARGS_CARBON) AND NOT ARGS_CLASSIC)
+			set(REZ_FLAGS -DTARGET_API_MAC_CARBON=1)
+		endif()
+	endif()
+	
 	set(files)
 	set(rsrc_files)
 	set(rez_files)
@@ -20,7 +27,7 @@ function(add_application name)
 		if(${f} MATCHES "\\.r$")
 			add_custom_command(
 				OUTPUT ${f}.rsrc.bin
-				COMMAND ${REZ} ${CMAKE_CURRENT_SOURCE_DIR}/${f} -I ${REZ_INCLUDE_PATH} -o ${f}.rsrc.bin
+				COMMAND ${REZ} ${REZ_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${f} -I ${REZ_INCLUDE_PATH} -o ${f}.rsrc.bin
 				DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${f})
 			list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc.bin")
 			list(APPEND rez_files "${f}")
@@ -67,7 +74,8 @@ function(add_application name)
 
 		add_custom_command(
 			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
-			COMMAND ${REZ} ${REZ_TEMPLATES_PATH}/Retro68APPL.r
+			COMMAND ${REZ} ${REZ_FLAGS}
+					${REZ_TEMPLATES_PATH}/Retro68APPL.r
 					-I${REZ_INCLUDE_PATH}
 					-DFLT_FILE_NAME="\\"${name}.flt\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
@@ -93,7 +101,9 @@ function(add_application name)
 
 		add_custom_command(
 			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
-			COMMAND ${REZ} ${REZ_TEMPLATE}
+			COMMAND ${REZ} 
+					${REZ_FLAGS}
+					${REZ_TEMPLATE}
 					-I${REZ_INCLUDE_PATH}
 					-DCFRAG_NAME="\\"${name}\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"

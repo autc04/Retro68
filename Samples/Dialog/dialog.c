@@ -21,8 +21,6 @@
 #include <Dialogs.h>
 #include <Fonts.h>
 
-QDGlobals qd;
-
 pascal void ButtonFrameProc(DialogRef dlg, DialogItemIndex itemNo)
 {
     DialogItemType type;
@@ -37,13 +35,14 @@ pascal void ButtonFrameProc(DialogRef dlg, DialogItemIndex itemNo)
 
 int main()
 {
+#if !TARGET_API_MAC_CARBON
     InitGraf(&qd.thePort);
     InitFonts();
     InitWindows();
     InitMenus();
 	TEInit();
 	InitDialogs(NULL);
-
+#endif
     DialogPtr dlg = GetNewDialog(128,0,(WindowPtr)-1);
     InitCursor();
     SelectDialogItemText(dlg,4,0,32767);
@@ -53,7 +52,7 @@ int main()
     Rect box;
 
     GetDialogItem(dlg, 2, &type, &itemH, &box);
-	SetDialogItem(dlg, 2, type, (Handle) NewUserItemProc(&ButtonFrameProc), &box);
+	SetDialogItem(dlg, 2, type, (Handle) NewUserItemUPP(&ButtonFrameProc), &box);
 
     ControlHandle cb, radio1, radio2;
     GetDialogItem(dlg, 5, &type, &itemH, &box);

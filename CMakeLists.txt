@@ -24,9 +24,10 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
 set( REZ_TEMPLATES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libretro)
 include(add_application)
 
-configure_file(cmake/retro68.toolchain.cmake.in cmake/retro68.toolchain.cmake @ONLY)
+string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSLOWER)
+configure_file(cmake/${SYSLOWER}.toolchain.cmake.in cmake/${SYSLOWER}.toolchain.cmake @ONLY)
 install(DIRECTORY cmake/ DESTINATION cmake FILES_MATCHING PATTERN "*.cmake")
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/retro68.toolchain.cmake DESTINATION cmake)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/${SYSLOWER}.toolchain.cmake DESTINATION cmake)
 
 add_subdirectory(libretro)
 
@@ -36,12 +37,11 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libretro)
 set(REZ_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libretro:${CMAKE_INSTALL_PREFIX}/RIncludes" )
 
 if(NOT (CMAKE_SYSTEM_NAME MATCHES RetroCarbon))
-
 add_subdirectory(Console)
-add_subdirectory(TestApps)
 add_subdirectory(Samples/HelloWorld)
-add_subdirectory(Samples/Dialog)
 endif()
+add_subdirectory(TestApps)
+add_subdirectory(Samples/Dialog)
 add_subdirectory(Samples/Raytracer)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
