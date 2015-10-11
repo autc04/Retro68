@@ -202,7 +202,7 @@ std::string Console::ReadLine()
 	{
 		do
 		{
-			while(!GetOSEvent(everyEvent, &event))
+			while(!GetNextEvent(everyEvent, &event))
 				;
 		} while(event.what != keyDown && event.what != autoKey);
 		
@@ -230,4 +230,3 @@ std::string Console::ReadLine()
 	} while(c != '\n');
 	return buffer;
 }
-

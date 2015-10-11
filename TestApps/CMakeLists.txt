@@ -20,11 +20,8 @@ set(CMAKE_CXX_FLAGS "-std=c++11") # -fomit-frame-pointer")
 
 add_application(EmptyTest EmptyTest.c)
 
-if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
-else()
 add_application(ExceptionTest CONSOLE ExceptionTest.cc)
 add_application(InitTest CONSOLE InitTest.cc)
-endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 enable_language(ASM)

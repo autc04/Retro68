@@ -44,19 +44,36 @@ void Retro::InitConsole()
 		return;
 
 	WindowPtr win;
+	GrafPtr port;
+	
+#if !TARGET_API_MAC_CARBON
 	InitGraf(&qd.thePort);
 	InitFonts();
 	InitWindows();
 	InitMenus();
 
-	Rect r;
-	SetRect(&r, qd.screenBits.bounds.left + 5, qd.screenBits.bounds.top + 45, qd.screenBits.bounds.right - 5, qd.screenBits.bounds.bottom -5);
+	Rect r = qd.screenBits.bounds;
+#else
+	Rect r = (*GetMainDevice())->gdRect;
+#endif
+
+	r.top += 40;
+	InsetRect(&r, 5,5);
 	win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, false, 0);
 
-	SetPort(win);
-	EraseRect(&win->portRect);
+#if !TARGET_API_MAC_CARBON
+	port = win;
+	Rect portRect = port->portRect;
+#else
+	port = GetWindowPort(win);
+	Rect portRect;
+	GetPortBounds(port, &portRect);
+#endif
 
-	Console *console = new Console(win, win->portRect);
+	SetPort(port);
+	EraseRect(&portRect);
+
+	Console *console = new Console(port, portRect);
 }
 
 extern "C" ssize_t _consolewrite(int fd, const void *buf, size_t count)
