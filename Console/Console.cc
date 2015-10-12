@@ -176,6 +176,9 @@ void Console::Update()
 			DrawCells(start, dirtyRect.right, row, needclear);
 	}
 	dirtyRect = Rect();
+#if TARGET_API_MAC_CARBON
+	QDFlushPortBuffer(consolePort,NULL);
+#endif
 }
 
 void Console::putch(char c)
