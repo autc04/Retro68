@@ -30,7 +30,8 @@ using namespace Retro;
 Console *Console::currentInstance = NULL;
 
 Console::Console(GrafPtr port, Rect r)
-	: consolePort(port), bounds(r), dirtyRect()
+	: consolePort(port), bounds(r), dirtyRect(),
+	  blinkTicks(0), cursorDrawn(false), cursorVisible(true)
 {
 	if(currentInstance == NULL)
 		currentInstance = (Console*) -1;
@@ -66,6 +67,16 @@ Rect Console::CellRect(short x, short y)
 void Console::DrawCell(short x, short y, bool erase)
 {
 	Rect r = CellRect(x,y);
+
+	if(cursorDrawn)
+	{
+		if(y == cursorY && x == cursorX)
+		{
+			erase = true;
+			cursorDrawn = false;
+		}
+	}
+
 	if(erase)
 		EraseRect(&r);
 	MoveTo(r.left, r.bottom - 2);
@@ -76,6 +87,16 @@ void Console::DrawCells(short x1, short x2, short y, bool erase)
 {
 	Rect r = { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + x1 * cellSizeX),
 			   (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + x2 * cellSizeX) };
+	
+	if(cursorDrawn)
+	{
+		if(y == cursorY && x1 <= cursorX && x2 > cursorX)
+		{
+			erase = true;
+			cursorDrawn = false;
+		}
+	}
+	
 	if(erase)
 		EraseRect(&r);
 	MoveTo(r.left, r.bottom - 2);
@@ -113,6 +134,7 @@ void Console::ScrollUp(short n)
 
 void Console::PutCharNoUpdate(char c)
 {
+	InvalidateCursor();
 	switch(c)
 	{
 	case '\r':
@@ -179,6 +201,13 @@ void Console::Update()
 #if TARGET_API_MAC_CARBON
 	QDFlushPortBuffer(consolePort,NULL);
 #endif
+	
+	if(cursorVisible != cursorDrawn)
+	{
+		Rect r = CellRect(cursorX, cursorY);
+		InvertRect(&r);
+		cursorDrawn = !cursorDrawn;
+	}
 }
 
 void Console::putch(char c)
@@ -205,8 +234,9 @@ std::string Console::ReadLine()
 	{
 		do
 		{
+			Idle();
 			while(!GetNextEvent(everyEvent, &event))
-				;
+				Idle();
 		} while(event.what != keyDown && event.what != autoKey);
 		
 		c = event.message & charCodeMask;
@@ -218,9 +248,11 @@ std::string Console::ReadLine()
 		{
 			if(buffer.size())
 			{
+				InvalidateCursor();
 				cursorX--;
-				putch(' ');
+				PutCharNoUpdate(' ');
 				cursorX--;
+				Update();
 
 				buffer.resize(buffer.size()-1);
 			}
@@ -232,4 +264,27 @@ std::string Console::ReadLine()
 		buffer.append(1,c);
 	} while(c != '\n');
 	return buffer;
+}
+
+void Console::InvalidateCursor()
+{
+	if(cursorDrawn)
+	{
+		PortSetter setport(consolePort);
+
+		Rect r = CellRect(cursorX, cursorY);
+		InvertRect(&r);
+		cursorDrawn = false;
+	}
+}
+
+void Console::Idle()
+{
+	long ticks = TickCount();
+	if(ticks - blinkTicks > 60)
+	{
+		cursorVisible = !cursorVisible;
+		blinkTicks = ticks;
+		Update();
+	}
 }

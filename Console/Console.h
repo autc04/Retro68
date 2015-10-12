@@ -53,6 +53,10 @@ namespace Retro
 		short cursorX, cursorY;
 
 		Rect dirtyRect;
+		
+		long blinkTicks;
+		bool cursorDrawn;
+		bool cursorVisible;
 
 		void PutCharNoUpdate(char c);
 		void Update();
@@ -61,6 +65,9 @@ namespace Retro
 		void DrawCell(short x, short y, bool erase = true);
 		void DrawCells(short x1, short x2, short y, bool erase = true);
 		void ScrollUp(short n = 1);
+		
+		void InvalidateCursor();
+		void Idle();
 	};
 
 
