@@ -231,6 +231,10 @@ void Console::Update()
 		InvertRect(&r);
 		cursorDrawn = !cursorDrawn;
 	}
+
+#if TARGET_API_MAC_CARBON
+	QDFlushPortBuffer(consolePort,NULL);
+#endif
 }
 
 void Console::putch(char c)
