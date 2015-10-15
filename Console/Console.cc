@@ -29,10 +29,17 @@ using namespace Retro;
 
 Console *Console::currentInstance = NULL;
 
-Console::Console(GrafPtr port, Rect r)
-	: consolePort(port), bounds(r), dirtyRect(),
+Console::Console()
+	: consolePort(NULL), dirtyRect(),
 	  blinkTicks(0), cursorDrawn(false), cursorVisible(true)
 {
+}
+
+void Console::Init(GrafPtr port, Rect r)
+{
+	consolePort = port;
+	bounds = r;
+	
 	if(currentInstance == NULL)
 		currentInstance = (Console*) -1;
 	PortSetter setport(consolePort);
@@ -52,9 +59,16 @@ Console::Console(GrafPtr port, Rect r)
 	onscreen = chars;
 
 	cursorX = cursorY = 0;
-	
 	currentInstance = this;
 }
+
+Console::Console(GrafPtr port, Rect r)
+	: consolePort(NULL), dirtyRect(),
+	  blinkTicks(0), cursorDrawn(false), cursorVisible(true)
+{
+	Init(port, r);
+}
+
 Console::~Console()
 {
 }
@@ -103,16 +117,25 @@ void Console::DrawCells(short x1, short x2, short y, bool erase)
 	DrawText(&chars[y * cols + x1], 0, x2 - x1);
 }
 
-void Console::Draw()
+void Console::Draw(Rect r)
 {
 	PortSetter setport(consolePort);
 	
-	for(short row = 0; row < rows; ++row)
+	short minRow = std::max(0, (r.top - bounds.top) / cellSizeY);
+	short maxRow = std::min((int)rows, (r.bottom - bounds.top + cellSizeY - 1) / cellSizeY);
+	
+	short minCol = std::max(0, (r.left - bounds.left) / cellSizeX);
+	short maxCol = std::min((int)cols, (r.right - bounds.left + cellSizeX - 1) / cellSizeX);
+	
+	EraseRect(&r);
+	for(short row = minRow; row < maxRow; ++row)
 	{
-		for(short col = 0; col < cols; ++col)
-		{
-			DrawCell(col, row);
-		}
+		DrawCells(minCol, maxCol, row, false);
+	}
+	if(cursorDrawn)
+	{
+		Rect cursor = CellRect(cursorX, cursorY);
+		InvertRect(&cursor);
 	}
 	onscreen = chars;
 }
@@ -231,15 +254,8 @@ std::string Console::ReadLine()
 	char c;
 	
 	do
-	{
-		do
-		{
-			Idle();
-			while(!GetNextEvent(everyEvent, &event))
-				Idle();
-		} while(event.what != keyDown && event.what != autoKey);
-		
-		c = event.message & charCodeMask;
+	{		
+		c = WaitNextChar();
 		
 		if(c == '\r')
 			c = '\n';
@@ -286,5 +302,51 @@ void Console::Idle()
 		cursorVisible = !cursorVisible;
 		blinkTicks = ticks;
 		Update();
+	}
+}
+
+void Console::Reshape(Rect newBounds)
+{
+	InsetRect(&newBounds, 2,2);
+
+	bounds = newBounds;
+	short newRows = (bounds.bottom - bounds.top) / cellSizeY;
+	short newCols = (bounds.right - bounds.left) / cellSizeX;
+
+	short upshift = 0;
+	if(cursorY >= newRows)
+	{
+		upshift = cursorY - (newRows - 1);
+		
+		InvalidateCursor();
+		cursorY = newRows - 1;
+	}
+
+	std::vector<char> newChars(newRows*newCols, ' ');
+	for(short row = 0; row < newRows && row + upshift < rows; row++)
+	{
+		char *src = &chars[(row+upshift) * cols];
+		char *dst = &newChars[row * newCols];
+		std::copy(src, src + std::min(cols, newCols), dst);
+	}
+	chars.swap(newChars);
+	/*newChars = std::vector<char>(newRows*newCols, ' ');
+	for(short row = 0; row < newRows && row < rows; row++)
+	{
+		char *src = &chars[row * cols];
+		char *dst = &newChars[row * newCols];
+		std::copy(src, src + std::min(cols, newCols), dst);
+	}
+	onscreen.swap(newChars);*/
+	onscreen = newChars;
+	
+	rows = newRows;
+	cols = newCols;
+
+	if(upshift)
+	{
+		//dirtyRect = Rect { 0, 0, rows, cols };
+		//Update();
+		Draw();
 	}
 }

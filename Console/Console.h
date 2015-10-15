@@ -16,6 +16,8 @@
     You should have received a copy of the GNU General Public License
     along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef RETRO68_CONSOLE_H_
+#define RETRO68_CONSOLE_H_
 
 #include <Quickdraw.h>
 #include <vector>
@@ -29,7 +31,8 @@ namespace Retro
 	public:
 		Console(GrafPtr port, Rect r);
 		~Console();
-		void Draw();
+		void Draw(Rect r);
+		void Draw() { Draw(bounds); }
 		void putch(char c);
 
 		void write(const char *s, int n);
@@ -39,6 +42,8 @@ namespace Retro
 
 		short GetRows() const { return rows; }
 		short GetCols() const { return cols; }
+		
+		void Idle();
 	private:
 		GrafPtr consolePort;
 		Rect bounds;
@@ -67,8 +72,17 @@ namespace Retro
 		void ScrollUp(short n = 1);
 		
 		void InvalidateCursor();
-		void Idle();
+
+		virtual char WaitNextChar() = 0;
+	
+	protected:
+		Console();
+		void Init(GrafPtr port, Rect r);
+		
+		void Reshape(Rect newBounds);
 	};
 
 
 }
+
+#endif /* RETRO68_CONSOLE_H_ */

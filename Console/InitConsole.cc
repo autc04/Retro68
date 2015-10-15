@@ -30,6 +30,7 @@
 
 #include "MacUtils.h"
 #include "Console.h"
+#include "ConsoleWindow.h"
 
 namespace Retro
 {
@@ -42,9 +43,6 @@ void Retro::InitConsole()
 {
 	if(Console::currentInstance)
 		return;
-
-	WindowPtr win;
-	GrafPtr port;
 	
 #if !TARGET_API_MAC_CARBON
 	InitGraf(&qd.thePort);
@@ -59,21 +57,9 @@ void Retro::InitConsole()
 
 	r.top += 40;
 	InsetRect(&r, 5,5);
-	win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, false, 0);
-
-#if !TARGET_API_MAC_CARBON
-	port = win;
-	Rect portRect = port->portRect;
-#else
-	port = GetWindowPort(win);
-	Rect portRect;
-	GetPortBounds(port, &portRect);
-#endif
-
-	SetPort(port);
-	EraseRect(&portRect);
-
-	Console *console = new Console(port, portRect);
+	
+	new ConsoleWindow(r, "\pRetro68 Console");
+	InitCursor();
 }
 
 extern "C" ssize_t _consolewrite(int fd, const void *buf, size_t count)

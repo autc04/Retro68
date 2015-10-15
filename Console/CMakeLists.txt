@@ -21,6 +21,8 @@ set(CMAKE_CXX_FLAGS "-std=c++11")
 add_library(RetroConsole
 	Console.cc
 	Console.h
+	ConsoleWindow.cc
+	ConsoleWindow.h
 	MacUtils.h
 	InitConsole.cc
 	)
@@ -31,4 +33,3 @@ add_application(ConsoleTest
 	ConsoleTest.cc
 	)
 target_link_libraries(ConsoleTest RetroConsole)
-
