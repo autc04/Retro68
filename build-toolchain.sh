@@ -67,6 +67,7 @@ cp $SRC/elf.h $PREFIX/include/
 
 # Build elf2flt
 export "CFLAGS=-I${SRC}/binutils/include -I../toolchain/include"
+export "CPPFLAGS=$CFLAGS"
 mkdir -p elf2flt-build
 cd elf2flt-build
 $SRC/elf2flt/configure --target=m68k-apple-macos --prefix=$PREFIX --with-binutils-build-dir=$BINUTILS
