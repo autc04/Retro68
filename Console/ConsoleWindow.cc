@@ -88,8 +88,17 @@ char ConsoleWindow::WaitNextChar()
 				realConsole = windows[(WindowPtr)event.message];
 				if(realConsole)
 				{
+					Rect updateRect;
 					BeginUpdate(eventWin);
-					realConsole->Draw((*qd.thePort->visRgn)->rgnBBox);
+#if TARGET_API_MAC_CARBON
+					RgnHandle rgn = NewRgn();
+					GetPortVisibleRegion(GetWindowPort(eventWin), rgn);
+					GetRegionBounds(rgn, &updateRect);
+					DisposeRgn(rgn);
+#else
+					updateRect = (*qd.thePort->visRgn)->rgnBBox; // Life was simple back then.
+#endif
+					realConsole->Draw(updateRect);
 					EndUpdate(eventWin);
 				}
 				break;
