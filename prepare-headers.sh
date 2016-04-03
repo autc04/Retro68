@@ -4,11 +4,18 @@ OUT=$2
 # Make Mac OS X's tr and sed not complain that the files are not UTF-8
 export LANG=en
 
-# cp $IN/[A-Z]*.h $OUT/
-#for file in $(cd $IN; ls [A-Z]*.h); do
 for file in $(cd $IN; ls *.h); do
-	tr '\r' '\n' < $IN/$file > $OUT/$file
-	#| sed 's/= \(0x[0-9A-Z]*\);/ONEWORDINLINE(\1);/' > $OUT/$file
+	case file in
+		errno.h|fcntl.h|fenv.h|fstream.h|handler.h|headers.h|FSpio.h)
+			;;
+		ioctl.h|iomanip.h|iostream.h|limits.h|locale.h|math.h|new.h)
+			;;
+		sejmp.h|signal.h|std*.h|string.h|strstream.h|time.h|typeinfo.h)
+			;;
+		*)
+			tr '\r' '\n' < $IN/$file > $OUT/$file
+			;;
+	esac
 done
 
 ############################# ConditionalMacros.h #############################
