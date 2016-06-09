@@ -33,14 +33,21 @@ if(Boost_FOUND AND BISON_FOUND)
 
 include_directories(. ${CMAKE_CURRENT_BINARY_DIR})
 
-bison_target(RezParser RezParser.yy
-	${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.cc ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.hh
+set(BISON_OUTPUTS ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.cc ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.hh
 	${CMAKE_CURRENT_BINARY_DIR}/location.hh ${CMAKE_CURRENT_BINARY_DIR}/position.hh
 	${CMAKE_CURRENT_BINARY_DIR}/stack.hh)
 
+add_custom_command(OUTPUT ${BISON_OUTPUTS}
+        COMMAND ${BISON_EXECUTABLE}
+        ARGS -o ${CMAKE_CURRENT_BINARY_DIR}/RezParser.generated.cc RezParser.yy
+        DEPENDS RezParser.yy
+        COMMENT "[BISON][RezParser] Building parser with bison ${BISON_VERSION}"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+
 add_library(RezLib
 		RezParser.yy
-		${BISON_RezParser_OUTPUTS}
+		${BISON_OUTPUTS}
 
 		RezLexer.h
 		RezLexer.cc
