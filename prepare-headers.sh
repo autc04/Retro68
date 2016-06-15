@@ -5,17 +5,51 @@ OUT=$2
 export LANG=en
 
 for file in $(cd $IN; ls *.h); do
-	case file in
-		errno.h|fcntl.h|fenv.h|fstream.h|handler.h|headers.h|FSpio.h)
+	# Filter by file names.
+	# Some CIncludes packages include the MPW standard library.
+	# Header files from that standard library would overwrite
+	# newlib header files and stop things from working.
+	case $file in
+			# Apple/MPW standard library internals
+		*Def.h|FSpio.h)
+			USE=false
 			;;
-		ioctl.h|iomanip.h|iostream.h|limits.h|locale.h|math.h|new.h)
+
+			# whitelist all uppercase headers
+		[A-Z]*.h)
+			USE=true
 			;;
-		sejmp.h|signal.h|std*.h|string.h|strstream.h|time.h|typeinfo.h)
+
+			# whitelist OpenTransport
+		cred.h|dlpi.h|miioccom.h|mistream.h|modnames.h)
+			USE=true
 			;;
+			# whitelist OpenTransport (continued)
+		strlog.h|stropts.h|strstat.h|tihdr.h)
+			USE=true
+			;;
+
+			# Non-standard floating point headers that don't conflict
+		ddrt.h|fp.h)
+			USE=true
+			;;
+
+			# veclib headers
+		v*.h)
+			USE=true
+			;;
+
+		# unsupported:	intrinsics.h   perf.h
+
+		# all other (lowercase) headers: conflict with GCC or newlib headers
 		*)
-			tr '\r' '\n' < $IN/$file > $OUT/$file
+			USE=false
 			;;
 	esac
+
+	if [ $USE = true ]; then
+		tr '\r' '\n' < $IN/$file > $OUT/$file
+	fi
 done
 
 ############################# ConditionalMacros.h #############################
