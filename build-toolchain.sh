@@ -22,10 +22,23 @@ SRC=$(cd `dirname $0` && pwd -P)
 PREFIX=`pwd -P`/toolchain/
 BINUTILS=`pwd -P`/binutils-build
 
+for ARG in $*; do
+	case $ARG in
+		--cmakeonly)
+				CMAKEONLY=true
+			;;
+		*)
+			echo "unknown option $ARG"
+			exit 1
+			;;
+	esac
+done
+
+if [ $CMAKEONLY != true ]; then
+
 # Remove old install tree
 rm -rf toolchain
 mkdir -p toolchain
-
 
 # Build binutils for 68K
 mkdir -p binutils-build
@@ -94,6 +107,8 @@ for arch in m68k powerpc; do
 done
 
 cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
+
+fi # CMAKEONLY
 
 # Build host-based components
 mkdir -p build-host
