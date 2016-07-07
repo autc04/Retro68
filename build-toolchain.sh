@@ -22,6 +22,7 @@ SRC=$(cd `dirname $0` && pwd -P)
 PREFIX=`pwd -P`/toolchain/
 BINUTILS=`pwd -P`/binutils-build
 
+CMAKEONLY=false
 for ARG in $*; do
 	case $ARG in
 		--cmakeonly)
