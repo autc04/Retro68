@@ -48,7 +48,7 @@ for file in $(cd $IN; ls *.h); do
 	esac
 
 	if [ $USE = true ]; then
-		tr '\r' '\n' < $IN/$file > $OUT/$file
+		sed 's/\r$//' < $IN/$file | tr '\r' '\n' > $OUT/$file
 	fi
 done
 
@@ -76,9 +76,11 @@ cat > $OUT/ConditionalMacros.h <<END_MARKER
 #ifdef __cplusplus
 #define TYPE_BOOL 1
 #endif
+
+#define __DEBUGGING__  /* HACK: Disable Debugging.h because its vdprintf conflicts with stdio.h */
 END_MARKER
 
-tr '\r' '\n' < $IN/ConditionalMacros.h | sed 's/__GNUC__/__GNUC_DISABLED__/g' >> $OUT/ConditionalMacros.h
+sed 's/\r$//' < $IN/ConditionalMacros.h | tr '\r' '\n' | sed 's/__GNUC__/__GNUC_DISABLED__/g' >> $OUT/ConditionalMacros.h
 
 cat >> $OUT/ConditionalMacros.h <<END_MARKER
 
@@ -104,7 +106,7 @@ short relation(double x, double y);
 
 END_MARKER
 
-tr '\r' '\n' < $IN/fp.h >> $OUT/fp.h
+sed 's/\r$//' < $IN/fp.h | tr '\r' '\n' >> $OUT/fp.h
 
 cat >> $OUT/fp.h <<END_MARKER
 
@@ -117,7 +119,7 @@ END_MARKER
 fi
 
 ############################# MixedMode.h #############################
-tr '\r' '\n' < $IN/MixedMode.h | sed 's/Opaque\#\#name\#\#\*/Opaque\#\#name \*/g' > $OUT/MixedMode.h
+sed 's/\r$//' < $IN/MixedMode.h | tr '\r' '\n' | sed 's/Opaque\#\#name\#\#\*/Opaque\#\#name \*/g' > $OUT/MixedMode.h
 
 ############################# CGBase.h #############################
 if [ -r $IN/CGBase.h ]; then
@@ -135,7 +137,7 @@ cat > $OUT/CGBase.h <<END_MARKER
 
 END_MARKER
 
-tr '\r' '\n' < $IN/CGBase.h >> $OUT/CGBase.h
+sed 's/\r$//' < $IN/CGBase.h | tr '\r' '\n' >> $OUT/CGBase.h
 
 cat >> $OUT/CGBase.h <<END_MARKER
 
@@ -144,4 +146,19 @@ cat >> $OUT/CGBase.h <<END_MARKER
 #endif /* __CGBASE__WRAP__ */
 END_MARKER
 
+fi
+
+for f in Types.h Memory.h Windows.h Errors.h; do
+	if [ ! -r $IN/$f ]; then
+		echo "#include \"Mac$f\"" > $OUT/$f
+	elif [ ! -r $IN/Mac$f ]; then
+		echo "#include \"$f\"" > $OUT/$f
+	fi
+done
+
+if [ -d $IN/CoreFoundation ]; then
+	mkdir -p $OUT/CoreFoundation
+	for file in $(cd $IN; ls CoreFoundation/*.h); do
+		sed 's/\r$//' < $IN/$file | tr '\r' '\n' > $OUT/$file
+	done
 fi
