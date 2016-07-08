@@ -633,6 +633,8 @@ m68k_option_override (void)
 	 clear how intentional that is.  */
       flag_no_function_cse = 1;
     }
+  else if(TARGET_PCREL)
+    m68k_symbolic_call_var = M68K_SYMBOLIC_CALL_BSRW_C;
 
   switch (m68k_symbolic_call_var)
     {
@@ -646,6 +648,10 @@ m68k_option_override (void)
 
     case M68K_SYMBOLIC_CALL_BSR_P:
       m68k_symbolic_call = "bsr%.l %p0";
+      break;
+
+    case M68K_SYMBOLIC_CALL_BSRW_C:
+      m68k_symbolic_call = "bsr%.w %c0";
       break;
 
     case M68K_SYMBOLIC_CALL_NONE:
