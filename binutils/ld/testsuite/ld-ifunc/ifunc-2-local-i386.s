@@ -12,7 +12,7 @@ bar:
 .L6:
 	popl	%ebx
 	addl	$_GLOBAL_OFFSET_TABLE_+[.-.L6], %ebx
-	call	__GI_foo
+	call	__GI_foo@PLT
 	leal	__GI_foo@GOTOFF(%ebx), %eax
 	ret
 	.size	bar, .-bar

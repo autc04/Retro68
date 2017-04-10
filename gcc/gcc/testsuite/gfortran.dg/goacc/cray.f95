@@ -1,5 +1,5 @@
-! { dg-do compile } 
 ! { dg-additional-options "-fcray-pointer" }
+! See also cray-2.f95.
 
 module test
 contains
@@ -8,8 +8,8 @@ contains
     integer :: i
     real :: pointee
     pointer (ptr, pointee)
-    !$acc declare device_resident (pointee) 
-    !$acc declare device_resident (ptr) 
+    !$acc declare device_resident (pointee)
+    !$acc declare device_resident (ptr)
     !$acc data copy (pointee) ! { dg-error "Cray pointee" }
     !$acc end data
     !$acc data deviceptr (pointee) ! { dg-error "Cray pointee" }
@@ -24,8 +24,7 @@ contains
     !$acc end parallel loop
     !$acc parallel loop
     do i = 1,5
-      ! Subarrays are not implemented yet
-      !$acc cache (pointee) ! TODO: This must fail, as in openacc-1_0-branch
+      !$acc cache (pointee) ! { dg-error "Cray pointee" }
     enddo
     !$acc end parallel loop
     !$acc update device (pointee) ! { dg-error "Cray pointee" }
@@ -45,7 +44,8 @@ contains
     !$acc end parallel loop
     !$acc parallel loop
     do i = 1,5
-      !$acc cache (ptr) ! TODO: This must fail, as in openacc-1_0-branch
+      !TODO: This must fail, as in openacc-1_0-branch.
+      !$acc cache (ptr) ! { dg-error "" "TODO" { xfail *-*-* } }
     enddo
     !$acc end parallel loop
     !$acc update device (ptr)
@@ -53,4 +53,3 @@ contains
     !$acc update self (ptr)
   end subroutine oacc1
 end module test
-! { dg-prune-output "unimplemented" }

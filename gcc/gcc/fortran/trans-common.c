@@ -1,5 +1,5 @@
 /* Common block and equivalence list handling
-   Copyright (C) 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 2000-2016 Free Software Foundation, Inc.
    Contributed by Canqun Yang <canqun@nudt.edu.cn>
 
 This file is part of GCC.
@@ -92,27 +92,18 @@ along with GCC; see the file COPYING3.  If not see
    is examined for still-unused equivalence conditions.  We create a
    block for each merged equivalence list.  */
 
-#include <map>
 #include "config.h"
+#define INCLUDE_MAP
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
 #include "tree.h"
-#include "fold-const.h"
-#include "stringpool.h"
-#include "stor-layout.h"
-#include "varasm.h"
 #include "gfortran.h"
 #include "trans.h"
+#include "stringpool.h"
+#include "fold-const.h"
+#include "stor-layout.h"
+#include "varasm.h"
 #include "trans-types.h"
 #include "trans-const.h"
 #include "target-memory.h"
@@ -541,10 +532,15 @@ get_init_field (segment_info *head, tree union_type, tree *field_init,
   memset (chk, '\0', (size_t)length);
   for (s = head; s; s = s->next)
     if (s->sym->value)
-      gfc_merge_initializers (s->sym->ts, s->sym->value,
+      {
+	locus *loc = NULL;
+	if (s->sym->ns->equiv && s->sym->ns->equiv->eq)
+	  loc = &s->sym->ns->equiv->eq->expr->where;
+	gfc_merge_initializers (s->sym->ts, s->sym->value, loc,
 			      &data[s->offset],
 			      &chk[s->offset],
 			     (size_t)s->length);
+      }
   
   for (i = 0; i < length; i++)
     CONSTRUCTOR_APPEND_ELT (v, NULL, build_int_cst (type, data[i]));
@@ -692,14 +688,13 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
       TREE_STATIC (ctor) = 1;
       DECL_INITIAL (decl) = ctor;
 
-#ifdef ENABLE_CHECKING
-      {
-	tree field, value;
-	unsigned HOST_WIDE_INT idx;
-	FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor), idx, field, value)
-	  gcc_assert (TREE_CODE (field) == FIELD_DECL);
-      }
-#endif
+      if (flag_checking)
+	{
+	  tree field, value;
+	  unsigned HOST_WIDE_INT idx;
+	  FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor), idx, field, value)
+	    gcc_assert (TREE_CODE (field) == FIELD_DECL);
+	}
     }
 
   /* Build component reference for each variable.  */
@@ -810,13 +805,21 @@ element_number (gfc_array_ref *ar)
       if (ar->dimen_type[i] != DIMEN_ELEMENT)
         gfc_internal_error ("element_number(): Bad dimension type");
 
-      mpz_sub (n, *get_mpz (ar->start[i]), *get_mpz (as->lower[i]));
+      if (as && as->lower[i])
+	mpz_sub (n, *get_mpz (ar->start[i]), *get_mpz (as->lower[i]));
+      else
+	mpz_sub_ui (n, *get_mpz (ar->start[i]), 1);
  
       mpz_mul (n, n, multiplier);
       mpz_add (offset, offset, n);
  
-      mpz_sub (extent, *get_mpz (as->upper[i]), *get_mpz (as->lower[i]));
-      mpz_add_ui (extent, extent, 1);
+      if (as && as->upper[i] && as->lower[i])
+	{
+	  mpz_sub (extent, *get_mpz (as->upper[i]), *get_mpz (as->lower[i]));
+	  mpz_add_ui (extent, extent, 1);
+	}
+      else
+	mpz_set_ui (extent, 0);
  
       if (mpz_sgn (extent) < 0)
         mpz_set_ui (extent, 0);
@@ -918,8 +921,8 @@ confirm_condition (segment_info *s1, gfc_equiv *eq1, segment_info *s2,
   offset2 = calculate_offset (eq2->expr);
 
   if (s1->offset + offset1 != s2->offset + offset2)
-    gfc_error_1 ("Inconsistent equivalence rules involving '%s' at %L and "
-	       "'%s' at %L", s1->sym->name, &s1->sym->declared_at,
+    gfc_error ("Inconsistent equivalence rules involving %qs at %L and "
+	       "%qs at %L", s1->sym->name, &s1->sym->declared_at,
 	       s2->sym->name, &s2->sym->declared_at);
 }
 
@@ -1174,7 +1177,7 @@ translate_common (gfc_common_head *common, gfc_symbol *var_list)
 
   if (common_segment == NULL)
     {
-      gfc_error ("COMMON '%s' at %L does not exist",
+      gfc_error ("COMMON %qs at %L does not exist",
 		 common->name, &common->where);
       return;
     }
@@ -1239,8 +1242,12 @@ finish_equivalences (gfc_namespace *ns)
 	  {
 	    c = gfc_get_common_head ();
 	    /* We've lost the real location, so use the location of the
-	       enclosing procedure.  */
-	    c->where = ns->proc_name->declared_at;
+	       enclosing procedure.  If we're in a BLOCK DATA block, then
+	       use the location in the sym_root.  */
+	    if (ns->proc_name)
+	      c->where = ns->proc_name->declared_at;
+	    else if (ns->is_block_data)
+	      c->where = ns->sym_root->n.sym->declared_at;
 	    strcpy (c->name, z->module);
 	  }
 	else

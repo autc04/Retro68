@@ -1,8 +1,8 @@
 PHDRS
 {
-  header PT_PHDR FILEHDR PHDRS ;
+  header PT_PHDR PHDRS ;
 	 
-  image PT_LOAD FLAGS (5);
+  image PT_LOAD FLAGS (5) PHDRS;
   tls PT_TLS FLAGS (4);
   
 }

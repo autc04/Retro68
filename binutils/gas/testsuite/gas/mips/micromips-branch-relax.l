@@ -1,14 +1,8 @@
 .*: Assembler messages:
-.*:63: Warning: relaxed out-of-range branch into a jump
-.*:65: Warning: relaxed out-of-range branch into a jump
-.*:67: Warning: relaxed out-of-range branch into a jump
-.*:69: Warning: relaxed out-of-range branch into a jump
-.*:71: Warning: relaxed out-of-range branch into a jump
 .*:73: Warning: relaxed out-of-range branch into a jump
 .*:75: Warning: relaxed out-of-range branch into a jump
 .*:77: Warning: relaxed out-of-range branch into a jump
-.*:79: Warning: relaxed out-of-range branch into a jump
-.*:81: Warning: relaxed out-of-range branch into a jump
+.*:80: Warning: relaxed out-of-range branch into a jump
 .*:83: Warning: relaxed out-of-range branch into a jump
 .*:85: Warning: relaxed out-of-range branch into a jump
 .*:87: Warning: relaxed out-of-range branch into a jump
@@ -19,9 +13,8 @@
 .*:97: Warning: relaxed out-of-range branch into a jump
 .*:99: Warning: relaxed out-of-range branch into a jump
 .*:101: Warning: relaxed out-of-range branch into a jump
-.*:103: Warning: relaxed out-of-range branch into a jump
-.*:105: Warning: relaxed out-of-range branch into a jump
-.*:107: Warning: relaxed out-of-range branch into a jump
+.*:104: Warning: relaxed out-of-range branch into a jump
+.*:106: Warning: relaxed out-of-range branch into a jump
 .*:109: Warning: relaxed out-of-range branch into a jump
 .*:111: Warning: relaxed out-of-range branch into a jump
 .*:113: Warning: relaxed out-of-range branch into a jump
@@ -46,3 +39,10 @@
 .*:151: Warning: relaxed out-of-range branch into a jump
 .*:153: Warning: relaxed out-of-range branch into a jump
 .*:155: Warning: relaxed out-of-range branch into a jump
+.*:157: Warning: relaxed out-of-range branch into a jump
+.*:159: Warning: relaxed out-of-range branch into a jump
+.*:161: Warning: relaxed out-of-range branch into a jump
+.*:163: Warning: relaxed out-of-range branch into a jump
+.*:165: Warning: relaxed out-of-range branch into a jump
+.*:167: Warning: relaxed out-of-range branch into a jump
+.*:169: Warning: relaxed out-of-range branch into a jump

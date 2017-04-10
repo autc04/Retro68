@@ -1,5 +1,5 @@
 /* strings -- print the strings of printable characters in files
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2017 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,6 +54,10 @@
    --target=BFDNAME
    -T {bfdname}
 		Specify a non-default object file format.
+
+  --output-separator=sep_string
+  -s sep_string	String used to separate parsed strings in output.
+		Default is newline.
 
    --help
    -h		Print the usage message on the standard output.
@@ -114,6 +118,9 @@ static char *target;
 static char encoding;
 static int encoding_bytes;
 
+/* Output string used to separate parsed strings  */
+static char *output_separator;
+
 static struct option long_options[] =
 {
   {"all", no_argument, NULL, 'a'},
@@ -124,6 +131,7 @@ static struct option long_options[] =
   {"include-all-whitespace", required_argument, NULL, 'w'},
   {"encoding", required_argument, NULL, 'e'},
   {"target", required_argument, NULL, 'T'},
+  {"output-separator", required_argument, NULL, 's'},
   {"help", no_argument, NULL, 'h'},
   {"version", no_argument, NULL, 'v'},
   {NULL, 0, NULL, 0}
@@ -138,12 +146,9 @@ typedef struct
   bfd_size_type filesize;
 } filename_and_size_t;
 
-static void strings_a_section (bfd *, asection *, void *);
-static bfd_boolean strings_object_file (const char *);
 static bfd_boolean strings_file (char *);
 static void print_strings (const char *, FILE *, file_ptr, int, int, char *);
-static void usage (FILE *, int);
-static long get_char (FILE *, file_ptr *, int *, char **);
+static void usage (FILE *, int) ATTRIBUTE_NORETURN;
 
 int main (int, char **);
 
@@ -178,8 +183,9 @@ main (int argc, char **argv)
     datasection_only = TRUE;
   target = NULL;
   encoding = 's';
+  output_separator = NULL;
 
-  while ((optc = getopt_long (argc, argv, "adfhHn:wot:e:T:Vv0123456789",
+  while ((optc = getopt_long (argc, argv, "adfhHn:wot:e:T:s:Vv0123456789",
 			      long_options, (int *) 0)) != EOF)
     {
       switch (optc)
@@ -247,6 +253,10 @@ main (int argc, char **argv)
 	    usage (stderr, 1);
 	  encoding = optarg[0];
 	  break;
+
+	case 's':
+	  output_separator = optarg;
+          break;
 
 	case 'V':
 	case 'v':
@@ -334,12 +344,12 @@ strings_a_section (bfd *abfd, asection *sect, void *arg)
   bfd_size_type *filesizep;
   bfd_size_type sectsize;
   void *mem;
-     
+
   if ((sect->flags & DATA_FLAGS) != DATA_FLAGS)
     return;
 
   sectsize = bfd_get_section_size (sect);
-     
+
   if (sectsize <= 0)
     return;
 
@@ -350,7 +360,7 @@ strings_a_section (bfd *abfd, asection *sect, void *arg)
   if (*filesizep == 0)
     {
       struct stat st;
-      
+
       if (bfd_stat (abfd, &st))
 	return;
 
@@ -650,7 +660,10 @@ print_strings (const char *filename, FILE *stream, file_ptr address,
 	  putchar (c);
 	}
 
-      putchar ('\n');
+      if (output_separator)
+        fputs (output_separator, stdout);
+      else
+        putchar ('\n');
     }
   free (buf);
 }
@@ -681,6 +694,7 @@ usage (FILE *stream, int status)
   -T --target=<BFDNAME>     Specify the binary file format\n\
   -e --encoding={s,S,b,l,B,L} Select character size and endianness:\n\
                             s = 7-bit, S = 8-bit, {b,l} = 16-bit, {B,L} = 32-bit\n\
+  -s --output-separator=<string> String used to separate strings in output.\n\
   @<file>                   Read options from <file>\n\
   -h --help                 Display this information\n\
   -v -V --version           Print the program's version number\n"));

@@ -1,6 +1,6 @@
 // { dg-options "-std=gnu++11" }
 
-// Copyright (C) 2005-2015 Free Software Foundation, Inc.
+// Copyright (C) 2005-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -63,11 +63,24 @@ test03()
   VERIFY( &p->i == &a->i );
 }
 
+void
+test04()
+{
+  bool test __attribute__((unused)) = true;
+
+#if !(defined _GLIBCXX_DEBUG && defined _GLIBCXX_DEBUG_PEDANTIC)
+  std::shared_ptr<int> p;
+  auto np = p.operator->();
+  VERIFY( np == nullptr );
+#endif
+}
+
 int 
 main()
 {
   test01();
   test02();
   test03();
+  test04();
   return 0;
 }

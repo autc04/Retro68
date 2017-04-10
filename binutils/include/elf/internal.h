@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -114,6 +114,14 @@ typedef struct elf_internal_shdr {
   asection *	bfd_section;		/* Associated BFD section.  */
   unsigned char *contents;		/* Section contents.  */
 } Elf_Internal_Shdr;
+
+/* Compression header */
+
+typedef struct elf_internal_chdr {
+  unsigned int	ch_type;		/* Type of compression */
+  bfd_size_type	ch_size;		/* Size of uncompressed data in bytes */
+  bfd_vma	ch_addralign;		/* Alignment of uncompressed data */
+} Elf_Internal_Chdr;
 
 /* Symbol table entry */
 

@@ -1,5 +1,5 @@
 /* IEEE-754 single-precision functions for Xtensa
-   Copyright (C) 2006-2015 Free Software Foundation, Inc.
+   Copyright (C) 2006-2016 Free Software Foundation, Inc.
    Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
    This file is part of GCC.
@@ -487,6 +487,7 @@ __subsf3:
 #define XCHAL_NO_MUL 1
 #endif
 
+	.literal_position
 __mulsf3_aux:
 
 	/* Handle unusual cases (zeros, subnormals, NaNs and Infinities).
@@ -884,6 +885,7 @@ __mulsf3:
 
 #ifdef L_divsf3
 
+	.literal_position
 	/* Division */
 __divsf3_aux:
 

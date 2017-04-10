@@ -32,7 +32,7 @@ sh8:	.long 264
 	.type	fn1,@function
 	.balign	64
 fn1:
-	/* Funtion prolog */
+	/* Function prolog */
 	stmg	%r6,%r14,48(%r15)
 	bras	%r13,.LTN1
 	/* Literal pool */
@@ -80,7 +80,7 @@ fn1:
 .LC22:
 	.quad	sH2@gotntpoff
 .LTN1:	
-	/* Funtion prolog */
+	/* Function prolog */
 	lgr	%r14,%r15
 	larl	%r12,_GLOBAL_OFFSET_TABLE_
 	aghi	%r15,-160

@@ -1,6 +1,6 @@
 # Expect script for common symbol override.
 #
-# Copyright (C) 2011-2014 Free Software Foundation, Inc.
+# Copyright (C) 2011-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -67,6 +67,9 @@ if [is_elf64 "tmpdir/libcomm-data.so"] {
 if [istarget "*-*-hpux*"] {
     append AFLAGS " --defsym HPUX=1"
 }
+
+# bfin does not currently support copy relocs.
+setup_xfail "bfin-*-*"
 
 setup_xfail "arm*-*-*" "ld/13802"
 

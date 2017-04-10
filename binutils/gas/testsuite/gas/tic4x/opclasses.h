@@ -324,7 +324,7 @@ nameb##_J:                        &\
   .endif
 
 
-/* LL: Load-load parallell operation
+/* LL: Load-load parallel operation
    Syntax: <i> src2, dst2 || <i> src1, dst1
        src1 = Indirect 0,1,IR0,IR1 (J)
        dst1 = Register 0-7 (K)
@@ -352,7 +352,7 @@ name##_LL_enh:                                                      &\
 
 
 
-/* LS: Store-store parallell operation
+/* LS: Store-store parallel operation
    Syntax: <i> src2, dst2 || <i> src1, dst1
        src1 = Register 0-7 (H)
        dst1 = Indirect 0,1,IR0,IR1 (J)
@@ -645,7 +645,7 @@ nameb##3_##namea##3_M_enh:                                                      
   nameb##3  AR0, R0, R2             &||  namea##3  R0, AR0, R0              /* i;H;M|K;j;N */ &\
   .endif
 
-/* P: General 2-operand operation with parallell store
+/* P: General 2-operand operation with parallel store
    Syntax: <ia> src2, dst1 || <ib> src3, dst2
        src2 = Indirect 0,1,IR0,IR1, ENH: register (i)
        dst1 = Register 0-7 (L)
@@ -671,7 +671,7 @@ namea##_##nameb##_P_enh:                                        &\
   .endif
   
 
-/* Q: General 3-operand operation with parallell store
+/* Q: General 3-operand operation with parallel store
    Syntax: <ia> src1, src2, dst1 || <ib> src3, dst2
        src1 = Register 0-7 (K)
        src2 = Indirect 0,1,IR0,IR1, ENH: register (i)
@@ -708,7 +708,7 @@ namea##3_##nameb##_Q_enh:                                                       
   .endif
 
 
-/* QC: General commutative 3-operand operation with parallell store
+/* QC: General commutative 3-operand operation with parallel store
    Syntax: <ia> src2, src1, dst1 || <ib> src3, dst2
            <ia> src1, src2, dst1 || <ib> src3, dst2 - Manual
        src1 = Register 0-7 (K)

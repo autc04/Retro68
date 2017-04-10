@@ -39,7 +39,7 @@ Disassembly of section \.text:
    80c14:	83 de 00 00 	lwz     r30,0\(r30\)
    80c18:	80 3e 00 14 	lwz     r1,20\(r30\)
    80c1c:	80 01 00 00 	lwz     r0,0\(r1\)
-   80c20:	38 00 00 01 	li      r0,1
+   80c20:	30 00 00 01 	addic   r0,r0,1
    80c24:	90 01 00 00 	stw     r0,0\(r1\)
    80c28:	48 00 00 1d 	bl      80c44 <slocal>
    80c2c:	4b ff fc 15 	bl      80840 <_PROCEDURE_LINKAGE_TABLE_\+0x40>

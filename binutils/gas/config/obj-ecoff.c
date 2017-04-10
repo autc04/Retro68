@@ -1,5 +1,5 @@
 /* ECOFF object file format.
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2017 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -53,7 +53,7 @@ ecoff_frob_file_before_fix (void)
      This output ordering of sections is magic, on the Alpha, at
      least.  The .lita section must come before .lit8 and .lit4,
      otherwise the OSF/1 linker may silently trash the .lit{4,8}
-     section contents.  Also, .text must preceed .rdata.  These differ
+     section contents.  Also, .text must precede .rdata.  These differ
      from the order described in some parts of the DEC OSF/1 Assembly
      Language Programmer's Guide, but that order doesn't seem to work
      with their linker.

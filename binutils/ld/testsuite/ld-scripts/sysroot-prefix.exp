@@ -1,4 +1,4 @@
-# Copyright (C) 2014 Free Software Foundation, Inc.
+# Copyright (C) 2014-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -81,7 +81,7 @@ proc sysroot_prefix_test_setup { } {
     global as gasopt srcdir subdir ar
 
     if {![ld_assemble_flags $as $gasopt $srcdir/$subdir/pr14962a.s tmpdir/main.o]} {
-	error "Error assembling a trivial file for sysroot-prefix tests framework"
+	perror "Error assembling a trivial file for sysroot-prefix tests framework"
 	return 0
     }
 
@@ -106,13 +106,13 @@ proc sysroot_prefix_test_setup { } {
 	set libnamebase [lindex $test_object 2]
 
 	if ![ld_assemble_flags $as $gasopt $srcdir/$subdir/$sname $oname] {
-	    error "Error assembling trivial file $sname for sysroot-prefix tests framework"
+	    perror "Error assembling trivial file $sname for sysroot-prefix tests framework"
 	    return 0
 	}
 
 	if { [string length $libnamebase] != 0 &&
 	     ![ar_simple_create $ar "" tmpdir/sysroot/tmp/ldtest-xyzzy/lib$libnamebase.a $oname] } {
-	    error "Error creating archive $libnamebase for sysroot-prefix tests framework"
+	    perror "Error creating archive $libnamebase for sysroot-prefix tests framework"
 	    return 0
 	}
     }

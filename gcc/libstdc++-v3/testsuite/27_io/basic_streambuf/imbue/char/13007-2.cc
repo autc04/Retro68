@@ -1,6 +1,6 @@
-// { dg-require-namedlocale "en_US" }
+// { dg-require-namedlocale "en_US.ISO8859-1" }
 
-// Copyright (C) 2003-2015 Free Software Foundation, Inc.
+// Copyright (C) 2003-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,7 +46,7 @@ void test02()
   bool test __attribute__((unused)) = true;
 
   Buf2 buf;
-  std::locale loc(std::locale("en_US"));
+  std::locale loc(std::locale(ISO_8859(1,en_US)));
 
   buf.pubimbue(loc);
 

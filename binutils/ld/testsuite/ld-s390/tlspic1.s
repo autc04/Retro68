@@ -32,7 +32,7 @@ sh8:	.long 264
 	.type	fn1,@function
 	.balign 64
 fn1:
-	/* Funtion prolog */
+	/* Function prolog */
 	stm	%r6,%r14,24(%r15)
 	bras	%r13,.LTN1
 	/* Literal pool */
@@ -84,7 +84,7 @@ fn1:
 .LC22:
 	.long	sH2@gotntpoff
 .LTN1:	
-	/* Funtion prolog */
+	/* Function prolog */
 	lr	%r14,%r15
 	l	%r12,.LC0-.LT1(%r13)
 	ahi	%r15,-96

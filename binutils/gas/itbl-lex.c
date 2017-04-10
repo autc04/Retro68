@@ -332,6 +332,9 @@ void yyfree (void *  );
 
 /* Begin user sect3 */
 
+#define yywrap(n) 1
+#define YY_SKIP_YYWRAP
+
 typedef unsigned char YY_CHAR;
 
 FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
@@ -491,7 +494,7 @@ int yy_flex_debug = 0;
 char *yytext;
 #line 1 "itbl-lex.l"
 /* itbl-lex.l
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -500,7 +503,7 @@ char *yytext;
    the Free Software Foundation; either version 3, or (at your option)
    any later version.
 
-   GAS is distributed in the hope that it will be useful, 
+   GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
@@ -509,7 +512,7 @@ char *yytext;
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
-#line 22 "itbl-lex.l"
+#line 24 "itbl-lex.l"
 #include "as.h"
 #include "itbl-lex.h"
 #include <itbl-parse.h>
@@ -523,7 +526,7 @@ char *yytext;
 #endif
 
 int insntbl_line = 1;
-#line 527 "itbl-lex.c"
+#line 530 "itbl-lex.c"
 
 #define INITIAL 0
 
@@ -705,10 +708,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 42 "itbl-lex.l"
+#line 44 "itbl-lex.l"
 
 
-#line 712 "itbl-lex.c"
+#line 715 "itbl-lex.c"
 
 	if ( !(yy_init) )
 		{
@@ -793,49 +796,49 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 44 "itbl-lex.l"
+#line 46 "itbl-lex.l"
 {
     return CREG;
   }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 47 "itbl-lex.l"
+#line 49 "itbl-lex.l"
 {
     return DREG;
   }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 50 "itbl-lex.l"
+#line 52 "itbl-lex.l"
 {
     return GREG;
   }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 53 "itbl-lex.l"
+#line 55 "itbl-lex.l"
 {
     return IMMED;
   }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 56 "itbl-lex.l"
+#line 58 "itbl-lex.l"
 {
     return ADDR;
   }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 59 "itbl-lex.l"
+#line 61 "itbl-lex.l"
 {
     return INSN;
   }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 62 "itbl-lex.l"
+#line 64 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.processor = strtoul (yytext+1, 0, 0);
@@ -844,7 +847,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 67 "itbl-lex.l"
+#line 69 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.num = strtoul (yytext, 0, 0);
@@ -853,7 +856,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 72 "itbl-lex.l"
+#line 74 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.num = strtoul (yytext, 0, 0);
@@ -862,7 +865,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 77 "itbl-lex.l"
+#line 79 "itbl-lex.l"
 {
     yytext[yyleng] = 0;
     yylval.str = strdup (yytext);
@@ -871,12 +874,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 82 "itbl-lex.l"
+#line 84 "itbl-lex.l"
 {
     int c;
-    while ((c = input ()) !=  EOF) 
+    while ((c = input ()) !=  EOF)
       {
-        if (c ==  '\n') 
+        if (c ==  '\n')
     	{
     		unput (c);
     		break;
@@ -887,22 +890,22 @@ YY_RULE_SETUP
 case 12:
 /* rule 12 can match eol */
 YY_RULE_SETUP
-#line 93 "itbl-lex.l"
-{ 
-    insntbl_line++; 
+#line 95 "itbl-lex.l"
+{
+    insntbl_line++;
     MDBG (("in lex, NL = %d (x%x)\n", NL, NL));
-    return NL; 
+    return NL;
   }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 98 "itbl-lex.l"
-{ 
+#line 100 "itbl-lex.l"
+{
   }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 100 "itbl-lex.l"
+#line 102 "itbl-lex.l"
 {
     MDBG (("char = %x, %d\n", yytext[0], yytext[0]));
     return yytext[0];
@@ -910,10 +913,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 104 "itbl-lex.l"
+#line 106 "itbl-lex.l"
 ECHO;
 	YY_BREAK
-#line 917 "itbl-lex.c"
+#line 920 "itbl-lex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1910,15 +1913,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 104 "itbl-lex.l"
+#line 106 "itbl-lex.l"
 
 
-
-#ifndef yywrap
-int 
-yywrap () 
-  { 
-    return 1; 
-  }
-#endif
 

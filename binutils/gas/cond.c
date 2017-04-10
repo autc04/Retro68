@@ -1,5 +1,5 @@
 /* cond.c - conditional assembly pseudo-ops, and .include
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -29,7 +29,7 @@
 struct obstack cond_obstack;
 
 struct file_line {
-  char *file;
+  const char *file;
   unsigned int line;
 };
 
@@ -77,7 +77,7 @@ s_ifdef (int test_defined)
   SKIP_WHITESPACE ();
   name = input_line_pointer;
 
-  if (!is_name_beginner (*name))
+  if (!is_name_beginner (*name) && *name != '"')
     {
       as_bad (_("invalid identifier for \".ifdef\""));
       obstack_1grow (&cond_obstack, 0);
@@ -85,9 +85,9 @@ s_ifdef (int test_defined)
       return;
     }
 
-  c = get_symbol_end ();
+  c = get_symbol_name (& name);
   symbolP = symbol_find (name);
-  *input_line_pointer = c;
+  (void) restore_line_pointer (c);
 
   initialize_cframe (&cframe);
 
@@ -128,7 +128,7 @@ s_if (int arg)
   struct conditional_frame cframe;
   int t;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
   if (flag_mri)
     stop = mri_comment_field (&stopc);
@@ -261,7 +261,7 @@ void
 s_ifc (int arg)
 {
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
   char *s1, *s2;
   int len1, len2;
   int res;
@@ -317,8 +317,8 @@ s_elseif (int arg)
     }
   else
     {
-      as_where (&current_cframe->else_file_line.file,
-		&current_cframe->else_file_line.line);
+      current_cframe->else_file_line.file
+       	= as_where (&current_cframe->else_file_line.line);
 
       current_cframe->dead_tree |= !current_cframe->ignoring;
       current_cframe->ignoring = current_cframe->dead_tree;
@@ -423,8 +423,8 @@ s_else (int arg ATTRIBUTE_UNUSED)
     }
   else
     {
-      as_where (&current_cframe->else_file_line.file,
-		&current_cframe->else_file_line.line);
+      current_cframe->else_file_line.file
+       	= as_where (&current_cframe->else_file_line.line);
 
       current_cframe->ignoring =
 	current_cframe->dead_tree | !current_cframe->ignoring;
@@ -527,8 +527,8 @@ static void
 initialize_cframe (struct conditional_frame *cframe)
 {
   memset (cframe, 0, sizeof (*cframe));
-  as_where (&cframe->if_file_line.file,
-	    &cframe->if_file_line.line);
+  cframe->if_file_line.file
+	    = as_where (&cframe->if_file_line.line);
   cframe->previous_cframe = current_cframe;
   cframe->dead_tree = current_cframe != NULL && current_cframe->ignoring;
   cframe->macro_nest = macro_nest;

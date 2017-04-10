@@ -15,3 +15,8 @@ start:
 	orb	%rax, (%rax)
 	orw	%rax, (%rax)
 	orl	%rax, (%rax)
+
+	pushq	%ax
+	popq	%ax
+	callq	*%ax
+	jmpq	*%ax

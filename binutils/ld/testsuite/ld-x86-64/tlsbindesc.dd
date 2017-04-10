@@ -22,7 +22,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	55[ 	]+push   %rbp
  +[0-9a-f]+:	48 89 e5[ 	]+mov    %rsp,%rbp
 #  GD -> IE because variable is not defined in executable
- +[0-9a-f]+:	48 8b 05 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <_DYNAMIC\+0x118>
+ +[0-9a-f]+:	48 8b 05 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <.*>
 #				-> R_X86_64_TPOFF64	sG1
  +[0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
  +[0-9a-f]+:	90[ 	]+nop *
@@ -31,7 +31,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through IE too
- +[0-9a-f]+:	48 8b 05 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <_DYNAMIC\+0x108>
+ +[0-9a-f]+:	48 8b 05 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <.*>
 #				-> R_X86_64_TPOFF64	sG2
  +[0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
  +[0-9a-f]+:	90[ 	]+nop *
@@ -93,7 +93,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	00 00 *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	4c 03 0d ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+\(%rip\),%r9 +# [0-9a-f]+ <_DYNAMIC\+0x108>
+ +[0-9a-f]+:	4c 03 0d ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+\(%rip\),%r9 +# [0-9a-f]+ <.*>
 #				-> R_X86_64_TPOFF64	sG2
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -134,7 +134,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
 #  Direct access through %fs
 #  IE against global var
- +[0-9a-f]+:	48 8b 0d ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+\(%rip\),%rcx +# [0-9a-f]+ <_DYNAMIC\+0x100>
+ +[0-9a-f]+:	48 8b 0d ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+\(%rip\),%rcx +# [0-9a-f]+ <.*>
 #				-> R_X86_64_TPOFF64	sG5
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -174,7 +174,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	00 00 *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	4c 03 1d ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+\(%rip\),%r11 +# [0-9a-f]+ <_DYNAMIC\+0x110>
+ +[0-9a-f]+:	4c 03 1d ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+\(%rip\),%r11 +# [0-9a-f]+ <.*>
 #				-> R_X86_64_TPOFF64	sG6
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *

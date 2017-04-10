@@ -1,5 +1,5 @@
 /* Routines to help build PEI-format DLLs (Win32 etc)
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2017 Free Software Foundation, Inc.
    Written by DJ Delorie <dj@cygnus.com>
 
    This file is part of the GNU Binutils.
@@ -128,7 +128,7 @@
     should run in parallel with addresses vector (FirstThunk), i.e. that they
     should have same number of elements and terminated with zero. We violate
     this, since FirstThunk points directly into machine code. But in practice,
-    OS loader implemented the sane way: it goes thru OriginalFirstThunk and
+    OS loader implemented the sane way: it goes through OriginalFirstThunk and
     puts addresses to FirstThunk, not something else. It once again should be
     noted that dll and symbol name structures are reused across fixup entries
     and should be there anyway to support standard import stuff, so sustained
@@ -693,7 +693,7 @@ process_def_file_and_drectve (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *
 
   /* If we are building an executable and there is nothing
      to export, we do not build an export table at all.  */
-  if (info->executable && pe_def_file->num_exports == 0
+  if (bfd_link_executable (info) && pe_def_file->num_exports == 0
       && (!pe_dll_export_everything || pe_dll_exclude_all_symbols))
     return;
 
@@ -894,16 +894,23 @@ process_def_file_and_drectve (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *
 
   for (i = 0; i < NE; i++)
     {
+      char *int_name = pe_def_file->exports[i].internal_name;
       char *name;
-      name = xmalloc (strlen (pe_def_file->exports[i].internal_name) + 2);
-      if (pe_details->underscored
- 	  && (*pe_def_file->exports[i].internal_name != '@'))
+
+      /* PR 19803: Make sure that any exported symbol does not get garbage collected.  */
+      lang_add_gc_name (int_name);
+
+      name = xmalloc (strlen (int_name) + 2);
+      if (pe_details->underscored && int_name[0] != '@')
 	{
 	  *name = '_';
-	  strcpy (name + 1, pe_def_file->exports[i].internal_name);
+	  strcpy (name + 1, int_name);
+
+	  /* PR 19803: The alias must be preserved as well.  */
+	  lang_add_gc_name (xstrdup (name));
 	}
       else
-	strcpy (name, pe_def_file->exports[i].internal_name);
+	strcpy (name, int_name);
 
       blhe = bfd_link_hash_lookup (info->hash,
 				   name,
@@ -939,7 +946,7 @@ process_def_file_and_drectve (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *
 	 but we must take care not to be fooled when the user wants to export
 	 a symbol that actually really has a dot in it, so we only check
 	 for them here, after real defined symbols have already been matched.  */
-      else if (strchr (pe_def_file->exports[i].internal_name, '.'))
+      else if (strchr (int_name, '.'))
 	{
 	  count_exported++;
 	  if (!pe_def_file->exports[i].flag_noname)
@@ -960,20 +967,20 @@ process_def_file_and_drectve (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *
 	{
 	  /* xgettext:c-format */
 	  einfo (_("%XCannot export %s: symbol not defined\n"),
-		 pe_def_file->exports[i].internal_name);
+		 int_name);
 	}
       else if (blhe)
 	{
 	  /* xgettext:c-format */
 	  einfo (_("%XCannot export %s: symbol wrong type (%d vs %d)\n"),
-		 pe_def_file->exports[i].internal_name,
+		 int_name,
 		 blhe->type, bfd_link_hash_defined);
 	}
       else
 	{
 	  /* xgettext:c-format */
 	  einfo (_("%XCannot export %s: symbol not found\n"),
-		 pe_def_file->exports[i].internal_name);
+		 int_name);
 	}
       free (name);
     }
@@ -2259,6 +2266,8 @@ make_one (def_file_export *exp, bfd *parent, bfd_boolean include_jmp_stub)
     }
   else
     {
+      int ord;
+
       /* { short, asciz }  */
       if (exp->its_name)
 	len = 2 + strlen (exp->its_name) + 1;
@@ -2270,8 +2279,13 @@ make_one (def_file_export *exp, bfd *parent, bfd_boolean include_jmp_stub)
       d6 = xmalloc (len);
       id6->contents = d6;
       memset (d6, 0, len);
-      d6[0] = exp->hint & 0xff;
-      d6[1] = exp->hint >> 8;
+
+      /* PR 20880:  Use exp->hint as a backup, just in case exp->ordinal
+	 contains an invalid value (-1).  */
+      ord = (exp->ordinal >= 0) ? exp->ordinal : exp->hint;
+      d6[0] = ord;
+      d6[1] = ord >> 8;
+
       if (exp->its_name)
 	strcpy ((char*) d6 + 2, exp->its_name);
       else
@@ -2790,7 +2804,44 @@ pe_dll_generate_implib (def_file *def, const char *impfilename, struct bfd_link_
       /* Don't add PRIVATE entries to import lib.  */
       if (pe_def_file->exports[i].flag_private)
 	continue;
+
       def->exports[i].internal_name = def->exports[i].name;
+
+      /* PR 19803: If a symbol has been discard due to garbage
+	 collection then do not create any exports for it.  */
+      {
+	struct coff_link_hash_entry *h;
+
+	h = coff_link_hash_lookup (coff_hash_table (info), internal,
+				   FALSE, FALSE, FALSE);
+	if (h != NULL
+	    /* If the symbol is hidden and undefined then it
+	       has been swept up by garbage collection.  */
+	    && h->symbol_class == C_HIDDEN
+	    && h->root.u.def.section == bfd_und_section_ptr)
+	  continue;
+
+	/* If necessary, check with an underscore prefix as well.  */
+	if (pe_details->underscored && internal[0] != '@')
+	  {
+	    char *name;
+
+	    name = xmalloc (strlen (internal) + 2);
+	    sprintf (name, "_%s", internal);
+
+	    h = coff_link_hash_lookup (coff_hash_table (info), name,
+				       FALSE, FALSE, FALSE);
+	    free (name);
+
+	    if (h != NULL
+		/* If the symbol is hidden and undefined then it
+		   has been swept up by garbage collection.  */
+		&& h->symbol_class == C_HIDDEN
+		&& h->root.u.def.section == bfd_und_section_ptr)
+	      continue;
+	  }
+      }
+
       n = make_one (def->exports + i, outarch,
 		    ! (def->exports + i)->flag_data);
       n->archive_next = head;
@@ -2846,7 +2897,7 @@ pe_find_cdecl_alias_match (struct bfd_link_info *linfo, char *name)
   struct bfd_link_hash_entry *h = NULL;
   struct key_value *kv;
   struct key_value key;
-  char *at, *lname = (char *) alloca (strlen (name) + 3);
+  char *at, *lname = xmalloc (strlen (name) + 3);
 
   strcpy (lname, name);
 
@@ -2862,10 +2913,12 @@ pe_find_cdecl_alias_match (struct bfd_link_info *linfo, char *name)
     {
       h = bfd_link_hash_lookup (linfo->hash, kv->oname, FALSE, FALSE, FALSE);
       if (h->type == bfd_link_hash_undefined)
-        return h;
+        goto return_h;
     }
+
   if (lname[0] == '?')
-    return NULL;
+    goto return_NULL;
+
   if (at || lname[0] == '@')
     {
       if (lname[0] == '@')
@@ -2881,7 +2934,7 @@ pe_find_cdecl_alias_match (struct bfd_link_info *linfo, char *name)
 	    {
 	      h = bfd_link_hash_lookup (linfo->hash, kv->oname, FALSE, FALSE, FALSE);
 	      if (h->type == bfd_link_hash_undefined)
-		return h;
+		goto return_h;
 	    }
 	}
       if (at)
@@ -2893,9 +2946,9 @@ pe_find_cdecl_alias_match (struct bfd_link_info *linfo, char *name)
 	{
 	  h = bfd_link_hash_lookup (linfo->hash, kv->oname, FALSE, FALSE, FALSE);
 	  if (h->type == bfd_link_hash_undefined)
-	    return h;
+	    goto return_h;
 	}
-      return NULL;
+      goto return_NULL;
     }
 
   strcat (lname, "@");
@@ -2907,7 +2960,7 @@ pe_find_cdecl_alias_match (struct bfd_link_info *linfo, char *name)
     {
       h = bfd_link_hash_lookup (linfo->hash, kv->oname, FALSE, FALSE, FALSE);
       if (h->type == bfd_link_hash_undefined)
-	return h;
+	goto return_h;
     }
 
   if (lname[0] == '_' && pe_details->underscored)
@@ -2926,10 +2979,14 @@ pe_find_cdecl_alias_match (struct bfd_link_info *linfo, char *name)
     {
       h = bfd_link_hash_lookup (linfo->hash, kv->oname, FALSE, FALSE, FALSE);
       if (h->type == bfd_link_hash_undefined)
-        return h;
+        goto return_h;
     }
 
-  return NULL;
+ return_NULL:
+  h = NULL;
+ return_h:
+  free (lname);
+  return h;
 }
 
 static bfd_boolean
@@ -3369,7 +3426,7 @@ pe_dll_build_sections (bfd *abfd, struct bfd_link_info *info)
   pe_output_file_set_long_section_names (abfd);
   process_def_file_and_drectve (abfd, info);
 
-  if (pe_def_file->num_exports == 0 && !info->shared)
+  if (pe_def_file->num_exports == 0 && !bfd_link_pic (info))
     return;
 
   generate_edata (abfd, info);
@@ -3411,7 +3468,7 @@ pe_dll_fill_sections (bfd *abfd, struct bfd_link_info *info)
 
   fill_edata (abfd, info);
 
-  if (info->shared && !info->pie)
+  if (bfd_link_dll (info))
     pe_data (abfd)->dll = 1;
 
   edata_s->contents = edata_d;

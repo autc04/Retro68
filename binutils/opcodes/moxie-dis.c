@@ -1,5 +1,5 @@
 /* Disassemble moxie instructions.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -140,37 +140,37 @@ print_insn_moxie (bfd_vma addr, struct disassemble_info * info)
 	    length = 6;
 	  }
 	  break;
-	case MOXIE_F1_AiB4:
+	case MOXIE_F1_AiB2:
 	  {
 	    unsigned imm;
-	    if ((status = info->read_memory_func (addr+2, buffer, 4, info)))
+	    if ((status = info->read_memory_func (addr+2, buffer, 2, info)))
 	      goto fail;
 	    if (info->endian == BFD_ENDIAN_BIG)
-	      imm = bfd_getb32 (buffer);
+	      imm = bfd_getb16 (buffer);
 	    else
-	      imm = bfd_getl32 (buffer);
+	      imm = bfd_getl16 (buffer);
 	    fpr (stream, "%s\t0x%x(%s), %s", opcode->name,
 		 imm,
 		 reg_names[OP_A(iword)],
 		 reg_names[OP_B(iword)]);
-	    length = 6;
+	    length = 4;
 	  }
 	  break;
-	case MOXIE_F1_ABi4:
+	case MOXIE_F1_ABi2:
 	  {
 	    unsigned imm;
-	    if ((status = info->read_memory_func (addr+2, buffer, 4, info)))
+	    if ((status = info->read_memory_func (addr+2, buffer, 2, info)))
 	      goto fail;
 	    if (info->endian == BFD_ENDIAN_BIG)
-	      imm = bfd_getb32 (buffer);
+	      imm = bfd_getb16 (buffer);
 	    else
-	      imm = bfd_getl32 (buffer);
+	      imm = bfd_getl16 (buffer);
 	    fpr (stream, "%s\t%s, 0x%x(%s)",
 		 opcode->name,
 		 reg_names[OP_A(iword)],
 		 imm,
 		 reg_names[OP_B(iword)]);
-	    length = 6;
+	    length = 4;
 	  }
 	  break;
         case MOXIE_BAD:
@@ -210,7 +210,7 @@ print_insn_moxie (bfd_vma addr, struct disassemble_info * info)
 	{
 	case MOXIE_F3_PCREL:
 	  fpr (stream, "%s\t", opcode->name);
-	  info->print_address_func ((bfd_vma) (addr + INST2OFFSET(iword) + 2), 
+	  info->print_address_func ((bfd_vma) (addr + INST2OFFSET(iword) + 2),
 				    info);
 	  break;
         case MOXIE_BAD:

@@ -15,7 +15,7 @@ Disassembly of section .text:
    0:	e1a00000 	nop			; .*
 			0: R_ARM_TLS_DESCSEQ	af
    4:	e59f0014 	ldr	r0, \[pc, #20\]	; 20 .*
-   8:	fa000000 	blx	8 <ae\+.*>
+   8:	fa000000 	blx	8 <ae.*>
 			8: R_ARM_TLS_CALL	ae
    c:	e1a00000 	nop			; .*
 0+10 <.arm_pool>:
@@ -34,7 +34,7 @@ Disassembly of section .text:
   26:	46c0      	nop			; .*
 			26: R_ARM_THM_TLS_DESCSEQ	tf
   28:	4805      	ldr	r0, \[pc, #20\]	; \(40 .*\)
-  2a:	f000 e800 	blx	4 <te\+0x4>
+  2a:	f000 e800 	blx	4 <te.*>
 			2a: R_ARM_THM_TLS_CALL	te
   2e:	46c0      	nop			; .*
   30:	00000002 	.word	0x00000002

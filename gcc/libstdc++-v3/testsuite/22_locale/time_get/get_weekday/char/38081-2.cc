@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "ru_RU.UTF8" }
+// { dg-require-namedlocale "ru_RU.UTF-8" }
 
 // 2010-01-05  Paolo Carlini  <paolo.carlini@oracle.com>
 
-// Copyright (C) 2010-2015 Free Software Foundation, Inc.
+// Copyright (C) 2010-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ void test01()
   typedef istreambuf_iterator<char> iterator_type;
 
   // basic construction
-  locale loc("ru_RU.UTF8");
+  locale loc("ru_RU.UTF-8");
 
   // create an ostream-derived object, cache the time_get facet
   iterator_type end;

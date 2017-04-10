@@ -5,7 +5,7 @@ power8:
 	tabortdc.    20,11,10
 	tabortwci.   17,10,-13
 	tabortdci.   29,3,-5
-	tbegin.
+	tbegin.      0
 	tcheck       7
 	tend.        0
 	tend.
@@ -144,3 +144,43 @@ power8:
 	fmrgew       22,7,5
 	msgsnd       14
 	msgclr       23
+	lxvx         40,0,5
+	lxvd2x       40,0,5
+	lxvx         10,20,6
+	lxvd2x       10,20,6
+	stxvx        41,0,7
+	stxvd2x      41,0,7
+	stxvx        11,21,8
+	stxvd2x      11,21,8
+	lbarx        20,0,7
+	lbarx        20,0,7,0
+	lbarx        20,0,7,1
+	lbarx        20,1,7
+	lbarx        20,1,7,0
+	lbarx        20,1,7,1
+	ldarx        21,0,8
+	ldarx        21,0,8,0
+	ldarx        21,0,8,1
+	ldarx        21,1,8
+	ldarx        21,1,8,0
+	ldarx        21,1,8,1
+	lharx        22,0,9
+	lharx        22,0,9,0
+	lharx        22,0,9,1
+	lharx        22,1,9
+	lharx        22,1,9,0
+	lharx        22,1,9,1
+	lwarx        23,0,10
+	lwarx        23,0,10,0
+	lwarx        23,0,10,1
+	lwarx        23,1,10
+	lwarx        23,1,10,0
+	lwarx        23,1,10,1
+	stbcx.       10,0,7
+	stbcx.       10,1,7
+	sthcx.       11,0,8
+	sthcx.       11,1,8
+	stwcx.       12,0,9
+	stwcx.       12,1,9
+	stdcx.       13,0,10
+	stdcx.       13,1,10

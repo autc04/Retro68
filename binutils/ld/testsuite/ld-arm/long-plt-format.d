@@ -3,7 +3,7 @@
 
 Disassembly of section .plt:
 
-.* <foo@plt-0x14>:
+.* <.plt>:
  .*:	.*
  .*:	.*
  .*:	.*

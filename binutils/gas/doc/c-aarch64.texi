@@ -1,4 +1,4 @@
-@c Copyright (C) 2009-2014 Free Software Foundation, Inc.
+@c Copyright (C) 2009-2017 Free Software Foundation, Inc.
 @c Contributed by ARM Ltd.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
@@ -55,11 +55,17 @@ file in ELF32 and ELF64 format respectively.  The default is @code{lp64}.
 This option specifies the target processor.  The assembler will issue an error
 message if an attempt is made to assemble an instruction which will not execute
 on the target processor.  The following processor names are recognized:
+@code{cortex-a35},
 @code{cortex-a53},
 @code{cortex-a57},
 @code{cortex-a72},
+@code{cortex-a73},
 @code{exynos-m1},
-@code{xgene1},
+@code{falkor},
+@code{qdf24xx},
+@code{thunderx},
+@code{vulcan},
+@code{xgene1}
 and
 @code{xgene2}.
 The special name @code{all} may be used to allow the assembler to accept
@@ -80,7 +86,8 @@ extensions.
 This option specifies the target architecture.  The assembler will
 issue an error message if an attempt is made to assemble an
 instruction which will not execute on the target architecture.  The
-only value for @var{architecture} is @code{armv8-a}.
+following architecture names are recognized: @code{armv8-a},
+@code{armv8.1-a}, @code{armv8.2-a} and @code{armv8.3-a}.
 
 If both @option{-mcpu} and @option{-march} are specified, the
 assembler will use the setting for @option{-mcpu}.  If neither are
@@ -124,14 +131,36 @@ automatically cause those extensions to be disabled.
 @multitable @columnfractions .12 .17 .17 .54
 @headitem Extension @tab Minimum Architecture @tab Enabled by default
  @tab Description
-@item @code{crc} @tab ARMv8-A @tab No
+@item @code{compnum} @tab ARMv8.2-A @tab ARMv8.3-A or later
+ @tab Enable the complex number SIMD extensions.  This implies
+ @code{fp16} and @code{simd}.
+@item @code{crc} @tab ARMv8-A @tab ARMv8.1-A or later
  @tab Enable CRC instructions.
 @item @code{crypto} @tab ARMv8-A @tab No
  @tab Enable cryptographic extensions.  This implies @code{fp} and @code{simd}.
 @item @code{fp} @tab ARMv8-A @tab ARMv8-A or later
  @tab Enable floating-point extensions.
+@item @code{fp16} @tab ARMv8.2-A @tab ARMv8.2-A or later
+ @tab Enable ARMv8.2 16-bit floating-point support.  This implies
+ @code{fp}.
+@item @code{lor} @tab ARMv8-A @tab ARMv8.1-A or later
+ @tab Enable Limited Ordering Regions extensions.
+@item @code{lse} @tab ARMv8-A @tab ARMv8.1-A or later
+ @tab Enable Large System extensions.
+@item @code{pan} @tab ARMv8-A @tab ARMv8.1-A or later
+ @tab Enable Privileged Access Never support.
+@item @code{profile} @tab ARMv8.2-A @tab No
+ @tab Enable statistical profiling extensions.
+@item @code{ras} @tab ARMv8-A @tab ARMv8.2-A or later
+ @tab Enable the Reliability, Availability and Serviceability
+ extension.
+@item @code{rdma} @tab ARMv8-A @tab ARMv8.1-A or later
+ @tab Enable ARMv8.1 Advanced SIMD extensions.  This implies @code{simd}.
 @item @code{simd} @tab ARMv8-A @tab ARMv8-A or later
  @tab Enable Advanced SIMD extensions.  This implies @code{fp}.
+@item @code{sve} @tab ARMv8.2-A @tab No
+ @tab Enable the Scalable Vector Extensions.  This implies @code{fp16},
+ @code{simd} and @code{compnum}.
 @end multitable
 
 @node AArch64 Syntax
@@ -233,6 +262,24 @@ The AArch64 architecture uses @sc{ieee} floating-point numbers.
 @table @code
 
 @c AAAAAAAAAAAAAAAAAAAAAAAAA
+
+@cindex @code{.arch} directive, AArch64
+@item .arch @var{name}
+Select the target architecture.  Valid values for @var{name} are the same as
+for the @option{-march} commandline option.
+
+Specifying @code{.arch} clears any previously selected architecture
+extensions.
+
+@cindex @code{.arch_extension} directive, AArch64
+@item .arch_extension @var{name}
+Add or remove an architecture extension to the target architecture.  Valid
+values for @var{name} are the same as those accepted as architectural
+extensions by the @option{-mcpu} commandline option.
+
+@code{.arch_extension} may be used multiple times to add or remove extensions
+incrementally to the architecture being compiled for.
+
 @c BBBBBBBBBBBBBBBBBBBBBBBBBB
 
 @cindex @code{.bss} directive, AArch64
@@ -240,12 +287,35 @@ The AArch64 architecture uses @sc{ieee} floating-point numbers.
 This directive switches to the @code{.bss} section.
 
 @c CCCCCCCCCCCCCCCCCCCCCCCCCC
+
+@cindex @code{.cpu} directive, AArch64
+@item .cpu @var{name}
+Set the target processor.  Valid values for @var{name} are the same as
+those accepted by the @option{-mcpu=} command line option.
+
 @c DDDDDDDDDDDDDDDDDDDDDDDDDD
+
+@cindex @code{.dword} directive, AArch64
+@item .dword @var{expressions}
+The @code{.dword} directive produces 64 bit values.
+
 @c EEEEEEEEEEEEEEEEEEEEEEEEEE
+
+@cindex @code{.even} directive, AArch64
+@item .even
+The @code{.even} directive aligns the output on the next even byte
+boundary.
+
 @c FFFFFFFFFFFFFFFFFFFFFFFFFF
 @c GGGGGGGGGGGGGGGGGGGGGGGGGG
 @c HHHHHHHHHHHHHHHHHHHHHHHHHH
 @c IIIIIIIIIIIIIIIIIIIIIIIIII
+
+@cindex @code{.inst} directive, AArch64
+@item .inst @var{expressions}
+Inserts the expressions into the output as if they were instructions,
+rather than data.
+
 @c JJJJJJJJJJJJJJJJJJJJJJJJJJ
 @c KKKKKKKKKKKKKKKKKKKKKKKKKK
 @c LLLLLLLLLLLLLLLLLLLLLLLLLL
@@ -291,6 +361,18 @@ example:
 
 @c TTTTTTTTTTTTTTTTTTTTTTTTTT
 
+@cindex @code{.tlsdescadd} directive, AArch64
+@item   @code{.tlsdescadd}
+Emits a TLSDESC_ADD reloc on the next instruction.
+
+@cindex @code{.tlsdesccall} directive, AArch64
+@item   @code{.tlsdesccall}
+Emits a TLSDESC_CALL reloc on the next instruction.
+
+@cindex @code{.tlsdescldr} directive, AArch64
+@item   @code{.tlsdescldr}
+Emits a TLSDESC_LDR reloc on the next instruction.
+
 @c UUUUUUUUUUUUUUUUUUUUUUUUUU
 
 @cindex @code{.unreq} directive, AArch64
@@ -311,6 +393,12 @@ should only be done if it is really necessary.
 
 @c WWWWWWWWWWWWWWWWWWWWWWWWWW
 @c XXXXXXXXXXXXXXXXXXXXXXXXXX
+
+@cindex @code{.xword} directive, AArch64
+@item .xword @var{expressions}
+The @code{.xword} directive produces 64 bit values.  This is the same
+as the @code{.dword} directive.
+
 @c YYYYYYYYYYYYYYYYYYYYYYYYYY
 @c ZZZZZZZZZZZZZZZZZZZZZZZZZZ
 

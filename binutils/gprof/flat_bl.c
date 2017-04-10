@@ -6,8 +6,7 @@
 
 void  flat_blurb (FILE *);
 void
-flat_blurb (file)
-     FILE *file;
+flat_blurb (FILE *file)
 {
   fputs ("\n", file);
   fputs (" %         the percentage of the total running time of the\n", file);
@@ -22,13 +21,13 @@ flat_blurb (file)
   fputs ("\n", file);
   fputs ("calls      the number of times this function was invoked, if\n", file);
   fputs ("           this function is profiled, else blank.\n", file);
-  fputs (" \n", file);
+  fputs ("\n", file);
   fputs (" self      the average number of milliseconds spent in this\n", file);
   fputs ("ms/call    function per call, if this function is profiled,\n", file);
   fputs ("	   else blank.\n", file);
   fputs ("\n", file);
   fputs (" total     the average number of milliseconds spent in this\n", file);
-  fputs ("ms/call    function and its descendents per call, if this \n", file);
+  fputs ("ms/call    function and its descendents per call, if this\n", file);
   fputs ("	   function is profiled, else blank.\n", file);
   fputs ("\n", file);
   fputs ("name       the name of the function.  This is the minor sort\n", file);
@@ -37,7 +36,7 @@ flat_blurb (file)
   fputs ("	   in parenthesis it shows where it would appear in\n", file);
   fputs ("	   the gprof listing if it were to be printed.\n", file);
   fputs ("\n", file);
-  fputs ("Copyright (C) 2012-2014 Free Software Foundation, Inc.\n", file);
+  fputs ("Copyright (C) 2012-2017 Free Software Foundation, Inc.\n", file);
   fputs ("\n", file);
   fputs ("Copying and distribution of this file, with or without modification,\n", file);
   fputs ("are permitted in any medium without royalty provided the copyright\n", file);

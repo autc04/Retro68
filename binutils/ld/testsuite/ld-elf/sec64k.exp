@@ -1,5 +1,5 @@
 # Expect script for tests for >64k sections
-#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -27,16 +27,19 @@ if ![is_elf_format] {
     return
 }
 
-# Targets using the generic linker backend don't sort section symbols
+# Targets using _bfd_generic_final_link don't sort section symbols
 # before local symbols, so don't bother testing them.
-if { [istarget "arc-*-*"]
-     || [istarget "d30v-*-*"]
+if { [istarget "d30v-*-*"]
      || [istarget "dlx-*-*"]
      || [istarget "i960-*-*"]
-     || [istarget "msp430*-*-*"]
-     || [istarget "or1k*-*-*"]
-     || [istarget "pj*-*-*"]
-     || [istarget "m32r-*-*"] } {
+     || [istarget "pj*-*-*"] } {
+    return
+}
+
+# ft32, m68hc11, m68hc12 and xgate run out of address space.
+if {   [istarget "ft32-*-*"]
+    || [istarget "m68hc1*-*"]
+    || [istarget "xgate-*"] } {
     return
 }
 
@@ -140,7 +143,7 @@ if { ![istarget "m32r-*-*"] } then {
     puts $ofd "#..."
     puts $ofd " 340..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+68... "
     puts $ofd "#..."
-    puts $ofd " 340..: 0+(2|4|8)\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[2-5\] bar_1$"
+    puts $ofd " 340..: 0+(2|4|8)\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[2-7\] bar_1$"
     puts $ofd "#..."
     puts $ofd ".* bar_34000$"
     puts $ofd "#..."
@@ -161,17 +164,15 @@ if [catch { set ofd [open "tmpdir/$test2.d" w] } x] {
     return
 }
 
-# too big for d10v and msp
+# too big for avr, d10v and msp
 # lack of fancy orphan section handling causes overlap on fr30 and iq2000
 if { ![istarget "d10v-*-*"]
+     && ![istarget "avr-*-*"]
      && ![istarget "msp*-*-*"]
      && ![istarget "fr30-*-*"] 
      && ![istarget "iq2000-*-*"] } {
     foreach sfile $sfiles { puts $ofd "#source: $sfile" }
-    if { [istarget "avr-*-*"] } then {
-	puts $ofd "#as: -mmcu=avr6"
-	puts $ofd "#ld: -mavr6"
-    } elseif { [istarget spu*-*-*] } {
+    if { [istarget spu*-*-*] } {
 	puts $ofd "#ld: --local-store 0:0"
     } else {
 	puts $ofd "#ld:"

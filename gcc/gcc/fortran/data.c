@@ -1,5 +1,5 @@
 /* Supporting functions for resolving DATA statement.
-   Copyright (C) 2002-2015 Free Software Foundation, Inc.
+   Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Lifang Zeng <zlf605@hotmail.com>
 
 This file is part of GCC.
@@ -104,7 +104,7 @@ static gfc_expr *
 create_character_initializer (gfc_expr *init, gfc_typespec *ts,
 			      gfc_ref *ref, gfc_expr *rvalue)
 {
-  int len, start, end;
+  int len, start, end, tlen;
   gfc_char_t *dest;
   bool alloced_init = false;
 	    
@@ -162,12 +162,22 @@ create_character_initializer (gfc_expr *init, gfc_typespec *ts,
   else
     len = rvalue->value.character.length;
 
-  if (len > end - start)
+  tlen = end - start;
+  if (len > tlen)
     {
-      gfc_warning_now (0, "Initialization string starting at %L was "
-		       "truncated to fit the variable (%d/%d)",
-		       &rvalue->where, end - start, len);
-      len = end - start;
+      if (tlen < 0)
+	{
+	  gfc_warning_now (0, "Unused initialization string at %L because "
+			   "variable has zero length", &rvalue->where);
+	  len = 0;
+	}
+      else
+	{
+	  gfc_warning_now (0, "Initialization string at %L was truncated to "
+			   "fit the variable (%d/%d)", &rvalue->where,
+			   tlen, len);
+	  len = tlen;
+	}
     }
 
   if (rvalue->ts.type == BT_HOLLERITH)
@@ -181,7 +191,7 @@ create_character_initializer (gfc_expr *init, gfc_typespec *ts,
 	    len * sizeof (gfc_char_t));
 
   /* Pad with spaces.  Substrings will already be blanked.  */
-  if (len < end - start && ref == NULL)
+  if (len < tlen && ref == NULL)
     gfc_wide_memset (&dest[start + len], ' ', end - (start + len));
 
   if (rvalue->ts.type == BT_HOLLERITH)
@@ -253,9 +263,9 @@ gfc_assign_data_value (gfc_expr *lvalue, gfc_expr *rvalue, mpz_t index,
 
 	  if (init && expr->expr_type != EXPR_ARRAY)
 	    {
-	      gfc_error_1 ("'%s' at %L already is initialized at %L",
-			   lvalue->symtree->n.sym->name, &lvalue->where,
-			   &init->where);
+	      gfc_error ("%qs at %L already is initialized at %L",
+			 lvalue->symtree->n.sym->name, &lvalue->where,
+			 &init->where);
 	      goto abort;
 	    }
 

@@ -3,7 +3,7 @@
 
 // 2008-05-25  Sebastian Redl  <sebastian.redl@getdesigned.at>
 
-// Copyright (C) 2008-2015 Free Software Foundation, Inc.
+// Copyright (C) 2008-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,7 +30,6 @@
 
 void test01()
 {
-  bool test __attribute__((unused)) = true;
   using namespace std;
 
   try {
@@ -54,7 +53,6 @@ void test02()
 
 void test03()
 {
-  bool test __attribute__((unused)) = true;
   using namespace std;
 
   exception_ptr ep;
@@ -71,7 +69,6 @@ void test03()
 
 void test04()
 {
-  bool test __attribute__((unused)) = true;
   using namespace std;
 
   // Weave the exceptions in an attempt to confuse the machinery.
@@ -103,12 +100,23 @@ void test04()
   }
 }
 
+void test05()
+{
+  // libstdc++/64651 std::rethrow_exception not found by ADL
+  // This is not required to work but is a conforming extension.
+  try {
+    rethrow_exception(std::make_exception_ptr(0));
+  } catch(...) {
+  }
+}
+
 int main()
 {
   test01();
   test02();
   test03();
   test04();
+  test05();
 
   return 0;
 }

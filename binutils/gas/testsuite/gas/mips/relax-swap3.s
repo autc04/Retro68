@@ -8,6 +8,7 @@ foo:
 	la	$2, bar
 	beqz	$3, 0f
 0:
+	.insn
 
 # Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
 	.align	2

@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -78,10 +78,14 @@ case $target_triplet in {
     { *c54x*-*-* } { }
     { *c4x*-*-* } { }
     { mmix-* } { }
+    { ns32k-*-* } { }
+    { rl78-*-* } { }
     { rx-*-* } { }
+    { vax-*-* } { }
     default { run_list_test dot "-alm" }
 }
 run_list_test end ""
+setup_xfail "ns32k-*-*" "vax-*-*"
 run_list_test purge "--hash-size=8000"
 run_list_test redef ""
 

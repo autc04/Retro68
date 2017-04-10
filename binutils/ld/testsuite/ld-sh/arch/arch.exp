@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2014 Free Software Foundation, Inc.
+# Copyright (C) 2004-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -110,7 +110,7 @@ proc test_arch { file1 file2 arch resultfile } {
 
 
 # This procedure tests that a pair of files that are not
-# suposed to link does, in fact, not link.
+# supposed to link does, in fact, not link.
 # It also writes an entry to the arch_results.txt file.
 
 proc test_arch_error { file1 file2 resultfile} {

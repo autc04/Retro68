@@ -12,7 +12,7 @@
 
 Disassembly of section \.plt:
 
-0+1b4 <(dsofn4@plt-0x1a|dsofn@plt-0x34)>:
+0+1b4 <.*>:
 
  1b4:	84e2                	subq 4,\$sp
  1b6:	0401                	addoq 4,\$r0,\$acr
@@ -44,7 +44,7 @@ Disassembly of section \.plt:
 Disassembly of section \.text:
 #...
 0+202 <dsofn3>:
- 202:	bfbe e6ff ffff      	bsr 1e8 <(dsofn@plt|dsofn4@plt\+0x1a)>
+ 202:	bfbe e6ff ffff      	bsr 1e8 <.*>
  208:	b005                	nop 
 
 0+20a <dsofn4>:

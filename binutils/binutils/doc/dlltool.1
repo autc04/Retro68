@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DLLTOOL 1"
-.TH DLLTOOL 1 "2014-12-23" "binutils-2.25" "GNU Development Tools"
+.TH DLLTOOL 1 "2017-03-02" "binutils-2.28" "GNU Development Tools"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -398,10 +398,14 @@ party DLLs that were built with MS-Windows tools.
 .IP "\fB\-\-kill\-at\fR" 4
 .IX Item "--kill-at"
 .PD
-Specifies that when \fBdlltool\fR is creating the exports file it
-should not append the string \fB@ <number>\fR.  These numbers are
-called ordinal numbers and they represent another way of accessing the
-function in a \s-1DLL,\s0 other than by name.
+Specifies that \fB@<number>\fR suffixes should be omitted from the names
+of stdcall functions that will be imported from the \s-1DLL. \s0 This is
+useful when creating an import library for a \s-1DLL\s0 which exports stdcall
+functions but without the usual \fB@<number>\fR symbol name suffix.
+.Sp
+This does not change the naming of symbols provided by the import library
+to programs linked against it, but only the entries in the import table
+(ie the .idata section).
 .IP "\fB\-A\fR" 4
 .IX Item "-A"
 .PD 0
@@ -528,7 +532,7 @@ with a backslash.  The \fIfile\fR may itself contain additional
 The Info pages for \fIbinutils\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright (c) 1991\-2014 Free Software Foundation, Inc.
+Copyright (c) 1991\-2017 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.3

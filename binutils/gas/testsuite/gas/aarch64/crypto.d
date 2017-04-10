@@ -5,7 +5,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	4e284be7 	aese	v7.16b, v31.16b
    4:	4e285be7 	aesd	v7.16b, v31.16b
    8:	4e286be7 	aesmc	v7.16b, v31.16b

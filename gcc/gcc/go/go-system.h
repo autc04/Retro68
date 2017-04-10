@@ -1,5 +1,5 @@
 // go-system.h -- Go frontend inclusion of gcc header files   -*- C++ -*-
-// Copyright (C) 2009-2015 Free Software Foundation, Inc.
+// Copyright (C) 2009-2016 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -130,7 +130,6 @@ struct hash<T*>
 #include "coretypes.h"
 
 #include "diagnostic-core.h"	/* For error_at and friends.  */
-#include "input.h"		/* For source_location.  */
 #include "intl.h"		/* For _().  */
 
 // When using gcc, go_assert is just gcc_assert.

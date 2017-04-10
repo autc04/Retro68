@@ -1,5 +1,5 @@
 /* DWARF2 exception handling and frame unwinding for Xtensa.
-   Copyright (C) 1997-2015 Free Software Foundation, Inc.
+   Copyright (C) 1997-2016 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -130,7 +130,7 @@ _Unwind_GetGR (struct _Unwind_Context *context, int index)
 _Unwind_Word
 _Unwind_GetCFA (struct _Unwind_Context *context)
 {
-  return (_Unwind_Ptr) context->cfa;
+  return (_Unwind_Ptr) context->sp;
 }
 
 /* Overwrite the saved value for register INDEX in CONTEXT with VAL.  */

@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "is_IS" }
+// { dg-require-namedlocale "is_IS.ISO8859-1" }
 
 // 2001-01-19 Benjamin Kosnik <bkoz@redhat.com>
 
-// Copyright (C) 2001-2015 Free Software Foundation, Inc.
+// Copyright (C) 2001-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,9 +36,9 @@ test02()
 
   // construct a locale object with the specialized facet.
   locale		loc_c = locale::classic();
-  locale		loc_is = locale("is_IS");
+  locale		loc_is = locale(ISO_8859(1,is_IS));
   locale 		loc_1(locale::classic(), 
-			      new numpunct_byname<char>("is_IS"));
+			      new numpunct_byname<char>(ISO_8859(1,is_IS)));
 
   // check names
   VERIFY( loc_c.name() == name_c );

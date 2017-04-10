@@ -4,9 +4,9 @@
 
 Disassembly of section \.plt:
 
-00008000 <bar@plt-0x14>:
+00008000 <.*>:
     8000:	e52de004 	push	{lr}		; \(str lr, \[sp, #-4\]!\)
-    8004:	e59fe004 	ldr	lr, \[pc, #4\]	; 8010 <bar@plt-0x4>
+    8004:	e59fe004 	ldr	lr, \[pc, #4\]	; 8010 <.*>
     8008:	e08fe00e 	add	lr, pc, lr
     800c:	e5bef008 	ldr	pc, \[lr, #8\]!
     8010:	00000ffc 	\.word	0x00000ffc

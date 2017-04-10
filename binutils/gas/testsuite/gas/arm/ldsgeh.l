@@ -1,2 +1,2 @@
 .*: Assembler messages:
-.*: Warning: conditional infixes are deprecated in unified syntax
+.*: conditional infixes are deprecated in unified syntax

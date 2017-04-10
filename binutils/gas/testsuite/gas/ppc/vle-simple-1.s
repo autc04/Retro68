@@ -4,7 +4,7 @@ target0:
 	se_beq	target3
 
 target1:
-	se_bf cr1, target4
+	se_bf gt, target4
 
 target2:
 	se_bge  target2
@@ -29,6 +29,6 @@ target8:
 	se_bso target8
 
 target9:
-	se_bt cr2, target6
+	se_bt eq, target6
 	se_bun target9
 

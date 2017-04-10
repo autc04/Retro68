@@ -1,5 +1,5 @@
 /* tc-ppc.h -- Header file for tc-ppc.c.
-   Copyright (C) 1994-2014 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -51,7 +51,7 @@ extern int target_big_endian;
 
 /* The target BFD format.  */
 #define TARGET_FORMAT (ppc_target_format ())
-extern char *ppc_target_format (void);
+extern const char *ppc_target_format (void);
 
 /* Permit temporary numeric labels.  */
 #define LOCAL_LABELS_FB 1
@@ -85,7 +85,9 @@ extern char *ppc_target_format (void);
 extern void ppc_handle_align (struct frag *);
 extern void ppc_frag_check (struct frag *);
 
+#ifdef OBJ_ELF
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
+#endif
 
 #define md_frag_check(FRAGP) ppc_frag_check (FRAGP)
 
@@ -254,6 +256,22 @@ extern void ppc_elf_end (void);
 #define TC_FORCE_RELOCATION(FIX) ppc_force_relocation (FIX)
 extern int ppc_force_relocation (struct fix *);
 #endif
+
+#ifdef OBJ_ELF
+/* Don't allow the generic code to convert fixups involving the
+   subtraction of a label in the current section to pc-relative if we
+   don't have the necessary pc-relative relocation.  */
+#define TC_FORCE_RELOCATION_SUB_LOCAL(FIX, SEG)		\
+  (!((FIX)->fx_r_type == BFD_RELOC_LO16			\
+     || (FIX)->fx_r_type == BFD_RELOC_HI16		\
+     || (FIX)->fx_r_type == BFD_RELOC_HI16_S		\
+     || (FIX)->fx_r_type == BFD_RELOC_64		\
+     || (FIX)->fx_r_type == BFD_RELOC_32		\
+     || (FIX)->fx_r_type == BFD_RELOC_16		\
+     || (FIX)->fx_r_type == BFD_RELOC_PPC_16DX_HA))
+#endif
+
+#define TC_VALIDATE_FIX_SUB(FIX, SEG) 0
 
 /* call md_pcrel_from_section, not md_pcrel_from */
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section(FIX, SEC)

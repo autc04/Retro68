@@ -1,5 +1,5 @@
 /* tc-m32r.c -- Assembler for the Renesas M32R.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -164,7 +164,7 @@ struct m32r_hi_fixup
 
 static struct m32r_hi_fixup *m32r_hi_fixup_list;
 
-struct
+static const struct
 {
   enum bfd_architecture bfd_mach;
   int mach_flags;
@@ -266,7 +266,7 @@ parallel (void)
 }
 
 int
-md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
+md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -567,13 +567,10 @@ debug_sym (int ignore ATTRIBUTE_UNUSED)
 {
   char *name;
   char delim;
-  char *end_name;
   symbolS *symbolP;
   sym_linkS *lnk;
 
-  name = input_line_pointer;
-  delim = get_symbol_end ();
-  end_name = input_line_pointer;
+  delim = get_symbol_name (&name);
 
   if ((symbolP = symbol_find (name)) == NULL
       && (symbolP = md_undefined_symbol (name)) == NULL)
@@ -588,14 +585,14 @@ debug_sym (int ignore ATTRIBUTE_UNUSED)
 
   else
     {
-      lnk = (sym_linkS *) xmalloc (sizeof (sym_linkS));
+      lnk = XNEW (sym_linkS);
       lnk->symbol = symbolP;
       lnk->next = debug_sym_link;
       debug_sym_link = lnk;
       symbol_get_obj (symbolP)->local = 1;
     }
 
-  *end_name = delim;
+  (void) restore_line_pointer (delim);
   demand_empty_rest_of_line ();
 }
 
@@ -616,7 +613,7 @@ expand_debug_syms (sym_linkS *syms, int align)
     {
       symbolS *symbolP = syms->symbol;
       next_syms = syms->next;
-      input_line_pointer = ".\n";
+      input_line_pointer = (char *) ".\n";
       pseudo_set (symbolP);
       free ((char *) syms);
     }
@@ -1453,7 +1450,7 @@ md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
 
-  return ((size + (1 << align) - 1) & (-1 << align));
+  return ((size + (1 << align) - 1) & -(1 << align));
 }
 
 symbolS *
@@ -1480,13 +1477,12 @@ m32r_scomm (int ignore ATTRIBUTE_UNUSED)
   offsetT align;
   int align2;
 
-  name = input_line_pointer;
-  c = get_symbol_end ();
+  c = get_symbol_name (&name);
 
   /* Just after name is now '\0'.  */
   p = input_line_pointer;
   *p = c;
-  SKIP_WHITESPACE ();
+  SKIP_WHITESPACE_AFTER_NAME ();
   if (*input_line_pointer != ',')
     {
       as_bad (_("Expected comma after symbol-name: rest of line ignored."));
@@ -1902,7 +1898,7 @@ m32r_record_hi16 (int reloc_type,
   gas_assert (reloc_type == BFD_RELOC_M32R_HI16_SLO
 	  || reloc_type == BFD_RELOC_M32R_HI16_ULO);
 
-  hi_fixup = xmalloc (sizeof (* hi_fixup));
+  hi_fixup = XNEW (struct m32r_hi_fixup);
   hi_fixup->fixp = fixP;
   hi_fixup->seg  = now_seg;
   hi_fixup->next = m32r_hi_fixup_list;
@@ -2110,7 +2106,7 @@ md_number_to_chars (char *buf, valueT val, int n)
 /* Equal to MAX_PRECISION in atof-ieee.c.  */
 #define MAX_LITTLENUMS 6
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, target_big_endian);
@@ -2198,10 +2194,10 @@ tc_gen_reloc (asection * section, fixS * fixP)
 {
   arelent * reloc;
   bfd_reloc_code_real_type code;
- 
-  reloc = xmalloc (sizeof (* reloc));
- 
-  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+
+  reloc = XNEW (arelent);
+
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
 
@@ -2215,7 +2211,7 @@ tc_gen_reloc (asection * section, fixS * fixP)
           bfd_set_error (bfd_error_bad_value);
 	}
     }
- 
+
   code = fixP->fx_r_type;
   if (pic_code)
     {
@@ -2267,7 +2263,7 @@ printf("%s",bfd_get_reloc_code_name(code));
 printf(" => %s",bfd_get_reloc_code_name(code));
 #endif
     }
- 
+
   reloc->howto = bfd_reloc_type_lookup (stdoutput, code);
 
 #ifdef DEBUG_PIC
@@ -2281,7 +2277,7 @@ printf(" => %s\n",reloc->howto->name);
             fixP->fx_r_type, bfd_get_reloc_code_name (code));
       return NULL;
     }
- 
+
   /* Use fx_offset for these cases.  */
   if (   fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY
       || fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
@@ -2299,12 +2295,12 @@ printf(" => %s\n",reloc->howto->name);
     reloc->addend  = fixP->fx_offset;
   else
     reloc->addend  = fixP->fx_addnumber;
- 
+
   return reloc;
 }
 
 inline static char *
-m32r_end_of_match (char *cont, char *what)
+m32r_end_of_match (char *cont, const char *what)
 {
   int len = strlen (what);
 

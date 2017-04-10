@@ -1,4 +1,5 @@
-#include <stdlib.h>
+extern void abort (void);
+
 #include <stdarg.h>
 
 static int a[1000];
@@ -23,4 +24,3 @@ main (void)
   return 0;
 }
 
-/* { dg-final { cleanup-tree-dump "vect" } } */

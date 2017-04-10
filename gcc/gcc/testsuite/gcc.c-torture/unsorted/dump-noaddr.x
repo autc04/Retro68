@@ -18,7 +18,7 @@ proc dump_compare { src options } {
 	foreach dump1 [lsort [glob -nocomplain dump1/*]] {
 	    regsub dump1/ $dump1 dump2/ dump2
 	    set dumptail "gcc.c-torture/unsorted/[file tail $dump1]"
-	    #puts "$option $dump1"
+	    regsub {\.\d+((t|r|i)\.[^.]+)$} $dumptail {.*\1} dumptail
 	    set tmp [ diff "$dump1" "$dump2" ]
 	    if { $tmp == 0 } {
 		untested "$dumptail, $option comparison"
@@ -27,14 +27,11 @@ proc dump_compare { src options } {
 	    } else {
 		fail "$dumptail, $option comparison"
 	    }
-	    #exec diff $dump1 $dump2
 	}
     }
     file delete -force dump1
     file delete -force dump2
 }
 
-catch {dump_compare $src $options} result
-puts $result
-verbose result
+dump_compare $src $options
 return 1

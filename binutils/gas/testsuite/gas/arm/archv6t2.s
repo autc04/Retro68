@@ -65,3 +65,6 @@ x:
 	strht	r0, [r1], #-2
 	strneht	r0, [r1], #2
 	strneht	r0, [r1], #-2
+
+	@ mov accept A2 encoding as well.
+	mov	r9, #0x0999

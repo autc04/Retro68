@@ -1,5 +1,5 @@
 ;; Predicate definitions for ARM and Thumb
-;; Copyright (C) 2004-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2016 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 
 ;; This file is part of GCC.
@@ -330,6 +330,13 @@
 ;; Likewise, but only accept comparisons that are directly supported
 ;; by ARM condition codes.
 (define_special_predicate "arm_comparison_operator"
+  (and (match_operand 0 "expandable_comparison_operator")
+       (match_test "maybe_get_arm_condition_code (op) != ARM_NV")))
+
+;; Likewise, but don't ignore the mode.
+;; RTL SET operations require their operands source and destination have
+;; the same modes, so we can't ignore the modes there.  See PR target/69161.
+(define_predicate "arm_comparison_operator_mode"
   (and (match_operand 0 "expandable_comparison_operator")
        (match_test "maybe_get_arm_condition_code (op) != ARM_NV")))
 
@@ -668,7 +675,7 @@
 (define_predicate "const_double_vcvt_power_of_two"
   (and (match_code "const_double")
        (match_test "TARGET_32BIT && TARGET_VFP
-                   && vfp3_const_double_for_bits (op)")))
+		    && vfp3_const_double_for_bits (op) > 0")))
 
 (define_predicate "neon_struct_operand"
   (and (match_code "mem")

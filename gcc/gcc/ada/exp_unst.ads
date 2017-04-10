@@ -25,6 +25,7 @@
 
 --  Expand routines for unnesting subprograms
 
+with Table;
 with Types; use Types;
 
 package Exp_Unst is
@@ -175,27 +176,30 @@ package Exp_Unst is
    --         rv : Address;
    --      end record;
 
-   --      AREC1 : aliased AREC1T;
-
    --      type AREC1PT is access all AREC1T;
+
+   --      AREC1  : aliased AREC1T;
    --      AREC1P : constant AREC1PT := AREC1'Access;
 
    --   The fields of AREC1 are set at the point the corresponding entity
    --   is declared (immediately for parameters).
 
-   --   Note: the 1 in all these names represents the fact that we are at the
-   --   outer level of nesting. As we will see later, deeper levels of nesting
-   --   will use AREC2, AREC3, ...
+   --   Note: the 1 in all these names is a unique index number. Different
+   --   scopes requiring different ARECnT declarations will have different
+   --   values of n to ensure uniqueness.
+
+   --   Note: normally the field names in the activation record match the
+   --   name of the entity. An exception is when the entity is declared in
+   --   a declare block, in which case we append the entity number, to avoid
+   --   clashes between the same name declared in different declare blocks.
 
    --   For all subprograms nested immediately within the corresponding scope,
    --   a parameter AREC1F is passed, and all calls to these routines have
    --   AREC1P added as an additional formal.
 
    --   Now within the nested procedures, any reference to an uplevel entity
-   --   xxx is replaced by Tnn!(AREC1.xxx).all (where ! represents a call
-   --   to unchecked conversion to convert the address to the access type
-   --   and Tnn is a locally declared type that is "access all t", where t
-   --   is the type of the reference).
+   --   xxx is replaced by typ'Deref(AREC1.xxx) where typ is the type of the
+   --   reference.
 
    --   Note: the reason that we use Address as the component type in the
    --   declaration of AREC1T is that we may create this type before we see
@@ -210,8 +214,9 @@ package Exp_Unst is
    --             rv : Address;
    --          end record;
    --
-   --          AREC1 : aliased AREC1T;
    --          type AREC1PT is access all AREC1T;
+   --
+   --          AREC1 : aliased AREC1T;
    --          AREC1P : constant AREC1PT := AREC1'Access;
    --
    --          AREC1.b := b'Address;
@@ -233,11 +238,8 @@ package Exp_Unst is
    --
    --          procedure inner (bb : integer; AREC1F : AREC1PT) is
    --          begin
-   --             type Tnn1 is access all Integer;
-   --             type Tnn2 is access all Integer;
-   --             type Tnn3 is access all Integer;
-   --             Tnn1!(AREC1F.x).all :=
-   --               Tnn2!(AREC1F.rv).all + y + b + Tnn3!(AREC1F.b).all;
+   --             Integer'Deref(AREC1F.x) :=
+   --               Integer'Deref(AREC1F.rv) + y + b + Integer_Deref(AREC1F.b);
    --          end;
    --
    --       begin
@@ -292,8 +294,8 @@ package Exp_Unst is
 
    --    What we do is to always generate a local constant for any dynamic
    --    bound in a dynamic subtype xx with name xx_FIRST or xx_LAST. The one
-   --    case where we can skip this is where the bound is For
-   --    example in the third example above, subtype dynam is expanded as
+   --    case where we can skip this is where the bound is e.g. in the third
+   --    example above, subtype dynam is expanded as
 
    --      dynam_LAST  : constant Integer := y + 3;
    --      subtype dynam is integer range x .. dynam_LAST;
@@ -362,8 +364,9 @@ package Exp_Unst is
    --             dynam_LAST : Address;
    --          end record;
    --
-   --          AREC1 : aliased AREC1T;
    --          type AREC1PT is access all AREC1T;
+   --
+   --          AREC1 : aliased AREC1T;
    --          AREC1P : constant AREC1PT := AREC1'Access;
    --
    --          AREC1.x := x'Address;
@@ -388,8 +391,7 @@ package Exp_Unst is
    --
    --          function inner (b : integer; AREC1F : AREC1PT) return boolean is
    --          begin
-   --             type Tnn is access all Integer
-   --             return b in x .. Tnn!(AREC1F.dynam_LAST).all
+   --             return b in x .. Integer'Deref(AREC1F.dynam_LAST)
    --               and then darecv.b in 42 .. 73;
    --          end inner;
    --
@@ -423,8 +425,9 @@ package Exp_Unst is
    --           v1 : Address;
    --        end record;
    --
-   --        AREC1 : aliased AREC1T;
    --        type AREC1PT is access all AREC1T;
+   --
+   --        AREC1 : aliased AREC1T;
    --        AREC1P : constant AREC1PT := AREC1'Access;
    --
    --        v1 : integer := x;
@@ -432,38 +435,38 @@ package Exp_Unst is
    --
    --        function inner1 (y : integer; AREC1F : AREC1PT) return integer is
    --           type AREC2T is record
-   --              AREC1U : AREC1PT := AREC1F;
+   --              AREC1U : AREC1PT;
    --              v2     : Address;
    --           end record;
    --
-   --           AREC2 : aliased AREC2T;
    --           type AREC2PT is access all AREC2T;
+   --
+   --           AREC2 : aliased AREC2T;
    --           AREC2P : constant AREC2PT := AREC2'Access;
    --
-   --           type Tnn1 is access all Integer;
-   --           v2 : integer := Tnn1!(AREC1F.v1).all {+} 1;
+   --           AREC2.AREC1U := AREC1F;
+   --
+   --           v2 : integer := Integer'Deref (AREC1F.v1) {+} 1;
    --           AREC2.v2 := v2'Address;
    --
    --           function inner2
    --              (z : integer; AREC2F : AREC2PT) return integer
    --           is
    --           begin
-   --              type Tnn1 is access all Integer;
-   --              type Tnn2 is access all Integer;
    --              return integer(z {+}
-   --                             Tnn1!(AREC2F.AREC1U.v1).all {+}
-   --                             Tnn2!(AREC2F.v2).all);
+   --                             Integer'Deref (AREC2F.AREC1U.v1) {+}
+   --                             Integer'Deref (AREC2F.v2).all);
    --           end inner2;
    --        begin
-   --           type Tnn is access all Integer;
-   --           return integer(y {+} inner2 (Tnn!(AREC1F.v1).all, AREC2P));
+   --           return integer(y {+}
+   --                            inner2 (Integer'Deref (AREC1F.v1), AREC2P));
    --        end inner1;
    --     begin
    --        return inner1 (x, AREC1P);
    --     end case4x;
 
-   --  As can be seen in this example, the level number following AREC in the
-   --  names avoids any confusion between AREC names at different levels.
+   --  As can be seen in this example, the index numbers following AREC in the
+   --  generated names avoid confusion between AREC names at different levels.
 
    -------------------------
    -- Name Disambiguation --
@@ -529,26 +532,151 @@ package Exp_Unst is
    --  with the issue of clashing names (mnames__inner, mnames__inner__inner),
    --  and with overloading (mnames__f, mnames__f__2).
 
+   --  In addition, the declarations of ARECnT and ARECnPT get moved to the
+   --  outer level when we actually generate C code, so we suffix these names
+   --  with the corresponding entity name to make sure they are unique.
+
+   ---------------------------
+   -- Terminology for Calls --
+   ---------------------------
+
+   --  The level of a subprogram in the nest being analyzed is defined to be
+   --  the level of nesting, so the outer level subprogram (the one passed to
+   --  Unnest_Subprogram) is 1, subprograms immediately nested within this
+   --  outer level subprogram have a level of 2, etc.
+
+   --  Calls within the nest being analyzed are of three types:
+
+   --    Downward call: this is a call from a subprogram to a subprogram that
+   --    is immediately nested with in the caller, and thus has a level that
+   --    is one greater than the caller. It is a fundamental property of the
+   --    nesting structure and visibility that it is not possible to make a
+   --    call from level N to level M, where M is greater than N + 1.
+
+   --    Parallel call: this is a call from a nested subprogram to another
+   --    nested subprogram that is at the same level.
+
+   --    Upward call: this is a call from a subprogram to a subprogram that
+   --    encloses the caller. The level of the callee is less than the level
+   --    of the caller, and there is no limit on the difference, e.g. for an
+   --    uplevel call, a subprogram at level 5 can call one at level 2 or even
+   --    the outer level subprogram at level 1.
+
+   -----------
+   -- Subps --
+   -----------
+
+   --  Table to record subprograms within the nest being currently analyzed.
+   --  Entries in this table are made for each subprogram expanded, and do not
+   --  get cleared as we complete the expansion, since we want the table info
+   --  around in Cprint for the actual unnesting operation. Subps_First in this
+   --  unit records the starting entry in the table for the entries for Subp
+   --  and this is also recorded in the Subps_Index field of the outer level
+   --  subprogram in the nest. The last subps index for the nest can be found
+   --  in the Subp_Entry Last field of this first entry.
+
+   subtype SI_Type is Nat;
+   --  Index type for the table
+
+   Subps_First : SI_Type;
+   --  Record starting index for entries in the current nest (this is the table
+   --  index of the entry for Subp itself, and is recorded in the Subps_Index
+   --  field of the entity for this subprogram).
+
+   type Subp_Entry is record
+      Ent : Entity_Id;
+      --  Entity of the subprogram
+
+      Bod : Node_Id;
+      --  Subprogram_Body node for this subprogram
+
+      Lev : Nat;
+      --  Subprogram level (1 = outer subprogram (Subp argument), 2 = nested
+      --  immediately within this outer subprogram etc.)
+
+      Reachable : Boolean;
+      --  This flag is set True if there is a call path from the outer level
+      --  subprogram to this subprogram. If Reachable is False, it means that
+      --  the subprogram is declared but not actually referenced. We remove
+      --  such subprograms from the tree, which simplifies our task, because
+      --  we don't have to worry about e.g. uplevel references from such an
+      --  unreferenced subpogram, which might require (useless) activation
+      --  records to be created. This is computed by setting the outer level
+      --  subprogram (Subp itself) as reachable, and then doing a transitive
+      --  closure following all calls.
+
+      Uplevel_Ref : Nat;
+      --  The outermost level which defines entities which this subprogram
+      --  references either directly or indirectly via a call. This cannot
+      --  be greater than Lev. If it is equal to Lev, then it means that the
+      --  subprogram does not make any uplevel references and that thus it
+      --  does not need an activation record pointer passed. If it is less than
+      --  Lev, then an activation record pointer is needed, since there is at
+      --  least one uplevel reference. This is computed by initially setting
+      --  Uplevel_Ref to Lev for all subprograms. Then on the initial tree
+      --  traversal, decreasing Uplevel_Ref for an explicit uplevel reference,
+      --  and finally by doing a transitive closure that follows calls (if A
+      --  calls B and B has an uplevel reference to level X, then A references
+      --  level X indirectly).
+
+      Declares_AREC : Boolean;
+      --  This is set True for a subprogram which include the declarations
+      --  for a local activation record to be passed on downward calls. It
+      --  is set True for the target level of an uplevel reference, and for
+      --  all intervening nested subprograms. For example, if a subprogram X
+      --  at level 5 makes an uplevel reference to an entity declared in a
+      --  level 2 subprogram, then the subprograms at levels 4,3,2 enclosing
+      --  the level 5 subprogram will have this flag set True.
+
+      Uents : Elist_Id;
+      --  This is a list of entities declared in this subprogram which are
+      --  uplevel referenced. It contains both objects (which will be put in
+      --  the corresponding AREC activation record), and types. The types are
+      --  not put in the AREC activation record, but referenced bounds (i.e.
+      --  generated _FIRST and _LAST entites, and formal parameters) will be
+      --  in the list in their own right.
+
+      Last : SI_Type;
+      --  This field is set only in the entry for the outer level subprogram
+      --  in a nest, and records the last index in the Subp table for all the
+      --  entries for subprograms in this nest.
+
+      ARECnF : Entity_Id;
+      --  This entity is defined for all subprograms which need an extra formal
+      --  that contains a pointer to the activation record needed for uplevel
+      --  references. ARECnF must be defined for any subprogram which has a
+      --  direct or indirect uplevel reference (i.e. Reference_Level < Lev).
+
+      ARECn   : Entity_Id;
+      ARECnT  : Entity_Id;
+      ARECnPT : Entity_Id;
+      ARECnP  : Entity_Id;
+      --  These AREC entities are defined only for subprograms for which we
+      --  generate an activation record declaration, i.e. for subprograms for
+      --  which the Declares_AREC flag is set True.
+
+      ARECnU : Entity_Id;
+      --  This AREC entity is the uplink component. It is other than Empty only
+      --  for nested subprograms that declare an activation record as indicated
+      --  by Declares_AREC being Ture, and which have uplevel references (Lev
+      --  greater than Uplevel_Ref). It is the additional component in the
+      --  activation record that references the ARECnF pointer (which points
+      --  the activation record one level higher, thus forming the chain).
+
+   end record;
+
+   package Subps is new Table.Table (
+     Table_Component_Type => Subp_Entry,
+     Table_Index_Type     => SI_Type,
+     Table_Low_Bound      => 1,
+     Table_Initial        => 1000,
+     Table_Increment      => 200,
+     Table_Name           => "Unnest_Subps");
+   --  Records the subprograms in the nest whose outer subprogram is Subp
+
    -----------------
    -- Subprograms --
    -----------------
-
-   procedure Check_Uplevel_Reference_To_Type (Typ : Entity_Id);
-   --  This procedure is called if Sem_Util.Check_Nested_Access detects an
-   --  uplevel reference to a type or subtype entity Typ. On return there are
-   --  two cases, if Typ is a static type (defined as a discrete type with
-   --  static bounds, or a record all of whose components are of a static type,
-   --  or an array whose index and component types are all static types), then
-   --  the flag Is_Static_Type (Typ) will be set True, and in this case the
-   --  flag Has_Uplevel_Reference is not set since we don't need to worry about
-   --  uplevel references to static types. If on the other hand Typ is not a
-   --  static type, then the flag Has_Uplevel_Reference will be set, and any
-   --  non-static bounds referenced by the type will also be marked as having
-   --  uplevel references (by setting Has_Uplevel_Reference for these bounds).
-
-   procedure Note_Uplevel_Reference (N : Node_Id; Subp : Entity_Id);
-   --  Called in Unnest_Subprogram_Mode when we detect an explicit uplevel
-   --  reference (node N) to an enclosing subprogram Subp.
 
    procedure Unnest_Subprogram (Subp : Entity_Id; Subp_Body : Node_Id);
    --  Subp is a library level subprogram which has nested subprograms, and

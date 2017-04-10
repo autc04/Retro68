@@ -1,7 +1,7 @@
 /* Program to dump out a Java(TM) .class file.
    Functionally similar to Sun's javap.
 
-   Copyright (C) 1996-2015 Free Software Foundation, Inc.
+   Copyright (C) 1996-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -50,21 +50,11 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "intl.h"
+#include "tree.h"
 #include "diagnostic.h"
+#include "intl.h"
 
 #include "jcf.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "options.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "tree.h"
 #include "java-tree.h"
 
 #include "version.h"
@@ -465,7 +455,6 @@ utf8_equal_string (JCF *jcf, int index, const char * value)
   if (flag_print_attributes > 0) \
     fprintf (out, "\nAttributes (count: %d):\n", attributes_count);
 
-#include "javaop.h"
 
 
 
@@ -1237,7 +1226,7 @@ static void
 version (void)
 {
   printf ("jcf-dump %s%s\n\n", pkgversion_string, version_string);
-  printf ("Copyright %s 2015 Free Software Foundation, Inc.\n", _("(C)"));
+  printf ("Copyright %s 2016 Free Software Foundation, Inc.\n", _("(C)"));
   printf (_("This is free software; see the source for copying conditions.  There is NO\n"
 	    "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"));
   exit (0);

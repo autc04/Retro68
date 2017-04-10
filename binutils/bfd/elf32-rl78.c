@@ -1,5 +1,5 @@
 /* Renesas RL78 specific support for 32-bit ELF.
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -30,6 +30,14 @@
 #define RL78REL(n,sz,bit,shift,complain,pcrel)				     \
   HOWTO (R_RL78_##n, shift, sz, bit, pcrel, 0, complain_overflow_ ## complain, \
 	 bfd_elf_generic_reloc, "R_RL78_" #n, FALSE, 0, ~0, FALSE)
+
+static bfd_reloc_status_type rl78_special_reloc (bfd *, arelent *, asymbol *, void *,
+						 asection *, bfd *, char **);
+
+/* FIXME: We could omit the SHIFT parameter, it is always zero.  */
+#define RL78_OP_REL(n,sz,bit,shift,complain,pcrel)			\
+  HOWTO (R_RL78_##n, shift, sz, bit, pcrel, 0, complain_overflow_ ## complain, \
+	 rl78_special_reloc, "R_RL78_" #n, FALSE, 0, ~0, FALSE)
 
 /* Note that the relocations around 0x7f are internal to this file;
    feel free to move them as needed to avoid conflicts with published
@@ -87,7 +95,7 @@ static reloc_howto_type rl78_elf_howto_table [] =
   RL78REL (RH_RELAX, 0,  0, 0, dont,     FALSE),
 
   EMPTY_HOWTO (0x2e),
-  EMPTY_HOWTO (0x2f),
+  RL78REL (RH_SADDR, 0,  0, 0, dont,     FALSE),
   EMPTY_HOWTO (0x30),
   EMPTY_HOWTO (0x31),
   EMPTY_HOWTO (0x32),
@@ -106,23 +114,23 @@ static reloc_howto_type rl78_elf_howto_table [] =
   EMPTY_HOWTO (0x3f),
   EMPTY_HOWTO (0x40),
 
-  RL78REL (ABS32,        2, 32, 0, dont,     FALSE),
-  RL78REL (ABS24S,       2, 24, 0, signed,   FALSE),
-  RL78REL (ABS16,        1, 16, 0, dont,     FALSE),
-  RL78REL (ABS16U,       1, 16, 0, unsigned, FALSE),
-  RL78REL (ABS16S,       1, 16, 0, signed,   FALSE),
-  RL78REL (ABS8,         0,  8, 0, dont,     FALSE),
-  RL78REL (ABS8U,        0,  8, 0, unsigned, FALSE),
-  RL78REL (ABS8S,        0,  8, 0, signed,   FALSE),
-  RL78REL (ABS24S_PCREL, 2, 24, 0, signed,   TRUE),
-  RL78REL (ABS16S_PCREL, 1, 16, 0, signed,   TRUE),
-  RL78REL (ABS8S_PCREL,  0,  8, 0, signed,   TRUE),
-  RL78REL (ABS16UL,      1, 16, 0, unsigned, FALSE),
-  RL78REL (ABS16UW,      1, 16, 0, unsigned, FALSE),
-  RL78REL (ABS8UL,       0,  8, 0, unsigned, FALSE),
-  RL78REL (ABS8UW,       0,  8, 0, unsigned, FALSE),
-  RL78REL (ABS32_REV,    2, 32, 0, dont,     FALSE),
-  RL78REL (ABS16_REV,    1, 16, 0, dont,     FALSE),
+  RL78_OP_REL (ABS32,        2, 32, 0, dont,     FALSE),
+  RL78_OP_REL (ABS24S,       2, 24, 0, signed,   FALSE),
+  RL78_OP_REL (ABS16,        1, 16, 0, dont,     FALSE),
+  RL78_OP_REL (ABS16U,       1, 16, 0, unsigned, FALSE),
+  RL78_OP_REL (ABS16S,       1, 16, 0, signed,   FALSE),
+  RL78_OP_REL (ABS8,         0,  8, 0, dont,     FALSE),
+  RL78_OP_REL (ABS8U,        0,  8, 0, unsigned, FALSE),
+  RL78_OP_REL (ABS8S,        0,  8, 0, signed,   FALSE),
+  RL78_OP_REL (ABS24S_PCREL, 2, 24, 0, signed,   TRUE),
+  RL78_OP_REL (ABS16S_PCREL, 1, 16, 0, signed,   TRUE),
+  RL78_OP_REL (ABS8S_PCREL,  0,  8, 0, signed,   TRUE),
+  RL78_OP_REL (ABS16UL,      1, 16, 0, unsigned, FALSE),
+  RL78_OP_REL (ABS16UW,      1, 16, 0, unsigned, FALSE),
+  RL78_OP_REL (ABS8UL,       0,  8, 0, unsigned, FALSE),
+  RL78_OP_REL (ABS8UW,       0,  8, 0, unsigned, FALSE),
+  RL78_OP_REL (ABS32_REV,    2, 32, 0, dont,     FALSE),
+  RL78_OP_REL (ABS16_REV,    1, 16, 0, dont,     FALSE),
 
 #define STACK_REL_P(x) ((x) <= R_RL78_ABS16_REV && (x) >= R_RL78_ABS32)
 
@@ -174,29 +182,29 @@ static reloc_howto_type rl78_elf_howto_table [] =
   EMPTY_HOWTO (0x7e),
   EMPTY_HOWTO (0x7f),
 
-  RL78REL (SYM,       2, 32, 0, dont, FALSE),
-  RL78REL (OPneg,     2, 32, 0, dont, FALSE),
-  RL78REL (OPadd,     2, 32, 0, dont, FALSE),
-  RL78REL (OPsub,     2, 32, 0, dont, FALSE),
-  RL78REL (OPmul,     2, 32, 0, dont, FALSE),
-  RL78REL (OPdiv,     2, 32, 0, dont, FALSE),
-  RL78REL (OPshla,    2, 32, 0, dont, FALSE),
-  RL78REL (OPshra,    2, 32, 0, dont, FALSE),
-  RL78REL (OPsctsize, 2, 32, 0, dont, FALSE),
+  RL78_OP_REL (SYM,       2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPneg,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPadd,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPsub,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPmul,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPdiv,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPshla,    2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPshra,    2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPsctsize, 2, 32, 0, dont, FALSE),
   EMPTY_HOWTO (0x89),
   EMPTY_HOWTO (0x8a),
   EMPTY_HOWTO (0x8b),
   EMPTY_HOWTO (0x8c),
-  RL78REL (OPscttop,  2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPscttop,  2, 32, 0, dont, FALSE),
   EMPTY_HOWTO (0x8e),
   EMPTY_HOWTO (0x8f),
-  RL78REL (OPand,     2, 32, 0, dont, FALSE),
-  RL78REL (OPor,      2, 32, 0, dont, FALSE),
-  RL78REL (OPxor,     2, 32, 0, dont, FALSE),
-  RL78REL (OPnot,     2, 32, 0, dont, FALSE),
-  RL78REL (OPmod,     2, 32, 0, dont, FALSE),
-  RL78REL (OPromtop,  2, 32, 0, dont, FALSE),
-  RL78REL (OPramtop,  2, 32, 0, dont, FALSE)
+  RL78_OP_REL (OPand,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPor,      2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPxor,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPnot,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPmod,     2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPromtop,  2, 32, 0, dont, FALSE),
+  RL78_OP_REL (OPramtop,  2, 32, 0, dont, FALSE)
 };
 
 /* Map BFD reloc types to RL78 ELF reloc types.  */
@@ -234,6 +242,7 @@ static const struct rl78_reloc_map rl78_reloc_map [] =
   { BFD_RELOC_RL78_ABS16UL,	R_RL78_ABS16UL },
   { BFD_RELOC_RL78_ABS16UW,	R_RL78_ABS16UW },
   { BFD_RELOC_RL78_ABS16U,	R_RL78_ABS16U },
+  { BFD_RELOC_RL78_SADDR,	R_RL78_RH_SADDR },
   { BFD_RELOC_RL78_RELAX,	R_RL78_RH_RELAX }
 };
 
@@ -278,6 +287,7 @@ rl78_info_to_howto_rela (bfd *               abfd ATTRIBUTE_UNUSED,
   r_type = ELF32_R_TYPE (dst->r_info);
   if (r_type >= (unsigned int) R_RL78_max)
     {
+      /* xgettext:c-format */
       _bfd_error_handler (_("%B: invalid RL78 reloc number: %d"), abfd, r_type);
       r_type = 0;
     }
@@ -286,33 +296,34 @@ rl78_info_to_howto_rela (bfd *               abfd ATTRIBUTE_UNUSED,
 
 static bfd_vma
 get_symbol_value (const char *            name,
-		  bfd_reloc_status_type * status,
 		  struct bfd_link_info *  info,
 		  bfd *                   input_bfd,
 		  asection *              input_section,
 		  int			  offset)
 {
-  bfd_vma value = 0;
   struct bfd_link_hash_entry * h;
+
+  if (info == NULL)
+    return 0;
 
   h = bfd_link_hash_lookup (info->hash, name, FALSE, FALSE, TRUE);
 
   if (h == NULL
       || (h->type != bfd_link_hash_defined
 	  && h->type != bfd_link_hash_defweak))
-    * status = info->callbacks->undefined_symbol
-      (info, name, input_bfd, input_section, offset, TRUE);
-  else
-    value = (h->u.def.value
-	     + h->u.def.section->output_section->vma
-	     + h->u.def.section->output_offset);
+    {
+      (*info->callbacks->undefined_symbol)
+	(info, name, input_bfd, input_section, offset, TRUE);
+      return 0;
+    }
 
-  return value;
+  return (h->u.def.value
+	  + h->u.def.section->output_section->vma
+	  + h->u.def.section->output_offset);
 }
 
 static bfd_vma
-get_romstart (bfd_reloc_status_type * status,
-	      struct bfd_link_info *  info,
+get_romstart (struct bfd_link_info *  info,
 	      bfd *                   abfd,
 	      asection *              sec,
 	      int		      offset)
@@ -322,15 +333,14 @@ get_romstart (bfd_reloc_status_type * status,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("_start", status, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("_start", info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
 }
 
 static bfd_vma
-get_ramstart (bfd_reloc_status_type * status,
-	      struct bfd_link_info *  info,
+get_ramstart (struct bfd_link_info *  info,
 	      bfd *                   abfd,
 	      asection *              sec,
 	      int		      offset)
@@ -340,7 +350,7 @@ get_ramstart (bfd_reloc_status_type * status,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("__datastart", status, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("__datastart", info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
@@ -356,7 +366,7 @@ static unsigned int rl78_stack_top;
       if (rl78_stack_top < NUM_STACK_ENTRIES)	\
         rl78_stack [rl78_stack_top ++] = (val);	\
       else					\
-        r = bfd_reloc_dangerous;		\
+	_bfd_error_handler (_("Internal Error: RL78 reloc stack overflow")); \
     }						\
   while (0)
 
@@ -364,11 +374,268 @@ static unsigned int rl78_stack_top;
   do						\
     {						\
       if (rl78_stack_top > 0)			\
-        (dest) = rl78_stack [-- rl78_stack_top];	\
+        (dest) = rl78_stack [-- rl78_stack_top];\
       else					\
-        (dest) = 0, r = bfd_reloc_dangerous;	\
+	{					\
+          _bfd_error_handler (_("Internal Error: RL78 reloc stack underflow")); \
+          (dest) = 0;				\
+        }					\
     }						\
   while (0)
+
+/* Special handling for RL78 complex relocs.  Returns the
+   value of the reloc, or 0 for relocs which do not generate
+   a result.  SYMVAL is the value of the symbol for relocs
+   which use a symbolic argument.  */
+
+static bfd_vma
+rl78_compute_complex_reloc (unsigned long  r_type,
+			    bfd_vma        symval,
+			    asection *     input_section)
+{
+  int32_t tmp1, tmp2;
+  bfd_vma relocation;
+
+  switch (r_type)
+    {
+    default:
+      return 0;
+
+    case R_RL78_ABS24S_PCREL:
+    case R_RL78_ABS16S_PCREL:
+    case R_RL78_ABS8S_PCREL:
+      RL78_STACK_POP (relocation);
+      relocation -= input_section->output_section->vma + input_section->output_offset;
+      return relocation;
+
+    case R_RL78_ABS32:
+    case R_RL78_ABS32_REV:
+    case R_RL78_ABS16:
+    case R_RL78_ABS16_REV:
+    case R_RL78_ABS16S:
+    case R_RL78_ABS16U:
+    case R_RL78_ABS8:
+    case R_RL78_ABS8U:
+    case R_RL78_ABS8S:
+      RL78_STACK_POP (relocation);
+      return relocation;
+
+    case R_RL78_ABS16UL:
+    case R_RL78_ABS8UL:
+      RL78_STACK_POP (relocation);
+      return relocation >> 2;
+
+    case R_RL78_ABS16UW:
+    case R_RL78_ABS8UW:
+      RL78_STACK_POP (relocation);
+      return relocation >> 1;
+
+      /* The rest of the relocs compute values and then push them onto the stack.  */
+    case R_RL78_OPramtop:
+    case R_RL78_OPromtop:
+    case R_RL78_SYM:
+      RL78_STACK_PUSH (symval);
+      return 0;
+
+    case R_RL78_OPneg:
+      RL78_STACK_POP (tmp1);
+      tmp1 = - tmp1;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPadd:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 += tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPsub:
+      /* For the expression "A - B", the assembler pushes A,
+	 then B, then OPSUB.  So the first op we pop is B, not A.  */
+      RL78_STACK_POP (tmp2);	/* B */
+      RL78_STACK_POP (tmp1);	/* A */
+      tmp1 -= tmp2;		/* A - B */
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPmul:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 *= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPdiv:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 /= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPshla:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 <<= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPshra:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 >>= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPsctsize:
+      RL78_STACK_PUSH (input_section->size);
+      return 0;
+
+    case R_RL78_OPscttop:
+      RL78_STACK_PUSH (input_section->output_section->vma);
+      return 0;
+
+    case R_RL78_OPand:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 &= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPor:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 |= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPxor:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 ^= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPnot:
+      RL78_STACK_POP (tmp1);
+      tmp1 = ~ tmp1;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+
+    case R_RL78_OPmod:
+      RL78_STACK_POP (tmp2);
+      RL78_STACK_POP (tmp1);
+      tmp1 %= tmp2;
+      RL78_STACK_PUSH (tmp1);
+      return 0;
+    }
+}
+
+#undef RL78_STACK_PUSH
+#undef RL78_STACK_POP
+
+#define OP(i)      (contents[reloc->address + (i)])
+
+static bfd_reloc_status_type
+rl78_special_reloc (bfd *      input_bfd,
+		    arelent *  reloc,
+		    asymbol *  symbol,
+		    void *     data,
+		    asection * input_section,
+		    bfd *      output_bfd ATTRIBUTE_UNUSED,
+		    char **    error_message ATTRIBUTE_UNUSED)
+{
+  bfd_reloc_status_type  r = bfd_reloc_ok;
+  bfd_vma                relocation = 0;
+  unsigned long          r_type = reloc->howto->type;
+  bfd_byte *             contents = data;
+
+  /* If necessary, compute the symbolic value of the relocation.  */
+  switch (r_type)
+    {
+    case R_RL78_SYM:
+      relocation = (symbol->value
+		    + symbol->section->output_section->vma
+		    + symbol->section->output_offset
+		    + reloc->addend);
+	break;
+
+    case R_RL78_OPromtop:
+      relocation = get_romstart (NULL, input_bfd, input_section,
+				 reloc->address);
+      break;
+
+    case R_RL78_OPramtop:
+      relocation = get_ramstart (NULL, input_bfd, input_section,
+				 reloc->address);
+      break;
+    }
+
+  /* Get the value of the relocation.  */
+  relocation = rl78_compute_complex_reloc (r_type, relocation, input_section);
+
+  /* If the relocation alters the contents of the section then apply it now.
+     Note - since this function is called from
+     bfd_generic_get_relocated_section_contents via bfd_perform_relocation,
+     and not from the linker, we do not perform any range checking.  The
+     clients who are calling us are only interested in some relocated section
+     contents, and not any linkage problems that might occur later.  */
+  switch (r_type)
+    {
+    case R_RL78_ABS32:
+      OP (0) = relocation;
+      OP (1) = relocation >> 8;
+      OP (2) = relocation >> 16;
+      OP (3) = relocation >> 24;
+      break;
+
+    case R_RL78_ABS32_REV:
+      OP (3) = relocation;
+      OP (2) = relocation >> 8;
+      OP (1) = relocation >> 16;
+      OP (0) = relocation >> 24;
+      break;
+
+    case R_RL78_ABS24S_PCREL:
+    case R_RL78_ABS24S:
+      OP (0) = relocation;
+      OP (1) = relocation >> 8;
+      OP (2) = relocation >> 16;
+      break;
+
+    case R_RL78_ABS16_REV:
+      OP (1) = relocation;
+      OP (0) = relocation >> 8;
+      break;
+
+    case R_RL78_ABS16S_PCREL:
+    case R_RL78_ABS16:
+    case R_RL78_ABS16S:
+    case R_RL78_ABS16U:
+    case R_RL78_ABS16UL:
+    case R_RL78_ABS16UW:
+      OP (0) = relocation;
+      OP (1) = relocation >> 8;
+      break;
+
+    case R_RL78_ABS8S_PCREL:
+    case R_RL78_ABS8:
+    case R_RL78_ABS8U:
+    case R_RL78_ABS8UL:
+    case R_RL78_ABS8UW:
+    case R_RL78_ABS8S:
+      OP (0) = relocation;
+      break;
+
+    default:
+      break;
+    }
+
+  return r;
+}
+
+#undef  OP
+#define OP(i)      (contents[rel->r_offset + (i)])
 
 /* Relocate an RL78 ELF section.
    There is some attempt to make this function usable for many architectures,
@@ -418,17 +685,13 @@ rl78_elf_relocate_section
   struct elf_link_hash_entry ** sym_hashes;
   Elf_Internal_Rela *           rel;
   Elf_Internal_Rela *           relend;
-  bfd *dynobj;
   asection *splt;
 
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
 
-  dynobj = elf_hash_table (info)->dynobj;
-  splt = NULL;
-  if (dynobj != NULL)
-    splt = bfd_get_linker_section (dynobj, ".plt");
+  splt = elf_hash_table (info)->splt;
 
   for (rel = relocs; rel < relend; rel ++)
     {
@@ -479,7 +742,7 @@ rl78_elf_relocate_section
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	{
 	  /* This is a relocatable link.  We don't have to change
              anything, unless the reloc is against a section symbol,
@@ -559,8 +822,6 @@ rl78_elf_relocate_section
       r = bfd_reloc_ok;
 
 #define RANGE(a,b) if (a > (long) relocation || (long) relocation > b) r = bfd_reloc_overflow
-#define ALIGN(m)   if (relocation & m) r = bfd_reloc_other;
-#define OP(i)      (contents[rel->r_offset + (i)])
 
       /* Opcode relocs are always big endian.  Data relocs are bi-endian.  */
       switch (r_type)
@@ -663,279 +924,141 @@ rl78_elf_relocate_section
 	  break;
 
 	  /* Complex reloc handling:  */
-
 	case R_RL78_ABS32:
-	  RL78_STACK_POP (relocation);
-	  OP (0) = relocation;
-	  OP (1) = relocation >> 8;
-	  OP (2) = relocation >> 16;
-	  OP (3) = relocation >> 24;
-	  break;
-
 	case R_RL78_ABS32_REV:
-	  RL78_STACK_POP (relocation);
-	  OP (3) = relocation;
-	  OP (2) = relocation >> 8;
-	  OP (1) = relocation >> 16;
-	  OP (0) = relocation >> 24;
-	  break;
-
 	case R_RL78_ABS24S_PCREL:
 	case R_RL78_ABS24S:
-	  RL78_STACK_POP (relocation);
-	  RANGE (-0x800000, 0x7fffff);
-	  OP (0) = relocation;
-	  OP (1) = relocation >> 8;
-	  OP (2) = relocation >> 16;
-	  break;
-
 	case R_RL78_ABS16:
-	  RL78_STACK_POP (relocation);
-	  RANGE (-32768, 65535);
-	  OP (0) = relocation;
-	  OP (1) = relocation >> 8;
-	  break;
-
 	case R_RL78_ABS16_REV:
-	  RL78_STACK_POP (relocation);
-	  RANGE (-32768, 65535);
-	  OP (1) = relocation;
-	  OP (0) = relocation >> 8;
-	  break;
-
 	case R_RL78_ABS16S_PCREL:
 	case R_RL78_ABS16S:
-	  RL78_STACK_POP (relocation);
-	  RANGE (-32768, 32767);
-	  OP (0) = relocation;
-	  OP (1) = relocation >> 8;
-	  break;
-
 	case R_RL78_ABS16U:
-	  RL78_STACK_POP (relocation);
-	  RANGE (0, 65536);
-	  OP (0) = relocation;
-	  OP (1) = relocation >> 8;
-	  break;
-
 	case R_RL78_ABS16UL:
-	  RL78_STACK_POP (relocation);
-	  relocation >>= 2;
-	  RANGE (0, 65536);
-	  OP (0) = relocation;
-	  OP (1) = relocation >> 8;
-	  break;
-
 	case R_RL78_ABS16UW:
-	  RL78_STACK_POP (relocation);
-	  relocation >>= 1;
-	  RANGE (0, 65536);
-	  OP (0) = relocation;
-	  OP (1) = relocation >> 8;
-	  break;
-
 	case R_RL78_ABS8:
-	  RL78_STACK_POP (relocation);
-	  RANGE (-128, 255);
-	  OP (0) = relocation;
-	  break;
-
 	case R_RL78_ABS8U:
-	  RL78_STACK_POP (relocation);
-	  RANGE (0, 255);
-	  OP (0) = relocation;
-	  break;
-
 	case R_RL78_ABS8UL:
-	  RL78_STACK_POP (relocation);
-	  relocation >>= 2;
-	  RANGE (0, 255);
-	  OP (0) = relocation;
-	  break;
-
 	case R_RL78_ABS8UW:
-	  RL78_STACK_POP (relocation);
-	  relocation >>= 1;
-	  RANGE (0, 255);
-	  OP (0) = relocation;
-	  break;
-
 	case R_RL78_ABS8S_PCREL:
 	case R_RL78_ABS8S:
-	  RL78_STACK_POP (relocation);
-	  RANGE (-128, 127);
-	  OP (0) = relocation;
+	case R_RL78_OPneg:
+	case R_RL78_OPadd:
+	case R_RL78_OPsub:
+	case R_RL78_OPmul:
+	case R_RL78_OPdiv:
+	case R_RL78_OPshla:
+	case R_RL78_OPshra:
+	case R_RL78_OPsctsize:
+	case R_RL78_OPscttop:
+	case R_RL78_OPand:
+	case R_RL78_OPor:
+	case R_RL78_OPxor:
+	case R_RL78_OPnot:
+	case R_RL78_OPmod:
+	  relocation = rl78_compute_complex_reloc (r_type, 0, input_section);
+
+	  switch (r_type)
+	    {
+	    case R_RL78_ABS32:
+	      OP (0) = relocation;
+	      OP (1) = relocation >> 8;
+	      OP (2) = relocation >> 16;
+	      OP (3) = relocation >> 24;
+	      break;
+
+	    case R_RL78_ABS32_REV:
+	      OP (3) = relocation;
+	      OP (2) = relocation >> 8;
+	      OP (1) = relocation >> 16;
+	      OP (0) = relocation >> 24;
+	      break;
+
+	    case R_RL78_ABS24S_PCREL:
+	    case R_RL78_ABS24S:
+	      RANGE (-0x800000, 0x7fffff);
+	      OP (0) = relocation;
+	      OP (1) = relocation >> 8;
+	      OP (2) = relocation >> 16;
+	      break;
+
+	    case R_RL78_ABS16:
+	      RANGE (-32768, 65535);
+	      OP (0) = relocation;
+	      OP (1) = relocation >> 8;
+	      break;
+
+	    case R_RL78_ABS16_REV:
+	      RANGE (-32768, 65535);
+	      OP (1) = relocation;
+	      OP (0) = relocation >> 8;
+	      break;
+
+	    case R_RL78_ABS16S_PCREL:
+	    case R_RL78_ABS16S:
+	      RANGE (-32768, 32767);
+	      OP (0) = relocation;
+	      OP (1) = relocation >> 8;
+	      break;
+
+	    case R_RL78_ABS16U:
+	    case R_RL78_ABS16UL:
+	    case R_RL78_ABS16UW:
+	      RANGE (0, 65536);
+	      OP (0) = relocation;
+	      OP (1) = relocation >> 8;
+	      break;
+
+	    case R_RL78_ABS8:
+	      RANGE (-128, 255);
+	      OP (0) = relocation;
+	      break;
+
+	    case R_RL78_ABS8U:
+	    case R_RL78_ABS8UL:
+	    case R_RL78_ABS8UW:
+	      RANGE (0, 255);
+	      OP (0) = relocation;
+	      break;
+
+	    case R_RL78_ABS8S_PCREL:
+	    case R_RL78_ABS8S:
+	      RANGE (-128, 127);
+	      OP (0) = relocation;
+	      break;
+
+	    default:
+	      break;
+	    }
 	  break;
 
 	case R_RL78_SYM:
 	  if (r_symndx < symtab_hdr->sh_info)
-	    RL78_STACK_PUSH (sec->output_section->vma
-			   + sec->output_offset
-			   + sym->st_value
-			   + rel->r_addend);
+	    relocation = sec->output_section->vma + sec->output_offset
+	      + sym->st_value + rel->r_addend;
+	  else if (h != NULL
+		   && (h->root.type == bfd_link_hash_defined
+		       || h->root.type == bfd_link_hash_defweak))
+	    relocation = h->root.u.def.value
+	      + sec->output_section->vma
+	      + sec->output_offset
+	      + rel->r_addend;
 	  else
 	    {
-	      if (h != NULL
-		  && (h->root.type == bfd_link_hash_defined
-		      || h->root.type == bfd_link_hash_defweak))
-		RL78_STACK_PUSH (h->root.u.def.value
-			       + sec->output_section->vma
-			       + sec->output_offset
-			       + rel->r_addend);
-	      else if (h->root.type == bfd_link_hash_undefweak)
-		RL78_STACK_PUSH (0);
-	      else
+	      relocation = 0;
+	      if (h->root.type != bfd_link_hash_undefweak)
 		_bfd_error_handler (_("Warning: RL78_SYM reloc with an unknown symbol"));
 	    }
-	  break;
-
-	case R_RL78_OPneg:
-	  {
-	    int32_t tmp;
-
-	    RL78_STACK_POP (tmp);
-	    tmp = - tmp;
-	    RL78_STACK_PUSH (tmp);
-	  }
-	  break;
-
-	case R_RL78_OPadd:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 += tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPsub:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    /* For the expression "A - B", the assembler pushes A,
-	       then B, then OPSUB.  So the first op we pop is B, not
-	       A.  */
-	    RL78_STACK_POP (tmp2);	/* B */
-	    RL78_STACK_POP (tmp1);	/* A */
-	    tmp1 -= tmp2;		/* A - B */
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPmul:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 *= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPdiv:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 /= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPshla:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 <<= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPshra:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 >>= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPsctsize:
-	  RL78_STACK_PUSH (input_section->size);
-	  break;
-
-	case R_RL78_OPscttop:
-	  RL78_STACK_PUSH (input_section->output_section->vma);
-	  break;
-
-	case R_RL78_OPand:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 &= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPor:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 |= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPxor:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 ^= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
-	  break;
-
-	case R_RL78_OPnot:
-	  {
-	    int32_t tmp;
-
-	    RL78_STACK_POP (tmp);
-	    tmp = ~ tmp;
-	    RL78_STACK_PUSH (tmp);
-	  }
-	  break;
-
-	case R_RL78_OPmod:
-	  {
-	    int32_t tmp1, tmp2;
-
-	    RL78_STACK_POP (tmp2);
-	    RL78_STACK_POP (tmp1);
-	    tmp1 %= tmp2;
-	    RL78_STACK_PUSH (tmp1);
-	  }
+	  (void) rl78_compute_complex_reloc (r_type, relocation, input_section);
 	  break;
 
 	case R_RL78_OPromtop:
-	  RL78_STACK_PUSH (get_romstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  relocation = get_romstart (info, input_bfd, input_section, rel->r_offset);
+	  (void) rl78_compute_complex_reloc (r_type, relocation, input_section);
 	  break;
 
 	case R_RL78_OPramtop:
-	  RL78_STACK_PUSH (get_ramstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  relocation = get_ramstart (info, input_bfd, input_section, rel->r_offset);
+	  (void) rl78_compute_complex_reloc (r_type, relocation, input_section);
 	  break;
 
 	default:
@@ -953,45 +1076,47 @@ rl78_elf_relocate_section
 	      /* Catch the case of a missing function declaration
 		 and emit a more helpful error message.  */
 	      if (r_type == R_RL78_DIR24S_PCREL)
+		/* xgettext:c-format */
 		msg = _("%B(%A): error: call to undefined function '%s'");
 	      else
-		r = info->callbacks->reloc_overflow
+		(*info->callbacks->reloc_overflow)
 		  (info, (h ? &h->root : NULL), name, howto->name, (bfd_vma) 0,
 		   input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
-	      r = info->callbacks->undefined_symbol
-		(info, name, input_bfd, input_section, rel->r_offset,
-		 TRUE);
+	      (*info->callbacks->undefined_symbol)
+		(info, name, input_bfd, input_section, rel->r_offset, TRUE);
 	      break;
 
 	    case bfd_reloc_other:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): warning: unaligned access to symbol '%s' in the small data area");
 	      break;
 
 	    case bfd_reloc_outofrange:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: out of range error");
 	      break;
 
 	    case bfd_reloc_notsupported:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: unsupported relocation error");
 	      break;
 
 	    case bfd_reloc_dangerous:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: dangerous relocation");
 	      break;
 
 	    default:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: unknown error");
 	      break;
 	    }
 
 	  if (msg)
 	    _bfd_error_handler (msg, input_bfd, input_section, name);
-
-	  if (! r)
-	    return FALSE;
 	}
     }
 
@@ -1018,12 +1143,25 @@ bfd_elf32_rl78_set_target_flags (bfd_boolean user_no_warn_mismatch)
   no_warn_mismatch = user_no_warn_mismatch;
 }
 
+static const char *
+rl78_cpu_name (flagword flags)
+{
+  switch (flags & E_FLAG_RL78_CPU_MASK)
+    {
+    default: return "";
+    case E_FLAG_RL78_G10:     return "G10";
+    case E_FLAG_RL78_G13:     return "G13";
+    case E_FLAG_RL78_G14:     return "G14";
+    }
+}
+
 /* Merge backend specific data from an object file to the output
    object file when linking.  */
 
 static bfd_boolean
-rl78_elf_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
+rl78_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
   flagword new_flags;
   flagword old_flags;
   bfd_boolean error = FALSE;
@@ -1041,31 +1179,63 @@ rl78_elf_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
     {
       flagword changed_flags = old_flags ^ new_flags;
 
-      if (changed_flags & E_FLAG_RL78_G10)
+      if (changed_flags & E_FLAG_RL78_CPU_MASK)
 	{
-	  (*_bfd_error_handler)
-	    (_("RL78/G10 ABI conflict: cannot link G10 and non-G10 objects together"));
+	  flagword out_cpu = old_flags & E_FLAG_RL78_CPU_MASK;
+	  flagword in_cpu = new_flags & E_FLAG_RL78_CPU_MASK;
 
-	  if (old_flags & E_FLAG_RL78_G10)
-	    (*_bfd_error_handler) (_("- %s is G10, %s is not"),
-				   bfd_get_filename (obfd), bfd_get_filename (ibfd));
+	  if (in_cpu == E_FLAG_RL78_ANY_CPU || in_cpu == out_cpu)
+	    /* It does not matter what new_cpu may have.  */;
+	  else if (out_cpu == E_FLAG_RL78_ANY_CPU)
+	    {
+	      if (in_cpu == E_FLAG_RL78_G10)
+		{
+		  /* G10 files can only be linked with other G10 files.
+		     If the output is set to "any" this means that it is
+		     a G14 file that does not use hardware multiply/divide,
+		     but that is still incompatible with the G10 ABI.  */
+		  error = TRUE;
+
+		  _bfd_error_handler
+		    /* xgettext:c-format */
+		    (_("RL78 ABI conflict: G10 file %s cannot be linked with %s file %s"),
+		     bfd_get_filename (ibfd),
+		     rl78_cpu_name (out_cpu), bfd_get_filename (obfd));
+		}
+	      else
+		{
+		  old_flags &= ~ E_FLAG_RL78_CPU_MASK;
+		  old_flags |= in_cpu;
+		  elf_elfheader (obfd)->e_flags = old_flags;
+		}
+	    }
 	  else
-	    (*_bfd_error_handler) (_("- %s is G10, %s is not"),
-				   bfd_get_filename (ibfd), bfd_get_filename (obfd));
+	    {
+	      error = TRUE;
+
+	      _bfd_error_handler
+		/* xgettext:c-format */
+		(_("RL78 ABI conflict: cannot link %s file %s with %s file %s"),
+		 rl78_cpu_name (in_cpu),  bfd_get_filename (ibfd),
+		 rl78_cpu_name (out_cpu), bfd_get_filename (obfd));
+	    }
 	}
 
       if (changed_flags & E_FLAG_RL78_64BIT_DOUBLES)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
 	    (_("RL78 merge conflict: cannot link 32-bit and 64-bit objects together"));
 
 	  if (old_flags & E_FLAG_RL78_64BIT_DOUBLES)
-	    (*_bfd_error_handler) (_("- %s is 64-bit, %s is not"),
-				   bfd_get_filename (obfd), bfd_get_filename (ibfd));
+	    /* xgettext:c-format */
+	    _bfd_error_handler (_("- %s is 64-bit, %s is not"),
+				bfd_get_filename (obfd), bfd_get_filename (ibfd));
 	  else
-	    (*_bfd_error_handler) (_("- %s is 64-bit, %s is not"),
-				   bfd_get_filename (ibfd), bfd_get_filename (obfd));
-	}    
+	    /* xgettext:c-format */
+	    _bfd_error_handler (_("- %s is 64-bit, %s is not"),
+				bfd_get_filename (ibfd), bfd_get_filename (obfd));
+	  error = TRUE;
+	}
     }
 
   return !error;
@@ -1085,8 +1255,8 @@ rl78_elf_print_private_bfd_data (bfd * abfd, void * ptr)
   flags = elf_elfheader (abfd)->e_flags;
   fprintf (file, _("private flags = 0x%lx:"), (long) flags);
 
-  if (flags & E_FLAG_RL78_G10)
-    fprintf (file, _(" [G10]"));
+  if (flags & E_FLAG_RL78_CPU_MASK)
+    fprintf (file, " [%s]", rl78_cpu_name (flags));
 
   if (flags & E_FLAG_RL78_64BIT_DOUBLES)
     fprintf (file, _(" [64-bit doubles]"));
@@ -1098,12 +1268,9 @@ rl78_elf_print_private_bfd_data (bfd * abfd, void * ptr)
 /* Return the MACH for an e_flags value.  */
 
 static int
-elf32_rl78_machine (bfd * abfd)
+elf32_rl78_machine (bfd * abfd ATTRIBUTE_UNUSED)
 {
-  if ((elf_elfheader (abfd)->e_flags & EF_RL78_CPU_MASK) == EF_RL78_CPU_RL78)
-    return bfd_mach_rl78;
-
-  return 0;
+  return bfd_mach_rl78;
 }
 
 static bfd_boolean
@@ -1134,13 +1301,12 @@ rl78_elf_check_relocs
   asection *splt;
   bfd *dynobj;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (abfd);
   local_plt_offsets = elf_local_got_offsets (abfd);
-  splt = NULL;
   dynobj = elf_hash_table(info)->dynobj;
 
   rel_end = relocs + sec->reloc_count;
@@ -1173,20 +1339,18 @@ rl78_elf_check_relocs
 	case R_RL78_DIR16S:
 	  if (dynobj == NULL)
 	    elf_hash_table (info)->dynobj = dynobj = abfd;
+	  splt = elf_hash_table (info)->splt;
 	  if (splt == NULL)
 	    {
-	      splt = bfd_get_linker_section (dynobj, ".plt");
-	      if (splt == NULL)
-		{
-		  flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
-				    | SEC_IN_MEMORY | SEC_LINKER_CREATED
-				    | SEC_READONLY | SEC_CODE);
-		  splt = bfd_make_section_anyway_with_flags (dynobj, ".plt",
-							     flags);
-		  if (splt == NULL
-		      || ! bfd_set_section_alignment (dynobj, splt, 1))
-		    return FALSE;
-		}
+	      flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
+				| SEC_IN_MEMORY | SEC_LINKER_CREATED
+				| SEC_READONLY | SEC_CODE);
+	      splt = bfd_make_section_anyway_with_flags (dynobj, ".plt",
+							 flags);
+	      elf_hash_table (info)->splt = splt;
+	      if (splt == NULL
+		  || ! bfd_set_section_alignment (dynobj, splt, 1))
+		return FALSE;
 	    }
 
 	  if (h != NULL)
@@ -1240,11 +1404,12 @@ rl78_elf_finish_dynamic_sections (bfd *abfd ATTRIBUTE_UNUSED,
      this check if we're relaxing.  Unfortunately, check_relocs is
      called before relaxation.  */
 
-  if (info->relax_trip > 0) 
+  if (info->relax_trip > 0)
     return TRUE;
 
-  if ((dynobj = elf_hash_table (info)->dynobj) != NULL
-      && (splt = bfd_get_linker_section (dynobj, ".plt")) != NULL)
+  dynobj = elf_hash_table (info)->dynobj;
+  splt = elf_hash_table (info)->splt;
+  if (dynobj != NULL && splt != NULL)
     {
       bfd_byte *contents = splt->contents;
       unsigned int i, size = splt->size;
@@ -1266,14 +1431,14 @@ rl78_elf_always_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
   bfd *dynobj;
   asection *splt;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   dynobj = elf_hash_table (info)->dynobj;
   if (dynobj == NULL)
     return TRUE;
 
-  splt = bfd_get_linker_section (dynobj, ".plt");
+  splt = elf_hash_table (info)->splt;
   BFD_ASSERT (splt != NULL);
 
   splt->contents = (bfd_byte *) bfd_zalloc (dynobj, splt->size);
@@ -1353,7 +1518,7 @@ rl78_elf_relax_plt_section (bfd *dynobj,
   /* Assume nothing changes.  */
   *again = FALSE;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   /* We only relax the .plt section at the moment.  */
@@ -1473,7 +1638,7 @@ rl78_elf_relax_plt_section (bfd *dynobj,
 
 static bfd_boolean
 elf32_rl78_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count,
-			     Elf_Internal_Rela *alignment_rel, int force_snip)
+			       Elf_Internal_Rela *alignment_rel, int force_snip)
 {
   Elf_Internal_Shdr * symtab_hdr;
   unsigned int        sec_shndx;
@@ -1651,22 +1816,21 @@ reloc_bubblesort (Elf_Internal_Rela * r, int count)
 
 #define OFFSET_FOR_RELOC(rel, lrel, scale) \
   rl78_offset_for_reloc (abfd, rel + 1, symtab_hdr, shndx_buf, intsyms, \
-		       lrel, abfd, sec, link_info, scale)
+			 lrel, abfd, sec, link_info, scale)
 
 static bfd_vma
 rl78_offset_for_reloc (bfd *                    abfd,
-		     Elf_Internal_Rela *      rel,
-		     Elf_Internal_Shdr *      symtab_hdr,
-		     Elf_External_Sym_Shndx * shndx_buf ATTRIBUTE_UNUSED,
-		     Elf_Internal_Sym *       intsyms,
-		     Elf_Internal_Rela **     lrel,
-		     bfd *                    input_bfd,
-		     asection *               input_section,
-		     struct bfd_link_info *   info,
-		     int *                    scale)
+		       Elf_Internal_Rela *      rel,
+		       Elf_Internal_Shdr *      symtab_hdr,
+		       Elf_External_Sym_Shndx * shndx_buf ATTRIBUTE_UNUSED,
+		       Elf_Internal_Sym *       intsyms,
+		       Elf_Internal_Rela **     lrel,
+		       bfd *                    input_bfd,
+		       asection *               input_section,
+		       struct bfd_link_info *   info,
+		       int *                    scale)
 {
   bfd_vma symval;
-  bfd_reloc_status_type r;
 
   *scale = 1;
 
@@ -1675,7 +1839,7 @@ rl78_offset_for_reloc (bfd *                    abfd,
      gets a pointer to the last relocation used.  */
   while (1)
     {
-      int32_t tmp1, tmp2;
+      unsigned long r_type;
 
       /* Get the value of the symbol referred to by the reloc.  */
       if (ELF32_R_SYM (rel->r_info) < symtab_hdr->sh_info)
@@ -1749,135 +1913,66 @@ rl78_offset_for_reloc (bfd *                    abfd,
 	  symval += rel->r_addend;
 	}
 
-      switch (ELF32_R_TYPE (rel->r_info))
+      r_type = ELF32_R_TYPE (rel->r_info);
+      switch (r_type)
 	{
 	case R_RL78_SYM:
-	  RL78_STACK_PUSH (symval);
-	  break;
-
-	case R_RL78_OPneg:
-	  RL78_STACK_POP (tmp1);
-	  tmp1 = - tmp1;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPadd:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 += tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPsub:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp2 -= tmp1;
-	  RL78_STACK_PUSH (tmp2);
-	  break;
-
-	case R_RL78_OPmul:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 *= tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPdiv:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 /= tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPshla:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 <<= tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPshra:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 >>= tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPsctsize:
-	  RL78_STACK_PUSH (input_section->size);
-	  break;
-
-	case R_RL78_OPscttop:
-	  RL78_STACK_PUSH (input_section->output_section->vma);
-	  break;
-
-	case R_RL78_OPand:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 &= tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPor:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 |= tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPxor:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 ^= tmp2;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPnot:
-	  RL78_STACK_POP (tmp1);
-	  tmp1 = ~ tmp1;
-	  RL78_STACK_PUSH (tmp1);
-	  break;
-
-	case R_RL78_OPmod:
-	  RL78_STACK_POP (tmp1);
-	  RL78_STACK_POP (tmp2);
-	  tmp1 %= tmp2;
-	  RL78_STACK_PUSH (tmp1);
+	  (void) rl78_compute_complex_reloc (r_type, symval, input_section);
 	  break;
 
 	case R_RL78_OPromtop:
-	  RL78_STACK_PUSH (get_romstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  symval = get_romstart (info, input_bfd, input_section, rel->r_offset);
+	  (void) rl78_compute_complex_reloc (r_type, symval, input_section);
 	  break;
 
 	case R_RL78_OPramtop:
-	  RL78_STACK_PUSH (get_ramstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  symval = get_ramstart (info, input_bfd, input_section, rel->r_offset);
+	  (void) rl78_compute_complex_reloc (r_type, symval, input_section);
+	  break;
+
+	case R_RL78_OPneg:
+	case R_RL78_OPadd:
+	case R_RL78_OPsub:
+	case R_RL78_OPmul:
+	case R_RL78_OPdiv:
+	case R_RL78_OPshla:
+	case R_RL78_OPshra:
+	case R_RL78_OPsctsize:
+	case R_RL78_OPscttop:
+	case R_RL78_OPand:
+	case R_RL78_OPor:
+	case R_RL78_OPxor:
+	case R_RL78_OPnot:
+	case R_RL78_OPmod:
+	  (void) rl78_compute_complex_reloc (r_type, 0, input_section);
 	  break;
 
 	case R_RL78_DIR16UL:
 	case R_RL78_DIR8UL:
 	case R_RL78_ABS16UL:
 	case R_RL78_ABS8UL:
-	  if (rl78_stack_top)
-	    RL78_STACK_POP (symval);
-	  if (lrel)
-	    *lrel = rel;
 	  *scale = 4;
-	  return symval;
+	  goto reloc_computes_value;
 
 	case R_RL78_DIR16UW:
 	case R_RL78_DIR8UW:
 	case R_RL78_ABS16UW:
 	case R_RL78_ABS8UW:
-	  if (rl78_stack_top)
-	    RL78_STACK_POP (symval);
-	  if (lrel)
-	    *lrel = rel;
 	  *scale = 2;
-	  return symval;
+	  goto reloc_computes_value;
 
 	default:
-	  if (rl78_stack_top)
-	    RL78_STACK_POP (symval);
+	reloc_computes_value:
+	  symval = rl78_compute_complex_reloc (r_type, symval, input_section);
+	  /* Fall through.  */
+	case R_RL78_DIR32:
+	case R_RL78_DIR24S:
+	case R_RL78_DIR16:
+	case R_RL78_DIR16U:
+	case R_RL78_DIR16S:
+	case R_RL78_DIR24S_PCREL:
+	case R_RL78_DIR16S_PCREL:
+	case R_RL78_DIR8S_PCREL:
 	  if (lrel)
 	    *lrel = rel;
 	  return symval;
@@ -1991,14 +2086,17 @@ rl78_elf_relax_section
   /* We don't have to do anything for a relocatable link, if
      this section does not have relocs, or if this is not a
      code section.  */
-  if (link_info->relocatable
+  if (bfd_link_relocatable (link_info)
       || (sec->flags & SEC_RELOC) == 0
       || sec->reloc_count == 0
       || (sec->flags & SEC_CODE) == 0)
     return TRUE;
 
-  symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
-  shndx_hdr = &elf_tdata (abfd)->symtab_shndx_hdr;
+  symtab_hdr = & elf_symtab_hdr (abfd);
+  if (elf_symtab_shndx_list (abfd))
+    shndx_hdr = & elf_symtab_shndx_list (abfd)->hdr;
+  else
+    shndx_hdr = NULL;
 
   /* Get the section contents.  */
   if (elf_section_data (sec)->this_hdr.contents != NULL)
@@ -2021,7 +2119,7 @@ rl78_elf_relax_section
       symtab_hdr->contents = (bfd_byte *) intsyms;
     }
 
-  if (shndx_hdr->sh_size != 0)
+  if (shndx_hdr && shndx_hdr->sh_size != 0)
     {
       bfd_size_type amt;
 
@@ -2129,8 +2227,8 @@ rl78_elf_relax_section
 	  nbytes /= alignment;
 	  nbytes *= alignment;
 
-	  elf32_rl78_relax_delete_bytes (abfd, sec, erel->r_offset-nbytes, nbytes, next_alignment,
-				       erel->r_offset == sec->size);
+	  elf32_rl78_relax_delete_bytes (abfd, sec, erel->r_offset - nbytes, nbytes,
+					 next_alignment, erel->r_offset == sec->size);
 	  *again = TRUE;
 
 	  continue;
@@ -2163,16 +2261,17 @@ rl78_elf_relax_section
       pc = sec->output_section->vma + sec->output_offset
 	+ srel->r_offset;
 
-#define GET_RELOC \
-      BFD_ASSERT (nrelocs > 0);			       \
-      symval = OFFSET_FOR_RELOC (srel, &srel, &scale); \
-      pcrel = symval - pc + srel->r_addend; \
+#define GET_RELOC					\
+      BFD_ASSERT (nrelocs > 0);				\
+      symval = OFFSET_FOR_RELOC (srel, &srel, &scale);	\
+      pcrel = symval - pc + srel->r_addend;		\
       nrelocs --;
 
 #define SNIPNR(offset, nbytes) \
 	elf32_rl78_relax_delete_bytes (abfd, sec, (insn - contents) + offset, nbytes, next_alignment, 0);
-#define SNIP(offset, nbytes, newtype) \
-        SNIPNR (offset, nbytes);						\
+
+#define SNIP(offset, nbytes, newtype)					\
+        SNIPNR (offset, nbytes);					\
 	srel->r_info = ELF32_R_INFO (ELF32_R_SYM (srel->r_info), newtype)
 
       /* The order of these bit tests must match the order that the
@@ -2215,6 +2314,27 @@ rl78_elf_relax_section
 
 	  switch (insn[0])
 	    {
+	    case 0xdc: /* BC */
+	    case 0xdd: /* BZ */
+	    case 0xde: /* BNC */
+	    case 0xdf: /* BNZ */
+	      if (insn[1] == 0x03 && insn[2] == 0xee /* BR */
+		  && (srel->r_offset - irel->r_offset) > 1) /* a B<c> without its own reloc */
+		{
+		  /* This is a "long" conditional as generated by gas:
+		     DC 03 EE ad.dr  */
+		  if (pcrel < 127
+		      && pcrel > -127)
+		    {
+		      insn[0] ^= 0x02; /* invert conditional */
+		      SNIPNR (4, 1);
+		      SNIP (1, 2, R_RL78_DIR8S_PCREL);
+		      insn[1] = pcrel;
+		      *again = TRUE;
+		    }
+		}
+	      break;
+
 	    case 0xec: /* BR !!abs20 */
 
 	      if (pcrel < 127
@@ -2230,7 +2350,7 @@ rl78_elf_relax_section
 		  insn[0] = 0xed;
 		  insn[1] = symval & 0xff;
 		  insn[2] = symval >> 8;
-		  SNIP (2, 1, R_RL78_DIR16S);
+		  SNIP (2, 1, R_RL78_DIR16U);
 		  *again = TRUE;
 		}
 	      else if (pcrel < 32767
@@ -2262,7 +2382,7 @@ rl78_elf_relax_section
 		  insn[0] = 0xfd;
 		  insn[1] = symval & 0xff;
 		  insn[2] = symval >> 8;
-		  SNIP (2, 1, R_RL78_DIR16S);
+		  SNIP (2, 1, R_RL78_DIR16U);
 		  *again = TRUE;
 		}
 	      else if (pcrel < 32767
@@ -2285,6 +2405,25 @@ rl78_elf_relax_section
 		 here anyway. */
 	      switch (insn[1])
 		{
+		case 0xd3: /* BNH */
+		case 0xc3: /* BH */
+		  if (insn[2] == 0x03 && insn[3] == 0xee
+		      && (srel->r_offset - irel->r_offset) > 2) /* a B<c> without its own reloc */
+		    {
+		      /* Another long branch by gas:
+			 61 D3 03 EE ad.dr  */
+		      if (pcrel < 127
+			  && pcrel > -127)
+			{
+			  insn[1] ^= 0x10; /* invert conditional */
+			  SNIPNR (5, 1);
+			  SNIP (2, 2, R_RL78_DIR8S_PCREL);
+			  insn[2] = pcrel;
+			  *again = TRUE;
+			}
+		    }
+		  break;
+
 		case 0xc8: /* SKC */
 		  if (insn[2] == 0xef)
 		    {
@@ -2335,10 +2474,10 @@ rl78_elf_relax_section
 		}
 	      break;
 	    }
-
 	}
 
-      if ((irel->r_addend &  RL78_RELAXA_MASK) == RL78_RELAXA_ADDR16)
+      if ((irel->r_addend &  RL78_RELAXA_MASK) == RL78_RELAXA_ADDR16
+          && nrelocs > 0)
 	{
 	  /*----------------------------------------------------------------------*/
 	  /* Some insns have both a 16-bit address operand and an 8-bit
@@ -2401,13 +2540,10 @@ rl78_elf_relax_section
 		      insn[poff] = relax_addr16[idx].insn_for_saddr;
 		      SNIP (poff+2, 1, R_RL78_RH_SADDR);
 		    }
-
 		}
 	    }
 	}
-
       /*----------------------------------------------------------------------*/
-
     }
 
   return TRUE;

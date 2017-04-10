@@ -1,5 +1,5 @@
 /* POWER/PowerPC XCOFF linker support.
-   Copyright (C) 1995-2014 Free Software Foundation, Inc.
+   Copyright (C) 1995-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -828,7 +828,7 @@ xcoff_link_add_dynamic_symbols (bfd *abfd, struct bfd_link_info *info)
      output file.  */
    if (info->output_bfd->xvec != abfd->xvec)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%s: XCOFF shared object when not producing XCOFF output"),
 	 bfd_get_filename (abfd));
       bfd_set_error (bfd_error_invalid_operation);
@@ -849,7 +849,7 @@ xcoff_link_add_dynamic_symbols (bfd *abfd, struct bfd_link_info *info)
   lsec = bfd_get_section_by_name (abfd, ".loader");
   if (lsec == NULL)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%s: dynamic object with no .loader section"),
 	 bfd_get_filename (abfd));
       bfd_set_error (bfd_error_no_symbols);
@@ -997,7 +997,7 @@ xcoff_link_add_dynamic_symbols (bfd *abfd, struct bfd_link_info *info)
     return FALSE;
   n->next = NULL;
 
-  if (abfd->my_archive == NULL)
+  if (abfd->my_archive == NULL || bfd_is_thin_archive (abfd->my_archive))
     {
       if (!bfd_xcoff_split_import_path (abfd, abfd->filename,
 					&n->path, &n->file))
@@ -1050,7 +1050,7 @@ xcoff_link_create_extra_sections (bfd * abfd, struct bfd_link_info *info)
 	 won't work if we're producing an XCOFF output file with no
 	 XCOFF input files.  FIXME.  */
 
-      if (!info->relocatable
+      if (!bfd_link_relocatable (info)
 	  && xcoff_hash_table (info)->loader_section == NULL)
 	{
 	  asection *lsec;
@@ -1408,7 +1408,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	      enclosing = xcoff_section_data (abfd, csect)->enclosing;
 	      if (enclosing == NULL)
 		{
-		  (*_bfd_error_handler)
+		  _bfd_error_handler
+		    /* xgettext:c-format */
 		    (_("%B: `%s' has line numbers but no enclosing section"),
 		     abfd, name);
 		  bfd_set_error (bfd_error_bad_value);
@@ -1460,7 +1461,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
       /* Pick up the csect auxiliary information.  */
       if (sym.n_numaux == 0)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%B: class %d symbol `%s' has no aux entries"),
 	     abfd, sym.n_sclass, name);
 	  bfd_set_error (bfd_error_bad_value);
@@ -1482,7 +1484,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
       switch (smtyp)
 	{
 	default:
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%B: symbol `%s' has unrecognized csect type %d"),
 	     abfd, name, smtyp);
 	  bfd_set_error (bfd_error_bad_value);
@@ -1494,7 +1497,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	      || sym.n_scnum != N_UNDEF
 	      || aux.x_csect.x_scnlen.l != 0)
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext:c-format */
 		(_("%B: bad XTY_ER symbol `%s': class %d scnum %d scnlen %d"),
 		 abfd, name, sym.n_sclass, sym.n_scnum,
 		 aux.x_csect.x_scnlen.l);
@@ -1523,7 +1527,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	      if (sym.n_sclass != C_HIDEXT
 		  || aux.x_csect.x_scnlen.l != 0)
 		{
-		  (*_bfd_error_handler)
+		  _bfd_error_handler
+		    /* xgettext:c-format */
 		    (_("%B: XMC_TC0 symbol `%s' is class %d scnlen %d"),
 		     abfd, name, sym.n_sclass, aux.x_csect.x_scnlen.l);
 		  bfd_set_error (bfd_error_bad_value);
@@ -1669,7 +1674,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 		    || ((bfd_vma) sym.n_value + aux.x_csect.x_scnlen.l
 			> enclosing->vma + enclosing->size)))
 	      {
-		(*_bfd_error_handler)
+		_bfd_error_handler
+		  /* xgettext:c-format */
 		  (_("%B: csect `%s' not in enclosing section"),
 		   abfd, name);
 		bfd_set_error (bfd_error_bad_value);
@@ -1776,7 +1782,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	      }
 	    if (bad)
 	      {
-		(*_bfd_error_handler)
+		_bfd_error_handler
+		  /* xgettext:c-format */
 		  (_("%B: misplaced XTY_LD `%s'"),
 		   abfd, name);
 		bfd_set_error (bfd_error_bad_value);
@@ -1992,9 +1999,10 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 		     sure the XCOFF linker is wholly prepared to
 		     handle them, and that would only be a warning,
 		     not an error.  */
-		  if (! ((*info->callbacks->multiple_definition)
-			 (info, &(*sym_hash)->root, NULL, NULL, (bfd_vma) 0)))
-		    goto error_return;
+		  (*info->callbacks->multiple_definition) (info,
+							   &(*sym_hash)->root,
+							   NULL, NULL,
+							   (bfd_vma) 0);
 		  /* Try not to give this error too many times.  */
 		  (*sym_hash)->flags &= ~XCOFF_MULTIPLY_DEFINED;
 		}
@@ -2095,7 +2103,8 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	    {
 	      if (*rel_csect == NULL)
 		{
-		  (*_bfd_error_handler)
+		  _bfd_error_handler
+		    /* xgettext:c-format */
 		    (_("%B: reloc %s:%d not in csect"),
 		     abfd, o->name, i);
 		  bfd_set_error (bfd_error_bad_value);
@@ -2291,7 +2300,7 @@ xcoff_link_check_dynamic_ar_symbols (bfd *abfd,
 	{
 	  if (!(*info->callbacks
 		->add_archive_element) (info, abfd, name, subsbfd))
-	    return FALSE;
+	    continue;
 	  *pneeded = TRUE;
 	  return TRUE;
 	}
@@ -2363,7 +2372,7 @@ xcoff_link_check_ar_symbols (bfd *abfd,
 	    {
 	      if (!(*info->callbacks
 		    ->add_archive_element) (info, abfd, name, subsbfd))
-		return FALSE;
+		continue;
 	      *pneeded = TRUE;
 	      return TRUE;
 	    }
@@ -2700,7 +2709,7 @@ xcoff_mark_symbol (struct bfd_link_info *info, struct xcoff_link_hash_entry *h)
 
   /* If we're marking an undefined symbol, try find some way of
      defining it.  */
-  if (!info->relocatable
+  if (!bfd_link_relocatable (info)
       && (h->flags & XCOFF_IMPORT) == 0
       && (h->flags & XCOFF_DEF_REGULAR) == 0
       && (h->root.type == bfd_link_hash_undefined
@@ -3117,11 +3126,8 @@ bfd_xcoff_import_symbol (bfd *output_bfd,
       if (h->root.type == bfd_link_hash_defined
 	  && (! bfd_is_abs_section (h->root.u.def.section)
 	      || h->root.u.def.value != val))
-	{
-	  if (! ((*info->callbacks->multiple_definition)
-		 (info, &h->root, output_bfd, bfd_abs_section_ptr, val)))
-	    return FALSE;
-	}
+	(*info->callbacks->multiple_definition) (info, &h->root, output_bfd,
+						 bfd_abs_section_ptr, val);
 
       h->root.type = bfd_link_hash_defined;
       h->root.u.def.section = bfd_abs_section_ptr;
@@ -3189,7 +3195,7 @@ bfd_xcoff_link_count_reloc (bfd *output_bfd,
 				     FALSE));
   if (h == NULL)
     {
-      (*_bfd_error_handler) (_("%s: no such symbol"), name);
+      _bfd_error_handler (_("%s: no such symbol"), name);
       bfd_set_error (bfd_error_no_symbols);
       return FALSE;
     }
@@ -3293,7 +3299,7 @@ xcoff_build_ldsym (struct xcoff_loader_info *ldinfo,
   if ((h->flags & XCOFF_EXPORT) != 0
       && (h->flags & XCOFF_WAS_UNDEFINED) != 0)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("warning: attempt to export undefined symbol `%s'"),
 	 h->root.root.string);
       return TRUE;
@@ -3672,7 +3678,7 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
 				     "__rtinit", FALSE, FALSE, TRUE);
       if (hsym == NULL)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
 	    (_("error: undefined symbol __rtinit"));
 	  return FALSE;
 	}
@@ -3714,7 +3720,7 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
     }
 
   /* Garbage collect unused sections.  */
-  if (info->relocatable || !gc)
+  if (bfd_link_relocatable (info) || !gc)
     {
       gc = FALSE;
       xcoff_hash_table (info)->gc = FALSE;
@@ -4051,7 +4057,8 @@ xcoff_create_ldrel (bfd *output_bfd, struct xcoff_final_link_info *flinfo,
 	ldrel.l_symndx = 2;
       else
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%B: loader reloc in unrecognized section `%s'"),
 	     reference_bfd, secname);
 	  bfd_set_error (bfd_error_nonrepresentable_section);
@@ -4062,7 +4069,8 @@ xcoff_create_ldrel (bfd *output_bfd, struct xcoff_final_link_info *flinfo,
     {
       if (h->ldindx < 0)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%B: `%s' in loader reloc but not loader sym"),
 	     reference_bfd, h->root.root.string);
 	  bfd_set_error (bfd_error_bad_value);
@@ -4078,7 +4086,8 @@ xcoff_create_ldrel (bfd *output_bfd, struct xcoff_final_link_info *flinfo,
   if (xcoff_hash_table (flinfo->info)->textro
       && strcmp (output_section->name, ".text") == 0)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext:c-format */
 	(_("%B: loader reloc in read-only section %A"),
 	 reference_bfd, output_section);
       bfd_set_error (bfd_error_invalid_operation);
@@ -4145,7 +4154,7 @@ xcoff_link_input_bfd (struct xcoff_final_link_info *flinfo,
   if (! flinfo->info->keep_memory)
     copy = TRUE;
   hash = TRUE;
-  if ((output_bfd->flags & BFD_TRADITIONAL_FORMAT) != 0)
+  if (flinfo->info->traditional_format)
     hash = FALSE;
 
   if (! _bfd_coff_get_external_symbols (input_bfd))
@@ -4942,10 +4951,9 @@ xcoff_link_input_bfd (struct xcoff_final_link_info *flinfo,
                               if (name == NULL)
                                 return FALSE;
 
-                              if (!(*flinfo->info->callbacks->unattached_reloc)
-                                  (flinfo->info, name, input_bfd, o,
-                                   irel->r_vaddr))
-                                return FALSE;
+			      (*flinfo->info->callbacks->unattached_reloc)
+				(flinfo->info, name,
+				 input_bfd, o, irel->r_vaddr);
                             }
 			}
 		    }
@@ -5103,7 +5111,7 @@ xcoff_find_tc0 (bfd *output_bfd, struct xcoff_final_link_info *flinfo)
       /* Make sure that the start of the TOC is also within range.  */
       if (best_address > toc_start + 0x8000)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
 	    (_("TOC overflow: 0x%lx > 0x10000; try -mminimal-toc "
 	       "when compiling"),
 	     (unsigned long) (toc_end - toc_start));
@@ -5118,7 +5126,8 @@ xcoff_find_tc0 (bfd *output_bfd, struct xcoff_final_link_info *flinfo)
   xcoff_data (output_bfd)->sntoc = section_index;
 
   /* Fill out the TC0 symbol.  */
-  if (!bfd_xcoff_put_symbol_name (output_bfd, flinfo->strtab, &irsym, "TOC"))
+  if (!bfd_xcoff_put_symbol_name (output_bfd, flinfo->info, flinfo->strtab,
+				  &irsym, "TOC"))
     return FALSE;
   irsym.n_value = best_address;
   irsym.n_scnum = section_index;
@@ -5383,7 +5392,8 @@ xcoff_write_global_symbol (struct bfd_hash_entry *bh, void * inf)
 	 the reloc.  */
       if (flinfo->info->strip != strip_all)
 	{
-	  result = bfd_xcoff_put_symbol_name (output_bfd, flinfo->strtab,
+	  result = bfd_xcoff_put_symbol_name (output_bfd, flinfo->info,
+					      flinfo->strtab,
 					      &irsym, h->root.root.string);
 	  if (!result)
 	    return FALSE;
@@ -5557,8 +5567,8 @@ xcoff_write_global_symbol (struct bfd_hash_entry *bh, void * inf)
 
   h->indx = obj_raw_syment_count (output_bfd);
 
-  result = bfd_xcoff_put_symbol_name (output_bfd, flinfo->strtab, &isym,
-				      h->root.root.string);
+  result = bfd_xcoff_put_symbol_name (output_bfd, flinfo->info, flinfo->strtab,
+				      &isym, h->root.root.string);
   if (!result)
     return FALSE;
 
@@ -5710,9 +5720,8 @@ xcoff_reloc_link_order (bfd *output_bfd,
 				     FALSE, FALSE, TRUE));
   if (h == NULL)
     {
-      if (! ((*flinfo->info->callbacks->unattached_reloc)
-	     (flinfo->info, link_order->u.reloc.p->u.name, NULL, NULL, (bfd_vma) 0)))
-	return FALSE;
+      (*flinfo->info->callbacks->unattached_reloc)
+	(flinfo->info, link_order->u.reloc.p->u.name, NULL, NULL, (bfd_vma) 0);
       return TRUE;
     }
 
@@ -5750,13 +5759,9 @@ xcoff_reloc_link_order (bfd *output_bfd,
 	case bfd_reloc_outofrange:
 	  abort ();
 	case bfd_reloc_overflow:
-	  if (! ((*flinfo->info->callbacks->reloc_overflow)
-		 (flinfo->info, NULL, link_order->u.reloc.p->u.name,
-		  howto->name, addend, NULL, NULL, (bfd_vma) 0)))
-	    {
-	      free (buf);
-	      return FALSE;
-	    }
+	  (*flinfo->info->callbacks->reloc_overflow)
+	    (flinfo->info, NULL, link_order->u.reloc.p->u.name,
+	     howto->name, addend, NULL, NULL, (bfd_vma) 0);
 	  break;
 	}
       ok = bfd_set_section_contents (output_bfd, output_section, (void *) buf,
@@ -5830,7 +5835,7 @@ _bfd_xcoff_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
   file_ptr pos;
   bfd_size_type amt;
 
-  if (info->shared)
+  if (bfd_link_pic (info))
     abfd->flags |= DYNAMIC;
 
   symesz = bfd_coff_symesz (abfd);
@@ -6280,10 +6285,9 @@ _bfd_xcoff_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 	    {
 	      if ((*rel_hash)->indx < 0)
 		{
-		  if (! ((*info->callbacks->unattached_reloc)
-			 (info, (*rel_hash)->root.root.string,
-			  NULL, o, irel->r_vaddr)))
-		    goto error_return;
+		  (*info->callbacks->unattached_reloc)
+		    (info, (*rel_hash)->root.root.string,
+		     NULL, o, irel->r_vaddr);
 		  (*rel_hash)->indx = 0;
 		}
 	      irel->r_symndx = (*rel_hash)->indx;
@@ -6296,10 +6300,9 @@ _bfd_xcoff_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 	{
 	  if (toc_rel_hash->h->u.toc_indx < 0)
 	    {
-	      if (! ((*info->callbacks->unattached_reloc)
-		     (info, toc_rel_hash->h->root.root.string,
-		      NULL, o, toc_rel_hash->rel->r_vaddr)))
-		goto error_return;
+	      (*info->callbacks->unattached_reloc)
+		(info, toc_rel_hash->h->root.root.string,
+		 NULL, o, toc_rel_hash->rel->r_vaddr);
 	      toc_rel_hash->h->u.toc_indx = 0;
 	    }
 	  toc_rel_hash->rel->r_symndx = toc_rel_hash->h->u.toc_indx;

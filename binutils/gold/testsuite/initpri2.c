@@ -1,6 +1,6 @@
 /* initpri2.c -- test mixing init_array and ctor priorities.
 
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
    Copied from the gcc configury, where the test was contributed by
    H.J. Lu <hongjiu.lu@intel.com>.
 

@@ -1,4 +1,4 @@
-@c Copyright (C) 2002-2014 Free Software Foundation, Inc.
+@c Copyright (C) 2002-2017 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -35,6 +35,36 @@ also enables NOP generation unless the @option{-mN} is also specified.
 @item -mcpu
 selects the cpu architecture.  If the architecture is 430Xv2 then this
 also enables NOP generation unless the @option{-mN} is also specified.
+
+@item -msilicon-errata=@var{name}[,@var{name}@dots{}]
+Implements a fixup for named silicon errata.  Multiple silicon errata
+can be specified by multiple uses of the @option{-msilicon-errata}
+option and/or by including the errata names, separated by commas, on
+an individual @option{-msilicon-errata} option.  Errata names
+currently recognised by the assembler are:
+
+@table @code
+@item cpu4
+@code{PUSH #4} and @option{PUSH #8} need longer encodings on the
+MSP430.  This option is enabled by default, and cannot be disabled.
+@item cpu8
+Do not set the @code{SP} to an odd value.
+@item cpu11
+Do not update the @code{SR} and the @code{PC} in the same instruction.
+@item cpu12
+Do not use the @code{PC} in a @code{CMP} or @code{BIT} instruction.
+@item cpu13
+Do not use an arithmetic instruction to modify the @code{SR}.
+@item cpu19
+Insert @code{NOP} after @code{CPUOFF}.
+@end table
+
+@item -msilicon-errata-warn=@var{name}[,@var{name}@dots{}]
+Like the @option{-msilicon-errata} option except that instead of
+fixing the specified errata, a warning message is issued instead.
+This option can be used alongside @option{-msilicon-errata} to
+generate messages whenever a problem is fixed, or on its own in order
+to inspect code for potential problems.
 
 @item -mP
 enables polymorph instructions handler.

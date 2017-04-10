@@ -1,7 +1,6 @@
 /* { dg-additional-options "-Ofast -fno-common" } */
 /* { dg-additional-options "-Ofast -fno-common -mavx" { target avx_runtime } } */
 
-#include <stdlib.h>
 #include "tree-vect.h"
 
 __attribute__((noinline, noclone)) void
@@ -46,4 +45,3 @@ main ()
 }
 
 /* { dg-final { scan-tree-dump-times "note: vectorized 1 loops" 1 "vect" { target avx_runtime } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */

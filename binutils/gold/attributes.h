@@ -1,6 +1,6 @@
 // attributes.h -- object attributes for gold   -*- C++ -*-
 
-// Copyright (C) 2009-2014 Free Software Foundation, Inc.
+// Copyright (C) 2009-2017 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com>.
 // This file contains code adapted from BFD.
 
@@ -387,6 +387,11 @@ class Output_attributes_section_data : public Output_section_data
   { }
 
  protected:
+  // Write to a map file.
+  void
+  do_print_to_mapfile(Mapfile* mapfile) const
+  { mapfile->print_output_data(this, _("** attributes")); }
+
   // Write the data to the output file.
   void
   do_write(Output_file*);

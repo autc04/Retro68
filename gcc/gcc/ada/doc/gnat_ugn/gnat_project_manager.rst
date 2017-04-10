@@ -175,7 +175,7 @@ the directory :file:`obj/`.
       proc.adb
     common/obj/
       proc.ali, proc.o pack.ali, pack.o
-  
+
 
 Our project is to be called *Build*. The name of the
 file is the name of the project (case-insensitive) with the
@@ -187,10 +187,10 @@ file is enough for it. We will thus create a new file, that for now
 should contain the following code:
 
 .. code-block:: gpr
-  
+
       project Build is
       end Build;
-  
+
 
 .. _Source_Files_and_Directories:
 
@@ -259,24 +259,24 @@ There are several ways of defining source directories:
   file names for the roots of these undesirable directory subtrees.
 
 
-  .. code-block: ada-project
+  .. code-block:: gpr
 
         for Source_Dirs use ("./**");
         for Ignore_Source_Sub_Dirs use (".svn");
-    
+
 
 When applied to the simple example, and because we generally prefer to have
 the project file at the toplevel directory rather than mixed with the sources,
 we will create the following file
 
 
-.. code-block: ada-project
+.. code-block:: gpr
 
      build.gpr
      project Build is
         for Source_Dirs use ("common");  --  <<<<
      end Build;
-  
+
 
 Once source directories have been specified, one may need to indicate
 source files of interest. By default, all source files present in the source
@@ -300,10 +300,7 @@ locating the specified source files in the specified source directories.
   However, when compiling a multi-language application, or a pure C
   application, the project manager must be told which languages are of
   interest, which is done by setting the **Languages** attribute to a list of
-  strings, each of which is the name of a language. Tools like
-  *gnatmake* only know about Ada, while other tools like
-  *gprbuild* know about many more languages such as C, C++, Fortran,
-  assembly and others can be added dynamically.
+  strings, each of which is the name of a language.
 
   .. index:: Naming scheme (GNAT Project Manager)
 
@@ -416,21 +413,20 @@ Its value is the path to the object directory, either absolute or
 relative to the directory containing the project file. This
 directory must already exist and be readable and writable, although
 some tools have a switch to create the directory if needed (See
-the switch `-p` for *gnatmake*
-and *gprbuild*).
+the switch `-p` for *gprbuild*).
 
 If the attribute `Object_Dir` is not specified, it defaults to
 the project directory, that is the directory containing the project file.
 
 For our example, we can specify the object dir in this way:
 
-.. code-block: ada-project
+.. code-block:: gpr
 
        project Build is
           for Source_Dirs use ("common");
           for Object_Dir use "obj";   --  <<<<
        end Build;
-  
+
 As mentioned earlier, there is a single object directory per project. As a
 result, if you have an existing system where the object files are spread across
 several directories, you can either move all of them into the same directory if
@@ -456,14 +452,14 @@ In the case of the example, let's place the executable in the root
 of the hierarchy, ie the same directory as :file:`build.gpr`. Hence
 the project file is now
 
-.. code-block: ada-project
+.. code-block:: gpr
 
        project Build is
           for Source_Dirs use ("common");
           for Object_Dir use "obj";
           for Exec_Dir use ".";  --   <<<<
        end Build;
-  
+
 
 .. _Main_Subprograms:
 
@@ -493,7 +489,7 @@ command line when invoking a builder, and editors like
 *GPS* will be able to create extra menus to spawn or debug the
 corresponding executables.
 
-.. code-block: ada-project
+.. code-block:: gpr
 
        project Build is
           for Source_Dirs use ("common");
@@ -501,7 +497,7 @@ corresponding executables.
           for Exec_Dir use ".";
           for Main use ("proc.adb");  --   <<<<
        end Build;
-  
+
 
 If this attribute is defined in the project, then spawning the builder
 with a command such as
@@ -509,7 +505,7 @@ with a command such as
 .. code-block:: sh
 
      gprbuild -Pbuild
-  
+
 
 automatically builds all the executables corresponding to the files
 listed in the *Main* attribute. It is possible to specify one
@@ -561,15 +557,15 @@ Our example project file can be extended with the following empty packages. At
 this stage, they could all be omitted since they are empty, but they show which
 packages would be involved in the build process.
 
-.. code-block: ada-project
+.. code-block:: gpr
 
        project Build is
           for Source_Dirs use ("common");
           for Object_Dir use "obj";
           for Exec_Dir use ".";
           for Main use ("proc.adb");
-  
-          package Builder is  --<<<  for gnatmake and gprbuild
+
+          package Builder is  --<<<  for gprbuild
           end Builder;
 
           package Compiler is --<<<  for the compiler
@@ -607,7 +603,7 @@ Several attributes can be used to specify the switches:
   *-O2*, and the resulting project file is as follows
   (only the `Compiler` package is shown):
 
-  .. code-block: ada-project
+  .. code-block:: gpr
 
        package Compiler is
          for Default_Switches ("Ada") use ("-O2");
@@ -625,7 +621,7 @@ Several attributes can be used to specify the switches:
   switches defined by *Default_Switches*. Our project file would
   become:
 
-  .. code-block: ada-project
+  .. code-block:: gpr
 
 
       package Compiler is
@@ -634,11 +630,11 @@ Several attributes can be used to specify the switches:
          for Switches ("proc.adb")
              use ("-O0");
       end Compiler;
-    
+
 
   `Switches` may take a pattern as an index, such as in:
 
-  .. code-block: ada-project
+  .. code-block:: gpr
 
       package Compiler is
         for Default_Switches ("Ada")
@@ -646,7 +642,7 @@ Several attributes can be used to specify the switches:
         for Switches ("pkg*")
             use ("-O0");
       end Compiler;
-    
+
   Sources :file:`pkg.adb` and :file:`pkg-child.adb` would be compiled with -O0,
   not -O2.
 
@@ -667,7 +663,7 @@ Several attributes can be used to specify the switches:
 
 The switches for the other tools are defined in a similar manner through the
 **Default_Switches** and **Switches** attributes, respectively in the
-*Builder* package (for *gnatmake* and *gprbuild*),
+*Builder* package (for *gprbuild*),
 the *Binder* package (binding Ada executables) and the *Linker*
 package (for linking executables).
 
@@ -682,23 +678,22 @@ Here is the command we would use from the command line:
 
 .. code-block:: sh
 
-     gnatmake -Pbuild
-  
+     gprbuild -Pbuild
+
 This will automatically build the executables specified through the
 *Main* attribute: for each, it will compile or recompile the
 sources for which the object file does not exist or is not up-to-date; it
 will then run the binder; and finally run the linker to create the
 executable itself.
 
-*gnatmake* only knows how to handle Ada files. By using
-*gprbuild* as a builder, you could automatically manage C files the
+The *gprbuild* builder, can automatically manage C files the
 same way: create the file :file:`utils.c` in the :file:`common` directory,
-set the attribute *Languages* to `"(Ada, C)"`, and run
+set the attribute *Languages* to `"(Ada, C)"`, and re-run
 
 .. code-block:: sh
 
      gprbuild -Pbuild
-  
+
 Gprbuild knows how to recompile the C files and will
 recompile them only if one of their dependencies has changed. No direct
 indication on how to build the various elements is given in the
@@ -757,7 +752,7 @@ on Windows), we could configure our project file to build "proc1"
              for Executable ("proc.adb") use "proc1";
           end Builder
        end Build;
-  
+
 .. index:: Executable_Suffix (GNAT Project Manager)
 
 Attribute **Executable_Suffix**, when specified, may change the suffix
@@ -795,7 +790,7 @@ project using similar sources and a main program in C:
           for Switches ("main.c") use C_Switches & ("-g");
        end Compiler;
     end C_Main;
-  
+
 This project has many similarities with the previous one.
 As expected, its `Main` attribute now refers to a C source.
 The attribute *Exec_Dir* is now omitted, thus the resulting
@@ -815,7 +810,7 @@ replaced by a reference to the `Default_Switches` attribute:
 .. code-block:: gpr
 
        for Switches ("c_main.c") use Compiler'Default_Switches ("C") & ("-g");
-  
+
 Note the tick (*'*) used to refer to attributes defined in a package.
 
 Here is the output of the GPRbuild command using this project:
@@ -830,7 +825,7 @@ Here is the output of the GPRbuild command using this project:
     gprbind main.bexch
     ...
     gcc main.o -o main
-  
+
 The default switches for Ada sources,
 the default switches for C sources (in the compilation of :file:`lib.c`),
 and the specific switches for :file:`main.c` have all been taken into
@@ -991,7 +986,7 @@ The following attributes can be defined in package `Naming`:
        for Spec ("MyPack.MyChild") use "mypack.mychild.spec";
        for Spec ("top") use "foo.a" at 1;
        for Spec ("foo") use "foo.a" at 2;
-    
+
 
 .. index:: Body (GNAT Project Manager)
 
@@ -1023,7 +1018,7 @@ For example, the following package models the Apex file naming rules:
        for Spec_Suffix ("Ada")  use ".1.ada";
        for Body_Suffix ("Ada")  use ".2.ada";
      end Naming;
-  
+
 
 .. _Installation:
 
@@ -1053,7 +1048,9 @@ The following attributes can be defined in package `Install`:
   An array attribute to declare a set of files not part of the sources
   to be installed. The array discriminant is the directory where the
   file is to be installed. If a relative directory then Prefix (see
-  below) is prepended.
+  below) is prepended. Note also that if the same file name occurs
+  multiple time in the attribute list, the last one will be the one
+  installed.
 
 
 .. index:: Prefix (GNAT Project Manager)
@@ -1160,7 +1157,7 @@ project:
      project Build is
        ...  --  as before
      end Build;
-  
+
 
 .. index:: Externally_Built (GNAT Project Manager)
 
@@ -1226,16 +1223,10 @@ following algorithm, in this order; the first matching file is used:
   Such directories depend on the tool used. The locations searched in the
   specified order are:
 
-  * :file:`<prefix>/<target>/lib/gnat`
-    (for *gnatmake* in all cases, and for *gprbuild* if option
-    *--target* is specified)
-  * :file:`<prefix>/<target>/share/gpr`
-    (for *gnatmake* in all cases, and for *gprbuild* if option
-    *--target* is specified)
+  * :file:`<prefix>/<target>/lib/gnat` if option *--target* is specified
+  * :file:`<prefix>/<target>/share/gpr` if option *--target* is specified
   * :file:`<prefix>/share/gpr/`
-    (for *gnatmake* and *gprbuild*)
   * :file:`<prefix>/lib/gnat/`
-    (for *gnatmake* and *gprbuild*)
 
   In our example, :file:`gtkada.gpr` is found in the predefined directory if
   it was installed at the same root as GNAT.
@@ -1307,7 +1298,7 @@ its variables cannot be referred to.
      project D is
         for Exec_Dir use A'Exec_Dir; -- not ok
      end D;
-  
+
 
 .. _Sharing_Between_Projects:
 
@@ -1352,7 +1343,7 @@ There are two main approaches to avoiding this duplication:
             for Switches ("Ada") use Logging.Binder'Switches ("Ada");
          end Binder;
       end Build;
-    
+
   The solution used for `Compiler` gets the same value for all
   attributes of the package, but you cannot modify anything from the
   package (adding extra switches or some exceptions). The second
@@ -1394,7 +1385,7 @@ There are two main approaches to avoiding this duplication:
       project Build is
          package Compiler renames Shared.Compiler;
       end Build;
-    
+
   As for the first example, we could have chosen to set the attributes
   one by one rather than to rename a package. The reason we explicitly
   indicate that `Shared` has no sources is so that it can be created
@@ -1486,20 +1477,14 @@ order of priority):
 .. index:: -X (usage with GNAT Project Manager)
 
 **Command line**:
-  When launching *gnatmake* or *gprbuild*, the user can pass
+  When launching *gprbuild*, the user can pass
   extra *-X* switches to define the external value. In
   our case, the command line might look like
 
-  ::
+  .. code-block:: sh
 
-           gnatmake -Pbuild.gpr -Xmode=debug
-           
-  or
+         gprbuild -Pbuild.gpr -Xmode=release
 
-  ::
-
-         gnatmake -Pbuild.gpr -Xmode=release
-    
 
 **Environment variables**:
   When the external value does not come from the command line, it can come from
@@ -1524,7 +1509,7 @@ either :file:`obj/debug` or :file:`obj/release` by changing our project to
          for Object_Dir use "obj/" & external ("mode", "debug");
          ... --  as before
      end Build;
-  
+
 The second parameter to `external` is optional, and is the default
 value to use if "mode" is not set from the command line or the environment.
 
@@ -1556,7 +1541,7 @@ sections in the project. The following example shows how this can be done:
            end case;
         end Compiler;
      end Build;
-  
+
 The project has suddenly grown in size, but has become much more flexible.
 `Mode_Type` defines the only valid values for the `mode` variable. If
 any other value is read from the environment, an error is reported and the
@@ -1653,7 +1638,7 @@ Here is the new version of :file:`logging.gpr` that makes it a library:
         for Object_Dir   use "obj";
         for Library_Dir  use "lib";      --  different from object_dir
      end Logging;
-  
+
 Once the above two attributes are defined, the library project is valid and
 is enough for building a library with default characteristics.
 Other library-related attributes can be used to change the defaults:
@@ -1713,7 +1698,7 @@ Other library-related attributes can be used to change the defaults:
          for Library_Kind use "dynamic";
          for Library_Version use "liblogging.so." & Version;
       end Logging;
-    
+
 
   After the compilation, the directory :file:`lib` will contain both a
   :file:`libdummy.so.1` library and a symbolic link to it called
@@ -1776,14 +1761,8 @@ of shard libraries reduces the size of the final executable and can also reduce
 the memory footprint at execution time when the library is shared among several
 executables.
 
-It is also possible to build **multi-language libraries**. When using
-*gprbuild* as a builder, multi-language library projects allow naturally
-the creation of multi-language libraries . *gnatmake*, does not try to
-compile non Ada sources. However, when the project is multi-language, it will
-automatically link all object files found in the object directory, whether or
-not they were compiled from an Ada source file. This specific behavior does not
-apply to Ada-only projects which only take into account the objects
-corresponding to the sources of the project.
+*gprbuild also allows to build **multi-language libraries** when specifying
+sources from multiple languages.
 
 A non-library project can import a library project. When the builder is invoked
 on the former, the library of the latter is only rebuilt when absolutely
@@ -1802,11 +1781,11 @@ the following two commands need to be used:
 
 .. code-block:: sh
 
-     gnatmake -Plogging.gpr
-     gnatmake -Pbuild.gpr
-  
+     gprbuild -Plogging.gpr
+     gprbuild -Pbuild.gpr
+
 All :file:`ALI` files will also be copied from the object directory to the
-library directory. To build executables, *gnatmake* will use the
+library directory. To build executables, *gprbuild* will use the
 library rather than the individual object files.
 
 Library projects can also be useful to describe a library that needs to be used
@@ -1814,7 +1793,7 @@ but, for some reason, cannot be rebuilt. For instance, it is the case when some
 of the library sources are not available. Such library projects need to use the
 `Externally_Built` attribute as in the example below:
 
-.. code-block: ada-project
+.. code-block:: gpr
 
      library project Extern_Lib is
         for Languages    use ("Ada", "C");
@@ -1824,7 +1803,7 @@ of the library sources are not available. Such library projects need to use the
         for Library_Name use "l2";
         for Externally_Built use "true";  --  <<<<
      end Extern_Lib;
-  
+
 In the case of externally built libraries, the `Object_Dir`
 attribute does not need to be specified because it will never be
 used.
@@ -2112,7 +2091,7 @@ the project `Build` from previous examples:
 
      project Work extends "../bld/build.gpr" is
      end Work;
-  
+
 The project after **extends** is the one being extended. As usual, it can be
 specified using an absolute path, or a path relative to any of the directories
 in the project path (see :ref:`Project_Dependencies`). This project does not
@@ -2123,7 +2102,7 @@ attributes will be used that is to say the current directory (where project
 .. code-block:: sh
 
      gprbuild -Pwork
-  
+
 If no sources have been placed in the current directory, this command
 won't do anything, since this project does not change the
 sources it inherited from `Build`, therefore all the object files
@@ -2177,7 +2156,7 @@ line.
         --  New spec of Pkg does not need a completion
         for Excluded_Source_Files use ("pack.adb");
      end Work;
-  
+
 
 All packages that are not declared in the extending project are inherited from
 the project being extended, with their attributes, with the exception of
@@ -2205,7 +2184,7 @@ For example, consider the following hierarchy of projects.
      a.gpr  contains package A1
      b.gpr, imports a.gpr and contains B1, which depends on A1
      c.gpr, imports b.gpr and contains C1, which depends on B1
-  
+
 If we want to locally extend the packages `A1` and `C1`, we need to
 create several extending projects:
 
@@ -2214,7 +2193,7 @@ create several extending projects:
      a_ext.gpr which extends a.gpr, and overrides A1
      b_ext.gpr which extends b.gpr and imports a_ext.gpr
      c_ext.gpr which extends c.gpr, imports b_ext.gpr and overrides C1
-  
+
 .. code-block:: gpr
 
      project A_Ext extends "a.gpr" is
@@ -2275,7 +2254,7 @@ Thus, in our example we could create the following projects instead:
      project C_Ext extends all "c.gpr" is
        for Source_Files use ("c1.adb");
      end C_Ext;
-  
+
 
 When building project :file:`c_ext.gpr`, the entire modified project space is
 considered for recompilation, including the sources of :file:`b.gpr` that are
@@ -2307,18 +2286,17 @@ Very often, modules will build their own executables (for testing
 purposes for instance), or libraries (for easier reuse in various
 contexts).
 
-However, if you build your project through *gnatmake* or
-*gprbuild*, using a syntax similar to
+However, if you build your project through *gprbuild*, using a syntax similar to
 
 ::
 
      gprbuild -PA.gpr
-  
+
 this will only rebuild the main programs of project A, not those of the
 imported projects B and C. Therefore you have to spawn several
-*gnatmake* commands, one per project, to build all executables.
+*gprbuild* commands, one per project, to build all executables.
 This is a little inconvenient, but more importantly is inefficient
-because *gnatmake* needs to do duplicate work to ensure that sources are
+because *gprbuild* needs to do duplicate work to ensure that sources are
 up-to-date, and cannot easily compile things in parallel when using
 the -j switch.
 
@@ -2349,10 +2327,6 @@ aggregate project, you will need to add "p.gpr" in the list of project
 files for the aggregate project, or the main will not be built when
 building the aggregate project.
 
-Aggregate projects are supported only with *gprbuild*, not with
-*gnatmake*.
-
-
 .. _Building_a_set_of_projects_with_a_single_command:
 
 Building a set of projects with a single command
@@ -2369,7 +2343,7 @@ Using only *gprbuild*, you could do
 
     gprbuild -PA.gpr
     gprbuild -PB.gpr
-  
+
 to build both. But again, *gprbuild* has to do some duplicate work for
 those files that are shared between the two, and cannot truly build
 things in parallel efficiently.
@@ -2416,7 +2390,7 @@ building. The syntax looks like
         for External ("BUILD") use "PRODUCTION";
 
         package Builder is
-           for Switches ("Ada") use ("-q");
+           for Global_Compilation_Switches ("Ada") use ("-g");
         end Builder;
      end Agg;
 
@@ -2429,7 +2403,7 @@ reference external variables in |with| declarations, as in
      project MyProject is
         ...
      end MyProject;
-  
+
 For various reasons, this is not allowed. But using aggregate projects provide
 an elegant solution. For instance, you could use a project file like:
 
@@ -2444,7 +2418,7 @@ an elegant solution. For instance, you could use a project file like:
      project MyProject is
         ...
      end MyProject;
-  
+
 
 .. _Performance_improvements_in_builder:
 
@@ -2463,7 +2437,7 @@ once.
 Since there is no ambiguity as to which switches should be used, files
 can be compiled in parallel (through the usual -j switch) and this can
 be done while maximizing the use of CPUs (compared to launching
-multiple *gprbuild* and *gnatmake* commands in parallel).
+multiple *gprbuild* commands in parallel).
 
 
 .. _Syntax_of_aggregate_projects:
@@ -2555,7 +2529,7 @@ The following three attributes can be used only in an aggregate project:
 
      for Project_Files use ("/.gpr");
      --  all projects recursively
-    
+
 
 .. index:: Project_Path (GNAT Project Manager)
 
@@ -2629,7 +2603,7 @@ The following three attributes can be used only in an aggregate project:
   .. code-block:: gpr
 
      for Project_Path use ("/usr/local/gpr", "gpr/");
-    
+
 .. index:: External (GNAT Project Manager)
 
 **External**:
@@ -2693,7 +2667,7 @@ are valid:
   .. code-block:: gpr
 
      for Switches (others) use ("-v", "-k", "-j8");
-    
+
   These switches are only read from the main aggregate project (the
   one passed on the command line), and ignored in all other aggregate
   projects or projects.
@@ -2768,7 +2742,7 @@ are valid:
                 use ("-O0", "-g");
          end Compiler;
      end C;
-    
+
 
   then the following switches are used:
 
@@ -2844,13 +2818,13 @@ and C:
         for Library_Name use ("agg");
         for Library_Dir use ("lagg");
      end Agg;
-  
+
 Then, when you build with:
 
 .. code-block:: sh
 
       gprbuild agg.gpr
-  
+
 This will build all units from projects A, B and C and will create a
 static library named :file:`libagg.a` in the :file:`lagg`
 directory. An aggregate library project has the same set of
@@ -2957,7 +2931,7 @@ are always case-insensitive ("Name" is the same as "name").
 
     simple_name ::= identifier
     name        ::= simple_name { . simple_name }
-  
+
 **Strings** are used for values of attributes or as indexes for these
 attributes. They are in general case sensitive, except when noted
 otherwise (in particular, strings representing file names will be case
@@ -2967,7 +2941,7 @@ represent the same file).
 **Reserved words** are the same as for standard Ada 95, and cannot
 be used for identifiers. In particular, the following words are currently
 used in project files, but others could be added later on. In bold are the
-extra reserved words in project files: 
+extra reserved words in project files:
 ``all``, ``at``, ``case``, ``end``, ``for``, ``is``, ``limited``,
 ``null``, ``others``, ``package``, ``renames``, ``type``, ``use``, ``when``,
 ``with``, **extends**, **external**, **project**.
@@ -3008,7 +2982,7 @@ in the cycle is a **limited with**.
      with "other_project.gpr";
      project My_Project extends "extended.gpr" is
      end My_Project;
-  
+
 These dependencies form a **directed graph**, potentially cyclic when using
 **limited with**. The subgraph reflecting the **extends** relations is a tree.
 
@@ -3038,7 +3012,7 @@ in the child project.
         project <project_>name is
           {declarative_item}
         end <project_>simple_name;
-  
+
 
 .. _Qualified_Projects:
 
@@ -3049,7 +3023,7 @@ Before the reserved `project`, there may be one or two **qualifiers**, that
 is identifiers or reserved words, to qualify the project.
 The current list of qualifiers is:
 
-**abstract**: 
+**abstract**:
   Qualifies a project with no sources.
   Such a   project must either have no declaration of attributes `Source_Dirs`,
   `Source_Files`, `Languages` or `Source_List_File`, or one of
@@ -3057,11 +3031,11 @@ The current list of qualifiers is:
   as empty. If it extends another project, the project it extends must also be a
   qualified abstract project.
 
-**standard**: 
+**standard**:
   A standard project is a non library project with sources.
   This is the default (implicit) qualifier.
 
-**aggregate**: 
+**aggregate**:
   A project whose sources are aggregated from other project files.
 
 **aggregate library**:
@@ -3099,7 +3073,7 @@ declaration. Others can appear within a project or within a package.
       | empty_declaration
 
     empty_declaration ::= *null* ;
-  
+
 An empty declaration is allowed anywhere a declaration is allowed. It has
 no effect.
 
@@ -3118,8 +3092,8 @@ The following packages are currently supported in project files
 
 *Binder*
   This package specifies characteristics useful when invoking the binder either
-  directly via the *gnat* driver or when using a builder such as
-  *gnatmake* or *gprbuild*. See :ref:`Main_Subprograms`.
+  directly via the *gnat* driver or when using *gprbuild*.
+  See :ref:`Main_Subprograms`.
 
 *Builder*
   This package specifies the compilation options used when building an
@@ -3205,9 +3179,9 @@ The following packages are currently supported in project files
   used to automatically find all source files in the source directories,
   or given a file name to find out its language for proper processing.
   See :ref:`Naming_Schemes`.
- 
- .. only: PRO or GPL
- 
+
+ .. only:: PRO or GPL
+
   *Pretty_Printer*
     This package specifies the options used when calling the formatting tool
     *gnatpp* via the *gnat* driver. Its attributes
@@ -3236,7 +3210,7 @@ In its simplest form, a package may be empty:
        package Builder is
        end Builder;
      end Simple;
-  
+
 A package may contain **attribute declarations**,
 **variable declarations** and **case constructions**, as will be
 described below.
@@ -3334,7 +3308,7 @@ following Ada declarations show the existing operators:
      function "&" (X : String;      Y : String)      return String;
      function "&" (X : String_List; Y : String)      return String_List;
      function "&" (X : String_List; Y : String_List) return String_List;
-  
+
 
 Here are some specific examples:
 
@@ -3344,7 +3318,7 @@ Here are some specific examples:
      List2 := List & (File_Name & ".orig"); -- Two strings
      Big_List := List & Lists2;  --  Three strings
      Illegal := "gnat.adc" & List2;  --  Illegal, must start with list
-  
+
 
 .. _External_Values:
 
@@ -3353,7 +3327,7 @@ External Values
 
 An external value is an expression whose value is obtained from the command
 that invoked the processing of the current project file (typically a
-*gnatmake* or *gprbuild* command).
+*gprbuild* command).
 
 There are two kinds of external values, one that returns a single string, and
 one that returns a string list.
@@ -3361,7 +3335,7 @@ one that returns a string list.
 The syntax of a single string external value is::
 
     external_value ::= *external* ( string_literal [, string_literal] )
-  
+
 
 The first string_literal is the string to be used on the command line or
 in the environment to specify the external value. The second string_literal,
@@ -3391,7 +3365,7 @@ attributes in various scenarios. Thus such variables are often called
 The syntax for a string list external value is::
 
     external_value ::= *external_as_list* ( string_literal , string_literal )
-  
+
 
 The first string_literal is the string to be used on the command line or
 in the environment to specify the external value. The second string_literal is
@@ -3410,7 +3384,7 @@ last separator and the end are components of the string list.
 ::
 
      *external_as_list* ("SWITCHES", ",")
-  
+
 If the external value is "-O2,-g",
 the result is ("-O2", "-g").
 
@@ -3440,7 +3414,7 @@ level, not inside a package.
 
      typed_string_declaration ::=
        *type* *<typed_string_>*_simple_name *is* ( string_literal {, string_literal} );
-  
+
 The string literals in the list are case sensitive and must all be different.
 They may include any graphic characters allowed in Ada, including spaces.
 Here is an example of a string type declaration:
@@ -3448,7 +3422,7 @@ Here is an example of a string type declaration:
 .. code-block:: ada
 
      type OS is ("NT", "nt", "Unix", "GNU/Linux", "other OS");
-  
+
 Variables of a string type are called **typed variables**; all other
 variables are called **untyped variables**. Typed variables are
 particularly useful in `case` constructions, to support conditional
@@ -3493,9 +3467,9 @@ A variable may be declared at the project file level, or within a package.
 
      typed_variable_declaration ::=
        *<typed_variable_>*simple_name : *<typed_string_>*name := string_expression;
-  
+
      variable_declaration ::= *<variable_>*simple_name := expression;
-  
+
 Here are some examples of variable declarations:
 
 .. code-block:: gpr
@@ -3510,7 +3484,7 @@ Here are some examples of variable declarations:
      List_With_One_Element := ("-gnaty");
      List_With_Two_Elements := List_With_One_Element & "-gnatg";
      Long_List := ("main.ada", "pack1_.ada", "pack1.ada", "pack2_.ada");
-  
+
 A **variable reference** may take several forms:
 
 * The simple variable name, for a variable in the current package (if any)
@@ -3571,7 +3545,7 @@ variables that have already been declared before the case construction.
            | empty_declaration}
 
      discrete_choice_list ::= string_literal {| string_literal} | *others*
-  
+
 Here is a typical example, with a typed string variable:
 
 .. code-block:: gpr
@@ -3593,7 +3567,7 @@ Here is a typical example, with a typed string variable:
           end case;
         end Compiler;
      end MyProj;
-  
+
 
 .. _Attributes:
 
@@ -3617,7 +3591,7 @@ others have values that are string lists.
      attribute_designator ::=
        *<simple_attribute_>*simple_name
        | *<indexed_attribute_>*simple_name ( string_literal )
-  
+
 There are two categories of attributes: **simple attributes**
 and **indexed attributes**.
 Each simple attribute has a default value: the empty string (for string
@@ -3652,7 +3626,7 @@ Here are some examples of attribute declarations:
      --  The package name must always be specified, even if it is the current
      --  package.
      for Default_Switches use Default.Builder'Default_Switches;
-  
+
 Attributes references may appear anywhere in expressions, and are used
 to retrieve the value previously assigned to the attribute. If an attribute
 has not been set in a given package or project, its value defaults to the
@@ -3666,7 +3640,7 @@ empty string or the empty list, with some exceptions.
       | *<project_>*simple_name
       | package_identifier
       | *<project_>*simple_name . package_identifier
-  
+
 Examples are::
 
      <project>'Object_Dir
@@ -3674,7 +3648,7 @@ Examples are::
      Imported_Project'Source_Dirs
      Imported_Project.Naming'Casing
      Builder'Default_Switches ("Ada")
-  
+
 The exceptions to the empty defaults are:
 
 * Object_Dir: default is "."
@@ -4009,11 +3983,19 @@ Project Level Attributes
     Value is the name of the target platform. Taken into account only in the main
     project.
 
+    Note that when the target is specified on the command line (usually with
+    a switch --target=), the value of attribute reference 'Target is the one
+    specified on the command line.
+
   * **Runtime**: single, indexed, case-insensitive index
 
     Index is a language name. Indicates the runtime directory that is to be used
     when using the compiler of the language. Taken into account only in the main
     project.
+
+    Note that when the runtime is specified for a language on the command line
+    (usually with a switch --RTS), the value of attribute reference 'Runtime
+    for this language is the one specified on the command line.
 
 * **Configuration - Libraries**
 
@@ -4576,9 +4558,9 @@ Package IDE Attributes
 * **Compiler_Command**: single, indexed, case-insensitive index
 
   Index is a language Name. Value is a string that denotes the command to be
-  used to invoke the compiler. The value of `Compiler_Command ("Ada")` is
-  expected to be compatible with *gnatmake*, in particular in
-  the handling of switches.
+  used to invoke the compiler. For historical reasons, the value of
+  `Compiler_Command ("Ada")` is expected to be a reference to *gnatmake* or
+  *cross-gnatmake*.
 
 * **Debugger_Command**: single
 
@@ -4624,7 +4606,9 @@ Package Install Attributes
   An array attribute to declare a set of files not part of the sources
   to be installed. The array discriminant is the directory where the
   file is to be installed. If a relative directory then Prefix (see
-  below) is prepended.
+  below) is prepended. Note also that if the same file name occurs
+  multiple time in the attribute list, the last one will be the one
+  installed.
 
 * **Prefix**: single
 
@@ -4901,5 +4885,3 @@ Package Synchronize Attributes
 
   Index is a source file name. Value is the list of switches to be used when
   invoking `gnatsync` for the source.
-
-

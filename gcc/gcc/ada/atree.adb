@@ -594,6 +594,10 @@ package body Atree is
          Set_Is_Ignored_Ghost_Node (New_Id);
       end if;
 
+      --  Clear Check_Actuals to False
+
+      Set_Check_Actuals (New_Id, False);
+
       --  Specifically copy Paren_Count to deal with creating new table entry
       --  if the parentheses count is at the maximum possible value already.
 
@@ -650,6 +654,15 @@ package body Atree is
         (Union_Id_Ptr'
           (Nodes.Table (E + 2).Field12'Unrestricted_Access)).Convention := Val;
    end Basic_Set_Convention;
+
+   -------------------
+   -- Check_Actuals --
+   -------------------
+
+   function Check_Actuals (N : Node_Id) return Boolean is
+   begin
+      return Flags.Table (N).Check_Actuals;
+   end Check_Actuals;
 
    --------------------------
    -- Check_Error_Detected --
@@ -781,7 +794,7 @@ package body Atree is
    ------------------------
 
    function Copy_Separate_Tree (Source : Node_Id) return Node_Id is
-      New_Id  : Node_Id;
+      New_Id : Node_Id;
 
       function Copy_Entity (E : Entity_Id) return Entity_Id;
       --  Copy Entity, copying only the Ekind and Chars fields
@@ -790,8 +803,8 @@ package body Atree is
       --  Copy list
 
       function Possible_Copy (Field : Union_Id) return Union_Id;
-      --  Given a field, returns a copy of the node or list if its parent
-      --  is the current source node, and otherwise returns the input
+      --  Given a field, returns a copy of the node or list if its parent is
+      --  the current source node, and otherwise returns the input.
 
       -----------------
       -- Copy_Entity --
@@ -815,6 +828,7 @@ package body Atree is
          end case;
 
          Set_Chars (New_Ent, Chars (E));
+         --  Set_Comes_From_Source (New_Ent, Comes_From_Source (E));
          return New_Ent;
       end Copy_Entity;
 
@@ -857,8 +871,7 @@ package body Atree is
 
       begin
          if Field in Node_Range then
-            New_N :=
-              Union_Id (Copy_Separate_Tree (Node_Id (Field)));
+            New_N := Union_Id (Copy_Separate_Tree (Node_Id (Field)));
 
             if Parent (Node_Id (Field)) = Source then
                Set_Parent (Node_Id (New_N), New_Id);
@@ -1112,6 +1125,60 @@ package body Atree is
    end Ekind_In;
 
    function Ekind_In
+     (T   : Entity_Kind;
+      V1  : Entity_Kind;
+      V2  : Entity_Kind;
+      V3  : Entity_Kind;
+      V4  : Entity_Kind;
+      V5  : Entity_Kind;
+      V6  : Entity_Kind;
+      V7  : Entity_Kind;
+      V8  : Entity_Kind;
+      V9  : Entity_Kind;
+      V10 : Entity_Kind) return Boolean
+   is
+   begin
+      return T = V1 or else
+             T = V2 or else
+             T = V3 or else
+             T = V4 or else
+             T = V5 or else
+             T = V6 or else
+             T = V7 or else
+             T = V8 or else
+             T = V9 or else
+             T = V10;
+   end Ekind_In;
+
+   function Ekind_In
+     (T   : Entity_Kind;
+      V1  : Entity_Kind;
+      V2  : Entity_Kind;
+      V3  : Entity_Kind;
+      V4  : Entity_Kind;
+      V5  : Entity_Kind;
+      V6  : Entity_Kind;
+      V7  : Entity_Kind;
+      V8  : Entity_Kind;
+      V9  : Entity_Kind;
+      V10 : Entity_Kind;
+      V11 : Entity_Kind) return Boolean
+   is
+   begin
+      return T = V1  or else
+             T = V2  or else
+             T = V3  or else
+             T = V4  or else
+             T = V5  or else
+             T = V6  or else
+             T = V7  or else
+             T = V8  or else
+             T = V9  or else
+             T = V10 or else
+             T = V11;
+   end Ekind_In;
+
+   function Ekind_In
      (E  : Entity_Id;
       V1 : Entity_Kind;
       V2 : Entity_Kind) return Boolean
@@ -1209,6 +1276,42 @@ package body Atree is
    is
    begin
       return Ekind_In (Ekind (E), V1, V2, V3, V4, V5, V6, V7, V8, V9);
+   end Ekind_In;
+
+   function Ekind_In
+     (E   : Entity_Id;
+      V1  : Entity_Kind;
+      V2  : Entity_Kind;
+      V3  : Entity_Kind;
+      V4  : Entity_Kind;
+      V5  : Entity_Kind;
+      V6  : Entity_Kind;
+      V7  : Entity_Kind;
+      V8  : Entity_Kind;
+      V9  : Entity_Kind;
+      V10 : Entity_Kind) return Boolean
+   is
+   begin
+      return Ekind_In (Ekind (E), V1, V2, V3, V4, V5, V6, V7, V8, V9, V10);
+   end Ekind_In;
+
+   function Ekind_In
+     (E   : Entity_Id;
+      V1  : Entity_Kind;
+      V2  : Entity_Kind;
+      V3  : Entity_Kind;
+      V4  : Entity_Kind;
+      V5  : Entity_Kind;
+      V6  : Entity_Kind;
+      V7  : Entity_Kind;
+      V8  : Entity_Kind;
+      V9  : Entity_Kind;
+      V10 : Entity_Kind;
+      V11 : Entity_Kind) return Boolean
+   is
+   begin
+      return
+        Ekind_In (Ekind (E), V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11);
    end Ekind_In;
 
    ------------------------
@@ -2039,6 +2142,15 @@ package body Atree is
    begin
       Nodes.Table (N).Analyzed := Val;
    end Set_Analyzed;
+
+   -----------------------
+   -- Set_Check_Actuals --
+   -----------------------
+
+   procedure Set_Check_Actuals (N : Node_Id; Val : Boolean := True) is
+   begin
+      Flags.Table (N).Check_Actuals := Val;
+   end Set_Check_Actuals;
 
    ---------------------------
    -- Set_Comes_From_Source --
@@ -2883,6 +2995,16 @@ package body Atree is
          return List_Id (Nodes.Table (N + 4).Field7);
       end List25;
 
+      function List38 (N : Node_Id) return List_Id is
+      begin
+         return List_Id (Nodes.Table (N + 6).Field8);
+      end List38;
+
+      function List39 (N : Node_Id) return List_Id is
+      begin
+         return List_Id (Nodes.Table (N + 6).Field9);
+      end List39;
+
       function Elist1 (N : Node_Id) return Elist_Id is
          pragma Assert (N <= Nodes.Last);
          Value : constant Union_Id := Nodes.Table (N).Field1;
@@ -2970,6 +3092,17 @@ package body Atree is
             return Elist_Id (Value);
          end if;
       end Elist10;
+
+      function Elist11 (N : Node_Id) return Elist_Id is
+         pragma Assert (Nkind (N) in N_Entity);
+         Value : constant Union_Id := Nodes.Table (N + 1).Field11;
+      begin
+         if Value = 0 then
+            return No_Elist;
+         else
+            return Elist_Id (Value);
+         end if;
+      end Elist11;
 
       function Elist13 (N : Node_Id) return Elist_Id is
          pragma Assert (Nkind (N) in N_Entity);
@@ -3069,6 +3202,17 @@ package body Atree is
             return Elist_Id (Value);
          end if;
       end Elist26;
+
+      function Elist36 (N : Node_Id) return Elist_Id is
+         pragma Assert (Nkind (N) in N_Entity);
+         Value : constant Union_Id := Nodes.Table (N + 6).Field6;
+      begin
+         if Value = 0 then
+            return No_Elist;
+         else
+            return Elist_Id (Value);
+         end if;
+      end Elist36;
 
       function Name1 (N : Node_Id) return Name_Id is
       begin
@@ -5736,6 +5880,18 @@ package body Atree is
          Nodes.Table (N + 4).Field7 := Union_Id (Val);
       end Set_List25;
 
+      procedure Set_List38 (N : Node_Id; Val : List_Id) is
+      begin
+         pragma Assert (Nkind (N) in N_Entity);
+         Nodes.Table (N + 6).Field8 := Union_Id (Val);
+      end Set_List38;
+
+      procedure Set_List39 (N : Node_Id; Val : List_Id) is
+      begin
+         pragma Assert (Nkind (N) in N_Entity);
+         Nodes.Table (N + 6).Field9 := Union_Id (Val);
+      end Set_List39;
+
       procedure Set_Elist1 (N : Node_Id; Val : Elist_Id) is
       begin
          Nodes.Table (N).Field1 := Union_Id (Val);
@@ -5778,6 +5934,12 @@ package body Atree is
          pragma Assert (Nkind (N) in N_Entity);
          Nodes.Table (N + 1).Field10 := Union_Id (Val);
       end Set_Elist10;
+
+      procedure Set_Elist11 (N : Node_Id; Val : Elist_Id) is
+      begin
+         pragma Assert (Nkind (N) in N_Entity);
+         Nodes.Table (N + 1).Field11 := Union_Id (Val);
+      end Set_Elist11;
 
       procedure Set_Elist13 (N : Node_Id; Val : Elist_Id) is
       begin
@@ -5832,6 +5994,12 @@ package body Atree is
          pragma Assert (Nkind (N) in N_Entity);
          Nodes.Table (N + 4).Field8 := Union_Id (Val);
       end Set_Elist26;
+
+      procedure Set_Elist36 (N : Node_Id; Val : Elist_Id) is
+      begin
+         pragma Assert (Nkind (N) in N_Entity);
+         Nodes.Table (N + 6).Field6 := Union_Id (Val);
+      end Set_Elist36;
 
       procedure Set_Name1 (N : Node_Id; Val : Name_Id) is
       begin

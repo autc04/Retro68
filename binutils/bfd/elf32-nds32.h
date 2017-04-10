@@ -1,5 +1,5 @@
 /* NDS32-specific support for 32-bit ELF.
-   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+   Copyright (C) 2012-2017 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -21,6 +21,10 @@
 
 #ifndef ELF32_NDS32_H
 #define ELF32_NDS32_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Relocation flags encoded in r_addend.  */
 
@@ -125,11 +129,6 @@ struct elf_nds32_link_hash_table
   struct elf_link_hash_table root;
 
   /* Short-cuts to get to dynamic linker sections.  */
-  asection *sgot;
-  asection *sgotplt;
-  asection *srelgot;
-  asection *splt;
-  asection *srelplt;
   asection *sdynbss;
   asection *srelbss;
 
@@ -152,4 +151,9 @@ struct elf_nds32_link_hash_table
   bfd_boolean ex9_loop_aware;	/* Ignore ex9 if inside a loop.  */
   bfd_boolean ifc_loop_aware;	/* Ignore ifc if inside a loop.  */
 };
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

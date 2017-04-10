@@ -1,6 +1,6 @@
 /* thumb2_banch_range.t -- linker script to test THUMB-2 branch range.
 
-   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+   Copyright (C) 2010-2017 Free Software Foundation, Inc.
    Written by Doug Kwan <dougkwan@google.com>.
 
    This file is part of gold.

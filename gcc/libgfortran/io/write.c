@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Namelist output contributed by Paul Thomas
    F2003 I/O support contributed by Jerry DeLisle
@@ -1032,47 +1032,6 @@ ztoa_big (const char *s, char *buffer, int len, GFC_UINTEGER_LARGEST *n)
   return buffer;
 }
 
-/* gfc_itoa()-- Integer to decimal conversion.
-   The itoa function is a widespread non-standard extension to standard
-   C, often declared in <stdlib.h>.  Even though the itoa defined here
-   is a static function we take care not to conflict with any prior
-   non-static declaration.  Hence the 'gfc_' prefix, which is normally
-   reserved for functions with external linkage.  */
-
-static const char *
-gfc_itoa (GFC_INTEGER_LARGEST n, char *buffer, size_t len)
-{
-  int negative;
-  char *p;
-  GFC_UINTEGER_LARGEST t;
-
-  assert (len >= GFC_ITOA_BUF_SIZE);
-
-  if (n == 0)
-    return "0";
-
-  negative = 0;
-  t = n;
-  if (n < 0)
-    {
-      negative = 1;
-      t = -n; /*must use unsigned to protect from overflow*/
-    }
-
-  p = buffer + GFC_ITOA_BUF_SIZE - 1;
-  *p = '\0';
-
-  while (t != 0)
-    {
-      *--p = '0' + (t % 10);
-      t /= 10;
-    }
-
-  if (negative)
-    *--p = '-';
-  return p;
-}
-
 
 void
 write_i (st_parameter_dt *dtp, const fnode *f, const char *p, int len)
@@ -1446,9 +1405,16 @@ set_fnode_default (st_parameter_dt *dtp, fnode *f, int length)
       f->u.real.e = 4;
       break;
     case 16:
+      /* Adjust decimal precision depending on binary precision, 106 or 113.  */
+#if GFC_REAL_16_DIGITS == 113
       f->u.real.w = 45;
       f->u.real.d = 36;
       f->u.real.e = 4;
+#else
+      f->u.real.w = 41;
+      f->u.real.d = 32;
+      f->u.real.e = 4;
+#endif
       break;
     default:
       internal_error (&dtp->common, "bad real kind");
@@ -1874,7 +1840,8 @@ nml_write_obj (st_parameter_dt *dtp, namelist_info * obj, index_type offset,
 		+ strlen (obj->var_name) + obj->var_rank * NML_DIGITS + 1;
 	      ext_name = xmalloc (ext_name_len);
 
-	      memcpy (ext_name, base_name, base_name_len);
+	      if (base_name)
+		memcpy (ext_name, base_name, base_name_len);
 	      clen = strlen (obj->var_name + base_var_name_len);
 	      memcpy (ext_name + base_name_len, 
 		      obj->var_name + base_var_name_len, clen);

@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+dnl   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ fi
 
 sysroot_relocatable=0
 if test -n "$sysroot"; then
-  case "sysroot" in
+  case "$sysroot" in
     "${prefix}" | "${prefix}/"* | \
     "${exec_prefix}" | "${exec_prefix}/"* | \
     '${prefix}' | '${prefix}/'*| \
@@ -113,6 +113,23 @@ if test "$plugins" = "yes"; then
 	    [Define to enable linker plugins])
 fi
 AM_CONDITIONAL(PLUGINS, test "$plugins" = "yes")
+
+# Decide if -z relro should be enabled in ELF linker by default.
+ac_default_ld_z_relro=unset
+# Provide a configure time option to override our default.
+AC_ARG_ENABLE(relro,
+	      AS_HELP_STRING([--enable-relro],
+	      [enable -z relro in ELF linker by default]),
+[case "${enableval}" in
+  yes)  ac_default_ld_z_relro=1 ;;
+  no)  ac_default_ld_z_relro=0 ;;
+esac])dnl
+if test "${ac_default_ld_z_relro}" = unset; then
+  ac_default_ld_z_relro=1
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_RELRO,
+  $ac_default_ld_z_relro,
+  [Define to 1 if you want to enable -z relro in ELF linker by default.])
 
 AC_ARG_ENABLE([targets],
 [  --enable-targets        alternative target configurations],
@@ -204,6 +221,7 @@ for targ in $target $canon_targets; do
 	AM_CONDITIONAL(DEFAULT_TARGET_I386, test "$targ_obj" = "i386")
 	AM_CONDITIONAL(DEFAULT_TARGET_POWERPC, test "$targ_obj" = "powerpc")
 	AM_CONDITIONAL(DEFAULT_TARGET_SPARC, test "$targ_obj" = "sparc")
+	AM_CONDITIONAL(DEFAULT_TARGET_S390, test "$targ_obj" = "s390")
 	target_x86_64=no
 	target_x32=no
 	if test "$targ_obj" = "x86_64"; then
@@ -219,6 +237,8 @@ for targ in $target $canon_targets; do
 	fi
 	AM_CONDITIONAL(DEFAULT_TARGET_X86_64, test "$target_x86_64" = "yes")
 	AM_CONDITIONAL(DEFAULT_TARGET_X32, test "$target_x32" = "yes")
+	AM_CONDITIONAL(DEFAULT_TARGET_X86_64_OR_X32,
+		       test "$target_x86_64" = "yes" -o "$target_x32" = "yes")
 	AM_CONDITIONAL(DEFAULT_TARGET_TILEGX, test "$targ_obj" = "tilegx")
         AM_CONDITIONAL(DEFAULT_TARGET_MIPS, test "$targ_obj" = "mips")
 	DEFAULT_TARGET=${targ_obj}
@@ -331,6 +351,7 @@ AM_CONDITIONAL(FN_PTRS_IN_SO_WITHOUT_PIC, [
     powerpc*) false;;
     x86_64) false;;
     sparc64) false;;
+    s390x) false;;
     *) true;;
   esac])
 
@@ -528,7 +549,6 @@ fi
 
 # Link in zlib if we can.  This allows us to write compressed sections.
 AM_ZLIB
-AM_CONDITIONAL(HAVE_ZLIB, test "$ac_cv_header_zlib_h" = "yes")
 
 dnl We have to check these in C, not C++, because autoconf generates
 dnl tests which have no type information, and current glibc provides

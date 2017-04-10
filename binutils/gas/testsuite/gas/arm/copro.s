@@ -31,8 +31,9 @@ bar:
         stc2    p6,  c4, [r3], {3}
         ldcl    7,   c3, [r4], {4}
         stcl    p8,  c2, [r5], {5}
-        ldc2l   9,   c1, [r6], {6}
-        stc2l   p10, c0, [r7], {7}
+        @ using '9, 10, 11' below results in an invalid ldc2l/stc2l instruction.
+        ldc2l   12,   c1, [r6], {6}
+        stc2l   p12, c0, [r7], {7}
         @ using '11' below results in an (invalid) Neon vldmia instruction.
         ldcl    12,  c8, [r8], {255}
         stcl    p12, c9, [r9], {254}

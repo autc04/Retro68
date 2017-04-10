@@ -1,4 +1,4 @@
-#   Copyright (C) 1995-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1995-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,10 @@ if ![is_remote host] {
         perror "$AR does not exist"
         return
     }
+}
+
+if { [istarget "alpha-*-*"] && ![is_elf_format] } then {
+    return
 }
 
 # send_user "Version [binutil_version $AR]"
@@ -555,13 +559,52 @@ proc move_an_element { } {
     pass $testname
 }
 
+# PR 19775: Test creating and listing archives with an empty element.
+
+proc empty_archive { } {
+    global AR
+    global srcdir
+    global subdir
+
+    set testname "archive with empty element"
+
+    # FIXME: There ought to be a way to dynamically create an empty file.
+    set empty $srcdir/$subdir/empty
+    
+    if [is_remote host] {
+	set archive artest.a
+	set objfile [remote_download host $empty]
+	remote_file host delete $archive
+    } else {
+	set archive tmpdir/artest.a
+	set objfile $empty
+    }
+
+    remote_file build delete tmpdir/artest.a
+
+    set got [binutils_run $AR "-r -c $archive ${objfile}"]
+    if ![string match "" $got] {
+	fail $testname
+	return
+    }
+
+    # This commmand used to fail with: "Malformed archive".
+    set got [binutils_run $AR "-t $archive"]
+    if ![string match "empty" $got] {
+	fail $testname
+	return
+    }
+
+    pass $testname
+}
+
 # Run the tests.
 
 # Only run the bfdtest checks if the programs exist.  Since these
 # programs are built but not installed, running the testsuite on an
 # installed toolchain will produce ERRORs about missing bfdtest1 and
 # bfdtest2 executables.
-if { [file exists $base_dir/bfdtest1] && [file exists $base_dir/bfdtest2] } {
+if { ![istarget "tic30-*-*"] && [file exists $base_dir/bfdtest1] && [file exists $base_dir/bfdtest2] } {
     set bfdtests [list bfdtest1 bfdtest2]
 
     long_filenames $bfdtests
@@ -574,9 +617,8 @@ argument_parsing
 deterministic_archive
 delete_an_element
 move_an_element
+empty_archive
 
-if { [is_elf_format]
-     && ![istarget "*-*-hpux*"]
-     && ![istarget "msp*-*-*"] } {
+if { [is_elf_format] && [supports_gnu_unique] } {
     unique_symbol
 }

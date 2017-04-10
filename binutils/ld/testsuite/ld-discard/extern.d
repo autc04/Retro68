@@ -1,8 +1,8 @@
 #source: extern.s
 #ld: -T discard.ld
-#error: .*data.* referenced in section `\.text' of tmpdir/dump0.o: defined in discarded section `\.data\.exit' of tmpdir/dump0.o
+#error: .*data.* referenced in section `\.text' of tmpdir/extern.o: defined in discarded section `\.data\.exit' of tmpdir/extern.o
 #objdump: -p
-#xfail: arc-*-* d30v-*-* dlx-*-* i960-*-* pj*-*-*
+#xfail: d30v-*-* dlx-*-* i960-*-* pj*-*-*
 #xfail: m68hc12-*-* m6812-*-*
 #pass
 # The expected warning used to start with "`data' referenced..." but

@@ -1,5 +1,5 @@
 # Expect script for various ARM ELF tests.
-#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -66,7 +66,7 @@ if { ![is_elf_format] || ![istarget "arm*-*-*"] } {
 # nm: Apply nm options on result.  Compare with regex (last arg).
 # readelf: Apply readelf options on result.  Compare with regex (last arg).
 
-set armelftests_common {
+set armelftests_common_1 {
     {"Group relocations" "-Ttext 0x8000 -Tdata 0x3000000 --section-start alpha=0xeef0 --section-start beta=0xffeef0" "" "" {group-relocs.s}
      {{objdump -dr group-relocs.d}}
      "group-relocs"}
@@ -159,12 +159,38 @@ set armelftests_common {
      "-EL --vfp11-denorm-fix=scalar -Ttext=0x8000" "" "-EL -mfpu=vfpxd" {vfp11-fix-none.s}
      {{objdump -dr vfp11-fix-none.d}}
      "vfp11-fix-none"}
+    {"STM32L4XX erratum fix LDM"
+     "-EL --fix-stm32l4xx-629360 -Ttext=0x8000" "" "-EL -mcpu=cortex-m4 -mfpu=fpv4-sp-d16" {stm32l4xx-fix-ldm.s}
+     {{objdump -dr stm32l4xx-fix-ldm.d}}
+     "stm32l4xx-fix-ldm"}
+    {"STM32L4XX erratum fix VLDM"
+     "-EL --fix-stm32l4xx-629360 -Ttext=0x8000" "" "-EL -mcpu=cortex-m4 -mfpu=fpv4-sp-d16" {stm32l4xx-fix-vldm.s}
+     {{objdump -dr stm32l4xx-fix-vldm.d}}
+     "stm32l4xx-fix-vldm"}
+    {"STM32L4XX erratum fix VLDM, DP registers"
+     "-EL --fix-stm32l4xx-629360 -Ttext=0x8000" "" "-EL -mcpu=cortex-m4 -mfpu=fpv4-sp-d16" {stm32l4xx-fix-vldm-dp.s}
+     {{objdump -dr stm32l4xx-fix-vldm-dp.d}}
+     "stm32l4xx-fix-vldm-dp"}
+    {"STM32L4XX erratum fix ALL"
+     "-EL --fix-stm32l4xx-629360=all -Ttext=0x8000" "" "-EL -mcpu=cortex-m4 -mfpu=fpv4-sp-d16" {stm32l4xx-fix-all.s}
+     {{objdump -dr stm32l4xx-fix-all.d}}
+     "stm32l4xx-fix-all"}
+    {"STM32L4XX erratum fix in IT context"
+     "-EL --fix-stm32l4xx-629360 -Ttext=0x8000" "" "-EL -mcpu=cortex-m4 -mfpu=fpv4-sp-d16" {stm32l4xx-fix-it-block.s}
+     {{objdump -dr stm32l4xx-fix-it-block.d}}
+     "stm32l4xx-fix-it-block"}
     {"Unwinding and -gc-sections" "-gc-sections" "" "" {gc-unwind.s}
      {{objdump -sj.data gc-unwind.d}}
-     "gc-unwind"}
+	"gc-unwind"}
+}
+
+set armelftests_common_2 { 
     {"script-type" "-static -T script-type.ld" "" "" {script-type.s}
-     {{readelf -s script-type.sym}}
-     "script-type"}
+	{{readelf -s script-type.sym}}
+	"script-type"}
+}
+
+set armelftests_common_3 {
     {"callweak" "-static -T arm.ld" "" "" {callweak.s}
      {{objdump -dr callweak.d}}
      "callweak"}
@@ -207,7 +233,26 @@ set armelftests_common {
      "" {pcrel-shared.s}
      {{readelf -dr pcrel-shared.rd}}
      "pcrel-shared.so"}
+    {"MOVS thumb1 relocations" "-static -T arm.ld" "" "" {thumb1-movs.s}
+     {{objdump -dw thumb1-movs.d}}
+     "thumb1-movs"}
+    {"ADDS thumb1 relocations" "-static -T arm.ld" "" "" {thumb1-adds.s}
+     {{objdump -dw thumb1-adds.d}}
+     "thumb1-adds"}
+    {"MOVS thumb1 relocations for armv7-m target" "-static -T arm.ld" "" "" {thumb1-movs-armv7-m.s}
+     {{objdump -dw thumb1-movs.d}}
+     "thumb1-movs"}
+    {"ADDS thumb1 relocations for armv7-m target" "-static -T arm.ld" "" "" {thumb1-adds-armv7-m.s}
+     {{objdump -dw thumb1-adds.d}}
+     "thumb1-adds"}
 }
+
+run_ld_link_tests $armelftests_common_1
+if { ![istarget "arm*-*-netbsdelf"] } {
+    run_ld_link_tests $armelftests_common_2
+}
+run_ld_link_tests $armelftests_common_3
+
 
 set armelftests_nonacl {
     {"Thumb-1 BL" "-Ttext 0x1000 --section-start .foo=0x401000" "" "" {thumb1-bl.s}
@@ -241,11 +286,11 @@ set armelftests_nonacl {
     {"Simple static application without .rel.plt in linker script"
 	"-T arm-no-rel-plt.ld" "" "" {arm-static-app.s}
      {{objdump -fdw arm-static-app.d} {objdump -rw arm-static-app.r}}
-     "arm-static-app"}
+     "arm-static-app-no-rel-plt"}
     {"Simple dynamic application without .rel.plt in linker script"
 	"tmpdir/arm-lib.so -T arm-no-rel-plt.ld" "" "" {arm-app.s}
-     {{ld arm-no-rel-plt.out}}
-     "arm-app"}
+     {{readelf -dr arm-no-rel-plt.r}}
+     "arm-app-no-rel-plt"}
     {"Non-pcrel function reference" "tmpdir/arm-lib.so" "" "" {arm-app-abs32.s}
      {{objdump -fdw arm-app-abs32.d} {objdump -Rw arm-app-abs32.r}}
      "arm-app-abs32"}
@@ -279,7 +324,6 @@ set armelftests_nonacl {
      "tls-lib-loc.so"}
 }
 
-run_ld_link_tests $armelftests_common
 if { ![istarget "arm*-*-nacl*"] } {
     run_ld_link_tests $armelftests_nonacl
 }
@@ -299,8 +343,15 @@ run_dump_test "movw-shared-1"
 run_dump_test "movw-shared-2"
 run_dump_test "movw-shared-3"
 run_dump_test "movw-shared-4"
+run_dump_test "rel32-reject"
+run_dump_test "rel32-reject-pie"
+run_dump_test "pie-bind-locally"
 
 # Exclude non-ARM-EABI targets.
+
+if { [istarget "arm*-*-netbsdelf"] } {
+    return
+}
 
 if { ![istarget "arm*-*-*eabi*"] && ![istarget "arm*-*-nacl*"] } {
     # Special variants of these tests, as a different farcall stub is
@@ -352,6 +403,18 @@ set armeabitests_common {
      {"EABI attribute merging 7" "-r" "" "" {attr-merge-7a.s attr-merge-7b.s}
       {{readelf -A attr-merge-7.attr}}
       "attr-merge-7"}
+     {"EABI attribute merging 8" "-r" "" "" {attr-merge-8a.s attr-merge-8b.s}
+      {{readelf -A attr-merge-8.attr}}
+      "attr-merge-8"}
+     {"EABI attribute merging 9" "-r" "" "" {attr-merge-9a.s attr-merge-9b.s}
+      {{ld attr-merge-9.out}}
+      "attr-merge-9"}
+     {"EABI attribute merging 10" "-r" "" "" {attr-merge-10a.s attr-merge-10b.s}
+      {{readelf -A attr-merge-10.attr}}
+      "attr-merge-10"}
+     {"EABI attribute merging 10 (DSP)" "-r" "" "" {attr-merge-10a.s attr-merge-10b-dsp.s}
+      {{readelf -A attr-merge-10-dsp.attr}}
+      "attr-merge-10-dsp"}
      {"EABI attribute arch merging 1" "-r" "" "" {arch-v6k.s arch-v6t2.s}
       {{readelf -A attr-merge-arch-1.attr}}
       "attr-merge-arch-1"}
@@ -412,9 +475,18 @@ set armeabitests_nonacl {
     {"Thumb-Thumb farcall with BLX" "--no-fix-arm1176 -Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv5t" {farcall-thumb-thumb.s}
      {{objdump -d farcall-thumb-thumb-blx.d}}
      "farcall-thumb-thumb-blx"}
-    {"Thumb-Thumb farcall M profile" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv7-m" {farcall-thumb-thumb.s}
+    {"Thumb-Thumb farcall M profile" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv6-m" {farcall-thumb-thumb.s}
      {{objdump -d farcall-thumb-thumb-m.d}}
      "farcall-thumb-thumb-m"}
+    {"Thumb2-Thumb2 farcall M profile" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv7-m" {farcall-thumb-thumb.s}
+     {{objdump -d farcall-thumb2-thumb2-m.d}}
+     "farcall-thumb2-thumb2-m"}
+    {"Thumb-Thumb farcall v8-M Baseline" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv8-m.base" {farcall-thumb-thumb.s}
+     {{objdump -d farcall-thumb-thumb-m.d}}
+     "farcall-thumb-thumb-v8-m-base"}
+    {"Thumb-Thumb farcall v8-M Mainline" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv8-m.main" {farcall-thumb-thumb.s}
+     {{objdump -d farcall-thumb-thumb-m.d}}
+     "farcall-thumb-thumb-v8-m-main"}
     {"Thumb-Thumb farcall v6-M" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv6-m" {farcall-thumb-thumb.s}
      {{objdump -d farcall-thumb-thumb-m.d}}
      "farcall-thumb-thumb-v6-m"}
@@ -430,6 +502,13 @@ set armeabitests_nonacl {
     {"Thumb-Thumb farcall (PIC veneer)" "-Ttext 0x1000 --section-start .foo=0x2001014 --pic-veneer" "" "-march=armv4t" {farcall-thumb-thumb.s}
      {{objdump -d farcall-thumb-thumb-pic-veneer.d}}
      "farcall-thumb-thumb-pic-veneer"}
+    {"Thumb-Thumb farcall v6-M (no profile)" "-Ttext 0x1000 --section-start .foo=0x2001014" "" ""
+     {farcall-thumb-thumb-m-no-profile-a.s farcall-thumb-thumb-m-no-profile-b.s}
+     {{objdump -d farcall-thumb-thumb-m-no-profile.d}}
+     "farcall-thumb-thumb-m-no-profile"}
+    {"Thumb2 purecode farcall" "-Ttext 0x1000 --section-start .foo=0x2001020" "" "" {farcall-thumb2-purecode.s}
+     {{objdump -d farcall-thumb2-purecode.d}}
+     "farcall-thumb2-purecode"}
 
     {"Thumb-ARM farcall" "-Ttext 0x1c01010 --section-start .foo=0x2001014" "" "-W" {farcall-thumb-arm.s}
      {{objdump -d farcall-thumb-arm.d}}
@@ -481,6 +560,12 @@ set armeabitests_nonacl {
       {readelf -Ds farcall-mixed-app.sym}}
      "farcall-mixed-app-v5"}
 
+    {"Mixed ARM/Thumb2 dynamic application with farcalls" "tmpdir/mixed-lib.so -T arm-dyn.ld --section-start .mid_thumb=0x10081c0 --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" "" ""
+     {farcall-mixed-app2.s}
+     {{objdump -fdw farcall-mixed-app2.d} {objdump -Rw farcall-mixed-app2.r}
+      {readelf -Ds farcall-mixed-app2.sym}}
+     "farcall-mixed-app2"}
+
     {"Mixed ARM/Thumb shared library with long branches (v4t)" "-shared -T arm-lib.ld" "" "-march=armv4t"
      {farcall-mixed-lib1.s farcall-mixed-lib2.s}
      {{objdump -fdw farcall-mixed-lib-v4t.d}}
@@ -529,9 +614,12 @@ set armeabitests_nonacl {
      {{objdump -d fix-arm1176-off.d}}
      "fix-arm1176-6"}
 
-     {"Thumb-2 BL" "-Ttext 0x1000 --section-start .foo=0x1001000" "" "" {thumb2-bl.s}
+     {"Thumb-2 BL" "-Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv7" {thumb2-bl.s}
       {{objdump -dr thumb2-bl.d}}
       "thumb2-bl"}
+     {"Thumb-2 BL on ARMv6-M" "-Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv6-m" {thumb2-bl.s}
+      {{objdump -dr thumb2-bl.d}}
+      "thumb2-armv6m-bl"}
     {"Thumb-2 Interworked branch" "-T arm.ld" "" "" {thumb2-b-interwork.s}
       {{objdump -dr thumb2-b-interwork.d}}
       "thumb2-b-interwork"}
@@ -560,6 +648,88 @@ set armeabitests_nonacl {
      {jump-reloc-veneers.s}
      {{objdump -d jump-reloc-veneers-long.d}}
      "jump-reloc-veneers-long"}
+
+    {"Secure gateway veneers: no .gnu.sgstubs section" "" ""
+     "-march=armv8-m.base -mthumb"
+     {cmse-veneers.s}
+     {{ld cmse-veneers-no-gnu_sgstubs.out}}
+     "cmse-veneers-no-gnu_sgstubs"}
+    {"Secure gateway veneers: wrong entry functions" "" ""
+     "-march=armv7-m -mthumb --defsym CHECK_ERRORS=1"
+     {cmse-veneers.s}
+     {{ld cmse-veneers-wrong-entryfct.out}}
+     "cmse-veneers-wrong-entryfct"}
+    {"Secure gateway veneers (ARMv8-M Baseline)"
+     "-Ttext=0x8000 --section-start .gnu.sgstubs=0x20000 --gc-sections" ""
+     "-march=armv8-m.base -mthumb"
+     {cmse-veneers.s}
+     {{objdump {-d -j .gnu.sgstubs} cmse-veneers.d}
+      {objdump {-h -j .gnu.sgstubs} cmse-veneers.sd}
+      {nm {} cmse-veneers.rd}}
+     "cmse-veneers-baseline"}
+    {"Secure gateway veneers (ARMv8-M Mainline)"
+     "-Ttext=0x8000 --section-start .gnu.sgstubs=0x20000 --gc-sections" ""
+     "-march=armv8-m.main -mthumb"
+     {cmse-veneers.s}
+     {{objdump {-d -j .gnu.sgstubs} cmse-veneers.d}
+      {objdump {-h -j .gnu.sgstubs} cmse-veneers.sd}
+      {nm {} cmse-veneers.rd}}
+     "cmse-veneers-mainline"}
+    {"Secure gateway import library generation: errors"
+     "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym CHECK_ERRORS=1 --defsym VER=1"
+     {cmse-implib.s}
+     {{ld cmse-implib-errors.out}}
+     "cmse-implib"}
+    {"Secure gateway import library generation"
+     "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=1"
+     {cmse-implib.s}
+     {{readelf {-s tmpdir/cmse-implib.lib} cmse-implib.rd}}
+     "cmse-implib"}
+    {"Input secure gateway import library"
+     "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-new-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=2"
+     {cmse-implib.s}
+     {{ld cmse-new-implib.out}
+      {readelf {-s tmpdir/cmse-new-implib.lib} cmse-new-implib.rd}}
+     "cmse-new-implib"}
+    {"Input secure gateway import library: no output import library"
+     "--section-start .gnu.sgstubs=0x20000 --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=2"
+     {cmse-implib.s}
+     {{ld cmse-new-implib-no-output.out}}
+     "cmse-new-implib-no-output"}
+    {"Input secure gateway import library: not an SG input import library"
+     "--section-start .gnu.sgstubs=0x20000 --in-implib=tmpdir/cmse-implib.lib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=2"
+     {cmse-implib.s}
+     {{ld cmse-new-implib-not-sg-in-implib.out}}
+     "cmse-new-implib-not-sg-in-implib"}
+    {"Input secure gateway import library: earlier stub section base"
+     "--section-start .gnu.sgstubs=0x19000 --out-implib=tmpdir/cmse-new-earlier-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=2"
+     {cmse-implib.s}
+     {{ld cmse-new-earlier-later-implib.out}}
+     "cmse-new-earlier-implib"}
+    {"Input secure gateway import library: later stub section base"
+     "--section-start .gnu.sgstubs=0x30000 --out-implib=tmpdir/cmse-new-later-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=2"
+     {cmse-implib.s}
+     {{ld cmse-new-earlier-later-implib.out}}
+     "cmse-new-later-implib"}
+    {"Input secure gateway import library: veneer comeback"
+     "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-new-comeback-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=3"
+     {cmse-implib.s}
+     {{readelf {-s tmpdir/cmse-new-comeback-implib.lib} cmse-new-comeback-implib.rd}}
+     "cmse-new-comeback-implib"}
+    {"Input secure gateway import library: entry function change"
+     "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-new-wrong-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
+     "-march=armv8-m.base -mthumb --defsym VER=4"
+     {cmse-implib.s}
+     {{ld cmse-new-wrong-implib.out}}
+     "cmse-new-wrong-implib"}
 
     {"R_ARM_THM_JUMP19 Relocation veneers: Short"
      "--section-start destsect=0x000108002 --section-start .text=0x8000" ""
@@ -877,11 +1047,40 @@ run_dump_test "attr-merge-vfp-6"
 run_dump_test "attr-merge-vfp-6r"
 run_dump_test "attr-merge-vfp-7"
 run_dump_test "attr-merge-vfp-7r"
+run_dump_test "attr-merge-vfp-8"
+run_dump_test "attr-merge-vfp-8r"
+run_dump_test "attr-merge-vfp-9"
+run_dump_test "attr-merge-vfp-9r"
+run_dump_test "attr-merge-vfp-10"
+run_dump_test "attr-merge-vfp-10r"
+run_dump_test "attr-merge-vfp-11"
+run_dump_test "attr-merge-vfp-11r"
+run_dump_test "attr-merge-vfp-12"
+run_dump_test "attr-merge-vfp-12r"
+run_dump_test "attr-merge-vfp-13"
+run_dump_test "attr-merge-vfp-13r"
+run_dump_test "attr-merge-vfp-14"
+run_dump_test "attr-merge-vfp-14r"
 run_dump_test "attr-merge-incompatible"
 run_dump_test "attr-merge-arch-2"
+run_dump_test "attr-merge-nosection-1"
+run_dump_test "attr-merge-hardfp-use-1"
+run_dump_test "attr-merge-hardfp-use-2"
 run_dump_test "unresolved-1"
 if { ![istarget "arm*-*-nacl*"] } {
     run_dump_test "unresolved-1-dyn"
 }
 run_dump_test "unresolved-2"
 run_dump_test "gc-hidden-1"
+run_dump_test "protected-data"
+run_dump_test "stm32l4xx-cannot-fix-it-block"
+run_dump_test "stm32l4xx-cannot-fix-far-ldm"
+set arm_unwind_tests {
+    {"unwind-rel" "-r -Tarm.ld" "" "" {unwind-rel1.s unwind-rel2.s unwind-rel3.s}
+     {{readelf -ur unwind-rel.d}}
+     "unwind-rel"}
+    {"unwind-mix" "-Tarm.ld" "" "" {unwind-mix1.s unwind-mix2.s}
+     {{readelf -u unwind-mix.d}}
+     "unwind-mix"}
+}
+run_ld_link_tests $arm_unwind_tests

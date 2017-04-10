@@ -1,5 +1,5 @@
 /* { dg-require-effective-target vect_int } */
-#include <stdlib.h>
+extern void abort (void);
 
 __attribute__((noinline, noclone))
 void test1(short x[128], short D)
@@ -36,4 +36,3 @@ int main (void)
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */

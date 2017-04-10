@@ -1,4 +1,4 @@
-# Define a function with all "compressed" (dc and ic) references.
+# Define a function with all "compressed" (dc, bc and ic) references.
 
 	.abicalls
 	.option	pic0
@@ -14,6 +14,16 @@
 	j	\name
 	nop
 	.endif
+	.endif
+	.endif
+	.if	(\types) & BC
+	.if	micromips
+	bal	\name
+	nop
+	.endif
+	.ifdef	o32
+	b	\name
+	nop
 	.endif
 	.endif
 	.if	(\types) & IC

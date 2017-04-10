@@ -1,6 +1,6 @@
 // script.cc -- handle linker scripts for gold.
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -764,12 +764,6 @@ Lex::get_token(const char** pp)
 
   while (true)
     {
-      if (*p == '\0')
-	{
-	  *pp = p;
-	  return this->make_eof_token(p);
-	}
-
       // Skip whitespace quickly.
       while (*p == ' ' || *p == '\t' || *p == '\r')
 	++p;
@@ -782,8 +776,18 @@ Lex::get_token(const char** pp)
 	  continue;
 	}
 
+      char c0 = *p;
+
+      if (c0 == '\0')
+	{
+	  *pp = p;
+	  return this->make_eof_token(p);
+	}
+
+      char c1 = p[1];
+
       // Skip C style comments.
-      if (p[0] == '/' && p[1] == '*')
+      if (c0 == '/' && c1 == '*')
 	{
 	  int lineno = this->lineno_;
 	  int charpos = p - this->linestart_ + 1;
@@ -797,7 +801,7 @@ Lex::get_token(const char** pp)
 	}
 
       // Skip line comments.
-      if (*p == '#')
+      if (c0 == '#')
 	{
 	  *pp = p + 1;
 	  if (!this->skip_line_comment(pp))
@@ -807,7 +811,7 @@ Lex::get_token(const char** pp)
 	}
 
       // Check for a name.
-      if (this->can_start_name(p[0], p[1]))
+      if (this->can_start_name(c0, c1))
 	return this->gather_token(Token::TOKEN_STRING,
 				  &Lex::can_continue_name,
 				  p, p + 1, pp);
@@ -820,35 +824,38 @@ Lex::get_token(const char** pp)
 	  return this->gather_quoted_string(pp);
 	}
 
+      // Be careful not to lookahead past the end of the buffer.
+      char c2 = (c1 == '\0' ? '\0' : p[2]);
+
       // Check for a number.
 
-      if (this->can_start_hex(p[0], p[1], p[2]))
+      if (this->can_start_hex(c0, c1, c2))
 	return this->gather_token(Token::TOKEN_INTEGER,
 				  &Lex::can_continue_hex,
 				  p, p + 3, pp);
 
-      if (Lex::can_start_number(p[0]))
+      if (Lex::can_start_number(c0))
 	return this->gather_token(Token::TOKEN_INTEGER,
 				  &Lex::can_continue_number,
 				  p, p + 1, pp);
 
       // Check for operators.
 
-      int opcode = Lex::three_char_operator(p[0], p[1], p[2]);
+      int opcode = Lex::three_char_operator(c0, c1, c2);
       if (opcode != 0)
 	{
 	  *pp = p + 3;
 	  return this->make_token(opcode, p);
 	}
 
-      opcode = Lex::two_char_operator(p[0], p[1]);
+      opcode = Lex::two_char_operator(c0, c1);
       if (opcode != 0)
 	{
 	  *pp = p + 2;
 	  return this->make_token(opcode, p);
 	}
 
-      opcode = Lex::one_char_operator(p[0]);
+      opcode = Lex::one_char_operator(c0);
       if (opcode != 0)
 	{
 	  *pp = p + 1;
@@ -987,7 +994,7 @@ Symbol_assignment::sized_finalize(Symbol_table* symtab, const Layout* layout,
 						  is_dot_available,
 						  dot_value, dot_section,
 						  &section, NULL, &type,
-						  &vis, &nonvis, false);
+						  &vis, &nonvis, false, NULL);
   Sized_symbol<size>* ssym = symtab->get_sized_symbol<size>(this->sym_);
   ssym->set_value(final_val);
   ssym->set_type(type);
@@ -1009,11 +1016,12 @@ Symbol_assignment::set_if_absolute(Symbol_table* symtab, const Layout* layout,
     return;
 
   Output_section* val_section;
+  bool is_valid;
   uint64_t val = this->val_->eval_maybe_dot(symtab, layout, false,
 					    is_dot_available, dot_value,
 					    dot_section, &val_section, NULL,
-					    NULL, NULL, NULL, false);
-  if (val_section != NULL && val_section != dot_section)
+					    NULL, NULL, NULL, false, &is_valid);
+  if (!is_valid || (val_section != NULL && val_section != dot_section))
     return;
 
   if (parameters->target().get_size() == 32)
@@ -1754,6 +1762,7 @@ script_keyword_parsecodes[] =
   { "FLOAT", FLOAT },
   { "FORCE_COMMON_ALLOCATION", FORCE_COMMON_ALLOCATION },
   { "GROUP", GROUP },
+  { "HIDDEN", HIDDEN },
   { "HLL", HLL },
   { "INCLUDE", INCLUDE },
   { "INFO", INFO },
@@ -1791,6 +1800,7 @@ script_keyword_parsecodes[] =
   { "SIZEOF_HEADERS", SIZEOF_HEADERS },
   { "SORT", SORT_BY_NAME },
   { "SORT_BY_ALIGNMENT", SORT_BY_ALIGNMENT },
+  { "SORT_BY_INIT_PRIORITY", SORT_BY_INIT_PRIORITY },
   { "SORT_BY_NAME", SORT_BY_NAME },
   { "SPECIAL", SPECIAL },
   { "SQUAD", SQUAD },
@@ -2694,7 +2704,7 @@ script_add_library(void* closurev, const char* name, size_t length)
 
   if (name_string[0] != 'l')
     gold_error(_("library name must be prefixed with -l"));
-    
+
   Input_file_argument file(name_string.c_str() + 1,
 			   Input_file_argument::INPUT_FILE_TYPE_LIBRARY,
 			   "", false,
@@ -3366,13 +3376,14 @@ script_parse_memory_attr(void* closurev, const char* attrs, size_t attrlen,
 }
 
 extern "C" void
-script_include_directive(void* closurev, const char* filename, size_t length)
+script_include_directive(int first_token, void* closurev,
+			 const char* filename, size_t length)
 {
   Parser_closure* closure = static_cast<Parser_closure*>(closurev);
   std::string name(filename, length);
   Command_line* cmdline = closure->command_line();
   read_script_file(name.c_str(), cmdline, &cmdline->script_options(),
-                   PARSING_LINKER_SCRIPT, Lex::LINKER_SCRIPT);
+                   first_token, Lex::LINKER_SCRIPT);
 }
 
 // Functions for memory regions.

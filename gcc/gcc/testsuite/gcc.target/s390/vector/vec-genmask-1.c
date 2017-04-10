@@ -66,5 +66,3 @@ main ()
     __builtin_abort ();
   return 0;
 }
-
-/* { dg-final { cleanup-saved-temps } } */

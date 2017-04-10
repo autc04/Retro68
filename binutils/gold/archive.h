@@ -1,6 +1,6 @@
 // archive.h -- archive support for gold      -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -175,6 +175,9 @@ class Archive : public Library_base
   // The string expected at the end of an archive member header.
   static const char arfmag[2];
 
+  // Name of 64-bit symbol table member.
+  static const char sym64name[7];
+
   // The name of the object.  This is the name used on the command
   // line; e.g., if "-lgcc" is on the command line, this will be
   // "gcc".
@@ -290,6 +293,7 @@ class Archive : public Library_base
   { return this->input_file_->file().get_view(0, start, size, aligned, cache); }
 
   // Read the archive symbol map.
+  template<int mapsize>
   void
   read_armap(off_t start, section_size_type size);
 

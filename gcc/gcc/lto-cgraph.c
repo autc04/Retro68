@@ -1,7 +1,7 @@
 /* Write and read the cgraph to the memory mapped representation of a
    .o file.
 
-   Copyright (C) 2009-2015 Free Software Foundation, Inc.
+   Copyright (C) 2009-2016 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
 
 This file is part of GCC.
@@ -23,63 +23,21 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "tree.h"
-#include "fold-const.h"
-#include "stringpool.h"
-#include "predict.h"
-#include "hard-reg-set.h"
-#include "function.h"
-#include "basic-block.h"
-#include "tree-ssa-alias.h"
-#include "internal-fn.h"
-#include "gimple-expr.h"
-#include "is-a.h"
-#include "gimple.h"
-#include "hashtab.h"
+#include "backend.h"
 #include "rtl.h"
-#include "flags.h"
-#include "statistics.h"
-#include "real.h"
-#include "fixed-value.h"
-#include "insn-config.h"
-#include "expmed.h"
-#include "dojump.h"
-#include "explow.h"
-#include "calls.h"
-#include "emit-rtl.h"
-#include "varasm.h"
-#include "stmt.h"
-#include "expr.h"
-#include "params.h"
-#include "langhooks.h"
-#include "bitmap.h"
-#include "diagnostic-core.h"
-#include "except.h"
-#include "timevar.h"
-#include "hash-map.h"
-#include "plugin-api.h"
-#include "ipa-ref.h"
-#include "cgraph.h"
-#include "lto-streamer.h"
-#include "data-streamer.h"
+#include "tree.h"
+#include "gimple.h"
+#include "predict.h"
+#include "stringpool.h"
 #include "tree-streamer.h"
-#include "gcov-io.h"
+#include "cgraph.h"
 #include "tree-pass.h"
 #include "profile.h"
 #include "context.h"
 #include "pass_manager.h"
 #include "ipa-utils.h"
 #include "omp-low.h"
+#include "ipa-chkp.h"
 
 /* True when asm nodes has been output.  */
 bool asm_nodes_output = false;
@@ -527,11 +485,12 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
 
   if (group)
     {
-      if (node->same_comdat_group && !boundary_p)
+      if (node->same_comdat_group)
 	{
-	  ref = lto_symtab_encoder_lookup (encoder,
-					   node->same_comdat_group);
-	  gcc_assert (ref != LCC_NOT_FOUND);
+	  ref = LCC_NOT_FOUND;
+	  for (struct symtab_node *n = node->same_comdat_group; 
+	       ref == LCC_NOT_FOUND && n != node; n = n->same_comdat_group)
+	    ref = lto_symtab_encoder_lookup (encoder, n);
 	}
       else
 	ref = LCC_NOT_FOUND;
@@ -565,6 +524,7 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
   bp_pack_value (&bp, node->lowered, 1);
   bp_pack_value (&bp, in_other_partition, 1);
   bp_pack_value (&bp, node->alias, 1);
+  bp_pack_value (&bp, node->transparent_alias, 1);
   bp_pack_value (&bp, node->weakref, 1);
   bp_pack_value (&bp, node->frequency, 2);
   bp_pack_value (&bp, node->only_called_at_startup, 1);
@@ -641,8 +601,9 @@ lto_output_varpool_node (struct lto_simple_output_block *ob, varpool_node *node,
   bp_pack_value (&bp, node->definition && (encode_initializer_p || node->alias),
 		 1);
   bp_pack_value (&bp, node->alias, 1);
+  bp_pack_value (&bp, node->transparent_alias, 1);
   bp_pack_value (&bp, node->weakref, 1);
-  bp_pack_value (&bp, node->analyzed && !boundary_p, 1);
+  bp_pack_value (&bp, node->analyzed && (!boundary_p || node->alias), 1);
   gcc_assert (node->definition || !node->analyzed);
   /* Constant pool initializers can be de-unified into individual ltrans units.
      FIXME: Alternatively at -Os we may want to avoid generating for them the local
@@ -674,11 +635,12 @@ lto_output_varpool_node (struct lto_simple_output_block *ob, varpool_node *node,
 
   if (group)
     {
-      if (node->same_comdat_group && !boundary_p)
+      if (node->same_comdat_group)
 	{
-	  ref = lto_symtab_encoder_lookup (encoder,
-					   node->same_comdat_group);
-	  gcc_assert (ref != LCC_NOT_FOUND);
+	  ref = LCC_NOT_FOUND;
+	  for (struct symtab_node *n = node->same_comdat_group; 
+	       ref == LCC_NOT_FOUND && n != node; n = n->same_comdat_group)
+	    ref = lto_symtab_encoder_lookup (encoder, n);
 	}
       else
 	ref = LCC_NOT_FOUND;
@@ -918,14 +880,6 @@ compute_ltrans_boundary (lto_symtab_encoder_t in_encoder)
       add_node_to (encoder, node, true);
       lto_set_symtab_encoder_in_partition (encoder, node);
       create_references (encoder, node);
-      /* For proper debug info, we need to ship the origins, too.  */
-      if (DECL_ABSTRACT_ORIGIN (node->decl))
-	{
-	  struct cgraph_node *origin_node
-	  = cgraph_node::get_create (DECL_ABSTRACT_ORIGIN (node->decl));
-	  origin_node->used_as_abstract_origin = true;
-	  add_node_to (encoder, origin_node, true);
-	}
     }
   for (lsei = lsei_start_variable_in_partition (in_encoder);
        !lsei_end_p (lsei); lsei_next_variable_in_partition (&lsei))
@@ -937,13 +891,6 @@ compute_ltrans_boundary (lto_symtab_encoder_t in_encoder)
       lto_set_symtab_encoder_in_partition (encoder, vnode);
       lto_set_symtab_encoder_encode_initializer (encoder, vnode);
       create_references (encoder, vnode);
-      /* For proper debug info, we need to ship the origins, too.  */
-      if (DECL_ABSTRACT_ORIGIN (vnode->decl))
-	{
-	  varpool_node *origin_node
-	    = varpool_node::get (DECL_ABSTRACT_ORIGIN (vnode->decl));
-	  lto_set_symtab_encoder_in_partition (encoder, origin_node);
-	}
     }
   /* Pickle in also the initializer of all referenced readonly variables
      to help folding.  Constant pool variables are not shared, so we must
@@ -1025,6 +972,15 @@ compute_ltrans_boundary (lto_symtab_encoder_t in_encoder)
       if (cnode
 	  && cnode->thunk.thunk_p)
 	add_node_to (encoder, cnode->callees->callee, false);
+      while (node->transparent_alias && node->analyzed)
+	{
+	  node = node->get_alias_target ();
+	  if (is_a <cgraph_node *> (node))
+	    add_node_to (encoder, dyn_cast <cgraph_node *> (node),
+			 false);
+	  else
+	    lto_symtab_encoder_encode (encoder, node);
+	}
     }
   lto_symtab_encoder_delete (in_encoder);
   return encoder;
@@ -1227,6 +1183,7 @@ input_overwrite_node (struct lto_file_decl_data *file_data,
       TREE_STATIC (node->decl) = 0;
     }
   node->alias = bp_unpack_value (bp, 1);
+  node->transparent_alias = bp_unpack_value (bp, 1);
   node->weakref = bp_unpack_value (bp, 1);
   node->frequency = (enum node_frequency)bp_unpack_value (bp, 2);
   node->only_called_at_startup = bp_unpack_value (bp, 1);
@@ -1426,6 +1383,7 @@ input_varpool_node (struct lto_file_decl_data *file_data,
   node->writeonly = bp_unpack_value (&bp, 1);
   node->definition = bp_unpack_value (&bp, 1);
   node->alias = bp_unpack_value (&bp, 1);
+  node->transparent_alias = bp_unpack_value (&bp, 1);
   node->weakref = bp_unpack_value (&bp, 1);
   node->analyzed = bp_unpack_value (&bp, 1);
   node->used_from_other_partition = bp_unpack_value (&bp, 1);
@@ -1598,10 +1556,11 @@ input_cgraph_1 (struct lto_file_decl_data *file_data,
   lto_input_toplevel_asms (file_data, order_base);
 
   /* AUX pointers should be all non-zero for function nodes read from the stream.  */
-#ifdef ENABLE_CHECKING
-  FOR_EACH_VEC_ELT (nodes, i, node)
-    gcc_assert (node->aux || !is_a <cgraph_node *> (node));
-#endif
+  if (flag_checking)
+    {
+      FOR_EACH_VEC_ELT (nodes, i, node)
+	gcc_assert (node->aux || !is_a <cgraph_node *> (node));
+    }
   FOR_EACH_VEC_ELT (nodes, i, node)
     {
       int ref;
@@ -1641,10 +1600,13 @@ input_cgraph_1 (struct lto_file_decl_data *file_data,
 		    cnode->instrumented_version->instrumented_version = cnode;
 		}
 
-	      /* Restore decl names reference.  */
-	      IDENTIFIER_TRANSPARENT_ALIAS (DECL_ASSEMBLER_NAME (cnode->decl)) = 1;
-	      TREE_CHAIN (DECL_ASSEMBLER_NAME (cnode->decl))
-		  = DECL_ASSEMBLER_NAME (cnode->orig_decl);
+	      /* Restore decl names reference except for wrapper functions.  */
+	      if (!chkp_wrap_function (cnode->orig_decl))
+		{
+		  tree name = DECL_ASSEMBLER_NAME (cnode->decl);
+		  IDENTIFIER_TRANSPARENT_ALIAS (name) = 1;
+		  TREE_CHAIN (name) = DECL_ASSEMBLER_NAME (cnode->orig_decl);
+		}
 	    }
 	}
 
@@ -1923,7 +1885,7 @@ input_symtab (void)
    target code, and store them into OFFLOAD_FUNCS and OFFLOAD_VARS.  */
 
 void
-input_offload_tables (void)
+input_offload_tables (bool do_force_output)
 {
   struct lto_file_decl_data **file_data_vec = lto_get_file_decl_data ();
   struct lto_file_decl_data *file_data;
@@ -1949,6 +1911,12 @@ input_offload_tables (void)
 	      tree fn_decl
 		= lto_file_decl_data_get_fn_decl (file_data, decl_index);
 	      vec_safe_push (offload_funcs, fn_decl);
+
+	      /* Prevent IPA from removing fn_decl as unreachable, since there
+		 may be no refs from the parent function to child_fn in offload
+		 LTO mode.  */
+	      if (do_force_output)
+		cgraph_node::get (fn_decl)->mark_force_output ();
 	    }
 	  else if (tag == LTO_symtab_variable)
 	    {
@@ -1956,6 +1924,11 @@ input_offload_tables (void)
 	      tree var_decl
 		= lto_file_decl_data_get_var_decl (file_data, decl_index);
 	      vec_safe_push (offload_vars, var_decl);
+
+	      /* Prevent IPA from removing var_decl as unused, since there
+		 may be no refs to var_decl in offload LTO mode.  */
+	      if (do_force_output)
+		varpool_node::get (var_decl)->force_output = 1;
 	    }
 	  else
 	    fatal_error (input_location,

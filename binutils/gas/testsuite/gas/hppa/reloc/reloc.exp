@@ -1,4 +1,4 @@
-# Copyright (C) 1993-2014 Free Software Foundation, Inc.
+# Copyright (C) 1993-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -657,7 +657,7 @@ if [istarget hppa*-*-*] then {
     # Make sure we put the right relocation entry on a BLE instruction.
     do_ble_relocation_test
 
-    # Make sure relocation reductions are not too agressive about
+    # Make sure relocation reductions are not too aggressive about
     # adjusting relocations against some symbols.
     do_relocation_reduction_tests
 

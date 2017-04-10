@@ -1,5 +1,5 @@
 # -*- shell-script -*-
-#  Copyright (C) 2012-2015 Free Software Foundation, Inc.
+#  Copyright (C) 2012-2016 Free Software Foundation, Inc.
 #  Contributed by Richard Henderson <rth@redhat.com>.
 #
 #  This file is part of the GNU Atomic Library (libatomic).
@@ -25,6 +25,10 @@
 
 # Map the target cpu to an ARCH sub-directory.  At the same time,
 # work out any special compilation flags as necessary.
+
+# Give operating systems the opportunity to discard XCFLAGS modifications based
+# on ${target_cpu}.  For example to allow proper use of multilibs.
+configure_tgt_pre_target_cpu_XCFLAGS="${XCFLAGS}"
 
 case "${target_cpu}" in
   alpha*)
@@ -110,7 +114,7 @@ case "${target}" in
 	;;
 
   *-*-linux* | *-*-gnu* | *-*-k*bsd*-gnu \
-  | *-*-netbsd* | *-*-freebsd* | *-*-openbsd* \
+  | *-*-netbsd* | *-*-freebsd* | *-*-openbsd* | *-*-dragonfly* \
   | *-*-solaris2* | *-*-sysv4* | *-*-irix6* | *-*-osf* | *-*-hpux11* \
   | *-*-darwin* | *-*-aix* | *-*-cygwin*)
 	# POSIX system.  The OS is supported.
@@ -128,6 +132,12 @@ case "${target}" in
             ;;
         esac
 	;;
+
+  *-*-rtems*)
+	XCFLAGS="${configure_tgt_pre_target_cpu_XCFLAGS}"
+	config_path="rtems"
+	;;
+
   *-*-elf*)
 	# ??? No target OS.  We could be targeting bare-metal kernel-mode,
 	# or user-mode for some custom OS.  If the target supports TAS,

@@ -1,6 +1,6 @@
 #name: Wide instruction acceptance in Thumb-2 cores
 #objdump: -d --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix* *-*-vxworks
 
 .*: +file format .*arm.*
 

@@ -50,7 +50,6 @@ with Sem_Type; use Sem_Type;
 with Sem_Util; use Sem_Util;
 with Snames;   use Snames;
 with Sinfo;    use Sinfo;
-with Targparm; use Targparm;
 with Tbuild;   use Tbuild;
 with Uintp;    use Uintp;
 
@@ -317,6 +316,18 @@ package body Sem_Disp is
             Tagged_Type := Base_Type (T);
          end if;
 
+      --  If the type is incomplete, it may have been declared without a
+      --  Tagged indication, but the full view may be tagged, in which case
+      --  that is the controlling type of the subprogram. This is one of the
+      --  approx. 579 places in the language where a lookahead would help.
+
+      elsif Ekind (T) = E_Incomplete_Type
+        and then Present (Full_View (T))
+        and then Is_Tagged_Type (Full_View (T))
+      then
+         Set_Is_Tagged_Type (T);
+         Tagged_Type := Full_View (T);
+
       elsif Ekind (T) = E_Anonymous_Access_Type
         and then Is_Tagged_Type (Designated_Type (T))
       then
@@ -336,7 +347,7 @@ package body Sem_Disp is
          --  Ada 2005 (AI-50217)
 
          elsif From_Limited_With (Designated_Type (T))
-           and then Present (Non_Limited_View (Designated_Type (T)))
+           and then Has_Non_Limited_View (Designated_Type (T))
            and then Scope (Designated_Type (T)) = Scope (Subp)
          then
             if Is_First_Subtype (Non_Limited_View (Designated_Type (T))) then
@@ -596,14 +607,17 @@ package body Sem_Disp is
                     and then Is_Entity_Name (Name (Par))
                   then
                      declare
+                        Enc_Subp : constant Entity_Id := Entity (Name (Par));
                         A : Node_Id;
                         F : Entity_Id;
 
                      begin
-                        --  Find formal for which call is the actual.
+                        --  Find formal for which call is the actual, and is
+                        --  a controlling argument.
 
-                        F := First_Formal (Entity (Name (Par)));
+                        F := First_Formal (Enc_Subp);
                         A := First_Actual (Par);
+
                         while Present (F) loop
                            if Is_Controlling_Formal (F)
                              and then (N = A or else Parent (N) = A)
@@ -698,11 +712,11 @@ package body Sem_Disp is
          --  If the call doesn't have a controlling actual but does have an
          --  indeterminate actual that requires dispatching treatment, then an
          --  object is needed that will serve as the controlling argument for
-         --  a dispatching call on the indeterminate actual. This can only
-         --  occur in the unusual situation of a default actual given by
-         --  a tag-indeterminate call and where the type of the call is an
-         --  ancestor of the type associated with a containing call to an
-         --  inherited operation (see AI-239).
+         --  a dispatching call on the indeterminate actual. This can occur
+         --  in the unusual situation of a default actual given by a tag-
+         --  indeterminate call and where the type of the call is an ancestor
+         --  of the type associated with a containing call to an inherited
+         --  operation (see AI-239).
 
          --  Rather than create an object of the tagged type, which would
          --  be problematic for various reasons (default initialization,
@@ -818,8 +832,13 @@ package body Sem_Disp is
                   --  (the only current case of a tag-indeterminate attribute
                   --  is the stream Input attribute).
 
-                  elsif
-                    Nkind (Original_Node (Actual)) = N_Attribute_Reference
+                  elsif Nkind (Original_Node (Actual)) = N_Attribute_Reference
+                  then
+                     Func := Empty;
+
+                  --  Ditto if it is an explicit dereference.
+
+                  elsif Nkind (Original_Node (Actual)) = N_Explicit_Dereference
                   then
                      Func := Empty;
 
@@ -828,9 +847,8 @@ package body Sem_Disp is
 
                   else
                      Func :=
-                       Entity (Name
-                         (Original_Node
-                           (Expression (Original_Node (Actual)))));
+                       Entity (Name (Original_Node
+                                       (Expression (Original_Node (Actual)))));
                   end if;
 
                   if Present (Func) and then Is_Abstract_Subprogram (Func) then
@@ -846,6 +864,7 @@ package body Sem_Disp is
          end if;
 
       else
+
          --  If dispatching on result, the enclosing call, if any, will
          --  determine the controlling argument. Otherwise this is the
          --  primitive operation of the root type.
@@ -1144,7 +1163,7 @@ package body Sem_Disp is
                            --  No code required to register primitives in VM
                            --  targets
 
-                           elsif VM_Target /= No_VM then
+                           elsif not Tagged_Type_Expansion then
                               null;
 
                            else
@@ -1305,7 +1324,7 @@ package body Sem_Disp is
                        and then Present (Interface_Alias (Prim))
                        and then Alias (Prim) = Subp
                        and then not Building_Static_DT (Tagged_Type)
-                       and then VM_Target = No_VM
+                       and then Tagged_Type_Expansion
                      then
                         Insert_Actions_After (Subp_Body,
                           Register_Primitive (Sloc (Subp_Body), Prim => Prim));
@@ -1334,7 +1353,11 @@ package body Sem_Disp is
 
       elsif Is_Concurrent_Type (Tagged_Type) then
          pragma Assert (not Expander_Active);
-         null;
+
+         --  Attach operation to list of primitives of the synchronized type
+         --  itself, for ASIS use.
+
+         Append_Elmt (Subp, Direct_Primitive_Operations (Tagged_Type));
 
       --  If no old subprogram, then we add this as a dispatching operation,
       --  but we avoid doing this if an error was posted, to prevent annoying
@@ -2053,7 +2076,8 @@ package body Sem_Disp is
    function Inherited_Subprograms
      (S               : Entity_Id;
       No_Interfaces   : Boolean := False;
-      Interfaces_Only : Boolean := False) return Subprogram_List
+      Interfaces_Only : Boolean := False;
+      One_Only        : Boolean := False) return Subprogram_List
    is
       Result : Subprogram_List (1 .. 6000);
       --  6000 here is intended to be infinity. We could use an expandable
@@ -2106,6 +2130,10 @@ package body Sem_Disp is
 
                if Is_Subprogram_Or_Generic_Subprogram (Parent_Op) then
                   Store_IS (Parent_Op);
+
+                  if One_Only then
+                     goto Done;
+                  end if;
                end if;
             end loop;
          end if;
@@ -2120,6 +2148,14 @@ package body Sem_Disp is
 
             begin
                Tag_Typ := Find_Dispatching_Type (S);
+
+               --  In the presence of limited views there may be no visible
+               --  dispatching type. Primitives will be inherited when non-
+               --  limited view is frozen.
+
+               if No (Tag_Typ) then
+                  return Result (1 .. 0);
+               end if;
 
                if Is_Concurrent_Type (Tag_Typ) then
                   Tag_Typ := Corresponding_Record_Type (Tag_Typ);
@@ -2148,6 +2184,10 @@ package body Sem_Disp is
                         --  We have found a primitive covered by S
 
                         Store_IS (Interface_Alias (Prim));
+
+                        if One_Only then
+                           goto Done;
+                        end if;
                      end if;
 
                      Next_Elmt (Elmt);
@@ -2156,6 +2196,8 @@ package body Sem_Disp is
             end;
          end if;
       end if;
+
+      <<Done>>
 
       return Result (1 .. N);
    end Inherited_Subprograms;
@@ -2222,6 +2264,17 @@ package body Sem_Disp is
          return False;
       end if;
    end Is_Inherited_Public_Operation;
+
+   ------------------------------
+   -- Is_Overriding_Subprogram --
+   ------------------------------
+
+   function Is_Overriding_Subprogram (E : Entity_Id) return Boolean is
+      Inherited : constant Subprogram_List :=
+                    Inherited_Subprograms (E, One_Only => True);
+   begin
+      return Inherited'Length > 0;
+   end Is_Overriding_Subprogram;
 
    --------------------------
    -- Is_Tag_Indeterminate --
@@ -2508,7 +2561,7 @@ package body Sem_Disp is
          Next_Actual (Arg);
       end loop;
 
-      --  Expansion of dispatching calls is suppressed when VM_Target, because
+      --  Expansion of dispatching calls is suppressed on VM targets, because
       --  the VM back-ends directly handle the generation of dispatching calls
       --  and would have to undo any expansion to an indirect call.
 

@@ -1,5 +1,5 @@
 # Expect script for ld-sparc tests
-#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -94,6 +94,9 @@ set sparctests {
      {{readelf -WSsrl gotop32.rd} {objdump -drj.text gotop32.dd}
       {objdump -sj.got gotop32.sd} {objdump -sj.data gotop32.td}}
      "libgotop32.so"}
+    {"relaxed call WDISP30 relocation" "-static -melf32_sparc -relax" ""
+     "--32" {wdispcall.s}
+     {{objdump -dj.wdispcall wdispcall.dd}} "wdispcall"}
 }
 set sparc64tests {
     {"64-bit: TLS -fpic -shared transitions" "-shared -melf64_sparc" ""

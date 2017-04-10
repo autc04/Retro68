@@ -1,4 +1,4 @@
-# Mix byte/half/word sizes with arbitary base register.
+# Mix byte/half/word sizes with arbitrary base register.
 
 foo:
 	# safe

@@ -1,6 +1,6 @@
 /* tc-xc16x.c -- Assembler for the Infineon XC16X.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
-   Contributed by KPIT Cummins Infosystems 
+   Copyright (C) 2006-2017 Free Software Foundation, Inc.
+   Contributed by KPIT Cummins Infosystems
 
    This file is part of GAS, the GNU Assembler.
 
@@ -220,12 +220,12 @@ md_show_usage (FILE * stream)
 
 int
 md_parse_option (int c ATTRIBUTE_UNUSED,
-		 char *arg ATTRIBUTE_UNUSED)
+		 const char *arg ATTRIBUTE_UNUSED)
 {
   return 0;
 }
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, FALSE);
@@ -235,7 +235,7 @@ valueT
 md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
-  return ((size + (1 << align) - 1) & (-1 << align));
+  return ((size + (1 << align) - 1) & -(1 << align));
 }
 
 symbolS *
@@ -294,8 +294,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 	}
     }
 
-  rel = xmalloc (sizeof (arelent));
-  rel->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+  rel = XNEW (arelent);
+  rel->sym_ptr_ptr = XNEW (asymbol *);
   *rel->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   rel->address = fixp->fx_frag->fr_address + fixp->fx_where;
   rel->addend = fixp->fx_offset;
@@ -334,7 +334,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  *valP = 256 - (*valP);
 	}
     }
-  
+
   gas_cgen_md_apply_fix (fixP, valP, seg);
   return;
 }

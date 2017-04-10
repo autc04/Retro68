@@ -136,10 +136,27 @@ procedure Gnat1drv is
          Unnest_Subprogram_Mode := True;
       end if;
 
-      --  -gnatd.V or -gnatd.u enables special C expansion mode
+      --  -gnatd.u enables special C expansion mode
 
-      if Debug_Flag_Dot_VV or Debug_Flag_Dot_U then
+      if Debug_Flag_Dot_U then
          Modify_Tree_For_C := True;
+      end if;
+
+      --  Set all flags required when generating C code
+
+      if Generate_C_Code then
+         Modify_Tree_For_C := True;
+         Unnest_Subprogram_Mode := True;
+
+         --  Set operating mode to Generate_Code to benefit from full front-end
+         --  expansion (e.g. generics).
+
+         Operating_Mode := Generate_Code;
+
+         --  Suppress alignment checks since we do not have access to alignment
+         --  info on the target.
+
+         Suppress_Options.Suppress (Alignment_Check) := False;
       end if;
 
       --  -gnatd.E sets Error_To_Warning mode, causing selected error messages
@@ -195,6 +212,16 @@ procedure Gnat1drv is
          GNATprove_Mode := False;
          Debug_Flag_Dot_FF := False;
 
+         --  Turn off C tree generation, not compatible with CodePeer mode. We
+         --  do not expect this to happen in normal use, since both modes are
+         --  enabled by special tools, but it is useful to turn off these flags
+         --  this way when we are doing CodePeer tests on existing test suites
+         --  that may have -gnateg set, to avoid the need for special casing.
+
+         Modify_Tree_For_C := False;
+         Generate_C_Code := False;
+         Unnest_Subprogram_Mode := False;
+
          --  Turn off inlining, confuses CodePeer output and gains nothing
 
          Front_End_Inlining := False;
@@ -212,6 +239,7 @@ procedure Gnat1drv is
          --  user specified Restrictions pragmas are ignored, see
          --  Sem_Prag.Process_Restrictions_Or_Restriction_Warnings.
 
+         Restrict.Restrictions.Set   (No_Exception_Registration)       := True;
          Restrict.Restrictions.Set   (No_Initialize_Scalars)           := True;
          Restrict.Restrictions.Set   (No_Task_Hierarchy)               := True;
          Restrict.Restrictions.Set   (No_Abort_Statements)             := True;
@@ -361,10 +389,7 @@ procedure Gnat1drv is
          Optimization_Level := 0;
 
          --  Enable some restrictions systematically to simplify the generated
-         --  code (and ease analysis). Note that restriction checks are also
-         --  disabled in SPARK mode, see Restrict.Check_Restriction, and user
-         --  specified Restrictions pragmas are ignored, see
-         --  Sem_Prag.Process_Restrictions_Or_Restriction_Warnings.
+         --  code (and ease analysis).
 
          Restrict.Restrictions.Set (No_Initialize_Scalars) := True;
 
@@ -502,9 +527,26 @@ procedure Gnat1drv is
 
       --  Set and check exception mechanism
 
-      if Targparm.ZCX_By_Default_On_Target then
-         Exception_Mechanism := Back_End_Exceptions;
-      end if;
+      case Targparm.Frontend_Exceptions_On_Target is
+         when True =>
+            case Targparm.ZCX_By_Default_On_Target is
+               when True =>
+                  Write_Line
+                    ("Run-time library configured incorrectly");
+                  Write_Line
+                    ("(requesting support for Frontend ZCX exceptions)");
+                  raise Unrecoverable_Error;
+               when False =>
+                  Exception_Mechanism := Front_End_SJLJ;
+            end case;
+         when False =>
+            case Targparm.ZCX_By_Default_On_Target is
+               when True =>
+                  Exception_Mechanism := Back_End_ZCX;
+               when False =>
+                  Exception_Mechanism := Back_End_SJLJ;
+            end case;
+      end case;
 
       --  Set proper status for overflow check mechanism
 
@@ -565,6 +607,14 @@ procedure Gnat1drv is
       Suppress_Options.Suppress (Atomic_Synchronization) :=
         not Atomic_Sync_Default_On_Target;
 
+      --  Set default for Alignment_Check, if we are on a machine with non-
+      --  strict alignment, then we suppress this check, since it is over-
+      --  zealous for such machines.
+
+      if not Ttypes.Target_Strict_Alignment then
+         Suppress_Options.Suppress (Alignment_Check) := True;
+      end if;
+
       --  Set switch indicating if back end can handle limited types, and
       --  guarantee that no incorrect copies are made (e.g. in the context
       --  of an if or case expression).
@@ -574,10 +624,9 @@ procedure Gnat1drv is
       if Debug_Flag_Dot_LL then
          Back_End_Handles_Limited_Types := True;
 
-      --  If no debug flag, usage off for AAMP, VM, SCIL cases
+      --  If no debug flag, usage off for AAMP, SCIL cases
 
       elsif AAMP_On_Target
-        or else VM_Target /= No_VM
         or else Generate_SCIL
       then
          Back_End_Handles_Limited_Types := False;
@@ -608,20 +657,20 @@ procedure Gnat1drv is
          --  back end some day, it would not be true for this test, but it
          --  would be non-GCC, so this is a bit troublesome ???
 
-         Front_End_Inlining := VM_Target /= No_VM or else AAMP_On_Target;
+         Front_End_Inlining := AAMP_On_Target or Generate_C_Code;
       end if;
 
       --  Set back end inlining indication
 
       Back_End_Inlining :=
 
-        --  No back end inlining available for VM targets
-
-        VM_Target = No_VM
-
         --  No back end inlining available on AAMP
 
-        and then not AAMP_On_Target
+        not AAMP_On_Target
+
+        --  No back end inlining available on C generation
+
+        and then not Generate_C_Code
 
         --  No back end inlining in GNATprove mode, since it just confuses
         --  the formal verification process.
@@ -843,7 +892,7 @@ procedure Gnat1drv is
       --  back end for component layout where possible) but only for non-GCC
       --  back ends, as this is done a priori for GCC back ends.
 
-      if VM_Target /= No_VM or else AAMP_On_Target then
+      if AAMP_On_Target then
          Sem_Ch13.Validate_Independence;
       end if;
 
@@ -929,13 +978,20 @@ begin
                System_Source_File_Index := S;
             end if;
 
+            --  Call to get target parameters. Note that the actual interface
+            --  routines are in Tbuild. They can't be in this procedure because
+            --  of accessibility issues.
+
             Targparm.Get_Target_Parameters
               (System_Text  => Source_Text  (S),
                Source_First => Source_First (S),
                Source_Last  => Source_Last  (S),
                Make_Id      => Tbuild.Make_Id'Access,
                Make_SC      => Tbuild.Make_SC'Access,
-               Set_RND      => Tbuild.Set_RND'Access);
+               Set_NOD      => Tbuild.Set_NOD'Access,
+               Set_NSA      => Tbuild.Set_NSA'Access,
+               Set_NUA      => Tbuild.Set_NUA'Access,
+               Set_NUP      => Tbuild.Set_NUP'Access);
 
             --  Acquire configuration pragma information from Targparm
 
@@ -989,7 +1045,7 @@ begin
       Original_Operating_Mode := Operating_Mode;
       Frontend;
 
-      --  Exit with errors if the main source could not be parsed.
+      --  Exit with errors if the main source could not be parsed
 
       if Sinput.Main_Source_File = No_Source_File then
          Errout.Finalize (Last_Call => True);
@@ -1133,8 +1189,9 @@ begin
 
       --  It is not an error to analyze in CodePeer mode a spec which requires
       --  a body, in order to generate SCIL for this spec.
+      --  Ditto for Generate_C_Code mode and generate a C header for a spec.
 
-      elsif CodePeer_Mode then
+      elsif CodePeer_Mode or Generate_C_Code then
          Back_End_Mode := Generate_Object;
 
       --  It is not an error to analyze in GNATprove mode a spec which requires
@@ -1241,15 +1298,11 @@ begin
       --  Annotation is suppressed for targets where front-end layout is
       --  enabled, because the front end determines representations.
 
-      --  Annotation is also suppressed in the case of compiling for a VM,
-      --  since representations are largely symbolic there.
-
       if Back_End_Mode = Declarations_Only
         and then
           (not (Back_Annotate_Rep_Info or Generate_SCIL or GNATprove_Mode)
             or else Main_Kind = N_Subunit
-            or else Frontend_Layout_On_Target
-            or else VM_Target /= No_VM)
+            or else Frontend_Layout_On_Target)
       then
          Post_Compilation_Validation_Checks;
          Errout.Finalize (Last_Call => True);
@@ -1313,8 +1366,8 @@ begin
       Back_End.Call_Back_End (Back_End_Mode);
 
       --  Once the backend is complete, we unlock the names table. This call
-      --  allows a few extra entries, needed for example for the file name for
-      --  the library file output.
+      --  allows a few extra entries, needed for example for the file name
+      --  for the library file output.
 
       Namet.Unlock;
 
@@ -1398,6 +1451,12 @@ begin
          --  say Storage_Error, giving a strong hint.
 
          Comperr.Compiler_Abort ("Storage_Error");
+
+      when Unrecoverable_Error =>
+         raise;
+
+      when others =>
+         Comperr.Compiler_Abort ("exception");
    end;
 
    <<End_Of_Program>>

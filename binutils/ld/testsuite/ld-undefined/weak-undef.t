@@ -1,7 +1,7 @@
 SECTIONS
 {
   .data : {
-    tmpdir/weak-undef.o(.data)
+    *(.data)
   }
   /DISCARD/ : {
     *(*)

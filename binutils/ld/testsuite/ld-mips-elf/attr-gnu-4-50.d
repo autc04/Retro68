@@ -8,7 +8,7 @@ ELF Header:
   Class:                             ELF32
   Data:                              2's complement,.*
   Version:                           1 \(current\)
-  OS/ABI:                            UNIX - System V
+  OS/ABI:                            UNIX - .*
   ABI Version:                       0
   Type:                              REL \(Relocatable file\)
   Machine:                           MIPS R3000
@@ -22,7 +22,7 @@ ELF Header:
   Number of program headers:         0
   Size of section headers:           40 \(bytes\)
   Number of section headers:         11
-  Section header string table index: 8
+  Section header string table index: 10
 Attribute Section: gnu
 File Attributes
   Tag_GNU_MIPS_ABI_FP: Hard float \(32-bit CPU, Any FPU\)

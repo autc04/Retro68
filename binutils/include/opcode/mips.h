@@ -1,5 +1,5 @@
 /* mips.h.  Mips opcode list for GDB, the GNU debugger.
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2017 Free Software Foundation, Inc.
    Contributed by Ralph Campbell and OSF
    Commented and modified by Ian Lance Taylor, Cygnus Support
 
@@ -24,6 +24,10 @@
 #define _MIPS_H_
 
 #include "bfd.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* These are bit masks and shift counts to use to access the various
    fields of an instruction.  To retrieve the X field of an
@@ -749,6 +753,14 @@ struct mips_opcode
   unsigned long exclusions;
 };
 
+/* Return true if MO is an instruction that requires 32-bit encoding.  */
+
+static inline bfd_boolean
+mips_opcode_32bit_p (const struct mips_opcode *mo)
+{
+  return mo->mask >> 16 != 0;
+}
+
 /* These are the characters which may appear in the args field of an
    instruction.  They appear in the order in which the fields appear
    when the instruction is used.  Commas and parentheses in the args
@@ -1102,6 +1114,10 @@ struct mips_opcode
 #define INSN2_VU0_CHANNEL_SUFFIX    0x00004000
 /* Instruction has a forbidden slot.  */
 #define INSN2_FORBIDDEN_SLOT        0x00008000
+/* Opcode table entry is for a short MIPS16 form only.  An extended
+   encoding may still exist, but with a separate opcode table entry
+   required.  */
+#define INSN2_SHORT_ONLY	    0x00010000
 
 /* Masks used to mark instructions to indicate which MIPS ISA level
    they were introduced in.  INSN_ISA_MASK masks an enumeration that
@@ -1190,12 +1206,13 @@ static const unsigned int mips_isa_table[] = {
 #undef ISAF
 
 /* Masks used for Chip specific instructions.  */
-#define INSN_CHIP_MASK		  0xc3ff0f20
+#define INSN_CHIP_MASK		  0xc3ff4f60
 
 /* Cavium Networks Octeon instructions.  */
 #define INSN_OCTEON		  0x00000800
 #define INSN_OCTEONP		  0x00000200
 #define INSN_OCTEON2		  0x00000100
+#define INSN_OCTEON3		  0x00000040
 
 /* MIPS R5900 instruction */
 #define INSN_5900                 0x00004000
@@ -1255,6 +1272,8 @@ static const unsigned int mips_isa_table[] = {
 #define ASE_MSA64		0x00001000
 /* eXtended Physical Address (XPA) Extension.  */
 #define ASE_XPA			0x00002000
+/* DSP R3 Module.  */
+#define ASE_DSPR3		0x00004000
 
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 
@@ -1323,6 +1342,7 @@ static const unsigned int mips_isa_table[] = {
 #define CPU_OCTEON	6501
 #define CPU_OCTEONP	6601
 #define CPU_OCTEON2	6502
+#define CPU_OCTEON3	6503
 #define CPU_XLR     	887682   	/* decimal 'XLR'   */
 
 /* Return true if the given CPU is included in INSN_* mask MASK.  */
@@ -1387,6 +1407,9 @@ cpu_is_member (int cpu, unsigned int mask)
 
     case CPU_OCTEON2:
       return (mask & INSN_OCTEON2) != 0;
+
+    case CPU_OCTEON3:
+      return (mask & INSN_OCTEON3) != 0;
 
     case CPU_XLR:
       return (mask & INSN_XLR) != 0;
@@ -1780,29 +1803,34 @@ extern int bfd_mips_num_opcodes;
    "Z" 3 bit register (MIPS16OP_*_MOVE32Z)
    "v" 3 bit same register as source and destination (MIPS16OP_*_RX)
    "w" 3 bit same register as source and destination (MIPS16OP_*_RY)
-   "0" zero register ($0)
+   "." zero register ($0)
    "S" stack pointer ($sp or $29)
    "P" program counter
    "R" return address register ($ra or $31)
    "X" 5 bit MIPS register (MIPS16OP_*_REGR32)
    "Y" 5 bit MIPS register (MIPS16OP_*_REG32R)
+   "0" 5-bit ASMACRO p0 immediate
+   "1" 3-bit ASMACRO p1 immediate
+   "2" 3-bit ASMACRO p2 immediate
+   "3" 5-bit ASMACRO p3 immediate
+   "4" 3-bit ASMACRO p4 immediate
    "6" 6 bit unsigned break code (MIPS16OP_*_IMM6)
    "a" 26 bit jump address
    "i" likewise, but flips bit 0
    "e" 11 bit extension value
    "l" register list for entry instruction
    "L" register list for exit instruction
+   "s" 3-bit ASMACRO select immediate
 
    "I" an immediate value used for macros
 
    The remaining codes may be extended.  Except as otherwise noted,
    the full extended operand is a 16 bit signed value.
    "<" 3 bit unsigned shift count * 0 (MIPS16OP_*_RZ) (full 5 bit unsigned)
-   ">" 3 bit unsigned shift count * 0 (MIPS16OP_*_RX) (full 5 bit unsigned)
    "[" 3 bit unsigned shift count * 0 (MIPS16OP_*_RZ) (full 6 bit unsigned)
    "]" 3 bit unsigned shift count * 0 (MIPS16OP_*_RX) (full 6 bit unsigned)
-   "4" 4 bit signed immediate * 0 (MIPS16OP_*_IMM4) (full 15 bit signed)
    "5" 5 bit unsigned immediate * 0 (MIPS16OP_*_IMM5)
+   "F" 4 bit signed immediate * 0 (MIPS16OP_*_IMM4) (full 15 bit signed)
    "H" 5 bit unsigned immediate * 2 (MIPS16OP_*_IMM5)
    "W" 5 bit unsigned immediate * 4 (MIPS16OP_*_IMM5)
    "D" 5 bit unsigned immediate * 8 (MIPS16OP_*_IMM5)
@@ -1820,6 +1848,12 @@ extern int bfd_mips_num_opcodes;
    "E" 5 bit PC relative address * 4 (MIPS16OP_*_IMM5)
    "m" 7 bit register list for save instruction (18 bit extended)
    "M" 7 bit register list for restore instruction (18 bit extended)
+
+   Characters used so far, for quick reference when adding more:
+   "0123456 8 "
+   ".[]<"
+   "ABCDEF HI KLM  P RS UVWXYZ"
+   "a   e   ijklm  pq s  vwxyz"
   */
 
 /* Save/restore encoding for the args field when all 4 registers are
@@ -2271,5 +2305,9 @@ extern const int bfd_micromips_num_opcodes;
 /* A NOP insn impemented as "or at,at,zero".
    Used to implement -mfix-loongson2f.  */
 #define LOONGSON2F_NOP_INSN	0x00200825
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _MIPS_H_ */

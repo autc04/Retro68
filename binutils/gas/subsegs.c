@@ -1,5 +1,5 @@
 /* subsegs.c - subsegments -
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -55,7 +55,7 @@ subsegs_begin (void)
  * segment context correct.
  */
 void
-subseg_change (register segT seg, register int subseg)
+subseg_change (segT seg, int subseg)
 {
   segment_info_type *seginfo = seg_info (seg);
   now_seg = seg;
@@ -63,7 +63,7 @@ subseg_change (register segT seg, register int subseg)
 
   if (! seginfo)
     {
-      seginfo = (segment_info_type *) xcalloc (1, sizeof (*seginfo));
+      seginfo = XCNEW (segment_info_type);
       seginfo->bfd_section = seg;
       bfd_set_section_userdata (stdoutput, seg, seginfo);
     }
@@ -165,7 +165,7 @@ subseg_get (const char *segname, int force_new)
   if (! seginfo)
     {
       secptr->output_section = secptr;
-      seginfo = (segment_info_type *) xcalloc (1, sizeof (*seginfo));
+      seginfo = XCNEW (segment_info_type);
       seginfo->bfd_section = secptr;
       bfd_set_section_userdata (stdoutput, secptr, seginfo);
     }
@@ -296,6 +296,10 @@ subsegs_print_statistics (FILE *file)
 {
   frchainS *frchp;
   asection *s;
+
+  /* PR 20897 - check to see if the output bfd was actually created.  */
+  if (stdoutput == NULL)
+    return;
 
   fprintf (file, "frag chains:\n");
   for (s = stdoutput->sections; s; s = s->next)

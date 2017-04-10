@@ -1,5 +1,5 @@
 /* Print National Semiconductor 32000 instructions.
-   Copyright (C) 1986-2014 Free Software Foundation, Inc.
+   Copyright (C) 1986-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -413,7 +413,7 @@ invalid_float (bfd_byte *p, int len)
 #else
 /* Assumes the bytes have been swapped to local order.  */
 typedef union
-{ 
+{
   double d;
   float f;
   struct { unsigned m:23, e:8, :1;} sf;
@@ -472,6 +472,7 @@ print_insn_arg (int d,
     case 'f':
       /* A "gen" operand but 5 bits from the end of instruction.  */
       ioffset -= 5;
+      /* Fall through.  */
     case 'Z':
     case 'F':
     case 'L':
@@ -618,7 +619,7 @@ print_insn_arg (int d,
 	    int bit_index;
 	    static const char *ind = "bwdq";
 	    char *off;
-	    
+
 	    /* Scaled index basemode[R0 -- R7:B,W,D,Q].  */
 	    bit_index = bit_extract (buffer, index_offset - 8, 3);
 	    print_insn_arg (d, index_offset, aoffsetp, buffer, addr,
@@ -794,7 +795,7 @@ print_insn_ns32k (bfd_vma memaddr, disassemble_info *info)
 
       /* 0 for operand A, 1 for operand B, greater for other args.  */
       int whicharg = 0;
-      
+
       (*dis_info->fprintf_func)(dis_info->stream, "\t");
 
       maxarg = 0;

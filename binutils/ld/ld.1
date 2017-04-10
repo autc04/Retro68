@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "LD 1"
-.TH LD 1 "2014-12-23" "binutils-2.25" "GNU Development Tools"
+.TH LD 1 "2017-03-02" "binutils-2.28" "GNU Development Tools"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -838,6 +838,19 @@ symbol.  Doing this may, for example, trigger linking of additional
 modules from standard libraries.  \fB\-u\fR may be repeated with
 different option arguments to enter additional undefined symbols.  This
 option is equivalent to the \f(CW\*(C`EXTERN\*(C'\fR linker script command.
+.Sp
+If this option is being used to force additional modules to be pulled
+into the link, and if it is an error for the symbol to remain
+undefined, then the option \fB\-\-require\-defined\fR should be used
+instead.
+.IP "\fB\-\-require\-defined=\fR\fIsymbol\fR" 4
+.IX Item "--require-defined=symbol"
+Require that \fIsymbol\fR is defined in the output file.  This option
+is the same as option \fB\-\-undefined\fR except that if \fIsymbol\fR
+is not defined in the output file then the linker will issue an error
+and exit.  The same effect can be achieved in a linker script by using
+\&\f(CW\*(C`EXTERN\*(C'\fR, \f(CW\*(C`ASSERT\*(C'\fR and \f(CW\*(C`DEFINED\*(C'\fR together.  This option
+can be used multiple times to require additional symbols.
 .IP "\fB\-Ur\fR" 4
 .IX Item "-Ur"
 For anything other than \*(C+ programs, this option is equivalent to
@@ -848,6 +861,38 @@ It does not work to use \fB\-Ur\fR on files that were themselves linked
 with \fB\-Ur\fR; once the constructor table has been built, it cannot
 be added to.  Use \fB\-Ur\fR only for the last partial link, and
 \&\fB\-r\fR for the others.
+.IP "\fB\-\-orphan\-handling=\fR\fI\s-1MODE\s0\fR" 4
+.IX Item "--orphan-handling=MODE"
+Control how orphan sections are handled.  An orphan section is one not
+specifically mentioned in a linker script.
+.Sp
+\&\fI\s-1MODE\s0\fR can have any of the following values:
+.RS 4
+.ie n .IP """place""" 4
+.el .IP "\f(CWplace\fR" 4
+.IX Item "place"
+Orphan sections are placed into a suitable output section following
+the strategy described in \fBOrphan Sections\fR.  The option
+\&\fB\-\-unique\fR also effects how sections are placed.
+.ie n .IP """discard""" 4
+.el .IP "\f(CWdiscard\fR" 4
+.IX Item "discard"
+All orphan sections are discarded, by placing them in the
+\&\fB/DISCARD/\fR section.
+.ie n .IP """warn""" 4
+.el .IP "\f(CWwarn\fR" 4
+.IX Item "warn"
+The linker will place the orphan section as for \f(CW\*(C`place\*(C'\fR and also
+issue a warning.
+.ie n .IP """error""" 4
+.el .IP "\f(CWerror\fR" 4
+.IX Item "error"
+The linker will exit with an error if any orphan section is found.
+.RE
+.RS 4
+.Sp
+The default if \fB\-\-orphan\-handling\fR is not given is \f(CW\*(C`place\*(C'\fR.
+.RE
 .IP "\fB\-\-unique[=\fR\fI\s-1SECTION\s0\fR\fB]\fR" 4
 .IX Item "--unique[=SECTION]"
 Creates a separate output section for every input section matching
@@ -907,6 +952,10 @@ The recognized keywords are:
 .IX Item "combreloc"
 Combines multiple reloc sections and sorts them to make dynamic symbol
 lookup caching possible.
+.IP "\fBcommon\fR" 4
+.IX Item "common"
+Generate common symbols with the \s-1STT_COMMON\s0 type druing a relocatable
+link.
 .IP "\fBdefs\fR" 4
 .IX Item "defs"
 Disallows undefined symbols in object files.  Undefined symbols in
@@ -947,9 +996,14 @@ Allows multiple definitions.
 .IP "\fBnocombreloc\fR" 4
 .IX Item "nocombreloc"
 Disables multiple reloc sections combining.
+.IP "\fBnocommon\fR" 4
+.IX Item "nocommon"
+Generate common symbols with the \s-1STT_OBJECT\s0 type druing a relocatable
+link.
 .IP "\fBnocopyreloc\fR" 4
 .IX Item "nocopyreloc"
-Disables production of copy relocs.
+Disable linker generated .dynbss variables used in place of variables
+defined in shared libraries.  May result in dynamic text relocations.
 .IP "\fBnodefaultlib\fR" 4
 .IX Item "nodefaultlib"
 Marks the object that the search for dependencies of this object will
@@ -966,6 +1020,15 @@ Marks the object can not be dumped by \f(CW\*(C`dldump\*(C'\fR.
 .IP "\fBnoexecstack\fR" 4
 .IX Item "noexecstack"
 Marks the object as not requiring executable stack.
+.IP "\fBtext\fR" 4
+.IX Item "text"
+Treat \s-1DT_TEXTREL\s0 in shared object as error.
+.IP "\fBnotext\fR" 4
+.IX Item "notext"
+Don't treat \s-1DT_TEXTREL\s0 in shared object as error.
+.IP "\fBtextoff\fR" 4
+.IX Item "textoff"
+Don't treat \s-1DT_TEXTREL\s0 in shared object as error.
 .IP "\fBnorelro\fR" 4
 .IX Item "norelro"
 Don't create an \s-1ELF \s0\f(CW\*(C`PT_GNU_RELRO\*(C'\fR segment header in the object.
@@ -996,6 +1059,45 @@ Specifying zero will override any default non-zero sized
 .IP "\fBbndplt\fR" 4
 .IX Item "bndplt"
 Always generate \s-1BND\s0 prefix in \s-1PLT\s0 entries. Supported for Linux/x86_64.
+.IP "\fBnoextern-protected-data\fR" 4
+.IX Item "noextern-protected-data"
+Don't treat protected data symbol as external when building shared
+library.  This option overrides linker backend default.  It can be used
+to workaround incorrect relocations against protected data symbols
+generated by compiler.  Updates on protected data symbols by another
+module aren't visible to the resulting shared library.  Supported for
+i386 and x86\-64.
+.IP "\fBnodynamic-undefined-weak\fR" 4
+.IX Item "nodynamic-undefined-weak"
+Don't treat undefined weak symbols as dynamic when building executable.
+This option overrides linker backend default.  It can be used to avoid
+dynamic relocations against undefined weak symbols in executable.
+Supported for i386 and x86\-64.
+.IP "\fBnoreloc-overflow\fR" 4
+.IX Item "noreloc-overflow"
+Disable relocation overflow check.  This can be used to disable
+relocation overflow check if there will be no dynamic relocation
+overflow at run-time.  Supported for x86_64.
+.IP "\fBcall\-nop=prefix\-addr\fR" 4
+.IX Item "call-nop=prefix-addr"
+.PD 0
+.IP "\fBcall\-nop=prefix\-nop\fR" 4
+.IX Item "call-nop=prefix-nop"
+.IP "\fBcall\-nop=suffix\-nop\fR" 4
+.IX Item "call-nop=suffix-nop"
+.IP "\fBcall\-nop=prefix\-\fR\fIbyte\fR" 4
+.IX Item "call-nop=prefix-byte"
+.IP "\fBcall\-nop=suffix\-\fR\fIbyte\fR" 4
+.IX Item "call-nop=suffix-byte"
+.PD
+Specify the 1\-byte \f(CW\*(C`NOP\*(C'\fR padding when transforming indirect call
+to a locally defined function, foo, via its \s-1GOT\s0 slot.
+\&\fBcall\-nop=prefix\-addr\fR generates \f(CW\*(C`0x67 call foo\*(C'\fR.
+\&\fBcall\-nop=prefix\-nop\fR generates \f(CW\*(C`0x90 call foo\*(C'\fR.
+\&\fBcall\-nop=suffix\-nop\fR generates \f(CW\*(C`call foo 0x90\*(C'\fR.
+\&\fBcall\-nop=prefix\-\fR\fIbyte\fR generates \f(CW\*(C`\f(CIbyte\f(CW call foo\*(C'\fR.
+\&\fBcall\-nop=suffix\-\fR\fIbyte\fR generates \f(CW\*(C`call foo \f(CIbyte\f(CW\*(C'\fR.
+Supported for i386 and x86_64.
 .RE
 .RS 4
 .Sp
@@ -1113,14 +1215,20 @@ libraries.
 When creating a shared library, bind references to global symbols to the
 definition within the shared library, if any.  Normally, it is possible
 for a program linked against a shared library to override the definition
-within the shared library.  This option is only meaningful on \s-1ELF\s0
-platforms which support shared libraries.
+within the shared library.  This option can also be used with the
+\&\fB\-\-export\-dynamic\fR option, when creating a position independent
+executable, to bind references to global symbols to the definition within
+the executable.  This option is only meaningful on \s-1ELF\s0 platforms which
+support shared libraries and position independent executables.
 .IP "\fB\-Bsymbolic\-functions\fR" 4
 .IX Item "-Bsymbolic-functions"
 When creating a shared library, bind references to global function
 symbols to the definition within the shared library, if any.
+This option can also be used with the \fB\-\-export\-dynamic\fR option,
+when creating a position independent executable, to bind references
+to global function symbols to the definition within the executable.
 This option is only meaningful on \s-1ELF\s0 platforms which support shared
-libraries.
+libraries and position independent executables.
 .IP "\fB\-\-dynamic\-list=\fR\fIdynamic-list-file\fR" 4
 .IX Item "--dynamic-list=dynamic-list-file"
 Specify the name of a dynamic list file to the linker.  This is
@@ -1218,9 +1326,9 @@ limited form of arithmetic is supported for the \fIexpression\fR in this
 context: you may give a hexadecimal constant or the name of an existing
 symbol, or use \f(CW\*(C`+\*(C'\fR and \f(CW\*(C`\-\*(C'\fR to add or subtract hexadecimal
 constants or symbols.  If you need more elaborate expressions, consider
-using the linker command language from a script.  \fINote:\fR there should be no white
-space between \fIsymbol\fR, the equals sign ("\fB=\fR"), and
-\&\fIexpression\fR.
+using the linker command language from a script.
+\&\fINote:\fR there should be no white space between \fIsymbol\fR, the
+equals sign ("\fB=\fR"), and \fIexpression\fR.
 .IP "\fB\-\-demangle[=\fR\fIstyle\fR\fB]\fR" 4
 .IX Item "--demangle[=style]"
 .PD 0
@@ -1246,6 +1354,12 @@ Set the name of the dynamic linker.  This is only meaningful when
 generating dynamically linked \s-1ELF\s0 executables.  The default dynamic
 linker is normally correct; don't use this unless you know what you are
 doing.
+.IP "\fB\-\-no\-dynamic\-linker\fR" 4
+.IX Item "--no-dynamic-linker"
+When producing an executable file, omit the request for a dynamic
+linker to be used at load-time.  This is only meaningful for \s-1ELF\s0
+executables that contain dynamic relocations, and usually requires
+entry point code that is capable of processing these relocations.
 .IP "\fB\-\-fatal\-warnings\fR" 4
 .IX Item "--fatal-warnings"
 .PD 0
@@ -1273,7 +1387,9 @@ it ends in a \f(CW\*(C`.exe\*(C'\fR suffix.
 Enable garbage collection of unused input sections.  It is ignored on
 targets that do not support this option.  The default behaviour (of not
 performing this garbage collection) can be restored by specifying
-\&\fB\-\-no\-gc\-sections\fR on the command line.
+\&\fB\-\-no\-gc\-sections\fR on the command line.  Note that garbage
+collection for \s-1COFF\s0 and \s-1PE\s0 format targets is supported, but the
+implementation is currently considered to be experimental.
 .Sp
 \&\fB\-\-gc\-sections\fR decides which input sections are used by
 examining symbols and relocations.  The section containing the entry
@@ -1301,11 +1417,34 @@ collection has been enabled via the \fB\-\-gc\-sections\fR) option.  The
 default behaviour (of not listing the sections that are removed) can
 be restored by specifying \fB\-\-no\-print\-gc\-sections\fR on the command
 line.
+.IP "\fB\-\-gc\-keep\-exported\fR" 4
+.IX Item "--gc-keep-exported"
+When \fB\-\-gc\-sections\fR is enabled, this option prevents garbage
+collection of unused input sections that contain global symbols having
+default or protected visibility.  This option is intended to be used for
+executables where unreferenced sections would otherwise be garbage
+collected regardless of the external visibility of contained symbols.
+Note that this option has no effect when linking shared objects since
+it is already the default behaviour.  This option is only supported for
+\&\s-1ELF\s0 format targets.
 .IP "\fB\-\-print\-output\-format\fR" 4
 .IX Item "--print-output-format"
 Print the name of the default output format (perhaps influenced by
 other command-line options).  This is the string that would appear
 in an \f(CW\*(C`OUTPUT_FORMAT\*(C'\fR linker script command.
+.IP "\fB\-\-print\-memory\-usage\fR" 4
+.IX Item "--print-memory-usage"
+Print used size, total size and used size of memory regions created with
+the \fB\s-1MEMORY\s0\fR command.  This is useful on embedded targets to have a
+quick view of amount of free memory.  The format of the output has one
+headline and one line per region.  It is both human readable and easily
+parsable by tools.  Here is an example of an output:
+.Sp
+.Vb 3
+\&        Memory region         Used Size  Region Size  %age Used
+\&                     ROM:        256 KB         1 MB     25.00%
+\&                     RAM:          32 B         2 GB      0.00%
+.Ve
 .IP "\fB\-\-help\fR" 4
 .IX Item "--help"
 Print a summary of the command-line options on the standard output and exit.
@@ -1432,6 +1571,15 @@ name of a particular format supported by the \s-1BFD\s0 libraries.  (You can
 list the available binary formats with \fBobjdump \-i\fR.)  The script
 command \f(CW\*(C`OUTPUT_FORMAT\*(C'\fR can also specify the output format, but
 this option overrides it.
+.IP "\fB\-\-out\-implib\fR \fIfile\fR" 4
+.IX Item "--out-implib file"
+Create an import library in \fIfile\fR corresponding to the executable
+the linker is generating (eg. a \s-1DLL\s0 or \s-1ELF\s0 program).  This import
+library (which should be called \f(CW\*(C`*.dll.a\*(C'\fR or \f(CW\*(C`*.a\*(C'\fR for DLLs)
+may be used to link clients against the generated executable; this
+behaviour makes it possible to skip a separate import library creation
+step (eg. \f(CW\*(C`dlltool\*(C'\fR for DLLs).  This option is only available for
+the i386 \s-1PE\s0 and \s-1ELF\s0 targetted ports of the linker.
 .IP "\fB\-pie\fR" 4
 .IX Item "-pie"
 .PD 0
@@ -1502,7 +1650,7 @@ objects explicitly included in the link; see the description of the
 \&\f(CW\*(C`LD_RUN_PATH\*(C'\fR will be used if it is defined.
 .Sp
 The \fB\-rpath\fR option may also be used on SunOS.  By default, on
-SunOS, the linker will form a runtime search patch out of all the
+SunOS, the linker will form a runtime search path out of all the
 \&\fB\-L\fR options it is given.  If a \fB\-rpath\fR option is used, the
 runtime search path will be formed exclusively using the \fB\-rpath\fR
 options, ignoring the \fB\-L\fR options.  This can be useful when using
@@ -1526,6 +1674,16 @@ specifies the first set of directories to search.  The
 \&\fB\-rpath\-link\fR option may specify a sequence of directory names
 either by specifying a list of names separated by colons, or by
 appearing multiple times.
+.Sp
+The tokens \fI\f(CI$ORIGIN\fI\fR and \fI\f(CI$LIB\fI\fR can appear in these search
+directories.  They will be replaced by the full path to the directory
+containing the program or shared object in the case of \fI\f(CI$ORIGIN\fI\fR
+and either \fBlib\fR \- for 32\-bit binaries \- or \fBlib64\fR \- for
+64\-bit binaries \- in the case of \fI\f(CI$LIB\fI\fR.
+.Sp
+The alternative form of these tokens \- \fI${\s-1ORIGIN\s0}\fR and
+\&\fI${\s-1LIB\s0}\fR can also be used.  The token \fI\f(CI$PLATFORM\fI\fR is not
+supported.
 .Sp
 This option should be used with caution as it overrides the search path
 that may have been hard compiled into a shared library. In such a case it
@@ -1903,8 +2061,13 @@ file as \f(CW\*(C`_\|_wrap_malloc\*(C'\fR; if you do, the assembler may resolve 
 call before the linker has a chance to wrap it to \f(CW\*(C`malloc\*(C'\fR.
 .IP "\fB\-\-eh\-frame\-hdr\fR" 4
 .IX Item "--eh-frame-hdr"
-Request creation of \f(CW\*(C`.eh_frame_hdr\*(C'\fR section and \s-1ELF
-\&\s0\f(CW\*(C`PT_GNU_EH_FRAME\*(C'\fR segment header.
+.PD 0
+.IP "\fB\-\-no\-eh\-frame\-hdr\fR" 4
+.IX Item "--no-eh-frame-hdr"
+.PD
+Request (\fB\-\-eh\-frame\-hdr\fR) or suppress
+(\fB\-\-no\-eh\-frame\-hdr\fR) the creation of \f(CW\*(C`.eh_frame_hdr\*(C'\fR
+section and \s-1ELF \s0\f(CW\*(C`PT_GNU_EH_FRAME\*(C'\fR segment header.
 .IP "\fB\-\-no\-ld\-generated\-unwind\-info\fR" 4
 .IX Item "--no-ld-generated-unwind-info"
 Request creation of \f(CW\*(C`.eh_frame\*(C'\fR unwind info for linker
@@ -1937,6 +2100,38 @@ Set the type of linker's hash table(s).  \fIstyle\fR can be either
 new style \s-1GNU \s0\f(CW\*(C`.gnu.hash\*(C'\fR section or \f(CW\*(C`both\*(C'\fR for both
 the classic \s-1ELF \s0\f(CW\*(C`.hash\*(C'\fR and new style \s-1GNU \s0\f(CW\*(C`.gnu.hash\*(C'\fR
 hash tables.  The default is \f(CW\*(C`sysv\*(C'\fR.
+.IP "\fB\-\-compress\-debug\-sections=none\fR" 4
+.IX Item "--compress-debug-sections=none"
+.PD 0
+.IP "\fB\-\-compress\-debug\-sections=zlib\fR" 4
+.IX Item "--compress-debug-sections=zlib"
+.IP "\fB\-\-compress\-debug\-sections=zlib\-gnu\fR" 4
+.IX Item "--compress-debug-sections=zlib-gnu"
+.IP "\fB\-\-compress\-debug\-sections=zlib\-gabi\fR" 4
+.IX Item "--compress-debug-sections=zlib-gabi"
+.PD
+On \s-1ELF\s0 platforms, these options control how \s-1DWARF\s0 debug sections are
+compressed using zlib.
+.Sp
+\&\fB\-\-compress\-debug\-sections=none\fR doesn't compress \s-1DWARF\s0 debug
+sections.  \fB\-\-compress\-debug\-sections=zlib\-gnu\fR compresses
+\&\s-1DWARF\s0 debug sections and renames them to begin with \fB.zdebug\fR
+instead of \fB.debug\fR.  \fB\-\-compress\-debug\-sections=zlib\-gabi\fR
+also compresses \s-1DWARF\s0 debug sections, but rather than renaming them it
+sets the \s-1SHF_COMPRESSED\s0 flag in the sections' headers.
+.Sp
+The \fB\-\-compress\-debug\-sections=zlib\fR option is an alias for
+\&\fB\-\-compress\-debug\-sections=zlib\-gabi\fR.
+.Sp
+Note that this option overrides any compression in input debug
+sections, so if a binary is linked with \fB\-\-compress\-debug\-sections=none\fR
+for example, then any compressed debug sections in input files will be
+uncompressed before they are copied into the output binary.
+.Sp
+The default compression behaviour varies depending upon the target
+involved and the configure options used to build the toolchain.  The
+default can be determined by examining the output from the linker's
+\&\fB\-\-help\fR option.
 .IP "\fB\-\-reduce\-memory\-overheads\fR" 4
 .IX Item "--reduce-memory-overheads"
 This option reduces memory requirements at ld runtime, at the expense of
@@ -1958,7 +2153,7 @@ enable other tradeoffs in future versions of the linker.
 .IX Item "--build-id=style"
 .PD
 Request the creation of a \f(CW\*(C`.note.gnu.build\-id\*(C'\fR \s-1ELF\s0 note section
-or a \f(CW\*(C`.build\-id\*(C'\fR \s-1COFF\s0 section.  The contents of the note are
+or a \f(CW\*(C`.buildid\*(C'\fR \s-1COFF\s0 section.  The contents of the note are
 unique bits identifying this linked file.  \fIstyle\fR can be
 \&\f(CW\*(C`uuid\*(C'\fR to use 128 random bits, \f(CW\*(C`sha1\*(C'\fR to use a 160\-bit
 \&\s-1SHA1\s0 hash on the normative parts of the output contents,
@@ -2014,10 +2209,10 @@ file.
 .IP "\fB\-\-disable\-long\-section\-names\fR" 4
 .IX Item "--disable-long-section-names"
 .PD
-The \s-1PE\s0 variants of the Coff object format add an extension that permits
+The \s-1PE\s0 variants of the \s-1COFF\s0 object format add an extension that permits
 the use of section names longer than eight characters, the normal limit
-for Coff.  By default, these names are only allowed in object files, as
-fully-linked executable images do not carry the Coff string table required
+for \s-1COFF. \s0 By default, these names are only allowed in object files, as
+fully-linked executable images do not carry the \s-1COFF\s0 string table required
 to support the longer names.  As a \s-1GNU\s0 extension, it is possible to
 allow their use in executable images as well, or to (probably pointlessly!)
 disallow it in object files, by using these two options.  Executable images
@@ -2170,15 +2365,6 @@ file corresponding to the \s-1DLL\s0 the linker is generating.  This \s-1DEF\s0 
 (which should be called \f(CW\*(C`*.def\*(C'\fR) may be used to create an import
 library with \f(CW\*(C`dlltool\*(C'\fR or may be used as a reference to
 automatically or implicitly exported symbols.
-[This option is specific to the i386 \s-1PE\s0 targeted port of the linker]
-.IP "\fB\-\-out\-implib\fR \fIfile\fR" 4
-.IX Item "--out-implib file"
-The linker will create the file \fIfile\fR which will contain an
-import lib corresponding to the \s-1DLL\s0 the linker is generating. This
-import lib (which should be called \f(CW\*(C`*.dll.a\*(C'\fR or \f(CW\*(C`*.a\*(C'\fR
-may be used to link clients against the generated \s-1DLL\s0; this behaviour
-makes it possible to skip a separate \f(CW\*(C`dlltool\*(C'\fR import library
-creation step.
 [This option is specific to the i386 \s-1PE\s0 targeted port of the linker]
 .IP "\fB\-\-enable\-auto\-image\-base\fR" 4
 .IX Item "--enable-auto-image-base"
@@ -2435,10 +2621,10 @@ The image is Terminal Server aware.
 Insert a real timestamp into the image.  This is the default behaviour
 as it matches legacy code and it means that the image will work with
 other, proprietary tools.  The problem with this default is that it
-will result in slightly different images being produced each tiem the
+will result in slightly different images being produced each time the
 same sources are linked.  The option \fB\-\-no\-insert\-timestamp\fR
 can be used to insert a zero value for the timestamp, this ensuring
-that binaries produced from indentical sources will compare
+that binaries produced from identical sources will compare
 identically.
 .PP
 The C6X uClinux target uses a binary format called \s-1DSBT\s0 to support shared
@@ -2446,7 +2632,7 @@ libraries.  Each shared library in the system needs to have a unique index;
 all executables use an index of 0.
 .IP "\fB\-\-dsbt\-size\fR \fIsize\fR" 4
 .IX Item "--dsbt-size size"
-This option sets the number of entires in the \s-1DSBT\s0 of the current executable
+This option sets the number of entries in the \s-1DSBT\s0 of the current executable
 or shared library to \fIsize\fR.  The default is to create a table with 64
 entries.
 .IP "\fB\-\-dsbt\-index\fR \fIindex\fR" 4
@@ -2483,7 +2669,8 @@ This option tells the linker which \s-1GOT\s0 generation scheme to use.
 Info entry for \fIld\fR.
 .PP
 The following options are supported to control microMIPS instruction
-generation when linking for \s-1MIPS\s0 targets.
+generation and branch relocation checks for \s-1ISA\s0 mode transitions when
+linking for \s-1MIPS\s0 targets.
 .IP "\fB\-\-insn32\fR" 4
 .IX Item "--insn32"
 .PD 0
@@ -2496,6 +2683,21 @@ or in relaxation.  If \fB\-\-insn32\fR is used, then the linker only uses
 32\-bit instruction encodings.  By default or if \fB\-\-no\-insn32\fR is
 used, all instruction encodings are used, including 16\-bit ones where
 possible.
+.IP "\fB\-\-ignore\-branch\-isa\fR" 4
+.IX Item "--ignore-branch-isa"
+.PD 0
+.IP "\fB\-\-no\-ignore\-branch\-isa\fR" 4
+.IX Item "--no-ignore-branch-isa"
+.PD
+These options control branch relocation checks for invalid \s-1ISA\s0 mode
+transitions.  If \fB\-\-ignore\-branch\-isa\fR is used, then the linker
+accepts any branch relocations and any \s-1ISA\s0 mode transition required
+is lost in relocation calculation, except for some cases of \f(CW\*(C`BAL\*(C'\fR
+instructions which meet relaxation conditions and are converted to
+equivalent \f(CW\*(C`JALX\*(C'\fR instructions as the associated relocation is
+calculated.  By default or if \fB\-\-no\-ignore\-branch\-isa\fR is used
+a check is made causing the loss of an \s-1ISA\s0 mode transition to produce
+an error.
 .SH "ENVIRONMENT"
 .IX Header "ENVIRONMENT"
 You can change the behaviour of \fBld\fR with the environment variables
@@ -2535,7 +2737,7 @@ the Info entries for \fIbinutils\fR and
 \&\fIld\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright (c) 1991\-2014 Free Software Foundation, Inc.
+Copyright (c) 1991\-2017 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.3

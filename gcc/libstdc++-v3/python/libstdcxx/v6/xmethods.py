@@ -1,6 +1,6 @@
 # Xmethods for libstdc++.
 
-# Copyright (C) 2014-2015 Free Software Foundation, Inc.
+# Copyright (C) 2014-2016 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ class ArrayMethodsMatcher(gdb.xmethod.XMethodMatcher):
 class DequeWorkerBase(gdb.xmethod.XMethodWorker):
     def __init__(self, val_type):
         self._val_type = val_type
-        self._bufsize = (512 / val_type.sizeof) or 1
+        self._bufsize = 512 // val_type.sizeof or 1
 
     def size(self, obj):
         first_node = obj['_M_impl']['_M_start']['_M_node']
@@ -174,10 +174,10 @@ class DequeWorkerBase(gdb.xmethod.XMethodWorker):
         first = obj['_M_impl']['_M_finish']['_M_first']
         return (last_node - first_node) * self._bufsize + (cur - first)
 
-    def index(self, obj, index):
+    def index(self, obj, idx):
         first_node = obj['_M_impl']['_M_start']['_M_node']
-        index_node = first_node + index / self._bufsize
-        return index_node[0][index % self._bufsize]
+        index_node = first_node + int(idx) // self._bufsize
+        return index_node[0][idx % self._bufsize]
 
 class DequeEmptyWorker(DequeWorkerBase):
     def get_arg_types(self):
@@ -328,6 +328,15 @@ class ListWorkerBase(gdb.xmethod.XMethodWorker):
     def get_arg_types(self):
         return None
 
+    def get_value_from_node(self, node):
+        node = node.dereference()
+        if node.type.fields()[1].name == '_M_data':
+            # C++03 implementation, node contains the value as a member
+            return node['_M_data']
+        # C++11 implementation, node stores value in __aligned_membuf
+        addr = node['_M_storage'].address
+        return addr.cast(self._val_type.pointer()).dereference()
+
 class ListEmptyWorker(ListWorkerBase):
     def get_result_type(self, obj):
         return get_bool_type()
@@ -358,7 +367,7 @@ class ListFrontWorker(ListWorkerBase):
 
     def __call__(self, obj):
         node = obj['_M_impl']['_M_node']['_M_next'].cast(self._node_type)
-        return node['_M_data']
+        return self.get_value_from_node(node)
 
 class ListBackWorker(ListWorkerBase):
     def get_result_type(self, obj):
@@ -366,7 +375,7 @@ class ListBackWorker(ListWorkerBase):
 
     def __call__(self, obj):
         prev_node = obj['_M_impl']['_M_node']['_M_prev'].cast(self._node_type)
-        return prev_node['_M_data']
+        return self.get_value_from_node(prev_node)
 
 class ListMethodsMatcher(gdb.xmethod.XMethodMatcher):
     def __init__(self):
@@ -381,7 +390,7 @@ class ListMethodsMatcher(gdb.xmethod.XMethodMatcher):
         self.methods = [self._method_dict[m] for m in self._method_dict]
 
     def match(self, class_type, method_name):
-        if not re.match('^std::list<.*>$', class_type.tag):
+        if not re.match('^std::(__cxx11::)?list<.*>$', class_type.tag):
             return None
         method = self._method_dict.get(method_name)
         if method is None or not method.enabled:
@@ -410,7 +419,7 @@ class VectorWorkerBase(gdb.xmethod.XMethodWorker):
         if self._val_type.code == gdb.TYPE_CODE_BOOL:
             start = obj['_M_impl']['_M_start']['_M_p']
             bit_size = start.dereference().type.sizeof * 8
-            valp = start + index / bit_size
+            valp = start + index // bit_size
             offset = index % bit_size
             return (valp.dereference() & (1 << offset)) > 0
         else:
@@ -584,6 +593,7 @@ class UniquePtrMethodsMatcher(gdb.xmethod.XMethodMatcher):
                                             matcher_name_prefix + 'unique_ptr')
         self._method_dict = {
             'get': LibStdCxxXMethod('get', UniquePtrGetWorker),
+            'operator->': LibStdCxxXMethod('operator->', UniquePtrGetWorker),
             'operator*': LibStdCxxXMethod('operator*', UniquePtrDerefWorker),
         }
         self.methods = [self._method_dict[m] for m in self._method_dict]

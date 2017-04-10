@@ -967,7 +967,7 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  to either a WITH keyword starting an aspect specification, or an
       --  instance of what shpould be a terminator token. In the former case,
       --  the aspect specifications are scanned out including the terminator
-      --  token if it it is a semicolon, and the Has_Aspect_Specifications
+      --  token if it is a semicolon, and the Has_Aspect_Specifications
       --  flag is set in the given declaration node. A list of aspects
       --  is built and stored for this declaration node using a call to
       --  Set_Aspect_Specifications. If no WITH keyword is present, then this
@@ -1577,11 +1577,14 @@ begin
                --  versions of these files. Another exception is System.RPC
                --  and its children. This allows a user to supply their own
                --  communication layer.
+               --  Similarly, we do not generate an error in CodePeer mode,
+               --  to allow users to analyze third-party compiler packages.
 
                if Comp_Unit_Node /= Error
                  and then Operating_Mode = Generate_Code
                  and then Current_Source_Unit = Main_Unit
                  and then not GNAT_Mode
+                 and then not CodePeer_Mode
                then
                   declare
                      Uname : constant String :=

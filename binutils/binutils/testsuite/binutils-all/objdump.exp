@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,11 +34,11 @@ send_user "Version [binutil_version $OBJDUMP]"
 set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -i"]
 
 set cpus_expected [list]
-lappend cpus_expected aarch64 alpha arc arm cris
-lappend cpus_expected d10v d30v fr30 fr500 fr550 h8 hppa i386 i860 i960 ip2022
-lappend cpus_expected m16c m32c m32r m68hc11 m68hc12 m68k m88k MCore MicroBlaze
+lappend cpus_expected aarch64 alpha arc ARC700 ARCv2 arm cris
+lappend cpus_expected d10v d30v fr30 fr500 fr550 h8 hppa i386 i860 i960 iamcu ip2022
+lappend cpus_expected m16c m32c m32r m68hc11 m68hc12 m68k m88k MCore mep c5 h1 MicroBlaze
 lappend cpus_expected mips mn10200 mn10300 ms1 msp MSP430 nds32 n1h_v3 ns32k
-lappend cpus_expected or1k or1knd pj powerpc pyramid romp rs6000 s390 sh sparc
+lappend cpus_expected or1k or1knd pj powerpc pyramid riscv romp rs6000 s390 sh sparc
 lappend cpus_expected tahoe tic54x tic80 tilegx tms320c30 tms320c4x tms320c54x
 lappend cpus_expected v850 vax we32k x86-64 xscale xtensa z8k z8001 z8002
 
@@ -86,7 +86,7 @@ if ![regexp $want $got] then {
 
 set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -h $testfile"]
 
-set want "$testfile:\[ 	\]*file format.*Sections.*\[0-9\]+\[ 	\]+\[^ 	\]*(text|TEXT|\\\$CODE\\\$)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+).*\[0-9\]+\[ 	\]+\[^ 	\]*(\\.data|DATA)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+)"
+set want "$testfile:\[ 	\]*file format.*Sections.*\[0-9\]+\[ 	\]+\[^ 	\]*(text|TEXT|P|\\\$CODE\\\$)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+).*\[0-9\]+\[ 	\]+\[^ 	\]*(\\.data|DATA|D_1)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+)"
 
 if ![regexp $want $got all text_name text_size data_name data_size] then {
     fail "objdump -h"
@@ -136,7 +136,7 @@ if {![info exists vars(text_symbol)] \
 
 set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -r $testfile"]
 
-set want "$testfile:\[ 	\]*file format.*RELOCATION RECORDS FOR \\\[\[^\]\]*(text|TEXT|\\\$CODE\\\$)\[^\]\]*\\\].*external_symbol"
+set want "$testfile:\[ 	\]*file format.*RELOCATION RECORDS FOR \\\[\[^\]\]*(text|TEXT|P|\\\$CODE\\\$)\[^\]\]*\\\].*external_symbol"
 
 if [regexp $want $got] then {
     pass "objdump -r"
@@ -148,7 +148,7 @@ if [regexp $want $got] then {
 
 set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -s $testfile"]
 
-set want "$testfile:\[ 	\]*file format.*Contents.*(text|TEXT|\\\$CODE\\\$)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000001|01000000|00000100).*Contents.*(data|DATA)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000002|02000000|00000200)"
+set want "$testfile:\[ 	\]*file format.*Contents.*(text|TEXT|P|\\\$CODE\\\$)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000001|01000000|00000100).*Contents.*(data|DATA|D_1)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000002|02000000|00000200)"
 
 if [regexp $want $got] then {
     pass "objdump -s"
@@ -158,7 +158,7 @@ if [regexp $want $got] then {
 
 # Test objdump -s on a file that contains a compressed .debug section
 
-if { ![is_elf_format] || ![is_zlib_supported] } then {
+if { ![is_elf_format] } then {
     unsupported "objdump compressed debug"
 } elseif { ![binutils_assemble $srcdir/$subdir/dw2-compressed.S tmpdir/dw2-compressed.o] } then {
     fail "objdump compressed debug"
@@ -242,6 +242,116 @@ if { ![is_elf_format]
     } else {
 	pass "objdump -WL"
     }
+}
+
+# Test objdump -W on a file containing debug_ranges information.
+
+if { ![is_elf_format] } then {
+    unsupported "objdump debug_ranges test"
+} elseif { ![binutils_assemble $srcdir/$subdir/dw2-ranges.S tmpdir/dw2-ranges.o] } then {
+    fail "objdump debug_ranges test"
+} else {
+    if [is_remote host] {
+	set ranges_testfile [remote_download host tmpdir/dw2-ranges.o]
+    } else {
+	set ranges_testfile tmpdir/dw2-ranges.o
+    }
+
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS --dwarf=Ranges $ranges_testfile" "" "/dev/null" "objdump.out"]
+
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "objdump -W for debug_ranges (reason: unexpected output)"
+	send_log $got
+	send_log "\n"
+    }
+
+    setup_xfail "msp430-*-*" "nds32*-*-*" "riscv*-*-*"
+    if { [regexp_diff objdump.out $srcdir/$subdir/dw2-ranges.W] } then {
+	fail "objdump -W for debug_ranges"
+    } else {
+	pass "objdump -W for debug_ranges"
+    }
+}
+
+proc test_build_id_debuglink {} {
+    global srcdir
+    global subdir
+    global env
+    global CC_FOR_TARGET
+    global STRIP
+    global OBJCOPY
+    global OBJDUMP
+    global CFLAGS_FOR_TARGET
+    
+    set test "build-id-debuglink"
+    if {![info exists CC_FOR_TARGET]} {
+	set CC_FOR_TARGET $env(CC)
+    }
+    if { $CC_FOR_TARGET == "" } {
+	unsupported $test
+	return
+    }
+
+    # Use a fixed build-id.
+    set CFLAGS_FOR_TARGET "-g -Wl,--build-id=0x12345678abcdef01"
+
+    if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog exectuable debug] != "" } {
+	fail "$test (build)"
+	return
+    }
+
+    # FIXME: Do we need to restore CFLAGS_FOR_TARGET to its old value ?
+
+    if { [binutils_run $STRIP "--strip-debug --remove-section=.comment tmpdir/testprog -o tmpdir/testprog.strip"] != "" } {
+	fail "$test (strip debug info)"
+	return
+    }
+
+    if { [binutils_run $OBJCOPY "--only-keep-debug tmpdir/testprog tmpdir/testprog.debug"] != "" } {
+	fail "$test (create separate debug info file)"
+	return
+    }
+
+    set got [remote_exec host "mkdir -p .build-id/12" ]
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "$test (make debug directory)"
+	return
+    }
+
+    set got [remote_exec host "cp tmpdir/testprog.debug .build-id/12/345678abcdef01.debug"]
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "$test (copy debug info into debug directory)"
+	return
+    }
+    
+    set got [remote_exec host "$OBJDUMP -Sl tmpdir/testprog.strip" "" "/dev/null" "tmpdir/testprog.strip.dump"]
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "$test (post strip dump)"
+	return
+    }
+
+    set src2 tmpdir/testprog.strip.dump
+    verbose " grep -e testprog.c ${src2}"
+    set status [remote_exec build grep "-e testprog.c ${src2}"]
+    set exec_output [lindex $status 1]
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	send_log "$exec_output\n"
+	verbose "$exec_output" 1
+	fail "$test (grepping for source file name in disassembly output)"
+    } else {
+	pass "$test"
+	# Cleanup...
+	set got [remote_exec host "rm .build-id/12/345678abcdef01.debug"]
+	set got [remote_exec host "rmdir -p .build-id/12" ]
+	set got [remote_exec host "rm tmpdir/testprog.strip.dump"]
+	set got [remote_exec host "rm tmpdir/testprog.debug"]
+	set got [remote_exec host "rm tmpdir/testprog.strip"]
+    }
+}
+
+if {[isnative] && [is_elf_format]} then {
+    test_build_id_debuglink
 }
 
 # Options which are not tested: -a -d -D -R -T -x -l --stabs

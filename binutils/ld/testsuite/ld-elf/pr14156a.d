@@ -5,6 +5,7 @@
 #source: initn.s
 #ld: --sort-section=alignment
 #nm: -n
+#xfail: m68hc1*-* xgate-*
 
 #...
 [0-9a-f]+ T foo

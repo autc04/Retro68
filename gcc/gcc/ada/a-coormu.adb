@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,7 +42,9 @@ with System; use type System.Address;
 
 package body Ada.Containers.Ordered_Multisets is
 
-   pragma Annotate (CodePeer, Skip_Analysis);
+   pragma Warnings (Off, "variable ""Busy*"" is not referenced");
+   pragma Warnings (Off, "variable ""Lock*"" is not referenced");
+   --  See comment in Ada.Containers.Helpers
 
    -----------------------------
    -- Node Access Subprograms --
@@ -321,6 +323,45 @@ package body Ada.Containers.Ordered_Multisets is
       return Node.Color;
    end Color;
 
+   ------------------------
+   -- Constant_Reference --
+   ------------------------
+
+   function Constant_Reference
+     (Container : aliased Set;
+      Position  : Cursor) return Constant_Reference_Type
+   is
+   begin
+      if Position.Container = null then
+         raise Constraint_Error with "Position cursor has no element";
+      end if;
+
+      if Position.Container /= Container'Unrestricted_Access then
+         raise Program_Error with
+           "Position cursor designates wrong container";
+      end if;
+
+      pragma Assert (Vet (Position.Container.Tree, Position.Node),
+                     "bad cursor in Constant_Reference");
+
+      --  Note: in predefined container units, the creation of a reference
+      --  increments the busy bit of the container, and its finalization
+      --  decrements it. In the absence of control machinery, this tampering
+      --  protection is missing.
+
+      declare
+         T : Tree_Type renames Container.Tree'Unrestricted_Access.all;
+         pragma Unreferenced (T);
+      begin
+         return R : constant Constant_Reference_Type :=
+           (Element => Position.Node.Element'Unrestricted_Access,
+            Control => (Container => Container'Unrestricted_Access))
+         do
+            null;
+         end return;
+      end;
+   end Constant_Reference;
+
    --------------
    -- Contains --
    --------------
@@ -538,10 +579,8 @@ package body Ada.Containers.Ordered_Multisets is
    --------------
 
    procedure Finalize (Object : in out Iterator) is
-      B : Natural renames Object.Container.Tree.Busy;
-      pragma Assert (B > 0);
    begin
-      B := B - 1;
+      Unbusy (Object.Container.Tree.TC);
    end Finalize;
 
    ----------
@@ -848,22 +887,12 @@ package body Ada.Containers.Ordered_Multisets is
          end Process_Node;
 
          T : Tree_Type renames Container.Tree'Unrestricted_Access.all;
-         B : Natural renames T.Busy;
+         Busy : With_Busy (T.TC'Unrestricted_Access);
 
       --  Start of processing for Iterate
 
       begin
-         B := B + 1;
-
-         begin
-            Local_Iterate (T, Key);
-         exception
-            when others =>
-               B := B - 1;
-               raise;
-         end;
-
-         B := B - 1;
+         Local_Iterate (T, Key);
       end Iterate;
 
       ---------
@@ -908,22 +937,12 @@ package body Ada.Containers.Ordered_Multisets is
          end Process_Node;
 
          T : Tree_Type renames Container.Tree'Unrestricted_Access.all;
-         B : Natural renames T.Busy;
+         Busy : With_Busy (T.TC'Unrestricted_Access);
 
       --  Start of processing for Reverse_Iterate
 
       begin
-         B := B + 1;
-
-         begin
-            Local_Reverse_Iterate (T, Key);
-         exception
-            when others =>
-               B := B - 1;
-               raise;
-         end;
-
-         B := B - 1;
+         Local_Reverse_Iterate (T, Key);
       end Reverse_Iterate;
 
       --------------------
@@ -955,25 +974,9 @@ package body Ada.Containers.Ordered_Multisets is
          declare
             E : Element_Type renames Node.Element;
             K : constant Key_Type := Key (E);
-
-            B : Natural renames Tree.Busy;
-            L : Natural renames Tree.Lock;
-
+            Lock : With_Lock (Tree.TC'Unrestricted_Access);
          begin
-            B := B + 1;
-            L := L + 1;
-
-            begin
-               Process (E);
-            exception
-               when others =>
-                  L := L - 1;
-                  B := B - 1;
-                  raise;
-            end;
-
-            L := L - 1;
-            B := B - 1;
+            Process (E);
 
             if Equivalent_Keys (Left => K, Right => Key (E)) then
                return;
@@ -1244,22 +1247,12 @@ package body Ada.Containers.Ordered_Multisets is
       end Process_Node;
 
       T : Tree_Type renames Container.Tree'Unrestricted_Access.all;
-      B : Natural renames T.Busy;
+      Busy : With_Busy (T.TC'Unrestricted_Access);
 
    --  Start of processing for Iterate
 
    begin
-      B := B + 1;
-
-      begin
-         Local_Iterate (T);
-      exception
-         when others =>
-            B := B - 1;
-            raise;
-      end;
-
-      B := B - 1;
+      Local_Iterate (T);
    end Iterate;
 
    procedure Iterate
@@ -1283,30 +1276,18 @@ package body Ada.Containers.Ordered_Multisets is
       end Process_Node;
 
       T : Tree_Type renames Container.Tree'Unrestricted_Access.all;
-      B : Natural renames T.Busy;
+      Busy : With_Busy (T.TC'Unrestricted_Access);
 
    --  Start of processing for Iterate
 
    begin
-      B := B + 1;
-
-      begin
-         Local_Iterate (T, Item);
-      exception
-         when others =>
-            B := B - 1;
-            raise;
-      end;
-
-      B := B - 1;
+      Local_Iterate (T, Item);
    end Iterate;
 
    function Iterate (Container : Set)
      return Set_Iterator_Interfaces.Reversible_Iterator'Class
    is
       S : constant Set_Access := Container'Unrestricted_Access;
-      B : Natural renames S.Tree.Busy;
-
    begin
       --  The value of the Node component influences the behavior of the First
       --  and Last selector functions of the iterator object. When the Node
@@ -1319,7 +1300,7 @@ package body Ada.Containers.Ordered_Multisets is
       --  for a reverse iterator, Container.Last is the beginning.
 
       return It : constant Iterator := (Limited_Controlled with S, null) do
-         B := B + 1;
+         Busy (S.Tree.TC);
       end return;
    end Iterate;
 
@@ -1327,8 +1308,6 @@ package body Ada.Containers.Ordered_Multisets is
      return Set_Iterator_Interfaces.Reversible_Iterator'Class
    is
       S : constant Set_Access := Container'Unrestricted_Access;
-      B : Natural renames S.Tree.Busy;
-
    begin
       --  It was formerly the case that when Start = No_Element, the partial
       --  iterator was defined to behave the same as for a complete iterator,
@@ -1366,7 +1345,7 @@ package body Ada.Containers.Ordered_Multisets is
       return It : constant Iterator :=
         (Limited_Controlled with S, Start.Node)
       do
-         B := B + 1;
+         Busy (S.Tree.TC);
       end return;
    end Iterate;
 
@@ -1570,25 +1549,9 @@ package body Ada.Containers.Ordered_Multisets is
 
       declare
          T : Tree_Type renames Position.Container.Tree;
-
-         B : Natural renames T.Busy;
-         L : Natural renames T.Lock;
-
+         Lock : With_Lock (T.TC'Unrestricted_Access);
       begin
-         B := B + 1;
-         L := L + 1;
-
-         begin
-            Process (Position.Node.Element);
-         exception
-            when others =>
-               L := L - 1;
-               B := B - 1;
-               raise;
-         end;
-
-         L := L - 1;
-         B := B - 1;
+         Process (Position.Node.Element);
       end;
    end Query_Element;
 
@@ -1638,6 +1601,14 @@ package body Ada.Containers.Ordered_Multisets is
       raise Program_Error with "attempt to stream set cursor";
    end Read;
 
+   procedure Read
+     (Stream : not null access Root_Stream_Type'Class;
+      Item   : out Constant_Reference_Type)
+   is
+   begin
+      raise Program_Error with "attempt to stream reference";
+   end Read;
+
    ---------------------
    -- Replace_Element --
    ---------------------
@@ -1653,10 +1624,7 @@ package body Ada.Containers.Ordered_Multisets is
       then
          null;
       else
-         if Tree.Lock > 0 then
-            raise Program_Error with
-              "attempt to tamper with elements (set is locked)";
-         end if;
+         TE_Check (Tree.TC);
 
          Node.Element := Item;
          return;
@@ -1749,22 +1717,12 @@ package body Ada.Containers.Ordered_Multisets is
       end Process_Node;
 
       T : Tree_Type renames Container.Tree'Unrestricted_Access.all;
-      B : Natural renames T.Busy;
+      Busy : With_Busy (T.TC'Unrestricted_Access);
 
    --  Start of processing for Reverse_Iterate
 
    begin
-      B := B + 1;
-
-      begin
-         Local_Reverse_Iterate (T);
-      exception
-         when others =>
-            B := B - 1;
-            raise;
-      end;
-
-      B := B - 1;
+      Local_Reverse_Iterate (T);
    end Reverse_Iterate;
 
    procedure Reverse_Iterate
@@ -1788,22 +1746,12 @@ package body Ada.Containers.Ordered_Multisets is
       end Process_Node;
 
       T : Tree_Type renames Container.Tree'Unrestricted_Access.all;
-      B : Natural renames T.Busy;
+      Busy : With_Busy (T.TC'Unrestricted_Access);
 
    --  Start of processing for Reverse_Iterate
 
    begin
-      B := B + 1;
-
-      begin
-         Local_Reverse_Iterate (T, Item);
-      exception
-         when others =>
-            B := B - 1;
-            raise;
-      end;
-
-      B := B - 1;
+      Local_Reverse_Iterate (T, Item);
    end Reverse_Iterate;
 
    -----------
@@ -1937,4 +1885,11 @@ package body Ada.Containers.Ordered_Multisets is
       raise Program_Error with "attempt to stream set cursor";
    end Write;
 
+   procedure Write
+     (Stream : not null access Root_Stream_Type'Class;
+      Item   : Constant_Reference_Type)
+   is
+   begin
+      raise Program_Error with "attempt to stream reference";
+   end Write;
 end Ada.Containers.Ordered_Multisets;

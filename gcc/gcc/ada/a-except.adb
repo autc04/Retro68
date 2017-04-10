@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,17 +28,6 @@
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
-
---  This version of Ada.Exceptions is a full Ada 95 version, and Ada 2005
---  features such as the additional definitions of Exception_Name returning
---  Wide_[Wide_]String.
-
---  It is used for building the compiler and the basic tools, since these
---  builds may be done with bootstrap compilers that cannot handle these
---  additions. The full version of Ada.Exceptions can be found in the files
---  a-except-2005.ads/adb, and is used for all other builds where full Ada
---  2005 functionality is required. In particular, it is used for building
---  run times on all targets.
 
 pragma Compiler_Unit_Warning;
 
@@ -128,9 +117,9 @@ package body Ada.Exceptions is
       --
       --  The format of the string is as follows:
       --
-      --    Exception_Name: <exception name> (as in Exception_Name)
-      --    Message: <message> (only if Exception_Message is empty)
-      --    PID=nnnn (only if != 0)
+      --    raised <exception name> : <message>
+      --    (" : <message>" is present only if Exception_Message is not empty)
+      --    PID=nnnn (only if nonzero)
       --    Call stack traceback locations:  (only if at least one location)
       --    <0xyyyyyyyy 0xyyyyyyyy ...>      (is recorded)
       --
@@ -738,15 +727,6 @@ package body Ada.Exceptions is
    --  The actual polling routine is separate, so that it can easily be
    --  replaced with a target dependent version.
 
-   ------------------------------
-   -- Current_Target_Exception --
-   ------------------------------
-
-   function Current_Target_Exception return Exception_Occurrence is
-   begin
-      return Null_Occurrence;
-   end Current_Target_Exception;
-
    -------------------
    -- EId_To_String --
    -------------------
@@ -969,7 +949,7 @@ package body Ada.Exceptions is
       --  pragma Volatile is peculiar.
 
    begin
-      Debug_Raise_Exception (E => SSL.Exception_Data_Ptr (E));
+      Debug_Raise_Exception (E => SSL.Exception_Data_Ptr (E), Message => "");
       Process_Raise_Exception (E);
    end Raise_Current_Excep;
 

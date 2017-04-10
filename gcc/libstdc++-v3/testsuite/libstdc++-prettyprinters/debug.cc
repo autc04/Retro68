@@ -1,7 +1,7 @@
 // { dg-do run }
-// { dg-options "-g -O0" }
+// { dg-options "-g -O0 -std=gnu++98" }
 
-// Copyright (C) 2011-2015 Free Software Foundation, Inc.
+// Copyright (C) 2011-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -70,6 +70,13 @@ main()
   std::map<std::string, int>::iterator mpiter = mp.begin();
 // { dg-final { note-test mpiter {{first = "zardoz", second = 23}} } }
 
+  // PR 67440
+  std::set<int> intset;
+  intset.insert(2);
+  intset.insert(3);
+  const std::set<int> const_intset = intset;
+// { dg-final { note-test const_intset {std::__debug::set with 2 elements = {[0] = 2, [1] = 3}} } }
+
   std::set<std::string> sp;
   sp.insert("clownfish");
   sp.insert("barrel");
@@ -86,6 +93,7 @@ main()
   __gnu_cxx::slist<int>::iterator slliter = sll.begin();
 // { dg-final { note-test slliter {47} } }
 
+  std::cout << "\n";
   return 0;			// Mark SPOT
 }
 

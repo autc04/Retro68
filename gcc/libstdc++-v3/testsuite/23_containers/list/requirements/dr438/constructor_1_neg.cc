@@ -1,6 +1,6 @@
 // 2007-04-27  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2007-2015 Free Software Foundation, Inc.
+// Copyright (C) 2007-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,12 +18,12 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do compile }
-// { dg-error "no matching" "" { target *-*-* } 1682 }
+// { dg-prune-output 1692 }
 
 #include <list>
 
 void f()
 {
   typedef std::list<std::list<int> > list_type;
-  list_type l(10, 1);
+  list_type l(10, 1);		// { dg-error "here|no match" }
 }

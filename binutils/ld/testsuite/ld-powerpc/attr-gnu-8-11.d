@@ -7,4 +7,4 @@
 
 Attribute Section: gnu
 File Attributes
-  Tag_GNU_Power_ABI_Vector: Generic
+  Tag_GNU_Power_ABI_Vector: generic

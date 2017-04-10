@@ -1,5 +1,5 @@
 /* Definitions for PA_RISC with ELF format
-   Copyright (C) 1999-2015 Free Software Foundation, Inc.
+   Copyright (C) 1999-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -140,3 +140,4 @@ along with GCC; see the file COPYING3.  If not see
 #define HAVE_sync_compare_and_swapqi 1
 #define HAVE_sync_compare_and_swaphi 1
 #define HAVE_sync_compare_and_swapsi 1
+#define HAVE_sync_compare_and_swapdi 1

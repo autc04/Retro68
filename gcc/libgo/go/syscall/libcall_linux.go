@@ -6,7 +6,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/race"
+	"unsafe"
+)
 
 //sys	Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
 //__go_openat(dirfd _C_int, path *byte, flags _C_int, mode Mode_t) _C_int
@@ -321,12 +324,13 @@ func Pipe2(p []int, flags int) (err error) {
 //sys	sendfile(outfd int, infd int, offset *Offset_t, count int) (written int, err error)
 //sendfile64(outfd _C_int, infd _C_int, offset *Offset_t, count Size_t) Ssize_t
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
 	var soff Offset_t
 	var psoff *Offset_t
 	if offset != nil {
+		soff = Offset_t(*offset)
 		psoff = &soff
 	}
 	written, err = sendfile(outfd, infd, psoff, count)
@@ -408,6 +412,3 @@ func Unlinkat(dirfd int, path string) (err error) {
 
 //sys	Unshare(flags int) (err error)
 //unshare(flags _C_int) _C_int
-
-//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
-//ustat(dev _dev_t, ubuf *Ustat_t) _C_int

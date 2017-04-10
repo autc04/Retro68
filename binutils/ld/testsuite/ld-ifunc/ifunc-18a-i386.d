@@ -12,4 +12,3 @@ Relocation section '.rel.ifunc' at .*
 Relocation section '.rel.plt' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*
 [0-9a-f]+[ ]+[0-9a-f]+[ ]+R_386_IRELATIVE[ ]*
-[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_386_IRELATIVE[ ]*

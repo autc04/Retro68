@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -101,18 +101,13 @@ id_from_fd (const int fd)
 }
 
 #endif /* HAVE_WORKING_STAT */
+
+
+/* On mingw, we don't use umask in tempfile_open(), because it
+   doesn't support the user/group/other-based permissions.  */
+#undef HAVE_UMASK
+
 #endif /* __MINGW32__ */
-
-
-/* min macro that evaluates its arguments only once.  */
-#ifdef min
-#undef min
-#endif
-
-#define min(a,b)		\
-  ({ typeof (a) _a = (a);	\
-    typeof (b) _b = (b);	\
-    _a < _b ? _a : _b; })
 
 
 /* These flags aren't defined on all targets (mingw32), so provide them
@@ -494,7 +489,13 @@ buf_read (unix_stream * s, void * buf, ssize_t nbyte)
   /* Is the data we want in the buffer?  */
   if (s->logical_offset + nbyte <= s->buffer_offset + s->active
       && s->buffer_offset <= s->logical_offset)
-    memcpy (buf, s->buffer + (s->logical_offset - s->buffer_offset), nbyte);
+    {
+      /* When nbyte == 0, buf can be NULL which would lead to undefined
+	 behavior if we called memcpy().  */
+      if (nbyte != 0)
+	memcpy (buf, s->buffer + (s->logical_offset - s->buffer_offset),
+		nbyte);
+    }
   else
     {
       /* First copy the active bytes if applicable, then read the rest
@@ -523,16 +524,26 @@ buf_read (unix_stream * s, void * buf, ssize_t nbyte)
       if (to_read <= BUFFER_SIZE/2)
         {
           did_read = raw_read (s, s->buffer, BUFFER_SIZE);
-          s->physical_offset += did_read;
-          s->active = did_read;
-          did_read = (did_read > to_read) ? to_read : did_read;
-          memcpy (p, s->buffer, did_read);
+	  if (likely (did_read >= 0))
+	    {
+	      s->physical_offset += did_read;
+	      s->active = did_read;
+	      did_read = (did_read > to_read) ? to_read : did_read;
+	      memcpy (p, s->buffer, did_read);
+	    }
+	  else
+	    return did_read;
         }
       else
         {
           did_read = raw_read (s, p, to_read);
-          s->physical_offset += did_read;
-          s->active = 0;
+	  if (likely (did_read >= 0))
+	    {
+	      s->physical_offset += did_read;
+	      s->active = 0;
+	    }
+	  else
+	    return did_read;
         }
       nbyte = did_read + nread;
     }
@@ -1708,16 +1719,6 @@ flush_all_units (void)
 	}
     }
   while (1);
-}
-
-
-/* delete_file()-- Given a unit structure, delete the file associated
- * with the unit.  Returns nonzero if something went wrong. */
-
-int
-delete_file (gfc_unit * u)
-{
-  return unlink (u->filename);
 }
 
 

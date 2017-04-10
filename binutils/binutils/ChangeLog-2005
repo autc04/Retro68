@@ -178,7 +178,7 @@
 	* srconv.c (usage): Likewise.
 	* strings.c (usage): Likewise.
 	* windres.c (usage): Likewise.
-	* doc/binutils.texi: Add section on common options. 
+	* doc/binutils.texi: Add section on common options.
 
 2005-10-03  H.J. Lu  <hongjiu.lu@intel.com>
 
@@ -236,7 +236,7 @@
 	* sysdump.c (main): Likewise.
 	* sysinfo.y (main): Likewise.
 	* windres.c (main): Likewise.
-	
+
 2005-09-30  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* Makefile.am: Run "make dep-am".

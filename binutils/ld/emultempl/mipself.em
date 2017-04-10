@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -34,6 +34,7 @@ static lang_input_statement_type *stub_file;
 static bfd *stub_bfd;
 
 static bfd_boolean insn32;
+static bfd_boolean ignore_branch_isa;
 
 static void
 mips_after_parse (void)
@@ -47,7 +48,7 @@ mips_after_parse (void)
       link_info.emit_hash = TRUE;
       link_info.emit_gnu_hash = FALSE;
     }
-  after_parse_default ();
+  gld${EMULATION_NAME}_after_parse ();
 }
 
 struct hook_stub_info
@@ -202,7 +203,7 @@ mips_create_output_section_statements (void)
 
   htab = elf_hash_table (&link_info);
   if (is_elf_hash_table (htab) && is_mips_elf (link_info.output_bfd))
-    _bfd_mips_elf_insn32 (&link_info, insn32);
+    _bfd_mips_elf_linker_flags (&link_info, insn32, ignore_branch_isa);
 
   if (is_mips_elf (link_info.output_bfd))
     _bfd_mips_elf_init_stubs (&link_info, mips_add_stub_section);
@@ -216,7 +217,7 @@ mips_before_allocation (void)
   flagword flags;
 
   flags = elf_elfheader (link_info.output_bfd)->e_flags;
-  if (!link_info.shared
+  if (!bfd_link_pic (&link_info)
       && !link_info.nocopyreloc
       && (flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) == EF_MIPS_CPIC)
     _bfd_mips_elf_use_plts_and_copy_relocs (&link_info);
@@ -250,13 +251,20 @@ EOF
 # parse_args and list_options functions.
 #
 PARSE_AND_LIST_PROLOGUE='
-#define OPTION_INSN32			301
-#define OPTION_NO_INSN32		(OPTION_INSN32 + 1)
+enum
+  {
+    OPTION_INSN32 = 301,
+    OPTION_NO_INSN32,
+    OPTION_IGNORE_BRANCH_ISA,
+    OPTION_NO_IGNORE_BRANCH_ISA
+  };
 '
 
 PARSE_AND_LIST_LONGOPTS='
   { "insn32", no_argument, NULL, OPTION_INSN32 },
   { "no-insn32", no_argument, NULL, OPTION_NO_INSN32 },
+  { "ignore-branch-isa", no_argument, NULL, OPTION_IGNORE_BRANCH_ISA },
+  { "no-ignore-branch-isa", no_argument, NULL, OPTION_NO_IGNORE_BRANCH_ISA },
 '
 
 PARSE_AND_LIST_OPTIONS='
@@ -265,6 +273,14 @@ PARSE_AND_LIST_OPTIONS='
 		   ));
   fprintf (file, _("\
   --no-insn32                 Generate all microMIPS instructions\n"
+		   ));
+  fprintf (file, _("\
+  --ignore-branch-isa         Accept invalid branch relocations requiring\n\
+                              an ISA mode switch\n"
+		   ));
+  fprintf (file, _("\
+  --no-ignore-branch-isa      Reject invalid branch relocations requiring\n\
+                              an ISA mode switch\n"
 		   ));
 '
 
@@ -275,6 +291,14 @@ PARSE_AND_LIST_ARGS_CASES='
 
     case OPTION_NO_INSN32:
       insn32 = FALSE;
+      break;
+
+    case OPTION_IGNORE_BRANCH_ISA:
+      ignore_branch_isa = TRUE;
+      break;
+
+    case OPTION_NO_IGNORE_BRANCH_ISA:
+      ignore_branch_isa = FALSE;
       break;
 '
 

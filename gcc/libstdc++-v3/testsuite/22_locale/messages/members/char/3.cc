@@ -1,9 +1,9 @@
-// { dg-require-namedlocale "en_US" }
-// { dg-require-namedlocale "fr_FR" }
+// { dg-require-namedlocale "en_US.ISO8859-1" }
+// { dg-require-namedlocale "fr_FR.ISO8859-15" }
 
 // 2001-07-17 Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2001-2015 Free Software Foundation, Inc.
+// Copyright (C) 2001-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,8 +37,8 @@ void test03()
 
   // basic construction
   locale loc_c = locale::classic();
-  locale loc_us = locale("en_US");
-  locale loc_fr = locale("fr_FR");
+  locale loc_us = locale(ISO_8859(1,en_US));
+  locale loc_fr = locale(ISO_8859(15,fr_FR));
   VERIFY( loc_c != loc_us );
   VERIFY( loc_us != loc_fr );
 

@@ -67,7 +67,7 @@ Disassembly of section \.dat[0-9a-f ]+:
 [0-9a-f ]+:	00 01 00 9c 	addx\.p gr16,gr28,gr0,icc0
 Disassembly of section \.got:
 
-[0-9a-f ]+<_GLOBAL_OFFSET_TABLE_-0x38>:
+[0-9a-f ]+<.got>:
 [0-9a-f ]+:	00 01 00 9c 	addx\.p gr16,gr28,gr0,icc0
 [0-9a-f ]+:	00 01 41 88 	subx\.p gr20,gr8,gr0,icc0
 [0-9a-f ]+:	00 01 00 9c 	addx\.p gr16,gr28,gr0,icc0

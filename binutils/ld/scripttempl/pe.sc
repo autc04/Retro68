@@ -1,6 +1,6 @@
 # Linker script for PE.
 #
-# Copyright (C) 2014 Free Software Foundation, Inc.
+# Copyright (C) 2014-2017 Free Software Foundation, Inc.
 # 
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
@@ -30,29 +30,29 @@ if test "${RELOCATING}"; then
              *(SORT(.rdata$*))'
   fi
   R_IDATA234='
-    SORT(*)(.idata$2)
-    SORT(*)(.idata$3)
+    KEEP (SORT(*)(.idata$2))
+    KEEP (SORT(*)(.idata$3))
     /* These zeroes mark the end of the import list.  */
     LONG (0); LONG (0); LONG (0); LONG (0); LONG (0);
-    SORT(*)(.idata$4)'
-  R_IDATA5='SORT(*)(.idata$5)'
+    KEEP (SORT(*)(.idata$4))'
+  R_IDATA5='KEEP (SORT(*)(.idata$5))'
   R_IDATA67='
-    SORT(*)(.idata$6)
-    SORT(*)(.idata$7)'
-  R_CRT_XC='*(SORT(.CRT$XC*))  /* C initialization */'
-  R_CRT_XI='*(SORT(.CRT$XI*))  /* C++ initialization */'
-  R_CRT_XL='*(SORT(.CRT$XL*))  /* TLS callbacks */'
-  R_CRT_XP='*(SORT(.CRT$XP*))  /* Pre-termination */'
-  R_CRT_XT='*(SORT(.CRT$XT*))  /* Termination */'
+    KEEP (SORT(*)(.idata$6))
+    KEEP (SORT(*)(.idata$7))'
+  R_CRT_XC='KEEP (*(SORT(.CRT$XC*)))  /* C initialization */'
+  R_CRT_XI='KEEP (*(SORT(.CRT$XI*)))  /* C++ initialization */'
+  R_CRT_XL='KEEP (*(SORT(.CRT$XL*)))  /* TLS callbacks */'
+  R_CRT_XP='KEEP (*(SORT(.CRT$XP*)))  /* Pre-termination */'
+  R_CRT_XT='KEEP (*(SORT(.CRT$XT*)))  /* Termination */'
   R_TLS='
-    *(.tls$AAA)
-    *(.tls)
-    *(.tls$)
-    *(SORT(.tls$*))
-    *(.tls$ZZZ)'
+    KEEP (*(.tls$AAA))
+    KEEP (*(.tls))
+    KEEP (*(.tls$))
+    KEEP (*(SORT(.tls$*)))
+    KEEP (*(.tls$ZZZ))'
   R_RSRC='
-    *(.rsrc)
-    *(.rsrc$*)'
+    KEEP (*(.rsrc))
+    KEEP (*(.rsrc$*))'
 else
   R_TEXT=
   R_DATA=
@@ -65,7 +65,7 @@ else
 fi
 
 cat <<EOF
-/* Copyright (C) 2014 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2017 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -85,7 +85,7 @@ SECTIONS
   ${RELOCATING+. = ALIGN(__section_alignment__);}
   .text ${RELOCATING+ __image_base__ + ( __section_alignment__ < ${TARGET_PAGE_SIZE} ? . : __section_alignment__ )} :
   {
-    ${RELOCATING+ *(.init)}
+    ${RELOCATING+ KEEP(*(.init))}
     *(.text)
     ${R_TEXT}
     ${RELOCATING+ *(.text.*)}
@@ -96,12 +96,12 @@ SECTIONS
 			LONG (-1);*(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); }
     ${CONSTRUCTING+ ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
 			LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); }
-    ${RELOCATING+ *(.fini)}
+    ${RELOCATING+ KEEP (*(.fini))}
     /* ??? Why is .gcc_exc here?  */
     ${RELOCATING+ *(.gcc_exc)}
     ${RELOCATING+PROVIDE (etext = .);}
     ${RELOCATING+PROVIDE (_etext = .);}
-    ${RELOCATING+ *(.gcc_except_table)}
+    ${RELOCATING+ KEEP (*(.gcc_except_table))}
   }
 
   /* The Cygwin32 library uses a section to avoid copying certain data
@@ -116,7 +116,7 @@ SECTIONS
     *(.data)
     *(.data2)
     ${R_DATA}
-    *(.jcr)
+    KEEP(*(.jcr))
     ${RELOCATING+__data_end__ = . ;}
     ${RELOCATING+*(.data_cygwin_nocopy)}
   }
@@ -125,7 +125,7 @@ SECTIONS
   {
     ${R_RDATA}
     ${RELOCATING+__rt_psrelocs_start = .;}
-    *(.rdata_runtime_pseudo_reloc)
+    KEEP(*(.rdata_runtime_pseudo_reloc))
     ${RELOCATING+__rt_psrelocs_end = .;}
   }
   ${RELOCATING+__rt_psrelocs_size = __rt_psrelocs_end - __rt_psrelocs_start;}
@@ -136,12 +136,12 @@ SECTIONS
 
   .eh_frame ${RELOCATING+BLOCK(__section_alignment__)} :
   {
-    *(.eh_frame*)
+    KEEP(*(.eh_frame*))
   }
 
   .pdata ${RELOCATING+BLOCK(__section_alignment__)} :
   {
-    *(.pdata)
+    KEEP(*(.pdata*))
   }
 
   .bss ${RELOCATING+BLOCK(__section_alignment__)} :

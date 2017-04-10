@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-# Copyright (C) 2007-2014 Free Software Foundation, Inc.
+# Copyright (C) 2007-2017 Free Software Foundation, Inc.
 # Contributed by M R Swami Reddy <MR.Swami.Reddy@nsc.com>
 #
 # This file is part of the GNU Binutils.
@@ -39,7 +39,7 @@ cr16_elf_after_open (void)
   gld${EMULATION_NAME}_after_open ();
 
    if (command_line.embedded_relocs
-       && (! link_info.relocatable))
+       && !bfd_link_relocatable (&link_info))
      {
        bfd *abfd;
 
@@ -119,7 +119,7 @@ cr16elf_after_parse (void)
      is true the link sometimes fails.  */
   config.magic_demand_paged = FALSE;
 
-  after_parse_default ();
+  gld${EMULATION_NAME}_after_parse ();
 }
 
 /* This is called after the sections have been attached to output
@@ -132,7 +132,7 @@ cr16elf_before_allocation (void)
   gld${EMULATION_NAME}_before_allocation ();
 
    if (command_line.embedded_relocs
-       && (! link_info.relocatable))
+       && (!bfd_link_relocatable (&link_info)))
      {
 
    bfd *abfd;

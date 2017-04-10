@@ -1,5 +1,5 @@
 /* Object file "section" support for the BFD library.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -155,10 +155,10 @@ CODE_FRAGMENT
 .  const char *name;
 .
 .  {* A unique sequence number.  *}
-.  int id;
+.  unsigned int id;
 .
 .  {* Which section in the bfd; 0..n-1 as sections are created in a bfd.  *}
-.  int index;
+.  unsigned int index;
 .
 .  {* The next section in the list belonging to the BFD, or NULL.  *}
 .  struct bfd_section *next;
@@ -334,6 +334,10 @@ CODE_FRAGMENT
 .     executables or shared objects. This is for COFF only.  *}
 .#define SEC_COFF_SHARED 0x8000000
 .
+.  {* This section should be compressed.  This is for ELF linker
+.     internal use only.  *}
+.#define SEC_ELF_COMPRESS 0x8000000
+.
 .  {* When a section with this flag is being linked, then if the size of
 .     the input section is less than a page, it should not cross a page
 .     boundary.  If the size of the input section is one page or more,
@@ -341,14 +345,24 @@ CODE_FRAGMENT
 .     TMS320C54X only.  *}
 .#define SEC_TIC54X_BLOCK 0x10000000
 .
+.  {* This section should be renamed.  This is for ELF linker
+.     internal use only.  *}
+.#define SEC_ELF_RENAME 0x10000000
+.
 .  {* Conditionally link this section; do not link if there are no
 .     references found to any symbol in the section.  This is for TI
 .     TMS320C54X only.  *}
 .#define SEC_TIC54X_CLINK 0x20000000
 .
+.  {* This section contains vliw code.  This is for Toshiba MeP only.  *}
+.#define SEC_MEP_VLIW 0x20000000
+.
 .  {* Indicate that section has the no read flag set. This happens
 .     when memory read flag isn't set. *}
 .#define SEC_COFF_NOREAD 0x40000000
+.
+.  {* Indicate that section has the purecode flag set.  *}
+.#define SEC_ELF_PURECODE 0x80000000
 .
 .  {*  End of section flags.  *}
 .
@@ -386,6 +400,7 @@ CODE_FRAGMENT
 .#define SEC_INFO_TYPE_EH_FRAME  3
 .#define SEC_INFO_TYPE_JUST_SYMS 4
 .#define SEC_INFO_TYPE_TARGET    5
+.#define SEC_INFO_TYPE_EH_FRAME_ENTRY 6
 .
 .  {* Nonzero if this section uses RELA relocations, rather than REL.  *}
 .  unsigned int use_rela_p:1;
@@ -415,7 +430,7 @@ CODE_FRAGMENT
 .      information.  *}
 .  bfd_vma lma;
 .
-.  {* The size of the section in octets, as it will be output.
+.  {* The size of the section in *octets*, as it will be output.
 .     Contains a value even if the section has no contents (e.g., the
 .     size of <<.bss>>).  *}
 .  bfd_size_type size;
@@ -685,9 +700,9 @@ CODE_FRAGMENT
 .#define bfd_section_removed_from_list(ABFD, S) \
 .  ((S)->next == NULL ? (ABFD)->section_last != (S) : (S)->next->prev != (S))
 .
-.#define BFD_FAKE_SECTION(SEC, FLAGS, SYM, NAME, IDX)			\
+.#define BFD_FAKE_SECTION(SEC, SYM, NAME, IDX, FLAGS)			\
 .  {* name, id,  index, next, prev, flags, user_set_vma,            *}	\
-.  { NAME,  IDX, 0,     NULL, NULL, FLAGS, 0,				\
+.  {  NAME, IDX, 0,     NULL, NULL, FLAGS, 0,				\
 .									\
 .  {* linker_mark, linker_has_input, gc_mark, decompress_status,    *}	\
 .     0,           0,                1,       0,			\
@@ -749,7 +764,7 @@ static const asymbol global_syms[] =
 };
 
 #define STD_SECTION(NAME, IDX, FLAGS) \
-  BFD_FAKE_SECTION(_bfd_std_section[IDX], FLAGS, &global_syms[IDX], NAME, IDX)
+  BFD_FAKE_SECTION(_bfd_std_section[IDX], &global_syms[IDX], NAME, IDX, FLAGS)
 
 asection _bfd_std_section[] = {
   STD_SECTION (BFD_COM_SECTION_NAME, 0, SEC_IS_COMMON),
@@ -809,13 +824,13 @@ _bfd_generic_new_section_hook (bfd *abfd, asection *newsect)
   return TRUE;
 }
 
+static unsigned int section_id = 0x10;  /* id 0 to 3 used by STD_SECTION.  */
+
 /* Initializes a new section.  NEWSECT->NAME is already set.  */
 
 static asection *
 bfd_section_init (bfd *abfd, asection *newsect)
 {
-  static int section_id = 0x10;  /* id 0 to 3 used by STD_SECTION.  */
-
   newsect->id = section_id;
   newsect->index = abfd->section_count;
   newsect->owner = abfd;
@@ -891,16 +906,18 @@ FUNCTION
        bfd_get_next_section_by_name
 
 SYNOPSIS
-       asection *bfd_get_next_section_by_name (asection *sec);
+       asection *bfd_get_next_section_by_name (bfd *ibfd, asection *sec);
 
 DESCRIPTION
        Given @var{sec} is a section returned by @code{bfd_get_section_by_name},
        return the next most recently created section attached to the same
-       BFD with the same name.  Return NULL if no such section exists.
+       BFD with the same name, or if no such section exists in the same BFD and
+       IBFD is non-NULL, the next section with the same name in any input
+       BFD following IBFD.  Return NULL on finding no section.
 */
 
 asection *
-bfd_get_next_section_by_name (asection *sec)
+bfd_get_next_section_by_name (bfd *ibfd, asection *sec)
 {
   struct section_hash_entry *sh;
   const char *name;
@@ -917,6 +934,16 @@ bfd_get_next_section_by_name (asection *sec)
     if (sh->root.hash == hash
        && strcmp (sh->root.string, name) == 0)
       return &sh->section;
+
+  if (ibfd != NULL)
+    {
+      while ((ibfd = ibfd->link.next) != NULL)
+	{
+	  asection *s = bfd_get_section_by_name (ibfd, name);
+	  if (s != NULL)
+	    return s;
+	}
+    }
 
   return NULL;
 }
@@ -939,7 +966,7 @@ bfd_get_linker_section (bfd *abfd, const char *name)
   asection *sec = bfd_get_section_by_name (abfd, name);
 
   while (sec != NULL && (sec->flags & SEC_LINKER_CREATED) == 0)
-    sec = bfd_get_next_section_by_name (sec);
+    sec = bfd_get_next_section_by_name (NULL, sec);
   return sec;
 }
 
@@ -982,14 +1009,11 @@ bfd_get_section_by_name_if (bfd *abfd, const char *name,
     return NULL;
 
   hash = sh->root.hash;
-  do
-    {
-      if ((*operation) (abfd, &sh->section, user_storage))
-	return &sh->section;
-      sh = (struct section_hash_entry *) sh->root.next;
-    }
-  while (sh != NULL && sh->root.hash == hash
-	 && strcmp (sh->root.string, name) == 0);
+  for (; sh != NULL; sh = (struct section_hash_entry *) sh->root.next)
+    if (sh->root.hash == hash
+	&& strcmp (sh->root.string, name) == 0
+	&& (*operation) (abfd, &sh->section, user_storage))
+      return &sh->section;
 
   return NULL;
 }
@@ -1262,6 +1286,23 @@ asection *
 bfd_make_section (bfd *abfd, const char *name)
 {
   return bfd_make_section_with_flags (abfd, name, 0);
+}
+
+/*
+FUNCTION
+	bfd_get_next_section_id
+
+SYNOPSIS
+	int bfd_get_next_section_id (void);
+
+DESCRIPTION
+	Returns the id that the next section created will have.
+*/
+
+int
+bfd_get_next_section_id (void)
+{
+  return section_id;
 }
 
 /*

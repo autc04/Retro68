@@ -1,6 +1,5 @@
 /* { dg-require-effective-target vect_condition } */
 
-#include <stdlib.h> 
 #include "tree-vect.h"
 
 #define M 32
@@ -60,6 +59,5 @@ int main (void)
 }
 
 /* { dg-final { scan-tree-dump-times "OUTER LOOP VECTORIZED" 1 "vect" { xfail { vect_no_align && { ! vect_hw_misalign } } } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
 
 

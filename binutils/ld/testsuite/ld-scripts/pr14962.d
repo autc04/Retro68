@@ -2,7 +2,7 @@
 #source: pr14962a.s
 #source: pr14962b.s
 #nm: -n
-#notarget: rx-*-* mmix-knuth-mmixware
+#notarget: mmix-knuth-mmixware
 # The reference to x would normally generate a cross-reference error
 # but the linker script converts x to absolute to avoid the error.
 

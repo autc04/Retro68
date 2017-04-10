@@ -93,7 +93,7 @@ r1=r2 +|+ r3 (SCO);
 r4=r3 +|+ r5 (SCO);
 r6=r3 +|+ r7 (SCO);
 
-//Dreg = Dreg –|+ Dreg (opt_mode_0) ; /* subtract | add (b) */
+//Dreg = Dreg -|+ Dreg (opt_mode_0) ; /* subtract | add (b) */
 r6=r0 -|+ r1(s) ; /* same as above, subtract|add with saturation */
 
 r0=r1 -|+ r2 ;
@@ -125,7 +125,7 @@ r4=r3 -|+ r5 (SCO);
 r6=r3 -|+ r7 (SCO);
 
 
-//Dreg = Dreg +|– Dreg (opt_mode_0) ; /* add | subtract (b) */
+//Dreg = Dreg +|- Dreg (opt_mode_0) ; /* add | subtract (b) */
 r0=r2 +|- r1(co) ; /* add|subtract with half-word results crossed over in the destination register */
 
 r0=r1 +|- r2 ;
@@ -156,7 +156,7 @@ r1=r2 +|- r3 (SCO);
 r4=r3 +|- r5 (SCO);
 r6=r3 +|- r7 (SCO);
 
-//Dreg = Dreg –|– Dreg (opt_mode_0) ; /* subtract | subtract (b) */
+//Dreg = Dreg -|- Dreg (opt_mode_0) ; /* subtract | subtract (b) */
 r7=r3 -|- r6(sco) ; /* subtract|subtract with saturation and half-word results crossed over in the destination register */
 
 r0=r1 -|- r2 ;
@@ -188,7 +188,7 @@ r4=r3 -|- r5 (SCO);
 r6=r3 -|- r7 (SCO);
 
 //Quad 16-Bit Operations
-//Dreg = Dreg +|+ Dreg, Dreg = Dreg –|– Dreg (opt_mode_0,opt_mode_2) ; /* add | add, subtract | subtract; the set of source registers must be the same for each operation (b) */
+//Dreg = Dreg +|+ Dreg, Dreg = Dreg -|- Dreg (opt_mode_0,opt_mode_2) ; /* add | add, subtract | subtract; the set of source registers must be the same for each operation (b) */
 r5=r3 +|+ r4, r7=r3-|-r4 ; /* quad 16-bit operations, add|add, subtract|subtract */
 
 r0=r1 +|+ r2, r7=r1 -|- r2;
@@ -284,7 +284,7 @@ r4=r3 +|+ r5, r3=r3 -|- r5(SCO,ASL);
 r6=r3 +|+ r7, r2=r3 -|- r7(SCO,ASL);
 
 
-//Dreg = Dreg +|– Dreg, Dreg = Dreg –|+ Dreg (opt_mode_0,opt_mode_2) ; /* add | subtract, subtract | add; the set of source registers must be the same for each operation (b) */
+//Dreg = Dreg +|- Dreg, Dreg = Dreg -|+ Dreg (opt_mode_0,opt_mode_2) ; /* add | subtract, subtract | add; the set of source registers must be the same for each operation (b) */
 r5=r3 +|- r4, r7=r3 -|+ r4 ; /* quad 16-bit operations, add|subtract, subtract|add */
 
 r0=r1 +|- r2, r7=r1 -|+ r2;

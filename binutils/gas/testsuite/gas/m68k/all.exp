@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,6 +89,9 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
     run_dump_test ctrl-2
 
     gas_test_error "p11673.s" "-march=isab" "movel immediate with offset unsupported on isab"
+
+    gas_test_error "p13050-1.s" "-march=isab" "moveb (d8,An,Xi),(d16,An) unsupported on isab"
+    run_dump_test p13050-2
 
     if { [istarget *-*-*aout] || [istarget *-*-netbsd] || [istarget *-*-openbsd*] } then {
       run_dump_test p3041

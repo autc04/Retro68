@@ -36,7 +36,7 @@ Disassembly of section \.dat[0-9a-f ]+:
 	\.\.\.
 Disassembly of section \.got:
 
-[0-9a-f ]+<_GLOBAL_OFFSET_TABLE_-0x38>:
+[0-9a-f ]+<.got>:
 	\.\.\.
 
 [0-9a-f ]+<_GLOBAL_OFFSET_TABLE_>:

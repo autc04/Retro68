@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -101,7 +101,7 @@ vms_place_orphan (asection *s,
 
   /* We have nothing to say for anything other than a final link or an excluded
      section.  */
-  if (link_info.relocatable
+  if (bfd_link_relocatable (&link_info)
       || (s->flags & (SEC_EXCLUDE | SEC_LOAD)) != SEC_LOAD)
     return NULL;
 

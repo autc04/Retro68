@@ -21,9 +21,9 @@ There are 13 section headers.*
  +\[ 7\] \.text +PROGBITS .*
  +\[ 8\] \.dynamic +DYNAMIC +.*
  +\[ 9\] \.got +PROGBITS .*
- +\[10\] \.shstrtab +STRTAB +.*
- +\[11\] \.symtab +SYMTAB +.*
- +\[12\] \.strtab +STRTAB +.*
+ +\[10\] \.symtab +SYMTAB +.*
+ +\[11\] \.strtab +STRTAB +.*
+ +\[12\] \.shstrtab +STRTAB +.*
 #...
 Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 1 entries:
 #...

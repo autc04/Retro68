@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: -march=armv8-a
+#as: -march=armv8-a -mabi=lp64
 
 .*:     file format .*
 
@@ -13,8 +13,8 @@ Disassembly of section .text:
   10:	93c3fc41 	extr	x1, x2, x3, #63
   14:	93c30041 	extr	x1, x2, x3, #0
   18:	13837c41 	extr	w1, w2, w3, #31
-  1c:	9a9f17e1 	cset	x1, eq
-  20:	da9f13e1 	csetm	x1, eq
+  1c:	9a9f17e1 	cset	x1, eq  // eq = none
+  20:	da9f13e1 	csetm	x1, eq  // eq = none
   24:	71000021 	subs	w1, w1, #0x0
   28:	7100003f 	cmp	w1, #0x0
   2c:	4b0203e1 	neg	w1, w2
@@ -64,17 +64,17 @@ Disassembly of section .text:
   d4:	92400c85 	and	x5, x4, #0xf
   d8:	0a230041 	bic	w1, w2, w3
   dc:	8a230041 	bic	x1, x2, x3
-  e0:	54000001 	b.ne	e0 <sp\+0x90>
+  e0:	54000001 	b\.ne	e0 <sp\+0x90>  // b\.any
   e4:	17ffffff 	b	e0 <sp\+0x90>
   e8:	14000001 	b	ec <sp\+0x9c>
-  ec:	54ffffa0 	b.eq	e0 <sp\+0x90>
-  f0:	54000001 	b.ne	f0 <sp\+0xa0>
+  ec:	54ffffa0 	b\.eq	e0 <sp\+0x90>  // b\.none
+  f0:	54000001 	b\.ne	f0 <sp\+0xa0>  // b\.any
   f4:	17ffffff 	b	f0 <sp\+0xa0>
   f8:	14000001 	b	fc <sp\+0xac>
-  fc:	54ffffa0 	b.eq	f0 <sp\+0xa0>
+  fc:	54ffffa0 	b\.eq	f0 <sp\+0xa0>  // b\.none
  100:	d61f0040 	br	x2
- 104:	54ffffc2 	b.cs	fc <sp\+0xac>
- 108:	54ffffa3 	b.cc	fc <sp\+0xac>
+ 104:	54ffffc2 	b\.cs	fc <sp\+0xac>  // b\.hs, b\.nlast
+ 108:	54ffffa3 	b\.cc	fc <sp\+0xac>  // b\.lo, b\.ul, b\.last
 	...
 			10c: R_AARCH64_ABS32	.text\+0x50
 			110: R_AARCH64_ABS64	.text\+0x50

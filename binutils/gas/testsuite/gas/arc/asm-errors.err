@@ -1,0 +1,6 @@
+[^:]*: Assembler messages:
+[^:]*:2: Error: inappropriate arguments for opcode 'adc'
+[^:]*:3: Error: inappropriate arguments for opcode 'adc'
+[^:]*:4: Error: inappropriate arguments for opcode 'adc'
+[^:]*:5: Error: extra comma
+[^:]*:5: Error: syntax error

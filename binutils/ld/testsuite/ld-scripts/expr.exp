@@ -1,6 +1,6 @@
 # Test expressions in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -25,3 +25,10 @@ run_dump_test sane1
 run_dump_test assign-loc
 run_dump_test pr14962
 run_dump_test pr14962-2
+
+set old_ldflags $LDFLAGS
+if { [istarget spu*-*-*] } {
+    set LDFLAGS "$LDFLAGS --no-overlays --local-store 0:0"
+}
+run_dump_test pr18963
+set LDFLAGS $old_ldflags

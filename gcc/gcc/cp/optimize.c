@@ -1,5 +1,5 @@
 /* Perform optimizations on tree structure.
-   Copyright (C) 1998-2015 Free Software Foundation, Inc.
+   Copyright (C) 1998-2016 Free Software Foundation, Inc.
    Written by Mark Michell (mark@codesourcery.com).
 
 This file is part of GCC.
@@ -21,37 +21,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "tree.h"
-#include "stringpool.h"
-#include "cp-tree.h"
-#include "input.h"
-#include "params.h"
-#include "hashtab.h"
 #include "target.h"
+#include "cp-tree.h"
+#include "stringpool.h"
+#include "cgraph.h"
 #include "debug.h"
 #include "tree-inline.h"
-#include "flags.h"
-#include "langhooks.h"
-#include "diagnostic-core.h"
-#include "dumpfile.h"
 #include "tree-iterator.h"
-#include "hash-map.h"
-#include "is-a.h"
-#include "plugin-api.h"
-#include "hard-reg-set.h"
-#include "function.h"
-#include "ipa-ref.h"
-#include "cgraph.h"
 
 /* Prototypes.  */
 
@@ -294,7 +270,11 @@ maybe_thunk_body (tree fn, bool force)
     }
   else if (HAVE_COMDAT_GROUP)
     {
+      /* At eof, defer creation of mangling aliases temporarily.  */
+      bool save_defer_mangling_aliases = defer_mangling_aliases;
+      defer_mangling_aliases = true;
       tree comdat_group = cdtor_comdat_group (fns[1], fns[0]);
+      defer_mangling_aliases = save_defer_mangling_aliases;
       cgraph_node::get_create (fns[0])->set_comdat_group (comdat_group);
       cgraph_node::get_create (fns[1])->add_to_same_comdat_group
 	(cgraph_node::get_create (fns[0]));
@@ -305,6 +285,9 @@ maybe_thunk_body (tree fn, bool force)
 	   virtual, it goes into the same comdat group as well.  */
 	cgraph_node::get_create (fns[2])->add_to_same_comdat_group
 	  (symtab_node::get (fns[0]));
+      /* Emit them now that the thunks are same comdat group aliases.  */
+      if (!save_defer_mangling_aliases)
+	generate_mangling_aliases ();
       TREE_PUBLIC (fn) = false;
       DECL_EXTERNAL (fn) = false;
       DECL_INTERFACE_KNOWN (fn) = true;
@@ -663,6 +646,8 @@ maybe_clone_body (tree fn)
 	{
 	  if (expand_or_defer_fn_1 (clone))
 	    emit_associated_thunks (clone);
+	  /* We didn't generate a body, so remove the empty one.  */
+	  DECL_SAVED_TREE (clone) = NULL_TREE;
 	}
       else
 	expand_or_defer_fn (clone);

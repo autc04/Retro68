@@ -44,7 +44,7 @@ stuff:
 
 	# The cvt.w.s instruction of the R5900 does the same as trunc.w.s in MIPS I.
 	# The cvt.w.s instruction of MIPS I doesn't exist in the R5900 CPU.
-	# For compatibilty the instruction trunc.w.s uses the opcode of cvt.w.s.
+	# For compatibility the instruction trunc.w.s uses the opcode of cvt.w.s.
 	# cvt.w.s should not be used on R5900.
 	trunc.w.s $f0, $f31
 	trunc.w.s $f31, $f0

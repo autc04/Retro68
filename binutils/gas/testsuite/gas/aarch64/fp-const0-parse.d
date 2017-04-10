@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	5ea0dbc0 	fcmeq	s0, s30, #0.0
    4:	7ea0cba1 	fcmge	s1, s29, #0.0
    8:	5ea0cb82 	fcmgt	s2, s28, #0.0

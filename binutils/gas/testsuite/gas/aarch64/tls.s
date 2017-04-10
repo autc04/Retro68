@@ -1,6 +1,6 @@
 /* tls.s Test file for AArch64 TLS relocations.
 
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -51,3 +51,6 @@ func:
 	add  x0, x1, #:tprel_hi12:var, lsl #12
 	// R_AARCH64_TLSLE_ADD_TPREL_LO12_NC    var
 	add  x0, x1, #:tprel_lo12_nc:var
+
+	movz x0, #:tprel_g1:var
+	movk x0, #:tprel_g0_nc:var

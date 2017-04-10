@@ -1,5 +1,5 @@
 /* symbols.c -symbol table-
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -66,7 +66,7 @@ struct obstack notes;
 const char * an_external_name;
 #endif
 
-static char *save_symbol_name (const char *);
+static const char *save_symbol_name (const char *);
 static void fb_label_init (void);
 static long dollar_label_instance (long);
 static long fb_label_instance (long);
@@ -101,7 +101,7 @@ symbol_new (const char *name, segT segment, valueT valu, fragS *frag)
 /* Save a symbol name on a permanent obstack, and convert it according
    to the object file format.  */
 
-static char *
+static const char *
 save_symbol_name (const char *name)
 {
   size_t name_length;
@@ -132,7 +132,7 @@ symbol_create (const char *name, /* It is copied, the caller can destroy/modify.
 	       valueT valu,	/* Symbol value.  */
 	       fragS *frag	/* Associated fragment.  */)
 {
-  char *preserved_copy_of_name;
+  const char *preserved_copy_of_name;
   symbolS *symbolP;
 
   preserved_copy_of_name = save_symbol_name (name);
@@ -190,7 +190,7 @@ static unsigned long local_symbol_conversion_count;
 struct local_symbol *
 local_symbol_make (const char *name, segT section, valueT val, fragS *frag)
 {
-  char *name_copy;
+  const char *name_copy;
   struct local_symbol *ret;
 
   ++local_symbol_count;
@@ -262,10 +262,10 @@ define_sym_at_dot (symbolS *symbolP)
 
 symbolS *
 colon (/* Just seen "x:" - rattle symbols & frags.  */
-       const char *sym_name	/* Symbol name, as a cannonical string.  */
+       const char *sym_name	/* Symbol name, as a canonical string.  */
        /* We copy this string: OK to alter later.  */)
 {
-  register symbolS *symbolP;	/* Symbol we are working with.  */
+  symbolS *symbolP;	/* Symbol we are working with.  */
 
   /* Sun local labels go out of scope whenever a non-local symbol is
      defined.  */
@@ -482,7 +482,7 @@ colon (/* Just seen "x:" - rattle symbols & frags.  */
 void
 symbol_table_insert (symbolS *symbolP)
 {
-  register const char *error_string;
+  const char *error_string;
 
   know (symbolP);
   know (S_GET_NAME (symbolP));
@@ -510,7 +510,7 @@ symbol_table_insert (symbolS *symbolP)
 symbolS *
 symbol_find_or_make (const char *name)
 {
-  register symbolS *symbolP;
+  symbolS *symbolP;
 
   symbolP = symbol_find (name);
 
@@ -743,34 +743,40 @@ symbol_find (const char *name)
 symbolS *
 symbol_find_noref (const char *name, int noref)
 {
+  symbolS * result;
+  char * copy = NULL;
+
 #ifdef tc_canonicalize_symbol_name
   {
-    char *copy;
-    size_t len = strlen (name) + 1;
-
-    copy = (char *) alloca (len);
-    memcpy (copy, name, len);
+    copy = xstrdup (name);
     name = tc_canonicalize_symbol_name (copy);
   }
 #endif
 
   if (! symbols_case_sensitive)
     {
-      char *copy;
       const char *orig;
+      char *copy2 = NULL;
       unsigned char c;
 
       orig = name;
-      name = copy = (char *) alloca (strlen (name) + 1);
+      if (copy != NULL)
+	copy2 = copy;
+      name = copy = XNEWVEC (char, strlen (name) + 1);
 
       while ((c = *orig++) != '\0')
-	{
-	  *copy++ = TOUPPER (c);
-	}
+	*copy++ = TOUPPER (c);
       *copy = '\0';
+
+      if (copy2 != NULL)
+	free (copy2);
+      copy = (char *) name;
     }
 
-  return symbol_find_exact_noref (name, noref);
+  result = symbol_find_exact_noref (name, noref);
+  if (copy != NULL)
+    free (copy);
+  return result;
 }
 
 /* Once upon a time, symbols were kept in a singly linked list.  At
@@ -972,7 +978,7 @@ use_complex_relocs_for (symbolS * symp)
 static void
 report_op_error (symbolS *symp, symbolS *left, operatorT op, symbolS *right)
 {
-  char *file;
+  const char *file;
   unsigned int line;
   segT seg_left = left ? S_GET_SEGMENT (left) : 0;
   segT seg_right = S_GET_SEGMENT (right);
@@ -1256,7 +1262,10 @@ resolve_symbol_value (symbolS *symp)
 
 	  resolved = symbol_resolved_p (add_symbol);
 	  if (S_IS_WEAKREFR (symp))
-	    goto exit_dont_set_value;
+	    {
+	      symp->sy_flags.sy_resolving = 0;
+	      goto exit_dont_set_value;
+	    }
 	  break;
 
 	case O_uminus:
@@ -1379,7 +1388,7 @@ resolve_symbol_value (symbolS *symp)
 		 already issued a warning about using a bad symbol.  */
 	      if (seg_right == absolute_section && finalize_syms)
 		{
-		  char *file;
+		  const char *file;
 		  unsigned int line;
 
 		  if (expr_symbol_where (symp, &file, &line))
@@ -1420,7 +1429,16 @@ resolve_symbol_value (symbolS *symp)
 	    case O_gt:	left = left >  right ? ~ (offsetT) 0 : 0; break;
 	    case O_logical_and:	left = left && right; break;
 	    case O_logical_or:	left = left || right; break;
-	    default:		abort ();
+
+	    case O_illegal:
+	    case O_absent:
+	    case O_constant:
+	      /* See PR 20895 for a reproducer.  */
+	      as_bad (_("Invalid operation on symbol"));
+	      goto exit_dont_set_value;
+	      
+	    default:
+	      abort ();
 	    }
 
 	  final_val += symp->sy_frag->fr_address + left;
@@ -1532,7 +1550,7 @@ snapshot_symbol (symbolS **symbolPP, valueT *valueP, segT *segP, fragS **fragPP)
 	    case O_register:
 	      if (!symbol_equated_p (symbolP))
 		break;
-	      /* Fall thru.  */
+	      /* Fallthru.  */
 	    case O_symbol:
 	    case O_symbol_rva:
 	      symbolP = exp.X_add_symbol;
@@ -1628,20 +1646,20 @@ define_dollar_label (long label)
 
   if (dollar_labels == NULL)
     {
-      dollar_labels = (long *) xmalloc (DOLLAR_LABEL_BUMP_BY * sizeof (long));
-      dollar_label_instances = (long *) xmalloc (DOLLAR_LABEL_BUMP_BY * sizeof (long));
-      dollar_label_defines = (char *) xmalloc (DOLLAR_LABEL_BUMP_BY);
+      dollar_labels = XNEWVEC (long, DOLLAR_LABEL_BUMP_BY);
+      dollar_label_instances = XNEWVEC (long, DOLLAR_LABEL_BUMP_BY);
+      dollar_label_defines = XNEWVEC (char, DOLLAR_LABEL_BUMP_BY);
       dollar_label_max = DOLLAR_LABEL_BUMP_BY;
       dollar_label_count = 0;
     }
   else if (dollar_label_count == dollar_label_max)
     {
       dollar_label_max += DOLLAR_LABEL_BUMP_BY;
-      dollar_labels = (long *) xrealloc ((char *) dollar_labels,
-					 dollar_label_max * sizeof (long));
-      dollar_label_instances = (long *) xrealloc ((char *) dollar_label_instances,
-					  dollar_label_max * sizeof (long));
-      dollar_label_defines = (char *) xrealloc (dollar_label_defines, dollar_label_max);
+      dollar_labels = XRESIZEVEC (long, dollar_labels, dollar_label_max);
+      dollar_label_instances = XRESIZEVEC (long, dollar_label_instances,
+					  dollar_label_max);
+      dollar_label_defines = XRESIZEVEC (char, dollar_label_defines,
+					 dollar_label_max);
     }				/* if we needed to grow  */
 
   dollar_labels[dollar_label_count] = label;
@@ -1652,7 +1670,7 @@ define_dollar_label (long label)
 
 /* Caller must copy returned name: we re-use the area for the next name.
 
-   The mth occurence of label n: is turned into the symbol "Ln^Am"
+   The mth occurrence of label n: is turned into the symbol "Ln^Am"
    where n is the label number and m is the instance number. "L" makes
    it a label discarded unless debugging and "^A"('\1') ensures no
    ordinary symbol SHOULD get the same name as a local label
@@ -1662,14 +1680,14 @@ define_dollar_label (long label)
    of ^A.  */
 
 char *				/* Return local label name.  */
-dollar_label_name (register long n,	/* we just saw "n$:" : n a number.  */
-		   register int augend	/* 0 for current instance, 1 for new instance.  */)
+dollar_label_name (long n,	/* we just saw "n$:" : n a number.  */
+		   int augend	/* 0 for current instance, 1 for new instance.  */)
 {
   long i;
   /* Returned to caller, then copied.  Used for created names ("4f").  */
   static char symbol_name_build[24];
-  register char *p;
-  register char *q;
+  char *p;
+  char *q;
   char symbol_name_temporary[20];	/* Build up a number, BACKWARDS.  */
 
   know (n >= 0);
@@ -1770,8 +1788,8 @@ fb_label_instance_inc (long label)
 
   if (fb_labels == NULL)
     {
-      fb_labels = (long *) xmalloc (FB_LABEL_BUMP_BY * sizeof (long));
-      fb_label_instances = (long *) xmalloc (FB_LABEL_BUMP_BY * sizeof (long));
+      fb_labels = XNEWVEC (long, FB_LABEL_BUMP_BY);
+      fb_label_instances = XNEWVEC (long, FB_LABEL_BUMP_BY);
       fb_label_max = FB_LABEL_BUMP_BY;
       fb_label_count = FB_LABEL_SPECIAL;
 
@@ -1779,10 +1797,8 @@ fb_label_instance_inc (long label)
   else if (fb_label_count == fb_label_max)
     {
       fb_label_max += FB_LABEL_BUMP_BY;
-      fb_labels = (long *) xrealloc ((char *) fb_labels,
-				     fb_label_max * sizeof (long));
-      fb_label_instances = (long *) xrealloc ((char *) fb_label_instances,
-					      fb_label_max * sizeof (long));
+      fb_labels = XRESIZEVEC (long, fb_labels, fb_label_max);
+      fb_label_instances = XRESIZEVEC (long, fb_label_instances, fb_label_max);
     }				/* if we needed to grow  */
 
   fb_labels[fb_label_count] = label;
@@ -1819,7 +1835,7 @@ fb_label_instance (long label)
 
 /* Caller must copy returned name: we re-use the area for the next name.
 
-   The mth occurence of label n: is turned into the symbol "Ln^Bm"
+   The mth occurrence of label n: is turned into the symbol "Ln^Bm"
    where n is the label number and m is the instance number. "L" makes
    it a label discarded unless debugging and "^B"('\2') ensures no
    ordinary symbol SHOULD get the same name as a local label
@@ -1835,8 +1851,8 @@ fb_label_name (long n,	/* We just saw "n:", "nf" or "nb" : n a number.  */
   long i;
   /* Returned to caller, then copied.  Used for created names ("4f").  */
   static char symbol_name_build[24];
-  register char *p;
-  register char *q;
+  char *p;
+  char *q;
   char symbol_name_temporary[20];	/* Build up a number, BACKWARDS.  */
 
   know (n >= 0);
@@ -1888,7 +1904,7 @@ decode_local_label_name (char *s)
   char *symbol_decode;
   int label_number;
   int instance_number;
-  char *type;
+  const char *type;
   const char *message_format;
   int lindex = 0;
 
@@ -2222,13 +2238,8 @@ S_SET_EXTERNAL (symbolS *s)
     }
   if (s->bsym->flags & BSF_SECTION_SYM)
     {
-      char * file;
-      unsigned int line;
-
       /* Do not reassign section symbols.  */
-      as_where (& file, & line);
-      as_warn_where (file, line,
-		     _("section symbols are already global"));
+      as_warn (_("section symbols are already global"));
       return;
     }
 #ifndef TC_GLOBAL_REGISTER_SYMBOL_OK
@@ -3074,11 +3085,11 @@ symbol_relc_make_sym (symbolS * sym)
   sname_len = strlen (sname);
   typetag = symbol_section_p (sym) ? 'S' : 's';
 
-  terminal = xmalloc (1 /* S or s */
-		      + 8 /* sname_len in decimal */
-		      + 1 /* _ spacer */
-		      + sname_len /* name itself */
-		      + 1 /* \0 */ );
+  terminal = XNEWVEC (char, (1 /* S or s */
+			     + 8 /* sname_len in decimal */
+			     + 1 /* _ spacer */
+			     + sname_len /* name itself */
+			     + 1 /* \0 */ ));
 
   sprintf (terminal, "%c%d:%s", typetag, sname_len, sname);
   return terminal;
@@ -3092,7 +3103,7 @@ symbol_relc_make_sym (symbolS * sym)
 char *
 symbol_relc_make_value (offsetT val)
 {
-  char * terminal = xmalloc (28);  /* Enough for long long.  */
+  char * terminal = XNEWVEC (char, 28);  /* Enough for long long.  */
 
   terminal[0] = '#';
   bfd_sprintf_vma (stdoutput, terminal + 1, val);
@@ -3108,7 +3119,7 @@ symbol_relc_make_value (offsetT val)
 char *
 symbol_relc_make_expr (expressionS * exp)
 {
-  char * opstr = NULL; /* Operator prefix string.  */
+  const char * opstr = NULL; /* Operator prefix string.  */
   int    arity = 0;    /* Arity of this operator.  */
   char * operands[3];  /* Up to three operands.  */
   char * concat_string = NULL;
@@ -3219,25 +3230,16 @@ symbol_relc_make_expr (expressionS * exp)
 
   if (opstr == NULL)
     concat_string = NULL;
+  else if (arity == 0)
+    concat_string = xstrdup (opstr);
+  else if (arity == 1)
+    concat_string = concat (opstr, ":", operands[0], (char *) NULL);
+  else if (arity == 2)
+    concat_string = concat (opstr, ":", operands[0], ":", operands[1],
+			    (char *) NULL);
   else
-    {
-      /* Allocate new string; include inter-operand padding gaps etc.  */
-      concat_string = xmalloc (strlen (opstr)
-			       + 1
-			       + (arity >= 1 ? (strlen (operands[0]) + 1 ) : 0)
-			       + (arity >= 2 ? (strlen (operands[1]) + 1 ) : 0)
-			       + (arity >= 3 ? (strlen (operands[2]) + 0 ) : 0)
-			       + 1);
-      gas_assert (concat_string != NULL);
-
-      /* Format the thing.  */
-      sprintf (concat_string,
-	       (arity == 0 ? "%s" :
-		arity == 1 ? "%s:%s" :
-		arity == 2 ? "%s:%s:%s" :
-		/* arity == 3 */ "%s:%s:%s:%s"),
-	       opstr, operands[0], operands[1], operands[2]);
-    }
+    concat_string = concat (opstr, ":", operands[0], ":", operands[1], ":",
+			    operands[2], (char *) NULL);
 
   /* Free operand strings (not opstr).  */
   if (arity >= 1) xfree (operands[0]);

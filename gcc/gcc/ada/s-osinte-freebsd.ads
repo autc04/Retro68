@@ -7,7 +7,7 @@
 --                                   S p e c                                --
 --                                                                          --
 --             Copyright (C) 1991-1994, Florida State University            --
---          Copyright (C) 1995-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1995-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,7 +31,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This is the FreeBSD PTHREADS version of this package
+--  This is the FreeBSD (POSIX Threads) version of this package
 
 --  This package encapsulates all direct interfaces to OS services
 --  that are needed by the tasking run-time (libgnarl).
@@ -197,7 +197,7 @@ package System.OS_Interface is
 
    type timespec is private;
 
-   function nanosleep (rqtp, rmtp : access timespec)  return int;
+   function nanosleep (rqtp, rmtp : access timespec) return int;
    pragma Import (C, nanosleep, "nanosleep");
 
    type clockid_t is new int;
@@ -322,18 +322,14 @@ package System.OS_Interface is
    --  No alternate signal stack is used on this platform
 
    Stack_Base_Available : constant Boolean := False;
-   --  Indicates whether the stack base is available on this target. This
-   --  allows us to share s-osinte.adb between all the FSU run time. Note that
-   --  this value can only be true if pthread_t has a complete definition that
-   --  corresponds exactly to the C header files.
+   --  Indicates whether the stack base is available on this target
 
    function Get_Stack_Base (thread : pthread_t) return Address;
    pragma Inline (Get_Stack_Base);
    --  returns the stack base of the specified thread. Only call this function
    --  when Stack_Base_Available is True.
 
-   function Get_Page_Size return size_t;
-   function Get_Page_Size return Address;
+   function Get_Page_Size return int;
    pragma Import (C, Get_Page_Size, "getpagesize");
    --  Returns the size of a page
 

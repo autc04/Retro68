@@ -1,5 +1,5 @@
 /* Implementation of the SHAPE intrinsic
-   Copyright (C) 2002-2015 Free Software Foundation, Inc.
+   Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -31,12 +31,12 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #if defined (HAVE_GFC_INTEGER_16)
 
 extern void shape_16 (gfc_array_i16 * const restrict ret, 
-	const gfc_array_i16 * const restrict array);
+	const array_t * const restrict array);
 export_proto(shape_16);
 
 void
 shape_16 (gfc_array_i16 * const restrict ret, 
-	const gfc_array_i16 * const restrict array)
+	const array_t * const restrict array)
 {
   int n;
   index_type stride;

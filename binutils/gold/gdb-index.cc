@@ -1,6 +1,6 @@
 // gdb-index.cc -- generate .gdb_index section for fast debug lookup
 
-// Copyright (C) 2012-2014 Free Software Foundation, Inc.
+// Copyright (C) 2012-2017 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.
@@ -371,7 +371,9 @@ Gdb_index_info_reader::visit_top_die(Dwarf_die* die)
 		|| this->cu_language_ == elfcpp::DW_LANG_Fortran90
 		|| this->cu_language_ == elfcpp::DW_LANG_Java
 		|| this->cu_language_ == elfcpp::DW_LANG_Ada95
-		|| this->cu_language_ == elfcpp::DW_LANG_Fortran95)
+		|| this->cu_language_ == elfcpp::DW_LANG_Fortran95
+		|| this->cu_language_ == elfcpp::DW_LANG_Fortran03
+		|| this->cu_language_ == elfcpp::DW_LANG_Fortran08)
 	      {
 		gold_warning(_("%s: --gdb-index currently supports "
 			       "only C and C++ languages"),

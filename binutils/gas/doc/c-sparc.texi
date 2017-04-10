@@ -1,4 +1,4 @@
-@c Copyright (C) 1991-2014 Free Software Foundation, Inc.
+@c Copyright (C) 1991-2017 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -71,10 +71,10 @@ is explicitly requested.  SPARC v9 is always incompatible with sparclite.
 @kindex -Asparcvis3
 @kindex -Asparcvis3r
 @item -Av6 | -Av7 | -Av8 | -Aleon | -Asparclet | -Asparclite
-@itemx -Av8plus | -Av8plusa | -Av8plusb | -Av8plusc | -Av8plusd | -Av8plusv
+@itemx -Av8plus | -Av8plusa | -Av8plusb | -Av8plusc | -Av8plusd | -Av8plusv | -Av8plusm
 @itemx -Av9 | -Av9a | -Av9b | -Av9c | -Av9d | -Av9e | -Av9v | -Av9m
 @itemx -Asparc | -Asparcvis | -Asparcvis2 | -Asparcfmaf | -Asparcima
-@itemx -Asparcvis3 | -Asparcvis3r
+@itemx -Asparcvis3 | -Asparcvis3r | -Asparc5
 Use one of the @samp{-A} options to select one of the SPARC
 architectures explicitly.  If you select an architecture explicitly,
 @code{@value{AS}} reports a fatal error if it encounters an instruction
@@ -137,14 +137,14 @@ and floating point unfused multiply-add instructions enabled.
 @samp{-Asparc5} is equivalent to @samp{-Av9m}.
 
 @item -xarch=v8plus | -xarch=v8plusa | -xarch=v8plusb | -xarch=v8plusc
-@itemx -xarch=v8plusd | -xarch=v8plusv | -xarch=v9 | -xarch=v9a
+@itemx -xarch=v8plusd | -xarch=v8plusv | -xarch=v8plusm | -xarch=v9 | -xarch=v9a
 @itemx -xarch=v9b | -xarch=v9c | -xarch=v9d | -xarch=v9e | -xarch=v9v | -xarch=v9m
 @itemx -xarch=sparc | -xarch=sparcvis | -xarch=sparcvis2
 @itemx -xarch=sparcfmaf | -xarch=sparcima | -xarch=sparcvis3
 @itemx -xarch=sparcvis3r | -xarch=sparc5
 For compatibility with the SunOS v9 assembler.  These options are
 equivalent to -Av8plus, -Av8plusa, -Av8plusb, -Av8plusc, -Av8plusd,
--Av8plusv, -Av9, -Av9a, -Av9b, -Av9c, -Av9d, -Av9e, -Av9v, -Av9m,
+-Av8plusv, -Av8plusm, -Av9, -Av9a, -Av9b, -Av9c, -Av9d, -Av9e, -Av9v, -Av9m,
 -Asparc, -Asparcvis, -Asparcvis2, -Asparcfmaf, -Asparcima,
 -Asparcvis3, and -Asparcvis3r, respectively.
 
@@ -158,6 +158,12 @@ as required (except between incompatible levels).
 Select the word size, either 32 bits or 64 bits.
 These options are only available with the ELF object file format,
 and require that the necessary BFD support has been included.
+
+@item --dcti-couples-detect
+Warn if a DCTI (delayed control transfer instruction) couple is found
+when generating code for a variant of the SPARC architecture in which
+the execution of the couple is unpredictable, or very slow.  This is
+disabled by default.
 @end table
 
 @node Sparc-Aligned-Data
@@ -253,6 +259,14 @@ can only be accessed as double or quad, and thus only even
 or quad numbered accesses are allowed.  For example, @samp{%f34}
 is a legal floating point register, but @samp{%f35} is not.
 
+Floating point registers accessed as double can also be referred using
+the @samp{%d@var{n}} notation, where @var{n} is even.  Similarly,
+floating point registers accessed as quad can be referred using the
+@samp{%q@var{n}} notation, where @var{n} is a multiple of 4.  For
+example, @samp{%f4} can be denoted as both @samp{%d4} and @samp{%q4}.
+On the other hand, @samp{%f2} can be denoted as @samp{%d2} but not as
+@samp{%q2}.
+
 Certain V9 instructions allow access to ancillary state registers.
 Most simply they can be referred to as @samp{%asr@var{n}} where
 @var{n} can be from 16 to 31.  However, there are some aliases
@@ -302,6 +316,10 @@ The V9 dispatch control register is referred to as @samp{%dcr}.
 Various V9 branch and conditional move instructions allow
 specification of which set of integer condition codes to
 test.  These are referred to as @samp{%xcc} and @samp{%icc}.
+
+Additionally, GAS supports the so-called ``natural'' condition codes;
+these are referred to as @samp{%ncc} and reference to @samp{%icc} if
+the word size is 32, @samp{%xcc} if the word size is 64.
 
 In V9, there are 4 sets of floating point condition codes
 which are referred to as @samp{%fcc@var{n}}.

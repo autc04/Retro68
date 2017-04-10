@@ -1,6 +1,6 @@
 // class template regex -*- C++ -*-
 
-// Copyright (C) 2010-2015 Free Software Foundation, Inc.
+// Copyright (C) 2010-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -116,8 +116,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	void
 	_M_insert_bracket_matcher(bool __neg);
 
+      // Returns true if successfully matched one term and should continue.
+      // Returns false if the compiler should move on.
       template<bool __icase, bool __collate>
-	void
+	bool
 	_M_expression_term(pair<bool, _CharT>& __last_char,
 			   _BracketMatcher<_TraitsT, __icase, __collate>&
 			   __matcher);
@@ -368,9 +370,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 		      const _TraitsT& __traits)
       : _M_class_set(0), _M_translator(__traits), _M_traits(__traits),
       _M_is_non_matching(__is_non_matching)
-#ifdef _GLIBCXX_DEBUG
-      , _M_is_ready(false)
-#endif
       { }
 
       bool
@@ -384,22 +383,20 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _M_add_char(_CharT __c)
       {
 	_M_char_set.push_back(_M_translator._M_translate(__c));
-#ifdef _GLIBCXX_DEBUG
-	_M_is_ready = false;
-#endif
+	_GLIBCXX_DEBUG_ONLY(_M_is_ready = false);
       }
 
-      void
-      _M_add_collating_element(const _StringT& __s)
+      _StringT
+      _M_add_collate_element(const _StringT& __s)
       {
 	auto __st = _M_traits.lookup_collatename(__s.data(),
 						 __s.data() + __s.size());
 	if (__st.empty())
-	  __throw_regex_error(regex_constants::error_collate);
+	  __throw_regex_error(regex_constants::error_collate,
+			      "Invalid collate element.");
 	_M_char_set.push_back(_M_translator._M_translate(__st[0]));
-#ifdef _GLIBCXX_DEBUG
-	_M_is_ready = false;
-#endif
+	_GLIBCXX_DEBUG_ONLY(_M_is_ready = false);
+	return __st;
       }
 
       void
@@ -408,13 +405,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	auto __st = _M_traits.lookup_collatename(__s.data(),
 						 __s.data() + __s.size());
 	if (__st.empty())
-	  __throw_regex_error(regex_constants::error_collate);
+	  __throw_regex_error(regex_constants::error_collate,
+			      "Invalid equivalence class.");
 	__st = _M_traits.transform_primary(__st.data(),
 					   __st.data() + __st.size());
 	_M_equiv_set.push_back(__st);
-#ifdef _GLIBCXX_DEBUG
-	_M_is_ready = false;
-#endif
+	_GLIBCXX_DEBUG_ONLY(_M_is_ready = false);
       }
 
       // __neg should be true for \D, \S and \W only.
@@ -425,26 +421,24 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 						 __s.data() + __s.size(),
 						 __icase);
 	if (__mask == 0)
-	  __throw_regex_error(regex_constants::error_ctype);
+	  __throw_regex_error(regex_constants::error_collate,
+			      "Invalid character class.");
 	if (!__neg)
 	  _M_class_set |= __mask;
 	else
 	  _M_neg_class_set.push_back(__mask);
-#ifdef _GLIBCXX_DEBUG
-	_M_is_ready = false;
-#endif
+	_GLIBCXX_DEBUG_ONLY(_M_is_ready = false);
       }
 
       void
       _M_make_range(_CharT __l, _CharT __r)
       {
 	if (__l > __r)
-	  __throw_regex_error(regex_constants::error_range);
+	  __throw_regex_error(regex_constants::error_range,
+			      "Invalid range in bracket expression.");
 	_M_range_set.push_back(make_pair(_M_translator._M_transform(__l),
 					 _M_translator._M_transform(__r)));
-#ifdef _GLIBCXX_DEBUG
-	_M_is_ready = false;
-#endif
+	_GLIBCXX_DEBUG_ONLY(_M_is_ready = false);
       }
 
       void
@@ -454,9 +448,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	auto __end = std::unique(_M_char_set.begin(), _M_char_set.end());
 	_M_char_set.erase(__end, _M_char_set.end());
 	_M_make_cache(_UseCache());
-#ifdef _GLIBCXX_DEBUG
-	_M_is_ready = true;
-#endif
+	_GLIBCXX_DEBUG_ONLY(_M_is_ready = true);
       }
 
     private:
@@ -504,7 +496,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       bool                                      _M_is_non_matching;
       _CacheT					_M_cache;
 #ifdef _GLIBCXX_DEBUG
-      bool                                      _M_is_ready;
+      bool                                      _M_is_ready = false;
 #endif
     };
 

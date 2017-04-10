@@ -1,5 +1,5 @@
 /* Declarations for Intel 80386 opcode table
-   Copyright (C) 2007-2014 Free Software Foundation, Inc.
+   Copyright (C) 2007-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -112,6 +112,8 @@ enum
   CpuL1OM,
   /* Intel K1OM support required */
   CpuK1OM,
+  /* Intel IAMCU support required */
+  CpuIAMCU,
   /* Xsave/xrstor New Instructions support required */
   CpuXsave,
   /* Xsaveopt New Instructions support required */
@@ -186,12 +188,36 @@ enum
   CpuSE1,
   /* CLWB instruction required */
   CpuCLWB,
-  /* PCOMMIT instruction required */
-  CpuPCOMMIT,
   /* Intel AVX-512 IFMA Instructions support required.  */
   CpuAVX512IFMA,
   /* Intel AVX-512 VBMI Instructions support required.  */
   CpuAVX512VBMI,
+  /* Intel AVX-512 4FMAPS Instructions support required.  */
+  CpuAVX512_4FMAPS,
+  /* Intel AVX-512 4VNNIW Instructions support required.  */
+  CpuAVX512_4VNNIW,
+  /* Intel AVX-512 VPOPCNTDQ Instructions support required.  */
+  CpuAVX512_VPOPCNTDQ,
+  /* mwaitx instruction required */
+  CpuMWAITX,
+  /* Clzero instruction required */
+  CpuCLZERO,
+  /* OSPKE instruction required */
+  CpuOSPKE,
+  /* RDPID instruction required */
+  CpuRDPID,
+  /* PTWRITE instruction required */
+  CpuPTWRITE,
+  /* MMX register support required */
+  CpuRegMMX,
+  /* XMM register support required */
+  CpuRegXMM,
+  /* YMM register support required */
+  CpuRegYMM,
+  /* ZMM register support required */
+  CpuRegZMM,
+  /* Mask register support required */
+  CpuRegMask,
   /* 64bit support required  */
   Cpu64,
   /* Not supported in the 64bit mode  */
@@ -255,6 +281,7 @@ typedef union i386_cpu_flags
       unsigned int cpuavx512bw:1;
       unsigned int cpul1om:1;
       unsigned int cpuk1om:1;
+      unsigned int cpuiamcu:1;
       unsigned int cpuxsave:1;
       unsigned int cpuxsaveopt:1;
       unsigned int cpuaes:1;
@@ -292,9 +319,21 @@ typedef union i386_cpu_flags
       unsigned int cpuprefetchwt1:1;
       unsigned int cpuse1:1;
       unsigned int cpuclwb:1;
-      unsigned int cpupcommit:1;
       unsigned int cpuavx512ifma:1;
       unsigned int cpuavx512vbmi:1;
+      unsigned int cpuavx512_4fmaps:1;
+      unsigned int cpuavx512_4vnniw:1;
+      unsigned int cpuavx512_vpopcntdq:1;
+      unsigned int cpumwaitx:1;
+      unsigned int cpuclzero:1;
+      unsigned int cpuospke:1;
+      unsigned int cpurdpid:1;
+      unsigned int cpuptwrite:1;
+      unsigned int cpuregmmx:1;
+      unsigned int cpuregxmm:1;
+      unsigned int cpuregymm:1;
+      unsigned int cpuregzmm:1;
+      unsigned int cpuregmask:1;
       unsigned int cpu64:1;
       unsigned int cpuno64:1;
 #ifdef CpuUnused
@@ -529,6 +568,11 @@ enum
   /* Default mask isn't allowed.  */
   NoDefMask,
 
+  /* The second operand must be a vector register, {x,y,z}mmN, where N is a multiple of 4.
+     It implicitly denotes the register group of {x,y,z}mmN - {x,y,z}mm(N + 3).
+   */
+  ImplicitQuadGroup,
+
   /* Compatible with old (<= 2.8.1) versions of gcc  */
   OldGcc,
   /* AT&T mnemonic.  */
@@ -537,6 +581,10 @@ enum
   ATTSyntax,
   /* Intel syntax.  */
   IntelSyntax,
+  /* AMD64.  */
+  AMD64,
+  /* Intel64.  */
+  Intel64,
   /* The last bitfield in i386_opcode_modifier.  */
   Opcode_Modifier_Max
 };
@@ -601,10 +649,13 @@ typedef struct i386_opcode_modifier
   unsigned int sae:1;
   unsigned int disp8memshift:3;
   unsigned int nodefmask:1;
+  unsigned int implicitquadgroup:1;
   unsigned int oldgcc:1;
   unsigned int attmnemonic:1;
   unsigned int attsyntax:1;
   unsigned int intelsyntax:1;
+  unsigned int amd64:1;
+  unsigned int intel64:1;
 } i386_opcode_modifier;
 
 /* Position of operand_type bits.  */

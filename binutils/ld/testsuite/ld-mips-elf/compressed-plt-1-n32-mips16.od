@@ -10,7 +10,7 @@ Disassembly of section \.plt:
 .*:	8dd90000 	lw	\$25,0\(\$14\)
 .*:	25ce0000 	addiu	\$14,\$14,0
 .*:	030ec023 	subu	\$24,\$24,\$14
-.*:	03e07821 	move	\$15,\$31
+.*:	03e07825 	move	\$15,\$31
 .*:	0018c082 	srl	\$24,\$24,0x2
 .*:	0320f809 	jalr	\$25
 .*:	2718fffe 	addiu	\$24,\$24,-2
@@ -188,17 +188,17 @@ Disassembly of section \.MIPS\.stubs:
 10101000 <_MIPS_STUBS_>:
 # Lazy-binding stub for f_iu.
 .*:	8f998010 	lw	\$25,-32752\(\$28\)
-.*:	03e07821 	move	\$15,\$31
+.*:	03e07825 	move	\$15,\$31
 .*:	0320f809 	jalr	\$25
 .*:	24180021 	li	\$24,33
 # Lazy-binding stub for f_ic.
 .*:	8f998010 	lw	\$25,-32752\(\$28\)
-.*:	03e07821 	move	\$15,\$31
+.*:	03e07825 	move	\$15,\$31
 .*:	0320f809 	jalr	\$25
 .*:	24180020 	li	\$24,32
 # Lazy-binding stub for f_iu_ic.
 .*:	8f998010 	lw	\$25,-32752\(\$28\)
-.*:	03e07821 	move	\$15,\$31
+.*:	03e07825 	move	\$15,\$31
 .*:	0320f809 	jalr	\$25
 .*:	2418001f 	li	\$24,31
 	\.\.\.

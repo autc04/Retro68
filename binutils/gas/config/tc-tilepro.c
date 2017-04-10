@@ -1,5 +1,5 @@
 /* tc-tilepro.c -- Assemble for a TILEPro chip.
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -72,7 +72,7 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 int
-md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
+md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -352,7 +352,7 @@ static tilepro_bundle_bits
 insert_operand (tilepro_bundle_bits bits,
                 const struct tilepro_operand *operand,
                 int operand_value,
-                char *file,
+                const char *file,
                 unsigned lineno)
 {
   /* Range-check the immediate.  */
@@ -980,8 +980,8 @@ parse_reg_expression (expressionS* expression)
   /* Zero everything to make sure we don't miss any flags.  */
   memset (expression, 0, sizeof *expression);
 
-  char* regname = input_line_pointer;
-  char terminating_char = get_symbol_end ();
+  char *regname;
+  char terminating_char = get_symbol_name (&regname);
 
   void* pval = hash_find (main_reg_hash, regname);
 
@@ -998,7 +998,7 @@ parse_reg_expression (expressionS* expression)
 	       regname, tilepro_register_names[regno]);
 
   /* Restore the old character following the register name.  */
-  *input_line_pointer = terminating_char;
+  (void) restore_line_pointer (terminating_char);
 
   /* Fill in the expression fields to indicate it's a register.  */
   expression->X_op = O_register;
@@ -1205,7 +1205,7 @@ const pseudo_typeS md_pseudo_table[] =
    LITTLENUMS emitted is stored in *SIZEP.  An error message is
    returned, or NULL on OK.  */
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   int prec;
@@ -1515,8 +1515,8 @@ tc_gen_reloc (asection *sec ATTRIBUTE_UNUSED, fixS *fixp)
 {
   arelent *reloc;
 
-  reloc = (arelent *) xmalloc (sizeof (arelent));
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  reloc = XNEW (arelent);
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
 

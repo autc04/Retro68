@@ -7,9 +7,9 @@ Section Headers:
  +\[ 2\] \.text +PROGBITS +00001004 000084 0000d8 00 AXp +0 +0 +4
  +\[ 3\] \.stack +PROGBITS +00080000 000180 000004 00 +WA +0 +0 +1
  +\[ 4\] \.cranges +LOUSER\+1 +00000000 000184 00003c 00 +W +0 +0 +1
- +\[ 5\] \.shstrtab +STRTAB +.*
- +\[ 6\] \.symtab +SYMTAB +.*
- +\[ 7\] \.strtab +STRTAB +.*
+ +\[ 5\] \.symtab +SYMTAB +.*
+ +\[ 6\] \.strtab +STRTAB +.*
+ +\[ 7\] \.shstrtab +STRTAB +.*
 Key to Flags:
 #...
 

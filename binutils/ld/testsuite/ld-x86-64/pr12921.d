@@ -11,11 +11,8 @@ Section Headers:
  +\[ 1\] .text +PROGBITS +[0-9a-f]+ +[0-9a-f]+ +0+1 00 +AX +0 +0 +4096
  +\[ 2\] .data +PROGBITS +[0-9a-f]+ +[0-9a-f]+000 +0+28 +00 +WA +0 +0 +4096
  +\[ 3\] .bss +NOBITS +[0-9a-f]+ +[0-9a-f]+028 +0+10000 +00 +WA +0 +0 +4096
- +\[ 4\] .shstrtab +STRTAB +0+ +[0-9a-f]+ +0+2c +00 +0 +0 +1
- +\[ 5\] .symtab +SYMTAB +0+ +[0-9a-f]+ +[0-9a-f]+ +18 +6 +[0-9] +8
- +\[ 6\] .strtab +STRTAB +0+ +[0-9a-f]+ +[0-9a-f]+ +00 +0 +0 +1
+ +\[ 4\] .symtab +SYMTAB +0+ +[0-9a-f]+ +[0-9a-f]+ +18 +5 +[0-9] +8
+ +\[ 5\] .strtab +STRTAB +0+ +[0-9a-f]+ +[0-9a-f]+ +00 +0 +0 +1
+ +\[ 6\] .shstrtab +STRTAB +0+ +[0-9a-f]+ +0+2c +00 +0 +0 +1
 Key to Flags:
-  W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\), l \(large\)
-  I \(info\), L \(link order\), G \(group\), T \(TLS\), E \(exclude\), x \(unknown\)
-  O \(extra OS processing required\) o \(OS specific\), p \(processor specific\)
 #pass

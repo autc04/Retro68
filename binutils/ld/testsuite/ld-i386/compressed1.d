@@ -4,6 +4,7 @@
 #warning: .*/compressed1.c:13: undefined reference to .bar.
 #nm: -n
 
+#failif
 #...
 [ \t]+U bar
-#pass
+#...

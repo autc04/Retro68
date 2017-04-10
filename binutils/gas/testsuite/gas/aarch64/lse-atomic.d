@@ -5,7 +5,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	88a07c41 	cas	w0, w1, \[x2\]
    4:	88a27fe3 	cas	w2, w3, \[sp\]
    8:	88e07c41 	casa	w0, w1, \[x2\]

@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "ta_IN" }
+// { dg-require-namedlocale "ta_IN.UTF-8" }
 
 // 2004-08-25  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2004-2015 Free Software Foundation, Inc.
+// Copyright (C) 2004-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -38,7 +38,7 @@ void test01()
 
   // basic construction
   locale loc_c = locale::classic();
-  locale loc_in = locale("ta_IN");
+  locale loc_in = locale("ta_IN.UTF-8");
   VERIFY( loc_in != loc_c );
 
   // create an ostream-derived object, cache the time_put facet
@@ -51,7 +51,7 @@ void test01()
   string result1 = oss.str();
 
   char time_buffer[128];
-  setlocale(LC_ALL, "ta_IN");
+  setlocale(LC_ALL, "ta_IN.UTF-8");
   VERIFY( strftime(time_buffer, 128, "%c", &time1) );
   
   VERIFY( result1 == time_buffer );

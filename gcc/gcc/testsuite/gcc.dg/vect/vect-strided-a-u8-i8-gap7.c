@@ -25,7 +25,7 @@ main1 ()
   s arr[N];
   s *ptr = arr;
   s res[N];
-  unsigned char u, t, s, x, y, z, w;
+  unsigned char u, t, s, x, z, w;
 
   for (i = 0; i < N; i++)
     {
@@ -84,5 +84,4 @@ int main (void)
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target vect_strided8 } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
   

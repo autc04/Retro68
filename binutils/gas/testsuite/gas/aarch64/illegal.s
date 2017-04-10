@@ -1,7 +1,7 @@
 /* illegal.s Test file for AArch64 instructions that should be rejected
    by the assembler.
 
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 
@@ -32,8 +32,8 @@
 	saddlv	q7, v31.2d
 	smaxv	s7, v31.2s
 	sminv	d7, v31.2d
-	fmaxv	h7, v31.8h
-	fmaxv	h7, v31.4h
+	fmaxv	h7, v31.2h
+	fmaxv	s7, v31.4h
 	fminv	d7, v31.2d
 
 	abs b0, b31
@@ -161,7 +161,7 @@
 	sshr	v0.4h, v1.4h, #20
 
 	shl	v0.4s, v1.4s, #32
-	fcvtzs	v0.4h, v1.4h, #2
+	fcvtzs	v0.2h, v1.2h, #2
 	uqshrn	v0.2s, v1.2d, 33
 	uqrshrn	v0.2s, v1.2s, 32
 	sshll	v8.8h, v2.8b, #8
@@ -567,3 +567,21 @@ one_label:
 	mrs	x7, S1_1_C16_C6_6
 	mrs	x8, S2_2_C15_C16_7
 	mrs	x9, S3_3_C14_C15_8
+
+	fmov	s0, #-0.0
+	fmov	s0, #0x40000000 // OK
+	fmov	s0, #0x80000000
+	fmov	s0, #0xc0000000 // OK
+	fmov	d0, #-0.0
+	fmov	d0, #0x4000000000000000 // OK
+	fmov	d0, #0x8000000000000000
+	fmov	d0, #0xc000000000000000 // OK
+
+	fcmgt	v0.4s, v0.4s, #0.0 // OK
+	fcmgt	v0.4s, v0.4s, #0 // OK
+	fcmgt	v0.4s, v0.4s, #-0.0
+	fcmgt	v0.2d, v0.2d, #0.0 // OK
+	fcmgt	v0.2d, v0.2d, #0 // OK
+	fcmgt	v0.2d, v0.2d, #-0.0
+
+	// End (for errors during literal pool generation)

@@ -1,6 +1,6 @@
 // arm.cc -- arm target support for gold.
 
-// Copyright (C) 2009-2014 Free Software Foundation, Inc.
+// Copyright (C) 2009-2017 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com> based on the i386 code
 // by Ian Lance Taylor <iant@google.com>.
 // This file also contains borrowed and adapted code from
@@ -62,7 +62,10 @@ template<bool big_endian>
 class Output_data_plt_arm;
 
 template<bool big_endian>
-class Output_data_plt_arm_standard;
+class Output_data_plt_arm_short;
+
+template<bool big_endian>
+class Output_data_plt_arm_long;
 
 template<bool big_endian>
 class Stub_table;
@@ -594,7 +597,7 @@ class Reloc_stub : public Stub
 
     // Name of key.  This is mainly for debugging.
     std::string
-    name() const;
+    name() const ATTRIBUTE_UNUSED;
 
    private:
     // Stub type.
@@ -2037,9 +2040,9 @@ class Arm_output_data_got : public Output_data_got<32, big_endian>
 // bits.  The default handling of relocatable relocation cannot process these
 // relocations.  So we have to extend the default code.
 
-template<bool big_endian, int sh_type, typename Classify_reloc>
+template<bool big_endian, typename Classify_reloc>
 class Arm_scan_relocatable_relocs :
-  public Default_scan_relocatable_relocs<sh_type, Classify_reloc>
+  public Default_scan_relocatable_relocs<Classify_reloc>
 {
  public:
   // Return the strategy to use for a local symbol which is a section
@@ -2047,7 +2050,7 @@ class Arm_scan_relocatable_relocs :
   inline Relocatable_relocs::Reloc_strategy
   local_section_strategy(unsigned int r_type, Relobj*)
   {
-    if (sh_type == elfcpp::SHT_RELA)
+    if (Classify_reloc::sh_type == elfcpp::SHT_RELA)
       return Relocatable_relocs::RELOC_ADJUST_FOR_SECTION_RELA;
     else
       {
@@ -2119,13 +2122,16 @@ class Target_arm : public Sized_target<32, big_endian>
 
   Target_arm(const Target::Target_info* info = &arm_info)
     : Sized_target<32, big_endian>(info),
-      got_(NULL), plt_(NULL), got_plt_(NULL), rel_dyn_(NULL),
-      copy_relocs_(elfcpp::R_ARM_COPY),
+      got_(NULL), plt_(NULL), got_plt_(NULL), got_irelative_(NULL),
+      rel_dyn_(NULL), rel_irelative_(NULL), copy_relocs_(elfcpp::R_ARM_COPY),
       got_mod_index_offset_(-1U), tls_base_symbol_defined_(false),
       stub_tables_(), stub_factory_(Stub_factory::get_instance()),
       should_force_pic_veneer_(false),
       arm_input_section_map_(), attributes_section_data_(NULL),
-      fix_cortex_a8_(false), cortex_a8_relocs_info_()
+      fix_cortex_a8_(false), cortex_a8_relocs_info_(),
+      target1_reloc_(elfcpp::R_ARM_ABS32),
+      // This can be any reloc type but usually is R_ARM_GOT_PREL.
+      target2_reloc_(elfcpp::R_ARM_GOT_PREL)
   { }
 
   // Whether we force PCI branch veneers.
@@ -2258,6 +2264,18 @@ class Target_arm : public Sized_target<32, big_endian>
   uint64_t
   do_dynsym_value(const Symbol*) const;
 
+  // Return the plt address for globals. Since we have irelative plt entries,
+  // address calculation is not as straightforward as plt_address + plt_offset.
+  uint64_t
+  do_plt_address_for_global(const Symbol* gsym) const
+  { return this->plt_section()->address_for_global(gsym); }
+
+  // Return the plt address for locals. Since we have irelative plt entries,
+  // address calculation is not as straightforward as plt_address + plt_offset.
+  uint64_t
+  do_plt_address_for_local(const Relobj* relobj, unsigned int symndx) const
+  { return this->plt_section()->address_for_local(relobj, symndx); }
+
   // Relocate a section.
   void
   relocate_section(const Relocate_info<32, big_endian>*,
@@ -2286,6 +2304,21 @@ class Target_arm : public Sized_target<32, big_endian>
 			  const unsigned char* plocal_symbols,
 			  Relocatable_relocs*);
 
+  // Scan the relocs for --emit-relocs.
+  void
+  emit_relocs_scan(Symbol_table* symtab,
+		   Layout* layout,
+		   Sized_relobj_file<32, big_endian>* object,
+		   unsigned int data_shndx,
+		   unsigned int sh_type,
+		   const unsigned char* prelocs,
+		   size_t reloc_count,
+		   Output_section* output_section,
+		   bool needs_special_offset_handling,
+		   size_t local_symbol_count,
+		   const unsigned char* plocal_syms,
+		   Relocatable_relocs* rr);
+
   // Emit relocations for a section.
   void
   relocate_relocs(const Relocate_info<32, big_endian>*,
@@ -2295,7 +2328,6 @@ class Target_arm : public Sized_target<32, big_endian>
 		  Output_section* output_section,
 		  typename elfcpp::Elf_types<32>::Elf_Off
                     offset_in_output_section,
-		  const Relocatable_relocs*,
 		  unsigned char* view,
 		  Arm_address view_address,
 		  section_size_type view_size,
@@ -2357,9 +2389,13 @@ class Target_arm : public Sized_target<32, big_endian>
   unsigned int
   plt_entry_size() const;
 
+  // Get the section to use for IRELATIVE relocations, create it if necessary.
+  Reloc_section*
+  rel_irelative_section(Layout*);
+
   // Map platform-specific reloc types
-  static unsigned int
-  get_real_reloc_type(unsigned int r_type);
+  unsigned int
+  get_real_reloc_type(unsigned int r_type) const;
 
   //
   // Methods to support stub-generations.
@@ -2448,8 +2484,11 @@ class Target_arm : public Sized_target<32, big_endian>
  protected:
   // Make the PLT-generator object.
   Output_data_plt_arm<big_endian>*
-  make_data_plt(Layout* layout, Output_data_space* got_plt)
-  { return this->do_make_data_plt(layout, got_plt); }
+  make_data_plt(Layout* layout,
+		Arm_output_data_got<big_endian>* got,
+		Output_data_space* got_plt,
+		Output_data_space* got_irelative)
+  { return this->do_make_data_plt(layout, got, got_plt, got_irelative); }
 
   // Make an ELF object.
   Object*
@@ -2507,6 +2546,30 @@ class Target_arm : public Sized_target<32, big_endian>
     // as the default.
     gold_assert(arm_reloc_property_table == NULL);
     arm_reloc_property_table = new Arm_reloc_property_table();
+    if (parameters->options().user_set_target1_rel())
+      {
+	// FIXME: This is not strictly compatible with ld, which allows both
+	// --target1-abs and --target-rel to be given.
+	if (parameters->options().user_set_target1_abs())
+	  gold_error(_("Cannot use both --target1-abs and --target1-rel."));
+	else
+	  this->target1_reloc_ = elfcpp::R_ARM_REL32;
+      }
+    // We don't need to handle --target1-abs because target1_reloc_ is set
+    // to elfcpp::R_ARM_ABS32 in the member initializer list.
+
+    if (parameters->options().user_set_target2())
+      {
+	const char* target2 = parameters->options().target2();
+	if (strcmp(target2, "rel") == 0)
+	  this->target2_reloc_ = elfcpp::R_ARM_REL32;
+	else if (strcmp(target2, "abs") == 0)
+	  this->target2_reloc_ = elfcpp::R_ARM_ABS32;
+	else if (strcmp(target2, "got-rel") == 0)
+	  this->target2_reloc_ = elfcpp::R_ARM_GOT_PREL;
+	else
+	  gold_unreachable();
+      }
   }
 
   // Virtual function which is set to return true by a target if
@@ -2530,9 +2593,18 @@ class Target_arm : public Sized_target<32, big_endian>
   do_define_standard_symbols(Symbol_table*, Layout*);
 
   virtual Output_data_plt_arm<big_endian>*
-  do_make_data_plt(Layout* layout, Output_data_space* got_plt)
+  do_make_data_plt(Layout* layout,
+		   Arm_output_data_got<big_endian>* got,
+		   Output_data_space* got_plt,
+		   Output_data_space* got_irelative)
   {
-    return new Output_data_plt_arm_standard<big_endian>(layout, got_plt);
+    gold_assert(got_plt != NULL && got_irelative != NULL);
+    if (parameters->options().long_plt())
+      return new Output_data_plt_arm_long<big_endian>(
+	layout, got, got_plt, got_irelative);
+    else
+      return new Output_data_plt_arm_short<big_endian>(
+	layout, got, got_plt, got_irelative);
   }
 
  private:
@@ -2602,6 +2674,9 @@ class Target_arm : public Sized_target<32, big_endian>
       if (sym->is_undefined() && !parameters->options().shared())
 	return false;
 
+      if (sym->type() == elfcpp::STT_GNU_IFUNC)
+	return true;
+
       return (!parameters->doing_static_link()
 	      && (sym->type() == elfcpp::STT_FUNC
 		  || sym->type() == elfcpp::STT_ARM_TFUNC)
@@ -2612,6 +2687,11 @@ class Target_arm : public Sized_target<32, big_endian>
 
     inline bool
     possible_function_pointer_reloc(unsigned int r_type);
+
+    // Whether a plt entry is needed for ifunc.
+    bool
+    reloc_needs_plt_for_ifunc(Sized_relobj_file<32, big_endian>*,
+			      unsigned int r_type);
 
     // Whether we have issued an error about a non-PIC compilation.
     bool issued_non_pic_error_;
@@ -2637,13 +2717,10 @@ class Target_arm : public Sized_target<32, big_endian>
     // Do a relocation.  Return false if the caller should not issue
     // any warnings about this relocation.
     inline bool
-    relocate(const Relocate_info<32, big_endian>*, Target_arm*,
-	     Output_section*,  size_t relnum,
-	     const elfcpp::Rel<32, big_endian>&,
-	     unsigned int r_type, const Sized_symbol<32>*,
-	     const Symbol_value<32>*,
-	     unsigned char*, Arm_address,
-	     section_size_type);
+    relocate(const Relocate_info<32, big_endian>*, unsigned int,
+	     Target_arm*, Output_section*, size_t, const unsigned char*,
+	     const Sized_symbol<32>*, const Symbol_value<32>*,
+	     unsigned char*, Arm_address, section_size_type);
 
     // Return whether we want to pass flag NON_PIC_REF for this
     // reloc.  This means the relocation type accesses a symbol not via
@@ -2692,12 +2769,23 @@ class Target_arm : public Sized_target<32, big_endian>
 
   };
 
-  // A class which returns the size required for a relocation type,
-  // used while scanning relocs during a relocatable link.
-  class Relocatable_size_for_reloc
+  // A class for inquiring about properties of a relocation,
+  // used while scanning relocs during a relocatable link and
+  // garbage collection.
+  class Classify_reloc :
+      public gold::Default_classify_reloc<elfcpp::SHT_REL, 32, big_endian>
   {
    public:
-    unsigned int
+    typedef typename Reloc_types<elfcpp::SHT_REL, 32, big_endian>::Reloc
+	Reltype;
+
+    // Return the explicit addend of the relocation (return 0 for SHT_REL).
+    static typename elfcpp::Elf_types<32>::Elf_Swxword
+    get_r_addend(const Reltype*)
+    { return 0; }
+
+    // Return the size of the addend of the relocation (only used for SHT_REL).
+    static unsigned int
     get_size_for_reloc(unsigned int, Relobj*);
   };
 
@@ -2718,9 +2806,19 @@ class Target_arm : public Sized_target<32, big_endian>
     return this->got_plt_;
   }
 
+  // Create the PLT section.
+  void
+  make_plt_section(Symbol_table* symtab, Layout* layout);
+
   // Create a PLT entry for a global symbol.
   void
   make_plt_entry(Symbol_table*, Layout*, Symbol*);
+
+  // Create a PLT entry for a local STT_GNU_IFUNC symbol.
+  void
+  make_local_ifunc_plt_entry(Symbol_table*, Layout*,
+			     Sized_relobj_file<32, big_endian>* relobj,
+			     unsigned int local_sym_index);
 
   // Define the _TLS_MODULE_BASE_ symbol in the TLS segment.
   void
@@ -2764,9 +2862,11 @@ class Target_arm : public Sized_target<32, big_endian>
 	     unsigned int shndx, Output_section* output_section,
 	     Symbol* sym, const elfcpp::Rel<32, big_endian>& reloc)
   {
+    unsigned int r_type = elfcpp::elf_r_type<32>(reloc.get_r_info());
     this->copy_relocs_.copy_reloc(symtab, layout,
 				  symtab->get_sized_symbol<32>(sym),
-				  object, shndx, output_section, reloc,
+				  object, shndx, output_section,
+				  r_type, reloc.get_r_offset(), 0,
 				  this->rel_dyn_section(layout));
   }
 
@@ -2903,8 +3003,12 @@ class Target_arm : public Sized_target<32, big_endian>
   Output_data_plt_arm<big_endian>* plt_;
   // The GOT PLT section.
   Output_data_space* got_plt_;
+  // The GOT section for IRELATIVE relocations.
+  Output_data_space* got_irelative_;
   // The dynamic reloc section.
   Reloc_section* rel_dyn_;
+  // The section to use for IRELATIVE relocs.
+  Reloc_section* rel_irelative_;
   // Relocs saved to avoid a COPY reloc.
   Copy_relocs<elfcpp::SHT_REL, 32, big_endian> copy_relocs_;
   // Offset of the GOT entry for the TLS module index.
@@ -2925,6 +3029,11 @@ class Target_arm : public Sized_target<32, big_endian>
   bool fix_cortex_a8_;
   // Map addresses to relocs for Cortex-A8 erratum.
   Cortex_a8_relocs_info cortex_a8_relocs_info_;
+  // What R_ARM_TARGET1 maps to. It can be R_ARM_REL32 or R_ARM_ABS32.
+  unsigned int target1_reloc_;
+  // What R_ARM_TARGET2 maps to. It should be one of R_ARM_REL32, R_ARM_ABS32
+  // and R_ARM_GOT_PREL.
+  unsigned int target2_reloc_;
 };
 
 template<bool big_endian>
@@ -2951,7 +3060,8 @@ const Target::Target_info Target_arm<big_endian>::arm_info =
   0,			// large_common_section_flags
   ".ARM.attributes",	// attributes_section
   "aeabi",		// attributes_vendor
-  "_start"		// entry_symbol_name
+  "_start",		// entry_symbol_name
+  32,			// hash_entry_size
 };
 
 // Arm relocate functions class
@@ -3314,7 +3424,7 @@ class Arm_relocate_functions : public Relocate_functions<32, big_endian>
 	     const Symbol_value<32>* psymval, Arm_address address,
 	     Arm_address thumb_bit);
 
-  // R_ARM_THM_JUMP6: S + A – P
+  // R_ARM_THM_JUMP6: S + A - P
   static inline typename This::Status
   thm_jump6(unsigned char* view,
 	    const Sized_relobj_file<32, big_endian>* object,
@@ -3325,7 +3435,7 @@ class Arm_relocate_functions : public Relocate_functions<32, big_endian>
     typedef typename elfcpp::Swap<16, big_endian>::Valtype Reltype;
     Valtype* wv = reinterpret_cast<Valtype*>(view);
     Valtype val = elfcpp::Swap<16, big_endian>::readval(wv);
-    // bit[9]:bit[7:3]:’0’ (mask: 0x02f8)
+    // bit[9]:bit[7:3]:'0' (mask: 0x02f8)
     Reltype addend = (((val & 0x0200) >> 3) | ((val & 0x00f8) >> 2));
     Reltype x = (psymval->value(object, addend) - address);
     val = (val & 0xfd07) | ((x  & 0x0040) << 3) | ((val & 0x003e) << 2);
@@ -3336,7 +3446,7 @@ class Arm_relocate_functions : public Relocate_functions<32, big_endian>
 	    : This::STATUS_OKAY);
   }
 
-  // R_ARM_THM_JUMP8: S + A – P
+  // R_ARM_THM_JUMP8: S + A - P
   static inline typename This::Status
   thm_jump8(unsigned char* view,
 	    const Sized_relobj_file<32, big_endian>* object,
@@ -3356,7 +3466,7 @@ class Arm_relocate_functions : public Relocate_functions<32, big_endian>
 	    : This::STATUS_OKAY);
   }
 
-  // R_ARM_THM_JUMP11: S + A – P
+  // R_ARM_THM_JUMP11: S + A - P
   static inline typename This::Status
   thm_jump11(unsigned char* view,
 	    const Sized_relobj_file<32, big_endian>* object,
@@ -4244,6 +4354,15 @@ Target_arm<big_endian>::got_section(Symbol_table* symtab, Layout* layout)
 				    elfcpp::STB_LOCAL,
 				    elfcpp::STV_HIDDEN, 0,
 				    false, false);
+
+      // If there are any IRELATIVE relocations, they get GOT entries
+      // in .got.plt after the jump slot entries.
+      this->got_irelative_ = new Output_data_space(4, "** GOT IRELATIVE PLT");
+      layout->add_output_section_data(".got", elfcpp::SHT_PROGBITS,
+				      (elfcpp::SHF_ALLOC | elfcpp::SHF_WRITE),
+				      this->got_irelative_,
+				      got_order, is_got_relro);
+
     }
   return this->got_;
 }
@@ -4257,13 +4376,42 @@ Target_arm<big_endian>::rel_dyn_section(Layout* layout)
   if (this->rel_dyn_ == NULL)
     {
       gold_assert(layout != NULL);
+      // Create both relocation sections in the same place, so as to ensure
+      // their relative order in the output section.
       this->rel_dyn_ = new Reloc_section(parameters->options().combreloc());
+      this->rel_irelative_ = new Reloc_section(false);
       layout->add_output_section_data(".rel.dyn", elfcpp::SHT_REL,
 				      elfcpp::SHF_ALLOC, this->rel_dyn_,
+				      ORDER_DYNAMIC_RELOCS, false);
+      layout->add_output_section_data(".rel.dyn", elfcpp::SHT_REL,
+				      elfcpp::SHF_ALLOC, this->rel_irelative_,
 				      ORDER_DYNAMIC_RELOCS, false);
     }
   return this->rel_dyn_;
 }
+
+
+// Get the section to use for IRELATIVE relocs, creating it if necessary.  These
+// go in .rela.dyn, but only after all other dynamic relocations.  They need to
+// follow the other dynamic relocations so that they can refer to global
+// variables initialized by those relocs.
+
+template<bool big_endian>
+typename Target_arm<big_endian>::Reloc_section*
+Target_arm<big_endian>::rel_irelative_section(Layout* layout)
+{
+  if (this->rel_irelative_ == NULL)
+    {
+      // Delegate the creation to rel_dyn_section so as to ensure their order in
+      // the output section.
+      this->rel_dyn_section(layout);
+      gold_assert(this->rel_irelative_ != NULL
+		  && (this->rel_dyn_->output_section()
+		      == this->rel_irelative_->output_section()));
+    }
+  return this->rel_irelative_;
+}
+
 
 // Insn_template methods.
 
@@ -4458,7 +4606,7 @@ Reloc_stub::stub_type_for_reloc(
   // This is a bit ugly but we want to avoid using a templated class for
   // big and little endianities.
   bool may_use_blx;
-  bool should_force_pic_veneer;
+  bool should_force_pic_veneer = parameters->options().pic_veneer();
   bool thumb2;
   bool thumb_only;
   if (parameters->target().is_big_endian())
@@ -4466,7 +4614,7 @@ Reloc_stub::stub_type_for_reloc(
       const Target_arm<true>* big_endian_target =
 	Target_arm<true>::default_target();
       may_use_blx = big_endian_target->may_use_v5t_interworking();
-      should_force_pic_veneer = big_endian_target->should_force_pic_veneer();
+      should_force_pic_veneer |= big_endian_target->should_force_pic_veneer();
       thumb2 = big_endian_target->using_thumb2();
       thumb_only = big_endian_target->using_thumb_only();
     }
@@ -4475,7 +4623,8 @@ Reloc_stub::stub_type_for_reloc(
       const Target_arm<false>* little_endian_target =
 	Target_arm<false>::default_target();
       may_use_blx = little_endian_target->may_use_v5t_interworking();
-      should_force_pic_veneer = little_endian_target->should_force_pic_veneer();
+      should_force_pic_veneer |=
+        little_endian_target->should_force_pic_veneer();
       thumb2 = little_endian_target->using_thumb2();
       thumb_only = little_endian_target->using_thumb_only();
     }
@@ -6171,16 +6320,9 @@ Arm_relobj<big_endian>::scan_section_for_cortex_a8_erratum(
     this->mapping_symbols_info_.lower_bound(section_start);
 
   // There are no mapping symbols for this section.  Treat it as a data-only
-  // section.  Issue a warning if section is marked as containing
-  // instructions.
+  // section.
   if (p == this->mapping_symbols_info_.end() || p->first.first != shndx)
-    {
-      if ((this->section_flags(shndx) & elfcpp::SHF_EXECINSTR) != 0)
-	gold_warning(_("cannot scan executable section %u of %s for Cortex-A8 "
-		       "erratum because it has no mapping symbols."),
-		     shndx, this->name().c_str());
-      return;
-    }
+    return;
 
   Arm_address output_address =
     this->simple_input_section_output_address(shndx, os);
@@ -6445,9 +6587,9 @@ Arm_relobj<big_endian>::do_relocate_sections(
     Output_file* of,
     typename Sized_relobj_file<32, big_endian>::Views* pviews)
 {
-  // Call parent to relocate sections.
-  Sized_relobj_file<32, big_endian>::do_relocate_sections(symtab, layout,
-							  pshdrs, of, pviews);
+  // Relocate the section data.
+  this->relocate_section_range(symtab, layout, pshdrs, of, pviews,
+			       1, this->shnum() - 1);
 
   // We do not generate stubs if doing a relocatable link.
   if (parameters->options().relocatable())
@@ -6529,6 +6671,80 @@ Arm_relobj<big_endian>::do_relocate_sections(
 	      section_address,
 	      section_size);
 	}
+	// BE8 swapping
+	if (parameters->options().be8())
+	  {
+	    section_size_type  span_start, span_end;
+	    elfcpp::Shdr<32, big_endian>
+	      shdr(pshdrs + i * elfcpp::Elf_sizes<32>::shdr_size);
+	    Mapping_symbol_position section_start(i, 0);
+	    typename Mapping_symbols_info::const_iterator p =
+	      this->mapping_symbols_info_.lower_bound(section_start);
+	    unsigned char* view = (*pviews)[i].view;
+	    Arm_address view_address = (*pviews)[i].address;
+	    section_size_type view_size = (*pviews)[i].view_size;
+	    while (p != this->mapping_symbols_info_.end()
+		   && p->first.first == i)
+	      {
+		typename Mapping_symbols_info::const_iterator next =
+		  this->mapping_symbols_info_.upper_bound(p->first);
+
+		// Only swap arm or thumb code.
+		if ((p->second == 'a') || (p->second == 't'))
+		  {
+		    Output_section* os = this->output_section(i);
+		    gold_assert(os != NULL);
+		    Arm_address section_address =
+		      this->simple_input_section_output_address(i, os);
+		    span_start = convert_to_section_size_type(p->first.second);
+		    if (next != this->mapping_symbols_info_.end()
+		        && next->first.first == i)
+		      span_end =
+			convert_to_section_size_type(next->first.second);
+		    else
+		      span_end =
+			convert_to_section_size_type(shdr.get_sh_size());
+		    unsigned char* section_view =
+		      view + (section_address - view_address);
+		    uint64_t section_size = this->section_size(i);
+
+		    gold_assert(section_address >= view_address
+				&& ((section_address + section_size)
+				    <= (view_address + view_size)));
+
+		    // Set Output view for swapping
+		    unsigned char *oview = section_view + span_start;
+		    unsigned int index = 0;
+		    if (p->second == 'a')
+		      {
+			while (index + 3 < (span_end - span_start))
+			  {
+			    typedef typename elfcpp::Swap<32, big_endian>
+						     ::Valtype Valtype;
+			    Valtype* wv =
+			      reinterpret_cast<Valtype*>(oview+index);
+			    uint32_t val = elfcpp::Swap<32, false>::readval(wv);
+			    elfcpp::Swap<32, true>::writeval(wv, val);
+			    index += 4;
+			  }
+		      }
+		    else if (p->second == 't')
+		      {
+		        while (index + 1 < (span_end - span_start))
+			  {
+			    typedef typename elfcpp::Swap<16, big_endian>
+						     ::Valtype Valtype;
+			    Valtype* wv =
+			      reinterpret_cast<Valtype*>(oview+index);
+			    uint16_t val = elfcpp::Swap<16, false>::readval(wv);
+			    elfcpp::Swap<16, true>::writeval(wv, val);
+			    index += 2;
+			   }
+		      }
+	          }
+	        p = next;
+	      }
+	  }
     }
 }
 
@@ -7221,24 +7437,80 @@ template<bool big_endian>
 class Output_data_plt_arm : public Output_section_data
 {
  public:
+  // Unlike aarch64, which records symbol value in "addend" field of relocations
+  // and could be done at the same time an IRelative reloc is created for the
+  // symbol, arm puts the symbol value into "GOT" table, which, however, is
+  // issued later in Output_data_plt_arm::do_write(). So we have a struct here
+  // to keep necessary symbol information for later use in do_write. We usually
+  // have only a very limited number of ifuncs, so the extra data required here
+  // is also limited.
+
+  struct IRelative_data
+  {
+    IRelative_data(Sized_symbol<32>* sized_symbol)
+      : symbol_is_global_(true)
+    {
+      u_.global = sized_symbol;
+    }
+
+    IRelative_data(Sized_relobj_file<32, big_endian>* relobj,
+		   unsigned int index)
+      : symbol_is_global_(false)
+    {
+      u_.local.relobj = relobj;
+      u_.local.index = index;
+    }
+
+    union
+    {
+      Sized_symbol<32>* global;
+
+      struct
+      {
+	Sized_relobj_file<32, big_endian>* relobj;
+	unsigned int index;
+      } local;
+    } u_;
+
+    bool symbol_is_global_;
+  };
+
   typedef Output_data_reloc<elfcpp::SHT_REL, true, 32, big_endian>
     Reloc_section;
 
-  Output_data_plt_arm(Layout*, uint64_t addralign, Output_data_space*);
+  Output_data_plt_arm(Layout* layout, uint64_t addralign,
+		      Arm_output_data_got<big_endian>* got,
+		      Output_data_space* got_plt,
+		      Output_data_space* got_irelative);
 
   // Add an entry to the PLT.
   void
-  add_entry(Symbol* gsym);
+  add_entry(Symbol_table* symtab, Layout* layout, Symbol* gsym);
+
+  // Add the relocation for a plt entry.
+  void
+  add_relocation(Symbol_table* symtab, Layout* layout,
+		 Symbol* gsym, unsigned int got_offset);
+
+  // Add an entry to the PLT for a local STT_GNU_IFUNC symbol.
+  unsigned int
+  add_local_ifunc_entry(Symbol_table* symtab, Layout*,
+			Sized_relobj_file<32, big_endian>* relobj,
+			unsigned int local_sym_index);
 
   // Return the .rel.plt section data.
   const Reloc_section*
   rel_plt() const
   { return this->rel_; }
 
+  // Return the PLT relocation container for IRELATIVE.
+  Reloc_section*
+  rel_irelative(Symbol_table*, Layout*);
+
   // Return the number of PLT entries.
   unsigned int
   entry_count() const
-  { return this->count_; }
+  { return this->count_ + this->irelative_count_; }
 
   // Return the offset of the first non-reserved PLT entry.
   unsigned int
@@ -7249,6 +7521,14 @@ class Output_data_plt_arm : public Output_section_data
   unsigned int
   get_plt_entry_size() const
   { return this->do_get_plt_entry_size(); }
+
+  // Return the PLT address for globals.
+  uint32_t
+  address_for_global(const Symbol*) const;
+
+  // Return the PLT address for locals.
+  uint32_t
+  address_for_local(const Relobj*, unsigned int symndx) const;
 
  protected:
   // Fill in the first PLT entry.
@@ -7298,19 +7578,37 @@ class Output_data_plt_arm : public Output_section_data
   set_final_data_size()
   {
     this->set_data_size(this->first_plt_entry_offset()
-			+ this->count_ * this->get_plt_entry_size());
+			+ ((this->count_ + this->irelative_count_)
+			   * this->get_plt_entry_size()));
   }
 
   // Write out the PLT data.
   void
   do_write(Output_file*);
 
+  // Record irelative symbol data.
+  void insert_irelative_data(const IRelative_data& idata)
+  { irelative_data_vec_.push_back(idata); }
+
   // The reloc section.
   Reloc_section* rel_;
+  // The IRELATIVE relocs, if necessary.  These must follow the
+  // regular PLT relocations.
+  Reloc_section* irelative_rel_;
+  // The .got section.
+  Arm_output_data_got<big_endian>* got_;
   // The .got.plt section.
   Output_data_space* got_plt_;
+  // The part of the .got.plt section used for IRELATIVE relocs.
+  Output_data_space* got_irelative_;
   // The number of PLT entries.
   unsigned int count_;
+  // Number of PLT entries with R_ARM_IRELATIVE relocs.  These
+  // follow the regular PLT entries.
+  unsigned int irelative_count_;
+  // Vector for irelative data.
+  typedef std::vector<IRelative_data> IRelative_data_vec;
+  IRelative_data_vec irelative_data_vec_;
 };
 
 // Create the PLT section.  The ordinary .got section is an argument,
@@ -7318,10 +7616,14 @@ class Output_data_plt_arm : public Output_section_data
 // section just for PLT entries.
 
 template<bool big_endian>
-Output_data_plt_arm<big_endian>::Output_data_plt_arm(Layout* layout,
-						     uint64_t addralign,
-						     Output_data_space* got_plt)
-  : Output_section_data(addralign), got_plt_(got_plt), count_(0)
+Output_data_plt_arm<big_endian>::Output_data_plt_arm(
+    Layout* layout, uint64_t addralign,
+    Arm_output_data_got<big_endian>* got,
+    Output_data_space* got_plt,
+    Output_data_space* got_irelative)
+  : Output_section_data(addralign), irelative_rel_(NULL),
+    got_(got), got_plt_(got_plt), got_irelative_(got_irelative),
+    count_(0), irelative_count_(0)
 {
   this->rel_ = new Reloc_section(false);
   layout->add_output_section_data(".rel.plt", elfcpp::SHT_REL,
@@ -7340,40 +7642,210 @@ Output_data_plt_arm<big_endian>::do_adjust_output_section(Output_section* os)
 
 template<bool big_endian>
 void
-Output_data_plt_arm<big_endian>::add_entry(Symbol* gsym)
+Output_data_plt_arm<big_endian>::add_entry(Symbol_table* symtab,
+					   Layout* layout,
+					   Symbol* gsym)
 {
   gold_assert(!gsym->has_plt_offset());
 
-  // Note that when setting the PLT offset we skip the initial
-  // reserved PLT entry.
-  gsym->set_plt_offset((this->count_) * this->get_plt_entry_size()
-		       + this->first_plt_entry_offset());
+  unsigned int* entry_count;
+  Output_section_data_build* got;
 
-  ++this->count_;
+  // We have 2 different types of plt entry here, normal and ifunc.
 
-  section_offset_type got_offset = this->got_plt_->current_data_size();
+  // For normal plt, the offset begins with first_plt_entry_offset(20), and the
+  // 1st entry offset would be 20, the second 32, third 44 ... etc.
+
+  // For ifunc plt, the offset begins with 0. So the first offset would 0,
+  // second 12, third 24 ... etc.
+
+  // IFunc plt entries *always* come after *normal* plt entries.
+
+  // Notice, when computing the plt address of a certain symbol, "plt_address +
+  // plt_offset" is no longer correct. Use target->plt_address_for_global() or
+  // target->plt_address_for_local() instead.
+
+  int begin_offset = 0;
+  if (gsym->type() == elfcpp::STT_GNU_IFUNC
+      && gsym->can_use_relative_reloc(false))
+    {
+      entry_count = &this->irelative_count_;
+      got = this->got_irelative_;
+      // For irelative plt entries, offset is relative to the end of normal plt
+      // entries, so it starts from 0.
+      begin_offset = 0;
+      // Record symbol information.
+      this->insert_irelative_data(
+	  IRelative_data(symtab->get_sized_symbol<32>(gsym)));
+    }
+  else
+    {
+      entry_count = &this->count_;
+      got = this->got_plt_;
+      // Note that for normal plt entries, when setting the PLT offset we skip
+      // the initial reserved PLT entry.
+      begin_offset = this->first_plt_entry_offset();
+    }
+
+  gsym->set_plt_offset(begin_offset
+		       + (*entry_count) * this->get_plt_entry_size());
+
+  ++(*entry_count);
+
+  section_offset_type got_offset = got->current_data_size();
 
   // Every PLT entry needs a GOT entry which points back to the PLT
   // entry (this will be changed by the dynamic linker, normally
   // lazily when the function is called).
-  this->got_plt_->set_current_data_size(got_offset + 4);
+  got->set_current_data_size(got_offset + 4);
 
   // Every PLT entry needs a reloc.
-  gsym->set_needs_dynsym_entry();
-  this->rel_->add_global(gsym, elfcpp::R_ARM_JUMP_SLOT, this->got_plt_,
-			 got_offset);
+  this->add_relocation(symtab, layout, gsym, got_offset);
 
   // Note that we don't need to save the symbol.  The contents of the
   // PLT are independent of which symbols are used.  The symbols only
   // appear in the relocations.
 }
 
+// Add an entry to the PLT for a local STT_GNU_IFUNC symbol.  Return
+// the PLT offset.
+
+template<bool big_endian>
+unsigned int
+Output_data_plt_arm<big_endian>::add_local_ifunc_entry(
+    Symbol_table* symtab,
+    Layout* layout,
+    Sized_relobj_file<32, big_endian>* relobj,
+    unsigned int local_sym_index)
+{
+  this->insert_irelative_data(IRelative_data(relobj, local_sym_index));
+
+  // Notice, when computingthe plt entry address, "plt_address + plt_offset" is
+  // no longer correct. Use target->plt_address_for_local() instead.
+  unsigned int plt_offset = this->irelative_count_ * this->get_plt_entry_size();
+  ++this->irelative_count_;
+
+  section_offset_type got_offset = this->got_irelative_->current_data_size();
+
+  // Every PLT entry needs a GOT entry which points back to the PLT
+  // entry.
+  this->got_irelative_->set_current_data_size(got_offset + 4);
+
+
+  // Every PLT entry needs a reloc.
+  Reloc_section* rel = this->rel_irelative(symtab, layout);
+  rel->add_symbolless_local_addend(relobj, local_sym_index,
+				   elfcpp::R_ARM_IRELATIVE,
+				   this->got_irelative_, got_offset);
+  return plt_offset;
+}
+
+
+// Add the relocation for a PLT entry.
+
+template<bool big_endian>
+void
+Output_data_plt_arm<big_endian>::add_relocation(
+    Symbol_table* symtab, Layout* layout, Symbol* gsym, unsigned int got_offset)
+{
+  if (gsym->type() == elfcpp::STT_GNU_IFUNC
+      && gsym->can_use_relative_reloc(false))
+    {
+      Reloc_section* rel = this->rel_irelative(symtab, layout);
+      rel->add_symbolless_global_addend(gsym, elfcpp::R_ARM_IRELATIVE,
+					this->got_irelative_, got_offset);
+    }
+  else
+    {
+      gsym->set_needs_dynsym_entry();
+      this->rel_->add_global(gsym, elfcpp::R_ARM_JUMP_SLOT, this->got_plt_,
+			     got_offset);
+    }
+}
+
+
+// Create the irelative relocation data.
+
+template<bool big_endian>
+typename Output_data_plt_arm<big_endian>::Reloc_section*
+Output_data_plt_arm<big_endian>::rel_irelative(Symbol_table* symtab,
+						Layout* layout)
+{
+  if (this->irelative_rel_ == NULL)
+    {
+      // Since irelative relocations goes into 'rel.dyn', we delegate the
+      // creation of irelative_rel_ to where rel_dyn section gets created.
+      Target_arm<big_endian>* arm_target =
+	  Target_arm<big_endian>::default_target();
+      this->irelative_rel_ = arm_target->rel_irelative_section(layout);
+
+      // Make sure we have a place for the TLSDESC relocations, in
+      // case we see any later on.
+      // this->rel_tlsdesc(layout);
+      if (parameters->doing_static_link())
+	{
+	  // A statically linked executable will only have a .rel.plt section to
+	  // hold R_ARM_IRELATIVE relocs for STT_GNU_IFUNC symbols.  The library
+	  // will use these symbols to locate the IRELATIVE relocs at program
+	  // startup time.
+	  symtab->define_in_output_data("__rel_iplt_start", NULL,
+					Symbol_table::PREDEFINED,
+					this->irelative_rel_, 0, 0,
+					elfcpp::STT_NOTYPE, elfcpp::STB_GLOBAL,
+					elfcpp::STV_HIDDEN, 0, false, true);
+	  symtab->define_in_output_data("__rel_iplt_end", NULL,
+					Symbol_table::PREDEFINED,
+					this->irelative_rel_, 0, 0,
+					elfcpp::STT_NOTYPE, elfcpp::STB_GLOBAL,
+					elfcpp::STV_HIDDEN, 0, true, true);
+	}
+    }
+  return this->irelative_rel_;
+}
+
+
+// Return the PLT address for a global symbol.
+
+template<bool big_endian>
+uint32_t
+Output_data_plt_arm<big_endian>::address_for_global(const Symbol* gsym) const
+{
+  uint64_t begin_offset = 0;
+  if (gsym->type() == elfcpp::STT_GNU_IFUNC
+      && gsym->can_use_relative_reloc(false))
+    {
+      begin_offset = (this->first_plt_entry_offset() +
+		      this->count_ * this->get_plt_entry_size());
+    }
+  return this->address() + begin_offset + gsym->plt_offset();
+}
+
+
+// Return the PLT address for a local symbol.  These are always
+// IRELATIVE relocs.
+
+template<bool big_endian>
+uint32_t
+Output_data_plt_arm<big_endian>::address_for_local(
+    const Relobj* object,
+    unsigned int r_sym) const
+{
+  return (this->address()
+	  + this->first_plt_entry_offset()
+	  + this->count_ * this->get_plt_entry_size()
+	  + object->local_plt_offset(r_sym));
+}
+
+
 template<bool big_endian>
 class Output_data_plt_arm_standard : public Output_data_plt_arm<big_endian>
 {
  public:
-  Output_data_plt_arm_standard(Layout* layout, Output_data_space* got_plt)
-    : Output_data_plt_arm<big_endian>(layout, 4, got_plt)
+  Output_data_plt_arm_standard(Layout* layout,
+			       Arm_output_data_got<big_endian>* got,
+			       Output_data_space* got_plt,
+			       Output_data_space* got_irelative)
+    : Output_data_plt_arm<big_endian>(layout, 4, got, got_plt, got_irelative)
   { }
 
  protected:
@@ -7382,29 +7854,14 @@ class Output_data_plt_arm_standard : public Output_data_plt_arm<big_endian>
   do_first_plt_entry_offset() const
   { return sizeof(first_plt_entry); }
 
-  // Return the size of a PLT entry.
-  virtual unsigned int
-  do_get_plt_entry_size() const
-  { return sizeof(plt_entry); }
-
   virtual void
   do_fill_first_plt_entry(unsigned char* pov,
 			  Arm_address got_address,
 			  Arm_address plt_address);
 
-  virtual void
-  do_fill_plt_entry(unsigned char* pov,
-		    Arm_address got_address,
-		    Arm_address plt_address,
-		    unsigned int got_offset,
-		    unsigned int plt_offset);
-
  private:
   // Template for the first PLT entry.
   static const uint32_t first_plt_entry[5];
-
-  // Template for subsequent PLT entries.
-  static const uint32_t plt_entry[3];
 };
 
 // ARM PLTs.
@@ -7432,18 +7889,59 @@ Output_data_plt_arm_standard<big_endian>::do_fill_first_plt_entry(
 {
   // Write first PLT entry.  All but the last word are constants.
   const size_t num_first_plt_words = (sizeof(first_plt_entry)
-				      / sizeof(plt_entry[0]));
+				      / sizeof(first_plt_entry[0]));
   for (size_t i = 0; i < num_first_plt_words - 1; i++)
-    elfcpp::Swap<32, big_endian>::writeval(pov + i * 4, first_plt_entry[i]);
+    {
+      if (parameters->options().be8())
+	{
+	  elfcpp::Swap<32, false>::writeval(pov + i * 4,
+					    first_plt_entry[i]);
+	}
+      else
+	{
+	  elfcpp::Swap<32, big_endian>::writeval(pov + i * 4,
+						 first_plt_entry[i]);
+	}
+    }
   // Last word in first PLT entry is &GOT[0] - .
   elfcpp::Swap<32, big_endian>::writeval(pov + 16,
 					 got_address - (plt_address + 16));
 }
 
 // Subsequent entries in the PLT.
+// This class generates short (12-byte) entries, for displacements up to 2^28.
 
 template<bool big_endian>
-const uint32_t Output_data_plt_arm_standard<big_endian>::plt_entry[3] =
+class Output_data_plt_arm_short : public Output_data_plt_arm_standard<big_endian>
+{
+ public:
+  Output_data_plt_arm_short(Layout* layout,
+			    Arm_output_data_got<big_endian>* got,
+			    Output_data_space* got_plt,
+			    Output_data_space* got_irelative)
+    : Output_data_plt_arm_standard<big_endian>(layout, got, got_plt, got_irelative)
+  { }
+
+ protected:
+  // Return the size of a PLT entry.
+  virtual unsigned int
+  do_get_plt_entry_size() const
+  { return sizeof(plt_entry); }
+
+  virtual void
+  do_fill_plt_entry(unsigned char* pov,
+		    Arm_address got_address,
+		    Arm_address plt_address,
+		    unsigned int got_offset,
+		    unsigned int plt_offset);
+
+ private:
+  // Template for subsequent PLT entries.
+  static const uint32_t plt_entry[3];
+};
+
+template<bool big_endian>
+const uint32_t Output_data_plt_arm_short<big_endian>::plt_entry[3] =
 {
   0xe28fc600,	// add   ip, pc, #0xNN00000
   0xe28cca00,	// add   ip, ip, #0xNN000
@@ -7452,7 +7950,79 @@ const uint32_t Output_data_plt_arm_standard<big_endian>::plt_entry[3] =
 
 template<bool big_endian>
 void
-Output_data_plt_arm_standard<big_endian>::do_fill_plt_entry(
+Output_data_plt_arm_short<big_endian>::do_fill_plt_entry(
+    unsigned char* pov,
+    Arm_address got_address,
+    Arm_address plt_address,
+    unsigned int got_offset,
+    unsigned int plt_offset)
+{
+  int32_t offset = ((got_address + got_offset)
+		    - (plt_address + plt_offset + 8));
+  if (offset < 0 || offset > 0x0fffffff)
+    gold_error(_("PLT offset too large, try linking with --long-plt"));
+
+  uint32_t plt_insn0 = plt_entry[0] | ((offset >> 20) & 0xff);
+  uint32_t plt_insn1 = plt_entry[1] | ((offset >> 12) & 0xff);
+  uint32_t plt_insn2 = plt_entry[2] | (offset & 0xfff);
+
+  if (parameters->options().be8())
+    {
+      elfcpp::Swap<32, false>::writeval(pov, plt_insn0);
+      elfcpp::Swap<32, false>::writeval(pov + 4, plt_insn1);
+      elfcpp::Swap<32, false>::writeval(pov + 8, plt_insn2);
+    }
+  else
+    {
+      elfcpp::Swap<32, big_endian>::writeval(pov, plt_insn0);
+      elfcpp::Swap<32, big_endian>::writeval(pov + 4, plt_insn1);
+      elfcpp::Swap<32, big_endian>::writeval(pov + 8, plt_insn2);
+    }
+}
+
+// This class generates long (16-byte) entries, for arbitrary displacements.
+
+template<bool big_endian>
+class Output_data_plt_arm_long : public Output_data_plt_arm_standard<big_endian>
+{
+ public:
+  Output_data_plt_arm_long(Layout* layout,
+			   Arm_output_data_got<big_endian>* got,
+			   Output_data_space* got_plt,
+			   Output_data_space* got_irelative)
+    : Output_data_plt_arm_standard<big_endian>(layout, got, got_plt, got_irelative)
+  { }
+
+ protected:
+  // Return the size of a PLT entry.
+  virtual unsigned int
+  do_get_plt_entry_size() const
+  { return sizeof(plt_entry); }
+
+  virtual void
+  do_fill_plt_entry(unsigned char* pov,
+		    Arm_address got_address,
+		    Arm_address plt_address,
+		    unsigned int got_offset,
+		    unsigned int plt_offset);
+
+ private:
+  // Template for subsequent PLT entries.
+  static const uint32_t plt_entry[4];
+};
+
+template<bool big_endian>
+const uint32_t Output_data_plt_arm_long<big_endian>::plt_entry[4] =
+{
+  0xe28fc200,	// add   ip, pc, #0xN0000000
+  0xe28cc600,	// add   ip, ip, #0xNN00000
+  0xe28cca00,	// add   ip, ip, #0xNN000
+  0xe5bcf000,	// ldr   pc, [ip, #0xNNN]!
+};
+
+template<bool big_endian>
+void
+Output_data_plt_arm_long<big_endian>::do_fill_plt_entry(
     unsigned char* pov,
     Arm_address got_address,
     Arm_address plt_address,
@@ -7462,13 +8032,25 @@ Output_data_plt_arm_standard<big_endian>::do_fill_plt_entry(
   int32_t offset = ((got_address + got_offset)
 		    - (plt_address + plt_offset + 8));
 
-  gold_assert(offset >= 0 && offset < 0x0fffffff);
-  uint32_t plt_insn0 = plt_entry[0] | ((offset >> 20) & 0xff);
-  elfcpp::Swap<32, big_endian>::writeval(pov, plt_insn0);
-  uint32_t plt_insn1 = plt_entry[1] | ((offset >> 12) & 0xff);
-  elfcpp::Swap<32, big_endian>::writeval(pov + 4, plt_insn1);
-  uint32_t plt_insn2 = plt_entry[2] | (offset & 0xfff);
-  elfcpp::Swap<32, big_endian>::writeval(pov + 8, plt_insn2);
+  uint32_t plt_insn0 = plt_entry[0] | (offset >> 28);
+  uint32_t plt_insn1 = plt_entry[1] | ((offset >> 20) & 0xff);
+  uint32_t plt_insn2 = plt_entry[2] | ((offset >> 12) & 0xff);
+  uint32_t plt_insn3 = plt_entry[3] | (offset & 0xfff);
+
+  if (parameters->options().be8())
+    {
+      elfcpp::Swap<32, false>::writeval(pov, plt_insn0);
+      elfcpp::Swap<32, false>::writeval(pov + 4, plt_insn1);
+      elfcpp::Swap<32, false>::writeval(pov + 8, plt_insn2);
+      elfcpp::Swap<32, false>::writeval(pov + 12, plt_insn3);
+    }
+  else
+    {
+      elfcpp::Swap<32, big_endian>::writeval(pov, plt_insn0);
+      elfcpp::Swap<32, big_endian>::writeval(pov + 4, plt_insn1);
+      elfcpp::Swap<32, big_endian>::writeval(pov + 8, plt_insn2);
+      elfcpp::Swap<32, big_endian>::writeval(pov + 12, plt_insn3);
+    }
 }
 
 // Write out the PLT.  This uses the hand-coded instructions above,
@@ -7485,8 +8067,11 @@ Output_data_plt_arm<big_endian>::do_write(Output_file* of)
   unsigned char* const oview = of->get_output_view(offset, oview_size);
 
   const off_t got_file_offset = this->got_plt_->offset();
+  gold_assert(got_file_offset + this->got_plt_->data_size()
+	      == this->got_irelative_->offset());
   const section_size_type got_size =
-    convert_to_section_size_type(this->got_plt_->data_size());
+    convert_to_section_size_type(this->got_plt_->data_size()
+				 + this->got_irelative_->data_size());
   unsigned char* const got_view = of->get_output_view(got_file_offset,
 						      got_size);
   unsigned char* pov = oview;
@@ -7505,7 +8090,8 @@ Output_data_plt_arm<big_endian>::do_write(Output_file* of)
 
   unsigned int plt_offset = this->first_plt_entry_offset();
   unsigned int got_offset = 12;
-  const unsigned int count = this->count_;
+  const unsigned int count = this->count_ + this->irelative_count_;
+  gold_assert(this->irelative_count_ == this->irelative_data_vec_.size());
   for (unsigned int i = 0;
        i < count;
        ++i,
@@ -7518,8 +8104,33 @@ Output_data_plt_arm<big_endian>::do_write(Output_file* of)
       this->fill_plt_entry(pov, got_address, plt_address,
 			   got_offset, plt_offset);
 
-      // Set the entry in the GOT.
-      elfcpp::Swap<32, big_endian>::writeval(got_pov, plt_address);
+      Arm_address value;
+      if (i < this->count_)
+	{
+	  // For non-irelative got entries, the value is the beginning of plt.
+	  value = plt_address;
+	}
+      else
+	{
+	  // For irelative got entries, the value is the (global/local) symbol
+	  // address.
+	  const IRelative_data& idata =
+	      this->irelative_data_vec_[i - this->count_];
+	  if (idata.symbol_is_global_)
+	    {
+	      // Set the entry in the GOT for irelative symbols.  The content is
+	      // the address of the ifunc, not the address of plt start.
+	      const Sized_symbol<32>* sized_symbol = idata.u_.global;
+	      gold_assert(sized_symbol->type() == elfcpp::STT_GNU_IFUNC);
+	      value = sized_symbol->value();
+	    }
+	  else
+	    {
+	      value = idata.u_.local.relobj->local_symbol_value(
+		  idata.u_.local.index, 0);
+	    }
+	}
+      elfcpp::Swap<32, big_endian>::writeval(got_pov, value);
     }
 
   gold_assert(static_cast<section_size_type>(pov - oview) == oview_size);
@@ -7528,6 +8139,7 @@ Output_data_plt_arm<big_endian>::do_write(Output_file* of)
   of->write_output_view(offset, oview_size, oview);
   of->write_output_view(got_file_offset, got_size, got_view);
 }
+
 
 // Create a PLT entry for a global symbol.
 
@@ -7540,19 +8152,64 @@ Target_arm<big_endian>::make_plt_entry(Symbol_table* symtab, Layout* layout,
     return;
 
   if (this->plt_ == NULL)
+    this->make_plt_section(symtab, layout);
+
+  this->plt_->add_entry(symtab, layout, gsym);
+}
+
+
+// Create the PLT section.
+template<bool big_endian>
+void
+Target_arm<big_endian>::make_plt_section(
+  Symbol_table* symtab, Layout* layout)
+{
+  if (this->plt_ == NULL)
     {
-      // Create the GOT sections first.
+      // Create the GOT section first.
       this->got_section(symtab, layout);
 
-      this->plt_ = this->make_data_plt(layout, this->got_plt_);
+      // GOT for irelatives is create along with got.plt.
+      gold_assert(this->got_ != NULL
+		  && this->got_plt_ != NULL
+		  && this->got_irelative_ != NULL);
+      this->plt_ = this->make_data_plt(layout, this->got_, this->got_plt_,
+				       this->got_irelative_);
 
       layout->add_output_section_data(".plt", elfcpp::SHT_PROGBITS,
 				      (elfcpp::SHF_ALLOC
 				       | elfcpp::SHF_EXECINSTR),
 				      this->plt_, ORDER_PLT, false);
+      symtab->define_in_output_data("$a", NULL,
+				    Symbol_table::PREDEFINED,
+				    this->plt_,
+				    0, 0, elfcpp::STT_NOTYPE,
+				    elfcpp::STB_LOCAL,
+				    elfcpp::STV_DEFAULT, 0,
+				    false, false);
     }
-  this->plt_->add_entry(gsym);
 }
+
+
+// Make a PLT entry for a local STT_GNU_IFUNC symbol.
+
+template<bool big_endian>
+void
+Target_arm<big_endian>::make_local_ifunc_plt_entry(
+    Symbol_table* symtab, Layout* layout,
+    Sized_relobj_file<32, big_endian>* relobj,
+    unsigned int local_sym_index)
+{
+  if (relobj->local_has_plt_offset(local_sym_index))
+    return;
+  if (this->plt_ == NULL)
+    this->make_plt_section(symtab, layout);
+  unsigned int plt_offset = this->plt_->add_local_ifunc_entry(symtab, layout,
+							      relobj,
+							      local_sym_index);
+  relobj->set_local_plt_offset(local_sym_index, plt_offset);
+}
+
 
 // Return the number of entries in the PLT.
 
@@ -7823,6 +8480,7 @@ Target_arm<big_endian>::Scan::check_non_pic(Relobj* object,
     case elfcpp::R_ARM_JUMP_SLOT:
     case elfcpp::R_ARM_ABS32:
     case elfcpp::R_ARM_ABS32_NOI:
+    case elfcpp::R_ARM_IRELATIVE:
     case elfcpp::R_ARM_PC24:
     // FIXME: The following 3 types are not supported by Android's dynamic
     // linker.
@@ -7853,6 +8511,27 @@ Target_arm<big_endian>::Scan::check_non_pic(Relobj* object,
     }
 }
 
+
+// Return whether we need to make a PLT entry for a relocation of the
+// given type against a STT_GNU_IFUNC symbol.
+
+template<bool big_endian>
+bool
+Target_arm<big_endian>::Scan::reloc_needs_plt_for_ifunc(
+    Sized_relobj_file<32, big_endian>* object,
+    unsigned int r_type)
+{
+  int flags = Scan::get_reference_flags(r_type);
+  if (flags & Symbol::TLS_REF)
+    {
+      gold_error(_("%s: unsupported TLS reloc %u for IFUNC symbol"),
+		 object->name().c_str(), r_type);
+      return false;
+    }
+  return flags != 0;
+}
+
+
 // Scan a relocation for a local symbol.
 // FIXME: This only handles a subset of relocation types used by Android
 // on ARM v5te devices.
@@ -7873,7 +8552,16 @@ Target_arm<big_endian>::Scan::local(Symbol_table* symtab,
   if (is_discarded)
     return;
 
-  r_type = get_real_reloc_type(r_type);
+  r_type = target->get_real_reloc_type(r_type);
+
+  // A local STT_GNU_IFUNC symbol may require a PLT entry.
+  bool is_ifunc = lsym.get_st_type() == elfcpp::STT_GNU_IFUNC;
+  if (is_ifunc && this->reloc_needs_plt_for_ifunc(object, r_type))
+    {
+      unsigned int r_sym = elfcpp::elf_r_sym<32>(reloc.get_r_info());
+      target->make_local_ifunc_plt_entry(symtab, layout, object, r_sym);
+    }
+
   switch (r_type)
     {
     case elfcpp::R_ARM_NONE:
@@ -7898,7 +8586,7 @@ Target_arm<big_endian>::Scan::local(Symbol_table* symtab,
 	  // we need to add check_non_pic(object, r_type) here.
 	  rel_dyn->add_local_relative(object, r_sym, elfcpp::R_ARM_RELATIVE,
 				      output_section, data_shndx,
-				      reloc.get_r_offset());
+				      reloc.get_r_offset(), is_ifunc);
 	}
       break;
 
@@ -8265,7 +8953,12 @@ Target_arm<big_endian>::Scan::global(Symbol_table* symtab,
       && strcmp(gsym->name(), "_GLOBAL_OFFSET_TABLE_") == 0)
     target->got_section(symtab, layout);
 
-  r_type = get_real_reloc_type(r_type);
+  // A STT_GNU_IFUNC symbol may require a PLT entry.
+  if (gsym->type() == elfcpp::STT_GNU_IFUNC
+      && this->reloc_needs_plt_for_ifunc(object, r_type))
+    target->make_plt_entry(symtab, layout, gsym);
+
+  r_type = target->get_real_reloc_type(r_type);
   switch (r_type)
     {
     case elfcpp::R_ARM_NONE:
@@ -8306,6 +8999,24 @@ Target_arm<big_endian>::Scan::global(Symbol_table* symtab,
 	      {
 		target->copy_reloc(symtab, layout, object,
 				   data_shndx, output_section, gsym, reloc);
+	      }
+	    else if ((r_type == elfcpp::R_ARM_ABS32
+		      || r_type == elfcpp::R_ARM_ABS32_NOI)
+		     && gsym->type() == elfcpp::STT_GNU_IFUNC
+		     && gsym->can_use_relative_reloc(false)
+		     && !gsym->is_from_dynobj()
+		     && !gsym->is_undefined()
+		     && !gsym->is_preemptible())
+	      {
+		// Use an IRELATIVE reloc for a locally defined STT_GNU_IFUNC
+		// symbol. This makes a function address in a PIE executable
+		// match the address in a shared library that it links against.
+		Reloc_section* rel_irelative =
+		    target->rel_irelative_section(layout);
+		unsigned int r_type = elfcpp::R_ARM_IRELATIVE;
+		rel_irelative->add_symbolless_global_addend(
+		    gsym, r_type, output_section, object,
+		    data_shndx, reloc.get_r_offset());
 	      }
 	    else if ((r_type == elfcpp::R_ARM_ABS32
 		      || r_type == elfcpp::R_ARM_ABS32_NOI)
@@ -8442,7 +9153,13 @@ Target_arm<big_endian>::Scan::global(Symbol_table* symtab,
 	Arm_output_data_got<big_endian>* got =
 	  target->got_section(symtab, layout);
 	if (gsym->final_value_is_known())
-	  got->add_global(gsym, GOT_TYPE_STANDARD);
+	  {
+	    // For a STT_GNU_IFUNC symbol we want the PLT address.
+	    if (gsym->type() == elfcpp::STT_GNU_IFUNC)
+	      got->add_global_plt(gsym, GOT_TYPE_STANDARD);
+	    else
+	      got->add_global(gsym, GOT_TYPE_STANDARD);
+	  }
 	else
 	  {
 	    // If this symbol is not fully resolved, we need to add a
@@ -8452,12 +9169,29 @@ Target_arm<big_endian>::Scan::global(Symbol_table* symtab,
 		|| gsym->is_undefined()
 		|| gsym->is_preemptible()
 		|| (gsym->visibility() == elfcpp::STV_PROTECTED
-		    && parameters->options().shared()))
+		    && parameters->options().shared())
+		|| (gsym->type() == elfcpp::STT_GNU_IFUNC
+		    && parameters->options().output_is_position_independent()))
 	      got->add_global_with_rel(gsym, GOT_TYPE_STANDARD,
 				       rel_dyn, elfcpp::R_ARM_GLOB_DAT);
 	    else
 	      {
-		if (got->add_global(gsym, GOT_TYPE_STANDARD))
+		// For a STT_GNU_IFUNC symbol we want to write the PLT
+		// offset into the GOT, so that function pointer
+		// comparisons work correctly.
+		bool is_new;
+		if (gsym->type() != elfcpp::STT_GNU_IFUNC)
+		  is_new = got->add_global(gsym, GOT_TYPE_STANDARD);
+		else
+		  {
+		    is_new = got->add_global_plt(gsym, GOT_TYPE_STANDARD);
+		    // Tell the dynamic linker to use the PLT address
+		    // when resolving relocations.
+		    if (gsym->is_from_dynobj()
+			&& !parameters->options().shared())
+		      gsym->set_needs_dynsym_value();
+		  }
+		if (is_new)
 		  rel_dyn->add_global_relative(
 		      gsym, elfcpp::R_ARM_RELATIVE, got,
 		      gsym->got_offset(GOT_TYPE_STANDARD));
@@ -8600,8 +9334,7 @@ Target_arm<big_endian>::gc_process_relocs(
   typedef Target_arm<big_endian> Arm;
   typedef typename Target_arm<big_endian>::Scan Scan;
 
-  gold::gc_process_relocs<32, big_endian, Arm, elfcpp::SHT_REL, Scan,
-			  typename Target_arm::Relocatable_size_for_reloc>(
+  gold::gc_process_relocs<32, big_endian, Arm, Scan, Classify_reloc>(
     symtab,
     layout,
     this,
@@ -8631,7 +9364,6 @@ Target_arm<big_endian>::scan_relocs(Symbol_table* symtab,
 				    size_t local_symbol_count,
 				    const unsigned char* plocal_symbols)
 {
-  typedef typename Target_arm<big_endian>::Scan Scan;
   if (sh_type == elfcpp::SHT_RELA)
     {
       gold_error(_("%s: unsupported RELA reloc section"),
@@ -8639,7 +9371,7 @@ Target_arm<big_endian>::scan_relocs(Symbol_table* symtab,
       return;
     }
 
-  gold::scan_relocs<32, big_endian, Target_arm, elfcpp::SHT_REL, Scan>(
+  gold::scan_relocs<32, big_endian, Target_arm, Scan, Classify_reloc>(
     symtab,
     layout,
     this,
@@ -8834,11 +9566,11 @@ template<bool big_endian>
 inline bool
 Target_arm<big_endian>::Relocate::relocate(
     const Relocate_info<32, big_endian>* relinfo,
+    unsigned int,
     Target_arm* target,
     Output_section* output_section,
     size_t relnum,
-    const elfcpp::Rel<32, big_endian>& rel,
-    unsigned int r_type,
+    const unsigned char* preloc,
     const Sized_symbol<32>* gsym,
     const Symbol_value<32>* psymval,
     unsigned char* view,
@@ -8850,7 +9582,9 @@ Target_arm<big_endian>::Relocate::relocate(
 
   typedef Arm_relocate_functions<big_endian> Arm_relocate_functions;
 
-  r_type = get_real_reloc_type(r_type);
+  const elfcpp::Rel<32, big_endian> rel(preloc);
+  unsigned int r_type = elfcpp::elf_r_type<32>(rel.get_r_info());
+  r_type = target->get_real_reloc_type(r_type);
   const Arm_reloc_property* reloc_property =
     arm_reloc_property_table->get_implemented_static_reloc_property(r_type);
   if (reloc_property == NULL)
@@ -8919,8 +9653,7 @@ Target_arm<big_endian>::Relocate::relocate(
 	  if (gsym->use_plt_offset(Scan::get_reference_flags(r_type)))
 	    {
 	      // This uses a PLT, change the symbol value.
-	      symval.set_output_value(target->plt_section()->address()
-				      + gsym->plt_offset());
+	      symval.set_output_value(target->plt_address_for_global(gsym));
 	      psymval = &symval;
 	    }
 	  else if (gsym->is_weak_undefined())
@@ -8958,6 +9691,13 @@ Target_arm<big_endian>::Relocate::relocate(
 	  elfcpp::Elf_types<32>::Elf_WXword r_info = rel.get_r_info();
 	  unsigned int r_sym = elfcpp::elf_r_sym<32>(r_info);
 	  thumb_bit = object->local_symbol_is_thumb_function(r_sym) ? 1 : 0;
+
+	  if (psymval->is_ifunc_symbol() && object->local_has_plt_offset(r_sym))
+	    {
+	      symval.set_output_value(
+		  target->plt_address_for_local(object, r_sym));
+	      psymval = &symval;
+	    }
 	}
     }
   else
@@ -9531,8 +10271,8 @@ Target_arm<big_endian>::relocate_section(
 	}
     }
 
-  gold::relocate_section<32, big_endian, Target_arm, elfcpp::SHT_REL,
-			 Arm_relocate, gold::Default_comdat_behavior>(
+  gold::relocate_section<32, big_endian, Target_arm, Arm_relocate,
+			 gold::Default_comdat_behavior, Classify_reloc>(
     relinfo,
     this,
     prelocs,
@@ -9550,11 +10290,13 @@ Target_arm<big_endian>::relocate_section(
 
 template<bool big_endian>
 unsigned int
-Target_arm<big_endian>::Relocatable_size_for_reloc::get_size_for_reloc(
+Target_arm<big_endian>::Classify_reloc::get_size_for_reloc(
     unsigned int r_type,
     Relobj* object)
 {
-  r_type = get_real_reloc_type(r_type);
+  Target_arm<big_endian>* arm_target =
+      Target_arm<big_endian>::default_target();
+  r_type = arm_target->get_real_reloc_type(r_type);
   const Arm_reloc_property* arp =
       arm_reloc_property_table->get_implemented_static_reloc_property(r_type);
   if (arp != NULL)
@@ -9587,13 +10329,12 @@ Target_arm<big_endian>::scan_relocatable_relocs(
     const unsigned char* plocal_symbols,
     Relocatable_relocs* rr)
 {
+  typedef Arm_scan_relocatable_relocs<big_endian, Classify_reloc>
+      Scan_relocatable_relocs;
+
   gold_assert(sh_type == elfcpp::SHT_REL);
 
-  typedef Arm_scan_relocatable_relocs<big_endian, elfcpp::SHT_REL,
-    Relocatable_size_for_reloc> Scan_relocatable_relocs;
-
-  gold::scan_relocatable_relocs<32, big_endian, elfcpp::SHT_REL,
-      Scan_relocatable_relocs>(
+  gold::scan_relocatable_relocs<32, big_endian, Scan_relocatable_relocs>(
     symtab,
     layout,
     object,
@@ -9604,6 +10345,44 @@ Target_arm<big_endian>::scan_relocatable_relocs(
     needs_special_offset_handling,
     local_symbol_count,
     plocal_symbols,
+    rr);
+}
+
+// Scan the relocs for --emit-relocs.
+
+template<bool big_endian>
+void
+Target_arm<big_endian>::emit_relocs_scan(Symbol_table* symtab,
+    Layout* layout,
+    Sized_relobj_file<32, big_endian>* object,
+    unsigned int data_shndx,
+    unsigned int sh_type,
+    const unsigned char* prelocs,
+    size_t reloc_count,
+    Output_section* output_section,
+    bool needs_special_offset_handling,
+    size_t local_symbol_count,
+    const unsigned char* plocal_syms,
+    Relocatable_relocs* rr)
+{
+  typedef gold::Default_classify_reloc<elfcpp::SHT_REL, 32, big_endian>
+      Classify_reloc;
+  typedef gold::Default_emit_relocs_strategy<Classify_reloc>
+      Emit_relocs_strategy;
+
+  gold_assert(sh_type == elfcpp::SHT_REL);
+
+  gold::scan_relocatable_relocs<32, big_endian, Emit_relocs_strategy>(
+    symtab,
+    layout,
+    object,
+    data_shndx,
+    prelocs,
+    reloc_count,
+    output_section,
+    needs_special_offset_handling,
+    local_symbol_count,
+    plocal_syms,
     rr);
 }
 
@@ -9618,7 +10397,6 @@ Target_arm<big_endian>::relocate_relocs(
     size_t reloc_count,
     Output_section* output_section,
     typename elfcpp::Elf_types<32>::Elf_Off offset_in_output_section,
-    const Relocatable_relocs* rr,
     unsigned char* view,
     Arm_address view_address,
     section_size_type view_size,
@@ -9627,13 +10405,12 @@ Target_arm<big_endian>::relocate_relocs(
 {
   gold_assert(sh_type == elfcpp::SHT_REL);
 
-  gold::relocate_relocs<32, big_endian, elfcpp::SHT_REL>(
+  gold::relocate_relocs<32, big_endian, Classify_reloc>(
     relinfo,
     prelocs,
     reloc_count,
     output_section,
     offset_in_output_section,
-    rr,
     view,
     view_address,
     view_size,
@@ -9936,24 +10713,22 @@ uint64_t
 Target_arm<big_endian>::do_dynsym_value(const Symbol* gsym) const
 {
   gold_assert(gsym->is_from_dynobj() && gsym->has_plt_offset());
-  return this->plt_section()->address() + gsym->plt_offset();
+  return this->plt_address_for_global(gsym);
 }
 
 // Map platform-specific relocs to real relocs
 //
 template<bool big_endian>
 unsigned int
-Target_arm<big_endian>::get_real_reloc_type(unsigned int r_type)
+Target_arm<big_endian>::get_real_reloc_type(unsigned int r_type) const
 {
   switch (r_type)
     {
     case elfcpp::R_ARM_TARGET1:
-      // This is either R_ARM_ABS32 or R_ARM_REL32;
-      return elfcpp::R_ARM_ABS32;
+      return this->target1_reloc_;
 
     case elfcpp::R_ARM_TARGET2:
-      // This can be any reloc type but usually is R_ARM_GOT_PREL
-      return elfcpp::R_ARM_GOT_PREL;
+      return this->target2_reloc_;
 
     default:
       return r_type;
@@ -10046,7 +10821,14 @@ Target_arm<big_endian>::do_adjust_elf_header(
     e_ident[elfcpp::EI_OSABI] = 0;
   e_ident[elfcpp::EI_ABIVERSION] = 0;
 
-  // FIXME: Do EF_ARM_BE8 adjustment.
+  // Do EF_ARM_BE8 adjustment.
+  if (parameters->options().be8() && !big_endian)
+    gold_error("BE8 images only valid in big-endian mode.");
+  if (parameters->options().be8())
+    {
+      flags |= elfcpp::EF_ARM_BE8;
+      this->set_processor_specific_flags(flags);
+    }
 
   // If we're working in EABI_VER5, set the hard/soft float ABI flags
   // as appropriate.
@@ -10056,7 +10838,7 @@ Target_arm<big_endian>::do_adjust_elf_header(
     if (type == elfcpp::ET_EXEC || type == elfcpp::ET_DYN)
       {
 	Object_attribute* attr = this->get_aeabi_object_attribute(elfcpp::Tag_ABI_VFP_args);
-	if (attr->int_value())
+	if (attr->int_value() == elfcpp::AEABI_VFP_args_vfp)
 	  flags |= elfcpp::EF_ARM_ABI_FLOAT_HARD;
 	else
 	  flags |= elfcpp::EF_ARM_ABI_FLOAT_SOFT;
@@ -10065,6 +10847,7 @@ Target_arm<big_endian>::do_adjust_elf_header(
   }
   elfcpp::Ehdr_write<32, big_endian> oehdr(view);
   oehdr.put_e_ident(e_ident);
+  oehdr.put_e_flags(this->processor_specific_flags());
 }
 
 // do_make_elf_object to override the same function in the base class.
@@ -10261,6 +11044,24 @@ Target_arm<big_endian>::tag_cpu_arch_combine(
       T(V7E_M),	// V6S_M.
       T(V7E_M)	// V7E_M.
     };
+  static const int v8[] =
+    {
+      T(V8),   // PRE_V4.
+      T(V8),   // V4.
+      T(V8),   // V4T.
+      T(V8),   // V5T.
+      T(V8),   // V5TE.
+      T(V8),   // V5TEJ.
+      T(V8),   // V6.
+      T(V8),   // V6KZ.
+      T(V8),   // V6T2.
+      T(V8),   // V6K.
+      T(V8),   // V7.
+      T(V8),   // V6_M.
+      T(V8),   // V6S_M.
+      T(V8),   // V7E_M.
+      T(V8)    // V8.
+    };
   static const int v4t_plus_v6_m[] =
     {
       -1,		// PRE_V4.
@@ -10277,6 +11078,7 @@ Target_arm<big_endian>::tag_cpu_arch_combine(
       T(V6_M),		// V6_M.
       T(V6S_M),		// V6S_M.
       T(V7E_M),		// V7E_M.
+      T(V8),		// V8.
       T(V4T_PLUS_V6_M)	// V4T plus V6_M.
     };
   static const int* comb[] =
@@ -10287,6 +11089,7 @@ Target_arm<big_endian>::tag_cpu_arch_combine(
       v6_m,
       v6s_m,
       v7e_m,
+      v8,
       // Pseudo-architecture.
       v4t_plus_v6_m
     };
@@ -10384,7 +11187,8 @@ Target_arm<big_endian>::tag_cpu_name_value(unsigned int value)
    "ARM v7",
    "ARM v6-M",
    "ARM v6S-M",
-   "ARM v7E-M"
+   "ARM v7E-M",
+   "ARM v8"
  };
  const size_t name_table_size = sizeof(name_table) / sizeof(name_table[0]);
 
@@ -10410,7 +11214,7 @@ Target_arm<big_endian>::attributes_accept_div(int arch, int profile,
     {
     case 0:
       // Integer divide allowed if instruction contained in
-      // archetecture.
+      // architecture.
       if (arch == elfcpp::TAG_CPU_ARCH_V7 && (profile == 'R' || profile == 'M'))
         return true;
       else if (arch >= elfcpp::TAG_CPU_ARCH_V7E_M)
@@ -10493,10 +11297,18 @@ Target_arm<big_endian>::merge_object_attributes(
       != out_attr[elfcpp::Tag_ABI_VFP_args].int_value())
     {
       // Ignore mismatches if the object doesn't use floating point.  */
-      if (out_attr[elfcpp::Tag_ABI_FP_number_model].int_value() == 0)
+      if (out_attr[elfcpp::Tag_ABI_FP_number_model].int_value()
+	  == elfcpp::AEABI_FP_number_model_none
+	  || (in_attr[elfcpp::Tag_ABI_FP_number_model].int_value()
+	      != elfcpp::AEABI_FP_number_model_none
+	      && out_attr[elfcpp::Tag_ABI_VFP_args].int_value()
+		 == elfcpp::AEABI_VFP_args_compatible))
 	out_attr[elfcpp::Tag_ABI_VFP_args].set_int_value(
 	    in_attr[elfcpp::Tag_ABI_VFP_args].int_value());
-      else if (in_attr[elfcpp::Tag_ABI_FP_number_model].int_value() != 0
+      else if (in_attr[elfcpp::Tag_ABI_FP_number_model].int_value()
+	       != elfcpp::AEABI_FP_number_model_none
+	       && in_attr[elfcpp::Tag_ABI_VFP_args].int_value()
+		  != elfcpp::AEABI_VFP_args_compatible
 	       && parameters->options().warn_mismatch())
 	gold_error(_("%s uses VFP register arguments, output does not"),
 		   name);
@@ -11083,8 +11895,7 @@ Target_arm<big_endian>::scan_reloc_for_stub(
       if (gsym->use_plt_offset(Scan::get_reference_flags(r_type)))
 	{
 	  // This uses a PLT, change the symbol value.
-	  symval.set_output_value(this->plt_section()->address()
-				  + gsym->plt_offset());
+	  symval.set_output_value(this->plt_address_for_global(gsym));
 	  psymval = &symval;
 	  target_is_thumb = false;
 	}
@@ -11332,6 +12143,8 @@ Target_arm<big_endian>::scan_reloc_section_for_stubs(
 	  if (!is_defined_in_discarded_section)
 	    {
 	      typedef Sized_relobj_file<32, big_endian> ObjType;
+	      if (psymval->is_section_symbol())
+		symval.set_is_section_symbol();
 	      typename ObjType::Compute_final_local_value_status status =
 		arm_object->compute_final_local_value(r_sym, psymval, &symval,
 						      relinfo->symtab);
@@ -11758,10 +12571,9 @@ Target_arm<big_endian>::relocate_stub(
       elfcpp::Rel_write<32, big_endian> reloc_write(reloc_buffer);
       reloc_write.put_r_offset(reloc_offset);
       reloc_write.put_r_info(elfcpp::elf_r_info<32>(0, r_type));
-      elfcpp::Rel<32, big_endian> rel(reloc_buffer);
 
-      relocate.relocate(relinfo, this, output_section,
-			this->fake_relnum_for_stubs, rel, r_type,
+      relocate.relocate(relinfo, elfcpp::SHT_REL, this, output_section,
+			this->fake_relnum_for_stubs, reloc_buffer,
 			NULL, &symval, view + reloc_offset,
 			address + reloc_offset, reloc_size);
     }
@@ -12009,7 +12821,7 @@ Target_arm<big_endian>::apply_cortex_a8_workaround(
       // branch to the stub.  We use the THUMB-2 encoding here.
       upper_insn = 0xf000U;
       lower_insn = 0xb800U;
-      // Fall through
+      // Fall through.
     case arm_stub_a8_veneer_b:
     case arm_stub_a8_veneer_bl:
     case arm_stub_a8_veneer_blx:
@@ -12187,8 +12999,13 @@ class Target_arm_nacl : public Target_arm<big_endian>
 
  protected:
   virtual Output_data_plt_arm<big_endian>*
-  do_make_data_plt(Layout* layout, Output_data_space* got_plt)
-  { return new Output_data_plt_arm_nacl<big_endian>(layout, got_plt); }
+  do_make_data_plt(
+		   Layout* layout,
+		   Arm_output_data_got<big_endian>* got,
+		   Output_data_space* got_plt,
+		   Output_data_space* got_irelative)
+  { return new Output_data_plt_arm_nacl<big_endian>(
+      layout, got, got_plt, got_irelative); }
 
  private:
   static const Target::Target_info arm_nacl_info;
@@ -12218,15 +13035,20 @@ const Target::Target_info Target_arm_nacl<big_endian>::arm_nacl_info =
   0,			// large_common_section_flags
   ".ARM.attributes",	// attributes_section
   "aeabi",		// attributes_vendor
-  "_start"		// entry_symbol_name
+  "_start",		// entry_symbol_name
+  32,			// hash_entry_size
 };
 
 template<bool big_endian>
 class Output_data_plt_arm_nacl : public Output_data_plt_arm<big_endian>
 {
  public:
-  Output_data_plt_arm_nacl(Layout* layout, Output_data_space* got_plt)
-    : Output_data_plt_arm<big_endian>(layout, 16, got_plt)
+  Output_data_plt_arm_nacl(
+      Layout* layout,
+      Arm_output_data_got<big_endian>* got,
+      Output_data_space* got_plt,
+      Output_data_space* got_irelative)
+    : Output_data_plt_arm<big_endian>(layout, 16, got, got_plt, got_irelative)
   { }
 
  protected:

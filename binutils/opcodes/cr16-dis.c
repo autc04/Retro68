@@ -1,5 +1,5 @@
 /* Disassembler code for CR16.
-   Copyright (C) 2007-2014 Free Software Foundation, Inc.
+   Copyright (C) 2007-2017 Free Software Foundation, Inc.
    Contributed by M R Swami Reddy (MR.Swami.Reddy@nsc.com).
 
    This file is part of GAS, GDB and the GNU binutils.
@@ -358,7 +358,7 @@ make_argument (argument * a, int start_bits)
   switch (a->type)
     {
     case arg_r:
-      p = makelongparameter (cr16_allWords, 
+      p = makelongparameter (cr16_allWords,
 			     inst_bit_size - (start_bits + a->size),
 			     inst_bit_size - start_bits);
       a->r = p.val;
@@ -386,7 +386,7 @@ make_argument (argument * a, int start_bits)
       break;
 
     case arg_ic:
-      p = makelongparameter (cr16_allWords, 
+      p = makelongparameter (cr16_allWords,
 			     inst_bit_size - (start_bits + a->size),
 			     inst_bit_size - start_bits);
       a->constant = p.val;
@@ -466,7 +466,7 @@ make_argument (argument * a, int start_bits)
 	}
       else if (instruction->size == 2)
 	{
-	  p = makelongparameter (cr16_allWords, inst_bit_size - 16, 
+	  p = makelongparameter (cr16_allWords, inst_bit_size - 16,
 				 inst_bit_size);
 	  a->constant = p.val;
 	}
@@ -795,7 +795,7 @@ get_words_at_PC (bfd_vma memaddr, struct disassemble_info *info)
   for (i = 0, mem = memaddr; i < 3; i++, mem += 2)
     cr16_words[i] = get_word_at_PC (mem, info);
 
-  cr16_allWords =  ((ULONGLONG) cr16_words[0] << 32) 
+  cr16_allWords =  ((ULONGLONG) cr16_words[0] << 32)
 		   + ((unsigned long) cr16_words[1] << 16) + cr16_words[2];
 }
 
@@ -815,7 +815,7 @@ print_insn_cr16 (bfd_vma memaddr, struct disassemble_info *info)
   /* Find a matching opcode in table.  */
   is_decoded = cr16_match_opcode ();
   /* If found, print the instruction's mnemonic and arguments.  */
-  if (is_decoded > 0 && (cr16_words[0] << 16 || cr16_words[1]) != 0)
+  if (is_decoded > 0 && (cr16_words[0] != 0 || cr16_words[1] != 0))
     {
       if (strneq (instruction->mnemonic, "cinv", 4))
         info->fprintf_func (info->stream,"%s", getcinvstring (instruction->mnemonic));

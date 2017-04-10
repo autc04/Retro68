@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	0e2188e7 	frintn	v7.2s, v7.2s
    4:	4e2188e7 	frintn	v7.4s, v7.4s
    8:	4e6188e7 	frintn	v7.2d, v7.2d

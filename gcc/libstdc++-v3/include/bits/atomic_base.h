@@ -1,6 +1,6 @@
 // -*- C++ -*- header.
 
-// Copyright (C) 2008-2015 Free Software Foundation, Inc.
+// Copyright (C) 2008-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -350,17 +350,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       bool
       is_lock_free() const noexcept
       {
-	// Produce a fake, minimally aligned pointer.
-	void *__a = reinterpret_cast<void *>(-__alignof(_M_i));
-	return __atomic_is_lock_free(sizeof(_M_i), __a);
+	// Use a fake, minimally aligned pointer.
+	return __atomic_is_lock_free(sizeof(_M_i),
+	    reinterpret_cast<void *>(-__alignof(_M_i)));
       }
 
       bool
       is_lock_free() const volatile noexcept
       {
-	// Produce a fake, minimally aligned pointer.
-	void *__a = reinterpret_cast<void *>(-__alignof(_M_i));
-	return __atomic_is_lock_free(sizeof(_M_i), __a);
+	// Use a fake, minimally aligned pointer.
+	return __atomic_is_lock_free(sizeof(_M_i),
+	    reinterpret_cast<void *>(-__alignof(_M_i)));
       }
 
       _GLIBCXX_ALWAYS_INLINE void
@@ -666,16 +666,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       is_lock_free() const noexcept
       {
 	// Produce a fake, minimally aligned pointer.
-	void *__a = reinterpret_cast<void *>(-__alignof(_M_p));
-	return __atomic_is_lock_free(sizeof(_M_p), __a);
+	return __atomic_is_lock_free(sizeof(_M_p),
+	    reinterpret_cast<void *>(-__alignof(_M_p)));
       }
 
       bool
       is_lock_free() const volatile noexcept
       {
 	// Produce a fake, minimally aligned pointer.
-	void *__a = reinterpret_cast<void *>(-__alignof(_M_p));
-	return __atomic_is_lock_free(sizeof(_M_p), __a);
+	return __atomic_is_lock_free(sizeof(_M_p),
+	    reinterpret_cast<void *>(-__alignof(_M_p)));
       }
 
       _GLIBCXX_ALWAYS_INLINE void

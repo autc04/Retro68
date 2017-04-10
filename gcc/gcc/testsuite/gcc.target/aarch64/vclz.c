@@ -67,18 +67,13 @@ extern void abort (void);
   CONCAT1 (vclz, POSTFIX (reg_len, data_len, is_signed))
 
 #define RUN_TEST(test_set, answ_set, reg_len, data_len, is_signed, n)	\
+  INHIB_OPTIMIZATION;							\
   a = LOAD_INST (reg_len, data_len, is_signed) (test_set);		\
   b = LOAD_INST (reg_len, data_len, is_signed) (answ_set);	        \
-  INHIB_OPTIMIZATION;							\
   a = CLZ_INST (reg_len, data_len, is_signed) (a);			\
   for (i = 0; i < n; i++)						\
-    {									\
-      INHIB_OPTIMIZATION;						\
-      if (a [i] != b [i])						\
-        {								\
-          return 1;							\
-        }								\
-    }
+    if (a [i] != b [i])							\
+      return 1;
 
 int
 test_vclz_s8 ()
@@ -571,4 +566,3 @@ main (int argc, char **argv)
   return 0;
 }
 
-/* { dg-final { cleanup-saved-temps } } */

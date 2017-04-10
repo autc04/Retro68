@@ -4,7 +4,7 @@ tmpdir/libtestn\.so:     file format elf32-tic6x-le
 
 Disassembly of section \.plt:
 
-10000020 <sub0@plt-0x18>:
+10000020 <.plt>:
 10000020:	0100036e 	ldw \.D2T2 \*\+b14\(12\),b2
 10000024:	0080046e 	ldw \.D2T2 \*\+b14\(16\),b1
 10000028:	00004000 	nop 3

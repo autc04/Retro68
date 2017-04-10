@@ -591,4 +591,13 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 4b 90 90 90 90 90 	cmovnp -0x6f6f6f70\(%eax\),%edx
 [ 	]*[a-f0-9]+:	66 0f 4a 90 90 90 90 90 	cmovp  -0x6f6f6f70\(%eax\),%dx
 [ 	]*[a-f0-9]+:	66 0f 4b 90 90 90 90 90 	cmovnp -0x6f6f6f70\(%eax\),%dx
+ +[a-f0-9]+:	82 c3 01             	add    \$0x1,%bl
+ +[a-f0-9]+:	82 f3 01             	xor    \$0x1,%bl
+ +[a-f0-9]+:	82 d3 01             	adc    \$0x1,%bl
+ +[a-f0-9]+:	82 db 01             	sbb    \$0x1,%bl
+ +[a-f0-9]+:	82 e3 01             	and    \$0x1,%bl
+ +[a-f0-9]+:	82 eb 01             	sub    \$0x1,%bl
+ +[a-f0-9]+:	82 f3 01             	xor    \$0x1,%bl
+ +[a-f0-9]+:	82 fb 01             	cmp    \$0x1,%bl
+ +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	vpextrw \$0xab,%xmm5,%eax
 #pass

@@ -1,5 +1,5 @@
 /* xSYM symbol-file support for BFD.
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -35,6 +35,7 @@
 #define bfd_sym_find_nearest_line                   _bfd_nosymbols_find_nearest_line
 #define bfd_sym_find_line                           _bfd_nosymbols_find_line
 #define bfd_sym_find_inliner_info                   _bfd_nosymbols_find_inliner_info
+#define bfd_sym_get_symbol_version_string	    _bfd_nosymbols_get_symbol_version_string
 #define bfd_sym_bfd_make_debug_symbol               _bfd_nosymbols_bfd_make_debug_symbol
 #define bfd_sym_read_minisymbols                    _bfd_generic_read_minisymbols
 #define bfd_sym_minisymbol_to_symbol                _bfd_generic_minisymbol_to_symbol
@@ -58,6 +59,7 @@
 #define bfd_sym_bfd_final_link                      _bfd_generic_final_link
 #define bfd_sym_bfd_link_split_section              _bfd_generic_link_split_section
 #define bfd_sym_get_section_contents_in_window      _bfd_generic_get_section_contents_in_window
+#define bfd_sym_bfd_link_check_relocs               _bfd_generic_link_check_relocs
 
 extern const bfd_target sym_vec;
 
@@ -1803,7 +1805,7 @@ bfd_sym_print_type_information_table_entry (bfd *abfd,
 
   fprintf (f, "\n            ");
 
-  buf = alloca (entry->physical_size);
+  buf = malloc (entry->physical_size);
   if (buf == NULL)
     {
       fprintf (f, "[ERROR]\n");
@@ -1812,11 +1814,13 @@ bfd_sym_print_type_information_table_entry (bfd *abfd,
   if (bfd_seek (abfd, entry->offset, SEEK_SET) < 0)
     {
       fprintf (f, "[ERROR]\n");
+      free (buf);
       return;
     }
   if (bfd_bread (buf, entry->physical_size, abfd) != entry->physical_size)
     {
       fprintf (f, "[ERROR]\n");
+      free (buf);
       return;
     }
 
@@ -1836,6 +1840,7 @@ bfd_sym_print_type_information_table_entry (bfd *abfd,
 
   if (offset != entry->physical_size)
     fprintf (f, "\n            [parser used %lu bytes instead of %lu]", offset, entry->physical_size);
+  free (buf);
 }
 
 void

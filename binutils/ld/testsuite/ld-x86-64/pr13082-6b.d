@@ -7,7 +7,3 @@
 Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 1 entries:
  Offset     Info    Type                Sym. Value  Symbol's Name \+ Addend
 [0-9a-f]+ +[0-9a-f]+ +R_X86_64_IRELATIVE +[0-9a-f]+
-
-Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entries:
- Offset     Info    Type                Sym. Value  Symbol's Name \+ Addend
-[0-9a-f]+ +[0-9a-f]+ +R_X86_64_IRELATIVE +[0-9a-f]+

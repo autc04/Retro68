@@ -158,7 +158,7 @@ start:
 	xxsel      40,50,60,62
 	xxsldwi    40,50,60,2
 	xxspltw    40,60,2
-	lxvx       40,0,20
-	lxvx       40,10,20
-	stxvx      40,0,20
-	stxvx      40,10,20
+	lxvd2x     40,0,20
+	lxvd2x     40,10,20
+	stxvd2x    40,0,20
+	stxvd2x    40,10,20

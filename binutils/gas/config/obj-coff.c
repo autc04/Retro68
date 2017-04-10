@@ -1,5 +1,5 @@
 /* coff object file format
-   Copyright (C) 1989-2014 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -77,10 +77,8 @@ stack_init (unsigned long chunk_size,
 {
   stack *st;
 
-  st = malloc (sizeof (* st));
-  if (!st)
-    return NULL;
-  st->data = malloc (chunk_size);
+  st = XNEW (stack);
+  st->data = XNEWVEC (char, chunk_size);
   if (!st->data)
     {
       free (st);
@@ -99,8 +97,7 @@ stack_push (stack *st, char *element)
   if (st->pointer + st->element_size >= st->size)
     {
       st->size += st->chunk_size;
-      if ((st->data = xrealloc (st->data, st->size)) == NULL)
-	return NULL;
+      st->data = XRESIZEVEC (char, st->data, st->size);
     }
   memcpy (st->data + st->pointer, element, st->element_size);
   st->pointer += st->element_size;
@@ -383,7 +380,7 @@ void
 coff_obj_symbol_new_hook (symbolS *symbolP)
 {
   long   sz = (OBJ_COFF_MAX_AUXENTRIES + 1) * sizeof (combined_entry_type);
-  char * s  = xmalloc (sz);
+  char * s  = XNEWVEC (char, sz);
 
   memset (s, 0, sz);
   coffsymbol (symbol_get_bfdsym (symbolP))->native = (combined_entry_type *) s;
@@ -403,10 +400,11 @@ coff_obj_symbol_new_hook (symbolS *symbolP)
 void
 coff_obj_symbol_clone_hook (symbolS *newsymP, symbolS *orgsymP)
 {
-  long sz = (OBJ_COFF_MAX_AUXENTRIES + 1) * sizeof (combined_entry_type);
-  combined_entry_type * s = xmalloc (sz);
+  long elts = OBJ_COFF_MAX_AUXENTRIES + 1;
+  combined_entry_type * s = XNEWVEC (combined_entry_type, elts);
 
-  memcpy (s, coffsymbol (symbol_get_bfdsym (orgsymP))->native, sz);
+  memcpy (s, coffsymbol (symbol_get_bfdsym (orgsymP))->native,
+	  elts * sizeof (combined_entry_type));
   coffsymbol (symbol_get_bfdsym (newsymP))->native = s;
 
   SF_SET (newsymP, SF_GET (orgsymP));
@@ -423,7 +421,7 @@ int coff_n_line_nos;
 static void
 add_lineno (fragS * frag, addressT offset, int num)
 {
-  struct line_no * new_line = xmalloc (sizeof (* new_line));
+  struct line_no * new_line = XNEW (struct line_no);
 
   if (!current_lineno_sym)
     abort ();
@@ -592,7 +590,6 @@ obj_coff_def (int what ATTRIBUTE_UNUSED)
   char name_end;		/* Char after the end of name.  */
   char *symbol_name;		/* Name of the debug symbol.  */
   char *symbol_name_copy;	/* Temporary copy of the name.  */
-  unsigned int symbol_name_length;
 
   if (def_symbol_in_progress != NULL)
     {
@@ -603,11 +600,8 @@ obj_coff_def (int what ATTRIBUTE_UNUSED)
 
   SKIP_WHITESPACES ();
 
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
-  symbol_name_length = strlen (symbol_name);
-  symbol_name_copy = xmalloc (symbol_name_length + 1);
-  strcpy (symbol_name_copy, symbol_name);
+  name_end = get_symbol_name (&symbol_name);
+  symbol_name_copy = xstrdup (symbol_name);
 #ifdef tc_canonicalize_symbol_name
   symbol_name_copy = tc_canonicalize_symbol_name (symbol_name_copy);
 #endif
@@ -620,7 +614,7 @@ obj_coff_def (int what ATTRIBUTE_UNUSED)
   if (S_IS_STRING (def_symbol_in_progress))
     SF_SET_STRING (def_symbol_in_progress);
 
-  *input_line_pointer = name_end;
+  (void) restore_line_pointer (name_end);
 
   demand_empty_rest_of_line ();
 }
@@ -973,8 +967,7 @@ obj_coff_tag (int ignore ATTRIBUTE_UNUSED)
     }
 
   S_SET_NUMBER_AUXILIARY (def_symbol_in_progress, 1);
-  symbol_name = input_line_pointer;
-  name_end = get_symbol_end ();
+  name_end = get_symbol_name (&symbol_name);
 
 #ifdef tc_canonicalize_symbol_name
   symbol_name = tc_canonicalize_symbol_name (symbol_name);
@@ -988,8 +981,8 @@ obj_coff_tag (int ignore ATTRIBUTE_UNUSED)
     as_warn (_("tag not found for .tag %s"), symbol_name);
 
   SF_SET_TAGGED (def_symbol_in_progress);
-  *input_line_pointer = name_end;
 
+  (void) restore_line_pointer (name_end);
   demand_empty_rest_of_line ();
 }
 
@@ -1024,11 +1017,11 @@ obj_coff_val (int ignore ATTRIBUTE_UNUSED)
 
   if (is_name_beginner (*input_line_pointer))
     {
-      char *symbol_name = input_line_pointer;
-      char name_end = get_symbol_end ();
+      char *symbol_name;
+      char name_end = get_symbol_name (&symbol_name);
 
 #ifdef tc_canonicalize_symbol_name
-  symbol_name = tc_canonicalize_symbol_name (symbol_name);
+      symbol_name = tc_canonicalize_symbol_name (symbol_name);
 #endif
       if (streq (symbol_name, "."))
 	{
@@ -1059,7 +1052,7 @@ obj_coff_val (int ignore ATTRIBUTE_UNUSED)
 	}
       /* Otherwise, it is the name of a non debug symbol and its value
          will be calculated later.  */
-      *input_line_pointer = name_end;
+      (void) restore_line_pointer (name_end);
     }
   else
     {
@@ -1085,11 +1078,7 @@ weak_is_altname (const char * name)
 static const char *
 weak_name2altname (const char * name)
 {
-  char *alt_name;
-
-  alt_name = xmalloc (sizeof (weak_altprefix) + strlen (name));
-  strcpy (alt_name, weak_altprefix);
-  return strcat (alt_name, name);
+  return concat (weak_altprefix, name, (char *) NULL);
 }
 
 /* Return the name of the weak symbol corresponding to an
@@ -1108,7 +1097,6 @@ weak_altname2name (const char * name)
 static const char *
 weak_uniquify (const char * name)
 {
-  char *ret;
   const char * unique = "";
 
 #ifdef TE_PE
@@ -1117,11 +1105,7 @@ weak_uniquify (const char * name)
 #endif
   gas_assert (weak_is_altname (name));
 
-  ret = xmalloc (strlen (name) + strlen (unique) + 2);
-  strcpy (ret, name);
-  strcat (ret, ".");
-  strcat (ret, unique);
-  return ret;
+  return concat (name, ".", unique, (char *) NULL);
 }
 
 void
@@ -1170,8 +1154,7 @@ obj_coff_weak (int ignore ATTRIBUTE_UNUSED)
 
   do
     {
-      name = input_line_pointer;
-      c = get_symbol_end ();
+      c = get_symbol_name (&name);
       if (*name == 0)
 	{
 	  as_warn (_("badly formed .weak directive ignored"));
@@ -1181,7 +1164,7 @@ obj_coff_weak (int ignore ATTRIBUTE_UNUSED)
       c = 0;
       symbolP = symbol_find_or_make (name);
       *input_line_pointer = c;
-      SKIP_WHITESPACE ();
+      SKIP_WHITESPACE_AFTER_NAME ();
       S_SET_WEAK (symbolP);
 
       if (c == ',')
@@ -1458,7 +1441,7 @@ coff_frob_symbol (symbolS *symp, int *punt)
       /* We need i entries for line numbers, plus 1 for the first
 	 entry which BFD will override, plus 1 for the last zero
 	 entry (a marker for BFD).  */
-      l = xmalloc ((i + 2) * sizeof (* l));
+      l = XNEWVEC (alent, (i + 2));
       coffsymbol (symbol_get_bfdsym (symp))->lineno = l;
       l[i + 1].line_number = 0;
       l[i + 1].u.sym = NULL;
@@ -1564,15 +1547,10 @@ obj_coff_section (int ignore ATTRIBUTE_UNUSED)
       return;
     }
 
-  section_name = input_line_pointer;
-  c = get_symbol_end ();
-
-  name = xmalloc (input_line_pointer - section_name + 1);
-  strcpy (name, section_name);
-
+  c = get_symbol_name (&section_name);
+  name = xmemdup0 (section_name, input_line_pointer - section_name);
   *input_line_pointer = c;
-
-  SKIP_WHITESPACE ();
+  SKIP_WHITESPACE_AFTER_NAME ();
 
   exp = 0;
   flags = SEC_NO_FLAGS;
@@ -1817,7 +1795,7 @@ coff_frob_section (segT sec)
 void
 obj_coff_init_stab_section (segT seg)
 {
-  char *file;
+  const char *file;
   char *p;
   char *stabstr_name;
   unsigned int stroff;
@@ -1826,10 +1804,8 @@ obj_coff_init_stab_section (segT seg)
   p = frag_more (12);
   /* Zero it out.  */
   memset (p, 0, 12);
-  as_where (&file, (unsigned int *) NULL);
-  stabstr_name = xmalloc (strlen (seg->name) + 4);
-  strcpy (stabstr_name, seg->name);
-  strcat (stabstr_name, "str");
+  file = as_where ((unsigned int *) NULL);
+  stabstr_name = concat (seg->name, "str", (char *) NULL);
   stroff = get_stab_string_offset (file, stabstr_name);
   know (stroff == 1);
   md_number_to_chars (p, stroff, 4);

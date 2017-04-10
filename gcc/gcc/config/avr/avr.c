@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.c for ATMEL AVR micro controllers
-   Copyright (C) 1998-2015 Free Software Foundation, Inc.
+   Copyright (C) 1998-2016 Free Software Foundation, Inc.
    Contributed by Denis Chertykov (chertykov@gmail.com)
 
    This file is part of GCC.
@@ -21,68 +21,35 @@
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
+#include "backend.h"
+#include "target.h"
 #include "rtl.h"
+#include "c-family/c-common.h"
+#include "cfghooks.h"
+#include "df.h"
+#include "tm_p.h"
+#include "optabs.h"
 #include "regs.h"
-#include "hard-reg-set.h"
-#include "insn-config.h"
+#include "emit-rtl.h"
+#include "recog.h"
 #include "conditions.h"
 #include "insn-attr.h"
-#include "insn-codes.h"
-#include "flags.h"
 #include "reload.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "tree.h"
-#include "fold-const.h"
 #include "varasm.h"
-#include "print-tree.h"
 #include "calls.h"
 #include "stor-layout.h"
-#include "stringpool.h"
 #include "output.h"
-#include "hashtab.h"
-#include "function.h"
-#include "statistics.h"
-#include "real.h"
-#include "fixed-value.h"
-#include "expmed.h"
-#include "dojump.h"
 #include "explow.h"
-#include "emit-rtl.h"
-#include "stmt.h"
 #include "expr.h"
-#include "c-family/c-common.h"
-#include "diagnostic-core.h"
-#include "obstack.h"
-#include "recog.h"
-#include "optabs.h"
-#include "ggc.h"
 #include "langhooks.h"
-#include "tm_p.h"
-#include "target.h"
-#include "target-def.h"
-#include "params.h"
-#include "dominance.h"
-#include "cfg.h"
 #include "cfgrtl.h"
-#include "cfganal.h"
-#include "lcm.h"
-#include "cfgbuild.h"
-#include "cfgcleanup.h"
-#include "predict.h"
-#include "basic-block.h"
-#include "df.h"
+#include "params.h"
 #include "builtins.h"
 #include "context.h"
 #include "tree-pass.h"
+
+/* This file should be included last.  */
+#include "target-def.h"
 
 /* Maximal allowed offset for an address in the LD command */
 #define MAX_LD_OFFSET(MODE) (64 - (signed)GET_MODE_SIZE (MODE))
@@ -186,7 +153,7 @@ static struct machine_function * avr_init_machine_status (void);
 
 /* Prototypes for hook implementors if needed before their implementation.  */
 
-static bool avr_rtx_costs (rtx, int, int, int, int*, bool);
+static bool avr_rtx_costs (rtx, machine_mode, int, int, int*, bool);
 
 
 /* Allocate registers from r25 to r8 for parameters for function calls.  */
@@ -235,9 +202,6 @@ static GTY(()) rtx xstring_e;
 
 /* Current architecture.  */
 const avr_arch_t *avr_arch;
-
-/* Section to put switch tables in.  */
-static GTY(()) section *progmem_swtable_section;
 
 /* Unnamed sections associated to __attribute__((progmem)) aka. PROGMEM
    or to address space __flash* or __memx.  Only used as singletons inside
@@ -443,6 +407,15 @@ avr_option_override (void)
 
   if (avr_strict_X)
     flag_caller_saves = 0;
+
+  /* Allow optimizer to introduce store data races. This used to be the
+     default - it was changed because bigger targets did not see any
+     performance decrease. For the AVR though, disallowing data races
+     introduces additional code in LIM and increases reg pressure.  */
+
+  maybe_set_param_value (PARAM_ALLOW_STORE_DATA_RACES, 1,
+      global_options.x_param_values,
+      global_options_set.x_param_values);
 
   /* Unwind tables currently require a frame pointer for correctness,
      see toplev.c:process_options().  */
@@ -1129,7 +1102,7 @@ emit_push_byte (unsigned regno, bool frame_related_p)
   mem = gen_frame_mem (QImode, mem);
   reg = gen_rtx_REG (QImode, regno);
 
-  insn = emit_insn (gen_rtx_SET (VOIDmode, mem, reg));
+  insn = emit_insn (gen_rtx_SET (mem, reg));
   if (frame_related_p)
     RTX_FRAME_RELATED_P (insn) = 1;
 
@@ -1209,9 +1182,9 @@ avr_prologue_setup_frame (HOST_WIDE_INT size, HARD_REG_SET set)
          is going to be permanent in the function is frame_pointer_needed.  */
 
       add_reg_note (insn, REG_CFA_ADJUST_CFA,
-                    gen_rtx_SET (VOIDmode, (frame_pointer_needed
-                                            ? frame_pointer_rtx
-                                            : stack_pointer_rtx),
+                    gen_rtx_SET ((frame_pointer_needed
+				  ? frame_pointer_rtx
+				  : stack_pointer_rtx),
                                  plus_constant (Pmode, stack_pointer_rtx,
                                                 -(size + live_seq))));
 
@@ -1229,7 +1202,7 @@ avr_prologue_setup_frame (HOST_WIDE_INT size, HARD_REG_SET set)
           m = gen_rtx_MEM (QImode, plus_constant (Pmode, stack_pointer_rtx,
                                                   offset));
           r = gen_rtx_REG (QImode, reg);
-          add_reg_note (insn, REG_CFA_OFFSET, gen_rtx_SET (VOIDmode, m, r));
+          add_reg_note (insn, REG_CFA_OFFSET, gen_rtx_SET (m, r));
         }
 
       cfun->machine->stack_usage += size + live_seq;
@@ -1341,7 +1314,7 @@ avr_prologue_setup_frame (HOST_WIDE_INT size, HARD_REG_SET set)
             {
               RTX_FRAME_RELATED_P (insn) = 1;
               add_reg_note (insn, REG_CFA_ADJUST_CFA,
-                            gen_rtx_SET (VOIDmode, fp, stack_pointer_rtx));
+                            gen_rtx_SET (fp, stack_pointer_rtx));
             }
 
           insn = emit_move_insn (my_fp, plus_constant (GET_MODE (my_fp),
@@ -1351,9 +1324,8 @@ avr_prologue_setup_frame (HOST_WIDE_INT size, HARD_REG_SET set)
             {
               RTX_FRAME_RELATED_P (insn) = 1;
               add_reg_note (insn, REG_CFA_ADJUST_CFA,
-                            gen_rtx_SET (VOIDmode, fp,
-                                         plus_constant (Pmode, fp,
-                                                        -size_cfa)));
+                            gen_rtx_SET (fp, plus_constant (Pmode, fp,
+							    -size_cfa)));
             }
 
           /* Copy to stack pointer.  Note that since we've already
@@ -1379,7 +1351,7 @@ avr_prologue_setup_frame (HOST_WIDE_INT size, HARD_REG_SET set)
             {
               RTX_FRAME_RELATED_P (insn) = 1;
               add_reg_note (insn, REG_CFA_ADJUST_CFA,
-                            gen_rtx_SET (VOIDmode, stack_pointer_rtx,
+                            gen_rtx_SET (stack_pointer_rtx,
                                          plus_constant (Pmode,
                                                         stack_pointer_rtx,
                                                         -size_cfa)));
@@ -1404,7 +1376,7 @@ avr_prologue_setup_frame (HOST_WIDE_INT size, HARD_REG_SET set)
                                                     -size));
               RTX_FRAME_RELATED_P (insn) = 1;
               add_reg_note (insn, REG_CFA_ADJUST_CFA,
-                            gen_rtx_SET (VOIDmode, stack_pointer_rtx,
+                            gen_rtx_SET (stack_pointer_rtx,
                                          plus_constant (Pmode,
                                                         stack_pointer_rtx,
                                                         -size_cfa)));
@@ -1574,7 +1546,7 @@ emit_pop_byte (unsigned regno)
   mem = gen_frame_mem (QImode, mem);
   reg = gen_rtx_REG (QImode, regno);
 
-  emit_insn (gen_rtx_SET (VOIDmode, reg, mem));
+  emit_insn (gen_rtx_SET (reg, mem));
 }
 
 /*  Output RTL epilogue.  */
@@ -2193,7 +2165,7 @@ cond_string (enum rtx_code code)
 /* Output ADDR to FILE as address.  */
 
 static void
-avr_print_operand_address (FILE *file, rtx addr)
+avr_print_operand_address (FILE *file, machine_mode /*mode*/, rtx addr)
 {
   switch (GET_CODE (addr))
     {
@@ -2393,7 +2365,7 @@ avr_print_operand (FILE *file, rtx x, int code)
           if (GET_CODE (addr) != PLUS)
                fatal_insn ("bad address, not (reg+disp):", addr);
 
-          avr_print_operand_address (file, XEXP (addr, 0));
+          avr_print_operand_address (file, VOIDmode, XEXP (addr, 0));
         }
       else if (code == 'p' || code == 'r')
         {
@@ -2401,13 +2373,14 @@ avr_print_operand (FILE *file, rtx x, int code)
             fatal_insn ("bad address, not post_inc or pre_dec:", addr);
 
           if (code == 'p')
-            avr_print_operand_address (file, XEXP (addr, 0));  /* X, Y, Z */
+	    /* X, Y, Z */
+            avr_print_operand_address (file, VOIDmode, XEXP (addr, 0));
           else
             avr_print_operand (file, XEXP (addr, 0), 0);  /* r26, r28, r30 */
         }
       else if (GET_CODE (addr) == PLUS)
         {
-          avr_print_operand_address (file, XEXP (addr,0));
+          avr_print_operand_address (file, VOIDmode, XEXP (addr,0));
           if (REGNO (XEXP (addr, 0)) == REG_X)
             fatal_insn ("internal compiler error.  Bad address:"
                         ,addr);
@@ -2415,13 +2388,13 @@ avr_print_operand (FILE *file, rtx x, int code)
           avr_print_operand (file, XEXP (addr,1), code);
         }
       else
-        avr_print_operand_address (file, addr);
+        avr_print_operand_address (file, VOIDmode, addr);
     }
   else if (code == 'i')
     {
       if (GET_CODE (x) == SYMBOL_REF && (SYMBOL_REF_FLAGS (x) & SYMBOL_FLAG_IO))
 	avr_print_operand_address
-	  (file, plus_constant (HImode, x, -avr_arch->sfr_offset));
+	  (file, VOIDmode, plus_constant (HImode, x, -avr_arch->sfr_offset));
       else
 	fatal_insn ("bad address, not an I/O address:", x);
     }
@@ -2449,11 +2422,9 @@ avr_print_operand (FILE *file, rtx x, int code)
   else if (GET_CODE (x) == CONST_DOUBLE)
     {
       long val;
-      REAL_VALUE_TYPE rv;
       if (GET_MODE (x) != SFmode)
         fatal_insn ("internal compiler error.  Unknown mode:", x);
-      REAL_VALUE_FROM_CONST_DOUBLE (rv, x);
-      REAL_VALUE_TO_TARGET_SINGLE (rv, val);
+      REAL_VALUE_TO_TARGET_SINGLE (*CONST_DOUBLE_REAL_VALUE (x), val);
       fprintf (file, "0x%lx", val);
     }
   else if (GET_CODE (x) == CONST_STRING)
@@ -2463,7 +2434,28 @@ avr_print_operand (FILE *file, rtx x, int code)
   else if (code == 'k')
     fputs (cond_string (reverse_condition (GET_CODE (x))), file);
   else
-    avr_print_operand_address (file, x);
+    avr_print_operand_address (file, VOIDmode, x);
+}
+
+
+/* Implement TARGET_USE_BY_PIECES_INFRASTRUCTURE_P.  */
+
+/* Prefer sequence of loads/stores for moves of size upto
+   two - two pairs of load/store instructions are always better
+   than the 5 instruction sequence for a loop (1 instruction
+   for loop counter setup, and 4 for the body of the loop). */
+
+static bool
+avr_use_by_pieces_infrastructure_p (unsigned HOST_WIDE_INT size,
+				     unsigned int align ATTRIBUTE_UNUSED,
+				     enum by_pieces_operation op,
+				     bool speed_p)
+{
+
+  if (op != MOVE_BY_PIECES || (speed_p && (size > (MOVE_MAX_PIECES))))
+    return default_use_by_pieces_infrastructure_p (size, align, op, speed_p);
+
+  return size <= (MOVE_MAX_PIECES);
 }
 
 
@@ -2526,8 +2518,44 @@ avr_notice_update_cc (rtx body ATTRIBUTE_UNUSED, rtx_insn *insn)
       break;
 
     case CC_NONE:
-      /* Insn does not affect CC at all.  */
-      break;
+      /* Insn does not affect CC at all, but it might set some registers
+         that are stored in cc_status.  If such a register is affected by
+         the current insn, for example by means of a SET or a CLOBBER,
+         then we must reset cc_status; cf. PR77326.
+
+         Unfortunately, set_of cannot be used as reg_overlap_mentioned_p
+         will abort on COMPARE (which might be found in cc_status.value1/2).
+         Thus work out the registers set by the insn and regs mentioned
+         in cc_status.value1/2.  */
+
+      if (cc_status.value1
+          || cc_status.value2)
+        {
+          HARD_REG_SET regs_used;
+          HARD_REG_SET regs_set;
+          CLEAR_HARD_REG_SET (regs_used);
+
+          if (cc_status.value1
+              && !CONSTANT_P (cc_status.value1))
+            {
+              find_all_hard_regs (cc_status.value1, &regs_used);
+            }
+
+          if (cc_status.value2
+              && !CONSTANT_P (cc_status.value2))
+            {
+              find_all_hard_regs (cc_status.value2, &regs_used);
+            }
+
+          find_all_hard_reg_sets (insn, &regs_set, false);
+
+          if (hard_reg_set_intersect_p (regs_used, regs_set))
+            {
+              CC_STATUS_INIT;
+            }
+        }
+
+      break; // CC_NONE
 
     case CC_SET_N:
       CC_STATUS_INIT;
@@ -2715,10 +2743,11 @@ avr_final_prescan_insn (rtx_insn *insn, rtx *operand ATTRIBUTE_UNUSED,
 
       if (set)
         fprintf (asm_out_file, "/* DEBUG: cost = %d.  */\n",
-                 set_src_cost (SET_SRC (set), optimize_insn_for_speed_p ()));
+                 set_src_cost (SET_SRC (set), GET_MODE (SET_DEST (set)),
+			       optimize_insn_for_speed_p ()));
       else
         fprintf (asm_out_file, "/* DEBUG: pattern-cost = %d.  */\n",
-                 rtx_cost (PATTERN (insn), INSN, 0,
+                 rtx_cost (PATTERN (insn), VOIDmode, INSN, 0,
                            optimize_insn_for_speed_p()));
     }
 }
@@ -4380,9 +4409,9 @@ avr_out_load_psi_reg_no_disp_tiny (rtx_insn *insn, rtx *op, int *plen)
     }
   else
     {
-      return avr_asm_len ("ld %A0,%1+"  CR_TAB
-                          "ld %B0,%1+"  CR_TAB
-                          "ld %C0,%1", op, plen, -3);
+      avr_asm_len ("ld %A0,%1+"  CR_TAB
+		   "ld %B0,%1+"  CR_TAB
+		   "ld %C0,%1", op, plen, -3);
 
       if (reg_dest != reg_base - 2 &&
           !reg_unused_after (insn, base))
@@ -8473,7 +8502,7 @@ avr_out_round (rtx_insn *insn ATTRIBUTE_UNUSED, rtx *xop, int *plen)
   xsrc = SIGNED_FIXED_POINT_MODE_P (mode)
     ? gen_rtx_SS_PLUS (mode, xop[1], xadd)
     : gen_rtx_US_PLUS (mode, xop[1], xadd);
-  xpattern = gen_rtx_SET (VOIDmode, xop[0], xsrc);
+  xpattern = gen_rtx_SET (xop[0], xsrc);
 
   op[0] = xop[0];
   op[1] = xop[1];
@@ -8490,7 +8519,7 @@ avr_out_round (rtx_insn *insn ATTRIBUTE_UNUSED, rtx *xop, int *plen)
   rtx xreg = simplify_gen_subreg (imode, xop[0], mode, 0);
   rtx xmask = immed_wide_int_const (-wi_add - wi_add, imode);
 
-  xpattern = gen_rtx_SET (VOIDmode, xreg, gen_rtx_AND (imode, xreg, xmask));
+  xpattern = gen_rtx_SET (xreg, gen_rtx_AND (imode, xreg, xmask));
 
   op[0] = xreg;
   op[1] = xreg;
@@ -9086,6 +9115,8 @@ avr_eval_addr_attrib (rtx x)
       if (SYMBOL_REF_FLAGS (x) & SYMBOL_FLAG_IO)
 	{
 	  attr = lookup_attribute ("io", DECL_ATTRIBUTES (decl));
+         if (!attr || !TREE_VALUE (attr))
+           attr = lookup_attribute ("io_low", DECL_ATTRIBUTES (decl));
 	  gcc_assert (attr);
 	}
       if (!attr || !TREE_VALUE (attr))
@@ -9272,10 +9303,10 @@ avr_pgm_check_var_decl (tree node)
         {
           if (TYPE_P (node))
             error ("%qT uses address space %qs beyond flash of %d KiB",
-                   node, avr_addrspace[as].name, avr_n_flash);
+                   node, avr_addrspace[as].name, 64 * avr_n_flash);
           else
             error ("%s %q+D uses address space %qs beyond flash of %d KiB",
-                   reason, node, avr_addrspace[as].name, avr_n_flash);
+                   reason, node, avr_addrspace[as].name, 64 * avr_n_flash);
         }
       else
         {
@@ -9322,7 +9353,7 @@ avr_insert_attributes (tree node, tree *attributes)
       if (avr_addrspace[as].segment >= avr_n_flash)
         {
           error ("variable %q+D located in address space %qs beyond flash "
-                 "of %d KiB", node, avr_addrspace[as].name, avr_n_flash);
+                 "of %d KiB", node, avr_addrspace[as].name, 64 * avr_n_flash);
         }
       else if (!AVR_HAVE_LPM && avr_addrspace[as].pointer_size > 2)
 	{
@@ -9463,89 +9494,12 @@ avr_output_progmem_section_asm_op (const void *data)
 static void
 avr_asm_init_sections (void)
 {
-  /* Set up a section for jump tables.  Alignment is handled by
-     ASM_OUTPUT_BEFORE_CASE_LABEL.  */
-
-  if (AVR_HAVE_JMP_CALL)
-    {
-      progmem_swtable_section
-        = get_unnamed_section (0, output_section_asm_op,
-                               "\t.section\t.progmem.gcc_sw_table"
-                               ",\"a\",@progbits");
-    }
-  else
-    {
-      progmem_swtable_section
-        = get_unnamed_section (SECTION_CODE, output_section_asm_op,
-                               "\t.section\t.progmem.gcc_sw_table"
-                               ",\"ax\",@progbits");
-    }
-
   /* Override section callbacks to keep track of `avr_need_clear_bss_p'
      resp. `avr_need_copy_data_p'.  */
 
   readonly_data_section->unnamed.callback = avr_output_data_section_asm_op;
   data_section->unnamed.callback = avr_output_data_section_asm_op;
   bss_section->unnamed.callback = avr_output_bss_section_asm_op;
-}
-
-
-/* Implement `TARGET_ASM_FUNCTION_RODATA_SECTION'.  */
-
-static section*
-avr_asm_function_rodata_section (tree decl)
-{
-  /* If a function is unused and optimized out by -ffunction-sections
-     and --gc-sections, ensure that the same will happen for its jump
-     tables by putting them into individual sections.  */
-
-  unsigned int flags;
-  section * frodata;
-
-  /* Get the frodata section from the default function in varasm.c
-     but treat function-associated data-like jump tables as code
-     rather than as user defined data.  AVR has no constant pools.  */
-  {
-    int fdata = flag_data_sections;
-
-    flag_data_sections = flag_function_sections;
-    frodata = default_function_rodata_section (decl);
-    flag_data_sections = fdata;
-    flags = frodata->common.flags;
-  }
-
-  if (frodata != readonly_data_section
-      && flags & SECTION_NAMED)
-    {
-      /* Adjust section flags and replace section name prefix.  */
-
-      unsigned int i;
-
-      static const char* const prefix[] =
-        {
-          ".rodata",          ".progmem.gcc_sw_table",
-          ".gnu.linkonce.r.", ".gnu.linkonce.t."
-        };
-
-      for (i = 0; i < sizeof (prefix) / sizeof (*prefix); i += 2)
-        {
-          const char * old_prefix = prefix[i];
-          const char * new_prefix = prefix[i+1];
-          const char * name = frodata->named.name;
-
-          if (STR_PREFIX_P (name, old_prefix))
-            {
-              const char *rname = ACONCAT ((new_prefix,
-                                            name + strlen (old_prefix), NULL));
-              flags &= ~SECTION_CODE;
-              flags |= AVR_HAVE_JMP_CALL ? 0 : SECTION_CODE;
-
-              return get_section (rname, flags, frodata->named.decl);
-            }
-        }
-    }
-
-  return progmem_swtable_section;
 }
 
 
@@ -9723,7 +9677,9 @@ avr_asm_select_section (tree decl, int reloc, unsigned HOST_WIDE_INT align)
             {
               const char *sname = ACONCAT ((new_prefix,
                                             name + strlen (old_prefix), NULL));
-              return get_section (sname, sect->common.flags, sect->named.decl);
+              return get_section (sname,
+                                  sect->common.flags & ~SECTION_DECLARED,
+                                  sect->named.decl);
             }
         }
 
@@ -9928,7 +9884,7 @@ avr_operand_rtx_cost (rtx x, machine_mode mode, enum rtx_code outer,
     }
 
   total = 0;
-  avr_rtx_costs (x, code, outer, opno, &total, speed);
+  avr_rtx_costs (x, mode, outer, opno, &total, speed);
   return total;
 }
 
@@ -9939,11 +9895,10 @@ avr_operand_rtx_cost (rtx x, machine_mode mode, enum rtx_code outer,
    In either case, *TOTAL contains the cost result.  */
 
 static bool
-avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
+avr_rtx_costs_1 (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
                  int opno ATTRIBUTE_UNUSED, int *total, bool speed)
 {
-  enum rtx_code code = (enum rtx_code) codearg;
-  machine_mode mode = GET_MODE (x);
+  enum rtx_code code = GET_CODE (x);
   HOST_WIDE_INT val;
 
   switch (code)
@@ -10004,13 +9959,15 @@ avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
     case ZERO_EXTEND:
       *total = COSTS_N_INSNS (GET_MODE_SIZE (mode)
 			      - GET_MODE_SIZE (GET_MODE (XEXP (x, 0))));
-      *total += avr_operand_rtx_cost (XEXP (x, 0), mode, code, 0, speed);
+      *total += avr_operand_rtx_cost (XEXP (x, 0), GET_MODE (XEXP (x, 0)),
+				      code, 0, speed);
       return true;
 
     case SIGN_EXTEND:
       *total = COSTS_N_INSNS (GET_MODE_SIZE (mode) + 2
 			      - GET_MODE_SIZE (GET_MODE (XEXP (x, 0))));
-      *total += avr_operand_rtx_cost (XEXP (x, 0), mode, code, 0, speed);
+      *total += avr_operand_rtx_cost (XEXP (x, 0), GET_MODE (XEXP (x, 0)),
+				      code, 0, speed);
       return true;
 
     case PLUS:
@@ -10199,6 +10156,7 @@ avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
           break;
 
 	case SImode:
+	case DImode:
 	  if (AVR_HAVE_MUL)
             {
               if (!speed)
@@ -10224,7 +10182,10 @@ avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
                 *total = COSTS_N_INSNS (AVR_HAVE_JMP_CALL ? 5 : 4);
             }
 
-          return true;
+	   if (mode == DImode)
+	     *total *= 2;
+
+	   return true;
 
 	default:
 	  return false;
@@ -10716,13 +10677,15 @@ avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
 	case QImode:
 	  *total = COSTS_N_INSNS (1);
 	  if (GET_CODE (XEXP (x, 1)) != CONST_INT)
-	    *total += avr_operand_rtx_cost (XEXP (x, 1), mode, code, 1, speed);
+	    *total += avr_operand_rtx_cost (XEXP (x, 1), QImode, code,
+					    1, speed);
 	  break;
 
         case HImode:
 	  *total = COSTS_N_INSNS (2);
 	  if (GET_CODE (XEXP (x, 1)) != CONST_INT)
-            *total += avr_operand_rtx_cost (XEXP (x, 1), mode, code, 1, speed);
+            *total += avr_operand_rtx_cost (XEXP (x, 1), HImode, code,
+					    1, speed);
 	  else if (INTVAL (XEXP (x, 1)) != 0)
 	    *total += COSTS_N_INSNS (1);
           break;
@@ -10736,7 +10699,8 @@ avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
         case SImode:
           *total = COSTS_N_INSNS (4);
           if (GET_CODE (XEXP (x, 1)) != CONST_INT)
-            *total += avr_operand_rtx_cost (XEXP (x, 1), mode, code, 1, speed);
+            *total += avr_operand_rtx_cost (XEXP (x, 1), SImode, code,
+					    1, speed);
 	  else if (INTVAL (XEXP (x, 1)) != 0)
 	    *total += COSTS_N_INSNS (3);
           break;
@@ -10744,7 +10708,8 @@ avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
 	default:
 	  return false;
 	}
-      *total += avr_operand_rtx_cost (XEXP (x, 0), mode, code, 0, speed);
+      *total += avr_operand_rtx_cost (XEXP (x, 0), GET_MODE (XEXP (x, 0)),
+				      code, 0, speed);
       return true;
 
     case TRUNCATE:
@@ -10771,10 +10736,10 @@ avr_rtx_costs_1 (rtx x, int codearg, int outer_code ATTRIBUTE_UNUSED,
 /* Implement `TARGET_RTX_COSTS'.  */
 
 static bool
-avr_rtx_costs (rtx x, int codearg, int outer_code,
+avr_rtx_costs (rtx x, machine_mode mode, int outer_code,
 	       int opno, int *total, bool speed)
 {
-  bool done = avr_rtx_costs_1 (x, codearg, outer_code,
+  bool done = avr_rtx_costs_1 (x, mode, outer_code,
                                opno, total, speed);
 
   if (avr_log.rtx_costs)
@@ -10801,7 +10766,7 @@ avr_address_cost (rtx x, machine_mode mode ATTRIBUTE_UNUSED,
       && (REG_P (XEXP (x, 0))
           || GET_CODE (XEXP (x, 0)) == SUBREG))
     {
-      if (INTVAL (XEXP (x, 1)) >= 61)
+      if (INTVAL (XEXP (x, 1)) > MAX_LD_OFFSET(mode))
         cost = 18;
     }
   else if (CONSTANT_ADDRESS_P (x))
@@ -11094,7 +11059,7 @@ avr_reorg (void)
 	{
           /* Now we work under compare insn with difficult branch.  */
 
-          rtx next = next_real_insn (insn);
+	  rtx_insn *next = next_real_insn (insn);
           rtx pat = PATTERN (next);
 
           pattern = SET_SRC (pattern);
@@ -11333,9 +11298,10 @@ avr_hard_regno_call_part_clobbered (unsigned regno, machine_mode mode)
     return 0;
 
   /* Return true if any of the following boundaries is crossed:
-     17/18, 27/28 and 29/30.  */
+     17/18 or 19/20 (if AVR_TINY), 27/28 and 29/30.  */
 
-  return ((regno < 18 && regno + GET_MODE_SIZE (mode) > 18)
+  return ((regno <= LAST_CALLEE_SAVED_REG &&
+           regno + GET_MODE_SIZE (mode) > (LAST_CALLEE_SAVED_REG + 1))
           || (regno < REG_Y && regno + GET_MODE_SIZE (mode) > REG_Y)
           || (regno < REG_Z && regno + GET_MODE_SIZE (mode) > REG_Z));
 }
@@ -13743,9 +13709,6 @@ avr_fold_builtin (tree fndecl, int n_args ATTRIBUTE_UNUSED, tree *arg,
 #undef  TARGET_FOLD_BUILTIN
 #define TARGET_FOLD_BUILTIN avr_fold_builtin
 
-#undef  TARGET_ASM_FUNCTION_RODATA_SECTION
-#define TARGET_ASM_FUNCTION_RODATA_SECTION avr_asm_function_rodata_section
-
 #undef  TARGET_SCALAR_MODE_SUPPORTED_P
 #define TARGET_SCALAR_MODE_SUPPORTED_P avr_scalar_mode_supported_p
 
@@ -13789,6 +13752,10 @@ avr_fold_builtin (tree fndecl, int n_args ATTRIBUTE_UNUSED, tree *arg,
 #define TARGET_PRINT_OPERAND_ADDRESS avr_print_operand_address
 #undef  TARGET_PRINT_OPERAND_PUNCT_VALID_P
 #define TARGET_PRINT_OPERAND_PUNCT_VALID_P avr_print_operand_punct_valid_p
+
+#undef TARGET_USE_BY_PIECES_INFRASTRUCTURE_P
+#define TARGET_USE_BY_PIECES_INFRASTRUCTURE_P \
+  avr_use_by_pieces_infrastructure_p
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 

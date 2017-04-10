@@ -290,6 +290,12 @@ begin
       return Pragma_Node;
    end if;
 
+   --  Ignore pragma previously flagged by Ignore_Pragma
+
+   if Get_Name_Table_Boolean3 (Prag_Name) then
+      return Pragma_Node;
+   end if;
+
    --  Count number of arguments. This loop also checks if any of the arguments
    --  are Error, indicating a syntax error as they were parsed. If so, we
    --  simply return, because we get into trouble with cascaded errors if we
@@ -424,6 +430,28 @@ begin
             Extensions_Allowed := False;
             Ada_Version := Ada_Version_Explicit;
          end if;
+
+      -------------------
+      -- Ignore_Pragma --
+      -------------------
+
+      --  Processing for this pragma must be done at parse time, since we want
+      --  be able to ignore pragmas that are otherwise processed at parse time.
+
+      when Pragma_Ignore_Pragma => Ignore_Pragma : declare
+         A : Node_Id;
+
+      begin
+         Check_Arg_Count (1);
+         Check_No_Identifier (Arg1);
+         A := Expression (Arg1);
+
+         if Nkind (A) /= N_Identifier then
+            Error_Msg ("incorrect argument for pragma %", Sloc (A));
+         else
+            Set_Name_Table_Boolean3 (Chars (A), True);
+         end if;
+      end Ignore_Pragma;
 
       ----------------
       -- List (2.8) --
@@ -1274,9 +1302,9 @@ begin
            Pragma_Check_Float_Overflow           |
            Pragma_Check_Name                     |
            Pragma_Check_Policy                   |
-           Pragma_CIL_Constructor                |
            Pragma_Compile_Time_Error             |
            Pragma_Compile_Time_Warning           |
+           Pragma_Constant_After_Elaboration     |
            Pragma_Contract_Cases                 |
            Pragma_Convention_Identifier          |
            Pragma_CPP_Class                      |
@@ -1348,8 +1376,6 @@ begin
            Pragma_Interrupt_State                |
            Pragma_Interrupt_Priority             |
            Pragma_Invariant                      |
-           Pragma_Java_Constructor               |
-           Pragma_Java_Interface                 |
            Pragma_Keep_Names                     |
            Pragma_License                        |
            Pragma_Link_With                      |
@@ -1395,6 +1421,7 @@ begin
            Pragma_Pre                            |
            Pragma_Precondition                   |
            Pragma_Predicate                      |
+           Pragma_Predicate_Failure              |
            Pragma_Preelaborate                   |
            Pragma_Pre_Class                      |
            Pragma_Priority                       |
@@ -1459,6 +1486,8 @@ begin
            Pragma_Use_VADS_Size                  |
            Pragma_Volatile                       |
            Pragma_Volatile_Components            |
+           Pragma_Volatile_Full_Access           |
+           Pragma_Volatile_Function              |
            Pragma_Warning_As_Error               |
            Pragma_Weak_External                  |
            Pragma_Validity_Checks                =>

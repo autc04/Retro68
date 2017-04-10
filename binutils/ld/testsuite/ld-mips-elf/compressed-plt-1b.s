@@ -1,4 +1,4 @@
-# Define a function with all "uncompressed" (du and iu) references.
+# Define a function with all "uncompressed" (du, bu and iu) references.
 
 	.abicalls
 	.option	pic0
@@ -10,6 +10,12 @@
 	jal	\name
 	nop
 	j	\name
+	nop
+	.endif
+	.if	(\types) & BU
+	bal	\name
+	nop
+	b	\name
 	nop
 	.endif
 	.if	(\types) & IU

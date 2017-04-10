@@ -1,5 +1,5 @@
 ;; Machine description for ARM processor synchronization primitives.
-;; Copyright (C) 2010-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2016 Free Software Foundation, Inc.
 ;; Written by Marcus Shawcroft (marcus.shawcroft@arm.com)
 ;; 64bit Atomics by Dave Gilbert (david.gilbert@linaro.org)
 ;;
@@ -50,14 +50,11 @@
   {
     if (TARGET_HAVE_DMB)
       {
-	/* Note we issue a system level barrier. We should consider issuing
-	   a inner shareabilty zone barrier here instead, ie. "DMB ISH".  */
-	/* ??? Differentiate based on SEQ_CST vs less strict?  */
-	return "dmb\tsy";
+	return "dmb\\tish";
       }
 
     if (TARGET_HAVE_DMB_MCR)
-      return "mcr\tp15, 0, r0, c7, c10, 5";
+      return "mcr\\tp15, 0, r0, c7, c10, 5";
 
     gcc_unreachable ();
   }
@@ -73,15 +70,14 @@
       VUNSPEC_LDA))]
   "TARGET_HAVE_LDACQ"
   {
-    enum memmodel model = (enum memmodel) INTVAL (operands[2]);
-    if (model == MEMMODEL_RELAXED
-        || model == MEMMODEL_CONSUME
-        || model == MEMMODEL_RELEASE)
-      return \"ldr<sync_sfx>\\t%0, %1\";
+    enum memmodel model = memmodel_from_int (INTVAL (operands[2]));
+    if (is_mm_relaxed (model) || is_mm_consume (model) || is_mm_release (model))
+      return \"ldr<sync_sfx>%?\\t%0, %1\";
     else
-      return \"lda<sync_sfx>\\t%0, %1\";
+      return \"lda<sync_sfx>%?\\t%0, %1\";
   }
-)
+  [(set_attr "predicable" "yes")
+   (set_attr "predicable_short_it" "no")])
 
 (define_insn "atomic_store<mode>"
   [(set (match_operand:QHSI 0 "memory_operand" "=Q")
@@ -91,41 +87,70 @@
       VUNSPEC_STL))]
   "TARGET_HAVE_LDACQ"
   {
-    enum memmodel model = (enum memmodel) INTVAL (operands[2]);
-    if (model == MEMMODEL_RELAXED
-        || model == MEMMODEL_CONSUME
-        || model == MEMMODEL_ACQUIRE)
-      return \"str<sync_sfx>\t%1, %0\";
+    enum memmodel model = memmodel_from_int (INTVAL (operands[2]));
+    if (is_mm_relaxed (model) || is_mm_consume (model) || is_mm_acquire (model))
+      return \"str<sync_sfx>%?\t%1, %0\";
     else
-      return \"stl<sync_sfx>\t%1, %0\";
+      return \"stl<sync_sfx>%?\t%1, %0\";
   }
-)
+  [(set_attr "predicable" "yes")
+   (set_attr "predicable_short_it" "no")])
 
-;; Note that ldrd and vldr are *not* guaranteed to be single-copy atomic,
-;; even for a 64-bit aligned address.  Instead we use a ldrexd unparied
-;; with a store.
+;; An LDRD instruction usable by the atomic_loaddi expander on LPAE targets
+
+(define_insn "arm_atomic_loaddi2_ldrd"
+  [(set (match_operand:DI 0 "register_operand" "=r")
+	(unspec_volatile:DI
+	  [(match_operand:DI 1 "arm_sync_memory_operand" "Q")]
+	    VUNSPEC_LDRD_ATOMIC))]
+  "ARM_DOUBLEWORD_ALIGN && TARGET_HAVE_LPAE"
+  "ldrd%?\t%0, %H0, %C1"
+  [(set_attr "predicable" "yes")
+   (set_attr "predicable_short_it" "no")])
+
+;; There are three ways to expand this depending on the architecture
+;; features available.  As for the barriers, a load needs a barrier
+;; after it on all non-relaxed memory models except when the load
+;; has acquire semantics (for ARMv8-A).
+
 (define_expand "atomic_loaddi"
   [(match_operand:DI 0 "s_register_operand")		;; val out
    (match_operand:DI 1 "mem_noofs_operand")		;; memory
    (match_operand:SI 2 "const_int_operand")]		;; model
-  "TARGET_HAVE_LDREXD && ARM_DOUBLEWORD_ALIGN"
+  "(TARGET_HAVE_LDREXD || TARGET_HAVE_LPAE || TARGET_HAVE_LDACQ)
+   && ARM_DOUBLEWORD_ALIGN"
 {
-  enum memmodel model = (enum memmodel) INTVAL (operands[2]);
-  expand_mem_thread_fence (model);
-  emit_insn (gen_atomic_loaddi_1 (operands[0], operands[1]));
-  if (model == MEMMODEL_SEQ_CST)
+  memmodel model = memmodel_from_int (INTVAL (operands[2]));
+
+  /* For ARMv8-A we can use an LDAEXD to atomically load two 32-bit registers
+     when acquire or stronger semantics are needed.  When the relaxed model is
+     used this can be relaxed to a normal LDRD.  */
+  if (TARGET_HAVE_LDACQ)
+    {
+      if (is_mm_relaxed (model))
+	emit_insn (gen_arm_atomic_loaddi2_ldrd (operands[0], operands[1]));
+      else
+	emit_insn (gen_arm_load_acquire_exclusivedi (operands[0], operands[1]));
+
+      DONE;
+    }
+
+  /* On LPAE targets LDRD and STRD accesses to 64-bit aligned
+     locations are 64-bit single-copy atomic.  We still need barriers in the
+     appropriate places to implement the ordering constraints.  */
+  if (TARGET_HAVE_LPAE)
+    emit_insn (gen_arm_atomic_loaddi2_ldrd (operands[0], operands[1]));
+  else
+    emit_insn (gen_arm_load_exclusivedi (operands[0], operands[1]));
+
+
+  /* All non-relaxed models need a barrier after the load when load-acquire
+     instructions are not available.  */
+  if (!is_mm_relaxed (model))
     expand_mem_thread_fence (model);
+
   DONE;
 })
-
-(define_insn "atomic_loaddi_1"
-  [(set (match_operand:DI 0 "s_register_operand" "=r")
-	(unspec:DI [(match_operand:DI 1 "mem_noofs_operand" "Ua")]
-		   UNSPEC_LL))]
-  "TARGET_HAVE_LDREXD && ARM_DOUBLEWORD_ALIGN"
-  "ldrexd%?\t%0, %H0, %C1"
-  [(set_attr "predicable" "yes")
-   (set_attr "predicable_short_it" "no")])
 
 (define_expand "atomic_compare_and_swap<mode>"
   [(match_operand:SI 0 "s_register_operand" "")		;; bool out

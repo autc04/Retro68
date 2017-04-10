@@ -14,44 +14,54 @@ test:
 	addu	$3, $4, $5
 	bal	test
 	addu	$3, $4, $5
+	.ifndef	insn32
 	bals	test
 	addu	$3, $4, $5
+	.endif
 	beqz	$3, test
 	addu	$3, $4, $5
 	bnez	$3, test
 	addu	$3, $4, $5
+	.ifndef	insn32
 	b16	test2
 	addu	$3, $4, $5
 	beqz16	$3, test2
 	addu	$3, $4, $5
 	bnez16	$3, test2
 	addu	$3, $4, $5
+	.endif
 	b	test2
 	addu	$3, $4, $5
 	bc	test2
 	addu	$3, $4, $5
 	bal	test2
 	addu	$3, $4, $5
+	.ifndef	insn32
 	bals	test2
 	addu	$3, $4, $5
+	.endif
 	beqz	$3, test2
 	addu	$3, $4, $5
 	bnez	$3, test2
 	addu	$3, $4, $5
+	.ifndef	insn32
 	b16	test3
 	addu	$3, $4, $5
 	beqz16	$3, test3
 	addu	$3, $4, $5
 	bnez16	$3, test3
 	addu	$3, $4, $5
+	.endif
 	b32	test2
 	addu	$3, $4, $5
 	bc32	test2
 	addu	$3, $4, $5
 	bal32	test2
 	addu	$3, $4, $5
+	.ifndef	insn32
 	bals32	test2
 	addu	$3, $4, $5
+	.endif
 	beqz32	$3, test2
 	addu	$3, $4, $5
 	bnez32	$3, test2
@@ -66,8 +76,10 @@ test:
 	addu	$3, $4, $5
 	bal	test3
 	addu	$3, $4, $5
+	.ifndef	insn32
 	bals	test3
 	addu	$3, $4, $5
+	.endif
 	beq	$3, $4, test3
 	addu	$3, $4, $5
 	bne	$3, $4, test3
@@ -88,10 +100,12 @@ test:
 	addu	$3, $4, $5
 	bltzal	$30, test3
 	addu	$3, $4, $5
+	.ifndef	insn32
 	bgezals	$30, test3
 	addu	$3, $4, $5
 	bltzals	$30, test3
 	addu	$3, $4, $5
+	.endif
 	bc1f	test3
 	addu	$3, $4, $5
 	bc1t	test3
@@ -157,6 +171,7 @@ test:
 
 	.skip	511 << 1
 test2:
+	.insn
 
 	.skip	(32767 - 511) << 1
 test3:

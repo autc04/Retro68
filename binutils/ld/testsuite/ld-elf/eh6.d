@@ -1,8 +1,11 @@
 #source: eh6.s
 #ld: --gc-sections -shared
-#readelf: -wf
+#readelf: -wf -rW
 #target: x86_64-*-linux-gnu* i?86-*-linux-gnu i?86-*-gnu*
 
+#...
+[0-9a-f]+ +[0-9a-f]+ +R_.*_NONE *0?
+#...
 Contents of the .eh_frame section:
 
 0+0000 0+001[4c] 0+0000 CIE

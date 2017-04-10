@@ -1,5 +1,5 @@
 /* opncls.c -- open and close a BFD.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
 
    Written by Cygnus Support.
 
@@ -25,6 +25,7 @@
 #include "objalloc.h"
 #include "libbfd.h"
 #include "libiberty.h"
+#include "elf-bfd.h"
 
 #ifndef S_IXUSR
 #define S_IXUSR 0100	/* Execute by owner.  */
@@ -109,6 +110,8 @@ _bfd_new_bfd_contained_in (bfd *obfd)
   nbfd->my_archive = obfd;
   nbfd->direction = read_direction;
   nbfd->target_defaulted = obfd->target_defaulted;
+  nbfd->lto_output = obfd->lto_output;
+  nbfd->no_export = obfd->no_export;
   return nbfd;
 }
 
@@ -1303,7 +1306,7 @@ INTERNAL_FUNCTION
 
 SYNOPSIS
 	bfd_boolean separate_alt_debug_file_exists
-	  (char *name, unsigned long crc32);
+	  (char *name, unsigned long buildid);
 
 DESCRIPTION
 	Checks to see if @var{name} is a file and if its BuildID
@@ -1334,17 +1337,21 @@ INTERNAL_FUNCTION
 	find_separate_debug_file
 
 SYNOPSIS
-	char *find_separate_debug_file (bfd *abfd);
+	char *find_separate_debug_file
+	  (bfd *abfd, const char *dir, bfd_boolean include_dirs,
+	   get_func_type get, check_func_type check);
 
 DESCRIPTION
-	Searches @var{abfd} for a section called @var{section_name} which
-	is expected to contain a reference to a file containing separate
-	debugging information.  The function scans various locations in
-	the filesystem, including the file tree rooted at
-	@var{debug_file_directory}, and returns the first matching
-	filename that it finds.  If @var{check_crc} is TRUE then the
-	contents of the file must also match the CRC value contained in
-	@var{section_name}.  Returns NULL if no valid file could be found.
+	Searches for a debug information file corresponding to @var{abfd}.
+	The name of the separate debug info file is returned by the @var{get}
+	function.  This function scans various fixed locations in the
+	filesystem, including the file tree rooted at @var{dir}.  If the
+	@var{include_dirs} parameter is true then the directory components of
+	@var{abfd}'s filename will be included in the searched locations.
+
+	Returns the filename of the first file to be found which receives a
+	TRUE result from the @var{check} function.  Returns NULL if no valid
+	file could be found.
 */
 
 typedef char *      (* get_func_type) (bfd *, unsigned long *);
@@ -1353,6 +1360,7 @@ typedef bfd_boolean (* check_func_type) (const char *, const unsigned long);
 static char *
 find_separate_debug_file (bfd *           abfd,
 			  const char *    debug_file_directory,
+			  bfd_boolean     include_dirs,
 			  get_func_type   get_func,
 			  check_func_type check_func)
 {
@@ -1376,7 +1384,7 @@ find_separate_debug_file (bfd *           abfd,
     }
 
   base = get_func (abfd, & crc32);
-    
+
   if (base == NULL)
     return NULL;
 
@@ -1387,18 +1395,27 @@ find_separate_debug_file (bfd *           abfd,
       return NULL;
     }
 
-  for (dirlen = strlen (abfd->filename); dirlen > 0; dirlen--)
-    if (IS_DIR_SEPARATOR (abfd->filename[dirlen - 1]))
-      break;
-
-  dir = (char *) bfd_malloc (dirlen + 1);
-  if (dir == NULL)
+  if (include_dirs)
     {
-      free (base);
-      return NULL;
+      for (dirlen = strlen (abfd->filename); dirlen > 0; dirlen--)
+	if (IS_DIR_SEPARATOR (abfd->filename[dirlen - 1]))
+	  break;
+
+      dir = (char *) bfd_malloc (dirlen + 1);
+      if (dir == NULL)
+	{
+	  free (base);
+	  return NULL;
+	}
+      memcpy (dir, abfd->filename, dirlen);
+      dir[dirlen] = '\0';
     }
-  memcpy (dir, abfd->filename, dirlen);
-  dir[dirlen] = '\0';
+  else
+    {
+      dir = (char *) bfd_malloc (1);
+      * dir = 0;
+      dirlen = 0;
+    }
 
   /* Compute the canonical name of the bfd object with all symbolic links
      resolved, for use in the global debugfile directory.  */
@@ -1408,38 +1425,78 @@ find_separate_debug_file (bfd *           abfd,
       break;
   canon_dir[canon_dirlen] = '\0';
 
+#ifndef EXTRA_DEBUG_ROOT1
+#define EXTRA_DEBUG_ROOT1 "/usr/lib/debug"
+#endif
+#ifndef EXTRA_DEBUG_ROOT2
+#define EXTRA_DEBUG_ROOT2 "/usr/lib/debug/usr"
+#endif  
+
   debugfile = (char *)
       bfd_malloc (strlen (debug_file_directory) + 1
                   + (canon_dirlen > dirlen ? canon_dirlen : dirlen)
                   + strlen (".debug/")
+#ifdef EXTRA_DEBUG_ROOT1
+		  + strlen (EXTRA_DEBUG_ROOT1)
+#endif
+#ifdef EXTRA_DEBUG_ROOT2
+		  + strlen (EXTRA_DEBUG_ROOT2)
+#endif
                   + strlen (base)
                   + 1);
   if (debugfile == NULL)
     goto found; /* Actually this returns NULL.  */
 
-  /* First try in the same directory as the original file:  */
-  strcpy (debugfile, dir);
-  strcat (debugfile, base);
+  /* First try in the same directory as the original file.
 
+     FIXME: Strictly speaking if we are using the build-id method,
+     (ie include_dirs == FALSE) then we should only check absolute
+     paths, not relative ones like this one (and the next one).
+     The check is left in however as this allows the binutils
+     testsuite to exercise this feature without having to install
+     a file into the root filesystem.  (See binutils/testsuite/
+     binutils-all/objdump.exp for the test).  */
+  sprintf (debugfile, "%s%s", dir, base);
   if (check_func (debugfile, crc32))
     goto found;
 
   /* Then try in a subdirectory called .debug.  */
-  strcpy (debugfile, dir);
-  strcat (debugfile, ".debug/");
-  strcat (debugfile, base);
-
+  sprintf (debugfile, "%s.debug/%s", dir, base);
   if (check_func (debugfile, crc32))
     goto found;
 
+#ifdef EXTRA_DEBUG_ROOT1
+  /* Try the first extra debug file root.  */
+  sprintf (debugfile, "%s%s%s", EXTRA_DEBUG_ROOT1,
+	   include_dirs ? canon_dir : "/", base);
+  if (check_func (debugfile, crc32))
+    goto found;
+#endif
+
+#ifdef EXTRA_DEBUG_ROOT2
+  /* Try the second extra debug file root.  */
+  sprintf (debugfile, "%s%s%s", EXTRA_DEBUG_ROOT2,
+	   include_dirs ? canon_dir : "/", base);
+  if (check_func (debugfile, crc32))
+    goto found;
+#endif
+  
   /* Then try in the global debugfile directory.  */
   strcpy (debugfile, debug_file_directory);
   dirlen = strlen (debug_file_directory) - 1;
-  if (dirlen > 0
-      && debug_file_directory[dirlen] != '/'
-      && canon_dir[0] != '/')
-    strcat (debugfile, "/");
-  strcat (debugfile, canon_dir);
+  if (include_dirs)
+    {
+      if (dirlen > 0
+	  && debug_file_directory[dirlen] != '/'
+	  && canon_dir[0] != '/')
+	strcat (debugfile, "/");
+      strcat (debugfile, canon_dir);
+    }
+  else
+    {
+      if (dirlen > 0 && debug_file_directory[dirlen] != '/')
+	strcat (debugfile, "/");
+    }
   strcat (debugfile, base);
 
   if (check_func (debugfile, crc32))
@@ -1473,9 +1530,8 @@ DESCRIPTION
 	locations, including the directory tree rooted at @var{dir}, and if
 	found returns the full filename.
 
-	If @var{dir} is NULL, it will search a default path configured into
-	libbfd at build time.  [XXX this feature is not currently
-	implemented].
+	If @var{dir} is NULL, the search will take place starting at
+	the current directory.
 
 RETURNS
 	<<NULL>> on any errors or failure to locate the .debug file,
@@ -1486,7 +1542,7 @@ RETURNS
 char *
 bfd_follow_gnu_debuglink (bfd *abfd, const char *dir)
 {
-  return find_separate_debug_file (abfd, dir,
+  return find_separate_debug_file (abfd, dir, TRUE,
 				   bfd_get_debug_link_info,
 				   separate_debug_file_exists);
 }
@@ -1520,14 +1576,13 @@ DESCRIPTION
 
 	Takes a BFD and searches it for a .gnu_debugaltlink section.  If this
 	section is found, it examines the section for the name of a file
-	containing auxiliary debugging information.  It	then searches the
+	containing auxiliary debugging information.  It then searches the
 	filesystem for this file in a set of standard locations, including
 	the directory tree rooted at @var{dir}, and if found returns the
 	full filename.
 
-	If @var{dir} is NULL, it will search a default path configured into
-	libbfd at build time.  [FIXME: This feature is not currently
-	implemented].
+	If @var{dir} is NULL, the search will take place starting at
+	the current directory.
 
 RETURNS
 	<<NULL>> on any errors or failure to locate the debug file,
@@ -1538,7 +1593,7 @@ RETURNS
 char *
 bfd_follow_gnu_debugaltlink (bfd *abfd, const char *dir)
 {
-  return find_separate_debug_file (abfd, dir,
+  return find_separate_debug_file (abfd, dir, TRUE,
 				   get_alt_debug_link_info_shim,
 				   separate_alt_debug_file_exists);
 }
@@ -1692,4 +1747,246 @@ bfd_fill_in_gnu_debuglink_section (bfd *abfd,
     }
 
   return TRUE;
+}
+
+/*
+INTERNAL_FUNCTION
+	get_build_id
+
+SYNOPSIS
+	struct bfd_build_id * get_build_id
+	  (bfd *abfd);
+
+DESCRIPTION
+	Finds the build-id associated with @var{abfd}.  If the build-id is
+	extracted from the note section then a build-id structure is built
+	for it, using memory allocated to @var{abfd}, and this is then
+	attached to the @var{abfd}.
+
+	Returns a pointer to the build-id structure if a build-id could be
+	found.  If no build-id is found NULL is returned and error code is
+	set.
+*/
+
+static struct bfd_build_id *
+get_build_id (bfd *abfd)
+{
+  struct bfd_build_id *build_id;
+  Elf_Internal_Note inote;
+  Elf_External_Note *enote;
+  bfd_byte *contents;
+  asection *sect;
+
+  BFD_ASSERT (abfd);
+
+  if (abfd->build_id && abfd->build_id->size > 0)
+    /* Save some time by using the already computed build-id.  */
+    return (struct bfd_build_id *) abfd->build_id;
+
+  sect = bfd_get_section_by_name (abfd, ".note.gnu.build-id");
+  if (sect == NULL)
+    {
+      bfd_set_error (bfd_error_no_debug_section);
+      return NULL;
+    }
+
+  /* FIXME: Should we support smaller build-id notes ?  */
+  if (bfd_get_section_size (sect) < 0x24)
+    {
+      bfd_set_error (bfd_error_invalid_operation);
+      return NULL;
+    }
+
+  if (!bfd_malloc_and_get_section (abfd, sect, & contents))
+    {
+      if (contents != NULL)
+	free (contents);
+      return NULL;
+    }
+
+  enote = (Elf_External_Note *) contents;
+  inote.type = H_GET_32 (abfd, enote->type);
+  inote.namesz = H_GET_32 (abfd, enote->namesz);
+  inote.namedata = enote->name;
+  inote.descsz = H_GET_32 (abfd, enote->descsz);
+  inote.descdata = inote.namedata + BFD_ALIGN (inote.namesz, 4);
+  /* FIXME: Should we check for extra notes in this section ?  */
+	  
+  if (inote.descsz == 0
+      || inote.type != NT_GNU_BUILD_ID
+      || inote.namesz != 4 /* sizeof "GNU"  */
+      || strcmp (inote.namedata, "GNU") != 0)
+    {
+      free (contents);
+      bfd_set_error (bfd_error_invalid_operation);
+      return NULL;
+    }
+
+  build_id = bfd_alloc (abfd, sizeof (struct bfd_build_id) + inote.descsz);
+  if (build_id == NULL)
+    {
+      free (contents);
+      return NULL;
+    }
+
+  build_id->size = inote.descsz;
+  memcpy (build_id->data, inote.descdata, inote.descsz);
+  abfd->build_id = build_id;
+  free (contents);
+
+  return build_id;
+}
+
+/*
+INTERNAL_FUNCTION
+	get_build_id_name
+
+SYNOPSIS
+	char * get_build_id_name
+	  (bfd *abfd, unsigned long *build_id_out)
+
+DESCRIPTION
+	Searches @var{abfd} for a build-id, and then constructs a pathname
+	from it.  The path is computed as .build-id/NN/NN+NN.debug where
+	NNNN+NN is the build-id value as a hexadecimal string.
+
+	Returns the constructed filename or NULL upon error.
+	It is the caller's responsibility to free the memory used to hold the
+	filename.
+	If a filename is returned then the @var{build_id_out} parameter is
+	set to a pointer to the build_id structure.
+*/
+
+static char *
+get_build_id_name (bfd *abfd, unsigned long *build_id_out)
+{
+  struct bfd_build_id *build_id;
+  char *name;
+  char *n;
+  bfd_size_type s;
+  bfd_byte *d;
+
+  if (abfd == NULL || abfd->filename == NULL || build_id_out == NULL)
+    {
+      bfd_set_error (bfd_error_invalid_operation);
+      return NULL;
+    }
+
+  build_id = get_build_id (abfd);
+  if (build_id == NULL)
+    return NULL;
+
+  /* Compute the debug pathname corresponding to the build-id.  */
+  name = bfd_malloc (strlen (".build-id/") + build_id->size * 2 + 2 + strlen (".debug"));
+  if (name == NULL)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return NULL;
+    }
+  n = name;
+  d = build_id->data;
+  s = build_id->size;
+
+  n += sprintf (n, ".build-id/");
+  n += sprintf (n, "%02x", (unsigned) *d++); s--;
+  n += sprintf (n, "/");
+  while (s--)
+    n += sprintf (n, "%02x", (unsigned) *d++);
+  n += sprintf (n, ".debug");
+
+  * build_id_out = (unsigned long) build_id;
+  return name;
+}
+
+/*
+INTERNAL_FUNCTION
+	check_build_id_file
+
+SYNOPSIS
+	bfd_boolean check_build_id_file
+	  (char *name, unsigned long buildid);
+
+DESCRIPTION
+	Checks to see if @var{name} is a readable file and if its build-id
+	matches @var{buildid}.
+
+	Returns TRUE if the file exists, is readable, and contains a build-id
+	which matches @var{build-id}.
+*/
+
+static bfd_boolean
+check_build_id_file (const char *name,
+		     const unsigned long buildid)
+{
+  struct bfd_build_id *orig_build_id;
+  struct bfd_build_id *build_id;
+  bfd * file;
+  bfd_boolean result;
+
+  BFD_ASSERT (name);
+  BFD_ASSERT (buildid);
+
+  file = bfd_openr (name, NULL);
+  if (file == NULL)
+    return FALSE;
+
+  /* If the file is an archive, process all of its elements.  */
+  if (! bfd_check_format (file, bfd_object))
+    {
+      bfd_close (file);
+      return FALSE;
+    }
+  
+  build_id = get_build_id (file);
+  if (build_id == NULL)
+    {
+      bfd_close (file);
+      return FALSE;
+    }
+
+  orig_build_id = (struct bfd_build_id *) buildid;
+
+  result = build_id->size == orig_build_id->size
+    && memcmp (build_id->data, orig_build_id->data, build_id->size) == 0;
+
+  (void) bfd_close (file);
+
+  return result;
+}
+
+/*
+FUNCTION
+	bfd_follow_build_id_debuglink
+
+SYNOPSIS
+	char *bfd_follow_build_id_debuglink (bfd *abfd, const char *dir);
+
+DESCRIPTION
+
+	Takes @var{abfd} and searches it for a .note.gnu.build-id section.
+	If this section is found, it extracts the value of the NT_GNU_BUILD_ID
+	note, which should be a hexadecimal value @var{NNNN+NN} (for
+	32+ hex digits).  It then searches the filesystem for a file named
+	@var{.build-id/NN/NN+NN.debug} in a set of standard locations,
+	including the directory tree rooted at @var{dir}.  The filename
+	of the first matching file to be found is returned.  A matching
+	file should contain a .note.gnu.build-id section with the same
+	@var{NNNN+NN} note as @var{abfd}, although this check is currently
+	not implemented.
+
+	If @var{dir} is NULL, the search will take place starting at
+	the current directory.
+
+RETURNS
+	<<NULL>> on any errors or failure to locate the debug file,
+	otherwise a pointer to a heap-allocated string containing the
+	filename.  The caller is responsible for freeing this string.
+*/
+
+char *
+bfd_follow_build_id_debuglink (bfd *abfd, const char *dir)
+{
+  return find_separate_debug_file (abfd, dir, FALSE,
+				   get_build_id_name,
+				   check_build_id_file);
 }

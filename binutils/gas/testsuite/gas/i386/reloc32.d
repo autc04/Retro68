@@ -1,3 +1,4 @@
+#as: -mrelax-relocations=yes
 #objdump: -Drw
 #name: i386 relocs
 
@@ -18,7 +19,7 @@ Disassembly of section \.text:
 .*[ 	]+R_386_PC32[ 	]+xtrn
 .*[ 	]+R_386_PC8[ 	]+xtrn
 .*[ 	]+R_386_GOT32[ 	]+xtrn
-.*[ 	]+R_386_GOT32[ 	]+xtrn
+.*[ 	]+R_386_GOT32X[ 	]+xtrn
 .*[ 	]+R_386_GOTOFF[ 	]+xtrn
 .*[ 	]+R_386_GOTOFF[ 	]+xtrn
 .*[ 	]+R_386_GOTPC[ 	]+_GLOBAL_OFFSET_TABLE_
@@ -67,4 +68,6 @@ Disassembly of section \.data:
 .*[ 	]+R_386_PC8[ 	]+xtrn
 #...
 .*[ 	]+R_386_GOT32[ 	]+xtrn
+#...
 .*[ 	]+R_386_GOT32[ 	]+xtrn
+#pass

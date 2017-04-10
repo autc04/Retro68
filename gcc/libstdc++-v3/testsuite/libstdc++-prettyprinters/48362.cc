@@ -1,7 +1,7 @@
 // { dg-do run }
 // { dg-options "-g -std=gnu++11 -O0" }
 
-// Copyright (C) 2011-2015 Free Software Foundation, Inc.
+// Copyright (C) 2011-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,7 @@
 
 #include <tuple>
 #include <string>
+#include <iostream>
 
 int
 main()
@@ -30,6 +31,7 @@ main()
   std::tuple<std::string, int, std::tuple<>> t2{ "Johnny", 5, {} };
 // { dg-final { regexp-test t2 {std::(__7::)?tuple containing = {\[1\] = "Johnny", \[2\] = 5, \[3\] = {<std::(__7::)?tuple<>> = empty std::(__7::)?tuple, <No data fields>}}} } }
 
+  std::cout << "\n";
   return 0; // Mark SPOT
 }
 

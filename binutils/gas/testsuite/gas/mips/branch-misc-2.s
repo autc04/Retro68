@@ -1,4 +1,4 @@
-# Source file used to test the backward branches to globals in this file.
+# Source file used to test branches to globals in this file.
 
 	.globl g1 .text
 	.globl g2 .text
@@ -32,13 +32,6 @@ g5:
 	.space 20
 g6:
 
-	b	x1
-	b	x2
-	b	.Ldata
-
 # Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
 	.align	2
 	.space	8
-
-	.data
-.Ldata:

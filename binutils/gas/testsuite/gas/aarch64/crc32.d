@@ -5,7 +5,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	1acf40e3 	crc32b	w3, w7, w15
    4:	1ac345e7 	crc32h	w7, w15, w3
    8:	1ac7486f 	crc32w	w15, w3, w7

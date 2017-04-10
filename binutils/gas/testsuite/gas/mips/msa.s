@@ -531,8 +531,6 @@ test_msa:
 	copy_u.b	$29,$w30[15]
 	copy_u.h	$31,$w0[0]
 	copy_u.h	$1,$w2[7]
-	copy_u.w	$3,$w4[0]
-	copy_u.w	$5,$w6[3]
 	insert.b	$w11[0],$12
 	insert.b	$w13[15],$14
 	insert.h	$w15[0],$16

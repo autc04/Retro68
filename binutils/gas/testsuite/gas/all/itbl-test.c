@@ -1,6 +1,6 @@
 /* itbl-test.c
 
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -116,7 +116,7 @@ test_reg (e_processor processor, e_type type, char *name,
     printf ("name=%s found for processor=%d, type=%d, val=%d\n",
 	    n, processor, type, val);
 
-  /* We require that names be unique amoung processors and types. */
+  /* We require that names be unique among processors and types. */
   if (! itbl_get_reg_val (name, &v)
       || v != val)
     printf ("Error - reg val not found for processor=%d, type=%d, name=%s\n",

@@ -1,5 +1,5 @@
 /* Generic BFD support for file formats.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -104,6 +104,7 @@ struct bfd_preserve
   struct bfd_section *section_last;
   unsigned int section_count;
   struct bfd_hash_table section_htab;
+  const struct bfd_build_id *build_id;
 };
 
 /* When testing an object for compatibility with a particular target
@@ -126,6 +127,7 @@ bfd_preserve_save (bfd *abfd, struct bfd_preserve *preserve)
   preserve->section_count = abfd->section_count;
   preserve->section_htab = abfd->section_htab;
   preserve->marker = bfd_alloc (abfd, 1);
+  preserve->build_id = abfd->build_id;
   if (preserve->marker == NULL)
     return FALSE;
 
@@ -158,6 +160,7 @@ bfd_preserve_restore (bfd *abfd, struct bfd_preserve *preserve)
   abfd->sections = preserve->sections;
   abfd->section_last = preserve->section_last;
   abfd->section_count = preserve->section_count;
+  abfd->build_id = preserve->build_id;
 
   /* bfd_release frees all memory more recently bfd_alloc'd than
      its arg, as well as its arg.  */
@@ -203,6 +206,9 @@ bfd_boolean
 bfd_check_format_matches (bfd *abfd, bfd_format format, char ***matching)
 {
   extern const bfd_target binary_vec;
+#if BFD_SUPPORTS_PLUGINS
+  extern const bfd_target plugin_vec;
+#endif
   const bfd_target * const *target;
   const bfd_target **matching_vector = NULL;
   const bfd_target *save_targ, *right_targ, *ar_right_targ, *match_targ;
@@ -305,6 +311,16 @@ bfd_check_format_matches (bfd *abfd, bfd_format format, char ***matching)
       temp = BFD_SEND_FMT (abfd, _bfd_check_format, (abfd));
       if (temp)
 	{
+	  int match_priority = temp->match_priority;
+#if BFD_SUPPORTS_PLUGINS
+	  /* If this object can be handled by a plugin, give that the
+	     lowest priority; objects both handled by a plugin and
+	     with an underlying object format will be claimed
+	     separately by the plugin.  */
+	  if (*target == &plugin_vec)
+	    match_priority = (*target)->match_priority;
+#endif
+
 	  match_targ = temp;
 	  if (preserve.marker != NULL)
 	    bfd_preserve_finish (abfd, &preserve);
@@ -326,9 +342,9 @@ bfd_check_format_matches (bfd *abfd, bfd_format format, char ***matching)
 		matching_vector[match_count] = temp;
 	      match_count++;
 
-	      if (temp->match_priority < best_match)
+	      if (match_priority < best_match)
 		{
-		  best_match = temp->match_priority;
+		  best_match = match_priority;
 		  best_count = 0;
 		}
 	      best_count++;

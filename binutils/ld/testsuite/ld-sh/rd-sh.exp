@@ -1,5 +1,5 @@
 # Expect script for run_dump_test based ld-sh tests.
-#   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -58,7 +58,7 @@ foreach shtest $rd_test_list {
     }
     if [string match $srcdir/$subdir/*-dso.d $shtest] {
 	# Copy the output of the DSO-createing test to .so file.
-	# Notice that a DSO-creating test must preceed the tests
+	# Notice that a DSO-creating test must precede the tests
 	# which need that DSO in sort-order by name.
 	set cmd "cp tmpdir/dump tmpdir/[file rootname [file tail $shtest]].so"
 	send_log "$cmd\n"

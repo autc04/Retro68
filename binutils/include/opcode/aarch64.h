@@ -1,6 +1,6 @@
 /* AArch64 assembler/disassembler support.
 
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GNU Binutils.
@@ -27,6 +27,10 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The offset for pc-relative addressing is currently defined to be 0.  */
 #define AARCH64_PCREL_OFFSET		0
 
@@ -34,24 +38,58 @@ typedef uint32_t aarch64_insn;
 
 /* The following bitmasks control CPU features.  */
 #define AARCH64_FEATURE_V8	0x00000001	/* All processors.  */
+#define AARCH64_FEATURE_V8_2	0x00000020      /* ARMv8.2 processors.  */
+#define AARCH64_FEATURE_V8_3	0x00000040      /* ARMv8.3 processors.  */
 #define AARCH64_FEATURE_CRYPTO	0x00010000	/* Crypto instructions.  */
 #define AARCH64_FEATURE_FP	0x00020000	/* FP instructions.  */
 #define AARCH64_FEATURE_SIMD	0x00040000	/* SIMD instructions.  */
 #define AARCH64_FEATURE_CRC	0x00080000	/* CRC instructions.  */
 #define AARCH64_FEATURE_LSE	0x00100000	/* LSE instructions.  */
+#define AARCH64_FEATURE_PAN	0x00200000	/* PAN instructions.  */
+#define AARCH64_FEATURE_LOR	0x00400000	/* LOR instructions.  */
+#define AARCH64_FEATURE_RDMA	0x00800000	/* v8.1 SIMD instructions.  */
+#define AARCH64_FEATURE_V8_1	0x01000000	/* v8.1 features.  */
+#define AARCH64_FEATURE_F16	0x02000000	/* v8.2 FP16 instructions.  */
+#define AARCH64_FEATURE_RAS	0x04000000	/* RAS Extensions.  */
+#define AARCH64_FEATURE_PROFILE	0x08000000	/* Statistical Profiling.  */
+#define AARCH64_FEATURE_SVE	0x10000000	/* SVE instructions.  */
+#define AARCH64_FEATURE_RCPC	0x20000000	/* RCPC instructions.  */
+#define AARCH64_FEATURE_COMPNUM	0x40000000	/* Complex # instructions.  */
 
 /* Architectures are the sum of the base and extensions.  */
 #define AARCH64_ARCH_V8		AARCH64_FEATURE (AARCH64_FEATURE_V8, \
 						 AARCH64_FEATURE_FP  \
 						 | AARCH64_FEATURE_SIMD)
+#define AARCH64_ARCH_V8_1	AARCH64_FEATURE (AARCH64_ARCH_V8, \
+						 AARCH64_FEATURE_CRC	\
+						 | AARCH64_FEATURE_V8_1 \
+						 | AARCH64_FEATURE_LSE	\
+						 | AARCH64_FEATURE_PAN	\
+						 | AARCH64_FEATURE_LOR	\
+						 | AARCH64_FEATURE_RDMA)
+#define AARCH64_ARCH_V8_2	AARCH64_FEATURE (AARCH64_ARCH_V8_1,	\
+						 AARCH64_FEATURE_V8_2	\
+						 | AARCH64_FEATURE_F16	\
+						 | AARCH64_FEATURE_RAS)
+#define AARCH64_ARCH_V8_3	AARCH64_FEATURE (AARCH64_ARCH_V8_2,	\
+						 AARCH64_FEATURE_V8_3	\
+						 | AARCH64_FEATURE_RCPC	\
+						 | AARCH64_FEATURE_COMPNUM)
+
 #define AARCH64_ARCH_NONE	AARCH64_FEATURE (0, 0)
 #define AARCH64_ANY		AARCH64_FEATURE (-1, 0)	/* Any basic core.  */
 
 /* CPU-specific features.  */
 typedef unsigned long aarch64_feature_set;
 
-#define AARCH64_CPU_HAS_FEATURE(CPU,FEAT)	\
+#define AARCH64_CPU_HAS_ALL_FEATURES(CPU,FEAT)	\
+  ((~(CPU) & (FEAT)) == 0)
+
+#define AARCH64_CPU_HAS_ANY_FEATURES(CPU,FEAT)	\
   (((CPU) & (FEAT)) != 0)
+
+#define AARCH64_CPU_HAS_FEATURE(CPU,FEAT)	\
+  AARCH64_CPU_HAS_ALL_FEATURES (CPU,FEAT)
 
 #define AARCH64_MERGE_FEATURE_SETS(TARG,F1,F2)	\
   do						\
@@ -69,9 +107,6 @@ typedef unsigned long aarch64_feature_set;
 
 #define AARCH64_FEATURE(core,coproc) ((core) | (coproc))
 
-#define AARCH64_OPCODE_HAS_FEATURE(OPC,FEAT)	\
-  (((OPC) & (FEAT)) != 0)
-
 enum aarch64_operand_class
 {
   AARCH64_OPND_CLASS_NIL,
@@ -82,7 +117,8 @@ enum aarch64_operand_class
   AARCH64_OPND_CLASS_SIMD_ELEMENT,
   AARCH64_OPND_CLASS_SISD_REG,
   AARCH64_OPND_CLASS_SIMD_REGLIST,
-  AARCH64_OPND_CLASS_CP_REG,
+  AARCH64_OPND_CLASS_SVE_REG,
+  AARCH64_OPND_CLASS_PRED_REG,
   AARCH64_OPND_CLASS_ADDRESS,
   AARCH64_OPND_CLASS_IMMEDIATE,
   AARCH64_OPND_CLASS_SYSTEM,
@@ -107,6 +143,7 @@ enum aarch64_opnd
 
   AARCH64_OPND_Rd_SP,	/* Integer Rd or SP.  */
   AARCH64_OPND_Rn_SP,	/* Integer Rn or SP.  */
+  AARCH64_OPND_Rm_SP,	/* Integer Rm or SP.  */
   AARCH64_OPND_PAIRREG,	/* Paired register operand.  */
   AARCH64_OPND_Rm_EXT,	/* Integer Rm extended.  */
   AARCH64_OPND_Rm_SFT,	/* Integer Rm shifted.  */
@@ -136,8 +173,8 @@ enum aarch64_opnd
 			   structure to all lanes.  */
   AARCH64_OPND_LEt,	/* AdvSIMD Vector Element list.  */
 
-  AARCH64_OPND_Cn,	/* Co-processor register in CRn field.  */
-  AARCH64_OPND_Cm,	/* Co-processor register in CRm field.  */
+  AARCH64_OPND_CRn,	/* Co-processor register in CRn field.  */
+  AARCH64_OPND_CRm,	/* Co-processor register in CRm field.  */
 
   AARCH64_OPND_IDX,	/* AdvSIMD EXT index operand.  */
   AARCH64_OPND_IMM_VLSL,/* Immediate for shifting vector registers left.  */
@@ -161,6 +198,7 @@ enum aarch64_opnd
   AARCH64_OPND_BIT_NUM,	/* Immediate.  */
   AARCH64_OPND_EXCEPTION,/* imm16 operand in exception instructions.  */
   AARCH64_OPND_CCMP_IMM,/* Immediate in conditional compare instructions.  */
+  AARCH64_OPND_SIMM5,	/* 5-bit signed immediate in the imm5 field.  */
   AARCH64_OPND_NZCV,	/* Flag bit specifier giving an alternative value for
 			   each condition flag.  */
 
@@ -169,6 +207,9 @@ enum aarch64_opnd
   AARCH64_OPND_HALF,	/* #<imm16>{, LSL #<shift>} operand in move wide.  */
   AARCH64_OPND_FBITS,	/* FP #<fbits> operand in e.g. SCVTF */
   AARCH64_OPND_IMM_MOV,	/* Immediate operand for the MOV alias.  */
+  AARCH64_OPND_IMM_ROT1,	/* Immediate rotate operand for FCMLA.  */
+  AARCH64_OPND_IMM_ROT2,	/* Immediate rotate operand for indexed FCMLA.  */
+  AARCH64_OPND_IMM_ROT3,	/* Immediate rotate operand for FCADD.  */
 
   AARCH64_OPND_COND,	/* Standard condition as the last operand.  */
   AARCH64_OPND_COND1,	/* Same as the above, but excluding AL and NV.  */
@@ -190,6 +231,7 @@ enum aarch64_opnd
 				   friendly feature of using LDR/STR as the
 				   the mnemonic name for LDUR/STUR instructions
 				   wherever there is no ambiguity.  */
+  AARCH64_OPND_ADDR_SIMM10,	/* Address of signed 10-bit immediate.  */
   AARCH64_OPND_ADDR_UIMM12,	/* Address of unsigned 12-bit immediate.  */
   AARCH64_OPND_SIMD_ADDR_SIMPLE,/* Address of ld/st multiple structures.  */
   AARCH64_OPND_SIMD_ADDR_POST,	/* Address of ld/st multiple post-indexed.  */
@@ -203,6 +245,107 @@ enum aarch64_opnd
   AARCH64_OPND_BARRIER,		/* Barrier operand.  */
   AARCH64_OPND_BARRIER_ISB,	/* Barrier operand for ISB.  */
   AARCH64_OPND_PRFOP,		/* Prefetch operation.  */
+  AARCH64_OPND_BARRIER_PSB,	/* Barrier operand for PSB.  */
+
+  AARCH64_OPND_SVE_ADDR_RI_S4x16,   /* SVE [<Xn|SP>, #<simm4>*16].  */
+  AARCH64_OPND_SVE_ADDR_RI_S4xVL,   /* SVE [<Xn|SP>, #<simm4>, MUL VL].  */
+  AARCH64_OPND_SVE_ADDR_RI_S4x2xVL, /* SVE [<Xn|SP>, #<simm4>*2, MUL VL].  */
+  AARCH64_OPND_SVE_ADDR_RI_S4x3xVL, /* SVE [<Xn|SP>, #<simm4>*3, MUL VL].  */
+  AARCH64_OPND_SVE_ADDR_RI_S4x4xVL, /* SVE [<Xn|SP>, #<simm4>*4, MUL VL].  */
+  AARCH64_OPND_SVE_ADDR_RI_S6xVL,   /* SVE [<Xn|SP>, #<simm6>, MUL VL].  */
+  AARCH64_OPND_SVE_ADDR_RI_S9xVL,   /* SVE [<Xn|SP>, #<simm9>, MUL VL].  */
+  AARCH64_OPND_SVE_ADDR_RI_U6,	    /* SVE [<Xn|SP>, #<uimm6>].  */
+  AARCH64_OPND_SVE_ADDR_RI_U6x2,    /* SVE [<Xn|SP>, #<uimm6>*2].  */
+  AARCH64_OPND_SVE_ADDR_RI_U6x4,    /* SVE [<Xn|SP>, #<uimm6>*4].  */
+  AARCH64_OPND_SVE_ADDR_RI_U6x8,    /* SVE [<Xn|SP>, #<uimm6>*8].  */
+  AARCH64_OPND_SVE_ADDR_RR,	    /* SVE [<Xn|SP>, <Xm|XZR>].  */
+  AARCH64_OPND_SVE_ADDR_RR_LSL1,    /* SVE [<Xn|SP>, <Xm|XZR>, LSL #1].  */
+  AARCH64_OPND_SVE_ADDR_RR_LSL2,    /* SVE [<Xn|SP>, <Xm|XZR>, LSL #2].  */
+  AARCH64_OPND_SVE_ADDR_RR_LSL3,    /* SVE [<Xn|SP>, <Xm|XZR>, LSL #3].  */
+  AARCH64_OPND_SVE_ADDR_RX,	    /* SVE [<Xn|SP>, <Xm>].  */
+  AARCH64_OPND_SVE_ADDR_RX_LSL1,    /* SVE [<Xn|SP>, <Xm>, LSL #1].  */
+  AARCH64_OPND_SVE_ADDR_RX_LSL2,    /* SVE [<Xn|SP>, <Xm>, LSL #2].  */
+  AARCH64_OPND_SVE_ADDR_RX_LSL3,    /* SVE [<Xn|SP>, <Xm>, LSL #3].  */
+  AARCH64_OPND_SVE_ADDR_RZ,	    /* SVE [<Xn|SP>, Zm.D].  */
+  AARCH64_OPND_SVE_ADDR_RZ_LSL1,    /* SVE [<Xn|SP>, Zm.D, LSL #1].  */
+  AARCH64_OPND_SVE_ADDR_RZ_LSL2,    /* SVE [<Xn|SP>, Zm.D, LSL #2].  */
+  AARCH64_OPND_SVE_ADDR_RZ_LSL3,    /* SVE [<Xn|SP>, Zm.D, LSL #3].  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW_14,  /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW].
+				       Bit 14 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW_22,  /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW].
+				       Bit 22 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW1_14, /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW #1].
+				       Bit 14 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW1_22, /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW #1].
+				       Bit 22 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW2_14, /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW #2].
+				       Bit 14 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW2_22, /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW #2].
+				       Bit 22 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW3_14, /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW #3].
+				       Bit 14 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_RZ_XTW3_22, /* SVE [<Xn|SP>, Zm.<T>, (S|U)XTW #3].
+				       Bit 22 controls S/U choice.  */
+  AARCH64_OPND_SVE_ADDR_ZI_U5,	    /* SVE [Zn.<T>, #<uimm5>].  */
+  AARCH64_OPND_SVE_ADDR_ZI_U5x2,    /* SVE [Zn.<T>, #<uimm5>*2].  */
+  AARCH64_OPND_SVE_ADDR_ZI_U5x4,    /* SVE [Zn.<T>, #<uimm5>*4].  */
+  AARCH64_OPND_SVE_ADDR_ZI_U5x8,    /* SVE [Zn.<T>, #<uimm5>*8].  */
+  AARCH64_OPND_SVE_ADDR_ZZ_LSL,     /* SVE [Zn.<T>, Zm,<T>, LSL #<msz>].  */
+  AARCH64_OPND_SVE_ADDR_ZZ_SXTW,    /* SVE [Zn.<T>, Zm,<T>, SXTW #<msz>].  */
+  AARCH64_OPND_SVE_ADDR_ZZ_UXTW,    /* SVE [Zn.<T>, Zm,<T>, UXTW #<msz>].  */
+  AARCH64_OPND_SVE_AIMM,	/* SVE unsigned arithmetic immediate.  */
+  AARCH64_OPND_SVE_ASIMM,	/* SVE signed arithmetic immediate.  */
+  AARCH64_OPND_SVE_FPIMM8,	/* SVE 8-bit floating-point immediate.  */
+  AARCH64_OPND_SVE_I1_HALF_ONE,	/* SVE choice between 0.5 and 1.0.  */
+  AARCH64_OPND_SVE_I1_HALF_TWO,	/* SVE choice between 0.5 and 2.0.  */
+  AARCH64_OPND_SVE_I1_ZERO_ONE,	/* SVE choice between 0.0 and 1.0.  */
+  AARCH64_OPND_SVE_IMM_ROT1,	/* SVE 1-bit rotate operand (90 or 270).  */
+  AARCH64_OPND_SVE_IMM_ROT2,	/* SVE 2-bit rotate operand (N*90).  */
+  AARCH64_OPND_SVE_INV_LIMM,	/* SVE inverted logical immediate.  */
+  AARCH64_OPND_SVE_LIMM,	/* SVE logical immediate.  */
+  AARCH64_OPND_SVE_LIMM_MOV,	/* SVE logical immediate for MOV.  */
+  AARCH64_OPND_SVE_PATTERN,	/* SVE vector pattern enumeration.  */
+  AARCH64_OPND_SVE_PATTERN_SCALED, /* Likewise, with additional MUL factor.  */
+  AARCH64_OPND_SVE_PRFOP,	/* SVE prefetch operation.  */
+  AARCH64_OPND_SVE_Pd,		/* SVE p0-p15 in Pd.  */
+  AARCH64_OPND_SVE_Pg3,		/* SVE p0-p7 in Pg.  */
+  AARCH64_OPND_SVE_Pg4_5,	/* SVE p0-p15 in Pg, bits [8,5].  */
+  AARCH64_OPND_SVE_Pg4_10,	/* SVE p0-p15 in Pg, bits [13,10].  */
+  AARCH64_OPND_SVE_Pg4_16,	/* SVE p0-p15 in Pg, bits [19,16].  */
+  AARCH64_OPND_SVE_Pm,		/* SVE p0-p15 in Pm.  */
+  AARCH64_OPND_SVE_Pn,		/* SVE p0-p15 in Pn.  */
+  AARCH64_OPND_SVE_Pt,		/* SVE p0-p15 in Pt.  */
+  AARCH64_OPND_SVE_Rm,		/* Integer Rm or ZR, alt. SVE position.  */
+  AARCH64_OPND_SVE_Rn_SP,	/* Integer Rn or SP, alt. SVE position.  */
+  AARCH64_OPND_SVE_SHLIMM_PRED,	  /* SVE shift left amount (predicated).  */
+  AARCH64_OPND_SVE_SHLIMM_UNPRED, /* SVE shift left amount (unpredicated).  */
+  AARCH64_OPND_SVE_SHRIMM_PRED,	  /* SVE shift right amount (predicated).  */
+  AARCH64_OPND_SVE_SHRIMM_UNPRED, /* SVE shift right amount (unpredicated).  */
+  AARCH64_OPND_SVE_SIMM5,	/* SVE signed 5-bit immediate.  */
+  AARCH64_OPND_SVE_SIMM5B,	/* SVE secondary signed 5-bit immediate.  */
+  AARCH64_OPND_SVE_SIMM6,	/* SVE signed 6-bit immediate.  */
+  AARCH64_OPND_SVE_SIMM8,	/* SVE signed 8-bit immediate.  */
+  AARCH64_OPND_SVE_UIMM3,	/* SVE unsigned 3-bit immediate.  */
+  AARCH64_OPND_SVE_UIMM7,	/* SVE unsigned 7-bit immediate.  */
+  AARCH64_OPND_SVE_UIMM8,	/* SVE unsigned 8-bit immediate.  */
+  AARCH64_OPND_SVE_UIMM8_53,	/* SVE split unsigned 8-bit immediate.  */
+  AARCH64_OPND_SVE_VZn,		/* Scalar SIMD&FP register in Zn field.  */
+  AARCH64_OPND_SVE_Vd,		/* Scalar SIMD&FP register in Vd.  */
+  AARCH64_OPND_SVE_Vm,		/* Scalar SIMD&FP register in Vm.  */
+  AARCH64_OPND_SVE_Vn,		/* Scalar SIMD&FP register in Vn.  */
+  AARCH64_OPND_SVE_Za_5,	/* SVE vector register in Za, bits [9,5].  */
+  AARCH64_OPND_SVE_Za_16,	/* SVE vector register in Za, bits [20,16].  */
+  AARCH64_OPND_SVE_Zd,		/* SVE vector register in Zd.  */
+  AARCH64_OPND_SVE_Zm_5,	/* SVE vector register in Zm, bits [9,5].  */
+  AARCH64_OPND_SVE_Zm_16,	/* SVE vector register in Zm, bits [20,16].  */
+  AARCH64_OPND_SVE_Zm3_INDEX,	/* z0-z7[0-3] in Zm, bits [20,16].  */
+  AARCH64_OPND_SVE_Zm3_22_INDEX, /* z0-z7[0-7] in Zm3_INDEX plus bit 22.  */
+  AARCH64_OPND_SVE_Zm4_INDEX,	/* z0-z15[0-1] in Zm, bits [20,16].  */
+  AARCH64_OPND_SVE_Zn,		/* SVE vector register in Zn.  */
+  AARCH64_OPND_SVE_Zn_INDEX,	/* Indexed SVE vector register, for DUP.  */
+  AARCH64_OPND_SVE_ZnxN,	/* SVE vector register list in Zn.  */
+  AARCH64_OPND_SVE_Zt,		/* SVE vector register in Zt.  */
+  AARCH64_OPND_SVE_ZtxN,	/* SVE vector register list in Zt.  */
 };
 
 /* Qualifier constrains an operand.  It either specifies a variant of an
@@ -247,6 +390,7 @@ enum aarch64_opnd_qualifier
      constraint qualifiers for immediate operands wherever possible.  */
   AARCH64_OPND_QLF_V_8B,
   AARCH64_OPND_QLF_V_16B,
+  AARCH64_OPND_QLF_V_2H,
   AARCH64_OPND_QLF_V_4H,
   AARCH64_OPND_QLF_V_8H,
   AARCH64_OPND_QLF_V_2S,
@@ -255,7 +399,11 @@ enum aarch64_opnd_qualifier
   AARCH64_OPND_QLF_V_2D,
   AARCH64_OPND_QLF_V_1Q,
 
+  AARCH64_OPND_QLF_P_Z,
+  AARCH64_OPND_QLF_P_M,
+
   /* Constraint on value.  */
+  AARCH64_OPND_QLF_CR,		/* CRn, CRm. */
   AARCH64_OPND_QLF_imm_0_7,
   AARCH64_OPND_QLF_imm_0_15,
   AARCH64_OPND_QLF_imm_0_31,
@@ -331,6 +479,7 @@ enum aarch64_insn_class
   ldst_immpost,
   ldst_immpre,
   ldst_imm9,	/* immpost or immpre */
+  ldst_imm10,	/* LDRAA/LDRAB */
   ldst_pos,
   ldst_regoff,
   ldst_unpriv,
@@ -346,6 +495,18 @@ enum aarch64_insn_class
   movewide,
   pcreladdr,
   ic_system,
+  sve_cpy,
+  sve_index,
+  sve_limm,
+  sve_misc,
+  sve_movprfx,
+  sve_pred_zm,
+  sve_shift_pred,
+  sve_shift_unpred,
+  sve_size_bhs,
+  sve_size_bhsd,
+  sve_size_hsd,
+  sve_size_sd,
   testbranch,
 };
 
@@ -410,6 +571,7 @@ enum aarch64_op
   OP_SBFX,
   OP_SBFIZ,
   OP_BFI,
+  OP_BFC,		/* ARMv8.2.  */
   OP_UBFIZ,
   OP_UXTB,
   OP_UXTH,
@@ -434,6 +596,20 @@ enum aarch64_op
   OP_SXTL2,
   OP_UXTL,
   OP_UXTL2,
+
+  OP_MOV_P_P,
+  OP_MOV_Z_P_Z,
+  OP_MOV_Z_V,
+  OP_MOV_Z_Z,
+  OP_MOV_Z_Zi,
+  OP_MOVM_P_P_P,
+  OP_MOVS_P_P,
+  OP_MOVZS_P_P_P,
+  OP_MOVZ_P_P_P,
+  OP_NOTS_P_P_P_Z,
+  OP_NOT_P_P_P_Z,
+
+  OP_FCMLA_ELEM,	/* ARMv8.3, indexed element version.  */
 
   OP_TOTAL_NUM,		/* Pseudo.  */
 };
@@ -498,6 +674,13 @@ struct aarch64_opcode
 
   /* Flags providing information about this instruction */
   uint32_t flags;
+
+  /* If nonzero, this operand and operand 0 are both registers and
+     are required to have the same register number.  */
+  unsigned char tied_operand;
+
+  /* If non-NULL, a function to verify that a given instruction is valid.  */
+  bfd_boolean (* verifier) (const struct aarch64_opcode *, const aarch64_insn);
 };
 
 typedef struct aarch64_opcode aarch64_opcode;
@@ -555,7 +738,9 @@ extern aarch64_opcode aarch64_opcode_table[];
 #define F_OD(X) (((X) & 0x7) << 24)
 /* Instruction has the field of 'sz'.  */
 #define F_LSE_SZ (1 << 27)
-/* Next bit is 28.  */
+/* Require an exact qualifier match, even for NIL qualifiers.  */
+#define F_STRICT (1ULL << 28)
+/* Next bit is 29.  */
 
 static inline bfd_boolean
 alias_opcode_p (const aarch64_opcode *opcode)
@@ -618,6 +803,7 @@ struct aarch64_name_value_pair
 extern const struct aarch64_name_value_pair aarch64_operand_modifiers [];
 extern const struct aarch64_name_value_pair aarch64_barrier_options [16];
 extern const struct aarch64_name_value_pair aarch64_prfops [32];
+extern const struct aarch64_name_value_pair aarch64_hint_options [];
 
 typedef struct
 {
@@ -629,13 +815,22 @@ typedef struct
 extern const aarch64_sys_reg aarch64_sys_regs [];
 extern const aarch64_sys_reg aarch64_pstatefields [];
 extern bfd_boolean aarch64_sys_reg_deprecated_p (const aarch64_sys_reg *);
+extern bfd_boolean aarch64_sys_reg_supported_p (const aarch64_feature_set,
+						const aarch64_sys_reg *);
+extern bfd_boolean aarch64_pstatefield_supported_p (const aarch64_feature_set,
+						    const aarch64_sys_reg *);
 
 typedef struct
 {
-  const char *template;
+  const char *name;
   uint32_t value;
-  int has_xt;
+  uint32_t flags ;
 } aarch64_sys_ins_reg;
+
+extern bfd_boolean aarch64_sys_ins_reg_has_xt (const aarch64_sys_ins_reg *);
+extern bfd_boolean
+aarch64_sys_ins_reg_supported_p (const aarch64_feature_set,
+				 const aarch64_sys_ins_reg *);
 
 extern const aarch64_sys_ins_reg aarch64_sys_regs_ic [];
 extern const aarch64_sys_ins_reg aarch64_sys_regs_dc [];
@@ -660,6 +855,8 @@ enum aarch64_modifier_kind
   AARCH64_MOD_SXTH,
   AARCH64_MOD_SXTW,
   AARCH64_MOD_SXTX,
+  AARCH64_MOD_MUL,
+  AARCH64_MOD_MUL_VL,
 };
 
 bfd_boolean
@@ -673,7 +870,7 @@ typedef struct
 {
   /* A list of names with the first one as the disassembly preference;
      terminated by NULL if fewer than 3.  */
-  const char *names[3];
+  const char *names[4];
   aarch64_insn value;
 } aarch64_cond;
 
@@ -698,8 +895,8 @@ struct aarch64_opnd_info
 	} reg;
       struct
 	{
-	  unsigned regno : 5;
-	  unsigned index : 4;
+	  unsigned int regno;
+	  int64_t index;
 	} reglane;
       /* e.g. LVn.  */
       struct
@@ -709,7 +906,7 @@ struct aarch64_opnd_info
 	  /* 1 if it is a list of reg element.  */
 	  unsigned has_index : 1;
 	  /* Lane index; valid only when has_index is 1.  */
-	  unsigned index : 4;
+	  int64_t index;
 	} reglist;
       /* e.g. immediate or pc relative address offset.  */
       struct
@@ -742,6 +939,7 @@ struct aarch64_opnd_info
       aarch64_insn pstatefield;
       const aarch64_sys_ins_reg *sysins_op;
       const struct aarch64_name_value_pair *barrier;
+      const struct aarch64_name_value_pair *hint_option;
       const struct aarch64_name_value_pair *prfop;
     };
 
@@ -750,10 +948,10 @@ struct aarch64_opnd_info
   struct
     {
       enum aarch64_modifier_kind kind;
-      int amount;
       unsigned operator_present: 1;	/* Only valid during encoding.  */
       /* Value of the 'S' field in ld/st reg offset; used only in decoding.  */
       unsigned amount_present: 1;
+      int64_t amount;
     } shifter;
 
   unsigned skip:1;	/* Operand is not completed if there is a fixup needed
@@ -816,6 +1014,10 @@ typedef struct aarch64_inst aarch64_inst;
      No syntax error, but the operands are not a valid combination, e.g.
      FMOV D0,S0
 
+   AARCH64_OPDE_UNTIED_OPERAND
+     The asm failed to use the same register for a destination operand
+     and a tied source operand.
+
    AARCH64_OPDE_OUT_OF_RANGE
      Error about some immediate value out of a valid range.
 
@@ -852,6 +1054,7 @@ enum aarch64_operand_error_kind
   AARCH64_OPDE_SYNTAX_ERROR,
   AARCH64_OPDE_FATAL_SYNTAX_ERROR,
   AARCH64_OPDE_INVALID_VARIANT,
+  AARCH64_OPDE_UNTIED_OPERAND,
   AARCH64_OPDE_OUT_OF_RANGE,
   AARCH64_OPDE_UNALIGNED,
   AARCH64_OPDE_REG_LIST,
@@ -906,8 +1109,11 @@ aarch64_num_of_operands (const aarch64_opcode *);
 extern int
 aarch64_stack_pointer_p (const aarch64_opnd_info *);
 
-extern
-int aarch64_zero_register_p (const aarch64_opnd_info *);
+extern int
+aarch64_zero_register_p (const aarch64_opnd_info *);
+
+extern int
+aarch64_decode_insn (aarch64_insn, aarch64_inst *, bfd_boolean);
 
 /* Given an operand qualifier, return the expected data element size
    of a qualified operand.  */
@@ -922,6 +1128,9 @@ aarch64_get_operand_name (enum aarch64_opnd);
 
 extern const char *
 aarch64_get_operand_desc (enum aarch64_opnd);
+
+extern bfd_boolean
+aarch64_sve_dupm_mov_immediate_p (uint64_t, int);
 
 #ifdef DEBUG_AARCH64
 extern int debug_dump;
@@ -944,5 +1153,12 @@ aarch64_verbose (const char *, ...) __attribute__ ((format (printf, 1, 2)));
 #define DEBUG_TRACE(M, ...) ;
 #define DEBUG_TRACE_IF(C, M, ...) ;
 #endif /* DEBUG_AARCH64 */
+
+extern const char *const aarch64_sve_pattern_array[32];
+extern const char *const aarch64_sve_prfop_array[16];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* OPCODE_AARCH64_H */

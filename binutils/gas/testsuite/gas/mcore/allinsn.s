@@ -13,14 +13,14 @@ footext:
 	test addc  "r1,r2"	// A double forward slash starts a line comment
 	test addi  "r3, 1"	# So does a hash
 	test addu  "r4, r5"	// White space between operands should be ignored
-	test and   "r6,r7"   ;	test andi  "r8,2" // A semicolon seperates statements
+	test and   "r6,r7"   ;	test andi  "r8,2" // A semicolon separates statements
 	test andn  "r9, r10"
 	test asr   "r11, R12"	// Uppercase R is allowed as a register prefix
 	test asrc  "r13"
 	test asri  "r14,0x1f"
 	test bclri "r15,0"
 	test bf    footext
-	test bgeni "sp, 7"	// r0 can also be refered to as 'sp'
+	test bgeni "sp, 7"	// r0 can also be referred to as 'sp'
 	test BGENI "r0, 8"	// Officially upper case or mixed case
 	test BGENi "r0, 31"	// mnemonics should not be allowed, but we relax this...
 	test bgenr "r1, r2"

@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
        0:	d5380587 	mrs	x7, id_aa64afr0_el1
        4:	d53805a7 	mrs	x7, id_aa64afr1_el1
        8:	d5380347 	mrs	x7, mvfr2_el1

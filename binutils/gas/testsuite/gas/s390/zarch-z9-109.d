@@ -45,12 +45,17 @@ Disassembly of section .text:
 .*:	c8 60 5f ff af ff [	 ]*mvcos	4095\(%r5\),4095\(%r10\),%r6
 .*:	b9 aa 9f 65 [	 ]*lptea	%r6,%r9,%r5,15
 .*:	b2 2b f0 69 [	 ]*sske	%r6,%r9,15
+.*:	b2 2b 00 69 [	 ]*sske	%r6,%r9
 .*:	b9 b1 f0 68 [	 ]*cu24	%r6,%r8,15
+.*:	b9 b1 00 68 [	 ]*cu24	%r6,%r8
 .*:	b2 a6 f0 68 [	 ]*cu21	%r6,%r8,15
+.*:	b2 a6 00 68 [	 ]*cuutf	%r6,%r8
 .*:	b9 b3 00 68 [	 ]*cu42	%r6,%r8
 .*:	b9 b2 00 68 [	 ]*cu41	%r6,%r8
 .*:	b2 a7 f0 68 [	 ]*cu12	%r6,%r8,15
+.*:	b2 a7 00 68 [	 ]*cutfu	%r6,%r8
 .*:	b9 b0 f0 68 [	 ]*cu14	%r6,%r8,15
+.*:	b9 b0 00 68 [	 ]*cu14	%r6,%r8
 .*:	b3 3b 60 95 [	 ]*myr	%f6,%f9,%f5
 .*:	b3 3d 60 95 [	 ]*myhr	%f6,%f9,%f5
 .*:	b3 39 60 95 [	 ]*mylr	%f6,%f9,%f5

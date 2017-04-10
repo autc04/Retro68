@@ -4,11 +4,11 @@ There are 11 section headers, starting at offset .*:
   \[ 4\] \.MMIX\.spec_data\.2 PROGBITS         0+  0+48
        0+10  0+           0     0     8
   \[ 5\] \.rela\.MMIX\.spec_d RELA             0+  .*
- +0+30  0+18 +I +9 +4 +8
+ +0+30  0+18 +I +8 +4 +8
   \[ 6\] \.MMIX\.spec_data\.3 PROGBITS         0+  0+58
        0+8  0+           0     0     8
   \[ 7\] \.rela\.MMIX\.spec_d RELA             0+  .*
- +0+18 +0+18 +I +9 +6 +8
+ +0+18 +0+18 +I +8 +6 +8
 #...
 Relocation section '\.rela\.MMIX\.spec_data\.2' at offset .* contains 2 entries:
 .*

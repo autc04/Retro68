@@ -4,7 +4,7 @@ macro	reg2	{r0;r14}
 macro	reg7	{r0;r7}
 macro	regPlo	{r1;r7}
 macro	regPhi	{r8;r14}
-macro	creg	{psw;fpsw;usp;isp;intb;bpsw;bpc;fintv}
+macro	creg	{psw;fpsw;usp;isp;intb;bpsw;bpc;fintv;extb}
 macro	pswf	{U;I;O;S;Z;C}
 
 macro	simm8	{-128;127}

@@ -1,5 +1,5 @@
 /* This file is tc-avr.h
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    Contributed by Denis Chertykov <denisc@overta.ru>
 
@@ -44,6 +44,8 @@
 /* If you define this macro, GAS will warn about the use of
    nonstandard escape sequences in a string.  */
 #define ONLY_STANDARD_ESCAPES
+
+#define DIFF_EXPR_OK    /* .-foo gets turned into PC relative relocs */
 
 /* GAS will call this function for any expression that can not be
    recognized.  When the function is called, `input_line_pointer'
@@ -213,3 +215,23 @@ extern void tc_cfi_frame_initial_instructions (void);
    relaxation, so do not resolve such expressions in the assembler.  */
 #define md_allow_local_subtract(l,r,s) avr_allow_local_subtract (l, r, s)
 extern bfd_boolean avr_allow_local_subtract (expressionS *, expressionS *, segT);
+
+#define elf_tc_final_processing 	avr_elf_final_processing
+extern void avr_elf_final_processing (void);
+
+#define md_post_relax_hook avr_post_relax_hook ()
+extern void avr_post_relax_hook (void);
+
+#define HANDLE_ALIGN(fragP) avr_handle_align (fragP)
+extern void avr_handle_align (fragS *fragP);
+
+struct avr_frag_data
+{
+  unsigned is_org : 1;
+  unsigned is_align : 1;
+  unsigned has_fill : 1;
+
+  char fill;
+  offsetT alignment;
+};
+#define TC_FRAG_TYPE			struct avr_frag_data

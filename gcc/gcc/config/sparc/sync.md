@@ -1,5 +1,5 @@
 ;; GCC machine description for SPARC synchronization instructions.
-;; Copyright (C) 2005-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2016 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -222,10 +222,10 @@
 	  UNSPECV_CAS))]
   "TARGET_LEON3"
 {
-  if (TARGET_USER_MODE)
-    return "casa\t%1 0xa, %2, %0"; /* ASI for user data space.  */
-  else
+  if (TARGET_SV_MODE)
     return "casa\t%1 0xb, %2, %0"; /* ASI for supervisor data space.  */
+  else
+    return "casa\t%1 0xa, %2, %0"; /* ASI for user data space.  */
 }
   [(set_attr "type" "multi")])
 

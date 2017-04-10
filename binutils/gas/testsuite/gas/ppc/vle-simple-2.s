@@ -13,10 +13,10 @@ target1:
 target2:
 	e_beql cr0, target1
 	e_beql target6
-	e_bf cr1, target3
+	e_bf 4*cr0+gt, target3
 
 target3:
-	e_bfl cr3, target0
+	e_bfl cr0*4+un, target0
 	e_bge cr1, target1
 	e_bge target5
 
@@ -69,8 +69,8 @@ target8:
 target9:
 	e_bsol cr0, target8
 	e_bsol target8
-	e_bt cr1, target7
-	e_btl cr0, target5
+	e_bt gt+cr0*4, target7
+	e_btl lt+4*cr0, target5
 	e_bun cr1, target4
 	e_bun target4
 	e_bunl cr2, target0

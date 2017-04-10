@@ -1,6 +1,6 @@
 // copy_test_v1.cc -- test copy relocs for gold
 
-// Copyright (C) 2008-2014 Free Software Foundation, Inc.
+// Copyright (C) 2008-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -35,6 +35,9 @@ extern char b;
 
 // From copy_test_2.cc.
 extern long long l;
+extern int ip; // protected visibility; may not be copied
+
+int* ipp = &ip;
 
 int
 main()
@@ -43,5 +46,6 @@ main()
   assert(b == 1);
   assert(l == 3);	// Deliberately incorrect.
   assert((reinterpret_cast<uintptr_t>(&l) & 0x7) == 0);
+  assert(*ipp == 3);
   return 0;
 }

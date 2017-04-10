@@ -1,6 +1,6 @@
 # Test linking directly to S-records.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -241,36 +241,19 @@ proc run_srec_test { test objs } {
 	set flags "$flags -Ttext 0x1000"
     }
 
-    if [istarget sh64*-*-elf] {
-        # This is what gcc passes to ld by default.
-        set flags "$flags -mshelf32"
-        # SH64 targets cannot convert format in the linker 
-        # using the -oformat command line switch.
-	setup_xfail "sh64*-*-*"
-    }
-
-    if {[istarget aarch64*-*-*]   || \
+    # ARM targets cannot convert format in the linker
+    # using the --oformat command line switch
+    if {[istarget aarch64*-*-*] || \
         [istarget arm*-*-*]} {
-        # ARM targets cannot convert format in the linker
-        # using the --oformat command line switch
 	setup_xfail "aarch64-*-*"
 	setup_xfail "aarch64_be-*-*"
 	setup_xfail "arm*-*-*"
     }
 
-    # V850 targets need libgcc.a
-    if [istarget v850*-*-elf] {
-	set objs "$objs -L ../gcc -lgcc"
-    }
-
-    # Xtensa ELF targets relax by default; S-Record linker does not
-    if [istarget xtensa*-*-*] {
-	set flags "$flags -no-relax"
-    }
-
-    # MSP430 targets always relax.
-    if [istarget msp430*-*-*] {
-	setup_xfail "msp430*-*-*"
+    # The AVR target does not correctly process
+    # relocs when output format is not ELF.
+    if [istarget avr-*-*] {
+	setup_xfail "avr-*-*"
     }
 
     # Epiphany needs some help too
@@ -292,6 +275,29 @@ proc run_srec_test { test objs } {
     if [istarget m9s12x*-*-*] {
 	set flags "$flags --defsym _start=0xc000"
 	setup_xfail "m9s12x*-*-*"
+    }
+
+    # MSP430 targets always relax.
+    if [istarget msp430*-*-*] {
+	setup_xfail "msp430*-*-*"
+    }
+
+    # SH64 targets cannot convert format in the linker 
+    # using the -oformat command line switch.
+    if [istarget sh64*-*-elf] {
+        # This is what gcc passes to ld by default.
+        set flags "$flags -mshelf32"
+	setup_xfail "sh64*-*-*"
+    }
+
+    # V850 targets need libgcc.a
+    if [istarget v850*-*-elf] {
+	set objs "$objs -L ../gcc -lgcc"
+    }
+
+    # Xtensa ELF targets relax by default; S-Record linker does not
+    if [istarget xtensa*-*-*] {
+	set flags "$flags -no-relax"
     }
 
     if { ![ld_simple_link $ld tmpdir/sr1 "$flags $objs"] \
@@ -339,10 +345,20 @@ if { ![is_remote host] && [which $CC] == 0 } {
     return
 }
 
+# Pass -fplt to CC and CXX since -fno-plt doesn't work with S-records
+# tests.
+global PLT_CFLAGS
+set old_CC "$CC"
+set CC "$CC $PLT_CFLAGS"
+set old_CXX "$CXX"
+set CXX "$CXX $PLT_CFLAGS"
+
 if { ![ld_compile $CC $srcdir/$subdir/sr1.c tmpdir/sr1.o] \
      || ![ld_compile $CC $srcdir/$subdir/sr2.c tmpdir/sr2.o] } {
     unresolved $test1
     unresolved $test2
+    set CC "$old_CC"
+    set CXX "$old_CXX"
     return
 }
 
@@ -358,6 +374,9 @@ setup_xfail "mips*-*-irix5*" "mips*-*-irix6*" "mips*-*-linux*"
 # The S-record linker doesn't do the magic TOC handling that XCOFF
 # linkers do.
 setup_xfail "*-*-aix*" "*-*-xcoff*"
+
+# The S-record linker is not supported for ARC.
+setup_xfail "arc*-*-*"
 
 # The S-record linker doesn't build ARM/Thumb stubs.
 setup_xfail "arm-*-coff"
@@ -403,11 +422,15 @@ run_srec_test $test1 "tmpdir/sr1.o tmpdir/sr2.o"
 
 if { ![is_remote host] && [which $CXX] == 0 } {
     untested $test2
+    set CC "$old_CC"
+    set CXX "$old_CXX"
     return
 }
 
 if ![ld_compile "$CXX $CXXFLAGS -fno-exceptions" $srcdir/$subdir/sr3.cc tmpdir/sr3.o] {
     unresolved $test2
+    set CC "$old_CC"
+    set CXX "$old_CXX"
     return
 }
 
@@ -415,6 +438,7 @@ if ![ld_compile "$CXX $CXXFLAGS -fno-exceptions" $srcdir/$subdir/sr3.cc tmpdir/s
 setup_xfail "i*86-*-aout*"
 setup_xfail "mips*-*-irix5*" "mips*-*-irix6*" "mips*-*-linux*"
 setup_xfail "*-*-aix*" "*-*-xcoff*"
+setup_xfail "arc*-*-*"
 setup_xfail "arm*-*-*"
 setup_xfail "v850*-*-elf"
 setup_xfail "alpha*-*-elf*" "alpha*-*-linux-*" "alpha*-*-gnu*"
@@ -427,3 +451,6 @@ setup_xfail "bfin-*-linux-uclibc"
 setup_xfail "tile*-*-*"
 
 run_srec_test $test2 "tmpdir/sr3.o"
+
+set CC "$old_CC"
+set CXX "$old_CXX"

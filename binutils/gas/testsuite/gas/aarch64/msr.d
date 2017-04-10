@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	d50340df 	msr	daifset, #0x0
    4:	d50341df 	msr	daifset, #0x1
    8:	d5034fdf 	msr	daifset, #0xf

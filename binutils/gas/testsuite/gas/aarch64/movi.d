@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
        0:	2f00e41f 	movi	d31, #0x0
        4:	2f00e43f 	movi	d31, #0xff
        8:	2f00e45f 	movi	d31, #0xff00

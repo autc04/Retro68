@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "is_IS" }
+// { dg-require-namedlocale "is_IS.ISO8859-1" }
 
 // 2003-10-27 Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2003-2015 Free Software Foundation, Inc.
+// Copyright (C) 2003-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ void test01()
   bool test __attribute__((unused)) = true;
 
   // basic construction
-  locale loc_is = locale("is_IS");
+  locale loc_is = locale(ISO_8859(1,is_IS));
 
   // create an ostream-derived object, cache the time_get facet
   iterator_type end;

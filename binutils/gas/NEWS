@@ -1,5 +1,80 @@
 -*- text -*-
 
+Changes in 2.28:
+
+* Add support for the RISC-V architecture.
+
+* Add support for the ARM Cortex-M23 and Cortex-M33 processors.
+
+Changes in 2.27:
+
+* Default to --enable-compressed-debug-sections=gas for Linux/x86 targets.
+
+* Add --no-pad-sections to stop the assembler from padding the end of output
+  sections up to their alignment boundary.
+
+* Support for the ARMv8-M architecture has been added to the ARM port.  Support
+  for the ARMv8-M Security and DSP Extensions has also been added to the ARM
+  port.
+
+* ARC backend accepts .extInstruction, .extCondCode, .extAuxRegister, and
+  .extCoreRegister pseudo-ops that allow an user to define custom
+  instructions, conditional codes, auxiliary and core registers.
+
+* Add a configure option --enable-elf-stt-common to decide whether ELF
+  assembler should generate common symbols with the STT_COMMON type by
+  default.  Default to no.
+
+* New command line option --elf-stt-common= for ELF targets to control
+  whether to generate common symbols with the STT_COMMON type.
+
+* Add ability to set section flags and types via numeric values for ELF
+  based targets.
+
+* Add a configure option --enable-x86-relax-relocations to decide whether
+  x86 assembler should generate relax relocations by default.  Default to
+  yes, except for x86 Solaris targets older than Solaris 12.
+
+* New command line option -mrelax-relocations= for x86 target to control
+  whether to generate relax relocations.
+
+* New command line option -mfence-as-lock-add=yes for x86 target to encode
+  lfence, mfence and sfence as "lock addl $0x0, (%[re]sp)".
+
+* Add assembly-time relaxation option for ARC cpus.
+
+* Add --with-cpu=TYPE configure option for ARC gas.  This allows the default
+  cpu type to be adjusted at configure time.
+
+Changes in 2.26:
+
+* Add a configure option --enable-compressed-debug-sections={all,gas} to
+  decide whether DWARF debug sections should be compressed by default.
+
+* Add support for the ARC EM/HS, and ARC600/700 architectures.  Remove
+  assembler support for Argonaut RISC architectures.
+
+* Symbol and label names can now be enclosed in double quotes (") which allows
+  them to contain characters that are not part of valid symbol names in high
+  level languages.
+
+* Added the correctly spelled -march=armv6kz, for ARMv6KZ support.  The
+  previous spelling, -march=armv6zk, is still accepted.
+
+* Support for the ARMv8.1 architecture has been added to the Aarch64 port.
+  Support for the individual ARMv8.1 Adv.SIMD, LOR and PAN architecture
+  extensions has also been added to the Aarch64 port.
+
+* Support for the ARMv8.1 architecture has been added to the ARM port.  Support
+  for the individual ARMv8.1 Adv.SIMD and PAN architecture extensions has also
+  been added to the ARM port.
+
+* Extend --compress-debug-sections option to support
+  --compress-debug-sections=[none|zlib|zlib-gnu|zlib-gabi] for ELF
+  targets.
+
+* --compress-debug-sections is turned on for Linux/x86 by default.
+
 Changes in 2.25:
 
 * Add support for the AVR Tiny microcontrollers.
@@ -626,7 +701,7 @@ Changes in 1.93.01:
   of new CPUs and formats, lots of bugs fixed.
 
 
-Copyright (C) 2012-2014 Free Software Foundation, Inc.
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

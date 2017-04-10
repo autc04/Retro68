@@ -1,5 +1,5 @@
 /* Matsushita 10300 specific support for 32-bit ELF
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -808,8 +808,9 @@ mn10300_info_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
   r_type = ELF32_R_TYPE (dst->r_info);
   if (r_type >= R_MN10300_MAX)
     {
-      (*_bfd_error_handler) (_("%B: unrecognised MN10300 reloc number: %d"),
-			     abfd, r_type);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%B: unrecognised MN10300 reloc number: %d"),
+			  abfd, r_type);
       bfd_set_error (bfd_error_bad_value);
       r_type = R_MN10300_NONE;
     }
@@ -830,7 +831,7 @@ elf_mn10300_tls_transition (struct bfd_link_info *        info,
       && elf_mn10300_hash_entry (h)->tls_type == GOT_TLS_IE)
     return R_MN10300_TLS_GOTIE;
 
-  if (info->shared)
+  if (bfd_link_pic (info))
     return r_type;
 
   if (! (sec->flags & SEC_CODE))
@@ -1022,7 +1023,8 @@ mn10300_do_tls_transition (bfd *         input_bfd,
       break;
 
     default:
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext:c-format */
 	(_("%s: Unsupported transition from %s to %s"),
 	 bfd_get_filename (input_bfd),
 	 elf_mn10300_howto_table[r_type].name,
@@ -1061,7 +1063,7 @@ mn10300_elf_check_relocs (bfd *abfd,
   srelgot = NULL;
   sreloc  = NULL;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
@@ -1153,7 +1155,7 @@ mn10300_elf_check_relocs (bfd *abfd,
 
 	case R_MN10300_TLS_IE:
 	case R_MN10300_TLS_GOTIE:
-	  if (info->shared)
+	  if (bfd_link_pic (info))
 	    info->flags |= DF_STATIC_TLS;
 	  /* Fall through */
 
@@ -1172,29 +1174,9 @@ mn10300_elf_check_relocs (bfd *abfd,
 	    default:                  tls_type = GOT_NORMAL; break;
 	    }
 
-	  if (sgot == NULL)
-	    {
-	      sgot = htab->root.sgot;
-	      BFD_ASSERT (sgot != NULL);
-	    }
-
-	  if (srelgot == NULL
-	      && (h != NULL || info->shared))
-	    {
-	      srelgot = bfd_get_linker_section (dynobj, ".rela.got");
-	      if (srelgot == NULL)
-		{
-		  flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
-				    | SEC_IN_MEMORY | SEC_LINKER_CREATED
-				    | SEC_READONLY);
-		  srelgot = bfd_make_section_anyway_with_flags (dynobj,
-								".rela.got",
-								flags);
-		  if (srelgot == NULL
-		      || ! bfd_set_section_alignment (dynobj, srelgot, 2))
-		    goto fail;
-		}
-	    }
+	  sgot = htab->root.sgot;
+	  srelgot = htab->root.srelgot;
+	  BFD_ASSERT (sgot != NULL && srelgot != NULL);
 
 	  if (r_type == R_MN10300_TLS_LD)
 	    {
@@ -1214,7 +1196,8 @@ mn10300_elf_check_relocs (bfd *abfd,
 		    /* Transition GD->IE.  */
 		    tls_type = GOT_TLS_IE;
 		  else
-		    (*_bfd_error_handler)
+		    _bfd_error_handler
+		      /* xgettext:c-format */
 		      (_("%B: %s' accessed both as normal and thread local symbol"),
 		       abfd, h ? h->root.root.string : "<local>");
 		}
@@ -1268,7 +1251,7 @@ mn10300_elf_check_relocs (bfd *abfd,
 
 	      local_got_offsets[r_symndx] = sgot->size;
 
-	      if (info->shared)
+	      if (bfd_link_pic (info))
 		{
 		  /* If we are generating a shared object, we need to
 		     output a R_MN10300_RELATIVE reloc so that the dynamic
@@ -1332,7 +1315,7 @@ mn10300_elf_check_relocs (bfd *abfd,
 	need_shared_relocs:
 	  /* If we are creating a shared library, then we
 	     need to copy the reloc into the shared library.  */
-	  if (info->shared
+	  if (bfd_link_pic (info)
 	      && (sec->flags & SEC_ALLOC) != 0
 	      /* Do not generate a dynamic reloc for a
 		 reloc associated with a SYM_DIFF operation.  */
@@ -1465,16 +1448,17 @@ mn10300_elf_final_link_relocate (reloc_howto_type *howto,
     case R_MN10300_GOTOFF32:
     case R_MN10300_GOTOFF24:
     case R_MN10300_GOTOFF16:
-      if (info->shared
+      if (bfd_link_pic (info)
 	  && (input_section->flags & SEC_ALLOC) != 0
 	  && h != NULL
 	  && ! SYMBOL_REFERENCES_LOCAL (info, h))
 	return bfd_reloc_dangerous;
+      /* Fall through.  */
     case R_MN10300_GOT32:
       /* Issue 2052223:
 	 Taking the address of a protected function in a shared library
 	 is illegal.  Issue an error message here.  */
-      if (info->shared
+      if (bfd_link_pic (info)
 	  && (input_section->flags & SEC_ALLOC) != 0
 	  && h != NULL
 	  && ELF_ST_VISIBILITY (h->other) == STV_PROTECTED
@@ -1532,7 +1516,7 @@ mn10300_elf_final_link_relocate (reloc_howto_type *howto,
       return bfd_reloc_ok;
 
     case R_MN10300_32:
-      if (info->shared
+      if (bfd_link_pic (info)
 	  /* Do not generate relocs when an R_MN10300_32 has been used
 	     with an R_MN10300_SYM_DIFF to compute a difference of two
 	     symbols.  */
@@ -1815,7 +1799,7 @@ mn10300_elf_final_link_relocate (reloc_howto_type *howto,
 
       if (!htab->tls_ldm_got.rel_emitted)
 	{
-	  asection * srelgot = bfd_get_linker_section (dynobj, ".rela.got");
+	  asection *srelgot = htab->root.srelgot;
 	  Elf_Internal_Rela rel;
 
 	  BFD_ASSERT (srelgot != NULL);
@@ -1890,12 +1874,11 @@ mn10300_elf_final_link_relocate (reloc_howto_type *howto,
 	    {
 	      bfd_put_32 (output_bfd, value, sgot->contents + off);
 
-	      if (info->shared)
+	      if (bfd_link_pic (info))
 		{
-		  asection * srelgot;
+		  asection *srelgot = htab->root.srelgot;;
 		  Elf_Internal_Rela outrel;
 
-		  srelgot = bfd_get_linker_section (dynobj, ".rela.got");
 		  BFD_ASSERT (srelgot != NULL);
 
 		  outrel.r_offset = (sgot->output_section->vma
@@ -2091,7 +2074,7 @@ mn10300_elf_relocate_section (bfd *output_bfd,
 		      /* _32 relocs in executables force _COPY relocs,
 			 such that the address of the symbol ends up
 			 being local.  */
-		      && !info->executable
+		      && !bfd_link_executable (info)
 		      && !SYMBOL_REFERENCES_LOCAL (info, hh)
 		      && ((input_section->flags & SEC_ALLOC) != 0
 			  /* DWARF will emit R_MN10300_32 relocations
@@ -2105,11 +2088,12 @@ mn10300_elf_relocate_section (bfd *output_bfd,
 	       obscure cases sec->output_section will be NULL.  */
 	    relocation = 0;
 
-	  else if (!info->relocatable && unresolved_reloc
+	  else if (!bfd_link_relocatable (info) && unresolved_reloc
 		   && _bfd_elf_section_offset (output_bfd, info, input_section,
 					       rel->r_offset) != (bfd_vma) -1)
 
-	    (*_bfd_error_handler)
+	    _bfd_error_handler
+	      /* xgettext:c-format */
 	      (_("%B(%A+0x%lx): unresolvable %s relocation against symbol `%s'"),
 	       input_bfd,
 	       input_section,
@@ -2122,7 +2106,7 @@ mn10300_elf_relocate_section (bfd *output_bfd,
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       r = mn10300_elf_final_link_relocate (howto, input_bfd, output_bfd,
@@ -2151,18 +2135,14 @@ mn10300_elf_relocate_section (bfd *output_bfd,
 	  switch (r)
 	    {
 	    case bfd_reloc_overflow:
-	      if (! ((*info->callbacks->reloc_overflow)
-		     (info, (h ? &h->root.root : NULL), name,
-		      howto->name, (bfd_vma) 0, input_bfd,
-		      input_section, rel->r_offset)))
-		return FALSE;
+	      (*info->callbacks->reloc_overflow)
+		(info, (h ? &h->root.root : NULL), name, howto->name,
+		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, name, input_bfd, input_section,
-		      rel->r_offset, TRUE)))
-		return FALSE;
+	      (*info->callbacks->undefined_symbol)
+		(info, name, input_bfd, input_section, rel->r_offset, TRUE);
 	      break;
 
 	    case bfd_reloc_outofrange:
@@ -2178,6 +2158,7 @@ mn10300_elf_relocate_section (bfd *output_bfd,
 		msg = _("error: inappropriate relocation type for shared"
 			" library (did you forget -fpic?)");
 	      else if (r_type == R_MN10300_GOT32)
+		/* xgettext:c-format */
 		msg = _("%B: taking the address of protected function"
 			" '%s' cannot be done when making a shared library");
 	      else
@@ -2665,7 +2646,7 @@ mn10300_elf_relax_section (bfd *abfd,
   asection *section = sec;
   bfd_vma align_gap_adjustment;
 
-  if (link_info->relocatable)
+  if (bfd_link_relocatable (link_info))
     (*link_info->callbacks->einfo)
       (_("%P%F: --relax and -r may not be used together\n"));
 
@@ -3287,7 +3268,7 @@ mn10300_elf_relax_section (bfd *abfd,
   /* We don't have to do anything for a relocatable link, if
      this section does not have relocs, or if this is not a
      code section.  */
-  if (link_info->relocatable
+  if (bfd_link_relocatable (link_info)
       || (sec->flags & SEC_RELOC) == 0
       || sec->reloc_count == 0
       || (sec->flags & SEC_CODE) == 0)
@@ -4728,8 +4709,10 @@ _bfd_mn10300_elf_object_p (bfd *abfd)
    object file when linking.  */
 
 static bfd_boolean
-_bfd_mn10300_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
+_bfd_mn10300_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
+
   if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
       || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
     return TRUE;
@@ -4776,11 +4759,11 @@ static const bfd_byte elf_mn10300_pic_plt_entry[PIC_PLT_ENTRY_SIZE] =
 
 /* Return size of the first PLT entry.  */
 #define elf_mn10300_sizeof_plt0(info) \
-  (info->shared ? PIC_PLT_ENTRY_SIZE : PLT0_ENTRY_SIZE)
+  (bfd_link_pic (info) ? PIC_PLT_ENTRY_SIZE : PLT0_ENTRY_SIZE)
 
 /* Return size of a PLT entry.  */
 #define elf_mn10300_sizeof_plt(info) \
-  (info->shared ? PIC_PLT_ENTRY_SIZE : PLT_ENTRY_SIZE)
+  (bfd_link_pic (info) ? PIC_PLT_ENTRY_SIZE : PLT_ENTRY_SIZE)
 
 /* Return offset of the PLT0 address in an absolute PLT entry.  */
 #define elf_mn10300_plt_plt0_offset(info) 16
@@ -4872,7 +4855,7 @@ _bfd_mn10300_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 	 be needed, we can discard it later.  We will never need this
 	 section when generating a shared object, since they do not use
 	 copy relocs.  */
-      if (! info->shared)
+      if (! bfd_link_pic (info))
 	{
 	  s = bfd_make_section_anyway_with_flags (abfd,
 						  (bed->default_use_rela_p
@@ -4917,7 +4900,7 @@ _bfd_mn10300_elf_adjust_dynamic_symbol (struct bfd_link_info * info,
   if (h->type == STT_FUNC
       || h->needs_plt)
     {
-      if (! info->shared
+      if (! bfd_link_pic (info)
 	  && !h->def_dynamic
 	  && !h->ref_dynamic)
 	{
@@ -4950,7 +4933,7 @@ _bfd_mn10300_elf_adjust_dynamic_symbol (struct bfd_link_info * info,
 	 location in the .plt.  This is required to make function
 	 pointers compare as equal between the normal executable and
 	 the shared library.  */
-      if (! info->shared
+      if (! bfd_link_pic (info)
 	  && !h->def_regular)
 	{
 	  h->root.u.def.section = s;
@@ -4969,7 +4952,7 @@ _bfd_mn10300_elf_adjust_dynamic_symbol (struct bfd_link_info * info,
       s->size += 4;
 
       /* We also need to make an entry in the .rela.plt section.  */
-      s = bfd_get_linker_section (dynobj, ".rela.plt");
+      s = htab->root.srelplt;
       BFD_ASSERT (s != NULL);
       s->size += sizeof (Elf32_External_Rela);
 
@@ -4995,7 +4978,7 @@ _bfd_mn10300_elf_adjust_dynamic_symbol (struct bfd_link_info * info,
      only references to the symbol are via the global offset table.
      For such cases we need not do anything here; the relocations will
      be handled correctly by relocate_section.  */
-  if (info->shared)
+  if (bfd_link_pic (info))
     return TRUE;
 
   /* If there are no references to this symbol that do not use the
@@ -5052,7 +5035,7 @@ _bfd_mn10300_elf_size_dynamic_sections (bfd * output_bfd,
   if (elf_hash_table (info)->dynamic_sections_created)
     {
       /* Set the contents of the .interp section to the interpreter.  */
-      if (info->executable)
+      if (bfd_link_executable (info) && !info->nointerp)
 	{
 	  s = bfd_get_linker_section (dynobj, ".interp");
 	  BFD_ASSERT (s != NULL);
@@ -5074,7 +5057,7 @@ _bfd_mn10300_elf_size_dynamic_sections (bfd * output_bfd,
 
   if (htab->tls_ldm_got.refcount > 0)
     {
-      s = bfd_get_linker_section (dynobj, ".rela.got");
+      s = htab->root.srelgot;
       BFD_ASSERT (s != NULL);
       s->size += sizeof (Elf32_External_Rela);
     }
@@ -5174,7 +5157,7 @@ _bfd_mn10300_elf_size_dynamic_sections (bfd * output_bfd,
 	 but we must add the entries now so that we get the correct
 	 size for the .dynamic section.  The DT_DEBUG entry is filled
 	 in by the dynamic linker and used by the debugger.  */
-      if (! info->shared)
+      if (! bfd_link_pic (info))
 	{
 	  if (!_bfd_elf_add_dynamic_entry (info, DT_DEBUG, 0))
 	    return FALSE;
@@ -5238,7 +5221,7 @@ _bfd_mn10300_elf_finish_dynamic_symbol (bfd * output_bfd,
 
       splt = htab->root.splt;
       sgot = htab->root.sgotplt;
-      srel = bfd_get_linker_section (dynobj, ".rela.plt");
+      srel = htab->root.srelplt;
       BFD_ASSERT (splt != NULL && sgot != NULL && srel != NULL);
 
       /* Get the index in the procedure linkage table which
@@ -5254,7 +5237,7 @@ _bfd_mn10300_elf_finish_dynamic_symbol (bfd * output_bfd,
       got_offset = (plt_index + 3) * 4;
 
       /* Fill in the entry in the procedure linkage table.  */
-      if (! info->shared)
+      if (! bfd_link_pic (info))
 	{
 	  memcpy (splt->contents + h->plt.offset, elf_mn10300_plt_entry,
 		  elf_mn10300_sizeof_plt (info));
@@ -5316,7 +5299,7 @@ _bfd_mn10300_elf_finish_dynamic_symbol (bfd * output_bfd,
 
       /* This symbol has an entry in the global offset table.  Set it up.  */
       sgot = htab->root.sgot;
-      srel = bfd_get_linker_section (dynobj, ".rela.got");
+      srel = htab->root.srelgot;
       BFD_ASSERT (sgot != NULL && srel != NULL);
 
       rel.r_offset = (sgot->output_section->vma
@@ -5357,7 +5340,7 @@ _bfd_mn10300_elf_finish_dynamic_symbol (bfd * output_bfd,
 	     the symbol was forced to be local because of a version file.
 	     The entry in the global offset table will already have been
 	     initialized in the relocate_section function.  */
-	  if (info->shared
+	  if (bfd_link_pic (info)
 	      && (info->symbolic || h->dynindx == -1)
 	      && h->def_regular)
 	    {
@@ -5445,7 +5428,6 @@ _bfd_mn10300_elf_finish_dynamic_sections (bfd * output_bfd,
       for (; dyncon < dynconend; dyncon++)
 	{
 	  Elf_Internal_Dyn dyn;
-	  const char * name;
 	  asection * s;
 
 	  bfd_elf32_swap_dyn_in (dynobj, dyncon, &dyn);
@@ -5456,38 +5438,19 @@ _bfd_mn10300_elf_finish_dynamic_sections (bfd * output_bfd,
 	      break;
 
 	    case DT_PLTGOT:
-	      name = ".got";
+	      s = htab->root.sgot;
 	      goto get_vma;
 
 	    case DT_JMPREL:
-	      name = ".rela.plt";
+	      s = htab->root.srelplt;
 	    get_vma:
-	      s = bfd_get_section_by_name (output_bfd, name);
-	      BFD_ASSERT (s != NULL);
-	      dyn.d_un.d_ptr = s->vma;
+	      dyn.d_un.d_ptr = s->output_section->vma + s->output_offset;
 	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
 	      break;
 
 	    case DT_PLTRELSZ:
-	      s = bfd_get_section_by_name (output_bfd, ".rela.plt");
-	      BFD_ASSERT (s != NULL);
+	      s = htab->root.srelplt;
 	      dyn.d_un.d_val = s->size;
-	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
-	      break;
-
-	    case DT_RELASZ:
-	      /* My reading of the SVR4 ABI indicates that the
-		 procedure linkage table relocs (DT_JMPREL) should be
-		 included in the overall relocs (DT_RELA).  This is
-		 what Solaris does.  However, UnixWare can not handle
-		 that case.  Therefore, we override the DT_RELASZ entry
-		 here to make it not include the JMPREL relocs.  Since
-		 the linker script arranges for .rela.plt to follow all
-		 other relocation sections, we don't have to worry
-		 about changing the DT_RELA entry.  */
-	      s = bfd_get_section_by_name (output_bfd, ".rela.plt");
-	      if (s != NULL)
-		dyn.d_un.d_val -= s->size;
 	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
 	      break;
 	    }
@@ -5497,7 +5460,7 @@ _bfd_mn10300_elf_finish_dynamic_sections (bfd * output_bfd,
       splt = htab->root.splt;
       if (splt && splt->size > 0)
 	{
-	  if (info->shared)
+	  if (bfd_link_pic (info))
 	    {
 	      memcpy (splt->contents, elf_mn10300_pic_plt_entry,
 		      elf_mn10300_sizeof_plt (info));
@@ -5630,5 +5593,6 @@ mn10300_elf_mkobject (bfd *abfd)
 #define elf_backend_plt_readonly	1
 #define elf_backend_want_plt_sym	0
 #define elf_backend_got_header_size	12
+#define elf_backend_dtrel_excludes_plt	1
 
 #include "elf32-target.h"

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,7 +23,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Aspects;  use Aspects;
 with Atree;    use Atree;
 with Casing;   use Casing;
 with Einfo;    use Einfo;
@@ -35,7 +34,6 @@ with Lib;      use Lib;
 with Opt;      use Opt;
 with Sinfo;    use Sinfo;
 with Sinput;   use Sinput;
-with Snames;   use Snames;
 with Stand;    use Stand;
 with Uname;    use Uname;
 
@@ -111,6 +109,8 @@ package body Restrict is
 
    No_Use_Of_Pragma : array (Pragma_Id) of Source_Ptr :=
                         (others => No_Location);
+   --  Source location of pragma No_Use_Of_Pragma for given pragma, a value
+   --  of System_Location indicates occurrence in system.ads.
 
    No_Use_Of_Pragma_Warning : array (Pragma_Id) of Boolean :=
                                 (others => False);
@@ -284,6 +284,24 @@ package body Restrict is
    begin
       Check_Restriction (No_Implicit_Heap_Allocations, N);
    end Check_No_Implicit_Heap_Alloc;
+
+   ----------------------------------
+   -- Check_No_Implicit_Task_Alloc --
+   ----------------------------------
+
+   procedure Check_No_Implicit_Task_Alloc (N : Node_Id) is
+   begin
+      Check_Restriction (No_Implicit_Task_Allocations, N);
+   end Check_No_Implicit_Task_Alloc;
+
+   ---------------------------------------
+   -- Check_No_Implicit_Protected_Alloc --
+   ---------------------------------------
+
+   procedure Check_No_Implicit_Protected_Alloc (N : Node_Id) is
+   begin
+      Check_Restriction (No_Implicit_Protected_Object_Allocations, N);
+   end Check_No_Implicit_Protected_Alloc;
 
    -----------------------------------
    -- Check_Obsolescent_2005_Entity --
@@ -480,19 +498,21 @@ package body Restrict is
    begin
       Msg_Issued := False;
 
-      --  In CodePeer and SPARK mode, we do not want to check for any
-      --  restriction, or set additional restrictions other than those already
-      --  set in gnat1drv.adb so that we have consistency between each
-      --  compilation.
+      --  In CodePeer mode, we do not want to check for any restriction, or set
+      --  additional restrictions other than those already set in gnat1drv.adb
+      --  so that we have consistency between each compilation.
 
-      --  Just checking, SPARK does not allow restrictions to be set ???
+      --  In GNATprove mode restrictions are checked, except for
+      --  No_Initialize_Scalars, which is implicitly set in gnat1drv.adb.
 
-      if CodePeer_Mode or GNATprove_Mode then
+      if CodePeer_Mode
+        or else (GNATprove_Mode and then R = No_Initialize_Scalars)
+      then
          return;
       end if;
 
-      --  In SPARK mode, issue an error for any use of class-wide, even if the
-      --  No_Dispatch restriction is not set.
+      --  In SPARK 05 mode, issue an error for any use of class-wide, even if
+      --  the No_Dispatch restriction is not set.
 
       if R = No_Dispatch then
          Check_SPARK_05_Restriction ("class-wide is not allowed", N);
@@ -1569,6 +1589,13 @@ package body Restrict is
       No_Specification_Of_Aspect_Set := True;
    end Set_Restriction_No_Specification_Of_Aspect;
 
+   procedure Set_Restriction_No_Specification_Of_Aspect (A_Id : Aspect_Id) is
+   begin
+      No_Specification_Of_Aspect_Set := True;
+      No_Specification_Of_Aspects (A_Id) := System_Location;
+      No_Specification_Of_Aspect_Warning (A_Id) := False;
+   end Set_Restriction_No_Specification_Of_Aspect;
+
    -----------------------------------------
    -- Set_Restriction_No_Use_Of_Attribute --
    -----------------------------------------
@@ -1588,6 +1615,13 @@ package body Restrict is
       end if;
    end Set_Restriction_No_Use_Of_Attribute;
 
+   procedure Set_Restriction_No_Use_Of_Attribute (A_Id : Attribute_Id) is
+   begin
+      No_Use_Of_Attribute_Set := True;
+      No_Use_Of_Attribute (A_Id) := System_Location;
+      No_Use_Of_Attribute_Warning (A_Id) := False;
+   end Set_Restriction_No_Use_Of_Attribute;
+
    --------------------------------------
    -- Set_Restriction_No_Use_Of_Pragma --
    --------------------------------------
@@ -1605,6 +1639,13 @@ package body Restrict is
       if Warning = False then
          No_Use_Of_Pragma_Warning (A_Id) := False;
       end if;
+   end Set_Restriction_No_Use_Of_Pragma;
+
+   procedure Set_Restriction_No_Use_Of_Pragma (A_Id : Pragma_Id) is
+   begin
+      No_Use_Of_Pragma_Set := True;
+      No_Use_Of_Pragma (A_Id) := System_Location;
+      No_Use_Of_Pragma_Warning (A_Id) := False;
    end Set_Restriction_No_Use_Of_Pragma;
 
    --------------------------------

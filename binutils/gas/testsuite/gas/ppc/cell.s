@@ -1,21 +1,21 @@
 	.text
-	lvlx %r0, %r1, %r2
-	lvlx %r0, 0, %r2
-	lvlxl %r0, %r1, %r2
-	lvlxl %r0, 0, %r2
-	lvrx %r0, %r1, %r2
-	lvrx %r0, 0, %r2
-	lvrxl %r0, %r1, %r2
-	lvrxl %r0, 0, %r2
+	lvlx %v0, %r1, %r2
+	lvlx %v0, 0, %r2
+	lvlxl %v0, %r1, %r2
+	lvlxl %v0, 0, %r2
+	lvrx %v0, %r1, %r2
+	lvrx %v0, 0, %r2
+	lvrxl %v0, %r1, %r2
+	lvrxl %v0, 0, %r2
 
-	stvlx %r0, %r1, %r2
-	stvlx %r0, 0, %r2
-	stvlxl %r0, %r1, %r2
-	stvlxl %r0, 0, %r2
-	stvrx %r0, %r1, %r2
-	stvrx %r0, 0, %r2
-	stvrxl %r0, %r1, %r2
-	stvrxl %r0, 0, %r2
+	stvlx %v0, %r1, %r2
+	stvlx %v0, 0, %r2
+	stvlxl %v0, %r1, %r2
+	stvlxl %v0, 0, %r2
+	stvrx %v0, %r1, %r2
+	stvrx %v0, 0, %r2
+	stvrxl %v0, %r1, %r2
+	stvrxl %v0, 0, %r2
 
 	ldbrx %r0, 0, %r1
 	ldbrx %r0, %r1, %r2

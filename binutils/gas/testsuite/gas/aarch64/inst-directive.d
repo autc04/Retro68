@@ -4,5 +4,5 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	3619194c 	tbz	w12, #3, 2328 <\.text\+0x2328>

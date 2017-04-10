@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -120,9 +120,9 @@ package body Prep is
    String_False : String_Id;
    --  "false", as a string_id
 
-   ---------------
-   -- Behaviour --
-   ---------------
+   --------------
+   -- Behavior --
+   --------------
 
    --  Accesses to procedure specified by procedure Initialize
 

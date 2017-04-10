@@ -1,6 +1,6 @@
 // random number generation (out of line) -*- C++ -*-
 
-// Copyright (C) 2009-2015 Free Software Foundation, Inc.
+// Copyright (C) 2009-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -872,158 +872,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
 
-  template<typename _IntType>
-    template<typename _UniformRandomNumberGenerator>
-      typename uniform_int_distribution<_IntType>::result_type
-      uniform_int_distribution<_IntType>::
-      operator()(_UniformRandomNumberGenerator& __urng,
-		 const param_type& __param)
-      {
-	typedef typename _UniformRandomNumberGenerator::result_type
-	  _Gresult_type;
-	typedef typename std::make_unsigned<result_type>::type __utype;
-	typedef typename std::common_type<_Gresult_type, __utype>::type
-	  __uctype;
-
-	const __uctype __urngmin = __urng.min();
-	const __uctype __urngmax = __urng.max();
-	const __uctype __urngrange = __urngmax - __urngmin;
-	const __uctype __urange
-	  = __uctype(__param.b()) - __uctype(__param.a());
-
-	__uctype __ret;
-
-	if (__urngrange > __urange)
-	  {
-	    // downscaling
-	    const __uctype __uerange = __urange + 1; // __urange can be zero
-	    const __uctype __scaling = __urngrange / __uerange;
-	    const __uctype __past = __uerange * __scaling;
-	    do
-	      __ret = __uctype(__urng()) - __urngmin;
-	    while (__ret >= __past);
-	    __ret /= __scaling;
-	  }
-	else if (__urngrange < __urange)
-	  {
-	    // upscaling
-	    /*
-	      Note that every value in [0, urange]
-	      can be written uniquely as
-
-	      (urngrange + 1) * high + low
-
-	      where
-
-	      high in [0, urange / (urngrange + 1)]
-
-	      and
-	
-	      low in [0, urngrange].
-	    */
-	    __uctype __tmp; // wraparound control
-	    do
-	      {
-		const __uctype __uerngrange = __urngrange + 1;
-		__tmp = (__uerngrange * operator()
-			 (__urng, param_type(0, __urange / __uerngrange)));
-		__ret = __tmp + (__uctype(__urng()) - __urngmin);
-	      }
-	    while (__ret > __urange || __ret < __tmp);
-	  }
-	else
-	  __ret = __uctype(__urng()) - __urngmin;
-
-	return __ret + __param.a();
-      }
-
-
-  template<typename _IntType>
-    template<typename _ForwardIterator,
-	     typename _UniformRandomNumberGenerator>
-      void
-      uniform_int_distribution<_IntType>::
-      __generate_impl(_ForwardIterator __f, _ForwardIterator __t,
-		      _UniformRandomNumberGenerator& __urng,
-		      const param_type& __param)
-      {
-	__glibcxx_function_requires(_ForwardIteratorConcept<_ForwardIterator>)
-	typedef typename _UniformRandomNumberGenerator::result_type
-	  _Gresult_type;
-	typedef typename std::make_unsigned<result_type>::type __utype;
-	typedef typename std::common_type<_Gresult_type, __utype>::type
-	  __uctype;
-
-	const __uctype __urngmin = __urng.min();
-	const __uctype __urngmax = __urng.max();
-	const __uctype __urngrange = __urngmax - __urngmin;
-	const __uctype __urange
-	  = __uctype(__param.b()) - __uctype(__param.a());
-
-	__uctype __ret;
-
-	if (__urngrange > __urange)
-	  {
-	    if (__detail::_Power_of_2(__urngrange + 1)
-		&& __detail::_Power_of_2(__urange + 1))
-	      {
-		while (__f != __t)
-		  {
-		    __ret = __uctype(__urng()) - __urngmin;
-		    *__f++ = (__ret & __urange) + __param.a();
-		  }
-	      }
-	    else
-	      {
-		// downscaling
-		const __uctype __uerange = __urange + 1; // __urange can be zero
-		const __uctype __scaling = __urngrange / __uerange;
-		const __uctype __past = __uerange * __scaling;
-		while (__f != __t)
-		  {
-		    do
-		      __ret = __uctype(__urng()) - __urngmin;
-		    while (__ret >= __past);
-		    *__f++ = __ret / __scaling + __param.a();
-		  }
-	      }
-	  }
-	else if (__urngrange < __urange)
-	  {
-	    // upscaling
-	    /*
-	      Note that every value in [0, urange]
-	      can be written uniquely as
-
-	      (urngrange + 1) * high + low
-
-	      where
-
-	      high in [0, urange / (urngrange + 1)]
-
-	      and
-
-	      low in [0, urngrange].
-	    */
-	    __uctype __tmp; // wraparound control
-	    while (__f != __t)
-	      {
-		do
-		  {
-		    const __uctype __uerngrange = __urngrange + 1;
-		    __tmp = (__uerngrange * operator()
-			     (__urng, param_type(0, __urange / __uerngrange)));
-		    __ret = __tmp + (__uctype(__urng()) - __urngmin);
-		  }
-		while (__ret > __urange || __ret < __tmp);
-		*__f++ = __ret;
-	      }
-	  }
-	else
-	  while (__f != __t)
-	    *__f++ = __uctype(__urng()) - __urngmin + __param.a();
-      }
-
   template<typename _IntType, typename _CharT, typename _Traits>
     std::basic_ostream<_CharT, _Traits>&
     operator<<(std::basic_ostream<_CharT, _Traits>& __os,
@@ -1405,7 +1253,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  const double __pi_4 = 0.7853981633974483096156608458198757L;
 	  const double __dx = std::sqrt(2 * __m * std::log(32 * __m
 							      / __pi_4));
-	  _M_d = std::round(std::max(6.0, std::min(__m, __dx)));
+	  _M_d = std::round(std::max<double>(6.0, std::min(__m, __dx)));
 	  const double __cx = 2 * __m + _M_d;
 	  _M_scx = std::sqrt(__cx / 2);
 	  _M_1cx = 1 / __cx;
@@ -1613,11 +1461,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  const double __d1x =
 	    std::sqrt(__np * __1p * std::log(32 * __np
 					     / (81 * __pi_4 * __1p)));
-	  _M_d1 = std::round(std::max(1.0, __d1x));
+	  _M_d1 = std::round(std::max<double>(1.0, __d1x));
 	  const double __d2x =
 	    std::sqrt(__np * __1p * std::log(32 * _M_t * __1p
 					     / (__pi_4 * __pa)));
-	  _M_d2 = std::round(std::max(1.0, __d2x));
+	  _M_d2 = std::round(std::max<double>(1.0, __d2x));
 
 	  // sqrt(pi / 2)
 	  const double __spi_2 = 1.2533141373155002512078826424055226L;
@@ -3472,15 +3320,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       const long double __r = static_cast<long double>(__urng.max())
 			    - static_cast<long double>(__urng.min()) + 1.0L;
       const size_t __log2r = std::log(__r) / std::log(2.0L);
-      size_t __k = std::max<size_t>(1UL, (__b + __log2r - 1UL) / __log2r);
-      _RealType __sum = _RealType(0);
-      _RealType __tmp = _RealType(1);
-      for (; __k != 0; --__k)
+      const size_t __m = std::max<size_t>(1UL,
+					  (__b + __log2r - 1UL) / __log2r);
+      _RealType __ret;
+      do
 	{
-	  __sum += _RealType(__urng() - __urng.min()) * __tmp;
-	  __tmp *= __r;
+	  _RealType __sum = _RealType(0);
+	  _RealType __tmp = _RealType(1);
+	  for (size_t __k = __m; __k != 0; --__k)
+	    {
+	      __sum += _RealType(__urng() - __urng.min()) * __tmp;
+	      __tmp *= __r;
+	    }
+	  __ret = __sum / __tmp;
 	}
-      return __sum / __tmp;
+      while (__builtin_expect(__ret >= _RealType(1), 0));
+      return __ret;
     }
 
 _GLIBCXX_END_NAMESPACE_VERSION

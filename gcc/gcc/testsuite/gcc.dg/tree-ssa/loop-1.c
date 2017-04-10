@@ -24,7 +24,7 @@ int foo (int x);
 int xxx(void)
 {
   int x = 45;
-  int sum;
+  int sum = 0;
 
   while (x >>= 1)
     sum += foo (x) * 2;
@@ -34,11 +34,8 @@ int xxx(void)
 /* We should be able to find out that the loop iterates four times and unroll it completely.  */
 
 /* { dg-final { scan-tree-dump-times "Added canonical iv to loop 1, 4 iterations" 1 "ivcanon"} } */
-/* { dg-final { cleanup-tree-dump "ivcanon" } } */
 /* { dg-final { scan-tree-dump-times "loop with 5 iterations completely unrolled" 1 "cunroll"} } */
-/* { dg-final { cleanup-tree-dump "cunroll" } } */
 /* { dg-final { scan-tree-dump-times "foo" 5 "optimized"} } */
-/* { dg-final { cleanup-tree-dump "optimized" } } */
 
 /* Because hppa, ia64 and Windows targets include an external declaration
    for foo as well as the calls we need to look for something more specific

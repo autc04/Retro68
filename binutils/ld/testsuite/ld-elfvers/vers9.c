@@ -43,7 +43,7 @@ main()
   return 0;
 }
 
-SYMVER(original_foo, foo@);
-SYMVER(old_foo, foo@VERS_1.1);
-SYMVER(old_foo1, foo@VERS_1.2);
-SYMVER(new_foo, foo@@VERS_1.2);
+FUNC_SYMVER(original_foo, foo@);
+FUNC_SYMVER(old_foo, foo@VERS_1.1);
+FUNC_SYMVER(old_foo1, foo@VERS_1.2);
+FUNC_SYMVER(new_foo, foo@@VERS_1.2);

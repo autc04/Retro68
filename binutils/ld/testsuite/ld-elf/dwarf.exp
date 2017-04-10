@@ -1,5 +1,5 @@
 # Expect script for various DWARF tests.
-#   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -62,7 +62,7 @@ set run_tests {
 }
 
 run_cc_link_tests $build_tests
-run_ld_link_exec_tests [] $run_tests
+run_ld_link_exec_tests $run_tests
 
 proc strip_test {} {
     global ld

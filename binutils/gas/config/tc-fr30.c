@@ -1,5 +1,5 @@
 /* tc-fr30.c -- Assembler for the Fujitsu FR30.
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -65,7 +65,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 
 int
 md_parse_option (int c ATTRIBUTE_UNUSED,
-		 char *arg ATTRIBUTE_UNUSED)
+		 const char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -156,7 +156,7 @@ md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
 
-  return ((size + (1 << align) - 1) & (-1 << align));
+  return ((size + (1 << align) - 1) & -(1 << align));
 }
 
 symbolS *
@@ -317,26 +317,23 @@ md_number_to_chars (char * buf, valueT val, int n)
   number_to_chars_bigendian (buf, val, n);
 }
 
-char *
+const char *
 md_atof (int type, char * litP, int * sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, TRUE);
 }
 
 /* Worker function for fr30_is_colon_insn().  */
-static char
-restore_colon (int advance_i_l_p_by)
+static int
+restore_colon (char *next_i_l_p, char *nul_char)
 {
-  char c;
-
   /* Restore the colon, and advance input_line_pointer to
      the end of the new symbol.  */
-  * input_line_pointer = ':';
-  input_line_pointer += advance_i_l_p_by;
-  c = * input_line_pointer;
-  * input_line_pointer = 0;
-
-  return c;
+  *input_line_pointer = *nul_char;
+  input_line_pointer = next_i_l_p;
+  *nul_char = *next_i_l_p;
+  *next_i_l_p = 0;
+  return 1;
 }
 
 /* Determines if the symbol starting at START and ending in
@@ -344,12 +341,15 @@ restore_colon (int advance_i_l_p_by)
    (but which has now been replaced bu a NUL) is in fact an
    LDI:8, LDI:20, LDI:32, CALL:D. JMP:D, RET:D or Bcc:D instruction.
    If it is, then it restores the colon, advances INPUT_LINE_POINTER
-   to the real end of the instruction/symbol, and returns the character
-   that really terminated the symbol.  Otherwise it returns 0.  */
-char
-fr30_is_colon_insn (char *  start)
+   to the real end of the instruction/symbol, saves the char there to
+   NUL_CHAR and pokes a NUL, and returns 1.  Otherwise it returns 0.  */
+int
+fr30_is_colon_insn (char *start, char *nul_char)
 {
   char * i_l_p = input_line_pointer;
+
+  if (*nul_char == '"')
+    ++i_l_p;
 
   /* Check to see if the symbol parsed so far is 'ldi'.  */
   if (   (start[0] != 'l' && start[0] != 'L')
@@ -363,7 +363,7 @@ fr30_is_colon_insn (char *  start)
 	{
 	  /* Yup - it might be delay slot instruction.  */
 	  int           i;
-	  static char * delay_insns [] =
+	  static const char * delay_insns [] =
 	  {
 	    "call", "jmp", "ret", "bra", "bno",
 	    "beq",  "bne", "bc",  "bnc", "bn",
@@ -373,7 +373,7 @@ fr30_is_colon_insn (char *  start)
 
 	  for (i = sizeof (delay_insns) / sizeof (delay_insns[0]); i--;)
 	    {
-	      char * insn = delay_insns[i];
+	      const char * insn = delay_insns[i];
 	      int    len  = strlen (insn);
 
 	      if (start [len] != 0)
@@ -384,7 +384,7 @@ fr30_is_colon_insn (char *  start)
 		  break;
 
 	      if (len == -1)
-		return restore_colon (1);
+		return restore_colon (i_l_p + 1, nul_char);
 	    }
 	}
 
@@ -394,15 +394,17 @@ fr30_is_colon_insn (char *  start)
 
   /* Check to see if the text following the colon is '8'.  */
   if (i_l_p[1] == '8' && (i_l_p[2] == ' ' || i_l_p[2] == '\t'))
-    return restore_colon (2);
+    return restore_colon (i_l_p + 2, nul_char);
 
   /* Check to see if the text following the colon is '20'.  */
-  else if (i_l_p[1] == '2' && i_l_p[2] =='0' && (i_l_p[3] == ' ' || i_l_p[3] == '\t'))
-    return restore_colon (3);
+  else if (i_l_p[1] == '2' && i_l_p[2] =='0'
+	   && (i_l_p[3] == ' ' || i_l_p[3] == '\t'))
+    return restore_colon (i_l_p + 3, nul_char);
 
   /* Check to see if the text following the colon is '32'.  */
-  else if (i_l_p[1] == '3' && i_l_p[2] =='2' && (i_l_p[3] == ' ' || i_l_p[3] == '\t'))
-    return restore_colon (3);
+  else if (i_l_p[1] == '3' && i_l_p[2] =='2'
+	   && (i_l_p[3] == ' ' || i_l_p[3] == '\t'))
+    return restore_colon (i_l_p + 3, nul_char);
 
   return 0;
 }

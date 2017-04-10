@@ -1,5 +1,5 @@
 /* BFD back-end for IBM RS/6000 "XCOFF64" files.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
    Written Clinton Popetz.
    Contributed by Cygnus Support.
 
@@ -87,7 +87,8 @@ static void _bfd_xcoff64_swap_lineno_in
 static unsigned int _bfd_xcoff64_swap_lineno_out
   (bfd *, void *, void *);
 static bfd_boolean _bfd_xcoff64_put_symbol_name
-  (bfd *, struct bfd_strtab_hash *, struct internal_syment *, const char *);
+  (struct bfd_link_info *, struct bfd_strtab_hash *,
+   struct internal_syment *, const char *);
 static bfd_boolean _bfd_xcoff64_put_ldsymbol_name
   (bfd *, struct xcoff_loader_info *, struct internal_ldsym *, const char *);
 static void _bfd_xcoff64_swap_sym_in
@@ -321,7 +322,7 @@ _bfd_xcoff64_swap_sym_in (bfd *abfd, void *ext1, void *in1)
   in->_n._n_n._n_zeroes = 0;
   in->_n._n_n._n_offset = H_GET_32 (abfd, ext->e_offset);
   in->n_value = H_GET_64 (abfd, ext->e_value);
-  in->n_scnum = H_GET_16 (abfd, ext->e_scnum);
+  in->n_scnum = (short) H_GET_16 (abfd, ext->e_scnum);
   in->n_type = H_GET_16 (abfd, ext->e_type);
   in->n_sclass = H_GET_8 (abfd, ext->e_sclass);
   in->n_numaux = H_GET_8 (abfd, ext->e_numaux);
@@ -518,18 +519,15 @@ _bfd_xcoff64_swap_aux_out (bfd *abfd, void *inp, int type, int in_class,
 }
 
 static bfd_boolean
-_bfd_xcoff64_put_symbol_name (bfd *abfd, struct bfd_strtab_hash *strtab,
+_bfd_xcoff64_put_symbol_name (struct bfd_link_info *info,
+			      struct bfd_strtab_hash *strtab,
                               struct internal_syment *sym,
                               const char *name)
 {
   bfd_boolean hash;
   bfd_size_type indx;
 
-  hash = TRUE;
-
-  if ((abfd->flags & BFD_TRADITIONAL_FORMAT) != 0)
-    hash = FALSE;
-
+  hash = !info->traditional_format;
   indx = _bfd_stringtab_add (strtab, name, hash, FALSE);
 
   if (indx == (bfd_size_type) -1)
@@ -1252,15 +1250,11 @@ xcoff64_ppc_relocate_section (bfd *output_bfd,
 	    {
 	      if (info->unresolved_syms_in_objects != RM_IGNORE
 		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0)
-		{
-		  if (! ((*info->callbacks->undefined_symbol)
-			 (info, h->root.root.string,
-			  input_bfd, input_section,
-			  rel->r_vaddr - input_section->vma,
-			  (info->unresolved_syms_in_objects
-			   == RM_GENERATE_ERROR))))
-		    return FALSE;
-		}
+		(*info->callbacks->undefined_symbol)
+		  (info, h->root.root.string, input_bfd, input_section,
+		   rel->r_vaddr - input_section->vma,
+		   info->unresolved_syms_in_objects == RM_GENERATE_ERROR);
+
 	      if (h->root.type == bfd_link_hash_defined
 		  || h->root.type == bfd_link_hash_defweak)
 		{
@@ -1277,7 +1271,7 @@ xcoff64_ppc_relocate_section (bfd *output_bfd,
 		}
 	      else
 		{
-		  BFD_ASSERT (info->relocatable
+		  BFD_ASSERT (bfd_link_relocatable (info)
 			      || (h->flags & XCOFF_DEF_DYNAMIC) != 0
 			      || (h->flags & XCOFF_IMPORT) != 0);
 		}
@@ -1339,11 +1333,10 @@ xcoff64_ppc_relocate_section (bfd *output_bfd,
 	    }
 	  sprintf (reloc_type_name, "0x%02x", rel->r_type);
 
-	  if (! ((*info->callbacks->reloc_overflow)
-		 (info, (h ? &h->root : NULL), name, reloc_type_name,
-		  (bfd_vma) 0, input_bfd, input_section,
-		  rel->r_vaddr - input_section->vma)))
-	    return FALSE;
+	  (*info->callbacks->reloc_overflow)
+	    (info, (h ? &h->root : NULL), name, reloc_type_name,
+	     (bfd_vma) 0, input_bfd, input_section,
+	     rel->r_vaddr - input_section->vma);
 	}
 
       /* Add RELOCATION to the right bits of VALUE_TO_RELOCATE.  */
@@ -2112,7 +2105,8 @@ xcoff64_create_csect_from_smclas (bfd *abfd, union internal_auxent *aux,
     }
   else
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext: c-format */
 	(_("%B: symbol `%s' has unrecognized smclas %d"),
 	 abfd, symbol_name, aux->x_csect.x_smclas);
       bfd_set_error (bfd_error_bad_value);
@@ -2712,6 +2706,7 @@ const bfd_target rs6000_xcoff64_vec =
     coff_make_empty_symbol,
     coff_print_symbol,
     coff_get_symbol_info,
+    coff_get_symbol_version_string,
     _bfd_xcoff_is_local_label_name,
     coff_bfd_is_target_special_symbol,
     coff_get_lineno,
@@ -2742,6 +2737,7 @@ const bfd_target rs6000_xcoff64_vec =
     _bfd_generic_copy_link_hash_symbol_type,
     _bfd_xcoff_bfd_final_link,
     _bfd_generic_link_split_section,
+    _bfd_generic_link_check_relocs,
     bfd_generic_gc_sections,
     bfd_generic_lookup_section_flags,
     bfd_generic_merge_sections,
@@ -2969,6 +2965,7 @@ const bfd_target rs6000_xcoff64_aix_vec =
     coff_make_empty_symbol,
     coff_print_symbol,
     coff_get_symbol_info,
+    coff_get_symbol_version_string,
     _bfd_xcoff_is_local_label_name,
     coff_bfd_is_target_special_symbol,
     coff_get_lineno,
@@ -2999,6 +2996,7 @@ const bfd_target rs6000_xcoff64_aix_vec =
     _bfd_generic_copy_link_hash_symbol_type,
     _bfd_xcoff_bfd_final_link,
     _bfd_generic_link_split_section,
+    _bfd_generic_link_check_relocs,
     bfd_generic_gc_sections,
     bfd_generic_lookup_section_flags,
     bfd_generic_merge_sections,

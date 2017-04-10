@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -65,6 +65,18 @@ package Makeutl is
    Subdirs_Option : constant String := "--subdirs=";
    --  Switch used to indicate that the real directories (object, exec,
    --  library, ...) are subdirectories of those in the project file.
+
+   Relocate_Build_Tree_Option : constant String := "--relocate-build-tree";
+   --  Switch to build out-of-tree. In this context the object, exec and
+   --  library directories are relocated to the current working directory
+   --  or the directory specified as parameter to this option.
+
+   Root_Dir_Option : constant String := "--root-dir";
+   --  The root directory under which all artifacts (objects, library, ali)
+   --  directory are to be found for the current compilation. This directory
+   --  will be used to relocate artifacts based on this directory. If this
+   --  option is not specificed the default value is the directory of the
+   --  main project.
 
    Unchecked_Shared_Lib_Imports : constant String :=
                                     "--unchecked-shared-lib-imports";
@@ -294,7 +306,7 @@ package Makeutl is
    --  least equal to Minimum_Verbosity, then print Prefix to standard output
    --  followed by N1 and S1. If N2 /= No_Name then N2 is printed after S1. S2
    --  is printed last. Both N1 and N2 are printed in quotation marks. The two
-   --  forms differ only in taking Name_Id or File_name_Type arguments.
+   --  forms differ only in taking Name_Id or File_Name_Type arguments.
 
    -------------------------
    -- Program termination --
@@ -464,7 +476,7 @@ package Makeutl is
 
       function Number_Of_Mains (Tree : Project_Tree_Ref) return Natural;
       --  Returns the number of mains in this project tree (if Tree is null, it
-      --  returns the total number of project trees)
+      --  returns the total number of project trees).
 
       procedure Fill_From_Project
         (Root_Project : Project_Id;

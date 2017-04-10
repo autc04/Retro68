@@ -1,5 +1,5 @@
 #objdump: -dr -Mgpr-names=numeric
-#as: -mabi=o64 -mips64
+#as: -mabi=o64
 #name: MIPS16 macros
 
 .*: +file format .*mips.*

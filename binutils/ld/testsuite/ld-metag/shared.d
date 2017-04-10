@@ -17,7 +17,7 @@ Disassembly of section .plt:
  .*:	82120780 	          ADD       A0.2,A0.2,#0x40f0
  .*:	c600806a 	          GETD      PC,\[A0.2\]
  .*:	03000004 	          MOV       D1Re0,#0
- .*:	a0fffee0 	          B         184 <app_func2@plt-0x14>
+ .*:	a0fffee0 	          B         184 <.*>
 Disassembly of section .text:
 
 .* <lib_func1>:

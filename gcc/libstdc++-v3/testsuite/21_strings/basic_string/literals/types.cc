@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++14" }
 // { dg-do compile }
 
-// Copyright (C) 2013-2015 Free Software Foundation, Inc.
+// Copyright (C) 2013-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,8 +32,10 @@ test01()
   static_assert(std::is_same<decltype(u8"Hello"s), std::string>::value,
 		"u8\"Hello\"s is std::string");
 
+#ifdef _GLIBCXX_USE_WCHAR_T
   static_assert(std::is_same<decltype(L"Hello"s), std::wstring>::value,
 		"L\"Hello\"s is std::wstring");
+#endif
 
   static_assert(std::is_same<decltype(u"Hello"s), std::u16string>::value,
 		"u\"Hello\"s is std::u16string");

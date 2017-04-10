@@ -13,9 +13,11 @@ LITTLE_OUTPUT_FORMAT="elf32-littlemips"
 TEMPLATE_NAME=elf32
 EXTRA_EM_FILE=mipself
 
-case "$EMULATION_NAME" in
-elf32*n32*) ELFSIZE=32 ;;
-elf64*) ELFSIZE=64 ;;
+# Note: use "x$var" not x"$var" in case directive in order to work around bug in bash 4.2
+case "x$EMULATION_NAME" in
+xelf32*n32*) ELFSIZE=32 ;;
+xelf64*) ELFSIZE=64 ;;
+x) ;;
 *) echo $0: unhandled emulation $EMULATION_NAME >&2; exit 1 ;;
 esac
 

@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2011-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -97,7 +97,7 @@ gld${EMULATION_NAME}_after_allocation (void)
   int layout_changed = 0;
   int ret;
 
-  if (!link_info.relocatable)
+  if (!bfd_link_relocatable (&link_info))
     {
       /* Build a sorted list of input text sections, then use that to process
 	 the unwind table index.  */

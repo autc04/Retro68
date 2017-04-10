@@ -1,5 +1,5 @@
 /* Routines for manipulation of expression nodes.
-   Copyright (C) 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 2000-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -21,7 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "flags.h"
+#include "options.h"
 #include "gfortran.h"
 #include "arith.h"
 #include "match.h"
@@ -335,7 +335,7 @@ gfc_copy_expr (gfc_expr *p)
 
 	case BT_HOLLERITH:
 	case BT_LOGICAL:
-	case BT_DERIVED:
+	case_bt_struct:
 	case BT_CLASS:
 	case BT_ASSUMED:
 	  break;		/* Already done.  */
@@ -1279,7 +1279,7 @@ find_component_ref (gfc_constructor_base base, gfc_ref *ref)
   /* For extended types, check if the desired component is in one of the
    * parent types.  */
   while (ext > 0 && gfc_find_component (dt->components->ts.u.derived,
-					pick->name, true, true))
+					pick->name, true, true, NULL))
     {
       dt = dt->components->ts.u.derived;
       c = gfc_constructor_first (c->expr->value.constructor);
@@ -1649,7 +1649,7 @@ simplify_const_ref (gfc_expr *p)
 
 	    case AR_FULL:
 	      if (p->ref->next != NULL
-		  && (p->ts.type == BT_CHARACTER || p->ts.type == BT_DERIVED))
+		  && (p->ts.type == BT_CHARACTER || gfc_bt_struct (p->ts.type)))
 		{
 		  for (c = gfc_constructor_first (p->value.constructor);
 		       c; c = gfc_constructor_next (c))
@@ -1659,7 +1659,7 @@ simplify_const_ref (gfc_expr *p)
 			return false;
 		    }
 
-		  if (p->ts.type == BT_DERIVED
+		  if (gfc_bt_struct (p->ts.type)
 			&& p->ref->next
 			&& (c = gfc_constructor_first (p->value.constructor)))
 		    {
@@ -2297,8 +2297,8 @@ check_inquiry (gfc_expr *e, int not_restricted)
 	if (strcmp (functions[i], name) == 0)
 	  break;
 
-	if (functions[i] == NULL)
-	  return MATCH_ERROR;
+      if (functions[i] == NULL)
+	return MATCH_ERROR;
     }
 
   /* At this point we have an inquiry function with a variable argument.  The
@@ -2471,16 +2471,18 @@ gfc_check_init_expr (gfc_expr *e)
       t = false;
 
       {
-	gfc_intrinsic_sym* isym;
+	bool conversion;
+	gfc_intrinsic_sym* isym = NULL;
 	gfc_symbol* sym = e->symtree->n.sym;
 
-	/* Special case for IEEE_SELECTED_REAL_KIND from the intrinsic
-	   module IEEE_ARITHMETIC, which is allowed in initialization
-	   expressions.  */
-	if (!strcmp(sym->name, "ieee_selected_real_kind")
-	    && sym->from_intmod == INTMOD_IEEE_ARITHMETIC)
+	/* Simplify here the intrinsics from the IEEE_ARITHMETIC and
+	   IEEE_EXCEPTIONS modules.  */
+	int mod = sym->from_intmod;
+	if (mod == INTMOD_NONE && sym->generic)
+	  mod = sym->generic->sym->from_intmod;
+	if (mod == INTMOD_IEEE_ARITHMETIC || mod == INTMOD_IEEE_EXCEPTIONS)
 	  {
-	    gfc_expr *new_expr = gfc_simplify_ieee_selected_real_kind (e);
+	    gfc_expr *new_expr = gfc_simplify_ieee_functions (e);
 	    if (new_expr)
 	      {
 		gfc_replace_expr (e, new_expr);
@@ -2489,8 +2491,14 @@ gfc_check_init_expr (gfc_expr *e)
 	      }
 	  }
 
-	if (!gfc_is_intrinsic (sym, 0, e->where)
-	    || (m = gfc_intrinsic_func_interface (e, 0)) != MATCH_YES)
+	/* If a conversion function, e.g., __convert_i8_i4, was inserted
+	   into an array constructor, we need to skip the error check here.
+           Conversion errors are  caught below in scalarize_intrinsic_call.  */
+	conversion = e->value.function.isym
+		   && (e->value.function.isym->conversion == 1);
+
+	if (!conversion && (!gfc_is_intrinsic (sym, 0, e->where)
+	    || (m = gfc_intrinsic_func_interface (e, 0)) != MATCH_YES))
 	  {
 	    gfc_error ("Function %qs in initialization expression at %L "
 		       "must be an intrinsic function",
@@ -2517,7 +2525,7 @@ gfc_check_init_expr (gfc_expr *e)
 	   array argument.  */
 	isym = gfc_find_function (e->symtree->n.sym->name);
 	if (isym && isym->elemental
-	    && (t = scalarize_intrinsic_call(e)))
+	    && (t = scalarize_intrinsic_call (e)))
 	  break;
       }
 
@@ -2599,14 +2607,18 @@ gfc_check_init_expr (gfc_expr *e)
       break;
 
     case EXPR_SUBSTRING:
-      t = gfc_check_init_expr (e->ref->u.ss.start);
-      if (!t)
-	break;
+      if (e->ref)
+	{
+	  t = gfc_check_init_expr (e->ref->u.ss.start);
+	  if (!t)
+	    break;
 
-      t = gfc_check_init_expr (e->ref->u.ss.end);
-      if (t)
-	t = gfc_simplify_expr (e, 0);
-
+	  t = gfc_check_init_expr (e->ref->u.ss.end);
+	  if (t)
+	    t = gfc_simplify_expr (e, 0);
+	}
+      else
+	t = false;
       break;
 
     case EXPR_STRUCTURE:
@@ -2738,6 +2750,29 @@ external_spec_function (gfc_expr *e)
 
   f = e->value.function.esym;
 
+  /* IEEE functions allowed are "a reference to a transformational function
+     from the intrinsic module IEEE_ARITHMETIC or IEEE_EXCEPTIONS", and
+     "inquiry function from the intrinsic modules IEEE_ARITHMETIC and
+     IEEE_EXCEPTIONS".  */
+  if (f->from_intmod == INTMOD_IEEE_ARITHMETIC
+      || f->from_intmod == INTMOD_IEEE_EXCEPTIONS)
+    {
+      if (!strcmp (f->name, "ieee_selected_real_kind")
+	  || !strcmp (f->name, "ieee_support_rounding")
+	  || !strcmp (f->name, "ieee_support_flag")
+	  || !strcmp (f->name, "ieee_support_halting")
+	  || !strcmp (f->name, "ieee_support_datatype")
+	  || !strcmp (f->name, "ieee_support_denormal")
+	  || !strcmp (f->name, "ieee_support_divide")
+	  || !strcmp (f->name, "ieee_support_inf")
+	  || !strcmp (f->name, "ieee_support_io")
+	  || !strcmp (f->name, "ieee_support_nan")
+	  || !strcmp (f->name, "ieee_support_sqrt")
+	  || !strcmp (f->name, "ieee_support_standard")
+	  || !strcmp (f->name, "ieee_support_underflow_control"))
+	goto function_allowed;
+    }
+
   if (f->attr.proc == PROC_ST_FUNCTION)
     {
       gfc_error ("Specification function %qs at %L cannot be a statement "
@@ -2766,6 +2801,7 @@ external_spec_function (gfc_expr *e)
       return false;
     }
 
+function_allowed:
   return restricted_args (e->value.function.actual);
 }
 
@@ -2841,6 +2877,18 @@ check_references (gfc_ref* ref, bool (*checker) (gfc_expr*))
   return check_references (ref->next, checker);
 }
 
+/*  Return true if ns is a parent of the current ns.  */
+
+static bool
+is_parent_of_current_ns (gfc_namespace *ns)
+{
+  gfc_namespace *p;
+  for (p = gfc_current_ns->parent; p; p = p->parent)
+    if (ns == p)
+      return true;
+
+  return false;
+}
 
 /* Verify that an expression is a restricted expression.  Like its
    cousin check_init_expr(), an error message is generated if we
@@ -2929,9 +2977,7 @@ check_restricted (gfc_expr *e)
 	    || sym->attr.dummy
 	    || sym->attr.implied_index
 	    || sym->attr.flavor == FL_PARAMETER
-	    || (sym->ns && sym->ns == gfc_current_ns->parent)
-	    || (sym->ns && gfc_current_ns->parent
-		  && sym->ns == gfc_current_ns->parent->parent)
+	    || is_parent_of_current_ns (sym->ns)
 	    || (sym->ns->proc_name != NULL
 		  && sym->ns->proc_name->attr.flavor == FL_MODULE)
 	    || (gfc_is_formal_arg () && (sym->ns == gfc_current_ns)))
@@ -3234,55 +3280,6 @@ gfc_check_assign (gfc_expr *lvalue, gfc_expr *rvalue, int conform)
 		       ". This check can be disabled with the option "
 		       "%<-fno-range-check%>", &rvalue->where);
 	  return false;
-	}
-    }
-
-  /*  Warn about type-changing conversions for REAL or COMPLEX constants.
-      If lvalue and rvalue are mixed REAL and complex, gfc_compare_types
-      will warn anyway, so there is no need to to so here.  */
-
-  if (rvalue->expr_type == EXPR_CONSTANT && lvalue->ts.type == rvalue->ts.type
-      && (lvalue->ts.type == BT_REAL || lvalue->ts.type == BT_COMPLEX))
-    {
-      if (lvalue->ts.kind < rvalue->ts.kind && warn_conversion)
-	{
-	  /* As a special bonus, don't warn about REAL rvalues which are not
-	     changed by the conversion if -Wconversion is specified.  */
-	  if (rvalue->ts.type == BT_REAL && mpfr_number_p (rvalue->value.real))
-	    {
-	      /* Calculate the difference between the constant and the rounded
-		 value and check it against zero.  */
-	      mpfr_t rv, diff;
-	      gfc_set_model_kind (lvalue->ts.kind);
-	      mpfr_init (rv);
-	      gfc_set_model_kind (rvalue->ts.kind);
-	      mpfr_init (diff);
-
-	      mpfr_set (rv, rvalue->value.real, GFC_RND_MODE);
-	      mpfr_sub (diff, rv, rvalue->value.real, GFC_RND_MODE);
-
-	      if (!mpfr_zero_p (diff))
-		gfc_warning (OPT_Wconversion, 
-			     "Change of value in conversion from "
-			     " %qs to %qs at %L", gfc_typename (&rvalue->ts),
-			     gfc_typename (&lvalue->ts), &rvalue->where);
-
-	      mpfr_clear (rv);
-	      mpfr_clear (diff);
-	    }
-	  else
-	    gfc_warning (OPT_Wconversion,
-			 "Possible change of value in conversion from %qs "
-			 "to %qs at %L", gfc_typename (&rvalue->ts),
-			 gfc_typename (&lvalue->ts), &rvalue->where);
-
-	}
-      else if (warn_conversion_extra && lvalue->ts.kind > rvalue->ts.kind)
-	{
-	  gfc_warning (OPT_Wconversion_extra,
-		       "Conversion from %qs to %qs at %L",
-		       gfc_typename (&rvalue->ts),
-		       gfc_typename (&lvalue->ts), &rvalue->where);
 	}
     }
 
@@ -3635,11 +3632,10 @@ gfc_check_pointer_assign (gfc_expr *lvalue, gfc_expr *rvalue)
 	       || (lvalue->ts.type == BT_DERIVED
 		   && (lvalue->ts.u.derived->attr.is_bind_c
 		       || lvalue->ts.u.derived->attr.sequence))))
-	gfc_error ("Data-pointer-object &L must be unlimited "
-		   "polymorphic, a sequence derived type or of a "
-		   "type with the BIND attribute assignment at %L "
-		   "to be compatible with an unlimited polymorphic "
-		   "target", &lvalue->where);
+	gfc_error ("Data-pointer-object at %L must be unlimited "
+		   "polymorphic, or of a type with the BIND or SEQUENCE "
+		   "attribute, to be compatible with an unlimited "
+		   "polymorphic target", &lvalue->where);
       else
 	gfc_error ("Different types in pointer assignment at %L; "
 		   "attempted assignment of %s to %s", &lvalue->where,
@@ -3687,7 +3683,7 @@ gfc_check_pointer_assign (gfc_expr *lvalue, gfc_expr *rvalue)
 	 and F2008 must be allowed.  */
       if (rvalue->rank != 1)
 	{
-	  if (!gfc_is_simply_contiguous (rvalue, true))
+	  if (!gfc_is_simply_contiguous (rvalue, true, false))
 	    {
 	      gfc_error ("Rank remapping target must be rank 1 or"
 			 " simply contiguous at %L", &rvalue->where);
@@ -3854,7 +3850,17 @@ gfc_check_assign_symbol (gfc_symbol *sym, gfc_component *comp, gfc_expr *rvalue)
   if (pointer || proc_pointer)
     r = gfc_check_pointer_assign (&lvalue, rvalue);
   else
-    r = gfc_check_assign (&lvalue, rvalue, 1);
+    {
+      /* If a conversion function, e.g., __convert_i8_i4, was inserted
+	 into an array constructor, we should check if it can be reduced
+	 as an initialization expression.  */
+      if (rvalue->expr_type == EXPR_FUNCTION
+	  && rvalue->value.function.isym
+	  && (rvalue->value.function.isym->conversion == 1))
+	gfc_check_init_expr (rvalue);
+
+      r = gfc_check_assign (&lvalue, rvalue, 1);
+    }
 
   free (lvalue.symtree);
   free (lvalue.ref);
@@ -3920,11 +3926,11 @@ gfc_has_default_initializer (gfc_symbol *der)
 {
   gfc_component *c;
 
-  gcc_assert (der->attr.flavor == FL_DERIVED);
+  gcc_assert (gfc_fl_struct (der->attr.flavor));
   for (c = der->components; c; c = c->next)
-    if (c->ts.type == BT_DERIVED)
+    if (gfc_bt_struct (c->ts.type))
       {
-        if (!c->attr.pointer
+        if (!c->attr.pointer && !c->attr.proc_pointer
 	     && gfc_has_default_initializer (c->ts.u.derived))
 	  return true;
 	if (c->attr.pointer && c->initializer)
@@ -3969,6 +3975,10 @@ gfc_default_initializer (gfc_typespec *ts)
 
       if (comp->initializer)
 	{
+	  /* Save the component ref for STRUCTUREs and UNIONs.  */
+	  if (ts->u.derived->attr.flavor == FL_STRUCT
+	      || ts->u.derived->attr.flavor == FL_UNION)
+	    ctor->n.component = comp;
 	  ctor->expr = gfc_copy_expr (comp->initializer);
 	  if ((comp->ts.type != comp->initializer->ts.type
 	       || comp->ts.kind != comp->initializer->ts.kind)
@@ -4055,6 +4065,7 @@ gfc_expr *
 gfc_lval_expr_from_sym (gfc_symbol *sym)
 {
   gfc_expr *lval;
+  gfc_array_spec *as;
   lval = gfc_get_expr ();
   lval->expr_type = EXPR_VARIABLE;
   lval->where = sym->declared_at;
@@ -4062,10 +4073,10 @@ gfc_lval_expr_from_sym (gfc_symbol *sym)
   lval->symtree = gfc_find_symtree (sym->ns->sym_root, sym->name);
 
   /* It will always be a full array.  */
-  lval->rank = sym->as ? sym->as->rank : 0;
+  as = IS_CLASS_ARRAY (sym) ? CLASS_DATA (sym)->as : sym->as;
+  lval->rank = as ? as->rank : 0;
   if (lval->rank)
-    gfc_add_full_array_ref (lval, sym->ts.type == BT_CLASS ?
-			    CLASS_DATA (sym)->as : sym->as);
+    gfc_add_full_array_ref (lval, as);
   return lval;
 }
 
@@ -4594,7 +4605,7 @@ gfc_has_ultimate_pointer (gfc_expr *e)
    a "(::1)" is accepted.  */
 
 bool
-gfc_is_simply_contiguous (gfc_expr *expr, bool strict)
+gfc_is_simply_contiguous (gfc_expr *expr, bool strict, bool permit_element)
 {
   bool colon;
   int i;
@@ -4608,7 +4619,7 @@ gfc_is_simply_contiguous (gfc_expr *expr, bool strict)
   else if (expr->expr_type != EXPR_VARIABLE)
     return false;
 
-  if (expr->rank == 0)
+  if (!permit_element && expr->rank == 0)
     return false;
 
   for (ref = expr->ref; ref; ref = ref->next)
@@ -4831,6 +4842,15 @@ gfc_check_vardef_context (gfc_expr* e, bool pointer, bool alloc_obj,
       return false;
     }
 
+  if (e->ts.type == BT_DERIVED
+      && e->ts.u.derived == NULL)
+    {
+      if (context)
+	gfc_error ("Type inaccessible in variable definition context (%s) "
+		   "at %L", context, &e->where);
+      return false;
+    }
+
   /* F2008, C1303.  */
   if (!alloc_obj
       && (attr.lock_comp
@@ -4844,13 +4864,27 @@ gfc_check_vardef_context (gfc_expr* e, bool pointer, bool alloc_obj,
       return false;
     }
 
+  /* TS18508, C702/C203.  */
+  if (!alloc_obj
+      && (attr.lock_comp
+	  || (e->ts.type == BT_DERIVED
+	      && e->ts.u.derived->from_intmod == INTMOD_ISO_FORTRAN_ENV
+	      && e->ts.u.derived->intmod_sym_id == ISOFORTRAN_EVENT_TYPE)))
+    {
+      if (context)
+	gfc_error ("LOCK_EVENT in variable definition context (%s) at %L",
+		   context, &e->where);
+      return false;
+    }
+
   /* INTENT(IN) dummy argument.  Check this, unless the object itself is the
      component of sub-component of a pointer; we need to distinguish
      assignment to a pointer component from pointer-assignment to a pointer
      component.  Note that (normal) assignment to procedure pointers is not
      possible.  */
   check_intentin = !own_scope;
-  ptr_component = (sym->ts.type == BT_CLASS && CLASS_DATA (sym))
+  ptr_component = (sym->ts.type == BT_CLASS && sym->ts.u.derived
+		   && CLASS_DATA (sym))
 		  ? CLASS_DATA (sym)->attr.class_pointer : sym->attr.pointer;
   for (ref = e->ref; ref && check_intentin; ref = ref->next)
     {
@@ -4983,7 +5017,7 @@ gfc_check_vardef_context (gfc_expr* e, bool pointer, bool alloc_obj,
       if (!gfc_check_vardef_context (assoc->target, pointer, false, false, NULL))
 	{
 	  if (context)
-	    gfc_error_1 ("Associate-name '%s' can not appear in a variable"
+	    gfc_error ("Associate-name %qs can not appear in a variable"
 		       " definition context (%s) at %L because its target"
 		       " at %L can not, either",
 		       name, context, &e->where,
@@ -5025,12 +5059,12 @@ gfc_check_vardef_context (gfc_expr* e, bool pointer, bool alloc_obj,
 			  if (gfc_dep_compare_expr (ec, en) == 0)
 			    {
 			      if (context)
-				gfc_error_now_1 ("Elements with the same value "
-						 "at %L and %L in vector "
-						 "subscript in a variable "
-						 "definition context (%s)",
-						 &(ec->where), &(en->where),
-						 context);
+				gfc_error_now ("Elements with the same value "
+					       "at %L and %L in vector "
+					       "subscript in a variable "
+					       "definition context (%s)",
+					       &(ec->where), &(en->where),
+					       context);
 			      return false;
 			    }
 			}

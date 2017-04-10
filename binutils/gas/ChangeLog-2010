@@ -115,7 +115,7 @@
 
 	* config/tc-mips.c (mips_ip) <'('>: Don't let '4', '5' or '-'
 	as a base register specifier.
- 
+
 2010-12-09  Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* config/tc-mips.c (macro) <M_S_DOB>: Fix the placement of code.

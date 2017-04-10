@@ -1,42 +1,24 @@
-2015-07-16  Release Manager
+2016-12-21  Release Manager
 
-	* GCC 5.2.0 released.
+	* GCC 6.3.0 released.
 
-2015-06-25  Andreas Tobler  <andreast@gcc.gnu.org>
+2016-08-22  Release Manager
 
-	Backport from mainline
-	2015-05-28  Andreas Tobler  <andreast@gcc.gnu.org>
+	* GCC 6.2.0 released.
 
-	* configure.host: Add bits for FreeBSD amd64 and i386.
-	* configure.ac: Add signal handler for FreeBSD (amd64/i386)
-	* configure: Regenerate.
-	* include/freebsd-signal.h: New file.
+2016-04-29  Dominique d'Humieres  <dominiq@lps.ens.fr>
 
-	2015-05-26  Andreas Tobler  <andreast@gcc.gnu.org>
+	backport from trunk:
+	2016-04-20  Ben Elliston  <bje@gnu.org>
 
-	* testsuite/libjava.jni/jni.exp (gcj_jni_get_cxxflags_invocation): Add
-	libiconv for FreeBSD to cxxflags.
+	* testsuite/lib/libjava.exp (libjava_arguments): Use 'file
+	normalize' rather than the defunct DejaGnu 'absolute' proc.
 
-2015-04-22  Release Manager
+2016-04-27  Release Manager
 
-	* GCC 5.1.0 released.
+	* GCC 6.1.0 released.
 
-2015-01-29  Bernd Edlinger  <bernd.edlinger@hotmail.de>
-
-	* libtool-version: Add a comment about cygwin.
-
-2015-01-21  Matthias Klose  <doko@ubuntu.com>
-
-	* libtool-version: Bump soversion.
-
-2015-01-13  Jakub Jelinek  <jakub@redhat.com>
-
-	PR libgcj/64219
-	* Makefile.am (install-data-local): Use just the major version
-	from GCJVERSION instead of major.minor.
-	* Makefile.in: Regenerated.
-
-2015-01-05  Jakub Jelinek  <jakub@redhat.com>
+2016-01-04  Jakub Jelinek  <jakub@redhat.com>
 
 	* classpath/gnu/java/rmi/registry/RegistryImpl.java (version): Update
 	copyright notice dates.
@@ -44,8 +26,13 @@
 	* gnu/gcj/convert/Convert.java (version): Update copyright notice
 	dates.
 	* gnu/gcj/tools/gcj_dbtool/Main.java (main): Ditto.
+
+2016-01-03  Matthias Klose  <doko@ubuntu.com>
+
+	* libtool-version: Bump soversion.
+	* include/jvm.h (GCJ_CXX_ABI_VERSION): Don't encode __GNUC_MINOR__.
 
-Copyright (C) 2015 Free Software Foundation, Inc.
+Copyright (C) 2016 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

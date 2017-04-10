@@ -177,9 +177,9 @@
 
 	* config/tc-z80.c (z80_start_line_hook): issue an error when
 	redefining a symbol with equ
-	* doc/as.texinfo(equ<z80>): mention difference with .equiv 
-	* doc/as.texinfo(err): fix typo 
-	* doc/c-z80.texi(equ): redefining a symbol with equ is no longer 
+	* doc/as.texinfo(equ<z80>): mention difference with .equiv
+	* doc/as.texinfo(err): fix typo
+	* doc/c-z80.texi(equ): redefining a symbol with equ is no longer
 	allowed
 
 2005-11-24  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>

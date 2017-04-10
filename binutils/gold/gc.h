@@ -1,6 +1,6 @@
 // gc.h -- garbage collection of unused sections
 
-// Copyright (C) 2009-2014 Free Software Foundation, Inc.
+// Copyright (C) 2009-2017 Free Software Foundation, Inc.
 // Written by Sriraman Tallam <tmsriram@google.com>.
 
 // This file is part of gold.
@@ -23,7 +23,6 @@
 #ifndef GOLD_GC_H
 #define GOLD_GC_H
 
-#include <queue>
 #include <vector>
 
 #include "elfcpp.h"
@@ -39,9 +38,6 @@ class Object;
 template<int size, bool big_endian>
 class Sized_relobj_file;
 
-template<int sh_type, int size, bool big_endian>
-struct Reloc_types;
-
 class Output_section;
 class General_options;
 class Layout;
@@ -52,7 +48,7 @@ class Garbage_collection
 
   typedef Unordered_set<Section_id, Section_id_hash> Sections_reachable;
   typedef std::map<Section_id, Sections_reachable> Section_ref;
-  typedef std::queue<Section_id> Worklist_type;
+  typedef std::vector<Section_id> Worklist_type;
   // This maps the name of the section which can be represented as a C
   // identifier (cident) to the list of sections that have that name.
   // Different object files can have cident sections with the same name.
@@ -88,7 +84,7 @@ class Garbage_collection
   do_transitive_closure();
 
   bool
-  is_section_garbage(Object* obj, unsigned int shndx)
+  is_section_garbage(Relobj* obj, unsigned int shndx)
   { return (this->referenced_list().find(Section_id(obj, shndx))
             == this->referenced_list().end()); }
 
@@ -104,16 +100,13 @@ class Garbage_collection
   // Add a reference from the SRC_SHNDX-th section of SRC_OBJECT to
   // DST_SHNDX-th section of DST_OBJECT.
   void
-  add_reference(Object* src_object, unsigned int src_shndx,
-		Object* dst_object, unsigned int dst_shndx)
+  add_reference(Relobj* src_object, unsigned int src_shndx,
+		Relobj* dst_object, unsigned int dst_shndx)
   {
     Section_id src_id(src_object, src_shndx);
     Section_id dst_id(dst_object, dst_shndx);
-    Section_ref::iterator p = this->section_reloc_map_.find(src_id);
-    if (p == this->section_reloc_map_.end())
-      this->section_reloc_map_[src_id].insert(dst_id);
-    else
-      p->second.insert(dst_id);
+    Sections_reachable& reachable = this->section_reloc_map_[src_id];
+    reachable.insert(dst_id);
   }
 
  private:
@@ -157,12 +150,11 @@ struct Symbols_data
 
 template<typename Classify_reloc>
 inline unsigned int
-get_embedded_addend_size(int sh_type, int r_type, Relobj* obj)
+get_embedded_addend_size(int r_type, Relobj* obj)
 {
-  if (sh_type != elfcpp::SHT_REL)
-    return 0;
-  Classify_reloc classify_reloc;
-  return classify_reloc.get_size_for_reloc(r_type, obj);
+  if (Classify_reloc::sh_type == elfcpp::SHT_REL)
+    return Classify_reloc::get_size_for_reloc(r_type, obj);
+  return 0;
 }
 
 // This function implements the generic part of reloc
@@ -171,7 +163,7 @@ get_embedded_addend_size(int sh_type, int r_type, Relobj* obj)
 // garbage collection (--gc-sections) and identical code
 // folding (--icf).
 
-template<int size, bool big_endian, typename Target_type, int sh_type,
+template<int size, bool big_endian, typename Target_type,
 	 typename Scan, typename Classify_reloc>
 inline void
 gc_process_relocs(
@@ -189,8 +181,8 @@ gc_process_relocs(
 {
   Scan scan;
 
-  typedef typename Reloc_types<sh_type, size, big_endian>::Reloc Reltype;
-  const int reloc_size = Reloc_types<sh_type, size, big_endian>::reloc_size;
+  typedef typename Classify_reloc::Reltype Reltype;
+  const int reloc_size = Classify_reloc::reloc_size;
   const int sym_size = elfcpp::Elf_sizes<size>::sym_size;
 
   Icf::Sections_reachable_info* secvec = NULL;
@@ -228,12 +220,11 @@ gc_process_relocs(
   for (size_t i = 0; i < reloc_count; ++i, prelocs += reloc_size)
     {
       Reltype reloc(prelocs);
-      typename elfcpp::Elf_types<size>::Elf_WXword r_info = reloc.get_r_info();
-      unsigned int r_sym = elfcpp::elf_r_sym<size>(r_info);
-      unsigned int r_type = elfcpp::elf_r_type<size>(r_info);
+      unsigned int r_sym = Classify_reloc::get_r_sym(&reloc);
+      unsigned int r_type = Classify_reloc::get_r_type(&reloc);
       typename elfcpp::Elf_types<size>::Elf_Swxword addend =
-      Reloc_types<sh_type, size, big_endian>::get_reloc_addend_noerror(&reloc);
-      Object* dst_obj;
+	  Classify_reloc::get_r_addend(&reloc);
+      Relobj* dst_obj;
       unsigned int dst_indx;
       typedef typename elfcpp::Elf_types<size>::Elf_Addr Address;
       Address dst_off;
@@ -253,7 +244,7 @@ gc_process_relocs(
             {
 	      Address symvalue = dst_off - addend;
 	      if (is_ordinary) 
-		(*secvec).push_back(Section_id(dst_obj, dst_indx));
+		(*secvec).push_back(Section_id(src_obj, dst_indx));
 	      else
                 (*secvec).push_back(Section_id(NULL, 0));
               (*symvec).push_back(NULL);
@@ -264,8 +255,7 @@ gc_process_relocs(
                 convert_to_section_size_type(reloc.get_r_offset());
 	      (*offsetvec).push_back(reloc_offset);
               (*reloc_addend_size_vec).push_back(
-                get_embedded_addend_size<Classify_reloc>(sh_type, r_type,
-                                                         src_obj));
+                get_embedded_addend_size<Classify_reloc>(r_type, src_obj));
             }
 
 	  // When doing safe folding, check to see if this relocation is that
@@ -293,9 +283,10 @@ gc_process_relocs(
           dst_obj = NULL;
           dst_indx = 0;
           bool is_ordinary = false;
-          if (gsym->source() == Symbol::FROM_OBJECT)
+          if (gsym->source() == Symbol::FROM_OBJECT
+	      && !gsym->object()->is_dynamic())
             {
-              dst_obj = gsym->object();
+              dst_obj = static_cast<Relobj*>(gsym->object());
               dst_indx = gsym->shndx(&is_ordinary);
             }
 	  dst_off = static_cast<const Sized_symbol<size>*>(gsym)->value();
@@ -305,7 +296,7 @@ gc_process_relocs(
 	  // of a function pointer being taken.
 	  if (gsym->source() == Symbol::FROM_OBJECT
               && check_section_for_function_pointers
-              && gsym->type() != elfcpp::STT_OBJECT
+              && dst_obj != NULL
               && (!is_ordinary
                   || scan.global_reloc_may_be_function_pointer(
                        symtab, NULL, NULL, src_obj, src_indx, NULL, reloc,
@@ -328,7 +319,7 @@ gc_process_relocs(
           if (is_icf_tracked)
             {
 	      Address symvalue = dst_off - addend;
-              if (is_ordinary && gsym->source() == Symbol::FROM_OBJECT)
+              if (is_ordinary && dst_obj != NULL)
 		(*secvec).push_back(Section_id(dst_obj, dst_indx));
 	      else
                 (*secvec).push_back(Section_id(NULL, 0));
@@ -340,11 +331,10 @@ gc_process_relocs(
                 convert_to_section_size_type(reloc.get_r_offset());
 	      (*offsetvec).push_back(reloc_offset);
               (*reloc_addend_size_vec).push_back(
-                get_embedded_addend_size<Classify_reloc>(sh_type, r_type,
-                                                         src_obj));
+                get_embedded_addend_size<Classify_reloc>(r_type, src_obj));
 	    }
 
-          if (gsym->source() != Symbol::FROM_OBJECT)
+          if (dst_obj == NULL)
             continue;
           if (!is_ordinary)
             continue;
@@ -353,8 +343,8 @@ gc_process_relocs(
         {
 	  symtab->gc()->add_reference(src_obj, src_indx, dst_obj, dst_indx);
 	  parameters->sized_target<size, big_endian>()
-	    ->gc_add_reference(symtab, src_obj, src_indx,
-			       dst_obj, dst_indx, dst_off);
+	    ->gc_add_reference(symtab, src_obj, src_indx, dst_obj, dst_indx,
+			       dst_off);
           if (cident_section_name != NULL)
             {
               Garbage_collection::Cident_section_map::iterator ele =

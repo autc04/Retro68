@@ -5,8 +5,8 @@ Disassembly of section \.text:
 04400000 <external_function>:
  4400000:	27bdfff8 	addiu	sp,sp,-8
  4400004:	afbe0004 	sw	s8,4\(sp\)
- 4400008:	03a0f021 	move	s8,sp
- 440000c:	03c0e821 	move	sp,s8
+ 4400008:	03a0f025 	move	s8,sp
+ 440000c:	03c0e825 	move	sp,s8
  4400010:	8fbe0004 	lw	s8,4\(sp\)
  4400014:	27bd0008 	addiu	sp,sp,8
  4400018:	03e00008 	jr	ra

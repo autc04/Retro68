@@ -200,7 +200,7 @@ package Opt is
 
    Alternate_Main_Name : String_Ptr := null;
    --  GNATBIND
-   --  Set to non null when Bind_Alternate_Main_Name is True. This value
+   --  Set to non-null when Bind_Alternate_Main_Name is True. This value
    --  is modified as needed by Gnatbind.Scan_Bind_Arg.
 
    ASIS_Mode : Boolean := False;
@@ -421,9 +421,11 @@ package Opt is
 
    subtype Debug_Level_Value is Nat range 0 .. 3;
    Debugger_Level : Debug_Level_Value := 0;
+   --  GNAT, GNATBIND
    --  The value given to the -g parameter. The default value for -g with
-   --  no value is 2. This is not currently used but is retained for possible
-   --  future use.
+   --  no value is 2. If no -g is specified, defaults to 0.
+   --  Note that the generated code should never depend on this variable,
+   --  since we want debug info to be nonintrusive on the generate code.
 
    Default_Exit_Status : Int := 0;
    --  GNATBIND
@@ -571,31 +573,50 @@ package Opt is
    --  currently active.
 
    type Exception_Mechanism_Type is
-   --  Determines the handling of exceptions. See Exp_Ch11 for details
+   --  Determines the kind of mechanism used to handle exceptions
    --
-     (Front_End_Setjmp_Longjmp_Exceptions,
+     (Front_End_SJLJ,
       --  Exceptions use setjmp/longjmp generated explicitly by the front end
       --  (this includes gigi or other equivalent parts of the code generator).
       --  AT END handlers are converted into exception handlers by the front
       --  end in this mode.
 
-      Back_End_Exceptions);
+      Back_End_ZCX,
       --  Exceptions are handled by the back end. The front end simply
       --  generates the handlers as they appear in the source, and AT END
       --  handlers are left untouched (they are not converted into exception
-      --  handlers when operating in this mode.
+      --  handlers when operating in this mode). Propagation is performed
+      --  using a frame unwinding scheme and requires no particular setup code
+      --  at handler sites on regular execution paths.
+
+      Back_End_SJLJ);
+      --  Similar to Back_End_ZCX with respect to the front-end processing
+      --  of regular and AT-END handlers. A setjmp/longjmp scheme is used to
+      --  propagate and setup handler contexts on regular execution paths.
+
    pragma Convention (C, Exception_Mechanism_Type);
 
-   Exception_Mechanism : Exception_Mechanism_Type :=
-                           Front_End_Setjmp_Longjmp_Exceptions;
+   Exception_Mechanism : Exception_Mechanism_Type := Front_End_SJLJ;
    --  GNAT
-   --  Set to the appropriate value depending on the default as given in
-   --  system.ads (ZCX_By_Default). The C convention is there to make this
-   --  variable accessible to gigi.
+   --  Set to the appropriate value depending on the flags in system.ads
+   --  (Frontend_Exceptions + ZCX_By_Default). The C convention is there to
+   --  allow access by gigi.
+
+   function Back_End_Exceptions return Boolean;
+   function Front_End_Exceptions return Boolean;
+   function ZCX_Exceptions return Boolean;
+   function SJLJ_Exceptions return Boolean;
+   --  GNAT
+   --  Various properties of the active Exception_Mechanism
 
    Exception_Tracebacks : Boolean := False;
    --  GNATBIND
-   --  Set to True to store tracebacks in exception occurrences (-E)
+   --  Set to True to store tracebacks in exception occurrences (-Ea or -E)
+
+   Exception_Tracebacks_Symbolic : Boolean := False;
+   --  GNATBIND
+   --  Set to True to store tracebacks in exception occurrences and enable
+   --  symbolic tracebacks (-Es).
 
    Extensions_Allowed : Boolean := False;
    --  GNAT
@@ -694,6 +715,11 @@ package Opt is
    --  the name is of the form .xxx, then to name.xxx where name is the source
    --  file name with extension stripped.
 
+   Generate_C_Code : Boolean := False;
+   --  GNAT
+   --  If True, the Cprint circuitry to generate C code output is activated.
+   --  Set True by use of -gnateg or -gnatd.V.
+
    Generate_CodePeer_Messages : Boolean := False;
    --  GNAT
    --  Generate CodePeer messages. Ignored if CodePeer_Mode is false. This is
@@ -740,9 +766,8 @@ package Opt is
    GNAT_Encodings : Int;
    pragma Import (C, GNAT_Encodings, "gnat_encodings");
    --  Constant controlling the balance between GNAT encodings and standard
-   --  DWARF to emit in the debug information. See jmissing.c and aamissing.c
-   --  for definitions for dotnet/jgnat and GNAAMP back ends. It accepts the
-   --  following values.
+   --  DWARF to emit in the debug information. See aamissing.c for definitions
+   --  for the GNAAMP back end. It accepts the following values.
 
    DWARF_GNAT_Encodings_All     : constant Int := 0;
    DWARF_GNAT_Encodings_GDB     : constant Int := 1;
@@ -814,7 +839,7 @@ package Opt is
    --  be inlined in GNATprove mode.
 
    Init_Or_Norm_Scalars : Boolean := False;
-   --  GNAT, GANTBIND
+   --  GNAT, GNATBIND
    --  Set True if a pragma Initialize_Scalars applies to the current unit.
    --  Also set True if a pragma Restriction (Normalize_Scalars) applies.
 
@@ -1153,14 +1178,13 @@ package Opt is
    Optimization_Level : Int;
    pragma Import (C, Optimization_Level, "optimize");
    --  Constant reflecting the optimization level (0,1,2,3 for -O0,-O1,-O2,-O3)
-   --  See jmissing.c and aamissing.c for definitions for dotnet/jgnat and
-   --  GNAAMP back ends.
+   --  See e.g. aamissing.c for definitions for the GNAAMP back end.
 
    Optimize_Size : Int;
    pragma Import (C, Optimize_Size, "optimize_size");
    --  Constant reflecting setting of -Os (optimize for size). Set to nonzero
-   --  in -Os mode and set to zero otherwise. See jmissing.c and aamissing.c
-   --  for definitions of "optimize_size" for dotnet/jgnat and GNAAMP backends
+   --  in -Os mode and set to zero otherwise. See aamissing.c for definition
+   --  of "optimize_size" for the GNAAMP backend.
 
    Output_File_Name_Present : Boolean := False;
    --  GNATBIND, GNAT, GNATMAKE
@@ -1308,8 +1332,8 @@ package Opt is
 
    Setup_Projects : Boolean := False;
    --  GNAT DRIVER
-   --  Set to True for GNAT SETUP: the Project Manager creates non existing
-   --  object, library and exec directories.
+   --  Set to True for GNAT SETUP: the Project Manager creates nonexistent
+   --  object, library, and exec directories.
 
    Shared_Libgnat : Boolean;
    --  GNATBIND
@@ -1366,7 +1390,7 @@ package Opt is
    Style_Check_Main : Boolean := False;
    --  GNAT
    --  Set True if Style_Check was set for the main unit. This is used to
-   --  renable style checks for units in the mail extended source that get
+   --  enable style checks for units in the main extended source that get
    --  with'ed indirectly. It is set True by use of either the -gnatg or
    --  -gnaty switches, but not by use of the Style_Checks pragma.
 
@@ -1426,8 +1450,7 @@ package Opt is
    --  GNAT
    --  Set True if tagged types and interfaces should be expanded by the
    --  front-end. If False, the original tree is left unexpanded for tagged
-   --  types and dispatching calls, assuming the underlying target supports
-   --  it (e.g. in the JVM case).
+   --  types and dispatching calls, assuming the underlying target supports it.
 
    Target_Dependent_Info_Read_Name : String_Ptr := null;
    --  GNAT
@@ -1872,7 +1895,7 @@ package Opt is
    --  to date version of Ada).
 
    Ada_Version_Pragma_Config : Node_Id;
-   --  This will be set non empty if it is set by a configuration pragma
+   --  This will be set nonempty if it is set by a configuration pragma
 
    Ada_Version_Explicit_Config : Ada_Version_Type;
    --  GNAT
@@ -2049,7 +2072,7 @@ package Opt is
    --  unit. This affects setting of the assert/debug pragma switches, which
    --  are normally set false by default for an internal unit, except when the
    --  internal unit is the main unit, in which case we use the command line
-   --  settings).
+   --  settings.
 
    procedure Restore_Opt_Config_Switches (Save : Config_Switches_Type);
    --  This procedure restores a set of switch values previously saved by a
@@ -2139,7 +2162,7 @@ package Opt is
    ---------------------------
 
    --  The following array would more reasonably be located in Err_Vars or
-   --  Errour, but but we put them here to deal with licensing issues (we need
+   --  Errour, but we put them here to deal with licensing issues (we need
    --  this to have the GPL exception licensing, since these variables and
    --  subprograms are accessed from units with this licensing).
 

@@ -22,7 +22,7 @@ new_foo()
 
 }
 
-SYMVER(new_foo, foo@@VERS_2.0);
+FUNC_SYMVER(new_foo, foo@@VERS_2.0);
 
 int
 main()

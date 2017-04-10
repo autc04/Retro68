@@ -1,5 +1,5 @@
 /* Instruction scheduling pass.  Selective scheduler and pipeliner.
-   Copyright (C) 2006-2015 Free Software Foundation, Inc.
+   Copyright (C) 2006-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,43 +20,26 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
-#include "diagnostic-core.h"
+#include "backend.h"
+#include "cfghooks.h"
+#include "tree.h"
 #include "rtl.h"
+#include "df.h"
 #include "tm_p.h"
-#include "hard-reg-set.h"
-#include "regs.h"
-#include "hashtab.h"
-#include "hash-set.h"
-#include "vec.h"
-#include "machmode.h"
-#include "input.h"
-#include "function.h"
-#include "predict.h"
-#include "dominance.h"
-#include "cfg.h"
 #include "cfgrtl.h"
 #include "cfganal.h"
 #include "cfgbuild.h"
-#include "basic-block.h"
-#include "flags.h"
 #include "insn-config.h"
 #include "insn-attr.h"
-#include "except.h"
 #include "recog.h"
 #include "params.h"
 #include "target.h"
 #include "sched-int.h"
-#include "ggc.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "tree.h"
-#include "langhooks.h"
-#include "rtlhooks-def.h"
 #include "emit-rtl.h"  /* FIXME: Can go away once crtl is moved to rtl.h.  */
 
 #ifdef INSN_SCHEDULING
+#include "regset.h"
+#include "cfgloop.h"
 #include "sel-sched-ir.h"
 /* We don't have to use it except for sel_print_insn.  */
 #include "sel-sched-dump.h"
@@ -70,7 +53,7 @@ vec<sel_region_bb_info_def>
     sel_region_bb_info = vNULL;
 
 /* A pool for allocating all lists.  */
-alloc_pool sched_lists_pool;
+object_allocator<_list_node> sched_lists_pool ("sel-sched-lists");
 
 /* This contains information about successors for compute_av_set.  */
 struct succs_info current_succs;
@@ -965,7 +948,6 @@ return_regset_to_pool (regset rs)
   regset_pool.v[regset_pool.n++] = rs;
 }
 
-#ifdef ENABLE_CHECKING
 /* This is used as a qsort callback for sorting regset pool stacks.
    X and XX are addresses of two regsets.  They are never equal.  */
 static int
@@ -979,44 +961,42 @@ cmp_v_in_regset_pool (const void *x, const void *xx)
     return -1;
   gcc_unreachable ();
 }
-#endif
 
-/*  Free the regset pool possibly checking for memory leaks.  */
+/* Free the regset pool possibly checking for memory leaks.  */
 void
 free_regset_pool (void)
 {
-#ifdef ENABLE_CHECKING
-  {
-    regset *v = regset_pool.v;
-    int i = 0;
-    int n = regset_pool.n;
+  if (flag_checking)
+    {
+      regset *v = regset_pool.v;
+      int i = 0;
+      int n = regset_pool.n;
 
-    regset *vv = regset_pool.vv;
-    int ii = 0;
-    int nn = regset_pool.nn;
+      regset *vv = regset_pool.vv;
+      int ii = 0;
+      int nn = regset_pool.nn;
 
-    int diff = 0;
+      int diff = 0;
 
-    gcc_assert (n <= nn);
+      gcc_assert (n <= nn);
 
-    /* Sort both vectors so it will be possible to compare them.  */
-    qsort (v, n, sizeof (*v), cmp_v_in_regset_pool);
-    qsort (vv, nn, sizeof (*vv), cmp_v_in_regset_pool);
+      /* Sort both vectors so it will be possible to compare them.  */
+      qsort (v, n, sizeof (*v), cmp_v_in_regset_pool);
+      qsort (vv, nn, sizeof (*vv), cmp_v_in_regset_pool);
 
-    while (ii < nn)
-      {
-        if (v[i] == vv[ii])
-          i++;
-        else
-          /* VV[II] was lost.  */
-          diff++;
+      while (ii < nn)
+	{
+	  if (v[i] == vv[ii])
+	    i++;
+	  else
+	    /* VV[II] was lost.  */
+	    diff++;
 
-        ii++;
-      }
+	  ii++;
+	}
 
-    gcc_assert (diff == regset_pool.diff);
-  }
-#endif
+      gcc_assert (diff == regset_pool.diff);
+    }
 
   /* If not true - we have a memory leak.  */
   gcc_assert (regset_pool.diff == 0);
@@ -1891,12 +1871,16 @@ merge_expr (expr_t to, expr_t from, insn_t split_point)
   /* Make sure that speculative pattern is propagated into exprs that
      have non-speculative one.  This will provide us with consistent
      speculative bits and speculative patterns inside expr.  */
-  if ((EXPR_SPEC_DONE_DS (from) != 0
-       && EXPR_SPEC_DONE_DS (to) == 0)
-      /* Do likewise for volatile insns, so that we always retain
-	 the may_trap_p bit on the resulting expression.  */
-      || (VINSN_MAY_TRAP_P (EXPR_VINSN (from))
-	  && !VINSN_MAY_TRAP_P (EXPR_VINSN (to))))
+  if (EXPR_SPEC_DONE_DS (to) == 0
+      && (EXPR_SPEC_DONE_DS (from) != 0
+	  /* Do likewise for volatile insns, so that we always retain
+	     the may_trap_p bit on the resulting expression.  However,
+	     avoid propagating the trapping bit into the instructions
+	     already speculated.  This would result in replacing the
+	     speculative pattern with the non-speculative one and breaking
+	     the speculation support.  */
+	  || (!VINSN_MAY_TRAP_P (EXPR_VINSN (to))
+	      && VINSN_MAY_TRAP_P (EXPR_VINSN (from)))))
     change_vinsn_in_expr (to, EXPR_VINSN (from));
 
   merge_expr_data (to, from, split_point);
@@ -2670,6 +2654,23 @@ maybe_downgrade_id_to_use (idata_t id, insn_t insn)
     IDATA_TYPE (id) = USE;
 }
 
+/* Setup implicit register clobbers calculated by sched-deps for INSN
+   before reload and save them in ID.  */
+static void
+setup_id_implicit_regs (idata_t id, insn_t insn)
+{
+  if (reload_completed)
+    return;
+
+  HARD_REG_SET temp;
+  unsigned regno;
+  hard_reg_set_iterator hrsi;
+
+  get_implicit_reg_pending_clobbers (&temp, insn);
+  EXECUTE_IF_SET_IN_HARD_REG_SET (temp, 0, regno, hrsi)
+    SET_REGNO_REG_SET (IDATA_REG_SETS (id), regno);
+}
+
 /* Setup register sets describing INSN in ID.  */
 static void
 setup_id_reg_sets (idata_t id, insn_t insn)
@@ -2724,6 +2725,9 @@ setup_id_reg_sets (idata_t id, insn_t insn)
 	}
     }
 
+  /* Also get implicit reg clobbers from sched-deps.  */
+  setup_id_implicit_regs (id, insn);
+
   return_regset_to_pool (tmp);
 }
 
@@ -2755,20 +2759,18 @@ deps_init_id (idata_t id, insn_t insn, bool force_unique_p)
   deps_init_id_data.force_use_p = false;
 
   init_deps (dc, false);
-
   memcpy (&deps_init_id_sched_deps_info,
 	  &const_deps_init_id_sched_deps_info,
 	  sizeof (deps_init_id_sched_deps_info));
-
   if (spec_info != NULL)
     deps_init_id_sched_deps_info.generate_spec_deps = 1;
-
   sched_deps_info = &deps_init_id_sched_deps_info;
 
   deps_analyze_insn (dc, insn);
+  /* Implicit reg clobbers received from sched-deps separately.  */
+  setup_id_implicit_regs (id, insn);
 
   free_deps (dc);
-
   deps_init_id_data.id = NULL;
 }
 
@@ -3634,7 +3636,6 @@ insn_is_the_only_one_in_bb_p (insn_t insn)
   return sel_bb_head_p (insn) && sel_bb_end_p (insn);
 }
 
-#ifdef ENABLE_CHECKING
 /* Check that the region we're scheduling still has at most one
    backedge.  */
 static void
@@ -3655,7 +3656,6 @@ verify_backedges (void)
       gcc_assert (n <= 1);
     }
 }
-#endif
 
 
 /* Functions to work with control flow.  */
@@ -3900,10 +3900,12 @@ tidy_control_flow (basic_block xbb, bool full_tidying)
 	sel_recompute_toporder ();
     }
 
-#ifdef ENABLE_CHECKING
-  verify_backedges ();
-  verify_dominators (CDI_DOMINATORS);
-#endif
+  /* TODO: use separate flag for CFG checking.  */
+  if (flag_checking)
+    {
+      verify_backedges ();
+      verify_dominators (CDI_DOMINATORS);
+    }
 
   return changed;
 }
@@ -4104,11 +4106,14 @@ get_seqno_by_preds (rtx_insn *insn)
   insn_t *preds;
   int n, i, seqno;
 
-  while (tmp != head)
+  /* Loop backwards from INSN to HEAD including both.  */
+  while (1)
     {
-      tmp = PREV_INSN (tmp);
       if (INSN_P (tmp))
-        return INSN_SEQNO (tmp);
+	return INSN_SEQNO (tmp);
+      if (tmp == head)
+	break;
+      tmp = PREV_INSN (tmp);
     }
 
   cfg_preds (bb, &preds, &n);
@@ -4422,51 +4427,17 @@ free_data_sets (basic_block bb)
   free_av_set (bb);
 }
 
-/* Exchange lv sets of TO and FROM.  */
-static void
-exchange_lv_sets (basic_block to, basic_block from)
-{
-  {
-    regset to_lv_set = BB_LV_SET (to);
-
-    BB_LV_SET (to) = BB_LV_SET (from);
-    BB_LV_SET (from) = to_lv_set;
-  }
-
-  {
-    bool to_lv_set_valid_p = BB_LV_SET_VALID_P (to);
-
-    BB_LV_SET_VALID_P (to) = BB_LV_SET_VALID_P (from);
-    BB_LV_SET_VALID_P (from) = to_lv_set_valid_p;
-  }
-}
-
-
-/* Exchange av sets of TO and FROM.  */
-static void
-exchange_av_sets (basic_block to, basic_block from)
-{
-  {
-    av_set_t to_av_set = BB_AV_SET (to);
-
-    BB_AV_SET (to) = BB_AV_SET (from);
-    BB_AV_SET (from) = to_av_set;
-  }
-
-  {
-    int to_av_level = BB_AV_LEVEL (to);
-
-    BB_AV_LEVEL (to) = BB_AV_LEVEL (from);
-    BB_AV_LEVEL (from) = to_av_level;
-  }
-}
-
 /* Exchange data sets of TO and FROM.  */
 void
 exchange_data_sets (basic_block to, basic_block from)
 {
-  exchange_lv_sets (to, from);
-  exchange_av_sets (to, from);
+  /* Exchange lv sets of TO and FROM.  */
+  std::swap (BB_LV_SET (from), BB_LV_SET (to));
+  std::swap (BB_LV_SET_VALID_P (from), BB_LV_SET_VALID_P (to));
+
+  /* Exchange av sets of TO and FROM.  */
+  std::swap (BB_AV_SET (from), BB_AV_SET (to));
+  std::swap (BB_AV_LEVEL (from), BB_AV_LEVEL (to));
 }
 
 /* Copy data sets of FROM to TO.  */
@@ -4562,9 +4533,7 @@ sel_bb_head (basic_block bb)
     }
   else
     {
-      insn_t note;
-
-      note = bb_note (bb);
+      rtx_note *note = bb_note (bb);
       head = next_nonnote_insn (note);
 
       if (head && (BARRIER_P (head) || BLOCK_FOR_INSN (head) != bb))
@@ -4985,7 +4954,7 @@ clear_outdated_rtx_info (basic_block bb)
 static void
 return_bb_to_pool (basic_block bb)
 {
-  rtx note = bb_note (bb);
+  rtx_note *note = bb_note (bb);
 
   gcc_assert (NOTE_BASIC_BLOCK (note) == bb
 	      && bb->aux == NULL);
@@ -5030,9 +4999,6 @@ alloc_sched_pools (void)
   succs_info_pool.size = succs_size;
   succs_info_pool.top = -1;
   succs_info_pool.max_top = -1;
-
-  sched_lists_pool = create_alloc_pool ("sel-sched-lists",
-                                        sizeof (struct _list_node), 500);
 }
 
 /* Free the pools.  */
@@ -5041,7 +5007,7 @@ free_sched_pools (void)
 {
   int i;
 
-  free_alloc_pool (sched_lists_pool);
+  sched_lists_pool.release ();
   gcc_assert (succs_info_pool.top == -1);
   for (i = 0; i <= succs_info_pool.max_top; i++)
     {
