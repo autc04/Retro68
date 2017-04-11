@@ -20,10 +20,10 @@ along with GCC; see the file COPYING3.  If not see
 __inline
 #endif
 static unsigned int hash (const char *, unsigned int);
-#ifdef __GNUC__
+/*#ifdef __GNUC__
 __inline
 #endif
-const char * libc_name_p (const char *, unsigned int);
+const char * libc_name_p (const char *, unsigned int);*/
 %}
 %%
 # The standard C library functions, for feeding to gperf; the result is used
