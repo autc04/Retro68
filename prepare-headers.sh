@@ -33,6 +33,10 @@ for file in $(cd $IN; ls *.h); do
 		ddrt.h|fp.h)
 			USE=true
 			;;
+			# newlib does not provide fenv.h, so use Apple's
+		fenv.h)
+			USE=true
+			;;
 
 			# veclib headers
 		v*.h)
